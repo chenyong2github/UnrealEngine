@@ -7,7 +7,6 @@ using EpicGames.Core;
 using EpicGames.Horde;
 using EpicGames.Serialization;
 using Horde.Server.Utilities;
-using OpenTracing;
 
 namespace Horde.Server.Streams
 {
@@ -45,17 +44,5 @@ namespace Horde.Server.Streams
 
 		/// <inheritdoc/>
 		public override StringId ToStringId(TemplateId value) => value.Id;
-	}
-
-	/// <summary>
-	/// Extension methods for stream id values
-	/// </summary>
-	public static class TemplateIdExtensions
-	{
-		/// <inheritdoc cref="ISpan.SetTag(System.String, System.String)"/>
-		public static ISpan SetTag(this ISpan span, string key, TemplateId value) => span.SetTag(key, value.Id.ToString());
-
-		/// <inheritdoc cref="ISpan.SetTag(System.String, System.String)"/>
-		public static ISpan SetTag(this ISpan span, string key, TemplateId[]? values) => span.SetTag(key, (values != null)? String.Join(',', values.Select(x => x.Id.ToString())) : null);
 	}
 }

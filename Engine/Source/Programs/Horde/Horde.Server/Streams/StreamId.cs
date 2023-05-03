@@ -5,7 +5,6 @@ using EpicGames.Core;
 using EpicGames.Horde;
 using EpicGames.Serialization;
 using Horde.Server.Utilities;
-using OpenTracing;
 
 namespace Horde.Server.Streams
 {
@@ -43,17 +42,5 @@ namespace Horde.Server.Streams
 
 		/// <inheritdoc/>
 		public override StringId ToStringId(StreamId value) => value.Id;
-	}
-
-	/// <summary>
-	/// Extension methods for stream id values
-	/// </summary>
-	public static class StreamIdExtensions
-	{
-		/// <inheritdoc cref="ISpan.SetTag(System.String, System.String)"/>
-		public static ISpan SetTag(this ISpan span, string key, StreamId value) => span.SetTag(key, value.Id.ToString());
-
-		/// <inheritdoc cref="ISpan.SetTag(System.String, System.String)"/>
-		public static ISpan SetTag(this ISpan span, string key, StreamId? value) => span.SetTag(key, value.HasValue ? value.Value.ToString() : null);
 	}
 }

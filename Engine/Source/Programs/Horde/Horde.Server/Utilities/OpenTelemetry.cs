@@ -19,7 +19,6 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using OpenTracing;
 using Serilog.Core;
 
 namespace Horde.Server.Utilities;
@@ -294,13 +293,13 @@ public static class OpenTelemetrySpanExtensions
 		return span;
 	}
 	
-	/// <inheritdoc cref="ISpan.SetTag(System.String, System.String)"/>
+	/// <inheritdoc cref="TelemetrySpan.SetAttribute(System.String, System.String)"/>
 	public static TelemetrySpan SetAttribute(this TelemetrySpan span, string key, StreamId? value) => span.SetAttribute(key, value?.ToString());
 	
-	/// <inheritdoc cref="ISpan.SetTag(System.String, System.String)"/>
+	/// <inheritdoc cref="TelemetrySpan.SetAttribute(System.String, System.String)"/>
 	public static TelemetrySpan SetAttribute(this TelemetrySpan span, string key, TemplateId? value) => span.SetAttribute(key, value?.ToString());
 	
-	/// <inheritdoc cref="ISpan.SetTag(System.String, System.String)"/>
+	/// <inheritdoc cref="TelemetrySpan.SetAttribute(System.String, System.String)"/>
 	public static TelemetrySpan SetAttribute(this TelemetrySpan span, string key, TemplateId[]? values) => span.SetAttribute(key, values != null ? String.Join(',', values.Select(x => x.Id.ToString())) : null);
 
 	/// <summary>
