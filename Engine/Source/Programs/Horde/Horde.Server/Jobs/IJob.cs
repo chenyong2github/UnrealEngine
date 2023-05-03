@@ -1021,6 +1021,32 @@ namespace Horde.Server.Jobs
 		}
 
 		/// <summary>
+		/// Find the latest step executing the given node
+		/// </summary>
+		/// <param name="job">The job being run</param>
+		/// <param name="nodeRef">Node to find</param>
+		/// <returns>The retried step information</returns>
+		public static JobStepRefId? FindLatestStepForNode(this IJob job, NodeRef nodeRef)
+		{
+			for (int batchIdx = job.Batches.Count - 1; batchIdx >= 0; batchIdx--)
+			{
+				IJobStepBatch batch = job.Batches[batchIdx];
+				if (batch.GroupIdx == nodeRef.GroupIdx)
+				{
+					for (int stepIdx = batch.Steps.Count - 1; stepIdx >= 0; stepIdx--)
+					{
+						IJobStep step = batch.Steps[stepIdx];
+						if (step.NodeIdx == nodeRef.NodeIdx)
+						{
+							return new JobStepRefId(job.Id, batch.Id, step.Id);
+						}
+					}
+				}
+			}
+			return null;
+		}
+
+		/// <summary>
 		/// Gets the estimated timing info for all nodes in the job
 		/// </summary>
 		/// <param name="job">The job document</param>

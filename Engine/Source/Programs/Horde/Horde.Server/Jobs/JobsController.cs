@@ -1239,6 +1239,12 @@ namespace Horde.Server.Jobs
 
 			try
 			{
+				NodeRef? retryNodeRef = null;
+				if (request.Retry != null && job.TryGetStep(stepId, out IJobStepBatch? batch, out IJobStep? step))
+				{
+					retryNodeRef = new NodeRef(batch.GroupIdx, step.NodeIdx);
+				}
+
 				IJob? newJob = await _jobService.UpdateStepAsync(job, batchId, stepId, streamConfig, request.State, request.Outcome, null, request.AbortRequested, abortByUser, (request.LogId == null)? null : LogId.Parse(request.LogId), null, retryByUser, request.Priority, null, request.Properties);
 				if (newJob == null)
 				{
@@ -1246,9 +1252,9 @@ namespace Horde.Server.Jobs
 				}
 
 				UpdateStepResponse response = new UpdateStepResponse();
-				if (request.Retry ?? false)
+				if (retryNodeRef != null)
 				{
-					JobStepRefId? retriedStepId = FindRetriedStep(job, batchId, stepId);
+					JobStepRefId? retriedStepId = newJob.FindLatestStepForNode(retryNodeRef);
 					if (retriedStepId != null)
 					{
 						response.BatchId = retriedStepId.Value.BatchId.ToString();
@@ -1261,36 +1267,6 @@ namespace Horde.Server.Jobs
 			{
 				return BadRequest(ex.Message);
 			}
-		}
-
-		/// <summary>
-		/// Find the first retried step after the given step
-		/// </summary>
-		/// <param name="job">The job being run</param>
-		/// <param name="batchId">Batch id of the last step instance</param>
-		/// <param name="stepId">Step id of the last instance</param>
-		/// <returns>The retried step information</returns>
-		static JobStepRefId? FindRetriedStep(IJob job, SubResourceId batchId, SubResourceId stepId)
-		{
-			NodeRef? lastNodeRef = null;
-			foreach (IJobStepBatch batch in job.Batches)
-			{
-				if ((lastNodeRef == null && batch.Id == batchId) || (lastNodeRef != null && batch.GroupIdx == lastNodeRef.GroupIdx))
-				{
-					foreach (IJobStep step in batch.Steps)
-					{
-						if (lastNodeRef == null && step.Id == stepId)
-						{
-							lastNodeRef = new NodeRef(batch.GroupIdx, step.NodeIdx);
-						}
-						else if (lastNodeRef != null && step.NodeIdx == lastNodeRef.NodeIdx)
-						{
-							return new JobStepRefId(job.Id, batch.Id, step.Id);
-						}
-					}
-				}
-			}
-			return null;
 		}
 
 		/// <summary>
