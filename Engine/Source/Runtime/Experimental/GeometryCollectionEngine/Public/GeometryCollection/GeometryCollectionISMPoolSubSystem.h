@@ -29,5 +29,6 @@ public:
 protected:
 
 	/** for now we only use one ISMPool actor per world, but we could extend the system to manage many more and return the right one based on  search criteria */
+	UPROPERTY(Transient)
 	TObjectPtr<AGeometryCollectionISMPoolActor> ISMPoolActor;
 };
