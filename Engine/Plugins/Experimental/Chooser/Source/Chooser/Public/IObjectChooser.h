@@ -51,7 +51,7 @@ struct CHOOSER_API FObjectChooserBase
 public:
 	virtual ~FObjectChooserBase() {}
 
-	enum class EIteratorStatus { Continue,Stop };
+	enum class EIteratorStatus { Continue, ContinueWithOutputs, Stop };
 
 	DECLARE_DELEGATE_RetVal_OneParam( EIteratorStatus, FObjectChooserIteratorCallback, UObject*);
 
