@@ -20,7 +20,8 @@ FSMInstanceElementIdMapEntry::FSMInstanceElementIdMapEntry(FSMInstanceElementIdM
 	checkf(Component, TEXT("FSMInstanceElementIdMapEntry must be constructed with a valid component!"));
 
 #if WITH_EDITORONLY_DATA
-	Transactor = NewObject<USMInstanceElementIdMapTransactor>(GetTransientPackage(), NAME_None, RF_Transient | RF_Transactional);
+	Transactor = NewObject<USMInstanceElementIdMapTransactor>(GetTransientPackage(), NAME_None, RF_Transient);
+	Transactor->SetFlags(RF_Transactional);
 	Transactor->SetOwnerEntry(this);
 #endif	// WITH_EDITORONLY_DATA
 }
