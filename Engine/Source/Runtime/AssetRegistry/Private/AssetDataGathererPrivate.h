@@ -577,7 +577,7 @@ class FAssetDataDiscovery : public FRunnable
 {
 public:
 	FAssetDataDiscovery(const TArray<FString>& InLongPackageNamesDenyList,
-		const TArray<FString>& InMountRelativePathsDenyList, bool bInIsSynchronous);
+		const TArray<FString>& InMountRelativePathsDenyList, bool bInAsyncEnabled);
 	virtual ~FAssetDataDiscovery();
 
 
@@ -594,6 +594,8 @@ public:
 
 	/** Signals to end the thread and waits for it to close before returning */
 	void EnsureCompletion();
+
+	bool IsSynchronous() const;
 
 	// Receiving Results and reading properties (possibly while tick is running)
 	/** Gets search results from the file discovery. */
@@ -723,8 +725,11 @@ private:
 	TSet<FString> DirLongPackageNamesToNotReport;
 	/** Thread to run the discovery FRunnable on. Read-only while threading is possible. */
 	FRunnableThread* Thread;
-	/** True if this gather request is synchronous (i.e, IsRunningCommandlet()). */
-	bool bIsSynchronous;
+	/**
+	 * True if async discovery is enabled, false if e.g. singlethreaded or disabled by commandline.
+	 * Even when enabled, discovery is still synchronous until StartAsync is called.
+	 */
+	bool bAsyncEnabled;
 
 
 	// Variable section for variables that are atomics read/writable from outside critical sections.

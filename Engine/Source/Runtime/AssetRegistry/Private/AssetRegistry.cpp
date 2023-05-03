@@ -798,7 +798,7 @@ void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
 	if (ShouldSearchAllAssetsAtStart())
 	{
 		ConstructGatherer();
-		if (!GlobalGatherer->IsSynchronous())
+		if (GlobalGatherer->IsAsyncEnabled())
 		{
 			SearchAllAssetsInitialAsync(Context.Events, Context.InheritanceContext);
 		}
@@ -1521,8 +1521,8 @@ void FAssetRegistryImpl::ConstructGatherer()
 		EngineIni->GetArray(TEXT("AssetRegistry"), TEXT("BlacklistContentSubPathScanFilters"), ContentSubPathsDenyList);
 	}
 
-	bool bIsSynchronous = IsRunningGame();
-	GlobalGatherer = MakeUnique<FAssetDataGatherer>(PathsDenyList, ContentSubPathsDenyList, bIsSynchronous);
+	bool bAsyncGatherEnabled = !IsRunningGame();
+	GlobalGatherer = MakeUnique<FAssetDataGatherer>(PathsDenyList, ContentSubPathsDenyList, bAsyncGatherEnabled);
 
 	// Read script packages if all initial plugins have been loaded, otherwise do nothing; we wait for the callback.
 	ELoadingPhase::Type LoadingPhase = IPluginManager::Get().GetLastCompletedLoadingPhase();
@@ -1593,7 +1593,7 @@ void FAssetRegistryImpl::SearchAllAssets(Impl::FEventContext& EventContext,
 {
 	ConstructGatherer();
 	FAssetDataGatherer& Gatherer = *GlobalGatherer;
-	if (Gatherer.IsSynchronous())
+	if (!Gatherer.IsAsyncEnabled())
 	{
 		UE_CLOG(!bSynchronousSearch, LogAssetRegistry, Warning, TEXT("SearchAllAssets: Gatherer is in synchronous mode; forcing bSynchronousSearch=true."));
 		bSynchronousSearch = true;

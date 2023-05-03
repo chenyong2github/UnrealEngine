@@ -59,7 +59,7 @@ class FAssetDataGatherer : public FRunnable
 {
 public:
 	FAssetDataGatherer(const TArray<FString>& InLongPackageNamesDenyList,
-		const TArray<FString>& InMountRelativePathsDenyList, bool bInIsSynchronous);
+		const TArray<FString>& InMountRelativePathsDenyList, bool bInAsyncEnabled);
 	virtual ~FAssetDataGatherer();
 
 
@@ -80,6 +80,7 @@ public:
 	virtual void Stop() override;
 	virtual void Exit() override;
 
+	bool IsAsyncEnabled() const;
 	bool IsSynchronous() const;
 	/** Signals to end the thread and waits for it to close before returning */
 	void EnsureCompletion();
@@ -232,7 +233,7 @@ private:
 	 * Helper function to run the tick in a loop-within-a-loop to minimize critical section entry, and to move expensive
 	 * operations out of the critical section
 	 */
-	void InnerTickLoop(bool bInIsSynchronousTick, bool bContributeToCacheSave);
+	void InnerTickLoop(bool bInSynchronousTick, bool bContributeToCacheSave);
 	/**
 	 * Tick function to pump scanning and push results into the search results structure. May be called from devoted
 	 * thread or inline from synchronous functions on other threads.
@@ -341,13 +342,17 @@ private:
 
 	// Variable section for variables that are constant during threading.
 
-	/** Thread to run async Ticks on. Constant during threading. */
+	/**
+	 * Thread to run async Ticks on. Constant during threading.
+	 * Activated when StartAsync is called and bAsyncEnabled is true.
+	 * If null, results will only be added when Wait functions are called. Constant during threading.
+	 */
 	FRunnableThread* Thread;
 	/**
-	 * True if this Gatherer is synchronous, false if it has a worker thread. If synchronous, results will only be
-	 * added when Wait functions are called. Constant during threading.
+	 * True if async gathering is enabled, false if e.g. singlethreaded or disabled by commandline.
+ 	 * Even when enabled, gathering is still synchronous until StartAsync is called.
 	 */
-	bool bIsSynchronous;
+	bool bAsyncEnabled;
 	/** True if AssetPackageData should be gathered. Constant during threading. */
 	bool bGatherAssetPackageData;
 	/** True if dependency data should be gathered. Constant during threading. */
@@ -462,10 +467,10 @@ private:
 	 */
 	int32 CacheInUseCount;
 	/**
-	 * True if the current TickInternal is synchronous, which may be because bIsSynchronous or because the game thread has
+	 * True if the current TickInternal is synchronous, which may be because !IsSynchronous or because the game thread has
 	 * taken over the tick for a synchronous function.
 	 */
-	bool bIsSynchronousTick;
+	bool bSynchronousTick;
 	/** True when a thread is saving an async cache and so another save of the cache should not be triggered. */
 	bool bIsSavingAsyncCache;
 	/** Packages can be marked for retry up until bInitialPluginsLoaded is set. After it is set, we retry them once. */
