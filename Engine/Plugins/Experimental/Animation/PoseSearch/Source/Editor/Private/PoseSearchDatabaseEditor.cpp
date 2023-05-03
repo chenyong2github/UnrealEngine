@@ -123,7 +123,7 @@ namespace UE::PoseSearch
 				new FDatabasePreviewScene(
 					FPreviewScene::ConstructionValues()
 					.AllowAudioPlayback(true)
-					.ShouldSimulatePhysics(true)
+					.ShouldSimulatePhysics(false)
 					.ForceUseMovementComponentInNonGameWorld(true),
 					StaticCastSharedRef<FDatabaseEditor>(AsShared())));
 
