@@ -20,9 +20,6 @@
 #include "Misc/App.h"
 #include "Misc/Fork.h"
 
-#if PLATFORM_SWITCH
-#include "SwitchPlatformCrashContext.h"
-#endif
 // When enabled, the heart beat thread will call abort() when a hang
 // is detected, rather than performing stack back-traces and logging.
 #define MINIMAL_FATAL_HANG_DETECTION	(PLATFORM_USE_MINIMAL_HANG_DETECTION && 1)
@@ -174,9 +171,6 @@ void FORCENOINLINE FThreadHeartBeat::OnPresentHang(double HangDuration)
 
 	LastHungThreadId = FThreadHeartBeat::PresentThreadId;
 	FGenericCrashContext::SetEngineData(TEXT("HungThread"), TEXT("Present"));
-#if PLATFORM_SWITCH
-	FPlatformCrashContext::UpdateDynamicData();
-#endif
 
 	// We want to avoid all memory allocations if a hang is detected.
 	// Force a crash in a way that will generate a crash report.
@@ -200,9 +194,6 @@ void FORCENOINLINE FThreadHeartBeat::OnHang(double HangDuration, uint32 ThreadTh
 
 	LastHungThreadId = ThreadThatHung;
 	FGenericCrashContext::SetEngineData(TEXT("HungThread"), LexToString(ThreadThatHung));
-#if PLATFORM_SWITCH
-	FPlatformCrashContext::UpdateDynamicData();
-#endif
 
 #if !UE_BUILD_SHIPPING
 	// Delegate implementation will be called from the hang detector thread and not from the hung thread
@@ -721,9 +712,7 @@ uint32 FThreadHeartBeat::CheckCheckpointHeartBeat(double& OutHangDuration)
 						HeartBeatInfo.LastHangTime = CurrentTime;
 						OutHangDuration = HeartBeatInfo.HangDuration;
 						LastHungThreadId = FPlatformTLS::GetCurrentThreadId();
-#if PLATFORM_SWITCH
-						FPlatformCrashContext::UpdateDynamicData();
-#endif
+
 						*((uint32*)3) = 0xe0000001;
 
 						return 0;
