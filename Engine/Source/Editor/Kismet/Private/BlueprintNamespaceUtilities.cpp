@@ -163,14 +163,15 @@ FString FBlueprintNamespaceUtilities::GetObjectNamespace(const FSoftObjectPath& 
 		return GetObjectNamespace(Object);
 	}
 
+	const bool bIncludeOnlyOnDiskAssets = true; // The resolve object failed so we know it isn't in memory
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(InObjectPath);
+	FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(InObjectPath, bIncludeOnlyOnDiskAssets);
 	if (!AssetData.IsValid())
 	{
 		FString ObjectPathAsString = InObjectPath.ToString();
 		if (ObjectPathAsString.RemoveFromEnd(TEXT("_C")))
 		{
-			AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPathAsString));
+			AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(FSoftObjectPath(ObjectPathAsString), bIncludeOnlyOnDiskAssets);
 		}
 	}
 
