@@ -8,9 +8,7 @@
 #include "LearningFeatureObject.h"
 #include "LearningLog.h"
 
-#include "EngineDefines.h"
-
-ULearningAgentsController::ULearningAgentsController() : ULearningAgentsManagerComponent() {}
+ULearningAgentsController::ULearningAgentsController(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
 ULearningAgentsController::ULearningAgentsController(FVTableHelper& Helper) : ULearningAgentsController() {}
 ULearningAgentsController::~ULearningAgentsController() {}
 
@@ -19,7 +17,7 @@ void ULearningAgentsController::SetActions_Implementation(const TArray<int32>& A
 	// Can be overridden to get actions without blueprints
 }
 
-void ULearningAgentsController::SetupController(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor)
+void ULearningAgentsController::SetupController(ULearningAgentsInteractor* InInteractor)
 {
 	if (IsSetup())
 	{
@@ -27,20 +25,11 @@ void ULearningAgentsController::SetupController(ALearningAgentsManager* InAgentM
 		return;
 	}
 
-	if (!InAgentManager)
+	if (!Manager)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: InAgentManager is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *GetName());
 		return;
 	}
-
-	if (!InAgentManager->IsManagerSetup())
-	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's SetupManager must be run before it can be used."), *GetName(), *InAgentManager->GetName());
-		return;
-	}
-
-	// This manager is not referenced in this class but we need it in blueprints to call GetAgent()
-	AgentManager = InAgentManager;
 
 	if (!InInteractor)
 	{
@@ -69,17 +58,71 @@ void ULearningAgentsController::EncodeActions()
 		return;
 	}
 
-	SetActions(AddedAgentIds);
+	const TLearningArrayView<1, uint64> ActionEncodingAgentIteration = Interactor->GetActionEncodingAgentIteration();
 
-	Interactor->GetActionFeature().Encode(AddedAgentSet);
+	// Run Set Actions Callback
 
-#if ENABLE_VISUAL_LOG
+	SetActions(Manager->GetAllAgentIds());
+
+	// Check that all actions have had their setter run
+
+	ValidAgentStatus.SetNumUninitialized(Manager->GetMaxAgentNum());
+	ValidAgentStatus.SetRange(0, Manager->GetMaxAgentNum(), true);
+
+	for (ULearningAgentsAction* ActionObject : Interactor->GetActionObjects())
+	{
+		for (const int32 AgentId : Manager->GetAllAgentSet())
+		{
+			if (ActionObject->AgentSetIteration[AgentId] == ActionEncodingAgentIteration[AgentId])
+			{
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have actions encoded."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->AgentSetIteration[AgentId], ActionEncodingAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+
+			if (ActionObject->AgentSetIteration[AgentId] > ActionEncodingAgentIteration[AgentId] + 1)
+			{
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have actions encoded."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->AgentSetIteration[AgentId], ActionEncodingAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+
+			if (ActionObject->AgentSetIteration[AgentId] != ActionEncodingAgentIteration[AgentId] + 1)
+			{
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have actions encoded."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->AgentSetIteration[AgentId], ActionEncodingAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+		}
+	}
+
+	ValidAgentIds.Empty(Manager->GetAgentNum());
+
+	for (const int32 AgentId : Manager->GetAllAgentSet())
+	{
+		if (ValidAgentStatus[AgentId]) { ValidAgentIds.Add(AgentId); }
+	}
+
+	ValidAgentSet = ValidAgentIds;
+	ValidAgentSet.TryMakeSlice();
+
+	// Encode Actions
+
+	Interactor->GetActionFeature().Encode(ValidAgentSet);
+
+	// Increment Action Encoding Iteration
+
+	for (const int32 AgentId : ValidAgentSet)
+	{
+		ActionEncodingAgentIteration[AgentId]++;
+	}
+
+	// Visual Logger
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	for (const ULearningAgentsAction* ActionObject : Interactor->GetActionObjects())
 	{
-		if (ActionObject)
-		{
-			ActionObject->VisualLog(AddedAgentSet);
-		}
+		ActionObject->VisualLog(ValidAgentSet);
 	}
 #endif
 }

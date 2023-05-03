@@ -33,8 +33,7 @@ namespace UE::Learning
 		LEARNINGTRAINING_API ETrainerResponse SendStop(
 			TLearningArrayView<1, volatile int32> Controls);
 
-		LEARNINGTRAINING_API ETrainerResponse SendContinue(
-			TLearningArrayView<1, volatile int32> Controls);
+		LEARNINGTRAINING_API bool HasPolicyOrCompleted(TLearningArrayView<1, volatile int32> Controls);
 
 		LEARNINGTRAINING_API ETrainerResponse SendPolicy(
 			TLearningArrayView<1, volatile int32> Controls,

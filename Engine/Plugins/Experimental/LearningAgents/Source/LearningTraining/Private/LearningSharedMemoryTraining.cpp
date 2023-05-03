@@ -20,7 +20,6 @@ namespace UE::Learning::SharedMemoryTraining
 		CriticSignal = 4,
 		CompleteSignal = 5,
 		StopSignal = 6,
-		ContinueSignal = 7,
 
 		ControlNum = 8,
 	};
@@ -36,10 +35,9 @@ namespace UE::Learning::SharedMemoryTraining
 		return ETrainerResponse::Success;
 	}
 
-	ETrainerResponse SendContinue(TLearningArrayView<1, volatile int32> Controls)
+	bool HasPolicyOrCompleted(TLearningArrayView<1, volatile int32> Controls)
 	{
-		Controls[(uint8)EControls::ContinueSignal] = true;
-		return ETrainerResponse::Success;
+		return Controls[(uint8)EControls::PolicySignal] || Controls[(uint8)EControls::CompleteSignal];
 	}
 
 	ETrainerResponse RecvPolicy(

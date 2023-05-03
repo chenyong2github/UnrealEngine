@@ -22,12 +22,12 @@ namespace UE::Learning
 class ULearningAgentsManagerComponent;
 
 /**
-* The agent manager is responsible for tracking which game objects are agents. It's the central class around which
-* most of Learning Agents is built.
-*
-* If you have multiple different types of objects you want controlled by Learning Agents, you should consider creating
-* one agent manager per object type, rather than trying to share an agent manager.
-*/
+ * The agent manager is responsible for tracking which game objects are agents. It's the central class around which
+ * most of Learning Agents is built.
+ *
+ * If you have multiple different types of objects you want controlled by Learning Agents, you should consider creating
+ * one agent manager per object type, rather than trying to share an agent manager.
+ */
 UCLASS(Abstract, BlueprintType, Blueprintable)
 class LEARNINGAGENTS_API ALearningAgentsManager : public AActor
 {
@@ -36,33 +36,23 @@ class LEARNINGAGENTS_API ALearningAgentsManager : public AActor
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ALearningAgentsManager();
+	ALearningAgentsManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	ALearningAgentsManager(FVTableHelper& Helper);
 	virtual ~ALearningAgentsManager();
 
-	/** Sets up the agent ids so that agents can be added prior to calling SetupManager. */
 	virtual void PostInitProperties() override;
-
-// ----- Setup -----
-public:
-
-	/** Initializes this object and runs the setup events for observations and actions. */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupManager();
-
-	/** Returns true if SetupManager has been run successfully; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool IsManagerSetup() const;
-
-	/** Returns the maximum number of agents that this manager is configured to handle. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	int32 GetMaxInstanceNum() const;
 
 // ----- Agent Management -----
 public:
 
+	/** Returns the maximum number of agents that this manager is configured to handle. */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	int32 GetMaxAgentNum() const;
+
+public:
+
 	/**
-	 * Adds the given object as an agent to this manager. This can be called before or after SetupManager.
+	 * Adds the given object as an agent to the manager.
 	 * @param Agent The object to be added.
 	 * @return The agent's newly assigned id.
 	 */
@@ -70,36 +60,54 @@ public:
 	int32 AddAgent(UObject* Agent);
 
 	/**
-	 * Called whenever a new agent is added to this manager. By default, this will add the agent to each of this
-	 * manager's agent components, but you can override this event if you have custom logic. For example, maybe some of
-	 * the agents are inference agents only and should not be added to the trainer component. 
-	 * @param AgentId The agent's newly assigned id.
+	 * Adds the given objects as an agents to the manager.
+	 * @param OutAgentIds The output newly assigned agent ids
+	 * @param InAgents The objects to be added.
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
-	void OnAgentAdded(const int32 AgentId);
-	
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void AddAgents(TArray<int32>& OutAgentIds, const TArray<UObject*>& InAgents);
+
+public:
+
 	/**
-	 * Removes the agent with the given id from this manager.
+	 * Removes the agent with the given id from the manager.
 	 * @param AgentId The id of the agent to remove.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
-	void RemoveAgentById(const int32 AgentId);
+	void RemoveAgent(const int32 AgentId);
 
 	/**
-	* Removes the given agent from this manager. Use RemoveAgentById if you have the id available as this function
-	* must do a linear search to find the agent.
-	* @param Agent The agent to be removed.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void RemoveAgent(UObject* Agent);
-
-	/**
-	 * Called whenever an agent is removed from this manager. By default, this will remove the agent from each of
-	 * this manager's agent components, but you can override this event if you have additional logic. 
-	 * @param AgentId The removed agent's id.
+	 * Removes the agents with the given ids from the manager.
+	 * @param AgentIds The ids of the agents to remove.
 	 */
-	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
-	void OnAgentRemoved(const int32 AgentId);
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void RemoveAgents(const TArray<int32>& AgentIds);
+
+	/** Removes all agents from the manager. */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void RemoveAllAgents();
+
+public:
+
+	/**
+	 * Resets the agent with the given id on the manager. Used to tell components to reset any state associated with this agent.
+	 * @param AgentId The id of the agent to reset.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void ResetAgent(const int32 AgentId);
+
+	/**
+	 * Resets the agents with the given ids on the manager. Used to tell components to reset any state associated with this agent.
+	 * @param AgentIds The ids of the agents to reset.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void ResetAgents(const TArray<int32>& AgentIds);
+
+	/** Resets all the agents on the manager. */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void ResetAllAgents();
+
+public:
 
 	/**
 	 * Gets the agent with the given id. Calling this from blueprint with the appropriate AgentClass will automatically
@@ -119,31 +127,74 @@ public:
 	 * @param OutAgents The output array of agent objects.
 	 */
 	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass", DynamicOutputParam = "OutAgents"))
-	void GetAgents(const TArray<int32>& AgentIds, const TSubclassOf<UObject> AgentClass, TArray<UObject*>& OutAgents) const;
+	void GetAgents(TArray<UObject*>& OutAgents, const TArray<int32>& AgentIds, const TSubclassOf<UObject> AgentClass) const;
 
 	/**
-	 * Gets the current added agents. Calling this from blueprint with the appropriate AgentClass will automatically
+	 * Gets all added agents. Calling this from blueprint with the appropriate AgentClass will automatically
 	 * cast the object to the given type.
 	 * @param AgentClass The class to cast the agent objects to (in blueprint).
 	 * @param OutAgents The output array of agent objects.
 	 */
 	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass", DynamicOutputParam = "OutAgents"))
-	void GetAddedAgents(const TSubclassOf<UObject> AgentClass, TArray<UObject*>& OutAgents) const;
+	void GetAllAgents(TArray<UObject*>& OutAgents, const TSubclassOf<UObject> AgentClass) const;
 
 	/**
-	* Returns true if the given object is an agent in this manager; Otherwise, false.
-	* Use HasAgentById if you have the id available as this function must do a linear search to find the agent.
-	*/
+	 * Gets the agent id associated with a given agent.
+	 * @param Agent The agent object.
+	 * @return The agent id.
+	 */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool HasAgent(UObject* Agent) const;
+	int32 GetAgentId(UObject* Agent) const;
 
-	/** Returns true if the given id is used by an agent in this manager; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
-	bool HasAgentById(const int32 AgentId) const;
-
-	/** Get the current added agent ids. */
+	/**
+	 * Gets the agent ids associated with a set of agents.
+	 * @param OutAgentIds The ids of the agents.
+	 * @param InAgents The agent objects.
+	 */
 	UFUNCTION(BlueprintPure = false, Category = "LearningAgents")
-	void GetAgentIds(TArray<int32>& OutAgentIds) const;
+	void GetAgentIds(TArray<int32>& OutAgentIds, const TArray<UObject*>& InAgents) const;
+
+	/**
+	 * Gets all added agent ids.
+	 * @param OutAgentIds The output array of agent ids.
+	 */
+	UFUNCTION(BlueprintPure = false, Category = "LearningAgents")
+	void GetAllAgentIds(TArray<int32>& OutAgentIds) const;
+
+	/**
+	 * Gets the number of agents added
+	 * @return The number of agents added.
+	 */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	int32 GetAgentNum() const;
+
+public:
+
+	/** Returns true if the given object is an agent used by the manager; Otherwise, false. */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	bool HasAgentObject(UObject* Agent) const;
+
+	/** Returns true if the given id is an agent used by the manager; Otherwise, false. */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
+	bool HasAgent(const int32 AgentId) const;
+
+// ----- Tick Prerequisites -----
+public:
+
+	/**
+	 * Adds this manager as a tick prerequisite of the given actor objects.
+	 * @param InAgents The actor object which this manager will be added as a tick prerequisite to.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void AddManagerAsTickPrerequisiteOfAgents(const TArray<AActor*>& InAgents);
+
+	/**
+	 * Adds the given actor objects as tick prerequisite of this manager.
+	 * @param InAgents The actor object which will be added as tick prerequisites to this manager.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void AddAgentsAsTickPrerequisiteOfManager(const TArray<AActor*>& InAgents);
+
 
 // ----- Non-blueprint public interface -----
 public:
@@ -153,6 +204,12 @@ public:
 
 	/** Gets the agent corresponding to the given id. */
 	UObject* GetAgent(const int32 AgentId);
+
+	/** Gets the set of agent ids currently added */
+	const TArray<int32>& GetAllAgentIds() const;
+
+	/** Gets the set of agent ids currently added as an FIndexSet */
+	UE::Learning::FIndexSet GetAllAgentSet() const;
 
 	/** Get a const reference to this manager's underlying instance data. */
 	const TSharedPtr<UE::Learning::FArrayMap>& GetInstanceData() const;
@@ -164,27 +221,28 @@ private:
 
 	/** Maximum number of agents. Used to preallocate internal buffers. Setting this higher will allow more agents but use up more memory. */
 	UPROPERTY(EditDefaultsOnly, Category = "LearningAgents", meta = (ClampMin = "1", UIMin = "1"))
-	int32 MaxInstanceNum = 1;
-
-	/** True if SetupManager has been performed; Otherwise, false. */
-	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	bool bIsSetup = false;
+	int32 MaxAgentNum = 1;
 
 	/** The list of current agents. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TArray<TObjectPtr<UObject>> Agents;
 
+private:
+
+	/** Object containing all of the instance data required by all agents */
+	TSharedPtr<UE::Learning::FArrayMap> InstanceData;
+
 	/** Update the agent sets to keep them in sync with the id lists. */
 	void UpdateAgentSets();
 
+	/** Array of agent ids to be passed to events such as ULearningAgentsManagerComponent::OnAgentAdded. */
+	TArray<int32> OnEventAgentIds;
+
+	/** Array of agent ids currently in use and associated with each agent object. */
 	TArray<int32> OccupiedAgentIds;
-	TArray<int32> VacantAgentIds;
 	UE::Learning::FIndexSet OccupiedAgentSet;
+
+	/* Array of agent ids currently free and available for assignment. */
+	TArray<int32> VacantAgentIds;
 	UE::Learning::FIndexSet VacantAgentSet;
-
-	TSharedPtr<UE::Learning::FArrayMap> InstanceData;
-
-	/** The manager components that were found during setup. */
-	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TArray<TObjectPtr<ULearningAgentsManagerComponent>> CachedManagerComponents;
 };

@@ -22,7 +22,6 @@ namespace UE::Learning::SocketTraining
 		SendCritic = 6,
 		RecvComplete = 7,
 		SendStop = 8,
-		SendContinue = 9,
 	};
 
 	ETrainerResponse WaitForConnection(FSocket& Socket, const float Timeout)
@@ -214,12 +213,10 @@ namespace UE::Learning::SocketTraining
 		return SendWithTimeout(Socket, &Signal, 1, Timeout);
 	}
 
-	ETrainerResponse SendContinue(
-		FSocket& Socket,
-		const float Timeout)
+	bool HasPolicyOrCompleted(FSocket& Socket)
 	{
-		const uint8 Signal = (uint8)ESignal::SendContinue;
-		return SendWithTimeout(Socket, &Signal, 1, Timeout);
+		uint32 PendingDataSize;
+		return Socket.HasPendingData(PendingDataSize);
 	}
 
 	ETrainerResponse SendPolicy(

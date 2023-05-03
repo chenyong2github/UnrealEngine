@@ -726,9 +726,9 @@ namespace UE::Learning
 
 				UE_LEARNING_CHECK(FeatureInput.Num<1>() == FeatureSize);
 
-				if (UE_LEARNING_ISPC && Instances.IsSlice())
-				{
 #if UE_LEARNING_ISPC
+				if (Instances.IsSlice())
+				{
 					ispc::LearningCombineFeature(
 						Feature.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
 						FeatureInput.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
@@ -737,18 +737,28 @@ namespace UE::Learning
 						Feature.Num<1>(),
 						Instances.GetSliceNum(),
 						Scale);
-#endif
 				}
 				else
 				{
 					for (const int32 InstanceIdx : Instances)
 					{
-						for (int32 DimIdx = 0; DimIdx < FeatureSize; DimIdx++)
-						{
-							Feature[InstanceIdx][FeatureOffset + DimIdx] = Scale * FeatureInput[InstanceIdx][DimIdx];
-						}
+						ispc::LearningCombineFeatureSingleInstance(
+							Feature[InstanceIdx].GetData(),
+							FeatureInput[InstanceIdx].GetData(),
+							FeatureOffset,
+							FeatureSize,
+							Scale);
 					}
 				}
+#else
+				for (const int32 InstanceIdx : Instances)
+				{
+					for (int32 DimIdx = 0; DimIdx < FeatureSize; DimIdx++)
+					{
+						Feature[InstanceIdx][FeatureOffset + DimIdx] = Scale * FeatureInput[InstanceIdx][DimIdx];
+					}
+				}
+#endif
 			}
 		}
 
@@ -775,9 +785,9 @@ namespace UE::Learning
 
 				UE_LEARNING_CHECK(FeatureOutput.Num<1>() == FeatureSize);
 
-				if (UE_LEARNING_ISPC && Instances.IsSlice())
-				{
 #if UE_LEARNING_ISPC
+				if (Instances.IsSlice())
+				{
 					ispc::LearningSeparateFeature(
 						FeatureOutput.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
 						Feature.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
@@ -787,18 +797,29 @@ namespace UE::Learning
 						Instances.GetSliceNum(),
 						Scale,
 						UE_SMALL_NUMBER);
-#endif
 				}
 				else
 				{
 					for (const int32 InstanceIdx : Instances)
 					{
-						for (int32 DimIdx = 0; DimIdx < FeatureSize; DimIdx++)
-						{
-							FeatureOutput[InstanceIdx][DimIdx] = Feature[InstanceIdx][FeatureOffset + DimIdx] / FMath::Max(Scale, UE_SMALL_NUMBER);
-						}
+						ispc::LearningSeparateFeatureSingleInstance(
+							FeatureOutput[InstanceIdx].GetData(),
+							Feature[InstanceIdx].GetData(),
+							FeatureOffset,
+							FeatureSize,
+							Scale,
+							UE_SMALL_NUMBER);
 					}
 				}
+#else
+				for (const int32 InstanceIdx : Instances)
+				{
+					for (int32 DimIdx = 0; DimIdx < FeatureSize; DimIdx++)
+					{
+						FeatureOutput[InstanceIdx][DimIdx] = Feature[InstanceIdx][FeatureOffset + DimIdx] / FMath::Max(Scale, UE_SMALL_NUMBER);
+					}
+				}
+#endif
 			}
 
 			Features[FeatureIdx]->Decode(Instances);

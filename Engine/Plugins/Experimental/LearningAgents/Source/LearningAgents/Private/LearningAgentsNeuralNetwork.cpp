@@ -127,32 +127,24 @@ void ULearningAgentsNeuralNetwork::LoadNetworkFromSnapshot(const FFilePath& File
 			return;
 		}
 
+		if (!NeuralNetwork)
+		{
+			NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
+		}
+
 		NeuralNetwork->DeserializeFromBytes(Offset, RecordingData);
 
 		UE_LEARNING_CHECK(Offset == RecordingData.Num());
+
+		ForceMarkDirty();
 	}
 	else
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Failed to load network. File not found: \"%s\""), *GetName(), *File.FilePath);
 	}
-
-	// Manually mark the package as dirty since just using `Modify` prevents 
-	// marking packages as dirty during PIE which is most likely when this
-	// is being used.
-	if (UPackage* Package = GetPackage())
-	{
-		const bool bIsDirty = Package->IsDirty();
-
-		if (!bIsDirty)
-		{
-			Package->SetDirtyFlag(true);
-		}
-
-		Package->PackageMarkedDirtyEvent.Broadcast(Package, bIsDirty);
-	}
 }
 
-void ULearningAgentsNeuralNetwork::SaveNetworkToSnapshot(const FFilePath& File) const
+void ULearningAgentsNeuralNetwork::SaveNetworkToSnapshot(const FFilePath& File)
 {
 	TArray<uint8> RecordingData;
 
@@ -176,5 +168,80 @@ void ULearningAgentsNeuralNetwork::SaveNetworkToSnapshot(const FFilePath& File) 
 	if (!FFileHelper::SaveArrayToFile(RecordingData, *File.FilePath))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Failed to save network to file: \"%s\""), *GetName(), *File.FilePath);
+	}
+}
+
+void ULearningAgentsNeuralNetwork::LoadNetworkFromAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset)
+{
+	if (!NeuralNetworkAsset || !NeuralNetworkAsset->NeuralNetwork)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is invalid."), *GetName());
+		return;
+	}
+
+	if (NeuralNetworkAsset == this)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is same as the current network."), *GetName());
+		return;
+	}
+
+	if (NeuralNetwork)
+	{
+		if (NeuralNetworkAsset->NeuralNetwork->GetInputNum() != NeuralNetwork->GetInputNum() ||
+			NeuralNetworkAsset->NeuralNetwork->GetOutputNum() != NeuralNetwork->GetOutputNum() ||
+			NeuralNetworkAsset->NeuralNetwork->GetLayerNum() != NeuralNetwork->GetLayerNum() ||
+			NeuralNetworkAsset->NeuralNetwork->ActivationFunction != NeuralNetwork->ActivationFunction)
+		{
+			UE_LOG(LogLearning, Error, TEXT("%s: Failed to load network from asset as settings don't match."), *GetName());
+			return;
+		}
+	}
+	else
+	{
+		NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
+	}
+
+	*NeuralNetwork = *NeuralNetworkAsset->NeuralNetwork;
+	ForceMarkDirty();
+}
+
+void ULearningAgentsNeuralNetwork::SaveNetworkToAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset)
+{
+	if (!NeuralNetworkAsset)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is invalid."), *GetName());
+		return;
+	}
+
+	if (NeuralNetworkAsset == this)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is same as the current network."), *GetName());
+		return;
+	}
+
+	if (!NeuralNetworkAsset->NeuralNetwork)
+	{
+		NeuralNetworkAsset->NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
+	}
+
+	*NeuralNetworkAsset->NeuralNetwork = *NeuralNetwork;
+	NeuralNetworkAsset->ForceMarkDirty();
+}
+
+void ULearningAgentsNeuralNetwork::ForceMarkDirty()
+{
+	// Manually mark the package as dirty since just using `Modify` prevents 
+	// marking packages as dirty during PIE which is most likely when this
+	// is being used.
+	if (UPackage* Package = GetPackage())
+	{
+		const bool bIsDirty = Package->IsDirty();
+
+		if (!bIsDirty)
+		{
+			Package->SetDirtyFlag(true);
+		}
+
+		Package->PackageMarkedDirtyEvent.Broadcast(Package, bIsDirty);
 	}
 }

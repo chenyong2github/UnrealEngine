@@ -23,14 +23,23 @@ namespace UE::Learning::Agents::Completions::Private
 			return nullptr;
 		}
 
+		if (!InAgentTrainer->HasAgentManager())
+		{
+			UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *InAgentTrainer->GetName());
+			return nullptr;
+		}
+
 		CompletionUObject* Completion = NewObject<CompletionUObject>(InAgentTrainer, Name);
 
 		Completion->AgentTrainer = InAgentTrainer;
 		Completion->CompletionObject = MakeShared<CompletionFObject>(
 			Completion->GetFName(),
 			InAgentTrainer->GetAgentManager()->GetInstanceData().ToSharedRef(),
-			InAgentTrainer->GetAgentManager()->GetMaxInstanceNum(),
+			InAgentTrainer->GetAgentManager()->GetMaxAgentNum(),
 			Forward<InArgTypes>(Args)...);
+
+		Completion->AgentIteration.SetNumUninitialized({ InAgentTrainer->GetAgentManager()->GetMaxAgentNum() });
+		UE::Learning::Array::Set<1, uint64>(Completion->AgentIteration, INDEX_NONE);
 
 		InAgentTrainer->AddCompletion(Completion, Completion->CompletionObject.ToSharedRef());
 
@@ -54,6 +63,7 @@ void UConditionalCompletion::SetConditionalCompletion(const int32 AgentId, const
 	}
 
 	CompletionObject->InstanceData->View(CompletionObject->ConditionHandle)[AgentId] = bIsComplete;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -96,6 +106,7 @@ void UTimeElapsedCompletion::SetTimeElapsedCompletion(const int32 AgentId, const
 	}
 
 	CompletionObject->InstanceData->View(CompletionObject->TimeHandle)[AgentId] = Time;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -155,6 +166,7 @@ void UPlanarPositionDifferenceCompletion::SetPlanarPositionDifferenceCompletion(
 
 	CompletionObject->InstanceData->View(CompletionObject->Position0Handle)[AgentId][0] = Position0;
 	CompletionObject->InstanceData->View(CompletionObject->Position1Handle)[AgentId][0] = Position1;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -254,6 +266,7 @@ void UPlanarPositionSimilarityCompletion::SetPlanarPositionSimilarityCompletion(
 
 	CompletionObject->InstanceData->View(CompletionObject->Position0Handle)[AgentId][0] = Position0;
 	CompletionObject->InstanceData->View(CompletionObject->Position1Handle)[AgentId][0] = Position1;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG

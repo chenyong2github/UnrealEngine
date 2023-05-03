@@ -40,9 +40,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
 	float ActionNoiseMax = 0.25f;
 
-	/** Initial scale of the action noise used by the policy. Should be 1.0 for agents participating in training. */
+	/** Scale of the action noise used by the policy should be 1.0 during training. */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
-	float InitialActionNoiseScale = 1.0f;
+	float ActionNoiseScale = 1.0f;
 
 	/** Total layers for policy network including input, hidden, and output layers */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "2", UIMin = "2"))
@@ -66,99 +66,92 @@ class LEARNINGAGENTS_API ULearningAgentsPolicy : public ULearningAgentsManagerCo
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ULearningAgentsPolicy();
+	ULearningAgentsPolicy(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	ULearningAgentsPolicy(FVTableHelper& Helper);
 	virtual ~ULearningAgentsPolicy();
 
-	/** Initializes this object to be used with the given agent interactor and policy settings. */
+	/**
+	 * Initializes this object to be used with the given agent interactor and policy settings.
+	 * @param InInteractor The input Interactor component
+	 * @param PolicySettings The policy settings to use
+	 * @param NeuralNetworkAsset Optional Network Asset to use. If provided must match the given PolicySettings. If not
+	 * provided or asset is empty then a new neural network object will be created according to the given 
+	 * PolicySettings and used.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupPolicy(ALearningAgentsManager* InAgentManager, ULearningAgentsInteractor* InInteractor, const FLearningAgentsPolicySettings& PolicySettings = FLearningAgentsPolicySettings());
-
-public:
-
-	//~ Begin ULearningAgentsManagerComponent Interface
-	virtual bool AddAgent(const int32 AgentId) override;
-	//~ End ULearningAgentsManagerComponent Interface
+	void SetupPolicy(ULearningAgentsInteractor* InInteractor, 
+		const FLearningAgentsPolicySettings& PolicySettings = FLearningAgentsPolicySettings(),
+		ULearningAgentsNeuralNetwork* NeuralNetworkAsset = nullptr);
 
 // ----- Load / Save -----
 public:
 
 	/**
-	* Load a snapshot's weights into this policy.
-	* @param File The snapshot file.
-	*/
+	 * Load a snapshot's weights into this policy.
+	 * @param File The snapshot file.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
 	void LoadPolicyFromSnapshot(const FFilePath& File);
 
 	/**
-	* Save this policy's weights into a snapshot.
-	* @param File The snapshot file.
-	*/
+	 * Save this policy's weights into a snapshot.
+	 * @param File The snapshot file.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
 	void SavePolicyToSnapshot(const FFilePath& File) const;
 
 	/**
-	* Load a ULearningAgentsNeuralNetwork asset's weights into this policy.
-	* @param NeuralNetworkAsset The asset to load from.
-	*/
+	 * Use a ULearningAgentsNeuralNetwork asset directly for this critic rather than making a copy. If used
+	 * during training then this asset's weights will be updated as training progresses.
+	 * @param NeuralNetworkAsset The asset to use.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void LoadPolicyFromAsset(const ULearningAgentsNeuralNetwork* NeuralNetworkAsset);
+	void UsePolicyFromAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset);
 
 	/**
-	* Save this policy's weights to a ULearningAgentsNeuralNetwork asset.
-	* @param NeuralNetworkAsset The asset to save to.
-	*/
+	 * Load a ULearningAgentsNeuralNetwork asset's weights into this policy.
+	 * @param NeuralNetworkAsset The asset to load from.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void LoadPolicyFromAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset);
+
+	/**
+	 * Save this policy's weights to a ULearningAgentsNeuralNetwork asset.
+	 * @param NeuralNetworkAsset The asset to save to.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", Meta = (DevelopmentOnly))
-	void SavePolicyToAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset) const;
+	void SavePolicyToAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset);
 
 // ----- Evaluation -----
 public:
 
 	/**
-	* Calling this function will run the underlying neural network on the previously buffered observations to populate
-	* the output action buffer. This should be called after the associated agent interactor's EncodeObservations and
-	* before its DecodeActions.
-	*/
+	 * Calling this function will run the underlying neural network on the previously buffered observations to populate
+	 * the output action buffer. This should be called after the associated agent interactor's EncodeObservations and
+	 * before its DecodeActions.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EvaluatePolicy();
 
 	/**
-	* Calls EncodeObservations, followed by EvaluatePolicy, followed by DecodeActions
-	*/
+	 * Calls EncodeObservations, followed by EvaluatePolicy, followed by DecodeActions
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void RunInference();
 
-	/**
-	* Get the action noise scale used by an agent.
-	*
-	* @param AgentId			The AgentId to get the action noise scale for.
-	* @return					Action noise scale for that agent.
-	*/
-	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
-	float GetAgentActionNoiseScale(const int32 AgentId) const;
+	/** Get the action noise scale used. */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	float GetActionNoiseScale() const;
 
-	/**
-	* Set the action noise scale used by an agent. This can be useful if you have certain
-	* agents that are participating in training (and so should have an action noise scale of 1.0)
-	* and certain agents which you are testing the inference for (and so will want action noise
-	* scale of 0.0)
-	*
-	* @param AgentId			The AgentId to set the action noise scale for.
-	* @param ActionNoiseScale	Action noise scale for that agent.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
-	void SetAgentActionNoiseScale(const int32 AgentId, const float ActionNoiseScale);
-
-	/**
-	* Set the action noise scale used by all agents.
-	*
-	* @param ActionNoiseScale	Action noise scale to use for all agents
-	*/
+	/** Set the action noise scale used. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetAllAgentsActionNoiseScale(const float ActionNoiseScale);
+	void SetActionNoiseScale(const float ActionNoiseScale);
 
 // ----- Non-blueprint public interface -----
 public:
+
+	/** Gets the current Network Asset being used */
+	ULearningAgentsNeuralNetwork* GetNetworkAsset();
 
 	/** Get a reference to this policy's neural network. */
 	UE::Learning::FNeuralNetwork& GetPolicyNetwork();
@@ -177,17 +170,22 @@ private:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsNeuralNetwork> Network;
 
+	/** Internal Policy Function Object */
+	TSharedPtr<UE::Learning::FNeuralNetworkPolicyFunction> PolicyObject;
+
+// ----- Private Iteration Checks ----- 
 private:
 
-	TSharedPtr<UE::Learning::FNeuralNetworkPolicyFunction> PolicyObject;
-	
-	float InitialActionNoiseScale = 1.0f;
+	/** Temp buffers used to record the set of agents that are valid for evaluation */
+	TArray<int32> ValidAgentIds;
+	UE::Learning::FIndexSet ValidAgentSet;
 
+private:
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Color used to draw this action in the visual log */
 	FLinearColor VisualLogColor = FColor::Purple;
 
 	/** Describes this policy to the visual logger for debugging purposes. */
-	void VisualLog(const UE::Learning::FIndexSet Instances) const;
+	void VisualLog(const UE::Learning::FIndexSet AgentSet) const;
 #endif
 };

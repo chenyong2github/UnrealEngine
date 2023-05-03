@@ -74,25 +74,12 @@ void ULearningAgentsRecording::LoadRecordingFromFile(const FFilePath& File)
 		}
 
 		UE_LEARNING_CHECK(Offset == RecordingData.Num());
+
+		ForceMarkDirty();
 	}
 	else
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Failed to load recording. File not found: \"%s\""), *GetName(), *File.FilePath);
-	}
-
-	// Manually mark the package as dirty since just using `Modify` prevents 
-	// marking packages as dirty during PIE which is most likely when this
-	// is being used.
-	if (UPackage* Package = GetPackage())
-	{
-		const bool bIsDirty = Package->IsDirty();
-
-		if (!bIsDirty)
-		{
-			Package->SetDirtyFlag(true);
-		}
-
-		Package->PackageMarkedDirtyEvent.Broadcast(Package, bIsDirty);
 	}
 }
 
@@ -136,5 +123,86 @@ void ULearningAgentsRecording::SaveRecordingToFile(const FFilePath& File) const
 	if (!FFileHelper::SaveArrayToFile(RecordingData, *File.FilePath))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Failed to save recording to file: \"%s\""), *GetName(), *File.FilePath);
+	}
+}
+
+void ULearningAgentsRecording::AppendRecordingFromFile(const FFilePath& File)
+{
+	ULearningAgentsRecording* TempRecording = NewObject<ULearningAgentsRecording>(this, TEXT("TempRecording"));
+	TempRecording->LoadRecordingFromFile(File);
+
+	Records.Append(TempRecording->Records);
+	ForceMarkDirty();
+}
+
+void ULearningAgentsRecording::LoadRecordingFromAsset(ULearningAgentsRecording* RecordingAsset)
+{
+	if (!RecordingAsset)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is nullptr."), *GetName());
+		return;
+	}
+
+	if (RecordingAsset == this)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is same as the current recording."), *GetName());
+		return;
+	}
+
+	Records = RecordingAsset->Records;
+	ForceMarkDirty();
+}
+
+void ULearningAgentsRecording::SaveRecordingToAsset(ULearningAgentsRecording* RecordingAsset)
+{
+	if (!RecordingAsset)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is nullptr."), *GetName());
+		return;
+	}
+
+	if (RecordingAsset == this)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is same as the current recording."), *GetName());
+		return;
+	}
+
+	RecordingAsset->Records = Records;
+	RecordingAsset->ForceMarkDirty();
+}
+
+void ULearningAgentsRecording::AppendRecordingToAsset(ULearningAgentsRecording* RecordingAsset)
+{
+	if (!RecordingAsset)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is invalid."), *GetName());
+		return;
+	}
+
+	if (RecordingAsset == this)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is same as the current recording."), *GetName());
+		return;
+	}
+
+	RecordingAsset->Records.Append(Records);
+	RecordingAsset->ForceMarkDirty();
+}
+
+void ULearningAgentsRecording::ForceMarkDirty()
+{
+	// Manually mark the package as dirty since just using `Modify` prevents 
+	// marking packages as dirty during PIE which is most likely when this
+	// is being used.
+	if (UPackage* Package = GetPackage())
+	{
+		const bool bIsDirty = Package->IsDirty();
+
+		if (!bIsDirty)
+		{
+			Package->SetDirtyFlag(true);
+		}
+
+		Package->PackageMarkedDirtyEvent.Broadcast(Package, bIsDirty);
 	}
 }

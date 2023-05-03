@@ -22,14 +22,23 @@ namespace UE::Learning::Agents::Observations::Private
 			return nullptr;
 		}
 
+		if (!InInteractor->HasAgentManager())
+		{
+			UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *InInteractor->GetName());
+			return nullptr;
+		}
+
 		ObservationUObject* Observation = NewObject<ObservationUObject>(InInteractor, Name);
 
 		Observation->Interactor = InInteractor;
 		Observation->FeatureObject = MakeShared<ObservationFObject>(
 			Observation->GetFName(),
 			InInteractor->GetAgentManager()->GetInstanceData().ToSharedRef(),
-			InInteractor->GetAgentManager()->GetMaxInstanceNum(),
+			InInteractor->GetAgentManager()->GetMaxAgentNum(),
 			Forward<InArgTypes>(Args)...);
+
+		Observation->AgentIteration.SetNumUninitialized({ InInteractor->GetAgentManager()->GetMaxAgentNum() });
+		UE::Learning::Array::Set<1, uint64>(Observation->AgentIteration, INDEX_NONE);
 
 		// We assume all supported observation feature objects can be encoded
 		UE_LEARNING_CHECK(Observation->FeatureObject->IsEncodable());
@@ -56,6 +65,7 @@ void UFloatObservation::SetFloatObservation(const int32 AgentId, const float Val
 	}
 
 	FeatureObject->InstanceData->View(FeatureObject->ValueHandle)[AgentId][0] = Value;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -73,10 +83,10 @@ void UFloatObservation::VisualLog(const UE::Learning::FIndexSet Instances) const
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
 				VisualLogColor.ToFColor(true),
-				TEXT("Agent %i\nScale: [% 6.2f]\nValue: [% 6.2f]\nEncoded: [% 6.3f]"),
+				TEXT("Agent %i\nScale: [% 6.2f]\nValue: %s\nEncoded: %s"),
 				Instance,
 				FeatureObject->Scale,
-				ValueView[Instance][0],
+				*UE::Learning::Array::FormatFloat(ValueView[Instance]),
 				*UE::Learning::Array::FormatFloat(FeatureView[Instance]));
 		}
 	}
@@ -113,6 +123,7 @@ void UFloatArrayObservation::SetFloatArrayObservation(const int32 AgentId, const
 	}
 
 	UE::Learning::Array::Copy<1, float>(View[AgentId], Values);
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -160,6 +171,7 @@ void UVectorObservation::SetVectorObservation(const int32 AgentId, const FVector
 	View[AgentId][0] = Vector.X;
 	View[AgentId][1] = Vector.Y;
 	View[AgentId][2] = Vector.Z;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -233,6 +245,8 @@ void UVectorArrayObservation::SetVectorArrayObservation(const int32 AgentId, con
 		View[AgentId][VectorIdx * 3 + 1] = Vectors[VectorIdx].Y;
 		View[AgentId][VectorIdx * 3 + 2] = Vectors[VectorIdx].Z;
 	}
+
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -321,6 +335,8 @@ void UEnumObservation::SetEnumObservation(const int32 AgentId, const uint8 EnumV
 	const TLearningArrayView<2, float> EnumView = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
 	UE::Learning::Array::Zero(EnumView[AgentId]);
 	EnumView[AgentId][Index] = 1.0f;
+
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -428,6 +444,8 @@ void UEnumArrayObservation::SetEnumArrayObservation(const int32 AgentId, const T
 
 		EnumViewSlice[Index] = 1.0f;
 	}
+
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -471,6 +489,7 @@ void UTimeObservation::SetTimeObservation(const int32 AgentId, const float Time,
 
 	FeatureObject->InstanceData->View(FeatureObject->TimeHandle)[AgentId][0] = Time;
 	FeatureObject->InstanceData->View(FeatureObject->RelativeTimeHandle)[AgentId] = RelativeTime;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -533,6 +552,7 @@ void UTimeArrayObservation::SetTimeArrayObservation(const int32 AgentId, const T
 
 	UE::Learning::Array::Copy<1, float>(TimeView[AgentId], Times);
 	RelativeTimeView[AgentId] = RelativeTime;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -579,6 +599,7 @@ void UAngleObservation::SetAngleObservation(const int32 AgentId, const float Ang
 
 	FeatureObject->InstanceData->View(FeatureObject->AngleHandle)[AgentId][0] = FMath::DegreesToRadians(Angle);
 	FeatureObject->InstanceData->View(FeatureObject->RelativeAngleHandle)[AgentId] = FMath::DegreesToRadians(RelativeAngle);
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -648,6 +669,7 @@ void UAngleArrayObservation::SetAngleArrayObservation(const int32 AgentId, const
 	}
 	
 	RelativeAngleView[AgentId] = FMath::DegreesToRadians(RelativeAngle);
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -718,6 +740,7 @@ void URotationObservation::SetRotationObservationFromQuat(const int32 AgentId, c
 
 	FeatureObject->InstanceData->View(FeatureObject->RotationHandle)[AgentId][0] = Rotation;
 	FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle)[AgentId] = RelativeRotation;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -793,6 +816,7 @@ void URotationArrayObservation::SetRotationArrayObservation(const int32 AgentId,
 	}
 
 	RelativeRotationView[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 void URotationArrayObservation::SetRotationArrayObservationFromQuats(const int32 AgentId, const TArray<FQuat>& Rotations, const FQuat RelativeRotation)
@@ -814,6 +838,7 @@ void URotationArrayObservation::SetRotationArrayObservationFromQuats(const int32
 
 	UE::Learning::Array::Copy<1, FQuat>(RotationView[AgentId], Rotations);
 	RelativeRotationView[AgentId] = RelativeRotation;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -881,6 +906,7 @@ void UDirectionObservation::SetDirectionObservation(const int32 AgentId, const F
 
 	FeatureObject->InstanceData->View(FeatureObject->DirectionHandle)[AgentId][0] = Direction;
 	FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle)[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -956,6 +982,7 @@ void UDirectionArrayObservation::SetDirectionArrayObservation(const int32 AgentI
 
 	UE::Learning::Array::Copy<1, FVector>(DirectionView[AgentId], Directions);
 	RelativeRotationView[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1031,6 +1058,7 @@ void UPlanarDirectionObservation::SetPlanarDirectionObservation(const int32 Agen
 
 	FeatureObject->InstanceData->View(FeatureObject->DirectionHandle)[AgentId][0] = Direction;
 	FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle)[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1121,6 +1149,7 @@ void UPlanarDirectionArrayObservation::SetPlanarDirectionArrayObservation(const 
 
 	UE::Learning::Array::Copy<1, FVector>(DirectionView[AgentId], Directions);
 	RelativeRotationView[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1202,6 +1231,7 @@ void UPositionObservation::SetPositionObservation(const int32 AgentId, const FVe
 	FeatureObject->InstanceData->View(FeatureObject->PositionHandle)[AgentId][0] = Position;
 	FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle)[AgentId] = RelativePosition;
 	FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle)[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1279,6 +1309,7 @@ void UPositionArrayObservation::SetPositionArrayObservation(const int32 AgentId,
 	RelativePositionView[AgentId] = RelativePosition;
 	RelativeRotationView[AgentId] = RelativeRotation.Quaternion();
 	UE::Learning::Array::Copy<1, FVector>(PositionView[AgentId], Positions);
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1346,6 +1377,7 @@ void UScalarPositionObservation::SetScalarPositionObservation(const int32 AgentI
 
 	FeatureObject->InstanceData->View(FeatureObject->PositionHandle)[AgentId][0] = Position;
 	FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle)[AgentId] = RelativePosition;
+	AgentIteration[AgentId]++;
 }
 
 void UScalarPositionObservation::SetScalarPositionObservationWithAxis(const int32 AgentId, const FVector Position, const FVector RelativePosition, const FVector Axis)
@@ -1411,6 +1443,7 @@ void UScalarPositionArrayObservation::SetScalarPositionArrayObservation(const in
 
 	RelativePositionView[AgentId] = RelativePosition;
 	UE::Learning::Array::Copy<1, float>(PositionView[AgentId], Positions);
+	AgentIteration[AgentId]++;
 }
 
 void UScalarPositionArrayObservation::SetScalarPositionArrayObservationWithAxis(const int32 AgentId, const TArray<FVector>& Positions, const FVector RelativePosition, const FVector Axis)
@@ -1435,6 +1468,8 @@ void UScalarPositionArrayObservation::SetScalarPositionArrayObservationWithAxis(
 	{
 		PositionView[AgentId][PositionIdx] = Positions[PositionIdx].Dot(Axis);
 	}
+
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1489,6 +1524,7 @@ void UPlanarPositionObservation::SetPlanarPositionObservation(const int32 AgentI
 	FeatureObject->InstanceData->View(FeatureObject->PositionHandle)[AgentId][0] = Position;
 	FeatureObject->InstanceData->View(FeatureObject->RelativePositionHandle)[AgentId] = RelativePosition;
 	FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle)[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1581,6 +1617,7 @@ void UPlanarPositionArrayObservation::SetPlanarPositionArrayObservation(const in
 	RelativePositionView[AgentId] = RelativePosition;
 	RelativeRotationView[AgentId] = RelativeRotation.Quaternion();
 	UE::Learning::Array::Copy<1, FVector>(PositionView[AgentId], Positions);
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1659,6 +1696,7 @@ void UVelocityObservation::SetVelocityObservation(const int32 AgentId, const FVe
 
 	FeatureObject->InstanceData->View(FeatureObject->VelocityHandle)[AgentId][0] = Velocity;
 	FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle)[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1734,6 +1772,7 @@ void UVelocityArrayObservation::SetVelocityArrayObservation(const int32 AgentId,
 
 	UE::Learning::Array::Copy<1, FVector>(VelocityView[AgentId], Velocities);
 	RelativeRotationView[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1801,6 +1840,7 @@ void UScalarVelocityObservation::SetScalarVelocityObservation(const int32 AgentI
 	}
 
 	FeatureObject->InstanceData->View(FeatureObject->VelocityHandle)[AgentId][0] = Velocity;
+	AgentIteration[AgentId]++;
 }
 
 void UScalarVelocityObservation::SetScalarVelocityObservationWithAxis(const int32 AgentId, const FVector Velocity, const FVector Axis)
@@ -1862,6 +1902,7 @@ void UScalarVelocityArrayObservation::SetScalarVelocityArrayObservation(const in
 	}
 
 	UE::Learning::Array::Copy<1, float>(VelocityView[AgentId], Velocities);
+	AgentIteration[AgentId]++;
 }
 
 void UScalarVelocityArrayObservation::SetScalarVelocityArrayObservationWithAxis(const int32 AgentId, const TArray<FVector>& Velocities, const FVector Axis)
@@ -1884,6 +1925,8 @@ void UScalarVelocityArrayObservation::SetScalarVelocityArrayObservationWithAxis(
 	{
 		VelocityView[AgentId][VelocityIdx] = Velocities[VelocityIdx].Dot(Axis);
 	}
+
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -1936,6 +1979,7 @@ void UPlanarVelocityObservation::SetPlanarVelocityObservation(const int32 AgentI
 
 	FeatureObject->InstanceData->View(FeatureObject->VelocityHandle)[AgentId][0] = Velocity;
 	FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle)[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -2027,6 +2071,7 @@ void UPlanarVelocityArrayObservation::SetPlanarVelocityArrayObservation(const in
 
 	UE::Learning::Array::Copy<1, FVector>(VelocityView[AgentId], Velocities);
 	RelativeRotationView[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -2105,6 +2150,7 @@ void UAngularVelocityObservation::SetAngularVelocityObservation(const int32 Agen
 
 	FeatureObject->InstanceData->View(FeatureObject->AngularVelocityHandle)[AgentId][0] = AngularVelocity;
 	FeatureObject->InstanceData->View(FeatureObject->RelativeRotationHandle)[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -2180,6 +2226,7 @@ void UAngularVelocityArrayObservation::SetAngularVelocityArrayObservation(const 
 
 	UE::Learning::Array::Copy<1, FVector>(AngularVelocityView[AgentId], AngularVelocities);
 	RelativeRotationView[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -2247,6 +2294,7 @@ void UScalarAngularVelocityObservation::SetScalarAngularVelocityObservation(cons
 	}
 
 	FeatureObject->InstanceData->View(FeatureObject->AngularVelocityHandle)[AgentId][0] = AngularVelocity;
+	AgentIteration[AgentId]++;
 }
 
 void UScalarAngularVelocityObservation::SetScalarAngularVelocityObservationWithAxis(const int32 AgentId, const FVector AngularVelocity, const FVector Axis)
@@ -2308,6 +2356,7 @@ void UScalarAngularVelocityArrayObservation::SetScalarAngularVelocityArrayObserv
 	}
 
 	UE::Learning::Array::Copy<1, float>(AngularVelocityView[AgentId], AngularVelocities);
+	AgentIteration[AgentId]++;
 }
 
 void UScalarAngularVelocityArrayObservation::SetScalarAngularVelocityArrayObservationWithAxis(const int32 AgentId, const TArray<FVector>& AngularVelocities, const FVector Axis)
@@ -2330,6 +2379,7 @@ void UScalarAngularVelocityArrayObservation::SetScalarAngularVelocityArrayObserv
 	{
 		AngularVelocityView[AgentId][AngularVelocityIdx] = AngularVelocities[AngularVelocityIdx].Dot(Axis);
 	}
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG

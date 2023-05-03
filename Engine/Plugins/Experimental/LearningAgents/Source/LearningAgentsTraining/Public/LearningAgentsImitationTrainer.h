@@ -7,7 +7,6 @@
 
 #include "Templates/SharedPointer.h"
 #include "UObject/ObjectPtr.h"
-#include "Tasks/Task.h"
 
 #include "LearningAgentsImitationTrainer.generated.h"
 
@@ -16,9 +15,21 @@ namespace UE::Learning
 	struct FSharedMemoryImitationTrainer;
 }
 
-class ULearningAgentsInteractor;
 class ULearningAgentsPolicy;
 class ULearningAgentsRecording;
+
+/** The configurable settings for a ULearningAgentsImitationTrainer. */
+USTRUCT(BlueprintType, Category = "LearningAgents")
+struct FLearningAgentsImitationTrainerSettings
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Time in seconds to wait for the training process before timing out. */
+	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	float TrainerCommunicationTimeout = 20.0f;
+};
 
 /** The configurable settings for the training process. */
 USTRUCT(BlueprintType, Category = "LearningAgents")
@@ -41,16 +52,16 @@ public:
 	float LearningRateDecay = 0.99f;
 
 	/**
-	* Amount of weight decay to apply to the network. Larger values encourage network weights to be smaller but too
-	* large a value can cause the network weights to collapse to all zeros.
-	*/
+	 * Amount of weight decay to apply to the network. Larger values encourage network weights to be smaller but too
+	 * large a value can cause the network weights to collapse to all zeros.
+	 */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float WeightDecay = 0.001f;
 
 	/**
-	* Batch size to use for training. Smaller values tend to produce better results at the cost of slowing down
-	* training. Large batch sizes are much more computationally efficient when training on the GPU.
-	*/
+	 * Batch size to use for training. Smaller values tend to produce better results at the cost of slowing down
+	 * training. Large batch sizes are much more computationally efficient when training on the GPU.
+	 */
 	UPROPERTY(EditAnywhere, Category = "LearningAgents", meta = (ClampMin = "0", ClampMax = "4096", UIMin = "0", UIMax = "4096"))
 	uint32 BatchSize = 128;
 
@@ -68,14 +79,14 @@ public:
 };
 
 /**
-* The ULearningAgentsImitationTrainer enable imitation learning, i.e. learning from human/AI demonstrations.
-* Imitation training is typically much faster than reinforcement learning, but requires gathering large amounts of
-* data in order to generalize. This can be used to initialize a reinforcement learning policy to speed up initial
-* exploration.
-* @see ULearningAgentsInteractor to understand how observations and actions work.
-* @see ULearningAgentsRecorder to understand how to make new recordings.
-* @see ULearningAgentsDataStorage to understand how to retrieve previous recordings.
-*/
+ * The ULearningAgentsImitationTrainer enable imitation learning, i.e. learning from human/AI demonstrations.
+ * Imitation training is typically much faster than reinforcement learning, but requires gathering large amounts of
+ * data in order to generalize. This can be used to initialize a reinforcement learning policy to speed up initial
+ * exploration.
+ * @see ULearningAgentsInteractor to understand how observations and actions work.
+ * @see ULearningAgentsController to understand how we can manually perform actions via a human or AI.
+ * @see ULearningAgentsRecorder to understand how to make new recordings.
+ */
 UCLASS(BlueprintType, Blueprintable)
 class LEARNINGAGENTSTRAINING_API ULearningAgentsImitationTrainer : public UActorComponent
 {
@@ -85,25 +96,31 @@ class LEARNINGAGENTSTRAINING_API ULearningAgentsImitationTrainer : public UActor
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ULearningAgentsImitationTrainer();
+	ULearningAgentsImitationTrainer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	ULearningAgentsImitationTrainer(FVTableHelper& Helper);
 	virtual ~ULearningAgentsImitationTrainer();
 
 	/** Will automatically call EndTraining if training is still in-progress when play is ending. */
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+	/** Returns true if the trainer is currently training; Otherwise, false. */
+	UFUNCTION(BlueprintPure, Category = "LearningAgents")
+	bool IsTraining() const;
+
 	/**
-	* Begins the training process with the provided settings.
-	* @param InPolicy The policy to train.
-	* @param Recording The data to train on.
-	* @param ImitationTrainerTrainingSettings The settings for this training run.
-	* @param ImitationTrainerPathSettings The path settings used by the imitation trainer.
-	* @param bReinitializePolicyNetwork If true, reinitialize the policy. Set this to false if your policy is pre-trained.
-	*/
+	 * Begins the training process with the provided settings.
+	 * @param InPolicy The policy to train.
+	 * @param Recording The data to train on.
+	 * @param ImitationTrainerSettings The settings for this trainer.
+	 * @param ImitationTrainerTrainingSettings The training settings for this network.
+	 * @param ImitationTrainerPathSettings The path settings used by the imitation trainer.
+	 * @param bReinitializePolicyNetwork If true, reinitialize the policy. Set this to false if your policy is pre-trained.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void BeginTraining(
 		ULearningAgentsPolicy* InPolicy,
 		const ULearningAgentsRecording* Recording,
+		const FLearningAgentsImitationTrainerSettings& ImitationTrainerSettings = FLearningAgentsImitationTrainerSettings(),
 		const FLearningAgentsImitationTrainerTrainingSettings& ImitationTrainerTrainingSettings = FLearningAgentsImitationTrainerTrainingSettings(),
 		const FLearningAgentsTrainerPathSettings& ImitationTrainerPathSettings = FLearningAgentsTrainerPathSettings(),
 		const bool bReinitializePolicyNetwork = true);
@@ -112,13 +129,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EndTraining();
 
-	/** Returns true if the trainer is currently training; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool IsTraining() const;
+	/** Iterates the training process and gets the updated policy network. */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void IterateTraining();
 
-	/** Returns true if the previously launched training has completed; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents")
-	bool IsTrainingComplete() const;
+	/**
+	 * Convenience function that runs a basic training loop. If training has not been started, it will start it. On 
+	 * each following call to this function, it will call IterateTraining.
+	 * @param InPolicy The policy to train.
+	 * @param Recording The data to train on.
+	 * @param ImitationTrainerSettings The settings for this trainer.
+	 * @param ImitationTrainerTrainingSettings The training settings for this network.
+	 * @param ImitationTrainerPathSettings The path settings used by the imitation trainer.
+	 * @param bReinitializePolicyNetwork If true, reinitialize the policy. Set this to false if your policy is pre-trained.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void RunTraining(
+		ULearningAgentsPolicy* InPolicy,
+		const ULearningAgentsRecording* Recording,
+		const FLearningAgentsImitationTrainerSettings& ImitationTrainerSettings = FLearningAgentsImitationTrainerSettings(),
+		const FLearningAgentsImitationTrainerTrainingSettings& ImitationTrainerTrainingSettings = FLearningAgentsImitationTrainerTrainingSettings(),
+		const FLearningAgentsTrainerPathSettings& ImitationTrainerPathSettings = FLearningAgentsTrainerPathSettings(),
+		const bool bReinitializePolicyNetwork = true);
 
 // ----- Private Data -----
 private:
@@ -131,16 +163,12 @@ private:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	bool bIsTraining = false;
 
-	/** True if training is completed. Otherwise, false. */
-	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	bool bIsTrainingComplete = false;
+	float TrainerTimeout = 10.0f;
+
+	void DoneTraining();
 
 	TLearningArray<2, float> RecordedObservations;
 	TLearningArray<2, float> RecordedActions;
 
 	TUniquePtr<UE::Learning::FSharedMemoryImitationTrainer> ImitationTrainer;
-	UE::Tasks::FTask ImitationTrainingTask;
-	FRWLock NetworkLock;
-
-	TAtomic<bool> bRequestImitationTrainingStop = false;
 };

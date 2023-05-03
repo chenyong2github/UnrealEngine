@@ -47,6 +47,12 @@ public:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsTrainer> AgentTrainer;
 
+public:
+
+	/** Number of times this completion has been set for all agents */
+	TLearningArray<1, uint64, TInlineAllocator<32>> AgentIteration;
+
+public:
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Color used to draw this completion in the visual log */
 	FLinearColor VisualLogColor = FColor::Yellow;
@@ -67,20 +73,20 @@ class LEARNINGAGENTSTRAINING_API UConditionalCompletion : public ULearningAgents
 public:
 
 	/**
-	* Adds a new conditional completion to the given trainer. Call during ULearningAgentsTrainer::SetupCompletions event.
-	* @param InAgentTrainer The trainer to add this completion to.
-	* @param Name The name of this new completion. Used for debugging.
-	* @param InCompletionMode The completion mode.
-	* @return The newly created completion.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new conditional completion to the given trainer. Call during ULearningAgentsTrainer::SetupCompletions event.
+	 * @param InAgentTrainer The trainer to add this completion to.
+	 * @param Name The name of this new completion. Used for debugging.
+	 * @param InCompletionMode The completion mode.
+	 * @return The newly created completion.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
 	static UConditionalCompletion* AddConditionalCompletion(ULearningAgentsTrainer* InAgentTrainer, const FName Name = NAME_None, const ELearningAgentsCompletion InCompletionMode = ELearningAgentsCompletion::Termination);
 
 	/**
-	* Sets the data for this completion. Call during ULearningAgentsTrainer::SetCompletions event.
-	* @param AgentId The agent id this data corresponds to.
-	* @param bIsCompleted Pass in true if condition is met. Otherwise, false.
-	*/
+	 * Sets the data for this completion. Call during ULearningAgentsTrainer::SetCompletions event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param bIsCompleted Pass in true if condition is met. Otherwise, false.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetConditionalCompletion(const int32 AgentId, const bool bIsCompleted);
 
@@ -103,21 +109,21 @@ class LEARNINGAGENTSTRAINING_API UTimeElapsedCompletion : public ULearningAgents
 public:
 
 	/**
-	* Adds a new time elapsed completion to the given trainer. Call during ULearningAgentsTrainer::SetupCompletions event.
-	* @param InAgentTrainer The trainer to add this completion to.
-	* @param Name The name of this new completion. Used for debugging.
-	* @param Threshold How much time should be elapsed for the completion to trigger.
-	* @param InCompletionMode The completion mode.
-	* @return The newly created completion.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new time elapsed completion to the given trainer. Call during ULearningAgentsTrainer::SetupCompletions event.
+	 * @param InAgentTrainer The trainer to add this completion to.
+	 * @param Name The name of this new completion. Used for debugging.
+	 * @param Threshold How much time should be elapsed for the completion to trigger.
+	 * @param InCompletionMode The completion mode.
+	 * @return The newly created completion.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
 	static UTimeElapsedCompletion* AddTimeElapsedCompletion(ULearningAgentsTrainer* InAgentTrainer, const FName Name = NAME_None, const float Threshold = 10.0f, const ELearningAgentsCompletion InCompletionMode = ELearningAgentsCompletion::Termination);
 
 	/**
-	* Sets the data for this completion. Call during ULearningAgentsTrainer::SetCompletions event.
-	* @param AgentId The agent id this data corresponds to.
-	* @param Time The amount of time that has passed
-	*/
+	 * Sets the data for this completion. Call during ULearningAgentsTrainer::SetCompletions event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param Time The amount of time that has passed
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetTimeElapsedCompletion(const int32 AgentId, const float Time);
 
@@ -132,9 +138,9 @@ public:
 //------------------------------------------------------------------
 
 /**
-* A completion for if two positions differ by some threshold in a plane, e.g. if the agent gets too far from a
-* starting position.
-*/
+ * A completion for if two positions differ by some threshold in a plane, e.g. if the agent gets too far from a
+ * starting position.
+ */
 UCLASS()
 class LEARNINGAGENTSTRAINING_API UPlanarPositionDifferenceCompletion : public ULearningAgentsCompletion
 {
@@ -143,17 +149,17 @@ class LEARNINGAGENTSTRAINING_API UPlanarPositionDifferenceCompletion : public UL
 public:
 
 	/**
-	* Adds a new planar position difference completion to the given trainer. The axis parameters define the plane.
-	* Call during ULearningAgentsTrainer::SetupCompletions event.
-	* @param InAgentTrainer The trainer to add this completion to.
-	* @param Name The name of this new completion. Used for debugging.
-	* @param Threshold If the distance becomes greater than this threshold, then the episode will complete.
-	* @param InCompletionMode The completion mode.
-	* @param Axis0 The forward axis of the plane.
-	* @param Axis1 The right axis of the plane.
-	* @return The newly created completion.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new planar position difference completion to the given trainer. The axis parameters define the plane.
+	 * Call during ULearningAgentsTrainer::SetupCompletions event.
+	 * @param InAgentTrainer The trainer to add this completion to.
+	 * @param Name The name of this new completion. Used for debugging.
+	 * @param Threshold If the distance becomes greater than this threshold, then the episode will complete.
+	 * @param InCompletionMode The completion mode.
+	 * @param Axis0 The forward axis of the plane.
+	 * @param Axis1 The right axis of the plane.
+	 * @return The newly created completion.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
 	static UPlanarPositionDifferenceCompletion* AddPlanarPositionDifferenceCompletion(
 		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
@@ -163,11 +169,11 @@ public:
 		const FVector Axis1 = FVector::RightVector);
 
 	/**
-	* Sets the data for this completion. Call during ULearningAgentsTrainer::SetCompletions event.
-	* @param AgentId The agent id this data corresponds to.
-	* @param Position0 The first position.
-	* @param Position1 The second position.
-	*/
+	 * Sets the data for this completion. Call during ULearningAgentsTrainer::SetCompletions event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param Position0 The first position.
+	 * @param Position1 The second position.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetPlanarPositionDifferenceCompletion(const int32 AgentId, const FVector Position0, const FVector Position1);
 
@@ -180,8 +186,8 @@ public:
 };
 
 /**
-* A completion for if two positions are near by some threshold in a plane, e.g. if the agent gets close to a position.
-*/
+ * A completion for if two positions are near by some threshold in a plane, e.g. if the agent gets close to a position.
+ */
 UCLASS()
 class LEARNINGAGENTSTRAINING_API UPlanarPositionSimilarityCompletion : public ULearningAgentsCompletion
 {
@@ -190,17 +196,17 @@ class LEARNINGAGENTSTRAINING_API UPlanarPositionSimilarityCompletion : public UL
 public:
 
 	/**
-	* Adds a new planar position difference completion to the given trainer. The axis parameters define the plane.
-	* Call during ULearningAgentsTrainer::SetupCompletions event.
-	* @param InAgentTrainer The trainer to add this completion to.
-	* @param Name The name of this new completion. Used for debugging.
-	* @param Threshold If the distance becomes greater than this threshold, then the episode will complete.
-	* @param InCompletionMode The completion mode.
-	* @param Axis0 The forward axis of the plane.
-	* @param Axis1 The right axis of the plane.
-	* @return The newly created completion.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new planar position difference completion to the given trainer. The axis parameters define the plane.
+	 * Call during ULearningAgentsTrainer::SetupCompletions event.
+	 * @param InAgentTrainer The trainer to add this completion to.
+	 * @param Name The name of this new completion. Used for debugging.
+	 * @param Threshold If the distance becomes greater than this threshold, then the episode will complete.
+	 * @param InCompletionMode The completion mode.
+	 * @param Axis0 The forward axis of the plane.
+	 * @param Axis1 The right axis of the plane.
+	 * @return The newly created completion.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
 	static UPlanarPositionSimilarityCompletion* AddPlanarPositionSimilarityCompletion(
 		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
@@ -210,11 +216,11 @@ public:
 		const FVector Axis1 = FVector::RightVector);
 
 	/**
-	* Sets the data for this completion. Call during ULearningAgentsTrainer::SetCompletions event.
-	* @param AgentId The agent id this data corresponds to.
-	* @param Position0 The first position.
-	* @param Position1 The second position.
-	*/
+	 * Sets the data for this completion. Call during ULearningAgentsTrainer::SetCompletions event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param Position0 The first position.
+	 * @param Position1 The second position.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetPlanarPositionSimilarityCompletion(const int32 AgentId, const FVector Position0, const FVector Position1);
 

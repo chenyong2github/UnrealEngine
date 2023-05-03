@@ -175,12 +175,39 @@ export void LearningLayerMatMulPlusBias(
 	}
 }
 
+export void LearningLayerMatMulVecPlusBias(
+	uniform float Output[],
+	const uniform float Input[],
+	const uniform float Weights[],
+	const uniform float Biases[],
+	const uniform int RowNum,
+	const uniform int ColNum)
+{
+	foreach(ColIdx = 0 ... ColNum)
+	{
+		Output[ColIdx] = Biases[ColIdx];
+	}
+
+	for (uniform int RowIdx = 0; RowIdx < RowNum; RowIdx++)
+	{
+		uniform const float Value = Input[RowIdx];
+
+		if (Value != 0.0)
+		{
+			foreach(ColIdx = 0 ... ColNum)
+			{
+				Output[ColIdx] += Value * Weights[RowIdx * ColNum + ColIdx];
+			}
+		}
+	}
+}
+
+
 export void LearningLayerReLU(
 	uniform float InputOutput[],
-	const uniform int BatchNum,
-	const uniform int HiddenNum)
+	const uniform int Num)
 {
-	foreach(Idx = 0 ... BatchNum * HiddenNum)
+	foreach(Idx = 0 ... Num)
 	{
 		InputOutput[Idx] = max(InputOutput[Idx], 0.0f);
 	}
@@ -188,10 +215,9 @@ export void LearningLayerReLU(
 
 export void LearningLayerELU(
 	uniform float InputOutput[],
-	const uniform int BatchNum,
-	const uniform int HiddenNum)
+	const uniform int Num)
 {
-	foreach (Idx = 0 ... BatchNum * HiddenNum)
+	foreach (Idx = 0 ... Num)
 	{
 		InputOutput[Idx] = InputOutput[Idx] > 0.0f ? InputOutput[Idx] : LearningInvExpApprox(-InputOutput[Idx]) - 1.0f;
 	}
@@ -205,10 +231,9 @@ inline float LearningTanH(const float X, const float Min=-10.0f, const float Max
 
 export void LearningLayerTanH(
 	uniform float InputOutput[],
-	const uniform int BatchNum,
-	const uniform int HiddenNum)
+	const uniform int Num)
 {
-	foreach(Idx = 0 ... BatchNum * HiddenNum)
+	foreach(Idx = 0 ... Num)
 	{
 		InputOutput[Idx] = LearningTanH(InputOutput[Idx]);
 	}
@@ -242,6 +267,30 @@ export void LearningLayerActionNoise(
 			Seed[BatchIdx] ^ 0xab744615 ^ LearningRandomInt(OutputIdx ^ 0xf8a88a27),
 			OutputMean[BatchIdx * OutputNum + OutputIdx],
 			OutputStd[BatchIdx * OutputNum + OutputIdx]);
+	}
+}
+
+export void LearningLayerActionNoiseSingleBatch(
+	uniform float Output[],
+	uniform float OutputMean[],
+	uniform float OutputStd[],
+	const uniform float Input[],
+	const uniform uint32 Seed,
+	const uniform float ActionNoiseScale,
+	const uniform int OutputNum,
+	const uniform float LogActionNoiseMin,
+	const uniform float LogActionNoiseMax)
+{
+	foreach(OutputIdx = 0 ... OutputNum)
+	{
+		OutputMean[OutputIdx] = Input[OutputIdx];
+		OutputStd[OutputIdx] = ActionNoiseScale *
+			exp(LearningSigmoid(Input[OutputNum + OutputIdx]) * (LogActionNoiseMax - LogActionNoiseMin) + LogActionNoiseMin);
+
+		Output[OutputIdx] = LearningRandomGaussian(
+			Seed ^ 0xab744615 ^ LearningRandomInt(OutputIdx ^ 0xf8a88a27),
+			OutputMean[OutputIdx],
+			OutputStd[OutputIdx]);
 	}
 }
 
@@ -507,6 +556,19 @@ export void LearningCombineFeature(
 	}
 }
 
+export void LearningCombineFeatureSingleInstance(
+	uniform float Output[],
+	uniform const float Buffer[],
+	uniform const int DimOffset,
+	uniform const int DimNum,
+	uniform const float Scale)
+{
+	foreach(DimIdx = 0 ... DimNum)
+	{
+		Output[DimOffset + DimIdx] = Scale * Buffer[DimIdx];
+	}
+}
+
 export void LearningSeparateFeature(
 	uniform float Buffer[],
 	uniform const float Input[],
@@ -520,6 +582,20 @@ export void LearningSeparateFeature(
 	foreach (InstanceIdx = 0 ... InstanceNum, DimIdx = 0 ... DimNum)
 	{
 		Buffer[InstanceIdx * DimNum + DimIdx] = Input[InstanceIdx * OutputDimNum + DimOffset + DimIdx] / max(Scale, Epsilon);
+	}
+}
+
+export void LearningSeparateFeatureSingleInstance(
+	uniform float Buffer[],
+	uniform const float Input[],
+	uniform const int DimOffset,
+	uniform const int DimNum,
+	uniform const float Scale,
+	uniform const float Epsilon)
+{
+	foreach(DimIdx = 0 ... DimNum)
+	{
+		Buffer[DimIdx] = Input[DimOffset + DimIdx] / max(Scale, Epsilon);
 	}
 }
 

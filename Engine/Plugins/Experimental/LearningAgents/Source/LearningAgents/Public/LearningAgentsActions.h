@@ -25,10 +25,10 @@ class ULearningAgentsInteractor;
 //------------------------------------------------------------------
 
 /**
-* The base class for all actions. Actions define the outputs from your agents. Action getters are marked non-pure by
-* convention as many of them do non-trivial amounts of work that can cause performance issues when marked pure in 
-* blueprints.
-*/
+ * The base class for all actions. Actions define the outputs from your agents. Action getters are marked non-pure by
+ * convention as many of them do non-trivial amounts of work that can cause performance issues when marked pure in 
+ * blueprints.
+ */
 UCLASS(Abstract, BlueprintType)
 class LEARNINGAGENTS_API ULearningAgentsAction : public UObject
 {
@@ -40,6 +40,15 @@ public:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsInteractor> Interactor;
 
+public:
+
+	/** Number of times this action has been got for all agents */
+	TLearningArray<1, uint64, TInlineAllocator<32>> AgentGetIteration;
+
+	/** Number of times this action has been set for all agents */
+	TLearningArray<1, uint64, TInlineAllocator<32>> AgentSetIteration;
+
+public:
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Color used to draw this action in the visual log */
 	FLinearColor VisualLogColor = FColor::Blue;
@@ -60,28 +69,28 @@ class LEARNINGAGENTS_API UFloatAction : public ULearningAgentsAction
 public:
 
 	/**
-	* Adds a new float action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
-	* @param InInteractor The agent interactor to add this action to.
-	* @param Name The name of this new action. Used for debugging.
-	* @param Scale Used to normalize the data for the action.
-	* @return The newly created action.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new float action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
+	 * @param InInteractor The agent interactor to add this action to.
+	 * @param Name The name of this new action. Used for debugging.
+	 * @param Scale Used to normalize the data for the action.
+	 * @return The newly created action.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InInteractor"))
 	static UFloatAction* AddFloatAction(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 1.0f);
 
 	/**
-	* Gets the data for this action. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @return The current action value.
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	float GetFloatAction(const int32 AgentId) const;
+	 * Gets the data for this action. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @return The current action value.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	float GetFloatAction(const int32 AgentId);
 
 	/**
-	* Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
-	* @param AgentId The agent id to set data for.
-	* @param Value The current action value.
-	*/	
+	 * Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
+	 * @param AgentId The agent id to set data for.
+	 * @param Value The current action value.
+	 */	
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetFloatAction(const int32 AgentId, const float Value);
 
@@ -102,29 +111,29 @@ class LEARNINGAGENTS_API UFloatArrayAction : public ULearningAgentsAction
 public:
 
 	/**
-	* Adds a new float array action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
-	* @param InInteractor The agent interactor to add this action to.
-	* @param Name The name of this new action. Used for debugging.
-	* @param Num The number of floats in the array
-	* @param Scale Used to normalize the data for the action.
-	* @return The newly created action.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new float array action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
+	 * @param InInteractor The agent interactor to add this action to.
+	 * @param Name The name of this new action. Used for debugging.
+	 * @param Num The number of floats in the array
+	 * @param Scale Used to normalize the data for the action.
+	 * @return The newly created action.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InInteractor"))
 	static UFloatArrayAction* AddFloatArrayAction(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 Num = 1, const float Scale = 1.0f);
 
 	/**
-	* Gets the data for this action. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @param OutValues The output array of floats
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	void GetFloatArrayAction(const int32 AgentId, TArray<float>& OutValues) const;
+	 * Gets the data for this action. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @param OutValues The output array of floats
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void GetFloatArrayAction(const int32 AgentId, TArray<float>& OutValues);
 
 	/**
-	* Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
-	* @param AgentId The agent id to set data for.
-	* @param Values The current action values.
-	*/
+	 * Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
+	 * @param AgentId The agent id to set data for.
+	 * @param Values The current action values.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetFloatArrayAction(const int32 AgentId, const TArray<float>& Values);
 
@@ -147,28 +156,28 @@ class LEARNINGAGENTS_API UVectorAction : public ULearningAgentsAction
 public:
 
 	/**
-	* Adds a new vector action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
-	* @param InInteractor The agent interactor to add this action to.
-	* @param Name The name of this new action. Used for debugging.
-	* @param Scale Used to normalize the data for the action.
-	* @return The newly created action.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new vector action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
+	 * @param InInteractor The agent interactor to add this action to.
+	 * @param Name The name of this new action. Used for debugging.
+	 * @param Scale Used to normalize the data for the action.
+	 * @return The newly created action.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InInteractor"))
 	static UVectorAction* AddVectorAction(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 1.0f);
 
 	/**
-	* Gets the data for this action. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @return The current action values.
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	FVector GetVectorAction(const int32 AgentId) const;
+	 * Gets the data for this action. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @return The current action values.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	FVector GetVectorAction(const int32 AgentId);
 
 	/**
-	* Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
-	* @param AgentId The agent id to set data for.
-	* @param Value The current action values.
-	*/
+	 * Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
+	 * @param AgentId The agent id to set data for.
+	 * @param Value The current action values.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetVectorAction(const int32 AgentId, const FVector Value);
 
@@ -189,29 +198,29 @@ class LEARNINGAGENTS_API UVectorArrayAction : public ULearningAgentsAction
 public:
 
 	/**
-	* Adds a new vector action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
-	* @param InInteractor The agent interactor to add this action to.
-	* @param Name The name of this new action. Used for debugging.
-	* @param Num The number of vectors in the array
-	* @param Scale Used to normalize the data for the action.
-	* @return The newly created action.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new vector action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
+	 * @param InInteractor The agent interactor to add this action to.
+	 * @param Name The name of this new action. Used for debugging.
+	 * @param Num The number of vectors in the array
+	 * @param Scale Used to normalize the data for the action.
+	 * @return The newly created action.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InInteractor"))
 	static UVectorArrayAction* AddVectorArrayAction(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 Num = 1, const float Scale = 1.0f);
 
 	/**
-	* Gets the data for this action. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @param OutVectors The current action values.
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	void GetVectorArrayAction(const int32 AgentId, TArray<FVector>& OutVectors) const;
+	 * Gets the data for this action. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @param OutVectors The current action values.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void GetVectorArrayAction(const int32 AgentId, TArray<FVector>& OutVectors);
 
 	/**
-	* Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
-	* @param AgentId The agent id to set data for.
-	* @param Vectors The current action values.
-	*/
+	 * Sets the data for this action. Call during ULearningAgentsController::EncodeActions event.
+	 * @param AgentId The agent id to set data for.
+	 * @param Vectors The current action values.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetVectorArrayAction(const int32 AgentId, const TArray<FVector>& Vectors);
 
@@ -234,38 +243,38 @@ class LEARNINGAGENTS_API URotationAction : public ULearningAgentsAction
 public:
 
 	/**
-	* Adds a new rotation action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
-	* @param InInteractor The agent interactor to add this action to.
-	* @param Name The name of this new action. Used for debugging.
-	* @param Scale Used to normalize the data for the action.
-	* @return The newly created action.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new rotation action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
+	 * @param InInteractor The agent interactor to add this action to.
+	 * @param Name The name of this new action. Used for debugging.
+	 * @param Scale Used to normalize the data for the action.
+	 * @return The newly created action.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InInteractor"))
 	static URotationAction* AddRotationAction(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const float Scale = 180.0f);
 
 	/**
-	* Gets the data for this action as a rotator. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @return The current action value.
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	FRotator GetRotationAction(const int32 AgentId) const;
+	 * Gets the data for this action as a rotator. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @return The current action value.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	FRotator GetRotationAction(const int32 AgentId);
 
 	/**
-	* Gets the data for this action as a rotation vector. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @return The current action value.
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	FVector GetRotationActionAsRotationVector(const int32 AgentId) const;
+	 * Gets the data for this action as a rotation vector. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @return The current action value.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	FVector GetRotationActionAsRotationVector(const int32 AgentId);
 
 	/**
-	* Gets the data for this action as a quaternion. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @return The current action value.
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	FQuat GetRotationActionAsQuat(const int32 AgentId) const;
+	 * Gets the data for this action as a quaternion. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @return The current action value.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	FQuat GetRotationActionAsQuat(const int32 AgentId);
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Describes this action to the visual logger for debugging purposes. */
@@ -284,39 +293,39 @@ class LEARNINGAGENTS_API URotationArrayAction : public ULearningAgentsAction
 public:
 
 	/**
-	* Adds a new rotation array action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
-	* @param InInteractor The agent interactor to add this action to.
-	* @param Name The name of this new action. Used for debugging.
-	* @param RotationNum The number of rotations in the array.
-	* @param Scale Used to normalize the data for the action.
-	* @return The newly created action.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new rotation array action to the given agent interactor. Call during ULearningAgentsInteractor::SetupActions event.
+	 * @param InInteractor The agent interactor to add this action to.
+	 * @param Name The name of this new action. Used for debugging.
+	 * @param RotationNum The number of rotations in the array.
+	 * @param Scale Used to normalize the data for the action.
+	 * @return The newly created action.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InInteractor"))
 	static URotationArrayAction* AddRotationArrayAction(ULearningAgentsInteractor* InInteractor, const FName Name = NAME_None, const int32 RotationNum = 1, const float Scale = 180.0f);
 
 	/**
-	* Gets the data for this action as rotators. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @param OutRotations The current action values.
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	void GetRotationArrayAction(const int32 AgentId, TArray<FRotator>& OutRotations) const;
+	 * Gets the data for this action as rotators. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @param OutRotations The current action values.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void GetRotationArrayAction(const int32 AgentId, TArray<FRotator>& OutRotations);
 
 	/**
-	* Gets the data for this action as rotation vectors. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @param OutRotationVectors The current action values.
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	void GetRotationArrayActionAsRotationVectors(const int32 AgentId, TArray<FVector>& OutRotationVectors) const;
+	 * Gets the data for this action as rotation vectors. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @param OutRotationVectors The current action values.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void GetRotationArrayActionAsRotationVectors(const int32 AgentId, TArray<FVector>& OutRotationVectors);
 
 	/**
-	* Gets the data for this action as quaternions. Call during ULearningAgentsInteractor::GetActions event.
-	* @param AgentId The agent id to get data for.
-	* @param OutRotations The current action values.
-	*/
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
-	void GetRotationArrayActionAsQuats(const int32 AgentId, TArray<FQuat>& OutRotations) const;
+	 * Gets the data for this action as quaternions. Call during ULearningAgentsInteractor::GetActions event.
+	 * @param AgentId The agent id to get data for.
+	 * @param OutRotations The current action values.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void GetRotationArrayActionAsQuats(const int32 AgentId, TArray<FQuat>& OutRotations);
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Describes this action to the visual logger for debugging purposes. */

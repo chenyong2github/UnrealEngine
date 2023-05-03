@@ -4,94 +4,100 @@
 #include "LearningAgentsManager.h"
 #include "LearningLog.h"
 
-ULearningAgentsManagerComponent::ULearningAgentsManagerComponent() : UActorComponent() {}
+ULearningAgentsManagerComponent::ULearningAgentsManagerComponent(const FObjectInitializer& ObjectInitializer) : UActorComponent(ObjectInitializer) {}
 ULearningAgentsManagerComponent::ULearningAgentsManagerComponent(FVTableHelper& Helper) : ULearningAgentsManagerComponent() {}
 ULearningAgentsManagerComponent::~ULearningAgentsManagerComponent() {}
 
-bool ULearningAgentsManagerComponent::AddAgent(const int32 AgentId)
+void ULearningAgentsManagerComponent::PostInitProperties()
 {
-	if (HasAgent(AgentId))
+	Super::PostInitProperties();
+
+	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
-		UE_LOG(LogLearning, Warning, TEXT("%s: AgentId %i is already added."), *GetName(), AgentId);
-		return false;
+		return;
 	}
 
-	AddedAgentIds.Add(AgentId);
-	AddedAgentSet = AddedAgentIds;
-	AddedAgentSet.TryMakeSlice();
+	Manager = GetOwner<ALearningAgentsManager>();
 
-	return true;
-}
-
-bool ULearningAgentsManagerComponent::RemoveAgent(const int32 AgentId)
-{
-	if (AddedAgentIds.RemoveSingleSwap(AgentId, false) == 0)
+	if (!Manager)
 	{
-		UE_LOG(LogLearning, Warning, TEXT("%s: Trying to remove an agent with id of %i but it was not found."), *GetName(), AgentId);
-		return false;
+		UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *GetName());
 	}
-
-	AddedAgentSet = AddedAgentIds;
-	AddedAgentSet.TryMakeSlice();
-
-	return true;
 }
 
-bool ULearningAgentsManagerComponent::HasAgent(const int32 AgentId) const
-{
-	return AddedAgentSet.Contains(AgentId);
-}
+void ULearningAgentsManagerComponent::OnAgentsAdded(const TArray<int32>& AgentIds) { }
+
+void ULearningAgentsManagerComponent::OnAgentsRemoved(const TArray<int32>& AgentIds) { }
+
+void ULearningAgentsManagerComponent::OnAgentsReset(const TArray<int32>& AgentIds) { }
 
 UObject* ULearningAgentsManagerComponent::GetAgent(const int32 AgentId, const TSubclassOf<UObject> AgentClass) const
 {
-	if (!AgentManager)
+	if (!Manager)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Agent manager is nullptr. Call setup on this component prior to getting agents."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *GetName());
 		return nullptr;
 	}
 
-	if (!AddedAgentSet.Contains(AgentId))
+	return Manager->GetAgent(AgentId, AgentClass);
+}
+
+void ULearningAgentsManagerComponent::GetAgents(const TArray<int32>& AgentIds, const TSubclassOf<UObject> AgentClass, TArray<UObject*>& OutAgents) const
+{
+	if (!Manager)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found. Be sure to only use AgentIds returned by AddAgent() and check that the agent has not be removed."), *GetName(), AgentId);
-		return nullptr;
+		UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *GetName());
+		OutAgents.Empty();
+		return;
 	}
 
-	// Calling this overload since it will log about missing manager ids
-	return AgentManager->GetAgent(AgentId, AgentClass); 
-}
-
-const UObject* ULearningAgentsManagerComponent::GetAgent(const int32 AgentId) const
-{
-	UE_LEARNING_CHECKF(AgentManager, TEXT("AgentManager is nullptr. Did we forget to call Setup on this component and set the manager?"));
-	UE_LEARNING_CHECKF(AddedAgentSet.Contains(AgentId), TEXT("AgentId not found. Make sure it was added via AddAgent()."));
-
-	return AgentManager->GetAgent(AgentId);
-}
-
-UObject* ULearningAgentsManagerComponent::GetAgent(const int32 AgentId)
-{
-	UE_LEARNING_CHECKF(AgentManager, TEXT("AgentManager is nullptr. Did we forget to call Setup on this component and set the manager?"));
-	UE_LEARNING_CHECKF(AddedAgentSet.Contains(AgentId), TEXT("AgentId not found. Make sure it was added via AddAgent()."));
-
-	return AgentManager->GetAgent(AgentId);
-}
-
-ALearningAgentsManager* ULearningAgentsManagerComponent::GetAgentManager() const
-{
-	UE_LEARNING_CHECKF(AgentManager, TEXT("AgentManager is nullptr. Did we forget to call Setup on this component and set the manager?"));
-
-	return AgentManager;
+	Manager->GetAgents(OutAgents, AgentIds, AgentClass);
 }
 
 ALearningAgentsManager* ULearningAgentsManagerComponent::GetAgentManager(const TSubclassOf<ALearningAgentsManager> AgentManagerClass) const
 {
-	if (!AgentManager)
+	if (!Manager)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: AgentManager is nullptr. Did we forget to call Setup on this component and set the manager?"), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *GetName());
 		return nullptr;
 	}
+	
+	return Manager;
+}
 
-	return AgentManager;
+const UObject* ULearningAgentsManagerComponent::GetAgent(const int32 AgentId) const
+{
+	UE_LEARNING_CHECKF(Manager, TEXT("Must be attached to a LearningAgentsManager Actor."));
+	return Manager->GetAgent(AgentId);
+}
+
+UObject* ULearningAgentsManagerComponent::GetAgent(const int32 AgentId)
+{
+	UE_LEARNING_CHECKF(Manager, TEXT("Must be attached to a LearningAgentsManager Actor."));
+	return Manager->GetAgent(AgentId);
+}
+
+bool ULearningAgentsManagerComponent::HasAgent(const int32 AgentId) const
+{
+	UE_LEARNING_CHECKF(Manager, TEXT("Must be attached to a LearningAgentsManager Actor."));
+	return Manager->HasAgent(AgentId);
+}
+
+const ALearningAgentsManager* ULearningAgentsManagerComponent::GetAgentManager() const
+{
+	UE_LEARNING_CHECKF(Manager, TEXT("Must be attached to a LearningAgentsManager Actor."));
+	return Manager;
+}
+
+ALearningAgentsManager* ULearningAgentsManagerComponent::GetAgentManager()
+{
+	UE_LEARNING_CHECKF(Manager, TEXT("Must be attached to a LearningAgentsManager Actor."));
+	return Manager;
+}
+
+bool ULearningAgentsManagerComponent::HasAgentManager() const
+{
+	return Manager != nullptr;
 }
 
 bool ULearningAgentsManagerComponent::IsSetup() const
@@ -101,5 +107,6 @@ bool ULearningAgentsManagerComponent::IsSetup() const
 
 void ULearningAgentsManagerComponent::AddHelper(TObjectPtr<ULearningAgentsHelper> Object)
 {
+	UE_LEARNING_CHECK(Object);
 	HelperObjects.Add(Object);
 }

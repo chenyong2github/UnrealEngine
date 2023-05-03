@@ -43,6 +43,12 @@ public:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsTrainer> AgentTrainer;
 
+public:
+
+	/** Number of times this reward has been set for all agents */
+	TLearningArray<1, uint64, TInlineAllocator<32>> AgentIteration;
+
+public:
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Color used to draw this reward in the visual log */
 	FLinearColor VisualLogColor = FColor::Green;
@@ -63,23 +69,23 @@ class LEARNINGAGENTSTRAINING_API UFloatReward : public ULearningAgentsReward
 public:
 
 	/**
-	* Adds a new float reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param InAgentTrainer The trainer to add this reward to.
-	* @param Name The name of this new reward. Used for debugging.
-	* @param Weight Multiplier for this reward when being summed up for the total reward.
-	* @return The newly created reward.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new float reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
+	 * @param InAgentTrainer The trainer to add this reward to.
+	 * @param Name The name of this new reward. Used for debugging.
+	 * @param Weight Multiplier for this reward when being summed up for the total reward.
+	 * @return The newly created reward.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
 	static UFloatReward* AddFloatReward(
 		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
 		const float Weight = 1.0f);
 
 	/**
-	* Sets the data for this reward. Call during ULearningAgentsTrainer::SetRewards event.
-	* @param AgentId The agent id this data corresponds to.
-	* @param Reward The value currently being rewarded.
-	*/
+	 * Sets the data for this reward. Call during ULearningAgentsTrainer::SetRewards event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param Reward The value currently being rewarded.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetFloatReward(const int32 AgentId, const float Reward);
 
@@ -102,14 +108,14 @@ class LEARNINGAGENTSTRAINING_API UScalarVelocityReward : public ULearningAgentsR
 public:
 
 	/**
-	* Adds a new scalar velocity reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param InAgentTrainer The trainer to add this reward to.
-	* @param Name The name of this new reward. Used for debugging.
-	* @param Weight Multiplier for this reward when being summed up for the total reward.
-	* @param Scale Used to normalize the data for the reward.
-	* @return The newly created reward.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new scalar velocity reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
+	 * @param InAgentTrainer The trainer to add this reward to.
+	 * @param Name The name of this new reward. Used for debugging.
+	 * @param Weight Multiplier for this reward when being summed up for the total reward.
+	 * @param Scale Used to normalize the data for the reward.
+	 * @return The newly created reward.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
 	static UScalarVelocityReward* AddScalarVelocityReward(
 		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
@@ -117,10 +123,10 @@ public:
 		const float Scale = 200.0f);
 
 	/**
-	* Sets the data for this reward. Call during ULearningAgentsTrainer::SetRewards event.
-	* @param AgentId The agent id this data corresponds to.
-	* @param Velocity The current scalar velocity.
-	*/
+	 * Sets the data for this reward. Call during ULearningAgentsTrainer::SetRewards event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param Velocity The current scalar velocity.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetScalarVelocityReward(const int32 AgentId, const float Velocity);
 
@@ -143,15 +149,15 @@ class LEARNINGAGENTSTRAINING_API ULocalDirectionalVelocityReward : public ULearn
 public:
 
 	/**
-	* Adds a new directional velocity reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param InAgentTrainer The trainer to add this reward to.
-	* @param Name The name of this new reward. Used for debugging.
-	* @param Weight Multiplier for this reward when being summed up for the total reward.
-	* @param Scale Used to normalize the data for the reward.
-	* @param Axis The local direction we want to maximize velocity in.
-	* @return The newly created reward.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new directional velocity reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
+	 * @param InAgentTrainer The trainer to add this reward to.
+	 * @param Name The name of this new reward. Used for debugging.
+	 * @param Weight Multiplier for this reward when being summed up for the total reward.
+	 * @param Scale Used to normalize the data for the reward.
+	 * @param Axis The local direction we want to maximize velocity in.
+	 * @return The newly created reward.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
 	static ULocalDirectionalVelocityReward* AddLocalDirectionalVelocityReward(
 		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
@@ -160,11 +166,11 @@ public:
 		const FVector Axis = FVector::ForwardVector);
 
 	/**
-	* Sets the data for this reward. Call during ULearningAgentsTrainer::SetRewards event.
-	* @param AgentId The agent id this data corresponds to.
-	* @param Velocity The current velocity.
-	* @param RelativeRotation The frame of reference rotation.
-	*/
+	 * Sets the data for this reward. Call during ULearningAgentsTrainer::SetRewards event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param Velocity The current velocity.
+	 * @param RelativeRotation The frame of reference rotation.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetLocalDirectionalVelocityReward(
 		const int32 AgentId,
@@ -190,18 +196,18 @@ class LEARNINGAGENTSTRAINING_API UPlanarPositionDifferencePenalty : public ULear
 public:
 
 	/**
-	* Adds a new planar difference penalty to the given trainer. The axis parameters define the plane.
-	* Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param InAgentTrainer The trainer to add this penalty to.
-	* @param Name The name of this new penalty. Used for debugging.
-	* @param Weight Multiplier for this penalty when being summed up for the total reward.
-	* @param Scale Used to normalize the data for the penalty.
-	* @param Threshold Minimal distance to apply this penalty.
-	* @param Axis0 The forward axis of the plane.
-	* @param Axis1 The right axis of the plane.
-	* @return The newly created reward.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new planar difference penalty to the given trainer. The axis parameters define the plane.
+	 * Call during ULearningAgentsTrainer::SetupRewards event.
+	 * @param InAgentTrainer The trainer to add this penalty to.
+	 * @param Name The name of this new penalty. Used for debugging.
+	 * @param Weight Multiplier for this penalty when being summed up for the total reward.
+	 * @param Scale Used to normalize the data for the penalty.
+	 * @param Threshold Minimal distance to apply this penalty.
+	 * @param Axis0 The forward axis of the plane.
+	 * @param Axis1 The right axis of the plane.
+	 * @return The newly created reward.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
 	static UPlanarPositionDifferencePenalty* AddPlanarPositionDifferencePenalty(
 		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
@@ -212,11 +218,11 @@ public:
 		const FVector Axis1 = FVector::RightVector);
 
 	/**
-	* Sets the data for this penalty. Call during ULearningAgentsTrainer::SetRewards event.
-	* @param AgentId The agent id this data corresponds to.
-	* @param Position0 The current position.
-	* @param Position1 The goal position.
-	*/
+	 * Sets the data for this penalty. Call during ULearningAgentsTrainer::SetRewards event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param Position0 The current position.
+	 * @param Position1 The goal position.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetPlanarPositionDifferencePenalty(const int32 AgentId, const FVector Position0, const FVector Position1);
 
@@ -237,15 +243,15 @@ class LEARNINGAGENTSTRAINING_API UPositionArraySimilarityReward : public ULearni
 public:
 
 	/**
-	* Adds a new position array similarity reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
-	* @param InAgentTrainer The trainer to add this reward to.
-	* @param Name The name of this new reward. Used for debugging.
-	* @param PositionNum The number of positions in the array.
-	* @param Scale Used to normalize the data for the reward.
-	* @param Weight Multiplier for this reward when being summed up for the total reward.
-	* @return The newly created reward.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	 * Adds a new position array similarity reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
+	 * @param InAgentTrainer The trainer to add this reward to.
+	 * @param Name The name of this new reward. Used for debugging.
+	 * @param PositionNum The number of positions in the array.
+	 * @param Scale Used to normalize the data for the reward.
+	 * @param Weight Multiplier for this reward when being summed up for the total reward.
+	 * @return The newly created reward.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
 	static UPositionArraySimilarityReward* AddPositionArraySimilarityReward(
 		ULearningAgentsTrainer* InAgentTrainer,
 		const FName Name = NAME_None,
@@ -254,15 +260,15 @@ public:
 		const float Weight = 1.0f);
 
 	/**
-	* Sets the data for this reward. Call during ULearningAgentsTrainer::SetRewards event.
-	* @param AgentId The agent id this data corresponds to.
-	* @param Positions0 The current positions.
-	* @param Positions1 The goal positions.
-	* @param RelativePosition0 The vector Positions0 will be offset from.
-	* @param RelativePosition1 The vector Positions1 will be offset from.
-	* @param RelativeRotation0 The frame of reference rotation for Positions0.
-	* @param RelativeRotation1 The frame of reference rotation for Positions1.
-	*/
+	 * Sets the data for this reward. Call during ULearningAgentsTrainer::SetRewards event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param Positions0 The current positions.
+	 * @param Positions1 The goal positions.
+	 * @param RelativePosition0 The vector Positions0 will be offset from.
+	 * @param RelativePosition1 The vector Positions1 will be offset from.
+	 * @param RelativeRotation0 The frame of reference rotation for Positions0.
+	 * @param RelativeRotation1 The frame of reference rotation for Positions1.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void SetPositionArraySimilarityReward(
 		const int32 AgentId,

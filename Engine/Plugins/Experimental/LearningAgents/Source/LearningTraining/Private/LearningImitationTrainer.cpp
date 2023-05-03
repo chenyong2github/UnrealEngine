@@ -230,9 +230,9 @@ namespace UE::Learning
 		return SharedMemoryTraining::SendStop(Controls.View);
 	}
 
-	ETrainerResponse FSharedMemoryImitationTrainer::SendContinue(const float Timeout)
+	bool FSharedMemoryImitationTrainer::HasPolicyOrCompleted()
 	{
-		return SharedMemoryTraining::SendContinue(Controls.View);
+		return SharedMemoryTraining::HasPolicyOrCompleted(Controls.View);
 	}
 
 	ETrainerResponse FSharedMemoryImitationTrainer::RecvPolicy(
@@ -574,9 +574,9 @@ namespace UE::Learning
 		return SocketTraining::SendStop(*Socket, Timeout);
 	}
 
-	ETrainerResponse FSocketImitationTrainer::SendContinue(const float Timeout)
+	bool FSocketImitationTrainer::HasPolicyOrCompleted()
 	{
-		return SocketTraining::SendContinue(*Socket, Timeout);
+		return SocketTraining::HasPolicyOrCompleted(*Socket);
 	}
 
 	ETrainerResponse FSocketImitationTrainer::RecvPolicy(
@@ -709,39 +709,27 @@ namespace UE::Learning
 
 					break;
 				}
-				else
+				
+				if (Trainer.HasPolicyOrCompleted())
 				{
-					Response = Trainer.SendContinue();
+					Response = Trainer.RecvPolicy(Network, 10.0f, NetworkLock);
 
-					if (Response != ETrainerResponse::Success)
+					if (Response == ETrainerResponse::Completed)
 					{
 						if (LogSettings != ELogSetting::Silent)
 						{
-							UE_LOG(LogLearning, Error, TEXT("Error sending continue signal to trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
+							UE_LOG(LogLearning, Display, TEXT("Trainer completed training."));
 						}
-
-						Trainer.Terminate();
-						return Response;
+						break;
 					}
-				}
-
-				Response = Trainer.RecvPolicy(Network, 10.0f, NetworkLock);
-
-				if (Response == ETrainerResponse::Completed)
-				{
-					if (LogSettings != ELogSetting::Silent)
+					else if (Response != ETrainerResponse::Success)
 					{
-						UE_LOG(LogLearning, Display, TEXT("Trainer completed training."));
+						if (LogSettings != ELogSetting::Silent)
+						{
+							UE_LOG(LogLearning, Error, TEXT("Error receiving policy from trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
+						}
+						break;
 					}
-					break;
-				}
-				else if (Response != ETrainerResponse::Success)
-				{
-					if (LogSettings != ELogSetting::Silent)
-					{
-						UE_LOG(LogLearning, Error, TEXT("Error receiving policy from trainer: %s. Check log for errors."), Trainer::GetResponseString(Response));
-					}
-					break;
 				}
 
 				if (bNetworkUpdatedSignal)

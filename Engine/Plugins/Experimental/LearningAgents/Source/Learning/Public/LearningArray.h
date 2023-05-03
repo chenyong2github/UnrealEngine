@@ -1081,6 +1081,16 @@ namespace UE::Learning
 		{
 			return Format<float>(Array, [](const float& Value) { return FString::Printf(TEXT("%6.3f"), Value); }, MaxItemNum);
 		}
+
+		static inline FString FormatInt32(const TLearningArrayView<1, const int32> Array, const int32 MaxItemNum = 16)
+		{
+			return Format<int32>(Array, [](const int32& Value) { return FString::Printf(TEXT("%i"), Value); }, MaxItemNum);
+		}
+
+		static inline FString FormatUint64(const TLearningArrayView<1, const uint64> Array, const int32 MaxItemNum = 16)
+		{
+			return Format<uint64>(Array, [](const uint64& Value) { return FString::Printf(TEXT("%ul"), Value); }, MaxItemNum);
+		}
 	}
 }
 

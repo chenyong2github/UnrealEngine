@@ -54,9 +54,7 @@ namespace UE::Learning
 			FSocket& Socket, 
 			const float Timeout = Trainer::DefaultTimeout);
 
-		LEARNINGTRAINING_API ETrainerResponse SendContinue(
-			FSocket& Socket,
-			const float Timeout = Trainer::DefaultTimeout);
+		LEARNINGTRAINING_API bool HasPolicyOrCompleted(FSocket& Socket);
 
 		LEARNINGTRAINING_API ETrainerResponse SendPolicy(
 			FSocket& Socket,

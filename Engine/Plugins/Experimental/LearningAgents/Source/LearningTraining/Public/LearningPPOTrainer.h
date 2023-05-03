@@ -340,7 +340,7 @@ namespace UE::Learning
 
 		virtual void Terminate() override final;
 
-		virtual ETrainerResponse Wait(const float Timeout) override final;
+		virtual ETrainerResponse Wait(const float Timeout = Trainer::DefaultTimeout) override final;
 
 		virtual ETrainerResponse RecvPolicy(
 			FNeuralNetwork& OutNetwork,
@@ -449,7 +449,7 @@ namespace UE::Learning
 		* @param Timeout		Timeout to wait in seconds
 		* @returns				true if successful, otherwise false if it times out
 		*/
-		bool Wait(float Timeout);
+		bool Wait(float Timeout = Trainer::DefaultTimeout);
 
 		/**
 		* Terminate the server process
@@ -501,7 +501,7 @@ namespace UE::Learning
 
 		virtual void Terminate() override final;
 
-		virtual ETrainerResponse Wait(const float Timeout) override final;
+		virtual ETrainerResponse Wait(const float Timeout = Trainer::DefaultTimeout) override final;
 
 		virtual ETrainerResponse RecvPolicy(
 			FNeuralNetwork& OutNetwork,

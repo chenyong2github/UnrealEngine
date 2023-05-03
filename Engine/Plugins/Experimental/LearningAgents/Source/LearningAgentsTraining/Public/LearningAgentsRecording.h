@@ -67,6 +67,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
 	void SaveRecordingToFile(const FFilePath& File) const;
 
+	/** Append to this recording from a file. */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void AppendRecordingFromFile(const FFilePath& File);
+
+	/** Loads this recording from the given recording asset */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void LoadRecordingFromAsset(ULearningAgentsRecording* RecordingAsset);
+
+	/** Saves this recording to the given recording asset */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DevelopmentOnly))
+	void SaveRecordingToAsset(ULearningAgentsRecording* RecordingAsset);
+
+	/** Appends this recording to the given recording asset */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DevelopmentOnly))
+	void AppendRecordingToAsset(ULearningAgentsRecording* RecordingAsset);
+
+public:
+
+	/** Marks this asset as modified even during PIE */
+	void ForceMarkDirty();
+
 public:
 
 	/** Set of records. */

@@ -581,7 +581,7 @@ void UMeshComponentHelper::GetMeshBonePositions(TArray<FVector>& OutBonePosition
 		}
 	}
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	{
 		for (int32 BoneIdx = 0; BoneIdx < BoneNum; BoneIdx++)
 		{
@@ -678,7 +678,7 @@ void URayCastHelper::RayCastGridHeights(
 		}
 	}
 
-#if ENABLE_VISUAL_LOG
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	{
 		UE_LEARNING_AGENTS_VLOG_TRANSFORM(this, LogLearning, Display,
 			Position,

@@ -51,20 +51,40 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 
 	/**
-	* Load this network from a snapshot.
-	* @param File The snapshot file.
-	*/
+	 * Load this network from a snapshot.
+	 * @param File The snapshot file.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
 	void LoadNetworkFromSnapshot(const FFilePath& File);
 
 	/**
-	* Save this network into a snapshot.
-	* @param File The snapshot file.
-	*/
+	 * Save this network into a snapshot.
+	 * @param File The snapshot file.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
-	void SaveNetworkToSnapshot(const FFilePath& File) const;
+	void SaveNetworkToSnapshot(const FFilePath& File);
+
+	/**
+	 * Copy another asset's network weights into this network. Network sizes must match.
+	 * @param NeuralNetworkAsset The asset to load from.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void LoadNetworkFromAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset);
+
+	/**
+	 * Copy this networks's weights to another asset. Network sizes must match.
+	 * @param NeuralNetworkAsset The asset to save to.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", Meta = (DevelopmentOnly))
+	void SaveNetworkToAsset(ULearningAgentsNeuralNetwork* NeuralNetworkAsset);
 
 public:
 
+	/** Marks this asset as modified even during PIE */
+	void ForceMarkDirty();
+
+public:
+
+	/** Pointer to the internal Neural Network Data */
 	TSharedPtr<UE::Learning::FNeuralNetwork> NeuralNetwork;
 };

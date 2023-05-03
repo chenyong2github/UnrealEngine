@@ -22,14 +22,23 @@ namespace UE::Learning::Agents::Rewards::Private
 			return nullptr;
 		}
 
+		if (!InAgentTrainer->HasAgentManager())
+		{
+			UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *InAgentTrainer->GetName());
+			return nullptr;
+		}
+
 		RewardUObject* Reward = NewObject<RewardUObject>(InAgentTrainer, Name);
 
 		Reward->AgentTrainer = InAgentTrainer;
 		Reward->RewardObject = MakeShared<RewardFObject>(
 			Reward->GetFName(),
 			InAgentTrainer->GetAgentManager()->GetInstanceData().ToSharedRef(),
-			InAgentTrainer->GetAgentManager()->GetMaxInstanceNum(),
+			InAgentTrainer->GetAgentManager()->GetMaxAgentNum(),
 			Forward<InArgTypes>(Args)...);
+
+		Reward->AgentIteration.SetNumUninitialized({ InAgentTrainer->GetAgentManager()->GetMaxAgentNum() });
+		UE::Learning::Array::Set<1, uint64>(Reward->AgentIteration, INDEX_NONE);
 
 		InAgentTrainer->AddReward(Reward, Reward->RewardObject.ToSharedRef());
 
@@ -53,6 +62,7 @@ void UFloatReward::SetFloatReward(const int32 AgentId, const float Reward)
 	}
 
 	RewardObject->InstanceData->View(RewardObject->ValueHandle)[AgentId] = Reward;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -97,6 +107,7 @@ void UScalarVelocityReward::SetScalarVelocityReward(int32 AgentId, float Velocit
 	}
 
 	RewardObject->InstanceData->View(RewardObject->VelocityHandle)[AgentId] = Velocity;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -142,6 +153,7 @@ void ULocalDirectionalVelocityReward::SetLocalDirectionalVelocityReward(const in
 
 	RewardObject->InstanceData->View(RewardObject->VelocityHandle)[AgentId] = Velocity;
 	RewardObject->InstanceData->View(RewardObject->RelativeRotationHandle)[AgentId] = RelativeRotation.Quaternion();
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -237,6 +249,7 @@ void UPlanarPositionDifferencePenalty::SetPlanarPositionDifferencePenalty(const 
 
 	RewardObject->InstanceData->View(RewardObject->Position0Handle)[AgentId] = Position0;
 	RewardObject->InstanceData->View(RewardObject->Position1Handle)[AgentId] = Position1;
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -362,6 +375,7 @@ void UPositionArraySimilarityReward::SetPositionArraySimilarityReward(
 	RelativeRotation1View[AgentId] = RelativeRotation1.Quaternion();
 	UE::Learning::Array::Copy<1, FVector>(Positions0View[AgentId], Positions0);
 	UE::Learning::Array::Copy<1, FVector>(Positions1View[AgentId], Positions1);
+	AgentIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG

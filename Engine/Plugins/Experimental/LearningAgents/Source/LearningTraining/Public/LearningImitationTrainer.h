@@ -129,12 +129,11 @@ namespace UE::Learning
 		virtual ETrainerResponse SendStop(const float Timeout = Trainer::DefaultTimeout) = 0;
 
 		/*
-		* Signal for the trainer to continue.
+		* Check if a new policy is available or if training is complete.
 		* 
-		* @param Timeout		Timeout to wait in seconds
-		* @returns				Trainer response
+		* @returns				If there is a new policy ready or training is complete.
 		*/
-		virtual ETrainerResponse SendContinue(const float Timeout = Trainer::DefaultTimeout) = 0;
+		virtual bool HasPolicyOrCompleted() = 0;
 
 		/**
 		* Wait for the trainer and pull an updated policy.
@@ -222,11 +221,11 @@ namespace UE::Learning
 
 		virtual void Terminate() override final;
 
-		virtual ETrainerResponse Wait(const float Timeout) override final;
+		virtual ETrainerResponse Wait(const float Timeout = Trainer::DefaultTimeout) override final;
 
-		virtual ETrainerResponse SendStop(const float Timeout) override final;
+		virtual ETrainerResponse SendStop(const float Timeout = Trainer::DefaultTimeout) override final;
 
-		virtual ETrainerResponse SendContinue(const float Timeout) override final;
+		virtual bool HasPolicyOrCompleted() override final;
 
 		virtual ETrainerResponse RecvPolicy(
 			FNeuralNetwork& OutNetwork,
@@ -360,11 +359,11 @@ namespace UE::Learning
 
 		virtual void Terminate() override final;
 
-		virtual ETrainerResponse Wait(const float Timeout) override final;
+		virtual ETrainerResponse Wait(const float Timeout = Trainer::DefaultTimeout) override final;
 
-		virtual ETrainerResponse SendStop(const float Timeout) override final;
+		virtual ETrainerResponse SendStop(const float Timeout = Trainer::DefaultTimeout) override final;
 
-		virtual ETrainerResponse SendContinue(const float Timeout) override final;
+		virtual bool HasPolicyOrCompleted() override final;
 
 		virtual ETrainerResponse RecvPolicy(
 			FNeuralNetwork& OutNetwork,

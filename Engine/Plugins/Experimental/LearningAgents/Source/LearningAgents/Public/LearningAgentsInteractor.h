@@ -26,14 +26,14 @@ class ULearningAgentsAction;
 class ULearningAgentsObservation;
 
 /**
-* ULearningAgentsInteractor defines how agents interact with the environment through their observations and actions.
-* Additionally, it provides methods to be called during the inference process of those agents.
-*
-* To use this class, you need to implement the SetupObservations and SetupActions functions (as well as their
-* corresponding SetObservations and SetActions functions), which will define the size of inputs and outputs to your
-* policy. Before you can do inference, you need to call SetupInteractor, which will initialize the underlying data
-* structure, and you need to call AddAgent for each object you want controlled by this agent interactor.
-*/
+ * ULearningAgentsInteractor defines how agents interact with the environment through their observations and actions.
+ * Additionally, it provides methods to be called during the inference process of those agents.
+ *
+ * To use this class, you need to implement the SetupObservations and SetupActions functions (as well as their
+ * corresponding SetObservations and SetActions functions), which will define the size of inputs and outputs to your
+ * policy. Before you can do inference, you need to call SetupInteractor, which will initialize the underlying data
+ * structure, and you need to call AddAgent for each object you want controlled by this agent interactor.
+ */
 UCLASS(Abstract, BlueprintType, Blueprintable)
 class LEARNINGAGENTS_API ULearningAgentsInteractor : public ULearningAgentsManagerComponent
 {
@@ -42,38 +42,45 @@ class LEARNINGAGENTS_API ULearningAgentsInteractor : public ULearningAgentsManag
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ULearningAgentsInteractor();
+	ULearningAgentsInteractor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	ULearningAgentsInteractor(FVTableHelper& Helper);
 	virtual ~ULearningAgentsInteractor();
 
 	/** Initializes this object and runs the setup events for observations and actions. */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void SetupInteractor(ALearningAgentsManager* InAgentManager);
+	void SetupInteractor();
+
+public:
+
+	//~ Begin ULearningAgentsManagerComponent Interface
+	virtual void OnAgentsAdded(const TArray<int32>& AgentIds) override;
+	virtual void OnAgentsRemoved(const TArray<int32>& AgentIds) override;
+	virtual void OnAgentsReset(const TArray<int32>& AgentIds) override;
+	//~ End ULearningAgentsManagerComponent Interface
 
 // ----- Observations -----
 public:
 
 	/**
 	 * During this event, all observations should be added to this agent interactor.
-	 * @param Interactor This agent interactor. This is a convenience for blueprints so you don't have to find the Self pin.
 	 * @see LearningAgentsObservations.h for the list of available observations.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
-	void SetupObservations(ULearningAgentsInteractor* Interactor);
+	void SetupObservations();
 
 	/**
-	* During this event, all observations should be set for each agent.
-	* @param AgentIds The list of agent ids to set observations for.
-	* @see LearningAgentsObservations.h for the list of available observations.
-	* @see GetAgent to get the agent corresponding to each id.
-	*/
+	 * During this event, all observations should be set for each agent.
+	 * @param AgentIds The list of agent ids to set observations for.
+	 * @see LearningAgentsObservations.h for the list of available observations.
+	 * @see GetAgent to get the agent corresponding to each id.
+	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
 	void SetObservations(const TArray<int32>& AgentIds);
 
 	/**
-	* Used by objects derived from ULearningAgentsObservation to add themselves to this agent interactor during their
-	* creation. You shouldn't need to call this directly.
-	*/
+	 * Used by objects derived from ULearningAgentsObservation to add themselves to this agent interactor during their
+	 * creation. You shouldn't need to call this directly.
+	 */
 	void AddObservation(TObjectPtr<ULearningAgentsObservation> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature);
 
 // ----- Actions -----
@@ -81,61 +88,60 @@ public:
 
 	/**
 	 * During this event, all actions should be added to this agent interactor.
-	 * @param Interactor This Interactor. This is a convenience for blueprints so you don't have to find the Self pin.
 	 * @see LearningAgentsActions.h for the list of available actions.
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
-	void SetupActions(ULearningAgentsInteractor* Interactor);
+	void SetupActions();
 
 	/**
-	* During this event, you should retrieve the actions and apply them to your agents.
-	* @param AgentIds The list of agent ids to get actions for.
-	* @see LearningAgentsActions.h for the list of available actions.
-	* @see GetAgent to get the agent corresponding to each id.
-	*/
+	 * During this event, you should retrieve the actions and apply them to your agents.
+	 * @param AgentIds The list of agent ids to get actions for.
+	 * @see LearningAgentsActions.h for the list of available actions.
+	 * @see GetAgent to get the agent corresponding to each id.
+	 */
 	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
 	void GetActions(const TArray<int32>& AgentIds);
 
 	/**
-	* Used by objects derived from ULearningAgentsAction to add themselves to this agent interactor during their creation.
-	* You shouldn't need to call this directly.
-	*/
+	 * Used by objects derived from ULearningAgentsAction to add themselves to this agent interactor during their creation.
+	 * You shouldn't need to call this directly.
+	 */
 	void AddAction(TObjectPtr<ULearningAgentsAction> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature);
 
 // ----- Encoding / Decoding -----
 public:
 
 	/**
-	* Call this function when it is time to gather all the observations for your agents. This can be done each frame or
-	* you can consider wiring it up to some kind of meaningful event, e.g. a hypothetical "OnAITurnStarted" if you have
-	* a turn-based game. This will call this agent interactor's SetObservations event.
-	*/
+	 * Call this function when it is time to gather all the observations for your agents. This can be done each frame or
+	 * you can consider wiring it up to some kind of meaningful event, e.g. a hypothetical "OnAITurnStarted" if you have
+	 * a turn-based game. This will call this agent interactor's SetObservations event.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EncodeObservations();
 
 	/**
-	* Call this function when it is time for your agents to take their actions. You most likely want to call this after
-	* your policy's EvaluatePolicy function to ensure that you are receiving the latest actions. This will call this
-	* agent interactor's GetActions event.
-	*/
+	 * Call this function when it is time for your agents to take their actions. You most likely want to call this after
+	 * your policy's EvaluatePolicy function to ensure that you are receiving the latest actions. This will call this
+	 * agent interactor's GetActions event.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void DecodeActions();
 
 	/**
-	* Gets the observation vector used by a given agent. Should be called only after EncodeObservations.
-	*
-	* @param AgentId				The AgentId to look-up the observation vector for
-	* @param OutObservationVector	The observation vector for the given agent
-	*/
+	 * Gets the observation vector used by a given agent. Should be called only after EncodeObservations.
+	 *
+	 * @param AgentId				The AgentId to look-up the observation vector for
+	 * @param OutObservationVector	The observation vector for the given agent
+	 */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void GetObservationVector(const int32 AgentId, TArray<float>& OutObservationVector) const;
 
 	/**
-	* Gets the action vector used by a given agent. Should be called only after EncodeActions or EvaluatePolicy.
-	*
-	* @param AgentId				The AgentId to look-up the action vector for
-	* @param OutActionVector		The action vector for the given agent
-	*/
+	 * Gets the action vector used by a given agent. Should be called only after EncodeActions or EvaluatePolicy.
+	 *
+	 * @param AgentId				The AgentId to look-up the action vector for
+	 * @param OutActionVector		The action vector for the given agent
+	 */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
 	void GetActionVector(const int32 AgentId, TArray<float>& OutActionVector) const;
 
@@ -153,6 +159,18 @@ public:
 
 	/** Get a const array view of this agent interactor's action objects. */
 	TConstArrayView<ULearningAgentsAction*> GetActionObjects() const;
+
+	/** Get the number of times observations have been encoded for all agents */
+	TLearningArrayView<1, uint64> GetObservationEncodingAgentIteration();
+
+	/** Get the number of times actions have been encoded for all agents */
+	TLearningArrayView<1, uint64> GetActionEncodingAgentIteration();
+
+	/** Encode Observations for a specific set of agents */
+	void EncodeObservations(const UE::Learning::FIndexSet AgentSet);
+
+	/** Decode Actions for a specific set of agents */
+	void DecodeActions(const UE::Learning::FIndexSet AgentSet);
 
 private:
 
@@ -172,4 +190,25 @@ private:
 
 	TSharedPtr<UE::Learning::FConcatenateFeature> Observations;
 	TSharedPtr<UE::Learning::FConcatenateFeature> Actions;
+
+// ----- Private Iteration Checks ----- 
+private:
+
+	/**
+	 * Sets the iteration number for the given set of agents for all observations, actions, as well as for the encoding 
+	 * of observations and actions
+	 */
+	void SetAgentIteration(const UE::Learning::FIndexSet AgentIds, const uint64 Value);
+
+	/** Number of times observations have been encoded for all agents */
+	TLearningArray<1, uint64, TInlineAllocator<32>> ObservationEncodingAgentIteration;
+
+	/** Number of times actions have been encoded for all agents */
+	TLearningArray<1, uint64, TInlineAllocator<32>> ActionEncodingAgentIteration;
+
+	/** Temp buffers used to record the set of agents that are valid for encoding/decoding */
+	TArray<int32> ValidAgentIds;
+	UE::Learning::FIndexSet ValidAgentSet;
+	TBitArray<TInlineAllocator<32>> ValidAgentStatus;
+
 };

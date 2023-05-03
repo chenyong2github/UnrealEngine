@@ -25,29 +25,32 @@ class LEARNINGAGENTS_API ULearningAgentsManagerComponent : public UActorComponen
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ULearningAgentsManagerComponent();
+	ULearningAgentsManagerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	ULearningAgentsManagerComponent(FVTableHelper& Helper);
 	virtual ~ULearningAgentsManagerComponent();
 
+	virtual void PostInitProperties() override;
+
 	/**
-	 * Adds an agent to this component.
-	 * @param AgentId The id of the agent to be added.
-	 * @return True if the agent was added successfully. Otherwise, false.
+	 * Called whenever agents are added to the parent ALearningAgentsManager object.
+	 * @param AgentIds Array of agent ids which have been added
 	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
-	virtual bool AddAgent(const int32 AgentId);
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	virtual void OnAgentsAdded(const TArray<int32>& AgentIds);
 
 	/**
-	* Removes an agent from this component.
-	* @param AgentId The id of the agent to be removed.
-	* @return True if the agent was removed successfully. Otherwise, false.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
-	virtual bool RemoveAgent(const int32 AgentId);
+	 * Called whenever agents are removed from the parent ALearningAgentsManager object.
+	 * @param AgentIds Array of agent ids which have been removed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	virtual void OnAgentsRemoved(const TArray<int32>& AgentIds);
 
-	/** Returns true if the given id has been previously added to this component; Otherwise, false. */
-	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1"))
-	bool HasAgent(const int32 AgentId) const;
+	/**
+	 * Called whenever agents are reset on the parent ALearningAgentsManager object.
+	 * @param AgentIds Array of agent ids which have been reset
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	virtual void OnAgentsReset(const TArray<int32>& AgentIds);
 
 	/** Returns true if this component has been setup. Otherwise, false. */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents")
@@ -57,20 +60,31 @@ public:
 protected:
 
 	/**
-	* Gets the agent with the given id from the manager. Calling this from blueprint with the appropriate AgentClass
-	* will automatically cast the object to the given type. If not in a blueprint, you should call the manager's
-	* GetAgent methods directly.
-	* @param AgentId The id of the agent to get.
-	* @param AgentClass The class to cast the agent object to (in blueprint).
-	* @return The agent object.
-	*/
+	 * Gets the agent with the given id from the manager. Calling this from blueprint with the appropriate AgentClass
+	 * will automatically cast the object to the given type. If not in a blueprint, you should call the manager's
+	 * GetAgent methods directly.
+	 * @param AgentId The id of the agent to get.
+	 * @param AgentClass The class to cast the agent object to (in blueprint).
+	 * @return The agent object.
+	 */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (AgentId = "-1", DeterminesOutputType = "AgentClass"))
 	UObject* GetAgent(const int32 AgentId, const TSubclassOf<UObject> AgentClass) const;
 
 	/**
-	* Gets the agent manager associated with this component.
-	* @param AgentClass The class to cast the agent manager to (in blueprint).
-	*/
+	 * Gets the agents associated with a set of ids from the manager. Calling this from blueprint with the appropriate 
+	 * AgentClass will automatically cast the object to the given type. If not in a blueprint, you should call the 
+	 * manager's GetAgents method directly.
+	 * @param AgentIds The ids of the agents to get.
+	 * @param AgentClass The class to cast the agent objects to (in blueprint).
+	 * @param OutAgents The output array of agent objects.
+	 */
+	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass", DynamicOutputParam = "OutAgents"))
+	void GetAgents(const TArray<int32>& AgentIds, const TSubclassOf<UObject> AgentClass, TArray<UObject*>& OutAgents) const;
+
+	/**
+	 * Gets the agent manager associated with this component.
+	 * @param AgentClass The class to cast the agent manager to (in blueprint).
+	 */
 	UFUNCTION(BlueprintPure, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentManagerClass"))
 	ALearningAgentsManager* GetAgentManager(const TSubclassOf<ALearningAgentsManager> AgentManagerClass) const;
 
@@ -83,15 +97,25 @@ public:
 	/** Gets the agent corresponding to the given id. */
 	UObject* GetAgent(const int32 AgentId);
 
-	ALearningAgentsManager* GetAgentManager() const;
+	/** Checks if the component has the given agent id */
+	bool HasAgent(const int32 AgentId) const;
+
+	/** Gets the associated agent manager assuming it exists. */
+	const ALearningAgentsManager* GetAgentManager() const;
+
+	/** Gets the associated agent manager assuming it exists. */
+	ALearningAgentsManager* GetAgentManager();
+
+	/** Checks if the component has an agent manager. */
+	bool HasAgentManager() const;
 
 // ----- Helpers -----
 public:
 
 	/**
-	* Used by objects derived from ULearningAgentsHelper to add themselves to this component during their creation.
-	* You shouldn't need to call this directly.
-	*/
+	 * Used by objects derived from ULearningAgentsHelper to add themselves to this component during their creation.
+	 * You shouldn't need to call this directly.
+	 */
 	void AddHelper(TObjectPtr<ULearningAgentsHelper> Object);
 
 protected:
@@ -100,15 +124,9 @@ protected:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	bool bIsSetup = false;
 
-	/** The agent manager associated with this component. */
+	/** The associated manager this component is attached to. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TObjectPtr<ALearningAgentsManager> AgentManager;
-
-	/** The agent ids added to this component. */
-	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
-	TArray<int32> AddedAgentIds;
-
-	UE::Learning::FIndexSet AddedAgentSet;
+	TObjectPtr<ALearningAgentsManager> Manager;
 
 	/** The list of current helper objects. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")

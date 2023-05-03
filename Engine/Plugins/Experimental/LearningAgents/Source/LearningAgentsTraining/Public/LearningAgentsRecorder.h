@@ -42,7 +42,7 @@ class LEARNINGAGENTSTRAINING_API ULearningAgentsRecorder : public ULearningAgent
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ULearningAgentsRecorder();
+	ULearningAgentsRecorder(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	ULearningAgentsRecorder(FVTableHelper& Helper);
 	virtual ~ULearningAgentsRecorder();
 
@@ -50,36 +50,38 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/**
-	* Initializes this object and runs the setup functions for the underlying data storage.
-	* @param InAgentManager The agent manager we are associated with.
-	* @param InInteractor The agent interactor we are recording with.
-	* @param RecorderPathSettings The path settings used by the recorder.
-	*/
+	 * Initializes this object and runs the setup functions for the underlying data storage.
+	 * @param InInteractor The agent interactor we are recording with.
+	 * @param RecorderPathSettings The path settings used by the recorder.
+	 * @param RecordingAsset Optional recording asset to use. If not provided then a new recording object will be 
+	 * created.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void SetupRecorder(
-		ALearningAgentsManager* InAgentManager, 
 		ULearningAgentsInteractor* InInteractor,
-		const FLearningAgentsRecorderPathSettings& RecorderPathSettings = FLearningAgentsRecorderPathSettings());
+		const FLearningAgentsRecorderPathSettings& RecorderPathSettings = FLearningAgentsRecorderPathSettings(),
+		ULearningAgentsRecording* RecordingAsset = nullptr);
 
 public:
 
 	//~ Begin ULearningAgentsManagerComponent Interface
-	virtual bool RemoveAgent(const int32 AgentId) override;
+	virtual void OnAgentsRemoved(const TArray<int32>& AgentIds) override;
+	virtual void OnAgentsReset(const TArray<int32>& AgentIds) override;
 	//~ End ULearningAgentsManagerComponent Interface
 
 // ----- Recording Process -----
 public:
 
 	/**
-	* Begins the recording of the observations and actions of each added agent.
-	* @param bReinitializeRecording If to reinitialize the current recording object.
-	*/
+	 * Begins the recording of the observations and actions of each added agent.
+	 * @param bReinitializeRecording If to clear all records from the recording object in use at the start of recording.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void BeginRecording(bool bReinitializeRecording = true);
 
 	/**
-	* Ends the recording of the observations and actions of each agent and stores them in the current recording object.
-	*/
+	 * Ends the recording of the observations and actions of each agent and stores them in the current recording object.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void EndRecording();
 
@@ -88,10 +90,10 @@ public:
 	bool IsRecording() const;
 
 	/**
-	* While recording, adds the current observations and actions of the added agents to the internal buffer. Call this 
-	* after ULearningAgentsInteractor::EncodeObservations and either ULearningAgentsController::EncodeActions (if 
-	* recording a human/AI demonstration) or ULearningAgentsInteractor::DecodeActions (if recording another policy).
-	*/
+	 * While recording, adds the current observations and actions of the added agents to the internal buffer. Call this 
+	 * after ULearningAgentsInteractor::EncodeObservations and either ULearningAgentsController::EncodeActions (if 
+	 * recording a human/AI demonstration) or ULearningAgentsInteractor::DecodeActions (if recording another policy).
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	void AddExperience();
 
@@ -110,17 +112,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
 	void SaveRecordingToFile(const FFilePath& File) const;
 
+	/** Append to the current recording object from a file. */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (RelativePath))
+	void AppendRecordingFromFile(const FFilePath& File);
+
+	/** Uses the given recording asset. New recordings will be appended to this. */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
+	void UseRecordingAsset(ULearningAgentsRecording* RecordingAsset);
+
 	/** Loads the current recording object from the given recording asset */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
-	void LoadRecordingFromAsset(const ULearningAgentsRecording* Asset);
+	void LoadRecordingFromAsset(ULearningAgentsRecording* RecordingAsset);
 
 	/** Saves the current recording object to the given recording asset */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DevelopmentOnly))
-	void SaveRecordingToAsset(ULearningAgentsRecording* Asset) const;
+	void SaveRecordingToAsset(ULearningAgentsRecording* RecordingAsset);
 
 	/** Appends the current recording object to the given recording asset */
 	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DevelopmentOnly))
-	void AppendRecordingToAsset(ULearningAgentsRecording* Asset) const;
+	void AppendRecordingToAsset(ULearningAgentsRecording* RecordingAsset);
 
 
 // ----- Private Data ----- 
@@ -141,6 +151,7 @@ private:
 // ----- Private Data ----- 
 private:
 
+	/** Directory to store recordings in */
 	FString RecordingDirectory;
 
 	/** Basic structure used to buffer the observations and actions of each agent. */
@@ -167,5 +178,6 @@ private:
 		void CopyToRecord(FLearningAgentsRecord& Record) const;
 	};
 
+	/** Array of recording buffers for each agent */
 	TArray<FAgentRecordBuffer, TInlineAllocator<32>> RecordBuffers;
 };

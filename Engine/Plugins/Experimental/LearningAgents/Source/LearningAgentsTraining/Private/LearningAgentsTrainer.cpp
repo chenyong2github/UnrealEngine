@@ -2,8 +2,6 @@
 
 #include "LearningAgentsTrainer.h"
 
-#include "GenericPlatform/GenericPlatformMisc.h"
-#include "HAL/FileManager.h"
 #include "LearningAgentsInteractor.h"
 #include "LearningAgentsManager.h"
 #include "LearningAgentsRewards.h"
@@ -22,6 +20,10 @@
 #include "LearningRewardObject.h"
 #include "LearningCompletion.h"
 #include "LearningCompletionObject.h"
+
+#include "GenericPlatform/GenericPlatformMisc.h"
+#include "HAL/FileManager.h"
+#include "UObject/Package.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "GameFramework/GameUserSettings.h"
@@ -101,12 +103,11 @@ FString FLearningAgentsTrainerPathSettings::GetIntermediatePath() const
 	return IntermediateRelativePath.Path;
 }
 
-ULearningAgentsTrainer::ULearningAgentsTrainer() : ULearningAgentsManagerComponent() {}
+ULearningAgentsTrainer::ULearningAgentsTrainer(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
 ULearningAgentsTrainer::ULearningAgentsTrainer(FVTableHelper& Helper) : ULearningAgentsTrainer() {}
 ULearningAgentsTrainer::~ULearningAgentsTrainer() {}
 
 void ULearningAgentsTrainer::SetupTrainer(
-	ALearningAgentsManager* InAgentManager,
 	ULearningAgentsInteractor* InInteractor,
 	ULearningAgentsPolicy* InPolicy,
 	ULearningAgentsCritic* InCritic,
@@ -118,19 +119,11 @@ void ULearningAgentsTrainer::SetupTrainer(
 		return;
 	}
 
-	if (!InAgentManager)
+	if (!Manager)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: InAgentManager is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *GetName());
 		return;
 	}
-
-	if (!InAgentManager->IsManagerSetup())
-	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's SetupManager must be run before it can be used."), *GetName(), *InAgentManager->GetName());
-		return;
-	}
-
-	AgentManager = InAgentManager;
 
 	if (!InInteractor)
 	{
@@ -144,8 +137,6 @@ void ULearningAgentsTrainer::SetupTrainer(
 		return;
 	}
 
-	Interactor = InInteractor;
-
 	if (!InPolicy)
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: InPolicy is nullptr."), *GetName());
@@ -158,28 +149,21 @@ void ULearningAgentsTrainer::SetupTrainer(
 		return;
 	}
 
-	Policy = InPolicy;
-
 	// The critic is optional unlike the other components
-	if (InCritic)
+	if (InCritic && !InCritic->IsSetup())
 	{
-		if (!InCritic->IsSetup())
-		{
-			UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InCritic->GetName());
-			return;
-		}
-
-		Critic = InCritic;
+		UE_LOG(LogLearning, Error, TEXT("%s: %s's Setup must be run before it can be used."), *GetName(), *InCritic->GetName());
+		return;
 	}
+
+	Interactor = InInteractor;
+	Policy = InPolicy;
+	Critic = InCritic;
 
 	// Setup Rewards
 	RewardObjects.Empty();
 	RewardFeatures.Empty();
-	SetupRewards(this);
-	Rewards = MakeShared<UE::Learning::FSumReward>(TEXT("Rewards"),
-		TLearningArrayView<1, const TSharedRef<UE::Learning::FRewardObject>>(RewardFeatures),
-		AgentManager->GetInstanceData().ToSharedRef(),
-		AgentManager->GetMaxInstanceNum());
+	SetupRewards();
 
 	if (RewardObjects.Num() == 0)
 	{
@@ -187,25 +171,31 @@ void ULearningAgentsTrainer::SetupTrainer(
 		return;
 	}
 
+	Rewards = MakeShared<UE::Learning::FSumReward>(TEXT("Rewards"),
+		TLearningArrayView<1, const TSharedRef<UE::Learning::FRewardObject>>(RewardFeatures),
+		Manager->GetInstanceData().ToSharedRef(),
+		Manager->GetMaxAgentNum());
+
 	// Setup Completions
 	CompletionObjects.Empty();
 	CompletionFeatures.Empty();
-	SetupCompletions(this);
-	Completions = MakeShared<UE::Learning::FAnyCompletion>(TEXT("Completions"),
-		TLearningArrayView<1, const TSharedRef<UE::Learning::FCompletionObject>>(CompletionFeatures),
-		AgentManager->GetInstanceData().ToSharedRef(),
-		AgentManager->GetMaxInstanceNum());
+	SetupCompletions();
 
-	if (RewardObjects.Num() == 0)
+	if (CompletionObjects.Num() == 0)
 	{
 		// Not an error or warning because it's fine to run training without any completions.
 		UE_LOG(LogLearning, Display, TEXT("%s: No completions added to Trainer during SetupCompletions."), *GetName());
 	}
 
+	Completions = MakeShared<UE::Learning::FAnyCompletion>(TEXT("Completions"),
+		TLearningArrayView<1, const TSharedRef<UE::Learning::FCompletionObject>>(CompletionFeatures),
+		Manager->GetInstanceData().ToSharedRef(),
+		Manager->GetMaxAgentNum());
+
 	// Create Episode Buffer
 	EpisodeBuffer = MakeUnique<UE::Learning::FEpisodeBuffer>();
 	EpisodeBuffer->Resize(
-		AgentManager->GetMaxInstanceNum(),
+		Manager->GetMaxAgentNum(),
 		TrainerSettings.MaxStepNum,
 		Interactor->GetObservationFeature().DimNum(),
 		Interactor->GetActionFeature().DimNum());
@@ -222,27 +212,74 @@ void ULearningAgentsTrainer::SetupTrainer(
 
 	// Create Reset Buffer
 	ResetBuffer = MakeUnique<UE::Learning::FResetInstanceBuffer>();
-	ResetBuffer->Resize(AgentManager->GetMaxInstanceNum());
+	ResetBuffer->Resize(Manager->GetMaxAgentNum());
 
 	// Record Timeout Setting
 	TrainerTimeout = TrainerSettings.TrainerCommunicationTimeout;
 
+	// Reset Agent iteration
+	RewardEvaluatedAgentIteration.SetNumUninitialized({ Manager->GetMaxAgentNum() });
+	CompletionEvaluatedAgentIteration.SetNumUninitialized({ Manager->GetMaxAgentNum() });
+	UE::Learning::Array::Set<1, uint64>(RewardEvaluatedAgentIteration, INDEX_NONE);
+	UE::Learning::Array::Set<1, uint64>(CompletionEvaluatedAgentIteration, INDEX_NONE);
+	SetAgentIteration(Manager->GetAllAgentSet(), 0);
+
 	bIsSetup = true;
 }
 
-bool ULearningAgentsTrainer::AddAgent(const int32 AgentId)
+void ULearningAgentsTrainer::OnAgentsAdded(const TArray<int32>& AgentIds)
 {
-	bool bSuccess = Super::AddAgent(AgentId);
-
-	if (bSuccess && IsTraining())
+	if (IsSetup())
 	{
-		// Reset the instance and the buffer in case we have stale 
-		// data from another agent that was using this id previously
-		ResetEpisodes({ AgentId });
-		EpisodeBuffer->Reset(AgentId);
+		UE::Learning::FIndexSet AgentsSet = AgentIds;
+		AgentsSet.TryMakeSlice();
+
+		ResetEpisodes(AgentIds);
+		EpisodeBuffer->Reset(AgentsSet);
+
+		SetAgentIteration(AgentsSet, 0);
+	}
+}
+
+void ULearningAgentsTrainer::OnAgentsRemoved(const TArray<int32>& AgentIds)
+{
+	if (IsSetup())
+	{
+		UE::Learning::FIndexSet AgentsSet = AgentIds;
+		AgentsSet.TryMakeSlice();
+
+		SetAgentIteration(AgentsSet, INDEX_NONE);
+	}
+}
+
+void ULearningAgentsTrainer::OnAgentsReset(const TArray<int32>& AgentIds)
+{
+	if (IsSetup())
+	{
+		UE::Learning::FIndexSet AgentsSet = AgentIds;
+		AgentsSet.TryMakeSlice();
+
+		ResetEpisodes(AgentIds);
+		EpisodeBuffer->Reset(AgentsSet);
+
+		SetAgentIteration(AgentsSet, 0);
+	}
+}
+
+void ULearningAgentsTrainer::SetAgentIteration(const UE::Learning::FIndexSet AgentIds, const uint64 Value)
+{
+	UE::Learning::Array::Set<1, uint64>(RewardEvaluatedAgentIteration, Value, AgentIds);
+	UE::Learning::Array::Set<1, uint64>(CompletionEvaluatedAgentIteration, Value, AgentIds);
+
+	for (ULearningAgentsReward* RewardObject : RewardObjects)
+	{
+		UE::Learning::Array::Set<1, uint64>(RewardObject->AgentIteration, Value, AgentIds);
 	}
 
-	return bSuccess;
+	for (ULearningAgentsCompletion* CompletionObject : CompletionObjects)
+	{
+		UE::Learning::Array::Set<1, uint64>(CompletionObject->AgentIteration, Value, AgentIds);
+	}
 }
 
 void ULearningAgentsTrainer::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -255,7 +292,7 @@ void ULearningAgentsTrainer::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void ULearningAgentsTrainer::SetupRewards_Implementation(ULearningAgentsTrainer* AgentTrainer)
+void ULearningAgentsTrainer::SetupRewards_Implementation()
 {
 	// Can be overridden to setup rewards without blueprints
 }
@@ -268,11 +305,12 @@ void ULearningAgentsTrainer::SetRewards_Implementation(const TArray<int32>& Agen
 void ULearningAgentsTrainer::AddReward(TObjectPtr<ULearningAgentsReward> Object, const TSharedRef<UE::Learning::FRewardObject>& Reward)
 {
 	UE_LEARNING_CHECK(!IsSetup());
+	UE_LEARNING_CHECK(Object);
 	RewardObjects.Add(Object);
 	RewardFeatures.Add(Reward);
 }
 
-void ULearningAgentsTrainer::SetupCompletions_Implementation(ULearningAgentsTrainer* AgentTrainer)
+void ULearningAgentsTrainer::SetupCompletions_Implementation()
 {
 	// Can be overridden to setup completions without blueprints
 }
@@ -285,6 +323,7 @@ void ULearningAgentsTrainer::SetCompletions_Implementation(const TArray<int32>& 
 void ULearningAgentsTrainer::AddCompletion(TObjectPtr<ULearningAgentsCompletion> Object, const TSharedRef<UE::Learning::FCompletionObject>& Completion)
 {
 	UE_LEARNING_CHECK(!IsSetup());
+	UE_LEARNING_CHECK(Object);
 	CompletionObjects.Add(Object);
 	CompletionFeatures.Add(Completion);
 }
@@ -300,7 +339,8 @@ void ULearningAgentsTrainer::BeginTraining(
 	const FLearningAgentsTrainerPathSettings& TrainerPathSettings,
 	const FLearningAgentsCriticSettings& CriticSettings,
 	const bool bReinitializePolicyNetwork,
-	const bool bReinitializeCriticNetwork)
+	const bool bReinitializeCriticNetwork,
+	const bool bResetAgentsOnBegin)
 {
 	if (!IsSetup())
 	{
@@ -465,7 +505,7 @@ void ULearningAgentsTrainer::BeginTraining(
 		PPONetworkSettings,
 		TrainerFlags);
 
-	UE_LOG(LogLearning, Display, TEXT("%s: Receiving initial policy..."), *GetName());
+	UE_LOG(LogLearning, Display, TEXT("%s: Sending / Receiving initial policy..."), *GetName());
 
 	UE::Learning::ETrainerResponse Response = UE::Learning::ETrainerResponse::Success;
 
@@ -476,6 +516,7 @@ void ULearningAgentsTrainer::BeginTraining(
 	else
 	{
 		Response = Trainer->RecvPolicy(Policy->GetPolicyNetwork(), TrainerTimeout);
+		Policy->GetNetworkAsset()->ForceMarkDirty();
 	}
 
 	if (Response != UE::Learning::ETrainerResponse::Success)
@@ -494,6 +535,7 @@ void ULearningAgentsTrainer::BeginTraining(
 		else if ((bool)(TrainerFlags & UE::Learning::EPPOTrainerFlags::SynchronizeCriticNetwork))
 		{
 			Response = Trainer->RecvCritic(Critic->GetCriticNetwork(), TrainerTimeout);
+			Critic->GetNetworkAsset()->ForceMarkDirty();
 		}
 		else
 		{
@@ -508,9 +550,13 @@ void ULearningAgentsTrainer::BeginTraining(
 		}
 	}
 
-	// Reset Agents, Episode Buffer, and Replay Buffer
-	ResetEpisodes(AddedAgentIds);
-	EpisodeBuffer->Reset(AddedAgentSet);
+	// Reset Agents, Replay Buffer
+
+	if (bResetAgentsOnBegin)
+	{
+		Manager->ResetAllAgents();
+	}
+
 	ReplayBuffer->Reset();
 
 	bIsTraining = true;
@@ -572,17 +618,88 @@ void ULearningAgentsTrainer::EvaluateRewards()
 		return;
 	}
 
-	SetRewards(AddedAgentIds);
+	// Check agents have actually make observations and taken actions.
 
-	Rewards->Evaluate(AddedAgentSet);
+	ValidAgentIds.Empty(Manager->GetAgentNum());
 
-#if ENABLE_VISUAL_LOG
+	for (const int32 AgentId : Manager->GetAllAgentSet())
+	{
+		if (Interactor->GetObservationEncodingAgentIteration()[AgentId] == 0 || 
+			Interactor->GetActionEncodingAgentIteration()[AgentId] == 0)
+		{
+			UE_LOG(LogLearning, Display, TEXT("%s: Agent with id %i has not made observations and taken actions so rewards will not be evaluated for it."), *GetName(), AgentId);
+			continue;
+		}
+
+		ValidAgentIds.Add(AgentId);
+	}
+
+	ValidAgentSet = ValidAgentIds;
+	ValidAgentSet.TryMakeSlice();
+
+	// Set Rewards
+
+	SetRewards(ValidAgentIds);
+
+	// Check that all rewards have had their setter run
+
+	ValidAgentStatus.SetNumUninitialized(Manager->GetMaxAgentNum());
+	ValidAgentStatus.SetRange(0, Manager->GetMaxAgentNum(), true);
+
+	for (ULearningAgentsReward* RewardObject : RewardObjects)
+	{
+		for (const int32 AgentId : ValidAgentSet)
+		{
+			if (RewardObject->AgentIteration[AgentId] == RewardEvaluatedAgentIteration[AgentId])
+			{
+				UE_LOG(LogLearning, Error, TEXT("%s: Reward %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have rewards evaluated."), *GetName(), *RewardObject->GetName(), AgentId, RewardObject->AgentIteration[AgentId], RewardEvaluatedAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+
+			if (RewardObject->AgentIteration[AgentId] > RewardEvaluatedAgentIteration[AgentId] + 1)
+			{
+				UE_LOG(LogLearning, Error, TEXT("%s: Reward %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have rewards evaluated."), *GetName(), *RewardObject->GetName(), AgentId, RewardObject->AgentIteration[AgentId], RewardEvaluatedAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+
+			if (RewardObject->AgentIteration[AgentId] != RewardEvaluatedAgentIteration[AgentId] + 1)
+			{
+				UE_LOG(LogLearning, Error, TEXT("%s: Reward %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have rewards evaluated."), *GetName(), *RewardObject->GetName(), AgentId, RewardObject->AgentIteration[AgentId], RewardEvaluatedAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+		}
+	}
+
+	FinalValidAgentIds.Empty(ValidAgentSet.Num());
+
+	for (const int32 AgentId : ValidAgentSet)
+	{
+		if (ValidAgentStatus[AgentId]) { FinalValidAgentIds.Add(AgentId); }
+	}
+
+	FinalValidAgentSet = FinalValidAgentIds;
+	FinalValidAgentSet.TryMakeSlice();
+
+	// Evaluate Rewards
+
+	Rewards->Evaluate(FinalValidAgentSet);
+
+	// Increment Reward Evaluation Iteration
+
+	for (const int32 AgentId : FinalValidAgentSet)
+	{
+		RewardEvaluatedAgentIteration[AgentId]++;
+	}
+
+	// Visual Logger
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	for (const ULearningAgentsReward* RewardObject : RewardObjects)
 	{
-		if (RewardObject)
-		{
-			RewardObject->VisualLog(AddedAgentSet);
-		}
+		RewardObject->VisualLog(FinalValidAgentSet);
 	}
 #endif
 }
@@ -597,23 +714,96 @@ void ULearningAgentsTrainer::EvaluateCompletions()
 		return;
 	}
 
-	SetCompletions(AddedAgentIds);
+	// Check agents have actually make observations and taken actions.
 
-	Completions->Evaluate(AddedAgentSet);
+	ValidAgentIds.Empty(Manager->GetAgentNum());
+
+	for (const int32 AgentId : Manager->GetAllAgentSet())
+	{
+		if (Interactor->GetObservationEncodingAgentIteration()[AgentId] == 0 || 
+			Interactor->GetActionEncodingAgentIteration()[AgentId] == 0)
+		{
+			UE_LOG(LogLearning, Display, TEXT("%s: Agent with id %i has not made observations and taken actions so completions will not be evaluated for it."), *GetName(), AgentId);
+			continue;
+		}
+
+		ValidAgentIds.Add(AgentId);
+	}
+		
+	ValidAgentSet = ValidAgentIds;
+	ValidAgentSet.TryMakeSlice();
+
+	// Set Completions
+
+	SetCompletions(ValidAgentIds);
+
+	// Check that all completions have had their setter run
+
+	ValidAgentStatus.SetNumUninitialized(Manager->GetMaxAgentNum());
+	ValidAgentStatus.SetRange(0, Manager->GetMaxAgentNum(), true);
+
+	for (ULearningAgentsCompletion* CompletionObject : CompletionObjects)
+	{
+		for (const int32 AgentId : ValidAgentSet)
+		{
+			if (CompletionObject->AgentIteration[AgentId] == CompletionEvaluatedAgentIteration[AgentId])
+			{
+				UE_LOG(LogLearning, Error, TEXT("%s: Completion %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have completions evaluated."), *GetName(), *CompletionObject->GetName(), AgentId, CompletionObject->AgentIteration[AgentId], CompletionEvaluatedAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+
+			if (CompletionObject->AgentIteration[AgentId] > CompletionEvaluatedAgentIteration[AgentId] + 1)
+			{
+				UE_LOG(LogLearning, Error, TEXT("%s: Completion %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have completions evaluated."), *GetName(), *CompletionObject->GetName(), AgentId, CompletionObject->AgentIteration[AgentId], CompletionEvaluatedAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+
+			if (CompletionObject->AgentIteration[AgentId] != CompletionEvaluatedAgentIteration[AgentId] + 1)
+			{
+				UE_LOG(LogLearning, Error, TEXT("%s: Completion %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have completions evaluated."), *GetName(), *CompletionObject->GetName(), AgentId, CompletionObject->AgentIteration[AgentId], CompletionEvaluatedAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+		}
+	}
+
+	FinalValidAgentIds.Empty(ValidAgentSet.Num());
+
+	for (const int32 AgentId : ValidAgentSet)
+	{
+		if (ValidAgentStatus[AgentId]) { FinalValidAgentIds.Add(AgentId); }
+	}
+
+	FinalValidAgentSet = FinalValidAgentIds;
+	FinalValidAgentSet.TryMakeSlice();
+
+	// Evaluate Completions
+
+	Completions->Evaluate(FinalValidAgentSet);
 	
-#if ENABLE_VISUAL_LOG
+	// Increment Completion Evaluation Iteration
+
+	for (const int32 AgentId : FinalValidAgentSet)
+	{
+		CompletionEvaluatedAgentIteration[AgentId]++;
+	}
+
+	// Visual Logger
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	for (const ULearningAgentsCompletion* CompletionObject : CompletionObjects)
 	{
-		if (CompletionObject)
-		{
-			CompletionObject->VisualLog(AddedAgentSet);
-		}
+		CompletionObject->VisualLog(FinalValidAgentSet);
 	}
 #endif
 }
 
 void ULearningAgentsTrainer::ProcessExperience()
 {
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsTrainer::ProcessExperience);
+
 	if (!IsSetup())
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
@@ -626,6 +816,56 @@ void ULearningAgentsTrainer::ProcessExperience()
 		return;
 	}
 
+	if (Policy->GetActionNoiseScale() != 1.0f)
+	{
+		UE_LOG(LogLearning, Warning, TEXT("%s: Policy Action Noise Scale should be set to 1.0 during training."), *GetName());
+	}
+
+	// Check Observations, Actions, Rewards, and Completions have been completed and have matching iteration number
+
+	ValidAgentIds.Empty(Manager->GetAgentNum());
+
+	for (const int32 AgentId : Manager->GetAllAgentSet())
+	{
+		if (Interactor->GetObservationEncodingAgentIteration()[AgentId] == 0 ||
+			Interactor->GetActionEncodingAgentIteration()[AgentId] == 0 ||
+			RewardEvaluatedAgentIteration[AgentId] == 0 ||
+			CompletionEvaluatedAgentIteration[AgentId] == 0)
+		{
+			UE_LOG(LogLearning, Display, TEXT("%s: Agent with id %i has not completed a full step of observations, actions, rewards, completions and so experience will not be processed for it."), *GetName(), AgentId);
+			continue;
+		}
+
+		if (Interactor->GetObservationEncodingAgentIteration()[AgentId] != Interactor->GetActionEncodingAgentIteration()[AgentId] ||
+			Interactor->GetObservationEncodingAgentIteration()[AgentId] != RewardEvaluatedAgentIteration[AgentId] ||
+			Interactor->GetObservationEncodingAgentIteration()[AgentId] != CompletionEvaluatedAgentIteration[AgentId])
+		{
+			UE_LOG(LogLearning, Warning, TEXT("%s: Agent with id %i has non-matching iteration numbers (observation: %i, action: %i, reward: %i, completion: %i). Experience will not be processed for it."), *GetName(), AgentId,
+				Interactor->GetObservationEncodingAgentIteration()[AgentId],
+				Interactor->GetActionEncodingAgentIteration()[AgentId],
+				RewardEvaluatedAgentIteration[AgentId],
+				CompletionEvaluatedAgentIteration[AgentId]);
+			continue;
+		}
+
+		ValidAgentIds.Add(AgentId);
+	}
+
+	ValidAgentSet = ValidAgentIds;
+
+	// Check for episodes that have been immediately completed
+
+	for (const int32 AgentId : ValidAgentSet)
+	{
+		if (Completions->CompletionBuffer()[AgentId] != UE::Learning::ECompletionMode::Running && 
+			EpisodeBuffer->GetEpisodeStepNums()[AgentId] == 0)
+		{
+			UE_LOG(LogLearning, Warning, TEXT("%s: Agent with id %i has completed episode and will be reset but has not generated any experience."), *GetName(), AgentId);
+		}
+	}
+
+	// Get Feature Buffers
+
 	UE::Learning::FFeatureObject& Observations = Interactor->GetObservationFeature();
 	UE::Learning::FFeatureObject& Actions = Interactor->GetActionFeature();
 
@@ -634,36 +874,25 @@ void ULearningAgentsTrainer::ProcessExperience()
 		Observations.FeatureBuffer(),
 		Actions.FeatureBuffer(),
 		Rewards->RewardBuffer(),
-		AddedAgentSet);
+		ValidAgentSet);
 
 	// Check for completion based on reaching the maximum episode length
 	UE::Learning::Completion::EvaluateEndOfEpisodeCompletions(
 		Completions->CompletionBuffer(),
 		EpisodeBuffer->GetEpisodeStepNums(),
 		EpisodeBuffer->GetMaxStepNum(),
-		MaxStepsCompletion == ELearningAgentsCompletion::Truncation 
-			? UE::Learning::ECompletionMode::Truncated 
-			: UE::Learning::ECompletionMode::Terminated,
-		AddedAgentSet);
+		MaxStepsCompletion == ELearningAgentsCompletion::Truncation
+		? UE::Learning::ECompletionMode::Truncated
+		: UE::Learning::ECompletionMode::Terminated,
+		ValidAgentSet);
 
 	// Find the set of Instances that need to be reset
-	ResetBuffer->SetResetInstancesFromCompletions(Completions->CompletionBuffer(), AddedAgentSet);
+	ResetBuffer->SetResetInstancesFromCompletions(Completions->CompletionBuffer(), ValidAgentSet);
 
 	if (ResetBuffer->GetResetInstanceNum() > 0)
 	{
 		// Encode Observations for completed Instances
-		Interactor->SetObservations(ResetBuffer->GetResetInstances().ToArray());
-		Observations.Encode(ResetBuffer->GetResetInstances());
-		
-#if ENABLE_VISUAL_LOG
-		for (const ULearningAgentsObservation* ObservationObject : Interactor->GetObservationObjects())
-		{
-			if (ObservationObject)
-			{
-				ObservationObject->VisualLog(ResetBuffer->GetResetInstances());
-			}
-		}
-#endif
+		Interactor->EncodeObservations(ResetBuffer->GetResetInstances());
 
 		const bool bReplayBufferFull = ReplayBuffer->AddEpisodes(
 			Completions->CompletionBuffer(),
@@ -686,6 +915,7 @@ void ULearningAgentsTrainer::ProcessExperience()
 
 			// Get Updated Policy
 			Response = Trainer->RecvPolicy(Policy->GetPolicyNetwork(), TrainerTimeout);
+			Policy->GetNetworkAsset()->ForceMarkDirty();
 
 			if (Response == UE::Learning::ETrainerResponse::Completed)
 			{
@@ -704,6 +934,7 @@ void ULearningAgentsTrainer::ProcessExperience()
 			if (Critic)
 			{
 				Response = Trainer->RecvCritic(Critic->GetCriticNetwork(), TrainerTimeout);
+				Critic->GetNetworkAsset()->ForceMarkDirty();
 
 				if (Response != UE::Learning::ETrainerResponse::Success)
 				{
@@ -713,29 +944,12 @@ void ULearningAgentsTrainer::ProcessExperience()
 				}
 			}
 
-			// Mark all instances for reset since we have a new policy
-			ResetBuffer->SetResetInstances(AddedAgentSet);
+			// Mark all agents for reset since we have a new policy
+			ResetBuffer->SetResetInstances(Manager->GetAllAgentSet());
 		}
 
-		ResetEpisodes(ResetBuffer->GetResetInstances().ToArray());
-
-		EpisodeBuffer->Reset(ResetBuffer->GetResetInstances());
+		Manager->ResetAgents(ResetBuffer->GetResetInstances().ToArray());
 	}
-}
-
-void ULearningAgentsTrainer::ResetAllEpisodes()
-{
-	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsTrainer::ResetAllEpisodes);
-
-	if (!IsSetup())
-	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
-		return;
-	}
-
-	ResetEpisodes(AddedAgentIds);
-
-	EpisodeBuffer->Reset(AddedAgentSet);
 }
 
 void ULearningAgentsTrainer::RunTraining(
@@ -744,7 +958,8 @@ void ULearningAgentsTrainer::RunTraining(
 	const FLearningAgentsTrainerPathSettings& TrainerPathSettings,
 	const FLearningAgentsCriticSettings& CriticSettings,
 	const bool bReinitializePolicyNetwork,
-	const bool bReinitializeCriticNetwork)
+	const bool bReinitializeCriticNetwork,
+	const bool bResetAgentsOnBegin)
 {
 	if (!IsSetup())
 	{
@@ -761,7 +976,8 @@ void ULearningAgentsTrainer::RunTraining(
 			TrainerPathSettings, 
 			CriticSettings, 
 			bReinitializePolicyNetwork, 
-			bReinitializeCriticNetwork);
+			bReinitializeCriticNetwork,
+			bResetAgentsOnBegin);
 
 		if (!IsTraining())
 		{
@@ -793,6 +1009,12 @@ float ULearningAgentsTrainer::GetReward(const int32 AgentId) const
 		return 0.0f;
 	}
 
+	if (RewardEvaluatedAgentIteration[AgentId] == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Agent with id %d has not evaluated rewards. Did you run EvaluateRewards?"), *GetName(), AgentId);
+		return 0.0f;
+	}
+
 	return Rewards->RewardBuffer()[AgentId];
 }
 
@@ -808,6 +1030,13 @@ bool ULearningAgentsTrainer::IsCompleted(const int32 AgentId, ELearningAgentsCom
 	if (!HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		OutCompletion = ELearningAgentsCompletion::Termination;
+		return false;
+	}
+
+	if (CompletionEvaluatedAgentIteration[AgentId] == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Agent with id %d has not evaluated completions. Did you run EvaluateCompletions?"), *GetName(), AgentId);
 		OutCompletion = ELearningAgentsCompletion::Termination;
 		return false;
 	}

@@ -82,7 +82,7 @@ void ULearningAgentsRecorder::FAgentRecordBuffer::CopyToRecord(FLearningAgentsRe
 	}
 }
 
-ULearningAgentsRecorder::ULearningAgentsRecorder() : ULearningAgentsManagerComponent() {}
+ULearningAgentsRecorder::ULearningAgentsRecorder(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
 ULearningAgentsRecorder::ULearningAgentsRecorder(FVTableHelper& Helper) : ULearningAgentsRecorder() {}
 ULearningAgentsRecorder::~ULearningAgentsRecorder() {}
 
@@ -97,9 +97,9 @@ void ULearningAgentsRecorder::EndPlay(const EEndPlayReason::Type EndPlayReason)
 }
 
 void ULearningAgentsRecorder::SetupRecorder(
-	ALearningAgentsManager* InAgentManager, 
 	ULearningAgentsInteractor* InInteractor,
-	const FLearningAgentsRecorderPathSettings& RecorderPathSettings)
+	const FLearningAgentsRecorderPathSettings& RecorderPathSettings,
+	ULearningAgentsRecording* RecordingAsset)
 {
 	if (IsSetup())
 	{
@@ -107,19 +107,11 @@ void ULearningAgentsRecorder::SetupRecorder(
 		return;
 	}
 
-	if (!InAgentManager)
+	if (!Manager)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: InAgentManager is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *GetName());
 		return;
 	}
-
-	if (!InAgentManager->IsManagerSetup())
-	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's SetupManager must be run before it can be used."), *GetName(), *InAgentManager->GetName());
-		return;
-	}
-
-	AgentManager = InAgentManager;
 
 	if (!InInteractor)
 	{
@@ -135,29 +127,51 @@ void ULearningAgentsRecorder::SetupRecorder(
 
 	Interactor = InInteractor;
 
-	Recording = NewObject<ULearningAgentsRecording>(this, TEXT("Recording"));
+	if (RecordingAsset)
+	{
+		Recording = RecordingAsset;
+	}
+	else
+	{
+		Recording = NewObject<ULearningAgentsRecording>(this, TEXT("Recording"));
+	}
+
 	RecordingDirectory = RecorderPathSettings.IntermediateRelativePath.Path / TEXT("LearningAgents") / RecorderPathSettings.RecordingsSubdirectory;
 
 	RecordBuffers.Empty();
-	RecordBuffers.SetNum(AgentManager->GetMaxInstanceNum());
+	RecordBuffers.SetNum(Manager->GetMaxAgentNum());
 
 	bIsSetup = true;
 }
 
-bool ULearningAgentsRecorder::RemoveAgent(const int32 AgentId)
+void ULearningAgentsRecorder::OnAgentsRemoved(const TArray<int32>& AgentIds)
 {
-	bool bSuccess = Super::RemoveAgent(AgentId);
-
-	if (bSuccess)
+	if (IsSetup())
 	{
-		if (!RecordBuffers[AgentId].IsEmpty())
+		for (const int32 AgentId : AgentIds)
 		{
-			RecordBuffers[AgentId].CopyToRecord(Recording->Records.AddDefaulted_GetRef());
-			RecordBuffers[AgentId].Empty();
+			if (!RecordBuffers[AgentId].IsEmpty())
+			{
+				RecordBuffers[AgentId].CopyToRecord(Recording->Records.AddDefaulted_GetRef());
+				RecordBuffers[AgentId].Empty();
+			}
 		}
 	}
+}
 
-	return bSuccess;
+void ULearningAgentsRecorder::OnAgentsReset(const TArray<int32>& AgentIds)
+{
+	if (IsSetup())
+	{
+		for (const int32 AgentId : AgentIds)
+		{
+			if (!RecordBuffers[AgentId].IsEmpty())
+			{
+				RecordBuffers[AgentId].CopyToRecord(Recording->Records.AddDefaulted_GetRef());
+				RecordBuffers[AgentId].Empty();
+			}
+		}
+	}
 }
 
 void ULearningAgentsRecorder::AddExperience()
@@ -174,10 +188,24 @@ void ULearningAgentsRecorder::AddExperience()
 		return;
 	}
 
-	for (const int32 AgentId : AddedAgentSet)
+	for (const int32 AgentId : Manager->GetAllAgentSet())
 	{
+		if (Interactor->GetObservationEncodingAgentIteration()[AgentId] == 0 ||
+			Interactor->GetActionEncodingAgentIteration()[AgentId] == 0)
+		{
+			UE_LOG(LogLearning, Warning, TEXT("%s: Agent with id %i has not made observations and taken actions so experience will not be recorded for it."), *GetName(), AgentId);
+			continue;
+		}
+
+		if (Interactor->GetObservationEncodingAgentIteration()[AgentId] !=
+			Interactor->GetActionEncodingAgentIteration()[AgentId])
+		{
+			UE_LOG(LogLearning, Warning, TEXT("%s: Agent with id %i does not have matching iteration numbers for observations and actions so experience will not be recorded for it."), *GetName(), AgentId);
+			continue;
+		}
+
 		RecordBuffers[AgentId].Push(
-			Interactor->GetObservationFeature().FeatureBuffer()[AgentId], 
+			Interactor->GetObservationFeature().FeatureBuffer()[AgentId],
 			Interactor->GetActionFeature().FeatureBuffer()[AgentId]);
 	}
 }
@@ -203,7 +231,7 @@ void ULearningAgentsRecorder::EndRecording()
 
 	// Write to Recording
 
-	for (const int32 AgentId : AddedAgentSet)
+	for (const int32 AgentId : Manager->GetAllAgentSet())
 	{
 		if (!RecordBuffers[AgentId].IsEmpty())
 		{
@@ -243,7 +271,7 @@ void ULearningAgentsRecorder::SaveRecordingToFile(const FFilePath& File) const
 	Recording->SaveRecordingToFile(File);
 }
 
-void ULearningAgentsRecorder::LoadRecordingFromAsset(const ULearningAgentsRecording* Asset)
+void ULearningAgentsRecorder::AppendRecordingFromFile(const FFilePath& File)
 {
 	if (!IsSetup())
 	{
@@ -251,16 +279,33 @@ void ULearningAgentsRecorder::LoadRecordingFromAsset(const ULearningAgentsRecord
 		return;
 	}
 
-	if (!Asset)
+	Recording->AppendRecordingFromFile(File);
+}
+
+void ULearningAgentsRecorder::UseRecordingAsset(ULearningAgentsRecording* RecordingAsset)
+{
+	if (!IsSetup())
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
+		return;
+	}
+
+	if (!RecordingAsset)
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Asset is nullptr."), *GetName());
 		return;
 	}
 
-	Recording->Records = Asset->Records;
+	if (RecordingAsset == Recording)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Asset is same as the current recording."), *GetName());
+		return;
+	}
+
+	Recording = RecordingAsset;
 }
 
-void ULearningAgentsRecorder::SaveRecordingToAsset(ULearningAgentsRecording* Asset) const
+void ULearningAgentsRecorder::LoadRecordingFromAsset(ULearningAgentsRecording* RecordingAsset)
 {
 	if (!IsSetup())
 	{
@@ -268,31 +313,10 @@ void ULearningAgentsRecorder::SaveRecordingToAsset(ULearningAgentsRecording* Ass
 		return;
 	}
 
-	if (!Asset)
-	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Asset is nullptr."), *GetName());
-		return;
-	}
-
-	Asset->Records = Recording->Records;
-
-	// Manually mark the package as dirty since just using `Modify` prevents 
-	// marking packages as dirty during PIE which is most likely when this
-	// is being used.
-	if (UPackage* Package = Asset->GetPackage())
-	{
-		const bool bIsDirty = Package->IsDirty();
-
-		if (!bIsDirty)
-		{
-			Package->SetDirtyFlag(true);
-		}
-
-		Package->PackageMarkedDirtyEvent.Broadcast(Package, bIsDirty);
-	}
+	Recording->LoadRecordingFromAsset(RecordingAsset);
 }
 
-void ULearningAgentsRecorder::AppendRecordingToAsset(ULearningAgentsRecording* Asset) const
+void ULearningAgentsRecorder::SaveRecordingToAsset(ULearningAgentsRecording* RecordingAsset)
 {
 	if (!IsSetup())
 	{
@@ -300,28 +324,18 @@ void ULearningAgentsRecorder::AppendRecordingToAsset(ULearningAgentsRecording* A
 		return;
 	}
 
-	if (!Asset)
+	Recording->SaveRecordingToAsset(RecordingAsset);
+}
+
+void ULearningAgentsRecorder::AppendRecordingToAsset(ULearningAgentsRecording* RecordingAsset)
+{
+	if (!IsSetup())
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: Asset is invalid."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Setup not complete."), *GetName());
 		return;
 	}
 
-	Asset->Records.Append(Recording->Records);
-
-	// Manually mark the package as dirty since just using `Modify` prevents 
-	// marking packages as dirty during PIE which is most likely when this
-	// is being used.
-	if (UPackage* Package = Asset->GetPackage())
-	{
-		const bool bIsDirty = Package->IsDirty();
-
-		if (!bIsDirty)
-		{
-			Package->SetDirtyFlag(true);
-		}
-
-		Package->PackageMarkedDirtyEvent.Broadcast(Package, bIsDirty);
-	}
+	Recording->AppendRecordingToAsset(RecordingAsset);
 }
 
 void ULearningAgentsRecorder::BeginRecording(bool bReinitializeRecording)
@@ -341,9 +355,10 @@ void ULearningAgentsRecorder::BeginRecording(bool bReinitializeRecording)
 	if (bReinitializeRecording)
 	{
 		Recording->Records.Empty();
+		Recording->ForceMarkDirty();
 	}
 
-	for (const int32 AgentId : AddedAgentSet)
+	for (const int32 AgentId : Manager->GetAllAgentSet())
 	{
 		RecordBuffers[AgentId].Empty();
 	}

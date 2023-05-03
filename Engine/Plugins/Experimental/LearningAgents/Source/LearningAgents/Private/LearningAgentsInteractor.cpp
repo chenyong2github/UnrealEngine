@@ -12,11 +12,11 @@
 #include "LearningLog.h"
 #include "EngineDefines.h"
 
-ULearningAgentsInteractor::ULearningAgentsInteractor() : ULearningAgentsManagerComponent() {}
+ULearningAgentsInteractor::ULearningAgentsInteractor(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
 ULearningAgentsInteractor::ULearningAgentsInteractor(FVTableHelper& Helper) : ULearningAgentsInteractor() {}
 ULearningAgentsInteractor::~ULearningAgentsInteractor() {}
 
-void ULearningAgentsInteractor::SetupInteractor(ALearningAgentsManager* InAgentManager)
+void ULearningAgentsInteractor::SetupInteractor()
 {
 	if (IsSetup())
 	{
@@ -24,34 +24,27 @@ void ULearningAgentsInteractor::SetupInteractor(ALearningAgentsManager* InAgentM
 		return;
 	}
 
-	if (!InAgentManager)
+	if (!Manager)
 	{
-		UE_LOG(LogLearning, Error, TEXT("%s: InAgentManager is nullptr."), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *GetName());
 		return;
 	}
-
-	if (!InAgentManager->IsManagerSetup())
-	{
-		UE_LOG(LogLearning, Error, TEXT("%s: %s's SetupManager must be run before it can be used."), *GetName(), *InAgentManager->GetName());
-		return;
-	}
-
-	AgentManager = InAgentManager;
 
 	// Setup Observations
 	ObservationObjects.Empty();
 	ObservationFeatures.Empty();
-	SetupObservations(this);
-	Observations = MakeShared<UE::Learning::FConcatenateFeature>(TEXT("Observations"),
-		TLearningArrayView<1, const TSharedRef<UE::Learning::FFeatureObject>>(ObservationFeatures),
-		InAgentManager->GetInstanceData().ToSharedRef(),
-		InAgentManager->GetMaxInstanceNum());
+	SetupObservations();
 
 	if (ObservationObjects.Num() == 0)
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: No observations added to Interactor during SetupObservations."), *GetName());
 		return;
 	}
+
+	Observations = MakeShared<UE::Learning::FConcatenateFeature>(*(GetName() + TEXT("Observations")),
+		TLearningArrayView<1, const TSharedRef<UE::Learning::FFeatureObject>>(ObservationFeatures),
+		Manager->GetInstanceData().ToSharedRef(),
+		Manager->GetMaxAgentNum());
 
 	if (Observations->DimNum() == 0)
 	{
@@ -62,11 +55,7 @@ void ULearningAgentsInteractor::SetupInteractor(ALearningAgentsManager* InAgentM
 	// Setup Actions
 	ActionObjects.Empty();
 	ActionFeatures.Empty();
-	SetupActions(this);
-	Actions = MakeShared<UE::Learning::FConcatenateFeature>(TEXT("Actions"),
-		TLearningArrayView<1, const TSharedRef<UE::Learning::FFeatureObject>>(ActionFeatures),
-		InAgentManager->GetInstanceData().ToSharedRef(),
-		InAgentManager->GetMaxInstanceNum());
+	SetupActions();
 
 	if (ActionObjects.Num() == 0)
 	{
@@ -74,13 +63,73 @@ void ULearningAgentsInteractor::SetupInteractor(ALearningAgentsManager* InAgentM
 		return;
 	}
 
+	Actions = MakeShared<UE::Learning::FConcatenateFeature>(*(GetName() + TEXT("Actions")),
+		TLearningArrayView<1, const TSharedRef<UE::Learning::FFeatureObject>>(ActionFeatures),
+		Manager->GetInstanceData().ToSharedRef(),
+		Manager->GetMaxAgentNum());
+
 	if (Actions->DimNum() == 0)
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: Action vector is zero-sized -  all added actions have no size."), *GetName());
 		return;
 	}
 
+	// Reset Agent iteration
+
+	ObservationEncodingAgentIteration.SetNumUninitialized({ Manager->GetMaxAgentNum() });
+	ActionEncodingAgentIteration.SetNumUninitialized({ Manager->GetMaxAgentNum() });
+	UE::Learning::Array::Set<1, uint64>(ObservationEncodingAgentIteration, INDEX_NONE);
+	UE::Learning::Array::Set<1, uint64>(ActionEncodingAgentIteration, INDEX_NONE);
+	SetAgentIteration(Manager->GetAllAgentSet(), 0);
+
 	bIsSetup = true;
+}
+
+void ULearningAgentsInteractor::OnAgentsAdded(const TArray<int32>& AgentIds)
+{
+	if (IsSetup())
+	{
+		UE::Learning::FIndexSet AgentSet = AgentIds;
+		AgentSet.TryMakeSlice();
+		SetAgentIteration(AgentSet, 0);
+	}
+}
+
+void ULearningAgentsInteractor::OnAgentsRemoved(const TArray<int32>& AgentIds)
+{
+	if (IsSetup())
+	{
+		UE::Learning::FIndexSet AgentSet = AgentIds;
+		AgentSet.TryMakeSlice();
+		SetAgentIteration(AgentSet, INDEX_NONE);
+	}
+}
+
+void ULearningAgentsInteractor::OnAgentsReset(const TArray<int32>& AgentIds)
+{
+	if (IsSetup())
+	{
+		UE::Learning::FIndexSet AgentSet = AgentIds;
+		AgentSet.TryMakeSlice();
+		SetAgentIteration(AgentSet, 0);
+	}
+}
+
+void ULearningAgentsInteractor::SetAgentIteration(const UE::Learning::FIndexSet AgentIds, const uint64 Value)
+{
+	UE::Learning::Array::Set<1, uint64>(ObservationEncodingAgentIteration, Value, AgentIds);
+	UE::Learning::Array::Set<1, uint64>(ActionEncodingAgentIteration, Value, AgentIds);
+
+	for (ULearningAgentsObservation* ObservationObject : ObservationObjects)
+	{
+		UE::Learning::Array::Set<1, uint64>(ObservationObject->AgentIteration, Value, AgentIds);
+	}
+
+	for (ULearningAgentsAction* ActionObject : ActionObjects)
+	{
+		UE::Learning::Array::Set<1, uint64>(ActionObject->AgentGetIteration, Value, AgentIds);
+		UE::Learning::Array::Set<1, uint64>(ActionObject->AgentSetIteration, Value, AgentIds);
+	}
 }
 
 UE::Learning::FFeatureObject& ULearningAgentsInteractor::GetObservationFeature() const
@@ -103,7 +152,17 @@ TConstArrayView<ULearningAgentsAction*> ULearningAgentsInteractor::GetActionObje
 	return ActionObjects;
 }
 
-void ULearningAgentsInteractor::SetupObservations_Implementation(ULearningAgentsInteractor* Interactor)
+TLearningArrayView<1, uint64> ULearningAgentsInteractor::GetObservationEncodingAgentIteration()
+{
+	return ObservationEncodingAgentIteration;
+}
+
+TLearningArrayView<1, uint64> ULearningAgentsInteractor::GetActionEncodingAgentIteration()
+{
+	return ActionEncodingAgentIteration;
+}
+
+void ULearningAgentsInteractor::SetupObservations_Implementation()
 {
 	// Can be overridden to setup observations without blueprints
 }
@@ -116,11 +175,12 @@ void ULearningAgentsInteractor::SetObservations_Implementation(const TArray<int3
 void ULearningAgentsInteractor::AddObservation(TObjectPtr<ULearningAgentsObservation> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
 {
 	UE_LEARNING_CHECK(!IsSetup());
+	UE_LEARNING_CHECK(Object);
 	ObservationObjects.Add(Object);
 	ObservationFeatures.Add(Feature);
 }
 
-void ULearningAgentsInteractor::SetupActions_Implementation(ULearningAgentsInteractor* Interactor)
+void ULearningAgentsInteractor::SetupActions_Implementation()
 {
 	// Can be overridden to setup actions without blueprints
 }
@@ -133,11 +193,12 @@ void ULearningAgentsInteractor::GetActions_Implementation(const TArray<int32>& A
 void ULearningAgentsInteractor::AddAction(TObjectPtr<ULearningAgentsAction> Object, const TSharedRef<UE::Learning::FFeatureObject>& Feature)
 {
 	UE_LEARNING_CHECK(!IsSetup());
+	UE_LEARNING_CHECK(Object);
 	ActionObjects.Add(Object);
 	ActionFeatures.Add(Feature);
 }
 
-void ULearningAgentsInteractor::EncodeObservations()
+void ULearningAgentsInteractor::EncodeObservations(const UE::Learning::FIndexSet AgentSet)
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsInteractor::EncodeObservations);
 
@@ -147,22 +208,80 @@ void ULearningAgentsInteractor::EncodeObservations()
 		return;
 	}
 
-	SetObservations(AddedAgentIds);
+	// Run Set Observations Callback
 
-	Observations->Encode(AddedAgentSet);
+	ValidAgentIds.Empty(AgentSet.Num());
+	for (const int32 AgentId : AgentSet)
+	{
+		ValidAgentIds.Add(AgentId);
+	}
 
-#if ENABLE_VISUAL_LOG
+	SetObservations(ValidAgentIds);
+
+	// Check that all observations have had their setter run
+
+	ValidAgentStatus.SetNumUninitialized(Manager->GetMaxAgentNum());
+	ValidAgentStatus.SetRange(0, Manager->GetMaxAgentNum(), true);
+
+	for (ULearningAgentsObservation* ObservationObject : ObservationObjects)
+	{
+		for (const int32 AgentId : AgentSet)
+		{
+			if (ObservationObject->AgentIteration[AgentId] <= ObservationEncodingAgentIteration[AgentId])
+			{
+				UE_LOG(LogLearning, Warning, TEXT("%s: Observation %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have observations encoded."), *GetName(), *ObservationObject->GetName(), AgentId, ObservationObject->AgentIteration[AgentId], ObservationEncodingAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+
+			if (ObservationObject->AgentIteration[AgentId] > ObservationEncodingAgentIteration[AgentId] + 1)
+			{
+				UE_LOG(LogLearning, Warning, TEXT("%s: Observation %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have observations encoded."), *GetName(), *ObservationObject->GetName(), AgentId, ObservationObject->AgentIteration[AgentId], ObservationEncodingAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+
+			if (ObservationObject->AgentIteration[AgentId] != ObservationEncodingAgentIteration[AgentId] + 1)
+			{
+				UE_LOG(LogLearning, Warning, TEXT("%s: Observation %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have observations encoded."), *GetName(), *ObservationObject->GetName(), AgentId, ObservationObject->AgentIteration[AgentId], ObservationEncodingAgentIteration[AgentId] + 1);
+				ValidAgentStatus[AgentId] = false;
+				continue;
+			}
+		}
+	}
+
+	ValidAgentIds.Empty(Manager->GetAgentNum());
+
+	for (const int32 AgentId : AgentSet)
+	{
+		if (ValidAgentStatus[AgentId]) { ValidAgentIds.Add(AgentId); }
+	}
+
+	ValidAgentSet = ValidAgentIds;
+	ValidAgentSet.TryMakeSlice();
+
+	// Encode Observations
+
+	Observations->Encode(ValidAgentSet);
+
+	// Increment Observation Encoding Iteration
+
+	for (const int32 AgentId : ValidAgentSet)
+	{
+		ObservationEncodingAgentIteration[AgentId]++;
+	}
+
+	// Visual Logger
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	for (const ULearningAgentsObservation* ObservationObject : ObservationObjects)
 	{
-		if (ObservationObject)
-		{
-			ObservationObject->VisualLog(AddedAgentSet);
-		}
+		ObservationObject->VisualLog(ValidAgentSet);
 	}
 #endif
 }
 
-void ULearningAgentsInteractor::DecodeActions()
+void ULearningAgentsInteractor::DecodeActions(const UE::Learning::FIndexSet AgentSet)
 {
 	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsInteractor::DecodeActions);
 
@@ -172,19 +291,76 @@ void ULearningAgentsInteractor::DecodeActions()
 		return;
 	}
 
-	Actions->Decode(AddedAgentSet);
+	// Check Agents actually have encoded actions.
 
-	GetActions(AddedAgentIds);
+	ValidAgentIds.Empty(Manager->GetAgentNum());
 
-#if ENABLE_VISUAL_LOG
-	for (const ULearningAgentsAction* ActionObject : ActionObjects)
+	for (const int32 AgentId : AgentSet)
 	{
-		if (ActionObject)
+		if (ActionEncodingAgentIteration[AgentId] == 0)
 		{
-			ActionObject->VisualLog(AddedAgentSet);
+			UE_LOG(LogLearning, Warning, TEXT("%s: Agent with id %i does not have an encoded action vector so actions will not be decoded for it. Was EvaluatePolicy or EncodeActions run?"), *GetName(), AgentId);
+			continue;
+		}
+
+		ValidAgentIds.Add(AgentId);
+	}
+
+	ValidAgentSet = ValidAgentIds;
+	ValidAgentSet.TryMakeSlice();
+
+	// Decode Actions
+
+	Actions->Decode(ValidAgentSet);
+
+	// Run Get Actions Callback
+
+	GetActions(ValidAgentIds);
+
+	// Check that all actions have had their getter run
+
+	for (ULearningAgentsAction* ActionObject : ActionObjects)
+	{
+		for (const int32 AgentId : ValidAgentSet)
+		{
+			if (ActionObject->AgentGetIteration[AgentId] == ActionEncodingAgentIteration[AgentId] - 1)
+			{
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i appears to have not been got."), *GetName(), *ActionObject->GetName(), AgentId);
+				continue;
+			}
+				
+			if (ActionObject->AgentGetIteration[AgentId] > ActionEncodingAgentIteration[AgentId])
+			{
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i appears to have been got multiple times."), *GetName(), *ActionObject->GetName(), AgentId);
+				continue;
+			}
+				
+			if (ActionObject->AgentGetIteration[AgentId] != ActionEncodingAgentIteration[AgentId])
+			{
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i does not have a matching iteration number (got %i, expected %i)."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->AgentGetIteration[AgentId], ActionEncodingAgentIteration[AgentId]);
+				continue;
+			}
 		}
 	}
+
+	// Visual Logger
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+	for (const ULearningAgentsAction* ActionObject : ActionObjects)
+	{
+		ActionObject->VisualLog(ValidAgentSet);
+	}
 #endif
+}
+
+void ULearningAgentsInteractor::EncodeObservations()
+{
+	EncodeObservations(Manager->GetAllAgentSet());
+}
+
+void ULearningAgentsInteractor::DecodeActions()
+{
+	DecodeActions(Manager->GetAllAgentSet());
 }
 void ULearningAgentsInteractor::GetObservationVector(const int32 AgentId, TArray<float>& OutObservationVector) const
 {
@@ -198,6 +374,13 @@ void ULearningAgentsInteractor::GetObservationVector(const int32 AgentId, TArray
 	if (!HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		OutObservationVector.Empty();
+		return;
+	}
+
+	if (ObservationEncodingAgentIteration[AgentId] == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Agent with id %d has not yet computed an observation vector. Have you run EncodeObservations?"), *GetName(), AgentId);
 		OutObservationVector.Empty();
 		return;
 	}
@@ -218,6 +401,13 @@ void ULearningAgentsInteractor::GetActionVector(const int32 AgentId, TArray<floa
 	if (!HasAgent(AgentId))
 	{
 		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		OutActionVector.Empty();
+		return;
+	}
+
+	if (ActionEncodingAgentIteration[AgentId] == 0)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Agent with id %d has not yet computed an action vector. Have you run EvaluatePolicy or EncodeActions?"), *GetName(), AgentId);
 		OutActionVector.Empty();
 		return;
 	}

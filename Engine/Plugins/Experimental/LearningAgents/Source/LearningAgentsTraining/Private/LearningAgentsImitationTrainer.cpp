@@ -16,7 +16,7 @@
 #include "LearningNeuralNetworkObject.h"
 #include "Misc/Paths.h"
 
-ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer() : UActorComponent() {}
+ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer(const FObjectInitializer& ObjectInitializer) : UActorComponent(ObjectInitializer) {}
 ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer(FVTableHelper& Helper) : ULearningAgentsImitationTrainer() {}
 ULearningAgentsImitationTrainer::~ULearningAgentsImitationTrainer() {}
 
@@ -33,6 +33,7 @@ void ULearningAgentsImitationTrainer::EndPlay(const EEndPlayReason::Type EndPlay
 void ULearningAgentsImitationTrainer::BeginTraining(
 	ULearningAgentsPolicy* InPolicy, 
 	const ULearningAgentsRecording* Recording,
+	const FLearningAgentsImitationTrainerSettings& ImitationTrainerSettings,
 	const FLearningAgentsImitationTrainerTrainingSettings& ImitationTrainerTrainingSettings,
 	const FLearningAgentsTrainerPathSettings& ImitationTrainerPathSettings,
 	const bool bReinitializePolicyNetwork)
@@ -68,6 +69,10 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 	}
 
 	Policy = InPolicy;
+
+	// Record Timeout Setting
+
+	TrainerTimeout = ImitationTrainerSettings.TrainerCommunicationTimeout;
 
 	// Check Paths
 
@@ -149,9 +154,6 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 
 	UE_LOG(LogLearning, Display, TEXT("%s: Imitation Training Started"), *GetName());
 
-	bIsTraining = true;
-	bIsTrainingComplete = false;
-	bRequestImitationTrainingStop = false;
 
 	UE::Learning::FImitationTrainerTrainingSettings ImitationTrainingSettings;
 	ImitationTrainingSettings.IterationNum = ImitationTrainerTrainingSettings.NumberOfIterations;
@@ -179,43 +181,128 @@ void ULearningAgentsImitationTrainer::BeginTraining(
 		RecordedActions.Num<1>(),
 		ImitationTrainingSettings);
 
-	ImitationTrainingTask = UE::Tasks::Launch(UE_SOURCE_LOCATION, [this, TrainerFlags]()
-	{
-		UE::Learning::ImitationTrainer::Train(
-			*ImitationTrainer,
-			Policy->GetPolicyNetwork(),
-			RecordedObservations,
-			RecordedActions,
-			TrainerFlags,
-			&bRequestImitationTrainingStop,
-			&NetworkLock);
+	UE_LOG(LogLearning, Display, TEXT("%s: Sending / Receiving initial policy..."), *GetName());
 
-			bIsTrainingComplete = true;
-	});
+	UE::Learning::ETrainerResponse Response = UE::Learning::ETrainerResponse::Success;
+
+	if (bReinitializePolicyNetwork)
+	{
+		Response = ImitationTrainer->RecvPolicy(Policy->GetPolicyNetwork(), TrainerTimeout);
+		Policy->GetNetworkAsset()->ForceMarkDirty();
+	}
+	else
+	{
+		Response = ImitationTrainer->SendPolicy(Policy->GetPolicyNetwork(), TrainerTimeout);
+	}
+
+	if (Response != UE::Learning::ETrainerResponse::Success)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Error sending or receiving policy from trainer: %s. Check log for errors."), *GetName(), UE::Learning::Trainer::GetResponseString(Response));
+		ImitationTrainer->Terminate();
+		return;
+	}
+
+	UE_LOG(LogLearning, Display, TEXT("%s: Sending Experience..."), *GetName());
+
+	// Send Experience
+
+	Response = ImitationTrainer->SendExperience(RecordedObservations, RecordedActions, TrainerTimeout);
+
+	if (Response != UE::Learning::ETrainerResponse::Success)
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: Error sending experience to trainer: %s. Check log for errors."), *GetName(), UE::Learning::Trainer::GetResponseString(Response));
+		ImitationTrainer->Terminate();
+		return;
+	}
+
+	bIsTraining = true;
+}
+
+void ULearningAgentsImitationTrainer::DoneTraining()
+{
+	if (IsTraining())
+	{
+		// Wait for Trainer to finish
+		ImitationTrainer->Wait(1.0f);
+
+		// If not finished in time, terminate
+		ImitationTrainer->Terminate();
+
+		bIsTraining = false;
+	}
 }
 
 void ULearningAgentsImitationTrainer::EndTraining()
 {
+	if (IsTraining())
+	{
+		UE_LOG(LogLearning, Display, TEXT("%s: Stopping training..."), *GetName());
+		ImitationTrainer->SendStop();
+		DoneTraining();
+	}
+}
+
+void ULearningAgentsImitationTrainer::IterateTraining()
+{
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(ULearningAgentsImitationTrainer::IterateTraining);
+
 	if (!IsTraining())
 	{
-		UE_LOG(LogLearning, Warning, TEXT("%s: Cannot end training as we are not training!"), *GetName());
+		UE_LOG(LogLearning, Error, TEXT("%s: Training not running."), *GetName());
 		return;
 	}
 
-	UE_LOG(LogLearning, Display, TEXT("%s: Imitation Training Ended."), *GetName());
+	if (ImitationTrainer->HasPolicyOrCompleted())
+	{
+		UE::Learning::ETrainerResponse Response = ImitationTrainer->RecvPolicy(Policy->GetPolicyNetwork(), TrainerTimeout);
+		Policy->GetNetworkAsset()->ForceMarkDirty();
 
-	bRequestImitationTrainingStop = true;
-	ImitationTrainingTask.Wait(FTimespan(0, 0, 30));
+		if (Response == UE::Learning::ETrainerResponse::Completed)
+		{
+			UE_LOG(LogLearning, Display, TEXT("%s: Trainer completed training."), *GetName());
+			DoneTraining();
+			return;
+		}
+		else if (Response != UE::Learning::ETrainerResponse::Success)
+		{
+			UE_LOG(LogLearning, Error, TEXT("%s: Error receiving policy from trainer. Check log for errors."), *GetName());
+			EndTraining();
+			return;
+		}
+	}
+}
 
-	bIsTraining = false;
+void ULearningAgentsImitationTrainer::RunTraining(
+	ULearningAgentsPolicy* InPolicy,
+	const ULearningAgentsRecording* Recording,
+	const FLearningAgentsImitationTrainerSettings& ImitationTrainerSettings,
+	const FLearningAgentsImitationTrainerTrainingSettings& ImitationTrainerTrainingSettings,
+	const FLearningAgentsTrainerPathSettings& ImitationTrainerPathSettings,
+	const bool bReinitializePolicyNetwork)
+{
+	// If we aren't training yet, then start training and do the first inference step.
+	if (!IsTraining())
+	{
+		BeginTraining(
+			InPolicy,
+			Recording,
+			ImitationTrainerSettings,
+			ImitationTrainerTrainingSettings,
+			ImitationTrainerPathSettings,
+			bReinitializePolicyNetwork);
+
+		if (!IsTraining())
+		{
+			// If IsTraining is false, then BeginTraining must have failed and we can't continue.
+			return;
+		}
+	}
+
+	// Otherwise, do the regular training process.
+	IterateTraining();
 }
 
 bool ULearningAgentsImitationTrainer::IsTraining() const
 {
 	return bIsTraining;
-}
-
-bool ULearningAgentsImitationTrainer::IsTrainingComplete() const
-{
-	return bIsTrainingComplete;
 }

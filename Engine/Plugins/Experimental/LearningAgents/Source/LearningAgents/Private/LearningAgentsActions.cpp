@@ -22,14 +22,25 @@ namespace UE::Learning::Agents::Actions::Private
 			return nullptr;
 		}
 
+		if (!InInteractor->HasAgentManager())
+		{
+			UE_LOG(LogLearning, Error, TEXT("%s: Must be attached to a LearningAgentsManager Actor."), *InInteractor->GetName());
+			return nullptr;
+		}
+
 		ActionUObject* Action = NewObject<ActionUObject>(InInteractor, Name);
 
 		Action->Interactor = InInteractor;
 		Action->FeatureObject = MakeShared<ActionFObject>(
 			Action->GetFName(),
 			InInteractor->GetAgentManager()->GetInstanceData().ToSharedRef(),
-			InInteractor->GetAgentManager()->GetMaxInstanceNum(),
+			InInteractor->GetAgentManager()->GetMaxAgentNum(),
 			Forward<InArgTypes>(Args)...);
+
+		Action->AgentGetIteration.SetNumUninitialized({ InInteractor->GetAgentManager()->GetMaxAgentNum() });
+		Action->AgentSetIteration.SetNumUninitialized({ InInteractor->GetAgentManager()->GetMaxAgentNum() });
+		UE::Learning::Array::Set<1, uint64>(Action->AgentGetIteration, INDEX_NONE);
+		UE::Learning::Array::Set<1, uint64>(Action->AgentSetIteration, INDEX_NONE);
 
 		// We assume all supported action feature objects can be encoded and decoded
 		UE_LEARNING_CHECK(Action->FeatureObject->IsEncodable() && Action->FeatureObject->IsDecodable());
@@ -47,7 +58,7 @@ UFloatAction* UFloatAction::AddFloatAction(ULearningAgentsInteractor* InInteract
 	return UE::Learning::Agents::Actions::Private::AddAction<UFloatAction,UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddFloatAction"), 1, Scale);
 }
 
-float UFloatAction::GetFloatAction(const int32 AgentId) const
+float UFloatAction::GetFloatAction(const int32 AgentId)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -55,6 +66,7 @@ float UFloatAction::GetFloatAction(const int32 AgentId) const
 		return 0.0f;
 	}
 
+	AgentGetIteration[AgentId]++;
 	return FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle)[AgentId][0];
 }
 
@@ -67,6 +79,7 @@ void UFloatAction::SetFloatAction(const int32 AgentId, const float Value)
 	}
 
 	FeatureObject->InstanceData->View(FeatureObject->ValueHandle)[AgentId][0] = Value;
+	AgentSetIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -84,11 +97,11 @@ void UFloatAction::VisualLog(const UE::Learning::FIndexSet Instances) const
 			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
 				Actor->GetActorLocation(),
 				VisualLogColor.ToFColor(true),
-				TEXT("Agent %i\nScale: [% 6.2f]\nValue: [% 6.2f]\nEncoded: [% 6.3f]"),
+				TEXT("Agent %i\nScale: [% 6.2f]\nValue: %s\nEncoded: %s"),
 				Instance,
 				FeatureObject->Scale,
-				ValueView[Instance][0],
-				FeatureView[Instance][0]);
+				*UE::Learning::Array::FormatFloat(ValueView[Instance]),
+				*UE::Learning::Array::FormatFloat(FeatureView[Instance]));
 		}
 	}
 }
@@ -105,7 +118,7 @@ UFloatArrayAction* UFloatArrayAction::AddFloatArrayAction(ULearningAgentsInterac
 	return UE::Learning::Agents::Actions::Private::AddAction<UFloatArrayAction, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddFloatArrayAction"), Num, Scale);
 }
 
-void UFloatArrayAction::GetFloatArrayAction(const int32 AgentId, TArray<float>& OutValues) const
+void UFloatArrayAction::GetFloatArrayAction(const int32 AgentId, TArray<float>& OutValues)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -115,6 +128,8 @@ void UFloatArrayAction::GetFloatArrayAction(const int32 AgentId, TArray<float>& 
 	}
 
 	const TLearningArrayView<2, const float> View = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
+
+	AgentGetIteration[AgentId]++;
 
 	OutValues.SetNumUninitialized(View.Num<1>());
 	UE::Learning::Array::Copy<1, float>(OutValues, View[AgentId]);
@@ -137,6 +152,7 @@ void UFloatArrayAction::SetFloatArrayAction(const int32 AgentId, const TArray<fl
 	}
 
 	UE::Learning::Array::Copy<1, float>(View[AgentId], Values);
+	AgentSetIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -171,7 +187,7 @@ UVectorAction* UVectorAction::AddVectorAction(ULearningAgentsInteractor* InInter
 	return UE::Learning::Agents::Actions::Private::AddAction<UVectorAction, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddVectorAction"), 3, Scale);
 }
 
-FVector UVectorAction::GetVectorAction(const int32 AgentId) const
+FVector UVectorAction::GetVectorAction(const int32 AgentId)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -180,6 +196,8 @@ FVector UVectorAction::GetVectorAction(const int32 AgentId) const
 	}
 
 	const TLearningArrayView<2, const float> View = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
+
+	AgentGetIteration[AgentId]++;
 
 	return FVector(View[AgentId][0], View[AgentId][1], View[AgentId][2]);
 }
@@ -193,10 +211,11 @@ void UVectorAction::SetVectorAction(const int32 AgentId, const FVector InAction)
 	}
 
 	const TLearningArrayView<2, float> View = FeatureObject->InstanceData->View(FeatureObject->ValueHandle);
-
 	View[AgentId][0] = InAction.X;
 	View[AgentId][1] = InAction.Y;
 	View[AgentId][2] = InAction.Z;
+
+	AgentSetIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -248,7 +267,7 @@ UVectorArrayAction* UVectorArrayAction::AddVectorArrayAction(ULearningAgentsInte
 	return UE::Learning::Agents::Actions::Private::AddAction<UVectorArrayAction, UE::Learning::FFloatFeature>(InInteractor, Name, TEXT("AddVectorArrayAction"), Num * 3, Scale);
 }
 
-void UVectorArrayAction::GetVectorArrayAction(const int32 AgentId, TArray<FVector>& OutVectors) const
+void UVectorArrayAction::GetVectorArrayAction(const int32 AgentId, TArray<FVector>& OutVectors)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -258,6 +277,8 @@ void UVectorArrayAction::GetVectorArrayAction(const int32 AgentId, TArray<FVecto
 	}
 
 	const TLearningArrayView<2, const float> View = FeatureObject->InstanceData->ConstView(FeatureObject->ValueHandle);
+
+	AgentGetIteration[AgentId]++;
 
 	OutVectors.SetNumUninitialized(View.Num<1>() / 3);
 
@@ -292,6 +313,8 @@ void UVectorArrayAction::SetVectorArrayAction(const int32 AgentId, const TArray<
 		View[AgentId][VectorIdx * 3 + 1] = Vectors[VectorIdx].Y;
 		View[AgentId][VectorIdx * 3 + 2] = Vectors[VectorIdx].Z;
 	}
+
+	AgentSetIteration[AgentId]++;
 }
 
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -346,7 +369,7 @@ URotationAction* URotationAction::AddRotationAction(ULearningAgentsInteractor* I
 	return UE::Learning::Agents::Actions::Private::AddAction<URotationAction, UE::Learning::FRotationVectorFeature>(InInteractor, Name, TEXT("AddRotationAction"), 1, Scale);
 }
 
-FRotator URotationAction::GetRotationAction(const int32 AgentId) const
+FRotator URotationAction::GetRotationAction(const int32 AgentId)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -356,10 +379,12 @@ FRotator URotationAction::GetRotationAction(const int32 AgentId) const
 
 	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
 
+	AgentGetIteration[AgentId]++;
+
 	return FQuat::MakeFromRotationVector((UE_TWO_PI / 180.0f) * View[AgentId][0]).Rotator();
 }
 
-FVector URotationAction::GetRotationActionAsRotationVector(const int32 AgentId) const
+FVector URotationAction::GetRotationActionAsRotationVector(const int32 AgentId)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -370,7 +395,7 @@ FVector URotationAction::GetRotationActionAsRotationVector(const int32 AgentId) 
 	return FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle)[AgentId][0];
 }
 
-FQuat URotationAction::GetRotationActionAsQuat(const int32 AgentId) const
+FQuat URotationAction::GetRotationActionAsQuat(const int32 AgentId)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -379,6 +404,8 @@ FQuat URotationAction::GetRotationActionAsQuat(const int32 AgentId) const
 	}
 
 	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
+
+	AgentGetIteration[AgentId]++;
 
 	return FQuat::MakeFromRotationVector((UE_TWO_PI / 180.0f) * View[AgentId][0]);
 }
@@ -426,7 +453,7 @@ URotationArrayAction* URotationArrayAction::AddRotationArrayAction(ULearningAgen
 	return UE::Learning::Agents::Actions::Private::AddAction<URotationArrayAction, UE::Learning::FRotationVectorFeature>(InInteractor, Name, TEXT("AddRotationArrayAction"), RotationNum, Scale);
 }
 
-void URotationArrayAction::GetRotationArrayAction(const int32 AgentId, TArray<FRotator>& OutRotations) const
+void URotationArrayAction::GetRotationArrayAction(const int32 AgentId, TArray<FRotator>& OutRotations)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -435,6 +462,8 @@ void URotationArrayAction::GetRotationArrayAction(const int32 AgentId, TArray<FR
 	}
 
 	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
+
+	AgentGetIteration[AgentId]++;
 
 	OutRotations.SetNumUninitialized(View.Num<1>());
 	for (int32 RotationVectorIdx = 0; RotationVectorIdx < View.Num<1>(); RotationVectorIdx++)
@@ -443,7 +472,7 @@ void URotationArrayAction::GetRotationArrayAction(const int32 AgentId, TArray<FR
 	}
 }
 
-void URotationArrayAction::GetRotationArrayActionAsRotationVectors(const int32 AgentId, TArray<FVector>& OutRotationVectors) const
+void URotationArrayAction::GetRotationArrayActionAsRotationVectors(const int32 AgentId, TArray<FVector>& OutRotationVectors)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -452,6 +481,8 @@ void URotationArrayAction::GetRotationArrayActionAsRotationVectors(const int32 A
 	}
 
 	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
+
+	AgentGetIteration[AgentId]++;
 
 	OutRotationVectors.SetNumUninitialized(View.Num<1>());
 	for (int32 RotationVectorIdx = 0; RotationVectorIdx < View.Num<1>(); RotationVectorIdx++)
@@ -460,7 +491,7 @@ void URotationArrayAction::GetRotationArrayActionAsRotationVectors(const int32 A
 	}
 }
 
-void URotationArrayAction::GetRotationArrayActionAsQuats(const int32 AgentId, TArray<FQuat>& OutRotations) const
+void URotationArrayAction::GetRotationArrayActionAsQuats(const int32 AgentId, TArray<FQuat>& OutRotations)
 {
 	if (!Interactor->HasAgent(AgentId))
 	{
@@ -469,6 +500,8 @@ void URotationArrayAction::GetRotationArrayActionAsQuats(const int32 AgentId, TA
 	}
 
 	const TLearningArrayView<2, const FVector> View = FeatureObject->InstanceData->ConstView(FeatureObject->RotationVectorsHandle);
+
+	AgentGetIteration[AgentId]++;
 
 	OutRotations.SetNumUninitialized(View.Num<1>());
 	for (int32 RotationVectorIdx = 0; RotationVectorIdx < View.Num<1>(); RotationVectorIdx++)

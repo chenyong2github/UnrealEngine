@@ -3,7 +3,6 @@
 #include "LearningNeuralNetworkObject.h"
 
 #include "LearningNeuralNetwork.h"
-#include "LearningEigen.h"
 #include "LearningRandom.h"
 
 #if UE_LEARNING_ISPC
@@ -46,9 +45,9 @@ namespace UE::Learning
 			const int32 RowNum = Weights.Num<0>();
 			const int32 ColNum = Weights.Num<1>();
 
-			if (UE_LEARNING_ISPC && Instances.IsSlice())
-			{
 #if UE_LEARNING_ISPC
+			if (Instances.IsSlice())
+			{
 				ispc::LearningLayerMatMulPlusBias(
 					Output.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
 					Input.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
@@ -57,15 +56,39 @@ namespace UE::Learning
 					Instances.GetSliceNum(),
 					RowNum,
 					ColNum);
-#endif
 			}
 			else
 			{
-				OutEigenMatrix(Output).noalias() =
-					(InEigenMatrix(Weights).transpose() *
-						InEigenMatrix(Input).transpose()).transpose().rowwise() +
-					InEigenRowVector(Biases);
+				for (const int32 InstanceIdx : Instances)
+				{
+					ispc::LearningLayerMatMulVecPlusBias(
+						Output[InstanceIdx].GetData(),
+						Input[InstanceIdx].GetData(),
+						Weights.GetData(),
+						Biases.GetData(),
+						RowNum,
+						ColNum);
+				}
 			}
+#else
+			for (const int32 InstanceIdx : Instances)
+			{
+				Array::Copy(Output[InstanceIdx], Biases);
+
+				for (int32 RowIdx = 0; RowIdx < RowNum; RowIdx++)
+				{
+					const float Value = Input[InstanceIdx][RowIdx];
+
+					if (Value != 0.0)
+					{
+						for (int32 ColIdx = 0; ColIdx < ColNum; ColIdx++)
+						{
+							Output[InstanceIdx][ColIdx] += Value * Weights[RowIdx][ColIdx];
+						}
+					}
+				}
+			}
+#endif
 		}
 
 		static inline void ActivationReLU(TLearningArrayView<2, float> InputOutput, const FIndexSet Instances)
@@ -74,25 +97,31 @@ namespace UE::Learning
 
 			const int32 HiddenNum = InputOutput.Num<1>();
 
-			if (UE_LEARNING_ISPC && Instances.IsSlice())
-			{
 #if UE_LEARNING_ISPC
+			if (Instances.IsSlice())
+			{
 				ispc::LearningLayerReLU(
 					InputOutput.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
-					Instances.GetSliceNum(),
-					HiddenNum);
-#endif
+					Instances.GetSliceNum() * HiddenNum);
 			}
 			else
 			{
 				for (const int32 InstanceIdx : Instances)
 				{
-					for (int32 HiddenIdx = 0; HiddenIdx < HiddenNum; HiddenIdx++)
-					{
-						InputOutput[InstanceIdx][HiddenIdx] = ReLU(InputOutput[InstanceIdx][HiddenIdx]);
-					}
+					ispc::LearningLayerReLU(
+						InputOutput[InstanceIdx].GetData(),
+						HiddenNum);
 				}
 			}
+#else
+			for (const int32 InstanceIdx : Instances)
+			{
+				for (int32 HiddenIdx = 0; HiddenIdx < HiddenNum; HiddenIdx++)
+				{
+					InputOutput[InstanceIdx][HiddenIdx] = ReLU(InputOutput[InstanceIdx][HiddenIdx]);
+				}
+			}
+#endif
 		}
 
 		static inline void ActivationELU(TLearningArrayView<2, float> InputOutput, const FIndexSet Instances)
@@ -101,25 +130,31 @@ namespace UE::Learning
 
 			const int32 HiddenNum = InputOutput.Num<1>();
 
-			if (UE_LEARNING_ISPC && Instances.IsSlice())
-			{
 #if UE_LEARNING_ISPC
+			if (Instances.IsSlice())
+			{
 				ispc::LearningLayerELU(
 					InputOutput.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
-					Instances.GetSliceNum(),
-					HiddenNum);
-#endif
+					Instances.GetSliceNum() * HiddenNum);
 			}
 			else
 			{
 				for (const int32 InstanceIdx : Instances)
 				{
-					for (int32 HiddenIdx = 0; HiddenIdx < HiddenNum; HiddenIdx++)
-					{
-						InputOutput[InstanceIdx][HiddenIdx] = ELU(InputOutput[InstanceIdx][HiddenIdx]);
-					}
+					ispc::LearningLayerELU(
+						InputOutput[InstanceIdx].GetData(),
+						HiddenNum);
 				}
 			}
+#else
+			for (const int32 InstanceIdx : Instances)
+			{
+				for (int32 HiddenIdx = 0; HiddenIdx < HiddenNum; HiddenIdx++)
+				{
+					InputOutput[InstanceIdx][HiddenIdx] = ELU(InputOutput[InstanceIdx][HiddenIdx]);
+				}
+			}
+#endif
 		}
 
 		static inline void ActivationTanH(TLearningArrayView<2, float> InputOutput, const FIndexSet Instances)
@@ -128,25 +163,31 @@ namespace UE::Learning
 
 			const int32 HiddenNum = InputOutput.Num<1>();
 
-			if (UE_LEARNING_ISPC && Instances.IsSlice())
-			{
 #if UE_LEARNING_ISPC
+			if (Instances.IsSlice())
+			{
 				ispc::LearningLayerTanH(
 					InputOutput.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
-					Instances.GetSliceNum(),
-					HiddenNum);
-#endif
+					Instances.GetSliceNum() * HiddenNum);
 			}
 			else
 			{
 				for (const int32 InstanceIdx : Instances)
 				{
-					for (int32 HiddenIdx = 0; HiddenIdx < HiddenNum; HiddenIdx++)
-					{
-						InputOutput[InstanceIdx][HiddenIdx] = TanH(InputOutput[InstanceIdx][HiddenIdx]);
-					}
+					ispc::LearningLayerTanH(
+						InputOutput[InstanceIdx].GetData(),
+						HiddenNum);
 				}
 			}
+#else
+			for (const int32 InstanceIdx : Instances)
+			{
+				for (int32 HiddenIdx = 0; HiddenIdx < HiddenNum; HiddenIdx++)
+				{
+					InputOutput[InstanceIdx][HiddenIdx] = TanH(InputOutput[InstanceIdx][HiddenIdx]);
+				}
+			}
+#endif
 		}
 
 		static inline void ActionNoise(
@@ -165,9 +206,9 @@ namespace UE::Learning
 			const int32 InputNum = Input.Num<1>();
 			const int32 OutputNum = Output.Num<1>();
 
-			if (UE_LEARNING_ISPC && Instances.IsSlice())
-			{
 #if UE_LEARNING_ISPC
+			if (Instances.IsSlice())
+			{
 				ispc::LearningLayerActionNoise(
 					Output.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
 					OutputMean.Slice(Instances.GetSliceStart(), Instances.GetSliceNum()).GetData(),
@@ -180,25 +221,39 @@ namespace UE::Learning
 					OutputNum,
 					LogActionNoiseMin,
 					LogActionNoiseMax);
-#endif
 			}
 			else
 			{
 				for (const int32 InstanceIdx : Instances)
 				{
-					for (int32 OutputIdx = 0; OutputIdx < OutputNum; OutputIdx++)
-					{
-						OutputMean[InstanceIdx][OutputIdx] = Input[InstanceIdx][OutputIdx];
-						OutputStd[InstanceIdx][OutputIdx] = ActionNoiseScale[InstanceIdx] *
-							FMath::Exp(Sigmoid(Input[InstanceIdx][OutputNum + OutputIdx]) * (LogActionNoiseMax - LogActionNoiseMin) + LogActionNoiseMin);
-
-						Output[InstanceIdx][OutputIdx] = Random::Gaussian(
-							Seed[InstanceIdx] ^ 0xab744615 ^ Random::Int(OutputIdx ^ 0xf8a88a27),
-							OutputMean[InstanceIdx][OutputIdx],
-							OutputStd[InstanceIdx][OutputIdx]);
-					}
+					ispc::LearningLayerActionNoiseSingleBatch(
+						Output[InstanceIdx].GetData(),
+						OutputMean[InstanceIdx].GetData(),
+						OutputStd[InstanceIdx].GetData(),
+						Input[InstanceIdx].GetData(),
+						Seed[InstanceIdx],
+						ActionNoiseScale[InstanceIdx],
+						OutputNum,
+						LogActionNoiseMin,
+						LogActionNoiseMax);
 				}
 			}
+#else
+			for (const int32 InstanceIdx : Instances)
+			{
+				for (int32 OutputIdx = 0; OutputIdx < OutputNum; OutputIdx++)
+				{
+					OutputMean[InstanceIdx][OutputIdx] = Input[InstanceIdx][OutputIdx];
+					OutputStd[InstanceIdx][OutputIdx] = ActionNoiseScale[InstanceIdx] *
+						FMath::Exp(Sigmoid(Input[InstanceIdx][OutputNum + OutputIdx]) * (LogActionNoiseMax - LogActionNoiseMin) + LogActionNoiseMin);
+
+					Output[InstanceIdx][OutputIdx] = Random::Gaussian(
+						Seed[InstanceIdx] ^ 0xab744615 ^ Random::Int(OutputIdx ^ 0xf8a88a27),
+						OutputMean[InstanceIdx][OutputIdx],
+						OutputStd[InstanceIdx][OutputIdx]);
+				}
+			}
+#endif
 
 			Random::ResampleStateArray(Seed, Instances);
 		}
