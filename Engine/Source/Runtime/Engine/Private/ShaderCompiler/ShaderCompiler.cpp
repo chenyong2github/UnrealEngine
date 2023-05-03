@@ -594,7 +594,7 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 
 					FSharedBuffer* ExistingOutput = nullptr;
 					{
-						FReadScopeLock ReadLocker(Lock);
+						FWriteScopeLock Locker(Lock);
 
 						// see if we can find the job in the cache first
 						ExistingOutput = CompletedJobsCache.Find(InputHash, bCheckDDC);
