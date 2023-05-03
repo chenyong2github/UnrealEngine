@@ -15,6 +15,7 @@ namespace UE::PoseSearch
 		UI_COMMAND(ShowAnimationOriginalAndMirrored, "Original and mirrored", "Show original and mirrored animations", EUserInterfaceActionType::RadioButton, FInputChord());
 		UI_COMMAND(ShowDisplayRootMotionSpeed, "Display Root Motion Speed", "Show root motion speed for the selected item", EUserInterfaceActionType::ToggleButton, FInputChord());
 		UI_COMMAND(ShowQuantizeAnimationToPoseData, "Quantize Animation To Pose Data", "Animations will not playing continuously, only using the associated pose quantized time", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(ShowBones, "Show All Bones", "Debug Draw All Bones", EUserInterfaceActionType::ToggleButton, FInputChord());
 	}
 }
 

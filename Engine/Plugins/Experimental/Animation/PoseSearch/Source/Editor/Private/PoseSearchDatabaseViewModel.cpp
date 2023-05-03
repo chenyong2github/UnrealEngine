@@ -335,16 +335,6 @@ namespace UE::PoseSearch
 		return EnumHasAnyFlags(AnimationPreviewMode, PreviewMode);
 	}
 
-	void FDatabaseViewModel::OnToggleDisplayRootMotionSpeed()
-	{
-		bDisplayRootMotionSpeed = !bDisplayRootMotionSpeed;
-	}
-
-	void FDatabaseViewModel::OnToggleQuantizeAnimationToPoseData()
-	{
-		bQuantizeAnimationToPoseData = !bQuantizeAnimationToPoseData;
-	}
-
 	void FDatabaseViewModel::AddSequenceToDatabase(UAnimSequence* AnimSequence)
 	{
 		FPoseSearchDatabaseSequence NewAsset;

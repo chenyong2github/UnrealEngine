@@ -94,11 +94,14 @@ namespace UE::PoseSearch
 		void OnSetAnimationPreviewMode(EAnimationPreviewMode PreviewMode);
 		bool IsAnimationPreviewMode(EAnimationPreviewMode PreviewMode) const;
 
-		void OnToggleDisplayRootMotionSpeed();
+		void OnToggleDisplayRootMotionSpeed() { bDisplayRootMotionSpeed = !bDisplayRootMotionSpeed; }
 		bool IsDisplayRootMotionSpeedChecked() const { return bDisplayRootMotionSpeed; };
 
-		void OnToggleQuantizeAnimationToPoseData();
+		void OnToggleQuantizeAnimationToPoseData() { bQuantizeAnimationToPoseData = !bQuantizeAnimationToPoseData; }
 		bool IsQuantizeAnimationToPoseDataChecked() const { return bQuantizeAnimationToPoseData; };
+
+		void OnToggleShowBones() { bShowBones = !bShowBones; }
+		bool IsShowBones() const { return bShowBones; };
 
 		void AddSequenceToDatabase(UAnimSequence* AnimSequence);
 		void AddBlendSpaceToDatabase(UBlendSpace* BlendSpace);
@@ -161,6 +164,8 @@ namespace UE::PoseSearch
 		bool bDisplayRootMotionSpeed = false;
 
 		bool bQuantizeAnimationToPoseData = false;
+
+		bool bShowBones = false;
 
 		int32 SelectedActorIndexAssetIndex = INDEX_NONE;
 

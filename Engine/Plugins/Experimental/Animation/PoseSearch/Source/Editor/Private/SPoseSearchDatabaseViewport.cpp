@@ -108,6 +108,12 @@ namespace UE::PoseSearch
 			FExecuteAction::CreateSP(ViewModelRef, &FDatabaseViewModel::OnToggleQuantizeAnimationToPoseData),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateSP(ViewModelRef, &FDatabaseViewModel::IsQuantizeAnimationToPoseDataChecked));
+
+		CommandList->MapAction(
+			Commands.ShowBones,
+			FExecuteAction::CreateSP(ViewModelRef, &FDatabaseViewModel::OnToggleShowBones),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewModelRef, &FDatabaseViewModel::IsShowBones));
 		
 	}
 
