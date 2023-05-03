@@ -178,7 +178,7 @@ public:
 
 	void ExternalUpdate(const FReferenceSkeleton& InRefSkeleton, const TArray<int32>& InIndexTracker);
 	
-	FName GetUniqueName(const FName InBoneName) const;
+	FName GetUniqueName(const FName InBoneName, const TArray<FName>& InBoneNames = {}) const;
 	
 	const FReferenceSkeleton& GetReferenceSkeleton() const;
 	const TArray<int32>& GetBoneIndexTracker() const;

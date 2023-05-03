@@ -592,7 +592,7 @@ void USkeletonModifier::GetMirroredNames(
 		}
 		else
 		{
-			return GetUniqueName(BoneInfos[BoneIndex].Name);
+			return GetUniqueName(BoneInfos[BoneIndex].Name, OutBonesName);
 		}
 		return FName(*BoneStr);
 	});
@@ -1217,7 +1217,7 @@ void USkeletonModifier::UpdateBoneTracker(const TArray<FMeshBoneInfo>& InOtherIn
 	}
 }
 
-FName USkeletonModifier::GetUniqueName(const FName InBoneName) const
+FName USkeletonModifier::GetUniqueName(const FName InBoneName, const TArray<FName>& InBoneNames) const
 {
 	if (!ReferenceSkeleton || InBoneName == NAME_None)
 	{
@@ -1267,6 +1267,12 @@ FName USkeletonModifier::GetUniqueName(const FName InBoneName) const
 		{
 			return false;
 		}
+
+		if (InBoneNames.Contains(Name))
+		{
+			return false;
+		}
+		
 		return true;
 	};
 
