@@ -99,6 +99,7 @@ private:
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 	virtual void OnLink() override;
 	virtual void OnUnlink() override;
+	virtual void OnCleanTaggedGarbage() override;
 
 private:
 
@@ -239,8 +240,6 @@ private:
 	UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
 
 	void InitializePropertyMetaData(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
-
-	void CleanTaggedGarbage(UMovieSceneEntitySystemLinker*);
 
 private:
 

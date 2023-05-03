@@ -398,12 +398,15 @@ void UMovieSceneEntitySystemLinker::CleanGarbage()
 	// the next time a runner gets flushed
 	LastInstantiationVersion = 0;
 
-	// Allow any other system to cleanup garbage
-	Events.CleanTaggedGarbage.Broadcast(this);
-
 	auto RouteCleanTaggedGarbage = [](UMovieSceneEntitySystem* System){ System->CleanTaggedGarbage(); };
 	SystemGraph.IteratePhase(ESystemPhase::Spawn, RouteCleanTaggedGarbage);
 	SystemGraph.IteratePhase(ESystemPhase::Instantiation, RouteCleanTaggedGarbage);
+
+	// Allow any other system to cleanup garbage
+	// NOTE: Order is important here - we need to broadcast this after systems have CleanTaggedGarbage called
+	//       since systems are able to (and more likely to) cause additional entities to be unlinked in response
+	//       to finding entities tagged NeedsUnlink.
+	Events.CleanTaggedGarbage.Broadcast(this);
 
 	TArray<FMovieSceneEntityID> UnresolvedEntities;
 

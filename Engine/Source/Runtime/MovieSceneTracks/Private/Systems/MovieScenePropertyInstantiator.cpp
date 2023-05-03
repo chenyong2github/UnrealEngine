@@ -79,8 +79,6 @@ UE::MovieScene::FPropertyStats UMovieScenePropertyInstantiatorSystem::GetStatsFo
 
 void UMovieScenePropertyInstantiatorSystem::OnLink()
 {
-	Linker->Events.CleanTaggedGarbage.AddUObject(this, &UMovieScenePropertyInstantiatorSystem::CleanTaggedGarbage);
-
 	CleanFastPathMask.Reset();
 	CleanFastPathMask.SetAll({ BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty, BuiltInComponents->CustomPropertyIndex });
 	CleanFastPathMask.CombineWithBitwiseOR(Linker->EntityManager.GetComponents()->GetMigrationMask(), EBitwiseOperatorFlags::MaxSize);
@@ -89,8 +87,6 @@ void UMovieScenePropertyInstantiatorSystem::OnLink()
 void UMovieScenePropertyInstantiatorSystem::OnUnlink()
 {
 	using namespace UE::MovieScene;
-
-	Linker->Events.CleanTaggedGarbage.RemoveAll(this);
 
 	const bool bAllPropertiesClean = (
 				ResolvedProperties.Num() == 0 &&
@@ -128,7 +124,7 @@ void UMovieScenePropertyInstantiatorSystem::OnUnlink()
 	}
 }
 
-void UMovieScenePropertyInstantiatorSystem::CleanTaggedGarbage(UMovieSceneEntitySystemLinker*)
+void UMovieScenePropertyInstantiatorSystem::OnCleanTaggedGarbage()
 {
 	using namespace UE::MovieScene;
 
