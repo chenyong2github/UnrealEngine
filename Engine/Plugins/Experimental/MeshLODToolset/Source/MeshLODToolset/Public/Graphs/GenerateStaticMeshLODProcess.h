@@ -26,7 +26,7 @@ using UE::Geometry::FDynamicMesh3;
 UENUM()
 enum class EGenerateStaticMeshLODProcess_MeshGeneratorModes : uint8
 {
-	// note: must keep in sync with FGenerateMeshLODGraph::ECoreMeshGeneratorMode
+	//~NOTE: must keep in sync with FGenerateMeshLODGraph::ECoreMeshGeneratorMode
 	Solidify = 0,
 	SolidifyAndClose = 1,
 	CleanAndSimplify = 2,
@@ -110,7 +110,7 @@ struct FGenerateStaticMeshLODProcess_PreprocessSettings
 UENUM()
 enum class EGenerateStaticMeshLODProcess_SimplifyMethod : uint8
 {
-	// note: must keep in sync with UE::GeometryFlow::EMeshSimplifyTargetType
+	//~NOTE: must keep in sync with UE::GeometryFlow::EMeshSimplifyTargetType
 	TriangleCount = 0,
 	VertexCount = 1,
 	TrianglePercentage = 2,
@@ -268,8 +268,7 @@ struct FGenerateStaticMeshLODProcess_TextureSettings
 UENUM()
 enum class EGenerateStaticMeshLODSimpleCollisionGeometryType : uint8
 {
-	// NOTE: This must be kept in sync with ESimpleCollisionGeometryType in GenerateSimpleCollisionNode.h
-
+	//~NOTE: This must be kept in sync with ESimpleCollisionGeometryType in GenerateSimpleCollisionNode.h
 	AlignedBoxes,
 	OrientedBoxes,
 	MinimalSpheres,
@@ -280,11 +279,11 @@ enum class EGenerateStaticMeshLODSimpleCollisionGeometryType : uint8
 	None
 };
 
-// NOTE: This must be kept in sync with FMeshSimpleShapeApproximation::EProjectedHullAxisMode in MeshSimpleShapeApproximation.h
 
 UENUM()
 enum class EGenerateStaticMeshLODProjectedHullAxisMode : uint8
 {
+	//~NOTE: This must be kept in sync with FMeshSimpleShapeApproximation::EProjectedHullAxisMode in MeshSimpleShapeApproximation.h
 	X = 0,
 	Y = 1,
 	Z = 2,

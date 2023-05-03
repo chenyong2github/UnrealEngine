@@ -401,6 +401,9 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 			(const GenerateStaticMeshLODAssetLocals::FGenerateStaticMeshLODAssetOperatorOp*)(Op);
 		check(GenerateLODOp);
 
+		// Clear any previous collision geometry visualization
+		CollisionPreview->RemoveAllLineSets();
+
 		// Must happen on main thread
 		FPhysicsDataCollection PhysicsData;
 		PhysicsData.Geometry = GenerateLODOp->ResultCollision;
