@@ -7331,6 +7331,14 @@ void FControlRigEditor::OnPostConstruction_AnyThread(UControlRig* InRig, const F
 			{
 				SetDetailViewForRigElements();
 			}
+			
+			if (FControlRigEditorEditMode* EditMode = GetEditMode())
+            {
+				if (InRig)
+            	{
+            		EditMode->bDrawHierarchyBones = !InRig->GetHierarchy()->GetBones().IsEmpty();
+            	}
+            }
 		};
 				
 		if(IsInGameThread())
