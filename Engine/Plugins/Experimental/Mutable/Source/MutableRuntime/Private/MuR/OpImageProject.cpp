@@ -1121,10 +1121,8 @@ float ComputeProjectedFootprintBestMip(
 	float BestMip = FMath::Log2(FMath::Max(1.0f, SourceSize.X * SourceSize.Y)) * 0.5f - 
 				    FMath::Log2(FMath::Max(1.0f, SourceFootprintAreaOnTargetInPixelsSquared)) * 0.5f;
 
-	// TODO: We probably should allow negative mips to indicate that the image needs magnification.
-	return FMath::Max(0.0f, BestMip);
+	return BestMip;
 }
-
 
 //-------------------------------------------------------------------------------------------------
 void ImageRasterProjectedCylindrical( const Mesh* pMesh, Image* pImage,
