@@ -18,7 +18,7 @@
 
 #include "SNiagaraNamePropertySelector.h"
 #include "NiagaraDataChannel.h"
-#include "DataInterface\NiagaraDataInterfaceDataChannelRead.h"
+#include "DataInterface/NiagaraDataInterfaceDataChannelRead.h"
 #include "NiagaraDataChannel.h"
 #include "NiagaraDataChannel_Global.h"
 #include "NiagaraDataChannel_Islands.h"
