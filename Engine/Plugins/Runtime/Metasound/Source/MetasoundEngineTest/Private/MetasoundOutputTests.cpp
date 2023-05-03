@@ -2,6 +2,8 @@
 
 #include "MetasoundOutput.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundTime.h"
+
 #include "Misc/AutomationTest.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -21,24 +23,36 @@ namespace Metasound::Test::GeneratorOutput
 		UTEST_FALSE("float is not int32", Output.IsType<int32>());
 		UTEST_FALSE("float is not bool", Output.IsType<bool>());
 		UTEST_FALSE("float is not FString", Output.IsType<FString>());
+		UTEST_FALSE("float is not FTime", Output.IsType<FTime>());
 
 		Output.Init(int32{ 0 });
 		UTEST_FALSE("int32 is not float", Output.IsType<float>());
 		UTEST_TRUE("int32 is int32", Output.IsType<int32>());
 		UTEST_FALSE("int32 is not bool", Output.IsType<bool>());
 		UTEST_FALSE("int32 is not FString", Output.IsType<FString>());
+		UTEST_FALSE("int32 is not FTime", Output.IsType<FTime>());
 		
 		Output.Init(bool{ false });
 		UTEST_FALSE("bool is not float", Output.IsType<float>());
 		UTEST_FALSE("bool is not int32", Output.IsType<int32>());
 		UTEST_TRUE("bool is bool", Output.IsType<bool>());
 		UTEST_FALSE("bool is not FString", Output.IsType<FString>());
+		UTEST_FALSE("bool is not FTime", Output.IsType<FTime>());
 		
 		Output.Init(FString{ "hi!" });
 		UTEST_FALSE("FString is not float", Output.IsType<float>());
 		UTEST_FALSE("FString is not int32", Output.IsType<int32>());
 		UTEST_FALSE("FString is not bool", Output.IsType<bool>());
 		UTEST_TRUE("FString is FString", Output.IsType<FString>());
+		UTEST_FALSE("FString is not FTime", Output.IsType<FTime>());
+
+		constexpr float TimeSeconds = 123.456f;
+		Output.Init(FTime::FromSeconds(TimeSeconds));
+		UTEST_FALSE("FTime is not float", Output.IsType<float>());
+		UTEST_FALSE("FTime is not int32", Output.IsType<int32>());
+		UTEST_FALSE("FTime is not bool", Output.IsType<bool>());
+		UTEST_FALSE("FTime is not FString", Output.IsType<FString>());
+		UTEST_TRUE("FTime is FTime", Output.IsType<FTime>());
 		
 		return true;
 	}
@@ -114,6 +128,18 @@ namespace Metasound::Test::GeneratorOutput
 		using FDataType = FString;
 		const FDataType InitialValue{ "hello" };
 		const FDataType ExpectedValue{ "goodbye" };
+		return RunOutputGetSetTest<FDataType>(*this, InitialValue, ExpectedValue);
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMetasoundOutputGetSetFTimeTest,
+	"Audio.Metasound.Output.GetSet.FTime",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	bool FMetasoundOutputGetSetFTimeTest::RunTest(const FString&)
+	{
+		using FDataType = FTime;
+		const FDataType InitialValue{ FTime::FromSeconds(123.456f) };
+		const FDataType ExpectedValue{ FTime::FromSeconds(654.321f) };
 		return RunOutputGetSetTest<FDataType>(*this, InitialValue, ExpectedValue);
 	}
 }

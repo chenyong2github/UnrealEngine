@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "MetasoundOutputWatcher.h"
+#include "MetasoundOutput.h"
 #include "MetasoundParameterPack.h"
+#include "Analysis/MetasoundFrontendAnalyzerAddress.h"
 #include "Containers/SpscQueue.h"
 #include "Templates/SharedPointer.h"
 
@@ -92,8 +93,9 @@ public:
 	 *
 	 * @param TypeName - The type name returned from GetMetasoundDataTypeName()
 	 * @param AnalyzerName - The name of the analyzer to use
+	 * @param OutputName - The name of the output in the analyzer
 	 */
-	static void RegisterPassthroughAnalyzerForType(FName TypeName, FName AnalyzerName);
+	static void RegisterPassthroughAnalyzerForType(FName TypeName, FName AnalyzerName, FName OutputName);
 
 	/**
 	 * Update any watched outputs
@@ -142,13 +144,65 @@ private:
 	FDelegateHandle GeneratorDestroyedDelegateHandle;
 	FDelegateHandle GeneratorGraphChangedDelegateHandle;
 
+	void CreateAnalyzer(
+		const Metasound::Frontend::FAnalyzerAddress& AnalyzerAddress,
+		const TSharedPtr<Metasound::FMetasoundGenerator> Generator);
+	void CreateListener(
+		const Metasound::Frontend::FAnalyzerAddress& AnalyzerAddress,
+		const FOnMetasoundOutputValueChanged& OnOutputValueChanged);
+	void HandleOutputChanged(
+		FName AnalyzerName,
+		FName OutputName,
+		FName AnalyzerOutputName,
+		TSharedPtr<Metasound::IOutputStorage> OutputData);
+
+	struct FPassthroughAnalyzerInfo
+	{
+		FName AnalyzerName;
+		FName OutputName;
+	};
+	static TMap<FName, FPassthroughAnalyzerInfo> PassthroughAnalyzers;
+
+	/**
+	 * Multicast delegate to broadcast to users calling WatchOutput
+	 */
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOutputValueChangedMulticast, FName, Name, const FMetaSoundOutput&, Output);
-	static TMap<FName, FName> PassthroughAnalyzers;
-	// This is a map of output names on the generator to a map of output names on an analyzer
-	// to delegates listening to that analyzer output. We do this because analyzers can have more
-	// than one output.
-	TMap<FName, TMap<FName, FOnOutputValueChangedMulticast>> OutputListenerMap;
-	TSpscQueue<Metasound::Frontend::FAnalyzerAddress> OutputAnalyzersToAdd;
-	void CreateAnalyzerAndWatcher(const TSharedPtr<Metasound::FMetasoundGenerator> Generator, Metasound::Frontend::FAnalyzerAddress&& AnalyzerAddress);
-	TArray<Metasound::Private::FMetasoundOutputWatcher> OutputWatchers;
+
+	/**
+	 * Info about an output being watched by one or more listeners
+	 */
+	struct FOutputListener
+	{
+		Metasound::Frontend::FAnalyzerAddress AnalyzerAddress;
+		FOnOutputValueChangedMulticast OnOutputValueChanged;
+
+		FOutputListener(
+			const Metasound::Frontend::FAnalyzerAddress& InAnalyzerAddress,
+			const FOnMetasoundOutputValueChanged& InOnOutputValueChanged)
+				: AnalyzerAddress(InAnalyzerAddress)
+		{
+			OnOutputValueChanged.AddUnique(InOnOutputValueChanged);
+		}
+	};
+
+	TArray<FOutputListener> OutputListeners;
+
+	struct FOutputPayload
+	{
+		FName AnalyzerName;
+		FName OutputName;
+		FMetaSoundOutput OutputValue;
+
+		FOutputPayload(
+			const FName InAnalyzerName,
+			const FName InOutputName,
+			const FName AnalyzerOutputName,
+			TSharedPtr<Metasound::IOutputStorage> OutputData)
+				: AnalyzerName(InAnalyzerName)
+				, OutputName(InOutputName)
+				, OutputValue(AnalyzerOutputName, OutputData)
+		{}
+	};
+
+	TSpscQueue<FOutputPayload> ChangedOutputs;
 };

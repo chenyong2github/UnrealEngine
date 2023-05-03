@@ -64,6 +64,11 @@ namespace Metasound
 			// the same name. Useful if the analyzer requires outputting multiple analysis values.
 			// Can potentially be used as an input as well to modify analyzer settings.
 			FName AnalyzerMemberName;
+
+			/**
+			 * Specifies whether to use the data transmission center for passing values to views.
+			 */
+			bool UseDataTransmissionCenter = true;
 		};
 	} // namespace Frontend
 

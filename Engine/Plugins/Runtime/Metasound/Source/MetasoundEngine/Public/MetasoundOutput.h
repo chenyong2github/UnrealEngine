@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MetasoundDataReference.h"
+#include "MetasoundOutputStorage.h"
 #include "SoundGeneratorOutput.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
@@ -22,6 +22,12 @@ struct METASOUNDENGINE_API FMetaSoundOutput : public FSoundGeneratorOutput
 
 	FMetaSoundOutput& operator=(const FMetaSoundOutput& Other);
 
+	FMetaSoundOutput(FMetaSoundOutput&& Other) noexcept;
+
+	FMetaSoundOutput& operator=(FMetaSoundOutput&& Other) noexcept;
+
+	FMetaSoundOutput(FName InName, const TSharedPtr<Metasound::IOutputStorage>& InData);
+
 	/**
 	 * Has this output been initialized?
 	 *
@@ -34,7 +40,7 @@ struct METASOUNDENGINE_API FMetaSoundOutput : public FSoundGeneratorOutput
 	 *
 	 * @returns The type name, or none if invalid
 	 */
-	FName GetTypeName() const;
+	FName GetDataTypeName() const;
 	
 	/**
 	 * Initialize the output with some data.
@@ -45,8 +51,8 @@ struct METASOUNDENGINE_API FMetaSoundOutput : public FSoundGeneratorOutput
 	template<typename DataType>
 	void Init(const DataType& InitialValue)
 	{
-		DataReference = MakeUnique<Metasound::FAnyDataReference>(Metasound::TDataWriteReference<DataType>::CreateNew());
-		*DataReference->GetDataWriteReference<DataType>() = InitialValue;
+		using FOutputData = Metasound::TOutputStorage<DataType>;
+		Data = MakeUnique<FOutputData>(InitialValue);
 	}
 
 	/**
@@ -58,7 +64,8 @@ struct METASOUNDENGINE_API FMetaSoundOutput : public FSoundGeneratorOutput
 	template<typename DataType>
 	bool IsType() const
 	{
-		return IsValid() && Metasound::IsDataReferenceOfType<DataType>(*DataReference);
+		static const FName TypeName = Metasound::GetMetasoundDataTypeName<DataType>();
+		return IsValid() && TypeName == Data->GetDataTypeName();
 	}
 	
 	/**
@@ -76,7 +83,8 @@ struct METASOUNDENGINE_API FMetaSoundOutput : public FSoundGeneratorOutput
 			return false;
 		}
 
-		Value = *DataReference->GetDataReadReference<DataType>();
+		using FOutputData = Metasound::TOutputStorage<DataType>;
+		Value = static_cast<FOutputData*>(Data.Get())->Get();
 		return true;
 	}
 	
@@ -95,12 +103,33 @@ struct METASOUNDENGINE_API FMetaSoundOutput : public FSoundGeneratorOutput
 			return false;
 		}
 
-		*DataReference->GetDataWriteReference<DataType>() = Value;
+		using FOutputData = Metasound::TOutputStorage<DataType>;
+		static_cast<FOutputData*>(Data.Get())->Set(Value);
 		return true;
 	}
 
+	/**
+	 * Set the value, for moveable registered Metasound data types
+	 *
+	 * @tparam DataType - The expected data type of the output
+	 * @param Value - The value to use
+	 * @returns true if the value was set, false otherwise
+	 */
+	template<typename DataType>
+	bool Set(DataType&& Value)
+	{
+		if (!IsType<DataType>())
+		{
+			return false;
+		}
+
+		using FOutputData = Metasound::TOutputStorage<DataType>;
+		static_cast<FOutputData*>(Data.Get())->Set(MoveTemp(Value));
+		return true;
+	}
+	
 private:
-	TUniquePtr<Metasound::FAnyDataReference> DataReference;
+	TUniquePtr<Metasound::IOutputStorage> Data;
 };
 
 /**
@@ -116,16 +145,24 @@ class UMetasoundOutputBlueprintAccess final : public UBlueprintFunctionLibrary
 	static bool IsFloat(const FMetaSoundOutput& Output);
 	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
 	static float GetFloat(const FMetaSoundOutput& Output, bool& Success);
+	
 	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
 	static bool IsInt32(const FMetaSoundOutput& Output);
 	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
 	static int32 GetInt32(const FMetaSoundOutput& Output, bool& Success);
+
 	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
 	static bool IsBool(const FMetaSoundOutput& Output);
 	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
 	static bool GetBool(const FMetaSoundOutput& Output, bool& Success);
+
 	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
 	static bool IsString(const FMetaSoundOutput& Output);
 	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
 	static FString GetString(const FMetaSoundOutput& Output, bool& Success);
+
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static bool IsTime(const FMetaSoundOutput& Output);
+	UFUNCTION(BlueprintCallable, Category="MetaSoundOutput")
+	static float GetTimeSeconds(const FMetaSoundOutput& Output, bool& Success);
 };

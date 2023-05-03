@@ -3,13 +3,12 @@
 #include "MetasoundGeneratorHandle.h"
 
 #include "Components/AudioComponent.h"
-#include "AudioDeviceManager.h"
 #include "MetasoundGenerator.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
 #include "MetasoundParameterPack.h"
 
-TMap<FName, FName> UMetasoundGeneratorHandle::PassthroughAnalyzers{};
+TMap<FName, UMetasoundGeneratorHandle::FPassthroughAnalyzerInfo> UMetasoundGeneratorHandle::PassthroughAnalyzers{};
 
 UMetasoundGeneratorHandle* UMetasoundGeneratorHandle::CreateMetaSoundGeneratorHandle(UAudioComponent* OnComponent)
 {
@@ -38,6 +37,11 @@ void UMetasoundGeneratorHandle::BeginDestroy()
 {
 	Super::BeginDestroy();
 	DetachGeneratorDelegates();
+
+	if (TSharedPtr<Metasound::FMetasoundGenerator> PinnedGenerator = CachedGeneratorPtr.Pin())
+	{
+		PinnedGenerator->OnOutputChanged.RemoveAll(this);
+	}
 }
 
 bool UMetasoundGeneratorHandle::IsValid() const
@@ -282,6 +286,11 @@ bool UMetasoundGeneratorHandle::RemoveGraphSetCallback(const FDelegateHandle& Ha
 	return OnGeneratorsGraphChanged.Remove(Handle);
 }
 
+bool AnalyzerAddressesReferToSameGeneratorOutput(const Metasound::Frontend::FAnalyzerAddress& Lhs, const Metasound::Frontend::FAnalyzerAddress& Rhs)
+{
+	return Lhs.OutputName == Rhs.OutputName && Lhs.AnalyzerName == Rhs.AnalyzerName && Lhs.AnalyzerMemberName == Rhs.AnalyzerMemberName;
+}
+
 bool UMetasoundGeneratorHandle::WatchOutput(
 	FName OutputName,
 	const FOnMetasoundOutputValueChanged& OnOutputValueChanged,
@@ -335,35 +344,31 @@ bool UMetasoundGeneratorHandle::WatchOutput(
 			return false;
 		}
 
-		AnalyzerName = PassthroughAnalyzers[TypeName];
-		AnalyzerOutputName = "Value";
+		AnalyzerName = PassthroughAnalyzers[TypeName].AnalyzerName;
+		AnalyzerOutputName = PassthroughAnalyzers[TypeName].OutputName;
 	}
 	AnalyzerAddress.AnalyzerName = AnalyzerName;
+	AnalyzerAddress.AnalyzerMemberName = AnalyzerOutputName;
 	
 	AnalyzerAddress.AnalyzerInstanceID = FGuid::NewGuid();
 	AnalyzerAddress.NodeID = NodeId;
 
-	// if we already have a generator, go ahead and make the analyzer and watcher
+	// if we already have a generator, go ahead and make the analyzer
 	if (const TSharedPtr<Metasound::FMetasoundGenerator> PinnedGenerator = PinGenerator())
 	{
-		CreateAnalyzerAndWatcher(PinnedGenerator, MoveTemp(AnalyzerAddress));
+		CreateAnalyzer(AnalyzerAddress, PinnedGenerator);
 	}
-	// otherwise enqueue it for later
-	else
-	{
-		OutputAnalyzersToAdd.Enqueue(MoveTemp(AnalyzerAddress));
-	}
-	
-	// either way, add the delegate to the map
-	OutputListenerMap.FindOrAdd(OutputName).FindOrAdd(AnalyzerOutputName).AddUnique(OnOutputValueChanged);
+
+	// Create the listener
+	CreateListener(AnalyzerAddress, OnOutputValueChanged);
 
 	return true;
 }
 
-void UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(FName TypeName, FName AnalyzerName)
+void UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(FName TypeName, FName AnalyzerName, FName OutputName)
 {
 	check(!PassthroughAnalyzers.Contains(TypeName));
-	PassthroughAnalyzers.Add(TypeName, AnalyzerName);
+	PassthroughAnalyzers.Add(TypeName, { AnalyzerName, OutputName });
 }
 
 void UMetasoundGeneratorHandle::UpdateWatchers()
@@ -371,18 +376,18 @@ void UMetasoundGeneratorHandle::UpdateWatchers()
 	METASOUND_LLM_SCOPE;
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetasoundGeneratorHandle::UpdateWatchers);
 
-	for (auto& Watcher : OutputWatchers)
+	while (TOptional<FOutputPayload> ChangedOutput = ChangedOutputs.Dequeue())
 	{
-		Watcher.Update([this](FName OutputName, const FMetaSoundOutput& Output)
-		{
-			if (TMap<FName, FOnOutputValueChangedMulticast>* Map = OutputListenerMap.Find(OutputName))
+		if (const FOutputListener* OutputListener = OutputListeners.FindByPredicate(
+			[&ChangedOutput](const FOutputListener& ExistingListener)
 			{
-				if (const FOnOutputValueChangedMulticast* Delegate = Map->Find(Output.Name))
-				{
-					Delegate->Broadcast(OutputName, Output);
-				}
-			}
-		});
+				return (*ChangedOutput).AnalyzerName == ExistingListener.AnalyzerAddress.AnalyzerName
+				&& (*ChangedOutput).OutputName == ExistingListener.AnalyzerAddress.OutputName
+				&& (*ChangedOutput).OutputValue.Name == ExistingListener.AnalyzerAddress.AnalyzerMemberName;
+			}))
+		{
+			OutputListener->OnOutputValueChanged.Broadcast((*ChangedOutput).OutputName, (*ChangedOutput).OutputValue);
+		}
 	}
 }
 
@@ -406,12 +411,11 @@ void UMetasoundGeneratorHandle::OnSourceCreatedAGenerator(uint64 InAudioComponen
 				InGenerator->QueueParameterPack(CachedParameterPack);
 			}
 
-			// If there are analyzers to create, create them
+			// If we have listeners, add the analyzers for them
 			{
-				Metasound::Frontend::FAnalyzerAddress Address;
-				while (OutputAnalyzersToAdd.Dequeue(Address))
+				for (const FOutputListener& Listener : OutputListeners)
 				{
-					CreateAnalyzerAndWatcher(InGenerator, MoveTemp(Address));
+					CreateAnalyzer(Listener.AnalyzerAddress, InGenerator);
 				}
 			}
 			
@@ -439,19 +443,12 @@ void UMetasoundGeneratorHandle::OnSourceDestroyedAGenerator(uint64 InAudioCompon
 			OnGeneratorHandleDetached.Broadcast();
 		}
 		CachedGeneratorPtr = nullptr;
-
-		// Clear out the watchers, but keep track of what we had in case the sound comes back
-		for (const Metasound::Private::FMetasoundOutputWatcher& Watcher : OutputWatchers)
-		{
-			OutputAnalyzersToAdd.Enqueue(Watcher.GetAddress());
-		}
-		OutputWatchers.Empty();
 	}
 }
 
-void UMetasoundGeneratorHandle::CreateAnalyzerAndWatcher(
-	const TSharedPtr<Metasound::FMetasoundGenerator> Generator,
-	Metasound::Frontend::FAnalyzerAddress&& AnalyzerAddress)
+void UMetasoundGeneratorHandle::CreateAnalyzer(
+	const Metasound::Frontend::FAnalyzerAddress& AnalyzerAddress,
+	const TSharedPtr<Metasound::FMetasoundGenerator> Generator)
 {
 	if (!IsValid())
 	{
@@ -460,16 +457,46 @@ void UMetasoundGeneratorHandle::CreateAnalyzerAndWatcher(
 
 	// Create the analyzer (will skip if there's already one)
 	Generator->AddOutputVertexAnalyzer(AnalyzerAddress);
-	
-	// Create the watcher
-	if (!OutputWatchers.ContainsByPredicate(
-		[&AnalyzerAddress](const Metasound::Private::FMetasoundOutputWatcher& Watcher)
-		{
-			return AnalyzerAddress.OutputName == Watcher.Name;
-		}))
+
+	// Subscribe for output updates if we haven't already
+	if (!Generator->OnOutputChanged.IsBoundToObject(this))
 	{
-		OutputWatchers.Emplace(MoveTemp(AnalyzerAddress), Generator->OperatorSettings);
+		Generator->OnOutputChanged.AddUObject(this, &UMetasoundGeneratorHandle::HandleOutputChanged);
 	}
 }
 
+void UMetasoundGeneratorHandle::CreateListener(
+	const Metasound::Frontend::FAnalyzerAddress& AnalyzerAddress,
+	const FOnMetasoundOutputValueChanged& OnOutputValueChanged)
+{
+	if (!IsValid())
+	{
+		return;
+	}
+	
+	// If we already have a listener for this output, just add the delegate to that one
+	if (FOutputListener* Listener = OutputListeners.FindByPredicate(
+		[&AnalyzerAddress](const FOutputListener& ExistingListener)
+		{
+			return AnalyzerAddressesReferToSameGeneratorOutput(AnalyzerAddress, ExistingListener.AnalyzerAddress);
+		}))
+	{
+		Listener->OnOutputValueChanged.AddUnique(OnOutputValueChanged);
+	}
+	// Otherwise add a new listener
+	else
+	{
+		OutputListeners.Emplace(AnalyzerAddress, OnOutputValueChanged);
+	}
+}
 
+// NOTE: We're in an audio render thread here, so get out fast
+// and be mindful of touching things that get touched on the game thread
+void UMetasoundGeneratorHandle::HandleOutputChanged(
+	FName AnalyzerName,
+	FName OutputName,
+	FName AnalyzerOutputName,
+	TSharedPtr<Metasound::IOutputStorage> OutputData)
+{
+	ChangedOutputs.Enqueue(AnalyzerName, OutputName, AnalyzerOutputName, OutputData);
+}

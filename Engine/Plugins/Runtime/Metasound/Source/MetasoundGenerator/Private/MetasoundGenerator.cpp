@@ -481,11 +481,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return NumChannels;
 	}
 
+	bool AnalyzerAddressesReferToSameGeneratorOutput(const Frontend::FAnalyzerAddress& Lhs, const Frontend::FAnalyzerAddress& Rhs)
+	{
+		return Lhs.OutputName == Rhs.OutputName && Lhs.AnalyzerName == Rhs.AnalyzerName;
+	}
+	
 	void FMetasoundGenerator::AddOutputVertexAnalyzer(const Frontend::FAnalyzerAddress& AnalyzerAddress)
 	{
 		OutputAnalyzerModificationQueue.Enqueue([this, AnalyzerAddress]
 		{
-			if (OutputAnalyzers.Contains(AnalyzerAddress.OutputName))
+			if (OutputAnalyzers.ContainsByPredicate([AnalyzerAddress](const TUniquePtr<Frontend::IVertexAnalyzer>& Analyzer)
+			{
+				return AnalyzerAddressesReferToSameGeneratorOutput(AnalyzerAddress, Analyzer->GetAnalyzerAddress());
+			}))
 			{
 				return;
 			}
@@ -510,16 +518,32 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				return;
 			}
+
+			if (!Analyzer->OnOutputDataChanged.IsBound())
+			{
+				Analyzer->OnOutputDataChanged.BindLambda(
+					[this, AnalyzerAddress](const FName AnalyzerOutputName, TSharedPtr<IOutputStorage> OutputData)
+					{
+						OnOutputChanged.Broadcast(
+							AnalyzerAddress.AnalyzerName,
+							AnalyzerAddress.OutputName,
+							AnalyzerOutputName,
+							OutputData);
+					});
+			}
 			
-			OutputAnalyzers.Emplace(AnalyzerAddress.OutputName, MoveTemp(Analyzer));
+			OutputAnalyzers.Emplace(MoveTemp(Analyzer));
 		});
 	}
-	
-	void FMetasoundGenerator::RemoveOutputVertexAnalyzer(const FName& OutputName)
+
+	void FMetasoundGenerator::RemoveOutputVertexAnalyzer(const Frontend::FAnalyzerAddress& AnalyzerAddress)
 	{
-		OutputAnalyzerModificationQueue.Enqueue([this, OutputName]
+		OutputAnalyzerModificationQueue.Enqueue([this, AnalyzerAddress]
 		{
-			OutputAnalyzers.Remove(OutputName);
+			OutputAnalyzers.RemoveAll([AnalyzerAddress](const TUniquePtr<Frontend::IVertexAnalyzer>& Analyzer)
+			{
+				return AnalyzerAddressesReferToSameGeneratorOutput(AnalyzerAddress, Analyzer->GetAnalyzerAddress());
+			});
 		});
 	}
 
@@ -596,9 +620,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			// Execute the output analyzers
-			for (const auto& Pair : OutputAnalyzers)
+			for (const TUniquePtr<Frontend::IVertexAnalyzer>& Analyzer : OutputAnalyzers)
 			{
-				Pair.Value->Execute();
+				Analyzer->Execute();
 			}
 
 			// Check if generated finished during this execute call

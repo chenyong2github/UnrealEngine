@@ -1,24 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEngineModule.h"
 
-#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
-#include "Analysis/MetasoundFrontendVertexAnalyzerForwardValue.h"
-#include "Interfaces/MetasoundDeprecatedInterfaces.h"
-#include "Interfaces/MetasoundInterface.h"
-#include "Interfaces/MetasoundInterfaceBindingsPrivate.h"
 #include "Metasound.h"
 #include "MetasoundAudioBus.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
-#include "MetasoundFrontendDataTypeTraits.h"
 #include "MetasoundFrontendDocumentBuilder.h"
 #include "MetasoundOutputSubsystem.h"
-#include "MetasoundOutputWatcher.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundWave.h"
 #include "MetasoundWaveTable.h"
+#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
+#include "Analysis/MetasoundFrontendVertexAnalyzerEnvelopeFollower.h"
+#include "Analysis/MetasoundFrontendVertexAnalyzerForwardValue.h"
+#include "Analysis/MetasoundFrontendVertexAnalyzerTriggerDensity.h"
+#include "Analysis/MetasoundFrontendVertexAnalyzerTriggerToTime.h"
+#include "Interfaces/MetasoundDeprecatedInterfaces.h"
+#include "Interfaces/MetasoundInterface.h"
+#include "Interfaces/MetasoundInterfaceBindingsPrivate.h"
 #include "Modules/ModuleManager.h"
 #include "Sound/AudioSettings.h"
 
@@ -64,27 +65,35 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
 
 		// Register Analyzers
-		Metasound::Frontend::IVertexAnalyzerRegistry::Get().RegisterAnalyzerFactories();
-
-		// Register output watcher ops
-		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(float, 0.0f)
-		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(int32, 0)
-		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(bool, false)
-		METASOUND_PRIVATE_REGISTER_GENERATOR_OUTPUT_WATCHER_TYPE_OPERATIONS(FString, "")
+		METASOUND_REGISTER_VERTEX_ANALYZER_FACTORY(Frontend::FVertexAnalyzerEnvelopeFollower)
+		METASOUND_REGISTER_VERTEX_ANALYZER_FACTORY(Frontend::FVertexAnalyzerTriggerDensity)
+		METASOUND_REGISTER_VERTEX_ANALYZER_FACTORY(Frontend::FVertexAnalyzerForwardBool)
+		METASOUND_REGISTER_VERTEX_ANALYZER_FACTORY(Frontend::FVertexAnalyzerForwardFloat)
+		METASOUND_REGISTER_VERTEX_ANALYZER_FACTORY(Frontend::FVertexAnalyzerForwardInt)
+		METASOUND_REGISTER_VERTEX_ANALYZER_FACTORY(Frontend::FVertexAnalyzerForwardString)
+		METASOUND_REGISTER_VERTEX_ANALYZER_FACTORY(Frontend::FVertexAnalyzerTriggerToTime)
 
 		// Register passthrough output analyzers
 		UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(
 			GetMetasoundDataTypeName<float>(),
-			Frontend::FVertexAnalyzerForwardFloat::GetAnalyzerName());
+			Frontend::FVertexAnalyzerForwardFloat::GetAnalyzerName(),
+			Frontend::FVertexAnalyzerForwardFloat::FOutputs::GetValue().Name);
 		UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(
 			GetMetasoundDataTypeName<int32>(),
-			Frontend::FVertexAnalyzerForwardInt::GetAnalyzerName());
+			Frontend::FVertexAnalyzerForwardInt::GetAnalyzerName(),
+			Frontend::FVertexAnalyzerForwardInt::FOutputs::GetValue().Name);
 		UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(
 			GetMetasoundDataTypeName<bool>(),
-			Frontend::FVertexAnalyzerForwardBool::GetAnalyzerName());
+			Frontend::FVertexAnalyzerForwardBool::GetAnalyzerName(),
+			Frontend::FVertexAnalyzerForwardBool::FOutputs::GetValue().Name);
 		UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(
 			GetMetasoundDataTypeName<FString>(),
-			Frontend::FVertexAnalyzerForwardString::GetAnalyzerName());
+			Frontend::FVertexAnalyzerForwardString::GetAnalyzerName(),
+			Frontend::FVertexAnalyzerForwardString::FOutputs::GetValue().Name);
+		UMetasoundGeneratorHandle::RegisterPassthroughAnalyzerForType(
+			GetMetasoundDataTypeName<FTrigger>(),
+			Frontend::FVertexAnalyzerTriggerToTime::GetAnalyzerName(),
+			Frontend::FVertexAnalyzerTriggerToTime::FOutputs::GetValue().Name);
 
 		UE_LOG(LogMetasoundEngine, Log, TEXT("MetaSound Engine Initialized"));
 	}

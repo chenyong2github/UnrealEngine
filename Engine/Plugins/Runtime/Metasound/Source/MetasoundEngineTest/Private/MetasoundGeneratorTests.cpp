@@ -2,6 +2,8 @@
 
 #include "NodeTestGraphBuilder.h"
 #include "Analysis/MetasoundFrontendAnalyzerView.h"
+#include "Analysis/MetasoundFrontendVertexAnalyzerTriggerToTime.h"
+
 #include "Misc/AutomationTest.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -385,6 +387,101 @@ namespace Metasound::Test::Generator
 		using FDataType = FString;
 		const FDataType ExpectedValue { "unexpected value" };
 		return RunOutputAnalyzerForwardValueTest<FDataType>(*this, ExpectedValue, "UE.Forward.String");
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMetasoundGeneratorOutputAnalyzerTriggerToTimeTest,
+	"Audio.Metasound.Generator.OutputAnalyzer.TriggerToTime",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+	bool FMetasoundGeneratorOutputAnalyzerTriggerToTimeTest::RunTest(const FString&)
+	{
+		const FName InputName = "MyInput";
+		const FName OutputName = "MyOutput";
+		constexpr FSampleRate SampleRate = 48000;
+		constexpr int32 NumSamplesPerBlock = 128;
+
+		// Build a passthrough graph
+		FGuid OutputNodeId;
+		const TUniquePtr<FMetasoundGenerator> Generator =
+			BuildPassthroughGraph<FTrigger>(*this, InputName, OutputName, SampleRate, NumSamplesPerBlock, &OutputNodeId);
+		UTEST_NOT_NULL("Generator build", Generator.Get());
+
+		// Add an analyzer to the output
+		FAnalyzerAddress AnalyzerAddress;
+		AnalyzerAddress.DataType = GetMetasoundDataTypeName<FTrigger>();
+		AnalyzerAddress.InstanceID = 1234;
+		AnalyzerAddress.OutputName = OutputName;
+		AnalyzerAddress.AnalyzerName = FVertexAnalyzerTriggerToTime::GetAnalyzerName();
+		AnalyzerAddress.AnalyzerInstanceID = FGuid::NewGuid();
+		AnalyzerAddress.AnalyzerMemberName = FVertexAnalyzerTriggerToTime::FOutputs::GetValue().Name;
+		AnalyzerAddress.NodeID = OutputNodeId;
+		Generator->AddOutputVertexAnalyzer(AnalyzerAddress);
+
+		// make the interval such that the triggers don't line up exactly with the beginning of the block after the first block
+		constexpr int32 TriggerIntervalSamples = NumSamplesPerBlock / 3 + NumSamplesPerBlock / 2; 
+		constexpr double TriggerIntervalSeconds = static_cast<double>(TriggerIntervalSamples) / SampleRate;
+		double NextTriggerReceivedSeconds = 0;
+		bool CallbackSuccess = true;
+		int32 NumTriggersReceived = 0;
+		
+		// Subscribe for updates
+		Generator->OnOutputChanged.AddLambda(
+			[this, &NextTriggerReceivedSeconds, &AnalyzerAddress, &CallbackSuccess, &NumTriggersReceived]
+			(const FName AnalyzerName, const FName OutputName, const FName AnalyzerOutputName, TSharedPtr<IOutputStorage> OutputData)
+			{
+				CallbackSuccess = TestEqual("Data types match", OutputData->GetDataTypeName(), GetMetasoundDataTypeName<FTime>())
+				&& TestEqual("Analyzer names match", AnalyzerName, AnalyzerAddress.AnalyzerName)
+				&& TestEqual("Output names match", OutputName, AnalyzerAddress.OutputName)
+				&& TestEqual("Analyzer output names match", AnalyzerOutputName, AnalyzerAddress.AnalyzerMemberName);
+
+				if (!CallbackSuccess)
+				{
+					return;
+				}
+
+				const FTime Time = static_cast<TOutputStorage<FTime>*>(OutputData.Get())->Get();
+				CallbackSuccess = TestEqual("Time is as expected", Time.GetSeconds(), NextTriggerReceivedSeconds);
+				NextTriggerReceivedSeconds += TriggerIntervalSeconds;
+				++NumTriggersReceived;
+			});
+		
+		// Get the input
+		const TOptional<FTriggerWriteRef> TriggerIn = Generator->GetInputWriteReference<FTrigger>(InputName);
+		UTEST_TRUE("Trigger input is valid", TriggerIn.IsSet());
+
+		int32 NextTriggerBlockOffset = 0;
+		constexpr int32 NumBlocksToTest = 20;
+
+		for (int32 i = 0; i < NumBlocksToTest; ++i)
+		{
+			int32 NumTriggersThisBlock = 0;
+			NumTriggersReceived = 0;
+			
+			// Set the triggers for this block
+			{
+				while (NextTriggerBlockOffset < NumSamplesPerBlock)
+				{
+					(*TriggerIn)->TriggerFrame(NextTriggerBlockOffset);
+					NextTriggerBlockOffset += TriggerIntervalSamples;
+					++NumTriggersThisBlock;
+				}
+				NextTriggerBlockOffset -= NumSamplesPerBlock;
+			}
+		
+			// Render a block
+			{
+				TArray<float> Buffer;
+				Buffer.Reserve(NumSamplesPerBlock);
+				UTEST_EQUAL("Generated the right number of samples.",
+					Generator->OnGenerateAudio(Buffer.GetData(), NumSamplesPerBlock),
+					NumSamplesPerBlock);
+			}
+
+			UTEST_TRUE(FString::Printf(TEXT("Callback success on iteration %i"), i), CallbackSuccess);
+			UTEST_EQUAL(FString::Printf(TEXT("Correct number of triggers on iteration %i"), i), NumTriggersReceived, NumTriggersThisBlock);
+		}
+
+		return true;
 	}
 }
 

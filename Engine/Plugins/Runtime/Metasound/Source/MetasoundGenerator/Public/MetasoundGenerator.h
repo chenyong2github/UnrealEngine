@@ -187,16 +187,19 @@ namespace Metasound
 		/**
 		 * Add a vertex analyzer for a named output with the given address info.
 		 *
-		 * @param AnalyzerAddress - Address information for the analyzer to use when making views
+		 * @param AnalyzerAddress - Address information for the analyzer
 		 */
 		void AddOutputVertexAnalyzer(const Frontend::FAnalyzerAddress& AnalyzerAddress);
 		
 		/**
 		 * Remove a vertex analyzer for a named output
 		 *
-		 * @param OutputName - The name of the output in the MetaSound graph
+		 * @param AnalyzerAddress - Address information for the analyzer
 		 */
-		void RemoveOutputVertexAnalyzer(const FName& OutputName);
+		void RemoveOutputVertexAnalyzer(const Frontend::FAnalyzerAddress& AnalyzerAddress);
+		
+		DECLARE_TS_MULTICAST_DELEGATE_FourParams(FOnOutputChanged, FName, FName, FName, TSharedPtr<IOutputStorage>);
+		FOnOutputChanged OnOutputChanged;
 		
 		/** Return the number of audio channels. */
 		int32 GetNumChannels() const;
@@ -307,7 +310,7 @@ namespace Metasound
 		TMpscQueue<TSharedPtr<FMetasoundParameterPackStorage>> ParameterPackQueue;
 
 		TMpscQueue<TUniqueFunction<void()>> OutputAnalyzerModificationQueue;
-		TMap<FName, TUniquePtr<Frontend::IVertexAnalyzer>> OutputAnalyzers;
+		TArray<TUniquePtr<Frontend::IVertexAnalyzer>> OutputAnalyzers;
 #if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 		TUniquePtr<MetasoundGeneratorPrivate::FRenderTimer> RenderTimer;
 #endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING

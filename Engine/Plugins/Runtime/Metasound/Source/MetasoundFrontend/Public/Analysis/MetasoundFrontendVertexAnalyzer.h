@@ -5,10 +5,10 @@
 #include "Containers/Map.h"
 #include "HAL/Platform.h"
 #include "MetasoundDataReference.h"
-#include "MetasoundDataReferenceCollection.h"
 #include "MetasoundOperatorSettings.h"
-#include "Misc/Guid.h"
+#include "MetasoundOutputStorage.h"
 
+#include "Misc/Guid.h"
 
 namespace Metasound
 {
@@ -50,6 +50,9 @@ namespace Metasound
 
 			// Executes analysis
 			virtual void Execute() = 0;
+
+			DECLARE_DELEGATE_TwoParams(FOnOutputDataChanged, FName, TSharedPtr<IOutputStorage>);
+			FOnOutputDataChanged OnOutputDataChanged;
 		};
 
 		// Bound output from an analyzer (not to be confused with an output vertex)
@@ -62,9 +65,12 @@ namespace Metasound
 
 			// Returns the data reference associated with the analyzer's output
 			virtual FAnyDataReference GetDataReference() const = 0;
-
+			
 			// Pushes data to the sender to be forwarded to all actively associated analyser views.
 			virtual void PushData() = 0;
+
+			// Gets the latest value to pass to IVertexAnalyzer::OnOutputDataChanged
+			virtual TSharedPtr<IOutputStorage> CreateOutputData() const = 0;
 		};
 
 		// Templatized implementation of a bound analyzer output (see IBoundAnalyzerOutput)
@@ -72,15 +78,15 @@ namespace Metasound
 		class TBoundAnalyzerOutput final : public IBoundAnalyzerOutput
 		{
 		public:
-			TBoundAnalyzerOutput(const FAnalyzerAddress& InAnalyzerOutputAddress, const FOperatorSettings& InOperatorSettings, TDataReadReference<DataType>&& InData)
+			TBoundAnalyzerOutput(const FAnalyzerAddress& InAnalyzerOutputAddress, const FOperatorSettings& InOperatorSettings, TDataReadReference<DataType> InData)
 				: Address(InAnalyzerOutputAddress)
-				, DataRef(MoveTemp(InData))
+				, DataRef(InData)
 			{
 				Sender = FDataTransmissionCenter::Get().RegisterNewSender<DataType>(InAnalyzerOutputAddress, FSenderInitParams { InOperatorSettings, 0 });
 				ensure(Sender);
 			}
 
-			virtual ~TBoundAnalyzerOutput()
+			virtual ~TBoundAnalyzerOutput() override
 			{
 				// Only unregister the data channel if we had a sender using that 
 				// data channel. This protects against removing the data channel 
@@ -94,17 +100,22 @@ namespace Metasound
 				}
 			}
 
-			FAnyDataReference GetDataReference() const override
+			virtual FAnyDataReference GetDataReference() const override
 			{
 				return DataRef;
 			}
 
-			void PushData() override
+			virtual void PushData() override
 			{
 				if (Sender.IsValid())
 				{
 					Sender->Push(*DataRef);
 				}
+			}
+
+			virtual TSharedPtr<IOutputStorage> CreateOutputData() const override
+			{
+				return MakeShared<TOutputStorage<DataType>>(*DataRef);
 			}
 
 		private:
@@ -141,6 +152,10 @@ namespace Metasound
 				for (TPair<FName, FBoundOutputDataPtr>& Pair : BoundOutputData)
 				{
 					Pair.Value->PushData();
+					if (OnOutputDataChanged.IsBound())
+					{
+						OnOutputDataChanged.Execute(Pair.Key, Pair.Value->CreateOutputData());
+					}
 				}
 			}
 
@@ -152,12 +167,12 @@ namespace Metasound
 
 			// Binds a particular named analyzer output to be updated when MarkOutputDirty is called.
 			template<typename DataType>
-			void BindOutputData(FName InAnalyzerOutputName, const FOperatorSettings& InOperatorSettings, TDataReadReference<DataType>&& InData)
+			void BindOutputData(FName InAnalyzerOutputName, const FOperatorSettings& InOperatorSettings, TDataReadReference<DataType> InData)
 			{
 				FAnalyzerAddress OutputAddress = AnalyzerAddress;
 				OutputAddress.AnalyzerMemberName = InAnalyzerOutputName;
 				OutputAddress.DataType = GetMetasoundDataTypeName<DataType>();
-				FBoundOutputDataPtr BoundOutputDataPtr = FBoundOutputDataPtr(new TBoundAnalyzerOutput<DataType>(OutputAddress, InOperatorSettings, MoveTemp(InData)));
+				FBoundOutputDataPtr BoundOutputDataPtr = FBoundOutputDataPtr(new TBoundAnalyzerOutput<DataType>(OutputAddress, InOperatorSettings, InData));
 				BoundOutputData.Emplace(InAnalyzerOutputName, MoveTemp(BoundOutputDataPtr));
 			}
 

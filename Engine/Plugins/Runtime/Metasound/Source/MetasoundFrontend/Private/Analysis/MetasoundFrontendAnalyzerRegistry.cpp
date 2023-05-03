@@ -16,16 +16,16 @@ namespace Metasound
 		{
 			TMap<FName, TUniquePtr<IVertexAnalyzerFactory>> AnalyzerFactoryRegistry;
 
+		public:
 			template<typename TAnalyzerFactoryClass>
 			void RegisterAnalyzerFactory()
 			{
 				TUniquePtr<IVertexAnalyzerFactory> Factory(new TAnalyzerFactoryClass());
 				AnalyzerFactoryRegistry.Emplace(TAnalyzerFactoryClass::GetAnalyzerName(), MoveTemp(Factory));
 			}
-
-		public:
+			
 			FVertexAnalyzerRegistry() = default;
-			virtual ~FVertexAnalyzerRegistry() = default;
+			virtual ~FVertexAnalyzerRegistry() override = default;
 
 			virtual const IVertexAnalyzerFactory* FindAnalyzerFactory(FName InAnalyzerName) const override
 			{
@@ -39,16 +39,10 @@ namespace Metasound
 				return nullptr;
 			}
 
-			virtual void RegisterAnalyzerFactories() override
+			virtual void RegisterAnalyzerFactory(FName AnalyzerName, TUniquePtr<IVertexAnalyzerFactory>&& Factory) override
 			{
-				RegisterAnalyzerFactory<FVertexAnalyzerEnvelopeFollower::FFactory>();
-				RegisterAnalyzerFactory<FVertexAnalyzerTriggerDensity::FFactory>();
-
-				// Primitives
-				RegisterAnalyzerFactory<FVertexAnalyzerForwardBool::FFactory>();
-				RegisterAnalyzerFactory<FVertexAnalyzerForwardFloat::FFactory>();
-				RegisterAnalyzerFactory<FVertexAnalyzerForwardInt::FFactory>();
-				RegisterAnalyzerFactory<FVertexAnalyzerForwardString::FFactory>();
+				check(!AnalyzerFactoryRegistry.Contains(AnalyzerName));
+				AnalyzerFactoryRegistry.Emplace(AnalyzerName, MoveTemp(Factory));
 			}
 		};
 
