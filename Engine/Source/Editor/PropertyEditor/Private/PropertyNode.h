@@ -442,7 +442,7 @@ public:
 	/**
 	 * Used to see if any data has been destroyed from under the property tree.  Should only be called during Tick
 	 */
-	EPropertyDataValidationResult EnsureDataIsValid();
+	virtual EPropertyDataValidationResult EnsureDataIsValid();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Text

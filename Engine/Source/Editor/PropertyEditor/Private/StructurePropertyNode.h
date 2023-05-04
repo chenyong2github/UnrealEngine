@@ -352,6 +352,8 @@ public:
 
 protected:
 
+	virtual EPropertyDataValidationResult EnsureDataIsValid() override;
+
 	/** FPropertyNode interface */
 	virtual void InitChildNodes() override;
 

@@ -90,3 +90,32 @@ uint8* FStructurePropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIs
 	
 	return nullptr;
 }
+
+EPropertyDataValidationResult FStructurePropertyNode::EnsureDataIsValid()
+{
+	CachedReadAddresses.Reset();
+
+	const UStruct* BaseStruct = GetBaseStructure();
+	
+	// Check that struct node's children still belong to the current base struct.
+	for (const TSharedPtr<FPropertyNode>& ChildNode : ChildNodes)
+	{
+		if (ChildNode.IsValid())
+		{
+			if (const FProperty* ChildProperty = ChildNode->GetProperty())
+			{
+				const UStruct* OwnerStruct = ChildProperty->GetOwnerStruct();
+				if (!OwnerStruct
+					|| OwnerStruct->IsStructTrashed()
+					|| !BaseStruct
+					|| !BaseStruct->IsChildOf(OwnerStruct)) // OwnerStruct can be BaseStruct or one of structs BaseStruct is derived from.
+				{
+					RebuildChildren();
+					return EPropertyDataValidationResult::ChildrenRebuilt;
+				}
+			}
+		}
+	}
+	
+	return FPropertyNode::EnsureDataIsValid();
+}
