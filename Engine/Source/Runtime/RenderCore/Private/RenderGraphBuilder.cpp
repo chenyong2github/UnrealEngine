@@ -284,7 +284,7 @@ void EnumerateBufferAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pas
 
 				if (EnumHasAnyFlags(Buffer->Desc.Usage, BUF_AccelerationStructure))
 				{
-					BufferAccess = ERHIAccess::BVHRead;
+					BufferAccess = ERHIAccess::BVHRead | ERHIAccess::SRVMask;
 				}
 
 				AccessFunction(SRV, Buffer, BufferAccess);
