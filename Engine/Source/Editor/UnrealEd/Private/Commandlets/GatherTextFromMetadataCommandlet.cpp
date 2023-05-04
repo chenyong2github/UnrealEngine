@@ -310,7 +310,7 @@ void UGatherTextFromMetaDataCommandlet::GatherTextFromUObjects(const TArray<FStr
 		check(!SourceFilePath.IsEmpty());
 
 		const FFuzzyPathMatcher::EPathMatch PathMatch = FuzzyPathMatcher.TestPath(SourceFilePath);
-		if (PathMatch != FFuzzyPathMatcher::Included)
+		if (PathMatch != FFuzzyPathMatcher::EPathMatch::Included)
 		{
 			continue;
 		}

@@ -21,7 +21,7 @@ struct UNREALED_API FGatherTextDelegates
 class FFuzzyPathMatcher
 {
 public:
-	enum EPathMatch
+	enum class EPathMatch
 	{
 		Included,
 		Excluded,
@@ -34,7 +34,7 @@ public:
 	EPathMatch TestPath(const FString& InPathToTest) const;
 
 private:
-	enum EPathType : uint8
+	enum class EPathType : uint8
 	{
 		Include,
 		Exclude,

@@ -199,7 +199,7 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 	FilesToProcess.RemoveAll([&FuzzyPathMatcher](const FString& FoundFile)
 	{
 		// Filter out assets whose package file paths do not pass the "fuzzy path" filters.
-		if (FuzzyPathMatcher.TestPath(FoundFile) != FFuzzyPathMatcher::Included)
+		if (FuzzyPathMatcher.TestPath(FoundFile) != FFuzzyPathMatcher::EPathMatch::Included)
 		{
 			return true;
 		}
