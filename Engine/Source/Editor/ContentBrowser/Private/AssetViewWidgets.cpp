@@ -1948,6 +1948,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 								+SHorizontalBox::Slot()
 								[
 									SAssignNew(ClassTextWidget, STextBlock)
+									.Visibility(this, &SAssetTileItem::GetAssetClassLabelVisibility)
 									.TextStyle(FAppStyle::Get(), "ContentBrowser.ClassFont")
 									.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 									.Text(this, &SAssetTileItem::GetAssetClassText)
@@ -2074,16 +2075,9 @@ FOptionalSize SAssetTileItem::GetThumbnailBoxSize() const
 
 EVisibility SAssetTileItem::GetAssetClassLabelVisibility() const
 {
-	if(!IsFolder() && bShowType)
-	{
-		FOptionalSize ThumbSize = GetThumbnailBoxSize();
-		if (ThumbSize.IsSet())
-		{
-			float Size = ThumbSize.Get() * GetTickSpaceGeometry().Scale;
-			return Size < 100 ? EVisibility::Collapsed : EVisibility::Visible;
-		}
-	}
-	return EVisibility::Collapsed;
+	return (!IsFolder() && bShowType)
+		? EVisibility::Visible
+		: EVisibility::Collapsed;
 }
 
 FSlateColor SAssetTileItem::GetAssetClassLabelTextColor() const

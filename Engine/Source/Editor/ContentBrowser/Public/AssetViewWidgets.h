@@ -713,7 +713,6 @@ protected:
 	FOptionalSize GetThumbnailBoxSize() const;
 
 	/** Gets the visibility of the asset class label in thumbnails */
-	UE_DEPRECATED(5.1, "GetAssetClassLabelVisibility is deprecated, as there is no longer a need to identify a visual difference in the label based on various states.")
 	EVisibility GetAssetClassLabelVisibility() const;
 
 	/** Gets the color of the asset class label in thumbnails */
