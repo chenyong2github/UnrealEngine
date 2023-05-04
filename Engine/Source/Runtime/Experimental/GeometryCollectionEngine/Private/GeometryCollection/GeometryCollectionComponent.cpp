@@ -3139,7 +3139,10 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 	}
 
 	// we need to unregister the events because it relies on the proxy internally 
-	EventDispatcher->UnregisterChaosEvents();
+	if (EventDispatcher)
+	{
+		EventDispatcher->UnregisterChaosEvents();
+	}
 
 	if(PhysicsProxy)
 	{
