@@ -38,7 +38,7 @@ bool USkeletalMeshComponentReadOnlyToolTarget::IsValid() const
 	}
 	const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->GetSkeletalMeshAsset();
 
-	return USkeletalMeshReadOnlyToolTarget::IsValid(SkeletalMesh);
+	return SkeletalMesh != nullptr;
 }
 
 int32 USkeletalMeshComponentReadOnlyToolTarget::GetNumMaterials() const
@@ -80,7 +80,7 @@ bool USkeletalMeshComponentReadOnlyToolTarget::CommitMaterialSetUpdate(const FCo
 		USkeletalMesh* SkeletalMesh = Cast<USkeletalMeshComponent>(Component)->GetSkeletalMeshAsset();
 
 		// unregister the component while we update it's static mesh
-		TUniquePtr<FComponentReregisterContext> ComponentReregisterContext = MakeUnique<FComponentReregisterContext>(Component);
+		TUniquePtr<FComponentReregisterContext> ComponentReregisterContext = MakeUnique<FComponentReregisterContext>(Component.Get());
 
 		return USkeletalMeshToolTarget::CommitMaterialSetUpdate(SkeletalMesh, MaterialSet, bApplyToAsset);
 	}
@@ -163,7 +163,7 @@ void USkeletalMeshComponentToolTarget::CommitMeshDescription(const FCommitter& C
 	}
 
 	// unregister the component while we update its skeletal mesh
-	FComponentReregisterContext ComponentReregisterContext(Component);
+	FComponentReregisterContext ComponentReregisterContext(Component.Get());
 
 	USkeletalMeshToolTarget::CommitMeshDescription(SkeletalMesh, CachedMeshDescription.Get(), Committer);
 
@@ -205,8 +205,8 @@ bool USkeletalMeshComponentReadOnlyToolTargetFactory::CanBuildTarget(UObject* So
 UToolTarget* USkeletalMeshComponentReadOnlyToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
 {
 	USkeletalMeshComponentReadOnlyToolTarget* Target = NewObject<USkeletalMeshComponentReadOnlyToolTarget>();
-	Target->Component = Cast<USkeletalMeshComponent>(SourceObject);
-	check(Target->Component && Requirements.AreSatisfiedBy(Target));
+	Target->InitializeComponent(Cast<USkeletalMeshComponent>(SourceObject));
+	checkSlow(Target->Component.IsValid() && Requirements.AreSatisfiedBy(Target));
 
 	return Target;
 }
@@ -229,8 +229,8 @@ bool USkeletalMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObje
 UToolTarget* USkeletalMeshComponentToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
 {
 	USkeletalMeshComponentToolTarget* Target = NewObject<USkeletalMeshComponentToolTarget>();
-	Target->Component = Cast<USkeletalMeshComponent>(SourceObject);
-	check(Target->Component && Requirements.AreSatisfiedBy(Target));
+	Target->InitializeComponent(Cast<USkeletalMeshComponent>(SourceObject));
+	checkSlow(Target->Component.IsValid() && Requirements.AreSatisfiedBy(Target));
 
 	return Target;
 }

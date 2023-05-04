@@ -236,8 +236,8 @@ bool UDynamicMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObjec
 UToolTarget* UDynamicMeshComponentToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
 {
 	UDynamicMeshComponentToolTarget* Target = NewObject<UDynamicMeshComponentToolTarget>();// TODO: Should we set an outer here?
-	Target->Component = Cast<UDynamicMeshComponent>(SourceObject);
-	check(Target->Component && Requirements.AreSatisfiedBy(Target));
+	Target->InitializeComponent(Cast<UDynamicMeshComponent>(SourceObject));
+	checkSlow(Target->Component.IsValid() && Requirements.AreSatisfiedBy(Target));
 
 	return Target;
 }

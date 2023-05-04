@@ -78,7 +78,7 @@ public:
 	// Rest provided by parent class
 
 protected:
-	UStaticMesh* StaticMesh = nullptr;
+	TWeakObjectPtr<UStaticMesh> StaticMesh = nullptr;
 
 	EMeshLODIdentifier EditingLOD = EMeshLODIdentifier::LOD0;
 
@@ -88,7 +88,11 @@ protected:
 
 	friend class UStaticMeshComponentToolTargetFactory;
 
+	UE_DEPRECATED(5.3, "Compared to using a TWeakObjectPtr, this function performs both redundant and insufficient "
+		"checks of whether the UStaticMesh is alive, and the LOD check does not guard against a generated LOD (which "
+		"tools should not edit) as HasNonGeneratedLOD does.")
 	static bool IsValid(const UStaticMesh* StaticMesh, EMeshLODIdentifier EditingLOD);
+
 	// returns true if the mesh has a non-generated LOD of the requested level.  Interprets EMeshLODIdentifier::Default as LOD0
 	static bool HasNonGeneratedLOD(const UStaticMesh* StaticMesh, EMeshLODIdentifier MeshLOD);
 	static EMeshLODIdentifier GetValidEditingLOD(const UStaticMesh* StaticMesh, 

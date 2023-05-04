@@ -30,7 +30,7 @@ namespace USkeletalMeshToolTargetLocals
 
 bool USkeletalMeshReadOnlyToolTarget::IsValid() const
 {
-	return IsValid(SkeletalMesh);
+	return SkeletalMesh.IsValid();
 }
 
 bool USkeletalMeshReadOnlyToolTarget::IsValid(const USkeletalMesh* SkeletalMeshIn)
@@ -57,7 +57,7 @@ UMaterialInterface* USkeletalMeshReadOnlyToolTarget::GetMaterial(int32 MaterialI
 void USkeletalMeshReadOnlyToolTarget::GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const
 {
 	if (!ensure(IsValid())) return;
-	GetMaterialSet(SkeletalMesh, MaterialSetOut, bPreferAssetMaterials);
+	GetMaterialSet(SkeletalMesh.Get(), MaterialSetOut, bPreferAssetMaterials);
 }
 
 void USkeletalMeshReadOnlyToolTarget::GetMaterialSet(const USkeletalMesh* SkeletalMeshIn, FComponentMaterialSet& MaterialSetOut,
@@ -74,7 +74,7 @@ void USkeletalMeshReadOnlyToolTarget::GetMaterialSet(const USkeletalMesh* Skelet
 bool USkeletalMeshReadOnlyToolTarget::CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset)
 {
 	if (!ensure(IsValid())) return false;
-	return CommitMaterialSetUpdate(SkeletalMesh, MaterialSet, bApplyToAsset);
+	return CommitMaterialSetUpdate(SkeletalMesh.Get(), MaterialSet, bApplyToAsset);
 }
 
 bool USkeletalMeshReadOnlyToolTarget::CommitMaterialSetUpdate(USkeletalMesh* SkeletalMeshIn, 
@@ -133,7 +133,7 @@ const FMeshDescription* USkeletalMeshReadOnlyToolTarget::GetMeshDescription(cons
 	if (!CachedMeshDescription.IsValid())
 	{
 		CachedMeshDescription = MakeUnique<FMeshDescription>();
-		GetMeshDescription(SkeletalMesh, *CachedMeshDescription);
+		GetMeshDescription(SkeletalMesh.Get(), *CachedMeshDescription);
 	}
 
 	return CachedMeshDescription.Get();
@@ -162,7 +162,7 @@ FDynamicMesh3 USkeletalMeshReadOnlyToolTarget::GetDynamicMesh()
 
 USkeletalMesh* USkeletalMeshReadOnlyToolTarget::GetSkeletalMesh() const
 {
-	return IsValid() ? SkeletalMesh : nullptr;
+	return IsValid() ? SkeletalMesh.Get() : nullptr;
 }
 
 //
@@ -176,9 +176,9 @@ void USkeletalMeshToolTarget::CommitMeshDescription(const FCommitter& Committer,
 	if (!CachedMeshDescription.IsValid())
 	{
 		CachedMeshDescription = MakeUnique<FMeshDescription>();
-		GetMeshDescription(SkeletalMesh, *CachedMeshDescription);
+		GetMeshDescription(SkeletalMesh.Get(), *CachedMeshDescription);
 	}
-	CommitMeshDescription(SkeletalMesh, CachedMeshDescription.Get(), Committer);
+	CommitMeshDescription(SkeletalMesh.Get(), CachedMeshDescription.Get(), Committer);
 }
 
 void USkeletalMeshToolTarget::CommitMeshDescription(USkeletalMesh* SkeletalMeshIn,
@@ -238,7 +238,7 @@ UToolTarget* USkeletalMeshReadOnlyToolTargetFactory::BuildTarget(UObject* Source
 {
 	USkeletalMeshReadOnlyToolTarget* Target = NewObject<USkeletalMeshReadOnlyToolTarget>();
 	Target->SkeletalMesh = Cast<USkeletalMesh>(SourceObject);
-	check(Target->SkeletalMesh && Requirements.AreSatisfiedBy(Target));
+	checkSlow(Target->SkeletalMesh.IsValid() && Requirements.AreSatisfiedBy(Target));
 
 	return Target;
 }
@@ -263,7 +263,7 @@ UToolTarget* USkeletalMeshToolTargetFactory::BuildTarget(UObject* SourceObject, 
 {
 	USkeletalMeshToolTarget* Target = NewObject<USkeletalMeshToolTarget>();
 	Target->SkeletalMesh = Cast<USkeletalMesh>(SourceObject);
-	check(Target->SkeletalMesh && Requirements.AreSatisfiedBy(Target));
+	checkSlow(Target->SkeletalMesh.IsValid() && Requirements.AreSatisfiedBy(Target));
 
 	return Target;
 }

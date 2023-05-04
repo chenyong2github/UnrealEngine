@@ -54,9 +54,9 @@ bool UClothComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject, con
 UToolTarget* UClothComponentToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
 {
 	UClothComponentToolTarget* const Target = NewObject<UClothComponentToolTarget>(); // TODO: Should we set an outer here?
-	Target->Component = Cast<UChaosClothComponent>(SourceObject);
+	Target->InitializeComponent(Cast<UChaosClothComponent>(SourceObject));
 
-	ensure(Target->Component && Requirements.AreSatisfiedBy(Target));
+	ensure(Target->Component.IsValid() && Requirements.AreSatisfiedBy(Target));
 
 	return Target;
 }

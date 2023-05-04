@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
-#include "Engine/HitResult.h"
 #include "ToolTargets/ToolTarget.h"
 
 #include "PrimitiveComponentToolTarget.generated.h"
@@ -19,6 +18,8 @@ class INTERACTIVETOOLSFRAMEWORK_API UPrimitiveComponentToolTarget : public UTool
 {
 	GENERATED_BODY()
 public:
+
+	// UToolTarget
 	virtual bool IsValid() const override;
 
 	// IPrimitiveComponentBackedTarget implementation
@@ -28,10 +29,20 @@ public:
 	virtual FTransform GetWorldTransform() const override;
 	virtual bool HitTestComponent(const FRay& WorldRay, FHitResult& OutHit) const override;
 
+	// UObject
+	void BeginDestroy() override;
+
 protected:
 	friend class UPrimitiveComponentToolTargetFactory;
 	
-	UPrimitiveComponent* Component;
+	void InitializeComponent(UPrimitiveComponent* ComponentIn);
+
+	TWeakObjectPtr<UPrimitiveComponent> Component;
+
+private:
+#if WITH_EDITOR
+	void OnObjectsReplaced(const FCoreUObjectDelegates::FReplacementObjectMap& Map);
+#endif
 };
 
 /**

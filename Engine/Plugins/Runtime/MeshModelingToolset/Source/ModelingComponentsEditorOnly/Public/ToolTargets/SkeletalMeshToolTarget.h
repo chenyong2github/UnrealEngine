@@ -54,13 +54,14 @@ public:
 	virtual USkeletalMesh* GetSkeletalMesh() const override;
 
 protected:
-	USkeletalMesh* SkeletalMesh = nullptr;
+	TWeakObjectPtr<USkeletalMesh> SkeletalMesh = nullptr;
 
 	// So that the tool target factory can poke into Component.
 	friend class USkeletalMeshReadOnlyToolTargetFactory;
 	friend class USkeletalMeshComponentReadOnlyToolTarget;
 	friend class USkeletalMeshComponentToolTarget;
 
+	UE_DEPRECATED(5.3, "This function doesn't check anything skeletal mesh specific, only (badly) checks to see if the object is alive")
 	static bool IsValid(const USkeletalMesh* USkeletalMesh);
 
 	static void GetMeshDescription(const USkeletalMesh* SkeletalMesh, FMeshDescription& MeshDescriptionOut);

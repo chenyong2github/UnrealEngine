@@ -187,9 +187,9 @@ bool UVolumeComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject, co
 UToolTarget* UVolumeComponentToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
 {
 	UVolumeComponentToolTarget* Target = NewObject<UVolumeComponentToolTarget>();
-	Target->Component = Cast<UBrushComponent>(SourceObject);
+	Target->InitializeComponent(Cast<UBrushComponent>(SourceObject));
 
-	check(Target->Component && Requirements.AreSatisfiedBy(Target)
+	checkSlow(Target->Component.IsValid() && Requirements.AreSatisfiedBy(Target)
 		&& Cast<AVolume>(Cast<UBrushComponent>(SourceObject)->GetOwner()));
 
 	return Target;

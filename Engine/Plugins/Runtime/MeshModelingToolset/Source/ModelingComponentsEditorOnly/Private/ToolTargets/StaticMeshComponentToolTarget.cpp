@@ -46,7 +46,7 @@ bool UStaticMeshComponentToolTarget::IsValid() const
 	}
 	UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 	
-	return UStaticMeshToolTarget::IsValid(StaticMesh, EditingLOD);
+	return UStaticMeshToolTarget::HasNonGeneratedLOD(StaticMesh, EditingLOD);
 }
 
 
@@ -90,7 +90,7 @@ bool UStaticMeshComponentToolTarget::CommitMaterialSetUpdate(const FComponentMat
 		UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
 
 		// unregister the component while we update it's static mesh
-		TUniquePtr<FComponentReregisterContext> ComponentReregisterContext = MakeUnique<FComponentReregisterContext>(Component);
+		TUniquePtr<FComponentReregisterContext> ComponentReregisterContext = MakeUnique<FComponentReregisterContext>(Component.Get());
 
 		return UStaticMeshToolTarget::CommitMaterialSetUpdate(StaticMesh, MaterialSet, bApplyToAsset);
 	}
@@ -233,7 +233,7 @@ void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Com
 	EMeshLODIdentifier WriteToLOD = (CommitParams.bHaveTargetLOD && CommitParams.TargetLOD != EMeshLODIdentifier::Default) ? CommitParams.TargetLOD : EditingLOD;
 
 	// unregister the component while we update its static mesh
-	FComponentReregisterContext ComponentReregisterContext(Component);
+	FComponentReregisterContext ComponentReregisterContext(Component.Get());
 
 	UStaticMeshToolTarget::CommitMeshDescription(StaticMesh, Committer, WriteToLOD);
 
@@ -299,9 +299,9 @@ bool UStaticMeshComponentToolTargetFactory::CanBuildTarget(UObject* SourceObject
 UToolTarget* UStaticMeshComponentToolTargetFactory::BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& Requirements)
 {
 	UStaticMeshComponentToolTarget* Target = NewObject<UStaticMeshComponentToolTarget>();// TODO: Should we set an outer here?
-	Target->Component = Cast<UStaticMeshComponent>(SourceObject);
+	Target->InitializeComponent(Cast<UStaticMeshComponent>(SourceObject));
 	Target->SetEditingLOD(EditingLOD);
-	check(Target->Component && Requirements.AreSatisfiedBy(Target));
+	checkSlow(Target->Component.Get() && Requirements.AreSatisfiedBy(Target));
 
 	return Target;
 }
