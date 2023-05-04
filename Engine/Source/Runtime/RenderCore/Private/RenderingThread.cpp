@@ -1125,8 +1125,7 @@ void FRenderCommandFence::BeginFence(bool bSyncToRHIAndGPU)
 			STAT_FNullGraphTask_FenceRenderCommand,
 				STATGROUP_TaskGraphTasks);
 
-			CompletionEvent = FGraphEvent::CreateGraphEvent();
-			FFunctionGraphTask::CreateAndDispatchWhenReady([CompletionEvent = CompletionEvent] { CompletionEvent->DispatchSubsequents(); }, GET_STATID(STAT_FNullGraphTask_FenceRenderCommand), nullptr, ENamedThreads::GetRenderThread());
+			CompletionEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, GET_STATID(STAT_FNullGraphTask_FenceRenderCommand), nullptr, ENamedThreads::GetRenderThread());
 		}
 	}
 }
