@@ -283,72 +283,84 @@ void SDatabaseDataDetails::SetExpandedItems(TArray<FChannelItemPtr>& ChannelItem
 
 void SDatabaseDataDetails::Reconstruct()
 {
+	const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
+	
+	if (!ViewModel)
+	{
+		ChannelItems.Reset();
+		return;
+	}
+	
+	const UPoseSearchDatabase* PoseSearchDatabase = ViewModel->GetPoseSearchDatabase();
+	if (!FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(PoseSearchDatabase, ERequestAsyncBuildFlag::ContinueRequest))
+	{
+		ChannelItems.Reset();
+		return;
+	}
+
 	TMap<const FString, bool> ExpandedItems;
 	TrackExpandedItems(ChannelItems, ExpandedItems);
 
 	ChannelItems.Reset();
 
-	if (const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin())
+	RebuildChannelItemsTreeRecursively(ChannelItems, PoseSearchDatabase->Schema->GetChannels());
+
+	// generating the header
+	TSharedPtr<SHeaderRow> HeaderRow = SNew(SHeaderRow); //.CanSelectGeneratedColumn(true).Visibility(EVisibility::Visible);
+	HeaderRow->AddColumn(
+		SHeaderRow::Column(TEXT("ChannelName"))
+			.DefaultLabel(LOCTEXT("ChannelName_Header", "Channel Name"))
+			.ToolTipText(LOCTEXT("ChannelName_ToolTip", "Channel Name"))
+			.FillWidth(0.2f));
+
+	HeaderRow->AddColumn(
+		SHeaderRow::Column(TEXT("DataOffset"))
+		.DefaultLabel(LOCTEXT("DataOffset_Header", "Data Offset"))
+		.ToolTipText(LOCTEXT("DataOffset_ToolTip", "Offset from the beginning of the features data"))
+		.FillWidth(0.1f));
+
+	if (ViewModel->ShouldDrawQueryVector())
 	{
-		RebuildChannelItemsTreeRecursively(ChannelItems, ViewModel->GetPoseSearchDatabase()->Schema->GetChannels());
-
-		// generating the header
-		TSharedPtr<SHeaderRow> HeaderRow = SNew(SHeaderRow); //.CanSelectGeneratedColumn(true).Visibility(EVisibility::Visible);
 		HeaderRow->AddColumn(
-			SHeaderRow::Column(TEXT("ChannelName"))
-				.DefaultLabel(LOCTEXT("ChannelName_Header", "Channel Name"))
-				.ToolTipText(LOCTEXT("ChannelName_ToolTip", "Channel Name"))
-				.FillWidth(0.2f));
-
-		HeaderRow->AddColumn(
-			SHeaderRow::Column(TEXT("DataOffset"))
-			.DefaultLabel(LOCTEXT("DataOffset_Header", "Data Offset"))
-			.ToolTipText(LOCTEXT("DataOffset_ToolTip", "Offset from the beginning of the features data"))
-			.FillWidth(0.1f));
-
-		if (ViewModel->ShouldDrawQueryVector())
-		{
-			HeaderRow->AddColumn(
-				SHeaderRow::Column(TEXT("Query"))
-				.DefaultLabel(LOCTEXT("Query_Header", "Query"))
-				.ToolTipText(LOCTEXT("Query_ToolTip", "Query Values")));
-		}
-
-		for (const FDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
-		{
-			HeaderRow->AddColumn(
-				SHeaderRow::Column(*PreviewActor.Actor->GetName())
-				.DefaultLabel(FText::FromString(PreviewActor.Sampler.GetAsset()->GetName())));
-		}
-
-		ChannelItemsTreeView = SNew(SChannelItemsTreeView)
-			.TreeItemsSource(&ChannelItems)
-			.HeaderRow(HeaderRow)
-			.OnGenerateRow_Lambda([this](FChannelItemPtr ChannelItem, const TSharedRef<STableViewBase>& OwnerTable)
-			{
-				return SNew(SDatabaseDataDetailsTableRow, OwnerTable, ChannelItem, EditorViewModel.Pin().ToSharedRef());
-			})
-			.OnGetChildren_Lambda([](FChannelItemPtr ChannelItem, TArray<FChannelItemPtr>& OutChildren)
-			{
-				OutChildren.Append(ChannelItem->GetChannelItems());
-			})
-			.OnExpansionChanged_Lambda([](FChannelItemPtr ChannelItem, bool bExpanded)
-			{
-				ChannelItem->SetExpanded(bExpanded);
-			});
-
-		ChildSlot
-		[
-			// @todo: add a SScrollBox to handle the complexity of multiple actors
-			//SNew(SScrollBox)
-			//+ SScrollBox::Slot()
-			//[
-				ChannelItemsTreeView.ToSharedRef()
-			//]
-		];
-
-		SetExpandedItems(ChannelItems, ExpandedItems, ChannelItemsTreeView.Get());
+			SHeaderRow::Column(TEXT("Query"))
+			.DefaultLabel(LOCTEXT("Query_Header", "Query"))
+			.ToolTipText(LOCTEXT("Query_ToolTip", "Query Values")));
 	}
+
+	for (const FDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
+	{
+		HeaderRow->AddColumn(
+			SHeaderRow::Column(*PreviewActor.Actor->GetName())
+			.DefaultLabel(FText::FromString(PreviewActor.Sampler.GetAsset()->GetName())));
+	}
+
+	ChannelItemsTreeView = SNew(SChannelItemsTreeView)
+		.TreeItemsSource(&ChannelItems)
+		.HeaderRow(HeaderRow)
+		.OnGenerateRow_Lambda([this](FChannelItemPtr ChannelItem, const TSharedRef<STableViewBase>& OwnerTable)
+		{
+			return SNew(SDatabaseDataDetailsTableRow, OwnerTable, ChannelItem, EditorViewModel.Pin().ToSharedRef());
+		})
+		.OnGetChildren_Lambda([](FChannelItemPtr ChannelItem, TArray<FChannelItemPtr>& OutChildren)
+		{
+			OutChildren.Append(ChannelItem->GetChannelItems());
+		})
+		.OnExpansionChanged_Lambda([](FChannelItemPtr ChannelItem, bool bExpanded)
+		{
+			ChannelItem->SetExpanded(bExpanded);
+		});
+
+	ChildSlot
+	[
+		// @todo: add a SScrollBox to handle the complexity of multiple actors
+		//SNew(SScrollBox)
+		//+ SScrollBox::Slot()
+		//[
+			ChannelItemsTreeView.ToSharedRef()
+		//]
+	];
+
+	SetExpandedItems(ChannelItems, ExpandedItems, ChannelItemsTreeView.Get());
 }
 
 void SDatabaseDataDetails::RebuildChannelItemsTreeRecursively(TArray<FChannelItemPtr>& ChannelItems, TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> Channels)

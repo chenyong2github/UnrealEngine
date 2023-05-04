@@ -637,7 +637,15 @@ FPoseSearchDatabaseAsyncCacheTask::FPoseSearchDatabaseAsyncCacheTask(UPoseSearch
 	, Owner(UE::DerivedData::EPriority::Normal)
 	, DerivedDataKey(FIoHash::Zero)
 {
-	StartNewRequestIfNeeded(OuterMutex);
+	if (IsInGameThread())
+	{
+		// it is safe to compose DDC key only on the game thread, since assets can modified in this thread execution
+		StartNewRequestIfNeeded(OuterMutex);
+	}
+	else
+	{
+		UE_LOG(LogPoseSearch, Log, TEXT("Delaying DDC until on the game thread    - %s"), *Database->GetName());
+	}
 }
 
 FPoseSearchDatabaseAsyncCacheTask::~FPoseSearchDatabaseAsyncCacheTask()
@@ -653,6 +661,8 @@ void FPoseSearchDatabaseAsyncCacheTask::StartNewRequestIfNeeded(FCriticalSection
 {
 	using namespace UE::DerivedData;
 
+	check(IsInGameThread());
+
 	FScopeLock Lock(&OuterMutex);
 
 	// making sure there are no active requests
@@ -665,7 +675,7 @@ void FPoseSearchDatabaseAsyncCacheTask::StartNewRequestIfNeeded(FCriticalSection
 		DerivedDataKey = FIoHash::Zero;
 		SetState(EState::Notstarted);
 	
-		UE_LOG(LogPoseSearch, Log, TEXT("Delaying DDC until dependents post load  - %s"), *LexToString(DerivedDataKey), *Database->GetName());
+		UE_LOG(LogPoseSearch, Log, TEXT("Delaying DDC until dependents post load  - %s"), *Database->GetName());
 	}
 	else
 	{
@@ -701,6 +711,8 @@ void FPoseSearchDatabaseAsyncCacheTask::StartNewRequestIfNeeded(FCriticalSection
 // it cancels and waits for the task to be done and reset the local SearchIndex. SetState to Cancelled
 void FPoseSearchDatabaseAsyncCacheTask::Cancel(FCriticalSection& OuterMutex)
 {
+	check(IsInGameThread());
+
 	FScopeLock Lock(&OuterMutex);
 
 	Owner.Cancel();
@@ -1033,6 +1045,8 @@ FAsyncPoseSearchDatabasesManagement::~FAsyncPoseSearchDatabasesManagement()
 // we're listening to OnObjectModified to cancel any pending Task indexing databases depending from Object to avoid multi threading issues
 void FAsyncPoseSearchDatabasesManagement::OnObjectModified(UObject* Object)
 {
+	check(IsInGameThread());
+
 	FScopeLock Lock(&Mutex);
 
 	// iterating backwards because of the possible RemoveAtSwap
@@ -1047,6 +1061,8 @@ void FAsyncPoseSearchDatabasesManagement::OnObjectModified(UObject* Object)
 
 void FAsyncPoseSearchDatabasesManagement::OnPackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent)
 {
+	check(IsInGameThread());
+
 	if (InPackageReloadPhase == EPackageReloadPhase::PostPackageFixup && InPackageReloadedEvent)
 	{
 		FScopeLock Lock(&Mutex);
