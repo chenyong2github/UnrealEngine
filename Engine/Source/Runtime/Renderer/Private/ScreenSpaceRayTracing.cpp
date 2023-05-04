@@ -524,6 +524,7 @@ class FScreenSpaceReflectionsTileVS : public FGlobalShader
 	{
 		OutEnvironment.SetDefine(TEXT("TILE_VERTEX_SHADER"), 1.0f);
 		OutEnvironment.SetDefine(TEXT("WORK_TILE_SIZE"), 8);
+		OutEnvironment.SetDefine(TEXT("PERMUTATION_TILE_ENCODING"), 0); // Use generic 16 bits tile coords
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };

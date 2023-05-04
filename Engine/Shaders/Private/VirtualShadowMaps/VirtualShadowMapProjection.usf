@@ -560,12 +560,12 @@ void VirtualShadowMapProjection(
 	uint3	DispatchThreadId	: SV_DispatchThreadID )
 {
 #if USE_TILE_LIST
-	uint PackedTile = TileListData.Load(GroupId.x);
-	uint2 LocalPixelPos = WORK_TILE_SIZE * uint2(PackedTile & 0xFFFF, PackedTile >> 16u) + MortonDecode(GroupIndex);
+	const uint2 TileCoord = UnpackTileCoord16bits(TileListData.Load(GroupId.x)); // Need to match SingleLayerWater tile encoding
 #else
-	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
-	uint2 LocalPixelPos = WORK_TILE_SIZE * GroupId.xy + MortonDecode( GroupIndex );
+	const uint2 TileCoord = GroupId.xy;
 #endif // USE_TILE_LIST
+	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
+	uint2 LocalPixelPos = WORK_TILE_SIZE * TileCoord + MortonDecode(GroupIndex);
 	uint2 PixelPos = LocalPixelPos + uint2( ProjectionRect.xy );
 	if ( any( PixelPos >= uint2( ProjectionRect.zw ) ) )
 	{

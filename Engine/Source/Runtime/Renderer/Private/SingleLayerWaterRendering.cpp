@@ -1175,7 +1175,10 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 
 			if (bRunTiled)
 			{
+				const bool bUseTileCoord16bitsEncoding = true;
+
 				FWaterTileVS::FPermutationDomain VsPermutationVector;
+				VsPermutationVector.Set<FWaterTileVS::ETileEncoding>(bUseTileCoord16bitsEncoding ? 0 : 1);
 				TShaderMapRef<FWaterTileVS> VertexShader(View.ShaderMap, VsPermutationVector);
 				ValidateShaderParameters(VertexShader, PassParameters->VS);
 				ClearUnusedGraphResources(VertexShader, &PassParameters->VS);
