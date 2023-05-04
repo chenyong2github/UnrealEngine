@@ -93,7 +93,7 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
       onClick: () => { setEditShown(true); }
    });
 
-   if (getSiteConfig().environment !== "production") {
+   //if (getSiteConfig().environment !== "production") {
 
       opsList.push({
          key: 'jobops_runfailedsteps',
@@ -102,7 +102,7 @@ export const JobOperations: React.FC<{ jobDetails: JobDetailsV2 }> = observer(({
          iconProps: { iconName: "Repeat" },
          onClick: () => { setRetryStepsShown(true); }
       });
-   }
+   //}
 
    opsList.push({
       key: 'jobops_abort',

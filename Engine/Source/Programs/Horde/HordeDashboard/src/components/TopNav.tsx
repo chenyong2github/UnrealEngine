@@ -462,6 +462,12 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
          text: "Documentation",
          link: `/docs`
       });
+      
+      docsItems.push({
+         key: "server_docs_releasenotes",
+         text: "Release Notes",
+         link: `/docs/ReleaseNotes.md`
+      });
 
       subItems.push({
          itemType: ContextualMenuItemType.Section,
