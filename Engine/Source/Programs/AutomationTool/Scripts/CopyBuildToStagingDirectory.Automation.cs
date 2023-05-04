@@ -3976,6 +3976,17 @@ namespace AutomationScripts
 			public bool bOnDemand;
 		}
 
+		private static void AddChunkDefinition(ConcurrentDictionary<string, ChunkDefinition> ChunkSet, ChunkDefinition OriginalChunk, string ModifiedChunkName)
+		{
+			if (!ChunkSet.ContainsKey(ModifiedChunkName))
+			{
+				ChunkDefinition NewChunk = new ChunkDefinition(ModifiedChunkName);
+				NewChunk.RequestedEncryptionKeyGuid = OriginalChunk.RequestedEncryptionKeyGuid;
+				NewChunk.EncryptionKeyGuid = OriginalChunk.EncryptionKeyGuid;
+				ChunkSet.TryAdd(ModifiedChunkName, NewChunk);
+			}
+		}
+
 		/// <summary>
 		/// Creates pak files using streaming install chunk manifests.
 		/// </summary>
@@ -4055,8 +4066,7 @@ namespace AutomationScripts
 				}
 
 				const string OptionalBulkDataFileExtension = ".uptnl";
-				ConcurrentDictionary<string, ChunkDefinition> OptionalChunks = new ConcurrentDictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
-				ConcurrentDictionary<string, ChunkDefinition> OnDemandChunks = new ConcurrentDictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
+				ConcurrentDictionary<string, ChunkDefinition> AdditionalChunks = new ConcurrentDictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
 				ChunkDefinition DefaultChunk = ChunkDefinitions[DefaultChunkIndex];
 
 				Dictionary<string, List<ChunkDefinition>> FileNameToChunks = new Dictionary<string, List<ChunkDefinition>>(StringComparer.InvariantCultureIgnoreCase);
@@ -4186,8 +4196,8 @@ namespace AutomationScripts
 						}
 						LooseFiles.TryAdd(new StagedFileReference(StagingFileValue), new FileReference(StagingFile.Key));
 
-						// Temporarily disable aggregate chunks
-						return;
+						// Loose files get uploaded through BPT as well as copied to "ondemand" pak files
+						//return;
 					}
 
 					if (bExcludeFromPaks)
@@ -4206,28 +4216,16 @@ namespace AutomationScripts
 							if (bStageLoose)
 							{
 								// make a streaming pak
-								string OnDemandChunkName = Chunk.ChunkName + "ondemand";
-								if (!OnDemandChunks.ContainsKey(OnDemandChunkName))
-								{
-									ChunkDefinition OnDemandChunk = new ChunkDefinition(OnDemandChunkName);
-									OnDemandChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
-									OnDemandChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
-									OnDemandChunks.TryAdd(OnDemandChunkName, OnDemandChunk);
-								}
-								TargetChunk = OnDemandChunks[OnDemandChunkName];
+								string ChunkName = Chunk.ChunkName + (OrigExt.Equals(OptionalBulkDataFileExtension) ? "ondemandoptional" : "ondemand");
+								AddChunkDefinition(AdditionalChunks, Chunk, ChunkName);
+								TargetChunk = AdditionalChunks[ChunkName];
 							}
 							else if (OrigExt.Equals(OptionalBulkDataFileExtension))
 							{
 								// any optional files encountered we want to put in a separate pak file
 								string OptionalChunkName = Chunk.ChunkName + "optional";
-								if (!OptionalChunks.ContainsKey(OptionalChunkName))
-								{
-									ChunkDefinition OptionalChunk = new ChunkDefinition(OptionalChunkName);
-									OptionalChunk.RequestedEncryptionKeyGuid = Chunk.RequestedEncryptionKeyGuid;
-									OptionalChunk.EncryptionKeyGuid = Chunk.EncryptionKeyGuid;
-									OptionalChunks.TryAdd(OptionalChunkName, OptionalChunk);
-								}
-								TargetChunk = OptionalChunks[OptionalChunkName];
+								AddChunkDefinition(AdditionalChunks, Chunk, OptionalChunkName);
+								TargetChunk = AdditionalChunks[OptionalChunkName];
 							}
 						}
 
@@ -4255,14 +4253,9 @@ namespace AutomationScripts
 					}
 				});
 
-				foreach (var OptionalChunkIt in OptionalChunks)
+				foreach (var OptionalChunkIt in AdditionalChunks)
 				{
 					ChunkDefinitions.Add(OptionalChunkIt.Value);
-				}
-
-				foreach (var OnDemandChunkIt in OnDemandChunks)
-				{
-					ChunkDefinitions.Add(OnDemandChunkIt.Value);
 				}
 
 				foreach (var LooseFile in LooseFiles)
