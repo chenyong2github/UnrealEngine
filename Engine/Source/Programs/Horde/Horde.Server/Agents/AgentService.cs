@@ -795,7 +795,7 @@ namespace Horde.Server.Agents
 		/// <param name="agent">Agent that will be executing the lease</param>
 		/// <param name="agentLease">The new agent lease</param>
 		/// <returns>New lease document</returns>
-		private Task<ILease> CreateLeaseAsync(IAgent agent, AgentLease agentLease)
+		internal Task<ILease> CreateLeaseAsync(IAgent agent, AgentLease agentLease)
 		{
 			try
 			{

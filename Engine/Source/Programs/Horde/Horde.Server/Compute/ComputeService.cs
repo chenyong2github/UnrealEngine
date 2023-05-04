@@ -24,14 +24,15 @@ namespace Horde.Server.Compute
 	public class ComputeService
 	{
 		readonly IAgentCollection _agentCollection;
+		readonly AgentService _agentService;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="agentCollection"></param>
-		public ComputeService(IAgentCollection agentCollection)
+		public ComputeService(IAgentCollection agentCollection, AgentService agentService)
 		{
 			_agentCollection = agentCollection;
+			_agentService = agentService;
 		}
 
 		/// <summary>
@@ -58,6 +59,7 @@ namespace Horde.Server.Compute
 						if (newAgent != null)
 						{
 							await _agentCollection.PublishUpdateEventAsync(agent.Id);
+							await _agentService.CreateLeaseAsync(newAgent, lease);
 							return resource;
 						}
 					}
