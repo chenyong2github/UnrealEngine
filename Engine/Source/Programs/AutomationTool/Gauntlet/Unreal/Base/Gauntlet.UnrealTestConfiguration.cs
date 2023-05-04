@@ -942,7 +942,12 @@ namespace Gauntlet
 					AppConfig.CommandLineParams.GameMap = MapChoice;
 				}
 			}
-		}			
+
+			if(CommandUtils.IsBuildMachine)
+			{
+				AppConfig.CommandLineParams.AddUnique("BUILDMACHINE");
+			}
+		}
 	}
 
 }
