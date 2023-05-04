@@ -7,7 +7,7 @@
 #pragma once
 
 #include "RenderResource.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 
 class FD3D11DynamicRHI;
 
