@@ -17,7 +17,7 @@ public:
 	UTargetTagsGameplayEffectComponent();
 
 	/** Needed to properly load FInheritedTagContainer properties */
-	virtual void OnOwnerPostLoad() override;
+	virtual void OnGameplayEffectChanged() const override;
 
 	/** Gets the (Granted) Target Tags inherited tag structure (as configured) */
 	const FInheritedTagContainer& GetConfiguredTargetTagChanges() const { return InheritableGrantedTagsContainer; }
@@ -37,6 +37,10 @@ private:
 		return NAME_InheritableGrantedTagsContainer;
 	}
 #endif // WITH_EDITOR
+
+private:
+	/** Applies the configured (Granted) Target Tags to the owning GameplayEffect. */
+	void ApplyTargetTagChanges() const;
 
 private:
 	/** These tags are applied (granted) to the target actor of the Gameplay Effect.  The Target would then "own" these Tags. */

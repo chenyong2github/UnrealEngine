@@ -17,7 +17,7 @@ public:
 	UBlockAbilityTagsGameplayEffectComponent();
 
 	/** Needed to properly apply FInheritedTagContainer properties */
-	virtual void OnOwnerPostLoad() override;
+	virtual void OnGameplayEffectChanged() const override;
 
 	/** Gets the Blocked Ability Tags inherited tag structure (as configured) */
 	const FInheritedTagContainer& GetConfiguredBlockedAbilityTagChanges() const { return InheritableBlockedAbilityTagsContainer; }
@@ -37,6 +37,10 @@ private:
 		return NAME_InheritableBlockedAbilityTagsContainer;
 	}
 #endif // WITH_EDITOR
+
+private:
+	/** Applies the Blocked Ability Tags to the owning GameplayEffect */
+	void ApplyBlockedAbilityTagChanges() const;
 
 private:
 	/** These tags are applied to the target actor of the Gameplay Effect.  Blocked Ability Tags prevent Gameplay Abilities with these tags from executing. */

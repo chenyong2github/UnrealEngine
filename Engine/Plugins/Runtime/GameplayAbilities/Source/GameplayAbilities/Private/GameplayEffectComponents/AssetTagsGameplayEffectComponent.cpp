@@ -20,10 +20,10 @@ void UAssetTagsGameplayEffectComponent::PostInitProperties()
 #endif // WITH_EDITORONLY_DATA
 }
 
-void UAssetTagsGameplayEffectComponent::OnOwnerPostLoad()
+void UAssetTagsGameplayEffectComponent::OnGameplayEffectChanged() const
 {
-	Super::OnOwnerPostLoad();
-	SetAndApplyAssetTagChanges(InheritableAssetTags);
+	Super::OnGameplayEffectChanged();
+	ApplyAssetTagChanges();
 }
 
 #if WITH_EDITOR
@@ -34,6 +34,10 @@ void UAssetTagsGameplayEffectComponent::PostEditChangeProperty(FPropertyChangedE
 	if (PropertyChangedEvent.GetMemberPropertyName()  == GetInheritableAssetTagsName())
 	{
 		SetAndApplyAssetTagChanges(InheritableAssetTags);
+		
+		// Tell the GE it needs to reconfigure itself based on these updated properties (this will reaggregate the tags)
+		UGameplayEffect* Owner = GetOwner();
+		Owner->OnGameplayEffectChanged();
 	}
 }
 #endif // WITH_EDITOR
@@ -46,6 +50,11 @@ void UAssetTagsGameplayEffectComponent::SetAndApplyAssetTagChanges(const FInheri
 	const UAssetTagsGameplayEffectComponent* Parent = FindParentComponent(*this);
 	InheritableAssetTags.UpdateInheritedTagProperties(Parent ? &Parent->InheritableAssetTags : nullptr);
 
+	ApplyAssetTagChanges();
+}
+
+void UAssetTagsGameplayEffectComponent::ApplyAssetTagChanges() const
+{
 	// Apply to the owning Gameplay Effect Component
 	UGameplayEffect* Owner = GetOwner();
 	InheritableAssetTags.ApplyTo(Owner->CachedAssetTags);

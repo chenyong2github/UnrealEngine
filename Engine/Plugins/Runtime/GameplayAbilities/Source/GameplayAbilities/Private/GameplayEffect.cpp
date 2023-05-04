@@ -179,15 +179,7 @@ void UGameplayEffect::PostLoad()
 {
 	Super::PostLoad();
 
-	// Call PostLoad on components and cache tag info from components for more efficient lookups
-	for (UGameplayEffectComponent* GEComponent : GEComponents)
-	{
-		if (GEComponent)
-		{
-			GEComponent->ConditionalPostLoad(); // Ensure the SubObject is PostLoaded
-			GEComponent->OnOwnerPostLoad();
-		}
-	}
+	OnGameplayEffectChanged();
 
 #if WITH_EDITOR
 	SCALABLEFLOAT_REPORTERROR_WITHPOSTLOAD(Period);
@@ -210,6 +202,31 @@ void UGameplayEffect::PostLoad()
 	// We're done loading (and therefore upgrading), boost the version.
 	SetVersion(EGameplayEffectVersion::Current);
 #endif // WITH_EDITOR
+}
+
+void UGameplayEffect::OnGameplayEffectChanged()
+{
+	if (HasAnyFlags(RF_NeedPostLoad))
+	{
+		ensureMsgf(false, TEXT("%s: OnGameplayEffectChanged can only be called after the GameplayEffect is fully loaded"), *GetName());
+		return;
+	}
+
+	// Reset these tags so we can reaggregate them properly from the GEComponents
+	CachedAssetTags.Reset();
+	CachedGrantedTags.Reset();
+	CachedBlockedAbilityTags.Reset();
+
+	// Call PostLoad on components and cache tag info from components for more efficient lookups
+	for (UGameplayEffectComponent* GEComponent : GEComponents)
+	{
+		if (GEComponent)
+		{
+			// Ensure the SubObject is fully loaded
+			GEComponent->ConditionalPostLoad();
+			GEComponent->OnGameplayEffectChanged();
+		}
+	}
 }
 
 #if WITH_EDITOR
@@ -287,6 +304,12 @@ void UGameplayEffect::PostCDOCompiled(const FPostCDOCompiledContext& Context)
 	ConvertTagRequirementsComponent();
 	ConvertTargetTagsComponent();
 	ConvertUIComponent();
+
+	const bool bAlreadyLoaded = !HasAnyFlags(RF_NeedPostLoad);
+	if (bAlreadyLoaded)
+	{
+		OnGameplayEffectChanged();
+	}
 }
 
 bool UGameplayEffect::VersionAllowsCreateGEComponentsDuringUpgrade() const

@@ -57,9 +57,9 @@ public:
 	virtual void OnGameplayEffectExecuted(FActiveGameplayEffectsContainer& ActiveGEContainer, FGameplayEffectSpec& GESpec, FPredictionKey& PredictionKey) const {}
 
 	/**
-	 * Let us know that the owning GameplayEffect has finished its PostLoad, thus apply an asset-related changes to the owning GameplayEffect (e.g. any of its fields)
+	 * Let us know that the owning GameplayEffect has been modified, thus apply an asset-related changes to the owning GameplayEffect (e.g. any of its fields)
 	 */
-	virtual void OnOwnerPostLoad() {}
+	virtual void OnGameplayEffectChanged() const {}
 
 #if WITH_EDITOR
 	/**

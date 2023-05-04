@@ -9,10 +9,10 @@ UBlockAbilityTagsGameplayEffectComponent::UBlockAbilityTagsGameplayEffectCompone
 #endif
 }
 
-void UBlockAbilityTagsGameplayEffectComponent::OnOwnerPostLoad()
+void UBlockAbilityTagsGameplayEffectComponent::OnGameplayEffectChanged() const
 {
-	Super::OnOwnerPostLoad();
-	SetAndApplyBlockedAbilityTagChanges(InheritableBlockedAbilityTagsContainer);
+	Super::OnGameplayEffectChanged();
+	ApplyBlockedAbilityTagChanges();
 }
 
 #if WITH_EDITOR
@@ -23,6 +23,10 @@ void UBlockAbilityTagsGameplayEffectComponent::PostEditChangeProperty(FPropertyC
 	if (PropertyChangedEvent.GetMemberPropertyName() == GetInheritableBlockedAbilityTagsContainerPropertyName())
 	{
 		SetAndApplyBlockedAbilityTagChanges(InheritableBlockedAbilityTagsContainer);
+		
+		// Tell the GE it needs to reconfigure itself based on these updated properties (this will reaggregate the tags)
+		UGameplayEffect* Owner = GetOwner();
+		Owner->OnGameplayEffectChanged();
 	}
 }
 #endif // WITH_EDITOR
@@ -35,6 +39,11 @@ void UBlockAbilityTagsGameplayEffectComponent::SetAndApplyBlockedAbilityTagChang
 	const UBlockAbilityTagsGameplayEffectComponent* Parent = FindParentComponent(*this);
 	InheritableBlockedAbilityTagsContainer.UpdateInheritedTagProperties(Parent ? &Parent->InheritableBlockedAbilityTagsContainer : nullptr);
 
+	ApplyBlockedAbilityTagChanges();
+}
+
+void UBlockAbilityTagsGameplayEffectComponent::ApplyBlockedAbilityTagChanges() const
+{
 	// Apply to the owning Gameplay Effect Component
 	UGameplayEffect* Owner = GetOwner();
 	InheritableBlockedAbilityTagsContainer.ApplyTo(Owner->CachedBlockedAbilityTags);

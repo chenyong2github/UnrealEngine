@@ -2043,10 +2043,14 @@ public:
 
 	virtual void GetBlockedAbilityTags(FGameplayTagContainer& OutTagContainer) const;
 
-	// Needed to properly disable inheriting the version value from its parent.
+	/** Needed to properly disable inheriting the version value from its parent. */
 	virtual void PostInitProperties() override;
 
+	/** PostLoad gets called once after the asset has been loaded.  It does not get called again on Blueprint recompile (@see PostCDOCompiled) */
 	virtual void PostLoad() override;
+
+	/** Called when the Gameplay Effect has finished loading.  This is used to catch both PostLoad (the initial load) and PostCDOCompiled (any subsequent changes) */
+	virtual void OnGameplayEffectChanged();
 
 #if WITH_EDITOR
 	/** Do our upgrades in PostCDOCompiled */

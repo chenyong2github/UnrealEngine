@@ -17,7 +17,7 @@ public:
 	virtual void PostInitProperties() override;
 
 	/** Needed to properly apply FInheritedTagContainer properties */
-	virtual void OnOwnerPostLoad() override;
+	virtual void OnGameplayEffectChanged() const override;
 
 	/** Gets the Asset Tags inherited tag structure (as configured) */
 	const FInheritedTagContainer& GetConfiguredAssetTagChanges() const { return InheritableAssetTags; }
@@ -37,6 +37,10 @@ private:
 		return NAME_InheritableAssetTags;
 	}
 #endif // WITH_EDITOR
+
+private:
+	/** Applies the Asset Tags to the GameplayEffect */
+	void ApplyAssetTagChanges() const;
 
 private:
 	/** The GameplayEffect's Tags: tags the the GE *has* and DOES NOT give to the actor. */
