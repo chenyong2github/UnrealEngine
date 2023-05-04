@@ -257,6 +257,7 @@ namespace UsdGeomMeshTranslatorImpl
 					UserData->MaterialSlotToPrimPaths.FindOrAdd(StaticMeshSlotIndex).PrimPaths = Slot.PrimPaths.Array();
 				}
 
+#if WITH_EDITOR
 				// Setup the section map so that our LOD material index is properly mapped to the static mesh material index
 				// At runtime we don't ever parse these variants as LODs so we don't need this
 				if (StaticMesh.GetSectionInfoMap().IsValidSection(LODIndex, LODSlotIndex))
@@ -280,6 +281,7 @@ namespace UsdGeomMeshTranslatorImpl
 
 					bMaterialAssignementsHaveChanged = true;
 				}
+#endif // WITH_EDITOR
 			}
 		}
 

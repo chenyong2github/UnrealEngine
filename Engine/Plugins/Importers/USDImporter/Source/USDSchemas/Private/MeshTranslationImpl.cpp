@@ -321,6 +321,7 @@ namespace UE::MeshTranslationImplInternal::Private
 				*MaterialHash
 			);
 
+#if WITH_EDITOR
 			if (GIsEditor)
 			{
 				UMaterialInstanceConstant* CompatibleMIC = NewObject<UMaterialInstanceConstant>(
@@ -334,6 +335,7 @@ namespace UE::MeshTranslationImplInternal::Private
 				CompatibleMaterial = CompatibleMIC;
 			}
 			else
+#endif // WITH_EDITOR
 			{
 				UMaterialInstanceDynamic* CompatibleMID = UMaterialInstanceDynamic::Create(
 					&Material,
@@ -383,7 +385,9 @@ namespace UE::MeshTranslationImplInternal::Private
 					}
 				}
 
+#if WITH_EDITOR
 				CompatibleInstance->PostEditChange();
+#endif // WITH_EDITOR
 			}
 		}
 
