@@ -631,13 +631,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	int32 GetRootIndex() const;
 
-	/** Get the root item initial transform */
+	/** Get the root item initial transform in world space */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	FTransform GetRootInitialTransform() const;
 
-	/** Get the root item initial transform */
+	/** Get the root item current world transform */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	FTransform GetRootCurrentTransform() const;
+
+	/** 
+	* Get the initial rest transforms in component (local) space  space, 
+	* they are the transforms as defined in the rest collection asset 
+	*/
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	TArray<FTransform> GetInitialLocalRestTransforms() const;
+
+	/** 
+	* Set the local rest transform, this may be different from the rest collection 
+	* If the geometry collection is already simulating those matrices will be overriden by the physics state updates
+	*/
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void SetLocalRestTransforms(const TArray<FTransform>& Transforms, bool bOnlyLeaves);
 
 	/**
 	* Get mass and extent of a specific piece

@@ -4841,15 +4841,17 @@ int32 UGeometryCollectionComponent::GetRootIndex() const
 	return INDEX_NONE;
 }
 
-
-
 FTransform UGeometryCollectionComponent::GetRootInitialTransform() const
 {
 	FTransform RootInitialTransform{ FTransform::Identity };
-	const int32 RootIndex = RestCollection->GetRootIndex();
-	if (RestTransforms.IsValidIndex(RootIndex))
+	if (RestCollection && RestCollection->GetGeometryCollection())
 	{
-		RootInitialTransform = RestTransforms[RootIndex] * GetComponentTransform();
+		const int32 RootIndex = RestCollection->GetRootIndex();
+		if (RestTransforms.IsValidIndex(RootIndex))
+		{
+			const FTransform LocalSpaceTransform = GeometryCollectionAlgo::GlobalMatrix(RestTransforms, RestCollection->GetGeometryCollection()->Parent, RootIndex);
+			RootInitialTransform = LocalSpaceTransform * GetComponentTransform();
+		}
 	}
 	return RootInitialTransform;
 }
@@ -4857,12 +4859,83 @@ FTransform UGeometryCollectionComponent::GetRootInitialTransform() const
 FTransform UGeometryCollectionComponent::GetRootCurrentTransform() const
 {
 	FTransform RootInitialTransform{ FTransform::Identity };
-	const int32 RootIndex = RestCollection->GetRootIndex();
-	if (GlobalMatrices.IsValidIndex(RootIndex))
+	if (RestCollection)
 	{
-		RootInitialTransform = FTransform(GlobalMatrices[RootIndex]) * GetComponentTransform();
+		const int32 RootIndex = RestCollection->GetRootIndex();
+		if (GlobalMatrices.IsValidIndex(RootIndex))
+		{
+			RootInitialTransform = FTransform(GlobalMatrices[RootIndex]) * GetComponentTransform();
+		}
 	}
 	return RootInitialTransform;
+}
+
+TArray<FTransform> UGeometryCollectionComponent::GetInitialLocalRestTransforms() const
+{
+	TArray<FTransform> InitialLocalTransforms;
+
+	if (RestCollection && RestCollection->GetGeometryCollection())
+	{
+		FGeometryCollection& GeometryCollection = *RestCollection->GetGeometryCollection();
+
+		GeometryCollectionAlgo::GlobalMatrices(RestTransforms, RestCollection->GetGeometryCollection()->Parent, InitialLocalTransforms);
+
+		const TManagedArray<FTransform>* MassToLocal = GeometryCollection.FindAttribute<FTransform>("MassToLocal", FGeometryCollection::TransformGroup);
+		if (MassToLocal && InitialLocalTransforms.Num() == MassToLocal->Num())
+		{
+			for (int32 TransformIndex = 0; TransformIndex < InitialLocalTransforms.Num(); TransformIndex++)
+			{
+				InitialLocalTransforms[TransformIndex] = (*MassToLocal)[TransformIndex] * InitialLocalTransforms[TransformIndex];
+			}
+		}
+	}
+	return InitialLocalTransforms;
+}
+
+void UGeometryCollectionComponent::SetLocalRestTransforms(const TArray<FTransform>& NewTransforms, bool bOnlyLeaves)
+{
+	if (RestCollection && RestCollection->GetGeometryCollection())
+	{
+		// get the current transform and will use this array to update
+		TArray<FTransform> LocalTransforms = GetInitialLocalRestTransforms();
+		if (LocalTransforms.Num() == NewTransforms.Num())
+		{
+			FGeometryCollection& GeometryCollection = *RestCollection->GetGeometryCollection();
+			const TManagedArray<FTransform>* MassToLocal = GeometryCollection.FindAttribute<FTransform>("MassToLocal", FGeometryCollection::TransformGroup);
+			const int32 NumTransforms = GeometryCollection.Parent.Num();
+
+			TArray<int32> TransformsToProcess;
+			TransformsToProcess.Reserve(NumTransforms);
+			TransformsToProcess.Emplace(RestCollection->GetRootIndex());
+			for (int32 ProcessIndex = 0; ProcessIndex < TransformsToProcess.Num(); ProcessIndex++)
+			{
+				const int32 TransformIndex = TransformsToProcess[ProcessIndex];
+				const bool bIsLeaf = (GeometryCollection.SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Rigid);
+				const bool bNeedUpdate = !bOnlyLeaves || bIsLeaf;
+				if (bNeedUpdate)
+				{
+					const FTransform InvMassToLocal = MassToLocal ? (*MassToLocal)[TransformIndex].Inverse() : FTransform::Identity;
+
+					LocalTransforms[TransformIndex] = InvMassToLocal * NewTransforms[TransformIndex];
+
+					// because we update top-down, the parent up-to-date transform is stored in LocalTransforms
+					const int32 ParentTransformIndex = GeometryCollection.Parent[TransformIndex];
+					if (ParentTransformIndex != INDEX_NONE)
+					{
+						LocalTransforms[TransformIndex] = LocalTransforms[TransformIndex].GetRelativeTransform(LocalTransforms[ParentTransformIndex]);
+					}
+				}
+
+				for (const int32 ChildTransformIndex : GeometryCollection.Children[TransformIndex])
+				{
+					TransformsToProcess.Emplace(ChildTransformIndex);
+				}
+			}
+
+			// send the transforms for update
+			SetRestState(MoveTemp(LocalTransforms));
+		}
+	}
 }
 
 void UGeometryCollectionComponent::GetMassAndExtents(int32 ItemIndex, float& OutMass, FBox& OutExtents)
