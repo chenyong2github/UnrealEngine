@@ -26,6 +26,7 @@
 #include "ShaderCodeLibrary.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Materials/Material.h"
+#include "MaterialHLSLGenerator.h"
 
 int32 GMaterialExcludeNonPipelinedShaders = 1;
 static FAutoConsoleVariableRef CVarMaterialExcludeNonPipelinedShaders(
@@ -1146,7 +1147,7 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString, bool bIncludeSour
 
 	if (bUsingNewHLSLGenerator)
 	{
-		KeyString += TEXT("_NewHLSL");
+		KeyString += FString::Printf(TEXT("_NewHLSL%d"), FMaterialHLSLGenerator::Version);
 	}
 
 	KeyString += StrataCompilationConfig.GetShaderMapKeyString();

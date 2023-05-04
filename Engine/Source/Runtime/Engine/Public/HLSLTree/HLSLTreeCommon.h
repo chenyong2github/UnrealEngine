@@ -268,6 +268,8 @@ public:
 
 	virtual const FExpression* NewSwitch(FTree& Tree, TConstArrayView<const FExpression*> InInputs) const override { return Tree.NewExpression<FExpressionQualitySwitch>(InInputs); }
 	virtual bool IsInputActive(const FEmitContext& Context, int32 Index) const override;
+
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 };
 
 class FExpressionShaderStageSwitch : public FExpressionSwitchBase

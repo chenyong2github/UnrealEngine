@@ -39,6 +39,8 @@ class UMaterialExpressionChannelMaskParameter : public UMaterialExpressionVector
 	
 	virtual bool IsInputConnectionRequired(int32 InputIndex) const override {return true;}
 	virtual uint32 GetInputType(int32 InputIndex) override {return MCT_Float4;}
+
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
 #endif
 
 	virtual bool IsUsedAsChannelMask() const override {return true;}

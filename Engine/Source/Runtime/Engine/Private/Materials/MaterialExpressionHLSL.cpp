@@ -18,6 +18,7 @@
 #include "Materials/MaterialExpressionConstantBiasScale.h"
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionParameter.h"
+#include "Materials/MaterialExpressionChannelMaskParameter.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
@@ -337,7 +338,8 @@ bool UMaterialExpressionShadingPathSwitch::GenerateHLSLExpression(FMaterialHLSLG
 bool UMaterialExpressionQualitySwitch::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
 {
 	using namespace UE::HLSLTree;
-	if (!Default.GetTracedInput().Expression)
+	const FExpressionInput DefaultTracedInput = Default.GetTracedInput();
+	if (!DefaultTracedInput.Expression)
 	{
 		return Generator.Error(TEXT("Missing default input"));
 	}
@@ -349,7 +351,8 @@ bool UMaterialExpressionQualitySwitch::GenerateHLSLExpression(FMaterialHLSLGener
 	{
 		const FExpression* Expression = nullptr;
 		const FExpressionInput& QualityInput = Inputs[Index];
-		if (QualityInput.GetTracedInput().Expression)
+		const FExpressionInput QualityTracedInput = QualityInput.GetTracedInput();
+		if (QualityTracedInput.Expression && (QualityTracedInput.Expression != DefaultTracedInput.Expression || QualityTracedInput.OutputIndex != DefaultTracedInput.OutputIndex))
 		{
 			Expression = QualityInput.AcquireHLSLExpression(Generator, Scope);
 		}
@@ -406,6 +409,31 @@ bool UMaterialExpressionParameter::GenerateHLSLExpression(FMaterialHLSLGenerator
 	}
 
 	OutExpression = Generator.GenerateMaterialParameter(ParameterName, ParameterMeta);
+	return true;
+}
+
+bool UMaterialExpressionChannelMaskParameter::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
+{
+	using namespace UE::HLSLTree;
+
+	if (!Input.GetTracedInput().Expression)
+	{
+		return Generator.Error(TEXT("Missing mask input"));
+	}
+
+	const FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
+	if (!InputExpression)
+	{
+		return Generator.Error(TEXT("Failed to generate expression for mask input"));
+	}
+
+	const FExpression* MaskExpression = nullptr;
+	if (!UMaterialExpressionParameter::GenerateHLSLExpression(Generator, Scope, OutputIndex, MaskExpression))
+	{
+		return false;
+	}
+
+	OutExpression = Generator.GetTree().NewDot(InputExpression, MaskExpression);
 	return true;
 }
 

@@ -7,6 +7,8 @@
 #include "Shader/Preshader.h"
 #include "SceneTypes.h"
 #include "MaterialShared.h"
+#include "MaterialHLSLTree.h"
+#include "MaterialCachedData.h"
 
 namespace UE::HLSLTree
 {
@@ -1064,7 +1066,35 @@ FExpressionQualitySwitch::FExpressionQualitySwitch(TConstArrayView<const FExpres
 
 bool FExpressionQualitySwitch::IsInputActive(const FEmitContext& Context, int32 Index) const
 {
-	return Context.TargetParameters.IsGenericTarget() || Index == (int32)Context.Material->GetQualityLevel();
+	constexpr int32 DefaultInputIndex = (int32)EMaterialQualityLevel::Num;
+
+	if (Context.TargetParameters.IsGenericTarget())
+	{
+		return Index == DefaultInputIndex || Input[Index] != Input[DefaultInputIndex];
+	}
+	else
+	{
+		return Index == (int32)Context.Material->GetQualityLevel();
+	}
+}
+
+bool FExpressionQualitySwitch::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	FMaterialCachedExpressionData* CachedExpressionData = Context.FindData<Material::FEmitData>().CachedExpressionData;
+	if (CachedExpressionData)
+	{
+		constexpr int32 DefaultInputIndex = (int32)EMaterialQualityLevel::Num;
+
+		for (int32 Index = 0; Index < DefaultInputIndex; ++Index)
+		{
+			if (Input[Index] != Input[DefaultInputIndex])
+			{
+				CachedExpressionData->QualityLevelsUsed[Index] = true;
+			}
+		}
+	}
+
+	return FExpressionSwitchBase::PrepareValue(Context, Scope, RequestedType, OutResult);
 }
 
 FExpressionShaderStageSwitch::FExpressionShaderStageSwitch(TConstArrayView<const FExpression*> InInputs)

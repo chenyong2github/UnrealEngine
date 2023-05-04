@@ -65,6 +65,8 @@ struct TMaterialHLSLGeneratorType;
 class FMaterialHLSLGenerator
 {
 public:
+	static const uint32 Version = 1;
+
 	FMaterialHLSLGenerator(UMaterial* Material,
 		const FMaterialLayersFunctions* InLayerOverrides,
 		UMaterialExpression* InPreviewExpression,
