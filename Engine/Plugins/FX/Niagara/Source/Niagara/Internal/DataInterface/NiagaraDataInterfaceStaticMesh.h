@@ -110,6 +110,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "LOD")
 	FNiagaraUserParameterBinding LODIndexUserParameter;
 
+	/** When attached to an Instanced Static Mesh, which instance should be read from. */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	int32 InstanceIndex = INDEX_NONE;
+
 	/** List of filtered sockets to use. */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	TArray<FName> FilteredSockets;
@@ -179,6 +183,9 @@ public:
 	UStaticMesh* GetStaticMesh(USceneComponent*& OutComponent, class FNiagaraSystemInstance* SystemInstance = nullptr);
 	void SetSourceComponentFromBlueprints(UStaticMeshComponent* ComponentToUse);
 	void SetDefaultMeshFromBlueprints(UStaticMesh* MeshToUse);
+
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Static Mesh DI Instance Index"))
+	static void SetNiagaraStaticMeshDIInstanceIndex(UNiagaraComponent* NiagaraSystem, const FName UserParameterName, int32 NewInstanceIndex);
 
 protected:
 	// Bind/unbind delegates to release references to the source actor & component.
@@ -277,6 +284,8 @@ protected:
 	void VMGetLocalToWorld(FVectorVMExternalFunctionContext& Context);
 	void VMGetLocalToWorldInverseTransposed(FVectorVMExternalFunctionContext& Context);
 	void VMGetWorldVelocity(FVectorVMExternalFunctionContext& Context);
+	void VMGetInstanceIndex(FVectorVMExternalFunctionContext& Context);
+	void VMSetInstanceIndex(FVectorVMExternalFunctionContext& Context);
 
 	// VM UV mapping functions
 	void VMGetTriangleCoordAtUV(FVectorVMExternalFunctionContext& Context);
