@@ -46,6 +46,7 @@ struct FInterchangeMeshInstance
 		LodGroupNode = nullptr;
 		bReferenceSkinnedMesh = false;
 		bReferenceMorphTarget = false;
+		bHasMorphTargets = false;
 	}
 	/**
 	 * This ID represent either 1: a lod group scene node uid or 2: a mesh scene node uid.
@@ -64,6 +65,9 @@ struct FInterchangeMeshInstance
 
 	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
 	bool bReferenceMorphTarget;
+
+	UPROPERTY(EditAnywhere, Category = "Interchange | Pipeline | MeshesInstance")
+	bool bHasMorphTargets;
 
 	/**
 	 * Each scene node here represent a mesh scene node. Only if we represent a lod group we can have more then 1 mesh scene node for a specific lod index.
@@ -144,7 +148,7 @@ public:
 	* Get all skinned mesh instance unique ids.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Pipeline | Meshes")
-	void GetAllSkinnedMeshInstance(TArray<FString>& MeshInstanceUids, const bool bConvertStaticMeshToSkeletalMesh) const;
+	void GetAllSkinnedMeshInstance(TArray<FString>& MeshInstanceUids, const bool bConvertStaticMeshToSkeletalMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
 
 	/**
 	* Iterate all skinned mesh instance.
@@ -245,7 +249,7 @@ public:
 	* Return a list of skinned FInterchangeMeshInstance uid that can be combined together.
 	* We cannot create a skinned mesh with multiple skeleton root node, This function return combined MeshInstance per skeleton roots
 	*/
-	void GetCombinedSkinnedMeshInstances(UInterchangeBaseNodeContainer* BaseNodeContainer, TMap<FString, TArray<FString>>& OutMeshInstanceUidsPerSkeletonRootUid, const bool bConvertStaticMeshToSkeletalMesh) const;
+	void GetCombinedSkinnedMeshInstances(UInterchangeBaseNodeContainer* BaseNodeContainer, TMap<FString, TArray<FString>>& OutMeshInstanceUidsPerSkeletonRootUid, const bool bConvertStaticMeshToSkeletalMesh, const bool bConvertStaticsWithMorphTargetsToSkeletals) const;
 	
 	/**
 	* Return a list of skinned FInterchangeMeshGeometry uid that can be combined together.

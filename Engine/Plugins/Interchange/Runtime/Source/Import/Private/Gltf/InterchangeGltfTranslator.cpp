@@ -269,7 +269,7 @@ void UInterchangeGLTFTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 				UInterchangeMeshNode* MeshNode = HandleGltfMesh(NodeContainer, GltfAsset.Meshes[GltfNode.MeshIndex], GltfNode.MeshIndex, UnusedMeshIndices);
 
 				InterchangeSceneNode->SetCustomAssetInstanceUid( MeshNode->GetUniqueID() );
-				if (MeshNode->IsSkinnedMesh())
+				if (GltfAsset.Meshes[GltfNode.MeshIndex].MorphTargetNames.Num() > 0)
 				{
 					const TArray<FString>& MorphTargetNames = GltfAsset.Meshes[GltfNode.MeshIndex].MorphTargetNames;
 					int32 MorphTargetNamesCount = MorphTargetNames.Num();
@@ -285,13 +285,6 @@ void UInterchangeGLTFTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 					else
 					{
 						UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF Node [%] Import Warning. Gltf Node's MorphTargetNames count is missmatched against MorphTargetWeights count."), *GltfNode.UniqueId);
-					}
-					
-					//Interchange/UE handles Morph Targets in skeletalMeshes:
-					InterchangeSceneNode->AddSpecializedType(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString());
-					if (MeshNode->GetSkeletonDependeciesCount() == 0)
-					{
-						MeshNode->SetSkeletonDependencyUid(InterchangeSceneNode->GetUniqueID());
 					}
 				}
 
@@ -2134,8 +2127,6 @@ UInterchangeMeshNode* UInterchangeGLTFTranslator::HandleGltfMesh(UInterchangeBas
 	//Generate Morph Target Meshes:
 	if (GltfMesh.MorphTargetNames.Num() > 0)
 	{
-		MeshNode->SetSkinnedMesh(true);
-
 		for (int32 MorphTargetIndex = 0; MorphTargetIndex < GltfMesh.MorphTargetNames.Num(); MorphTargetIndex++)
 		{
 			//check if MorphTarget mesh was already created or not:

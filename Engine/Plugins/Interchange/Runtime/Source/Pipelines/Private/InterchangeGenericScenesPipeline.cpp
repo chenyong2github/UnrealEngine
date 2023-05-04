@@ -19,6 +19,7 @@
 #include "InterchangeVariantSetNode.h"
 #include "Nodes/InterchangeUserDefinedAttribute.h"
 #include "InterchangeSkeletonFactoryNode.h"
+#include "InterchangeSkeletalMeshFactoryNode.h"
 
 #include "Animation/SkeletalMeshActor.h"
 #include "CineCameraActor.h"
@@ -189,37 +190,26 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(const FTransfor
 	}
 
 	const UInterchangeBaseNode* TranslatedAssetNode = nullptr;
-	bool bRootJointNode = SceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString());
+	bool bRootJointNode = false;
 	FString SkeletalMeshFactoryNodeUid;
 
-	if (bRootJointNode)
+	FString SkeletonFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SceneNode->GetUniqueID());
+	const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = Cast<UInterchangeSkeletonFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletonFactoryNodeUid));
+	if (SkeletonFactoryNode)
 	{
-		FString SkeletonFactoryNodeUid = UInterchangeFactoryBaseNode::BuildFactoryNodeUid(SceneNode->GetUniqueID());
-		const UInterchangeSkeletonFactoryNode* SkeletonFactoryNode = Cast<UInterchangeSkeletonFactoryNode>(BaseNodeContainer->GetFactoryNode(SkeletonFactoryNodeUid));
-		if (SkeletonFactoryNode)
+		if (SkeletonFactoryNode->GetCustomSkeletalMeshFactoryNodeUid(SkeletalMeshFactoryNodeUid))
 		{
-			if (SkeletonFactoryNode->GetCustomSkeletalMeshFactoryNodeUid(SkeletalMeshFactoryNodeUid))
+			if (const UInterchangeFactoryBaseNode* SkeletalMeshFactoryNode = BaseNodeContainer->GetFactoryNode(SkeletalMeshFactoryNodeUid))
 			{
-				if (const UInterchangeFactoryBaseNode* SkeletalMeshFactoryNode = BaseNodeContainer->GetFactoryNode(SkeletalMeshFactoryNodeUid))
-				{
-					TArray<FString> NodeUids;
-					SkeletalMeshFactoryNode->GetTargetNodeUids(NodeUids);
+				TArray<FString> NodeUids;
+				SkeletalMeshFactoryNode->GetTargetNodeUids(NodeUids);
 
-					if (NodeUids.Num() > 0)
-					{
-						TranslatedAssetNode = BaseNodeContainer->GetNode(NodeUids[0]);
-					}
-					else
-					{
-						TranslatedAssetNode = nullptr;
-					}
+				if (NodeUids.Num() > 0)
+				{
+					TranslatedAssetNode = BaseNodeContainer->GetNode(NodeUids[0]);
+					bRootJointNode = true;
 				}
 			}
-		}
-		else
-		{
-			//If it does not have a SkeletonFactoryNode with the given Uid, then it is not a root joint node:
-			bRootJointNode = false;
 		}
 	}
 	
@@ -368,14 +358,19 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 
 	if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(TranslatedAssetNode))
 	{
-		if (MeshNode->IsSkinnedMesh())
+		TArray<FString> TargetNodeUids;
+		ActorFactoryNode->GetTargetNodeUids(TargetNodeUids);
+		bool bSkeletal = false;
+		if (TargetNodeUids.Num() > 0)
 		{
-			bool bRootJointNode = SceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString());
-			if (!bRootJointNode)
+			if (const UInterchangeSkeletalMeshFactoryNode* SkeletalMeshFactoryNode = Cast<UInterchangeSkeletalMeshFactoryNode>(BaseNodeContainer->GetFactoryNode(TargetNodeUids[0])))
 			{
-				return;
+				bSkeletal = true;
 			}
+		}
 
+		if (bSkeletal)
+		{
 			ActorFactoryNode->SetCustomActorClassName(ASkeletalMeshActor::StaticClass()->GetPathName());
 			ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
 		}
