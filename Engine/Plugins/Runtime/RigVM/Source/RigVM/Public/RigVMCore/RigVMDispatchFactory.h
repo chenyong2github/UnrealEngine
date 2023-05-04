@@ -147,10 +147,10 @@ public:
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo(const FRigVMTemplateTypeMap& InTypes, const FRigVMDispatchContext& InContext) const { return FRigVMStructUpgradeInfo(); }
 
 	// returns the dispatch function for a given type set
-	RIGVM_API FRigVMFunctionPtr GetDispatchFunction(const FRigVMTemplateTypeMap& InTypes, bool bForceCreation = false) const;
+	RIGVM_API FRigVMFunctionPtr GetDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const;
 
 	// builds and returns the template
-	RIGVM_API const FRigVMTemplate* GetTemplate(bool bIsDispatchingTemplate = false) const;
+	RIGVM_API const FRigVMTemplate* GetTemplate() const;
 
 	// returns the name of the factory template
 	RIGVM_API FName GetTemplateNotation() const;
@@ -222,7 +222,6 @@ protected:
 
 	UScriptStruct* FactoryScriptStruct;
 	mutable const FRigVMTemplate* CachedTemplate;
-	static FCriticalSection GetTemplateMutex;
 	friend struct FRigVMTemplate;
 	friend struct FRigVMRegistry;
 };
