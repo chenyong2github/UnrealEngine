@@ -6328,7 +6328,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		    	AndroidThunkJava_HideVirtualKeyboardInput();
 				nativeVirtualKeyboardSendKey(KeyEvent.KEYCODE_BACK);
 		    }
-		    return super.onKeyPreIme(event);
+		    return super.onKeyPreIme(keyCode, event);
 		}
 
 		// listen for cursor position changes &  send message to the UMG widget
