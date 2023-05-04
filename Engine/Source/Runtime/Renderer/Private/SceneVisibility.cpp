@@ -392,7 +392,7 @@ bool FViewInfo::IsDistanceCulled_AnyThread(float DistanceSquared, float MinDrawD
 	const float MaxDrawDistance = InMaxDrawDistance * MaxDrawDistanceScale;
 
 	bool bHasMaxDrawDistance = InMaxDrawDistance != FLT_MAX;
-	bool bHasMinDrawDistance = InMaxDrawDistance > 0;
+	bool bHasMinDrawDistance = MinDrawDistance > 0;
 	bOutMayBeFading = false;
 
 
