@@ -643,6 +643,7 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 		switch (DebugItem.ItemType)
 		{
 			case EDrawDebugItemType::OnScreenMessage: GEngine->AddOnScreenDebugMessage(INDEX_NONE, 0.f, DebugItem.Color, DebugItem.Message, false, DebugItem.TextScale); break;
+			case EDrawDebugItemType::InWorldMessage: DrawDebugString(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.Message, InAnimInstance->GetSkelMeshComponent()->GetOwner(), DebugItem.Color, DebugItem.LifeTime, false /*bDrawShadow*/, DebugItem.TextScale.X); break;
 			case EDrawDebugItemType::DirectionalArrow: DrawDebugDirectionalArrow(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.EndLoc.Value, DebugItem.Size, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, DebugItem.DepthPriority, DebugItem.Thickness); break;
 			case EDrawDebugItemType::Sphere: DrawDebugSphere(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.Center, DebugItem.Radius, DebugItem.Segments, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, DebugItem.DepthPriority, DebugItem.Thickness); break;
 			case EDrawDebugItemType::Line: DrawDebugLine(InAnimInstance->GetSkelMeshComponent()->GetWorld(), DebugItem.StartLoc, DebugItem.EndLoc.Value, DebugItem.Color, DebugItem.bPersistentLines, DebugItem.LifeTime, DebugItem.DepthPriority, DebugItem.Thickness); break;
@@ -2117,6 +2118,19 @@ void FAnimInstanceProxy::AnimDrawDebugOnScreenMessage(const FString& DebugMessag
 	DrawDebugItem.Color = Color;
 	DrawDebugItem.TextScale = TextScale;
 	DrawDebugItem.DepthPriority = DepthPriority;
+
+	QueuedDrawDebugItems.Add(DrawDebugItem);
+}
+
+void FAnimInstanceProxy::AnimDrawDebugInWorldMessage(const FString& DebugMessage, const FVector& TextLocation, const FColor& Color, float TextScale)
+{
+	FQueuedDrawDebugItem DrawDebugItem;
+
+	DrawDebugItem.ItemType = EDrawDebugItemType::InWorldMessage;
+	DrawDebugItem.Message = DebugMessage;
+	DrawDebugItem.StartLoc = TextLocation;
+	DrawDebugItem.Color = Color;
+	DrawDebugItem.TextScale.X = TextScale;
 
 	QueuedDrawDebugItems.Add(DrawDebugItem);
 }

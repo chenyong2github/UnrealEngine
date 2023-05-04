@@ -21,6 +21,8 @@
 #if ENABLE_ANIM_DEBUG
 static TAutoConsoleVariable<int32> CVarAnimNodeMotionMatchingDrawQuery(TEXT("a.AnimNode.MotionMatching.DebugDrawQuery"), 0, TEXT("Draw input query"));
 static TAutoConsoleVariable<int32> CVarAnimNodeMotionMatchingDrawCurResult(TEXT("a.AnimNode.MotionMatching.DebugDrawCurResult"), 0, TEXT("Draw current result"));
+static TAutoConsoleVariable<int32> CVarAnimNodeMotionMatchingDrawInfo(TEXT("a.AnimNode.MotionMatching.DebugDrawInfo"), 0, TEXT("Draw info like current databases to search"));
+static TAutoConsoleVariable<float> CVarAnimNodeMotionMatchingDrawInfoHeight(TEXT("a.AnimNode.MotionMatching.DebugDrawInfoHeight"), 50.f, TEXT("Vertical offset for DebugDrawInfo"));
 #endif
 
 /////////////////////////////////////////////////////
@@ -109,6 +111,20 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		DatabasesToSearch.Add(Database);
 	}
 
+#if ENABLE_ANIM_DEBUG
+	if (CVarAnimNodeMotionMatchingDrawInfo.GetValueOnAnyThread() > 0)
+	{
+		FString DebugInfo = FString::Printf(TEXT("bForceInterruptNextUpdate(%d)\n"), bForceInterruptNextUpdate);
+		DebugInfo += FString::Printf(TEXT("Current Database(%s)\n"), *GetNameSafe(MotionMatchingState.CurrentSearchResult.Database.Get()));
+		DebugInfo += FString::Printf(TEXT("Databases to search:\n"));
+		for (const UPoseSearchDatabase* DatabaseToSearch : DatabasesToSearch)
+		{
+			DebugInfo += FString::Printf(TEXT("  %s\n"), *GetNameSafe(DatabaseToSearch));
+		}
+		Context.AnimInstanceProxy->AnimDrawDebugInWorldMessage(DebugInfo, FVector::UpVector * CVarAnimNodeMotionMatchingDrawInfoHeight.GetValueOnAnyThread(), FColor::Yellow, 1.f /*TextScale*/);
+	}
+#endif // ENABLE_ANIM_DEBUG
+
 	// Execute core motion matching algorithm
 	UPoseSearchLibrary::UpdateMotionMatchingState(
 		Context,
@@ -122,12 +138,12 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		SearchThrottleTime,
 		PlayRate,
 		MotionMatchingState,
-		bForceInterrupt | bForceInterruptNextUpdate,
+		bForceInterruptNextUpdate,
 		bShouldSearch
 		#if ENABLE_ANIM_DEBUG
 		, CVarAnimNodeMotionMatchingDrawQuery.GetValueOnAnyThread() > 0
 		, CVarAnimNodeMotionMatchingDrawCurResult.GetValueOnAnyThread() > 0
-		#endif // WITH_EDITORONLY_DATA && ENABLE_ANIM_DEBUG
+		#endif // ENABLE_ANIM_DEBUG
 	);
 
 	// If a new pose is requested, blend into the new asset via BlendStackNode
