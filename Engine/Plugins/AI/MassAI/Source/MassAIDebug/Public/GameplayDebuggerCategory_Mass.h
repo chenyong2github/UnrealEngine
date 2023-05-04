@@ -36,6 +36,7 @@ protected:
 	void OnToggleNearEntityOverview() { bShowNearEntityOverview = !bShowNearEntityOverview; }
 	void OnToggleNearEntityAvoidance() { bShowNearEntityAvoidance = !bShowNearEntityAvoidance; }
 	void OnToggleNearEntityPath() { bShowNearEntityPath = !bShowNearEntityPath; }
+	void OnToggleDebugLocalEntityManager();
 	
 	void PickEntity(const FVector& ViewLocation, const FVector& ViewDirection, const UWorld& World, FMassEntityManager& EntityManager, const bool bLimitAngle = true);
 
@@ -54,6 +55,8 @@ protected:
 	bool bShowNearEntityAvoidance;
 	bool bShowNearEntityPath;
 	bool bMarkEntityBeingDebugged;
+	bool bDebugLocalEntityManager;
+	int32 ToggleDebugLocalEntityManagerInputIndex = INDEX_NONE;
 
 	struct FEntityDescription
 	{

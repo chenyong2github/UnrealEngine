@@ -202,8 +202,9 @@ void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class 
 
 		CanvasContext.FontRenderInfo.bEnableShadow = bEnableTextShadow;
 
-		CanvasContext.PlayerController = CachedReplicator->GetReplicationOwner();
-		CanvasContext.World = CachedReplicator->GetReplicationOwner() ? CachedReplicator->GetReplicationOwner()->GetWorld() : CachedReplicator->GetWorld();
+		APlayerController* ReplicationOwner = CachedReplicator->GetReplicationOwner();
+		CanvasContext.PlayerController = ReplicationOwner;
+		CanvasContext.World = ReplicationOwner ? ReplicationOwner->GetWorld() : CachedReplicator->GetWorld();
 
 		DrawHeader(CanvasContext);
 
@@ -227,12 +228,20 @@ void UGameplayDebuggerLocalController::OnDebugDraw(class UCanvas* Canvas, class 
 			TSharedRef<FGameplayDebuggerCategory> Category = CachedReplicator->GetCategory(Idx);
 			if (Category->ShouldDrawCategory(bHasDebugActor))
 			{
+				// this is a special-case collection mode. If we want to collect data on the client this is the 
+				// place to do it, after the data got potentially replicated over from the server, and just 
+				// before drawing, so that new replicated data won't come in as we draw.
+				if ((Category->IsCategoryAuth() == false) && Category->ShouldCollectDataOnClient())
+				{
+					Category->CollectData(ReplicationOwner, CachedReplicator->GetDebugActor());
+				}
+
 				if (Category->IsCategoryHeaderVisible())
 				{
 					DrawCategoryHeader(Idx, Category, CanvasContext);
 				}
 
-				Category->DrawCategory(CachedReplicator->GetReplicationOwner(), CanvasContext);
+				Category->DrawCategory(ReplicationOwner, CanvasContext);
 			}
 		}
 	}

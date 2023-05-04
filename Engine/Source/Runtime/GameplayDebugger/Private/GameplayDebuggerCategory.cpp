@@ -13,6 +13,7 @@ FGameplayDebuggerCategory::FGameplayDebuggerCategory() :
 	bShowUpdateTimer(false),
 	bShowCategoryName(true),
 	bShowOnlyWithDebugActor(true),
+	bAllowLocalDataCollection(false),
 	bIsLocal(false),
 	bHasAuthority(true),
 	bIsEnabled(true),
@@ -49,7 +50,7 @@ void FGameplayDebuggerCategory::OnDataPackReplicated(int32 DataPackId)
 
 void FGameplayDebuggerCategory::AddTextLine(const FString& TextLine)
 {
-	if (bHasAuthority)
+	if (bHasAuthority || bAllowLocalDataCollection)
 	{
 		ReplicatedLines.Add(TextLine);
 	}
@@ -57,7 +58,7 @@ void FGameplayDebuggerCategory::AddTextLine(const FString& TextLine)
 
 void FGameplayDebuggerCategory::AddShape(const FGameplayDebuggerShape& Shape)
 {
-	if (bHasAuthority)
+	if (bHasAuthority || bAllowLocalDataCollection)
 	{
 		ReplicatedShapes.Add(Shape);
 	}
@@ -177,4 +178,11 @@ FString FGameplayDebuggerCategory::GetSceneProxyViewFlag() const
 {
 	const bool bIsSimulate = FGameplayDebuggerAddonBase::IsSimulateInEditor();
 	return bIsSimulate ? TEXT("DebugAI") : TEXT("Game");
+}
+
+void FGameplayDebuggerCategory::ResetReplicatedData()
+{
+	ReplicatedLines.Reset();
+	ReplicatedShapes.Reset();
+	ReplicatedDataPacks.Reset();
 }

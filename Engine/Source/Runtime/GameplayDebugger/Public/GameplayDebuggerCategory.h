@@ -94,6 +94,9 @@ public:
 	/** [ALL] check if category has authority (collects data) */
 	bool IsCategoryAuth() const { return bHasAuthority; }
 
+	/** [LOCAL] */
+	bool ShouldCollectDataOnClient() const { return bAllowLocalDataCollection; }
+
 	int32 GetNumDataPacks() const { return ReplicatedDataPacks.Num(); }
 	float GetDataPackProgress(int32 DataPackId) const { return ReplicatedDataPacks.IsValidIndex(DataPackId) ? ReplicatedDataPacks[DataPackId].GetProgress() : 0.0f; }
 	bool IsDataPackReplicating(int32 DataPackId) const { return ReplicatedDataPacks.IsValidIndex(DataPackId) && ReplicatedDataPacks[DataPackId].IsInProgress(); }
@@ -148,6 +151,9 @@ protected:
 	/** [AUTH] force data collection on next update */
 	void ForceImmediateCollect() { LastCollectDataTime = -MAX_dbl; }
 
+	/** [ALL] Clears out accumulated replicated data. */
+	void ResetReplicatedData();
+
 	/** update interval, 0 = each tick */
 	float CollectDataInterval;
 
@@ -162,6 +168,14 @@ protected:
 
 	/** draw category only when DebugActor is present */
 	uint32 bShowOnlyWithDebugActor : 1;
+
+	/** 
+	  * False by default. If set to True will make data collection functions work on Local categories as well.
+	  * Note that in client-server setting the data is still being replicated over from the server as well,
+	  * and data collection on the client can also be used to annotate the incoming data. If this is undesired
+	  * you need to call ResetReplicatedData before gathering the client-side data. 
+	  */
+	uint32 bAllowLocalDataCollection : 1;
 
 private:
 
