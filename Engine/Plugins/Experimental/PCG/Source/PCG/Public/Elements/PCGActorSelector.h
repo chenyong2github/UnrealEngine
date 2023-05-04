@@ -66,6 +66,14 @@ struct FPCGActorSelectorSettings
 	/** If true processes all matching actors, otherwise returns data from first match. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ActorFilter==EPCGActorFilter::AllWorldActors && ActorSelection!=EPCGActorSelection::ByName", EditConditionHides))
 	bool bSelectMultiple = false;
+
+	void PostLoad();
+
+#if WITH_EDITOR	
+	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
+	FText GetTaskNameSuffix() const;
+	FName GetTaskName(const FText& Prefix) const;
+#endif
 };
 
 namespace PCGActorSelector

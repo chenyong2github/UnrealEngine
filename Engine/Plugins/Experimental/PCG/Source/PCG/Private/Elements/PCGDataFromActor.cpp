@@ -28,7 +28,32 @@ FText UPCGDataFromActorSettings::GetNodeTooltipText() const
 {
 	return LOCTEXT("DataFromActorTooltip", "Builds a collection of PCG-compatible data from the selected actors.");
 }
+
+void UPCGDataFromActorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UPCGDataFromActorSettings, ActorSelector))
+	{
+		ActorSelector.PostEditChangeProperty(PropertyChangedEvent);
+	}
+}
 #endif
+
+void UPCGDataFromActorSettings::PostLoad()
+{
+	Super::PostLoad();
+	ActorSelector.PostLoad();
+}
+
+FName UPCGDataFromActorSettings::AdditionalTaskName() const
+{
+#if WITH_EDITOR
+	return ActorSelector.GetTaskName(GetDefaultNodeTitle());
+#else
+	return Super::AdditionalTaskName();
+#endif
+}
 
 FPCGElementPtr UPCGDataFromActorSettings::CreateElement() const
 {

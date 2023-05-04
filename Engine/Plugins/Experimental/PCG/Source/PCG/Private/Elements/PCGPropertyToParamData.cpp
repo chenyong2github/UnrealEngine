@@ -22,7 +22,16 @@ void UPCGPropertyToParamDataSettings::GetTrackedActorTags(FPCGTagToSettingsMap& 
 	{
 		OutTagToSettings.FindOrAdd(ActorSelector.ActorSelectionTag).Emplace({ this, bTrackActorsOnlyWithinBounds });
 	}
+}
 
+void UPCGPropertyToParamDataSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UPCGPropertyToParamDataSettings, ActorSelector))
+	{
+		ActorSelector.PostEditChangeProperty(PropertyChangedEvent);
+	}
 }
 #endif // WITH_EDITOR
 
@@ -51,7 +60,19 @@ void UPCGPropertyToParamDataSettings::PostLoad()
 		ActorFilter_DEPRECATED = EPCGActorFilter::Self;
 		bIncludeChildren_DEPRECATED = false;
 	}
+
+	ActorSelector.PostLoad();
 }
+
+FName UPCGPropertyToParamDataSettings::AdditionalTaskName() const
+{
+#if WITH_EDITOR
+	return ActorSelector.GetTaskName(GetDefaultNodeTitle());
+#else
+	return Super::AdditionalTaskName();
+#endif
+}
+
 
 TArray<FPCGPinProperties> UPCGPropertyToParamDataSettings::OutputPinProperties() const
 {

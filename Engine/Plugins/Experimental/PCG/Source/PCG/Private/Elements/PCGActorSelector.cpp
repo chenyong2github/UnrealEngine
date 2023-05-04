@@ -202,3 +202,52 @@ namespace PCGActorSelector
 		return Actors.IsEmpty() ? nullptr : Actors[0];
 	}
 }
+
+void FPCGActorSelectorSettings::PostLoad()
+{
+	// Make sure that when we are not using the 'by class' selection, we don't track that class dependency
+	if (ActorSelection != EPCGActorSelection::ByClass)
+	{
+		ActorSelectionClass = TSubclassOf<AActor>();
+	}
+}
+
+#if WITH_EDITOR
+void FPCGActorSelectorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPCGActorSelectorSettings, ActorSelection))
+	{
+		// Make sure that when switching away from the 'by class' selection, we actually break that data dependency
+		if (ActorSelection != EPCGActorSelection::ByClass)
+		{
+			ActorSelectionClass = TSubclassOf<AActor>();
+		}
+	}
+}
+
+FText FPCGActorSelectorSettings::GetTaskNameSuffix() const
+{
+	if (ActorFilter == EPCGActorFilter::AllWorldActors)
+	{
+		if (ActorSelection == EPCGActorSelection::ByClass)
+		{
+			return (ActorSelectionClass.Get() ? ActorSelectionClass->GetDisplayNameText() : FText::FromName(NAME_None));
+		}
+		else if (ActorSelection == EPCGActorSelection::ByTag)
+		{
+			return FText::FromName(ActorSelectionTag);
+		}
+	}
+	else if(const UEnum* EnumPtr = StaticEnum<EPCGActorFilter>())
+	{
+		return EnumPtr->GetDisplayNameTextByValue(static_cast<__underlying_type(EPCGActorFilter)>(ActorFilter));
+	}
+
+	return FText();
+}
+
+FName FPCGActorSelectorSettings::GetTaskName(const FText& Prefix) const
+{
+	return FName(FText::Format(NSLOCTEXT("PCGActorSelectorSettings", "NodeTitleFormat", "{0} ({1})"), Prefix, GetTaskNameSuffix()).ToString());
+}
+#endif // WITH_EDITOR

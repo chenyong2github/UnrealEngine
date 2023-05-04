@@ -21,6 +21,9 @@ class PCG_API UPCGPropertyToParamDataSettings : public UPCGSettings
 public:
 	//~Begin UObject interface
 	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	//~End UObject interface
 
 	//~Begin UPCGSettings interface
@@ -31,6 +34,7 @@ public:
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const override;
 #endif
 
+	virtual FName AdditionalTaskName() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return TArray<FPCGPinProperties>(); }
 
