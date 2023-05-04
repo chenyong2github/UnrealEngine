@@ -11,14 +11,21 @@ void UDataflowBlueprintLibrary::EvaluateTerminalNodeByName(UDataflow* Dataflow, 
 	if (Dataflow && Dataflow->Dataflow)
 	{
 		TSharedPtr<FDataflowNode> Node = Dataflow->Dataflow->FindTerminalNode(TerminalNodeName);
-		if (const FDataflowTerminalNode* TerminalNode = Node->AsType<const FDataflowTerminalNode>())
+		if (Node)
 		{
-			Dataflow::FEngineContext Context(ResultAsset, Dataflow, FPlatformTime::Cycles64());
-			TerminalNode->Evaluate(Context);
-			if (ResultAsset)
+			if (const FDataflowTerminalNode* TerminalNode = Node->AsType<const FDataflowTerminalNode>())
 			{
-				TerminalNode->SetAssetValue(ResultAsset, Context);
+				Dataflow::FEngineContext Context(ResultAsset, Dataflow, FPlatformTime::Cycles64());
+				TerminalNode->Evaluate(Context);
+				if (ResultAsset)
+				{
+					TerminalNode->SetAssetValue(ResultAsset, Context);
+				}
 			}
+		}
+		else
+		{
+			UE_LOG(LogChaos, Warning, TEXT("EvaluateTerminalNodeByName : Could not find terminal node : [%s], skipping evaluation"), *TerminalNodeName.ToString());
 		}
 	}
 }
