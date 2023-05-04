@@ -15,6 +15,7 @@
 	"IsBetaVersion" : false,
 	"Installed" : false,
 	"SupportedPrograms": [ "UnrealFrontend", "UnrealInsights" ],
+	"SupportedTargetPlatforms":  [ "Win64" ],
 	"Modules" :
 	[
 		{
