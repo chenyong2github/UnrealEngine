@@ -13,7 +13,7 @@ struct FBoneContainer;
 struct FCompactPoseBoneIndex;
 
 UCLASS(meta=(ScriptName="MotionExtractorUtilityLibrary"))
-class  UMotionExtractorUtilityLibrary : public UBlueprintFunctionLibrary
+class ANIMATIONMODIFIERLIBRARY_API UMotionExtractorUtilityLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
