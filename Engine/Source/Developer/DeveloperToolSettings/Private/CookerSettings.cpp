@@ -2,6 +2,7 @@
 
 #include "CookerSettings.h"
 #include "UObject/UnrealType.h"
+#include "HAL/IConsoleManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CookerSettings)
 
@@ -22,8 +23,13 @@ UCookerSettings::UCookerSettings(const FObjectInitializer& ObjectInitializer)
 	, bCookBlueprintComponentTemplateData(false)
 {
 	SectionName = TEXT("Cooker");
-	DefaultASTCQualityBySize = 3;
-	DefaultASTCQualityBySpeed = 3;
+	
+	DefaultASTCQualityBySpeed = 2; // Medium preset
+	DefaultASTCQualityBySize = 3;  // 6x6
+	{
+		static IConsoleVariable* ASTCTextureCompressorCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("cook.ASTCTextureCompressor"));
+		DefaultASTCCompressor = (ASTCTextureCompressorCVar && ASTCTextureCompressorCVar->GetInt() != 0) ? ETextureFormatASTCCompressor::Arm : ETextureFormatASTCCompressor::IntelISPC;
+	}
 }
 
 void UCookerSettings::PostInitProperties()
