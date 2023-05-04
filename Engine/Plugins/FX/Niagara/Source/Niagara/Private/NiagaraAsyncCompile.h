@@ -118,6 +118,10 @@ class FNiagaraActiveCompilationDefault : public FNiagaraActiveCompilation
 {
 public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("NiagaraActiveCompilationDefault");
+	}
 
 	virtual bool Launch(const FNiagaraCompilationOptions& Options) override;
 	virtual void Abort() override;
