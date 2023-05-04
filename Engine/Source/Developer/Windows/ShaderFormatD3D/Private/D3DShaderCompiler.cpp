@@ -5,6 +5,7 @@
 #include "ShaderCompilerCommon.h"
 #include "ShaderMinifier.h"
 #include "ShaderParameterParser.h"
+#include "ShaderPreprocessTypes.h"
 #include "D3D12RHI.h"
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
@@ -548,11 +549,11 @@ static bool CompileErrorsContainInternalError(ID3DBlob* Errors)
 
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
 static bool CompileAndProcessD3DShaderFXCExt(
-	FString& PreprocessedShaderSource,
+	const FString& PreprocessedShaderSource,
 	uint32 CompileFlags,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
-	FString& EntryPointName,
+	const FString& EntryPointName,
 	const TCHAR* ShaderProfile, bool bSecondPassAferUnusedInputRemoval,
 	TArray<FString>& FilteredErrors, FShaderCompilerOutput& Output)
 {
@@ -560,8 +561,6 @@ static bool CompileAndProcessD3DShaderFXCExt(
 
 	auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
 
-	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
-	UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShaderSource);
 	bool bDumpDebugInfo = Input.DumpDebugInfoEnabled();
 	FString DisasmFilename;
 	if (bDumpDebugInfo)
@@ -848,19 +847,19 @@ static bool CompileAndProcessD3DShaderFXCExt(
 					// Since unused inputs are passed to the next stage, that will cause us to generate a vertex shader that does not output B, but our pixel shader will still be expecting B on input,
 					// as it was rewritten based on the pass1 results.
 
-					FString OriginalPreprocSource = PreprocessedShaderSource;
-					FString OriginalEntryPointName = EntryPointName;
+					FString ModifiedSource = PreprocessedShaderSource;
+					FString ModifiedEntryPointName = EntryPointName;
 					FShaderCompilerOutput OriginalOutput = Output;
 					const int kMaxReasonableAttempts = 64;
 					for (int32 Attempt = 0; Attempt < kMaxReasonableAttempts; ++Attempt)
 					{
 						TArray<FString> RemoveErrors;
-						PreprocessedShaderSource = OriginalPreprocSource;
-						EntryPointName = OriginalEntryPointName;
-						if (RemoveUnusedInputs(PreprocessedShaderSource, ShaderInputs, EntryPointName, RemoveErrors))
+						ModifiedSource = PreprocessedShaderSource;
+						ModifiedEntryPointName = EntryPointName;
+						if (RemoveUnusedInputs(ModifiedSource, ShaderInputs, ModifiedEntryPointName, RemoveErrors))
 						{
 							Output = OriginalOutput;
-							if (!CompileAndProcessD3DShaderFXCExt(PreprocessedShaderSource, CompileFlags, Input, ShaderParameterParser, EntryPointName, ShaderProfile, true, FilteredErrors, Output))
+							if (!CompileAndProcessD3DShaderFXCExt(ModifiedSource, CompileFlags, Input, ShaderParameterParser, ModifiedEntryPointName, ShaderProfile, true, FilteredErrors, Output))
 							{
 								// if we failed to compile the shader, propagate the error up
 								return false;
@@ -918,6 +917,11 @@ static bool CompileAndProcessD3DShaderFXCExt(
 							}
 							break;
 						}
+					}
+
+					if (Input.ExtraSettings.bExtractShaderSource)
+					{
+						Output.OptionalFinalShaderSource = ModifiedSource;
 					}
 				}
 			}
@@ -1032,10 +1036,10 @@ static bool CompileAndProcessD3DShaderFXCExt(
 	return SUCCEEDED(Result);
 }
 
-bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource,
+bool CompileAndProcessD3DShaderFXC(const FString& PreprocessedShaderSource,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
-	FString& EntryPointName,
+	const FString& EntryPointName,
 	const TCHAR* ShaderProfile,
 	bool bSecondPassAferUnusedInputRemoval,
 	FShaderCompilerOutput& Output)
@@ -1103,18 +1107,29 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource,
 	return bSuccess;
 }
 
-void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& Output, FShaderCompilerDefinitions& AdditionalDefines, const FString& WorkingDirectory, ELanguage Language)
+bool PreprocessD3DShader(
+	const FShaderCompilerInput& Input,
+	const FShaderCompilerEnvironment& Environment,
+	FShaderPreprocessOutput& Output,
+	ELanguage Language)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(CompileD3DShader);
-	FString PreprocessedShaderSource;
-	const bool bUseDXC = !Input.CanCompileWithLegacyFxc();
-	const TCHAR* ShaderProfile = GetShaderProfileName(Language, Input.Target.Frequency, bUseDXC);
-
-	if(!ShaderProfile)
+	FShaderCompilerDefinitions AdditionalDefines;
+	if (Language == ELanguage::SM6)
 	{
-		Output.Errors.Add(FShaderCompilerError(*FString::Printf(TEXT("Unrecognized shader frequency %s"), GetShaderFrequencyString((EShaderFrequency)Input.Target.Frequency))));
-		return;
+		AdditionalDefines.SetDefine(TEXT("SM6_PROFILE"), 1);
 	}
+	else if (Language == ELanguage::SM5)
+	{
+		AdditionalDefines.SetDefine(TEXT("SM5_PROFILE"), 1);
+	}
+	else if (Language == ELanguage::ES3_1)
+	{
+		AdditionalDefines.SetDefine(TEXT("ES3_1_PROFILE"), 1);
+	}
+
+	FString& PreprocessedSource = Output.EditSource();
+	const bool bUseDXC = !Input.CanCompileWithLegacyFxc();
+
 
 	// Set additional defines.
 	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSL"), 1);
@@ -1128,40 +1143,85 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER"), 1);
 		AdditionalDefines.SetDefine(TEXT("COMPILER_SUPPORTS_NOINLINE"), 1);
 
-		if (Input.Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing))
+		if (Environment.CompilerFlags.Contains(CFLAG_InlineRayTracing))
 		{
 			AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_INLINE_RAY_TRACING"), 1);
 		}
 
-		if (Language == ELanguage::SM6 && Input.Environment.CompilerFlags.Contains(CFLAG_AllowRealTypes))
+		if (Language == ELanguage::SM6 && Environment.CompilerFlags.Contains(CFLAG_AllowRealTypes))
 		{
 			AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_REAL_TYPES"), 1);
 		}
 	}
 
-	const double StartPreprocessTime = FPlatformTime::Seconds();
 	
 	if (Input.bSkipPreprocessedCache)
 	{
-		if (!FFileHelper::LoadFileToString(PreprocessedShaderSource, *Input.VirtualSourceFilePath))
+		if (!FFileHelper::LoadFileToString(PreprocessedSource, *Input.VirtualSourceFilePath))
 		{
-			return;
+			return false;
 		}
 
 		// Remove const as we are on debug-only mode
-		CrossCompiler::CreateEnvironmentFromResourceTable(PreprocessedShaderSource, (FShaderCompilerEnvironment&)Input.Environment);
+		CrossCompiler::CreateEnvironmentFromResourceTable(PreprocessedSource, const_cast<FShaderCompilerEnvironment&>(Environment));
 	}
 	else
 	{
-		if (!PreprocessShader(PreprocessedShaderSource, Output, Input, AdditionalDefines))
+		if (!PreprocessShader(Output, Input, Environment, AdditionalDefines))
 		{
 			// The preprocessing stage will add any relevant errors.
-			return;
+			return false;
 		}
 	}
 
-	FString EntryPointName = Input.EntryPointName;
+	if (!Output.ParseAndModify(Input, Environment, TEXT("cbuffer")))
+	{
+		// The FShaderParameterParser will add any relevant errors.
+		return false;
+	}
 
+	// Only use UniformBuffer structs on SM6 until we can fully vet SM5
+	if (Language != ELanguage::SM6)
+	{
+		RemoveUniformBuffersFromSource(Environment, PreprocessedSource);
+	}
+
+	// Process TEXT macro.
+	TransformStringIntoCharacterArray(PreprocessedSource);
+
+	TArray<FString> FilteredErrors;
+	// Run the shader minifier
+	#if UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+	if (Environment.CompilerFlags.Contains(CFLAG_RemoveDeadCode))
+	{
+		if (!UE::ShaderCompilerCommon::RemoveDeadCode(PreprocessedSource, Input.EntryPointName, Output.EditErrors()))
+		{
+			return false;
+		}
+	}
+	#endif // UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+	return true;
+}
+
+
+void CompileD3DShader(const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, FShaderCompilerOutput& Output, const FString& WorkingDirectory, ELanguage Language)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(CompileD3DShader);
+
+	const bool bUseDXC = !Input.CanCompileWithLegacyFxc(); 
+	const TCHAR* ShaderProfile = GetShaderProfileName(Language, Input.Target.Frequency, bUseDXC);
+
+	if(!ShaderProfile)
+	{
+		Output.Errors.Add(FShaderCompilerError(*FString::Printf(TEXT("Unrecognized shader frequency %s"), GetShaderFrequencyString((EShaderFrequency)Input.Target.Frequency))));
+		return;
+	}
+
+	const FString* PreprocessedSource = &PreprocessOutput.GetSource();
+	const FString* EntryPoint = &Input.EntryPointName;
+	
+	FString ModifiedSource;
+	FString ModifiedEntryPoint;
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_ForceRemoveUnusedInterpolators) && Input.Target.Frequency == SF_Vertex && Input.bCompilingForShaderPipeline)
 	{
 		// Always add SV_Position
@@ -1191,12 +1251,12 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		Exceptions.AddUnique(TEXT("SV_CullDistance5"));
 		Exceptions.AddUnique(TEXT("SV_CullDistance6"));
 		Exceptions.AddUnique(TEXT("SV_CullDistance7"));
-		
-		// Write the preprocessed file out in case so we can debug issues on HlslParser
-		UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShaderSource);
+
+		ModifiedSource = *PreprocessedSource;
+		ModifiedEntryPoint = *EntryPoint;
 
 		TArray<FString> Errors;
-		if (!RemoveUnusedOutputs(PreprocessedShaderSource, UsedOutputs, Exceptions, EntryPointName, Errors))
+		if (!RemoveUnusedOutputs(ModifiedSource, UsedOutputs, Exceptions, ModifiedEntryPoint, Errors))
 		{
 			UE_LOG(LogD3D11ShaderCompiler, Warning, TEXT("Failed to remove unused outputs from shader: %s"), *Input.GenerateShaderName());
 			for (const FString& ErrorReport : Errors)
@@ -1208,81 +1268,39 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 				Output.Errors.Add(NewError);
 			}
 		}
+		else
+		{
+			PreprocessedSource = &ModifiedSource;
+			EntryPoint = &ModifiedEntryPoint;
+		}
 	}
 
-	FShaderParameterParser ShaderParameterParser(Input.Environment.CompilerFlags, TEXT("cbuffer"));
-	if (!ShaderParameterParser.ParseAndModify(Input, Output.Errors, PreprocessedShaderSource))
-	{
-		// The FShaderParameterParser will add any relevant errors.
-		return;
-	}
-
-	// Only use UniformBuffer structs on SM6 until we can fully vet SM5
-	if (Language != ELanguage::SM6)
-	{
-		RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
-	}
-
-	// Process TEXT macro.
-	TransformStringIntoCharacterArray(PreprocessedShaderSource);
-
-	Output.PreprocessTime = FPlatformTime::Seconds() - StartPreprocessTime;
-
-	TArray<FString> FilteredErrors;
-
-	// Run the shader minifier
-	#if UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
-	if (Input.Environment.CompilerFlags.Contains(CFLAG_RemoveDeadCode))
-	{
-		UE::ShaderCompilerCommon::RemoveDeadCode(PreprocessedShaderSource, EntryPointName, Output.Errors);
-	}
-	#endif // UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
+	const FShaderParameterParser& ShaderParameterParser = PreprocessOutput.GetParameterParser();
 
 	const bool bSuccess = bUseDXC
-		? CompileAndProcessD3DShaderDXC(PreprocessedShaderSource, Input, ShaderParameterParser, EntryPointName, ShaderProfile, Language, false, Output)
-		: CompileAndProcessD3DShaderFXC(PreprocessedShaderSource, Input, ShaderParameterParser, EntryPointName, ShaderProfile, false, Output);
+		? CompileAndProcessD3DShaderDXC(*PreprocessedSource, Input, ShaderParameterParser, *EntryPoint, ShaderProfile, Language, false, Output)
+		: CompileAndProcessD3DShaderFXC(*PreprocessedSource, Input, ShaderParameterParser, *EntryPoint, ShaderProfile, false, Output);
 
 	if (!bSuccess && !Output.Errors.Num())
 	{
 		Output.Errors.Add(TEXT("Compile failed without errors!"));
 	}
 
+	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
+
 	const bool bDirectCompile = FParse::Param(FCommandLine::Get(), TEXT("directcompile"));
 	if (bDirectCompile)
 	{
-		for (const auto& Error : Output.Errors)
+		for (const FShaderCompilerError& Error : Output.Errors)
 		{
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s\n"), *Error.GetErrorStringWithLineMarker());
 		}
 	}
 
-	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
-
-	if (Input.ExtraSettings.bExtractShaderSource)
+	// Only set OptionalFinalShaderSource if it wasn't already set by the compile function 
+	// (FXC path can further modify the preprocessed source during unused output removal)
+	if (Input.ExtraSettings.bExtractShaderSource && Output.OptionalFinalShaderSource.IsEmpty())
 	{
-		Output.OptionalFinalShaderSource = PreprocessedShaderSource;
+		Output.OptionalFinalShaderSource = *PreprocessedSource;
 	}
-}
-
-void CompileShader_Windows(const FShaderCompilerInput& Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory, ELanguage Language)
-{
-	FShaderCompilerDefinitions AdditionalDefines;
-	if (Language == ELanguage::SM6)
-	{
-		AdditionalDefines.SetDefine(TEXT("SM6_PROFILE"), 1);
-	}
-	else if (Language == ELanguage::SM5)
-	{
-		AdditionalDefines.SetDefine(TEXT("SM5_PROFILE"), 1);
-	}
-	else if (Language == ELanguage::ES3_1)
-	{
-		AdditionalDefines.SetDefine(TEXT("ES3_1_PROFILE"), 1);
-	}
-	else
-	{
-		checkf(0, TEXT("Unknown ELanguage %d"), (int32)Language);
-	}
-
-	CompileD3DShader(Input, Output, AdditionalDefines, WorkingDirectory, Language);
 }

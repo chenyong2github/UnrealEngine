@@ -866,7 +866,7 @@ static bool DXCRewriteWrapper(
 }
 
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
-bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
+bool CompileAndProcessD3DShaderDXC(const FString& PreprocessedShaderSource,
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
 	const FString& EntryPointName,
@@ -906,8 +906,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			RayTracingExports += RayIntersectionEntryPoint;
 		}
 	}
-
-	UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShaderSource);
 
 	FDxcArguments Args
 	(
