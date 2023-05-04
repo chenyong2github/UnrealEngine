@@ -1018,6 +1018,27 @@ namespace UnrealBuildToolTests
 			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
 		}
 
+		[TestMethod]
+		public void VerseInEngineErrorMatcher()
+		{
+			string[] lines =
+			{
+				@"LogSolarisIde: Error: C:/Horde/Foo/Plugins/VerseAI/CompanionAI/Source/CompanionAI/Verse/CompanionAI.verse(651,46, 651,64): Script error 3506: Unknown identifier `sphere_draw_params`."
+			};
+
+			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+			Assert.AreEqual(1, logEvents.Count);
+			CheckEventGroup(logEvents.Slice(0, 1), 0, 1, LogLevel.Error, KnownLogEvents.Compiler);
+
+			LogEvent logEvent = logEvents[0];
+			Assert.AreEqual("3506", logEvent.GetProperty("code").ToString());
+			Assert.AreEqual(LogLevel.Error, logEvent.Level);
+
+			LogValue fileProperty = logEvents[0].GetProperty<LogValue>("file");
+			Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
+			Assert.AreEqual(@"C:/Horde/Foo/Plugins/VerseAI/CompanionAI/Source/CompanionAI/Verse/CompanionAI.verse", fileProperty.Text);
+		}
+
 		static List<LogEvent> Parse(IEnumerable<string> lines)
 		{
 			return Parse(String.Join("\n", lines));

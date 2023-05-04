@@ -43,7 +43,7 @@ namespace UnrealBuildTool.Matchers
 			@"\)";
 
 		const string VisualCppSeverity =
-			@"(?:Verse compiler )?(?<severity>fatal error|[Ee]rror|[Ww]arning)(?: (?<code>[A-Z]+[0-9]+))?"; // "E"rror/"W"arning are from UHT
+			@"(?:Verse compiler |Script )?(?<severity>fatal error|[Ee]rror|[Ww]arning)(?: (?<code>[A-Z]*[0-9]+))?"; // "E"rror/"W"arning are from UHT
 
 		const string ClangLocationPattern =
 			@":" +
@@ -199,7 +199,7 @@ namespace UnrealBuildTool.Matchers
 			return false;
 		}
 
-		static readonly Regex s_msvcPattern = new Regex($"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:");
+		static readonly Regex s_msvcPattern = new Regex($"^\\s*(?:ERROR: |WARNING: |Log[A-Za-z_]+: [A-Z][a-z]+: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:");
 		static readonly Regex s_msvcNotePattern = new Regex($"^\\s*{FilePattern}(?:{VisualCppLocationPattern})?\\s*: note:");
 		static readonly Regex s_projectPattern = new Regex(@"\[(?<project>[^[\]]+)]\s*$");
 
