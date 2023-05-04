@@ -7,7 +7,10 @@
 #include "SCommonEditorViewportToolbarBase.h"
 #include "SBaseCharacterFXEditorViewport.h"
 
+namespace UE::Chaos::ClothAsset
+{
 class FChaosClothPreviewScene;
+}
 class SClothAnimationScrubPanel;
 
 /**
@@ -38,8 +41,8 @@ public:
 
 private:
 
-	TWeakPtr<FChaosClothPreviewScene> GetPreviewScene();
-	TWeakPtr<const FChaosClothPreviewScene> GetPreviewScene() const;
+	TWeakPtr<UE::Chaos::ClothAsset::FChaosClothPreviewScene> GetPreviewScene();
+	TWeakPtr<const UE::Chaos::ClothAsset::FChaosClothPreviewScene> GetPreviewScene() const;
 
 	float GetViewMinInput() const;
 	float GetViewMaxInput() const;

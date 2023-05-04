@@ -10,7 +10,7 @@
 
 #define LOCTEXT_NAMESPACE "ClothAnimationScrubPanel"
 
-void SClothAnimationScrubPanel::Construct( const SClothAnimationScrubPanel::FArguments& InArgs, const TWeakPtr<FChaosClothPreviewScene> InPreviewScene)
+void SClothAnimationScrubPanel::Construct( const SClothAnimationScrubPanel::FArguments& InArgs, const TWeakPtr<UE::Chaos::ClothAsset::FChaosClothPreviewScene> InPreviewScene)
 {
 	PreviewSceneWeakPtr = InPreviewScene;
 
@@ -208,7 +208,7 @@ void SClothAnimationScrubPanel::OnBeginSliderMovement()
 
 uint32 SClothAnimationScrubPanel::GetNumberOfKeys() const
 {
-	if (const TSharedPtr<FChaosClothPreviewScene> PreviewScene = PreviewSceneWeakPtr.Pin())
+	if (const TSharedPtr<UE::Chaos::ClothAsset::FChaosClothPreviewScene> PreviewScene = PreviewSceneWeakPtr.Pin())
 	{
 		if (UAnimSingleNodeInstance* const PreviewInstance = PreviewScene->GetPreviewAnimInstance())	// non-const because UAnimSingleNodeInstance::GetLength() is non-const
 		{
@@ -238,7 +238,7 @@ uint32 SClothAnimationScrubPanel::GetNumberOfKeys() const
 
 float SClothAnimationScrubPanel::GetSequenceLength() const
 {
-	if (const TSharedPtr<FChaosClothPreviewScene> PreviewScene = PreviewSceneWeakPtr.Pin())
+	if (const TSharedPtr<UE::Chaos::ClothAsset::FChaosClothPreviewScene> PreviewScene = PreviewSceneWeakPtr.Pin())
 	{
 		if (UAnimSingleNodeInstance* const PreviewInstance = PreviewScene->GetPreviewAnimInstance())	// non-const because UAnimSingleNodeInstance::GetLength() is non-const
 		{
@@ -272,7 +272,7 @@ bool SClothAnimationScrubPanel::GetDisplayDrag() const
 
 UAnimSingleNodeInstance* SClothAnimationScrubPanel::GetPreviewAnimationInstance()
 {
-	if (const TSharedPtr<FChaosClothPreviewScene> PreviewScene = PreviewSceneWeakPtr.Pin())
+	if (const TSharedPtr<UE::Chaos::ClothAsset::FChaosClothPreviewScene> PreviewScene = PreviewSceneWeakPtr.Pin())
 	{
 		return PreviewScene->GetPreviewAnimInstance();
 	}
@@ -282,7 +282,7 @@ UAnimSingleNodeInstance* SClothAnimationScrubPanel::GetPreviewAnimationInstance(
 
 const UAnimSingleNodeInstance* SClothAnimationScrubPanel::GetPreviewAnimationInstance() const
 {
-	if (const TSharedPtr<const FChaosClothPreviewScene> PreviewScene = PreviewSceneWeakPtr.Pin())
+	if (const TSharedPtr<const UE::Chaos::ClothAsset::FChaosClothPreviewScene> PreviewScene = PreviewSceneWeakPtr.Pin())
 	{
 		return PreviewScene->GetPreviewAnimInstance();
 	}

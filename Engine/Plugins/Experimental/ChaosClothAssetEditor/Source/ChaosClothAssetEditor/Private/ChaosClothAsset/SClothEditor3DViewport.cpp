@@ -45,21 +45,23 @@ void SChaosClothAssetEditor3DViewport::Construct(const FArguments& InArgs, const
 	];
 }
 
-TWeakPtr<FChaosClothPreviewScene> SChaosClothAssetEditor3DViewport::GetPreviewScene()
+TWeakPtr<UE::Chaos::ClothAsset::FChaosClothPreviewScene> SChaosClothAssetEditor3DViewport::GetPreviewScene()
 {
-	const TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
+	const TSharedPtr<UE::Chaos::ClothAsset::FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<UE::Chaos::ClothAsset::FChaosClothAssetEditor3DViewportClient>(Client);
 	return ClothViewportClient->GetClothPreviewScene();
 }
 
-TWeakPtr<const FChaosClothPreviewScene> SChaosClothAssetEditor3DViewport::GetPreviewScene() const
+TWeakPtr<const UE::Chaos::ClothAsset::FChaosClothPreviewScene> SChaosClothAssetEditor3DViewport::GetPreviewScene() const
 {
-	const TSharedPtr<const FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
+	const TSharedPtr<const UE::Chaos::ClothAsset::FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<UE::Chaos::ClothAsset::FChaosClothAssetEditor3DViewportClient>(Client);
 	return ClothViewportClient->GetClothPreviewScene();
 }
 
 
 void SChaosClothAssetEditor3DViewport::BindCommands()
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	SAssetEditorViewport::BindCommands();
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
 
@@ -133,7 +135,7 @@ TSharedPtr<SWidget> SChaosClothAssetEditor3DViewport::MakeViewportToolbar()
 
 void SChaosClothAssetEditor3DViewport::OnFocusViewportToSelection()
 {
-	const FBox PreviewBoundingBox = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client)->PreviewBoundingBox();
+	const FBox PreviewBoundingBox = StaticCastSharedPtr<UE::Chaos::ClothAsset::FChaosClothAssetEditor3DViewportClient>(Client)->PreviewBoundingBox();
 	Client->FocusViewportOnBox(PreviewBoundingBox);
 }
 
@@ -155,6 +157,8 @@ float SChaosClothAssetEditor3DViewport::GetViewMinInput() const
 
 float SChaosClothAssetEditor3DViewport::GetViewMaxInput() const
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	// (these are non-const because UAnimSingleNodeInstance::GetLength() is non-const)
 	const TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
 	const TSharedPtr<FChaosClothPreviewScene> Scene = ClothViewportClient->GetClothPreviewScene().Pin();
@@ -171,6 +175,8 @@ float SChaosClothAssetEditor3DViewport::GetViewMaxInput() const
 
 EVisibility SChaosClothAssetEditor3DViewport::GetAnimControlVisibility() const
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	const TSharedPtr<const FChaosClothPreviewScene> Scene = GetPreviewScene().Pin();
 	return (Scene && Scene->GetSkeletalMeshComponent() && Scene->GetPreviewAnimInstance()) ? EVisibility::Visible : EVisibility::Hidden;
 }

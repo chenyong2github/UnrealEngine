@@ -7,6 +7,7 @@
 
 TSharedPtr<FBaseAssetToolkit> UChaosClothAssetEditor::CreateToolkit()
 {
+	using namespace UE::Chaos::ClothAsset;
 	TSharedPtr<FChaosClothAssetEditorToolkit> Toolkit = MakeShared<FChaosClothAssetEditorToolkit>(this);
 	return Toolkit;
 }

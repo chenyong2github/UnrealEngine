@@ -9,6 +9,8 @@
 
 class UInputBehaviorSet;
 
+namespace UE::Chaos::ClothAsset
+{
 class CHAOSCLOTHASSETEDITOR_API FChaosClothEditorRestSpaceViewportClient : public FEditorViewportClient
 {
 public:
@@ -34,4 +36,4 @@ private:
 
 	TWeakPtr<FUICommandList> ToolCommandList;
 };
-
+} // namespace UE::Chaos::ClothAsset

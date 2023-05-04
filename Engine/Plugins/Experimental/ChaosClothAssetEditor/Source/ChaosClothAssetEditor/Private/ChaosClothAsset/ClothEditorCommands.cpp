@@ -6,6 +6,9 @@
 
 #define LOCTEXT_NAMESPACE "FChaosClothAssetEditorCommands"
 
+namespace UE::Chaos::ClothAsset
+{
+
 const FString FChaosClothAssetEditorCommands::BeginRemeshToolIdentifier = TEXT("BeginRemeshTool");
 const FString FChaosClothAssetEditorCommands::BeginAttributeEditorToolIdentifier = TEXT("BeginAttributeEditorTool");
 const FString FChaosClothAssetEditorCommands::BeginWeightMapPaintToolIdentifier = TEXT("BeginWeightMapPaintTool");
@@ -72,6 +75,6 @@ void FChaosClothAssetEditorCommands::UpdateToolCommandBinding(UInteractiveTool* 
 		}
 	}
 }
-
+} // namespace UE::Chaos::ClothAsset
 
 #undef LOCTEXT_NAMESPACE

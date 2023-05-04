@@ -6,7 +6,6 @@
 #include "Dataflow/DataflowObjectInterface.h"
 #include "ChaosClothAsset/ClothEditorPreviewScene.h"
 
-class FChaosClothAssetEditor3DViewportClient;
 template<typename T> class SComboBox;
 class SClothCollectionOutliner;
 class UDataflow;
@@ -18,7 +17,12 @@ class UEdGraphNode;
 class UChaosClothComponent;
 class SChaosClothAssetEditorRestSpaceViewport;
 class SChaosClothAssetEditor3DViewport;
+
+namespace UE::Chaos::ClothAsset
+{
 class FClothEditorSimulationVisualization;
+class FChaosClothAssetEditor3DViewportClient;
+}
 
 namespace Dataflow
 {
@@ -33,8 +37,10 @@ namespace Dataflow
 	};
 }
 
+namespace UE::Chaos::ClothAsset
+{
 /**
- * The toolkit is supposed to act as the UI manager for the asset editor. It's responsible 
+ * The toolkit is supposed to act as the UI manager for the asset editor. It's responsible
  * for setting up viewports and most toolbars, except for the internals of the mode panel.
  * However, because the toolkit also sets up the mode manager, and much of the important
  * state is held in the UChaosClothAssetEditorMode managed by the mode manager, the toolkit also ends up
@@ -155,4 +161,4 @@ private:
 	TSharedPtr<SDockTab> NodeDetailsTab;
 	TSharedPtr<IStructureDetailsView> NodeDetailsEditor;
 };
-
+} // namespace UE::Chaos::ClothAsset

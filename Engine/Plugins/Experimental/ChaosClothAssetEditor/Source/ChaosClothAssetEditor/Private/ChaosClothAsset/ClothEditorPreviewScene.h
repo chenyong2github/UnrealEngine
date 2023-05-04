@@ -9,10 +9,14 @@
 class UChaosClothAsset;
 class USkeletalMesh;
 class UChaosClothComponent;
-class FChaosClothPreviewScene;
 class FAssetEditorModeManager;
 class UAnimationAsset;
 class UAnimSingleNodeInstance;
+
+namespace UE::Chaos::ClothAsset
+{
+class FChaosClothPreviewScene;
+}
 
 ///
 /// The UChaosClothPreviewSceneDescription is a description of the Preview scene contents, intended to be editable in an FAdvancedPreviewSettingsWidget
@@ -23,7 +27,7 @@ class CHAOSCLOTHASSETEDITOR_API UChaosClothPreviewSceneDescription : public UObj
 public:
 	GENERATED_BODY()
 
-	void SetPreviewScene(FChaosClothPreviewScene* PreviewScene);
+	void SetPreviewScene(UE::Chaos::ClothAsset::FChaosClothPreviewScene* PreviewScene);
 
 	// Skeletal Mesh source asset
 	UPROPERTY(EditAnywhere, Category="SkeletalMesh")
@@ -40,10 +44,12 @@ private:
 	// Listen for changes to the scene description members and notify the PreviewScene
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	FChaosClothPreviewScene* PreviewScene;
+	UE::Chaos::ClothAsset::FChaosClothPreviewScene* PreviewScene;
 };
 
 
+namespace UE::Chaos::ClothAsset
+{
 ///
 /// FChaosClothPreviewScene is the actual Preview scene, with contents specified by the SceneDescription
 /// 
@@ -101,5 +107,5 @@ private:
 	TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
 
 };
-
+} // namespace UE::Chaos::ClothAsset
 

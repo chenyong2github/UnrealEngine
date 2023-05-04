@@ -6,8 +6,11 @@
 #include "ITransportControl.h"  // EPlaybackMode::Type
 
 class SScrubControlPanel;
-class FChaosClothPreviewScene;
 class UAnimSingleNodeInstance;
+namespace UE::Chaos::ClothAsset
+{
+class FChaosClothPreviewScene;
+}
 
 ///
 /// A simple panel containing animation controls to operate on a UAnimSingleNodeInstance
@@ -21,7 +24,7 @@ private:
 		SLATE_ATTRIBUTE( float, ViewInputMax )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, const TWeakPtr<FChaosClothPreviewScene> InPreviewScene );
+	void Construct( const FArguments& InArgs, const TWeakPtr<UE::Chaos::ClothAsset::FChaosClothPreviewScene> InPreviewScene );
 
 	// notifiers 
 	FReply OnClick_Forward_Step();
@@ -47,7 +50,7 @@ private:
 
 	bool GetDisplayDrag() const;
 
-	TWeakPtr<FChaosClothPreviewScene> PreviewSceneWeakPtr;
+	TWeakPtr<UE::Chaos::ClothAsset::FChaosClothPreviewScene> PreviewSceneWeakPtr;
 
 	TSharedPtr<SScrubControlPanel> ScrubControlPanel;
 };

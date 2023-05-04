@@ -11,6 +11,8 @@
 
 void SChaosClothAssetEditorRestSpaceViewport::BindCommands()
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	SAssetEditorViewport::BindCommands();
 
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();

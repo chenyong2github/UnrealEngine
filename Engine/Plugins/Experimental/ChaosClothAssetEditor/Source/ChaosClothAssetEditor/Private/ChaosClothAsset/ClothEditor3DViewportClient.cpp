@@ -20,6 +20,8 @@
 #include "AssetViewerSettings.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 
+namespace UE::Chaos::ClothAsset
+{
 FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools,
 	TSharedPtr<FChaosClothPreviewScene> InPreviewScene,
 	TSharedPtr<FClothEditorSimulationVisualization> InVisualization,
@@ -232,7 +234,7 @@ void FChaosClothAssetEditor3DViewportClient::Draw(const FSceneView* View, FPrimi
 	FEditorViewportClient::Draw(View, PDI);
 	TSharedPtr<FClothEditorSimulationVisualization> Visualization = ClothEditorSimulationVisualization.Pin();
 	UChaosClothComponent* const ClothComponent = GetPreviewClothComponent();
-	if(Visualization && ClothComponent)
+	if (Visualization && ClothComponent)
 	{
 		Visualization->DebugDrawSimulation(ClothComponent, PDI);
 	}
@@ -312,7 +314,7 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 		const HActor* const ActorProxy = static_cast<HActor*>(HitProxy);
 		if (ActorProxy && ActorProxy->Actor)
 		{
-			const AActor* const Actor = ActorProxy->Actor;		
+			const AActor* const Actor = ActorProxy->Actor;
 			USceneComponent* RootComponent = Actor->GetRootComponent();
 			if (RootComponent)
 			{
@@ -325,7 +327,7 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 					// Don't use USelection::ToggleSelect here because that checks membership in GObjectSelection, not the given USelection...
 					TArray<USceneComponent*> Components;
 					SelectedComponents->GetSelectedObjects(Components);
-					const bool bIsSelected = Components.Contains(RootComponent);	
+					const bool bIsSelected = Components.Contains(RootComponent);
 
 					if (bIsSelected)
 					{
@@ -431,3 +433,4 @@ void FChaosClothAssetEditor3DViewportClient::SetAdvancedShowFlagsForScene(const 
 		EngineShowFlags.DisableAdvancedFeatures();
 	}
 }
+} // namespace UE::Chaos::ClothAsset

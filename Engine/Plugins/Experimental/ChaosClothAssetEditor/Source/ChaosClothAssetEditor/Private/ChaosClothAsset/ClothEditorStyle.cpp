@@ -8,6 +8,8 @@
 #include "Interfaces/IPluginManager.h"
 #include "Misc/Paths.h"
 
+namespace UE::Chaos::ClothAsset
+{
 const FName FChaosClothAssetEditorStyle::StyleName("ClothStyle");
 
 FString FChaosClothAssetEditorStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
@@ -27,7 +29,7 @@ FChaosClothAssetEditorStyle::FChaosClothAssetEditorStyle()
 	// TODO: Set this once we get our own UI content
 	FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("ModelingToolsEditorMode"))->GetContentDir();
 	SetContentRoot(ContentDir);
-	
+
 	// Some standard icon sizes used elsewhere in the editor
 	const FVector2D Icon8x8(8.0f, 8.0f);
 	const FVector2D Icon16x16(16.0f, 16.0f);
@@ -41,8 +43,8 @@ FChaosClothAssetEditorStyle::FChaosClothAssetEditorStyle()
 	const FVector2D ToolbarIconSize = Icon20x20;
 
 	FString PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::BeginRemeshToolIdentifier;
-	Set(*PropertyNameString, new FSlateImageBrush(FChaosClothAssetEditorStyle::InContent("Icons/Remesh_40x", ".png"), ToolbarIconSize ));
-	
+	Set(*PropertyNameString, new FSlateImageBrush(FChaosClothAssetEditorStyle::InContent("Icons/Remesh_40x", ".png"), ToolbarIconSize));
+
 	PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::BeginAttributeEditorToolIdentifier;
 	Set(*PropertyNameString, new FSlateImageBrush(FChaosClothAssetEditorStyle::InContent("Icons/AttributeEditor_40x", ".png"), ToolbarIconSize));
 
@@ -81,7 +83,7 @@ FChaosClothAssetEditorStyle::FChaosClothAssetEditorStyle()
 	// TODO: Get a permanent icon to replace this placeholder
 	PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::HardResetSimulationIdentifier;
 	Set(*PropertyNameString, new CORE_IMAGE_BRUSH_SVG("Starship/Common/Apply", ToolbarIconSize));
-	
+
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }
 
@@ -95,5 +97,4 @@ FChaosClothAssetEditorStyle& FChaosClothAssetEditorStyle::Get()
 	static FChaosClothAssetEditorStyle Inst;
 	return Inst;
 }
-
-
+} // namespace UE::Chaos::ClothAsset

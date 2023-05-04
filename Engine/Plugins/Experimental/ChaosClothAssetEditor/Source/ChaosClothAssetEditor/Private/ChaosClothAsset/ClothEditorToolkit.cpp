@@ -41,6 +41,8 @@
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetEditorToolkit"
 
+namespace UE::Chaos::ClothAsset
+{
 const FName FChaosClothAssetEditorToolkit::ClothPreviewTabID(TEXT("ChaosClothAssetEditor_ClothPreviewTab"));
 const FName FChaosClothAssetEditorToolkit::OutlinerTabID(TEXT("ChaosClothAssetEditor_OutlinerTab"));
 const FName FChaosClothAssetEditorToolkit::PreviewSceneDetailsTabID(TEXT("ChaosClothAssetEditor_PreviewSceneDetailsTab"));
@@ -48,7 +50,7 @@ const FName FChaosClothAssetEditorToolkit::GraphCanvasTabId(TEXT("ChaosClothAsse
 const FName FChaosClothAssetEditorToolkit::NodeDetailsTabId(TEXT("ChaosClothAssetEditor_NodeDetails"));
 
 
-namespace ClothEditorToolkitHelpers
+namespace Private
 {
 	UDataflow* GetDataflowFrom(const UObject* InObject)
 	{
@@ -236,7 +238,7 @@ void FChaosClothAssetEditorToolkit::Tick(float DeltaTime)
 			DataflowContext = TSharedPtr<Dataflow::FEngineContext>(new Dataflow::FClothAssetDataflowContext(ClothAsset, Dataflow, Dataflow::FTimestamp::Invalid));
 			LastDataflowNodeTimestamp = Dataflow::FTimestamp::Invalid;
 		}
-		DataflowTerminalPath = ClothEditorToolkitHelpers::GetDataflowTerminalFrom(ClothAsset);
+		DataflowTerminalPath = Private::GetDataflowTerminalFrom(ClothAsset);
 
 		Dataflow::FTimestamp OldTimestamp = LastDataflowNodeTimestamp;
 		FDataflowEditorCommands::EvaluateTerminalNode(*DataflowContext.Get(), LastDataflowNodeTimestamp, Dataflow, nullptr, nullptr, ClothAsset, DataflowTerminalPath);
@@ -308,12 +310,12 @@ void FChaosClothAssetEditorToolkit::CreateWidgets()
 
 	if (ClothAsset)
 	{
-		Dataflow = ClothEditorToolkitHelpers::GetDataflowFrom(ClothAsset);
+		Dataflow = Private::GetDataflowFrom(ClothAsset);
 
 		// TODO: Figure out how to create the GraphEditor widgets when the ClothAsset doesn't have a Dataflow property set
 		if (Dataflow)
 		{
-			DataflowTerminalPath = ClothEditorToolkitHelpers::GetDataflowTerminalFrom(ClothAsset);
+			DataflowTerminalPath = Private::GetDataflowTerminalFrom(ClothAsset);
 
 			Dataflow->Schema = UDataflowSchema::StaticClass();
 
@@ -757,7 +759,7 @@ void FChaosClothAssetEditorToolkit::OnFinishedChangingAssetProperties(const FPro
 		const UChaosClothAsset* const ClothAsset = GetAsset();
 		if (ClothAsset)
 		{
-			Dataflow = ClothEditorToolkitHelpers::GetDataflowFrom(ClothAsset);
+			Dataflow = Private::GetDataflowFrom(ClothAsset);
 
 			if (Dataflow)
 			{
@@ -846,7 +848,7 @@ void FChaosClothAssetEditorToolkit::ReinitializeGraphEditorWidget()
 
 	if (!GraphEditor)
 	{
-		DataflowTerminalPath = ClothEditorToolkitHelpers::GetDataflowTerminalFrom(ClothAsset);
+		DataflowTerminalPath = Private::GetDataflowTerminalFrom(ClothAsset);
 
 		NodeDetailsEditor = CreateNodeDetailsEditorWidget(ClothAsset);
 		if (NodeDetailsTab.IsValid())
@@ -1047,6 +1049,6 @@ void FChaosClothAssetEditorToolkit::InvalidateViews()
 	ViewportClient->Invalidate();
 	ClothPreviewViewportClient->Invalidate();
 }
-
+} // namespace UE::Chaos::ClothAsset
 
 #undef LOCTEXT_NAMESPACE

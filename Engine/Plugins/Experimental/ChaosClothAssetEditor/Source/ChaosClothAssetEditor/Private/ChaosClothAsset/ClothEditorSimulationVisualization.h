@@ -4,12 +4,16 @@
 #include "Containers/BitArray.h"
 #include "Templates/SharedPointer.h"
 
-class FChaosClothAssetEditor3DViewportClient;
 class FMenuBuilder;
 class UChaosClothComponent;
 class FPrimitiveDrawInterface;
 class FCanvas;
 class FSceneView;
+
+namespace UE::Chaos::ClothAsset
+{
+
+class FChaosClothAssetEditor3DViewportClient;
 
 class FClothEditorSimulationVisualization
 {
@@ -30,3 +34,4 @@ private:
 	/** Flags used to store the checked status for the visualization options. */
 	TBitArray<> Flags;
 };
+} // namespace UE::Chaos::ClothAsset

@@ -5,6 +5,8 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 
+namespace UE::Chaos::ClothAsset
+{
 /**
  * Slate style set for Cloth Editor
  */
@@ -23,3 +25,4 @@ private:
 	FChaosClothAssetEditorStyle();
 	~FChaosClothAssetEditorStyle();
 };
+} // namespace UE::Chaos::ClothAsset

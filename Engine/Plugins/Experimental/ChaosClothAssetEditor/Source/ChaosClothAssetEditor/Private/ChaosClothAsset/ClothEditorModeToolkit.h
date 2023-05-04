@@ -15,6 +15,8 @@ class SBaseCharacterFXEditorViewport;
  * NOTE: the cloth editor has two separate viewports/worlds/modemanagers/toolscontexts, so we need to track which
  * one is currently active.
  */
+namespace UE::Chaos::ClothAsset
+{
 class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditorModeToolkit : public FBaseCharacterFXEditorModeToolkit
 {
 public:
@@ -47,3 +49,4 @@ private:
 	TWeakPtr<SChaosClothAssetEditor3DViewport> PreviewViewportWidget;
 
 };
+} // namespace UE::Chaos::ClothAsset

@@ -196,6 +196,8 @@ void UChaosClothAssetEditorMode::RegisterClothTool(TSharedPtr<FUICommandInfo> UI
 
 void UChaosClothAssetEditorMode::RegisterPreviewTools()
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	UEditorInteractiveToolsContext* const PreviewSceneToolsContext = PreviewScene->GetClothPreviewEditorModeManager()->GetInteractiveToolsContext();
 
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
@@ -204,6 +206,8 @@ void UChaosClothAssetEditorMode::RegisterPreviewTools()
 
 void UChaosClothAssetEditorMode::RegisterTools()
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
 
 	// Note that the identifiers below need to match the command names so that the tool icons can 
@@ -241,11 +245,13 @@ bool UChaosClothAssetEditorMode::ShouldToolStartBeAllowed(const FString& ToolIde
 
 void UChaosClothAssetEditorMode::CreateToolkit()
 {
-	Toolkit = MakeShared<FChaosClothAssetEditorModeToolkit>();
+	Toolkit = MakeShared<UE::Chaos::ClothAsset::FChaosClothAssetEditorModeToolkit>();
 }
 
 void UChaosClothAssetEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, false);
 
 	bCanTogglePattern2DMode = false;
@@ -259,7 +265,7 @@ void UChaosClothAssetEditorMode::OnToolStarted(UInteractiveToolManager* Manager,
 
 void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, true);
+	UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, true);
 
 	bCanTogglePattern2DMode = true;
 	ActiveToolsContext = nullptr;
@@ -279,6 +285,7 @@ void UChaosClothAssetEditorMode::PostUndo()
 
 void UChaosClothAssetEditorMode::BindCommands()
 {
+	using namespace UE::Chaos::ClothAsset;
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 
@@ -335,8 +342,10 @@ void UChaosClothAssetEditorMode::Exit()
 	Super::Exit();
 }
 
-void UChaosClothAssetEditorMode::SetPreviewScene(FChaosClothPreviewScene* InPreviewScene)
+void UChaosClothAssetEditorMode::SetPreviewScene(UE::Chaos::ClothAsset::FChaosClothPreviewScene* InPreviewScene)
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	PreviewScene = InPreviewScene;
 
 
@@ -887,7 +896,7 @@ void UChaosClothAssetEditorMode::TogglePatternMode()
 	bPattern2DMode = !bPattern2DMode;
 	ReinitializeDynamicMeshComponents();
 
-	TSharedPtr<FChaosClothEditorRestSpaceViewportClient> VC = RestSpaceViewportClient.Pin();
+	TSharedPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient> VC = RestSpaceViewportClient.Pin();
 	if (VC.IsValid())
 	{
 		VC->Set2DMode(bPattern2DMode);
@@ -902,11 +911,11 @@ bool UChaosClothAssetEditorMode::CanTogglePatternMode() const
 }
 
 
-void UChaosClothAssetEditorMode::SetRestSpaceViewportClient(TWeakPtr<FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> InViewportClient)
+void UChaosClothAssetEditorMode::SetRestSpaceViewportClient(TWeakPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> InViewportClient)
 {
 	RestSpaceViewportClient = InViewportClient;
 
-	TSharedPtr<FChaosClothEditorRestSpaceViewportClient> VC = RestSpaceViewportClient.Pin();
+	TSharedPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient> VC = RestSpaceViewportClient.Pin();
 	if (VC.IsValid())
 	{
 		VC->Set2DMode(bPattern2DMode);

@@ -11,7 +11,7 @@
 
 #define LOCTEXT_NAMESPACE "UChaosClothEditorPreviewScene"
 
-void UChaosClothPreviewSceneDescription::SetPreviewScene(FChaosClothPreviewScene* InPreviewScene)
+void UChaosClothPreviewSceneDescription::SetPreviewScene(UE::Chaos::ClothAsset::FChaosClothPreviewScene* InPreviewScene)
 {
 	PreviewScene = InPreviewScene;
 }
@@ -24,7 +24,8 @@ void UChaosClothPreviewSceneDescription::PostEditChangeProperty(FPropertyChanged
 	}
 }
 
-
+namespace UE::Chaos::ClothAsset
+{
 
 FChaosClothPreviewScene::FChaosClothPreviewScene(FPreviewScene::ConstructionValues ConstructionValues) :
 	FAdvancedPreviewScene(ConstructionValues)
@@ -290,6 +291,7 @@ const UAnimSingleNodeInstance* const FChaosClothPreviewScene::GetPreviewAnimInst
 {
 	return PreviewAnimInstance;
 }
+} // namespace UE::Chaos::ClothAsset
 
 #undef LOCTEXT_NAMESPACE
 

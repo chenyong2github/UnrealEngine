@@ -8,9 +8,13 @@
 
 class UChaosClothComponent;
 class UChaosClothAssetEditorMode;
-class FChaosClothAssetEditorToolkit;
 class UTransformProxy;
 class UCombinedTransformGizmo;
+
+namespace UE::Chaos::ClothAsset
+{
+
+class FChaosClothAssetEditorToolkit;
 class FChaosClothPreviewScene;
 class FClothEditorSimulationVisualization;
 
@@ -36,7 +40,7 @@ public:
 
 	void ClearSelectedComponents();
 
-	void EnableSimMeshWireframe(bool bEnable ) { bSimMeshWireframe = bEnable; }
+	void EnableSimMeshWireframe(bool bEnable) { bSimMeshWireframe = bEnable; }
 	bool SimMeshWireframeEnabled() const { return bSimMeshWireframe; }
 
 	void EnableRenderMeshWireframe(bool bEnable);
@@ -102,3 +106,4 @@ private:
 	TObjectPtr<UCombinedTransformGizmo> Gizmo = nullptr;
 
 };
+} // namespace UE::Chaos::ClothAsset

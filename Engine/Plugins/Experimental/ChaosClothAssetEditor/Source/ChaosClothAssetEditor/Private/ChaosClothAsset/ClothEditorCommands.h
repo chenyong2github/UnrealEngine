@@ -4,6 +4,8 @@
 
 #include "BaseCharacterFXEditorCommands.h"
 
+namespace UE::Chaos::ClothAsset
+{
 class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditorCommands : public TBaseCharacterFXEditorCommands<FChaosClothAssetEditorCommands>
 {
 public:
@@ -64,3 +66,4 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleSimulationSuspended;
 
 };
+} // namespace UE::Chaos::ClothAsset

@@ -10,6 +10,8 @@
 #include "Components/DynamicMeshComponent.h"
 #include "Framework/Application/SlateApplication.h"
 
+namespace UE::Chaos::ClothAsset
+{
 FChaosClothEditorRestSpaceViewportClient::FChaosClothEditorRestSpaceViewportClient(FEditorModeTools* InModeTools,
 	FPreviewScene* InPreviewScene,
 	const TWeakPtr<SEditorViewport>& InEditorViewportWidget) :
@@ -86,7 +88,7 @@ void FChaosClothEditorRestSpaceViewportClient::ProcessClick(FSceneView& View, HH
 	if (HitProxy && HitProxy->IsA(HActor::StaticGetType()))
 	{
 		const HActor* ActorProxy = static_cast<HActor*>(HitProxy);
-		if (ActorProxy && ActorProxy->Actor )
+		if (ActorProxy && ActorProxy->Actor)
 		{
 			const AActor* Actor = ActorProxy->Actor;
 			const TSet<UActorComponent*>& OwnedComponents = Actor->GetComponents();
@@ -119,3 +121,4 @@ void FChaosClothEditorRestSpaceViewportClient::SetToolCommandList(TWeakPtr<FUICo
 {
 	ToolCommandList = InToolCommandList;
 }
+} // namespace UE::Chaos::ClothAsset

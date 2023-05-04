@@ -23,6 +23,9 @@
 	
 #define LOCTEXT_NAMESPACE "FChaosClothAssetEditorModeToolkit"
 
+namespace UE::Chaos::ClothAsset
+{
+
 FName FChaosClothAssetEditorModeToolkit::GetToolkitFName() const
 {
 	return FName("ChaosClothAssetEditorMode");
@@ -274,5 +277,6 @@ void FChaosClothAssetEditorModeToolkit::SetPreviewViewportWidget(TWeakPtr<SChaos
 	PreviewViewportWidget = InPreviewViewportWidget;
 }
 
+} // namespace UE::Chaos::ClothAsset
 
 #undef LOCTEXT_NAMESPACE

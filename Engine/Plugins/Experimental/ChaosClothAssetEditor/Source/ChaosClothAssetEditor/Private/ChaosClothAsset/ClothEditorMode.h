@@ -17,21 +17,25 @@ class UPreviewMesh;
 class UToolTarget;
 class FToolTargetTypeRequirements;
 class UWorld;
-class FChaosClothAssetEditorModeToolkit;
 class UInteractiveToolPropertySet; 
 class UMeshOpPreviewWithBackgroundCompute;
 class UClothToolViewportButtonsAPI;
 class UDynamicMeshComponent;
 class UChaosClothComponent;
 class FEditorViewportClient;
-class FChaosClothEditorRestSpaceViewportClient;
 class FViewport;
 class UDataflow;
 class UDataflowComponent;
-class FChaosClothPreviewScene;
-class FChaosClothAssetEditor3DViewportClient;
 class SDataflowGraphEditor;
 struct FManagedArrayCollection;
+namespace UE::Chaos::ClothAsset
+{
+class FChaosClothPreviewScene;
+class FChaosClothAssetEditor3DViewportClient;
+class FChaosClothAssetEditorModeToolkit;
+class FChaosClothAssetEditorToolkit;
+class FChaosClothEditorRestSpaceViewportClient;
+}
 
 /**
  * The cloth editor mode is the mode used in the cloth asset editor. It holds most of the inter-tool state.
@@ -77,8 +81,8 @@ public:
 
 private:
 
-	friend class FChaosClothAssetEditorToolkit;
-	friend class FChaosClothAssetEditorModeToolkit;
+	friend class UE::Chaos::ClothAsset::FChaosClothAssetEditorToolkit;
+	friend class UE::Chaos::ClothAsset::FChaosClothAssetEditorModeToolkit;
 
 	// UEdMode
 	virtual void Enter() final;
@@ -114,12 +118,12 @@ private:
 	// Register the set of tools that operate on objects in the 3D preview world 
 	void RegisterPreviewTools();
 
-	void SetPreviewScene(FChaosClothPreviewScene* PreviewScene);
+	void SetPreviewScene(UE::Chaos::ClothAsset::FChaosClothPreviewScene* PreviewScene);
 
 	// Bounding box for rest space meshes
 	virtual FBox SceneBoundingBox() const override;
 
-	void SetRestSpaceViewportClient(TWeakPtr<FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> ViewportClient);
+	void SetRestSpaceViewportClient(TWeakPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> ViewportClient);
 	void RefocusRestSpaceViewportClient();
 
 	// intended to be called by the toolkit when selected node in the Dataflow graph changes
@@ -138,7 +142,7 @@ private:
 	TArray<TObjectPtr<UMeshElementsVisualizer>> WireframesToTick;
 
 	// Preview Scene, here largely for convenience to avoid having to pass it around functions. Owned by the ClothEditorToolkit.
-	FChaosClothPreviewScene* PreviewScene = nullptr;
+	UE::Chaos::ClothAsset::FChaosClothPreviewScene* PreviewScene = nullptr;
 
 	// Mode-level property objects (visible or not) that get ticked.
 	UPROPERTY()
@@ -160,7 +164,7 @@ private:
 	};
 	TArray<FDynamicMeshSourceInfo> DynamicMeshSourceInfos;
 
-	TWeakPtr<FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> RestSpaceViewportClient;
+	TWeakPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> RestSpaceViewportClient;
 
 	// Handle to a callback triggered when the current selection changes
 	FDelegateHandle SelectionModifiedEventHandle;

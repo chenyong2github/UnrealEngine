@@ -11,6 +11,8 @@
 
 #define LOCTEXT_NAMESPACE "ClothEditorSimulationVisualization"
 
+namespace UE::Chaos::ClothAsset
+{
 namespace Private
 {
 struct FVisualizationOption
@@ -207,4 +209,6 @@ void FClothEditorSimulationVisualization::ShowClothSections(UChaosClothComponent
 		}
 	}
 }
+} // namespace UE::Chaos::ClothAsset
+
 #undef LOCTEXT_NAMESPACE

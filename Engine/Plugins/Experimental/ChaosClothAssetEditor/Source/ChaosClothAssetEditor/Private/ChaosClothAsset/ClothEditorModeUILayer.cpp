@@ -14,12 +14,14 @@ const FName UChaosClothAssetEditorUISubsystem::EditorSidePanelAreaName = "ChaosC
 
 void UChaosClothAssetEditorUISubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	using namespace UE::Chaos::ClothAsset;
 	FChaosClothAssetEditorModule& ChaosClothAssetEditorModule = FModuleManager::GetModuleChecked<FChaosClothAssetEditorModule>("ChaosClothAssetEditor");
 	ChaosClothAssetEditorModule.OnRegisterLayoutExtensions().AddUObject(this, &UChaosClothAssetEditorUISubsystem::RegisterLayoutExtensions);
 }
 
 void UChaosClothAssetEditorUISubsystem::Deinitialize()
 {
+	using namespace UE::Chaos::ClothAsset;
 	FChaosClothAssetEditorModule& ChaosClothAssetEditorModule = FModuleManager::GetModuleChecked<FChaosClothAssetEditorModule>("ChaosClothAssetEditor");
 	ChaosClothAssetEditorModule.OnRegisterLayoutExtensions().RemoveAll(this);
 }

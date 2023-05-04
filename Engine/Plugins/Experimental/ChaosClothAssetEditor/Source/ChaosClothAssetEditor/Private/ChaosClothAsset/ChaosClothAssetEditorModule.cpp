@@ -14,10 +14,10 @@
 
 #define LOCTEXT_NAMESPACE "FChaosClothAssetEditorModule"
 
+namespace UE::Chaos::ClothAsset
+{
 void FChaosClothAssetEditorModule::StartupModule()
 {
-	using namespace UE::Chaos::ClothAsset;
-
 	FChaosClothAssetEditorStyle::Get(); // Causes the constructor to be called
 
 	FChaosClothAssetEditorCommands::Register();
@@ -37,7 +37,8 @@ void FChaosClothAssetEditorModule::ShutdownModule()
 
 	// TODO: Unregister details view customizations
 }
+} // namespace UE::Chaos::ClothAsset
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FChaosClothAssetEditorModule, ChaosClothAssetEditor)
+IMPLEMENT_MODULE(UE::Chaos::ClothAsset::FChaosClothAssetEditorModule, ChaosClothAssetEditor)

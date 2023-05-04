@@ -6,11 +6,11 @@
 #include "BaseCharacterFXEditorModule.h"
 
 class FLayoutExtender;
+
 namespace UE::Chaos::ClothAsset
 {
-	class FAssetTypeActions_ClothAsset;
-	class FAssetTypeActions_ClothPreset;
-}
+class FAssetTypeActions_ClothAsset;
+class FAssetTypeActions_ClothPreset;
 
 class CHAOSCLOTHASSETEDITOR_API FChaosClothAssetEditorModule : public FBaseCharacterFXEditorModule
 {
@@ -21,7 +21,8 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	UE::Chaos::ClothAsset::FAssetTypeActions_ClothAsset* AssetTypeActions_ClothAsset;
-	UE::Chaos::ClothAsset::FAssetTypeActions_ClothPreset* AssetTypeActions_ClothPreset;
+	FAssetTypeActions_ClothAsset* AssetTypeActions_ClothAsset;
+	FAssetTypeActions_ClothPreset* AssetTypeActions_ClothPreset;
 
 };
+} // namespace UE::Chaos::ClothAsset

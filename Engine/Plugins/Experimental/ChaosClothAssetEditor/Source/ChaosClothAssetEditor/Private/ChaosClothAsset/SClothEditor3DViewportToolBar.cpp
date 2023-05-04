@@ -79,6 +79,8 @@ TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeDisplayToolBar(
 
 TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeToolBar(const TSharedPtr<FExtender> InExtenders)
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	// The following is modeled after portions of STransformViewportToolBar, which gets 
 	// used in SCommonEditorViewportToolbarBase.
 
@@ -145,6 +147,8 @@ TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeToolBar(const T
 
 void SChaosClothAssetEditor3DViewportToolBar::ExtendOptionsMenu(FMenuBuilder& OptionsMenuBuilder) const
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	constexpr bool bOpenSubMenuOnClick = false;
 	constexpr bool bShouldCloseWindowAfterMenuSelection = false;
 	OptionsMenuBuilder.AddSubMenu(

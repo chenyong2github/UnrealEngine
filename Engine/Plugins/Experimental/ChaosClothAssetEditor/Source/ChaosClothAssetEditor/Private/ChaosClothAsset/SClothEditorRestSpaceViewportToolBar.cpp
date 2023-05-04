@@ -75,6 +75,8 @@ TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::MakeDisplayT
 
 TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::MakeToolBar(const TSharedPtr<FExtender> InExtenders)
 {
+	using namespace UE::Chaos::ClothAsset;
+
 	// The following is modeled after portions of STransformViewportToolBar, which gets 
 	// used in SCommonEditorViewportToolbarBase.
 
