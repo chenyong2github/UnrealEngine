@@ -632,9 +632,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			// Format the sparse data
 			using (UhtMacroCreator macro = new(builder, this, classObj, SparseDataMacroSuffix))
 			{
-				List<UhtScriptStruct> sparseScriptStructs = GetSparseDataStructsToExport(classObj);
+				IEnumerable<UhtScriptStruct> sparseScriptStructs = GetSparseDataStructsToExport(classObj);
 
-				if (sparseScriptStructs.Count > 0)
+				if (sparseScriptStructs.Any())
 				{
 					string api = classObj.ClassFlags.HasAnyFlags(EClassFlags.MinimalAPI) ? PackageApi : "";
 

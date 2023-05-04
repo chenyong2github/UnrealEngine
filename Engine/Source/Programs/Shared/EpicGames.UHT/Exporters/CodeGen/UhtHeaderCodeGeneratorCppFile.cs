@@ -1298,9 +1298,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 		private static StringBuilder AppendSparseAccessors(StringBuilder builder, UhtClass classObj)
 		{
-			List<UhtScriptStruct> sparseScriptStructs = GetSparseDataStructsToExport(classObj);
-
-			foreach (UhtScriptStruct sparseScriptStruct in sparseScriptStructs)
+			foreach (UhtScriptStruct sparseScriptStruct in GetSparseDataStructsToExport(classObj))
 			{
 				string sparseDataType = sparseScriptStruct.EngineName;
 

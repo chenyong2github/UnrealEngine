@@ -536,42 +536,23 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// This list excludes anything that has already been exported by the super class.
 		/// </summary>
 		/// <param name="classObj">Class in question</param>
-		/// <returns>List of structs</returns>
-		protected static List<UhtScriptStruct> GetSparseDataStructsToExport(UhtClass classObj)
+		/// <returns>Enumeration of structs</returns>
+		protected static IEnumerable<UhtScriptStruct> GetSparseDataStructsToExport(UhtClass classObj)
 		{
-			List<UhtScriptStruct> sparseScriptStructs = new List<UhtScriptStruct>();
-
 			string[]? sparseDataTypes = classObj.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
 			if (sparseDataTypes != null)
 			{
-				List<UhtScriptStruct> baseSparseScriptStructs = new List<UhtScriptStruct>();
-				{
-					string[]? baseSparseDataTypes = classObj.SuperClass?.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
-					if (baseSparseDataTypes != null)
-					{
-						foreach (string baseSparseDataType in baseSparseDataTypes)
-						{
-							UhtScriptStruct? baseSparseScriptStruct = classObj.FindType(UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct | UhtFindOptions.NoSelf, baseSparseDataType) as UhtScriptStruct;
-							if (baseSparseScriptStruct != null)
-							{
-								baseSparseScriptStructs.Add(baseSparseScriptStruct);
-							}
-						}
-					}
-				}
-
+				HashSet<string> baseSparseDataTypes = new(classObj.SuperClass?.MetaData.GetStringArray(UhtNames.SparseClassDataTypes) ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
 				foreach (string sparseDataType in sparseDataTypes)
 				{
 					UhtScriptStruct? sparseScriptStruct = classObj.FindType(UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct | UhtFindOptions.NoSelf, sparseDataType) as UhtScriptStruct;
-					while (sparseScriptStruct != null && !baseSparseScriptStructs.Contains(sparseScriptStruct))
+					while (sparseScriptStruct != null && !baseSparseDataTypes.Contains(sparseScriptStruct.EngineName))
 					{
-						sparseScriptStructs.Add(sparseScriptStruct);
+						yield return sparseScriptStruct;
 						sparseScriptStruct = sparseScriptStruct.SuperScriptStruct;
 					}
 				}
 			}
-
-			return sparseScriptStructs;
 		}
 
 		protected static string GetDelegateFunctionExportName(UhtFunction function)
