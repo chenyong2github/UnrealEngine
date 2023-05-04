@@ -1177,7 +1177,7 @@ bool FMediaPlayerFacade::Seek(const FTimespan& InTime)
 	}
 	else
 	{
-		Time = FTimespan(FMath::Clamp(InTime.GetTicks(), 0, Duration.GetTicks()));
+		Time = FTimespan(FMath::Clamp(InTime.GetTicks(), (int64)0L, Duration.GetTicks()));
 	}
 
 	if (!CurrentPlayer->GetControls().Seek(Time))
