@@ -223,6 +223,13 @@ void URigVM::Load(FArchive& Ar)
 		Ar << ByteCodeStorage;
 		Ar << Parameters;
 	}
+
+	// ensure to load the required functions
+	if(!ResolveFunctionsIfRequired())
+	{
+		Reset();
+		return;
+	}
 }
 
 void URigVM::PostLoad()
@@ -905,8 +912,12 @@ FRigVMParameter URigVM::GetParameterByName(const FName& InParameterName)
 	return FRigVMParameter();
 }
 
-void URigVM::ResolveFunctionsIfRequired()
+bool URigVM::ResolveFunctionsIfRequired()
 {
+	FScopeLock ResolveFunctionsScopeLock(&ResolveFunctionsMutex);
+	
+	bool bSuccess = true;
+	
 	if (GetFunctions().Num() != GetFunctionNames().Num())
 	{
 		GetFunctions().Reset();
@@ -925,9 +936,12 @@ void URigVM::ResolveFunctionsIfRequired()
 			{
 				// We cannot recover from missing functions. 
 				UE_LOG(LogRigVM, Fatal, TEXT("No handler found for function '%s'"), *GetFunctionNames()[FunctionIndex].ToString());
+				bSuccess = false;
 			}
 		}
 	}
+
+	return bSuccess;
 }
 
 void URigVM::RefreshInstructionsIfRequired()

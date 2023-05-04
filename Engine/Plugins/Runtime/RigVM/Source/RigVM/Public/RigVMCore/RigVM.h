@@ -730,7 +730,7 @@ public:
 
 private:
 
-	void ResolveFunctionsIfRequired();
+	bool ResolveFunctionsIfRequired();
 	void RefreshInstructionsIfRequired();
 public:
 	void InvalidateCachedMemory();
@@ -903,6 +903,8 @@ protected:
 	void SetupInstructionTracking(FRigVMExtendedExecuteContext& Context, int32 InInstructionCount);
 	void StartProfiling(FRigVMExtendedExecuteContext& Context);
 	void StopProfiling(FRigVMExtendedExecuteContext& Context);
+	
+	FCriticalSection ResolveFunctionsMutex;
 
 	friend class URigVMCompiler;
 	friend struct FRigVMCompilerWorkData;

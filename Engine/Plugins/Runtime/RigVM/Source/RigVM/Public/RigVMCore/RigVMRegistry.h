@@ -220,7 +220,8 @@ public:
 	const FRigVMTemplate* GetOrAddTemplateFromArguments(
 		const FName& InName,
 		const TArray<FRigVMTemplateArgument>& InArguments,
-		const FRigVMTemplateDelegates& InDelegates);
+		const FRigVMTemplateDelegates& InDelegates,
+		bool bIsDispatchingTemplate = false);
 
 	// Returns a dispatch factory given its name (or nullptr)
 	FRigVMDispatchFactory* FindDispatchFactory(const FName& InFactoryName) const;
@@ -355,7 +356,16 @@ private:
 	
 	// Notifies other system that types have been added/removed, and template permutations have been updated
 	FOnRigVMRegistryChanged OnRigVMRegistryChangedDelegate;
-	
+
+	static FCriticalSection RefreshTypesMutex;
+	static FCriticalSection RegisterFunctionMutex;
+	static FCriticalSection RegisterTemplateMutex;
+	static FCriticalSection RegisterFactoryMutex;
+	static FCriticalSection FindFunctionMutex;
+	static FCriticalSection FindTemplateMutex;
+	static FCriticalSection FindFactoryMutex;
+	static FCriticalSection GetPermutationMutex;
+
 	friend struct FRigVMStruct;
 	friend struct FRigVMTemplate;
 	friend struct FRigVMTemplateArgument;
