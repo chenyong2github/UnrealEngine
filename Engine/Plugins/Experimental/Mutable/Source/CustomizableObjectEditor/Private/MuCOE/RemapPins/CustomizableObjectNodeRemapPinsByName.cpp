@@ -3,9 +3,10 @@
 #include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByName.h"
 
 #include "MuCOE/UnrealEditorPortabilityHelpers.h"
+#include "MuCOE/Nodes/CustomizableObjectNode.h"
 
 
-bool UCustomizableObjectNodeRemapPinsByName::Equal(const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const
+bool UCustomizableObjectNodeRemapPinsByName::Equal(const UCustomizableObjectNode& Node, const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const
 {
 	return Helper_GetPinName(&OldPin) == Helper_GetPinName(&NewPin) &&
 				OldPin.PinType == NewPin.PinType &&
@@ -13,7 +14,7 @@ bool UCustomizableObjectNodeRemapPinsByName::Equal(const UEdGraphPin& OldPin, co
 }
 
 
-void UCustomizableObjectNodeRemapPinsByName::RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
+void UCustomizableObjectNodeRemapPinsByName::RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
 {
 	for (UEdGraphPin* OldPin : OldPins)
 	{
@@ -21,7 +22,7 @@ void UCustomizableObjectNodeRemapPinsByName::RemapPins(const TArray<UEdGraphPin*
 
 		for (UEdGraphPin* NewPin : NewPins)
 		{
-			if (Equal(*OldPin, *NewPin))
+			if (Equal(Node, *OldPin, *NewPin))
 			{
 				bFound = true;
 

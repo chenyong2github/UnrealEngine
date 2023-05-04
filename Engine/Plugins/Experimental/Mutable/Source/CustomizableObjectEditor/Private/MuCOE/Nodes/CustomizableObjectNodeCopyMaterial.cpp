@@ -25,11 +25,6 @@ FText UCustomizableObjectNodeCopyMaterial::GetNodeTitle(ENodeTitleType::Type Tit
 
 void UCustomizableObjectNodeCopyMaterial::AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins)
 {
-	if (UCustomizableObjectNodeMaterialRemapPinsByName* RemapPinsByNameCustom = Cast<UCustomizableObjectNodeMaterialRemapPinsByName>(RemapPins))
-	{
-		RemapPinsByNameCustom->Node = this;
-	}
-	
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
 	// Input pins

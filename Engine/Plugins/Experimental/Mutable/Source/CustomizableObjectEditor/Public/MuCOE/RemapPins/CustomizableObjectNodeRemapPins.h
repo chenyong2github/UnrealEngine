@@ -6,6 +6,7 @@
 #include "CustomizableObjectNodeRemapPins.generated.h"
 
 class UEdGraphPin;
+class UCustomizableObjectNode;
 
 
 /**
@@ -27,11 +28,11 @@ public:
 	 * 
 	 * @param OldPins Old pins which are no longer present in the node.
 	 * @param NewPins Current node pins.
-	 * @param PinsToRemap Out parameter. Map of remapping pairs. Key is the old pin while value is the new pin.
+	 * @param PinsToRemap Out parameter. Remapping pairs. Key is the old pin while value is the new pin.
 	 * From pin has to be a pin from the NewPins, while FromPin has to be a pin from OldPins.
 	 * @param PinsToOrphan Out Parameter. List of pins which will be marked as orphaned. Only pins from OldPins must be added.
 	 */
-	virtual void RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) { check(false) };
+	virtual void RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) PURE_VIRTUAL(UCustomizableObjectNodeRemapPins::RemapPins, );
 };
 
 

@@ -45,7 +45,7 @@ void RemapPinsInternal(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGrap
 }
 
 
-void UCustomizableObjectNodeRemapPinsByPosition::RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
+void UCustomizableObjectNodeRemapPinsByPosition::RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
 {
 	RemapPinsInternal(OldPins, NewPins, PinsToRemap, PinsToOrphan, EGPD_Input);
 	RemapPinsInternal(OldPins, NewPins, PinsToRemap, PinsToOrphan, EGPD_Output);

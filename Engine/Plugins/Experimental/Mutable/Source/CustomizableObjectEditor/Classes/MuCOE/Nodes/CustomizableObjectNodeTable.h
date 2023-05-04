@@ -111,10 +111,10 @@ class UCustomizableObjectNodeTableRemapPins : public UCustomizableObjectNodeRema
 public:
 
 	// Specific method to decide when two pins are equal
-	virtual bool Equal(const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const override;
+	virtual bool Equal(const UCustomizableObjectNode& Node, const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const override;
 
 	// Method to use in the RemapPins step of the node reconstruction process
-	virtual void RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) override;
+	virtual void RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) override;
 };
 
 

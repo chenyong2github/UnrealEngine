@@ -6,6 +6,7 @@
 
 #include "CustomizableObjectNodeRemapPinsByNameDefaultPin.generated.h"
 
+class UCustomizableObjectNode;
 class UEdGraphPin;
 class UObject;
 
@@ -20,6 +21,6 @@ public:
 	/** Default pin to remap with. */
 	UEdGraphPin* DefaultPin = nullptr;
 
-	virtual void RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) override;
+	virtual void RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) override;
 };
 

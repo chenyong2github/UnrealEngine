@@ -33,22 +33,22 @@ const TArray<EMaterialParameterType> UCustomizableObjectNodeMaterial::ParameterT
 	EMaterialParameterType::Scalar };
 
 
-bool UCustomizableObjectNodeMaterialRemapPinsByName::Equal(const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const
+bool UCustomizableObjectNodeMaterialRemapPinsByName::Equal(const UCustomizableObjectNode& Node, const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const
 {
-	const UCustomizableObjectNodeMaterialPinDataParameter* PinDataOldPin = Cast<UCustomizableObjectNodeMaterialPinDataParameter>(Node->GetPinData(OldPin));
-	const UCustomizableObjectNodeMaterialPinDataParameter* PinDataNewPin = Cast<UCustomizableObjectNodeMaterialPinDataParameter>(Node->GetPinData(NewPin));
+	const UCustomizableObjectNodeMaterialPinDataParameter* PinDataOldPin = Cast<UCustomizableObjectNodeMaterialPinDataParameter>(Node.GetPinData(OldPin));
+	const UCustomizableObjectNodeMaterialPinDataParameter* PinDataNewPin = Cast<UCustomizableObjectNodeMaterialPinDataParameter>(Node.GetPinData(NewPin));
 	if (PinDataOldPin && PinDataNewPin)
 	{
 		return PinDataOldPin->ParameterId == PinDataNewPin->ParameterId;
 	}
 	else
 	{
-		return Super::Equal(OldPin, NewPin);
+		return Super::Equal(Node, OldPin, NewPin);
 	}
 }
 
 
-void UCustomizableObjectNodeMaterialRemapPinsByName::RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
+void UCustomizableObjectNodeMaterialRemapPinsByName::RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
 {
 	for (UEdGraphPin* OldPin : OldPins)
 	{
@@ -56,7 +56,7 @@ void UCustomizableObjectNodeMaterialRemapPinsByName::RemapPins(const TArray<UEdG
 
 		for (UEdGraphPin* NewPin : NewPins)
 		{
-			if (Equal(*OldPin, *NewPin))
+			if (Equal(Node, *OldPin, *NewPin))
 			{
 				bFound = true;
 
@@ -65,7 +65,7 @@ void UCustomizableObjectNodeMaterialRemapPinsByName::RemapPins(const TArray<UEdG
 			}
 		}
 
-		if (!bFound && (OldPin->LinkedTo.Num() || HasSavedPinData(*OldPin)))
+		if (!bFound && (OldPin->LinkedTo.Num() || HasSavedPinData(Node, *OldPin)))
 		{
 			PinsToOrphan.Add(OldPin);
 		}
@@ -73,9 +73,9 @@ void UCustomizableObjectNodeMaterialRemapPinsByName::RemapPins(const TArray<UEdG
 }
 
 
-bool UCustomizableObjectNodeMaterialRemapPinsByName::HasSavedPinData(const UEdGraphPin &Pin) const
+bool UCustomizableObjectNodeMaterialRemapPinsByName::HasSavedPinData(const UCustomizableObjectNode& Node, const UEdGraphPin &Pin) const
 {
-	if (const UCustomizableObjectNodeMaterialPinDataParameter* PinData = Cast<UCustomizableObjectNodeMaterialPinDataParameter>(Node->GetPinData(Pin)))
+	if (const UCustomizableObjectNodeMaterialPinDataParameter* PinData = Cast<UCustomizableObjectNodeMaterialPinDataParameter>(Node.GetPinData(Pin)))
 	{
 		return !PinData->IsDefault();
 	}
@@ -238,11 +238,6 @@ void UCustomizableObjectNodeMaterialPinDataImage::PostEditChangeProperty(FProper
 
 void UCustomizableObjectNodeMaterial::AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins)
 {
-	if (UCustomizableObjectNodeMaterialRemapPinsByName* RemapPinsByNameCustom = Cast<UCustomizableObjectNodeMaterialRemapPinsByName>(RemapPins))
-	{
-		RemapPinsByNameCustom->Node = this;
-	}
-	
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
 	{

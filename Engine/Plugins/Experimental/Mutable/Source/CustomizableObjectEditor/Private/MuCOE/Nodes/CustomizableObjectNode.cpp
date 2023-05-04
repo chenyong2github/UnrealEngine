@@ -231,7 +231,7 @@ void UCustomizableObjectNode::ReconstructNode(UCustomizableObjectNodeRemapPins* 
 
 	TMap<UEdGraphPin*, UEdGraphPin*> PinsToRemap;
 	TArray<UEdGraphPin*> PinsToOrphan;
-	RemapPinsAction->RemapPins(OldPins, NewPins, PinsToRemap, PinsToOrphan);
+	RemapPinsAction->RemapPins(*this, OldPins, NewPins, PinsToRemap, PinsToOrphan);
 
 	// Check only.
 	for (const TTuple<UEdGraphPin*, UEdGraphPin*>& Pair : PinsToRemap)

@@ -24,7 +24,7 @@ class UCustomizableObjectNodeRemapPins;
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
 
-bool UCustomizableObjectNodeTableRemapPins::Equal(const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const
+bool UCustomizableObjectNodeTableRemapPins::Equal(const UCustomizableObjectNode& Node, const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const
 {
 	if (OldPin.PinType.PinCategory == UEdGraphSchema_CustomizableObject::PC_Image ||
 		OldPin.PinType.PinCategory == UEdGraphSchema_CustomizableObject::PC_PassThroughImage)
@@ -40,7 +40,7 @@ bool UCustomizableObjectNodeTableRemapPins::Equal(const UEdGraphPin& OldPin, con
 }
 
 
-void UCustomizableObjectNodeTableRemapPins::RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
+void UCustomizableObjectNodeTableRemapPins::RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
 {
 	for (UEdGraphPin* OldPin : OldPins)
 	{
@@ -48,7 +48,7 @@ void UCustomizableObjectNodeTableRemapPins::RemapPins(const TArray<UEdGraphPin*>
 
 		for (UEdGraphPin* NewPin : NewPins)
 		{
-			if (Equal(*OldPin, *NewPin))
+			if (Equal(Node, *OldPin, *NewPin))
 			{
 				bFound = true;
 

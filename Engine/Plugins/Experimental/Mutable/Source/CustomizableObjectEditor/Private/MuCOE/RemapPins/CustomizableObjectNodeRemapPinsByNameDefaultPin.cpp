@@ -5,7 +5,7 @@
 #include "EdGraph/EdGraphPin.h"
 
 
-void UCustomizableObjectNodeRemapPinsByNameDefaultPin::RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
+void UCustomizableObjectNodeRemapPinsByNameDefaultPin::RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
 {
 	if (DefaultPin)
 	{
@@ -39,7 +39,7 @@ void UCustomizableObjectNodeRemapPinsByNameDefaultPin::RemapPins(const TArray<UE
 	}
 	else
 	{
-		Super::RemapPins(OldPins, NewPins, PinsToRemap, PinsToOrphan);
+		Super::RemapPins(Node, OldPins, NewPins, PinsToRemap, PinsToOrphan);
 	}
 }
 

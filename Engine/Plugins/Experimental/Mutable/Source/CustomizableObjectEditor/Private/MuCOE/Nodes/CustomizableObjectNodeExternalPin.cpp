@@ -10,8 +10,10 @@
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
 
-void UCustomizableObjectNodeRemapPinsCustomExternalPin::RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
+void UCustomizableObjectNodeRemapPinsCustomExternalPin::RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan)
 {
+	const UCustomizableObjectNodeExternalPin* ExternalPinNode = Cast<UCustomizableObjectNodeExternalPin>(&Node);
+	
 	if (OldPins.Num()) 
 	{
 		UEdGraphPin* const OldPin = OldPins[0];
@@ -20,7 +22,7 @@ void UCustomizableObjectNodeRemapPinsCustomExternalPin::RemapPins(const TArray<U
 			PinsToRemap.Add(OldPin, NewPins[0]);
 		}
 
-		if (!Node->GetNodeExposePin())
+		if (!ExternalPinNode->GetNodeExposePin())
 		{
 			PinsToOrphan.Add(OldPin);
 		}
@@ -125,14 +127,6 @@ void UCustomizableObjectNodeExternalPin::BeginConstruct()
 
 void UCustomizableObjectNodeExternalPin::AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins)
 {
-	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
-
-	// Pass information to the remap pins action context.
-	if (UCustomizableObjectNodeRemapPinsCustomExternalPin* RemapPinsCustom = Cast<UCustomizableObjectNodeRemapPinsCustomExternalPin>(RemapPins))
-	{
-		RemapPinsCustom->Node = this;
-	}
-
 	if (UCustomizableObjectNodeExposePin* NodeExposePin = GetNodeExposePin())
 	{
 		CreateExternalPin(NodeExposePin);

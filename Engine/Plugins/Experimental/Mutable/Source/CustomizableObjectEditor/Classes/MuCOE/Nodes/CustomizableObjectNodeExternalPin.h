@@ -28,9 +28,7 @@ class UCustomizableObjectNodeRemapPinsCustomExternalPin : public UCustomizableOb
 	GENERATED_BODY()
 
 public:
-	class UCustomizableObjectNodeExternalPin* Node = nullptr;
-
-	virtual void RemapPins(const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) override;
+	virtual void RemapPins(const UCustomizableObjectNode& Node, const TArray<UEdGraphPin*>& OldPins, const TArray<UEdGraphPin*>& NewPins, TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap, TArray<UEdGraphPin*>& PinsToOrphan) override;
 };
 
 UCLASS()
