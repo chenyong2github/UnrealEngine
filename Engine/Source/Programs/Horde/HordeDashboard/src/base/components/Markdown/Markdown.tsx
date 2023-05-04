@@ -11,6 +11,8 @@ import { IMarkdownProps, IMarkdownSubComponentStyles, IMarkdownStyleProps, IMark
 import { MarkdownLink } from './MarkdownLink';
 import { MarkdownPre } from './MarkdownPre';
 import { PropsWithChildren } from 'react';
+import { modeColors } from '../../../styles/Styles';
+import dashboard from '../../../backend/Dashboard';
 
 // This is to work around inconsistency between the way markdown-to-jsx declares its types
 // (as having a default export) and the way it actually builds its files (for its cjs `main` file,
@@ -36,6 +38,11 @@ const getStyles: IStyleFunction<IMarkdownStyleProps, IMarkdownStyles> = () => {
             },
             'ul': {
                margin: "8px 0px 16px 0px"
+            },
+            'pre': {
+               whiteSpace: "pre-wrap",
+               padding: 16,
+               backgroundColor: dashboard.darktheme ? modeColors.header : modeColors.crumbs
             }
 
          }

@@ -429,7 +429,9 @@ export const StepsPanelInner: React.FC<{ jobDetails: JobDetailsV2, depStepId?: s
    const query = new URLSearchParams(window.location.search);
    const batchFilter = query.get("batch");
 
-   jobDetails.batches.forEach(b => {
+   let jobBatches = jobDetails.batches.sort((a, b) => a.groupIdx - b.groupIdx);
+
+   jobBatches.forEach(b => {
 
       if (batchFilter && b.id !== batchFilter) {
          return;
@@ -572,7 +574,7 @@ export const StepsPanelInner: React.FC<{ jobDetails: JobDetailsV2, depStepId?: s
       groups.add(jobDetails.getStepGroupIndex(step.id));
    });
 
-   const batches = jobDetails.batches.filter(b => {
+   let batches = jobBatches.filter(b => {
       if ((groups.size && !groups.has(b.groupIdx)) || b.steps.length || b.error === JobStepBatchError.None) {
          return false;
       }
