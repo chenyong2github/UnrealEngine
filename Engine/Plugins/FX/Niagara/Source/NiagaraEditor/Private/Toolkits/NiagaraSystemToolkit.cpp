@@ -916,7 +916,7 @@ void FNiagaraSystemToolkit::OpenDebugOutliner()
 
 void FNiagaraSystemToolkit::OpenAttributeSpreadsheet()
 {
-	InvokeTab(FNiagaraSystemToolkitModeBase::DebugSpreadsheetTabID);
+	InvokeTab(FNiagaraSystemToolkitModeBase::DebugCacheSpreadsheetTabID);
 }
 
 
