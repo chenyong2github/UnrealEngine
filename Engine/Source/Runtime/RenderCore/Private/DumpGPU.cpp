@@ -1252,6 +1252,7 @@ public:
 				FRDGTextureSRVDesc SubresourceDesc = SubresourceRangeDesc;
 				SubresourceDesc.FirstArraySlice = ArraySlice;
 				SubresourceDesc.NumArraySlices = 1;
+				SubresourceDesc.DimensionOverride = ETextureDimension::Texture2D;
 
 				AddDumpTextureAllSubResourcesPasses(
 					GraphBuilder,
