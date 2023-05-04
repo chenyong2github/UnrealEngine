@@ -122,6 +122,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** For auto-generated plugins that should not be listed in the plugin browser for users to disable freely. */
 	bool bIsHidden;
 
+	/** Prevents other plugins from depending on this plugin. */
+	bool bIsSealed;
+
 	/** When true, this plugin's modules will not be loaded automatically nor will it's content be mounted automatically. It will load/mount when explicitly requested and LoadingPhases will be ignored */
 	bool bExplicitlyLoaded;
 

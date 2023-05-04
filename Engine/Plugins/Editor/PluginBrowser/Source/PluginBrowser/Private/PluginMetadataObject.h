@@ -121,6 +121,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Details)
 	bool bExplicitlyLoaded;
 
+	/** If true, prevents other plugins from depending on this plugin */
+	UPROPERTY(VisibleAnywhere, Category = Details)
+	bool bIsSealed;
+
 	/** Plugins used by this plugin */
 	UPROPERTY(EditAnywhere, Category = Dependencies, meta=(TitleProperty=Name))
 	TArray<FPluginReferenceMetadata> Plugins;

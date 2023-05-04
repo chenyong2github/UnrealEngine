@@ -51,6 +51,7 @@ void UPluginMetadataObject::PopulateFromPlugin(TSharedPtr<IPlugin> InPlugin)
 	bIsBetaVersion = InDescriptor.bIsBetaVersion;
 	bIsEnabledByDefault = (InDescriptor.EnabledByDefault == EPluginEnabledByDefault::Enabled);
 	bExplicitlyLoaded = InDescriptor.bExplicitlyLoaded;
+	bIsSealed = InDescriptor.bIsSealed;
 
 	Plugins.Reset(InDescriptor.Plugins.Num());
 	for (const FPluginReferenceDescriptor& PluginRefDesc : InDescriptor.Plugins)
@@ -75,6 +76,7 @@ void UPluginMetadataObject::CopyIntoDescriptor(FPluginDescriptor& OutDescriptor)
 	OutDescriptor.SupportURL = SupportURL;
 	OutDescriptor.bCanContainContent = bCanContainContent;
 	OutDescriptor.bIsBetaVersion = bIsBetaVersion;
+	OutDescriptor.bIsSealed = bIsSealed;
 
 	TArray<FPluginReferenceDescriptor> NewPlugins;
 	NewPlugins.Reserve(Plugins.Num());
@@ -118,6 +120,12 @@ TArray<FString> UPluginMetadataObject::GetAvailablePluginDependencies() const
 	for (const TSharedRef<IPlugin>& Plugin : AllPlugins)
 	{
 		if (Plugin == SourcePlugin)
+		{
+			continue;
+		}
+
+		// Can't depend on plugins that are marked as sealed.
+		if (Plugin->GetDescriptor().bIsSealed)
 		{
 			continue;
 		}

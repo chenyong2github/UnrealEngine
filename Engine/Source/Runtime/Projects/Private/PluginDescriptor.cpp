@@ -86,6 +86,7 @@ FPluginDescriptor::FPluginDescriptor()
 	, bInstalled(false)
 	, bRequiresBuildPlatform(false)
 	, bIsHidden(false)
+	, bIsSealed(false)
 	, bExplicitlyLoaded(false)
 	, bHasExplicitPlatforms(false)
 	, bIsPluginExtension(false)
@@ -246,6 +247,7 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText* OutFailReason /*=
 	Object.TryGetBoolField(TEXT("Installed"), bInstalled);
 	Object.TryGetBoolField(TEXT("RequiresBuildPlatform"), bRequiresBuildPlatform);
 	Object.TryGetBoolField(TEXT("Hidden"), bIsHidden);
+	Object.TryGetBoolField(TEXT("Sealed"), bIsSealed);
 	Object.TryGetBoolField(TEXT("ExplicitlyLoaded"), bExplicitlyLoaded);
 	Object.TryGetBoolField(TEXT("HasExplicitPlatforms"), bHasExplicitPlatforms);
 
@@ -433,6 +435,15 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	else
 	{
 		JsonObject.RemoveField(TEXT("Hidden"));
+	}
+
+	if (bIsSealed)
+	{
+		JsonObject.SetBoolField(TEXT("Sealed"), bIsSealed);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("Sealed"));
 	}
 
 	if (bExplicitlyLoaded)
