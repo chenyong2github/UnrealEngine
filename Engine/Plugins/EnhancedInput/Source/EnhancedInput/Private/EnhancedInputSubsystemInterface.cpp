@@ -919,10 +919,11 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 		{
 			RemovedActions.Remove(Mapping.Action);
 
-			// Was this key pressed last frame? If so, then we need to mark it to be ignored by the PlayerInput
-			// until it is released to avoid re-processing a triggered event when it. This is only a problem if
-			// the key was in the old mapping and the new one
-			if(bIgnoreAllPressedKeysUntilReleaseOnRebuild && Mapping.Action->ValueType == EInputActionValueType::Boolean && WasInOldMapping(Mapping.Key))
+			// Was this key pressed last frame? If so, then we need to mark it to be ignored by PlayerInput
+			// until it is released to avoid re-processing a triggered event.
+			// This also prevents actions from triggering if the key is being held whilst the IMC is added and bIgnoreAllPressedKeysUntilReleaseOnRebuild
+			// has been set by the user.
+			if (bIgnoreAllPressedKeysUntilReleaseOnRebuild && Mapping.Action->ValueType == EInputActionValueType::Boolean)
 			{				
 				const FKeyState* KeyState = PlayerInput->GetKeyState(Mapping.Key);
 				if(KeyState && KeyState->bDown)
