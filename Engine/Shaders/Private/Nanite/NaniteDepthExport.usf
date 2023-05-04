@@ -72,9 +72,9 @@ uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth, uint PlatformConfig)
 void DepthExport(uint2 GroupId : SV_GroupID, uint ThreadIndex : SV_GroupIndex)
 {
 	const uint2 PixelLocalPos = SwizzleThreadIndex(ThreadIndex & 63u);
-	const uint2 PixelPos = (GroupId << 3) | PixelLocalPos;
+	const uint2 PixelPos = ((GroupId << 3) | PixelLocalPos) + ViewRect.xy;
 
-	if (any(PixelPos.xy >= ViewRect.zw)) // TODO: Support offset views
+	if (any(PixelPos.xy >= ViewRect.zw))
 	{
 		return;
 	}
