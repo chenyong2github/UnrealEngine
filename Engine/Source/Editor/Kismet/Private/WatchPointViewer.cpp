@@ -78,7 +78,7 @@ namespace
 			FText InBlueprintName,
 			FText InGraphName,
 			FText InNodeName,
-			const FPropertyInstanceInfo& Info
+			FPropertyInstanceInfo& Info
 		)
 			: BP(InBP)
 			, Node(InNode)
@@ -98,7 +98,7 @@ namespace
 
 			for (const TSharedPtr<FPropertyInstanceInfo>& ChildInfo : Info.GetChildren())
 			{
-				Children.Add(MakeShared<FWatchRow>(InBP, InNode, InPin, InObjectBeingDebugged, BlueprintName, GraphName, NodeName, MoveTemp(*ChildInfo)));
+				Children.Add(MakeShared<FWatchRow>(InBP, InNode, InPin, InObjectBeingDebugged, BlueprintName, GraphName, NodeName, *ChildInfo));
 			}
 		}
 
@@ -206,7 +206,7 @@ namespace
 							BlueprintName,
 							MoveTemp(GraphName),
 							MoveTemp(NodeName),
-							MoveTemp(*DebugInfo)
+							*DebugInfo
 						)
 					);
 				}

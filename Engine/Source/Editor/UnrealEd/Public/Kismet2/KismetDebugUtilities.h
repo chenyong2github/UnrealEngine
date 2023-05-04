@@ -50,7 +50,7 @@ struct FKismetTraceSample
 // FDebugInfo
 
 // call FKismetDebugUtilities::GetDebugInfo to construct
-struct FPropertyInstanceInfo
+struct FPropertyInstanceInfo : TSharedFromThis<FPropertyInstanceInfo>
 {
 	/**
 	 * used to determine whether an object's property has
@@ -66,28 +66,26 @@ struct FPropertyInstanceInfo
 	* Helper constructor. call FKismetDebugUtilities::GetDebugInfo or
 	* FKismetDebugUtilities::GetDebugInfoInternal instead
 	*/
-    FPropertyInstanceInfo(FPropertyInstance PropertyInstance);
+    FPropertyInstanceInfo(FPropertyInstance PropertyInstance, const TSharedPtr<FPropertyInstanceInfo>& Parent = nullptr);
 
 	/**
-	 * looks for an existing FPropertyInstance inside VisitedNodes
-	 * if one isn't found, it makes one, stores it in VisitedNodes, and returns it
+	 * Constructs a Shared FPropertyInstanceInfo
 	 */
-	static TSharedPtr<FPropertyInstanceInfo> FindOrMake(FPropertyInstance PropertyInstance,
-		TMap<FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>> &VisitedNodes);
+	static TSharedPtr<FPropertyInstanceInfo> Make(FPropertyInstance PropertyInstance, const TSharedPtr<FPropertyInstanceInfo>& Parent);
 
 	/**
-	* populates a FDebugInfo::Children with sub-properties
+	* populates a FDebugInfo::Children with sub-properties (non-recursive)
 	*/
-	void PopulateChildren(FPropertyInstance PropertyInstance,
-		TMap<FPropertyInstance, TSharedPtr<FPropertyInstanceInfo>> &VisitedNodes);
+	void PopulateChildren(FPropertyInstance PropertyInstance);
 
 	/** Resolves the PathToProperty treating this PropertyInstance as the head of the path */
 	UNREALED_API TSharedPtr<FPropertyInstanceInfo> ResolvePathToProperty(const TArray<FName>& InPathToProperty);
 
 	/** Returns the watch text for info popup bubbles on the graph */
 	UNREALED_API FString GetWatchText() const;
-	
-	UNREALED_API const TArray<TSharedPtr<FPropertyInstanceInfo>>& GetChildren() const;
+
+	/** Returns children of this node (generating them if necessary) */
+	UNREALED_API const TArray<TSharedPtr<FPropertyInstanceInfo>>& GetChildren();
 
 	FText Name;
 	FText DisplayName;
@@ -96,16 +94,16 @@ struct FPropertyInstanceInfo
 	TWeakObjectPtr<UObject> Object = nullptr; // only filled if property is a UObject
 	TFieldPath<const FProperty> Property;
 	bool bIsInContainer = false;
+	int32 ContainerIndex = INDEX_NONE;
 
 private:
+	// Warning: only the head ValueAddress in the tree is guaranteed to be valid. Call GetPropertyInstance() instead of
+	// using ValueAddress directly.
+	const void* ValueAddress;
+	FPropertyInstance GetPropertyInstance() const;
+	
+	TWeakPtr<FPropertyInstanceInfo> Parent;
 	TArray<TSharedPtr<FPropertyInstanceInfo>> Children;
-
-	/** 
-	 * Only populated when this is an object and was already seen in the debug tree
-	 * used to avoid circular references in cases where the same object may be referenced by multiple properties  
-	 */
-	TSharedPtr<FPropertyInstanceInfo> ReferencedObject; 
-
 };
 
 inline uint32 GetTypeHash(const FPropertyInstanceInfo::FPropertyInstance& PropertyInstance)
