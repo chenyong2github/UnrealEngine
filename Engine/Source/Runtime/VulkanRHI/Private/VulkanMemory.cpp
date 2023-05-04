@@ -2681,6 +2681,43 @@ namespace VulkanRHI
 		return Priority;
 	}
 
+	static VkMemoryPropertyFlags GetMemoryPropertyFlags(EVulkanAllocationFlags AllocFlags, bool bHasUnifiedMemory)
+	{
+		VkMemoryPropertyFlags MemFlags = 0;
+
+		checkf(!(EnumHasAnyFlags(AllocFlags, EVulkanAllocationFlags::PreferBAR) && !EnumHasAnyFlags(AllocFlags, EVulkanAllocationFlags::HostVisible)), TEXT("PreferBAR should always be used with HostVisible."));
+
+		if (EnumHasAnyFlags(AllocFlags, EVulkanAllocationFlags::HostCached))
+		{
+			MemFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+		}
+		else if (EnumHasAnyFlags(AllocFlags, EVulkanAllocationFlags::HostVisible))
+		{
+			MemFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+			if (EnumHasAnyFlags(AllocFlags, EVulkanAllocationFlags::PreferBAR))
+			{
+				MemFlags |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+			}
+		}
+		else
+		{
+			MemFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+			if (bHasUnifiedMemory)
+			{
+				MemFlags |= (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+			}
+		}
+
+		if (EnumHasAnyFlags(AllocFlags, EVulkanAllocationFlags::Memoryless))
+		{
+			MemFlags = VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+		}
+
+		return MemFlags;
+	}
+
 	bool FMemoryManager::AllocateBufferPooled(FVulkanAllocation& OutAllocation, FVulkanEvictable* AllocationOwner, uint32 Size, uint32 MinAlignment, VkBufferUsageFlags BufferUsageFlags, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line)
 	{
 		SCOPED_NAMED_EVENT(FResourceHeapManager_AllocateBufferPooled, FColor::Cyan);
@@ -2928,7 +2965,7 @@ namespace VulkanRHI
 		return true;
 	}
 
-	bool FMemoryManager::AllocateBufferMemory(FVulkanAllocation& OutAllocation, FVulkanEvictable* AllocationOwner, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, bool bExternal, const char* File, uint32 Line)
+	bool FMemoryManager::AllocateBufferMemory(FVulkanAllocation& OutAllocation, FVulkanEvictable* AllocationOwner, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, bool bExternal, bool bForceSeparateAllocation, const char* File, uint32 Line)
 	{
 		SCOPED_NAMED_EVENT(FResourceHeapManager_AllocateBufferMemory, FColor::Cyan);
 		uint32 TypeIndex = 0;
@@ -2964,7 +3001,7 @@ namespace VulkanRHI
 
 		check(MemoryReqs.size <= (uint64)MAX_uint32);
 
-		if (!ResourceTypeHeaps[TypeIndex]->AllocateResource(OutAllocation, AllocationOwner, EType::Buffer, MemoryReqs.size, MemoryReqs.alignment, bMapped, false, MetaType, bExternal, File, Line))
+		if (!ResourceTypeHeaps[TypeIndex]->AllocateResource(OutAllocation, AllocationOwner, EType::Buffer, MemoryReqs.size, MemoryReqs.alignment, bMapped, bForceSeparateAllocation, MetaType, bExternal, File, Line))
 		{
 			// Try another memory type if the allocation failed
 			VERIFYVULKANRESULT(DeviceMemoryManager->GetMemoryTypeFromPropertiesExcluding(MemoryReqs.memoryTypeBits, MemoryPropertyFlags, TypeIndex, &TypeIndex));
@@ -2973,7 +3010,7 @@ namespace VulkanRHI
 			{
 				UE_LOG(LogVulkanRHI, Fatal, TEXT("Missing memory type index %d, MemSize %d, MemPropTypeBits %u, MemPropertyFlags %u, %s(%d)"), TypeIndex, (uint32)MemoryReqs.size, (uint32)MemoryReqs.memoryTypeBits, (uint32)MemoryPropertyFlags, ANSI_TO_TCHAR(File), Line);
 			}
-			if (!ResourceTypeHeaps[TypeIndex]->AllocateResource(OutAllocation, AllocationOwner, EType::Buffer, MemoryReqs.size, MemoryReqs.alignment, bMapped, false, MetaType, bExternal, File, Line))
+			if (!ResourceTypeHeaps[TypeIndex]->AllocateResource(OutAllocation, AllocationOwner, EType::Buffer, MemoryReqs.size, MemoryReqs.alignment, bMapped, bForceSeparateAllocation, MetaType, bExternal, File, Line))
 			{
 				DumpMemory();
 				UE_LOG(LogVulkanRHI, Fatal, TEXT("Out Of Memory, trying to allocate %d bytes\n"), MemoryReqs.size);
@@ -2981,6 +3018,67 @@ namespace VulkanRHI
 			}
 		}
 		return true;
+	}
+
+	bool FMemoryManager::AllocateBufferMemory(FVulkanAllocation& OutAllocation, VkBuffer InBuffer, EVulkanAllocationFlags InAllocFlags, const TCHAR* InDebugName, uint32 InForceMinAlignment)
+	{
+		SCOPED_NAMED_EVENT(FMemoryManager_AllocateBufferMemory, FColor::Cyan);
+
+		VkBufferMemoryRequirementsInfo2 BufferMemoryRequirementsInfo;
+		ZeroVulkanStruct(BufferMemoryRequirementsInfo, VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2);
+		BufferMemoryRequirementsInfo.buffer = InBuffer;
+
+		VkMemoryDedicatedRequirements DedicatedRequirements;
+		ZeroVulkanStruct(DedicatedRequirements, VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS);
+
+		VkMemoryRequirements2 MemoryRequirements;
+		ZeroVulkanStruct(MemoryRequirements, VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2);
+		MemoryRequirements.pNext = &DedicatedRequirements;
+
+		VulkanRHI::vkGetBufferMemoryRequirements2(Device->GetInstanceHandle(), &BufferMemoryRequirementsInfo, &MemoryRequirements);
+
+		// Allow caller to force his own alignment requirements
+		MemoryRequirements.memoryRequirements.alignment = FMath::Max(MemoryRequirements.memoryRequirements.alignment, (VkDeviceSize)InForceMinAlignment);
+
+		if (DedicatedRequirements.requiresDedicatedAllocation || DedicatedRequirements.prefersDedicatedAllocation)
+		{
+			InAllocFlags |= EVulkanAllocationFlags::Dedicated;
+		}
+
+		// For now, translate all the flags into a call to the legacy AllocateBufferMemory() function
+		const VkMemoryPropertyFlags MemoryPropertyFlags = GetMemoryPropertyFlags(InAllocFlags, DeviceMemoryManager->HasUnifiedMemory());
+		const bool bExternal = EnumHasAllFlags(InAllocFlags, EVulkanAllocationFlags::External);
+		const bool bForceSeparateAllocation = EnumHasAllFlags(InAllocFlags, EVulkanAllocationFlags::Dedicated);
+		AllocateBufferMemory(OutAllocation, nullptr, MemoryRequirements.memoryRequirements, MemoryPropertyFlags, EVulkanAllocationMetaBufferOther, bExternal, bForceSeparateAllocation, __FILE__, __LINE__);
+
+		if (OutAllocation.IsValid())
+		{
+			if (EnumHasAllFlags(InAllocFlags, EVulkanAllocationFlags::AutoBind))
+			{
+				VkBindBufferMemoryInfo BindBufferMemoryInfo;
+				ZeroVulkanStruct(BindBufferMemoryInfo, VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO);
+				BindBufferMemoryInfo.buffer = InBuffer;
+				BindBufferMemoryInfo.memory = OutAllocation.GetDeviceMemoryHandle(Device);
+				BindBufferMemoryInfo.memoryOffset = OutAllocation.Offset;
+
+				VERIFYVULKANRESULT(VulkanRHI::vkBindBufferMemory2(Device->GetInstanceHandle(), 1, &BindBufferMemoryInfo));
+			}
+
+			if (InDebugName)
+			{
+				VULKAN_SET_DEBUG_NAME((*Device), VK_OBJECT_TYPE_BUFFER, InBuffer, TEXT("%s"), InDebugName);
+			}
+		}
+		else
+		{
+			if (!EnumHasAllFlags(InAllocFlags, EVulkanAllocationFlags::NoError))
+			{
+				const bool IsHostMemory = EnumHasAnyFlags(InAllocFlags, EVulkanAllocationFlags::HostVisible | EVulkanAllocationFlags::HostCached);
+				HandleOOM(false, IsHostMemory ? VK_ERROR_OUT_OF_HOST_MEMORY : VK_ERROR_OUT_OF_DEVICE_MEMORY, MemoryRequirements.memoryRequirements.size);
+			}
+		}
+
+		return OutAllocation.IsValid();
 	}
 
 	bool FMemoryManager::AllocateDedicatedImageMemory(FVulkanAllocation& OutAllocation, FVulkanEvictable* AllocationOwner, VkImage Image, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, bool bExternal, const char* File, uint32 Line)
@@ -4189,16 +4287,23 @@ namespace VulkanRHI
 		SCOPE_CYCLE_COUNTER(STAT_VulkanStagingBuffer);
 #endif
 		LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanStagingBuffers);
-		if (InMemoryReadFlags == VK_MEMORY_PROPERTY_HOST_CACHED_BIT)
+
+		const bool IsHostCached = (InMemoryReadFlags == VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+		if (IsHostCached)
 		{
-			uint64 NonCoherentAtomSize = (uint64)Device->GetLimits().nonCoherentAtomSize;
-			Size = AlignArbitrary(Size, NonCoherentAtomSize);
+			Size = AlignArbitrary(Size, (uint32)Device->GetLimits().nonCoherentAtomSize);
 		}
 
 		// Add both source and dest flags
 		if ((InUsageFlags & (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT)) != 0)
 		{
 			InUsageFlags |= (VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+		}
+
+		// For descriptors buffers
+		if (Device->SupportsBindless())
+		{
+			InUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		}
 
 		//#todo-rco: Better locking!
@@ -4219,43 +4324,27 @@ namespace VulkanRHI
 		}
 
 		FStagingBuffer* StagingBuffer = new FStagingBuffer(Device);
+		StagingBuffer->MemoryReadFlags = InMemoryReadFlags;
+		StagingBuffer->BufferSize = Size;
 
 		VkBufferCreateInfo StagingBufferCreateInfo;
 		ZeroVulkanStruct(StagingBufferCreateInfo, VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
 		StagingBufferCreateInfo.size = Size;
 		StagingBufferCreateInfo.usage = InUsageFlags;
-		// For descriptors buffers
-		if (Device->SupportsBindless())
-		{
-			StagingBufferCreateInfo.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-		}
-
-		VkDevice VulkanDevice = Device->GetInstanceHandle();
-
-		VERIFYVULKANRESULT(VulkanRHI::vkCreateBuffer(VulkanDevice, &StagingBufferCreateInfo, VULKAN_CPU_ALLOCATOR, &StagingBuffer->Buffer));
-
-		VkMemoryRequirements MemReqs;
-		VulkanRHI::vkGetBufferMemoryRequirements(VulkanDevice, StagingBuffer->Buffer, &MemReqs);
-		ensure(MemReqs.size >= Size);
+		VERIFYVULKANRESULT(VulkanRHI::vkCreateBuffer(Device->GetInstanceHandle(), &StagingBufferCreateInfo, VULKAN_CPU_ALLOCATOR, &StagingBuffer->Buffer));
 
 		// Set minimum alignment to 16 bytes, as some buffers are used with CPU SIMD instructions
-		MemReqs.alignment = FMath::Max<VkDeviceSize>(16, MemReqs.alignment);
-		static const bool bIsAmd = Device->GetDeviceProperties().vendorID == 0x1002;
-		if (InMemoryReadFlags == VK_MEMORY_PROPERTY_HOST_CACHED_BIT || bIsAmd)
+		uint32 ForcedMinAlignment = 16u;
+		static const bool bIsAmd = (Device->GetDeviceProperties().vendorID == (uint32)EGpuVendorId::Amd);
+		if (IsHostCached || bIsAmd)
 		{
-			uint64 NonCoherentAtomSize = (uint64)Device->GetLimits().nonCoherentAtomSize;
-			MemReqs.alignment = AlignArbitrary(MemReqs.alignment, NonCoherentAtomSize);
+			ForcedMinAlignment = AlignArbitrary(ForcedMinAlignment, (uint32)Device->GetLimits().nonCoherentAtomSize);
 		}
 
-		VkMemoryPropertyFlags readTypeFlags = InMemoryReadFlags;
-		if (!Device->GetMemoryManager().AllocateBufferMemory(StagingBuffer->Allocation, nullptr, MemReqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | readTypeFlags, EVulkanAllocationMetaBufferStaging, false, __FILE__, __LINE__))
-		{
-			check(0);
-		}
-		StagingBuffer->MemoryReadFlags = InMemoryReadFlags;
-		StagingBuffer->BufferSize = Size;
-		StagingBuffer->Allocation.BindBuffer(Device, StagingBuffer->Buffer);
-		//StagingBuffer->ResourceAllocation->BindBuffer(Device, StagingBuffer->Buffer);
+		const EVulkanAllocationFlags AllocFlags = EVulkanAllocationFlags::AutoBind |
+			(IsHostCached ? EVulkanAllocationFlags::HostCached : EVulkanAllocationFlags::HostVisible);
+
+		Device->GetMemoryManager().AllocateBufferMemory(StagingBuffer->Allocation, StagingBuffer->Buffer, AllocFlags, TEXT("StagingBuffer"), ForcedMinAlignment);
 
 		{
 			FScopeLock Lock(&StagingLock);

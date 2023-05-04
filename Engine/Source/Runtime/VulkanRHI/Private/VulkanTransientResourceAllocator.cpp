@@ -23,37 +23,17 @@ FVulkanTransientHeap::FVulkanTransientHeap(const FInitializer& Initializer, FVul
 	const bool bZeroSize = false;
 	VkBufferUsageFlags BufferUsageFlags = FVulkanResourceMultiBuffer::UEToVKBufferUsageFlags(InDevice, UEBufferUsageFlags, bZeroSize);
 
-	// :TODO: VK_KHR_maintenance4...
-	{
-		VkBufferCreateInfo BufferCreateInfo;
-		ZeroVulkanStruct(BufferCreateInfo, VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
-		BufferCreateInfo.size = Initializer.Size;
-		BufferCreateInfo.usage = BufferUsageFlags;
+	VkBufferCreateInfo BufferCreateInfo;
+	ZeroVulkanStruct(BufferCreateInfo, VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
+	BufferCreateInfo.size = Initializer.Size;
+	BufferCreateInfo.usage = BufferUsageFlags;
+	VERIFYVULKANRESULT(VulkanRHI::vkCreateBuffer(InDevice->GetInstanceHandle(), &BufferCreateInfo, VULKAN_CPU_ALLOCATOR, &VulkanBuffer));
 
-		const VkDevice VulkanDevice = InDevice->GetInstanceHandle();
+	// Find the alignment that works for everyone
+	const uint32 MinBufferAlignment = FMath::Max<uint32>(Initializer.Alignment, FMemoryManager::CalculateBufferAlignment(*InDevice, UEBufferUsageFlags, bZeroSize));
 
-		VERIFYVULKANRESULT(VulkanRHI::vkCreateBuffer(VulkanDevice, &BufferCreateInfo, VULKAN_CPU_ALLOCATOR, &VulkanBuffer));
-		VulkanRHI::vkGetBufferMemoryRequirements(VulkanDevice, VulkanBuffer, &MemoryRequirements);
-
-		// Find the alignment that works for everyone
-		const uint32 MinBufferAlignment = FMemoryManager::CalculateBufferAlignment(*InDevice, UEBufferUsageFlags, bZeroSize);
-		MemoryRequirements.alignment = FMath::Max<VkDeviceSize>(Initializer.Alignment, MemoryRequirements.alignment);
-		MemoryRequirements.alignment = FMath::Max<VkDeviceSize>(MinBufferAlignment, MemoryRequirements.alignment);
-	}
-
-	VkMemoryPropertyFlags BufferMemFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	const bool bUnifiedMem = InDevice->HasUnifiedMemory();
-	if (bUnifiedMem)
-	{
-		BufferMemFlags |= (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	}
-
-	if (!InDevice->GetMemoryManager().AllocateBufferMemory(InternalAllocation, nullptr, MemoryRequirements, BufferMemFlags, EVulkanAllocationMetaBufferOther, false, __FILE__, __LINE__))
-	{
-		InDevice->GetMemoryManager().HandleOOM();
-	}
-
-	InternalAllocation.BindBuffer(InDevice, VulkanBuffer);
+	const EVulkanAllocationFlags AllocFlags = EVulkanAllocationFlags::Dedicated | EVulkanAllocationFlags::AutoBind;
+	InDevice->GetMemoryManager().AllocateBufferMemory(InternalAllocation, VulkanBuffer, AllocFlags, TEXT("VulkanTransientHeap"), MinBufferAlignment);
 }
 
 FVulkanTransientHeap::~FVulkanTransientHeap()

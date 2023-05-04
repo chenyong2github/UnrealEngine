@@ -147,7 +147,7 @@ namespace VulkanRHI
 		EVulkanAllocationMetaBufferOther,
 		EVulkanAllocationMetaSize, // keep last
 	};
-	enum EVulkanAllocationFlags
+	enum ELegacyVulkanAllocationFlags
 	{
 		VulkanAllocationFlagsMapped = 0x1,
 		VulkanAllocationFlagsCanEvict= 0x2,
@@ -739,6 +739,24 @@ namespace VulkanRHI
 	};
 
 
+	// Allocation flags to account for conditions not covered by vkGet*MemoryRequirements or resource usage flags
+	enum class EVulkanAllocationFlags : uint16
+	{
+		None         = 0x0000,
+
+		HostVisible  = 0x0001,    // Will be written from CPU, will likely contain the HOST_VISIBLE + HOST_COHERENT flags
+		HostCached   = 0x0002,    // Will be used for readback, will likely contain the HOST_CACHED flag.  Implies HostVisible.
+		PreferBAR    = 0x0004,    // Will be allocated from a HOST_VISIBLE + DEVICE_LOCAL heap if available and possible (HOST_VISIBLE if not)
+
+		Dedicated    = 0x0008,	  // Will not share a memory block with other resources
+		External     = 0x0010,    // To be used with VK_KHR_external_memory
+		Memoryless   = 0x0020,	  // Will use LAZILY_ALLOCATED
+
+		NoError      = 0x0040,    // OOM is not fatal, return an invalid allocation
+		AutoBind     = 0x0080,	  // Will automatically bind the allocation to the supplied VkBuffer/VkImage, avoids an extra lock to bind separately
+	};
+	ENUM_CLASS_FLAGS(EVulkanAllocationFlags);
+
 	// Manages heaps and their interactions
 	class FMemoryManager : public FDeviceChild
 	{
@@ -760,11 +778,16 @@ namespace VulkanRHI
 		void FreeVulkanAllocationImage(FVulkanAllocation& Allocation);
 		void FreeVulkanAllocationImageDedicated(FVulkanAllocation& Allocation);
 
-
+		// Legacy calls
 		bool AllocateBufferPooled(FVulkanAllocation& Allocation, FVulkanEvictable* AllocationOwner, uint32 Size, uint32 MinAlignment, VkBufferUsageFlags BufferUsageFlags, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, const char* File, uint32 Line);
 		bool AllocateImageMemory(FVulkanAllocation& Allocation, FVulkanEvictable* AllocationOwner, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, bool bExternal, const char* File, uint32 Line);
-		bool AllocateBufferMemory(FVulkanAllocation& Allocation, FVulkanEvictable* AllocationOwner, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, bool bExternal, const char* File, uint32 Line);
 		bool AllocateDedicatedImageMemory(FVulkanAllocation& Allocation, FVulkanEvictable* AllocationOwner, VkImage Image, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, bool bExternal, const char* File, uint32 Line);
+	private:
+		bool AllocateBufferMemory(FVulkanAllocation& Allocation, FVulkanEvictable* AllocationOwner, const VkMemoryRequirements& MemoryReqs, VkMemoryPropertyFlags MemoryPropertyFlags, EVulkanAllocationMetaType MetaType, bool bExternal, bool bForceSeparateAllocation, const char* File, uint32 Line);
+
+		// New calls
+	public:
+		bool AllocateBufferMemory(FVulkanAllocation& OutAllocation, VkBuffer InBuffer, EVulkanAllocationFlags InAllocFlags, const TCHAR* InDebugName, uint32 InForceMinAlignment = 1);
 
 		void RegisterSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);
 		void UnregisterSubresourceAllocator(FVulkanSubresourceAllocator* SubresourceAllocator);

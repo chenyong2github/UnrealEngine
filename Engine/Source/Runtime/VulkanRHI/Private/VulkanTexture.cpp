@@ -1453,9 +1453,10 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 	{
 		if (EnumHasAnyFlags(InCreateDesc.Flags, TexCreate_CPUReadback))
 		{
-			check(InCreateDesc.NumSamples == 1);	//not implemented
-			check(InCreateDesc.Depth == 1);		//not implemented
-			check(InCreateDesc.ArraySize == 1);	//not implemented
+			check(InCreateDesc.NumSamples == 1); //not implemented
+			check(InCreateDesc.Depth == 1);      //not implemented
+			check(InCreateDesc.ArraySize == 1);  //not implemented
+
 			CpuReadbackBuffer = new FVulkanCpuReadbackBuffer;
 			uint32 Size = 0;
 			for (uint32 Mip = 0; Mip < InCreateDesc.NumMips; ++Mip)
@@ -1467,28 +1468,25 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 				Size += LocalSize;
 			}
 
-			VkDevice VulkanDevice = InDevice.GetInstanceHandle();
-			const VkMemoryPropertyFlags BufferMemFlags = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
 			VkBufferCreateInfo BufferCreateInfo;
 			ZeroVulkanStruct(BufferCreateInfo, VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
 			BufferCreateInfo.size = Size;
 			BufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+			VERIFYVULKANRESULT(VulkanRHI::vkCreateBuffer(InDevice.GetInstanceHandle(), &BufferCreateInfo, VULKAN_CPU_ALLOCATOR, &CpuReadbackBuffer->Buffer));
 
-			VERIFYVULKANRESULT(VulkanRHI::vkCreateBuffer(VulkanDevice, &BufferCreateInfo, VULKAN_CPU_ALLOCATOR, &CpuReadbackBuffer->Buffer));
-			VulkanRHI::vkGetBufferMemoryRequirements(VulkanDevice, CpuReadbackBuffer->Buffer, &MemoryRequirements);
 			// Set minimum alignment to 16 bytes, as some buffers are used with CPU SIMD instructions
-			MemoryRequirements.alignment = FMath::Max<VkDeviceSize>(16, MemoryRequirements.alignment);
-			if (!InDevice.GetMemoryManager().AllocateBufferMemory(Allocation, this, MemoryRequirements, BufferMemFlags, EVulkanAllocationMetaBufferStaging, false, __FILE__, __LINE__))
-			{
-				InDevice.GetMemoryManager().HandleOOM();
-			}
-			Allocation.BindBuffer(Device, CpuReadbackBuffer->Buffer);
+			const uint32 ForcedMinAlignment = 16u;
+			const EVulkanAllocationFlags AllocFlags = EVulkanAllocationFlags::HostCached | EVulkanAllocationFlags::AutoBind;
+			InDevice.GetMemoryManager().AllocateBufferMemory(Allocation, CpuReadbackBuffer->Buffer, AllocFlags, InCreateDesc.DebugName, ForcedMinAlignment);
+
 			void* Memory = Allocation.GetMappedPointer(Device);
-			FMemory::Memzero(Memory, MemoryRequirements.size);
+			FMemory::Memzero(Memory, Size);
 
 			ImageOwnerType = EImageOwnerType::None;
 			ViewFormat = StorageFormat = UEToVkTextureFormat(InCreateDesc.Format, false);
+
+			// :todo-jn: Kept around temporarily for legacy defrag/eviction/stats
+			VulkanRHI::vkGetBufferMemoryRequirements(InDevice.GetInstanceHandle(), CpuReadbackBuffer->Buffer, &MemoryRequirements);
 
 			return;
 		}
