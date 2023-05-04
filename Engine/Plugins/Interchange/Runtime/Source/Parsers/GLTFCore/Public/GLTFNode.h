@@ -44,6 +44,13 @@ namespace GLTF
 
 		FString UniqueId; //will be generated in FAsset::GenerateNames
 
+		TMap<int, FTransform> SkinIndexToGlobalInverseBindTransform;
+		TMap<int, FTransform> SkinIndexToLocalBindPose; //bind pose would be CurrentNode.GlobalInverseBindTransform.Inverse() * ParentNode.GlobalInverseBindTransform
+		bool bHasLocalBindPose;
+		FTransform LocalBindPose;	// First Skin that's using the joint will fill the LocalBindPose.
+									//	Edge case Scenario which is currently not supported:
+									//	Where multiple skins use the same Joint. Currently expected bad outcome if the different skins have different inversebindmatrices on the joint.
+
 		FNode()
 		    : Type(EType::None)
 		    , MeshIndex(INDEX_NONE)
@@ -52,6 +59,7 @@ namespace GLTF
 		    , LightIndex(INDEX_NONE)
 			, ParentIndex(INDEX_NONE)
 			, RootJointIndex(INDEX_NONE)
+			, bHasLocalBindPose(false)
 		{
 		}
 	};

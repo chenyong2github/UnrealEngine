@@ -62,6 +62,10 @@ namespace GLTF
 		void SetupObjects(uint32 ObjectCount, const TCHAR* FieldName, SetupFunc Func) const;
 		void SetupNodesType() const;
 
+		void GenerateInverseBindPosesPerSkinIndices() const; //Per node
+		void GenerateLocalBindPosesPerSkinIndices() const; //Per node
+		void SetLocalBindPosesForJoints() const; //Per node
+
 		void BuildParentIndices(int32 ParentNodeIndex, int32 CurrentNodeIndex) const;
 		int32 FindRootJointIndex(int32 CurrentNodeIndex) const;
 		void BuildRootJoints() const;

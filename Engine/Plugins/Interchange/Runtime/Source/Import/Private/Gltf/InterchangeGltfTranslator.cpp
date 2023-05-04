@@ -129,6 +129,7 @@ namespace UE::Interchange::Gltf::Private
 		for (GLTF::FNode& Node : Nodes)
 		{
 			Node.Transform.SetTranslation(Node.Transform.GetTranslation() * Scale);
+			Node.LocalBindPose.SetTranslation(Node.LocalBindPose.GetTranslation() * Scale);
 		}
 	}
 
@@ -259,6 +260,10 @@ void UInterchangeGLTFTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 		case GLTF::FNode::EType::Joint:
 		{
 			InterchangeSceneNode->AddSpecializedType(UE::Interchange::FSceneNodeStaticData::GetJointSpecializeTypeString());
+			if (GltfNode.bHasLocalBindPose)
+			{
+				InterchangeSceneNode->SetCustomBindPoseLocalTransform(&NodeContainer, GltfNode.LocalBindPose);
+			}
 			break;
 		}
 

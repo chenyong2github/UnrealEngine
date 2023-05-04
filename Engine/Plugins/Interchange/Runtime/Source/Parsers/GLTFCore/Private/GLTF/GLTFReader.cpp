@@ -973,6 +973,11 @@ namespace GLTF
 		}
 
 		SetupNodesType();
+
+		GenerateInverseBindPosesPerSkinIndices();
+		GenerateLocalBindPosesPerSkinIndices();
+		SetLocalBindPosesForJoints();
+
 		ExtensionsHandler->SetupAssetExtensions(*JsonRoot);
 		BuildRootJoints();
 	}
@@ -1025,6 +1030,85 @@ namespace GLTF
 					|| Asset->Nodes[JointIndex].Type == FNode::EType::Transform
 					|| Asset->Nodes[JointIndex].Type == FNode::EType::Joint);
 				Asset->Nodes[JointIndex].Type = FNode::EType::Joint;
+			}
+		}
+	}
+
+	void FFileReader::GenerateInverseBindPosesPerSkinIndices() const
+	{
+		for (size_t SkinIndex = 0; SkinIndex < Asset->Skins.Num(); SkinIndex++)
+		{
+			const FSkinInfo& Skin = Asset->Skins[SkinIndex];
+			if (Skin.InverseBindMatrices.Count == Skin.Joints.Num())
+			{
+				for (size_t JointCounter = 0; JointCounter < Skin.Joints.Num(); JointCounter++)
+				{
+					FMatrix InverseBindMatrix = Skin.InverseBindMatrices.GetMat4(JointCounter);
+					InverseBindMatrix = GLTF::ConvertMat(InverseBindMatrix);
+
+					FTransform InverseBindMatrixTransform;
+					InverseBindMatrixTransform.SetFromMatrix(InverseBindMatrix);
+					InverseBindMatrixTransform.SetRotation(GLTF::ConvertQuat(InverseBindMatrixTransform.GetRotation()));
+					InverseBindMatrixTransform.SetTranslation(GLTF::ConvertVec3(InverseBindMatrixTransform.GetTranslation()));
+					InverseBindMatrixTransform.SetScale3D(GLTF::ConvertVec3(InverseBindMatrixTransform.GetScale3D()));
+
+					Asset->Nodes[Skin.Joints[JointCounter]].SkinIndexToGlobalInverseBindTransform.Add(SkinIndex, InverseBindMatrixTransform);
+				}
+			}
+		}
+	}
+	void FFileReader::GenerateLocalBindPosesPerSkinIndices() const
+	{
+		for (size_t SkinIndex = 0; SkinIndex < Asset->Skins.Num(); SkinIndex++)
+		{
+			const FSkinInfo& Skin = Asset->Skins[SkinIndex];
+			if (Skin.InverseBindMatrices.Count == Skin.Joints.Num())
+			{
+				for (size_t JointCounter = 0; JointCounter < Skin.Joints.Num(); JointCounter++)
+				{
+					FNode& CurrentNode = Asset->Nodes[Skin.Joints[JointCounter]];
+					if (CurrentNode.ParentIndex != INDEX_NONE)
+					{
+						if (Asset->Nodes[CurrentNode.ParentIndex].Type == FNode::EType::Joint
+							&& Asset->Nodes[CurrentNode.ParentIndex].SkinIndexToGlobalInverseBindTransform.Contains(SkinIndex))
+						{
+							//LocalBindPose; //bind pose would be CurrentNode.GlobalInverseBindTransform.Inverse() * ParentNode.GlobalInverseBindTransform
+							FTransform ParentGlobalInverseBindTransform = Asset->Nodes[CurrentNode.ParentIndex].SkinIndexToGlobalInverseBindTransform[SkinIndex];
+							FTransform LocalBindPose = CurrentNode.SkinIndexToGlobalInverseBindTransform[SkinIndex].Inverse() * ParentGlobalInverseBindTransform;
+
+							CurrentNode.SkinIndexToLocalBindPose.Add(SkinIndex, LocalBindPose);
+						}
+					}
+				}
+			}
+		}
+	}
+	void FFileReader::SetLocalBindPosesForJoints() const
+	{
+		for (size_t SkinIndex = 0; SkinIndex < Asset->Skins.Num(); SkinIndex++)
+		{
+			const FSkinInfo& Skin = Asset->Skins[SkinIndex];
+			if (Skin.InverseBindMatrices.Count == Skin.Joints.Num())
+			{
+				for (size_t JointCounter = 0; JointCounter < Skin.Joints.Num(); JointCounter++)
+				{
+					FNode& CurrentNode = Asset->Nodes[Skin.Joints[JointCounter]];
+
+					if (CurrentNode.bHasLocalBindPose && CurrentNode.SkinIndexToLocalBindPose.Contains(SkinIndex))
+					{
+						if (!CurrentNode.LocalBindPose.Equals(CurrentNode.SkinIndexToLocalBindPose[SkinIndex]))
+						{
+							Messages.Emplace(EMessageSeverity::Error, FString::Printf(TEXT("The same Joint [%s] is used in multiple Skins with multiple different InverseBindMatrix values, which is currently not supported."), *CurrentNode.Name));
+						}
+					}
+
+					if (!CurrentNode.bHasLocalBindPose
+						&& CurrentNode.SkinIndexToLocalBindPose.Contains(SkinIndex))
+					{
+						CurrentNode.bHasLocalBindPose = true;
+						CurrentNode.LocalBindPose = CurrentNode.SkinIndexToLocalBindPose[SkinIndex];
+					}
+				}
 			}
 		}
 	}
