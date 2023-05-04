@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Net/Core/Misc/NetContext.h"
+#include "Misc/AssertionMacros.h"
 
 namespace UE::Net
 {

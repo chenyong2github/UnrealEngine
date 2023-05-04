@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/PlatformMisc.h"
+
 // Forward declarations
 namespace UE::Net::Private
 {
@@ -13,7 +15,7 @@ namespace UE::Net
 {
 
 /** Stateless class that provides misc network context information */
-class FNetContext
+class NETCORE_API FNetContext
 {
 public:
 	
