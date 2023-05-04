@@ -2104,9 +2104,10 @@ struct alignas(16) FNiagaraSystemParameters
 	int32 NumTimeSteps = 0;
 	float TimeStepFraction = 0.0f;
 
+	uint32 NumParticles = 0;
+
 	int32 _Pad0;
 	int32 _Pad1;
-	int32 _Pad2;
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we

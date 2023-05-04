@@ -170,6 +170,7 @@ public:
 	FORCEINLINE static const FNiagaraVariable& GetVar_Engine_System_CurrentTimeStep() { return Engine_System_CurrentTimeStep; }
 	FORCEINLINE static const FNiagaraVariable& GetVar_Engine_System_NumTimeSteps() { return Engine_System_NumTimeSteps; }
 	FORCEINLINE static const FNiagaraVariable& GetVar_Engine_System_TimeStepFraction() { return Engine_System_TimeStepFraction; }
+	FORCEINLINE static const FNiagaraVariable& GetVar_Engine_System_NumParticles() { return Engine_System_NumParticles; }
 
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_System_NumEmitters() { return Engine_System_NumEmitters; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_NumSystemInstances() { return Engine_NumSystemInstances; }
@@ -298,6 +299,7 @@ private:
 	static FNiagaraVariable Engine_System_CurrentTimeStep;
 	static FNiagaraVariable Engine_System_NumTimeSteps;
 	static FNiagaraVariable Engine_System_TimeStepFraction;
+	static FNiagaraVariable Engine_System_NumParticles;
 	
 	static FNiagaraVariable Engine_System_NumEmitters;
 	static FNiagaraVariable Engine_NumSystemInstances;

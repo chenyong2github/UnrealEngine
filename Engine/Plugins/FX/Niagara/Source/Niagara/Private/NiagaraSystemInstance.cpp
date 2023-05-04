@@ -1937,27 +1937,6 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	FlipParameterBuffers();
 	uint32 ParameterIndex = GetParameterIndex();
 
-	for (int32 i = 0; i < GatheredInstanceParameters.EmitterCount; ++i)
-	{
-		auto& CurrentEmitterParameters = EditEmitterParameters(i);
-
-		const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter = Emitters[i];
-		if (Emitter->GetExecutionState() != ENiagaraExecutionState::Disabled)
-		{
-			CurrentEmitterParameters.EmitterNumParticles = Emitter->GetNumParticles();
-			CurrentEmitterParameters.EmitterTotalSpawnedParticles = Emitter->GetTotalSpawnedParticles();
-			CurrentEmitterParameters.EmitterRandomSeed = Emitter->GetRandomSeed();
-			CurrentEmitterParameters.EmitterInstanceSeed = Emitter->GetInstanceSeed();
-			const FNiagaraEmitterScalabilitySettings& ScalabilitySettings = Emitter->GetScalabilitySettings();
-			CurrentEmitterParameters.EmitterSpawnCountScale = ScalabilitySettings.bScaleSpawnCount ? ScalabilitySettings.SpawnCountScale : 1.0f;
-			++GatheredInstanceParameters.NumAlive;
-		}
-		else
-		{
-			CurrentEmitterParameters.EmitterNumParticles = 0;
-		}
-	}
-
 	FNiagaraSystemParameters& CurrentSystemParameters = SystemParameters[ParameterIndex];
 	CurrentSystemParameters.EngineSystemAge = Age;
 	CurrentSystemParameters.EngineTickCount = TickCount;
@@ -1970,7 +1949,33 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 
 	CurrentSystemParameters.CurrentTimeStep = GetSystemSimulation()->GetTickInfo().TickNumber;
 	CurrentSystemParameters.NumTimeSteps = GetSystemSimulation()->GetTickInfo().TickCount;
-	CurrentSystemParameters.TimeStepFraction = GetSystemSimulation()->GetTickInfo().TimeStepFraction;	
+	CurrentSystemParameters.TimeStepFraction = GetSystemSimulation()->GetTickInfo().TimeStepFraction;
+	
+	CurrentSystemParameters.NumParticles = 0;
+
+	for (int32 i = 0; i < GatheredInstanceParameters.EmitterCount; ++i)
+	{
+		auto& CurrentEmitterParameters = EditEmitterParameters(i);
+
+		const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter = Emitters[i];
+		if (Emitter->GetExecutionState() != ENiagaraExecutionState::Disabled)
+		{
+			int32 NumParticles = Emitter->GetNumParticles();
+			CurrentSystemParameters.NumParticles += NumParticles;
+
+			CurrentEmitterParameters.EmitterNumParticles = NumParticles;
+			CurrentEmitterParameters.EmitterTotalSpawnedParticles = Emitter->GetTotalSpawnedParticles();
+			CurrentEmitterParameters.EmitterRandomSeed = Emitter->GetRandomSeed();
+			CurrentEmitterParameters.EmitterInstanceSeed = Emitter->GetInstanceSeed();
+			const FNiagaraEmitterScalabilitySettings& ScalabilitySettings = Emitter->GetScalabilitySettings();
+			CurrentEmitterParameters.EmitterSpawnCountScale = ScalabilitySettings.bScaleSpawnCount ? ScalabilitySettings.SpawnCountScale : 1.0f;
+			++GatheredInstanceParameters.NumAlive;
+		}
+		else
+		{
+			CurrentEmitterParameters.EmitterNumParticles = 0;
+		}
+	}
 
 	if (OverrideParameters)
 	{

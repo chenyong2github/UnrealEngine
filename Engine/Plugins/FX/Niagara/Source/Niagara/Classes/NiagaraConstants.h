@@ -75,6 +75,7 @@
 #define SYS_PARAM_ENGINE_SYSTEM_CURRENT_TIME_STEP		 INiagaraModule::GetVar_Engine_System_CurrentTimeStep()
 #define SYS_PARAM_ENGINE_SYSTEM_NUM_TIME_STEPS			 INiagaraModule::GetVar_Engine_System_NumTimeSteps()
 #define SYS_PARAM_ENGINE_SYSTEM_TIME_STEP_FRACTION			 INiagaraModule::GetVar_Engine_System_TimeStepFraction()
+#define SYS_PARAM_ENGINE_SYSTEM_NUM_PARTICLES			INiagaraModule::GetVar_Engine_System_NumParticles()
 
 
 #define SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS             INiagaraModule::GetVar_Engine_System_NumEmitters()

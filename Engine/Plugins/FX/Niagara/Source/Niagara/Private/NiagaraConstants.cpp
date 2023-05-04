@@ -118,6 +118,7 @@ void FNiagaraConstants::Init()
 		SystemParameters.Add(SYS_PARAM_ENGINE_SYSTEM_CURRENT_TIME_STEP);
 		SystemParameters.Add(SYS_PARAM_ENGINE_SYSTEM_NUM_TIME_STEPS);
 		SystemParameters.Add(SYS_PARAM_ENGINE_SYSTEM_TIME_STEP_FRACTION);
+		SystemParameters.Add(SYS_PARAM_ENGINE_SYSTEM_NUM_PARTICLES);
 		SystemParameters.Add(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS);
 		SystemParameters.Add(SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES);
 		SystemParameters.Add(SYS_PARAM_ENGINE_GLOBAL_SPAWN_COUNT_SCALE);
@@ -261,6 +262,7 @@ void FNiagaraConstants::Init()
 		SystemStrMap.Add(SYS_PARAM_ENGINE_SYSTEM_CURRENT_TIME_STEP, LOCTEXT("CurrentTimeStep", "The current time step."));
 		SystemStrMap.Add(SYS_PARAM_ENGINE_SYSTEM_NUM_TIME_STEPS, LOCTEXT("NumTimeSteps", "Number of steps used, can be > 1 when using fixed delta time."));
 		SystemStrMap.Add(SYS_PARAM_ENGINE_SYSTEM_TIME_STEP_FRACTION, LOCTEXT("TimeStepFraction", "The fraction of the world delta time integrated for the current sub step."));
+		SystemStrMap.Add(SYS_PARAM_ENGINE_SYSTEM_NUM_PARTICLES, LOCTEXT("NumParticles", "The total active particles for all emitters in this system. Note that counts for GPU emitters will be latent and may not be exactly accurate/up to date for a give frame."));
 
 		SystemStrMap.Add(SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS, LOCTEXT("SystemNumEmitters", "The number of emitters attached to this system. Should only be used in System scripts."));
 		SystemStrMap.Add(SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES, LOCTEXT("SystemNumInstances", "The number of instances of this system currently ticking. Should only be used in System scripts."));
