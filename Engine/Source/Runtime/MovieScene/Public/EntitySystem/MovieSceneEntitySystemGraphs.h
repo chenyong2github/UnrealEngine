@@ -177,7 +177,7 @@ private:
 	void UpdateCache();
 
 	template<typename ArrayType>
-	void ExecutePhase(const ArrayType& RetrieveEntries, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);
+	void ExecutePhase(UE::MovieScene::ESystemPhase Phase, const ArrayType& RetrieveEntries, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);
 
 private:
 	friend UE::MovieScene::FSystemSubsequentTasks;
