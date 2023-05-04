@@ -131,7 +131,8 @@ registerIcons({
       "Eye": IconContents.EYE_OPEN,
       "ArrowLeft": IconContents.ARROW_LEFT,
       "ArrowRight": IconContents.ARROW_RIGHT,
-      "ArrowUp" : IconContents.ARROW_UP
+      "ArrowUp": IconContents.ARROW_UP,
+      "Repeat": IconContents.REPEAT
    }
 });
 
