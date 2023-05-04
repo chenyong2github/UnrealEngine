@@ -258,6 +258,23 @@ void FNiagaraSystemInstanceController::DebugDump(bool bFullDump)
 	}
 }
 
+SIZE_T FNiagaraSystemInstanceController::GetTotalBytesUsed() const
+{
+	SIZE_T Size = 0;
+	if (IsValid())
+	{
+		for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter : GetSystemInstance_Unsafe()->GetEmitters())
+		{
+			if (Emitter->GetCachedEmitter().Emitter != nullptr)
+			{
+				Size += Emitter->GetTotalBytesUsed();
+			}
+		}
+	}
+
+	return Size;
+}
+
 void FNiagaraSystemInstanceController::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	for (auto& Override : EmitterMaterials)

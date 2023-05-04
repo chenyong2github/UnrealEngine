@@ -1094,21 +1094,9 @@ void FNiagaraDebugHud::GatherSystemInfo()
 		}
 
 		// Track rough memory usage
-		if(SystemInstance)
-		{
-			for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : SystemInstance->GetEmitters())
-			{
-				UNiagaraEmitter* NiagaraEmitter = EmitterInstance->GetCachedEmitter().Emitter;
-				if (NiagaraEmitter == nullptr)
-				{
-					continue;
-				}
-
-				const int64 BytesUsed = EmitterInstance->GetTotalBytesUsed();
-				SystemDebugInfo.TotalBytes += BytesUsed;
-				GlobalTotalBytes += BytesUsed;
-			}
-		}
+		const int64 BytesUsed = SystemInstanceController->GetTotalBytesUsed();
+		SystemDebugInfo.TotalBytes += BytesUsed;
+		GlobalTotalBytes += BytesUsed;
 
 		if (bIsActive)
 		{
@@ -2803,14 +2791,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 						BuildGpuHudInformation(StringBuilder, NiagaraComponent, SystemInstance, World->GetFeatureLevel());
 					}
 
-					int64 TotalBytes = 0;
-					for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : SystemInstance->GetEmitters())
-					{
-						if ( UNiagaraEmitter* NiagaraEmitter = EmitterInstance->GetCachedEmitter().Emitter )
-						{
-							TotalBytes += EmitterInstance->GetTotalBytesUsed();
-						}
-					}
+					int64 TotalBytes = SystemInstanceController->GetTotalBytesUsed();
 					StringBuilder.Appendf(TEXT("Memory - %6.2fMB\n"), float(double(TotalBytes) / (1024.0*1024.0)));
 				}
 

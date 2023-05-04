@@ -148,7 +148,7 @@ FAutoConsoleCommandWithWorldAndArgs DumpNiagaraComponentsCommand(
 
 				if (Component->PoolingMethod == ENCPoolMethod::FreeInPool)
 				{
-					UE_LOG(LogNiagara, Log, TEXT("Component '%s' Asset '%s' Free In Compnent Pool"), *GetNameSafe(Component), *GetNameSafe(NiagaraSystem));
+					UE_LOG(LogNiagara, Log, TEXT("Component '%s' Asset '%s' Free In Component Pool"), *GetNameSafe(Component), *GetNameSafe(NiagaraSystem));
 				}
 				else
 				{
@@ -1979,6 +1979,15 @@ void UNiagaraComponent::BeginDestroy()
 	DestroyInstance();
 
 	Super::BeginDestroy();
+}
+
+void UNiagaraComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+	if (SystemInstanceController)
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SystemInstanceController->GetTotalBytesUsed());
+	}
 }
 
 void UNiagaraComponent::CreateCullProxy(bool bForce)

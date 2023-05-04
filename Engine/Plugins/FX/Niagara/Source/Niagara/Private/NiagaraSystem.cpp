@@ -1002,7 +1002,38 @@ void UNiagaraSystem::PostLoad()
 	PrecachePSOs();
 }
 
+void UNiagaraSystem::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(SystemScalabilityOverrides.Overrides.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(EmitterHandles.GetAllocatedSize());
+	if (const UScriptStruct* Struct = FVersionedNiagaraEmitterData::StaticStruct())
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Struct->GetStructureSize() * EmitterHandles.Num());
+	}
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(EmitterCompiledData.GetAllocatedSize());
+	if (const UScriptStruct* Struct = FNiagaraEmitterCompiledData::StaticStruct())
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Struct->GetStructureSize() * EmitterCompiledData.Num());
+	}
+	if (const UScriptStruct* Struct = FNiagaraSystemCompiledData::StaticStruct())
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(Struct->GetStructureSize());
+	}
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(EmitterExecutionOrder.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RendererPostTickOrder.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RendererCompletionOrder.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RendererDrawOrder.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(EmitterExecutionStateAccessors.GetAllocatedSize());
+	if (StaticBuffers != nullptr)
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(StaticBuffers->GetCpuFloatBuffer().Num() * sizeof(float));
+	}
+}
+
 #if WITH_EDITORONLY_DATA
+
 void UNiagaraSystem::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass)
 {
 	Super::DeclareConstructClasses(OutConstructClasses, SpecificSubclass);

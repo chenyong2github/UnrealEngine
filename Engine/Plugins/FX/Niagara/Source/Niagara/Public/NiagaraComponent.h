@@ -205,6 +205,7 @@ public:
 	virtual void Activate(bool bReset = false) override;
 	virtual void Deactivate() override;
 	virtual void DeactivateImmediate() override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 
 	ENiagaraExecutionState GetRequestedExecutionState() const;
 	ENiagaraExecutionState GetExecutionState() const;
