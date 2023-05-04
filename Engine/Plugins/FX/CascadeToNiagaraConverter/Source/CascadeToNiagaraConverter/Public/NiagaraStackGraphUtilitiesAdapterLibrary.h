@@ -951,6 +951,9 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static FName GetCascadeEmitterName(UParticleEmitter* Emitter);
 
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static int32 GetCascadeEmitterRenderMode(UParticleEmitter* Emitter);
+
 
 	// Niagara Script and Script Input Helpers
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")

@@ -183,6 +183,11 @@ FName UFXConverterUtilitiesLibrary::GetCascadeEmitterName(UParticleEmitter* Emit
 	return Emitter->GetEmitterName();
 }
 
+int32 UFXConverterUtilitiesLibrary::GetCascadeEmitterRenderMode(UParticleEmitter* Emitter)
+{
+	return Emitter->EmitterRenderMode;
+}
+
 FAssetData UFXConverterUtilitiesLibrary::CreateAssetData(FString InPath)
 {
 	FAssetData Out;
