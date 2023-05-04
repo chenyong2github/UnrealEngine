@@ -2657,7 +2657,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 		}
 	}
 
-	FReplaceReferenceHelper::ValidateReplacementMappings(OldToNewInstanceMap);
+	//FReplaceReferenceHelper::ValidateReplacementMappings(OldToNewInstanceMap);
 	FReplaceReferenceHelper::FindAndReplaceReferences(SourceObjects, ObjectsThatShouldUseOldStuff, ObjectsReplaced, OldToNewInstanceMap, ReinstancedObjectsWeakReferenceMap);
 	
 	for (UObject* Obj : ObjectsReplaced)
