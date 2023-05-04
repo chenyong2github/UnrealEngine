@@ -10,9 +10,6 @@
 #include "XmppLog.h"
 #include "XmppTests.h"
 #include "XmppNull.h"
-#if WITH_XMPP_JINGLE
-#include "XmppJingle/XmppJingle.h"
-#endif
 #if WITH_XMPP_STROPHE
 #include "XmppStrophe/XmppStrophe.h"
 #include "WebSocketsModule.h"
@@ -35,9 +32,6 @@ void FXmppModule::StartupModule()
 
 	if (bEnabled)
 	{
-#if WITH_XMPP_JINGLE
-		FXmppJingle::Init();
-#endif
 #if WITH_XMPP_STROPHE
 		FXmppStrophe::Init();
 		FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
@@ -54,9 +48,6 @@ void FXmppModule::ShutdownModule()
 
 	if (bEnabled)
 	{
-#if WITH_XMPP_JINGLE
-		FXmppJingle::Cleanup();
-#endif
 #if WITH_XMPP_STROPHE
 		FXmppStrophe::Cleanup();
 #endif
@@ -698,37 +689,13 @@ TSharedRef<IXmppConnection> FXmppModule::CreateConnection(const FString& UserId)
 	}
 	else
 	{
-		bool bEnableWebsockets = false;
-		GConfig->GetBool(TEXT("XMPP"), TEXT("bEnableWebsockets"), bEnableWebsockets, GEngineIni);
-
-		bool bUseStrophe = WITH_XMPP_STROPHE && bEnableWebsockets;
-		bool bUseJingle = WITH_XMPP_JINGLE && !bUseStrophe;
-		if (!bUseJingle && !bUseStrophe)
-		{
-			// if not using websockets, use the previous default implementation (jingle if available, otherwise strophe)
-#if WITH_XMPP_JINGLE
-			bUseJingle = true;
-#elif WITH_XMPP_STROPHE
-			bUseStrophe = true;
-#endif
-		}
-
-		if (bEnabled && (bUseStrophe || bUseJingle))
-		{
 #if WITH_XMPP_STROPHE
-			if (bUseStrophe)
-			{
-				Connection = FXmppStrophe::CreateConnection();
-			}
-#endif
-#if WITH_XMPP_JINGLE
-			if (bUseJingle)
-			{
-				Connection = FXmppJingle::CreateConnection();
-			}
-#endif
+		if (bEnabled)
+		{
+			Connection = FXmppStrophe::CreateConnection();
 		}
 		else
+#endif
 		{
 			Connection = FXmppNull::CreateConnection();
 		}

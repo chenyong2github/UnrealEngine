@@ -4,8 +4,6 @@ using UnrealBuildTool;
 
 public class XMPP : ModuleRules
 {
-	protected virtual bool bTargetPlatformSupportsJingle { get { return false; } }
-
 	protected virtual bool bTargetPlatformSupportsStrophe
 	{
 		get =>
@@ -30,20 +28,7 @@ public class XMPP : ModuleRules
 			}
 		);
 
-		bool TargetPlatformSupportsJingle = bTargetPlatformSupportsJingle;
-		bool TargetPlatformSupportsStrophe = bTargetPlatformSupportsStrophe;
-
-		if (TargetPlatformSupportsJingle)
-		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "WebRTC");
-			PrivateDefinitions.Add("WITH_XMPP_JINGLE=1");
-		}
-		else
-		{
-			PrivateDefinitions.Add("WITH_XMPP_JINGLE=0");
-		}
-
-		if (TargetPlatformSupportsStrophe)
+		if (bTargetPlatformSupportsStrophe)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "libstrophe");
 			PrivateDependencyModuleNames.Add("WebSockets");
