@@ -6,6 +6,7 @@
 #include "PCGCrc.h"
 
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Templates/SubclassOf.h"
 
 #include "PCGData.generated.h"
 
@@ -191,6 +192,26 @@ class PCG_API UPCGDataFunctionLibrary : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
+	/** Gets all inputs of the given class type, returning matching tagged data in the OutTaggedData value too */
+	UFUNCTION(BlueprintCallable, Category = Data, meta = (ScriptMethod, DeterminesOutputType = "InDataTypeClass"))
+	static TArray<UPCGData*> GetTypedInputs(const FPCGDataCollection& InCollection, TArray<FPCGTaggedData>& OutTaggedData, TSubclassOf<UPCGData> InDataTypeClass = nullptr);
+
+	/** Gets all inputs of the given class type and on the given pin, returning matching tagged data in the OutTaggedData value too */
+	UFUNCTION(BlueprintCallable, Category = Data, meta = (ScriptMethod, DeterminesOutputType = "InDataTypeClass"))
+	static TArray<UPCGData*> GetTypedInputsByPin(const FPCGDataCollection& InCollection, const FPCGPinProperties& InPin, TArray<FPCGTaggedData>& OutTaggedData, TSubclassOf<UPCGData> InDataTypeClass = nullptr);
+
+	/** Gets all inputs of the given class type and on the given pin label, returning matching tagged data in the OutTaggedData value too */
+	UFUNCTION(BlueprintCallable, Category = Data, meta = (ScriptMethod, DeterminesOutputType = "InDataTypeClass"))
+	static TArray<UPCGData*> GetTypedInputsByPinLabel(const FPCGDataCollection& InCollection, const FName& InPinLabel, TArray<FPCGTaggedData>& OutTaggedData, TSubclassOf<UPCGData> InDataTypeClass = nullptr);
+
+	/** Gets all inputs of the given class type and having the provided tag, returning matching tagged data in the OutTaggedData value too */
+	UFUNCTION(BlueprintCallable, Category = Data, meta = (ScriptMethod, DeterminesOutputType = "InDataTypeClass"))
+	static TArray<UPCGData*> GetTypedInputsByTag(const FPCGDataCollection& InCollection, const FString& InTag, TArray<FPCGTaggedData>& OutTaggedData, TSubclassOf<UPCGData> InDataTypeClass = nullptr);
+
+	/** Adds a data object to a given collection, simpler usage than making a PCGTaggedData object */
+	UFUNCTION(BlueprintCallable, Category = Data, meta = (ScriptMethod))
+	static void AddToCollection(UPARAM(ref) FPCGDataCollection& InCollection, const UPCGData* InData, FName InPinLabel, TArray<FString> InTags);
+
 	// Blueprint methods to support interaction with FPCGDataCollection
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetInputs(const FPCGDataCollection& InCollection);
@@ -212,6 +233,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = Data)
 	static TArray<FPCGTaggedData> GetAllSettings(const FPCGDataCollection& InCollection);
+
+protected:
+	static TArray<UPCGData*> GetInputsByPredicate(const FPCGDataCollection& InCollection, TArray<FPCGTaggedData>& OutTaggedData, TFunctionRef<bool(const FPCGTaggedData&)> InPredicate);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

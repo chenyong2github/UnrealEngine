@@ -84,11 +84,19 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, Category = "PCG|Preconfigure Settings", meta = (ForceAsFunction))
 	void ApplyPreconfiguredSettings(UPARAM(ref) const FPCGPreConfiguredSettingsInfo& InPreconfigureInfo);
 
+	// Returns the labels of custom input pins only
 	UFUNCTION(BlueprintCallable, Category = "PCG|Input & Output")
-	TSet<FName> InputLabels() const;
+	TSet<FName> CustomInputLabels() const;
 
+	// Returns the labels of custom output pins only
 	UFUNCTION(BlueprintCallable, Category = "PCG|Input & Output")
-	TSet<FName> OutputLabels() const;
+	TSet<FName> CustomOutputLabels() const;
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Input & Output", meta = (HideSelfPin = "true"))
+	TArray<FPCGPinProperties> GetInputPins() const;
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Input & Output", meta = (HideSelfPin = "true"))
+	TArray<FPCGPinProperties> GetOutputPins() const;
 
 	/** Gets the seed from the associated settings & source component */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Random")
@@ -100,6 +108,13 @@ public:
 
 	/** Called after object creation to setup the object callbacks */
 	void Initialize();
+
+	/** Retrieves the execution context - note that this will not be valid outside of the Execute functions */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Advanced", meta = (HideSelfPin = "true"))
+	FPCGContext& GetContext() const;
+
+	/** Called after the element duplication during execution to be able to get the context easily - internal call only */
+	void SetCurrentContext(FPCGContext* InCurrentContext);
 
 #if WITH_EDITOR
 	// ~Begin UObject interface
@@ -132,10 +147,10 @@ public:
 	bool bCanBeMultithreaded = false;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(BlueprintGetter=InputLabels, Category = "Settings|Input & Output", meta = (DeprecatedProperty, DeprecatedMessage = "Input Pin Labels are deprecated - use Input Labels instead."))
+	UPROPERTY(BlueprintGetter=CustomInputLabels, Category = "Settings|Input & Output", meta = (DeprecatedProperty, DeprecatedMessage = "Input Pin Labels are deprecated - use Input Labels instead."))
 	TSet<FName> InputPinLabels_DEPRECATED;
 
-	UPROPERTY(BlueprintGetter=OutputLabels, Category = "Settings|Input & Output")
+	UPROPERTY(BlueprintGetter=CustomOutputLabels, Category = "Settings|Input & Output")
 	TSet<FName> OutputPinLabels_DEPRECATED;
 #endif
 
@@ -183,6 +198,10 @@ protected:
 #if !WITH_EDITORONLY_DATA
 	UWorld* InstanceWorld = nullptr;
 #endif
+
+	// Since we duplicate the blueprint elements prior to execution, they will be unique
+	// and have a 1:1 match with their context, which allows us to store it here
+	FPCGContext* CurrentContext = nullptr;
 };
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))

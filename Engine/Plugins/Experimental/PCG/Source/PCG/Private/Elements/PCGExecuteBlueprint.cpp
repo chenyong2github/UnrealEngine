@@ -103,6 +103,18 @@ void UPCGBlueprintElement::Initialize()
 #endif
 }
 
+FPCGContext& UPCGBlueprintElement::GetContext() const
+{
+	checkf(CurrentContext, TEXT("Execution context is not ready - do not call the GetContext method inside of non-execution methods"));
+	return *CurrentContext;
+}
+
+void UPCGBlueprintElement::SetCurrentContext(FPCGContext* InCurrentContext)
+{
+	ensure(CurrentContext == nullptr || InCurrentContext == nullptr || CurrentContext == InCurrentContext);
+	CurrentContext = InCurrentContext;
+}
+
 #if WITH_EDITOR
 void UPCGBlueprintElement::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -156,7 +168,7 @@ EPCGSettingsType UPCGBlueprintElement::NodeTypeOverride_Implementation() const
 	return EPCGSettingsType::Blueprint;
 }
 
-TSet<FName> UPCGBlueprintElement::InputLabels() const
+TSet<FName> UPCGBlueprintElement::CustomInputLabels() const
 {
 	TSet<FName> Labels;
 	for (const FPCGPinProperties& PinProperty : CustomInputPins)
@@ -167,7 +179,7 @@ TSet<FName> UPCGBlueprintElement::InputLabels() const
 	return Labels;
 }
 
-TSet<FName> UPCGBlueprintElement::OutputLabels() const
+TSet<FName> UPCGBlueprintElement::CustomOutputLabels() const
 {
 	TSet<FName> Labels;
 	for (const FPCGPinProperties& PinProperty : CustomOutputPins)
@@ -176,6 +188,42 @@ TSet<FName> UPCGBlueprintElement::OutputLabels() const
 	}
 
 	return Labels;
+}
+
+TArray<FPCGPinProperties> UPCGBlueprintElement::GetInputPins() const
+{
+	if (CurrentContext)
+	{
+		if (const UPCGBlueprintSettings* Settings = CurrentContext->GetInputSettings<UPCGBlueprintSettings>())
+		{
+			return Settings->InputPinProperties();
+		}
+	}
+	else if (const UPCGBlueprintSettings* OriginalSettings = Cast<UPCGBlueprintSettings>(GetOuter()))
+	{
+		return OriginalSettings->InputPinProperties();
+	}
+	
+	// Can't retrieve settings - return only custom pins then
+	return CustomInputPins;
+}
+
+TArray<FPCGPinProperties> UPCGBlueprintElement::GetOutputPins() const
+{
+	if (CurrentContext)
+	{
+		if (const UPCGBlueprintSettings* Settings = CurrentContext->GetInputSettings<UPCGBlueprintSettings>())
+		{
+			return Settings->OutputPinProperties();
+		}
+	}
+	else if (const UPCGBlueprintSettings* OriginalSettings = Cast<UPCGBlueprintSettings>(GetOuter()))
+	{
+		return OriginalSettings->OutputPinProperties();
+	}
+
+	// Can't retrieve settings - return only custom pins then
+	return CustomOutputPins;
 }
 
 int UPCGBlueprintElement::GetSeed(FPCGContext& InContext) const 
@@ -604,7 +652,9 @@ bool FPCGExecuteBlueprintElement::ExecuteInternal(FPCGContext* InContext) const
 		Context->bShouldUnrootSettingsOnDelete = false;
 
 		/** Finally, execute the actual blueprint */
+		Context->BlueprintElementInstance->SetCurrentContext(Context);
 		Context->BlueprintElementInstance->ExecuteWithContext(*Context, Context->InputData, Context->OutputData);
+		Context->BlueprintElementInstance->SetCurrentContext(nullptr);
 
 		// Put back the proper unroot flag
 		Context->bShouldUnrootSettingsOnDelete = bShouldUnrootSettingsOnDelete;
