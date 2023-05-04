@@ -4,6 +4,7 @@
 
 #include "Iris/Core/BitTwiddling.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "Net/Core/Misc/NetContext.h"
 #include "Iris/ReplicationSystem/ObjectReferenceCache.h"
 #include "Iris/ReplicationSystem/ObjectReplicationBridge.h"
 #include "Iris/Serialization/NetReferenceCollector.h"
@@ -473,10 +474,10 @@ void FNetRPC::CallFunction(FNetSerializationContext& Context)
 			UE_LOG(LogIrisRpc, Verbose, TEXT("Calling %s RPC function %s for %s : %s"), (Function->FunctionFlags & FUNC_NetReliable ? TEXT("reliable") : TEXT("unreliable")), ToCStr(Function->GetName()), *NetObjectReference.ToString(), *Object->GetFullName());
 		}
 	}
-
 	// Call the function
 	if (Function->ParmsSize == 0)
 	{
+		UE::Net::FScopedNetContextRPC CallingRPC;
 		Object->ProcessEvent(const_cast<UFunction*>(Function), nullptr);
 	}
 	else
@@ -510,7 +511,10 @@ void FNetRPC::CallFunction(FNetSerializationContext& Context)
 		}
 		
 		FReplicationStateOperations::Dequantize(Context, FunctionParameters, QuantizedBlobState.Get(), BlobDescriptor);
-		Object->ProcessEvent(const_cast<UFunction*>(Function), FunctionParameters);
+		{
+			UE::Net::FScopedNetContextRPC CallingRPC;
+			Object->ProcessEvent(const_cast<UFunction*>(Function), FunctionParameters);
+		}
 
 		if (!EnumHasAnyFlags(BlobDescriptor->Traits, EReplicationStateTraits::IsSourceTriviallyDestructible))
 		{

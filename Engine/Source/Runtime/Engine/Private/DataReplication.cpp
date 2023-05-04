@@ -11,6 +11,7 @@
 #include "Misc/MemStack.h"
 #include "Misc/ScopeExit.h"
 #include "Net/Core/Trace/Private/NetTraceInternal.h"
+#include "Net/Core/Misc/NetContext.h"
 #include "Net/NetworkProfiler.h"
 #include "Engine/PackageMapClient.h"
 #include "Net/RepLayout.h"
@@ -1221,22 +1222,22 @@ struct FScopedRPCTimingTracker
 		}
 	}
 
-	UNetConnection* Connection;
-	UFunction* Function;
+	UNetConnection* Connection = nullptr;
+	UFunction* Function = nullptr;
 	FRPCDoSDetection* RPCDoS = nullptr;
-	double StartTime;
+	double StartTime = 0.0;
 
 	static TArray<FScopedRPCTimingTracker*> ActiveTrackers;
 };
 
 TArray<FScopedRPCTimingTracker*> FScopedRPCTimingTracker::ActiveTrackers;
 
+/** Return the list of UFunctions currently tracked or  */
 ENGINE_API TArray<UFunction*> FindScopedRPCTrackers(UNetConnection* Connection = nullptr)
 {
 	TArray<UFunction*> FuncList;
-	for (int32 Idx = 0; Idx < FScopedRPCTimingTracker::ActiveTrackers.Num(); Idx++)
+	for (const FScopedRPCTimingTracker* TestTracker : FScopedRPCTimingTracker::ActiveTrackers)
 	{
-		const FScopedRPCTimingTracker* TestTracker = FScopedRPCTimingTracker::ActiveTrackers[Idx];
 		if (TestTracker && (Connection == nullptr || TestTracker->Connection == Connection))
 		{
 			FuncList.Add(TestTracker->Function);
@@ -1373,8 +1374,12 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 			// Reset errors from replay driver
 			RPC_ResetLastFailedReason();
 
-			// Call the function.
-			Object->ProcessEvent(Function, Parms);
+
+			{
+				UE::Net::FScopedNetContextRPC CallingRPC;
+				// Call the function.
+				Object->ProcessEvent(Function, Parms);
+			}
 		}
 
 		// Destroy the parameters.
