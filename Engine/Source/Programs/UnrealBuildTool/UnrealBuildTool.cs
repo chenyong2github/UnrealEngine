@@ -662,10 +662,12 @@ namespace UnrealBuildTool
 				{
 					throw AggEx.InnerExceptions[0];
 				}
-
-				if ((ModeOptions & ToolModeOptions.ShowExecutionTime) != 0)
+				finally
 				{
-					Logger.LogInformation("Total execution time: {Time:0.00} seconds", Timeline.Elapsed.TotalSeconds);
+					if ((ModeOptions & ToolModeOptions.ShowExecutionTime) != 0)
+					{
+						Logger.LogInformation("Total execution time: {Time:0.00} seconds", Timeline.Elapsed.TotalSeconds);
+					}
 				}
 
 				return Result;

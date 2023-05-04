@@ -400,12 +400,14 @@ namespace UnrealBuildTool
 
 				// Execute the build
 				Stopwatch Timer = Stopwatch.StartNew();
-				if (!await Executor.ExecuteActionsAsync(ActionsToExecute, Logger))
+				bool Result = await Executor.ExecuteActionsAsync(ActionsToExecute, Logger);
+
+				Logger.LogInformation("Total time in {ExecutorName} executor: {TotalSeconds:0.00} seconds", Executor.Name, Timer.Elapsed.TotalSeconds);
+
+				if (!Result)
 				{
 					throw new CompilationResultException(CompilationResult.OtherCompilationError);
 				}
-
-				Logger.LogInformation("Total time in {ExecutorName} executor: {TotalSeconds:0.00} seconds", Executor.Name, Timer.Elapsed.TotalSeconds);
 
 				// Reset the file info for all the produced items
 				foreach (LinkedAction BuildAction in ActionsToExecute)
