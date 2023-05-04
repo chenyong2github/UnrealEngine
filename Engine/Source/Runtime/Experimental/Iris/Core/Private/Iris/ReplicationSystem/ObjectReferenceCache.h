@@ -30,6 +30,7 @@ namespace UE::Net::Private
 class FObjectReferenceCache
 {
 public:
+
 	FObjectReferenceCache();
 
 	void Init(UReplicationSystem* ReplicationSystem);
@@ -54,6 +55,9 @@ public:
 
 	UObject* ResolveObjectReference(const FNetObjectReference& ObjectRef, const FNetObjectResolveContext& ResolveContext);
 	ENetObjectReferenceResolveResult ResolveObjectReference(const FNetObjectReference& ObjectRef, const FNetObjectResolveContext& ResolveContext, UObject*& OutResolvedObject);
+
+	// Returns true of this NetRefHandle is marked as broken
+	bool IsNetRefHandleBroken(FNetRefHandle Handle, bool bMustBeRegistered) const;
 
 	// Find replicated outer
 	FNetObjectReference GetReplicatedOuter(const FNetObjectReference& Reference) const;
@@ -108,6 +112,24 @@ public:
 
 	static FNetObjectReference MakeNetObjectReference(FNetRefHandle Handle);
 
+	// Async interface, kept as close to possible to FNetGuidCache/PackageMapClient
+	enum class EAsyncLoadMode : uint8
+	{
+		UseCVar			= 0,		// Use CVar (net.AllowAsyncLoading) to determine if we should async load
+		ForceDisable	= 1,		// Disable async loading
+		ForceEnable		= 2,		// Force enable async loading
+	};
+
+	void SetAsyncLoadMode(const EAsyncLoadMode NewMode);
+	bool ShouldAsyncLoad() const;
+	void AsyncPackageCallback(const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result);
+
+	// While async loading of pending must be mapped references we need to maintain references to already resolved objects as there will be no instance referencing them
+	void AddReferencedObjects(FReferenceCollector& ReferenceCollector);
+	void AddTrackedQueuedBatchObjectReference(const FNetRefHandle InHandle, const UObject* InObject);
+	void UpdateTrackedQueuedBatchObjectReference(const FNetRefHandle InHandle, const UObject* NewObject);
+	void RemoveTrackedQueuedBatchObjectReference(const FNetRefHandle InHandle);
+
 private:
 
 	struct FCachedNetObjectReference
@@ -132,6 +154,23 @@ private:
 		uint8 bIsPending : 1;
 	};
 
+	struct FQueuedBatchObjectReference
+	{
+		const UObject* Object = nullptr;
+		uint32 RefCount = 0U;
+	};
+
+	struct FPendingAsyncLoadRequest
+	{
+		FPendingAsyncLoadRequest(FNetRefHandle InNetRefHandle, double InRequestStartTime);
+		void Merge(const FPendingAsyncLoadRequest& Other);
+		void Merge(FNetRefHandle InNetRefHandle);
+
+		// NetRefHandles that requested loading for the same UPackage
+		TArray<FNetRefHandle, TInlineAllocator<4>> NetRefHandles;
+		double RequestStartTime;
+	};
+
 	bool CreateObjectReferenceInternal(const UObject* Object, FNetObjectReference& OutReference);
 
 	void ConditionalWriteNetTokenData(FNetSerializationContext& Context, Private::FNetExportContext* ExportContext, const FNetToken& NetToken) const;
@@ -139,6 +178,7 @@ private:
 
 	void ReadFullReferenceInternal(FNetSerializationContext& Context, FNetObjectReference& OutRef, uint32 RecursionCount);
 	void WriteFullReferenceInternal(FNetSerializationContext& Context, const FNetObjectReference& Ref) const;
+
 	UObject* ResolveObjectReferenceHandleInternal(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext, bool& bOutMustBeMapped);
 	bool IsDynamicInternal(const UObject* Object) const;
 	bool SupportsObjectInternal(const UObject* Object) const;
@@ -161,6 +201,9 @@ private:
 	bool WriteMustBeMappedExports(FNetSerializationContext& Context, TArrayView<const FNetObjectReference> ExportsView) const;
 	void ReadMustBeMappedExports(FNetSerializationContext& Context, TArray<FNetRefHandle>* MustBeMappedExports);
 
+	void StartAsyncLoadingPackage(FCachedNetObjectReference& Object, FName PackagePath, const FNetRefHandle RefHandle, const bool bWasAlreadyAsyncLoading);
+	void ValidateAsyncLoadingPackage(FCachedNetObjectReference& Object, FName PackagePath, const FNetRefHandle RefHandle);
+
 private:
 
 	// Map raw UObject pointer -> Handle
@@ -181,6 +224,38 @@ private:
 	
 	// Do we have authority to create references?
 	uint32 bIsAuthority : 1;
+
+	/**
+	 * Set of all current Objects that we've been requested to be referenced while we are doing async loading.
+	 * This is used to prevent objects (especially async load objects,
+	 * which may have no other references) from being GC'd while a the object is waiting for more
+	 * pending references
+	 */
+	TMap<FNetRefHandle, FQueuedBatchObjectReference> QueuedBatchObjectReferences;
+
+	EAsyncLoadMode AsyncLoadMode;
+	bool bCachedCVarAllowAsyncLoading;
+
+	/** Set of packages that are currently pending async loads, referenced by package name. */
+	TMap<FName, FPendingAsyncLoadRequest> PendingAsyncLoadRequests;
+
+	// $TODO: $IRIS: Stats support
+#if 0
+	/** Store all GUIDs that caused the sync loading of a package, for debugging & logging with LogNetSyncLoads */
+	//TArray<FNetRefHandle> SyncLoadedGUIDs;
+	//FNetAsyncLoadDelinquencyAnalytics DelinquentAsyncLoads;
+	//void ConsumeAsyncLoadDelinquencyAnalytics(FNetAsyncLoadDelinquencyAnalytics& Out);
+	//const FNetAsyncLoadDelinquencyAnalytics& GetAsyncLoadDelinquencyAnalytics() const;
+	//void ResetAsyncLoadDelinquencyAnalytics();	
+	//bool WasGUIDSyncLoaded(FNetworkGUID NetGUID) const { return SyncLoadedGUIDs.Contains(NetGUID); }
+	//void ClearSyncLoadedGUID(FNetworkGUID NetGUID) { SyncLoadedGUIDs.Remove(NetGUID); }
+	/**
+	 * If LogNetSyncLoads is enabled, log all objects that caused a sync load that haven't been otherwise reported
+	 * by the package map yet, and clear that list.
+	 */
+	//void ReportSyncLoadedGUIDs();
+#endif
+
 };
 
 inline UObject* FObjectReferenceCache::ResolveObjectReferenceHandle(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext)

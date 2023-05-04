@@ -512,6 +512,9 @@ public:
 	/** Returns the previously set squared cull distance for an object, or DefaultValue if it wasn't or the Handle isn't valid. */
 	IRISCORE_API float GetCullDistanceSqrOverride(FNetRefHandle Handle, float DefaultValue = -1.0f) const;
 
+	/** Returns elapsed time in seconds since ReplicatonSystem was created */
+	double GetElapsedTime() const { return ElapsedTime; }
+
 public:
 	// For internal use and not exported.
 
@@ -550,6 +553,7 @@ private:
 	UPROPERTY(transient)
 	TObjectPtr<UReplicationBridge> ReplicationBridge;
 
+	double ElapsedTime = 0;
 	uint32 Id;
 	int32 PIEInstanceID;
 	uint32 bIsServer : 1;

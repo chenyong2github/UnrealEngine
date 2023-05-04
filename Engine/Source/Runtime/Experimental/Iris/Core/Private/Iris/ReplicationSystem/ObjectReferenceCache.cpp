@@ -20,6 +20,7 @@
 #include "Net/Core/Trace/NetDebugName.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "UObject/Package.h"
+#include "HAL/IConsoleManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogIrisReferences, Log, All);
 
@@ -46,6 +47,28 @@ DEFINE_LOG_CATEGORY_STATIC(LogIrisReferences, Log, All);
 namespace UE::Net::Private
 {
 
+static bool bIrisAllowAsyncLoading = true;
+FAutoConsoleVariableRef CVarIrisAllowAsyncLoading(TEXT("net.iris.AllowAsyncLoading"), bIrisAllowAsyncLoading, TEXT("Flag to allow or disallow async loading when using iris replication. Note: net.allowAsyncLoading must also be enabled."), ECVF_Default);
+
+FObjectReferenceCache::FPendingAsyncLoadRequest::FPendingAsyncLoadRequest(FNetRefHandle InNetRefHandle, double InRequestStartTime)
+: RequestStartTime(InRequestStartTime)
+{
+	NetRefHandles.Add(InNetRefHandle);
+}
+
+void FObjectReferenceCache::FPendingAsyncLoadRequest::Merge(const FPendingAsyncLoadRequest& Other)
+{
+	for (FNetRefHandle OtherNetRefHandle : Other.NetRefHandles)
+	{
+		NetRefHandles.AddUnique(OtherNetRefHandle);
+	}
+}
+
+void FObjectReferenceCache::FPendingAsyncLoadRequest::Merge(FNetRefHandle InNetRefHandle)
+{
+	NetRefHandles.AddUnique(InNetRefHandle);
+}
+
 /**
  * Don't allow infinite recursion of InternalLoadObject - an attacker could
  * send malicious packets that cause a stack overflow on the server.
@@ -59,7 +82,10 @@ FObjectReferenceCache::FObjectReferenceCache()
 , StringTokenStore(nullptr)
 , NetRefHandleManager(nullptr)
 , bIsAuthority(false)
+, AsyncLoadMode(EAsyncLoadMode::UseCVar)
+, bCachedCVarAllowAsyncLoading(false)
 {
+	SetAsyncLoadMode(EAsyncLoadMode::UseCVar);
 }
 
 void FObjectReferenceCache::Init(UReplicationSystem* InReplicationSystem)
@@ -533,6 +559,12 @@ UObject* FObjectReferenceCache::GetObjectFromReferenceHandle(FNetRefHandle RefHa
 	return ResolvedObject;
 }
 
+bool FObjectReferenceCache::IsNetRefHandleBroken(FNetRefHandle RefHandle, bool bMustBeRegistered) const
+{
+	const FCachedNetObjectReference* CacheObjectPtr = ReferenceHandleToCachedReference.Find(RefHandle);	
+	return CacheObjectPtr ? CacheObjectPtr->bIsBroken : bMustBeRegistered;
+}
+
 // $IRIS: $TODO: Most of the logic comes from GUIDCache::GetObjectFromNetGUID so we want to keep this in sync
 UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHandle RefHandle, const FNetObjectResolveContext& ResolveContext, bool& bOutMustBeMapped)
 {
@@ -543,8 +575,6 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 		bOutMustBeMapped = false;
 		return nullptr;
 	}
-
-	check(!CacheObjectPtr->bIsPending);
 	
 	UObject* Object = CacheObjectPtr->Object.Get();
 
@@ -638,7 +668,6 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 
 	// At this point, we either have an outer, or we are a package
 	const uint32 TreatAsLoadedFlags = EPackageFlags::PKG_CompiledIn | EPackageFlags::PKG_PlayInEditor;
-
 	check(!CacheObjectPtr->bIsPending);
 
 	if (!ensure(ObjOuter == nullptr || ObjOuter->GetPackage()->IsFullyLoaded() || ObjOuter->GetPackage()->HasAnyPackageFlags(TreatAsLoadedFlags)))
@@ -656,8 +685,10 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 	constexpr bool bReading = true;
 	RenamePathForPie(ResolveContext.ConnectionId, ObjectPath, bReading);
 
+	const FName ObjectPathName(ObjectPath);
+
 	// See if this object is in memory
-	Object = StaticFindObject(UObject::StaticClass(), ObjOuter, *ObjectPath, false);
+	Object = FindObjectFast<UObject>(ObjOuter, ObjectPathName);
 #if WITH_EDITOR
 	// Object must be null if the package is a dynamic PIE package with pending external objects still loading, as it would normally while object is async loading
 	if (Object && Object->GetPackage()->IsDynamicPIEPackagePending())
@@ -666,18 +697,17 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 	}
 #endif
 
-	// Assume this is a package if the outer is invalid and this is a static guid
+	// Assume this is a package if the outer is invalid and this is a static reference
 	const bool bIsPackage = CacheObjectPtr->bIsPackage;
 
 	if (Object == nullptr && !CacheObjectPtr->bNoLoad)
 	{
 		if (IsAuthority())
 		{
-			// Log when the server needs to re-load an object, it's probably due to a GC after initially loading as default guid
+			// Log when the server needs to re-load an object, it's probably due to a GC after initially loading as default reference
 			UE_LOG(LogIris, Error, TEXT("GetObjectFromRefHandle: Server re-loading object (might have been GC'd). FullPath: %s"), ToCStr(FullPath(RefHandle, ResolveContext)));
 		}
 
-		// $IRIS: $TODO: Implement Async loading support https://jira.it.epicgames.com/browse/UE-123487
 		if (bIsPackage)
 		{
 			// Async load the package if:
@@ -686,27 +716,28 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 			//	3. We're actually suppose to load (levels don't load here for example)
 			//		(Refer to CanClientLoadObject, which is where we protect clients from trying to load levels)
 
-			//if (ShouldAsyncLoad())
-			//{
-			//	if (!PendingAsyncLoadRequests.Contains(Path))
-			//	{
-			//		CacheObjectPtr->bIsPending = true;
+			if (ShouldAsyncLoad() && !ResolveContext.bForceSyncLoad)
+			{
+				if (!PendingAsyncLoadRequests.Contains(ObjectPathName))
+				{
+					CacheObjectPtr->bIsPending = true;
 
-			//		StartAsyncLoadingPackage(NetGUID, false);
-			//		UE_LOG(LogIris, Error, TEXT("GetObjectFromRefHandle: Async loading package. Path: %s, %s"), *ObjectPath, *RefHandle.ToString());
-			//	}
-			//	else
-			//	{
-			//		ValidateAsyncLoadingPackage(NetGUID);
-			//	}
+					StartAsyncLoadingPackage(*CacheObjectPtr, ObjectPathName, RefHandle, false);
+					UE_LOG_REFERENCECACHE(Log, TEXT("GetObjectFromRefHandle: Async loading package. Path: %s, %s"), *ObjectPath, *RefHandle.ToString());
+				}
+				else
+				{
+					ValidateAsyncLoadingPackage(*CacheObjectPtr, ObjectPathName, RefHandle);
+				}
 
-			//	// There is nothing else to do except wait on the delegate to tell us this package is done loading
-			//	return NULL;
-			//}
-			//else
+				// There is nothing else to do except wait on the delegate to tell us this package is done loading
+				return NULL;
+			}
+			else
 			{
 				// Async loading disabled
 				Object = LoadPackage(nullptr, *ObjectPath, LOAD_None);
+				//SyncLoadedGUIDs.AddUnique(NetGUID);
 			}
 		}
 		else
@@ -717,10 +748,10 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 			//	2. Someone else started async loading the outer package, and it's not fully loaded yet
 			Object = StaticLoadObject(UObject::StaticClass(), ObjOuter, *ObjectPath, nullptr, LOAD_NoWarn);
 
-			//if (ShouldAsyncLoad())
-			//{
-			//	UE_LOG( LogNetPackageMap, Error, TEXT( "GetObjectFromRefHandle: Forced blocking load. Path: %s, %s"), *ObjectPath, *RefHandle.ToString());
-			//}
+			if (ShouldAsyncLoad() && !ResolveContext.bForceSyncLoad)
+			{
+				UE_LOG(LogIris, Error, TEXT( "GetObjectFromRefHandle: Forced blocking load. Path: %s, %s"), *ObjectPath, *RefHandle.ToString());
+			}
 		}
 	}
 
@@ -750,19 +781,22 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 		if (!Package->IsFullyLoaded() 
 			&& !Package->HasAnyPackageFlags(TreatAsLoadedFlags)) //TODO: dependencies of CompiledIn could still be loaded asynchronously. Are they necessary at this point??
 		{
-			//if (ShouldAsyncLoad() && Package->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
-			//{
-			//	CacheObjectPtr->bIsPending = true;
-
-			//	// Something else is already async loading this package, calling load again will add our callback to the existing load request
-			//	StartAsyncLoadingPackage(NetGUID, true);
-			//	UE_LOG(LogNetPackageMap, Log, TEXT("GetObjectFromNetGUID: Listening to existing async load. Path: %s, NetGUID: %s"), *Path.ToString(), *NetGUID.ToString());
-			//}
-			//else
+			if (ShouldAsyncLoad()  && !ResolveContext.bForceSyncLoad && Package->HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
+			{
+				// Something else is already async loading this package, calling load again will add our callback to the existing load request
+				StartAsyncLoadingPackage(*CacheObjectPtr, ObjectPathName, RefHandle, true);
+				UE_LOG(LogNetPackageMap, Log, TEXT("GetObjectFromRefHandle: Listening to existing async load. Path: %s, NetRefHandle: %s"), *ObjectPath, *RefHandle.ToString());
+			}
+			else if (/*!GbNetCheckNoLoadPackages ||*/ !CacheObjectPtr->bNoLoad)
 			{
 				// If package isn't fully loaded, load it now
 				UE_LOG_REFERENCECACHE(Warning, TEXT("ObjectReferenceCache::GetObjectFromRefHandle Blocking load of %s, %s"), ToCStr(ObjectPath), *RefHandle.ToString());
 				Object = LoadPackage(nullptr, ToCStr(ObjectPath), LOAD_None);
+				//SyncLoadedGUIDs.AddUnique(NetGUID);
+			}
+			else
+			{
+				return nullptr;
 			}
 		}
 	}
@@ -876,6 +910,9 @@ UObject* FObjectReferenceCache::ResolveObjectReferenceHandleInternal(FNetRefHand
 	
 	UE_LOG_REFERENCECACHE(Verbose, TEXT("ObjectReferenceCache::ResolveObjectRefererenceHandle %s for Object: %s Pointer: %p"), *RefHandle.ToString(), ToCStr(Object->GetPathName()), Object);
 
+	// Update our QueuedObjectReference if one exists.
+	UpdateTrackedQueuedBatchObjectReference(CompleteRefHandle, Object);
+
 	return Object;
 }
 
@@ -906,6 +943,12 @@ ENetObjectReferenceResolveResult FObjectReferenceCache::ResolveObjectReference(c
 			{
 				ResolvedObject = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectPath, false);
 			}
+
+			UE_LOG_REFERENCECACHE_WARNING(TEXT("ResolveObjectReference Failed to resolve clientassigned ref: %s due to not finding object with path %s."), *Reference.ToString(), *ObjectPath);	
+		}
+		else
+		{
+			UE_LOG_REFERENCECACHE_WARNING(TEXT("ResolveObjectReference Failed to resolve clientassigned ref: %s due to missing token:"), *Reference.ToString());	
 		}
 	}
 	else
@@ -1085,13 +1128,7 @@ void FObjectReferenceCache::WriteFullReferenceInternal(FNetSerializationContext&
 	UE_LOG_REFERENCECACHE(VeryVerbose, TEXT("ObjectReferenceCache::WriteFullReferenceInternal Auth: %u %s, Outer: %s Export: %u"), IsAuthority() ? 1U : 0U, *CachedObject->NetRefHandle.ToString(), *CachedObject->OuterNetRefHandle.ToString(), bMustExport ? 1U : 0U);
 
 	if (Writer->WriteBool(bMustExport))
-	{
-		// $IRIS: $TODO: Implement Async loading support https://jira.it.epicgames.com/browse/UE-123487	
-		//if (ShouldAsyncLoad() && IsAuthority() && !CachedObject->bNoLoad)
-		//{
-		//	MustBeMappedGuidsInLastBunch.AddUnique( NetGUID );
-		//}
-	
+	{	
 		// Write the data, bNoLoad is implicit true for dynamic objects
 		Writer->WriteBits(CachedObject->bNoLoad, 1U);
 
@@ -1500,23 +1537,22 @@ bool FObjectReferenceCache::WriteMustBeMappedExports(FNetSerializationContext& C
 	FNetBitStreamWriter& Writer = *Context.GetBitStreamWriter();
 	FNetExportContext* ExportContext = Context.GetExportContext();
 
-	// $TODO: Will be enabled in later changelist
-	//if (IsAuthority() && ShouldAsyncLoad() && ExportContext)
-	//{
-	//	UE_NET_TRACE_SCOPE(MustBeMappedExports, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
+	if (IsAuthority() && ShouldAsyncLoad() && ExportContext)
+	{
+		UE_NET_TRACE_SCOPE(MustBeMappedExports, Writer, Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
 
-	//	for (const FNetObjectReference& Reference : ExportsView)
-	//	{
-	//		const FNetRefHandle Handle = Reference.GetRefHandle();
-	//		const FCachedNetObjectReference* CachedObject = Reference.CanBeExported() ? ReferenceHandleToCachedReference.Find(Handle) : nullptr;
-	//		if (CachedObject && !CachedObject->bNoLoad)
-	//		{
-	//			UE_NET_TRACE_OBJECT_SCOPE(Handle, *Context.GetBitStreamWriter(), Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
-	//			Writer.WriteBool(true);
-	//			WriteNetRefHandle(Context, Handle);
-	//		}
-	//	}
-	//}
+		for (const FNetObjectReference& Reference : ExportsView)
+		{
+			const FNetRefHandle Handle = Reference.GetRefHandle();
+			const FCachedNetObjectReference* CachedObject = Reference.CanBeExported() ? ReferenceHandleToCachedReference.Find(Handle) : nullptr;
+			if (CachedObject && !CachedObject->bNoLoad)
+			{
+				UE_NET_TRACE_OBJECT_SCOPE(Handle, *Context.GetBitStreamWriter(), Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
+				Writer.WriteBool(true);
+				WriteNetRefHandle(Context, Handle);
+			}
+		}
+	}
 
 	// Write stop bit
 	Writer.WriteBool(false);
@@ -1533,7 +1569,10 @@ void FObjectReferenceCache::ReadMustBeMappedExports(FNetSerializationContext& Co
 
 	while (bHasExportsToRead && !Context.HasErrorOrOverflow())
 	{
+		UE_NET_TRACE_NAMED_OBJECT_SCOPE(ReferenceScope, FNetRefHandle(), *Context.GetBitStreamReader(), Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
 		const FNetRefHandle MustBeMappedHandle = ReadNetRefHandle(Context);
+		UE_NET_TRACE_SET_SCOPE_OBJECTID(ReferenceScope, MustBeMappedHandle);	
+
 		bHasExportsToRead = Reader.ReadBool();
 
 		if (MustBeMappedExports)
@@ -1604,5 +1643,216 @@ void FObjectReferenceCache::GenerateFullPath_r(FNetRefHandle RefHandle, const FN
 		}
 	}
 }
+
+
+void FObjectReferenceCache::ValidateAsyncLoadingPackage(FCachedNetObjectReference& CacheObject, FName PackagePath, const FNetRefHandle RefHandle)
+{
+	// With level streaming support we may end up trying to load the same package with a different
+	// RefHandle during replay fast-forwarding. This is because if a package was unloaded, and later
+	// re-loaded, it will likely be assigned a new RefHandle (since the TWeakObjectPtr to the old package
+	// in the cache object would have gone stale). During replay fast-forward, it's possible
+	// to see the new RefHandle before the previous one has finished loading, so here we fix up
+	// PendingAsyncLoadRequests to refer to the new NetRefHandle. Also keep track of all the NetRefHandles referring
+	// to the same package so their CacheObjects can be properly updated later.
+	FPendingAsyncLoadRequest& PendingLoadRequest = PendingAsyncLoadRequests[PackagePath];
+
+	PendingLoadRequest.Merge(RefHandle);
+	CacheObject.bIsPending = true;
+
+	if (PendingLoadRequest.NetRefHandles.Last() != RefHandle)
+	{
+		UE_LOG_REFERENCECACHE(Log, TEXT("ValidateAsyncLoadingPackage: Already async loading package with a different NetRefHandle. Path: %s, original RefHandle: %s, new RefHandle: %s"),
+			*PackagePath.ToString(), *PendingLoadRequest.NetRefHandles.Last().ToString(), *RefHandle.ToString());
+	}
+	else
+	{
+		UE_LOG_REFERENCECACHE(Log, TEXT("ValidateAsyncLoadingPackage: Already async loading package. Path: %s, RefHandle: %s"), *PackagePath.ToString(), *RefHandle.ToString());
+	}
+	
+//#if CSV_PROFILER
+//	PendingLoadRequest.bWasRequestedByOwnerOrPawn |= IsTrackingOwnerOrPawn();
+//#endif
+}
+
+void FObjectReferenceCache::StartAsyncLoadingPackage(FCachedNetObjectReference& CacheObject, FName PackagePath, const FNetRefHandle RefHandle, const bool bWasAlreadyAsyncLoading)
+{
+	LLM_SCOPE_BYTAG(Iris);
+
+	// Need timer?
+	FPendingAsyncLoadRequest LoadRequest(RefHandle, ReplicationSystem->GetElapsedTime());
+	
+//#if CSV_PROFILER
+//	LoadRequest.bWasRequestedByOwnerOrPawn = IsTrackingOwnerOrPawn();
+//#endif
+
+	CacheObject.bIsPending = true;
+
+	FPendingAsyncLoadRequest* ExistingRequest = PendingAsyncLoadRequests.Find(PackagePath);
+	if (ExistingRequest)
+	{
+		// Same package name but a possibly different net GUID. Note down the GUID and wait for the async load completion callback
+		ExistingRequest->Merge(LoadRequest);
+		return;
+	}
+
+	PendingAsyncLoadRequests.Emplace(PackagePath, MoveTemp(LoadRequest));
+
+	//DelinquentAsyncLoads.MaxConcurrentAsyncLoads = FMath::Max<uint32>(DelinquentAsyncLoads.MaxConcurrentAsyncLoads, PendingAsyncLoadRequests.Num());
+
+	LoadPackageAsync(PackagePath.ToString(), FLoadPackageAsyncDelegate::CreateRaw(this, &FObjectReferenceCache::AsyncPackageCallback));
+}
+
+void FObjectReferenceCache::AsyncPackageCallback(const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result)
+{
+	// $TODO: $IRIS
+	// We probably want to deffer this to a safe time to process, we do not want any callbacks when we do not expect them
+	// Probably want to put this in a queue that we can guard to be processed when we are ready.
+	
+	LLM_SCOPE_BYTAG(Iris);
+
+	check(Package == nullptr || Package->IsFullyLoaded());
+
+	if (FPendingAsyncLoadRequest const* const PendingLoadRequest = PendingAsyncLoadRequests.Find(PackageName))
+	{
+		const bool bIsBroken = (Package == nullptr);
+
+		for (FNetRefHandle RefHandleToProcess : PendingLoadRequest->NetRefHandles)
+		{
+			if (FCachedNetObjectReference* CacheObject = ReferenceHandleToCachedReference.Find(RefHandleToProcess))
+			{
+				if (!CacheObject->bIsPending)
+				{
+					UE_LOG_REFERENCECACHE(Error, TEXT("AsyncPackageCallback: Package wasn't pending. Path: %s, RefHandle: %s"), *PackageName.ToString(), *RefHandleToProcess.ToString());
+				}
+
+				CacheObject->bIsPending = false;
+
+				if (bIsBroken)
+				{
+					CacheObject->bIsBroken = true;
+					UE_LOG_REFERENCECACHE(Error, TEXT("AsyncPackageCallback: Package FAILED to load. Path: %s, RefHandle: %s"), *PackageName.ToString(), *RefHandleToProcess.ToString());
+				}
+
+				if (UObject* Object = CacheObject->Object.Get())
+				{
+					// Something is loaded, we can now resolve queued data
+					UpdateTrackedQueuedBatchObjectReference(RefHandleToProcess, Object);
+
+					// $TODO: $IRIS
+					// This is odd, can we deprecate?, Does not really belong here IMHO
+					// If we need it, we can expose and bind a delegate from NetDriver
+					//if (UWorld* World = Object->GetWorld())
+					//{
+					//	if (AGameStateBase* GS = World->GetGameState())
+					//	{
+					//		GS->AsyncPackageLoaded(Object);
+					//	}
+					//}
+				}
+			}
+			else
+			{
+				UE_LOG_REFERENCECACHE(Error, TEXT("AsyncPackageCallback: Could not find net guid. Path: %s, RefHandle: %s"), *PackageName.ToString(), *RefHandleToProcess.ToString());
+			}
+		}
+
+		// This won't be the exact amount of time that we spent loading the package, but should
+		// give us a close enough estimate (within a frame time).
+		const double LoadTime = (ReplicationSystem->GetElapsedTime() - PendingLoadRequest->RequestStartTime);
+		//if (GGuidCacheTrackAsyncLoadingGUIDThreshold > 0.f &&
+		//	LoadTime >= GGuidCacheTrackAsyncLoadingGUIDThreshold)
+		//{
+		//	DelinquentAsyncLoads.DelinquentAsyncLoads.Emplace(PackageName, LoadTime);
+		//}
+
+//#if CSV_PROFILER
+//		if (PendingLoadRequest->bWasRequestedByOwnerOrPawn &&
+//			GGuidCacheTrackAsyncLoadingGUIDThresholdOwner > 0.f &&
+//			LoadTime >= GGuidCacheTrackAsyncLoadingGUIDThresholdOwner &&
+//			Driver->ServerConnection)
+//		{
+//			CSV_EVENT(PackageMap, TEXT("Owner Net Stall Async Load (Package=%s|LoadTime=%.2f)"), *PackageName.ToString(), LoadTime);
+//		}
+//#endif
+
+		PendingAsyncLoadRequests.Remove(PackageName);
+	}
+	else
+	{
+		UE_LOG_REFERENCECACHE(Error, TEXT( "AsyncPackageCallback: Could not find package. Path: %s" ), *PackageName.ToString());
+	}
+}
+
+void FObjectReferenceCache::SetAsyncLoadMode(const EAsyncLoadMode NewMode)
+{
+	AsyncLoadMode = NewMode;
+	if (const IConsoleVariable* CVarAllowAsyncLoading = IConsoleManager::Get().FindConsoleVariable(TEXT("net.AllowAsyncLoading"), false /* bTrackFrequentCalls */))
+	{
+		bCachedCVarAllowAsyncLoading = CVarAllowAsyncLoading->GetInt() > 0;
+	}
+}
+
+bool FObjectReferenceCache::ShouldAsyncLoad() const
+{
+	if (!bIrisAllowAsyncLoading)
+	{
+		return false;
+	}
+
+	switch (AsyncLoadMode)
+	{
+		case EAsyncLoadMode::UseCVar:		return bCachedCVarAllowAsyncLoading;
+		case EAsyncLoadMode::ForceDisable:	return false;
+		case EAsyncLoadMode::ForceEnable:	return true;
+		default: ensureMsgf( false, TEXT( "Invalid AsyncLoadMode: %i" ), (int32)AsyncLoadMode ); return false;
+	}
+}
+void FObjectReferenceCache::AddReferencedObjects(FReferenceCollector& ReferenceCollector)
+{
+	for (auto& It : QueuedBatchObjectReferences)
+	{
+		FQueuedBatchObjectReference& Ref = It.Value;
+
+		if (Ref.Object)
+		{
+			// AddReferencedObject will set our reference to nullptr if the object is pending kill.
+			ReferenceCollector.AddReferencedObject(Ref.Object, ReplicationSystem);
+
+			if (!Ref.Object)
+			{
+				UE_LOG_REFERENCECACHE(Warning, TEXT("FObjectReferenceCache::CollectReferences: QueuedBatchObjectReference was killed by GC. %s"), *(It.Key.ToString()));
+			}			
+		}
+	}
+}
+
+void FObjectReferenceCache::AddTrackedQueuedBatchObjectReference(const FNetRefHandle InHandle, const UObject* InObject)
+{
+	FQueuedBatchObjectReference& Ref = QueuedBatchObjectReferences.FindOrAdd(InHandle);
+	Ref.Object = InObject;
+	++Ref.RefCount;
+}
+
+void FObjectReferenceCache::UpdateTrackedQueuedBatchObjectReference(const FNetRefHandle InHandle, const UObject* NewObject)
+{
+	if (FQueuedBatchObjectReference* Ref = QueuedBatchObjectReferences.Find(InHandle))
+	{
+		Ref->Object = NewObject;
+	}
+}
+
+void FObjectReferenceCache::RemoveTrackedQueuedBatchObjectReference(const FNetRefHandle InHandle)
+{
+	if (auto It = QueuedBatchObjectReferences.CreateKeyIterator(InHandle))
+	{
+		FQueuedBatchObjectReference& Ref = It.Value();
+		check(Ref.RefCount > 0);
+		if (--Ref.RefCount == 0)
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
 
 }

@@ -219,6 +219,9 @@ private:
 		// The index into the scheduled objects array to attempt to replicate next.
 		uint32 CurrentIndex;
 
+		// Written batch count, which excludes objects pending destroy and subobjects
+		uint32 WrittenBatchCount;
+
 		// How many objects that were attempted to be replicated but which ultimately didn't fit in the packet.
 		uint32 FailedToWriteSmallObjectCount;
 
@@ -245,6 +248,7 @@ private:
 		uint32 bHasDirtySubObjects : 1;
 		uint32 bSentTearOff : 1;
 		uint32 bSentDestroySubObject : 1;
+		uint32 bSentBatchData : 1;
 	};
 
 	enum class EBatchInfoType : uint32
@@ -273,6 +277,7 @@ private:
 	struct FBatchRecord
 	{
 		TArray<FObjectRecord, TInlineAllocator<16>> ObjectReplicationRecords;
+		uint32 BatchCount = 0U;
 	};
 
 	struct FBitStreamInfo

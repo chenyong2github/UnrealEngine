@@ -476,6 +476,7 @@ public:
 		auto UpdateUnresolvableReferenceTracking = [&Connections](uint32 ConnectionId)
 		{
 			FReplicationConnection* Conn = Connections.GetConnection(ConnectionId);
+			Conn->ReplicationReader->ProcessQueuedBatches();
 			Conn->ReplicationReader->UpdateUnresolvableReferenceTracking();
 		};
 		const FNetBitArray& ValidConnections = Connections.GetValidConnections();
@@ -543,6 +544,8 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 	using namespace UE::Net::Private;
 
 	IRIS_PROFILER_SCOPE(FReplicationSystem_PreSendUpdate);
+
+	ElapsedTime += DeltaSeconds;
 
 #if !UE_BUILD_SHIPPING
 	// Force a integrity check of all replicated instances
@@ -1221,6 +1224,7 @@ void UReplicationSystem::AddReferencedObjects(UObject* InThis, FReferenceCollect
 	if (This->Impl.IsValid())
 	{
 		This->Impl->ReplicationSystemInternal.GetNetRefHandleManager().AddReferencedObjects(Collector);
+		This->Impl->ReplicationSystemInternal.GetObjectReferenceCache().AddReferencedObjects(Collector);
 	}
 	Super::AddReferencedObjects(InThis, Collector);
 }

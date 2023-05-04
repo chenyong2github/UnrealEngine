@@ -1646,6 +1646,12 @@ uint32 FReplicationWriter::WriteObjectsPendingDestroy(FNetSerializationContext& 
 		// Write handle with the needed bitCount
 		WriteNetRefHandleId(Context, ObjectData.RefHandle);
 
+		// If this is a explicit subobject we must also send the owner handle in the case that the client is currently queued data due to async loading.
+		if (Writer.WriteBool(ObjectData.IsSubObject()))
+		{			
+			WriteNetRefHandleId(Context, NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectData.SubObjectRootIndex).RefHandle);
+		}
+
 		// Write bit indicating if the static instance should be destroyed or not (could skip the bit for dynamic objects)
 		const bool bShouldDestroyInstance = ObjectData.RefHandle.IsDynamic() || NetRefHandleManager->GetIsDestroyedStartupObject(InternalIndex);
 		Writer.WriteBool(bShouldDestroyInstance);
@@ -2013,6 +2019,9 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectAndSubObje
 					FReplicationProtocolOperations::SerializeWithMask(Context, Info.GetChangeMaskStoragePointer(), ReplicatedObjectStateBuffer, ObjectData.Protocol);
 				}
 			}
+#if UE_NET_USE_READER_WRITER_SENTINEL
+			WriteSentinelBits(&Writer, 8);
+#endif
 		}
 
 		{
@@ -2188,7 +2197,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectAndSubObje
 	// We include the size of the data written so we can skip it if needed.
 	if (OutBatchInfo.ParentInternalIndex == InternalIndex)
 	{
-		const FBatchObjectInfo& ParentBatchEntry = OutBatchInfo.ObjectInfos[ParentBatchEntryIndex];
+		FBatchObjectInfo& ParentBatchEntry = OutBatchInfo.ObjectInfos[ParentBatchEntryIndex];
 
 		const uint32 WrittenBitsInBatch = (Writer.GetPosBits() - InitialStateHeaderPos) - NumBitsUsedForBatchSize;
 		
@@ -2212,6 +2221,8 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectAndSubObje
 				Writer.WriteBool(bWroteData);
 				Writer.WriteBool(bWroteExports);
 			}
+
+			ParentBatchEntry.bSentBatchData = 1U;
 		}
 		// If we did not write any data we rollback any written headers and report a success
 		else
@@ -2347,7 +2358,9 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 	HugeObjectContext.SendStatus = EHugeObjectSendStatus::Sending;
 	HugeObjectContext.StartSendingTime = FPlatformTime::Cycles64();
 	// Store batch record for later processing once the whole state is acked.
-	HugeObjectHeader.ObjectCount = HandleObjectBatchSuccess(BatchInfo, HugeObjectContext.BatchRecord);
+	HandleObjectBatchSuccess(BatchInfo, HugeObjectContext.BatchRecord);
+	// We want to track the number of Batches
+	HugeObjectHeader.ObjectCount = HugeObjectContext.BatchRecord.BatchCount;
 
 	// Write huge object header
 	{
@@ -2459,6 +2472,9 @@ int FReplicationWriter::WriteObjectBatch(FNetSerializationContext& Context, uint
 			FBatchRecord BatchRecord;
 			const int WrittenObjectCount = HandleObjectBatchSuccess(BatchInfo, BatchRecord);
 
+			// As a single batch also might include dependent objects which are treated as separate batches on the receiving end we need to account for this when tracking the written batch count.
+			WriteContext.WrittenBatchCount += BatchRecord.BatchCount;
+
 			CommitBatchRecord(BatchRecord);
 			return WrittenObjectCount;
 		}
@@ -2499,6 +2515,13 @@ int FReplicationWriter::WriteObjectBatch(FNetSerializationContext& Context, uint
 	// Try #2 - Object will be serialized to a temporary buffer of maximum supported size and split into multiple chunks.
 	{
 		const int SendHugeObjectStatus = PrepareAndSendHugeObjectPayload(Context, InternalIndex);
+
+		// If the huge object wrote data it will be tracked as a single batch
+		if (SendHugeObjectStatus == 1)
+		{
+			++WriteContext.WrittenBatchCount;
+		}
+				
 		return SendHugeObjectStatus;
 	}
 }
@@ -2563,6 +2586,9 @@ int FReplicationWriter::WriteDestructionInfo(FNetSerializationContext& Context, 
 		SchedulingPriorities[InternalIndex] = 0.0f;
 
 		WriteContext.Stats.AddNumberOfReplicatedDestructionInfos(1U);
+
+		// We count this as an object batch
+		++WriteContext.WrittenBatchCount;
 	}
 
 	return Writer.IsOverflown() ? -1 :  1;
@@ -2708,6 +2734,7 @@ uint32 FReplicationWriter::WriteObjects(FNetSerializationContext& Context)
 int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FReplicationWriter::FBatchRecord& OutRecord)
 {
 	int WrittenObjectCount = 0;
+	int WrittenBatchCount = 0;
 
 	const bool bTrackObjectStats = BatchInfo.Type != EBatchInfoType::Internal;
 	uint32 ObjectCount = 0;
@@ -2784,7 +2811,12 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 			}
 		}			
 
-		WrittenObjectCount += (BatchObjectInfo.bSentState | BatchObjectInfo.bSentAttachments | BatchObjectInfo.bSentTearOff | BatchObjectInfo.bSentDestroySubObject) ? 1 : 0;
+		if (BatchObjectInfo.bSentState | BatchObjectInfo.bSentAttachments | BatchObjectInfo.bSentTearOff | BatchObjectInfo.bSentDestroySubObject)
+		{
+			++WrittenObjectCount;
+		}
+
+		WrittenBatchCount += BatchObjectInfo.bSentBatchData;
 
 		Info.HasDirtyChangeMask = 0U;
 		Info.HasDirtySubObjects = BatchObjectInfo.bHasDirtySubObjects;
@@ -2830,6 +2862,8 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 		NetStats.AddNumberOfDeltaCompressedReplicatedObjects(DeltaCompressedObjectCount);
 	}
 #endif
+
+	OutRecord.BatchCount = WrittenBatchCount;
 
 	return WrittenObjectCount;
 }
@@ -2993,6 +3027,10 @@ UDataStream::EWriteResult FReplicationWriter::Write(FNetSerializationContext& Co
 		return UDataStream::EWriteResult::NoData;
 	}
 
+	// We have somethings in the WriteContext that must be reset each packet
+	WriteContext.FailedToWriteSmallObjectCount = 0U;
+	WriteContext.WrittenBatchCount = 0U;
+
 	FNetBitStreamWriter& Writer = *Context.GetBitStreamWriter();
 
 	// Setup internal context
@@ -3012,12 +3050,14 @@ UDataStream::EWriteResult FReplicationWriter::Write(FNetSerializationContext& Co
 	uint16 WrittenObjectCount = 0;
 	const uint32 OldReplicationInfoCount = ReplicationRecord.GetInfoCount();
 
-	Writer.WriteBits(WrittenObjectCount, 16);
+	// Written batch count
+	Writer.WriteBits(0U, 16);
 
 	// Write timestamps etc? Or do we do this in header.
 	// WriteReplicationFrameData();
 
-	WrittenObjectCount += WriteObjectsPendingDestroy(Context);
+	const uint16 WrittenObjectsPendingDestroyCount = WriteObjectsPendingDestroy(Context);
+	WrittenObjectCount += WrittenObjectsPendingDestroyCount;
 
 	// Only reason for overflow here is if we did not fit header
 	if (Writer.IsOverflown())
@@ -3051,7 +3091,8 @@ UDataStream::EWriteResult FReplicationWriter::Write(FNetSerializationContext& Co
 		{
 			// Seek back to HeaderPos and update the header
 			FNetBitStreamWriteScope WriteScope(Writer, HeaderPos);
-			Writer.WriteBits(WrittenObjectCount, 16);
+			const uint16 TotalWrittenBatchCount = WriteContext.WrittenBatchCount + WrittenObjectsPendingDestroyCount;
+			Writer.WriteBits(TotalWrittenBatchCount, 16);
 		}
 
 		//UE_LOG_REPLICATIONWRITER(TEXT("FReplicationWriter::Write() Wrote %u Objects for ConnectionId:%u, ReplicationSystemId: %u."), WrittenObjectCount, Parameters.ConnectionId, Parameters.ReplicationSystem->GetId());	
@@ -3082,6 +3123,7 @@ UDataStream::EWriteResult FReplicationWriter::Write(FNetSerializationContext& Co
 
 	// Report packet stats
 	UE_NET_TRACE_PACKET_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), Parameters.ConnectionId, ReplicationWriter.WrittenObjectCount, WrittenObjectCount, ENetTraceVerbosity::Trace);
+	UE_NET_TRACE_PACKET_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), Parameters.ConnectionId, ReplicationWriter.WrittenBatchCount, WriteContext.WrittenBatchCount, ENetTraceVerbosity::Trace);
 	UE_NET_TRACE_PACKET_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), Parameters.ConnectionId, ReplicationWriter.FailedToWriteSmallObjectCount, WriteContext.FailedToWriteSmallObjectCount, ENetTraceVerbosity::Trace);
 	UE_NET_TRACE_PACKET_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), Parameters.ConnectionId, ReplicationWriter.RemainingObjectsPendingWriteCount, WriteContext.ScheduledObjectCount - WriteContext.CurrentIndex, ENetTraceVerbosity::Trace);
 	UE_NET_TRACE_PACKET_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), Parameters.ConnectionId, ReplicationWriter.ScheduledObjectCount, WriteContext.ScheduledObjectCount, ENetTraceVerbosity::Trace);

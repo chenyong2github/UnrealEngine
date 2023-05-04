@@ -107,6 +107,58 @@ private:
 	bool bIncludeInitState = false;
 };
 
+// Helper class to deal with management of ObjectsToDispatch allocations from our temporary allocator
+class FReplicationReader::FObjectsToDispatchArray
+{
+public:
+
+	FObjectsToDispatchArray(uint32 InitialCapacity, FMemStackBase& Allocator)
+	: ObjectsToDispatchCount(0U)
+	, Capacity(InitialCapacity + ObjectsToDispatchSlackCount)
+	{			
+		ObjectsToDispatch = new (Allocator) FDispatchObjectInfo[Capacity];
+	}
+
+	void Grow(uint32 Count, FMemStackBase& Allocator)
+	{
+		if (Capacity < (ObjectsToDispatchCount + Count))
+		{
+			Capacity = ObjectsToDispatchCount + Count + ObjectsToDispatchSlackCount;
+			FDispatchObjectInfo* NewObjectsToDispatch = new (Allocator) FDispatchObjectInfo[Capacity];
+
+			// If we already had allocated data we need to copy the old elements
+			if (ObjectsToDispatchCount)
+			{
+				FPlatformMemory::Memcpy(NewObjectsToDispatch, ObjectsToDispatch, ObjectsToDispatchCount*sizeof(FDispatchObjectInfo));
+			}
+			ObjectsToDispatch = NewObjectsToDispatch;
+		}		
+	}
+
+	FDispatchObjectInfo& AddPendingDispatchObjectInfo(FMemStackBase& Allocator)
+	{
+		Grow(1, Allocator);
+		ObjectsToDispatch[ObjectsToDispatchCount] = FDispatchObjectInfo();
+
+		return ObjectsToDispatch[ObjectsToDispatchCount];
+	}
+
+	void CommitPendingDispatchObjectInfo()
+	{
+		checkSlow(ObjectsToDispatchCount < Capacity);
+		++ObjectsToDispatchCount;
+	}
+
+	uint32 Num() const { return ObjectsToDispatchCount; }
+	TArrayView<FDispatchObjectInfo> GetObjectsToDispatch() { return MakeArrayView(ObjectsToDispatch, ObjectsToDispatchCount); }
+
+private:
+
+	FDispatchObjectInfo* ObjectsToDispatch;
+	uint32 ObjectsToDispatchCount;
+	uint32 Capacity;		
+};
+
 FReplicationReader::FReplicatedObjectInfo::FReplicatedObjectInfo()
 : InternalIndex(FNetRefHandleManager::InvalidInternalIndex)
 , Value(0U)
@@ -122,9 +174,7 @@ FReplicationReader::FReplicationReader()
 , ReplicationSystemInternal(nullptr)
 , NetRefHandleManager(nullptr)
 , StateStorage(nullptr)
-, ObjectsToDispatch(nullptr)
-, ObjectsToDispatchCount(0U)
-, ObjectsToDispatchCapacity(0U)
+, ObjectsToDispatchArray(nullptr)
 , NetBlobHandlerManager(nullptr)
 , NetObjectBlobType(InvalidNetBlobType)
 , DelayAttachmentsWithUnresolvedReferences(IConsoleManager::Get().FindConsoleVariable(TEXT("net.DelayUnmappedRPCs"), false /* bTrackFrequentCalls */))
@@ -170,6 +220,20 @@ void FReplicationReader::Init(const FReplicationParameters& InParameters)
 
 void FReplicationReader::Deinit()
 {
+	for (FPendingBatchData& PendingBatchData : PendingBatches)
+	{
+		UE_LOG_REPLICATIONREADER_WARNING(TEXT("FReplicationReader::Deinit NetHandle %s has %d unprocessed data batches"), *PendingBatchData.Handle.ToString(), PendingBatchData.QueuedDataChunks.Num());
+
+		// Make sure to release all references that we are holding on to
+		if (ObjectReferenceCache)
+		{
+			for (const FNetRefHandle& RefHandle : PendingBatchData.ResolvedReferences)
+			{
+				ObjectReferenceCache->RemoveTrackedQueuedBatchObjectReference(RefHandle);
+			}
+		}		
+	}
+
 	// Cleanup any allocation stored in the per object info
 	for (auto& ObjectIt : ReplicatedObjects)
 	{
@@ -181,8 +245,13 @@ void FReplicationReader::Deinit()
 // Read incomplete handle
 FNetRefHandle FReplicationReader::ReadNetRefHandleId(FNetSerializationContext& Context, FNetBitStreamReader& Reader) const
 {
+	UE_NET_TRACE_NAMED_OBJECT_SCOPE(ReferenceScope, FNetRefHandle(), *Context.GetBitStreamReader(), Context.GetTraceCollector(), ENetTraceVerbosity::Verbose);
+
 	const uint64 NetId = ReadPackedUint64(&Reader);
 	FNetRefHandle RefHandle = FNetRefHandleManager::MakeNetRefHandleFromId(NetId);
+
+	UE_NET_TRACE_SET_SCOPE_OBJECTID(ReferenceScope, RefHandle);
+
 	if (RefHandle.GetId() != NetId)
 	{
 		Context.SetError(GNetError_InvalidNetHandle);
@@ -203,15 +272,28 @@ uint16 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& C
 	
 	if (!Context.HasErrorOrOverflow())
 	{
+		const bool bHasPendingBatches = !PendingBatches.IsEmpty();
+	
 		for (uint32 It = 0; It < ObjectsToRead; ++It)
 		{
 			UE_NET_TRACE_NAMED_OBJECT_SCOPE(DestroyedObjectScope, FNetRefHandle(), Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 
 			FNetRefHandle IncompleteHandle = ReadNetRefHandleId(Context, Reader);
+			FNetRefHandle SubObjectRootOrHandle = IncompleteHandle;
+			if (Reader.ReadBool())
+			{
+				SubObjectRootOrHandle = ReadNetRefHandleId(Context, Reader);
+			}
 			const bool bShouldDestroyInstance = Reader.ReadBool();
 			if (Context.HasErrorOrOverflow())
 			{
 				break;
+			}
+
+			if (FPendingBatchData* PendingBatchData = bHasPendingBatches ? PendingBatches.FindByPredicate([&SubObjectRootOrHandle](const FPendingBatchData& Entry) { return Entry.Handle == SubObjectRootOrHandle; }) : nullptr)
+			{
+				EnqueueEndReplication(PendingBatchData, bShouldDestroyInstance, IncompleteHandle);
+				continue;
 			}
 
 			{
@@ -224,8 +306,7 @@ uint16 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& C
 					// Defer EndReplication until after applying state data
 					if (bDeferEndReplication)
 					{
-						FDispatchObjectInfo& Info = ObjectsToDispatch[ObjectsToDispatchCount];
-						Info = FDispatchObjectInfo();
+						FDispatchObjectInfo& Info = ObjectsToDispatchArray->AddPendingDispatchObjectInfo(TempLinearAllocator);
 
 						Info.bDestroy = bShouldDestroyInstance;
 						Info.bTearOff = false;
@@ -236,7 +317,7 @@ uint16 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& C
 						Info.bHasAttachments = 0U;
 
 						// Mark for dispatch
-						++ObjectsToDispatchCount;
+						ObjectsToDispatchArray->CommitPendingDispatchObjectInfo();
 					}
 					else
 					{
@@ -245,9 +326,8 @@ uint16 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& C
 				}
 				else
 				{
-
 					// If we did not find the object or associated bridge, the packet that would have created the object may have been lost.
-					UE_LOG(LogIris, Log, TEXT("FReplicationReader::Read Tried to destroy object with %s (This can occur if the server sends destroy for an object that has not yet been confirmed as created)"), *IncompleteHandle.ToString());
+					UE_LOG(LogIris, Verbose, TEXT("FReplicationReader::Read Tried to destroy object with %s (This can occur if the server sends destroy for an object that has not yet been confirmed as created)"), *IncompleteHandle.ToString());
 				}
 			}
 		}
@@ -376,9 +456,122 @@ void FReplicationReader::DeserializeObjectStateDelta(FNetSerializationContext& C
 	}
 }
 
+FReplicationReader::FPendingBatchData* FReplicationReader::UpdateUnresolvedMustBeMappedReferences(FNetRefHandle InHandle, TArray<FNetRefHandle>& MustBeMappedReferences)
+{
+	FPendingBatchData* PendingBatch = PendingBatches.FindByPredicate([&InHandle](const FPendingBatchData& Entry) { return Entry.Handle == InHandle; });
+	// If we already have a pending batch we append any new must be mapped references to it.
+	if (PendingBatch)
+	{
+		for (const FNetRefHandle Ref : PendingBatch->PendingMustBeMappedReferences)
+		{
+			MustBeMappedReferences.AddUnique(Ref);
+		}
+	}
+
+	// Resolve
+	TArray<FNetRefHandle, TInlineAllocator<4>> Unresolved;
+	TArray<TPair<FNetRefHandle, UObject*>, TInlineAllocator<4>> QueuedObjectsToTrack;
+
+	Unresolved.Reserve(MustBeMappedReferences.Num());
+	QueuedObjectsToTrack.SetNum(MustBeMappedReferences.Num());
+	
+	for (FNetRefHandle Handle : MustBeMappedReferences)
+	{
+		UObject* ResolvedObject = nullptr;
+		// TODO: Report broken status in same call to avoid map lookup
+		ENetObjectReferenceResolveResult ResolveResult = ObjectReferenceCache->ResolveObjectReference(FObjectReferenceCache::MakeNetObjectReference(Handle), ResolveContext, ResolvedObject);
+		if (EnumHasAnyFlags(ResolveResult, ENetObjectReferenceResolveResult::HasUnresolvedMustBeMappedReferences) && !ObjectReferenceCache->IsNetRefHandleBroken(Handle, true))
+		{
+			Unresolved.Add(Handle);
+		}
+		else if (ResolveResult == ENetObjectReferenceResolveResult::None)
+		{
+			QueuedObjectsToTrack.Emplace(Handle, ResolvedObject);
+		}
+	}
+
+	if (Unresolved.Num())
+	{
+		FPendingBatchData* Batch = PendingBatch;
+		// We must create a new batch
+		if (!Batch)
+		{
+			Batch = &PendingBatches.AddDefaulted_GetRef();
+			Batch->Handle = InHandle;
+		}
+
+		// Update
+		Batch->PendingMustBeMappedReferences = MoveTemp(Unresolved);
+	
+		// If we resolved more references, add them to tracking list
+		for (TPair<FNetRefHandle, UObject*>& NetRefHandleObjectPair : QueuedObjectsToTrack)
+		{
+			if (!Batch->ResolvedReferences.Contains(NetRefHandleObjectPair.Key))
+			{
+				Batch->ResolvedReferences.Add(NetRefHandleObjectPair.Key);
+				ObjectReferenceCache->AddTrackedQueuedBatchObjectReference(NetRefHandleObjectPair.Key, NetRefHandleObjectPair.Value);
+			}
+		}
+
+		return Batch;
+	}
+	else if (PendingBatch)
+	{
+		PendingBatch->PendingMustBeMappedReferences.Reset();
+
+		// If we resolved more references, add them to tracking list
+		for (TPair<FNetRefHandle, UObject*>& NetRefHandleObjectPair : QueuedObjectsToTrack)
+		{
+			if (!PendingBatch->ResolvedReferences.Contains(NetRefHandleObjectPair.Key))
+			{
+				PendingBatch->ResolvedReferences.Add(NetRefHandleObjectPair.Key);
+				ObjectReferenceCache->AddTrackedQueuedBatchObjectReference(NetRefHandleObjectPair.Key, NetRefHandleObjectPair.Value);
+			}
+		}
+		
+		return PendingBatch;
+	}
+	
+	return nullptr;
+}
+
+uint32 FReplicationReader::ReadObjectsInBatch(FNetSerializationContext& Context, FNetRefHandle IncompleteHandle, bool bHasBatchOwnerData, uint32 BatchEndBitPosition)
+{
+	uint32 ReadObjectCount = 0;
+	FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
+
+	// If the batch owner had state, we read it now
+	if (bHasBatchOwnerData)
+	{
+		ReadObjectInBatch(Context, IncompleteHandle, false);
+		if (Context.HasErrorOrOverflow())
+		{
+			return 0U;
+		}
+		++ReadObjectCount;
+	}
+
+	ensureAlways(Reader.GetPosBits() <= BatchEndBitPosition);
+
+	// ReadSubObjects 
+	while (Reader.GetPosBits() < BatchEndBitPosition)
+	{
+		ReadObjectInBatch(Context, IncompleteHandle, true);
+		if (Context.HasErrorOrOverflow())
+		{
+			return 0U;
+		}
+		++ReadObjectCount;
+	}
+
+	return ReadObjectCount;
+}
+
 uint32 FReplicationReader::ReadObjectBatch(FNetSerializationContext& Context)
 {
 	FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
+
+	UE_NET_TRACE_SCOPE(Batch, Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 
 	// Special handling for destruction infos
 	if (const bool bIsDestructionInfo = Reader.ReadBool())
@@ -424,16 +617,18 @@ uint32 FReplicationReader::ReadObjectBatch(FNetSerializationContext& Context)
 	// This either marks the end of the data associated with this batch or the offset in the stream where exports are stored.
 	const uint32 BatchEndOrStartOfExportsPos = Reader.GetPosBits() + BatchSize;
 
-	uint32 ReadObjectCount = 0;
-
 	// Do we have state data or attachments for the owner of the batch?
 	const bool bHasBatchOwnerData = Reader.ReadBool();
 
 	// Do we have exports or not?
 	const bool bHasExports = Reader.ReadBool();
+	
+	uint32 ReadObjectCount = 0U;
 
 	// First we need to read exports, they are stored at the end of the batch
 	uint32 BatchEndPos = BatchEndOrStartOfExportsPos;
+
+	TempMustBeMappedReferences.Reset();
 	if (bHasExports)
 	{
 		const uint32 ReturnPos = Reader.GetPosBits();
@@ -441,7 +636,8 @@ uint32 FReplicationReader::ReadObjectBatch(FNetSerializationContext& Context)
 		// Seek to the export section
 		Reader.Seek(BatchEndPos);
 
-		ObjectReferenceCache->ReadExports(Context, nullptr /* Currently we do not process MustBeMappedReferences */);
+		// Read exports and any must be mapped references
+		ObjectReferenceCache->ReadExports(Context, &TempMustBeMappedReferences);
 		if (Context.HasErrorOrOverflow())
 		{
 			return 0U;
@@ -454,26 +650,47 @@ uint32 FReplicationReader::ReadObjectBatch(FNetSerializationContext& Context)
 		Reader.Seek(ReturnPos);
 	}
 
-	// If the batch owner had state, we read it now
-	if (bHasBatchOwnerData)
+	// This object has pending must be mapped references that must be resolved before we can process the data.
+	FPendingBatchData* PendingBatchData = ObjectReferenceCache->ShouldAsyncLoad() ? UpdateUnresolvedMustBeMappedReferences(IncompleteHandle, TempMustBeMappedReferences) : nullptr;
+	if (PendingBatchData)
 	{
-		ReadObjectInBatch(Context, IncompleteHandle, false);
-		if (Context.HasErrorOrOverflow())
-		{
-			return 0U;
-		}
-		++ReadObjectCount;
-	}
+		UE_LOG(LogIris, Verbose, TEXT("FReplicationReader::ReadObjectBatch Handle %s will be defered as it has unresolved must be mapped references"), *IncompleteHandle.ToString());				
 
-	// ReadSubObjects 
-	while (Reader.GetPosBits() < BatchEndOrStartOfExportsPos)
-	{
-		ReadObjectInBatch(Context, IncompleteHandle, true);
+		UE_NET_TRACE_OBJECT_SCOPE(IncompleteHandle, Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
+		UE_NET_TRACE_SCOPE(QueuedBatch, Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
+
+		// Enqueue BatchData
+		FQueuedDataChunk DataChunk;
+		
+		const uint32 NumDataBits = BatchEndOrStartOfExportsPos - Reader.GetPosBits();
+		const uint32 NumDataWords = (NumDataBits + 31U) / 32U;
+
+		DataChunk.NumBits = NumDataBits;
+		DataChunk.StorageOffset = PendingBatchData->DataChunkStorage.Num();
+		DataChunk.bHasBatchOwnerData = bHasBatchOwnerData;
+		DataChunk.bIsEndReplicationChunk = false;
+
+		// Make sure we have space
+		PendingBatchData->DataChunkStorage.AddUninitialized(NumDataWords);
+	
+		// Store batch data
+		Reader.ReadBitStream(PendingBatchData->DataChunkStorage.GetData() + DataChunk.StorageOffset, DataChunk.NumBits);
+
 		if (Context.HasErrorOrOverflow())
 		{
 			return 0U;
 		}
-		++ReadObjectCount;
+
+		PendingBatchData->QueuedDataChunks.Add(MoveTemp(DataChunk));
+	}
+	else
+	{
+		ReadObjectCount = ReadObjectsInBatch(Context, IncompleteHandle, bHasBatchOwnerData, BatchEndOrStartOfExportsPos);
+
+		if (Context.HasErrorOrOverflow())
+		{
+			return 0U;
+		}
 	}
 
 	// Skip to the end as we already have read any exports
@@ -501,7 +718,7 @@ void FReplicationReader::ReadObjectInBatch(FNetSerializationContext& Context, FN
 	if (bHasState)
 	{
 #if UE_NET_USE_READER_WRITER_SENTINEL
-		ReadAndVerifySentinelBits(&Reader, TEXT("Exports"), 8);
+		ReadAndVerifySentinelBits(&Reader, TEXT("HasState"), 8);
 #endif
 	}
 
@@ -609,8 +826,7 @@ void FReplicationReader::ReadObjectInBatch(FNetSerializationContext& Context, FN
 		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
 
 		// Add entry in our received data as we postpone state application until we have received all data in order to be able to properly resolve references
-		FDispatchObjectInfo& Info = ObjectsToDispatch[ObjectsToDispatchCount];
-		Info = FDispatchObjectInfo();
+		FDispatchObjectInfo& Info = ObjectsToDispatchArray->AddPendingDispatchObjectInfo(TempLinearAllocator);
 
 		// Update info based on ReplicatedDestroyHeader
 		Info.bDestroy = !!(ReplicatedDestroyHeaderFlags & (ReplicatedDestroyHeaderFlags_TearOff | ReplicatedDestroyHeaderFlags_DestroyInstance));
@@ -650,6 +866,9 @@ void FReplicationReader::ReadObjectInBatch(FNetSerializationContext& Context, FN
 					FReplicationProtocolOperations::DeserializeWithMask(Context, Info.ChangeMaskOrPointer.GetPointer(ChangeMaskBitCount), ObjectData.ReceiveStateBuffer, ObjectData.Protocol);
 				}
 			}
+		#if UE_NET_USE_READER_WRITER_SENTINEL
+				ReadAndVerifySentinelBits(&Reader, TEXT("HasStateEnd"), 8);
+		#endif
 
 			// Should we store a new baseline?
 			if (NewBaselineIndex != FDeltaCompressionBaselineManager::InvalidBaselineIndex)
@@ -717,8 +936,7 @@ void FReplicationReader::ReadObjectInBatch(FNetSerializationContext& Context, FN
 			Info.bHasState = bHasState ? 1U : 0U;
 			Info.bHasAttachments = bHasAttachments ? 1U : 0U;
 
-			// Mark for dispatch
-			++ObjectsToDispatchCount;
+			ObjectsToDispatchArray->CommitPendingDispatchObjectInfo();
 		}
 	}
 	
@@ -1116,7 +1334,7 @@ void FReplicationReader::DispatchStateData(FNetSerializationContext& Context)
 	};
 
 	// Allocate temporary space for post dispatch
-	FPostDispatchObjectInfo* PostDispatchObjectInfos = new (TempLinearAllocator) FPostDispatchObjectInfo[ObjectsToDispatchCount];
+	FPostDispatchObjectInfo* PostDispatchObjectInfos = new (TempLinearAllocator) FPostDispatchObjectInfo[ObjectsToDispatchArray->Num()];
 	uint32 NumObjectsPendingPostDistpatch = 0U;
 
 	// Function to flush all objects pending post dispatch
@@ -1176,7 +1394,7 @@ void FReplicationReader::DispatchStateData(FNetSerializationContext& Context)
 	FInternalNetRefIndex LastDispatchedRootInternalIndex = 0U;
 	
 	// Dispatch and apply received state data
-	for (FDispatchObjectInfo& Info : MakeArrayView(ObjectsToDispatch, ObjectsToDispatchCount))
+	for (FDispatchObjectInfo& Info : ObjectsToDispatchArray->GetObjectsToDispatch())
 	{
 		FReplicatedObjectInfo* ReplicationInfo = GetReplicatedObjectInfo(Info.InternalIndex);
 
@@ -1256,8 +1474,6 @@ void FReplicationReader::DispatchStateData(FNetSerializationContext& Context)
 	}
 
 	FlushPostDispatchForBatch();
-
-	ObjectsToDispatchCapacity = 0U;
 }
 
 void FReplicationReader::ResolveAndDispatchUnresolvedReferences()
@@ -1375,7 +1591,7 @@ void FReplicationReader::UpdateUnresolvableReferenceTracking()
 
 void FReplicationReader::DispatchEndReplication(FNetSerializationContext& Context)
 {
-	for (FDispatchObjectInfo& Info : MakeArrayView(ObjectsToDispatch, ObjectsToDispatchCount))
+	for (FDispatchObjectInfo& Info : ObjectsToDispatchArray->GetObjectsToDispatch())
 	{
 		if (Info.bDeferredEndReplication)
 		{
@@ -1386,22 +1602,16 @@ void FReplicationReader::DispatchEndReplication(FNetSerializationContext& Contex
 }
 
 
-void FReplicationReader::ReadObjects(FNetSerializationContext& Context, uint32 ObjectCountToRead)
+void FReplicationReader::ReadObjects(FNetSerializationContext& Context, uint32 ObjectBatchCountToRead)
 {
 	IRIS_PROFILER_SCOPE(ReplicationReader_ReadObjects);
 
 	FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
 	
-	while (ObjectCountToRead && !Context.HasErrorOrOverflow())
+	while (ObjectBatchCountToRead && !Context.HasErrorOrOverflow())
 	{
-		const uint32 ReadObjectCount = ReadObjectBatch(Context);
-		if (ReadObjectCount > ObjectCountToRead)
-		{			
-			Context.SetError(GNetError_BitStreamError);
-			break;
-		}
-
-		ObjectCountToRead -= ReadObjectCount;
+		ReadObjectBatch(Context);
+		--ObjectBatchCountToRead;
 	}
 
 	ensureAlwaysMsgf(!Context.HasErrorOrOverflow(), TEXT("Overflow: %c Error: %s Bit stream bits left: %u position: %u"), "YN"[Context.HasError()], ToCStr(Context.GetError().ToString()), Reader.GetBitsLeft(), Reader.GetPosBits());
@@ -1442,14 +1652,8 @@ void FReplicationReader::ProcessHugeObjectAttachment(FNetSerializationContext& C
 		}
 	}
 
-	if (ObjectsToDispatchCapacity < (ObjectsToDispatchCount + HugeObjectHeader.ObjectCount))
-	{
-		// Need to reallocate ObjectDispatchInfos and copy the old data. We allocate a bit extra just in case.
-		ObjectsToDispatchCapacity = ObjectsToDispatchCount + HugeObjectHeader.ObjectCount + ObjectsToDispatchSlackCount;
-		FDispatchObjectInfo* NewObjectsToDispatch = new (TempLinearAllocator) FDispatchObjectInfo[ObjectsToDispatchCapacity];
-		FPlatformMemory::Memcpy(NewObjectsToDispatch, ObjectsToDispatch, ObjectsToDispatchCount*sizeof(FDispatchObjectInfo));
-		ObjectsToDispatch = NewObjectsToDispatch;
-	}
+	// Reserve space for more dispatch infos as needed, we allocate some extra to account for subobjects etc
+	ObjectsToDispatchArray->Grow(HugeObjectHeader.ObjectCount + ObjectsToDispatchSlackCount, TempLinearAllocator);
 
 	ReadObjects(HugeObjectSerializationContext, HugeObjectHeader.ObjectCount);
 	if (HugeObjectSerializationContext.HasErrorOrOverflow())
@@ -1469,6 +1673,149 @@ void FReplicationReader::ProcessHugeObjectAttachment(FNetSerializationContext& C
 		FNetTrace::FoldTraceCollector(TraceCollector, HugeObjectTraceCollector, GetBitStreamPositionForNetTrace(Reader));
 	}
 #endif
+}
+
+bool FReplicationReader::EnqueueEndReplication(FPendingBatchData* PendingBatchData, bool bShouldDestroyInstance, FNetRefHandle NetRefHandleToEndReplication)
+{
+	UE_LOG(LogIris, Verbose, TEXT("FReplicationReader::EnqueueEndReplication for %s since %s has queued batches"), *NetRefHandleToEndReplication.ToString(), *PendingBatchData->Handle.ToString());
+		
+	const uint32 MaxNumDataBits = 65U;
+	const uint32 NumDataWords = (MaxNumDataBits + 31U) / 32U;
+
+	// Enqueue BatchData
+	FQueuedDataChunk DataChunk;
+
+	DataChunk.NumBits = MaxNumDataBits;
+	DataChunk.StorageOffset = PendingBatchData->DataChunkStorage.Num();
+	DataChunk.bHasBatchOwnerData = false;
+	DataChunk.bIsEndReplicationChunk = true;
+
+	// Make sure we have space
+	PendingBatchData->DataChunkStorage.AddUninitialized(NumDataWords);
+
+	FNetBitStreamWriter Writer;
+	Writer.InitBytes(PendingBatchData->DataChunkStorage.GetData() + DataChunk.StorageOffset, NumDataWords*sizeof(uint32));
+
+	// Write data
+	WriteUint64(&Writer, NetRefHandleToEndReplication.GetId());
+	Writer.WriteBool(bShouldDestroyInstance);
+	Writer.CommitWrites();
+
+	if (Writer.IsOverflown())
+	{
+		ensureAlwaysMsgf(false, TEXT("Failed to EnqueueEndReplication for %s, Should never occur unless size of NetRefHandle has been increased."), *NetRefHandleToEndReplication.ToString());
+		return false;
+	}
+
+	PendingBatchData->QueuedDataChunks.Add(MoveTemp(DataChunk));
+
+	return true;
+}
+
+void FReplicationReader::ProcessQueuedBatches()
+{
+	UE_NET_TRACE_FRAME_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), ReplicationReader.PendingQueuedBatches, PendingBatches.Num(), ENetTraceVerbosity::Trace);
+
+	if (PendingBatches.IsEmpty())
+	{
+		//Nothing to do.
+		return;
+	}
+
+	// Setup context for dispatch
+	FInternalNetSerializationContext InternalContext;
+	FInternalNetSerializationContext::FInitParameters InternalContextInitParams;
+	InternalContextInitParams.ReplicationSystem = Parameters.ReplicationSystem;
+	InternalContextInitParams.ObjectResolveContext = ResolveContext;
+	InternalContext.Init(InternalContextInitParams);
+
+	FNetBitStreamReader Reader;
+	FNetSerializationContext Context(&Reader);
+	Context.SetLocalConnectionId(ResolveContext.ConnectionId);
+	Context.SetInternalContext(&InternalContext);
+	Context.SetNetBlobReceiver(&ReplicationSystemInternal->GetNetBlobHandlerManager());
+
+	for (int BatchIt = 0; BatchIt < PendingBatches.Num(); )
+	{
+		FPendingBatchData& PendingBatchData = PendingBatches[BatchIt];
+
+		// Try to resolve remaining must be mapped references
+		TempMustBeMappedReferences.Reset();
+		UpdateUnresolvedMustBeMappedReferences(PendingBatchData.Handle, TempMustBeMappedReferences);
+
+		// If we have no more pending must be referenes we can apply the received state
+		if (PendingBatchData.PendingMustBeMappedReferences.IsEmpty())		
+		{
+			UE_LOG(LogIris, Verbose, TEXT("ProcessQueuedBatches processing %d queued batches for Handle %s "), PendingBatchData.QueuedDataChunks.Num(), *PendingBatchData.Handle.ToString());
+
+			// Process batched data & dispatch data
+			for (const FQueuedDataChunk& CurrentChunk : PendingBatchData.QueuedDataChunks)
+			{
+				Reader.InitBits(PendingBatchData.DataChunkStorage.GetData() + CurrentChunk.StorageOffset, CurrentChunk.NumBits);
+
+				// Chunks marked as bIsEndReplicationChunk are dispatched immediately as we do not know if the next chunk tries to re-create the instance
+				if (CurrentChunk.bIsEndReplicationChunk)
+				{
+					// Read data stored for objects ending replication, 
+					// this can be the batch root or a subobject owned by the batched root.
+					const uint64 NetRefHandleIdToEndReplication = ReadUint64(&Reader);
+					const bool bShouldDestroyInstance = Reader.ReadBool();
+					
+					const FNetRefHandle NetRefHandleToEndReplication = FNetRefHandleManager::MakeNetRefHandleFromId(NetRefHandleIdToEndReplication);
+					
+					// End replication for object
+					const uint32 InternalIndex = NetRefHandleManager->GetInternalIndex(NetRefHandleToEndReplication);
+					if (InternalIndex != FNetRefHandleManager::InvalidInternalIndex)
+					{
+						EndReplication(InternalIndex, false, bShouldDestroyInstance);
+					}
+
+					UE_LOG(LogIris, Verbose, TEXT("FReplicationReader::ProcessQueuedBatches EndReplication for %s while processing queued batches for %s"), *NetRefHandleToEndReplication.ToString(), *PendingBatchData.Handle.ToString());
+					continue;
+				}
+
+				// Read and process chunk as it was a received packet for now at least
+				FMemMark TempAllocatorScope(TempLinearAllocator);
+
+				// We need to set this up to store temporary dispatch data, the array will grow if needed
+				FObjectsToDispatchArray TempObjectsToDispatchArray(ObjectsToDispatchSlackCount, TempLinearAllocator);
+
+				// Need to set this pointer as we are dealing with temporary linear allocations
+				ObjectsToDispatchArray = &TempObjectsToDispatchArray;
+
+				// $IRIS: $TODO: Implement special dispatch to defer RepNotifies if we are processing multiple batches for the same object.
+				ReadObjectsInBatch(Context, PendingBatchData.Handle, CurrentChunk.bHasBatchOwnerData, CurrentChunk.NumBits);
+
+				// $IRIS: $TODO: What to do if we fail to process this batch? Just delete it? Might need to report this to server as a broken object and build logic to reset replication of the object
+				ensureAlwaysMsgf(!Context.HasErrorOrOverflow(), TEXT("FReplicationReader::ProcessQueuedBatches - Failed to process enqueued batch for %s - %s"), *PendingBatchData.Handle.ToString(), *Context.GetError().ToString());
+			
+				// Apply received data and resolve dependencies
+				DispatchStateData(Context);
+
+				// Resolve
+				ResolveAndDispatchUnresolvedReferences();
+
+				// EndReplication for all objects in the batch that should no longer replicate
+				DispatchEndReplication(Context);
+
+				// Drop temporary data
+				ObjectsToDispatchArray = nullptr;
+			}
+	
+			// Make sure to release all references that we hold on to
+			for (const FNetRefHandle& RefHandle : PendingBatchData.ResolvedReferences)
+			{
+				ObjectReferenceCache->RemoveTrackedQueuedBatchObjectReference(RefHandle);
+			}
+
+			// Not optimal, but we want to preserve the order if we can as there might be batches waiting for the same reference
+			PendingBatches.RemoveAt(BatchIt);
+		}
+		else
+		{
+			++BatchIt;
+		}
+	}
 }
 
 void FReplicationReader::ProcessHugeObject(FNetSerializationContext& Context)
@@ -1518,12 +1865,12 @@ void FReplicationReader::Read(FNetSerializationContext& Context)
 
 	FMemMark TempAllocatorScope(TempLinearAllocator);
 
-	// Sanity check received obejct count
-	const uint32 MaxObjectCountToRead = 8192U;
-	const uint32 ReceivedObjectCountToRead = Reader.ReadBits(16);
-	uint32 ObjectCountToRead = ReceivedObjectCountToRead;
+	// Sanity check received object count
+	const uint32 MaxObjectBatchCountToRead = 8192U;
+	const uint32 ReceivedObjectBatchCountToRead = Reader.ReadBits(16);
+	uint32 ObjectBatchCountToRead = ReceivedObjectBatchCountToRead;
 
-	if (Reader.IsOverflown() || ObjectCountToRead >= MaxObjectCountToRead)
+	if (Reader.IsOverflown() || ObjectBatchCountToRead >= MaxObjectBatchCountToRead)
 	{
 		const FName& NetError = (Reader.IsOverflown() ? GNetError_BitStreamOverflow : GNetError_BitStreamError);
 		Context.SetError(NetError);
@@ -1531,27 +1878,29 @@ void FReplicationReader::Read(FNetSerializationContext& Context)
 		return;
 	}
 
-	if (ObjectCountToRead == 0)
+	if (ObjectBatchCountToRead == 0)
 	{
 		return;
 	}
 
-	// Allocate tracking info for objects we receive this packet
-	ObjectsToDispatchCapacity = ObjectCountToRead + ObjectsToDispatchSlackCount;
-	ObjectsToDispatchCount = 0U;
-	ObjectsToDispatch = new (TempLinearAllocator) FDispatchObjectInfo[ObjectsToDispatchCapacity];
+	// Allocate tracking info for objects we receive this packet from temporary allocator
+	// We need to set this up to store temporary dispatch data, the array will grow if needed
+	FObjectsToDispatchArray TempObjectsToDispatchArray(ObjectBatchCountToRead + ObjectsToDispatchSlackCount, TempLinearAllocator);
+
+	// Need to set this pointer as we are dealing with temporary linear allocations
+	ObjectsToDispatchArray = &TempObjectsToDispatchArray;
 
 	uint32 DestroyedObjectCount = ReadObjectsPendingDestroy(Context);
 
-	ObjectCountToRead -= DestroyedObjectCount;
+	ObjectBatchCountToRead -= DestroyedObjectCount;
 
 	// Nothing more to do or we failed and should disconnect
-	if (Context.HasErrorOrOverflow() || (ObjectCountToRead == 0 && ObjectsToDispatchCount == 0))
+	if (Context.HasErrorOrOverflow() || (ObjectBatchCountToRead == 0 && ObjectsToDispatchArray->Num() == 0))
 	{
 		return;
 	}
 
-	ReadObjects(Context, ObjectCountToRead);
+	ReadObjects(Context, ObjectBatchCountToRead);
 	if (Context.HasErrorOrOverflow())
 	{
 		return;
@@ -1564,9 +1913,14 @@ void FReplicationReader::Read(FNetSerializationContext& Context)
 		return;
 	}
 
+	if (Context.HasErrorOrOverflow())
+	{
+		return;
+	}
+
 	// Stats
-	UE_NET_TRACE_PACKET_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), Parameters.ConnectionId, ReplicationReader.ReadObjectCOunt, ReceivedObjectCountToRead, ENetTraceVerbosity::Trace);
-	UE_NET_TRACE_PACKET_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), Parameters.ConnectionId, ReplicationReader.ObjectsToDispatchCount, ObjectsToDispatchCount, ENetTraceVerbosity::Trace);
+	UE_NET_TRACE_PACKET_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), Parameters.ConnectionId, ReplicationReader.ReadObjectBatchCount, ReceivedObjectBatchCountToRead, ENetTraceVerbosity::Trace);
+	UE_NET_TRACE_PACKET_STATSCOUNTER(Parameters.ReplicationSystem->GetId(), Parameters.ConnectionId, ReplicationReader.ReadObjectsAndSubObjectsToDispatchCount, ObjectsToDispatchArray->Num(), ENetTraceVerbosity::Trace);
 
 	// Apply received data and resolve dependencies
 	DispatchStateData(Context);
@@ -1581,9 +1935,8 @@ void FReplicationReader::Read(FNetSerializationContext& Context)
 	// EndReplication for all objects that should no longer replicate
 	DispatchEndReplication(Context);
 
-	// Drop temporary data
-	ObjectsToDispatch = nullptr;
-	ObjectsToDispatchCount = 0U;
+	// Drop temporary dispatch data
+	ObjectsToDispatchArray = nullptr;
 }
 
 void FReplicationReader::ResolveAndDispatchAttachments(FNetSerializationContext& Context, FReplicatedObjectInfo* ReplicationInfo, ENetObjectAttachmentDispatchFlags DispatchFlags)

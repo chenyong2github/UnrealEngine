@@ -16,6 +16,7 @@ namespace UE::Net
 	{
 		FNetTokenStoreState* RemoteNetTokenStoreState = nullptr;
 		uint32 ConnectionId = InvalidConnectionId;
+		bool bForceSyncLoad = false;
 	};
 
 	namespace Private

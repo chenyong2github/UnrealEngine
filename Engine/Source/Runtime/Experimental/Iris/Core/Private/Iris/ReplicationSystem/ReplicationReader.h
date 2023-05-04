@@ -57,6 +57,9 @@ public:
 	// Mark objects pending destroy as unresolvable.
 	void UpdateUnresolvableReferenceTracking();
 
+	// Process queued batches
+	void ProcessQueuedBatches();
+
 private:
 	// ChangeMaskOffset -> FNetRefHandle
 	enum EConstants : uint32
@@ -113,11 +116,45 @@ private:
 		uint32 bDeferredEndReplication : 1;
 	};
 
+	// Queued data chunk
+	struct FQueuedDataChunk
+	{
+		FQueuedDataChunk()
+		: StorageOffset(0U)
+		, NumBits(0U)
+		, bHasBatchOwnerData(0U)
+		, bIsEndReplicationChunk(0U)
+		{
+		}
+
+		uint32 StorageOffset;
+		uint32 NumBits : 30;
+		uint32 bHasBatchOwnerData : 1;
+		uint32 bIsEndReplicationChunk : 1;
+	};
+
+	// Struct to contain storage and required data for queued batches pending must be mapped references
+	struct FPendingBatchData
+	{
+		// We use a single array to store the actual data, it will grow if required.
+		TArray<uint32, TInlineAllocator<32>> DataChunkStorage;		
+		TArray<FQueuedDataChunk, TInlineAllocator<4>> QueuedDataChunks;
+
+		// Must be mapped references pending resolve
+		TArray<FNetRefHandle, TInlineAllocator<4>> PendingMustBeMappedReferences;
+
+		// Resolved references for which we have are holding on to references to avoid GC
+		TArray<FNetRefHandle, TInlineAllocator<4>> ResolvedReferences;
+
+		// Batch owner with queued data chunks
+		FNetRefHandle Handle;
+	};
+
 	enum : uint32
 	{
 		ObjectIndexForOOBAttachment = 0U,
 		// Try to avoid reallocations for dispatch in the case we need to process a huge object
-		ObjectsToDispatchSlackCount = 16U,
+		ObjectsToDispatchSlackCount = 32U,
 	};
 
 	bool IsObjectIndexForOOBAttachment(uint32 InternalIndex) const { return InternalIndex == ObjectIndexForOOBAttachment; }
@@ -130,6 +167,8 @@ private:
 
 	// Read object or subobject
 	void ReadObjectInBatch(FNetSerializationContext& Context, FNetRefHandle BatchHandle, bool bIsSubObject);
+
+	uint32 ReadObjectsInBatch(FNetSerializationContext& Context, FNetRefHandle InCompleteHandle, bool bHasBatchOwnerData, uint32 BatchEndBitPosition);
 
 	// Read all objects pending destroy
 	uint16 ReadObjectsPendingDestroy(FNetSerializationContext& Context);
@@ -188,7 +227,17 @@ private:
 
 	void DeserializeObjectStateDelta(FNetSerializationContext& Context, uint32 InternalIndex, FDispatchObjectInfo& Info, FReplicatedObjectInfo& ObjectInfo, const FNetRefHandleManager::FReplicatedObjectData& ObjectData, uint32& OutNewBaselineIndex);
 
+	// If async loading is enabled this function will verify if we can resolve all PendingMustBeMappedReferences
+	FReplicationReader::FPendingBatchData* UpdateUnresolvedMustBeMappedReferences(FNetRefHandle Handle, TArray<FNetRefHandle>& MustBeMappedReferences);
+
+	// If we are queuing data for a batch we must also defer calls to EndReplication
+	// This method writes this method in the form of a QueuedChunk
+	bool EnqueueEndReplication(FPendingBatchData* PendingBatchData, bool bShouldDestroyInstance, FNetRefHandle NetRefHandleToEndReplication);
+	
 private:
+
+	class FObjectsToDispatchArray;
+
 	FReplicationParameters Parameters;
 
 	FMemStackBase TempLinearAllocator;
@@ -206,9 +255,7 @@ private:
 	TMap<uint32, FReplicatedObjectInfo> ReplicatedObjects;
 
 	// Temporary data valid during receive
-	FDispatchObjectInfo* ObjectsToDispatch;
-	uint32 ObjectsToDispatchCount;
-	uint32 ObjectsToDispatchCapacity;
+	FObjectsToDispatchArray* ObjectsToDispatchArray;
 
 	// We need to keep some data around for objects with pending dependencies
 	// For now just use array and brute force the updates
@@ -219,6 +266,12 @@ private:
 	
 	// Track all objects with a dynamic handle in case it becomes unresolvable
 	TMultiMap<FNetRefHandle, uint32> ResolvedDynamicHandleToDependents;
+
+	// We do not expect to have many objects in this state
+	TArray<FPendingBatchData> PendingBatches;
+
+	// Used during receive and processing of pending batches
+	TArray<FNetRefHandle> TempMustBeMappedReferences;
 
 	FNetBlobHandlerManager* NetBlobHandlerManager;
 	FNetBlobType NetObjectBlobType;
