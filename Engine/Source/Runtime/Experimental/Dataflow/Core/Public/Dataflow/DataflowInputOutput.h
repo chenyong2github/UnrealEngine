@@ -61,7 +61,7 @@ public:
 	template<class T>
 	TFuture<const T&> GetValueParallel(Dataflow::FContext& Context, const T& Default) const;
 
-	virtual void Invalidate() override;
+	virtual void Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp = Dataflow::FTimestamp::Current()) override;
 };
 
 //
@@ -157,7 +157,7 @@ public:
 	template<class T>
 	TFuture<bool> EvaluateParallel(Dataflow::FContext& Context) const;
 
-	virtual void Invalidate() override;
+	virtual void Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp = Dataflow::FTimestamp::Current()) override;
 
 };
  

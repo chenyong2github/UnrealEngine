@@ -63,9 +63,9 @@ const TArray< const FDataflowOutput* > FDataflowInput::GetConnectedOutputs() con
 	return RetList;
 }
 
-void FDataflowInput::Invalidate()
+void FDataflowInput::Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp)
 {
-	OwningNode->Invalidate();
+	OwningNode->Invalidate(ModifiedTimestamp);
 }
 
 //
@@ -122,11 +122,11 @@ bool FDataflowOutput::RemoveConnection(FDataflowConnection* InInput)
 	Connections.RemoveSwap((FDataflowInput*)InInput); return true;
 }
 
-void FDataflowOutput::Invalidate()
+void FDataflowOutput::Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp)
 {
 	for (FDataflowConnection* Con : GetConnections())
 	{
-		Con->Invalidate();
+		Con->Invalidate(ModifiedTimestamp);
 	}
 }
 

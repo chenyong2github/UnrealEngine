@@ -218,17 +218,22 @@ TArray<Dataflow::FPin> FDataflowNode::GetPins() const
 	return RetVal;
 }
 
-void FDataflowNode::Invalidate()
+void FDataflowNode::Invalidate(const Dataflow::FTimestamp& InModifiedTimestamp)
 {
-	LastModifiedTimestamp = Dataflow::FTimestamp(FPlatformTime::Cycles64());
-
-	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
+	if (LastModifiedTimestamp < InModifiedTimestamp)
 	{
-		FDataflowOutput* Con = Elem.Value;
-		Con->Invalidate();
-	}
+		LastModifiedTimestamp = InModifiedTimestamp;
 
-	OnNodeInvalidatedDelegate.Broadcast(this);
+		for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
+		{
+			FDataflowOutput* Con = Elem.Value;
+			Con->Invalidate(InModifiedTimestamp);
+		}
+
+		OnInvalidate();
+
+		OnNodeInvalidatedDelegate.Broadcast(this);
+	}
 }
 
 void FDataflowNode::RegisterInputConnection(const void* InProperty)
@@ -319,7 +324,7 @@ void FDataflowNode::RegisterOutputConnection(const void* InProperty, const void*
 
 bool FDataflowNode::ValidateConnections()
 {
-	bValid = true;
+	bHasValidConnections = true;
 	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
 		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
@@ -334,7 +339,7 @@ bool FDataflowNode::ValidateConnections()
 					if (!FindInput(PropName))
 					{
 						UE_LOG(LogChaos, Warning, TEXT("Missing dataflow RegisterInputConnection in constructor for (%s:%s)"), *GetName().ToString(), *PropName.ToString())
-						bValid = false;
+							bHasValidConnections = false;
 					}
 				}
 				if (Property->HasMetaData(FDataflowNode::DataflowOutput))
@@ -343,7 +348,7 @@ bool FDataflowNode::ValidateConnections()
 					if(!OutputConnection)
 					{
 						UE_LOG(LogChaos, Warning, TEXT("Missing dataflow RegisterOutputConnection in constructor for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
-						bValid = false;
+						bHasValidConnections = false;
 					}
 
 					// Validate passthrough connections if they exist
@@ -353,7 +358,7 @@ bool FDataflowNode::ValidateConnections()
 						if(PassthroughConnectionAddress == nullptr)
 						{
 							UE_LOG(LogChaos, Warning, TEXT("Missing DataflowPassthrough registration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
-							bValid = false;
+							bHasValidConnections = false;
 						}
 
 						const FDataflowInput* PassthroughConnectionInput = FindInput(FName(*PassthroughName));
@@ -362,32 +367,32 @@ bool FDataflowNode::ValidateConnections()
 						if(PassthroughConnectionInputFromArg != PassthroughConnectionInput)
 						{
 							UE_LOG(LogChaos, Warning, TEXT("Mismatch in declared and registered DataflowPassthrough connection; (%s:%s vs %s)"), *GetName().ToString(), *PropName.ToString(), *PassthroughConnectionInputFromArg->GetName().ToString());
-							bValid = false;
+							bHasValidConnections = false;
 						}
 
 						if(!PassthroughConnectionInput)
 						{
 							UE_LOG(LogChaos, Warning, TEXT("Incorrect DataflowPassthrough Connection set for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
-							bValid = false;
+							bHasValidConnections = false;
 						}
 
 						else if(OutputConnection->GetType() != PassthroughConnectionInput->GetType())
 						{
 							UE_LOG(LogChaos, Warning, TEXT("DataflowPassthrough connection types mismatch for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
-							bValid = false;
+							bHasValidConnections = false;
 						}
 					}
 					else if(OutputConnection->GetPassthroughRealAddress()) 
 					{
 						UE_LOG(LogChaos, Warning, TEXT("Missing DataflowPassthrough declaration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
-						bValid = false;
+						bHasValidConnections = false;
 					}
 				}
 #endif
 			}
 		}
 	}
-	return bValid;
+	return bHasValidConnections;
 }
 
 FString FDataflowNode::GetToolTip()

@@ -84,6 +84,6 @@ public:
 		return (size_t)OwningNode + (size_t)GetOffset() == (size_t)InVar;
 	}
 
-	virtual void Invalidate() {};
+	virtual void Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp = Dataflow::FTimestamp::Current()) {};
 
 };

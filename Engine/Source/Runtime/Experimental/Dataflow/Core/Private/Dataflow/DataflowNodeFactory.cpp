@@ -14,7 +14,7 @@ namespace Dataflow
 		if (ClassMap.Contains(Param.Type))
 		{
 			TUniquePtr<FDataflowNode> Node = ClassMap[Param.Type](Param);
-			if(Node->IsValid())
+			if(Node->HasValidConnections())
 			{
 				ParametersMap[Param.Type].ToolTip = Node->GetToolTip();
 

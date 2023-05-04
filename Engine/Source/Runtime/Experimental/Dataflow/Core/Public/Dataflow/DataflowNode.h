@@ -212,11 +212,13 @@ struct DATAFLOWCORE_API FDataflowNode
 		return (FindInput(Reference)->GetConnection() != nullptr);
 	}
 
-	void Invalidate();
+	void Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp = Dataflow::FTimestamp::Current());
+
+	virtual void OnInvalidate() {}
 
 	virtual bool ValidateConnections();
 
-	bool IsValid() const { return bValid; }
+	bool HasValidConnections() const { return bHasValidConnections; }
 
 	virtual bool IsA(FName InType) const 
 	{ 
@@ -252,7 +254,7 @@ private:
 	virtual TArray<Dataflow::FRenderingParameter> GetRenderParametersImpl() const { return TArray<Dataflow::FRenderingParameter>(); }
 
 
-	bool bValid = true;
+	bool bHasValidConnections = true;
 
 protected:
 	FOnNodeInvalidated OnNodeInvalidatedDelegate;

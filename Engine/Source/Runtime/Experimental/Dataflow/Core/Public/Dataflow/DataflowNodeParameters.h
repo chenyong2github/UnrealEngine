@@ -21,6 +21,7 @@ namespace Dataflow
 
 		FTimestamp(Type InValue) : Value(InValue) {}
 		bool operator>=(const FTimestamp& InTimestamp) const { return Value >= InTimestamp.Value; }
+		bool operator<(const FTimestamp& InTimestamp) const { return Value < InTimestamp.Value; }
 		bool IsInvalid() { return Value == Invalid; }
 
 		static Type Current();
