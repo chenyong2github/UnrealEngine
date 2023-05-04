@@ -52,14 +52,14 @@ struct FVTLayerPayload
 	TArray<FVTBlockPayload> Blocks;
 };
 
-
 struct FVTSourceTileEntry
 {
-	FVTBlockPayload* Block = nullptr;
+	int32 BlockIndex = 0;
 	int32 TileIndex = 0;
-	int32 TileIndexInBlock = 0;
 	int32 MipIndex = 0;
 	int32 MipIndexInBlock = 0;
+	int32 TileX = 0;
+	int32 TileY = 0;
 };
 
 struct FLayerData
@@ -129,7 +129,7 @@ private:
 	void BuildTiles(const TArray<FVTSourceTileEntry>& TileList, uint32 layer, FLayerData& GeneratedData);
 	bool PushDataToChunk(const TArray<FVTSourceTileEntry>& Tiles, const TArray<FLayerData>& LayerData);
 
-	FVTBlockPayload* FindSourceBlock(int32 MipIndex, int32 BlockX, int32 BlockY);
+	int32 FindSourceBlockIndex(int32 MipIndex, int32 BlockX, int32 BlockY);
 
 	void BuildLayerBlocks(FSlowTask& BuildTask, uint32 LayerIndex, const FVirtualTextureSourceLayerData& LayerData, FTextureSourceData& SourceData, FTextureSourceData& CompositeSourceData, bool bAllowAsync);
 	void BuildBlockTiles(uint32 LayerIndex, uint32 BlockIndex, FVTBlockPayload& Block, const FVirtualTextureSourceLayerData& LayerData, bool bAllowAsync);
