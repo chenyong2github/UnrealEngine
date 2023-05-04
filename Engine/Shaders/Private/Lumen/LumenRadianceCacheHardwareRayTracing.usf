@@ -44,7 +44,7 @@ FRayDistance DecodeRayDistance(float Encoded)
 	return RayDistance;
 }
 
-uint EncodeTraceTexel(uint TraceTileIndex, uint2 TraceTexelCoord)
+uint EncodeRadianceCacheTraceTexel(uint TraceTileIndex, uint2 TraceTexelCoord)
 {
 	uint Encoded = TraceTileIndex & 0xFFFFFF;
 	Encoded |= (TraceTexelCoord.x << 24);
@@ -52,7 +52,7 @@ uint EncodeTraceTexel(uint TraceTileIndex, uint2 TraceTexelCoord)
 	return Encoded;
 }
 
-void DecodeTraceTexel(uint Encoded, inout uint TraceTileIndex, inout uint2 TraceTexelCoord)
+void DecodeRadianceCacheTraceTexel(uint Encoded, inout uint TraceTileIndex, inout uint2 TraceTexelCoord)
 {
 	TraceTileIndex = Encoded & 0xFFFFFF;
 	TraceTexelCoord.x = (Encoded >> 24) & 0xF;
@@ -114,7 +114,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 		float TraceHitDistance = 0.0f;
 		#if RAY_TRACING_PASS != RAY_TRACING_PASS_DEFAULT
 		{
-			DecodeTraceTexel(CompactedTraceTexelData[GlobalRayIndex], TraceTileIndex, TexelCoord);
+			DecodeRadianceCacheTraceTexel(CompactedTraceTexelData[GlobalRayIndex], TraceTileIndex, TexelCoord);
 
 			uint2 TraceAtlasCoord = GetTraceTileAtlasCoord(TraceTileIndex, TexelCoord);
 			TraceHitDistance = DecodeRayDistance(RWTraceHitTexture[TraceAtlasCoord].x).HitDistance;
@@ -268,7 +268,7 @@ void RadianceCacheCompactTracesCS(
 			{
 				uint SharedTexelOffset;
 				InterlockedAdd(SharedTraceTexelAllocator, 1, SharedTexelOffset);
-				SharedTraceTexels[SharedTexelOffset] = EncodeTraceTexel(TraceTileIndex, GroupThreadId.xy);
+				SharedTraceTexels[SharedTexelOffset] = EncodeRadianceCacheTraceTexel(TraceTileIndex, GroupThreadId.xy);
 			}
 		}
 	}

@@ -96,7 +96,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 	{
 		uint ScreenProbeIndex;
 		uint2 TraceTexelCoord;
-		DecodeTraceTexel(CompactedTraceTexelData[CompactedTraceIndex], ScreenProbeIndex, TraceTexelCoord);
+		DecodeScreenProbeTraceTexel(CompactedTraceTexelData[CompactedTraceIndex], ScreenProbeIndex, TraceTexelCoord);
 
 		uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 		uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);

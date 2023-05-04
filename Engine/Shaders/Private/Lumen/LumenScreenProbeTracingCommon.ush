@@ -207,8 +207,8 @@ FProbeRayDistance ReadTraceHit(uint2 TraceBufferCoord)
 void ReadTraceTexel(uint DispatchThreadId, out uint ScreenProbeIndex, out uint2 TraceTexelCoord)
 {
 #if TRACE_LIGHT_SAMPLES
-	DecodeTraceTexel(CompactedLightSampleTraceTexelData[DispatchThreadId], ScreenProbeIndex, TraceTexelCoord);
+	DecodeScreenProbeTraceTexel(CompactedLightSampleTraceTexelData[DispatchThreadId], ScreenProbeIndex, TraceTexelCoord);
 #else
-	DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ScreenProbeIndex, TraceTexelCoord);
+	DecodeScreenProbeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ScreenProbeIndex, TraceTexelCoord);
 #endif
 }

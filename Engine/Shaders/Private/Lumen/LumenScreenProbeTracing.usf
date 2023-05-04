@@ -407,7 +407,7 @@ void ScreenProbeCompactTracesCS(
 		{
 			uint SharedTexelOffset;
 			InterlockedAdd(SharedTraceTexelAllocator, 1, SharedTexelOffset);
-			SharedTraceTexels[SharedTexelOffset] = EncodeTraceTexel(ScreenProbeIndex, TraceTexelCoord);
+			SharedTraceTexels[SharedTexelOffset] = EncodeScreenProbeTraceTexel(ScreenProbeIndex, TraceTexelCoord);
 		}
 	}
 
