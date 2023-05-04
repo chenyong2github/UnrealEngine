@@ -2,10 +2,12 @@
 
 #pragma once
 
+// Forward declarations
 namespace UE::Net::Private
 {
 	class FNetRPC;
 }
+class FObjectReplicator;
 
 namespace UE::Net
 {
@@ -38,8 +40,8 @@ class NETCORE_API FScopedNetContextRPC
 private:
 
 	// Only friend class are allowed to push the net context
-	friend Private::FNetRPC;
-	friend class FObjectReplicator;
+	friend UE::Net::Private::FNetRPC;
+	friend FObjectReplicator;
 	
 	FScopedNetContextRPC();
 	~FScopedNetContextRPC();

@@ -477,7 +477,7 @@ void FNetRPC::CallFunction(FNetSerializationContext& Context)
 	// Call the function
 	if (Function->ParmsSize == 0)
 	{
-		//UE::Net::FScopedNetContextRPC CallingRPC;
+		UE::Net::FScopedNetContextRPC CallingRPC;
 		Object->ProcessEvent(const_cast<UFunction*>(Function), nullptr);
 	}
 	else
@@ -512,7 +512,7 @@ void FNetRPC::CallFunction(FNetSerializationContext& Context)
 		
 		FReplicationStateOperations::Dequantize(Context, FunctionParameters, QuantizedBlobState.Get(), BlobDescriptor);
 		{
-			//UE::Net::FScopedNetContextRPC CallingRPC;
+			UE::Net::FScopedNetContextRPC CallingRPC;
 			Object->ProcessEvent(const_cast<UFunction*>(Function), FunctionParameters);
 		}
 
