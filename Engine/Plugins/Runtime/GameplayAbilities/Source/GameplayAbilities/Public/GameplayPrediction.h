@@ -496,8 +496,6 @@ struct GAMEPLAYABILITIES_API FScopedPredictionWindow
 
 	~FScopedPredictionWindow();
 
-	FPredictionKey	ScopedPredictionKey;
-
 private:
 
 	TWeakObjectPtr<UAbilitySystemComponent> Owner;
