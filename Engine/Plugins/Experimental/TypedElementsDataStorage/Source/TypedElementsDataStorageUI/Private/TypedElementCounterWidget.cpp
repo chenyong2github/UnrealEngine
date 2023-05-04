@@ -145,7 +145,6 @@ void UTypedElementCounterWidgetFactory::SetupMainWindowIntegrations(TSharedPtr<S
 
 
 
-
 //
 // FTypedElementCounterWidgetConstructor
 //
@@ -153,6 +152,17 @@ void UTypedElementCounterWidgetFactory::SetupMainWindowIntegrations(TSharedPtr<S
 FTypedElementCounterWidgetConstructor::FTypedElementCounterWidgetConstructor()
 	: Super(FTypedElementCounterWidgetConstructor::StaticStruct())
 {
+}
+
+TConstArrayView<const UScriptStruct*> FTypedElementCounterWidgetConstructor::GetAdditionalColumnsList() const
+{
+	static TTypedElementColumnTypeList<FTypedElementCounterWidgetColumn, FTypedElementU32IntValueCacheColumn> Columns;
+	return Columns;
+}
+
+bool FTypedElementCounterWidgetConstructor::CanBeReused() const
+{
+	return true;
 }
 
 TSharedPtr<SWidget> FTypedElementCounterWidgetConstructor::CreateWidget()
@@ -164,12 +174,8 @@ TSharedPtr<SWidget> FTypedElementCounterWidgetConstructor::CreateWidget()
 		.Justification(ETextJustify::Center);
 }
 
-void FTypedElementCounterWidgetConstructor::AddColumns(
-	ITypedElementDataStorageInterface* DataStorage, TypedElementRowHandle Row, const TSharedPtr<SWidget>& Widget)
+bool FTypedElementCounterWidgetConstructor::SetColumns(ITypedElementDataStorageInterface* DataStorage, TypedElementRowHandle Row)
 {
-	Super::AddColumns(DataStorage, Row, Widget);
-	DataStorage->AddColumns<FTypedElementCounterWidgetColumn, FTypedElementU32IntValueCacheColumn>(Row);
-
 	FTypedElementCounterWidgetColumn* CounterColumn = DataStorage->GetColumn<FTypedElementCounterWidgetColumn>(Row);
 	checkf(CounterColumn, TEXT("Added a new FTypedElementCounterWidgetColumn to the Typed Elements Data Storage, but didn't get a valid pointer back."));
 	CounterColumn->LabelTextFormatter = LabelText;
@@ -178,6 +184,8 @@ void FTypedElementCounterWidgetConstructor::AddColumns(
 	FTypedElementU32IntValueCacheColumn* CacheColumn = DataStorage->GetColumn<FTypedElementU32IntValueCacheColumn>(Row);
 	checkf(CacheColumn, TEXT("Added a new FTypedElementUnsigned32BitIntValueCache to the Typed Elements Data Storage, but didn't get a valid pointer back."));
 	CacheColumn->Value = 0;
+
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

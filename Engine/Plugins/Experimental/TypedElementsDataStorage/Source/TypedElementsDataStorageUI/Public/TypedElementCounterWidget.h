@@ -47,13 +47,16 @@ public:
 	FTypedElementCounterWidgetConstructor();
 	~FTypedElementCounterWidgetConstructor() override = default;
 
+	TConstArrayView<const UScriptStruct*> GetAdditionalColumnsList() const override;
+	bool CanBeReused() const override;
+
 	FText ToolTipText{ NSLOCTEXT("TypedElementUI_CounterWidget", "Tooltip", "Shows the total number found in the editor.") };
 	FText LabelText{ NSLOCTEXT("TypedElementUI_CounterWidget", "Label", "Counted") };
 	TypedElementQueryHandle Query;
 
 protected:
 	TSharedPtr<SWidget> CreateWidget() override;
-	void AddColumns(ITypedElementDataStorageInterface* DataStorage, TypedElementRowHandle Row, const TSharedPtr<SWidget>& Widget) override;
+	bool SetColumns(ITypedElementDataStorageInterface* DataStorage, TypedElementRowHandle Row) override;
 };
 
 USTRUCT(meta = (DisplayName = "Counter widget"))

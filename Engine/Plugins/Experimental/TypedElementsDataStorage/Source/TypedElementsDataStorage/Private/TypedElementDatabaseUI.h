@@ -41,7 +41,7 @@ public:
 
 	void CreateWidgetConstructors(FName Purpose,
 		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments, const WidgetConstructorCallback& Callback) override;
-	void CreateWidgetConstructors(FName Purpose, TArray<TWeakObjectPtr<const UScriptStruct>>& Columns,
+	void CreateWidgetConstructors(FName Purpose, EMatchApproach MatchApproach, TArray<TWeakObjectPtr<const UScriptStruct>>& Columns,
 		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments, const WidgetConstructorCallback& Callback) override;
 
 	void ConstructWidgets(FName Purpose, TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments,
@@ -97,7 +97,23 @@ private:
 		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments,
 		const WidgetCreatedCallback& ConstructionCallback);
 
-	static void PrepareColumnsList(TArray<TWeakObjectPtr<const UScriptStruct>>& Columns);
+	static bool PrepareColumnsList(TArray<TWeakObjectPtr<const UScriptStruct>>& Columns);
+
+	void CreateWidgetConstructors_LongestMatch(
+		const TArray<FWidgetFactory>& WidgetFactories, 
+		TArray<TWeakObjectPtr<const UScriptStruct>>& Columns, 
+		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments, 
+		const WidgetConstructorCallback& Callback);
+	void CreateWidgetConstructors_ExactMatch(
+		const TArray<FWidgetFactory>& WidgetFactories,
+		TArray<TWeakObjectPtr<const UScriptStruct>>& Columns,
+		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments,
+		const WidgetConstructorCallback& Callback);
+	void CreateWidgetConstructors_SingleMatch(
+		const TArray<FWidgetFactory>& WidgetFactories,
+		TArray<TWeakObjectPtr<const UScriptStruct>>& Columns,
+		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments,
+		const WidgetConstructorCallback& Callback);
 
 	TypedElementTableHandle WidgetTable{ TypedElementInvalidTableHandle };
 	

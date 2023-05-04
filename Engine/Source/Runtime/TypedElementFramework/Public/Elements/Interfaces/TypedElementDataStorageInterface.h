@@ -64,24 +64,25 @@ class UTypedElementDataStorageInterface : public UInterface
 	GENERATED_BODY()
 };
 
+/**
+ * Convenience structure that can be used to pass a list of columns to functions that don't
+ * have an dedicate templated version that takes a column list directly, for instance when
+ * multiple column lists are used. Note that the returned array view is only available while
+ * this object is constructed, so care must be taken with functions that return a const array view.
+ */
+template<typename... Columns>
+struct TTypedElementColumnTypeList
+{
+	const UScriptStruct* ColumnTypes[sizeof...(Columns)] = { Columns::StaticStruct()... };
+	
+	operator TConstArrayView<const UScriptStruct*>() { return ColumnTypes; }
+};
+
 class TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageInterface
 {
 	GENERATED_BODY()
 
 public:
-	/** 
-	 * Convenience structure that can be used to pass a lis of columns to functions that don't
-	 * have an dedicate templated version that takes a column list directly, for instance when
-	 * multiple column lists are used.
-	 */
-	template<typename... Columns>
-	struct TColumnTypeList
-	{
-		const UScriptStruct* ColumnTypes[sizeof...(Columns)] = { Columns::StaticStruct()... };
-
-		operator TConstArrayView<const UScriptStruct*>() { return ColumnTypes; }
-	};
-
 	/**
 	 * @section Table management
 	 * 
@@ -180,7 +181,7 @@ public:
 	virtual void* GetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType) = 0;
 	virtual ColumnDataResult GetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) = 0;
 
-	/** Determines if the provided row contains the collection of columsn and tags. */
+	/** Determines if the provided row contains the collection of columns and tags. */
 	virtual bool HasColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) const = 0;
 	virtual bool HasColumns(TypedElementRowHandle Row, TConstArrayView<TWeakObjectPtr<const UScriptStruct>> ColumnTypes) const = 0;
 	
@@ -189,7 +190,7 @@ public:
 	 * @section Query
 	 * @description
 	 * Queries can be constructed using the Query Builder. Note that the Query Builder allows for the creation of queries that
-	 * are more complex than the backend may support. The backend is allowed to simplify the query, in which case the query
+	 * are more complex than the back-end may support. The back-end is allowed to simplify the query, in which case the query
 	 * can be used directly in the processor to do additional filtering. This will however impact performance and it's 
 	 * therefore recommended to try to simplify the query first before relying on extended query filtering in a processor.
 	 */
@@ -215,7 +216,7 @@ public:
 		 */
 		SyncExternalToDataStorage,
 		/**
-		 * The group for quries that need to sync data from the Data Storage to external sources such as subsystems
+		 * The group for queries that need to sync data from the Data Storage to external sources such as subsystems
 		 * or the world into. These typically run late in a phase.
 		 */
 		SyncDataStorageToExternal,
@@ -265,9 +266,9 @@ public:
 		None = 0,
 		/** If set the dependency is accessed as read-only. If not set the dependency requires Read/Write access. */
 		ReadOnly = 1 << 0,
-		/** If set the dependecy can only be used from the game thread, otherwise it can be accessed from any thread. */
+		/** If set the dependency can only be used from the game thread, otherwise it can be accessed from any thread. */
 		GameThreadBound = 1 << 1,
-		/** If set the dependency will be refetched every iteration, otherwise only if not fetched before. */
+		/** If set the dependency will be re-fetched every iteration, otherwise only if not fetched before. */
 		AlwaysRefresh = 1 << 2
 	};
 
@@ -283,13 +284,13 @@ public:
 		/** Return the address of a mutable column matching the requested type or a nullptr if not found. */
 		virtual void* GetMutableColumn(const UScriptStruct* ColumnType) = 0;
 		/**
-		 * Get a list of columns or nullptrs if the columntype wasn't found. Mutable addresses are returned and it's up to
+		 * Get a list of columns or nullptrs if the column type wasn't found. Mutable addresses are returned and it's up to
 		 * the caller to not change immutable addresses.
 		 */
 		virtual void GetColumns(TArrayView<char*> RetrievedAddresses, TConstArrayView<TWeakObjectPtr<const UScriptStruct>> ColumnTypes,
 			TConstArrayView<ITypedElementDataStorageInterface::EQueryAccessType> AccessTypes) = 0;
 		/**
-		 * Get a list of columns or nullptrs if the columntype wasn't found. Mutable addresses are returned and it's up to
+		 * Get a list of columns or nullptrs if the column type wasn't found. Mutable addresses are returned and it's up to
 		 * the caller to not change immutable addresses. This version doesn't verify that the enough space is provided and
 		 * it's up to the caller to guarantee the target addresses have enough space.
 		 */
@@ -490,7 +491,7 @@ public:
 			/** Only portions of the query were executed. This is caused by a problem that was encountered partway through processing. */
 			Partially,
 			/** 
-			 * The backend doesn't support the particular query. This may be a limitation in how/where the query is run or because
+			 * The back-end doesn't support the particular query. This may be a limitation in how/where the query is run or because
 			 * the query contains actions and/or operations that are not supported.
 			 */
 			Unsupported,
