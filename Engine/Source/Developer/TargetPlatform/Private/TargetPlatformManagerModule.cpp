@@ -571,6 +571,7 @@ public:
 		static void GetHintedModules(ITargetPlatform* Platform, TArray<FName>& Hints)
 		{
 			Platform->GetShaderFormatModuleHints(Hints);
+			Hints.Add(TEXT("ShaderFormatVectorVM"));
 		}
 		static void GetRequiredFormats(ITargetPlatform* Platform, TArray<FName>& RequiredFormats)
 		{
