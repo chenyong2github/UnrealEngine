@@ -16,6 +16,7 @@
 #include "Animation/AnimBoneCompressionCodec.h"
 #include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimCurveCompressionSettings.h"
+#include "Animation/VariableFrameStrippingSettings.h"
 #include "AnimationCompression.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "UObject/LinkerLoad.h"
@@ -844,6 +845,7 @@ void FAnimationUtils::TallyErrorsFromPerturbation(
 static UAnimBoneCompressionSettings* DefaultBoneCompressionSettings = nullptr;
 static UAnimBoneCompressionSettings* DefaultRecorderBoneCompressionSettings = nullptr;
 static UAnimCurveCompressionSettings* DefaultCurveCompressionSettings = nullptr;
+static UVariableFrameStrippingSettings* DefaultVariableFrameStrippingSettings = nullptr;
 
 static void EnsureDependenciesAreLoaded(UObject* Object)
 {
@@ -915,6 +917,7 @@ void FAnimationUtils::PreloadCompressionSettings()
 	GetDefaultAnimationBoneCompressionSettings();
 	GetDefaultAnimationRecorderBoneCompressionSettings();
 	GetDefaultAnimationCurveCompressionSettings();
+	GetDefaultVariableFrameStrippingSettings();
 }
 
 #endif
@@ -949,6 +952,16 @@ UAnimCurveCompressionSettings* FAnimationUtils::GetDefaultAnimationCurveCompress
 	return DefaultCurveCompressionSettings;
 }
 
+UVariableFrameStrippingSettings* FAnimationUtils::GetDefaultVariableFrameStrippingSettings()
+{
+	if (DefaultVariableFrameStrippingSettings == nullptr)
+	{
+		DefaultVariableFrameStrippingSettings = Cast<UVariableFrameStrippingSettings>(GetDefaultAnimationCompressionSettings(TEXT("VariableFrameStrippingSettings")));
+	}
+
+	return DefaultVariableFrameStrippingSettings;
+}
+
 void FAnimationUtils::EnsureAnimSequenceLoaded(UAnimSequence& AnimSeq)
 {
 	EnsureDependenciesAreLoaded(&AnimSeq);
@@ -956,6 +969,7 @@ void FAnimationUtils::EnsureAnimSequenceLoaded(UAnimSequence& AnimSeq)
 	EnsureDependenciesAreLoaded(AnimSeq.BoneCompressionSettings);
 	EnsureDependenciesAreLoaded(AnimSeq.CurveCompressionSettings);
 	EnsureDependenciesAreLoaded(AnimSeq.RefPoseSeq);
+	EnsureDependenciesAreLoaded(AnimSeq.VariableFrameStrippingSettings);
 }
 
 void FAnimationUtils::ExtractTransformForFrameFromTrackSafe(const FRawAnimSequenceTrack& RawTrack, int32 Frame, FTransform& OutAtom)

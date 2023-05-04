@@ -22,6 +22,7 @@
 #include "Animation/SkeletonRemapping.h"
 #include "Animation/SkeletonRemappingRegistry.h"
 #include "Animation/AttributesRuntime.h"
+#include "Kismet/GameplayStatics.h"
 
 static FString GCompressionJsonOutput;
 static FAutoConsoleVariableRef CVarCompressionJsonOutput(
@@ -102,6 +103,42 @@ void StripFramesOdd(TArray<ArrayValue>& Keys, const int32 NumFrames)
 		const int32 StartRemoval = HalfSize + 1;
 
 		Keys = MoveTemp(NewKeys);
+	}
+}
+
+template<typename ArrayValue>
+void StripFramesMultipler(TArray<ArrayValue>& Keys, const int32 NumFrames, int rate)
+{
+	if (Keys.Num() > rate)//make sure the animation has more frames than the amount to strip per kept frame
+	{
+		const int32 NewNumFrames = NumFrames / rate;
+
+		TArray<ArrayValue> NewKeys;
+		NewKeys.Reserve(NewNumFrames);
+
+		check(Keys.Num() == NumFrames);
+
+		NewKeys.Add(Keys[0]); //Always keep first 
+
+		//Always keep first and last
+		const int32 NumFramesToCalculate = NewNumFrames - 2;
+
+		// Frame increment is ratio of old frame spaces vs new frame spaces 
+		const double FrameIncrement = (double)(NumFrames - 1) / (double)(NewNumFrames - 1);
+
+		for (int32 Frame = 0; Frame < NumFramesToCalculate; ++Frame)
+		{
+			const double NextFramePosition = FrameIncrement * (Frame + 1);
+			const int32 Frame1 = (int32)NextFramePosition;
+			const float Alpha = (NextFramePosition - (double)Frame1);
+
+			NewKeys.Add(AnimationCompressionUtils::Interpolate(Keys[Frame1], Keys[Frame1 + 1], Alpha));
+
+		}
+		NewKeys.Add(Keys.Last()); // Always Keep Last
+
+		Keys = MoveTemp(NewKeys);
+
 	}
 }
 
@@ -712,7 +749,6 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 	, TargetPlatform(InTargetPlatform)
 {
 }
-
 void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 {
 #if WITH_EDITOR
@@ -862,35 +898,56 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 
 	if (bShouldPerformStripping)
 	{
-		const int32 NumTracks = RawAnimationData.Num();
-		
-		// End frame does not count towards "Even framed" calculation
-		const bool bIsEvenFramed = ((NumberOfKeys - 1) % 2) == 0;
 
-		//Strip every other frame from tracks
-		if (bIsEvenFramed)
-		{
+		FName TargetPlatformName = FName(UGameplayStatics::GetPlatformName());
+		TObjectPtr<class UVariableFrameStrippingSettings> VarFrameStrippingSettings = AnimSequence->VariableFrameStrippingSettings;
+		FPerPlatformBool platformBool = VarFrameStrippingSettings->UseVariableFrameStripping;
+		bool bUseMultiplier = platformBool.GetValueForPlatform(TargetPlatformName);
+
+		const int32 NumTracks = RawAnimationData.Num();
+
+		if (bUseMultiplier) {
+			int rate = AnimSequence->VariableFrameStrippingSettings->FrameStrippingRate.GetValueForPlatform(TargetPlatformName);
 			for (FRawAnimSequenceTrack& Track : RawAnimationData)
 			{
-				StripFramesEven(Track.PosKeys, NumberOfKeys);
-				StripFramesEven(Track.RotKeys, NumberOfKeys);
-				StripFramesEven(Track.ScaleKeys, NumberOfKeys);
+				StripFramesMultipler(Track.PosKeys, NumberOfKeys, rate);
+				StripFramesMultipler(Track.RotKeys, NumberOfKeys, rate);
+				StripFramesMultipler(Track.ScaleKeys, NumberOfKeys, rate);
 			}
 
 			const int32 ActualKeys = NumberOfKeys - 1; // strip bookmark end frame
-			NumberOfKeys = (ActualKeys / 2) + 1;
-		}
-		else
-		{
-			for (FRawAnimSequenceTrack& Track : RawAnimationData)
-			{
-				StripFramesOdd(Track.PosKeys, NumberOfKeys);
-				StripFramesOdd(Track.RotKeys, NumberOfKeys);
-				StripFramesOdd(Track.ScaleKeys, NumberOfKeys);
-			}
 
-			const int32 ActualKeys = NumberOfKeys;
-			NumberOfKeys = (ActualKeys / 2);
+			NumberOfKeys = (ActualKeys * rate) + 1;
+		}
+		else {
+			// End frame does not count towards "Even framed" calculation
+			const bool bIsEvenFramed = ((NumberOfKeys - 1) % 2) == 0;
+
+			//Strip every other frame from tracks
+			if (bIsEvenFramed)
+			{
+				for (FRawAnimSequenceTrack& Track : RawAnimationData)
+				{
+					StripFramesEven(Track.PosKeys, NumberOfKeys);
+					StripFramesEven(Track.RotKeys, NumberOfKeys);
+					StripFramesEven(Track.ScaleKeys, NumberOfKeys);
+				}
+
+				const int32 ActualKeys = NumberOfKeys - 1; // strip bookmark end frame
+				NumberOfKeys = (ActualKeys / 2) + 1;
+			}
+			else
+			{
+				for (FRawAnimSequenceTrack& Track : RawAnimationData)
+				{
+					StripFramesOdd(Track.PosKeys, NumberOfKeys);
+					StripFramesOdd(Track.RotKeys, NumberOfKeys);
+					StripFramesOdd(Track.ScaleKeys, NumberOfKeys);
+				}
+
+				const int32 ActualKeys = NumberOfKeys;
+				NumberOfKeys = (ActualKeys / 2);
+			}
 		}
 	}
 
@@ -904,7 +961,6 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 	}
 #endif
 }
-
 FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBoneCompressionSettings, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumberOfKeys, const ITargetPlatform* InTargetPlatform)
 	: CurveCompressionSettings(InCurveCompressionSettings)
 	, BoneCompressionSettings(InBoneCompressionSettings)
