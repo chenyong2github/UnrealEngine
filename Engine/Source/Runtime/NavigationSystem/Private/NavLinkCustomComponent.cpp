@@ -14,6 +14,7 @@
 #include "NavigationOctree.h"
 #include "AI/NavigationSystemHelpers.h"
 #include "AI/Navigation/PathFollowingAgentInterface.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavLinkCustomComponent)
 
@@ -32,7 +33,9 @@ namespace UE::Navigation::LinkCustomComponent::Private
 
 UNavLinkCustomComponent::UNavLinkCustomComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	NavLinkUserId = 0;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	LinkRelativeStart = FVector(70, 0, 0);
 	LinkRelativeEnd = FVector(-70, 0, 0);
 	LinkDirection = ENavLinkDirection::BothWays;
@@ -47,13 +50,34 @@ UNavLinkCustomComponent::UNavLinkCustomComponent(const FObjectInitializer& Objec
 	BroadcastRadius = 0.0f;
 	BroadcastChannel = ECC_Pawn;
 	BroadcastInterval = 0.0f;
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		AuxiliaryCustomLinkId = FNavLinkAuxiliaryId::GenerateUniqueAuxiliaryId();
+	}
+}
+
+void UNavLinkCustomComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
+	if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::NavigationLinkID32To64)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		CustomLinkId = FNavLinkId(NavLinkUserId);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 }
 
 void UNavLinkCustomComponent::PostLoad()
 {
 	Super::PostLoad();
 
-	INavLinkCustomInterface::UpdateUniqueId(NavLinkUserId);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	INavLinkCustomInterface::UpdateUniqueId(CustomLinkId);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 #if WITH_EDITOR
@@ -74,8 +98,8 @@ TStructOnScope<FActorComponentInstanceData> UNavLinkCustomComponent::GetComponen
 {
 	TStructOnScope<FActorComponentInstanceData> InstanceData = MakeStructOnScope<FActorComponentInstanceData, FNavLinkCustomInstanceData>(this);
 	FNavLinkCustomInstanceData* NavLinkCustomInstanceData = InstanceData.Cast<FNavLinkCustomInstanceData>();
-	NavLinkCustomInstanceData->NavLinkUserId = NavLinkUserId;
-
+	NavLinkCustomInstanceData->CustomLinkId = CustomLinkId;
+	NavLinkCustomInstanceData->AuxiliaryCustomLinkId = AuxiliaryCustomLinkId;
 	return InstanceData;
 }
 
@@ -83,7 +107,8 @@ void UNavLinkCustomComponent::ApplyComponentInstanceData(FNavLinkCustomInstanceD
 {
 	check(NavLinkData);
 
-	if (NavLinkUserId != NavLinkData->NavLinkUserId)
+	if (CustomLinkId != NavLinkData->CustomLinkId
+		|| AuxiliaryCustomLinkId != NavLinkData->AuxiliaryCustomLinkId)
 	{
 		// Registered component has its link registered in the navigation system. 
 		// In such case, we need to unregister current Id and register with the Id from the instance data.
@@ -94,7 +119,8 @@ void UNavLinkCustomComponent::ApplyComponentInstanceData(FNavLinkCustomInstanceD
 			UNavigationSystemV1::RequestCustomLinkUnregistering(*this, this);
 		}
 
-		NavLinkUserId = NavLinkData->NavLinkUserId;
+		AuxiliaryCustomLinkId = NavLinkData->AuxiliaryCustomLinkId;
+		CustomLinkId = NavLinkData->CustomLinkId;
 
 		if (bIsLinkRegistrationUpdateRequired)
 		{
@@ -108,8 +134,10 @@ void UNavLinkCustomComponent::PostEditImport()
 {
 	Super::PostEditImport();
 
-	NavLinkUserId = INavLinkCustomInterface::GetUniqueId();
-	UE_LOG(LogNavLink, VeryVerbose, TEXT("%s new navlink id %u."), ANSI_TO_TCHAR(__FUNCTION__), NavLinkUserId);
+	// Generate a new AuxiliarLinkUserId and set CustomLinkId to Invalid, this is then inline with the constructor in this regard.
+	// CustomLinkId is set to a valid Id later in OnRegister().
+	AuxiliaryCustomLinkId = FNavLinkAuxiliaryId::GenerateUniqueAuxiliaryId();
+	CustomLinkId = FNavLinkId::Invalid;
 }
 #endif // WITH_EDITOR
 
@@ -130,14 +158,32 @@ TSubclassOf<UNavArea> UNavLinkCustomComponent::GetLinkAreaClass() const
 	return bLinkEnabled ? EnabledAreaClass : DisabledAreaClass;
 }
 
-uint32 UNavLinkCustomComponent::GetLinkId() const
+FNavLinkAuxiliaryId UNavLinkCustomComponent::GetAuxiliaryId() const
 {
-	return NavLinkUserId;
+	return AuxiliaryCustomLinkId;
 }
 
-void UNavLinkCustomComponent::UpdateLinkId(uint32 NewUniqueId)
+FNavLinkId UNavLinkCustomComponent::GetId() const
 {
-	NavLinkUserId = NewUniqueId;
+	return CustomLinkId;
+}
+
+void UNavLinkCustomComponent::UpdateLinkId(FNavLinkId NewUniqueId)
+{
+	if (NewUniqueId == CustomLinkId)
+	{
+		return;
+	}
+
+#if WITH_EDITOR
+	UE_CLOG(NewUniqueId.IsLegacyId(), LogNavLink, Verbose, TEXT("%hs Navlink using LinkUserId id %llu [%s] is being updated with old style link ID. Please move to the new system. See FNavLinkId::GenerateUniqueId()"), __FUNCTION__, CustomLinkId.GetId(), *GetFullName());
+#endif
+
+	CustomLinkId = NewUniqueId;
+
+#if WITH_EDITOR
+	Modify(true);
+#endif
 }
 
 bool UNavLinkCustomComponent::IsLinkPathfindingAllowed(const UObject* Querier) const
@@ -195,11 +241,43 @@ void UNavLinkCustomComponent::OnRegister()
 {
 	Super::OnRegister();
 
-	if (NavLinkUserId == 0)
+	// Actor::GetActorInstanceGuid() is only available when WITH_EDITOR is valid.
+#if WITH_EDITOR
+	// Do not convert old Ids.
+	if (CustomLinkId == FNavLinkId::Invalid || CustomLinkId.IsLegacyId() == false)
 	{
-		NavLinkUserId = INavLinkCustomInterface::GetUniqueId();
-		UE_LOG(LogNavLink, VeryVerbose, TEXT("%s new navlink id %u [%s]."), ANSI_TO_TCHAR(__FUNCTION__), NavLinkUserId, *GetFullName());
+		// Either this is a freshly spawned component or a component loaded after AuxiliaryCustomLinkId has been saved (and is a new style Id), so we can safely use this to generate a new id.
+		// 
+		const AActor* Owner = GetOwner();
+		checkf(Owner, TEXT("We must have an Owner here as we need it to create a unique id."));
+
+		const FNavLinkId OldCustomLinkId = CustomLinkId;
+
+		// We calculate the CustomLinkId deterministically every time we call OnRegister(), as Level Instances with Actors with UNavLinkCustomComponents can not serialize data for each 
+		// duplicated UNavLinkCustomComponent in different Level Instances (in the editor world). 
+		// For cooked data this is not a problem as the Level Instances are expanded in to actual instances of actors and components so we can cook the in game value for the CustomLinkId.
+		CustomLinkId = FNavLinkId::GenerateUniqueId(AuxiliaryCustomLinkId, Owner->GetActorInstanceGuid());
+		UE_LOG(LogNavLink, VeryVerbose, TEXT("%hs navlink id generated %llu [%s]."), __FUNCTION__, CustomLinkId.GetId(), *GetFullName());
+
+		if (OldCustomLinkId != CustomLinkId)
+		{
+			Modify(true);
+		}
 	}
+#else // !WITH_EDITOR
+	// There is an edge case here for run time only level instances in that they will have a valid CustomLinkId but it will be from the level instance so Ids will get duplicated
+	// in different level instances. Currently baked in nav mesh is not supported for these level instances and its anticipated nav mesh will need to be dynamically regenerated
+	// when the level instance is spawned. This means the CustomLinkId does not need to be deterministic as its not relating to anything generated outside of the run time.
+	// This clash gets handled via RequestCustomLinkRegistering() in UNavigationSystemV1::RegisterCustomLink(), not in the next section of code!
+
+	// This will only be true for freshly spawned components in game that are not in level instances.
+	if (CustomLinkId == FNavLinkId::Invalid)
+	{
+		CustomLinkId = FNavLinkId::GenerateUniqueId(AuxiliaryCustomLinkId, FGuid::NewGuid());
+
+		UE_LOG(LogNavLink, VeryVerbose, TEXT("%hs incremental navlink id generated %llu [%s]."), __FUNCTION__, CustomLinkId.GetId(), *GetFullName());
+	}
+#endif // WITH_EDITOR
 
 	UNavigationSystemV1::RequestCustomLinkRegistering(*this, this);
 

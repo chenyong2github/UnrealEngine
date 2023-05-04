@@ -78,6 +78,11 @@ struct NAVIGATIONSYSTEM_API FNavigationPath : public TSharedFromThis<FNavigation
 	virtual ~FNavigationPath()
 	{ }
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FNavigationPath(const FNavigationPath&) = default;
+	FNavigationPath& operator=(const FNavigationPath& Other) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	FORCEINLINE bool IsValid() const
 	{
 		return bIsReady && PathPoints.Num() > 1 && bUpToDate;
@@ -234,7 +239,10 @@ struct NAVIGATIONSYSTEM_API FNavigationPath : public TSharedFromThis<FNavigation
 #endif // ENABLE_VISUAL_LOG
 
 	/** check if path contains specific custom nav link */
-	virtual bool ContainsCustomLink(uint32 UniqueLinkId) const;
+	UE_DEPRECATED(5.4, "Use version that takes FNavLinkId instead. This function only returns false.")
+	virtual bool ContainsCustomLink(uint32 UniqueLinkId) const final {	return false; }
+
+	virtual bool ContainsCustomLink(FNavLinkId UniqueLinkId) const;
 
 	/** check if path contains any custom nav link */
 	virtual bool ContainsAnyCustomLink() const;

@@ -37,6 +37,7 @@
 #endif // WITH_RECAST
 
 #include "NavMesh/NavMeshRenderingComponent.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RecastNavMesh)
 
@@ -244,6 +245,8 @@ void ARecastNavMesh::Serialize( FArchive& Ar )
 
 	uint32 NavMeshVersion;
 	Ar << NavMeshVersion;
+
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	//@todo: How to handle loading nav meshes saved w/ recast when recast isn't present????
 
@@ -2062,7 +2065,7 @@ FVector::FReal ARecastNavMesh::FindDistanceToWall(const FVector& StartLoc, FShar
 void ARecastNavMesh::UpdateCustomLink(const INavLinkCustomInterface* CustomLink)
 {
 	TSubclassOf<UNavArea> AreaClass = CustomLink->GetLinkAreaClass();
-	const int32 UserId = CustomLink->GetLinkId();
+	const FNavLinkId UserId = CustomLink->GetId();
 	const int32 AreaId = GetAreaID(AreaClass);
 	if (AreaId >= 0 && RecastNavMeshImpl)
 	{
@@ -2071,7 +2074,8 @@ void ARecastNavMesh::UpdateCustomLink(const INavLinkCustomInterface* CustomLink)
 
 		RecastNavMeshImpl->UpdateNavigationLinkArea(UserId, IntCastChecked<uint8>(AreaId), PolyFlags);
 #if WITH_NAVMESH_SEGMENT_LINKS
-		RecastNavMeshImpl->UpdateSegmentLinkArea(UserId, IntCastChecked<uint8>(AreaId), PolyFlags);
+		// SegmentLinks are an unsupported feature that was never completed to production quality, for now at least FNavLinkId ids are not supported here.
+		RecastNavMeshImpl->UpdateSegmentLinkArea((int32)UserId.GetId(), IntCastChecked<uint8>(AreaId), PolyFlags);
 #endif // WITH_NAVMESH_SEGMENT_LINKS
 
 #if !UE_BUILD_SHIPPING
@@ -2080,7 +2084,7 @@ void ARecastNavMesh::UpdateCustomLink(const INavLinkCustomInterface* CustomLink)
 	}
 }
 
-void ARecastNavMesh::UpdateNavigationLinkArea(int32 UserId, TSubclassOf<UNavArea> AreaClass) const
+void ARecastNavMesh::UpdateNavigationLinkArea(FNavLinkId UserId, TSubclassOf<UNavArea> AreaClass) const
 {
 	int32 AreaId = GetAreaID(AreaClass);
 	if (AreaId >= 0 && RecastNavMeshImpl)
@@ -3079,15 +3083,9 @@ bool ARecastNavMesh::IsSegmentOnNavmesh(const FVector& SegmentStart, const FVect
 	return Result.bIsRaycastEndInCorridor && !Result.HasHit();
 }
 
-bool ARecastNavMesh::FindStraightPath(const FVector& StartLoc, const FVector& EndLoc, const TArray<NavNodeRef>& PathCorridor, TArray<FNavPathPoint>& PathPoints, TArray<uint32>* CustomLinks) const
+bool ARecastNavMesh::FindStraightPath(const FVector& StartLoc, const FVector& EndLoc, const TArray<NavNodeRef>& PathCorridor, TArray<FNavPathPoint>& PathPoints, TArray<FNavLinkId>* CustomLinks) const
 {
-	bool bResult = false;
-	if (RecastNavMeshImpl)
-	{
-		bResult = RecastNavMeshImpl->FindStraightPath(StartLoc, EndLoc, PathCorridor, PathPoints, CustomLinks);
-	}
-
-	return bResult;
+	return RecastNavMeshImpl && RecastNavMeshImpl->FindStraightPath(StartLoc, EndLoc, PathCorridor, PathPoints, CustomLinks);
 }
 
 int32 ARecastNavMesh::DebugPathfinding(const FPathFindingQuery& Query, TArray<FRecastDebugPathfindingData>& Steps)
@@ -3732,9 +3730,9 @@ void FRecastNavMeshCachedData::OnAreaRemoved(const UClass* AreaClass)
 	}
 }
 
-uint32 ARecastNavMesh::GetLinkUserId(NavNodeRef LinkPolyID) const
+FNavLinkId ARecastNavMesh::GetNavLinkUserId(NavNodeRef LinkPolyID) const
 {
-	return RecastNavMeshImpl ? RecastNavMeshImpl->GetLinkUserId(LinkPolyID) : 0;
+	return RecastNavMeshImpl ? RecastNavMeshImpl->GetNavLinkUserId(LinkPolyID) : FNavLinkId::Invalid;
 }
 
 dtNavMesh* ARecastNavMesh::GetRecastMesh()

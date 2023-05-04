@@ -52,7 +52,11 @@ struct NAVMESH_API dtQuerySpecialLinkFilter
 
 	/// Returns true if special link can be visited.  (I.e. Is traversable.)
 	///  @param[in]		UserId		Unique Id of link
-	virtual bool isLinkAllowed(const int UserId) const { return true; }
+	
+	virtual bool isLinkAllowed(const unsigned long long int UserId) const { return true; }
+
+	UE_DEPRECATED(5.4, "LinkIds are now based on a 64 bit uint. Use the version of this function that takes an unsigned long long int")
+	virtual bool isLinkAllowed(const int UserId) const final { return true; }
 
 	/// Called before accessing in A* loop (can be called multiple time for updateSlicedFindPath)
 	virtual void initialize() {}

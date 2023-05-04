@@ -2541,7 +2541,7 @@ void dtNavMesh::updateOffMeshSegmentConnectionByUserId(unsigned int userId, unsi
 #endif // WITH_NAVMESH_SEGMENT_LINKS
 //@UE END
 
-void dtNavMesh::updateOffMeshConnectionByUserId(unsigned int userId, unsigned char newArea, unsigned short newFlags)
+void dtNavMesh::updateOffMeshConnectionByUserId(unsigned long long int userId, unsigned char newArea, unsigned short newFlags)
 {
 	for (int it = 0; it < m_maxTiles; it++)
 	{

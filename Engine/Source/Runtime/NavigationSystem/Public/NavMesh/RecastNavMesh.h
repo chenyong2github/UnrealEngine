@@ -1232,8 +1232,11 @@ public:
 
 	virtual void UpdateCustomLink(const INavLinkCustomInterface* CustomLink) override;
 
+	UE_DEPRECATED(5.4, "Use version of this function that takes a FNavLinkId. This function now has no effect.")
+	void UpdateNavigationLinkArea(int32 UserId, TSubclassOf<UNavArea> AreaClass) const {}
+
 	/** update area class and poly flags for all offmesh links with given UserId */
-	void UpdateNavigationLinkArea(int32 UserId, TSubclassOf<UNavArea> AreaClass) const;
+	void UpdateNavigationLinkArea(FNavLinkId UserId, TSubclassOf<UNavArea> AreaClass) const;
 
 #if WITH_NAVMESH_SEGMENT_LINKS
 	/** update area class and poly flags for all offmesh segment links with given UserId */
@@ -1260,8 +1263,14 @@ public:
 	/** dtNavMesh getter */
 	const dtNavMesh* GetRecastMesh() const;
 
+	UE_DEPRECATED(5.4, "Please use GetNavLinkUserId() instead. This function only returns Invalid.")
+	int32 GetLinkUserId(NavNodeRef LinkPolyID) const
+	{
+		return FNavLinkId::Invalid.GetId();
+	}
+
 	/** Retrieves LinkUserID associated with indicated PolyID */
-	uint32 GetLinkUserId(NavNodeRef LinkPolyID) const;
+	FNavLinkId GetNavLinkUserId(NavNodeRef LinkPolyID) const;
 
 	FColor GetAreaIDColor(uint8 AreaID) const;
 
@@ -1379,8 +1388,11 @@ public:
 	/** Check if poly is a custom link */
 	bool IsCustomLink(NavNodeRef PolyRef) const;
 
+	UE_DEPRECATED(5.4, "Use new override of this function with Array<FNavLinkId>* CustomLinks. This function has no effect.")
+	bool FindStraightPath(const FVector& StartLoc, const FVector& EndLoc, const TArray<NavNodeRef>& PathCorridor, TArray<FNavPathPoint>& PathPoints, TArray<uint32>* CustomLinks) const { return false; }
+
 	/** finds stringpulled path from given corridor */
-	bool FindStraightPath(const FVector& StartLoc, const FVector& EndLoc, const TArray<NavNodeRef>& PathCorridor, TArray<FNavPathPoint>& PathPoints, TArray<uint32>* CustomLinks = NULL) const;
+	bool FindStraightPath(const FVector& StartLoc, const FVector& EndLoc, const TArray<NavNodeRef>& PathCorridor, TArray<FNavPathPoint>& PathPoints, TArray<FNavLinkId>* CustomLinks = NULL) const;
 
 	/** Runs A* pathfinding on navmesh and collect data for every step */
 	int32 DebugPathfinding(const FPathFindingQuery& Query, TArray<FRecastDebugPathfindingData>& Steps);

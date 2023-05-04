@@ -7,9 +7,7 @@
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Templates/SubclassOf.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AI/Navigation/NavigationTypes.h"
-#endif //UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AI/Navigation/NavAgentSelector.h"
 #include "NavLinkDefinition.generated.h"
 
@@ -40,10 +38,14 @@ struct ENGINE_API FNavigationLinkBase
 	float MaxFallDownLength;
 
 	/** Needs to be 0 for recast data generator */
-	static constexpr int32 InvalidUserId = 0;
+	UE_DEPRECATED(5.4, "Use FNavLinkId::Invalid instead")
+	static constexpr uint32 InvalidUserId = 0;
 
 	/** ID passed to navigation data generator */
-	int32 UserId;
+	UE_DEPRECATED(5.4, "Use NavLinkId instead, this id is no longer used in the engine")
+	uint32 UserId;
+
+	FNavLinkId NavLinkId;
 
 	UPROPERTY(EditAnywhere, Category=Default, meta=(ClampMin = "1.0"))
 	float SnapRadius;
@@ -149,6 +151,13 @@ struct ENGINE_API FNavigationLinkBase
 	uint8 bCustomFlag7 : 1;
 
 	FNavigationLinkBase();
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FNavigationLinkBase(const FNavigationLinkBase&) = default;
+	FNavigationLinkBase(FNavigationLinkBase&& Other) = default;
+	FNavigationLinkBase& operator=(const FNavigationLinkBase& Other) = default;
+	FNavigationLinkBase& operator=(FNavigationLinkBase&& Other) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void InitializeAreaClass(const bool bForceRefresh = false);
 	void SetAreaClass(UClass* InAreaClass);

@@ -271,21 +271,32 @@ UObject* INavLinkCustomInterface::GetLinkOwner() const
 
 uint32 INavLinkCustomInterface::GetUniqueId()
 {
-	UE_LOG(LogNavLink, VeryVerbose, TEXT("%s id: %u."), ANSI_TO_TCHAR(__FUNCTION__), NextUniqueId);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_LOG(LogNavLink, VeryVerbose, TEXT("%hs id: %u."), __FUNCTION__, NextUniqueId);
 	return NextUniqueId++;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-void INavLinkCustomInterface::UpdateUniqueId(uint32 AlreadyUsedId)
+void INavLinkCustomInterface::UpdateUniqueId(FNavLinkId AlreadyUsedId)
 {
-	UE_CLOG(AlreadyUsedId + 1 > NextUniqueId, LogNavLink, VeryVerbose, TEXT("%s, updating NextUniqueId to: %u."), ANSI_TO_TCHAR(__FUNCTION__), AlreadyUsedId + 1)
-	NextUniqueId = FMath::Max(NextUniqueId, AlreadyUsedId + 1);
+	// Only update NextUniqueId for old style incremental Ids.
+	if (AlreadyUsedId.IsLegacyId())
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		UE_CLOG(AlreadyUsedId.GetId() + 1 > NextUniqueId, LogNavLink, VeryVerbose, TEXT("%hs, updating NextUniqueId to: %llu."), __FUNCTION__, AlreadyUsedId.GetId() + 1)
+		const uint64 NextId = FMath::Max((uint64)NextUniqueId, AlreadyUsedId.GetId() + 1);
+		ensureMsgf(NextId <= TNumericLimits<uint32>::Max(), TEXT("Overflowing uint32 using legacy nav link id system!"));
+
+		NextUniqueId = (uint32)NextId;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 }
 
 FNavigationLink INavLinkCustomInterface::GetModifier(const INavLinkCustomInterface* CustomNavLink)
 {
 	FNavigationLink LinkMod;
 	LinkMod.SetAreaClass(CustomNavLink->GetLinkAreaClass());
-	LinkMod.UserId = CustomNavLink->GetLinkId();
+	LinkMod.NavLinkId = CustomNavLink->GetId();
 
 	ENavLinkDirection::Type LinkDirection = ENavLinkDirection::BothWays;
 	CustomNavLink->GetLinkData(LinkMod.Left, LinkMod.Right, LinkDirection);
@@ -297,11 +308,15 @@ FNavigationLink INavLinkCustomInterface::GetModifier(const INavLinkCustomInterfa
 
 void INavLinkCustomInterface::OnPreWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ResetUniqueId();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void INavLinkCustomInterface::ResetUniqueId()
 {
 	UE_LOG(LogNavLink, VeryVerbose, TEXT("Reset navlink id."));
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	NextUniqueId = 1;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }

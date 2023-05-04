@@ -141,6 +141,116 @@ enum class ENavDataGatheringModeConfig : uint8
 //
 DECLARE_DELEGATE_TwoParams(FNavDataPerInstanceTransformDelegate, const FBox&, TArray<FTransform>&);
 
+/*
+ * There should be one of these Ids generated and stored per Actor or Component that inherits from INavLinkCustomInterface. Primarily
+ * its a way of differentiating between Components that inherit from INavLinkCustomInterface as the ActorInstanceGuid
+ * alone can not do this.See UNavLinkCustomComponent as an example. For Level Instances these will be different for each component in an actor but repeated
+ * in repeated Level Instances.FNavLinkId::GenerateUniqueId() uses this to make the UniqueId
+ */
+USTRUCT()
+struct ENGINE_API FNavLinkAuxiliaryId
+{
+	GENERATED_BODY()
+
+	FNavLinkAuxiliaryId() = default;
+
+	uint64 GetId() const
+	{
+		return Id;
+	}
+
+	bool operator==(const FNavLinkAuxiliaryId& Other) const { return Id == Other.Id; }
+	bool operator!=(const FNavLinkAuxiliaryId& Other) const { return !this->operator==(Other); }
+
+	/**
+	 * Helper function: returns unique Auxiliary ID for custom links.
+	 **/
+	static FNavLinkAuxiliaryId GenerateUniqueAuxiliaryId();
+
+private:
+	FNavLinkAuxiliaryId(uint64 InId)
+		: Id(InId)
+	{}
+
+public:
+	static const FNavLinkAuxiliaryId Invalid;
+
+private:
+	UPROPERTY()
+	uint64 Id = InvalidLinkId;
+
+	static constexpr uint64 InvalidLinkId = 0;
+};
+
+/**
+ * NavLink Id type. Legacy Ids were generated using the incremental ID system which has been deprecated but will be supported for quite some time. The new system uses CityHash using GenerateUniqueId()
+ * Only NavLinks generated this way should have the most significant bit of the id set to 1.
+ */
+USTRUCT()
+struct ENGINE_API FNavLinkId
+{
+	GENERATED_BODY()
+
+	FNavLinkId() = default;
+
+	explicit FNavLinkId(uint64 InId)
+		: Id(InId)
+	{}
+
+	bool operator==(const FNavLinkId& Other) const
+	{
+		return Id == Other.Id;
+	}
+
+
+	bool operator!=(const FNavLinkId& Other) const
+	{
+		return !this->operator==(Other);
+	}
+	
+	uint64 GetId() const
+	{
+		return Id;
+	}
+
+	void SetId(uint64 InId)
+	{
+		Id = InId;
+	}
+
+	/**
+	 * New non Legacy NavLinkIds have the most significant bit set to 1. Only Id's formed from GenerateUniqueId() should have the most significant bit set to 1. We should only see extremely rare clashes
+	 * here anyway with 63 bits for the city hash in the sort of number of CustomLinks we are likely to have and there is a system in place to handle this for dynamic meshes at run time.
+	 * For static meshes the AuxiliaryId / ActorInstanceGuid will need to be generated again in the editor (probably easiest by deleting and readding the actor / component in the editor
+	 * at the moment).
+	 */
+	bool IsLegacyId() const
+	{
+		return (Id & NavLinkIdBitMask) == 0;
+	}
+
+	/**
+	 *  Helper function: returns unique ID number for custom links.
+	 */
+	static FNavLinkId GenerateUniqueId(FNavLinkAuxiliaryId AuxiliaryId, FGuid ActorInstanceGuid);
+
+	friend inline uint32 GetTypeHash(FNavLinkId const& Value)
+	{
+		return GetTypeHash(Value.GetId());
+	}
+
+public:
+	static const FNavLinkId Invalid;
+
+private:
+	UPROPERTY()
+	uint64 Id = InvalidLinkId;
+
+	static constexpr uint64 InvalidLinkId = 0;
+	static constexpr uint64 NavLinkIdBitMask = 1ULL << 63; // Newer non incremental 64 bit NavLinkIds will have a 1 in the most significant bit.
+};
+
+
 //////////////////////////////////////////////////////////////////////////
 // Path
 
@@ -198,16 +308,37 @@ struct FNavPathPoint : public FNavLocation
 	/** extra node flags */
 	uint32 Flags;
 
-	/** unique Id of custom navigation link starting at this point */
+	UE_DEPRECATED(5.4, "Use CustomNavLinkId instead. This id is no longer used in the engine.")
 	uint32 CustomLinkId;
 
-	FNavPathPoint() : Flags(0), CustomLinkId(0) {}
+	/** unique Id of custom navigation link starting at this point */
+	FNavLinkId CustomNavLinkId;
+
+	FNavPathPoint() : Flags(0)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		CustomLinkId = 0;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	FNavPathPoint(const FVector& InLocation, NavNodeRef InNodeRef = INVALID_NAVNODEREF, uint32 InFlags = 0) 
-		: FNavLocation(InLocation, InNodeRef), Flags(InFlags), CustomLinkId(0) {}
+		: FNavLocation(InLocation, InNodeRef), Flags(InFlags)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		CustomLinkId = 0;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FNavPathPoint(const FNavPathPoint&) = default;
+	FNavPathPoint(FNavPathPoint&& Other) = default;
+	FNavPathPoint& operator=(const FNavPathPoint& Other) = default;
+	FNavPathPoint& operator=(FNavPathPoint&& Other) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool operator==(const FNavPathPoint& Other) const
 	{
-		return Flags == Other.Flags && CustomLinkId == Other.CustomLinkId && FNavLocation::operator==(Other);
+		return Flags == Other.Flags && CustomNavLinkId == Other.CustomNavLinkId && FNavLocation::operator==(Other);
 	}
 };
 

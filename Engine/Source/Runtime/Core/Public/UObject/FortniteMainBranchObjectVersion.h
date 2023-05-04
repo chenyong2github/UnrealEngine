@@ -304,6 +304,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Serialize invalid bounds in world partition actor descriptors
 		WorldPartitionActorDescSerializeInvalidBounds,
 
+		// Upgrade Navigation Links to use 64 bits for the ID
+		NavigationLinkID32To64,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

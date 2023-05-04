@@ -320,7 +320,7 @@ struct dtOffMeshConnection
 	//@UE END
 
 	/// The id of the offmesh connection. (User assigned when the navigation mesh is built.)
-	unsigned int userId;
+	unsigned long long int userId;
 
 	/// The polygon reference of the connection within the tile.
 	unsigned short poly;
@@ -647,7 +647,7 @@ public:
 	/// Updates area and flags for specified off-mesh connection: point type
 	///  @param[in] userId	User Id of connection
 	///	 @param[in] newArea	Area code to apply
-	void updateOffMeshConnectionByUserId(unsigned int userId, unsigned char newArea, unsigned short newFlags);
+	void updateOffMeshConnectionByUserId(unsigned long long int userId, unsigned char newArea, unsigned short newFlags);
 
 	//@UE BEGIN
 #if WITH_NAVMESH_SEGMENT_LINKS

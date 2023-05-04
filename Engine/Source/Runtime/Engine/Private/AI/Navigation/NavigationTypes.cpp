@@ -300,6 +300,43 @@ void FNavHeightfieldSamples::Empty()
 	Holes.Empty();
 }
 
+
+namespace UE::Navigation::NavLinkIdHelpers::Private
+{
+	uint64 MakeIdFromGUID(const FGuid Guid)
+	{
+		// Create array to guarantee contiguous memory layout 
+		const uint32 GuidArray[] = { Guid.A, Guid.B, Guid.C, Guid.D };
+		return CityHash64(reinterpret_cast<const char*>(GuidArray), sizeof(GuidArray));
+	}
+
+	uint64 MakeIdFromGUID(FNavLinkAuxiliaryId AuxiliaryId, const FGuid Guid)
+	{
+		const uint64 ActorGuidHash = MakeIdFromGUID(Guid);
+		return CityHash128to64({ AuxiliaryId.GetId(), ActorGuidHash});
+	}
+} // UE::Navigation::NavLinkHelpers
+
+const FNavLinkId FNavLinkId::Invalid = FNavLinkId();
+const FNavLinkAuxiliaryId FNavLinkAuxiliaryId::Invalid = FNavLinkAuxiliaryId();
+
+FNavLinkAuxiliaryId FNavLinkAuxiliaryId::GenerateUniqueAuxiliaryId()
+{
+	const uint64 AuxiliaryId = UE::Navigation::NavLinkIdHelpers::Private::MakeIdFromGUID(FGuid::NewGuid());
+
+	return FNavLinkAuxiliaryId(AuxiliaryId);
+}
+
+FNavLinkId FNavLinkId::GenerateUniqueId(FNavLinkAuxiliaryId AuxiliaryId, FGuid ActorInstanceGuid)
+{
+	// Apply NavLinkIdBitMask to differentiate Legacy Ids (that do not have the mask set).
+	const uint64 UniqueId = UE::Navigation::NavLinkIdHelpers::Private::MakeIdFromGUID(AuxiliaryId, ActorInstanceGuid) | NavLinkIdBitMask;
+
+	UE_LOG(LogNavLink, VeryVerbose, TEXT("%hs id: %u."), __FUNCTION__, UniqueId);
+
+	return FNavLinkId(UniqueId);
+}
+
 //----------------------------------------------------------------------//
 // FNavAgentProperties
 //----------------------------------------------------------------------//

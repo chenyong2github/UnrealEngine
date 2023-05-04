@@ -39,6 +39,13 @@ struct NAVIGATIONSYSTEM_API FNavMeshPath : public FNavigationPath
 
 	FNavMeshPath();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FNavMeshPath(const FNavMeshPath&) = default;
+	FNavMeshPath(FNavMeshPath&& Other) = default;
+	FNavMeshPath& operator=(const FNavMeshPath& Other) = default;
+	FNavMeshPath& operator=(FNavMeshPath&& Other) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	FORCEINLINE void SetWantsStringPulling(const bool bNewWantsStringPulling) { bWantsStringPulling = bNewWantsStringPulling; }
 	FORCEINLINE bool WantsStringPulling() const { return bWantsStringPulling; }
 	FORCEINLINE bool IsStringPulled() const { return bStringPulled; }
@@ -93,8 +100,8 @@ struct NAVIGATIONSYSTEM_API FNavMeshPath : public FNavigationPath
 	/** check if path (all polys in corridor) contains given node */
 	virtual bool ContainsNode(NavNodeRef NodeRef) const override { return PathCorridor.Contains(NodeRef); }
 
-	virtual bool ContainsCustomLink(uint32 UniqueLinkId) const override { return CustomLinkIds.Contains(UniqueLinkId); }
-	virtual bool ContainsAnyCustomLink() const override { return CustomLinkIds.Num() > 0; }
+	virtual bool ContainsCustomLink(FNavLinkId UniqueLinkId) const override { return CustomNavLinkIds.Contains(UniqueLinkId); }
+	virtual bool ContainsAnyCustomLink() const override { return CustomNavLinkIds.Num() > 0; }
 
 	bool IsPathSegmentANavLink(const int32 PathSegmentStartIndex) const;
 
@@ -141,7 +148,10 @@ public:
 	TArray<FVector::FReal> PathCorridorCost;
 
 	/** set of unique link Ids */
+	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId. Use CustomNavLinkIds instead. CustomLinkIds array is no longer populated or used in the engine")
 	TArray<uint32> CustomLinkIds;
+
+	TArray<FNavLinkId> CustomNavLinkIds;
 
 private:
 	/** sequence of FVector pairs where each pair represents navmesh portal edge between two polygons navigation corridor.

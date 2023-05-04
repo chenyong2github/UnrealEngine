@@ -2,7 +2,11 @@
 
 #pragma once
 
-/** Versioning */
+/** 
+ *  Versioning, Note the correct way of doing this is now to use the Custom Version see Ar.UsingCustomVersion(XXXBranchObjectVersion::GUID) this solves issues when versioning
+ *  is changed in different branches at the same time.
+ */
+
 #define NAVMESHVER_INITIAL						1
 #define NAVMESHVER_TILED_GENERATION				2
 #define NAVMESHVER_SEAMLESS_REBUILDING_1		3

@@ -835,7 +835,7 @@ void UCrowdManager::UpdateAgentPaths()
 
 				if (AnimInfo.t == 0)
 				{
-					const uint32 NavLinkId = RecastNavData->GetLinkUserId(AnimInfo.polyRef);
+					const FNavLinkId NavLinkId = RecastNavData->GetNavLinkUserId(AnimInfo.polyRef);
 					INavLinkCustomInterface* CustomLink = NavSys->GetCustomLink(NavLinkId);
 
 					if (CustomLink)

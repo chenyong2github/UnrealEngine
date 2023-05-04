@@ -868,10 +868,10 @@ void UPathFollowingComponent::SetMoveSegment(int32 SegmentStartIndex)
 		bWalkingNavLinkStart = FNavMeshNodeFlags(PathPt0.Flags).IsNavLink();
 
 		// handle moving through custom nav links
-		if (PathPt0.CustomLinkId)
+		if (PathPt0.CustomNavLinkId != FNavLinkId::Invalid)
 		{
 			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-			INavLinkCustomInterface* CustomNavLink = NavSys->GetCustomLink(PathPt0.CustomLinkId);
+			INavLinkCustomInterface* CustomNavLink = NavSys->GetCustomLink(PathPt0.CustomNavLinkId);
 			StartUsingCustomLink(CustomNavLink, SegmentEnd);
 		}
 

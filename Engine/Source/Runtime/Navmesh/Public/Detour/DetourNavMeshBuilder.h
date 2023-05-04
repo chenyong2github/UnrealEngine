@@ -38,7 +38,7 @@ struct dtOffMeshLinkCreateParams
 	/// Off-mesh connection height, less than 0 = use step height [Unit: wu]
 	dtReal snapHeight;
 	/// The user defined ids of the off-mesh connection.
-	unsigned int userID;
+	unsigned long long int userID;
 	/// User defined flags assigned to the polys of off-mesh connections
 	unsigned short polyFlag;
 	/// User defined area ids assigned to the off-mesh connections

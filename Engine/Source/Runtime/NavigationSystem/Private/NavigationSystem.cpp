@@ -2569,37 +2569,71 @@ void UNavigationSystemV1::UnregisterNavData(ANavigationData* NavData)
 
 void UNavigationSystemV1::RegisterCustomLink(INavLinkCustomInterface& CustomLink)
 {
-	ensureMsgf(CustomLink.GetLinkOwner() == nullptr || GetWorld() == CustomLink.GetLinkOwner()->GetWorld(), 
+	ensureMsgf(CustomLink.GetLinkOwner() == nullptr || GetWorld() == CustomLink.GetLinkOwner()->GetWorld(),
 		TEXT("Registering a link from a world different than the navigation system world should not happen."));
 
-	uint32 LinkId = CustomLink.GetLinkId();
+	const FNavLinkId OldId = CustomLink.GetId();
+	FNavLinkId NewId = OldId;
+	bool bGenerateNewId = false;
 
-	// if there's already a link with that Id registered, assign new Id and mark dirty area
-	// this won't fix baked data in static navmesh (in game), but every other case will regenerate affected tiles 
-	if (CustomLinksMap.Contains(LinkId))
+	// Test for Id clash
+	if (CustomNavLinksMap.Contains(OldId))
 	{
-		LinkId = INavLinkCustomInterface::GetUniqueId();
-		UE_LOG(LogNavLink, VeryVerbose, TEXT("%s new navlink id %u."), ANSI_TO_TCHAR(__FUNCTION__), LinkId);
-		CustomLink.UpdateLinkId(LinkId);
-
-		const FBox LinkBounds = ComputeCustomLinkBounds(CustomLink);
-		if (LinkBounds.IsValid)
+		if (OldId.IsLegacyId() == false)
 		{
-			AddDirtyArea(LinkBounds, FNavigationOctreeController::OctreeUpdate_Modifiers);
+			UWorld* World = GetWorld();
+			check(World);
+
+			// During PIE or game we just generate a new Id, this is most likely to be from a runtime (non editor placed) prefab like a level instance but could be from 
+			// a legitimate but extremely unlikely Id clash after loading.
+			// If this occurs in EWorldType::Editor world it's a legitimate ID clash, currently we do not handle this edge case here as it should be incredibly unlikely to occur
+			// and we do not save changes when cooking or building paths running a commandlet etc.
+			bGenerateNewId = World->WorldType == EWorldType::PIE || World->WorldType == EWorldType::Game;
+			if (ensureMsgf(bGenerateNewId, TEXT("Id clash in non Game and non PIE world. This should be incredibly rare!")))
+			{
+				// Pass in NewGuid() here as EWorldType::Game does not have access to the ActorInstanceGuid in any case and any random Unique Guid is acceptable here 
+				// if we are not in EWorldType::Editor. Editor is different as we need the cook to be deterministic but for level instances individual actors are not 
+				// serialized (but they are when cooked).
+				NewId = FNavLinkId::GenerateUniqueId(CustomLink.GetAuxiliaryId(), FGuid::NewGuid());
+			}
+			
+			// This should be very unlikely to occur, if its causing issues we should add code to handle this being careful to account for the editor world being run as a commandlet to cook and build paths on seperate runs.
+			UE_CLOG(!bGenerateNewId, LogNavLink, Warning, TEXT("%hs navlink ID %llu is clashing with existing ID. This will not be regenerated automatically in editor although for dynamic navmesh this will be handled at run time in game. For static mesh in the editor world the INavLinkCustomInterface implementor should regenerate the ID, deleting the owning actor and or component and placing again should fix this."), __FUNCTION__, CustomLink.GetId().GetId());
+		}
+		else
+		{
+			bGenerateNewId = true;
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			NewId = FNavLinkId(INavLinkCustomInterface::GetUniqueId());
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+
+		// If the Id has changed mark the area dirty, this will fix the clash in the editor world and also in game for dynamic Navmesh, but not in game for static Navmesh.
+		if (NewId != OldId)
+		{
+			CustomLink.UpdateLinkId(NewId);
+			UE_LOG(LogNavLink, VeryVerbose, TEXT("%hs new navlink ID %llu."), __FUNCTION__, CustomLink.GetId());
+
+			const FBox LinkBounds = ComputeCustomLinkBounds(CustomLink);
+			if (LinkBounds.IsValid)
+			{
+				AddDirtyArea(LinkBounds, FNavigationOctreeController::OctreeUpdate_Modifiers);
+			}
 		}
 	}
 
-	CustomLinksMap.Add(LinkId, FNavigationSystem::FCustomLinkOwnerInfo(&CustomLink));
+	UE_CLOG(bGenerateNewId && CustomNavLinksMap.Contains(CustomLink.GetId()), LogNavLink, Warning, TEXT("%hs New navlink ID %llu is clashing with existing ID."), __FUNCTION__, CustomLink.GetId());
+	CustomNavLinksMap.Add(CustomLink.GetId(), FNavigationSystem::FCustomLinkOwnerInfo(&CustomLink));
 }
 
 void UNavigationSystemV1::UnregisterCustomLink(INavLinkCustomInterface& CustomLink)
 {
-	CustomLinksMap.Remove(CustomLink.GetLinkId());
+	CustomNavLinksMap.Remove(CustomLink.GetId());
 }
 
-INavLinkCustomInterface* UNavigationSystemV1::GetCustomLink(uint32 UniqueLinkId) const
+INavLinkCustomInterface* UNavigationSystemV1::GetCustomLink(FNavLinkId UniqueLinkId) const
 {
-	const FNavigationSystem::FCustomLinkOwnerInfo* LinkInfo = CustomLinksMap.Find(UniqueLinkId);
+	const FNavigationSystem::FCustomLinkOwnerInfo* LinkInfo = CustomNavLinksMap.Find(UniqueLinkId);
 	return (LinkInfo && LinkInfo->IsValid()) ? LinkInfo->LinkInterface : nullptr;
 }
 
@@ -4302,7 +4336,9 @@ void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 		if (MyWorld->WorldType == EWorldType::Game || MyWorld->WorldType == EWorldType::Editor)
 		{
 			UE_LOG(LogNavLink, VeryVerbose, TEXT("Reset navlink id on cleanup."));
-			INavLinkCustomInterface::NextUniqueId = 1;
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			INavLinkCustomInterface::ResetUniqueId();
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 

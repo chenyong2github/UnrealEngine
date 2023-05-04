@@ -1339,7 +1339,7 @@ struct FOffMeshData
 
 			NewInfo.snapRadius = Link.SnapRadius;
 			NewInfo.snapHeight = Link.bUseSnapHeight ? Link.SnapHeight : DefaultSnapHeight;
-			NewInfo.userID = Link.UserId;
+			NewInfo.userID = Link.NavLinkId.GetId();
 
 			UClass* AreaClass = Link.GetAreaClass();
 			const int32* AreaID = AreaClassToIdMap->Find(AreaClass);
@@ -1380,7 +1380,7 @@ struct FOffMeshData
 			NewInfo.type = DT_OFFMESH_CON_SEGMENT | (Link.Direction == ENavLinkDirection::BothWays ? DT_OFFMESH_CON_BIDIR : 0);
 			NewInfo.snapRadius = Link.SnapRadius;
 			NewInfo.snapHeight = Link.bUseSnapHeight ? Link.SnapHeight : DefaultSnapHeight;
-			NewInfo.userID = Link.UserId;
+			NewInfo.userID = Link.NavLinkId.GetId();
 
 			UClass* AreaClass = Link.GetAreaClass();
 			const int32* AreaID = AreaClassToIdMap->Find(AreaClass);

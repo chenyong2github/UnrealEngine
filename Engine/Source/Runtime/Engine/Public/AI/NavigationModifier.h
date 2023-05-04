@@ -173,7 +173,11 @@ struct ENGINE_API FSimpleLinkNavModifier : public FNavigationModifier
 	TArray<FNavigationLink> Links;
 	TArray<FNavigationSegmentLink> SegmentLinks;
 	FTransform LocalToWorld;
+
+	UE_DEPRECATED(5.4, "Use NavLinkId instead, this id is no longer used in the engine.")
 	int32 UserId;
+
+	FNavLinkId NavLinkId;
 
 	FSimpleLinkNavModifier() 
 		: bHasFallDownLinks(false)
@@ -188,7 +192,7 @@ struct ENGINE_API FSimpleLinkNavModifier : public FNavigationModifier
 		, bHasMetaAreasPoint(false)
 		, bHasMetaAreasSegment(false)
 	{
-		UserId = InLink.UserId;
+		NavLinkId = InLink.NavLinkId;
 		AddLink(InLink);
 	}	
 
@@ -200,7 +204,7 @@ struct ENGINE_API FSimpleLinkNavModifier : public FNavigationModifier
 	{
 		if (InLinks.Num() > 0)
 		{
-			UserId = InLinks[0].UserId;
+			NavLinkId = InLinks[0].NavLinkId;
 			SetLinks(InLinks);
 		}
 	}
@@ -211,7 +215,7 @@ struct ENGINE_API FSimpleLinkNavModifier : public FNavigationModifier
 		, bHasMetaAreasPoint(false)
 		, bHasMetaAreasSegment(false)
 	{
-		UserId = InLink.UserId;
+		NavLinkId = InLink.NavLinkId;
 		AddSegmentLink(InLink);
 	}	
 
@@ -223,10 +227,17 @@ struct ENGINE_API FSimpleLinkNavModifier : public FNavigationModifier
 	{
 		if (InSegmentLinks.Num() > 0)
 		{
-			UserId = InSegmentLinks[0].UserId;
+			NavLinkId = InSegmentLinks[0].NavLinkId;
 			SetSegmentLinks(InSegmentLinks);
 		}
 	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FSimpleLinkNavModifier(const FSimpleLinkNavModifier&) = default;
+	FSimpleLinkNavModifier(FSimpleLinkNavModifier&& Other) = default;
+	FSimpleLinkNavModifier& operator=(const FSimpleLinkNavModifier& Other) = default;
+	FSimpleLinkNavModifier& operator=(FSimpleLinkNavModifier&& Other) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE bool HasFallDownLinks() const { return !!bHasFallDownLinks; }
 	void SetLinks(const TArray<FNavigationLink>& InLinks);

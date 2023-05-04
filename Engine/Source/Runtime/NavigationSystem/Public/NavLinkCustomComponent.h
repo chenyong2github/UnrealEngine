@@ -37,8 +37,9 @@ class NAVIGATIONSYSTEM_API UNavLinkCustomComponent : public UNavRelevantComponen
 	virtual void GetLinkData(FVector& LeftPt, FVector& RightPt, ENavLinkDirection::Type& Direction) const override;
 	virtual void GetSupportedAgents(FNavAgentSelector& OutSupportedAgents) const override;
 	virtual TSubclassOf<UNavArea> GetLinkAreaClass() const override;
-	virtual uint32 GetLinkId() const override;
-	virtual void UpdateLinkId(uint32 NewUniqueId) override;
+	virtual FNavLinkAuxiliaryId GetAuxiliaryId() const override;
+	virtual FNavLinkId GetId() const override;
+	virtual void UpdateLinkId(FNavLinkId NewUniqueId) override;
 	virtual bool IsLinkPathfindingAllowed(const UObject* Querier) const override;
 	virtual bool OnLinkMoveStarted(UObject* PathComp, const FVector& DestPoint) override;
 	virtual void OnLinkMoveFinished(UObject* PathComp) override;
@@ -58,6 +59,7 @@ class NAVIGATIONSYSTEM_API UNavLinkCustomComponent : public UNavRelevantComponen
 	void ApplyComponentInstanceData(struct FNavLinkCustomInstanceData* ComponentInstanceData);
 
 	//~ Begin UObject Interface
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditImport() override;
@@ -146,9 +148,22 @@ protected:
 
 protected:
 
-	/** link Id assigned by navigation system */
+	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId. Use CustomLinkId instead. This Id is no longer used by the engine.")
 	UPROPERTY()
 	uint32 NavLinkUserId;
+
+	/** link Id assigned by navigation system */
+	UPROPERTY()
+	FNavLinkId CustomLinkId;
+
+	/** 
+	 *  Assigned in the constructor. This uniquely identifies a component in an Actor, but will not be unique between duplicate level instances.
+	 *  containing the same Actor.
+	 *  This is Hashed with the Actor Instance FGuid to create the CustomLinkId so that Actors with more than one UNavLinkCustomComponent can have a 
+	 *  completely unique ID per UNavLinkCustomComponent even across level instances.
+	 **/
+	UPROPERTY()
+	FNavLinkAuxiliaryId AuxiliaryCustomLinkId;
 
 	/** area class to use when link is enabled */
 	UPROPERTY(EditAnywhere, Category=SmartLink)
@@ -248,7 +263,6 @@ public:
 	FNavLinkCustomInstanceData() = default;
 	FNavLinkCustomInstanceData(const UNavLinkCustomComponent* SourceComponent)
 		: FActorComponentInstanceData(SourceComponent)
-		, NavLinkUserId(0)
 	{}
 
 	virtual ~FNavLinkCustomInstanceData() = default;
@@ -269,5 +283,8 @@ public:
 	}
 
 	UPROPERTY()
-	uint32 NavLinkUserId = 0;
+	FNavLinkId CustomLinkId;
+
+	UPROPERTY()
+	FNavLinkAuxiliaryId AuxiliaryCustomLinkId;
 };

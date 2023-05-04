@@ -266,11 +266,16 @@ FVector::FReal FNavigationPath::GetLengthFromPosition(FVector SegmentStart, uint
 	return PathDistance;
 }
 
-bool FNavigationPath::ContainsCustomLink(uint32 LinkUniqueId) const
+bool FNavigationPath::ContainsCustomLink(FNavLinkId LinkUniqueId) const
 {
+	if (LinkUniqueId == FNavLinkId::Invalid)
+	{
+		return false;
+	}
+
 	for (int32 i = 0; i < PathPoints.Num(); i++)
 	{
-		if (PathPoints[i].CustomLinkId == LinkUniqueId && LinkUniqueId)
+		if (PathPoints[i].CustomNavLinkId == LinkUniqueId)
 		{
 			return true;
 		}
@@ -283,7 +288,7 @@ bool FNavigationPath::ContainsAnyCustomLink() const
 {
 	for (int32 i = 0; i < PathPoints.Num(); i++)
 	{
-		if (PathPoints[i].CustomLinkId)
+		if (PathPoints[i].CustomNavLinkId != FNavLinkId::Invalid)
 		{
 			return true;
 		}

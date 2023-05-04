@@ -41,7 +41,7 @@ void FNavMeshPath::InternalResetNavMeshPath()
 {
 	PathCorridor.Reset();
 	PathCorridorCost.Reset();
-	CustomLinkIds.Reset();
+	CustomNavLinkIds.Reset();
 	PathCorridorEdges.Reset();
 
 	bCorridorEdgesGenerated = false;
@@ -125,7 +125,7 @@ void FNavMeshPath::PerformStringPulling(const FVector& StartLoc, const FVector& 
 	const ARecastNavMesh* MyOwner = Cast<ARecastNavMesh>(GetNavigationDataUsed());
 	if (::IsValid(MyOwner) && PathCorridor.Num())
 	{
-		bStringPulled = MyOwner->FindStraightPath(StartLoc, EndLoc, PathCorridor, PathPoints, &CustomLinkIds);
+		bStringPulled = MyOwner->FindStraightPath(StartLoc, EndLoc, PathCorridor, PathPoints, &CustomNavLinkIds);
 	}
 #endif	// WITH_RECAST
 }

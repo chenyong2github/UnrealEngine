@@ -59,7 +59,7 @@ public:
 struct NAVIGATIONSYSTEM_API FRecastSpeciaLinkFilter : public dtQuerySpecialLinkFilter
 {
 	FRecastSpeciaLinkFilter(UNavigationSystemV1* NavSystem, const UObject* Owner) : NavSys(NavSystem), SearchOwner(Owner), CachedOwnerOb(nullptr) {}
-	virtual bool isLinkAllowed(const int32 UserId) const override;
+	virtual bool isLinkAllowed(const uint64 UserId) const override;
 	virtual void initialize() override;
 
 	UNavigationSystemV1* NavSys;
