@@ -567,6 +567,9 @@ UStaticMesh* FWaterBodyMeshBuilder::CreateUStaticMesh(UObject* Outer, FName Mesh
 	// Disable navigation
 	StaticMesh->MarkAsNotHavingNavigationData();
 
+	// Disable ray tracing as we don't want water meshes to show up in LumenScene.
+	StaticMesh->bSupportRayTracing = false;
+
 	if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
 	{
 		BodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
