@@ -1376,7 +1376,7 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 
 
 			{
-				UE::Net::FScopedNetContextRPC CallingRPC;
+				//UE::Net::FScopedNetContextRPC CallingRPC;
 				// Call the function.
 				Object->ProcessEvent(Function, Parms);
 			}
