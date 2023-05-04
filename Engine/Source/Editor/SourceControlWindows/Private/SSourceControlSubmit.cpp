@@ -807,8 +807,7 @@ TSharedRef<ITableRow> SSourceControlSubmitWidget::OnGenerateRowForList(TSharedPt
 	TSharedRef<ITableRow> Row =
 	SNew(SSourceControlSubmitListRow, OwnerTable)
 		.SourceControlSubmitWidget(SharedThis(this))
-		.Item(SubmitItem)
-		.IsEnabled(SubmitItem->IsEnabled());
+		.Item(SubmitItem);
 
 	return Row;
 }
