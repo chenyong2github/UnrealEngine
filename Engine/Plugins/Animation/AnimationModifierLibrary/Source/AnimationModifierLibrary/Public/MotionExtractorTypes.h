@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Misc/EnumClassFlags.h"
+#include "Misc/EnumRange.h"
 #include "MotionExtractorTypes.generated.h"
 
 /** Type of motion to extract */
