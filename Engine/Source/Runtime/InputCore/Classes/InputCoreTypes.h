@@ -113,7 +113,7 @@ struct INPUTCORE_API FKey
 
 private:
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Input")
 	FName KeyName;
 
 	mutable class TSharedPtr<struct FKeyDetails> KeyDetails;
