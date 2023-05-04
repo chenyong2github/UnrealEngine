@@ -219,6 +219,7 @@ struct FHttpCacheStoreParams
 	FString Host;
 	FString HostPinnedPublicKeys;
 	FString Namespace;
+	FString HttpVersion;
 	FString OAuthProvider;
 	FString OAuthClientId;
 	FString OAuthSecret;
@@ -308,6 +309,7 @@ private:
 	FString OAuthScope;
 	FString OAuthProviderIdentifier;
 	FString OAuthAccessToken;
+	FString HttpVersion;
 
 	FAnsiStringBuilderBase EffectiveDomain;
 
@@ -1558,6 +1560,7 @@ FHttpCacheStore::FHttpCacheStore(const FHttpCacheStoreParams& Params)
 	, OAuthScope(Params.OAuthScope)
 	, OAuthProviderIdentifier(Params.OAuthProviderIdentifier)
 	, OAuthAccessToken(Params.OAuthAccessToken)
+	, HttpVersion(Params.HttpVersion)
 	, bReadOnly(Params.bReadOnly)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Construct);
@@ -1636,6 +1639,40 @@ FHttpCacheStore::~FHttpCacheStore()
 	}
 }
 
+template <typename CharType>
+static bool HttpVersionFromString(EHttpVersion& OutVersion, const TStringView<CharType> String)
+{
+	const auto ConvertedString = StringCast<UTF8CHAR, 16>(String.GetData(), String.Len());
+	if (ConvertedString == UTF8TEXTVIEW("none"))
+	{
+		OutVersion = EHttpVersion::None;
+	}
+	else if (ConvertedString == UTF8TEXTVIEW("http1.0"))
+	{
+		OutVersion = EHttpVersion::V1_0;
+	}
+	else if (ConvertedString == UTF8TEXTVIEW("http1.1"))
+	{
+		OutVersion = EHttpVersion::V1_1;
+	}
+	else if (ConvertedString == UTF8TEXTVIEW("http2"))
+	{
+		OutVersion = EHttpVersion::V2;
+	}
+	else if (ConvertedString == UTF8TEXTVIEW("http2-only"))
+	{
+		OutVersion = EHttpVersion::V2Only;
+	}
+	else
+	{
+		return false;
+	}
+	return true;
+}
+
+bool TryLexFromString(EHttpVersion& OutVersion, FUtf8StringView String) { return HttpVersionFromString(OutVersion, String); }
+bool TryLexFromString(EHttpVersion& OutVersion, FWideStringView String) { return HttpVersionFromString(OutVersion, String); }
+
 FHttpClientParams FHttpCacheStore::GetDefaultClientParams() const
 {
 	FHttpClientParams ClientParams;
@@ -1643,10 +1680,14 @@ FHttpClientParams FHttpCacheStore::GetDefaultClientParams() const
 	ClientParams.ConnectTimeout = 3 * 1000;
 	ClientParams.LowSpeedLimit = 1024;
 	ClientParams.LowSpeedTime = 10;
-	ClientParams.Version = EHttpVersion::V2;
 	ClientParams.TlsLevel = EHttpTlsLevel::All;
 	ClientParams.bFollowRedirects = true;
 	ClientParams.bFollow302Post = true;
+
+	EHttpVersion HttpVersionEnum = EHttpVersion::V2;
+	TryLexFromString(HttpVersionEnum, HttpVersion);
+	ClientParams.Version = HttpVersionEnum;
+
 	return ClientParams;
 }
 
@@ -2745,6 +2786,26 @@ void FHttpCacheStoreParams::Parse(const TCHAR* NodeName, const TCHAR* Config)
 	FParse::Value(Config, TEXT("HostPinnedPublicKeys="), HostPinnedPublicKeys);
 
 	FParse::Bool(Config, TEXT("ResolveHostCanonicalName="), bResolveHostCanonicalName);
+
+	// Http version Params
+
+	FParse::Value(Config, TEXT("HttpVersion="), HttpVersion);
+	if (FParse::Value(Config, TEXT("EnvHttpVersionOverride="), OverrideName))
+	{
+		FString HttpEnv = FPlatformMisc::GetEnvironmentVariable(*OverrideName);
+		if (!HttpEnv.IsEmpty())
+		{
+			HttpVersion = HttpEnv;
+			UE_LOG(LogDerivedDataCache, Log, TEXT("%s: Found environment override for HttpVersion %s=%s"), NodeName, *OverrideName, *HttpVersion);
+		}
+	}
+	if (FParse::Value(Config, TEXT("CommandLineHttpVersionOverride="), OverrideName))
+	{
+		if (FParse::Value(FCommandLine::Get(), *(OverrideName + TEXT("=")), HttpVersion))
+		{
+			UE_LOG(LogDerivedDataCache, Log, TEXT("%s: Found command line override for HttpVersion %s=%s"), NodeName, *OverrideName, *HttpVersion);
+		}
+	}
 
 	// Namespace Params
 
