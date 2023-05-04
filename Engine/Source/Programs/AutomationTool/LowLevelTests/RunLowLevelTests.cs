@@ -174,10 +174,11 @@ namespace LowLevelTests
 		[AutoParam("")]
 		public string LogDir;
 
-		[AutoParam("console")]
 		public string ReportType;
 
 		public int Timeout;
+
+		public bool LogReportContents;
 
 		public Type BuildSourceType { get; protected set; }
 
@@ -218,7 +219,9 @@ namespace LowLevelTests
 
 			Timeout = Params.ParseValue("timeout=", 0);
 
-			Build = Params.ParseValue("build=", null);
+			LogReportContents = Params.ParseParam("printreport");
+
+			Build = Params.ParseValue("build=", null).Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
 			TestApp = Globals.Params.ParseValue("testapp=", "");
 
 			Tags = Params.ParseValue("tags=", null);
@@ -226,7 +229,7 @@ namespace LowLevelTests
 
 			SkipStage = Params.ParseParam("skipstage");
 
-			ReportType = Params.ParseValue("reporttype=", "console");
+			ReportType = Params.ParseValue("reporttype=", null);
 
 			string PlatformArgString = Params.ParseValue("platform=", null);
 			Platform = string.IsNullOrEmpty(PlatformArgString) ? BuildHostPlatform.Current.Platform : UnrealTargetPlatform.Parse(PlatformArgString);
@@ -564,11 +567,11 @@ namespace LowLevelTests
 		{
 			if (InPlatform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
-				return @"\w+Tests(?:-\w+)?(?:-\w+)?.exe$";
+				return @"\w+(Tests)?(?:-\w+)?(?:-\w+)?.exe$";
 			}
 			else if (InPlatform == UnrealTargetPlatform.Linux || InPlatform == UnrealTargetPlatform.Mac)
 			{
-				return @"\w+Tests$";
+				return @"\w+(Tests)?$";
 			}
 			else
 			{
@@ -586,7 +589,7 @@ namespace LowLevelTests
 
 		public string GetTargetReportPath(UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath)
 		{
-			return string.Format("{0}LLTResults.out", InPlatform.ToString());
+			return Path.Combine(InBuildPath, string.Format("{0}LLTResults.out", InPlatform.ToString()));
 		}
 
 		public string CopyDeviceReportTo(IAppInstall InAppInstall, UnrealTargetPlatform InPlatform, string InTestApp, string InBuildPath, string InTargetDirectory)
@@ -594,7 +597,10 @@ namespace LowLevelTests
 			string ReportRelativePath = GetTargetReportPath(InPlatform, InTestApp, InBuildPath);
 			string ReportPath = Path.Combine(InBuildPath, ReportRelativePath);
 			string ExpectedLocalPath = Path.Combine(InTargetDirectory, ReportRelativePath);
-			File.Copy(ReportPath, ExpectedLocalPath);
+			if (!ExpectedLocalPath.Equals(ReportPath))
+			{
+				File.Copy(ReportPath, ExpectedLocalPath, true);
+			}
 			return ExpectedLocalPath;
 		}
 	}
@@ -661,8 +667,11 @@ namespace LowLevelTests
 				CachedConfig.FilesToCopy = new List<UnrealFileToCopy>();
 				// Set reporting options, filters etc
 				CachedConfig.CommandLineParams.AddRawCommandline("--durations=no");
-				CachedConfig.CommandLineParams.AddRawCommandline(string.Format("--reporter={0}", InReportType));
-				CachedConfig.CommandLineParams.AddRawCommandline(string.Format("--out={0}", LowLevelTestsReporting.GetTargetReportPath(Platform, TestApp, BuildPath)));
+				if (!string.IsNullOrEmpty(InReportType))
+				{
+					CachedConfig.CommandLineParams.AddRawCommandline(string.Format("--reporter={0}", InReportType));
+					CachedConfig.CommandLineParams.AddRawCommandline(string.Format("--out={0}", LowLevelTestsReporting.GetTargetReportPath(Platform, TestApp, BuildPath)));
+				}
 				CachedConfig.CommandLineParams.AddRawCommandline("--filenames-as-tags");
 				if (!string.IsNullOrEmpty(InTags))
 				{
@@ -694,6 +703,7 @@ namespace LowLevelTests
 						CachedConfig.CommandLineParams.AddRawCommandline(string.Format("--extra-args {0}", ExtraCmd));
 					}
 				}
+				CachedConfig.CanAlterCommandArgs = false; // No further changes by IAppInstall instances etc.
 			}
 			return CachedConfig;
 		}
@@ -706,12 +716,12 @@ namespace LowLevelTests
 		public string BuildName { get { return TestApp; } }
 	}
 
-	public class LowLevelTestsBuild : StagedBuild
+	public class LowLevelTestsBuild : NativeStagedBuild
 	{
 		public LowLevelTestsBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InBuildPath, string InExecutablePath)
 			: base(InPlatform, InConfiguration, UnrealTargetRole.Client, InBuildPath, InExecutablePath)
 		{
-			Flags = BuildFlags.CanReplaceExecutable | BuildFlags.Loose;
+			Flags = BuildFlags.CanReplaceExecutable | BuildFlags.CanReplaceCommandLine;
 		}
 	}
 }

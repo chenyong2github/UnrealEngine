@@ -49,6 +49,16 @@ namespace Gauntlet
         public List<UnrealFileToCopy> FilesToCopy { get; set; }
 
 		/// <summary>
+		/// Some IAppInstall instances can alter command line after it has been copied from AppConfig.CommandLine
+		/// Use this to restrict this behavior if necessary.
+		/// </summary>
+		public bool CanAlterCommandArgs {
+			get { return CanAlterCommandArgsPrivate; }
+			set { CanAlterCommandArgsPrivate = value; }
+		}
+		private bool CanAlterCommandArgsPrivate = true;
+
+		/// <summary>
 		/// Arguments for this instance
 		/// </summary>
 		public string CommandLine

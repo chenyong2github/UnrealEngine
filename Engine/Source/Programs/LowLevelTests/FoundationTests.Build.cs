@@ -1,9 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-using System;
 using UnrealBuildTool;
 
 public class FoundationTests : TestModuleRules
 {
+	protected Metadata FoundationTestsMetadata = new Metadata() { TestName = "Foundation", TestShortName = "Foundation", ReportType = "xml" };
+
+	/// <summary>
+	/// Test metadata to be used with BuildGraph
+	/// </summary>
+	public Metadata TestMetadata
+	{ 
+		get { return FoundationTestsMetadata; }
+	}
+
 	public FoundationTests(ReadOnlyTargetRules Target) : base(Target, true)
 	{
 		PrivateDependencyModuleNames.AddRange(
@@ -21,6 +30,19 @@ public class FoundationTests : TestModuleRules
 				});
 		}
 
-		UpdateBuildGraphPropertiesFile(new Metadata("Foundation"), false);
+		string PlatformCompilationArgs;
+		foreach (var Platform in UnrealTargetPlatform.GetValidPlatforms())
+		{
+			if (Platform == UnrealTargetPlatform.Android)
+			{
+				PlatformCompilationArgs = "-allmodules -architectures=arm64";
+			}
+			else
+			{
+				PlatformCompilationArgs = "-allmodules";
+			}
+			TestMetadata.PlatformCompilationExtraArgs.Add(Platform, PlatformCompilationArgs);
+		}
+		UpdateBuildGraphPropertiesFile(TestMetadata);
 	}
 }

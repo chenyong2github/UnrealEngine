@@ -151,7 +151,24 @@ namespace Gauntlet
 
 		public string ExecutablePath;
 
-		public string CommandArguments;
+		public bool CanAlterCommandArgs = true;
+
+		public string CommandArguments
+		{
+			get { return CommandArgumentsPrivate; }
+			set
+			{
+				if (CanAlterCommandArgs || string.IsNullOrEmpty(CommandArgumentsPrivate))
+				{
+					CommandArgumentsPrivate = value;
+				}
+				else
+				{
+					Log.Info("Skipped setting command AppInstall line when CanAlterCommandArgs = false");
+				}
+			}
+		}
+		private string CommandArgumentsPrivate;
 
 		public string ArtifactPath;
 
@@ -333,19 +350,22 @@ namespace Gauntlet
 
 				string CmdLine = WinApp.CommandArguments;
 
-				// Look in app parameters if abslog is specified, if so use it
-				Regex CLRegex = new Regex(@"(--?[a-zA-Z]+)[:\s=]?([A-Z]:(?:\\[\w\s-]+)+\\?(?=\s-)|\""[^\""]*\""|[^-][^\s]*)?");
-				foreach (Match M in CLRegex.Matches(CmdLine))
+				if (WinApp.CanAlterCommandArgs)
 				{
-					if (M.Groups.Count == 3 && M.Groups[1].Value == "-abslog")
+					// Look in app parameters if abslog is specified, if so use it
+					Regex CLRegex = new Regex(@"(--?[a-zA-Z]+)[:\s=]?([A-Z]:(?:\\[\w\s-]+)+\\?(?=\s-)|\""[^\""]*\""|[^-][^\s]*)?");
+					foreach (Match M in CLRegex.Matches(CmdLine))
 					{
-						ProcessLogFile = M.Groups[2].Value;
+						if (M.Groups.Count == 3 && M.Groups[1].Value == "-abslog")
+						{
+							ProcessLogFile = M.Groups[2].Value;
+						}
 					}
 				}
 
 				// Explicitly set log file when not already defined if not build machine
 				// -abslog makes sure Unreal dymanicaly update the log window when using -log
-				if (!AutomationTool.Automation.IsBuildMachine && string.IsNullOrEmpty(ProcessLogFile))
+				if (WinApp.CanAlterCommandArgs && !AutomationTool.Automation.IsBuildMachine && string.IsNullOrEmpty(ProcessLogFile))
 				{
 					string LogFolder = string.Format(@"{0}\Logs", WinApp.ArtifactPath);
 
@@ -361,7 +381,7 @@ namespace Gauntlet
 				// cleanup any existing log file
 				try
 				{
-					if (File.Exists(ProcessLogFile))
+					if (ProcessLogFile != null && File.Exists(ProcessLogFile))
 					{
 						EpicGames.Core.FileUtils.ForceDeleteFile(ProcessLogFile);
 					}
@@ -374,7 +394,19 @@ namespace Gauntlet
 
 				Log.Verbose("\t{0}", CmdLine);
 
-				Result = CommandUtils.Run(WinApp.ExecutablePath, CmdLine, Options: WinApp.RunOptions | (ProcessLogFile != null ? CommandUtils.ERunOptions.NoStdOutRedirect : 0 ), SpewFilterCallback: new SpewFilterCallbackType(delegate (string M) { return null; }) /* make sure stderr does not spew in the stdout */);
+				CommandUtils.ERunOptions FinalRunOptions = WinApp.RunOptions;
+				if (!WinApp.CanAlterCommandArgs)
+				{
+					CmdLine = WinApp.CommandArguments;
+				}
+
+				FinalRunOptions = WinApp.RunOptions | (ProcessLogFile != null ? CommandUtils.ERunOptions.NoStdOutRedirect : 0);
+
+				Result = CommandUtils.Run(WinApp.ExecutablePath,
+					CmdLine,
+					Options: FinalRunOptions,
+					SpewFilterCallback: new SpewFilterCallbackType(M => { return ProcessLogFile == null ? M : null ; }) /* make sure stderr does not spew in the stdout */,
+					WorkingDir: WinApp.WorkingDirectory);
 
 				if (Result.HasExited && Result.ExitCode != 0)
 				{
@@ -419,6 +451,29 @@ namespace Gauntlet
 			}
 		}
 
+		protected IAppInstall InstallNativeStagedBuild(UnrealAppConfig AppConfig, NativeStagedBuild InBuild)
+		{
+			WindowsAppInstall WinApp = new WindowsAppInstall(AppConfig.Name, AppConfig.ProjectName, this);
+			WinApp.CanAlterCommandArgs = AppConfig.CanAlterCommandArgs;
+
+			WinApp.RunOptions = RunOptions;
+			if (Log.IsVeryVerbose)
+			{
+				WinApp.RunOptions |= CommandUtils.ERunOptions.AllowSpew;
+			}
+
+			WinApp.WorkingDirectory = InBuild.BuildPath;
+			WinApp.ExecutablePath = Path.Combine(InBuild.BuildPath, InBuild.ExecutablePath);
+			WinApp.CommandArguments = AppConfig.CommandLine;
+
+			WinApp.ArtifactPath = Path.Combine(InBuild.BuildPath, AppConfig.ProjectName, @"Saved");
+			WinApp.CleanDeviceArtifacts();
+
+			CopyAdditionalFiles(AppConfig);
+
+			return WinApp;
+		}
+
 		protected IAppInstall InstallStagedBuild(UnrealAppConfig AppConfig, StagedBuild InBuild)
 		{
 			bool SkipDeploy = Globals.Params.ParseParam("SkipDeploy");
@@ -446,6 +501,7 @@ namespace Gauntlet
 
 			WindowsAppInstall WinApp = new WindowsAppInstall(AppConfig.Name, AppConfig.ProjectName, this);
 			WinApp.RunOptions = RunOptions;
+			WinApp.CanAlterCommandArgs = AppConfig.CanAlterCommandArgs;
 
 			// Set commandline replace any InstallPath arguments with the path we use
 			WinApp.CommandArguments = Regex.Replace(AppConfig.CommandLine, @"\$\(InstallPath\)", BuildPath, RegexOptions.IgnoreCase);
@@ -512,7 +568,11 @@ namespace Gauntlet
 
 		public IAppInstall InstallApplication(UnrealAppConfig AppConfig)
 		{
-			if (AppConfig.Build is StagedBuild)
+			if (AppConfig.Build is NativeStagedBuild)
+			{
+				return InstallNativeStagedBuild(AppConfig, AppConfig.Build as NativeStagedBuild);
+			}
+			else if (AppConfig.Build is StagedBuild)
 			{
 				return InstallStagedBuild(AppConfig, AppConfig.Build as StagedBuild);
 			}

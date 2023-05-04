@@ -309,6 +309,14 @@ namespace Gauntlet
 		}
 	}
 
+	public class NativeStagedBuild : StagedBuild
+	{
+		public NativeStagedBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfig, UnrealTargetRole InRole, string InBuildPath, string InExecutablePath, string InFlavor = "")
+			: base(InPlatform, InConfig, InRole, InBuildPath, InExecutablePath, InFlavor)
+		{
+			Flags = BuildFlags.CanReplaceCommandLine | BuildFlags.Loose;
+		}
+	}
 
 	public abstract class StagedBuildSource<T> : IFolderBuildSource 
 		where T : StagedBuild

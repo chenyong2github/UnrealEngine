@@ -7,8 +7,6 @@ public class HeadlessChaosTarget : TestTargetRules
 {
 	public HeadlessChaosTarget(TargetInfo Target) : base(Target)
 	{
-		ExeBinariesSubFolder = LaunchModuleName = "HeadlessChaos";
-
         bHasExports = false;
 
 		GlobalDefinitions.Add("CHAOS_SERIALIZE_OUT=1");

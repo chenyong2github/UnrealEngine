@@ -188,20 +188,24 @@ namespace LowLevelTests
 				}
 			}
 
-			ILowLevelTestsReporting LowLevelTestsReporting = Gauntlet.Utils.InterfaceHelpers.FindImplementations<ILowLevelTestsReporting>(true)
-				.Where(B => B.CanSupportPlatform(Context.Options.Platform))
-				.First();
-
+			bool? ReportCopied = null;
 			string ReportPath = null;
-			bool ReportCopied = false;
-			try
+			if (!string.IsNullOrEmpty(Context.Options.ReportType))
 			{
-				ReportPath = LowLevelTestsReporting.CopyDeviceReportTo(LowLevelTestsApp.Install, Context.Options.Platform, Context.Options.TestApp, Context.Options.Build, LogDir);
-				ReportCopied = true;
-			}
-			catch (Exception ex)
-			{
-				Log.Error("Failed to copy report: {0}", ex.ToString());
+				ILowLevelTestsReporting LowLevelTestsReporting = Gauntlet.Utils.InterfaceHelpers.FindImplementations<ILowLevelTestsReporting>(true)
+					.Where(B => B.CanSupportPlatform(Context.Options.Platform))
+					.First();
+
+				try
+				{
+					ReportPath = LowLevelTestsReporting.CopyDeviceReportTo(LowLevelTestsApp.Install, Context.Options.Platform, Context.Options.TestApp, Context.Options.Build, LogDir);
+					ReportCopied = true;
+				}
+				catch (Exception ex)
+				{
+					ReportCopied = false;
+					Log.Error("Failed to copy report: {0}", ex.ToString());
+				}
 			}
 
 
@@ -224,15 +228,18 @@ namespace LowLevelTests
 				LowLevelTestResult = TestResult.Failed;
 				ExitReason = $"Process exited with exit code {TestInstance.ExitCode}";
 			}
-			else if (!ReportCopied)
+			else if (ReportCopied.HasValue && !ReportCopied.Value)
 			{
 				LowLevelTestResult = TestResult.Failed;
 				ExitReason = "Uabled to read test report";
 			}
-			else
+			else if (ReportPath != null)
 			{
 				string ReportContents = File.ReadAllText(ReportPath);
-				Log.Info(ReportContents);
+				if (Context.Options.LogReportContents) // Some tests prefer to log report contents
+				{
+					Log.Info(ReportContents);
+				}
 				string ReportType = Context.Options.ReportType.ToLower();
 				if (ReportType == "console")
 				{
@@ -247,7 +254,8 @@ namespace LowLevelTests
 						LowLevelTestResult = TestResult.Failed;
 						ExitReason = "Tests failed";
 					}
-				} else if (ReportType == "xml")
+				}
+				else if (ReportType == "xml")
 				{
 					LowLevelTestsReportParser LowLevelTestsReportParser = new LowLevelTestsReportParser(ReportContents);
 					if (LowLevelTestsReportParser.HasPassed())
@@ -260,6 +268,19 @@ namespace LowLevelTests
 						LowLevelTestResult = TestResult.Failed;
 						ExitReason = "Tests failed";
 					}
+				}
+			}
+			else // ReportPath == null
+			{
+				if (TestInstance.ExitCode != 0)
+				{
+					LowLevelTestResult = TestResult.Failed;
+					ExitReason = "Tests failed (no report to parse)";
+				}
+				else
+				{
+					LowLevelTestResult = TestResult.Passed;
+					ExitReason = "Tests passed (no report to parse)";
 				}
 			}
 			Log.Info($"Low level test exited with code {TestInstance.ExitCode} and reason: {ExitReason}");

@@ -227,7 +227,13 @@ namespace Gauntlet
 
 				Log.Verbose("\t{0}", CmdLine);
 
-				Result = CommandUtils.Run(LinuxApp.ExecutablePath, CmdLine, Options: LinuxApp.RunOptions, SpewFilterCallback: new SpewFilterCallbackType(delegate(string M) { return null; }) /* make sure stderr does not spew in the stdout */);
+				bool bAllowSpew = LinuxApp.RunOptions.HasFlag(CommandUtils.ERunOptions.AllowSpew);
+
+				Result = CommandUtils.Run(LinuxApp.ExecutablePath,
+					CmdLine,
+					Options: LinuxApp.RunOptions,
+					SpewFilterCallback: new SpewFilterCallbackType(delegate(string M) { return bAllowSpew ? M : null; }) /* make sure stderr does not spew in the stdout */,
+					WorkingDir: LinuxApp.WorkingDirectory);
 
 				if (Result.HasExited && Result.ExitCode != 0)
 				{
@@ -270,6 +276,28 @@ namespace Gauntlet
 					}
 				}
 			}
+		}
+
+		protected IAppInstall InstallNativeStagedBuild(UnrealAppConfig AppConfig, NativeStagedBuild InBuild)
+		{
+			LinuxAppInstall LinuxApp = new LinuxAppInstall(AppConfig.Name, AppConfig.ProjectName, this);
+			LinuxApp.RunOptions = RunOptions;
+			if (Log.IsVeryVerbose)
+			{
+				LinuxApp.RunOptions |= CommandUtils.ERunOptions.AllowSpew;
+			}
+
+			LinuxApp.CommandArguments = AppConfig.CommandLine;
+
+			LinuxApp.ArtifactPath = Path.Combine(InBuild.BuildPath, AppConfig.ProjectName, @"Saved");
+			LinuxApp.CleanDeviceArtifacts();
+
+			CopyAdditionalFiles(AppConfig);
+
+			LinuxApp.ExecutablePath = Path.Combine(InBuild.BuildPath, InBuild.ExecutablePath);
+			LinuxApp.WorkingDirectory = InBuild.BuildPath;
+
+			return LinuxApp;
 		}
 
 		protected IAppInstall InstallStagedBuild(UnrealAppConfig AppConfig, StagedBuild InBuild)
@@ -365,7 +393,11 @@ namespace Gauntlet
 
 		public IAppInstall InstallApplication(UnrealAppConfig AppConfig)
 		{
-			if (AppConfig.Build is StagedBuild)
+			if (AppConfig.Build is NativeStagedBuild)
+			{
+				return InstallNativeStagedBuild(AppConfig, AppConfig.Build as NativeStagedBuild);
+			}
+			else if (AppConfig.Build is StagedBuild)
 			{
 				return InstallStagedBuild(AppConfig, AppConfig.Build as StagedBuild);
 			}

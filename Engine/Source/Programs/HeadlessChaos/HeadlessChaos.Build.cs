@@ -50,6 +50,6 @@ public class HeadlessChaos : TestModuleRules
 
 		PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
 
-		UpdateBuildGraphPropertiesFile(new Metadata("HeadlessChaos", "Headless Chaos"));
+		UpdateBuildGraphPropertiesFile(new Metadata() { TestName = "HeadlessChaos", TestShortName = "Headless Chaos", UsesCatch2 = false });
 	}
 }

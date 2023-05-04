@@ -27,6 +27,6 @@ public class ReplicationSystemLowLevelTests : TestModuleRules
 			}
 		);
 
-		UpdateBuildGraphPropertiesFile(new Metadata("ReplicationSystem", "Replication System"));
+		UpdateBuildGraphPropertiesFile(new Metadata() { TestName = "ReplicationSystem", TestShortName = "Replication System" });
 	}
 }

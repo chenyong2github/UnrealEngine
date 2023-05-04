@@ -16,6 +16,6 @@ public class NetworkPredictionTests : TestModuleRules
 			}
 		);
 
-		UpdateBuildGraphPropertiesFile(new Metadata("NetworkPredictionPlugin", "Net Prediction"));
+		UpdateBuildGraphPropertiesFile(new Metadata() { TestName = "NetworkPredictionPlugin", TestShortName = "Net Prediction" });
 	}
 }

@@ -274,6 +274,26 @@ namespace Gauntlet
 			return OutBuildPath;
 		}
 
+		protected IAppInstall InstallNativeStagedBuild(UnrealAppConfig AppConfig, NativeStagedBuild InBuild)
+		{
+			MacAppInstall MacApp = new MacAppInstall(AppConfig.Name, this);
+
+			MacApp.RunOptions = RunOptions;
+			if (Log.IsVeryVerbose)
+			{
+				MacApp.RunOptions |= CommandUtils.ERunOptions.AllowSpew;
+			}
+
+			MacApp.WorkingDirectory = InBuild.BuildPath;
+			MacApp.ExecutablePath = Path.Combine(InBuild.BuildPath, InBuild.ExecutablePath);
+			MacApp.CommandArguments = AppConfig.CommandLine;
+
+			MacApp.ArtifactPath = Path.Combine(InBuild.BuildPath, AppConfig.ProjectName, @"Saved");
+			MacApp.CleanDeviceArtifacts();
+
+			return MacApp;
+		}
+
 		protected IAppInstall InstallBuild(UnrealAppConfig AppConfig, IBuild InBuild)
 		{
 			// Full path to the build
@@ -357,6 +377,10 @@ namespace Gauntlet
 
 		public IAppInstall InstallApplication(UnrealAppConfig AppConfig)
 		{
+			if (AppConfig.Build is NativeStagedBuild)
+			{
+				return InstallNativeStagedBuild(AppConfig, (NativeStagedBuild)AppConfig.Build);
+			}
 			if (AppConfig.Build is StagedBuild || AppConfig.Build is MacPackagedBuild)
 			{
 				return InstallBuild(AppConfig, AppConfig.Build);
@@ -411,7 +435,8 @@ namespace Gauntlet
 				Log.Info("Launching {0} on {1}", App.Name, ToString());
 				Log.Verbose("\t{0}", MacInstall.CommandArguments);
 
-				Result = CommandUtils.Run(MacInstall.ExecutablePath, MacInstall.CommandArguments, Options: MacInstall.RunOptions, SpewFilterCallback: new SpewFilterCallbackType(delegate (string M) { return null; }) /* make sure stderr does not spew in the stdout */);
+				bool bAllowSpew = MacInstall.RunOptions.HasFlag(CommandUtils.ERunOptions.AllowSpew);
+				Result = CommandUtils.Run(MacInstall.ExecutablePath, MacInstall.CommandArguments, Options: MacInstall.RunOptions, SpewFilterCallback: new SpewFilterCallbackType(delegate (string M) { return bAllowSpew ? M : null; }) /* make sure stderr does not spew in the stdout */);
 
 				if (Result.HasExited && Result.ExitCode != 0)
 				{
