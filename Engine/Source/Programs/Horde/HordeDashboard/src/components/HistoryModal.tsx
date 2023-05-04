@@ -860,7 +860,7 @@ export const HistoryModal: React.FC<{ agentId: string | undefined, onDismiss: (.
                   </Stack>
                </Stack>
                {!!poolItems.length && <Stack style={{ paddingRight: 24 }}><DefaultButton text="Pools" menuProps={{ shouldFocusOnMount: true, items: poolItems }} /></Stack>}
-               {dashboard.hordeAdmin && <Stack> <Stack horizontal tokens={{ childrenGap: 24 }}>
+               {!!dashboard.user?.dashboardFeatures?.showRemoteDesktop && <Stack> <Stack horizontal tokens={{ childrenGap: 24 }}>
                   <Stack>
                      <DefaultButton text="Actions" menuProps={actionMenuProps} />
                   </Stack>

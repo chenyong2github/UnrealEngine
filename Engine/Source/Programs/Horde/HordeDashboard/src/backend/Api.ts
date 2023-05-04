@@ -1434,7 +1434,7 @@ export type CreateZipRequest = {
 
 /** Describes an artifact */
 export type GetArtifactResponseV2 = {
-	
+
 	id: string;
 
 	type: ArtifactContextType;
@@ -1444,7 +1444,7 @@ export type GetArtifactResponseV2 = {
 }
 
 /** Result of an artifact search */
-export type FindArtifactsResponse =  {	
+export type FindArtifactsResponse = {
 	/** List of artifacts matching the search criteria*/
 	artifacts: GetArtifactResponseV2[];
 }
@@ -3093,6 +3093,18 @@ export type UpdateDashboardSettings = {
 
 }
 
+/** Settings for whether various features should be enabled on the dashboard */
+export type GetDashboardFeaturesResponse = {
+
+	/** Whether the notice editor should be listed in the server menu */
+	showNoticeEditor?: boolean;
+
+	/** Whether controls for modifying pools should be shown */
+	showPoolEditor?: boolean;
+
+	/** Whether the remote desktop button should be shown on the agent modal */
+	showRemoteDesktop?: boolean;
+}
 
 /**  Response describing the current user */
 export type GetUserResponse = {
@@ -3126,6 +3138,11 @@ export type GetUserResponse = {
 
 	/**  Settings for the dashboard */
 	dashboardSettings?: DashboardSettings;
+
+	/// <summary>
+	/// Settings for whether various dashboard features should be shown for the current user
+	/// </summary>
+	dashboardFeatures?: GetDashboardFeaturesResponse;
 
 	/** List of pinned job ids */
 	pinnedJobIds?: string[];
@@ -4453,7 +4470,7 @@ export enum TestOutcome {
 	/// The test was skipped
 	Skipped = "Skipped",
 	/// The test had an unspecified result
-	Unspecified = "Unspecified", 
+	Unspecified = "Unspecified",
 	// Warnings
 	Warning = "Warning"
 }

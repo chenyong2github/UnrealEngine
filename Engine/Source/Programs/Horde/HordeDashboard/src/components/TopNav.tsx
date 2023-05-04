@@ -6,7 +6,6 @@ import React, { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import backend, { useBackend } from '../backend';
 import { ProjectData } from "../backend/Api";
-import { getSiteConfig } from '../backend/Config';
 import dashboard from '../backend/Dashboard';
 import { ProjectStore } from '../backend/ProjectStore';
 import { modeColors } from '../styles/Styles';
@@ -420,7 +419,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
          link: `/reports/utilization`
       });
 
-      if (dashboard.hordeAdmin) {
+      if (dashboard.user?.dashboardFeatures?.showNoticeEditor) {
          monitoringItems.push({
             key: "admin_notices",
             text: "Notices",
@@ -462,7 +461,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
          text: "Documentation",
          link: `/docs`
       });
-      
+
       docsItems.push({
          key: "server_docs_releasenotes",
          text: "Release Notes",

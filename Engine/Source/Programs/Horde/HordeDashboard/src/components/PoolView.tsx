@@ -929,7 +929,7 @@ const AutoScalerPanel: React.FC = () => {
       }
    }
 
-   const disabled = !dashboard.hordeAdmin || state.submitting;
+   const disabled = !dashboard.user?.dashboardFeatures?.showPoolEditor || state.submitting;
 
    let selectedColor = state.color ?? "0";
    let defaultColor = "0";
@@ -971,7 +971,7 @@ const AutoScalerPanel: React.FC = () => {
                   </Stack>
                </Stack>
 
-               {dashboard.hordeAdmin && <Stack style={{ paddingTop: 24 }}>
+               {!!dashboard.user?.dashboardFeatures?.showPoolEditor && <Stack style={{ paddingTop: 24 }}>
                   <PrimaryButton disabled={disabled || !state.modified} text="Save Changes" onClick={() => { setState({ ...state, submitting: true, confirmed: false, error: undefined }) }} />
                </Stack>}
             </Stack>

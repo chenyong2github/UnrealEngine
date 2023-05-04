@@ -948,7 +948,7 @@ export class Backend {
 
         return new Promise<GetUserResponse>((resolve, reject) => {
 
-            this.backend.get("/api/v1/users/current", { suppress404: true }).then((response) => {
+            this.backend.get("/api/v1/user", { suppress404: true }).then((response) => {
 
                 let data = response.data as GetUserResponse;
 

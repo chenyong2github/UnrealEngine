@@ -96,18 +96,6 @@ export class Dashboard {
         return this.data.image32;
     }
 
-
-    get hordeAdmin(): boolean {
-
-        return !!this.roles.find(r => r.value === "app-horde-admins");
-    }
-
-    get internalEmployee(): boolean {
-
-        return !!this.roles.find(r => r.value === "Internal-Employees");
-
-    }
-
     get email(): string {
 
         const email = this.claims.find(c => c.type.endsWith("/emailaddress"));
