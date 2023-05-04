@@ -94,9 +94,15 @@ namespace Metasound
 			virtual bool Transform(FMetasoundFrontendDocument& InOutDocument) const override;
 
 		private:
+			bool AddMissingVertices(FGraphHandle GraphHandle) const;
 			void Init(const TFunction<bool(FName, FName)>* InNamePairingFunction = nullptr);
+			bool SwapPairedVertices(FGraphHandle GraphHandle) const;
+			bool RemoveUnsupportedVertices(FGraphHandle GraphHandle) const;
+			bool UpdateInterfacesInternal(FDocumentHandle DocumentHandle) const;
 
 #if WITH_EDITOR
+			void UpdateAddedVertexNodePositions(FGraphHandle GraphHandle) const;
+
 			bool bSetDefaultNodeLocations = true;
 #endif // WITH_EDITOR
 
