@@ -147,6 +147,7 @@ void ALightWeightInstanceManager::OnSpawnedActorDestroyed(AActor* DestroyedActor
 	const int32 DestroyedActorInstanceIndex = FindIndexForActor(DestroyedActor);
 	check(DestroyedActorInstanceIndex != INDEX_NONE);
 	Actors.Remove(DestroyedActorInstanceIndex);
+	DestroyedActor->OnDestroyed.RemoveAll(this);
 }
 
 int32 ALightWeightInstanceManager::FindIndexForActor(const AActor* InActor) const
