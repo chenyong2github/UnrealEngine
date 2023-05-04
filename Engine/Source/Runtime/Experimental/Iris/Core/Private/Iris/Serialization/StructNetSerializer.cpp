@@ -240,6 +240,9 @@ void FStructNetSerializer::Quantize(FNetSerializationContext& Context, const FNe
 		MemberArgs.Source = Args.Source + MemberDescriptor.ExternalMemberOffset;
 		MemberArgs.Target = Args.Target + MemberDescriptor.InternalMemberOffset;
 
+		// Currently we pass on the changemask info unmodified to support fastarrays, but if we decide to support other serializers utilizing additional changemask we need to extend this
+		MemberArgs.ChangeMaskInfo = Args.ChangeMaskInfo;
+
 		Serializer->Quantize(Context, MemberArgs);
 	}
 }
