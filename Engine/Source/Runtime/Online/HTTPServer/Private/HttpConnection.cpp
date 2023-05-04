@@ -149,7 +149,7 @@ void FHttpConnection::ContinueRead(float DeltaTime)
 		break;
 
 	case EHttpConnectionContextState::Error:
-		HandleReadError(ReadContext.GetErrorCode(), *ReadContext.GetErrorStr());
+		HandleReadError(ReadContext.GetRequest()->HttpVersion, ReadContext.GetErrorCode(), *ReadContext.GetErrorStr());
 		break;
 	}
 }
@@ -311,13 +311,14 @@ void FHttpConnection::Destroy(EConnectionDestroyReason Reason)
 	}
 }
 
-void FHttpConnection::HandleReadError(EHttpServerResponseCodes ErrorCode, const TCHAR* ErrorCodeStr)
+void FHttpConnection::HandleReadError(HttpVersion::EHttpServerHttpVersion HttpVersion, EHttpServerResponseCodes ErrorCode, const TCHAR* ErrorCodeStr)
 {
 	UE_LOG(LogHttpConnection, Error, TEXT("%s"), ErrorCodeStr);
 
 	// Forcibly Reply
 	bKeepAlive = false;
 	auto Response = FHttpServerResponse::Error(ErrorCode, ErrorCodeStr);
+	Response->HttpVersion = HttpVersion;
 	BeginWrite(MoveTemp(Response), LastRequestNumber);
 }
 
