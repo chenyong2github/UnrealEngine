@@ -1699,9 +1699,10 @@ void EmitDepthTargets(
 		}
 
 		const FIntRect ViewRect = bDrawSceneViewsInOneNanitePass ? View.GetFamilyViewRect() : View.ViewRect;
-		checkf((ViewRect.Min.X % 8) == 0 && (ViewRect.Min.Y % 8) == 0, TEXT("Viewport rect must be 8-pixel aligned."));
+		const int32 kHTileSize = 8;
+		checkf((ViewRect.Min.X % kHTileSize) == 0 && (ViewRect.Min.Y % kHTileSize) == 0, TEXT("Viewport rect must be %d-pixel aligned."), kHTileSize);
 
-		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(ViewRect.Size(), 8);
+		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(ViewRect.Size(), kHTileSize);
 		const uint32 PlatformConfig = RHIGetHTilePlatformConfig(SceneTexturesExtent.X, SceneTexturesExtent.Y);
 
 		FRDGTextureUAVRef SceneDepthUAV			= GraphBuilder.CreateUAV(FRDGTextureUAVDesc::CreateForMetaData(SceneDepth, ERDGTextureMetaDataAccess::CompressedSurface));
