@@ -166,11 +166,11 @@ float MakeRoughnessSafe(float Roughness, float MinRoughness=0.001f)
 float F0ToMetallic(float F0)
 {
 	// Approximate the metallic input from F0 with a small lerp region
-	const float DiamondF0 = 0.24f;
-	const float CondutorMinF0 = 0.4f;	// roughly the end of semi-conductor
+	const float FullMetalBeginF0 = 0.08f;	// Instead of DiamondF0 = 0.24, the metallic region starts right after metallic >0 and specular=1 to match with legacy.
+	const float FullMetalEndF0   = 0.4f;	// roughly the end of semi-conductor
 	// This is compatible with UE shading model mapping allowing F0 to take a value up to 0.08 for dielectric.
 
-	return saturate((F0 - DiamondF0) / (CondutorMinF0 - DiamondF0));
+	return saturate((F0 - FullMetalBeginF0) / (FullMetalEndF0 - FullMetalBeginF0));
 }
 
 float F0RGBToMetallic(float3 F0)
