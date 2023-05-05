@@ -9,9 +9,11 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
 {
+
 	/// <summary>
 	/// This executor uses async Tasks to process the action graph
 	/// </summary>
@@ -150,222 +152,69 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		protected class ExecuteResults
-		{
-			public List<string> LogLines { get; private set; }
-			public int ExitCode { get; private set; }
-			public TimeSpan ExecutionTime { get; private set; }
-			public TimeSpan ProcessorTime { get; private set; }
-			public string? AdditionalDescription { get; protected set; } = null;
-
-			public ExecuteResults(List<string> LogLines, int ExitCode, TimeSpan ExecutionTime, TimeSpan ProcessorTime, string? AdditionalDescription = null)
-			{
-				this.LogLines = LogLines;
-				this.ExitCode = ExitCode;
-				this.ProcessorTime = ProcessorTime;
-				this.ExecutionTime = ExecutionTime;
-				this.AdditionalDescription = AdditionalDescription;
-			}
-			public ExecuteResults(List<string> LogLines, int ExitCode)
-			{
-				this.LogLines = LogLines;
-				this.ExitCode = ExitCode;
-			}
-		}
-
-		internal enum ActionStatus : byte
-		{
-			Queued,
-			Running,
-			Finished,
-			Error,
-		}
-
-		public override Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger)
-		{
-			return Task.FromResult(ExecuteActions(ActionsToExecute, Logger));
-		}
-
 		/// <summary>
-		/// Executes the specified actions locally.
+		/// Create an action queue
 		/// </summary>
-		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
-		bool ExecuteActions(IEnumerable<LinkedAction> InputActions, ILogger Logger)
+		/// <param name="actionsToExecute">Actions to be executed</param>
+		/// <param name="actionArtifactCache">Artifact cache</param>
+		/// <param name="logger">Logging interface</param>
+		/// <returns>Action queue</returns>
+		public ImmediateActionQueue CreateActionQueue(IEnumerable<LinkedAction> actionsToExecute, IActionArtifactCache? actionArtifactCache, ILogger logger)
 		{
-			if (!InputActions.Any())
+			return new(actionsToExecute, actionArtifactCache, NumParallelProcesses, "Compiling C++ source code...", x => WriteToolOutput(x), logger)
+			{
+				ShowCompilationTimes = bShowCompilationTimes,
+				ShowCPUUtilization = bShowCPUUtilization,
+				PrintActionTargetNames = bPrintActionTargetNames,
+				LogActionCommandLines = bLogActionCommandLines,
+				ShowPerActionCompilationTimes = bShowPerActionCompilationTimes,
+				CompactOutput = bCompactOutput,
+				StopCompilationAfterErrors = bStopCompilationAfterErrors,
+			};
+		}
+
+		/// <inheritdoc/>
+		public override async Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger, IActionArtifactCache? actionArtifactCache)
+		{
+			if (!ActionsToExecute.Any())
 			{
 				return true;
 			}
 
-			int TotalActions = InputActions.Count();
-			int NumCompletedActions = 0;
-
-			int ActualNumParallelProcesses = Math.Min(TotalActions, NumParallelProcesses);
-
-			using ManagedProcessGroup ProcessGroup = new ManagedProcessGroup();
-			CancellationTokenSource CancellationTokenSource = new CancellationTokenSource();
-			CancellationToken CancellationToken = CancellationTokenSource.Token;
-			using ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false, Logger);
-
-			Dictionary<LinkedAction, Task<ExecuteResults>> ActionToTaskLookup = new();
-
-			Logger.LogInformation($"------ Building {TotalActions} action(s) started ------");
-
-			var Actions = new LinkedAction[TotalActions];
-			var ActionsStatus = new ActionStatus[TotalActions];
-			int Index = 0;
-			foreach (var Action in InputActions)
+			// The "useAutomaticQueue" should always be true unless manual queue is being tested
+			bool useAutomaticQueue = true;
+			if (useAutomaticQueue)
 			{
-				Actions[Index] = Action;
-				ActionsStatus[Index] = ActionStatus.Queued;
-				Action.SortIndex = Index++;
+				using ImmediateActionQueue queue = CreateActionQueue(ActionsToExecute, actionArtifactCache, Logger);
+				int actionLimit = Math.Min(NumParallelProcesses, queue.TotalActions);
+				queue.CreateAutomaticRunner(action => RunAction(queue, action), bUseActionWeights, actionLimit, actionLimit);
+				queue.Start();
+				queue.StartManyActions();
+				return await queue.RunTillDone();
 			}
-
-			var ActiveTasks = new Task<ExecuteResults>[ActualNumParallelProcesses];
-			var ActiveActionIndices = new int[ActualNumParallelProcesses];
-			double MaxParallelProcessWeight = ActualNumParallelProcesses;
-			double ActiveTaskWeight = 0.0;
-			int ActiveTaskCount = 0;
-			bool Success = true;
-			List<float> LoggedCpuUtilization = new List<float>();
-			Stopwatch CpuQueryUtilization = new Stopwatch();
-			CpuQueryUtilization.Start();
-
-			int FirstQueuedAction = 0;
-
-			Task LastLoggingTask = Task.CompletedTask;
-
-			// Loop until all actions has been processed and finished
-			while (!CancellationTokenSource.IsCancellationRequested)
+			else
 			{
-				// Always fill up to allowed number of processes
-				while (bUseActionWeights ? 
-					(ActiveTaskWeight < MaxParallelProcessWeight && ActiveTaskCount < ActualNumParallelProcesses)
-					: ActiveTaskCount < ActualNumParallelProcesses)
-				{
-					// Always traverse from first not started/finished action. We always want to respect the sorting.
-					// Note that there might be multiple actions we need to search passed to find the one we can run next
-					int ActionToRunIndex = -1;
-					bool FoundFirstQueued = false;
-					for (int i = FirstQueuedAction; i!= Actions.Length; ++i)
-					{
-						if (ActionsStatus[i] != ActionStatus.Queued)
-						{
-							continue;
-						}
-
-						if (!FoundFirstQueued) // We found the first queued action, let's move our search start index
-						{
-							FirstQueuedAction = i;
-							FoundFirstQueued = true;
-						}
-
-						// Let's see if all prerequisite actions are finished
-						bool ReadyToRun = true;
-						bool HasError = false;
-						foreach (var Prereq in Actions[i].PrerequisiteActions)
-						{
-							ActionStatus PrereqStatus = ActionsStatus[Prereq.SortIndex];
-							ReadyToRun = ReadyToRun && PrereqStatus == ActionStatus.Finished;
-							HasError = HasError || PrereqStatus == ActionStatus.Error;
-						}
-
-						// Not ready, look for next queued action
-						if (!ReadyToRun)
-						{
-							// If Prereq has error, this action inherits the error
-							if (HasError)
-							{
-								ActionsStatus[i] = ActionStatus.Error;
-								continue;
-							}
-							continue;
-						}
-						ActionToRunIndex = i;
-						break;
-					}
-
-					if (bShowCPUUtilization && CpuQueryUtilization.Elapsed.Seconds > 1)
-					{
-						if (Utils.GetTotalCpuUtilization(out float CpuUtilization))
-						{
-							LoggedCpuUtilization.Add(CpuUtilization);
-						}
-						
-						CpuQueryUtilization.Restart();
-					}
-
-					// Didn't find an action we can run. Either there are none left or all depends on currently running actions
-					if (ActionToRunIndex == -1)
-					{
-						break;
-					}
-
-					// Start new action and add it to the ActiveTasks
-					var ActionToRun = Actions[ActionToRunIndex];
-					Task<ExecuteResults> NewTask = Task.Factory.StartNew(() => RunAction(ActionToRun, ProcessGroup, CancellationToken), CancellationToken, TaskCreationOptions.LongRunning | TaskCreationOptions.PreferFairness, TaskScheduler.Default).Unwrap();
-					ActionToTaskLookup.Add(ActionToRun, NewTask);
-
-					ActiveTasks[ActiveTaskCount] = NewTask;
-					ActionsStatus[ActionToRunIndex] = ActionStatus.Running;
-					ActiveActionIndices[ActiveTaskCount] = ActionToRunIndex;
-					ActiveTaskWeight += ActionToRun.Weight;
-					++ActiveTaskCount;
-				}
-
-				// We tried starting new actions and none was added and none is running, that means that we are done!
-				if (ActiveTaskCount == 0)
-				{
-					break;
-				}
-
-				// Wait for all tasks and continue if any is done.
-				Task<ExecuteResults>[] TasksToWaitOn = ActiveTasks;
-				if (ActiveTaskCount < ActiveTasks.Length)
-				{
-					TasksToWaitOn = new Task<ExecuteResults>[ActiveTaskCount];
-					Array.Copy(ActiveTasks, TasksToWaitOn, ActiveTaskCount);
-				}
-				int ActiveTaskIndex = Task.WaitAny(TasksToWaitOn, Timeout.Infinite, CancellationToken);
-
-				// Timeout? This should never happen.. We have a check here just in case
-				if (ActiveTaskIndex == -1)
-				{
-					Logger.LogError("Task timeout? This should never happen. Report to Epic if you see this");
-					Success = false;
-					break;
-				}
-
-				int FinishedActionIndex = ActiveActionIndices[ActiveTaskIndex];
-				LinkedAction FinishedAction = Actions[FinishedActionIndex];
-
-				Task<ExecuteResults> FinishedTask = ActiveTasks[ActiveTaskIndex];
-				bool ActionSuccess = FinishedTask.Result.ExitCode == 0;
-				ActionsStatus[FinishedActionIndex] = ActionSuccess ? ActionStatus.Finished : ActionStatus.Error;
-
-				// Log (chain log entries together so we don't get annoying overlapping logging)
-				LastLoggingTask = LastLoggingTask.ContinueWith((foo) =>
-				{
-					LogCompletedAction(FinishedAction, FinishedTask, CancellationTokenSource, ProgressWriter, TotalActions, ref NumCompletedActions, Logger);
-				});
-
-				// Swap finished task with last and pop last.
-				--ActiveTaskCount;
-				ActiveTasks[ActiveTaskIndex] = ActiveTasks[ActiveTaskCount];
-				ActiveActionIndices[ActiveTaskIndex] = ActiveActionIndices[ActiveTaskCount];
-				ActiveTaskWeight -= FinishedAction.Weight;
-
-				// Update Success status
-				Success = Success && ActionSuccess;
+				using ImmediateActionQueue queue = CreateActionQueue(ActionsToExecute, actionArtifactCache, Logger);
+				int actionLimit = Math.Min(NumParallelProcesses, queue.TotalActions);
+				ImmediateActionQueueRunner runner = queue.CreateManualRunner(action => RunAction(queue, action), bUseActionWeights, actionLimit, actionLimit);
+				queue.Start();
+				using Timer timer = new((_) => queue.StartManyActions(runner), null, 0, 500);
+				queue.StartManyActions();
+				return await queue.RunTillDone();
 			}
+		}
 
-			// Wait for last logging entry before showing summary
-			LastLoggingTask.Wait();
+		private static System.Action? RunAction(ImmediateActionQueue queue, LinkedAction action)
+		{
+			return async () =>
+			{
+				Task<ExecuteResults> task = RunAction(action, queue.ProcessGroup, queue.CancellationToken);
+				await task;
 
-			// Summary
-			TraceSummary(ActionToTaskLookup, ProcessGroup, Logger, LoggedCpuUtilization);
-
-			return Success;
+				ExecuteResults? results = task.Status == TaskStatus.RanToCompletion ? task.Result : null;
+				bool success = results?.ExitCode == 0;
+				queue.OnActionCompleted(action, success, results);
+			};
 		}
 
 		protected static async Task<ExecuteResults> RunAction(LinkedAction Action, ManagedProcessGroup ProcessGroup, CancellationToken CancellationToken)
@@ -386,180 +235,6 @@ namespace UnrealBuildTool
 			TimeSpan ProcessorTime = Process.TotalProcessorTime;
 			TimeSpan ExecutionTime = Process.ExitTime - Process.StartTime;
 			return new ExecuteResults(LogLines, ExitCode, ExecutionTime, ProcessorTime);
-		}
-
-		private static int s_previousLineLength = -1;
-
-		protected void LogCompletedAction(LinkedAction Action, Task<ExecuteResults> ExecuteTask, CancellationTokenSource CancellationTokenSource, ProgressWriter ProgressWriter, int TotalActions, ref int NumCompletedActions, ILogger Logger)
-		{
-			List<string> LogLines = new List<string>();
-			int ExitCode = int.MaxValue;
-			TimeSpan ExecutionTime = TimeSpan.Zero;
-			TimeSpan ProcessorTime = TimeSpan.Zero;
-			string? AdditionalDescription = null;
-			if (ExecuteTask.Status == TaskStatus.RanToCompletion)
-			{
-				ExecuteResults ExecuteTaskResult = ExecuteTask.Result;
-				LogLines = ExecuteTaskResult.LogLines;
-				ExitCode = ExecuteTaskResult.ExitCode;
-				ExecutionTime = ExecuteTaskResult.ExecutionTime;
-				ProcessorTime = ExecuteTaskResult.ProcessorTime;
-				AdditionalDescription = ExecuteTaskResult.AdditionalDescription;
-			}
-
-			// Write it to the log
-			string Description = string.Empty;
-			if (Action.bShouldOutputStatusDescription || LogLines.Count == 0)
-			{
-				Description = $"{(Action.CommandDescription ?? Action.CommandPath.GetFileNameWithoutExtension())} {Action.StatusDescription}".Trim();
-			}
-			else if (LogLines.Count > 0)
-			{
-				Description = $"{(Action.CommandDescription ?? Action.CommandPath.GetFileNameWithoutExtension())} {LogLines[0]}".Trim();
-			}
-			if (!string.IsNullOrEmpty(AdditionalDescription))
-            {
-				Description = $"{Description} {AdditionalDescription}";
-			}
-
-			lock (ProgressWriter)
-			{
-				int CompletedActions;
-				CompletedActions = Interlocked.Increment(ref NumCompletedActions);
-				ProgressWriter.Write(CompletedActions, TotalActions);
-
-				// Cancelled
-				if (ExitCode == int.MaxValue)
-				{
-					Logger.LogInformation("[{CompletedActions}/{TotalActions}] {Description} cancelled", CompletedActions, TotalActions, Description);
-					return;
-				}
-
-				string TargetDetails = "";
-				TargetDescriptor? Target = Action.Target;
-				if (bPrintActionTargetNames && Target != null)
-				{
-					TargetDetails = $"[{Target.Name} {Target.Platform} {Target.Configuration}]";
-				}
-
-				if (bLogActionCommandLines)
-				{
-					Logger.LogDebug("[{CompletedActions}/{TotalActions}]{TargetDetails} Command: {CommandPath} {CommandArguments}", CompletedActions, TotalActions, TargetDetails, Action.CommandPath, Action.CommandArguments);
-				}
-
-				string CompilationTimes = "";
-
-				if (bShowPerActionCompilationTimes)
-				{
-					if (ProcessorTime.Ticks > 0)
-					{
-						CompilationTimes = $" (Wall: {ExecutionTime.TotalSeconds:0.00}s CPU: {ProcessorTime.TotalSeconds:0.00}s)";
-					}
-					else
-					{
-						CompilationTimes = $" (Wall: {ExecutionTime.TotalSeconds:0.00}s)";
-					}
-				}
-
-				string message = ($"[{CompletedActions}/{TotalActions}]{TargetDetails}{CompilationTimes} {Description}");
-				
-				if (bCompactOutput)
-				{
-					if (s_previousLineLength > 0)
-					{
-						// move the cursor to the far left position, one line back
-						Console.CursorLeft = 0;
-						Console.CursorTop -= 1;
-						// clear the line
-						Console.Write("".PadRight(s_previousLineLength));
-						// move the cursor back to the left, so output is written to the desired location
-						Console.CursorLeft = 0;
-					}
-				}
-
-				s_previousLineLength = message.Length;
-
-				LogEventParser Parser = new LogEventParser(Logger);
-
-				WriteToolOutput(message);
-				foreach (string Line in LogLines.Skip(Action.bShouldOutputStatusDescription ? 0 : 1))
-				{
-					// suppress library creation messages when writing compact output
-					if (bCompactOutput && Line.StartsWith("   Creating library ") && Line.EndsWith(".exp"))
-					{
-						continue;
-					}
-
-					WriteToolOutput(Line);
-
-					// Prevent overwriting of logged lines
-					s_previousLineLength = -1;
-				}
-
-				if (ExitCode != 0)
-				{
-					// BEGIN TEMPORARY TO CATCH PVS-STUDIO ISSUES
-					if (LogLines.Count == 0)
-					{
-						Logger.LogError("{TargetDetails} {Description}: Exited with error code {ExitCode}", TargetDetails, Description, ExitCode);
-						Logger.LogInformation("{TargetDetails} {Description}: WorkingDirectory {WorkingDirectory}", TargetDetails, Description, Action.WorkingDirectory);
-						Logger.LogInformation("{TargetDetails} {Description}: {CommandPath} {CommandArguments}", TargetDetails, Description, Action.CommandPath, Action.CommandArguments);
-					}
-					// END TEMPORARY
-
-					// prevent overwriting of error text
-					s_previousLineLength = -1;
-
-					// Cancel all other pending tasks
-					if (bStopCompilationAfterErrors)
-					{
-						CancellationTokenSource.Cancel();
-					}
-				}
-			}
-		}
-
-		protected static void TraceSummary(Dictionary<LinkedAction, Task<ExecuteResults>> Tasks, ManagedProcessGroup ProcessGroup, ILogger Logger, IList<float>? LoggedCpuUtilization)
-		{
-			if (bShowCPUUtilization && LoggedCpuUtilization != null && LoggedCpuUtilization.Any())
-			{
-				Logger.LogInformation("");
-				Logger.LogInformation("Average CPU Utilization: {CPUPercentage}%",(int)(LoggedCpuUtilization.Average()));
-			}
-
-			if (!bShowCompilationTimes)
-			{
-				return;
-			}
-
-			Logger.LogInformation("");
-			if (ProcessGroup.TotalProcessorTime.Ticks > 0)
-			{
-				Logger.LogInformation("Total CPU Time: {TotalSeconds} s", ProcessGroup.TotalProcessorTime.TotalSeconds);
-				Logger.LogInformation("");
-			}
-
-			var CompletedTasks = Tasks.Where(x => x.Value.Status == TaskStatus.RanToCompletion).OrderByDescending(x => x.Value.Result.ExecutionTime).Take(20);
-
-			if (CompletedTasks.Any())
-			{
-				Logger.LogInformation("Compilation Time Top {CompletedTaskCount}", CompletedTasks.Count());
-				Logger.LogInformation("");
-				foreach (var Pair in CompletedTasks)
-				{
-					string Description = $"{(Pair.Key.Inner.CommandDescription ?? Pair.Key.Inner.CommandPath.GetFileNameWithoutExtension())} {Pair.Key.Inner.StatusDescription}".Trim();
-					if (Pair.Value.Result.ProcessorTime.Ticks > 0)
-					{
-						Logger.LogInformation("{Description} [ Wall Time {ExecutionTime:0.00} s / CPU Time {ProcessorTime:0.00} s ]", Description, Pair.Value.Result.ExecutionTime.TotalSeconds, Pair.Value.Result.ProcessorTime.TotalSeconds);
-					}
-					else
-					{
-						Logger.LogInformation("{Description} [ Time {ExecutionTime:0.00} s ]", Description, Pair.Value.Result.ExecutionTime.TotalSeconds);
-					}
-
-				}
-				Logger.LogInformation("");
-			}
 		}
 	}
 

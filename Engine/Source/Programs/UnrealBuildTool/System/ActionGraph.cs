@@ -19,6 +19,7 @@ using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
 {
@@ -387,7 +388,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Executes a list of actions.
 		/// </summary>
-		public static async Task ExecuteActionsAsync(BuildConfiguration BuildConfiguration, List<LinkedAction> ActionsToExecute, List<TargetDescriptor> TargetDescriptors, ILogger Logger)
+		public static async Task ExecuteActionsAsync(BuildConfiguration BuildConfiguration, List<LinkedAction> ActionsToExecute, List<TargetDescriptor> TargetDescriptors, ILogger Logger, IActionArtifactCache? actionArtifactCache = null)
 		{
 			if (ActionsToExecute.Count == 0)
 			{
@@ -400,7 +401,7 @@ namespace UnrealBuildTool
 
 				// Execute the build
 				Stopwatch Timer = Stopwatch.StartNew();
-				bool Result = await Executor.ExecuteActionsAsync(ActionsToExecute, Logger);
+				bool Result = await Executor.ExecuteActionsAsync(ActionsToExecute, Logger, actionArtifactCache);
 
 				Logger.LogInformation("Total time in {ExecutorName} executor: {TotalSeconds:0.00} seconds", Executor.Name, Timer.Elapsed.TotalSeconds);
 

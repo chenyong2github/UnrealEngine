@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
+using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
 {
@@ -215,7 +216,8 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		public override Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger)
+		/// <inheritdoc/>
+		public override Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger, IActionArtifactCache? actionArtifactCache)
 		{
 			return Task.FromResult(ExecuteActions(ActionsToExecute, Logger));
 		}

@@ -20,6 +20,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
+using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
 {
@@ -396,7 +397,8 @@ namespace UnrealBuildTool
 			Logger.LogInformation("XGEEXPORT: Exported '{OutFile}'", OutFile);
 		}
 
-		public override Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger)
+		/// <inheritdoc/>
+		public override Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger, IActionArtifactCache? actionArtifactCache)
 		{
 			return Task.FromResult(ExecuteActions(ActionsToExecute, Logger));
 		}

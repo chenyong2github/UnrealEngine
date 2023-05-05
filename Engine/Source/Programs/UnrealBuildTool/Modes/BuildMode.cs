@@ -11,6 +11,7 @@ using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
 {
@@ -532,6 +533,10 @@ namespace UnrealBuildTool
 					}
 				}
 
+				// Now that we have the dependencies object, optionally create the artifact cache
+				// For future work
+				IActionArtifactCache? actionArtifactCache = null;
+
 				// Pre-process module interfaces to generate dependency files
 				List<LinkedAction> ModuleDependencyActions = PrerequisiteActions.Where(x => x.ActionType == ActionType.GatherModuleDependencies).ToList();
 				if (ModuleDependencyActions.Count > 0)
@@ -767,7 +772,19 @@ namespace UnrealBuildTool
 
 						using (GlobalTracer.Instance.BuildSpan("ActionGraph.ExecuteActions()").StartActive())
 						{
-							await ActionGraph.ExecuteActionsAsync(BuildConfiguration, MergedActionsToExecute, TargetDescriptors, Logger);
+
+							// We need to wait for the cache to be ready.  If we fail to fetch from the cache for PCH files, they are
+							// non-deterministic and will cause rippled cache misses.  Changing the system to assume a PCH file is the same
+							// if the inputs are the same might be a good way to avoid this issue.
+							if (actionArtifactCache != null && actionArtifactCache.ArtifactCache != null)
+							{
+								await actionArtifactCache.ArtifactCache.WaitForReadyAsync();
+							}
+							await ActionGraph.ExecuteActionsAsync(BuildConfiguration, MergedActionsToExecute, TargetDescriptors, Logger, actionArtifactCache);
+							if (actionArtifactCache != null)
+							{
+								await actionArtifactCache.FlushChangesAsync(default); //ETSTODO
+							}
 						}
 					}
 

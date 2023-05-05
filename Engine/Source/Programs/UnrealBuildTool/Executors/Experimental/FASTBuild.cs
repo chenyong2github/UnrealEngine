@@ -25,6 +25,7 @@ using UnrealBuildBase;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
+using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
 {
@@ -459,8 +460,9 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <inheritdoc/>
 		[SupportedOSPlatform("windows")]
-		public override async Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> Actions, ILogger Logger)
+		public override async Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> Actions, ILogger Logger, IActionArtifactCache? actionArtifactCache)
 		{
 			if (!Actions.Any())
 			{
@@ -479,7 +481,7 @@ namespace UnrealBuildTool
 				return ExecuteBffFile(FASTBuildFilePath, Logger);
 			}
 
-			return await LocalExecutor.ExecuteActionsAsync(Actions, Logger);
+			return await LocalExecutor.ExecuteActionsAsync(Actions, Logger, actionArtifactCache);
 		}
 
 		private void AddText(string StringToWrite)

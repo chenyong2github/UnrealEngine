@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
 {
@@ -72,13 +73,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override string Name => $"hybrid ({LocalExecutor.Name}+{RemoteExecutor.Name})";
 
-		/// <summary>
-		/// Execute the given actions
-		/// </summary>
-		/// <param name="ActionsToExecute">Actions to be executed</param>
-		/// <param name="Logger">Logger for output</param>
-		/// <returns>True if the build succeeded, false otherwise</returns>
-		public override async Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger)
+		/// <inheritdoc/>
+		public override async Task<bool> ExecuteActionsAsync(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger, IActionArtifactCache? actionArtifactCache)
 		{
 			if (!ActionsToExecute.Any())
 			{
@@ -144,13 +140,13 @@ namespace UnrealBuildTool
 			}
 
 			// Execute the remote actions
-			if (RemoteActionsToExecute.Count > 0 && !await RemoteExecutor.ExecuteActionsAsync(RemoteActionsToExecute, Logger))
+			if (RemoteActionsToExecute.Count > 0 && !await RemoteExecutor.ExecuteActionsAsync(RemoteActionsToExecute, Logger, actionArtifactCache))
 			{
 				return false;
 			}
 
 			// Pass all the local actions through to the parallel executor
-			if (LocalActionsToExecute.Count > 0 && !await LocalExecutor.ExecuteActionsAsync(LocalActionsToExecute, Logger))
+			if (LocalActionsToExecute.Count > 0 && !await LocalExecutor.ExecuteActionsAsync(LocalActionsToExecute, Logger, actionArtifactCache))
 			{
 				return false;
 			}
