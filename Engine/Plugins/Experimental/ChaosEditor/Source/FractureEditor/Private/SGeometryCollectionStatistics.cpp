@@ -11,14 +11,16 @@
 namespace GeometryCollectionStatisticsUI
 {
 	static const FName NameLabel(TEXT("Stat"));
-	static const FName ValueLabel(TEXT("Value"));
+	static const FName NumBonesLabel(TEXT("NumBones"));
+	static const FName NumConvexLabel(TEXT("NumConvex"));
 }
 
 class SGeometryCollectionStatisticsRow : public SMultiColumnTableRow<TSharedPtr<int32>>
 {
 	SLATE_BEGIN_ARGS(SGeometryCollectionStatisticsRow) {}
 		SLATE_ARGUMENT(FText, Name)
-		SLATE_ARGUMENT(FText, Value)
+		SLATE_ARGUMENT(FText, NumBones)
+		SLATE_ARGUMENT(FText, NumConvex)
 		SLATE_ARGUMENT(FSlateColor, TextColor)
 	SLATE_END_ARGS()
 
@@ -32,7 +34,8 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 	{
 		Name = InArgs._Name;
-		Value = InArgs._Value;
+		NumBones = InArgs._NumBones;
+		NumConvex = InArgs._NumConvex;
 		TextColor = InArgs._TextColor;
 		SMultiColumnTableRow<TSharedPtr<int32> >::Construct(FSuperRowType::FArguments(), InOwnerTableView);
 	}
@@ -48,9 +51,13 @@ public:
 		{
 			ColumnText = Name;
 		}
-		else if (ColumnName == GeometryCollectionStatisticsUI::ValueLabel)
+		else if (ColumnName == GeometryCollectionStatisticsUI::NumBonesLabel)
 		{
-			ColumnText = Value;
+			ColumnText = NumBones;
+		}
+		else if (ColumnName == GeometryCollectionStatisticsUI::NumConvexLabel)
+		{
+			ColumnText = NumConvex;
 		}
 
 		return SNew(SBox)
@@ -65,12 +72,9 @@ public:
 
 private:
 
-	/** Name of the stat. */
 	FText Name;
-
-	/** Value of the stat. */
-	FText Value;
-
+	FText NumBones;
+	FText NumConvex;
 	FSlateColor TextColor;
 };
 
@@ -86,8 +90,11 @@ void SGeometryCollectionStatistics::Construct(const FArguments& InArgs)
 				SNew(SHeaderRow)
 				+SHeaderRow::Column(GeometryCollectionStatisticsUI::NameLabel)
 				.DefaultLabel(LOCTEXT("NameColumnHeaderName", "Name"))
-				+SHeaderRow::Column(GeometryCollectionStatisticsUI::ValueLabel)
-				.DefaultLabel(LOCTEXT("ValueColumnHeaderName", "Value"))
+				+SHeaderRow::Column(GeometryCollectionStatisticsUI::NumBonesLabel)
+				.DefaultLabel(LOCTEXT("ValueColumnHeaderName", "Num Bones"))
+				+ SHeaderRow::Column(GeometryCollectionStatisticsUI::NumConvexLabel)
+				.DefaultLabel(LOCTEXT("ValueColumnHeaderName", "Num Convex"))
+
 			)
 		];
 }
@@ -113,6 +120,7 @@ void SGeometryCollectionStatistics::SetStatistics(const FGeometryCollectionStati
 		{
 			FText::Format(LOCTEXT("Level", "Level {0}"), FText::AsNumber(Level)),
 			FText::AsNumber(Stats.CountsPerLevel[Level]),
+			FText::AsNumber(Stats.ConvexCountPerLevel[Level]),
 			TextColor
 		};
 		StatItems.Emplace(MakeShared<FStatRow>(MoveTemp(Row)));
@@ -122,6 +130,7 @@ void SGeometryCollectionStatistics::SetStatistics(const FGeometryCollectionStati
 	{
 		FText(LOCTEXT("Embedded", "Embedded")),
 		FText::AsNumber(Stats.EmbeddedCount),
+		FText::AsNumber(0),
 		FSlateColor::UseForeground()
 	};
 	StatItems.Emplace(MakeShared<FStatRow>(MoveTemp(Row)));
@@ -134,7 +143,8 @@ TSharedRef<ITableRow> SGeometryCollectionStatistics::HandleGenerateRow(FListItem
 {	
 	return SNew(SGeometryCollectionStatisticsRow, OwnerTable)
 		.Name(InItem->Name)
-		.Value(InItem->Value)
+		.NumBones(InItem->NumBones)
+		.NumConvex(InItem->NumConvex)
 		.TextColor(InItem->TextColor);
 }
 

@@ -58,6 +58,7 @@
 #include "FractureSelectionTools.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
@@ -2123,7 +2124,8 @@ void FFractureEditorModeToolkit::GetStatisticsSummary(FGeometryCollectionStatist
 
 	if (GeometryCollectionArray.Num() > 0)
 	{
-		TArray<int32> LevelTransformsAll;
+		TArray<uint32> TransformCountPerLevel;
+		TArray<uint32> ConvexCountPerLevel;
 		int32 LevelMax = INT_MIN;
 		int32 EmbeddedCount = 0;
 
@@ -2133,13 +2135,14 @@ void FFractureEditorModeToolkit::GetStatisticsSummary(FGeometryCollectionStatist
 
 			check(GeometryCollection);
 
-			if(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup))
+			if(const TManagedArray<int32>* Levels = GeometryCollection->FindAttribute<int32>("Level", FGeometryCollection::TransformGroup))
 			{
-				const TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+
+				// num transforms per level
 				const TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
 
 				TArray<int32> LevelTransforms;
-				for(int32 Element = 0, NumElement = Levels.Num(); Element < NumElement; ++Element)
+				for(int32 Element = 0, NumElement = Levels->Num(); Element < NumElement; ++Element)
 				{
 					if (SimulationType[Element] == FGeometryCollection::ESimulationTypes::FST_None)
 					{
@@ -2147,7 +2150,7 @@ void FFractureEditorModeToolkit::GetStatisticsSummary(FGeometryCollectionStatist
 					}
 					else
 					{
-						const int32 NodeLevel = Levels[Element];
+						const int32 NodeLevel = (*Levels)[Element];
 						if (LevelTransforms.Num() <= NodeLevel)
 						{
 							LevelTransforms.SetNumZeroed(NodeLevel + 1);
@@ -2156,26 +2159,76 @@ void FFractureEditorModeToolkit::GetStatisticsSummary(FGeometryCollectionStatist
 					}		
 				}
 
-				if (LevelTransformsAll.Num() < LevelTransforms.Num())
+				if (TransformCountPerLevel.Num() < LevelTransforms.Num())
 				{
-					LevelTransformsAll.SetNumZeroed(LevelTransforms.Num());
+					TransformCountPerLevel.SetNumZeroed(LevelTransforms.Num());
 				}
 				for(int32 Level = 0; Level < LevelTransforms.Num(); ++Level)
 				{
-					LevelTransformsAll[Level] += LevelTransforms[Level];
+					TransformCountPerLevel[Level] += LevelTransforms[Level];
 				}
 
 				if(LevelTransforms.Num() > LevelMax)
 				{
 					LevelMax = LevelTransforms.Num();
 				}
+
+				// convex per level
+				// todo(chaos) : should probably share some of this logic with the outliner 
+				TManagedArrayAccessor<TSet<int32>> GCTransformToConvexIndicesAttribute(*GeometryCollection, "TransformToConvexIndices", FGeometryCollection::TransformGroup);
+				if (GCTransformToConvexIndicesAttribute.IsValid())
+				{
+					const TManagedArray<TSet<int32>>& GCTransformToConvexIndices = GCTransformToConvexIndicesAttribute.Get();
+
+					Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(*GeometryCollection);
+					const TArray<int32> TransformIndices = HierarchyFacade.GetTransformArrayInDepthFirstOrder();
+
+					TArray<int32> ConvexCountArray;
+					ConvexCountArray.SetNumZeroed(TransformIndices.Num());
+
+					int32 MaxLevel = 0;
+					for (int32 TransformIndex : TransformIndices)
+					{
+						const int32 ConvexCount = GCTransformToConvexIndices[TransformIndex].Num();
+						if (ConvexCount > 0)
+						{
+							ConvexCountArray[TransformIndex] = ConvexCount;
+						}
+						// if count == 0 then we have already accumulated the children in the parents, no need to do anything
+						// so now just pass it to the direct parent ( we parse the index in a depth first manner ) 
+						const int32 ParentTransformIndex = GeometryCollection->Parent[TransformIndex];
+						if (ParentTransformIndex != INDEX_NONE)
+						{
+							// if parent has no convex then it will be a union of the aggregated children
+							const int32 ParentConvexCount = GCTransformToConvexIndices[ParentTransformIndex].Num();
+							if (ParentConvexCount == 0)
+							{
+								ConvexCountArray[ParentTransformIndex] += ConvexCountArray[TransformIndex];
+							}
+						}
+
+						const int32 Level = (*Levels)[TransformIndex];
+						MaxLevel = FMath::Max(MaxLevel, Level);
+					}
+					ConvexCountPerLevel.SetNumZeroed(MaxLevel + 1);
+					for (int32 TransformIndex = 0; TransformIndex < ConvexCountArray.Num(); TransformIndex++)
+					{
+						const int32 Level = (*Levels)[TransformIndex];
+						ConvexCountPerLevel[Level] += ConvexCountArray[TransformIndex];
+					}
+				}
 			}
 		}
 
+
+
+
 		Stats.CountsPerLevel.Reset();
+		Stats.ConvexCountPerLevel.Reset();
 		for (int32 Level = 0; Level < LevelMax; ++Level)
 		{
-			Stats.CountsPerLevel.Add(LevelTransformsAll[Level]);
+			Stats.CountsPerLevel = TransformCountPerLevel;
+			Stats.ConvexCountPerLevel = ConvexCountPerLevel;
 		}
 
 		Stats.EmbeddedCount = EmbeddedCount;

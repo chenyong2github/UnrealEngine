@@ -10,6 +10,7 @@
 struct FGeometryCollectionStatistics
 {
 	TArray<uint32> CountsPerLevel;
+	TArray<uint32> ConvexCountPerLevel;
 	uint32 EmbeddedCount = 0;
 };
 
@@ -37,7 +38,8 @@ private:
 	struct FStatRow
 	{
 		FText Name;
-		FText Value;
+		FText NumBones;
+		FText NumConvex;
 		FSlateColor TextColor;
 	};
 
