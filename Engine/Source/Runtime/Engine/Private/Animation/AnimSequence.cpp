@@ -30,7 +30,6 @@
 #include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "Animation/AnimCurveCompressionSettings.h"
-#include "Animation/VariableFrameStrippingSettings.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Logging/MessageLog.h"
 #include "DerivedDataCacheInterface.h"
@@ -891,10 +890,6 @@ void UAnimSequence::GetPreloadDependencies(TArray<UObject*>& OutDeps)
 	{
 		OutDeps.Add(BoneCompressionSettings);
 	}
-	if (VariableFrameStrippingSettings != nullptr)
-	{
-		OutDeps.Add(VariableFrameStrippingSettings);
-	}
 }
 
 void UAnimSequence::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -1122,8 +1117,7 @@ void UAnimSequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 		bCompressionAffectingSettingsChanged =   PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, bAllowFrameStripping)
 											  || PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, CompressionErrorThresholdScale)
 											  || PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, BoneCompressionSettings)
-											  || PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, BoneCompressionSettings)
-											  || PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, VariableFrameStrippingSettings);
+											  || PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, BoneCompressionSettings);
 
 		bShouldResample = PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UAnimSequence, PlatformTargetFrameRate) || bChangedRefFrameIndex;
 	}
