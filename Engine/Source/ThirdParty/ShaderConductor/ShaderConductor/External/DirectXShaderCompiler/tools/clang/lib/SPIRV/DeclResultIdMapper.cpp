@@ -2945,11 +2945,10 @@ bool DeclResultIdMapper::createStageVars(
 
       // Negate SV_Position.y if requested
       if (semanticKind == hlsl::Semantic::Kind::Position) {
-        // UE Change Begin: Decorate SV_Position implicitly with invariant
-        // qualifier.
-        spvBuilder.decorateInvariant(varInstr, decl->getLocation());
-        // UE Change End: Decorate SV_Position implicitly with invariant
-        // qualifier.
+        // UE Change Begin: Allow SV_Position to be implicit invariant
+        if (spirvOptions.svPositionimplicitInvariant)
+          spvBuilder.decorateInvariant(varInstr, decl->getLocation());
+        // UE Change End: Allow SV_Position to be implicit invariant
         *value = invertYIfRequested(*value, thisSemantic.loc);
       }
 

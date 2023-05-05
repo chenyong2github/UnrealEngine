@@ -98,7 +98,8 @@ static bool ParseSpirvCrossOptionCommon(spirv_cross::CompilerGLSL::Options& opt,
 {
     PARSE_SPIRVCROSS_OPTION(define, "reconstruct_global_uniforms", opt.reconstruct_global_uniforms);
 	PARSE_SPIRVCROSS_OPTION(define, "force_zero_initialized_variables", opt.force_zero_initialized_variables);
-    return false;
+	PARSE_SPIRVCROSS_OPTION(define, "relax_nan_checks", opt.relax_nan_checks);
+	return false;
 }
 
 static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
@@ -117,7 +118,6 @@ static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, c
 	PARSE_SPIRVCROSS_OPTION(define, "pad_ubo_blocks", opt.pad_ubo_blocks);
 	PARSE_SPIRVCROSS_OPTION(define, "force_temporary", opt.force_temporary);
 	PARSE_SPIRVCROSS_OPTION(define, "force_glsl_clipspace", opt.force_glsl_clipspace);
-	PARSE_SPIRVCROSS_OPTION(define, "relax_nan_checks", opt.relax_nan_checks);
     return false;
 }
 
@@ -126,6 +126,7 @@ static bool ParseSpirvCrossOptionHlsl(spirv_cross::CompilerHLSL::Options& opt, c
     PARSE_SPIRVCROSS_OPTION(define, "reconstruct_semantics", opt.reconstruct_semantics);
     PARSE_SPIRVCROSS_OPTION(define, "reconstruct_cbuffer_names", opt.reconstruct_cbuffer_names);
     PARSE_SPIRVCROSS_OPTION(define, "implicit_resource_binding", opt.implicit_resource_binding);
+	PARSE_SPIRVCROSS_OPTION(define, "preserve_structured_buffers", opt.preserve_structured_buffers);
     return false;
 }
 

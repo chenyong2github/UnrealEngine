@@ -78,7 +78,6 @@ namespace CrossCompiler
 		/** Enable a pass that converts floating point MUL+ADD pairs into FMAs to avoid re-association. */
 		bool bEnableFMAPass = false;
 
-
 		/** Disables scalar block layout for structured buffers. True for Vulkan mobile due to low coverage of 'VK_EXT_scalar_block_layout' extension. */
 		bool bDisableScalarBlockLayout = false;
 
@@ -87,6 +86,9 @@ namespace CrossCompiler
 
 		/** Enables re-mapping of input/output attribute locations to include padding for arrays. */
 		bool bRemapAttributeLocations = false;
+
+		/** Decorate SV_Position implicitly as invariant. This can drastically reduce Z-fighting but also prevent certain optimizations. */
+		bool bSvPositionImplicitInvariant = true;
 
 		/** Preserve storage inputs used for OpenGL */
 		bool bPreserveStorageInput = false;

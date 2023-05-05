@@ -634,6 +634,8 @@ static bool CompileAndProcessD3DShaderFXCExt(
 
 			// Compile HLSL source to SPIR-V binary
 			CrossCompiler::FShaderConductorOptions Options;
+
+			Options.bPreserveStorageInput = true; // Input/output stage variables must match
 			if (bHlslVersion2021)
 			{
 				Options.HlslVersion = 2021;
@@ -655,6 +657,8 @@ static bool CompileAndProcessD3DShaderFXCExt(
 			TargetDesc.CompileFlags.SetDefine(TEXT("reconstruct_cbuffer_names"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("reconstruct_semantics"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("force_zero_initialized_variables"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("relax_nan_checks"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("preserve_structured_buffers"), 1);
 
 			// Patch SPIR-V for workarounds to prevent potential additional FXC failures
 			PatchSpirvForPrecompilation(Spirv);

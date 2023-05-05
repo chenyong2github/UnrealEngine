@@ -370,15 +370,18 @@ namespace CrossCompiler
 		{
 			DxcArgRefs.Add("-fspv-no-scalar-block-layout");
 		}
-
 		if (InOptions.bPreserveStorageInput)
 		{
 			DxcArgRefs.Add("-fspv-preserve-storage-input");
 		}
-        if(InOptions.bForceStorageImageFormat)
+        if (InOptions.bForceStorageImageFormat)
         {
             DxcArgRefs.Add("-fvk-force-storage-image-format");
         }
+		if (InOptions.bSvPositionImplicitInvariant)
+		{
+			DxcArgRefs.Add("-fspv-svposition-implicit-invariant");
+		}
 
 		using ETargetEnvironment = CrossCompiler::FShaderConductorOptions::ETargetEnvironment;
 		switch (InOptions.TargetEnvironment)

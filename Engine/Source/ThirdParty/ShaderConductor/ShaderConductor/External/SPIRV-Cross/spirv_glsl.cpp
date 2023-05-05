@@ -1885,16 +1885,17 @@ bool CompilerGLSL::buffer_is_packing_standard(const SPIRType &type, BufferPackin
 			packed_size = type_to_packed_size(memb_type, member_flags, packing);
 
 		// We only need to care about this if we have non-array types which can straddle the vec4 boundary.
+		uint32_t actual_offset = type_struct_member_offset(type, i);
+
 		if (packing_is_hlsl(packing))
 		{
 			// If a member straddles across a vec4 boundary, alignment is actually vec4.
-			uint32_t begin_word = offset / 16;
-			uint32_t end_word = (offset + packed_size - 1) / 16;
+			uint32_t begin_word = actual_offset / 16;
+			uint32_t end_word = (actual_offset + packed_size - 1) / 16;
 			if (begin_word != end_word)
 				packed_alignment = max(packed_alignment, 16u);
 		}
 
-		uint32_t actual_offset = type_struct_member_offset(type, i);
 		// Field is not in the specified range anymore and we can ignore any further fields.
 		if (actual_offset >= end_offset)
 			break;
@@ -6499,7 +6500,10 @@ void CompilerGLSL::emit_unary_func_op(uint32_t result_type, uint32_t result_id, 
 void CompilerGLSL::emit_binary_func_op(uint32_t result_type, uint32_t result_id, uint32_t op0, uint32_t op1,
                                        const char *op)
 {
-	bool forward = should_forward(op0) && should_forward(op1);
+	// Opaque types (e.g. OpTypeSampledImage) must always be forwarded in GLSL
+	const auto &type = get_type(result_type);
+	bool must_forward = type_is_opaque_value(type);
+	bool forward = must_forward || (should_forward(op0) && should_forward(op1));
 	emit_op(result_type, result_id, join(op, "(", to_unpacked_expression(op0), ", ", to_unpacked_expression(op1), ")"),
 	        forward);
 	inherit_expression_dependencies(result_id, op0);
@@ -9413,6 +9417,11 @@ string CompilerGLSL::access_chain_internal(uint32_t base, const uint32_t *indice
 		check_physical_type_cast(expr, type, physical_type);
 	};
 
+	// UE Change Begin: Support StructuredBuffer in HLSL backend
+	// If we are translating access to a structured buffer, the first subscript '._m0' must be hidden
+	const bool hide_first_subscript = count > 1 && is_user_type_structured(base) ? 1 : 0;
+	// UE Change End: Support StructuredBuffer in HLSL backend
+
 	for (uint32_t i = 0; i < count; i++)
 	{
 		uint32_t index = indices[i];
@@ -9599,34 +9608,39 @@ string CompilerGLSL::access_chain_internal(uint32_t base, const uint32_t *indice
 			if (index >= type->member_types.size())
 				SPIRV_CROSS_THROW("Member index is out of bounds!");
 
-			BuiltIn builtin = BuiltInMax;
-			if (is_member_builtin(*type, index, &builtin) && access_chain_needs_stage_io_builtin_translation(base))
+			// UE Change Begin: Support StructuredBuffer in HLSL backend
+			if (!(hide_first_subscript && i == 0))
 			{
-				if (access_chain_is_arrayed)
+				BuiltIn builtin = BuiltInMax;
+				if (is_member_builtin(*type, index, &builtin) && access_chain_needs_stage_io_builtin_translation(base))
 				{
-					expr += ".";
-					expr += builtin_to_glsl(builtin, type->storage);
+					if (access_chain_is_arrayed)
+					{
+						expr += ".";
+						expr += builtin_to_glsl(builtin, type->storage);
+					}
+					else
+						expr = builtin_to_glsl(builtin, type->storage);
 				}
 				else
-					expr = builtin_to_glsl(builtin, type->storage);
-			}
-			else
-			{
-				// If the member has a qualified name, use it as the entire chain
-				string qual_mbr_name = get_member_qualified_name(type_id, index);
-				if (!qual_mbr_name.empty())
-					expr = qual_mbr_name;
-				else if (flatten_member_reference)
-					expr += join("_", to_member_name(*type, index));
-				else
 				{
-					// Any pointer de-refences for values are handled in the first access chain.
-					// For pointer chains, the pointer-ness is resolved through an array access.
-					// The only time this is not true is when accessing array of SSBO/UBO.
-					// This case is explicitly handled.
-					expr += to_member_reference(base, *type, index, ptr_chain || i != 0);
+					// If the member has a qualified name, use it as the entire chain
+					string qual_mbr_name = get_member_qualified_name(type_id, index);
+					if (!qual_mbr_name.empty())
+						expr = qual_mbr_name;
+					else if (flatten_member_reference)
+						expr += join("_", to_member_name(*type, index));
+					else
+					{
+						// Any pointer de-refences for values are handled in the first access chain.
+						// For pointer chains, the pointer-ness is resolved through an array access.
+						// The only time this is not true is when accessing array of SSBO/UBO.
+						// This case is explicitly handled.
+						expr += to_member_reference(base, *type, index, ptr_chain || i != 0);
+					}
 				}
 			}
+			// UE Change End: Support StructuredBuffer in HLSL backend
 
 			if (has_member_decoration(type->self, index, DecorationInvariant))
 				is_invariant = true;
@@ -15096,6 +15110,11 @@ void CompilerGLSL::flatten_buffer_block(VariableID id)
 bool CompilerGLSL::builtin_translates_to_nonarray(spv::BuiltIn /*builtin*/) const
 {
 	return false; // GLSL itself does not need to translate array builtin types to non-array builtin types
+}
+
+bool CompilerGLSL::is_user_type_structured(uint32_t id) const
+{
+	return false; // GLSL itself does not have structured user type, but HLSL does with StructuredBuffer and RWStructuredBuffer resources.
 }
 
 bool CompilerGLSL::check_atomic_image(uint32_t id)

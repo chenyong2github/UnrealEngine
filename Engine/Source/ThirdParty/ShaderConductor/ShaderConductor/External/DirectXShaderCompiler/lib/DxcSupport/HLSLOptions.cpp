@@ -988,6 +988,10 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
   // UE Change Begin: Allow preserving unused inputs in shaders, used for OpenGL to match input/outputs
   opts.SpirvOptions.preserveStorageInput = Args.hasFlag(OPT_fspv_preserve_storage_input, OPT_INVALID, false);
   // UE Change End: Allow preserving unused inputs in shaders, used for OpenGL to match input/outputs
+  // UE Change Begin: Allow SV_Position to be implicit invariant
+  opts.SpirvOptions.svPositionimplicitInvariant =
+      Args.hasFlag(OPT_fspv_svposition_implicit_invariant, OPT_INVALID, false);
+  // UE Change End: Allow SV_Position to be implicit invariant
   // qualifier for older versions of Metal.
   opts.SpirvOptions.noWarnIgnoredFeatures =
       Args.hasFlag(OPT_Wno_vk_ignored_features, OPT_INVALID, false);

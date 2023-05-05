@@ -146,6 +146,9 @@ public:
 		// Rather than emitting main() for the entry point, use the name in SPIR-V.
 		bool use_entry_point_name = false;
 
+		// Preserve (RW)StructuredBuffer types if the input source was HLSL.
+		bool preserve_structured_buffers = false;
+
 		// UE Change Begin: Reconstruct original name of global cbuffer declarations.
 		bool reconstruct_cbuffer_names = false;
 		// UE Change End: Reconstruct original name of global cbuffer declarations.
@@ -408,6 +411,9 @@ private:
 
 	// Returns true for BuiltInSampleMask because gl_SampleMask[] is an array in SPIR-V, but SV_Coverage is a scalar in HLSL.
 	bool builtin_translates_to_nonarray(spv::BuiltIn builtin) const override;
+
+	// Returns true if the specified ID has a UserTypeGOOGLE decoration for StructuredBuffer or RWStructuredBuffer resources.
+	bool is_user_type_structured(uint32_t id) const override;
 
 	std::vector<TypeID> composite_selection_workaround_types;
 
