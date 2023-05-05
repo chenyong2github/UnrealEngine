@@ -43,6 +43,13 @@ const getStyles: IStyleFunction<IMarkdownStyleProps, IMarkdownStyles> = () => {
                whiteSpace: "pre-wrap",
                padding: 16,
                backgroundColor: dashboard.darktheme ? modeColors.header : modeColors.crumbs
+            },
+            'code': {
+               whiteSpace: "pre-wrap",
+               fontFamily: "Horde Cousine Regular",
+               fontSize: "12px",
+               padding: "3px 6px",
+               backgroundColor: dashboard.darktheme ? modeColors.header : "#f2f2f2"
             }
 
          }
