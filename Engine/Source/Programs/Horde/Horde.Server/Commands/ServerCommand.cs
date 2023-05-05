@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -40,6 +41,7 @@ namespace Horde.Server.Commands
 			using (X509Certificate2? grpcCertificate = ReadGrpcCertificate(_hordeSettings))
 			{
 				using IHost host = CreateHostBuilderWithCert(_args, _config, _hordeSettings, grpcCertificate).Build();
+
 				await host.RunAsync();
 				return 0;
 			}
@@ -47,7 +49,7 @@ namespace Horde.Server.Commands
 
 		static IHostBuilder CreateHostBuilderWithCert(string[] args, IConfiguration config, ServerSettings serverSettings, X509Certificate2? sslCert)
 		{
-			return Host.CreateDefaultBuilder(args)
+			IHostBuilder hostBuilder = Host.CreateDefaultBuilder(args)
 				.UseSerilog()
 				.ConfigureAppConfiguration(builder => builder.AddConfiguration(config))
 				.ConfigureWebHostDefaults(webBuilder =>
@@ -81,6 +83,21 @@ namespace Horde.Server.Commands
 					});
 					webBuilder.UseStartup<Startup>();
 				});
+
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				// Attempt to setup this process as a Windows service. A race condition inside Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceHelpers.IsWindowsService
+				// can result in accessing the parent process after it's terminated, so catch any exceptions that it throws.
+				try
+				{
+					hostBuilder = hostBuilder.UseWindowsService();
+				}
+				catch (InvalidOperationException)
+				{
+				}
+			}
+
+			return hostBuilder;
 		}
 
 		/// <summary>
