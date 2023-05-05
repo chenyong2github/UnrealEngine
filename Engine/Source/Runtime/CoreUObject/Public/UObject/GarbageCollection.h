@@ -24,10 +24,6 @@
 class FProperty;
 class UObject;
 
-#if !defined(UE_WITH_GC)
-#	define UE_WITH_GC	1
-#endif
-
 /** Context sensitive keep flags for garbage collection */
 #define GARBAGE_COLLECTION_KEEPFLAGS	(GIsEditor ? RF_Standalone : RF_NoFlags)
 
