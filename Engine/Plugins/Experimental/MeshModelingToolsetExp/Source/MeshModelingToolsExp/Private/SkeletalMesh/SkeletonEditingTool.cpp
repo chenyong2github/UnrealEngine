@@ -178,19 +178,25 @@ void USkeletonEditingTool::Setup()
 		UGizmoLambdaStateTarget* NewTarget = NewObject<UGizmoLambdaStateTarget>(this);
 		NewTarget->BeginUpdateFunction = [this]()
 		{
-			TGuardValue OperationGuard(Operation, EEditingOperation::Transform);
-			BeginChange();
-		};
-		NewTarget->EndUpdateFunction = [&]()
-		{
-			TGuardValue OperationGuard(Operation, EEditingOperation::Transform);
-			EndChange();
-
-			const IToolsContextQueriesAPI* ToolsContextQueries = GetToolManager()->GetPairedGizmoManager()->GetContextQueriesAPI();
-			check(ToolsContextQueries);
-			if (ToolsContextQueries->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
+			if (GizmoWrapper && GizmoWrapper->CanInteract())
 			{
-				UpdateGizmo();
+				TGuardValue OperationGuard(Operation, EEditingOperation::Transform);
+				BeginChange();
+			}
+		};
+		NewTarget->EndUpdateFunction = [this]()
+		{
+			if (GizmoWrapper && GizmoWrapper->CanInteract())
+			{
+				TGuardValue OperationGuard(Operation, EEditingOperation::Transform);
+				EndChange();
+
+				const IToolsContextQueriesAPI* ToolsContextQueries = GetToolManager()->GetPairedGizmoManager()->GetContextQueriesAPI();
+				check(ToolsContextQueries);
+				if (ToolsContextQueries->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World)
+				{
+					UpdateGizmo();
+				}
 			}
 		};
 		
@@ -367,8 +373,12 @@ void USkeletonEditingTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		EModifierKey::None, EKeys::Escape,
 		[this]()
 		{
-			Operation = EEditingOperation::Select;
-			GetToolManager()->DisplayMessage(LOCTEXT("Select", "Click on a bone to select it."), EToolMessageLevel::UserNotification);
+			if (Operation != EEditingOperation::Select)
+			{
+				Operation = EEditingOperation::Select;
+				UpdateGizmo();
+				GetToolManager()->DisplayMessage(LOCTEXT("Select", "Click on a bone to select it."), EToolMessageLevel::UserNotification);
+			}
 		});
 
 	// register UnParent key

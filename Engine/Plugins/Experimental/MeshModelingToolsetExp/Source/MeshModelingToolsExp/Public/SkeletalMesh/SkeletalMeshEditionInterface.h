@@ -126,6 +126,9 @@ public:
 	PURE_VIRTUAL(USkeletalMeshGizmoWrapperBase::HandleBoneTransform, return;)
 
 	virtual void Clear() PURE_VIRTUAL(USkeletalMeshGizmoWrapperBase::Clear, return;)
+
+	virtual bool CanInteract() const
+	PURE_VIRTUAL(USkeletalMeshGizmoWrapperBase::CanInteract, return false;)
 	
 	virtual bool IsGizmoHit(const FInputDeviceRay& PressPos) const PURE_VIRTUAL(USkeletalMeshGizmoWrapperBase::IsGizmoHit, return false;)
 

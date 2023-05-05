@@ -145,6 +145,15 @@ USkeletalMeshGizmoWrapperBase* USkeletalMeshGizmoContextObject::GetNewWrapper(UI
 	USkeletalMeshGizmoWrapper* GizmoWrapper = NewObject<USkeletalMeshGizmoWrapper>(Outer);
 	GizmoWrapper->TransformGizmo = Gizmo;
 	GizmoWrapper->TransformProxy = SkeletonTransformProxy;
+
+	if (Gizmo->HitTarget)
+	{
+		TWeakObjectPtr<USkeletalMeshGizmoWrapper> WeakWrapper = MakeWeakObjectPtr(GizmoWrapper);
+		Gizmo->HitTarget->Condition = [WeakWrapper](const FInputDeviceRay&)
+		{
+			return WeakWrapper.IsValid() ? WeakWrapper->CanInteract() : false;
+		};
+	}
 	
 	return GizmoWrapper;
 }
@@ -161,6 +170,15 @@ const FGizmoCustomization& USkeletalMeshGizmoContextObject::GetGizmoCustomizatio
 		Customization.SizeCoefficient = 1.5f;
 
 	return Customization;
+}
+
+bool USkeletalMeshGizmoWrapper::CanInteract() const
+{
+	if (!TransformProxy || !TransformGizmo)
+	{
+		return false;
+	}
+	return TransformProxy->IsValid() && TransformGizmo->bVisible; 
 }
 
 bool USkeletalMeshGizmoWrapper::IsGizmoHit(const FInputDeviceRay& PressPos) const

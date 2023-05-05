@@ -59,6 +59,7 @@ public:
 	virtual void HandleBoneTransform(FGetTransform GetTransformFunc, FSetTransform SetTransformFunc) override;
 	virtual void Clear() override;
 
+	virtual bool CanInteract() const override;
 	virtual bool IsGizmoHit(const FInputDeviceRay& PressPos) const override;
 
 	UPROPERTY()
