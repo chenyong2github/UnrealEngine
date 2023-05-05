@@ -268,7 +268,7 @@ class Node;
             attachedDataView.m_unassignedUVs = unassignedUVs.GetData();
             attachedDataView.m_unassignedUVsSize = (size_t)unassignedUVs.Num();
 
-            m_pErrorLog->GetPrivate()->Add( buf, attachedDataView, blockCount==1?ELMT_INFO:ELMT_WARNING, errorContext );
+            m_pErrorLog->GetPrivate()->Add( buf, attachedDataView, ELMT_WARNING, errorContext );
         }
         
         // Assign broken vertices to the first block

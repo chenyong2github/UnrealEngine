@@ -83,6 +83,7 @@ void LayoutOperationUVNormalizedWarning(FMutableGraphGenerationContext& Generati
 	}
 }
 
+
 void SetSurfaceFormat( FMutableGraphGenerationContext& GenerationContext,
 					   mu::FMeshBufferSet& OutVertexBufferFormat, mu::FMeshBufferSet& OutIndexBufferFormat, const FMutableGraphMeshGenerationData& MeshData, 
 					   bool bWithExtraBoneInfluences, bool bWithRealTimeMorphs, bool bWithClothing, bool bWith16BitWeights )
@@ -1019,11 +1020,37 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			FMutableGraphMeshGenerationData MeshData;
 			if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeExt->AddMeshPin()))
 			{
-				AddMeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, MeshData);
+				AddMeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, MeshData, true);
 			}
 
 			if (AddMeshNode)
 			{
+				mu::NodeMeshPtr MeshPtr = AddMeshNode;
+
+				const TArray<UCustomizableObjectLayout*> Layouts = TypedNodeExt->GetLayouts();
+
+				if (Layouts.Num())
+				{
+					//TODO: Implement support for multiple UV channels (e.g. Add warning for vertices which have a block in a layout but not in the other)
+					mu::NodeMeshFragmentPtr MeshFrag = new mu::NodeMeshFragment();
+				
+					MeshFrag->SetMesh(MeshPtr);
+					MeshFrag->SetLayoutOrGroup(0);
+					MeshFrag->SetFragmentType(mu::NodeMeshFragment::FT_LAYOUT_BLOCKS);
+					MeshFrag->SetBlockCount(Layouts[0]->Blocks.Num());
+				
+					for (int i = 0; i < Layouts[0]->Blocks.Num(); ++i)
+					{
+						MeshFrag->SetBlock(i, i);
+					}
+				
+					MeshPtr = MeshFrag;
+				}
+				else
+				{
+					GenerationContext.Compiler->CompilerLog(LOCTEXT("ExtendMaterialLayoutMissing","Skeletal Mesh without Layout Node linked to an Extend Material. A 4x4 layout will be added as default layout."), Node);
+				}
+
 				mu::NodeMeshFormatPtr MeshFormat = new mu::NodeMeshFormat();
 				SetSurfaceFormat( GenerationContext,
 						MeshFormat->GetVertexBuffers(), MeshFormat->GetIndexBuffers(), MeshData,
@@ -1032,7 +1059,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 						GenerationContext.Options.bClothingEnabled,
 						GenerationContext.Options.b16BitBoneWeightsEnabled);
 
-				MeshFormat->SetSource(AddMeshNode.get());
+				MeshFormat->SetSource(MeshPtr.get());
 
 				mu::NodePatchMeshPtr MeshPatch = new mu::NodePatchMesh();
 				MeshPatch->SetAdd(MeshFormat.get());

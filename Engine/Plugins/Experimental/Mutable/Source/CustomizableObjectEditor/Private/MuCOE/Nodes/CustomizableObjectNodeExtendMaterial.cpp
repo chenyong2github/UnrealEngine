@@ -5,7 +5,10 @@
 #include "MaterialTypes.h"
 #include "MuCOE/CustomizableObjectEditor_Deprecated.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
+#include "MuCOE/GraphTraversal.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeCopyMaterial.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 
 class UCustomizableObjectNode;
 class UCustomizableObjectNodeRemapPins;
@@ -159,6 +162,7 @@ UEdGraphPin* UCustomizableObjectNodeExtendMaterial::OutputPin() const
 	return FindPin(TEXT("Material"));
 }
 
+
 void UCustomizableObjectNodeExtendMaterial::SetParentNode(UCustomizableObject* Object, FGuid NodeId)
 {
 	PreSetParentNodeWork(Object, NodeId);
@@ -166,6 +170,32 @@ void UCustomizableObjectNodeExtendMaterial::SetParentNode(UCustomizableObject* O
 	ICustomizableObjectNodeParentedNode::SetParentNode(Object, NodeId);
 	
 	PostSetParentNodeWork(Object, NodeId);
+}
+
+
+TArray<UCustomizableObjectLayout*> UCustomizableObjectNodeExtendMaterial::GetLayouts()
+{
+	TArray<UCustomizableObjectLayout*> Result;
+
+	if (UEdGraphPin* MeshPin = AddMeshPin())
+	{
+		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*MeshPin))
+		{
+			if (const UEdGraphPin* SourceMeshPin = FindMeshBaseSource(*ConnectedPin, false))
+			{
+				if (const UCustomizableObjectNodeSkeletalMesh* MeshNode = Cast<UCustomizableObjectNodeSkeletalMesh>(SourceMeshPin->GetOwningNode()))
+				{
+					Result = MeshNode->GetLayouts(SourceMeshPin);
+				}
+				else if (const UCustomizableObjectNodeTable* TableNode = Cast<UCustomizableObjectNodeTable>(SourceMeshPin->GetOwningNode()))
+				{
+					Result = TableNode->GetLayouts(SourceMeshPin);
+				}
+			}
+		}
+	}
+
+	return Result;
 }
 
 

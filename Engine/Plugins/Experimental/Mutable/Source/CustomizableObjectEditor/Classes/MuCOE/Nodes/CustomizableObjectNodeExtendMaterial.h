@@ -55,6 +55,7 @@ public:
 	// UCustomizableObjectNodeMaterialBase interface
 	virtual UEdGraphPin* OutputPin() const override;
 	virtual void SetParentNode(UCustomizableObject* Object, FGuid NodeId) override;
+	TArray<UCustomizableObjectLayout*> GetLayouts() override;
 	
 	// FCustomizableObjectNodeParentMaterial interface
 	virtual void SaveParentNode(UCustomizableObject* Object, FGuid NodeId) override;

@@ -203,7 +203,7 @@ void SCustomizableObjectNodeLayoutBlocksSelector::OnSelectAll()
 
 			for( const FCustomizableObjectLayoutBlock& Block : Layout->Blocks )
 			{
-				CurrentNode->BlockIds.Add(Block.Id);
+				CurrentNode->BlockIds.AddUnique(Block.Id);
 			}
 
 			BlocksLabel->SetText(FText::FromString(FString::Printf(TEXT("%d blocks selected"), CurrentNode->BlockIds.Num())));
