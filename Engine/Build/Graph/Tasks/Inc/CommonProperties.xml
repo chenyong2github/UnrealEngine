@@ -18,6 +18,7 @@
 	<Property Name="PreflightSuffix" Value=""/>
 	<Property Name="PreflightSuffix" Value="-PF-$(PreflightChange)-$(UE_HORDE_JOBID)" If="$(IsPreflight)"/>
 	<Property Name="CL-String" Value="CL-$(Change)$(PreflightSuffix)"/>
-	<Property Name="BuildName" Value="$(ProjectName)-$(CL-String)"/>
+	<Property Name="BuildNamePath" Value="$(ProjectName)-$(CL-String)"/>
+	<Property Name="BuildVersion" Value="$(ProjectName)-CL-$(Change)"/>
 
 </BuildGraph>
