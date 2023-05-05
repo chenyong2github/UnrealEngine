@@ -95,9 +95,6 @@ public:
 
 	const UE::Chaos::ClothAsset::FClothSimulationProxy* GetClothSimulationProxy() const { return ClothSimulationProxy.Get(); }
 
-	/** Pose the cloth component using component space transforms. */
-	void Pose(const TArray<FTransform>& InComponentSpaceTransforms);
-
 	friend UE::Chaos::ClothAsset::FClothComponentCacheAdapter;
 
 protected:
@@ -128,7 +125,7 @@ protected:
 	//~ End USkinnedMeshComponent Interface
 
 	/** Override this function for setting up custom simulation proxies when the component is registered. */
-	virtual TUniquePtr<UE::Chaos::ClothAsset::FClothSimulationProxy> CreateClothSimulationProxy();
+	virtual TSharedPtr<UE::Chaos::ClothAsset::FClothSimulationProxy> CreateClothSimulationProxy();
 
 private:
 	void StartNewParallelSimulation(float DeltaTime);
@@ -177,5 +174,5 @@ private:
 	TSharedPtr<FManagedArrayCollection> PropertyCollection;
 	TUniquePtr<::Chaos::Softs::FCollectionPropertyFacade> CollectionPropertyFacade;
 
-	TUniquePtr<UE::Chaos::ClothAsset::FClothSimulationProxy> ClothSimulationProxy;
+	TSharedPtr<UE::Chaos::ClothAsset::FClothSimulationProxy> ClothSimulationProxy;
 };

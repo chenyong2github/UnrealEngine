@@ -19,6 +19,10 @@ class UChaosCacheCollection;
 class UChaosClothComponent;
 class UClothTrainingTool;
 
+namespace UE::Chaos::ClothAsset
+{
+	class FClothSimulationDataGenerationProxy;
+};
 
 // @@@@@@@@@ TODO: Change this to whatever makes sense for output
 struct FSkinnedMeshVertices
@@ -128,6 +132,7 @@ private:
 
 	using FTaskType = UE::Geometry::TModelingOpTask<FLaunchSimsOp>;
 	using FExecuterType = UE::Geometry::FAsyncTaskExecuterWithProgressCancel<FTaskType>;
+	using FProxy = UE::Chaos::ClothAsset::FClothSimulationDataGenerationProxy;
 
 	friend class UClothTrainingToolActionProperties;
 

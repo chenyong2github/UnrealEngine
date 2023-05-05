@@ -23,6 +23,7 @@ public class ChaosClothAssetEditorTools : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"RenderCore",
 				"Slate",
 				"SlateCore",
 				"Projects",

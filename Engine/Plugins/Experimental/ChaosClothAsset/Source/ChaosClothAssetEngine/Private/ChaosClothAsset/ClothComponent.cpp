@@ -116,10 +116,10 @@ void UChaosClothComponent::OnRegister()
 	}
 }
 
-TUniquePtr<UE::Chaos::ClothAsset::FClothSimulationProxy> UChaosClothComponent::CreateClothSimulationProxy()
+TSharedPtr<UE::Chaos::ClothAsset::FClothSimulationProxy> UChaosClothComponent::CreateClothSimulationProxy()
 {
 	using namespace UE::Chaos::ClothAsset;
-	return MakeUnique<FClothSimulationProxy>(*this);
+	return MakeShared<FClothSimulationProxy>(*this);
 }
 
 bool UChaosClothComponent::IsSimulationSuspended() const
@@ -163,7 +163,7 @@ void UChaosClothComponent::OnUnregister()
 	Super::OnUnregister();
 
 	// Release cloth simulation
-	ClothSimulationProxy.Reset(nullptr);
+	ClothSimulationProxy.Reset();
 }
 
 bool UChaosClothComponent::IsComponentTickEnabled() const
@@ -386,21 +386,4 @@ bool UChaosClothComponent::ShouldWaitForParallelSimulationInTickComponent() cons
 	static IConsoleVariable* const CVarClothPhysicsWaitForParallelClothTask = IConsoleManager::Get().FindConsoleVariable(TEXT("p.ClothPhysics.WaitForParallelClothTask"));
 
 	return bWaitForParallelTask || (CVarClothPhysicsWaitForParallelClothTask && CVarClothPhysicsWaitForParallelClothTask->GetBool());
-}
-
-void UChaosClothComponent::Pose(const TArray<FTransform>& InComponentSpaceTransforms)
-{
-	const bool bIsInputValid = InComponentSpaceTransforms.Num() == GetComponentSpaceTransforms().Num();
-	ensure(bIsInputValid);
-	if (!bIsInputValid)
-	{
-		return;
-	}
-	GetEditableComponentSpaceTransforms() = InComponentSpaceTransforms;
-	bNeedToFlipSpaceBaseBuffers = true;
-	FinalizeBoneTransform();
-
-	UpdateBounds();
-	MarkRenderTransformDirty();
-	MarkRenderDynamicDataDirty();
 }
