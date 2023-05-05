@@ -985,6 +985,10 @@ namespace Horde.Server.Server
 						}
 					}
 				}
+				catch(OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+				{
+					break;
+				}
 				catch (Exception ex)
 				{
 					_logger.LogWarning(ex, "Exception updating indexes: {Message}", ex.Message);
