@@ -132,6 +132,13 @@ void FDataflowOutput::Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp)
 
 bool FDataflowOutput::EvaluateImpl(Dataflow::FContext& Context) const
 {
+	Dataflow::FContextScopedCallstack Callstack(Context, this);
+	if (Callstack.IsLoopDetected())
+	{ 
+		ensureMsgf(false, TEXT("Connection %s is already in the callstack, this is certainly because of a loop in the graph"), *GetName().ToString());
+		return false;
+	}
+
 	// check if the cache has a valid version
 	if(Context.HasData(CacheKey(), OwningNode->LastModifiedTimestamp))
 	{
@@ -145,5 +152,6 @@ bool FDataflowOutput::EvaluateImpl(Dataflow::FContext& Context) const
 		ensureMsgf(false, TEXT("Failed to evaluate output (%s:%s)"), *OwningNode->GetName().ToString(), *GetName().ToString());
 		return false;
 	}
+
 	return true;
 }

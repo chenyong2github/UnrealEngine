@@ -11,6 +11,9 @@
 class  UDataflow;
 struct FDataflowNode;
 struct FDataflowOutput;
+struct FDataflowConnection;
+
+#define DATAFLOW_EDITOR_EVALUATION WITH_EDITOR
 
 namespace Dataflow
 {
@@ -172,6 +175,29 @@ namespace Dataflow
 		FTimestamp GetTimestamp() const { return Timestamp; }
 		virtual void Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output) = 0;
 		virtual bool Evaluate(const FDataflowOutput& Connection) = 0;
+
+		void PushToCallstack(const FDataflowConnection* Connection);
+		void PopFromCallstack(const FDataflowConnection* Connection);
+		bool IsInCallstack(const FDataflowConnection* Connection) const;
+
+	private:
+#if DATAFLOW_EDITOR_EVALUATION
+		TArray<const FDataflowConnection*> Callstack;
+#endif
+	};
+
+	struct DATAFLOWCORE_API FContextScopedCallstack
+	{
+	public:
+		FContextScopedCallstack(FContext& InContext, const FDataflowConnection* InConnection);
+		~FContextScopedCallstack();
+
+		bool IsLoopDetected() const { return bLoopDetected; }
+
+	private:
+		bool bLoopDetected;
+		FContext& Context;
+		const FDataflowConnection* Connection;
 	};
 
 #define DATAFLOW_CONTEXT_INTERNAL(PARENTTYPE, TYPENAME)														\
