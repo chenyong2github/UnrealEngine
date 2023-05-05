@@ -170,6 +170,7 @@ namespace Horde.Server.Commands.Install
 
 			JsonObject newObj = new JsonObject();
 			newObj[key] = name;
+			array.Add(newObj);
 			return newObj;
 		}
 
