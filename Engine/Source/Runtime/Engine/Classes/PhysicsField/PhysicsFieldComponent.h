@@ -6,6 +6,7 @@
 #include "Field/FieldSystem.h"
 #include "UObject/ObjectMacros.h"
 #include "RHI.h"
+#include "RHIUtilities.h"
 #include "RenderResource.h"
 #include "PrimitiveSceneProxy.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
