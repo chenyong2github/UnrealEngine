@@ -5,6 +5,8 @@
 #include "ContentBrowserDelegates.h"
 #include "Widgets/SCompoundWidget.h"
 
+#define ASSET_TABLE_TREE_VIEW_ENABLED 0 // switch for work in progress / experimental code; to be removed once ready
+
 struct FAssetIdentifier;
 struct FAssetManagerEditorRegistrySource;
 
@@ -35,6 +37,9 @@ public:
 
 	/** Called when the current registry source changes */
 	void SetCurrentRegistrySource(const FAssetManagerEditorRegistrySource* RegistrySource);
+
+	/** Called when tab is closed */
+	void OnClose();
 
 protected:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
@@ -166,4 +171,8 @@ protected:
 	class IAssetRegistry* AssetRegistry;
 	class UAssetManager* AssetManager;
 	class IAssetManagerEditorModule* EditorModule;
+
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+	TSharedPtr<class SAssetTableTreeView> AssetTableTreeView;
+#endif
 };

@@ -24,6 +24,11 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+#include "TreeView/AssetTable.h"
+#include "TreeView/SAssetTableTreeView.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "AssetManagementBrowser"
 
 const FString SAssetAuditBrowser::SettingsIniSection = TEXT("AssetManagementBrowser");
@@ -350,6 +355,12 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 			]
 		];
 
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+	TSharedRef<FAssetTable> AssetTable = MakeShared<FAssetTable>();
+	AssetTable->Reset();
+	AssetTable->SetDisplayName(FText::FromString(TEXT("AssetTable")));
+#endif //ASSET_TABLE_TREE_VIEW_ENABLED
+
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -503,7 +514,23 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 				ContentBrowserModule.Get().CreateAssetPicker(Config)
 			]
 		]
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+		+SVerticalBox::Slot()
+		.FillHeight(1.f)
+		[
+			SNew(SBorder)
+			.Padding(FMargin(3))
+			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				SAssignNew(AssetTableTreeView, SAssetTableTreeView, AssetTable)
+			]
+		]
+#endif //ASSET_TABLE_TREE_VIEW_ENABLED
 	];
+
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+	AssetTableTreeView->RebuildTreeAsync(); // only needed for initial mock data
+#endif
 
 	// Refresh our data sources to make sure we are displaying up to date info otherwise the user will need to 
 	// hit "refresh" every time they open the dialog to be able to trust it
@@ -715,6 +742,40 @@ void SAssetAuditBrowser::RefreshAssetView()
 	}
 
 	SetFilterDelegate.Execute(Filter);
+
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+	// Refresh list of assets for the tree view
+	if (AssetTableTreeView.IsValid())
+	{
+		TSharedPtr<FAssetTable> AssetTable = AssetTableTreeView->GetAssetTable();
+		if (AssetTable.IsValid())
+		{
+			TArray<FAssetTableRow>& Assets = AssetTable->GetAssets();
+			Assets.Reset();
+
+			TArray<FAssetData> SourceAssets;
+			AssetRegistry->GetAssets(Filter, SourceAssets);
+			for (const FAssetData& SourceAsset : SourceAssets)
+			{
+				FAssetTableRow& Asset = Assets.AddDefaulted_GetRef();
+				Asset.Type = SourceAsset.AssetClassPath.ToString();
+				Asset.Name = SourceAsset.AssetName.ToString();
+				Asset.Path = SourceAsset.GetObjectPathString();
+				EditorModule->GetStringValueForCustomColumn(SourceAsset, FPrimaryAssetId::PrimaryAssetTypeTag, Asset.PrimaryType);
+				EditorModule->GetStringValueForCustomColumn(SourceAsset, FPrimaryAssetId::PrimaryAssetNameTag, Asset.PrimaryName);
+				EditorModule->GetIntegerValueForCustomColumn(SourceAsset, IAssetManagerEditorModule::ManagedDiskSizeName, Asset.ManagedDiskSize);
+				EditorModule->GetIntegerValueForCustomColumn(SourceAsset, IAssetManagerEditorModule::DiskSizeName, Asset.DiskSize);
+				EditorModule->GetIntegerValueForCustomColumn(SourceAsset, IAssetManagerEditorModule::StageChunkCompressedSizeName, Asset.StagedCompressedSize);
+				EditorModule->GetIntegerValueForCustomColumn(SourceAsset, IAssetManagerEditorModule::TotalUsageName, Asset.TotalUsageCount);
+				EditorModule->GetStringValueForCustomColumn(SourceAsset, IAssetManagerEditorModule::CookRuleName, Asset.CookRule);
+				EditorModule->GetStringValueForCustomColumn(SourceAsset, IAssetManagerEditorModule::ChunksName, Asset.Chunks);
+				Asset.NativeClass = SourceAsset.AssetClassPath.GetAssetName().ToString();
+			}
+
+			AssetTableTreeView->RebuildTreeAsync();
+		}
+	}
+#endif // ASSET_TABLE_TREE_VIEW_ENABLED
 }
 
 FReply SAssetAuditBrowser::ClearAssets()
@@ -908,6 +969,16 @@ void SAssetAuditBrowser::SetCurrentRegistrySource(const FAssetManagerEditorRegis
 	}
 
 	RefreshAssetView();
+}
+
+void SAssetAuditBrowser::OnClose()
+{
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+	if (AssetTableTreeView.IsValid())
+	{
+		AssetTableTreeView->OnClose();
+	}
+#endif // ASSET_TABLE_TREE_VIEW_ENABLED
 }
 
 #undef LOCTEXT_NAMESPACE

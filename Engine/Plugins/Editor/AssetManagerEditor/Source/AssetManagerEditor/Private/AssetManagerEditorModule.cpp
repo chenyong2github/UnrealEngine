@@ -59,6 +59,10 @@
 #include "ContentBrowserMenuContexts.h"
 #include "IContentBrowserDataModule.h"
 #include "ContentBrowserDataSubsystem.h"
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+#include "Insights/Common/InsightsStyle.h"
+#include "Insights/Filter/ViewModels/Filters.h"
+#endif //ASSET_TABLE_TREE_VIEW_ENABLED
 
 #define LOCTEXT_NAMESPACE "AssetManagerEditor"
 
@@ -425,6 +429,11 @@ void FAssetManagerEditorModule::StartupModule()
 
 	if (GIsEditor && !IsRunningCommandlet())
 	{
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+		UE::Insights::FInsightsStyle::Initialize();
+		UE::Insights::FFilterService::Initialize();
+#endif //ASSET_TABLE_TREE_VIEW_ENABLED
+
 		AuditCmds.Add(IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("AssetManager.AssetAudit"),
 			TEXT("Dumps statistics about assets to the log."),
@@ -599,17 +608,35 @@ void FAssetManagerEditorModule::ShutdownModule()
 		// Cleanup tool menus
 		UToolMenus::UnRegisterStartupCallback(this);
 		UToolMenus::UnregisterOwner(this);
+
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+		UE::Insights::FFilterService::Shutdown();
+		UE::Insights::FInsightsStyle::Shutdown();
+#endif //ASSET_TABLE_TREE_VIEW_ENABLED
 	}
 }
 
 TSharedRef<SDockTab> FAssetManagerEditorModule::SpawnAssetAuditTab(const FSpawnTabArgs& Args)
 {
 	check(UAssetManager::IsInitialized());
-	return SAssignNew(AssetAuditTab, SDockTab)
+
+	TSharedRef<SDockTab> DockTab = SAssignNew(AssetAuditTab, SDockTab)
 		.TabRole(ETabRole::NomadTab)
 		[
 			SAssignNew(AssetAuditUI, SAssetAuditBrowser)
 		];
+
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateLambda([this](TSharedRef<SDockTab>)
+		{
+			if (AssetAuditUI.IsValid())
+			{
+				AssetAuditUI.Pin()->OnClose();
+			}
+		}));
+#endif // ASSET_TABLE_TREE_VIEW_ENABLED
+
+	return DockTab;
 }
 
 TSharedRef<SDockTab> FAssetManagerEditorModule::SpawnReferenceViewerTab(const FSpawnTabArgs& Args)
