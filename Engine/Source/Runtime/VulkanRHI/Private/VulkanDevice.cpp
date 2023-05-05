@@ -1281,8 +1281,11 @@ void FVulkanDevice::InitGPU()
 	}
 
 #if VULKAN_RHI_RAYTRACING
-	check(RayTracingCompactionRequestHandler == nullptr);
-	RayTracingCompactionRequestHandler = new FVulkanRayTracingCompactionRequestHandler(this);
+	if (RHISupportsRayTracing(GMaxRHIShaderPlatform) && GetOptionalExtensions().HasRaytracingExtensions())
+	{
+		check(RayTracingCompactionRequestHandler == nullptr);
+		RayTracingCompactionRequestHandler = new FVulkanRayTracingCompactionRequestHandler(this);
+	}
 #endif
 
 	FVulkanPlatform::SetupImageMemoryRequirementWorkaround(*this);

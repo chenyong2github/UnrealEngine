@@ -1073,7 +1073,10 @@ void FVulkanCommandListContext::RHIBeginFrame()
 	GpuProfiler.BeginFrame();
 
 #if VULKAN_RHI_RAYTRACING
-	Device->GetRayTracingCompactionRequestHandler()->Update(*this);
+	if (GRHISupportsRayTracing)
+	{
+		Device->GetRayTracingCompactionRequestHandler()->Update(*this);
+	}
 #endif
 }
 
