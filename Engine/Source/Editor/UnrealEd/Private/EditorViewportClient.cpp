@@ -5739,19 +5739,20 @@ void FEditorViewportClient::TakeScreenshot(FViewport* InViewport, bool bInValida
 
 	// Read the contents of the viewport into an array.
 	bool bHdrEnabled = InViewport->GetSceneHDREnabled();
+	const FIntRect CaptureRect = FIntRect(0, 0, InViewport->GetRenderTargetTextureSizeXY().X, InViewport->GetRenderTargetTextureSizeXY().Y);
 	
 	if (!bHdrEnabled)
 	{
 		TArray<FColor> RawPixels;
-		RawPixels.SetNum(InViewport->GetSizeXY().X * InViewport->GetSizeXY().Y);
-		if( !InViewport->ReadPixels(RawPixels) )
+		RawPixels.SetNum(CaptureRect.Area());
+		if(!InViewport->ReadPixels(RawPixels, FReadSurfaceDataFlags(RCM_UNorm, CubeFace_MAX), CaptureRect))
 		{
 			// Failed to read the image from the viewport
 			SaveMessagePtr->SetText(NSLOCTEXT( "UnrealEd", "ScreenshotFailedViewport", "Screenshot failed, unable to read image from viewport" ));
 			return;
 		}
 
-		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InViewport->GetSizeXY(), TArray64<FColor>(MoveTemp(RawPixels)));
+		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(InViewport->GetRenderTargetTextureSizeXY(), TArray64<FColor>(MoveTemp(RawPixels)));
 
 		check(PixelData->IsDataWellFormed());
 		ImageTask->PixelData = MoveTemp(PixelData);
@@ -5762,8 +5763,8 @@ void FEditorViewportClient::TakeScreenshot(FViewport* InViewport, bool bInValida
 	else
 	{
 		TArray<FLinearColor> RawPixels;
-		RawPixels.SetNum(InViewport->GetSizeXY().X * InViewport->GetSizeXY().Y);
-		if (!InViewport->ReadLinearColorPixels(RawPixels))
+		RawPixels.SetNum(CaptureRect.Area());
+		if (!InViewport->ReadLinearColorPixels(RawPixels, FReadSurfaceDataFlags(RCM_UNorm, CubeFace_MAX), CaptureRect))
 		{
 			// Failed to read the image from the viewport
 			SaveMessagePtr->SetText(NSLOCTEXT("UnrealEd", "ScreenshotFailedViewport", "Screenshot failed, unable to read image from viewport"));
@@ -5772,7 +5773,7 @@ void FEditorViewportClient::TakeScreenshot(FViewport* InViewport, bool bInValida
 
 		ConvertPixelDataToSCRGB(RawPixels, InViewport->GetDisplayOutputFormat());
 
-		TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(InViewport->GetSizeXY(), TArray64<FLinearColor>(MoveTemp(RawPixels)));
+		TUniquePtr<TImagePixelData<FLinearColor>> PixelData = MakeUnique<TImagePixelData<FLinearColor>>(InViewport->GetRenderTargetTextureSizeXY(), TArray64<FLinearColor>(MoveTemp(RawPixels)));
 
 		check(PixelData->IsDataWellFormed());
 		ImageTask->PixelData = MoveTemp(PixelData);

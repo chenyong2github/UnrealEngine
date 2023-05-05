@@ -2002,7 +2002,7 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 
 		bool bScreenshotSuccessful = false;
 		bool bIsUI = false;
-		FIntVector Size(InViewport->GetSizeXY().X, InViewport->GetSizeXY().Y, 0);
+		FIntVector Size(InViewport->GetRenderTargetTextureSizeXY().X, InViewport->GetRenderTargetTextureSizeXY().Y, 0);
 
 		EDisplayOutputFormat ViewportOutputFormat = InViewport->GetDisplayOutputFormat();
 		bool bHdrEnabled = InViewport->GetSceneHDREnabled();
@@ -2025,12 +2025,12 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 		}
 		else if (bHdrEnabled)
 		{
-			bScreenshotSuccessful = GetViewportScreenShotHDR(InViewport, BitmapHDR);
+			bScreenshotSuccessful = GetViewportScreenShotHDR(InViewport, BitmapHDR, FIntRect(0, 0, Size.X, Size.Y));
 			ConvertPixelDataToSCRGB(BitmapHDR, ViewportOutputFormat);
 		}
 		else
 		{
-			bScreenshotSuccessful = GetViewportScreenShot(InViewport, Bitmap);
+			bScreenshotSuccessful = GetViewportScreenShot(InViewport, Bitmap, FIntRect(0, 0, Size.X, Size.Y));
 		}
 
 		if (bScreenshotSuccessful)
@@ -3759,8 +3759,8 @@ bool UGameViewportClient::HandleScreenshotCommand( const TCHAR* Cmd, FOutputDevi
 
 		FScreenshotRequest::RequestScreenshot(FileName, bShowUI, bAddFilenameSuffix, Viewport->GetSceneHDREnabled());
 
-		GScreenshotResolutionX = Viewport->GetSizeXY().X;
-		GScreenshotResolutionY = Viewport->GetSizeXY().Y;
+		GScreenshotResolutionX = Viewport->GetRenderTargetTextureSizeXY().X;
+		GScreenshotResolutionY = Viewport->GetRenderTargetTextureSizeXY().Y;
 	}
 	return true;
 }
