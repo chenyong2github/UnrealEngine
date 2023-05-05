@@ -169,8 +169,8 @@ void FBlueprintSupport::RegisterDeferredDependenciesInStruct(const UStruct* Stru
 	{
 		const FObjectProperty* Property = It.Key();
 		void* PropertyValue = (void*)It.Value();
-		UObject* ObjectValue = *((UObject**)PropertyValue);
-		
+		TObjectPtr<UObject> ObjectValue = Property->GetObjectPtrPropertyValue(PropertyValue);
+
 		ULinkerPlaceholderExportObject* PlaceholderVal = Cast<ULinkerPlaceholderExportObject>(ObjectValue);
 		ULinkerPlaceholderClass* PlaceholderClass = Cast<ULinkerPlaceholderClass>(ObjectValue);
 
