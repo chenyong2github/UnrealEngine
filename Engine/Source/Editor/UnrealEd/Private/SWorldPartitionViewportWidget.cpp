@@ -13,6 +13,7 @@
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "Styling/AppStyle.h"
 #include "Modules/ModuleManager.h"
+#include "GameFramework/WorldSettings.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionViewportWidget"
 
@@ -87,7 +88,8 @@ EVisibility SWorldPartitionViewportWidget::GetVisibility(UWorld* InWorld)
 		}
 		else
 		{
-			if (WorldPartition->IsEnablingStreamingJustified())
+			const AWorldSettings* WorldSettings = InWorld->GetWorldSettings();
+			if ((WorldSettings != nullptr && !WorldSettings->bHideEnableStreamingWarning) && WorldPartition->IsEnablingStreamingJustified())
 			{
 				Message = LOCTEXT("StreamingDisabledText","Streaming Disabled");
 				Tooltip = LOCTEXT("StreamingDisabledToolTip", "The size of your world has grown enough to justify enabling streaming.");

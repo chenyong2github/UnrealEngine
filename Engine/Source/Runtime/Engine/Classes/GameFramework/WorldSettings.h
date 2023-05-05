@@ -571,6 +571,10 @@ public:
 	uint8 bGenerateSingleClusterForLevel : 1;
 
 #if WITH_EDITORONLY_DATA
+	/** if set to true, this hide the streaming disabled warning available in the viewport */
+	UPROPERTY(EditAnywhere, Category = WorldPartitionSetup, AdvancedDisplay, meta = (EditCondition = "WorldPartition != nullptr"))
+	uint8 bHideEnableStreamingWarning : 1;
+	
 	/** 
 	 * Whether Foliage actors of this world contain their grid size in their name. This should only be changed by UWorldPartitionFoliageBuilder or when creating new worlds so that older worlds are unaffected
 	 * and is used by the UActorPartitionSubsystem to find existing foliage actors by name.

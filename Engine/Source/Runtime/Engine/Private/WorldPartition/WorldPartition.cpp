@@ -1439,7 +1439,7 @@ void UWorldPartition::Tick(float DeltaSeconds)
 					{
 						AllActorsBounds += EditorBounds;
 
-						// Warn the user if the world becomes larger that 4km in any axis
+						// Warn the user if the world becomes larger that WorldExtent in any axis
 						if (AllActorsBounds.GetSize().GetMax() >= UWorldPartition::WorldExtentToEnableStreaming)
 						{
 							bEnablingStreamingJustified = true;

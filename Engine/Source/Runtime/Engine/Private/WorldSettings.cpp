@@ -91,6 +91,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	InstancedFoliageGridSize = DefaultPlacementGridSize = LandscapeSplineMeshesGridSize = 25600;
 	NavigationDataChunkGridSize = 102400;
 	NavigationDataBuilderLoadingCellSize = 102400 * 4;
+	bHideEnableStreamingWarning = false;
 	bIncludeGridSizeInNameForFoliageActors = false;
 	bIncludeGridSizeInNameForPartitionedActors = false;
 #endif
