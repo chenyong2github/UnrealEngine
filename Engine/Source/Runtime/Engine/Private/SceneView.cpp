@@ -888,10 +888,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			UE_LOG(LogMultiView, Fatal, TEXT("Family requires Mobile Multi-View, but it is not supported by the RHI and no fallback is available."));
 		}
 
-		const bool bCaptureOfSorts = bIsSceneCapture || bIsReflectionCapture || bIsPlanarReflection;
-		bIsInstancedStereoEnabled = !bCaptureOfSorts && Aspects.IsInstancedStereoEnabled();
-		bIsMultiViewportEnabled = !bCaptureOfSorts && Aspects.IsInstancedMultiViewportEnabled();
-		bIsMobileMultiViewEnabled = !bCaptureOfSorts && Family && Family->bRequireMultiView && Aspects.IsMobileMultiViewEnabled();
+		const bool bIsSingleViewCapture = (bIsSceneCapture || bIsReflectionCapture) && !bIsPlanarReflection; // Planar reflections have bIsSceneCapture == true, but can have instanced stereo views
+		bIsInstancedStereoEnabled = !bIsSingleViewCapture && Aspects.IsInstancedStereoEnabled();
+		bIsMultiViewportEnabled = !bIsSingleViewCapture && Aspects.IsInstancedMultiViewportEnabled();
+		bIsMobileMultiViewEnabled = !bIsSingleViewCapture && Family && Family->bRequireMultiView && Aspects.IsMobileMultiViewEnabled();
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		bIsMultiViewEnabled = bIsMultiViewportEnabled;	// temporary, as a graceful way to support plugins/licensee mods

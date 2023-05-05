@@ -43,13 +43,10 @@ half4 ComputePlanarReflections(float3 TranslatedWorldPosition, half3 WorldNormal
 		float4 ClipVirtualReflectionSpherePosition = mul(float4(ViewVirtualReflectionSpherePosition, 1), PlanarReflectionStruct.ProjectionWithExtraFOV[ResolvedView.StereoPassIndex]);
 
 		uint EyeIndex = 0;
-
-#if INSTANCED_STEREO
 		if (PlanarReflectionStruct.bIsStereo)
 		{
 			EyeIndex = ResolvedView.StereoPassIndex;
 		}
-#endif
 
 		half2 NDC = clamp(ClipVirtualReflectionSpherePosition.xy / ClipVirtualReflectionSpherePosition.w, -PlanarReflectionStruct.PlanarReflectionScreenBound, PlanarReflectionStruct.PlanarReflectionScreenBound);
 		half2 ViewportUV = NDC * PlanarReflectionStruct.PlanarReflectionScreenScaleBias[EyeIndex].xy + PlanarReflectionStruct.PlanarReflectionScreenScaleBias[EyeIndex].zw;

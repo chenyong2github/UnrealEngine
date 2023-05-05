@@ -115,7 +115,8 @@ void FDefaultXRCamera::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSc
 		FQuat DeviceOrientation;
 		FVector DevicePosition;
 
-		if (TrackingSystem->DoesSupportLateProjectionUpdate() && TrackingSystem->GetStereoRenderingDevice())
+		// Scene captures can use custom projection matrices that should not be overwritten by late update
+		if (TrackingSystem->DoesSupportLateProjectionUpdate() && TrackingSystem->GetStereoRenderingDevice() && !View.bIsSceneCapture)
 		{
 			View.UpdateProjectionMatrix(TrackingSystem->GetStereoRenderingDevice()->GetStereoProjectionMatrix(View.StereoViewIndex));
 		}
@@ -131,8 +132,12 @@ void FDefaultXRCamera::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSc
 				const FVector DeltaPosition = DevicePosition - View.BaseHmdLocation;
 				View.ViewLocation += LocalDeltaControlOrientation.RotateVector(DeltaPosition);
 			}
-		
-			View.UpdateViewMatrix();
+
+			// Planar reflections use mirrored view matrices, handled in UpdatePlanarReflectionContents
+			if (!View.bIsPlanarReflection)
+			{
+				View.UpdateViewMatrix();
+			}
 		}
 	}
 }
@@ -156,6 +161,13 @@ void FDefaultXRCamera::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 void FDefaultXRCamera::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& ViewFamily)
 {
 	check(IsInRenderingThread());
+
+	// Skip HMD rendering and late update of scene primitives when rendering scene captures.
+	// Late update of view matrices is still run in PreRenderView_RenderThead.
+	if (ViewFamily.Views.Num() > 0 && ViewFamily.Views[0]->bIsSceneCapture)
+	{
+		return;
+	}
 
 	{
 		// Backwards compatibility during deprecation phase. Remove once IXRTrackingSystem::RefreshPoses has been removed.
@@ -202,7 +214,10 @@ void FDefaultXRCamera::SetupViewFamily(FSceneViewFamily& InViewFamily)
 	const bool AllowMotionBlur = (CVarAllowMotionBlurInVR && CVarAllowMotionBlurInVR->GetValueOnAnyThread() != 0);
 	const IHeadMountedDisplay* const HMD = TrackingSystem->GetHMDDevice();
 	InViewFamily.EngineShowFlags.MotionBlur = AllowMotionBlur;
-	InViewFamily.EngineShowFlags.HMDDistortion = HMD != nullptr ? HMD->GetHMDDistortionEnabled(InViewFamily.Scene->GetShadingPath()) : false;
+	if (InViewFamily.Views.Num() > 0 && !InViewFamily.Views[0]->bIsSceneCapture)
+	{
+		InViewFamily.EngineShowFlags.HMDDistortion = HMD != nullptr ? HMD->GetHMDDistortionEnabled(InViewFamily.Scene->GetShadingPath()) : false;
+	}
 	InViewFamily.EngineShowFlags.StereoRendering = bCurrentFrameIsStereoRendering;
 	InViewFamily.EngineShowFlags.Rendering = HMD != nullptr ? !HMD->IsRenderingPaused() : true;
 }

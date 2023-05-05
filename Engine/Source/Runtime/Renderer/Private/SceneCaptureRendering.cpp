@@ -625,11 +625,14 @@ void SetupViewFamilyForSceneCapture(
 		ViewInitOptions.SetViewRectangle(SceneCaptureViewInfo.ViewRect);
 		ViewInitOptions.ViewFamily = &ViewFamily;
 		ViewInitOptions.ViewActor = ViewActor;
-		ViewInitOptions.ViewOrigin = SceneCaptureViewInfo.ViewLocation;
+		ViewInitOptions.ViewLocation = SceneCaptureViewInfo.ViewLocation;
+		ViewInitOptions.ViewRotation = SceneCaptureViewInfo.ViewRotation;
+		ViewInitOptions.ViewOrigin = SceneCaptureViewInfo.ViewOrigin;
 		ViewInitOptions.ViewRotationMatrix = SceneCaptureViewInfo.ViewRotationMatrix;
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
 		ViewInitOptions.OverrideFarClippingPlaneDistance = MaxViewDistance;
 		ViewInitOptions.StereoPass = SceneCaptureViewInfo.StereoPass;
+		ViewInitOptions.StereoViewIndex = SceneCaptureViewInfo.StereoViewIndex;
 		ViewInitOptions.SceneViewStateInterface = SceneCaptureComponent->GetViewState(CubemapFaceIndex != INDEX_NONE ? CubemapFaceIndex : ViewIndex);
 		ViewInitOptions.ProjectionMatrix = SceneCaptureViewInfo.ProjectionMatrix;
 		ViewInitOptions.LODDistanceFactor = FMath::Clamp(SceneCaptureComponent->LODDistanceFactor, .01f, 100.0f);
@@ -722,7 +725,7 @@ void SetupViewFamilyForSceneCapture(
 
 		ViewFamily.Views.Add(View);
 
-		View->StartFinalPostprocessSettings(SceneCaptureViewInfo.ViewLocation);
+		View->StartFinalPostprocessSettings(SceneCaptureViewInfo.ViewOrigin);
 
 		// By default, Lumen is disabled in scene captures, but can be re-enabled with the post process settings in the component.
 		View->FinalPostProcessSettings.DynamicGlobalIlluminationMethod = EDynamicGlobalIlluminationMethod::None;
@@ -754,7 +757,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 {
 	FSceneCaptureViewInfo SceneCaptureViewInfo;
 	SceneCaptureViewInfo.ViewRotationMatrix = ViewRotationMatrix;
-	SceneCaptureViewInfo.ViewLocation = ViewLocation;
+	SceneCaptureViewInfo.ViewOrigin = ViewLocation;
 	SceneCaptureViewInfo.ProjectionMatrix = ProjectionMatrix;
 	SceneCaptureViewInfo.StereoPass = EStereoscopicPass::eSSP_FULL;
 	SceneCaptureViewInfo.StereoViewIndex = INDEX_NONE;

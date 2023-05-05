@@ -2844,9 +2844,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			OnBeginRendering_RHIThread(FrameState, ColorSwapchain, DepthSwapchain, EmulationSwapchain);
 		});
 	}
-
-	// Snapshot new poses for late update.
-	UpdateDeviceLocations(false);
 }
 
 void FOpenXRHMD::LocateViews(FPipelinedFrameState& PipelineState, bool ResizeViewsArray)
@@ -2930,6 +2927,11 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 				LogHMD, VeryVerbose, TEXT("Predicted display time went backwards from %lld to %lld"), PipelinedFrameStateRendering.FrameState.predictedDisplayTime, GameFrameState.FrameState.predictedDisplayTime);
 
 			PipelinedFrameStateRendering = GameFrameState;
+
+			// Snapshot new poses for late update.
+			// We do this here instead of in OnBeginRendering_RenderThread in order to have this ready before Scene Captures and Reflection
+			// Captures render, as these may need to use the HMDs location to calculate accurate view matrices.
+			UpdateDeviceLocations(false);
 
 			PipelinedLayerStateRendering.LayerStateFlags = EOpenXRLayerStateFlags::None;
 

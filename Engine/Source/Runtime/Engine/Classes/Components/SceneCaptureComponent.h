@@ -19,6 +19,8 @@ class UPrimitiveComponent;
 struct FSceneCaptureViewInfo
 {
 	FVector ViewLocation;
+	FRotator ViewRotation;
+	FVector ViewOrigin;
 	FMatrix ViewRotationMatrix;
 	FMatrix ProjectionMatrix;
 	FIntRect ViewRect;

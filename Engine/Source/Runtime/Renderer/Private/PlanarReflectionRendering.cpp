@@ -373,16 +373,20 @@ static void UpdatePlanarReflectionContents_RenderThread(
 #else
 		RDG_EVENT_SCOPE(GraphBuilder, "UpdatePlanarReflectionContent_RenderThread");
 #endif
-		// Reflection view late update
+		// Applies late update (if any) to view matrices and re-reflects
 		if (SceneRenderer->Views.Num() > 1)
 		{
 			const FMirrorMatrix MirrorMatrix(MirrorPlane);
 			for (int32 ViewIndex = 0; ViewIndex < SceneRenderer->Views.Num(); ++ViewIndex)
 			{
 				FViewInfo& ReflectionViewToUpdate = SceneRenderer->Views[ViewIndex];
-				const FViewInfo& UpdatedParentView = MainSceneRenderer->Views[ViewIndex];
 
-				ReflectionViewToUpdate.UpdatePlanarReflectionViewMatrix(UpdatedParentView, MirrorMatrix);
+				// Updates view matrices to match new ViewLocation/ViewRotation, un-reflects
+				// Normally performed in late update itself, delayed to here to ensure we don't ever re-reflect without first un-reflecting
+				ReflectionViewToUpdate.UpdateViewMatrix(); 
+
+				// Re-reflects view matrices
+				ReflectionViewToUpdate.UpdatePlanarReflectionViewMatrix(ReflectionViewToUpdate, MirrorMatrix);
 			}
 		}
 
@@ -603,14 +607,24 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 			// Create a mirror matrix and premultiply the view transform by it
 			const FMirrorMatrix MirrorMatrix(MirrorPlane);
 			const FMatrix ViewMatrix(MirrorMatrix * View.ViewMatrices.GetViewMatrix());
-			const FVector ViewLocation = ViewMatrix.InverseTransformPosition(FVector::ZeroVector);
+			const FVector ViewOrigin = ViewMatrix.InverseTransformPosition(FVector::ZeroVector);
 			const FMatrix ViewRotationMatrix = ViewMatrix.RemoveTranslation();
 			const float HalfFOV = FMath::Atan(1.0f / View.ViewMatrices.GetProjectionMatrix().M[0][0]);
 
 			FMatrix ProjectionMatrix;
-			BuildProjectionMatrix(View.UnscaledViewRect.Size(), HalfFOV + FMath::DegreesToRadians(CaptureComponent->ExtraFOV), GNearClippingPlane, ProjectionMatrix);
+			if (CaptureComponent->ExtraFOV == 0.f && MainSceneRenderer.Views.Num() > 1)
+			{
+				// Prefer exact (potentially uneven) stereo projection matrices when no extra FOV is requested
+				ProjectionMatrix = View.ViewMatrices.GetProjectionMatrix();
+			}
+			else
+			{
+				BuildProjectionMatrix(View.UnscaledViewRect.Size(), HalfFOV + FMath::DegreesToRadians(CaptureComponent->ExtraFOV), GNearClippingPlane, ProjectionMatrix);
+			}
 
-			NewView.ViewLocation = ViewLocation;
+			NewView.ViewLocation = View.ViewLocation;
+			NewView.ViewRotation = View.ViewRotation;
+			NewView.ViewOrigin = ViewOrigin;
 			NewView.ViewRotationMatrix = ViewRotationMatrix;
 			NewView.ProjectionMatrix = ProjectionMatrix;
 			NewView.StereoPass = View.StereoPass;
@@ -631,7 +645,9 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 		// Uses the exact same secondary view fraction on the planar reflection as the main viewport.
 		ViewFamily.SecondaryViewFraction = MainSceneRenderer.ViewFamily.SecondaryViewFraction;
 
-		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(FSceneViewExtensionContext(this));
+		FSceneViewExtensionContext ViewExtensionContext(this);
+		ViewExtensionContext.bStereoEnabled = true;
+		ViewFamily.ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
 
 		SetupViewFamilyForSceneCapture(
 			ViewFamily,
@@ -652,9 +668,9 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 		// Disable screen percentage on planar reflection renderer if main one has screen percentage disabled.
 		SceneRenderer->ViewFamily.EngineShowFlags.ScreenPercentage = MainSceneRenderer.ViewFamily.EngineShowFlags.ScreenPercentage;
 
-		for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
+		for (const FSceneViewExtensionRef& Extension : SceneRenderer->ViewFamily.ViewExtensions)
 		{
-			Extension->SetupViewFamily(ViewFamily);
+			Extension->SetupViewFamily(SceneRenderer->ViewFamily);
 		}
 
 		FSceneViewStateInterface* ViewStateInterface = CaptureComponent->GetViewState(0);
@@ -677,9 +693,9 @@ void FScene::UpdatePlanarReflectionContents(UPlanarReflectionComponent* CaptureC
 			ViewInfo.bAllowTemporalJitter = false;
 			ViewInfo.bRenderSceneTwoSided = CaptureComponent->bRenderSceneTwoSided;
 
-			for (const FSceneViewExtensionRef& Extension : ViewFamily.ViewExtensions)
+			for (const FSceneViewExtensionRef& Extension : SceneRenderer->ViewFamily.ViewExtensions)
 			{
-				Extension->SetupView(ViewFamily, ViewInfo);
+				Extension->SetupView(SceneRenderer->ViewFamily, ViewInfo);
 			}
 
 			CaptureComponent->ProjectionWithExtraFOV[ViewIndex] = SceneCaptureViewInfo[ViewIndex].ProjectionMatrix;
