@@ -823,7 +823,8 @@ namespace AutomationScripts
 		{
 			string FileHostParams = "";
 			FileReference ZenStoreMarkerFile = FindZenProjectStoreMarker(Params, SC);
-			if (!Params.CookOnTheFly && !Params.FileServer && ZenStoreMarkerFile == null)
+			bool UseZenServerHost = (ZenStoreMarkerFile != null) && !ShouldCreatePak(Params);
+			if (!Params.CookOnTheFly && !Params.FileServer && !UseZenServerHost)
 			{
 				return FileHostParams;
 			}
