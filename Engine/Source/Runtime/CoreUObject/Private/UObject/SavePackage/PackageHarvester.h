@@ -82,7 +82,7 @@ public:
 	virtual FArchive& operator<<(FSoftObjectPath& Value) override;
 	virtual FArchive& operator<<(FName& Name) override;
 
-	virtual bool ShouldSkipProperty(const FProperty* InProperty) const;
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 
 	/** Return whether the Object and all its Outers are native. */
 	static bool IsObjNative(UObject* InObj);

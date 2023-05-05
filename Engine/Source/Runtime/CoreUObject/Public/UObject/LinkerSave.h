@@ -161,6 +161,7 @@ public:
 	FArchive& operator<<( UObject*& Obj );
 	FArchive& operator<<(FSoftObjectPath& SoftObjectPath);
 	FArchive& operator<<( FLazyObjectPtr& LazyObjectPtr );
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
 	virtual void SetSerializeContext(FUObjectSerializeContext* InLoadContext) override;
 	FUObjectSerializeContext* GetSerializeContext() override;
 	virtual void UsingCustomVersion(const struct FGuid& Guid) override;

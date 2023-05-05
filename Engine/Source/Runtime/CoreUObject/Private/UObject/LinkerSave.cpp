@@ -389,22 +389,9 @@ FArchive& FLinkerSave::operator<<( FName& InName )
 FArchive& FLinkerSave::operator<<( UObject*& Obj )
 {
 	FPackageIndex Save;
-
 	if (Obj)
 	{
-		bool bKeepObject = true;
-		if (TransientPropertyOverrides && !TransientPropertyOverrides->IsEmpty())
-		{
-			const TSet<FProperty*>* Props = TransientPropertyOverrides->Find(CurrentlySavingExportObject);
-			if (Props && Props->Contains(this->GetSerializedProperty()))
-			{
-				bKeepObject = false;
-			}
-		}
-		if (bKeepObject)
-		{
-			Save = MapObject(Obj);
-		}
+		Save = MapObject(Obj);
 	}
 	return *this << Save;
 }
@@ -446,6 +433,20 @@ FArchive& FLinkerSave::operator<<(FLazyObjectPtr& LazyObjectPtr)
 	ID = LazyObjectPtr.GetUniqueID();
 	return *this << ID;
 }
+
+bool FLinkerSave::ShouldSkipProperty(const FProperty* InProperty) const
+{
+	if (TransientPropertyOverrides && !TransientPropertyOverrides->IsEmpty())
+	{
+		const TSet<FProperty*>* Props = TransientPropertyOverrides->Find(CurrentlySavingExportObject);
+		if (Props && Props->Contains(InProperty))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void FLinkerSave::SetSerializeContext(FUObjectSerializeContext* InLoadContext)
 {
 	SaveContext = InLoadContext;
