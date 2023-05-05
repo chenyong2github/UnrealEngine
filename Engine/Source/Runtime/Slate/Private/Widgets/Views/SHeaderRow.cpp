@@ -92,6 +92,7 @@ public:
 					SNew( STextBlock )
 					.TextStyle( FAppStyle::Get(), "NormalText" )
 					.Text( LabelText )
+					.OverflowPolicy(Column.OverflowPolicy)
 				];
 		}
 

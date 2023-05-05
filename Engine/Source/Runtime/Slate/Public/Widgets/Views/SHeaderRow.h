@@ -121,6 +121,7 @@ public:
 			, _InitialSortMode( EColumnSortMode::Ascending )
 			, _SortMode( EColumnSortMode::None )
 			, _OnSort()
+			, _OverflowPolicy( ETextOverflowPolicy::Clip)
 			{}
 			SLATE_ARGUMENT( FName, ColumnId )
 			SLATE_ATTRIBUTE( FText, DefaultLabel )
@@ -155,6 +156,7 @@ public:
 			SLATE_EVENT( FOnSortModeChanged, OnSort )
 
 			SLATE_ATTRIBUTE(bool, ShouldGenerateWidget)
+			SLATE_ARGUMENT(ETextOverflowPolicy, OverflowPolicy)
 		SLATE_END_ARGS()
 
 		FColumn( const FArguments& InArgs )
@@ -175,13 +177,14 @@ public:
 			, HeaderComboVisibility (InArgs._HeaderComboVisibility )
 			, CellHAlignment( InArgs._HAlignCell )
 			, CellVAlignment( InArgs._VAlignCell )
+			, OverflowPolicy(InArgs._OverflowPolicy)
 			, InitialSortMode( InArgs._InitialSortMode )
 			, SortMode( InArgs._SortMode )
 			, SortPriority( InArgs._SortPriority )
 			, OnSortModeChanged( InArgs._OnSort )
 			, ShouldGenerateWidget(InArgs._ShouldGenerateWidget)
 			, bIsVisible(true)
-		{
+			{
 			if ( InArgs._FixedWidth.IsSet() )
 			{
 				Width = InArgs._FixedWidth.GetValue();
@@ -259,6 +262,8 @@ public:
 
 		EHorizontalAlignment CellHAlignment;
 		EVerticalAlignment CellVAlignment;
+
+		ETextOverflowPolicy OverflowPolicy;
 
 		TAttribute< EColumnSortMode::Type > InitialSortMode;
 		TAttribute< EColumnSortMode::Type > SortMode;
