@@ -3524,6 +3524,14 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNet
 				}
 			}
 		}
+		else if (Level == CurrentLevelPendingInvisibility)
+		{
+			// Finish current level pending invisibility without time limit
+			check(Level->bIsBeingRemoved);
+			while (!Level->IncrementalUnregisterComponents(MAX_int32)) {}
+			CurrentLevelPendingInvisibility = nullptr;
+			bFinishRemovingLevel = true;
+		}
 		else
 		{
 			BeginRemoval();
