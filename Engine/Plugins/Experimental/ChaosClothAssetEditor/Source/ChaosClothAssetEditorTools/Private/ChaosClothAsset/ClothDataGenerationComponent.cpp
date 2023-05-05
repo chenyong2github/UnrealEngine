@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "ChaosClothAsset/ClothDataGenerationComponent.h"
 
 namespace UE::Chaos::ClothAsset
