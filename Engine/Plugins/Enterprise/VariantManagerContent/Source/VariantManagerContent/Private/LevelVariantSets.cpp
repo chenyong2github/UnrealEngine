@@ -78,8 +78,10 @@ ULevelVariantSets::ULevelVariantSets(const FObjectInitializer& ObjectInitializer
 #endif
 }
 
-ULevelVariantSets::~ULevelVariantSets()
+
+void ULevelVariantSets::BeginDestroy()
 {
+	Super::BeginDestroy();
 #if WITH_EDITOR
 	UnsubscribeToEditorDelegates();
 	UnsubscribeToDirectorCompiled();

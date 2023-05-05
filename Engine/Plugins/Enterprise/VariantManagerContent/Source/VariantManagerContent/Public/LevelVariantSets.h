@@ -18,9 +18,8 @@ class VARIANTMANAGERCONTENT_API ULevelVariantSets : public UObject
 
 public:
 
-	~ULevelVariantSets();
-
 	// UObject interface
+	virtual void BeginDestroy() override;
 	virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject interface
 
