@@ -107,7 +107,7 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 	: FRequestCluster(InCOTFS)
 {
 	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> BufferPlatforms;
-	if (!COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+	if (!COTFS.bSkipOnlyEditorOnly)
 	{
 		BufferPlatforms = COTFS.PlatformManager->GetSessionPlatforms();
 		BufferPlatforms.Add(CookerLoadingPlatformKey);
@@ -119,7 +119,7 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 		FPackageData& PackageData = *Discovery->PackageData;
 
 		TConstArrayView<const ITargetPlatform*> NewReachablePlatforms;
-		if (COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+		if (COTFS.bSkipOnlyEditorOnly)
 		{
 			NewReachablePlatforms = Discovery->ReachablePlatforms.GetPlatforms(COTFS, &Discovery->Instigator,
 				TConstArrayView<const ITargetPlatform*>(), &BufferPlatforms);
@@ -159,7 +159,7 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 			{
 				// Add it as a hidden dependency so that future platforms discovered as reachable in
 				// the instigator will also be marked as reachable in the dependency.
-				if (COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+				if (COTFS.bSkipOnlyEditorOnly)
 				{
 					FPackageData* InstigatorPackageData = Discovery->Instigator.Referencer.IsNone() ? nullptr
 						: COTFS.PackageDatas->TryAddPackageDataByPackageName(Discovery->Instigator.Referencer);
@@ -961,7 +961,7 @@ void FRequestCluster::FGraphSearch::ExploreVertexEdges(FVertexData& Vertex)
 	if (bFetchAnyTargetPlatform)
 	{
 		EDependencyQuery FlagsForHardDependencyQuery;
-		if (Cluster.COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+		if (Cluster.COTFS.bSkipOnlyEditorOnly)
 		{
 			FlagsForHardDependencyQuery = EDependencyQuery::Game | EDependencyQuery::Hard;
 		}
@@ -979,7 +979,7 @@ void FRequestCluster::FGraphSearch::ExploreVertexEdges(FVertexData& Vertex)
 		}
 		if (Cluster.bAllowSoftDependencies)
 		{
-			// bCanSkipEditorReferencedPackagesWhenCooking does not affect soft dependencies; skip editoronly soft dependencies
+			// bSkipOnlyEditorOnly is always true for soft dependencies; skip editoronly soft dependencies
 			Cluster.AssetRegistry.GetDependencies(PackageName, SoftGameDependencies, EDependencyCategory::Package,
 				EDependencyQuery::Game | EDependencyQuery::Soft);
 
@@ -1438,20 +1438,42 @@ TMap<FPackageData*, TArray<FPackageData*>>& FRequestCluster::FGraphSearch::GetGr
 	return GraphEdges;
 }
 
+void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FPackageData& PackageData,
+	UCookOnTheFlyServer& COTFS, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable)
+{
+	FString LocalDLCPath;
+	bool bLocalErrorOnEngineContentUse = false;
+	bool bLocalAllowUncookedAssetReferences = false;
+	if (!COTFS.IsCookOnTheFlyMode())
+	{
+		UE::Cook::FCookByTheBookOptions& Options = *COTFS.CookByTheBookOptions;
+		bLocalErrorOnEngineContentUse = Options.bErrorOnEngineContentUse;
+		bLocalAllowUncookedAssetReferences = Options.bAllowUncookedAssetReferences;
+	}
+	if (bLocalErrorOnEngineContentUse)
+	{
+		LocalDLCPath = FPaths::Combine(*COTFS.GetBaseDirectoryForDLC(), TEXT("Content"));
+		FPaths::MakeStandardFilename(LocalDLCPath);
+	}
+
+	IsRequestCookable(Platform, PackageData.GetPackageName(), PackageData, *COTFS.PackageDatas,
+		*COTFS.PackageTracker, LocalDLCPath, bLocalErrorOnEngineContentUse, bLocalAllowUncookedAssetReferences,
+		COTFS.bSkipOnlyEditorOnly, OutReason, bOutCookable, bOutExplorable);
+}
+
 void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName PackageName, FPackageData& PackageData,
 	ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable)
 {
 	return IsRequestCookable(Platform, PackageName, PackageData, PackageDatas, PackageTracker,
 		DLCPath, bErrorOnEngineContentUse, bAllowUncookedAssetReferences,
-		COTFS.bCanSkipEditorReferencedPackagesWhenCooking,
+		COTFS.bSkipOnlyEditorOnly,
 		OutReason, bOutCookable, bOutExplorable);
 }
 
 void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName PackageName, FPackageData& PackageData,
 	FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
 	FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences,
-	bool bCanSkipEditorReferencedPackagesWhenCooking,
-	ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable)
+	bool bSkipOnlyEditorOnly, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable)
 {
 	check(Platform != CookerLoadingPlatformKey); // IsRequestCookable should not be called for The CookerLoadingPlatform; it has different rules
 
@@ -1477,7 +1499,7 @@ void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName P
 			OutReason = ESuppressCookReason::NeverCook;
 			bOutCookable = false;
 			bOutExplorable = true;
-			if (bCanSkipEditorReferencedPackagesWhenCooking)
+			if (bSkipOnlyEditorOnly)
 			{
 				bOutExplorable = true;
 			}

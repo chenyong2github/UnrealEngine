@@ -1449,6 +1449,31 @@ FConstructPackageData FPackageData::CreateConstructData()
 	return ConstructData;
 }
 
+TMap<FPackageData*, EInstigator>& FPackageData::CreateOrGetUnsolicited()
+{
+	if (!Unsolicited)
+	{
+		Unsolicited = MakeUnique<TMap<FPackageData*, EInstigator>>();
+	}
+	return *Unsolicited;
+}
+
+TMap<FPackageData*, EInstigator> FPackageData::DetachUnsolicited()
+{
+	TMap<FPackageData*, EInstigator> Result;
+	if (Unsolicited)
+	{
+		Result = MoveTemp(*Unsolicited);
+		Unsolicited.Reset();
+	}
+	return Result;
+}
+
+void FPackageData::ClearUnsolicited()
+{
+	Unsolicited.Reset();
+}
+
 }
 
 FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FConstructPackageData& PackageData)

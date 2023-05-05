@@ -859,3 +859,50 @@ bool LoadFromCompactBinary(FCbFieldView Field, FBeginCookContextForWorker& OutVa
 {
 	return LoadFromCompactBinary(Field, OutValue.PlatformContexts);
 }
+
+FMultiPackageReaderResults GetSaveExportsAndImports(UPackage* Package, UObject* Asset, FSavePackageArgs SaveArgs)
+{
+	uint32 OriginalPackageFlags = Package->GetPackageFlags();
+	ON_SCOPE_EXIT{ Package->SetPackageFlagsTo(OriginalPackageFlags); };
+
+	FPackageWriterToRecord* PackageWriter = new FPackageWriterToRecord(); // SavePackageContext deletes it
+	const ITargetPlatform* TargetPlatform = SaveArgs.SavePackageContext ? SaveArgs.SavePackageContext->TargetPlatform : nullptr;
+	FSavePackageContext SavePackageContext(TargetPlatform, PackageWriter);
+	SaveArgs.SavePackageContext = &SavePackageContext;
+
+	IPackageWriter::FBeginPackageInfo BeginInfo;
+	BeginInfo.PackageName = Package->GetFName();
+	PackageWriter->BeginPackage(BeginInfo);
+
+	FString FileName = Package->GetName();
+	FSavePackageResultStruct SaveResult = GEditor->Save(Package, Asset, *FileName, SaveArgs);
+	FMultiPackageReaderResults Result;
+	Result.Result = SaveResult.Result;
+	if (Result.Result != ESavePackageResult::Success)
+	{
+		return Result;
+	}
+
+	ICookedPackageWriter::FCommitPackageInfo Info;
+	Info.Status = IPackageWriter::ECommitStatus::Success;
+	Info.PackageName = Package->GetFName();
+	Info.WriteOptions = IPackageWriter::EWriteOptions::Write;
+	PackageWriter->CommitPackage(MoveTemp(Info));
+
+	for (int32 MultiOutputIndex = 0; MultiOutputIndex < PackageWriter->SavedRecord.Packages.Num(); ++MultiOutputIndex)
+	{
+		if (MultiOutputIndex > UE_ARRAY_COUNT(Result.Realms))
+		{
+			break;
+		}
+		FPackageReaderResults& Realm = Result.Realms[MultiOutputIndex];
+
+		FMemoryReaderView HeaderArchive(PackageWriter->SavedRecord.Packages[MultiOutputIndex].Buffer.GetView());
+		FPackageReader PackageReader;
+
+		Realm.bValid = PackageReader.OpenPackageFile(&HeaderArchive) &&
+			PackageReader.ReadLinkerObjects(Realm.Exports, Realm.Imports, Realm.SoftPackageReferences);
+	}
+
+	return Result;
+}

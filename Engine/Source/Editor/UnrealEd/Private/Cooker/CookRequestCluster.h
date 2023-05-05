@@ -80,6 +80,8 @@ public:
 		TMap<FPackageData*, TArray<FPackageData*>>& OutRequestGraph);
 
 	static TConstArrayView<FName> GetLocalizationReferences(FName PackageName, UCookOnTheFlyServer& InCOTFS);
+	static void IsRequestCookable(const ITargetPlatform* TargetPlatform, FPackageData& PackageData,
+		UCookOnTheFlyServer& COTFS, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable);
 
 private:
 	struct FGraphSearch;
@@ -317,8 +319,7 @@ private:
 	static void IsRequestCookable(const ITargetPlatform* TargetPlatform, FName PackageName, FPackageData& PackageData,
 		FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
 		FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences,
-		bool bCanSkipEditorReferencedPackagesWhenCooking,
-		ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable);
+		bool bSkipOnlyEditorOnly, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable);
 
 	TArray<FFilePlatformRequest> FilePlatformRequests;
 	TFastPointerMap<FPackageData*, ESuppressCookReason> OwnedPackageDatas;

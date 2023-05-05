@@ -548,6 +548,11 @@ public:
 	/** Marshall this PackageData to a ConstructData that can be used later or on a remote machine to reconstruct it. */
 	FConstructPackageData CreateConstructData();
 
+	/** Only used When IsDebugRecordUnsolicited: storage for the list of unsolicited packages for this package */
+	TMap<FPackageData*, EInstigator>& CreateOrGetUnsolicited();
+	TMap<FPackageData*, EInstigator> DetachUnsolicited();
+	void ClearUnsolicited();
+
 	/**
 	 * Return the platforms for which the given Package has been marked reachable.
 	 * If the package does not exist, return the COTFS's list of Session platforms
@@ -630,6 +635,7 @@ private:
 	TSortedMap<const ITargetPlatform*, FPackagePlatformData, TInlineAllocator<1>> PlatformDatas;
 	TArray<FWeakObjectPtr> CachedObjectsInOuter;
 	FCompletionCallback CompletionCallback;
+	TUniquePtr<TMap<FPackageData*, EInstigator>> Unsolicited;
 	FName PackageName;
 	FName FileName;
 

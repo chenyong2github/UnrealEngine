@@ -861,7 +861,7 @@ void FCookWorkerServer::QueueDiscoveredPackage(FDiscoveredPackageReplication&& D
 
 	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> BufferPlatforms;
 	TConstArrayView<const ITargetPlatform*> DiscoveredPlatforms;
-	if (!COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+	if (!COTFS.bSkipOnlyEditorOnly)
 	{
 		DiscoveredPlatforms = OrderedSessionAndSpecialPlatforms;
 	}

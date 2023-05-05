@@ -158,6 +158,7 @@ namespace UE::Cook
 	class FCookDirector;
 	class FCookWorkerClient;
 	class FCookWorkerServer;
+	class FDiagnostics;
 	class FPackageWriterMPCollector;
 	class FRequestCluster;
 	class FRequestQueue;
@@ -881,6 +882,7 @@ private:
 	 * that predates COTF2?
 	 */
 	bool IsUsingLegacyCookOnTheFlyScheduling() const;
+	bool IsDebugRecordUnsolicited() const;
 
 	/** Update accumulators of editor data and consume editor changes after last cook when starting cooks in the editor. */
 	void BeginCookEditorSystems();
@@ -1418,6 +1420,7 @@ private:
 	 */
 	bool bHybridIterativeEnabled = true;
 	bool bHiddenDependenciesDebug = false;
+	bool bOnlyEditorOnlyDebug = false;
 	bool bHiddenDependenciesClassPathFilterListIsAllowList = true;
 	bool bFirstCookInThisProcessInitialized = false;
 	bool bFirstCookInThisProcess = true;
@@ -1429,7 +1432,7 @@ private:
 	/** Multithreaded synchronization of Pollables, accessible only inside PollablesLock. */
 	bool bPollablesInTick = false;
 	/** Config value that specifies whether the Skip-Only-Editor-Only feature is enabled. */
-	bool bCanSkipEditorReferencedPackagesWhenCooking = false;
+	bool bSkipOnlyEditorOnly = false;
 	/** True if we're running cooklist; tweak output */
 	bool bCookListMode = false;
 
@@ -1500,6 +1503,7 @@ private:
 	friend UE::Cook::FCookGenerationInfo;
 	friend UE::Cook::FCookWorkerClient;
 	friend UE::Cook::FCookWorkerServer;
+	friend UE::Cook::FDiagnostics;
 	friend UE::Cook::FGeneratorPackage;
 	friend UE::Cook::FInitializeConfigSettings;
 	friend UE::Cook::FPackageData;

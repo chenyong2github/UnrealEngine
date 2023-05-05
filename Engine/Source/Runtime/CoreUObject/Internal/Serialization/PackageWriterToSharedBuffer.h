@@ -160,3 +160,16 @@ protected:
 	FPackageWriterRecords Records;
 };
 
+/** A PackageWriter that saves the portions of the SavePackage output to sharedbuffers on a record structure. */
+class FPackageWriterToRecord : public TPackageWriterToSharedBuffer<IPackageWriter>
+{
+public:
+	FPackageWriterRecords::FPackage SavedRecord;
+
+protected:
+	virtual void CommitPackageInternal(FPackageWriterRecords::FPackage&& Record,
+		const FCommitPackageInfo& Info) override
+	{
+		SavedRecord = MoveTemp(Record);
+	}
+};

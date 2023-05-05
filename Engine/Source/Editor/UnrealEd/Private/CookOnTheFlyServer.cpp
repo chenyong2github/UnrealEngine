@@ -20,6 +20,7 @@
 #include "Containers/DirectoryTree.h"
 #include "Containers/RingBuffer.h"
 #include "Cooker/AsyncIODelete.h"
+#include "Cooker/CookDiagnostics.h"
 #include "Cooker/CookDirector.h"
 #include "Cooker/CookMPCollector.h"
 #include "Cooker/CookOnTheFlyServerInterface.h"
@@ -2868,7 +2869,7 @@ void UCookOnTheFlyServer::QueueDiscoveredPackage(UE::Cook::FPackageData& Package
 
 	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> BufferPlatforms;
 	TConstArrayView<const ITargetPlatform*> DiscoveredPlatforms;
-	if (!bCanSkipEditorReferencedPackagesWhenCooking)
+	if (!bSkipOnlyEditorOnly)
 	{
 		BufferPlatforms = PlatformManager->GetSessionPlatforms();
 		BufferPlatforms.Add(CookerLoadingPlatformKey);
@@ -4132,7 +4133,7 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages(TArray<FName>* OutDiscovere
 		{
 			// This load was expected so we do not need to add a hidden dependency for it.
 			// If we are using legacy WhatGetsCookedRules, queue the package for cooking because it was loaded.
-			if (!bCanSkipEditorReferencedPackagesWhenCooking)
+			if (!bSkipOnlyEditorOnly)
 			{
 				QueueDiscoveredPackage(*PackageData, FInstigator(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
 			}
@@ -4150,7 +4151,15 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages(TArray<FName>* OutDiscovere
 			// we will add the hidden dependency for it.
 			// as reachable in all of its instigator's reachable platforms
 			QueueDiscoveredPackage(*PackageData, FInstigator(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
-			// TODO: Add diagnostics for this unexpected load
+
+			if (IsDebugRecordUnsolicited() && !Instigator.Referencer.IsNone())
+			{
+				FPackageData* InstigatorPackage = PackageDatas->TryAddPackageDataByPackageName(Instigator.Referencer);
+				if (InstigatorPackage && InstigatorPackage != PackageData)
+				{
+					InstigatorPackage->CreateOrGetUnsolicited().FindOrAdd(PackageData, Instigator.Category);
+				}
+			}
 		}
 	}
 }
@@ -4175,6 +4184,7 @@ private: // Used only by UCookOnTheFlyServer, which has private access
 	UCookOnTheFlyServer& COTFS;
 	FPackageData& PackageData;
 	TArrayView<const ITargetPlatform*> PlatformsForPackage;
+	TSet<FPackageData*> SaveReferences;
 	FTickStackData& StackData;
 	UPackage* Package;
 	const FString PackageName;
@@ -5697,7 +5707,8 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 		UE_ADD_CUSTOM_COOKTIMER_META(SaveCookedPackage, PackageName, *WriteToString<256>(Context.PackageData.GetFileName()));
 
 	UPackage* Package = Context.Package;
-	uint32 OriginalPackageFlags = Package->GetPackageFlags();
+	FOnScopeExit ScopedPackageFlags([Package, OriginalPackageFlags = Package->GetPackageFlags()]()
+		{ Package->SetPackageFlagsTo(OriginalPackageFlags); });
 
 	Context.SetupPackage();
 
@@ -5708,7 +5719,6 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 	TGuardValue<bool> ScopedIsSavingPackage(bIsSavingPackage, true);
 	// For legacy reasons we set GIsCookerLoadingPackage == true during save. Some classes use it to conditionally execute cook operations in both save and load
 	TGuardValue<bool> ScopedIsCookerLoadingPackage(GIsCookerLoadingPackage, true);
-	ON_SCOPE_EXIT{ Package->SetPackageFlagsTo(OriginalPackageFlags); };
 
 	bool bFirstPlatform = true;
 	for (const ITargetPlatform* TargetPlatform : Context.PlatformsForPackage)
@@ -5764,7 +5774,14 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 		bFirstPlatform = false;
 	}
 
+	// Need to restore flags before calling FinishPackage because it might need to save again
+	ScopedPackageFlags.ExitEarly();
 	Context.FinishPackage();
+}
+
+bool UCookOnTheFlyServer::IsDebugRecordUnsolicited() const
+{
+	return bOnlyEditorOnlyDebug;
 }
 
 namespace UE::Cook
@@ -6055,24 +6072,25 @@ void FSaveCookedPackageContext::FinishPlatform()
 			MoveTemp(OverrideAssetPackageData), MoveTemp(OverridePackageDependencies));
 	}
 
-	if (COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+	if (bSuccessful && COTFS.bSkipOnlyEditorOnly)
 	{
 		// If the save succeeded, add the imports and softobjectpaths from the save to the cook for the platform
-		if (bSuccessful)
+		FName PackageFName = Package->GetFName();
+		TConstArrayView<const ITargetPlatform*> ReachablePlatforms(&TargetPlatform, 1);
+		for (const TArray<FName>& DependencyNames : { SavePackageResult.ImportPackages, SavePackageResult.SoftPackageReferences })
 		{
-			FName PackageFName = Package->GetFName();
-			TConstArrayView<const ITargetPlatform*> ReachablePlatforms(&TargetPlatform, 1);
-			for (const TArray<FName>& DependencyNames : { SavePackageResult.ImportPackages, SavePackageResult.SoftPackageReferences })
+			EInstigator InstigatorType = &DependencyNames == &SavePackageResult.ImportPackages ?
+				EInstigator::SaveTimeHardDependency : EInstigator::SaveTimeSoftDependency;
+			for (FName DependencyName : DependencyNames)
 			{
-				EInstigator InstigatorType = &DependencyNames == &SavePackageResult.ImportPackages ?
-					EInstigator::SaveTimeHardDependency : EInstigator::SaveTimeSoftDependency;
-				for (FName DependencyName : DependencyNames)
+				UE::Cook::FPackageData* DependencyData = COTFS.PackageDatas->TryAddPackageDataByPackageName(DependencyName);
+				if (DependencyData)
 				{
-					UE::Cook::FPackageData* DependencyData = COTFS.PackageDatas->TryAddPackageDataByPackageName(DependencyName);
-					if (DependencyData)
+					COTFS.QueueDiscoveredPackage(*DependencyData,
+						UE::Cook::FInstigator(InstigatorType, PackageFName), FDiscoveredPlatformSet(ReachablePlatforms));
+					if (COTFS.IsDebugRecordUnsolicited())
 					{
-						COTFS.QueueDiscoveredPackage(*DependencyData,
-							UE::Cook::FInstigator(InstigatorType, PackageFName), FDiscoveredPlatformSet(ReachablePlatforms));
+						SaveReferences.Add(DependencyData);
 					}
 				}
 			}
@@ -6127,9 +6145,9 @@ void FSaveCookedPackageContext::FinishPackage()
 {
 	// Add soft references discovered from the package
 	FName PackageFName = Package->GetFName();
+	TConstArrayView<const ITargetPlatform*> ReachablePlatforms = PlatformsForPackage;
 	if (!COTFS.CookByTheBookOptions->bSkipSoftReferences)
 	{
-		TConstArrayView<const ITargetPlatform*> ReachablePlatforms = PlatformsForPackage;
 		// Also request any localized variants of this package
 		for (FName LocalizedPackageName : FRequestCluster::GetLocalizationReferences(PackageFName, COTFS))
 		{
@@ -6142,8 +6160,8 @@ void FSaveCookedPackageContext::FinishPackage()
 			}
 		}
 
-		// Add SoftObjectPaths to the cook. This has to be done after the package save to catch any SoftObjectPaths that were added during save.
-		// ONLYEDITORONLY_TODO: Read the list of SoftPackagePaths in FinishPlatform out of the SavePackage results instead
+		// When using legacy WhatGetsCookedRules, add all the SoftObjectPaths discovered during the package's load, plus any added on
+		// during save, to the cook for all platforms
 		TSet<FName> SoftObjectPackages;
 		GRedirectCollector.ProcessSoftObjectPathPackageList(PackageFName, false /* bGetEditorOnly */, SoftObjectPackages);
 		for (FName SoftObjectPackage : SoftObjectPackages)
@@ -6162,18 +6180,25 @@ void FSaveCookedPackageContext::FinishPackage()
 			UE::Cook::FPackageData* SoftObjectPackageData = COTFS.PackageDatas->TryAddPackageDataByPackageName(SoftObjectPackage);
 			if (SoftObjectPackageData)
 			{
-				if (!COTFS.bCanSkipEditorReferencedPackagesWhenCooking)
+				if (!COTFS.bSkipOnlyEditorOnly)
 				{
 					COTFS.QueueDiscoveredPackage(*SoftObjectPackageData,
 						UE::Cook::FInstigator(UE::Cook::EInstigator::SoftDependency, PackageFName),
 						FDiscoveredPlatformSet(ReachablePlatforms));
 				}
-				else
+
+				if (COTFS.IsDebugRecordUnsolicited())
 				{
-					// TODO: Add OnlyEditorOnly diagnostic
+					PackageData.CreateOrGetUnsolicited().Add(SoftObjectPackageData, EInstigator::SoftDependency);
 				}
 			}
 		}
+	}
+	if (COTFS.bOnlyEditorOnlyDebug)
+	{
+		COTFS.ProcessUnsolicitedPackages();
+		FDiagnostics::AnalyzeOnlyEditorOnlySave(COTFS, PackageData, PackageData.DetachUnsolicited(),
+			SaveReferences, ReachablePlatforms);
 	}
 
 	if (!bHasRetryErrorCode)
@@ -6511,9 +6536,19 @@ void UCookOnTheFlyServer::SetInitializeConfigSettings(UE::Cook::FInitializeConfi
 
 	// The rest of this function parses config settings that are reparsed on every CookDirector and CookWorker rather than
 	// being replicated from CookDirector to CookWorker
-	bCanSkipEditorReferencedPackagesWhenCooking = UE::SavePackageUtilities::CanSkipEditorReferencedPackagesWhenCooking();
 
 	// Debugging hidden dependencies
+	bOnlyEditorOnlyDebug = FParse::Param(FCommandLine::Get(), TEXT("OnlyEditorOnlyDebug"));
+	bSkipOnlyEditorOnly = false;
+	GConfig->GetBool(TEXT("CookSettings"), TEXT("OnlyEditorOnly"), bSkipOnlyEditorOnly, GEditorIni);
+	bSkipOnlyEditorOnly |= FParse::Param(FCommandLine::Get(), TEXT("OnlyEditorOnly"));
+	bSkipOnlyEditorOnly |= bOnlyEditorOnlyDebug;
+	if (bSkipOnlyEditorOnly)
+	{
+		UE_LOG(LogCook, Display,
+			TEXT("OnlyEditorOnly is enabled, unsolicited packages will not be cooked unless they are referenced from the cooked version of the instigator package."));
+	}
+
 	bHiddenDependenciesDebug = FParse::Param(FCommandLine::Get(), TEXT("HiddenDependenciesDebug"));
 	if (bHiddenDependenciesDebug)
 	{

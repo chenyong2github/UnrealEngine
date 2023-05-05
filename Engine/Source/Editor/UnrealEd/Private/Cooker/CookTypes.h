@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetRegistry/PackageReader.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
@@ -580,3 +581,55 @@ LLM_DECLARE_TAG(Cooker);
 extern float GCookProgressWarnBusyTime;
 
 inline constexpr float TickCookableObjectsFrameTime = .100f;
+
+/**
+ * Scoped struct to run a function when leaving the scope. The same purpose as ON_SCOPE_EXIT, 
+ * but it can also be triggered early.
+ */
+struct FOnScopeExit
+{
+public:
+	explicit FOnScopeExit(TUniqueFunction<void()>&& InExitFunction)
+		:ExitFunction(MoveTemp(InExitFunction))
+	{
+	}
+	~FOnScopeExit()
+	{
+		ExitEarly();
+	}
+	void ExitEarly()
+	{
+		if (ExitFunction)
+		{
+			ExitFunction();
+			ExitFunction.Reset();
+		}
+	}
+	void Abandon()
+	{
+		ExitFunction.Reset();
+	}
+private:
+	TUniqueFunction<void()> ExitFunction;
+};
+/**
+ * The linker results for a single realm of a package save
+ * (e.g. the main package or the optional package that extends the main package for optionally packaged data)
+ */
+struct FPackageReaderResults
+{
+	TMap<FSoftObjectPath, FPackageReader::FObjectData> Exports;
+	TMap<FSoftObjectPath, FPackageReader::FObjectData> Imports;
+	TMap<FName, bool> SoftPackageReferences;
+	bool bValid = false;
+};
+
+/** The linker results of saving a package. A SavePackage can have multiple outputs (for e.g. optional realm). */
+struct FMultiPackageReaderResults
+{
+	FPackageReaderResults Realms[2];
+	ESavePackageResult Result;
+};
+
+/** Save the package and read the LinkerTables of its saved data. */
+FMultiPackageReaderResults GetSaveExportsAndImports(UPackage* Package, UObject* Asset, FSavePackageArgs SaveArgs);
