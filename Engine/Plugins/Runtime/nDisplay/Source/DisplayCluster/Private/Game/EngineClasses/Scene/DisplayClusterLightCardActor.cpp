@@ -185,6 +185,11 @@ void ADisplayClusterLightCardActor::Tick(float DeltaSeconds)
 	}
 }
 
+void ADisplayClusterLightCardActor::Destroyed()
+{
+	RemoveFromRootActor();
+}
+
 #if WITH_EDITOR
 
 void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -760,10 +765,30 @@ void ADisplayClusterLightCardActor::RemoveFromRootActor()
 #if WITH_EDITOR
 	Modify();
 #endif
+
+
+	if (ADisplayClusterRootActor* RootActorOwner = GetRootActorOwner())
+	{
+		// Remove this from the list of LCs for the owning root actor
+		RemoveFromRootActorList(RootActorOwner);
+	}
+	else
+	{
+		// This may be a legacy LC, so we need to check if any root actors in the scene own it and remove it from their lists if so
+		if (const UWorld* World = GetWorld())
+		{
+			for (TActorIterator<ADisplayClusterRootActor> Iter(World); Iter; ++Iter)
+			{
+				RemoveFromRootActorList(*Iter);
+			}
+		}
+	}
+
 	if (StageActorComponent)
 	{
 		StageActorComponent->SetRootActor(nullptr);
 	}
+
 	WeakRootActorOwner.Reset();
 }
 
@@ -1009,10 +1034,30 @@ void ADisplayClusterLightCardActor::CleanUpComponentsForExtenders()
 	}
 }
 
+void ADisplayClusterLightCardActor::RemoveFromRootActorList(ADisplayClusterRootActor* RootActor)
+{
+	if (!RootActor)
+	{
+		return;
+	}
+
+	if (UDisplayClusterConfigurationData* CurrentData = RootActor->GetConfigData())
+	{
+		for (auto Iter = CurrentData->StageSettings.Lightcard.ShowOnlyList.Actors.CreateIterator(); Iter; ++Iter)
+		{
+			if (Iter->Get() == this)
+			{
+				Iter.RemoveCurrent();
+			}
+		}
+	}
+}
+
 #if WITH_EDITOR
 void ADisplayClusterLightCardActor::OnLevelActorDeleted(AActor* DeletedActor)
 {
-	if (DeletedActor && StageActorComponent && Cast<ADisplayClusterRootActor>(DeletedActor) == StageActorComponent->GetRootActor().Get())
+	ADisplayClusterRootActor* RootActorOwner = GetRootActorOwner();
+	if (DeletedActor && RootActorOwner && StageActorComponent && Cast<ADisplayClusterRootActor>(DeletedActor) == RootActorOwner)
 	{
 		RemoveFromRootActor();
 	}

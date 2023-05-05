@@ -75,6 +75,7 @@ public:
 	virtual void PostLoad() override;
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void Tick(float DeltaSeconds) override;
+	virtual void Destroyed() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -301,6 +302,9 @@ protected:
 
 	/** Removes components that were added by IDisplayClusterLightCardActorExtender */
 	void CleanUpComponentsForExtenders();
+
+	/** Removes this actor from a root actor's ShowOnlyList.Actors, if possible. */
+	void RemoveFromRootActorList(ADisplayClusterRootActor* RootActor);
 
 #if WITH_EDITOR
 	/** Called when a level actor is deleted */
