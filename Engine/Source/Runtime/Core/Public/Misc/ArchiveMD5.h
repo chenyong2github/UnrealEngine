@@ -50,6 +50,13 @@ public:
 		Hash.Set(MD5);
 	}
 
+	FGuid GetGuidFromHash()
+	{
+		FMD5Hash MD5Hash;
+		GetHash(MD5Hash);
+		return MD5HashToGuid(MD5Hash);
+	}
+
 protected:
 	FMD5 MD5;
 };
