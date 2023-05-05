@@ -429,6 +429,10 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API FString MaterialAllPurposeText; // Text to show on UI for "allPurpose", as its value is actually the empty string
 	extern UNREALUSDWRAPPER_API FString MaterialPreviewPurpose;
 	extern UNREALUSDWRAPPER_API FString MaterialFullPurpose;
+
+	extern UNREALUSDWRAPPER_API FString PrimvarsDisplayColor;
+	extern UNREALUSDWRAPPER_API FString PrimvarsDisplayOpacity;
+	extern UNREALUSDWRAPPER_API FString DoubleSided;
 }
 
 struct UNREALUSDWRAPPER_API FUsdDelegates

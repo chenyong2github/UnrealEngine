@@ -724,25 +724,39 @@ namespace UE::USDInfoCacheImpl::Private
 	void CollectMaterialSlotCounts(
 		FUsdInfoCache::FUsdInfoCacheImpl& Impl,
 		const TMap< UE::FSdfPath, TArray<UsdUtils::FUsdPrimMaterialSlot>>& SubtreeMaterialSlots,
-		bool bMergeIdenticalSlots
+		bool bContextMergeIdenticalSlots
 	)
 	{
 		FWriteScopeLock Lock{Impl.InfoMapLock};
 
-		if ( bMergeIdenticalSlots )
+		for (const TPair<UE::FSdfPath, TArray<UsdUtils::FUsdPrimMaterialSlot>>& Pair : SubtreeMaterialSlots)
 		{
-			for ( const TPair< UE::FSdfPath, TArray<UsdUtils::FUsdPrimMaterialSlot>>& Pair : SubtreeMaterialSlots )
+			const UE::FSdfPath& PrimPath = Pair.Key;
+
+			bool bCanMergeSlotsForThisPrim = false;
+			if (const UE::UsdInfoCache::Private::FUsdPrimInfo* FoundInfo = Impl.InfoMap.Find(PrimPath))
 			{
-				TSet<UsdUtils::FUsdPrimMaterialSlot> SlotsSet{ Pair.Value };
-				UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd( Pair.Key );
-				Info.SubtreeMaterialSlots = SlotsSet.Array();
+				const UE::FSdfPath* CollapsedRoot = &FoundInfo->AssetCollapsedRoot;
+
+				// We only merge slots in the context of collapsing
+				bool bPrimIsCollapsedOrCollapseRoot = !CollapsedRoot->IsEmpty() || PrimPath.IsAbsoluteRootPath();
+
+				// TODO: This is not perfect, because we may have bPrimIsPotentialGeometryCacheRoot but the prim hasn't
+				// actually become a geometry cache due to another reason
+				bool bPrimIsPotentialGeometryCacheRoot = FoundInfo->bIsPotentialGeoCacheRoot;
+
+				bCanMergeSlotsForThisPrim = bPrimIsCollapsedOrCollapseRoot && !bPrimIsPotentialGeometryCacheRoot;
 			}
-		}
-		else
-		{
-			for ( const TPair< UE::FSdfPath, TArray<UsdUtils::FUsdPrimMaterialSlot>>& Pair : SubtreeMaterialSlots )
+
+			UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd(Pair.Key);
+
+			// For now we only ever merge material slots when collapsing
+			if (bCanMergeSlotsForThisPrim && bContextMergeIdenticalSlots)
 			{
-				UE::UsdInfoCache::Private::FUsdPrimInfo& Info = Impl.InfoMap.FindOrAdd( Pair.Key );
+				Info.SubtreeMaterialSlots = TSet<UsdUtils::FUsdPrimMaterialSlot>{Pair.Value}.Array();
+			}
+			else
+			{
 				Info.SubtreeMaterialSlots = Pair.Value;
 			}
 		}
@@ -1144,23 +1158,23 @@ void FUsdInfoCache::RebuildCacheForSubtree( const UE::FUsdPrim& Prim, FUsdSchema
 			TempSubtreeSlots
 		);
 
-		UE::USDInfoCacheImpl::Private::CollectMaterialSlotCounts(
-			*ImplPtr,
-			TempSubtreeSlots,
-			Context.bMergeIdenticalMaterialSlots
-		);
-
-		UE::USDInfoCacheImpl::Private::RecursiveCheckForGeometryCache(			
+		UE::USDInfoCacheImpl::Private::RecursiveCheckForGeometryCache(
 			UsdPrim,
 			Context,
 			*ImplPtr
-			);
+		);
 
 		UE::USDInfoCacheImpl::Private::RecursiveQueryCollapsesChildren(
 			UsdPrim,
 			Context,
 			*ImplPtr,
 			Registry
+		);
+
+		UE::USDInfoCacheImpl::Private::CollectMaterialSlotCounts(
+			*ImplPtr,
+			TempSubtreeSlots,
+			Context.bMergeIdenticalMaterialSlots
 		);
 	}
 #endif // USE_USD_SDK

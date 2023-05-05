@@ -1045,7 +1045,13 @@ void AUsdStageActor::OnUsdObjectsChanged(const UsdUtils::FObjectChangesByPath& I
 					*UsdToUnreal::ConvertToken(UnrealIdentifiers::UnrealControlRigPath),
 					*UsdToUnreal::ConvertToken(UnrealIdentifiers::UnrealUseFKControlRig),
 					*UsdToUnreal::ConvertToken(UnrealIdentifiers::UnrealControlRigReduceKeys),
-					*UsdToUnreal::ConvertToken(UnrealIdentifiers::UnrealControlRigReductionTolerance)
+					*UsdToUnreal::ConvertToken(UnrealIdentifiers::UnrealControlRigReductionTolerance),
+					// For now we need to do this as we need to refresh the material slot info on the info cache if these
+					// update... this is of course way too aggressive, although it's unlikely people will be manually editing these.
+					// TODO: More nuanced info cache updates
+					UnrealIdentifiers::PrimvarsDisplayColor,
+					UnrealIdentifiers::PrimvarsDisplayOpacity,
+					UnrealIdentifiers::DoubleSided
 				};
 
 				// Some stage info should trigger some resyncs because they should trigger reparsing of geometry
