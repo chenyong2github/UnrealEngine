@@ -9,6 +9,7 @@
 
 const FString FRigVMDispatchFactory::DispatchPrefix = TEXT("DISPATCH_");
 const FString FRigVMDispatchFactory::TrueString = TEXT("True");
+FCriticalSection FRigVMDispatchFactory::GetTemplateMutex;
 
 FName FRigVMDispatchFactory::GetFactoryName() const
 {
@@ -195,13 +196,27 @@ TArray<FRigVMExecuteArgument> FRigVMDispatchFactory::GetExecuteArguments(const F
 	return Arguments;
 }
 
-FRigVMFunctionPtr FRigVMDispatchFactory::GetDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const
+FRigVMFunctionPtr FRigVMDispatchFactory::GetOrCreateDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const
 {
+	FScopeLock GetTemplateScopeLock(&FRigVMRegistry::GetDispatchFunctionMutex);
+
 	const FString PermutationName = GetPermutationNameImpl(InTypes);
 	if(const FRigVMFunction* ExistingFunction = FRigVMRegistry::Get().FindFunction(*PermutationName))
 	{
 		return ExistingFunction->FunctionPtr;
 	}
+	
+	return CreateDispatchFunction_NoLock(InTypes);
+}
+
+FRigVMFunctionPtr FRigVMDispatchFactory::CreateDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const
+{
+	FScopeLock GetTemplateScopeLock(&FRigVMRegistry::GetDispatchFunctionMutex);
+	return CreateDispatchFunction_NoLock(InTypes);
+}
+
+FRigVMFunctionPtr FRigVMDispatchFactory::CreateDispatchFunction_NoLock(const FRigVMTemplateTypeMap& InTypes) const
+{
 	return GetDispatchFunctionImpl(InTypes);
 }
 
@@ -242,12 +257,9 @@ const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const
 		return ThisFactory->GetTemplate();
 	}
 
-	static bool bIsDispatchingTemplate = false;
-	if(bIsDispatchingTemplate)
-	{
-			return nullptr;
-	}
-	TGuardValue<bool> ReEntryGuard(bIsDispatchingTemplate, true);	if(CachedTemplate)
+	FScopeLock GetTemplateScopeLock(&GetTemplateMutex);
+	
+	if(CachedTemplate)
 	{
 		return CachedTemplate;
 	}
@@ -285,10 +297,10 @@ const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const
 	Delegates.RequestDispatchFunctionDelegate = FRigVMTemplate_RequestDispatchFunctionDelegate::CreateLambda(
 	[this](const FRigVMTemplate*, const FRigVMTemplateTypeMap& InTypes)
 	{
-		return GetDispatchFunction(InTypes);
+		return CreateDispatchFunction(InTypes);
 	});
 
-	CachedTemplate = Registry.GetOrAddTemplateFromArguments(GetFactoryName(), Arguments, Delegates); 
+	CachedTemplate = Registry.AddTemplateFromArguments(GetFactoryName(), Arguments, Delegates); 
 	return CachedTemplate;
 }
 

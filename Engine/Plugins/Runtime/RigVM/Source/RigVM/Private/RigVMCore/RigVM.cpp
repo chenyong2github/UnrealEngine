@@ -153,6 +153,8 @@ void URigVM::Save(FArchive& Ar)
 	// by the RigVMCompiler.
 	if(!Ar.IsIgnoringArchetypeRef())
 	{
+		ResolveFunctionsIfRequired();
+	
 		Ar << ExternalPropertyPathDescriptions;
 		Ar << FunctionNamesStorage;
 		Ar << ByteCodeStorage;
@@ -222,6 +224,13 @@ void URigVM::Load(FArchive& Ar)
 		Ar << FunctionNamesStorage;
 		Ar << ByteCodeStorage;
 		Ar << Parameters;
+	}
+
+	// ensure to load the required functions
+	if(!ResolveFunctionsIfRequired())
+	{
+		Reset();
+		return;
 	}
 }
 
@@ -905,8 +914,12 @@ FRigVMParameter URigVM::GetParameterByName(const FName& InParameterName)
 	return FRigVMParameter();
 }
 
-void URigVM::ResolveFunctionsIfRequired()
+bool URigVM::ResolveFunctionsIfRequired()
 {
+	FScopeLock ResolveFunctionsScopeLock(&ResolveFunctionsMutex);
+	
+	bool bSuccess = true;
+	
 	if (GetFunctions().Num() != GetFunctionNames().Num())
 	{
 		GetFunctions().Reset();
@@ -914,20 +927,33 @@ void URigVM::ResolveFunctionsIfRequired()
 		GetFactories().Reset();
 		GetFactories().SetNumZeroed(GetFunctionNames().Num());
 
-		for (int32 FunctionIndex = 0; FunctionIndex < GetFunctionNames().Num(); FunctionIndex++)
+		TArray<FName>& FunctionNames = GetFunctionNames();
+		for (int32 FunctionIndex = 0; FunctionIndex < FunctionNames.Num(); FunctionIndex++)
 		{
-			if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*GetFunctionNames()[FunctionIndex].ToString()))
+			const FString FunctionNameString = FunctionNames[FunctionIndex].ToString();
+			if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*FunctionNameString))
 			{
 				GetFunctions()[FunctionIndex] = Function;
 				GetFactories()[FunctionIndex] = Function->Factory;
+				
+				// update the name in the function name list. the resolved function
+				// may differ since it may rely on a core redirect.
+				if(!FunctionNameString.Equals(Function->Name, ESearchCase::CaseSensitive))
+				{
+					FunctionNames[FunctionIndex] = *Function->Name;
+					UE_LOG(LogRigVM, Display, TEXT("Redirected function '%s' to '%s' for VM '%s'"), *FunctionNameString, *Function->Name, *GetPathName());
+				}
 			}
 			else
 			{
-				// We cannot recover from missing functions. 
-				UE_LOG(LogRigVM, Fatal, TEXT("No handler found for function '%s'"), *GetFunctionNames()[FunctionIndex].ToString());
+				// We cannot recover from missing functions.
+				UE_LOG(LogRigVM, Fatal, TEXT("No handler found for function '%s' for VM '%s'"), *FunctionNameString, *GetPathName());
+				bSuccess = false;
 			}
 		}
 	}
+
+	return bSuccess;
 }
 
 void URigVM::RefreshInstructionsIfRequired()
