@@ -301,7 +301,7 @@ int FLwsWebSocket::LwsCallback(lws* Instance, lws_callback_reasons Reason, void*
 		const SIZE_T BytesLeft = lws_remaining_packet_payload(Instance);
 		bool bIsFinalFragment = (bool)lws_is_final_fragment(Instance);
 		bool bIsBinary = (bool)lws_frame_is_binary(Instance);
-		UE_LOG(LogWebSockets, VeryVerbose, TEXT("FLwsWebSocket[%d]::LwsCallback: Received LWS_CALLBACK_CLIENT_RECEIVE Length=%d BytesLeftInFragment=%d IsFinalFragment=%s"), Identifier, Length, BytesLeft, bIsFinalFragment ? "true" : "false");
+		UE_LOG(LogWebSockets, VeryVerbose, TEXT("FLwsWebSocket[%d]::LwsCallback: Received LWS_CALLBACK_CLIENT_RECEIVE Length=%d BytesLeftInFragment=%d IsFinalFragment=%s"), Identifier, Length, BytesLeft, bIsFinalFragment ? TEXT("true") : TEXT("false"));
 		bool bWakeGameThread = false;
 		if (bWantsMessageEvents && !bIsBinary)
 		{
