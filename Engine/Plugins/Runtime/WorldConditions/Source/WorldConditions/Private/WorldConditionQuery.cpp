@@ -289,6 +289,25 @@ void FWorldConditionQuerySharedDefinition::PostSerialize(const FArchive& Ar)
 	}
 }
 
+bool FWorldConditionQuerySharedDefinition::Identical(const FWorldConditionQuerySharedDefinition* Other, uint32 PortFlags) const
+{
+	if (!Other)
+	{
+		return false;
+	}
+
+	if (SchemaClass != Other->SchemaClass
+		|| StateMinAlignment != Other->StateMinAlignment
+		|| StateSize != Other->StateSize
+		|| bIsLinked != Other->bIsLinked)
+	{
+		return false;
+	}
+
+	return Conditions.Identical(&Other->Conditions, PortFlags);
+}
+
+
 bool FWorldConditionQuerySharedDefinition::Link(const UObject* Outer)
 {
 	bool bResult = true;
@@ -641,6 +660,36 @@ void FWorldConditionQueryDefinition::AddStructReferencedObjects(FReferenceCollec
 	{
 		Collector.AddPropertyReferencesWithStructARO(FWorldConditionQuerySharedDefinition::StaticStruct(), SharedDefinition.Get());
 	}
+}
+
+bool FWorldConditionQueryDefinition::Identical(const FWorldConditionQueryDefinition* Other, uint32 PortFlags) const
+{
+	if (!Other)
+	{
+		return false;
+	}
+
+	if (SchemaClass != Other->SchemaClass
+		|| SharedDefinition.IsValid() != Other->SharedDefinition.IsValid())
+	{
+		return false;
+	}
+
+	if (SharedDefinition.IsValid()
+		&& Other->SharedDefinition.IsValid()
+		&& !SharedDefinition->Identical(Other->SharedDefinition.Get(), PortFlags))
+	{
+		return false;
+	}
+	
+#if WITH_EDITORONLY_DATA
+	if (EditableConditions != Other->EditableConditions)
+	{
+		return false;
+	}
+#endif
+
+	return true;
 }
 
 
