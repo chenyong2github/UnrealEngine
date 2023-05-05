@@ -78,7 +78,7 @@ namespace UE::Tasks
 			// waits for task's completion with timeout. Tries to retract the task and execute it in-place, if failed - blocks until the task 
 			// is completed by another thread. If timeout is zero, tries to retract the task and returns immedially after that.
 			// @return true if the task is completed
-			bool Wait(FTimespan Timeout = FTimespan::MaxValue())
+			bool Wait(FTimespan Timeout = FTimespan::MaxValue()) const
 			{
 				return !IsValid() || Pimpl->Wait(FTimeout{ Timeout });
 			}
@@ -86,7 +86,7 @@ namespace UE::Tasks
 			// waits for task's completion for at least the specified amount of time, while executing other tasks.
 			// the call can return much later than the given timeout
 			// @return true if the task is completed
-			bool BusyWait(FTimespan Timeout = FTimespan::MaxValue())
+			bool BusyWait(FTimespan Timeout = FTimespan::MaxValue()) const
 			{
 				return !IsValid() || Pimpl->BusyWait(FTimeout{ Timeout });
 			}
@@ -95,7 +95,7 @@ namespace UE::Tasks
 			// the call can return much later than the given condition became true
 			// @return true if the task is completed
 			template<typename ConditionType>
-			bool BusyWait(ConditionType&& Condition)
+			bool BusyWait(ConditionType&& Condition) const
 			{
 				return !IsValid() || Pimpl->BusyWait(Forward<ConditionType>(Condition));
 			}

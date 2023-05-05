@@ -84,6 +84,24 @@ namespace UE { namespace TasksTests
 			verify(Event.BusyWait(FTimespan::Zero()));
 		}
 
+		{	// busy-waiting for multiple tasks
+			TArray<FTask> Tasks
+			{
+				Launch(UE_SOURCE_LOCATION,[] {}),
+				Launch(UE_SOURCE_LOCATION,[] {})
+			};
+			BusyWait(Tasks);
+		}
+
+		{	// busy-waiting for multiple tasks
+			TArray<FTask> Tasks
+			{
+				Launch(UE_SOURCE_LOCATION,[] {}),
+				Launch(UE_SOURCE_LOCATION,[] {})
+			};
+			BusyWait(Tasks, FTimespan::FromMilliseconds(10));
+		}
+
 		{	// basic use-case, postpone waiting so the task is executed first
 			std::atomic<bool> Done{ false };
 			FTask Task = Launch(UE_SOURCE_LOCATION, [&Done] { Done = true; });
