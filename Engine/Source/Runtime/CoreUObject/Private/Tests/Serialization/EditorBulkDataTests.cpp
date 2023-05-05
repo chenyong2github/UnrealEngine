@@ -20,7 +20,7 @@
 namespace UE::Serialization
 {
 	
-constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter;
+constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
 
 bool IsBulkDataRegistryEnabled()
 {
