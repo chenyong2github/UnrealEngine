@@ -117,6 +117,11 @@ namespace Horde.Server.Users
 		public bool ShowCI { get; set; }
 
 		/// <summary>
+		/// Whether to show functionality related to agents, pools, and utilization on the dashboard.
+		/// </summary>
+		public bool ShowAgents { get; set; }
+
+		/// <summary>
 		/// Show the Perforce server option on the server menu
 		/// </summary>
 		public bool ShowPerforceServers { get; set; }
@@ -152,6 +157,7 @@ namespace Horde.Server.Users
 		public GetDashboardFeaturesResponse(GlobalConfig globalConfig, ClaimsPrincipal principal)
 		{
 			ShowCI = true;
+			ShowAgents = true;
 			ShowPerforceServers = true;
 			ShowDeviceManager = true;
 			ShowTests = true;
