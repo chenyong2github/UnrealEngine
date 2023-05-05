@@ -467,6 +467,9 @@ void UTestReplicatedIrisObjectWithObjectReference::RegisterReplicationFragments(
 
 uint32 UReplicatedSubObjectOrderObject::RepOrderCounter = 0U;
 
+//////////////////////////////////////////////////////////////////////////
+// Implementation for UTestReplicatedIrisObjectWithNoReplicatedMembers
+//////////////////////////////////////////////////////////////////////////
 UTestReplicatedIrisObjectWithNoReplicatedMembers::UTestReplicatedIrisObjectWithNoReplicatedMembers()
 : UReplicatedTestObject()
 {
@@ -477,6 +480,9 @@ void UTestReplicatedIrisObjectWithNoReplicatedMembers::RegisterReplicationFragme
 	Fragments.SetIsFragmentlessNetObject(true);
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Implementation for UReplicatedSubObjectOrderObject
+//////////////////////////////////////////////////////////////////////////
 void UReplicatedSubObjectOrderObject::GetLifetimeReplicatedProps(TArray< class FLifetimeProperty >& OutLifetimeProps) const
 {
 	DOREPLIFETIME(UReplicatedSubObjectOrderObject, IntA);

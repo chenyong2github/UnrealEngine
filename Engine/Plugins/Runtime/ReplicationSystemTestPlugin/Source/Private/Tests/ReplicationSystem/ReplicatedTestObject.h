@@ -411,7 +411,7 @@ public:
 
 
 /**
- *  A test class for Replication that itself uses Property based replication but also has "components" that uses a mix of property based replication and native ReplicationStates
+ *  A test class for Replication on an object with no replicated members
  */
 UCLASS()
 class UTestReplicatedIrisObjectWithNoReplicatedMembers : public UReplicatedTestObject
@@ -421,7 +421,7 @@ class UTestReplicatedIrisObjectWithNoReplicatedMembers : public UReplicatedTestO
 public:
 	UTestReplicatedIrisObjectWithNoReplicatedMembers();
 
-	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 };
 
 /**
