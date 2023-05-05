@@ -358,68 +358,84 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
       // Resources
       const resourceItems: IContextualMenuItem[] = [];
 
-      resourceItems.push({
-         key: "admin_agents",
-         text: "Agents",
-         link: `/agents`
-      });
+      const features = dashboard.user?.dashboardFeatures;
 
-      resourceItems.push({
-         key: "admin_pools",
-         text: "Pools",
-         link: `/pools`
-      });
+      if (features?.showAgents !== false) {
+         resourceItems.push({
+            key: "admin_agents",
+            text: "Agents",
+            link: `/agents`
+         });
 
-      resourceItems.push({
-         key: "admin_perforce_servers",
-         text: "Perforce Servers",
-         link: `/perforce/servers`
-      });
+         resourceItems.push({
+            key: "admin_pools",
+            text: "Pools",
+            link: `/pools`
+         });
+      }
 
-      subItems.push({
-         itemType: ContextualMenuItemType.Section,
-         key: `admin_resources`,
-         sectionProps: {
-            title: "Resources",
-            items: resourceItems,
-            bottomDivider: true
-         }
-      });
+      if (features?.showPerforceServers !== false) {
+         resourceItems.push({
+            key: "admin_perforce_servers",
+            text: "Perforce Servers",
+            link: `/perforce/servers`
+         });
+      }
+
+      if (resourceItems.length) {
+         subItems.push({
+            itemType: ContextualMenuItemType.Section,
+            key: `admin_resources`,
+            sectionProps: {
+               title: "Resources",
+               items: resourceItems,
+               bottomDivider: true
+            }
+         });
+      }
 
       // Automation
       const automatonItems: IContextualMenuItem[] = [];
 
-      automatonItems.push({
-         key: "admin_devices",
-         text: "Devices",
-         link: `/devices`
-      });
+      if (features?.showDeviceManager !== false) {
+         automatonItems.push({
+            key: "admin_devices",
+            text: "Devices",
+            link: `/devices`
+         });
+      }
 
-      automatonItems.push({
-         key: "admin_tests",
-         text: "Tests",
-         link: `/automation`
-      });
-
-      subItems.push({
-         itemType: ContextualMenuItemType.Section,
-         key: `admin_automation`,
-         sectionProps: {
-            title: "Automation",
-            items: automatonItems,
-            bottomDivider: true
-         }
-      });
+      if (features?.showTests !== false) {
+         automatonItems.push({
+            key: "admin_tests",
+            text: "Tests",
+            link: `/automation`
+         });
+      }
+      if (automatonItems.length) {
+         subItems.push({
+            itemType: ContextualMenuItemType.Section,
+            key: `admin_automation`,
+            sectionProps: {
+               title: "Automation",
+               items: automatonItems,
+               bottomDivider: true
+            }
+         });
+      }
 
       // Monitoring
       const monitoringItems: IContextualMenuItem[] = [];
-      monitoringItems.push({
-         key: "admin_utilization",
-         text: "Utilization",
-         link: `/reports/utilization`
-      });
+      if (features?.showAgents !== false) {
+         monitoringItems.push({
+            key: "admin_utilization",
+            text: "Utilization",
+            link: `/reports/utilization`
+         });
+      }
 
-      if (dashboard.user?.dashboardFeatures?.showNoticeEditor) {
+
+      if (features?.showNoticeEditor !== false) {
          monitoringItems.push({
             key: "admin_notices",
             text: "Notices",
@@ -427,15 +443,17 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
          });
       }
 
-      subItems.push({
-         itemType: ContextualMenuItemType.Section,
-         key: `admin_monitoring`,
-         sectionProps: {
-            title: "Monitoring",
-            items: monitoringItems,
-            bottomDivider: true
-         }
-      });
+      if (monitoringItems.length) {
+         subItems.push({
+            itemType: ContextualMenuItemType.Section,
+            key: `admin_monitoring`,
+            sectionProps: {
+               title: "Monitoring",
+               items: monitoringItems,
+               bottomDivider: true
+            }
+         });   
+      }
 
       const softwareItems: IContextualMenuItem[] = [];
       softwareItems.push({

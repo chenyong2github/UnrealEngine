@@ -9,6 +9,7 @@ import { useWindowSize } from "../../base/utilities/hooks";
 import { hordeClasses, modeColors } from "../../styles/Styles";
 import { BreadcrumbItem, Breadcrumbs } from "../Breadcrumbs";
 import { TopNav } from "../TopNav";
+import dashboard from "../../backend/Dashboard";
 
 type Anchor = {
    text: string;
@@ -16,6 +17,7 @@ type Anchor = {
 }
 
 const documentCache = new Map<string, string>();
+const documentRequests = new Set<string>();
 const crumbCache = new Map<string, BreadcrumbItem[]>();
 const anchorCache = new Map<string, Anchor[]>();
 
@@ -59,7 +61,8 @@ const DocPanel: React.FC<{ docName: string }> = ({ docName }) => {
 
    const text = documentCache.get(docName);
 
-   if (!text) {
+   if (!documentRequests.has(docName)) {
+      documentRequests.add(docName);
       fetch(`/${docName}`, { cache: "no-cache" })
          .then((response) => response.text())
          .then((textContent) => {
@@ -156,7 +159,7 @@ const DocPanel: React.FC<{ docName: string }> = ({ docName }) => {
 
 
    return <Stack styles={{ root: { width: "100%" } }} >
-      <div ref={docRef}>
+      <div ref={docRef} style={{margin: "16px 32px"}}>
          <Markdown>{text}</Markdown>
       </div>
    </Stack>;
@@ -167,7 +170,12 @@ const DocRail = observer(() => {
    const state = linkState.state;
 
    const refLinks: ISideRailLink[] = [];
-   refLinks.push({ text: "Introduction", url: "/docs" });
+
+   if (dashboard.user?.dashboardFeatures?.showCI === false) {
+      refLinks.push({ text: "Landing", url: "/docs" });
+   }
+
+   refLinks.push({ text: "Home", url: "/docs/Home.md" });
    refLinks.push({ text: "User Guild", url: "/docs/Users.md" });
    refLinks.push({ text: "Deployment", url: "/docs/Deployment.md" });
    refLinks.push({ text: "Configuration", url: "/docs/Config.md" });
@@ -198,8 +206,17 @@ export const DocView = () => {
 
    // fixme
    let docName = location.pathname.replace("/docs/", "").replace("/docs", "").trim();
+   if (docName.startsWith("/index")) {
+      docName = docName.replace("/index", "")
+   }
    if (!docName || docName.indexOf("README.md") !== -1) {
-      docName = "documentation/README.md";
+
+      if (dashboard.user?.dashboardFeatures?.showCI === false) {
+         docName = "documentation/Docs/Landing.md";
+      } else {
+         docName = "documentation/Docs/Home.md";
+      }
+      
    } else {
 
       if (!docName.startsWith("Docs/")) {
