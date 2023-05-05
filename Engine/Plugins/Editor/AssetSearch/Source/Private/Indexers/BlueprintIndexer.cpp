@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintIndexer.h"
+#include "Blueprint/BlueprintExtension.h"
 #include "EdGraph/EdGraph.h"
 #include "K2Node_CallFunction.h"
 #include "K2Node_Variable.h"
@@ -22,6 +23,7 @@ enum class EBlueprintIndexerVersion
 	IndexingPublicEditableFieldsOnNodes,
 	DontIndexPinsUnlessItsInputWithNoConnections,
 	BetterSupportForIndexingEventNodes,
+	BlueprintExtension,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
@@ -46,6 +48,7 @@ void FBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSerializ
 	IndexClassDefaultObject(BP, Serializer);
 	IndexComponents(BP, Serializer);
 	IndexGraphs(BP, Serializer);
+	IndexExtensions(BP, Serializer);
 }
 
 void FBlueprintIndexer::IndexClassDefaultObject(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const
@@ -172,6 +175,14 @@ void FBlueprintIndexer::IndexMemberReference(FSearchSerializer& Serializer, cons
 	if (UClass* MemberParentClass = MemberReference.GetMemberParentClass())
 	{
 		Serializer.IndexProperty(MemberType + TEXT("Parent"), MemberParentClass->GetPathName());
+	}
+}
+
+void FBlueprintIndexer::IndexExtensions(const UBlueprint* InBlueprint, FSearchSerializer& Serializer) const
+{
+	for (UBlueprintExtension* Extension : InBlueprint->GetExtensions())
+	{
+		Serializer.IndexNestedAsset(Extension);
 	}
 }
 
