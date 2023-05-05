@@ -26,10 +26,6 @@ class NIAGARA_API UNiagaraDataChannelAsset : public UObject
 
 public:
 
-	//UObject Interface
-	virtual FPrimaryAssetId GetPrimaryAssetId() const override;
-	//END UObject Interface
-
 	UNiagaraDataChannel* Get() const { return DataChannel; }
 };
 

@@ -996,11 +996,6 @@ UNiagaraDataChannelReader* UNiagaraDataChannelLibrary::ReadFromNiagaraDataChanne
 	return nullptr;
 }
 
-FPrimaryAssetId UNiagaraDataChannelAsset::GetPrimaryAssetId()const 
-{
-	return FPrimaryAssetId(GetClass()->GetFName(), GetFName());
-}
-
 //////////////////////////////////////////////////////////////////////////
 
 #if !UE_BUILD_SHIPPING
