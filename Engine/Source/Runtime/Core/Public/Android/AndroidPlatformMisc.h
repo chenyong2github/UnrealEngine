@@ -23,6 +23,18 @@ class TFunction;
 
 enum class ECrashContextType;
 
+//The android surface orientations defined in C++ map to the values in https://developer.android.com/reference/android/view/Surface#ROTATION_0
+namespace EAndroidSurfaceOrientation
+{
+	enum Type
+	{
+		ROTATION_0,
+		ROTATION_90,
+		ROTATION_180,
+		ROTATION_270,
+	};
+};
+
 /**
  * Android implementation of the misc OS functions
  */

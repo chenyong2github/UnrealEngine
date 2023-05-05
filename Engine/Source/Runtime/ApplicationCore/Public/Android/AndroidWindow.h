@@ -43,7 +43,7 @@ public:
 	// When bUseEventThreadWindow == false this uses dimensions cached when the game thread processes android events.
 	// When bUseEventThreadWindow == true this uses dimensions directly from the android event thread, unless called from event thread this requires acquiring GAndroidWindowLock to use.
 	static void CalculateSurfaceSize(int32_t& SurfaceWidth, int32_t& SurfaceHeight, bool bUseEventThreadWindow = false);
-	static bool OnWindowOrientationChanged(bool bIsPortrait);
+	static bool OnWindowOrientationChanged(int Orientation);
 
 	static int32 GetDepthBufferPreference();
 	

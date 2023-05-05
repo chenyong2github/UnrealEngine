@@ -129,14 +129,17 @@ void FAndroidWindow::SetOSWindowHandle(void* InWindow)
 
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeSetObbInfo(String PackageName, int Version, int PatchVersion);"
 static bool GAndroidIsPortrait = false;
+static int GWindowOrientation = -1;
 static std::atomic<bool> GAndroidSafezoneRequiresUpdate = false;
 static int GAndroidDepthBufferPreference = 0;
 static FVector4 GAndroidPortraitSafezone = FVector4(-1.0f, -1.0f, -1.0f, -1.0f);
 static FVector4 GAndroidLandscapeSafezone = FVector4(-1.0f, -1.0f, -1.0f, -1.0f);
 #if USE_ANDROID_JNI
-JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetWindowInfo(JNIEnv* jenv, jobject thiz, jboolean bIsPortrait, jint DepthBufferPreference, jint PropagateAlpha)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetWindowInfo(JNIEnv* jenv, jobject thiz, jint orientation, jint DepthBufferPreference, jint PropagateAlpha)
 {
 	ClearCachedWindowRects();
+	GWindowOrientation = orientation;
+	bool bIsPortrait = GWindowOrientation == EAndroidSurfaceOrientation::ROTATION_0 || GWindowOrientation == EAndroidSurfaceOrientation::ROTATION_180;
 	GAndroidIsPortrait = bIsPortrait == JNI_TRUE;
 	GAndroidDepthBufferPreference = DepthBufferPreference;
 	GAndroidPropagateAlpha = PropagateAlpha;
@@ -557,10 +560,12 @@ void FAndroidWindow::CalculateSurfaceSize(int32_t& SurfaceWidth, int32_t& Surfac
 #endif
 }
 
-bool FAndroidWindow::OnWindowOrientationChanged(bool bIsPortrait)
+bool FAndroidWindow::OnWindowOrientationChanged(int Orientation)
 {
-	if (GAndroidIsPortrait != bIsPortrait)
+	if (GWindowOrientation != Orientation)
 	{
+		GWindowOrientation = Orientation;
+		bool bIsPortrait = GWindowOrientation == EAndroidSurfaceOrientation::ROTATION_0 || GWindowOrientation == EAndroidSurfaceOrientation::ROTATION_180;
 		UE_LOG(LogAndroid, Log, TEXT("Window orientation changed: %s"), bIsPortrait ? TEXT("Portrait") : TEXT("Landscape"));
 		GAndroidIsPortrait = bIsPortrait;
 		return true;

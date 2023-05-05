@@ -1642,13 +1642,11 @@ JNI_METHOD jboolean Java_com_epicgames_unreal_GameActivity_nativeSupportsNEON(JN
 }
 
 //This function is declared in the Java-defined class, GameActivity.java: "public native void nativeOnConfigurationChanged(boolean bPortrait);
-JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeOnConfigurationChanged(JNIEnv* jenv, jobject thiz, jboolean bPortrait)
+JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeOnConfigurationChanged(JNIEnv* jenv, jobject thiz, jint orientation)
 {
-	bool bChangedToPortrait = bPortrait == JNI_TRUE;
-
 	// enqueue a window changed event if orientation changed, 
 	// note that the HW window handle does not necessarily change.
-	if (FAndroidWindow::OnWindowOrientationChanged(bChangedToPortrait))
+	if (FAndroidWindow::OnWindowOrientationChanged(orientation))
 	{	
 		// Enqueue an event to trigger gamethread to update the orientation:
 		FAppEventManager::GetInstance()->EnqueueAppEvent(APP_EVENT_STATE_WINDOW_CHANGED);

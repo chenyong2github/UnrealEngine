@@ -2940,7 +2940,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		nativeSetGlobalActivity(UseExternalFilesDir, PublicLogFiles, getFilesDir().getPath(), getExternalFilesDir(null).getPath(), PackageDataInsideApkValue==1, APKPath);
 
 		// tell the engine if this is a portrait app
-		nativeSetWindowInfo(getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT, DepthBufferPreference, PropagateAlpha);
+		int orientation = AndroidThunkJava_GetDeviceOrientation();
+		nativeSetWindowInfo(orientation, DepthBufferPreference, PropagateAlpha);
 
 		// get the full language code, like en-US
 		// note: this may need to be Locale.getDefault().getLanguage()
@@ -3383,7 +3384,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 
 		// invalidate window cache
-		nativeSetWindowInfo(getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT, DepthBufferPreference, PropagateAlpha);
+		int orientation = AndroidThunkJava_GetDeviceOrientation();
+		nativeSetWindowInfo(orientation, DepthBufferPreference, PropagateAlpha);
 
 		// only do this on KitKat and above
 		if (ShouldHideUI)
@@ -3878,8 +3880,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		super.onConfigurationChanged(newConfig);
 		//$${gameActivityonConfigurationChangedAdditions}$$
 		// forward the orientation
-		boolean bPortrait = newConfig.orientation == Configuration.ORIENTATION_PORTRAIT;
-		nativeOnConfigurationChanged(bPortrait);
+		int orientation = AndroidThunkJava_GetDeviceOrientation();
+		nativeOnConfigurationChanged(orientation);
 	}
 
 	public void surfaceChanged(SurfaceHolder holder, int format, int width, int height)
@@ -6953,7 +6955,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public native void nativeSetAndroidStartupState(boolean bDebuggerAttached);
 	public native void nativeSetGlobalActivity(boolean bUseExternalFilesDir, boolean bPublicLogFiles, String internalFilePath, String externalFilePath, boolean bOBBInAPK, String APKPath);
 	public native void nativeSetObbFilePaths(String OBBMainFilePath, String OBBPatchFilePath, String OBBOverflow1FilePath, String OBBOverflow2FilePath);
-	public native void nativeSetWindowInfo(boolean bIsPortrait, int DepthBufferPreference, int PropagateAlpha);
+	public native void nativeSetWindowInfo(int orientation, int DepthBufferPreference, int PropagateAlpha);
 	public native void nativeSetObbInfo(String ProjectName, String PackageName, int Version, int PatchVersion, String AppType);
 	public native void nativeSetAndroidVersionInformation( String AndroidVersion, int TargetSDK, String PhoneMake, String PhoneModel, String PhoneBuildNumber, String OSLanguage );
 
@@ -6978,7 +6980,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	public native void nativeVirtualKeyboardShown(int left, int top, int right, int bottom);
 	public native void nativeVirtualKeyboardVisible(boolean bShown);
 
-	public native void nativeOnConfigurationChanged(boolean bPortrait);
+	public native void nativeOnConfigurationChanged(int orientation);
 		
 	public native void nativeOnInitialDownloadStarted();
 	public native void nativeOnInitialDownloadCompleted();

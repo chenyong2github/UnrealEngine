@@ -636,10 +636,10 @@ void FAndroidMisc::UpdateDeviceOrientation()
 			const int Orientation = JEnv->CallIntMethod(AndroidJavaEnv::GetGameActivityThis(), getOrientationMethod);
 			switch (Orientation)
 			{
-			case 0: DeviceOrientation = EDeviceScreenOrientation::Portrait;             break;
-			case 1: DeviceOrientation = EDeviceScreenOrientation::LandscapeLeft;        break;
-			case 2: DeviceOrientation = EDeviceScreenOrientation::PortraitUpsideDown;   break;
-			case 3: DeviceOrientation = EDeviceScreenOrientation::LandscapeRight;       break;
+			case EAndroidSurfaceOrientation::ROTATION_0:	DeviceOrientation = EDeviceScreenOrientation::Portrait;             break;
+			case EAndroidSurfaceOrientation::ROTATION_90:	DeviceOrientation = EDeviceScreenOrientation::LandscapeLeft;        break;
+			case EAndroidSurfaceOrientation::ROTATION_180:	DeviceOrientation = EDeviceScreenOrientation::PortraitUpsideDown;   break;
+			case EAndroidSurfaceOrientation::ROTATION_270:	DeviceOrientation = EDeviceScreenOrientation::LandscapeRight;       break;
 			}
 		}
 	}
