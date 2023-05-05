@@ -52,6 +52,9 @@ public:
 	void PopulateGeneratorPackageForCook();
 #endif
 
+	UPROPERTY();
+	TMap<FName, FName> SubObjectsToCellRemapping;
+
 protected:
 	UPROPERTY();
 	TSoftObjectPtr<UWorld> OwningWorld;

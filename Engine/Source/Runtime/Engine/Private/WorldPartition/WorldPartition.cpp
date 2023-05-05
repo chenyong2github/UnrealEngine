@@ -1473,6 +1473,7 @@ bool UWorldPartition::InjectExternalStreamingObject(URuntimeHashExternalStreamin
 	bool bInjected = RuntimeHash->InjectExternalStreamingObject(ExternalStreamingObject);
 	if (bInjected)
 	{
+		StreamingPolicy->InjectExternalStreamingObject(ExternalStreamingObject);
 		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectInjected(ExternalStreamingObject);
 	}
 
@@ -1484,6 +1485,11 @@ bool UWorldPartition::RemoveExternalStreamingObject(URuntimeHashExternalStreamin
 	bool bRemoved = RuntimeHash->RemoveExternalStreamingObject(ExternalStreamingObject);
 	if (bRemoved)
 	{
+		if (StreamingPolicy)
+		{
+			StreamingPolicy->RemoveExternalStreamingObject(ExternalStreamingObject);
+		}
+		
 		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectRemoved(ExternalStreamingObject);
 	}
 

@@ -209,6 +209,7 @@ public:
 	bool GenerateContainerStreaming(const FGenerateStreamingParams& InParams, FGenerateStreamingContext& InContext);
 
 	void FlushStreaming();
+	URuntimeHashExternalStreamingObjectBase* FlushStreamingToExternalStreamingObject(const FString& ExternalStreamingObjectName);
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionGenerateStreamingDelegate, TArray<FString>*);
 	FWorldPartitionGenerateStreamingDelegate OnPreGenerateStreaming;

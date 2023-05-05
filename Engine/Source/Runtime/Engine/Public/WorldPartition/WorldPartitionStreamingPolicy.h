@@ -44,6 +44,8 @@ public:
 	// PIE/Game methods
 	virtual void PrepareActorToCellRemapping() {}
 	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) const {}
+
+	virtual bool StoreToExternalStreamingObject(URuntimeHashExternalStreamingObjectBase& OutExternalStreamingObject) { return true; }
 #endif
 
 #if !UE_BUILD_SHIPPING
@@ -59,6 +61,9 @@ public:
 	EWorldPartitionStreamingPerformance GetStreamingPerformance() const { return StreamingPerformance; }
 
 	static bool IsUpdateStreamingOptimEnabled();
+
+	virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return true; }
+	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return true; }
 
 protected:
 	virtual int32 SetCellsStateToLoaded(const TArray<const UWorldPartitionRuntimeCell*>& ToLoadCells);

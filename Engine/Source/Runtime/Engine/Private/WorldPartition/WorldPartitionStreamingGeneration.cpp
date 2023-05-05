@@ -15,6 +15,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
+#include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/ErrorHandling/WorldPartitionStreamingGenerationNullErrorHandler.h"
@@ -1191,6 +1192,15 @@ void UWorldPartition::FlushStreaming()
 	RuntimeHash->FlushStreaming();
 	StreamingPolicy = nullptr;
 	GeneratedStreamingPackageNames.Empty();
+}
+
+URuntimeHashExternalStreamingObjectBase* UWorldPartition::FlushStreamingToExternalStreamingObject(const FString& ExternalStreamingObjectName)
+{
+	URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject = RuntimeHash->StoreToExternalStreamingObject(this, *ExternalStreamingObjectName);
+	StreamingPolicy->StoreToExternalStreamingObject(*ExternalStreamingObject);
+
+	FlushStreaming();
+	return ExternalStreamingObject;
 }
 
 void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)

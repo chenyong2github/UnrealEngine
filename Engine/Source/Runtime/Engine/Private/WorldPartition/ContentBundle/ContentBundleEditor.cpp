@@ -322,7 +322,7 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 	UWorldPartition* WorldPartition = GetInjectedWorld()->GetWorldPartition();
 	WorldPartition->GenerateContainerStreaming(Params, Context);
 
-	ExternalStreamingObject = WorldPartition->RuntimeHash->StoreToExternalStreamingObject(WorldPartition, *GetExternalStreamingObjectName());
+	ExternalStreamingObject = WorldPartition->FlushStreamingToExternalStreamingObject(GetExternalStreamingObjectName());
 
 	uint32 CellCount = 0;
 	ExternalStreamingObject->ForEachStreamingCells([&CellCount](const UWorldPartitionRuntimeCell& Cell)
@@ -344,8 +344,6 @@ void FContentBundleEditor::GenerateStreaming(TArray<FString>* OutPackageToGenera
 		// Clear streaming object. It will be kept alive & duplicated by UContentBundleDuplicateForPIEHelper.
 		ExternalStreamingObject = nullptr;
 	}
-
-	WorldPartition->FlushStreaming();
 }
 
 void FContentBundleEditor::OnBeginCook(IWorldPartitionCookPackageContext& CookContext)
