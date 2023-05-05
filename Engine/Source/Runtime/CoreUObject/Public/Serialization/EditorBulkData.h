@@ -222,6 +222,16 @@ public:
 	void UpdatePayload(FSharedBuffer InPayload, UObject* Owner = nullptr);
 
 	/**
+	 * Replaces the existing payload (if any) with a new one.
+	 * Note that FCompressedBuffers already know the FIoHash of the raw payload and so we do not
+	 * recalculate it, making this method much faster for larger payloads than the other overloads.
+	 * 
+	 * @param InPayload	The payload that this bulkdata object should reference. @see FCompressedBuffer
+	 * @param Owner The object that owns the bulkdata, or null to not associate with a UObject.
+	 */
+	void UpdatePayload(FCompressedBuffer InPayload, UObject* Owner = nullptr);
+	
+	/**
 	 * Utility struct used to compute the Payload ID before calling UpdatePayload
 	 */
 	struct COREUOBJECT_API FSharedBufferWithID

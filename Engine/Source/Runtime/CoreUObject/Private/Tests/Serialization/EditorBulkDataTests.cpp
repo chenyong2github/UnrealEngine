@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Algo/AllOf.h"
+#include "Compression/OodleDataCompression.h"
 #include "Memory/SharedBuffer.h"
 #include "Serialization/BulkDataRegistry.h"
 #include "Serialization/EditorBulkData.h"
@@ -19,7 +20,7 @@
 namespace UE::Serialization
 {
 	
-constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter;
+constexpr const uint32 TestFlags = EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter;
 
 bool IsBulkDataRegistryEnabled()
 {
@@ -41,6 +42,46 @@ TUniquePtr<uint8[]> CreateRandomData(int64 BufferSize)
 	}
 
 	return Buffer;
+}
+
+/** Creates a FSharedBuffer full of random data to make it easy to have something to test against. */
+FSharedBuffer CreateRandomPayload(int64 BufferSize)
+{
+	TUniquePtr<uint8[]> Data = CreateRandomData(BufferSize);
+
+	return FSharedBuffer::TakeOwnership(Data.Release(), BufferSize, [](void* Ptr, uint64) { delete[](uint8*)Ptr; });
+}
+
+/** Creates a FSharedBuffer with semi random data. */
+FSharedBuffer CreatePayload(int64 BufferSize, int64 Stride)
+{
+	TUniquePtr<uint8[]> Data = CreateRandomData(BufferSize);
+
+	uint8 Value = (uint8)(FMath::Rand() % 255);
+	int64 SpanCount = 0;
+
+	for (int64 Index = 0; Index < BufferSize; ++Index)
+	{
+		Data[Index] = Value;
+
+		if (++SpanCount >= Stride)
+		{
+			Value = (uint8)(FMath::Rand() % 255);
+			SpanCount = 0;
+		}
+	}
+
+	return FSharedBuffer::TakeOwnership(Data.Release(), BufferSize, [](void* Ptr, uint64) { delete[](uint8*)Ptr; });
+}
+
+bool CompareSharedBufferContents(const FSharedBuffer& LHS, const FSharedBuffer& RHS)
+{
+	if (LHS.GetSize() != RHS.GetSize())
+	{
+		return false;
+	}
+
+	return FMemory::Memcmp(LHS.GetData(), RHS.GetData(), LHS.GetSize()) == 0;
 }
 
 /**
@@ -127,10 +168,10 @@ bool FEditorBulkDataTestEmpty::RunTest(const FString& Parameters)
 }
 
 /**
- * Test the various methods for updating the payload that a FEditorBulkData owns
+ * Test the various methods for updating the payload that a FEditorBulkData owns via FSharedBuffer
  */
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestUpdatePayload, TEXT("System.CoreUObject.Serialization.EditorBulkData.UpdatePayload"), TestFlags)
-bool FEditorBulkDataTestUpdatePayload::RunTest(const FString& Parameters)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestUpdatePayloadSharedBuffer, TEXT("System.CoreUObject.Serialization.EditorBulkData.UpdatePayloadSharedBuffer"), TestFlags)
+bool FEditorBulkDataTestUpdatePayloadSharedBuffer::RunTest(const FString& Parameters)
 {
 	// Create a memory buffer of all zeros
 	const int64 BufferSize = 1024;
@@ -195,6 +236,51 @@ bool FEditorBulkDataTestUpdatePayload::RunTest(const FString& Parameters)
 			});
 
 		TestTrue(TEXT("All payload elements correctly updated"), bAllElementsCorrect);
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorBulkDataTestUpdatePayloadCompressedBuffer, TEXT("System.CoreUObject.Serialization.EditorBulkData.UpdatePayloadCompressedBuffer"), TestFlags)
+bool FEditorBulkDataTestUpdatePayloadCompressedBuffer::RunTest(const FString& Parameters)
+{
+	// Create a memory buffer
+	const int64 BufferSize = 1024;
+	const int64 BufferStride = 32;
+
+//	FSharedBuffer InitialPayload = CreateRandomPayload(BufferSize);
+	FSharedBuffer InitialPayload = CreatePayload(BufferSize, BufferStride);
+	
+	{
+		FCompressedBuffer UncompressedPayload = FCompressedBuffer::Compress(InitialPayload, ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None);
+
+		FEditorBulkData BulkData;
+		BulkData.UpdatePayload(UncompressedPayload, nullptr);
+
+		FSharedBuffer BulkDataPayload = BulkData.GetPayload().Get();
+
+		TestEqual(TEXT("Hash of the payload in FCompressedBuffer and FEditorBulkData"), UncompressedPayload.GetRawHash(), BulkData.GetPayloadId());
+		TestTrue(TEXT("The bulkdata payload has the same data as the original payload"), CompareSharedBufferContents(BulkDataPayload, BulkDataPayload));
+
+		// Since the data was never compressed there is no reason that the data needed to be copied at any point
+		// so the returned payload should be a reference to the original FSharedBuffer
+		TestEqual(TEXT("The bulkdata and the original payload should have the same memory addresses"), BulkDataPayload.GetData(), InitialPayload.GetData());
+	}
+
+	{
+		FCompressedBuffer CompressedPayload = FCompressedBuffer::Compress(InitialPayload, ECompressedBufferCompressor::Kraken, ECompressedBufferCompressionLevel::Fast);
+
+		FEditorBulkData BulkData;
+		BulkData.UpdatePayload(CompressedPayload, nullptr);
+
+		FSharedBuffer BulkDataPayload = BulkData.GetPayload().Get();
+
+		TestEqual(TEXT("Hash of the payload in FCompressedBuffer and FEditorBulkData"), CompressedPayload.GetRawHash(), BulkData.GetPayloadId());
+		TestTrue(TEXT("The bulkdata payload has the same data as the original payload"), CompareSharedBufferContents(BulkDataPayload, BulkDataPayload));
+
+		// Since the data was compressed we will not have a reference to the original FSharedBuffer and should
+		// expect different memory addresses.
+		TestNotEqual(TEXT("The bulkdata and the original payload should have different memory addresses"), BulkDataPayload.GetData(), InitialPayload.GetData());
 	}
 
 	return true;

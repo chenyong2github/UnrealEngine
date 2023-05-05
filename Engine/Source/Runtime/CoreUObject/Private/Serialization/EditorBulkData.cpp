@@ -1953,9 +1953,20 @@ TFuture<FCompressedBuffer>FEditorBulkData::GetCompressedPayload() const
 
 void FEditorBulkData::UpdatePayload(FSharedBuffer InPayload, UObject* Owner)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::UpdatePayload);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::UpdatePayload (FSharedBuffer));
 	FIoHash NewPayloadId = HashPayload(InPayload);
+
 	UpdatePayloadImpl(MoveTemp(InPayload), NewPayloadId, Owner);
+}
+
+void FEditorBulkData::UpdatePayload(FCompressedBuffer InPayload, UObject* Owner)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::UpdatePayload(FCompressedBuffer));
+
+	FIoHash NewPayloadId = InPayload.GetRawSize() > 0 ? InPayload.GetRawHash() : FIoHash();
+	FSharedBuffer NewPayload = InPayload.DecompressToComposite().ToShared();
+
+	UpdatePayloadImpl(MoveTemp(NewPayload), NewPayloadId, Owner);
 }
 
 FEditorBulkData::FSharedBufferWithID::FSharedBufferWithID(FSharedBuffer InPayload)
