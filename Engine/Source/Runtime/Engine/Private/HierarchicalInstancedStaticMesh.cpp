@@ -1272,7 +1272,7 @@ struct FFoliageElementParams
 	float FinalCullDistance;
 };
 
-void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementCollector& Collector, const FFoliageElementParams& ElementParams, const FFoliageRenderInstanceParams& Params) const
+void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(const FSceneView* View, FMeshElementCollector& Collector, const FFoliageElementParams& ElementParams, const FFoliageRenderInstanceParams& Params) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_FoliageBatchTime);
 	int64 TotalTriangles = 0;
@@ -1290,11 +1290,14 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 
 		for (int32 SelectionGroupIndex = 0; SelectionGroupIndex < ElementParams.NumSelectionGroups; SelectionGroupIndex++)
 		{
+			const bool bDitherLODEnabled = ElementParams.bBlendLODs;
+			const uint32 InstancedLODRange = bDitherLODEnabled ? 1 : 0;
+			FInstancedStaticMeshVFLooseUniformShaderParametersRef LooseUniformBuffer = CreateLooseUniformBuffer(View, ElementParams.PassUserData[SelectionGroupIndex], InstancedLODRange, LODIndex, EUniformBufferUsage::UniformBuffer_SingleFrame);
+
 			for (int32 SectionIndex = 0; SectionIndex < TotalNumSections; SectionIndex++)
 			{
 				const FLODInfo& ProxyLODInfo = LODs[LODIndex];
 				UMaterialInterface* Material = ProxyLODInfo.Sections[SectionIndex].Material;
-				const bool bDitherLODEnabled = ElementParams.bBlendLODs;
 
 				TArray<uint32, SceneRenderingAllocator>& RunArray = bDitherLODEnabled ? Params.MultipleLODRuns[LODIndex] : Params.SingleLODRuns[LODIndex];
 
@@ -1326,8 +1329,9 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 					MeshBatchElement.MaxScreenSize = 1.0;
 					MeshBatchElement.MinScreenSize = 0.0;
 					MeshBatchElement.InstancedLODIndex = LODIndex;
-					MeshBatchElement.InstancedLODRange = bDitherLODEnabled ? 1 : 0;
+					MeshBatchElement.InstancedLODRange = InstancedLODRange;
 					MeshBatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+					MeshBatchElement.LooseParametersUniformBuffer = LooseUniformBuffer;
 
 					int32 TotalInstances = bDitherLODEnabled ? Params.TotalMultipleLODInstances[LODIndex] : Params.TotalSingleLODInstances[LODIndex];
 					{
@@ -1422,8 +1426,9 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 						BatchElement0.MaxScreenSize = 1.0;
 						BatchElement0.MinScreenSize = 0.0;
 						BatchElement0.InstancedLODIndex = LODIndex;
-						BatchElement0.InstancedLODRange = bDitherLODEnabled ? 1 : 0;
+						BatchElement0.InstancedLODRange = InstancedLODRange;
 						BatchElement0.PrimitiveUniformBuffer = GetUniformBuffer();
+						BatchElement0.LooseParametersUniformBuffer = LooseUniformBuffer;
 						MeshElement.bCanApplyViewModeOverrides = true;
 						MeshElement.bUseSelectionOutline = ElementParams.BatchRenderSelection[SelectionGroupIndex];
 						MeshElement.bUseWireframeSelectionColoring = ElementParams.BatchRenderSelection[SelectionGroupIndex];
@@ -1855,7 +1860,7 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 #endif
 				}
 
-				FillDynamicMeshElements(Collector, ElementParams, InstanceParams);
+				FillDynamicMeshElements(View, Collector, ElementParams, InstanceParams);
 			}
 
 			int32 UnbuiltInstanceCount = InstanceCountToRender - FirstUnbuiltIndex;
@@ -1968,7 +1973,7 @@ void FHierarchicalStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 					const int8 LowestLOD = (RenderData->LODResources.Num() - 1);
 					InstanceParams.AddRun(LowestLOD, LowestLOD, FirstUnbuiltIndex, FirstUnbuiltIndex + UnbuiltInstanceCount - 1);
 				}
-				FillDynamicMeshElements(Collector, ElementParams, InstanceParams);
+				FillDynamicMeshElements(View, Collector, ElementParams, InstanceParams);
 			}
 
 			if (View->Family->EngineShowFlags.HISMCOcclusionBounds)

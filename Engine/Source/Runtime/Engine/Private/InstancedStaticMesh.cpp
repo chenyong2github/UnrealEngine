@@ -69,12 +69,18 @@ static const uint32 MaxSimulatedInstances = 256;
 IMPLEMENT_HIT_PROXY(HInstancedStaticMeshInstance, HHitProxy);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FInstancedStaticMeshVertexFactoryUniformShaderParameters, "InstanceVF");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FInstancedStaticMeshVFLooseUniformShaderParameters, "InstancedVFLooseParameters");
 
 TAutoConsoleVariable<int32> CVarMinLOD(
 	TEXT("foliage.MinLOD"),
 	-1,
 	TEXT("Used to discard the top LODs for performance evaluation. -1: Disable all effects of this cvar."),
 	ECVF_Scalability | ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarCullAllInVertexShader(
+	TEXT("foliage.CullAllInVertexShader"),
+	0,
+	TEXT("Debugging, if this is greater than 0, cull all instances in the vertex shader."));
 
 static TAutoConsoleVariable<int32> CVarRayTracingRenderInstances(
 	TEXT("r.RayTracing.Geometry.InstancedStaticMeshes"),
@@ -1478,6 +1484,8 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 				const int32 LODIndex = GetLOD(View);
 				const FStaticMeshLODResources& LODModel = StaticMesh->GetRenderData()->LODResources[LODIndex];
 
+				FInstancedStaticMeshVFLooseUniformShaderParametersRef LooseUniformBuffer = CreateLooseUniformBuffer(View, PassUserData[SelectionGroupIndex], /*InstancedLODRange=*/0, LODIndex, EUniformBufferUsage::UniformBuffer_SingleFrame);
+
 				for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 				{
 					const int32 NumBatches = GetNumMeshBatches();
@@ -1491,6 +1499,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 							//@todo-rco this is only supporting selection on the first element
 							MeshElement.Elements[0].UserData = PassUserData[SelectionGroupIndex];
 							MeshElement.Elements[0].bUserDataIsColorVertexBuffer = false;
+							MeshElement.Elements[0].LooseParametersUniformBuffer = LooseUniformBuffer;
 							MeshElement.bCanApplyViewModeOverrides = true;
 							MeshElement.bUseSelectionOutline = BatchRenderSelection[SelectionGroupIndex];
 							MeshElement.bUseWireframeSelectionColoring = BatchRenderSelection[SelectionGroupIndex];
@@ -1545,6 +1554,157 @@ void FInstancedStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const F
 #endif
 		}
 	}
+}
+
+FInstancedStaticMeshVFLooseUniformShaderParametersRef FInstancedStaticMeshSceneProxy::CreateLooseUniformBuffer(const FSceneView* View, const FInstancingUserData* InstancingUserData, uint32 InstancedLODRange, uint32 InstancedLODIndex, EUniformBufferUsage UniformBufferUsage) const
+{
+	FInstancedStaticMeshVFLooseUniformShaderParameters LooseParameters;
+
+	{
+		FVector4f InstancingViewZCompareZero(MIN_flt, MIN_flt, MAX_flt, 1.0f);
+		FVector4f InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
+		FVector4f InstancingViewZConstant(ForceInit);
+		FVector4f InstancingTranslatedWorldViewOriginZero(ForceInit);
+		FVector4f InstancingTranslatedWorldViewOriginOne(ForceInit);
+		InstancingTranslatedWorldViewOriginOne.W = 1.0f;
+
+		// InstancedLODRange is only set for HierarchicalInstancedStaticMeshes
+		if (InstancingUserData && InstancedLODRange)
+		{
+			int32 FirstLOD = InstancingUserData->MinLOD;
+
+			int32 DebugMin = FMath::Min(CVarMinLOD.GetValueOnRenderThread(), InstancingUserData->MeshRenderData->LODResources.Num() - 1);
+			if (DebugMin >= 0)
+			{
+				FirstLOD = FMath::Max(FirstLOD, DebugMin);
+			}
+
+			FBoxSphereBounds ScaledBounds = InstancingUserData->MeshRenderData->Bounds.TransformBy(FTransform(FRotator::ZeroRotator, FVector::ZeroVector, InstancingUserData->AverageInstancesScale));
+			float SphereRadius = ScaledBounds.SphereRadius;
+			float MinSize = View->ViewMatrices.IsPerspectiveProjection() ? CVarFoliageMinimumScreenSize.GetValueOnRenderThread() : 0.0f;
+			float LODScale = InstancingUserData->LODDistanceScale;
+			float LODRandom = CVarRandomLODRange.GetValueOnRenderThread();
+			float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
+
+			if (InstancedLODIndex)
+			{
+				InstancingViewZConstant.X = -1.0f;
+			}
+			else
+			{
+				// this is the first LOD, so we don't have a fade-in region
+				InstancingViewZConstant.X = 0.0f;
+			}
+			InstancingViewZConstant.Y = 0.0f;
+			InstancingViewZConstant.Z = 1.0f;
+
+			// now we subtract off the lower segments, since they will be incorporated 
+			InstancingViewZConstant.Y -= InstancingViewZConstant.X;
+			InstancingViewZConstant.Z -= InstancingViewZConstant.X + InstancingViewZConstant.Y;
+			//not using W InstancingViewZConstant.W -= InstancingViewZConstant.X + InstancingViewZConstant.Y + InstancingViewZConstant.Z;
+
+			for (int32 SampleIndex = 0; SampleIndex < 2; SampleIndex++)
+			{
+				FVector4f& InstancingViewZCompare(SampleIndex ? InstancingViewZCompareOne : InstancingViewZCompareZero);
+
+				float FinalCull = MAX_flt;
+				if (MinSize > 0.0)
+				{
+					FinalCull = ComputeBoundsDrawDistance(MinSize, SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
+				}
+				if (InstancingUserData->EndCullDistance > 0.0f)
+				{
+					FinalCull = FMath::Min(FinalCull, InstancingUserData->EndCullDistance * MaxDrawDistanceScale);
+				}
+
+				InstancingViewZCompare.Z = FinalCull;
+				if (int(InstancedLODIndex) < InstancingUserData->MeshRenderData->LODResources.Num() - 1)
+				{
+					float NextCut = ComputeBoundsDrawDistance(InstancingUserData->MeshRenderData->ScreenSize[InstancedLODIndex + 1].GetValue(), SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
+					InstancingViewZCompare.Z = FMath::Min(NextCut, FinalCull);
+				}
+
+				InstancingViewZCompare.X = MIN_flt;
+				if (int(InstancedLODIndex) > FirstLOD)
+				{
+					float CurCut = ComputeBoundsDrawDistance(InstancingUserData->MeshRenderData->ScreenSize[InstancedLODIndex].GetValue(), SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
+					if (CurCut < FinalCull)
+					{
+						InstancingViewZCompare.Y = CurCut;
+					}
+					else
+					{
+						// this LOD is completely removed by one of the other two factors
+						InstancingViewZCompare.Y = MIN_flt;
+						InstancingViewZCompare.Z = MIN_flt;
+					}
+				}
+				else
+				{
+					// this is the first LOD, so we don't have a fade-in region
+					InstancingViewZCompare.Y = MIN_flt;
+				}
+			}
+
+			const FVector PreViewTranslation = View->ViewMatrices.GetPreViewTranslation();
+			InstancingTranslatedWorldViewOriginZero = (FVector3f)(View->GetTemporalLODOrigin(0) + PreViewTranslation); // LWC_TODO: precision loss
+			InstancingTranslatedWorldViewOriginOne = (FVector3f)(View->GetTemporalLODOrigin(1) + PreViewTranslation); // LWC_TODO: precision loss
+
+			float Alpha = View->GetTemporalLODTransition();
+			InstancingTranslatedWorldViewOriginZero.W = 1.0f - Alpha;
+			InstancingTranslatedWorldViewOriginOne.W = Alpha;
+
+			InstancingViewZCompareZero.W = LODRandom;
+		}
+
+		LooseParameters.InstancingViewZCompareZero = InstancingViewZCompareZero;
+		LooseParameters.InstancingViewZCompareOne = InstancingViewZCompareOne;
+		LooseParameters.InstancingViewZConstant = InstancingViewZConstant;
+		LooseParameters.InstancingTranslatedWorldViewOriginZero = InstancingTranslatedWorldViewOriginZero;
+		LooseParameters.InstancingTranslatedWorldViewOriginOne = InstancingTranslatedWorldViewOriginOne;
+	}
+
+	{
+		FVector4f InstancingFadeOutParams(MAX_flt, 0.f, 1.f, 1.f);
+		if (InstancingUserData)
+		{
+			const float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
+			const float StartDistance = InstancingUserData->StartCullDistance * MaxDrawDistanceScale;
+			const float EndDistance = InstancingUserData->EndCullDistance * MaxDrawDistanceScale;
+
+			InstancingFadeOutParams.X = StartDistance;
+			if (EndDistance > 0)
+			{
+				if (EndDistance > StartDistance)
+				{
+					InstancingFadeOutParams.Y = 1.f / (float)(EndDistance - StartDistance);
+				}
+				else
+				{
+					InstancingFadeOutParams.Y = 1.f;
+				}
+			}
+			else
+			{
+				InstancingFadeOutParams.Y = 0.f;
+			}
+			if (CVarCullAllInVertexShader.GetValueOnRenderThread() > 0)
+			{
+				InstancingFadeOutParams.Z = 0.0f;
+				InstancingFadeOutParams.W = 0.0f;
+			}
+			else
+			{
+				InstancingFadeOutParams.Z = InstancingUserData->bRenderSelected ? 1.f : 0.f;
+				InstancingFadeOutParams.W = InstancingUserData->bRenderUnselected ? 1.f : 0.f;
+			}
+		}
+
+		LooseParameters.InstancingFadeOutParams = InstancingFadeOutParams;
+
+	}
+
+	return CreateUniformBufferImmediate(LooseParameters, UniformBufferUsage);
 }
 
 void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* InComponent)
@@ -1800,6 +1960,12 @@ void FInstancedStaticMeshSceneProxy::CreateRenderThreadResources()
 			}
 		}
 	}
+
+	for (int32 i = 0; i < LODs.Num(); ++i)
+	{
+		FInstancedStaticMeshVFLooseUniformShaderParametersRef LooseUniformBuffer = CreateLooseUniformBuffer(nullptr, &UserData_AllInstances, 0, i, EUniformBufferUsage::UniformBuffer_MultiFrame);
+		LODLooseUniformBuffers.Add(i, LooseUniformBuffer);
+	}
 }
 
 void FInstancedStaticMeshSceneProxy::DestroyRenderThreadResources()
@@ -1852,6 +2018,7 @@ void FInstancedStaticMeshSceneProxy::SetupInstancedMeshBatch(int32 LODIndex, int
 	BatchElement0.InstancedLODIndex = LODIndex;
 	BatchElement0.UserIndex = 0;
 	BatchElement0.PrimitiveUniformBuffer = GetUniformBuffer();
+	BatchElement0.LooseParametersUniformBuffer = LODLooseUniformBuffers[LODIndex];
 	
 	if (OutMeshBatch.MaterialRenderProxy)
 	{
@@ -5318,11 +5485,6 @@ bool UInstancedStaticMeshComponent::DuplicateSMInstances(TArrayView<const FSMIns
 	return true;
 }
 
-static TAutoConsoleVariable<int32> CVarCullAllInVertexShader(
-	TEXT("foliage.CullAllInVertexShader"),
-	0,
-	TEXT("Debugging, if this is greater than 0, cull all instances in the vertex shader."));
-
 void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings(
 	const class FSceneInterface* Scene,
 	const FSceneView* View,
@@ -5363,153 +5525,13 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 		}
 	}
 
-	if( InstancingWorldViewOriginOneParameter.IsBound() )
+	FVector4f InstancingOffset(ForceInit);
+	// InstancedLODRange is only set for HierarchicalInstancedStaticMeshes
+	if (InstancingUserData && BatchElement.InstancedLODRange)
 	{
-		FVector4f InstancingViewZCompareZero(MIN_flt, MIN_flt, MAX_flt, 1.0f);
-		FVector4f InstancingViewZCompareOne(MIN_flt, MIN_flt, MAX_flt, 0.0f);
-		FVector4f InstancingViewZConstant(ForceInit);
-		FVector4f InstancingOffset(ForceInit);
-		FVector4f InstancingTranslatedWorldViewOriginZero(ForceInit);
-		FVector4f InstancingTranslatedWorldViewOriginOne(ForceInit);
-		InstancingTranslatedWorldViewOriginOne.W = 1.0f;
-
-		// InstancedLODRange is only set for HierarchicalInstancedStaticMeshes
-		if (InstancingUserData && BatchElement.InstancedLODRange)
-		{
-			int32 FirstLOD = InstancingUserData->MinLOD;
-
-			int32 DebugMin = FMath::Min(CVarMinLOD.GetValueOnRenderThread(), InstancingUserData->MeshRenderData->LODResources.Num() - 1);
-			if (DebugMin >= 0)
-			{
-				FirstLOD = FMath::Max(FirstLOD, DebugMin);
-			}
-
-			FBoxSphereBounds ScaledBounds = InstancingUserData->MeshRenderData->Bounds.TransformBy(FTransform(FRotator::ZeroRotator, FVector::ZeroVector, InstancingUserData->AverageInstancesScale));
-			float SphereRadius = ScaledBounds.SphereRadius;
-			float MinSize = View->ViewMatrices.IsPerspectiveProjection() ? CVarFoliageMinimumScreenSize.GetValueOnRenderThread() : 0.0f;
-			float LODScale = InstancingUserData->LODDistanceScale;
-			float LODRandom = CVarRandomLODRange.GetValueOnRenderThread();
-			float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
-
-			if (BatchElement.InstancedLODIndex)
-			{
-				InstancingViewZConstant.X = -1.0f;
-			}
-			else
-			{
-				// this is the first LOD, so we don't have a fade-in region
-				InstancingViewZConstant.X = 0.0f;
-			}
-			InstancingViewZConstant.Y = 0.0f;
-			InstancingViewZConstant.Z = 1.0f;
-
-			// now we subtract off the lower segments, since they will be incorporated 
-			InstancingViewZConstant.Y -= InstancingViewZConstant.X;
-			InstancingViewZConstant.Z -= InstancingViewZConstant.X + InstancingViewZConstant.Y;
-			//not using W InstancingViewZConstant.W -= InstancingViewZConstant.X + InstancingViewZConstant.Y + InstancingViewZConstant.Z;
-
-			for (int32 SampleIndex = 0; SampleIndex < 2; SampleIndex++)
-			{
-				FVector4f& InstancingViewZCompare(SampleIndex ? InstancingViewZCompareOne : InstancingViewZCompareZero);
-
-				float FinalCull = MAX_flt;
-				if (MinSize > 0.0)
-				{
-					FinalCull = ComputeBoundsDrawDistance(MinSize, SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
-				}
-				if (InstancingUserData->EndCullDistance > 0.0f)
-				{
-					FinalCull = FMath::Min(FinalCull, InstancingUserData->EndCullDistance * MaxDrawDistanceScale);
-				}
-
-				InstancingViewZCompare.Z = FinalCull;
-				if (int(BatchElement.InstancedLODIndex) < InstancingUserData->MeshRenderData->LODResources.Num() - 1)
-				{
-					float NextCut = ComputeBoundsDrawDistance(InstancingUserData->MeshRenderData->ScreenSize[BatchElement.InstancedLODIndex + 1].GetValue(), SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
-					InstancingViewZCompare.Z = FMath::Min(NextCut, FinalCull);
-				}
-
-				InstancingViewZCompare.X = MIN_flt;
-				if (int(BatchElement.InstancedLODIndex) > FirstLOD)
-				{
-					float CurCut = ComputeBoundsDrawDistance(InstancingUserData->MeshRenderData->ScreenSize[BatchElement.InstancedLODIndex].GetValue(), SphereRadius, View->ViewMatrices.GetProjectionMatrix()) * LODScale;
-					if (CurCut < FinalCull)
-					{
-						InstancingViewZCompare.Y = CurCut;
-					}
-					else
-					{
-						// this LOD is completely removed by one of the other two factors
-						InstancingViewZCompare.Y = MIN_flt;
-						InstancingViewZCompare.Z = MIN_flt;
-					}
-				}
-				else
-				{
-					// this is the first LOD, so we don't have a fade-in region
-					InstancingViewZCompare.Y = MIN_flt;
-				}
-			}
-
-			InstancingOffset = (FVector3f)InstancingUserData->InstancingOffset; // LWC_TODO: precision loss
-
-			const FVector PreViewTranslation = View->ViewMatrices.GetPreViewTranslation();
-			InstancingTranslatedWorldViewOriginZero = (FVector3f)(View->GetTemporalLODOrigin(0) + PreViewTranslation); // LWC_TODO: precision loss
-			InstancingTranslatedWorldViewOriginOne = (FVector3f)(View->GetTemporalLODOrigin(1) + PreViewTranslation); // LWC_TODO: precision loss
-
-			float Alpha = View->GetTemporalLODTransition();
-			InstancingTranslatedWorldViewOriginZero.W = 1.0f - Alpha;
-			InstancingTranslatedWorldViewOriginOne.W = Alpha;
-
-			InstancingViewZCompareZero.W = LODRandom;
-		}
-
-		ShaderBindings.Add(InstancingViewZCompareZeroParameter, InstancingViewZCompareZero);
-		ShaderBindings.Add(InstancingViewZCompareOneParameter, InstancingViewZCompareOne);
-		ShaderBindings.Add(InstancingViewZConstantParameter, InstancingViewZConstant);
-		ShaderBindings.Add(InstancingOffsetParameter, InstancingOffset);
-		ShaderBindings.Add(InstancingWorldViewOriginZeroParameter, InstancingTranslatedWorldViewOriginZero);
-		ShaderBindings.Add(InstancingWorldViewOriginOneParameter, InstancingTranslatedWorldViewOriginOne);
+		InstancingOffset = (FVector3f)InstancingUserData->InstancingOffset; // LWC_TODO: precision loss
 	}
+	ShaderBindings.Add(InstancingOffsetParameter, InstancingOffset);
 
-	if( InstancingFadeOutParamsParameter.IsBound() )
-	{
-		FVector4f InstancingFadeOutParams(MAX_flt,0.f,1.f,1.f);
-		if (InstancingUserData)
-		{
-			const float MaxDrawDistanceScale = GetCachedScalabilityCVars().ViewDistanceScale;
-			const float StartDistance = InstancingUserData->StartCullDistance * MaxDrawDistanceScale;
-			const float EndDistance = InstancingUserData->EndCullDistance * MaxDrawDistanceScale;
-
-			InstancingFadeOutParams.X = StartDistance;
-			if( EndDistance > 0 )
-			{
-				if( EndDistance > StartDistance )
-				{
-					InstancingFadeOutParams.Y = 1.f / (float)(EndDistance - StartDistance);
-				}
-				else
-				{
-					InstancingFadeOutParams.Y = 1.f;
-				}
-			}
-			else
-			{
-				InstancingFadeOutParams.Y = 0.f;
-			}
-			if (CVarCullAllInVertexShader.GetValueOnRenderThread() > 0)
-			{
-				InstancingFadeOutParams.Z = 0.0f;
-				InstancingFadeOutParams.W = 0.0f;
-			}
-			else
-			{
-				InstancingFadeOutParams.Z = InstancingUserData->bRenderSelected ? 1.f : 0.f;
-				InstancingFadeOutParams.W = InstancingUserData->bRenderUnselected ? 1.f : 0.f;
-			}
-		}
-
-		ShaderBindings.Add(InstancingFadeOutParamsParameter, InstancingFadeOutParams);
-
-	}
+	ShaderBindings.Add(Shader->GetUniformBufferParameter<FInstancedStaticMeshVFLooseUniformShaderParameters>(), BatchElement.LooseParametersUniformBuffer);
 }

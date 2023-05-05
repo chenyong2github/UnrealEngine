@@ -12,17 +12,6 @@
 
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
-#if USE_INSTANCE_CULLING || USE_INSTANCING
-	#if USE_DITHERED_LOD_TRANSITION
-		float4 InstancingViewZCompareZero;  // w contains random lod scale 
-		float4 InstancingViewZCompareOne;
-		float4 InstancingViewZConstant;
-		float4 InstancingTranslatedWorldViewOriginZero;
-		float4 InstancingTranslatedWorldViewOriginOne;
-	#endif
-	float4 InstancingFadeOutParams;
-#endif
-
 #if USE_INSTANCING
 float4 InstancingOffset;
 uint InstanceOffset;
@@ -895,22 +884,22 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		
 		// PerInstanceParams.x: per-instance fade out amount
 		float3 InstanceTranslatedLocation = TransformLocalToTranslatedWorld(GetInstanceData(Intermediates).LocalBoundsCenter, GetInstanceData(Intermediates).LocalToWorld).xyz;
-		Intermediates.PerInstanceParams.x = 1.0 - saturate((length(InstanceTranslatedLocation) - InstancingFadeOutParams.x) * InstancingFadeOutParams.y);
+		Intermediates.PerInstanceParams.x = 1.0 - saturate((length(InstanceTranslatedLocation) - InstancedVFLooseParameters.InstancingFadeOutParams.x) * InstancedVFLooseParameters.InstancingFadeOutParams.y);
 		
 		// InstancingFadeOutParams.z,w are RenderSelected and RenderDeselected respectively.
 
 		// PerInstanceParams.y = hide / show flag, 
-		Intermediates.IsVisible = lerp(InstancingFadeOutParams.w, InstancingFadeOutParams.z, Intermediates.IsSelected);
+		Intermediates.IsVisible = lerp(InstancedVFLooseParameters.InstancingFadeOutParams.w, InstancedVFLooseParameters.InstancingFadeOutParams.z, Intermediates.IsSelected);
 		Intermediates.PerInstanceParams.y = Intermediates.IsVisible;
 
 		// PerInstanceParams.z dither fade cutoff
 	#if USE_DITHERED_LOD_TRANSITION
-		float RandomLOD = InstancingViewZCompareZero.w * Intermediates.SceneData.InstanceData.RandomID;
-		float ViewZZero = length(InstanceTranslatedLocation - InstancingTranslatedWorldViewOriginZero.xyz) + RandomLOD;
-		float ViewZOne = length(InstanceTranslatedLocation - InstancingTranslatedWorldViewOriginOne.xyz) + RandomLOD;
+		float RandomLOD = InstancedVFLooseParameters.InstancingViewZCompareZero.w * Intermediates.SceneData.InstanceData.RandomID; 
+		float ViewZZero = length(InstanceTranslatedLocation - InstancedVFLooseParameters.InstancingTranslatedWorldViewOriginZero.xyz) + RandomLOD;
+		float ViewZOne = length(InstanceTranslatedLocation - InstancedVFLooseParameters.InstancingTranslatedWorldViewOriginOne.xyz) + RandomLOD;
 		Intermediates.PerInstanceParams.z =
-			dot(float3(ViewZZero.xxx > InstancingViewZCompareZero.xyz), InstancingViewZConstant.xyz) * InstancingTranslatedWorldViewOriginZero.w +
-			dot(float3(ViewZOne.xxx > InstancingViewZCompareOne.xyz), InstancingViewZConstant.xyz) * InstancingTranslatedWorldViewOriginOne.w;
+			dot(float3(ViewZZero.xxx > InstancedVFLooseParameters.InstancingViewZCompareZero.xyz), InstancedVFLooseParameters.InstancingViewZConstant.xyz) * InstancedVFLooseParameters.InstancingTranslatedWorldViewOriginZero.w +
+			dot(float3(ViewZOne.xxx > InstancedVFLooseParameters.InstancingViewZCompareOne.xyz), InstancedVFLooseParameters.InstancingViewZConstant.xyz) * InstancedVFLooseParameters.InstancingTranslatedWorldViewOriginOne.w;
 		Intermediates.PerInstanceParams.y *= abs(Intermediates.PerInstanceParams.z) < .999;
 		Intermediates.IsVisible = Intermediates.PerInstanceParams.y;
 	#else
@@ -960,16 +949,16 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	// GPUCULL_TODO: This can't be right
 	float3 InstanceTranslatedLocation = TransformLocalToTranslatedWorld(GetInstanceOrigin(Intermediates), PrimitiveData.LocalToWorld).xyz;
 	float InstanceViewDistance = length(InstanceTranslatedLocation);
-	Intermediates.PerInstanceParams.x = 1.0 - saturate((InstanceViewDistance - InstancingFadeOutParams.x) * InstancingFadeOutParams.y);
+	Intermediates.PerInstanceParams.x = 1.0 - saturate((InstanceViewDistance - InstancedVFLooseParameters.InstancingFadeOutParams.x) * InstancedVFLooseParameters.InstancingFadeOutParams.y);
 	// InstancingFadeOutParams.z,w are RenderSelected and RenderDeselected respectively.
-	Intermediates.PerInstanceParams.y = InstancingFadeOutParams.z * SelectedValue + InstancingFadeOutParams.w * (1-SelectedValue);
+	Intermediates.PerInstanceParams.y = InstancedVFLooseParameters.InstancingFadeOutParams.z * SelectedValue + InstancedVFLooseParameters.InstancingFadeOutParams.w * (1-SelectedValue);
 	#if USE_DITHERED_LOD_TRANSITION
-		float RandomLOD = InstancingViewZCompareZero.w * Intermediates.SceneData.InstanceData.RandomID;
-		float ViewZZero = length(InstanceTranslatedLocation - InstancingTranslatedWorldViewOriginZero.xyz) + RandomLOD;
-		float ViewZOne = length(InstanceTranslatedLocation - InstancingTranslatedWorldViewOriginOne.xyz) + RandomLOD;
+		float RandomLOD = InstancedVFLooseParameters.InstancingViewZCompareZero.w * Intermediates.SceneData.InstanceData.RandomID;
+		float ViewZZero = length(InstanceTranslatedLocation - InstancedVFLooseParameters.InstancingTranslatedWorldViewOriginZero.xyz) + RandomLOD;
+		float ViewZOne = length(InstanceTranslatedLocation - InstancedVFLooseParameters.InstancingTranslatedWorldViewOriginOne.xyz) + RandomLOD;
 		Intermediates.PerInstanceParams.z = 
-			dot(float3(ViewZZero.xxx > InstancingViewZCompareZero.xyz), InstancingViewZConstant.xyz) * InstancingTranslatedWorldViewOriginZero.w +
-			dot(float3(ViewZOne.xxx > InstancingViewZCompareOne.xyz), InstancingViewZConstant.xyz) * InstancingTranslatedWorldViewOriginOne.w;
+			dot(float3(ViewZZero.xxx > InstancedVFLooseParameters.InstancingViewZCompareZero.xyz), InstancedVFLooseParameters.InstancingViewZConstant.xyz) * InstancedVFLooseParameters.InstancingTranslatedWorldViewOriginZero.w +
+			dot(float3(ViewZOne.xxx > InstancedVFLooseParameters.InstancingViewZCompareOne.xyz), InstancedVFLooseParameters.InstancingViewZConstant.xyz) * InstancedVFLooseParameters.InstancingTranslatedWorldViewOriginOne.w;
 		Intermediates.PerInstanceParams.y *= abs(Intermediates.PerInstanceParams.z) < .999;
 	#else
 		Intermediates.PerInstanceParams.z = 0;

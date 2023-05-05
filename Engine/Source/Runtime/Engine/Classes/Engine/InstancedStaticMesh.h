@@ -46,6 +46,17 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstancedStaticMeshVertexFactoryUniformSha
 	SHADER_PARAMETER(int32, NumCustomDataFloats)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstancedStaticMeshVFLooseUniformShaderParameters, ENGINE_API)
+	SHADER_PARAMETER(FVector4f, InstancingViewZCompareZero)
+	SHADER_PARAMETER(FVector4f, InstancingViewZCompareOne)
+	SHADER_PARAMETER(FVector4f, InstancingViewZConstant)
+	SHADER_PARAMETER(FVector4f, InstancingTranslatedWorldViewOriginZero)
+	SHADER_PARAMETER(FVector4f, InstancingTranslatedWorldViewOriginOne)
+	SHADER_PARAMETER(FVector4f, InstancingFadeOutParams)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+typedef TUniformBufferRef<FInstancedStaticMeshVFLooseUniformShaderParameters> FInstancedStaticMeshVFLooseUniformShaderParametersRef;
+
 // This must match the maximum a user could specify in the material (see 
 // FHLSLMaterialTranslator::TextureCoordinate), otherwise the material will attempt 
 // to look up a texture coordinate we didn't provide an element for.
@@ -354,13 +365,7 @@ public:
 	{
 		FLocalVertexFactoryShaderParametersBase::Bind(ParameterMap);
 
-		InstancingFadeOutParamsParameter.Bind(ParameterMap, TEXT("InstancingFadeOutParams"));
-		InstancingViewZCompareZeroParameter.Bind(ParameterMap, TEXT("InstancingViewZCompareZero"));
-		InstancingViewZCompareOneParameter.Bind(ParameterMap, TEXT("InstancingViewZCompareOne"));
-		InstancingViewZConstantParameter.Bind(ParameterMap, TEXT("InstancingViewZConstant"));
 		InstancingOffsetParameter.Bind(ParameterMap, TEXT("InstancingOffset"));
-		InstancingWorldViewOriginZeroParameter.Bind(ParameterMap, TEXT("InstancingTranslatedWorldViewOriginZero"));
-		InstancingWorldViewOriginOneParameter.Bind(ParameterMap, TEXT("InstancingTranslatedWorldViewOriginOne"));
 		VertexFetch_InstanceOriginBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_InstanceOriginBuffer"));
 		VertexFetch_InstanceTransformBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_InstanceTransformBuffer"));
 		VertexFetch_InstanceLightmapBufferParameter.Bind(ParameterMap, TEXT("VertexFetch_InstanceLightmapBuffer"));
@@ -380,15 +385,7 @@ public:
 		) const;
 
 private:
-	
-	LAYOUT_FIELD(FShaderParameter, InstancingFadeOutParamsParameter)
-	LAYOUT_FIELD(FShaderParameter, InstancingViewZCompareZeroParameter)
-	LAYOUT_FIELD(FShaderParameter, InstancingViewZCompareOneParameter)
-	LAYOUT_FIELD(FShaderParameter, InstancingViewZConstantParameter)
 	LAYOUT_FIELD(FShaderParameter, InstancingOffsetParameter);
-	LAYOUT_FIELD(FShaderParameter, InstancingWorldViewOriginZeroParameter)
-	LAYOUT_FIELD(FShaderParameter, InstancingWorldViewOriginOneParameter)
-
 	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_InstanceOriginBufferParameter)
 	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_InstanceTransformBufferParameter)
 	LAYOUT_FIELD(FShaderResourceParameter, VertexFetch_InstanceLightmapBufferParameter)
@@ -600,6 +597,8 @@ public:
 	}
 
 protected:
+	FInstancedStaticMeshVFLooseUniformShaderParametersRef CreateLooseUniformBuffer(const FSceneView* View, const FInstancingUserData* InstancingUserData, uint32 InstancedLODRange, uint32 InstancedLODIndex, EUniformBufferUsage UniformBufferUsage) const;
+
 	/** Cache of the StaticMesh asset, needed to release SpeedTree resources*/
 	UStaticMesh* StaticMesh;
 
@@ -638,6 +637,9 @@ protected:
 private:
 
 	void SetupProxy(UInstancedStaticMeshComponent* InComponent);
+
+	/** Stores a loose uniform buffer per LOD, used for static view relevance. */
+	TMap<uint32, FInstancedStaticMeshVFLooseUniformShaderParametersRef> LODLooseUniformBuffers;
 };
 
 #if WITH_EDITOR

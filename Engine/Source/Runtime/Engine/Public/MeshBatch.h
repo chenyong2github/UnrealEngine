@@ -201,6 +201,10 @@ struct FMeshBatchElement
 	 */
 	const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource;
 
+	/** Uniform buffer containing the "loose" parameters that aren't wrapped in other uniform buffers. Those parameters can be unique per mesh batch, e.g. view dependent. */
+	FUniformBufferRHIRef LooseParametersUniformBuffer;
+
+	/** The index buffer to draw the mesh batch with. */
 	const FIndexBuffer* IndexBuffer;
 
 	/**
