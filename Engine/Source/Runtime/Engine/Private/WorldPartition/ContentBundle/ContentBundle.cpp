@@ -12,8 +12,6 @@
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #endif
 
-int32 FContentBundle::ContentBundlesEpoch = 0;
-
 FContentBundle::FContentBundle(TSharedPtr<FContentBundleClient>& InClient, UWorld* InWorld)
 	: FContentBundleBase(InClient, InWorld)
 	, ExternalStreamingObjectPackage(nullptr)
@@ -65,8 +63,6 @@ void FContentBundle::DoInjectContent()
 		{
 			UE_LOG(LogContentBundle, Log, TEXT("%s Streaming Object Injected."), *ContentBundle::Log::MakeDebugInfoString(*this));
 			SetStatus(EContentBundleStatus::ContentInjected);
-
-			ContentBundlesEpoch++;
 		}
 		else
 		{
@@ -85,11 +81,7 @@ void FContentBundle::DoRemoveContent()
 {
 	if (ExternalStreamingObject != nullptr)
 	{
-		if (GetInjectedWorld()->GetWorldPartition()->RemoveExternalStreamingObject(ExternalStreamingObject))
-		{
-			ContentBundlesEpoch++;
-		}
-		else
+		if (!GetInjectedWorld()->GetWorldPartition()->RemoveExternalStreamingObject(ExternalStreamingObject))
 		{
 			UE_LOG(LogContentBundle, Error, TEXT("%s Error while removing streaming object."), *ContentBundle::Log::MakeDebugInfoString(*this));
 		}

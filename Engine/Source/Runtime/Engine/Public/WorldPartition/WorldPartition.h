@@ -310,6 +310,7 @@ public:
 
 public:
 	static bool IsSimulating(bool bIncludeTestEnableSimulationStreamingSource = true);
+	int32 GetStreamingStateEpoch() const { return StreamingStateEpoch; }
 
 	void Initialize(UWorld* World, const FTransform& InTransform);
 	bool IsInitialized() const;
@@ -460,6 +461,7 @@ private:
 	static FAutoConsoleVariableRef CVarDebugDedicatedServerStreaming;
 #endif
 
+	int32 StreamingStateEpoch;
 	static int32 GlobalEnableServerStreaming;
 	static bool bGlobalEnableServerStreamingOut;
 	static bool bUseMakingVisibleTransactionRequests;
@@ -504,7 +506,6 @@ public:
 	{
 		return RegisteredEditorLoaderAdapters;
 	}
-
 private:
 #endif
 

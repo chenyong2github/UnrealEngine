@@ -121,8 +121,8 @@ private:
 	bool bLastUpdateCompletedLoadingAndActivation;
 	bool bCriticalPerformanceRequestedBlockTillOnWorld;
 	int32 CriticalPerformanceBlockTillLevelStreamingCompletedEpoch;
-	int32 DataLayersStatesServerEpoch;
-	int32 ContentBundleServerEpoch;
+	int32 ServerDataLayersStatesEpoch;
+	int32 ServerStreamingStateEpoch;
 	int32 ServerStreamingEnabledEpoch;
 	uint32 UpdateStreamingHash;
 	uint32 UpdateStreamingSourcesHash;

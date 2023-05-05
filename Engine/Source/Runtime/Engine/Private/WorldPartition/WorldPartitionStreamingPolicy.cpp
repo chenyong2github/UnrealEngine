@@ -73,8 +73,8 @@ UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInit
 	, bLastUpdateCompletedLoadingAndActivation(false)
 	, bCriticalPerformanceRequestedBlockTillOnWorld(false)
 	, CriticalPerformanceBlockTillLevelStreamingCompletedEpoch(0)
-	, DataLayersStatesServerEpoch(INT_MIN)
-	, ContentBundleServerEpoch(INT_MIN)
+	, ServerDataLayersStatesEpoch(INT_MIN)
+	, ServerStreamingStateEpoch(INT_MIN)
 	, ServerStreamingEnabledEpoch(INT_MIN)
 	, UpdateStreamingHash(0)
 	, UpdateStreamingSourcesHash(0)
@@ -163,7 +163,7 @@ uint32 UWorldPartitionStreamingPolicy::ComputeUpdateStreamingHash(bool bCanOptim
 		// Build hash that will be used to detect relevant changes
 		FHashBuilder HashBuilder;
 		HashBuilder << ComputeServerStreamingEnabledEpoch();
-		HashBuilder << FContentBundle::GetContentBundleEpoch();
+		HashBuilder << GetOuterUWorldPartition()->GetStreamingStateEpoch();
 		HashBuilder << AWorldDataLayers::GetDataLayersStateEpoch();
 		HashBuilder << bIsStreaming3D;
 		for (const FWorldPartitionStreamingSource& Source : StreamingSources)
@@ -352,8 +352,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			// Server will activate all non data layer cells at first and then load/activate/unload data layer cells only when the data layer states change
 			if (!bIsServerStreamingEnabled && 
 				(ServerStreamingEnabledEpoch == NewServerStreamingEnabledEpoch) &&
-				(ContentBundleServerEpoch == FContentBundle::GetContentBundleEpoch()) &&
-				(DataLayersStatesServerEpoch == AWorldDataLayers::GetDataLayersStateEpoch()))
+				(ServerStreamingStateEpoch == WorldPartition->GetStreamingStateEpoch()) &&
+				(ServerDataLayersStatesEpoch == AWorldDataLayers::GetDataLayersStateEpoch()))
 			{
 				// Server as nothing to do early out
 				return; 
@@ -593,8 +593,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	// Update Epoch if we aren't waiting for clients anymore
 	if (bUpdateEpoch)
 	{
-		DataLayersStatesServerEpoch = AWorldDataLayers::GetDataLayersStateEpoch();
-		ContentBundleServerEpoch = FContentBundle::GetContentBundleEpoch();
+		ServerDataLayersStatesEpoch = AWorldDataLayers::GetDataLayersStateEpoch();
+		ServerStreamingStateEpoch = WorldPartition->GetStreamingStateEpoch();
 		ServerStreamingEnabledEpoch = NewServerStreamingEnabledEpoch;
 		UE_LOG(LogWorldPartition, Verbose, TEXT("Server epoch updated"));
 	}

@@ -285,6 +285,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	bEnableStreaming = true;
 	ServerStreamingMode = EWorldPartitionServerStreamingMode::ProjectDefault;
 	ServerStreamingOutMode = EWorldPartitionServerStreamingOutMode::ProjectDefault;
+	StreamingStateEpoch = 0;
 
 #if WITH_EDITOR
 	WorldPartitionStreamingPolicyClass = UWorldPartitionLevelStreamingPolicy::StaticClass();
@@ -1475,6 +1476,7 @@ bool UWorldPartition::InjectExternalStreamingObject(URuntimeHashExternalStreamin
 	{
 		StreamingPolicy->InjectExternalStreamingObject(ExternalStreamingObject);
 		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectInjected(ExternalStreamingObject);
+		++StreamingStateEpoch;
 	}
 
 	return bInjected;
@@ -1491,6 +1493,7 @@ bool UWorldPartition::RemoveExternalStreamingObject(URuntimeHashExternalStreamin
 		}
 		
 		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectRemoved(ExternalStreamingObject);
+		++StreamingStateEpoch;
 	}
 
 	return bRemoved;
