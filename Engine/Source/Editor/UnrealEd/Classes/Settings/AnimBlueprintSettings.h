@@ -30,6 +30,10 @@ public:
 	/** Whether to allow delegates to be created/displayed in animation blueprints */
 	UPROPERTY()
 	bool bAllowDelegates = true;
+	
+	/** Whether to allow pose watches to be created/displayed in animation blueprints */
+	UPROPERTY()
+	bool bAllowPoseWatches = true;
 
 	/** Whether to allow restrict which base function overrides can created/displayed in animation blueprints */
 	UPROPERTY()

@@ -41,6 +41,7 @@
 #include "AnimationBlendSpaceSampleGraph.h"
 #include "GraphEditorDragDropAction.h"
 #include "AnimationEditorUtils.h"
+#include "Settings/AnimBlueprintSettings.h"
 
 #define LOCTEXT_NAMESPACE "AnimationGraphSchema"
 
@@ -806,7 +807,10 @@ void UAnimationGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCon
 		{
 			// Node contextual actions
 			FToolMenuSection& Section = Menu->AddSection("AnimGraphSchemaNodeActions", LOCTEXT("AnimNodeActionsMenuHeader", "Anim Node Actions"));
-			Section.AddMenuEntry(FAnimGraphCommands::Get().TogglePoseWatch);
+			if (GetDefault<UAnimBlueprintSettings>()->bAllowPoseWatches)
+			{
+				Section.AddMenuEntry(FAnimGraphCommands::Get().TogglePoseWatch);
+			}
 			Section.AddMenuEntry(FAnimGraphCommands::Get().HideUnboundPropertyPins);
 		}
 
