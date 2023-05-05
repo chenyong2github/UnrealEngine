@@ -1797,6 +1797,13 @@ bool UBlueprint::NeedsLoadForEditorGame() const
 	return true;
 }
 
+bool UBlueprint::HasNonEditorOnlyReferences() const
+{
+	// The this->BlueprintGeneratedClass is reference that we need to mark as UsedInGame,
+	// despite UBlueprint being editor-only due to NeedsLoadForClient,NeedsLoadForServer == false
+	return true;
+}
+
 void UBlueprint::TagSubobjects(EObjectFlags NewFlags)
 {
 	Super::TagSubobjects(NewFlags);

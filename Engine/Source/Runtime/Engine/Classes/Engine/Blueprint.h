@@ -1069,6 +1069,7 @@ public:
 	virtual bool NeedsLoadForClient() const override;
 	virtual bool NeedsLoadForServer() const override;
 	virtual bool NeedsLoadForEditorGame() const override;
+	virtual bool HasNonEditorOnlyReferences() const override;
 	//~ End UObject Interface
 
 #if WITH_EDITORONLY_DATA

@@ -51,7 +51,9 @@ EObjectMark GenerateMarksForObject(const UObject* InObject, const ITargetPlatfor
 	}
 	else
 	// If NotForClient and NotForServer, it is implicitly editor only
-	if ((Marks & OBJECTMARK_NotForClient) && (Marks & OBJECTMARK_NotForServer))
+	// If doing an editor save, HasNonEditorOnlyReferences can override it to still not be marked as editoronly
+	if ((Marks & OBJECTMARK_NotForClient) && (Marks & OBJECTMARK_NotForServer) &&
+		(TargetPlatform != nullptr || !InObject->HasNonEditorOnlyReferences()))
 	{
 		Marks = (EObjectMark)(Marks | OBJECTMARK_EditorOnly);
 	}
