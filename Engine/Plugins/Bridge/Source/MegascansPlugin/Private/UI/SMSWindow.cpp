@@ -154,6 +154,8 @@ private:
 	UMegascansSettings* MegascansSettings;
 	UMaterialBlendSettings* MaterialBlendSettings;
 	UMaterialPresetsSettings* MaterialOverrideSettings;
+
+	virtual FString GetReferencerName() const override { return "MegascanSettings"; }
 };
 	
 
