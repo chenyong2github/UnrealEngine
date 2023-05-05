@@ -104,8 +104,8 @@ namespace CrossCompiler
 			Current(InCurrent)
 		{
 			Original = *InCurrent;
-			auto* NewScope = new(Original->Children) FSymbolScope(InAllocator, Original);
-			*Current = NewScope;
+			auto& NewScope = Original->Children.Emplace_GetRef(InAllocator, Original);
+			*Current = &NewScope;
 		}
 
 		~FCreateSymbolScope()

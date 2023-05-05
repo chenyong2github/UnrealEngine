@@ -207,7 +207,7 @@ public:
 		VertIndexAndZ.Empty(NumVertices);
 		for (int32 VertIndex = 0; VertIndex < NumVertices; VertIndex++)
 		{
-			new(VertIndexAndZ)FIndexAndZ(VertIndex, FVector(InVertices.Position[VertIndex]));
+			VertIndexAndZ.Emplace(VertIndex, FVector(InVertices.Position[VertIndex]));
 		}
 		VertIndexAndZ.Sort(FCompareIndexAndZ());
 

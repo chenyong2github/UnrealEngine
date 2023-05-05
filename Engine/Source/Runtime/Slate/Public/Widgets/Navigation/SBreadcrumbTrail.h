@@ -209,7 +209,7 @@ public:
 		];
 
 		// Push the crumb data
-		new (CrumbList) FCrumbItem(NextValidCrumbID, NewButton.ToSharedRef(), NewDelimiter.ToSharedRef(), NewButtonBox.ToSharedRef(), NewDelimiterBox.ToSharedRef(), NewCrumbData);
+		CrumbList.Emplace(NextValidCrumbID, NewButton.ToSharedRef(), NewDelimiter.ToSharedRef(), NewButtonBox.ToSharedRef(), NewDelimiterBox.ToSharedRef(), NewCrumbData);
 
 		// Increment the crumb ID for the next crumb
 		NextValidCrumbID = (NextValidCrumbID + 1) % (INT_MAX - 1);

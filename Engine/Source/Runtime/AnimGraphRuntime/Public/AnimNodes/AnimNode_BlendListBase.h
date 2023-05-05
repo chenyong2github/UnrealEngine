@@ -85,7 +85,7 @@ public:
 	virtual void AddPose()
 	{
 		BlendTime.Add(0.1f);
-		new (BlendPose) FPoseLink();
+		BlendPose.AddDefaulted();
 	}
 
 	virtual void RemovePose(int32 PoseIndex)

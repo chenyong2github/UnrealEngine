@@ -54,9 +54,9 @@ class UPhysicsConstraintTemplate : public UObject
 #if WITH_EDITOR
 	void AddConstraintProfile(FName ProfileName)
 	{
-		FPhysicsConstraintProfileHandle* NewHandle = new(ProfileHandles) FPhysicsConstraintProfileHandle;
-		NewHandle->ProfileName = ProfileName;
-		NewHandle->ProfileProperties = DefaultInstance.ProfileInstance;	//Copy current settings into new profile
+		FPhysicsConstraintProfileHandle& NewHandle = ProfileHandles.AddDefaulted_GetRef();
+		NewHandle.ProfileName = ProfileName;
+		NewHandle.ProfileProperties = DefaultInstance.ProfileInstance;	//Copy current settings into new profile
 	}
 
 	void RemoveConstraintProfile(FName ProfileName)

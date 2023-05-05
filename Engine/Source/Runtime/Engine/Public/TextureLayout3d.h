@@ -36,8 +36,8 @@ public:
 		bAllowShrink(bInAllowShrink)
 	{
 		check(MaxSizeX < USHRT_MAX && MaxSizeY < USHRT_MAX && MaxSizeZ < USHRT_MAX);
-		new(Nodes) FTextureLayoutNode3d(0, 0, 0, IntCastChecked<uint16>(MaxSizeX), IntCastChecked<uint16>(MaxSizeY), IntCastChecked<uint16>(MaxSizeZ), INDEX_NONE);
-		new (UnusedLeaves) FUnusedLeaf(0, 0, 0, IntCastChecked<uint16>(MaxSizeX), IntCastChecked<uint16>(MaxSizeY), IntCastChecked<uint16>(MaxSizeZ), 0);
+		Nodes.Emplace(0, 0, 0, IntCastChecked<uint16>(MaxSizeX), IntCastChecked<uint16>(MaxSizeY), IntCastChecked<uint16>(MaxSizeZ), INDEX_NONE);
+		UnusedLeaves.Emplace(0, 0, 0, IntCastChecked<uint16>(MaxSizeX), IntCastChecked<uint16>(MaxSizeY), IntCastChecked<uint16>(MaxSizeZ), 0);
 	}
 
 	/**
@@ -170,7 +170,7 @@ public:
 				FoundNodeIndex = LastParentNodeIndex;
 			}
 
-			new (UnusedLeaves) FUnusedLeaf(
+			UnusedLeaves.Emplace(
 				Nodes[FoundNodeIndex].MinX,
 				Nodes[FoundNodeIndex].MinY,
 				Nodes[FoundNodeIndex].MinZ,
@@ -458,7 +458,7 @@ private:
 
 			const FTextureLayoutNode3d& ChildBNode = Nodes[ChildBNodeIndex];
 
-			new (UnusedLeaves) FUnusedLeaf(ChildBNode.MinX, ChildBNode.MinY, ChildBNode.MinZ, ChildBNode.SizeX, ChildBNode.SizeY, ChildBNode.SizeZ, ChildBNodeIndex);
+			UnusedLeaves.Emplace(ChildBNode.MinX, ChildBNode.MinY, ChildBNode.MinZ, ChildBNode.SizeX, ChildBNode.SizeY, ChildBNode.SizeZ, ChildBNodeIndex);
 
 			// Only traversing ChildA, since ChildA is always the newly created node that matches the element size
 			return AddSurfaceInner(ChildANodeIndex, ElementSizeX, ElementSizeY, ElementSizeZ, bAllowTextureEnlargement);

@@ -43,7 +43,7 @@ public:
 		bPowerOfTwoSize(bInPowerOfTwoSize),
 		bAlignByFour(bInAlignByFour)
 	{
-		new(Nodes) FTextureLayoutNode(0, 0, IntCastChecked<uint16>(MaxSizeX), IntCastChecked<uint16>(MaxSizeY));
+		Nodes.Emplace(0, 0, IntCastChecked<uint16>(MaxSizeX), IntCastChecked<uint16>(MaxSizeY));
 	}
 
 	/**
@@ -324,7 +324,7 @@ private:
 
 				// Create a child with the same width as the element being placed.
 				// The height may not be the same as the element height yet, in that case another subdivision will occur when traversing this child node.
-				new(Nodes) FTextureLayoutNode(
+				Nodes.Emplace(
 					CurrentNode.MinX,
 					CurrentNode.MinY,
 					IntCastChecked<uint16>(ElementSizeX),
@@ -333,7 +333,7 @@ private:
 
 				// Create a second child to contain the leftover area in the X direction
 				Nodes[NodeIndex].ChildB = Nodes.Num();
-				new(Nodes) FTextureLayoutNode(
+				Nodes.Emplace(
 					IntCastChecked<uint16>(CurrentNode.MinX + ElementSizeX),
 					CurrentNode.MinY,
 					IntCastChecked<uint16>(CurrentNode.SizeX - ElementSizeX),
@@ -343,7 +343,7 @@ private:
 			else
 			{
 				Nodes[NodeIndex].ChildA = Nodes.Num();
-				new(Nodes) FTextureLayoutNode(
+				Nodes.Emplace(
 					CurrentNode.MinX,
 					CurrentNode.MinY,
 					CurrentNode.SizeX,
@@ -351,7 +351,7 @@ private:
 					);
 
 				Nodes[NodeIndex].ChildB = Nodes.Num();
-				new(Nodes) FTextureLayoutNode(
+				Nodes.Emplace(
 					CurrentNode.MinX,
 					IntCastChecked<uint16>(CurrentNode.MinY + ElementSizeY),
 					CurrentNode.SizeX,

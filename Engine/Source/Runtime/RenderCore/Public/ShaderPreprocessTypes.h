@@ -105,16 +105,16 @@ public:
 
 	inline void LogError(FString&& Message)
 	{
-		FShaderCompilerError* CompilerError = new(Errors) FShaderCompilerError;
-		CompilerError->StrippedErrorMessage = Message;
+		FShaderCompilerError& CompilerError = Errors.AddDefaulted_GetRef();;
+		CompilerError.StrippedErrorMessage = Message;
 	}
 
 	inline void LogError(FString&& FilePath, FString&& Message, FString&& LineNumberStr)
 	{
-		FShaderCompilerError* CompilerError = new(Errors) FShaderCompilerError;
-		CompilerError->ErrorVirtualFilePath = FilePath;
-		CompilerError->ErrorLineString = LineNumberStr;
-		CompilerError->StrippedErrorMessage = Message;
+		FShaderCompilerError& CompilerError = Errors.AddDefaulted_GetRef();
+		CompilerError.ErrorVirtualFilePath = FilePath;
+		CompilerError.ErrorLineString = LineNumberStr;
+		CompilerError.StrippedErrorMessage = Message;
 	}
 
 	inline void LogError(FString&& FilePath, FString&& Message, int32 LineNumber)

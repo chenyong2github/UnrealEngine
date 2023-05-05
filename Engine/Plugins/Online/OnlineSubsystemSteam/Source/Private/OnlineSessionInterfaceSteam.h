@@ -303,7 +303,7 @@ PACKAGE_SCOPE:
 	class FNamedOnlineSession* AddNamedSession(FName SessionName, const FOnlineSessionSettings& SessionSettings) override
 	{
 		FScopeLock ScopeLock(&SessionLock);
-		return new (Sessions) FNamedOnlineSession(SessionName, SessionSettings);
+		return &Sessions.Emplace_GetRef(SessionName, SessionSettings);
 	}
 
 	/**
@@ -317,7 +317,7 @@ PACKAGE_SCOPE:
 	class FNamedOnlineSession* AddNamedSession(FName SessionName, const FOnlineSession& Session) override
 	{
 		FScopeLock ScopeLock(&SessionLock);
-		return new (Sessions) FNamedOnlineSession(SessionName, Session);
+		return &Sessions.Emplace_GetRef(SessionName, Session);
 	}
 
 	/**

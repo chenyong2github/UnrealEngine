@@ -118,8 +118,8 @@
 			{ \
 				for (auto It = Serializer.GetObject()->GetArrayField(JsonName).CreateConstIterator(); It; ++It) \
 				{ \
-					ElementType* Obj = new(JsonArray) ElementType(); \
-					Obj->FromJson((*It)->AsObject()); \
+					ElementType& Obj = JsonArray.AddDefaulted_GetRef(); \
+					Obj.FromJson((*It)->AsObject()); \
 				} \
 			} \
 		} \
@@ -140,8 +140,8 @@
 			{ \
 				for (auto It = Serializer.GetObject()->GetArrayField(JsonName).CreateConstIterator(); It; ++It) \
 				{ \
-					ElementType* Obj = new(JsonArray) ElementType(); \
-					Obj->FromJson((*It)->AsObject()); \
+					ElementType& Obj = JsonArray.AddDefaulted_GetRef(); \
+					Obj.FromJson((*It)->AsObject()); \
 				} \
 			} \
 			else \
@@ -167,8 +167,8 @@
 				TArray<ElementType>& JsonArray = OptionalJsonArray.Emplace(); \
 				for (auto It = Serializer.GetObject()->GetArrayField(JsonName).CreateConstIterator(); It; ++It) \
 				{ \
-					ElementType* Obj = new(JsonArray) ElementType(); \
-					Obj->FromJson((*It)->AsObject()); \
+					ElementType& Obj = JsonArray.AddDefaulted_GetRef(); \
+					Obj.FromJson((*It)->AsObject()); \
 				} \
 			} \
 		} \

@@ -115,11 +115,11 @@ class UCommandlet : public UObject
 		{
 			if ( **NextToken == TCHAR('-') )
 			{
-				new(Switches) FString(NextToken.Mid(1));
+				Switches.Add(NextToken.Mid(1));
 			}
 			else
 			{
-				new(Tokens) FString(NextToken);
+				Tokens.Add(MoveTemp(NextToken));
 			}
 		}
 	}

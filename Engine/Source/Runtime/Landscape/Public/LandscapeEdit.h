@@ -78,11 +78,11 @@ struct FLandscapeTextureDataInfo
 			MipInfo[MipNum].bFull = true;
 			MipInfo[MipNum].MipUpdateRegions.Reset();
 			// Push a full region for UpdateTextureData() to process later
-			new(MipInfo[MipNum].MipUpdateRegions) FUpdateTextureRegion2D(0, 0, 0, 0, Width, Height);
+			MipInfo[MipNum].MipUpdateRegions.Emplace(0, 0, 0, 0, Width, Height);
 			return;
 		}
 
-		new(MipInfo[MipNum].MipUpdateRegions) FUpdateTextureRegion2D(InX1, InY1, InX1, InY1, Width, Height);
+		MipInfo[MipNum].MipUpdateRegions.Emplace(InX1, InY1, InX1, InY1, Width, Height);
 	}
 		
 	void* GetMipData(int32 MipNum)

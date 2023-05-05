@@ -1486,7 +1486,7 @@ bool FFastArraySerializer::FastArrayDeltaSerialize(TArray<Type> &Items, FNetDelt
 			{
 				UE_LOG(LogNetFastTArray, Log, TEXT("   New. ID: %d. New Element!"), ElementID);
 
-				ThisElement = new (Items)Type();
+				ThisElement = &Items.AddDefaulted_GetRef();
 				ThisElement->ReplicationID = ElementID;
 
 				ElementIndex = Items.Num()-1;

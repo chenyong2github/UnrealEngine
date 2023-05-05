@@ -346,7 +346,7 @@ public:
 	{
 		for (typename ElementArrayType::TConstIterator PairIt(Pairs); PairIt; ++PairIt)
 		{
-			new(OutKeys) KeyType(PairIt->Key);
+			OutKeys.Add(PairIt->Key);
 		}
 
 		return OutKeys.Num();
@@ -360,7 +360,7 @@ public:
 		OutArray.Empty(Pairs.Num());
 		for(typename ElementArrayType::TConstIterator PairIt(Pairs);PairIt;++PairIt)
 		{
-			new(OutArray) KeyType(PairIt->Key);
+			OutArray.Add(PairIt->Key);
 		}
 	}
 
@@ -372,7 +372,7 @@ public:
 		OutArray.Empty(Pairs.Num());
 		for(typename ElementArrayType::TConstIterator PairIt(Pairs);PairIt;++PairIt)
 		{
-			new(OutArray) ValueType(PairIt->Value);
+			OutArray.Add(PairIt->Value);
 		}
 	}
 

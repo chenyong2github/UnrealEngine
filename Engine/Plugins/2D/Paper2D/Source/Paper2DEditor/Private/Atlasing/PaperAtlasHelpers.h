@@ -55,12 +55,12 @@ static int32 CreateEmptySlot(TArray<FPaperSpriteAtlasSlot>& Slots, int32 AtlasIn
 {
 	if (Width > 0 && Height > 0)
 	{
-		FPaperSpriteAtlasSlot* NewSlot = new(Slots)FPaperSpriteAtlasSlot();
-		NewSlot->AtlasIndex = AtlasIndex;
-		NewSlot->X = X;
-		NewSlot->Y = Y;
-		NewSlot->Width = Width;
-		NewSlot->Height = Height;
+		FPaperSpriteAtlasSlot& NewSlot = Slots.AddDefaulted_GetRef();
+		NewSlot.AtlasIndex = AtlasIndex;
+		NewSlot.X = X;
+		NewSlot.Y = Y;
+		NewSlot.Width = Width;
+		NewSlot.Height = Height;
 		return Slots.Num() - 1;
 	}
 	else

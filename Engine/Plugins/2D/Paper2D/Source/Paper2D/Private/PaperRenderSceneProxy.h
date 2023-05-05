@@ -66,8 +66,8 @@ struct PAPER2D_API FSpriteRenderSection
 		return (Material != nullptr) && (NumVertices > 0) && (GetBaseTextureResource() != nullptr);
 	}
 
-	template <typename SourceArrayType>
-	void AddVerticesFromDrawCallRecord(const FSpriteDrawCallRecord& Record, int32 StartIndexWithinRecord, int32 NumVertsToCopy, SourceArrayType& Vertices)
+	template <typename VerticesArrayAllocator>
+	void AddVerticesFromDrawCallRecord(const FSpriteDrawCallRecord& Record, int32 StartIndexWithinRecord, int32 NumVertsToCopy, TArray<FDynamicMeshVertex, VerticesArrayAllocator>& Vertices)
 	{
 		if (NumVertices == 0)
 		{
@@ -93,25 +93,25 @@ struct PAPER2D_API FSpriteRenderSection
 			const FVector Pos((PaperAxisX * SourceVert.X) + (PaperAxisY * SourceVert.Y) + Record.Destination);
 			const FVector2f UV(SourceVert.Z, SourceVert.W);	// LWC_TODO: Precision loss
 
-			new (Vertices) FDynamicMeshVertex((FVector3f)Pos, FPaperSpriteTangents::PackedNormalX.ToFVector3f(), FPaperSpriteTangents::PackedNormalZ.ToFVector3f(), UV, VertColor);
+			Vertices.Emplace((FVector3f)Pos, FPaperSpriteTangents::PackedNormalX.ToFVector3f(), FPaperSpriteTangents::PackedNormalZ.ToFVector3f(), UV, VertColor);
 		}
 	}
 
-	template <typename SourceArrayType>
-	inline void AddVertex(float X, float Y, float U, float V, const FVector& Origin, const FColor& Color, SourceArrayType& Vertices)
+	template <typename VerticesArrayAllocator>
+	inline void AddVertex(float X, float Y, float U, float V, const FVector& Origin, const FColor& Color, TArray<FDynamicMeshVertex, VerticesArrayAllocator>& Vertices)
 	{
 		const FVector Pos((PaperAxisX * X) + (PaperAxisY * Y) + Origin);
 
-		new (Vertices) FDynamicMeshVertex(FVector3f(Pos), FPaperSpriteTangents::PackedNormalX.ToFVector3f(), FPaperSpriteTangents::PackedNormalZ.ToFVector3f(), FVector2f(U, V), Color);
+		Vertices.Emplace(FVector3f(Pos), FPaperSpriteTangents::PackedNormalX.ToFVector3f(), FPaperSpriteTangents::PackedNormalZ.ToFVector3f(), FVector2f(U, V), Color);
 		++NumVertices;
 	}
 
-	template <typename SourceArrayType>
-	inline void AddVertex(float X, float Y, float U, float V, const FVector& Origin, const FColor& Color, const FPackedNormal& TangentX, const FPackedNormal& TangentZ, SourceArrayType& Vertices)
+	template <typename VerticesArrayAllocator>
+	inline void AddVertex(float X, float Y, float U, float V, const FVector& Origin, const FColor& Color, const FPackedNormal& TangentX, const FPackedNormal& TangentZ, TArray<FDynamicMeshVertex, VerticesArrayAllocator>& Vertices)
 	{
 		const FVector Pos((PaperAxisX * X) + (PaperAxisY * Y) + Origin);
 
-		new (Vertices) FDynamicMeshVertex(FVector3f(Pos), TangentX.ToFVector3f(), TangentZ.ToFVector3f(), FVector2f(U, V), Color);
+		Vertices.Emplace(FVector3f(Pos), TangentX.ToFVector3f(), TangentZ.ToFVector3f(), FVector2f(U, V), Color);
 		++NumVertices;
 	}
 };

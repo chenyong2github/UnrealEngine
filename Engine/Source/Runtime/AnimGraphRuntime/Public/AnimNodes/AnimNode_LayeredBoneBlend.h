@@ -131,7 +131,7 @@ public:
 	void AddPose()
 	{
 		BlendWeights.Add(1.f);
-		new (BlendPoses) FPoseLink();
+		BlendPoses.AddDefaulted();
 
 		if (BlendMode == ELayeredBoneBlendMode::BlendMask) 
 		{ 
@@ -139,7 +139,7 @@ public:
 		}
 		else /*if (BlendMode::BranchFilter)*/ 
 		{ 
-			new (LayerSetup) FInputBlendPose(); 
+			LayerSetup.AddDefaulted(); 
 		}
 	}
 

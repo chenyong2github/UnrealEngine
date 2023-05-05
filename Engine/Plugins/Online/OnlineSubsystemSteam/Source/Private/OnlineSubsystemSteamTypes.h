@@ -620,7 +620,7 @@ public:
 
 			if (bCreateIfMissing)
 			{
-				return new (CloudMetadata) FCloudFileHeader(FileName, FileName, 0);
+				return &CloudMetadata.Emplace_GetRef(FileName, FileName, 0);
 			}
 		}
 
@@ -650,7 +650,7 @@ public:
 
 			if (bCreateIfMissing)
 			{
-				return new (CloudFileData) FCloudFile(FileName);
+				return &CloudFileData.Emplace_GetRef(FileName);
 			}
 		}
 

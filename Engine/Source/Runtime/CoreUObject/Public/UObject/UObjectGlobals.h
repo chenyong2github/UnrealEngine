@@ -1416,7 +1416,7 @@ private:
 			{
 				check(SubobjectInits[Index].Subobject != Subobject);
 			}
-			new (SubobjectInits) FSubobjectInit(Subobject, Template);
+			SubobjectInits.Emplace(Subobject, Template);
 		}
 		/**  Element of the SubobjectInits array **/
 		struct FSubobjectInit

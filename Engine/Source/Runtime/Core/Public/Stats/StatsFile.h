@@ -822,7 +822,7 @@ public:
 		out_MetadataMessages.Reserve((int32)Header.NumMetadataMessages );
 		for( int32 Index = 0; Index < Header.NumMetadataMessages; Index++ )
 		{
-			new(out_MetadataMessages)FStatMessage( ReadMessage( Ar, false ) );
+			out_MetadataMessages.Add( ReadMessage( Ar, false ) );
 		}
 	}
 
@@ -841,7 +841,7 @@ public:
 		out_MetadataMessages.Reserve(Header.NumMetadataMessages);
 		for (uint64 Index = 0; Index < Header.NumMetadataMessages; Index++)
 		{
-			new(out_MetadataMessages)FStatMessage(ReadMessage(Ar, false));
+			out_MetadataMessages.Add(ReadMessage(Ar, false));
 		}
 	}
 };

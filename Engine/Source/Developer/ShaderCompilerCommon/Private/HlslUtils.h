@@ -251,7 +251,7 @@ namespace CrossCompiler
 
 		inline void AddMessage(bool bIsError, const FString& Message)
 		{
-			auto* NewMessage = new(MessageList) FMessage(bIsError, Message);
+			auto& NewMessage = MessageList.Emplace_GetRef(bIsError, Message);
 		}
 
 		inline void SourceError(const FSourceInfo& SourceInfo, const TCHAR* String)

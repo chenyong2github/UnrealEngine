@@ -35,7 +35,7 @@ public:
 
 		NextMemberOffset = Align(NextMemberOffset, TParamTypeInfo::Alignment);
 
-		new(Members) FShaderParametersMetadata::FMember(
+		Members.Emplace(
 			Name,
 			TEXT(""),
 			__LINE__,
@@ -62,7 +62,7 @@ public:
 
 		NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT);
 
-		new(Members) FShaderParametersMetadata::FMember(
+		Members.Emplace(
 			Name,
 			TEXT(""),
 			__LINE__,
@@ -117,7 +117,7 @@ public:
 		NextMemberOffset = Align(NextMemberOffset, TParamTypeInfo::Alignment);
 		const uint32 ThisMemberOffset = NextMemberOffset;
 
-		new(Members) FShaderParametersMetadata::FMember(
+		Members.Emplace(
 			Name,
 			TEXT(""),
 			__LINE__,

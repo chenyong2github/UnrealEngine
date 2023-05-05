@@ -406,7 +406,7 @@ public:
 		//@TODO: Nasty expansion behavior during compile time
 		if (bBreakpointSite)
 		{
-			new (DebugNodeLineNumbers) FNodeToCodeAssociation(SourceNode, InFunction, CodeOffset);
+			DebugNodeLineNumbers.Emplace(SourceNode, InFunction, CodeOffset);
 			DebugNodeIndexLookup.Add(SourceNode, DebugNodeLineNumbers.Num() - 1);
 		}
 

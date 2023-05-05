@@ -490,7 +490,7 @@ struct FMeshBatch
 #endif
 	{
 		// By default always add the first element.
-		new(Elements) FMeshBatchElement;
+		Elements.AddDefaulted();
 	}
 };
 
