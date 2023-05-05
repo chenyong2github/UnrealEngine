@@ -48,7 +48,7 @@ void VisualizeQuadsCS(
 
 	float2 ScreenPosition = float2(2.0f, -2.0f) * ViewportUV + float2(-1.0f, 1.0f);
 	// We are rendering after TAAU, remove jitter
-	float3 ScreenVector = mul(float4(ScreenPosition + View.TemporalAAJitter.xy, 1, 0), View.ScreenToTranslatedWorld).xyz;
+	float3 ScreenVector = ScreenVectorFromScreenRect(float4(ScreenPosition + View.TemporalAAJitter.xy, 1, 0));
 	float3 CameraVector = normalize(ScreenVector);
 	float Noise = InterleavedGradientNoise(PixelPos, View.StateFrameIndexMod8);
 

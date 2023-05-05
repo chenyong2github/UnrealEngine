@@ -372,7 +372,7 @@ void DispatchRayGenOrComputeShader(
 		}
 
 		extern float GLumenReflectionSampleSceneColorRelativeDepthThreshold;
-		Parameters->RelativeDepthThickness = GLumenReflectionSampleSceneColorRelativeDepthThreshold;
+		Parameters->RelativeDepthThickness = GLumenReflectionSampleSceneColorRelativeDepthThreshold * View.ViewMatrices.GetPerProjectionDepthThicknessScale();
 		Parameters->SampleSceneColorNormalTreshold = LumenReflections::GetSampleSceneColorNormalTreshold();
 		Parameters->SampleSceneColor = bSampleSceneColorAtHit ? 1 : 0;
 

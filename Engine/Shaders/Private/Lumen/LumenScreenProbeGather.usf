@@ -83,7 +83,7 @@ void WriteDownsampledProbeMaterial(float2 ScreenUV, uint2 ScreenProbeAtlasCoord,
 		float ProbeDeviceZ = ConvertToDeviceZ(ProbeMaterial.SceneDepth);
 		float3 ProbeHistoryScreenPosition = GetHistoryScreenPositionIncludingTAAJitter(ProbeScreenPosition, ScreenUV, ProbeDeviceZ);
 
-		ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeMaterial.SceneDepth, ProbeMaterial.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		ProbeTranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(ProbeScreenPosition, ProbeMaterial.SceneDepth), ProbeMaterial.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetPrevTranslatedWorldPosition(ProbeHistoryScreenPosition);
 	}
 
@@ -1841,28 +1841,25 @@ void ScreenProbeTemporalReprojectionCS(
 
 #define PLANE_DISOCCLUSION_WEIGHTS 0
 #if PLANE_DISOCCLUSION_WEIGHTS
-	float3 PrevTranslatedPrevWorldPosition = mul(float4(HistoryScreenPosition.xy * PrevSceneDepth, PrevSceneDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
+	float3 PrevTranslatedPrevWorldPosition = mul(float4(GetScreenPositionForProjectionType(HistoryScreenPosition.xy,PrevSceneDepth), PrevSceneDepth, 1), View.PrevScreenToTranslatedWorld).xyz;
 	float4 PrevTranslatedPrevScenePlane = float4(WorldNormal, dot(PrevTranslatedPrevWorldPosition, WorldNormal));
 
 	float4 PlaneDistance;
 	{
-		// * HistoryGatherUV00 is in extend space
-		// * HistoryUVToScreenPositionScaleBias is for primary space UVs.
-
-		const float2 HistoryScreenPosition00 = HistoryGather_Primary.UV00 * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
-		const float3 PrevTranslatedHistoryWorldPosition00 = mul(float4(HistoryScreenPosition00 * HistorySceneDepth.x, HistorySceneDepth.x, 1), View.PrevScreenToTranslatedWorld).xyz;
+		float2 HistoryScreenPosition00 = HistoryGatherUV00 * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
+		float3 PrevTranslatedHistoryWorldPosition00 = mul(float4(GetScreenPositionForProjectionType(HistoryScreenPosition00, HistorySceneDepth.x), HistorySceneDepth.x, 1), View.PrevScreenToTranslatedWorld).xyz;
 		PlaneDistance.x = abs(dot(float4(PrevTranslatedHistoryWorldPosition00, -1), PrevTranslatedPrevScenePlane));
 
-		const float2 HistoryScreenPosition10 = HistoryGather_Primary.UV10.x * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
-		const float3 PrevTranslatedHistoryWorldPosition10 = mul(float4(HistoryScreenPosition10 * HistorySceneDepth.y, HistorySceneDepth.y, 1), View.PrevScreenToTranslatedWorld).xyz;
+		float2 HistoryScreenPosition10 = HistoryGatherUV10.x * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
+		float3 PrevTranslatedHistoryWorldPosition10 = mul(float4(GetScreenPositionForProjectionType(HistoryScreenPosition10, HistorySceneDepth.y), HistorySceneDepth.y, 1), View.PrevScreenToTranslatedWorld).xyz;
 		PlaneDistance.y = abs(dot(float4(PrevTranslatedHistoryWorldPosition10, -1), PrevTranslatedPrevScenePlane));
 
-		const float2 HistoryScreenPosition01 = HistoryGather_Primary.UV01 * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
-		const float3 PrevTranslatedHistoryWorldPosition01 = mul(float4(HistoryScreenPosition01 * HistorySceneDepth.z, HistorySceneDepth.z, 1), View.PrevScreenToTranslatedWorld).xyz;
+		float2 HistoryScreenPosition01 = HistoryGatherUV01 * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
+		float3 PrevTranslatedHistoryWorldPosition01 = mul(float4(GetScreenPositionForProjectionType(HistoryScreenPosition01, HistorySceneDepth.z), HistorySceneDepth.z, 1), View.PrevScreenToTranslatedWorld).xyz;
 		PlaneDistance.z = abs(dot(float4(PrevTranslatedHistoryWorldPosition01, -1), PrevTranslatedPrevScenePlane));
 
-		const float2 HistoryScreenPosition11 = HistoryGather_Primary.UV11 * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
-		const float3 PrevTranslatedHistoryWorldPosition11 = mul(float4(HistoryScreenPosition11.xy * HistorySceneDepth.w, HistorySceneDepth.w, 1), View.PrevScreenToTranslatedWorld).xyz;
+		float2 HistoryScreenPosition11 = HistoryGatherUV11 * HistoryUVToScreenPositionScaleBias.xy + HistoryUVToScreenPositionScaleBias.zw;
+		float3 PrevTranslatedHistoryWorldPosition11 = mul(float4(GetScreenPositionForProjectionType(HistoryScreenPosition11.xy, HistorySceneDepth.w), HistorySceneDepth.w, 1), View.PrevScreenToTranslatedWorld).xyz;
 		PlaneDistance.w = abs(dot(float4(PrevTranslatedHistoryWorldPosition11, -1), PrevTranslatedPrevScenePlane));
 	}
 	
@@ -1871,7 +1868,7 @@ void ScreenProbeTemporalReprojectionCS(
 
 	#define EXPAND_HISTORY_DISTANCE_THRESHOLD_FOR_JITTER 1
 	#if EXPAND_HISTORY_DISTANCE_THRESHOLD_FOR_JITTER
-		const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		const float3 TranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, SceneDepth), SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		const float3 V = normalize(-TranslatedWorldPosition);
 		// Raise the threshold at grazing angles to compensate for TAA jitter causing a depth mismatch dependent on the angle
 		// This also introduces some ghosting around characters, needs a better solution

@@ -111,7 +111,7 @@ void ScreenProbeTraceScreenTexturesCS(
 			{
 				float2 CornerScreenUV = ScreenUV + .5f * View.BufferSizeAndInvSize.zw;
 				float2 CornerScreenPosition = (CornerScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-				float3 CornerTranslatedWorldPosition = mul(float4(CornerScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+				float3 CornerTranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(CornerScreenPosition, SceneDepth), SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 
 				// Project texel corner onto normal
 				NormalBias = abs(dot(CornerTranslatedWorldPosition - TranslatedWorldPosition, ScreenProbeNormal)) * 2;
@@ -120,7 +120,7 @@ void ScreenProbeTraceScreenTexturesCS(
 			float3 TranslatedRayOrigin = TranslatedWorldPosition + NormalBias * ScreenProbeNormal;
 
 			//@todo - this should be applied with the hit UV, not the origin, but still works for self-shadowing
-			float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
+			float DepthThresholdScale = GetScreenTraceDepthThresholdScale(ScreenUV);
 
 			{
 				bool bCoveredByRadianceCache = false;
@@ -334,7 +334,7 @@ void ScreenProbeTraceScreenTexturesCS(
 
 						{
 							float HitSceneDepth = ConvertFromDeviceZ(HitUVz.z);
-							float3 HitTranslatedWorldPosition = mul(float4(HitScreenPosition * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+							float3 HitTranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(HitScreenPosition, HitSceneDepth), HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 							//Note: this will be affected by TAA jitter, should use GetHistoryScreenPositionIncludingTAAJitter instead but costs too much
 							float3 HitWorldVelocity = HitTranslatedWorldPosition - GetPrevTranslatedWorldPosition(HitHistoryScreenPosition);
 
@@ -878,7 +878,7 @@ void ScreenProbeSetupVisualizeTraces(
 		float2 CursorSceneBufferUV = SvPositionToBufferUV(float4(floor((View.CursorPosition) * View.ViewResolutionFraction) + .5f, 0, 0)).xy;
 		float2 CursorScreenPosition = (CursorSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 		float CursorSceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, CursorSceneBufferUV, 0).r);
-		float3 CursorTranslatedWorldPosition = mul(float4(CursorScreenPosition * CursorSceneDepth, CursorSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		float3 CursorTranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(CursorScreenPosition, CursorSceneDepth), CursorSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		float3 CursorWorldPosition = CursorTranslatedWorldPosition - PreViewTranslation;
 	}
 
@@ -891,28 +891,28 @@ void ScreenProbeSetupVisualizeTraces(
 	{
 		float2 CornerSceneBufferUV = ProbeScreenUV - .5f * View.BufferSizeAndInvSize.zw;
 		float2 CornerScreenPosition = (CornerSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-		Corner00WorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
+		Corner00WorldPosition = mul(float4(GetScreenPositionForProjectionType(CornerScreenPosition, ProbeSceneDepth), ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
 	}
 
 	float3 Corner01WorldPosition;
 	{
 		float2 CornerSceneBufferUV = ProbeScreenUV + float2(-.5f, .5f) * View.BufferSizeAndInvSize.zw;
 		float2 CornerScreenPosition = (CornerSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-		Corner01WorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
+		Corner01WorldPosition = mul(float4(GetScreenPositionForProjectionType(CornerScreenPosition, ProbeSceneDepth), ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
 	}
 
 	float3 Corner10WorldPosition;
 	{
 		float2 CornerSceneBufferUV = ProbeScreenUV + float2(.5f, -.5f) * View.BufferSizeAndInvSize.zw;
 		float2 CornerScreenPosition = (CornerSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-		Corner10WorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
+		Corner10WorldPosition = mul(float4(GetScreenPositionForProjectionType(CornerScreenPosition, ProbeSceneDepth), ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
 	}
 
 	float3 Corner11WorldPosition;
 	{
 		float2 CornerSceneBufferUV = ProbeScreenUV + float2(.5f, .5f) * View.BufferSizeAndInvSize.zw;
 		float2 CornerScreenPosition = (CornerSceneBufferUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-		Corner11WorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
+		Corner11WorldPosition = mul(float4(GetScreenPositionForProjectionType(CornerScreenPosition, ProbeSceneDepth), ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz - PreViewTranslation;
 	}
 
 	if (DispatchThreadId.x == 0 && DispatchThreadId.y == 0)
@@ -925,7 +925,7 @@ void ScreenProbeSetupVisualizeTraces(
 
 	float2 CornerScreenUV = ProbeScreenUV + .5f * View.BufferSizeAndInvSize.zw;
 	float2 CornerScreenPosition = (CornerScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float3 CornerTranslatedWorldPosition = mul(float4(CornerScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+	float3 CornerTranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(CornerScreenPosition, ProbeSceneDepth), ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 
 	float3 ScreenProbeNormal = GetScreenProbeNormalForBiasing(ScreenProbeAtlasCoord, CornerTranslatedWorldPosition - ProbeTranslatedWorldPosition);
 	float NormalBias = abs(dot(CornerTranslatedWorldPosition - ProbeTranslatedWorldPosition, ScreenProbeNormal));

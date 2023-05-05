@@ -1213,6 +1213,19 @@ float ConvertToDeviceZ(float SceneDepth)
 	}
 }
 
+float3 GetCameraVectorFromWorldPosition(float3 WorldPosition)
+{
+	if (IsOrthoProjection())
+	{
+		// CameraVector is just ViewForward in an ortho mode
+		return View.ViewForward;
+	}
+	else
+	{
+		return normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+	}
+}
+
 float2 ScreenPositionToBufferUV(float4 ScreenPosition)
 {
 	return float2(ScreenPosition.xy / ScreenPosition.w * ResolvedView.ScreenPositionScaleBias.xy + ResolvedView.ScreenPositionScaleBias.wz);

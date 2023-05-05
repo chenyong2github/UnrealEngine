@@ -322,6 +322,14 @@ static TAutoConsoleVariable<int32> CVarEnableTemporalUpsample(
 	TEXT(" 1: TemporalAA performs spatial and temporal upscale as screen percentage method (default)."),
 	ECVF_Default);
 
+float GOrthographicDepthThicknessScale = 0.01;
+static FAutoConsoleVariableRef CVarOrthographicDepthThicknessScal(
+	TEXT("r.OrthographicDepthThicknessScale"),
+	GOrthographicDepthThicknessScale,
+	TEXT("Orthographic scene depth scales proportionally lower than perspective, typically on a scale of 1/100")
+	TEXT("Use this value to tweak the scale of depth thickness testing values simultaneously across various screen trace passes"),
+	ECVF_RenderThreadSafe);
+
 int32 GVirtualTextureFeedbackFactor = 16;
 static FAutoConsoleVariableRef CVarVirtualTextureFeedbackFactor(
 	TEXT("r.vt.FeedbackFactor"),
@@ -628,11 +636,13 @@ void FViewMatrices::Init(const FMinimalInitializer& Initializer)
 	{
 		ProjectionScale.X = ScreenXScale * FMath::Abs(ProjectionMatrix.M[0][0]);
 		ProjectionScale.Y = FMath::Abs(ProjectionMatrix.M[1][1]);
+		PerProjectionDepthThicknessScale = 1.0f;
 	}
 	else
 	{
 		//No FOV for ortho so do not scale
 		ProjectionScale = FVector2D(ScreenXScale, 1.0f);
+		PerProjectionDepthThicknessScale = GOrthographicDepthThicknessScale;
 	}
 	ScreenScale = FMath::Max(
 		Initializer.ConstrainedViewRect.Size().X * 0.5f * ProjectionScale.X,
@@ -2672,6 +2682,7 @@ void FSceneView::SetupCommonViewUniformBufferParameters(
 	ViewUniformShaderParameters.MaterialTextureMipBias = 0.0f;
 	ViewUniformShaderParameters.MaterialTextureDerivativeMultiply = 1.0f;
 	ViewUniformShaderParameters.ResolutionFractionAndInv = FVector2f(1.0f, 1.0f);
+	ViewUniformShaderParameters.ProjectionDepthThicknessScale = InViewMatrices.GetPerProjectionDepthThicknessScale();
 
 	ViewUniformShaderParameters.bCheckerboardSubsurfaceProfileRendering = 0;
 

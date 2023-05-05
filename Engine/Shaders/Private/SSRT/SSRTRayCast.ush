@@ -108,15 +108,21 @@ FSSRTRay InitScreenSpaceRayFromWorldSpace(
 	}
 
 	Ray.RayStepScreen *= ClipToScreenFactor;
-	Ray.CompareTolerance = max(abs(Ray.RayStepScreen.z), (RayStartScreen.z - RayDepthScreen.z) * SlopeCompareToleranceScale);
-
+	if (IsOrthoProjection())
+	{
+		Ray.CompareTolerance = max(0, (RayStartScreen.z - RayDepthScreen.z) * SlopeCompareToleranceScale);
+	}
+	else
+	{
+		Ray.CompareTolerance = max(abs(Ray.RayStepScreen.z), (RayStartScreen.z - RayDepthScreen.z) * SlopeCompareToleranceScale);
+	}
 	return Ray;
 } // InitScreenSpaceRayFromWorldSpace()
 
 float4 ApplyProjMatrix(float4 V)
 {
 	return float4(
-		V.xy * GetCotanHalfFieldOfView(),
+		V.xy * float2(View.ViewToClip[0][0],View.ViewToClip[1][1]),
 		V.z * View.ViewToClip[2][2] + V.w * View.ViewToClip[3][2],
 		V.z);
 }
@@ -711,7 +717,7 @@ float ComputeRayHitSqrDistance(float3 OriginTranslatedWorld, float3 HitUVz)
 	float2 HitScreenPos = (HitUVz.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 	float HitSceneDepth = ConvertFromDeviceZ(HitUVz.z);
 
-	float3 HitTranslatedWorld = mul(float4(HitScreenPos * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+	float3 HitTranslatedWorld = mul(float4(GetScreenPositionForProjectionType(HitScreenPos, HitSceneDepth), HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 
 	return length2(OriginTranslatedWorld - HitTranslatedWorld);
 }

@@ -246,7 +246,7 @@ void MainPS(
 
 	float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
 	const float Depth = 1000000.0f;
-	float4 TranslatedWorldPos = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToTranslatedWorld);
+	float4 TranslatedWorldPos = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, Depth), Depth, 1), View.ScreenToTranslatedWorld);
 
 	const float3 RayDir = normalize(TranslatedWorldPos.xyz - View.TranslatedWorldCameraOrigin);
 	const float3 RayOrig = LWCHackToFloat(ResolvedView.WorldCameraOrigin);

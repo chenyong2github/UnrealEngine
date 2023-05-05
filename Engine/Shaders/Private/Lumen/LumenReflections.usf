@@ -323,7 +323,7 @@ void ReflectionGenerateRaysCS(
 		{
 			float2 ScreenUV = (Coord.SvPosition + .5f) * View.BufferSizeAndInvSize.zw;
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, Material.SceneDepth);
-			float3 CameraVector = normalize(WorldPosition - LWCHackToFloat(PrimaryView.WorldCameraOrigin));
+			float3 CameraVector = GetCameraVectorFromWorldPosition(WorldPosition);
 
 			float3 RayDirection;
 			float ConeAngle = 0.0f;
@@ -1048,7 +1048,7 @@ void ReflectionTemporalReprojectionCS(
 
 #define EXPAND_HISTORY_DISTANCE_THRESHOLD_FOR_JITTER 1
 #if EXPAND_HISTORY_DISTANCE_THRESHOLD_FOR_JITTER
-	const float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+	const float3 TranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, SceneDepth), SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 	const float3 V = normalize(-TranslatedWorldPosition);
 	// Raise the threshold at grazing angles to compensate for TAA jitter causing a depth mismatch dependent on the angle
 	// This also introduces some ghosting around characters, needs a better solution

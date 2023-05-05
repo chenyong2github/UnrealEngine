@@ -45,7 +45,7 @@ void ScreenSpaceShortRangeAOCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		//uint2 Seed0 = Rand3DPCG16(int3(Coord.SvPosition, GENERAL_TEMPORAL_INDEX)).xy;
 		float MaxScreenTraceFraction = ScreenProbeDownsampleFactor * 2 * View.ViewSizeAndInvSize.z;
 		float TraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
-		float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
+		float DepthThresholdScale = GetScreenTraceDepthThresholdScale(ScreenUV);
 		uint NumPixelSamples = NUM_PIXEL_RAYS;
 
 		float3 UnoccludedSum = 0;

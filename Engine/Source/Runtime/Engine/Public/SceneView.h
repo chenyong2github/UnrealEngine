@@ -342,6 +342,9 @@ private:
 	 */
 	float ScreenScale;
 
+	/** Depth test scaling; differs between perspective and orthographic  */
+	float PerProjectionDepthThicknessScale;
+
 	//
 	// World = TranslatedWorld - PreViewTranslation
 	// TranslatedWorld = World + PreViewTranslation
@@ -455,7 +458,7 @@ public:
 		return ProjectionMatrix.M[3][3] < 1.0f;
 	}
 
-	inline FVector2f GetInvTanHalfFov(bool YAxis = false) const
+	inline FVector2f GetInvTanHalfFov() const
 	{
 		//No concept of FOV for orthographic projection so only return perspective related values or 1.0f
 		if (IsPerspectiveProjection())
@@ -483,10 +486,15 @@ public:
 		{
 			return FVector4f(static_cast<float>(InvProjectionMatrix.M[0][0]), //ClipToView[0][0] - X axis
 							 static_cast<float>(InvProjectionMatrix.M[1][1]), //ClipToView[1][1] - Y axis
-							 static_cast<float>(ProjectionMatrix.M[0][0]), //ViewToClip[0][0] - X axis
-							 static_cast<float>(ProjectionMatrix.M[1][1])); //ViewToClip[1][1] - Y axis
+							 static_cast<float>(ProjectionMatrix.M[0][0]), //ViewToClip[0][0] - 1/X axis
+							 static_cast<float>(ProjectionMatrix.M[1][1])); //ViewToClip[1][1] - 1/Y axis
 		}
 		return FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
+	inline float GetPerProjectionDepthThicknessScale() const
+	{
+		return PerProjectionDepthThicknessScale;
 	}
 
 	FMatrix ScreenToClipProjectionMatrix() const;
@@ -730,6 +738,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(FVector2f, BufferToSceneTextureScale) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector2f, ResolutionFractionAndInv) \
 	VIEW_UNIFORM_BUFFER_MEMBER(int32, NumSceneColorMSAASamples) \
+	VIEW_UNIFORM_BUFFER_MEMBER_PER_VIEW(float, ProjectionDepthThicknessScale) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, PreExposure) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, OneOverPreExposure) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(FVector4f, DiffuseOverrideParameter, EShaderPrecisionModifier::Half) \

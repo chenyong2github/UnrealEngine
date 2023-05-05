@@ -63,7 +63,7 @@ groupshared float SharedFurthestDepth[GROUP_PIXEL_COUNT];
 
 float3 ComputeTranslatedWorldPosition(float2 ScreenPosition, float WorldDepth, bool bIsPrevFrame)
 {
-	float4 ClipPosition = float4(ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? WorldDepth : 1.0f), WorldDepth, 1);
+	float4 ClipPosition = float4(GetScreenPositionForProjectionType(ScreenPosition, WorldDepth), WorldDepth, 1);
 
 	if (bIsPrevFrame)
 	{

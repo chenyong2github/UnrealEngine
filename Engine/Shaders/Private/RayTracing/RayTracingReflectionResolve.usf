@@ -171,7 +171,7 @@ void RayTracingReflectionResolveCS(
 
 	if (bValidPixel && bValidThread)
 	{
-		const float3 PositionTranslatedWorld = mul(float4(ScreenPos * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		const float3 PositionTranslatedWorld = mul(float4(GetScreenPositionForProjectionType(ScreenPos, SceneDepth), SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		const float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
 		const float3 N = GBuffer.WorldNormal;
 

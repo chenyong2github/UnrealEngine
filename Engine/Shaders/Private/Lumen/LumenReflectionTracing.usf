@@ -75,7 +75,7 @@ void ReflectionTraceScreenTexturesCS(
 			{
 				float2 CornerScreenUV = ScreenUV + .5f * View.BufferSizeAndInvSize.zw;
 				float2 CornerScreenPosition = (CornerScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-				float3 CornerTranslatedWorldPosition = mul(float4(CornerScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+				float3 CornerTranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(CornerScreenPosition, SceneDepth), SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 				float3 WorldNormal = GetGBufferDataFromSceneTextures(ScreenUV).WorldNormal;
 
 				// Project texel corner onto normal
