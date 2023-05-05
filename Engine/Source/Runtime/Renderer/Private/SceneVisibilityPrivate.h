@@ -665,8 +665,6 @@ private:
 	bool bUsesCustomStencil = false;
 	bool bSceneHasSkyMaterial = false;
 	bool bHasSingleLayerWaterMaterial = false;
-	bool bHasTranslucencySeparateModulation = false;
-	bool bHasStandardTranslucencyModulation = false;
 	bool bUsesSecondStageDepthPass = false;
 	bool bAddLightmapDensityCommands = false;
 	bool bComputeRelevanceTaskLaunched = false;

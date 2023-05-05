@@ -1135,9 +1135,7 @@ void FRelevancePacket::Finalize()
 	WriteView.bTranslucentSurfaceLighting |= bTranslucentSurfaceLighting;
 	WriteView.bSceneHasSkyMaterial |= bSceneHasSkyMaterial;
 	WriteView.bHasSingleLayerWaterMaterial |= bHasSingleLayerWaterMaterial;
-	WriteView.bHasTranslucencySeparateModulation |= bHasTranslucencySeparateModulation;
 	WriteView.bUsesSecondStageDepthPass |= bUsesSecondStageDepthPass && ShadingPath != EShadingPath::Mobile;
-	WriteView.bHasStandardTranslucencyModulation |= bHasStandardTranslucencyModulation;
 	VisibleDynamicPrimitivesWithSimpleLights.AppendTo(WriteView.VisibleDynamicPrimitivesWithSimpleLights);
 	WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 	WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;
@@ -1210,8 +1208,6 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 	StrataBSDFCountMask = 0;
 	bSceneHasSkyMaterial = 0;
 	bHasSingleLayerWaterMaterial = 0;
-	bHasTranslucencySeparateModulation = 0;
-	bHasStandardTranslucencyModulation = 0;
 	bUsesSecondStageDepthPass = 0;
 	bUsesLightingChannels = false;
 	bTranslucentSurfaceLighting = false;
@@ -1773,8 +1769,6 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 		bUsesCustomStencil |= (ViewRelevance.CustomDepthStencilUsageMask & (1 << 1)) > 0;
 		bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
 		bHasSingleLayerWaterMaterial |= ViewRelevance.bUsesSingleLayerWaterMaterial;
-		bHasStandardTranslucencyModulation |= ViewRelevance.bNormalTranslucency && ViewRelevance.bTranslucencyModulate && View.Family->AllowStandardTranslucencySeparated();
-		bHasTranslucencySeparateModulation |= ViewRelevance.bSeparateTranslucency && ViewRelevance.bTranslucencyModulate;
 		bUsesSecondStageDepthPass |= ViewRelevance.bRenderInSecondStageDepthPass && ShadingPath!=EShadingPath::Mobile;
 
 		if (ViewRelevance.bRenderCustomDepth)
@@ -1803,13 +1797,8 @@ void FRelevancePacket::ComputeRelevance(FDynamicPrimitiveIndexList& DynamicPrimi
 
 		PrimitiveSceneInfo->LastRenderTime = CurrentWorldTime;
 
-		// If the primitive is definitely unoccluded or if in Wireframe mode and the primitive is estimated
-		// to be unoccluded, then update the primitive components's LastRenderTime 
-		// on the game thread. This signals that the primitive is visible.
-		if (View.PrimitiveDefinitelyUnoccludedMap[BitIndex] || (View.Family->EngineShowFlags.Wireframe && View.PrimitiveVisibilityMap[BitIndex]))
-		{
-			PrimitiveSceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/true);
-		}
+		const bool bUpdateLastRenderTimeOnScreen = true;
+		PrimitiveSceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, bUpdateLastRenderTimeOnScreen);
 
 		// Cache the nearest reflection proxy if needed
 		if (PrimitiveSceneInfo->NeedsReflectionCaptureUpdate())
@@ -2568,10 +2557,6 @@ bool FGPUOcclusionPacket::OcclusionCullPrimitive(VisitorType& Visitor, FOcclusio
 				bIsVisible = false;
 				Result.NumCulledPrimitives++;
 			}
-			else if (bOcclusionStateIsDefinite)
-			{
-				View.PrimitiveDefinitelyUnoccludedMap[Index] = true;
-			}
 		}
 	}
 
@@ -2585,10 +2570,6 @@ bool FGPUOcclusionPacket::OcclusionCullPrimitive(VisitorType& Visitor, FOcclusio
 			View.PrimitiveVisibilityMap[Index] = false;
 			bIsVisible = false;
 			Result.NumCulledPrimitives++;
-		}
-		else if (bAllSubOcclusionStateIsDefinite)
-		{
-			View.PrimitiveDefinitelyUnoccludedMap[Index] = true;
 		}
 	}
 
@@ -2813,7 +2794,6 @@ bool FGPUOcclusionParallelPacket::AddPrimitive(int32 PrimitiveIndex)
 		return true;
 	}
 
-	View.PrimitiveDefinitelyUnoccludedMap[PrimitiveIndex] = true;
 	return false;
 }
 
@@ -2986,10 +2966,6 @@ void FGPUOcclusionSerial::AddPrimitives(FPrimitiveRange PrimitiveRange)
 		if (Packet.CanBeOccluded(BitIt.GetIndex(), OcclusionFlags))
 		{
 			Packet.OcclusionCullPrimitive(ProcessVisitor, OcclusionCullResult, BitIt.GetIndex());
-		}
-		else
-		{
-			View.PrimitiveDefinitelyUnoccludedMap.AccessCorrespondingBit(BitIt) = true;
 		}
 	}
 }
@@ -3235,7 +3211,6 @@ void FVisibilityViewPacket::BeginInitVisibility()
 	View.PrimitiveVisibilityMap.Init(false, Scene.Primitives.Num());
 	View.PrimitiveRayTracingVisibilityMap.Init(false, Scene.Primitives.Num());
 	View.DynamicMeshEndIndices.SetNumZeroed(Scene.Primitives.Num());
-	View.PrimitiveDefinitelyUnoccludedMap.Init(false, Scene.Primitives.Num());
 	View.PotentiallyFadingPrimitiveMap.Init(false, Scene.Primitives.Num());
 	View.PrimitiveFadeUniformBuffers.AddZeroed(Scene.Primitives.Num());
 	View.PrimitiveFadeUniformBufferMap.Init(false, Scene.Primitives.Num());

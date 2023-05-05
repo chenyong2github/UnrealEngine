@@ -1271,9 +1271,6 @@ public:
 	/** A map from primitive ID to a boolean ray tracing visibility value. */
 	FSceneBitArray PrimitiveRayTracingVisibilityMap;
 
-	/** Bit set when a primitive is known to be un-occluded. */
-	FSceneBitArray PrimitiveDefinitelyUnoccludedMap;
-
 	/** A map from primitive ID to a boolean is fading value. */
 	FSceneBitArray PotentiallyFadingPrimitiveMap;
 
@@ -1501,22 +1498,11 @@ public:
 	 */
 	uint32 bHasSingleLayerWaterMaterial : 1;
 	/**
-	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied post DOF. 
-	 * If true, that means we need to run the post-dof separate modulation render pass.
-	 */
-	uint32 bHasTranslucencySeparateModulation : 1;
-	/**
 	 * True if the scene has at least one mesh that needs to sample form the first stage depth buffer.
 	 * And as such will need to render in the second stage depth buffer after the first stage depth buffer is copied.
 	 * The first stage depth buffer is usually used for depth buffer collision and projection of Niagara's particles.
 	 */
 	uint32 bUsesSecondStageDepthPass : 1;
-
-	/**
-	 * true if the scene has at least one mesh with a material that needs dual blending AND is applied before DOF. 
-	 * If true, that means we need to run the before-dof separate modulation render pass.
-	 */
-	uint32 bHasStandardTranslucencyModulation : 1;
 
 	/** Whether post DOF translucency should be rendered before DOF if primitive bounds behind DOF's focus distance. */
 	float AutoBeforeDOFTranslucencyBoundary;

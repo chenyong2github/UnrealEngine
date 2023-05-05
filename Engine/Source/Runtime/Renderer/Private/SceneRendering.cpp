@@ -862,8 +862,6 @@ void FViewInfo::Init()
 	ShadingModelMaskInView = 0;
 	bSceneHasSkyMaterial = 0;
 	bHasSingleLayerWaterMaterial = 0;
-	bHasTranslucencySeparateModulation = 0;
-	bHasStandardTranslucencyModulation = 0;
 	AutoBeforeDOFTranslucencyBoundary = 0.0f;
 	bUsesSecondStageDepthPass = 0;
 
