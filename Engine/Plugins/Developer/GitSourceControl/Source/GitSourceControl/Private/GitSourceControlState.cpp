@@ -6,6 +6,13 @@
 
 #define LOCTEXT_NAMESPACE "GitSourceControl.State"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FGitSourceControlState::FGitSourceControlState(const FGitSourceControlState& Other) = default;
+FGitSourceControlState::FGitSourceControlState(FGitSourceControlState&& Other) noexcept = default;
+FGitSourceControlState& FGitSourceControlState::operator=(const FGitSourceControlState& Other) = default;
+FGitSourceControlState& FGitSourceControlState::operator=(FGitSourceControlState&& Other) noexcept = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 int32 FGitSourceControlState::GetHistorySize() const
 {
 	return History.Num();

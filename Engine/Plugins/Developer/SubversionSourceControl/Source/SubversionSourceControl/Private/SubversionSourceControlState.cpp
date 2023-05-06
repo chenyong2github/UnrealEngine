@@ -7,6 +7,14 @@
 
 #define LOCTEXT_NAMESPACE "SubversionSourceControl.State"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FSubversionSourceControlState::FSubversionSourceControlState() = default;
+FSubversionSourceControlState::FSubversionSourceControlState(const FSubversionSourceControlState& Other) = default;
+FSubversionSourceControlState::FSubversionSourceControlState(FSubversionSourceControlState&& Other) noexcept = default;
+FSubversionSourceControlState& FSubversionSourceControlState::operator=(const FSubversionSourceControlState& Other) = default;
+FSubversionSourceControlState& FSubversionSourceControlState::operator=(FSubversionSourceControlState&& Other) noexcept = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 int32 FSubversionSourceControlState::GetHistorySize() const
 {
 	return History.Num();

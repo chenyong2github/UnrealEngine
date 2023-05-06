@@ -55,6 +55,12 @@ public:
 	{
 	}
 
+	FSubversionSourceControlState();
+	FSubversionSourceControlState(const FSubversionSourceControlState& Other);
+	FSubversionSourceControlState(FSubversionSourceControlState&& Other) noexcept;
+	FSubversionSourceControlState& operator=(const FSubversionSourceControlState& Other);
+	FSubversionSourceControlState& operator=(FSubversionSourceControlState&& Other) noexcept;
+
 	/** ISourceControlState interface */
 	virtual int32 GetHistorySize() const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetHistoryItem( int32 HistoryIndex ) const override;

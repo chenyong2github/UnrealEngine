@@ -32,6 +32,11 @@ public:
 	{
 	}
 
+	FGitSourceControlState(const FGitSourceControlState& Other);
+	FGitSourceControlState(FGitSourceControlState&& Other) noexcept;
+	FGitSourceControlState& operator=(const FGitSourceControlState& Other);
+	FGitSourceControlState& operator=(FGitSourceControlState&& Other) noexcept;
+
 	/** ISourceControlState interface */
 	virtual int32 GetHistorySize() const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetHistoryItem(int32 HistoryIndex) const override;
