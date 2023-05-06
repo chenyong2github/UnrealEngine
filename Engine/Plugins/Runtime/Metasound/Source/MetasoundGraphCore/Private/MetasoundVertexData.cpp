@@ -10,6 +10,9 @@ namespace Metasound
 {
 	namespace MetasoundVertexDataPrivate
 	{
+		template<typename VertexType>
+		using TBindingType = std::conditional_t<std::is_same_v<VertexType, FInputDataVertex>, FInputBinding, FOutputBinding>;
+
 #if ENABLE_METASOUND_ACCESS_TYPE_COMPATIBILITY_TEST
 		void CheckAccessTypeCompatibility(const FDataVertex& InDataVertex, const FAnyDataReference& InDataReference)
 		{
@@ -37,9 +40,194 @@ namespace Metasound
 			checkf(bIsCompatible, TEXT("Vertex access type \"%s\" is incompatible with data access type \"%s\" on vertex \"%s\" on node \"%s\""), *LexToString(InDataVertex.AccessType), *LexToString(ReferenceAccessType), *InDataVertex.VertexName.ToString(), ThreadLocalDebug::GetActiveNodeClassNameAndVersion());
 		}
 #endif // #if ENABLE_METASOUND_ACCESS_TYPE_COMPATIBILITY_TEST
+		EVertexAccessType DataReferenceAccessTypeToVertexAccessType(EDataReferenceAccessType InReferenceAccessType)
+		{
+			switch (InReferenceAccessType)
+			{
+				case EDataReferenceAccessType::Read:
+				case EDataReferenceAccessType::Write:
+					return EVertexAccessType::Reference;
 
+				case EDataReferenceAccessType::Value:
+					return EVertexAccessType::Value;
+
+				default:
+					return EVertexAccessType::Reference;
+			}
+		}
+
+		FInputBinding::FInputBinding(FInputDataVertex&& InVertex)
+		: Vertex(MoveTemp(InVertex))
+		{
+		}
+
+		FInputBinding::FInputBinding(const FInputDataVertex& InVertex)
+		: Vertex(InVertex)
+		{
+		}
+
+		FInputBinding::FInputBinding(const FVertexName& InVertexName, FAnyDataReference&& InReference)
+		: Vertex(InVertexName, InReference.GetDataTypeName(), FDataVertexMetadata{}, DataReferenceAccessTypeToVertexAccessType(InReference.GetAccessType()))
+		{
+			Set(MoveTemp(InReference));
+		}
+
+
+
+		void FInputBinding::Set(FAnyDataReference&& InAnyDataReference)
+		{
+			check(Vertex.DataTypeName == InAnyDataReference.GetDataTypeName());
+			Data.Emplace(MoveTemp(InAnyDataReference));
+			CheckAccessTypeCompatibility(Vertex, *Data);
+		}
+		
+		const FInputDataVertex& FInputBinding::GetVertex() const
+		{
+			return Vertex;
+		}
+
+		bool FInputBinding::IsBound() const
+		{
+			return Data.IsSet();
+		}
+
+		EDataReferenceAccessType FInputBinding::GetAccessType() const
+		{
+			if (Data.IsSet())
+			{
+				return Data->GetAccessType();
+			}
+			return EDataReferenceAccessType::None;
+		}
+
+		// Get data reference 
+		const FAnyDataReference* FInputBinding::GetDataReference() const
+		{
+			return Data.GetPtrOrNull();
+		}
+
+		FDataReferenceID FInputBinding::GetDataReferenceID() const
+		{
+			if (Data.IsSet())
+			{
+				return Metasound::GetDataReferenceID(*Data);
+			}
+			return nullptr;
+		}
+
+
+		void FInputBinding::Bind(FAnyDataReference& InOutDataReference)
+		{
+			check(Vertex.DataTypeName == InOutDataReference.GetDataTypeName());
+			if (Data.IsSet())
+			{
+				InOutDataReference = *Data;
+			}
+			else
+			{
+				Data.Emplace(InOutDataReference);
+				CheckAccessTypeCompatibility(Vertex, *Data);
+			}
+		}
+
+		void FInputBinding::Bind(FInputBinding& InBinding)
+		{
+			check(Vertex.DataTypeName == InBinding.GetVertex().DataTypeName);
+
+			if (Data.IsSet()) 
+			{ 
+				if (InBinding.Data.IsSet())
+				{
+					*InBinding.Data = *Data;
+				}
+				else
+				{
+					InBinding.Data = Data;
+				}
+			}
+			else if (InBinding.Data.IsSet())
+			{
+				Data = InBinding.Data;
+				CheckAccessTypeCompatibility(Vertex, *Data);
+			}
+		}
+
+		FOutputBinding::FOutputBinding(FOutputDataVertex&& InVertex)
+		: Vertex(MoveTemp(InVertex))
+		{
+		}
+
+		FOutputBinding::FOutputBinding(const FOutputDataVertex& InVertex)
+		: Vertex(InVertex)
+		{
+		}
+
+		FOutputBinding::FOutputBinding(const FVertexName& InVertexName, FAnyDataReference&& InReference)
+		: Vertex(InVertexName, InReference.GetDataTypeName(), FDataVertexMetadata{}, DataReferenceAccessTypeToVertexAccessType(InReference.GetAccessType()))
+		{
+			Set(MoveTemp(InReference));
+		}
+
+		void FOutputBinding::Set(FAnyDataReference&& InAnyDataReference)
+		{
+			check(Vertex.DataTypeName == InAnyDataReference.GetDataTypeName());
+			Data.Emplace(MoveTemp(InAnyDataReference));
+			CheckAccessTypeCompatibility(Vertex, *Data);
+		}
+		
+		const FOutputDataVertex& FOutputBinding::GetVertex() const
+		{
+			return Vertex;
+		}
+
+		bool FOutputBinding::IsBound() const
+		{
+			return Data.IsSet();
+		}
+
+		EDataReferenceAccessType FOutputBinding::GetAccessType() const
+		{
+			if (Data.IsSet())
+			{
+				return Data->GetAccessType();
+			}
+			return EDataReferenceAccessType::None;
+		}
+
+		// Get data reference 
+		const FAnyDataReference* FOutputBinding::GetDataReference() const
+		{
+			return Data.GetPtrOrNull();
+		}
+
+		FDataReferenceID FOutputBinding::GetDataReferenceID() const
+		{
+			if (Data.IsSet())
+			{
+				return Metasound::GetDataReferenceID(*Data);
+			}
+			return nullptr;
+		}
+
+		void FOutputBinding::Bind(FAnyDataReference& InOutDataReference)
+		{
+			check(Vertex.DataTypeName == InOutDataReference.GetDataTypeName());
+			Data.Emplace(InOutDataReference);
+			CheckAccessTypeCompatibility(Vertex, *Data);
+		}
+
+		void FOutputBinding::Bind(FOutputBinding& InBinding)
+		{
+			check(Vertex.DataTypeName == InBinding.GetVertex().DataTypeName);
+
+			if (InBinding.Data.IsSet())
+			{
+				Data = InBinding.Data;
+				CheckAccessTypeCompatibility(Vertex, *Data);
+			}
+		}
 		template<typename VertexType>
-		void EmplaceBindings(TArray<TBinding<VertexType>>& InArray, const TVertexInterfaceGroup<VertexType>& InVertexInterface)
+		void EmplaceBindings(TArray<TBindingType<VertexType>>& InArray, const TVertexInterfaceGroup<VertexType>& InVertexInterface)
 		{
 			for (const VertexType& DataVertex : InVertexInterface)
 			{
@@ -68,18 +256,23 @@ namespace Metasound
 		}
 
 		template<typename BindingType>
-		void BindVertex(TArray<BindingType>& InBindings, const FVertexName& InVertexName, FAnyDataReference&& InDataReference)
+		void SetVertex(bool bIsVertexInterfaceFrozen, TArray<BindingType>& InBindings, const FVertexName& InVertexName, FAnyDataReference&& InDataReference)
 		{
 			if (BindingType* Binding = Find(InBindings, InVertexName))
 			{
 				if (Binding->GetVertex().DataTypeName == InDataReference.GetDataTypeName())
 				{
-					Binding->Bind(MoveTemp(InDataReference));
+					Binding->Set(MoveTemp(InDataReference));
 				}
 				else
 				{
 					UE_LOG(LogMetaSound, Warning, TEXT("Failed bind vertex with name '%s'. Supplied data type (%s) does not match vertex data type (%s)"), *InVertexName.ToString(), *InDataReference.GetDataTypeName().ToString(), *Binding->GetVertex().DataTypeName.ToString());
 				}
+			}
+			else if (!bIsVertexInterfaceFrozen)
+			{
+				BindingType NewBinding(InVertexName, MoveTemp(InDataReference));
+				InBindings.Add(MoveTemp(NewBinding));
 			}
 			else
 			{
@@ -88,31 +281,42 @@ namespace Metasound
 		}
 
 		template<typename BindingType>
-		void BindVertex(TArray<BindingType>& InBindings, const FVertexName& InVertexName, const FAnyDataReference& InDataReference)
+		void SetVertex(bool bIsVertexInterfaceFrozen, TArray<BindingType>& InBindings, const FVertexName& InVertexName, const FAnyDataReference& InDataReference)
 		{
-			BindVertex<BindingType>(InBindings, InVertexName, FAnyDataReference{InDataReference});
+			SetVertex<BindingType>(bIsVertexInterfaceFrozen, InBindings, InVertexName, FAnyDataReference{InDataReference});
 		}
 
 		template<typename BindingType>
-		void Bind(TArray<BindingType>& InTargetBindings, const TArray<BindingType>& InSourceBindings)
+		void Bind(bool bIsVertexInterfaceFrozen, TArray<BindingType>& InThisBindings, TArray<BindingType>& InOtherBindings)
 		{
-			for (const BindingType& SourceBinding : InSourceBindings)
+			for (BindingType& OtherBinding : InOtherBindings)
 			{
-				if (const FAnyDataReference* DataReference = SourceBinding.GetDataReference())
+				const FVertexName& OtherVertexName = OtherBinding.GetVertex().VertexName;
+				if (BindingType* ThisBinding = Find(InThisBindings, OtherVertexName))
 				{
-					if (BindingType* TargetBinding = Find(InTargetBindings, SourceBinding.GetVertex().VertexName))
+					const FName& OtherDataTypeName= OtherBinding.GetVertex().DataTypeName;
+					if (OtherDataTypeName == ThisBinding->GetVertex().DataTypeName)
 					{
-						if (DataReference->GetDataTypeName() == TargetBinding->GetVertex().DataTypeName)
-						{
-							TargetBinding->Bind(*DataReference);
-						}
+						ThisBinding->Bind(OtherBinding);
 					}
+					else
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Failed bind vertex with name '%s'. Supplied data type (%s) does not match vertex data type (%s)"), *OtherVertexName.ToString(), *OtherDataTypeName.ToString(), *ThisBinding->GetVertex().DataTypeName.ToString());
+					}
+				}
+				else if (!bIsVertexInterfaceFrozen)
+				{
+					InThisBindings.Add(OtherBinding);
+				}
+				else
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Failed find vertex with name '%s'. Failed to bind vertex data"), *OtherVertexName.ToString());
 				}
 			}
 		}
 
 		template<typename BindingType>
-		void Bind(TArray<BindingType>& InBindings, const FDataReferenceCollection& InCollection)
+		void Set(TArray<BindingType>& InBindings, const FDataReferenceCollection& InCollection)
 		{
 			for (BindingType& Binding : InBindings)
 			{
@@ -120,7 +324,7 @@ namespace Metasound
 
 				if (const FAnyDataReference* DataRef = InCollection.FindDataReference(Vertex.VertexName))
 				{
-					Binding.Bind(*DataRef);
+					Binding.Set(*DataRef);
 				}
 			}
 		}
@@ -140,7 +344,6 @@ namespace Metasound
 		{
 			return Algo::AllOf(InBindings, [](const BindingType& Binding) { return Binding.IsBound(); });
 		}
-
 
 		template<typename BindingType>
 		EDataReferenceAccessType GetVertexDataAccessType(const TArray<BindingType>& InBindings, const FVertexName& InVertexName)
@@ -175,32 +378,113 @@ namespace Metasound
 			}
 			return nullptr;
 		}
+
+		template<typename BindingType>
+		void GetVertexInterfaceDataState(const TArray<BindingType>& InBindings, TArray<FVertexDataState>& OutState)
+		{
+			OutState.Reset();
+
+			for (const BindingType& InBinding : InBindings)
+			{
+				OutState.Add(FVertexDataState{InBinding.GetVertex().VertexName, InBinding.GetDataReferenceID()});
+			}
+		}
+
+		template<typename BindingType>
+		void CompareVertexInterfaceDataToPriorState(const TArray<BindingType>& InBindings, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates)
+		{
+			for (const BindingType& Binding : InBindings)
+			{
+				if (const FAnyDataReference* CurrentReference = Binding.GetDataReference())
+				{
+					const FVertexDataState* OtherState = nullptr;
+					const FName& VertexName = Binding.GetVertex().VertexName;
+
+					for (const FVertexDataState& State : InPriorState)
+					{
+						if (State.VertexName == VertexName)
+						{
+							OtherState = &State;
+							break;
+						}
+					}
+
+					if (OtherState)
+					{
+						if (OtherState->ID != Binding.GetDataReferenceID())
+						{
+							OutUpdates.Add(OtherState->ID, *CurrentReference);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	FInputVertexInterfaceData::FInputVertexInterfaceData()
+	: bIsVertexInterfaceFrozen(false)
+	{
 	}
 
 	FInputVertexInterfaceData::FInputVertexInterfaceData(const FInputVertexInterface& InVertexInterface)
+	: bIsVertexInterfaceFrozen(true)
 	{
 		MetasoundVertexDataPrivate::EmplaceBindings(Bindings, InVertexInterface);
 	}
 
-	
-	void FInputVertexInterfaceData::BindVertex(const FVertexName& InVertexName, FAnyDataReference&& InDataReference)
+	bool FInputVertexInterfaceData::IsVertexInterfaceFrozen() const
 	{
-		MetasoundVertexDataPrivate::BindVertex(Bindings, InVertexName, MoveTemp(InDataReference));
+		return bIsVertexInterfaceFrozen;
 	}
 
-	void FInputVertexInterfaceData::BindVertex(const FVertexName& InVertexName, const FAnyDataReference& InDataReference)
+	void FInputVertexInterfaceData::SetIsVertexInterfaceFrozen(bool bInFreezeVertices)
 	{
-		MetasoundVertexDataPrivate::BindVertex(Bindings, InVertexName, InDataReference);
+		bIsVertexInterfaceFrozen = bInFreezeVertices;
+	}
+
+	void FInputVertexInterfaceData::BindVertex(const FVertexName& InVertexName, const FAnyDataReference& InOutDataReference)
+	{
+		BindVertex(InVertexName, const_cast<FAnyDataReference&>(InOutDataReference));
+	}
+
+	void FInputVertexInterfaceData::BindVertex(const FVertexName& InVertexName, FAnyDataReference& InOutDataReference)
+	{
+		using namespace MetasoundVertexDataPrivate;
+		auto CreateBinding = [&]()
+		{
+			FInputDataVertex Vertex(InVertexName, InOutDataReference.GetDataTypeName(), FDataVertexMetadata{}, DataReferenceAccessTypeToVertexAccessType(InOutDataReference.GetAccessType()));
+
+			return FInputBinding(Vertex);
+		};
+
+		auto BindData = [&](FInputBinding& Binding) { Binding.Bind(InOutDataReference); };
+		
+		Apply(InVertexName, CreateBinding, BindData);
 	}
 
 	void FInputVertexInterfaceData::Bind(const FInputVertexInterfaceData& InVertexData)
 	{
-		MetasoundVertexDataPrivate::Bind(Bindings, InVertexData.Bindings);
+		Bind(const_cast<FInputVertexInterfaceData&>(InVertexData));
 	}
 
-	void FInputVertexInterfaceData::Bind(const FDataReferenceCollection& InCollection)
+	void FInputVertexInterfaceData::Bind(FInputVertexInterfaceData& InVertexData)
 	{
-		MetasoundVertexDataPrivate::Bind(Bindings, InCollection);
+		MetasoundVertexDataPrivate::Bind(IsVertexInterfaceFrozen(), Bindings, InVertexData.Bindings);
+	}
+
+	void FInputVertexInterfaceData::SetVertex(const FVertexName& InVertexName, FAnyDataReference&& InDataReference)
+	{
+		MetasoundVertexDataPrivate::SetVertex(IsVertexInterfaceFrozen(), Bindings, InVertexName, MoveTemp(InDataReference));
+	}
+
+	void FInputVertexInterfaceData::SetVertex(const FVertexName& InVertexName, const FAnyDataReference& InDataReference)
+	{
+		MetasoundVertexDataPrivate::SetVertex(IsVertexInterfaceFrozen(), Bindings, InVertexName, InDataReference);
+	}
+
+	void FInputVertexInterfaceData::Set(const FDataReferenceCollection& InCollection)
+	{
+		MetasoundVertexDataPrivate::Set(Bindings, InCollection);
 	}
 
 	FDataReferenceCollection FInputVertexInterfaceData::ToDataReferenceCollection() const
@@ -233,55 +517,112 @@ namespace Metasound
 		return MetasoundVertexDataPrivate::FindDataReference(Bindings, InVertexName);
 	}
 
-	FInputVertexInterfaceData::FBinding* FInputVertexInterfaceData::Find(const FVertexName& InVertexName)
+	void FInputVertexInterfaceData::Apply(const FVertexName& InVertexName, TFunctionRef<FInputBinding ()> InCreateFunc, TFunctionRef<void (FInputBinding&)> InBindFunc)
+	{
+		if (FInputBinding* Binding = Find(InVertexName))
+		{
+			InBindFunc(*Binding);
+		}
+		else if (IsVertexInterfaceFrozen())
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Failed to find input vertex with name '%s'."), *InVertexName.ToString());
+		}
+		else
+		{
+			FInputBinding NewBinding = InCreateFunc();
+			InBindFunc(NewBinding);
+			Bindings.Add(MoveTemp(NewBinding));
+		}
+	}
+
+	FInputVertexInterfaceData::FInputBinding* FInputVertexInterfaceData::Find(const FVertexName& InVertexName)
 	{
 		return MetasoundVertexDataPrivate::Find(Bindings, InVertexName);
 	}
 
-	const FInputVertexInterfaceData::FBinding* FInputVertexInterfaceData::Find(const FVertexName& InVertexName) const
+	const FInputVertexInterfaceData::FInputBinding* FInputVertexInterfaceData::Find(const FVertexName& InVertexName) const
 	{
 		return MetasoundVertexDataPrivate::Find(Bindings, InVertexName);
 	}
 
-	FInputVertexInterfaceData::FBinding* FInputVertexInterfaceData::FindChecked(const FVertexName& InVertexName)
+	FInputVertexInterfaceData::FInputBinding* FInputVertexInterfaceData::FindChecked(const FVertexName& InVertexName)
 	{
-		FBinding* Binding = Find(InVertexName);
+		FInputBinding* Binding = Find(InVertexName);
 		checkf(nullptr != Binding, TEXT("Attempt to access vertex \"%s\" which does not exist on interface."), *InVertexName.ToString());
 		return Binding;
 	}
 
-	const FInputVertexInterfaceData::FBinding* FInputVertexInterfaceData::FindChecked(const FVertexName& InVertexName) const
+	const FInputVertexInterfaceData::FInputBinding* FInputVertexInterfaceData::FindChecked(const FVertexName& InVertexName) const
 	{
-		const FBinding* Binding = Find(InVertexName);
+		const FInputBinding* Binding = Find(InVertexName);
 		checkf(nullptr != Binding, TEXT("Attempt to access vertex \"%s\" which does not exist on interface."), *InVertexName.ToString());
 		return Binding;
 	}
 
+	FOutputVertexInterfaceData::FOutputVertexInterfaceData()
+	: bIsVertexInterfaceFrozen(false)
+	{
+	}
 
 	FOutputVertexInterfaceData::FOutputVertexInterfaceData(const FOutputVertexInterface& InVertexInterface)
+	: bIsVertexInterfaceFrozen(true)
 	{
 		MetasoundVertexDataPrivate::EmplaceBindings(Bindings, InVertexInterface);
 	}
 
-	
-	void FOutputVertexInterfaceData::BindVertex(const FVertexName& InVertexName, FAnyDataReference&& InDataReference)
+	bool FOutputVertexInterfaceData::IsVertexInterfaceFrozen() const
 	{
-		MetasoundVertexDataPrivate::BindVertex(Bindings, InVertexName, MoveTemp(InDataReference));
+		return bIsVertexInterfaceFrozen;
 	}
 
-	void FOutputVertexInterfaceData::BindVertex(const FVertexName& InVertexName, const FAnyDataReference& InDataReference)
+	void FOutputVertexInterfaceData::SetIsVertexInterfaceFrozen(bool bInFreezeVertices)
 	{
-		MetasoundVertexDataPrivate::BindVertex(Bindings, InVertexName, InDataReference);
+		bIsVertexInterfaceFrozen = bInFreezeVertices;
+	}
+
+	void FOutputVertexInterfaceData::BindVertex(const FVertexName& InVertexName, const FAnyDataReference& InOutDataReference)
+	{
+		BindVertex(InVertexName, const_cast<FAnyDataReference&>(InOutDataReference));
+	}
+
+	void FOutputVertexInterfaceData::BindVertex(const FVertexName& InVertexName, FAnyDataReference& InOutDataReference)
+	{
+		using namespace MetasoundVertexDataPrivate;
+		auto CreateBinding = [&]()
+		{
+			FOutputDataVertex Vertex(InVertexName, InOutDataReference.GetDataTypeName(), FDataVertexMetadata{}, DataReferenceAccessTypeToVertexAccessType(InOutDataReference.GetAccessType()));
+
+			return FOutputBinding(Vertex);
+		};
+
+		auto BindData = [&](FOutputBinding& Binding) { Binding.Bind(InOutDataReference); };
+		
+		Apply(InVertexName, CreateBinding, BindData);
 	}
 
 	void FOutputVertexInterfaceData::Bind(const FOutputVertexInterfaceData& InVertexData)
 	{
-		MetasoundVertexDataPrivate::Bind(Bindings, InVertexData.Bindings);
+		Bind(const_cast<FOutputVertexInterfaceData&>(InVertexData));
 	}
 
-	void FOutputVertexInterfaceData::Bind(const FDataReferenceCollection& InCollection)
+	void FOutputVertexInterfaceData::Bind(FOutputVertexInterfaceData& InVertexData)
 	{
-		MetasoundVertexDataPrivate::Bind(Bindings, InCollection);
+		MetasoundVertexDataPrivate::Bind(IsVertexInterfaceFrozen(), Bindings, InVertexData.Bindings);
+	}
+
+	void FOutputVertexInterfaceData::SetVertex(const FVertexName& InVertexName, FAnyDataReference&& InDataReference)
+	{
+		MetasoundVertexDataPrivate::SetVertex(IsVertexInterfaceFrozen(), Bindings, InVertexName, MoveTemp(InDataReference));
+	}
+
+	void FOutputVertexInterfaceData::SetVertex(const FVertexName& InVertexName, const FAnyDataReference& InDataReference)
+	{
+		MetasoundVertexDataPrivate::SetVertex(IsVertexInterfaceFrozen(), Bindings, InVertexName, InDataReference);
+	}
+
+	void FOutputVertexInterfaceData::Set(const FDataReferenceCollection& InCollection)
+	{
+		MetasoundVertexDataPrivate::Set(Bindings, InCollection);
 	}
 
 	FDataReferenceCollection FOutputVertexInterfaceData::ToDataReferenceCollection() const
@@ -314,34 +655,103 @@ namespace Metasound
 		return MetasoundVertexDataPrivate::FindDataReference(Bindings, InVertexName);
 	}
 
+	void FOutputVertexInterfaceData::Apply(const FVertexName& InVertexName, TFunctionRef<FOutputBinding ()> InCreateFunc, TFunctionRef<void (FOutputBinding&)> InBindFunc)
+	{
+		if (FOutputBinding* Binding = Find(InVertexName))
+		{
+			InBindFunc(*Binding);
+		}
+		else if (!IsVertexInterfaceFrozen())
+		{
+			FOutputBinding NewBinding = InCreateFunc();
+			InBindFunc(NewBinding);
+			Bindings.Add(MoveTemp(NewBinding));
+		}
+		else
+		{
+			UE_LOG(LogMetaSound, Warning, TEXT("Failed to find output vertex with name '%s'."), *InVertexName.ToString());
+		}
+	}
 
-	FOutputVertexInterfaceData::FBinding* FOutputVertexInterfaceData::Find(const FVertexName& InVertexName)
+	FOutputVertexInterfaceData::FOutputBinding* FOutputVertexInterfaceData::Find(const FVertexName& InVertexName)
 	{
 		return MetasoundVertexDataPrivate::Find(Bindings, InVertexName);
 	}
 
-	const FOutputVertexInterfaceData::FBinding* FOutputVertexInterfaceData::Find(const FVertexName& InVertexName) const
+	const FOutputVertexInterfaceData::FOutputBinding* FOutputVertexInterfaceData::Find(const FVertexName& InVertexName) const
 	{
 		return MetasoundVertexDataPrivate::Find(Bindings, InVertexName);
 	}
 
-	FOutputVertexInterfaceData::FBinding* FOutputVertexInterfaceData::FindChecked(const FVertexName& InVertexName)
+	FOutputVertexInterfaceData::FOutputBinding* FOutputVertexInterfaceData::FindChecked(const FVertexName& InVertexName)
 	{
-		FBinding* Binding = Find(InVertexName);
+		FOutputBinding* Binding = Find(InVertexName);
 		checkf(nullptr != Binding, TEXT("Attempt to access vertex \"%s\" which does not exist on interface."), *InVertexName.ToString());
 		return Binding;
 	}
 
-	const FOutputVertexInterfaceData::FBinding* FOutputVertexInterfaceData::FindChecked(const FVertexName& InVertexName) const
+	const FOutputVertexInterfaceData::FOutputBinding* FOutputVertexInterfaceData::FindChecked(const FVertexName& InVertexName) const
 	{
-		const FBinding* Binding = Find(InVertexName);
+		const FOutputBinding* Binding = Find(InVertexName);
 		checkf(nullptr != Binding, TEXT("Attempt to access vertex \"%s\" which does not exist on interface."), *InVertexName.ToString());
 		return Binding;
+	}
+
+	FVertexInterfaceData::FVertexInterfaceData(const FVertexInterface& InVertexInterface)
+	: InputVertexInterfaceData(InVertexInterface.GetInputInterface())
+	, OutputVertexInterfaceData(InVertexInterface.GetOutputInterface())
+	{
 	}
 
 	void FVertexInterfaceData::Bind(const FVertexInterfaceData& InVertexData)
 	{
+		Bind(const_cast<FVertexInterfaceData&>(InVertexData));
+	}
+
+	void FVertexInterfaceData::Bind(FVertexInterfaceData& InVertexData)
+	{
 		InputVertexInterfaceData.Bind(InVertexData.GetInputs());
 		OutputVertexInterfaceData.Bind(InVertexData.GetOutputs());
+	}
+
+	bool operator<(const FVertexDataState& InLHS, const FVertexDataState& InRHS)
+	{
+		if (InLHS.VertexName.FastLess(InRHS.VertexName))
+		{
+			return true;
+		}
+		else if (InRHS.VertexName.FastLess(InLHS.VertexName))
+		{
+			return false;
+		}
+		else
+		{
+			return InLHS.ID < InRHS.ID;
+		}
+	}
+
+	bool operator==(const FVertexDataState& InLHS, const FVertexDataState& InRHS)
+	{
+		return (InLHS.ID == InRHS.ID) && (InLHS.VertexName == InRHS.VertexName);
+	}
+
+	void GetVertexInterfaceDataState(const FInputVertexInterfaceData& InVertexInterface, TArray<FVertexDataState>& OutState)
+	{
+		MetasoundVertexDataPrivate::GetVertexInterfaceDataState(InVertexInterface.Bindings, OutState);
+	}
+
+	void GetVertexInterfaceDataState(const FOutputVertexInterfaceData& InVertexInterface, TArray<FVertexDataState>& OutState)
+	{
+		MetasoundVertexDataPrivate::GetVertexInterfaceDataState(InVertexInterface.Bindings, OutState);
+	}
+
+	void CompareVertexInterfaceDataToPriorState(const FInputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates)
+	{
+		MetasoundVertexDataPrivate::CompareVertexInterfaceDataToPriorState(InCurrentInterface.Bindings, InPriorState, OutUpdates);
+	}
+
+	void CompareVertexInterfaceDataToPriorState(const FOutputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates)
+	{
+		MetasoundVertexDataPrivate::CompareVertexInterfaceDataToPriorState(InCurrentInterface.Bindings, InPriorState, OutUpdates);
 	}
 }

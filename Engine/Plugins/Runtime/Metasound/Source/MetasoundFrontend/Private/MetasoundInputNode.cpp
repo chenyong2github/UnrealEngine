@@ -37,16 +37,16 @@ namespace Metasound
 
 		void FNonExecutableInputOperatorBase::Bind(FVertexInterfaceData& InOutVertexData) const
 		{
-			BindInputs(InOutVertexData.GetInputs());
-			BindOutputs(InOutVertexData.GetOutputs());
+			BindInputsInternal(InOutVertexData.GetInputs());
+			BindOutputsInternal(InOutVertexData.GetOutputs());
 		}
 
-		void FNonExecutableInputOperatorBase::BindInputs(FInputVertexInterfaceData& InOutVertexData) const
+		void FNonExecutableInputOperatorBase::BindInputsInternal(FInputVertexInterfaceData& InOutVertexData) const
 		{
 			InOutVertexData.BindVertex(VertexName, DataRef);
 		}
 
-		void FNonExecutableInputOperatorBase::BindOutputs(FOutputVertexInterfaceData& InOutVertexData) const
+		void FNonExecutableInputOperatorBase::BindOutputsInternal(FOutputVertexInterfaceData& InOutVertexData) const
 		{
 			InOutVertexData.BindVertex(VertexName, DataRef);
 		}

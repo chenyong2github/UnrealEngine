@@ -176,25 +176,6 @@ namespace Metasound
 			virtual ~IOperatorFactory() = default;
 
 			virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) = 0;
-
-			UE_DEPRECATED(5.1, "Use CreateOperator overload providing the FBuildResults struct.")
-			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
-			{
-				// Map inputs to new structures
-				FInputVertexInterfaceData InputData(InParams.Node.GetVertexInterface().GetInputInterface());
-				InputData.Bind(InParams.InputDataReferences);
-
-				FBuildOperatorParams Params2 { InParams.Node, InParams.OperatorSettings, InputData, InParams.Environment, InParams.Builder };
-
-				// Create operator
-				FBuildResults Results;
-				TUniquePtr<IOperator> Operator = CreateOperator(Params2, Results);
-
-				// Map new output to old output
-				OutErrors = MoveTemp(Results.Errors);
-
-				return MoveTemp(Operator);
-			}
 	};
 
 
@@ -209,28 +190,6 @@ namespace Metasound
 			using FBuildErrorPtr = TUniquePtr<IOperatorBuildError>;
 
 			virtual ~IOperatorBuilder() = default;
-
-			/** Build a graph operator from a graph.
-			 *
-			 * @params InParams - Input parameters for building a graph.
-			 * @param OutErrors - An array of errors which occurred during while building the operator.
-			 *
-			 * @return A unique pointer to the built IOperator. Null if build failed.
-			 */
-			UE_DEPRECATED(5.1, "Use BuildGraphOperator overload providing the FBuildResults struct.")
-			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphParams& InParams, FBuildErrorArray& OutErrors) const 
-			{ 
-				FInputVertexInterfaceData InputData(InParams.Graph.GetVertexInterface().GetInputInterface());
-				InputData.Bind(InParams.InputDataReferences);
-				FBuildGraphOperatorParams NewParams{InParams.Graph, InParams.OperatorSettings, InputData, InParams.Environment};
-				FBuildResults Results;
-
-				TUniquePtr<IOperator> GraphOperator = BuildGraphOperator(NewParams, Results);
-
-				OutErrors.Append(MoveTemp(Results.Errors));
-				
-				return MoveTemp(GraphOperator);
-			}
 
 			/** Build a graph operator from a graph.
 			 *

@@ -2,14 +2,81 @@
 
 #include "MetasoundGraphOperator.h"
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/SortedMap.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceCollection.h"
-#include "MetasoundOperatorInterface.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundOperatorInterface.h"
 
 namespace Metasound
 {
+	namespace MetasoundGraphPrivate
+	{
+		// FGraphOperator does not support rebinding with new inputs or outputs. This checks
+		// that underlying data pointers were not updated when bind is called on the graph
+		// operator.
+		//
+		// In order for FGraphOperator to support rebinding with new inputs, it would need
+		// to maintain an internal map of all connections in the graph in order to update
+		// internal operators appropriately. It does not hold onto this data for 
+		// performance reasons. 
+		template<typename InterfaceDataType>
+		bool IsSupportedVertexData(const InterfaceDataType& InCurrentData, const InterfaceDataType& InNewData)
+		{
+#if DO_CHECK
+			TArray<FVertexDataState> CurrentState;
+			GetVertexInterfaceDataState(InCurrentData, CurrentState);
+
+			TArray<FVertexDataState> NewState;
+			GetVertexInterfaceDataState(InNewData, NewState);
+
+			CurrentState.Sort();
+			NewState.Sort();
+
+			TArray<FVertexDataState>::TConstIterator CurrentIter = CurrentState.CreateConstIterator();
+			TArray<FVertexDataState>::TConstIterator NewIter = NewState.CreateConstIterator();
+
+			while (CurrentIter && NewIter)
+			{
+				if (NewIter->VertexName == CurrentIter->VertexName)
+				{
+					if ((NewIter->ID != nullptr) && (NewIter->ID != CurrentIter->ID))
+					{
+						UE_LOG(LogMetaSound, Warning, TEXT("Cannot bind to FGraphOperator because vertex %s has mismatched data"), *(NewIter->VertexName.ToString()));
+						return false;
+					}
+					else
+					{
+						NewIter++;
+						CurrentIter++;
+					}
+				}
+				else if (*NewIter < *CurrentIter)
+				{
+					UE_LOG(LogMetaSound, Warning, TEXT("Cannot bind to FGraphOperator because vertex %s does not exist in current vertex data"), *(NewIter->VertexName.ToString()));
+					return false;
+				}
+				else 
+				{
+					// It's ok if we have an entry in the current vertex data that does not exist in the new vertex data. 
+					CurrentIter++;
+				}
+			}
+
+			if (!NewIter)
+			{
+				UE_LOG(LogMetaSound, Warning, TEXT("Cannot bind to FGraphOperator because vertex %s does not exist in current vertex data"), *(NewIter->VertexName.ToString()));
+				return false;
+			}
+
+			return true;
+#else
+			return true;
+#endif // DO_CHECK
+		}
+	}
+
 	void FGraphOperator::AppendOperator(FOperatorPtr InOperator)
 	{
 		if (InOperator.IsValid())
@@ -41,16 +108,6 @@ namespace Metasound
 		}
 	}
 
-	void FGraphOperator::SetInputs(const FDataReferenceCollection& InCollection)
-	{
-		VertexData.GetInputs().Bind(InCollection);
-	}
-
-	void FGraphOperator::SetOutputs(const FDataReferenceCollection& InCollection)
-	{
-		VertexData.GetOutputs().Bind(InCollection);
-	}
-
 	void FGraphOperator::SetVertexInterfaceData(FVertexInterfaceData&& InVertexData)
 	{
 		VertexData = InVertexData;
@@ -66,9 +123,16 @@ namespace Metasound
 		return VertexData.GetOutputs().ToDataReferenceCollection();
 	}
 
-	void FGraphOperator::Bind(FVertexInterfaceData& InVertexData) const
+	void FGraphOperator::BindInputs(FInputVertexInterfaceData& InInputVertexData)
 	{
-		InVertexData.Bind(VertexData);
+		checkf(MetasoundGraphPrivate::IsSupportedVertexData(VertexData.GetInputs(), InInputVertexData), TEXT("FGraphOperator does not support rebinding with new data"));
+
+		InInputVertexData = VertexData.GetInputs();
+	}
+
+	void FGraphOperator::BindOutputs(FOutputVertexInterfaceData& InOutputVertexData)
+	{
+		InOutputVertexData = VertexData.GetOutputs();
 	}
 
 	IOperator::FPostExecuteFunction FGraphOperator::GetPostExecuteFunction()
@@ -150,6 +214,5 @@ namespace Metasound
 		Function(Operator, InParams);
 	}
 
-			static void StaticPostExecute(IOperator* Operator);
 
 }

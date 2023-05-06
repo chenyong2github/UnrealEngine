@@ -25,12 +25,6 @@ namespace Metasound
 			// Add an operator to the end of the executation stack.
 			void AppendOperator(FOperatorPtr InOperator);
 
-			UE_DEPRECATED(5.1, "Use FGraphOperator::SetVertexInterfaceData instead.")
-			void SetInputs(const FDataReferenceCollection& InCollection);
-
-			UE_DEPRECATED(5.1, "Use FGraphOperator::SetVertexInterfaceData instead.")
-			void SetOutputs(const FDataReferenceCollection& InCollection);
-
 			// Set the vertex interface data. This data will be copied to output 
 			// during calls to Bind(InOutVertexData).
 			void SetVertexInterfaceData(FVertexInterfaceData&& InVertexData);
@@ -40,7 +34,8 @@ namespace Metasound
 			virtual FDataReferenceCollection GetOutputs() const override;
 
 			// Bind the graph's interface data references to FVertexInterfaceData.
-			virtual void Bind(FVertexInterfaceData& InOutVertexData) const override;
+			virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+			virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 
 			virtual IOperator::FPostExecuteFunction GetPostExecuteFunction() override;
 

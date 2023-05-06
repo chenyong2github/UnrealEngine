@@ -1141,7 +1141,7 @@ namespace Metasound
 			return Registry;
 		}
 
-		void CreateAndBindDefaults(const FOperatorSettings& InOperatorSettings, FInputVertexInterfaceData& OutVertexData)
+		void CreateDefaults(const FOperatorSettings& InOperatorSettings, FInputVertexInterfaceData& OutVertexData)
 		{
 			using namespace MetasoundVertexDataPrivate;
 
@@ -1160,7 +1160,7 @@ namespace Metasound
 
 			IDataTypeRegistry& DataTypeRegistry = IDataTypeRegistry::Get();
 
-			for (const TBinding<FInputDataVertex>& Binding : OutVertexData)
+			for (const FInputBinding& Binding : OutVertexData)
 			{
 				// Attempt to create default data reference from the literal stored
 				// on the input vertex.
@@ -1171,7 +1171,7 @@ namespace Metasound
 				if (DataRef.IsSet())
 				{
 					// Set as vertex data reference.
-					OutVertexData.BindVertex(InputVertex.VertexName, *DataRef);
+					OutVertexData.SetVertex(InputVertex.VertexName, *DataRef);
 				}
 				else
 				{

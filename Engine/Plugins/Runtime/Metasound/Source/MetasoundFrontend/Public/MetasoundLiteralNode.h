@@ -128,7 +128,7 @@ namespace Metasound
 			virtual void Bind(FVertexInterfaceData& InVertexData) const override
 			{
 				// Do not bind inputs as there are no inputs exposed from the literal node. 
-				TInputOperator<DataType>::BindOutputs(InVertexData.GetOutputs());
+				TInputOperator<DataType>::BindOutputsInternal(InVertexData.GetOutputs());
 			}
 		};
 

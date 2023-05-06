@@ -38,9 +38,9 @@ namespace Metasound
 			FNonExecutableInputOperatorBase(const FVertexName& InVertexName, FAnyDataReference&& InDataRef);
 
 		private:
-			void BindInputs(FInputVertexInterfaceData& InOutVertexData) const;
+			void BindInputsInternal(FInputVertexInterfaceData& InOutVertexData) const;
 		protected:
-			void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) const;
+			void BindOutputsInternal(FOutputVertexInterfaceData& InOutVertexData) const;
 
 
 			FVertexName VertexName;
@@ -101,8 +101,8 @@ namespace Metasound
 
 			virtual void Bind(FVertexInterfaceData& InOutVertexData) const override
 			{
-				BindInputs(InOutVertexData.GetInputs());
-				BindOutputs(InOutVertexData.GetOutputs());
+				BindInputsInternal(InOutVertexData.GetInputs());
+				BindOutputsInternal(InOutVertexData.GetOutputs());
 			}
 
 			virtual FExecuteFunction GetExecuteFunction() override
@@ -116,14 +116,14 @@ namespace Metasound
 			}
 
 		private:
-			void BindInputs(FInputVertexInterfaceData& InOutVertexData) const
+			void BindInputsInternal(FInputVertexInterfaceData& InOutVertexData) const
 			{
 				InOutVertexData.BindWriteVertex(DataReferenceName, InputValue);
 			}
 
 		protected:
 
-			void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) const
+			void BindOutputsInternal(FOutputVertexInterfaceData& InOutVertexData) const
 			{
 				InOutVertexData.BindReadVertex(DataReferenceName, OutputValue);
 			}
@@ -197,8 +197,8 @@ namespace Metasound
 
 			virtual void Bind(FVertexInterfaceData& InOutVertexData) const override
 			{
-				BindInputs(InOutVertexData.GetInputs());
-				BindOutputs(InOutVertexData.GetOutputs());
+				BindInputsInternal(InOutVertexData.GetInputs());
+				BindOutputsInternal(InOutVertexData.GetOutputs());
 			}
 
 			virtual FExecuteFunction GetExecuteFunction() override
@@ -217,14 +217,14 @@ namespace Metasound
 			}
 
 		private:
-			void BindInputs(FInputVertexInterfaceData& InOutVertexData) const
+			void BindInputsInternal(FInputVertexInterfaceData& InOutVertexData) const
 			{
 				InOutVertexData.BindWriteVertex(DataReferenceName, Value);
 			}
 
 		protected:
 
-			void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) const
+			void BindOutputsInternal(FOutputVertexInterfaceData& InOutVertexData) const
 			{
 				InOutVertexData.BindReadVertex(DataReferenceName, Value);
 			}

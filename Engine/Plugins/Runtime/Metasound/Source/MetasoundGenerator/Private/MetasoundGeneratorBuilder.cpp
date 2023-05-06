@@ -155,7 +155,7 @@ namespace Metasound
 			}
 
 			// Set any remaining inputs to their default values.
-			for (const MetasoundVertexDataPrivate::TBinding<FInputDataVertex>& Binding : InputData)
+			for (const MetasoundVertexDataPrivate::FInputBinding& Binding : InputData)
 			{
 				// Only create data reference if something does not already exist. 
 				if (!Binding.IsBound())
@@ -218,7 +218,7 @@ namespace Metasound
 			FParameterSetterSortedMap ParameterSetters;
 			TMap<FName, FParameterPackSetter> ParameterPackSetters;
 			FInputVertexInterfaceData& GraphInputs = VertexData.GetInputs();
-			for (const MetasoundVertexDataPrivate::TBinding<FInputDataVertex>& Binding : GraphInputs)
+			for (const MetasoundVertexDataPrivate::FInputBinding& Binding : GraphInputs)
 			{
 				// Only assign inputs that are writable. 
 				if (EDataReferenceAccessType::Write == Binding.GetAccessType())

@@ -327,8 +327,8 @@ namespace Metasound
 		 * using the default literals which live on the FInputDataVertexes.
 		 *
 		 * If the vertex has access type EVertexAccessType::Reference, a writable
-		 * data reference will be bound, otherwise a value data reference will be bound.
+		 * data reference will be set, otherwise a value data reference will be set.
 		 */
-		METASOUNDFRONTEND_API void CreateAndBindDefaults(const FOperatorSettings& InOperatorSettings, FInputVertexInterfaceData& OutVertexData);
+		METASOUNDFRONTEND_API void CreateDefaults(const FOperatorSettings& InOperatorSettings, FInputVertexInterfaceData& OutVertexData);
 	}
 }

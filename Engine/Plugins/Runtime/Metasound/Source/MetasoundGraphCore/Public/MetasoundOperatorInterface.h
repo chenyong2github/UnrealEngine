@@ -55,11 +55,25 @@ namespace Metasound
 		 */
 		virtual void Bind(FVertexInterfaceData& InVertexData) const
 		{
-			InVertexData.GetInputs().Bind(GetInputs());
-			InVertexData.GetOutputs().Bind(GetOutputs());
+			InVertexData.GetInputs().Set(GetInputs());
+			InVertexData.GetOutputs().Set(GetOutputs());
 		}
 
-		/** Pointer to intialize function for an operator.
+		virtual void BindInputs(FInputVertexInterfaceData& InVertexData)
+		{
+			FVertexInterfaceData Data;
+			Data.GetInputs() = InVertexData;
+			Bind(Data);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) 
+		{
+			FVertexInterfaceData Data;
+			Data.GetOutputs() = InVertexData;
+			Bind(Data);
+		}
+
+		/** Pointer to initialize function for an operator.
 		 *
 		 * @param IOperator* - The operator associated with the function pointer.
 		 */

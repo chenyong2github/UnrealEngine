@@ -257,7 +257,7 @@ namespace Metasound
 			{
 				check(DataReference->GetDataTypeName() == Edge->From.Vertex.DataTypeName);
 				check(DataReference->GetDataTypeName() == Edge->To.Vertex.DataTypeName);
-				OutVertexData.BindVertex(Edge->To.Vertex.VertexName, FAnyDataReference{*DataReference});
+				OutVertexData.SetVertex(Edge->To.Vertex.VertexName, FAnyDataReference{*DataReference});
 			}
 			else 
 			{
@@ -290,7 +290,7 @@ namespace Metasound
 				{
 					if (DataReference->GetDataTypeName() == Destination->Vertex.DataTypeName)
 					{
-						OutVertexData.BindVertex(Destination->Vertex.VertexName, FAnyDataReference{*DataReference});
+						OutVertexData.SetVertex(Destination->Vertex.VertexName, FAnyDataReference{*DataReference});
 					}
 					else
 					{
@@ -329,7 +329,7 @@ namespace Metasound
 
 	FOperatorBuilder::FBuildStatus FOperatorBuilder::ValidateOperatorOutputsAreBound(const INode& InNode, const FOutputVertexInterfaceData& InVertexData) const
 	{
-		using FOutputVertexBinding = MetasoundVertexDataPrivate::TBinding<FOutputDataVertex>;
+		using FOutputVertexBinding = MetasoundVertexDataPrivate::FOutputBinding;
 
 		FBuildStatus BuildStatus = FBuildStatus::NoError;
 		bool bFoundUnboundVertex = false;
@@ -448,7 +448,7 @@ namespace Metasound
 					if (DataReference->GetDataTypeName() == InputDestination.Vertex.DataTypeName)
 					{
 						bFoundDataReference = true;
-						OutVertexData.GetInputs().BindVertex(InputDestination.Vertex.VertexName, *DataReference);
+						OutVertexData.GetInputs().SetVertex(InputDestination.Vertex.VertexName, *DataReference);
 					}
 				}
 			}
@@ -474,7 +474,7 @@ namespace Metasound
 					if (DataReference->GetDataTypeName() == OutputSource.Vertex.DataTypeName)
 					{
 						bFoundDataReference = true;
-						OutVertexData.GetOutputs().BindVertex(OutputSource.Vertex.VertexName, FAnyDataReference{*DataReference});
+						OutVertexData.GetOutputs().SetVertex(OutputSource.Vertex.VertexName, FAnyDataReference{*DataReference});
 					}
 				}
 			}
