@@ -137,6 +137,29 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// List all the installed Windows SDK versions
+		/// </summary>
+		/// <param name="Logger">Logger for output</param>
+		[SupportedOSPlatform("windows")]
+		public static void DumpWindowsSdkDirs(ILogger Logger)
+		{
+			IOrderedEnumerable<KeyValuePair<VersionNumber, DirectoryReference>> SortedSdkDirs = FindWindowsSdkDirs(Logger).OrderByDescending(x => x.Key);
+
+			if (SortedSdkDirs.Any())
+			{
+				Logger.LogInformation("Available Windows SDKs ({Count}):", SortedSdkDirs.Count());
+				foreach (KeyValuePair<VersionNumber, DirectoryReference> Item in SortedSdkDirs)
+				{
+					Logger.LogInformation(" * {SdkDir}\n    (Version={Version})", Item.Value, Item.Key);
+				}
+			}
+			else
+			{
+				Logger.LogInformation("No available Windows SDKs found");
+			}
+		}
+
+		/// <summary>
 		/// Finds all the installed Universal CRT versions
 		/// </summary>
 		/// <param name="Logger">Logger for output</param>

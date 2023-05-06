@@ -518,6 +518,7 @@ namespace UnrealBuildTool
 			{
 				if (!WindowsPlatform.TryGetWindowsSdkDir(WindowsSdkVersion, Logger, out SelectedWindowsSdkVersion, out SelectedWindowsSdkDir))
 				{
+					MicrosoftPlatformSDK.DumpWindowsSdkDirs(Logger);
 					throw new BuildException("Windows SDK{0} must be installed in order to build this target.", String.IsNullOrEmpty(WindowsSdkVersion) ? "" : String.Format(" ({0})", WindowsSdkVersion));
 				}
 			}
