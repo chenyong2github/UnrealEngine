@@ -451,6 +451,8 @@ private:
 	void InvalidateHash() { Hash = UINT32_MAX; }
 	const TArray<FRigVMExecuteArgument>& GetExecuteArguments(const FRigVMDispatchContext& InContext) const;
 
+	const FRigVMFunction* GetPermutation_NoLock(int32 InIndex) const;
+
 	int32 Index;
 	FName Notation;
 	TArray<FRigVMTemplateArgument> Arguments;

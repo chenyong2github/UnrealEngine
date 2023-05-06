@@ -642,7 +642,7 @@ FRigVMTemplate::FTypeMap FRigVMTemplate::GetArgumentTypesFromString(const FStrin
 	FTypeMap Types;
 	if(!InTypeString.IsEmpty())
 	{
-		const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+		FRigVMRegistry& Registry = FRigVMRegistry::Get();
 
 		FString Left, Right = InTypeString;
 		while(!Right.IsEmpty())
@@ -658,7 +658,17 @@ FRigVMTemplate::FTypeMap FRigVMTemplate::GetArgumentTypesFromString(const FStrin
 			{
 				if(const FRigVMTemplateArgument* Argument = FindArgument(*ArgumentName))
 				{
-					const TRigVMTypeIndex TypeIndex = Registry.GetTypeIndexFromCPPType(TypeName);
+					TRigVMTypeIndex TypeIndex = Registry.GetTypeIndexFromCPPType(TypeName);
+
+					// If the type was not found, check if it's a user-defined type that hasn't been registered yet.
+					if (TypeIndex == INDEX_NONE && RigVMTypeUtils::RequiresCPPTypeObject(TypeName))
+					{
+						UObject* CPPTypeObject = RigVMTypeUtils::ObjectFromCPPType(TypeName, true);
+						
+						FRigVMTemplateArgumentType ArgType(*TypeName, CPPTypeObject);
+						TypeIndex = Registry.FindOrAddType(ArgType);
+					}
+					
 					if(TypeIndex != INDEX_NONE)
 					{
 						Types.Add(Argument->GetName(), TypeIndex);
@@ -1159,6 +1169,12 @@ const FRigVMFunction* FRigVMTemplate::GetPrimaryPermutation() const
 
 const FRigVMFunction* FRigVMTemplate::GetPermutation(int32 InIndex) const
 {
+	FScopeLock FindPermutationScopeLock(&FRigVMRegistry::GetPermutationMutex);
+	return GetPermutation_NoLock(InIndex);
+}
+
+const FRigVMFunction* FRigVMTemplate::GetPermutation_NoLock(int32 InIndex) const
+{
 	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
 	const int32 FunctionIndex = Permutations[InIndex];
 	if(Registry.GetFunctions().IsValidIndex(FunctionIndex))
@@ -1170,13 +1186,16 @@ const FRigVMFunction* FRigVMTemplate::GetPermutation(int32 InIndex) const
 
 const FRigVMFunction* FRigVMTemplate::GetOrCreatePermutation(int32 InIndex)
 {
-	if(const FRigVMFunction* Function = GetPermutation(InIndex))
+	FScopeLock FindPermutationScopeLock(&FRigVMRegistry::GetPermutationMutex);
+
+	if(const FRigVMFunction* Function = GetPermutation_NoLock(InIndex))
 	{
 		return Function;
 	}
 	
 	if(Permutations[InIndex] == INDEX_NONE && UsesDispatch())
 	{
+		FScopeLock RegisterFunctionScopeLock(&FRigVMRegistry::RegisterFunctionMutex);
 		FRigVMRegistry& Registry = FRigVMRegistry::Get();
 		
 		FTypeMap Types;
