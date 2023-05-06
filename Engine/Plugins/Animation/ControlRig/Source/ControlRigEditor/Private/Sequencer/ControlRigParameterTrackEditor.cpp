@@ -1670,6 +1670,7 @@ static void EvaluateThisControl(UMovieSceneControlRigParameterSection* Section, 
 	if(FRigControlElement* ControlElement = ControlRig->FindControl(ControlName))
 	{ 
 		FControlRigInteractionScope InteractionScope(ControlRig, ControlElement->GetKey());
+		URigHierarchy* RigHierarchy = ControlRig->GetHierarchy();
 		
 		//eval any space for this channel, if not additive section
 		if (Section->GetBlendType().Get() != EMovieSceneBlendType::Additive)
@@ -1677,7 +1678,6 @@ static void EvaluateThisControl(UMovieSceneControlRigParameterSection* Section, 
 			TOptional<FMovieSceneControlRigSpaceBaseKey> SpaceKey = Section->EvaluateSpaceChannel(FrameTime, ControlName);
 			if (SpaceKey.IsSet())
 			{
-				URigHierarchy* RigHierarchy = ControlRig->GetHierarchy();
 				switch (SpaceKey.GetValue().SpaceType)
 				{
 				case EMovieSceneControlRigSpaceType::Parent:
@@ -1768,24 +1768,32 @@ static void EvaluateThisControl(UMovieSceneControlRigParameterSection* Section, 
 			case ERigControlType::TransformNoScale:
 			case ERigControlType::EulerTransform:
 			{
+				// @MikeZ here I suppose we want to retrieve the rotation order and then also extract the Euler angles
+				// instead of an assumed FRotator coming from the section?
+				// EEulerRotationOrder RotationOrder = SomehowGetRotationOrder();
+					
 				TOptional <FEulerTransform> Value = Section->EvaluateTransformParameter(FrameTime, ControlName);
 				if (Value.IsSet())
 				{
 					if (ControlElement->Settings.ControlType == ERigControlType::Transform)
 					{
 						ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, Value.GetValue().ToFTransform(), true, EControlRigSetKey::Never, bSetupUndo);
-						ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Value.GetValue().Rotation);
+						// @MikeZ here we want to call SetControlPreferredEulerAngles instead
+						RigHierarchy->SetControlPreferredRotator(ControlElement, Value.GetValue().Rotation);
 					}
 					else if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 					{
 						FTransformNoScale NoScale = Value.GetValue().ToFTransform();
 						ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ControlName, NoScale, true, EControlRigSetKey::Never, bSetupUndo);
-						ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Value.GetValue().Rotation);
+						// @MikeZ here we want to call SetControlPreferredEulerAngles instead
+						RigHierarchy->SetControlPreferredRotator(ControlElement, Value.GetValue().Rotation);
 					}
 					else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 					{
 						const FEulerTransform& Euler = Value.GetValue();
 						ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Euler, true, EControlRigSetKey::Never, bSetupUndo);
+						// @MikeZ here we want to call SetControlPreferredEulerAngles instead
+						RigHierarchy->SetControlPreferredRotator(ControlElement, Euler.Rotation);
 					}
 				}
 				break;

@@ -87,6 +87,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Hierarchy storing previous names
 		RigHierarchyStoringPreviousNames,
 
+		// Control supporting preferred rotation order
+		RigHierarchyControlPreferredRotationOrder,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

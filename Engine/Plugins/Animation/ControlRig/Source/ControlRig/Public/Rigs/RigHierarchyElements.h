@@ -470,7 +470,8 @@ struct CONTROLRIG_API FRigPreferredEulerAngles
 	FRotator GetRotator(bool bInitial = false) const;
 	FRotator SetRotator(const FRotator& InValue, bool bInitial = false, bool bFixEulerFlips = false);
 	FVector GetAngles(bool bInitial = false, EEulerRotationOrder InRotationOrder = DefaultRotationOrder) const;
-	void SetAngles(const FVector& InValue, bool bInitial = false, EEulerRotationOrder InRotationOrder = DefaultRotationOrder);
+	void SetAngles(const FVector& InValue, bool bInitial = false, EEulerRotationOrder InRotationOrder = DefaultRotationOrder, bool bFixEulerFlips = false);
+	void SetRotationOrder(EEulerRotationOrder InRotationOrder);
 
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
 	EEulerRotationOrder RotationOrder;
@@ -1186,6 +1187,12 @@ struct CONTROLRIG_API FRigControlSettings
 	 */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
 	TArray<ERigControlTransformChannel> FilteredChannels;
+
+	/**
+	 * The euler rotation order this control prefers for animation
+	 */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
+	EEulerRotationOrder PreferredRotationOrder;
 
 #if WITH_EDITORONLY_DATA
 	/**

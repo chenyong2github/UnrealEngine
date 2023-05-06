@@ -2970,6 +2970,16 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 		.IsEnabled(bIsEnabled);
 	}
 
+	if(CVarControlRigHierarchyEnableRotationOrder.GetValueOnAnyThread())
+	{
+		if(IsAnyControlOfValueType(ERigControlType::EulerTransform))
+		{
+			const TSharedPtr<IPropertyHandle> PreferredRotationOrderHandle = SettingsHandle->GetChildHandle(TEXT("PreferredRotationOrder"));
+			ControlCategory.AddProperty(PreferredRotationOrderHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Preferred Rotation Order")))
+			.IsEnabled(bIsEnabled);
+		}
+	}
+
 	if(IsAnyControlOfValueType(ERigControlType::Integer))
 	{
 		const TSharedPtr<IPropertyHandle> ControlEnumHandle = SettingsHandle->GetChildHandle(TEXT("ControlEnum"));
