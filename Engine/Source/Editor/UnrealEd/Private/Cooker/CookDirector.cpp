@@ -1218,7 +1218,7 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 	const TCHAR* ProjectName = FApp::GetProjectName();
 	checkf(ProjectName && ProjectName[0], TEXT("Expected UnrealEditor to be running with a non-empty project name"));
 	TArray<FString> Tokens;
-	UE::String::ParseTokensMultiple(CommandLine, { ' ', '\t', '\r', '\n' }, [&Tokens](FStringView Token)
+	UE::String::ParseTokensMultiple(CommandLine, { ' ', '\t', '\r', '\n' }, [&Tokens, ProfileId](FStringView Token)
 		{
 			if (Token.StartsWith(TEXT("-run=")) ||
 				Token == TEXT("-CookOnTheFly") ||
@@ -1236,6 +1236,21 @@ FString FCookDirector::GetWorkerCommandLine(FWorkerId WorkerId, int32 ProfileId)
 				)
 			{
 				return;
+			}
+			else if (Token.StartsWith(TEXT("-tracefile=")))
+			{
+				FString TraceFile;
+				FString TokenString(Token);
+				if (FParse::Value(*TokenString, TEXT("-tracefile="), TraceFile) && !TraceFile.IsEmpty())
+				{
+					FStringView BaseFilenameWithPath = FPathViews::GetBaseFilenameWithPath(TraceFile);
+					FStringView Extension = FPathViews::GetExtension(TraceFile, true /* bIncludeDot */);
+					Tokens.Add(FString::Printf(TEXT("-tracefile=\"%.*s_Worker%d%.*s\""),
+						BaseFilenameWithPath.Len(), BaseFilenameWithPath.GetData(),
+						ProfileId,
+						Extension.Len(), Extension.GetData()));
+					return;
+				}
 			}
 			Tokens.Add(FString(Token));
 		}, UE::String::EParseTokensOptions::SkipEmpty);
