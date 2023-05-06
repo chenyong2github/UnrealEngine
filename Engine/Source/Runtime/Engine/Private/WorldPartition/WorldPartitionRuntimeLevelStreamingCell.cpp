@@ -210,7 +210,6 @@ void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartit
 		for (const FGuid& EditorReferenceGuid : ActorDescView.GetEditorReferences())
 		{
 			const FWorldPartitionActorDesc& ReferenceActorDesc = InContainer->GetActorDescChecked(EditorReferenceGuid);
-			check(ReferenceActorDesc.GetActorIsEditorOnly());
 
 			Packages.Emplace(
 				ReferenceActorDesc.GetActorPackage(), 
