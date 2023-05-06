@@ -1155,6 +1155,7 @@ bool UWorldPartition::GenerateContainerStreaming(const FGenerateStreamingParams&
 
 	// Dump state log
 	TUniquePtr<FArchive> LogFileAr;
+	TUniquePtr<FHierarchicalLogArchive> HierarchicalLogAr;
 
 	if (IsMainWorldPartition() && (!GIsBuildMachine || IsRunningCookCommandlet()))
 	{
@@ -1165,13 +1166,8 @@ bool UWorldPartition::GenerateContainerStreaming(const FGenerateStreamingParams&
 		LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(*StateLogSuffix, !InParams.OutputLogPath);
 		
 		InContext.OutputLogFilename = LogFileAr->GetArchiveName();
+		HierarchicalLogAr = MakeUnique<FHierarchicalLogArchive>(*LogFileAr);
 	}
-	else
-	{
-		LogFileAr = MakeUnique<FArchive>();
-	}
-
-	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
 
 	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
 	StreamingGeneratorParams.WorldPartitionContext = this;
@@ -1185,7 +1181,10 @@ bool UWorldPartition::GenerateContainerStreaming(const FGenerateStreamingParams&
 	// Preparation Phase
 	StreamingGenerator.PreparationPhase(InParams.ActorDescContainer);
 
-	StreamingGenerator.DumpStateLog(HierarchicalLogAr);
+	if (HierarchicalLogAr.IsValid())
+	{
+		StreamingGenerator.DumpStateLog(*HierarchicalLogAr);
+	}
 
 	// Generate streaming
 	check(!StreamingPolicy);
@@ -1194,7 +1193,11 @@ bool UWorldPartition::GenerateContainerStreaming(const FGenerateStreamingParams&
 	check(RuntimeHash);
 	if (RuntimeHash->GenerateStreaming(StreamingPolicy, StreamingGenerator.GetStreamingGenerationContext(), InContext.PackagesToGenerate))
 	{
-		RuntimeHash->DumpStateLog(HierarchicalLogAr);
+		if (HierarchicalLogAr.IsValid())
+		{
+			RuntimeHash->DumpStateLog(*HierarchicalLogAr);
+		}
+
 		StreamingPolicy->PrepareActorToCellRemapping();
 		return true;
 	}
