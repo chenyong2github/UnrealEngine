@@ -346,7 +346,7 @@ const TSharedRef<SWidget> FSceneOutlinerGutter::ConstructRowWidget(FSceneOutline
 			.VAlign(VAlign_Center)
 			[
 				SNew(SVisibilityWidget, SharedThis(this), WeakOutliner, TreeItem, &Row)
-				.ToolTipText(LOCTEXT("SceneOutlinerVisibilityToggleTooltip", "Toggles the visibility of this object in the level editor"))
+				.ToolTipText(LOCTEXT("SceneOutlinerVisibilityToggleTooltip", "Toggles the visibility of this object in the level editor."))
 			];
 	}
 	return SNullWidget::NullWidget;
