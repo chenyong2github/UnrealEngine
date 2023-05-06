@@ -59,6 +59,37 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FSimplifyConvexHullsDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FSimplifyConvexHullsDataflowNode, "SimplifyConvexHulls", "GeometryCollection|Utilities", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput, DataflowOutput))
+	FManagedArrayCollection Collection;
+
+	/** Optional transform selection to compute leaf hulls on -- if not provided, all leaf hulls will be computed. */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FDataflowTransformSelection OptionalSelectionFilter;
+
+	/** Computed convex hulls are simplified to keep points spaced at least this far apart (except where needed to keep the hull from collapsing to zero volume) */
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, ClampMin = 0.f))
+	float SimplificationDistanceThreshold = 10.f;
+
+	/** The minimum number of triangles to use for the convex hull. Will use more triangles than this as-needed to preserve the distance threshold. */
+	UPROPERTY(EditAnywhere, Category = "Convex", meta = (DataflowInput, ClampMin = 4))
+	int32 MinTargetTriangleCount = 12;
+
+	/** Whether to restrict the simplified hulls to only use vertices from the original hulls. */
+	UPROPERTY(EditAnywhere, Category = "Convex")
+	bool bUseExistingVertices = false;
+
+	FSimplifyConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
 /**
  *
  * Generates convex hull representation for the bones for simulation

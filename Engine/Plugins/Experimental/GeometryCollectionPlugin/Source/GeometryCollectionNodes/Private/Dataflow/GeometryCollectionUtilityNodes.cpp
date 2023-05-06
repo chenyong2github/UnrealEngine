@@ -7,6 +7,11 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
 
+#include "FractureEngineConvex.h"
+
+#include "MeshSimplification.h"
+
+
 //#include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionUtilityNodes)
 
 namespace Dataflow
@@ -17,6 +22,7 @@ namespace Dataflow
 		static const FLinearColor CDefaultNodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f, 0.5f);
 
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateLeafConvexHullsDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSimplifyConvexHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateNonOverlappingConvexHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateClusterConvexHullsFromLeafHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateClusterConvexHullsFromChildrenHullsDataflowNode);
@@ -62,6 +68,47 @@ void FCreateLeafConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, c
 			FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(*GeomCollection, bRestrictToSelection, SelectedBones, InSimplificationDistanceThreshold, GenerateMethod, IntersectionFilters);
 			SetValue(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
 		}
+	}
+}
+
+FSimplifyConvexHullsDataflowNode::FSimplifyConvexHullsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FDataflowNode(InParam, InGuid)
+{
+	RegisterInputConnection(&Collection);
+	RegisterInputConnection(&OptionalSelectionFilter);
+	RegisterInputConnection(&SimplificationDistanceThreshold);
+	RegisterInputConnection(&MinTargetTriangleCount);
+	RegisterOutputConnection(&Collection);
+}
+
+void FSimplifyConvexHullsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&Collection) && IsConnected(&Collection))
+	{
+		FManagedArrayCollection InCollection = GetValue(Context, &Collection);
+		if (InCollection.NumElements(FGeometryCollection::TransformGroup) == 0)
+		{
+			SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
+			return;
+		}
+
+		TArray<int32> SelectedBones;
+		bool bRestrictToSelection = false;
+		if (IsConnected(&OptionalSelectionFilter))
+		{
+			const FDataflowTransformSelection& InOptionalSelectionFilter = GetValue(Context, &OptionalSelectionFilter);
+			bRestrictToSelection = true;
+			SelectedBones = InOptionalSelectionFilter.AsArray();
+		}
+
+		UE::FractureEngine::Convex::FSimplifyHullSettings Settings;
+		Settings.ErrorTolerance = GetValue(Context, &SimplificationDistanceThreshold);
+		Settings.bUseGeometricTolerance = true;
+		Settings.bUseTargetTriangleCount = true;
+		Settings.bUseExistingVertexPositions = bUseExistingVertices;
+		Settings.TargetTriangleCount = GetValue(Context, &MinTargetTriangleCount);
+		UE::FractureEngine::Convex::SimplifyConvexHulls(InCollection, Settings, bRestrictToSelection, SelectedBones);
+		SetValue<FManagedArrayCollection>(Context, MoveTemp(InCollection), &Collection);
 	}
 }
 

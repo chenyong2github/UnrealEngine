@@ -134,9 +134,9 @@ TOptional<FGeometryCollectionConvexUtility::FGeometryCollectionConvexData> FGeom
 	return TOptional<FGeometryCollectionConvexUtility::FGeometryCollectionConvexData>(ConvexData);
 }
 
-bool FGeometryCollectionConvexUtility::HasConvexHullData(FGeometryCollection* GeometryCollection)
+bool FGeometryCollectionConvexUtility::HasConvexHullData(const FManagedArrayCollection* Collection)
 {
-	return GeometryCollection->HasAttribute("TransformToConvexIndices", FTransformCollection::TransformGroup) && GeometryCollection->HasAttribute("ConvexHull", "Convex");
+	return Collection->HasAttribute("TransformToConvexIndices", FTransformCollection::TransformGroup) && Collection->HasAttribute("ConvexHull", "Convex");
 }
 
 FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::GetValidConvexHullData(FGeometryCollection* GeometryCollection)

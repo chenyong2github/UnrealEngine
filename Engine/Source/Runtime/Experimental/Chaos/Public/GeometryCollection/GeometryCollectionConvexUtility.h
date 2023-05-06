@@ -83,7 +83,7 @@ public:
 	static TOptional<FGeometryCollectionConvexData> GetConvexHullDataIfPresent(FGeometryCollection* GeometryCollection);
 
 	/** @return true if convex hull data is present */
-	static bool HasConvexHullData(FGeometryCollection* GeometryCollection);
+	static bool HasConvexHullData(const FManagedArrayCollection* GeometryCollection);
 
 	/**
 	 Create non-overlapping convex hull data for all transforms in the geometry collection (except transforms where it would be better to just use the hulls of the children) 
