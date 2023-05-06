@@ -27,5 +27,27 @@ FText UAnimGraphNode_LegIK::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	return GetControllerDescription();
 }
 
+void UAnimGraphNode_LegIK::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
+{
+	if (Node.LegsDefinition.IsEmpty())
+	{
+		MessageLog.Warning(*LOCTEXT("MissingLegsDefinition", "@@ - Legs Definition is empty").ToString(), this);
+	}
+	else if (ForSkeleton)
+	{
+		for (const FAnimLegIKDefinition& LegDefinition : Node.LegsDefinition)
+		{
+			if (ForSkeleton->GetReferenceSkeleton().FindBoneIndex(LegDefinition.FKFootBone.BoneName) == INDEX_NONE)
+			{
+				MessageLog.Warning(*LOCTEXT("InvalidFKFootBone", "@@ - Invalid FKFoot Bone in Legs Definition").ToString(), this);
+			}
+
+			if (ForSkeleton->GetReferenceSkeleton().FindBoneIndex(LegDefinition.IKFootBone.BoneName) == INDEX_NONE)
+			{
+				MessageLog.Warning(*LOCTEXT("InvalidFKFootBone", "@@ - Invalid IKFoot Bone in Legs Definition").ToString(), this);
+			}
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
