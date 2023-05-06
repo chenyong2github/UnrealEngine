@@ -23,9 +23,6 @@ void FMovieSceneToolsProjectSettingsCustomization::CustomizeDetails(IDetailLayou
 {
 	TSharedRef<IPropertyHandle> TakeSeparatorProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMovieSceneToolsProjectSettings, TakeSeparator));
 	TakeSeparatorProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FMovieSceneToolsProjectSettingsCustomization::OnTakeSeparatorUpdated));
-
-	TSharedRef<IPropertyHandle> SubSequenceSeparatorProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMovieSceneToolsProjectSettings, SubSequenceSeparator));
-	SubSequenceSeparatorProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FMovieSceneToolsProjectSettingsCustomization::OnSubSequenceSeparatorUpdated));
 }
 
 void FMovieSceneToolsProjectSettingsCustomization::OnTakeSeparatorUpdated()
@@ -40,20 +37,5 @@ void FMovieSceneToolsProjectSettingsCustomization::OnTakeSeparatorUpdated()
 	{
 		UE_LOG(LogMovieScene, Warning, TEXT("Invalid separator: %s"), *OutErrorMessage.ToString());
 		ProjectSettings->TakeSeparator = TEXT("_");
-	}
-}
-
-void FMovieSceneToolsProjectSettingsCustomization::OnSubSequenceSeparatorUpdated()
-{
-	UMovieSceneToolsProjectSettings* ProjectSettings = GetMutableDefault<UMovieSceneToolsProjectSettings>();
-
-	FString SubSequenceSeparator = ProjectSettings->SubSequenceSeparator;
-
-	// Make sure the subsequence separator is a valid character
-	FText OutErrorMessage;
-	if (!FName(*SubSequenceSeparator).IsValidXName(INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS, &OutErrorMessage))
-	{
-		UE_LOG(LogMovieScene, Warning, TEXT("Invalid separator: %s"), *OutErrorMessage.ToString());
-		ProjectSettings->SubSequenceSeparator = TEXT("_");
 	}
 }

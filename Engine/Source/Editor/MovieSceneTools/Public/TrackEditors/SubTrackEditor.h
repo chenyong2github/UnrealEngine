@@ -105,6 +105,12 @@ public:
 	/** Get the display name for the sub section */
 	virtual FString GetSubSectionDisplayName(const UMovieSceneSubSection* Section) const;
 
+	/** Get the default sub sequence name */
+	virtual FString GetDefaultSubsequenceName() const;
+
+	/** Get the sub sequence directory */
+	virtual FString GetDefaultSubsequenceDirectory() const;
+
 	/** Get the UMovieSceneSubTrack class */
 	virtual TSubclassOf<UMovieSceneSubTrack> GetSubTrackClass() const;
 

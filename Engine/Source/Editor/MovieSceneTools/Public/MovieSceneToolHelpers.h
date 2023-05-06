@@ -154,13 +154,18 @@ public:
 	static FString ComposeShotName(const FString& ShotPrefix, uint32 ShotNumber, uint32 TakeNumber, uint32 ShotNumberDigits, uint32 TakeNumberDigits);
 
 	/**
-	 * Generate a new shot package
+	 * Generate a new subsequence package
 	 *
-	 * @param SequenceMovieScene The sequence movie scene for the new shot
+	 * @param SequenceMovieScene The sequence movie scene for the new subsequence
+	 * @param SubsequenceDirectory The directory for the new subsequence
 	 * @param NewShotName The new shot name
-	 * @return The new shot path
+	 * @return The new subsequence path
 	 */
+	static FString GenerateNewSubsequencePath(UMovieScene* SequenceMovieScene, const FString& SubsequenceDirectory, FString& NewShotName);
+	
+	UE_DEPRECATED(5.3, "GenerateNewShotPath has been deprecated in favor of GenerateNewSubsequencePath that takes a given directory")
 	static FString GenerateNewShotPath(UMovieScene* SequenceMovieScene, FString& NewShotName);
+
 
 	/**
 	 * Generate a new shot name
@@ -169,6 +174,9 @@ public:
 	 * @param Time The time to generate the new shot name at
 	 * @return The new shot name
 	 */
+	static FString GenerateNewSubsequenceName(const TArray<UMovieSceneSection*>& AllSections, const FString& SubsequencePrefix, FFrameNumber Time);
+
+	UE_DEPRECATED(5.3, "GenerateNewShotName has been deprecated in favor of GenerateNewSubsequenceName that takes a given prefix")
 	static FString GenerateNewShotName(const TArray<UMovieSceneSection*>& AllSections, FFrameNumber Time);
 
 	/*

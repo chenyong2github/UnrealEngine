@@ -25,6 +25,7 @@
 #include "MovieSceneMetaData.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneToolHelpers.h"
+#include "MovieSceneToolsProjectSettings.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "MovieSceneTimeHelpers.h"
 #include "EngineAnalytics.h"
@@ -459,8 +460,8 @@ void FSubTrackEditor::InsertSection(UMovieSceneTrack* Track)
 
 	UMovieSceneSubTrack* SubTrack = FindOrCreateSubTrack(MovieScene, Track);
 
-	FString NewSequenceName = MovieSceneToolHelpers::GenerateNewShotName(SubTrack->GetAllSections(), NewSectionStartTime.FrameNumber);
-	FString NewSequencePath = MovieSceneToolHelpers::GenerateNewShotPath(GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), NewSequenceName);
+	FString NewSequenceName = MovieSceneToolHelpers::GenerateNewSubsequenceName(SubTrack->GetAllSections(), GetDefaultSubsequenceName(), NewSectionStartTime.FrameNumber);
+	FString NewSequencePath = MovieSceneToolHelpers::GenerateNewSubsequencePath(GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), GetDefaultSubsequenceDirectory(), NewSequenceName);
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetToolsModule.Get().CreateUniqueAssetName(NewSequencePath + TEXT("/") + NewSequenceName, TEXT(""), NewSequencePath, NewSequenceName);
@@ -488,7 +489,7 @@ void FSubTrackEditor::DuplicateSection(UMovieSceneSubSection* Section)
 	UMovieSceneSubTrack* SubTrack = CastChecked<UMovieSceneSubTrack>(Section->GetOuter());
 
 	FFrameNumber StartTime = Section->HasStartFrame() ? Section->GetInclusiveStartFrame() : 0;
-	FString NewSectionName = MovieSceneToolHelpers::GenerateNewShotName(SubTrack->GetAllSections(), StartTime);
+	FString NewSectionName = MovieSceneToolHelpers::GenerateNewSubsequenceName(SubTrack->GetAllSections(), GetDefaultSubsequenceName(), StartTime);
 	FString NewSequencePath = FPaths::GetPath(Section->GetSequence()->GetPathName());
 
 	// Duplicate the section and put it on the next available row
@@ -745,8 +746,8 @@ bool FSubTrackEditor::CanAddSubSequence(const UMovieSceneSequence& Sequence) con
 }
 
 FText FSubTrackEditor::GetSubTrackName() const
-{ 
-	return LOCTEXT("SubTrackName", "Subsequence"); 
+{
+	return LOCTEXT("SubTrackName", "Subsequence");
 }
 
 FText FSubTrackEditor::GetSubTrackToolTip() const
@@ -762,6 +763,18 @@ FName FSubTrackEditor::GetSubTrackBrushName() const
 FString FSubTrackEditor::GetSubSectionDisplayName(const UMovieSceneSubSection* Section) const
 {
 	return Section && Section->GetSequence() ? Section->GetSequence()->GetName() : FString();
+}
+
+FString FSubTrackEditor::GetDefaultSubsequenceName() const
+{
+	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
+	return ProjectSettings->SubsequencePrefix;
+}
+
+FString FSubTrackEditor::GetDefaultSubsequenceDirectory() const
+{
+	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
+	return ProjectSettings->SubsequenceDirectory;
 }
 
 TSubclassOf<UMovieSceneSubTrack> FSubTrackEditor::GetSubTrackClass() const

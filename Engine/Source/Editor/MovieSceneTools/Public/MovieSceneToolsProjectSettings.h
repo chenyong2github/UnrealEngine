@@ -68,9 +68,17 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Timeline, meta=(ClampMin=0.00001f, Units=s))
 	float DefaultDuration;
 
+	/** The default directory for the subsequences. */
+	UPROPERTY(config, EditAnywhere, Category=Shots)
+	FString SubsequenceDirectory;
+
 	/** The default directory for the shots. */
 	UPROPERTY(config, EditAnywhere, Category=Shots)
 	FString ShotDirectory;
+
+	/** The default prefix for subsequence names. */
+	UPROPERTY(config, EditAnywhere, Category=Shots)
+	FString SubsequencePrefix;
 
 	/** The default prefix for shot names. */
 	UPROPERTY(config, EditAnywhere, Category=Shots)
@@ -99,10 +107,6 @@ public:
 	/** Character separator between the shot number and the take number. */
 	UPROPERTY(config, EditAnywhere, Category=Shots)
 	FString TakeSeparator;
-
-	/** Character separator between the take number and the sub sequence name. */
-	UPROPERTY(config, EditAnywhere, Category=Shots)
-	FString SubSequenceSeparator;
 
 	/** Mapping between fbx property name and property track path */
 	UPROPERTY(config, EditAnywhere, Category=TrackSettings)

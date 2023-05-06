@@ -82,6 +82,8 @@ public:
 	virtual FText GetSubTrackToolTip() const override;
 	virtual FName GetSubTrackBrushName() const override;
 	virtual FString GetSubSectionDisplayName(const UMovieSceneSubSection* Section) const override;
+	virtual FString GetDefaultSubsequenceName() const override;
+	virtual FString GetDefaultSubsequenceDirectory() const override;
 	virtual TSubclassOf<UMovieSceneSubTrack> GetSubTrackClass() const;
 
 protected:

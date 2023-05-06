@@ -223,6 +223,18 @@ FString FCinematicShotTrackEditor::GetSubSectionDisplayName(const UMovieSceneSub
 	return Cast<UMovieSceneCinematicShotSection>(Section)->GetShotDisplayName();
 }
 
+FString FCinematicShotTrackEditor::GetDefaultSubsequenceName() const
+{
+	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
+	return ProjectSettings->ShotPrefix;
+}
+
+FString FCinematicShotTrackEditor::GetDefaultSubsequenceDirectory() const
+{
+	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
+	return ProjectSettings->ShotDirectory;
+}
+
 TSubclassOf<UMovieSceneSubTrack> FCinematicShotTrackEditor::GetSubTrackClass() const
 {
 	return UMovieSceneCinematicShotTrack::StaticClass();

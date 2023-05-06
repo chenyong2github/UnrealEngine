@@ -735,7 +735,7 @@ void FLevelSequenceEditorToolkit::AddShot(UMovieSceneCinematicShotTrack* ShotTra
 		int32 RowIndex = 0;
 		for (auto SubSequenceName : LevelSequenceSettings->SubSequenceNames)
 		{
-			FString SubSequenceAssetName = ShotAssetName + ProjectSettings->SubSequenceSeparator + SubSequenceName.ToString();
+			FString SubSequenceAssetName = ShotAssetName + ProjectSettings->TakeSeparator + SubSequenceName.ToString();
 
 			UMovieSceneSequence* SubSequence = nullptr;
 			if (!LevelSequenceSettings->bInstanceSubSequences || ShotTrack->GetAllSections().Num() == 1)
@@ -750,7 +750,7 @@ void FLevelSequenceEditorToolkit::AddShot(UMovieSceneCinematicShotTrack* ShotTra
 				UMovieSceneSequence* FirstShotSequence = FirstShotSubSection->GetSequence();
 				UMovieSceneSubTrack* FirstShotSubTrack = Cast<UMovieSceneSubTrack>(FirstShotSequence->GetMovieScene()->FindTrack(UMovieSceneSubTrack::StaticClass()));
 			
-				FString FirstShotSubSequenceAssetName = FirstShotAssetName + ProjectSettings->SubSequenceSeparator + SubSequenceName.ToString();
+				FString FirstShotSubSequenceAssetName = FirstShotAssetName + ProjectSettings->TakeSeparator + SubSequenceName.ToString();
 
 				for (auto Section : FirstShotSubTrack->GetAllSections())
 				{
@@ -851,8 +851,8 @@ void FLevelSequenceEditorToolkit::HandleLevelSequenceWithShotsCreated(UObject* L
 	{
 		ShotEndTime += ShotDuration;
 
-		FString ShotName = MovieSceneToolHelpers::GenerateNewShotName(ShotTrack->GetAllSections(), ShotStartTime);
-		FString ShotPackagePath = MovieSceneToolHelpers::GenerateNewShotPath(LevelSequenceWithShots->GetMovieScene(), ShotName);
+		FString ShotName = MovieSceneToolHelpers::GenerateNewSubsequenceName(ShotTrack->GetAllSections(), ProjectSettings->ShotPrefix, ShotStartTime);
+		FString ShotPackagePath = MovieSceneToolHelpers::GenerateNewSubsequencePath(LevelSequenceWithShots->GetMovieScene(), ProjectSettings->ShotPrefix, ShotName);
 
 		if (ShotIndex == 0)
 		{

@@ -329,10 +329,11 @@ bool MovieSceneToolHelpers::ParseShotName(const FString& InShotName, FString& Sh
 		}
 	}
 
-	// If take number wasn't found, search backwards to find the first take separator and assume [shot prefix]_[take number]
+	// If take number wasn't found, start over with the original shot name, search backwards to find the first take separator and assume [shot prefix]_[take number]
 	//
 	if (!ParsedTakeNumber.IsSet())
 	{
+		ShotName = InShotName;
 		int32 LastSlashPos = ShotName.Find(ProjectSettings->TakeSeparator, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 		if (LastSlashPos != INDEX_NONE)
 		{
@@ -368,7 +369,6 @@ bool MovieSceneToolHelpers::ParseShotName(const FString& InShotName, FString& Sh
 
 	return FirstShotNumberIndex != INDEX_NONE;
 }
-
 
 FString MovieSceneToolHelpers::ComposeShotName(const FString& ShotPrefix, uint32 ShotNumber, uint32 TakeNumber, uint32 ShotNumberDigits, uint32 TakeNumberDigits)
 {
@@ -406,6 +406,12 @@ bool IsPackageNameUnique(const TArray<FAssetData>& ObjectList, FString& NewPacka
 FString MovieSceneToolHelpers::GenerateNewShotPath(UMovieScene* SequenceMovieScene, FString& NewShotName)
 {
 	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
+	return GenerateNewSubsequencePath(SequenceMovieScene, ProjectSettings->ShotDirectory, NewShotName);
+}
+
+FString MovieSceneToolHelpers::GenerateNewSubsequencePath(UMovieScene * SequenceMovieScene, const FString& SubsequenceDirectory, FString &NewShotName)
+{
+	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
@@ -425,18 +431,18 @@ FString MovieSceneToolHelpers::GenerateNewShotPath(UMovieScene* SequenceMovieSce
 	uint32 TakeNumberDigits = ProjectSettings->TakeNumDigits;
 	ParseShotName(NewShotName, NewShotPrefix, NewShotNumber, NewTakeNumber, ShotNumberDigits, TakeNumberDigits);
 
-	FString NewShotDirectory = ComposeShotName(NewShotPrefix, NewShotNumber, INDEX_NONE, ShotNumberDigits, TakeNumberDigits);
-	FString NewShotPath = SequencePath;
+	FString NewDirectory = ComposeShotName(NewShotPrefix, NewShotNumber, INDEX_NONE, ShotNumberDigits, TakeNumberDigits);
+	FString NewPath = SequencePath;
 
-	FString ShotDirectory = ProjectSettings->ShotDirectory;
-	if (!ShotDirectory.IsEmpty())
+	FString Directory = SubsequenceDirectory;
+	if (!Directory.IsEmpty())
 	{
-		NewShotPath /= ShotDirectory;
+		NewPath /= Directory;
 	}
-	NewShotPath /= NewShotDirectory; // put this in the shot directory, ie. /Game/cine/max/shots/shot0010
+	NewPath /= NewDirectory; // put this in the shot directory, ie. /Game/cine/max/shots/shot0010
 
 	// Make sure this shot path is unique
-	FString NewPackageName = NewShotPath;
+	FString NewPackageName = NewPath;
 	NewPackageName /= NewShotName; // ie. /Game/cine/max/shots/shot0010/shot0010_001
 	if (!IsPackageNameUnique(ObjectList, NewPackageName))
 	{
@@ -444,15 +450,15 @@ FString MovieSceneToolHelpers::GenerateNewShotPath(UMovieScene* SequenceMovieSce
 		{
 			NewShotNumber += ProjectSettings->ShotIncrement;
 			NewShotName = ComposeShotName(NewShotPrefix, NewShotNumber, NewTakeNumber, ShotNumberDigits, TakeNumberDigits);
-			NewShotDirectory = ComposeShotName(NewShotPrefix, NewShotNumber, INDEX_NONE, ShotNumberDigits, TakeNumberDigits);
-			NewShotPath = SequencePath;
-			if (!ShotDirectory.IsEmpty())
+			NewDirectory = ComposeShotName(NewShotPrefix, NewShotNumber, INDEX_NONE, ShotNumberDigits, TakeNumberDigits);
+			NewPath = SequencePath;
+			if (!Directory.IsEmpty())
 			{
-				NewShotPath /= ShotDirectory;
+				NewPath /= Directory;
 			}
-			NewShotPath /= NewShotDirectory;
+			NewPath /= NewDirectory;
 
-			NewPackageName = NewShotPath;
+			NewPackageName = NewPath;
 			NewPackageName /= NewShotName;
 			if (IsPackageNameUnique(ObjectList, NewPackageName))
 			{
@@ -461,10 +467,17 @@ FString MovieSceneToolHelpers::GenerateNewShotPath(UMovieScene* SequenceMovieSce
 		}
 	}
 
-	return NewShotPath;
+	return NewPath;
 }
 
 FString MovieSceneToolHelpers::GenerateNewShotName(const TArray<UMovieSceneSection*>& AllSections, FFrameNumber Time)
+{
+	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
+
+	return GenerateNewSubsequenceName(AllSections, ProjectSettings->ShotPrefix, Time);
+}
+
+FString MovieSceneToolHelpers::GenerateNewSubsequenceName(const TArray<UMovieSceneSection*>&AllSections, const FString& SubsequencePrefix, FFrameNumber Time)
 {
 	const UMovieSceneToolsProjectSettings* ProjectSettings = GetDefault<UMovieSceneToolsProjectSettings>();
 
@@ -493,15 +506,10 @@ FString MovieSceneToolHelpers::GenerateNewShotName(const TArray<UMovieSceneSecti
 		CurrentSectionName = ShotSection->GetShotDisplayName();
 	}
 
-	// There aren't any sections, let's create the first shot name
-	if (NextSection == nullptr || CurrentSection == nullptr)
+	// This is the first or last shot
+	if ((CurrentSection == nullptr && NextSection) || (CurrentSection != nullptr && CurrentSection == NextSection))
 	{
-		// Default case
-	}
-	// This is the last shot
-	else if (CurrentSection == NextSection)
-	{
-		FString NextShotPrefix = ProjectSettings->ShotPrefix;
+		FString NextShotPrefix = SubsequencePrefix;
 		uint32 NextShotNumber = ProjectSettings->FirstShotNumber;
 		uint32 NextTakeNumber = ProjectSettings->FirstTakeNumber;
 		uint32 ShotNumberDigits = ProjectSettings->ShotNumDigits;
@@ -509,20 +517,30 @@ FString MovieSceneToolHelpers::GenerateNewShotName(const TArray<UMovieSceneSecti
 
 		if (ParseShotName(NextSectionName, NextShotPrefix, NextShotNumber, NextTakeNumber, ShotNumberDigits, TakeNumberDigits))
 		{
-			uint32 NewShotNumber = NextShotNumber != INDEX_NONE ? NextShotNumber + ProjectSettings->ShotIncrement : INDEX_NONE;
-			return ComposeShotName(NextShotPrefix, NewShotNumber, ProjectSettings->FirstTakeNumber, ShotNumberDigits, TakeNumberDigits);
+			// Valid shot number
+			if (NextShotNumber != INDEX_NONE)
+			{
+				uint32 NewShotNumber = NextShotNumber + ProjectSettings->ShotIncrement;
+				return ComposeShotName(NextShotPrefix, NewShotNumber, ProjectSettings->FirstTakeNumber, ShotNumberDigits, TakeNumberDigits);
+			}
+			// No shot number, but valid take number
+			else if (NextTakeNumber != INDEX_NONE)
+			{
+				uint32 NewTakeNumber = NextTakeNumber + ProjectSettings->ShotIncrement;
+				return ComposeShotName(NextShotPrefix, INDEX_NONE, NewTakeNumber, ShotNumberDigits, TakeNumberDigits);
+			}
 		}
 	}
 	// This is in between two shots
-	else 
+	else if (CurrentSection && NextSection)
 	{
-		FString CurrentShotPrefix = ProjectSettings->ShotPrefix;
+		FString CurrentShotPrefix = SubsequencePrefix;
 		uint32 CurrentShotNumber = ProjectSettings->FirstShotNumber;
 		uint32 CurrentTakeNumber = ProjectSettings->FirstTakeNumber;
 		uint32 CurrentShotNumberDigits = ProjectSettings->ShotNumDigits;
 		uint32 CurrentTakeNumberDigits = ProjectSettings->TakeNumDigits;
 
-		FString NextShotPrefix = ProjectSettings->ShotPrefix;
+		FString NextShotPrefix = SubsequencePrefix;
 		uint32 NextShotNumber = ProjectSettings->FirstShotNumber;
 		uint32 NextTakeNumber = ProjectSettings->FirstTakeNumber;
 		uint32 NextShotNumberDigits = ProjectSettings->ShotNumDigits;
@@ -531,16 +549,31 @@ FString MovieSceneToolHelpers::GenerateNewShotName(const TArray<UMovieSceneSecti
 		if (ParseShotName(CurrentSectionName, CurrentShotPrefix, CurrentShotNumber, CurrentTakeNumber, CurrentShotNumberDigits, CurrentTakeNumberDigits) &&
 			ParseShotName(NextSectionName, NextShotPrefix, NextShotNumber, NextTakeNumber, NextShotNumberDigits, NextTakeNumberDigits))
 		{
-			if (CurrentShotNumber < NextShotNumber)
+			// Valid shot numbers
+			if (NextShotNumber != INDEX_NONE && CurrentShotNumber != INDEX_NONE)
 			{
-				uint32 NewShotNumber = NextShotNumber != INDEX_NONE && CurrentShotNumber != INDEX_NONE ? CurrentShotNumber + ( (NextShotNumber - CurrentShotNumber) / 2) : INDEX_NONE; // what if we can't find one? or conflicts with another?
+				uint32 NewShotNumber = CurrentShotNumber + ProjectSettings->ShotIncrement;
+				if (NextShotNumber - CurrentShotNumber > 1)
+				{
+					NewShotNumber = CurrentShotNumber + ( (NextShotNumber - CurrentShotNumber) / 2); // what if we can't find one? or conflicts with another?
+				}
 				return ComposeShotName(CurrentShotPrefix, NewShotNumber, ProjectSettings->FirstTakeNumber, CurrentShotNumberDigits, CurrentTakeNumberDigits); // use before or next shot?
+			}
+			// No shot numbers, but valid take numbers
+			else if (NextTakeNumber != INDEX_NONE && CurrentTakeNumber != INDEX_NONE)
+			{
+				uint32 NewTakeNumber = CurrentTakeNumber + ProjectSettings->ShotIncrement;
+				if (NextTakeNumber - CurrentTakeNumber > 1)
+				{
+					NewTakeNumber = CurrentTakeNumber + ( (NextTakeNumber - CurrentTakeNumber) / 2); // what if we can't find one? or conflicts with another?
+				}
+				return ComposeShotName(CurrentShotPrefix, INDEX_NONE, NewTakeNumber, CurrentShotNumberDigits, CurrentTakeNumberDigits); // use before or next shot?
 			}
 		}
 	}
 
 	// Default case
-	return ComposeShotName(ProjectSettings->ShotPrefix, ProjectSettings->FirstShotNumber, ProjectSettings->FirstTakeNumber, ProjectSettings->ShotNumDigits, ProjectSettings->TakeNumDigits);
+	return ComposeShotName(SubsequencePrefix, ProjectSettings->FirstShotNumber, ProjectSettings->FirstTakeNumber, ProjectSettings->ShotNumDigits, ProjectSettings->TakeNumDigits);
 }
 
 UMovieSceneSequence* MovieSceneToolHelpers::CreateSequence(FString& NewSequenceName, FString& NewSequencePath, UMovieSceneSubSection* SectionToDuplicate)

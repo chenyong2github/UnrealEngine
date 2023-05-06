@@ -15,5 +15,4 @@ public:
 
 private:
 	void OnTakeSeparatorUpdated();
-	void OnSubSequenceSeparatorUpdated();
 };
