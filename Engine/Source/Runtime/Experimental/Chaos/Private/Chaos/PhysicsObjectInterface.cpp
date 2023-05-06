@@ -4,6 +4,7 @@
 #include "Chaos/CastingUtilities.h"
 #include "Chaos/CollisionFilterData.h"
 #include "Chaos/PhysicsObjectCollisionInterface.h"
+#include "Chaos/PhysicsObjectInternalInterface.h"
 #include "Chaos/PhysicsObjectInternal.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Math/Transform.h"
@@ -93,6 +94,35 @@ namespace Chaos
 	bool FReadPhysicsObjectInterface<Id>::HasChildren(const FConstPhysicsObjectHandle Object)
 	{
 		return Object ? Object->HasChildren<Id>() : false;
+	}
+
+	template<EThreadContext Id>
+	int32 FReadPhysicsObjectInterface<Id>::GetClusterHierarchyLevel(const FConstPhysicsObjectHandle Object)
+	{
+		if (!Object)
+		{
+			return INDEX_NONE;
+		}
+
+		// TODO: I think the GC rest collection caches this information. If we're on the GT it might be
+		// better for perf to try and grab that information somehow instead of walking the hierarchy.
+
+		int32 CurrentLevel = 0;
+
+		FPhysicsObjectHandle Parent = Object->GetParentObject<Id>();
+		while (Parent)
+		{
+			// Being part of a cluster union doesn't count in terms of its default cluster hierarchy level.
+			if (Parent->PhysicsProxy() != Object->PhysicsProxy())
+			{
+				break;
+			}
+
+			Parent = Parent->GetParentObject<Id>();
+			++CurrentLevel;
+		}
+
+		return CurrentLevel;
 	}
 
 	template<EThreadContext Id>
@@ -724,6 +754,47 @@ namespace Chaos
 				}
 			}
 		}
+	}
+
+	template<EThreadContext Id>
+	void FWritePhysicsObjectInterface<Id>::AddConnectivityEdgesBetween(TArrayView<const FPhysicsObjectHandle> FromObjects, TArrayView<const FPhysicsObjectHandle> ToObjects, const FClusterCreationParameters& Parameters)
+	{
+		if (FromObjects.IsEmpty() || ToObjects.IsEmpty())
+		{
+			return;
+		}
+
+		// Assume that the solver for both sets of objects are the same.
+		if (FPBDRigidsSolver* Solver = FPhysicsObjectInterface::GetSolver(FromObjects))
+		{
+			if constexpr (Id == EThreadContext::External)
+			{
+				Solver->EnqueueCommandImmediate(
+					[FromObjects = TArray<FPhysicsObjectHandle>{ FromObjects }, ToObjects = TArray<FPhysicsObjectHandle>{ ToObjects }, Parameters]()
+					{
+						FWritePhysicsObjectInterface_Internal Internal = FPhysicsObjectInternalInterface::GetWrite();
+						Internal.AddConnectivityEdgesBetween(FromObjects, ToObjects, Parameters);
+					}
+				);
+			}
+			else
+			{
+				FRigidClustering& Clustering = Solver->GetEvolution()->GetRigidClustering();
+
+				TArray<FPBDRigidParticleHandle*> AllParticles;
+				AllParticles.Reserve(FromObjects.Num() + ToObjects.Num());
+
+				TArray<FPBDRigidParticleHandle*> FromParticles = this->GetAllRigidParticles(FromObjects);
+				TArray<FPBDRigidParticleHandle*> ToParticles = this->GetAllRigidParticles(ToObjects);
+				AllParticles.Append(FromParticles);
+				AllParticles.Append(ToParticles);
+
+				TSet<FPBDRigidParticleHandle*> FromSet{ FromParticles };
+				TSet<FPBDRigidParticleHandle*> ToSet{ ToParticles };
+				Clustering.GenerateConnectionGraph(AllParticles, Parameters, &FromSet, &ToSet);
+			}
+		}
+		
 	}
 
 	void FPhysicsObjectInterface::SetName(const FPhysicsObjectHandle Object, const FName& InName)

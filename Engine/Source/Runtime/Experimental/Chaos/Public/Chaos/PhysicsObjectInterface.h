@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/ClusterCreationParameters.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PhysicsObject.h"
 #include "Chaos/ShapeInstanceFwd.h"
@@ -57,6 +58,7 @@ namespace Chaos
 	public:
 		FPhysicsObjectHandle GetRootObject(const FConstPhysicsObjectHandle Object);
 		bool HasChildren(const FConstPhysicsObjectHandle Object);
+		int32 GetClusterHierarchyLevel(const FConstPhysicsObjectHandle Object);
 
 		FTransform GetTransform(const FConstPhysicsObjectHandle Object);
 		FVector GetX(const FConstPhysicsObjectHandle Object);
@@ -150,6 +152,8 @@ namespace Chaos
 				SpatialAcceleration->RemoveElementFrom(AccelerationHandle, this->GetSpatialIndex(Handle));
 			}
 		}
+
+		void AddConnectivityEdgesBetween(TArrayView<const FPhysicsObjectHandle> FromObjects, TArrayView<const FPhysicsObjectHandle> ToObjects, const FClusterCreationParameters& Parameters);
 
 		friend class FPhysicsObjectInterface;
 	protected:

@@ -361,6 +361,12 @@ public:
 	FClusterCreationParameters::EConnectionMethod GetClusterUnionConnectionType() const { return MClusterUnionConnectionType; }
 
 	void GenerateConnectionGraph(
+		TArray<FPBDRigidParticleHandle*> Particles,
+		const FClusterCreationParameters& Parameters = FClusterCreationParameters(),
+		const TSet<FPBDRigidParticleHandle*>* FromParticles = nullptr,
+		const TSet<FPBDRigidParticleHandle*>* ToParticles = nullptr);
+
+	void GenerateConnectionGraph(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters & Parameters = FClusterCreationParameters());
 
@@ -394,14 +400,37 @@ public:
 	* Connectivity
 	*/
 	void UpdateConnectivityGraphUsingPointImplicit(
+		const TArray<FPBDRigidParticleHandle*>& Particles,
+		FReal CollisionThicknessPercent,
+		const TSet<FPBDRigidParticleHandle*>* FromParticles = nullptr,
+		const TSet<FPBDRigidParticleHandle*>* ToParticles = nullptr);
+	void UpdateConnectivityGraphUsingPointImplicit(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
+
+	void FixConnectivityGraphUsingDelaunayTriangulation(
+		const TArray<FPBDRigidParticleHandle*>& Particles,
+		const FClusterCreationParameters& Parameters = FClusterCreationParameters(),
+		const TSet<FPBDRigidParticleHandle*>* FromParticles = nullptr,
+		const TSet<FPBDRigidParticleHandle*>* ToParticles = nullptr);
 	void FixConnectivityGraphUsingDelaunayTriangulation(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
+
+	void UpdateConnectivityGraphUsingDelaunayTriangulation(
+		const TArray<FPBDRigidParticleHandle*>& Particles,
+		const FClusterCreationParameters& Parameters = FClusterCreationParameters(),
+		const TSet<FPBDRigidParticleHandle*>* FromParticles = nullptr,
+		const TSet<FPBDRigidParticleHandle*>* ToParticles = nullptr);
 	void UpdateConnectivityGraphUsingDelaunayTriangulation(
 		const Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
+
+	void UpdateConnectivityGraphUsingDelaunayTriangulationWithBoundsOverlaps(
+		const TArray<FPBDRigidParticleHandle*>& Particles,
+		const FClusterCreationParameters& Parameters = FClusterCreationParameters(),
+		const TSet<FPBDRigidParticleHandle*>* FromParticles = nullptr,
+		const TSet<FPBDRigidParticleHandle*>* ToParticles = nullptr);
 	void UpdateConnectivityGraphUsingDelaunayTriangulationWithBoundsOverlaps(
 		const Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
