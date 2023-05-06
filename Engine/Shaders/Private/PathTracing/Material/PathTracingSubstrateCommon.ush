@@ -1,0 +1,19 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#ifndef STRATA_ENABLED
+#error "This header should only be included when Strata is enabled."
+#endif
+
+#include "../PathTracingCommon.ush"
+
+#define STRATA_FRESNEL_F82  0
+
+float3 SubstrateLobeWeight(FPathTracingPayload Payload, float SatNoL)
+{
+	// See reference in LuminanceWeight
+	const float DistanceL = rcp(max(SatNoL, 0.001f));
+	const float3 TransmittanceAboveAlongL = select(Payload.TransmittanceN < 1.f, pow(max(Payload.TransmittanceN, 0.0001f), DistanceL), Payload.TransmittanceN);
+	return Payload.BSDFOpacity * Payload.WeightV * lerp(1.0f, TransmittanceAboveAlongL, Payload.CoverageAboveAlongN);
+}

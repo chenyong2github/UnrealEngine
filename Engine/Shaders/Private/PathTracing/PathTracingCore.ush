@@ -1740,9 +1740,6 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	// enlarge roughness based on the chosen lobe roughness
 	PathState.PathRoughness = max(PathState.PathRoughness, MaterialSample.Roughness);
 
-#if STRATA_ENABLED
-	// STRATA_TODO: Account for medium absorption here once we have support for refractive glass
-#else
 	// update the current extinction if we are crossing a boundary on glass or water
 	// summing the local extinction gives a rudimentary way of dealing with overlapping regions
 	// long term we will probably want a stack with priorities
@@ -1761,7 +1758,6 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			PathState.SigmaT = max(PathState.SigmaT, 0);
 		}
 	}
-#endif // STRATA_ENABLED
 
 	// If we are using Material sampling for lights
 	if (MISMode != 1 && bDoLightLoop)

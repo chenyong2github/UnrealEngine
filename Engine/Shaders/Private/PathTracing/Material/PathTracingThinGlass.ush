@@ -35,9 +35,8 @@ FRoughThinGlassData PrepareRoughThinGlassData(FPathTracingPayload Payload, float
 	Data.F0 = F0RGBToF0(Payload.SpecularColor);
 	Data.F90 = saturate(50.0 * Data.F0);
 
-	// transmitted lobe should have slightly less roughness due to the squeeze implied by the IOR (eventually converging to 0.0 as Ior approaches 1.0)
 	const float RoughnessR = Payload.Roughness;
-	const float RoughnessT = Payload.Roughness * sqrt(1.0 - min(Payload.Ior, rcp(Payload.Ior)));
+	const float RoughnessT = ComputeThinTransmittedRoughness(Payload.Roughness, Payload.Ior);
 
 	Data.Basis = GetGGXBasis(RoughnessR, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Data.AlphaR);
 	Data.AlphaT = GetGGXAlpha(RoughnessT, Payload.Anisotropy);

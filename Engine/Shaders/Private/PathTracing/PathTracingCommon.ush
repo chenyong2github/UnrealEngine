@@ -419,6 +419,12 @@ struct FPathTracingPayload : FMinimalPayload
 	float2 GetHairPrimitiveUV() { return SpecularEdgeColor.xy; }
 	void SetHairPrimitiveUV(float2 UV) { SpecularEdgeColor.xy = UV; }
 
+	float3 GetExtinction() { return rcp(max(MeanFreePath, 0.0001)); }
+
+	// SHADINGMODELID_THIN_TRANSLUCENT
+	float3 GetTransmittanceColor() { return exp(-GetExtinction() * STRATA_SIMPLEVOLUME_THICKNESS_CM); }
+
+
 #else // PATHTRACING_STRATA_PAYLOAD
 	// Various ways to interpret CustomData (depending on ShadingModelID)
 	// NOTE: This is not always following the same conventions as GetMaterialCustomData0,1()
@@ -502,12 +508,20 @@ struct FPathTracingPayload : FMinimalPayload
 
 	bool IsMaterialSolidGlass()
 	{
+#if PATHTRACING_STRATA_PAYLOAD
+		return ShadingModelID == SHADINGMODELID_STRATA && HasRefraction();
+#else
 		return ShadingModelID == SHADINGMODELID_DEFAULT_LIT && HasRefraction() && BSDFOpacity < 1;
+#endif
 	}
 
 	bool IsMaterialThinGlass()
 	{
+#if PATHTRACING_STRATA_PAYLOAD
+		return ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT && HasRefraction();
+#else
 		return ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT && HasRefraction() && BSDFOpacity < 1;
+#endif
 	}
 
 	bool IsMaterialTransmissive()
@@ -521,14 +535,16 @@ struct FPathTracingPayload : FMinimalPayload
 
 	bool IsSubsurfaceMaterial()
 	{
+#if PATHTRACING_STRATA_PAYLOAD
+		return ShadingModelID == SHADINGMODELID_STRATA ||
+		       ShadingModelID == SHADINGMODELID_EYE;
+#else
 		return ShadingModelID == SHADINGMODELID_SUBSURFACE ||
 			   ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN ||
 			   ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE ||
-			   ShadingModelID == SHADINGMODELID_EYE
-#if PATHTRACING_STRATA_PAYLOAD
-			   || ShadingModelID == SHADINGMODELID_STRATA
+			   ShadingModelID == SHADINGMODELID_EYE;
 #endif
-				;
+
 	}
 #endif // IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_GPULIGHTMASS)
 };
