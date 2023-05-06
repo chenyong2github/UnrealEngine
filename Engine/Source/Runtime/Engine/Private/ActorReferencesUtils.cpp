@@ -28,6 +28,7 @@ public:
 	FArchiveGatherExternalActorRefs(UObject* InRoot, EObjectFlags InRequiredFlags, bool bInRecursive, FActorReferenceSet& InActorReference)
 		: Root(InRoot)
 		, ActorReferences(InActorReference)
+		, EditorOnlyStack(0)
 		, RequiredFlags(InRequiredFlags)
 		, bRecursive(bInRecursive)
 	{
