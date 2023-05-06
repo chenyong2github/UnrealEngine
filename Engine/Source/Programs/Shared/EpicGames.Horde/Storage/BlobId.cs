@@ -89,24 +89,27 @@ namespace EpicGames.Horde.Storage
 		/// <returns>New content id</returns>
 		public static BlobId CreateNew(Utf8String prefix = default)
 		{
-			if (prefix.Length == 0)
+			byte[] buffer;
+			Span<byte> span;
+
+			if (prefix.Length > 0)
 			{
-				DateTime now = DateTime.UtcNow.Date;
-				prefix = $"_by_date_/{now.Year}-{now.Month:D2}/{now.Day:D2}";
+				ValidateArgument(nameof(prefix), prefix);
+
+				buffer = new byte[prefix.Length + 1 + 24];
+				span = buffer;
+
+				prefix.Span.CopyTo(span);
+				span = span.Slice(prefix.Length);
+
+				span[0] = (byte)'/';
+				span = span.Slice(1);
 			}
 			else
 			{
-				ValidateArgument(nameof(prefix), prefix);
+				buffer = new byte[24];
+				span = buffer;
 			}
-
-			byte[] buffer = new byte[prefix.Length + 1 + 24];
-			Span<byte> span = buffer;
-
-			prefix.Span.CopyTo(span);
-			span = span.Slice(prefix.Length);
-
-			span[0] = (byte)'/';
-			span = span.Slice(1);
 
 			GenerateUniqueId(span);
 			return new BlobId(new Utf8String(buffer), Validate.None);

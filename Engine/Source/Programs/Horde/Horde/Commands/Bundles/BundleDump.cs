@@ -13,59 +13,17 @@ namespace Horde.Commands.Bundles
 	[Command("bundle", "dump", "Dumps the contents of a bundle")]
 	internal class BundleDump : Command
 	{
-		[CommandLine("-Namespace=", Description = "Namespace to use for storage")]
-		public NamespaceId NamespaceId { get; set; } = new NamespaceId("default");
-
-		[CommandLine("-Ref=")]
-		public RefName? RefName { get; set; }
-
-		[CommandLine("-Blob=")]
-		public BlobLocator? BlobId { get; set; }
-
-		[CommandLine("-File=")]
-		public string? File { get; set; }
+		[CommandLine("-Input=")]
+		public FileReference Input { get; set; } = null!;
 
 		[CommandLine("-Verbose")]
 		public bool Verbose { get; set; }
 
-		readonly IStorageClientFactory _storageClientFactory;
-
-		public BundleDump(IStorageClientFactory storageClientFactory)
-		{
-			_storageClientFactory = storageClientFactory;
-		}
-
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			Bundle bundle;
-			if (File != null)
-			{
-				FileReference Location = new FileReference(File);
-				byte[] bytes = await FileReference.ReadAllBytesAsync(Location);
-				bundle = new Bundle(new MemoryReader(bytes));
-				logger.LogInformation("Summary for blob {Location}", Location);
-			}
-			else if (BlobId != null)
-			{
-				IStorageClient store = await _storageClientFactory.GetClientAsync(NamespaceId);
-				bundle = await store.ReadBundleAsync(BlobId.Value);
-				logger.LogInformation("Summary for blob {BlobId}", BlobId.Value);
-			}
-			else if (RefName != null)
-			{
-				IStorageClient store = await _storageClientFactory.GetClientAsync(NamespaceId);
-
-				NodeHandle handle = await store.ReadRefTargetAsync(RefName.Value);
-				logger.LogInformation("Ref {RefName} -> {Locator}", RefName.Value, handle);
-
-				bundle = await store.ReadBundleAsync(handle.Locator.Blob);
-				logger.LogInformation("Summary for blob {BlobId}", handle.Locator.Blob);
-			}
-			else
-			{
-				logger.LogError("No blob specified - use -File/Blob/Ref=...");
-				return 1;
-			}
+			byte[] bytes = await FileReference.ReadAllBytesAsync(Input);
+			Bundle bundle = new Bundle(new MemoryReader(bytes));
+			logger.LogInformation("Summary for blob {Location}", Input);
 
 			BundleHeader header = bundle.Header;
 

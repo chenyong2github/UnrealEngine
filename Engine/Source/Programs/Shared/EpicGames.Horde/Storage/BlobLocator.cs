@@ -149,41 +149,37 @@ namespace EpicGames.Horde.Storage
 		/// <returns>New content id</returns>
 		public static BlobLocator Create(HostId serverId, Utf8String prefix = default)
 		{
-			if (prefix.Length == 0)
+			int length = 24;
+			if (serverId.IsValid())
 			{
-				DateTime now = DateTime.UtcNow.Date;
-				prefix = $"_by_date_/{now.Year}-{now.Month:D2}/{now.Day:D2}";
+				length += serverId.Inner.Length + 1;
 			}
-			else
+			if (prefix.Length > 0)
 			{
-				BlobId.ValidateArgument(nameof(prefix), prefix);
+				length += prefix.Length + 1;
 			}
 
-			byte[] buffer;
-			Span<byte> span;
+			byte[] buffer = new byte[length];
+			Span<byte> span = buffer;
 
 			if (serverId.IsValid())
 			{
-				buffer = new byte[serverId.Inner.Length + 1 + prefix.Length + 1 + 24];
-				span = buffer;
-
 				serverId.Inner.Span.CopyTo(span);
 				span = span.Slice(serverId.Inner.Length);
 
 				span[0] = (byte)':';
 				span = span.Slice(1);
 			}
-			else
+			if (prefix.Length > 0)
 			{
-				buffer = new byte[prefix.Length + 1 + 24];
-				span = buffer;
+				BlobId.ValidateArgument(nameof(prefix), prefix);
+
+				prefix.Span.CopyTo(span);
+				span = span.Slice(prefix.Length);
+
+				span[0] = (byte)'/';
+				span = span.Slice(1);
 			}
-
-			prefix.Span.CopyTo(span);
-			span = span.Slice(prefix.Length);
-
-			span[0] = (byte)'/';
-			span = span.Slice(1);
 
 			BlobId.GenerateUniqueId(span);
 			return new BlobLocator(new Utf8String(buffer), Sanitize.None);

@@ -32,6 +32,7 @@ namespace Horde
 			IServiceCollection services = new ServiceCollection();
 			services.AddCommandsFromAssembly(Assembly.GetExecutingAssembly());
 			services.AddSingleton(loggerFactory);
+			services.AddLogging();
 			services.AddMemoryCache();
 
 			// Execute all the commands

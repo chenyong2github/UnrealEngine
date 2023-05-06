@@ -5,7 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
+using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Commands.Bundles
@@ -13,36 +15,60 @@ namespace Horde.Commands.Bundles
 	[Command("bundle", "create", "Creates a bundle from a folder on the local hard drive")]
 	class BundleCreate : Command
 	{
-		[CommandLine("-Namespace=", Description = "Namespace to use for storage")]
-		public NamespaceId NamespaceId { get; set; } = new NamespaceId("default");
+		[CommandLine("-Output=", Required = true, Description = "Output file. Should have a .ref extension.")]
+		public FileReference OutputFile { get; set; } = null!;
 
-		[CommandLine("-Ref=")]
-		public RefName RefName { get; set; } = new RefName("default-bundle");
+		[CommandLine("-Input=", Required = true, Description = "Input file or directory")]
+		public string Input { get; set; } = null!;
 
-		[CommandLine("-InputDir=", Required = true)]
-		public DirectoryReference InputDir { get; set; } = null!;
+		[CommandLine("-Filter=", Description = "Filter for files to include, in P4 syntax (eg. Foo/...).")]
+		public string Filter { get; set; } = "...";
 
-		readonly IStorageClientFactory _storageClientFactory;
-
-		public BundleCreate(IStorageClientFactory storageClientFactory)
-		{
-			_storageClientFactory = storageClientFactory;
-		}
+		[CommandLine("-Blobs=", Description = "Directory to store blobs")]
+		public DirectoryReference? BlobDir { get; set; }
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			IStorageClient store = await _storageClientFactory.GetClientAsync(NamespaceId);
+			DirectoryReference baseDir;
+			List<FileReference> files = new List<FileReference>();
 
-			using TreeWriter writer = new TreeWriter(store, prefix: RefName.Text);
+			if (File.Exists(Input))
+			{
+				FileReference file = new FileReference(Input);
+				baseDir = file.Directory;
+				files.Add(file);
+			}
+			else if (Directory.Exists(Input))
+			{
+				baseDir = new DirectoryReference(Input);
+				FileFilter filter = new FileFilter(Filter.Split(';'));
+				files.AddRange(filter.ApplyToDirectory(baseDir, true));
+			}
+			else
+			{
+				logger.LogError("{Path} does not exist", Input);
+				return 1;
+			}
 
-			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
+			DirectoryReference blobDir = BlobDir ?? OutputFile.Directory;
+			DirectoryReference.CreateDirectory(blobDir);
+
+			FileStorageClient store = new FileStorageClient(blobDir, logger);
 
 			Stopwatch timer = Stopwatch.StartNew();
 
-			ChunkingOptions options = new ChunkingOptions();
-			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), options, writer, null, CancellationToken.None);
+			using (TreeWriter writer = new TreeWriter(store))
+			{
+				DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
 
-			await writer.WriteAsync(RefName, node);
+				ChunkingOptions options = new ChunkingOptions();
+				await node.CopyFilesAsync(baseDir, files, options, writer, null, CancellationToken.None);
+
+				NodeHandle handle = await writer.FlushAsync(node);
+
+				logger.LogInformation("Writing {File}", OutputFile);
+				await FileReference.WriteAllTextAsync(OutputFile, handle.ToString());
+			}
 
 			logger.LogInformation("Time: {Time}", timer.Elapsed.TotalSeconds);
 			return 0;
