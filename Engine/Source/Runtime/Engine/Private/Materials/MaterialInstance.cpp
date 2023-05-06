@@ -2061,8 +2061,11 @@ void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode Prec
 	UpdateOverridableBaseProperties();
 
 #if WITH_EDITORONLY_DATA
-	// Update bHasStaticPermutationResource in case the parent was not found
-	bHasStaticPermutationResource = (HasStaticParameters() || HasOverridenBaseProperties()) && Parent;
+	if (!GetPackage()->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	{
+		// Update bHasStaticPermutationResource in case the parent was not found
+		bHasStaticPermutationResource = (HasStaticParameters() || HasOverridenBaseProperties()) && Parent;
+	}
 #endif // WITH_EDITORONLY_DATA
 
 	FMaterialResourceDeferredDeletionArray ResourcesToFree;
