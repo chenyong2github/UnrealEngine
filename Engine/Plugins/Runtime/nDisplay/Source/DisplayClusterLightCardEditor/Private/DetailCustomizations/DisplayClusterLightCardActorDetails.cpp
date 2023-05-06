@@ -55,10 +55,10 @@ void FDisplayClusterLightCardActorDetails::CustomizeDetails(IDetailLayoutBuilder
 
 			for (const void* RawData : RawDatas)
 			{
-				TMap<FName, UActorComponent*>* ExtenderNameToComponentMapPtr = (TMap<FName, UActorComponent*>*)(RawData);
+				TMap<FName, TObjectPtr<UActorComponent>>* ExtenderNameToComponentMapPtr = (TMap<FName, TObjectPtr<UActorComponent>>*)(RawData);
 				check(ExtenderNameToComponentMapPtr);
 
-				for (const TTuple<FName, UActorComponent*>& ExtenderNameToComponentPair : *ExtenderNameToComponentMapPtr)
+				for (const TTuple<FName, TObjectPtr<UActorComponent>>& ExtenderNameToComponentPair : *ExtenderNameToComponentMapPtr)
 				{
 					if (!ensureMsgf(ExtenderNameToComponentPair.Value, TEXT("Trying to display component for Extender %s, but component is invalid."), *ExtenderNameToComponentPair.Key.ToString()))
 					{
