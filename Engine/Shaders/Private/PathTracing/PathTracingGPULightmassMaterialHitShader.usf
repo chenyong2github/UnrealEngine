@@ -35,7 +35,11 @@
 #if STRATA_ENABLED
 #define STRATA_GPU_LIGHTMASS 1
 #include "/Engine/Private/Strata/Strata.ush"
+
+#if MATERIAL_IS_STRATA // STRATA_TODO: Should this header be guarded from inside instead?
 #include "/Engine/Private/Strata/StrataExport.ush"
+#endif
+
 #endif
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(GPULightmassMaterialCHS,
