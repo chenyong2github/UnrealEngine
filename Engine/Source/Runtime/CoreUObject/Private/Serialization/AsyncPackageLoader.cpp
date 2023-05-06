@@ -251,6 +251,22 @@ bool IsInAsyncLoadingThreadCoreUObjectInternal()
 	}
 }
 
+void FlushAsyncLoading(TConstArrayView<int32> RequestIds)
+{
+	if (RequestIds.Num() == 0)
+	{
+		FlushAsyncLoading(INDEX_NONE);
+	}
+	else
+	{
+		for (int32 Id : RequestIds)
+		{
+			UE_CLOG(Id == INDEX_NONE, LogStreaming, Warning, TEXT("FlushAsyncLoading called with a list including request id -1, this will flush ALL async loading. If this is intentional, pass an empty list instead."));
+			FlushAsyncLoading(Id);
+		}
+	}
+}
+
 void FlushAsyncLoading(int32 RequestId /* = INDEX_NONE */)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FlushAsyncLoading);

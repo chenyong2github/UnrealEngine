@@ -859,6 +859,13 @@ COREUOBJECT_API bool IsReferenced( UObject*& Res, EObjectFlags KeepFlags, EInter
 COREUOBJECT_API void FlushAsyncLoading(int32 PackageID = INDEX_NONE);
 
 /**
+ * Blocks till a set of pending async load requests are complete.
+ *
+ * @param RequestIds list of return values from LoadPackageAsync to wait for. 
+ */
+COREUOBJECT_API void FlushAsyncLoading(TConstArrayView<int32> RequestIds);
+
+/**
  * Return number of active async load package requests
  */
 COREUOBJECT_API int32 GetNumAsyncPackages();

@@ -587,6 +587,7 @@ private:
 
 	void RemoveReferencedAsset(const FSoftObjectPath& Target, TSharedRef<FStreamableHandle> Handle);
 	void StartHandleRequests(TSharedRef<FStreamableHandle> Handle);
+	TArray<int32> GetAsyncLoadRequestIds(TSharedRef<FStreamableHandle> Handle);
 	void FindInMemory(FSoftObjectPath& InOutTarget, struct FStreamable* Existing, UPackage* Package = nullptr);
 	FSoftObjectPath HandleLoadedRedirector(UObjectRedirector* LoadedRedirector, FSoftObjectPath RequestedPath, struct FStreamable* RequestedStreamable);
 	struct FStreamable* FindStreamable(const FSoftObjectPath& Target) const;
