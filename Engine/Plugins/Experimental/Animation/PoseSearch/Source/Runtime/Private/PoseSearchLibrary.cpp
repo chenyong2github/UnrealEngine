@@ -476,95 +476,92 @@ void UPoseSearchLibrary::MotionMatch(
 	BlendParameters = FVector::ZeroVector;
 	SearchCost = MAX_flt;
 
-	if (Database)
+	if (Database && AnimInstance)
 	{
 		const FPoseSearchQueryTrajectory TrajectoryCS = ProcessTrajectory(Trajectory, AnimInstance->GetOwningActor()->GetActorTransform(), AnimInstance->GetOwningComponent()->GetComponentTransform(), TrajectorySpeedMultiplier);
 
 		// ExtendedPoseHistory will hold future poses to match AssetSamplerBase (at FutureAnimationStartTime) TimeToFutureAnimationStart seconds in the future
 		FExtendedPoseHistory ExtendedPoseHistory;
-		if (AnimInstance)
+		if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(AnimInstance->GetClass()))
 		{
-			if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(AnimInstance->GetClass()))
+			if (const FAnimSubsystem_Tag* TagSubsystem = AnimBlueprintClass->FindSubsystem<FAnimSubsystem_Tag>())
 			{
-				if (const FAnimSubsystem_Tag* TagSubsystem = AnimBlueprintClass->FindSubsystem<FAnimSubsystem_Tag>())
+				if (const FAnimNode_PoseSearchHistoryCollector_Base* PoseHistoryNode = TagSubsystem->FindNodeByTag<FAnimNode_PoseSearchHistoryCollector_Base>(PoseHistoryName, AnimInstance))
 				{
-					if (const FAnimNode_PoseSearchHistoryCollector_Base* PoseHistoryNode = TagSubsystem->FindNodeByTag<FAnimNode_PoseSearchHistoryCollector_Base>(PoseHistoryName, AnimInstance))
-					{
-						ExtendedPoseHistory.Init(&PoseHistoryNode->GetPoseHistory());
-					}
+					ExtendedPoseHistory.Init(&PoseHistoryNode->GetPoseHistory());
 				}
 			}
+		}
 
-			if (!ExtendedPoseHistory.IsInitialized())
+		if (!ExtendedPoseHistory.IsInitialized())
+		{
+			if (FutureAnimation)
 			{
-				if (FutureAnimation)
-				{
-					UE_LOG(LogPoseSearch, Error, TEXT("UPoseSearchLibrary::MotionMatch - Couldn't find pose history with name '%s'. FutureAnimation search will not be performed"), *PoseHistoryName.ToString());
-				}
-				else
-				{
-					UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - Couldn't find pose history with name '%s'"), *PoseHistoryName.ToString());
-				}
+				UE_LOG(LogPoseSearch, Error, TEXT("UPoseSearchLibrary::MotionMatch - Couldn't find pose history with name '%s'. FutureAnimation search will not be performed"), *PoseHistoryName.ToString());
 			}
-			else if (FutureAnimation)
+			else
 			{
-				const FBoneContainer& BoneContainer = AnimInstance->GetRequiredBonesOnAnyThread();
-				// @todo... add input BlendParameters to support sampling FutureAnimation blendspaces
-				const FAnimationAssetSampler Sampler(FutureAnimation, FVector::ZeroVector, BoneContainer);
+				UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - Couldn't find pose history with name '%s'"), *PoseHistoryName.ToString());
+			}
+		}
+		else if (FutureAnimation)
+		{
+			const FBoneContainer& BoneContainer = AnimInstance->GetRequiredBonesOnAnyThread();
+			// @todo... add input BlendParameters to support sampling FutureAnimation blendspaces
+			const FAnimationAssetSampler Sampler(FutureAnimation, FVector::ZeroVector, BoneContainer);
 
-				FCompactPose Pose;
-				FBlendedCurve UnusedCurve;
-				FStackAttributeContainer UnusedAtrribute;
-				FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
+			FCompactPose Pose;
+			FBlendedCurve UnusedCurve;
+			FStackAttributeContainer UnusedAtrribute;
+			FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
 
-				UnusedCurve.InitFrom(BoneContainer);
-				Pose.SetBoneContainer(&BoneContainer);
+			UnusedCurve.InitFrom(BoneContainer);
+			Pose.SetBoneContainer(&BoneContainer);
 
-				if (FutureAnimationStartTime < FiniteDelta)
-				{
-					UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided FutureAnimationStartTime (%f) is too small to be able to calculate velocities. Clamping it to minimum value of %f"), FutureAnimationStartTime, FiniteDelta);
-					FutureAnimationStartTime = FiniteDelta;
-				}
+			if (FutureAnimationStartTime < FiniteDelta)
+			{
+				UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided FutureAnimationStartTime (%f) is too small to be able to calculate velocities. Clamping it to minimum value of %f"), FutureAnimationStartTime, FiniteDelta);
+				FutureAnimationStartTime = FiniteDelta;
+			}
 
-				const float MinTimeToFutureAnimationStart = FiniteDelta + UE_KINDA_SMALL_NUMBER;
-				if (TimeToFutureAnimationStart < MinTimeToFutureAnimationStart)
-				{
-					UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided TimeToFutureAnimationStart (%f) is too small. Clamping it to minimum value of %f"), TimeToFutureAnimationStart, MinTimeToFutureAnimationStart);
-					TimeToFutureAnimationStart = MinTimeToFutureAnimationStart;
-				}
+			const float MinTimeToFutureAnimationStart = FiniteDelta + UE_KINDA_SMALL_NUMBER;
+			if (TimeToFutureAnimationStart < MinTimeToFutureAnimationStart)
+			{
+				UE_LOG(LogPoseSearch, Warning, TEXT("UPoseSearchLibrary::MotionMatch - provided TimeToFutureAnimationStart (%f) is too small. Clamping it to minimum value of %f"), TimeToFutureAnimationStart, MinTimeToFutureAnimationStart);
+				TimeToFutureAnimationStart = MinTimeToFutureAnimationStart;
+			}
 
-				// extracting 2 poses to be able to calculate velocities
-				for (int i = 0; i < 2; ++i)
-				{
-					const float ExtractionTime = FutureAnimationStartTime + (i - 1) * FiniteDelta;
-					const float FutureAnimationTime = TimeToFutureAnimationStart + (i - 1) * FiniteDelta;
+			// extracting 2 poses to be able to calculate velocities
+			for (int i = 0; i < 2; ++i)
+			{
+				const float ExtractionTime = FutureAnimationStartTime + (i - 1) * FiniteDelta;
+				const float FutureAnimationTime = TimeToFutureAnimationStart + (i - 1) * FiniteDelta;
 
-					FDeltaTimeRecord DeltaTimeRecord;
-					DeltaTimeRecord.Set(ExtractionTime - FiniteDelta, FiniteDelta);
-					FAnimExtractContext ExtractionCtx(double(ExtractionTime), false, DeltaTimeRecord, false);
+				FDeltaTimeRecord DeltaTimeRecord;
+				DeltaTimeRecord.Set(ExtractionTime - FiniteDelta, FiniteDelta);
+				FAnimExtractContext ExtractionCtx(double(ExtractionTime), false, DeltaTimeRecord, false);
 
-					Sampler.ExtractPose(ExtractionCtx, AnimPoseData);
+				Sampler.ExtractPose(ExtractionCtx, AnimPoseData);
 
-					FCSPose<FCompactPose> ComponentSpacePose;
-					ComponentSpacePose.InitPose(Pose);
+				FCSPose<FCompactPose> ComponentSpacePose;
+				ComponentSpacePose.InitPose(Pose);
 
-					const FPoseSearchQueryTrajectorySample TrajectorySample = TrajectoryCS.GetSampleAtTime(ExtractionTime);
-					const FTransform& ComponentTransform = AnimInstance->GetOwningComponent()->GetComponentTransform();
-					const FTransform FutureComponentTransform = TrajectorySample.GetTransform() * ComponentTransform;
+				const FPoseSearchQueryTrajectorySample TrajectorySample = TrajectoryCS.GetSampleAtTime(ExtractionTime);
+				const FTransform& ComponentTransform = AnimInstance->GetOwningComponent()->GetComponentTransform();
+				const FTransform FutureComponentTransform = TrajectorySample.GetTransform() * ComponentTransform;
 
-					ExtendedPoseHistory.AddFuturePose(FutureAnimationTime, ComponentSpacePose, FutureComponentTransform);
-				}
+				ExtendedPoseHistory.AddFuturePose(FutureAnimationTime, ComponentSpacePose, FutureComponentTransform);
+			}
 
 #if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
-				if (CVarAnimMotionMatchDrawHistoryEnable.GetValueOnAnyThread())
+			if (CVarAnimMotionMatchDrawHistoryEnable.GetValueOnAnyThread())
+			{
+				if (FAnimInstanceProxy* AnimInstanceProxy = UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance))
 				{
-					if (FAnimInstanceProxy* AnimInstanceProxy = UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance))
-					{
-						ExtendedPoseHistory.DebugDraw(*AnimInstanceProxy);
-					}
+					ExtendedPoseHistory.DebugDraw(*AnimInstanceProxy);
 				}
-#endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 			}
+#endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 		}
 
 		// @todo: finish set up SearchContext by exposing or calculating additional members
@@ -585,38 +582,35 @@ void UPoseSearchLibrary::MotionMatch(
 			}
 		}
 
-		if (AnimInstance)
-		{
 #if ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
-			if (SearchResult.IsValid())
+		if (SearchResult.IsValid())
+		{
+			if (CVarAnimMotionMatchDrawMatchEnable.GetValueOnAnyThread())
 			{
-				if (CVarAnimMotionMatchDrawMatchEnable.GetValueOnAnyThread())
-				{
-					UE::PoseSearch::FDebugDrawParams DrawParams(UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance), SearchResult.Database.Get());
-					DrawParams.DrawFeatureVector(SearchResult.PoseIdx);
-				}
-
-				if (CVarAnimMotionMatchDrawQueryEnable.GetValueOnAnyThread())
-				{
-					UE::PoseSearch::FDebugDrawParams DrawParams(UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance), SearchResult.Database.Get(), EDebugDrawFlags::DrawQuery);
-					DrawParams.DrawFeatureVector(SearchContext.GetOrBuildQuery(SearchResult.Database->Schema).GetValues());
-				}
+				UE::PoseSearch::FDebugDrawParams DrawParams(UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance), SearchResult.Database.Get());
+				DrawParams.DrawFeatureVector(SearchResult.PoseIdx);
 			}
+
+			if (CVarAnimMotionMatchDrawQueryEnable.GetValueOnAnyThread())
+			{
+				UE::PoseSearch::FDebugDrawParams DrawParams(UAnimInstanceProxyProvider::GetAnimInstanceProxy(AnimInstance), SearchResult.Database.Get(), EDebugDrawFlags::DrawQuery);
+				DrawParams.DrawFeatureVector(SearchContext.GetOrBuildQuery(SearchResult.Database->Schema).GetValues());
+			}
+		}
 #endif // ENABLE_DRAW_DEBUG && ENABLE_ANIM_DEBUG
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-			const float SearchBestCost = SearchResult.PoseCost.GetTotalCost();
-			float SearchBruteForceCost = SearchBestCost;
+		const float SearchBestCost = SearchResult.PoseCost.GetTotalCost();
+		float SearchBruteForceCost = SearchBestCost;
 #if WITH_EDITORONLY_DATA
-			if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
-			{
-				SearchBruteForceCost = SearchResult.BruteForcePoseCost.GetTotalCost();
-			}
-#endif // WITH_EDITORONLY_DATA
-			TraceMotionMatchingState(Database, SearchContext, SearchResult, FSearchResult(), 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier,
-				AnimInstance->GetDeltaSeconds(), true, FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()), SearchBestCost, SearchBruteForceCost);
-#endif // UE_POSE_SEARCH_TRACE_ENABLED
+		if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
+		{
+			SearchBruteForceCost = SearchResult.BruteForcePoseCost.GetTotalCost();
 		}
+#endif // WITH_EDITORONLY_DATA
+		TraceMotionMatchingState(Database, SearchContext, SearchResult, FSearchResult(), 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier,
+			AnimInstance->GetDeltaSeconds(), true, FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()), SearchBestCost, SearchBruteForceCost);
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 	}
 }
 
