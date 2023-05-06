@@ -8,13 +8,12 @@
 #include "RewindDebuggerTrack.h"
 #include "SCurveTimelineView.h"
 
-class SOverlay;
-
 namespace TraceServices { class IAnalysisSession; }
 
 namespace UE::PoseSearch
 {
 
+class SCostTimelineView;
 class SDebuggerView;
 class FDebuggerViewModel;
 
@@ -80,13 +79,7 @@ private:
 	virtual uint64 GetObjectIdInternal() const override { return ObjectId; }
 	virtual bool UpdateInternal() override;
 
-	TSharedPtr<SCurveTimelineView> BestCostView;
-	TSharedPtr<SCurveTimelineView::FTimelineCurveData> BestCostData;
-
-	TSharedPtr<SCurveTimelineView> BruteForceCostView;
-	TSharedPtr<SCurveTimelineView::FTimelineCurveData> BruteForceCostData;
-
-	TSharedPtr<SOverlay> OverlayView;
+	TSharedPtr<SCostTimelineView> CostTimelineView;
 
 	TWeakPtr<IRewindDebuggerView> View;
 	FSlateIcon Icon;
