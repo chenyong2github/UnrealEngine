@@ -2,15 +2,13 @@
 
 using EpicGames.Core;
 using System.Reflection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using EpicGames.Horde.Storage.Backends;
-using Microsoft.Extensions.Configuration;
 using System.Runtime.InteropServices;
 using Serilog.Sinks.SystemConsole.Themes;
 using Serilog;
 using Serilog.Formatting.Json;
-using System.Diagnostics;
 
 namespace Horde
 {
@@ -24,7 +22,7 @@ namespace Horde
 			IConfiguration configuration = new ConfigurationBuilder()
 				.AddJsonFile("appsettings.json", optional: false)
 				.AddJsonFile("appsettings.User.json", optional: true)
-//				.AddEnvironmentVariables()
+				.AddEnvironmentVariables()
 				.Build();
 
 			using ILoggerFactory loggerFactory = CreateLoggerFactory(configuration);
