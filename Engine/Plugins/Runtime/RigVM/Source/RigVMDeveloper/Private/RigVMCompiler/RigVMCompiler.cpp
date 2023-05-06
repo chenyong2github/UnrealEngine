@@ -1144,9 +1144,6 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 		OutFunctionCompilationData->Hash = GetTypeHash(OutFunctionCompilationData);
 	}
 
-	// make sure all functions are known and resolved now.
-	WorkData.VM->ResolveFunctionsIfRequired();
-
 	if (!CurrentCompilationFunction)
 	{
 		CompileTimer.Stop();
@@ -3455,4 +3452,3 @@ void URigVMCompiler::ReportError(const FString& InMessage)
 {
 	Settings.Report(EMessageSeverity::Error, nullptr, InMessage);
 }
-
