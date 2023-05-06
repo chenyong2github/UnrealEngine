@@ -78,7 +78,7 @@ namespace InstallBundleUtil
 		}
 	}
 
-	TAtomic<int32> InstallBundleSuppressAnalyticsCounter = 0;
+	std::atomic<int32> InstallBundleSuppressAnalyticsCounter = 0;
 
 	FInstallBundleSuppressAnalytics::FInstallBundleSuppressAnalytics()
 		: bIsEnabled(false)
