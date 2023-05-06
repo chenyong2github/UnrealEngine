@@ -502,6 +502,8 @@ protected:
 	int32 CacheKey;
 };
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLocalFileReplayFinishedWriting, const FString& /*StreamName*/, const FString& /*FullReplayFile*/);
+
 /** Local file streamer that supports playback/recording to a single file on disk */
 class LOCALFILENETWORKREPLAYSTREAMING_API FLocalFileNetworkReplayStreamer : public INetworkReplayStreamer, public TSharedFromThis<FLocalFileNetworkReplayStreamer>
 {
@@ -639,6 +641,8 @@ public:
 
 	/** Map of checkpoint index to cached value */
 	TMap<int32, TSharedPtr<FCachedFileRequest>> DeltaCheckpointCache;
+
+	static FOnLocalFileReplayFinishedWriting OnReplayFinishedWriting;
 
 protected:
 

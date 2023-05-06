@@ -74,6 +74,8 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 const uint32 FLocalFileNetworkReplayStreamer::LatestVersion = FLocalFileReplayCustomVersion::LatestVersion;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+FOnLocalFileReplayFinishedWriting FLocalFileNetworkReplayStreamer::OnReplayFinishedWriting;
+
 const FGuid FLocalFileReplayCustomVersion::Guid =  FGuid(0x95A4f03E, 0x7E0B49E4, 0xBA43D356, 0x94FF87D9);
 FCustomVersionRegistration GRegisterLocalFileReplayCustomVersion(FLocalFileReplayCustomVersion::Guid, FLocalFileReplayCustomVersion::LatestVersion, TEXT("LocalFileReplay"));
 
@@ -1056,8 +1058,14 @@ void FLocalFileNetworkReplayStreamer::StopStreaming()
 			StreamAr.Reset();
 			StreamDataOffset = 0;
 			StreamChunkIndex = 0;
-			CurrentStreamName.Empty();
 			StreamerState = EReplayStreamerState::Idle;
+
+			FString StreamName = MoveTemp(CurrentStreamName);
+			const FString FullFileName = GetDemoFullFilename(StreamName);
+
+			CurrentStreamName.Empty();
+
+			OnReplayFinishedWriting.Broadcast(StreamName, FullFileName);
 		});
 }
 
