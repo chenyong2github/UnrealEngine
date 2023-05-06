@@ -20,6 +20,7 @@ class ALevelScriptActor;
 class ALevelStreamingVolume;
 class ULevel;
 class ULevelStreaming;
+class IWorldPartitionCell;
 struct FNetLevelVisibilityTransactionId;
 
 enum class ENetLevelVisibilityRequest
@@ -332,6 +333,7 @@ public:
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
 	virtual void Serialize( FArchive& Ar ) override;
+	virtual const IWorldPartitionCell* GetWorldPartitionCell() const { return nullptr; }
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	

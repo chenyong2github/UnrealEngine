@@ -16,7 +16,6 @@
 #include "SceneView.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "SceneManagement.h"
-#include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "EngineModule.h"
@@ -103,8 +102,7 @@ namespace FHLODSubsystem
     {
 	    const ULevel* ActorLevel = InActor->GetLevel();
 	    const ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(ActorLevel);
-	    const UWorldPartitionLevelStreamingDynamic* LevelStreamingDynamic = Cast<UWorldPartitionLevelStreamingDynamic>(LevelStreaming);
-	    return LevelStreamingDynamic ? LevelStreamingDynamic->GetWorldPartitionRuntimeCell() : nullptr;
+	    return LevelStreaming ? Cast<const UWorldPartitionRuntimeCell>(LevelStreaming->GetWorldPartitionCell()) : nullptr;
     }
     
     static UWorldPartition* GetWorldPartition(AWorldPartitionHLOD* InWorldPartitionHLOD)

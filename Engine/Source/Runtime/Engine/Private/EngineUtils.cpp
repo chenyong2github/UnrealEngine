@@ -455,7 +455,7 @@ TArray<FSubLevelStatus> GetSubLevelsStatus( UWorld* World, bool SortByActorCount
 
 			if (LevelStreaming->GetLoadedLevel())
 			{
-				if (const IWorldPartitionCell* WorldPartitionCell = LevelStreaming->GetLoadedLevel()->GetWorldPartitionRuntimeCell())
+				if (const IWorldPartitionCell* WorldPartitionCell = LevelStreaming->GetWorldPartitionCell())
 				{
 					LevelStatus.LevelLabel = WorldPartitionCell->GetDebugName();
 				}

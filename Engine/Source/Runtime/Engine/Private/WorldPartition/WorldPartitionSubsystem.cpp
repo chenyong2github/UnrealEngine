@@ -1040,12 +1040,9 @@ void UWorldPartitionSubsystem::DrawStreamingStatusLegend(class UCanvas* Canvas, 
 	{
 		if (!StreamingWorld || (StreamingWorld == LevelStreaming->GetStreamingWorld()))
 		{
-			if (UWorldPartitionLevelStreamingDynamic* WorldPartitionLevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(LevelStreaming))
+			if (const UWorldPartitionRuntimeCell* Cell = Cast<const UWorldPartitionRuntimeCell>(LevelStreaming->GetWorldPartitionCell()))
 			{
-				if (const UWorldPartitionRuntimeCell* Cell = WorldPartitionLevelStreaming->GetWorldPartitionRuntimeCell())
-				{
-					StreamingStatus[(int32)Cell->GetStreamingStatus()]++;
-				}
+				StreamingStatus[(int32)Cell->GetStreamingStatus()]++;
 			}
 		}
 	}

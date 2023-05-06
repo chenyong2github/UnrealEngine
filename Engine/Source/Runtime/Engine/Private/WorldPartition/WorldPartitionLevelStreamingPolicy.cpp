@@ -38,12 +38,9 @@ void UWorldPartitionLevelStreamingPolicy::ForEachActiveRuntimeCell(TFunctionRef<
 	UWorld* World = WorldPartition->GetWorld();
 	for (ULevelStreaming* LevelStreaming : World->GetStreamingLevels())
 	{
-		if (UWorldPartitionLevelStreamingDynamic* WorldPartitionLevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(LevelStreaming))
+		if (const UWorldPartitionRuntimeCell* Cell = Cast<const UWorldPartitionRuntimeCell>(LevelStreaming->GetWorldPartitionCell()))
 		{
-			if (const UWorldPartitionRuntimeCell* Cell = WorldPartitionLevelStreaming->GetWorldPartitionRuntimeCell())
-			{
-				Func(Cell);
-			}
+			Func(Cell);
 		}
 	}
 }

@@ -174,14 +174,11 @@ TUniquePtr<ULevelStreamingProfilingSubsystem::FActiveLevel> ULevelStreamingProfi
 			break;
 		}
 	}
-	if (const UWorldPartitionLevelStreamingDynamic* WPStreamingLevel = Cast<UWorldPartitionLevelStreamingDynamic>(StreamingLevel))
+	if (const UWorldPartitionRuntimeCell* Cell = Cast<const UWorldPartitionRuntimeCell>(StreamingLevel->GetWorldPartitionCell()))
 	{
-		if (const UWorldPartitionRuntimeCell* Cell = WPStreamingLevel->GetWorldPartitionRuntimeCell())
-		{
-			LevelStats[Level->StatsIndex].CellBounds = Cell->GetCellBounds();
-			LevelStats[Level->StatsIndex].ContentBounds = Cell->GetContentBounds();
-			LevelStats[Level->StatsIndex].bIsHLOD = Cell->GetIsHLOD();
-		}
+		LevelStats[Level->StatsIndex].CellBounds = Cell->GetCellBounds();
+		LevelStats[Level->StatsIndex].ContentBounds = Cell->GetContentBounds();
+		LevelStats[Level->StatsIndex].bIsHLOD = Cell->GetIsHLOD();
 	}
 	UpdateLevelState(*Level, StreamingLevel, InitialState, Level->StateStartTime);
 	return MoveTemp(Level);

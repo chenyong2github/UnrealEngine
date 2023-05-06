@@ -2995,6 +2995,15 @@ void ULevel::OnLevelLoaded()
 #endif
 	};
 
+	// Find associated level streaming for this level
+	const ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(this);
+
+	// Set level's associated WorldPartitionRuntimeCell for dynamically injected cells
+	if (LevelStreaming && !WorldPartitionRuntimeCell.GetUniqueID().IsValid())
+	{
+		WorldPartitionRuntimeCell = Cast<const UWorldPartitionRuntimeCell>(LevelStreaming->GetWorldPartitionCell());
+	}
+
 	// 1. Cook commandlet does it's own UWorldPartition::Initialize call in FWorldPartitionCookPackageSplitter::GetGenerateList
 	// 2. Do not Initialize if World doesn't have a UWorldPartitionSubsystem (Known case is when WorldType == EWorldType::Inactive)
 	if (!IsRunningCookCommandlet() && OwningWorld->HasSubsystem<UWorldPartitionSubsystem>())
@@ -3020,11 +3029,7 @@ void ULevel::OnLevelLoaded()
 
 			if (bIsMainWorldLevel || bInitializeForEditor || bInitializeForGame)
 			{
-				FTransform Transform = FTransform::Identity;
-				if (ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(this))
-				{
-					Transform = LevelStreaming->LevelTransform;
-				}
+				FTransform Transform = LevelStreaming ? LevelStreaming->LevelTransform : FTransform::Identity;
 
 				// It is allowed for a WorldPartition to already be initialized in the case where a partitioned sub-level 
 				// was streamed-out and is streamed-in again, without a CleanupLevel (GC).

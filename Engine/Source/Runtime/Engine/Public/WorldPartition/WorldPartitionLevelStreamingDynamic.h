@@ -36,8 +36,8 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 	virtual bool ShouldBeAlwaysLoaded() const override { return bShouldBeAlwaysLoaded; }
 	virtual bool ShouldBlockOnUnload() const override;
 	virtual bool ShouldRequireFullVisibilityToRender() const override { return true; }
-
 	virtual bool RequestVisibilityChange(bool bVisible) override;
+	virtual const IWorldPartitionCell* GetWorldPartitionCell() const override { return GetWorldPartitionRuntimeCell(); }
 
 #if !WITH_EDITOR
 	virtual void PostLoad();

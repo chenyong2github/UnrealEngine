@@ -3,18 +3,14 @@
 #include "WorldPartition/HLOD/HLODDestruction.h"
 
 #include "Engine/LevelStreaming.h"
+#include "Engine/World.h"
 #include "LevelUtils.h"
 #include "UObject/ScriptInterface.h"
 #include "WorldPartition/HLOD/DestructibleHLODComponent.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
-#include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODDestruction)
-
-#if !WITH_EDITOR
-#include "Engine/World.h"
-#endif
 
 namespace
 {
@@ -22,8 +18,7 @@ namespace
 	{
 		const ULevel* ActorLevel = InActor->GetLevel();
 		const ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(ActorLevel);
-		const UWorldPartitionLevelStreamingDynamic* LevelStreamingDynamic = Cast<UWorldPartitionLevelStreamingDynamic>(LevelStreaming);
-		return LevelStreamingDynamic ? LevelStreamingDynamic->GetWorldPartitionRuntimeCell() : nullptr;
+		return LevelStreaming ? Cast<UWorldPartitionRuntimeCell>(LevelStreaming->GetWorldPartitionCell()) : nullptr;
 	}
 
 	static FWorldPartitionHLODDestructionTag ResolveHLODDestructionTagForActor(AActor* InActor)
