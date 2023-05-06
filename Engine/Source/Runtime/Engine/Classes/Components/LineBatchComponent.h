@@ -37,9 +37,6 @@ struct FBatchedLine
 
 	UPROPERTY()
 	uint8 DepthPriority;
-	
-	UPROPERTY()
-	bool bIsVisible;
 
 	UPROPERTY()
 	uint32 BatchID;
@@ -51,17 +48,15 @@ struct FBatchedLine
 		, Thickness(0)
 		, RemainingLifeTime(0)
 		, DepthPriority(0)
-		, bIsVisible(true)
 		, BatchID(0)
 	{}
-	FBatchedLine(const FVector& InStart, const FVector& InEnd, const FLinearColor& InColor, float InLifeTime, float InThickness, uint8 InDepthPriority, uint32 InBatchID = 0, bool bInVisible = true)
+	FBatchedLine(const FVector& InStart, const FVector& InEnd, const FLinearColor& InColor, float InLifeTime, float InThickness, uint8 InDepthPriority, uint32 InBatchID = 0)
 		:	Start(InStart)
 		,	End(InEnd)
 		,	Color(InColor)
 		,	Thickness(InThickness)
 		,	RemainingLifeTime(InLifeTime)
 		,	DepthPriority(InDepthPriority)
-		,	bIsVisible(bInVisible)
 		,	BatchID(InBatchID)
 	{}
 };
@@ -85,9 +80,6 @@ struct FBatchedPoint
 
 	UPROPERTY()
 	uint8 DepthPriority;
-
-	UPROPERTY()
-	bool bIsVisible;
 	
 	UPROPERTY()
 	uint32 BatchID;
@@ -98,16 +90,14 @@ struct FBatchedPoint
 		, PointSize(0)
 		, RemainingLifeTime(0)
 		, DepthPriority(0)
-		, bIsVisible(true)
 		, BatchID(0)
 	{}
-	FBatchedPoint(const FVector& InPosition, const FLinearColor& InColor, float InPointSize, float InLifeTime, uint8 InDepthPriority, uint32 InBatchID = 0, bool bInVisible = true)
+	FBatchedPoint(const FVector& InPosition, const FLinearColor& InColor, float InPointSize, float InLifeTime, uint8 InDepthPriority, uint32 InBatchID = 0)
 		:	Position(InPosition)
 		,	Color(InColor)
 		,	PointSize(InPointSize)
 		,	RemainingLifeTime(InLifeTime)
 		,	DepthPriority(InDepthPriority)
-		,	bIsVisible(bInVisible)
 		,	BatchID(InBatchID)
 	{}
 };
@@ -120,9 +110,9 @@ struct FBatchedMesh
 	 * MeshVerts - linear array of world space vertex positions
 	 * MeshIndices - array of indices into MeshVerts.  Each triplet is a tri.  i.e. [0,1,2] is first tri, [3,4,5] is 2nd tri, etc
 	 */
-	FBatchedMesh(TArray<FVector> const& InMeshVerts, TArray<int32> const& InMeshIndices, FColor const& InColor, uint8 InDepthPriority, float LifeTime, uint32 InBatchID = 0, bool bInVisible = true)
+	FBatchedMesh(TArray<FVector> const& InMeshVerts, TArray<int32> const& InMeshIndices, FColor const& InColor, uint8 InDepthPriority, float LifeTime, uint32 InBatchID = 0)
 		: MeshVerts(InMeshVerts), MeshIndices(InMeshIndices), 
-		  Color(InColor), RemainingLifeTime(LifeTime), DepthPriority(InDepthPriority), bIsVisible(bInVisible), BatchID(InBatchID)
+		  Color(InColor), RemainingLifeTime(LifeTime), DepthPriority(InDepthPriority), BatchID(InBatchID)
 	{}
 
 	TArray<FVector> MeshVerts;
@@ -130,7 +120,6 @@ struct FBatchedMesh
 	FColor Color;
 	float RemainingLifeTime = 0.f;
 	uint8 DepthPriority = 0;
-	bool bIsVisible = true;
 	uint32 BatchID = 0;
 };
 
@@ -153,8 +142,6 @@ class ULineBatchComponent : public UPrimitiveComponent
 	TArray<FBatchedMesh> BatchedMeshes;
 	/** Whether to calculate a tight accurate bounds (encompassing all points), or use a giant bounds that is fast to compute. */
 	uint32 bCalculateAccurateBounds:1;
-	/** Whether this has some hidden lines */
-	uint32 bHasHiddenLines:1;
 
 	/** Defines the value for an invalid id */
 	static constexpr uint32 INVALID_ID = 0;
@@ -163,34 +150,34 @@ class ULineBatchComponent : public UPrimitiveComponent
 	ENGINE_API void DrawLines(TArrayView<FBatchedLine> InLines);
 
 	/** Draw a box */
-	ENGINE_API void DrawBox(const FBox& Box, const FMatrix& TM, FLinearColor Color, uint8 InDepthPriorityGroup, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawBox(const FBox& Box, const FMatrix& TM, FLinearColor Color, uint8 InDepthPriorityGroup, uint32 BatchID = INVALID_ID);
 
 	/** Draw a box */
-	ENGINE_API void DrawBox(const FVector& Center, const FVector& Box, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawBox(const FVector& Center, const FVector& Box, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID);
 	
 	/** Draw a box */
-	ENGINE_API void DrawBox(const FVector& Center, const FVector& Box, const FQuat& Rotation, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawBox(const FVector& Center, const FVector& Box, const FQuat& Rotation, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID);
 
 	/** Draw an arrow */
-	ENGINE_API void DrawDirectionalArrow(const FMatrix& ArrowToWorld, FLinearColor InColor, float Length, float ArrowSize, uint8 DepthPriority, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawDirectionalArrow(const FMatrix& ArrowToWorld, FLinearColor InColor, float Length, float ArrowSize, uint8 DepthPriority, uint32 BatchID = INVALID_ID);
 
 	/** Draw an arrow */
-	ENGINE_API void DrawDirectionalArrow(const FVector& LineStart, const FVector& LineEnd, float ArrowSize, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawDirectionalArrow(const FVector& LineStart, const FVector& LineEnd, float ArrowSize, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID);
 
 	/** Draw a circle */
-	ENGINE_API void DrawCircle(const FVector& Base, const FVector& X, const FVector& Y, FLinearColor Color, float Radius, int32 NumSides, uint8 DepthPriority, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawCircle(const FVector& Base, const FVector& X, const FVector& Y, FLinearColor Color, float Radius, int32 NumSides, uint8 DepthPriority, uint32 BatchID = INVALID_ID);
 
 	/** Draw a sphere */
-	ENGINE_API void DrawSphere(const FVector& Center, float Radius, int32 Segments, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawSphere(const FVector& Center, float Radius, int32 Segments, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID);
 
 	/** Draw a cylinder */
-	ENGINE_API void DrawCylinder(const FVector& Start, const FVector& End, float Radius, int32 Segments, FLinearColor  Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawCylinder(const FVector& Start, const FVector& End, float Radius, int32 Segments, FLinearColor  Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID);
 
 	/** Draw a cone */
-	ENGINE_API void DrawCone(const FVector& Origin, const FVector& Direction, float Length, float AngleWidth, float AngleHeight, int32 NumSides, FLinearColor DrawColor, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawCone(const FVector& Origin, const FVector& Direction, float Length, float AngleWidth, float AngleHeight, int32 NumSides, FLinearColor DrawColor, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID);
 
 	/** Draw a cone */
-	ENGINE_API void DrawCapsule(const FVector& Center, float HalfHeight, float Radius, const FQuat& Rotation, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawCapsule(const FVector& Center, float HalfHeight, float Radius, const FQuat& Rotation, FLinearColor Color, float LifeTime, uint8 DepthPriority, float Thickness, uint32 BatchID = INVALID_ID);
 
 	ENGINE_API virtual void DrawLine(
 		const FVector& Start,
@@ -199,8 +186,7 @@ class ULineBatchComponent : public UPrimitiveComponent
 		uint8 DepthPriority,
 		float Thickness = 0.0f,
 		float LifeTime = 0.0f,
-		uint32 BatchID = INVALID_ID,
-		bool bIsVisible = true
+		uint32 BatchID = INVALID_ID
 		);
 	ENGINE_API virtual void DrawPoint(
 		const FVector& Position,
@@ -208,14 +194,13 @@ class ULineBatchComponent : public UPrimitiveComponent
 		float PointSize,
 		uint8 DepthPriority,
 		float LifeTime = 0.0f,
-		uint32 BatchID = INVALID_ID,
-		bool bIsVisible = true
+		uint32 BatchID = INVALID_ID
 		);
 
 	/** Draw a box */
-	ENGINE_API void DrawSolidBox(FBox const& Box, FTransform const& Xform, const FColor& Color, uint8 DepthPriority, float LifeTime, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawSolidBox(FBox const& Box, FTransform const& Xform, const FColor& Color, uint8 DepthPriority, float LifeTime, uint32 BatchID = INVALID_ID);
 	/** Draw a mesh */
-	ENGINE_API void DrawMesh(TArray<FVector> const& Verts, TArray<int32> const& Indices, FColor const& Color, uint8 DepthPriority, float LifeTime, uint32 BatchID = INVALID_ID, bool bIsVisible = true);
+	ENGINE_API void DrawMesh(TArray<FVector> const& Verts, TArray<int32> const& Indices, FColor const& Color, uint8 DepthPriority, float LifeTime, uint32 BatchID = INVALID_ID);
 
 	//~ Begin UPrimitiveComponent Interface.
 	ENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
@@ -234,13 +219,7 @@ class ULineBatchComponent : public UPrimitiveComponent
 	/** Remove batched lines, points and meshes with given ID */
 	ENGINE_API void ClearBatch(uint32 InBatchID);
 	
-	/** Set batched lines, points and meshes with given ID visible or hidden*/
-	ENGINE_API void SetBatchVisible(uint32 InBatchID, bool bInVisible);
-	
-	/** Set all batched lines, points and meshes visible or hidden*/
-	ENGINE_API void SetVisible(bool bInVisible);
-
 protected:
-	void AddHalfCircle(const FVector& Base, const FVector& X, const FVector& Y, const FLinearColor& Color, const float Radius, int32 NumSides, const float LifeTime, uint8 DepthPriority, const float Thickness, const uint32 BatchID, bool bIsVisible);
-	void AddCircle(const FVector& Base, const FVector& X, const FVector& Y, const FLinearColor& Color, const float Radius, int32 NumSides, const float LifeTime, uint8 DepthPriority, const float Thickness, const uint32 BatchID, bool bIsVisible);
+	void AddHalfCircle(const FVector& Base, const FVector& X, const FVector& Y, const FLinearColor& Color, const float Radius, int32 NumSides, const float LifeTime, uint8 DepthPriority, const float Thickness, const uint32 BatchID);
+	void AddCircle(const FVector& Base, const FVector& X, const FVector& Y, const FLinearColor& Color, const float Radius, int32 NumSides, const float LifeTime, uint8 DepthPriority, const float Thickness, const uint32 BatchID);
 };
