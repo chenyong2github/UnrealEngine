@@ -13,7 +13,7 @@ namespace Horde.Commands.Bundles
 	[Command("bundle", "dump", "Dumps the contents of a bundle")]
 	internal class BundleDump : Command
 	{
-		[CommandLine("-Input=")]
+		[CommandLine("-Input=", Required = true)]
 		public FileReference Input { get; set; } = null!;
 
 		[CommandLine("-Verbose")]
