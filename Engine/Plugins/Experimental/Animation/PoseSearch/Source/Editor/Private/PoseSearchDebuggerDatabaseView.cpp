@@ -393,6 +393,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 				SHeaderRow::FColumn::FArguments ColumnArgs = SHeaderRow::FColumn::FArguments()
 					.ColumnId(Column.ColumnId)
 					.DefaultLabel(Column.GetLabel())
+					.DefaultTooltip(Column.GetLabelTooltip())
 					.SortMode(this, &SDebuggerDatabaseView::GetColumnSortMode, Column.ColumnId)
 					.OnSort(this, &SDebuggerDatabaseView::OnColumnSortModeChanged)
 					.FillWidth(this, &SDebuggerDatabaseView::GetColumnWidth, Column.ColumnId)
@@ -431,14 +432,11 @@ EColumnSortMode::Type SDebuggerDatabaseView::GetColumnSortMode(const FName Colum
 
 float SDebuggerDatabaseView::GetColumnWidth(const FName ColumnId) const
 {
-	check(Columns.Find(ColumnId));
-
 	return Columns[ColumnId]->Width;
 }
 
 void SDebuggerDatabaseView::OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName & ColumnId, const EColumnSortMode::Type InSortMode)
 {
-	check(Columns.Find(ColumnId));
 	SortColumn = ColumnId;
 	SortMode = InSortMode;
 	SortDatabaseRows();
@@ -447,8 +445,6 @@ void SDebuggerDatabaseView::OnColumnSortModeChanged(const EColumnSortPriority::T
 
 void SDebuggerDatabaseView::OnColumnWidthChanged(const float NewWidth, FName ColumnId) const
 {
-	check(Columns.Find(ColumnId));
-	
 	Columns[ColumnId]->Width = NewWidth;
 }
 

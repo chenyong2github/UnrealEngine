@@ -44,7 +44,8 @@ struct IColumn : TSharedFromThis<IColumn>
 	bool bEnabled = false;
 
 	virtual FText GetLabel() const = 0;
-
+	virtual FText GetLabelTooltip() const { return GetLabel(); }
+	
 	using FRowDataRef = TSharedRef<FDebuggerDatabaseRowData>;
 	using FSortPredicate = TFunction<bool(const FRowDataRef&, const FRowDataRef&)>;
 
@@ -96,6 +97,11 @@ struct FPoseIdx : ITextColumn
 		return LOCTEXT("ColumnLabelPoseIndex", "Index");
 	}
 
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipPoseIndex", "Index of the Pose in the Database");
+	}
+
 	virtual FSortPredicate GetSortPredicate() const override
 	{
 		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseIdx < Row1->PoseIdx; };
@@ -120,6 +126,11 @@ struct FDatabaseName : IColumn
 	virtual FText GetLabel() const override
 	{
 		return LOCTEXT("ColumnLabelDatabaseName", "Database");
+	}
+
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipDatabaseName", "Database Name");
 	}
 
 	virtual FSortPredicate GetSortPredicate() const override
@@ -190,7 +201,12 @@ struct FAssetName : IColumn
 	{
 		return LOCTEXT("ColumnLabelAssetName", "Asset");
 	}
-		
+	
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipAssetName", "Animation Asset Name");
+	}
+
 	virtual FSortPredicate GetSortPredicate() const override
 	{
 		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AssetName < Row1->AssetName; };
@@ -259,7 +275,12 @@ struct FFrame : ITextColumn
 	{
 		return LOCTEXT("ColumnLabelFrame", "Frame");
 	}
-		
+	
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipFrame", "Frame number from the start of the Animation Asset");
+	}
+
 	virtual FSortPredicate GetSortPredicate() const override
 	{
 		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AnimFrame < Row1->AnimFrame; };
@@ -278,6 +299,11 @@ struct FTime : ITextColumn
 	virtual FText GetLabel() const override
 	{
 		return LOCTEXT("ColumnLabelTime", "Time");
+	}
+
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipTime", "Time in seconds from the start of the Animation Asset");
 	}
 
 	virtual FSortPredicate GetSortPredicate() const override
@@ -300,6 +326,11 @@ struct FPercentage : ITextColumn
 		return LOCTEXT("ColumnLabelPercentage", "Percentage");
 	}
 
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipPercentage", "Time in percentage from the start of the Animation Asset");
+	}
+
 	virtual FSortPredicate GetSortPredicate() const override
 	{
 		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->AnimPercentage < Row1->AnimPercentage; };
@@ -319,7 +350,12 @@ struct FCost : ITextColumn
 	{
 		return LOCTEXT("ColumnLabelCost", "Cost");
 	}
-		
+	
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipCost", "Total Cost of the associated Pose");
+	}
+
 	virtual FSortPredicate GetSortPredicate() const override
 	{
 		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCost < Row1->PoseCost; };
@@ -355,6 +391,11 @@ struct FChannelBreakdownCostColumn : ITextColumn
 	virtual FText GetLabel() const override
 	{
 		return Label;
+	}
+
+	virtual FText GetLabelTooltip() const override
+	{
+		return FText::Format(LOCTEXT("ColumnLabelTooltipChannelBreakdownCost", "Breakdown Cost for the Channel '{0}'"), Label);
 	}
 
 	virtual FSortPredicate GetSortPredicate() const override
@@ -393,6 +434,11 @@ struct FCostModifier : ITextColumn
 		return LOCTEXT("ColumnLabelCostModifier", "Bias");
 	}
 
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipCostModifier", "Total Cost for all the Bias contributions");
+	}
+
 	virtual FSortPredicate GetSortPredicate() const override
 	{
 		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->PoseCost.GetCostAddend() < Row1->PoseCost.GetCostAddend(); };
@@ -411,6 +457,11 @@ struct FMirrored : ITextColumn
 	virtual FText GetLabel() const override
 	{
 		return LOCTEXT("ColumnLabelMirrored", "Mirror");
+	}
+
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipMirrored", "Mirror state of the associated Pose");
 	}
 
 	virtual FSortPredicate GetSortPredicate() const override
@@ -433,6 +484,11 @@ struct FLooping : ITextColumn
 		return LOCTEXT("ColumnLabelLooping", "Loop");
 	}
 
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipLooping", "Loop state of the associated Pose");
+	}
+
 	virtual FSortPredicate GetSortPredicate() const override
 	{
 		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->bLooping < Row1->bLooping; };
@@ -451,6 +507,11 @@ struct FBlendParameters : ITextColumn
 	virtual FText GetLabel() const override
 	{
 		return LOCTEXT("ColumnLabelBlendParams", "Blend Params");
+	}
+
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelBlendTooltipParams", "Blend Params used to sample the associated BlendSpace asset");
 	}
 
 	virtual FSortPredicate GetSortPredicate() const override
@@ -476,6 +537,11 @@ struct FPoseCandidateFlags : ITextColumn
 	virtual FText GetLabel() const override
 	{
 		return LOCTEXT("ColumnLabelPoseCandidateFlags", "Flags");
+	}
+
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipPoseCandidateFlags", "Flags indicating why a Pose has been discarded");
 	}
 
 	virtual FSortPredicate GetSortPredicate() const override
