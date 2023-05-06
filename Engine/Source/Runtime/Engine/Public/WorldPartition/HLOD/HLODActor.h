@@ -23,7 +23,7 @@ class ENGINE_API AWorldPartitionHLOD : public AActor
 public:
 	void SetVisibility(bool bInVisible);
 
-	inline FGuid GetSourceCellGuid() const { return SourceCellGuid; }
+	const FGuid& GetSourceCellGuid() const;
 	inline uint32 GetLODLevel() const { return LODLevel; }
 
 	virtual bool IsHLODRelevant() const override { return true; }

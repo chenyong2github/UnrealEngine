@@ -74,6 +74,21 @@ AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitial
 #endif
 }
 
+const FGuid& AWorldPartitionHLOD::GetSourceCellGuid() const
+{
+	// When no source cell guid was set, try resolving it through its associated world partition runtime cell
+	// This is necessary for any HLOD actor part of a level that is instanced multiple times (shared amongst multiple cells)
+	if (!SourceCellGuid.IsValid())
+	{
+		const UWorldPartitionRuntimeCell* Cell = Cast<UWorldPartitionRuntimeCell>(GetLevel()->GetWorldPartitionRuntimeCell());
+		if (Cell && Cell->GetIsHLOD())
+		{
+			const_cast<AWorldPartitionHLOD*>(this)->SourceCellGuid = Cell->GetSourceCellGuid();
+		}
+	}
+	return SourceCellGuid;
+}
+
 void AWorldPartitionHLOD::SetVisibility(bool bInVisible)
 {
 	ForEachComponent<USceneComponent>(false, [bInVisible](USceneComponent* SceneComponent)

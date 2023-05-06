@@ -241,15 +241,17 @@ class ENGINE_API UWorldPartitionRuntimeCell : public UObject, public IWorldParti
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UPackage*>& OutModifiedPackages) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratedPackageForCook, return false;);
 	virtual FString GetPackageNameToCreate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetPackageNameToCreate, return FString(""););
 
-	void SetIsHLOD(bool bInIsHLOD) { bIsHLOD = bInIsHLOD; }
-
 	virtual void DumpStateLog(FHierarchicalLogArchive& Ar);
 #endif
-	
+
+	void SetIsHLOD(bool bInIsHLOD) { bIsHLOD = bInIsHLOD; }
 	bool GetIsHLOD() const { return bIsHLOD; }
 	
-	FGuid GetGuid() const { return CellGuid; }
+	const FGuid& GetGuid() const { return CellGuid; }
 	void SetGuid(const FGuid& InCellGuid) { CellGuid = InCellGuid; }
+
+	const FGuid& GetSourceCellGuid() const { return SourceCellGuid; }
+	void SetSourceCellGuid(const FGuid& InSourceCellGuid) { SourceCellGuid = InSourceCellGuid; }
 
 #if !UE_BUILD_SHIPPING
 	void SetDebugStreamingPriority(float InDebugStreamingPriority) { DebugStreamingPriority = InDebugStreamingPriority; }
@@ -289,6 +291,10 @@ private:
 protected:
 	UPROPERTY()
 	FGuid CellGuid;
+
+	// Used by injected HLOD cells
+	UPROPERTY()
+	FGuid SourceCellGuid;
 
 #if !UE_BUILD_SHIPPING
 	// Represents the streaming priority relative to other cells
