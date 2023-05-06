@@ -11,7 +11,7 @@ using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Vcs
+namespace Horde.Commands.Vcs
 {
 	[Command("vcs", "commit", "Commits data to the VCS store")]
 	class VcsCommit : VcsBase

@@ -11,7 +11,7 @@ using EpicGames.Perforce;
 using EpicGames.Perforce.Managed;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Workspace
+namespace Horde.Commands.Workspace
 {
 	abstract class WorkspaceBase : Command
 	{

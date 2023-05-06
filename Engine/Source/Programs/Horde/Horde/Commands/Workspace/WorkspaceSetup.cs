@@ -8,19 +8,23 @@ using EpicGames.Perforce;
 using EpicGames.Perforce.Managed;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Workspace
+namespace Horde.Commands.Workspace
 {
-	[Command("workspace", "revert", "Revert all files that are open in the current workspace. Does not replace them with valid revisions.")]
-	class WorkspaceRevert : WorkspaceBase
+	[Command("workspace", "setup", "Creates or updates a client to use a given stream")]
+	class WorkspaceSetup : WorkspaceBase
 	{
 		[CommandLine("-Client=", Required = true)]
-		[Description("Client to revert all files for")]
+		[Description("Name of the client to create")]
 		string ClientName { get; set; } = null!;
+
+		[CommandLine("-Stream=", Required = true)]
+		[Description("Name of the stream to configure")]
+		string StreamName { get; set; } = null!;
 
 		protected override async Task ExecuteAsync(IPerforceConnection perforce, ManagedWorkspace repo, ILogger logger)
 		{
 			using IPerforceConnection perforceClient = await perforce.WithClientAsync(ClientName);
-			await repo.RevertAsync(perforceClient, CancellationToken.None);
+			await repo.SetupAsync(perforceClient, StreamName, CancellationToken.None);
 		}
 	}
 }

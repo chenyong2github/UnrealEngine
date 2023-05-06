@@ -12,7 +12,7 @@ using EpicGames.Horde.Storage.Nodes;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Vcs
+namespace Horde.Commands.Vcs
 {
 	abstract class VcsBase : Command
 	{

@@ -71,6 +71,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.OIDC", "..\Shared
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RemoteWorkerCpp", "Samples\RemoteWorkerCpp\RemoteWorkerCpp.vcxproj", "{621C79B1-1C58-40BD-8095-62AADD1DC3D5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Horde", "Horde\Horde.csproj", "{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Analyze|Any CPU = Analyze|Any CPU
@@ -295,6 +297,14 @@ Global
 		{621C79B1-1C58-40BD-8095-62AADD1DC3D5}.Development|Any CPU.Build.0 = Debug|x64
 		{621C79B1-1C58-40BD-8095-62AADD1DC3D5}.Release|Any CPU.ActiveCfg = Release|x64
 		{621C79B1-1C58-40BD-8095-62AADD1DC3D5}.Release|Any CPU.Build.0 = Release|x64
+		{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}.Analyze|Any CPU.ActiveCfg = Debug|Any CPU
+		{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}.Analyze|Any CPU.Build.0 = Debug|Any CPU
+		{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}.Development|Any CPU.ActiveCfg = Debug|Any CPU
+		{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}.Development|Any CPU.Build.0 = Debug|Any CPU
+		{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1995E4FA-DFFF-44BD-A4C8-C2E59D07E468}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

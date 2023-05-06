@@ -10,7 +10,7 @@ using EpicGames.Perforce;
 using EpicGames.Perforce.Managed;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Workspace
+namespace Horde.Commands.Workspace
 {
 	[Command("workspace", "populatecache", "Populates the cache with the head revision of the given streams")]
 	class WorkspacePopulateCache : WorkspaceBase

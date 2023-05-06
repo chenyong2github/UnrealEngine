@@ -6,12 +6,13 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Nodes;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Bundles
+namespace Horde.Commands.Bundles
 {
-	[Command("bundle", "create", "Creates a bundle from a folder on the local hard drive")]
-	class BundleCreate : Command
+	[Command("bundle", "extract", "Extracts data from a bundle to the local hard drive")]
+	internal class BundleExtract : Command
 	{
 		[CommandLine("-Namespace=", Description = "Namespace to use for storage")]
 		public NamespaceId NamespaceId { get; set; } = new NamespaceId("default");
@@ -19,12 +20,12 @@ namespace Horde.Agent.Commands.Bundles
 		[CommandLine("-Ref=")]
 		public RefName RefName { get; set; } = new RefName("default-bundle");
 
-		[CommandLine("-InputDir=", Required = true)]
-		public DirectoryReference InputDir { get; set; } = null!;
+		[CommandLine("-OutputDir=", Required = true)]
+		public DirectoryReference OutputDir { get; set; } = null!;
 
 		readonly IStorageClientFactory _storageClientFactory;
 
-		public BundleCreate(IStorageClientFactory storageClientFactory)
+		public BundleExtract(IStorageClientFactory storageClientFactory)
 		{
 			_storageClientFactory = storageClientFactory;
 		}
@@ -33,18 +34,15 @@ namespace Horde.Agent.Commands.Bundles
 		{
 			IStorageClient store = await _storageClientFactory.GetClientAsync(NamespaceId);
 
-			using TreeWriter writer = new TreeWriter(store, prefix: RefName.Text);
-
-			DirectoryNode node = new DirectoryNode(DirectoryFlags.None);
+			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
+			TreeReader reader = new TreeReader(store, cache, logger);
 
 			Stopwatch timer = Stopwatch.StartNew();
 
-			ChunkingOptions options = new ChunkingOptions();
-			await node.CopyFromDirectoryAsync(InputDir.ToDirectoryInfo(), options, writer, null, CancellationToken.None);
+			DirectoryNode node = await reader.ReadNodeAsync<DirectoryNode>(RefName);
+			await node.CopyToDirectoryAsync(reader, OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
-			await writer.WriteAsync(RefName, node);
-
-			logger.LogInformation("Time: {Time}", timer.Elapsed.TotalSeconds);
+			logger.LogInformation("Elapsed: {Time}s", timer.Elapsed.TotalSeconds);
 			return 0;
 		}
 	}

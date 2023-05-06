@@ -7,7 +7,7 @@ using EpicGames.Perforce;
 using EpicGames.Perforce.Managed;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Workspace
+namespace Horde.Commands.Workspace
 {
 	[Command("workspace", "repaircache", "Checks the integrity of the cache, and removes any invalid files")]
 	class WorkspaceRepair : WorkspaceBase

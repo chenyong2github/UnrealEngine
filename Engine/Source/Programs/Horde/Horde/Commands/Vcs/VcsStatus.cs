@@ -5,7 +5,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Vcs
+namespace Horde.Commands.Vcs
 {
 	[Command("vcs", "status", "Find status of local files")]
 	class VcsStatus : VcsBase

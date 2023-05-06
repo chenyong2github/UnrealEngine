@@ -8,7 +8,7 @@ using EpicGames.Horde.Storage.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Vcs
+namespace Horde.Commands.Vcs
 {
 	[Command("vcs", "log", "Print a history of commits")]
 	class VcsLog : VcsBase

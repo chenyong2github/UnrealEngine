@@ -8,7 +8,7 @@ using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Commands.Bundles
+namespace Horde.Commands.Bundles
 {
 	[Command("bundle", "dump", "Dumps the contents of a bundle")]
 	internal class BundleDump : Command
