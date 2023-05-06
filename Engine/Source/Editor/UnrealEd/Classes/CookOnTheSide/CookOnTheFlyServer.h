@@ -999,9 +999,6 @@ private:
 	/** Write a MapDependencyGraph to a metadata file in the sandbox for the given platform. */
 	void WriteMapDependencyGraph(const ITargetPlatform* TargetPlatform, TMap<FName, TSet<FName>>& MapDependencyGraph);
 
-	/** Generates the CachedEditorThumbnails.bin file */
-	void GenerateCachedEditorThumbnails();
-
 	void InitializeAllCulturesToCook(TConstArrayView<FString> CookCultures);
 	void CompileDLCLocalization(FBeginCookContext& BeginContext);
 	/** Find localization dependencies for all packages, used to add required localization files as soft references. */
@@ -1204,12 +1201,9 @@ private:
 	 * 
 	 * @return full path of the asset registry in the sandbox
 	 */
-	FString GetSandboxAssetRegistryFilename();
+	const FString GetSandboxAssetRegistryFilename();
 
-	FString GetCookedAssetRegistryFilename(const FString& PlatformName);
-
-	/* @return Full path of the CachedEditorThumbnails.bin file in the sandbox */
-	FString GetSandboxCachedEditorThumbnailsFilename();
+	const FString GetCookedAssetRegistryFilename(const FString& PlatformName);
 
 	/**
 	 * Get the sandbox root directory for that platform. Is effected by the CookingDlc settings.
