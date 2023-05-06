@@ -12,8 +12,10 @@
 #include "SmartObjectSubsystem.h"
 #include "UObject/SavePackage.h"
 
+#include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
+#include "WorldPartition/ActorDescContainer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionSmartObjectCollectionBuilder)
 
@@ -72,26 +74,24 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PreRun(UWorld* World, FPackage
 	}
 
 	// parse the actors meta data to find the ones that contain smart objects
-	TArray<FGuid> ExistingActorGUIDs;
-	TArray<AActor*> ExistingActorInstances;
 	TArray<USmartObjectComponent*> ExistingSOComponents;
-	FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, AActor::StaticClass(), [&ExistingActorGUIDs, &ExistingSOComponents](const FWorldPartitionActorDesc* ActorDesc)
+	FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, AActor::StaticClass(), [this, WorldPartition, &ExistingSOComponents](const FWorldPartitionActorDesc* ActorDesc)
+	{
+		if (ActorDesc->GetTags().Contains(UE::SmartObjects::WithSmartObjectTag)
+			&& ActorDesc->GetDataLayers().Num() > 0)
 		{
-			if (ActorDesc->GetTags().Contains(UE::SmartObjects::WithSmartObjectTag)
-				&& ActorDesc->GetDataLayers().Num() > 0)
+			FWorldPartitionReference& ActorReference = SmartObjectReferences.Emplace_GetRef(WorldPartition, ActorDesc->GetGuid());
+			if (AActor* Actor = ActorReference->GetActor())
 			{
-				ExistingActorGUIDs.Add(ActorDesc->GetGuid());
-				if (AActor* Actor = ActorDesc->Load())
+				if (USmartObjectComponent* SOComponent = Actor->GetComponentByClass<USmartObjectComponent>())
 				{
-					if (USmartObjectComponent* SOComponent = Actor->GetComponentByClass<USmartObjectComponent>())
-					{
-						ExistingSOComponents.Add(SOComponent);
-					}
+					ExistingSOComponents.Add(SOComponent);
 				}
 			}
+		}
 
-			return true;
-		});
+		return true;
+	});
 
 	// manually register smart objects what we found via the meta data
 	for (USmartObjectComponent* SOComponent : ExistingSOComponents)
@@ -229,6 +229,9 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackag
 			}
 		}
 	}
+	
+	// unload the actors that contain smart objects
+	SmartObjectReferences.Empty();
 
 	return (bErrorsEncountered == false);
 }

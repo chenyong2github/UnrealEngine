@@ -3,6 +3,7 @@
 #pragma once
 
 #include "WorldPartition/WorldPartitionBuilder.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartitionSmartObjectCollectionBuilder.generated.h"
 
 class ASmartObjectPersistentCollection;
@@ -31,6 +32,8 @@ protected:
 	uint32 NumSmartObjectsTotal = 0;
 
 	bool bRemoveEmptyCollections = false;
+
+	TArray<FWorldPartitionReference> SmartObjectReferences;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
