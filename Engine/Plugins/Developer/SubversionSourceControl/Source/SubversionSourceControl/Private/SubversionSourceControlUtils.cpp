@@ -684,38 +684,33 @@ void ParseStatusResults(const TArray<FXmlFile>& ResultsXml, const TArray<FString
 								IFileManager::Get().FindFiles( Filenames, *WildCard, true /*=Files*/, false /*=Directories*/ );
 								if( Filenames.Num() == 2 )
 								{
-									int MergeBaseFileRevNumber;
 									{
 										// This is just a guess, we'll swap filenames if it turns out that Filenames[0] is actually
 										// the conflicting file:
-										FString PendingMergeBaseFile = Filenames[0];
-										FString PendingMergeConflictingFile = Filenames[1];
+										State.PendingResolveInfo.BaseFile = Filenames[0];
+										State.PendingResolveInfo.RemoteFile = Filenames[1];
 
 										// Helper function to find the filename with the lower .r###:
-										const auto EndingToInt = [](const FString& FileName)
+										const auto SplitFileAndRev = [](FString& InOutFilename, FString& OutRevision)
 										{
 											int32 Idx = -1;
-											const bool found = FileName.FindLastChar('r', Idx);
+											const bool found = InOutFilename.FindLastChar('r', Idx);
 											check(found); // regex failed, Filenames should only contain files that end in .r*
-											int32 RetVal = -1;
-											TTypeFromString<int>::FromString(RetVal, &FileName[Idx + 1]);
-											return RetVal;
+											OutRevision = InOutFilename.RightChop(Idx + 1);
+											InOutFilename.LeftInline(Idx - 1);
 										};
-										int FirstFile = EndingToInt(PendingMergeBaseFile);
-										int SecondFile = EndingToInt(PendingMergeConflictingFile);
-										check(FirstFile != SecondFile);
-										if (FirstFile > SecondFile)
+										
+										SplitFileAndRev(State.PendingResolveInfo.BaseFile, State.PendingResolveInfo.BaseRevision);
+										SplitFileAndRev(State.PendingResolveInfo.RemoteFile, State.PendingResolveInfo.RemoteRevision);
+										
+										check(State.PendingResolveInfo.BaseRevision != State.PendingResolveInfo.RemoteRevision);
+										if (State.PendingResolveInfo.BaseRevision > State.PendingResolveInfo.RemoteRevision)
 										{
 											// Guessed wrong, swap our decision!
-											Swap(PendingMergeBaseFile, PendingMergeConflictingFile);
-											Swap(FirstFile, SecondFile);
+											Swap(State.PendingResolveInfo.BaseFile, State.PendingResolveInfo.RemoteFile);
+											Swap(State.PendingResolveInfo.BaseRevision, State.PendingResolveInfo.RemoteRevision);
 										}
-
-										MergeBaseFileRevNumber = FirstFile;
 									}
-
-									// Save the result, this information can be used to perform a merge operation:
-									State.PendingMergeBaseFileRevNumber = MergeBaseFileRevNumber;
 
 									// For the file into a 'locked' state, since it's in conflict, if we don't do
 									// this we can't perform a merge because of logic in the asset tools module:

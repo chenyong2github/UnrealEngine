@@ -59,9 +59,7 @@ public:
 		History = MoveTemp(InState.History);
 		LocalFilename = MoveTemp(InState.LocalFilename);
 		WorkspaceState = InState.WorkspaceState;
-		PendingMergeFilename = MoveTemp(InState.PendingMergeFilename);
-		PendingMergeBaseChangeset = InState.PendingMergeBaseChangeset;
-		PendingMergeSourceChangeset = InState.PendingMergeSourceChangeset;
+		PendingResolveInfo = MoveTemp(InState.PendingResolveInfo);
 		PendingMergeParameters = MoveTemp(InState.PendingMergeParameters);
 		// Update "fileinfo" information only if the command was issued
 		// Don't override "fileinfo" information in case of an optimized/lightweight "whole folder status" triggered by a global Submit Content or Refresh
@@ -97,8 +95,8 @@ public:
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetHistoryItem(int32 HistoryIndex) const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FindHistoryRevision(int32 RevisionNumber) const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FindHistoryRevision(const FString& InRevision) const override;
-	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetBaseRevForMerge() const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetCurrentRevision() const override;
+	virtual FResolveInfo GetResolveInfo() const override;
 	virtual FSlateIcon GetIcon() const override;
 	virtual FText GetDisplayName() const override;
 	virtual FText GetDisplayTooltip() const override;
@@ -137,13 +135,16 @@ public:
 	/** Depot and Server info (in the form repo@server:port) */
 	FString RepSpec;
 
-	/** Relative filename of the file in merge conflict */
+	/** Pending rev info with which a file must be resolved, invalid if no resolve pending */
+	FResolveInfo PendingResolveInfo;
+
+	UE_DEPRECATED(5.3, "Use PendingResolveInfo.BaseFile instead")
 	FString PendingMergeFilename;
 
-	/** Changeset with which our local revision diverged from the source/remote revision */
+	UE_DEPRECATED(5.3, "Use PendingResolveInfo.BaseRevision instead")
 	int32 PendingMergeBaseChangeset = INVALID_REVISION;
 
-	/** Changeset of the source/remote revision of the merge in progress */
+	UE_DEPRECATED(5.3, "Use PendingResolveInfo.RemoteRevision instead")
 	int32 PendingMergeSourceChangeset = INVALID_REVISION;
 
 	/** Plastic SCM Parameters of the merge in progress */

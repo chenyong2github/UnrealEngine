@@ -855,31 +855,6 @@ bool FPlasticUpdateStatusWorker::Execute(FPlasticSourceControlCommand& InCommand
 		{
 			// Get the history of the files (on all branches)
 			InCommand.bCommandSuccessful &= PlasticSourceControlUtils::RunGetHistory(Operation->ShouldUpdateHistory(), States, InCommand.ErrorMessages);
-
-			// Special case for conflicts
-			for (FPlasticSourceControlState& State : States)
-			{
-				if (State.IsConflicted())
-				{
-					// In case of a merge conflict, the Editor expects the tip of the "source (remote)" branch to be at the top of the history (index 0)
-					// as a way to represent the "merge in progress" in a 1D graph of the current branch "target (local)"
-					UE_LOG(LogSourceControl, Log, TEXT("%s: PendingMergeSourceChangeset %d"), *State.LocalFilename, State.PendingMergeSourceChangeset);
-					for (int32 IdxRevision = 0; IdxRevision < State.History.Num(); IdxRevision++)
-					{
-						const auto& Revision = State.History[IdxRevision];
-						if (Revision->ChangesetNumber == State.PendingMergeSourceChangeset)
-						{
-							// If the Source Changeset is not already at the top of the History, duplicate it there.
-							if (IdxRevision > 0)
-							{
-								const auto RevisionCopy = Revision;
-								State.History.Insert(RevisionCopy, 0);
-							}
-							break;
-						}
-					}
-				}
-			}
 		}
 		else
 		{
@@ -1089,9 +1064,9 @@ bool FPlasticResolveWorker::Execute(FPlasticSourceControlCommand& InCommand)
 		Parameters.Add(TEXT("--keepdestination"));
 
 		TArray<FString> OneFile;
-		OneFile.Add(State->PendingMergeFilename);
+		OneFile.Add(State->PendingResolveInfo.BaseFile);
 
-		UE_LOG(LogSourceControl, Log, TEXT("resolve %s"), *State->PendingMergeFilename);
+		UE_LOG(LogSourceControl, Log, TEXT("resolve %s"), *State->PendingResolveInfo.BaseFile);
 
 		// Mark the conflicted file as resolved
 		InCommand.bCommandSuccessful = PlasticSourceControlUtils::RunCommand(TEXT("merge"), Parameters, OneFile, InCommand.InfoMessages, InCommand.ErrorMessages);

@@ -746,11 +746,23 @@ public:
 	/** Parse the unmerge status: extract the base SHA1 identifier of the file */
 	FGitConflictStatusParser(const TArray<FString>& InResults)
 	{
-		const FString& FirstResult = InResults[0]; // 1: The common ancestor of merged branches
-		CommonAncestorFileId = FirstResult.Mid(7, 40);
+		const FString& CommonAncestor = InResults[0]; // 1: The common ancestor of merged branches
+		CommonAncestorFileId = CommonAncestor.Mid(7, 40);
+		CommonAncestorFilename = CommonAncestor.Right(50);
+
+		if (ensure(InResults.IsValidIndex(2)))
+		{
+			const FString& RemoteBranch = InResults[2]; // 1: The common ancestor of merged branches
+			RemoteFileId = RemoteBranch.Mid(7, 40);
+			RemoteFilename = RemoteBranch.Right(50);
+		}
 	}
 
 	FString CommonAncestorFileId;	///< SHA1 Id of the file (warning: not the commit Id)
+	FString RemoteFileId;		///< SHA1 Id of the file (warning: not the commit Id)
+
+	FString CommonAncestorFilename;
+	FString RemoteFilename;
 };
 
 /** Execute a command to get the details of a conflict */
@@ -767,7 +779,10 @@ static void RunGetConflictStatus(const FString& InPathToGitBinary, const FString
 	{
 		// Parse the unmerge status: extract the base revision (or the other branch?)
 		FGitConflictStatusParser ConflictStatus(Results);
-		InOutFileState.PendingMergeBaseFileHash = ConflictStatus.CommonAncestorFileId;
+		InOutFileState.PendingResolveInfo.BaseFile = ConflictStatus.CommonAncestorFilename;
+		InOutFileState.PendingResolveInfo.BaseRevision = ConflictStatus.CommonAncestorFileId;
+		InOutFileState.PendingResolveInfo.RemoteFile = ConflictStatus.RemoteFilename;
+		InOutFileState.PendingResolveInfo.RemoteRevision = ConflictStatus.RemoteFileId;
 	}
 }
 
@@ -1285,7 +1300,7 @@ bool UpdateCachedStates(const TArray<FGitSourceControlState>& InStates)
 		if(State->WorkingCopyState != InState.WorkingCopyState)
 		{
 			State->WorkingCopyState = InState.WorkingCopyState;
-			State->PendingMergeBaseFileHash = InState.PendingMergeBaseFileHash;
+			State->PendingResolveInfo = InState.PendingResolveInfo;
 		//	State->TimeStamp = InState.TimeStamp; // @todo Bug report: Workaround a bug with the Source Control Module not updating file state after a "Save"
 			NbStatesUpdated++;
 		}

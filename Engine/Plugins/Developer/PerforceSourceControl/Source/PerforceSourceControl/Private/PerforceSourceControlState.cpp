@@ -8,6 +8,14 @@
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl.State"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FPerforceSourceControlState::FPerforceSourceControlState() = default;
+FPerforceSourceControlState::FPerforceSourceControlState(const FPerforceSourceControlState& Other) = default;
+FPerforceSourceControlState::FPerforceSourceControlState(FPerforceSourceControlState&& Other) noexcept = default;
+FPerforceSourceControlState& FPerforceSourceControlState::operator=(const FPerforceSourceControlState& Other) = default;
+FPerforceSourceControlState& FPerforceSourceControlState::operator=(FPerforceSourceControlState&& Other) noexcept = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 int32 FPerforceSourceControlState::GetHistorySize() const
 {
 	return History.Num();
@@ -75,16 +83,6 @@ FSourceControlChangelistPtr FPerforceSourceControlState::GetCheckInIdentifier() 
 	return MakeShared<FPerforceSourceControlChangelist>(Changelist);
 }
 
-TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceControlState::GetBaseRevForMerge() const
-{
-	if (PendingResolveRevNumber == INVALID_REVISION)
-	{
-		return nullptr;
-	}
-
-	return FindHistoryRevision(PendingResolveRevNumber);
-}
-
 TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceControlState::GetCurrentRevision() const
 {
 	if (LocalRevNumber == INVALID_REVISION)
@@ -93,6 +91,11 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceCon
 	}
 
 	return FindHistoryRevision(LocalRevNumber);
+}
+
+ISourceControlState::FResolveInfo FPerforceSourceControlState::GetResolveInfo() const
+{
+	return PendingResolveInfo;
 }
 
 FSlateIcon FPerforceSourceControlState::GetIcon() const
@@ -345,11 +348,6 @@ bool FPerforceSourceControlState::CanAdd() const
 	return State == EPerforceState::NotInDepot;
 }
 
-bool FPerforceSourceControlState::IsConflicted() const
-{
-	return PendingResolveRevNumber != INVALID_REVISION;
-}
-
 bool FPerforceSourceControlState::CanRevert() const
 {
 	return IsCheckedOut() || IsAdded();
@@ -389,9 +387,9 @@ void FPerforceSourceControlState::Update(const FPerforceSourceControlState& InOt
 		LocalRevNumber = InOther.LocalRevNumber;
 	}
 
-	if (InOther.PendingResolveRevNumber != INVALID_REVISION)
+	if (InOther.PendingResolveInfo.IsValid())
 	{
-		PendingResolveRevNumber = InOther.PendingResolveRevNumber;
+		PendingResolveInfo = InOther.PendingResolveInfo;
 	}
 
 	// This flag is true when the current object has been modified.

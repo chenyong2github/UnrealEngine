@@ -54,7 +54,6 @@ public:
 		, State(InState)
 		, DepotRevNumber(INVALID_REVISION)
 		, LocalRevNumber(INVALID_REVISION)
-		, PendingResolveRevNumber(INVALID_REVISION)
 		, bModifed(false)
 		, bBinary(false)
 		, bExclusiveCheckout(false)
@@ -64,12 +63,18 @@ public:
 	{
 	}
 
+	FPerforceSourceControlState();
+	FPerforceSourceControlState(const FPerforceSourceControlState& Other);
+	FPerforceSourceControlState(FPerforceSourceControlState&& Other) noexcept;
+	FPerforceSourceControlState& operator=(const FPerforceSourceControlState& Other);
+	FPerforceSourceControlState& operator=(FPerforceSourceControlState&& Other) noexcept;
+
 	/** ISourceControlState interface */
 	virtual int32 GetHistorySize() const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetHistoryItem( int32 HistoryIndex ) const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FindHistoryRevision( int32 RevisionNumber ) const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FindHistoryRevision( const FString& InRevision ) const override;
-	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetBaseRevForMerge() const override;
+	virtual FResolveInfo GetResolveInfo() const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetCurrentRevision() const override;
 	virtual FSlateIcon GetIcon() const override;
 	virtual FText GetDisplayName() const override;
@@ -97,7 +102,6 @@ public:
 	virtual bool IsModified() const override;
 	virtual bool CanAdd() const override;
 	virtual bool CanDelete() const override;
-	virtual bool IsConflicted() const override;
 	virtual bool CanRevert() const override;
 
 	/** Get the state of a file */
@@ -137,7 +141,10 @@ public:
 	/** Latest rev number at which a file was synced to before being edited */
 	int LocalRevNumber;
 
-	/** Pending rev number with which a file must be resolved, INVALID_REVISION if no resolve pending */
+	/** Pending rev info with which a file must be resolved, invalid if no resolve pending */
+	FResolveInfo PendingResolveInfo;
+
+	UE_DEPRECATED(5.3, "Use PendingResolveInfo.BaseRevision instead")
 	int PendingResolveRevNumber;
 
 	/** Changelist containing this file */

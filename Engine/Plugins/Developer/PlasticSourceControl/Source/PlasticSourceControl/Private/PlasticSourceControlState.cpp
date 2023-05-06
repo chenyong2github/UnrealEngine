@@ -69,20 +69,6 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceCont
 	return nullptr;
 }
 
-TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceControlState::GetBaseRevForMerge() const
-{
-	for (const auto& Revision : History)
-	{
-		// look for the changeset number, not the revision
-		if (Revision->ChangesetNumber == PendingMergeBaseChangeset)
-		{
-			return Revision;
-		}
-	}
-
-	return nullptr;
-}
-
 TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceControlState::GetCurrentRevision() const
 {
 	for (const auto& Revision : History)
@@ -95,6 +81,11 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceCont
 	}
 
 	return nullptr;
+}
+
+ISourceControlState::FResolveInfo FPlasticSourceControlState::GetResolveInfo() const
+{
+	return PendingResolveInfo;
 }
 
 FSlateIcon FPlasticSourceControlState::GetIcon() const
@@ -252,7 +243,7 @@ FText FPlasticSourceControlState::GetDisplayTooltip() const
 		return LOCTEXT("Modified_Tooltip", "Locally modified");
 	case EWorkspaceState::Conflicted:
 		return FText::Format(LOCTEXT("Conflicted_Tooltip", "Conflict merging from source/remote CS:{0} into target/local CS:{1})"),
-			FText::AsNumber(PendingMergeSourceChangeset, &NoCommas), FText::AsNumber(LocalRevisionChangeset, &NoCommas));
+			FText::FromString(PendingResolveInfo.RemoteRevision), FText::AsNumber(LocalRevisionChangeset, &NoCommas));
 	case EWorkspaceState::Private:
 		return LOCTEXT("NotControlled_Tooltip", "Private: not under version control");
 	}

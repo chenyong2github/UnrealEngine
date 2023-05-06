@@ -49,14 +49,14 @@ TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> FConcertSourceControlSta
 	return ActualState.IsValid() ? ActualState->FindHistoryRevision(InRevision) : TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe>();
 }
 
-TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> FConcertSourceControlStateProxy::GetBaseRevForMerge() const
-{
-	return ActualState.IsValid() ? ActualState->GetBaseRevForMerge() : TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe>();
-}
-
 TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> FConcertSourceControlStateProxy::GetCurrentRevision() const
 {
 	return ActualState.IsValid() ? ActualState->GetCurrentRevision() : TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe>();
+}
+
+ISourceControlState::FResolveInfo FConcertSourceControlStateProxy::GetResolveInfo() const
+{
+	return ActualState.IsValid() ? ActualState->GetResolveInfo() : FResolveInfo();
 }
 
 FSlateIcon FConcertSourceControlStateProxy::GetIcon() const

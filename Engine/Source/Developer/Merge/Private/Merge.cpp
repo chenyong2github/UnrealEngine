@@ -48,17 +48,24 @@ static const UObject* LoadHeadRev(const FString& PackageName, const FString& Ass
 
 static const UObject* LoadBaseRev(const FString& PackageName, const FString& AssetName, const ISourceControlState& SourceControlState, FRevisionInfo& OutRevInfo)
 {
-	TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = SourceControlState.GetBaseRevForMerge();
-	if (Revision.IsValid())
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	const ISourceControlState::FResolveInfo ResolveInfo = SourceControlState.GetResolveInfo();
+	if (ResolveInfo.IsValid())
 	{
-		OutRevInfo = GetRevisionInfo(*Revision);
-		return FMergeToolUtils::LoadRevision(AssetName, *Revision);
+		const FSourceControlStatePtr BaseBranch = SourceControlProvider.GetState(ResolveInfo.BaseFile, EStateCacheUsage::Use);
+		if (BaseBranch.IsValid())
+		{
+			const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> Revision = BaseBranch->FindHistoryRevision(ResolveInfo.BaseRevision);
+			if (Revision.IsValid())
+			{
+				OutRevInfo = GetRevisionInfo(*Revision);
+				return FMergeToolUtils::LoadRevision(AssetName, *Revision);
+			}
+		}
 	}
-	else
-	{
-		OutRevInfo = FRevisionInfo::InvalidRevision();
-		return nullptr;
-	}
+	
+	OutRevInfo = FRevisionInfo::InvalidRevision();
+	return nullptr;
 }
 
 static TSharedPtr<SWidget> GenerateMergeTabContents(TSharedRef<FBlueprintEditor> Editor,

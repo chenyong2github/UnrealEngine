@@ -265,8 +265,15 @@ EAssetCommandResult UAssetDefinition_DataAsset::Merge(const FAssetAutomaticMerge
 	// If we have an asset and its in SCC..
 	if( SourceControlState.IsValid() && SourceControlState->IsSourceControlled() )
 	{
-		const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> RemoteRevision = SourceControlState->GetHistoryItem(0);
-		check(RemoteRevision.IsValid());
+		const ISourceControlState::FResolveInfo ResolveInfo = SourceControlState->GetResolveInfo();
+		check(ResolveInfo.IsValid());
+
+		SourceControlProvider.Execute(UpdateStatusOperation, ResolveInfo.RemoteFile);
+		const FSourceControlStatePtr RemoteBranch = SourceControlProvider.GetState(ResolveInfo.RemoteFile, EStateCacheUsage::Use);
+		if (!ensure(RemoteBranch.IsValid())) { return EAssetCommandResult::Unhandled; }
+		const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> RemoteRevision = RemoteBranch->FindHistoryRevision(ResolveInfo.RemoteRevision);
+		if (!ensure(RemoteRevision.IsValid())) { return EAssetCommandResult::Unhandled; }
+		
 		if(UPackage* TempPackage = DiffUtils::LoadPackageForDiff(RemoteRevision))
 		{
 			// Grab the old asset from that old package
@@ -279,8 +286,12 @@ EAssetCommandResult UAssetDefinition_DataAsset::Merge(const FAssetAutomaticMerge
 			}
 		}
 		
-		const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> BaseRevision = SourceControlState->GetBaseRevForMerge();
-		check(BaseRevision.IsValid());
+		SourceControlProvider.Execute(UpdateStatusOperation, ResolveInfo.BaseFile);
+		const FSourceControlStatePtr BaseBranch = SourceControlProvider.GetState(ResolveInfo.BaseFile, EStateCacheUsage::Use);
+		if (!ensure(BaseBranch.IsValid())) { return EAssetCommandResult::Unhandled; }
+		const TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> BaseRevision = BaseBranch->FindHistoryRevision(ResolveInfo.BaseRevision);
+		if (!ensure(BaseRevision.IsValid())) { return EAssetCommandResult::Unhandled; }
+		
 		if(UPackage* TempPackage = DiffUtils::LoadPackageForDiff(BaseRevision))
 		{
 			// Grab the old asset from that old package
@@ -423,8 +434,16 @@ void UUndoableResolveHandler::SetManagedObject(UObject* Object)
 	
 	ISourceControlProvider& Provider = ISourceControlModule::Get().GetProvider();
 	const FSourceControlStatePtr SourceControlState = Provider.GetState(Package, EStateCacheUsage::Use);
-	BaseRevisionNumber = FString::FromInt(SourceControlState->GetBaseRevForMerge()->GetRevisionNumber());
-	CurrentRevisionNumber = FString::FromInt(SourceControlState->GetCurrentRevision()->GetRevisionNumber());
+	const ISourceControlState::FResolveInfo ResolveInfo = SourceControlState->GetResolveInfo();
+	BaseRevisionNumber = SourceControlState->GetResolveInfo().BaseRevision;
+	if (const TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> CurrentRevision = SourceControlState->GetCurrentRevision())
+	{
+		CurrentRevisionNumber = FString::FromInt(CurrentRevision->GetRevisionNumber());
+	}
+	else
+	{
+		CurrentRevisionNumber = {};
+	}
 	CheckinIdentifier = SourceControlState->GetCheckInIdentifier();
 
 	// save package and copy the package to a temp file so it can be reverted
@@ -445,14 +464,20 @@ void UUndoableResolveHandler::MarkResolved()
 
 void UUndoableResolveHandler::PostEditUndo()
 {
-	if (bShouldBeResolved) // undo resolution
+	if (bShouldBeResolved) // redo resolution
 	{
 		MarkResolved();
 	}
-	else // redo resolution
+	else // undo resolution
 	{
 		UPackage* Package = ManagedObject->GetPackage();
 		const FString Filepath = FPaths::ConvertRelativePathToFull(Package->GetLoadedPath().GetLocalFullPath());
+		
+		if (BaseRevisionNumber.IsEmpty() || CurrentRevisionNumber.IsEmpty())
+		{
+			ensure(FPlatformFileManager::Get().GetPlatformFile().CopyFile(*Filepath, *BackupFilepath));
+			return;
+		}
 		
 		// to force the file to revert to it's pre-resolved state, we must revert, sync back to base revision,
 		// apply the conflicting changes, then sync forward again.

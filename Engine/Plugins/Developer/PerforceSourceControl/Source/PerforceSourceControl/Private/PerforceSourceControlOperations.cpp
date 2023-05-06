@@ -1422,7 +1422,13 @@ static void ParseUpdateStatusResults(const FP4RecordSet& InRecords, const TArray
 					VarName = FString::Printf(TEXT("resolveBaseRev%d"), ResolveActionNumber);
 					const FString& ResolveBaseRev = ClientRecord(VarName);
 
-					TTypeFromString<int>::FromString(State.PendingResolveRevNumber, *ResolveBaseRev);
+					VarName = FString::Printf(TEXT("resolveEndFromRev%d"), ResolveActionNumber);
+					const FString& ResolveEndFromRev = ClientRecord(VarName);
+
+					State.PendingResolveInfo.BaseFile = ResolveBaseFile;
+					State.PendingResolveInfo.BaseRevision = ResolveBaseRev;
+					State.PendingResolveInfo.RemoteFile = ResolveFromFile;
+					State.PendingResolveInfo.RemoteRevision = ResolveEndFromRev;
 
 					++ResolveActionNumber;
 				}
@@ -2463,7 +2469,7 @@ bool FPerforceResolveWorker::UpdateStates() const
 	{
 		auto State = GetSCCProvider().GetStateInternal( Filename );
 		State->LocalRevNumber = State->DepotRevNumber;
-		State->PendingResolveRevNumber = FPerforceSourceControlState::INVALID_REVISION;
+		State->PendingResolveInfo = {};
 	}
 
 	return UpdatedFiles.Num() > 0;

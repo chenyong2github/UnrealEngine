@@ -60,8 +60,8 @@ public:
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetHistoryItem( int32 HistoryIndex ) const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FindHistoryRevision( int32 RevisionNumber ) const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FindHistoryRevision( const FString& InRevision ) const override;
-	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetBaseRevForMerge() const override;
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetCurrentRevision() const override;
+	virtual FResolveInfo GetResolveInfo() const override;
 	virtual FSlateIcon GetIcon() const override;
 	virtual FText GetDisplayName() const override;
 	virtual FText GetDisplayTooltip() const override;
@@ -87,7 +87,6 @@ public:
 	virtual bool IsModified() const override;
 	virtual bool CanAdd() const override;
 	virtual bool CanDelete() const override;
-	virtual bool IsConflicted() const override;
 	virtual bool CanRevert() const override;
 
 public:
@@ -100,7 +99,10 @@ public:
 	/** Revision number currently synced */
 	int LocalRevNumber;
 
-	/** Revision number with which our local revision diverged from the remote revision */
+	/** Pending rev info with which a file must be resolved, invalid if no resolve pending */
+	FResolveInfo PendingResolveInfo;
+
+	UE_DEPRECATED(5.3, "Use PendingResolveInfo.BaseRevisionNumber instead")
 	int PendingMergeBaseFileRevNumber;
 
 	/** Whether a newer version exists on the server */
