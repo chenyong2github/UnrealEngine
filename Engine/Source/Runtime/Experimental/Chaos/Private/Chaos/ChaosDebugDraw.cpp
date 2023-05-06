@@ -92,6 +92,12 @@ namespace Chaos
 		int32 ChaosConnectionGraphDrawLevelOffset = 0;
 		FAutoConsoleVariableRef CVarChaosConnectionGraphDrawLevelOffset(TEXT("p.Chaos.DebugDraw.ConnectionGraphLevelOffset"), ChaosConnectionGraphDrawLevelOffset, TEXT("If 0, draws the connection graph between children particles of active particles. If 1, draws the connection grpah between grand-children particles of active particles, etc."));
 
+		bool bChaosDebugDrawConnectionGraphShowAreas = false;
+		FAutoConsoleVariableRef CVarChaosDebugDrawConnectionGraphShowAreas(TEXT("p.Chaos.DebugDraw.ConnectionGraph.ShowAreas"), bChaosDebugDrawConnectionGraphShowAreas, TEXT("When displaying connection graphs show connection areas as disks"));
+
+		bool bChaosDebugDrawConnectionGraphShowInternalStrains = false;
+		FAutoConsoleVariableRef CVarChaosDebugDrawConnectionGraphShowInternalStrains(TEXT("p.Chaos.DebugDraw.ConnectionGraph.ShowInternalStrains"), bChaosDebugDrawConnectionGraphShowInternalStrains, TEXT("When displaying connection graphs show strain values of each node"));
+
 		// NOTE: These settings should never really be used - they are the fallback defaults
 		// if the user does not specify settings in the debug draw call.
 		// See PBDRigidsColver.cpp and ImmediatePhysicsSimulation_Chaos.cpp for example.
@@ -1477,6 +1483,15 @@ namespace Chaos
 					FColor Color = (Connection.Handle0->Parent() == Connection.Handle1->Parent()) ? FColor::Green : FColor::Blue; // FMath::Lerp(FColor::Green, FColor::Red, Connection.Strain / MaxStrain);
 
 					FDebugDrawQueue::GetInstance().DrawDebugLine(Pos0, Pos1, Color, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+
+					if (bChaosDebugDrawConnectionGraphShowAreas)
+					{
+						const FReal Radius = FMath::Sqrt(FMath::Abs(Connection.Strain / UE_PI)); // represent area as a circle
+						const FMatrix Axes = FRotationMatrix::MakeFromX(Normal);
+						FDebugDrawQueue::GetInstance().DrawDebugCircle((Pos0 + Pos1) * 0.5, Radius, 24, Color, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness, Axes.GetUnitAxis(EAxis::Y), Axes.GetUnitAxis(EAxis::Z), false);
+					}
+
+
 				}
 			};
 
@@ -1557,6 +1572,10 @@ namespace Chaos
 						}
 						FDebugDrawQueue::GetInstance().DrawDebugPoint(GetClusterTransform(Child).GetLocation(), PointColor, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * 10);
 
+						if (bChaosDebugDrawConnectionGraphShowInternalStrains)
+						{
+							FDebugDrawQueue::GetInstance().DrawDebugString(Child->X(), FString::Printf(TEXT("%.1f"), Child->GetInternalStrains()), nullptr, FColor::White, UE_KINDA_SMALL_NUMBER, false, 1.0);
+						}
 
 						const FConnectivityEdgeArray& Edges = Child->ConnectivityEdges();
 						for (const TConnectivityEdge<FReal>& Edge : Edges)

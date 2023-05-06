@@ -9,6 +9,7 @@
 #include "Chaos/ClusterCreationParameters.h"
 #include "Chaos/CollisionFilterData.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Chaos/PBDRigidClusteringTypes.h"
 
 class FGeometryCollection;
 class FGeometryDynamicCollection;
@@ -180,6 +181,8 @@ struct FSimulationParameters
 		, MaxClusterLevel(100)
 		, MaxSimulatedLevel(100)
 		, bUseSizeSpecificDamageThresholds(false)
+		, DamageModel(EDamageModelTypeEnum::Chaos_Damage_Model_UserDefined_Damage_Threshold)
+		, DamageEvaluationModel(Chaos::EDamageEvaluationModel::StrainFromDamageThreshold)
 		, DamageThreshold({500000.f, 50000.f, 5000.f})
 		, bUsePerClusterOnlyDamageThreshold(false)
 		, ClusterConnectionMethod(Chaos::FClusterCreationParameters::EConnectionMethod::PointImplicit)
@@ -231,6 +234,8 @@ struct FSimulationParameters
 		, MaxClusterLevel(Other.MaxClusterLevel)
 		, MaxSimulatedLevel(Other.MaxSimulatedLevel)
 		, bUseSizeSpecificDamageThresholds(Other.bUseSizeSpecificDamageThresholds)
+		, DamageModel(Other.DamageModel)
+		, DamageEvaluationModel(Other.DamageEvaluationModel)
 		, DamageThreshold(Other.DamageThreshold)
 		, bUsePerClusterOnlyDamageThreshold(Other.bUsePerClusterOnlyDamageThreshold)
 		, ClusterConnectionMethod(Other.ClusterConnectionMethod)
@@ -299,6 +304,13 @@ struct FSimulationParameters
 	int32 MaxClusterLevel;
 	int32 MaxSimulatedLevel;
 	bool bUseSizeSpecificDamageThresholds;
+
+	/** this is the user expose damage model, used for creation of the particles */
+	EDamageModelTypeEnum DamageModel; 
+
+	/** this is the lower level damage model for clustering, used at runm time */
+	Chaos::EDamageEvaluationModel DamageEvaluationModel;
+
 	TArray<float> DamageThreshold;
 	bool bUsePerClusterOnlyDamageThreshold;
 	Chaos::FClusterCreationParameters::EConnectionMethod ClusterConnectionMethod;

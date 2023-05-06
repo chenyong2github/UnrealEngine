@@ -20,6 +20,7 @@
 #include "GeometryCollectionEditorSelection.h"
 #include "GeometryCollection/GeometryCollectionDamagePropagationData.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
+#include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "Templates/UniquePtr.h"
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Chaos/ChaosNotifyHandlerInterface.h"
@@ -785,7 +786,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
 	int32 MaxSimulatedLevel;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintGetter=GetDamageThreshold, BlueprintSetter=SetDamageThreshold, Category = "ChaosPhysics|Damage", meta = (EditCondition = "!bUseSizeSpecificDamageThreshold"))
+	/** Damage model to use for evaluating destruction. */
+	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Damage")
+	EDamageModelTypeEnum DamageModel;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintGetter=GetDamageThreshold, BlueprintSetter=SetDamageThreshold, Category = "ChaosPhysics|Damage", meta = (EditCondition = "!bUseSizeSpecificDamageThreshold && DamageModel == EDamageModelTypeEnum::Chaos_Damage_Model_UserDefined_Damage_Threshold"))
 	TArray<float> DamageThreshold;
 
 	UFUNCTION(BlueprintPure, BlueprintInternalUseOnly)
@@ -795,7 +800,7 @@ public:
 	void SetDamageThreshold(const TArray<float>& InDamageThreshold);
 
 	/** Damage threshold for clusters at different levels. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Damage")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Damage", meta = (EditCondition = "DamageModel == EDamageModelTypeEnum::Chaos_Damage_Model_UserDefined_Damage_Threshold"))
 	bool bUseSizeSpecificDamageThreshold;
 
 	/** Data about how damage propagation shoudl behave. */

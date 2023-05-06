@@ -791,12 +791,15 @@ namespace Chaos
 		bool bUseDamagePropagation = false;
 		float BreakDamagePropagationFactor = 0.0f;
 		float ShockDamagePropagationFactor = 0.0f;
-		if (const FGeometryCollectionPhysicsProxy* ConcreteProxy = GetConcreteProxy(ClusteredParticle))
+		EDamageEvaluationModel DamageEvaluationModel = EDamageEvaluationModel::StrainFromDamageThreshold;
+		const FGeometryCollectionPhysicsProxy* ConcreteGCProxy = GetConcreteProxy<FGeometryCollectionPhysicsProxy>(ClusteredParticle);
+		if (ConcreteGCProxy)
 		{
-			const FSimulationParameters& SimParams = ConcreteProxy->GetSimParameters();
+			const FSimulationParameters& SimParams = ConcreteGCProxy->GetSimParameters();
 			bUseDamagePropagation = SimParams.bUseDamagePropagation;
 			BreakDamagePropagationFactor = SimParams.BreakDamagePropagationFactor;
 			ShockDamagePropagationFactor = SimParams.ShockDamagePropagationFactor;
+			DamageEvaluationModel = SimParams.DamageEvaluationModel;
 		}
 
 		TArray<FPBDRigidParticleHandle*>& Children = MChildren[ClusteredParticle];
@@ -967,6 +970,18 @@ namespace Chaos
 							RemoveChildFromParent(Child, ClusteredParticle);
 							ActivatedChildren.Add(Child);
 						}
+
+						if (ConcreteGCProxy && DamageEvaluationModel == EDamageEvaluationModel::StrainFromMaterialStrengthAndConnectivity)
+						{
+							for (FPBDRigidParticleHandle* ChildParticle: Island)
+							{
+								// recompute ethe strain as the connection have changed
+								if (FPBDRigidClusteredParticleHandle* ClusteredChild = ChildParticle->CastToClustered())
+								{
+									ConcreteGCProxy->ComputeMaterialBasedDamageThreshold_Internal(*ClusteredChild);
+								}
+							}
+						}
 					}
 
 					if (bCreateNewClusters)
@@ -1093,7 +1108,7 @@ namespace Chaos
 			//
 			if (ComputeClusterCollisionStrains)
 			{
-				ComputeStrainFromCollision(CollisionRule);
+				ComputeStrainFromCollision(CollisionRule, Dt);
 			}
 			else
 			{
@@ -1526,10 +1541,12 @@ namespace Chaos
 	FAutoConsoleVariableRef CVarMinContactSpeedForStrainEval(TEXT("p.chaos.MinContactSpeedForStrainEval"), MinContactSpeedForStrainEval, TEXT("Minimum speed at the contact before accumulating for strain eval "));
 
 	DECLARE_CYCLE_STAT(TEXT("ComputeStrainFromCollision"), STAT_ComputeStrainFromCollision, STATGROUP_Chaos);
-	void FRigidClustering::ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule)
+	void FRigidClustering::ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule, const FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ComputeStrainFromCollision);
 		FClusterMap& MParentToChildren = GetChildrenMap();
+
+		const FRealSingle InvDt = (Dt > SMALL_NUMBER) ? (FRealSingle)(1.0 / Dt) : 1.0f;
 
 		ResetCollisionImpulseArray();
 
@@ -1572,7 +1589,7 @@ namespace Chaos
 				continue;
 			}
 
-			auto ComputeStrainLambda = [this, &ContactHandle](
+			auto ComputeStrainLambda = [this, &ContactHandle, &InvDt](
 				const FPBDRigidClusteredParticleHandle* Cluster,
 				FRealSingle& OutTotalImpulseAccumulator)
 			{
@@ -1602,16 +1619,25 @@ namespace Chaos
 
 					// gather propagation information from the parent proxy
 					bool bUseDamagePropagation = false;
+					EDamageEvaluationModel DamageModel = EDamageEvaluationModel::StrainFromDamageThreshold;
 					if (const FGeometryCollectionPhysicsProxy* GeometryCollectionProxy = GetConcreteProxy<FGeometryCollectionPhysicsProxy>(Cluster))
 					{
 						const FSimulationParameters& SimParams = GeometryCollectionProxy->GetSimParameters();
 						bUseDamagePropagation = SimParams.bUseDamagePropagation;
+						DamageModel = SimParams.DamageEvaluationModel;
 						if (!SimParams.bEnableStrainOnCollision)
 						{
 							return;
 						}
 					}
 
+					FRealSingle CollisionImpulseToApply = AccumulatedImpulse;
+					if (DamageModel == EDamageEvaluationModel::StrainFromMaterialStrengthAndConnectivity)
+					{
+						// this damage model use internal strain as the maximum breaking force (m.a), but we need to compare to impulses (m.v), let's divide this impulse by Dt
+						// technically this is no longer an impulse but we intend in the future to get rid of COllisionImpulse property and use external strain instead
+						CollisionImpulseToApply *= InvDt;
+					}
 					if (bUseDamagePropagation)
 					{
 						// propagation based breaking model start from the closest particle and propagate through the connection graph
@@ -1620,9 +1646,9 @@ namespace Chaos
 						{
 							if (TPBDRigidClusteredParticleHandle<FReal, 3>* ClusteredChild = ClosestChild->CastToClustered())
 							{
-								ClusteredChild->CollisionImpulses() += AccumulatedImpulse;
+								ClusteredChild->CollisionImpulses() += CollisionImpulseToApply;
 								UpdateTopLevelParticle(ClusteredChild);
-								OutTotalImpulseAccumulator += AccumulatedImpulse;
+								OutTotalImpulseAccumulator += CollisionImpulseToApply;
 							}
 						}
 					}
@@ -1640,9 +1666,9 @@ namespace Chaos
 							{
 								if (TPBDRigidClusteredParticleHandle<FReal, 3>*ClusteredChild = Child->CastToClustered())
 								{
-									ClusteredChild->CollisionImpulses() += AccumulatedImpulse;
+									ClusteredChild->CollisionImpulses() += CollisionImpulseToApply;
 									UpdateTopLevelParticle(ClusteredChild);
-									OutTotalImpulseAccumulator += AccumulatedImpulse;
+									OutTotalImpulseAccumulator += CollisionImpulseToApply;
 								}
 							}
 						}

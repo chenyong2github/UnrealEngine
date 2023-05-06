@@ -509,12 +509,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Clustering")
 	int32 MaxClusterLevel;
 
+	/** Damage model to use for evaluating destruction. */
+	UPROPERTY(EditAnywhere, Category = "Damage")
+	EDamageModelTypeEnum DamageModel;
+
 	/** Damage threshold for clusters at different levels. */
-	UPROPERTY(EditAnywhere, Category = "Damage", meta = (EditCondition = "!bUseSizeSpecificDamageThreshold"))
+	UPROPERTY(EditAnywhere, Category = "Damage", meta = (EditCondition = "!bUseSizeSpecificDamageThreshold && DamageModel == EDamageModelTypeEnum::Chaos_Damage_Model_UserDefined_Damage_Threshold"))
 	TArray<float> DamageThreshold;
 
 	/** whether to use size specific damage threshold instead of level based ones ( see Size Specific Data array ). */
-	UPROPERTY(EditAnywhere, Category = "Damage")
+	UPROPERTY(EditAnywhere, Category = "Damage", meta = (EditCondition = "DamageModel == EDamageModelTypeEnum::Chaos_Damage_Model_UserDefined_Damage_Threshold"))
 	bool bUseSizeSpecificDamageThreshold;
 
 	/** compatibility check, when true, only cluster compute damage from parameters and propagate to direct children

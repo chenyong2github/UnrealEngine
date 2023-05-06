@@ -423,6 +423,8 @@ public:
 	void SetNotifyRemovals_External(bool bNotify);
 	void SetNotifyCrumblings_External(bool bNotify, bool bIncludeChildren);
 
+	float ComputeMaterialBasedDamageThreshold_Internal(Chaos::FPBDRigidClusteredParticleHandle& ClusteredParticle) const;
+
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
 
@@ -456,14 +458,17 @@ public:
 	Chaos::FPhysicsObjectHandle GetPhysicsObjectByIndex(int32 Index) const;
 	int32 GetNumParticles() const { return NumParticles; }
 protected:
+
+	float ComputeMaterialBasedDamageThreshold_Internal(int32 TransformIndex) const;
+
 	/**
-	* Compute damage threshold for a specific transform
+	* Compute user defined damage threshold for a specific transform
 	* this account for component level damage threshold as well as size specific ones
 	* @param DynamicCollection dynamic collection to use
 	* @param TransformIndex index of the transform to compute the threshold for
 	* #return damage threshold value
 	*/
-	float ComputeDamageThreshold(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex) const;
+	float ComputeUserDefinedDamageThreshold_Internal(int32 TransformIndex) const;
 
 	/** adjust scalar mass to account for per component scale properties ( from material override and world transform scale ) */ 
 	Chaos::FReal AdjustMassForScale(Chaos::FReal Mass) const;

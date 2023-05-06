@@ -60,8 +60,13 @@ struct TConnectivityEdge
 	bool operator==(const TPBDRigidParticleHandle<T, 3>* OtherSibling) const
 	{ return Sibling == OtherSibling; }
 
+	// getter/functions functions to make calling code less confusing 
+	void SetArea(Chaos::FRealSingle Area) { Strain = Area; }
+	Chaos::FRealSingle GetArea() const { return Strain; }
+
 	TPBDRigidParticleHandle<T, 3>* Sibling;
-	Chaos::FRealSingle Strain;
+	// this can be both strain or area based on the damage model, but cannot rename it for backward compatibility reasons
+	Chaos::FRealSingle Strain; 
 };
 typedef TConnectivityEdge<FReal> FConnectivityEdge;
 typedef TArray<FConnectivityEdge> FConnectivityEdgeArray;

@@ -2728,6 +2728,8 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.ClusterGroupIndex = EnableClustering ? ClusterGroupIndex : 0;
 		SimulationParameters.MaxClusterLevel = MaxClusterLevel;
 		SimulationParameters.MaxSimulatedLevel = MaxSimulatedLevel;
+		SimulationParameters.DamageModel = DamageModel;
+		SimulationParameters.DamageEvaluationModel = GetDamageEvaluationModel(DamageModel);
 		SimulationParameters.bUseSizeSpecificDamageThresholds = bUseSizeSpecificDamageThreshold;
 		SimulationParameters.DamageThreshold = DamageThreshold;
 		SimulationParameters.bUsePerClusterOnlyDamageThreshold = RestCollection? RestCollection->PerClusterOnlyDamageThreshold: false; 
@@ -3277,6 +3279,7 @@ void UGeometryCollectionComponent::ApplyAssetDefaults()
 	if (RestCollection)
 	{
 		// initialize the component per level damage threshold from the asset defaults 
+		DamageModel = RestCollection->DamageModel;
 		DamageThreshold = RestCollection->DamageThreshold;
 		bUseSizeSpecificDamageThreshold = RestCollection->bUseSizeSpecificDamageThreshold;
 

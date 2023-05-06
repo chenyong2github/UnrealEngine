@@ -40,8 +40,8 @@ typedef int32_t int32;
 namespace Chaos
 {
 	// Solver uses Kg for mass, Second for time and Cm for distance
-	// Since a MegaPascal is  force over an Area, and Force = Mass * Acc
-	// we get (Kg.cm)/(cm2.s2) => Kg/(cm.s2)
+	// Since a Pascal is 1N/m2 => (Kg.m)/(m2.s2)
+	// we get 1MPa = 10000 Kg/(cm.s2)
 	constexpr float MegaPascalToKgPerCmS2(float MegaPascals)
 	{
 		return MegaPascals * 10000;

@@ -3,6 +3,7 @@
 
 #include "UObject/ObjectMacros.h"
 #include "Field/FieldSystemTypes.h"
+#include "Chaos/PBDRigidClusteringTypes.h"
 
 #include "GeometryCollectionSimulationTypes.generated.h"
 
@@ -104,3 +105,32 @@ enum class EEmissionPatternTypeEnum : uint8
 	//
 	Chaos_Max                UMETA(Hidden)
 };
+
+
+
+UENUM(BlueprintType)
+enum class EDamageModelTypeEnum : uint8
+{
+	/** Using damage threshold set based on level of the cluster */
+	Chaos_Damage_Model_UserDefined_Damage_Threshold UMETA(DisplayName = "User-Defined Damage Threshold"),
+
+	/** Using damage threshold set using the physical material strength and how connected a cluster is */
+	Chaos_Damage_Model_Material_Strength_And_Connectivity_DamageThreshold UMETA(DisplayName = "Material Strength And Connectivity Damage Threshold"),
+
+	Chaos_Max UMETA(Hidden)
+};
+
+// convert user level damage model to chaos damage evaluation model
+inline CHAOS_API Chaos::EDamageEvaluationModel GetDamageEvaluationModel(const EDamageModelTypeEnum DamageModel)
+{
+	switch (DamageModel)
+	{
+	case EDamageModelTypeEnum::Chaos_Damage_Model_UserDefined_Damage_Threshold: 
+		return Chaos::EDamageEvaluationModel::StrainFromDamageThreshold;
+	case EDamageModelTypeEnum::Chaos_Damage_Model_Material_Strength_And_Connectivity_DamageThreshold: 
+		return Chaos::EDamageEvaluationModel::StrainFromMaterialStrengthAndConnectivity;
+	default:
+		ensure(false); // unexpected
+		return Chaos::EDamageEvaluationModel::StrainFromDamageThreshold;
+	}
+}

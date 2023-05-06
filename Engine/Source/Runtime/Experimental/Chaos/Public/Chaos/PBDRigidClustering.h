@@ -11,6 +11,7 @@
 #include "Chaos/ClusterCreationParameters.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Framework/BufferedData.h"
+#include "Chaos/PBDRigidClusteringTypes.h"
 
 namespace Chaos
 {
@@ -391,7 +392,7 @@ public:
 
  protected:
 
-	void ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule);
+	void ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule, const FReal Dt);
 	void ResetCollisionImpulseArray();
 	void DisableCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle);
 	void ApplyStrainModifiers();

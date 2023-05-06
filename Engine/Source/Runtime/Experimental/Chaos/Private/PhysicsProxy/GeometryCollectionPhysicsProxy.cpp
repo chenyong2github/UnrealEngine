@@ -182,6 +182,27 @@ TArray<int32> ComputeTransformToGeometryMap(const FGeometryCollection& Collectio
 	return TransformToGeometryMap;
 }
 
+static float AreaFromBoundingBoxOverlap(const Chaos::FAABB3& BoxA, const Chaos::FAABB3& BoxB)
+{
+	// if the two box don't overlap, we'll get an inside out box 
+	// but we are still using it to compute the area as an approximation
+	const Chaos::FAABB3 OverlapBox = BoxA.GetIntersection(BoxB);
+
+	const Chaos::FVec3 Extents = OverlapBox.Extents();
+	const Chaos::FVec3 CenterToCenterNormal = (BoxA.GetCenter() - BoxB.GetCenter()).GetSafeNormal();
+
+	const Chaos::FVec3 AreaPerAxis{
+		FMath::Abs(Extents.Y * Extents.Z),
+		FMath::Abs(Extents.X * Extents.Z),
+		FMath::Abs(Extents.X * Extents.Y)
+	};
+
+	// weight the area by the center to center normal
+	const Chaos::FReal Area = FMath::Abs(AreaPerAxis.Dot(CenterToCenterNormal));
+
+	return static_cast<float>(Area);
+}
+
 
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::PopulateSimulatedParticle"), STAT_PopulateSimulatedParticle, STATGROUP_Chaos);
 void PopulateSimulatedParticle(
@@ -978,9 +999,15 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 		{
 			if (FClusterHandle* Handle = SolverParticleHandles[TransformGroupIndex])
 			{
+				const bool bIsAnchored = AnchoringFacade.IsAnchored(TransformGroupIndex);
+
 				// Mass space -> Composed parent space -> world
 				const Chaos::FReal ScaledMass = AdjustMassForScale(Mass[TransformGroupIndex]);
 				const Chaos::FVec3f ScaledInertia = AdjustInertiaForScale((Chaos::FVec3f)InertiaTensor[TransformGroupIndex]);
+				const uint8 AdjustedDynamicState = 
+					bIsAnchored 
+					? static_cast<uint8>(Chaos::EObjectStateType::Kinematic)
+					: static_cast<uint8>(DynamicState[TransformGroupIndex]);
 
 				PopulateSimulatedParticle(
 					Handle,
@@ -992,7 +1019,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 					ScaledMass,
 					ScaledInertia,
 					Transforms[TransformGroupIndex],
-					static_cast<uint8>(DynamicState[TransformGroupIndex]),
+					AdjustedDynamicState,
 					static_cast<int16>(CollisionGroup[TransformGroupIndex]),
 					CollisionParticlesPerObjectFraction);
 
@@ -1006,7 +1033,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 					float DamageThreshold = StrainDefault;
 					if (!Parameters.bUsePerClusterOnlyDamageThreshold)
 					{
-						DamageThreshold = ComputeDamageThreshold(DynamicCollection, TransformGroupIndex);
+						DamageThreshold = ComputeUserDefinedDamageThreshold_Internal(TransformGroupIndex);
 					}
 					Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>();
 					RBDSolver->GetEvolution()->GetRigidClustering().SetInternalStrain(Handle, DamageThreshold);
@@ -1236,40 +1263,60 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 						}
 					}
 				}
-			}
-			else
-			{
-				if (ConnectionFacade.IsValid())
+				// if using the material & connectivity damnage model, we need to compute the surface area of each connection
+				// since we do not have precise data from the tools, we are using an approximate method using the bounds of the two particles
+				if (Parameters.DamageEvaluationModel == Chaos::EDamageEvaluationModel::StrainFromMaterialStrengthAndConnectivity)
 				{
-					// TODO: is it worth computing the valence of each edge to Reserve() the particle edge arrays?
-
-					// Transfer connections from the Collection's ConnectionFacade over to the clustered particles
-					int32 NumConnections = ConnectionFacade.NumConnections();
-					for (int32 ConnectionIdx = 0; ConnectionIdx < NumConnections; ++ConnectionIdx)
+					for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 					{
-						TPair<int32,int32> Connection = ConnectionFacade.GetConnection(ConnectionIdx);
-						checkSlow(Connection.Key != Connection.Value); // Graph should never contain self-loops
-
-						bool bHasContactAreas = ConnectionFacade.HasContactAreas();
-						float ContactArea = 0.0f; // Note: this default value should be unused
-						if (bHasContactAreas)
+						if (FClusterHandle* ClusteredParticle = SolverParticleHandles[TransformGroupIndex])
 						{
-							ContactArea = ConnectionFacade.GetConnectionContactArea(ConnectionIdx);
-						}
-
-						if (FClusterHandle* ClusteredParticle = SolverParticleHandles[Connection.Key])
-						{
-							if (FClusterHandle* OtherClusteredParticle = SolverParticleHandles[Connection.Value])
+							for (Chaos::FConnectivityEdge& Edge : ClusteredParticle->ConnectivityEdges())
 							{
-								float EdgeStrain = bHasContactAreas ? ContactArea : (ClusteredParticle->GetInternalStrains() + OtherClusteredParticle->GetInternalStrains()) * 0.5f;
-								// Add symmetric Chaos::TConnectivityEdge<Chaos::FReal> edges to each particle
-								ClusteredParticle->ConnectivityEdges().Emplace(OtherClusteredParticle, EdgeStrain);
-								OtherClusteredParticle->ConnectivityEdges().Emplace(ClusteredParticle, EdgeStrain);
+								if (ensure(Edge.Sibling))
+								{
+									const Chaos::FRealSingle Area = AreaFromBoundingBoxOverlap(ClusteredParticle->WorldSpaceInflatedBounds(), Edge.Sibling->WorldSpaceInflatedBounds());
+									Edge.SetArea(Area);
+								}
 							}
 						}
 					}
 				}
+			}
+			else if (ConnectionFacade.IsValid())
+			{
 				// load connection graph from RestCollection
+				// TODO: is it worth computing the valence of each edge to Reserve() the particle edge arrays?
+
+				// Transfer connections from the Collection's ConnectionFacade over to the clustered particles
+				int32 NumConnections = ConnectionFacade.NumConnections();
+				for (int32 ConnectionIdx = 0; ConnectionIdx < NumConnections; ++ConnectionIdx)
+				{
+					TPair<int32,int32> Connection = ConnectionFacade.GetConnection(ConnectionIdx);
+					checkSlow(Connection.Key != Connection.Value); // Graph should never contain self-loops
+
+					bool bHasContactAreas = ConnectionFacade.HasContactAreas();
+					float ContactArea = 0.0f; // Note: this default value should be unused
+					if (bHasContactAreas)
+					{
+						ContactArea = ConnectionFacade.GetConnectionContactArea(ConnectionIdx);
+					}
+
+					if (FClusterHandle* ClusteredParticle = SolverParticleHandles[Connection.Key])
+					{
+						if (FClusterHandle* OtherClusteredParticle = SolverParticleHandles[Connection.Value])
+						{
+							float EdgeStrainOrArea = bHasContactAreas ? ContactArea : (ClusteredParticle->GetInternalStrains() + OtherClusteredParticle->GetInternalStrains()) * 0.5f;
+							if (!bHasContactAreas && Parameters.DamageEvaluationModel == Chaos::EDamageEvaluationModel::StrainFromMaterialStrengthAndConnectivity)
+							{
+								EdgeStrainOrArea = AreaFromBoundingBoxOverlap(ClusteredParticle->WorldSpaceInflatedBounds(), OtherClusteredParticle->WorldSpaceInflatedBounds());
+							}
+							// Add symmetric Chaos::TConnectivityEdge<Chaos::FReal> edges to each particle
+							ClusteredParticle->ConnectivityEdges().Emplace(OtherClusteredParticle, EdgeStrainOrArea);
+							OtherClusteredParticle->ConnectivityEdges().Emplace(ClusteredParticle, EdgeStrainOrArea);
+						}
+					}
+				}
 			}
 		} // end if EnableClustering
  
@@ -1319,6 +1366,21 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			++HandleIndex;
 #endif
 		}
+
+		// assign the material based damage thresholds 
+		if (Parameters.DamageModel != EDamageModelTypeEnum::Chaos_Damage_Model_UserDefined_Damage_Threshold)
+		{
+			Chaos::FRigidClustering& Clustering = RigidsSolver->GetEvolution()->GetRigidClustering();
+			for (int32 Index = 0; Index < NumTransforms; Index++)
+			{
+				if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredParticle = SolverParticleHandles[Index])
+				{
+					const float DamageThreshold = ComputeMaterialBasedDamageThreshold_Internal(Index);
+					Clustering.SetInternalStrain(ClusteredParticle, DamageThreshold);
+				}
+			}
+		}
+
 		// call DirtyParticle to make sure the acceleration structure is up to date with all the changes happening here
 		DirtyAllParticles(*RigidsSolver);
 
@@ -1336,24 +1398,63 @@ FAutoConsoleVariableRef CVarGlobalMaxSimulatedLevel(TEXT("p.gc.GlobalMaxSimulate
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters"), STAT_BuildClusters, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters:GlobalMatrices"), STAT_BuildClustersGlobalMatrices, STATGROUP_Chaos);
 
-float FGeometryCollectionPhysicsProxy::ComputeDamageThreshold(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex) const 
+float FGeometryCollectionPhysicsProxy::ComputeMaterialBasedDamageThreshold_Internal(int32 TransformIndex) const
+{
+	float DamageThreshold = TNumericLimits<float>::Max();
+	if (Parameters.DamageModel == EDamageModelTypeEnum::Chaos_Damage_Model_Material_Strength_And_Connectivity_DamageThreshold)
+	{
+		if (ensure(SolverParticleHandles.IsValidIndex(TransformIndex)))
+		{
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredParticle = SolverParticleHandles[TransformIndex])
+			{
+				DamageThreshold = ComputeMaterialBasedDamageThreshold_Internal(*ClusteredParticle);
+			}
+		}
+	}
+
+	return DamageThreshold;
+}
+
+float FGeometryCollectionPhysicsProxy::ComputeMaterialBasedDamageThreshold_Internal(Chaos::FPBDRigidClusteredParticleHandle& ClusteredParticle) const
+{
+	float DamageThreshold = TNumericLimits<float>::Max();
+	float TotalConnectionArea = 0;
+	for (Chaos::FConnectivityEdge& Connection : ClusteredParticle.ConnectivityEdges())
+	{
+		// strain actually store the surface area 
+		TotalConnectionArea += Connection.GetArea();
+	}
+
+	// This model compute the total surface are from the connections and compute the maximum force 
+	if (const Chaos::FChaosPhysicsMaterial* ChaosMaterial = Parameters.PhysicalMaterialHandle.Get())
+	{
+		// force unit is Kg.cm/s2 here
+		const float ForceThreshold = ChaosMaterial->Strength.TensileStrength * TotalConnectionArea;
+		DamageThreshold = ForceThreshold;
+	}
+
+	return DamageThreshold;
+}
+
+float FGeometryCollectionPhysicsProxy::ComputeUserDefinedDamageThreshold_Internal(int32 TransformIndex) const
 {
 	float DamageThreshold = TNumericLimits<float>::Max();
 
 	const int32 LevelOffset = Parameters.bUsePerClusterOnlyDamageThreshold ? 0 : -1;
-	const int32 Level = FMath::Clamp(CalculateHierarchyLevel(DynamicCollection, TransformIndex) + LevelOffset, 0, INT_MAX);
+	const int32 Level = FMath::Clamp(CalculateHierarchyLevel(PhysicsThreadCollection, TransformIndex) + LevelOffset, 0, INT_MAX);
 	if (Level >= FMath::Min(Parameters.MaxClusterLevel, FMath::Min(GlobalMaxSimulatedLevel, Parameters.MaxSimulatedLevel)))
 	{
 		DamageThreshold = TNumericLimits<float>::Max();
 	}
-	else
+	else if (Parameters.DamageModel == EDamageModelTypeEnum::Chaos_Damage_Model_UserDefined_Damage_Threshold)
 	{
+		// we don't test for the damage model because this is used
 		if (Parameters.bUseSizeSpecificDamageThresholds)
 		{
 			// bounding box volume is used as a fallback to find specific size if the relative size if not available
 			// ( May happen with older GC )
 			FBox LocalBoundingBox;
-			const FGeometryDynamicCollection::FSharedImplicit& Implicit = DynamicCollection.Implicits[TransformIndex];
+			const FGeometryDynamicCollection::FSharedImplicit& Implicit = PhysicsThreadCollection.Implicits[TransformIndex];
 			if (Implicit && Implicit->HasBoundingBox())
 			{
 				const Chaos::FAABB3& ImplicitBoundingBox = Implicit->BoundingBox();
@@ -1470,7 +1571,7 @@ Chaos::TPBDGeometryCollectionParticleHandle<Chaos::FReal, 3>* FGeometryCollectio
 		float DamageThreshold = StrainDefault;
 		if (!Parameters.bUsePerClusterOnlyDamageThreshold)
 		{
-			DamageThreshold = ComputeDamageThreshold(DynamicCollection, CollectionClusterIndex);
+			DamageThreshold = ComputeUserDefinedDamageThreshold_Internal(CollectionClusterIndex);
 		}
 		Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>();
 		RBDSolver->GetEvolution()->GetRigidClustering().SetInternalStrain(Handle, DamageThreshold);
@@ -1616,7 +1717,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 	// two-way mapping
 	SolverClusterHandles[CollectionClusterIndex] = Parent;
 
-	const float DamageThreshold = ComputeDamageThreshold(DynamicCollection, CollectionClusterIndex);
+	const float DamageThreshold = ComputeUserDefinedDamageThreshold_Internal(CollectionClusterIndex);
 
 	Chaos::FRigidClustering& RigidClustering = static_cast<Chaos::FPBDRigidsSolver*>(Solver)->GetEvolution()->GetRigidClustering();
 	RigidClustering.SetInternalStrain(Parent, DamageThreshold);
