@@ -83,6 +83,10 @@ FGeometryCollectionISM::FGeometryCollectionISM(AActor* InOwningActor, const FGeo
 	{
 		ISMC->SetMaterial(MaterialIndex, MeshInstance.MaterialsOverrides[MaterialIndex]);
 	}
+	for (int32 DataIndex = 0; DataIndex < MeshInstance.CustomPrimitiveData.Num(); DataIndex++)
+	{
+		ISMC->SetCustomPrimitiveDataFloat(DataIndex, MeshInstance.CustomPrimitiveData[DataIndex]);
+	}
 
 	ISMC->SetRemoveSwap();
 	ISMC->NumCustomDataFloats = MeshInstance.Desc.NumCustomDataFloats;
