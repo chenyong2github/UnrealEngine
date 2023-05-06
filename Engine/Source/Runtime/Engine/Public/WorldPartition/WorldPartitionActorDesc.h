@@ -220,6 +220,11 @@ public:
 		return References;
 	}
 
+	bool IsEditorOnlyReference(const FGuid& ReferenceGuid) const
+	{
+		return EditorOnlyReferences.Contains(ReferenceGuid);
+	}
+
 	UActorDescContainer* GetContainer() const
 	{
 		return Container;
@@ -295,6 +300,7 @@ protected:
 	FName							HLODLayer;
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
+	TArray<FGuid>					EditorOnlyReferences; // References that aren't necessarily editor only but referenced through an editor only property.
 	TArray<FName>					Tags;
 	FPropertyPairsMap				Properties;
 	FName							FolderPath;

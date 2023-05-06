@@ -181,14 +181,23 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 			ParentActor = AttachParentActor->GetActorGuid();
 		}
 
-		TArray<AActor*> ActorReferences = ActorsReferencesUtils::GetExternalActorReferences(const_cast<AActor*>(InActor));
+		const ActorsReferencesUtils::FGetActorReferencesParams Params = ActorsReferencesUtils::FGetActorReferencesParams(const_cast<AActor*>(InActor))
+			.SetRequiredFlags(RF_HasExternalPackage);
+		TArray<ActorsReferencesUtils::FActorReference> ActorReferences = ActorsReferencesUtils::GetActorReferences(Params);
 
 		if (ActorReferences.Num())
 		{
-			References.Empty(ActorReferences.Num());
-			for(AActor* ActorReference: ActorReferences)
+			References.Reserve(ActorReferences.Num());
+			for (const ActorsReferencesUtils::FActorReference& ActorReference : ActorReferences)
 			{
-				References.Add(ActorReference->GetActorGuid());
+				const FGuid ActorReferenceGuid = ActorReference.Actor->GetActorGuid();
+
+				References.Add(ActorReferenceGuid);
+
+				if (ActorReference.bIsEditorOnly)
+				{
+					EditorOnlyReferences.Add(ActorReferenceGuid);
+				}
 			}
 		}
 
@@ -258,6 +267,7 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		ContentBundleGuid == Other->ContentBundleGuid &&
 		CompareUnsortedArrays(DataLayers, Other->DataLayers) &&
 		CompareUnsortedArrays(References, Other->References) &&
+		CompareUnsortedArrays(EditorOnlyReferences, Other->EditorOnlyReferences) &&
 		CompareUnsortedArrays(Tags, Other->Tags) &&
 		Properties == Other->Properties;
 }
@@ -277,7 +287,8 @@ bool FWorldPartitionActorDesc::ShouldResave(const FWorldPartitionActorDesc* Othe
 		ParentActor != Other->ParentActor ||
 		ContentBundleGuid != Other->ContentBundleGuid ||
 		!CompareUnsortedArrays(DataLayers, Other->DataLayers) ||
-		!CompareUnsortedArrays(References, Other->References))
+		!CompareUnsortedArrays(References, Other->References) ||
+		!CompareUnsortedArrays(EditorOnlyReferences, Other->EditorOnlyReferences))
 	{
 		return true;
 	}
@@ -425,6 +436,11 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 				Result.Appendf(TEXT(" References:%s"), *FString::JoinBy(References, TEXT(","), [&](const FGuid& ReferenceGuid) { return ReferenceGuid.ToString(); }));
 			}
 
+			if (EditorOnlyReferences.Num())
+			{
+				Result.Appendf(TEXT(" EditorOnlyReferences:%s"), *FString::JoinBy(EditorOnlyReferences, TEXT(","), [&](const FGuid& ReferenceGuid) { return ReferenceGuid.ToString(); }));
+			}
+
 			if (Tags.Num())
 			{
 				Result.Appendf(TEXT(" Tags:%s"), *FString::JoinBy(Tags, TEXT(","), [&](const FName& TagName) { return TagName.ToString(); }));
@@ -519,6 +535,11 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	}
 
 	Ar << References;
+
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeEditorOnlyReferences)
+	{
+		Ar << EditorOnlyReferences;
+	}
 
 	if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescTagsSerialization)
 	{

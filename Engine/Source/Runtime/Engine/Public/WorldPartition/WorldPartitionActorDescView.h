@@ -98,6 +98,8 @@ public:
 
 	const FWorldPartitionActorDesc* GetActorDesc() const { return ActorDesc; }
 
+	bool IsEditorOnlyReference(const FGuid& ReferenceGuid) const;
+
 	bool GetProperty(FName PropertyName, FName* PropertyValue) const;
 	bool HasProperty(FName PropertyName) const;
 

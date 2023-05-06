@@ -307,6 +307,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Upgrade Navigation Links to use 64 bits for the ID
 		NavigationLinkID32To64,
 
+		// Serialize editor only references in world partition actor descriptors
+		WorldPartitionActorDescSerializeEditorOnlyReferences,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

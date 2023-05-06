@@ -606,8 +606,10 @@ class FWorldPartitionStreamingGenerator
 				// Gather all references to external actors from the level script and make them always loaded
 				if (ULevelScriptBlueprint* LevelScriptBlueprint = WorldPartitionContext->GetTypedOuter<UWorld>()->PersistentLevel->GetLevelScriptBlueprint(true))
 				{
-					TArray<AActor*> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetExternalActorReferences(LevelScriptBlueprint);
-					Algo::Transform(LevelScriptExternalActorReferences, LevelScriptReferences, [](const AActor* Actor) { return Actor->GetActorGuid(); });
+					const ActorsReferencesUtils::FGetActorReferencesParams Params = ActorsReferencesUtils::FGetActorReferencesParams(LevelScriptBlueprint)
+						.SetRequiredFlags(RF_HasExternalPackage);
+					TArray<ActorsReferencesUtils::FActorReference> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetActorReferences(Params);
+					Algo::Transform(LevelScriptExternalActorReferences, LevelScriptReferences, [](const ActorsReferencesUtils::FActorReference& ActorReference) { return ActorReference.Actor->GetActorGuid(); });
 				}
 
 				// Validate data layers
@@ -803,55 +805,68 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 					if (ReferenceActorDescView)
 					{
-						// Validate grid placement
-						if (!IsReferenceGridPlacementValid(*RefererActorDescView, *ReferenceActorDescView))
+						// The actor reference is not editor-only, but we are referencing it through an editor-only property
+						if (RefererActorDescView->IsEditorOnlyReference(ReferenceActorDescView->GetGuid()))
 						{
-							if (PassType == EPassType::ErrorReporting)
+							if (PassType == EPassType::Fixup)
 							{
-								ErrorHandler->OnInvalidReferenceGridPlacement(*RefererActorDescView, *ReferenceActorDescView);									
-							}
-							else
-							{
-								RefererActorDescView->SetForcedNonSpatiallyLoaded();
-								ReferenceActorDescView->SetForcedNonSpatiallyLoaded();
+								EditorReferences.Add(Info.ReferenceGuid);
 							}
 
 							NbErrorsDetected++;
 						}
-
-						if (!IsReferenceDataLayersValid(*RefererActorDescView, *ReferenceActorDescView))
+						else
 						{
-							if (PassType == EPassType::ErrorReporting)
+							// Validate grid placement
+							if (!IsReferenceGridPlacementValid(*RefererActorDescView, *ReferenceActorDescView))
 							{
-								ErrorHandler->OnInvalidReferenceDataLayers(*RefererActorDescView, *ReferenceActorDescView);									
-							}
-							else
-							{
-								RefererActorDescView->SetInvalidDataLayers();
-								ReferenceActorDescView->SetInvalidDataLayers();
-							}
+								if (PassType == EPassType::ErrorReporting)
+								{
+									ErrorHandler->OnInvalidReferenceGridPlacement(*RefererActorDescView, *ReferenceActorDescView);									
+								}
+								else
+								{
+									RefererActorDescView->SetForcedNonSpatiallyLoaded();
+									ReferenceActorDescView->SetForcedNonSpatiallyLoaded();
+								}
 
-							NbErrorsDetected++;
-						}
-
-						if (!IsReferenceRuntimeGridValid(*RefererActorDescView, *ReferenceActorDescView))
-						{
-							if (PassType == EPassType::ErrorReporting)
-							{
-								ErrorHandler->OnInvalidReferenceRuntimeGrid(*RefererActorDescView, *ReferenceActorDescView);
-							}
-							else
-							{
-								RefererActorDescView->SetForcedNoRuntimeGrid();
-								ReferenceActorDescView->SetForcedNoRuntimeGrid();
+								NbErrorsDetected++;
 							}
 
-							NbErrorsDetected++;
-						}
+							if (!IsReferenceDataLayersValid(*RefererActorDescView, *ReferenceActorDescView))
+							{
+								if (PassType == EPassType::ErrorReporting)
+								{
+									ErrorHandler->OnInvalidReferenceDataLayers(*RefererActorDescView, *ReferenceActorDescView);									
+								}
+								else
+								{
+									RefererActorDescView->SetInvalidDataLayers();
+									ReferenceActorDescView->SetInvalidDataLayers();
+								}
 
-						if (PassType == EPassType::Fixup)
-						{
-							RuntimeReferences.Add(Info.ReferenceGuid);
+								NbErrorsDetected++;
+							}
+
+							if (!IsReferenceRuntimeGridValid(*RefererActorDescView, *ReferenceActorDescView))
+							{
+								if (PassType == EPassType::ErrorReporting)
+								{
+									ErrorHandler->OnInvalidReferenceRuntimeGrid(*RefererActorDescView, *ReferenceActorDescView);
+								}
+								else
+								{
+									RefererActorDescView->SetForcedNoRuntimeGrid();
+									ReferenceActorDescView->SetForcedNoRuntimeGrid();
+								}
+
+								NbErrorsDetected++;
+							}
+
+							if (PassType == EPassType::Fixup)
+							{
+								RuntimeReferences.Add(Info.ReferenceGuid);
+							}
 						}
 					}
 					else

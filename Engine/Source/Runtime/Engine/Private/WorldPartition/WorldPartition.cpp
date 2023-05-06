@@ -1756,14 +1756,16 @@ void UWorldPartition::AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags
 	// Append level script references so we can perform changelists validations without loading the world
 	if (const ULevelScriptBlueprint* LevelScriptBlueprint = GetWorld()->PersistentLevel->GetLevelScriptBlueprint(true))
 	{
-		TArray<AActor*> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetExternalActorReferences((UObject*)LevelScriptBlueprint);
+		const ActorsReferencesUtils::FGetActorReferencesParams Params = ActorsReferencesUtils::FGetActorReferencesParams((UObject*)LevelScriptBlueprint)
+			.SetRequiredFlags(RF_HasExternalPackage);
+		TArray<ActorsReferencesUtils::FActorReference> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetActorReferences(Params);
 		
 		if (LevelScriptExternalActorReferences.Num())
 		{
 			FStringBuilderBase StringBuilder;
-			for (const AActor* Actor : LevelScriptExternalActorReferences)
+			for (const ActorsReferencesUtils::FActorReference& ActorReference : LevelScriptExternalActorReferences)
 			{
-				StringBuilder.Append(Actor->GetActorGuid().ToString(EGuidFormats::Short));
+				StringBuilder.Append(ActorReference.Actor->GetActorGuid().ToString(EGuidFormats::Short));
 				StringBuilder.AppendChar(TEXT(','));
 			}
 			StringBuilder.RemoveSuffix(1);

@@ -265,6 +265,11 @@ AActor* FWorldPartitionActorDescView::GetActor() const
 	return ActorDesc->GetActor();
 }
 
+bool FWorldPartitionActorDescView::IsEditorOnlyReference(const FGuid& ReferenceGuid) const
+{
+	return ActorDesc->IsEditorOnlyReference(ReferenceGuid);
+}
+
 bool FWorldPartitionActorDescView::GetProperty(FName PropertyName, FName* PropertyValue) const
 {
 	return ActorDesc->GetProperty(PropertyName, PropertyValue);

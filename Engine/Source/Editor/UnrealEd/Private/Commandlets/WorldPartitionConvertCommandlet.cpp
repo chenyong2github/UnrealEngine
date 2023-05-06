@@ -1129,7 +1129,9 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			if (LevelHasLevelScriptBlueprint(Level))
 			{
 				ULevelScriptBlueprint* LevelScriptBlueprint = Level->GetLevelScriptBlueprint(true);
-				TArray<AActor*> LevelScriptActorReferences = ActorsReferencesUtils::GetActorReferences(LevelScriptBlueprint);
+				const ActorsReferencesUtils::FGetActorReferencesParams Params(LevelScriptBlueprint);
+				TArray<AActor*> LevelScriptActorReferences;
+				Algo::Transform(ActorsReferencesUtils::GetActorReferences(Params), LevelScriptActorReferences, [](const ActorsReferencesUtils::FActorReference& ActorReference) { return ActorReference.Actor; });
 
 				for (AActor* LevelScriptActorReference : LevelScriptActorReferences)
 				{
@@ -1250,7 +1252,9 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 				LevelScriptActorReferences.Add(LevelScriptActor);
 
 				ULevelScriptBlueprint* LevelScriptBlueprint = SubLevel->GetLevelScriptBlueprint(true);
-				LevelScriptActorReferences.Append(ActorsReferencesUtils::GetActorReferences(LevelScriptBlueprint, RF_NoFlags, true));
+				const ActorsReferencesUtils::FGetActorReferencesParams LevelScriptBlueprintReferencesParams = ActorsReferencesUtils::FGetActorReferencesParams(LevelScriptBlueprint)
+					.SetRecursive(true);
+				Algo::Transform(ActorsReferencesUtils::GetActorReferences(LevelScriptBlueprintReferencesParams), LevelScriptActorReferences, [](const ActorsReferencesUtils::FActorReference& ActorReference) { return ActorReference.Actor; });
 
 				for(AActor* Actor: SubLevel->Actors)
 				{
@@ -1265,7 +1269,9 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 						else
 						{
 							TSet<AActor*> ActorReferences;
-							ActorReferences.Append(ActorsReferencesUtils::GetActorReferences(Actor, RF_NoFlags, true));
+							const ActorsReferencesUtils::FGetActorReferencesParams ActorReferencesParams = ActorsReferencesUtils::FGetActorReferencesParams(Actor)
+								.SetRecursive(true);
+							Algo::Transform(ActorsReferencesUtils::GetActorReferences(ActorReferencesParams), ActorReferences, [](const ActorsReferencesUtils::FActorReference& ActorReference) { return ActorReference.Actor; });
 
 							for (AActor* ActorReference : ActorReferences)
 							{
