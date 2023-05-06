@@ -48,6 +48,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile]
 		[CommandLine("-Box", Value = "true")]
+		[CommandLine("-NoBox", Value = "false")]
 		public bool bAllowBoxExecutor = false;
 #endif // #if __BOXEXECUTOR_AVAILABLE__
 
