@@ -184,6 +184,9 @@ struct FIntermediate3DTransform
 	}
 
 	MOVIESCENETRACKS_API void ApplyTo(USceneComponent* SceneComponent) const;
+	
+	MOVIESCENETRACKS_API static void ApplyTransformTo(USceneComponent* SceneComponent, const FIntermediate3DTransform& Transform);
+	MOVIESCENETRACKS_API static void ApplyTranslationAndRotationTo(USceneComponent* SceneComponent, const FIntermediate3DTransform& Transform);
 };
 
 MOVIESCENETRACKS_API FIntermediate3DTransform GetComponentTransform(const UObject* Object);

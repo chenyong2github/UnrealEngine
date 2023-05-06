@@ -3,6 +3,7 @@
 #include "Evaluation/MovieScene3DPathTemplate.h"
 #include "Evaluation/MovieSceneTemplateCommon.h"
 #include "MovieSceneCommonHelpers.h"
+#include "MovieSceneTracksPropertyTypes.h"
 #include "GameFramework/Actor.h"
 #include "Components/SplineComponent.h"
 #include "Evaluation/MovieSceneEvaluation.h"
@@ -162,7 +163,9 @@ struct F3DPathExecutionToken
 				Eval(SceneComponent, SplineComponent, Location, Rotation);
 				
 				SceneComponent->SetMobility(EComponentMobility::Movable);
-				SceneComponent->SetRelativeLocationAndRotation(Location, Rotation);
+
+				UE::MovieScene::FIntermediate3DTransform Transform(Location, Rotation, FVector(1.0));
+				UE::MovieScene::FIntermediate3DTransform::ApplyTranslationAndRotationTo(SceneComponent, Transform);
 			}
 		}
 	}
