@@ -114,6 +114,20 @@ struct FAssetRegistryLoadOptions
 	int32 ParallelWorkers = 0;
 };
 
+struct FAssetRegistryPruneOptions
+{
+	TSet<FName> RequiredPackages;
+	TSet<FName> RemovePackages;
+	TSet<int32> ChunksToKeep;
+	FAssetRegistrySerializationOptions Options;
+
+	/* Remove FDependsNodes that do not point to packages */
+	bool bRemoveDependenciesWithoutPackages = false;
+
+	/* List of types that should not be pruned because they do not have a package */
+	TSet<FPrimaryAssetType> RemoveDependenciesWithoutPackagesKeepPrimaryAssetTypes;
+};
+
 namespace UE::AssetRegistry::Private
 {
 	/* 
@@ -502,6 +516,7 @@ public:
 	 */
 	void PruneAssetData(const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const TSet<int32> ChunksToKeep, const FAssetRegistrySerializationOptions& Options);
 	void PruneAssetData(const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const FAssetRegistrySerializationOptions& Options);
+	void Prune(const FAssetRegistryPruneOptions& PruneOptions);
 
 	
 	/**

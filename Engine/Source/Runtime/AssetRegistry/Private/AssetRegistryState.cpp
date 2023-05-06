@@ -475,6 +475,21 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 
 void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, const TSet<FName>& RemovePackages, const TSet<int32> ChunksToKeep, const FAssetRegistrySerializationOptions& Options)
 {
+	FAssetRegistryPruneOptions PruneOptions;
+	PruneOptions.RequiredPackages = RequiredPackages;
+	PruneOptions.RemovePackages = RemovePackages;
+	PruneOptions.ChunksToKeep = ChunksToKeep;
+	PruneOptions.Options = Options;
+	Prune(PruneOptions);
+}
+
+void FAssetRegistryState::Prune(const FAssetRegistryPruneOptions& PruneOptions)
+{
+	const TSet<FName>& RequiredPackages = PruneOptions.RequiredPackages;
+	const TSet<FName>& RemovePackages = PruneOptions.RemovePackages;
+	const TSet<int32>& ChunksToKeep = PruneOptions.ChunksToKeep;
+	const FAssetRegistrySerializationOptions& Options = PruneOptions.Options;
+
 	const bool bIsFilteredByChunkId = ChunksToKeep.Num() != 0;
 	const bool bIsFilteredByRequiredPackages = RequiredPackages.Num() != 0;
 	const bool bIsFilteredByRemovedPackages = RemovePackages.Num() != 0;
@@ -484,6 +499,8 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 	// Generate list up front as the maps will get cleaned up
 	TArray<FAssetData*> AllAssetData = CachedAssets.Array();
 	TSet<FDependsNode*> RemoveDependsNodes;
+
+	TSet<FPrimaryAssetId> KnownPrimaryAssetIds;
 
 	// Remove assets and mark-for-removal any dependencynodes for assets removed due to having no tags
 	for (FAssetData* AssetData : AllAssetData)
@@ -532,6 +549,14 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 				}
 			}
 		}
+		else if (PruneOptions.bRemoveDependenciesWithoutPackages)
+		{
+			FPrimaryAssetId PrimaryAssetId = AssetData->GetPrimaryAssetId();
+			if (PrimaryAssetId.IsValid())
+			{
+				KnownPrimaryAssetIds.Add(PrimaryAssetId);
+			}
+		}
 	}
 
 	TArray<FDependsNode*> AllDependsNodes;
@@ -557,6 +582,20 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 			!FPackageName::IsScriptPackage(WriteToString<256>(Id.PackageName)))
 		{
 			bRemoveDependsNode = true;
+		}
+		else if (PruneOptions.bRemoveDependenciesWithoutPackages)
+		{
+			const FPrimaryAssetId PrimaryAssetId = Id.GetPrimaryAssetId();
+			if (PrimaryAssetId.IsValid() && Id.IsObject())
+			{
+				if (!KnownPrimaryAssetIds.Contains(PrimaryAssetId))
+				{
+					if (!PruneOptions.RemoveDependenciesWithoutPackagesKeepPrimaryAssetTypes.Contains(PrimaryAssetId.PrimaryAssetType))
+					{
+						bRemoveDependsNode = true;
+					}
+				}
+			}
 		}
 		
 		if (bRemoveDependsNode)
