@@ -185,7 +185,7 @@ public:
 
 	/** Set up this reference to a 'self' member name */
 	ENGINE_API void SetSelfMember(FName InMemberName);
-	ENGINE_API void SetSelfMember(FName InMemberName, FGuid& InMemberGuid);
+	ENGINE_API void SetSelfMember(FName InMemberName, const FGuid& InMemberGuid);
 
 	/** Set up this reference to a 'self' member name, scoped to a struct */
 	ENGINE_API void SetLocalMember(FName InMemberName, UStruct* InScope, const FGuid InMemberGuid);

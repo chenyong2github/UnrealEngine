@@ -58,7 +58,7 @@ void FMemberReference::SetSelfMember(FName InMemberName)
 	bWasDeprecated = false;
 }
 
-void FMemberReference::SetSelfMember(FName InMemberName, FGuid& InMemberGuid)
+void FMemberReference::SetSelfMember(FName InMemberName, const FGuid& InMemberGuid)
 {
 	SetSelfMember(InMemberName);
 	MemberGuid = InMemberGuid;
