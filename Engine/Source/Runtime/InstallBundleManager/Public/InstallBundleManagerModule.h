@@ -38,6 +38,8 @@ public:
 	virtual void PreUnloadCallback() override
 	{
 		InstallBundleManager = nullptr;
+		// make sure the bundle manager was cleaned up
+		check(LastInstallBundleManager.IsValid() == false);
 	}
 
 	TSharedPtr<IInstallBundleManager> GetInstallBundleManager()
