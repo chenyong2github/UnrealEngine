@@ -14,13 +14,7 @@
 #include "rtc_base/system/rtc_export.h"
 #include "rtc_base/constructor_magic.h"
 
-// enables rtc extension functionality
-#ifndef WEBRTC_EXTENSION_THREAD_OBSERVER
-#define WEBRTC_EXTENSION_THREAD_OBSERVER 1
-#endif  // WEBRTC_EXTENSION_THREAD_OBSERVER
-
 namespace rtc {
-#if WEBRTC_EXTENSION_THREAD_OBSERVER
 
 class Thread;
 class PlatformThread;
@@ -69,7 +63,6 @@ class ThreadListener {
   RTC_DISALLOW_COPY_AND_ASSIGN(ThreadListener);
 };
 
-#endif  // WEBRTC_EXTENSION_THREAD_OBSERVER
 }  // namespace rtc
 
 #endif  // RTC_BASE_THREAD_OBSERVER_H_

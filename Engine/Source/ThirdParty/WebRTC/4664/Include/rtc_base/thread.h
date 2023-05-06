@@ -660,9 +660,7 @@ class RTC_LOCKABLE RTC_EXPORT Thread : public webrtc::TaskQueueBase {
 
   std::string name_;
 
-#if WEBRTC_EXTENSION_THREAD_OBSERVER
   std::atomic<bool> is_real_thread_created_{ false };
-#endif
   // all new threads will use this priority instead of using a platform-specific default priority
   const ThreadPriority priority_ = ThreadPriority::kNormal;
 

@@ -196,6 +196,10 @@ class RetransmissionQueue {
     bool is_nacked() const { return ack_state_ == AckState::kNacked; }
     bool is_abandoned() const { return is_abandoned_; }
 
+    bool is_unreliable() const {
+      return max_retransmissions_.has_value() && max_retransmissions_ == 0;
+    }
+
     // Indicates if this chunk should be retransmitted.
     bool should_be_retransmitted() const { return should_be_retransmitted_; }
     // Indicates if this chunk has ever been retransmitted.

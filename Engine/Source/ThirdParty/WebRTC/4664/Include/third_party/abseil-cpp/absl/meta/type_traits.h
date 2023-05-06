@@ -314,12 +314,12 @@ struct is_trivially_destructible
   static constexpr bool compliant = std::is_trivially_destructible<T>::value ==
 	  std::integral_constant<bool, __has_trivial_destructor(T) &&
 	  std::is_destructible<T>::value>::value;
-  static_assert(compliant || std::is_trivially_destructible<T>::value,
-                "Not compliant with std::is_trivially_destructible; "
-                "Standard: false, Implementation: true");
-  static_assert(compliant || !std::is_trivially_destructible<T>::value,
-                "Not compliant with std::is_trivially_destructible; "
-                "Standard: true, Implementation: false");
+  //static_assert(compliant || std::is_trivially_destructible<T>::value,
+  //              "Not compliant with std::is_trivially_destructible; "
+  //              "Standard: false, Implementation: true");
+  //static_assert(compliant || !std::is_trivially_destructible<T>::value,
+  //              "Not compliant with std::is_trivially_destructible; "
+  //              "Standard: true, Implementation: false");
 #endif  // ABSL_HAVE_STD_IS_TRIVIALLY_DESTRUCTIBLE
 };
 
@@ -369,12 +369,12 @@ struct is_trivially_default_constructible
 	  std::integral_constant<bool, __has_trivial_constructor(T) &&
 	  std::is_default_constructible<T>::value &&
 	  is_trivially_destructible<T>::value>::value;
-  static_assert(compliant || std::is_trivially_default_constructible<T>::value,
-                "Not compliant with std::is_trivially_default_constructible; "
-                "Standard: false, Implementation: true");
-  static_assert(compliant || !std::is_trivially_default_constructible<T>::value,
-                "Not compliant with std::is_trivially_default_constructible; "
-                "Standard: true, Implementation: false");
+  //static_assert(compliant || std::is_trivially_default_constructible<T>::value,
+  //              "Not compliant with std::is_trivially_default_constructible; "
+  //              "Standard: false, Implementation: true");
+  //static_assert(compliant || !std::is_trivially_default_constructible<T>::value,
+  //              "Not compliant with std::is_trivially_default_constructible; "
+  //              "Standard: true, Implementation: false");
 #endif  // ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE
 };
 
@@ -404,12 +404,12 @@ struct is_trivially_move_constructible
   static constexpr bool compliant =
       std::is_trivially_move_constructible<T>::value ==
       is_trivially_move_constructible::value;
-  static_assert(compliant || std::is_trivially_move_constructible<T>::value,
-                "Not compliant with std::is_trivially_move_constructible; "
-                "Standard: false, Implementation: true");
-  static_assert(compliant || !std::is_trivially_move_constructible<T>::value,
-                "Not compliant with std::is_trivially_move_constructible; "
-                "Standard: true, Implementation: false");
+//  static_assert(compliant || std::is_trivially_move_constructible<T>::value,
+//                "Not compliant with std::is_trivially_move_constructible; "
+//                "Standard: false, Implementation: true");
+//  static_assert(compliant || !std::is_trivially_move_constructible<T>::value,
+//                "Not compliant with std::is_trivially_move_constructible; "
+//                "Standard: true, Implementation: false");
 #endif  // ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE
 };
 
@@ -441,12 +441,12 @@ struct is_trivially_copy_constructible
 	  std::integral_constant<bool, __has_trivial_copy(T) &&
 	  std::is_copy_constructible<T>::value &&
 	  is_trivially_destructible<T>::value>::value;
-  static_assert(compliant || std::is_trivially_copy_constructible<T>::value,
-                "Not compliant with std::is_trivially_copy_constructible; "
-                "Standard: false, Implementation: true");
-  static_assert(compliant || !std::is_trivially_copy_constructible<T>::value,
-                "Not compliant with std::is_trivially_copy_constructible; "
-                "Standard: true, Implementation: false");
+//  static_assert(compliant || std::is_trivially_copy_constructible<T>::value,
+//                "Not compliant with std::is_trivially_copy_constructible; "
+//                "Standard: false, Implementation: true");
+//  static_assert(compliant || !std::is_trivially_copy_constructible<T>::value,
+//                "Not compliant with std::is_trivially_copy_constructible; "
+//                "Standard: true, Implementation: false");
 #endif  // ABSL_HAVE_STD_IS_TRIVIALLY_CONSTRUCTIBLE
 };
 
@@ -478,12 +478,12 @@ struct is_trivially_move_assignable
   static constexpr bool compliant =
       std::is_trivially_move_assignable<T>::value ==
       is_trivially_move_assignable::value;
-  static_assert(compliant || std::is_trivially_move_assignable<T>::value,
-                "Not compliant with std::is_trivially_move_assignable; "
-                "Standard: false, Implementation: true");
-  static_assert(compliant || !std::is_trivially_move_assignable<T>::value,
-                "Not compliant with std::is_trivially_move_assignable; "
-                "Standard: true, Implementation: false");
+//  static_assert(compliant || std::is_trivially_move_assignable<T>::value,
+//                "Not compliant with std::is_trivially_move_assignable; "
+//                "Standard: false, Implementation: true");
+//  static_assert(compliant || !std::is_trivially_move_assignable<T>::value,
+//                "Not compliant with std::is_trivially_move_assignable; "
+//                "Standard: true, Implementation: false");
 #endif  // ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE
 };
 
@@ -514,16 +514,12 @@ struct is_trivially_copy_assignable
 	  std::integral_constant<
 	  bool, __has_trivial_assign(typename std::remove_reference<T>::type) &&
 	  std::is_copy_assignable<T>::value>::value;
-// EPIC BEGIN
-// EPIC NOTE - Disabled as we don't actually care whether abseil behaviour 
-// matches standard library
-//   static_assert(compliant || std::is_trivially_copy_assignable<T>::value,
-//                 "Not compliant with std::is_trivially_copy_assignable; "
-//                 "Standard: false, Implementation: true");
-//   static_assert(compliant || !std::is_trivially_copy_assignable<T>::value,
-//                 "Not compliant with std::is_trivially_copy_assignable; "
-//                 "Standard: true, Implementation: false");
-// EPIC END
+//  static_assert(compliant || std::is_trivially_copy_assignable<T>::value,
+//                "Not compliant with std::is_trivially_copy_assignable; "
+//                "Standard: false, Implementation: true");
+//  static_assert(compliant || !std::is_trivially_copy_assignable<T>::value,
+//                "Not compliant with std::is_trivially_copy_assignable; "
+//                "Standard: true, Implementation: false");
 #endif  // ABSL_HAVE_STD_IS_TRIVIALLY_ASSIGNABLE
 };
 
