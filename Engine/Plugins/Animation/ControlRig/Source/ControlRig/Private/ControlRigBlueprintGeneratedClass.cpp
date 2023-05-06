@@ -28,11 +28,7 @@ void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)
 		return;
 	}
 
-	// for debugging purposes we'll give this VM a name that's useful.
-	static TAtomic<uint32> NumVMs{ 0 };
-	static constexpr TCHAR Format[] = TEXT("%s_VM_%zu");
-	const FString VMDebugName = FString::Printf(Format, *GetName(), uint32(++NumVMs));
-	URigVM* VM = NewObject<URigVM>(GetTransientPackage(), *VMDebugName);
+	URigVM* VM = NewObject<URigVM>(GetTransientPackage());
 
 	if (UControlRig* CDO = Cast<UControlRig>(GetDefaultObject(true)))
 	{

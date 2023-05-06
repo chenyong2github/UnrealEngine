@@ -222,12 +222,6 @@ public:
 		const TArray<FRigVMTemplateArgument>& InArguments,
 		const FRigVMTemplateDelegates& InDelegates);
 
-	// Adds a new template given its arguments
-	const FRigVMTemplate* AddTemplateFromArguments(
-		const FName& InName,
-		const TArray<FRigVMTemplateArgument>& InArguments,
-		const FRigVMTemplateDelegates& InDelegates);
-
 	// Returns a dispatch factory given its name (or nullptr)
 	FRigVMDispatchFactory* FindDispatchFactory(const FName& InFactoryName) const;
 
@@ -323,15 +317,6 @@ private:
 	
 	void RemoveTypeInCategory(FRigVMTemplateArgument::ETypeCategory InCategory, TRigVMTypeIndex InTypeIndex);
 
-	const FRigVMFunction* FindFunction_NoLock(const TCHAR* InName) const;
-	const FRigVMTemplate* FindTemplate_NoLock(const FName& InNotation, bool bIncludeDeprecated) const;
-	FRigVMDispatchFactory* FindDispatchFactory_NoLock(const FName& InFactoryName) const;
-
-	const FRigVMTemplate* AddTemplateFromArguments_NoLock(
-		const FName& InName,
-		const TArray<FRigVMTemplateArgument>& InArguments,
-		const FRigVMTemplateDelegates& InDelegates);
-
 	// memory for all (known) types
 	TArray<FTypeInfo> Types;
 	TMap<FRigVMTemplateArgumentType, TRigVMTypeIndex> TypeToIndex;
@@ -370,19 +355,8 @@ private:
 	
 	// Notifies other system that types have been added/removed, and template permutations have been updated
 	FOnRigVMRegistryChanged OnRigVMRegistryChangedDelegate;
-
-	static FCriticalSection RefreshTypesMutex;
-	static FCriticalSection RegisterFunctionMutex;
-	static FCriticalSection RegisterTemplateMutex;
-	static FCriticalSection RegisterFactoryMutex;
-	static FCriticalSection FindFunctionMutex;
-	static FCriticalSection FindTemplateMutex;
-	static FCriticalSection FindFactoryMutex;
-	static FCriticalSection GetDispatchFunctionMutex;
-	static FCriticalSection GetPermutationMutex;
-
+	
 	friend struct FRigVMStruct;
 	friend struct FRigVMTemplate;
 	friend struct FRigVMTemplateArgument;
-	friend struct FRigVMDispatchFactory;
 };
