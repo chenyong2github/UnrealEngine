@@ -52,7 +52,7 @@ public:
 	FText ActionDescription = FText::GetEmpty();
 
 	// Should this action swallow any inputs bound to it or allow them to pass through to affect lower priority bound actions?
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Action)
 	bool bConsumeInput = true;
 
 	// Should this action be able to trigger whilst the game is paused - Replaces bExecuteWhenPaused
