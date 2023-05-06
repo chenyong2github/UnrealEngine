@@ -483,7 +483,8 @@ namespace UnrealBuildTool
 							{
 								foreach (ImmediateActionQueueRunner tryRunner in _runners)
 								{
-									if (tryRunner.IsUnderLimits && tryRunner.ActionPhase == Actions[actionIndex].Phase)
+									if (tryRunner.Type == ImmediateActionQueueRunnerType.Automatic &&                                   
+										tryRunner.IsUnderLimits && tryRunner.ActionPhase == Actions[actionIndex].Phase)
 									{
 										action = tryRunner.RunAction(Actions[actionIndex].Action);
 										if (action != null)
