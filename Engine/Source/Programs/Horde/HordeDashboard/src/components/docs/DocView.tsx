@@ -171,7 +171,7 @@ const DocRail = observer(() => {
 
    const refLinks: ISideRailLink[] = [];
 
-   if (dashboard.user?.dashboardFeatures?.showCI === false) {
+   if (dashboard.user?.dashboardFeatures?.showLandingPage === true) {
       refLinks.push({ text: "Landing", url: "/docs" });
    }
 
@@ -211,7 +211,7 @@ export const DocView = () => {
    }
    if (!docName || docName.indexOf("README.md") !== -1) {
 
-      if (dashboard.user?.dashboardFeatures?.showCI === false) {
+      if (dashboard.user?.dashboardFeatures?.showLandingPage === true) {
          docName = "documentation/Docs/Landing.md";
       } else {
          docName = "documentation/Docs/Home.md";

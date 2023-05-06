@@ -111,29 +111,22 @@ namespace Horde.Server.Users
 	/// </summary>
 	public class GetDashboardFeaturesResponse
 	{
-		/// <summary>
-		/// Enable CI functionality
-		/// </summary>
+		/// <inheritdoc cref="DashboardConfig.ShowLandingPage"/>
+		public bool ShowLandingPage { get; set; }
+
+		/// <inheritdoc cref="DashboardConfig.ShowCI"/>
 		public bool ShowCI { get; set; }
 
-		/// <summary>
-		/// Whether to show functionality related to agents, pools, and utilization on the dashboard.
-		/// </summary>
+		/// <inheritdoc cref="DashboardConfig.ShowAgents"/>
 		public bool ShowAgents { get; set; }
 
-		/// <summary>
-		/// Show the Perforce server option on the server menu
-		/// </summary>
+		/// <inheritdoc cref="DashboardConfig.ShowPerforceServers"/>
 		public bool ShowPerforceServers { get; set; }
 
-		/// <summary>
-		/// Show the device manager on the server menu
-		/// </summary>
+		/// <inheritdoc cref="DashboardConfig.ShowDeviceManager"/>
 		public bool ShowDeviceManager { get; set; }
 
-		/// <summary>
-		/// Show automated tests on the server menu
-		/// </summary>
+		/// <inheritdoc cref="DashboardConfig.ShowTests"/>
 		public bool ShowTests { get; set; }
 
 		/// <summary>
@@ -156,11 +149,12 @@ namespace Horde.Server.Users
 		/// </summary>
 		public GetDashboardFeaturesResponse(GlobalConfig globalConfig, ClaimsPrincipal principal)
 		{
-			ShowCI = true;
-			ShowAgents = true;
-			ShowPerforceServers = true;
-			ShowDeviceManager = true;
-			ShowTests = true;
+			ShowLandingPage = globalConfig.Dashboard.ShowLandingPage;
+			ShowCI = globalConfig.Dashboard.ShowCI;
+			ShowAgents = globalConfig.Dashboard.ShowAgents;
+			ShowPerforceServers = globalConfig.Dashboard.ShowPerforceServers;
+			ShowDeviceManager = globalConfig.Dashboard.ShowDeviceManager;
+			ShowTests = globalConfig.Dashboard.ShowTests;
 			ShowNoticeEditor = globalConfig.Authorize(NoticeAclAction.CreateNotice, principal) || globalConfig.Authorize(NoticeAclAction.UpdateNotice, principal);
 			ShowPoolEditor = globalConfig.Authorize(PoolAclAction.CreatePool, principal) || globalConfig.Authorize(PoolAclAction.UpdatePool, principal);
 			ShowRemoteDesktop = globalConfig.Authorize(AgentAclAction.UpdateAgent, principal);

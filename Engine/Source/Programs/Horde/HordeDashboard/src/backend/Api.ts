@@ -3105,6 +3105,9 @@ export type GetDashboardFeaturesResponse = {
 	/** Whether the remote desktop button should be shown on the agent modal */
 	showRemoteDesktop?: boolean;
 
+	/** Show the landing page by default */
+	showLandingPage?: boolean;
+
 	/** Enable CI functionality */
 	showCI?: boolean;
 

@@ -40,6 +40,42 @@ namespace Horde.Server.Server
 	}
 
 	/// <summary>
+	/// Configuration for global features
+	/// </summary>
+	public class DashboardConfig
+	{
+		/// <summary>
+		/// Navigate to the landing page by default
+		/// </summary>
+		public bool ShowLandingPage { get; set; } = false;
+
+		/// <summary>
+		/// Enable CI functionality
+		/// </summary>
+		public bool ShowCI { get; set; } = true;
+
+		/// <summary>
+		/// Whether to show functionality related to agents, pools, and utilization on the dashboard.
+		/// </summary>
+		public bool ShowAgents { get; set; } = true;
+
+		/// <summary>
+		/// Show the Perforce server option on the server menu
+		/// </summary>
+		public bool ShowPerforceServers { get; set; } = true;
+
+		/// <summary>
+		/// Show the device manager on the server menu
+		/// </summary>
+		public bool ShowDeviceManager { get; set; } = true;
+
+		/// <summary>
+		/// Show automated tests on the server menu
+		/// </summary>
+		public bool ShowTests { get; set; } = true;
+	}
+
+	/// <summary>
 	/// Global configuration
 	/// </summary>
 	[JsonSchema("https://unrealengine.com/horde/global")]
@@ -71,6 +107,11 @@ namespace Horde.Server.Server
 		/// Other paths to include
 		/// </summary>
 		public List<ConfigInclude> Include { get; set; } = new List<ConfigInclude>();
+
+		/// <summary>
+		/// Settings for the dashboard
+		/// </summary>
+		public DashboardConfig Dashboard { get; set; } = new DashboardConfig();
 
 		/// <summary>
 		/// List of projects

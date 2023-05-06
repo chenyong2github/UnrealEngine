@@ -1,4 +1,12 @@
 {
+	"dashboard": {
+		"showLandingPage": true,
+		"showCI": true,
+		"showAgents": true,
+		"showPerforceServers": true,
+		"showDeviceManager": true,
+		"showTests": true
+	},
 	"compute": [
 		{
 			"id": "default",
@@ -9,7 +17,7 @@
 		"backends": [
 			{
 				"id": "default-backend",
-				"type":"FileSystem",
+				"type": "FileSystem",
 				"baseDir": "Storage" // Default base directory is C:\ProgramData\HordeServer
 			},
 			{
