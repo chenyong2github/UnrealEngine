@@ -44,7 +44,7 @@ void UAnimGraphNode_LegIK::ValidateAnimNodeDuringCompilation(USkeleton* ForSkele
 
 			if (ForSkeleton->GetReferenceSkeleton().FindBoneIndex(LegDefinition.IKFootBone.BoneName) == INDEX_NONE)
 			{
-				MessageLog.Warning(*LOCTEXT("InvalidFKFootBone", "@@ - Invalid IKFoot Bone in Legs Definition").ToString(), this);
+				MessageLog.Warning(*LOCTEXT("InvalidIKFootBone", "@@ - Invalid IKFoot Bone in Legs Definition").ToString(), this);
 			}
 		}
 	}
