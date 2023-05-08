@@ -1081,9 +1081,9 @@ void FNiagaraStackGraphUtilities::GatherInputRelationsForStack(FInputDataCollect
 					return ScriptVariableCandidate->Metadata.GetVariableGuid() == InputGuid;
 				});
 
-				TOptional<bool> bIsStaticSwitch = GraphWithInput->IsStaticSwitch((*MatchingScriptVariable)->Variable);
 				if(ensure(MatchingScriptVariable != nullptr))
 				{
+					TOptional<bool> bIsStaticSwitch = GraphWithInput->IsStaticSwitch((*MatchingScriptVariable)->Variable);
 					HierarchyInputToScriptVariableMap.Add(Input, *MatchingScriptVariable);
 					HierarchyInputToStaticSwitchMap.Add(Input, bIsStaticSwitch.GetValue());
 				}
