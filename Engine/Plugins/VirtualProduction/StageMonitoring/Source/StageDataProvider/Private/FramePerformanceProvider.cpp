@@ -41,13 +41,20 @@ uint64 TotalGPUResourceSize(const TArray<FStatMessage>& StatMessages)
 	return TotalSize;
 }
 
+static float GAverageGPU = 0;
+
+void UpdateAverageGPUUsage()
+{
+	const float GPUTime = FPlatformTime::ToMilliseconds(GGPUFrameTime);
+	GAverageGPU = 0.75*GAverageGPU + 0.25*GPUTime;
+}
+
 FFramePerformanceProviderMessage GetLatestPerformanceData(const	TArray<FStatMessage>& StatMessages)
 {
 	const float GameThreadTime = FPlatformTime::ToMilliseconds(GGameThreadTime);
 	const float GameThreadWaitTime = FPlatformTime::ToMilliseconds(GGameThreadWaitTime);
 	const float RenderThreadTime = FPlatformTime::ToMilliseconds(GRenderThreadTime);
 	const float RenderThreadWaitTime = FPlatformTime::ToMilliseconds(GRenderThreadWaitTime);
-	const float GPUTime = FPlatformTime::ToMilliseconds(GGPUFrameTime);
 	const float IdleTimeMilli = (FApp::GetIdleTime() * 1000.0);
 	FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
 	return FFramePerformanceProviderMessage(
@@ -56,7 +63,7 @@ FFramePerformanceProviderMessage GetLatestPerformanceData(const	TArray<FStatMess
 		GameThreadWaitTime,
 		RenderThreadTime,
 		RenderThreadWaitTime,
-		GPUTime,
+		GAverageGPU,
 		IdleTimeMilli,
 		Stats.UsedPhysical,
 		TotalGPUResourceSize(StatMessages),
@@ -99,6 +106,7 @@ public:
 				GetPermanentStats(Stats);
 			}
 
+			UE::FramePerformanceProvider::Private::UpdateAverageGPUUsage();
 			IStageDataProvider::SendMessage<FFramePerformanceProviderMessage>(EStageMessageFlags::None, GetFramePerformanceData());
 
 			FPlatformProcess::Sleep(UpdateFrequency);

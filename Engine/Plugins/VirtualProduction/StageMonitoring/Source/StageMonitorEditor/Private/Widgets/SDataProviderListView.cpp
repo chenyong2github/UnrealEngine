@@ -689,12 +689,11 @@ FText SDataProviderTableRow::GetAverageFPS() const
 FText SDataProviderTableRow::GetEstimatedMaxFPS() const
 {
 	const FFramePerformanceProviderMessage& Data = Item->CachedPerformanceData;
-	const float AverageMS = Data.AverageFPS > 0 ? 1000.0 / Data.AverageFPS : 0;
-	const float ThreadWaitMS = FMath::Min(Data.GameThreadWaitMS, Data.RenderThreadWaitMS);
-	const float WaitMS = Data.IdleTimeMS > ThreadWaitMS ? Data.IdleTimeMS - ThreadWaitMS : ThreadWaitMS;
-
-	const float EstimatedFrameTimeMS = AverageMS > WaitMS ? (AverageMS - WaitMS) : AverageMS;
-	const float EstimatedMaxFPS = EstimatedFrameTimeMS > 0 ? 1000.f / EstimatedFrameTimeMS : 0;
+	const float TotalMS = Data.GameThreadMS + Data.GameThreadWaitMS;
+	const float EstimatedGPUIdle = TotalMS > Data.GPU_MS ? (TotalMS - Data.GPU_MS) : TotalMS;
+	const float EstimatedMinMS = TotalMS > EstimatedGPUIdle ? (TotalMS - EstimatedGPUIdle) : TotalMS;
+	const float ClampedEstimatedMS = FMath::Clamp(EstimatedMinMS, Data.GPU_MS, EstimatedMinMS);
+	const float EstimatedMaxFPS = ClampedEstimatedMS > 0 ? 1000.f / ClampedEstimatedMS : 0;
 	return FText::AsNumber(EstimatedMaxFPS);
 }
 
