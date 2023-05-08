@@ -14,6 +14,7 @@ public class UIFramework : ModuleRules
 				"DeveloperSettings",
 				"Engine",
 				"FieldNotification",
+				"LocalizableMessage",
 				"ModelViewViewModel",
 				"SlateCore",
 				"Slate",

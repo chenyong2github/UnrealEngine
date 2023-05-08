@@ -5,6 +5,8 @@
 #include "Types/UIFEvents.h"
 #include "UIFWidget.h"
 
+#include "LocalizableMessage.h"
+
 #include "UIFSimpleButton.generated.h"
 
 struct FMVVMEventField;
@@ -21,20 +23,23 @@ public:
 	UUIFrameworkSimpleButton();
 
 private:
-	UPROPERTY(ReplicatedUsing=OnRep_Text, EditAnywhere, BlueprintReadOnly, Getter, Setter, FieldNotify, Category="UI Framework", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(Transient, BlueprintReadOnly, Getter, FieldNotify, Category="UI Framework", meta = (AllowPrivateAccess = "true"))
 	FText Text;
+
+	UPROPERTY(ReplicatedUsing=OnRep_Message)
+	FLocalizableMessage Message;
 
 	UPROPERTY(BlueprintReadOnly, Getter, FieldNotify, Category = "UI Framework", meta = (DisallowedViewAccess = "true", AllowPrivateAccess = "true"))
 	FUIFrameworkClickEventArgument ClickEvent;
 
 public:
-	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "UI Framework")
-	void SetText(FText Value);
 
 	FText GetText() const
 	{
 		return Text;
 	}
+
+	void SetMessage(FLocalizableMessage&& InMessage);
 
 	const FUIFrameworkClickEventArgument& GetClickEvent() const
 	{
@@ -47,11 +52,14 @@ public:
 	void OnClick(FMVVMEventField Field);
 
 private:
+
 	UFUNCTION()
-	void OnRep_Text();
+	void OnRep_Message();
 
 	UFUNCTION(Server, Reliable)
 	void ServerClick(APlayerController* PlayerController);
+
+	void SetText(const FLocalizableMessage& InMessage);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

@@ -25,6 +25,10 @@
 		{
 			"Name": "ModelViewViewModel",
 			"Enabled": true
+		},
+		{
+			"Name": "LocalizableMessage",
+			"Enabled": true
 		}
 	]
 }

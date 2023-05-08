@@ -3,6 +3,9 @@
 #include "Widgets/UIFTextBlock.h"
 
 #include "Components/TextBlock.h"
+#include "ILocalizableMessageModule.h"
+#include "LocalizableMessageProcessor.h"
+#include "LocalizationContext.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 
@@ -24,17 +27,31 @@ void UUIFrameworkTextBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Text, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Message, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, TextColor, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Justification, Params);
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, OverflowPolicy, Params);
 }
 
-void UUIFrameworkTextBase::SetText(FText InText)
+void UUIFrameworkTextBase::SetText(const FLocalizableMessage& InMessage)
 {
-	Text = InText;
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Text, this);
-	ForceNetUpdate();
+	// TODO FORT-602964: Set Locale in FLocalizationContext
+	FLocalizationContext LocContext(this);
+	ILocalizableMessageModule& LocalizableMessageModule = ILocalizableMessageModule::Get();
+	FLocalizableMessageProcessor& Processor = LocalizableMessageModule.GetLocalizableMessageProcessor();
+	Text = Processor.Localize(InMessage, LocContext);
+}
+
+void UUIFrameworkTextBase::SetMessage(FLocalizableMessage&& InMessage)
+{
+	if (Message != InMessage)
+	{
+		SetText(InMessage);
+
+		Message = MoveTemp(InMessage);
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Message, this);
+		ForceNetUpdate();
+	}
 }
 
 void UUIFrameworkTextBase::SetTextColor(FLinearColor InTextColor)
@@ -75,8 +92,10 @@ void UUIFrameworkTextBase::LocalOnUMGWidgetCreated()
 	SetOverflowPolicyToWidget(OverflowPolicy);
 }
 
-void UUIFrameworkTextBase::OnRep_Text()
+void UUIFrameworkTextBase::OnRep_Message()
 {
+	SetText(Message);
+
 	if (LocalGetUMGWidget())
 	{
 		SetTextToWidget(Text);

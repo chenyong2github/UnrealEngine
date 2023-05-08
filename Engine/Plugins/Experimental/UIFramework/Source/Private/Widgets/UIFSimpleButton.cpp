@@ -3,6 +3,9 @@
 #include "Widgets/UIFSimpleButton.h"
 
 #include "Blueprint/UserWidget.h"
+#include "ILocalizableMessageModule.h"
+#include "LocalizableMessageProcessor.h"
+#include "LocalizationContext.h"
 #include "MVVMSubsystem.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
@@ -27,7 +30,7 @@ void UUIFrameworkSimpleButton::GetLifetimeReplicatedProps(TArray<FLifetimeProper
 
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
-	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Text, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Message, Params);
 }
 
 
@@ -44,17 +47,23 @@ void UUIFrameworkSimpleButton::LocalOnUMGWidgetCreated()
 }
 
 
-void UUIFrameworkSimpleButton::SetText(FText InText)
+void UUIFrameworkSimpleButton::SetMessage(FLocalizableMessage&& InMessage)
 {
-	Text = InText;
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Text, this);
-	ForceNetUpdate();
-	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(Text);
+	if (Message != InMessage)
+	{
+		SetText(InMessage);
+
+		Message = MoveTemp(InMessage);
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Message, this);
+		ForceNetUpdate();
+	}
 }
 
 
-void UUIFrameworkSimpleButton::OnRep_Text()
+void UUIFrameworkSimpleButton::OnRep_Message()
 {
+	SetText(Message);
+
 	UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(Text);
 }
 
@@ -71,4 +80,13 @@ void UUIFrameworkSimpleButton::ServerClick_Implementation(APlayerController* Pla
 	ClickEvent.PlayerController = PlayerController;
 	ClickEvent.Sender = this;
 	BroadcastFieldValueChanged(ThisClass::FFieldNotificationClassDescriptor::ClickEvent);
+}
+
+void UUIFrameworkSimpleButton::SetText(const FLocalizableMessage& InMessage)
+{
+	// TODO FORT-602964: Set Locale in FLocalizationContext
+	FLocalizationContext LocContext(this);
+	ILocalizableMessageModule& LocalizableMessageModule = ILocalizableMessageModule::Get();
+	FLocalizableMessageProcessor& Processor = LocalizableMessageModule.GetLocalizableMessageProcessor();
+	Text = Processor.Localize(InMessage, LocContext);
 }
