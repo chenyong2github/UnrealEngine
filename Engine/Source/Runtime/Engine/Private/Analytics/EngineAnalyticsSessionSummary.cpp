@@ -14,6 +14,7 @@
 #include "Misc/EngineVersion.h"
 #include "UserActivityTracking.h"
 #include "RHI.h"
+#include "RHIStats.h"
 
 #if PLATFORM_WINDOWS
 #include "HAL/FileManager.h"

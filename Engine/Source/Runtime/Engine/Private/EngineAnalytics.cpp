@@ -12,6 +12,7 @@
 #include "Misc/EngineVersion.h"
 #include "BuildSettings.h"
 #include "RHI.h"
+#include "RHIStats.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "StudioAnalytics.h"
 #include "UObject/Class.h"
