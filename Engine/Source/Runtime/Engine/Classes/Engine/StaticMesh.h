@@ -2089,7 +2089,7 @@ private:
 class FStaticMeshCompilationContext
 {
 public:
-	FStaticMeshCompilationContext() = default;
+	FStaticMeshCompilationContext();
 	// Non-copyable
 	FStaticMeshCompilationContext(const FStaticMeshCompilationContext&) = delete;
 	FStaticMeshCompilationContext& operator=(const FStaticMeshCompilationContext&) = delete;
@@ -2098,6 +2098,7 @@ public:
 	FStaticMeshCompilationContext& operator=(FStaticMeshCompilationContext&&) = default;
 
 	bool bShouldComputeExtendedBounds = false;
+	bool bIsEditorLoadingPackage = false;
 };
 
 class FStaticMeshPostLoadContext : public FStaticMeshCompilationContext

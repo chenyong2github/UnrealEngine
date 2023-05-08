@@ -248,6 +248,10 @@ void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 
 		FObjectCacheContextScope ObjectCacheScope;
 
+		// If async (post load or build), restore the state of GIsEditorLoadingPackage for the duration of this function (including outside of this scope) as it was when the build of the static mesh was initiated, 
+		//  so that async builds have the same result as synchronous ones (e.g. don't dirty packages when the components referencing this static mesh call Modify because GIsEditorLoadingPackage is true) :
+		TUniquePtr<TGuardValue<bool>> IsEditorLoadingPackageGuard;
+
 		// The scope is important here to destroy the FStaticMeshAsyncBuildScope before broadcasting events
 		{
 			// Acquire the async task locally to protect against re-entrance
@@ -267,6 +271,8 @@ void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 
 			if (LocalAsyncTask->GetTask().PostLoadContext.IsValid())
 			{
+				IsEditorLoadingPackageGuard.Reset(new TGuardValue<bool>(GIsEditorLoadingPackage, LocalAsyncTask->GetTask().PostLoadContext->bIsEditorLoadingPackage));
+
 				StaticMesh->FinishPostLoadInternal(*LocalAsyncTask->GetTask().PostLoadContext);
 
 				LocalAsyncTask->GetTask().PostLoadContext.Reset();
@@ -274,6 +280,8 @@ void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 
 			if (LocalAsyncTask->GetTask().BuildContext.IsValid())
 			{
+				IsEditorLoadingPackageGuard.Reset(new TGuardValue<bool>(GIsEditorLoadingPackage, LocalAsyncTask->GetTask().BuildContext->bIsEditorLoadingPackage));
+
 				TArray<UStaticMeshComponent*> ComponentsToUpdate;
 				for (UStaticMeshComponent* Component : ObjectCacheScope.GetContext().GetStaticMeshComponents(StaticMesh))
 				{
