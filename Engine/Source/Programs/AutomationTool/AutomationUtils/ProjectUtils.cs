@@ -530,7 +530,8 @@ namespace AutomationTool
 				Writer.WriteLine("{");
 				Writer.WriteLine("\tpublic {0}Target(TargetInfo Target) : base(Target)", ProjectName);
 				Writer.WriteLine("\t{");
-				Writer.WriteLine("\t\tDefaultBuildSettings = BuildSettingsVersion.V2;");
+				Writer.WriteLine("\t\tDefaultBuildSettings = BuildSettingsVersion.V3;");
+				Writer.WriteLine("\t\tIncludeOrderVersion = EngineIncludeOrderVersion.Latest;");
 				Writer.WriteLine("\t\tType = TargetType.Game;");
 				Writer.WriteLine("\t\tExtraModuleNames.Add(\"{0}\");", ProjectName);
 				Writer.WriteLine("\t}");

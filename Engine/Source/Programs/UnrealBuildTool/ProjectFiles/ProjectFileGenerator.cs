@@ -2469,6 +2469,8 @@ namespace UnrealBuildTool
 			// Starting at the base directory of the module find a project which has the same directory as base, walking up the directory hierarchy until a match is found
 
 			DirectoryReference Path = CurModuleFile.Directory;
+			bool bIsTemporaryTarget = Path.ContainsName("Intermediate", 0);
+
 			while (!Path.IsRootDirectory())
 			{
 				// Figure out which game project this target belongs to
@@ -2480,7 +2482,7 @@ namespace UnrealBuildTool
 						FileReference ProjectInfo = Game;
 						BaseFolder = ProjectInfo.Directory;
 
-						if (bMakeProjectPerTarget)
+						if (bMakeProjectPerTarget && !bIsTemporaryTarget)
 						{
 							// find the project that the module is under, and has a TargetType target (useful with bMakeProjectPerTarget)
 							foreach (KeyValuePair<FileReference, ProjectFile> Pair in ProjectFileMap)
