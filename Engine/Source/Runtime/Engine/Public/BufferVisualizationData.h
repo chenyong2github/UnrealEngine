@@ -21,7 +21,10 @@ public:
 	bool IsInitialized() const { return bIsInitialized; }
 
 	/** Get a named material from the available material map **/
-	ENGINE_API UMaterialInterface* GetMaterial(FName InMaterialName);
+	ENGINE_API UMaterialInterface* GetMaterial(FName InMaterialName) const;
+
+	/** Get whether auto exposure should be applied for the visualization mode **/
+	ENGINE_API bool GetMaterialApplyAutoExposure(FName InMaterialName) const;
 
 	/** Get the display name of a named material from the available material map **/
 	ENGINE_API FText GetMaterialDisplayName(FName InMaterialName) const;
@@ -60,6 +63,7 @@ private:
 		FString Name;
 		FText DisplayName;
 		UMaterialInterface* Material;
+		bool bApplyAutoExposure;
 	};
 
 	/** Mapping of FName (first parameter in ini file material list) to a material record */
@@ -86,6 +90,9 @@ private:
 
 	/** Internal helper function for creating the buffer visualization system console commands */
 	void ConfigureConsoleCommand();
+
+	/** Internal helper function to get record associated with material */
+	const Record* GetRecord(FName InMaterialName) const;
 };
 
 ENGINE_API FBufferVisualizationData& GetBufferVisualizationData();

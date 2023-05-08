@@ -6,6 +6,7 @@
 #include "TranslucentLighting.h"
 #include "Strata/Strata.h"
 
+#include "BufferVisualizationData.h"
 #include "SceneTextureParameters.h"
 #include "SystemTextures.h"
 
@@ -331,10 +332,7 @@ bool IsAutoExposureDebugMode(const FViewInfo& View)
 
 	return View.Family->UseDebugViewPS() ||
 		!EngineShowFlags.Lighting ||
-		(EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None
-			// Some HDR buffer visualization do want to have exposure applied.
-			&& View.CurrentBufferVisualizationMode != TEXT("SeparateTranslucencyRGB") && View.CurrentBufferVisualizationMode != TEXT("SceneColor") && View.CurrentBufferVisualizationMode != TEXT("FinalImage")
-			&& View.CurrentBufferVisualizationMode != TEXT("PreTonemapHDRColor") && View.CurrentBufferVisualizationMode != TEXT("PostTonemapHDRColor")) ||
+		(EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None && !GetBufferVisualizationData().GetMaterialApplyAutoExposure(View.CurrentBufferVisualizationMode)) ||
 		EngineShowFlags.RayTracingDebug ||
 		EngineShowFlags.VisualizeDistanceFieldAO ||
 		EngineShowFlags.VisualizeVolumetricCloudConservativeDensity ||
