@@ -237,7 +237,7 @@ public:
 };
 
 UCLASS()
-class URuntimeSpatialHashExternalStreamingObject : public URuntimeHashExternalStreamingObjectBase
+class ENGINE_API URuntimeSpatialHashExternalStreamingObject : public URuntimeHashExternalStreamingObjectBase
 {
 	GENERATED_BODY()
 
