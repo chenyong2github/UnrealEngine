@@ -3,6 +3,7 @@
 #include "DumpGPU.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformMisc.h"
+#include "HAL/PlatformOutputDevices.h"
 #include "Misc/App.h"
 #include "Misc/FileHelper.h"
 #include "Misc/WildcardString.h"
@@ -1812,6 +1813,11 @@ FString FRDGBuilder::BeginResourceDump(const TCHAR* Cmd)
 		JsonObject->SetStringField(TEXT("RHI"), GDynamicRHI->GetName());
 		JsonObject->SetStringField(TEXT("RHIMaxFeatureLevel"), LexToString(GMaxRHIFeatureLevel));
 		JsonObject->SetStringField(TEXT("DumpTime"), NewResourceDumpContext->Time.ToString());
+		{
+			const FString LogSrcAbsolute = FPlatformOutputDevices::GetAbsoluteLogFilename();
+			FString LogFilename = FPaths::GetCleanFilename(LogSrcAbsolute);
+			JsonObject->SetStringField(TEXT("LogFilename"), LogFilename);
+		}
 
 		NewResourceDumpContext->DumpJsonToFile(JsonObject, FString(FRDGResourceDumpContext::kBaseDir) / TEXT("Infos.json"));
 	}
