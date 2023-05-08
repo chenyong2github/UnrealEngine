@@ -143,6 +143,9 @@ FEngineAnalyticsSessionSummary::FEngineAnalyticsSessionSummary(TSharedPtr<IAnaly
 	FString OSMinor;
 	FPlatformMisc::GetOSVersions(/*out*/ OSMajor, /*out*/ OSMinor);
 
+	FTextureMemoryStats TextureMemStats;
+	RHIGetTextureMemoryStats(TextureMemStats);
+
 	// Get project settings.
 	const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
 
@@ -174,6 +177,7 @@ FEngineAnalyticsSessionSummary::FEngineAnalyticsSessionSummary(TSharedPtr<IAnaly
 	Store->Set(TEXT("GRHIAdapterUserDriverVersion"), GRHIAdapterUserDriverVersion);
 	Store->Set(TEXT("GRHIName"), FString(GDynamicRHI ? GDynamicRHI->GetName() : TEXT("")));
 	Store->Set(TEXT("GRHIAdapterDriverOnDenyList"), GRHIAdapterDriverOnDenyList);
+	Store->Set(TEXT("GRHIAdapterMemory"), static_cast<uint64>(TextureMemStats.DedicatedVideoMemory));
 	Store->Set(TEXT("ProjectName"), EngineAnalyticsProperties::GetProjectName(ProjectSettings));
 	Store->Set(TEXT("ProjectID"), ProjectSettings.ProjectID.ToString(EGuidFormats::DigitsWithHyphens));
 	Store->Set(TEXT("ProjectDescription"), ProjectSettings.Description);

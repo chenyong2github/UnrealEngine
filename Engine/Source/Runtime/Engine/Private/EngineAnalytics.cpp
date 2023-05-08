@@ -245,6 +245,9 @@ void FEngineAnalytics::AppendMachineStats(TArray<FAnalyticsEventAttribute>& Even
 	FString OSMinor;
 	FPlatformMisc::GetOSVersions(/*out*/ OSMajor, /*out*/ OSMinor);
 
+	FTextureMemoryStats TextureMemStats;
+	RHIGetTextureMemoryStats(TextureMemStats);
+
 	GEngine->CreateStartupAnalyticsAttributes( EventAttributes );
 
 	// Add project info whether we are in editor or game.
@@ -271,6 +274,7 @@ void FEngineAnalytics::AppendMachineStats(TArray<FAnalyticsEventAttribute>& Even
 	EventAttributes.Emplace(TEXT("Is64BitOS"), FPlatformMisc::Is64bitOperatingSystem());
 	EventAttributes.Emplace(TEXT("GPUVendorID"), GRHIVendorId);
 	EventAttributes.Emplace(TEXT("GPUDeviceID"), GRHIDeviceId);
+	EventAttributes.Emplace(TEXT("GPUMemory"), static_cast<uint64>(TextureMemStats.DedicatedVideoMemory));
 	EventAttributes.Emplace(TEXT("GRHIDeviceRevision"), GRHIDeviceRevision);
 	EventAttributes.Emplace(TEXT("GRHIAdapterInternalDriverVersion"), GRHIAdapterInternalDriverVersion);
 	EventAttributes.Emplace(TEXT("GRHIAdapterUserDriverVersion"), GRHIAdapterUserDriverVersion);
