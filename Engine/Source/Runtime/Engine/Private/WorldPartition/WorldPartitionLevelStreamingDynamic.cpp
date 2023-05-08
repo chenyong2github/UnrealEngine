@@ -30,6 +30,7 @@ UWorldPartitionLevelStreamingDynamic::UWorldPartitionLevelStreamingDynamic(const
 	, bLoadSucceeded(false)
 #endif
 	, bShouldBeAlwaysLoaded(false)
+	, bHasSetLevelTransform(false)
 {
 #if WITH_EDITOR
 	SetShouldBeVisibleInEditor(false);
@@ -66,6 +67,15 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 #endif
 
 	UpdateShouldSkipMakingVisibilityTransactionRequest();
+}
+
+void UWorldPartitionLevelStreamingDynamic::SetLevelTransform(const FTransform& InLevelTransform)
+{
+	if (!bHasSetLevelTransform)
+	{
+		LevelTransform = InLevelTransform;
+		bHasSetLevelTransform = true;
+	}
 }
 
 #if WITH_EDITOR
@@ -178,6 +188,12 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
  */
 bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorld, bool bInAllowLevelLoadRequests, EReqLevelBlock InBlockPolicy)
 {
+	// Use parent streaming implementation if world asset package is not a memory package
+	if (!FPackageName::IsMemoryPackage(GetWorldAssetPackageName()))
+	{
+		return Super::RequestLevel(InPersistentWorld, bInAllowLevelLoadRequests, InBlockPolicy);
+	}
+
 	// Quit early in case load request already issued
 	if (GetLevelStreamingState() == ELevelStreamingState::Loading)
 	{

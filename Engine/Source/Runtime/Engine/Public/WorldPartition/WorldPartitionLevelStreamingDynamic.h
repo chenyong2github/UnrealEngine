@@ -44,6 +44,7 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 #endif
 
 	void Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell);
+	void SetLevelTransform(const FTransform& InLevelTransform);
 
 	virtual bool CanReplicateStreamingStatus() const override { return false; }
 
@@ -87,6 +88,8 @@ private:
 
 	UPROPERTY()
 	bool bShouldBeAlwaysLoaded;
+
+	bool bHasSetLevelTransform;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

@@ -103,6 +103,40 @@ void UWorldPartitionRuntimeLevelStreamingCell::CreateAndSetLevelStreaming(const 
 	LevelStreaming = CreateLevelStreaming(InPackageName);
 }
 
+bool UWorldPartitionRuntimeLevelStreamingCell::CreateAndSetLevelStreaming(const TSoftObjectPtr<UWorld>& InWorldAsset, const FTransform& InInstanceTransform) const
+{
+	UWorld* OwningWorld = GetOwningWorld();
+	const FName LevelStreamingName = FName(*FString::Printf(TEXT("WorldPartitionLevelStreaming_%s"), *GetName()));
+	LevelStreaming = NewObject<UWorldPartitionLevelStreamingDynamic>(OwningWorld, UWorldPartitionLevelStreamingDynamic::StaticClass(), LevelStreamingName, RF_NoFlags, NULL);
+
+	// Generate unique Level Instance name assuming cell has a unique name
+	const FString LongPackageName = InWorldAsset.GetLongPackageName();
+	const FString PackagePath = FPackageName::GetLongPackagePath(LongPackageName);
+	const FString ShortPackageName = FPackageName::GetShortName(LongPackageName);
+	TStringBuilder<512> LevelPackageNameStrBuilder;
+	LevelPackageNameStrBuilder.Append(PackagePath);
+	LevelPackageNameStrBuilder.Append(TEXT("/"));
+	LevelPackageNameStrBuilder.Append(ShortPackageName);
+	LevelPackageNameStrBuilder.Append(TEXT("_LevelInstance_"));
+	LevelPackageNameStrBuilder.Append(GetName());
+	LevelPackageNameStrBuilder.Append(TEXT("."));
+	LevelPackageNameStrBuilder.Append(ShortPackageName);
+	LevelStreaming->SetWorldAsset(TSoftObjectPtr<UWorld>(FSoftObjectPath(LevelPackageNameStrBuilder.ToString())));
+
+	// Include WorldPartition's transform to Level
+	LevelStreaming->SetLevelTransform(GetOuterWorld()->GetWorldPartition()->GetInstanceTransform() * InInstanceTransform);
+	LevelStreaming->bClientOnlyVisible = GetClientOnlyVisible();
+	LevelStreaming->Initialize(*this);
+	LevelStreaming->PackageNameToLoad = FName(LongPackageName);
+
+	if (OwningWorld->IsPlayInEditor() && OwningWorld->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor) && OwningWorld->GetPackage()->GetPIEInstanceID() != INDEX_NONE)
+	{
+		// When renaming for PIE, make sure to keep World's name so that linker can properly remap with Package's instancing context
+		LevelStreaming->RenameForPIE(OwningWorld->GetPackage()->GetPIEInstanceID(), /*bKeepWorldAssetName*/true);
+	}
+	return true;
+}
+
 UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::CreateLevelStreaming(const FString& InPackageName) const
 {
 	if (HasActors())
@@ -353,16 +387,11 @@ void UWorldPartitionRuntimeLevelStreamingCell::DumpStateLog(FHierarchicalLogArch
 UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::GetOrCreateLevelStreaming() const
 {
 #if WITH_EDITOR
-	if (GetActorCount() == 0)
-	{
-		return nullptr;
-	}
-
-	if (!LevelStreaming)
+	if (!LevelStreaming && GetActorCount())
 	{
 		LevelStreaming = CreateLevelStreaming();
+		check(LevelStreaming);
 	}
-	check(LevelStreaming);
 #else
 	// In Runtime, always loaded cell level is handled by World directly
 	check(LevelStreaming || IsAlwaysLoaded());
@@ -383,7 +412,7 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 		}
 
 		// Transfer WorldPartition's transform to LevelStreaming
-		LevelStreaming->LevelTransform = WorldPartition->GetInstanceTransform();
+		LevelStreaming->SetLevelTransform(WorldPartition->GetInstanceTransform());
 
 		// LevelStreaming WorldAsset is a TSoftObjectPtr<UWorld>. If the WorldPartition's world is instanced then the TSoftObjectPtr<UWorld> will be remapped by FLinkerInstancingContext SoftObject remapping
 		// example if MainWorld is instanced it will have a package suffix and/or prefix like: /Temp+PATH+_LevelInstance1
@@ -454,11 +483,7 @@ bool UWorldPartitionRuntimeLevelStreamingCell::CanUnload() const
 void UWorldPartitionRuntimeLevelStreamingCell::Unload() const
 {
 #if WITH_EDITOR
-	if (GetActorCount() == 0)
-	{
-		return;
-	}
-	check(LevelStreaming);
+	check(LevelStreaming || GetActorCount());
 #else
 	// In Runtime, always loaded cell level is handled by World directly
 	check(LevelStreaming || IsAlwaysLoaded());
@@ -473,11 +498,7 @@ void UWorldPartitionRuntimeLevelStreamingCell::Unload() const
 void UWorldPartitionRuntimeLevelStreamingCell::Deactivate() const
 {
 #if WITH_EDITOR
-	if (GetActorCount() == 0)
-	{
-		return;
-	}
-	check(LevelStreaming);
+	check(LevelStreaming || GetActorCount());
 #else
 	// In Runtime, always loaded cell level is handled by World directly
 	check(LevelStreaming || IsAlwaysLoaded());

@@ -9,8 +9,8 @@
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
-#if WITH_EDITOR
 #include "Misc/ArchiveMD5.h"
+#if WITH_EDITOR
 #include "WorldPartition/Cook/WorldPartitionCookPackage.h"
 #endif
 
@@ -68,16 +68,40 @@ UWorldPartitionRuntimeHash::UWorldPartitionRuntimeHash(const FObjectInitializer&
 	: Super(ObjectInitializer)
 {}
 
-#if WITH_EDITOR
+UWorldPartitionRuntimeCell* UWorldPartitionRuntimeHash::CreateRuntimeCell(UClass* CellClass, UClass* CellDataClass, const FString& CellName, const FString& CellInstanceSuffix, UObject* InOuter)
+{
+	//@todo_ow: to reduce file paths on windows, we compute a MD5 hash from the unique cell name and use that hash as the cell filename. We
+	//			should create the runtime cell using the name but make sure the package that gets associated with it when cooking gets the
+	//			hash indtead.
+	auto GetCellObjectName = [](FString CellName) -> FString
+	{
+		FArchiveMD5 ArMD5;
+		ArMD5 << CellName;
+		FGuid CellNameGuid = ArMD5.GetGuidFromHash();
+		check(CellNameGuid.IsValid());
+
+		return CellNameGuid.ToString(EGuidFormats::Base36Encoded);
+	};
+
+	// Cooking should have an empty CellInstanceSuffix
+	check(!IsRunningCookCommandlet() || CellInstanceSuffix.IsEmpty());
+	const FString CellObjectName = GetCellObjectName(CellName) + CellInstanceSuffix;
+	// Use given outer if provided, else use hash as outer
+	UObject* Outer = InOuter ? InOuter : this;
+	UWorldPartitionRuntimeCell* RuntimeCell = NewObject<UWorldPartitionRuntimeCell>(Outer, CellClass, *CellObjectName);
+	RuntimeCell->RuntimeCellData = NewObject<UWorldPartitionRuntimeCellData>(RuntimeCell, CellDataClass);
+	return RuntimeCell;
+}
+
 URuntimeHashExternalStreamingObjectBase* UWorldPartitionRuntimeHash::CreateExternalStreamingObject(TSubclassOf<URuntimeHashExternalStreamingObjectBase> InClass, UObject* InOuter, FName InName, UWorld* InOwningWorld, UWorld* InOuterWorld)
 {
-	check(!InOwningWorld->IsGameWorld());
 	URuntimeHashExternalStreamingObjectBase* StreamingObject = NewObject<URuntimeHashExternalStreamingObjectBase>(InOuter, InClass, InName, RF_Public);
 	StreamingObject->OwningWorld = InOwningWorld;
 	StreamingObject->OuterWorld = InOuterWorld;
 	return StreamingObject;
 }
 
+#if WITH_EDITOR
 void UWorldPartitionRuntimeHash::OnBeginPlay()
 {
 	// Mark always loaded actors so that the Level will force reference to these actors for PIE.
@@ -94,33 +118,6 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	AlwaysLoadedActorsForPIE.Empty();
 
 	ModifiedActorDescListForPIE.Empty();
-}
-
-UWorldPartitionRuntimeCell* UWorldPartitionRuntimeHash::CreateRuntimeCell(UClass* CellClass, UClass* CellDataClass, const FString& CellName, const FString& CellInstanceSuffix)
-{
-	//@todo_ow: to reduce file paths on windows, we compute a MD5 hash from the unique cell name and use that hash as the cell filename. We
-	//			should create the runtime cell using the name but make sure the package that gets associated with it when cooking gets the
-	//			hash indtead.
-	auto GetCellObjectName = [](FString CellName) -> FString
-	{
-		FArchiveMD5 ArMD5;
-		ArMD5 << CellName;
-
-		FMD5Hash MD5Hash;
-		ArMD5.GetHash(MD5Hash);
-
-		FGuid CellNameGuid = MD5HashToGuid(MD5Hash);
-		check(CellNameGuid.IsValid());
-
-		return CellNameGuid.ToString(EGuidFormats::Base36Encoded);
-	};
-
-	// Cooking should have an empty CellInstanceSuffix
-	check(!IsRunningCookCommandlet() || CellInstanceSuffix.IsEmpty());
-	const FString CellObjectName = GetCellObjectName(CellName) + CellInstanceSuffix;
-	UWorldPartitionRuntimeCell* RuntimeCell = NewObject<UWorldPartitionRuntimeCell>(this, CellClass, *CellObjectName);
-	RuntimeCell->RuntimeCellData = NewObject<UWorldPartitionRuntimeCellData>(RuntimeCell, CellDataClass);
-	return RuntimeCell;
 }
 
 bool UWorldPartitionRuntimeHash::GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const IStreamingGenerationContext* StreamingGenerationContext, TArray<FString>* OutPackagesToGenerate)
