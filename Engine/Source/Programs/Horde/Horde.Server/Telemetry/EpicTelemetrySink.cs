@@ -10,7 +10,6 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using HordeCommon;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 
@@ -73,7 +72,6 @@ namespace Horde.Server.Telemetry
 		readonly ArrayMemoryWriter _eventMemoryWriter;
 		readonly Utf8JsonWriter _eventWriter;
 
-		readonly ITicker _ticker;
 		readonly ILogger _logger;
 
 		/// <inheritdoc/>
@@ -82,7 +80,7 @@ namespace Horde.Server.Telemetry
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public EpicTelemetrySink(IEpicTelemetrySinkConfig config, IHttpClientFactory httpClientFactory, IClock clock, ILogger<EpicTelemetrySink> logger)
+		public EpicTelemetrySink(IEpicTelemetrySinkConfig config, IHttpClientFactory httpClientFactory, ILogger<EpicTelemetrySink> logger)
 		{
 			_httpClientFactory = httpClientFactory;
 
@@ -97,7 +95,6 @@ namespace Horde.Server.Telemetry
 			_eventMemoryWriter = new ArrayMemoryWriter(65536);
 			_eventWriter = new Utf8JsonWriter(_eventMemoryWriter);
 
-			_ticker = clock.AddTicker<EpicTelemetrySink>(TimeSpan.FromSeconds(60.0), FlushAsync, logger);
 			_logger = logger;
 
 			if (config.Url != null)
@@ -119,7 +116,6 @@ namespace Horde.Server.Telemetry
 		{
 			await _packetWriter.DisposeAsync();
 			await _eventWriter.DisposeAsync();
-			_ticker.Dispose();
 		}
 		
 		/// <inheritdoc/>

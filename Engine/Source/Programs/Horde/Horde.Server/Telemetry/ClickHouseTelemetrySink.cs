@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Horde.Server.Jobs;
-using HordeCommon;
 using HordeCommon.Rpc.Messages.Telemetry;
 using Microsoft.Extensions.Logging;
 
@@ -29,7 +28,6 @@ namespace Horde.Server.Telemetry
 		private readonly IHttpClientFactory _httpClientFactory;
 		private readonly Uri? _uri;
 
-		private readonly ITicker _ticker;
 		private readonly ILogger _logger;
 		private readonly ConcurrentQueue<(string eventName, object evt)> _queuedEvents = new();
 
@@ -39,10 +37,9 @@ namespace Horde.Server.Telemetry
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ClickHouseTelemetrySink(ClickHouseTelemetryConfig config, IHttpClientFactory httpClientFactory, IClock clock, ILogger<ClickHouseTelemetrySink> logger)
+		public ClickHouseTelemetrySink(ClickHouseTelemetryConfig config, IHttpClientFactory httpClientFactory, ILogger<ClickHouseTelemetrySink> logger)
 		{
 			_httpClientFactory = httpClientFactory;
-			_ticker = clock.AddTicker<ClickHouseTelemetrySink>(TimeSpan.FromSeconds(5.0), FlushAsync, logger);
 			_logger = logger;
 			_uri = config.Url;
 		}
@@ -50,7 +47,6 @@ namespace Horde.Server.Telemetry
 		/// <inheritdoc/>
 		public ValueTask DisposeAsync()
 		{
-			_ticker.Dispose();
 			return ValueTask.CompletedTask;
 		}
 		
