@@ -22,18 +22,24 @@ struct FHierarchicalSpatialHashCellIdx
 	}
 	
 	template<typename T>
-	static int32 LodForAABB(const TAABB<T, 3>& Box)
+	static int32 LodForCellSize(T CellSize)
 	{
-		const T LongestSideLen = Box.Extents().Max();
-		// want Ceil( log2( LongestSideLen) )
-		if (LongestSideLen <= (T).5)
+		// want Ceil( log2(CellSize) )
+		if (CellSize <= (T).5)
 		{
-			return -(int32)FMath::FloorLog2((uint32)FMath::FloorToInt32((T)1 / LongestSideLen));
+			return -(int32)FMath::FloorLog2((uint32)FMath::FloorToInt32((T)1 / CellSize));
 		}
 		else
 		{
-			return (int32)FMath::CeilLogTwo((uint32)FMath::CeilToInt32(LongestSideLen));
+			return (int32)FMath::CeilLogTwo((uint32)FMath::CeilToInt32(CellSize));
 		}
+	}
+
+	template<typename T>
+	static int32 LodForAABB(const TAABB<T, 3>& Box)
+	{
+		const T LongestSideLen = Box.Extents().Max();
+		return LodForCellSize(LongestSideLen);
 	}
 
 	template<typename T>
@@ -209,13 +215,15 @@ public:
 	}
 
 	template<typename ParticlesType>
-	void Initialize(const ParticlesType& Particles)
+	void Initialize(const ParticlesType& Particles, const T MinLodSize = (T)0)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HierarchicalSpatialHash_Init);
 		Reset();
 
 		Bounds.SetNumUninitialized(Particles.Num());
 		HashMap.PreallocateElementsForConcurrentAdd(Particles.Num() * 8, Particles.Num() * 2);
+
+		const int32 MinAllowableLod = MinLodSize > (T)0 ? FHierarchicalSpatialHashCellIdx::LodForCellSize(MinLodSize) : std::numeric_limits<int32>::min();
 
 		// For most common UsedLods, store whether or not the Lod is used in an array without a lock.
 		// For uncommon Lods, use a critical section to store directly into the UsedLods map.
@@ -226,12 +234,12 @@ public:
 		FCriticalSection UsedLodsCriticalSection;
 
 		PhysicsParallelFor(Particles.Num(),
-			[this, &Particles, MaxPreAllocatedUsedLodValue, MinPreAllocatedUsedLodValue, &UsedLodsArray, &UsedLodsCriticalSection](int32 ParticleIdx)
+			[this, &Particles, MinAllowableLod, MaxPreAllocatedUsedLodValue, MinPreAllocatedUsedLodValue, &UsedLodsArray, &UsedLodsCriticalSection](int32 ParticleIdx)
 			{
 				const auto& Particle = Particles[ParticleIdx];
 				const TAABB<T, 3> ParticleBounds = Particle.BoundingBox();
 
-				const int32 Lod = FHierarchicalSpatialHashCellIdx::LodForAABB(ParticleBounds);
+				const int32 Lod = FMath::Max(MinAllowableLod, FHierarchicalSpatialHashCellIdx::LodForAABB(ParticleBounds));
 				const T CellSize = FHierarchicalSpatialHashCellIdx::CellSizeForLod<T>(Lod);
 
 				const PayloadType Payload = Particle.template GetPayload<PayloadType>(ParticleIdx);

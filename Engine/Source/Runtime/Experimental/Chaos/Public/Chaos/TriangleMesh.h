@@ -306,8 +306,9 @@ namespace Chaos
 		template<typename T>
 		using TSpatialHashType = THierarchicalSpatialHash<int32, T>;
 
+		// Hierarchy will only go down to lods as small as MinSpatialLodSize.
 		template<typename T>
-		void BuildSpatialHash(const TConstArrayView<TVec3<T>>& Points, TSpatialHashType<T>& SpatialHash) const;
+		void BuildSpatialHash(const TConstArrayView<TVec3<T>>& Points, TSpatialHashType<T>& SpatialHash, const T MinSpatialLodSize = (T)0.) const;
 
 		template<typename T>
 		bool PointProximityQuery(const TSpatialHashType<T>& SpatialHash, const TConstArrayView<TVec3<T>>& Points, const int32 PointIndex, const TVec3<T>& PointPosition, const T PointThickness, const T ThisThickness,

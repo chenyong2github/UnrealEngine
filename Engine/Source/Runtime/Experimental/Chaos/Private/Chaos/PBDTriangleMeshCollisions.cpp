@@ -1153,7 +1153,7 @@ namespace ContourMinimization
 	}
 } // namespace ContourMinimization
 
-void FPBDTriangleMeshCollisions::Init(const FSolverParticles& Particles)
+void FPBDTriangleMeshCollisions::Init(const FSolverParticles& Particles, const FSolverReal MinProximityQueryRadius)
 {
 	if (TriangleMesh.GetNumElements() == 0)
 	{
@@ -1162,7 +1162,8 @@ void FPBDTriangleMeshCollisions::Init(const FSolverParticles& Particles)
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosFPBDTriangleMeshCollisions_BuildSpatialHash);
-		TriangleMesh.BuildSpatialHash(static_cast<const TArrayView<const FSolverVec3>&>(Particles.XArray()), SpatialHash);
+		constexpr FSolverReal RadiusToLodSizeMultiplier = 2.; // Radius to Diameter
+		TriangleMesh.BuildSpatialHash(static_cast<const TArrayView<const FSolverVec3>&>(Particles.XArray()), SpatialHash, RadiusToLodSizeMultiplier * MinProximityQueryRadius);
 	}
 	ContourMinimizationIntersections.Reset();
 	VertexGIAColors.Reset();
