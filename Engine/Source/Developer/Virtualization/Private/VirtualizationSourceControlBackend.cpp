@@ -433,7 +433,7 @@ bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests, EPullFla
 		if (Retries != 0)
 		{
 		//	UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to download '%s' retrying (%d/%d) in %dms..."), *GetDebugName(), DepotPath.ToString(), Retries, RetryCount, RetryWaitTimeMS);
-			FPlatformProcess::SleepNoStats(RetryWaitTimeMS * 0.001f);
+			FPlatformProcess::SleepNoStats(static_cast<float>(RetryWaitTimeMS) * 0.001f);
 		}
 
 #if IS_SOURCE_CONTROL_THREAD_SAFE

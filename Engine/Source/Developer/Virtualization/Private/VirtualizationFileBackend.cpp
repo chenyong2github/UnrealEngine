@@ -268,7 +268,7 @@ TUniquePtr<FArchive> FFileSystemBackend::OpenFileForReading(const TCHAR* FilePat
 		else
 		{
 			UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to open '%s' for reading attempt retrying (%d/%d) in %dms..."), *GetDebugName(), FilePath, Retries, RetryCount, RetryWaitTimeMS);
-			FPlatformProcess::SleepNoStats(RetryWaitTimeMS * 0.001f);
+			FPlatformProcess::SleepNoStats(static_cast<float>(RetryWaitTimeMS) * 0.001f);
 
 			Retries++;
 		}

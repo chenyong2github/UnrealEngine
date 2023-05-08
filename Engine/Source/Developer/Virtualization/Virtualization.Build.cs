@@ -7,6 +7,8 @@ public class Virtualization : ModuleRules
 {
 	public Virtualization(ReadOnlyTargetRules Target) : base(Target)
 	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Error;
+
 		PrivateIncludePathModuleNames.Add("Analytics");
 
 		PrivateDependencyModuleNames.AddRange(

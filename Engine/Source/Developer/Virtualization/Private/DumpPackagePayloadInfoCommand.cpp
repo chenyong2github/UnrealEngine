@@ -22,12 +22,12 @@ FString BytesToString(int64 SizeInBytes)
 	}
 	else if (SizeInBytes < (1024 * 1024))
 	{
-		double SizeInKb = SizeInBytes / (1024.0);
+		double SizeInKb = static_cast<double>(SizeInBytes) / (1024.0);
 		return FString::Printf(TEXT("%.2f KB"), SizeInKb);
 	}
 	else
 	{
-		double SizeInMB = SizeInBytes / (1024.0 * 1024.0);
+		double SizeInMB = static_cast<double>(SizeInBytes) / (1024.0 * 1024.0);
 		return FString::Printf(TEXT("%.2f MB"), SizeInMB);
 	}
 }
