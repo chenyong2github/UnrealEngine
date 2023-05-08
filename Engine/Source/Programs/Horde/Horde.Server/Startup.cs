@@ -96,6 +96,8 @@ using StatusCode = Grpc.Core.StatusCode;
 using Horde.Server.Artifacts;
 using Horde.Server.Compute;
 using OpenTelemetry.Trace;
+using Polly;
+using Polly.Extensions.Http;
 
 namespace Horde.Server
 {
@@ -379,7 +381,7 @@ namespace Horde.Server
 			});
 			services.AddGrpcReflection();
 
-			services.AddHttpClient<JobRpcCommon>();
+			services.AddHttpClient<JobRpcCommon>().AddPolicyHandler(GetDefaultHttpRetryPolicy());
 			services.AddScoped<JobRpcCommon>();
 
 			services.AddSingleton<IAgentCollection, AgentCollection>();
@@ -878,6 +880,13 @@ namespace Horde.Server
 				}
 		*/
 
+		private static IAsyncPolicy<HttpResponseMessage> GetDefaultHttpRetryPolicy()
+		{
+			return HttpPolicyExtensions
+				.HandleTransientHttpError()
+				.WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10) });
+		}
+		
 		public sealed class HostIdBsonSerializer : SerializerBase<HostId>
 		{
 			/// <inheritdoc/>
