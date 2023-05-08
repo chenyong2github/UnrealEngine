@@ -185,20 +185,20 @@ Constructors (and destructors) are available.  Destructors shouldn't throw, and 
 ```cpp
 	TEST_CLASS(SomeTestClass, "Game.Test")
 	{
-		bool constructed = false;
+		bool bConstructed = false;
 		SomeTestClass()
-			: constructed(true)
+			: bConstructed(true)
 		{
 		}
 		
 		TEST_METHOD(ConstructorIsCalled)
 		{
-			ASSERT_THAT(IsTrue(constructed));
+			ASSERT_THAT(IsTrue(bConstructed));
 		}
 	};
 ```	
 
-Latent actions are supported with the TEST_CLASS macro.  Each step will complete all latent actions before moving to the next
+Latent actions are supported with the TEST_CLASS macro.  Each step will complete all latent actions before moving to the next.  If an assertion is raised during a latent action, then no further latent actions will be processed.  The AFTER_EACH method will still be invoked though.
 
 ```cpp
     TEST_CLASS(LatentActionTest, "Game.Test") 
@@ -238,9 +238,19 @@ Also available for commands is a fluent command builder
 
 The framework will ensure that all of those commands happen in order using a future pattern.
 Similarly, the framework will ensure that a test can await a ticking object.  See GameObjectsTickTest for an example
+One word of caution, the framework does not currently support adding latent actions from within latent actions.
+Instead, it is better to add the actions as a series of self-contained steps.
+ 
 
 # Extending the framework
 The framework has been designed to allow for extensions in a couple areas.  See ExtensionTests.cpp for in-code examples.
+
+## Test Components
+This testing framework embraces composition over inheritence.  Creating new components should be the default mechanism for extending the framework.  Some of the components available to you are:
+  ActorTestSpawner - Allows a test to spawn actors, and manages their despawning.
+  MapTestSpawner - Creates a map and opens a level.  Allows tests to spawn actors in that world.
+  BlueprintHelper - Eases the ability for a test to spawn Blueprint objects, intended to be used with MapTestSpawner.
+  PIENetworkComponent - Allows tests to create a server and a collection of clients.  Good for testing replication.
 
 ## Assertions
 Not all platforms support exceptions, and so the assertions are unable to rely on them.
@@ -291,15 +301,16 @@ See CQTestTests/Private/ExtensionTests.cpp for an example
 Below is some untested example code to inspire ideas
 
 ```cpp
-	struct FluentAsserter : public ThrowingAsserter
+	struct FluentAsserter
 	{
 	private:
 		int CurrentIntValue = 0;
 		TArray<FString> Errors;
+		FAutomationTestBase& TestRunner;
 		
 	public:
-		FluentAsserter(FAutomationTestBase& testRunner)
-			: ThrowingAsserter(testRunner)
+		FluentAsserter(FAutomationTestBase& InTestRunner)
+			: TestRunner(InTestRunner)
 		{
 		}
 		

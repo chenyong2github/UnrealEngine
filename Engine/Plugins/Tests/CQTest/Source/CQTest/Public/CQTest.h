@@ -62,12 +62,12 @@ struct TBaseTest
 	void AddCommand(TSharedPtr<IAutomationLatentCommand> Cmd);
 
 	virtual void RunTest(const FString& MethodName) = 0;
-	FTestCommandBuilder TestCommandBuilder;
-	FAutomationTestBase& TestRunner;
-	bool bHasLatentActions{ false };
+
 	bool bInitializing{ true };
 
+	FAutomationTestBase& TestRunner;
 	AsserterType Assert;
+	FTestCommandBuilder TestCommandBuilder;
 };
 
 template <typename AsserterType>

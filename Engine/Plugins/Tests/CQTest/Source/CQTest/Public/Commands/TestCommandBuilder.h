@@ -8,17 +8,26 @@
 class FTestCommandBuilder
 {
 public:
-	FTestCommandBuilder() = default;
+	FTestCommandBuilder(FAutomationTestBase& InTestRunner)
+		: TestRunner(InTestRunner) {}
 
 	~FTestCommandBuilder()
 	{
-		check(CommandQueue.IsEmpty());
+		checkf(CommandQueue.IsEmpty(), TEXT("Adding latent actions from within latent actions is currently unsupported."));
+	}
+
+	FTestCommandBuilder& Do(const TCHAR* Description, TFunction<void()> Action)
+	{
+		if (!TestRunner.HasAnyErrors())
+		{
+			CommandQueue.Add(MakeShared<FExecute>(TestRunner, Action, Description));
+		}
+		return *this;
 	}
 
 	FTestCommandBuilder& Do(TFunction<void()> Action)
 	{
-		CommandQueue.Add(MakeShared<FExecute>(Action));
-		return *this;
+		return Do(nullptr, Action);
 	}
 
 	FTestCommandBuilder& Then(TFunction<void()> Action)
@@ -26,15 +35,33 @@ public:
 		return Do(Action);
 	}
 
-	FTestCommandBuilder& Until(FAutomationTestBase* TestRunner, TFunction<bool()> Query, FTimespan Timeout = FTimespan::FromSeconds(10))
+	FTestCommandBuilder& Then(const TCHAR* Description, TFunction<void()> Action)
 	{
-		CommandQueue.Add(MakeShared<FWaitUntil>(TestRunner, Query, Timeout));
+		return Do(Description, Action);
+	}
+
+	FTestCommandBuilder& Until(const TCHAR* Description, TFunction<bool()> Query, FTimespan Timeout = FTimespan::FromSeconds(10))
+	{
+		if (!TestRunner.HasAnyErrors())
+		{
+			CommandQueue.Add(MakeShared<FWaitUntil>(TestRunner, Query, Timeout, Description));
+		}
 		return *this;
 	}
 
-	FTestCommandBuilder& StartWhen(FAutomationTestBase* TestRunner, TFunction<bool()> Query, FTimespan Timeout = FTimespan::FromSeconds(10))
+	FTestCommandBuilder& Until(TFunction<bool()> Query, FTimespan Timeout = FTimespan::FromSeconds(10))
 	{
-		return Until(TestRunner, Query, Timeout);
+		return Until(nullptr, Query, Timeout);
+	}
+
+	FTestCommandBuilder& StartWhen(TFunction<bool()> Query, FTimespan Timeout = FTimespan::FromSeconds(10))
+	{
+		return Until(Query, Timeout);
+	}
+
+	FTestCommandBuilder& StartWhen(const TCHAR* Description, TFunction<bool()> Query, FTimespan Timeout = FTimespan::FromSeconds(10))
+	{
+		return Until(Description, Query, Timeout);
 	}
 
 	TSharedPtr<IAutomationLatentCommand> Build()
@@ -57,6 +84,10 @@ public:
 		return Result;
 	}
 
-private:
+protected:
 	TArray<TSharedPtr<IAutomationLatentCommand>> CommandQueue{};
+	FAutomationTestBase& TestRunner;
+
+	template<typename Asserter>
+	friend struct TBaseTest;
 };

@@ -4,7 +4,7 @@
 
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
-#include <UObject/GCObject.h>
+#include "UObject/GCObject.h"
 
 struct CQTEST_API FSpawnHelper
 {

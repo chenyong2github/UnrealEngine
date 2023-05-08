@@ -2,9 +2,9 @@
 
 #include "CQTest.h"
 
-TEST_CLASS(CommandBuilderTests, "TestFramework.CQTest")
+TEST_CLASS(CommandBuilderTests, "TestFramework.CQTest.Core")
 {
-	FTestCommandBuilder CommandBuilder{};
+	FTestCommandBuilder CommandBuilder{*TestRunner};
 
 	TEST_METHOD(Do_ThenBuild_IncludesCommand)
 	{
@@ -24,7 +24,7 @@ TEST_CLASS(CommandBuilderTests, "TestFramework.CQTest")
 	TEST_METHOD(StartWhen_CreatesWaitUntilCommand)
 	{
 		bool done = false;
-		auto command = CommandBuilder.StartWhen(TestRunner, [&done]() { return done; }).Build();
+		auto command = CommandBuilder.StartWhen([&done]() { return done; }).Build();
 
 		ASSERT_THAT(IsFalse(command->Update()));
 		done = true;

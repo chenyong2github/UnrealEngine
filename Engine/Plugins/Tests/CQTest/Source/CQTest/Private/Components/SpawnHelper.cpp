@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SpawnHelper.h"
+#include "Components/SpawnHelper.h"
 
 FSpawnHelper::~FSpawnHelper() 
 {

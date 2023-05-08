@@ -2,72 +2,92 @@
 
 namespace
 {
+	DEFINE_LOG_CATEGORY_STATIC(LogCqTest, Log, All);
+
 	template <typename AsserterType>
 	struct TBeforeTestCommand : public IAutomationLatentCommand
 	{
-		explicit TBeforeTestCommand(TBaseTest<AsserterType>& CurrentTest)
-			: CurrentTest(CurrentTest) {}
+		TBeforeTestCommand(TBaseTest<AsserterType>& InCurrentTest, TSharedRef<FRunSequence> InSequence)
+			: CurrentTest(InCurrentTest)
+			, Sequence(InSequence)
+		{}
 
 		bool Update() override
 		{
+			UE_LOG(LogCqTest, Log, TEXT("Before Test"));
+
 			CurrentTest.Setup();
 			if (auto LatentActions = CurrentTest.TestCommandBuilder.Build())
 			{
-				CurrentTest.AddCommand(LatentActions);
+				Sequence->Prepend(LatentActions);
 			}
+
 			return true;
 		}
 
 		TBaseTest<AsserterType>& CurrentTest;
+		TSharedRef<FRunSequence> Sequence;
 	};
 
 	template <typename AsserterType>
 	struct TRunTestCommand : public IAutomationLatentCommand
 	{
-		TRunTestCommand(TBaseTest<AsserterType>& CurrentTest, const FString& RequestedTest, const TTestRunner<AsserterType>& TestRunner)
-			: CurrentTest(CurrentTest)
-			, RequestedTest(RequestedTest)
-			, TestRunner(TestRunner)
+		TRunTestCommand(TBaseTest<AsserterType>& InCurrentTest, const FString& InRequestedTest, const TTestRunner<AsserterType>& InTestRunner, TSharedRef<FRunSequence> InSequence)
+			: CurrentTest(InCurrentTest)
+			, RequestedTest(InRequestedTest)
+			, TestRunner(InTestRunner)
+			, Sequence(InSequence)
 		{
 		}
 
 		bool Update() override
 		{
+			UE_LOG(LogCqTest, Log, TEXT("RunTest"));
+
 			if (TestRunner.HasAnyErrors())
 			{
+				UE_LOG(LogCqTest, Log, TEXT("Skipping Test due to existing errors"));
 				return true; // skip run if errors in BeforeTest
 			}
 
 			CurrentTest.RunTest(RequestedTest);
 			if (auto LatentActions = CurrentTest.TestCommandBuilder.Build())
 			{
-				CurrentTest.AddCommand(LatentActions);
+				Sequence->Prepend(LatentActions);
 			}
+
 			return true;
 		}
 
 		TBaseTest<AsserterType>& CurrentTest;
 		const FString& RequestedTest;
 		const TTestRunner<AsserterType>& TestRunner;
+		TSharedRef<FRunSequence> Sequence;
 	};
 
 	template <typename AsserterType>
 	struct TAfterTestCommand : public IAutomationLatentCommand
 	{
-		explicit TAfterTestCommand(TBaseTest<AsserterType>& CurrentTest)
-			: CurrentTest(CurrentTest) {}
+		TAfterTestCommand(TBaseTest<AsserterType>& InCurrentTest, TSharedRef<FRunSequence> InSequence)
+			: CurrentTest(InCurrentTest)
+			, Sequence(InSequence)
+		{}
 
 		bool Update() override
 		{
+			UE_LOG(LogCqTest, Log, TEXT("Running After Test"));
+
 			CurrentTest.TearDown();
 			if (auto LatentActions = CurrentTest.TestCommandBuilder.Build())
 			{
-				CurrentTest.AddCommand(LatentActions);
+				Sequence->Prepend(LatentActions);
 			}
+
 			return true;
 		}
 
 		TBaseTest<AsserterType>& CurrentTest;
+		TSharedRef<FRunSequence> Sequence;
 	};
 
 	template <typename AsserterType>
@@ -78,6 +98,8 @@ namespace
 
 		bool Update() override
 		{
+			UE_LOG(LogCqTest, Log, TEXT("Tearing Down Test"));
+
 			TestRunner.CurrentTestPtr = nullptr;
 			return true;
 		}
@@ -91,7 +113,7 @@ template <typename AsserterType>
 inline TTestRunner<AsserterType>::TTestRunner(FString InName, int32 InLineNumber, const char* InFileName, FString InTestDir, uint32 InTestFlags, TTestInstanceGenerator<AsserterType> InFactory)
 	: FAutomationTestBase(InName, true)
 	, LineNumber(InLineNumber)
-	, FileName(InFileName)
+	, FileName(FString(InFileName))
 	, TestDir(InTestDir)
 	, TestFlags(InTestFlags)
 	, TestInstanceFactory(InFactory)
@@ -123,23 +145,22 @@ inline bool TTestRunner<AsserterType>::RunTest(const FString& RequestedTest)
 	check(CurrentTestPtr != nullptr);
 	auto& CurrentTest = *CurrentTestPtr;
 
-	auto Before = MakeShared<TBeforeTestCommand<AsserterType>>(CurrentTest);
-	auto Run = MakeShared<TRunTestCommand<AsserterType>>(CurrentTest, RequestedTest, *this);
-	auto After = MakeShared<TAfterTestCommand<AsserterType>>(CurrentTest);
+	TSharedRef<FRunSequence> CommandSequence = MakeShareable<FRunSequence>(new FRunSequence());
+	auto Before = MakeShared<TBeforeTestCommand<AsserterType>>(CurrentTest, CommandSequence);
+	auto Run = MakeShared<TRunTestCommand<AsserterType>>(CurrentTest, RequestedTest, *this, CommandSequence);
+	auto After = MakeShared<TAfterTestCommand<AsserterType>>(CurrentTest, CommandSequence);
 	auto TearDown = MakeShared<TTearDownRunner<AsserterType>>(*this);
 
 	auto RemainingSteps = TArray<TSharedPtr<IAutomationLatentCommand>>{ Before, Run, After, TearDown };
 
-	while (RemainingSteps.Num() > 0)
+	while (!RemainingSteps.IsEmpty())
 	{
 		RemainingSteps[0]->Update();
 		RemainingSteps.RemoveAt(0);
-
-		if (CurrentTestPtr != nullptr && CurrentTest.bHasLatentActions && RemainingSteps.Num() > 1)
+		if (CurrentTestPtr != nullptr && !CommandSequence->IsEmpty())
 		{
-			// Ensure that all latent commands are run before adding the next step
-			RemainingSteps.Insert(MakeShared<FExecute>([]() { return true; }), 0);
-			CurrentTest.AddCommand(new FRunSequence(RemainingSteps));
+			CommandSequence->AppendAll(RemainingSteps);
+			FAutomationTestFramework::Get().EnqueueLatentCommand(CommandSequence);
 			return true;
 		}
 	}
@@ -216,23 +237,21 @@ inline void TTest<Derived, AsserterType>::RunTest(const FString& TestName)
 
 template <typename AsserterType>
 inline TBaseTest<AsserterType>::TBaseTest(FAutomationTestBase& TestRunner, bool bInitializing)
-	: TestCommandBuilder(FTestCommandBuilder{})
+	: bInitializing(bInitializing)
 	, TestRunner(TestRunner)
-	, bInitializing(bInitializing)
 	, Assert(AsserterType{ TestRunner })
+	, TestCommandBuilder(FTestCommandBuilder{ TestRunner })
 {
 }
 
 template <typename AsserterType>
 inline void TBaseTest<AsserterType>::AddCommand(IAutomationLatentCommand* Cmd)
 {
-	TestRunner.AddCommand(Cmd);
-	bHasLatentActions = true;
+	TestCommandBuilder.CommandQueue.Add(MakeShareable<IAutomationLatentCommand>(Cmd));
 }
 
 template <typename AsserterType>
 inline void TBaseTest<AsserterType>::AddCommand(TSharedPtr<IAutomationLatentCommand> Cmd)
 {
-	FAutomationTestFramework::Get().EnqueueLatentCommand(Cmd);
-	bHasLatentActions = true;
+	TestCommandBuilder.CommandQueue.Add(Cmd);
 }

@@ -6,12 +6,12 @@
 #include "Components/SceneComponent.h"
 
 #include "ObjectBuilder.h"
-#include "ActorTestSpawner.h"
+#include "Components/ActorTestSpawner.h"
 #include "CQTest.h"
 
 #if WITH_AUTOMATION_WORKER
 
-TEST_CLASS(ObjectBuilder_Success, "TestFramework.CQTest")
+TEST_CLASS(ObjectBuilder_Success, "TestFramework.CQTest.Actor")
 {
 	FActorTestSpawner Spawner;
 
@@ -449,7 +449,7 @@ TEST_CLASS(ObjectBuilder_Success, "TestFramework.CQTest")
 	}
 };
 
-TEST_CLASS(ObjectBuilder_ApiError, "TestFramework.CQTest")
+TEST_CLASS(ObjectBuilder_ApiError, "TestFramework.CQTest.Actor")
 {
 	FActorTestSpawner Spawner;
 
@@ -482,7 +482,7 @@ TEST_CLASS(ObjectBuilder_ApiError, "TestFramework.CQTest")
 	}
 };
 
-TEST_CLASS(ObjectBuilder_PrimitiveParameterErrors, "TestFramework.CQTest")
+TEST_CLASS(ObjectBuilder_PrimitiveParameterErrors, "TestFramework.CQTest.Actor")
 {
 	FActorTestSpawner Spawner;
 
@@ -621,7 +621,7 @@ TEST_CLASS(ObjectBuilder_PrimitiveParameterErrors, "TestFramework.CQTest")
 	}
 };
 
-TEST_CLASS(ObjectBuilder_StructParameterErrors, "TestFramework.CQTest")
+TEST_CLASS(ObjectBuilder_StructParameterErrors, "TestFramework.CQTest.Actor")
 {
 	FActorTestSpawner Spawner;
 
@@ -667,7 +667,7 @@ TEST_CLASS(ObjectBuilder_StructParameterErrors, "TestFramework.CQTest")
 };
 
 
-TEST_CLASS(ObjectBuilder_ArrayPropertyErrors, "TestFramework.CQTest")
+TEST_CLASS(ObjectBuilder_ArrayPropertyErrors, "TestFramework.CQTest.Actor")
 {
 	FActorTestSpawner Spawner;
 
@@ -810,7 +810,7 @@ TEST_CLASS(ObjectBuilder_ArrayPropertyErrors, "TestFramework.CQTest")
 	}
 };
 
-TEST_CLASS(ObjectBuilder_SetPropertyErrors, "TestFramework.CQTest")
+TEST_CLASS(ObjectBuilder_SetPropertyErrors, "TestFramework.CQTest.Actor")
 {
 	FActorTestSpawner Spawner;
 
@@ -943,7 +943,7 @@ TEST_CLASS(ObjectBuilder_SetPropertyErrors, "TestFramework.CQTest")
 	}
 };
 
-TEST_CLASS(ObjectBuilder_MapPropertyErrors, "TestFramework.CQTest")
+TEST_CLASS(ObjectBuilder_MapPropertyErrors, "TestFramework.CQTest.Actor")
 {
 	FActorTestSpawner Spawner;
 
@@ -1077,7 +1077,7 @@ TEST_CLASS(ObjectBuilder_MapPropertyErrors, "TestFramework.CQTest")
 	}
 };
 
-TEST_CLASS(ObjectBuilder_PostSpawnErrors, "TestFramework.CQTest")
+TEST_CLASS(ObjectBuilder_PostSpawnErrors, "TestFramework.CQTest.Actor")
 {
 	FActorTestSpawner Spawner;
 

@@ -7,7 +7,7 @@ DECLARE_LOG_CATEGORY_CLASS(AssertionTests, Log, All);
 
 namespace CQTests
 {
-	TEST_CLASS(NoDiscardAssert, "TestFramework.CQTest")
+	TEST_CLASS(NoDiscardAssert, "TestFramework.CQTest.Core")
 	{
 		const char* ExpectedError = "Expected";
 
@@ -272,7 +272,7 @@ FString CQTestConvert::ToString(const FCustomType& obj)
 	return obj.Name;
 }
 
-TEST_CLASS(AssertMessage, "TestFramework.CQTest")
+TEST_CLASS(AssertMessage, "TestFramework.CQTest.Core")
 {
 	TEST_METHOD(AssertAreEqual_WithUnequalCustomTypes_PrintObjectNames)
 	{

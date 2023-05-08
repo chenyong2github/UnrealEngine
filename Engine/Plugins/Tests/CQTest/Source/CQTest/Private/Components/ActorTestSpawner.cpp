@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ActorTestSpawner.h"
+#include "Components/ActorTestSpawner.h"
 #include "TestGameInstance.h"
 
 #include "EngineUtils.h"

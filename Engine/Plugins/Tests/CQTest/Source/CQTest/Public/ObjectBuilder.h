@@ -9,7 +9,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Package.h"
 
-#include "SpawnHelper.h"
+#include "Components/SpawnHelper.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectBuilder, Log, Log);
 

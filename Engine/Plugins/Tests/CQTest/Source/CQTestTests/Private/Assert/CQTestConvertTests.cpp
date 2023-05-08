@@ -115,7 +115,7 @@ CQTestConvert::PrintStream& operator<<(CQTestConvert::PrintStream& stream, const
 	return stream;
 }
 
-TEST_CLASS(TestConvertToString, "TestFramework.CQTest")
+TEST_CLASS(TestConvertToString, "TestFramework.CQTest.Core")
 {
 	TEST_METHOD(TypeWithExplicitOverride_ConvertToString_ReturnsOverride)
 	{

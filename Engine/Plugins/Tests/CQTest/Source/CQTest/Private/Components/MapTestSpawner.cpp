@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MapTestSpawner.h"
+#include "Components/MapTestSpawner.h"
 #include "Commands/TestCommands.h"
 
 #include "Tests/AutomationCommon.h"
@@ -18,7 +18,7 @@ void FMapTestSpawner::AddWaitUntilLoadedCommand(FAutomationTestBase* TestRunner)
 	bool bOpened = AutomationOpenMap(Path);
 	check(bOpened);
 
-	ADD_LATENT_AUTOMATION_COMMAND(FWaitUntil(TestRunner, [&]() -> bool {
+	ADD_LATENT_AUTOMATION_COMMAND(FWaitUntil(*TestRunner, [&]() -> bool {
 		for (const auto& Context : GEngine->GetWorldContexts())
 		{
 			if (((Context.WorldType == EWorldType::PIE) || (Context.WorldType == EWorldType::Game)) && (Context.World() != nullptr))

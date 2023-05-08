@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CQTestBlueprintHelper.h"
+#include "Components/CQTestBlueprintHelper.h"
 
 #include "Misc/Paths.h"
 #include "Engine/Blueprint.h"

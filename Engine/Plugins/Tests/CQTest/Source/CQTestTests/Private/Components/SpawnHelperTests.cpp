@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CQTest.h"
-#include "ActorTestSpawner.h"
+#include "Components/ActorTestSpawner.h"
 
-TEST_CLASS(SpawnHelperTests, "TestFramework.CQTest")
+TEST_CLASS(SpawnHelperTests, "TestFramework.CQTest.Actor")
 {
 	FActorTestSpawner Spawner;
 

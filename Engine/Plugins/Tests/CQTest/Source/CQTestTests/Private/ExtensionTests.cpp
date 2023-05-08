@@ -11,17 +11,19 @@ public:
 	{
 	}
 
-	void Custom(bool) {
+	bool Custom(bool In) 
+	{
+		return In;
 	}
 };
 
 #define CUSTOM_ASSERT_TEST_CLASS(_ClassName, _TestDir) TEST_CLASS_WITH_ASSERTS(_ClassName, _TestDir, FCustomAsserter)
 
-CUSTOM_ASSERT_TEST_CLASS(CustomAsserts, "TestFramework.CQTest")
+CUSTOM_ASSERT_TEST_CLASS(CustomAsserts, "TestFramework.CQTest.Core")
 {
 	TEST_METHOD(CustomTestClass_WithCustomAsserter_HasInstanceOfCustomAsserter)
 	{
-		Assert.Custom(true);
+		ASSERT_THAT(Custom(true));
 		ASSERT_THAT(IsTrue(true));
 	}
 };
@@ -34,7 +36,7 @@ struct TCustomBaseClass : public TTest<Derived, AsserterType>
 
 #define CUSTOM_BASE_TEST_CLASS(_ClassName, _TestDir) TEST_CLASS_WITH_BASE(_ClassName, _TestDir, TCustomBaseClass)
 
-CUSTOM_BASE_TEST_CLASS(CustomBase, "TestFramework.CQTest")
+CUSTOM_BASE_TEST_CLASS(CustomBase, "TestFramework.CQTest.Core")
 {
 	TEST_METHOD(CustomTestClass_WithCustomBase_InheritsFromBaseClass)
 	{
@@ -64,7 +66,7 @@ struct TBaseWithConstructor : public TTest<Derived, AsserterType>
 
 #define CUSTOM_WITH_CTOR_CLASS(_ClassName, _TestDir) TEST_CLASS_WITH_BASE(_ClassName, _TestDir, TBaseWithConstructor)
 
-CUSTOM_WITH_CTOR_CLASS(CustomCtor, "TestFramework.CQTest")
+CUSTOM_WITH_CTOR_CLASS(CustomCtor, "TestFramework.CQTest.Core")
 {
 	TEST_METHOD(CustomClassWithCtor_CallsCtorWhenInitializing_AndBeforeEachTest)
 	{

@@ -1,17 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CQTest.h"
+#include "CQTestUnitTestHelper.h"
 
 #include "Tickable.h"
 
 namespace CQTestTests
 {
-	TEST(MinimalTest, "TestFramework.CQTest")
+	TEST(Minimal, "TestFramework.CQTest")
 	{
 		ASSERT_THAT(IsTrue(true));
 	};
 
-	TEST_CLASS(From, "TestFramework.CQTest.GenerateDirectory.TokenProduces.[GenerateTestDirectory]")
+	TEST_CLASS(From, "TestFramework.CQTest.Core.GenerateDirectory.TokenProduces.[GenerateTestDirectory]")
 	{
 		TEST_METHOD(FolderStructure)
 		{
@@ -20,7 +21,7 @@ namespace CQTestTests
 		}
 	};
 
-	TEST_CLASS(Produces, "TestFramework.CQTest.GenerateDirectory")
+	TEST_CLASS(Produces, "TestFramework.CQTest.Core.GenerateDirectory")
 	{
 		TEST_METHOD(WithPlugins_AppearsInPlugins)
 		{
@@ -41,7 +42,7 @@ namespace CQTestTests
 		}
 	};
 
-	TEST_CLASS(SourceAndFile, "TestFramework.CQTest")
+	TEST_CLASS(SourceAndFile, "TestFramework.CQTest.Core")
 	{
 		TEST_METHOD(SetsSourceFile)
 		{
@@ -54,7 +55,7 @@ namespace CQTestTests
 		}
 	};
 
-	TEST_CLASS(DefaultFixtureTestFlags, "TestFramework.CQTest")
+	TEST_CLASS(DefaultFixtureTestFlags, "TestFramework.CQTest.Core")
 	{
 		TEST_METHOD(SetsApplicationContextMask)
 		{
@@ -67,7 +68,7 @@ namespace CQTestTests
 		}
 	};
 
-	TEST_CLASS_WITH_FLAGS(OverrideFixtureTestFlags, "TestFramework.CQTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+	TEST_CLASS_WITH_FLAGS(OverrideFixtureTestFlags, "TestFramework.CQTest.Core", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 	{
 		TEST_METHOD(GetTestFlags_ReturnsSetAutomationTestFlags)
 		{
@@ -75,7 +76,7 @@ namespace CQTestTests
 		}
 	};
 
-	TEST_CLASS(TestFixtureTest, "TestFramework.CQTest")
+	TEST_CLASS(TestFixtureTest, "TestFramework.CQTest.Core")
 	{
 		bool SetupCalled = false;
 		bool ShouldAddErrorDuringTearDown = false;
@@ -131,7 +132,7 @@ namespace CQTestTests
 		}
 	};
 
-	TEST_CLASS(TestFixtureConstructor, "TestFramework.CQTest")
+	TEST_CLASS(TestFixtureConstructor, "TestFramework.CQTest.Core")
 	{
 		bool SetupCalled = false;
 		uint32 SomeNumber = 0;
@@ -159,28 +160,8 @@ namespace CQTestTests
 		}
 	};
 
-	static void ClearExpectedError(FAutomationTestBase& TestRunner, const FString& ExpectedError)
-	{
-		FAutomationTestExecutionInfo testInfo;
-		TestRunner.GetExecutionInfo(testInfo);
-		if (testInfo.GetErrorTotal() != 1)
-		{
-			return;
-		}
-		testInfo.RemoveAllEvents([&ExpectedError](FAutomationEvent& event) {
-			return event.Message.Equals(ExpectedError);
-		});
-		if (testInfo.GetErrorTotal() == 0)
-		{
-			TestRunner.ClearExecutionInfo();
-		}
-	}
-	//This test is verifying that if an assertion is raised in BEFORE_EACH then the TEST_METHOD does not run
-	//But the AFTER_EACH still is run.  This is done by Asserting with an expected message in BEFORE and Asserting
-	//with an unexpected message in TEST_METHOD.  The AFTER_EACH checks for the expected message, and clears the errors
-	//if an only if there was 1 error message with the expected value
 
-	TEST_CLASS(TestAssertionInBefore, "TestFramework.CQTest")
+	TEST_CLASS(TestAssertionInBefore, "TestFramework.CQTest.Core")
 	{
 		FString ExpectedError = TEXT("Expected Error Message");
 
@@ -225,7 +206,7 @@ namespace CQTestTests
 		int32 CurrentCount{ 0 };
 	};
 
-	TEST_CLASS(LatentCommandTest, "TestFramework.CQTest")
+	TEST_CLASS(AddCommandTests, "TestFramework.CQTest.Core")
 	{
 		void SetExpectedExecutedCommandsCount(int32 count)
 		{
@@ -270,6 +251,104 @@ namespace CQTestTests
 		}
 	};
 
+	TEST_CLASS(LatentActionsTest, "TestFramework.CQTest.Core")
+	{
+		TArray<FString> CommandLog;
+
+		TFunction<bool(LatentActionsTest*)> Assertion;
+		TArray<FString> KnownStrings = {
+			TEXT("One"),
+			TEXT("Two"),
+			TEXT("Three"),
+			TEXT("Four")
+		};
+
+		AFTER_EACH()
+		{
+			ASSERT_THAT(IsTrue(Assertion(this)));
+		}
+
+		TEST_METHOD(Do_OnCommandBuilder_AddsLatentCommand)
+		{
+			TestCommandBuilder.Do([&]() { CommandLog.Add(KnownStrings[0]); });
+			ASSERT_THAT(IsTrue(CommandLog.IsEmpty()));
+			Assertion = [](LatentActionsTest* test) {
+				return !test->CommandLog.IsEmpty();
+			};
+		}
+
+		TEST_METHOD(MultipleDoCalls_OnCommandBuilder_AddsAllCommands)
+		{
+			TestCommandBuilder.Do([&]() {
+				CommandLog.Add(KnownStrings[0]);
+			})
+			.Do([&]() {
+				CommandLog.Add(KnownStrings[1]);
+			})
+			.Do([&]() {
+				CommandLog.Add(KnownStrings[2]);
+			});
+
+			Assertion = [](LatentActionsTest* test) {
+				if (test->CommandLog.Num() != 3)
+				{
+					return false;
+				}
+				for (int32 Index = 0; Index < 3; Index++)
+				{
+					if (test->CommandLog[Index] != test->KnownStrings[Index])
+					{
+						return false;
+					}
+				}
+				return true;
+			};
+		}
+
+		TEST_METHOD(DoAndAddCommand_InTheSameTest_AddCommandsInOrder)
+		{
+			TestCommandBuilder.Do([&]() { CommandLog.Add(KnownStrings[0]); });
+			AddCommand(new FExecute(*TestRunner, [&]() { CommandLog.Add(KnownStrings[1]); }));
+			TestCommandBuilder.Do([&]() { CommandLog.Add(KnownStrings[2]); });
+			AddCommand(new FExecute(*TestRunner, [&]() { CommandLog.Add(KnownStrings[3]); }));
+
+			Assertion = [](LatentActionsTest* test) {
+				if (test->CommandLog.Num() != 4)
+				{
+					return false;
+				}
+				for (int32 Index = 0; Index < 4; Index++)
+				{
+					if (test->CommandLog[Index] != test->KnownStrings[Index])
+					{
+						return false;
+					}
+				}
+				return true;
+			};
+		}
+	};
+
+	TEST_CLASS(LatentActionErrors, "TestFramework.CQTest.Core")
+	{
+		FString ExpectedError = TEXT("ExpectedError");
+
+		AFTER_EACH()
+		{
+			ClearExpectedError(*TestRunner, ExpectedError);
+		}
+
+		TEST_METHOD(Assertion_InLatentActions_PreventsAdditionalLatentActions)
+		{
+			TestCommandBuilder.Do([&]() {
+				Assert.Fail(ExpectedError);
+			})
+			.Then([&]() {
+				Assert.Fail("Unexpected Error");
+			});
+		}
+	};
+
 	// --------------------------------------------------------
 	// Tickable Game Objects Tick
 	// --------------------------------------------------------
@@ -298,12 +377,12 @@ namespace CQTestTests
 		uint32 TickCount = 0;
 	};
 
-	TEST_CLASS(GameObjectsTickTest, "TestFramework.CQTest")
+	TEST_CLASS(GameObjectsTickTest, "TestFramework.CQTest.Core")
 	{
 		BEFORE_EACH()
 		{
 			Tickable.ResetTickCount();
-			AddCommand(new FWaitUntil(TestRunner, [&]() { return Tickable.TickCount > 2; }));
+			AddCommand(new FWaitUntil(*TestRunner, [&]() { return Tickable.TickCount > 2; }));
 		}
 		AFTER_EACH()
 		{
@@ -320,123 +399,6 @@ namespace CQTestTests
 		TEST_METHOD(TestWithTickableGameObject_WaitingForTicksInSetup_WillBeCompleteDuringRunStep)
 		{
 			ASSERT_THAT(IsTrue(Tickable.TickCount > 2));
-		}
-	};
-
-	template <typename Test>
-	class FDelayedCommand : public IAutomationLatentCommand
-	{
-	public:
-		explicit FDelayedCommand(Test* InTest, int32 RequiredTicks)
-			: ExecutingTest(InTest) 
-			, RemainingTicks(RequiredTicks)
-		{}
-
-		bool Update() override
-		{
-			RemainingTicks--;
-			if (RemainingTicks == 0)
-			{
-				ExecutingTest->DelayedCommandExecuted = true;
-				return true;			
-			}
-
-			return false;
-		}
-
-		Test* ExecutingTest;
-		int32 RemainingTicks;
-	};
-
-	template <typename Test>
-	class FQueueCommand : public IAutomationLatentCommand
-	{
-	public:
-		explicit FQueueCommand(Test* InTest, int32 RequiredTicks)
-			: ExecutingTest(InTest) 
-			, RemainingTicks(RequiredTicks)
-			, RequiredTicks(RequiredTicks)
-		{}
-
-		bool Update() override
-		{
-			RemainingTicks--;
-			if (RemainingTicks == 0) {
-				ExecutingTest->AddCommand(new FDelayedCommand(ExecutingTest, RequiredTicks));
-				return true;
-			}
-			return false;
-		}
-
-		Test* ExecutingTest;
-		int32 RemainingTicks;
-		int32 RequiredTicks;
-	};
-
-	TEST_CLASS(ChainedCommandsTest, "TestFramework.CQTest")
-	{
-		bool DelayedCommandExecuted{ false };
-
-		BEFORE_EACH()
-		{
-			AddCommand(new FQueueCommand(this, 1));
-		}
-
-		AFTER_EACH()
-		{
-			ASSERT_THAT(IsTrue(DelayedCommandExecuted));
-
-			DelayedCommandExecuted = false;
-			TSharedPtr<FQueueCommand<ChainedCommandsTest>> PostAfterEach = MakeShared<FQueueCommand<ChainedCommandsTest>>(this, 1);
-			TSharedPtr<FExecute> Assertion = MakeShared<FExecute>([&]() {
-				ASSERT_THAT(IsTrue(DelayedCommandExecuted));
-			});
-			AddCommand(new FRunSequence(PostAfterEach, Assertion));
-		}
-
-		TEST_METHOD(DelayedCommandExecuted_WhenAddedInBeforeEach_IsTrueDuringRunTest)
-		{
-			ASSERT_THAT(IsTrue(DelayedCommandExecuted));
-		}
-
-		TEST_METHOD(DelayedCommandExecuted_WhenAddedDuringTest_IsTrueAfterTest)
-		{
-			DelayedCommandExecuted = false;
-			AddCommand(new FQueueCommand(this, 1));
-		}
-	};
-
-	TEST_CLASS(MultiTickChainedCommandsTest, "TestFramework.CQTest")
-	{
-		bool DelayedCommandExecuted{ false };
-
-		BEFORE_EACH()
-		{
-			AddCommand(new FQueueCommand(this, 3));
-		}
-
-		AFTER_EACH()
-		{
-			ASSERT_THAT(IsTrue(DelayedCommandExecuted));
-			DelayedCommandExecuted = false;
-
-			TSharedPtr<FQueueCommand<MultiTickChainedCommandsTest>> PostAfterEach = MakeShared<FQueueCommand<MultiTickChainedCommandsTest>>(this, 3);
-			TSharedPtr<FExecute> Assertion = MakeShared<FExecute>([&]() {
-				ASSERT_THAT(IsTrue(DelayedCommandExecuted));
-			});
-
-			AddCommand(new FRunSequence(PostAfterEach, Assertion));
-		}
-
-		TEST_METHOD(DelayedCommandExecuted_WhenAddedInBeforeEach_IsTrueDuringRunTest)
-		{
-			ASSERT_THAT(IsTrue(DelayedCommandExecuted));
-		}
-
-		TEST_METHOD(DelayedCommandExecuted_WhenAddedDuringTest_IsTrueAfterTest)
-		{
-			DelayedCommandExecuted = false;
-			AddCommand(new FQueueCommand(this, 3));
 		}
 	};
 } // namespace CQTestTests
