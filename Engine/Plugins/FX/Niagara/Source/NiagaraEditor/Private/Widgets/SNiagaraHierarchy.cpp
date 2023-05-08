@@ -19,6 +19,7 @@
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ToolMenus.h"
+#include "ViewModels/HierarchyEditor/NiagaraHierarchyCommands.h"
 #include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraHierarchy"
@@ -55,7 +56,7 @@ TSharedRef<SWidget> SummonContextMenu(TArray<TSharedPtr<FNiagaraHierarchyItemVie
 
 		if(bCanDeleteAll)
 		{
-			BaseSection->AddMenuEntry(FGenericCommands::Get().Delete);
+			BaseSection->AddMenuEntry(FNiagaraHierarchyEditorCommands::Get().Delete);
 		}
 
 		if(Items.Num() == 1 && bFromHierarchy == false)
@@ -778,7 +779,7 @@ void SNiagaraHierarchy::Construct(const FArguments& InArgs, TObjectPtr<UNiagaraH
 		FExecuteAction::CreateSP(this, &SNiagaraHierarchy::RequestRenameSelectedItem),
 		FCanExecuteAction::CreateSP(this, &SNiagaraHierarchy::CanRequestRenameSelectedItem));
 
-	HierarchyViewModel->GetCommands()->MapAction(FGenericCommands::Get().Delete,
+	HierarchyViewModel->GetCommands()->MapAction(FNiagaraHierarchyEditorCommands::Get().Delete,
 		FExecuteAction::CreateSP(this, &SNiagaraHierarchy::DeleteSelectedItems),
 		FCanExecuteAction::CreateSP(this, &SNiagaraHierarchy::CanDeleteSelectedItems),
 		FIsActionChecked(), FIsActionButtonVisible::CreateSP(this, &SNiagaraHierarchy::CanDeleteSelectedItems));

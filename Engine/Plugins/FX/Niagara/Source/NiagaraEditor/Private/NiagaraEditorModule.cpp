@@ -165,6 +165,7 @@
 
 #include "Engine/AssetManager.h"
 #include "Engine/AssetManagerSettings.h"
+#include "ViewModels/HierarchyEditor/NiagaraHierarchyCommands.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraEditorModule)
 
@@ -1159,6 +1160,7 @@ void FNiagaraEditorModule::StartupModule()
 		FConsoleCommandDelegate::CreateRaw(this, &FNiagaraEditorModule::ReinitializeStyle));
 
 	FNiagaraEditorCommands::Register();
+	FNiagaraHierarchyEditorCommands::Register();
 
 	NiagaraComponentBroker = MakeShareable(new FNiagaraComponentBroker);
 	FComponentAssetBrokerage::RegisterBroker(NiagaraComponentBroker, UNiagaraComponent::StaticClass(), true, true);
