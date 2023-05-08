@@ -187,7 +187,6 @@
 				
 				<Property Name="BuildRoot" Value="$(ProjectOutputDirectory)/$(UploadPlatform)"/>
 				<Property Name="CloudDir" Value="$(ProjectOutputDirectory)/CloudDir/$(UploadPlatform)"/>
-				<Property Name="BuildVersion" Value="$(BuildName)"/>
 				<Property Name="AppLaunch" Value="$(Launch)"/>
 				<Property Name="AppArgs" Value="-installed -GpuPreference=0"/>
 				<Property Name="FileAttributeList" Value=""/>
@@ -261,7 +260,7 @@
 		<Property Name="HostAgentType" Value="Linux" If="'$(Platform)' == 'Linux'"/>
 		<Agent Name="PGO Optimize Agent $(Platform)" Type="$(HostAgentType)">
 			<Node Name="$(ProjectName) PGO Optimize $(Platform)" Requires="$(PreNodeName)PGO Profile Replay $(Platform)">
-				<Compile Target="$(TargetName)" Platform="$(Platform)" Configuration="$(TargetConfigurations)" Arguments="-PGOOptimize -BuildVersion=&quot;$(BuildName)&quot; $(GenericCompileArguments) $(ExtraTargetCompileArguments)" Tag="#PGO Optimized Binaries $(Platform)"/>
+				<Compile Target="$(TargetName)" Platform="$(Platform)" Configuration="$(TargetConfigurations)" Arguments="-PGOOptimize -BuildVersion=&quot;$(BuildVersion)&quot; $(GenericCompileArguments) $(ExtraTargetCompileArguments)" Tag="#PGO Optimized Binaries $(Platform)"/>
 			</Node>
 		</Agent>
 	</ForEach>
