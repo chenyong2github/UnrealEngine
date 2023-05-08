@@ -464,7 +464,7 @@ void UReplicationBridge::InternalAddSubObject(FNetRefHandle OwnerHandle, FNetRef
 
 	if (NetRefHandleManager->AddSubObject(OwnerHandle, SubObjectHandle, InsertRelativeToSubObjectHandle, AddSubObjectFlags))
 	{
-		// If the subobject is not new we need to mark it as dirty to pick it up for replication with its new parent
+		// If the subobject is new we need to mark it dirty to pick it up for replication with its new parent
 		MarkNetObjectStateDirty(ReplicationSystem->GetId(), NetRefHandleManager->GetInternalIndex(SubObjectHandle));
 
 		// We set the priority of subobjects to be static as they will be prioritized with owner

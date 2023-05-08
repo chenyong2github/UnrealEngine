@@ -119,7 +119,7 @@ public:
 		}
 	}
 
-	EBatchProcessStatus PrepareBatch(FPerConnectionInfo& ConnInfo, FNetBitArrayView Objects, const uint8* PrioritizerIndices, const float* InDefaultPriorities)
+	EBatchProcessStatus PrepareBatch(FPerConnectionInfo& ConnInfo, const FNetBitArrayView Objects, const uint8* PrioritizerIndices, const float* InDefaultPriorities)
 	{
 		IRIS_PROFILER_SCOPE(FReplicationPrioritization_PrioritizeForConnection_PrepareBatch);
 
@@ -666,7 +666,7 @@ void FReplicationPrioritization::UpdatePrioritiesForNewAndDeletedObjects()
  * 1. Sort indices by prioritizer first, index second. Try to keep static priority objects last.
  * 2. Loop through index list until new prioritizer is found and pass the info to the prioritizer for processing.
  */
-void FReplicationPrioritization::PrioritizeForConnection(uint32 ConnId, FPrioritizerBatchHelper& BatchHelper, FNetBitArrayView Objects)
+void FReplicationPrioritization::PrioritizeForConnection(uint32 ConnId, FPrioritizerBatchHelper& BatchHelper, const FNetBitArrayView Objects)
 {
 	IRIS_PROFILER_SCOPE(FReplicationPrioritization_PrioritizeForConnection);
 
