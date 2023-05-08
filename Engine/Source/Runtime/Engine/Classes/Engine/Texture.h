@@ -884,10 +884,10 @@ public:
 	 *
 	 * @param Ar Archive to serialize with
 	 * @param Owner Owner texture
-	 * @param bStreamable Store some mips inline, only used during cooking
+	 * @param bStreamable set up serialization to stream some mips
+	 * @param bSerializeMipData if false, no mip bulk data will be serialized.  This should only be false when an alternate All Mip Data Provider is attached.
 	 */
-	void SerializeCooked(FArchive& Ar, class UTexture* Owner, bool bStreamable);
-	
+	void SerializeCooked(FArchive& Ar, class UTexture* Owner, bool bStreamable, const bool bSerializeMipData);
 	
 	inline void SetPackedData(int32 InNumSlices, bool bInHasOptData, bool bInCubeMap)
 	{
@@ -1355,7 +1355,11 @@ public:
 	UPROPERTY()
 	uint8 CompressionYCoCg : 1;
 
-	/** If true, the RHI texture will be created without TexCreate_OfflineProcessed. */
+	/** If true, the RHI texture will be created without TexCreate_OfflineProcessed.
+	  * This controls what format the data will be uploaded to RHI.
+	  * Offline processed textures may have platform specific tiling applied, and/or have their mip tails pre-combined into a single mip's data.
+	  * If NotOffline, then it will expect data to be uploaded in standard per-mip layouts.
+	  */
 	UPROPERTY(transient)
 	uint8 bNotOfflineProcessed : 1;
 
@@ -1521,7 +1525,7 @@ public:
 	/**
 	 * Serializes cooked platform data.
 	 */
-	ENGINE_API void SerializeCookedPlatformData(class FArchive& Ar);
+	ENGINE_API void SerializeCookedPlatformData(class FArchive& Ar, const bool bSerializeMipData = true);
 
 	//~ Begin IInterface_AssetUserData Interface
 	ENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;

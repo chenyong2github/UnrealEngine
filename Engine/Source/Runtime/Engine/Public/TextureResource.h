@@ -70,7 +70,7 @@ struct FTexture2DMipMap
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Serialization. */
-	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner, int32 MipIndex);
+	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner, int32 MipIndex, bool bSerializeMipData);
 
 #if WITH_EDITORONLY_DATA
 	/** The file region type appropriate for the pixel format of this mip-map. */

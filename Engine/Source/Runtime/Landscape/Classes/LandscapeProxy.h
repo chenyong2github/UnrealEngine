@@ -809,6 +809,10 @@ public:
 	UPROPERTY()
 	bool bHasLayersContent;
 
+	/** Enable compressed heightmap texture storage. */
+	UPROPERTY(EditAnywhere, Category = Landscape, AdvancedDisplay)
+	bool bUseCompressedHeightmapStorage = false;
+
 #if WITH_EDITOR
 	LANDSCAPE_API static ULandscapeLayerInfoObject* VisibilityLayer;
 

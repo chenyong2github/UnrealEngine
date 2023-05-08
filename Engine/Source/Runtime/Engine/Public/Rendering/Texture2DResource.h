@@ -73,6 +73,7 @@ private:
 
 	/** Local copy/ cache of mip data between creation and first call to InitRHI.							*/
 	TArray<void*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
+	TArray<int64, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipDataSize;
 
 	/**
 	 * Writes the data for a single mip-level into a destination buffer.

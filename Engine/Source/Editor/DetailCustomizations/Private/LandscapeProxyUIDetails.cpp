@@ -50,6 +50,12 @@ class URuntimeVirtualTexture;
 
 #define LOCTEXT_NAMESPACE "FLandscapeProxyUIDetails"
 
+static TAutoConsoleVariable<int32> CVarShowCompressWeightMapsOption(
+	TEXT("landscape.ShowCompressHeightMapsOption"),
+	0,
+	TEXT("Enable editing of the compressed height map option on landscape proxies (experimental)."),
+	ECVF_Default);
+
 FLandscapeProxyUIDetails::FLandscapeProxyUIDetails()
 {
 }
@@ -96,6 +102,11 @@ void FLandscapeProxyUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBui
 	if (!bShouldDisplayWorldPartitionProperties)
 	{
 		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bAreNewLandscapeActorsSpatiallyLoaded), ALandscape::StaticClass()));
+	}
+
+	if (CVarShowCompressWeightMapsOption->GetInt() == 0)
+	{
+		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bUseCompressedHeightmapStorage), ALandscapeProxy::StaticClass()));
 	}
 
 	if (LandscapeActors.Num() == 1)

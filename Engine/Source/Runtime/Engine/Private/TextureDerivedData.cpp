@@ -2414,8 +2414,8 @@ static void SerializePlatformData(
 	FArchive& Ar,
 	FTexturePlatformData* PlatformData,
 	UTexture* Texture,
-	EPlatformDataSerializationFlags Flags
-)
+	EPlatformDataSerializationFlags Flags,
+	const bool bSerializeMipData)
 {
 	// note: if BuildTexture failed, we still get called here,
 	//	just with a default-constructed PlatformData
@@ -2514,6 +2514,10 @@ static void SerializePlatformData(
 		#endif
 
 		#if WITH_EDITOR
+			// TODO [chris.tchou] : we should probably query the All Mip Provider to see what streaming state is.
+			// Otherwise we might disable streaming calculations, even though the AMP expects to stream.
+			// (this feeds into the bHasNoStreamableTextures optimization that skips streaming calculations)
+
 			// Record the use of streaming mips on the owner.
 			if (NumNonStreamingMips < NumMips)
 			{
@@ -2713,20 +2717,11 @@ static void SerializePlatformData(
 				check(Mip.DerivedData);
 			}
 
+			// from the first inline mip onwards, we serialize to inline bulk data
 			for (int32 MipIndex = FirstInlineMip; MipIndex < NumMips; ++MipIndex)
 			{
 				FTexture2DMipMap& Mip = PlatformData->Mips[FirstMipToSerialize + MipIndex];
-				if (Ar.IsSaving())
-				{
-					const uint32 OriginalBulkDataFlags = Mip.BulkData.GetBulkDataFlags();
-					Mip.BulkData.SetBulkDataFlags(BULKDATA_ForceInlinePayload | BULKDATA_SingleUse);
-					Mip.BulkData.Serialize(Ar, Texture, MipIndex);
-					Mip.BulkData.ResetBulkDataFlags(OriginalBulkDataFlags);
-				}
-				else
-				{
-					Mip.BulkData.Serialize(Ar, Texture, MipIndex);
-				}
+				Mip.BulkData.SerializeWithFlags(Ar, Texture, BULKDATA_ForceInlinePayload | BULKDATA_SingleUse);
 			}
 		}
 
@@ -2844,7 +2839,7 @@ static void SerializePlatformData(
 
 	for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
 	{
-		PlatformData->Mips[FirstMipToSerialize + MipIndex].Serialize(Ar, Texture, MipIndex);
+		PlatformData->Mips[FirstMipToSerialize + MipIndex].Serialize(Ar, Texture, MipIndex, bSerializeMipData);
 	}
 
 	Ar << bIsVirtual;
@@ -2876,7 +2871,8 @@ static void SerializePlatformData(
 
 void FTexturePlatformData::Serialize(FArchive& Ar, UTexture* Owner)
 {
-	SerializePlatformData(Ar, this, Owner, EPlatformDataSerializationFlags::None);
+	check(!Ar.IsCooking()); // this is not the path that handles serialization for cooking
+	SerializePlatformData(Ar, this, Owner, EPlatformDataSerializationFlags::None, /* bSerializeMipData = */ true);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -2894,14 +2890,14 @@ UE::DerivedData::FValueId FTexturePlatformData::MakeMipId(int32 MipIndex)
 
 #endif // WITH_EDITORONLY_DATA
 
-void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool bStreamable)
+void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool bStreamable, const bool bSerializeMipData)
 {
 	EPlatformDataSerializationFlags Flags = EPlatformDataSerializationFlags::Cooked;
 	if (bStreamable)
 	{
 		Flags |= EPlatformDataSerializationFlags::Streamable;
 	}
-	SerializePlatformData(Ar, this, Owner, Flags);
+	SerializePlatformData(Ar, this, Owner, Flags, bSerializeMipData);
 	if (Ar.IsLoading())
 	{
 		// Patch up Size as due to mips being stripped out during cooking it could be wrong.
@@ -2968,7 +2964,26 @@ bool UTexture2DArray::GetMipData(int32 InFirstMipToLoad, TArray<FUniqueBuffer, T
 
 void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 {
-	if (GetPlatformData()->TryLoadMips(FirstMipToLoad, OutMipData, GetPathName()) == false)
+	// hack convert the unsafe inputs to the "safe" form
+	// here we are hoping that the caller has allocated this number of elements in OutMipData...  :fingers_crossed:
+	int32 NumberOfMipsToLoad = GetPlatformData()->Mips.Num() - FirstMipToLoad;
+	TArrayView<int64> MipSizeView; // empty array - we don't need the sizes returned
+	GetInitialMipData(FirstMipToLoad, MakeArrayView(OutMipData, NumberOfMipsToLoad), MipSizeView);
+}
+
+bool UTexture2D::GetInitialMipData(int32 FirstMipToLoad, TArrayView<void*> OutMipData, TArrayView<int64> OutMipSize)
+{
+	bool bLoaded = false;
+	if (UTextureAllMipDataProviderFactory* ProviderFactory = GetAllMipProvider())
+	{
+		bLoaded = ProviderFactory->GetInitialMipData(FirstMipToLoad, OutMipData, OutMipSize, GetPathName());
+	}
+	else
+	{
+		bLoaded = GetPlatformData()->TryLoadMipsWithSizes(FirstMipToLoad, OutMipData.GetData(), OutMipSize.GetData(), GetPathName());
+	}
+
+	if (!bLoaded)
 	{
 		// Unable to load mips from the cache. Rebuild the texture and try again.
 		UE_LOG(LogTexture,Warning,TEXT("GetMipData failed for %s (%s)"),
@@ -2977,13 +2992,14 @@ void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 		if (!GetOutermost()->bIsCookedForEditor)
 		{
 			ForceRebuildPlatformData();
-			if (GetPlatformData()->TryLoadMips(FirstMipToLoad, OutMipData, GetPathName()) == false)
+			if (GetPlatformData()->TryLoadMipsWithSizes(FirstMipToLoad, OutMipData.GetData(), OutMipSize.GetData(), GetPathName()) == false)
 			{
 				UE_LOG(LogTexture, Error, TEXT("TryLoadMips still failed after ForceRebuildPlatformData %s."), *GetPathName());
 			}
 		}
 #endif // #if WITH_EDITOR
 	}
+	return bLoaded;
 }
 
 void UTextureCube::GetMipData(int32 FirstMipToLoad, void** OutMipData)
@@ -3614,7 +3630,7 @@ void UTexture::CleanupCachedRunningPlatformData()
 }
 
 
-void UTexture::SerializeCookedPlatformData(FArchive& Ar)
+void UTexture::SerializeCookedPlatformData(FArchive& Ar, const bool bSerializeMipData)
 {
 	if (IsTemplate() )
 	{
@@ -3710,11 +3726,13 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 			// this iteration is over NumLayers :
 			for (FTexturePlatformData* PlatformDataToSave : PlatformDataToSerialize)
 			{
+				// wait for async build task to complete, if there is one
 				PlatformDataToSave->FinishCache();
 
 				FName PixelFormatName = PixelFormatEnum->GetNameByValue(PlatformDataToSave->PixelFormat);
 				Ar << PixelFormatName;
 
+				// reserve space in the archive to record the skip offset
 				const int64 SkipOffsetLoc = Ar.Tell();
 				int64 SkipOffset = 0;
 				{
@@ -3723,8 +3741,11 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 
 				// Pass streamable flag for inlining mips
 				bool bTextureIsStreamable = GetTextureIsStreamableOnPlatform(*this, *Ar.CookingTarget());
-				PlatformDataToSave->SerializeCooked(Ar, this, bTextureIsStreamable);
 
+				// serialize the platform data
+				PlatformDataToSave->SerializeCooked(Ar, this, bTextureIsStreamable, bSerializeMipData);
+
+				// go back and patch the skip offset
 				SkipOffset = Ar.Tell() - SkipOffsetLoc;
 				Ar.Seek(SkipOffsetLoc);
 				Ar << SkipOffset;
@@ -3763,7 +3784,7 @@ void UTexture::SerializeCookedPlatformData(FArchive& Ar)
 			{
 				// Extra arg is unused here because we're loading
 				const bool bStreamable = false;
-				RunningPlatformData->SerializeCooked(Ar, this, bStreamable);
+				RunningPlatformData->SerializeCooked(Ar, this, bStreamable, bSerializeMipData);
 			}
 			else
 			{

@@ -74,6 +74,7 @@ Landscape.cpp: Terrain rendering
 #include "VisualLogger/VisualLogger.h"
 #include "NaniteSceneProxy.h"
 #include "Misc/ArchiveMD5.h"
+#include "LandscapeTextureStorageProvider.h"
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
@@ -3080,6 +3081,22 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 			LandscapeInfo->OnModifiedPackageSaved(GetPackage());
 		}
 	}
+
+	if (bUseCompressedHeightmapStorage && ObjectSaveContext.IsCooking())
+	{
+		FString PlatformName = ObjectSaveContext.GetTargetPlatform()->PlatformName();
+
+		// TODO [chris.tchou] : remove the limitation to only work on windows, once we validate other platforms work as well...
+		if (PlatformName.StartsWith(TEXT("Windows")))
+		{
+			for (ULandscapeComponent* LandscapeComponent : LandscapeComponents)
+			{
+				UTexture2D* Tex = LandscapeComponent->GetHeightmap();
+				FVector LandscapeGridScale = GetRootComponent()->GetRelativeScale3D();
+				ULandscapeTextureStorageProviderFactory::ApplyTo(Tex, LandscapeGridScale);
+			}
+		}
+	}
 #endif // WITH_EDITOR
 }
 
@@ -3707,6 +3724,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		VirtualTextureNumLods = Landscape->VirtualTextureNumLods;
 		VirtualTextureRenderPassType = Landscape->VirtualTextureRenderPassType;
 		bEnableNanite = Landscape->bEnableNanite;
+		bUseCompressedHeightmapStorage = Landscape->bUseCompressedHeightmapStorage;
 #if WITH_EDITORONLY_DATA
 		bNaniteSkirtEnabled = Landscape->bNaniteSkirtEnabled;
 		NaniteSkirtDepth = Landscape->NaniteSkirtDepth;

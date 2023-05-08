@@ -10,6 +10,7 @@
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "TextureResource.h"
 #endif
+#include "Engine/TextureAllMipDataProviderFactory.h"
 #include "Misc/FieldAccessor.h"
 #include "Serialization/BulkData.h"
 #include "Texture2D.generated.h"
@@ -86,6 +87,11 @@ public:
 	ENGINE_API FTexturePlatformData* GetPlatformData();
 	/** Get the const derived data for this texture on this platform. */
 	ENGINE_API const FTexturePlatformData* GetPlatformData() const;
+
+	UTextureAllMipDataProviderFactory* GetAllMipProvider() const
+	{
+		return const_cast<UTexture2D*>(this)->GetAssetUserData<UTextureAllMipDataProviderFactory>();
+	}
 
 #if WITH_EDITOR
 	/* cooked platform data for this texture */
@@ -196,6 +202,23 @@ public:
 	 * also don't use "GetMipData" as that is the name used for TextureSource
 	 */
 	ENGINE_API void GetMipData(int32 FirstMipToLoad, void** OutMipData);
+
+	/**
+	 * Retrieve initial texel data for mips, starting from FirstMipToLoad, up to the last mip in the texture.
+	 *    This function will only return mips that are currently loaded, or available via derived data.
+	 *    THIS FUNCTION WILL FAIL if you include in the requested range a streaming mip that is NOT currently loaded.
+	 *    Also note that ALL mip bulk data buffers are discarded (either returned or freed).
+	 *    So... in short, this function should only ever be called once.
+	 *
+	 * @param FirstMipToLoad - The first mip index to load.
+	 * @param OutMipData -	A pre-allocated array of pointers, that correspond to [FirstMipToLoad, .... LastMip]
+	 *						Upon successful return, each of those pointers will point to allocated memory containing the corresponding mip's data.
+	 *						Caller takes responsibility to free that memory.
+	 * @param OutMipSize -  A pre-allocated array of int64, that should be the same size as OutMipData (or zero size if caller does not require the sizes to be returned)
+	 *						Upon successful return, each element contains the size of the corresponding mip's data buffer.
+	 * @returns true if the requested mip data has been successfully returned.
+	 */
+	virtual bool GetInitialMipData(int32 InFirstMipToLoad, TArrayView<void*> OutMipData, TArrayView<int64> OutMipSize);
 
 	/**
 	 * Calculates the size of this texture in bytes if it had MipCount miplevels streamed in.

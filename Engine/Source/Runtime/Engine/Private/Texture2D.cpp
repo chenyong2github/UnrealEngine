@@ -143,13 +143,21 @@ extern bool TrackTextureEvent( FStreamingRenderAsset* StreamingTexture, UStreama
 static_assert(sizeof(FTexture2DMipMap) <= 80, "FTexture2DMipMap was packed to reduce its memory footprint and fit into an 80 bytes bin of MallocBinned2/3");
 #endif
 
-void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
+void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx, bool bSerializeMipData)
 {
+	if (bSerializeMipData)
+	{
 #if WITH_EDITORONLY_DATA
-	BulkData.Serialize(Ar, Owner, MipIdx, false, FileRegionType);
+		BulkData.Serialize(Ar, Owner, MipIdx, false, FileRegionType);
 #else
-	BulkData.Serialize(Ar, Owner, MipIdx, false);
+		BulkData.Serialize(Ar, Owner, MipIdx, false);
 #endif
+	}
+	else if (Ar.IsLoading())
+	{
+		// in case we're deserializing into an existing object, clear out BulkData
+		BulkData.RemoveBulkData();
+	}
 
 	int32 XSize = this->SizeX;
 	int32 YSize = this->SizeY;
@@ -453,7 +461,18 @@ void UTexture2D::Serialize(FArchive& Ar)
 
 	if (Ar.IsCooking() || bCooked)
 	{
-		SerializeCookedPlatformData(Ar);
+		bool bSerializeMipData = true;
+
+		if (Ar.IsSaving())
+		{
+			// if there is an all mip provider, then we don't need to serialize the PlatformData mip data
+			bSerializeMipData = (GetAllMipProvider() == nullptr);
+		}
+
+		// since the binary serialization format depends on this bool, we need to serialize it to know what format to expect at load time
+		Ar << bSerializeMipData;
+		
+		SerializeCookedPlatformData(Ar, bSerializeMipData);
 	}
 }
 
@@ -1014,7 +1033,17 @@ FTextureResource* UTexture2D::CreateResource()
 			else
 			{
 				// Should be as big as the mips we have already directly loaded into GPU mem
-				const FStreamableRenderResourceState PostInitState = GetResourcePostInitState(GetPlatformData(), !bTemporarilyDisableStreaming, ResourceMem ? ResourceMem->GetNumMips() : 0, NumMips);
+				FStreamableRenderResourceState PostInitState;
+				if (UTextureAllMipDataProviderFactory* ProviderFactory = GetAllMipProvider())
+				{
+					// All Mip Providers get to control the initial streaming state
+					PostInitState = ProviderFactory->GetResourcePostInitState(this, !bTemporarilyDisableStreaming);
+				}
+				else
+				{
+					PostInitState = GetResourcePostInitState(GetPlatformData(), !bTemporarilyDisableStreaming, ResourceMem ? ResourceMem->GetNumMips() : 0, NumMips);
+				}
+
 				FTexture2DResource* Texture2DResource = new FTexture2DResource(this, PostInitState);
 				// preallocated memory for the UTexture2D resource is now owned by this resource
 				// and will be freed by the RHI resource or when the FTexture2DResource is deleted

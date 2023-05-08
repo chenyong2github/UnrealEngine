@@ -1164,6 +1164,30 @@ public:
 	{
 		FBulkData::Serialize(Ar, Owner, bAttemptFileMapping, GetElementSize(), FileRegionType);
 	}
+
+	/**
+	 * Serialize function used to serialize this bulk data structure, applying an override of the Bulk Data Flags when saving.
+	 *
+	 * @param Ar					Archive to serialize with
+	 * @param Owner					Object owning the bulk data
+	 * @param SaveOverrideFlags		EBulkDataFlags to use when saving (restores original flags after serialization)
+	 * @param bAttemptFileMapping	If true, attempt to map this instead of loading it into malloc'ed memory
+	 * @param FileRegionType		When cooking, a hint describing the type of data, used by some platforms to improve compression ratios
+	 */
+	void SerializeWithFlags(FArchive& Ar, UObject* Owner, uint32 SaveOverrideFlags, bool bAttemptFileMapping = false, EFileRegionType FileRegionType = EFileRegionType::None)
+	{
+		if (Ar.IsSaving())
+		{
+			const uint32 OriginalBulkDataFlags = GetBulkDataFlags();
+			SetBulkDataFlags(SaveOverrideFlags);		// NOTE this does an OR between existing flags and the override flags
+			FBulkData::Serialize(Ar, Owner, bAttemptFileMapping, GetElementSize(), FileRegionType);
+			ResetBulkDataFlags(OriginalBulkDataFlags);
+		}
+		else
+		{
+			FBulkData::Serialize(Ar, Owner, bAttemptFileMapping, GetElementSize(), FileRegionType);
+		}
+	}
 };
 
 UE_DEPRECATED(5.1, "Use FBulkData/TBulkData");
