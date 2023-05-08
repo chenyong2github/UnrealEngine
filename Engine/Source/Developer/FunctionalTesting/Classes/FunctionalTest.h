@@ -220,6 +220,43 @@ enum class EFunctionalTestLogHandling : uint8
 	OutputIgnored
 };
 
+
+class FConsoleVariableBPSetter
+{
+	friend class FAutomationFunctionalTestEnvSetup;
+
+public:
+	FConsoleVariableBPSetter(FString InConsoleVariableName);
+
+	void Set(const FString& Value);
+	FString Get();
+	void Restore();
+
+private:
+	bool bModified;
+	FString ConsoleVariableName;
+
+	FString OriginalValue;
+};
+
+class FAutomationFunctionalTestEnvSetup
+{
+public:
+	FAutomationFunctionalTestEnvSetup() = default;
+	~FAutomationFunctionalTestEnvSetup();
+
+	void SetVariable(const FString& VariableName, const FString& Value);
+
+	FString GetVariable(const FString& VariableName);
+
+	/** Restore the old settings. */
+	void Restore();
+
+private:
+	TArray<FConsoleVariableBPSetter> Variables;
+};
+
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FFunctionalTestEventSignature);
 DECLARE_DELEGATE_OneParam(FFunctionalTestDoneSignature, class AFunctionalTest*);
 
@@ -637,6 +674,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Functional Testing")
 	FName GetCurrentRerunReason() const;
 
+	/** Sets the CVar from the given input. Variable gets reset after the test. */
+	UFUNCTION(BlueprintCallable, Category = "Functional Testing")
+	void SetConsoleVariable(const FString& Name, const FString& InValue);
+
+	/** Sets the CVar from the given input. Variable gets reset after the test. */
+	UFUNCTION(BlueprintCallable, Category = "Functional Testing")
+	void SetConsoleVariableFromInteger(const FString& Name, const int32 InValue);
+
+	/** Sets the CVar from the given input. Variable gets reset after the test. */
+	UFUNCTION(BlueprintCallable, Category = "Functional Testing")
+	void SetConsoleVariableFromFloat(const FString& Name, const float InValue);
+
+	/** Sets the CVar from the given input. Variable gets reset after the test. */
+	UFUNCTION(BlueprintCallable, Category = "Functional Testing")
+	void SetConsoleVariableFromBoolean(const FString& Name, const bool InValue);
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "Functional Testing")
 	FString OnAdditionalTestFinishedMessageRequest(EFunctionalTestResult TestResult) const;
 	
@@ -744,6 +797,7 @@ public:
 
 private:
 	bool bIsReady;
+	FAutomationFunctionalTestEnvSetup EnvSetup;
 
 public:
 	/** Returns SpriteComponent subobject **/
