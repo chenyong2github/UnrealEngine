@@ -224,7 +224,7 @@ void FRequestCluster::FetchPackageNames(const FCookerTimer& CookerTimer, bool& b
 	int32 NextRequest = 0;
 	for (; NextRequest < FilePlatformRequests.Num(); ++NextRequest)
 	{
-		if ((NextRequest+1) % TimerCheckPeriod == 0 && CookerTimer.IsTimeUp())
+		if ((NextRequest+1) % TimerCheckPeriod == 0 && CookerTimer.IsActionTimeUp())
 		{
 			break;
 		}
@@ -475,7 +475,7 @@ void FRequestCluster::PumpExploration(const FCookerTimer& CookerTimer, bool& bOu
 	while (GraphSearch->TickExploration(bDone), !bDone)
 	{
 		GraphSearch->WaitForAsyncQueue(WaitTime);
-		if (CookerTimer.IsTimeUp())
+		if (CookerTimer.IsActionTimeUp())
 		{
 			bOutComplete = false;
 			return;

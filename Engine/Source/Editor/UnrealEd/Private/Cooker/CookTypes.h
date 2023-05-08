@@ -211,15 +211,28 @@ namespace UE::Cook
 		FCookerTimer(EForever);
 		FCookerTimer(ENoWait);
 
-		double GetTimeTillNow() const;
-		double GetEndTimeSeconds() const;
-		bool IsTimeUp() const;
-		bool IsTimeUp(double CurrentTimeSeconds) const;
-		double GetTimeRemain() const;
+		float GetTickTimeSlice() const;
+		double GetTickEndTimeSeconds() const;
+		bool IsTickTimeUp() const;
+		bool IsTickTimeUp(double CurrentTimeSeconds) const;
+		double GetTickTimeRemain() const;
+		double GetTickTimeTillNow() const;
+
+		float GetActionTimeSlice() const;
+		void SetActionTimeSlice(float InTimeSlice);
+		void SetActionStartTime();
+		void SetActionStartTime(double CurrentTimeSeconds);
+		double GetActionEndTimeSeconds() const;
+		bool IsActionTimeUp() const;
+		bool IsActionTimeUp(double CurrentTimeSeconds) const;
+		double GetActionTimeRemain() const;
+		double GetActionTimeTillNow() const;
 
 	public:
-		const double StartTime;
-		const float TimeSlice;
+		const double TickStartTime;
+		double ActionStartTime;
+		const float TickTimeSlice;
+		float ActionTimeSlice;
 	};
 
 	/** Temporary-lifetime data about the current tick of the cooker. */

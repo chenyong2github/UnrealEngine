@@ -61,7 +61,8 @@ const TCHAR* LexToString(ESuppressCookReason Reason)
 
 
 FCookerTimer::FCookerTimer(float InTimeSlice)
-	: StartTime(FPlatformTime::Seconds()), TimeSlice(InTimeSlice)
+	: TickStartTime(FPlatformTime::Seconds()), ActionStartTime(TickStartTime)
+	, TickTimeSlice(InTimeSlice), ActionTimeSlice(InTimeSlice)
 {
 }
 
@@ -75,29 +76,82 @@ FCookerTimer::FCookerTimer(ENoWait)
 {
 }
 
-double FCookerTimer::GetTimeTillNow() const
+float FCookerTimer::GetTickTimeSlice() const
 {
-	return FPlatformTime::Seconds() - StartTime;
+	return TickTimeSlice;
 }
 
-double FCookerTimer::GetEndTimeSeconds() const
+double FCookerTimer::GetTickEndTimeSeconds() const
 {
-	return FMath::Min(StartTime + TimeSlice,  MAX_flt);
+	return FMath::Min(TickStartTime + TickTimeSlice, MAX_flt);
 }
 
-bool FCookerTimer::IsTimeUp() const
+bool FCookerTimer::IsTickTimeUp() const
 {
-	return IsTimeUp(FPlatformTime::Seconds());
+	return IsTickTimeUp(FPlatformTime::Seconds());
 }
 
-bool FCookerTimer::IsTimeUp(double CurrentTimeSeconds) const
+bool FCookerTimer::IsTickTimeUp(double CurrentTimeSeconds) const
 {
-	return CurrentTimeSeconds - StartTime > TimeSlice;
+	return CurrentTimeSeconds - TickStartTime > TickTimeSlice;
 }
 
-double FCookerTimer::GetTimeRemain() const
+double FCookerTimer::GetTickTimeRemain() const
 {
-	return TimeSlice - (FPlatformTime::Seconds() - StartTime);
+	return TickTimeSlice - (FPlatformTime::Seconds() - TickStartTime);
+}
+
+double FCookerTimer::GetTickTimeTillNow() const
+{
+	return FPlatformTime::Seconds() - TickStartTime;
+}
+
+float FCookerTimer::GetActionTimeSlice() const
+{
+	return ActionTimeSlice;
+}
+
+void FCookerTimer::SetActionTimeSlice(float InTimeSlice)
+{
+	double TickEndTime = GetTickEndTimeSeconds();
+	ActionTimeSlice = FMath::Min(InTimeSlice, FMath::Max(0, TickEndTime - ActionStartTime));
+}
+
+void FCookerTimer::SetActionStartTime()
+{
+	SetActionStartTime(FPlatformTime::Seconds());
+}
+
+void FCookerTimer::SetActionStartTime(double CurrentTimeSeconds)
+{
+	ActionStartTime = CurrentTimeSeconds;
+	double TickEndTime = GetTickEndTimeSeconds();
+	ActionTimeSlice = FMath::Min(ActionTimeSlice, FMath::Max(0, TickEndTime - ActionStartTime));
+}
+
+double FCookerTimer::GetActionEndTimeSeconds() const
+{
+	return FMath::Min(ActionStartTime + ActionTimeSlice, MAX_flt);
+}
+
+bool FCookerTimer::IsActionTimeUp() const
+{
+	return IsActionTimeUp(FPlatformTime::Seconds());
+}
+
+bool FCookerTimer::IsActionTimeUp(double CurrentTimeSeconds) const
+{
+	return CurrentTimeSeconds - ActionStartTime > ActionTimeSlice;
+}
+
+double FCookerTimer::GetActionTimeRemain() const
+{
+	return ActionTimeSlice - (FPlatformTime::Seconds() - ActionStartTime);
+}
+
+double FCookerTimer::GetActionTimeTillNow() const
+{
+	return FPlatformTime::Seconds() - ActionStartTime;
 }
 
 static uint32 SchedulerThreadTlsSlot = 0;
