@@ -58,6 +58,11 @@ protected:
 		}
 	}
 
+	virtual FString GetReferencerName() const override
+	{
+		return "GoogleARCoreCloudARPinManager";
+	}
+
 	virtual void OnAlignmentTransformUpdated(const FTransform& NewAlignmentTransform)
 	{
 		for (UCloudARPin* ARPin : AllCloudARPins)
