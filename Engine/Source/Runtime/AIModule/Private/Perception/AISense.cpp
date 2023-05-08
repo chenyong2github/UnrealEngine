@@ -105,6 +105,13 @@ void UAISense::RegisterWrappedEvent(UAISenseEvent& PerceptionEvent)
 	UE_VLOG(GetPerceptionSystem(), LogAIPerception, Error, TEXT("%s did not override UAISense::RegisterWrappedEvent!"), *GetName());
 }
 
+#if WITH_GAMEPLAY_DEBUGGER_MENU
+void UAISense::DescribeSelfToGameplayDebugger(const UAIPerceptionSystem& PerceptionSystem, FGameplayDebuggerCategory& DebuggerCategory) const
+{
+	DebuggerCategory.AddTextLine(FString::Printf(TEXT("%s"), *SenseID.Name.ToString()));
+}
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
+
 //----------------------------------------------------------------------//
 // 
 //----------------------------------------------------------------------//

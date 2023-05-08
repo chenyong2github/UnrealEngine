@@ -1,18 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Perception/AIPerceptionSystem.h"
+
+#include "AISystem.h"
+#include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
-#include "TimerManager.h"
-#include "Engine/Engine.h"
-#include "AISystem.h"
-#include "Perception/AISense_Hearing.h"
-#include "Perception/AISenseConfig.h"
+#include "GameplayDebuggerCategory.h"
 #include "Perception/AIPerceptionComponent.h"
-#include "VisualLogger/VisualLogger.h"
-#include "ProfilingDebugging/CsvProfiler.h"
+#include "Perception/AISenseConfig.h"
 #include "Perception/AISenseEvent.h"
+#include "Perception/AISense_Hearing.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "TimerManager.h"
+#include "VisualLogger/VisualLogger.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AIPerceptionSystem)
 
@@ -691,3 +693,21 @@ void UAIPerceptionSystem::ReportPerceptionEvent(UObject* WorldContextObject, UAI
 		PerceptionSys->ReportEvent(PerceptionEvent);
 	}
 }
+
+//----------------------------------------------------------------------//
+// Debug
+//----------------------------------------------------------------------//
+#if WITH_GAMEPLAY_DEBUGGER_MENU
+void UAIPerceptionSystem::DescribeSelfToGameplayDebugger(FGameplayDebuggerCategory& DebuggerCategory) const
+{
+	DebuggerCategory.AddTextLine(FString::Printf(TEXT("%d Listeners"), ListenerContainer.Num()));
+
+	for (const UAISense* Sense : Senses)
+	{
+		if (Sense)
+		{
+			Sense->DescribeSelfToGameplayDebugger(*this, DebuggerCategory);
+		}
+	}
+}
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

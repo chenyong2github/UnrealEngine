@@ -292,6 +292,10 @@ public:
 	virtual void OnListenerForgetsActor(const FPerceptionListener& Listener, AActor& ActorToForget) override;
 	virtual void OnListenerForgetsAll(const FPerceptionListener& Listener) override;
 
+#if WITH_GAMEPLAY_DEBUGGER_MENU
+	virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionSystem& PerceptionSystem, FGameplayDebuggerCategory& DebuggerCategory) const override;
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
+
 protected:
 	virtual float Update() override;
 

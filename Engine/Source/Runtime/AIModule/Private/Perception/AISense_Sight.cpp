@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Perception/AISense_Sight.h"
-#include "EngineDefines.h"
-#include "EngineGlobals.h"
+
+#include "AIHelpers.h"
+#include "AISystem.h"
 #include "CollisionQueryParams.h"
 #include "Engine/Engine.h"
-#include "AISystem.h"
-#include "AIHelpers.h"
+#include "EngineDefines.h"
+#include "EngineGlobals.h"
+#include "GameplayDebuggerCategory.h"
 #include "Perception/AIPerceptionComponent.h"
-#include "VisualLogger/VisualLogger.h"
-#include "Perception/AISightTargetInterface.h"
 #include "Perception/AISenseConfig_Sight.h"
+#include "Perception/AISightTargetInterface.h"
+#include "VisualLogger/VisualLogger.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AISense_Sight)
 
@@ -1101,3 +1103,18 @@ void UAISense_Sight::OnListenerForgetsAll(const FPerceptionListener& Listener)
 	ForEach(SightQueriesPending, ForgetPreviousResult);
 }
 
+#if WITH_GAMEPLAY_DEBUGGER_MENU
+void UAISense_Sight::DescribeSelfToGameplayDebugger(const UAIPerceptionSystem& PerceptionSystem, FGameplayDebuggerCategory& DebuggerCategory) const
+{
+	const int32 TotalQueriesCount = SightQueriesInRange.Num() + SightQueriesOutOfRange.Num() + SightQueriesPending.Num();
+	DebuggerCategory.AddTextLine(
+		FString::Printf(TEXT("%s: %d Targets, %d Queries (InRange:%d, OutOfRange:%d, Pending:%d)"),
+			*GetSenseID().Name.ToString(),
+			ObservedTargets.Num(),
+			TotalQueriesCount,
+			SightQueriesInRange.Num(),
+			SightQueriesOutOfRange.Num(),
+			SightQueriesPending.Num())
+		);
+}
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU

@@ -10,6 +10,7 @@
 #include "AISense.generated.h"
 
 class APawn;
+class FGameplayDebuggerCategory;
 class UAIPerceptionSystem;
 class UAISenseEvent;
 
@@ -112,6 +113,10 @@ public:
 
 	bool WantsNewPawnNotification() const { return bWantsNewPawnNotification; }
 	bool ShouldAutoRegisterAllPawnsAsSources() const { return bAutoRegisterAllPawnsAsSources; }
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
+	virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionSystem& PerceptionSystem, FGameplayDebuggerCategory& DebuggerCategory) const;
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 protected:
 	friend UAIPerceptionSystem;

@@ -15,6 +15,7 @@
 #include "AISubsystem.h"
 #include "AIPerceptionSystem.generated.h"
 
+class FGameplayDebuggerCategory;
 class UAIPerceptionComponent;
 class UAISenseEvent;
 
@@ -163,7 +164,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception", meta = (WorldContext="WorldContextObject"))
 	static TSubclassOf<UAISense> GetSenseClassForStimulus(UObject* WorldContextObject, const FAIStimulus& Stimulus);
-	
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
+	virtual void DescribeSelfToGameplayDebugger(FGameplayDebuggerCategory& DebuggerCategory) const;
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
+
 protected:
 	
 	UFUNCTION()
