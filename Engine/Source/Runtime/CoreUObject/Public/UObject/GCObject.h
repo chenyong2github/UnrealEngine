@@ -27,8 +27,6 @@ class UGCObjectReferencer : public UObject
 	/** Current FGCObject* that references are being added from  */
 	FGCObject* CurrentlySerializingObject = nullptr;
 
-	/** True if the list of referenced objects has changed since we last ran VerifyGCObjectNames */
-	bool bReferencedObjectsChangedSinceLastNameVerify = false;
 	friend struct FReplaceReferenceHelper;
 
 public:
@@ -76,11 +74,6 @@ public:
 	 * be as late as from the destructor.
 	 */
 	virtual void FinishDestroy() override;
-
-	/**
-	 * Verifies that all FGCObjects have specified names
-	 */
-	COREUOBJECT_API void VerifyGCObjectNames();
 
 	/**
 	 * Returns the currently serializing object
@@ -186,10 +179,7 @@ public:
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) = 0;
 
 	/** Overload this method to report a name for your referencer */
-	virtual FString GetReferencerName() const
-	{
-		return UnknownGCObjectName;
-	}
+	virtual FString GetReferencerName() const = 0;
 
 	/** Overload this method to report how the specified object is referenced, if necessary */
 	virtual bool GetReferencerPropertyName(UObject* Object, FString& OutPropertyName) const

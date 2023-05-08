@@ -210,7 +210,6 @@ UGarbageCollectionSettings::UGarbageCollectionSettings()
 	AssetClusteringEnabled = true;
 	ActorClusteringEnabled = true;
 	UseDisregardForGCOnDedicatedServers = false;
-	VerifyGCObjectNames = true;
 	VerifyUObjectsAreNotFGCObjects = true;
 	PendingKillEnabled = false;
 	DumpObjectCountsToLogWhenMaxObjectLimitExceeded = false;

@@ -13,14 +13,6 @@
 #include "UObject/GarbageCollectionVerification.h"
 #include "HAL/IConsoleManager.h"
 
-static int32 GVerifyGCObjectNames = 1;
-static FAutoConsoleVariableRef CVerifyGCObjectNames(
-	TEXT("gc.VerifyGCObjectNames"),
-	GVerifyGCObjectNames,
-	TEXT("If true, the engine will verify if all FGCObject-derived classes define GetReferencerName() function overrides"),
-	ECVF_Default
-);
-
 // Global GC state flags
 extern bool GObjIncrementalPurgeIsInProgress;
 extern bool GObjUnhashUnreachableIsInProgress;
@@ -42,16 +34,9 @@ struct UGCObjectReferencer::FImpl
 
 
 UGCObjectReferencer::UGCObjectReferencer(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, Impl(new FImpl)
-{
-#if VERIFY_DISREGARD_GC_ASSUMPTIONS
-	if (!HasAnyFlags(RF_ClassDefaultObject))
-	{
-		FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddUObject(this, &UGCObjectReferencer::VerifyGCObjectNames);
-	}
-#endif // VERIFY_DISREGARD_GC_ASSUMPTIONS
-}
+: Super(ObjectInitializer)
+, Impl(new FImpl)
+{}
 
 UGCObjectReferencer::UGCObjectReferencer(FVTableHelper& Helper)
 : Super(Helper)
@@ -97,9 +82,6 @@ void UGCObjectReferencer::AddObject(FGCObject* Object)
 	// Make sure there are no duplicates. Should be impossible...
 	checkSlow(!ReferencedObjects.Contains(Object));
 	ReferencedObjects.Add(Object);
-#if VERIFY_DISREGARD_GC_ASSUMPTIONS
-	bReferencedObjectsChangedSinceLastNameVerify = true;
-#endif // VERIFY_DISREGARD_GC_ASSUMPTIONS
 
 #if WITH_EDITORONLY_DATA
 	OnGCObjectAdded.Broadcast(Object);
@@ -115,9 +97,6 @@ void UGCObjectReferencer::RemoveObject(FGCObject* Object)
 	TArray<FGCObject*>& ReferencedObjects = Object->bCanMakeInitialReferences ? Impl->InitialReferencedObjects : Impl->RemainingReferencedObjects; 
 	int32 NumRemoved = ReferencedObjects.RemoveSingleSwap(Object);
 	check(NumRemoved == 1);
-#if VERIFY_DISREGARD_GC_ASSUMPTIONS
-	bReferencedObjectsChangedSinceLastNameVerify = true;
-#endif // VERIFY_DISREGARD_GC_ASSUMPTIONS
 }
 
 bool UGCObjectReferencer::GetReferencerName(UObject* Object, FString& OutName, bool bOnlyIfAddingReferenced) const
@@ -229,76 +208,6 @@ void UGCObjectReferencer::AddInitialReferences(TArray<UObject**>& Out)
 	for (FGCObject* Object : Impl->InitialReferencedObjects)
 	{
 		Object->AddReferencedObjects(Collector);
-	}
-}
-
-/** 
-  * Helper class to make sure the ensure that verifies GetReferencerName is fired from within a callstack that can be
-  * associated with the offending FGCObject-derived class.
-  */
-class FVerifyReferencerNameCollector : public FReferenceCollector
-{
-	/** Current FGCObject being processed */
-	FGCObject* CurrentGCObject = nullptr;
-	/** Since we only need to fire the ensure once per FGCObject instance this will prevent us from spamming with ensures */
-	bool bCurrentObjectVerified = false;
-
-public:
-
-	void SetCurrentGCObject(FGCObject* InGCObject)
-	{
-		CurrentGCObject = InGCObject;
-		bCurrentObjectVerified = false;
-	}
-
-	void VerifyReferencerName()
-	{
-		if (!bCurrentObjectVerified && CurrentGCObject)
-		{
-			if (!ensureAlwaysMsgf(CurrentGCObject->GetReferencerName() !=  UE::GC::UnknownGCObjectName,
-				TEXT("Please make sure all FGCObject derived classes have a unique name by overriding FGCObject::GetReferencerName() function. FGCObject::GetReferencerName() will become pure virtual in the next engine release. See callstack for details.")))
-			{
-				bCurrentObjectVerified = true;
-			}
-		}
-	}
-
-	// Begin FGCObject interface
-	virtual void HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty) override
-	{
-		VerifyReferencerName();
-	}
-	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* ReferencingObject, const FProperty* InReferencingProperty) override
-	{
-		VerifyReferencerName();
-	}
-	virtual bool IsIgnoringArchetypeRef() const override
-	{
-		return false;
-	}
-	virtual bool IsIgnoringTransient() const override
-	{
-		return false;
-	}
-	// End FGCObject interface
-};
-
-void UGCObjectReferencer::VerifyGCObjectNames()
-{
-	if (bReferencedObjectsChangedSinceLastNameVerify && GShouldVerifyGCAssumptions && GVerifyGCObjectNames)
-	{
-		FVerifyReferencerNameCollector VerifyReferencerNameCollector;
-
-		for (TArrayView<FGCObject*> ReferencedObjects : { MakeArrayView(Impl->RemainingReferencedObjects),
-														  MakeArrayView(Impl->InitialReferencedObjects) })
-		{
-			for (FGCObject* GCObject : ReferencedObjects)
-			{
-				check(GCObject);
-				VerifyReferencerNameCollector.SetCurrentGCObject(GCObject);
-				GCObject->AddReferencedObjects(VerifyReferencerNameCollector);
-			}
-		}
 	}
 }
 
