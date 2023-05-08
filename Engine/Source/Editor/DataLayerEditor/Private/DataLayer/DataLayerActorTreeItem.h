@@ -50,17 +50,13 @@ public:
 
 	static FSceneOutlinerTreeItemID ComputeTreeItemID(AActor* InActor, const UDataLayerInstance* InDataLayerInstance)
 	{
-		FArchiveMD5 Ar;
 		FObjectKey ActorKey(InActor);
-		Ar << ActorKey;
-
 		FObjectKey DataLayerInstanceKey(InDataLayerInstance);
-		Ar << DataLayerInstanceKey;
 
-		FMD5Hash MD5Hash;
-		Ar.GetHash(MD5Hash);
+		FArchiveMD5 Ar;
+		Ar << ActorKey << DataLayerInstanceKey;
 
-		return FSceneOutlinerTreeItemID(MD5HashToGuid(MD5Hash));
+		return FSceneOutlinerTreeItemID(Ar.GetGuidFromHash());
 	}
 
 	bool Filter(FFilterPredicate Pred) const

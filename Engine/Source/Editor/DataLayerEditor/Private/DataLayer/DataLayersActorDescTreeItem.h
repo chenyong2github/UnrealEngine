@@ -64,19 +64,13 @@ public:
 	
 	static FSceneOutlinerTreeItemID ComputeTreeItemID(FGuid InActorGuid, UActorDescContainer* InContainer, const UDataLayerInstance* InDataLayer)
 	{
-		FArchiveMD5 Ar;
-		Ar << InActorGuid;
-
 		FObjectKey ContainerKey(InContainer);
-		Ar << ContainerKey;
-
 		FObjectKey DataLayerInstanceKey(InDataLayer);
-		Ar << DataLayerInstanceKey;
 
-		FMD5Hash MD5Hash;
-		Ar.GetHash(MD5Hash);
+		FArchiveMD5 Ar;
+		Ar << InActorGuid << ContainerKey << DataLayerInstanceKey;
 
-		return FSceneOutlinerTreeItemID(MD5HashToGuid(MD5Hash));
+		return FSceneOutlinerTreeItemID(Ar.GetGuidFromHash());
 	}
 
 	static TArray<AActor*> GetParentActors(UActorDescContainer* InContainer)

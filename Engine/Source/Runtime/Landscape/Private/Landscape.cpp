@@ -3456,11 +3456,7 @@ void ALandscapeProxy::PostLoadFixupLandscapeGuidsIfInstanced()
 			Ar << PackageName;
 		}
 
-		FMD5Hash MD5Hash;
-		Ar.GetHash(MD5Hash);
-
-		FGuid NewLandscapeGuid = MD5HashToGuid(MD5Hash);
-		this->LandscapeGuid = NewLandscapeGuid;
+		this->LandscapeGuid = Ar.GetGuidFromHash();
 	}
 }
 

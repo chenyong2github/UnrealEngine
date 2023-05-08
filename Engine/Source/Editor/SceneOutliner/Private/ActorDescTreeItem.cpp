@@ -251,10 +251,7 @@ FSceneOutlinerTreeItemID FActorDescTreeItem::ComputeTreeItemID(FGuid InActorGuid
 	FObjectKey ContainerKey(InContainer);
 	Ar << ContainerKey;
 
-	FMD5Hash MD5Hash;
-	Ar.GetHash(MD5Hash);
-	
-	return FSceneOutlinerTreeItemID(MD5HashToGuid(MD5Hash));
+	return FSceneOutlinerTreeItemID(Ar.GetGuidFromHash());
 }
 
 bool FActorDescTreeItem::ShouldDisplayInOutliner(const FWorldPartitionActorDesc* ActorDesc)

@@ -1284,11 +1284,7 @@ FGuid UWorldPartitionRuntimeSpatialHash::GetCellGuid(FName InGridName, const FGr
 
 	FArchiveMD5 ArMD5;
 	ArMD5 << GridName << CellGlobalCoord << DataLayerID << ContentBundleID;
-
-	FMD5Hash MD5Hash;
-	ArMD5.GetHash(MD5Hash);
-
-	FGuid CellGuid = MD5HashToGuid(MD5Hash);
+	FGuid CellGuid = ArMD5.GetGuidFromHash();
 	check(CellGuid.IsValid());
 
 	return CellGuid;
@@ -1674,9 +1670,6 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeSpatialHash::GetStream
 	check(Cell->GetBlockOnSlowLoading());
 	const double BlockOnSlowStreamingWarningRatio = GBlockOnSlowStreamingRatio * GBlockOnSlowStreamingWarningFactor;
 	
-	const UWorldPartitionRuntimeCell* StreamingCell = Cast<const UWorldPartitionRuntimeCell>(Cell);
-	check(StreamingCell);
-
 	const UWorldPartitionRuntimeCellDataSpatialHash* CellDataSpatialHash = CastChecked<UWorldPartitionRuntimeCellDataSpatialHash>(Cell->RuntimeCellData);
 	const FSpatialHashStreamingGrid* StreamingGrid = GetStreamingGridByName(CellDataSpatialHash->GridName);
 

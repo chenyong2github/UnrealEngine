@@ -221,10 +221,7 @@ void AWorldPartitionHLOD::PostLoad()
 		FArchiveMD5 ArMD5;
 		ArMD5 << GridName << CellGlobalCoord[0] << CellGlobalCoord[1] << CellGlobalCoord[2] << DataLayerID << ContentBundleID;
 
-		FMD5Hash MD5Hash;
-		ArMD5.GetHash(MD5Hash);
-
-		SourceCellGuid = MD5HashToGuid(MD5Hash);
+		SourceCellGuid = ArMD5.GetGuidFromHash();
 		check(SourceCellGuid.IsValid());
 	}
 

@@ -63,14 +63,11 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 		check(!InActor->IsPackageExternal());
 		check(!InActor->GetActorGuid().IsValid());
 
-		FArchiveMD5 MD5Ar;
+		FArchiveMD5 ArMD5;
 		FString ClassPath = BaseClass.IsValid() ? BaseClass.ToString() : NativeClass.ToString();
-		MD5Ar << ClassPath;
+		ArMD5 << ClassPath;
 		
-		FMD5Hash MD5Hash;
-		MD5Ar.GetHash(MD5Hash);
-
-		Guid = MD5HashToGuid(MD5Hash);
+		Guid = ArMD5.GetGuidFromHash();
 
 		bIsDefaultActorDesc = true;
 	}
