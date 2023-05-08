@@ -210,7 +210,7 @@ namespace Metasound
 
 				if (INDEX_NONE != RemoveIndex)
 				{
-					PairedOutputs.Add(FVertexPair {OutputsToRemove[RemoveIndex], OutputsToAdd[AddIndex].Output });
+					PairedOutputs.Add(FVertexPair { OutputsToRemove[RemoveIndex], OutputsToAdd[AddIndex].Output });
 					OutputsToRemove.RemoveAtSwap(RemoveIndex);
 					OutputsToAdd.RemoveAtSwap(AddIndex);
 				}
@@ -367,7 +367,7 @@ namespace Metasound
 				bDidEdit |= RemoveUnsupportedVertices(GraphHandle);
 
 #if WITH_EDITOR
-				if (bAddedVertices)
+				if (bAddedVertices && bSetDefaultNodeLocations)
 				{
 					UpdateAddedVertexNodePositions(GraphHandle);
 				}

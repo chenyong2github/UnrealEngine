@@ -102,7 +102,9 @@ namespace Metasound::Frontend
 			const FMetasoundFrontendClass* Class = InParent.FindDependency(Node.ClassID);
 			check(Class);
 
-			IDToIndex.Add(Node.GetID(), Index);
+			const FGuid& NodeID = Node.GetID();
+			IDToIndex.Add(NodeID, Index);
+			ClassIDToNodeIndices.FindOrAdd(Node.ClassID).Add(Index);
 
 			switch (Class->Metadata.GetType())
 			{
