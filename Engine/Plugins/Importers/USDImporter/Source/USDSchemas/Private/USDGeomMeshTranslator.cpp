@@ -28,6 +28,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "MaterialDomain.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
@@ -228,7 +230,7 @@ namespace UsdGeomMeshTranslatorImpl
 			{
 				const UsdUtils::FUsdPrimMaterialSlot& Slot = LODSlots[LODSlotIndex];
 
-				UMaterialInterface* Material = nullptr;
+				UMaterialInterface* Material = UMaterial::GetDefaultMaterial(MD_Surface);
 				if (UMaterialInterface** FoundMaterial = ResolvedMaterials.Find(&Slot))
 				{
 					Material = *FoundMaterial;

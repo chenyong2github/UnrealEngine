@@ -35,6 +35,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "GroomComponent.h"
+#include "MaterialDomain.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
@@ -136,7 +137,7 @@ namespace UsdSkelRootTranslatorImpl
 			{
 				const UsdUtils::FUsdPrimMaterialSlot& Slot = LODSlots[ LODSlotIndex ];
 
-				UMaterialInterface* Material = nullptr;
+				UMaterialInterface* Material = UMaterial::GetDefaultMaterial(MD_Surface);
 
 				if ( UMaterialInterface** FoundMaterial = ResolvedMaterials.Find( &Slot ) )
 				{

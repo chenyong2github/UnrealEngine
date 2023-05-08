@@ -30,6 +30,8 @@
 #include "GeometryCacheUSDComponent.h"
 #include "GroomComponent.h"
 #include "HAL/IConsoleManager.h"
+#include "MaterialDomain.h"
+#include "Materials/Material.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "UObject/Package.h"
@@ -83,7 +85,7 @@ namespace UsdGeometryCacheTranslatorImpl
 			for (int32 LODSlotIndex = 0; LODSlotIndex < LODSlots.Num(); ++LODSlotIndex, ++SlotIndex)
 			{
 				const UsdUtils::FUsdPrimMaterialSlot& Slot = LODSlots[LODSlotIndex];
-				UMaterialInterface* Material = nullptr;
+				UMaterialInterface* Material = UMaterial::GetDefaultMaterial(MD_Surface);
 				if (UMaterialInterface** FoundMaterial = ResolvedMaterials.Find(&Slot))
 				{
 					Material = *FoundMaterial;
