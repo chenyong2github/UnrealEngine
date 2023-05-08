@@ -1249,6 +1249,9 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		SystemInstanceController->GetRequestedExecutionState() == ENiagaraExecutionState::Active &&
 		SystemInstanceController->GetActualExecutionState() == ENiagaraExecutionState::Active)
 	{
+		// It would be incorrect for the component tick to be enabled and not be in solo mode but we will verify this
+		ensure(SystemInstanceController->IsSolo() == IsComponentTickEnabled());
+		ScopedComponentTickEnabled.bTickEnabled = IsComponentTickEnabled();
 		return;
 	}
 	
