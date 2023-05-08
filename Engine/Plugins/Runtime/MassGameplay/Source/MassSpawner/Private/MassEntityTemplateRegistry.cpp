@@ -76,21 +76,6 @@ const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::FindOrAddTem
 	return TemplateIDToTemplateMap.Add(TemplateID, FMassEntityTemplate::MakeFinalTemplate(*EntityManager, MoveTemp(TemplateData), TemplateID));
 }
 
-const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::FindOrAddTemplate(FMassEntityTemplateData&& TemplateData)
-{
-	const FMassEntityTemplateID NewTemplateID = FMassEntityTemplateIDFactory::Make(TemplateData);
-
-	check(EntityManager);
-	const TSharedRef<FMassEntityTemplate>* ExistingTemplate = FindTemplateFromTemplateID(NewTemplateID);
-
-	if (ExistingTemplate)
-	{
-		return *ExistingTemplate;
-	}
-
-	return TemplateIDToTemplateMap.Add(NewTemplateID, FMassEntityTemplate::MakeFinalTemplate(*EntityManager, MoveTemp(TemplateData), NewTemplateID));
-}
-
 void FMassEntityTemplateRegistry::DestroyTemplate(FMassEntityTemplateID TemplateID)
 {
 	TemplateIDToTemplateMap.Remove(TemplateID);

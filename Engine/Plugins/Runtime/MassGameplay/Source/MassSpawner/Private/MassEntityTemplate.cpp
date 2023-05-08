@@ -5,13 +5,15 @@
 #include "MassDebugger.h"
 #include "MassSpawnerTypes.h"
 #include "StructUtilsTypes.h"
+#include "Algo/Find.h"
 
 //----------------------------------------------------------------------//
 //  FMassEntityTemplateID
 //----------------------------------------------------------------------//
 FString FMassEntityTemplateID::ToString() const
 {
-	return FString::Printf(TEXT("[%d]"), Hash);
+	return IsValid() ? FString::Printf(TEXT("[Invalid]"))
+		: FString::Printf(TEXT("[%s:%d]"), *ConfigGuid.ToString(EGuidFormats::DigitsLower), FlavorHash);
 }
 
 //----------------------------------------------------------------------//
@@ -23,17 +25,51 @@ FMassEntityTemplateData::FMassEntityTemplateData(const FMassEntityTemplate& InFi
 
 }
 
+bool FMassEntityTemplateData::SlowIsEquivalent(const FMassEntityTemplateData& Other) const
+{
+	if (Composition.IsEquivalent(Other.GetCompositionDescriptor()) == false)
+	{
+		return false;
+	}
+	else if (SharedFragmentValues.IsEquivalent(Other.GetSharedFragmentValues()) == false)
+	{
+		return false;
+	}
+	
+	TConstArrayView<FInstancedStruct> OtherInitialFragmentValues = Other.GetInitialFragmentValues();
+	
+	if (OtherInitialFragmentValues.Num() != InitialFragmentValues.Num())
+	{
+		return false;
+	}
+
+	for (const FInstancedStruct& InitialValue : InitialFragmentValues)
+	{
+		const FInstancedStruct* FoundElement = Algo::FindByPredicate(OtherInitialFragmentValues, [&InitialValue](const FInstancedStruct& Element)
+		{
+			return InitialValue == Element;
+		});
+
+		if (FoundElement == nullptr)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 uint32 GetTypeHash(const FMassEntityTemplateData& Template)
 {
 	// @todo: using the template name is temporary solution to allow to tell two templates apart based on something 
 	// else than composition. Ideally we would hash the fragment values instead.
 	const int32 NameHash = GetTypeHash(Template.GetTemplateName());
-	const uint32 CompositionHash = Template.Composition.CalculateHash();
-	const uint32 SharedFragmentValuesHash = GetTypeHash(Template.SharedFragmentValues);
+	const uint32 CompositionHash = Template.GetCompositionDescriptor().CalculateHash();
+	// @todo shared fragments hash is based on pointers - this needs to be changed as well
+	const uint32 SharedFragmentValuesHash = GetTypeHash(Template.GetSharedFragmentValues());
 	
 	uint32 InitialValuesHash = 0;
 	// Initial fragment values, this is not part of the archetype as it is the spawner job to set them.
-	for (const FInstancedStruct& Struct : Template.InitialFragmentValues)
+	for (const FInstancedStruct& Struct : Template.GetInitialFragmentValues())
 	{
 		InitialValuesHash = UE::StructUtils::GetStructCrc32(Struct, InitialValuesHash);
 	}
@@ -120,13 +156,12 @@ FString FMassEntityTemplate::DebugGetDescription(FMassEntityManager* EntityManag
 //-----------------------------------------------------------------------------
 // FMassEntityTemplateIDFactory
 //-----------------------------------------------------------------------------
-FMassEntityTemplateID FMassEntityTemplateIDFactory::Make(const FMassEntityTemplateData& TemplateData)
+FMassEntityTemplateID FMassEntityTemplateIDFactory::Make(const FGuid& ConfigGuid)
 {
-	return FMassEntityTemplateID(GetTypeHash(TemplateData));
+	return FMassEntityTemplateID(ConfigGuid);
 }
 
-FMassEntityTemplateID FMassEntityTemplateIDFactory::Make(TConstArrayView<UMassEntityTraitBase*> Traits)
+FMassEntityTemplateID FMassEntityTemplateIDFactory::MakeFlavor(const FMassEntityTemplateID& SourceTemplateID, const int32 Flavor)
 {
-	const uint32 HashOut = UE::MassSpawner::HashTraits(Traits);
-	return FMassEntityTemplateID(HashOut);
+	return FMassEntityTemplateID(SourceTemplateID.ConfigGuid, Flavor);
 }

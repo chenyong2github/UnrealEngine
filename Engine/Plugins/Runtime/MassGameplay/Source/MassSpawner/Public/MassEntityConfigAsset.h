@@ -71,9 +71,11 @@ struct MASSSPAWNER_API FMassEntityConfig
 
 	bool IsEmpty() const { return Parent == nullptr && Traits.Num() == 0; }
 
+	const FGuid& GetGuid() const { return ConfigGuid; }
+	
 protected:
 	/** Combines traits based on the config hierarchy and returns list of unique traits */
-	void GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited) const;
+	void GetCombinedTraits(TArray<UMassEntityTraitBase*>& OutTraits) const;
 
 	/** Combines traits based on the config hierarchy and returns list of unique traits */
 	UE_DEPRECATED(5.3, "This flavor of GetCombinedTraits is deprecated. Use the one without the ConfigOwner parameter (now a property of the FMassEntityConfig itself)")
@@ -91,7 +93,12 @@ protected:
 	TObjectPtr<UObject> ConfigOwner = nullptr;
 
 private:
-	const FMassEntityTemplate* GetEntityTemplateInternal(const UWorld& World, FMassEntityTemplateID& TemplateIDOut, TArray<UMassEntityTraitBase*>& CombinedTraitsOut) const;
+	UPROPERTY(VisibleAnywhere, Category="Mass")
+	FGuid ConfigGuid;
+
+private:
+	void GetCombinedTraitsInternal(TArray<UMassEntityTraitBase*>& OutTraits, TArray<const UObject*>& Visited) const;
+	const FMassEntityTemplate* GetEntityTemplateInternal(const UWorld& World, FMassEntityTemplateID& TemplateIDOut) const;
 };
 
 /**

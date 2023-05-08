@@ -242,8 +242,6 @@ struct MASSSPAWNER_API FMassEntityTemplateRegistry
 	 */
 	const TSharedRef<FMassEntityTemplate>& FindOrAddTemplate(FMassEntityTemplateID TemplateID, FMassEntityTemplateData&& TemplateData);
 
-	const TSharedRef<FMassEntityTemplate>& FindOrAddTemplate(FMassEntityTemplateData&& TemplateData);
-
 	UE_DEPRECATED(5.3, "We no longer support fething mutable templates from the TemplateRegistry. Stored templates are considered const.")
 	FMassEntityTemplate* FindMutableTemplateFromTemplateID(FMassEntityTemplateID TemplateID);
 

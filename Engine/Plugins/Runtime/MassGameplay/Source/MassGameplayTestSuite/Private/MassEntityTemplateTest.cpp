@@ -33,12 +33,14 @@ struct FEntityTemplate_Empty : FEntityTemplateBase
 {
 	virtual bool InstantTest() override
 	{
+		const FMassEntityTemplateID InitialTemplateID = FMassEntityTemplateIDFactory::Make(FGuid::NewGuid());
 		FMassEntityTemplateData TemplateData;
 
-		const TSharedRef<FMassEntityTemplate>& FinalizedTemplate = TemplateRegistry.FindOrAddTemplate(MoveTemp(TemplateData));
+		const TSharedRef<FMassEntityTemplate>& FinalizedTemplate = TemplateRegistry.FindOrAddTemplate(InitialTemplateID, MoveTemp(TemplateData));
 		
 		const FMassEntityTemplateID TemplateID = FinalizedTemplate->GetTemplateID();
 		AITEST_TRUE("Empty template is expected to be registered as a valid template", TemplateID.IsValid());
+		AITEST_EQUAL("Empty template's ID is expected to be the same as the input template", TemplateID, InitialTemplateID);
 
 		const FMassArchetypeHandle& ArchetypeHandle = FinalizedTemplate->GetArchetype();
 		AITEST_TRUE("Empty template is expected to produce a valid (if empty) archetype", ArchetypeHandle.IsValid());
@@ -81,7 +83,8 @@ struct FEntityTemplate_Composition : FEntityTemplateBase
 		AITEST_TRUE("The composition should end up being the same regardless of whether the data is added via a template data or a composition descriptor"
 			, ExpectedComposition.IsEquivalent(TemplateData.GetCompositionDescriptor()));
 
-		const TSharedRef<FMassEntityTemplate>& FinalizedTemplate = TemplateRegistry.FindOrAddTemplate(MoveTemp(TemplateData));
+		const FMassEntityTemplateID TemplateID = FMassEntityTemplateIDFactory::Make(FGuid::NewGuid());
+		const TSharedRef<FMassEntityTemplate>& FinalizedTemplate = TemplateRegistry.FindOrAddTemplate(TemplateID, MoveTemp(TemplateData));
 
 		const FMassArchetypeHandle& ArchetypeHandle = FinalizedTemplate->GetArchetype();
 		AITEST_TRUE("Empty template is expected to produce a valid (if empty) archetype", ArchetypeHandle.IsValid());
@@ -106,9 +109,9 @@ struct FEntityTemplate_Trivial : FEntityTemplateBase
 		TemplateDataA.AddFragment<FTestFragment_Int>();
 		TemplateDataB.AddFragment<FTestFragment_Int>();
 
-		const TSharedRef<FMassEntityTemplate>& FinalizedEmptyTemplate = TemplateRegistry.FindOrAddTemplate(MoveTemp(EmptyTemplateData));
-		const TSharedRef<FMassEntityTemplate>& FinalizedTemplateA = TemplateRegistry.FindOrAddTemplate(MoveTemp(TemplateDataA));
-		const TSharedRef<FMassEntityTemplate>& FinalizedTemplateB = TemplateRegistry.FindOrAddTemplate(MoveTemp(TemplateDataA));
+		const TSharedRef<FMassEntityTemplate>& FinalizedEmptyTemplate = TemplateRegistry.FindOrAddTemplate(FMassEntityTemplateIDFactory::Make(FGuid::NewGuid()), MoveTemp(EmptyTemplateData));
+		const TSharedRef<FMassEntityTemplate>& FinalizedTemplateA = TemplateRegistry.FindOrAddTemplate(FMassEntityTemplateIDFactory::Make(FGuid::NewGuid()), MoveTemp(TemplateDataA));
+		const TSharedRef<FMassEntityTemplate>& FinalizedTemplateB = TemplateRegistry.FindOrAddTemplate(FMassEntityTemplateIDFactory::Make(FGuid::NewGuid()), MoveTemp(TemplateDataA));
 
 		AITEST_NOT_EQUAL("Non-empty template data should result in a finalized template different from the empty one", FinalizedEmptyTemplate->GetTemplateID(), FinalizedTemplateA->GetTemplateID());
 		AITEST_EQUAL("Non-empty template data should result in the very same finalized template", FinalizedTemplateA, FinalizedTemplateB);
@@ -134,7 +137,7 @@ struct FEntityTemplate_Modified : FEntityTemplateBase
 		IntFragment.Value = FTestFragment_Int::TestIntValue;
 
 		FMassEntityTemplateData MovedOriginalTemplateData = OriginalTemplateData;
-		const TSharedRef<FMassEntityTemplate>& FinalizedOriginalTemplate = TemplateRegistry.FindOrAddTemplate(MoveTemp(MovedOriginalTemplateData));
+		const TSharedRef<FMassEntityTemplate>& FinalizedOriginalTemplate = TemplateRegistry.FindOrAddTemplate(FMassEntityTemplateIDFactory::Make(FGuid::NewGuid()), MoveTemp(MovedOriginalTemplateData));
 
 		FMassEntityTemplateData NewTemplateData(*FinalizedOriginalTemplate);
 
@@ -150,7 +153,8 @@ struct FEntityTemplate_Modified : FEntityTemplateBase
 		CoppiedFragment->Value = FTestFragment_Int::TestIntValue + 1;
 		AITEST_NOT_EQUAL("Modifying the coppied instance of the fragment doesn't affect the original", CoppiedFragment->Value, IntFragment.Value);
 
-		const TSharedRef<FMassEntityTemplate>& FinalizedModifiedTemplate = TemplateRegistry.FindOrAddTemplate(MoveTemp(NewTemplateData));
+		const FMassEntityTemplateID NewTemplateID = FMassEntityTemplateIDFactory::MakeFlavor(FinalizedOriginalTemplate->GetTemplateID(), 1);
+		const TSharedRef<FMassEntityTemplate>& FinalizedModifiedTemplate = TemplateRegistry.FindOrAddTemplate(NewTemplateID, MoveTemp(NewTemplateData));
 
 		AITEST_NOT_EQUAL("The original and modified templates should end up resulting in two different templates", FinalizedModifiedTemplate->GetTemplateID(), FinalizedOriginalTemplate->GetTemplateID());
 		AITEST_EQUAL("The original and modified templates should still point at the same archetype", FinalizedModifiedTemplate->GetArchetype(), FinalizedOriginalTemplate->GetArchetype());
