@@ -241,32 +241,11 @@ public:
 				
 		if (!FoundActor && bInCreate)
 		{
-			TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ActorNameBuilder;
-
-			ActorNameBuilder += InActorPartitionId.GetClass()->GetName();
-			ActorNameBuilder += TEXT("_");
-
-			if (InActorPartitionId.GetGridGuid().IsValid())
-			{
-				ActorNameBuilder += InActorPartitionId.GetGridGuid().ToString(EGuidFormats::Base36Encoded);
-				ActorNameBuilder += TEXT("_");
-			}
-
-			if (InActorPartitionId.GetClass()->GetDefaultObject<APartitionActor>()->ShouldIncludeGridSizeInName(World, InActorPartitionId))
-			{
-				ActorNameBuilder += FString::Printf(TEXT("%d_"), InGridSize);
-			}
-
-			ActorNameBuilder += FString::Printf(TEXT("%d_%d_%d"), InCellCoord.X, InCellCoord.Y, InCellCoord.Z);
-
-			if (InActorPartitionId.GetDataLayerEditorContextHash() != FDataLayerEditorContext::EmptyHash)
-			{
-				ActorNameBuilder += FString::Printf(TEXT("_%X"), InActorPartitionId.GetDataLayerEditorContextHash());
-			}
+			const FString ActorName = APartitionActor::GetActorName(World, InActorPartitionId.GetClass(), InActorPartitionId.GetGridGuid(), InActorPartitionId, InGridSize, InCellCoord.X, InCellCoord.Y, InCellCoord.Z, InActorPartitionId.GetDataLayerEditorContextHash());
 
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.OverrideLevel = InCellCoord.Level;
-			SpawnParams.Name = *ActorNameBuilder;
+			SpawnParams.Name = *ActorName;
 			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
 
 			// Handle the case where the actor already exists, but is in the undo stack (was deleted)

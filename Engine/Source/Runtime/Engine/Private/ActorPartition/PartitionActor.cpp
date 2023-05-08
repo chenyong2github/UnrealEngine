@@ -7,6 +7,7 @@
 #if WITH_EDITOR
 #include "Engine/Level.h"
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
+#include "WorldPartition/DataLayer/DataLayerEditorContext.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/World.h"
 #endif
@@ -49,6 +50,34 @@ bool APartitionActor::IsUserManaged() const
 bool APartitionActor::ShouldIncludeGridSizeInName(UWorld* InWorld, const FActorPartitionIdentifier& InIdentifier) const
 {
 	return InWorld->GetWorldSettings()->bIncludeGridSizeInNameForPartitionedActors;
+}
+
+FString APartitionActor::GetActorName(UWorld* World, const UClass* Class, const FGuid& GridGuid, const FActorPartitionIdentifier& ActorPartitionId, uint32 GridSize, int32 CellCoordsX, int32 CellCoordsY, int32 CellCoordsZ, uint32 DataLayerEditorContext)
+{
+	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ActorNameBuilder;
+
+	ActorNameBuilder += Class->GetName();
+	ActorNameBuilder += TEXT("_");
+
+	if (GridGuid.IsValid())
+	{
+		ActorNameBuilder += GridGuid.ToString(EGuidFormats::Base36Encoded);
+		ActorNameBuilder += TEXT("_");
+	}
+
+	if (Class->GetDefaultObject<APartitionActor>()->ShouldIncludeGridSizeInName(World, ActorPartitionId))
+	{
+		ActorNameBuilder += FString::Printf(TEXT("%d_"), GridSize);
+	}
+
+	ActorNameBuilder += FString::Printf(TEXT("%d_%d_%d"), CellCoordsX, CellCoordsY, CellCoordsZ);
+
+	if (DataLayerEditorContext != FDataLayerEditorContext::EmptyHash)
+	{
+		ActorNameBuilder += FString::Printf(TEXT("_%X"), DataLayerEditorContext);
+	}
+
+	return ActorNameBuilder.ToString();
 }
 #endif
 

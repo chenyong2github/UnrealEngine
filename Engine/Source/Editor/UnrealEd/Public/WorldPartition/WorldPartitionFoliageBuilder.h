@@ -20,4 +20,5 @@ public:
 
 private:
 	uint32 NewGridSize;
+	bool bRepair;
 };

@@ -35,6 +35,8 @@ public:
 	/** The grid size this actors was generated for */
 	UPROPERTY()
 	uint32 GridSize;
+
+	static FString GetActorName(UWorld* World, const UClass* Class, const FGuid& GridGuid, const FActorPartitionIdentifier& ActorPartitionId, uint32 GridSize, int32 CellCoordsX, int32 CellCoordsY, int32 CellCoordsZ, uint32 DataLayerEditorContext);
 #endif
 };
 
