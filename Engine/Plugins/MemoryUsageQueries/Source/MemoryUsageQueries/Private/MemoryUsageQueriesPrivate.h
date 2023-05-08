@@ -4,7 +4,6 @@
 #include "UObject/FastReferenceCollector.h"
 
 class IMemoryUsageInfoProvider;
-enum class EGCTokenType : uint32;
 
 namespace MemoryUsageQueries::Internal
 {
