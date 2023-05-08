@@ -60,7 +60,6 @@ bool FNiagaraScriptExecutionContextBase::Init(FNiagaraSystemInstance* Instance, 
 	Script = InScript;
 	if (!ensure(Script != nullptr))
 	{
-		UE_DEBUG_BREAK();
 		return false;
 	}
 
