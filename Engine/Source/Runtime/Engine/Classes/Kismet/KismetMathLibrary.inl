@@ -2555,6 +2555,24 @@ bool UKismetMathLibrary::DateTimeFromString(FString DateTimeString, FDateTime& R
 	return FDateTime::Parse(DateTimeString, Result);
 }
 
+KISMET_MATH_FORCEINLINE
+int64 UKismetMathLibrary::ToUnixTimestamp(const FDateTime& Time)
+{
+	return Time.ToUnixTimestamp();
+}
+
+KISMET_MATH_FORCEINLINE
+double UKismetMathLibrary::ToUnixTimestampDouble(const FDateTime& Time)
+{
+	return Time.ToUnixTimestampDecimal();
+}
+
+KISMET_MATH_FORCEINLINE
+FDateTime UKismetMathLibrary::FromUnixTimestamp(const int64 UnixTime)
+{
+	return FDateTime::FromUnixTimestamp(UnixTime);
+}
+
 /* Timespan functions
 *****************************************************************************/
 
