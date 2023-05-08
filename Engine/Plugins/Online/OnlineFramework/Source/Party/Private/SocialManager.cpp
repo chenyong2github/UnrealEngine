@@ -617,6 +617,7 @@ void USocialManager::JoinParty(const USocialUser& UserToJoin, const FOnlineParty
 	UE_LOG(LogParty, Verbose, TEXT("Attempting to join user [%s]'s party of type [%d] by [%s]"), *UserToJoin.ToDebugString(), PartyTypeId.GetValue(), *JoinMethod.ToString());
 
 	FJoinPartyAttempt NewAttempt(&UserToJoin, PartyTypeId, JoinMethod, OnJoinPartyComplete);
+	NewAttempt.AnalyticsContext = UserToJoin.GetAnalyticsContext();
 	const FJoinPartyResult ValidationResult = ValidateJoinTarget(UserToJoin, PartyTypeId);
 	if (ValidationResult.WasSuccessful())
 	{

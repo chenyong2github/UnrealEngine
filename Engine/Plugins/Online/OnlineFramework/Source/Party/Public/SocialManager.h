@@ -158,6 +158,8 @@ public:
 		static const FName Step_WaitForPersistentPartyCreation;
 
 		FSocialActionTimeTracker ActionTimeTracker;
+
+		TMap<FString, FString> AnalyticsContext;
 	};
 protected:
 
