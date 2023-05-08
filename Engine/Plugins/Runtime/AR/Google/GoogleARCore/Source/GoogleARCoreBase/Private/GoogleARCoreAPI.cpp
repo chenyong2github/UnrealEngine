@@ -13,6 +13,8 @@
 #include "GoogleARCoreBaseModule.h"
 #include "GoogleARCoreTexture.h"
 
+DEFINE_LOG_CATEGORY(LogGoogleARCoreAPI);
+
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidJNI.h"
@@ -62,6 +64,12 @@ namespace
 		int32_t MaxFPS = 0;
 		ArCameraConfig_getFpsRange(SessionHandle, CameraConfigHandle, &MinFPS, &MaxFPS);
 		OutConfig.SetMaxFPS(MaxFPS);
+
+		// Figure out the camera facing
+		ArCameraConfigFacingDirection FacingDirection = AR_CAMERA_CONFIG_FACING_DIRECTION_BACK;
+		ArCameraConfig_getFacingDirection(SessionHandle, CameraConfigHandle, &FacingDirection);
+		OutConfig.CameraFacing = FacingDirection == AR_CAMERA_CONFIG_FACING_DIRECTION_BACK ? EGoogleARCoreCameraFacing::Back : EGoogleARCoreCameraFacing::Front;
+
 		return OutConfig;
 	}
 
@@ -219,7 +227,7 @@ EGoogleARCoreAPIStatus FGoogleARCoreAPKManager::RequestInstall(bool bUserRequest
 /****************************************/
 /*         FGoogleARCoreSession         */
 /****************************************/
-FGoogleARCoreSession::FGoogleARCoreSession(bool bUseFrontCamera)
+FGoogleARCoreSession::FGoogleARCoreSession()
 	: SessionCreateStatus(EGoogleARCoreAPIStatus::AR_UNAVAILABLE_DEVICE_NOT_COMPATIBLE)
 	, SessionConfig(nullptr)
 	, LatestFrame(nullptr)
@@ -237,15 +245,7 @@ FGoogleARCoreSession::FGoogleARCoreSession(bool bUseFrontCamera)
 	check(Env);
 	check(ApplicationContext);
 
-	static ArSessionFeature FRONT_CAMERA_FEATURE[2] = { AR_SESSION_FEATURE_FRONT_CAMERA, AR_SESSION_FEATURE_END_OF_LIST };
-	if (bUseFrontCamera)
-	{
-		SessionCreateStatus = ToARCoreAPIStatus(ArSession_createWithFeatures(Env, ApplicationContext, FRONT_CAMERA_FEATURE, &SessionHandle));
-	}
-	else
-	{
-		SessionCreateStatus = ToARCoreAPIStatus(ArSession_create(Env, ApplicationContext, &SessionHandle));
-	}
+	SessionCreateStatus = ToARCoreAPIStatus(ArSession_create(Env, ApplicationContext, &SessionHandle));
 
 	if (SessionCreateStatus != EGoogleARCoreAPIStatus::AR_SUCCESS)
 	{
@@ -448,7 +448,7 @@ const UARSessionConfig* FGoogleARCoreSession::GetCurrentSessionConfig()
 	return SessionConfig;
 }
 
-TArray<FGoogleARCoreCameraConfig> FGoogleARCoreSession::GetSupportedCameraConfig()
+TArray<FGoogleARCoreCameraConfig> FGoogleARCoreSession::GetSupportedCameraConfig(EGoogleARCoreCameraFacing CameraFacing)
 {
 	TArray<FGoogleARCoreCameraConfig> SupportedConfigs;
 #if PLATFORM_ANDROID
@@ -457,6 +457,10 @@ TArray<FGoogleARCoreCameraConfig> FGoogleARCoreSession::GetSupportedCameraConfig
 
 	ArCameraConfigFilter* CameraConfigFilter = nullptr;
 	ArCameraConfigFilter_create(SessionHandle, &CameraConfigFilter);
+
+	// We must choose one facing or the other.
+	ArCameraConfigFacingDirection Dir = CameraFacing == EGoogleARCoreCameraFacing::Front ? AR_CAMERA_CONFIG_FACING_DIRECTION_FRONT : AR_CAMERA_CONFIG_FACING_DIRECTION_BACK;
+	ArCameraConfigFilter_setFacingDirection(SessionHandle, CameraConfigFilter, Dir);
 
 	ArSession_getSupportedCameraConfigsWithFilter(SessionHandle, CameraConfigFilter, CameraConfigList);
 
@@ -488,6 +492,8 @@ TArray<FGoogleARCoreCameraConfig> FGoogleARCoreSession::GetSupportedCameraConfig
 
 EGoogleARCoreAPIStatus FGoogleARCoreSession::SetCameraConfig(FGoogleARCoreCameraConfig SelectedCameraConfig)
 {
+	UE_LOG(LogGoogleARCoreAPI, Log, TEXT("SetCameraConfig"));
+
 #if PLATFORM_ANDROID
 	ArCameraConfigList* CameraConfigList = nullptr;
 	ArCameraConfigList_create(SessionHandle, &CameraConfigList);
@@ -501,10 +507,18 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::SetCameraConfig(FGoogleARCoreCamera
 	// Filter on depth sensor usage
 	ArCameraConfigFilter_setDepthSensorUsage(SessionHandle, CameraConfigFilter, SelectedCameraConfig.DepthSensorUsage);
 
+	// Filter on facing
+	if (SelectedCameraConfig.CameraFacing != EGoogleARCoreCameraFacing::None)
+	{
+		UE_LOG(LogGoogleARCoreAPI, Log, TEXT("SelectedCameraConfig.CameraFacing %i"), (int32)SelectedCameraConfig.CameraFacing);
+		ArCameraConfigFilter_setFacingDirection(SessionHandle, CameraConfigFilter, SelectedCameraConfig.CameraFacing == EGoogleARCoreCameraFacing::Back ? AR_CAMERA_CONFIG_FACING_DIRECTION_BACK : AR_CAMERA_CONFIG_FACING_DIRECTION_FRONT);
+	}
+
 	ArSession_getSupportedCameraConfigsWithFilter(SessionHandle, CameraConfigFilter, CameraConfigList);
 
 	int ListSize = 0;
 	ArCameraConfigList_getSize(SessionHandle, CameraConfigList, &ListSize);
+	UE_LOG(LogGoogleARCoreAPI, Log, TEXT("ArCameraConfigList_getSize %i"), ListSize);
 
 	ArCameraConfig* CameraConfigHandle = nullptr;
 	ArCameraConfig_create(SessionHandle, &CameraConfigHandle);
@@ -524,6 +538,13 @@ EGoogleARCoreAPIStatus FGoogleARCoreSession::SetCameraConfig(FGoogleARCoreCamera
 				(int)Status);
 			bFoundSelectedConfig = true;
 			break;
+		}
+		else
+		{
+			UE_LOG(LogGoogleARCoreAPI, Log, TEXT("Configure ARCore session skipping incompatibile format(Camera Image - %d x %d, Camera Texture - %d x %d) returns %d"),
+				CameraConfig.CameraImageResolution.X, CameraConfig.CameraImageResolution.Y,
+				CameraConfig.CameraTextureResolution.X, CameraConfig.CameraTextureResolution.Y,
+				(int)Status);
 		}
 	}
 
@@ -933,7 +954,7 @@ void FGoogleARCoreFrame::UpdateDepthTexture(UARCoreDepthTexture*& OutDepthTextur
 #if PLATFORM_ANDROID
 	SCOPE_CYCLE_COUNTER(STAT_UpdateDepthImage);
 	ArImage* DepthImage = nullptr;
-	if (ArFrame_acquireDepthImage(SessionHandle, FrameHandle, &DepthImage) == AR_SUCCESS)
+	if (ArFrame_acquireDepthImage16Bits(SessionHandle, FrameHandle, &DepthImage) == AR_SUCCESS)
 	{
 		if (!OutDepthTexture)
 		{
@@ -1391,26 +1412,9 @@ EGoogleARCoreAPIStatus FGoogleARCoreFrame::AcquireCameraImage(UGoogleARCoreCamer
 	return ApiStatus;
 }
 
-#if PLATFORM_ANDROID
-EGoogleARCoreAPIStatus FGoogleARCoreFrame::GetCameraMetadata(const ACameraMetadata*& OutCameraMetadata) const
+TSharedPtr<FGoogleARCoreSession> FGoogleARCoreSession::CreateARCoreSession()
 {
-	if (SessionHandle == nullptr)
-	{
-		return EGoogleARCoreAPIStatus::AR_ERROR_SESSION_PAUSED;
-	}
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-	ArImageMetadata_getNdkCameraMetadata(SessionHandle, LatestImageMetadata, &OutCameraMetadata);
-#pragma clang diagnostic pop
-
-	return LatestImageMetadataStatus;
-}
-#endif
-
-TSharedPtr<FGoogleARCoreSession> FGoogleARCoreSession::CreateARCoreSession(bool bUseFrontCamera)
-{
-	TSharedPtr<FGoogleARCoreSession> NewSession = MakeShared<FGoogleARCoreSession>(bUseFrontCamera);
+	TSharedPtr<FGoogleARCoreSession> NewSession = MakeShared<FGoogleARCoreSession>();
 
 	UGoogleARCoreUObjectManager* UObjectManager = NewObject<UGoogleARCoreUObjectManager>();
 	UObjectManager->LatestPointCloud = NewObject<UGoogleARCorePointCloud>();
@@ -1807,8 +1811,8 @@ void FGoogleARCoreCameraConfig::SetMaxFPS(int32 MaxFPS)
 
 FString FGoogleARCoreCameraConfig::ToLogString() const
 {
-	FString LogString = FString::Printf(TEXT("CameraImageResolution (%d x %d), CameraTextureResolution (%d x %d), CameraID (%s), TargetFPS Mode (%d, %d Max FPS), DepthSensorUsage Mode (%d)"),
-		CameraImageResolution.X, CameraImageResolution.Y, CameraTextureResolution.X, CameraTextureResolution.Y, *CameraID, TargetFPS, GetMaxFPS(), DepthSensorUsage);
+	FString LogString = FString::Printf(TEXT("CameraImageResolution (%d x %d), CameraTextureResolution (%d x %d), CameraID (%s), TargetFPS Mode (%d, %d Max FPS), DepthSensorUsage Mode (%d), Facing (%i)"),
+		CameraImageResolution.X, CameraImageResolution.Y, CameraTextureResolution.X, CameraTextureResolution.Y, *CameraID, TargetFPS, GetMaxFPS(), DepthSensorUsage, (int32)CameraFacing);
 	return MoveTemp(LogString);
 }
 
@@ -1816,7 +1820,8 @@ bool FGoogleARCoreCameraConfig::IsCompatibleWith(const FGoogleARCoreCameraConfig
 {
 	if (CameraImageResolution != OtherConfig.CameraImageResolution ||
 		CameraTextureResolution != OtherConfig.CameraTextureResolution ||
-		CameraID != OtherConfig.CameraID)
+		CameraID != OtherConfig.CameraID ||
+		CameraFacing != OtherConfig.CameraFacing)
 	{
 		return false;
 	}

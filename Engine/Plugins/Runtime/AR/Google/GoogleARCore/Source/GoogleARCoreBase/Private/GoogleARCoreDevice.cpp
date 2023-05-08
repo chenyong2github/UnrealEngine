@@ -120,8 +120,6 @@ void FGoogleARCoreDevice::OnModuleUnloaded()
 {
 	// clear the shared ptr.
 	ARCoreSession.Reset();
-	FrontCameraARCoreSession.Reset();
-	BackCameraARCoreSession.Reset();
 }
 
 bool FGoogleARCoreDevice::GetIsARCoreSessionRunning()
@@ -157,12 +155,8 @@ void FGoogleARCoreDevice::StartARCoreSessionRequest(UARSessionConfig* SessionCon
 		return;
 	}
 #endif
-	
-	// The new SessionConfig should be set to the session already at this point. We can check if it is front camera session here.
-	bool bShouldUseFrontCamera = GetIsFrontCameraSession();
-	bool bShouldSwitchCamera = bShouldUseFrontCamera ? ARCoreSession == BackCameraARCoreSession : ARCoreSession == FrontCameraARCoreSession;
 
-	if (bIsARCoreSessionRunning && !bShouldSwitchCamera)
+	if (bIsARCoreSessionRunning)
 	{
 		UE_LOG(LogGoogleARCore, Log, TEXT("ARCore session is already running, set it to use the new session config."));
 		EGoogleARCoreAPIStatus Status = ARCoreSession->ConfigSession(*SessionConfig);
@@ -440,48 +434,20 @@ void FGoogleARCoreDevice::StartSessionWithRequestedConfig()
 	{
 		GLContext = FGoogleARCoreOpenGLContext::CreateContext();
 	}
-	
-	UARSessionConfig* RequestedConfig = AccessSessionConfig();
-	UGoogleARCoreSessionConfig* ARCoreConfig = Cast<UGoogleARCoreSessionConfig>(RequestedConfig);
-	bool bUseFrontCamera = (ARCoreConfig != nullptr && ARCoreConfig->CameraFacing == EGoogleARCoreCameraFacing::Front)
-		|| RequestedConfig->GetSessionType() == EARSessionType::Face;
 
-	if (bUseFrontCamera)
-	{
-		if (!FrontCameraARCoreSession.IsValid())
-		{
-			FrontCameraARCoreSession = CreateSession(true);
-		}
-
-		ARCoreSession = FrontCameraARCoreSession;
-	}
-	else
-	{
-		if (!BackCameraARCoreSession.IsValid())
-		{
-			BackCameraARCoreSession = CreateSession(false);
-		}
-
-		ARCoreSession = BackCameraARCoreSession;
-	}
+	ARCoreSession = CreateSession();
 
 	if (!ARCoreSession.IsValid())
 	{
 		return;
 	}
-	
-	// Allocate passthrough camera texture if necessary.
-	if (!PassthroughCameraTextures.Num())
-	{
-		AllocatePassthroughCameraTextures();
-	}
 
 	StartSession();
 }
 
-TSharedPtr<FGoogleARCoreSession> FGoogleARCoreDevice::CreateSession(bool bUseFrontCamera)
+TSharedPtr<FGoogleARCoreSession> FGoogleARCoreDevice::CreateSession()
 {
-	TSharedPtr<FGoogleARCoreSession> NewARCoreSession = FGoogleARCoreSession::CreateARCoreSession(bUseFrontCamera);
+	TSharedPtr<FGoogleARCoreSession> NewARCoreSession = FGoogleARCoreSession::CreateARCoreSession();
 	EGoogleARCoreAPIStatus SessionCreateStatus = NewARCoreSession->GetSessionCreateStatus();
 	if (SessionCreateStatus != EGoogleARCoreAPIStatus::AR_SUCCESS)
 	{
@@ -521,78 +487,130 @@ void FGoogleARCoreDevice::StartSession()
 		return;
 	}
 
+	// Configure the camera.  This must happen before we configure the session.  AugmentedFaces, for example, require that the front facing camera be selected before it is configured.
+	UE_LOG(LogGoogleARCore, Log, TEXT("FGoogleARCoreDevice::StartSession() Configuring camera..."));
+	{
+		EGoogleARCoreCameraFacing CameraFacing = EGoogleARCoreCameraFacing::Back;
+		const UGoogleARCoreSessionConfig *GoogleConfig = Cast<UGoogleARCoreSessionConfig>(RequestedConfig);
+		if (GoogleConfig != nullptr)
+		{
+			CameraFacing = GoogleConfig->CameraFacing;
+
+			if (RequestedConfig->GetSessionType() == EARSessionType::Face && CameraFacing != EGoogleARCoreCameraFacing::Front)
+			{
+				UE_LOG(LogGoogleARCore, Error, TEXT("EARSessionType::Face requested, but the rear camera has been explicitly specified in the session config.  This is not supported and the session create will fail."));
+			}
+		}
+		else
+		{
+			// Face sessions on arcore require the front camera.
+			if (RequestedConfig->GetSessionType() == EARSessionType::Face)
+			{
+				CameraFacing = EGoogleARCoreCameraFacing::Front;
+			}
+		}
+
+		TArray<FGoogleARCoreCameraConfig> SupportedCameraConfigs = ARCoreSession->GetSupportedCameraConfig(CameraFacing);
+		FGoogleARCoreDelegates::OnCameraConfig.Broadcast(SupportedCameraConfigs);
+	
+		UE_LOG(LogGoogleARCore, Log, TEXT("Got %d supported camera config from ARCore:"), SupportedCameraConfigs.Num());
+		for (int Index = 0; Index < SupportedCameraConfigs.Num(); ++Index)
+		{
+			UE_LOG(LogGoogleARCore, Log, TEXT("%d: %s"), Index + 1, *SupportedCameraConfigs[Index].ToLogString());
+		}
+
+		// If the session config specifies a meaningful video format, we'll try to match it here
+		const FARVideoFormat DesiredVideoFormat = RequestedConfig->GetDesiredVideoFormat();
+		const bool bHasDesiredVideoFormatResolution = DesiredVideoFormat.Width > 0 && DesiredVideoFormat.Height > 0;
+		const bool bHasValidDesiredVideoFormatFPS = DesiredVideoFormat.FPS == 30 || DesiredVideoFormat.FPS == 60;
+		const FGoogleARCoreCameraConfig* MatchCameraConfig = nullptr;
+		if (bHasDesiredVideoFormatResolution)
+		{
+			if (bHasValidDesiredVideoFormatFPS)
+			{
+				for (const FGoogleARCoreCameraConfig& CameraConfig : SupportedCameraConfigs)
+				{
+					if (CameraConfig.CameraTextureResolution.X == DesiredVideoFormat.Width &&
+						CameraConfig.CameraTextureResolution.Y == DesiredVideoFormat.Height &&
+						CameraConfig.GetMaxFPS() == DesiredVideoFormat.FPS)
+					{
+						MatchCameraConfig = &CameraConfig;
+						break;
+					}
+				}
+
+				if (MatchCameraConfig)
+				{
+					SetARCameraConfig(*MatchCameraConfig);
+					UE_LOG(LogGoogleARCore, Log, TEXT("Found and applied camera config matching video format (%d x %d, %d FPS): %s"),
+						DesiredVideoFormat.Width, DesiredVideoFormat.Height, DesiredVideoFormat.FPS, *MatchCameraConfig->ToLogString());
+				}
+				else
+				{
+					UE_LOG(LogGoogleARCore, Warning, TEXT("Couldn't find any camera config matching desired video format (%d x %d, %d FPS)"),
+						DesiredVideoFormat.Width, DesiredVideoFormat.Height, DesiredVideoFormat.FPS);
+				}
+			}
+			else
+			{
+				UE_LOG(LogGoogleARCore, Warning, TEXT("ARCore camera only supports 30/60 FPS.  Default format will be used.  Check your ARSessionConfig."));
+			}
+		}
+		else
+		{
+			UE_LOG(LogGoogleARCore, Log, TEXT("DesiredVideoFormat width,height = %i,%i default format will be used."), DesiredVideoFormat.Width > 0, DesiredVideoFormat.Height);
+		}
+		
+		// If we are using the front camera we must choose a config beacause the default will be a back camera config.
+		// Here we did not have any settings to use to pick so we will just pick the first.
+		const bool bUseFrontCamera = CameraFacing == EGoogleARCoreCameraFacing::Front;
+		if (bUseFrontCamera && !MatchCameraConfig)
+		{
+			if (SupportedCameraConfigs.Num() == 0)
+			{
+				UE_LOG(LogGoogleARCore, Error, TEXT("We want to use a front camera but did not find any front camera configs.  This device may not have a front camera.  The session may use the back camera or session create may fail."));
+			}
+			else
+			{
+				MatchCameraConfig = &(SupportedCameraConfigs[0]);
+				SetARCameraConfig(*MatchCameraConfig);
+				UE_LOG(LogGoogleARCore, Log, TEXT("Found and applied a front camera config (%d x %d, %d FPS): %s"),
+					DesiredVideoFormat.Width, DesiredVideoFormat.Height, DesiredVideoFormat.FPS, *MatchCameraConfig->ToLogString());
+			}
+		}
+	}
+
+
+	UE_LOG(LogGoogleARCore, Log, TEXT("FGoogleARCoreDevice::StartSession() Configuring session..."));
 	EGoogleARCoreAPIStatus Status = ARCoreSession->ConfigSession(*RequestedConfig);
 
 	if (Status != EGoogleARCoreAPIStatus::AR_SUCCESS)
 	{
-		UE_LOG(LogGoogleARCore, Error, TEXT("ARCore Session start failed with error status %d"), static_cast<int>(Status));
+		UE_LOG(LogGoogleARCore, Error, TEXT("ARCore Session start failed ConfigSession with error status %d"), static_cast<int>(Status));
 		CurrentSessionStatus.AdditionalInfo = TEXT("ARCore Session start failed due to unsupported ARSessionConfig.");
 		CurrentSessionStatus.Status = EARSessionStatus::UnsupportedConfiguration;
 		return;
 	}
 
-	check(PassthroughCameraTextures.Num());
-	TArray<uint32> TextureIds;
-	PassthroughCameraTextures.GetKeys(TextureIds);
-	ARCoreSession->SetCameraTextureIds(TextureIds);
-
-	EGoogleARCoreCameraFacing CameraFacing = EGoogleARCoreCameraFacing::Back;
-	const UGoogleARCoreSessionConfig *GoogleConfig = Cast<UGoogleARCoreSessionConfig>(RequestedConfig);
-	if (GoogleConfig != nullptr)
-	{
-		CameraFacing = GoogleConfig->CameraFacing;
-	}
-
-	TArray<FGoogleARCoreCameraConfig> SupportedCameraConfigs = ARCoreSession->GetSupportedCameraConfig();
-	FGoogleARCoreDelegates::OnCameraConfig.Broadcast(SupportedCameraConfigs);
-	
-	UE_LOG(LogGoogleARCore, Log, TEXT("Got %d supported camera config from ARCore:"), SupportedCameraConfigs.Num());
-	for (int Index = 0; Index < SupportedCameraConfigs.Num(); ++Index)
-	{
-		UE_LOG(LogGoogleARCore, Log, TEXT("%d: %s"), Index + 1, *SupportedCameraConfigs[Index].ToLogString());
-	}
-
-	// If the session config specifies a meaningful video format, we'll try to match it here
-	const FARVideoFormat DesiredVideoFormat = RequestedConfig->GetDesiredVideoFormat();
-	if (DesiredVideoFormat.Width > 0 && DesiredVideoFormat.Height > 0)
-	{
-		if (DesiredVideoFormat.FPS == 30 || DesiredVideoFormat.FPS == 60)
-		{
-			const FGoogleARCoreCameraConfig* MatchCameraConfig = nullptr;
-			for (const FGoogleARCoreCameraConfig& CameraConfig : SupportedCameraConfigs)
-			{
-				if (CameraConfig.CameraTextureResolution.X == DesiredVideoFormat.Width &&
-					CameraConfig.CameraTextureResolution.Y == DesiredVideoFormat.Height &&
-					CameraConfig.GetMaxFPS() == DesiredVideoFormat.FPS)
-				{
-					MatchCameraConfig = &CameraConfig;
-					break;
-				}
-			}
-
-			if (MatchCameraConfig)
-			{
-				SetARCameraConfig(*MatchCameraConfig);
-				UE_LOG(LogGoogleARCore, Log, TEXT("Found and applied camera config matching video format (%d x %d, %d FPS): %s"),
-					DesiredVideoFormat.Width, DesiredVideoFormat.Height, DesiredVideoFormat.FPS, *MatchCameraConfig->ToLogString());
-			}
-			else
-			{
-				UE_LOG(LogGoogleARCore, Warning, TEXT("Couldn't find any camera config matching desired video format (%d x %d, %d FPS)"),
-					DesiredVideoFormat.Width, DesiredVideoFormat.Height, DesiredVideoFormat.FPS);
-			}
-		}
-		else
-		{
-			UE_LOG(LogGoogleARCore, Warning, TEXT("ARCore camera only supports 30/60 FPS"));
-		}
-	}
 
 	Status = ARCoreSession->Resume();
 
+	// Allocate passthrough camera texture if necessary.
+	if (!PassthroughCameraTextures.Num())
+	{
+		AllocatePassthroughCameraTextures();
+	}
+
+	check(PassthroughCameraTextures.Num());
+	TArray<uint32> TextureIds;
+	PassthroughCameraTextures.GetKeys(TextureIds);
+	UE_LOG(LogGoogleARCore, Error, TEXT("SetCameraTextureIds %i textures"), TextureIds.Num());
+	ARCoreSession->SetCameraTextureIds(TextureIds);
+
+
 	if (Status != EGoogleARCoreAPIStatus::AR_SUCCESS)
 	{
-		UE_LOG(LogGoogleARCore, Error, TEXT("ARCore Session start failed with error status %d"), static_cast<int>(Status));
+		UE_LOG(LogGoogleARCore, Error, TEXT("ARCore Session start failed Resume with error status %d"), static_cast<int>(Status));
 
 		if (Status == EGoogleARCoreAPIStatus::AR_ERROR_ILLEGAL_STATE)
 		{
@@ -691,8 +709,6 @@ void FGoogleARCoreDevice::PauseARCoreSession()
 void FGoogleARCoreDevice::ResetARCoreSession()
 {
 	ARCoreSession.Reset();
-	FrontCameraARCoreSession.Reset();
-	BackCameraARCoreSession.Reset();
 	CurrentSessionStatus.Status = EARSessionStatus::NotStarted;
 	CurrentSessionStatus.AdditionalInfo = TEXT("ARCore Session is uninitialized.");
 	if (GLContext)
@@ -702,6 +718,7 @@ void FGoogleARCoreDevice::ResetARCoreSession()
 	
 	PassthroughCameraTextures = {};
 	LastCameraTextureId = 0;
+	UE_LOG(LogGoogleARCore, Log, TEXT("ARCore session reset"));
 }
 
 void FGoogleARCoreDevice::AllocatePassthroughCameraTextures()
@@ -811,18 +828,6 @@ EGoogleARCoreFunctionStatus FGoogleARCoreDevice::AcquireLatestPointCloud(UGoogle
 
 	return ToARCoreFunctionStatus(ARCoreSession->GetLatestFrame()->AcquirePointCloud(OutLatestPointCloud));
 }
-
-#if PLATFORM_ANDROID
-EGoogleARCoreFunctionStatus FGoogleARCoreDevice::GetLatestCameraMetadata(const ACameraMetadata*& OutCameraMetadata) const
-{
-	if (!ARCoreSession.IsValid() || ARCoreSession->GetLatestFrame() == nullptr)
-	{
-		return EGoogleARCoreFunctionStatus::NotAvailable;
-	}
-
-	return ToARCoreFunctionStatus(ARCoreSession->GetLatestFrame()->GetCameraMetadata(OutCameraMetadata));
-}
-#endif
 
 EGoogleARCoreFunctionStatus FGoogleARCoreDevice::AcquireCameraImage(UGoogleARCoreCameraImage *&OutLatestCameraImage)
 {

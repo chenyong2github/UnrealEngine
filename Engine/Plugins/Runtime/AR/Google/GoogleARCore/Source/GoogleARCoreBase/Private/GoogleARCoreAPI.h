@@ -19,8 +19,7 @@
 
 #include "GoogleARCoreAPI.generated.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogGoogleARCoreAPI, Log, All);
-
+DECLARE_LOG_CATEGORY_EXTERN(LogGoogleARCoreAPI, Log, All);
 class UARCoreDepthTexture;
 
 enum class EGoogleARCoreAPIStatus : int
@@ -248,9 +247,9 @@ class FGoogleARCoreSession : public TSharedFromThis<FGoogleARCoreSession>, publi
 {
 
 public:
-	static TSharedPtr<FGoogleARCoreSession> CreateARCoreSession(bool bUseFrontCamera);
+	static TSharedPtr<FGoogleARCoreSession> CreateARCoreSession();
 
-	FGoogleARCoreSession(bool bUseFrontCamera);
+	FGoogleARCoreSession();
 	~FGoogleARCoreSession();
 
 	// Properties
@@ -267,7 +266,7 @@ public:
 	bool IsConfigSupported(const UARSessionConfig& Config);
 	EGoogleARCoreAPIStatus ConfigSession(const UARSessionConfig& Config);
 	const UARSessionConfig* GetCurrentSessionConfig();
-	TArray<FGoogleARCoreCameraConfig> GetSupportedCameraConfig();
+	TArray<FGoogleARCoreCameraConfig> GetSupportedCameraConfig(EGoogleARCoreCameraFacing CameraFacing);
 	EGoogleARCoreAPIStatus SetCameraConfig(FGoogleARCoreCameraConfig CameraConfig);
 	void GetARCameraConfig(FGoogleARCoreCameraConfig& OutCurrentCameraConfig);
 	int AddRuntimeAugmentedImage(UGoogleARCoreAugmentedImageDatabase* TargetImageDatabase, const TArray<uint8>& ImageGrayscalePixels,
@@ -359,7 +358,6 @@ public:
 	uint32 GetCameraTextureId() const { return CameraTextureId; }
 	
 #if PLATFORM_ANDROID
-	EGoogleARCoreAPIStatus GetCameraMetadata(const ACameraMetadata*& OutCameraMetadata) const;
 	ArFrame* GetHandle() { return FrameHandle; };
 	static TArray<ArTrackable*> GetTrackables(const ArSession* SessionHandle, ArTrackableList* ListHandle, bool bRemoveSubsumedPlanes);
 #endif

@@ -88,9 +88,6 @@ public:
 	FGoogleARCoreLightEstimate GetLatestLightEstimate() const;
 	EGoogleARCoreFunctionStatus GetLatestPointCloud(UGoogleARCorePointCloud*& OutLatestPointCloud) const;
 	EGoogleARCoreFunctionStatus AcquireLatestPointCloud(UGoogleARCorePointCloud*& OutLatestPointCloud) const;
-#if PLATFORM_ANDROID
-	EGoogleARCoreFunctionStatus GetLatestCameraMetadata(const ACameraMetadata*& OutCameraMetadata) const;
-#endif
 	EGoogleARCoreFunctionStatus AcquireCameraImage(UGoogleARCoreCameraImage *&OutLatestCameraImage);
 
 	void TransformARCoordinates2D(EGoogleARCoreCoordinates2DType InputCoordinatesType, const TArray<FVector2D>& InputCoordinates,
@@ -173,7 +170,7 @@ private:
 	void OnModuleLoaded();
 	void OnModuleUnloaded();
 
-	TSharedPtr<FGoogleARCoreSession> CreateSession(bool bUseFrontCamera);
+	TSharedPtr<FGoogleARCoreSession> CreateSession();
 	void StartSession();
 
 	friend class FGoogleARCoreAndroidHelper;

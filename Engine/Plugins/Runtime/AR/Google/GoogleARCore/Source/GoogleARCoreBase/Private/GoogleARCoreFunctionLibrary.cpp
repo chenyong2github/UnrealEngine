@@ -27,14 +27,3 @@ UARCandidateImage* UGoogleARCoreSessionFunctionLibrary::AddRuntimeCandidateImage
 
 	return nullptr;
 }
-
-/************************************************************************/
-/*  UGoogleARCoreFrameFunctionLibrary                                   */
-/************************************************************************/
-
-#if PLATFORM_ANDROID
-EGoogleARCoreFunctionStatus UGoogleARCoreFrameFunctionLibrary::GetCameraMetadata(const ACameraMetadata*& OutCameraMetadata)
-{
-	return FGoogleARCoreDevice::GetInstance()->GetLatestCameraMetadata(OutCameraMetadata);
-}
-#endif

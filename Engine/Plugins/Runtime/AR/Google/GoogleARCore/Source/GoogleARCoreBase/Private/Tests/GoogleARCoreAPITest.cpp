@@ -7,7 +7,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FGoogleARCoreAPITest, "GoogleARCore.APITest", E
 
 void RunSessionCreateTest(FAutomationTestBase& Test)
 {
-	TSharedPtr<FGoogleARCoreSession> ARCoreSession = FGoogleARCoreSession::CreateARCoreSession(false);
+	TSharedPtr<FGoogleARCoreSession> ARCoreSession = FGoogleARCoreSession::CreateARCoreSession();
 	Test.TestNotNull("LatestFrame", ARCoreSession->GetLatestFrame());
 	Test.TestNotNull("UObjectManager", ARCoreSession->GetUObjectManager());
 

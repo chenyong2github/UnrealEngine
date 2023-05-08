@@ -48,7 +48,7 @@ public:
 	 * @param OutCameraMetadata		A pointer to a ACameraMetadata struct which is only valid in one frame.
 	 * @return An EGoogleARCoreFunctionStatus. Possible value: Success, SessionPaused, NotAvailable.
 	 */
-	UE_DEPRECATED(5.3, "GetCameraMetadata is deprecated.  It does not have an exact replacement.  ArImageMetadata seems to be the closest thing, but we do not currently expose it.")
-	static EGoogleARCoreFunctionStatus GetCameraMetadata(const ACameraMetadata*& OutCameraMetadata);
+	UE_DEPRECATED(5.3, "GetCameraMetadata is deprecated and non-functional.  It does not have an exact replacement.  ArImageMetadata seems to be the closest thing, but we do not currently expose it.")
+	static EGoogleARCoreFunctionStatus GetCameraMetadata(const ACameraMetadata*& OutCameraMetadata) { return EGoogleARCoreFunctionStatus::Unknown; }
 #endif
 };

@@ -276,6 +276,8 @@ struct GOOGLEARCOREBASE_API FGoogleARCoreCameraConfig
 	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig", meta = (Bitmask, BitmaskEnum = "/Script/GoogleARCoreBase.EGoogleARCoreCameraDepthSensorUsage"))
 	int32 DepthSensorUsage = 0; // EGoogleARCoreCameraDepthSensorUsage::DepthSensor_Any
 
+	EGoogleARCoreCameraFacing CameraFacing = EGoogleARCoreCameraFacing::Back;
+
 	/** Below are for internal use only */
 	FGoogleARCoreCameraConfig();
 	bool IsCompatibleWith(const FGoogleARCoreCameraConfig& OtherConfig) const;

@@ -427,8 +427,7 @@ static TSharedPtr<FGoogleARCoreSession> CreateTempARCoreSession(EARSessionType S
 		return nullptr;
 	}
 	
-	const bool bUseFrontCamera = SessionType == EARSessionType::Face;
-	return FGoogleARCoreSession::CreateARCoreSession(bUseFrontCamera);
+	return FGoogleARCoreSession::CreateARCoreSession();
 }
 
 TArray<FARVideoFormat> FGoogleARCoreXRTrackingSystem::OnGetSupportedVideoFormats(EARSessionType SessionType) const
@@ -443,7 +442,7 @@ TArray<FARVideoFormat> FGoogleARCoreXRTrackingSystem::OnGetSupportedVideoFormats
 	auto NewARCoreSession = CreateTempARCoreSession(SessionType);
 	if (NewARCoreSession && NewARCoreSession->GetSessionCreateStatus() == EGoogleARCoreAPIStatus::AR_SUCCESS)
 	{
-		TArray<FGoogleARCoreCameraConfig> SupportedCameraConfig = NewARCoreSession->GetSupportedCameraConfig();
+		TArray<FGoogleARCoreCameraConfig> SupportedCameraConfig = NewARCoreSession->GetSupportedCameraConfig(SessionType == EARSessionType::Face ? EGoogleARCoreCameraFacing::Back : EGoogleARCoreCameraFacing::Front);
 
 		TArray<FARVideoFormat> VideoFormats;
 
