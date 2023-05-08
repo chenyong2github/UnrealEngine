@@ -61,6 +61,7 @@ public:
 private:
 	//~ FGCObject
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override { return "AppleARKitSystem"; }
 	//~ FGCObject
 protected:
 	//~IARSystemSupport
