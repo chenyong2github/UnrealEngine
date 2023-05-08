@@ -30,6 +30,7 @@ public:
 private:
 	void GenerateComboBoxStrings( TArray< TSharedPtr<FString> >& OutComboBoxStrings, TArray<TSharedPtr<class SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems );
 	void OnComboSelectionChanged( TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo );
+	void OnResetToDefault();
 	void OnComboOpening();
 
 	virtual void SendToObjects( const FString& NewValue );

@@ -42,6 +42,10 @@ void SPropertyEditorCombo::Construct( const FArguments& InArgs, const TSharedPtr
 	if (PropertyEditor.IsValid())
 	{
 		ComboArgs.PropertyHandle = PropertyEditor->GetPropertyHandle();
+		if (ComboArgs.PropertyHandle.IsValid())
+		{
+			ComboArgs.PropertyHandle->SetOnPropertyResetToDefault(FSimpleDelegate::CreateSP(this, &SPropertyEditorCombo::OnResetToDefault));
+		}
 	}
 
 	ensureMsgf(ComboArgs.PropertyHandle.IsValid() || (ComboArgs.OnGetStrings.IsBound() && ComboArgs.OnGetValue.IsBound() && ComboArgs.OnValueSelected.IsBound()), TEXT("Either PropertyEditor or ComboArgs.PropertyHandle must be set!"));
@@ -302,6 +306,12 @@ void SPropertyEditorCombo::OnComboSelectionChanged( TSharedPtr<FString> NewValue
 	{
 		SendToObjects( *NewValue );
 	}
+}
+
+void SPropertyEditorCombo::OnResetToDefault()
+{
+	FString CurrentDisplayValue = GetDisplayValueAsString();
+	ComboBox->SetSelectedItem(CurrentDisplayValue);
 }
 
 void SPropertyEditorCombo::OnComboOpening()
