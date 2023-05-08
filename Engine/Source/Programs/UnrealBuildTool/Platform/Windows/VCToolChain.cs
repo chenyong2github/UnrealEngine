@@ -1304,7 +1304,7 @@ namespace UnrealBuildTool
 			//
 			//	Shipping & LTCG
 			//
-			if (LinkEnvironment.Configuration == CppConfiguration.Shipping)
+			if (LinkEnvironment.bAllowLTCG || LinkEnvironment.Configuration == CppConfiguration.Shipping)
 			{
 				// Use link-time code generation.
 				Arguments.Add("/LTCG");
