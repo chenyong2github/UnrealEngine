@@ -9,6 +9,7 @@
 #include "LevelInstance/LevelInstancePrivate.h"
 #include "LevelInstance/LevelInstanceComponent.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
+#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
@@ -100,6 +101,10 @@ void FLevelInstanceActorImpl::OnLevelInstanceLoaded()
 }
 
 #if WITH_EDITOR
+bool FLevelInstanceActorImpl::SupportsPartialEditorLoading() const
+{
+	return bAllowPartialLoading;
+}
 
 void FLevelInstanceActorImpl::PreEditUndo(TFunctionRef<void()> SuperCall)
 {
@@ -210,7 +215,9 @@ void FLevelInstanceActorImpl::PreEditChange(FProperty* Property, bool bWorldAsse
 	if (bWorldAssetChange)
 	{
 		CachedWorldAsset = LevelInstance->GetWorldAsset();
-	}
+		bAllowPartialLoading = false;
+		IWorldPartitionActorLoaderInterface::RefreshLoadedState(true);
+	}	
 }
 
 void FLevelInstanceActorImpl::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool bWorldAssetChange, TFunction<void(FPropertyChangedEvent&)> SuperCall)

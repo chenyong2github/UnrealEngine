@@ -139,6 +139,11 @@ TSubclassOf<AActor> ALevelInstance::GetEditorPivotClass() const
 	return ALevelInstancePivot::StaticClass();
 }
 
+bool ALevelInstance::SupportsPartialEditorLoading() const
+{
+	return ILevelInstanceInterface::SupportsPartialEditorLoading() && LevelInstanceActorImpl.SupportsPartialEditorLoading();
+}
+
 TUniquePtr<FWorldPartitionActorDesc> ALevelInstance::CreateClassActorDesc() const
 {
 	return TUniquePtr<FWorldPartitionActorDesc>(new FLevelInstanceActorDesc());

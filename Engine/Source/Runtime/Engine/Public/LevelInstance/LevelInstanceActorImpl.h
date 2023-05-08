@@ -26,6 +26,7 @@ private:
 	FLevelInstanceID CachedLevelInstanceID;
 	bool bCachedIsTemporarilyHiddenInEditor;
 	bool bGuardLoadUnload;
+	bool bAllowPartialLoading;
 public:
 	TSoftObjectPtr<UWorld> CachedWorldAsset;
 #endif
@@ -41,6 +42,7 @@ public:
 #if WITH_EDITOR
 		, bCachedIsTemporarilyHiddenInEditor(false)
 		, bGuardLoadUnload(false)
+		, bAllowPartialLoading(true)
 #endif
 	{
 	}
@@ -60,6 +62,10 @@ public:
 	bool HasValidLevelInstanceID() const;
 	virtual bool IsLoadingEnabled() const;
 	virtual void OnLevelInstanceLoaded();
+
+#if WITH_EDITOR
+	virtual bool SupportsPartialEditorLoading() const;
+#endif
 
 	/**
 	 * Begin AActor Implementation

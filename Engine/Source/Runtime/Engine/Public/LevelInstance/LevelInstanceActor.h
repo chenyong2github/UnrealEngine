@@ -70,6 +70,7 @@ public:
 	virtual ELevelInstanceRuntimeBehavior GetDesiredRuntimeBehavior() const override { return DesiredRuntimeBehavior; }
 	virtual ELevelInstanceRuntimeBehavior GetDefaultRuntimeBehavior() const override { return ELevelInstanceRuntimeBehavior::Partitioned; }
 	virtual TSubclassOf<AActor> GetEditorPivotClass() const override;
+	virtual bool SupportsPartialEditorLoading() const override;
 	// End ILevelInstanceInterface
 			
 	// UObject overrides

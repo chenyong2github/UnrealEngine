@@ -45,8 +45,8 @@ bool ILevelInstanceInterface::SupportsPartialEditorLoading() const
 					return false;
 				}
 
-				// If the level instance actor (or any parent actor) is dirty (has pending save changes), don't partially load.
-				if (LevelInstanceActor->GetPackage()->IsDirty())
+				// If the level instance actor (or any parent actor) is unsaved, don't partially load.
+				if (LevelInstanceActor->GetPackage()->HasAllPackagesFlags(PKG_NewlyCreated))
 				{
 					bResult = false;
 					return false;
