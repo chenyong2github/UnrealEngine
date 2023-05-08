@@ -17,6 +17,7 @@
 #include "Engine/LatentActionManager.h"
 #include "MediaPlayerOptions.h"
 #include "IMediaTimeSource.h"
+#include "IAudioProxyInitializer.h"
 
 #include "MediaPlayer.generated.h"
 
@@ -26,6 +27,7 @@ class IMediaModule;
 class IMediaMetadataItem;
 class UMediaPlaylist;
 class UMediaSource;
+class UMediaPlayer;
 
 enum class EMediaEvent;
 
@@ -89,11 +91,37 @@ public:
 
 
 /**
+ * Proxy implementation for Metasound integration
+ */
+class MEDIAASSETS_API FMediaPlayerProxy : public Audio::TProxyData<FMediaPlayerProxy>
+{
+public:
+	IMPL_AUDIOPROXY_CLASS(FMediaPlayerProxy);
+
+	explicit FMediaPlayerProxy(UMediaPlayer* Player);
+
+	FMediaPlayerProxy(const FMediaPlayerProxy& Other) = default;
+
+	~FMediaPlayerProxy();
+
+	TSharedPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> GetPlayerFacade() const
+	{
+		return(PlayerFacade.Pin());
+	}
+
+private:
+	TWeakPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> PlayerFacade;
+};
+using FMediaPlayerProxyPtr = TSharedPtr<FMediaPlayerProxy, ESPMode::ThreadSafe>;
+
+
+/**
  * Implements a media player asset that can play movies and other media sources.
  */
 UCLASS(BlueprintType, hidecategories=(Object))
 class MEDIAASSETS_API UMediaPlayer
 	: public UObject
+	, public IAudioProxyDataFactory
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1181,6 +1209,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Playback)
 	uint32 Shuffle : 1;
 
+public:
+	//
+	// IAudioProxyDataFactory interface (for Meta Sound support)
+	//
+
+	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+
 protected:
 
 	/**
@@ -1296,6 +1331,9 @@ private:
 
 	/** Has registered with the media module */
 	bool RegisteredWithMediaModule;
+
+	/** Proxy instance for integration with Metasound */
+	FMediaPlayerProxyPtr Proxy;
 
 #if WITH_EDITORONLY_DATA
 public:

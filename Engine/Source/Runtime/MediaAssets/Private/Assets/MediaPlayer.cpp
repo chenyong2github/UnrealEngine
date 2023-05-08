@@ -956,6 +956,19 @@ void UMediaPlayer::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 
 #endif
 
+/* IAudioProxyDataFactory overrides
+ *****************************************************************************/
+
+TSharedPtr<Audio::IProxyData> UMediaPlayer::CreateProxyData(const Audio::FProxyDataInitParams& InitParams)
+{
+//WE GET HERE WHEN STARTING THE GRAPH CREATION ON PLAY (well, at least with the editor) - GAMETHREAD
+	if (!Proxy.IsValid())
+	{
+		Proxy = MakeShared<FMediaPlayerProxy, ESPMode::ThreadSafe>(this);
+	}
+	return Proxy;
+}
+
 
 /* UMediaPlayer callbacks
  *****************************************************************************/
@@ -1248,4 +1261,14 @@ void UMediaPlayer::OpenSourceLatent(const UObject* WorldContextObject, FLatentAc
 	}
 }
 
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+FMediaPlayerProxy::FMediaPlayerProxy(UMediaPlayer* Player)
+{
+	PlayerFacade = Player->GetPlayerFacade();
+}
+
+FMediaPlayerProxy::~FMediaPlayerProxy()
+{
+}
