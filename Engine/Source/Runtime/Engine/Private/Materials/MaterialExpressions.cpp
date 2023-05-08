@@ -6850,6 +6850,7 @@ void UMaterialExpressionBreakMaterialAttributes::BuildPropertyToIOIndexMap()
 		PropertyToIOIndexMap.Add(MP_CustomizedUVs7,			23);
 		PropertyToIOIndexMap.Add(MP_PixelDepthOffset,		24);
 		PropertyToIOIndexMap.Add(MP_ShadingModel,			25);
+		PropertyToIOIndexMap.Add(MP_Displacement,			26);
 	}
 }
 
