@@ -83,6 +83,7 @@ namespace Audio
 		, BufferType(InArgs.Buffer->GetType())
 		, NumPrecacheFrames(InArgs.SoundWave->NumPrecacheFrames)
 		, AuioDeviceID(InArgs.AudioDeviceID)
+		, WaveName(InArgs.SoundWave->GetFName())
 #if ENABLE_AUDIO_DEBUG
 		, SampleRate(InArgs.SampleRate)
 #endif // ENABLE_AUDIO_DEBUG
@@ -365,6 +366,7 @@ namespace Audio
 				NewTaskData.AudioData = SourceVoiceBuffers[BufferIndex]->AudioData.GetData();
 				NewTaskData.NumSamples = MaxSamples;
 				NewTaskData.NumChannels = NumChannels;
+				AsyncTaskStartTimeInCycles = FPlatformTime::Cycles64();
 				check(!AsyncRealtimeAudioTask);
 				AsyncRealtimeAudioTask = CreateAudioTask(AuioDeviceID, NewTaskData);
 			}
@@ -406,7 +408,8 @@ namespace Audio
 		NewTaskData.NumPrecacheFrames = NumPrecacheFrames;
 		NewTaskData.bForceSyncDecode = bForceSyncDecode;
 
-		FScopeLock Lock(&DecodeTaskCritSec);
+		AsyncTaskStartTimeInCycles = FPlatformTime::Cycles64();
+		FScopeLock Lock(&DecodeTaskCritSec);		
 		check(!AsyncRealtimeAudioTask);
 		AsyncRealtimeAudioTask = CreateAudioTask(AuioDeviceID, NewTaskData);
 
@@ -483,6 +486,7 @@ namespace Audio
 
 			delete AsyncRealtimeAudioTask;
 			AsyncRealtimeAudioTask = nullptr;
+			AsyncTaskStartTimeInCycles = 0;
 
 			SubmitRealTimeSourceData(bIsFinishedOrLooped);
 		}
@@ -621,6 +625,17 @@ namespace Audio
 		}
 	}
 #endif // ENABLE_AUDIO_DEBUG
+
+	void FMixerSourceBuffer::GetDiagnosticState(FDiagnosticState& OutState)
+	{
+		// Query without a lock!
+		OutState.bInFlight = AsyncRealtimeAudioTask != nullptr;
+		OutState.WaveName = WaveName;
+		OutState.bProcedural = bProcedural;
+		OutState.RunTimeInSecs = OutState.bInFlight ?
+			FPlatformTime::ToSeconds(FPlatformTime::Cycles64() - this->AsyncTaskStartTimeInCycles) :
+			0.f;
+	}
 
 	void FMixerSourceBuffer::EnsureAsyncTaskFinishes()
 	{

@@ -104,6 +104,16 @@ namespace Audio
 		// Returns true if the async task is done
 		bool IsAsyncTaskDone() const;
 
+		// Returns some diagnostic state
+		struct FDiagnosticState
+		{
+			FName WaveName;
+			float RunTimeInSecs=0.f;
+			bool bInFlight=false;
+			bool bProcedural=false;
+		};
+		void GetDiagnosticState(FDiagnosticState& OutState);
+
 		// Ensures the async task finishes
 		void EnsureAsyncTaskFinishes();
 
@@ -146,6 +156,9 @@ namespace Audio
 		int32 NumPrecacheFrames;
 		Audio::FDeviceId AuioDeviceID;
 		TArray<uint8> CachedRealtimeFirstBuffer;
+		FName WaveName;
+		uint64 AsyncTaskStartTimeInCycles=0;
+
 #if ENABLE_AUDIO_DEBUG
 		int32 SampleRate = 0;
 		std::atomic<double> CPUCoreUtilization = 0.0;

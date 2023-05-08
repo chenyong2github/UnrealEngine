@@ -19,6 +19,12 @@
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Stats/Stats.h"
 
+#include "AudioMixerSourceManager.generated.h"
+
+// Default this to on (it's quite a small memory footprint).
+#ifndef WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
+	#define WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG (1)
+#endif //WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
 
 // Tracks the time it takes to up the source manager (computes source buffers, source effects, sample rate conversion)
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Manager Update"), STAT_AudioMixerSourceManagerUpdate, STATGROUP_AudioMixer, AUDIOMIXER_API);
@@ -34,6 +40,27 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Output Buffers"), STAT_AudioMixerSourceOu
 
 // The time it takes to process the HRTF effect.
 DECLARE_CYCLE_STAT_EXTERN(TEXT("HRTF"), STAT_AudioMixerHRTF, STATGROUP_AudioMixer, AUDIOMIXER_API);
+
+// For diagnostics, keep track of what phase of updating the Source manager is in currently.
+UENUM()
+enum ESourceManagerRenderThreadPhase: uint8
+{
+	Begin,
+	
+	PumpMpscCmds,	
+	PumpCmds,
+	ProcessModulators,
+	UpdatePendingReleaseData,
+	GenerateSrcAudio_WithBusses,
+	ComputeBusses,
+	GenerateSrcAudio_WithoutBusses,
+	UpdateBusses,
+	SpatialInterface_OnAllSourcesProcessed,
+	SourceDataOverride_OnAllSourcesProcessed,
+	UpdateGameThreadCopies,
+	
+	Finished,
+};
 
 namespace Audio
 {
@@ -280,7 +307,7 @@ namespace Audio
 		void FlushCommandQueue(bool bPumpCommandQueue = false);
 
 		// Pushes a TFUnction command into an MPSC queue from an arbitrary thread to the audio render thread
-		void AudioMixerThreadMPSCCommand(TFunction<void()> InCommand);
+		void AudioMixerThreadMPSCCommand(TFunction<void()>&& InCommand, const char* InDebugString=nullptr);
 		
 	private:
 #define INVALID_AUDIO_RENDER_THREAD_ID static_cast<uint32>(-1)
@@ -303,22 +330,31 @@ namespace Audio
 		struct FAudioMixerThreadCommand
 		{
 			// ctor
-			FAudioMixerThreadCommand(TFunction<void()> InFunction, bool bInDeferExecution = false);
-
+			FAudioMixerThreadCommand() = default;
+			FAudioMixerThreadCommand(TFunction<void()>&& InFunction, const char* InDebugString, bool bInDeferExecution = false);
+			
 			// function-call operator
 			void operator()() const;
 
+			// data
 			TFunction<void()> Function;
 
 			// Defers the execution by a single call to PumpCommandQueue()
 			// (used for commands that affect a playing source,
 			// and that source gets initialized after the command executes
-			bool bDeferExecution;
+			bool bDeferExecution = false;
+
+#if WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG			
+			const char* DebugString=nullptr;					// Statically defined string from macro AUDIO_MIXER_THREAD_COMMAND_STRING
+			mutable uint64_t StartExecuteTimeInCycles=0;		// Set just before Function is called, for diagnostics.
+#endif // #if WITH_AUDIO_MIXER_THREAD_COMMAND_DEBUG
+
+			FString GetSafeDebugString() const;
+			float GetExecuteTimeInSeconds() const;
 		};
 
-		void AudioMixerThreadCommand(TFunction<void()> InFunction, bool bInDeferExecution = false);
+		void AudioMixerThreadCommand(TFunction<void()>&& InFunction, const char* InDebugString = nullptr, bool bInDeferExecution = false);
 
-		
 		static const int32 NUM_BYTES_PER_SAMPLE = 2;
 
 		// Private class which perform source buffer processing in a worker task
@@ -384,8 +420,8 @@ namespace Audio
 
 		TArray<int32> DebugSoloSources;
 
-		// Command queue to communicate commands to teh source manager from arbitrary threads
-		TMpscQueue<TFunction<void()>> MpscCommandQueue;
+		using FAudioMixerMpscCommand = FAudioMixerThreadCommand;
+		TMpscQueue<FAudioMixerMpscCommand> MpscCommandQueue;
 		
 		struct FSourceInfo
 		{
@@ -548,6 +584,14 @@ namespace Audio
 		static void ApplyDistanceAttenuation(FSourceInfo& InSourceInfo, int32 NumSamples);
 		void ComputePluginAudio(FSourceInfo& InSourceInfo, FMixerSourceSubmixOutputBuffer& InSourceSubmixOutputBuffer, int32 SourceId, int32 NumSamples);
 
+		// Hang/crash diagnostics.
+		void DoStallDiagnostics();
+
+		void LogRenderThreadStall();
+		void LogInflightAsyncTasks();
+		void LogCallstacks();
+		void LogCallstack(uint32 InThreadId);
+
 		// Array of listener transforms
 		TArray<FTransform> ListenerTransforms;
 
@@ -595,7 +639,10 @@ namespace Audio
 
 		// Set to true when the audio source manager should pump the command queue
 		FThreadSafeBool bPumpQueue;
-		uint64 LastPumpTimeInCycles = 0;
+		std::atomic<uint64> LastPumpCompleteTimeInCycles=0;
+		std::atomic<ESourceManagerRenderThreadPhase> RenderThreadPhase=ESourceManagerRenderThreadPhase::Begin;
+		FRWLock CurrentlyExecutingCmdLock;						// R/W slim lock for the currently executing cmd, so we can safely query it.
+		FAudioMixerThreadCommand CurrentlyExecuteingCmd;		// Keep this as a member so we can't always peek the executing cmd.
 
 		friend class FMixerSourceVoice;
 	};
