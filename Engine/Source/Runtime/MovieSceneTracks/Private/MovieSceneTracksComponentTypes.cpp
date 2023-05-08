@@ -205,12 +205,9 @@ void SetComponentTransform(USceneComponent* SceneComponent, const FIntermediate3
 	USceneComponent* RootComponent = Actor ? Actor->GetRootComponent() : nullptr;
 	bool bIsSimulatingPhysics = RootComponent ? RootComponent->IsSimulatingPhysics() : false;
 
-	// Set Scale3D direct first to avoid UpdateComponentToWorld being called twice (ie. if calling SetRelativeLocationAndRotation and SetRelativeScale3D)
-	SceneComponent->SetRelativeScale3D_Direct(Transform.GetScale());
-
 	FVector Translation = Transform.GetTranslation();
 	FRotator Rotation = Transform.GetRotation();
-	SceneComponent->SetRelativeLocationAndRotation(Translation, Rotation, false, nullptr, bIsSimulatingPhysics ? ETeleportType::ResetPhysics : ETeleportType::None);
+	SceneComponent->SetRelativeTransform(FTransform(Rotation, Translation, Transform.GetScale()), false, nullptr, bIsSimulatingPhysics ? ETeleportType::ResetPhysics : ETeleportType::None);
 
 	// Force the location and rotation values to avoid Rot->Quat->Rot conversions
 	SceneComponent->SetRelativeLocation_Direct(Translation);
