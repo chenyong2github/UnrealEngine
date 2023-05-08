@@ -8,6 +8,7 @@
 #include "DeferredShadingCommon.ush"
 #include "PlanarReflectionShared.ush"
 #include "SceneTextureParameters.ush"
+#include "Strata/Strata.ush"
 
 Texture2D SceneColorInputTexture;
 SamplerState SceneColorInputSampler;
@@ -140,6 +141,31 @@ void PlanarReflectionPS(
 	ResolvedView = ResolveView();
 	OutColor = 0;
 
+
+#if STRATA_ENABLED
+
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(SVPos.xy, 0)));
+
+	float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
+	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+
+	float3 TranslatedWorldPosition = ResolvedView.TranslatedWorldCameraOrigin + ScreenVector * SceneDepth;
+
+	const float Roughness = TopLayerData.Roughness;
+	const float3 WorldNormal = TopLayerData.WorldNormal;
+	const bool bNoMaterial = !IsStrataMaterial(TopLayerData);
+
+	// Skip unlit pixels (skybox)
+	BRANCH
+	if (!bNoMaterial)
+	{
+		OutColor = ComputePlanarReflections(TranslatedWorldPosition, WorldNormal, Roughness, PlanarReflectionStruct.PlanarReflectionSampler);
+
+		OutColor.xyz *= View.PreExposure;
+	}
+
+#else
+
 	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 
 	float3 TranslatedWorldPosition = ResolvedView.TranslatedWorldCameraOrigin + ScreenVector * GBuffer.Depth;
@@ -152,6 +178,9 @@ void PlanarReflectionPS(
 
 		OutColor.xyz *= View.PreExposure;
 	}
+
+#endif
+
 }
 
 #endif
