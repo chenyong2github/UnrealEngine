@@ -3,15 +3,18 @@
 #pragma once
 
 #include "VCamObjectWithInputFactory.h"
-#include "VCamModifierFactory.generated.h"
+#include "EditorOnlyModifierFactory.generated.h"
 
+/**
+ * 
+ */
 UCLASS()
-class UVCamModifierFactory : public UVCamObjectWithInputFactory
+class UEditorOnlyModifierFactory : public UVCamObjectWithInputFactory
 {
 	GENERATED_BODY()
 public:
-	
-	UVCamModifierFactory();
+
+	UEditorOnlyModifierFactory();
 	
 	//~ Begin UFactory Interface
 	virtual FText GetDisplayName() const override;

@@ -7,7 +7,7 @@
 #include "VCamStateSwitcherWidgetFactory.generated.h"
 
 UCLASS()
-class VCAMCOREEDITOR_API UVCamStateSwitcherWidgetFactory : public UVCamWidgetFactory
+class UVCamStateSwitcherWidgetFactory : public UVCamWidgetFactory
 {
 	GENERATED_BODY()
 public:

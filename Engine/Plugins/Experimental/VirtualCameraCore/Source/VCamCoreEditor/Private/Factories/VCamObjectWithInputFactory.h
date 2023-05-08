@@ -9,7 +9,7 @@
 #include "VCamObjectWithInputFactory.generated.h"
 
 UCLASS(hidecategories = Object)
-class VCAMCOREEDITOR_API UVCamObjectWithInputFactory : public UFactory
+class UVCamObjectWithInputFactory : public UFactory
 {
 	GENERATED_BODY()
 public:	

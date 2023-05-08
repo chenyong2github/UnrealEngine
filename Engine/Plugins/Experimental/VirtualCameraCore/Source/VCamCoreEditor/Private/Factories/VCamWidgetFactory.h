@@ -8,7 +8,7 @@
 #include "VCamWidgetFactory.generated.h"
 
 UCLASS()
-class VCAMCOREEDITOR_API UVCamWidgetFactory : public UVCamObjectWithInputFactory
+class UVCamWidgetFactory : public UVCamObjectWithInputFactory
 {
 	GENERATED_BODY()
 public:

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Modifier/VCamModifier.h"
 #include "EditorOnlyVCamModifier.generated.h"
 
