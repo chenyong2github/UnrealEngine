@@ -207,7 +207,7 @@ void STimingView::Construct(const FArguments& InArgs, FName InViewName)
 	});
 	AutoScrollToggleButtonAction.ExecuteAction.BindLambda([this]
 	{
-		bAutoScroll = !bAutoScroll;
+		SetAutoScroll(!bAutoScroll);
 		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 	});
 
@@ -415,7 +415,7 @@ void STimingView::Reset(bool bIsFirstReset)
 	bIsSpaceBarKeyPressed = false;
 	bIsDragging = false;
 
-	bAutoScroll = false;
+	bAutoScroll = Settings.IsAutoScrollEnabled();
 	AutoScrollFrameAlignment = Settings.GetAutoScrollFrameAlignment();
 	AutoScrollViewportOffsetPercent = Settings.GetAutoScrollViewportOffsetPercent();
 	AutoScrollMinDelay = Settings.GetAutoScrollMinDelay();
@@ -608,7 +608,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 	if (bIsPanning)
 	{
 		// Disable auto-scroll if user starts panning manually.
-		bAutoScroll = false;
+		SetAutoScroll(false);
 	}
 
 	if (bAutoScroll)
@@ -3182,9 +3182,20 @@ void STimingView::BindCommands()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STimingView::SetAutoScroll(bool bOnOff)
+{
+	bAutoScroll = bOnOff;
+
+	// Persistent option. Save it to the config file.
+	FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
+	Settings.SetAndSaveAutoScroll(bAutoScroll);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void STimingView::AutoScroll_OnCheckStateChanged(ECheckBoxState NewRadioState)
 {
-	bAutoScroll = (NewRadioState == ECheckBoxState::Checked);
+	SetAutoScroll(NewRadioState == ECheckBoxState::Checked);
 	Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 }
 
@@ -3303,7 +3314,7 @@ float STimingView::EnforceVerticalScrollLimits(const float InScrollPosY)
 void STimingView::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 {
 	// Disable auto-scroll if user starts scrolling with horizontal scrollbar.
-	bAutoScroll = false;
+	SetAutoScroll(false);
 
 	Viewport.OnUserScrolled(HorizontalScrollBar, ScrollOffset);
 }

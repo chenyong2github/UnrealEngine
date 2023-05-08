@@ -68,6 +68,7 @@ public:
 		GConfig->GetBool(TEXT("Insights.TimingProfiler"), TEXT("bAutoZoomOnFrameSelection"), bAutoZoomOnFrameSelection, SettingsIni);
 
 		// Auto-scroll options
+		GConfig->GetBool(TEXT("Insights.AutoScroll"), TEXT("bAutoScroll"), bAutoScroll, SettingsIni);
 		FString FrameAlignment;
 		if (GConfig->GetString(TEXT("Insights.TimingProfiler"), TEXT("AutoScrollFrameAlignment"), FrameAlignment, SettingsIni))
 		{
@@ -112,6 +113,7 @@ public:
 		GConfig->SetBool(TEXT("Insights.TimingProfiler"), TEXT("bAutoZoomOnFrameSelection"), bAutoZoomOnFrameSelection, SettingsIni);
 
 		// Auto-scroll options
+		GConfig->SetBool(TEXT("Insights.AutoScroll"), TEXT("bAutoScroll"), bAutoScroll, SettingsIni);
 		const TCHAR* FrameAlignment = (AutoScrollFrameAlignment == 0) ? TEXT("game") : (AutoScrollFrameAlignment == 1) ? TEXT("rendering") : TEXT("none");
 		GConfig->SetString(TEXT("Insights.TimingProfiler"), TEXT("AutoScrollFrameAlignment"), FrameAlignment, SettingsIni);
 		GConfig->SetDouble(TEXT("Insights.TimingProfiler"), TEXT("AutoScrollViewportOffsetPercent"), AutoScrollViewportOffsetPercent, SettingsIni);
@@ -181,6 +183,10 @@ public:
 	bool IsAutoZoomOnFrameSelectionEnabled() const { return bAutoZoomOnFrameSelection; }
 	void SetAutoZoomOnFrameSelection(bool bOnOff) { bAutoZoomOnFrameSelection = bOnOff; }
 	void SetAndSaveAutoZoomOnFrameSelection(bool bOnOff) { SET_AND_SAVE(bAutoZoomOnFrameSelection, bOnOff); }
+
+	bool IsAutoScrollEnabled() const { return bAutoScroll; }
+	void SetAutoScroll(bool bOnOff) { bAutoScroll = bOnOff; }
+	void SetAndSaveAutoScroll(bool bOnOff) { SET_AND_SAVE(bAutoScroll, bOnOff); }
 
 	int32 GetAutoScrollFrameAlignment() const { return AutoScrollFrameAlignment; }
 	void SetAutoScrollFrameAlignment(int32 FrameType) { AutoScrollFrameAlignment = FrameType; }
@@ -265,6 +271,9 @@ private:
 
 	/** List of search paths to look for symbol files */
 	TArray<FString> SymbolSearchPaths;
+
+	/** If enabled, the Timing View will start with auto-scroll enabled. */
+	bool bAutoScroll;
 
 	/**
 	 * Viewport offset while auto-scrolling, as percent of viewport width.

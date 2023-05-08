@@ -431,6 +431,8 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Auto-Scroll
 
+	void SetAutoScroll(bool bOnOff);
+
 	void AutoScroll_OnCheckStateChanged(ECheckBoxState NewRadioState);
 	ECheckBoxState AutoScroll_IsChecked() const;
 
