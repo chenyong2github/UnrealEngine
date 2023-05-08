@@ -41,7 +41,6 @@ private:
 public:
 	uint64 GetHash64() const 
 	{
-		checkSlow(bIsSet);
 		return TotalHash;
 	}
 	
