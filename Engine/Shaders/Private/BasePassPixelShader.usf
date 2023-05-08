@@ -2084,7 +2084,7 @@ void FPixelShaderInOut_MainPS(
 	// We also half that range to also make sure we have room for other additive elements such as bloom, clouds or particle visual effects.
 	Out.MRT[0].xyz = min(Out.MRT[0].xyz, Max10BitsFloat.xxx * 0.5f);
 
-#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+#if MATERIAL_VIRTUALTEXTURE_FEEDBACK || LIGHTMAP_VT_ENABLED
 #if OUTPUT_PIXEL_DEPTH_OFFSET
 	// When in deferred, opaque materials with pixel depth offset must execute a custom depth test in order to avoid conflicting UAV writes.
 	if (ManualDepthTestEqual(In.SvPosition, Out.Depth))
@@ -2137,8 +2137,8 @@ void FPixelShaderInOut_MainPS(
 
 #else // STRATA_OPAQUE_DEFERRED
 
-// If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
-#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || OIT_ENABLED
+// If virtual texture feedback is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
+#if MATERIAL_VIRTUALTEXTURE_FEEDBACK || LIGHTMAP_VT_ENABLED || OIT_ENABLED
 	#if IS_NANITE_PASS
 		// Even with masking and/or pixel depth offset, Nanite never uses actual clip() or SV_Depth
 		#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL

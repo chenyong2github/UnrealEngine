@@ -166,7 +166,7 @@ void ApplyPixelDepthOffsetForMobileBasePass(inout FMaterialPixelParameters Mater
 
 #define USES_PIXEL_DISCARD ((MATERIALBLENDING_MASKED || USE_DITHERED_LOD_TRANSITION) && !EARLY_Z_PASS_ONLY_MATERIAL_MASKING)
 // Force early depth_stencil for materials that use VT feedback and don't use pixel discard or modify the pixel depth
-#if (NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED) && !(OUTPUT_PIXEL_DEPTH_OFFSET || USES_PIXEL_DISCARD)
+#if (MATERIAL_VIRTUALTEXTURE_FEEDBACK || LIGHTMAP_VT_ENABLED) && !(OUTPUT_PIXEL_DEPTH_OFFSET || USES_PIXEL_DISCARD)
 	#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL	
 #else
 	#define PIXELSHADER_EARLYDEPTHSTENCIL 	
@@ -984,7 +984,7 @@ void Main(
 	#endif
 #endif
 
-#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+#if MATERIAL_VIRTUALTEXTURE_FEEDBACK || LIGHTMAP_VT_ENABLED
 	FinalizeVirtualTextureFeedback(
 		MaterialParameters.VirtualTextureFeedback,
 		MaterialParameters.SvPosition,

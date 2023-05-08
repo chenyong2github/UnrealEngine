@@ -21,8 +21,8 @@
 #include "/Engine/Generated/VertexFactory.ush"
 
 
-// If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
-#if NUM_VIRTUALTEXTURE_SAMPLES
+// If virtual texture feedback is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
+#if MATERIAL_VIRTUALTEXTURE_FEEDBACK
 	#if COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
 		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
 		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE
@@ -180,7 +180,7 @@ void FPixelShaderInOut_MainPS(
 	DecalCommonOutput(In, Out, Color, Opacity, GBufferData);
 #endif // STRATA_ENABLED
 
-#if NUM_VIRTUALTEXTURE_SAMPLES
+#if MATERIAL_VIRTUALTEXTURE_FEEDBACK
 	FinalizeVirtualTextureFeedback(
 		MaterialParameters.VirtualTextureFeedback,
 		MaterialParameters.SvPosition,
