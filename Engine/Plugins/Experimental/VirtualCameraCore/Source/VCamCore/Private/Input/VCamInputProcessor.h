@@ -11,16 +11,6 @@ struct FInputKeyParams;
 
 namespace UE::VCamCore::Private
 {
-	enum class EInputConsumptionRule
-	{
-		/** Never consume input. */
-		DoNotConsume,
-		/** Consume input if InputKey returned true */
-		ConsumeIfUsed,
-		/** Consume input if InputKey returned true but only for gamepads. For backwards compatibility. */
-		ConsumeOnlyGamepadIfUsed
-	};
-	
 	/**
 	 * Passes inputs to UVCamPlayerInput::InputKey.
 	 * 
@@ -31,9 +21,7 @@ namespace UE::VCamCore::Private
 	{
 	public:
 
-		FVCamInputProcessor(UInputVCamSubsystem& OwningSubsystem, EInputConsumptionRule InputConsumptionRule);
-
-		void SetInputConsumptionRule(EInputConsumptionRule NewInputConsumptionRule) { InputConsumptionRule = NewInputConsumptionRule; };
+		FVCamInputProcessor(UInputVCamSubsystem& OwningSubsystem);
 		
 		//~ Begin IInputProcessor interface
 		virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override;
@@ -51,9 +39,6 @@ namespace UE::VCamCore::Private
 	private:
 
 		TWeakObjectPtr<UInputVCamSubsystem> OwningSubsystem;
-		
-		/** Determines whether input can be consumed when InputKey returns true. */
-		EInputConsumptionRule InputConsumptionRule;
 
 		/**
 		 * The number of cursor samples that happened this frame. The X and Y will be incremented when there is a mouse move event this frame

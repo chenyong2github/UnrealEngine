@@ -48,12 +48,6 @@ namespace UE::VCamCore::Private
 				UE_LOG(LogVCamInputDebug, Log, TEXT("%s"), *ToString(Params));
 			}
 			break;
-		case EVCamInputLoggingMode::AllExceptMouse:
-			if (!Params.Key.IsMouseButton())
-			{
-				UE_LOG(LogVCamInputDebug, Log, TEXT("%s"), *ToString(Params));
-			}
-			break;
 		
 		case EVCamInputLoggingMode::All:
 			UE_LOG(LogVCamInputDebug, Log, TEXT("%s"), *ToString(Params));
@@ -62,46 +56,44 @@ namespace UE::VCamCore::Private
 	}
 }
 
-static TAutoConsoleVariable<bool> CVarSkipMouseAxisInput(
-	TEXT("VCam.SkipMouseAxisInput"),
-	false,
-	TEXT("Whether VCam input should skip processing mouse axis events. This is useful for setting break points in UVCamPlayerInput::InputKey, which would get spammed by mouse axis events otherwise."),
-	ECVF_Default
-	);
-
 bool UVCamPlayerInput::InputKey(const FInputKeyParams& Params)
 {
+	// VCam will never allow mouse
 	const bool bIsMouseAxis = Params.Key == EKeys::MouseX || Params.Key == EKeys::MouseY || Params.Key == EKeys::Mouse2D;
-	if (bIsMouseAxis && CVarSkipMouseAxisInput.GetValueOnGameThread())
+	const bool bIsMouse = bIsMouseAxis || Params.Key.IsMouseButton();
+	if (bIsMouse)
 	{
 		return false;
 	}
 	
-	const bool bIsKeyboard = !Params.IsGamepad() && !Params.Key.IsAnalog() && !Params.Key.IsMouseButton() && !Params.Key.IsTouch()
+	const bool bIsKeyboard = !Params.IsGamepad() && !Params.Key.IsAnalog() && !Params.Key.IsTouch()
 		// Keyboard is always mapped to 0
 		&& Params.InputDevice.GetId() == 0;
 	const bool bCanCheckAllowList = Params.InputDevice != INPUTDEVICEID_NONE && !bIsKeyboard;
-	
-	const bool bSkipGamepad = Params.IsGamepad() && InputDeviceSettings.GamepadInputMode != EVCamGamepadInputMode::Allow && InputDeviceSettings.GamepadInputMode != EVCamGamepadInputMode::AllowAndConsume;
-	const bool bSkipMouse = InputDeviceSettings.MouseInputMode == EVCamInputMode::Ignore && Params.Key.IsMouseButton();
-	const bool bSkipKeyboard = InputDeviceSettings.KeyboardInputMode == EVCamInputMode::Ignore && bIsKeyboard;
 	const bool bSkipNonAllowListed = bCanCheckAllowList && !InputDeviceSettings.bAllowAllInputDevices && !InputDeviceSettings.AllowedInputDeviceIds.Contains(FVCamInputDeviceID{ Params.InputDevice.GetId() });
-	const bool bIsFilteredOut = bSkipGamepad || bSkipMouse || bSkipKeyboard || bSkipNonAllowListed;
+	const bool bIsFilteredOut = bSkipNonAllowListed || InputDeviceSettings.InputMode == EVCamInputMode::Ignore;
 	
 	UE::VCamCore::Private::LogInput(InputDeviceSettings, Params, bIsFilteredOut);
 	if (!bIsFilteredOut)
 	{
-		const bool bForceConsumeGamepad = Params.IsGamepad() && InputDeviceSettings.GamepadInputMode == EVCamGamepadInputMode::AllowAndConsume;
-		return Super::InputKey(Params) || bForceConsumeGamepad;
+		const bool bCanConsumeInput = Super::InputKey(Params)
+			// For some reason, when the key is released the input code skips calling IsKeyHandledByAction and always returns true instead. We need to check it ourselves:
+			&& IsKeyHandledByAction(Params.Key);
+
+		// Gamepads either 1. always consume in ConsumeDevice mode or 2. consume if in ConsumeIfUsed mode and InputKey returned true.
+		const bool bConsumeGamepad = Params.IsGamepad()
+			&& (InputDeviceSettings.InputMode == EVCamInputMode::ConsumeDevice
+				|| (InputDeviceSettings.InputMode == EVCamInputMode::ConsumeIfUsed && bCanConsumeInput));
+		// Keyboards only consume if InputKey returned true and if either in ConsumeDevice or ConsumeIfUsed mode
+		const bool bConsumeKeyboard = bIsKeyboard && bCanConsumeInput && (InputDeviceSettings.InputMode == EVCamInputMode::ConsumeDevice || InputDeviceSettings.InputMode == EVCamInputMode::ConsumeIfUsed);
+		
+		const bool bConsumeInput = bConsumeGamepad || bConsumeKeyboard;
+		return bConsumeInput;
 	}
 
-	const bool bConsumeGamepad = !bSkipNonAllowListed && Params.IsGamepad() && InputDeviceSettings.GamepadInputMode == EVCamGamepadInputMode::IgnoreAndConsume;
+	// Allowed gamepads always consume if in ConsumeDevice mode.
+	const bool bConsumeGamepad = !bSkipNonAllowListed && Params.IsGamepad() && InputDeviceSettings.InputMode == EVCamInputMode::ConsumeDevice;
 	return bConsumeGamepad;
-}
-
-void UVCamPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused)
-{
-	Super::ProcessInputStack(InputComponentStack, DeltaTime, bGamePaused);
 }
 
 void UVCamPlayerInput::SetInputSettings(const FVCamInputDeviceConfig& Input)

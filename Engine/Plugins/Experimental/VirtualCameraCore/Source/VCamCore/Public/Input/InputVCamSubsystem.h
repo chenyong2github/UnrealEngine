@@ -45,9 +45,6 @@ public:
 	void PushInputComponent(UInputComponent* InInputComponent);
 	/** Removes this input component onto the stack to be processed by this subsystem's tick function */
 	bool PopInputComponent(UInputComponent* InInputComponent);
-	
-	UFUNCTION(BlueprintCallable, Category = "Input")
-	void SetShouldConsumeGamepadInput(EVCamGamepadInputMode GamepadInputMode);
 
 	const FVCamInputDeviceConfig& GetInputSettings() const;
 	void SetInputSettings(const FVCamInputDeviceConfig& Input);

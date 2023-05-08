@@ -10,9 +10,8 @@
 
 namespace UE::VCamCore::Private
 {
-	FVCamInputProcessor::FVCamInputProcessor(UInputVCamSubsystem& OwningSubsystem, EInputConsumptionRule InputConsumptionRule)
+	FVCamInputProcessor::FVCamInputProcessor(UInputVCamSubsystem& OwningSubsystem)
 		: OwningSubsystem(&OwningSubsystem)
-		, InputConsumptionRule(InputConsumptionRule)
 	{}
 
 	void FVCamInputProcessor::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
@@ -173,10 +172,7 @@ namespace UE::VCamCore::Private
 	{
 		if (ensure(OwningSubsystem.IsValid()))
 		{
-			const bool bCanConsumeInput = InputConsumptionRule == EInputConsumptionRule::ConsumeIfUsed
-				|| (InputConsumptionRule == EInputConsumptionRule::ConsumeOnlyGamepadIfUsed && Params.IsGamepad());
-			const bool bWantsToConsumeInput = OwningSubsystem->InputKey(Params);
-			return bCanConsumeInput && bWantsToConsumeInput;
+			return OwningSubsystem->InputKey(Params);
 		}
 		
 		return false;

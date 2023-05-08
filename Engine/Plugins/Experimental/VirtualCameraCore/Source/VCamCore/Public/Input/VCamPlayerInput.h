@@ -18,7 +18,6 @@ public:
 
 	//~ Begin UEnhancedPlayerInput Interface
 	virtual bool InputKey(const FInputKeyParams& Params) override;
-	virtual void ProcessInputStack(const TArray<UInputComponent*>& InputComponentStack, const float DeltaTime, const bool bGamePaused) override;
 	//~ End UEnhancedPlayerInput Interface
 
 	const FVCamInputDeviceConfig& GetInputSettings() const { return InputDeviceSettings; }

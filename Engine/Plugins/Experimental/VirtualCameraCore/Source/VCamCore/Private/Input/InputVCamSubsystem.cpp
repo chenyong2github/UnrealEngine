@@ -59,7 +59,7 @@ void UInputVCamSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		// It's dangerous to consume input in editor (imagine typing something into search boxes but all L keys were consumed by VCam input)
 		// whereas probably expected by gameplay code.
 		using namespace UE::VCamCore::Private;
-		InputPreprocessor = MakeShared<FVCamInputProcessor>(*this, EInputConsumptionRule::DoNotConsume);
+		InputPreprocessor = MakeShared<FVCamInputProcessor>(*this);
 		FSlateApplication::Get().RegisterInputPreProcessor(InputPreprocessor, 0);	
 	}
 
@@ -164,15 +164,6 @@ bool UInputVCamSubsystem::PopInputComponent(UInputComponent* InInputComponent)
 	return false;
 }
 
-void UInputVCamSubsystem::SetShouldConsumeGamepadInput(EVCamGamepadInputMode GamepadInputMode)
-{
-	check(InputPreprocessor && PlayerInput);
-	
-	FVCamInputDeviceConfig InputSettings = PlayerInput->GetInputSettings();
-	InputSettings.GamepadInputMode = GamepadInputMode;
-	SetInputSettings(InputSettings);
-}
-
 const FVCamInputDeviceConfig& UInputVCamSubsystem::GetInputSettings() const
 {
 	// Undefined behaviour returning from dereferenced nullptr, let's make sure to assert.
@@ -184,11 +175,6 @@ void UInputVCamSubsystem::SetInputSettings(const FVCamInputDeviceConfig& Input)
 {
 	check(PlayerInput);
 	PlayerInput->SetInputSettings(Input);
-
-	const bool bShouldConsumeGamepad = Input.GamepadInputMode == EVCamGamepadInputMode::IgnoreAndConsume || Input.GamepadInputMode == EVCamGamepadInputMode::AllowAndConsume;
-	InputPreprocessor->SetInputConsumptionRule(
-		bShouldConsumeGamepad ? UE::VCamCore::Private::EInputConsumptionRule::ConsumeOnlyGamepadIfUsed : UE::VCamCore::Private::EInputConsumptionRule::DoNotConsume
-		);
 }
 
 UEnhancedPlayerInput* UInputVCamSubsystem::GetPlayerInput() const

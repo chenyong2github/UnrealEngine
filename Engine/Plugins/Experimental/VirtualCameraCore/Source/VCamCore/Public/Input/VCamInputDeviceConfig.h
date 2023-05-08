@@ -18,31 +18,34 @@ enum class EVCamInputLoggingMode : uint8
 	
 	/** Log all input, regardless whether it is passed down to input actions or not (i.e. that passed filtering conditions). */
 	All,
-	
-	/** Like All but never reports mouse data (generated every tick - it could spam the output log). */
-	AllExceptMouse
 };
 
 UENUM()
 enum class EVCamInputMode : uint8
 {
-	/** Input is forwarded to input actions but not consumed. */
-	Allow,
-	/** Input is not forwarded to input actions. */
-	Ignore
-};
+	/**
+	 * Input is passed to VCam input actions.
+	 * Input is consumed if the input action was configured to consume input. Otherwise it is passed down the engine's input stack.
+	 */
+	ConsumeIfUsed,
 
-UENUM()
-enum class EVCamGamepadInputMode : uint8
-{
-	/** Input is forwarded to input actions but not consumed. */
-	Allow,
-	/** Input is forwarded to input actions and is ALWAYS consumed, regardless of whether an action was bound to it or not.*/
-	AllowAndConsume,
-	/** Input is not forwarded to input actions. */
-	Ignore,
-	/** Input is not forwarded to input actions and we block anybody else from receiving this input. */
-	IgnoreAndConsume
+	/**
+	 * Input is passed to VCam input actions.
+	 * 
+	 * For gamepads, input is always consumed even if no input action used it.
+	 * For keyboards, input is consumed if it was used by an input action (useful to continue to let the editor receive input).
+	 */
+	ConsumeDevice,
+	
+	/**
+	 * Input is passed to VCam input actions.
+	 * Input is not consumed - even if the input action was configured to consume input.
+	 * The input is passed down the remainder of the engine's input stack.
+	 */
+	DoNotConsume,
+	
+	/** Input is not passed to VCam input actions. */
+	Ignore
 };
 
 USTRUCT(BlueprintType)
@@ -108,22 +111,11 @@ struct VCAMCORE_API FVCamInputDeviceConfig
 	TArray<FVCamInputDeviceID> AllowedInputDeviceIds;
 	
 	/**
-	 * Should keyboard input trigger input actions?
-	 * Keyboards are always mapped to input device ID 0.
+	 * Determines how input is to be treated (is it consumed? is it even allowed?).
+	 * Note: This applies only to gamepads and keyboards. VCam always ignores mouse input (including mouse buttons).
 	 */
 	UPROPERTY(EditAnywhere, Category = "Input")
-	EVCamInputMode KeyboardInputMode = EVCamInputMode::Allow;
-
-	/**
-	 * Should mouse input trigger input actions?
-	 * Mice are always mapped to input device ID -1.
-	 */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	EVCamInputMode MouseInputMode = EVCamInputMode::Allow;
-
-	/** What should be done with gamepad input. */
-	UPROPERTY(EditAnywhere, Category = "Input", AdvancedDisplay)
-	EVCamGamepadInputMode GamepadInputMode = EVCamGamepadInputMode::Allow;
+	EVCamInputMode InputMode = EVCamInputMode::ConsumeIfUsed;
 
 	/**
 	 * What type of input should be logged.
