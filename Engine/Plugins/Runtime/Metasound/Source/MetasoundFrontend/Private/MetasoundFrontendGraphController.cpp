@@ -1158,9 +1158,9 @@ namespace Metasound
 #if WITH_EDITOR
 							if (FMetasoundFrontendDocumentMetadata* DocMetadata = OwningDocument->GetMetadata())
 							{
-								DocMetadata->ModifyContext.AddMemberIDModified(NewOutput.VertexID);
+								DocMetadata->ModifyContext.AddMemberIDModified(NewOutput.NodeID);
 							}
-#endif // WITH_EDITO
+#endif // WITH_EDITOR
 
 							// Mark interface as changed.
 							GraphClass->Interface.UpdateChangeID();
