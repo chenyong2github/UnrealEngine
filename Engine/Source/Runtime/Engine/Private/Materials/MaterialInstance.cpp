@@ -3672,6 +3672,11 @@ void UMaterialInstance::SetTextureParameterValueInternal(const FMaterialParamete
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
 
+	if (Value)
+	{
+		Value->ConditionalPostLoad();
+	}
+
 	FTextureParameterValue* ParameterValue = GameThread_FindParameterByName(TextureParameterValues, ParameterInfo);
 
 	bool bForceUpdate = false;
@@ -3705,6 +3710,11 @@ void UMaterialInstance::SetTextureParameterValueInternal(const FMaterialParamete
 void UMaterialInstance::SetRuntimeVirtualTextureParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture* Value)
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
+
+	if (Value)
+	{
+		Value->ConditionalPostLoad();
+	}
 
 	FRuntimeVirtualTextureParameterValue* ParameterValue = GameThread_FindParameterByName(RuntimeVirtualTextureParameterValues, ParameterInfo);
 
@@ -3740,6 +3750,11 @@ void UMaterialInstance::SetSparseVolumeTextureParameterValueInternal(const FMate
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
 
+	if (Value)
+	{
+		Value->ConditionalPostLoad();
+	}
+
 	FSparseVolumeTextureParameterValue* ParameterValue = GameThread_FindParameterByName(SparseVolumeTextureParameterValues, ParameterInfo);
 
 	bool bForceUpdate = false;
@@ -3772,6 +3787,11 @@ void UMaterialInstance::SetSparseVolumeTextureParameterValueInternal(const FMate
 void UMaterialInstance::SetFontParameterValueInternal(const FMaterialParameterInfo& ParameterInfo,class UFont* FontValue,int32 FontPage)
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
+
+	if (FontValue)
+	{
+		FontValue->ConditionalPostLoad();
+	}
 
 	FFontParameterValue* ParameterValue = GameThread_FindParameterByName(FontParameterValues, ParameterInfo);
 
