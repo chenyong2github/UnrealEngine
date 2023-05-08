@@ -1348,11 +1348,14 @@ void UAbilitySystemComponent::RemoveGameplayCue_Internal(const FGameplayTag Game
 
 		if (bWasInList)
 		{
-			FGameplayCueParameters Parameters;
-			InitDefaultGameplayCueParameters(Parameters);
-
-			// Call on server here, clients get it from repnotify
-			InvokeGameplayCueEvent(GameplayCueTag, EGameplayCueEvent::Removed, Parameters);
+			for (const FActiveGameplayCue& ActiveGameplayCue : ActiveGameplayCues.GameplayCues)
+			{
+				if (ActiveGameplayCue.GameplayCueTag == GameplayCueTag)
+				{
+					// Call on server here, clients get it from repnotify
+					InvokeGameplayCueEvent(GameplayCueTag, EGameplayCueEvent::Removed, ActiveGameplayCue.Parameters);
+				}
+			}
 		}
 		// Don't need to multicast broadcast this, ActiveGameplayCues replication handles it
 	}

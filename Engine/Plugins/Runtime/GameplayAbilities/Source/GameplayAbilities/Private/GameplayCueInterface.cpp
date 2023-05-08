@@ -243,19 +243,25 @@ void FActiveGameplayCueContainer::RemoveCue(const FGameplayTag& Tag)
 		return;
 	}
 
-	for (int32 idx=0; idx < GameplayCues.Num(); ++idx)
+	
+	// Iterate backwards so we can remove during loop
+	int32 CountDelta = 0;
+	for (int32 idx=GameplayCues.Num()-1; idx >= 0; --idx)
 	{
 		FActiveGameplayCue& Cue = GameplayCues[idx];
 
 		if (Cue.GameplayCueTag == Tag)
 		{
 			GameplayCues.RemoveAt(idx);
-			MarkArrayDirty();
-			Owner->UpdateTagMap(Tag, -1);
-			return;
+			CountDelta -= 1;
 		}
 	}
 
+	if (CountDelta < 0)
+	{
+		MarkArrayDirty();
+		Owner->UpdateTagMap(Tag, CountDelta);
+	}
 }
 
 void FActiveGameplayCueContainer::RemoveAllCues()
