@@ -29,3 +29,13 @@ struct FLocalizableMessageParameter
 		LOCALIZABLEMESSAGE_API void operator()(FLocalizableMessageParameter* Object) const;
 	};
 };
+
+template<>
+struct TStructOpsTypeTraits< FLocalizableMessageParameter > : public TStructOpsTypeTraitsBase2< FLocalizableMessageParameter >
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};
+
