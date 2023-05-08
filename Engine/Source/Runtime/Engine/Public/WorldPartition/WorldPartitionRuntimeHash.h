@@ -140,8 +140,8 @@ public:
 	bool IsCellRelevantFor(bool bClientOnlyVisible) const;
 	EWorldPartitionStreamingPerformance GetStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellToActivate) const;
 
-	virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
-	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return false; }
+	virtual bool InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject);
+	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject);
 
 	virtual bool Draw2D(FWorldPartitionDraw2DContext& DrawContext) const { return false; }
 	virtual void Draw3D(const TArray<FWorldPartitionStreamingSource>& Sources) const {}
@@ -180,8 +180,10 @@ public:
 	mutable FActorDescList ModifiedActorDescListForPIE;
 #endif
 
-#if WITH_EDITOR
 private:
+#if WITH_EDITOR
 	void ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE);
 #endif
+
+	TSet<TWeakObjectPtr<URuntimeHashExternalStreamingObjectBase>> InjectedExternalStreamingObjects;
 };

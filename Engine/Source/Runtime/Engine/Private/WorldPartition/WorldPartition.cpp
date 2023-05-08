@@ -1469,30 +1469,33 @@ void UWorldPartition::UpdateStreamingState()
 	}
 }
 
-bool UWorldPartition::InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
+bool UWorldPartition::InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* InExternalStreamingObject)
 {
-	bool bInjected = RuntimeHash->InjectExternalStreamingObject(ExternalStreamingObject);
+	bool bInjected = RuntimeHash->InjectExternalStreamingObject(InExternalStreamingObject);
 	if (bInjected)
 	{
-		StreamingPolicy->InjectExternalStreamingObject(ExternalStreamingObject);
-		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectInjected(ExternalStreamingObject);
+		if (StreamingPolicy)
+		{
+			StreamingPolicy->InjectExternalStreamingObject(InExternalStreamingObject);
+		}
+		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectInjected(InExternalStreamingObject);
 		++StreamingStateEpoch;
 	}
 
 	return bInjected;
 }
 
-bool UWorldPartition::RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject)
+bool UWorldPartition::RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* InExternalStreamingObject)
 {
-	bool bRemoved = RuntimeHash->RemoveExternalStreamingObject(ExternalStreamingObject);
+	bool bRemoved = RuntimeHash->RemoveExternalStreamingObject(InExternalStreamingObject);
 	if (bRemoved)
 	{
 		if (StreamingPolicy)
 		{
-			StreamingPolicy->RemoveExternalStreamingObject(ExternalStreamingObject);
+			StreamingPolicy->RemoveExternalStreamingObject(InExternalStreamingObject);
 		}
 		
-		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectRemoved(ExternalStreamingObject);
+		GetWorld()->GetSubsystem<UHLODSubsystem>()->OnExternalStreamingObjectRemoved(InExternalStreamingObject);
 		++StreamingStateEpoch;
 	}
 

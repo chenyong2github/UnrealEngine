@@ -506,8 +506,9 @@ public:
 	{
 		return RegisteredEditorLoaderAdapters;
 	}
-private:
 #endif
+
+private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(transient, NonTransactional)

@@ -463,6 +463,30 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeHash::GetStreamingPerf
 	return StreamingPerformance;
 }
 
+bool UWorldPartitionRuntimeHash::InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* InExternalStreamingObject)
+{
+	check(InExternalStreamingObject);
+	bool bAlreadyInSet = false;
+	InjectedExternalStreamingObjects.Add(InExternalStreamingObject, &bAlreadyInSet);
+	if (bAlreadyInSet)
+	{
+		UE_LOG(LogWorldPartition, Warning, TEXT("External streaming object %s already injected."), *InExternalStreamingObject->GetName());
+		return false;
+	}
+	return true;
+}
+
+bool UWorldPartitionRuntimeHash::RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* InExternalStreamingObject)
+{
+	check(InExternalStreamingObject);
+	if (!InjectedExternalStreamingObjects.Remove(InExternalStreamingObject))
+	{
+		UE_LOG(LogWorldPartition, Warning, TEXT("External streaming object %s was not injected."), *InExternalStreamingObject->GetName());
+		return false;
+	}
+	return true;
+}
+
 void UWorldPartitionRuntimeHash::FStreamingSourceCells::AddCell(const UWorldPartitionRuntimeCell* Cell, const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape)
 {
 	if (Cell->ShouldResetStreamingSourceInfo())
