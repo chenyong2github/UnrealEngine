@@ -1151,21 +1151,42 @@ namespace Chaos::Softs
 	{
 		PERF_SCOPE(STAT_ChaosDeformableSolver_InitializeGaussSeidelConstraintVariables);
 
-		GSCorotatedConstraints.Reset(new Chaos::Softs::FGaussSeidelCorotatedConstraints<FSolverReal, FSolverParticles>(
-			Evolution->Particles(), *AllElements, *AllTetEMeshArray, *AllTetNuMeshArray, MoveTemp(*AllTetAlphaJArray), MoveTemp(*AllIncidentElements), MoveTemp(*AllIncidentElementsLocal), 0, Evolution->Particles().Size(), Property.bDoQuasistatics, Property.bUseSOR, Property.OmegaSOR, GDeformableXPBDCorotatedParams));
-		Evolution->ResetConstraintRules();
-		int32 InitIndex1 = Evolution->AddConstraintInitRange(1, true);
-		Evolution->ConstraintInits()[InitIndex1] =
-			[this](FSolverParticles& InParticles, const FSolverReal Dt)
+		if (Property.bUseGSNeohookean)
 		{
-			this->GSCorotatedConstraints->Init(Dt, InParticles);
-		};
-		int32 ConstraintIndex1 = Evolution->AddConstraintRuleRange(1, true);
-		Evolution->ConstraintRules()[ConstraintIndex1] =
-			[this](FSolverParticles& InParticles, const FSolverReal Dt)
+			GSNeohookeanConstraints.Reset(new Chaos::Softs::FGaussSeidelNeohookeanConstraints<FSolverReal, FSolverParticles>(
+				Evolution->Particles(), *AllElements, *AllTetEMeshArray, *AllTetNuMeshArray, MoveTemp(*AllTetAlphaJArray), MoveTemp(*AllIncidentElements), MoveTemp(*AllIncidentElementsLocal), 0, Evolution->Particles().Size(), Property.bDoQuasistatics, Property.bUseSOR, Property.OmegaSOR, GDeformableXPBDCorotatedParams));
+			Evolution->ResetConstraintRules();
+			int32 InitIndex1 = Evolution->AddConstraintInitRange(1, true);
+			Evolution->ConstraintInits()[InitIndex1] =
+				[this](FSolverParticles& InParticles, const FSolverReal Dt)
+			{
+				this->GSNeohookeanConstraints->Init(Dt, InParticles);
+			};
+			int32 ConstraintIndex1 = Evolution->AddConstraintRuleRange(1, true);
+			Evolution->ConstraintRules()[ConstraintIndex1] =
+				[this](FSolverParticles& InParticles, const FSolverReal Dt)
+			{
+				this->GSNeohookeanConstraints->Apply(InParticles, Dt);
+			};
+		} 
+		else
 		{
-			this->GSCorotatedConstraints->ApplyInParallel(InParticles, Dt);
-		};
+			GSCorotatedConstraints.Reset(new Chaos::Softs::FGaussSeidelCorotatedConstraints<FSolverReal, FSolverParticles>(
+				Evolution->Particles(), *AllElements, *AllTetEMeshArray, *AllTetNuMeshArray, MoveTemp(*AllTetAlphaJArray), MoveTemp(*AllIncidentElements), MoveTemp(*AllIncidentElementsLocal), 0, Evolution->Particles().Size(), Property.bDoQuasistatics, Property.bUseSOR, Property.OmegaSOR, GDeformableXPBDCorotatedParams));
+			Evolution->ResetConstraintRules();
+			int32 InitIndex1 = Evolution->AddConstraintInitRange(1, true);
+			Evolution->ConstraintInits()[InitIndex1] =
+				[this](FSolverParticles& InParticles, const FSolverReal Dt)
+			{
+				this->GSCorotatedConstraints->Init(Dt, InParticles);
+			};
+			int32 ConstraintIndex1 = Evolution->AddConstraintRuleRange(1, true);
+			Evolution->ConstraintRules()[ConstraintIndex1] =
+				[this](FSolverParticles& InParticles, const FSolverReal Dt)
+			{
+				this->GSCorotatedConstraints->Apply(InParticles, Dt);
+			};
+		}
 	}
 
 

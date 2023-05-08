@@ -1439,7 +1439,7 @@ TArray<TArray<int32>> Chaos::ComputeNodalColoring(const TArray<TVec4<int32>>& Gr
 		}
 	}
 
-	int32 SizeColors = ParticleColors.Max();
+	int32 SizeColors = FMath::Max<int32>(ParticleColors);
 
 	ParticlesPerColor.SetNum(0);
 	ParticlesPerColor.Init(TArray<int32>(), SizeColors + 1);

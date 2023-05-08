@@ -8,6 +8,7 @@
 #include "Chaos/GraphColoring.h"
 #include "Chaos/NewtonCorotatedCache.h"
 #include "Chaos/Framework/Parallel.h"
+//#include "Chaos/Deformable/GaussSeidelWeakConstraints.h"
 
 
 namespace Chaos::Softs
@@ -23,9 +24,9 @@ namespace Chaos::Softs
 		using Base::DmInverse;
 		using Base::MuElementArray;
 		using Base::LambdaElementArray;
+		using Base::CorotatedParams;
 
 	public:
-		//this one only accepts tetmesh input and mesh
 		FGaussSeidelCorotatedConstraints(
 			const ParticleType& InParticles,
 			const TArray<TVector<int32, 4>>& InMesh,
@@ -73,6 +74,7 @@ namespace Chaos::Softs
 				X_k.Init(TVector<T, 3>(T(0.)), ParticleEndIndex - ParticleStartIndex);
 			}
 			InitColor(InParticles);
+			InitializeLambdas();
 		}
 
 		virtual ~FGaussSeidelCorotatedConstraints() {}
@@ -80,17 +82,29 @@ namespace Chaos::Softs
 
 		void Apply(ParticleType& Particles, const T Dt) const 
 		{
-			//SCOPE_CYCLE_COUNTER(STAT_ChaosGaussSeidelCorotated);
-			TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("STAT_ChaosGaussSeidelCorotatedApply"));
+			TRACE_CPUPROFILER_EVENT_SCOPE(STAT_ChaosGaussSeidelApply);
 			for (int32 i = 0; i < ParticlesPerColor.Num(); i++)
 			{
-				PhysicsParallelFor(ParticlesPerColor[i].Num(), [&](const int32 j)
+				int32 NumBatch = ParticlesPerColor[i].Num() / CorotatedParams.XPBDCorotatedBatchSize;
+				if (ParticlesPerColor[i].Num() % CorotatedParams.XPBDCorotatedBatchSize != 0)
+				{
+					NumBatch += 1;
+				}
+
+				PhysicsParallelFor(NumBatch, [&](const int32 BatchIndex)
 					{
-						int32 ParticleIndex = ParticlesPerColor[i][j];
-						Chaos::TVector<T, 3> Dx = ComputeDeltax(ParticleIndex, Particle2Incident[ParticleIndex - ParticleStartIndex], Particles,
-							Dt);
-						Particles.P(ParticleIndex) += Dx;
-					}, ParticlesPerColor[i].Num() < Base::CorotatedParams.XPBDCorotatedBatchThreshold);
+						for (int32 BatchSubIndex = 0; BatchSubIndex < CorotatedParams.XPBDCorotatedBatchSize; BatchSubIndex++) {
+							int32 TaskIndex = CorotatedParams.XPBDCorotatedBatchSize * BatchIndex + BatchSubIndex;
+							if (TaskIndex < ParticlesPerColor[i].Num())
+							{
+								int32 ParticleIndex = ParticlesPerColor[i][TaskIndex];
+								Chaos::TVector<T, 3> Dx = ComputeDeltax(ParticleIndex, Particle2Incident[ParticleIndex - ParticleStartIndex], Particles,
+									Dt);
+								Particles.P(ParticleIndex) += Dx;
+							}
+						}
+					}, NumBatch < CorotatedParams.XPBDCorotatedBatchThreshold);
+
 			}
 			ApplySOR(Particles, Dt);
 			CurrentIt += 1;
@@ -122,7 +136,6 @@ namespace Chaos::Softs
 						{
 							Particles.P(ParticleIndex) = OmegaSOR * (Particles.P(ParticleIndex) - X_k_1[i]) + X_k_1[i];
 						}
-						//X_k_1[i] = Particles.X(ParticleIndex);
 						X_k_1[i] = X_k[i];
 						X_k[i] = Particles.P(ParticleIndex);
 					}, ParticleEndIndex - ParticleStartIndex < 1000);
@@ -146,11 +159,9 @@ namespace Chaos::Softs
 				Chaos::PMatrix<T, 3, 3> Fe = Base::F(e, Particles);
 				Chaos::PMatrix<T, 3, 3> P((T)0.);
 
-				//corotated model may switch to others:
-				Chaos::Softs::PCorotated(Fe, MuElementArray[e], LambdaElementArray[e], P);
+				ComputeStress(Fe, MuElementArray[e], LambdaElementArray[e], P);
 
 				Chaos::PMatrix<T, 3, 3> force_term = -Measure[e] * DmInvT * P;
-				// last term: contribution from element e:
 				Chaos::TVector<T, 3> dx((T)0.);
 				if (local_index > 0)
 				{
@@ -200,70 +211,8 @@ namespace Chaos::Softs
 
 				T Coeff = Dt * Dt * Measure[ElementIndex];
 
-				Chaos::PMatrix<T, 3, 3> JFinvT((T)0.);
-				JFinvT.SetAt(0, 0, Fe.GetAt(1, 1) * Fe.GetAt(2, 2) - Fe.GetAt(2, 1) * Fe.GetAt(1, 2));
-				JFinvT.SetAt(0, 1, Fe.GetAt(2, 0) * Fe.GetAt(1, 2) - Fe.GetAt(1, 0) * Fe.GetAt(2, 2));
-				JFinvT.SetAt(0, 2, Fe.GetAt(1, 0) * Fe.GetAt(2, 1) - Fe.GetAt(2, 0) * Fe.GetAt(1, 1));
-				JFinvT.SetAt(1, 0, Fe.GetAt(2, 1) * Fe.GetAt(0, 2) - Fe.GetAt(0, 1) * Fe.GetAt(2, 2));
-				JFinvT.SetAt(1, 1, Fe.GetAt(0, 0) * Fe.GetAt(2, 2) - Fe.GetAt(2, 0) * Fe.GetAt(0, 2));
-				JFinvT.SetAt(1, 2, Fe.GetAt(2, 0) * Fe.GetAt(0, 1) - Fe.GetAt(0, 0) * Fe.GetAt(2, 1));
-				JFinvT.SetAt(2, 0, Fe.GetAt(0, 1) * Fe.GetAt(1, 2) - Fe.GetAt(1, 1) * Fe.GetAt(0, 2));
-				JFinvT.SetAt(2, 1, Fe.GetAt(1, 0) * Fe.GetAt(0, 2) - Fe.GetAt(0, 0) * Fe.GetAt(1, 2));
-				JFinvT.SetAt(2, 2, Fe.GetAt(0, 0) * Fe.GetAt(1, 1) - Fe.GetAt(1, 0) * Fe.GetAt(0, 1));
+				ComputeHessianHelper(Fe, DmInv, MuElementArray[ElementIndex], LambdaElementArray[ElementIndex], local_index, Coeff, final_hessian);
 
-				Chaos::PMatrix<T, 3, 3> JFinv = JFinvT.GetTransposed();
-
-				if (local_index == 0) {
-					// first mu term:
-					T DmInvsum = T(0);
-					for (int32 nu = 0; nu < 3; nu++) {
-						T localDmsum = T(0);
-						for (int32 k = 0; k < 3; k++) {
-							localDmsum += DmInv.GetAt(k, nu);
-						}
-						DmInvsum += localDmsum * localDmsum;
-					}
-					for (int32 alpha = 0; alpha < 3; alpha++) {
-						final_hessian.SetAt(alpha, alpha, final_hessian.GetAt(alpha, alpha) + Coeff * T(2) * MuElementArray[ElementIndex] * DmInvsum);
-					}
-
-					// second lambda term:
-					Chaos::PMatrix<T, 3, 3> DmInvJFinv = JFinv * DmInv;
-					Chaos::TVector<T, 3> l((T)0.);
-					for (int32 alpha = 0; alpha < 3; alpha++) {
-						for (int32 k = 0; k < 3; k++) {
-							l[alpha] += DmInvJFinv.GetAt(k, alpha);
-						}
-					}
-					for (int32 alpha = 0; alpha < 3; alpha++)
-					{
-						final_hessian.SetRow(alpha, final_hessian.GetRow(alpha) + Coeff * LambdaElementArray[ElementIndex] * l[alpha] * l);
-					}
-
-				}
-				else {
-					// first mu term:
-					T DmInvsum = T(0);
-					for (int32 nu = 0; nu < 3; nu++)
-					{
-						DmInvsum += DmInv.GetAt(local_index - 1, nu) * DmInv.GetAt(local_index - 1, nu);
-					}
-					for (int32 alpha = 0; alpha < 3; alpha++)
-					{
-						final_hessian.SetAt(alpha, alpha, final_hessian.GetAt(alpha, alpha) + Coeff * T(2) * MuElementArray[ElementIndex] * DmInvsum);
-					}
-
-					// lambda term:
-					Chaos::PMatrix<T, 3, 3> DmInvJFinv = JFinv * DmInv;
-					Chaos::TVector<T, 3> l((T)0.);
-					for (int32 alpha = 0; alpha < 3; alpha++) {
-						l[alpha] = DmInvJFinv.GetAt(local_index - 1, alpha);
-					}
-					for (int32 alpha = 0; alpha < 3; alpha++)
-					{
-						final_hessian.SetRow(alpha, final_hessian.GetRow(alpha) + Coeff * LambdaElementArray[ElementIndex] * l[alpha] * l);
-					}
-				}
 			}
 			return final_hessian;
 		}
@@ -273,6 +222,77 @@ namespace Chaos::Softs
 		{
 			ParticlesPerColor = ComputeNodalColoring(MeshConstraints, Particles, ParticleStartIndex, ParticleEndIndex, IncidentElements, IncidentElementsLocal);
 		}
+
+		 virtual void InitializeLambdas()
+		 {
+			 ComputeStress = [](const Chaos::PMatrix<T, 3, 3>& Fe, const T mu, const T lambda, Chaos::PMatrix<T, 3, 3>& P)
+			 {
+				 PCorotated(Fe, mu, lambda, P);
+			 };
+			 ComputeHessianHelper = [](const Chaos::PMatrix<T, 3, 3>& Fe, const Chaos::PMatrix<T, 3, 3>& DmInv, const T mu, const T lambda, const int32 local_index, const T Coeff, Chaos::PMatrix<T, 3, 3>& final_hessian) 
+			 {
+				 Chaos::PMatrix<T, 3, 3> JFinvT((T)0.);
+				 JFinvT.SetAt(0, 0, Fe.GetAt(1, 1) * Fe.GetAt(2, 2) - Fe.GetAt(2, 1) * Fe.GetAt(1, 2));
+				 JFinvT.SetAt(0, 1, Fe.GetAt(2, 0) * Fe.GetAt(1, 2) - Fe.GetAt(1, 0) * Fe.GetAt(2, 2));
+				 JFinvT.SetAt(0, 2, Fe.GetAt(1, 0) * Fe.GetAt(2, 1) - Fe.GetAt(2, 0) * Fe.GetAt(1, 1));
+				 JFinvT.SetAt(1, 0, Fe.GetAt(2, 1) * Fe.GetAt(0, 2) - Fe.GetAt(0, 1) * Fe.GetAt(2, 2));
+				 JFinvT.SetAt(1, 1, Fe.GetAt(0, 0) * Fe.GetAt(2, 2) - Fe.GetAt(2, 0) * Fe.GetAt(0, 2));
+				 JFinvT.SetAt(1, 2, Fe.GetAt(2, 0) * Fe.GetAt(0, 1) - Fe.GetAt(0, 0) * Fe.GetAt(2, 1));
+				 JFinvT.SetAt(2, 0, Fe.GetAt(0, 1) * Fe.GetAt(1, 2) - Fe.GetAt(1, 1) * Fe.GetAt(0, 2));
+				 JFinvT.SetAt(2, 1, Fe.GetAt(1, 0) * Fe.GetAt(0, 2) - Fe.GetAt(0, 0) * Fe.GetAt(1, 2));
+				 JFinvT.SetAt(2, 2, Fe.GetAt(0, 0) * Fe.GetAt(1, 1) - Fe.GetAt(1, 0) * Fe.GetAt(0, 1));
+
+				 Chaos::PMatrix<T, 3, 3> JFinv = JFinvT.GetTransposed();
+
+				 if (local_index == 0) {
+					 T DmInvsum = T(0);
+					 for (int32 nu = 0; nu < 3; nu++) {
+						 T localDmsum = T(0);
+						 for (int32 k = 0; k < 3; k++) {
+							 localDmsum += DmInv.GetAt(k, nu);
+						 }
+						 DmInvsum += localDmsum * localDmsum;
+					 }
+					 for (int32 alpha = 0; alpha < 3; alpha++) {
+						 final_hessian.SetAt(alpha, alpha, final_hessian.GetAt(alpha, alpha) + Coeff * T(2) * mu * DmInvsum);
+					 }
+
+					 Chaos::PMatrix<T, 3, 3> DmInvJFinv = JFinv * DmInv;
+					 Chaos::TVector<T, 3> l((T)0.);
+					 for (int32 alpha = 0; alpha < 3; alpha++) {
+						 for (int32 k = 0; k < 3; k++) {
+							 l[alpha] += DmInvJFinv.GetAt(k, alpha);
+						 }
+					 }
+					 for (int32 alpha = 0; alpha < 3; alpha++)
+					 {
+						 final_hessian.SetRow(alpha, final_hessian.GetRow(alpha) + Coeff * lambda * l[alpha] * l);
+					 }
+
+				 }
+				 else {
+					 T DmInvsum = T(0);
+					 for (int32 nu = 0; nu < 3; nu++)
+					 {
+						 DmInvsum += DmInv.GetAt(local_index - 1, nu) * DmInv.GetAt(local_index - 1, nu);
+					 }
+					 for (int32 alpha = 0; alpha < 3; alpha++)
+					 {
+						 final_hessian.SetAt(alpha, alpha, final_hessian.GetAt(alpha, alpha) + Coeff * T(2) * mu * DmInvsum);
+					 }
+
+					 Chaos::PMatrix<T, 3, 3> DmInvJFinv = JFinv * DmInv;
+					 Chaos::TVector<T, 3> l((T)0.);
+					 for (int32 alpha = 0; alpha < 3; alpha++) {
+						 l[alpha] = DmInvJFinv.GetAt(local_index - 1, alpha);
+					 }
+					 for (int32 alpha = 0; alpha < 3; alpha++)
+					 {
+						 final_hessian.SetRow(alpha, final_hessian.GetRow(alpha) + Coeff * lambda * l[alpha] * l);
+					 }
+				 }
+			 };
+		 }
 
 	private:
 
@@ -297,6 +317,8 @@ namespace Chaos::Softs
 
 		
 
+	protected:	
+
 		TArray<int32> Particle2Incident;
 		TArray<TArray<int32>> IncidentElements;
 		TArray<TArray<int32>> IncidentElementsLocal;
@@ -311,6 +333,8 @@ namespace Chaos::Softs
 		bool bDoSOR = true;
 		T OmegaSOR = T(1.6);
 		mutable int32 CurrentIt = 0;
+		TFunction<void(const Chaos::PMatrix<T, 3, 3>&, const T, const T, Chaos::PMatrix<T, 3, 3>& )> ComputeStress;
+		TFunction<void(const Chaos::PMatrix<T, 3, 3>&, const Chaos::PMatrix<T, 3, 3>&, const T, const T, const int32, const T, Chaos::PMatrix<T, 3, 3>&)> ComputeHessianHelper;
 	};
 
 

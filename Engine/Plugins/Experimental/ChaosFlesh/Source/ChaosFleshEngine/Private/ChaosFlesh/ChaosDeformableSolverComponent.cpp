@@ -213,9 +213,10 @@ void UDeformableSolverComponent::Reset()
 			, SolverForces.bEnableGravity
 			, SolverConstraints.CorotatedConstraints.bEnableCorotatedConstraint
 			, SolverConstraints.bEnablePositionTargets
-			, GaussSeidelConstraints.bUseGaussSeidelConstraints
-			, GaussSeidelConstraints.bUseSOR
-			, GaussSeidelConstraints.OmegaSOR
+			, SolverConstraints.GaussSeidelConstraints.bUseGaussSeidelConstraints
+			, SolverConstraints.GaussSeidelConstraints.bUseSOR
+			, SolverConstraints.GaussSeidelConstraints.OmegaSOR
+			, SolverConstraints.GaussSeidelConstraints.bUseGSNeohookean
 		}));
 
 		for (TObjectPtr<UDeformablePhysicsComponent>& DeformableComponent : ConnectedObjects.DeformableComponents)
