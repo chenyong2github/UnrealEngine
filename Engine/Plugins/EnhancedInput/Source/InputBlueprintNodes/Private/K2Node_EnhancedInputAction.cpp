@@ -201,8 +201,9 @@ FText UK2Node_EnhancedInputAction::GetTooltipText() const
 		FString ActionPath = InputAction ? InputAction->GetFullName() : TEXT("");
 		CachedTooltip.SetCachedText(
 			FText::Format(
-				LOCTEXT("EnhancedInputAction_Tooltip", "Event for when '{0}' triggers.\n\nNOTE: This is not guaranteed to fire every frame, only when the Action is triggered and the current Input Mode includes 'Game'."),
-			FText::FromString(ActionPath)),
+				LOCTEXT("EnhancedInputAction_Tooltip", "Event for when '{0}' triggers.\n\nNote: This is not guaranteed to fire every frame, only when the Action is triggered and the current Input Mode includes 'Game'.\n\n{1}"),
+			FText::FromString(ActionPath),
+			LOCTEXT("EnhancedInputAction_Node_Tooltip_Tip", "Tip: Use the 'showdebug enhancedinput' command while playing to see debug information about Enhanced Input.")),
 			this);
 	}
 	return CachedTooltip;
