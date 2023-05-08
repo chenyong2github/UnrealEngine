@@ -42,7 +42,7 @@ namespace Chaos
 				FVector::Zero(),
 				[this, ObjectA, &OutOverlaps](const FShapeOverlapData& A, const FShapeOverlapData& B, const FMTDInfo&)
 				{
-					ChaosInterface::FOverlapHit Overlap;
+					TOverlapHit Overlap;
 					Overlap.Shape = A.Shape;
 					Overlap.Actor = Interface.GetParticle(ObjectA);
 					OutOverlaps.Add(Overlap);
@@ -169,7 +169,7 @@ namespace Chaos
 						{
 							bHasOverlap = true;
 
-							ChaosInterface::FOverlapHit Overlap;
+							TOverlapHit Overlap;
 							Overlap.Shape = Shape;
 							Overlap.Actor = Interface.GetParticle(IterObject);
 							OutOverlaps.Add(Overlap);

@@ -8,6 +8,18 @@
 #include "Chaos/PhysicsObjectInternal.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Math/Transform.h"
+#include "Chaos/ChaosEngineInterface.h"
+
+namespace PhysicsObjectInterfaceCVars
+{
+	static float StrainModifier = 200;
+	static FAutoConsoleVariableRef CVarStrainModifier(
+		TEXT("Chaos.Debug.StrainModifier"),
+		StrainModifier,
+		TEXT("Modify the strain by this factor"),
+		ECVF_Default
+	);
+}
 
 namespace
 {
@@ -65,6 +77,39 @@ namespace
 				}
 			}
 		}
+	}
+
+	template<typename T>
+	float AddRadialImpulseHelper(T ParticleHandle, FVector Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, float VelocityRatio = 1.0f, bool bInvalidate = true)
+	{
+		using namespace Chaos;
+
+		if (ParticleHandle == nullptr)
+		{
+			return 0.0f;
+		}
+
+		const FVec3 CurrentImpulseVelocity = ParticleHandle->LinearImpulseVelocity();
+
+		float FalloffStrength = Strength;
+		if (Falloff == ERadialImpulseFalloff::RIF_Linear)
+		{
+			//Radius should always be greater than distance - if we get here and it's not, something has gone
+			//wrong with detection
+			double Distance = FVec3::Distance(ParticleHandle->X(), Origin);
+			FalloffStrength = static_cast<float>(FalloffStrength * (1.0f - FMath::Min(1.0f, Distance / Radius)));
+		}
+
+		FVec3 Impulse = ParticleHandle->X() - Origin;
+		Impulse = Impulse.GetSafeNormal();
+		Impulse = Impulse * FalloffStrength;
+		FVec3 Velocity = Impulse * ParticleHandle->InvM() * VelocityRatio;
+
+		FVec3 FinalVeloc = CurrentImpulseVelocity + Velocity;
+
+		ParticleHandle->SetLinearImpulseVelocity(CurrentImpulseVelocity + Velocity, bInvalidate);
+
+		return FalloffStrength;
 	}
 }
 
@@ -709,6 +754,85 @@ namespace Chaos
 					}
 				}
 			}
+		}
+	}
+
+	template<EThreadContext Id>
+	void FWritePhysicsObjectInterface<Id>::AddRadialImpulse(TArrayView<const FPhysicsObjectHandle> InObjects, FVector Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bApplyStrain, bool bInvalidate)
+	{
+		if (Chaos::FPBDRigidsSolver* RigidSolver = Chaos::FPhysicsObjectInterface::GetSolver(InObjects))
+		{
+			//put onto physics thread
+			RigidSolver->EnqueueCommandImmediate([InObjects = TArray<FPhysicsObjectHandle>{ InObjects },
+				RigidSolver,
+				Origin,
+				Radius,
+				Strength,
+				Falloff,
+				bApplyStrain,
+				bInvalidate]()
+				{
+					using namespace Chaos;
+					for (FPhysicsObjectHandle Object : InObjects)
+					{
+						if (Object == nullptr)
+						{
+							continue;
+						}
+
+						//can apply to clusters or rigid particles
+						TThreadParticle<EThreadContext::Internal>* Particle = Object->GetParticle<EThreadContext::Internal>();
+						if (FPBDRigidClusteredParticleHandle* Cluster = reinterpret_cast<FPBDRigidClusteredParticleHandle*>(Particle))
+						{
+							if (bApplyStrain)
+							{
+								FRigidClustering& Clustering = RigidSolver->GetEvolution()->GetRigidClustering();
+								TArray<FPBDRigidParticleHandle*>* ChildrenHandles = Clustering.GetChildrenMap().Find(Cluster);
+
+								if (ChildrenHandles == nullptr)
+								{
+									continue;
+								}
+
+								for (FPBDRigidParticleHandle* ChildHandle : *ChildrenHandles)
+								{
+									float VelocityRatio = 1.0f / static_cast<float>(ChildrenHandles->Num());
+
+									float FalloffStrength = AddRadialImpulseHelper(ChildHandle, Origin, Radius, Strength, Falloff, VelocityRatio, bInvalidate);
+
+									//to do: remove cvar when material system is in place and densities are updated
+									FalloffStrength = PhysicsObjectInterfaceCVars::StrainModifier * FalloffStrength;
+
+									Clustering.SetExternalStrain(ChildHandle->CastToClustered(), FalloffStrength);
+								}
+							}
+							else
+							{
+								FPBDRigidParticleHandle* ParticleHandle = Cluster->CastToRigidParticle();
+
+								if (ParticleHandle != nullptr && ParticleHandle->IsSleeping())
+								{
+									RigidSolver->GetEvolution()->SetParticleObjectState(ParticleHandle, Chaos::EObjectStateType::Dynamic);
+									RigidSolver->GetEvolution()->GetParticles().MarkTransientDirtyParticle(ParticleHandle);
+								}
+
+								AddRadialImpulseHelper(ParticleHandle, Origin, Radius, Strength, Falloff, bInvalidate);
+							}
+						}
+						else
+						{
+							FPBDRigidParticleHandle* ParticleHandle = reinterpret_cast<FPBDRigidParticleHandle*>(Particle);
+
+							if (ParticleHandle != nullptr && ParticleHandle->IsSleeping())
+							{
+								RigidSolver->GetEvolution()->SetParticleObjectState(ParticleHandle, Chaos::EObjectStateType::Dynamic);
+								RigidSolver->GetEvolution()->GetParticles().MarkTransientDirtyParticle(ParticleHandle);
+							}
+
+							AddRadialImpulseHelper(ParticleHandle, Origin, Radius, Strength, Falloff, bInvalidate);
+						}
+					}
+				});
 		}
 	}
 

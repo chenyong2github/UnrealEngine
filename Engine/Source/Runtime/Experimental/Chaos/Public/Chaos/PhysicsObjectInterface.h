@@ -37,6 +37,8 @@ struct CHAOS_API FClosestPhysicsObjectResult
 	FName HitName() const;
 };
 
+enum ERadialImpulseFalloff : int;
+
 namespace Chaos
 {
 	class FPBDRigidsSolver;
@@ -117,6 +119,7 @@ namespace Chaos
 		void WakeUp(TArrayView<const FPhysicsObjectHandle> InObjects);
 		void AddForce(TArrayView<const FPhysicsObjectHandle> InObjects, const FVector& Force, bool bInvalidate);
 		void AddTorque(TArrayView<const FPhysicsObjectHandle> InObjects, const FVector& Torque, bool bInvalidate);
+		void AddRadialImpulse(TArrayView<const FPhysicsObjectHandle> InObjects, FVector Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bApplyStrain, bool bInvalidate);
 		
 		void UpdateShapeCollisionFlags(TArrayView<const FPhysicsObjectHandle> InObjects, bool bSimCollision, bool bQueryCollision);
 		void UpdateShapeFilterData(TArrayView<const FPhysicsObjectHandle> InObjects, const FCollisionFilterData& QueryData, const FCollisionFilterData& SimData);

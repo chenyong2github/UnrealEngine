@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "PhysicsEngine/PhysicsObjectBlueprintLibrary.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
+#include "Chaos/PhysicsObjectCollisionInterface.h"
+#include "Chaos/PhysicsObjectInterface.h"
+#include "Chaos/PhysicsObjectInternalInterface.h"
+
+#include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "PhysicsEngine/ClusterUnionComponent.h"
 
 FClosestPhysicsObjectResult UPhysicsObjectBlueprintLibrary::GetClosestPhysicsObjectFromWorldLocation(UPrimitiveComponent* Component, const FVector& WorldLocation)
 {
@@ -45,4 +52,20 @@ FTransform UPhysicsObjectBlueprintLibrary::GetPhysicsObjectWorldTransform(UPrimi
 	}
 	
 	return FTransform::Identity;
+}
+
+void UPhysicsObjectBlueprintLibrary::ApplyRadialImpulse(UPrimitiveComponent* Component, FVector Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bApplyStrain)
+{
+	if (Component == nullptr)
+	{
+		return;
+	}
+
+	if (Chaos::FPhysicsObject* PhysicsObject = Component->GetPhysicsObjectByName(NAME_None))
+	{
+		TArray<Chaos::FPhysicsObjectHandle>  PhysicsObjects;
+		PhysicsObjects.Add(PhysicsObject);
+		FLockedWritePhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockWrite(PhysicsObjects);
+		return Interface->AddRadialImpulse(PhysicsObjects, Origin, Radius, Strength, Falloff, bApplyStrain, true);
+	}
 }
