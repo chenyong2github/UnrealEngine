@@ -9431,6 +9431,7 @@ void UCookOnTheFlyServer::GenerateCachedEditorThumbnails()
 		}
 
 		// Write CachedEditorThumbnails.bin file
+		if (!PublicAssets.IsEmpty())
 		{
 			FThumbnailExternalCacheSettings Settings;
 			// Convert lossless thumbnails to lossy to save space
