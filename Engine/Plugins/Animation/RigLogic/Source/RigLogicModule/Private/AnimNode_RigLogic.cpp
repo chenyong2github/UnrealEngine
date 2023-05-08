@@ -128,13 +128,17 @@ void FAnimNode_RigLogic::Evaluate_AnyThread(FPoseContext& OutputContext)
 	{
 		return;
 	}
-	UpdateControlCurves(OutputContext, LocalDNAIndexMapping.Get());
-	CalculateRigLogic(LocalRigRuntimeContext->RigLogic.Get());
-	const uint16 CurrentLOD = RigInstance->GetLOD();
-	TArrayView<const uint16> VariableJointIndices = LocalRigRuntimeContext->VariableJointIndicesPerLOD[CurrentLOD].Values;
-	UpdateJoints(VariableJointIndices, LocalRigRuntimeContext->RigLogic->GetRawNeutralJointValues(), RigInstance->GetRawJointOutputs(), OutputContext);
-	UpdateBlendShapeCurves(LocalDNAIndexMapping.Get(), RigInstance->GetBlendShapeOutputs(), OutputContext);
-	UpdateAnimMapCurves(LocalDNAIndexMapping.Get(), RigInstance->GetAnimatedMapOutputs(), OutputContext);
+
+	if (IsLODEnabled(OutputContext.AnimInstanceProxy))
+	{
+		UpdateControlCurves(OutputContext, LocalDNAIndexMapping.Get());
+		CalculateRigLogic(LocalRigRuntimeContext->RigLogic.Get());
+		const uint16 CurrentLOD = RigInstance->GetLOD();
+		TArrayView<const uint16> VariableJointIndices = LocalRigRuntimeContext->VariableJointIndicesPerLOD[CurrentLOD].Values;
+		UpdateJoints(VariableJointIndices, LocalRigRuntimeContext->RigLogic->GetRawNeutralJointValues(), RigInstance->GetRawJointOutputs(), OutputContext);
+		UpdateBlendShapeCurves(LocalDNAIndexMapping.Get(), RigInstance->GetBlendShapeOutputs(), OutputContext);
+		UpdateAnimMapCurves(LocalDNAIndexMapping.Get(), RigInstance->GetAnimatedMapOutputs(), OutputContext);
+	}
 }
 
 void FAnimNode_RigLogic::GatherDebugData(FNodeDebugData& DebugData)
@@ -201,9 +205,11 @@ void FAnimNode_RigLogic::UpdateBlendShapeCurves(const FDNAIndexMapping* DNAIndex
 	const FDNAIndexMapping::FCachedIndexedCurve& MorphTargetCurve = DNAIndexMapping->MorphTargetCurvesPerLOD[LOD];
 	UE::Anim::FNamedValueArrayUtils::Union(OutputContext.Curve, MorphTargetCurve, [&BlendShapeValues](UE::Anim::FCurveElement& InOutResult, const UE::Anim::FCurveElementIndexed& InSource, UE::Anim::ENamedValueUnionFlags InFlags)
 	{
-		check(BlendShapeValues.IsValidIndex(InSource.Index));
-		InOutResult.Value = BlendShapeValues[InSource.Index];
-		InOutResult.Flags |= UE::Anim::ECurveElementFlags::MorphTarget;
+		if (BlendShapeValues.IsValidIndex(InSource.Index))
+		{
+			InOutResult.Value = BlendShapeValues[InSource.Index];
+			InOutResult.Flags |= UE::Anim::ECurveElementFlags::MorphTarget;
+		}
 	});
 }
 
@@ -216,9 +222,11 @@ void FAnimNode_RigLogic::UpdateAnimMapCurves(const FDNAIndexMapping* DNAIndexMap
 	const FDNAIndexMapping::FCachedIndexedCurve& MaskMultiplierCurve = DNAIndexMapping->MaskMultiplierCurvesPerLOD[LOD];
 	UE::Anim::FNamedValueArrayUtils::Union(OutputContext.Curve, MaskMultiplierCurve, [&AnimMapOutputs](UE::Anim::FCurveElement& InOutResult, const UE::Anim::FCurveElementIndexed& InSource, UE::Anim::ENamedValueUnionFlags InFlags)
 	{
-		check(AnimMapOutputs.IsValidIndex(InSource.Index));
-		InOutResult.Value = AnimMapOutputs[InSource.Index];
-		InOutResult.Flags |= UE::Anim::ECurveElementFlags::Material;
+		if (AnimMapOutputs.IsValidIndex(InSource.Index))
+		{
+			InOutResult.Value = AnimMapOutputs[InSource.Index];
+			InOutResult.Flags |= UE::Anim::ECurveElementFlags::Material;
+		}
 	});
 }
 
