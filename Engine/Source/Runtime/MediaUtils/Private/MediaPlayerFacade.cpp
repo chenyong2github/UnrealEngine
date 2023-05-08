@@ -108,7 +108,7 @@ static FTimespan WrappedModulo(FTimespan Time, FTimespan Duration)
 /* FMediaPlayerFacade structors
 *****************************************************************************/
 
-FMediaPlayerFacade::FMediaPlayerFacade()
+FMediaPlayerFacade::FMediaPlayerFacade(TWeakObjectPtr<UMediaPlayer> InMediaPlayer)
 	: TimeDelay(FTimespan::Zero())
 	, BlockOnRange(this)
 	, Cache(new FMediaSampleCache)
@@ -119,6 +119,7 @@ FMediaPlayerFacade::FMediaPlayerFacade()
 	, AudioSampleAvailability(-1)
 	, bIsSinkFlushPending(false)
 	, bAreEventsSafeForAnyThread(false)
+	, MediaPlayer(InMediaPlayer)
 {
 	BlockOnRangeDisabled = false;
 
@@ -131,6 +132,10 @@ FMediaPlayerFacade::FMediaPlayerFacade()
 
 FMediaPlayerFacade::~FMediaPlayerFacade()
 {
+	FMediaSampleSinkEventData Data;
+	Data.Detached.MediaPlayer = MediaPlayer.Get();
+	SendSinkEvent(EMediaSampleSinkEvent::Detached, Data);
+
 	if (Player.IsValid())
 	{
 		{
@@ -1449,6 +1454,11 @@ bool FMediaPlayerFacade::SetRate(float Rate)
 		return bRateOk;
 	}
 
+	// Notify sinks of rate change
+	FMediaSampleSinkEventData Data;
+	Data.PlaybackRateChanged.PlaybackRate = Rate;
+	SendSinkEvent(EMediaSampleSinkEvent::PlaybackRateChanged, Data);
+
 	if ((LastRate * Rate) < 0.0f)
 	{
 		Flush(); // direction change
@@ -1633,11 +1643,12 @@ void FMediaPlayerFacade::Flush(bool bExcludePlayer, bool bOnSeek)
 
 	FScopeLock Lock(&CriticalSection);
 
-	AudioSampleSinks.Flush();
-	CaptionSampleSinks.Flush();
-	MetadataSampleSinks.Flush();
-	SubtitleSampleSinks.Flush();
-	VideoSampleSinks.Flush();
+	auto RawMediaPlayer = MediaPlayer.Get();
+	AudioSampleSinks.Flush(RawMediaPlayer);
+	CaptionSampleSinks.Flush(RawMediaPlayer);
+	MetadataSampleSinks.Flush(RawMediaPlayer);
+	SubtitleSampleSinks.Flush(RawMediaPlayer);
+	VideoSampleSinks.Flush(RawMediaPlayer);
 
 	if (Player.IsValid() && !bExcludePlayer)
 	{
@@ -1667,6 +1678,21 @@ void FMediaPlayerFacade::Flush(bool bExcludePlayer, bool bOnSeek)
 
 	// V1 only
 	NextVideoSampleTime = FTimespan::MinValue();
+}
+
+
+void FMediaPlayerFacade::SendSinkEvent(EMediaSampleSinkEvent Event, const FMediaSampleSinkEventData& Data)
+{
+	{
+	FScopeLock Lock(&CriticalSection);
+
+	AudioSampleSinks.ReceiveEvent(Event, Data);
+	MetadataSampleSinks.ReceiveEvent(Event, Data);
+	}
+
+	CaptionSampleSinks.ReceiveEvent(Event, Data);
+	SubtitleSampleSinks.ReceiveEvent(Event, Data);
+	VideoSampleSinks.ReceiveEvent(Event, Data);
 }
 
 
@@ -1839,9 +1865,7 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event, bool bIsBroadcastAllowe
 			UE_LOG(LogMediaUtils, Verbose, TEXT("PlayerFacade %p: Media Info:\n%s"), this, *MediaInfo);
 		}
 	}
-
-	if ((Event == EMediaEvent::PlaybackEndReached) ||
-		(Event == EMediaEvent::TracksChanged))
+	else if (Event == EMediaEvent::TracksChanged)
 	{
 		if (Player.IsValid() && !Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2))
 		{
@@ -1867,6 +1891,8 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event, bool bIsBroadcastAllowe
 		if (CurrentUrl.IsEmpty())
 		{
 			// Yes, this also means: if we still have a player, it's still the one this event originated from
+			FMediaSampleSinkEventData Data;
+			SendSinkEvent(EMediaSampleSinkEvent::MediaClosed, Data);
 
 			// If player allows: close it down all the way right now
 			if (Player.IsValid() && Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::AllowShutdownOnClose))
@@ -1878,6 +1904,16 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event, bool bIsBroadcastAllowe
 			// Stop issuing audio thread ticks until we open the player again
 			MediaModule->GetTicker().RemoveTickable(AsShared());
 		}
+	}
+	else if (Event == EMediaEvent::PlaybackEndReached)
+	{
+		if (Player.IsValid() && !Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2))
+		{
+			// Execute flush for older players only
+			Flush();
+		}
+		FMediaSampleSinkEventData Data;
+		SendSinkEvent(EMediaSampleSinkEvent::PlaybackEndReached, Data);
 	}
 
 	if (bIsBroadcastAllowed)
@@ -2976,7 +3012,7 @@ bool FMediaPlayerFacade::ProcessVideoSamples(IMediaSamples& Samples, const TRang
 		// Enqueue the sample to render
 		// (we use a queue to stay compatible with existing structure and older sinks - new sinks will read this single entry right away on the gamethread
 		//  and pass it along to rendering outside the queue)
-		bool bOk = VideoSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxVideoSinkDepth);
+		bool bOk = VideoSampleSinks.Enqueue(Sample.ToSharedRef());
 		check(bOk);
 
 		{
@@ -3010,7 +3046,7 @@ void FMediaPlayerFacade::ProcessCaptionSamples(IMediaSamples& Samples, const TRa
 	{
 		while (Samples.FetchCaption(TimeRange, Sample))
 		{
-			if (Sample.IsValid() && !CaptionSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxCaptionSinkDepth))
+			if (Sample.IsValid() && !CaptionSampleSinks.Enqueue(Sample.ToSharedRef()))
 			{
 #if MEDIAPLAYERFACADE_TRACE_SINKOVERFLOWS
 				UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Caption sample sink overflow"), this);
@@ -3040,7 +3076,7 @@ void FMediaPlayerFacade::ProcessSubtitleSamples(IMediaSamples& Samples, const TR
 		while (Samples.FetchSubtitle(TimeRange, Sample))
 		{
 			//UE_LOG(LogMediaUtils, Display, TEXT("Subtitle @%.3f: %s"), Sample->GetTime().Time.GetTotalSeconds(), *Sample->GetText().ToString());
-			if (Sample.IsValid() && !SubtitleSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxSubtitleSinkDepth))
+			if (Sample.IsValid() && !SubtitleSampleSinks.Enqueue(Sample.ToSharedRef()))
 			{
 #if MEDIAPLAYERFACADE_TRACE_SINKOVERFLOWS
 				UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Subtitle sample sink overflow"), this);
@@ -3069,7 +3105,7 @@ void FMediaPlayerFacade::ProcessMetadataSamples(IMediaSamples& Samples, const TR
 	{
 		while (Samples.FetchMetadata(TimeRange, Sample))
 		{
-			if (Sample.IsValid() && !MetadataSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxMetadataSinkDepth))
+			if (Sample.IsValid() && !MetadataSampleSinks.Enqueue(Sample.ToSharedRef()))
 			{
 #if MEDIAPLAYERFACADE_TRACE_SINKOVERFLOWS
 				UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Metadata sample sink overflow"), this);
@@ -3091,7 +3127,7 @@ void FMediaPlayerFacade::ProcessAudioSamplesV1(IMediaSamples& Samples, TRange<FT
 			continue;
 		}
 
-		if (!AudioSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxAudioSinkDepth))
+		if (!AudioSampleSinks.Enqueue(Sample.ToSharedRef()))
 		{
 #if MEDIAPLAYERFACADE_TRACE_SINKOVERFLOWS
 			UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Audio sample sink overflow"), this);
@@ -3134,7 +3170,7 @@ void FMediaPlayerFacade::ProcessVideoSamplesV1(IMediaSamples& Samples, TRange<FT
 
 		UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Fetched video sample %s"), this, *Sample->GetTime().Time.ToString(TEXT("%h:%m:%s.%t")));
 
-		if (VideoSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxVideoSinkDepth))
+		if (VideoSampleSinks.Enqueue(Sample.ToSharedRef()))
 		{
 			if (CurrentRate >= 0.0f)
 			{
@@ -3157,7 +3193,7 @@ void FMediaPlayerFacade::ProcessCaptionSamplesV1(IMediaSamples& Samples, TRange<
 
 	while (Samples.FetchCaption(TimeRange, Sample))
 	{
-		if (Sample.IsValid() && !CaptionSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxCaptionSinkDepth))
+		if (Sample.IsValid() && !CaptionSampleSinks.Enqueue(Sample.ToSharedRef()))
 		{
 #if MEDIAPLAYERFACADE_TRACE_SINKOVERFLOWS
 			UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Caption sample sink overflow"), this);
@@ -3173,7 +3209,7 @@ void FMediaPlayerFacade::ProcessSubtitleSamplesV1(IMediaSamples& Samples, TRange
 
 	while (Samples.FetchSubtitle(TimeRange, Sample))
 	{
-		if (Sample.IsValid() && !SubtitleSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxSubtitleSinkDepth))
+		if (Sample.IsValid() && !SubtitleSampleSinks.Enqueue(Sample.ToSharedRef()))
 		{
 			FString Caption = Sample->GetText().ToString();
 			UE_LOG(LogMediaUtils, Log, TEXT("New caption @%.3f: %s"), Sample->GetTime().Time.GetTotalSeconds(), *Caption);
@@ -3192,7 +3228,7 @@ void FMediaPlayerFacade::ProcessMetadataSamplesV1(IMediaSamples& Samples, TRange
 
 	while (Samples.FetchMetadata(TimeRange, Sample))
 	{
-		if (Sample.IsValid() && !MetadataSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxMetadataSinkDepth))
+		if (Sample.IsValid() && !MetadataSampleSinks.Enqueue(Sample.ToSharedRef()))
 		{
 #if MEDIAPLAYERFACADE_TRACE_SINKOVERFLOWS
 			UE_LOG(LogMediaUtils, VeryVerbose, TEXT("PlayerFacade %p: Metadata sample sink overflow"), this);

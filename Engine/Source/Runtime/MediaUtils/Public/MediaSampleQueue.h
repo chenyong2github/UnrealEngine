@@ -31,8 +31,8 @@ class TMediaSampleQueue
 {
 public:
 
-	/** Default constructor. */
-	TMediaSampleQueue()
+	TMediaSampleQueue(int32 InMaxSamplesInQueue = -1)
+		: MaxSamplesInQueue(InMaxSamplesInQueue)
 	{ }
 
 	/** Virtual destructor. */
@@ -272,6 +272,11 @@ public:
 	{
 		FScopeLock Lock(&CriticalSection);
 
+		if ((MaxSamplesInQueue > 0) && (Samples.Num() >= MaxSamplesInQueue))
+		{
+			return false;
+		}
+
 		Samples.Push(Sample);
 		return true;
 	}
@@ -280,6 +285,11 @@ public:
 	{
 		FScopeLock Lock(&CriticalSection);
 		Samples.Empty();
+	}
+
+	virtual bool CanAcceptSamples(int32 NumSamples) const override
+	{
+		return (MaxSamplesInQueue < 0) || ((Samples.Num() + NumSamples) <= MaxSamplesInQueue);
 	}
 
 protected:
@@ -337,6 +347,7 @@ protected:
 
 	mutable FCriticalSection CriticalSection;
 	TArray<TSharedPtr<SampleType, ESPMode::ThreadSafe>> Samples;
+	int32 MaxSamplesInQueue;
 };
 
 
@@ -344,8 +355,9 @@ protected:
 class FMediaAudioSampleQueue : public TMediaSampleQueue<class IMediaAudioSample, class FMediaAudioSampleSink>
 {
 public:
-	FMediaAudioSampleQueue(int32 InMaxAudioSamplesInQueue = -1)
-		: MaxAudioSamplesInQueue(InMaxAudioSamplesInQueue) {}
+	FMediaAudioSampleQueue(uint32 MaxSamplesInQueue = -1)
+		: TMediaSampleQueue<class IMediaAudioSample, class FMediaAudioSampleSink>(MaxSamplesInQueue)
+	{ }
 
 	void SetAudioTime(const FMediaTimeStampSample & InAudioTime)
 	{
@@ -371,26 +383,7 @@ public:
 		TMediaSampleQueue<class IMediaAudioSample, class FMediaAudioSampleSink>::RequestFlush();
 		AudioTime.Invalidate();
 	}
-
-	virtual bool Enqueue(const TSharedRef<IMediaAudioSample, ESPMode::ThreadSafe>& Sample) override
-	{
-		FScopeLock Lock(&CriticalSection);
-
-		if (MaxAudioSamplesInQueue > 0 && Samples.Num() >= MaxAudioSamplesInQueue)
-		{
-			return false;
-		}
-
-		Samples.Push(Sample);
-		return true;
-	}
-
-	virtual bool CanAcceptSamples(int32 NumSamples) const
-	{
-		return (Samples.Num() + NumSamples) <= MaxAudioSamplesInQueue;
-	}
 private:
-	int32 MaxAudioSamplesInQueue;
 	FMediaTimeStampSample AudioTime;
 };
 

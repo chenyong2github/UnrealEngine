@@ -63,7 +63,7 @@ UMediaPlayer::UMediaPlayer(const FObjectInitializer& ObjectInitializer)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		PlayerFacade = MakeShareable(new FMediaPlayerFacade());
+		PlayerFacade = MakeShareable(new FMediaPlayerFacade(this));
 		PlayerFacade->OnMediaEvent().AddUObject(this, &UMediaPlayer::HandlePlayerMediaEvent);
 	}
 }

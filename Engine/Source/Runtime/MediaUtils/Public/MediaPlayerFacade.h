@@ -80,7 +80,7 @@ public:
 public:
 
 	/** Default constructor. */
-	FMediaPlayerFacade();
+	FMediaPlayerFacade(TWeakObjectPtr<UMediaPlayer> InMediaPlayer);
 
 	/** Virtual destructor. */
 	virtual ~FMediaPlayerFacade();
@@ -867,6 +867,8 @@ private:
 
 	bool ContinueOpen(IMediaPlayerLifecycleManagerDelegate::IControlRef NewLifecycleManagerDelegateControl, const FString& Url, const IMediaOptions* Options, const FMediaPlayerOptions* PlayerOptions, IMediaPlayerFactory* PlayerFactory, TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> ReusedPlayer, bool bCreateNewPlayer, uint64 NewPlayerInstanceID);
 
+	void SendSinkEvent(EMediaSampleSinkEvent Event, const FMediaSampleSinkEventData& Data);
+
 	/** Audio sample sinks. */
 	TWeakPtr<FMediaAudioSampleSink, ESPMode::ThreadSafe> PrimaryAudioSink;
 	FMediaAudioSampleSinks AudioSampleSinks;
@@ -1021,6 +1023,9 @@ private:
 
 	/** Mediamodule we are working in */
 	IMediaModule* MediaModule;
+
+	/** UMediaplayer we are working with */
+	TWeakObjectPtr<UMediaPlayer> MediaPlayer;
 
 	/** Control interface for lifecycle manager delegate */
 	IMediaPlayerLifecycleManagerDelegate::IControlRef LifecycleManagerDelegateControl;

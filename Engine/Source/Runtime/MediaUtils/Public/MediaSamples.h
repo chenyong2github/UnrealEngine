@@ -24,6 +24,17 @@ class MEDIAUTILS_API FMediaSamples
 	: public IMediaSamples
 {
 public:
+	static constexpr uint32 MaxNumberOfQueuedVideoSamples = 4;
+	static constexpr uint32 MaxNumberOfQueuedAudioSamples = 4;
+	static constexpr uint32 MaxNumberOfQueuedCaptionSamples = 4;
+	static constexpr uint32 MaxNumberOfQueuedSubtitlesSamples = 4;
+	static constexpr uint32 MaxNumberOfQueuedMetaDataSamples = 4;
+
+	FMediaSamples(uint32 InMaxNumberOfQueuedAudioSamples = MaxNumberOfQueuedAudioSamples,
+				  uint32 InMaxNumberOfQueuedVideoSamples = MaxNumberOfQueuedVideoSamples,
+				  uint32 InMaxNumberOfQueuedCaptionSamples = MaxNumberOfQueuedCaptionSamples,
+				  uint32 InMaxNumberOfQueuedSubtitlesSamples = MaxNumberOfQueuedSubtitlesSamples,
+				  uint32 InMaxNumberOfQueuedMetaDataSamples = MaxNumberOfQueuedMetaDataSamples);
 
 	/**
 	 * Add the given audio sample to the cache.
@@ -201,6 +212,9 @@ public:
 
 	virtual bool CanReceiveVideoSamples(uint32 Num) const override;
 	virtual bool CanReceiveAudioSamples(uint32 Num) const override;
+	virtual bool CanReceiveSubtitleSamples(uint32 Num) const override;
+	virtual bool CanReceiveCaptionSamples(uint32 Num) const override;
+	virtual bool CanReceiveMetadataSamples(uint32 Num) const override;
 
 private:
 
