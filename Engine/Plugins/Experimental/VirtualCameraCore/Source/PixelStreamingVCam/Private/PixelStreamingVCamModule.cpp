@@ -25,10 +25,8 @@ namespace UE::PixelStreamingVCam::Private
 
 	void FPixelStreamingVCamModule::ShutdownModule()
 	{
-		if (FModuleManager::Get().IsModuleLoaded(TEXT("DecoupledOutputProvider")))
-		{
-			DecoupledOutputProvider::IDecoupledOutputProviderModule::Get().UnregisterLogicFactory(UVCamPixelStreamingSession::StaticClass());
-		}
+		// DecoupledOutputProvider will also be destroyed in a moment (part of same plugin) so we do not have to call IDecoupledOutputProviderModule::UnregisterLogicFactory.
+		// In fact doing so would not even work because UVCamPixelStreamingSession::StaticClass() would return garbage.
 	}
 }
 
