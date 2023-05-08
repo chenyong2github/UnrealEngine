@@ -348,9 +348,14 @@ void MainPS(
 	// Sample the ambient occlusion that is dynamically generated every frame.
 	const float DynamicAmbientOcclusion = AmbientOcclusionTexture.SampleLevel(AmbientOcclusionSampler, SceneBufferUV, 0).r;
 
-	// Compute the final ambient occlusion to be applied.
-	const float AOMask = IsValid(Material);
-	const float FinalAmbientOcclusion = lerp(1.0f, Material.MaterialAO * DynamicAmbientOcclusion, AOMask * AmbientOcclusionStaticFraction);
+	// Compute the final ambient occlusion to be applied. Lumen handles material AO internally.
+	float FinalAmbientOcclusion = 1.0f;
+	#if DIM_APPLY_DIFFUSE_INDIRECT != DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
+	{
+		float AOMask = IsValid(Material);
+		FinalAmbientOcclusion = lerp(1.0f, Material.MaterialAO * DynamicAmbientOcclusion, AOMask * AmbientOcclusionStaticFraction);
+	}
+	#endif
 
 	const float3 TranslatedWorldPosition = mul(float4(GetScreenPositionForProjectionType(ScreenPosition, Material.SceneDepth), Material.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 

@@ -1326,6 +1326,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			PermutationVector.Set<FDiffuseIndirectCompositePS::FStrataTileType>(EStrataTileType::EComplex);
 
 			bool bUpscale = false;
+			bool bApplyAOToSceneColor = true;
 
 			if (DenoiserOutputs.Textures[0])
 			{
@@ -1343,6 +1344,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 						PermutationVector.Set<FDiffuseIndirectCompositePS::FStrataTileType>(TileType);
 					}
 					DiffuseIndirectSampling = TEXT("ScreenProbeGather");
+					bApplyAOToSceneColor = false;
 				}
 				else
 				{
@@ -1361,9 +1363,23 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			FRHIBlendState* BlendState;
 			if (!bEnableCopyPass)
 			{
-				BlendState = PermutationVector.Get<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>() > 0 ?
-					TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Source1Color, BO_Add, BF_One, BF_Source1Alpha>::GetRHI() :
-					TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_SourceAlpha>::GetRHI();
+				if (PermutationVector.Get<FDiffuseIndirectCompositePS::FApplyDiffuseIndirectDim>() > 0)
+				{
+					if (bApplyAOToSceneColor)
+					{
+						// FinalColor = SceneColor * AO + Indirect;
+						BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Source1Color, BO_Add, BF_One, BF_Source1Alpha>::GetRHI();
+					}
+					else
+					{
+						// FinalColor = SceneColor + Indirect;
+						BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+					}
+				}		
+				else
+				{
+					BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_SourceAlpha>::GetRHI();
+				}
 			}
 			else
 			{
