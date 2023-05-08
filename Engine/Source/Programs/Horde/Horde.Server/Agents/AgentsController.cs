@@ -40,25 +40,6 @@ namespace Horde.Server.Agents
 		}
 
 		/// <summary>
-		/// Register an agent to perform remote work.
-		/// </summary>
-		/// <param name="request">Request parameters</param>
-		/// <returns>Information about the registered agent</returns>
-		[HttpPost]
-		[Route("/api/v1/agents")]
-		public async Task<ActionResult<CreateAgentResponse>> CreateAgentAsync([FromBody] CreateAgentRequest request)
-		{
-			if(!_globalConfig.Value.Authorize(AgentAclAction.CreateAgent, User))
-			{
-				return Forbid(AgentAclAction.CreateAgent);
-			}
-
-			IAgent agent = await _agentService.CreateAgentAsync(request.Name, request.Enabled, request.Pools?.ConvertAll(x => new PoolId(x)));
-
-			return new CreateAgentResponse(agent.Id.ToString());
-		}
-
-		/// <summary>
 		/// Finds the agents matching specified criteria.
 		/// </summary>
 		/// <param name="poolId">The pool containing the agent</param>

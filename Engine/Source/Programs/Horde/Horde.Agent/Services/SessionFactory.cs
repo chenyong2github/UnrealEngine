@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -128,6 +129,12 @@ namespace Horde.Agent.Services
 			_logger = logger;
 		}
 
+		class AgentRegistration
+		{
+			public string? Id { get; set; }
+			public string? Token { get; set; }
+		}
+
 		/// <summary>
 		/// Creates a new agent session
 		/// </summary>
@@ -182,15 +189,18 @@ namespace Horde.Agent.Services
 				}
 			}
 
+			// Read the registration settings
+			AgentRegistration registrationInfo = await GetAgentRegistrationAsync(grpcService, currentSettings, logger, cancellationToken);
+
 			// Create the session
 			CreateSessionResponse createSessionResponse;
-			using (GrpcChannel channel = grpcService.CreateGrpcChannel(serverProfile.Token))
+			using (GrpcChannel channel = grpcService.CreateGrpcChannel(registrationInfo.Token))
 			{
 				HordeRpc.HordeRpcClient rpcClient = new HordeRpc.HordeRpcClient(channel);
 
 				// Create the session information
 				CreateSessionRequest sessionRequest = new CreateSessionRequest();
-				sessionRequest.Name = currentSettings.GetAgentName();
+				sessionRequest.Id = registrationInfo.Id;
 				sessionRequest.Status = AgentStatus.Ok;
 				sessionRequest.Capabilities = capabilities;
 				sessionRequest.Version = Program.Version;
@@ -216,6 +226,55 @@ namespace Horde.Agent.Services
 		public async ValueTask DisposeAsync()
 		{
 			await RpcConnection.DisposeAsync();
+		}
+
+		/// <summary>
+		/// Registers the agent with the server
+		/// </summary>
+		static async Task<AgentRegistration> GetAgentRegistrationAsync(GrpcService grpcService, AgentSettings currentSettings, ILogger logger, CancellationToken cancellationToken)
+		{
+			// Get the location of the registration file
+			DirectoryReference? settingsDir = DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData);
+			if (settingsDir == null)
+			{
+				settingsDir = DirectoryReference.GetCurrentDirectory();
+			}
+			else
+			{
+				settingsDir = DirectoryReference.Combine(settingsDir, "Horde.Agent");
+			}
+
+			FileReference settingsFile = FileReference.Combine(settingsDir, "registration.json");
+
+			// Read existing settings if possible
+			AgentRegistration? registrationInfo = null;
+			if (FileReference.Exists(settingsFile))
+			{
+				byte[] settingsData = await FileReference.ReadAllBytesAsync(settingsFile, cancellationToken);
+				registrationInfo = JsonSerializer.Deserialize<AgentRegistration>(settingsData, Program.DefaultJsonSerializerOptions);
+				logger.LogInformation("Read agent registration settings from {SettingsFile}", settingsFile);
+			}
+
+			// If they aren't valid, create a new agent registration
+			if (registrationInfo == null || registrationInfo.Id == null || registrationInfo.Token == null)
+			{
+				ServerProfile serverProfile = currentSettings.GetCurrentServerProfile();
+				using (GrpcChannel channel = grpcService.CreateGrpcChannel(serverProfile.Token))
+				{
+					HordeRpc.HordeRpcClient rpcClient = new HordeRpc.HordeRpcClient(channel);
+
+					CreateAgentRequest createAgentRequest = new CreateAgentRequest();
+					createAgentRequest.Name = currentSettings.GetAgentName();
+
+					CreateAgentResponse createAgentResponse = await rpcClient.CreateAgentAsync(createAgentRequest, null, null, cancellationToken);
+					registrationInfo = new AgentRegistration { Id = createAgentResponse.Id, Token = createAgentResponse.Token };
+					JsonSerializer.SerializeToUtf8Bytes(registrationInfo, Program.DefaultJsonSerializerOptions);
+
+					logger.LogInformation("Created agent (Id={AgentId}). Settings saved to {File}.", createAgentResponse.Id, settingsFile);
+				}
+			}
+
+			return registrationInfo;
 		}
 
 		/// <inheritdoc/>

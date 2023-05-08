@@ -442,7 +442,7 @@ namespace Horde.Agent.Tests
 		public CreateSessionResponse OnCreateSessionRequest(CreateSessionRequest request)
 		{
 			CreateSessionReceived.TrySetResult(true);
-			_logger.LogInformation("OnCreateSessionRequest: {Name} {Status}", request.Name, request.Status);
+			_logger.LogInformation("OnCreateSessionRequest: {AgentId} {Status}", request.Id, request.Status);
 			CreateSessionResponse response = new()
 			{
 				AgentId = "bogusAgentId",

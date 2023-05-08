@@ -296,7 +296,7 @@ namespace Horde.Server.Tests
 			CreateSessionRequest req = new CreateSessionRequest();
 			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => RpcService.CreateSession(req, _adminContext));
 
-			req.Name = "MyName";
+			req.Id = new AgentId("MyName").ToString();
 			await Assert.ThrowsExceptionAsync<StructuredRpcException>(() => RpcService.CreateSession(req, _adminContext));
 
 			req.Capabilities = new AgentCapabilities();
@@ -309,7 +309,7 @@ namespace Horde.Server.Tests
 		[TestMethod]
 		public async Task AgentJoinsPoolThroughProperties()
 		{
-			CreateSessionRequest req = new () { Name = "bogusAgentName", Capabilities = new AgentCapabilities() };
+			CreateSessionRequest req = new () { Id = new AgentId("bogusAgentName").ToString(), Capabilities = new AgentCapabilities() };
 			req.Capabilities.Properties.Add($"{KnownPropertyNames.RequestedPools}=fooPool,barPool");
 			CreateSessionResponse res = await RpcService.CreateSession(req, _adminContext);
 
@@ -317,7 +317,7 @@ namespace Horde.Server.Tests
 			CollectionAssert.AreEquivalent(new List<PoolId> { new ("fooPool"), new ("barPool") }, agent.GetPools().ToList());
 			
 			// Connect a second time, when the agent has already been created
-			req = new () { Name = "bogusAgentName", Capabilities = new AgentCapabilities() };
+			req = new () { Id = new AgentId("bogusAgentName").ToString(), Capabilities = new AgentCapabilities() };
 			req.Capabilities.Properties.Add($"{KnownPropertyNames.RequestedPools}=bazPool");
 			res = await RpcService.CreateSession(req, _adminContext);
 
@@ -328,7 +328,7 @@ namespace Horde.Server.Tests
 		[TestMethod]
 		public async Task PropertiesFromAgentCapabilities()
 		{
-			CreateSessionRequest req = new () { Name = "bogusAgentName", Capabilities = new AgentCapabilities() };
+			CreateSessionRequest req = new () { Id = new AgentId("bogusAgentName").ToString(), Capabilities = new AgentCapabilities() };
 			req.Capabilities.Properties.Add("fooKey=barValue");
 			CreateSessionResponse res = await RpcService.CreateSession(req, _adminContext);
 			IAgent agent = (await AgentService.GetAgentAsync(new AgentId(res.AgentId)))!;
@@ -338,7 +338,7 @@ namespace Horde.Server.Tests
 		[TestMethod]
 		public async Task PropertiesFromDeviceCapabilities()
 		{
-			CreateSessionRequest req = new () { Name = "bogusAgentName", Capabilities = new AgentCapabilities() };
+			CreateSessionRequest req = new () { Id = new AgentId("bogusAgentName").ToString(), Capabilities = new AgentCapabilities() };
 			req.Capabilities.Devices.Add(new DeviceCapabilities { Handle = "someHandle", Properties = { "foo=bar" } });
 			CreateSessionResponse res = await RpcService.CreateSession(req, _adminContext);
 			IAgent agent = (await AgentService.GetAgentAsync(new AgentId(res.AgentId)))!;
@@ -348,7 +348,7 @@ namespace Horde.Server.Tests
 		[TestMethod]
 		public async Task KnownPropertiesAreSetAsResources()
 		{
-			CreateSessionRequest req = new () { Name = "bogusAgentName", Capabilities = new AgentCapabilities() };
+			CreateSessionRequest req = new () { Id = new AgentId("bogusAgentName").ToString(), Capabilities = new AgentCapabilities() };
 			req.Capabilities.Devices.Add(new DeviceCapabilities { Handle = "someHandle", Properties = { $"{KnownPropertyNames.LogicalCores}=10" }});
 			CreateSessionResponse res = await RpcService.CreateSession(req, _adminContext);
 			IAgent agent = (await AgentService.GetAgentAsync(new AgentId(res.AgentId)))!;
@@ -360,7 +360,7 @@ namespace Horde.Server.Tests
 		{
 			CreateSessionRequest createReq = new CreateSessionRequest
 			{
-				Name = "UpdateSessionTest1", Capabilities = new AgentCapabilities()
+				Id = new AgentId("UpdateSessionTest1").ToString(), Capabilities = new AgentCapabilities()
 			};
 			CreateSessionResponse createRes = await RpcService.CreateSession(createReq, _adminContext);
 			string agentId = createRes.AgentId;
@@ -405,7 +405,7 @@ namespace Horde.Server.Tests
 		{
 			CreateSessionRequest createReq = new CreateSessionRequest
 			{
-				Name = "UpdateSessionTest1", Capabilities = new AgentCapabilities()
+				Id = new AgentId("UpdateSessionTest1").ToString(), Capabilities = new AgentCapabilities()
 			};
 			CreateSessionResponse createRes = await RpcService.CreateSession(createReq, _adminContext);
 			string agentId = createRes.AgentId;

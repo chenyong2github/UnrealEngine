@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
 using Amazon.EC2.Model;
@@ -56,13 +57,14 @@ namespace Horde.Server.Server
 		readonly ConformTaskSource _conformTaskSource;
 		readonly JobRpcCommon _jobRpcCommon;
 		readonly IToolCollection _toolCollection;
+		readonly AclService _aclService;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RpcService(AgentService agentService, PoolService poolService, LifetimeService lifetimeService, ITelemetrySink telemetrySink, ConformTaskSource conformTaskSource, JobRpcCommon jobRpcCommon, IToolCollection toolCollection, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
+		public RpcService(AgentService agentService, PoolService poolService, LifetimeService lifetimeService, ITelemetrySink telemetrySink, ConformTaskSource conformTaskSource, JobRpcCommon jobRpcCommon, IToolCollection toolCollection, AclService aclService, IOptionsSnapshot<GlobalConfig> globalConfig, ILogger<RpcService> logger)
 		{
 			_agentService = agentService;
 			_poolService = poolService;
@@ -71,6 +73,7 @@ namespace Horde.Server.Server
 			_conformTaskSource = conformTaskSource;
 			_jobRpcCommon = jobRpcCommon;
 			_toolCollection = toolCollection;
+			_aclService = aclService;
 			_globalConfig = globalConfig;
 			_logger = logger;
 		}
@@ -245,6 +248,39 @@ namespace Horde.Server.Server
 		}
 
 		/// <summary>
+		/// Creates a new agent
+		/// </summary>
+		/// <param name="request">Request to create a new agent</param>
+		/// <param name="context">Context for the RPC call</param>
+		/// <returns>Information about the new agent</returns>
+		public override async Task<CreateAgentResponse> CreateAgent(CreateAgentRequest request, ServerCallContext context)
+		{
+			using IDisposable scope = _logger.BeginScope("CreateAgent({AgentId})", request.Name.ToString());
+
+			if (!_globalConfig.Value.Authorize(AgentAclAction.CreateAgent, context.GetHttpContext().User))
+			{
+				throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create new agents");
+			}
+
+			// TODO: Do not allow overwriting existing agents unless explicitly asked to. We may be reusing an IP or hostname, and we can't trust the agent is what it says it is.
+			IAgent? agent = await _agentService.GetAgentAsync(new AgentId(request.Name));
+			if (agent == null)
+			{
+				// TODO: Once we have this flow nailed down, do not enable agents until approved for joining the farm.
+				agent = await _agentService.CreateAgentAsync(request.Name, true, null);
+			}
+
+			List<AclClaimConfig> claims = new List<AclClaimConfig>();
+			claims.Add(new AclClaimConfig(HordeClaimTypes.Agent, agent.Id.ToString()));
+
+			CreateAgentResponse response = new CreateAgentResponse();
+			response.Id = agent.Id.ToString();
+			response.Token = await _aclService.IssueBearerTokenAsync(claims, null);
+
+			return response;
+		}
+
+		/// <summary>
 		/// Creates a new session
 		/// </summary>
 		/// <param name="request">Request to create a new agent</param>
@@ -257,7 +293,7 @@ namespace Horde.Server.Server
 				throw new StructuredRpcException(StatusCode.InvalidArgument, "Capabilities may not be null");
 			}
 
-			AgentId agentId = new AgentId(request.Name);
+			AgentId agentId = new AgentId(request.Id);
 			using IDisposable scope = _logger.BeginScope("CreateSession({AgentId})", agentId.ToString());
 
 			GlobalConfig globalConfig = _globalConfig.Value;
@@ -271,13 +307,14 @@ namespace Horde.Server.Server
 					throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create new agents");
 				}
 
-				agent = await _agentService.CreateAgentAsync(request.Name, true, null);
+				agent = await _agentService.CreateAgentAsync(request.Id, true, null);
 			}
 
 			// Make sure we're allowed to create sessions on this agent
-			if (!globalConfig.Authorize(SessionAclAction.CreateSession, context.GetHttpContext().User))
+			ClaimsPrincipal user = context.GetHttpContext().User;
+			if (!globalConfig.Authorize(SessionAclAction.CreateSession, user) && !user.HasAgentClaim(agentId))
 			{
-				throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create session for {AgentId}", request.Name);
+				throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create session for {AgentId}", agentId);
 			}
 
 			// Get the known properties for this agent
@@ -287,7 +324,7 @@ namespace Horde.Server.Server
 			agent = await _agentService.CreateSessionAsync(agent, request.Status, properties, resources, request.Version);
 			if (agent == null)
 			{
-				throw new StructuredRpcException(StatusCode.NotFound, "Agent {AgentId} not found", request.Name);
+				throw new StructuredRpcException(StatusCode.NotFound, "Agent {AgentId} not found", agentId);
 			}
 
 			// Create the response

@@ -84,7 +84,7 @@ namespace Horde.Server.Acls
 		/// <returns></returns>
 		public static AgentId? GetAgentId(ClaimsPrincipal user)
 		{
-			Claim? claim = user.Claims.FirstOrDefault(x => x.Type == HordeClaimTypes.AgentId);
+			Claim? claim = user.Claims.FirstOrDefault(x => x.Type == HordeClaimTypes.Agent);
 			if (claim == null)
 			{
 				return null;
@@ -101,6 +101,11 @@ namespace Horde.Server.Acls
 		public static bool HasAdminClaim(this ClaimsPrincipal user)
 		{
 			return user.HasClaim(HordeClaims.AdminClaim.Type, HordeClaims.AdminClaim.Value);
+		}
+
+		public static bool HasAgentClaim(this ClaimsPrincipal user, AgentId agentId)
+		{
+			return user.HasClaim(HordeClaimTypes.Agent, agentId.ToString());
 		}
 
 		public static bool HasLeaseClaim(this ClaimsPrincipal user, LeaseId leaseId)

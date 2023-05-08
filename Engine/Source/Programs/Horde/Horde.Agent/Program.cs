@@ -9,6 +9,8 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace;
@@ -88,6 +90,11 @@ namespace Horde.Agent
 		/// The current application version
 		/// </summary>
 		public static string Version { get; } = GetVersion();
+
+		/// <summary>
+		/// Default settings for json serialization
+		/// </summary>
+		public static JsonSerializerOptions DefaultJsonSerializerOptions { get; } = new JsonSerializerOptions { AllowTrailingCommas = true, PropertyNameCaseInsensitive = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
 		/// <summary>
 		/// Entry point

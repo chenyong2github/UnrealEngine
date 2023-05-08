@@ -13,53 +13,6 @@ using Horde.Server.Agents.Sessions;
 namespace Horde.Server.Agents
 {
 	/// <summary>
-	/// Parameters to register a new agent
-	/// </summary>
-	public class CreateAgentRequest
-	{
-		/// <summary>
-		/// Friendly name for the agent
-		/// </summary>
-		[Required]
-		public string Name { get; set; } = null!; // Enforced by [required] attribute
-
-		/// <summary>
-		/// Whether the agent is currently enabled
-		/// </summary>
-		public bool Enabled { get; set; } = true;
-
-		/// <summary>
-		/// Whether the agent is ephemeral (ie. should not be shown when inactive)
-		/// </summary>
-		public bool Ephemeral { get; set; }
-
-		/// <summary>
-		/// Pools for this agent
-		/// </summary>
-		public List<string>? Pools { get; set; }
-	}
-
-	/// <summary>
-	/// Response from creating an agent
-	/// </summary>
-	public class CreateAgentResponse
-	{
-		/// <summary>
-		/// Unique id for the new agent
-		/// </summary>
-		public string Id { get; set; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="id">Unique id for this agent</param>
-		public CreateAgentResponse(string id)
-		{
-			Id = id;
-		}
-	}
-
-	/// <summary>
 	/// Parameters to update an agent
 	/// </summary>
 	public class UpdateAgentRequest

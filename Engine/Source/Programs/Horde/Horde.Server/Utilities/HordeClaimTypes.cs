@@ -22,9 +22,9 @@ namespace Horde.Server.Utilities
 		public const string Role = Prefix + "role";
 
 		/// <summary>
-		/// Claim for a particular session
+		/// Claim for a particular agent
 		/// </summary>
-		public const string AgentId = Prefix + "agent";
+		public const string Agent = Prefix + "agent";
 
 		/// <summary>
 		/// Claim for a particular session

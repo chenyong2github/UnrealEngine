@@ -53,7 +53,7 @@ namespace Horde.Server.Utilities
 		/// <returns>New claim instance</returns>
 		public static AclClaimConfig GetAgentClaim(AgentId agentId)
 		{
-			return new AclClaimConfig(HordeClaimTypes.AgentId, agentId.ToString());
+			return new AclClaimConfig(HordeClaimTypes.Agent, agentId.ToString());
 		}
 
 		/// <summary>
