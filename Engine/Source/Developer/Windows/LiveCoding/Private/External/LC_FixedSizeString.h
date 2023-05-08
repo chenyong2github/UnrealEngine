@@ -15,6 +15,7 @@ public:
 
 	FixedSizeString(void);
 	explicit FixedSizeString(const T* other);
+	FixedSizeString(const FixedSizeString<T, N>& other);
 	FixedSizeString(const T* other, unsigned int length);
 
 	FixedSizeString<T, N>& operator=(const FixedSizeString<T, N>& other);

@@ -28,6 +28,14 @@ FixedSizeString<T, N>::FixedSizeString(const T* other)
 
 
 template <typename T, unsigned int N>
+FixedSizeString<T, N>::FixedSizeString(const FixedSizeString<T, N>& other)
+	: m_length(other.m_length)
+{
+	memcpy(m_data, other.m_data, sizeof(T)*(other.m_length + 1u));
+}
+
+
+template <typename T, unsigned int N>
 FixedSizeString<T, N>::FixedSizeString(const T* other, unsigned int length)
 	: m_length(length)
 {
