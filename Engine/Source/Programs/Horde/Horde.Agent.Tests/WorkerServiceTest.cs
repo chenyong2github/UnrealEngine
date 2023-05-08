@@ -235,7 +235,7 @@ namespace Horde.Agent.Tests
 			});
 
 			_serviceCollection.AddSingleton<IJobExecutorFactory>(x => new SimpleTestExecutorFactory(executor));
-			using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
+			await using ServiceProvider serviceProvider = _serviceCollection.BuildServiceProvider();
 
 			using CancellationTokenSource cts = new ();
 			cts.CancelAfter(20000);
