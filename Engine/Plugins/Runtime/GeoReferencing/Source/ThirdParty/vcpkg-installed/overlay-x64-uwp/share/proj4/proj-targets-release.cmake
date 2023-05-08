@@ -12,8 +12,8 @@ set_target_properties(PROJ::proj PROPERTIES
   IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/proj.lib"
   )
 
-list(APPEND _IMPORT_CHECK_TARGETS PROJ::proj )
-list(APPEND _IMPORT_CHECK_FILES_FOR_PROJ::proj "${_IMPORT_PREFIX}/lib/proj.lib" )
+list(APPEND _cmake_import_check_targets PROJ::proj )
+list(APPEND _cmake_import_check_files_for_PROJ::proj "${_IMPORT_PREFIX}/lib/proj.lib" )
 
 # Commands beyond this point should not need to know the version.
 set(CMAKE_IMPORT_FILE_VERSION)

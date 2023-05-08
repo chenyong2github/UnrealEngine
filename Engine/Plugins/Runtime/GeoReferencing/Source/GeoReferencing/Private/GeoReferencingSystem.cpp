@@ -14,10 +14,18 @@
 #include "HAL/PlatformFileManager.h"
 #include "GeographicCoordinates.h"
 #include "MathUtil.h"
+#include "Components/BillboardComponent.h"
  
+#if WITH_EDITOR
+
+#include "UObject/ConstructorHelpers.h"
+#include "Engine/Texture2D.h"
+
+#endif
 
 #include "Misc/Paths.h"
 #include "UFSProjSupport.h"
+#include "proj.h"
 
 THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
@@ -28,6 +36,37 @@ THIRD_PARTY_INCLUDES_END
 #define GEOREF_DOUBLE_SMALL_NUMBER			(1.e-50)
 
 
+
+AGeoReferencingSystem::AGeoReferencingSystem(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	if (!IsRunningCommandlet())
+	{
+		// Structure to hold one-time initialization
+		struct FConstructorStatics
+		{
+			ConstructorHelpers::FObjectFinderOptional<UTexture2D> GeoReferencingTextureObject;
+			FName ID_GeoReferencing;
+			FText NAME_GeoReferencing;
+			FConstructorStatics()
+				: GeoReferencingTextureObject(TEXT("/GeoReferencing/UI/Icons/S_GeoReferencing"))
+				, ID_GeoReferencing(TEXT("GeoReferencing"))
+				, NAME_GeoReferencing(NSLOCTEXT("SpriteCategory", "GeoReferencing", "GeoReferencing"))
+			{
+			}
+		};
+		static FConstructorStatics ConstructorStatics;
+
+		if (GetSpriteComponent())
+		{
+			GetSpriteComponent()->Sprite = ConstructorStatics.GeoReferencingTextureObject.Get();
+			GetSpriteComponent()->SpriteInfo.Category = ConstructorStatics.ID_GeoReferencing;
+			GetSpriteComponent()->SpriteInfo.DisplayName = ConstructorStatics.NAME_GeoReferencing;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+}
 
 
 AGeoReferencingSystem* AGeoReferencingSystem::GetGeoReferencingSystem(UObject* WorldContextObject)
@@ -866,6 +905,10 @@ void AGeoReferencingSystem::FGeoReferencingSystemInternals::InitPROJLibrary()
 	// Calculate and register the search path to the PROJ data
 	FString PluginBaseDir = IPluginManager::Get().FindPlugin("GeoReferencing")->GetBaseDir();
 	FString ProjDataPath = FPaths::Combine(*PluginBaseDir, TEXT("Resources/PROJ"));
+
+	UE_LOG(LogGeoReferencing, Display, TEXT("Setting search path in %s "), *ProjDataPath);
+
+
 	FTCHARToUTF8 Utf8ProjDataPath(*ProjDataPath);
 	const char* ProjSearchPaths[] =
 	{
@@ -873,19 +916,20 @@ void AGeoReferencingSystem::FGeoReferencingSystemInternals::InitPROJLibrary()
 	};
 	proj_context_set_search_paths(ProjContext, sizeof(ProjSearchPaths)/sizeof(ProjSearchPaths[0]), ProjSearchPaths);
 
+	// With PROJ 9.1.1 this function does nothing
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	proj_context_set_autoclose_database(ProjContext, true);
+	FString ProjDBFilePath = FPaths::Combine(*ProjDataPath, TEXT("proj.db"));
+	PlatformFile.SetReadOnly(*ProjDBFilePath, true); // Set it read only so that with PROJ 9.1.1 SQLite doesn't open the file with a write lock
 	
-
 	// Special case for Dedicated Server or client
 	// When running in a sandboxed environment, the PROJ data files are not staged in that environment by the Cooking process. 
 	// And our SQLite accessor will always want to find these files in the sandboxed location, never in the original one. 
 	// And we don't want to have to build the PAK files when iterating on the code
 	// Let's manually populate the sandbox environment. 
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	if (PlatformFile.IsSandboxEnabled())
 	{
 		// Ask the system for the expected location of the proj.db file, using ConvertToAbsolutePathForExternalAppForWrite (not ***Read, that falls back on the original location)
-		FString ProjDBFilePath = FPaths::Combine(*ProjDataPath, TEXT("proj.db"));
 		FString ProjDBFileSandboxPath = PlatformFile.ConvertToAbsolutePathForExternalAppForWrite(*ProjDBFilePath);
 		UE_LOG(LogGeoReferencing, Warning, TEXT("Running in Sandboxed mode with Proj.db expected in %s "), *ProjDBFileSandboxPath);
 
@@ -898,6 +942,8 @@ void AGeoReferencingSystem::FGeoReferencingSystemInternals::InitPROJLibrary()
 			FString TargetFolder = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*ProjDataPath); // Use **Write for the actual Sandboxed path. 
 			PlatformFile.GetLowerLevel()->CreateDirectoryTree(*TargetFolder); // Use lower level Platformfile (otherwise the sandbox path is added twice)
 			PlatformFile.GetLowerLevel()->CopyDirectoryTree(*TargetFolder, *ProjDataPath, false);
+
+			PlatformFile.SetReadOnly(*ProjDBFileSandboxPath, true); // Set it read only so that with PROJ 9.1.1 SQLite doesn't open the file with a write lock
 		}
 	}
 	// Non-editor builds use UFS extensions to read PROJ data from UFS/Pak

@@ -1,9 +1,9 @@
 # Version checking for PROJ4
 
-set (PACKAGE_VERSION "7.2.0")
-set (PACKAGE_VERSION_MAJOR "7")
-set (PACKAGE_VERSION_MINOR "2")
-set (PACKAGE_VERSION_PATCH "0")
+set (PACKAGE_VERSION "9.1.1")
+set (PACKAGE_VERSION_MAJOR "9")
+set (PACKAGE_VERSION_MINOR "1")
+set (PACKAGE_VERSION_PATCH "1")
 
 # These variable definitions parallel those in PROJ's
 # cmake/CMakeLists.txt.
@@ -37,21 +37,21 @@ elseif (NOT (APPLE OR (NOT DEFINED CMAKE_SIZEOF_VOID_P) OR
   set (PACKAGE_VERSION_UNSUITABLE TRUE)
 elseif (MSVC AND NOT (
     # toolset version must be at least as great as PROJ's
-    MSVC_TOOLSET_VERSION GREATER_EQUAL 142
+    MSVC_TOOLSET_VERSION GREATER_EQUAL 143
     # and major versions must match
     AND MSVC_TOOLSET_MAJOR EQUAL 14 ))
   # Reject if there's a mismatch in MSVC compiler versions
-  set (REASON "MSVC_TOOLSET_VERSION = 142")
+  set (REASON "MSVC_TOOLSET_VERSION = 143")
   set (PACKAGE_VERSION_UNSUITABLE TRUE)
 elseif (NOT CMAKE_CROSSCOMPILING_STR STREQUAL "ON")
   # Reject if there's a mismatch in ${CMAKE_CROSSCOMPILING}
-  set (REASON "cross-compiling = TRUE")
+  set (REASON "cross-compiling = ON")
   set (PACKAGE_VERSION_UNSUITABLE TRUE)
 elseif (CMAKE_CROSSCOMPILING AND
     NOT (CMAKE_SYSTEM_NAME STREQUAL "WindowsStore" AND
-      CMAKE_SYSTEM_PROCESSOR STREQUAL ""))
+      CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
   # Reject if cross-compiling and there's a mismatch in the target system
-  set (REASON "target = WindowsStore-")
+  set (REASON "target = WindowsStore-ARM64")
   set (PACKAGE_VERSION_UNSUITABLE TRUE)
 elseif (PACKAGE_FIND_VERSION)
   if (PACKAGE_FIND_VERSION VERSION_EQUAL PACKAGE_VERSION)

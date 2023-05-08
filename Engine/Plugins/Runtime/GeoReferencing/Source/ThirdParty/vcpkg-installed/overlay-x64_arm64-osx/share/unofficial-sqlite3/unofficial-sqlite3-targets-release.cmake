@@ -12,8 +12,8 @@ set_target_properties(unofficial::sqlite3::sqlite3 PROPERTIES
   IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libsqlite3.a"
   )
 
-list(APPEND _IMPORT_CHECK_TARGETS unofficial::sqlite3::sqlite3 )
-list(APPEND _IMPORT_CHECK_FILES_FOR_unofficial::sqlite3::sqlite3 "${_IMPORT_PREFIX}/lib/libsqlite3.a" )
+list(APPEND _cmake_import_check_targets unofficial::sqlite3::sqlite3 )
+list(APPEND _cmake_import_check_files_for_unofficial::sqlite3::sqlite3 "${_IMPORT_PREFIX}/lib/libsqlite3.a" )
 
 # Commands beyond this point should not need to know the version.
 set(CMAKE_IMPORT_FILE_VERSION)

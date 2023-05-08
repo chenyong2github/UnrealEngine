@@ -3,7 +3,7 @@
 setlocal
 
 :: this is a tag in the vcpkg repository
-set VCPKG_VERSION=2021.05.12
+set VCPKG_VERSION=2023.02.24
 
 :: this is where the artifacts get installed
 set VCPKG_INSTALLED=vcpkg-installed
@@ -34,12 +34,13 @@ call "%~dp0vcpkg\bootstrap-vcpkg.bat" -disableMetrics
 :: --editable leaves the source in the buildtree for easy local debugging and patch generation
 for %%x in (overlay-x64-windows overlay-x64-uwp overlay-arm64-uwp x64-android arm64-android) do (
     echo:
-    echo === Running vcpkg ===
-    "%~dp0vcpkg\vcpkg.exe" install --editable --x-install-root="%~dp0%VCPKG_INSTALLED%" --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=%%x "proj4[core,database]"
+    echo === Running vcpkg for triplet %%x ===
+	echo:
+    "%~dp0vcpkg\vcpkg.exe" install --editable --x-install-root="%~dp0%VCPKG_INSTALLED%" --overlay-triplets=./overlay-triplets --triplet=%%x "proj[core]"
     if ERRORLEVEL 1 exit /b 1
 
     echo:
-    echo === Reconciling %VCPKG_INSTALLED% artifacts ===
+    echo === Reconciling %VCPKG_INSTALLED% artifacts for triplet %%x ===
     for /f "delims=" %%f in ("%~dp0%VCPKG_INSTALLED%\%%x") do p4 reconcile "%%~ff\..."
 )
 
@@ -51,7 +52,7 @@ attrib -r "%~dp0..\..\Resources\PROJ\*.*" /s
 rmdir /s /q "%~dp0..\..\Resources\PROJ"
 
 :: copy the files
-robocopy /MIR /MT "%~dp0%VCPKG_INSTALLED%\overlay-x64-windows\share\proj4" "%~dp0..\..\Resources\PROJ"
+robocopy /MIR /MT "%~dp0%VCPKG_INSTALLED%\overlay-x64-windows\share\proj" "%~dp0..\..\Resources\PROJ"
 
 :: delete some extra stuff
 del "%~dp0..\..\Resources\PROJ\*.cmake"
@@ -59,5 +60,8 @@ del "%~dp0..\..\Resources\PROJ\vcpkg*.*"
 
 :: reconcile in p4 (for /f will handle relative paths that p4 can't handle)
 for /f "delims=" %%f in ("%~dp0..\..\Resources\PROJ") do p4 reconcile "%%~ff\..."
+
+echo:
+echo === DONE ===
 
 endlocal

@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 # this is a tag in the vcpkg repository
-VCPKG_VERSION=2021.05.12
+VCPKG_VERSION=2023.02.24
 
 # this is where the artifacts get installed
 VCPKG_INSTALLED=vcpkg-installed
@@ -27,7 +27,7 @@ if [ `uname` == "Linux" ]; then
   fi
 
   # Full path to toolchain root
-  export LINUX_MULTIARCH_ROOT="${LINUX_MULTIARCH_ROOT:-${UE_SDKS_ROOT}/HostLinux/Linux_x64/v17_clang-10.0.1-centos7}"
+  export LINUX_MULTIARCH_ROOT="${LINUX_MULTIARCH_ROOT:-${UE_SDKS_ROOT}/HostLinux/Linux_x64/v21_clang-15.0.1-centos7}"
 
   # Sanity compiler existence
   if [[ ! -d "${LINUX_MULTIARCH_ROOT}" ]]; then
@@ -63,10 +63,10 @@ if [ `uname` == "Linux" ]; then
   SET(CMAKE_C_COMPILER_TARGET     \${ARCHITECTURE_TRIPLE})
   SET(CMAKE_C_FLAGS "-fPIC -fms-extensions -target \${ARCHITECTURE_TRIPLE}")
 
-  include_directories("${THIRD_PARTY}/Linux/LibCxx/include")
-  include_directories("${THIRD_PARTY}/Linux/LibCxx/include/c++/v1")
+  include_directories("${THIRD_PARTY}/Unix/LibCxx/include")
+  include_directories("${THIRD_PARTY}/Unix/LibCxx/include/c++/v1")
 
-  set(CMAKE_LINKER_FLAGS "-stdlib=libc++ -L${THIRD_PARTY}/Linux/LibCxx/lib/Linux/\${ARCHITECTURE_TRIPLE}/ ${THIRD_PARTY}/Linux/LibCxx/lib/Linux/\${ARCHITECTURE_TRIPLE}/libc++.a ${THIRD_PARTY}/Linux/LibCxx/lib/Linux/\${ARCHITECTURE_TRIPLE}/libc++abi.a -lpthread")
+  set(CMAKE_LINKER_FLAGS "-stdlib=libc++ -L${THIRD_PARTY}/Unix/LibCxx/lib/Unix/\${ARCHITECTURE_TRIPLE}/ ${THIRD_PARTY}/Unix/LibCxx/lib/Unix/\${ARCHITECTURE_TRIPLE}/libc++.a ${THIRD_PARTY}/Unix/LibCxx/lib/Unix/\${ARCHITECTURE_TRIPLE}/libc++abi.a -lpthread")
   set(CMAKE_EXE_LINKER_FLAGS      "\${CMAKE_LINKER_FLAGS}")
   set(CMAKE_MODULE_LINKER_FLAGS   "\${CMAKE_LINKER_FLAGS}")
   set(CMAKE_SHARED_LINKER_FLAGS   "\${CMAKE_LINKER_FLAGS}")
@@ -125,7 +125,7 @@ do
   # --overlay-triplets tells it to resolve a named triplet via additional paths outside vcpkg/, PWD relative
   # --triplet names the triplet to configure the build with, our custom triplet file w/o .cmake extentions
   # --debug will provide extra information to stdout
-  "$DIR/vcpkg/vcpkg" install --x-install-root="$DIR/$VCPKG_INSTALLED" --overlay-ports=./overlay-ports --overlay-triplets=./overlay-triplets --triplet=$VCPKG_TRIPLET "proj4[core,database]"
+  "$DIR/vcpkg/vcpkg" install --x-install-root="$DIR/$VCPKG_INSTALLED" --overlay-triplets=./overlay-triplets --triplet=$VCPKG_TRIPLET "proj[core]"
 
   echo
   echo === Reconciling $VCPKG_INSTALLED artifacts ===

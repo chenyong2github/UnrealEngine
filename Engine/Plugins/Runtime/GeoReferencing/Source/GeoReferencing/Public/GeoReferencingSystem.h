@@ -42,6 +42,7 @@ class GEOREFERENCING_API AGeoReferencingSystem : public AInfo
 	GENERATED_BODY()
 
 public:
+	AGeoReferencingSystem(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void PostLoad() override;
 	virtual void PostActorCreated() override;

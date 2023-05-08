@@ -33,6 +33,11 @@
 #error Must have C++11 or newer.
 #endif
 
+// windows.h can confict with Criterion::STRICT
+#ifdef STRICT
+#undef STRICT
+#endif
+
 #include <exception>
 #include <map>
 #include <memory>
@@ -50,10 +55,12 @@ namespace proj {}
 //! @cond Doxygen_Suppress
 
 #ifndef PROJ_DLL
+#if defined(_MSC_VER)
 #ifdef PROJ_MSVC_DLL_EXPORT
 #define PROJ_DLL __declspec(dllexport)
-#elif defined(PROJ_MSVC_DLL_IMPORT)
+#else
 #define PROJ_DLL __declspec(dllimport)
+#endif
 #elif defined(__GNUC__)
 #define PROJ_DLL __attribute__((visibility("default")))
 #else
@@ -62,12 +69,7 @@ namespace proj {}
 #endif
 
 #ifndef PROJ_MSVC_DLL
-
-#ifdef PROJ_MSVC_DLL_EXPORT
-#define PROJ_MSVC_DLL PROJ_DLL
-#define PROJ_GCC_DLL
-#define PROJ_INTERNAL
-#elif defined(PROJ_MSVC_DLL_IMPORT)
+#if defined(_MSC_VER)
 #define PROJ_MSVC_DLL PROJ_DLL
 #define PROJ_GCC_DLL
 #define PROJ_INTERNAL
@@ -84,9 +86,7 @@ namespace proj {}
 #define PROJ_GCC_DLL
 #define PROJ_INTERNAL
 #endif
-
 #define PROJ_FOR_TEST PROJ_DLL
-
 #endif
 
 #include "nn.hpp"
@@ -180,7 +180,7 @@ NS_PROJ_START
 namespace io {
 class DatabaseContext;
 using DatabaseContextPtr = std::shared_ptr<DatabaseContext>;
-}
+} // namespace io
 //! @endcond
 
 /** osgeo.proj.util namespace.
@@ -331,6 +331,7 @@ class PROJ_GCC_DLL BaseObject {
   protected:
     PROJ_INTERNAL BaseObject();
     PROJ_INTERNAL void assignSelf(const BaseObjectNNPtr &self);
+    PROJ_INTERNAL BaseObject &operator=(BaseObject &&other);
 
   private:
     PROJ_OPAQUE_PRIVATE_DATA

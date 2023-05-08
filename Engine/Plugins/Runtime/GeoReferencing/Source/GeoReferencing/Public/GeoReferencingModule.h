@@ -4,6 +4,7 @@
 
 #include "Modules/ModuleInterface.h"
 #include "CoreMinimal.h"
+#include "Styling/SlateStyle.h"
 
 GEOREFERENCING_API DECLARE_LOG_CATEGORY_EXTERN(LogGeoReferencing, Log, All);
 
@@ -12,4 +13,12 @@ GEOREFERENCING_API DECLARE_LOG_CATEGORY_EXTERN(LogGeoReferencing, Log, All);
  */
 class GEOREFERENCING_API FGeoReferencingModule : public IModuleInterface
 {
+public:
+	FGeoReferencingModule() = default;
+
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+
+private:
+	TUniquePtr<FSlateStyleSet> StyleSet;
 };

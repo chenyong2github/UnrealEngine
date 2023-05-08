@@ -34,6 +34,9 @@
 #define EPSG_NAME_METHOD_TRANSVERSE_MERCATOR "Transverse Mercator"
 #define EPSG_CODE_METHOD_TRANSVERSE_MERCATOR 9807
 
+#define EPSG_NAME_METHOD_TRANSVERSE_MERCATOR_3D "Transverse Mercator (3D)"
+#define EPSG_CODE_METHOD_TRANSVERSE_MERCATOR_3D 1111
+
 #define EPSG_NAME_METHOD_TRANSVERSE_MERCATOR_SOUTH_ORIENTATED \
     "Transverse Mercator (South Orientated)"
 #define EPSG_CODE_METHOD_TRANSVERSE_MERCATOR_SOUTH_ORIENTATED 9808
@@ -87,6 +90,9 @@
 
 #define EPSG_NAME_METHOD_CASSINI_SOLDNER "Cassini-Soldner"
 #define EPSG_CODE_METHOD_CASSINI_SOLDNER 9806
+
+#define EPSG_NAME_METHOD_HYPERBOLIC_CASSINI_SOLDNER "Hyperbolic Cassini-Soldner"
+#define EPSG_CODE_METHOD_HYPERBOLIC_CASSINI_SOLDNER 9833
 
 #define PROJ_WKT2_NAME_METHOD_EQUIDISTANT_CONIC "Equidistant Conic"
 
@@ -220,6 +226,9 @@
 #define PROJ_WKT2_NAME_METHOD_QUADRILATERALIZED_SPHERICAL_CUBE  \
     "Quadrilateralized Spherical Cube"
 
+#define PROJ_WKT2_NAME_METHOD_S2 \
+    "S2"
+
 #define PROJ_WKT2_NAME_METHOD_SPHERICAL_CROSS_TRACK_HEIGHT  \
     "Spherical Cross-Track Height"
 
@@ -234,8 +243,13 @@
 
 #define PROJ_WKT2_NAME_METHOD_POLE_ROTATION_GRIB_CONVENTION "Pole rotation (GRIB convention)"
 
+#define PROJ_WKT2_NAME_METHOD_POLE_ROTATION_NETCDF_CF_CONVENTION "Pole rotation (netCDF CF convention)"
+
 #define EPSG_CODE_METHOD_COLOMBIA_URBAN 1052
 #define EPSG_NAME_METHOD_COLOMBIA_URBAN "Colombia Urban"
+
+#define PROJ_WKT2_NAME_METHOD_PEIRCE_QUINCUNCIAL_SQUARE "Peirce Quincuncial (Square)"
+#define PROJ_WKT2_NAME_METHOD_PEIRCE_QUINCUNCIAL_DIAMOND "Peirce Quincuncial (Diamond)"
 
 /* ------------------------------------------------------------------------ */
 
@@ -508,6 +522,15 @@
 #define PROJ_WKT2_NAME_PARAMETER_AXIS_ROTATION_GRIB_CONVENTION \
     "Axis rotation (GRIB convention)"
 
+#define PROJ_WKT2_NAME_PARAMETER_GRID_NORTH_POLE_LATITUDE_NETCDF_CONVENTION \
+    "Grid north pole latitude (netCDF CF convention)"
+
+#define PROJ_WKT2_NAME_PARAMETER_GRID_NORTH_POLE_LONGITUDE_NETCDF_CONVENTION \
+    "Grid north pole longitude (netCDF CF convention)"
+
+#define PROJ_WKT2_NAME_PARAMETER_NORTH_POLE_GRID_LONGITUDE_NETCDF_CONVENTION \
+    "North pole grid longitude (netCDF CF convention)"
+
 /* ------------------------------------------------------------------------ */
 
 #define EPSG_CODE_METHOD_NTV1 9614
@@ -531,6 +554,10 @@
 #define EPSG_CODE_PARAMETER_GEOCENTRIC_TRANSLATION_FILE 8727
 #define EPSG_NAME_PARAMETER_GEOCENTRIC_TRANSLATION_FILE \
     "Geocentric translation file"
+
+#define EPSG_NAME_PARAMETER_EPSG_CODE_FOR_INTERPOLATION_CRS \
+    "EPSG code for Interpolation CRS"
+#define EPSG_CODE_PARAMETER_EPSG_CODE_FOR_INTERPOLATION_CRS 1048
 
 /* ------------------------------------------------------------------------ */
 
@@ -556,6 +583,12 @@
 #define EPSG_CODE_METHOD_VERTICALGRID_GTX 1084
 #define EPSG_NAME_METHOD_VERTICALGRID_GTX "Vertical Offset by Grid Interpolation (gtx)"
 
+#define EPSG_CODE_METHOD_VERTICALGRID_PL_TXT 1101
+#define EPSG_NAME_METHOD_VERTICALGRID_PL_TXT "Vertical Offset by Grid Interpolation (PL txt)"
+
+#define EPSG_CODE_METHOD_VERTICALGRID_NRCAN_BYN 1112
+#define EPSG_NAME_METHOD_VERTICALGRID_NRCAN_BYN "Vertical Offset by Grid Interpolation (NRCan byn)"
+
 #define EPSG_NAME_PARAMETER_VERTICAL_OFFSET_FILE "Vertical offset file"
 #define EPSG_CODE_PARAMETER_VERTICAL_OFFSET_FILE 8732
 
@@ -576,6 +609,9 @@
 #define EPSG_CODE_METHOD_CHANGE_VERTICAL_UNIT 1069
 #define EPSG_NAME_METHOD_CHANGE_VERTICAL_UNIT "Change of Vertical Unit"
 
+#define EPSG_CODE_METHOD_CHANGE_VERTICAL_UNIT_NO_CONV_FACTOR 1104
+#define EPSG_NAME_METHOD_CHANGE_VERTICAL_UNIT_NO_CONV_FACTOR "Change of Vertical Unit"
+
 #define EPSG_NAME_PARAMETER_UNIT_CONVERSION_SCALAR "Unit conversion scalar"
 #define EPSG_CODE_PARAMETER_UNIT_CONVERSION_SCALAR 1051
 
@@ -586,6 +622,9 @@
 
 #define EPSG_CODE_METHOD_VERTICAL_OFFSET 9616
 #define EPSG_NAME_METHOD_VERTICAL_OFFSET "Vertical Offset"
+
+#define EPSG_CODE_METHOD_VERTICAL_OFFSET_AND_SLOPE 1046
+#define EPSG_NAME_METHOD_VERTICAL_OFFSET_AND_SLOPE "Vertical Offset and Slope"
 
 #define EPSG_CODE_METHOD_GEOGRAPHIC2D_OFFSETS 9619
 #define EPSG_NAME_METHOD_GEOGRAPHIC2D_OFFSETS "Geographic2D offsets"
@@ -612,6 +651,15 @@
 
 #define EPSG_NAME_PARAMETER_GEOID_UNDULATION "Geoid undulation"
 #define EPSG_CODE_PARAMETER_GEOID_UNDULATION 8604
+
+#define EPSG_NAME_PARAMETER_INCLINATION_IN_LATITUDE "Inclination in latitude"
+#define EPSG_CODE_PARAMETER_INCLINATION_IN_LATITUDE 8730
+
+#define EPSG_NAME_PARAMETER_INCLINATION_IN_LONGITUDE "Inclination in longitude"
+#define EPSG_CODE_PARAMETER_INCLINATION_IN_LONGITUDE 8731
+
+#define EPSG_NAME_PARAMETER_EPSG_CODE_FOR_HORIZONTAL_CRS "EPSG code for Horizontal CRS"
+#define EPSG_CODE_PARAMETER_EPSG_CODE_FOR_HORIZONTAL_CRS 1037
 
 /* ------------------------------------------------------------------------ */
 
@@ -650,5 +698,29 @@
 
 #define EPSG_CODE_METHOD_HEIGHT_DEPTH_REVERSAL 1068
 #define EPSG_NAME_METHOD_HEIGHT_DEPTH_REVERSAL "Height Depth Reversal"
+
+/* ------------------------------------------------------------------------ */
+
+#define EPSG_NAME_METHOD_GEOCENTRIC_TOPOCENTRIC "Geocentric/topocentric conversions"
+#define EPSG_CODE_METHOD_GEOCENTRIC_TOPOCENTRIC 9836
+
+#define EPSG_NAME_PARAMETER_GEOCENTRIC_X_TOPOCENTRIC_ORIGIN "Geocentric X of topocentric origin"
+#define EPSG_CODE_PARAMETER_GEOCENTRIC_X_TOPOCENTRIC_ORIGIN 8837
+
+#define EPSG_NAME_PARAMETER_GEOCENTRIC_Y_TOPOCENTRIC_ORIGIN "Geocentric Y of topocentric origin"
+#define EPSG_CODE_PARAMETER_GEOCENTRIC_Y_TOPOCENTRIC_ORIGIN 8838
+
+#define EPSG_NAME_PARAMETER_GEOCENTRIC_Z_TOPOCENTRIC_ORIGIN "Geocentric Z of topocentric origin"
+#define EPSG_CODE_PARAMETER_GEOCENTRIC_Z_TOPOCENTRIC_ORIGIN 8839
+
+/* ------------------------------------------------------------------------ */
+
+#define EPSG_NAME_METHOD_GEOGRAPHIC_TOPOCENTRIC "Geographic/topocentric conversions"
+#define EPSG_CODE_METHOD_GEOGRAPHIC_TOPOCENTRIC 9837
+
+/* ------------------------------------------------------------------------ */
+
+#define PROJ_WKT2_NAME_METHOD_GEOGRAPHIC_GEOCENTRIC_LATITUDE                   \
+    "Geographic latitude / Geocentric latitude"
 
 #endif /* PROJ_CONSTANTS_INCLUDED */

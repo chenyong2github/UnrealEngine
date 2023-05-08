@@ -1,9 +1,9 @@
 # Version checking for PROJ4
 
-set (PACKAGE_VERSION "7.2.0")
-set (PACKAGE_VERSION_MAJOR "7")
-set (PACKAGE_VERSION_MINOR "2")
-set (PACKAGE_VERSION_PATCH "0")
+set (PACKAGE_VERSION "9.1.1")
+set (PACKAGE_VERSION_MAJOR "9")
+set (PACKAGE_VERSION_MINOR "1")
+set (PACKAGE_VERSION_PATCH "1")
 
 # These variable definitions parallel those in PROJ's
 # cmake/CMakeLists.txt.

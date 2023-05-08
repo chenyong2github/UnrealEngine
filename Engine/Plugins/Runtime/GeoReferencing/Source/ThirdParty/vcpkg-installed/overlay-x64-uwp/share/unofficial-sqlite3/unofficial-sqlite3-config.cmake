@@ -1,5 +1,5 @@
 
-if("static" STREQUAL "static" AND NOT WIN32)
+if(NOT WIN32)
     include(CMakeFindDependencyMacro)
     find_dependency(Threads)
 endif()
