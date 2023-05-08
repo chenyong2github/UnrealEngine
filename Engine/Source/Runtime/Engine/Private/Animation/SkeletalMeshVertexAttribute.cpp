@@ -105,7 +105,6 @@ void FSkeletalMeshVertexAttributeRenderData::ReleaseResources()
 
 void FSkeletalMeshVertexAttributeRenderData::CleanUp()
 {
-	check(IsInGameThread());
 	for (const TTuple<FName, FSkeletalMeshAttributeVertexBuffer*>& BufferItem: Buffers)
 	{
 		BufferItem.Value->CleanUp();
