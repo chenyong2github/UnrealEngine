@@ -3,9 +3,8 @@
 #pragma once
 
 #include "Factories/Factory.h"
-#include "IAssetTools.h"
-#include "IAssetTypeActions.h"
-#include "TickableEditorObject.h"
+#include "Modules/ModuleInterface.h"
+#include "AssetTypeCategories.h"
 
 #include "InputEditorModule.generated.h"
 
@@ -17,8 +16,11 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEnhancedInputEditor, Log, All);
 class UInputAction;
 class SWindow;
 class UPlayerMappableKeySettings;
+class IAssetTypeActions;
+class IAssetTools;
+class FSlateStyleSet;
 
-class FInputEditorModule : public IModuleInterface, public FTickableEditorObject
+class FInputEditorModule : public IModuleInterface
 {
 public:
 
@@ -27,12 +29,7 @@ public:
 	virtual void ShutdownModule() override;
 	// End IModuleInterface interface
 
-	// FTickableEditorObject interface
-	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FInputEditorModule, STATGROUP_Tickables); }
-	// End FTickableEditorObject interface
-
-	static EAssetTypeCategories::Type GetInputAssetsCategory() { return InputAssetsCategory; }
+	static EAssetTypeCategories::Type GetInputAssetsCategory();
 	
 	/** Returns a pointer to the player mappable settings object that has this mapping name */
 	INPUTEDITOR_API static const UPlayerMappableKeySettings* FindMappingByName(const FName InName);
@@ -41,11 +38,7 @@ public:
 	INPUTEDITOR_API static bool IsMappingNameInUse(const FName InName);
 		
 private:
-	void RegisterAssetTypeActions(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
-	{
-		AssetTools.RegisterAssetTypeActions(Action);
-		CreatedAssetTypeActions.Add(Action);
-	}
+	void RegisterAssetTypeActions(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 
 	void OnMainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsRunningStartupDialog);
 	
@@ -56,7 +49,7 @@ private:
 	
 	TArray<TSharedPtr<IAssetTypeActions>> CreatedAssetTypeActions;
 	
-	TSharedPtr<class FSlateStyleSet> StyleSet;
+	TSharedPtr<FSlateStyleSet> StyleSet;
 };
 
 ////////////////////////////////////////////////////////////////////

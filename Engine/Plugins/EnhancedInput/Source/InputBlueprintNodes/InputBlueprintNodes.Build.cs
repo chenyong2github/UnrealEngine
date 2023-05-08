@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
         public InputBlueprintNodes(ReadOnlyTargetRules Target) : base(Target)
         {
+	        PublicDependencyModuleNames.AddRange(new string[] { "InputEditor", });
+	        
             PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"BlueprintGraph",

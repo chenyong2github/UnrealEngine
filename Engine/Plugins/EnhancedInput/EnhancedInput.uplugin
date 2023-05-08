@@ -23,7 +23,7 @@
 		{
 			"Name": "InputBlueprintNodes",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "InputEditor",
