@@ -8,11 +8,15 @@
 #include "Engine/Engine.h"
 #include "EngineDefines.h"
 #include "EngineGlobals.h"
-#include "GameplayDebuggerCategory.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig_Sight.h"
 #include "Perception/AISightTargetInterface.h"
 #include "VisualLogger/VisualLogger.h"
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
+#include "GameplayDebuggerTypes.h"
+#include "GameplayDebuggerCategory.h"
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AISense_Sight)
 

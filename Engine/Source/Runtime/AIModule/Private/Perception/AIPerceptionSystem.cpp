@@ -7,7 +7,6 @@
 #include "EngineGlobals.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
-#include "GameplayDebuggerCategory.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "Perception/AISenseConfig.h"
 #include "Perception/AISenseEvent.h"
@@ -15,6 +14,11 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "TimerManager.h"
 #include "VisualLogger/VisualLogger.h"
+
+#if WITH_GAMEPLAY_DEBUGGER_MENU
+#include "GameplayDebuggerTypes.h"
+#include "GameplayDebuggerCategory.h"
+#endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AIPerceptionSystem)
 
