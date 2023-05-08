@@ -9,28 +9,29 @@ template <typename OptionType> class SComboBox;
 
 class FPCGEditor;
 class UPCGComponent;
+class UPCGGraph;
 
-struct FPCGEditorGraphDebugObjectInstance
+class FPCGEditorGraphDebugObjectInstance
 {
-	FPCGEditorGraphDebugObjectInstance(const FString& InLabel)
-		: PCGComponent(nullptr)
-		, Label(InLabel)
-	{
-	}
-	
-	FPCGEditorGraphDebugObjectInstance(TWeakObjectPtr<UPCGComponent> InPCGComponent, const FString& InLabel)
-		: PCGComponent(InPCGComponent)
-		, Label(InLabel)
-	{
-	}
+public:
+	FPCGEditorGraphDebugObjectInstance() = default;
+	FPCGEditorGraphDebugObjectInstance(TWeakObjectPtr<UPCGComponent> InPCGComponent);
+
+	void SetLabelFromPCGComponent(TWeakObjectPtr<UPCGComponent> InPCGComponent);
 
 	FText GetDebugObjectText() const
 	{
 		return FText::FromString(Label);
 	}
 
-	TWeakObjectPtr<UPCGComponent> PCGComponent;
-	FString Label;
+	TWeakObjectPtr<UPCGComponent> GetPCGComponent() const
+	{
+		return PCGComponent;
+	}
+	
+private:
+	TWeakObjectPtr<UPCGComponent> PCGComponent = nullptr;
+	FString Label = TEXT("No debug object selected");
 };
 
 
@@ -47,10 +48,15 @@ private:
 	void OnSelectionChanged(TSharedPtr<FPCGEditorGraphDebugObjectInstance> NewSelection, ESelectInfo::Type SelectInfo) const;
 	TSharedRef<SWidget> OnGenerateWidget(TSharedPtr<FPCGEditorGraphDebugObjectInstance> InDebugObjectInstance) const;
 
+	UPCGGraph* GetPCGGraph() const;
+	
 	FText GetSelectedDebugObjectText() const;
 	void SelectedDebugObject_OnClicked() const;
 	bool IsSelectDebugObjectButtonEnabled() const;
-
+	
+	void SetDebugObjectFromSelection_OnClicked();
+	bool IsSetDebugObjectFromSelectionButtonEnabled() const;
+	
 	/** Pointer back to the PCG editor that owns us */
 	TWeakPtr<FPCGEditor> PCGEditorPtr;
 

@@ -32,7 +32,7 @@ public:
 	/** Creates the links for a given node */
 	void CreateLinks(UPCGEditorGraphNodeBase* InGraphNode, bool bCreateInbound, bool bCreateOutbound);
 
-	UPCGGraph* GetPCGGraph() { return PCGGraph; }
+	UPCGGraph* GetPCGGraph() const { return PCGGraph; }
 
 	void SetEditor(TWeakPtr<const FPCGEditor> InEditor) { PCGEditor = InEditor; }
 	TWeakPtr<const FPCGEditor> GetEditor() const { return PCGEditor; }
