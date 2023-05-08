@@ -353,7 +353,7 @@ public:
 
 	virtual ~FCounterAggregationWorker() {}
 
-	virtual void DoWork() override;
+	virtual void DoWork(TSharedPtr<TraceServices::FCancellationToken> CancellationToken) override;
 
 	void ApplyResultsTo(const TMap<uint32, FStatsNodePtr>& StatsNodesIdMap) const;
 	void ResetResults();
@@ -369,7 +369,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FCounterAggregationWorker::DoWork()
+void FCounterAggregationWorker::DoWork(TSharedPtr<TraceServices::FCancellationToken> CancellationToken)
 {
 	CalculationHelperDbl.SetTimeInterval(StartTime, EndTime);
 	CalculationHelperInt.SetTimeInterval(StartTime, EndTime);

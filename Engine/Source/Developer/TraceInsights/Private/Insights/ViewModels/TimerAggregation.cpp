@@ -30,7 +30,7 @@ public:
 
 	virtual ~FTimerAggregationWorker() {}
 
-	virtual void DoWork() override;
+	virtual void DoWork(TSharedPtr<TraceServices::FCancellationToken> CancellationToken) override;
 
 	TraceServices::ITable<TraceServices::FTimingProfilerAggregatedStats>* GetResultTable() const { return ResultTable.Get(); }
 	void ResetResults() { ResultTable.Reset(); }
@@ -47,7 +47,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimerAggregationWorker::DoWork()
+void FTimerAggregationWorker::DoWork(TSharedPtr<TraceServices::FCancellationToken> CancellationToken)
 {
 	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{
@@ -62,7 +62,15 @@ void FTimerAggregationWorker::DoWork()
 			return CpuThreads.Contains(ThreadId);
 		};
 
-		ResultTable.Reset(TimingProfilerProvider.CreateAggregation(StartTime, EndTime, CpuThreadFilter, bIncludeGpuThread, FrameType));
+		TraceServices::FCreateAggreationParams Params;
+		Params.IntervalStart = StartTime;
+		Params.IntervalEnd = EndTime;
+		Params.CpuThreadFilter = CpuThreadFilter;
+		Params.IncludeGpu = bIncludeGpuThread;
+		Params.FrameType = FrameType;
+		Params.CancellationToken = CancellationToken;
+
+		ResultTable.Reset(TimingProfilerProvider.CreateAggregation(Params));
 	}
 }
 

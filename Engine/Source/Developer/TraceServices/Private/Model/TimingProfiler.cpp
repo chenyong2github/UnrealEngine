@@ -265,19 +265,19 @@ void FTimingProfilerProvider::ReadTimers(TFunctionRef<void(const ITimingProfiler
 	Callback(*this);
 }
 
-ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu, ETraceFrameType FrameType) const
+ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregation(const FCreateAggreationParams& Params) const
 {
 	Session.ReadAccessCheck();
 
 	TArray<const TimelineInternal*> IncludedTimelines;
-	if (IncludeGpu)
+	if (Params.IncludeGpu)
 	{
 		IncludedTimelines.Add(&Timelines[GpuTimelineIndex].Get());
 		IncludedTimelines.Add(&Timelines[Gpu2TimelineIndex].Get());
 	}
 	for (const auto& KV : CpuThreadTimelineIndexMap)
 	{
-		if (CpuThreadFilter(KV.Key))
+		if (Params.CpuThreadFilter(KV.Key))
 		{
 			IncludedTimelines.Add(&Timelines[KV.Value].Get());
 		}
@@ -289,15 +289,15 @@ ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregati
 	};
 
 	TMap<const FTimingProfilerTimer*, FAggregatedTimingStats> Aggregation;
-	if (FrameType == ETraceFrameType::TraceFrameType_Count)
+	if (Params.FrameType == ETraceFrameType::TraceFrameType_Count)
 	{
-		FTimelineStatistics::CreateAggregation(IncludedTimelines, BucketMappingFunc, IntervalStart, IntervalEnd, Aggregation);
+		FTimelineStatistics::CreateAggregation(IncludedTimelines, BucketMappingFunc, Params.IntervalStart, Params.IntervalEnd, Params.CancellationToken, Aggregation);
 	}
 	else
 	{
 		TArray<FFrameData> Frames;
 		const IFrameProvider& FrameProvider = ReadFrameProvider(Session);
-		FrameProvider.EnumerateFrames(FrameType, IntervalStart, IntervalEnd, [&Frames](const FFrame& Frame)
+		FrameProvider.EnumerateFrames(Params.FrameType, Params.IntervalStart, Params.IntervalEnd, [&Frames](const FFrame& Frame)
 			{
 				FFrameData NewFrameData;
 				NewFrameData.StartTime = Frame.StartTime;
@@ -308,11 +308,17 @@ ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregati
 
 		if (Frames.Num() > 0)
 		{
-			FTimelineStatistics::CreateFrameStatsAggregation(IncludedTimelines, BucketMappingFunc, Frames, Aggregation);
+			FTimelineStatistics::CreateFrameStatsAggregation(IncludedTimelines, BucketMappingFunc, Frames, Params.CancellationToken, Aggregation);
 		}
 	}
 
 	TTable<FTimingProfilerAggregatedStats>* Table = new TTable<FTimingProfilerAggregatedStats>(AggregatedStatsTableLayout);
+	
+	if (Params.CancellationToken.IsValid() && Params.CancellationToken->ShouldCancel())
+	{
+		return Table;
+	}
+
 	for (const auto& KV : Aggregation)
 	{
 		FTimingProfilerAggregatedStats& Row = Table->AddRow();

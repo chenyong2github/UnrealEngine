@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "TraceServices/Common/CancellationToken.h"
+
 #include "CoreMinimal.h"
 #include "Async/AsyncWork.h"
 #include "Insights/Common/InsightsAsyncWorkUtils.h"
@@ -34,7 +36,7 @@ class IStatsAggregationWorker
 {
 public:
 	virtual ~IStatsAggregationWorker() {}
-	virtual void DoWork() = 0;
+	virtual void DoWork(TSharedPtr<TraceServices::FCancellationToken> CancellationToken) = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -68,7 +70,7 @@ public:
 	virtual void Start() override;
 	virtual void Cancel() override;
 
-	virtual bool IsCancelRequested() const override { return bIsCancelRequested; }
+	virtual bool IsCancelRequested() const override { return CancellationToken->ShouldCancel(); }
 	virtual bool IsRunning() const override { return AsyncTask != nullptr; }
 
 	virtual double GetAllOperationsDuration() override { AllOpsStopwatch.Update(); return AllOpsStopwatch.GetAccumulatedTime(); }
@@ -99,7 +101,7 @@ private:
 
 	FStatsAggregationAsyncTask* AsyncTask;
 
-	mutable volatile bool bIsCancelRequested; // true if we want the async task to finish asap
+	TSharedPtr<TraceServices::FCancellationToken> CancellationToken;
 	bool bIsStartRequested;
 	bool bIsFinished;
 

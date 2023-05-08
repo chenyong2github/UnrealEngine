@@ -660,8 +660,14 @@ int32 FTimingExporter::ExportTimerStatisticsAsText(const FString& Filename, FExp
 			return -1;
 		}
 
+		TraceServices::FCreateAggreationParams CreateAggreagationParams;
+		CreateAggreagationParams.IntervalStart = Params.IntervalStartTime;
+		CreateAggreagationParams.IntervalEnd = Params.IntervalEndTime;
+		CreateAggreagationParams.CpuThreadFilter = Params.ThreadFilter;
+		CreateAggreagationParams.IncludeGpu = true;
+
 		//@Todo: this does not yet handle the -column and -timers parameters.
-		StatsTable = TimingProfilerProvider->CreateAggregation(Params.IntervalStartTime, Params.IntervalEndTime, Params.ThreadFilter, true);
+		StatsTable = TimingProfilerProvider->CreateAggregation(CreateAggreagationParams);
 	}
 
 	FStopwatch Stopwatch;

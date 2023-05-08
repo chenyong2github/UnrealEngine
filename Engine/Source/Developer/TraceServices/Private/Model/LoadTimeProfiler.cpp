@@ -4,6 +4,7 @@
 #include "Model/LoadTimeProfilerPrivate.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/TimelineStatistics.h"
+#include "TraceServices/Common/CancellationToken.h"
 
 namespace TraceServices
 {
@@ -262,7 +263,11 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateEvent
 		return Event.Package;
 	};
 	TMap<const FPackageInfo*, FAggregatedTimingStats> Aggregation;
-	FTimelineStatistics::CreateAggregation(Timelines, BucketMapper, IntervalStart, IntervalEnd, Aggregation);
+
+	// Cancellation not currently implemented for LoadTimeProfilerProvider.
+	TSharedPtr<TraceServices::FCancellationToken> bIsCancelRequested = MakeShared<TraceServices::FCancellationToken>();
+
+	FTimelineStatistics::CreateAggregation(Timelines, BucketMapper, IntervalStart, IntervalEnd, bIsCancelRequested, Aggregation);
 	TTable<FLoadTimeProfilerAggregatedStats>* Table = new TTable<FLoadTimeProfilerAggregatedStats>(AggregatedStatsTableLayout);
 	for (const auto& KV : Aggregation)
 	{
@@ -297,7 +302,11 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateObjec
 		return Event.Export ? Event.Export->Class : nullptr;
 	};
 	TMap<const FClassInfo*, FAggregatedTimingStats> Aggregation;
-	FTimelineStatistics::CreateAggregation(Timelines, BucketMapper, IntervalStart, IntervalEnd, Aggregation);
+
+	// Cancellation not currently implemented for LoadTimeProfilerProvider.
+	TSharedPtr<TraceServices::FCancellationToken> CancellationToken = MakeShared<TraceServices::FCancellationToken>();
+
+	FTimelineStatistics::CreateAggregation(Timelines, BucketMapper, IntervalStart, IntervalEnd, CancellationToken, Aggregation);
 	TTable<FLoadTimeProfilerAggregatedStats>* Table = new TTable<FLoadTimeProfilerAggregatedStats>(AggregatedStatsTableLayout);
 	for (const auto& KV : Aggregation)
 	{

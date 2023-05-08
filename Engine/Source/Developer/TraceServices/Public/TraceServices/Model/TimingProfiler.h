@@ -8,6 +8,7 @@
 #include "HAL/Platform.h"
 #include "HAL/PlatformMath.h"
 #include "Model/MonotonicTimeline.h"
+#include "TraceServices/Common/CancellationToken.h"
 #include "TraceServices/Containers/Tables.h"
 #include "TraceServices/Containers/Timelines.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -65,6 +66,16 @@ struct FTimingProfilerButterflyNode
 	TArray<FTimingProfilerButterflyNode*> Children;
 };
 
+struct FCreateAggreationParams
+{
+	double IntervalStart;
+	double IntervalEnd;
+	TFunction<bool(uint32)> CpuThreadFilter;
+	bool IncludeGpu;
+	ETraceFrameType FrameType = ETraceFrameType::TraceFrameType_Count;
+	TSharedPtr<TraceServices::FCancellationToken> CancellationToken;
+};
+
 class ITimingProfilerButterfly
 {
 public:
@@ -99,13 +110,19 @@ public:
 	/**
 	* Create a table of aggregated stats.
 	*
+	* @param Params				The params for the aggregation.
+	*/
+	virtual ITable<FTimingProfilerAggregatedStats>* CreateAggregation(const FCreateAggreationParams& Params) const = 0;
+
+	/**
+	* Create a table of aggregated stats.
+	*
 	* @param IntervalStart		The start timestamp in seconds.
 	* @param IntervalEnd		The end timestamp in seconds.
 	* @param CpuThreadFilter	A function to filter the CPU threads to aggregate.
 	* @param IncludeGpu			A boolean value to specify if aggregaton should include GPU timelines.
 	* @param FrameType			The type of frame to use for frame stats aggregation. ETraceFrameType::TraceFrameType_Count means no frame aggregation.
 	*/
-	virtual ITable<FTimingProfilerAggregatedStats>* CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu, ETraceFrameType FrameType = ETraceFrameType::TraceFrameType_Count) const = 0;
 	virtual ITimingProfilerButterfly* CreateButterfly(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const = 0;
 };
 

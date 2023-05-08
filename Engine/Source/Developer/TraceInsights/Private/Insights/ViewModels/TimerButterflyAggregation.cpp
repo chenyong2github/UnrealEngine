@@ -29,7 +29,7 @@ public:
 
 	virtual ~FTimerButterflyAggregationWorker() {}
 
-	virtual void DoWork() override;
+	virtual void DoWork(TSharedPtr<TraceServices::FCancellationToken> CancellationToken) override;
 
 	TraceServices::ITimingProfilerButterfly* GetResultButterfly() const { return ResultButterfly.Get(); }
 	void ResetResults() { ResultButterfly.Reset(); }
@@ -45,7 +45,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimerButterflyAggregationWorker::DoWork()
+void FTimerButterflyAggregationWorker::DoWork(TSharedPtr<TraceServices::FCancellationToken> CancellationToken)
 {
 	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
 	{

@@ -5,6 +5,8 @@
 #include "Containers/Map.h"
 #include "CoreTypes.h"
 #include <cfloat>
+#include "Templates/SharedPointer.h"
+#include "TraceServices/Common/CancellationToken.h"
 #include "TraceServices/Containers/Timelines.h"
 
 namespace TraceServices
@@ -35,12 +37,21 @@ class FTimelineStatistics
 {
 public:
 	template<typename TimelineType, typename BucketMappingFunc, typename BucketKeyType>
-	static void CreateAggregation(const TArray<const TimelineType*>& Timelines, BucketMappingFunc BucketMapper, double IntervalStart, double IntervalEnd, TMap<BucketKeyType, FAggregatedTimingStats>& Result)
+	static void CreateAggregation(const TArray<const TimelineType*>& Timelines,
+								  BucketMappingFunc BucketMapper,
+								  double IntervalStart,
+								  double IntervalEnd,
+								  TSharedPtr<FCancellationToken> CancellationToken,
+								  TMap<BucketKeyType, FAggregatedTimingStats>& Result)
 	{
 		TMap<BucketKeyType, FInternalAggregationEntry> InternalResult;
 		// Compute instance count and total/min/max inclusive/exclusive times for each timer.
 		for (const TimelineType* Timeline : Timelines)
 		{
+			if (CancellationToken.IsValid() && CancellationToken->ShouldCancel())
+			{
+				return;
+			}
 			ProcessTimeline(Timeline, BucketMapper, UpdateTotalMinMaxTimerStats, IntervalStart, IntervalEnd, InternalResult);
 		}
 		// Now, as we know min/max inclusive/exclusive times for each timer, we can compute histogram and median values.
@@ -56,6 +67,11 @@ public:
 			// Compute histogram.
 			for (const TimelineType* Timeline : Timelines)
 			{
+				if (CancellationToken.IsValid() && CancellationToken->ShouldCancel())
+				{
+					return;
+				}
+
 				ProcessTimeline(Timeline, BucketMapper, UpdateHistogramForTimerStats, IntervalStart, IntervalEnd, InternalResult);
 			}
 		}
@@ -69,7 +85,11 @@ public:
 	};
 
 	template<typename TimelineType, typename BucketMappingFunc, typename BucketKeyType>
-	static void CreateFrameStatsAggregation(const TArray<const TimelineType*>& Timelines, BucketMappingFunc BucketMapper, TArray<FFrameData> Frames, TMap<BucketKeyType, FAggregatedTimingStats>& Result)
+	static void CreateFrameStatsAggregation(const TArray<const TimelineType*>& Timelines,
+											BucketMappingFunc BucketMapper,
+											TArray<FFrameData> Frames,
+											TSharedPtr<FCancellationToken> CancellationToken,
+											TMap<BucketKeyType, FAggregatedTimingStats>& Result)
 	{
 		TMap<BucketKeyType, FInternalAggregationEntry> FrameResult;
 		TMap<BucketKeyType, FInternalFrameAggregationEntry> GlobalResult;
@@ -100,9 +120,13 @@ public:
 			GlobalResult.Add(KV.Key, Entry);
 		}
 
-
 		for (int32 Index = 0; Index < FramesNum; ++Index)
 		{
+			if (CancellationToken.IsValid() && CancellationToken->ShouldCancel())
+			{
+				return;
+			}
+
 			// Compute instance count and total/min/max inclusive/exclusive times for each timer.
 			for (const TimelineType* Timeline : Timelines)
 			{

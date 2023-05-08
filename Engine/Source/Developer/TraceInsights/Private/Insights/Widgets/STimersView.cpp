@@ -1154,6 +1154,7 @@ void STimersView::InsightsManager_OnSessionAnalysisCompleted()
 		constexpr double Delta = 0.0; // session padding
 
 		Aggregator->Cancel();
+		Aggregator->SetFrameType(ModeFrameType);
 		Aggregator->SetTimeInterval(0.0 - Delta, SessionDuration + Delta);
 		Aggregator->Start();
 
