@@ -24,6 +24,7 @@ namespace Horde.Agent.Services
 		readonly IOptions<AgentSettings> _settings;
 		readonly ISessionFactory _sessionFactory;
 		readonly CapabilitiesService _capabilitiesService;
+		readonly StatusService _statusService;
 		readonly LeaseHandler[] _leaseHandlers;
 		readonly IServiceProvider _serviceProvider;
 
@@ -38,11 +39,12 @@ namespace Horde.Agent.Services
 		/// <summary>
 		/// Constructor. Registers with the server and starts accepting connections.
 		/// </summary>
-		public WorkerService(IOptions<AgentSettings> settings, ISessionFactory sessionFactory, CapabilitiesService capabilitiesService, IEnumerable<LeaseHandler> leaseHandlers, IServiceProvider serviceProvider, ILogger<WorkerService> logger)
+		public WorkerService(IOptions<AgentSettings> settings, ISessionFactory sessionFactory, CapabilitiesService capabilitiesService, StatusService statusService, IEnumerable<LeaseHandler> leaseHandlers, IServiceProvider serviceProvider, ILogger<WorkerService> logger)
 		{
 			_settings = settings;
 			_sessionFactory = sessionFactory;
 			_capabilitiesService = capabilitiesService;
+			_statusService = statusService;
 			_logger = logger;
 			_leaseHandlers = leaseHandlers.ToArray();
 			_serviceProvider = serviceProvider;
@@ -82,6 +84,7 @@ namespace Horde.Agent.Services
 			while (!stoppingToken.IsCancellationRequested)
 			{
 				SessionResult? result = null;
+				_statusService.Set(AgentStatusMessage.Starting);
 
 				Stopwatch sessionTime = Stopwatch.StartNew();
 
@@ -94,7 +97,7 @@ namespace Horde.Agent.Services
 
 						await using (ISession session = await _sessionFactory.CreateAsync(stoppingToken))
 						{
-							LeaseManager leaseManager = new LeaseManager(session, _capabilitiesService, _leaseHandlers, _settings, _logger);
+							LeaseManager leaseManager = new LeaseManager(session, _capabilitiesService, _statusService, _leaseHandlers, _settings, _logger);
 							result = await leaseManager.RunAsync(false, stoppingToken);
 						}
 
@@ -117,6 +120,7 @@ namespace Horde.Agent.Services
 
 						TimeSpan backOffTime = s_sessionBackOffTime[Math.Min(failureCount - 1, s_sessionBackOffTime.Length - 1)];
 						_logger.LogInformation("Session failure #{FailureNum}. Waiting {Time} and restarting. ({Message})", failureCount, backOffTime, ex.Message);
+						_statusService.Set(false, 0, $"Unable to start session: {ex.Message}");
 						await Task.Delay(backOffTime, stoppingToken);
 					}
 				}

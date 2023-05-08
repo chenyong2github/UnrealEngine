@@ -118,14 +118,16 @@ namespace Horde.Agent.Leases
 
 		readonly ISession _session;
 		readonly CapabilitiesService _capabilitiesService;
+		readonly StatusService _statusService;
 		readonly Dictionary<string, LeaseHandler> _typeUrlToLeaseHandler;
 		readonly AgentSettings _settings;
 		readonly ILogger _logger;
 
-		public LeaseManager(ISession session, CapabilitiesService capabilitiesService, IEnumerable<LeaseHandler> leaseHandlers, IOptions<AgentSettings> settings, ILogger logger)
+		public LeaseManager(ISession session, CapabilitiesService capabilitiesService, StatusService statusService, IEnumerable<LeaseHandler> leaseHandlers, IOptions<AgentSettings> settings, ILogger logger)
 		{
 			_session = session;
 			_capabilitiesService = capabilitiesService;
+			_statusService = statusService;
 			_typeUrlToLeaseHandler = leaseHandlers.ToDictionary(x => x.LeaseType, x => x);
 			_settings = settings.Value;
 			_logger = logger;
@@ -134,7 +136,7 @@ namespace Horde.Agent.Leases
 		}
 
 		public LeaseManager(ISession session, IServiceProvider serviceProvider)
-			: this(session, serviceProvider.GetRequiredService<CapabilitiesService>(), serviceProvider.GetRequiredService<IEnumerable<LeaseHandler>>(), serviceProvider.GetRequiredService<IOptions<AgentSettings>>(), serviceProvider.GetRequiredService<ILogger<LeaseManager>>())
+			: this(session, serviceProvider.GetRequiredService<CapabilitiesService>(), serviceProvider.GetRequiredService<StatusService>(), serviceProvider.GetRequiredService<IEnumerable<LeaseHandler>>(), serviceProvider.GetRequiredService<IOptions<AgentSettings>>(), serviceProvider.GetRequiredService<ILogger<LeaseManager>>())
 		{
 		}
 
@@ -365,6 +367,9 @@ namespace Horde.Agent.Leases
 							return _sessionResult;
 						}
 					}
+
+					// Update the current status
+					_statusService.Set(true, _activeLeases.Count, (_activeLeases.Count == 0) ? "Waiting for work" : $"Executing {_activeLeases.Count} lease(s)");
 				}
 
 				// Update the historical update times

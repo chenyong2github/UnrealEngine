@@ -192,6 +192,8 @@ namespace Horde.Agent
 			services.AddSingleton<IJobExecutorFactory, TestExecutorFactory>();
 
 			services.AddSingleton<JobHandler>();
+			services.AddSingleton<StatusService>();
+			services.AddHostedService<StatusService>(sp => sp.GetRequiredService<StatusService>());
 
 			services.AddSingleton<LeaseHandler, ComputeHandler>();
 			services.AddSingleton<LeaseHandler, ConformHandler>();
