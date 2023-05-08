@@ -157,6 +157,15 @@ public:
 	 */
 	static bool	IsConnected();
 
+
+	/**
+	 * Returns whether the trace system is currently connected. If connected writes the session/trace identifiers.
+	 * @param OutSessionGuid If connected, the session guid
+	 * @param OutTraceGuid If connected, the trace guid
+	 * @return True if connected
+	 */
+	static bool IsConnected(FGuid& OutSessionGuid, FGuid& OutTraceGuid);
+
 	/**
 	*  Returns the current connection type.
 	*/

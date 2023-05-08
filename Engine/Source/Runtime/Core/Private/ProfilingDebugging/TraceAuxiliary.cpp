@@ -83,6 +83,7 @@ class FTraceAuxiliaryImpl
 public:
 	const TCHAR* GetDest() const;
 	bool IsConnected() const;
+	bool IsConnected(FGuid& OutSessionGuid, FGuid& OutTraceGuid);
 	FTraceAuxiliary::EConnectionType GetConnectionType() const;
 	void GetActiveChannelsString(FStringBuilderBase& String) const;
 	void AddCommandlineChannels(const TCHAR* ChannelList);
@@ -620,6 +621,20 @@ bool FTraceAuxiliaryImpl::IsConnected() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+bool FTraceAuxiliaryImpl::IsConnected(FGuid& OutSessionGuid, FGuid& OutTraceGuid)
+{
+	uint32 SessionGuid[4];
+	uint32 TraceGuid[4];
+	if (UE::Trace::IsTracingTo(SessionGuid, TraceGuid))
+	{
+		OutSessionGuid = *(FGuid*)SessionGuid;
+		OutTraceGuid = *(FGuid*)TraceGuid;
+		return true;
+	}
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 FTraceAuxiliary::EConnectionType FTraceAuxiliaryImpl::GetConnectionType() const
 {
 	return TraceType.load();
@@ -835,12 +850,14 @@ static void TraceAuxiliaryStatus()
 
 	// Status of data connection
 	TStringBuilder<256> ConnectionStr;
-	if (UE::Trace::IsTracing())
+	FGuid SessionGuid, TraceGuid;
+	if (GTraceAuxiliary.IsConnected(SessionGuid, TraceGuid))
 	{
 		const TCHAR* Dest = GTraceAuxiliary.GetDest();
 		if (Dest && FCString::Strlen(Dest) > 0)
 		{
-			ConnectionStr.Appendf(TEXT("Tracing to '%s'"), Dest);
+			ConnectionStr.Appendf(TEXT("Tracing to '%s', "), Dest);
+			ConnectionStr.Appendf(TEXT("session %s trace %s"), *SessionGuid.ToString(), *TraceGuid.ToString());
 		}
 		else
 		{
@@ -1692,6 +1709,15 @@ bool FTraceAuxiliary::IsConnected()
 	return GTraceAuxiliary.IsConnected();
 #endif
 	return false;
+}
+
+bool FTraceAuxiliary::IsConnected(FGuid& OutSessionGuid, FGuid& OutTraceGuid)
+{
+#if UE_TRACE_ENABLED
+	return GTraceAuxiliary.IsConnected(OutSessionGuid, OutTraceGuid);
+#else
+	return false;
+#endif
 }
 
 FTraceAuxiliary::EConnectionType FTraceAuxiliary::GetConnectionType()
