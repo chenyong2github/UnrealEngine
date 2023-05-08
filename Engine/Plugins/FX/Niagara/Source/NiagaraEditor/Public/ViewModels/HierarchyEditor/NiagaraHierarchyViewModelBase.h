@@ -287,7 +287,7 @@ private:
 	FName Category;
 
 	/** The tooltip used when the user is hovering this category */
-	UPROPERTY(EditAnywhere, Category = "Category")
+	UPROPERTY(EditAnywhere, Category = "Category", meta = (MultiLine = "true"))
 	FText Tooltip;
 
 	UPROPERTY()
@@ -316,7 +316,7 @@ private:
 	FName Section;
 
 	/** The tooltip used when the user is hovering this section */
-	UPROPERTY(EditAnywhere, Category = "Section")
+	UPROPERTY(EditAnywhere, Category = "Section", meta = (MultiLine = "true"))
 	FText Tooltip;
 };
 

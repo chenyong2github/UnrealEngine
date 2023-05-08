@@ -53,7 +53,7 @@ private:
 	FText DisplayNameOverride;
 
 	/** If specified, will override how the tooltip of this input in the stack. */
-	UPROPERTY(EditAnywhere, Category="Niagara")
+	UPROPERTY(EditAnywhere, Category="Niagara", meta = (MultiLine = "true"))
 	FText TooltipOverride;
 };
 
@@ -71,7 +71,7 @@ public:
 	FText GetTooltipOverride() const { return TooltipOverride; }
 private:
 	/** If specified, will override how the tooltip of this input in the stack. */
-	UPROPERTY(EditAnywhere, Category="Niagara")
+	UPROPERTY(EditAnywhere, Category="Niagara", meta = (MultiLine = "true"))
 	FText TooltipOverride;
 };
 
