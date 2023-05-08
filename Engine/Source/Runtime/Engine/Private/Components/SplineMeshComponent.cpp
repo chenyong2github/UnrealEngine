@@ -642,7 +642,7 @@ void USplineMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& Base
 	FVertexFactoryType* VertexFactoryType = &FSplineMeshVertexFactory::StaticType;
 	int32 LightMapCoordinateIndex = GetStaticMesh()->GetLightMapCoordinateIndex();
 
-	auto SMC_GetElements = [LightMapCoordinateIndex](const FStaticMeshLODResources& LODRenderData, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
+	auto SMC_GetElements = [LightMapCoordinateIndex](const FStaticMeshLODResources& LODRenderData, int32 LODIndex, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
 	{
 		// FIXME: This will miss when SM component overrides vertex colors and source StaticMesh does not have vertex colors
 		bool bOverrideColorVertexBuffer = false;

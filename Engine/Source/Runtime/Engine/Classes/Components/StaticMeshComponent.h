@@ -694,7 +694,7 @@ protected:
 	/** Collect all the PSO precache data used by the static mesh component */
 	virtual void CollectPSOPrecacheData(const FPSOPrecacheParams& BasePrecachePSOParams, FComponentPSOPrecacheParamsList& OutParams) override;
 	/** Shared implementation for all StaticMesh derived components */
-	using GetPSOVertexElementsFn = TFunctionRef<void(const FStaticMeshLODResources& LODRenderData, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)>;
+	using GetPSOVertexElementsFn = TFunctionRef<void(const FStaticMeshLODResources& LODRenderData, int32 LODIndex, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)>;
 	void CollectPSOPrecacheDataImpl(const FVertexFactoryType* VFType, const FPSOPrecacheParams& BasePrecachePSOParams, GetPSOVertexElementsFn GetVertexElements, FComponentPSOPrecacheParamsList& OutParams) const;
 		
 	/** Whether the component type supports static lighting. */

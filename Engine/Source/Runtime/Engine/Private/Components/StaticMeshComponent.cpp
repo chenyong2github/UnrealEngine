@@ -1557,12 +1557,14 @@ void UStaticMeshComponent::CollectPSOPrecacheDataImpl(
 	bool bAnySectionCastsShadows = false;
 
 	FPSOPrecacheVertexFactoryDataPerMaterialIndexList VFTypesPerMaterialIndex;
-	for (FStaticMeshLODResources& LODRenderData : GetStaticMesh()->GetRenderData()->LODResources)
+	FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->GetRenderData()->LODResources;
+	for (int32 LODIndex = 0; LODIndex < LODResources.Num(); ++LODIndex)
 	{
+		FStaticMeshLODResources& LODRenderData = LODResources[LODIndex];
 		FVertexDeclarationElementList VertexElements;
 		if (!bSupportsManualVertexFetch)
 		{
-			GetVertexElements(LODRenderData, bSupportsManualVertexFetch, VertexElements);
+			GetVertexElements(LODRenderData, LODIndex, bSupportsManualVertexFetch, VertexElements);
 		}
 
 		for (FStaticMeshSection& RenderSection : LODRenderData.Sections)
@@ -1634,7 +1636,7 @@ void UStaticMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& Base
 	// FIXME: Need a precise per-LOD test
 	bool bOverrideColorVertexBuffer = LODData.Num() != 0 && LODData[0].OverrideVertexColors != nullptr;
 	
-	auto SMC_GetElements = [LightMapCoordinateIndex, bOverrideColorVertexBuffer](const FStaticMeshLODResources& LODRenderData, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
+	auto SMC_GetElements = [LightMapCoordinateIndex, bOverrideColorVertexBuffer](const FStaticMeshLODResources& LODRenderData, int32 LODIndex, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
 	{
 		int32 NumTexCoords = (int32)LODRenderData.VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords();
 		int32 LODLightMapCoordinateIndex = LightMapCoordinateIndex < NumTexCoords ? LightMapCoordinateIndex : NumTexCoords - 1;

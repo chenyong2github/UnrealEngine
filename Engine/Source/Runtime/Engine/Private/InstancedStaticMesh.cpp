@@ -1169,10 +1169,10 @@ void FInstancedStaticMeshRenderData::ReleaseResources(FSceneInterface* Scene, co
 
 void InitInstancedStaticMeshVertexFactoryComponents(
 	const FStaticMeshVertexBuffers& VertexBuffers,
+	const FColorVertexBuffer* ColorVertexBuffer,
 	const FStaticMeshInstanceBuffer* InstanceBuffer,
 	const FInstancedStaticMeshVertexFactory* VertexFactory,
 	int32 LightMapCoordinateIndex,
-	bool bHasColorVertexData,
 	bool bRHISupportsManualVertexFetch,
 	FInstancedStaticMeshVertexFactory::FDataType& OutData)
 {
@@ -1185,9 +1185,9 @@ void InitInstancedStaticMeshVertexFactoryComponents(
 		VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(VertexFactory, OutData, LightMapCoordinateIndex);
 	}
 
-	if (bHasColorVertexData)
+	if (ColorVertexBuffer != nullptr)
 	{
-		VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(VertexFactory, OutData);
+		ColorVertexBuffer->BindColorVertexBuffer(VertexFactory, OutData);
 	}
 	else
 	{
@@ -1223,7 +1223,12 @@ void FInstancedStaticMeshRenderData::BindBuffersToVertexFactories()
 		FInstancedStaticMeshVertexFactory::FDataType Data;
 		// Assign to the vertex factory for this LOD.
 		FInstancedStaticMeshVertexFactory& VertexFactory = VertexFactories[LODIndex];
-		InitInstancedStaticMeshVertexFactoryComponents(RenderData->VertexBuffers, InstanceBuffer, &VertexFactory, LightMapCoordinateIndex, RenderData->bHasColorVertexData, bRHISupportsManualVertexFetch, Data);
+		const FColorVertexBuffer* ColorVertexBuffer = RenderData->bHasColorVertexData ? &(RenderData->VertexBuffers.ColorVertexBuffer) : nullptr;
+		if (Component->LODData.IsValidIndex(LODIndex) && Component->LODData[LODIndex].OverrideVertexColors)
+		{
+			ColorVertexBuffer = Component->LODData[LODIndex].OverrideVertexColors;
+		}
+		InitInstancedStaticMeshVertexFactoryComponents(RenderData->VertexBuffers, ColorVertexBuffer, InstanceBuffer, &VertexFactory, LightMapCoordinateIndex, bRHISupportsManualVertexFetch, Data);
 		VertexFactory.SetData(Data);
 		VertexFactory.InitResource();
 	}
@@ -4950,10 +4955,15 @@ void UInstancedStaticMeshComponent::CollectPSOPrecacheData(const FPSOPrecachePar
 	const FVertexFactoryType* VFType = ShouldCreateNaniteProxy() ? &Nanite::FVertexFactory::StaticType : &FInstancedStaticMeshVertexFactory::StaticType;
 	int32 LightMapCoordinateIndex = GetStaticMesh()->GetLightMapCoordinateIndex();
 	
-	auto ISMC_GetElements = [LightMapCoordinateIndex, InstanceBuffer](const FStaticMeshLODResources& LODRenderData, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
+	auto ISMC_GetElements = [LightMapCoordinateIndex, InstanceBuffer, this](const FStaticMeshLODResources& LODRenderData, int32 LODIndex, bool bSupportsManualVertexFetch, FVertexDeclarationElementList& Elements)
 	{
 		FInstancedStaticMeshVertexFactory::FDataType Data;
-		InitInstancedStaticMeshVertexFactoryComponents(LODRenderData.VertexBuffers, InstanceBuffer, nullptr /*VertexFactory*/, LightMapCoordinateIndex, LODRenderData.bHasColorVertexData, bSupportsManualVertexFetch, Data);
+		const FColorVertexBuffer* ColorVertexBuffer = LODRenderData.bHasColorVertexData ? &(LODRenderData.VertexBuffers.ColorVertexBuffer) : nullptr;
+		if (LODData.IsValidIndex(LODIndex) && LODData[LODIndex].OverrideVertexColors)
+		{
+			ColorVertexBuffer = LODData[LODIndex].OverrideVertexColors;
+		}
+		InitInstancedStaticMeshVertexFactoryComponents(LODRenderData.VertexBuffers, ColorVertexBuffer, InstanceBuffer, nullptr /*VertexFactory*/, LightMapCoordinateIndex, bSupportsManualVertexFetch, Data);
 		FInstancedStaticMeshVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, EVertexInputStreamType::Default, bSupportsManualVertexFetch, Data, Elements);
 	};
 
