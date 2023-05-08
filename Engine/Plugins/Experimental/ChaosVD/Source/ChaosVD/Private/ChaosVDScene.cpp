@@ -40,10 +40,15 @@ void FChaosVDScene::DeInitialize()
 
 	GeometryGenerator.Reset();
 
+	CleanUpScene();
+
 	if (PhysicsVDWorld)
 	{
 		PhysicsVDWorld->DestroyWorld(true);
+		GEngine->DestroyWorldContext(PhysicsVDWorld);
+
 		PhysicsVDWorld->MarkAsGarbage();
+		PhysicsVDWorld = nullptr;
 	}
 	
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
@@ -135,8 +140,6 @@ void FChaosVDScene::CleanUpScene()
 	}
 
 	ParticleVDInstancesByID.Reset();
-
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 }
 
 AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData, const FChaosVDSolverFrameData& InFrameData)

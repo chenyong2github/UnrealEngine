@@ -21,9 +21,9 @@ public:
 
 	TSharedPtr<const TraceServices::IAnalysisSession> GetSession(const FString& InSessionName);
 
+	void CloseSession(const FString& InSessionName);
+
 private:
-	
-	void ResetSession(const FString& InSessionName);
 
 	/** The trace analysis session. */
 	TMap<FString, TSharedPtr<const TraceServices::IAnalysisSession>> AnalysisSessionByName;

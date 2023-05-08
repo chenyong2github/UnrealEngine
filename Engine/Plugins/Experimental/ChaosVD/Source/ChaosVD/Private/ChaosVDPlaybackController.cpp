@@ -79,18 +79,6 @@ void FChaosVDPlaybackController::UnloadCurrentRecording(const bool bBroadcastUpd
 	if (LoadedRecording.IsValid())
 	{
 		LoadedRecording->OnRecordingUpdated().RemoveAll(this);
-
-		//TODO: Add proper support to edit the trace provider
-		/*if (const TSharedPtr<const TraceServices::IAnalysisSession> TraceSession = FChaosVDModule::Get().GetTraceManager()->GetSession(LoadedRecording->SessionName))
-		{
-			TraceServices::IAnalysisSession* TraceSessionPtr = const_cast<TraceServices::IAnalysisSession*>(TraceSession.Get());
-			if (FChaosVDTraceProvider* ChaosVDProvider = TraceSessionPtr->EditProvider<FChaosVDTraceProvider>(FChaosVDTraceProvider::ProviderName))
-			{
-				TraceServices::FAnalysisSessionEditScope SessionEditScope(*TraceSessionPtr);
-				ChaosVDProvider->DeleteRecordingInstanceForSession();
-			}
-		}*/
-
 		LoadedRecording.Reset();
 	}
 

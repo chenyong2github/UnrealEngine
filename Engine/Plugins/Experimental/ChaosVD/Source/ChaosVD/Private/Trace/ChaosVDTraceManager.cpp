@@ -25,7 +25,7 @@ FChaosVDTraceManager::~FChaosVDTraceManager()
 
 FString FChaosVDTraceManager::LoadTraceFile(const FString& InTraceFilename)
 {
-	ResetSession(InTraceFilename);
+	CloseSession(InTraceFilename);
 
 	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
 	if (const TSharedPtr<TraceServices::IAnalysisService> TraceAnalysisService = TraceServicesModule.GetAnalysisService())
@@ -48,7 +48,7 @@ TSharedPtr<const TraceServices::IAnalysisSession> FChaosVDTraceManager::GetSessi
 	return nullptr;
 }
 
-void FChaosVDTraceManager::ResetSession(const FString& InSessionName)
+void FChaosVDTraceManager::CloseSession(const FString& InSessionName)
 {
 	if (const TSharedPtr<const TraceServices::IAnalysisSession>* Session = AnalysisSessionByName.Find(InSessionName))
 	{

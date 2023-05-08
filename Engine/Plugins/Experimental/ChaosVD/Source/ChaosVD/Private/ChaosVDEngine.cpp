@@ -34,6 +34,13 @@ void FChaosVDEngine::DeInitialize()
 	CurrentScene->DeInitialize();
 	CurrentScene.Reset();
 	PlaybackController.Reset();
+
+	if (const TSharedPtr<FChaosVDTraceManager> CVDTraceManager = FChaosVDModule::Get().GetTraceManager())
+	{
+		CVDTraceManager->CloseSession(CurrentSessionName);
+	}
+
+	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 }
 
 void FChaosVDEngine::LoadRecording(const FString& FilePath)
