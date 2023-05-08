@@ -775,6 +775,8 @@ void FStreamingManager::ReleaseRHI()
 	Hierarchy.Release();
 	StreamingRequestsBuffer.SafeRelease();
 
+	PendingPages.Empty();	// Make sure IO handles are released before IO system is shut down
+
 	delete RequestsHashTable;
 	delete PageUploader;
 }
