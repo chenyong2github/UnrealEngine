@@ -460,7 +460,7 @@ void SDMXPatchedUniverse::RefreshInternal()
 
 void SDMXPatchedUniverse::UpdateNodesHoveredState()
 {
-	const int32 HoveredChannelID = HoveredChannel.IsValid() ? HoveredChannel->GetChannelID() : -1;
+	const int32 HoveredChannelID = HoveredChannel.IsValid() ? HoveredChannel->GetChannelID() + 1 : -1;
 	for (const TSharedRef<FDMXFixturePatchNode>& Node : PatchedNodes)
 	{
 		Node->SetIsHovered(false);
