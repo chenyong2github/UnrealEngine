@@ -182,6 +182,9 @@ public:
 
 private:
 
+	/** Delegate called when the property editor permission list is updated */
+	void OnPermissionListUpdated(TSoftObjectPtr<UStruct>, FName);
+
 	/** Restores the expansion state in the tree for a specific object set */
 	void RestoreExpandedItems();
 
@@ -208,6 +211,9 @@ private:
 	 * @param OutChildren		The list of children of InPropertyNode that should be visible 
 	 */
 	void OnGetChildrenForPropertyNode( TSharedPtr<FPropertyNode> InPropertyNode, TArray< TSharedPtr<FPropertyNode> >& OutChildren );
+
+	/** Check if a Property Node should be shown in the property tree if we have any external IsPropertyVisible delegates or permission lists */
+	bool IsPropertyNodeVisible(TSharedPtr<FPropertyNode> InPropertyNode);
 
 	/** 
 	 * Function called through a delegate on the favorites TreeView to request children of a property node  

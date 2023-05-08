@@ -11,6 +11,7 @@
 #include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "PropertyPath.h"
+#include "PropertyPermissionList.h"
 #include "Framework/Commands/UIAction.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
@@ -715,7 +716,10 @@ private:
 		for( auto ExtensionIter = PathExtensions.CreateIterator(); ExtensionIter; ++ExtensionIter )
 		{
 			const FPropertyInfo& Extension = *ExtensionIter;
-			TypeToProperties.Add( Extension.Property->GetOwnerStruct(), Extension );
+			if(FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(Extension.Property->GetOwnerStruct(), Extension.Property->GetFName()))
+			{
+				TypeToProperties.Add( Extension.Property->GetOwnerStruct(), Extension );
+			}
 		}
 
 		FMenuBuilder MenuBuilder( true, NULL );

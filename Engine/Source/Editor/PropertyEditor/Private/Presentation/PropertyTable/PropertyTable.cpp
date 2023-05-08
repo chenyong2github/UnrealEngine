@@ -10,6 +10,7 @@
 #include "Presentation/PropertyTable/PropertyTableRowHeaderColumn.h"
 #include "Presentation/PropertyTable/PropertyTableObjectNameColumn.h"
 #include "Presentation/PropertyTable/PropertyTablePropertyNameColumn.h"
+#include "PropertyPermissionList.h"
 
 #include "EditConditionParser.h"
 
@@ -1369,7 +1370,7 @@ void FPropertyTable::UpdateColumns()
 				TWeakFieldPtr< FProperty > Property = *PropertyIter;
 
 				// Don't expose CPF_NativeAccessSpecifierProtected and CPF_NativeAccessSpecifierPrivate properties
-				if ( PropertyIter->HasAllPropertyFlags(CPF_NativeAccessSpecifierPublic | CPF_AssetRegistrySearchable) )
+				if ( PropertyIter->HasAllPropertyFlags(CPF_NativeAccessSpecifierPublic | CPF_AssetRegistrySearchable) && FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(PrimaryType.Get(), Property->GetFName()))
 				{
 					TArray< TSharedRef< IPropertyTableColumn > > MapResults;
 
