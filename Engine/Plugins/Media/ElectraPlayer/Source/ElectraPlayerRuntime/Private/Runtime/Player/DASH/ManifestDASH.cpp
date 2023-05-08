@@ -333,6 +333,14 @@ TSharedPtrTS<IProducerReferenceTimeInfo> FManifestDASH::GetProducerReferenceTime
 	return Manifest.IsValid() ? Manifest->GetProducerReferenceTimeElement(ID) : nullptr;
 }
 
+TRangeSet<double> FManifestDASH::GetPossiblePlaybackRates(EPlayRateType InForType) const
+{
+	TRangeSet<double> Ranges;
+	Ranges.Add(TRange<double>{1.0}); // normal (real-time) playback rate
+	Ranges.Add(TRange<double>{0.0}); // and pause
+	return Ranges;
+}
+
 
 void FManifestDASH::GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStreamType StreamType) const
 {

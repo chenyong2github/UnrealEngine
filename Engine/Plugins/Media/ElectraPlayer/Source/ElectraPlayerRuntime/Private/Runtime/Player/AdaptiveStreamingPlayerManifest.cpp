@@ -301,6 +301,9 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 			NewPresentation->GetTrackMetadata(SubtitleTrackMetadata, EStreamType::Subtitle);
 			PlaybackState.SetTrackMetadata(VideoTrackMetadata, AudioTrackMetadata, SubtitleTrackMetadata);
 			PlaybackState.SetHaveMetadata(true);
+			// Get the supported playback rates for thinned and unthinned playback.
+			PlaybackState.SetPlaybackRates(EPlaybackRateType::Unthinned, NewPresentation->GetPossiblePlaybackRates(IManifest::EPlayRateType::UnthinnedRate));
+			PlaybackState.SetPlaybackRates(EPlaybackRateType::Thinned, NewPresentation->GetPossiblePlaybackRates(IManifest::EPlayRateType::ThinnedRate));
 
 			Manifest = NewPresentation;
 

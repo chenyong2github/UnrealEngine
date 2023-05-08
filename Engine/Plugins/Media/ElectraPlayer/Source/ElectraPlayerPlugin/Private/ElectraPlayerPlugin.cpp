@@ -58,6 +58,9 @@ FElectraPlayerPlugin::FElectraPlayerPlugin()
 	static_assert((int32)EMediaTrackType::Audio == (int32)IElectraPlayerInterface::EPlayerTrackType::Audio, "check alignment of both enums");
 	static_assert((int32)EMediaTrackType::Video == (int32)IElectraPlayerInterface::EPlayerTrackType::Video, "check alignment of both enums");
 
+	static_assert((int32)EMediaRateThinning::Unthinned == (int32)IElectraPlayerInterface::EPlayRateType::Unthinned, "check alignment of both enums");
+	static_assert((int32)EMediaRateThinning::Thinned == (int32)IElectraPlayerInterface::EPlayRateType::Thinned, "check alignment of both enums");
+
 	static_assert(IMediaPlayerLifecycleManagerDelegate::ResourceFlags_Decoder == IElectraPlayerInterface::ResourceFlags_Decoder, "check alignment of both enums");
 	static_assert(IMediaPlayerLifecycleManagerDelegate::ResourceFlags_OutputBuffers == IElectraPlayerInterface::ResourceFlags_OutputBuffers, "check alignment of both enums");
 	static_assert(IMediaPlayerLifecycleManagerDelegate::ResourceFlags_Any == IElectraPlayerInterface::ResourceFlags_Any, "check alignment of both enums");
@@ -892,10 +895,7 @@ bool FElectraPlayerPlugin::SetLooping(bool bLooping)
  */
 TRangeSet<float> FElectraPlayerPlugin::GetSupportedRates(EMediaRateThinning Thinning) const
 {
-	TRangeSet<float> Res;
-	Res.Add(TRange<float>{1.0f}); // only normal (real-time) playback rate
-	Res.Add(TRange<float>{0.0f}); // and pause
-	return Res;
+	return Player->GetSupportedRates(Thinning == EMediaRateThinning::Thinned ? IElectraPlayerInterface::EPlayRateType::Thinned : IElectraPlayerInterface::EPlayRateType::Unthinned);
 }
 
 

@@ -177,12 +177,21 @@ FTimeRange FManifestMP4Internal::GetPlaybackRange() const
 FTimeValue FManifestMP4Internal::GetMinBufferTime() const
 {
 	// NOTE: This could come from a 'pdin' (progressive download information) box, but those are rarely, if ever, set by any tool.
-	return FTimeValue().SetFromSeconds(2.0);
+	return FTimeValue().SetFromSeconds(1.0);
 }
 
 TSharedPtrTS<IProducerReferenceTimeInfo> FManifestMP4Internal::GetProducerReferenceTimeInfo(int64 ID) const
 {
 	return nullptr;
+}
+
+TRangeSet<double> FManifestMP4Internal::GetPossiblePlaybackRates(EPlayRateType InForType) const
+{
+	TRangeSet<double> Ranges;
+//	Ranges.Add(TRange<double>{1.0}); // normal (real-time) playback rate
+	Ranges.Add(TRange<double>::Inclusive(0.5, 4.0));
+	Ranges.Add(TRange<double>{0.0}); // and pause
+	return Ranges;
 }
 
 

@@ -75,7 +75,6 @@ FAdaptiveStreamingPlayer::FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlaye
 	PipelineState  		    = EPipelineState::ePipeline_Stopped;
 	DecoderState   		    = EDecoderState::eDecoder_Paused;
 	StreamState			    = EStreamState::eStream_Running;
-	PlaybackRate   		    = 0.0;
 	RenderRateScale			= 1.0;
 	StreamReaderHandler     = nullptr;
 	bStreamingHasStarted	= false;
@@ -565,6 +564,23 @@ void FAdaptiveStreamingPlayer::SetPlaybackRange(const FPlaybackRange& InPlayback
 void FAdaptiveStreamingPlayer::GetPlaybackRange(FPlaybackRange& OutPlaybackRange)
 {
 	PlaybackState.GetPlayRange(OutPlaybackRange);
+}
+
+
+TRangeSet<double> FAdaptiveStreamingPlayer::GetSupportedRates(EPlaybackRateType InForPlayRateType)
+{
+	return PlaybackState.GetPlaybackRates(InForPlayRateType);
+}
+
+void FAdaptiveStreamingPlayer::SetPlayRate(double InDesiredPlayRate, const FTrickplayParams& InParameters)
+{
+	PlaybackState.SetDesiredPlayRate(InDesiredPlayRate, InParameters);
+}
+
+double FAdaptiveStreamingPlayer::GetPlayRate() const
+{
+	// Return the *desired* play rate.
+	return PlaybackState.GetDesiredPlayRate();
 }
 
 
@@ -2341,7 +2357,6 @@ void FAdaptiveStreamingPlayer::HandleNewOutputData()
 				{
 					PipelineState = EPipelineState::ePipeline_Stopped;
 					CurrentState = EPlayerState::eState_Paused;
-					PlaybackRate = 0.0;
 					PrerollVars.Clear();
 					SeekVars.ClearWorkVars();
 					SeekVars.SetFinished();
@@ -2381,7 +2396,6 @@ void FAdaptiveStreamingPlayer::HandleNewOutputData()
 					PipelineState = EPipelineState::ePipeline_Stopped;
 					CurrentState = EPlayerState::eState_Paused;
 					DecoderState = EDecoderState::eDecoder_Running;
-					PlaybackRate = 0.0;
 					PrerollVars.Clear();
 					DispatchBufferingEvent(false, LastBufferingState);
 					DispatchEvent(FMetricEvent::ReportPrerollEnd());
@@ -4262,7 +4276,6 @@ void FAdaptiveStreamingPlayer::InternalPause()
 	// Pause playing.
 	if (CurrentState != EPlayerState::eState_Error)
 	{
-		PlaybackRate = 0.0;
 		CurrentState = EPlayerState::eState_Paused;
 		PlaybackState.SetPausedAndPlaying(true, false);
 		DispatchEvent(FMetricEvent::ReportPlaybackPaused());
@@ -4297,7 +4310,6 @@ void FAdaptiveStreamingPlayer::InternalResume()
 
 		// Resume playing.
 		CurrentState = EPlayerState::eState_Playing;
-		PlaybackRate = 1.0;
 		PlaybackState.SetPausedAndPlaying(false, true);
 		PostrollVars.Clear();
 		DispatchEvent(FMetricEvent::ReportPlaybackResumed());
@@ -4353,7 +4365,6 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 	NextLoopStates.Empty();
 	SeekVars.Reset();
 
-	PlaybackRate = 0.0;
 	CurrentState = EPlayerState::eState_Paused;
 	PlaybackState.SetPausedAndPlaying(false, false);
 	PlaybackState.SetPlaybackEndAtTime(FTimeValue::GetInvalid());
@@ -4491,9 +4502,8 @@ void FAdaptiveStreamingPlayer::InternalClose()
 	ExternalDataReader.Reset();
 
 	// Reset remaining internal state
-	CurrentState   	= EPlayerState::eState_Idle;
-	PlaybackRate   	= 0.0;
-	StreamState		= EStreamState::eStream_Running;
+	CurrentState = EPlayerState::eState_Idle;
+	StreamState = EStreamState::eStream_Running;
 	RebufferCause = ERebufferCause::None;
 	LastBufferingState = EPlayerState::eState_Buffering;
 	RebufferDetectedAtPlayPos.SetToInvalid();

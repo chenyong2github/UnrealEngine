@@ -242,6 +242,13 @@ FTimeValue FManifestHLS::GetDesiredLiveLatency() const
 	return ll;
 }
 
+TRangeSet<double> FManifestHLS::GetPossiblePlaybackRates(EPlayRateType InForType) const
+{
+	TRangeSet<double> Ranges;
+	Ranges.Add(TRange<double>{1.0}); // normal (real-time) playback rate
+	Ranges.Add(TRange<double>{0.0}); // and pause
+	return Ranges;
+}
 
 TSharedPtrTS<IProducerReferenceTimeInfo> FManifestHLS::GetProducerReferenceTimeInfo(int64 ID) const
 {

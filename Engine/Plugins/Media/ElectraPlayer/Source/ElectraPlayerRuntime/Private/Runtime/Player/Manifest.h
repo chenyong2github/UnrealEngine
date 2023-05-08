@@ -318,11 +318,17 @@ namespace Electra
 
 		virtual FTimeValue GetDesiredLiveLatency() const = 0;
 
+		enum class EPlayRateType
+		{
+			UnthinnedRate,
+			ThinnedRate
+		};
+		virtual TRangeSet<double> GetPossiblePlaybackRates(EPlayRateType InForType) const = 0;
+
 		//! Needs to be called when the user has explicitly triggered a seek, including a programmatic loop back to the beginning.
 		//! For presentations with dynamic content changes (eg. DASH xlink:onRequest Periods) the content may need to be updated
 		//! again. This is different to internal seeking for retry purposes where content will not be re-resolved.
 		virtual void UpdateDynamicRefetchCounter() = 0;
-
 
 		enum class EClockSyncType
 		{

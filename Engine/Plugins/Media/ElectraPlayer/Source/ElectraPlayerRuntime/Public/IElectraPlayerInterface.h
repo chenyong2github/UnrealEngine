@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreMinimal.h"
 #include "MediaDecoderOutput.h"
 #include "IAnalyticsProviderET.h"
 #include "ParameterDictionary.h"
+#include "Math/RangeSet.h"
 
 #include "ElectraPlayerMisc.h"
 #include "ElectraPlayerResourceDelegate.h"
@@ -232,6 +234,15 @@ public:
 	};
 	virtual void SetPlaybackRange(const FPlaybackRange& InPlaybackRange) = 0;
 	virtual void GetPlaybackRange(FPlaybackRange& OutPlaybackRange) const = 0;
+
+	enum class EPlayRateType
+	{
+		// Playback rate with frames being dropped.
+		Thinned,
+		// Playback rate without dropping frames.
+		Unthinned
+	};
+	virtual TRangeSet<float> GetSupportedRates(EPlayRateType InPlayRateType) const = 0;
 
 	virtual float GetRate() const = 0;
 	virtual bool SetRate(float Rate) = 0;

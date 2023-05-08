@@ -936,20 +936,6 @@ bool FElectraPlayer::CanPresentAudioFrames(uint64 NumFrames)
 	return false;
 }
 
-float FElectraPlayer::GetRate() const
-{
-	return PlayerState.GetRate();
-/*
-	if (PlayerState.bUseInternal)
-	{
-		return 0.0f;
-	}
-	else
-	{
-		return CurrentPlayer.Get() && CurrentPlayer->AdaptivePlayer->IsPlaying() ? 1.0f : 0.0f;
-	}
-*/
-}
 
 FElectraPlayer::EPlayerState FElectraPlayer::GetState() const
 {
@@ -1055,6 +1041,31 @@ FTimespan FElectraPlayer::GetSeekableDuration() const
 }
 
 
+TRangeSet<float> FElectraPlayer::GetSupportedRates(EPlayRateType InPlayRateType) const
+{
+	TRangeSet<float> Res;
+	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+	if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
+	{
+		TArray<TRange<double>> SupportedRanges;
+		LockedPlayer->AdaptivePlayer->GetSupportedRates(InPlayRateType == IElectraPlayerInterface::EPlayRateType::Unthinned ? IAdaptiveStreamingPlayer::EPlaybackRateType::Unthinned : IAdaptiveStreamingPlayer::EPlaybackRateType::Thinned).GetRanges(SupportedRanges);
+		for(auto &Rate : SupportedRanges)
+		{
+			TRange<float> r;
+			if (Rate.HasLowerBound())
+			{
+				r.SetLowerBound(TRange<float>::BoundsType::Inclusive((float) Rate.GetLowerBoundValue()));
+			}
+			if (Rate.HasUpperBound())
+			{
+				r.SetUpperBound(TRange<float>::BoundsType::Inclusive((float) Rate.GetUpperBoundValue()));
+			}
+			Res.Add(r);
+		}
+	}
+	return Res;
+}
+
 bool FElectraPlayer::SetRate(float Rate)
 {
 	//UE_LOG(LogElectraPlayer, Verbose, TEXT("[%p][%p] IMediaPlayer::SetRate(%.3f)"), this, CurrentPlayer.Get(), Rate);
@@ -1074,11 +1085,29 @@ bool FElectraPlayer::SetRate(float Rate)
 				TriggerFirstSeekIfNecessary();
 				CurrentPlayer->AdaptivePlayer->Resume();
 			}
+			IAdaptiveStreamingPlayer::FTrickplayParams Params;
+			CurrentPlayer->AdaptivePlayer->SetPlayRate((double) Rate, Params);
 		}
 		return true;
 	}
 	return false;
 }
+
+float FElectraPlayer::GetRate() const
+{
+	return PlayerState.GetRate();
+/*
+	if (PlayerState.bUseInternal)
+	{
+		return 0.0f;
+	}
+	else
+	{
+		return CurrentPlayer.Get() && CurrentPlayer->AdaptivePlayer->IsPlaying() ? 1.0f : 0.0f;
+	}
+*/
+}
+
 
 void FElectraPlayer::TriggerFirstSeekIfNecessary()
 {
@@ -3081,8 +3110,15 @@ bool FElectraPlayer::MediaStateOnPlay()
 
 	CSV_EVENT(ElectraPlayer, TEXT("MediaStateOnPlay"));
 
+	double CurrentRate = 1.0;
+	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
+	if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
+	{
+		CurrentRate = LockedPlayer->AdaptivePlayer->GetPlayRate();
+	}
+
 	PlayerState.State = EPlayerState::Playing;
-	PlayerState.SetPlayRateFromPlayer(1.0f);
+	PlayerState.SetPlayRateFromPlayer(CurrentRate);
 
 	DeferredEvents.Enqueue(IElectraPlayerAdapterDelegate::EPlayerEvent::PlaybackResumed);
 	return true;

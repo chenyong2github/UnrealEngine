@@ -201,6 +201,10 @@ struct FPlaybackState
 		LoopState = {};
 		ActivePlaybackRange.Reset();
 		NewPlaybackRange.Reset();
+		UnthinnedPlaybackRates.Empty();
+		ThinnedPlaybackRates.Empty();
+		CurrentPlaybackRate = 0.0;
+		DesiredPlaybackRate = 0.0;
 		bHaveMetadata = false;
 		bHasEnded = false;
 		bIsSeeking = false;
@@ -223,6 +227,10 @@ struct FPlaybackState
 	IAdaptiveStreamingPlayer::FLoopState	LoopState;
 	FTimeRange								ActivePlaybackRange;
 	FTimeRange								NewPlaybackRange;
+	TRangeSet<double>						UnthinnedPlaybackRates;
+	TRangeSet<double>						ThinnedPlaybackRates;
+	double									CurrentPlaybackRate;
+	double									DesiredPlaybackRate;
 	bool									bHaveMetadata;
 	bool									bHasEnded;
 	bool									bIsSeeking;
@@ -397,6 +405,13 @@ struct FPlaybackState
 		FScopeLock lock(&Lock);
 		bIsPaused  = bInIsPaused;
 		bIsPlaying = bInIsPlaying;
+		// If asked to play, but no desired playback rate has been set yet, assume 1.0.
+		// It is thought to be a user error to resume playback with no play rate.
+		if (bIsPlaying && DesiredPlaybackRate == 0.0)
+		{
+			DesiredPlaybackRate = 1.0;
+		}
+		CurrentPlaybackRate = bIsPaused ? 0.0 : bIsPlaying ? DesiredPlaybackRate : 0.0;
 	}
 
 	bool SetTrackMetadata(const TArray<FTrackMetadata> &InVideoTracks, const TArray<FTrackMetadata>& InAudioTracks, const TArray<FTrackMetadata>& InSubtitleTracks)
@@ -511,6 +526,45 @@ struct FPlaybackState
 	{
 		FScopeLock lock(&Lock);
 		return bPlayrangeHasChanged;
+	}
+
+	void SetPlaybackRates(IAdaptiveStreamingPlayer::EPlaybackRateType InForType, const TRangeSet<double>& InRates)
+	{
+		FScopeLock lock(&Lock);
+		if (InForType == IAdaptiveStreamingPlayer::EPlaybackRateType::Unthinned)
+		{
+			UnthinnedPlaybackRates = InRates;
+		}
+		else
+		{
+			ThinnedPlaybackRates = InRates;
+		}
+	}
+	TRangeSet<double> GetPlaybackRates(IAdaptiveStreamingPlayer::EPlaybackRateType InForType)
+	{
+		FScopeLock lock(&Lock);
+		return InForType == IAdaptiveStreamingPlayer::EPlaybackRateType::Unthinned ? UnthinnedPlaybackRates : ThinnedPlaybackRates;
+	}
+
+	void SetDesiredPlayRate(double InDesiredPlayRate, const IAdaptiveStreamingPlayer::FTrickplayParams& /*InParameters*/)
+	{
+		FScopeLock lock(&Lock);
+		DesiredPlaybackRate = InDesiredPlayRate;
+	}
+	double GetDesiredPlayRate() const
+	{
+		FScopeLock lock(&Lock);
+		return DesiredPlaybackRate;
+	}
+	void SetCurrentPlayRate(double InRate)
+	{
+		FScopeLock lock(&Lock);
+		CurrentPlaybackRate = InRate;
+	}
+	double GetCurrentPlayRate() const
+	{
+		FScopeLock lock(&Lock);
+		return CurrentPlaybackRate;
 	}
 
 
@@ -954,6 +1008,9 @@ public:
 	void SetPlaybackRange(const FPlaybackRange& InPlaybackRange) override;
 	void GetPlaybackRange(FPlaybackRange& OutPlaybackRange) override;
 	void SetLooping(const FLoopParam& InLoopParams) override;
+	TRangeSet<double> GetSupportedRates(EPlaybackRateType InForPlayRateType) override;
+	void SetPlayRate(double InDesiredPlayRate, const FTrickplayParams& InParameters) override;
+	double GetPlayRate() const override;
 
 	FErrorDetail GetError() const override;
 
@@ -2163,7 +2220,6 @@ private:
 	FPostrollVars														PostrollVars;
 	FSeekVars															SeekVars;
 	EPlayerState														LastBufferingState;
-	double																PlaybackRate;
 	double																RenderRateScale;
 	FTimeValue															RebufferDetectedAtPlayPos;
 	ERebufferCause														RebufferCause;
