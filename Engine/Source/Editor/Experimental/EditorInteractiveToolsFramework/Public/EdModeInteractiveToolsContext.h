@@ -80,8 +80,11 @@ public:
 	// default behavior is to accept active tool
 	virtual void TerminateActiveToolsOnSaveWorld();
 
-	// default behavior is to accept active tool
+	// default behavior is to cancel active tool
 	virtual void TerminateActiveToolsOnWorldTearDown();
+
+	// default behavior is to cancel active tool
+	virtual void TerminateActiveToolsOnLevelChange();
 
 	FEditorModeTools* GetParentEditorModeManager() const { return EditorModeManager; }
 

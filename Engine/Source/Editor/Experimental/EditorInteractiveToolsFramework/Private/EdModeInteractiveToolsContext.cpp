@@ -20,6 +20,7 @@
 #include "ShowFlags.h"				// for EngineShowFlags
 #include "Engine/Engine.h"
 #include "Engine/Selection.h"
+#include "Engine/World.h"
 #include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
 #include "Materials/Material.h"
@@ -406,6 +407,10 @@ void UEditorInteractiveToolsContext::TerminateActiveToolsOnSaveWorld()
 	DeactivateAllActiveTools(EToolShutdownType::Accept);
 }
 void UEditorInteractiveToolsContext::TerminateActiveToolsOnWorldTearDown()
+{
+	DeactivateAllActiveTools(EToolShutdownType::Cancel);
+}
+void UEditorInteractiveToolsContext::TerminateActiveToolsOnLevelChange()
 {
 	DeactivateAllActiveTools(EToolShutdownType::Cancel);
 }
@@ -1169,6 +1174,12 @@ void UModeManagerInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Qu
 		}
 	});
 
+	// Tools frequently spawn temporary objects in the level for visualization, gizmos, etc, so having a level be
+	// removed from the world puts the tools at risk of letting those objects be garbage collected and cause crashes
+	FWorldDelegates::PreLevelRemovedFromWorld.AddWeakLambda(this, [this](ULevel*, UWorld*) {
+		TerminateActiveToolsOnLevelChange();
+	});
+
 	ToolManager->OnToolEnded.AddUObject(this, &UModeManagerInteractiveToolsContext::OnToolEnded);
 	ToolManager->OnToolPostBuild.AddUObject(this, &UModeManagerInteractiveToolsContext::OnToolPostBuild);
 
@@ -1194,6 +1205,8 @@ void UModeManagerInteractiveToolsContext::Shutdown()
 		FEditorDelegates::PreSaveWorldWithContext.Remove(PreSaveWorldDelegateHandle);
 		GEditor->OnViewportClientListChanged().Remove(ViewportClientListChangedHandle);
 	}
+
+	FWorldDelegates::PreLevelRemovedFromWorld.RemoveAll(this);
 
 	Super::Shutdown();
 }

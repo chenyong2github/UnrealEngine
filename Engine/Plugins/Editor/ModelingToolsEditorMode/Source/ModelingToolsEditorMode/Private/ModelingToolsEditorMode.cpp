@@ -136,6 +136,7 @@
 #include "DynamicMeshActor.h"
 #include "Components/BrushComponent.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/World.h" // FWorldDelegates
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingToolsEditorMode)
 
@@ -1035,6 +1036,27 @@ void UModelingToolsEditorMode::Enter()
 			}
 		});
 	}
+
+	// Removing levels from the world can happen either by entering/exiting level instance edit mode, or
+	// by using the Levels panel. The problem is that any temporary actors we may have spawned in the 
+	// level for visualization, gizmos, etc. will be garbage collected. While EdModeInteractiveToolsContext
+	// should end the tools for us, we still have to take care of mode-level temporary actors.
+	FWorldDelegates::PreLevelRemovedFromWorld.AddWeakLambda(this, [this](ULevel*, UWorld*) {
+		// The ideal solution would be to just exit the mode, but we don't have a way to do that- we
+		// can only request a mode switch on next tick.Since this is too late to prevent a crash, we
+		// hand-clean up temporary actors here.
+		if (SelectionInteraction)
+		{
+			SelectionInteraction->Shutdown();
+		}
+
+		// Since we're doing this hand-cleanup above, we could actually register to OnCurrentLevelChanged and
+		// reinstate the temporary actors to stay in the mode. That seems a bit brittle, though, and there
+		// is still some hope that we can someday exit the mode instead of having to keep track of what is
+		// in danger of being garbage collected, so we might as well keep the workflow the same (i.e. exit
+		// mode).
+		GetModeManager()->ActivateDefaultMode();
+	});
 }
 
 void UModelingToolsEditorMode::RegisterUVEditor()
@@ -1102,6 +1124,8 @@ void UModelingToolsEditorMode::RegisterUVEditor()
 
 void UModelingToolsEditorMode::Exit()
 {
+	FWorldDelegates::PreLevelRemovedFromWorld.RemoveAll(this);
+
 	// shutdown selection interaction
 	if (SelectionInteraction != nullptr)
 	{
