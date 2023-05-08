@@ -544,6 +544,19 @@ void FCurveEditorTree::RemoveFromSelection(TArrayView<const FCurveEditorTreeItem
 	}
 }
 
+ void  FCurveEditorTree::RecreateModelsFromExistingSelection(FCurveEditor* CurveEditor)
+{
+	// Ensure the new selection has valid curve models
+	for (TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> NewItem : Selection)
+	{
+		if (NewItem.Value != ECurveEditorTreeSelectionState::None)
+		{
+			GetItem(NewItem.Key).DestroyCurves(CurveEditor);
+			GetItem(NewItem.Key).GetOrCreateCurves(CurveEditor);
+		}
+	}
+}
+
 const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& FCurveEditorTree::GetSelection() const
 {
 	return Selection;

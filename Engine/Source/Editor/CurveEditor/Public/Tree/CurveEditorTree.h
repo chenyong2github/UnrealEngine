@@ -513,6 +513,11 @@ public:
 		return bIsDoingDirectSelection;
 	}
 
+	/**
+	Recreate the curve models from the existing selection, this may be needed in case of a setting change.
+	*/
+	void RecreateModelsFromExistingSelection(FCurveEditor* CurveEditor);
+
 private:
 
 	// Recursively removes children without removing them from the parent (assuming the parent is also being removed)

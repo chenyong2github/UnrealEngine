@@ -74,6 +74,7 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleSnapTimeToSelection;
 	TSharedPtr<FUICommandInfo> ToggleShowBufferedCurves;
 	TSharedPtr<FUICommandInfo> ToggleShowCurveEditorCurveToolTips;
+	TSharedPtr<FUICommandInfo> ToggleShowBars;
 
 	TSharedPtr<FUICommandInfo> SetRandomCurveColorsForSelected;
 	TSharedPtr<FUICommandInfo> SetCurveColorsForSelected;

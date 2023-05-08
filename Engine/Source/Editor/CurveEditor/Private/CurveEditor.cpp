@@ -477,6 +477,12 @@ void FCurveEditor::BindCommands()
 		FIsActionChecked::CreateLambda( [CurveSettings]{ return CurveSettings->GetAutoFrameCurveEditor(); } )
 	);
 
+	CommandList->MapAction(FCurveEditorCommands::Get().ToggleShowBars,
+		FExecuteAction::CreateLambda([this, CurveSettings] { CurveSettings->SetShowBars(!CurveSettings->GetShowBars()); Tree.RecreateModelsFromExistingSelection(this); }),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([CurveSettings] { return CurveSettings->GetShowBars(); })
+	);
+
 	CommandList->MapAction(FCurveEditorCommands::Get().ToggleSnapTimeToSelection,
 		FExecuteAction::CreateLambda( [CurveSettings]{ CurveSettings->SetSnapTimeToSelection( !CurveSettings->GetSnapTimeToSelection() ); } ),
 		FCanExecuteAction(),

@@ -89,6 +89,11 @@ public:
 	/** Sets whether or not the curve editor auto frames the selected curves. */
 	void SetAutoFrameCurveEditor(bool InbAutoFrameCurveEditor);
 
+	/** Gets whether or not the curve editor shows key bar style curves, like for constraints and spaces. */
+	bool GetShowBars() const;
+	/** Sets whether or not the curve editor shows key bar style curves, like for constraints and spaces. */
+	void SetShowBars(bool InShowBars);
+
 	/** Gets the number of pixels to pad input framing */
 	int32 GetFrameInputPadding() const;
 	/** Sets the number of pixels to pad input framing */
@@ -160,6 +165,9 @@ protected:
 
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor" )
 	bool bAutoFrameCurveEditor;
+
+	UPROPERTY(config, EditAnywhere, Category = "Curve Editor")
+	bool bShowBars;
 
 	/* Number of pixels to add as padding in the input axis when framing curve keys */
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor", meta=(ClampMin=0) )

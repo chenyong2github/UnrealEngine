@@ -1494,9 +1494,12 @@ TUniquePtr<FCurveModel> CreateCurveEditorModel(const TMovieSceneChannelHandle<FM
 	{
 		if (Channel->GetNumKeys() > 0)
 		{
-			return MakeUnique<FControlRigSpaceChannelCurveModel>(ChannelHandle, OwningSection, InSequencer);
+			const UCurveEditorSettings* Settings = GetDefault<UCurveEditorSettings>();
+			if (Settings == nullptr || Settings->GetShowBars())
+			{
+				return MakeUnique<FControlRigSpaceChannelCurveModel>(ChannelHandle, OwningSection, InSequencer);
+			}
 		}
-
 	}
 	return nullptr;
 }

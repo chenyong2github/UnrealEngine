@@ -7,6 +7,7 @@
 UCurveEditorSettings::UCurveEditorSettings()
 {
 	bAutoFrameCurveEditor = true;
+	bShowBars = true;
 	FrameInputPadding = 50;
 	FrameOutputPadding = 50;
 	bShowBufferedCurves = true;
@@ -32,6 +33,20 @@ void UCurveEditorSettings::SetAutoFrameCurveEditor(bool InbAutoFrameCurveEditor)
 	if (bAutoFrameCurveEditor != InbAutoFrameCurveEditor)
 	{
 		bAutoFrameCurveEditor = InbAutoFrameCurveEditor;
+		SaveConfig();
+	}
+}
+
+bool UCurveEditorSettings::GetShowBars() const
+{
+	return bShowBars;
+}
+
+void UCurveEditorSettings::SetShowBars(bool InValue)
+{
+	if (bShowBars != InValue)
+	{
+		bShowBars = InValue;
 		SaveConfig();
 	}
 }
