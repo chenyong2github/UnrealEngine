@@ -140,6 +140,8 @@ struct ENGINE_API FSpatialHashStreamingGrid
 	void InjectExternalStreamingObjectGrid(const FSpatialHashStreamingGrid& InExternalObjectStreamingGrid) const;
 	void RemoveExternalStreamingObjectGrid(const FSpatialHashStreamingGrid& InExternalObjectStreamingGrid) const;
 
+	bool InsertGridCell(UWorldPartitionRuntimeCell* InGridCell, const FGridCellCoord& InGridCellCoords);
+
 	// Used by PIE/Game
 	int64 GetCellSize(int32 Level) const;
 	void GetCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells, bool bEnableZCulling, FWorldPartitionQueryCache* QueryCache = nullptr) const;

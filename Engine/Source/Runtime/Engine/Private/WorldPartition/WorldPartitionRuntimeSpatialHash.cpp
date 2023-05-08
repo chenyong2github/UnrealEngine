@@ -358,6 +358,40 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSo
 	}
 }
 
+bool FSpatialHashStreamingGrid::InsertGridCell(UWorldPartitionRuntimeCell* InCell, const FGridCellCoord& InGridCellCoords)
+{
+	check(InCell);
+
+	const int64 Level = InGridCellCoords.Z;
+	const int64 CellCoordX = InGridCellCoords.X;
+	const int64 CellCoordY = InGridCellCoords.Y;
+
+	// Add Cell to grid
+	if (GridLevels.IsValidIndex(Level))
+	{
+		uint64 CellIndex = 0;
+		if (GetGridHelper().Levels[Level].GetCellIndex(FGridCellCoord2(CellCoordX, CellCoordY), CellIndex))
+		{
+			FSpatialHashStreamingGridLevel& GridLevel = GridLevels[Level];
+			int32 LayerCellIndex;
+			int32* LayerCellIndexPtr = GridLevel.LayerCellsMapping.Find(CellIndex);
+			if (LayerCellIndexPtr)
+			{
+				LayerCellIndex = *LayerCellIndexPtr;
+			}
+			else
+			{
+				LayerCellIndex = GridLevel.LayerCells.AddDefaulted();
+				GridLevel.LayerCellsMapping.Add(CellIndex, LayerCellIndex);
+			}
+			GridLevel.LayerCells[LayerCellIndex].GridCells.Add(InCell);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void FSpatialHashStreamingGrid::InjectExternalStreamingObjectGrid(const FSpatialHashStreamingGrid& InExternalObjectStreamingGrid) const
 {
 	if (InjectedGridLevels.IsEmpty())
