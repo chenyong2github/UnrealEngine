@@ -5,7 +5,6 @@
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
-#include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
 #include "Internationalization/Internationalization.h"
 #include "NiagaraStackEditorData.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
@@ -140,78 +139,6 @@ void UNiagaraStackSystemUserParametersGroup::Initialize(
 FText UNiagaraStackSystemUserParametersGroup::GetIconText() const
 {
 	return FText::FromString(FString(TEXT("\xf007")/* fa-user */));
-}
-
-void UNiagaraStackParameterStoreItem::Initialize(
-	FRequiredEntryData InRequiredEntryData,
-	UObject* InOwner,
-	FNiagaraParameterStore* InParameterStore,
-	INiagaraStackItemGroupAddUtilities* InGroupAddUtilities)
-{
-	Super::Initialize(InRequiredEntryData, TEXT("ParameterStoreItem"));
-
-	Owner = InOwner;
-	ParameterStore = InParameterStore;
-	ParameterStoreChangedHandle = ParameterStore->AddOnChangedHandler(
-		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraStackParameterStoreItem::ParameterStoreChanged));
-	GroupAddUtilities = InGroupAddUtilities;
-}
-
-FText UNiagaraStackParameterStoreItem::GetDisplayName() const
-{
-	return LOCTEXT("ParameterItemDisplayName", "User Parameters");
-}
-
-FText UNiagaraStackParameterStoreItem::GetTooltipText() const
-{
-	return LOCTEXT("ParameterItemTooltip", "Displays the variables created in the User namespace. These variables are exposed to owning UComponents, blueprints, etc.");
-}
-
-void UNiagaraStackParameterStoreItem::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
-{
-	if (ParameterStore != nullptr && ParameterStore->ReadParameterVariables().Num() > 0)
-	{
-		TArray<FNiagaraVariable> Variables;
-		ParameterStore->GetParameters(Variables);
-
-		for (FNiagaraVariable& Var : Variables)
-		{
-			UNiagaraStackParameterStoreEntry* ValueObjectEntry = FindCurrentChildOfTypeByPredicate<UNiagaraStackParameterStoreEntry>(CurrentChildren,
-				[=](UNiagaraStackParameterStoreEntry* CurrentEntry) { 
-				bool bSameName = CurrentEntry->GetDisplayName().ToString() == Var.GetName().ToString();
-				bool bSameType = CurrentEntry->GetInputType() == Var.GetType();
-				return bSameName && bSameType;
-			});
-
-			if (ValueObjectEntry == nullptr)
-			{
-				ValueObjectEntry = NewObject<UNiagaraStackParameterStoreEntry>(this);
-				ValueObjectEntry->Initialize(CreateDefaultChildRequiredData(), Owner.Get(), ParameterStore, Var.GetName().ToString(), Var.GetType(), GetStackEditorDataKey());
-			}
-
-			NewChildren.Add(ValueObjectEntry);
-		}
-	}
-	Super::RefreshChildrenInternal(CurrentChildren, NewChildren, NewIssues);
-}
-
-void UNiagaraStackParameterStoreItem::FinalizeInternal()
-{
-	if (Owner.IsValid() && ParameterStore != nullptr)
-	{
-		ParameterStore->RemoveOnChangedHandler(ParameterStoreChangedHandle);
-		Owner.Reset();
-		ParameterStore = nullptr;
-	}
-	Super::FinalizeInternal();
-}
-
-void UNiagaraStackParameterStoreItem::ParameterStoreChanged()
-{
-	if (IsFinalized() == false && Owner.IsValid())
-	{
-		RefreshChildren();
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

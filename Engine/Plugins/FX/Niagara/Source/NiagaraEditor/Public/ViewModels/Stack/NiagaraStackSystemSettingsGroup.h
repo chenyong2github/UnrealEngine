@@ -4,8 +4,8 @@
 
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "NiagaraCommon.h"
+#include "NiagaraStackItem.h"
 #include "NiagaraParameterStore.h"
-#include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
 #include "Delegates/IDelegateInstance.h"
 #include "NiagaraStackSystemSettingsGroup.generated.h"
 
@@ -45,32 +45,3 @@ private:
 	FDelegateHandle ParameterStoreChangedHandle;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackParameterStoreItem : public UNiagaraStackItem
-{
-	GENERATED_BODY()
-
-public:
-	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InOwner, FNiagaraParameterStore* InParameterStore, INiagaraStackItemGroupAddUtilities* InGroupAddUtilities);
-
-	virtual FText GetDisplayName() const override;
-
-	virtual FText GetTooltipText() const override;
-
-	virtual bool GetShouldShowInOverview() const override { return false; }
-
-	INiagaraStackItemGroupAddUtilities* GetGroupAddUtilities() const { return GroupAddUtilities; }
-
-protected:
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
-	virtual void FinalizeInternal() override;
-
-private:
-	void ParameterStoreChanged();
-
-private:
-	TWeakObjectPtr<UObject> Owner;
-	FNiagaraParameterStore* ParameterStore;
-	INiagaraStackItemGroupAddUtilities* GroupAddUtilities;
-	FDelegateHandle ParameterStoreChangedHandle;
-};

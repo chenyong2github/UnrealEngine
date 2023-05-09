@@ -23,7 +23,6 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
-#include "ViewModels/Stack/NiagaraStackParameterStoreEntry.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -42,9 +41,6 @@
 #include "Stack/SNiagaraStackItemFooter.h"
 #include "Stack/SNiagaraStackItemGroup.h"
 #include "Stack/SNiagaraStackModuleItem.h"
-#include "Stack/SNiagaraStackParameterStoreItem.h"
-#include "Stack/SNiagaraStackParameterStoreEntryName.h"
-#include "Stack/SNiagaraStackParameterStoreEntryValue.h"
 #include "Stack/SNiagaraStackTableRow.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
 #include "NiagaraEditorWidgetsUtilities.h"
@@ -926,19 +922,6 @@ SNiagaraStack::FRowWidgets SNiagaraStack::ConstructNameAndValueWidgetsForItem(UN
 	{
 		UNiagaraStackItemFooter* ItemExpander = CastChecked<UNiagaraStackItemFooter>(Item);
 		return FRowWidgets(SNew(SNiagaraStackItemFooter, *ItemExpander));
-	}
-	else if (Item->IsA<UNiagaraStackParameterStoreItem>())
-	{
-		UNiagaraStackParameterStoreItem* StackEntry = CastChecked<UNiagaraStackParameterStoreItem>(Item);
-		return FRowWidgets(SNew(SNiagaraStackParameterStoreItem, *StackEntry, StackViewModel));
-	}
-	else if (Item->IsA<UNiagaraStackParameterStoreEntry>())
-	{
-		UNiagaraStackParameterStoreEntry* StackEntry = CastChecked<UNiagaraStackParameterStoreEntry>(Item);
-		return FRowWidgets(
-			SNew(SNiagaraStackParameterStoreEntryName, StackEntry, StackViewModel)
-			.IsSelected(Container, &SNiagaraStackTableRow::IsSelected),
-			SNew(SNiagaraStackParameterStoreEntryValue, StackEntry));
 	}
 	else if (Item->IsA<UNiagaraStackInputCategory>())
 	{
