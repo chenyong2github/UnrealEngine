@@ -55,6 +55,20 @@ namespace EAssetAvailabilityProgressReportingType
 	};
 }
 
+namespace UE::AssetRegistry
+{
+
+enum class EScanFlags : uint32
+{
+	None = 0,
+	ForceRescan = 1 << 0,				// the paths will be scanned again, even if they were previously scanned
+	IgnoreDenyListScanFilters = 1 << 1,	// ignore deny list scan filters
+	WaitForInMemoryObjects = 1 << 2,	// update the tags of all assets that have loaded into memory before returning from the scan
+};
+ENUM_CLASS_FLAGS(EScanFlags);
+
+} // namespace UE::AssetRegistry
+
 USTRUCT(BlueprintType)
 struct FAssetRegistryDependencyOptions
 {
@@ -538,6 +552,9 @@ public:
 	/** Scan the specified individual files right now and populate the asset registry. If bForceRescan is true, the paths will be scanned again, even if they were previously scanned */
 	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")
 	virtual void ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan = false) = 0;
+
+	/** Scan the supplied paths and files recursively right now and populate the asset registry. */
+	virtual void ScanSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InFilePaths, UE::AssetRegistry::EScanFlags InScanFlags = UE::AssetRegistry::EScanFlags::None) = 0;
 
 	/** Look for all assets on disk (can be async or synchronous) */
 	UFUNCTION(BlueprintCallable, Category = "AssetRegistry")

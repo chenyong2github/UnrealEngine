@@ -3435,17 +3435,42 @@ bool UAssetRegistryImpl::PathExists(const FName PathToTest) const
 void UAssetRegistryImpl::ScanPathsSynchronous(const TArray<FString>& InPaths, bool bForceRescan,
 	bool bIgnoreDenyListScanFilters)
 {
-	ScanPathsSynchronousInternal(InPaths, TArray<FString>(), bForceRescan, bIgnoreDenyListScanFilters);
+	// The contract of this older version of ScanSynchronous always set the WaitForInMemoryObjects flag.
+	UE::AssetRegistry::EScanFlags ScanFlags = UE::AssetRegistry::EScanFlags::WaitForInMemoryObjects;
+
+	if (bForceRescan)
+	{
+		ScanFlags |= UE::AssetRegistry::EScanFlags::ForceRescan;
+	}
+
+	if (bIgnoreDenyListScanFilters)
+	{
+		ScanFlags |= UE::AssetRegistry::EScanFlags::IgnoreDenyListScanFilters;
+	}
+
+	ScanPathsSynchronousInternal(InPaths, TArray<FString>(), ScanFlags);
 }
 
 void UAssetRegistryImpl::ScanFilesSynchronous(const TArray<FString>& InFilePaths, bool bForceRescan)
 {
-	ScanPathsSynchronousInternal(TArray<FString>(), InFilePaths, bForceRescan,
-		false /* bIgnoreDenyListScanFilters */);
+	// The contract of this older version of ScanSynchronous always set the WaitForInMemoryObjects flag.
+	UE::AssetRegistry::EScanFlags ScanFlags = UE::AssetRegistry::EScanFlags::WaitForInMemoryObjects;
+
+	if (bForceRescan)
+	{
+		ScanFlags |= UE::AssetRegistry::EScanFlags::ForceRescan;
+	}
+
+	ScanPathsSynchronousInternal(TArray<FString>(), InFilePaths, ScanFlags);
+}
+
+void UAssetRegistryImpl::ScanSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InFilePaths, UE::AssetRegistry::EScanFlags InScanFlags)
+{
+	ScanPathsSynchronousInternal(InPaths, InFilePaths, InScanFlags);
 }
 
 void UAssetRegistryImpl::ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles,
-	bool bInForceRescan, bool bInIgnoreDenyListScanFilters)
+	UE::AssetRegistry::EScanFlags InScanFlags)
 {
 	UE_SCOPED_IO_ACTIVITY(*WriteToString<256>("Scan Paths"));
 
@@ -3453,11 +3478,15 @@ void UAssetRegistryImpl::ScanPathsSynchronousInternal(const TArray<FString>& InD
 	UE_TRACK_REFERENCING_OPNAME_SCOPED(PackageAccessTrackingOps::NAME_ResetContext);
 	const double SearchStartTime = FPlatformTime::Seconds();
 
+	const bool bForceRescan = !!(InScanFlags & UE::AssetRegistry::EScanFlags::ForceRescan);
+	const bool bIgnoreDenyListScanFilters = !!(InScanFlags & UE::AssetRegistry::EScanFlags::IgnoreDenyListScanFilters);
+	const bool bWaitForInMemoryObjects = !!(InScanFlags & UE::AssetRegistry::EScanFlags::WaitForInMemoryObjects);
+
 	UE::AssetRegistry::Impl::FEventContext EventContext;
 	UE::AssetRegistry::Impl::FClassInheritanceContext InheritanceContext;
 	UE::AssetRegistry::Impl::FClassInheritanceBuffer InheritanceBuffer;
 	UE::AssetRegistry::Impl::FScanPathContext Context(EventContext, InheritanceContext, InDirs, InFiles,
-		bInForceRescan, bInIgnoreDenyListScanFilters, nullptr /* OutFindAssets */);
+		bForceRescan, bIgnoreDenyListScanFilters, nullptr /* OutFindAssets */);
 
 	{
 		LLM_SCOPE(ELLMTag::AssetRegistry);
@@ -3474,7 +3503,10 @@ void UAssetRegistryImpl::ScanPathsSynchronousInternal(const TArray<FString>& InD
 	}
 
 #if WITH_EDITOR
-	ProcessLoadedAssetsToUpdateCache(EventContext, -1., Context.Status);
+	if (bWaitForInMemoryObjects)
+	{
+		ProcessLoadedAssetsToUpdateCache(EventContext, -1., Context.Status);
+	}
 #endif
 	Broadcast(EventContext);
 
