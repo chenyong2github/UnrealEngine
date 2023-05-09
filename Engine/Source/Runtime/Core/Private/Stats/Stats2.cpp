@@ -331,8 +331,8 @@ void FStartupMessages::AddMetadata( FName InStatName, const TCHAR* InStatDesc, c
 	LLM_SCOPE(ELLMTag::Stats);
 	FScopeLock Lock( &CriticalSection );
 
-	new (DelayedMessages)FStatMessage( InGroupName, EStatDataType::ST_None, "Groups", InGroupCategory, InGroupDesc, false, false, bSortByName );
-	new (DelayedMessages)FStatMessage( InStatName, InStatType, InGroupName, InGroupCategory, InStatDesc, bShouldClearEveryFrame, bCycleStat, bSortByName, InMemoryRegion );
+	DelayedMessages.Emplace( InGroupName, EStatDataType::ST_None, "Groups", InGroupCategory, InGroupDesc, false, false, bSortByName );
+	DelayedMessages.Emplace( InStatName, InStatType, InGroupName, InGroupCategory, InStatDesc, bShouldClearEveryFrame, bCycleStat, bSortByName, InMemoryRegion );
 }
 
 

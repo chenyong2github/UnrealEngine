@@ -517,8 +517,8 @@ void ParseGlslError(TArray<FShaderCompilerError>& OutErrors, const FString& InLi
 		{
 			// Note that no mapping exists from the GLSL source to the original
 			// HLSL source.
-			FShaderCompilerError* CompilerError = new(OutErrors) FShaderCompilerError;
-			CompilerError->StrippedErrorMessage = FString::Printf(
+			FShaderCompilerError& CompilerError = OutErrors.AddDefaulted_GetRef();
+			CompilerError.StrippedErrorMessage = FString::Printf(
 				TEXT("driver compile error(%d): %s"),
 				LineNumber,
 				*ErrorMsg
@@ -949,8 +949,8 @@ void FOpenGLFrontend::BuildShaderOutput(
 	if (Header.Bindings.NumSamplers > MaxSamplers)
 	{
 		ShaderOutput.bSucceeded = false;
-		FShaderCompilerError* NewError = new(ShaderOutput.Errors) FShaderCompilerError();
-		NewError->StrippedErrorMessage =
+		FShaderCompilerError& NewError = ShaderOutput.Errors.AddDefaulted_GetRef();
+		NewError.StrippedErrorMessage =
 			FString::Printf(TEXT("shader uses %d samplers exceeding the limit of %d"),
 				Header.Bindings.NumSamplers, MaxSamplers);
 	}
@@ -1029,8 +1029,8 @@ void FOpenGLFrontend::PrecompileShader(FShaderCompilerOutput& ShaderOutput, cons
 	if (GLFrequency == GL_NONE)
 	{
 		ShaderOutput.bSucceeded = false;
-		FShaderCompilerError* NewError = new(ShaderOutput.Errors) FShaderCompilerError();
-		NewError->StrippedErrorMessage = FString::Printf(TEXT("%s shaders not supported for use in OpenGL."), CrossCompiler::GetFrequencyName((EShaderFrequency)ShaderInput.Target.Frequency));
+		FShaderCompilerError& NewError = ShaderOutput.Errors.AddDefaulted_GetRef();
+		NewError.StrippedErrorMessage = FString::Printf(TEXT("%s shaders not supported for use in OpenGL."), CrossCompiler::GetFrequencyName((EShaderFrequency)ShaderInput.Target.Frequency));
 		return;
 	}
 
@@ -1089,8 +1089,8 @@ void FOpenGLFrontend::PrecompileShader(FShaderCompilerOutput& ShaderOutput, cons
 
 				if (ShaderOutput.Errors.Num() == 0)
 				{
-					FShaderCompilerError* NewError = new(ShaderOutput.Errors) FShaderCompilerError();
-					NewError->StrippedErrorMessage = FString::Printf(
+					FShaderCompilerError& NewError = ShaderOutput.Errors.AddDefaulted_GetRef();
+					NewError.StrippedErrorMessage = FString::Printf(
 						TEXT("GLSL source:\n%sGL compile log: %s\n"),
 						ANSI_TO_TCHAR(ShaderSource),
 						ANSI_TO_TCHAR(RawCompileLog.GetData())
@@ -1099,8 +1099,8 @@ void FOpenGLFrontend::PrecompileShader(FShaderCompilerOutput& ShaderOutput, cons
 			}
 			else
 			{
-				FShaderCompilerError* NewError = new(ShaderOutput.Errors) FShaderCompilerError();
-				NewError->StrippedErrorMessage = TEXT("Shader compile failed without errors.");
+				FShaderCompilerError& NewError = ShaderOutput.Errors.AddDefaulted_GetRef();
+				NewError.StrippedErrorMessage = TEXT("Shader compile failed without errors.");
 			}
 
 			ShaderOutput.bSucceeded = false;
@@ -3359,8 +3359,8 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 	if (HlslFrequency == HSF_InvalidFrequency)
 	{
 		Output.bSucceeded = false;
-		FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
-		NewError->StrippedErrorMessage = FString::Printf(
+		FShaderCompilerError& NewError = Output.Errors.AddDefaulted_GetRef();
+		NewError.StrippedErrorMessage = FString::Printf(
 			TEXT("%s shaders not supported for use in OpenGL."),
 			CrossCompiler::GetFrequencyName(Frequency)
 			);

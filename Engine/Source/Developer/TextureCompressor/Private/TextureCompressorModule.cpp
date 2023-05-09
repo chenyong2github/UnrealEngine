@@ -1759,7 +1759,7 @@ void ITextureCompressorModule::GenerateMipChain(
 		// add new mip to TArray<FImage> &OutMipChain :
 		//	placement new on TArray does AddUninitialized then constructs in the last element
 		check( OutMipChain.GetSlack() > 0 ); // should have been reserved
-		FImage& DestImage = *new(OutMipChain) FImage(DstSizeX, DstSizeY, DstNumSlices, ImageFormat);
+		FImage& DestImage = OutMipChain.Emplace_GetRef(DstSizeX, DstSizeY, DstNumSlices, ImageFormat);
 		
 		for (int32 SliceIndex = 0; SliceIndex < DstNumSlices; ++SliceIndex)
 		{
@@ -2381,12 +2381,12 @@ void ITextureCompressorModule::GenerateAngularFilteredMips(TArray<FImage>& InOut
 		FImage& BaseMip = SrcMipChain[MipIndex - 1];
 		int32 BaseExtent = BaseMip.SizeX;
 		int32 MipExtent = FMath::Max(BaseExtent >> 1, 1);
-		FImage* Mip = new(SrcMipChain) FImage(MipExtent, MipExtent, BaseMip.NumSlices, BaseMip.Format);
+		FImage& Mip = SrcMipChain.Emplace_GetRef(MipExtent, MipExtent, BaseMip.NumSlices, BaseMip.Format);
 
 		for(int32 Face = 0; Face < 6; ++Face)
 		{
 			FImageView2D BaseMipView(BaseMip, Face);
-			FImageView2D MipView(*Mip, Face);
+			FImageView2D MipView(Mip, Face);
 
 			for(int32 y = 0; y < MipExtent; ++y)
 			{
@@ -2441,8 +2441,8 @@ void ITextureCompressorModule::GenerateAngularFilteredMips(TArray<FImage>& InOut
 		float FloatInputMip = 0.5f * FMath::Log2(AreaCoveredInNormalizedArea) + NumMips - QualityBias;
 		uint32 InputMip = FMath::Clamp(FMath::TruncToInt(FloatInputMip), 0, NumMips - 1);
 
-		FImage* Mip = new(InOutMipChain) FImage(Extent, Extent, 6, ERawImageFormat::RGBA32F);
-		GenerateAngularFilteredMip(Mip, SrcMipChain[InputMip], ConeAngle);
+		FImage& Mip = InOutMipChain.Emplace_GetRef(Extent, Extent, 6, ERawImageFormat::RGBA32F);
+		GenerateAngularFilteredMip(&Mip, SrcMipChain[InputMip], ConeAngle);
 		Extent = FMath::Max(Extent >> 1, 1);
 	}
 }
@@ -3841,7 +3841,7 @@ private:
 
 				// space for one source mip and one destination mip
 				const FImage& SourceImage = bSuitableFormat ? FirstSourceMipImage : Temp;
-				FImage& TargetImage = *new (PaddedSourceMips) FImage(TargetTextureSizeX, TargetTextureSizeY, BuildSettings.bVolume ? TargetTextureSizeZ : SourceImage.NumSlices, SourceImage.Format);
+				FImage& TargetImage = PaddedSourceMips.Emplace_GetRef(TargetTextureSizeX, TargetTextureSizeY, BuildSettings.bVolume ? TargetTextureSizeZ : SourceImage.NumSlices, SourceImage.Format);
 				FLinearColor FillColor = BuildSettings.PaddingColor;
 
 				FLinearColor* TargetPtr = (FLinearColor*)TargetImage.RawData.GetData();
@@ -4033,12 +4033,12 @@ private:
 			// this is a code dupe of the processing done in GenerateMipChain
 
 			// create base for the mip chain
-			FImage* Mip = new(OutMipChain) FImage();
+			FImage& Mip = OutMipChain.AddDefaulted_GetRef();
 
 			if (bLongLatCubemap)
 			{
 				// Generate the base mip from the long-lat source image.
-				GenerateBaseCubeMipFromLongitudeLatitude2D(Mip, Image, BuildSettings.MaxTextureResolution, BuildSettings.SourceEncodingOverride);
+				GenerateBaseCubeMipFromLongitudeLatitude2D(&Mip, Image, BuildSettings.MaxTextureResolution, BuildSettings.SourceEncodingOverride);
 	
 				check( CopyCount == 1 );
 			}
@@ -4054,16 +4054,16 @@ private:
 						NormalizeMip(Temp);
 					}
 
-					GenerateTopMip(Temp, *Mip, BuildSettings);
+					GenerateTopMip(Temp, Mip, BuildSettings);
 				}
 				else
 				{
 					if (bLinearize)
 					{
-						Image.Linearize(BuildSettings.SourceEncodingOverride, *Mip);
+						Image.Linearize(BuildSettings.SourceEncodingOverride, Mip);
 						if (BuildSettings.bRenormalizeTopMip)
 						{
-							NormalizeMip(*Mip);
+							NormalizeMip(Mip);
 						}
 					}
 					else
@@ -4077,7 +4077,7 @@ private:
 							DestFormat = ERawImageFormat::RGBA32F;
 							DestGammaSpace = EGammaSpace::Linear;
 						}
-						Image.CopyTo(*Mip, DestFormat, DestGammaSpace);
+						Image.CopyTo(Mip, DestFormat, DestGammaSpace);
 
 						//@@CB todo : when Mip format == Image format, we can Move instead of Copy
 						//	have to make sure that's okay with SourceMips/TextureData
@@ -4089,13 +4089,13 @@ private:
 
 			if (BuildSettings.Downscale > 1.f)
 			{		
-				DownscaleImage(*Mip, *Mip, FTextureDownscaleSettings(BuildSettings));
+				DownscaleImage(Mip, Mip, FTextureDownscaleSettings(BuildSettings));
 			}
 
 			if (BuildSettings.bHasColorSpaceDefinition)
 			{
 				FImageCore::TransformToWorkingColorSpace(
-					*Mip,
+					Mip,
 					FVector2d(BuildSettings.RedChromaticityCoordinate),
 					FVector2d(BuildSettings.GreenChromaticityCoordinate),
 					FVector2d(BuildSettings.BlueChromaticityCoordinate),
@@ -4104,16 +4104,16 @@ private:
 			}
 
 			// Apply color adjustments
-			AdjustImageColors(*Mip, BuildSettings);
+			AdjustImageColors(Mip, BuildSettings);
 
 			if (BuildSettings.bComputeBokehAlpha)
 			{
 				// To get the occlusion in the BokehDOF shader working for all Bokeh textures.
-				ComputeBokehAlpha(*Mip);
+				ComputeBokehAlpha(Mip);
 			}
 			if (BuildSettings.bFlipGreenChannel)
 			{
-				FlipGreenChannel(*Mip);
+				FlipGreenChannel(Mip);
 			}
 		}
 

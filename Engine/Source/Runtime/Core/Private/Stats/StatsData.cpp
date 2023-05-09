@@ -202,7 +202,7 @@ void FRawStatStackNode::AddNameHierarchy(int32 CurrentPrefixDepth)
 			for (int32 Index = 0; Index < ChildArray.Num(); Index++)
 			{
 				FRawStatStackNode& Child = *ChildArray[Index];
-				new (ChildNames) TArray<FName>();
+				ChildNames.AddDefaulted();
 				TArray<FName>& ParsedNames = ChildNames[Index];
 
 				TArray<FString> Parts;
@@ -210,7 +210,7 @@ void FRawStatStackNode::AddNameHierarchy(int32 CurrentPrefixDepth)
 				if (Name.StartsWith(TEXT("//")))
 				{
 					// we won't add hierarchy for grouped stats
-					new (ParsedNames) FName(Child.Meta.NameAndInfo.GetRawName());
+					ParsedNames.Add(Child.Meta.NameAndInfo.GetRawName());
 				}
 				else
 				{
@@ -220,7 +220,7 @@ void FRawStatStackNode::AddNameHierarchy(int32 CurrentPrefixDepth)
 					ParsedNames.Empty(Parts.Num());
 					for (int32 PartIndex = 0; PartIndex < Parts.Num(); PartIndex++)
 					{
-						new (ParsedNames) FName(*Parts[PartIndex]);
+						ParsedNames.Add(*Parts[PartIndex]);
 					}
 				}
 			}
@@ -427,10 +427,10 @@ void FRawStatStackNode::DebugPrintLeafFilterInner(TCHAR const* Filter, int32 Dep
 
 void FRawStatStackNode::Encode(TArray<FStatMessage>& OutStats) const
 {
-	FStatMessage* NewStat = new (OutStats) FStatMessage(Meta);
+	FStatMessage& NewStat = OutStats.Add_GetRef(Meta);
 	if (Children.Num())
 	{
-		NewStat->NameAndInfo.SetField<EStatOperation>(EStatOperation::ChildrenStart);
+		NewStat.NameAndInfo.SetField<EStatOperation>(EStatOperation::ChildrenStart);
 		for (TMap<FName, FRawStatStackNode*>::TConstIterator It(Children); It; ++It)
 		{
 			FRawStatStackNode const* Child = It.Value();
@@ -441,7 +441,7 @@ void FRawStatStackNode::Encode(TArray<FStatMessage>& OutStats) const
 	}
 	else
 	{
-		NewStat->NameAndInfo.SetField<EStatOperation>(EStatOperation::Leaf);
+		NewStat.NameAndInfo.SetField<EStatOperation>(EStatOperation::Leaf);
 	}
 }
 
@@ -1547,7 +1547,7 @@ void FStatsThreadState::GetRawStackStats(int64 TargetFrame, FRawStatStackNode& R
 	{
 		for (TMap<FName, FStatMessage>::TConstIterator It(ThisFrameNonStackStats); It; ++It)
 		{
-			new (*OutNonStackStats) FStatMessage(It.Value());
+			OutNonStackStats->Add(It.Value());
 		}
 	}
 }
@@ -1712,8 +1712,8 @@ FName FStatsThreadState::GetStatThreadName( const FStatPacket& Packet ) const
 
 void FStatsThreadState::Condense(int64 TargetFrame, TArray<FStatMessage>& OutStats) const
 {
-	new (OutStats) FStatMessage(FStatConstants::AdvanceFrame.GetEncodedName(), EStatOperation::AdvanceFrameEventGameThread, TargetFrame, false);
-	new (OutStats) FStatMessage(FStatConstants::AdvanceFrame.GetEncodedName(), EStatOperation::AdvanceFrameEventRenderThread, TargetFrame, false);
+	OutStats.Emplace(FStatConstants::AdvanceFrame.GetEncodedName(), EStatOperation::AdvanceFrameEventGameThread, TargetFrame, false);
+	OutStats.Emplace(FStatConstants::AdvanceFrame.GetEncodedName(), EStatOperation::AdvanceFrameEventRenderThread, TargetFrame, false);
 	FRawStatStackNode Root;
 	GetRawStackStats(TargetFrame, Root, &OutStats);
 	TArray<FStatMessage> StackStats;
@@ -1793,7 +1793,7 @@ void FStatsThreadState::AddMissingStats(TArray<FStatMessage>& Dest, TSet<FName> 
 		FStatMessage const* Zero = ShortNameToLongName.Find(*It);
 		if (Zero)
 		{
-			new (Dest) FStatMessage(*Zero);
+			Dest.Add(*Zero);
 		}
 	}
 }

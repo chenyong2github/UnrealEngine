@@ -282,7 +282,7 @@ void FAssetBundleData::AddBundleAsset(FName BundleName, const FTopLevelAssetPath
 
 	if (!FoundEntry)
 	{
-		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+		FoundEntry = &Bundles.Emplace_GetRef(BundleName);
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -304,7 +304,7 @@ void FAssetBundleData::AddBundleAssets(FName BundleName, const TArray<FTopLevelA
 			// Only create if required
 			if (!FoundEntry)
 			{
-				FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+				FoundEntry = &Bundles.Emplace_GetRef(BundleName);
 			}
 
 #if WITH_EDITORONLY_DATA
@@ -323,7 +323,7 @@ void FAssetBundleData::SetBundleAssets(FName BundleName, TArray<FTopLevelAssetPa
 
 	if (!FoundEntry)
 	{
-		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+		FoundEntry = &Bundles.Emplace_GetRef(BundleName);
 	}
 
 	FoundEntry->AssetPaths = MoveTemp(AssetPaths);
@@ -346,7 +346,7 @@ void FAssetBundleData::AddBundleAsset(FName BundleName, const FSoftObjectPath& A
 
 	if (!FoundEntry)
 	{
-		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+		FoundEntry = &Bundles.Emplace_GetRef(BundleName);
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -368,7 +368,7 @@ void FAssetBundleData::AddBundleAssets(FName BundleName, const TArray<FSoftObjec
 			// Only create if required
 			if (!FoundEntry)
 			{
-				FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+				FoundEntry = &Bundles.Emplace_GetRef(BundleName);
 			}
 
 #if WITH_EDITORONLY_DATA
@@ -387,7 +387,7 @@ void FAssetBundleData::SetBundleAssets(FName BundleName, TArray<FSoftObjectPath>
 
 	if (!FoundEntry)
 	{
-		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+		FoundEntry = &Bundles.Emplace_GetRef(BundleName);
 	}
 
 	FoundEntry->AssetPaths.Reset(AssetPaths.Num());
@@ -415,7 +415,7 @@ void FAssetBundleData::AddBundleAssetTruncated(FName BundleName, const FSoftObje
 
 	if (!FoundEntry)
 	{
-		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+		FoundEntry = &Bundles.Emplace_GetRef(BundleName);
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -437,7 +437,7 @@ void FAssetBundleData::AddBundleAssetsTruncated(FName BundleName, const TArray<F
 			// Only create if required
 			if (!FoundEntry)
 			{
-				FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+				FoundEntry = &Bundles.Emplace_GetRef(BundleName);
 			}
 
 #if WITH_EDITORONLY_DATA
@@ -456,7 +456,7 @@ void FAssetBundleData::SetBundleAssetsTruncated(FName BundleName, const TArray<F
 
 	if (!FoundEntry)
 	{
-		FoundEntry = new(Bundles) FAssetBundleEntry(BundleName);
+		FoundEntry = &Bundles.Emplace_GetRef(BundleName);
 	}
 
 	FoundEntry->AssetPaths.Reset(AssetPaths.Num());

@@ -739,7 +739,7 @@ void FillMeshDescriptionVertexPositionNoDuplicate(const TArray<FVector3f>& RawMe
 
 	for (int32 VertexIndex = 0; VertexIndex < NumVertex; ++VertexIndex)
 	{
-		new(VertIndexAndZ)MeshDescriptionOperationNamespace::FIndexAndZ(VertexIndex, RawMeshVertexPositions[VertexIndex]);
+		VertIndexAndZ.Emplace(VertexIndex, RawMeshVertexPositions[VertexIndex]);
 	}
 
 	// Sort the vertices by z value
@@ -1818,7 +1818,7 @@ void FStaticMeshOperations::FindOverlappingCorners(FOverlappingCorners& OutOverl
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
 				const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, Corner);
-				new(VertIndexAndZ)MeshDescriptionOperationNamespace::FIndexAndZ(WedgeIndex, VertexPositions[MeshDescription.GetVertexInstanceVertex(VertexInstanceID)]);
+				VertIndexAndZ.Emplace(WedgeIndex, VertexPositions[MeshDescription.GetVertexInstanceVertex(VertexInstanceID)]);
 				++WedgeIndex;
 			}
 		}
@@ -2465,7 +2465,7 @@ void FStaticMeshOperations::BuildWeldedVertexIDRemap(const FMeshDescription& Mes
 
 	for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
 	{
-		new(VertIndexAndZ)MeshDescriptionOperationNamespace::FIndexAndZ(VertexID.GetValue(), VertexPositions[VertexID]);
+		VertIndexAndZ.Emplace(VertexID.GetValue(), VertexPositions[VertexID]);
 	}
 
 	// Sort the vertices by z value

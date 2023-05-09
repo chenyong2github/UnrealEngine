@@ -603,7 +603,7 @@ private:
 			
 			for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 			{
-				FShaderCompileJob& Job = *new(OutSingleJobs) FShaderCompileJob;
+				FShaderCompileJob& Job = OutSingleJobs.AddDefaulted_GetRef();
 				// Deserialize the job's inputs.
 				Job.SerializeWorkerInput(InputFile);
 				Job.Input.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
@@ -638,17 +638,17 @@ private:
 
 			for (int32 Index = 0; Index < NumPipelines; ++Index)
 			{
-				FString& PipelineName = *new(OutPipelineNames) FString();
+				FString& PipelineName = OutPipelineNames.AddDefaulted_GetRef();
 				InputFile << PipelineName;
 				
 				int32 NumStages = 0;
 				InputFile << NumStages;
-				FShaderPipelineCompileJob* PipelineJob = new(OutPipelineJobs) FShaderPipelineCompileJob(NumStages);
+				FShaderPipelineCompileJob& PipelineJob = OutPipelineJobs.Emplace_GetRef(NumStages);
 
 				for (int32 StageIndex = 0; StageIndex < NumStages; ++StageIndex)
 				{
 					// Deserialize the job's inputs.
-					FShaderCompileJob* Job = PipelineJob->StageJobs[StageIndex]->GetSingleShaderJob();
+					FShaderCompileJob* Job = PipelineJob.StageJobs[StageIndex]->GetSingleShaderJob();
 					Job->SerializeWorkerInput(InputFile);
 					Job->Input.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
 
@@ -661,7 +661,7 @@ private:
 					}
 				}
 
-				CompileShaderPipeline(GetShaderFormats(), PipelineJob, WorkingDirectory, &GNumProcessedJobs);
+				CompileShaderPipeline(GetShaderFormats(), &PipelineJob, WorkingDirectory, &GNumProcessedJobs);
 			}
 		}
 	}

@@ -238,7 +238,7 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 		int64 MipOffset = MipCbObjectView["Offset"].AsInt64();
 		int64 MipSize = MipCbObjectView["Size"].AsInt64();
 
-		FImage* SourceMip = new(OutMips) FImage(
+		FImage& SourceMip = OutMips.Emplace_GetRef(
 			MipSizeX, MipSizeY,
 			NumSlices,
 			RawImageFormat,
@@ -246,20 +246,20 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 		);
 
 		check( MipOffset + MipSize <= DecompressedSourceDataSize );
-		check( SourceMip->GetImageSizeBytes() == MipSize );
+		check( SourceMip.GetImageSizeBytes() == MipSize );
 
 		if ((MipsCbArrayView.Num() == 1) && (CompressionFormat != TSCF_None))
 		{
 			// In the case where there is only one mip and its already in a TArray, there is no need to allocate new array contents, just use a move instead
 			check( MipOffset == 0 );
-			SourceMip->RawData = MoveTemp(IntermediateDecompressedData);
+			SourceMip.RawData = MoveTemp(IntermediateDecompressedData);
 		}
 		else
 		{
-			SourceMip->RawData.Reset(MipSize);
-			SourceMip->RawData.AddUninitialized(MipSize);
+			SourceMip.RawData.Reset(MipSize);
+			SourceMip.RawData.AddUninitialized(MipSize);
 			FMemory::Memcpy(
-				SourceMip->RawData.GetData(),
+				SourceMip.RawData.GetData(),
 				DecompressedSourceData + MipOffset,
 				MipSize
 			);

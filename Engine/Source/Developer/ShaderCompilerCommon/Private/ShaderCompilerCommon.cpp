@@ -1360,8 +1360,8 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 			{
 				ShaderOutput.bSucceeded = false;
 
-				FShaderCompilerError* NewError = new(ShaderOutput.Errors) FShaderCompilerError();
-				NewError->StrippedErrorMessage = TEXT("[Mali Offline Complier]\n") + StdErr;
+				FShaderCompilerError& NewError = ShaderOutput.Errors.AddDefaulted_GetRef();
+				NewError.StrippedErrorMessage = TEXT("[Mali Offline Complier]\n") + StdErr;
 			}
 			else
 			{
@@ -1369,8 +1369,8 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 
 				if (Errors.Len())
 				{
-					FShaderCompilerError* NewError = new(ShaderOutput.Errors) FShaderCompilerError();
-					NewError->StrippedErrorMessage = TEXT("[Mali Offline Complier]\n") + Errors;
+					FShaderCompilerError& NewError = ShaderOutput.Errors.AddDefaulted_GetRef();
+					NewError.StrippedErrorMessage = TEXT("[Mali Offline Complier]\n") + Errors;
 					ShaderOutput.bSucceeded = false;
 				}
 			}
@@ -1664,17 +1664,17 @@ namespace CrossCompiler
 	void ParseHlslccError(TArray<FShaderCompilerError>& OutErrors, const FString& InLine, bool bUseAbsolutePaths)
 	{
 		const TCHAR* p = *InLine;
-		FShaderCompilerError* Error = new(OutErrors) FShaderCompilerError();
+		FShaderCompilerError& Error = OutErrors.AddDefaulted_GetRef();
 
 		// Copy the filename.
 		while (*p && *p != TEXT('('))
 		{
-			Error->ErrorVirtualFilePath += (*p++);
+			Error.ErrorVirtualFilePath += (*p++);
 		}
 
 		if (!bUseAbsolutePaths)
 		{
-			Error->ErrorVirtualFilePath = ParseVirtualShaderFilename(Error->ErrorVirtualFilePath);
+			Error.ErrorVirtualFilePath = ParseVirtualShaderFilename(Error.ErrorVirtualFilePath);
 		}
 		p++;
 
@@ -1684,14 +1684,14 @@ namespace CrossCompiler
 		{
 			LineNumber = 10 * LineNumber + (*p++ - TEXT('0'));
 		}
-		Error->ErrorLineString = *FString::Printf(TEXT("%d"), LineNumber);
+		Error.ErrorLineString = *FString::Printf(TEXT("%d"), LineNumber);
 
 		// Skip to the warning message.
 		while (*p && (*p == TEXT(')') || *p == TEXT(':') || *p == TEXT(' ') || *p == TEXT('\t')))
 		{
 			p++;
 		}
-		Error->StrippedErrorMessage = p;
+		Error.StrippedErrorMessage = p;
 	}
 
 

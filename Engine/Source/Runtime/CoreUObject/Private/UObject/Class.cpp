@@ -4584,7 +4584,7 @@ void UClass::SetUpRuntimeReplicationData()
 			NetProperties[i]->RepIndex = (uint16)ClassReps.Num();
 			for (int32 j = 0; j < NetProperties[i]->ArrayDim; j++)
 			{
-				new(ClassReps)FRepRecord(NetProperties[i], j);
+				ClassReps.Emplace(NetProperties[i], j);
 			}
 		}
 		check(ClassReps.Num() <= 65535);
@@ -5829,7 +5829,7 @@ void UClass::AddNativeFunction(const ANSICHAR* InName, FNativeFuncPtr InPointer)
 		}
 	}
 #endif
-	new(NativeFunctionLookupTable) FNativeFunctionLookup(InFName,InPointer);
+	NativeFunctionLookupTable.Emplace(InFName,InPointer);
 }
 
 void UClass::AddNativeFunction(const WIDECHAR* InName, FNativeFuncPtr InPointer)
@@ -5850,7 +5850,7 @@ void UClass::AddNativeFunction(const WIDECHAR* InName, FNativeFuncPtr InPointer)
 		}
 	}
 #endif
-	new(NativeFunctionLookupTable)FNativeFunctionLookup(InFName, InPointer);
+	NativeFunctionLookupTable.Emplace(InFName, InPointer);
 }
 
 void UClass::CreateLinkAndAddChildFunctionsToMap(const FClassFunctionLinkInfo* Functions, uint32 NumFunctions)

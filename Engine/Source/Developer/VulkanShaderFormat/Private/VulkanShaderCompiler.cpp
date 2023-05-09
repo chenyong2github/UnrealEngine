@@ -1063,9 +1063,9 @@ static void BuildShaderOutput(
 			break;
 		case EVulkanBindingType::PackedUniformBuffer:
 			{
-				FOLDVulkanCodeHeader::FPackedUBToVulkanBindingIndex* New = new(OLDHeader.NEWPackedUBToVulkanBindingIndices) FOLDVulkanCodeHeader::FPackedUBToVulkanBindingIndex;
-				New->TypeName = (CrossCompiler::EPackedTypeName)Binding.SubType;
-				New->VulkanBindingIndex = StageOffset + Index;
+				FOLDVulkanCodeHeader::FPackedUBToVulkanBindingIndex& New = OLDHeader.NEWPackedUBToVulkanBindingIndices.AddDefaulted_GetRef();
+				New.TypeName = (CrossCompiler::EPackedTypeName)Binding.SubType;
+				New.VulkanBindingIndex = StageOffset + Index;
 				++OLDHeader.NEWDescriptorInfo.NumBufferInfos;
 			}
 			break;
@@ -2572,8 +2572,8 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	if (HlslFrequency == HSF_InvalidFrequency)
 	{
 		Output.bSucceeded = false;
-		FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
-		NewError->StrippedErrorMessage = FString::Printf(
+		FShaderCompilerError& NewError = Output.Errors.AddDefaulted_GetRef();
+		NewError.StrippedErrorMessage = FString::Printf(
 			TEXT("%s shaders not supported for use in Vulkan."),
 			CrossCompiler::GetFrequencyName(Frequency));
 		return;

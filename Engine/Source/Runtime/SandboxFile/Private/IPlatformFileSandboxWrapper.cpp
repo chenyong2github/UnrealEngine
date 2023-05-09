@@ -394,7 +394,7 @@ void FSandboxPlatformFile::FindFiles( TArray<FString>& Result, const TCHAR* InFi
 			if( ( bIsDirectory && bDirectories ) ||
 				( !bIsDirectory && bFiles && FString( FilenameOrDirectory ).MatchesWildcard( WildCard ) ) )
 			{
-				new( Result ) FString( FPaths::GetCleanFilename( FilenameOrDirectory ) );
+				Result.Add( FPaths::GetCleanFilename( FilenameOrDirectory ) );
 			}
 			return true;
 		}

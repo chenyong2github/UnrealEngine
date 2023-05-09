@@ -1745,7 +1745,7 @@ void FGPUDefragAllocator::GetMemoryLayout(TArray<FMemoryLayoutElement>& MemoryLa
 	while (Chunk)
 	{
 		EMemoryElementType ChunkType = GetChunkType(Chunk);
-		new (MemoryLayout)FMemoryLayoutElement(Chunk->Size, ChunkType);
+		MemoryLayout.Emplace(Chunk->Size, ChunkType);
 		Chunk = Chunk->NextChunk;
 	}
 }

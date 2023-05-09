@@ -818,7 +818,7 @@ void FStatsReadFile::ReadRegularStats()
 		{
 			// Read the message.
 			FStatMessage Message( Stream.ReadMessage( MemoryReader, bIsFinalized ) );
-			new (PendingMessages)FStatMessage( Message );
+			PendingMessages.Add( MoveTemp( Message ) );
 		}
 
 		// Adds a new from from the pending messages, the pending messages will be removed after the call.

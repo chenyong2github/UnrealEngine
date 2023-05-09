@@ -1814,8 +1814,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeGatherableTextDataMap(bool bFor
 	FStructuredArchive::FStream Stream = StructuredArchiveRootRecord->EnterStream(TEXT("GatherableTextData"));
 	while (GatherableTextDataMapIndex < Summary.GatherableTextDataCount && !IsTimeLimitExceeded(TEXT("serializing gatherable text data map"), 100))
 	{
-		FGatherableTextData* GatherableTextData = new(GatherableTextDataMap)FGatherableTextData;
-		Stream.EnterElement() << *GatherableTextData;
+		FGatherableTextData& GatherableTextData = GatherableTextDataMap.AddDefaulted_GetRef();
+		Stream.EnterElement() << GatherableTextData;
 		GatherableTextDataMapIndex++;
 	}
 
@@ -1841,8 +1841,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeImportMap()
 
 	while( ImportMapIndex < Summary.ImportCount && !IsTimeLimitExceeded(TEXT("serializing import map"),100) )
 	{
-		FObjectImport* Import = new(ImportMap)FObjectImport;
-		Stream.EnterElement() << *Import;
+		FObjectImport& Import = ImportMap.AddDefaulted_GetRef();
+		Stream.EnterElement() << Import;
 		ImportMapIndex++;
 	}
 	
@@ -2006,15 +2006,15 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FixupImportMap()
 				for (FName NewPackage : NewPackageImports)
 				{
 					// We are adding a new import to the map as we need the new package dependency added to the works
-					FObjectImport* NewImport = new (ImportMap) FObjectImport();
+					FObjectImport& NewImport = ImportMap.AddDefaulted_GetRef();
 
-					NewImport->ClassName = NAME_Package;
-					NewImport->ClassPackage = GLongCoreUObjectPackageName;
-					NewImport->ObjectName = NewPackage;
-					NewImport->OuterIndex = FPackageIndex();
-					NewImport->XObject = 0;
-					NewImport->SourceLinker = 0;
-					NewImport->SourceIndex = -1;
+					NewImport.ClassName = NAME_Package;
+					NewImport.ClassPackage = GLongCoreUObjectPackageName;
+					NewImport.ObjectName = NewPackage;
+					NewImport.OuterIndex = FPackageIndex();
+					NewImport.XObject = 0;
+					NewImport.SourceLinker = 0;
+					NewImport.SourceIndex = -1;
 				}
 			}
 
@@ -2164,10 +2164,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeExportMap()
 
 	while( ExportMapIndex < Summary.ExportCount && !IsTimeLimitExceeded(TEXT("serializing export map"),100) )
 	{
-		FObjectExport* Export = new(ExportMap)FObjectExport;
-		Stream.EnterElement() << *Export;
-		Export->ThisIndex = FPackageIndex::FromExport(ExportMapIndex);
-		Export->bWasFiltered = FilterExport(*Export);
+		FObjectExport& Export = ExportMap.AddDefaulted_GetRef();
+		Stream.EnterElement() << Export;
+		Export.ThisIndex = FPackageIndex::FromExport(ExportMapIndex);
+		Export.bWasFiltered = FilterExport(Export);
 		ExportMapIndex++;
 	}
 
@@ -5082,7 +5082,7 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 				// A redirector has been found, replace this export with it.
 				LoadClass = UObjectRedirector::StaticClass();
 				// Create new import for UObjectRedirector class
-				FObjectImport* RedirectorImport = new(ImportMap)FObjectImport(UObjectRedirector::StaticClass());
+				FObjectImport& RedirectorImport = ImportMap.Emplace_GetRef(UObjectRedirector::StaticClass());
 				check(CurrentLoadContext);
 				CurrentLoadContext->IncrementImportCount();
 				FLinkerManager::Get().AddLoaderWithNewImports(this);				

@@ -1397,7 +1397,7 @@ struct FHUDGroupManager
 			for( int32 Index = 0; Index < TotalAggregateInclusive.Num(); ++Index )
 			{
 				const FStatMessage& StatMessage = TotalAggregateInclusive[Index];
-				new(AggregatedFlatHistory) FComplexStatMessage(StatMessage);
+				AggregatedFlatHistory.Emplace(StatMessage);
 			}
 
 			// Copy flat-stack stats by thread
@@ -1407,7 +1407,7 @@ struct FHUDGroupManager
 				TArray<FComplexStatMessage>& AggregatedFlatHistoryThreadBreakdownArray = AggregatedFlatHistoryThreadBreakdown.Add(It.Key());
 				for (const FStatMessage& StatMessage : It.Value())
 				{
-					new (AggregatedFlatHistoryThreadBreakdownArray)FComplexStatMessage(StatMessage);
+					AggregatedFlatHistoryThreadBreakdownArray.Emplace(StatMessage);
 				}
 			}
 
@@ -1416,7 +1416,7 @@ struct FHUDGroupManager
 			for( int32 Index = 0; Index < TotalNonStackStats.Num(); ++Index )
 			{
 				const FStatMessage& StatMessage = TotalNonStackStats[Index];
-				new(AggregatedNonStackStatsHistory) FComplexStatMessage(StatMessage);
+				AggregatedNonStackStatsHistory.Emplace(StatMessage);
 			}
 			
 			// Accumulate hierarchy, flat and non-stack stats.
@@ -1498,7 +1498,7 @@ struct FHUDGroupManager
 						const bool bToBeAdded = InternalGroup.EnabledItems.Contains( AggregatedStatMessage.NameAndInfo.GetRawName() );
 						if( bToBeAdded )
 						{
-							new(HudGroup.FlatAggregate) FComplexStatMessage( AggregatedStatMessage );
+							HudGroup.FlatAggregate.Add( AggregatedStatMessage );
 						}
 					}
 
@@ -1512,7 +1512,7 @@ struct FHUDGroupManager
 							if(bToBeAdded)
 							{
 								TArray<FComplexStatMessage>& DestArray = HudGroup.FlatAggregateThreadBreakdown.FindOrAdd(It.Key());	
-								new(DestArray) FComplexStatMessage( AggregatedStatMessage );
+								DestArray.Add( AggregatedStatMessage );
 							}
 						}
 					}
@@ -1528,8 +1528,8 @@ struct FHUDGroupManager
 					const bool bToBeAdded = InternalGroup.EnabledItems.Contains( AggregatedStatMessage.NameAndInfo.GetRawName() );
 					if( bToBeAdded )
 					{
-						new(Dest) FComplexStatMessage(AggregatedStatMessage);
-					}	
+						Dest.Add(AggregatedStatMessage);
+					}
 				}
 			}
 

@@ -5140,7 +5140,7 @@ private:
 				{
 					if (!CurrentReferenceInfo)
 					{
-						CurrentReferenceInfo = new(FoundReferencesList->ExternalReferences) FReferencerInformation(CurrentObject);
+						CurrentReferenceInfo = &FoundReferencesList->ExternalReferences.Emplace_GetRef(CurrentObject);
 					}
 					if (InReferencingProperty)
 					{
@@ -5225,7 +5225,7 @@ bool IsReferenced(UObject*& Obj, EObjectFlags KeepFlags, EInternalObjectFlags In
 			else if (OldRef->Referencer->IsIn(Obj))
 			{
 				bReferencedByOuters = true;
-				FReferencerInformation *NewRef = new(FoundReferences->InternalReferences) FReferencerInformation(OldRef->Referencer, OldRef->TotalReferences, OldRef->ReferencingProperties);
+				FReferencerInformation& NewRef = FoundReferences->InternalReferences.Emplace_GetRef(OldRef->Referencer, OldRef->TotalReferences, OldRef->ReferencingProperties);
 				FoundReferences->ExternalReferences.RemoveAt(i);
 				i--;
 			}

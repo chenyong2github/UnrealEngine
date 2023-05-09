@@ -10,7 +10,7 @@ void FShaderParametersMetadataBuilder::AddReferencedStruct(
 {
 	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
 
-	new(Members) FShaderParametersMetadata::FMember(
+	Members.Emplace(
 		Name,
 		StructMetadata->GetStructTypeName(),
 		__LINE__,
@@ -33,7 +33,7 @@ void FShaderParametersMetadataBuilder::AddIncludedStruct(
 {
 	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
 
-	new(Members) FShaderParametersMetadata::FMember(
+	Members.Emplace(
 		TEXT(""),
 		StructMetadata->GetStructTypeName(),
 		__LINE__,
@@ -58,7 +58,7 @@ uint32 FShaderParametersMetadataBuilder::AddNestedStruct(
 	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
 	const uint32 ThisMemberOffset = NextMemberOffset;
 
-	new(Members) FShaderParametersMetadata::FMember(
+	Members.Emplace(
 		Name,
 		TEXT(""),
 		__LINE__,
@@ -83,7 +83,7 @@ void FShaderParametersMetadataBuilder::AddBufferSRV(
 {
 	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_POINTER_ALIGNMENT);
 
-	new(Members) FShaderParametersMetadata::FMember(
+	Members.Emplace(
 		Name,
 		ShaderType,
 		__LINE__,
@@ -107,7 +107,7 @@ void FShaderParametersMetadataBuilder::AddBufferUAV(
 {
 	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_POINTER_ALIGNMENT);
 
-	new(Members) FShaderParametersMetadata::FMember(
+	Members.Emplace(
 		Name,
 		ShaderType,
 		__LINE__,
@@ -131,7 +131,7 @@ void FShaderParametersMetadataBuilder::AddRDGBufferSRV(
 {
 	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_POINTER_ALIGNMENT);
 
-	new(Members) FShaderParametersMetadata::FMember(
+	Members.Emplace(
 		Name,
 		ShaderType,
 		__LINE__,
@@ -155,7 +155,7 @@ void FShaderParametersMetadataBuilder::AddRDGBufferUAV(
 {
 	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_POINTER_ALIGNMENT);
 
-	new(Members) FShaderParametersMetadata::FMember(
+	Members.Emplace(
 		Name,
 		ShaderType,
 		__LINE__,

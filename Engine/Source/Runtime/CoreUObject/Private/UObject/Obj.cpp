@@ -3510,7 +3510,7 @@ void UObject::RetrieveReferencers( TArray<FReferencerInformation>* OutInternalRe
 				{
 					// manually allocate just one element - much slower but avoids slack which improves success rate on consoles
 					OutInternalReferencers->Reserve(OutInternalReferencers->Num() + 1);
-					new(*OutInternalReferencers) FReferencerInformation(Object, Count, Referencers);
+					OutInternalReferencers->Emplace(Object, Count, Referencers);
 				}
 			}
 			else
@@ -3519,7 +3519,7 @@ void UObject::RetrieveReferencers( TArray<FReferencerInformation>* OutInternalRe
 				{
 					// manually allocate just one element - much slower but avoids slack which improves success rate on consoles
 					OutExternalReferencers->Reserve(OutExternalReferencers->Num() + 1);
-					new(*OutExternalReferencers) FReferencerInformation(Object, Count, Referencers);
+					OutExternalReferencers->Emplace(Object, Count, Referencers);
 				}
 			}
 		}
@@ -3902,13 +3902,13 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 				{
 					if (AsteriskPos != INDEX_NONE && (QuestionPos == INDEX_NONE || QuestionPos > AsteriskPos))
 					{
-						new(WildcardPieces) FListPropsWildcardPiece(PropWildcard.Left(AsteriskPos), true);
+						WildcardPieces.Emplace(PropWildcard.Left(AsteriskPos), true);
 						PropWildcard.RightInline(PropWildcard.Len() - AsteriskPos - 1, false);
 						bFound = true;
 					}
 					else if (QuestionPos != INDEX_NONE)
 					{
-						new(WildcardPieces) FListPropsWildcardPiece(PropWildcard.Left(QuestionPos), false);
+						WildcardPieces.Emplace(PropWildcard.Left(QuestionPos), false);
 						PropWildcard.RightInline(PropWildcard.Len() - QuestionPos - 1, false);
 						bFound = true;
 					}
@@ -3917,7 +3917,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			bool bEndedInConstant = (PropWildcard.Len() > 0);
 			if (bEndedInConstant)
 			{
-				new(WildcardPieces) FListPropsWildcardPiece(PropWildcard, false);
+				WildcardPieces.Emplace(PropWildcard, false);
 			}
 
 			// search for matches
