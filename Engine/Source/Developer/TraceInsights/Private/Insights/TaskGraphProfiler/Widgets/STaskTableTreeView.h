@@ -49,7 +49,8 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, TSharedPtr<FTaskTable> InTablePtr);
 
-	virtual TSharedPtr<SWidget> ConstructToolbar() override;
+	void ConstructHeaderArea(TSharedRef<SVerticalBox> InWidgetContent) override;
+
 	virtual TSharedPtr<SWidget> ConstructFooter() override;
 
 	TSharedPtr<FTaskTable> GetTaskTable() { return StaticCastSharedPtr<FTaskTable>(GetTable()); }
