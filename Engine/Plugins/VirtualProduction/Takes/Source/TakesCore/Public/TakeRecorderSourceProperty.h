@@ -158,10 +158,6 @@ struct TAKESCORE_API FAudioInputDeviceProperty
 	/** The unique id of the currently selected audio device */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Property", meta = (DisplayName = "Audio Input Device"))
 	FString DeviceId;
-
-	/** The number of input channels supported by this device */
-	UPROPERTY(Transient, EditAnywhere, BlueprintReadWrite, Category = "Property")
-	int32 DeviceInputChannelCount = 0;
 	
 	/** The desired buffer size used for audio callbacks during record */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Property", meta = (ClampMin = "256", UIMin = "256", ClampMax = "8192", UIMax = "8192"))

@@ -33,7 +33,7 @@ void UTakeRecorderMicrophoneAudioManager::PostEditChangeProperty(FPropertyChange
 	}
 
 	// Notify the Mic sources of the new device channel count
-	GetOnNotifySourcesOfDeviceChange().Broadcast(AudioInputDevice.DeviceInputChannelCount);
+	GetOnNotifySourcesOfDeviceChange().Broadcast(GetDeviceChannelCount());
 	// Notify the UI of the change so it can update if needed
 	GetOnAudioInputDeviceChanged().Broadcast();
 }
@@ -109,6 +109,22 @@ void UTakeRecorderMicrophoneAudioManager::FinalizeRecording()
 		AudioRecorder = CreateAudioRecorderObject();
 		check(AudioRecorder.IsValid());
 	}
+}
+
+int32 UTakeRecorderMicrophoneAudioManager::GetDeviceChannelCount()
+{
+	if (AudioInputDevice.DeviceId.Len() > 0)
+	{
+		for (FAudioInputDeviceInfoProperty DeviceInfo : AudioInputDevice.DeviceInfoArray)
+		{
+			if (DeviceInfo.DeviceId == AudioInputDevice.DeviceId)
+			{
+				return DeviceInfo.InputChannels;
+			}
+		}
+	}
+
+	return 0;
 }
 
 void UTakeRecorderMicrophoneAudioManager::BuildDeviceInfoArray()

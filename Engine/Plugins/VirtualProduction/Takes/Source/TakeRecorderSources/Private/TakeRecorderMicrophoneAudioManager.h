@@ -33,7 +33,7 @@ public:
 	virtual void EnumerateAudioDevices(bool InForceRefresh = false) override;
 
 	/** Returns input channel count for currently selected audio device */
-	virtual int32 GetDeviceChannelCount() override { return AudioInputDevice.DeviceInputChannelCount;  }
+	virtual int32 GetDeviceChannelCount() override;
 
 	/** The audio device to use for this microphone source */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Source", meta = (ShowOnlyInnerProperties))
@@ -58,8 +58,6 @@ public:
 
 	/** Fetches the USoundWave for this source after a Take has been recorded */
 	TObjectPtr<class USoundWave> GetRecordedSoundWave(const FTakeRecorderAudioSourceSettings& InSourceSettings);
-	/** Gets the cached value for the audio input device channel count */
-	int32 GetDeviceChannelCount() const { return AudioInputDevice.DeviceInputChannelCount; }
 	/** Accessor for the OnNotifySourcesOfDeviceChange delegate list */
 	FOnNotifySourcesOfDeviceChange& GetOnNotifySourcesOfDeviceChange() { return OnNotifySourcesOfDeviceChange; }
 

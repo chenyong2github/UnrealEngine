@@ -11,7 +11,6 @@ void FAudioInputDevicePropertyCustomization::CustomizeChildren(TSharedRef<IPrope
 {
 	UseSystemDefaultHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAudioInputDeviceProperty, bUseSystemDefaultAudioDevice));
 	InputDeviceHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAudioInputDeviceProperty, DeviceId));
-	DeviceChannelCountHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAudioInputDeviceProperty, DeviceInputChannelCount));
 	BufferSizeHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAudioInputDeviceProperty, AudioInputBufferSize));
 	DeviceInfoArrayHandle = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FAudioInputDeviceProperty, DeviceInfoArray))->AsArray();
 
@@ -44,7 +43,7 @@ void FAudioInputDevicePropertyCustomization::CustomizeChildren(TSharedRef<IPrope
 	}
 
 	// Create audio input device combobox
-	if (InputDeviceHandle.IsValid() && DeviceChannelCountHandle.IsValid() && DeviceInfoArrayHandle.IsValid())
+	if (InputDeviceHandle.IsValid() && DeviceInfoArrayHandle.IsValid())
 	{
 		IDetailPropertyRow& InputDevicePropertyRow = ChildBuilder.AddProperty(PropertyHandle);
 
@@ -166,14 +165,12 @@ TSharedRef<SWidget> FAudioInputDevicePropertyCustomization::MakeAudioInputSelect
 				CurrentDeviceId = DeviceId;
 				InputDeviceHandle->SetValue(CurrentDeviceId);
 				SelectedAudioInputDevice = DeviceInfoHandle;
-				DeviceChannelCountHandle->SetValue(GetChannelCountFromInfoProperty(DeviceInfoHandle), EPropertyValueSetFlags::NotTransactable);
 			}
 			else if (bHaveCurrentDevice)
 			{
 				if (CurrentDeviceId == DeviceId)
 				{
 					SelectedAudioInputDevice = DeviceInfoHandle;
-					DeviceChannelCountHandle->SetValue(GetChannelCountFromInfoProperty(DeviceInfoHandle), EPropertyValueSetFlags::NotTransactable);
 				}
 			}
 
@@ -195,11 +192,6 @@ TSharedRef<SWidget> FAudioInputDevicePropertyCustomization::MakeAudioInputSelect
 	{
 		if (InSelection.IsValid() && ComboBoxTitleBlock.IsValid())
 		{
-			EPropertyValueSetFlags::Type SetValueFlags = (InSelectInfo == ESelectInfo::Direct) ?
-				EPropertyValueSetFlags::NotTransactable :
-				EPropertyValueSetFlags::DefaultFlags;
-			
-			DeviceChannelCountHandle->SetValue(GetChannelCountFromInfoProperty(InSelection), SetValueFlags);
 			InputDeviceHandle->SetValue(GetDeviceIdFromInfoProperty(InSelection));
 			ComboBoxTitleBlock->SetText(FText::AsCultureInvariant(GetDeviceNameFromInfoProperty(InSelection)));
 		}
