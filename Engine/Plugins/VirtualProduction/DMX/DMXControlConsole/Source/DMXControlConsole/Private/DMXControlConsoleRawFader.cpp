@@ -14,8 +14,6 @@ bool UDMXControlConsoleRawFader::CanEditChange(const FProperty* InProperty) cons
 	if (InProperty->NamePrivate == GetDataTypePropertyName() ||
 		InProperty->NamePrivate == GetUniverseIDPropertyName() ||
 		InProperty->NamePrivate == GetStartingAddressPropertyName() ||
-		InProperty->NamePrivate == GetMinValuePropertyName() ||
-		InProperty->NamePrivate == GetMaxValuePropertyName() ||
 		InProperty->NamePrivate == GetUseLSBModePropertyName())
 	{
 		return true;

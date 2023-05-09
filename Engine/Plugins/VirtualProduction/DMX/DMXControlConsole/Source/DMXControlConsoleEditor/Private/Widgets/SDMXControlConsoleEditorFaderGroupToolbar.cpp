@@ -14,6 +14,7 @@
 #include "Models/Filter/FilterModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorFaderGroupView.h"
+#include "Widgets/SDMXControlConsoleEditorFaderGroupPanel.h"
 
 #include "ScopedTransaction.h"
 #include "Algo/AnyOf.h"
@@ -65,17 +66,6 @@ void SDMXControlConsoleEditorFaderGroupToolbar::Construct(const FArguments& InAr
 			]
 		]
 
-		// Expand Arrow button section
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Left)
-		.MaxWidth(20.f)
-		.AutoWidth()
-		[
-			SAssignNew(ExpandArrowButton, SDMXControlConsoleEditorExpandArrowButton)
-			.OnExpandClicked(InArgs._OnExpanded)
-			.ToolTipText(LOCTEXT("FaderGroupExpandArrowButton_Tooltip", "Switch between Basic/Advanced mode"))
-		]
-
 		// Fixture Patch ComboBox section
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Left)
@@ -121,6 +111,42 @@ void SDMXControlConsoleEditorFaderGroupToolbar::Construct(const FArguments& InAr
 			]
 		]
 
+		// Expand Arrow button section
+		+SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.MaxWidth(20.f)
+		.AutoWidth()
+		[
+			SAssignNew(ExpandArrowButton, SDMXControlConsoleEditorExpandArrowButton)
+			.OnExpandClicked(InArgs._OnExpanded)
+			.ToolTipText(LOCTEXT("FaderGroupExpandArrowButton_Tooltip", "Switch between Collapsed/Expanded view mode"))
+		]
+
+		// Info Combo button
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(4.f, 8.f, 0.f, 8.f)
+		[
+			SNew(SComboButton)
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
+			.ContentPadding(2.f)
+			.ForegroundColor(FSlateColor::UseStyle())
+			.HasDownArrow(false)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnGetMenuContent(this, &SDMXControlConsoleEditorFaderGroupToolbar::GenerateFaderGroupInfoMenuWidget)
+			.ToolTipText(LOCTEXT("InfoButtonToolTipText", "Info"))
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetExpandedViewModeVisibility))
+			.ButtonContent()
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::Get().GetBrush("Icons.Info"))
+			]
+		]
+
 		//Searchbox section
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -132,7 +158,7 @@ void SDMXControlConsoleEditorFaderGroupToolbar::Construct(const FArguments& InAr
 			.MinDesiredWidth(200.f)
 			.OnTextChanged(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged)
 			.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."))
-			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetAdvancedViewModeVisibility))
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetExpandedViewModeVisibility))
 		]
 
 		// Add New button
@@ -149,7 +175,7 @@ void SDMXControlConsoleEditorFaderGroupToolbar::Construct(const FArguments& InAr
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnGetMenuContent(this, &SDMXControlConsoleEditorFaderGroupToolbar::GenerateAddNewFaderGroupMenuWidget)
-			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetAdvancedViewModeVisibility))
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetExpandedViewModeVisibility))
 			.ButtonContent()
 			[
 				SNew(SHorizontalBox)
@@ -188,7 +214,7 @@ void SDMXControlConsoleEditorFaderGroupToolbar::Construct(const FArguments& InAr
 			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
 			.OnGetMenuContent(this, &SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsMenuWidget)
 			.HasDownArrow(true)
-			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetAdvancedViewModeVisibility))
+			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::GetExpandedViewModeVisibility))
 			.ButtonContent()
 			[
 				SNew(SImage)
@@ -208,44 +234,57 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsM
 	{
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Select All"))
-			, FText::FromString(TEXT("Select All"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports")
-			, FUIAction
+			FText::FromString(TEXT("Info")),
+			FText::FromString(TEXT("Info")),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Info"),
+			FUIAction
 			(
-				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnSelectAllFaders)
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnGetInfoPanel)
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Duplicate"))
-			, FText::FromString(TEXT("Duplicate"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate")
-			, FUIAction
+			FText::FromString(TEXT("Select All")),
+			FText::FromString(TEXT("Select All")),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"),
+			FUIAction
+			(
+				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnSelectAllFaders)
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			FText::FromString(TEXT("Duplicate")),
+			FText::FromString(TEXT("Duplicate")),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnDuplicateFaderGroup)
 				, FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::CanDuplicateFaderGroup)
 				, FIsActionChecked()
 				, FIsActionButtonVisible::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::CanDuplicateFaderGroup)
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Remove"))
-			, FText::FromString(TEXT("Remove"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete")
-			, FUIAction
+			FText::FromString(TEXT("Remove")),
+			FText::FromString(TEXT("Remove")),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnRemoveFaderGroup)
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -254,41 +293,41 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsM
 	{
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Reset To Default"))
-			, FText::FromString(TEXT("Reset To Default"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ArrowLeft")
-			, FUIAction
+			FText::FromString(TEXT("Reset To Default")),
+			FText::FromString(TEXT("Reset To Default")),
+			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.ResetToDefault"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnResetFaderGroup)
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Lock"))
-			, FText::FromString(TEXT("Lock"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Lock")
-			, FUIAction
+			FText::FromString(TEXT("Lock")),
+			FText::FromString(TEXT("Lock")),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Lock"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnLockFaderGroup, true)
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Unlock"))
-			, FText::FromString(TEXT("Unlock"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Unlock")
-			, FUIAction
+			FText::FromString(TEXT("Unlock")),
+			FText::FromString(TEXT("Unlock")),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Unlock"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnLockFaderGroup, false)
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -346,6 +385,34 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateFixturePa
 		}
 
 		return ComboBoxWidget;
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateFaderGroupInfoMenuWidget()
+{
+	if (FaderGroupView.IsValid())
+	{
+		constexpr bool bShouldCloseWindowAfterClosing = false;
+		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
+
+		MenuBuilder.BeginSection("Info", LOCTEXT("FaderGroupInfoMenuCategory", "Info"));
+		{
+			const TSharedRef<SWidget> FaderGroupInfoPanel =
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(8.f)
+				.MaxWidth(116.f)
+				[
+					SNew(SDMXControlConsoleEditorFaderGroupPanel, FaderGroupView.Pin())
+				];
+
+			MenuBuilder.AddWidget(FaderGroupInfoPanel, FText::GetEmpty());
+		}
+		MenuBuilder.EndSection();
+
+		return MenuBuilder.MakeWidget();
 	}
 
 	return SNullWidget::NullWidget;
@@ -514,6 +581,19 @@ bool SDMXControlConsoleEditorFaderGroupToolbar::CanAddFaderGroupRow() const
 	return FaderGroupView.IsValid() ? FaderGroupView.Pin()->CanAddFaderGroupRow() : false;
 }
 
+void SDMXControlConsoleEditorFaderGroupToolbar::OnGetInfoPanel()
+{
+	if (FaderGroupView.IsValid())
+	{
+		FWidgetPath WidgetPath;
+		FSlateApplication::Get().GeneratePathToWidgetChecked(FaderGroupView.Pin().ToSharedRef(), WidgetPath);
+
+		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, GenerateFaderGroupInfoMenuWidget(),
+			FSlateApplication::Get().GetCursorPos(),
+			FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+	}
+}
+
 void SDMXControlConsoleEditorFaderGroupToolbar::OnSelectAllFaders() const
 {
 	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
@@ -604,11 +684,11 @@ FText SDMXControlConsoleEditorFaderGroupToolbar::GetFaderGroupFixturePatchNameTe
 	return FText::FromString(TEXT("Undefined"));
 }
 
-EVisibility SDMXControlConsoleEditorFaderGroupToolbar::GetAdvancedViewModeVisibility() const
+EVisibility SDMXControlConsoleEditorFaderGroupToolbar::GetExpandedViewModeVisibility() const
 {
 	const bool bIsVisible =
 		FaderGroupView.IsValid() &&
-		FaderGroupView.Pin()->GetViewMode() == EDMXControlConsoleEditorViewMode::Advanced;
+		FaderGroupView.Pin()->GetViewMode() == EDMXControlConsoleEditorViewMode::Expanded;
 
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }

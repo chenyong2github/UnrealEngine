@@ -31,12 +31,12 @@
 
 namespace UE::Private::DMXControlConsoleEditorFaderGroupView
 {
-	static float BasicViewModeHeight = 280.f;
-	static float AdvancedViewModeHeight = 360.f;
+	static float CollapsedViewModeHeight = 280.f;
+	static float ExpandedViewModeHeight = 360.f;
 };
 
 SDMXControlConsoleEditorFaderGroupView::SDMXControlConsoleEditorFaderGroupView()
-	: ViewMode(EDMXControlConsoleEditorViewMode::Basic)
+	: ViewMode(EDMXControlConsoleEditorViewMode::Collapsed)
 {
 }
 
@@ -89,7 +89,7 @@ void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs,
 								.MaxWidth(116.f)
 								[
 									SNew(SDMXControlConsoleEditorFaderGroupPanel, SharedThis(this))
-									.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupView::GetViewModeVisibility, EDMXControlConsoleEditorViewMode::Basic))
+									.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupView::GetViewModeVisibility, EDMXControlConsoleEditorViewMode::Collapsed))
 								]
 
 								// Add button section
@@ -525,7 +525,7 @@ void SDMXControlConsoleEditorFaderGroupView::OnExpandArrowClicked(bool bExpand)
 {
 	if (FaderGroup.IsValid())
 	{
-		ViewMode = bExpand ? EDMXControlConsoleEditorViewMode::Advanced : EDMXControlConsoleEditorViewMode::Basic;
+		ViewMode = bExpand ? EDMXControlConsoleEditorViewMode::Expanded : EDMXControlConsoleEditorViewMode::Collapsed;
 
 		FaderGroup->Modify();
 		FaderGroup->SetIsExpanded(bExpand);
@@ -613,12 +613,12 @@ void SDMXControlConsoleEditorFaderGroupView::OnViewModeChanged()
 
 	switch (ViewMode)
 	{
-	case EDMXControlConsoleEditorViewMode::Basic:
+	case EDMXControlConsoleEditorViewMode::Collapsed:
 	{
 		ExpandArrowButton->SetExpandArrow(false);
 		break;
 	}
-	case EDMXControlConsoleEditorViewMode::Advanced:
+	case EDMXControlConsoleEditorViewMode::Expanded:
 		ExpandArrowButton->SetExpandArrow(true);
 		break;
 	}
@@ -634,7 +634,7 @@ FOptionalSize SDMXControlConsoleEditorFaderGroupView::GetFaderGroupViewHeightByF
 	using namespace UE::Private::DMXControlConsoleEditorFaderGroupView;
 
 	const EDMXControlConsoleEditorViewMode FadersViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
-	return FadersViewMode == EDMXControlConsoleEditorViewMode::Basic ? BasicViewModeHeight : AdvancedViewModeHeight;
+	return FadersViewMode == EDMXControlConsoleEditorViewMode::Collapsed ? CollapsedViewModeHeight : ExpandedViewModeHeight;
 }
 
 FSlateColor SDMXControlConsoleEditorFaderGroupView::GetFaderGroupViewBorderColor() const
@@ -715,14 +715,14 @@ EVisibility SDMXControlConsoleEditorFaderGroupView::GetAddButtonVisibility() con
 	const bool bIsVisible =
 		FaderGroup.IsValid() &&
 		CanAddFaderGroup() &&
-		IsCurrentViewMode(EDMXControlConsoleEditorViewMode::Basic);
+		IsCurrentViewMode(EDMXControlConsoleEditorViewMode::Collapsed);
 
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SDMXControlConsoleEditorFaderGroupView::GetAddRowButtonVisibility() const
 {
-	if (IsCurrentViewMode(EDMXControlConsoleEditorViewMode::Advanced))
+	if (IsCurrentViewMode(EDMXControlConsoleEditorViewMode::Expanded))
 	{
 		return EVisibility::Collapsed;
 	}
@@ -735,7 +735,7 @@ EVisibility SDMXControlConsoleEditorFaderGroupView::GetElementsHorizontalBoxVisi
 	const bool bIsVisible =
 		GetExpandArrowButton().IsValid() &&
 		GetExpandArrowButton()->IsExpanded() &&
-		IsCurrentViewMode(EDMXControlConsoleEditorViewMode::Advanced);
+		IsCurrentViewMode(EDMXControlConsoleEditorViewMode::Expanded);
 
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }

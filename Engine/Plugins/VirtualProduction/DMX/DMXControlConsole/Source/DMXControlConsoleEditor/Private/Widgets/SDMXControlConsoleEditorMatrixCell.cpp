@@ -26,8 +26,8 @@
 
 namespace UE::Private::DMXControlConsoleEditorMatrixCell
 {
-	static float BasicViewModeHeight = 200.f;
-	static float AdvancedViewModeHeight = 280.f;
+	static float CollapsedViewModeHeight = 200.f;
+	static float ExpandedViewModeHeight = 280.f;
 };
 
 void SDMXControlConsoleEditorMatrixCell::Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFixturePatchMatrixCell>& InMatrixCell)
@@ -65,24 +65,24 @@ void SDMXControlConsoleEditorMatrixCell::Construct(const FArguments& InArgs, con
 							]
 						]
 
-						// Matrix Cell Text Label
-						+ SVerticalBox::Slot()
-						.Padding(0.f, 4.f, 0.f, 0.f)
-						.AutoHeight()
-						[
-							SAssignNew(ExpandArrowButton, SDMXControlConsoleEditorExpandArrowButton)
-							.ToolTipText(LOCTEXT("MatrixCellExpandArrowButton_Tooltip", "Switch expansion state of the cell"))
-						]
-
 						// Matrix Cell Expand button
 						+ SVerticalBox::Slot()
-						.Padding(0.f, 2.f, 0.f, 0.f)
+						.Padding(0.f, 4.f, 0.f, 0.f)
 						.AutoHeight()
 						[
 							SNew(STextBlock)
 							.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 							.Text(this, &SDMXControlConsoleEditorMatrixCell::GetMatrixCellLabelText)
 							.Justification(ETextJustify::Center)
+						]
+
+						// Matrix Cell Text Label
+						+ SVerticalBox::Slot()
+						.Padding(0.f, 2.f, 0.f, 0.f)
+						.AutoHeight()
+						[
+							SAssignNew(ExpandArrowButton, SDMXControlConsoleEditorExpandArrowButton)
+							.ToolTipText(LOCTEXT("MatrixCellExpandArrowButton_Tooltip", "Switch expansion state of the cell"))
 						]
 					]
 				]
@@ -266,7 +266,7 @@ FOptionalSize SDMXControlConsoleEditorMatrixCell::GetMatrixCellHeightByFadersVie
 	using namespace UE::Private::DMXControlConsoleEditorMatrixCell;
 
 	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
-	return ViewMode == EDMXControlConsoleEditorViewMode::Basic ? BasicViewModeHeight : AdvancedViewModeHeight;
+	return ViewMode == EDMXControlConsoleEditorViewMode::Collapsed ? CollapsedViewModeHeight : ExpandedViewModeHeight;
 }
 
 FText SDMXControlConsoleEditorMatrixCell::GetMatrixCellLabelText() const

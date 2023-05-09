@@ -16,8 +16,8 @@ class FDMXControlConsoleEditorSelection;
 /** Enum for DMX Control Console widgets layout modes */
 enum class EDMXControlConsoleEditorViewMode : uint8
 {
-	Basic,
-	Advanced
+	Collapsed,
+	Expanded
 };
 
 /** Manages lifetime and provides access to the DMX Control Console */
@@ -84,10 +84,10 @@ private:
 	void OnEnginePreExit();
 
 	/** Current view mode for FaderGroupView widgets*/
-	EDMXControlConsoleEditorViewMode FaderGroupsViewMode = EDMXControlConsoleEditorViewMode::Basic;
+	EDMXControlConsoleEditorViewMode FaderGroupsViewMode = EDMXControlConsoleEditorViewMode::Collapsed;
 
 	/** Current view mode for Faders widgets */
-	EDMXControlConsoleEditorViewMode FadersViewMode = EDMXControlConsoleEditorViewMode::Basic;
+	EDMXControlConsoleEditorViewMode FadersViewMode = EDMXControlConsoleEditorViewMode::Collapsed;
 
 	/** Called when the Fader Groups view mode is changed */
 	FSimpleMulticastDelegate OnFaderGroupsViewModeChanged;

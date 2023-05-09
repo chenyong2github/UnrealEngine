@@ -27,8 +27,8 @@
 
 namespace UE::Private::DMXControlConsoleEditorFader
 {
-	static float BasicViewModeHeight = 230.f;
-	static float AdvancedViewModeHeight = 310.f;
+	static float CollapsedViewModeHeight = 230.f;
+	static float ExpandedViewModeHeight = 310.f;
 };
 
 void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFaderBase>& InFader)
@@ -83,7 +83,7 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 							.MinDesiredWidth(20.f)
 							.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMaxValueTextCommitted)
 							.Text(this, &SDMXControlConsoleEditorFader::GetMaxValueAsText)
-							.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetAdvancedViewModeVisibility))
+							.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility))
 						]
 
 						// Fader Control
@@ -152,7 +152,7 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 								.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnValueTextCommitted)
 								.MinDesiredWidth(20.f)
 								.Text(this, &SDMXControlConsoleEditorFader::GetValueAsText)
-								.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetAdvancedViewModeVisibility))
+								.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility))
 							]
 
 							// Fader Min Value
@@ -167,7 +167,7 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 								.MinDesiredWidth(20.f)
 								.OnTextCommitted(this, &SDMXControlConsoleEditorFader::OnMinValueTextCommitted)
 								.Text(this, &SDMXControlConsoleEditorFader::GetMinValueAsText)
-								.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetAdvancedViewModeVisibility))
+								.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility))
 							]
 
 							// Mute CheckBox section
@@ -315,10 +315,11 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFader::GenerateLockButtonWidget()
 			.ButtonStyle(FAppStyle::Get(), "NoBorder")
 			.ClickMethod(EButtonClickMethod::MouseDown)
 			.OnClicked(this, &SDMXControlConsoleEditorFader::OnLockClicked)
+			.ToolTipText(LOCTEXT("FaderLockButtonToolTipText", "Locked"))
 			.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFader::GetLockButtonVisibility))
 			[
 				SNew(SImage)
-				.Image(this, &SDMXControlConsoleEditorFader::GetLockButtonImage)
+				.Image(FAppStyle::GetBrush("Icons.Lock"))
 				.ColorAndOpacity(this, &SDMXControlConsoleEditorFader::GetLockButtonColor)
 			]
 		];
@@ -335,48 +336,48 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFader::GenerateFaderOptionsMenuWidge
 	{
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Mute"))
-			, FText::FromString(TEXT("Mute"))
-			, FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Mute")
-			, FUIAction
+			LOCTEXT("MuteLabel", "Mute"), 
+			FText::GetEmpty(),
+			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Mute"), 
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnMuteFader, true),
 				FCanExecuteAction::CreateLambda([this]() { return Fader.IsValid() ? !Fader->IsMuted() : false; }),
 				FIsActionChecked(),
 				FIsActionButtonVisible::CreateLambda([this]() { return Fader.IsValid() ? !Fader->IsMuted() : false; })
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None, 
+			EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Unmute"))
-			, FText::FromString(TEXT("Umute"))
-			, FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Unmute")
-			, FUIAction
+			LOCTEXT("UnmuteLabel", "Unmute"),
+			FText::GetEmpty(),
+			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.Fader.Unmute"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnMuteFader, false),
 				FCanExecuteAction::CreateLambda([this]() { return Fader.IsValid() ? Fader->IsMuted() : false; }),
 				FIsActionChecked(),
 				FIsActionButtonVisible::CreateLambda([this]() { return Fader.IsValid() ? Fader->IsMuted() : false; })
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Remove"))
-			, FText::FromString(TEXT("Remove"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete")
-			, FUIAction
+			LOCTEXT("RemoveLabel", "Remove"),
+			FText::GetEmpty(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Delete"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnRemoveFader),
 				FCanExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::IsRawFader)
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			), 
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -385,47 +386,47 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFader::GenerateFaderOptionsMenuWidge
 	{
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Reset To Default"))
-			, FText::FromString(TEXT("Reset To Default"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ArrowLeft")
-			, FUIAction
+			LOCTEXT("ResetToDefaultLabel", "Reset to Default"),
+			FText::GetEmpty(),
+			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.ResetToDefault"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnResetFader)
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Lock"))
-			, FText::FromString(TEXT("Lock"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Lock")
-			, FUIAction
+			LOCTEXT("LockLabel", "Lock"),
+			FText::GetEmpty(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Lock"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnLockFader, true),
 				FCanExecuteAction::CreateLambda([this]() { return Fader.IsValid() ? !Fader->IsLocked() : false; }),
 				FIsActionChecked(),
 				FIsActionButtonVisible::CreateLambda([this]() { return Fader.IsValid() ? !Fader->IsLocked() : false; })
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 
 		MenuBuilder.AddMenuEntry
 		(
-			FText::FromString(TEXT("Unlock"))
-			, FText::FromString(TEXT("Unlock"))
-			, FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Unlock")
-			, FUIAction
+			LOCTEXT("UnlockLabel", "Unlock"),
+			FText::GetEmpty(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Unlock"),
+			FUIAction
 			(
 				FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorFader::OnLockFader, false),
 				FCanExecuteAction::CreateLambda([this]() { return Fader.IsValid() ? Fader->IsLocked() : false; }),
 				FIsActionChecked(),
 				FIsActionButtonVisible::CreateLambda([this]() { return Fader.IsValid() ? Fader->IsLocked() : false; })
-			)
-			, NAME_None
-			, EUserInterfaceActionType::Button
+			),
+			NAME_None,
+			EUserInterfaceActionType::Button
 		);
 	}
 	MenuBuilder.EndSection();
@@ -507,19 +508,14 @@ FText SDMXControlConsoleEditorFader::GetMinValueAsText() const
 
 void SDMXControlConsoleEditorFader::OnMinValueTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
 {
-	if (NewText.IsEmpty())
-	{
-		return;
-	}
-
-	if (UDMXControlConsoleRawFader* RawFader = Cast<UDMXControlConsoleRawFader>(Fader))
+	if (Fader.IsValid() && !NewText.IsEmpty())
 	{
 		const int32 NewValue = FCString::Atoi(*NewText.ToString());
 
 		const FScopedTransaction FaderMinValueEditedTransaction(LOCTEXT("FaderMinValueEditedTransaction", "Edit Min Value"));
-		RawFader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetMinValuePropertyName()));
-		RawFader->SetMinValue(NewValue);
-		RawFader->PostEditChange();
+		Fader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetMinValuePropertyName()));
+		Fader->SetMinValue(NewValue);
+		Fader->PostEditChange();
 	}
 }
 
@@ -541,19 +537,14 @@ FText SDMXControlConsoleEditorFader::GetMaxValueAsText() const
 
 void SDMXControlConsoleEditorFader::OnMaxValueTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
 {
-	if (NewText.IsEmpty())
-	{
-		return;
-	}
-
-	if (UDMXControlConsoleRawFader* RawFader = Cast<UDMXControlConsoleRawFader>(Fader))
+	if (Fader.IsValid() && !NewText.IsEmpty())
 	{
 		const int32 NewValue = FCString::Atoi(*NewText.ToString());
 
 		const FScopedTransaction FaderMaxValueEditedTransaction(LOCTEXT("FaderMaxValueEditedTransaction", "Edit Max Value"));
-		RawFader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetMaxValuePropertyName()));
-		RawFader->SetMaxValue(NewValue);
-		RawFader->PostEditChange();
+		Fader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetMaxValuePropertyName()));
+		Fader->SetMaxValue(NewValue);
+		Fader->PostEditChange();
 	}
 }
 
@@ -759,7 +750,7 @@ FOptionalSize SDMXControlConsoleEditorFader::GetFaderHeightByViewMode() const
 	using namespace UE::Private::DMXControlConsoleEditorFader;
 
 	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
-	return ViewMode == EDMXControlConsoleEditorViewMode::Basic ? BasicViewModeHeight : AdvancedViewModeHeight;
+	return ViewMode == EDMXControlConsoleEditorViewMode::Collapsed ? CollapsedViewModeHeight : ExpandedViewModeHeight;
 }
 
 FText SDMXControlConsoleEditorFader::GetToolTipText() const
@@ -786,13 +777,13 @@ FSlateColor SDMXControlConsoleEditorFader::GetLockButtonColor() const
 	return FLinearColor::White;
 }
 
-EVisibility SDMXControlConsoleEditorFader::GetAdvancedViewModeVisibility() const
+EVisibility SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility() const
 {
 	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
 
 	const bool bIsVisible =
 		Fader.IsValid() &&
-		ViewMode == EDMXControlConsoleEditorViewMode::Advanced;
+		ViewMode == EDMXControlConsoleEditorViewMode::Expanded;
 
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
@@ -801,10 +792,7 @@ EVisibility SDMXControlConsoleEditorFader::GetLockButtonVisibility() const
 {
 	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
 
-	const bool bIsVisible =
-		Fader.IsValid() &&
-		(Fader->IsLocked() || ViewMode == EDMXControlConsoleEditorViewMode::Advanced);
-
+	const bool bIsVisible = Fader.IsValid() && Fader->IsLocked();
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
@@ -836,23 +824,6 @@ const FSlateBrush* SDMXControlConsoleEditorFader::GetBorderImage() const
 		{
 			return FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.Rounded.Fader");
 		}
-	}
-}
-
-const FSlateBrush* SDMXControlConsoleEditorFader::GetLockButtonImage() const
-{
-	if (!Fader.IsValid())
-	{
-		return nullptr;
-	}
-
-	if (Fader->IsLocked())
-	{
-		return FAppStyle::GetBrush("Icons.Lock");
-	}
-	else
-	{
-		return FAppStyle::GetBrush("Icons.Unlock");
 	}
 }
 

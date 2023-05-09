@@ -13,6 +13,7 @@
 
 
 #define EDITOR_IMAGE_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush(FPaths::EngineContentDir() / "Editor/Slate" / RelativePath + TEXT(".svg"), __VA_ARGS__ )
+#define EDITOR_IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush(FPaths::EngineContentDir() / "Editor/Slate" / RelativePath + TEXT(".png"), __VA_ARGS__ )
 
 FDMXControlConsoleEditorStyle::FDMXControlConsoleEditorStyle()
 	: FSlateStyleSet("DMXControlConsoleEditorStyle")
@@ -48,10 +49,11 @@ FDMXControlConsoleEditorStyle::FDMXControlConsoleEditorStyle()
 	// Icons
 	{
 		Set("DMXControlConsole.TabIcon", new IMAGE_BRUSH_SVG("DMXControlConsole_16", Icon16x16));
-		Set("DMXControlConsole.PlayDMX", new IMAGE_BRUSH("icon_DMXPixelMappingEditor_PlayDMX_40x", Icon40x40));
-		Set("DMXControlConsole.StopPlayingDMX", new IMAGE_BRUSH("icon_DMXPixelMappingEditor_StopPlayingDMX_40x", Icon40x40));
-		Set("DMXControlConsole.Fader.Mute", new CORE_IMAGE_BRUSH("Common/SmallCheckBox", Icon16x16));
-		Set("DMXControlConsole.Fader.Unmute", new CORE_IMAGE_BRUSH("Common/SmallCheckBox_Checked", Icon16x16));
+		Set("DMXControlConsole.PlayDMX", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/play", Icon16x16, FStyleColors::AccentGreen));
+		Set("DMXControlConsole.StopPlayingDMX", new EDITOR_IMAGE_BRUSH("Icons/generic_stop_16x", Icon16x16, FStyleColors::AccentRed));
+		Set("DMXControlConsole.ResetToDefault", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/Reset", Icon16x16));
+		Set("DMXControlConsole.Fader.Mute", new IMAGE_BRUSH("SmallCheckBox", Icon16x16));
+		Set("DMXControlConsole.Fader.Unmute", new IMAGE_BRUSH("SmallCheckBox_Checked", Icon16x16));
 	}
 
 	// Fader Groups

@@ -49,6 +49,9 @@ private:
 	/** Generates a widget for each element in Fixture Patches Combo Box */
 	TSharedRef<SWidget> GenerateFixturePatchesComboBoxWidget(const TSharedPtr<FDMXEntityFixturePatchRef> FixturePatchRef);
 
+	/** Generates a menu widget for Fader Group info panel */
+	TSharedRef<SWidget> GenerateFaderGroupInfoMenuWidget();
+
 	/** Generates a menu widget for adding a new Fader Group to the Control Console */
 	TSharedRef<SWidget> GenerateAddNewFaderGroupMenuWidget();
 
@@ -76,6 +79,9 @@ private:
 	/** True if a new Fader Group can be added on next row */
 	bool CanAddFaderGroupRow() const;
 
+	/** Called to generate Fader Group Info Panel */
+	void OnGetInfoPanel();
+
 	/** Called to select all Faders in the Fader Group */
 	void OnSelectAllFaders() const;
 
@@ -100,8 +106,8 @@ private:
 	/** Gets fader group fixture patch name, if valid */
 	FText GetFaderGroupFixturePatchNameText() const;
 
-	/** Gets visibility for advanced view only toolbar sections  */
-	EVisibility GetAdvancedViewModeVisibility() const;
+	/** Gets visibility for expanded view only toolbar sections  */
+	EVisibility GetExpandedViewModeVisibility() const;
 
 	/** Faders Widget's expander arrow button */
 	TSharedPtr<SDMXControlConsoleEditorExpandArrowButton> ExpandArrowButton;

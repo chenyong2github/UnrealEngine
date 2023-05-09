@@ -406,7 +406,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PlayWorld.PlayInViewport"),
+			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.PlayDMX"),
 			FName(TEXT("Send DMX"))
 		);
 
@@ -415,7 +415,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PlayWorld.StopPlaySession.Small"),
+			FSlateIcon(FDMXControlConsoleEditorStyle::Get().GetStyleSetName(), "DMXControlConsole.StopPlayingDMX"),
 			FName(TEXT("Stop Sending DMX"))
 		);
 	}
@@ -524,8 +524,8 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 				);
 			};
 
-		AddMenuEntryFn(TEXT("Basic"), EDMXControlConsoleEditorViewMode::Basic);
-		AddMenuEntryFn(TEXT("Advanced"), EDMXControlConsoleEditorViewMode::Advanced);
+		AddMenuEntryFn(TEXT("Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
+		AddMenuEntryFn(TEXT("Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
 	}
 	MenuBuilder.EndSection();
 
@@ -549,8 +549,8 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 				);
 			};
 
-		AddMenuEntryFn(TEXT("Basic"), EDMXControlConsoleEditorViewMode::Basic);
-		AddMenuEntryFn(TEXT("Advanced"), EDMXControlConsoleEditorViewMode::Advanced);
+		AddMenuEntryFn(TEXT("Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
+		AddMenuEntryFn(TEXT("Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
 	}
 	MenuBuilder.EndSection();
 

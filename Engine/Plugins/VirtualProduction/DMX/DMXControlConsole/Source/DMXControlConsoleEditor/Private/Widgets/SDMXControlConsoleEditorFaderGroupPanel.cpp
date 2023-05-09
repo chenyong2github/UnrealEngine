@@ -32,23 +32,29 @@ void SDMXControlConsoleEditorFaderGroupPanel::Construct(const FArguments& InArgs
 		+ SVerticalBox::Slot()
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Top)
-		.Padding(2.f, 4.f, 0.f, 0.f)
+		.Padding(2.f, 0.f)
 		.AutoHeight()
 		[
-			SNew(STextBlock)
-			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			.Text(LOCTEXT("FaderGroupName_Label", "Name"))
-		]
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Text(LOCTEXT("FaderGroupName_Label", "Name"))
+			]
 
-		+ SVerticalBox::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Top)
-		.AutoHeight()
-		[
-			SAssignNew(FaderGroupNameTextBox, SEditableTextBox)
-			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			.OnTextCommitted(this, &SDMXControlConsoleEditorFaderGroupPanel::OnFaderGroupNameCommitted)
-			.Text(this, &SDMXControlConsoleEditorFaderGroupPanel::OnGetFaderGroupNameText)
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Left)
+			.Padding(0.f, 1.f)
+			.AutoHeight()
+			[
+				SAssignNew(FaderGroupNameTextBox, SEditableTextBox)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.OnTextCommitted(this, &SDMXControlConsoleEditorFaderGroupPanel::OnFaderGroupNameCommitted)
+				.Text(this, &SDMXControlConsoleEditorFaderGroupPanel::OnGetFaderGroupNameText)
+				.MinDesiredWidth(40.f)
+			]
 		]
 
 		// Fader Group Fixture ID section
@@ -58,93 +64,89 @@ void SDMXControlConsoleEditorFaderGroupPanel::Construct(const FArguments& InArgs
 		.Padding(2.f, 10.f, 0.f, 0.f)
 		.AutoHeight()
 		[
-			SNew(STextBlock)
-			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			.Text(LOCTEXT("FaderGroupFID_Label", "FID"))
-		]
-
-		+ SVerticalBox::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.Padding(0.f, 4.f, 0.f, 0.f)
-		.AutoHeight()
-		[
-			SNew(SEditableTextBox)
-			.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			.IsReadOnly(true)
-			.BackgroundColor(FLinearColor(.06f, .06f, .06f, .2f))
-			.Justification(ETextJustify::Center)
-			.Text(this, &SDMXControlConsoleEditorFaderGroupPanel::OnGetFaderGroupFIDText)
-		]
-
-		+ SVerticalBox::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.Padding(0.f, 4.f, 0.f, 0.f)
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-			// Fader Group Universe ID section
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(2.f, 10.f, 0.f, 0.f)
-				.AutoHeight()
-				[
-					SNew(STextBlock)
-					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-					.Text(LOCTEXT("FaderGroupUniverse_Label", "Uni"))
-				]
-
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(0.f, 4.f, 0.f, 0.f)
-				.AutoHeight()
-				[
-					SNew(SEditableTextBox)
-					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-					.IsReadOnly(true)
-					.BackgroundColor(FLinearColor(.06f, .06f, .06f, .2f))
-					.Justification(ETextJustify::Center)
-					.Text(this, &SDMXControlConsoleEditorFaderGroupPanel::OnGetFaderGroupUniverseText)
-				]
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Text(LOCTEXT("FaderGroupFID_Label", "FID"))
 			]
 
-			// Fader Group Address Range section
-			+ SHorizontalBox::Slot()
-			.Padding(4.f, 0.f)
-			.AutoWidth()
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Left)
+			.Padding(0.f, 1.f)
+			.AutoHeight()
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(2.f, 10.f, 0.f, 0.f)
-				.AutoHeight()
-				[
-					SNew(STextBlock)
-					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-					.Text(LOCTEXT("FaderGroupAddress_Label", "Addr"))
-				]
+				SNew(SEditableTextBox)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.IsReadOnly(true)
+				.BackgroundColor(FLinearColor(.06f, .06f, .06f, .2f))
+				.Justification(ETextJustify::Center)
+				.Text(this, &SDMXControlConsoleEditorFaderGroupPanel::OnGetFaderGroupFIDText)
+				.MinDesiredWidth(40.f)
+			]
+		]
 
-				+ SVerticalBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding(0.f, 4.f, 0.f, 0.f)
-				.AutoHeight()
-				[
-					SNew(SEditableTextBox)
-					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-					.IsReadOnly(true)
-					.BackgroundColor(FLinearColor(.06f, .06f, .06f, .2f))
-					.Justification(ETextJustify::Center)
-					.Text(this, &SDMXControlConsoleEditorFaderGroupPanel::OnGetFaderGroupAddressText)
-				]
+		// Universe ID section
+		+ SVerticalBox::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(2.f, 10.f, 0.f, 0.f)
+		.AutoHeight()
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Text(LOCTEXT("FaderGroupUniverse_Label", "Uni"))
+			]
+
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Left)
+			.Padding(0.f, 1.f)
+			.AutoHeight()
+			[
+				SNew(SEditableTextBox)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.IsReadOnly(true)
+				.BackgroundColor(FLinearColor(.06f, .06f, .06f, .2f))
+				.Justification(ETextJustify::Center)
+				.Text(this, &SDMXControlConsoleEditorFaderGroupPanel::OnGetFaderGroupUniverseText)
+				.MinDesiredWidth(40.f)
+			]
+		]
+
+		// Fader Group Address Range section
+		+ SVerticalBox::Slot()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(2.f, 10.f, 0.f, 0.f)
+		.AutoHeight()
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.Text(LOCTEXT("FaderGroupAddress_Label", "Addr"))
+			]
+
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Left)
+			.Padding(0.f, 1.f)
+			.AutoHeight()
+			[
+				SNew(SEditableTextBox)
+				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				.IsReadOnly(true)
+				.BackgroundColor(FLinearColor(.06f, .06f, .06f, .2f))
+				.Justification(ETextJustify::Center)
+				.Text(this, &SDMXControlConsoleEditorFaderGroupPanel::OnGetFaderGroupAddressText)
+				.MinDesiredWidth(40.f)
 			]
 		]
 
@@ -206,7 +208,7 @@ FText SDMXControlConsoleEditorFaderGroupPanel::OnGetFaderGroupUniverseText() con
 			}
 			else
 			{
-				return FText::FromString(FString::Format(TEXT("{0}-{1}"), { StartingUniverseString, EndingUniverseString }));
+				return FText::FromString(TEXT("Many"));
 			}
 		}
 	}

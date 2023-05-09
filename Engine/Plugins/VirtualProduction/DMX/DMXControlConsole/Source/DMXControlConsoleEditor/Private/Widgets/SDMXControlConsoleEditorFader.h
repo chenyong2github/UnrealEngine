@@ -131,8 +131,8 @@ private:
 	/** Gets correct text for lock button */
 	FSlateColor GetLockButtonColor() const;
 
-	/** Gets visibility for advanced view only toolbar sections  */
-	EVisibility GetAdvancedViewModeVisibility() const;
+	/** Gets visibility for expanded view only toolbar sections  */
+	EVisibility GetExpandedViewModeVisibility() const;
 
 	/** Gets visibility for lock button  */
 	EVisibility GetLockButtonVisibility() const;
@@ -142,9 +142,6 @@ private:
 
 	/** Change spin box background color on hover */
 	const FSlateBrush* GetSpinBoxBorderImage() const;
-
-	/** Change lock button icon according to lock state */
-	const FSlateBrush* GetLockButtonImage() const;
 
 	/** Reference to Lock button widget */
 	TSharedPtr<SButton> LockButton;

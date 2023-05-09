@@ -197,7 +197,9 @@ void UDMXControlConsoleFaderBase::SetUniverseID(int32 InUniverseID)
 void UDMXControlConsoleFaderBase::SetValueRange()
 {
 	const uint8 NumChannels = static_cast<uint8>(DataType) + 1;
-	MaxValue = MinValue + ((uint32)FMath::Pow(2.f, 8.f * NumChannels) - 1);
+	const uint32 ValueRange = ((uint32)FMath::Pow(2.f, 8.f * NumChannels) - 1);
+	MaxValue = ValueRange;
+	SetMinValue(MinValue);
 }
 
 void UDMXControlConsoleFaderBase::SetDataType(EDMXFixtureSignalFormat InDataType)
