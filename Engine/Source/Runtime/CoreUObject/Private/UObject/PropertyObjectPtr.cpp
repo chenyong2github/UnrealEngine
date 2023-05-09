@@ -152,12 +152,11 @@ bool FObjectPtrProperty::Identical(const void* A, const void* B, uint32 PortFlag
 			UObject* DSO = ClassA ? ClassA->GetDefaultSubobjectByName(ObjectA.GetFName()) : nullptr;
 			bPerformDeepComparison = DSO != nullptr;
 		}
-		if (bPerformDeepComparison)
+		if (bPerformDeepComparison && ObjectA.GetClass() == ObjectB.GetClass() && ObjectA.GetFName() == ObjectB.GetFName())
 		{
 			return FObjectPropertyBase::StaticIdentical(ObjectA.Get(), ObjectB.Get(), PortFlags);
 		}
 	}
-
 	return false;
 }
 
