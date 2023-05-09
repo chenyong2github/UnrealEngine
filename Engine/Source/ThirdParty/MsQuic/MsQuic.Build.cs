@@ -39,7 +39,7 @@ public class MsQuic : ModuleRules
         {
             // Current version MsQuic v2.2.0 released on 18 Apr 2023
             string MsQuicSdkPath = Path.Combine(GetModulePath(), "v220");
-            string MsQuicBinariesPath = Path.Combine(BinariesDir, "MsQuic");
+            string MsQuicBinariesPath = Path.Combine(BinariesDir, "MsQuic", "v220");
 
             if (Target.Platform == UnrealTargetPlatform.Win64)
             {
