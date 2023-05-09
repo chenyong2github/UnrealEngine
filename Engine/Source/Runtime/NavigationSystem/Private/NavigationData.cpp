@@ -518,7 +518,7 @@ void ANavigationData::CleanUpAndMarkPendingKill()
 			World->RemoveNetworkActor(this);
 		}
 		MarkAsGarbage();
-		MarkComponentsAsPendingKill();
+		MarkComponentsAsGarbage();
 	}
 }
 

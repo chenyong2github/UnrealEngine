@@ -2824,7 +2824,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 						{
 							UE_LOG(LogEditorServer, Log,  TEXT("Destroying orphan Actor: %s"), *Actor->GetName() );					
 							Actor->MarkAsGarbage();
-							Actor->MarkComponentsAsPendingKill();
+							Actor->MarkComponentsAsGarbage();
 						}
 					}
 					UE_LOG(LogEditorServer, Log,  TEXT("Finished looking for orphan Actors (%3.3lf secs)"), FPlatformTime::Seconds() - StartTime );

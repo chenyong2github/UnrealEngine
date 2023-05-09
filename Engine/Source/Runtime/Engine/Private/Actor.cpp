@@ -5452,15 +5452,15 @@ bool AActor::HasValidRootComponent()
 	return (RootComponent != nullptr && RootComponent->IsRegistered()); 
 }
 
-void AActor::MarkComponentsAsPendingKill()
+void AActor::MarkComponentsAsGarbage(bool bModify)
 {
-	// Iterate components and mark them all as pending kill.
+	// Iterate components and mark them all as garbage.
 	TInlineComponentArray<UActorComponent*> Components(this);
 
 	for (UActorComponent* Component : Components)
 	{
 		// Modify component so undo/ redo works in the editor.
-		if (GIsEditor)
+		if (bModify && GIsEditor)
 		{
 			Component->Modify();
 		}

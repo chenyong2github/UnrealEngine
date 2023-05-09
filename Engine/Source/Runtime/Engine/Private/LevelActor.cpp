@@ -1002,7 +1002,7 @@ bool UWorld::DestroyActor( AActor* ThisActor, bool bNetForce, bool bShouldModify
 	// Mark the actor and its direct components as pending kill.
 	ThisActor->MarkAsGarbage();
 	ThisActor->MarkPackageDirty();
-	ThisActor->MarkComponentsAsPendingKill();
+	ThisActor->MarkComponentsAsGarbage();
 
 	// Unregister the actor's tick function
 	const bool bRegisterTickFunctions = false;

@@ -2973,9 +2973,16 @@ public:
 	/** Debug rendering to visualize the component tree for this actor. */
 	void DrawDebugComponents(FColor const& BaseColor=FColor::White) const;
 
-	/** Called to mark all components as pending kill when the actor is being destroyed */
-	virtual void MarkComponentsAsPendingKill();
+	
+	UE_DEPRECATED(5.3, "Use MarkComponentsAsGarbage instead.")
+	virtual void MarkComponentsAsPendingKill() { MarkComponentsAsGarbage(); }
 
+	/** Called to mark all components as garbage when the actor is being destroyed
+	 *
+	 *  @param bModify if True, Modify will be called on actor before marking components
+	 */
+	virtual void MarkComponentsAsGarbage(bool bModify = true);
+	
 	/**
 	 * Returns true if this actor has begun the destruction process.
 	 * This is set to true in UWorld::DestroyActor, after the network connection has been closed but before any other shutdown has been performed.

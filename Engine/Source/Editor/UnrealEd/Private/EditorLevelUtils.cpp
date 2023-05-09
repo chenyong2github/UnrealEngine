@@ -1000,7 +1000,8 @@ void UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 	{
 		if (Actor != nullptr)
 		{
-			Actor->MarkComponentsAsPendingKill();
+			const bool bModify = false;
+			Actor->MarkComponentsAsGarbage(bModify);
 			Actor->MarkAsGarbage();
 		}
 	}
