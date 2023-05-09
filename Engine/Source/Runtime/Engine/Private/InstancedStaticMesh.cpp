@@ -2119,6 +2119,20 @@ HHitProxy* FInstancedStaticMeshSceneProxy::CreateHitProxies(UPrimitiveComponent*
 	return FStaticMeshSceneProxy::CreateHitProxies(Component, OutHitProxies);
 }
 
+bool FInstancedStaticMeshSceneProxy::GetInstanceDrawDistanceMinMax(FVector2f& OutDistanceMinMax) const
+{
+	if (UserData_AllInstances.EndCullDistance > 0)
+	{
+		OutDistanceMinMax = FVector2f(0.0f, float(UserData_AllInstances.EndCullDistance));
+		return true;
+	}
+	else
+	{
+		OutDistanceMinMax = FVector2f(0.0f);
+		return false;
+	}
+}
+
 #if RHI_RAYTRACING
 bool FInstancedStaticMeshSceneProxy::HasRayTracingRepresentation() const
 {

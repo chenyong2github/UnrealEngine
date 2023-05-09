@@ -591,6 +591,8 @@ public:
 	 */
 	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component,TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
 
+	virtual bool GetInstanceDrawDistanceMinMax(FVector2f& OutDistanceMinMax) const override;
+
 	virtual bool IsDetailMesh() const override
 	{
 		return true;
