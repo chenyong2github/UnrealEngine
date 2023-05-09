@@ -534,8 +534,25 @@ namespace UnrealBuildTool
 				}
 
 				// Now that we have the dependencies object, optionally create the artifact cache
-				// For future work
 				IActionArtifactCache? actionArtifactCache = null;
+				if (!string.IsNullOrEmpty(BuildConfiguration.ArtifactDirectory) && (BuildConfiguration.bArtifactRead || BuildConfiguration.bArtifactWrites))
+				{
+					DirectoryReference artifactDirectory = new(BuildConfiguration.ArtifactDirectory);
+					DirectoryReference.CreateDirectory(artifactDirectory);
+
+					string mode = (BuildConfiguration.bArtifactRead, BuildConfiguration.bArtifactWrites) switch
+					{
+						(false, true) => "write only",
+						(true, false) => "read only",
+						_ => "read/write",
+					};
+
+					Logger.LogInformation("Experimental artifact system using '{directory}' in {mode} mode", artifactDirectory.FullName, mode);
+				
+					actionArtifactCache = ActionArtifactCache.CreateHordeFileCache(artifactDirectory, CppDependencies, Logger);
+					actionArtifactCache.EnableReads = BuildConfiguration.bArtifactRead;
+					actionArtifactCache.EnableWrites = BuildConfiguration.bArtifactWrites;
+				}
 
 				// Pre-process module interfaces to generate dependency files
 				List<LinkedAction> ModuleDependencyActions = PrerequisiteActions.Where(x => x.ActionType == ActionType.GatherModuleDependencies).ToList();

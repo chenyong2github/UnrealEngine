@@ -93,9 +93,9 @@ namespace UnrealBuildTool.Artifacts
 	}
 
 	/// <summary>
-	/// Collection of input and output artifacts.
+	/// Given a set of inputs, provide a list of outputs
 	/// </summary>
-	public readonly struct ArtifactBundle : IEquatable<ArtifactBundle>
+	public readonly struct ArtifactMapping : IEquatable<ArtifactMapping>
 	{
 
 		/// <summary>
@@ -106,7 +106,7 @@ namespace UnrealBuildTool.Artifacts
 		/// <summary>
 		/// The unique hash for all inputs and the environment
 		/// </summary>
-		public readonly IoHash BundleKey;
+		public readonly IoHash MappingKey;
 
 		/// <summary>
 		/// Information about all inputs
@@ -122,43 +122,43 @@ namespace UnrealBuildTool.Artifacts
 		/// Constructor
 		/// </summary>
 		/// <param name="key">The hash of the primary input and the environment</param>
-		/// <param name="bundleKey">The unique hash for all inputs and the environment</param>
+		/// <param name="mappingKey">The unique hash for all inputs and the environment</param>
 		/// <param name="inputs">Information about all inputs</param>
 		/// <param name="outputs">Information about all outputs</param>
-		public ArtifactBundle(IoHash key, IoHash bundleKey, Artifact[] inputs, Artifact[] outputs)
+		public ArtifactMapping(IoHash key, IoHash mappingKey, Artifact[] inputs, Artifact[] outputs)
 		{
 			Key = key;
-			BundleKey = bundleKey;
+			MappingKey = mappingKey;
 			Inputs = inputs;
 			Outputs = outputs;
 		}
 
 		/// <inheritdoc/>
-		public bool Equals(ArtifactBundle other)
+		public bool Equals(ArtifactMapping other)
 		{
-			return Key == other.Key && BundleKey == other.BundleKey && Inputs.SequenceEqual(other.Inputs) && Outputs.SequenceEqual(other.Outputs);
+			return Key == other.Key && MappingKey == other.MappingKey && Inputs.SequenceEqual(other.Inputs) && Outputs.SequenceEqual(other.Outputs);
 		}
 
 		/// <inheritdoc/>
 		public override bool Equals(object? obj)
 		{
-			return obj is ArtifactBundle artifactBundle && Equals(artifactBundle);
+			return obj is ArtifactMapping artifactMapping && Equals(artifactMapping);
 		}
 
 		/// <inheritdoc/>
 		public override int GetHashCode()
 		{
-			return HashCode.Combine(Key.GetHashCode(), BundleKey.GetHashCode(), Inputs.GetHashCode(), Outputs.GetHashCode()); 
+			return HashCode.Combine(Key.GetHashCode(), MappingKey.GetHashCode(), Inputs.GetHashCode(), Outputs.GetHashCode()); 
 		}
 
 		/// <inheritdoc/>
-		public static bool operator ==(ArtifactBundle left, ArtifactBundle right)
+		public static bool operator ==(ArtifactMapping left, ArtifactMapping right)
 		{
 			return left.Equals(right);
 		}
 
 		/// <inheritdoc/>
-		public static bool operator !=(ArtifactBundle left, ArtifactBundle right)
+		public static bool operator !=(ArtifactMapping left, ArtifactMapping right)
 		{
 			return !(left == right);
 		}
@@ -198,30 +198,30 @@ namespace UnrealBuildTool.Artifacts
 		}
 
 		/// <summary>
-		/// Read an artifact bundle structure
+		/// Read an artifact mapping structure
 		/// </summary>
 		/// <param name="reader">Source reader</param>
-		/// <returns>Read artifact bundle structure</returns>
-		public static ArtifactBundle ReadArtifactBundle(this IMemoryReader reader)
+		/// <returns>Read artifact mapping structure</returns>
+		public static ArtifactMapping ReadArtifactMapping(this IMemoryReader reader)
 		{
 			IoHash key = reader.ReadIoHash();
-			IoHash bundleKey = reader.ReadIoHash();
+			IoHash mappingKey = reader.ReadIoHash();
 			Artifact[] inputs = reader.ReadVariableLengthArray(() => reader.ReadArtifact());
 			Artifact[] outputs = reader.ReadVariableLengthArray(() => reader.ReadArtifact());
-			return new ArtifactBundle(key, bundleKey, inputs, outputs);
+			return new ArtifactMapping(key, mappingKey, inputs, outputs);
 		}
 
 		/// <summary>
-		/// Write an artifact bundle structure
+		/// Write an artifact mapping structure
 		/// </summary>
 		/// <param name="writer">Destination writer</param>
-		/// <param name="artifactBundle">Artifact bundle to be written</param>
-		public static void WriteArtifactBundle(this IMemoryWriter writer, ArtifactBundle artifactBundle)
+		/// <param name="artifactMapping">Artifact mapping to be written</param>
+		public static void WriteArtifactMapping(this IMemoryWriter writer, ArtifactMapping artifactMapping)
 		{
-			writer.WriteIoHash(artifactBundle.Key);
-			writer.WriteIoHash(artifactBundle.BundleKey);
-			writer.WriteVariableLengthArray(artifactBundle.Inputs, x => writer.WriteArtifact(x));
-			writer.WriteVariableLengthArray(artifactBundle.Outputs, x => writer.WriteArtifact(x));
+			writer.WriteIoHash(artifactMapping.Key);
+			writer.WriteIoHash(artifactMapping.MappingKey);
+			writer.WriteVariableLengthArray(artifactMapping.Inputs, x => writer.WriteArtifact(x));
+			writer.WriteVariableLengthArray(artifactMapping.Outputs, x => writer.WriteArtifact(x));
 		}
 	}
 
@@ -268,33 +268,34 @@ namespace UnrealBuildTool.Artifacts
 		public Task<ArtifactCacheState> WaitForReadyAsync();
 
 		/// <summary>
-		/// Given a collection of partial keys return all matching bundles
+		/// Given a collection of partial keys return all matching mappings
 		/// </summary>
 		/// <param name="partialKeys">Source file key</param>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
 		/// <returns>Collection of all known artifacts</returns>
-		public Task<ArtifactBundle[]> QueryArtifactBundlesAsync(IoHash[] partialKeys, CancellationToken cancellationToken);
+		public Task<ArtifactMapping[]> QueryArtifactMappingsAsync(IoHash[] partialKeys, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Query the actual contents of a group of artifacts
 		/// </summary>
-		/// <param name="bundles">Bundles to be read</param>
+		/// <param name="artifactMappings">Mappings to be read</param>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
 		/// <returns>Dictionary of the artifacts</returns>
-		public Task<bool[]?> QueryArtifactOutputsAsync(ArtifactBundle[] bundles, CancellationToken cancellationToken);
+		public Task<bool[]?> QueryArtifactOutputsAsync(ArtifactMapping[] artifactMappings, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Save new artifact to the cache
 		/// </summary>
-		/// <param name="artifactBundles">Collection of artifacts to be saved</param>
+		/// <param name="artifactMappings">Collection of artifacts to be saved</param>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
-		public Task SaveArtifactBundlesAsync(ArtifactBundle[] artifactBundles, CancellationToken cancellationToken);
+		/// <returns>Asynchronous task objects</returns>
+		public Task SaveArtifactMappingsAsync(ArtifactMapping[] artifactMappings, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Flush all updates in the cache asynchronously.
 		/// </summary>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
-		/// <returns>Async task objects</returns>
+		/// <returns>Asynchronous task objects</returns>
 		public Task FlushChangesAsync(CancellationToken cancellationToken);
 	}
 
@@ -307,7 +308,7 @@ namespace UnrealBuildTool.Artifacts
 		/// <summary>
 		/// Underlying artifact cache
 		/// </summary>
-		public IArtifactCache? ArtifactCache { get; }
+		public IArtifactCache ArtifactCache { get; }
 
 		/// <summary>
 		/// If true, reads will be serviced
@@ -332,14 +333,14 @@ namespace UnrealBuildTool.Artifacts
 		/// </summary>
 		/// <param name="action">Completed action</param>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
-		/// <returns>Async task object</returns>
+		/// <returns>Asynchronous task object</returns>
 		public Task ActionCompleteAsync(LinkedAction action, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Flush all updates in the cache asynchronously.
 		/// </summary>
 		/// <param name="cancellationToken">Token to be used to cancel operations</param>
-		/// <returns>Async task object</returns>
+		/// <returns>Asynchronous task object</returns>
 		public Task FlushChangesAsync(CancellationToken cancellationToken);
 	}
 }

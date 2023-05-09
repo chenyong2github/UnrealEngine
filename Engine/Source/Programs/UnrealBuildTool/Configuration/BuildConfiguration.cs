@@ -204,6 +204,29 @@ namespace UnrealBuildTool
 		private bool bCompactOutputCommandLine = false;
 
 		/// <summary>
+		/// If set, artifacts will be read
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-ArtifactReads", Value = "True")]
+		[CommandLine("-NoArtifactReads", Value = "False")]
+		public bool bArtifactRead = true;
+
+		/// <summary>
+		/// If set, artifacts will be written
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-ArtifactWrites", Value = "True")]
+		[CommandLine("-NoArtifactWrites", Value = "False")]
+		public bool bArtifactWrites = true;
+
+		/// <summary>
+		/// Location to store the artifacts.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-ArtifactDirectory=")]
+		public string ArtifactDirectory = String.Empty;
+
+		/// <summary>
 		/// Instruct the executor to write compact output e.g. only errors, if supported by the executor,
 		/// and only if output is not being redirected e.g. during a build from within Visual Studio
 		/// </summary>
