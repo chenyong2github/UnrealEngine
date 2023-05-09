@@ -18398,6 +18398,13 @@ bool URigVMController::RestoreLinkedPaths(
 				bSingleLinkSuccess = false;
 			}
 		}
+		else
+		{
+			if (ExistingLink)
+			{
+				GetGraph()->DetachedLinks.Remove(ExistingLink);
+			}
+		}
 
 		if(bSingleLinkSuccess)
 		{
