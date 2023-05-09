@@ -27,7 +27,6 @@ class ONLINESERVICESCOMMONENGINEUTILS_API FSessionLAN : public FSessionCommon
 {
 public:
 	FSessionLAN();
-	FSessionLAN(const FSessionLAN& InSession) = default;
 
 	static FSessionLAN& Cast(FSessionCommon& InSession);
 	static const FSessionLAN& Cast(const ISession& InSession);
