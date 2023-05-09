@@ -4956,7 +4956,7 @@ bool UCustomizableInstancePrivateData::BuildOrCopyRenderData(const TSharedPtr<FM
 
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("BuildOrCopyRenderData_BuildData: LOD %d"), LODIndex));
 
-		SetLastMeshId(Component.Id, LODIndex, Component.Mesh->GetId());
+		SetLastMeshId(Component.Id, LODIndex, Component.MeshID);
 
 		UnrealConversionUtils::SetupRenderSections(
 			SkeletalMesh,
@@ -6265,6 +6265,13 @@ int32 UCustomizableObjectInstance::GetCurrentMaxLOD() const
 	return CurrentMaxLOD;
 }
 
+#if !UE_BUILD_SHIPPING
+static bool bIgnoreMinMaxLOD = false;
+FAutoConsoleVariableRef CVarMutableIgnoreMinMaxLOD(
+	TEXT("Mutable.IgnoreMinMaxLOD"),
+	bIgnoreMinMaxLOD,
+	TEXT("The limits on the number of LODs to generate will be ignored."));
+#endif
 
 void UCustomizableObjectInstance::SetRequestedLODs(int32 InMinLOD, int32 InMaxLOD, const TArray<uint16>& InRequestedLODsPerComponent)
 {
@@ -6273,6 +6280,15 @@ void UCustomizableObjectInstance::SetRequestedLODs(int32 InMinLOD, int32 InMaxLO
 	{
 		return;
 	}
+
+#if !UE_BUILD_SHIPPING
+	// Ignore Min/Max LOD limits. Mainly used for debug
+	if (!bIgnoreMinMaxLOD)
+	{
+		InMinLOD = 0;
+		InMaxLOD = MAX_int32;
+	}
+#endif
 
 	// Clamp Min LOD
 	InMinLOD = FMath::Min(FMath::Max(InMinLOD, static_cast<int32>(PrivateData->FirstLODAvailable)), PrivateData->FirstLODAvailable + PrivateData->NumMaxLODsToStream);

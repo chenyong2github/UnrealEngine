@@ -258,11 +258,11 @@ void UCustomizableSkeletalComponent::UpdateDistFromComponentToPlayer(const AActo
 
 				if (ViewCenter && ViewCenter->IsValidLowLevel())
 				{
-					APawn* pawn = Cast<APawn>(ParentActor);
-					bool bIsPawn = pawn ? pawn->IsLocallyControlled() : false;
-					CustomizableObjectInstance->SetIsPlayerOrNearIt(bIsPawn);
+					APawn* Pawn = Cast<APawn>(ParentActor);
+					bool bIsPlayer = Pawn ? Pawn->IsPlayerControlled() : false;
+					CustomizableObjectInstance->SetIsPlayerOrNearIt(bIsPlayer);
 
-					if (bIsPawn)
+					if (bIsPlayer)
 					{
 						SquareDist = -0.01f; // Negative value to give the player character more priority than any other character
 					}

@@ -329,7 +329,7 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 					AActor* ParentParentActor = AttachParentParentComponent ? AttachParentParentComponent->GetOwner() : nullptr;
 
 					const APawn* Pawn = Cast<APawn>(ParentParentActor);
-					if (Pawn && Pawn->IsLocallyControlled())
+					if (Pawn && Pawn->IsPlayerControlled())
 					{
 						COI->SetMinSquareDistToPlayer(-1.f);
 					}
