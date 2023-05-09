@@ -39,11 +39,19 @@ public:
 
 			Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-			auto GetClassDefaultValue = [&V, &ActorDescAr]() -> const T&
+			auto GetClassDefaultValue = [&V, &ActorDescAr]() -> const T*
 			{
 				const UPTRINT PropertyOffset = (UPTRINT)&V.Value - *(UPTRINT*)&ActorDescAr.ActorDesc;
-				const T& RefValue = *(const T*)(*(UPTRINT*)&ActorDescAr.ClassDesc + PropertyOffset);
-				return RefValue;
+
+				if (PropertyOffset < ActorDescAr.ClassDescSizeof)
+				{
+					check((PropertyOffset + sizeof(V)) <= ActorDescAr.ClassDescSizeof);
+					const T* RefValue = (const T*)(*(UPTRINT*)&ActorDescAr.ClassDesc + PropertyOffset);
+					return RefValue;
+				}
+
+				check(ActorDescAr.bIsMissingClassDesc);
+				return nullptr;
 			};
 
 			uint8 bSerialize = 1;
@@ -52,7 +60,11 @@ public:
 			{
 				if (Ar.IsSaving() && ActorDescAr.ClassDesc)
 				{
-					bSerialize = (V.Value != GetClassDefaultValue()) ? 1 : 0;
+					// When saving, we expect the class descriptor to be the exact type as what we are serializing.
+					const T* ClassDefaultValue = GetClassDefaultValue();
+					check(ClassDefaultValue);
+
+					bSerialize = (V.Value != *ClassDefaultValue) ? 1 : 0;
 				}
 
 				Ar << bSerialize;
@@ -64,7 +76,11 @@ public:
 			}
 			else if (Ar.IsLoading())
 			{
-				V.Value = GetClassDefaultValue();
+				// When loading, we need to handle a different class descriptor in case of missing classes, etc.
+				if (const T* ClassDefaultValue = GetClassDefaultValue())
+				{
+					V.Value = *ClassDefaultValue;
+				}
 			}
 
 			return Ar;
@@ -75,6 +91,8 @@ public:
 
 	FWorldPartitionActorDesc* ActorDesc;
 	const FWorldPartitionActorDesc* ClassDesc;
+	uint32 ClassDescSizeof;
+	bool bIsMissingClassDesc;
 };
 
 template <typename T>

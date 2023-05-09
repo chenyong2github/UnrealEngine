@@ -22,6 +22,7 @@ public:
 protected:
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
+	virtual uint32 GetSizeOf() const override { return sizeof(FPartitionActorDesc); }
 	virtual void Serialize(FArchive& Ar) override;
 	virtual FBox GetEditorBounds() const override;
 	virtual void TransferWorldData(const FWorldPartitionActorDesc* From) override;

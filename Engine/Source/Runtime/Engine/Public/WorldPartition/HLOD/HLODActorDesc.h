@@ -37,6 +37,7 @@ protected:
 	//~ Begin FWorldPartitionActorDesc Interface.
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
+	virtual uint32 GetSizeOf() const override { return sizeof(FHLODActorDesc); }
 	virtual void Serialize(FArchive& Ar) override;
 	virtual bool IsRuntimeRelevant(const FActorContainerID& InContainerID) const override { return !bIsForcedNonSpatiallyLoaded; }
 	virtual bool ShouldValidateRuntimeGrid() const override { return false; }

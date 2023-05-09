@@ -16,6 +16,7 @@ public:
 
 	int32 GetOverlapPriority() const { return OverlapPriority; }
 protected:
+	virtual uint32 GetSizeOf() const override { return sizeof(FWaterZoneActorDesc); }
 	virtual void Serialize(FArchive& Ar) override;
 
 	int32 OverlapPriority;

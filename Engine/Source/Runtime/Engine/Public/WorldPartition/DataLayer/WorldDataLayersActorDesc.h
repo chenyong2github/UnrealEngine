@@ -71,6 +71,7 @@ protected:
 	//~ Begin FWorldPartitionActorDesc Interface.
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
+	virtual uint32 GetSizeOf() const override { return sizeof(FWorldDataLayersActorDesc); }
 	virtual void Serialize(FArchive& Ar) override;
 	virtual bool IsResaveNeeded() const override { return !IsValid(); }
 	//~ End FWorldPartitionActorDesc Interface.

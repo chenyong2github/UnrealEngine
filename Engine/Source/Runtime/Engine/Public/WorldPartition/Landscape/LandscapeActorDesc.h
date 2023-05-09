@@ -19,6 +19,7 @@ public:
 	virtual const FGuid& GetSceneOutlinerParent() const override;
 
 protected:
+	virtual uint32 GetSizeOf() const override { return sizeof(FLandscapeActorDesc); }
 	virtual void Serialize(FArchive& Ar) override;
 	virtual FBox GetEditorBounds() const override;
 

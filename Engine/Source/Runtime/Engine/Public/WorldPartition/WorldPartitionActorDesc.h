@@ -281,6 +281,8 @@ protected:
 		BoundsExtent = From->BoundsExtent;
 	}
 
+	virtual uint32 GetSizeOf() const { return sizeof(FWorldPartitionActorDesc); }
+
 	virtual void Serialize(FArchive& Ar);
 
 	// Persistent

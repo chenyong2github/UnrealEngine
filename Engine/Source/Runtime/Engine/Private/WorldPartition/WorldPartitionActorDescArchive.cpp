@@ -13,6 +13,7 @@
 FActorDescArchive::FActorDescArchive(FArchive& InArchive, FWorldPartitionActorDesc* InActorDesc)
 	: FArchiveProxy(InArchive)
 	, ActorDesc(InActorDesc)
+	, bIsMissingClassDesc(false)
 {
 	check(InArchive.IsPersistent());
 
@@ -65,8 +66,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		if (IsLoading())
 		{
+			bIsMissingClassDesc = true;
+
 			ClassDesc = ClassDescRegistry.GetClassDescDefault(FTopLevelAssetPath(TEXT("/Script/Engine.Actor")));
-			check(ClassDesc);
+			check(ClassDesc);			
 
 			UE_LOG(LogWorldPartition, Log, TEXT("Can't find class descriptor '%s' for loading '%s', using '%s'"), *ClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString(), *ClassDesc->GetActorSoftPath().ToString());
 		}
@@ -75,5 +78,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			UE_LOG(LogWorldPartition, Log, TEXT("Can't find class descriptor '%s' for saving '%s'"), *ClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString());
 		}
 	}
+
+	ClassDescSizeof = ClassDesc ? ClassDesc->GetSizeOf() : 0;
 }
 #endif

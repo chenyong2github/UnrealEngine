@@ -37,6 +37,7 @@ protected:
 	virtual void Init(const FWorldPartitionActorDescInitData& DescData) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 	virtual void TransferFrom(const FWorldPartitionActorDesc* From) override;
+	virtual uint32 GetSizeOf() const override { return sizeof(FLevelInstanceActorDesc); }
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void SetContainer(UActorDescContainer* InContainer, UWorld* InWorldContext) override;
 
