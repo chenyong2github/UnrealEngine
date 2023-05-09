@@ -19,7 +19,7 @@ void SetUpObservers(FMassEntityManager& EntityManager, const TMap<TPointerType, 
 	UObject* Owner = EntityManager.GetOwner();
 	check(Owner);
 	const UWorld* World = Owner->GetWorld();
-	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Mass::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
+	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Mass::Utils::GetProcessorExecutionFlagsForWorld(*World) : EProcessorExecutionFlags::All;
 
 	for (auto It : RegisteredObserverTypes)
 	{

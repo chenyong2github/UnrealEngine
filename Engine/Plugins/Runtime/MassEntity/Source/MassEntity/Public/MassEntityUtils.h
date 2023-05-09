@@ -13,7 +13,13 @@ namespace UE::Mass::Utils
 {
 
 /** returns the current execution mode for the processors calculated from the world network mode */
-MASSENTITY_API extern EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World);
+MASSENTITY_API extern EProcessorExecutionFlags GetProcessorExecutionFlagsForWorld(const UWorld& World);
+
+UE_DEPRECATED(5.3, "This function is deprecated. Please use the properly spelled GetProcessorExecutionFlagsForWorld instead.")
+FORCEINLINE EProcessorExecutionFlags GetProcessorExecutionFlagsForWold(const UWorld& World)
+{
+	return GetProcessorExecutionFlagsForWorld(World);
+}
 
 /** 
  * Fills OutEntityCollections with per-archetype FMassArchetypeEntityCollection instances. 

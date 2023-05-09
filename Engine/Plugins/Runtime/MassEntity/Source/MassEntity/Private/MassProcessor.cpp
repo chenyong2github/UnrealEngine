@@ -425,7 +425,7 @@ void UMassCompositeProcessor::Populate(TConstArrayView<FMassProcessorOrderInfo> 
 	ChildPipeline.Reset();
 
 	const UWorld* World = GetWorld();
-	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Mass::Utils::GetProcessorExecutionFlagsForWold(*World) : EProcessorExecutionFlags::All;
+	const EProcessorExecutionFlags WorldExecutionFlags = World ? UE::Mass::Utils::GetProcessorExecutionFlagsForWorld(*World) : EProcessorExecutionFlags::All;
 	const FMassProcessingPhaseConfig& PhaseConfig = GET_MASS_CONFIG_VALUE(GetProcessingPhaseConfig(ProcessingPhase));
 
 	for (const FMassProcessorOrderInfo& ProcessorInfo : OrderedProcessors)
