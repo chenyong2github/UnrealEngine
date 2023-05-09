@@ -511,12 +511,6 @@ FGuid ALandscapeProxy::GetNaniteContentId() const
 		}
 	}
 
-	// nanite content depends on if the skirt geometry is enabled & the depth.
-	int32 NaniteSkirtEnabled = bNaniteSkirtEnabled;
-	float NaniteSkirtDepthTest = bNaniteSkirtEnabled ? NaniteSkirtDepth : 0.0f; // The hash should only change if Skirts are enabled.
-	ContentStateAr << NaniteSkirtEnabled;
-	ContentStateAr << NaniteSkirtDepthTest;
-
 	uint32 Hash[5];
 	FSHA1::HashBuffer(ContentStateAr.GetData(), ContentStateAr.Num(), (uint8*)Hash);
 	return FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
@@ -3726,9 +3720,8 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		bEnableNanite = Landscape->bEnableNanite;
 
 		bUseCompressedHeightmapStorage = Landscape->bUseCompressedHeightmapStorage;
+
 #if WITH_EDITORONLY_DATA
-		bNaniteSkirtEnabled = Landscape->bNaniteSkirtEnabled;
-		NaniteSkirtDepth = Landscape->NaniteSkirtDepth;
 		NaniteLODIndex = Landscape->NaniteLODIndex;
 #endif // WITH_EDITORONLY_DATA
 

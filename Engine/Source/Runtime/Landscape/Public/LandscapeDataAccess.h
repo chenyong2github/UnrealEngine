@@ -16,8 +16,6 @@ LandscapeDataAccess.h: Classes for the editor to access to Landscape data
 #define LANDSCAPE_XYOFFSET_SCALE	(1.0f/256.f)
 #define LANDSCAPE_INV_XYOFFSET_SCALE	256.f
 
-#define LANDSCAPE_VISIBILITY_THRESHOLD (2.0f/3.0f)
-
 class ULandscapeComponent;
 class ULandscapeLayerInfoObject;
 
@@ -217,14 +215,9 @@ struct FLandscapeComponentDataInterfaceBase
 		return (Texel->R << 8) + Texel->G;
 	}
 
-	float GetScaleFactor() const
-	{
-		return (float)ComponentSizeQuads / (float)(ComponentSizeVerts - 1);
-	}
-
 	FVector GetLocalVertex(int32 LocalX, int32 LocalY, const TArray<FColor>& HeightAndNormals) const
 	{
-		const float ScaleFactor = GetScaleFactor();
+		const float ScaleFactor = (float)ComponentSizeQuads / (float)(ComponentSizeVerts - 1);
 		
 		return FVector(LocalX * ScaleFactor , LocalY * ScaleFactor, LandscapeDataAccess::GetLocalHeight(GetHeight(LocalX, LocalY, HeightAndNormals)));
 	}
