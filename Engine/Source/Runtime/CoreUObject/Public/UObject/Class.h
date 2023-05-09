@@ -15,6 +15,8 @@
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "Async/Mutex.h"
+#include "Async/UniqueLock.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformCrt.h"
 #include "HAL/UnrealMemory.h"
@@ -110,6 +112,21 @@ template <typename FuncType> class TFunctionRef;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogClass, Log, All);
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogScriptSerialization, Log, All);
+
+#ifndef USE_UE_LOCK_FOR_UCLASS_FUNCTION_HANDLING
+	#define USE_UE_LOCK_FOR_UCLASS_FUNCTION_HANDLING 0
+#endif
+
+#if USE_UE_LOCK_FOR_UCLASS_FUNCTION_HANDLING
+	typedef UE::TUniqueLock<UE::FMutex> FUClassFuncScopeReadLock;
+	typedef UE::TUniqueLock<UE::FMutex> FUClassFuncScopeWriteLock;
+	typedef UE::FMutex FUClassFuncLock;
+#else
+	typedef FReadScopeLock FUClassFuncScopeReadLock;
+	typedef FWriteScopeLock FUClassFuncScopeWriteLock;
+	typedef FRWLock FUClassFuncLock;
+#endif
+
 
 /*-----------------------------------------------------------------------------
 	FRepRecord.
@@ -2824,7 +2841,7 @@ public:
 #if WITH_EDITOR
 	void GenerateFunctionList(TArray<FName>& OutArray) const 
 	{ 
-		FReadScopeLock ScopeLock(FuncMapLock);
+		FUClassFuncScopeReadLock ScopeLock(FuncMapLock)
 		FuncMap.GenerateKeyArray(OutArray); 
 	}
 #endif // WITH_EDITOR
@@ -2844,13 +2861,13 @@ private:
 	TMap<FName, UFunction*> FuncMap;
 
 	/** Scope lock to avoid the FuncMap being read and written to simultaneously on multiple threads. */
-	mutable FRWLock FuncMapLock;
+	mutable FUClassFuncLock FuncMapLock;
 
 	/** A cache of all functions by name that exist in a parent (superclass or interface) context */
 	mutable TMap<FName, UFunction*> SuperFuncMap;
 
 	/** Scope lock to avoid the SuperFuncMap being read and written to simultaneously on multiple threads. */
-	mutable FRWLock SuperFuncMapLock;
+	mutable FUClassFuncLock SuperFuncMapLock;
 
 public:
 	/**
@@ -2936,7 +2953,7 @@ public:
 	/** Add a function to the function map */
 	void AddFunctionToFunctionMap(UFunction* Function, FName FuncName)
 	{
-		FWriteScopeLock ScopeLock(FuncMapLock);
+		FUClassFuncScopeWriteLock ScopeLock(FuncMapLock);
 		FuncMap.Add(FuncName, Function);
 	}
 
@@ -2945,7 +2962,7 @@ public:
 	/** Remove a function from the function map */
 	void RemoveFunctionFromFunctionMap(UFunction* Function)
 	{
-		FWriteScopeLock ScopeLock(FuncMapLock);
+		FUClassFuncScopeWriteLock ScopeLock(FuncMapLock);
 		FuncMap.Remove(Function->GetFName());
 	}
 

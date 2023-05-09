@@ -4879,8 +4879,8 @@ void UClass::Serialize( FArchive& Ar )
 	// serialize the function map
 	//@TODO: UCREMOVAL: Should we just regenerate the FuncMap post load, instead of serializing it?
 	{
-		FWriteScopeLock ScopeLock(FuncMapLock);
-	Ar << FuncMap;
+	 	FUClassFuncScopeWriteLock ScopeLock(FuncMapLock);
+		Ar << FuncMap;
 	}
 
 	// Class flags first.
@@ -5300,8 +5300,8 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 	DeleteUnresolvedScriptProperties();
 
 	{
-		FWriteScopeLock ScopeLock(FuncMapLock);
-	FuncMap.Empty();
+		FUClassFuncScopeWriteLock ScopeLock(FuncMapLock);
+		FuncMap.Empty();
 	}
 	ClearFunctionMapsCaches();
 	PropertyLink = nullptr;
@@ -5869,7 +5869,7 @@ void UClass::CreateLinkAndAddChildFunctionsToMap(const FClassFunctionLinkInfo* F
 
 void UClass::ClearFunctionMapsCaches()
 {
-	FWriteScopeLock ScopeLock(SuperFuncMapLock);
+	FUClassFuncScopeWriteLock ScopeLock(SuperFuncMapLock);
 	SuperFuncMap.Empty();
 }
 
@@ -5882,7 +5882,7 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 	UE_AUTORTFM_OPEN(
 	{
 		{
-			FReadScopeLock ScopeLock(FuncMapLock);
+			FUClassFuncScopeReadLock ScopeLock(FuncMapLock);
 			Result = FuncMap.FindRef(InName);
 		}
 
@@ -5893,7 +5893,7 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 			{
 				bool bFoundInSuperFuncMap = false;
 				{
-					FReadScopeLock ScopeLock(SuperFuncMapLock);
+					FUClassFuncScopeReadLock ScopeLock(SuperFuncMapLock);
 					if (UFunction** SuperResult = SuperFuncMap.Find(InName))
 					{
 						Result = *SuperResult;
@@ -5917,7 +5917,7 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 						Result = SuperClass->FindFunctionByName(InName);
 					}
 
-					FWriteScopeLock ScopeLock(SuperFuncMapLock);
+					FUClassFuncScopeWriteLock ScopeLock(SuperFuncMapLock);
 					SuperFuncMap.Add(InName, Result);
 				}
 			}
