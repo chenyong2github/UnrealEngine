@@ -17,7 +17,7 @@ class UTransformableHandle;
 struct FMovieSceneConstraintChannel;
 struct FFrameNumber;
 struct FConstraintAndActiveChannel;
-
+enum class EMovieSceneKeyInterpolation : uint8;
 
 struct MOVIESCENETOOLS_API FCompensationEvaluator
 {
