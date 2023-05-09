@@ -1391,7 +1391,7 @@ namespace UE::ShaderCompilerCommon
 {
 	void FBaseShaderFormat::OutputDebugData(const FString& InputHash, const FShaderCompilerInput& Input, const FShaderPreprocessOutput& PreprocessOutput, const FShaderCompilerOutput& Output) const
 	{
-		DumpDebugShaderData(Input, PreprocessOutput.GetOriginalSource());
+		DumpDebugShaderData(Input, Input.bCachePreprocessed ? PreprocessOutput.GetOriginalSource() : PreprocessOutput.GetSource());
 		FString OutputHashFileName = FPaths::Combine(Input.DumpDebugInfoPath, TEXT("OutputHash.txt"));
 		FFileHelper::SaveStringToFile(Output.OutputHash.ToString(), *OutputHashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
 
@@ -1408,7 +1408,7 @@ namespace UE::ShaderCompilerCommon
 			}
 		}
 
-		if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::InputHash))
+		if (EnumHasAnyFlags(Input.DebugInfoFlags, EShaderDebugInfoFlags::InputHash) && !InputHash.IsEmpty())
 		{
 			FString InputHashFileName = FPaths::Combine(Input.DumpDebugInfoPath, TEXT("InputHash.txt"));
 			FFileHelper::SaveStringToFile(InputHash, *InputHashFileName, FFileHelper::EEncodingOptions::ForceAnsi);
