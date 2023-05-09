@@ -49,11 +49,15 @@ namespace Horde.Server.Commands
 
 		static IHostBuilder CreateHostBuilderWithCert(string[] args, IConfiguration config, ServerSettings serverSettings, X509Certificate2? sslCert)
 		{
+			AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+
 			IHostBuilder hostBuilder = Host.CreateDefaultBuilder(args)
 				.UseSerilog()
 				.ConfigureAppConfiguration(builder => builder.AddConfiguration(config))
 				.ConfigureWebHostDefaults(webBuilder =>
 				{
+					webBuilder.UseUrls(); // Disable default URLs; we will configure each port directly.
+
 					webBuilder.ConfigureKestrel(options =>
 					{
 						options.Limits.MaxRequestBodySize = 100 * 1024 * 1024;
@@ -66,11 +70,15 @@ namespace Horde.Server.Commands
 						if (serverSettings.HttpsPort != 0)
 						{
 							options.ListenAnyIP(serverSettings.HttpsPort, configure => 
-							{ 
-								if (sslCert != null) 
-								{ 
-									configure.UseHttps(sslCert); 
-								} 
+							{
+								if (sslCert != null)
+								{
+									configure.UseHttps(sslCert);
+								}
+								else
+								{
+									configure.UseHttps();
+								}
 							});
 						}
 

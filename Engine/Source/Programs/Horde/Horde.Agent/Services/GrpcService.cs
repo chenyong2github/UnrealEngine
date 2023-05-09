@@ -4,6 +4,9 @@ using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
+using System.Net.Http.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Grpc.Net.Client;
 using Horde.Agent.Utility;
 using Microsoft.Extensions.Logging;
@@ -16,9 +19,19 @@ namespace Horde.Agent.Services
 	/// </summary>
 	class GrpcService
 	{
+		class GetPortsResponse
+		{
+			public int UnencryptedHttp2 { get; set; }
+		}
+
 		private readonly ServerProfile _serverProfile;
 		private readonly ILogger _logger;
 		private readonly ILoggerFactory _loggerFactory;
+
+		/// <summary>
+		/// The current server profile
+		/// </summary>
+		public ServerProfile ServerProfile => _serverProfile;
 
 		/// <summary>
 		/// Constructor
@@ -37,16 +50,16 @@ namespace Horde.Agent.Services
 		/// Create a GRPC channel with a default token
 		/// </summary>
 		/// <returns>New grpc channel</returns>
-		public GrpcChannel CreateGrpcChannel()
+		public Task<GrpcChannel> CreateGrpcChannelAsync(CancellationToken cancellationToken)
 		{
-			return CreateGrpcChannel(_serverProfile.Token);
+			return CreateGrpcChannelAsync(_serverProfile.Token, cancellationToken);
 		}
 		
 		/// <summary>
 		/// Create a GRPC channel with the given bearer token
 		/// </summary>
 		/// <returns>New grpc channel</returns>
-		public GrpcChannel CreateGrpcChannel(string? bearerToken)
+		public async Task<GrpcChannel> CreateGrpcChannelAsync(string? bearerToken, CancellationToken cancellationToken)
 		{
 #pragma warning disable CA2000 // Dispose objects before losing scope
 			// HTTP handler is disposed by GrpcChannel below
@@ -69,8 +82,26 @@ namespace Horde.Agent.Services
 
 			httpClient.Timeout = TimeSpan.FromSeconds(210); // Need to make sure this doesn't cancel any long running gRPC streaming calls (eg. session update)
 
-			_logger.LogInformation("Connecting to rpc server {BaseUrl}", _serverProfile.Url);
-			return GrpcChannel.ForAddress(_serverProfile.Url, new GrpcChannelOptions
+			// Get the server URL for gRPC traffic. If we're using an unencrpyted connection we need to use a different port for http/2, so 
+			// send a http1 request to the server to query it.
+			Uri serverUri = _serverProfile.Url;
+			if (serverUri.Scheme.Equals("http", StringComparison.Ordinal))
+			{
+				_logger.LogInformation("Querying server {BaseUrl} for rpc port", serverUri);
+				using (HttpResponseMessage response = await httpClient.GetAsync(new Uri(serverUri, "api/v1/server/ports"), cancellationToken))
+				{
+					GetPortsResponse? ports = await response.Content.ReadFromJsonAsync<GetPortsResponse>(Program.DefaultJsonSerializerOptions, cancellationToken);
+					if (ports != null && ports.UnencryptedHttp2 != 0)
+					{
+						UriBuilder builder = new UriBuilder(serverUri);
+						builder.Port = ports.UnencryptedHttp2;
+						serverUri = builder.Uri;
+					}
+				}
+			}
+
+			_logger.LogInformation("Connecting to rpc server {BaseUrl}", serverUri);
+			return GrpcChannel.ForAddress(serverUri, new GrpcChannelOptions
 			{
 				// Required payloads coming from CAS service can be large
 				MaxReceiveMessageSize = 1024 * 1024 * 1024, // 1 GB

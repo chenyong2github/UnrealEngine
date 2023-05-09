@@ -47,7 +47,7 @@ namespace Horde.Agent.Commands.Execution
 			ServerProfile serverProfile = _settings.GetCurrentServerProfile();
 			ExecuteJobTask executeTask = ExecuteJobTask.Parser.ParseFrom(Convert.FromBase64String(Task));
 
-			await using RpcConnection rpcConnection = new RpcConnection(() => _grpcService.CreateGrpcChannel(executeTask.Token), logger);
+			await using RpcConnection rpcConnection = new RpcConnection(ctx => _grpcService.CreateGrpcChannelAsync(executeTask.Token, ctx), logger);
 			await using Session session = new Session(serverProfile.Url, AgentId, SessionId, executeTask.Token, rpcConnection, WorkingDir, _settings.ProcessNamesToTerminate, logger);
 
 			await _jobHandler.ExecuteInternalAsync(session, LeaseId, executeTask, CancellationToken.None);

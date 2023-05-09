@@ -7,6 +7,8 @@ using Horde.Server.Agents;
 using Horde.Server.Tools;
 using HordeCommon;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -68,6 +70,23 @@ namespace Horde.Server.Server
 			}
 
 			return new GetServerInfoResponse(agentVersion);
+		}
+
+		/// <summary>
+		/// Gets ports used by the server
+		/// </summary>
+		[HttpGet]
+		[AllowAnonymous]
+		[Route("/api/v1/server/ports")]
+		public ActionResult<GetPortsResponse> GetPorts()
+		{
+			ServerSettings serverSettings = _globalConfig.Value.ServerSettings;
+
+			GetPortsResponse response = new GetPortsResponse();
+			response.Http = serverSettings.HttpPort;
+			response.Https = serverSettings.HttpsPort;
+			response.UnencryptedHttp2 = serverSettings.Http2Port;
+			return response;
 		}
 	}
 }

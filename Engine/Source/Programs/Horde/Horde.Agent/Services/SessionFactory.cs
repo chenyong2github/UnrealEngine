@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -129,16 +131,17 @@ namespace Horde.Agent.Services
 			_logger = logger;
 		}
 
-		class AgentRegistration
+		public class AgentRegistrationList
 		{
-			public string? Id { get; set; }
-			public string? Token { get; set; }
+			public List<AgentRegistration> Entries { get; set; } = new List<AgentRegistration>();
 		}
+
+		public record class AgentRegistration(Uri Server, string Id, string Token);
 
 		/// <summary>
 		/// Creates a new agent session
 		/// </summary>
-		public static async Task<Session> CreateAsync(CapabilitiesService capabilitiesService, GrpcService grpcService, StatusService statusService, IOptions<AgentSettings> settings, ILogger logger, CancellationToken cancellationToken)
+		public static async Task<Session> CreateAsync(CapabilitiesService capabilitiesService, GrpcService grpcService, IOptions<AgentSettings> settings, ILogger logger, CancellationToken cancellationToken)
 		{
 			AgentSettings currentSettings = settings.Value;
 
@@ -194,7 +197,7 @@ namespace Horde.Agent.Services
 
 			// Create the session
 			CreateSessionResponse createSessionResponse;
-			using (GrpcChannel channel = grpcService.CreateGrpcChannel(registrationInfo.Token))
+			using (GrpcChannel channel = await grpcService.CreateGrpcChannelAsync(registrationInfo.Token, cancellationToken))
 			{
 				HordeRpc.HordeRpcClient rpcClient = new HordeRpc.HordeRpcClient(channel);
 
@@ -210,11 +213,11 @@ namespace Horde.Agent.Services
 				logger.LogInformation("Created session. AgentName={AgentName} SessionId={SessionId}", currentSettings.GetAgentName(), createSessionResponse.SessionId);
 			}
 
-			Func<GrpcChannel> createGrpcChannel = () => grpcService.CreateGrpcChannel(createSessionResponse.Token);
+			Func<CancellationToken, Task<GrpcChannel>> createGrpcChannelAsync = ctx => grpcService.CreateGrpcChannelAsync(createSessionResponse.Token, ctx);
 
 			// Open a connection to the server
 #pragma warning disable CA2000 // False positive; ownership is transferred to new Session object.
-			IRpcConnection rpcConnection = new RpcConnection(createGrpcChannel, logger);
+			IRpcConnection rpcConnection = new RpcConnection(createGrpcChannelAsync, logger);
 			return new Session(serverProfile.Url, createSessionResponse.AgentId, createSessionResponse.SessionId, createSessionResponse.Token, rpcConnection, workingDir, currentSettings.ProcessNamesToTerminate, logger);
 #pragma warning restore CA2000
 		}
@@ -244,22 +247,25 @@ namespace Horde.Agent.Services
 				settingsDir = DirectoryReference.Combine(settingsDir, "Horde.Agent");
 			}
 
-			FileReference settingsFile = FileReference.Combine(settingsDir, "registration.json");
+			FileReference settingsFile = FileReference.Combine(settingsDir, "servers.json");
 
 			// Read existing settings if possible
-			AgentRegistration? registrationInfo = null;
+			AgentRegistrationList? registrationList = null;
 			if (FileReference.Exists(settingsFile))
 			{
 				byte[] settingsData = await FileReference.ReadAllBytesAsync(settingsFile, cancellationToken);
-				registrationInfo = JsonSerializer.Deserialize<AgentRegistration>(settingsData, Program.DefaultJsonSerializerOptions);
+				registrationList = JsonSerializer.Deserialize<AgentRegistrationList>(settingsData, Program.DefaultJsonSerializerOptions);
+				registrationList?.Entries.RemoveAll(x => x.Server == null || x.Id == null || x.Token == null);
 				logger.LogInformation("Read agent registration settings from {SettingsFile}", settingsFile);
 			}
+			registrationList ??= new AgentRegistrationList();
 
 			// If they aren't valid, create a new agent registration
-			if (registrationInfo == null || registrationInfo.Id == null || registrationInfo.Token == null)
+			AgentRegistration? registration = registrationList.Entries.FirstOrDefault(x => x.Server == grpcService.ServerProfile.Url);
+			if (registration == null)
 			{
 				ServerProfile serverProfile = currentSettings.GetCurrentServerProfile();
-				using (GrpcChannel channel = grpcService.CreateGrpcChannel(serverProfile.Token))
+				using (GrpcChannel channel = await grpcService.CreateGrpcChannelAsync(serverProfile.Token, cancellationToken))
 				{
 					HordeRpc.HordeRpcClient rpcClient = new HordeRpc.HordeRpcClient(channel);
 
@@ -267,14 +273,18 @@ namespace Horde.Agent.Services
 					createAgentRequest.Name = currentSettings.GetAgentName();
 
 					CreateAgentResponse createAgentResponse = await rpcClient.CreateAgentAsync(createAgentRequest, null, null, cancellationToken);
-					registrationInfo = new AgentRegistration { Id = createAgentResponse.Id, Token = createAgentResponse.Token };
-					JsonSerializer.SerializeToUtf8Bytes(registrationInfo, Program.DefaultJsonSerializerOptions);
+					registration = new AgentRegistration(grpcService.ServerProfile.Url, createAgentResponse.Id, createAgentResponse.Token);
+					registrationList.Entries.Add(registration);
+
+					byte[] data = JsonSerializer.SerializeToUtf8Bytes(registrationList, new JsonSerializerOptions(Program.DefaultJsonSerializerOptions) { WriteIndented = true });
+					DirectoryReference.CreateDirectory(settingsDir);
+					await FileReference.WriteAllBytesAsync(settingsFile, data, cancellationToken);
 
 					logger.LogInformation("Created agent (Id={AgentId}). Settings saved to {File}.", createAgentResponse.Id, settingsFile);
 				}
 			}
 
-			return registrationInfo;
+			return registration;
 		}
 
 		/// <inheritdoc/>
@@ -312,23 +322,21 @@ namespace Horde.Agent.Services
 	{
 		readonly CapabilitiesService _capabilitiesService;
 		readonly GrpcService _grpcService;
-		readonly StatusService _statusService;
 		readonly IOptions<AgentSettings> _settings;
 		readonly ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public SessionFactory(CapabilitiesService capabilitiesService, GrpcService grpcService, StatusService statusService, IOptions<AgentSettings> settings, ILogger<SessionFactory> logger)
+		public SessionFactory(CapabilitiesService capabilitiesService, GrpcService grpcService, IOptions<AgentSettings> settings, ILogger<SessionFactory> logger)
 		{
 			_capabilitiesService = capabilitiesService;
 			_grpcService = grpcService;
-			_statusService = statusService;
 			_settings = settings;
 			_logger = logger;
 		}
 
 		/// <inheritdoc/>
-		public async Task<ISession> CreateAsync(CancellationToken cancellationToken) => await Session.CreateAsync(_capabilitiesService, _grpcService, _statusService, _settings, _logger, cancellationToken);
+		public async Task<ISession> CreateAsync(CancellationToken cancellationToken) => await Session.CreateAsync(_capabilitiesService, _grpcService, _settings, _logger, cancellationToken);
 	}
 }

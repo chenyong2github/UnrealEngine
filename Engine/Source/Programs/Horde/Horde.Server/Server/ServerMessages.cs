@@ -38,5 +38,26 @@ namespace Horde.Server.Server
 			OsDescription = RuntimeInformation.OSDescription;			
 		}
 	}
+
+	/// <summary>
+	/// Gets ports configured for this server
+	/// </summary>
+	public class GetPortsResponse
+	{
+		/// <summary>
+		/// Port for HTTP communication
+		/// </summary>
+		public int? Http { get; set; }
+
+		/// <summary>
+		/// Port number for HTTPS communication
+		/// </summary>
+		public int? Https { get; set; }
+
+		/// <summary>
+		/// Port number for unencrpyted HTTPS communication
+		/// </summary>
+		public int? UnencryptedHttp2 { get; set; }
+	}
 }
 

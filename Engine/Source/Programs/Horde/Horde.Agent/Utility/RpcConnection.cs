@@ -365,7 +365,7 @@ namespace Horde.Agent.Utility
 			public Task DisposingTask => _subConnection.DisposingTask;
 		}
 
-		private readonly Func<GrpcChannel> _createGrpcChannel;
+		private readonly Func<CancellationToken, Task<GrpcChannel>> _createGrpcChannelAsync;
 		private readonly TaskCompletionSource<bool> _stoppingTaskSource = new TaskCompletionSource<bool>();
 		private TaskCompletionSource<RpcSubConnection> _subConnectionTaskSource = new TaskCompletionSource<RpcSubConnection>();
 		private Task? _backgroundTask;
@@ -376,11 +376,11 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="createGrpcChannel">Factory method for creating new GRPC channels</param>
+		/// <param name="createGrpcChannelAsync">Factory method for creating new GRPC channels</param>
 		/// <param name="logger">Logger instance</param>
-		public RpcConnection(Func<GrpcChannel> createGrpcChannel, ILogger logger)
+		public RpcConnection(Func<CancellationToken, Task<GrpcChannel>> createGrpcChannelAsync, ILogger logger)
 		{
-			_createGrpcChannel = createGrpcChannel;
+			_createGrpcChannelAsync = createGrpcChannelAsync;
 			_logger = logger;
 
 			_backgroundTask = Task.Run(() => ExecuteAsync());
@@ -531,7 +531,7 @@ namespace Horde.Agent.Utility
 		/// <returns>Async task</returns>
 		async Task HandleConnectionInternalAsync(int connectionId, TaskCompletionSource<bool> reconnectTaskSource)
 		{
-			using (GrpcChannel channel = _createGrpcChannel())
+			using (GrpcChannel channel = await _createGrpcChannelAsync(CancellationToken.None))
 			{
 				HordeRpc.HordeRpcClient client = new HordeRpc.HordeRpcClient(channel);
 

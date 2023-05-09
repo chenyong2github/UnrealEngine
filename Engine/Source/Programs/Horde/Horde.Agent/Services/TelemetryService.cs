@@ -288,7 +288,7 @@ class TelemetryService : BackgroundService
 			return false;
 		}
 		
-		using GrpcChannel channel = _grpcService.CreateGrpcChannel();
+		using GrpcChannel channel = await _grpcService.CreateGrpcChannelAsync(stoppingToken);
 		HordeRpc.HordeRpcClient client = new (channel);
 		
 		while (!stoppingToken.IsCancellationRequested)
