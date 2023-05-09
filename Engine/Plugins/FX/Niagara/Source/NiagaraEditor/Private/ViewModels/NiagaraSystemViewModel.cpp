@@ -255,7 +255,12 @@ void FNiagaraSystemViewModel::Cleanup()
 
 	if (System)
 	{
-		System->bCompileForEdit = false;
+		if ( System->bCompileForEdit )
+		{
+			System->bCompileForEdit = false;
+			System->InvalidateActiveCompiles();
+			System->RequestCompile(false);
+		}
 		System->OnSystemPostEditChange().Remove(SystemChangedDelegateHandle);
 	}
 
