@@ -5107,7 +5107,7 @@ static void ReadAsyncPackageHeader(FAsyncPackageSerializationState& Serializatio
 	HeaderData.ExportCount = HeaderData.ExportMap.Num();
 
 	const uint64 ExportBundleEntriesSize = PackageSummary->DependencyBundleHeadersOffset - PackageSummary->ExportBundleEntriesOffset;
-	const int32 ExportBundleEntriesCount = ExportBundleEntriesSize / sizeof(FExportBundleEntry);
+	const int32 ExportBundleEntriesCount = static_cast<int32>(ExportBundleEntriesSize / sizeof(FExportBundleEntry));
 
 	if (ExportBundleEntriesCount != HeaderData.ExportCount * FExportBundleEntry::ExportCommandType_Count)
 	{
