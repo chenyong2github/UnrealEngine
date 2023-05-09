@@ -38,7 +38,8 @@ public class ChaosVD : ModuleRules
 				"GeometryCore",
 				"MeshConversion",
 				"MeshDescription",
-				"StaticMeshDescription",
+				"StaticMeshDescription", 
+				"DynamicMesh"
 			}
 			);
 

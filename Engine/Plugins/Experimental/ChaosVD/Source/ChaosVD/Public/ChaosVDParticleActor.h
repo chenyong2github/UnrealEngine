@@ -36,7 +36,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category="Chaos Visual Debugger Data")
 	FChaosVDParticleDebugData RecordedDebugData;
 
-	bool bIsGeometryDataLoaded = false;
+	bool bIsGeometryDataGenerationStarted = false;
 
 	TWeakPtr<FChaosVDScene> OwningScene;
 

@@ -26,25 +26,37 @@ void AChaosVDParticleActor::UpdateFromRecordedData(const FChaosVDParticleDebugDa
 
 void AChaosVDParticleActor::UpdateGeometryData(const TSharedPtr<const Chaos::FImplicitObject>& ImplicitObject)
 {
-	if (bIsGeometryDataLoaded)
+	if (bIsGeometryDataGenerationStarted)
 	{
 		return;
 	}
-
-	TArray<UMeshComponent*> OutGeneratedMeshComponents;
 
 	if (const TSharedPtr<FChaosVDScene>& ScenePtr = OwningScene.Pin())
 	{
 		if (const TSharedPtr<FChaosVDGeometryBuilder>& GeometryGenerator = ScenePtr->GetGeometryGenerator())
 		{
+			TArray<TWeakObjectPtr<UMeshComponent>> OutGeneratedMeshComponents;
 			Chaos::FRigidTransform3 Transform;
-			GeometryGenerator->CreateMeshComponentsFromImplicit<UStaticMesh, UInstancedStaticMeshComponent>(ImplicitObject.Get(), this, OutGeneratedMeshComponents, Transform);
+
+			// Heightfields need to be created as Static meshes and use normal Static Mesh components because we need LODs for them due to their high triangle count
+			if (FChaosVDGeometryBuilder::DoesImplicitContainType(ImplicitObject.Get(), Chaos::ImplicitObjectType::HeightField))
+			{
+				constexpr int32 LODsToGenerateNum = 3;
+				constexpr int32 StartingMeshComponentIndex = 0;
+				GeometryGenerator->CreateMeshComponentsFromImplicit<UStaticMesh, UStaticMeshComponent>(ImplicitObject.Get(), this, OutGeneratedMeshComponents, Transform, StartingMeshComponentIndex, LODsToGenerateNum);
+			}
+			else
+			{
+				GeometryGenerator->CreateMeshComponentsFromImplicit<UStaticMesh, UInstancedStaticMeshComponent>(ImplicitObject.Get(), this, OutGeneratedMeshComponents, Transform);
+			}
+
+			
+
+			if (OutGeneratedMeshComponents.Num() > 0)
+			{
+				bIsGeometryDataGenerationStarted = true;
+			}
 		}
-	}
-	
-	if (OutGeneratedMeshComponents.Num() > 0)
-	{
-		bIsGeometryDataLoaded = true;
 	}
 }
 
@@ -63,7 +75,6 @@ void AChaosVDParticleActor::SetScene(const TSharedPtr<FChaosVDScene>& InScene)
 		});
 	}
 }
-
 
 void AChaosVDParticleActor::BeginDestroy()
 {
