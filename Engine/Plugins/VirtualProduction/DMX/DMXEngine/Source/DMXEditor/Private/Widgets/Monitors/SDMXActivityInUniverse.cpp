@@ -155,7 +155,8 @@ void SDMXActivityInUniverse::UpdateChannels()
 			{				
 				// Instantiate the widget
 				ChannelItem->CreateWidget(Buffer[ChannelIndex]);
-			
+				ChannelItem->SetValue(Buffer[ChannelIndex]);
+
 				// Add the item the list source
 				ChannelListSource.Add(ChannelItem);
 				bNumChannelsChanged = true;
