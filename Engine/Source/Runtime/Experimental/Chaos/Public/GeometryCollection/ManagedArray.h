@@ -526,6 +526,16 @@ public:
 	}
 
 	/**
+	* return true if index is in array range.
+	*
+	* @param Index Index to check.
+	*/
+	FORCEINLINE bool IsValidIndex(int32 Index) const
+	{
+		return Array.IsValidIndex(Index);
+	}
+
+	/**
 	* Checks if index is in array range.
 	*
 	* @param Index Index to check.
