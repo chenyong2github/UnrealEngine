@@ -345,6 +345,9 @@ private:
 	bool bIsDedicatedServer;
 	bool bIsUsingP2PSockets;
 	bool bUsePresenceAttribute = false;
+
+	// Log a warning if bUsePresenceAttribute is false, prompting people to upgrade.
+	void TEMP_LogPresenceAttribWarning();
 };
 
 typedef TSharedPtr<FOnlineSessionEOS, ESPMode::ThreadSafe> FOnlineSessionEOSPtr;
