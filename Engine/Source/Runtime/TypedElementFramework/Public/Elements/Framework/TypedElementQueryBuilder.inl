@@ -5,13 +5,14 @@
 #include <utility>
 #include "Templates/IsConst.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Elements/Interfaces/TypedElementDataStorageCompatibilityInterface.h"
 
 namespace TypedElementQueryBuilder
 {
 	namespace Internal
 	{
 		// This assumes that the types are unique, but for queries this should be true and otherwise
-		// both resuls would point to the first found index.
+		// both results would point to the first found index.
 		template<typename Target, typename ArgsCurrent, typename... ArgsRemainder>
 		constexpr uint32 GetVarArgIndex()
 		{
@@ -42,13 +43,18 @@ namespace TypedElementQueryBuilder
 		template<typename Type>
 		constexpr ITypedElementDataStorageInterface::EQueryDependencyFlags GetDependencyFlags()
 		{
-			ITypedElementDataStorageInterface::EQueryDependencyFlags Result = ITypedElementDataStorageInterface::EQueryDependencyFlags::None;
-			// Until there's a way to pass in whether or not a dependency is tied to the main thread and whether
-			// it's safe to not update in between updates, default to using the game thread and always update.
-			EnumAddFlags(Result, ITypedElementDataStorageInterface::EQueryDependencyFlags::GameThreadBound);
-			EnumAddFlags(Result, ITypedElementDataStorageInterface::EQueryDependencyFlags::AlwaysRefresh);
-
 			using BaseType = typename std::remove_reference_t<Type>;
+			using SubsystemTraits = TTypedElementSubsystemTraits<std::remove_const_t<BaseType>>;
+
+			ITypedElementDataStorageInterface::EQueryDependencyFlags Result = ITypedElementDataStorageInterface::EQueryDependencyFlags::None;
+			if constexpr (SubsystemTraits::RequiresGameThread())
+			{
+				EnumAddFlags(Result, ITypedElementDataStorageInterface::EQueryDependencyFlags::GameThreadBound);
+			}
+			if constexpr (SubsystemTraits::IsHotReloadable())
+			{
+				EnumAddFlags(Result, ITypedElementDataStorageInterface::EQueryDependencyFlags::AlwaysRefresh);
+			}
 			if constexpr (TIsConst<BaseType>::Value)
 			{
 				EnumAddFlags(Result, ITypedElementDataStorageInterface::EQueryDependencyFlags::ReadOnly);

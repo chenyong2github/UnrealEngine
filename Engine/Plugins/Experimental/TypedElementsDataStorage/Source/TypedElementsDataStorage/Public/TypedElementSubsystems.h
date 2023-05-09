@@ -21,6 +21,9 @@ class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageSubsystem : public UE
 	GENERATED_BODY()
 
 public:
+	static constexpr bool bRequiresGameThread = true;
+	static constexpr bool bIsHotReloadable = false;
+
 	~UTypedElementDataStorageSubsystem() override;
 
 	ITypedElementDataStorageInterface* Get();
@@ -40,6 +43,9 @@ class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageUiSubsystem : public 
 	GENERATED_BODY()
 
 public:
+	static constexpr bool bRequiresGameThread = true;
+	static constexpr bool bIsHotReloadable = false;
+
 	~UTypedElementDataStorageUiSubsystem() override;
 
 	ITypedElementDataStorageUiInterface* Get();
@@ -50,8 +56,8 @@ protected:
 };
 
 /**
- * A subsystem to provide alternative access to the Typed Elements Data Storage Compatiblity. This can be used in situations where directly 
- * accessing the Compatiblity extension from the Typed Elements Registry is not recommended, such as for MASS.
+ * A subsystem to provide alternative access to the Typed Elements Data Storage Compatibility. This can be used in situations where directly 
+ * accessing the Compatibility extension from the Typed Elements Registry is not recommended, such as for MASS.
  */
 UCLASS()
 class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageCompatibilitySubsystem : public UEditorSubsystem
@@ -59,6 +65,9 @@ class TYPEDELEMENTSDATASTORAGE_API UTypedElementDataStorageCompatibilitySubsyste
 	GENERATED_BODY()
 
 public:
+	static constexpr bool bRequiresGameThread = true;
+	static constexpr bool bIsHotReloadable = false;
+
 	~UTypedElementDataStorageCompatibilitySubsystem() override;
 
 	ITypedElementDataStorageCompatibilityInterface* Get();

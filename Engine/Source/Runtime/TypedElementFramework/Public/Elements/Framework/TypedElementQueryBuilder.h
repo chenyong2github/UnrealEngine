@@ -24,10 +24,10 @@ class USubsystem;
  * Calls to the sections become increasingly restrictive, e.g. after calling Where only DependsOn can be
  * called again.
  * 
- * Arguments to the various functions take a pointer to a description of a UStruct. These can be provived
+ * Arguments to the various functions take a pointer to a description of a UStruct. These can be provided
  * in the follow ways:
  * - By using the templated version, e.g. Any<FStructExample>()
- * - By callling the static StaticStruct() function on the UStruct, e.g. FStructExample::StaticStruct();
+ * - By calling the static StaticStruct() function on the UStruct, e.g. FStructExample::StaticStruct();
  * - By name using the Type or TypeOptional string operator, e.g. "/Script/ExamplePackage.FStructExample"_Type or
  *		"/Script/OptionalPackage.FStructOptional"_TypeOptional
  * All functions allow for a single type to be added or a list of types, e.g. ReadOnly(Type<FStructExample>() or
@@ -98,7 +98,7 @@ class USubsystem;
  *			.ReadWrite(USystemExample2::StaticClass())
  *		.Compile();
  *
- * Creating a query is expensive on the builder and the backend side. It's therefore recommended to create a query
+ * Creating a query is expensive on the builder and the back-end side. It's therefore recommended to create a query
  * and store its compiled form for repeated use instead of rebuilding the query on every update.
  */
 
