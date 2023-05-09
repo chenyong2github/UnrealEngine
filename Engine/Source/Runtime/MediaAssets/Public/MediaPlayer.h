@@ -6,6 +6,7 @@
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
 #include "IMediaOptions.h"
+#include "IMediaMetadataItem.h"
 #include "Math/Quat.h"
 #include "Math/Rotator.h"
 #include "Templates/SharedPointer.h"
@@ -89,6 +90,33 @@ public:
 	int64 SequenceIndex;
 };
 
+USTRUCT(BlueprintType)
+struct MEDIAASSETS_API FMediaMetadataItemBPT
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "Media|Metadata")
+	FString LanguageCode;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Media|Metadata")
+	FString MimeType;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Media|Metadata")
+	FString StringData;
+	
+	UPROPERTY(BlueprintReadOnly, Category = "Media|Metadata")
+	TArray<uint8> BinaryData;
+};
+
+USTRUCT(BlueprintType)
+struct MEDIAASSETS_API FMediaMetadataItemsBPT
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintReadOnly, Category = "Media|Metadata")
+	TArray<FMediaMetadataItemBPT> Items;
+};
 
 /**
  * Proxy implementation for Metasound integration
@@ -1068,6 +1096,14 @@ public:
 	 */
 	TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const;
 
+	/**
+	 * This is the blueprint accessible version of the GetMediaMetadata.
+	 * @return Map with arrays of FMediaMetaDataItem entries describing any metadata found in the current stream
+	 * @note Listen to EMediaEvent::MetadataChanged to catch updates to this data
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|Metadata")
+	TMap<FString, FMediaMetadataItemsBPT> GetMediaMetadataItems() const;
+	
 	/**
 	 * Get the media player facade that manages low-level media players
 	 *

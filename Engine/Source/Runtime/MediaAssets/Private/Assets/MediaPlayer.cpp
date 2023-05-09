@@ -233,6 +233,104 @@ TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::Threa
 	return PlayerFacade->GetMediaMetadata();
 }
 
+TMap<FString, FMediaMetadataItemsBPT> UMediaPlayer::GetMediaMetadataItems() const
+{
+	TMap<FString, FMediaMetadataItemsBPT> OutMetadata;
+	if(const TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>* MetadataPtr = GetMediaMetadata().Get())
+	{
+		for(const TPair<FString, TArray<TUniquePtr<IMediaMetadataItem>>>& Data : *MetadataPtr)
+		{
+			FMediaMetadataItemsBPT OutItems;
+			for(const TUniquePtr<IMediaMetadataItem>& Item : Data.Value)
+			{
+				if(const IMediaMetadataItem* ItemPtr = Item.Get())
+				{
+					FMediaMetadataItemBPT OutItem;
+					OutItem.LanguageCode = ItemPtr->GetLanguageCode();
+					OutItem.MimeType = ItemPtr->GetMimeType();
+					FVariant TempItem = ItemPtr->GetValue();
+			
+					switch (TempItem.GetType())
+					{
+					case EVariantTypes::String:
+						{
+							OutItem.StringData = TempItem.GetValue<FString>();
+							break;
+						}
+					case EVariantTypes::Ansichar:
+					case EVariantTypes::ByteArray:
+						{
+							OutItem.BinaryData = TempItem.GetValue<TArray<uint8>>();
+							break;
+						}
+			
+					case EVariantTypes::Bool:
+						{
+							OutItem.StringData = TempItem.GetValue<bool>() ? TEXT("true") : TEXT("false");
+							break;
+						}
+					case EVariantTypes::Double:
+						{
+							OutItem.StringData = FString::SanitizeFloat(TempItem.GetValue<double>());
+							break;
+						}
+					case EVariantTypes::Float:
+						{
+							OutItem.StringData = FString::SanitizeFloat(TempItem.GetValue<float>());
+							break;
+						}
+					case EVariantTypes::UInt8:
+						{
+							OutItem.StringData = FString::Printf(TEXT("%d"), TempItem.GetValue<uint8>());
+							break;
+						}
+					case EVariantTypes::Int8:
+						{
+							OutItem.StringData = FString::Printf(TEXT("%d"), TempItem.GetValue<int8>());
+							break;
+						}
+					case EVariantTypes::UInt16:
+						{
+							OutItem.StringData = FString::Printf(TEXT("%d"), TempItem.GetValue<uint16>());
+							break;
+						}
+					case EVariantTypes::Int16:
+						{
+							OutItem.StringData = FString::Printf(TEXT("%d"), TempItem.GetValue<int16>());
+							break;
+						}
+					case EVariantTypes::UInt32:
+						{
+							OutItem.StringData = FString::Printf(TEXT("%d"), TempItem.GetValue<int32>());
+							break;
+						}
+					case EVariantTypes::Int32:
+						{
+							OutItem.StringData = FString::Printf(TEXT("%d"), TempItem.GetValue<uint32>());
+							break;
+						}
+					case EVariantTypes::UInt64:
+						{
+							OutItem.StringData = FString::Printf(TEXT("%llu"), TempItem.GetValue<uint64>());
+							break;
+						}
+					case EVariantTypes::Int64:
+						{
+							OutItem.StringData = FString::Printf(TEXT("%lld"), TempItem.GetValue<int64>());
+							break;
+						}
+					default:
+						UE_LOG(LogMediaAssets, Warning, TEXT("GetMediaMetadataItems() unhandled FVariant type!"));
+					}
+					OutItems.Items.Add(OutItem);
+				}
+			}
+			OutMetadata.Add(Data.Key, OutItems);
+		}
+	}
+	return OutMetadata;
+}
+
 TSharedRef<FMediaPlayerFacade, ESPMode::ThreadSafe> UMediaPlayer::GetPlayerFacade() const
 {
 	return PlayerFacade.ToSharedRef();
