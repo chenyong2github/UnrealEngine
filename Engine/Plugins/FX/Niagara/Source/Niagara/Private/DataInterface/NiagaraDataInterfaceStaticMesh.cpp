@@ -621,6 +621,10 @@ namespace NDIStaticMeshLocal
 
 		/** Velocity set by the physics body of the mesh component */
 		FVector PhysicsVelocity;
+
+		/** True we capture the transforms from the mesh component each frame. */
+		uint32 bCaptureTransformsPerFrame : 1;
+
 		/** True if velocity should not be calculated via the transforms, but rather read the physics data from the mesh component */
 		uint32 bUsePhysicsVelocity : 1;
 
@@ -830,6 +834,7 @@ namespace NDIStaticMeshLocal
 			PreSkinnedLocalBoundsExtents = FVector3f::ZeroVector;
 			OwnerToMeshVector = FVector3f::ZeroVector;
 			PhysicsVelocity = FVector::ZeroVector;
+			bCaptureTransformsPerFrame = Interface->bCaptureTransformsPerFrame;
 			bUsePhysicsVelocity = Interface->bUsePhysicsBodyVelocity;
 			bComponentValid = false;
 			bMeshValid = false;
@@ -1091,7 +1096,10 @@ namespace NDIStaticMeshLocal
 			DeltaSeconds = InDeltaSeconds;
 
 			USceneComponent* SceneComponent = SceneComponentWeakPtr.Get();
-			UpdateTransformsCopyPrevious(SceneComponent, SystemInstance);
+			if (bCaptureTransformsPerFrame)
+			{
+				UpdateTransformsCopyPrevious(SceneComponent, SystemInstance);
+			}
 
 			if (bUsePhysicsVelocity)
 			{
@@ -3253,6 +3261,7 @@ bool UNiagaraDataInterfaceStaticMesh::Equals(const UNiagaraDataInterface* Other)
 		OtherTyped->SoftSourceActor == SoftSourceActor &&
 		OtherTyped->SourceComponent == SourceComponent &&
 		OtherTyped->SectionFilter.AllowedMaterialSlots == SectionFilter.AllowedMaterialSlots &&
+		OtherTyped->bCaptureTransformsPerFrame == bCaptureTransformsPerFrame &&
 		OtherTyped->bUsePhysicsBodyVelocity == bUsePhysicsBodyVelocity &&
 		OtherTyped->bAllowSamplingFromStreamingLODs == bAllowSamplingFromStreamingLODs &&
 		OtherTyped->LODIndex == LODIndex &&
@@ -3278,6 +3287,7 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 	OtherTyped->SoftSourceActor = SoftSourceActor;
 	OtherTyped->SourceComponent = SourceComponent;
 	OtherTyped->SectionFilter = SectionFilter;
+	OtherTyped->bCaptureTransformsPerFrame = bCaptureTransformsPerFrame;
 	OtherTyped->bUsePhysicsBodyVelocity = bUsePhysicsBodyVelocity;
 	OtherTyped->FilteredSockets = FilteredSockets;
 	OtherTyped->bAllowSamplingFromStreamingLODs = bAllowSamplingFromStreamingLODs;

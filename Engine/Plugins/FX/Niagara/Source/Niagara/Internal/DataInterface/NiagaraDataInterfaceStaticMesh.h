@@ -90,6 +90,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	FNDIStaticMeshSectionFilter SectionFilter;
 
+	/** If true we capture the transforms from the mesh component each frame. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Mesh")
+	bool bCaptureTransformsPerFrame = true;
+
 	/** If true then the mesh velocity is taken from the mesh component's physics data. Otherwise it will be calculated by diffing the component transforms between ticks, which is more reliable but won't work on the first frame. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Mesh")
     bool bUsePhysicsBodyVelocity = false;
