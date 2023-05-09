@@ -26,6 +26,7 @@
 #include "RenderGraph.h"
 #include "RenderGraphUtils.h"
 #include "RenderTargetPool.h"
+#include "RHIUtilities.h"
 #include "GroomBindingBuilder.h"
 #if WITH_EDITORONLY_DATA
 #include "Containers/StringView.h"
