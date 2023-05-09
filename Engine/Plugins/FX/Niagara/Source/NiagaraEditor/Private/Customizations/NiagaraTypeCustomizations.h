@@ -185,7 +185,7 @@ private:
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 	TSharedPtr<SComboButton> ComboButton;
-	FVersionedNiagaraEmitter BaseEmitter;
+	FVersionedNiagaraEmitter OwningVersionedEmitter;
 	UNiagaraRendererProperties* RenderProps = nullptr;
 	class UNiagaraSimulationStageBase* SimulationStage = nullptr;
 	struct FNiagaraVariableAttributeBinding* TargetVariableBinding = nullptr;
