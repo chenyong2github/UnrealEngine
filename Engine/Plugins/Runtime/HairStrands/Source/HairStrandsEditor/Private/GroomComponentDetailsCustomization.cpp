@@ -72,6 +72,17 @@ void FGroomComponentDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder&
 	}
 	GroomComponentPtr = GroomComponent;
 
+	if (GroomComponentPtr.IsValid())
+	{
+		// Ensure the group desc is update to date
+		GroomComponentPtr->UpdateHairGroupsDesc();
+
+		// Add a delegate to refresh details panel when the groom asset changed
+		TSharedRef<IPropertyHandle> GroomAssetHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomAsset));
+		FSimpleDelegate OnGroomAssetChangedDelegate = FSimpleDelegate::CreateSP(this, &FGroomComponentDetailsCustomization::OnGroomAssetChanged, &DetailLayout);
+		GroomAssetHandle->SetOnPropertyValueChanged(OnGroomAssetChangedDelegate);
+	}
+
 	IDetailCategoryBuilder& HairGroupCategory = DetailLayout.EditCategory("GroomGroupsDesc", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
 	CustomizeDescGroupProperties(DetailLayout, HairGroupCategory);
 }
@@ -264,6 +275,11 @@ void FGroomComponentDetailsCustomization::OnGenerateElementForHairGroup(TSharedR
 		TSharedPtr<IPropertyHandle> ChildHandle = StructProperty->GetChildHandle(ChildIt);
 		AddPropertyWithCustomReset(ChildHandle, ChildrenBuilder, GroupIndex);
 	}
+}
+
+void FGroomComponentDetailsCustomization::OnGroomAssetChanged(IDetailLayoutBuilder* LayoutBuilder)
+{
+	LayoutBuilder->ForceRefreshDetails();
 }
 
 //////////////////////////////////////////////////////////////////////////

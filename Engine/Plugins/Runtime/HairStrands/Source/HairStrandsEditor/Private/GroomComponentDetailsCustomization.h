@@ -37,4 +37,5 @@ private:
 	bool ShouldResetToDefault(TSharedPtr<IPropertyHandle> ChildHandle, int32 GroupIndex);
 	void ResetToDefault(TSharedPtr<IPropertyHandle> ChildHandle, int32 GroupIndex);
 	void AddPropertyWithCustomReset(TSharedPtr<IPropertyHandle>& PropertyHandle, IDetailChildrenBuilder& Builder, int32 GroupIndex);
+	void OnGroomAssetChanged(IDetailLayoutBuilder* LayoutBuilder);
 };
