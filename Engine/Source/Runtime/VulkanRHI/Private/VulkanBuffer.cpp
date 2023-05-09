@@ -595,12 +595,13 @@ void FVulkanResourceMultiBuffer::TakeOwnership(FVulkanResourceMultiBuffer& Other
 	FRHIBuffer::TakeOwnership(Other);
 
 	BufferUsageFlags   = Other.BufferUsageFlags;
-	BufferAllocs       = Other.BufferAllocs;
 	CurrentBufferIndex = Other.CurrentBufferIndex;
 
 	Other.BufferUsageFlags   = {};
-	Other.BufferAllocs       = {};
 	Other.CurrentBufferIndex = -1;
+
+	// Swap the empty array from the ReleaseOwnership with the Other allocations
+	::Swap(BufferAllocs, Other.BufferAllocs);
 }
 
 void FVulkanResourceMultiBuffer::ReleaseOwnership()
@@ -619,6 +620,7 @@ void FVulkanResourceMultiBuffer::ReleaseOwnership()
 		}
 		BufferAllocs[Index].Fence = nullptr;
 	}
+	BufferAllocs.Empty();
 
 	if (TotalSize > 0)
 	{
