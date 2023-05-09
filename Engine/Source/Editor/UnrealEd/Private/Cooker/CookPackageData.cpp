@@ -3112,8 +3112,14 @@ void FPackageDatas::PollPendingCookedPlatformDatas(bool bForce, double& LastCook
 		return;
 	}
 
-	GShaderCompilingManager->ProcessAsyncResults(true /* bLimitExecutionTime */,
-		false /* bBlockOnGlobalShaderCompletion */);
+	if (bForce)
+	{
+		// When we are forced, because the caller has an urgent package to save, call ProcessAsyncResults
+		// with a small timeslice in case we need to process shaders to unblock the package
+		constexpr float TimeSlice = 0.01f;
+		GShaderCompilingManager->ProcessAsyncResults(TimeSlice, false /* bBlockOnGlobalShaderCompletion */);
+	}
+
 	FDelegateHandle EventHandle = FAssetCompilingManager::Get().OnPackageScopeEvent().AddLambda(
 		[this](UPackage* Package, bool bEntering)
 		{

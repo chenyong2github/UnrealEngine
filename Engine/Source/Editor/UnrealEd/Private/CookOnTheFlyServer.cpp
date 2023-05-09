@@ -2127,10 +2127,10 @@ static void CBTBTickCommandletStats()
 	FStats::TickCommandletStats();
 }
 
-static void TickShaderCompilingManager()
+static void TickShaderCompilingManager(UE::Cook::FTickStackData& StackData)
 {
 	UE_SCOPED_COOKTIMER_AND_DURATION(CookByTheBook_ShaderProcessAsync, DetailedCookStats::TickLoopShaderProcessAsyncResultsTimeSec);
-	GShaderCompilingManager->ProcessAsyncResults(true, false);
+	GShaderCompilingManager->ProcessAsyncResults(StackData.Timer.GetActionTimeSlice(), false);
 }
 
 static void TickAssetRegistry()
@@ -2157,7 +2157,10 @@ void UCookOnTheFlyServer::InitializePollables()
 			Pollables.Emplace(MoveTemp(Pollable));
 		}
 		Pollables.Emplace(new FPollable(TEXT("ProcessDeferredCommands"), 60.f, 5.f, [this](FTickStackData&) { ProcessDeferredCommands(*this); }));
-		Pollables.Emplace(new FPollable(TEXT("ShaderCompilingManager"), 60.f, 5.f, [this](FTickStackData&) { TickShaderCompilingManager(); }));
+		Pollables.Emplace(new FPollable(TEXT("ShaderCompilingManager"), 60.f, 5.f, [this](FTickStackData& StackData)
+		{
+			TickShaderCompilingManager(StackData);
+		}));
 		Pollables.Emplace(new FPollable(TEXT("FlushRenderingCommands"), 60.f, 5.f, [this](FTickStackData&) { PollFlushRenderingCommands(); }));
 		if (TRefCountPtr<FPollable> Pollable = CreatePollableLLM())
 		{

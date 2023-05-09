@@ -5657,6 +5657,12 @@ void FShaderCompilingManager::FinishAllCompilation()
 
 void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool bBlockOnGlobalShaderCompletion)
 {
+	const float TimeSlice = bLimitExecutionTime ? ProcessGameThreadTargetTime : 0.f;
+	ProcessAsyncResults(TimeSlice, bBlockOnGlobalShaderCompletion);
+}
+
+void FShaderCompilingManager::ProcessAsyncResults(float TimeSlice, bool bBlockOnGlobalShaderCompletion)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::ProcessAsyncResults)
 
 	COOK_STAT(FScopedDurationTimer Timer(ShaderCompilerCookStats::ProcessAsyncResultsTimeSec));
@@ -5729,13 +5735,13 @@ void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool
 		} 
 		while (bRetry);
 
-		const float TimeBudget = bLimitExecutionTime ? ProcessGameThreadTargetTime : FLT_MAX;
+		const float TimeBudget = TimeSlice > 0 ? TimeSlice : FLT_MAX;
 		ProcessCompiledShaderMaps(PendingFinalizeShaderMaps, TimeBudget);
-		check(bLimitExecutionTime || PendingFinalizeShaderMaps.Num() == 0);
+		check(TimeSlice > 0 || PendingFinalizeShaderMaps.Num() == 0);
 	}
 
 
-	if (bBlockOnGlobalShaderCompletion && !bLimitExecutionTime && !IsRunningCookCommandlet())
+	if (bBlockOnGlobalShaderCompletion && TimeSlice <= 0 && !IsRunningCookCommandlet())
 	{
 		check(PendingFinalizeShaderMaps.Num() == 0);
 

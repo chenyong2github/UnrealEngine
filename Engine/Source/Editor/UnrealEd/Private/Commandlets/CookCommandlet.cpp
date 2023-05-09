@@ -628,7 +628,7 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 				}
 			}
 
-			GShaderCompilingManager->ProcessAsyncResults(false, false);
+			GShaderCompilingManager->ProcessAsyncResults(0.f, false);
 
 			FPlatformProcess::Sleep(0.05);
 
