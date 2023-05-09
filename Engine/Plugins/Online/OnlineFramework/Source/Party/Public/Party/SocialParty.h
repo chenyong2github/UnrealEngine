@@ -204,6 +204,9 @@ public:
 	DECLARE_EVENT_TwoParams(USocialParty, FOnPartyMemberConnectionStatusChanged, UPartyMember&, EMemberConnectionStatus);
 	FOnPartyMemberConnectionStatusChanged& OnPartyMemberConnectionStatusChanged() const { return OnPartyMemberConnectionStatusChangedEvent; }
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnInitializationCompletePreNotify, USocialParty&);
+	FOnInitializationCompletePreNotify& OnInitializationCompletePreNotify() const { return OnInitializationCompletePreNotifyEvent; }
+
 	void ResetPrivacySettings();
 	const FPartyPrivacySettings& GetPrivacySettings() const;
 
@@ -484,6 +487,7 @@ private:
 	mutable FOnPartyMemberConnectionStatusChanged OnPartyMemberConnectionStatusChangedEvent;
 	mutable FOnPartyFunctionalityDegradedChanged OnPartyFunctionalityDegradedChangedEvent;
 	mutable FOnInviteSent OnInviteSentEvent;
+	mutable FOnInitializationCompletePreNotify OnInitializationCompletePreNotifyEvent;
 };
 
 namespace UE::OnlineFramework::Party

@@ -520,6 +520,7 @@ void USocialParty::TryFinishInitialization()
 		if (OSSMemberCount == PartyMembersById.Num() && bHasReceivedRepData)
 		{
 			bIsInitialized = true;
+			OnInitializationCompletePreNotify().Broadcast(*this);
 			GetSocialManager().NotifyPartyInitialized(*this);
 		}
 	}
