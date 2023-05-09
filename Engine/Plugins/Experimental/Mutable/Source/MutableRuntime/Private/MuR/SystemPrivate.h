@@ -18,6 +18,20 @@ namespace mu
 {
 	class ExtensionDataStreamer;
 
+	// Call the tick of the LLM system (we do this to simulate a frame since the LLM system is not entirelly designed to run over a program)
+	inline void UpdateLLMStats()
+	{
+		// This code will only be compiled (and ran) if the global definition to enable LLM tracking is set to 1 for the host program
+		// Ex : 			GlobalDefinitions.Add("LLM_ENABLED_IN_CONFIG=1");
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+		FLowLevelMemTracker& MemTracker = FLowLevelMemTracker::Get();
+		if (MemTracker.IsEnabled())
+		{
+			MemTracker.UpdateStatsPerFrame();
+		}
+#endif
+	}
+
 	constexpr uint64 AllParametersMask = TNumericLimits<uint64> ::Max();
 
 
@@ -821,6 +835,8 @@ namespace mu
 		{
 			check(at.At < m_resources.size_code());
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(2, v);
+
+			mu::UpdateLLMStats();
 		}
 
 		void SetMesh(FCacheAddress at, Ptr<const Mesh> v)
@@ -833,12 +849,16 @@ namespace mu
 
 			check(at.At < m_resources.size_code());
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(2, v);
+
+			mu::UpdateLLMStats();
 		}
 
 		void SetLayout(FCacheAddress at, Ptr<const Layout> v)
 		{
 			check(at.At < m_resources.size_code());
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, v);
+
+			mu::UpdateLLMStats();
 		}
 
 		void SetString(FCacheAddress at, Ptr<const String> v)
