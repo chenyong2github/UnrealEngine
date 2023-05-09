@@ -271,7 +271,7 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 	
 	FCompensationEvaluator Evaluator(InConstraint);
 	Evaluator.ComputeLocalTransformsForBaking(InWorld, InSequencer, FramesToBake);
-	const TArray<FTransform>& Transforms = Evaluator.ChildLocals;
+	TArray<FTransform> Transforms = Evaluator.ChildLocals;
 	if (FramesToBake.Num() != Transforms.Num())
 	{
 		return;
@@ -287,6 +287,8 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 	const TArrayView<FMovieSceneFloatChannel*> FloatTransformChannels = Handle->GetFloatChannels(ConstraintSections.ChildTransformSection);
 	const TArrayView<FMovieSceneDoubleChannel*> DoubleTransformChannels = Handle->GetDoubleChannels(ConstraintSections.ChildTransformSection);
 
+	EMovieSceneKeyInterpolation KeyType = InSequencer->GetKeyInterpolation();
+
 	for (int32 Index = 0; Index < ConstraintFrames.Num(); ++Index)
 	{
 		const FFrameNumber Frame = ConstraintFrames[Index];
@@ -301,11 +303,34 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 			if (FloatTransformChannels.Num() > 0)
 			{
 				FMovieSceneConstraintChannelHelper::DeleteTransformKeys(FloatTransformChannels, FrameMinusOne);
+				//we also set the tangent at the break to the default type
+				FMovieSceneConstraintChannelHelper::ChangeKeyInterpolation(FloatTransformChannels, Frame, KeyType);
 			}
 			else if (DoubleTransformChannels.Num() > 0)
 			{
 				FMovieSceneConstraintChannelHelper::DeleteTransformKeys(DoubleTransformChannels, FrameMinusOne);
+				//we also set the tangent at the break to the default type
+				FMovieSceneConstraintChannelHelper::ChangeKeyInterpolation(DoubleTransformChannels, Frame, KeyType);
 			}
+			if (int32 RemoveIndex = Algo::BinarySearch(FramesToBake, FrameMinusOne) != INDEX_NONE)
+			{
+				FramesToBake.RemoveAt(RemoveIndex);
+				Transforms.RemoveAt(RemoveIndex);
+			}
+			
+		}
+	}
+	//remove transform keys if baking frame
+	if (InSettings.IsSet() && InSettings.GetValue().BakingKeySettings == EBakingKeySettings::AllFrames)
+	{
+		if (FloatTransformChannels.Num() > 0)
+		{
+			FMovieSceneConstraintChannelHelper::DeleteTransformTimes(FloatTransformChannels, FramesToBake[0] +1, FramesToBake[FramesToBake.Num() -1]);
+		}
+		else if (DoubleTransformChannels.Num() > 0)
+		{
+			FMovieSceneConstraintChannelHelper::DeleteTransformTimes(DoubleTransformChannels, FramesToBake[0] + 1, FramesToBake[FramesToBake.Num() - 1]);
+
 		}
 	}
 

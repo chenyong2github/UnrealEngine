@@ -138,11 +138,18 @@ public:
 		const FFrameNumber& InCurrentTime,
 		const FFrameNumber& InNextTime);
 
-	/** @todo documentation. */
+	/** delete transform keys at that time */
 	template< typename ChannelType >
 	static void DeleteTransformKeys(
 		const TArrayView<ChannelType*>& InChannels,
 		const FFrameNumber& InTime);
+
+	/** Change key interpolation at the specified time*/
+	template< typename ChannelType >
+	static void ChangeKeyInterpolation(
+		const TArrayView<ChannelType*>& InChannels,
+		const FFrameNumber& InTime,
+		EMovieSceneKeyInterpolation KeyInterpolation);
 
 	static void HandleConstraintPropertyChanged(
 		UTickableTransformConstraint* InConstraint,
