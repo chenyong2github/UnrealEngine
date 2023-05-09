@@ -2841,7 +2841,7 @@ public:
 #if WITH_EDITOR
 	void GenerateFunctionList(TArray<FName>& OutArray) const 
 	{ 
-		FUClassFuncScopeReadLock ScopeLock(FuncMapLock)
+		FUClassFuncScopeReadLock ScopeLock(FuncMapLock);
 		FuncMap.GenerateKeyArray(OutArray); 
 	}
 #endif // WITH_EDITOR
