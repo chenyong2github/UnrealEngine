@@ -4,6 +4,7 @@
 
 
 #include "ContentBrowserAssetDataPayload.h"
+#include "ContentBrowserAssetDataSource.h"
 #include "ContentBrowserDataSource.h"
 
 #include "AssetRegistry/PathTree.h"
@@ -98,6 +99,10 @@ public:
 	virtual bool Legacy_TryConvertAssetDataToVirtualPath(const FAssetData& InAssetData, const bool InUseFolderPaths, FName& OutPath) override;
 	// ~ End UContentBrowserDataSource interface
 
+	virtual void RemoveUnusedCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter) override;
+
+	virtual void ClearCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner) override;
+
 	/** 
 	 * Add a list of aliases for a given asset.
 	 *
@@ -187,6 +192,8 @@ private:
 	TMap<FName, TArray<FContentBrowserUniqueAlias>> AliasesInPackagePath;
 	/** A set used for removing duplicate aliases in the same query, stored here to avoid constant reallocation */
 	TSet<FSoftObjectPath> AlreadyAddedOriginalAssets;
+
+	UContentBrowserAssetDataSource::FAssetDataSourceFilterCache FilterCache;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

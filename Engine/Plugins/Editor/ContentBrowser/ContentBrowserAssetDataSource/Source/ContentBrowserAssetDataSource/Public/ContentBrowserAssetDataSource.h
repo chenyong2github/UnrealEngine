@@ -25,6 +25,7 @@ class UToolMenu;
 class FAssetFolderContextMenu;
 class FAssetFileContextMenu;
 struct FCollectionNameType;
+class UContentBrowserAssetDataSource;
 class UContentBrowserToolbarMenuContext;
 
 USTRUCT()
@@ -116,6 +117,45 @@ public:
 	virtual void Shutdown() override;
 
 	/**
+	 * A struct used to cache some data to accelerate the compilation of the filters for the asset data source
+	 */
+	struct CONTENTBROWSERASSETDATASOURCE_API FAssetDataSourceFilterCache
+	{
+	public:
+		FAssetDataSourceFilterCache();
+		~FAssetDataSourceFilterCache();
+
+		FAssetDataSourceFilterCache(const FAssetDataSourceFilterCache&) = delete;
+		FAssetDataSourceFilterCache(FAssetDataSourceFilterCache&&) = delete;
+
+		FAssetDataSourceFilterCache& operator=(const FAssetDataSourceFilterCache&) = delete;
+		FAssetDataSourceFilterCache& operator=(FAssetDataSourceFilterCache&&) = delete;
+
+		void RemoveUnusedCachedData(const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter);
+		void ClearCachedData(const FContentBrowserDataFilterCacheIDOwner& IDOwner);
+
+	private:
+		friend UContentBrowserAssetDataSource;
+
+		bool GetCachedCompiledInternalPaths(const FContentBrowserDataFilter& InFilter, FName InVirtualPath, TSet<FName>& OutCompiledInternalPath) const;
+		void CacheCompiledInternalPaths(const FContentBrowserDataFilter& InFilter, FName InVirtualPath, const TSet<FName>& CompiledInternalPaths);
+
+		void OnPathAdded(FName Path, FStringView PathString, uint32 PathHash, FName ParentPath, uint32 ParentPathHash, int32 PathDepth);
+		void OnPathRemoved(FName Path, uint32 PathHash);
+
+		struct FCachedDataPerID
+		{
+			TMap<FName, TSet<FName>> InternalPaths;
+			EContentBrowserItemAttributeFilter ItemAttributeFilter = EContentBrowserItemAttributeFilter::IncludeAll;
+		};
+
+		/**
+		 * A cache for the recursive internal paths (Possible improvement: Rework the cache into a shared cache across multiple IDs for the simple filters and a not shared cache for the more complex filters)
+		 */
+		TMap<FContentBrowserDataFilterCacheID, FCachedDataPerID> CachedCompiledInternalPaths;
+	};
+
+	/**
 	 * All of the data necessary to generate a compiled filter for folders and assets
 	 */
 	struct FAssetFilterInputParams
@@ -124,6 +164,7 @@ public:
 
 		UContentBrowserDataSource* DataSource = nullptr;
 		ICollectionManager* CollectionManager = nullptr;
+		FAssetDataSourceFilterCache* AssetFilterCache = nullptr;
 		IAssetRegistry* AssetRegistry = nullptr;
 
 		const FContentBrowserDataObjectFilter* ObjectFilter = nullptr;
@@ -163,7 +204,8 @@ public:
 	 * 
 	 * @return false if it's not possible to display folders or assets, otherwise true
 	 */
-	static bool PopulateAssetFilterInputParams(FAssetFilterInputParams& Params, UContentBrowserDataSource* DataSource, IAssetRegistry* InAssetRegistry, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter, ICollectionManager* CollectionManager = nullptr);
+	static bool PopulateAssetFilterInputParams(FAssetFilterInputParams& Params, UContentBrowserDataSource* DataSource, IAssetRegistry* InAssetRegistry, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter, ICollectionManager* CollectionManager = nullptr, FAssetDataSourceFilterCache* InFilterCache = nullptr);
+	
 	/**
 	 * Call in CompileFilter() after PopulateAssetFilterInputParams() to fill OutCompiledFilter with an FContentBrowserCompiledAssetDataFilter capable of filtering folders
 	 *
@@ -176,6 +218,7 @@ public:
 	 * @return false if it's not possible to display any folders, otherwise true
 	 */
 	static bool CreatePathFilter(FAssetFilterInputParams& Params, FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter, FSubPathEnumerationFunc SubPathEnumeration);
+	
 	/**
 	 * Call in CompileFilter() after CreatePathFilter() to fill OutCompiledFilter with an FContentBrowserCompiledAssetDataFilter capable of filtering assets
 	 *
@@ -183,11 +226,15 @@ public:
 	 * @param InPath The input path supplied to CompileFilter()
 	 * @param InFilter The input filter supplied to CompileFilter()
 	 * @param OutCompiledFilter The output filer supplied to CompileFilter()
-	 * @param CreateCompiledFilter A function that generates an FARCompiledFilter from an input FARFilter
+	 * @param FGetSubPathsFunc A optional function to override how the package paths are expended.
 	 *
 	 * @return false if it's not possible to display any assets, otherwise true
 	 */
+	static bool CreateAssetFilter(FAssetFilterInputParams& Params, FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter, FSubPathEnumerationFunc* GetSubPackagePathsFunc = nullptr);
+
+	UE_DEPRECATED(5.3, "Use the override without the function to customize the compilation the ARFilter or duplicate this function logic. This function will no longer be supported and will be removed to allow future performence improvements")
 	static bool CreateAssetFilter(FAssetFilterInputParams& Params, FName InPath, const FContentBrowserDataFilter& InFilter, FContentBrowserDataCompiledFilter& OutCompiledFilter, FCompileARFilterFunc CreateCompiledFilter);
+	
 	/**
 	 * Call in EnumerateItemsMatchingFilter() to generate a list of folders that match the compiled filter.
 	 * It is the caller's responsibility to verify EContentBrowserItemTypeFilter::IncludeFolders is set before enumerating.
@@ -201,7 +248,8 @@ public:
 	 * @return 
 	 */
 	static void EnumerateFoldersMatchingFilter(UContentBrowserDataSource* DataSource, const FContentBrowserCompiledAssetDataFilter* AssetDataFilter, TFunctionRef<bool(FContentBrowserItemData&&)> InCallback, FSubPathEnumerationFunc SubPathEnumeration, FCreateFolderItemFunc CreateFolderItem);
-	/**
+	
+/**
 	 * Call in DoesItemPassFilter() to check if a folder passes the compiled asset data filter.
 	 * It is the caller's responsibility to verify EContentBrowserItemTypeFilter::IncludeFolders is set before enumerating.
 	 * 
@@ -325,6 +373,10 @@ public:
 
 	static bool PathPassesCompiledDataFilter(const FContentBrowserCompiledAssetDataFilter& InFilter, const FName InPath);
 
+	virtual void RemoveUnusedCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter) override;
+
+	virtual void ClearCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner) override;
+
 protected:
 	virtual void BuildRootPathVirtualTree() override;
 
@@ -442,6 +494,14 @@ private:
 	 * A cache of folders that have been populated since the last time any new asset folders were added.
 	 */
 	TMap<FName, EContentBrowserFolderAttributes> RecentlyPopulatedAssetFolders;
+
+	DECLARE_MULTICAST_DELEGATE_SixParams(FOnAssetDataSourcePathAdded, FName, FStringView, uint32, FName, uint32, int32);
+	static FOnAssetDataSourcePathAdded OnAssetPathAddedDelegate;
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAssetDataSourcePathRemoved, FName, uint32);
+	static FOnAssetDataSourcePathRemoved OnAssetPathRemovedDelegate;
+
+	FAssetDataSourceFilterCache FilterCache;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

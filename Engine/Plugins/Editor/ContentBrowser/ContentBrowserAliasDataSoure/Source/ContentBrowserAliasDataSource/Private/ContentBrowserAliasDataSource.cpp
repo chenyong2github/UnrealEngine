@@ -4,7 +4,6 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserAssetDataCore.h"
-#include "ContentBrowserAssetDataSource.h"
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserItemPath.h"
 
@@ -67,7 +66,7 @@ void UContentBrowserAliasDataSource::CompileFilter(const FName InPath, const FCo
 	TRACE_CPUPROFILER_EVENT_SCOPE(UContentBrowserAliasDataSource::CompileFilter);
 
 	UContentBrowserAssetDataSource::FAssetFilterInputParams Params;
-	if (UContentBrowserAssetDataSource::PopulateAssetFilterInputParams(Params, this, AssetRegistry, InFilter, OutCompiledFilter, &FCollectionManagerModule::GetModule().Get()))
+	if (UContentBrowserAssetDataSource::PopulateAssetFilterInputParams(Params, this, AssetRegistry, InFilter, OutCompiledFilter, &FCollectionManagerModule::GetModule().Get(), &FilterCache))
 	{
 		// Use the DataSource's custom PathTree instead of the AssetRegistry
 		const bool bCreatedPathFilter = UContentBrowserAssetDataSource::CreatePathFilter(Params, InPath, InFilter, OutCompiledFilter, [this](FName Path, TFunctionRef<bool(FName)> Callback, bool bRecursive)
@@ -77,30 +76,16 @@ void UContentBrowserAliasDataSource::CompileFilter(const FName InPath, const FCo
 
 		if (bCreatedPathFilter)
 		{
-			UContentBrowserAssetDataSource::CreateAssetFilter(Params, InPath, InFilter, OutCompiledFilter, [this, &Params](FARFilter& InputFilter, FARCompiledFilter& OutputFilter)
-			{
-				// Same as CreatePathFilter - CompileFilter calls EnumerateSubPaths internally so this needs to intercept
-				// the filter compilation and use its own PathTree to generate the sub paths.
-				if (InputFilter.bRecursivePaths)
+			auto CustomSubPathEnumeration = [this, &Params](FName Path, TFunctionRef<bool(FName)> Callback, bool bRecursive)
 				{
-					TArray<FName> PackagePaths = MoveTemp(InputFilter.PackagePaths);
-					AssetRegistry->CompileFilter(InputFilter, OutputFilter);
+					// Same as CreatePathFilter - CompileFilter calls EnumerateSubPaths internally so this needs to intercept
+					// the filter compilation and use its own PathTree to generate the sub paths.
+					AssetRegistry->EnumerateSubPaths(Path, Callback,bRecursive);
+					PathTree.EnumerateSubPaths(Path, Callback, bRecursive);
+				};
 
-					for (const FName Path : PackagePaths)
-					{
-						PathTree.EnumerateSubPaths(Path, [&OutputFilter](FName SubPath)
-						{
-							OutputFilter.PackagePaths.Add(SubPath);
-							return true;
-						});
-					}
-					OutputFilter.PackagePaths.Append(MoveTemp(PackagePaths));
-				}
-				else
-				{
-					AssetRegistry->CompileFilter(InputFilter, OutputFilter);
-				}
-			});
+			UContentBrowserAssetDataSource::FSubPathEnumerationFunc CustomSubPathEnumerationRef = CustomSubPathEnumeration;
+			UContentBrowserAssetDataSource::CreateAssetFilter(Params, InPath, InFilter, OutCompiledFilter, &CustomSubPathEnumerationRef);
 		}
 	}
 }
@@ -838,6 +823,16 @@ bool UContentBrowserAliasDataSource::Legacy_TryConvertAssetDataToVirtualPath(con
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		&& TryConvertInternalPathToVirtual(InUseFolderPaths ? InAssetData.PackagePath : InAssetData.ObjectPath, OutPath);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void UContentBrowserAliasDataSource::RemoveUnusedCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter)
+{
+	FilterCache.RemoveUnusedCachedData(IDOwner, InVirtualPathsInUse, DataFilter);
+}
+
+void UContentBrowserAliasDataSource::ClearCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner)
+{
+	FilterCache.ClearCachedData(IDOwner);
 }
 
 FContentBrowserItemData UContentBrowserAliasDataSource::CreateAssetFolderItem(const FName InFolderPath)

@@ -153,6 +153,14 @@ bool UContentBrowserDataSource::TryConvertInternalPathToVirtual(const FName InIn
 	return true;
 }
 
+void UContentBrowserDataSource::RemoveUnusedCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter)
+{
+}
+
+void UContentBrowserDataSource::ClearCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner)
+{
+}
+
 void UContentBrowserDataSource::RootPathAdded(const FStringView InInternalPath)
 {
 	// Trim trailing slash

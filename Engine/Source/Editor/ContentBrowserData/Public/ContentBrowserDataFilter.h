@@ -23,6 +23,7 @@
 class FNamePermissionList;
 class FPathPermissionList;
 class UContentBrowserDataSource;
+class UContentBrowserDataSubsystem;
 
 /** Flags controlling which item types should be included */
 UENUM()
@@ -146,6 +147,30 @@ private:
 	TArray<FStructOnScope> TypedFilters;
 };
 
+struct CONTENTBROWSERDATA_API FContentBrowserDataFilterCacheID
+{
+public:
+	operator bool() const
+	{
+		return IsSet();
+	};
+
+	bool IsSet() const
+	{
+		return ID != INDEX_NONE;
+	}
+
+private:
+	friend struct FContentBrowserDataFilterCacheIDOwner;
+
+	int64 ID = INDEX_NONE;
+
+	friend uint32 GetTypeHash(const FContentBrowserDataFilterCacheID& CacheID)
+	{
+		return GetTypeHash(CacheID.ID);
+	}
+};
+
 /**
  * A filter used to control what is returned from Content Browser data queries.
  * @note The compiled version of this, FContentBrowserDataCompiledFilter, is produced via UContentBrowserDataSubsystem::CompileFilter.
@@ -174,6 +199,9 @@ public:
 
 	/** A list of extra filter structs to be interpreted by the Content Browser data sources */
 	FContentBrowserDataFilterList ExtraFilters;
+
+	/** An optional id used by the data sources to cache and reuse some data when compiling the filter(s) */
+	FContentBrowserDataFilterCacheID CacheID;
 };
 
 /**
@@ -324,4 +352,64 @@ public:
 	TSharedPtr<FPathPermissionList> ClassPermissionList;
 
 	TSharedPtr<FPathPermissionList> FolderPermissionList;
+};
+
+/**
+ * ID used by the data sources to cache some data between the filter compilations
+ * How use the filter compilation cache.
+ * 1) Initialize the id by using the UContentBrowserDataSubsystem once.
+ * 2) When compiling the filters pass the Cache ID Owner to the cacheID of the ContentBrowserDataFilter.
+ * 3) When the filter settings change call RemoveUnusedCachedData to clean the cache and to remove the potential invalid data.
+ */
+struct CONTENTBROWSERDATA_API FContentBrowserDataFilterCacheIDOwner
+{
+public:
+	operator FContentBrowserDataFilterCacheID() const
+	{
+		FContentBrowserDataFilterCacheID CacheID;
+		CacheID.ID = ID;
+		return CacheID;
+	}
+
+	FContentBrowserDataFilterCacheIDOwner() = default;
+
+	FContentBrowserDataFilterCacheIDOwner(FContentBrowserDataFilterCacheIDOwner&& Other)
+		: ID(Other.ID)
+		, DataSource(MoveTemp(Other.DataSource))
+	{
+		Other.ID = INDEX_NONE;
+		Other.DataSource.Reset();
+	}
+
+	FContentBrowserDataFilterCacheIDOwner& operator=(FContentBrowserDataFilterCacheIDOwner&& Other)
+	{
+		ID = Other.ID;
+		Other.ID = INDEX_NONE;
+		Other.DataSource = MoveTemp(Other.DataSource);
+		Other.DataSource.Reset();
+
+		return *this;
+	}
+
+	~FContentBrowserDataFilterCacheIDOwner()
+	{
+		ClearCachedData();
+	}
+
+	FContentBrowserDataFilterCacheIDOwner(const FContentBrowserDataFilterCacheIDOwner&) = delete;
+	FContentBrowserDataFilterCacheIDOwner& operator=(const FContentBrowserDataFilterCacheIDOwner&) = delete;
+
+	void Initialaze(UContentBrowserDataSubsystem* InContentBrowserDataSubsystem);
+
+	void RemoveUnusedCachedData(TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter) const;
+
+	void ClearCachedData() const;
+
+	void Reset();
+
+private:
+	friend UContentBrowserDataSubsystem;
+
+	int64 ID = INDEX_NONE;
+	TWeakObjectPtr<UContentBrowserDataSubsystem> DataSource;
 };

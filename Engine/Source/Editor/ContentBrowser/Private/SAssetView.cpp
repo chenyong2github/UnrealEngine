@@ -205,6 +205,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	ContentBrowserData->OnItemDataUpdated().AddSP(this, &SAssetView::HandleItemDataUpdated);
 	ContentBrowserData->OnItemDataRefreshed().AddSP(this, &SAssetView::RequestSlowFullListRefresh);
 	ContentBrowserData->OnItemDataDiscoveryComplete().AddSP(this, &SAssetView::HandleItemDataDiscoveryComplete);
+	FilterCacheID.Initialaze(ContentBrowserData);
 
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 	CollectionManagerModule.Get().OnAssetsAddedToCollection().AddSP( this, &SAssetView::OnAssetsAddedToCollection );
@@ -1839,7 +1840,7 @@ bool SAssetView::IsValidSearchToken(const FString& Token) const
 	return true;
 }
 
-FContentBrowserDataFilter SAssetView::CreateBackendDataFilter() const
+FContentBrowserDataFilter SAssetView::CreateBackendDataFilter(bool bInvalidateCache) const
 {
 	// Assemble the filter using the current sources
 	// Force recursion when the user is searching
@@ -1904,6 +1905,23 @@ FContentBrowserDataFilter SAssetView::CreateBackendDataFilter() const
 		LegacyFilter.OnGetCustomSourceAssets = OnGetCustomSourceAssets;
 	}
 
+	DataFilter.CacheID = FilterCacheID;
+
+	if (bInvalidateCache)
+	{
+		if (SourcesData.IsIncludingVirtualPaths())
+		{
+			static const FName RootPath = "/";
+			const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
+			FilterCacheID.RemoveUnusedCachedData(DataSourcePaths, DataFilter);
+		}
+		else
+		{
+			// Not sure what is the right thing to do here so clear the cache
+			FilterCacheID.ClearCachedData();
+		}
+	}
+
 	return DataFilter;
 }
 
@@ -1958,7 +1976,8 @@ void SAssetView::RefreshSourceItems()
 
 		if (SourcesData.IsIncludingVirtualPaths() || SourcesData.HasCollections()) 
 		{
-			const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter();
+			const bool bInvalidateFilterCache = true;
+			const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter(bInvalidateFilterCache);
 
 			bWereItemsRecursivelyFiltered = DataFilter.bRecursivePaths;
 
@@ -2120,7 +2139,8 @@ void SAssetView::RefreshFilteredItems()
 		static const FName RootPath = "/";
 		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);
 
-		const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter();
+		const bool bInvalidateFilterCache = false;
+		const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter(bInvalidateFilterCache);
 
 		for (int32 FilterIdx = 0; FilterIdx < FrontendFilters->Num(); ++FilterIdx)
 		{
@@ -4723,7 +4743,8 @@ void SAssetView::HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataU
 	TArray<FContentBrowserDataCompiledFilter> CompiledDataFilters;
 	if (SourcesData.IsIncludingVirtualPaths())
 	{
-		const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter();
+		const bool bInvalidateFilterCache = false;
+		const FContentBrowserDataFilter DataFilter = CreateBackendDataFilter(bInvalidateFilterCache);
 
 		static const FName RootPath = "/";
 		const TArrayView<const FName> DataSourcePaths = SourcesData.HasVirtualPaths() ? MakeArrayView(SourcesData.VirtualPaths) : MakeArrayView(&RootPath, 1);

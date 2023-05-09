@@ -642,6 +642,51 @@ void UContentBrowserDataSubsystem::SetVirtualPathTreeNeedsRebuild()
 	}
 }
 
+
+void UContentBrowserDataSubsystem::FContentBrowserFilterCacheApi::InitializeCacheIDOwner(UContentBrowserDataSubsystem& Subsystem, FContentBrowserDataFilterCacheIDOwner& IDOwner)
+{
+	Subsystem.InitializeCacheIDOwner(IDOwner);
+}
+
+void UContentBrowserDataSubsystem::FContentBrowserFilterCacheApi::RemoveUnusedCachedData(const UContentBrowserDataSubsystem& Subsystem, const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter)
+{
+	Subsystem.RemoveUnusedCachedFilterData(IDOwner, InVirtualPathsInUse, DataFilter);
+}
+
+void UContentBrowserDataSubsystem::FContentBrowserFilterCacheApi::ClearCachedData(const UContentBrowserDataSubsystem& Subsystem, const FContentBrowserDataFilterCacheIDOwner& IDOwner)
+{
+	Subsystem.ClearCachedFilterData(IDOwner);
+}
+
+
+void UContentBrowserDataSubsystem::InitializeCacheIDOwner(FContentBrowserDataFilterCacheIDOwner& IDOwner)
+{
+	++LastCacheIDForFilter;
+	if (LastCacheIDForFilter == INDEX_NONE)
+	{
+		++LastCacheIDForFilter;
+	}
+
+	IDOwner.ID = LastCacheIDForFilter;
+	IDOwner.DataSource = this;
+}
+
+void UContentBrowserDataSubsystem::RemoveUnusedCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter) const 
+{
+	for (const TPair<FName, UContentBrowserDataSource*>& DataSource : AvailableDataSources)
+	{
+		DataSource.Value->RemoveUnusedCachedFilterData(IDOwner, InVirtualPathsInUse, DataFilter);
+	}
+}
+
+void UContentBrowserDataSubsystem::ClearCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner) const
+{
+	for (const TPair<FName, UContentBrowserDataSource*>& DataSource : AvailableDataSources)
+	{
+		DataSource.Value->ClearCachedFilterData(IDOwner);
+	}
+}
+
 void UContentBrowserDataSubsystem::HandleDataSourceRegistered(const FName& Type, IModularFeature* Feature)
 {
 	if (Type == UContentBrowserDataSource::GetModularFeatureTypeName())

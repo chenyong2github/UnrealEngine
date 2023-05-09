@@ -362,7 +362,29 @@ public:
 	 */
 	TSharedRef<FPathPermissionList>& GetEditableFolderPermissionList();
 
+
+	/**
+	 * Provide an partial access to private api for the filter cache ID owners
+	 * See FContentBrowserDataFilterCacheIDOwner declaration for how to use the caching for filter compilation
+	 */
+	struct FContentBrowserFilterCacheApi
+	{
+	private:
+		friend FContentBrowserDataFilterCacheIDOwner;
+
+		static void InitializeCacheIDOwner(UContentBrowserDataSubsystem& Subsystem, FContentBrowserDataFilterCacheIDOwner& IDOwner);
+		static void RemoveUnusedCachedData(const UContentBrowserDataSubsystem& Subsystem, const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter);
+		static void ClearCachedData(const UContentBrowserDataSubsystem& Subsystem, const FContentBrowserDataFilterCacheIDOwner& IDOwner);
+	};
+
 private:
+
+	void InitializeCacheIDOwner(FContentBrowserDataFilterCacheIDOwner& IDOwner);
+
+	void RemoveUnusedCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter) const;
+
+	void ClearCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner) const;
+
 	using FNameToDataSourceMap = TSortedMap<FName, UContentBrowserDataSource*, FDefaultAllocator, FNameFastLess>;
 
 	/**
@@ -505,6 +527,8 @@ private:
 
 	/** Permission list of folder paths we can edit */
 	TSharedRef<FPathPermissionList> EditableFolderPermissionList;
+
+	int64 LastCacheIDForFilter = INDEX_NONE;
 };
 
 /**

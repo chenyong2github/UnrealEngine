@@ -848,7 +848,7 @@ private:
 	/** Append the current effective backend filter (intersection of BackendFilter and SupportedFilter) to the given filter. */
 	void AppendBackendFilter(FARFilter& FilterToAppendTo) const;
 
-	FContentBrowserDataFilter CreateBackendDataFilter() const;
+	FContentBrowserDataFilter CreateBackendDataFilter(bool bInvalidateCache) const;
 
 	/** Handles updating the view when content items are changed */
 	void HandleItemDataUpdated(TArrayView<const FContentBrowserItemDataUpdate> InUpdatedItems);
@@ -1178,6 +1178,9 @@ private:
 	TArray<FString> HiddenColumnNames;
 
 	TArray<FAssetViewCustomColumn> CustomColumns;
+
+	/** An Id for the cache of the data sources for the filters compilation */
+	FContentBrowserDataFilterCacheIDOwner FilterCacheID;
 public:
 	bool ShouldColumnGenerateWidget(const FString ColumnName) const;
 };

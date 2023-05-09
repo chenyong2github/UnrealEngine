@@ -834,6 +834,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 */
 	virtual bool TryConvertInternalPathToVirtual(const FName InInternalPath, FName& OutPath);
 
+	/**
+	 * Tell the data source to remove any cached data for the filter compilation that might not be needed any more.
+	 */
+	virtual void RemoveUnusedCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner, TArrayView<const FName> InVirtualPathsInUse, const FContentBrowserDataFilter& DataFilter);
+
+	/**
+	 * Tell the data source to remove the cached data for the filter compilation for this specific owner. 
+	 */
+	virtual void ClearCachedFilterData(const FContentBrowserDataFilterCacheIDOwner& IDOwner);
+
 protected:
 
 	/**
