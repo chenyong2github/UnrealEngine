@@ -6,12 +6,16 @@
 #include "RHI.h"
 #include "RHIResources.h"
 
+enum class EDMXPixelBlendingQuality : uint8;
+
 class FTextureResource;
 class FTextureRenderTargetResource;
 class UTextureRenderTarget2D;
+class UMaterialInstanceDynamic;
 class UMaterialInterface;
+class UTexture;
 class UUserWidget;
-enum class EDMXPixelBlendingQuality : uint8;
+
 
 /**
  * Used in shader permutation for determining number of samples to use in texture blending.
@@ -25,6 +29,39 @@ enum class EDMXPixelShaderBlendingQuality : uint8
 
 	MAX
 };
+
+namespace UE::DMXPixelMapping
+{
+	/** Parameters for the Input Texture Renderer */
+	struct FDMXPixelMappingInputTextureRenderingParameters
+	{
+		/** Number of times a texture is downsampled. E.g. when texture size is 512px and is downsampled 3 times, its resulting size is 64px */
+		int32 NumDownsamplePasses = 0;
+
+		/** The post process material. If null, no post process material is applied */
+		UMaterialInstanceDynamic* PostProcessMID = nullptr;
+
+		/** The input texture parameter name of the post process material */
+		FName PostProcessMaterialInputTextureParameterName;
+
+		/** The input texture parameter name of the post process material */
+		FName BlurDistanceParameterName;
+
+		/** The blur distance of the post process material */
+		float BlurDistance = .2f;
+
+		/**
+		 * If true, applies post process material each downsample pass.
+		 * If false applies the post process material once after the last downsample pass, or direct if the input is not downsampled.
+		 * Only applicable if a post process material is set.
+		 */
+		bool bApplyPostProcessMaterialEachDownsamplePass = true;
+
+		/** Size of the rendered texture */
+		FVector2D OutputSize{ 1.f, 1.f };
+	};
+
+}
 
 /**
  * Downsample pixel preview rendering params.
@@ -95,6 +132,20 @@ struct FDMXPixelMappingDownsamplePixelParamsV2
 	bool bStaticCalculateUV;
 };
 
+struct FDMXPixelMappingRenderTextureParams
+{
+	int32 DownsampleTexture = 8;
+
+	int32 NumDownSamplePasses = 1;
+	float Distance = 0.2;
+	int32 DistanceSteps = 1;
+	int32 RadialSteps = 1;
+	float RadialOffset = 1;
+	int32 KernelPower = 5;
+};
+
+
+
 
 /**
  * The public interface of the Pixel Mapping renderer instance interface.
@@ -108,9 +159,20 @@ public:
 public:
 	/** Virtual destructor */
 	virtual ~IDMXPixelMappingRenderer() = default;
+		
+	/**
+	 * Blurs input texture onto desination texture
+	 *
+	 * @param InputTexture						The input texture that is being processed
+	 * @param Params							Parameters for post processing.
+	 */
+	virtual void PostProcessTexture(UTexture* InputTexture, const UE::DMXPixelMapping::FDMXPixelMappingInputTextureRenderingParameters& Params) const = 0;
+
+	/** Gets the post processed texture. May return nullptr while the texture is not rendered yet. */
+	virtual UTexture* GetPostProcessedTexture() const = 0;
 
 	/**
-	 * Downsample and Draw input texture to Destination texture.
+	 * Pixelmapping specific, downsample and draw input texture to destination texture.
 	 *
 	 * @param InputTexture					Rendering resource of input texture
 	 * @param DstTexture					Rendering resource of RenderTarget texture

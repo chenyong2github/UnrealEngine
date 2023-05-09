@@ -4,18 +4,20 @@
 
 #include "DMXPixelMappingMainStreamObjectVersion.h"
 #include "DMXPixelMappingTypes.h"
+#include "DMXStats.h"
 #include "IDMXPixelMappingRenderer.h"
 #include "IDMXPixelMappingRendererModule.h"
-#include "DMXStats.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupItemComponent.h"
 #include "Components/DMXPixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
+#include "Rendering/RenderInputTextureProxy.h"
 
 #include "Async/Async.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Modulators/DMXModulator.h"
 #include "TextureResource.h"
 #include "UObject/ConstructorHelpers.h"
@@ -31,12 +33,11 @@
 DECLARE_CYCLE_STAT(TEXT("PixelMapping Render"), STAT_DMXPixelMappingRender, STATGROUP_DMX);
 DECLARE_CYCLE_STAT(TEXT("PixelMapping Send DMX Worker"), STAT_DMXPixelMappingSendDMX, STATGROUP_DMX);
 
+
 const FIntPoint UDMXPixelMappingRendererComponent::MaxDownsampleBufferTargetSize = FIntPoint(4096);
 const FLinearColor UDMXPixelMappingRendererComponent::ClearTextureColor = FLinearColor::Black;
 
 UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
-	: DownsampleBufferTarget(nullptr)
-	, DownsamplePixelCount(0)
 {
 	SetSize(FVector2D(100.f, 100.f));
 
@@ -59,17 +60,6 @@ UDMXPixelMappingRendererComponent::UDMXPixelMappingRendererComponent()
 #if WITH_EDITOR
 	// Default to lock in designer, since for new renderers, the texture is the default
 	bLockInDesigner = true;
-#endif
-}
-
-UDMXPixelMappingRendererComponent::~UDMXPixelMappingRendererComponent()
-{
-#if WITH_EDITOR
-	if (OnChangeLevelHandle.IsValid())
-	{
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		LevelEditorModule.OnMapChanged().Remove(OnChangeLevelHandle);
-	}
 #endif
 }
 
@@ -111,6 +101,16 @@ void UDMXPixelMappingRendererComponent::Serialize(FArchive& Ar)
 void UDMXPixelMappingRendererComponent::PostInitProperties()
 {
 	Super::PostInitProperties();
+
+	if (!IsTemplate())
+	{
+		Initialize();
+	}
+}
+
+void UDMXPixelMappingRendererComponent::PostLoad()
+{
+	Super::PostLoad();
 	
 	if (!IsTemplate())
 	{
@@ -124,6 +124,7 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 	// Call the parent at the first place
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 
+	const FName PropertyName = PropertyChangedChainEvent.GetPropertyName();
 	if (PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeXPropertyName() ||
 		PropertyChangedChainEvent.GetPropertyName() == UDMXPixelMappingOutputComponent::GetSizeYPropertyName())
 	{
@@ -140,8 +141,6 @@ void UDMXPixelMappingRendererComponent::PostEditChangeChainProperty(FPropertyCha
 
 			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Pixel mapping textures are limited to engine's max texture dimension %dx%d"), MaxTextureDimensions, MaxTextureDimensions);
 		}
-
-		ResizeMaterialRenderTarget(GetSize().X, GetSize().Y);
 	} 
 	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingRendererComponent, RendererType))
 	{
@@ -300,16 +299,6 @@ TSharedRef<SWidget> UDMXPixelMappingRendererComponent::TakeWidget()
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-void UDMXPixelMappingRendererComponent::OnMapChanged(UWorld* InWorld, EMapChangeType MapChangeType)
-{
-	if (UserWidget != nullptr)
-	{
-		UserWidget = nullptr;
-	}
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
 void UDMXPixelMappingRendererComponent::ResizePreviewRenderTarget(uint32 InSizeX, uint32 InSizeY)
 {
 	UTextureRenderTarget2D* Target = GetPreviewRenderTarget();
@@ -356,23 +345,21 @@ void UDMXPixelMappingRendererComponent::Render()
 		return;
 	}
 
-	// 1. Get downsample input texture
+	// 1. Render the input texture
+	RendererInputTexture();
 	UTexture* DownsampleInputTexture = GetRendererInputTexture();
 	if (!DownsampleInputTexture)
 	{
 		return;
 	}
 
-	// 2. Render the input texture before downsample
-	RendererInputTexture();
-
-	// 3. Make sure there is the DownsampleBufferTarget exists and can size can hold all pixels
+	// 2. Make sure there is the DownsampleBufferTarget exists and can size can hold all pixels
 	CreateOrUpdateDownsampleBufferTarget();
 
-	// 4. reserve enough space for pixels params
+	// 3. reserve enough space for pixels params
 	DownsamplePixelParams.Reset(DownsamplePixelCount);
 
-	// 5. Loop through all child pixels in order to get pixels downsample params for rendering
+	// 4. Loop through all child pixels in order to get pixels downsample params for rendering
 	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
 		if (UDMXPixelMappingOutputComponent* Component = Cast<UDMXPixelMappingOutputComponent>(InComponent))
 		{
@@ -380,14 +367,14 @@ void UDMXPixelMappingRendererComponent::Render()
 		}
 	}, false);
 
-	// 6. Make sure pixel count the same with pixel params set number
+	// 5. Make sure pixel count the same with pixel params set number
 	if (!ensure(DownsamplePixelParams.Num() == DownsamplePixelCount))
 	{
 		DownsamplePixelParams.Empty();
 		return;
 	}
 
-	// 7. Downsample all pixels
+	// 6. Downsample all pixels
 	PixelMappingRenderer->DownsampleRender(
 		DownsampleInputTexture->GetResource(),
 		DownsampleBufferTarget->GetResource(),
@@ -427,55 +414,18 @@ UWorld* UDMXPixelMappingRendererComponent::GetWorld() const
 	return World;
 }
 
-void UDMXPixelMappingRendererComponent::ResizeMaterialRenderTarget(int32 InSizeX, int32 InSizeY)
-{
-	check(InputRenderTarget);
-
-	if (InSizeX > 0 && InSizeY > 0)
-	{
-		if (InputRenderTarget->SizeX != InSizeY ||
-			InputRenderTarget->SizeY != InSizeX)
-		{
-			InputRenderTarget->ResizeTarget(InSizeX, InSizeY);
-			InputRenderTarget->UpdateResourceImmediate();
-		}
-	}
-}
-
 void UDMXPixelMappingRendererComponent::UpdateInputWidget(TSubclassOf<UUserWidget> InInputWidget)
 {
-	if (InInputWidget != nullptr && UserWidget != nullptr)
-	{
-		UserWidget->MarkAsGarbage();
-		UserWidget = nullptr;
-	}
-	else
-	{
-		UserWidget = CreateWidget(GetWorld(), InInputWidget);
-	}
+	UserWidget = CreateWidget(GetWorld(), InInputWidget);
 }
 
 void UDMXPixelMappingRendererComponent::Initialize()
 {
-	if (InputRenderTarget == nullptr)
-	{
-		InputRenderTarget = CreateRenderTarget(TEXT("InputRenderTarget"));
-	}	
-
-#if WITH_EDITOR
-	if (!OnChangeLevelHandle.IsValid())
-	{
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		LevelEditorModule.OnMapChanged().AddUObject(this, &UDMXPixelMappingRendererComponent::OnMapChanged);
-	}
-#endif
-
 	if (InputTexture)
 	{
 		InputTexture->SetForceMipLevelsToBeResident(30.0f);
 		InputTexture->WaitForStreaming();
 	}
-
 
 	if (UserWidget == nullptr && InputWidget != nullptr)
 	{
@@ -505,12 +455,14 @@ void UDMXPixelMappingRendererComponent::Initialize()
 				SetSize(NewSize);
 			}
 		}
-}
+	}
 	else
 	{
 		bLockInDesigner = false;
 	}
 #endif
+
+	UpdateInputTextureRenderProxy();
 }
 
 UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::CreateRenderTarget(const FName& InBaseName)
@@ -521,26 +473,14 @@ UTextureRenderTarget2D* UDMXPixelMappingRendererComponent::CreateRenderTarget(co
 	constexpr bool bInForceLinearGamma = false;
 	RenderTarget->InitCustomFormat(GetSize().X, GetSize().Y, EPixelFormat::PF_B8G8R8A8, bInForceLinearGamma);
 
-	return  RenderTarget;
+	return RenderTarget;
 }
 
 void UDMXPixelMappingRendererComponent::RendererInputTexture()
 {
-	switch (RendererType)
+	if (RenderInputTextureProxy.IsValid())
 	{
-	case(EDMXPixelMappingRendererType::Texture):
-		// No rendering required
-		break;
-
-	case(EDMXPixelMappingRendererType::Material):
-		PixelMappingRenderer->RenderMaterial(InputRenderTarget, InputMaterial);
-		break;
-
-	case(EDMXPixelMappingRendererType::UMG):
-		PixelMappingRenderer->RenderWidget(InputRenderTarget, UserWidget);
-		break;
-	default:
-		checkNoEntry(); // Unknown renderer type
+		RenderInputTextureProxy->Render();
 	}
 
 #if WITH_EDITOR
@@ -560,59 +500,12 @@ void UDMXPixelMappingRendererComponent::RendererInputTexture()
 
 UTexture* UDMXPixelMappingRendererComponent::GetRendererInputTexture() const
 {
-	switch (RendererType)
-	{
-	case(EDMXPixelMappingRendererType::Texture):
-		return InputTexture;
-	case(EDMXPixelMappingRendererType::Material):
-		if (InputMaterial != nullptr)
-		{
-			return InputRenderTarget;
-		}
-		break;
-
-	case(EDMXPixelMappingRendererType::UMG):
-		if (InputWidget != nullptr)
-		{
-			return InputRenderTarget;
-		}
-		break;
-	default:
-		checkNoEntry();
-	}
-
-	return nullptr;
+	return RenderInputTextureProxy.IsValid() ? RenderInputTextureProxy->GetRenderedTexture() : nullptr;
 }
 
 bool UDMXPixelMappingRendererComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const
 {
 	return Component && Component->IsA<UDMXPixelMappingRootComponent>();
-}
-
-int32 UDMXPixelMappingRendererComponent::GetTotalDownsamplePixelCount()
-{
-	FScopeLock ScopeLock(&DownsampleBufferCS);
-
-	// Reset pixel counter
-	DownsamplePixelCount = 0;
-
-	// Count all pixels
-	constexpr bool bIsRecursive = true;
-	ForEachChildOfClass<UDMXPixelMappingOutputComponent>([&](UDMXPixelMappingOutputComponent* InComponent)
-		{
-			// If that is screen component
-			if (UDMXPixelMappingScreenComponent* ScreenComponent = Cast<UDMXPixelMappingScreenComponent>(InComponent))
-			{
-				DownsamplePixelCount += (ScreenComponent->NumXCells * ScreenComponent->NumYCells);
-			}
-			// If that is single pixel component
-			else if (Cast<UDMXPixelMappingOutputDMXComponent>(InComponent))
-			{
-				DownsamplePixelCount++;
-			}
-		}, bIsRecursive);
-
-	return DownsamplePixelCount;
 }
 
 void UDMXPixelMappingRendererComponent::CreateOrUpdateDownsampleBufferTarget()
@@ -670,20 +563,6 @@ int32 UDMXPixelMappingRendererComponent::GetDownsamplePixelNum()
 {
 	const FScopeLock Lock(&DownsampleBufferCS);
 	return DownsamplePixelParams.Num();
-}
-
-bool UDMXPixelMappingRendererComponent::IsPixelRangeValid(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd) const
-{
-	FScopeLock ScopeLock(&DownsampleBufferCS);
-
-	if (InDownsamplePixelIndexEnd >= InDownsamplePixelIndexStart &&
-		DownsampleBuffer.IsValidIndex(InDownsamplePixelIndexStart) &&
-		DownsampleBuffer.IsValidIndex(InDownsamplePixelIndexEnd))
-	{
-		return true;
-	}
-
-	return false;
 }
 
 void UDMXPixelMappingRendererComponent::SetDownsampleBuffer(TArray<FLinearColor>&& InDownsampleBuffer, FIntRect InRect)
@@ -773,4 +652,72 @@ void UDMXPixelMappingRendererComponent::EmptyDownsampleBuffer()
 	FScopeLock ScopeLock(&DownsampleBufferCS);
 
 	DownsampleBuffer.Empty();
+}
+
+bool UDMXPixelMappingRendererComponent::IsPixelRangeValid(const int32 InDownsamplePixelIndexStart, const int32 InDownsamplePixelIndexEnd) const
+{
+	FScopeLock ScopeLock(&DownsampleBufferCS);
+
+	if (InDownsamplePixelIndexEnd >= InDownsamplePixelIndexStart &&
+		DownsampleBuffer.IsValidIndex(InDownsamplePixelIndexStart) &&
+		DownsampleBuffer.IsValidIndex(InDownsamplePixelIndexEnd))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+int32 UDMXPixelMappingRendererComponent::GetTotalDownsamplePixelCount()
+{
+	FScopeLock ScopeLock(&DownsampleBufferCS);
+
+	// Reset pixel counter
+	DownsamplePixelCount = 0;
+
+	// Count all pixels
+	constexpr bool bIsRecursive = true;
+	ForEachChildOfClass<UDMXPixelMappingOutputComponent>([&](UDMXPixelMappingOutputComponent* InComponent)
+		{
+			// If that is screen component
+			if (UDMXPixelMappingScreenComponent* ScreenComponent = Cast<UDMXPixelMappingScreenComponent>(InComponent))
+			{
+				DownsamplePixelCount += (ScreenComponent->NumXCells * ScreenComponent->NumYCells);
+			}
+			// If that is single pixel component
+			else if (Cast<UDMXPixelMappingOutputDMXComponent>(InComponent))
+			{
+				DownsamplePixelCount++;
+			}
+		}, bIsRecursive);
+
+	return DownsamplePixelCount;
+}
+
+void UDMXPixelMappingRendererComponent::UpdateInputTextureRenderProxy()
+{
+	using namespace UE::DMXPixelMapping::Rendering::Private;
+
+	// Update params
+	RenderInputTextureParams.OutputSize = GetSize();
+	RenderInputTextureParams.PostProcessMID = PostProcessMaterial ? UMaterialInstanceDynamic::Create(PostProcessMaterial, GetTransientPackage()) : nullptr;
+
+	RenderInputTextureProxy.Reset();
+	switch (RendererType)
+	{
+	case(EDMXPixelMappingRendererType::Texture):
+		RenderInputTextureProxy = MakeShared<FRenderInputTextureProxy<UTexture>>(PixelMappingRenderer.ToSharedRef(), InputTexture.Get(), RenderInputTextureParams);
+		break;
+
+	case(EDMXPixelMappingRendererType::Material):
+		RenderInputTextureProxy = MakeShared<FRenderInputTextureProxy<UMaterialInterface>>(PixelMappingRenderer.ToSharedRef(), InputMaterial.Get(), RenderInputTextureParams, GetSize());
+		break;
+
+	case(EDMXPixelMappingRendererType::UMG):
+		RenderInputTextureProxy = MakeShared<FRenderInputTextureProxy<UUserWidget>>(PixelMappingRenderer.ToSharedRef(), InputWidget.GetDefaultObject(), RenderInputTextureParams, GetSize());
+		break;
+
+	default:
+		checkf(0, TEXT("Invalid Renderer Type in DMXPixelMappingRendererComponent"));
+	}
 }

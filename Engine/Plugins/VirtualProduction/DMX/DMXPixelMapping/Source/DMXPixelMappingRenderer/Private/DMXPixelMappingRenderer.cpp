@@ -17,6 +17,12 @@
 #include "TextureResource.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SOverlay.h"
+#include "TextureResource.h"
+#include "Rendering/Texture2DResource.h"
+#include "Kismet/KismetRenderingLibrary.h"
+#include "CanvasTypes.h"
+#include "Engine/Canvas.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 namespace DMXPixelMappingRenderer
 {
@@ -83,9 +89,9 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
 };
 
-
 IMPLEMENT_GLOBAL_SHADER(FDMXPixelMappingRendererVS, "/Plugin/DMXPixelMapping/Private/DMXPixelMapping.usf", "DMXPixelMappingVS", SF_Vertex);
 IMPLEMENT_GLOBAL_SHADER(FDMXPixelMappingRendererPS, "/Plugin/DMXPixelMapping/Private/DMXPixelMapping.usf", "DMXPixelMappingPS", SF_Pixel);
+
 
 FDMXPixelMappingRenderer::FDMXPixelMappingRenderer()
 {
@@ -114,6 +120,16 @@ FDMXPixelMappingRenderer::FDMXPixelMappingRenderer()
 		UMGRenderer = MakeShared<FWidgetRenderer>(bUseGammaCorrection);
 		check(UMGRenderer.IsValid());
 	}
+}
+
+void FDMXPixelMappingRenderer::PostProcessTexture(UTexture* InputTexture, const UE::DMXPixelMapping::FDMXPixelMappingInputTextureRenderingParameters& Params) const
+{
+	PostProcessProxy.Render(InputTexture, Params);
+}
+
+UTexture* FDMXPixelMappingRenderer::GetPostProcessedTexture() const
+{
+	return PostProcessProxy.GetRenderedTextureGameThread();
 }
 
 void FDMXPixelMappingRenderer::DownsampleRender(
@@ -346,7 +362,7 @@ void FDMXPixelMappingRenderer::RenderMaterial(UTextureRenderTarget2D* InRenderTa
 
 		static const float DeltaTime = 0.f;
 		MaterialWidgetRenderer->DrawWidget(InRenderTarget, Widget, TextureSize, DeltaTime);
-
+		
 		// Reset material after drawing
 		UIMaterialBrush->SetMaterial(nullptr);
 	}
@@ -369,6 +385,7 @@ void FDMXPixelMappingRenderer::RenderWidget(UTextureRenderTarget2D* InRenderTarg
 
 	UMGRenderer->DrawWidget(InRenderTarget, InUserWidget->TakeWidget(), TextureSize, DeltaTime);
 }
+
 void FDMXPixelMappingRenderer::RenderTextureToRectangle(const FTextureResource* InTextureResource, const FTexture2DRHIRef InRenderTargetTexture, FVector2D InSize, bool bSRGBSource) const
 {
 	check(IsInGameThread());
@@ -380,6 +397,11 @@ void FDMXPixelMappingRenderer::RenderTextureToRectangle(const FTextureResource* 
 		FVector2D ViewportSize;
 		bool bSRGBSource;
 	};
+
+	if (!InTextureResource)
+	{
+		return;
+	}
 
 	FRenderContext RenderContext
 	{
