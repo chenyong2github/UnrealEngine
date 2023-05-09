@@ -25,10 +25,14 @@ dir /s ^
  Programs\Shared\EpicGames.Build\*.csproj ^
  Programs\Shared\EpicGames.Core\*.cs ^
  Programs\Shared\EpicGames.Core\*.csproj ^
+ Programs\Shared\EpicGames.Horde\*.cs ^
+ Programs\Shared\EpicGames.Horde\*.csproj ^
  Programs\Shared\EpicGames.IoHash\*.cs ^
  Programs\Shared\EpicGames.IoHash\*.csproj ^
  Programs\Shared\EpicGames.MsBuild\*.cs ^
  Programs\Shared\EpicGames.MsBuild\*.csproj ^
+ Programs\Shared\EpicGames.OIDC\*.cs ^
+ Programs\Shared\EpicGames.OIDC\*.csproj ^
  Programs\Shared\EpicGames.Serialization\*.cs ^
  Programs\Shared\EpicGames.Serialization\*.csproj ^
  Programs\Shared\EpicGames.UHT\*.cs ^

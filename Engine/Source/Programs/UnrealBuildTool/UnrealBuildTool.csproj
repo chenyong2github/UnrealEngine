@@ -158,11 +158,20 @@
 
   <!-- Various batch files that build or run UnrealBuildTool -->
   <ItemGroup>
+    <None Include="..\..\..\Build\BatchFiles\BuildUAT.bat"><Link>BatchFiles\BuildUAT.bat</Link></None>
+    <None Include="..\..\..\Build\BatchFiles\BuildUAT.sh"><Link>BatchFiles\BuildUAT.sh</Link></None>
     <None Include="..\..\..\Build\BatchFiles\BuildUBT.bat"><Link>BatchFiles\BuildUBT.bat</Link></None>
     <None Include="..\..\..\Build\BatchFiles\BuildUBT.sh"><Link>BatchFiles\BuildUBT.sh</Link></None>
     <None Include="..\..\..\Build\BatchFiles\GenerateProjectFiles.bat"><Link>BatchFiles\GenerateProjectFiles.bat</Link></None>
+    <None Include="..\..\..\Build\BatchFiles\RunUAT.bat"><Link>BatchFiles\RunUAT.bat</Link></None>
+    <None Include="..\..\..\Build\BatchFiles\RunUAT.sh"><Link>BatchFiles\RunUAT.sh</Link></None>
     <None Include="..\..\..\Build\BatchFiles\RunUBT.bat"><Link>BatchFiles\RunUBT.bat</Link></None>
     <None Include="..\..\..\Build\BatchFiles\RunUBT.sh"><Link>BatchFiles\RunUBT.sh</Link></None>
+
+    <!-- Visual Studio batch files -->
+    <None Include="..\..\..\Build\BatchFiles\Build.bat"><Link>BatchFiles\Build.bat</Link></None>
+    <None Include="..\..\..\Build\BatchFiles\Clean.bat"><Link>BatchFiles\Clean.bat</Link></None>
+    <None Include="..\..\..\Build\BatchFiles\Rebuild.bat"><Link>BatchFiles\Rebuild.bat</Link></None>
   </ItemGroup>
 
   <!-- Various BuildConfiguration files -->
