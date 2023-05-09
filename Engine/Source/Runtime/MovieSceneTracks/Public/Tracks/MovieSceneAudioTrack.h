@@ -22,7 +22,6 @@ namespace AudioTrackConstants
 UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneAudioTrack
 	: public UMovieSceneNameableTrack
-	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_UCLASS_BODY()
 
@@ -57,9 +56,6 @@ public:
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 	virtual bool SupportsMultipleRows() const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
-
-	// ~IMovieSceneTrackTemplateProducer interface
-	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 
 private:
 

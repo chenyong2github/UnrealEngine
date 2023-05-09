@@ -2,17 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "MovieSceneSection.h"
-#include "Components/AudioComponent.h"
-#include "Sound/SoundAttenuation.h"
-#include "Channels/MovieSceneFloatChannel.h"
-#include "Channels/MovieSceneStringChannel.h"
-#include "Channels/MovieSceneBoolChannel.h"
-#include "Channels/MovieSceneIntegerChannel.h"
-#include "Sections/MovieSceneActorReferenceSection.h"
 #include "Channels/MovieSceneAudioTriggerChannel.h"
+#include "Channels/MovieSceneBoolChannel.h"
+#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneIntegerChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
+#include "Components/AudioComponent.h"
+#include "CoreMinimal.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "MovieSceneSection.h"
+#include "Sections/MovieSceneActorReferenceSection.h"
+#include "Sound/SoundAttenuation.h"
+#include "UObject/ObjectMacros.h"
+
 #include "MovieSceneAudioSection.generated.h"
 
 class USoundBase;
@@ -23,6 +25,7 @@ class USoundBase;
 UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneAudioSection
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -190,20 +193,29 @@ public:
 	virtual void PostEditImport() override;
 	virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
 
+	//~ IMovieSceneEntityProvider interface
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 private:
+
 	template<typename ChannelType, typename ForEachFunction>
-	FORCEINLINE static void ForEachInternal(ForEachFunction InFuncton, const TMap<FName, ChannelType>& InMapToIterate) 
+	FORCEINLINE static void ForEachInternal(ForEachFunction InFunction, const TMap<FName, ChannelType>& InMapToIterate) 
 	{
 		for (auto& Item : InMapToIterate)
 		{
-			InFuncton(Item.Key, Item.Value);
+			InFunction(Item.Key, Item.Value);
 		}	
 	}
 
 	void SetupSoundInputParameters(const USoundBase* InSoundBase);
 
 	/** The sound cue or wave that this section plays */
-	UPROPERTY(EditAnywhere, Category="Audio")
+	UPROPERTY(EditAnywhere, Category="Audio", BlueprintGetter=GetSound, BlueprintSetter=SetSound)
 	TObjectPtr<USoundBase> Sound;
 
 	/** The offset into the beginning of the audio clip */

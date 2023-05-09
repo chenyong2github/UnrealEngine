@@ -18,6 +18,7 @@
 
 class UMaterialParameterCollection;
 class UMovieScene3DTransformSection;
+class UMovieSceneAudioSection;
 class UMovieSceneDataLayerSection;
 class UMovieSceneLevelVisibilitySection;
 class UMovieSceneSkeletalAnimationSection;
@@ -88,6 +89,40 @@ struct FMovieSceneSkeletalAnimationComponentData
 
 	UPROPERTY()
 	TObjectPtr<UMovieSceneSkeletalAnimationSection> Section;
+};
+
+/** Component data for audio tracks */
+USTRUCT()
+struct FMovieSceneAudioComponentData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UMovieSceneAudioSection> Section = nullptr;
+};
+
+/**
+ * Component data for audio tracks inputs
+ * This provides the names of the inputs whose values are stored on the
+ * same entity using the DoubleResult, StringResult, BoolResult, and
+ * IntegerResult components.
+ */
+USTRUCT()
+struct FMovieSceneAudioInputData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName FloatInputs[9];
+
+	UPROPERTY()
+	FName StringInput;
+
+	UPROPERTY()
+	FName BoolInput;
+
+	UPROPERTY()
+	FName IntInput;
 };
 
 namespace UE
@@ -463,6 +498,10 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TComponentTypeID<UMaterialParameterCollection*> MPC;
 
 	TComponentTypeID<FFadeComponentData> Fade;
+
+	TComponentTypeID<FMovieSceneAudioComponentData> Audio;
+	TComponentTypeID<FMovieSceneAudioInputData> AudioInputs;
+	TComponentTypeID<FName> AudioTriggerName;
 
 	struct
 	{

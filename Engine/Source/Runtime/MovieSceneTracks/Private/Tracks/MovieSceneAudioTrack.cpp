@@ -5,7 +5,6 @@
 #include "Sound/SoundWave.h"
 #include "MovieScene.h"
 #include "Sections/MovieSceneAudioSection.h"
-#include "Evaluation/MovieSceneAudioTemplate.h"
 #include "Kismet/GameplayStatics.h"
 #include "AudioDecompress.h"
 #include "Evaluation/MovieSceneSegment.h"
@@ -25,11 +24,6 @@ UMovieSceneAudioTrack::UMovieSceneAudioTrack( const FObjectInitializer& ObjectIn
 	TrackTint = FColor(93, 95, 136);
 	RowHeight = 50;
 #endif
-}
-
-FMovieSceneEvalTemplatePtr UMovieSceneAudioTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieSceneAudioSectionTemplate(*CastChecked<UMovieSceneAudioSection>(&InSection));
 }
 
 const TArray<UMovieSceneSection*>& UMovieSceneAudioTrack::GetAllSections() const

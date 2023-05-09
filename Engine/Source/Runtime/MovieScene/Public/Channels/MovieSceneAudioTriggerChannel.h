@@ -79,7 +79,6 @@ struct MOVIESCENE_API FMovieSceneAudioTriggerChannel : public FMovieSceneChannel
 	 * @param OutTriggered   A Value that if set to true combined with the function returning true means there's a trigger
 	 * @return true if the channel was evaluated successfully, false otherwise
 	 */
-;
 	bool EvaluatePossibleTriggers(const FMovieSceneContext& InContext, FMoveSceneAudioTriggerState& InState, bool& OutTriggered) const;
 
 public:
