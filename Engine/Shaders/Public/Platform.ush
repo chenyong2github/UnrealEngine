@@ -697,8 +697,18 @@ void ShaderYield()
 #define RWCoherentStructuredBuffer(TYPE) globallycoherent RWStructuredBuffer<TYPE>
 #endif
 
+// Drops globallycoherent qualifier when used in a struct
+#ifndef RWCoherentStructuredBufferRef
+#define RWCoherentStructuredBufferRef(TYPE) RWStructuredBuffer<TYPE>
+#endif
+
 #ifndef RWCoherentByteAddressBuffer
 #define RWCoherentByteAddressBuffer globallycoherent RWByteAddressBuffer
+#endif
+
+// Drops globallycoherent qualifier when used in a struct
+#ifndef RWCoherentByteAddressBufferRef
+#define RWCoherentByteAddressBufferRef RWByteAddressBuffer
 #endif
 
 #ifndef ISOLATE

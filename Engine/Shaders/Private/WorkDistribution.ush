@@ -352,8 +352,8 @@ struct FInputQueue
 
 struct FGlobalWorkQueue
 {
-	RWByteAddressBuffer						DataBuffer;
-	RWStructuredBuffer< FWorkQueueState >	StateBuffer;	// Ideally this was GDS but we don't have that API control.
+	RWCoherentByteAddressBufferRef						DataBuffer;
+	RWCoherentStructuredBufferRef( FWorkQueueState )	StateBuffer;	// Ideally this was GDS but we don't have that API control.
 
 	uint	StateIndex;
 	uint	Size;
@@ -469,7 +469,7 @@ void GlobalTaskLoopVariable( FGlobalWorkQueue GlobalWorkQueue )
 				break;
 		}
 
-		FTask Task;
+		FTask Task = (FTask)0;
 		bool bTaskReady = false;
 		if( !bTaskComplete )
 		{
