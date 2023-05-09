@@ -139,7 +139,7 @@ bool ULandscapeNaniteComponent::IsHLODRelevant() const
 
 #if WITH_EDITOR
 
-FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, bool InbIsAsync)
+FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, bool bInIsAsync)
 {
 	UWorld* World = Landscape->GetWorld();
 	
@@ -227,12 +227,12 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 
 	FGraphEventArray CommitDependencies{ ExportMeshEvent };
 
-	FGraphEventRef BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([AsyncBuildData, Component = this, NewProxyContentId, InbIsAsync, Name = Landscape->GetActorNameOrLabel(), StaticMeshBuildCompleteEvent]()
+	FGraphEventRef BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([AsyncBuildData, Component = this, NewProxyContentId, bInIsAsync, Name = Landscape->GetActorNameOrLabel(), StaticMeshBuildCompleteEvent]()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeNaniteComponent::ExportLandscapeAsync-BatchBuildTask);
 			AsyncBuildData->NaniteStaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 
-			auto CompleteStaticMesh = [AsyncBuildData, Component, NewProxyContentId, Name, StaticMeshBuildCompleteEvent, InbIsAsync](UStaticMesh* InStaticMesh)
+			auto CompleteStaticMesh = [AsyncBuildData, Component, NewProxyContentId, Name, StaticMeshBuildCompleteEvent, bInIsAsync](UStaticMesh* InStaticMesh)
 			{
 				// this is as horror as we have to mark all the objects created in the background thread as not async 
 				AsyncBuildData->NaniteStaticMesh->ClearInternalFlags(EInternalObjectFlags::Async);
@@ -257,7 +257,7 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 
 				ON_SCOPE_EXIT
 				{
-					if (InbIsAsync)
+					if (bInIsAsync)
 					{
 						// only deregister only myself.
 						InStaticMesh->OnPostMeshBuild().Clear();
@@ -306,7 +306,7 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 				StaticMeshBuildCompleteEvent->DispatchSubsequents();
 			};
 
-			if (!InbIsAsync)
+			if (!bInIsAsync)
 			{
 				CompleteStaticMesh(AsyncBuildData->NaniteStaticMesh);
 			}
@@ -346,7 +346,7 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 
 bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId)
 {
-	FGraphEventRef GraphEvent = InitializeForLandscapeAsync(Landscape, NewProxyContentId, true);
+	FGraphEventRef GraphEvent = InitializeForLandscapeAsync(Landscape, NewProxyContentId, /*bInIsAsync = */false);
 	while (!GraphEvent->IsComplete())
 	{
 		ENamedThreads::Type CurrentThread = FTaskGraphInterface::Get().GetCurrentThreadIfKnown();

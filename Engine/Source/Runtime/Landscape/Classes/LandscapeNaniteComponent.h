@@ -114,7 +114,7 @@ public:
 	 */
 	LANDSCAPE_API bool InitializeForLandscape(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId);
 
-	LANDSCAPE_API FGraphEventRef InitializeForLandscapeAsync(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, bool InIsAsync);
+	LANDSCAPE_API FGraphEventRef InitializeForLandscapeAsync(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, bool bInIsAsync);
 
 	/**
 	 * Ensures the cooked cached platform data of the Nanite static mesh is finished. It is necessary to ensure that StreamablePages are loaded from DDC
