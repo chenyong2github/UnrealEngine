@@ -181,91 +181,94 @@ int32 UEditorLevelUtils::CopyOrMoveActorsToLevel(const TArray<AActor*>& ActorsTo
 				FString DestinationData;
 				GEditor->CopySelectedActorsToClipboard(OwningWorld, bMoveActors, bMoveActors, bWarnAboutReferences, &DestinationData);
 
-				// Set the new level and force it visible while we do the paste
-				const bool bLevelVisible = DestLevel->bIsVisible;
-				if (!bLevelVisible)
+				if (!DestinationData.IsEmpty())
 				{
-					UEditorLevelUtils::SetLevelVisibility(DestLevel, true, false);
-				}
-				
-				OwningWorld->SetCurrentLevel(DestLevel);
-
-				bool bSelectionChanged = false;
-				FDelegateHandle SelectionChangedEvent = USelection::SelectionChangedEvent.AddLambda([&bSelectionChanged](UObject* Object) { bSelectionChanged = true; });
-
-				const bool bDuplicate = false;
-				const bool bOffsetLocations = false;
-				const bool bWarnIfHidden = false;
-				GEditor->edactPasteSelected(OwningWorld, bDuplicate, bOffsetLocations, bWarnIfHidden, &DestinationData);
-
-				USelection::SelectionChangedEvent.Remove(SelectionChangedEvent);
-
-				// Restore the original current level
-				OwningWorld->SetCurrentLevel(OldCurrentLevel);
-
-				if (bSelectionChanged)
-				{
-					// Build a remapping of old to new names so we can do a fixup
-					for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+					// Set the new level and force it visible while we do the paste
+					const bool bLevelVisible = DestLevel->bIsVisible;
+					if (!bLevelVisible)
 					{
-						AActor* Actor = static_cast<AActor*>(*It);
-
-						if (ActorPathMapping.IsValidIndex(Actor->CopyPasteId))
-						{
-							TTuple<FSoftObjectPath, FSoftObjectPath>& Tuple = ActorPathMapping[Actor->CopyPasteId];
-							check(Tuple.Value.IsNull());
-
-							Tuple.Value = FSoftObjectPath(Actor);
-							if (OutActors)
-							{
-								OutActors->Add(Actor);
-							}
-						}
-						else
-						{
-							UE_LOG(LogLevelTools, Error, TEXT("Cannot find remapping for moved actor ID %s, any soft references pointing to it will be broken!"), *Actor->GetPathName());
-						}
-						// Reset CopyPasteId on new actors
-						Actor->CopyPasteId = INDEX_NONE;
+						UEditorLevelUtils::SetLevelVisibility(DestLevel, true, false);
 					}
+				
+					OwningWorld->SetCurrentLevel(DestLevel);
 
-					// Only do Asset Rename on Move (Copy should not affect existing references)
-					if (bMoveActors)
+					bool bSelectionChanged = false;
+					FDelegateHandle SelectionChangedEvent = USelection::SelectionChangedEvent.AddLambda([&bSelectionChanged](UObject* Object) { bSelectionChanged = true; });
+
+					const bool bDuplicate = false;
+					const bool bOffsetLocations = false;
+					const bool bWarnIfHidden = false;
+					GEditor->edactPasteSelected(OwningWorld, bDuplicate, bOffsetLocations, bWarnIfHidden, &DestinationData);
+
+					USelection::SelectionChangedEvent.Remove(SelectionChangedEvent);
+
+					// Restore the original current level
+					OwningWorld->SetCurrentLevel(OldCurrentLevel);
+
+					if (bSelectionChanged)
 					{
-						FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-						TArray<FAssetRenameData> RenameData;
-
-						for (TTuple<FSoftObjectPath, FSoftObjectPath>& Pair : ActorPathMapping)
+						// Build a remapping of old to new names so we can do a fixup
+						for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
 						{
-							if (Pair.Value.IsValid())
-							{
-								RenameData.Add(FAssetRenameData(Pair.Key, Pair.Value, true));
-							}
-						}
+							AActor* Actor = static_cast<AActor*>(*It);
 
-						if (RenameData.Num() > 0)
-						{
-							if (bWarnAboutRenaming)
+							if (ActorPathMapping.IsValidIndex(Actor->CopyPasteId))
 							{
-								AssetToolsModule.Get().RenameAssetsWithDialog(RenameData);
+								TTuple<FSoftObjectPath, FSoftObjectPath>& Tuple = ActorPathMapping[Actor->CopyPasteId];
+								check(Tuple.Value.IsNull());
+
+								Tuple.Value = FSoftObjectPath(Actor);
+								if (OutActors)
+								{
+									OutActors->Add(Actor);
+								}
 							}
 							else
 							{
-								AssetToolsModule.Get().RenameAssets(RenameData);
+								UE_LOG(LogLevelTools, Error, TEXT("Cannot find remapping for moved actor ID %s, any soft references pointing to it will be broken!"), *Actor->GetPathName());
+							}
+							// Reset CopyPasteId on new actors
+							Actor->CopyPasteId = INDEX_NONE;
+						}
+
+						// Only do Asset Rename on Move (Copy should not affect existing references)
+						if (bMoveActors)
+						{
+							FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+							TArray<FAssetRenameData> RenameData;
+
+							for (TTuple<FSoftObjectPath, FSoftObjectPath>& Pair : ActorPathMapping)
+							{
+								if (Pair.Value.IsValid())
+								{
+									RenameData.Add(FAssetRenameData(Pair.Key, Pair.Value, true));
+								}
+							}
+
+							if (RenameData.Num() > 0)
+							{
+								if (bWarnAboutRenaming)
+								{
+									AssetToolsModule.Get().RenameAssetsWithDialog(RenameData);
+								}
+								else
+								{
+									AssetToolsModule.Get().RenameAssets(RenameData);
+								}
 							}
 						}
-					}
 
-					// Restore new level visibility to previous state
-					if (!bLevelVisible)
-					{
-						UEditorLevelUtils::SetLevelVisibility(DestLevel, false, false);
+						// Restore new level visibility to previous state
+						if (!bLevelVisible)
+						{
+							UEditorLevelUtils::SetLevelVisibility(DestLevel, false, false);
+						}
 					}
 				}
-			}
 
-			// The moved (pasted) actors will now be selected
-			NumMovedActors += FinalMoveList.Num();
+				// The moved (pasted) actors will now be selected
+				NumMovedActors += FinalMoveList.Num();
+			}
 
 			for (TWeakObjectPtr<AActor> ActorPtr : FinalWeakMoveList)
 			{
