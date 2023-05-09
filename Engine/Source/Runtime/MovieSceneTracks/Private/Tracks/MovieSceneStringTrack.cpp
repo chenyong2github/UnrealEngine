@@ -3,7 +3,6 @@
 #include "Tracks/MovieSceneStringTrack.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Sections/MovieSceneStringSection.h"
-#include "Evaluation/MovieScenePropertyTemplates.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneStringTrack)
 
@@ -25,16 +24,12 @@ bool UMovieSceneStringTrack::SupportsType(TSubclassOf<UMovieSceneSection> Sectio
 	return SectionClass == UMovieSceneStringSection::StaticClass();
 }
 
+
 UMovieSceneSection* UMovieSceneStringTrack::CreateNewSection()
 {
 	return NewObject<UMovieSceneStringSection>(this, NAME_None, RF_Transactional);
 }
 
-
-FMovieSceneEvalTemplatePtr UMovieSceneStringTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieSceneStringPropertySectionTemplate(*CastChecked<UMovieSceneStringSection>(&InSection), *this);
-}
 
 const TArray<UMovieSceneSection*>& UMovieSceneStringTrack::GetAllSections() const
 {

@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScenePropertyTrack.h"
-#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 #include "MovieSceneStringTrack.generated.h"
 
 /**
@@ -14,7 +13,6 @@
 UCLASS(MinimalAPI)
 class UMovieSceneStringTrack
 	: public UMovieScenePropertyTrack
-	, public IMovieSceneTrackTemplateProducer
 {
 	GENERATED_BODY()
 
@@ -35,7 +33,6 @@ public:
 	virtual void AddSection(UMovieSceneSection& Section) override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
-	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 	virtual bool HasSection(const UMovieSceneSection& Section) const override;
 	virtual bool IsEmpty() const override;

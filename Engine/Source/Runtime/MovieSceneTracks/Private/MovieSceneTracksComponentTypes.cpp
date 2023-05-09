@@ -848,6 +848,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	ComponentRegistry->NewPropertyType(Integer, TEXT("int32"));
 	ComponentRegistry->NewPropertyType(FloatVector, TEXT("float vector"));
 	ComponentRegistry->NewPropertyType(DoubleVector, TEXT("double vector"));
+	ComponentRegistry->NewPropertyType(String, TEXT("FString"));
 
 	ComponentRegistry->NewPropertyType(Transform, TEXT("FTransform"));
 	ComponentRegistry->NewPropertyType(EulerTransform, TEXT("FEulerTransform"));
@@ -967,6 +968,12 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	.SetBlenderSystem<UMovieScenePiecewiseDoubleBlenderSystem>()
 	.SetCustomAccessors(&Accessors.Color)
 	.Commit(FColorHandler());
+
+	// --------------------------------------------------------------------------------------------
+	// Set up string properties
+	BuiltInComponents->PropertyRegistry.DefineProperty(String, TEXT("Apply String Properties"))
+	.AddSoleChannel(BuiltInComponents->StringResult)
+	.Commit();
 
 	// --------------------------------------------------------------------------------------------
 	// Set up float parameters

@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
-#include "Sections/MovieSceneStringSection.h"
 #include "Evaluation/Blending/MovieSceneBlendType.h"
 #include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneByteChannel.h"
@@ -41,24 +40,5 @@ protected:
 
 	UPROPERTY()
 	FMovieSceneBoolChannel BoolCurve;
-};
-
-
-USTRUCT()
-struct FMovieSceneStringPropertySectionTemplate : public FMovieScenePropertySectionTemplate
-{
-	GENERATED_BODY()
-	
-	FMovieSceneStringPropertySectionTemplate(){}
-	FMovieSceneStringPropertySectionTemplate(const UMovieSceneStringSection& Section, const UMovieScenePropertyTrack& Track);
-
-protected:
-
-	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
-	virtual void SetupOverrides() override { EnableOverrides(RequiresSetupFlag); }
-	virtual void Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
-
-	UPROPERTY()
-	FMovieSceneStringChannel StringCurve;
 };
 

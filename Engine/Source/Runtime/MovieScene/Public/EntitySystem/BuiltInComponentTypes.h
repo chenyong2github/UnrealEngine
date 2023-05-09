@@ -53,6 +53,7 @@ struct FMovieSceneDoubleChannel;
 struct FMovieSceneFloatChannel;
 struct FMovieSceneIntegerChannel;
 struct FMovieSceneObjectPathChannel;
+struct FMovieSceneStringChannel;
 struct FMovieScenePropertyBinding;
 
 
@@ -183,7 +184,7 @@ struct FSourceFloatChannel
 };
 
 /**
- * The component data for evaluation a double channel
+ * The component data for evaluating a double channel
  */
 struct FSourceDoubleChannel
 {
@@ -196,6 +197,22 @@ struct FSourceDoubleChannel
 	{}
 
 	const FMovieSceneDoubleChannel* Source;
+};
+
+/**
+ * The component data for evaluating a string channel
+ */
+struct FSourceStringChannel
+{
+	FSourceStringChannel()
+		: Source(nullptr)
+	{}
+
+	FSourceStringChannel(const FMovieSceneStringChannel* InSource)
+		: Source(InSource)
+	{}
+
+	const FMovieSceneStringChannel* Source;
 };
 
 struct FEvaluationHookFlags
@@ -402,6 +419,9 @@ public:
 	// An FMovieSceneDoubleChannel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X; 1 = Location.Y, Vector.Y)
 	TComponentTypeID<FSourceDoubleChannel> DoubleChannel[9];
 
+	// An FMovieSceneStringChannel
+	TComponentTypeID<FSourceStringChannel> StringChannel;
+
 	// A cached interpolation structure relating to either float channels or double channels
 	TComponentTypeID<Interpolation::FCachedInterpolation> CachedInterpolation[9];
 
@@ -425,6 +445,9 @@ public:
 	// A float representing the evaluated output of a weight channel
 	TComponentTypeID<double> WeightResult;
 	TComponentTypeID<double> EasingResult;
+
+	// The result of an evaluated FMovieSceneStringChannel
+	TComponentTypeID<FString> StringResult;
 
 	// The result of an evaluated FMovieSceneObjectPathChannel
 	TComponentTypeID<UObject*> ObjectResult;

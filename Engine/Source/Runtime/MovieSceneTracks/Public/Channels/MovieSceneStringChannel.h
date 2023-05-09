@@ -69,6 +69,14 @@ struct MOVIESCENETRACKS_API FMovieSceneStringChannel : public FMovieSceneChannel
 	}
 
 	/**
+	 * Returns whether this channel has any values
+	 */
+	FORCEINLINE bool HasAnyData() const
+	{
+		return Times.Num() != 0 || bHasDefaultValue == true;
+	}
+
+	/**
 	 * Evaluate this channel
 	 *
 	 * @param InTime     The time to evaluate at

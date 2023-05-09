@@ -106,6 +106,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&DoubleChannel[7],        TEXT("Double Channel 7"));
 	ComponentRegistry->NewComponentType(&DoubleChannel[8],        TEXT("Double Channel 8"));
 	ComponentRegistry->NewComponentType(&WeightChannel,           TEXT("Weight Channel"));
+	ComponentRegistry->NewComponentType(&StringChannel,           TEXT("String Channel"));
 	ComponentRegistry->NewComponentType(&ObjectPathChannel,       TEXT("Object Path Channel"));
 
 	ComponentRegistry->NewComponentType(&CachedInterpolation[0],   TEXT("Cached Interpolation [0]"));
@@ -146,6 +147,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&DoubleResult[6],       TEXT("Double Result 6"));
 	ComponentRegistry->NewComponentType(&DoubleResult[7],       TEXT("Double Result 7"));
 	ComponentRegistry->NewComponentType(&DoubleResult[8],       TEXT("Double Result 8"));
+	ComponentRegistry->NewComponentType(&StringResult,          TEXT("String Result"));
 	ComponentRegistry->NewComponentType(&ObjectResult,          TEXT("Object Result"));
 
 	ComponentRegistry->NewComponentType(&BaseByte,			    TEXT("Base Byte"));
@@ -367,6 +369,15 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(HierarchicalEasingChannel, WeightAndEasingResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(EasingResult, WeightAndEasingResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightResult, WeightAndEasingResult);
+	}
+	
+	// String channel relationships
+	{
+		ComponentRegistry->Factories.DuplicateChildComponent(StringChannel);
+		ComponentRegistry->Factories.DuplicateChildComponent(StringResult);
+
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(StringChannel, EvalTime);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(StringChannel, StringResult);
 	}
 
 	// Object path channel relationships
