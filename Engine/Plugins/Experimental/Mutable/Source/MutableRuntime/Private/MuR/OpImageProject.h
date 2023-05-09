@@ -24,7 +24,7 @@ namespace mu
 		float fadeStart, float fadeEnd, float MipInterpolationFactor,
 		int layout, int block,
 		UE::Math::TIntVector2<uint16> CropMin, UE::Math::TIntVector2<uint16> UncroppedSize,
-		SCRATCH_IMAGE_PROJECT* scratch );
+		SCRATCH_IMAGE_PROJECT* scratch, bool bUseVectorImplementation = false);
 
     extern void ImageRasterProjectedCylindrical( const Mesh* pMesh, Image* pTargetImage,
 		const Image* pSource, const Image* pMask,

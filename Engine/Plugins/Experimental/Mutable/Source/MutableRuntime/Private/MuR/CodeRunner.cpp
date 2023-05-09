@@ -97,6 +97,12 @@ static FAutoConsoleVariableRef CVarGlobalProjectionLodBias (
 	TEXT("Lod bias applied to the lod resulting form the best mip computation, only used if a min filter method different than None is used."),
 	ECVF_Default);
 
+bool bUseProjectionVectorImpl = false;
+static FAutoConsoleVariableRef CVarUseProjectionVectorImpl (
+	TEXT("mutable.UseProjectionVectorImpl"),
+	bUseProjectionVectorImpl,
+	TEXT("If set to true, enables the vectorized implementation of the projection pixel processing."),
+	ECVF_Default);
 }
 
 
@@ -4279,7 +4285,7 @@ namespace mu
 								FadeStartRad, FadeEndRad, FMath::Frac(Data.RasterMesh.MipValue),
 								layout, args.blockIndex,
 								CropMin, UncroppedSize,
-								&scratch);
+								&scratch, bUseProjectionVectorImpl);
 							break;
 
 						case PROJECTOR_TYPE::WRAPPING:
