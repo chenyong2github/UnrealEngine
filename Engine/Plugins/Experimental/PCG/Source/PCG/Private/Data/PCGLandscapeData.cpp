@@ -151,7 +151,7 @@ bool UPCGLandscapeData::ProjectPoint(const FTransform& InTransform, const FBox& 
 	ULandscapeComponent* LandscapeComponent = LandscapeInfo->XYtoComponentMap.FindRef(ComponentMapKey);
 	const FPCGLandscapeCacheEntry * LandscapeCacheEntry = (LandscapeComponent ? LandscapeCache->GetCacheEntry(LandscapeComponent, ComponentMapKey) : nullptr);
 #else
-	const FPCGLandscapeCacheEntry* LandscapeCacheEntry = LandscapeCache->GetCacheEntry(LandscapeInfo->LandscapeGuid, ComponentMapKey);
+	const FPCGLandscapeCacheEntry* LandscapeCacheEntry = LandscapeCache->GetCacheEntry(LandscapeInfo->GetLandscapeProxy()->GetOriginalLandscapeGuid(), ComponentMapKey);
 #endif
 
 	if (!LandscapeCacheEntry)
@@ -263,6 +263,7 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 		const int32 MaxComponentX = MaxX / ComponentSizeQuads;
 		const int32 MinComponentY = MinY / ComponentSizeQuads;
 		const int32 MaxComponentY = MaxY / ComponentSizeQuads;
+		const FGuid LandscapeGuid = LandscapeInfo->GetLandscapeProxy()->GetOriginalLandscapeGuid();
 
 		for (int32 ComponentX = MinComponentX; ComponentX <= MaxComponentX; ++ComponentX)
 		{
@@ -273,7 +274,7 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 				ULandscapeComponent* LandscapeComponent = LandscapeInfo->XYtoComponentMap.FindRef(ComponentMapKey);
 				const FPCGLandscapeCacheEntry* LandscapeCacheEntry = LandscapeComponent ? LandscapeCache->GetCacheEntry(LandscapeComponent, ComponentMapKey) : nullptr;
 #else
-				const FPCGLandscapeCacheEntry* LandscapeCacheEntry = LandscapeCache->GetCacheEntry(LandscapeInfo->LandscapeGuid, ComponentMapKey);
+				const FPCGLandscapeCacheEntry* LandscapeCacheEntry = LandscapeCache->GetCacheEntry(LandscapeGuid, ComponentMapKey);
 #endif
 
 				if (!LandscapeCacheEntry)
