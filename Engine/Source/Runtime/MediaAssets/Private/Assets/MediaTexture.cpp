@@ -18,6 +18,7 @@
 #include "Misc/MediaTextureResource.h"
 #include "IMediaTextureSample.h"
 
+#include "RectLightTexture.h"
 
 /* Local helpers
  *****************************************************************************/
@@ -467,11 +468,15 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 	FMediaTextureResource* ResourceParam = (FMediaTextureResource*)GetResource();
 
 	const ERenderMode RenderModeParam = GetRenderMode();
+	const UTexture* TexturePtrNotDeferenced = this;
 
 	ENQUEUE_RENDER_COMMAND(MediaTextureResourceRender)(
-		[ResourceParam, RenderParams, RenderModeParam](FRHICommandListImmediate& RHICmdList)
+		[ResourceParam, RenderParams, RenderModeParam, TexturePtrNotDeferenced](FRHICommandListImmediate& RHICmdList)
 		{
 			check(ResourceParam);
+
+			// Lock/Enqueue rect atlas refresh if that texture is used by a rect. light
+			RectLightAtlas::FAtlasTextureInvalidationScope InvalidationScope(TexturePtrNotDeferenced);
 
 			if (RenderModeParam == ERenderMode::JustInTime)
 			{

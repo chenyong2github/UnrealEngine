@@ -37,15 +37,4 @@ RENDERER_API void UpdateAtlasTexture(FRDGBuilder& GraphBuilder, const ERHIFeatur
 // Return the rect light atlas debug pass
 RENDERER_API void AddDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture);
 
-// Scope for invalidating a particular texture 
-// This ensures the atlas contains the latest version of the texture and filter it
-struct RENDERER_API FAtlasTextureInvalidationScope
-{
-	FAtlasTextureInvalidationScope(UTexture* In);
-	~FAtlasTextureInvalidationScope();
-	FAtlasTextureInvalidationScope(const FAtlasTextureInvalidationScope&) = delete;
-	FAtlasTextureInvalidationScope& operator=(const FAtlasTextureInvalidationScope&) = delete;
-	UTexture* Texture = nullptr;
-};
-
 } 

@@ -40,7 +40,7 @@
 #include "Rendering/MotionVectorSimulation.h"
 #include "SceneViewExtension.h"
 #include "GenerateMips.h"
-#include "RectLightTextureManager.h"
+#include "RectLightTexture.h"
 #include "Materials/MaterialRenderProxy.h"
 
 #if WITH_EDITOR

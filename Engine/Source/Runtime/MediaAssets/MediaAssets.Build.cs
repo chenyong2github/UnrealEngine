@@ -22,7 +22,8 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"RenderCore",
 					"RHI",
-					"ColorManagement"
+					"ColorManagement",
+					"Renderer",
 				});
 
 			if (Target.bBuildEditor)

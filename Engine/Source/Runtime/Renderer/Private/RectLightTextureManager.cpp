@@ -19,6 +19,7 @@
 #include "TextureLayout.h"
 #include "CommonRenderResources.h"
 #include "ScreenPass.h"
+#include "RectLightTexture.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Possible improvements:
@@ -1705,7 +1706,6 @@ void AddDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureR
 	}
 }
 
-
 FRHITexture* GetAtlasTexture()
 {
 	return GRectLightTextureManager.AtlasTexture ? GRectLightTextureManager.AtlasTexture->GetRHI() : nullptr;
@@ -1713,7 +1713,7 @@ FRHITexture* GetAtlasTexture()
 
 // Scope object allowing to force refresh of a slot texture, and locking/preventing 
 // the atlas update during the 'update'/'capture'
-FAtlasTextureInvalidationScope::FAtlasTextureInvalidationScope(UTexture* In)
+FAtlasTextureInvalidationScope::FAtlasTextureInvalidationScope(const UTexture* In)
 {
 	if (In)
 	{
@@ -1728,7 +1728,7 @@ FAtlasTextureInvalidationScope::FAtlasTextureInvalidationScope(UTexture* In)
 				// Sanity check, allow a single lock/capture refresh at a time.
 				check(GRectLightTextureManager.bLock == false);
 
-				Texture = In;
+				bLocked = true;
 				Slot.bForceRefresh = true;
 				GRectLightTextureManager.bLock = true;
 				return;
@@ -1739,12 +1739,13 @@ FAtlasTextureInvalidationScope::FAtlasTextureInvalidationScope(UTexture* In)
 
 FAtlasTextureInvalidationScope::~FAtlasTextureInvalidationScope()
 {
-	if (Texture)
+	if (bLocked)
 	{
 		// Sanity check, allow a single lock/capture refresh at a time.
 		check(GRectLightTextureManager.bLock == true);
 
 		GRectLightTextureManager.bLock = false;
+		bLocked = false;
 	}
 }
 
