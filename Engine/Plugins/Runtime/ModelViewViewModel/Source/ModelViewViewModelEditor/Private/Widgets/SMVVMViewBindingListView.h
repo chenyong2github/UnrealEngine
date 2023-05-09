@@ -43,7 +43,7 @@ private:
 private:
 	TWeakPtr<SBindingsPanel> BindingPanel;
 	TSharedPtr<STreeView<TSharedPtr<FBindingEntry>>> TreeView;
-	TArray<TSharedPtr<FBindingEntry>> RootWidgets;
+	TArray<TSharedPtr<FBindingEntry>> RootGroups;
 	TWeakObjectPtr<UMVVMWidgetBlueprintExtension_View> MVVMExtension;
 	mutable bool bSelectionChangedGuard = false;
 };
