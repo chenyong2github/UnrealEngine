@@ -51,7 +51,7 @@ public class MsQuic : ModuleRules
                 string LibPath = Path.Combine(MsQuicSdkPath, "win64", "lib");
                 string MsQuicLib = Path.Combine(LibPath, "msquic.lib");
 
-                string DllPath = Path.Combine(MsQuicBinariesPath, "win64", "bin");
+                string DllPath = Path.Combine(MsQuicBinariesPath, "win64");
                 string MsQuicDll = Path.Combine(DllPath, "msquic.dll");
 				
 				PublicAdditionalLibraries.Add(MsQuicLib);
@@ -66,7 +66,7 @@ public class MsQuic : ModuleRules
                 string IncludePath = Path.Combine(MsQuicSdkPath, "linux", "include");
                 PublicSystemIncludePaths.Add(IncludePath);
 
-                string LibraryPath = Path.Combine(MsQuicBinariesPath, "linux", "bin");
+                string LibraryPath = Path.Combine(MsQuicBinariesPath, "linux");
                 string MsQuicLibrary = Path.Combine(LibraryPath, "libmsquic.so");
 
 				PublicAdditionalLibraries.Add(MsQuicLibrary);
@@ -80,7 +80,7 @@ public class MsQuic : ModuleRules
                 string IncludePath = Path.Combine(MsQuicSdkPath, "macos", "include");
                 PublicSystemIncludePaths.Add(IncludePath);
 
-                string LibraryPath = Path.Combine(MsQuicBinariesPath, "macos", "bin");
+                string LibraryPath = Path.Combine(MsQuicBinariesPath, "macos");
                 string MsQuicLibrary = Path.Combine(LibraryPath, "libmsquic.dylib");
 
                 PublicAdditionalLibraries.Add(BinariesDir);
