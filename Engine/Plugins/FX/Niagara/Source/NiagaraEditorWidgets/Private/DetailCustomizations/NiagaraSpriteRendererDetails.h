@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "IDetailCustomization.h"
+#include "NiagaraRendererDetails.h"
 
 class IDetailLayoutBuilder;
 
-class FNiagaraSpriteRendererDetails : public IDetailCustomization
+class FNiagaraSpriteRendererDetails : public FNiagaraRendererDetails
 {
 public:	
 	static TSharedRef<IDetailCustomization> MakeInstance();

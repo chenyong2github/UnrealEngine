@@ -50,6 +50,19 @@ struct FNiagaraNewAssetDialogConfig
 };
 
 UENUM()
+enum class ENiagaraCategoryExpandState : uint8
+{
+	/** Categories will use the default expand / collapse state. */
+	Default,
+	/** Categories will use the default expand / collapse state unless they contain modified properties in which case they will expand. */
+	DefaultExpandModified,
+	/** Categories will ignore the default state and be collapsed. */
+	CollapseAll,
+	/** Categories will ignore the default state and be expanded. */
+	ExpandAll,
+};
+
+UENUM()
 enum class ENiagaraNamespaceMetadataOptions
 {
 	HideInScript,
@@ -284,6 +297,9 @@ public:
 	/** If true then the system editor will zoom to fit all emitters when opening an asset. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	bool bAlwaysZoomToFitSystemGraph = true;
+
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	ENiagaraCategoryExpandState RendererCategoryExpandState = ENiagaraCategoryExpandState::Default;
 
 	TArray<float> GetPlaybackSpeeds() const;
 

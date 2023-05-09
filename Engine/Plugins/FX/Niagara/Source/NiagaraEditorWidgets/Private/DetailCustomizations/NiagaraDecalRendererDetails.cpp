@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraLightRendererDetails.h"
+#include "NiagaraDecalRendererDetails.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailChildrenBuilder.h"
@@ -8,24 +8,25 @@
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Layout/SExpandableArea.h"
 
-TSharedRef<IDetailCustomization> FNiagaraLightRendererDetails::MakeInstance()
+#include "NiagaraEditorSettings.h"
+
+TSharedRef<IDetailCustomization> FNiagaraDecalRendererDetails::MakeInstance()
 {
-	return MakeShared<FNiagaraLightRendererDetails>();
+	return MakeShared<FNiagaraDecalRendererDetails>();
 }
 
-void FNiagaraLightRendererDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void FNiagaraDecalRendererDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	static const FName OrderedCategories[] =
 	{
-		FName("Light Rendering"),
-		FName("Bindings"),
+		FName("Decal Rendering"),
 	};
 
 	static const FName CollapsedCategories[] =
 	{
+		FName("Bindings"),
 		FName("Rendering"),
 		FName("Scalability"),
 	};
-
 	SetupCategories(DetailBuilder, MakeArrayView(OrderedCategories), MakeArrayView(CollapsedCategories));
 }

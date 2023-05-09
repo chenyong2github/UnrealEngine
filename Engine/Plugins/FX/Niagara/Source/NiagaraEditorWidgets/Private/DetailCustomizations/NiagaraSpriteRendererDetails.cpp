@@ -8,6 +8,8 @@
 #include "PropertyCustomizationHelpers.h"
 #include "Widgets/Layout/SExpandableArea.h"
 
+#include "NiagaraEditorSettings.h"
+
 TSharedRef<IDetailCustomization> FNiagaraSpriteRendererDetails::MakeInstance()
 {
 	return MakeShared<FNiagaraSpriteRendererDetails>();
@@ -15,36 +17,20 @@ TSharedRef<IDetailCustomization> FNiagaraSpriteRendererDetails::MakeInstance()
 
 void FNiagaraSpriteRendererDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	// Categories to put first
+	static const FName OrderedCategories[] =
 	{
-		static const FName CategoriesToCollapse[] =
-		{
-			FName("Sprite Rendering"),
-			FName("Sorting"),
-			FName("Visibility"),
-		};
+		FName("Sprite Rendering"),
+		FName("Sorting"),
+		FName("Visibility"),
+	};
 
-		for (const FName& Category : CategoriesToCollapse)
-		{
-			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(Category);
-		}
-	}
-
-	// Collapse default categories
+	static const FName CollapsedCategories[] =
 	{
-		static const FName CategoriesToCollapse[] =
-		{
-			FName("SubUV"),
-			FName("Cutout"),
-			FName("Bindings"),
-			FName("Rendering"),
-			FName("Scalability"),
-		};
-
-		for (const FName& Category : CategoriesToCollapse)
-		{
-			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(Category);
-			CategoryBuilder.InitiallyCollapsed(true);
-		}
-	}
+		FName("SubUV"),
+		FName("Cutout"),
+		FName("Bindings"),
+		FName("Rendering"),
+		FName("Scalability"),
+	};
+	SetupCategories(DetailBuilder, MakeArrayView(OrderedCategories), MakeArrayView(CollapsedCategories));
 }

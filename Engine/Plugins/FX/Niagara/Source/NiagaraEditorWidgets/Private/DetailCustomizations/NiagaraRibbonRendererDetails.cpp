@@ -15,36 +15,21 @@ TSharedRef<IDetailCustomization> FNiagaraRibbonRendererDetails::MakeInstance()
 
 void FNiagaraRibbonRendererDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	// Categories to put first
+	static const FName OrderedCategories[] =
 	{
-		static const FName CategoriesToCollapse[] =
-		{
-			FName("Ribbon Rendering"),
-			FName("Ribbon Shape"),
-			FName("Ribbon Tessellation"),
-			FName("Sorting"),
-			FName("Visibility"),
-		};
+		FName("Ribbon Rendering"),
+		FName("Ribbon Shape"),
+		FName("Ribbon Tessellation"),
+		FName("Sorting"),
+		FName("Visibility"),
+	};
 
-		for (const FName& Category : CategoriesToCollapse)
-		{
-			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(Category);
-		}
-	}
-
-	// Collapse default categories
+	static const FName CollapsedCategories[] =
 	{
-		static const FName CategoriesToCollapse[] =
-		{
-			FName("Bindings"),
-			FName("Rendering"),
-			FName("Scalability"),
-		};
+		FName("Bindings"),
+		FName("Rendering"),
+		FName("Scalability"),
+	};
 
-		for (const FName& Category : CategoriesToCollapse)
-		{
-			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(Category);
-			CategoryBuilder.InitiallyCollapsed(true);
-		}
-	}
+	SetupCategories(DetailBuilder, MakeArrayView(OrderedCategories), MakeArrayView(CollapsedCategories));
 }

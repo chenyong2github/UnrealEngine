@@ -113,37 +113,22 @@ void FNiagaraMeshRendererDetails::CustomizeDetails(IDetailLayoutBuilder& DetailB
 {
 	LayoutBuilder = &DetailBuilder;
 
-	// Categories to put first
+	static const FName OrderedCategories[] =
 	{
-		static const FName CategoriesToCollapse[] =
-		{
-			FName("Mesh Rendering"),
-			FName("Sorting"),
-			FName("Visibility"),
-		};
+		FName("Mesh Rendering"),
+		FName("Sorting"),
+		FName("Visibility"),
+	};
 
-		for (const FName& Category : CategoriesToCollapse)
-		{
-			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(Category);
-		}
-	}
-
-	// Collapse default categories
+	static const FName CollapsedCategories[] =
 	{
-		static const FName CategoriesToCollapse[] =
-		{
-			FName("Bindings"),
-			FName("Rendering"),
-			FName("Scalability"),
-			FName("SubUV"),
-		};
+		FName("Bindings"),
+		FName("Rendering"),
+		FName("Scalability"),
+		FName("SubUV"),
+	};
 
-		for (const FName& Category : CategoriesToCollapse)
-		{
-			IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(Category);
-			CategoryBuilder.InitiallyCollapsed(true);
-		}
-	}
+	SetupCategories(DetailBuilder, MakeArrayView(OrderedCategories), MakeArrayView(CollapsedCategories));
 
 	{
 		static const FName MeshesName = TEXT("Meshes");

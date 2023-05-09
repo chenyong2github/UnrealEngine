@@ -6,9 +6,9 @@
 
 class IDetailLayoutBuilder;
 
-class FNiagaraLightRendererDetails : public FNiagaraRendererDetails
+class FNiagaraDecalRendererDetails : public FNiagaraRendererDetails
 {
-public:
+public:	
 	static TSharedRef<IDetailCustomization> MakeInstance();
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
