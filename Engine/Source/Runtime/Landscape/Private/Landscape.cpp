@@ -3724,6 +3724,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		VirtualTextureNumLods = Landscape->VirtualTextureNumLods;
 		VirtualTextureRenderPassType = Landscape->VirtualTextureRenderPassType;
 		bEnableNanite = Landscape->bEnableNanite;
+
 		bUseCompressedHeightmapStorage = Landscape->bUseCompressedHeightmapStorage;
 #if WITH_EDITORONLY_DATA
 		bNaniteSkirtEnabled = Landscape->bNaniteSkirtEnabled;
