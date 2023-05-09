@@ -4,7 +4,7 @@
 
 #include "HAL/Platform.h"
 
-struct GAMEPLAYTAGSEDITOR_API FGameplayTagCustomizationOptions
+struct UE_DEPRECATED(5.3, "Options are not used anymore to customize the property customization behavior.") GAMEPLAYTAGSEDITOR_API FGameplayTagCustomizationOptions
 {
 	// If true, any Gameplay Tag Widget created should not offer an 'Add Tag' option 
 	bool bForceHideAddTag = false;

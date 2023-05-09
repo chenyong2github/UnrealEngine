@@ -11,6 +11,8 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SGridPanel.h"
+
 
 #define LOCTEXT_NAMESPACE "AddNewRestrictedGameplayTagWidget"
 
@@ -31,7 +33,6 @@ void SAddNewRestrictedGameplayTagWidget::Construct(const FArguments& InArgs)
 		HintText = FText::FromString(DefaultNewName);
 	}
 
-
 	bAddingNewRestrictedTag = false;
 	bShouldGetKeyboardFocus = false;
 
@@ -42,124 +43,119 @@ void SAddNewRestrictedGameplayTagWidget::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-
-		// Restricted Tag Name
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
+		SNew(SBorder)
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 4.0f)
-			.AutoWidth()
+			SNew(SGridPanel)
+			
+			// Restricted Tag Name
+			+ SGridPanel::Slot(0, 0)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SBox)
+				.MinDesiredWidth(150.0f)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+					.Text(LOCTEXT("NewTagName", "Name:"))
+				]
+			]
+			+ SGridPanel::Slot(1, 0)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SBox)
+				.MinDesiredWidth(300.0f)
+				[
+					SAssignNew(TagNameTextBox, SEditableTextBox)
+					.HintText(HintText)
+					.OnTextCommitted(this, &SAddNewRestrictedGameplayTagWidget::OnCommitNewTagName)
+				]
+			]
+			
+			// Tag Comment
+			+ SGridPanel::Slot(0, 1)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("NewTagName", "Name:"))
-			]
-
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 2.0f)
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
-			[
-				SAssignNew(TagNameTextBox, SEditableTextBox)
-				.MinDesiredWidth(240.0f)
-				.HintText(HintText)
-				.OnTextCommitted(this, &SAddNewRestrictedGameplayTagWidget::OnCommitNewTagName)
-			]
-		]
-
-		// Tag Comment
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 4.0f)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
 				.Text(LOCTEXT("TagComment", "Comment:"))
 			]
-
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 2.0f)
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
+			+ SGridPanel::Slot(1, 1)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SAssignNew(TagCommentTextBox, SEditableTextBox)
-				.MinDesiredWidth(240.0f)
-				.HintText(LOCTEXT("TagCommentHint", "Comment"))
-				.OnTextCommitted(this, &SAddNewRestrictedGameplayTagWidget::OnCommitNewTagName)
+				SNew(SBox)
+				.MinDesiredWidth(300.0f)
+				[
+					SAssignNew(TagCommentTextBox, SEditableTextBox)
+					.HintText(LOCTEXT("TagCommentHint", "Comment"))
+					.OnTextCommitted(this, &SAddNewRestrictedGameplayTagWidget::OnCommitNewTagName)
+				]
 			]
-		]
 
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 4.0f)
-			.AutoWidth()
+			// Allow non-restricted children
+			+ SGridPanel::Slot(0, 2)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
 				.Text(LOCTEXT("AllowNonRestrictedChildren", "Allow non-restricted children:"))
 			]
-
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 2.0f)
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
+			+ SGridPanel::Slot(1, 2)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SAssignNew(AllowNonRestrictedChildrenCheckBox, SCheckBox)
-			]
+				SNew(SBox)
+				.MinDesiredWidth(300.0f)
+				[
+					SAssignNew(AllowNonRestrictedChildrenCheckBox, SCheckBox)
+				]
 			]
 
-		// Tag Location
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 6.0f)
-			.AutoWidth()
+			// Tag Location
+			+ SGridPanel::Slot(0, 3)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("CreateTagSource", "Source:"))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
-
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 2.0f)
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
+			+ SGridPanel::Slot(1, 3)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SAssignNew(TagSourcesComboBox, SComboBox<TSharedPtr<FName> >)
-				.OptionsSource(&RestrictedTagSources)
-				.OnGenerateWidget(this, &SAddNewRestrictedGameplayTagWidget::OnGenerateTagSourcesComboBox)
-				.ContentPadding(2.0f)
-				.Content()
+				SNew(SBox)
+				.MinDesiredWidth(300.0f)
 				[
-					SNew(STextBlock)
-					.Text(this, &SAddNewRestrictedGameplayTagWidget::CreateTagSourcesComboBoxContent)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
+					SAssignNew(TagSourcesComboBox, SComboBox<TSharedPtr<FName> >)
+					.OptionsSource(&RestrictedTagSources)
+					.OnGenerateWidget(this, &SAddNewRestrictedGameplayTagWidget::OnGenerateTagSourcesComboBox)
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(this, &SAddNewRestrictedGameplayTagWidget::CreateTagSourcesComboBoxContent)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
 				]
 			]
-		]
 
-		// Add Tag Button
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		.HAlign(HAlign_Center)
-		.Padding(8.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			// Add Tag Button
+			+ SGridPanel::Slot(1, 4)
+			.Padding(5)
+			.HAlign(HAlign_Left)
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("AddNew", "Add New Tag"))
@@ -167,7 +163,7 @@ void SAddNewRestrictedGameplayTagWidget::Construct(const FArguments& InArgs)
 			]
 		]
 	];
-
+			
 	Reset();
 }
 
@@ -189,7 +185,7 @@ void SAddNewRestrictedGameplayTagWidget::PopulateTagSources()
 	Manager.GetRestrictedTagSources(Sources);
 
 	// Used to make sure we have a non-empty list of restricted tag sources. Not an actual source.
-	FName PlaceholderSource = NAME_None;
+	const FName PlaceholderSource = NAME_None;
 
 	// Add the placeholder source if no other sources exist
 	if (Sources.Num() == 0)
@@ -271,14 +267,22 @@ void SAddNewRestrictedGameplayTagWidget::AddSubtagFromParent(const FString& Pare
 	bShouldGetKeyboardFocus = true;
 }
 
+void SAddNewRestrictedGameplayTagWidget::AddDuplicate(const FString& ParentTagName, const FName& ParentTagSource, bool bAllowNonRestrictedChildren)
+{
+	SetTagName(FText::FromString(ParentTagName));
+	SelectTagSource(ParentTagSource);
+	SetAllowNonRestrictedChildren(bAllowNonRestrictedChildren);
+
+	bShouldGetKeyboardFocus = true;
+}
+
 void SAddNewRestrictedGameplayTagWidget::ValidateNewRestrictedTag()
 {
 	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 
 	FString TagName = TagNameTextBox->GetText().ToString();
 	FString TagComment = TagCommentTextBox->GetText().ToString();
-	bool bAllowNonRestrictedChildren = AllowNonRestrictedChildrenCheckBox->IsChecked();
-	FName TagSource = *TagSourcesComboBox->GetSelectedItem().Get();
+	const FName TagSource = *TagSourcesComboBox->GetSelectedItem().Get();
 
 	if (TagSource == NAME_None)
 	{
@@ -353,7 +357,7 @@ void SAddNewRestrictedGameplayTagWidget::CreateNewRestrictedGameplayTag()
 		AddRestrictedGameplayTagDialog->SetVisibility(EVisibility::Collapsed);
 	}
 
-	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+	const UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 
 	// Only support adding tags via ini file
 	if (Manager.ShouldImportTagsFromINI() == false)
@@ -361,10 +365,10 @@ void SAddNewRestrictedGameplayTagWidget::CreateNewRestrictedGameplayTag()
 		return;
 	}
 
-	FString TagName = TagNameTextBox->GetText().ToString();
-	FString TagComment = TagCommentTextBox->GetText().ToString();
-	bool bAllowNonRestrictedChildren = AllowNonRestrictedChildrenCheckBox->IsChecked();
-	FName TagSource = *TagSourcesComboBox->GetSelectedItem().Get();
+	const FString TagName = TagNameTextBox->GetText().ToString();
+	const FString TagComment = TagCommentTextBox->GetText().ToString();
+	const bool bAllowNonRestrictedChildren = AllowNonRestrictedChildrenCheckBox->IsChecked();
+	const FName TagSource = *TagSourcesComboBox->GetSelectedItem().Get();
 
 	if (TagName.IsEmpty())
 	{
@@ -383,7 +387,10 @@ void SAddNewRestrictedGameplayTagWidget::CreateNewRestrictedGameplayTag()
 
 void SAddNewRestrictedGameplayTagWidget::CancelNewTag()
 {
-	AddRestrictedGameplayTagDialog->SetVisibility(EVisibility::Collapsed);
+	if (AddRestrictedGameplayTagDialog.IsValid())
+	{
+		AddRestrictedGameplayTagDialog->SetVisibility(EVisibility::Collapsed);
+	}
 }
 
 TSharedRef<SWidget> SAddNewRestrictedGameplayTagWidget::OnGenerateTagSourcesComboBox(TSharedPtr<FName> InItem)

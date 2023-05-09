@@ -24,7 +24,7 @@ public:
 		SLATE_ARGUMENT( FString, NewRestrictedTagName ) // String that will initially populate the New Tag Name field
 	SLATE_END_ARGS();
 
-	virtual ~SAddNewRestrictedGameplayTagWidget();
+	virtual ~SAddNewRestrictedGameplayTagWidget() override;
 
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
@@ -38,6 +38,9 @@ public:
 
 	/** Begins the process of adding a subtag to a parent tag */
 	void AddSubtagFromParent(const FString& ParentTagName, const FName& ParentTagSource, bool bAllowNonRestrictedChildren);
+
+	/** Begins the process of adding a duplicate of existing tag */
+	void AddDuplicate(const FString& ParentTagName, const FName& ParentTagSource, bool bAllowNonRestrictedChildren);
 
 	/** Resets all input fields */
 	void Reset(FName TagSource = NAME_None);
@@ -82,7 +85,7 @@ private:
 	/** The name of the next gameplay tag to create */
 	TSharedPtr<SEditableTextBox> TagNameTextBox;
 
-	/** The comment to asign to the next gameplay tag to create*/
+	/** The comment to assign to the next gameplay tag to create*/
 	TSharedPtr<SEditableTextBox> TagCommentTextBox;
 
 	TSharedPtr<SCheckBox> AllowNonRestrictedChildrenCheckBox;
@@ -93,10 +96,10 @@ private:
 	/** Callback for when a new restricted gameplay tag has been added to the INI files */
 	FOnRestrictedGameplayTagAdded OnRestrictedGameplayTagAdded;
 
-	bool bAddingNewRestrictedTag;
+	bool bAddingNewRestrictedTag = false;
 
 	/** Tracks if this widget should get keyboard focus */
-	bool bShouldGetKeyboardFocus;
+	bool bShouldGetKeyboardFocus = false;
 
 	FString DefaultNewName;
 

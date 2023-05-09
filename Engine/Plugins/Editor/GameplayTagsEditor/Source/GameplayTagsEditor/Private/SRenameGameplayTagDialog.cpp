@@ -8,6 +8,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SWindow.h"
+#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "RenameGameplayTag"
 
@@ -20,7 +21,7 @@ void SRenameGameplayTagDialog::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew( SBorder )
+		SNew( SBox )
 		.Padding(FMargin(15))
 		[
 			SNew( SVerticalBox )
@@ -138,8 +139,8 @@ void SRenameGameplayTagDialog::RenameAndClose()
 {
 	IGameplayTagsEditorModule& Module = IGameplayTagsEditorModule::Get();
 
-	FString TagToRename = GameplayTagNode->GetCompleteTag().GetTagName().ToString();
-	FString NewTagName = NewTagNameTextBox->GetText().ToString();
+	const FString TagToRename = GameplayTagNode->GetCompleteTag().GetTagName().ToString();
+	const FString NewTagName = NewTagNameTextBox->GetText().ToString();
 
 	if (Module.RenameTagInINI(TagToRename, NewTagName))
 	{

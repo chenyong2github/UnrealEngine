@@ -9,6 +9,7 @@
 #include "Misc/Paths.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SGridPanel.h"
 
 #define LOCTEXT_NAMESPACE "AddNewGameplayTagSourceWidget"
 
@@ -28,76 +29,71 @@ void SAddNewGameplayTagSourceWidget::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-
-		// Tag Name
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
+		SNew(SBorder)
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 4.0f)
-			.AutoWidth()
+			SNew(SGridPanel)
+			// Tag Name
+			+ SGridPanel::Slot(0, 0)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("NewSourceName", "Name:"))
+				SNew(SBox)
+				.MinDesiredWidth(150.0f)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+					.Text(LOCTEXT("NewSourceName", "Name:"))
+				]
+			]
+			+ SGridPanel::Slot(1, 0)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SBox)
+				.MinDesiredWidth(300.0f)
+				[
+					SAssignNew(SourceNameTextBox, SEditableTextBox)
+					.HintText(HintText)
+				]
 			]
 
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 2.0f)
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
-			[
-				SAssignNew(SourceNameTextBox, SEditableTextBox)
-				.MinDesiredWidth(240.0f)
-				.HintText(HintText)
-			]
-		]
-
-		// Tag source root
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 6.0f)
-			.AutoWidth()
+			// Tag source root
+			+ SGridPanel::Slot(0, 1)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("ConfigPathLabel", "Config Path:"))
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
 				.ToolTipText(LOCTEXT("RootPathTooltip", "Set the base config path for added source, this includes paths from plugins and other places that call AddTagIniSearchPath"))
 			]
-
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 2.0f)
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
+			+ SGridPanel::Slot(1, 1)
+			.Padding(5)
+			.HAlign(HAlign_Left)
 			[
-				SAssignNew(TagRootsComboBox, SComboBox<TSharedPtr<FString> >)
-				.OptionsSource(&TagRoots)
-				.OnGenerateWidget(this, &SAddNewGameplayTagSourceWidget::OnGenerateTagRootsComboBox)
-				.ContentPadding(2.0f)
-				.Content()
+				SNew(SBox)
+				.MinDesiredWidth(300.0f)
 				[
-					SNew(STextBlock)
-					.Text(this, &SAddNewGameplayTagSourceWidget::CreateTagRootsComboBoxContent)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
+					SAssignNew(TagRootsComboBox, SComboBox<TSharedPtr<FString> >)
+					.OptionsSource(&TagRoots)
+					.OnGenerateWidget(this, &SAddNewGameplayTagSourceWidget::OnGenerateTagRootsComboBox)
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(this, &SAddNewGameplayTagSourceWidget::CreateTagRootsComboBoxContent)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
+					]
 				]
 			]
-		]
-
-		// Add Source Button
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		.HAlign(HAlign_Center)
-		.Padding(8.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			
+			// Add Source Button
+			+ SGridPanel::Slot(1, 2)
+			.Padding(5)
+			.HAlign(HAlign_Left)
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("AddNew", "Add New Source"))

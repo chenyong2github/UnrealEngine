@@ -22,6 +22,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"ApplicationCore",
 					"AssetTools",
 					"AssetRegistry",
 					"GameplayTags",
@@ -40,6 +41,7 @@ namespace UnrealBuildTool.Rules
 					"SourceControl",
 					"ToolMenus",
 					"SettingsEditor",
+					"ToolWidgets",
 				}
 			);
 

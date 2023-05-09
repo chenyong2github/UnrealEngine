@@ -27,6 +27,8 @@
 #include "Stats/StatsMisc.h"
 #include "Subsystems/ImportSubsystem.h"
 #include "UObject/ObjectSaveContext.h"
+#include "GameplayTagStyle.h"
+#include "SGameplayTagPicker.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagEditor"
 
@@ -41,6 +43,7 @@ public:
 	virtual void StartupModule() override
 	{
 		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FGameplayTagsEditorModule::OnPostEngineInit);
+		FGameplayTagStyle::Initialize();
 	}
 	
 	void OnPostEngineInit()
@@ -830,16 +833,20 @@ public:
 			return SNullWidget::NullWidget;
 		}
 
-		TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum> EditableContainers;
-		EditableContainers.Emplace(nullptr, GameplayTagContainer.Get());
+		TArray<FGameplayTagContainer> EditableContainers;
+		EditableContainers.Emplace(*GameplayTagContainer);
 
-		// This will keep the shared ptr and delegate alive as long as the widget is
-		SGameplayTagWidget::FOnTagChanged OnChanged = SGameplayTagWidget::FOnTagChanged::CreateLambda([OnSetTag, GameplayTagContainer]()
+		SGameplayTagPicker::FOnTagChanged OnChanged = SGameplayTagPicker::FOnTagChanged::CreateLambda([OnSetTag, GameplayTagContainer](const TArray<FGameplayTagContainer>& TagContainers)
 		{
-			OnSetTag.Execute(*GameplayTagContainer.Get());
+			if (TagContainers.Num() > 0)
+			{
+				*GameplayTagContainer.Get() = TagContainers[0];
+				OnSetTag.Execute(*GameplayTagContainer.Get());
+			}
 		});
 
-		return SNew(SGameplayTagWidget, EditableContainers)
+		return SNew(SGameplayTagPicker)
+			.TagContainers(EditableContainers)
 			.Filter(FilterString)
 			.ReadOnly(false)
 			.MultiSelect(true)
@@ -853,20 +860,20 @@ public:
 			return SNullWidget::NullWidget;
 		}
 
-		// Make a wrapper tag container
-		TSharedPtr<FGameplayTagContainer> GameplayTagContainer = MakeShareable(new FGameplayTagContainer(*GameplayTag.Get()));
+		TArray<FGameplayTagContainer> EditableContainers;
+		EditableContainers.Emplace(*GameplayTag);
 
-		TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum> EditableContainers;
-		EditableContainers.Emplace(nullptr, GameplayTagContainer.Get());
-
-		// This will keep the shared ptr and delegate alive as long as the widget is
-		SGameplayTagWidget::FOnTagChanged OnChanged = SGameplayTagWidget::FOnTagChanged::CreateLambda([OnSetTag, GameplayTag, GameplayTagContainer]()
+		SGameplayTagPicker::FOnTagChanged OnChanged = SGameplayTagPicker::FOnTagChanged::CreateLambda([OnSetTag, GameplayTag](const TArray<FGameplayTagContainer>& TagContainers)
 		{
-			*GameplayTag.Get() = GameplayTagContainer->First();
-			OnSetTag.Execute(*GameplayTag.Get());
+			if (TagContainers.Num() > 0)
+			{
+				*GameplayTag.Get() = TagContainers[0].First();
+				OnSetTag.Execute(*GameplayTag.Get());
+			}
 		});
 
-		return SNew(SGameplayTagWidget, EditableContainers)
+		return SNew(SGameplayTagPicker)
+			.TagContainers(EditableContainers)
 			.Filter(FilterString)
 			.ReadOnly(false)
 			.MultiSelect(false)

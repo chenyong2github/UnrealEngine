@@ -294,6 +294,7 @@ private:
 
 	friend class UGameplayTagsManager;
 	friend class SGameplayTagWidget;
+	friend class SGameplayTagPicker;
 };
 
 /** Holds data about the tag dictionary, is in a singleton UObject */

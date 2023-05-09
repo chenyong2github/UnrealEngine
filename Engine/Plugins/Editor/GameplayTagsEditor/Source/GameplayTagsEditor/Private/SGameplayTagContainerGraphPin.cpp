@@ -2,59 +2,63 @@
 
 #include "SGameplayTagContainerGraphPin.h"
 #include "EdGraph/EdGraphSchema.h"
-#include "GameplayTagPinUtilities.h"
 #include "GameplayTagContainer.h"
-#include "Widgets/SBoxPanel.h"
+#include "SGameplayTagContainerCombo.h"
+#include "GameplayTagEditorUtilities.h"
+#include "ScopedTransaction.h"
 
-#define LOCTEXT_NAMESPACE "GameplayTagGraphPin"
+#define LOCTEXT_NAMESPACE "GameplayTagContainerGraphPin"
 
 void SGameplayTagContainerGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
-	SGameplayTagGraphPin::Construct(SGameplayTagGraphPin::FArguments(), InGraphPinObj);
+	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 }
 
 void SGameplayTagContainerGraphPin::ParseDefaultValueData()
 {
-	FilterString = GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(GraphPinObj);
-
 	// Read using import text, but with serialize flag set so it doesn't always throw away invalid ones
-	TagContainer->FromExportString(GraphPinObj->GetDefaultAsString(), PPF_SerializedAsImportText);
+	GameplayTagContainer.FromExportString(GraphPinObj->GetDefaultAsString(), PPF_SerializedAsImportText);
 }
 
-TSharedRef<SWidget> SGameplayTagContainerGraphPin::GetEditContent()
+void SGameplayTagContainerGraphPin::OnTagContainerChanged(const FGameplayTagContainer& NewTagContainer)
 {
-	EditableContainers.Empty();
-	EditableContainers.Add( SGameplayTagWidget::FEditableGameplayTagContainerDatum( GraphPinObj->GetOwningNode(), TagContainer.Get() ) );
+	GameplayTagContainer = NewTagContainer;
 
-	return SNew( SVerticalBox )
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.MaxHeight( 400 )
-		[
-			SNew( SGameplayTagWidget, EditableContainers )
-			.OnTagChanged(this, &SGameplayTagContainerGraphPin::SaveDefaultValueData)
-			.TagContainerName( TEXT("SGameplayTagContainerGraphPin") )
-			.Visibility( this, &SGraphPin::GetDefaultValueVisibility )
-			.MultiSelect(true)
-			.Filter(FilterString)
-		];
-}
+	const FString TagContainerString = UE::GameplayTags::EditorUtilities::GameplayTagContainerExportText(GameplayTagContainer);
 
-void SGameplayTagContainerGraphPin::SaveDefaultValueData()
-{	
-	RefreshCachedData();
-
-	// Set Pin Data
-	FString TagContainerString = TagContainer->ToString();
 	FString CurrentDefaultValue = GraphPinObj->GetDefaultAsString();
 	if (CurrentDefaultValue.IsEmpty())
 	{
-		CurrentDefaultValue = FString(TEXT("(GameplayTags=)"));
+		CurrentDefaultValue = UE::GameplayTags::EditorUtilities::GameplayTagContainerExportText(FGameplayTagContainer());
 	}
+			
 	if (!CurrentDefaultValue.Equals(TagContainerString))
 	{
+		const FScopedTransaction Transaction(LOCTEXT("ChangeDefaultValue", "Change Pin Default Value"));
 		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, TagContainerString);
 	}
+}
+
+TSharedRef<SWidget> SGameplayTagContainerGraphPin::GetDefaultValueWidget()
+{
+	if (GraphPinObj == nullptr)
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	ParseDefaultValueData();
+	const FString FilterString = UE::GameplayTags::EditorUtilities::ExtractTagFilterStringFromGraphPin(GraphPinObj);
+
+	return SNew(SGameplayTagContainerCombo)
+		.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
+		.Filter(FilterString)
+		.TagContainer(this, &SGameplayTagContainerGraphPin::GetTagContainer)
+		.OnTagContainerChanged(this, &SGameplayTagContainerGraphPin::OnTagContainerChanged);
+}
+
+FGameplayTagContainer SGameplayTagContainerGraphPin::GetTagContainer() const
+{
+	return GameplayTagContainer;
 }
 
 #undef LOCTEXT_NAMESPACE

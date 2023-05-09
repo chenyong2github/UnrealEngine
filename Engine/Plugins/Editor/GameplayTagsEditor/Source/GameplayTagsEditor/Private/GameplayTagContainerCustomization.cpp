@@ -1,53 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTagContainerCustomization.h"
-#include "AssetRegistry/AssetIdentifier.h"
-#include "Widgets/Input/SComboButton.h"
-
-
-
-#include "Editor.h"
 #include "DetailWidgetRow.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Framework/Views/TableViewMetadata.h"
 #include "GameplayTagsEditorModule.h"
 #include "GameplayTagsManager.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "Layout/WidgetPath.h"
-#include "SGameplayTagWidget.h"
-#include "ScopedTransaction.h"
 #include "Widgets/Input/SHyperlink.h"
-#include "EditorFontGlyphs.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SGameplayTagContainerCombo.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "ScopedTransaction.h"
+#include "GameplayTagEditorUtilities.h"
+#include "SGameplayTagPicker.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagContainerCustomization"
 
 TSharedRef<IPropertyTypeCustomization> FGameplayTagContainerCustomizationPublic::MakeInstance()
 {
-	return MakeInstanceWithOptions({});
+	return MakeShareable(new FGameplayTagContainerCustomization());
 }
 
+// Deprecated version.
 TSharedRef<IPropertyTypeCustomization> FGameplayTagContainerCustomizationPublic::MakeInstanceWithOptions(const FGameplayTagContainerCustomizationOptions& Options)
 {
-	return MakeShareable(new FGameplayTagContainerCustomization(Options));
+	return MakeShareable(new FGameplayTagContainerCustomization());
 }
 
-FGameplayTagContainerCustomization::FGameplayTagContainerCustomization(const FGameplayTagContainerCustomizationOptions& InOptions):
-	Options(InOptions)
-{}
+FGameplayTagContainerCustomization::FGameplayTagContainerCustomization()
+{
+}
 
-void FGameplayTagContainerCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FGameplayTagContainerCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	StructPropertyHandle = InStructPropertyHandle;
-
-	// We are registering to a global callback used to let us know when the GameplayTags have updated across the project.
-	// We are using this to piggyback on notifications that can be sent by other Properties to update ourselves. In particular, FInheritedTagContainer::CombinedTags.
-	UGameplayTagsManager::OnEditorRefreshGameplayTagTree.AddSP(this, &FGameplayTagContainerCustomization::RefreshTagList);
-
-	FSimpleDelegate OnTagContainerChanged = FSimpleDelegate::CreateSP(this, &FGameplayTagContainerCustomization::RefreshTagList);
-	StructPropertyHandle->SetOnPropertyValueChanged(OnTagContainerChanged);
-
-	FUIAction SearchForReferencesAction(FExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::OnWholeContainerSearchForReferences));
 
 	HeaderRow
 		.NameContent()
@@ -55,410 +38,87 @@ void FGameplayTagContainerCustomization::CustomizeHeader(TSharedRef<class IPrope
 			StructPropertyHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
-		.MaxDesiredWidth(512)
+		.VAlign(VAlign_Center)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
+			SNew(SBox)
+			.Padding(FMargin(0,2,0,1))
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SAssignNew(EditButton, SComboButton)
-					.OnGetMenuContent(this, &FGameplayTagContainerCustomization::GetListContent)
-					.OnMenuOpenChanged(this, &FGameplayTagContainerCustomization::OnGameplayTagListMenuOpenStateChanged)
-					.ContentPadding(FMargin(2.0f, 2.0f))
-					.MenuPlacement(MenuPlacement_BelowAnchor)
-					.ButtonContent()
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("GameplayTagContainerCustomization_Edit", "Edit..."))
-					]
-				]
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SButton)
-					.IsEnabled(!StructPropertyHandle->IsEditConst())
-					.Text(LOCTEXT("GameplayTagContainerCustomization_Clear", "Clear All"))
-					.OnClicked(this, &FGameplayTagContainerCustomization::OnClearAllButtonClicked)
-					.Visibility(this, &FGameplayTagContainerCustomization::GetClearAllVisibility)
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SBorder)
-				.Padding(4.0f)
-				.Visibility(this, &FGameplayTagContainerCustomization::GetTagsListVisibility)
-				[
-					ActiveTags()
-				]
+				SNew(SGameplayTagContainerCombo)
+				.PropertyHandle(StructPropertyHandle)
 			]
 		]
-		.AddCustomContextMenuAction(SearchForReferencesAction,
-			LOCTEXT("WholeContainerSearchForReferences", "Search For References"),
-			LOCTEXT("WholeContainerSearchForReferencesTooltip", "Find referencers that reference *any* of the tags in this container"),
-			FSlateIcon());
-
-	GEditor->RegisterForUndo(this);
+	.PasteAction(FUIAction(
+	FExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::OnPasteTag),
+		FCanExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::CanPasteTag)));
 }
 
-TSharedRef<SWidget> FGameplayTagContainerCustomization::ActiveTags()
-{	
-	RefreshTagList();
+void FGameplayTagContainerCustomization::OnPasteTag() const
+{
+	if (!StructPropertyHandle.IsValid())
+	{
+		return;
+	}
 	
-	SAssignNew( TagListView, SListView<TSharedPtr<FGameplayTag>> )
-	.ListItemsSource(&TagList)
-	.SelectionMode(ESelectionMode::None)
-	.OnGenerateRow(this, &FGameplayTagContainerCustomization::MakeListViewWidget);
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+	bool bHandled = false;
 
-	return TagListView->AsShared();
-}
-
-void FGameplayTagContainerCustomization::RefreshTagList()
-{
-	// Build the set of tags on any instance, collapsing common tags together
-	TSet<FGameplayTag> CurrentTagSet;
-	if (StructPropertyHandle.IsValid())
-	{
-		SGameplayTagWidget::EnumerateEditableTagContainersFromPropertyHandle(StructPropertyHandle.ToSharedRef(), [&CurrentTagSet](const SGameplayTagWidget::FEditableGameplayTagContainerDatum& EditableTagContainer)
-		{
-			if (const FGameplayTagContainer* Container = EditableTagContainer.TagContainer)
-			{
-				for (auto It = Container->CreateConstIterator(); It; ++It)
-				{
-					CurrentTagSet.Add(*It);
-				}
-			}
-			return true;
-		});
-	}
-
-	// Convert the set into pointers for the combo
-	TagList.Empty(CurrentTagSet.Num());
-	for (const FGameplayTag& CurrentTag : CurrentTagSet)
-	{
-		TagList.Add(MakeShared<FGameplayTag>(CurrentTag));
-	}
-	TagList.StableSort([](const TSharedPtr<FGameplayTag>& One, const TSharedPtr<FGameplayTag>& Two)
-	{
-		return *One < *Two;
-	});
-
-	// Refresh the slate list
-	if( TagListView.IsValid() )
-	{
-		TagListView->RequestListRefresh();
-	}
-}
-
-TSharedRef<ITableRow> FGameplayTagContainerCustomization::MakeListViewWidget(TSharedPtr<FGameplayTag> Item, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	TSharedPtr<SWidget> TagItem;
-
-	const FString TagName = Item->ToString();
-	if (UGameplayTagsManager::Get().ShowGameplayTagAsHyperLinkEditor(TagName))
-	{
-		TagItem = SNew(SHyperlink)
-			.Text(FText::FromString(TagName))
-			.OnNavigate(this, &FGameplayTagContainerCustomization::OnTagDoubleClicked, *Item.Get());
-	}
-	else
-	{
-		TagItem = SNew(STextBlock)
-			.Text(FText::FromString(TagName));
-	}
-
-	return SNew( STableRow< TSharedPtr<FString> >, OwnerTable )
-	[
-		SNew(SBorder)
-		.OnMouseButtonDown(this, &FGameplayTagContainerCustomization::OnSingleTagMouseButtonPressed, TagName)
-		.Padding(0.0f)
-		.BorderImage(FAppStyle::GetBrush("NoBorder"))
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0,0,2,0)
-			[
-				SNew(SButton)
-				.IsEnabled(!StructPropertyHandle->IsEditConst())
-				.ContentPadding(FMargin(0))
-				.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
-				.ForegroundColor(FSlateColor::UseForeground())
-				.OnClicked(this, &FGameplayTagContainerCustomization::OnRemoveTagClicked, *Item.Get())
-				[
-					SNew(STextBlock)
-					.Font(FAppStyle::Get().GetFontStyle("FontAwesome.9"))
-					.Text(FEditorFontGlyphs::Times)
-				]
-			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				TagItem.ToSharedRef()
-			]
-		]
-	];
-}
-
-FReply FGameplayTagContainerCustomization::OnSingleTagMouseButtonPressed(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, FString TagName)
-{
-	if (MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
-	{
-		FMenuBuilder MenuBuilder(/*bShouldCloseWindowAfterMenuSelection=*/ true, /*CommandList=*/ nullptr);
-
-		FUIAction SearchForReferencesAction(FExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::OnSingleTagSearchForReferences, TagName));
-
-		MenuBuilder.BeginSection(NAME_None, FText::Format(LOCTEXT("SingleTagMenuHeading", "Tag Actions ({0})"), FText::AsCultureInvariant(TagName)));
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("SingleTagSearchForReferences", "Search For References"),
-			FText::Format(LOCTEXT("SingleTagSearchForReferencesTooltip", "Find references to the tag {0}"), FText::AsCultureInvariant(TagName)),
-			FSlateIcon(),
-			SearchForReferencesAction);
-		
-		if (StructPropertyHandle)
-		{
-			FUIAction CopyAction = FUIAction(FExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::OnCopyTag, TagName));
-			FUIAction PasteAction = FUIAction(FExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::OnPasteTag),FCanExecuteAction::CreateSP(this, &FGameplayTagContainerCustomization::CanPaste));
-			
-			if (CopyAction.IsBound() && PasteAction.IsBound())
-			{
-				FMenuEntryParams CopyContentParams;
-				CopyContentParams.LabelOverride = NSLOCTEXT("PropertyView", "CopyProperty", "Copy");
-				CopyContentParams.ToolTipOverride = FText::Format(LOCTEXT("SingleTagCopyTooltip", "Copy tag {0}"), FText::AsCultureInvariant(TagName));
-				CopyContentParams.IconOverride = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy");
-				CopyContentParams.DirectActions = CopyAction;
-				MenuBuilder.AddMenuEntry(CopyContentParams);
-
-				FMenuEntryParams PasteContentParams;
-				PasteContentParams.LabelOverride = NSLOCTEXT("PropertyView", "PasteProperty", "Paste");
-				PasteContentParams.ToolTipOverride = FText::Format(LOCTEXT("SingleTagPasteTooltip", "Paste tag {0}"), FText::AsCultureInvariant(TagName));
-				PasteContentParams.IconOverride = FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Paste");
-				PasteContentParams.DirectActions = PasteAction;
-				MenuBuilder.AddMenuEntry(PasteContentParams);
-			}
-		}
-		
-		MenuBuilder.EndSection();
-
-		// Spawn context menu
-		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
-		FSlateApplication::Get().PushMenu(TagListView.ToSharedRef(), WidgetPath, MenuBuilder.MakeWidget(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
-
-		return FReply::Handled();
-	}
-
-	return FReply::Unhandled();
-}
-
-void FGameplayTagContainerCustomization::OnSingleTagSearchForReferences(FString TagName)
-{
-	FName TagFName(*TagName, FNAME_Find);
-	if (FEditorDelegates::OnOpenReferenceViewer.IsBound() && !TagFName.IsNone())
-	{
-		TArray<FAssetIdentifier> AssetIdentifiers;
-		AssetIdentifiers.Emplace(FGameplayTag::StaticStruct(), TagFName);
-		FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers, FReferenceViewerParams());
-	}
-}
-
-void FGameplayTagContainerCustomization::OnWholeContainerSearchForReferences()
-{
-	if (FEditorDelegates::OnOpenReferenceViewer.IsBound())
-	{
-		TArray<FAssetIdentifier> AssetIdentifiers;
-		AssetIdentifiers.Reserve(TagList.Num());
-		for (const TSharedPtr<FGameplayTag>& TagPtr : TagList)
-		{
-			if (TagPtr->IsValid())
-			{
-				AssetIdentifiers.Emplace(FGameplayTag::StaticStruct(), TagPtr->GetTagName());
-			}
-		}
-
-		FEditorDelegates::OnOpenReferenceViewer.Broadcast(AssetIdentifiers, FReferenceViewerParams());
-	}
-}
-
-void FGameplayTagContainerCustomization::OnTagDoubleClicked(FGameplayTag Tag)
-{
-	UGameplayTagsManager::Get().NotifyGameplayTagDoubleClickedEditor(Tag.ToString());
-}
-
-FReply FGameplayTagContainerCustomization::OnRemoveTagClicked(FGameplayTag Tag)
-{
-	TArray<FString> NewValues;
-	SGameplayTagWidget::EnumerateEditableTagContainersFromPropertyHandle(StructPropertyHandle.ToSharedRef(), [&Tag, &NewValues](const SGameplayTagWidget::FEditableGameplayTagContainerDatum& EditableTagContainer)
-	{
-		FGameplayTagContainer TagContainerCopy;
-		if (const FGameplayTagContainer* Container = EditableTagContainer.TagContainer)
-		{
-			TagContainerCopy = *Container;
-		}
-		TagContainerCopy.RemoveTag(Tag);
-
-		NewValues.Add(TagContainerCopy.ToString());
-		return true;
-	});
-
-	{
-		FScopedTransaction Transaction(LOCTEXT("RemoveGameplayTagFromContainer", "Remove Gameplay Tag"));
-		StructPropertyHandle->SetPerObjectValues(NewValues);
-	}
-
-	RefreshTagList();
-
-	return FReply::Handled();
-}
-
-TSharedRef<SWidget> FGameplayTagContainerCustomization::GetListContent()
-{
-	if (!StructPropertyHandle.IsValid() || StructPropertyHandle->GetProperty() == nullptr)
-	{
-		return SNullWidget::NullWidget;
-	}
-
-	FString Categories = UGameplayTagsManager::Get().GetCategoriesMetaFromPropertyHandle(StructPropertyHandle);
-
-	bool bReadOnly = StructPropertyHandle->IsEditConst();
-
-	TSharedRef<SGameplayTagWidget> TagWidget = SNew(SGameplayTagWidget, TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum>()) // empty container list as built from StructPropertyHandle
-		.Filter(Categories)
-		.ReadOnly(bReadOnly)
-		.TagContainerName(StructPropertyHandle->GetPropertyDisplayName().ToString())
-		.OnTagChanged(this, &FGameplayTagContainerCustomization::RefreshTagList)
-		.PropertyHandle(StructPropertyHandle)
-		.ForceHideAddNewTag(Options.bForceHideAddTag)
-		.ForceHideAddNewTagSource(Options.bForceHideAddTagSource);
-
-	LastTagWidget = TagWidget;
-
-	return SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.MaxHeight(400)
-		[
-			TagWidget
-		];
-}
-
-void FGameplayTagContainerCustomization::OnGameplayTagListMenuOpenStateChanged(bool bIsOpened)
-{
-	if (bIsOpened)
-	{
-		TSharedPtr<SGameplayTagWidget> TagWidget = LastTagWidget.Pin();
-		if (TagWidget.IsValid())
-		{
-			EditButton->SetMenuContentWidgetToFocus(TagWidget->GetWidgetToFocusOnOpen());
-		}
-	}
-}
-
-FReply FGameplayTagContainerCustomization::OnClearAllButtonClicked()
-{
-	{
-		FScopedTransaction Transaction(LOCTEXT("GameplayTagContainerCustomization_RemoveAllTags", "Remove All Gameplay Tags"));
-		StructPropertyHandle->SetValueFromFormattedString(FGameplayTagContainer().ToString());
-	}
-
-	RefreshTagList();
-
-	return FReply::Handled();
-}
-
-EVisibility FGameplayTagContainerCustomization::GetClearAllVisibility() const
-{
-	return TagList.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-EVisibility FGameplayTagContainerCustomization::GetTagsListVisibility() const
-{
-	return TagList.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-void FGameplayTagContainerCustomization::PostUndo( bool bSuccess )
-{
-	if( bSuccess )
-	{
-		RefreshTagList();
-	}
-}
-
-void FGameplayTagContainerCustomization::PostRedo( bool bSuccess )
-{
-	if( bSuccess )
-	{
-		RefreshTagList();
-	}
-}
-
-FGameplayTagContainerCustomization::~FGameplayTagContainerCustomization()
-{
-	// Forcibly close the popup to avoid crashes later
-	if (EditButton.IsValid() && EditButton->IsOpen())
-	{
-		EditButton->SetIsOpen(false);
-	}
-
-	GEditor->UnregisterForUndo(this);
-}
-
-void FGameplayTagContainerCustomization::OnCopyTag(FString TagName)
-{
-	FPlatformApplicationMisc::ClipboardCopy(*TagName);
-}
-
-void FGameplayTagContainerCustomization::OnPasteTag()
-{
-	FString TagName;
-	FPlatformApplicationMisc::ClipboardPaste(TagName);
-	
-	const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-
-	if (Tag.IsValid())
+	// Try to paste single tag
+	const FGameplayTag PastedTag = UE::GameplayTags::EditorUtilities::GameplayTagTryImportText(PastedText);
+	if (PastedTag.IsValid())
 	{
 		TArray<FString> NewValues;
-		SGameplayTagWidget::EnumerateEditableTagContainersFromPropertyHandle(StructPropertyHandle.ToSharedRef(), [&Tag, &NewValues](const SGameplayTagWidget::FEditableGameplayTagContainerDatum& EditableTagContainer)
+		SGameplayTagPicker::EnumerateEditableTagContainersFromPropertyHandle(StructPropertyHandle.ToSharedRef(), [&NewValues, PastedTag](const FGameplayTagContainer& EditableTagContainer)
 		{
-			FGameplayTagContainer TagContainerCopy;
-			if (const FGameplayTagContainer* Container = EditableTagContainer.TagContainer)
-			{
-				TagContainerCopy = *Container;
-			}
-			TagContainerCopy.AddTag(Tag);
+			FGameplayTagContainer TagContainerCopy = EditableTagContainer;
+			TagContainerCopy.AddTag(PastedTag);
 
 			NewValues.Add(TagContainerCopy.ToString());
 			return true;
 		});
 
-		{
-			FScopedTransaction Transaction(LOCTEXT("PasteGameplayTagFromContainer", "Paste Gameplay Tag"));
-			StructPropertyHandle->SetPerObjectValues(NewValues);
-		}
+		FScopedTransaction Transaction(LOCTEXT("GameplayTagContainerCustomization_PasteTag", "Paste Gameplay Tag"));
+		StructPropertyHandle->SetPerObjectValues(NewValues);
+		bHandled = true;
+	}
 
-		RefreshTagList();
+	// Try to paste a container
+	if (!bHandled)
+	{
+		const FGameplayTagContainer PastedTagContainer = UE::GameplayTags::EditorUtilities::GameplayTagContainerTryImportText(PastedText);
+		if (PastedTagContainer.IsValid())
+		{
+			// From property
+			FScopedTransaction Transaction(LOCTEXT("GameplayTagContainerCustomization_PasteTagContainer", "Paste Gameplay Tag Container"));
+			StructPropertyHandle->SetValueFromFormattedString(PastedText);
+			bHandled = true;
+		}
 	}
 }
 
-bool FGameplayTagContainerCustomization::CanPaste()
+bool FGameplayTagContainerCustomization::CanPasteTag() const
 {
-	FString TagName;
-	FPlatformApplicationMisc::ClipboardPaste(TagName);
-
-	if (TagName.Len() < NAME_SIZE)
+	if (!StructPropertyHandle.IsValid())
 	{
-		const FGameplayTag Tag = FGameplayTag::RequestGameplayTag(FName(TagName), false);
-		return Tag.IsValid();
+		return false;
 	}
+
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
 	
-    return false;
+	const FGameplayTag PastedTag = UE::GameplayTags::EditorUtilities::GameplayTagTryImportText(PastedText);
+	if (PastedTag.IsValid())
+	{
+		return true;
+	}
+
+	const FGameplayTagContainer PastedTagContainer = UE::GameplayTags::EditorUtilities::GameplayTagContainerTryImportText(PastedText);
+	if (PastedTagContainer.IsValid())
+	{
+		return true;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

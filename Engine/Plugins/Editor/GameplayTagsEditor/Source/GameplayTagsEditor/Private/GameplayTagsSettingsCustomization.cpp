@@ -5,7 +5,10 @@
 #include "GameplayTagsModule.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
-#include "SGameplayTagWidget.h"
+#include "SGameplayTagPicker.h"
+#include "SAddNewGameplayTagSourceWidget.h"
+#include "Widgets/Input/SButton.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "FGameplayTagsSettingsCustomization"
 
@@ -16,7 +19,6 @@ TSharedRef<IDetailCustomization> FGameplayTagsSettingsCustomization::MakeInstanc
 
 FGameplayTagsSettingsCustomization::FGameplayTagsSettingsCustomization()
 {
-	IGameplayTagsModule::OnTagSettingsChanged.AddRaw(this, &FGameplayTagsSettingsCustomization::OnTagTreeChanged);
 }
 
 FGameplayTagsSettingsCustomization::~FGameplayTagsSettingsCustomization()
@@ -26,9 +28,6 @@ FGameplayTagsSettingsCustomization::~FGameplayTagsSettingsCustomization()
 
 void FGameplayTagsSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 {
-	const float MaxPropertyWidth = 480.0f;
-	const float MaxPropertyHeight = 240.0f;
-
 	IDetailCategoryBuilder& GameplayTagsCategory = DetailLayout.EditCategory("GameplayTags");
 	{
 		TArray<TSharedRef<IPropertyHandle>> GameplayTagsProperties;
@@ -37,32 +36,104 @@ void FGameplayTagsSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 		TSharedPtr<IPropertyHandle> TagListProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGameplayTagsList, GameplayTagList), UGameplayTagsList::StaticClass());
 		TagListProperty->MarkHiddenByCustomization();
 
+		TSharedPtr<IPropertyHandle> NewTagSourceProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UGameplayTagsSettings, NewTagSource));
+		NewTagSourceProperty->MarkHiddenByCustomization();
+
 		for (TSharedPtr<IPropertyHandle> Property : GameplayTagsProperties)
 		{
-			if (Property->GetProperty() != TagListProperty->GetProperty())
+			if (Property->GetProperty() == TagListProperty->GetProperty())
 			{
-				GameplayTagsCategory.AddProperty(Property);
-			}
-			else
-			{
-				// Create a custom widget for the tag list
-
-				GameplayTagsCategory.AddCustomRow(TagListProperty->GetPropertyDisplayName(), false)
+				// Button to open tag manager
+				GameplayTagsCategory.AddCustomRow(TagListProperty->GetPropertyDisplayName(), /*bForAdvanced*/false)
 				.NameContent()
 				[
 					TagListProperty->CreatePropertyNameWidget()
 				]
 				.ValueContent()
-				.MaxDesiredWidth(MaxPropertyWidth)
 				[
-					SAssignNew(TagWidget, SGameplayTagWidget, TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum>())
-					.Filter(TEXT(""))
-					.MultiSelect(false)
-					.GameplayTagUIMode(EGameplayTagUIMode::ManagementMode)
-					.MaxHeight(MaxPropertyHeight)
-					.OnTagChanged(this, &FGameplayTagsSettingsCustomization::OnTagChanged)
-					.RestrictedTags(false)
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.OnClicked_Lambda([this]()
+					{
+						FGameplayTagManagerWindowArgs Args;
+						Args.bRestrictedTags = false;
+						UE::GameplayTags::Editor::OpenGameplayTagManager(Args);
+						return FReply::Handled();
+					})
+					[
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(FMargin(0,0,4,0))
+						[
+							SNew( SImage )
+							.Image(FAppStyle::GetBrush("Icons.Settings"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("ManageGameplayTags", "Manage Gameplay Tags..."))
+						]
+					]
 				];
+			}
+			else if (Property->GetProperty() ==  NewTagSourceProperty->GetProperty())
+			{
+				// Button to open add source dialog
+				GameplayTagsCategory.AddCustomRow(NewTagSourceProperty->GetPropertyDisplayName(), /*bForAdvanced*/false)
+				.NameContent()
+				[
+					NewTagSourceProperty->CreatePropertyNameWidget()
+				]
+				.ValueContent()
+				[
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.OnClicked_Lambda([this]()
+					{
+						const FVector2D WindowSize(320, 110);
+						const TSharedRef<SWindow> Window = SNew(SWindow)
+							.Title(LOCTEXT("AddNewGameplayTagSourceTitle", "Add new Gameplay Tag Source"))
+							.ClientSize(WindowSize)
+							.SizingRule(ESizingRule::Autosized)
+							.AutoCenter(EAutoCenter::PreferredWorkArea)
+							.SupportsMaximize(false)
+							.SupportsMinimize(false)
+							.Content()
+							[
+								SNew(SAddNewGameplayTagSourceWidget)
+							];
+
+						GEditor->EditorAddModalWindow(Window);
+
+						return FReply::Handled();
+					})
+					[
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(FMargin(0,0,4,0))
+						[
+							SNew( SImage )
+							.Image(FAppStyle::GetBrush("Icons.Plus"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("AddNewGameplayTagSource", "Add new Gameplay Tag source..."))
+						]
+					]
+				];
+			}
+			else
+			{
+				GameplayTagsCategory.AddProperty(Property);
 			}
 		}
 	}
@@ -79,23 +150,41 @@ void FGameplayTagsSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 		{
 			if (Property->GetProperty() == RestrictedTagListProperty->GetProperty())
 			{
-				// Create a custom widget for the restricted tag list
-
+				// Button to open restricted tag manager
 				AdvancedGameplayTagsCategory.AddCustomRow(RestrictedTagListProperty->GetPropertyDisplayName(), true)
 				.NameContent()
 				[
 					RestrictedTagListProperty->CreatePropertyNameWidget()
 				]
 				.ValueContent()
-				.MaxDesiredWidth(MaxPropertyWidth)
 				[
-					SAssignNew(RestrictedTagWidget, SGameplayTagWidget, TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum>())
-					.Filter(TEXT(""))
-					.MultiSelect(false)
-					.GameplayTagUIMode(EGameplayTagUIMode::ManagementMode)
-					.MaxHeight(MaxPropertyHeight)
-					.OnTagChanged(this, &FGameplayTagsSettingsCustomization::OnTagChanged)
-					.RestrictedTags(true)
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.OnClicked_Lambda([this]()
+					{
+						FGameplayTagManagerWindowArgs Args;
+						Args.bRestrictedTags = true;
+						UE::GameplayTags::Editor::OpenGameplayTagManager(Args);
+						return FReply::Handled();
+					})
+					[
+						SNew(SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(FMargin(0,0,4,0))
+						[
+							SNew( SImage )
+							.Image(FAppStyle::GetBrush("Icons.Settings"))
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("ManageRestrictedGameplayTags", "Manage Restricted Gameplay Tags..."))
+						]
+					]
 				];
 			}
 			else
@@ -103,32 +192,6 @@ void FGameplayTagsSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 				AdvancedGameplayTagsCategory.AddProperty(Property);
 			}
 		}
-	}
-}
-
-void FGameplayTagsSettingsCustomization::OnTagChanged()
-{
-	if (TagWidget.IsValid())
-	{
-		TagWidget->RefreshTags();
-	}
-
-	if (RestrictedTagWidget.IsValid())
-	{
-		RestrictedTagWidget->RefreshTags();
-	}
-}
-
-void FGameplayTagsSettingsCustomization::OnTagTreeChanged()
-{
-	if (TagWidget.IsValid())
-	{
-		TagWidget->RefreshOnNextTick();
-	}
-
-	if (RestrictedTagWidget.IsValid())
-	{
-		RestrictedTagWidget->RefreshOnNextTick();
 	}
 }
 

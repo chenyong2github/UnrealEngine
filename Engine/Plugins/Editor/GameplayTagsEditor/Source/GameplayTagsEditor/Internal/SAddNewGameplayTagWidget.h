@@ -7,6 +7,7 @@
 class SEditableTextBox;
 namespace ETextCommit { enum Type : int; }
 template <typename OptionType> class SComboBox;
+class SNotificationItem;
 
 /** Widget allowing the user to create new gameplay tags */
 class SAddNewGameplayTagWidget : public SCompoundWidget
@@ -31,7 +32,7 @@ public:
 		SLATE_ARGUMENT(FString, NewTagName) // String that will initially populate the New Tag Name field
 	SLATE_END_ARGS();
 
-	GAMEPLAYTAGSEDITOR_API virtual ~SAddNewGameplayTagWidget();
+	GAMEPLAYTAGSEDITOR_API virtual ~SAddNewGameplayTagWidget() override;
 
 	GAMEPLAYTAGSEDITOR_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
@@ -45,6 +46,9 @@ public:
 
 	/** Begins the process of adding a subtag to a parent tag */
 	void AddSubtagFromParent(const FString& ParentTagName, const FName& ParentTagSource);
+
+	/** Begins the process of adding a duplicate of existing tag */
+	void AddDuplicate(const FString& ParentTagName, const FName& ParentTagSource);
 
 	/** Resets all input fields */
 	void Reset(EResetType ResetType);
@@ -66,6 +70,9 @@ private:
 	/** Callback for when the Add New Tag button is pressed */
 	FReply OnAddNewTagButtonPressed();
 
+	/** Return true of the tag data is valid and can be added. */
+	bool IsTagDataValid();
+	
 	/** Creates a new gameplay tag and adds it to the INI files based on the widget's stored parameters */
 	void CreateNewGameplayTag();
 
@@ -90,11 +97,11 @@ private:
 	/** The name of the next gameplay tag to create */
 	TSharedPtr<SEditableTextBox> TagNameTextBox;
 
-	/** The comment to asign to the next gameplay tag to create*/
+	/** The comment to asign to the next gameplay tag to create */
 	TSharedPtr<SEditableTextBox> TagCommentTextBox;
 
-	/** The INI file where the next gameplay tag will be creatd */
-	TSharedPtr<SComboBox<TSharedPtr<FName> > > TagSourcesComboBox;
+	/** The INI file where the next gameplay tag will be created */
+	TSharedPtr<SComboBox<TSharedPtr<FName>>> TagSourcesComboBox;
 
 	/** Callback for when a new gameplay tag has been added to the INI files */
 	FOnGameplayTagAdded OnGameplayTagAdded;
@@ -102,10 +109,15 @@ private:
 	/** Callback to see if the gameplay tag is valid. This should be used for any specialized rules that are not covered by IsValidGameplayTagString */
 	FIsValidTag IsValidTag;
 
-	bool bAddingNewTag;
+	/** Guards against the window closing when it loses focus due to source control checking out a file */
+	bool bAddingNewTag = false;
 
 	/** Tracks if this widget should get keyboard focus */
-	bool bShouldGetKeyboardFocus;
+	bool bShouldGetKeyboardFocus = false;
 
+	/** Cached from NewTagName argument. */
 	FString DefaultNewName;
+
+	/** Last error notification trying to create a new tag. */
+	TSharedPtr<SNotificationItem> NotificationItem;
 };

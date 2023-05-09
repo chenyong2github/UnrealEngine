@@ -5,7 +5,6 @@
 #include "IDetailCustomization.h"
 
 class SGameplayTagWidget;
-
 class IDetailLayoutBuilder;
 
 //////////////////////////////////////////////////////////////////////////
@@ -15,7 +14,7 @@ class FGameplayTagsSettingsCustomization : public IDetailCustomization
 {
 public:
 	FGameplayTagsSettingsCustomization();
-	virtual ~FGameplayTagsSettingsCustomization();
+	virtual ~FGameplayTagsSettingsCustomization() override;
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance();
@@ -23,16 +22,4 @@ public:
 	// IDetailCustomization interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 	// End of IDetailCustomization interface
-
-private:
-
-	/** Callback for when a tag changes */
-	void OnTagChanged();
-
-	/** Module callback for when the tag tree changes */
-	void OnTagTreeChanged();
-
-	TSharedPtr<SGameplayTagWidget> TagWidget;
-
-	TSharedPtr<SGameplayTagWidget> RestrictedTagWidget;
 };

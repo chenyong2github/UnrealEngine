@@ -8,37 +8,26 @@
 #include "Widgets/Input/SButton.h"
 #include "IDetailsView.h"
 #include "GameplayTagsManager.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "ScopedTransaction.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Docking/TabManager.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagQueryWidget"
 
-void SGameplayTagQueryWidget::Construct(const FArguments& InArgs, const TArray<FEditableGameplayTagQueryDatum>& EditableTagQueries, const TSharedPtr<IPropertyHandle> InTagQueryPropertyHandle)
+void SGameplayTagQueryWidget::Construct(const FArguments& InArgs, const TArray<FGameplayTagQuery>& InTagQueries)
 {
-	ensure(EditableTagQueries.Num() > 0);
-	TagQueries = EditableTagQueries;
-	TagQueryPropertyHandle = InTagQueryPropertyHandle;
+	ensure(InTagQueries.Num() > 0);
+	TagQueries = InTagQueries;
 
 	bReadOnly = InArgs._ReadOnly;
-	bAutoSave = InArgs._AutoSave;
-	OnClosePreSave = InArgs._OnClosePreSave;
-	OnSaveAndClose = InArgs._OnSaveAndClose;
-	OnCancel = InArgs._OnCancel;
-	OnQueryChanged = InArgs._OnQueryChanged;
-
-	// Tag the assets as transactional so they can support undo/redo
-	for (int32 AssetIdx = 0; AssetIdx < TagQueries.Num(); ++AssetIdx)
-	{
-		UObject* TagQueryOwner = TagQueries[AssetIdx].TagQueryOwner.Get();
-		if (TagQueryOwner)
-		{
-			TagQueryOwner->SetFlags(RF_Transactional);
-		}
-	}
+	OnQueriesCommitted = InArgs._OnQueriesCommitted;
 
 	UGameplayTagsManager::Get().OnGetCategoriesMetaFromPropertyHandle.AddSP(this, &SGameplayTagQueryWidget::OnGetCategoriesMetaFromPropertyHandle);
 
 	// build editable query object tree from the runtime query data
-	UEditableGameplayTagQuery* const EQ = CreateEditableQuery(*TagQueries[0].TagQuery);
-	EditableQuery = EQ;
+	UEditableGameplayTagQuery* const EditableGameplayTagQuery = CreateEditableQuery(TagQueries[0]);
+	EditableQuery = EditableGameplayTagQuery;
 
 	// create details view for the editable query object
 	FDetailsViewArgs ViewArgs;
@@ -48,8 +37,7 @@ void SGameplayTagQueryWidget::Construct(const FArguments& InArgs, const TArray<F
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	Details = PropertyModule.CreateDetailView(ViewArgs);
-	Details->SetObject(EQ);
-	Details->OnFinishedChangingProperties().AddSP(this, &SGameplayTagQueryWidget::OnFinishedChangingProperties);
+	Details->SetObject(EditableGameplayTagQuery);
 
 	ChildSlot
 	[
@@ -57,39 +45,51 @@ void SGameplayTagQueryWidget::Construct(const FArguments& InArgs, const TArray<F
 		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.VAlign(VAlign_Top)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.IsEnabled(!bReadOnly)
-					.Visibility(this, &SGameplayTagQueryWidget::GetSaveAndCloseButtonVisibility)
-					.OnClicked(this, &SGameplayTagQueryWidget::OnSaveAndCloseClicked)
-					.Text(LOCTEXT("GameplayTagQueryWidget_SaveAndClose", "Save and Close"))
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.Visibility(this, &SGameplayTagQueryWidget::GetCancelButtonVisibility)
-					.OnClicked(this, &SGameplayTagQueryWidget::OnCancelClicked)
-					.Text(LOCTEXT("GameplayTagQueryWidget_Cancel", "Close Without Saving"))
-				]
-			]
+
 			// to delete!
 			+ SVerticalBox::Slot()
+			.FillHeight(1)
+			.Padding(2)
 			[
 				Details.ToSharedRef()
 			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Right)
+			.Padding(5)
+			[
+				SNew(SUniformGridPanel)
+				.MinDesiredSlotHeight(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.MinDesiredSlotWidth(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.SlotPadding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+
+				+ SUniformGridPanel::Slot(0, 0)
+				[
+					// ok button
+					SNew(SButton)
+						.IsEnabled(!bReadOnly)
+						.HAlign(HAlign_Center)
+						.OnClicked(this, &SGameplayTagQueryWidget::OnOkClicked)
+						.Text(LOCTEXT("GameplayTagQueryWidget_OK", "OK"))
+				]
+
+				+ SUniformGridPanel::Slot(1, 0)
+				[
+					// cancel button
+					SNew(SButton)
+						.ContentPadding(FAppStyle::Get().GetMargin("StandardDialog.ContentPadding") )
+						.HAlign(HAlign_Center)
+						.OnClicked(this, &SGameplayTagQueryWidget::OnCancelClicked)
+						.Text(LOCTEXT("GameplayTagQueryWidget_Cancel", "Cancel"))
+				]
+			]
 		]
 	];
+	
 }
 
-void SGameplayTagQueryWidget::OnGetCategoriesMetaFromPropertyHandle(TSharedPtr<IPropertyHandle> PropertyHandle, FString& MetaString)
+void SGameplayTagQueryWidget::OnGetCategoriesMetaFromPropertyHandle(TSharedPtr<IPropertyHandle> PropertyHandle, FString& MetaString) const
 {
 	TArray<UObject*> OuterObjects;
 	PropertyHandle->GetOuterObjects(OuterObjects);
@@ -101,33 +101,12 @@ void SGameplayTagQueryWidget::OnGetCategoriesMetaFromPropertyHandle(TSharedPtr<I
 			if (Outer == EditableQuery)
 			{
 				// This is us, re-route
-				MetaString = UGameplayTagsManager::StaticGetCategoriesMetaFromPropertyHandle(TagQueryPropertyHandle);
+				MetaString = Filter;
 				return;
 			}
 			Outer = Outer->GetOuter();
 		}
 	}
-}
-
-void SGameplayTagQueryWidget::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
-{
-	// Auto saved changes will not call pre and post notify; auto save should only be used to make changes coming from blueprints
-	if (bAutoSave)
-	{
-		SaveToTagQuery();
-	}
-
-	OnQueryChanged.ExecuteIfBound();
-}
-
-EVisibility SGameplayTagQueryWidget::GetSaveAndCloseButtonVisibility() const
-{
-	return bAutoSave ? EVisibility::Collapsed : EVisibility::Visible;
-}
-
-EVisibility SGameplayTagQueryWidget::GetCancelButtonVisibility() const
-{
-	return bAutoSave ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 UEditableGameplayTagQuery* SGameplayTagQueryWidget::CreateEditableQuery(FGameplayTagQuery& Q)
@@ -145,10 +124,10 @@ UEditableGameplayTagQuery* SGameplayTagQueryWidget::CreateEditableQuery(FGamepla
 SGameplayTagQueryWidget::~SGameplayTagQueryWidget()
 {
 	// clean up our temp editing uobjects
-	UEditableGameplayTagQuery* const Q = EditableQuery.Get();
-	if (Q)
+	UEditableGameplayTagQuery* const TagQuery = EditableQuery.Get();
+	if (TagQuery)
 	{
-		Q->RemoveFromRoot();
+		TagQuery->RemoveFromRoot();
 	}
 	
 	UGameplayTagsManager::Get().OnGetCategoriesMetaFromPropertyHandle.RemoveAll(this);
@@ -163,45 +142,38 @@ void SGameplayTagQueryWidget::SaveToTagQuery()
 	}
 
 	FGameplayTagQuery NewQuery;
-	NewQuery.BuildFromEditableQuery(*EditableQuery.Get());
-	FString NewQueryAsString = EditableQuery.Get()->GetTagQueryExportText(NewQuery);
 
-	// set query through property handle if possible to propagate changes to loaded instances
-	// Note that all queries share the same property handle so we only need to set once since it will
-	// take care of applying to all selected objects
-	IPropertyHandle* PropertyHandle = TagQueryPropertyHandle.Get();
-	if (PropertyHandle != nullptr)
+	if (UEditableGameplayTagQuery* CurrentEditableQuery = EditableQuery.Get())
 	{
-		PropertyHandle->SetValueFromFormattedString(NewQueryAsString);
+		// Do not try to build empty queries.
+		if (CurrentEditableQuery->RootExpression != nullptr)
+		{
+			NewQuery.BuildFromEditableQuery(*CurrentEditableQuery);
+		}
 	}
 
-	// write to all selected queries
-	for (FEditableGameplayTagQueryDatum& TQ : TagQueries)
+	for (FGameplayTagQuery& TagQuery : TagQueries)
 	{
-		if (TQ.TagQueryExportText != nullptr)
-		{
-			*TQ.TagQueryExportText = NewQueryAsString;
-		}
-
-		// when property handle is not available (e.g. BP pin) we set the query and dirty the package manually
-		if (PropertyHandle == nullptr)
-		{
-			*TQ.TagQuery = NewQuery;
-			if (TQ.TagQueryOwner.IsValid())
-			{
-				TQ.TagQueryOwner->MarkPackageDirty();
-			}
-		}
+		TagQuery = NewQuery;
 	}
 }
 
-FReply SGameplayTagQueryWidget::OnSaveAndCloseClicked()
+FReply SGameplayTagQueryWidget::OnOkClicked()
 {
-	OnClosePreSave.ExecuteIfBound();
+	if (!bReadOnly)
+	{
+		FScopedTransaction Transaction( LOCTEXT("GameplayTagQueryWidget_Edit", "Edit Gameplay Tag Query") );
+		
+		SaveToTagQuery();
 
-	SaveToTagQuery();
-
-	OnSaveAndClose.ExecuteIfBound();
+		OnQueriesCommitted.ExecuteIfBound(TagQueries);
+		OnOk.ExecuteIfBound();
+	}
+	else
+	{
+		OnCancel.ExecuteIfBound();
+	}
+	
 	return FReply::Handled();
 }
 
@@ -210,5 +182,95 @@ FReply SGameplayTagQueryWidget::OnCancelClicked() const
 	OnCancel.ExecuteIfBound();
 	return FReply::Handled();
 }
+
+namespace UE::GameplayTags::Editor
+{
+
+static TWeakPtr<SGameplayTagQueryWidget> GlobalTagQueryWidget;
+static TWeakPtr<SWindow> GlobalTagQueryWidgetWindow;
+
+TWeakPtr<SGameplayTagQueryWidget> OpenGameplayTagQueryWindow(const FGameplayTagQueryWindowArgs& Args)
+{
+	CloseGameplayTagQueryWindow(nullptr);
+	
+	const FVector2D WindowSize(600, 400);
+
+	// Determine the position of the window so that it will spawn near the mouse, but not go off the screen.
+	FSlateRect AnchorRect;
+	if (Args.AnchorWidget.IsValid())
+	{
+		AnchorRect = Args.AnchorWidget->GetCachedGeometry().GetLayoutBoundingRect();
+	}
+	else
+	{
+		AnchorRect = FSlateRect::FromPointAndExtent(FSlateApplication::Get().GetCursorPos(), FVector2d());
+	}
+	AnchorRect = AnchorRect.ExtendBy(FMargin(20));
+	
+	const FVector2D ProposedPlacement = AnchorRect.GetTopLeft() + FVector2D(-WindowSize.X, -WindowSize.Y*0.2);
+	const FVector2D AdjustedSummonLocation = FSlateApplication::Get().CalculatePopupWindowPosition(AnchorRect, WindowSize, true, ProposedPlacement, Orient_Horizontal);
+
+	FText Title = Args.Title;
+	if (Title.IsEmpty())
+	{
+		Title = LOCTEXT("GameplayTagQueryWidget_Title", "Tag Query Editor");
+	}
+
+	TSharedRef<SGameplayTagQueryWidget> QueryWidget = SNew(SGameplayTagQueryWidget, Args.EditableQueries)
+			.OnQueriesCommitted(Args.OnQueriesCommitted)
+			.Filter(Args.Filter)
+			.ReadOnly(Args.bReadOnly);
+
+	TSharedRef<SWindow> Window = SNew(SWindow)
+		.Title(Args.Title)
+		.HasCloseButton(true)
+		.SupportsMinimize(false)
+		.SupportsMaximize(false)
+		.AutoCenter(EAutoCenter::None)
+		.ScreenPosition(AdjustedSummonLocation)
+		.ClientSize(WindowSize)
+		[
+			QueryWidget
+		];
+
+	// NOTE: FGlobalTabmanager::Get()-> is actually dereferencing a SharedReference, not a SharedPtr, so it cannot be null.
+	if (FGlobalTabmanager::Get()->GetRootWindow().IsValid())
+	{
+		FSlateApplication::Get().AddWindowAsNativeChild(Window, FGlobalTabmanager::Get()->GetRootWindow().ToSharedRef());
+	}
+	else
+	{
+		FSlateApplication::Get().AddWindow(Window);
+	}
+
+	GlobalTagQueryWidget = QueryWidget;
+	GlobalTagQueryWidgetWindow = Window;
+
+	auto CloseWindow = [WeakQueryWidget = GlobalTagQueryWidget]()
+	{
+		CloseGameplayTagQueryWindow(WeakQueryWidget);
+	};
+
+	QueryWidget->SetOnOk(FSimpleDelegate::CreateLambda(CloseWindow));
+	QueryWidget->SetOnCancel(FSimpleDelegate::CreateLambda(CloseWindow));
+
+	return QueryWidget;
+}
+
+void CloseGameplayTagQueryWindow(TWeakPtr<SGameplayTagQueryWidget> QueryWidget)
+{
+	if (GlobalTagQueryWidget.IsValid() && GlobalTagQueryWidgetWindow.IsValid())
+	{
+		if (!QueryWidget.IsValid() || QueryWidget == GlobalTagQueryWidget)
+		{
+			GlobalTagQueryWidgetWindow.Pin()->RequestDestroyWindow();
+		}
+	}
+	
+	GlobalTagQueryWidget = nullptr;
+	GlobalTagQueryWidgetWindow = nullptr;
+}
+
+} // UE::GameplayTags::Editor
 
 #undef LOCTEXT_NAMESPACE

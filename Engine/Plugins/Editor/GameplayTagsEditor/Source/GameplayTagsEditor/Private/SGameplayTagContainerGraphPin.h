@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "SGameplayTagGraphPin.h"
+#include "KismetPins/SGraphPinStructInstance.h"
+#include "GameplayTagContainer.h"
 
 /** Almost the same as a tag pin, but supports multiple tags */
-class SGameplayTagContainerGraphPin : public SGameplayTagGraphPin
+class SGameplayTagContainerGraphPin : public SGraphPinStructInstance
 {
 public:
 	SLATE_BEGIN_ARGS(SGameplayTagContainerGraphPin) {}
@@ -16,7 +17,11 @@ public:
 protected:
 	//~ Begin SGameplayTagGraphPin Interface
 	virtual void ParseDefaultValueData() override;
-	virtual void SaveDefaultValueData() override;
-	virtual TSharedRef<SWidget> GetEditContent() override;
+	virtual TSharedRef<SWidget> GetDefaultValueWidget() override;
 	//~ End SGraphPin Interface
+
+	FGameplayTagContainer GetTagContainer() const;
+	void OnTagContainerChanged(const FGameplayTagContainer& NewTagContainer);
+	
+	FGameplayTagContainer GameplayTagContainer;
 };

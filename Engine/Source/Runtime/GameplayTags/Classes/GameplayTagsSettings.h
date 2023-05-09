@@ -155,14 +155,19 @@ class GAMEPLAYTAGS_API UGameplayTagsSettings : public UGameplayTagsList
 	/** A list of .ini files used to store restricted gameplay tags. */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Advanced Gameplay Tags")
 	TArray<FRestrictedConfigInfo> RestrictedConfigFiles;
+
 #if WITH_EDITORONLY_DATA
-	// Dummy parameter used to hook the editor UI
+	// Dummy parameters used to hook the editor UI
 	/** Restricted Gameplay Tags.
 	 * 
 	 *  Restricted tags are intended to be top level tags that are important for your data hierarchy and modified by very few people.
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, transient, Category = "Advanced Gameplay Tags")
 	FString RestrictedTagList;
+
+	/** Add a new gameplay tag config file for saving plugin or game-specific tags. */
+	UPROPERTY(EditAnywhere, transient, Category = "GameplayTags")
+	FString NewTagSource;
 #endif
 
 #if WITH_EDITOR

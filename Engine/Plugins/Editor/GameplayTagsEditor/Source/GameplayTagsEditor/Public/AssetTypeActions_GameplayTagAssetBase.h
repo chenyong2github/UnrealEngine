@@ -4,6 +4,7 @@
 
 #include "AssetTypeActions_Base.h"
 
+struct FGameplayTagContainer;
 
 /** Base asset type actions for any classes with gameplay tagging */
 class GAMEPLAYTAGSEDITOR_API FAssetTypeActions_GameplayTagAssetBase : public FAssetTypeActions_Base
@@ -25,7 +26,7 @@ private:
 	 * 
 	 * @param TagAssets	Assets to open the editor with
 	 */
-	void OpenGameplayTagEditor(TArray<class UObject*> Objects, TArray<struct FGameplayTagContainer*> Containers);
+	void OpenGameplayTagEditor(TArray<UObject*> Objects, TArray<FGameplayTagContainer> Containers) const;
 
 	/** Name of the property of the owned gameplay tag container */
 	FName OwnedGameplayTagPropertyName;

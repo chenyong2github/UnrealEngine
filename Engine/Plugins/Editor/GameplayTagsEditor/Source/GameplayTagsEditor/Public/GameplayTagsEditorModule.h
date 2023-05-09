@@ -83,6 +83,7 @@ public:
 struct GAMEPLAYTAGSEDITOR_API FGameplayTagCustomizationPublic
 {
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+	UE_DEPRECATED(5.3, "FGameplayTagCustomizationOptions are deprecated. The options are not used anymore, use the version without options.")
 	static TSharedRef<IPropertyTypeCustomization> MakeInstanceWithOptions(const FGameplayTagCustomizationOptions& Options);
 };
 
@@ -90,6 +91,7 @@ struct GAMEPLAYTAGSEDITOR_API FGameplayTagCustomizationPublic
 struct GAMEPLAYTAGSEDITOR_API FGameplayTagContainerCustomizationPublic
 {
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+	UE_DEPRECATED(5.3, "FGameplayTagContainerCustomizationOptions are deprecated. The options are not used anymore, use the version without options.")
 	static TSharedRef<IPropertyTypeCustomization> MakeInstanceWithOptions(const FGameplayTagContainerCustomizationOptions& Options);
 };
 

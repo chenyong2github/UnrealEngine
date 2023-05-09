@@ -5,6 +5,7 @@
 #include "EdGraphUtilities.h"
 #include "GameplayTagContainer.h"
 #include "EdGraphSchema_K2.h"
+#include "SGameplayTagGraphPin.h"
 #include "SGameplayTagContainerGraphPin.h"
 #include "SGameplayTagQueryGraphPin.h"
 

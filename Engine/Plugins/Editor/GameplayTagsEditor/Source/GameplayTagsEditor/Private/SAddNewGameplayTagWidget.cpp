@@ -2,7 +2,6 @@
 
 #include "SAddNewGameplayTagWidget.h"
 #include "DetailLayoutBuilder.h"
-#include "Framework/Views/TableViewMetadata.h"
 #include "GameplayTagsEditorModule.h"
 #include "GameplayTagsManager.h"
 #include "GameplayTagsModule.h"
@@ -11,6 +10,9 @@
 #include "Misc/MessageDialog.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 
 #define LOCTEXT_NAMESPACE "AddNewGameplayTagWidget"
 
@@ -24,14 +26,12 @@ SAddNewGameplayTagWidget::~SAddNewGameplayTagWidget()
 
 void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 {
-	
 	FText HintText = LOCTEXT("NewTagNameHint", "X.Y.Z");
 	DefaultNewName = InArgs._NewTagName;
 	if (DefaultNewName.IsEmpty() == false)
 	{
 		HintText = FText::FromString(DefaultNewName);
 	}
-
 
 	bAddingNewTag = false;
 	bShouldGetKeyboardFocus = false;
@@ -44,119 +44,122 @@ void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-
-		// Tag Name
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
+		SNew(SBorder)
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 4.0f)
-			.AutoWidth()
+			SNew(SGridPanel)
+			
+			// Tag Name
+			+ SGridPanel::Slot(0, 0)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SBox)
+				.MinDesiredWidth(150.0f)
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+					.Text(LOCTEXT("NewTagName", "Name:"))
+				]
+			]
+			+ SGridPanel::Slot(1, 0)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SBox)
+				.MinDesiredWidth(300.0f)
+				[
+					SAssignNew(TagNameTextBox, SEditableTextBox)
+					.HintText(HintText)
+					.OnTextCommitted(this, &SAddNewGameplayTagWidget::OnCommitNewTagName)
+				]
+			]
+			
+			// Tag Comment
+			+ SGridPanel::Slot(0, 1)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("NewTagName", "Name:"))
-			]
-
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 2.0f)
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
-			[
-				SAssignNew(TagNameTextBox, SEditableTextBox)
-				.MinDesiredWidth(240.0f)
-				.HintText(HintText)
-				.OnTextCommitted(this, &SAddNewGameplayTagWidget::OnCommitNewTagName)
-			]
-		]
-
-		// Tag Comment
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 4.0f)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
 				.Text(LOCTEXT("TagComment", "Comment:"))
 			]
-
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 2.0f)
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
+			+ SGridPanel::Slot(1, 1)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SAssignNew(TagCommentTextBox, SEditableTextBox)
-				.MinDesiredWidth(240.0f)
-				.HintText(LOCTEXT("TagCommentHint", "Comment"))
-				.OnTextCommitted(this, &SAddNewGameplayTagWidget::OnCommitNewTagName)
+				SNew(SBox)
+				.MinDesiredWidth(300.0f)
+				[
+					SAssignNew(TagCommentTextBox, SEditableTextBox)
+					.HintText(LOCTEXT("TagCommentHint", "Comment"))
+					.OnTextCommitted(this, &SAddNewGameplayTagWidget::OnCommitNewTagName)
+				]
 			]
-		]
 
-		// Tag Location
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 6.0f)
-			.AutoWidth()
+			// Tag Location
+			+ SGridPanel::Slot(0, 2)
+			.Padding(5)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("CreateTagSource", "Source:"))
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
-
-			+ SHorizontalBox::Slot()
-			.Padding(2.0f, 2.0f)
-			.FillWidth(1.0f)
-			.HAlign(HAlign_Right)
-			[
-				SAssignNew(TagSourcesComboBox, SComboBox<TSharedPtr<FName> >)
-				.OptionsSource(&TagSources)
-				.OnGenerateWidget(this, &SAddNewGameplayTagWidget::OnGenerateTagSourcesComboBox)
-				.ToolTipText(this, &SAddNewGameplayTagWidget::CreateTagSourcesComboBoxToolTip)
-				.ContentPadding(2.0f)
-				.Content()
-				[
-					SNew(STextBlock)
-					.Text(this, &SAddNewGameplayTagWidget::CreateTagSourcesComboBoxContent)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-				]
-			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			+ SGridPanel::Slot(1, 2)
+			.Padding(5)
 			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SNew( SButton )
-				.ButtonStyle( FAppStyle::Get(), "NoBorder" )
-				.Visibility(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoritesVisibility)
-				.OnClicked(this, &SAddNewGameplayTagWidget::OnToggleTagSourceFavoriteClicked)
-				.ToolTipText(LOCTEXT("ToggleFavoriteTooltip", "Toggle whether or not this tag source is your favorite source (new tags will go into your favorite source by default)"))
-				.ContentPadding(0)
+				SNew(SBox)
+				.MinDesiredWidth(300.0f)
 				[
-					SNew(SImage)
-					.Image(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoriteImage)
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.Padding(2.0f, 2.0f)
+					.FillWidth(1.0f)
+					.VAlign(VAlign_Center)
+					[
+						SAssignNew(TagSourcesComboBox, SComboBox<TSharedPtr<FName> >)
+						.OptionsSource(&TagSources)
+						.OnGenerateWidget(this, &SAddNewGameplayTagWidget::OnGenerateTagSourcesComboBox)
+						.ToolTipText(this, &SAddNewGameplayTagWidget::CreateTagSourcesComboBoxToolTip)
+						.Content()
+						[
+							SNew(STextBlock)
+							.Text(this, &SAddNewGameplayTagWidget::CreateTagSourcesComboBoxContent)
+							.Font(IDetailLayoutBuilder::GetDetailFont())
+						]
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew( SButton )
+						.ButtonStyle( FAppStyle::Get(), "NoBorder" )
+						.Visibility(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoritesVisibility)
+						.OnClicked(this, &SAddNewGameplayTagWidget::OnToggleTagSourceFavoriteClicked)
+						.ToolTipText(LOCTEXT("ToggleFavoriteTooltip", "Toggle whether or not this tag source is your favorite source (new tags will go into your favorite source by default)"))
+						.ContentPadding(0)
+						[
+							SNew(SImage)
+							.Image(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoriteImage)
+						]
+					]
 				]
 			]
-		]
 
-		// Add Tag Button
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Top)
-		.HAlign(HAlign_Center)
-		.Padding(8.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			// Add Tag Button
+			+ SGridPanel::Slot(1, 3)
+			.Padding(5)
+			.HAlign(HAlign_Left)
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("AddNew", "Add New Tag"))
@@ -175,7 +178,8 @@ EVisibility SAddNewGameplayTagWidget::OnGetTagSourceFavoritesVisibility() const
 
 FReply SAddNewGameplayTagWidget::OnToggleTagSourceFavoriteClicked()
 {
-	const FName ActiveTagSource = *TagSourcesComboBox->GetSelectedItem().Get();
+	const bool bHasSelectedItem = TagSourcesComboBox.IsValid() && TagSourcesComboBox->GetSelectedItem().IsValid();
+	const FName ActiveTagSource = bHasSelectedItem ? *TagSourcesComboBox->GetSelectedItem().Get() : FName();
 	const bool bWasFavorite = FGameplayTagSource::GetFavoriteName() == ActiveTagSource;
 
 	FGameplayTagSource::SetFavoriteName(bWasFavorite ? NAME_None : ActiveTagSource);
@@ -185,7 +189,8 @@ FReply SAddNewGameplayTagWidget::OnToggleTagSourceFavoriteClicked()
 
 const FSlateBrush* SAddNewGameplayTagWidget::OnGetTagSourceFavoriteImage() const
 {
-	const FName ActiveTagSource = *TagSourcesComboBox->GetSelectedItem().Get();
+	const bool bHasSelectedItem = TagSourcesComboBox.IsValid() && TagSourcesComboBox->GetSelectedItem().IsValid();
+	const FName ActiveTagSource = bHasSelectedItem ? *TagSourcesComboBox->GetSelectedItem().Get() : FName();
 	const bool bIsFavoriteTagSource = FGameplayTagSource::GetFavoriteName() == ActiveTagSource;
 
 	return FAppStyle::GetBrush(bIsFavoriteTagSource ? TEXT("Icons.Star") : TEXT("PropertyWindow.Favorites_Disabled"));
@@ -202,10 +207,10 @@ void SAddNewGameplayTagWidget::Tick( const FGeometry& AllottedGeometry, const do
 
 void SAddNewGameplayTagWidget::PopulateTagSources()
 {
-	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+	const UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 	TagSources.Empty();
 
-	FName DefaultSource = FGameplayTagSource::GetDefaultName();
+	const FName DefaultSource = FGameplayTagSource::GetDefaultName();
 
 	// Always ensure that the default source is first
 	TagSources.Add( MakeShareable( new FName( DefaultSource ) ) );
@@ -248,7 +253,7 @@ void SAddNewGameplayTagWidget::SetTagName(const FText& InName)
 void SAddNewGameplayTagWidget::SelectTagSource(const FName& InSource)
 {
 	// Attempt to find the location in our sources, otherwise just use the first one
-	int32 SourceIndex = 0;
+	int32 SourceIndex = INDEX_NONE;
 
 	if (!InSource.IsNone())
 	{
@@ -264,7 +269,10 @@ void SAddNewGameplayTagWidget::SelectTagSource(const FName& InSource)
 		}
 	}
 
-	TagSourcesComboBox->SetSelectedItem(TagSources[SourceIndex]);
+	if (SourceIndex != INDEX_NONE && TagSourcesComboBox.IsValid())
+	{
+		TagSourcesComboBox->SetSelectedItem(TagSources[SourceIndex]);
+	}
 }
 
 void SAddNewGameplayTagWidget::OnCommitNewTagName(const FText& InText, ETextCommit::Type InCommitType)
@@ -281,19 +289,32 @@ FReply SAddNewGameplayTagWidget::OnAddNewTagButtonPressed()
 	return FReply::Handled();
 }
 
-void SAddNewGameplayTagWidget::AddSubtagFromParent(const FString& ParentTagName, const FName& ParentTagSource)
+void SAddNewGameplayTagWidget::AddSubtagFromParent(const FString& InParentTagName, const FName& InParentTagSource)
 {
-	FText SubtagBaseName = !ParentTagName.IsEmpty() ? FText::Format(FText::FromString(TEXT("{0}.")), FText::FromString(ParentTagName)) : FText();
+	const FText SubtagBaseName = !InParentTagName.IsEmpty() ? FText::Format(FText::FromString(TEXT("{0}.")), FText::FromString(InParentTagName)) : FText();
 
 	SetTagName(SubtagBaseName);
-	SelectTagSource(ParentTagSource);
+	SelectTagSource(InParentTagSource);
+
+	bShouldGetKeyboardFocus = true;
+}
+
+void SAddNewGameplayTagWidget::AddDuplicate(const FString& InParentTagName, const FName& InParentTagSource)
+{
+	SetTagName(FText::FromString(InParentTagName));
+	SelectTagSource(InParentTagSource);
 
 	bShouldGetKeyboardFocus = true;
 }
 
 void SAddNewGameplayTagWidget::CreateNewGameplayTag()
 {
-	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+	if (NotificationItem.IsValid())
+	{
+		NotificationItem->SetVisibility(EVisibility::Collapsed);
+	}
+
+	const UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 
 	// Only support adding tags via ini file
 	if (Manager.ShouldImportTagsFromINI() == false)
@@ -303,16 +324,28 @@ void SAddNewGameplayTagWidget::CreateNewGameplayTag()
 
 	if (TagSourcesComboBox->GetSelectedItem().Get() == nullptr)
 	{
+		FNotificationInfo Info(LOCTEXT("NoTagSource", "You must specify a source file for gameplay tags."));
+		Info.ExpireDuration = 10.f;
+		Info.bUseSuccessFailIcons = true;
+		Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Error"));
+		NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+		
 		return;
 	}
 
-	FText TagNameAsText = TagNameTextBox->GetText();
+	const FText TagNameAsText = TagNameTextBox->GetText();
 	FString TagName = TagNameAsText.ToString();
-	FString TagComment = TagCommentTextBox->GetText().ToString();
-	FName TagSource = *TagSourcesComboBox->GetSelectedItem().Get();
+	const FString TagComment = TagCommentTextBox->GetText().ToString();
+	const FName TagSource = *TagSourcesComboBox->GetSelectedItem().Get();
 
 	if (TagName.IsEmpty())
 	{
+		FNotificationInfo Info(LOCTEXT("NoTagName", "You must specify tag name."));
+		Info.ExpireDuration = 10.f;
+		Info.bUseSuccessFailIcons = true;
+		Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Error"));
+		NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+
 		return;
 	}
 
@@ -323,7 +356,12 @@ void SAddNewGameplayTagWidget::CreateNewGameplayTag()
 		(IsValidTag.IsBound() && !IsValidTag.Execute(TagName, &ErrorMsg))
 		)
 	{
-		FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg, LOCTEXT("InvalidTag", "Invalid Tag"));
+		FNotificationInfo Info(ErrorMsg);
+		Info.ExpireDuration = 10.f;
+		Info.bUseSuccessFailIcons = true;
+		Info.Image = FAppStyle::GetBrush(TEXT("MessageLog.Error"));
+		NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
+
 		return;
 	}
 

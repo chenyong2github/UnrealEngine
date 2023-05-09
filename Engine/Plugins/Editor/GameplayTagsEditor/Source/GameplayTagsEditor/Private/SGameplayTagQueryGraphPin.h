@@ -3,7 +3,7 @@
 #pragma once
 
 #include "SGraphPin.h"
-#include "SGameplayTagQueryWidget.h"
+#include "GameplayTagContainer.h"
 
 class SComboButton;
 
@@ -20,35 +20,12 @@ public:
 	//~ End SGraphPin Interface
 
 private:
-
 	/** Parses the Data from the pin to fill in the names of the array. */
 	void ParseDefaultValueData();
 
-	/** Callback function to create content for the combo button. */
-	TSharedRef<SWidget> GetListContent();
+	FGameplayTagQuery GetTagQuery() const;
+	void OnTagQueryChanged(const FGameplayTagQuery& NewTagQuery);
 
-	void OnQueryChanged();
-
-	/**
-	 * Creates SelectedTags List.
-	 * @return widget that contains the read only tag names for displaying on the node.
-	 */
-	TSharedRef<SWidget> QueryDesc();
-
-private:
-
-	// Combo Button for the drop down list.
-	TSharedPtr<SComboButton> ComboButton;
-
-	// Tag Container used for the GameplayTagWidget.
-	TSharedPtr<FGameplayTagQuery> TagQuery;
-
-	FString TagQueryExportText;
-
-	// Datum uses for the GameplayTagWidget.
-	TArray<SGameplayTagQueryWidget::FEditableGameplayTagQueryDatum> EditableQueries;
-
-	FText GetQueryDescText() const;
-
-	FString QueryDescription;
+	/** Parse tag query used for editing. */
+	FGameplayTagQuery TagQuery;
 };

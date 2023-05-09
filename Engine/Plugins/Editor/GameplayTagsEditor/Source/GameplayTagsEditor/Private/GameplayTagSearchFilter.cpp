@@ -8,7 +8,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "GameplayTagsManager.h"
-#include "SGameplayTagWidget.h"
+#include "SGameplayTagPicker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayTagSearchFilter)
 
@@ -25,9 +25,6 @@ public:
 	FFrontendFilter_GameplayTags(TSharedPtr<FFrontendFilterCategory> InCategory)
 		: FFrontendFilter(InCategory)
 	{
-		TagContainer = MakeShareable(new FGameplayTagContainer);
-
-		EditableContainers.Add(SGameplayTagWidget::FEditableGameplayTagContainerDatum(/*TagContainerOwner=*/ nullptr, TagContainer.Get()));
 	}
 
 	// FFrontendFilter implementation
@@ -46,17 +43,13 @@ public:
 
 protected:
 	// Container of selected search tags (the asset is shown if *any* of these match)
-	TSharedPtr<FGameplayTagContainer> TagContainer;
+	FGameplayTagContainer TagContainer;
 
-	// Adaptor for the SGameplayTagWidget to edit our tag container
-	TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum> EditableContainers;
-
-protected:
 	bool ProcessStruct(void* Data, UStruct* Struct) const;
 
 	bool ProcessProperty(void* Data, FProperty* Prop) const;
 
-	void OnTagWidgetChanged();
+	void OnTagWidgetChanged(const TArray<FGameplayTagContainer>& TagContainers);
 };
 
 void FFrontendFilter_GameplayTags::ModifyContextMenu(FMenuBuilder& MenuBuilder)
@@ -65,13 +58,17 @@ void FFrontendFilter_GameplayTags::ModifyContextMenu(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.BeginSection(TEXT("ComparsionSection"), LOCTEXT("ComparisonSectionHeading", "Gameplay Tag(s) to search for"));
 
+	TArray<FGameplayTagContainer> EditableContainers;
+	EditableContainers.Add(TagContainer);
+
 	TSharedRef<SWidget> TagWidget =
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		.MaxHeight(300)
 		[
-			SNew(SGameplayTagWidget, EditableContainers)
+			SNew(SGameplayTagPicker)
+			.TagContainers(EditableContainers)
 			.MultiSelect(true)
 			.OnTagChanged_Raw(this, &FFrontendFilter_GameplayTags::OnTagWidgetChanged)
 		];
@@ -80,7 +77,7 @@ void FFrontendFilter_GameplayTags::ModifyContextMenu(FMenuBuilder& MenuBuilder)
 
 FText FFrontendFilter_GameplayTags::GetDisplayName() const
 {
-	if (TagContainer->Num() == 0)
+	if (TagContainer.Num() == 0)
 	{
 		return LOCTEXT("AnyGameplayTagDisplayName", "Gameplay Tags");
 	}
@@ -89,7 +86,7 @@ FText FFrontendFilter_GameplayTags::GetDisplayName() const
 		FString QueryString;
 
 		int32 Count = 0;
-		for (const FGameplayTag& Tag : *TagContainer.Get())
+		for (const FGameplayTag& Tag : TagContainer)
 		{
 			if (Count > 0)
 			{
@@ -107,7 +104,7 @@ FText FFrontendFilter_GameplayTags::GetDisplayName() const
 
 FText FFrontendFilter_GameplayTags::GetToolTipText() const
 {
-	if (TagContainer->Num() == 0)
+	if (TagContainer.Num() == 0)
 	{
 		return LOCTEXT("AnyGameplayTagFilterDisplayTooltip", "Search for any *loaded* Blueprint or asset that contains a gameplay tag (right-click to choose tags).");
 	}
@@ -120,8 +117,8 @@ FText FFrontendFilter_GameplayTags::GetToolTipText() const
 void FFrontendFilter_GameplayTags::SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const
 {
 	TArray<FString> TagStrings;
-	TagStrings.Reserve(TagContainer->Num());
-	for (const FGameplayTag& Tag : *TagContainer.Get())
+	TagStrings.Reserve(TagContainer.Num());
+	for (const FGameplayTag& Tag : TagContainer)
 	{
 		TagStrings.Add(Tag.GetTagName().ToString());
 	}
@@ -136,19 +133,24 @@ void FFrontendFilter_GameplayTags::LoadSettings(const FString& IniFilename, cons
 	TArray<FString> TagStrings;
 	GConfig->GetArray(*IniSection, *(SettingsString + TEXT(".Tags")), /*out*/ TagStrings, IniFilename);
 
-	TagContainer->Reset();
+	TagContainer.Reset();
 	for (const FString& TagString : TagStrings)
 	{
 		FGameplayTag NewTag = Manager.RequestGameplayTag(*TagString, /*bErrorIfNotFound=*/ false);
 		if (NewTag.IsValid())
 		{
-			TagContainer->AddTag(NewTag);
+			TagContainer.AddTag(NewTag);
 		}
 	}
 }
 
-void FFrontendFilter_GameplayTags::OnTagWidgetChanged()
+void FFrontendFilter_GameplayTags::OnTagWidgetChanged(const TArray<FGameplayTagContainer>& TagContainers)
 {
+	if (TagContainers.Num() > 0)
+	{
+		TagContainer = TagContainers[0];
+	}
+	
 	BroadcastChangedEvent();
 }
 
@@ -177,8 +179,8 @@ bool FFrontendFilter_GameplayTags::ProcessProperty(void* Data, FProperty* Prop) 
 		{
 			FGameplayTag& ThisTag = *static_cast<FGameplayTag*>(InnerData);
 
-			const bool bAnyTagIsOK = TagContainer->Num() == 0;
-			const bool bPassesTagSearch = bAnyTagIsOK || ThisTag.MatchesAny(*TagContainer);
+			const bool bAnyTagIsOK = TagContainer.Num() == 0;
+			const bool bPassesTagSearch = bAnyTagIsOK || ThisTag.MatchesAny(TagContainer);
 
 			return bPassesTagSearch;
 		}

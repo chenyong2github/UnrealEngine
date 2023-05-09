@@ -3,7 +3,7 @@
 #pragma once
 
 #include "KismetPins/SGraphPinStructInstance.h"
-#include "SGameplayTagWidget.h"
+#include "GameplayTagContainer.h"
 
 template <typename ItemType> class SListView;
 
@@ -19,30 +19,11 @@ public:
 protected:
 	//~ Begin SGraphPinStructInstance Interface
 	virtual void ParseDefaultValueData() override;
-	virtual void SaveDefaultValueData() override;
-	virtual void RefreshCachedData() override;
-	virtual TSharedRef<SWidget> GetEditContent() override;
-	virtual TSharedRef<SWidget> GetDescriptionContent() override;
+	virtual TSharedRef<SWidget> GetDefaultValueWidget() override;
 	//~ End SGraphPin Interface
 
-	/** 
-	 * Callback for populating rows of the SelectedTags List View.
-	 * @return widget that contains the name of a tag.
-	 */
-	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FString> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	FGameplayTag GetGameplayTag() const;
+	void OnTagChanged(const FGameplayTag NewTag);
 
-	// Tag Container used for the GameplayTagWidget.
-	TSharedPtr<FGameplayTagContainer> TagContainer;
-
-	// Datum uses for the GameplayTagWidget.
-	TArray<SGameplayTagWidget::FEditableGameplayTagContainerDatum> EditableContainers;
-
-	// Array of names for the read only display of tag names on the node.
-	TArray< TSharedPtr<FString> > TagNames;
-
-	// The List View used to display the read only tag names on the node.
-	TSharedPtr<SListView<TSharedPtr<FString>>> TagListView;
-
-	// Filter the list of available tags
-	FString FilterString;
+	FGameplayTag GameplayTag;
 };
