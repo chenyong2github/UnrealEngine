@@ -33,14 +33,6 @@ struct FMeshBoneInfo
 #endif
 	{}
 
-	FMeshBoneInfo(const FMeshBoneInfo& Other)
-		: Name(Other.Name)
-		, ParentIndex(Other.ParentIndex)
-#if WITH_EDITORONLY_DATA
-		, ExportName(Other.ExportName)
-#endif
-	{}
-
 	bool operator==(const FMeshBoneInfo& B) const
 	{
 		return(Name == B.Name);
