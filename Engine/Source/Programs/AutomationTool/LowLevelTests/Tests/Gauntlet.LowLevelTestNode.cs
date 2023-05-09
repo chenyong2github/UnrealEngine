@@ -115,6 +115,15 @@ namespace LowLevelTests
 				{
 					ParseLowLevelTestsLog();
 
+					// Print stdout when -captureoutput, certain platforms don't always redirect stdout
+					if (CurrentProcessedLines != null && Context.Options.CaptureOutput)
+					{
+						foreach (string OutputLine in CurrentProcessedLines)
+						{
+							Console.WriteLine(OutputLine);
+						}
+					}
+
 					if (CheckForTimeout())
 					{
 						Log.Error("Timeout detected from application logged events, stopping.");

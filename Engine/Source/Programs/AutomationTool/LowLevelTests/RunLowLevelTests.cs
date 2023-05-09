@@ -180,6 +180,8 @@ namespace LowLevelTests
 
 		public bool LogReportContents;
 
+		public bool CaptureOutput;
+
 		public Type BuildSourceType { get; protected set; }
 
 		[AutoParam(UnrealTargetConfiguration.Development)]
@@ -220,6 +222,8 @@ namespace LowLevelTests
 			Timeout = Params.ParseValue("timeout=", 0);
 
 			LogReportContents = Params.ParseParam("printreport");
+
+			CaptureOutput = Params.ParseParam("captureoutput");
 
 			Build = Params.ParseValue("build=", null).Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
 			TestApp = Globals.Params.ParseValue("testapp=", "");
