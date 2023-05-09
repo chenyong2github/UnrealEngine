@@ -145,11 +145,11 @@ protected:
 	EDMXFixtureSignalFormat DataType;
 
 	/** The universe the should send to fader */
-	UPROPERTY(Transient, EditAnywhere, meta = (DisplayPriority = "3"), Category = "DMX Fader")
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "3"), Category = "DMX Fader")
 	int32 UniverseID = 1;
 
 	/** The starting channel Address to send DMX to */
-	UPROPERTY(Transient, EditAnywhere, meta = (DisplayPriority = "4"), Category = "DMX Fader")
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "4"), Category = "DMX Fader")
 	int32 StartingAddress = 1;
 
 	/** The end channel Address to send DMX to */

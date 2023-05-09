@@ -10,14 +10,14 @@ class UDMXControlConsoleFaderBase;
 class UDMXControlConsoleFaderGroup;
 
 
-class FDMXControlConsoleEditorSelection
+class FDMXControlConsoleEditorSelection final
 	: public TSharedFromThis<FDMXControlConsoleEditorSelection>
 {
 public:
 	DECLARE_EVENT(FDMXControlConsoleEditorSelection, FDMXControlConsoleSelectionEvent)
 
-	/** Constructor */
 	FDMXControlConsoleEditorSelection(const TSharedRef<FDMXControlConsoleEditorManager>& InControlConsoleManager);
+	~FDMXControlConsoleEditorSelection();
 
 	/** Adds the given Fader Group to selection */
 	void AddToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bNotifySelectionChange = true);
@@ -85,6 +85,9 @@ public:
 private:
 	/** Updates the multi select anchor */
 	void UpdateMultiSelectAnchor(UClass* PreferedClass);
+
+	/** Removes invisible elements from selection */
+	void RemoveInvisibleElements();
 
 	/** Weak reference to DMX DMX Control Console */
 	TWeakPtr<FDMXControlConsoleEditorManager> WeakControlConsoleManager;

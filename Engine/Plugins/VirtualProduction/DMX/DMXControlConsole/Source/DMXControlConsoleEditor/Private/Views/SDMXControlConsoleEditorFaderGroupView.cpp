@@ -167,7 +167,7 @@ bool SDMXControlConsoleEditorFaderGroupView::CanAddFaderGroup() const
 	if (const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
 	{
 		// True if there's no global filter
-		return ControlConsoleData->GetFilterString().IsEmpty();
+		return ControlConsoleData->FilterString.IsEmpty();
 	}
 
 	return true;
@@ -179,7 +179,7 @@ bool SDMXControlConsoleEditorFaderGroupView::CanAddFaderGroupRow() const
 	bool bCanAdd = FaderGroup.IsValid() && FaderGroup->GetIndex() == 0;
 	if (const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
 	{
-		bCanAdd &= ControlConsoleData->GetFilterString().IsEmpty();
+		bCanAdd &= ControlConsoleData->FilterString.IsEmpty();
 	}
 
 	return bCanAdd;
@@ -191,7 +191,7 @@ bool SDMXControlConsoleEditorFaderGroupView::CanAddFader() const
 	bool bCanAdd = FaderGroup.IsValid() && !FaderGroup->HasFixturePatch();
 	if (const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
 	{
-		bCanAdd &= ControlConsoleData->GetFilterString().IsEmpty();
+		bCanAdd &= ControlConsoleData->FilterString.IsEmpty();
 	}
 
 	return bCanAdd;

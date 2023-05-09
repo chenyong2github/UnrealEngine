@@ -7,6 +7,7 @@
 #include "DMXControlConsoleEditorFromLegacyUpgradeHandler.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
+#include "Models/Filter/FilterModel.h"
 
 #include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
@@ -64,10 +65,14 @@ void UDMXControlConsoleEditorModel::CreateNewConsole()
 	}
 
 	const FScopedTransaction CreateNewConsoleTransaction(LOCTEXT("CreateNewConsoleTransaction", "Create new Control Console"));
-
+	UDMXControlConsole* NewConsole = NewObject<UDMXControlConsole>(GetTransientPackage(), NAME_None, RF_Transactional);
+	if (EditorConsole)
+	{
+		NewConsole->CopyControlConsoleData(EditorConsole->GetControlConsoleData());
+	}
 	Modify();
-	EditorConsole = NewObject<UDMXControlConsole>(GetTransientPackage(), NAME_None, RF_Transactional);
-
+	EditorConsole = NewConsole;
+	
 	SaveConsoleToConfig();
 
 	OnConsoleLoadedDelegate.Broadcast();
@@ -327,6 +332,8 @@ bool UDMXControlConsoleEditorModel::PromptSaveConsolePackage(FString& OutSavePac
 
 void UDMXControlConsoleEditorModel::OnFEngineLoopInitComplete()
 {
+	using namespace UE::DMXControlConsoleEditor::FilterModel::Private;
+
 	if (ensureMsgf(HasAnyFlags(RF_ClassDefaultObject), TEXT("DMXControlConsoleEditorConsoleModel should not be instantiated. Use the CDO instead.")))
 	{
 		SetFlags(GetFlags() | RF_Transactional);
@@ -336,6 +343,9 @@ void UDMXControlConsoleEditorModel::OnFEngineLoopInitComplete()
 		if (!FDMXControlConsoleEditorFromLegacyUpgradeHandler::TryUpgradePathFromLegacy())
 		{
 			LoadConsoleFromConfig();
+			
+			FilterModel = MakeShared<FFilterModel>();
+			FilterModel->Initialize();
 		}
 	}
 }

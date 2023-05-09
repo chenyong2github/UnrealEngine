@@ -12,6 +12,11 @@
 struct FDMXReadOnlyFixturePatchListDescriptor;
 class UDMXControlConsole;
 
+namespace UE::DMXControlConsoleEditor::FilterModel::Private
+{
+	class FFilterModel;
+}
+
 
 /** Model of the console currently being edited in the control console editor.  */
 UCLASS(Config = DMXEditor)
@@ -19,6 +24,9 @@ class UDMXControlConsoleEditorModel final
 	: public UObject
 {
 	GENERATED_BODY()
+
+	/** Allow filter model to getter itself */
+	friend UE::DMXControlConsoleEditor::FilterModel::Private::FFilterModel;
 
 public:
 	/** Returns the edited console */
@@ -94,6 +102,9 @@ private:
 
 	/** Delegate that needs be broadcast whenever a new console is loaded */
 	FSimpleMulticastDelegate OnConsoleLoadedDelegate;
+
+	/** The filter model for this console editor */
+	TSharedPtr<UE::DMXControlConsoleEditor::FilterModel::Private::FFilterModel> FilterModel;
 
 	/** The currently edited console */
 	UPROPERTY(Transient)

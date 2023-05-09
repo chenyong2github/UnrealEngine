@@ -121,6 +121,12 @@ public:
 	void ShowAllElementsInEditor();
 #endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
+	/** Last string from Editor filtering */
+	UPROPERTY()
+	FString FilterString;
+#endif // WITH_EDITORONLY_DATA
+
 	// Property Name getters
 	FORCEINLINE static FName GetElementsPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, Elements); }
 	FORCEINLINE static FName GetFaderGroupNamePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderGroup, FaderGroupName); }

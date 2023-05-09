@@ -447,7 +447,7 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddNext() const
 	const bool bCanExecute =
 		!FixturePatchList->GetSelectedFixturePatchRefs().IsEmpty()
 		&& !EditorConsoleData->GetAllFaderGroups().IsEmpty()
-		&& EditorConsoleData->GetFilterString().IsEmpty();
+		&& EditorConsoleData->FilterString.IsEmpty();
 
 	return bCanExecute;
 }
@@ -462,7 +462,7 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddRow() const
 
 	const bool bCanExecute = 
 		!FixturePatchList->GetSelectedFixturePatchRefs().IsEmpty()
-		&& EditorConsoleData->GetFilterString().IsEmpty();
+		&& EditorConsoleData->FilterString.IsEmpty();
 
 	return bCanExecute;
 }
@@ -479,7 +479,7 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddSelected() co
 	const bool bCanExecute =
 		!FixturePatchList->GetSelectedFixturePatchRefs().IsEmpty()
 		&& !SelectionHandler->GetSelectedFaderGroups().IsEmpty()
-		&& EditorConsoleData->GetFilterString().IsEmpty();
+		&& EditorConsoleData->FilterString.IsEmpty();
 
 	return bCanExecute;
 }

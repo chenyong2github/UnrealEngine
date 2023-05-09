@@ -4,7 +4,6 @@
 
 #include "DMXControlConsole.h"
 #include "DMXControlConsoleData.h"
-#include "DMXControlConsoleEditorFilterUtils.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
@@ -17,6 +16,7 @@
 #include "Customizations/DMXControlConsoleFaderGroupDetails.h"
 #include "Library/DMXEntityReference.h"
 #include "Models/DMXControlConsoleEditorModel.h"
+#include "Models/Filter/FilterModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorFaderGroupRowView.h"
 #include "Widgets/SDMXControlConsoleEditorAddButton.h"
@@ -78,7 +78,7 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.bHideSelectionTip = true;
 	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-
+	
 	ControlConsoleDataDetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
 	FaderGroupsDetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
 	FadersDetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
@@ -592,74 +592,10 @@ void SDMXControlConsoleEditorView::RestoreGlobalFilter()
 {
 	if (const UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
 	{
-		const FString& FilterString = ControlConsoleData->GetFilterString();
+		const FString& FilterString = ControlConsoleData->FilterString;
 		const FText FilterText = FText::FromString(FilterString);
 		GlobalFilterSearchBox->SetText(FilterText);
 	}
-}
-
-void SDMXControlConsoleEditorView::ApplyGlobalFilter(const FString& InSearchString)
-{
-	using namespace UE::DMX::ControlConsoleEditor::FilterUtils::Private;
-
-	const UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData();
-	if (!ControlConsoleData)
-	{
-		return;
-	}
-
-	const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = ControlConsoleData->GetAllFaderGroups();
-	TArray<UObject*> ElementsToRemoveFromSelection;
-	for (UDMXControlConsoleFaderGroup* FaderGroup : AllFaderGroups)
-	{
-		if (!FaderGroup)
-		{
-			continue;
-		}
-
-		bool bMatchFilter = DoesFaderGroupMatchFilter(InSearchString, FaderGroup);
-		// If the group name matches, show the whole group
-		if (bMatchFilter)
-		{
-			FaderGroup->SetIsVisibleInEditor(true);
-			FaderGroup->ShowAllElementsInEditor();
-			continue;
-		}
-
-		bool bHasVisibleChildren = false;
-		const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
-		for (UDMXControlConsoleFaderBase* Fader : AllFaders)
-		{
-			if (!Fader)
-			{
-				continue;
-			}
-
-			bMatchFilter = DoesFaderMatchFilter(InSearchString, Fader);
-			Fader->SetIsVisibleInEditor(bMatchFilter);
-			if (bMatchFilter)
-			{
-				bHasVisibleChildren = true;
-			}
-			else
-			{
-				// If not visible, remove from selection
-				ElementsToRemoveFromSelection.Add(Fader);
-			}
-		}
-
-		// Set to not visible if there are no visible children
-		FaderGroup->SetIsVisibleInEditor(bHasVisibleChildren);
-
-		// If not visible, remove form selection
-		if (!FaderGroup->GetIsVisibleInEditor())
-		{
-			ElementsToRemoveFromSelection.Add(FaderGroup);
-		}
-	}
-
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	SelectionHandler->RemoveFromSelection(ElementsToRemoveFromSelection);
 }
 
 void SDMXControlConsoleEditorView::RequestUpdateDetailsViews()
@@ -824,16 +760,10 @@ bool SDMXControlConsoleEditorView::IsFaderGroupRowContained(UDMXControlConsoleFa
 
 void SDMXControlConsoleEditorView::OnSearchTextChanged(const FText& SearchText)
 {
-	if (UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
-	{
-		// Update last saved filter string
-		const FString& SearchString = SearchText.ToString();
+	const FString& SearchString = SearchText.ToString();
 
-		ControlConsoleData->Modify();
-		ControlConsoleData->SetFilterString(SearchText.ToString());
-
-		ApplyGlobalFilter(SearchString);
-	}
+	using namespace UE::DMXControlConsoleEditor::FilterModel::Private;
+	FFilterModel::Get().SetGlobalFilter(SearchString);
 }
 
 FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()

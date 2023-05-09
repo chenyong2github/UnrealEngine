@@ -57,12 +57,7 @@ void UDMXLibrary::PostLoad()
 			UpgradeFromControllersToPorts();
 		}
 
-		// Upgrade to contain an MVR General Scene Description
-		if (!GeneralSceneDescription)
-		{
-			const FName GeneralSceneDescriptionName = FName(GetName() + TEXT("_MVRGeneralSceneDescription"));
-			GeneralSceneDescription = UDMXMVRGeneralSceneDescription::CreateFromDMXLibrary(*this, this, GeneralSceneDescriptionName);
-		}
+		UpdateGeneralSceneDescription();
 #endif 
 		UpdatePorts();
 

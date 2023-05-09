@@ -64,9 +64,6 @@ private:
 	/** Restores global search filter text from Constrol Console Data */
 	void RestoreGlobalFilter();
 
-	/** Filters children by given search string  */
-	void ApplyGlobalFilter(const FString& InSearchString);
-
 	/** Requests to update the Details Views on the next tick */
 	void RequestUpdateDetailsViews();
 

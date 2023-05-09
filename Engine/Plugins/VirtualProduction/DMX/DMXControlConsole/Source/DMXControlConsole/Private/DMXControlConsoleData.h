@@ -54,12 +54,6 @@ public:
 #if WITH_EDITOR
 	/** Sets if the console can send DMX in Editor */
 	void SetSendDMXInEditorEnabled(bool bSendDMXInEditorEnabled) { bSendDMXInEditor = bSendDMXInEditorEnabled; }
-
-	/** Gets the saved string used by this Control Console for filtering */
-	const FString& GetFilterString() const { return FilterString; }
-
-	/** Sets the current string used by this Control Console for filtering */
-	void SetFilterString(const FString& InFilterString);
 #endif // WITH_EDITOR 
 
 	/** Updates DMX Output Ports */
@@ -67,6 +61,12 @@ public:
 
 	/** Resets the DMX Control Console to its default */
 	void Reset();
+
+#if WITH_EDITORONLY_DATA
+	/** The current editor filter string */
+	UPROPERTY()
+	FString FilterString;
+#endif // WITH_EDITORONLY_DATA
 
 	// Property Name getters
 	FORCEINLINE static FName GetDMXLibraryPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleData, DMXLibrary); }
@@ -102,9 +102,5 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** True if the Control Console ticks in Editor */
 	bool bSendDMXInEditor = true;
-
-	/** Last string from Editor filtering */
-	UPROPERTY()
-	FString FilterString;
 #endif // WITH_EDITORONLY_DATA
 };

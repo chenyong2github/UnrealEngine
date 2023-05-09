@@ -3,7 +3,6 @@
 #include "SDMXControlConsoleEditorFaderGroupToolbar.h"
 
 #include "DMXControlConsoleData.h"
-#include "DMXControlConsoleEditorFilterUtils.h"
 #include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
@@ -12,6 +11,7 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXLibrary.h"
+#include "Models/Filter/FilterModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorFaderGroupView.h"
 
@@ -487,41 +487,11 @@ void SDMXControlConsoleEditorFaderGroupToolbar::OnComboBoxSelectionChanged(const
 
 void SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged(const FText& SearchText)
 {
-	using namespace UE::DMX::ControlConsoleEditor::FilterUtils::Private;
-
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
-	const UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
-	if (!EditorConsoleData || !FaderGroup)
+	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
 	{
-		return;
+		using namespace UE::DMXControlConsoleEditor::FilterModel::Private;
+		FFilterModel::Get().SetFaderGroupFilter(FaderGroup, SearchText.ToString());
 	}
-
-	const FString& EditorConsoleFilterString = EditorConsoleData->GetFilterString();
-	const FString& FaderGroupFilterString = SearchText.ToString();
-
-	const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
-	TArray<UObject*> ElementsToRemoveFromSelection;
-	for (UDMXControlConsoleFaderBase* Fader : AllFaders)
-	{
-		if (!Fader)
-		{
-			continue;
-		}
-
-		const bool bMatchFilter =
-			DoesFaderMatchFilter(EditorConsoleFilterString, Fader) &&
-			DoesFaderMatchFilter(FaderGroupFilterString, Fader);
-
-		Fader->SetIsVisibleInEditor(bMatchFilter);
-		if (!bMatchFilter)
-		{
-			// If not visible, remove form selection
-			ElementsToRemoveFromSelection.Add(Fader);
-		}
-	}
-
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	SelectionHandler->RemoveFromSelection(ElementsToRemoveFromSelection);
 }
 
 void SDMXControlConsoleEditorFaderGroupToolbar::OnAddFaderGroup() const

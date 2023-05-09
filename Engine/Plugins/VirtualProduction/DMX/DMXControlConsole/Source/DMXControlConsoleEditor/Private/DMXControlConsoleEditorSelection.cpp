@@ -8,6 +8,7 @@
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
+#include "Models/Filter/FilterModel.h"
 
 #include "Algo/Sort.h"
 
@@ -17,6 +18,15 @@
 FDMXControlConsoleEditorSelection::FDMXControlConsoleEditorSelection(const TSharedRef<FDMXControlConsoleEditorManager>& InControlConsoleManager)
 {
 	WeakControlConsoleManager = InControlConsoleManager;
+
+	using namespace UE::DMXControlConsoleEditor::FilterModel::Private;
+	FFilterModel::Get().OnFilterChanged.AddRaw(this, &FDMXControlConsoleEditorSelection::RemoveInvisibleElements);
+}
+
+FDMXControlConsoleEditorSelection::~FDMXControlConsoleEditorSelection()
+{
+	using namespace UE::DMXControlConsoleEditor::FilterModel::Private;
+	FFilterModel::Get().OnFilterChanged.RemoveAll(this);
 }
 
 void FDMXControlConsoleEditorSelection::AddToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bNotifySelectionChange)
@@ -523,6 +533,23 @@ void FDMXControlConsoleEditorSelection::UpdateMultiSelectAnchor(UClass* Prefered
 	{
 		MultiSelectAnchor = nullptr;
 	}
+}
+
+void FDMXControlConsoleEditorSelection::RemoveInvisibleElements()
+{
+	SelectedFaderGroups = SelectedFaderGroups.FilterByPredicate([](const TWeakObjectPtr<UObject>& Object)
+		{
+			UDMXControlConsoleFaderGroup* FaderGroup = Cast<UDMXControlConsoleFaderGroup>(Object.Get());
+			return FaderGroup && FaderGroup->GetIsVisibleInEditor();
+		});
+
+	SelectedFaders = SelectedFaders.FilterByPredicate([](const TWeakObjectPtr<UObject>& Object)
+		{
+			UDMXControlConsoleFaderBase* Fader = Cast<UDMXControlConsoleFaderBase>(Object.Get());
+			return Fader && Fader->GetIsVisibleInEditor();
+		});
+
+	OnSelectionChanged.Broadcast();
 }
 
 #undef LOCTEXT_NAMESPACE

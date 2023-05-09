@@ -1263,14 +1263,13 @@ bool FDMXEditorUtils::ParseAddress(const FString& InputString, int32& OutAddress
 	static const TCHAR* ParamDelimiters[] =
 	{
 		TEXT("."),
-		TEXT(","),
 		TEXT(":"),
 		TEXT(";")
 	};
 
 	TArray<FString> ValueStringArray;
 	constexpr bool bParseEmpty = false;
-	InputString.ParseIntoArray(ValueStringArray, ParamDelimiters, 4, bParseEmpty);
+	InputString.ParseIntoArray(ValueStringArray, ParamDelimiters, 3, bParseEmpty);
 
 	if (ValueStringArray.Num() == 2)
 	{
