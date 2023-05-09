@@ -288,7 +288,7 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 
 uint32 FGlobalResources::GetMaxCandidateClusters()
 {
-	checkf(GNaniteMaxCandidateClusters <= MAX_CLUSTERS, TEXT("r.Nanite.MaxCandidateClusters must be <= MAX_CLUSTERS"));
+	// NOTE: Candidate clusters can currently be allowed to exceed MAX_CLUSTERS
 	const uint32 MaxCandidateClusters = GNaniteMaxCandidateClusters & -NANITE_PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
 	return MaxCandidateClusters;
 }
