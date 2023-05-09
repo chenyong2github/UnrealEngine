@@ -42,7 +42,7 @@ void FInterchangeGLTFPipelineCustomization::CustomizeDetails(IDetailLayoutBuilde
 
 	if (Pipeline->GLTFPipelineSettings)
 	{
-		Pipeline->GLTFPipelineSettings->SetMaterialParentsEditible(Pipeline->CanEditPropertiesStates());
+		Pipeline->GLTFPipelineSettings->SetMaterialParentsEditible(false);
 	}
 
 	DetailsView->SetObject(Pipeline->GLTFPipelineSettings);
@@ -110,6 +110,9 @@ void FInterchangeGLTFPipelineSettingsCustomization::CustomizeDetails(IDetailLayo
 			]
 		];
 	}
+
+	//Reset Editibility for Project Settings -> Interchange GLTF
+	GLTFPipelineSettings->SetMaterialParentsEditible(true);
 
 	IDetailCategoryBuilder& GLTFPredefinedMaterialLibraryCategory = DetailBuilder.EditCategory("PredefinedglTFMaterialLibrary", FText::FromString("Predefined glTF Material Library"));
 
