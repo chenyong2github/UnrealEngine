@@ -853,6 +853,8 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 
 	AudioDevice->AddNewActiveSound(NewActiveSound, MoveTemp(SoundParams));
 
+	LastSoundPlayOrder = NewActiveSound.GetPlayOrder();
+
 	// In editor, the audio thread is not run separate from the game thread, and can result in calling PlaybackComplete prior
 	// to bIsActive being set. Therefore, we assign to the current state of ActiveCount as opposed to just setting to true.
 	SetActiveFlag(ActiveCount > 0);

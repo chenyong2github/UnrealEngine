@@ -835,6 +835,7 @@ public:
 	FAudioDevice* GetAudioDevice() const override;
 	TArray<FAudioParameter>& GetInstanceParameters() override { return InstanceParameters; }
 	uint64 GetInstanceOwnerID() const override { return AudioComponentID; }
+	uint32 GetLastPlayOrder() const { return LastSoundPlayOrder; }
 	USoundBase* GetSound() override { return Sound; }
 
 	virtual FName GetFNameForStatID() const override;
@@ -873,6 +874,7 @@ public:
 private:
 
 	uint64 AudioComponentID;
+	uint32 LastSoundPlayOrder = 0;
 
 	float RetriggerTimeSinceLastUpdate;
 	float RetriggerUpdateInterval;

@@ -83,7 +83,7 @@ namespace Metasound
 
 		public:
 			FGraphConnectionManager() = default;
-			FGraphConnectionManager(const FMetasoundAssetBase& InAssetBase, const UAudioComponent& InAudioComponent, FSampleRate InSampleRate);
+			FGraphConnectionManager(const FMetasoundAssetBase& InAssetBase, const UAudioComponent& InAudioComponent, uint64 InTransmitterID, FSampleRate InSampleRate);
 			~FGraphConnectionManager() = default;
 
 			bool GetValue(const FGuid& InNodeID, FVertexName InOutputName, float& OutValue) const;
