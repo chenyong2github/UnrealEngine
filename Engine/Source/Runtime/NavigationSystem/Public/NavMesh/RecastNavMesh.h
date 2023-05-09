@@ -505,6 +505,15 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshTileGenerationDebug
 };
 
 /**
+ *	Used to list tiles that needs rebuilding.
+ */
+struct FNavMeshDirtyTileElement
+{
+	FIntPoint Coordinates;
+	ENavigationInvokerPriority InvokerPriority;
+};
+
+/**
  *	Structure to handle nav mesh tile's raw data persistence and releasing
  */
 struct FNavMeshTileData
@@ -1422,7 +1431,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual void UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& InvokerLocations);
 	virtual void RemoveTiles(const TArray<FIntPoint>& Tiles);
+	
+	UE_DEPRECATED(5.3, "Use overload with FNavMeshDirtyTileElement instead.")
 	void RebuildTile(const TArray<FIntPoint>& Tiles);
+
+	void RebuildTile(const TArray<FNavMeshDirtyTileElement>& Tiles);
+	
 	void DirtyTilesInBounds(const FBox& Bounds);
 
 #if RECAST_INTERNAL_DEBUG_DATA

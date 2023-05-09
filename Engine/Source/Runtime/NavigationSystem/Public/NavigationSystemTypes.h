@@ -13,6 +13,7 @@
 
 #define RECAST_INTERNAL_DEBUG_DATA (!UE_BUILD_SHIPPING)
 
+enum class ENavigationInvokerPriority : uint8;
 class UBodySetup;
 class UNavCollision;
 struct FKAggregateGeom;
@@ -97,10 +98,9 @@ struct FNavigationInvokerRaw
 	float RadiusMin;
 	float RadiusMax;
 	FNavAgentSelector SupportedAgents;
+	ENavigationInvokerPriority Priority;
 
-	FNavigationInvokerRaw(const FVector& InLocation, float Min, float Max, const FNavAgentSelector& InSupportedAgents)
-		: Location(InLocation), RadiusMin(Min), RadiusMax(Max), SupportedAgents(InSupportedAgents)
-	{}
+	FNavigationInvokerRaw(const FVector& InLocation, float Min, float Max, const FNavAgentSelector& InSupportedAgents, ENavigationInvokerPriority InPriority);
 };
 
 struct FNavigationInvoker
@@ -109,14 +109,19 @@ struct FNavigationInvoker
 
 	/** tiles GenerationRadius away or close will be generated if they're not already present */
 	float GenerationRadius;
+
 	/** tiles over RemovalRadius will get removed.
-	*	@Note needs to be >= GenerationRadius or will get clampped */
+	*	@Note needs to be >= GenerationRadius or will get clamped */
 	float RemovalRadius;
+
 	/** restrict navigation generation to specific agents */
 	FNavAgentSelector SupportedAgents;
 
+	/** invoker Priority used when dirtying tiles */
+	ENavigationInvokerPriority Priority;
+	
 	FNavigationInvoker();
-	FNavigationInvoker(AActor& InActor, float InGenerationRadius, float InRemovalRadius, const FNavAgentSelector& InSupportedAgents);
+	FNavigationInvoker(AActor& InActor, float InGenerationRadius, float InRemovalRadius, const FNavAgentSelector& InSupportedAgents, ENavigationInvokerPriority InPriority);
 };
 
 namespace NavigationHelper

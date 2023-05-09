@@ -136,6 +136,14 @@ enum class ENavDataGatheringModeConfig : uint8
 	Lazy
 };
 
+UENUM()
+enum class ENavigationSortPendingTilesMethod : uint8
+{
+	SortWithSeedLocations,
+	SortByPriority,
+	None
+};
+
 //
 // Used to gather per instance transforms in a specific area
 //

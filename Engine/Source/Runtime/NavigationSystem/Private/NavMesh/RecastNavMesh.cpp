@@ -3487,10 +3487,12 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 
 	TArray<FIntPoint>& ActiveTiles = GetActiveTiles();
 	TArray<FIntPoint> OldActiveSet = ActiveTiles;
-	TArray<FIntPoint> TilesInMinDistance;
+	TArray<FNavMeshDirtyTileElement> TilesInMinDistance;
 	TArray<FIntPoint> TilesInMaxDistance;
+	TArray<FIntPoint> TileToAppend;
 	TilesInMinDistance.Reserve(ActiveTiles.Num());
 	TilesInMaxDistance.Reserve(ActiveTiles.Num());
+	TileToAppend.Reserve(ActiveTiles.Num());
 	ActiveTiles.Reset();
 
 	for (const FNavigationInvokerRaw& Invoker : InvokerLocations)
@@ -3520,14 +3522,25 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 
 					if (DistanceSq < TileCenterDistanceToAddSq)
 					{
-						TilesInMinDistance.AddUnique(FIntPoint(X, Y));
+						// Add unique tile 
+						FNavMeshDirtyTileElement* FoundTile = TilesInMinDistance.FindByPredicate([X, Y](const FNavMeshDirtyTileElement& Tile){ return Tile.Coordinates == FIntPoint(X, Y);});
+						if (FoundTile)
+						{
+							// Update the priority if already existing
+							FoundTile->InvokerPriority = FMath::Max(FoundTile->InvokerPriority, Invoker.Priority);
+						}
+						else
+						{
+							TilesInMinDistance.Add(FNavMeshDirtyTileElement{FIntPoint(X,Y), Invoker.Priority});
+							TileToAppend.Add(FIntPoint(X,Y));
+						}
 					}
 				}
 			}
 		}
 	}
 
-	ActiveTiles.Append(TilesInMinDistance);
+	ActiveTiles.Append(TileToAppend);
 
 	TArray<FIntPoint> TilesToRemove;
 	TilesToRemove.Reserve(OldActiveSet.Num());
@@ -3546,19 +3559,25 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 	}
 
 	// Find tiles to update
-	TArray<FIntPoint> TilesToUpdate;
+	TArray<FNavMeshDirtyTileElement> TilesToUpdate;
 	TilesToUpdate.Reserve(ActiveTiles.Num());
 	for (int32 Index = TilesInMinDistance.Num() - 1; Index >= 0; --Index)
 	{
 		// Check if it's a new tile (not in the active set)
-		const FIntPoint& Tile = TilesInMinDistance[Index];
-		if (OldActiveSet.Find(Tile) == INDEX_NONE)
+		const FNavMeshDirtyTileElement& Tile = TilesInMinDistance[Index];
+		if (OldActiveSet.Find(Tile.Coordinates) == INDEX_NONE)
 		{
 			TilesToUpdate.Add(Tile);
 		}
 	}
 
-	UE_VLOG(this, LogNavigation, Log, TEXT("Updating active tiles: %d to remove, %d to update"), TilesToRemove.Num(), TilesToUpdate.Num());
+	UE_SUPPRESS(LogNavigation, Log,
+	{
+		if (TilesToRemove.Num() != 0 || TilesToUpdate.Num() != 0)
+		{
+			UE_VLOG(this, LogNavigation, Log, TEXT("Updating active tiles: %d to remove, %d to update"), TilesToRemove.Num(), TilesToUpdate.Num());
+		}
+	});
 
 	RemoveTiles(TilesToRemove);
 	RebuildTile(TilesToUpdate);
@@ -3581,7 +3600,19 @@ void ARecastNavMesh::RemoveTiles(const TArray<FIntPoint>& Tiles)
 	}
 }
 
+// Deprecated
 void ARecastNavMesh::RebuildTile(const TArray<FIntPoint>& Tiles)
+{
+	TArray<FNavMeshDirtyTileElement> ActiveTiles;
+	ActiveTiles.Reserve(Tiles.Num());
+	for (const FIntPoint& Point : Tiles)
+	{
+		ActiveTiles.Add(FNavMeshDirtyTileElement{Point, ENavigationInvokerPriority::Default});
+	}
+	RebuildTile(ActiveTiles);
+}
+
+void ARecastNavMesh::RebuildTile(const TArray<FNavMeshDirtyTileElement>& Tiles)
 {
 	if (Tiles.Num() > 0)
 	{
@@ -3629,7 +3660,7 @@ void ARecastNavMesh::DirtyTilesInBounds(const FBox& Bounds)
 	if (OverlappingBounds.IsValid)
 	{
 		// Add tiles within the overlapping bounds
-		TArray<FIntPoint> Points;
+		TArray<FNavMeshDirtyTileElement> Tiles;
 		const FVector RcNavMeshOrigin = Unreal2RecastPoint(NavMeshOriginOffset);
 		const float TileSizeInWorldUnits = GetTileSizeUU();
 		const FRcTileBox TileBox(OverlappingBounds, RcNavMeshOrigin, TileSizeInWorldUnits);
@@ -3640,10 +3671,11 @@ void ARecastNavMesh::DirtyTilesInBounds(const FBox& Bounds)
 		{
 			for (int32 TileX = TileBox.XMin; TileX <= TileBox.XMax; ++TileX)
 			{
-				Points.Add(FIntPoint(TileX, TileY));
+				// For now, new dirtiness is made with default priority.
+				Tiles.Add(FNavMeshDirtyTileElement{FIntPoint(TileX, TileY), ENavigationInvokerPriority::Default});
 			}
 		}
-		RebuildTile(Points);
+		RebuildTile(Tiles);
 	}
 }
 

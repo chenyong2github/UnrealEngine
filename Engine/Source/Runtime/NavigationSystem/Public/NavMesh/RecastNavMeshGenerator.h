@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "AI/Navigation/NavigationTypes.h"
+#include "AI/Navigation/NavigationInvokerPriority.h"
 #include "EngineDefines.h"
 #include "AI/NavigationModifier.h"
 #include "NavigationOctree.h"
@@ -560,6 +561,10 @@ struct FPendingTileElement
 	FVector::FReal SeedDistance;
 	/** time at which the element was first added to the queue */
 	double		CreationTime;
+
+	/** Priority from navigation invoker */
+	ENavigationInvokerPriority InvokerPriority = ENavigationInvokerPriority::Default;
+
 	/** Whether we need a full rebuild for this tile grid cell */
 	bool		bRebuildGeometry;
 	/** We need to store dirty area bounds to check which cached layers needs to be regenerated
@@ -864,7 +869,11 @@ public:
 	TArray<FNavTileRef> RemoveTileLayersAndGetUpdatedTiles(const int32 TileX, const int32 TileY, TMap<int32, dtPolyRef>* OldLayerTileIdMap = nullptr);
 
 	void RemoveTiles(const TArray<FIntPoint>& Tiles);
+
+	UE_DEPRECATED(5.3, "Use overload with FNavMeshDirtyTileElement instead.")
 	void ReAddTiles(const TArray<FIntPoint>& Tiles);
+
+	void ReAddTiles(const TArray<FNavMeshDirtyTileElement>& Tiles);
 
 	bool IsBuildingRestrictedToActiveTiles() const { return bRestrictBuildingToActiveTiles; }
 	bool IsInActiveSet(const FIntPoint& Tile) const;
@@ -873,6 +882,8 @@ public:
 	 *	@note if used at runtime will not result in killing tasks above limit count
 	 *	@mote function does not validate the input parameter - it's on caller */
 	void SetMaxTileGeneratorTasks(int32 NewLimit) { MaxTileGeneratorTasks = NewLimit; }
+
+	void SetSortPendingTileMethod(const ENavigationSortPendingTilesMethod InMethod) { SortPendingTilesMethod = InMethod; }
 
 	static void CalcPolyRefBits(ARecastNavMesh* NavMeshOwner, int32& MaxTileBits, int32& MaxPolyBits);
 
@@ -977,18 +988,23 @@ protected:
 
 	uint32 bRestrictBuildingToActiveTiles:1;
 
+	UE_DEPRECATED(5.3, "Use SortPendingTilesMethod instead.")
 	uint32 bSortTilesWithSeedLocations:1;
 
 	/** Runtime generator's version, increased every time all tile generators get invalidated
 	 *	like when navmesh size changes */
 	uint32 Version;
 
+	ENavigationSortPendingTilesMethod SortPendingTilesMethod = ENavigationSortPendingTilesMethod::SortWithSeedLocations;
+
 	/** Grouping all the member variables used by the time slicing code together for neatness */
 	struct FSyncTimeSlicedData
 	{
 		FSyncTimeSlicedData();
 
+		/** Accumulated time spent processing the tile (in seconds). */
 		double CurrentTileRegenDuration;
+		
 		/** if we are currently using time sliced regen or not - currently an experimental feature.
 		 *  do not manipulate this value directly instead call SetNextTimeSliceRegenActive()
 		 */

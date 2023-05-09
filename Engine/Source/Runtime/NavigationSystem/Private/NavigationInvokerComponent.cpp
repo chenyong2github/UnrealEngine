@@ -2,6 +2,7 @@
 
 #include "NavigationInvokerComponent.h"
 #include "NavigationSystem.h"
+#include "AI/Navigation/NavigationInvokerPriority.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NavigationInvokerComponent)
 
@@ -9,6 +10,7 @@ UNavigationInvokerComponent::UNavigationInvokerComponent(const FObjectInitialize
 	: Super(ObjectInitializer)
 	, TileGenerationRadius(3000)
 	, TileRemovalRadius(5000)
+	, Priority(ENavigationInvokerPriority::Default)
 {
 	bAutoActivate = true;
 	SupportedAgents.MarkInitialized();
@@ -21,7 +23,7 @@ void UNavigationInvokerComponent::Activate(bool bReset)
 	AActor* Owner = GetOwner();
 	if (Owner)
 	{
-		UNavigationSystemV1::RegisterNavigationInvoker(*Owner, TileGenerationRadius, TileRemovalRadius, SupportedAgents);
+		UNavigationSystemV1::RegisterNavigationInvoker(*Owner, TileGenerationRadius, TileRemovalRadius, SupportedAgents, Priority);
 	}
 }
 
@@ -49,7 +51,7 @@ void UNavigationInvokerComponent::RegisterWithNavigationSystem(UNavigationSystem
 		AActor* Owner = GetOwner();
 		if (Owner)
 		{
-			NavSys.RegisterInvoker(*Owner, TileGenerationRadius, TileRemovalRadius, SupportedAgents);
+			NavSys.RegisterInvoker(*Owner, TileGenerationRadius, TileRemovalRadius, SupportedAgents, Priority);
 		}
 	}
 }

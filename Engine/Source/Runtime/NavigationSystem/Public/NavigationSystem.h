@@ -11,6 +11,7 @@
 #include "NavFilters/NavigationQueryFilter.h"
 #include "AI/Navigation/NavigationTypes.h"
 #include "AI/Navigation/NavigationDirtyElement.h"
+#include "AI/Navigation/NavigationInvokerPriority.h"
 #include "NavigationSystemTypes.h"
 #include "NavigationData.h"
 #include "AI/NavigationSystemBase.h"
@@ -764,10 +765,16 @@ public:
 	//----------------------------------------------------------------------//
 	UE_DEPRECATED(5.2, "This function is deprecated. Please use the new RegisterInvoker method with the Agents parameter (FNavAgentSelector() can be used as default value to keep the same behavior)")
 	virtual void RegisterInvoker(AActor& Invoker, float TileGenerationRadius, float TileRemovalRadius);
+
+	UE_DEPRECATED(5.3, "This function is deprecated. Please use the new RegisterInvoker method with invoker priority.")
 	virtual void RegisterInvoker(AActor& Invoker, float TileGenerationRadius, float TileRemovalRadius, const FNavAgentSelector& Agents);
+
+	virtual void RegisterInvoker(AActor& Invoker, float TileGenerationRadius, float TileRemovalRadius, const FNavAgentSelector& Agents, ENavigationInvokerPriority InPriority);
+	
 	virtual void UnregisterInvoker(AActor& Invoker);
 
-	static void RegisterNavigationInvoker(AActor& Invoker, float TileGenerationRadius, float TileRemovalRadius, const FNavAgentSelector& Agents = FNavAgentSelector());
+	static void RegisterNavigationInvoker(AActor& Invoker, float TileGenerationRadius, float TileRemovalRadius, 
+		const FNavAgentSelector& Agents = FNavAgentSelector(), ENavigationInvokerPriority Priority = ENavigationInvokerPriority::Default);
 	static void UnregisterNavigationInvoker(AActor& Invoker);
 
 	const TArray<FNavigationInvokerRaw>& GetInvokerLocations() const { return InvokerLocations; }

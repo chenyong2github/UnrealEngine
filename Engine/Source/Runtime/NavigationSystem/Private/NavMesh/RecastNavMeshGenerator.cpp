@@ -4609,7 +4609,9 @@ FRecastNavMeshGenerator::FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh)
 	, DestNavMesh(&InDestNavMesh)
 	, bInitialized(false)
 	, bRestrictBuildingToActiveTiles(false)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	, bSortTilesWithSeedLocations(true)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS	
 	, Version(0)
 {
 	INC_DWORD_STAT_BY(STAT_NavigationMemory, sizeof(*this));
@@ -5261,7 +5263,7 @@ void FRecastNavMeshGenerator::ResetTimeSlicedTileGeneratorSync()
 	SyncTimeSlicedData.AddGenTilesLayerIndex = 0;
 }
 
-//@TODO Investigate removing from RunningDirtyTiles here too (or atleast not using the results in any way)
+//@TODO Investigate removing from RunningDirtyTiles here too (or at least not using the results in any way)
 void FRecastNavMeshGenerator::RemoveTiles(const TArray<FIntPoint>& Tiles)
 {
 	for (const FIntPoint& TileXY : Tiles)
@@ -5285,7 +5287,18 @@ void FRecastNavMeshGenerator::RemoveTiles(const TArray<FIntPoint>& Tiles)
 	}
 }
 
+// Deprecated 
 void FRecastNavMeshGenerator::ReAddTiles(const TArray<FIntPoint>& Tiles)
+{
+	TArray<FNavMeshDirtyTileElement> ConvertedTiles;
+	for (const FIntPoint& Point : Tiles)
+	{
+		ConvertedTiles.Add(FNavMeshDirtyTileElement{Point, ENavigationInvokerPriority::Default});
+	}
+	ReAddTiles(ConvertedTiles);
+}
+	
+void FRecastNavMeshGenerator::ReAddTiles(const TArray<FNavMeshDirtyTileElement>& Tiles)
 {
 	static const FVector Expansion(1, 1, BIG_NUMBER);
 	// a little trick here - adding a dirty area so that navmesh building figures it out on its own
@@ -5297,10 +5310,11 @@ void FRecastNavMeshGenerator::ReAddTiles(const TArray<FIntPoint>& Tiles)
 	const double CurrentTimeSeconds = FPlatformTime::Seconds();
 
 	// @note we act on assumption all items in Tiles are unique
-	for (const FIntPoint& TileCoords : Tiles)
+	for (const FNavMeshDirtyTileElement& Tile : Tiles)
 	{
 		FPendingTileElement Element;
-		Element.Coord = TileCoords;
+		Element.Coord = Tile.Coordinates;
+		Element.InvokerPriority = Tile.InvokerPriority;
 		Element.bRebuildGeometry = true;
 		Element.CreationTime = CurrentTimeSeconds;
 		DirtyTiles.Add(Element);
@@ -5314,6 +5328,7 @@ void FRecastNavMeshGenerator::ReAddTiles(const TArray<FIntPoint>& Tiles)
 		FPendingTileElement* ExistingElement = DirtyTiles.Find(Element);
 		if (ExistingElement)
 		{
+			ExistingElement->InvokerPriority = FMath::Max(ExistingElement->InvokerPriority, Element.InvokerPriority);
 			ExistingElement->bRebuildGeometry |= Element.bRebuildGeometry;
 			ExistingElement->CreationTime = FMath::Min(Element.CreationTime, ExistingElement->CreationTime);
 			// Append area bounds to existing list 
@@ -6106,43 +6121,58 @@ bool FRecastNavMeshGenerator::ShouldDirtyTilesRequestedByObject(const UNavigatio
 
 void FRecastNavMeshGenerator::SortPendingBuildTiles()
 {
-	if (bSortTilesWithSeedLocations == false)
+	if (SortPendingTilesMethod == ENavigationSortPendingTilesMethod::SortWithSeedLocations)
 	{
-		return;
-	}
-
-	UWorld* CurWorld = GetWorld();
-	if (CurWorld == nullptr)
-	{
-		return;
-	}
-
-	TArray<FVector2D> SeedLocations;
-	GetSeedLocations(*CurWorld, SeedLocations);
-
-	if (SeedLocations.Num() == 0)
-	{
-		// Use navmesh origin for sorting
-		SeedLocations.Add(FVector2D(TotalNavBounds.GetCenter()));
-	}
-
-	if (SeedLocations.Num() > 0)
-	{
-		const FVector::FReal TileSizeInWorldUnits = Config.GetTileSizeUU();
-		
-		// Calculate shortest distances between tiles and players
-		for (FPendingTileElement& Element : PendingDirtyTiles)
+		UWorld* CurWorld = GetWorld();
+		if (CurWorld == nullptr)
 		{
-			const FBox TileBox = FRecastTileGenerator::CalculateTileBounds(Element.Coord.X, Element.Coord.Y, FVector::ZeroVector, TotalNavBounds, TileSizeInWorldUnits);
-			FVector2D TileCenter2D = FVector2D(TileBox.GetCenter());
-			for (FVector2D SeedLocation : SeedLocations)
-			{
-				Element.SeedDistance = FMath::Min(Element.SeedDistance, FVector2D::DistSquared(TileCenter2D, SeedLocation));
-			}
+			return;
 		}
 
-		// nearest tiles should be at the end of the list
-		PendingDirtyTiles.Sort();
+		TArray<FVector2D> SeedLocations;
+		GetSeedLocations(*CurWorld, SeedLocations);
+
+		if (SeedLocations.Num() == 0)
+		{
+			// Use navmesh origin for sorting
+			SeedLocations.Add(FVector2D(TotalNavBounds.GetCenter()));
+		}
+
+		if (SeedLocations.Num() > 0)
+		{
+			const FVector::FReal TileSizeInWorldUnits = Config.GetTileSizeUU();
+		
+			// Calculate shortest distances between tiles and players
+			for (FPendingTileElement& Element : PendingDirtyTiles)
+			{
+				const FBox TileBox = FRecastTileGenerator::CalculateTileBounds(Element.Coord.X, Element.Coord.Y, FVector::ZeroVector, TotalNavBounds, TileSizeInWorldUnits);
+				FVector2D TileCenter2D = FVector2D(TileBox.GetCenter());
+				for (FVector2D SeedLocation : SeedLocations)
+				{
+					Element.SeedDistance = FMath::Min(Element.SeedDistance, FVector2D::DistSquared(TileCenter2D, SeedLocation));
+				}
+			}
+
+			// Nearest tiles should be at the end of the list
+			PendingDirtyTiles.Sort();
+		}
+	}
+	else if (SortPendingTilesMethod == ENavigationSortPendingTilesMethod::SortByPriority)
+	{
+		// Highest priority should be at the end of the list
+		PendingDirtyTiles.Sort([](const FPendingTileElement& A, const FPendingTileElement& B){ return A.InvokerPriority < B.InvokerPriority; });
+
+		UE_SUPPRESS(LogNavigation, VeryVerbose,
+		{
+			for (int32 Index = 0; Index < PendingDirtyTiles.Num(); Index++)
+			{
+				const FPendingTileElement& Element = PendingDirtyTiles[Index];
+				const FVector::FReal TileSizeInWorldUnits = Config.GetTileSizeUU();
+				const FBox TileBox = FRecastTileGenerator::CalculateTileBounds(Element.Coord.X, Element.Coord.Y, FVector::ZeroVector, TotalNavBounds, TileSizeInWorldUnits);
+				const ARecastNavMesh* const OwnerNav = GetOwner();
+				UE_VLOG_BOX(OwnerNav, LogNavigation, VeryVerbose, TileBox, FColor::Silver, TEXT("Index: %i, Priority %i"), Index, Element.InvokerPriority);
+			}
+		});
 	}
 }
 

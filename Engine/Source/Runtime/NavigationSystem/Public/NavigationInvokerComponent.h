@@ -10,6 +10,7 @@
 #include "NavigationInvokerComponent.generated.h"
 
 class UNavigationSystemV1;
+enum class ENavigationInvokerPriority : uint8;
 
 UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent))
 class NAVIGATIONSYSTEM_API UNavigationInvokerComponent : public UActorComponent
@@ -27,6 +28,10 @@ protected:
 	/** restrict navigation generation to specific agents */
 	UPROPERTY(EditAnywhere, Category = Navigation)
 	FNavAgentSelector SupportedAgents;
+
+	/** Experimental invocation priority. It will modify the order in which invoked tiles are being built if SortPendingTilesMethod is set to SortByPriority. */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	ENavigationInvokerPriority Priority;
 
 public:
 	UNavigationInvokerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
