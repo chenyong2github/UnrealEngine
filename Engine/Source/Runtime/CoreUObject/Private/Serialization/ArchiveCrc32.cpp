@@ -14,7 +14,16 @@ FArchiveCrc32::FArchiveCrc32(uint32 InCRC, UObject* InRootObject)
 
 void FArchiveCrc32::Serialize(void* Data, int64 Num)
 {
-	CRC = FCrc::MemCrc32(Data, Num, CRC);
+	uint8* BytePointer = static_cast<uint8*>(Data);
+	while (Num > 0)
+	{
+		const int32 BytesToHash = static_cast<int32>(FMath::Min(Num, int64(MAX_int32)));
+
+		CRC = FCrc::MemCrc32(BytePointer, BytesToHash, CRC);
+
+		Num -= BytesToHash;
+		BytePointer += BytesToHash;
+	}
 }
 
 FArchive& FArchiveCrc32::operator<<(class FName& Name)
