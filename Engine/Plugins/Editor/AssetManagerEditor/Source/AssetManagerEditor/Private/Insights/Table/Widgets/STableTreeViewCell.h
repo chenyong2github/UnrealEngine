@@ -105,6 +105,11 @@ protected:
 
 	TSharedPtr<class IToolTip> GetRowToolTip(const TSharedRef<ITableRow>& TableRow) const;
 
+	const FSlateBrush* GetIcon() const
+	{
+		return TableTreeNodePtr->GetIcon();
+	}
+
 	FText GetDisplayName() const
 	{
 		return TableTreeNodePtr->GetDisplayName();
@@ -122,12 +127,21 @@ protected:
 
 	FText GetValueAsText() const;
 
+	FSlateColor GetIconColorAndOpacity() const
+	{
+		const FLinearColor TextColor =
+			IsHovered() ?
+				TableTreeNodePtr->GetColor() :
+				TableTreeNodePtr->GetColor().CopyWithNewOpacity(0.5f);
+		return TextColor;
+	}
+
 	FSlateColor GetColorAndOpacity() const
 	{
 		const FLinearColor TextColor =
 			TableTreeNodePtr->IsFiltered() ?
-				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
-				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+				TableTreeNodePtr->GetColor().CopyWithNewOpacity(0.5f) :
+				TableTreeNodePtr->GetColor();
 		return TextColor;
 	}
 
@@ -155,7 +169,7 @@ protected:
 	{
 		const FLinearColor ShadowColor =
 			TableTreeNodePtr->IsFiltered() ?
-				FLinearColor(0.f, 0.f, 0.f, 0.25f) :
+				FLinearColor(0.0f, 0.0f, 0.0f, 0.25f) :
 				FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
 		return ShadowColor;
 	}

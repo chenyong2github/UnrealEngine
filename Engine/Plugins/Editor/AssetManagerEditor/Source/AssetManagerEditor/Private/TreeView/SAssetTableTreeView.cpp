@@ -15,6 +15,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "Logging/MessageLog.h"
 
+#include "Insights/Common/InsightsStyle.h"
 #include "Insights/Common/Log.h"
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Filter/ViewModels/FilterConfigurator.h"
@@ -23,6 +24,7 @@
 #include "Insights/Table/ViewModels/TreeNodeGrouping.h"
 #include "TreeView/AssetTable.h"
 #include "TreeView/AssetTreeNode.h"
+#include "TreeView/AssetDependencyGrouping.h"
 
 #include <limits>
 #include <memory>
@@ -92,29 +94,33 @@ void SAssetTableTreeView::RebuildTree(bool bResync)
 
 	TSharedPtr<FAssetTable> AssetTable = GetAssetTable();
 	const TArray<FAssetTableRow>& Assets = AssetTable->GetAssets();
-	const int32 TotalAssetCount = Assets.Num();
+	const int32 VisibleAssetCount = AssetTable->GetVisibleAssetCount();
 
-	if (TotalAssetCount != PreviousNodeCount)
+	if (VisibleAssetCount != PreviousNodeCount)
 	{
-		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Creating nodes (%d nodes --> %d assets)..."), PreviousNodeCount, TotalAssetCount);
+		UE_LOG(LogInsights, Log, TEXT("[AssetTree] Creating nodes (%d nodes --> %d assets)..."), PreviousNodeCount, VisibleAssetCount);
 
-		if (TotalAssetCount < PreviousNodeCount)
+		if (VisibleAssetCount < PreviousNodeCount)
 		{
 			TableTreeNodes.Empty();
 		}
-		TableTreeNodes.Reserve(TotalAssetCount);
+		TableTreeNodes.Reserve(VisibleAssetCount);
 
 		//const FName BaseNodeName(TEXT("asset"));
-		for (int32 AssetIndex = TableTreeNodes.Num(); AssetIndex < TotalAssetCount; ++AssetIndex)
+		for (int32 AssetIndex = TableTreeNodes.Num(); AssetIndex < VisibleAssetCount; ++AssetIndex)
 		{
 			const FAssetTableRow* Asset = AssetTable->GetAsset(AssetIndex);
 
 			//FName NodeName(BaseNodeName, AssetIndex + 1);
 			FName NodeName(Asset->GetName());
 			FAssetTreeNodePtr NodePtr = MakeShared<FAssetTreeNode>(NodeName, AssetTable, AssetIndex);
+			if (AssetIndex % 3) // TODO
+				NodePtr->SetIcon(UE::Insights::FInsightsStyle::GetBrush("Icons.Asset.TreeItem"));
+			else if (AssetIndex % 7) // TODO
+				NodePtr->SetIcon(UE::Insights::FInsightsStyle::GetBrush("Icons.Package.TreeItem"));
 			TableTreeNodes.Add(NodePtr);
 		}
-		ensure(TableTreeNodes.Num() == TotalAssetCount);
+		ensure(TableTreeNodes.Num() == VisibleAssetCount);
 	}
 
 	SyncStopwatch.Stop();
@@ -252,20 +258,21 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),         true, 200.0f });
+			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),     true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                 true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                 true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                 true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,          true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,          true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::ManagedDiskSizeColumnId,      true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::DiskSizeColumnId,             true, 100.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::ManagedDiskSizeColumnId,      true, 100.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::DiskSizeColumnId,             true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId, true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,      true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::CookRuleColumnId,             true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,               true, 200.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::CookRuleColumnId,             true, 200.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,               true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,          true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::GameFeaturePluginColumnId,    true, 200.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FDefaultViewPreset>());
@@ -312,20 +319,21 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),         true, 400.0f });
+			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),     true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                 true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                 true, 200.0f });
 			//InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                 true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,          true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,          true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::ManagedDiskSizeColumnId,      true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::DiskSizeColumnId,             true, 100.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::ManagedDiskSizeColumnId,      true, 100.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::DiskSizeColumnId,             true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId, true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,      true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::CookRuleColumnId,             true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,               true, 200.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::CookRuleColumnId,             true, 200.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,               true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,          true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::GameFeaturePluginColumnId,    true, 200.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FAssetPathViewPreset>());
@@ -383,20 +391,21 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 		}
 		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
 		{
-			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),         true, 300.0f });
+			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),     true, 300.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                 true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                 true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                 true, 400.0f });
 			//InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,          true, 200.0f });
 			//InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,          true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::ManagedDiskSizeColumnId,      true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::DiskSizeColumnId,             true, 100.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::ManagedDiskSizeColumnId,      true, 100.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::DiskSizeColumnId,             true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId, true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,      true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::CookRuleColumnId,             true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,               true, 200.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::CookRuleColumnId,             true, 200.0f });
+			//InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,               true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,          true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::GameFeaturePluginColumnId,    true, 200.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FPrimaryAssetViewPreset>());
@@ -452,8 +461,7 @@ void SAssetTableTreeView::InternalCreateGroupings()
 			else if (Grouping->Is<UE::Insights::FTreeNodeGroupingByPathBreakdown>())
 			{
 				const FName ColumnId = Grouping->As<UE::Insights::FTreeNodeGroupingByPathBreakdown>().GetColumnId();
-				if (ColumnId == FAssetTableColumns::TypeColumnId ||
-					ColumnId == FAssetTableColumns::NativeClassColumnId)
+				if (ColumnId != FAssetTableColumns::PathColumnId)
 				{
 					return true;
 				}
@@ -461,7 +469,10 @@ void SAssetTableTreeView::InternalCreateGroupings()
 			return false;
 		});
 
+	// Add custom groupings...
 	int32 Index = 1; // after the Flat ("All") grouping
+
+	AvailableGroupings.Insert(MakeShared<FAssetDependencyGrouping>(), Index++);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
