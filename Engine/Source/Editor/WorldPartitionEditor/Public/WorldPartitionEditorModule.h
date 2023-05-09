@@ -131,7 +131,7 @@ private:
 	bool BuildLandscapeSplineMeshes(UWorld* InWorld);
 
 private:
-	void RunCommandletAsExternalProcess(const FString& InCommandletArgs, const FText& InOperationDescription, int32& OutResult, bool& bOutCancelled, FString& OutCommandletOutput);
+	void RunCommandletAsExternalProcess(const FString& InCommandletArgs, const FText& InOperationDescription, int32& OutResult, bool& bOutCancelled);
 	void OnConvertMap();
 
 	FDelegateHandle LevelEditorExtenderDelegateHandle;
