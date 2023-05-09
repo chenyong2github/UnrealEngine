@@ -276,7 +276,7 @@ mu::NodeImagePtr GenerateMutableGroupProjection(const int32 NodeLOD, const int32
 	}
 	
 	mu::NodeColourConstantPtr ZeroColorNode = new mu::NodeColourConstant();
-	ZeroColorNode->SetValue(0.f, 0.f, 0.f);
+	ZeroColorNode->SetValue(0.f, 0.f, 0.f, 1.0f);
 
 	if (TextureSize <= 0 || !FMath::IsPowerOfTwo(TextureSize))
 	{

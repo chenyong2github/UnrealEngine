@@ -6,9 +6,11 @@
 #include "MuR/Serialisation.h"
 
 #include "Misc/TVariant.h"
+#include "Math/Color.h"
 #include "Math/Quat.h"
 #include "Math/Vector.h"
 #include "Math/IntVector.h"
+#include "Math/Vector4.h"
 #include "Math/Transform.h"
 #include "MuR/Ptr.h"
 #include "MuR/RefCounted.h"
@@ -365,6 +367,11 @@ namespace mu
 	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<uint16>);
 	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TIntVector2<int16>);
 
+	MUTABLE_DEFINE_POD_SERIALISABLE(FVector4f);
+	MUTABLE_DEFINE_POD_SERIALISABLE(UE::Math::TVector4<float>);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(FVector4f);
+	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(UE::Math::TVector4<float>);
+
 
 	//---------------------------------------------------------------------------------------------
 	template<>
@@ -544,6 +551,26 @@ namespace mu
 		arch >> Scale;
 
 		v.SetComponents(Rot, Trans, Scale);
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	template< typename T >
+	inline void operator<< (OutputArchive& arch, const UE::Math::TVector4<T>& v)
+	{
+		arch << v.X;
+		arch << v.Y;
+		arch << v.Z;
+		arch << v.W;
+	}
+
+	template< typename T >
+	inline void operator>> (InputArchive& arch, UE::Math::TVector4<T>& v)
+	{
+		arch >> v.X;
+		arch >> v.Y;
+		arch >> v.Z;
+		arch >> v.W;
 	}
 
 }

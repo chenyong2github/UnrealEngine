@@ -7,7 +7,6 @@
 
 #include "MuR/MutableMath.h"
 
-
 namespace mu
 {
 
@@ -21,20 +20,25 @@ namespace mu
 
 		static NODE_TYPE s_type;
 
-		vec3<float> m_value;
+		FVector4f m_value;
 
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
+			const uint32 Version = 0;
+			arch << Version;
 			arch << m_value;
 		}
 
 		//!
 		void Unserialise( InputArchive& arch )
 		{
+			uint32 Version;
+			arch >> Version;
+			check(Version==0)
+
 			arch >> m_value;
 		}
-
 	};
 
 }

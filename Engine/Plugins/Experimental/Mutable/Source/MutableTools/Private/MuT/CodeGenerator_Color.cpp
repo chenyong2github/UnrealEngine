@@ -124,10 +124,10 @@ namespace mu
 
 		Ptr<ASTOpFixed> op = new ASTOpFixed();
 		op->op.type = OP_TYPE::CO_CONSTANT;
-		op->op.args.ColourConstant.value[0] = node.m_value[0];
-		op->op.args.ColourConstant.value[1] = node.m_value[1];
-		op->op.args.ColourConstant.value[2] = node.m_value[2];
-		op->op.args.ColourConstant.value[3] = 1.0f;
+		op->op.args.ColourConstant.value[0] = node.m_value.X;
+		op->op.args.ColourConstant.value[1] = node.m_value.Y;
+		op->op.args.ColourConstant.value[2] = node.m_value.Z;
+		op->op.args.ColourConstant.value[3] = node.m_value.W;
 
 		result.op = op;
 	}
@@ -493,10 +493,10 @@ namespace mu
 		result.op = GenerateTableSwitch<NodeColourTable::Private, TCT_COLOUR, OP_TYPE::CO_SWITCH>(node,
 			[this](const NodeColourTable::Private& node, int colIndex, int row, ErrorLog* pErrorLog)
 			{
-				NodeColourConstantPtr pCell = new NodeColourConstant();
-				vec3<float> colour = node.m_pTable->GetPrivate()->m_rows[row].m_values[colIndex].m_colour;
-				pCell->SetValue(colour[0], colour[1], colour[2]);
-				return Generate(pCell);
+				NodeColourConstantPtr CellData = new NodeColourConstant();
+				FVector4f Colour = node.m_pTable->GetPrivate()->m_rows[row].m_values[colIndex].m_colour;
+				CellData->SetValue(Colour.X, Colour.Y, Colour.Z, Colour.W);
+				return Generate(CellData);
 			});
 	}
 
@@ -511,7 +511,7 @@ namespace mu
 
 		// Create a constant colour node
 		NodeColourConstantPtr pNode = new NodeColourConstant();
-		pNode->SetValue(1, 1, 0);
+		pNode->SetValue(1, 1, 0, 1);
 
 		FColorGenerationResult Result;
 		GenerateColor(Result, pNode);

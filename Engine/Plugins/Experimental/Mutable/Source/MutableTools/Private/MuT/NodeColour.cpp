@@ -30,7 +30,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void NodeColour::Serialise( const NodeColour* p, OutputArchive& arch )
 	{
-        uint32_t ver = 0;
+        uint32_t ver = 1;
 		arch << ver;
 
 		arch << uint32_t(p->Type);
@@ -43,14 +43,20 @@ namespace mu
 	{
         uint32_t ver;
 		arch >> ver;
-		check( ver == 0 );
+		check( ver <= 1 );
 
         uint32_t id;
 		arch >> id;
 
 		switch (id)
 		{
-		case 0 :  return NodeColourConstant::StaticUnserialise( arch ); break;
+		case 0 :
+			if (ver == 0)
+			{
+				return NodeColourConstant::OldStaticUnserialise(arch);
+			}
+			return NodeColourConstant::StaticUnserialise(arch);
+			break;
 		case 1 :  return NodeColourParameter::StaticUnserialise( arch ); break;
 		case 2 :  return NodeColourSampleImage::StaticUnserialise( arch ); break;
 		case 3 :  return NodeColourTable::StaticUnserialise( arch ); break;

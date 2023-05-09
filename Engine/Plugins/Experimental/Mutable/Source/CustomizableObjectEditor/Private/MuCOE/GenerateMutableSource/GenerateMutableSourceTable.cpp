@@ -517,7 +517,7 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 					}
 
 					// Setting cell value
-					MutableTable->SetCell(ColumnIndex, RowIdx, VectorValue.R, VectorValue.G, VectorValue.B);
+					MutableTable->SetCell(ColumnIndex, RowIdx, VectorValue.R, VectorValue.G, VectorValue.B, VectorValue.A);
 				}
 
 				// Checking if all modifiable vectors of the material instance have been modified
@@ -617,7 +617,7 @@ void FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 
 			// Setting cell value
 			FLinearColor Value = *(FLinearColor*)CellData;
-			MutableTable->SetCell(CurrentColumn, RowIdx, Value.R, Value.G, Value.B);
+			MutableTable->SetCell(CurrentColumn, RowIdx, Value.R, Value.G, Value.B, Value.A);
 		}
 	}
 

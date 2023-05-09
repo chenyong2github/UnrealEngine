@@ -150,7 +150,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-    void Table::SetCell( int column, uint32_t rowId, float r, float g, float b )
+    void Table::SetCell( int column, uint32_t rowId, float r, float g, float b, float a)
 	{
 		int row = m_pD->FindRow(rowId);
 		check( row>=0 );
@@ -158,7 +158,7 @@ namespace mu
 		check( column < (int)m_pD->m_rows[row].m_values.Num() );
 		check( m_pD->m_columns[column].m_type == TCT_COLOUR );
 
-		m_pD->m_rows[ row ].m_values[column].m_colour = vec3<float>( r, g, b );
+		m_pD->m_rows[ row ].m_values[column].m_colour = FVector4f(r, g, b, a);
 	}
 
 

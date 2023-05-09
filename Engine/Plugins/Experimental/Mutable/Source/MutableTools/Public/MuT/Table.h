@@ -78,7 +78,7 @@ namespace mu
 
 		//!
         void SetCell( int column, uint32 rowId, float value );
-        void SetCell( int column, uint32 rowId, float r, float g, float b );
+        void SetCell( int column, uint32 rowId, float r, float g, float b, float a);
         void SetCell( int column, uint32 rowId, Image* pImage );
         void SetCell( int column, uint32 rowId, Mesh* pMesh );
         void SetCell( int column, uint32 rowId, const char* strValue );
