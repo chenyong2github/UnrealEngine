@@ -93,6 +93,9 @@ class FNiagaraDebugHud
 	struct FSystemDebugInfo
 	{
 		FString		SystemName;
+	#if WITH_EDITORONLY_DATA
+		bool		bCompileForEdit = false;
+	#endif
 
 		#if WITH_PARTICLE_PERF_STATS
 		TSharedPtr<FNiagaraDebugHUDPerfStats> PerfStats = nullptr;
@@ -297,6 +300,9 @@ private:
 
 	struct FGpuUsagePerSystem
 	{
+#if WITH_EDITORONLY_DATA
+		bool bCompileForEdit = false;
+#endif
 		bool bShowDetailed = false;
 		FSmoothedCounter<uint32> InstanceCount;
 		FSmoothedCounter<uint64> Microseconds;
