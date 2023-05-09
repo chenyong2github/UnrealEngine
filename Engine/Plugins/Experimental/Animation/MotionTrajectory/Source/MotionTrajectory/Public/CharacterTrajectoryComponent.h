@@ -34,8 +34,8 @@ protected:
 	UFUNCTION()
 	void OnMovementUpdated(float DeltaSeconds, FVector OldLocation, FVector OldVelocity);
 
-	void UpdateHistory(float DeltaSeconds, const FTransform& DeltaTransformCS);
-	void UpdatePrediction(const FVector& VelocityCS, const FVector& AccelerationCS, const FRotator& ControllerRotationRate);
+	void UpdateHistory(float DeltaSeconds);
+	void UpdatePrediction(const FVector& PositionWS, const FQuat& FacingWS, const FVector& VelocityWS, const FVector& AccelerationWS, const FRotator& ControllerRotationRate);
 
 	FRotator CalculateControllerRotationRate(float DeltaSeconds, bool bShouldRemainVertical);
 
@@ -81,9 +81,6 @@ protected:
 	int32 NumHistorySamples = -1;
 	float SecondsPerHistorySample = 0.f;
 	float SecondsPerPredictionSample = 0.f;
-
-	// Current transform of the skeletal mesh component, used to calculate the movement delta between frames.
-	FTransform SkelMeshComponentTransformWS = FTransform::Identity;
 
 	// Forward axis for the SkeletalMeshComponent. It's common for skeletal mesh and animation data to not be X forward.
 	FQuat ForwardFacingCS = FQuat::Identity;

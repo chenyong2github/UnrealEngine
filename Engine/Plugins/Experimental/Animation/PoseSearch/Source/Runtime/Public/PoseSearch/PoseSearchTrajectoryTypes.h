@@ -37,9 +37,7 @@ struct POSESEARCH_API FPoseSearchQueryTrajectory
 
 	FPoseSearchQueryTrajectorySample GetSampleAtTime(float Time, bool bExtrapolate = true) const;
 	
-	void TransformReferenceFrame(const FTransform& DeltaTransform);
-
 #if ENABLE_ANIM_DEBUG
-	void DebugDrawTrajectory(const UWorld* World, const FTransform& TransformWS) const;
+	void DebugDrawTrajectory(const UWorld* World) const;
 #endif // ENABLE_ANIM_DEBUG
 };

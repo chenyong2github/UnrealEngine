@@ -415,12 +415,16 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 #endif
 }
 
-// transforms Trajectory from the SkeletalMeshComponent relative space into Character relative space, and scale it by TrajectorySpeedMultiplier
+// transforms Trajectory from world space to mesh component space, and scale it by TrajectorySpeedMultiplier
 FPoseSearchQueryTrajectory UPoseSearchLibrary::ProcessTrajectory(const FPoseSearchQueryTrajectory& Trajectory, const FTransform& OwnerTransformWS, const FTransform& ComponentTransformWS, float TrajectorySpeedMultiplier)
 {
-	const FTransform ReferenceChangeTransform = OwnerTransformWS.GetRelativeTransform(ComponentTransformWS);
 	FPoseSearchQueryTrajectory TrajectoryCS = Trajectory;
-	TrajectoryCS.TransformReferenceFrame(ReferenceChangeTransform);
+	const FTransform ToComponentTransform = ComponentTransformWS.Inverse();
+	for (FPoseSearchQueryTrajectorySample& Sample : TrajectoryCS.Samples)
+	{
+		Sample.Position = ToComponentTransform.TransformPosition(Sample.Position);
+		Sample.Facing = ToComponentTransform.TransformRotation(Sample.Facing);
+	}
 
 	if (!FMath::IsNearlyEqual(TrajectorySpeedMultiplier, 1.f) && !FMath::IsNearlyZero(TrajectorySpeedMultiplier))
 	{
@@ -429,6 +433,7 @@ FPoseSearchQueryTrajectory UPoseSearchLibrary::ProcessTrajectory(const FPoseSear
 			Sample.AccumulatedSeconds /= TrajectorySpeedMultiplier;
 		}
 	}
+
 	return TrajectoryCS;
 }
 
