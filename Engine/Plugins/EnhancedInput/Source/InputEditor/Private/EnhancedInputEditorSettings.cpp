@@ -40,6 +40,8 @@ UEnhancedInputEditorProjectSettings::UEnhancedInputEditorProjectSettings(const F
 UEnhancedInputEditorSettings::UEnhancedInputEditorSettings()
 	: bLogAllInput(false)
 	, bAutomaticallyStartConsumingInput(false)
+	// By default only show the triggered event 
+	, VisibleEventPinsByDefault(static_cast<uint8>(ETriggerEvent::Triggered))
 {
 }
 

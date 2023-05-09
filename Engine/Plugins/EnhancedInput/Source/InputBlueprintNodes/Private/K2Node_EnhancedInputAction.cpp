@@ -20,6 +20,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
+#include "EnhancedInputEditorSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(K2Node_EnhancedInputAction)
 
@@ -68,6 +69,11 @@ void UK2Node_EnhancedInputAction::AllocateDefaultPins()
 		static const UEnum* EventEnum = StaticEnum<ETriggerEvent>();
 
 		UEdGraphPin* NewPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, PinName);
+
+		// Mark all triggering exec pins as advanced view except for the triggered pin. Most of the time, triggered is what users should be using.
+		// More advanced input set ups can use the more advanced pins when they want to! 
+		NewPin->bAdvancedView = !(GetDefault<UEnhancedInputEditorSettings>()->VisibleEventPinsByDefault & static_cast<uint8>(Event));
+
 		NewPin->PinToolTip = EventEnum->GetToolTipTextByIndex(EventEnum->GetIndexByValue(static_cast<uint8>(Event))).ToString();
 
 		// Add a special tooltip and display name for pins that are unsupported
@@ -96,6 +102,7 @@ void UK2Node_EnhancedInputAction::AllocateDefaultPins()
 		UEdGraphPin* ActionPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, InputAction->GetClass(), InputActionPinName);
 		ActionPin->DefaultObject = const_cast<UObject*>(Cast<UObject>(InputAction));
 		ActionPin->DefaultValue = InputAction->GetName();
+		ActionPin->bAdvancedView = true;
 		Schema->ConstructBasicPinTooltip(*ActionPin, LOCTEXT("InputActionPinDescription", "The input action that caused this event to fire"), ActionPin->PinToolTip);	
 	}
 	
@@ -114,7 +121,7 @@ void UK2Node_EnhancedInputAction::HideEventPins(UEdGraphPin* RetainPin)
 		{
 			const bool bIsSupported = UInputTrigger::IsSupportedTriggerEvent(SupportedTriggerEvents, Event);
 			
-			Pin->bAdvancedView = !bIsSupported;
+			Pin->bAdvancedView = !(GetDefault<UEnhancedInputEditorSettings>()->VisibleEventPinsByDefault & static_cast<uint8>(Event)) || !bIsSupported;
 		}
 	});
 }
@@ -201,9 +208,10 @@ FText UK2Node_EnhancedInputAction::GetTooltipText() const
 		FString ActionPath = InputAction ? InputAction->GetFullName() : TEXT("");
 		CachedTooltip.SetCachedText(
 			FText::Format(
-				LOCTEXT("EnhancedInputAction_Tooltip", "Event for when '{0}' triggers.\n\nNote: This is not guaranteed to fire every frame, only when the Action is triggered and the current Input Mode includes 'Game'.\n\n{1}"),
-			FText::FromString(ActionPath),
-			LOCTEXT("EnhancedInputAction_Node_Tooltip_Tip", "Tip: Use the 'showdebug enhancedinput' command while playing to see debug information about Enhanced Input.")),
+				LOCTEXT("EnhancedInputAction_Tooltip", "Event for when '{0}' triggers.\n\nNote: This is not guaranteed to fire every frame, only when the Action is triggered and the current Input Mode includes 'Game'.\n\n{1}\n\n{2}"),
+				FText::FromString(ActionPath),
+				LOCTEXT("EnhancedInputAction_Node_Tooltip_Tip", "Tip: Use the 'showdebug enhancedinput' command while playing to see debug information about Enhanced Input."),
+				LOCTEXT("EnhancedInputAction_Node_SettingsTooltip", "You can change what execution pins are visible by default in the Enhanced Input Editor Preferences.")),
 			this);
 	}
 	return CachedTooltip;

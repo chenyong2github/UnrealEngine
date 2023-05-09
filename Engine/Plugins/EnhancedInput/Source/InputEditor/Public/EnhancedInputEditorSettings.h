@@ -31,10 +31,10 @@ public:
 };
 
 /**
- * A collection of useful indivudal user settings when using the EnhancedInputEditorSubsystem.
+ * A collection of useful individual user settings when using the EnhancedInputEditorSubsystem.
  */
 UCLASS(config=EditorPerProjectUserSettings, meta=(DisplayName="Enhanced Input Editor Settings"))
-class UEnhancedInputEditorSettings : public UDeveloperSettingsBackedByCVars
+class INPUTEDITOR_API UEnhancedInputEditorSettings : public UDeveloperSettingsBackedByCVars
 {
 	GENERATED_BODY()
 public:
@@ -51,6 +51,10 @@ public:
 	/** If true, then the UEnhancedInputEditorSubsystem will be started when it is initalized */
 	UPROPERTY(config, EditAnywhere, Category = Editor, meta=(ConsoleVariable="EnhancedEditorInput.bAutomaticallyStartConsumingInput"))
 	uint8 bAutomaticallyStartConsumingInput : 1;
+
+	/** A bitmask of what event pins are visible when you place an Input Action event node in blueprints.  */
+	UPROPERTY(config, EditAnywhere, Category = Blueprints, meta = (Bitmask, BitmaskEnum = "/Script/EnhancedInput.ETriggerEvent"))
+	uint8 VisibleEventPinsByDefault;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
