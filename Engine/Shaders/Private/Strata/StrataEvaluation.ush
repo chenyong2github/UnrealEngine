@@ -754,7 +754,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				}
 
 				const float3 RefracV = refract(BSDFContext.V, -BSDFContext.N, OneOverIOR);
-				const float PhaseFunction = ApproximateHG(dot(-BSDFContext.L, RefracV), PhaseFunctionAnisotropy);
+				const float PhaseFunction = HenyeyGreensteinPhase(PhaseFunctionAnisotropy, dot(BSDFContext.L, RefracV));
 
 				Sample.ThroughputV				= OpaqueBSDFThroughput; // SSS is not translucent as of today
 				Sample.TransmittanceAlongN		= OpaqueBSDFThroughput; // idem
