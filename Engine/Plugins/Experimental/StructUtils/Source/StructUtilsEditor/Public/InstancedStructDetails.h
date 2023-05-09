@@ -34,7 +34,6 @@ private:
 	void OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap);
 	
 	FText GetDisplayValueString() const;
-	FText GetTooltipText() const;
 	const FSlateBrush* GetDisplayValueIcon() const;
 	TSharedRef<SWidget> GenerateStructPicker();
 	void OnStructPicked(const UScriptStruct* InStruct);

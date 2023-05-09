@@ -401,7 +401,7 @@ void FInstancedStructDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> 
 				[
 					SNew(STextBlock)
 					.Text(this, &FInstancedStructDetails::GetDisplayValueString)
-					.ToolTipText(this, &FInstancedStructDetails::GetTooltipText)
+					.ToolTipText(this, &FInstancedStructDetails::GetDisplayValueString)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]
@@ -442,16 +442,6 @@ FText FInstancedStructDetails::GetDisplayValueString() const
 	}
 	
 	return FText::GetEmpty();
-}
-
-FText FInstancedStructDetails::GetTooltipText() const
-{
-	const UScriptStruct* ScriptStruct = UE::StructUtils::Private::GetCommonScriptStruct(StructProperty);
-	if (ScriptStruct)
-	{
-		return ScriptStruct->GetToolTipText();
-	}
-	return GetDisplayValueString();
 }
 
 const FSlateBrush* FInstancedStructDetails::GetDisplayValueIcon() const
