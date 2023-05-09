@@ -885,7 +885,6 @@ namespace mu
     uint64 FModelCache::EnsureCacheBelowBudget( uint64 additionalMemory,
 												TFunctionRef<bool(const Model*,int)> isRomLockedFunc )
     {
-
 		uint64 totalMemory = 0;
         for (FModelCacheEntry& m : m_cachePerModel)
         {
@@ -903,6 +902,13 @@ namespace mu
 			}
         }
 
+    	// If budget is zero, we don't unload anything here, and we assume it is managed
+        // somewhere else.
+  		if (!m_romBudget)
+		{
+			return totalMemory;
+		}
+    	
         if (totalMemory>0)
         {
             totalMemory += additionalMemory;

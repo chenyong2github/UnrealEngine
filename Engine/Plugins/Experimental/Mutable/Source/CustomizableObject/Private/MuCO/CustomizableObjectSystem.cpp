@@ -85,7 +85,7 @@ static TAutoConsoleVariable<int32> CVarStreamingMemory(
 #else
 	(12 * 1024),
 #endif
-	TEXT("Limit the amount of memory (in KB) to use to cache streaming data when building characters. More memory reduces the object construction time. Defaults: Desktop = 12288, Others = 3072"),
+	TEXT("Limit the amount of memory (in KB) to use to cache streaming data when building characters. More memory reduces the object construction time. 0 means no restriction. Defaults: Desktop = 12288, Others = 3072"),
 	ECVF_Scalability);
 
 
