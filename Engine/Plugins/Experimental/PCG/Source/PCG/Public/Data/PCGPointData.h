@@ -23,7 +23,6 @@ namespace PCGPointHelpers
 struct PCG_API FPCGPointRef
 {
 	FPCGPointRef(const FPCGPoint& InPoint);
-	FPCGPointRef(const FPCGPointRef& InPointRef);
 
 	const FPCGPoint* Point;
 	FBoxSphereBounds Bounds;

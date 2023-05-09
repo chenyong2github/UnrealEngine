@@ -235,12 +235,6 @@ FPCGPointRef::FPCGPointRef(const FPCGPoint& InPoint)
 	Bounds = InPoint.GetDensityBounds();
 }
 
-FPCGPointRef::FPCGPointRef(const FPCGPointRef& InPointRef)
-{
-	Point = InPointRef.Point;
-	Bounds = InPointRef.Bounds;
-}
-
 void UPCGPointData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	Super::GetResourceSizeEx(CumulativeResourceSize);
