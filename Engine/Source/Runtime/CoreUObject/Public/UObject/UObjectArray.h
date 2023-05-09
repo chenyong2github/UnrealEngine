@@ -228,12 +228,10 @@ namespace UE::UObjectArrayPrivate
 
 	FORCEINLINE void CheckUObjectLimitReached(const int32 NumUObjects, const int32 MaxUObjects, const int32 NewUObjectCount)
 	{
-#if DO_CHECK
 		if ((NumUObjects + NewUObjectCount) > MaxUObjects)
 		{
 			FailMaxUObjectCountExceeded(MaxUObjects, NewUObjectCount);
 		}
-#endif // DO_CHECK
 	}
 };
 
