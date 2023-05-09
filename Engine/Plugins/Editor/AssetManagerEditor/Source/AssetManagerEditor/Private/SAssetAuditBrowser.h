@@ -132,6 +132,9 @@ protected:
 	/** Refresh the asset view with a new filter */
 	void RefreshAssetView();
 
+#if ASSET_TABLE_TREE_VIEW_ENABLED
+	void PopulateAssetTableRow(const FAssetData& AssetData, class FAssetTableRow* OutRow);
+#endif
 	/** Commands handled by this widget */
 	TSharedPtr<FUICommandList> Commands;
 
