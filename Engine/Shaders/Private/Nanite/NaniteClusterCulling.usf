@@ -628,7 +628,7 @@ struct FNaniteTraversalClusterCullCallback
 				{
 					uint OccludedClusterOffset = 0;
 					WaveInterlockedAddScalar_(QueueState[0].PassState[1].ClusterWriteOffset, 1, OccludedClusterOffset);
-					VisibleCluster.Flags = (bUseHWRaster ? NANITE_CULLING_FLAG_USE_HW : 0u);
+					VisibleCluster.Flags |= (bUseHWRaster ? NANITE_CULLING_FLAG_USE_HW : 0u);
 
 					StoreCandidateCluster(MainAndPostCandididateClusters, (MaxCandidateClusters - 1) - OccludedClusterOffset, VisibleCluster);
 
