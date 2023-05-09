@@ -6,7 +6,7 @@
 #include "Insights/Table/ViewModels/TableCellValueGetter.h"
 #include "Insights/Table/ViewModels/TableCellValueSorter.h"
 
-#define LOCTEXT_NAMESPACE "TableColumn"
+#define LOCTEXT_NAMESPACE "UE::Insights::FTableColumn"
 
 namespace UE
 {

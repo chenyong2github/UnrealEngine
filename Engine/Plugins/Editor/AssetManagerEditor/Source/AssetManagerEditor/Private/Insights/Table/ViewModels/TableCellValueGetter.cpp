@@ -4,7 +4,7 @@
 
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
 
-#define LOCTEXT_NAMESPACE "TableCellValueGetter"
+#define LOCTEXT_NAMESPACE "UE::Insights::FTableCellValueGetter"
 
 namespace UE
 {

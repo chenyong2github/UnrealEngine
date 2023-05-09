@@ -5,7 +5,7 @@
 #include "Insights/Common/AsyncOperationProgress.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 
-#define LOCTEXT_NAMESPACE "Insights_TreeNode"
+#define LOCTEXT_NAMESPACE "UE::Insights::FTreeNodeGrouping"
 
 namespace UE
 {
