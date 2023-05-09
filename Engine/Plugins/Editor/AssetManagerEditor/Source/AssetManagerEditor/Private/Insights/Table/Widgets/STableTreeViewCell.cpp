@@ -75,34 +75,24 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 			SNew(SExpanderArrow, TableRow)
 		]
 
-		// Icon + tooltip
+		// Info icon + tooltip
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SOverlay)
-			+ SOverlay::Slot()
-			[
-				SNew(SImage)
-				.Image(this, &STableTreeViewCell::GetIcon)
-				.ColorAndOpacity(this, &STableTreeViewCell::GetIconColorAndOpacity)
-			]
-			+ SOverlay::Slot()
-			[
-				SNew(SImage)
-				.Visibility(this, &STableTreeViewCell::GetHintIconVisibility)
-				.Image(FInsightsStyle::GetBrush("Icons.Hint.TreeItem"))
-				.ToolTip(GetRowToolTip(TableRow))
-			]
+			SNew(SImage)
+			.Visibility(this, &STableTreeViewCell::GetHintIconVisibility)
+			.Image(FInsightsStyle::GetBrush("Icons.Hint.TreeItem"))
+			.ToolTip(GetRowToolTip(TableRow))
 		]
 
 		// Name
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.VAlign(VAlign_Top)
+		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Left)
-		.Padding(FMargin(2.0f, 1.5f, 2.0f, 0.0f))
+		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
 			.Text(this, &STableTreeViewCell::GetDisplayName)
@@ -115,9 +105,9 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 		// Name Suffix
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.VAlign(VAlign_Top)
+		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Left)
-		.Padding(FMargin(2.0f, 1.5f, 2.0f, 0.0f))
+		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
 			.Visibility(this, &STableTreeViewCell::HasExtraDisplayName)
@@ -169,9 +159,9 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArgu
 
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
-		.VAlign(VAlign_Top)
+		.VAlign(VAlign_Center)
 		.HAlign(ColumnPtr->GetHorizontalAlignment())
-		.Padding(FMargin(2.0f, 1.5f, 2.0f, 0.0f))
+		.Padding(FMargin(2.0f, 0.0f))
 		[
 			TextBox
 		];

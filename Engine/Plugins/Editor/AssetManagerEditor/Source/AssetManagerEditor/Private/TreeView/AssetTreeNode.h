@@ -29,11 +29,6 @@ public:
 	FAssetTable& GetAssetTableChecked() const { return *AssetTable; }
 	const FAssetTableRow& GetAssetChecked() const { return AssetTable->GetAssetChecked(RowId.RowIndex); }
 
-	virtual FLinearColor GetColor() const override
-	{
-		return GetAssetChecked().GetColor();
-	}
-
 private:
 	FAssetTable* AssetTable;
 };

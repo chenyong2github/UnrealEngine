@@ -3,7 +3,6 @@
 #include "BaseTreeNode.h"
 
 // Insights
-#include "Insights/Common/InsightsStyle.h"
 #include "Insights/Table/ViewModels/TableCellValueSorter.h"
 
 #define LOCTEXT_NAMESPACE "UE::Insights::FBaseTreeNode"
@@ -51,27 +50,6 @@ const FText FBaseTreeNode::GetExtraDisplayName() const
 bool FBaseTreeNode::HasExtraDisplayName() const
 {
 	return IsGroup();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FBaseTreeNode::SetDefaultIcon()
-{
-	if (IsGroup())
-	{
-		IconBrush = FInsightsStyle::GetBrush("Icons.Group.TreeItem");
-	}
-	else
-	{
-		IconBrush = FInsightsStyle::GetBrush("Icons.Leaf.TreeItem");
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FLinearColor FBaseTreeNode::GetColor() const
-{
-	return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

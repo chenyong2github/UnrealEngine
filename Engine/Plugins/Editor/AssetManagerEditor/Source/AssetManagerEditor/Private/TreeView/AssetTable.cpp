@@ -25,14 +25,13 @@ const FName FAssetTableColumns::TypeColumnId(TEXT("Type"));
 const FName FAssetTableColumns::PathColumnId(TEXT("Path"));
 const FName FAssetTableColumns::PrimaryTypeColumnId(TEXT("PrimaryType"));
 const FName FAssetTableColumns::PrimaryNameColumnId(TEXT("PrimaryName"));
-//const FName FAssetTableColumns::ManagedDiskSizeColumnId(TEXT("ManagedDiskSize"));
-//const FName FAssetTableColumns::DiskSizeColumnId(TEXT("DiskSize"));
+const FName FAssetTableColumns::ManagedDiskSizeColumnId(TEXT("ManagedDiskSize"));
+const FName FAssetTableColumns::DiskSizeColumnId(TEXT("DiskSize"));
 const FName FAssetTableColumns::StagedCompressedSizeColumnId(TEXT("StagedCompressedSize"));
 const FName FAssetTableColumns::TotalUsageCountColumnId(TEXT("TotalUsageCount"));
-//const FName FAssetTableColumns::CookRuleColumnId(TEXT("CookRule"));
-//const FName FAssetTableColumns::ChunksColumnId(TEXT("Chunks"));
+const FName FAssetTableColumns::CookRuleColumnId(TEXT("CookRule"));
+const FName FAssetTableColumns::ChunksColumnId(TEXT("Chunks"));
 const FName FAssetTableColumns::NativeClassColumnId(TEXT("NativeClass"));
-const FName FAssetTableColumns::GameFeaturePluginColumnId(TEXT("GameFeaturePlugin"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FAssetTable
@@ -41,17 +40,12 @@ const FName FAssetTableColumns::GameFeaturePluginColumnId(TEXT("GameFeaturePlugi
 FAssetTable::FAssetTable()
 {
 #if 0 // debug, mock data
-
-	VisibleAssetCount = 100;
-	constexpr int32 HiddenAssetCount = 50;
-	const int32 TotalAssetCount = VisibleAssetCount + HiddenAssetCount;
-	
-	// Create assets.
-	Assets.Reserve(TotalAssetCount);
-	for (int32 AssetIndex = 0; AssetIndex < TotalAssetCount; ++AssetIndex)
+	constexpr int AssetCount = 100;
+	Assets.Reserve(AssetCount);
+	for (int AssetIndex = 0; AssetIndex < AssetCount; ++AssetIndex)
 	{
 		FAssetTableRow& Asset = Assets.AddDefaulted_GetRef();
-
+		
 		int32 Id = FMath::Rand();
 		int32 Id2 = FMath::Rand();
 
@@ -60,45 +54,14 @@ FAssetTable::FAssetTable()
 		Asset.Path = FString::Printf(TEXT("A%02d/B%02d/C%02d/D%02d"), Id % 11, Id % 13, Id % 17, Id % 19);
 		Asset.PrimaryType = FString::Printf(TEXT("PT_%02d"), Id2 % 10);
 		Asset.PrimaryName = FString::Printf(TEXT("PN%d"), Id2);
-		//Asset.ManagedDiskSize = FMath::Abs(Id * Id);
-		//Asset.DiskSize = FMath::Abs(Id * Id * Id);
+		Asset.ManagedDiskSize = FMath::Abs(Id * Id);
+		Asset.DiskSize = FMath::Abs(Id * Id * Id);
 		Asset.StagedCompressedSize = Asset.DiskSize / 2;
 		Asset.TotalUsageCount = Id % 1000;
-		//Asset.CookRule = FString::Printf(TEXT("CookRule%02d"), (Id * Id) % 8);
-		//Asset.Chunks = FString::Printf(TEXT("Chunks%02d"), (Id * Id + 1) % 41);
+		Asset.CookRule = FString::Printf(TEXT("CookRule%02d"), (Id * Id) % 8);
+		Asset.Chunks = FString::Printf(TEXT("Chunks%02d"), (Id * Id + 1) % 41);
 		Asset.NativeClass = FString::Printf(TEXT("NativeClass%02d"), (Id * Id * Id) % 8);
-		Asset.GameFeaturePlugin = FString::Printf(TEXT("GFP_%02d"), (Id * Id) % 7);
 	}
-
-	// Set dependencies (only for visible assets)
-	for (int32 AssetIndex = 0; AssetIndex < VisibleAssetCount; ++AssetIndex)
-	{
-		if (FMath::Rand() % 100 > 60) // 60% chance to have dependencies
-		{
-			continue;
-		}
-
-		FAssetTableRow& Asset = Assets[AssetIndex];
-
-		int32 NumDependents = FMath::Rand() % 30; // max 30 dependent assets
-		while (--NumDependents >= 0)
-		{
-			int32 DepIndex = -1;
-			if (FMath::Rand() % 100 <= 10) // 10% chance to be another asset that is visible by default
-			{
-				DepIndex = FMath::Rand() % VisibleAssetCount;
-			}
-			else // 90% chance to be a dependet only asset (not visible by default)
-			{
-				DepIndex = VisibleAssetCount + FMath::Rand() % HiddenAssetCount;
-			}
-			if (!Asset.Dependencies.Contains(DepIndex))
-			{
-				Asset.Dependencies.Add(DepIndex);
-			}
-		}
-	}
-
 #endif
 }
 
@@ -474,7 +437,6 @@ void FAssetTable::AddDefaultColumns()
 	}
 	//////////////////////////////////////////////////
 	// Managed Disk Size Column
-#if 0
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::ManagedDiskSizeColumnId);
 		FTableColumn& Column = *ColumnRef;
@@ -532,10 +494,8 @@ void FAssetTable::AddDefaultColumns()
 
 		AddColumn(ColumnRef);
 	}
-#endif
 	//////////////////////////////////////////////////
 	// Exclusive Disk Size Column
-#if 0
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::DiskSizeColumnId);
 		FTableColumn& Column = *ColumnRef;
@@ -593,7 +553,6 @@ void FAssetTable::AddDefaultColumns()
 
 		AddColumn(ColumnRef);
 	}
-#endif
 	//////////////////////////////////////////////////
 	// Staged Compressed Size Column
 	{
@@ -711,7 +670,6 @@ void FAssetTable::AddDefaultColumns()
 	}
 	//////////////////////////////////////////////////
 	// Cook Rule Column
-#if 0
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::CookRuleColumnId);
 		FTableColumn& Column = *ColumnRef;
@@ -765,10 +723,8 @@ void FAssetTable::AddDefaultColumns()
 
 		AddColumn(ColumnRef);
 	}
-#endif
 	//////////////////////////////////////////////////
 	// Chunks Column
-#if 0
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::ChunksColumnId);
 		FTableColumn& Column = *ColumnRef;
@@ -822,7 +778,6 @@ void FAssetTable::AddDefaultColumns()
 
 		AddColumn(ColumnRef);
 	}
-#endif
 	//////////////////////////////////////////////////
 	// Native Class Column
 	{
@@ -860,61 +815,6 @@ void FAssetTable::AddDefaultColumns()
 					const FAssetTreeNode& TreeNode = static_cast<const FAssetTreeNode&>(Node);
 					const FAssetTableRow& Asset = TreeNode.GetAssetChecked();
 					return FTableCellValue(Asset.GetNativeClass());
-				}
-
-				return TOptional<FTableCellValue>();
-			}
-		};
-		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FNativeClassValueGetter>();
-		Column.SetValueGetter(Getter);
-
-		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FCStringValueFormatterAsText>();
-		Column.SetValueFormatter(Formatter);
-
-		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByCStringValue>(ColumnRef);
-		Column.SetValueSorter(Sorter);
-
-		Column.SetAggregation(ETableColumnAggregation::SameValue);
-
-		AddColumn(ColumnRef);
-	}
-	//////////////////////////////////////////////////
-	// GameFeaturePlugin Column
-	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::GameFeaturePluginColumnId);
-		FTableColumn& Column = *ColumnRef;
-
-		Column.SetIndex(ColumnIndex++);
-
-		Column.SetShortName(LOCTEXT("GameFeaturePluginColumnName", "GameFeaturePlugin"));
-		Column.SetTitleName(LOCTEXT("GameFeaturePluginColumnTitle", "GameFeaturePlugin"));
-		Column.SetDescription(LOCTEXT("GameFeaturePluginColumnDesc", "GameFeaturePlugin of the asset"));
-
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
-
-		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
-
-		Column.SetDataType(ETableCellDataType::CString);
-
-		class FNativeClassValueGetter : public FTableCellValueGetter
-		{
-		public:
-			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
-			{
-				if (Node.IsGroup())
-				{
-					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
-					if (NodePtr.HasAggregatedValue(Column.GetId()))
-					{
-						return NodePtr.GetAggregatedValue(Column.GetId());
-					}
-				}
-				else //if (Node->Is<FAssetTreeNode>())
-				{
-					const FAssetTreeNode& TreeNode = static_cast<const FAssetTreeNode&>(Node);
-					const FAssetTableRow& Asset = TreeNode.GetAssetChecked();
-					return FTableCellValue(Asset.GetGameFeaturePlugin());
 				}
 
 				return TOptional<FTableCellValue>();

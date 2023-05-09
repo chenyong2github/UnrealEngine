@@ -59,10 +59,8 @@ public:
 	FBaseTreeNode(const FName InName, bool bInIsGroup)
 		: DefaultSortOrder(0)
 		, Name(InName)
-		, IconBrush(nullptr)
 		, GroupData(bInIsGroup ? new FGroupNodeData() : &DefaultGroupData)
 	{
-		SetDefaultIcon();
 	}
 
 	virtual ~FBaseTreeNode()
@@ -121,32 +119,6 @@ public:
 			GroupData->Tooltip = InTooltip;
 		}
 	}
-
-	/**
-	 * @return a brush icon for this node.
-	 */
-	const FSlateBrush* GetIcon() const
-	{
-		return IconBrush;
-	}
-
-	/**
-	 * Sets an icon brush for this node.
-	 */
-	void SetIcon(const FSlateBrush* InIconBrush)
-	{
-		IconBrush = InIconBrush;
-	}
-
-	/**
-	 * Sets the default icon brush for this node.
-	 */
-	void SetDefaultIcon();
-
-	/**
-	 * @return the color tint for icon and name text.
-	 */
-	virtual FLinearColor GetColor() const;
 
 	/**
 	 * @return a pointer to a data context for this node.
@@ -319,9 +291,6 @@ private:
 
 	/** The name of this node. */
 	const FName Name;
-
-	/** The icon of this node. */
-	const FSlateBrush* IconBrush;
 
 	/** A weak pointer to the group/parent of this node. */
 	FBaseTreeNodeWeak GroupPtr;

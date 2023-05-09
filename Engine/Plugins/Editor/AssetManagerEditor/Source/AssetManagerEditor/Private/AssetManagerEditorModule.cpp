@@ -111,7 +111,6 @@ const FName IAssetManagerEditorModule::CookRuleName = FName("CookRule");
 const FName IAssetManagerEditorModule::ChunksName = FName("Chunks");
 const FName IAssetManagerEditorModule::StageChunkSizeName = FName("Stage_ChunkSize");
 const FName IAssetManagerEditorModule::StageChunkCompressedSizeName = FName("Stage_ChunkCompressedSize");
-const FName IAssetManagerEditorModule::GameFeaturePluginsName = FName("GameFeaturePlugins");
 
 const FString FAssetManagerEditorRegistrySource::EditorSourceName = TEXT("Editor");
 const FString FAssetManagerEditorRegistrySource::CustomSourceName = TEXT("Custom");
@@ -1301,19 +1300,6 @@ bool FAssetManagerEditorModule::GetStringValueForCustomColumn(const FAssetData& 
 		}
 		return true;
 	}
-	else if (ColumnName == GameFeaturePluginsName)
-	{
-		TArray<FString> ParsedPath;
-		const FString& PackageNameString = AssetData.PackageName.ToString();
-		if (PackageNameString.StartsWith(TEXT("/Game/")))
-		{
-			OutValue = TEXT("BaseGame");
-		}
-		else if (PackageNameString.ParseIntoArray(ParsedPath, TEXT("/")) >= 1)
-		{
-			OutValue = ParsedPath[0];
-		}
-	}
 	else
 	{
 		// Get base value of asset tag
@@ -1375,7 +1361,7 @@ bool FAssetManagerEditorModule::GetDisplayTextForCustomColumn(const FAssetData& 
 			return true;
 		}
 	}
-	else if (ColumnName == ChunksName || ColumnName == GameFeaturePluginsName)
+	else if (ColumnName == ChunksName)
 	{
 		FString OutString;
 
