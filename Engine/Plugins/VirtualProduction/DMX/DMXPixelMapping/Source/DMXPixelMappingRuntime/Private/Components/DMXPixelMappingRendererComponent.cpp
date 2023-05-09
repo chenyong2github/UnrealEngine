@@ -21,6 +21,7 @@
 #include "Modulators/DMXModulator.h"
 #include "TextureResource.h"
 #include "UObject/ConstructorHelpers.h"
+#include "UObject/Package.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 
 
