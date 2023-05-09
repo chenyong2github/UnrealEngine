@@ -78,6 +78,8 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend class FAssetRootPackagePatcher;
 	friend class FActorDescArchive;
 
+	static FGuid GetDefaultActorDescGuid(FString ClassPath);
+
 public:
 	struct FContainerInstance
 	{
