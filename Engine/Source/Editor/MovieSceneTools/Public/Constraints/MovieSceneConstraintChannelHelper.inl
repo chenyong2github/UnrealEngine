@@ -10,6 +10,7 @@
 #include "MovieSceneSection.h"
 #include "Algo/Unique.h"
 #include "Containers/SortedMap.h"
+#include "KeyParams.h"
 
 template<typename ChannelType>
 void FMovieSceneConstraintChannelHelper::GetFramesToCompensate(
