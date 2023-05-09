@@ -44,11 +44,15 @@ struct ScoreValue {
   T operator-() { return has_score ? -score : 0; }
   T operator*(float val) { return has_score ? score * static_cast<T>(val) : 0; }
   T operator*(double val) { return has_score ? score * static_cast<T>(val) : 0; }
-  ScoreValue<T>& operator=(ScoreValue<T> v) {
-    this->score = v.score;
-    this->has_score = v.has_score;
-    return *this;
-  }
+  // @third party code - Epic Games Begin
+  // This has been commented out to let the compiler generate it because of this warning in Clang 16:
+  // tree_ensemble_aggregator.h(47,18): error: definition of implicit copy constructor for 'ScoreValue<float>' is deprecated because it has a user-provided copy assignment operator [-Werror,-Wdeprecated-copy-with-user-provided-copy]
+  //ScoreValue<T>& operator=(ScoreValue<T> v) {
+  //  this->score = v.score;
+  //  this->has_score = v.has_score;
+  //  return *this;
+  //}
+  // @third party code - Epic Games End
   ScoreValue<T>& operator=(float v) {
     this->score = static_cast<T>(v);
     this->has_score = 1;
