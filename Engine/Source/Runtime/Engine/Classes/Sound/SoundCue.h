@@ -91,7 +91,7 @@ class ENGINE_API USoundCue : public USoundBase
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = Sound)
 	TObjectPtr<USoundNode> FirstNode;
 
 	/* Base volume multiplier */

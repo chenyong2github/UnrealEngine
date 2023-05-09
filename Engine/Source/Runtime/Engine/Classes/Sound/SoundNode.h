@@ -60,7 +60,7 @@ class ENGINE_API USoundNode : public UObject
 
 	static const int32 MAX_ALLOWED_CHILD_NODES = 32;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "SoundNode")
 	TArray<TObjectPtr<class USoundNode>> ChildNodes;
 
 #if WITH_EDITORONLY_DATA

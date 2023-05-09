@@ -22,7 +22,7 @@ enum ModulationParamMode : int
 	MPM_MAX,
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FModulatorContinuousParams
 {
 	GENERATED_USTRUCT_BODY()
@@ -38,7 +38,7 @@ struct FModulatorContinuousParams
 	}
 
 	/** The name of the sound instance parameter that specifies the current value. */
-	UPROPERTY(EditAnywhere, Category=ModulatorContinousParameters)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ModulatorContinousParameters)
 	FName ParameterName;
 
 	/** The default value to be used if the parameter is not found. */
