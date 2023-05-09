@@ -1082,7 +1082,7 @@ bool AWaterBrushManager::DeprecateWaterLandscapeInfo(FVector& OutRTWorldLocation
 void AWaterBrushManager::ShowForceUpdateMapCheckError()
 {
 	FFormatNamedArguments Arguments;
-	Arguments.Add(TEXT("WaterBrush"), FText::FromString(GetName()));
+	Arguments.Add(TEXT("WaterBrush"), FText::FromString(GetActorNameOrLabel()));
 	Arguments.Add(TEXT("Outer"), FText::FromString(GetPackage()->GetPathName()));
 	
 	FMessageLog("MapCheck").Warning()
@@ -1434,7 +1434,7 @@ void AWaterBrushManager::UpdateBrushCacheKeys()
 				SetActorCache(Actor, WaterBrushCacheContainer);
 			}
 			// Make sure there's an appropriate render target in that cache : 
-			WaterBrushCacheContainer->Cache.CacheRenderTarget = FWaterUtils::GetOrCreateTransientRenderTarget2D(WaterBrushCacheContainer->Cache.CacheRenderTarget, FName(*FString::Printf(TEXT("BrushCacheRT_%s"), *Actor->GetName())), LandscapeRTRes, Format);
+			WaterBrushCacheContainer->Cache.CacheRenderTarget = FWaterUtils::GetOrCreateTransientRenderTarget2D(WaterBrushCacheContainer->Cache.CacheRenderTarget, FName(*FString::Printf(TEXT("BrushCacheRT_%s"), *Actor->GetActorNameOrLabel())), LandscapeRTRes, Format);
 			check(WaterBrushCacheContainer->Cache.CacheRenderTarget != nullptr);
 		}
 	}

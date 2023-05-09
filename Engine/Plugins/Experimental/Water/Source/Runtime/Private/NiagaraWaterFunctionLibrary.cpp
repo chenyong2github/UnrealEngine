@@ -12,13 +12,13 @@ void UNiagaraWaterFunctionLibrary::SetWaterBodyComponent(UNiagaraComponent* Niag
 {
 	if (!NiagaraSystem)
 	{
-		UE_LOG(LogWater, Warning, TEXT("NiagaraSystem in \"Set Water Body Component\" is NULL, OverrideName \"%s\" and WaterBodyComponent \"%s\", skipping."), *OverrideName, WaterBodyComponent ? *WaterBodyComponent->GetName() : TEXT("NULL"));
+		UE_LOG(LogWater, Warning, TEXT("NiagaraSystem in \"Set Water Body Component\" is NULL, OverrideName \"%s\" and WaterBodyComponent \"%s\", skipping."), *OverrideName, WaterBodyComponent ? *WaterBodyComponent->GetOwner()->GetActorNameOrLabel() : TEXT("NULL"));
 		return;
 	}
 
 	if (!WaterBodyComponent)
 	{
-		UE_LOG(LogWater, Warning, TEXT("WaterBodyComponent in \"Set Water Body Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogWater, Warning, TEXT("WaterBodyComponent in \"Set Water Body Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetActorNameOrLabel());
 		return;
 	}
 
@@ -30,14 +30,14 @@ void UNiagaraWaterFunctionLibrary::SetWaterBodyComponent(UNiagaraComponent* Niag
 	int32 Index = OverrideParameters.IndexOf(Variable);
 	if (Index == INDEX_NONE)
 	{
-		UE_LOG(LogWater, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogWater, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *NiagaraSystem->GetOwner()->GetActorNameOrLabel());
 		return;
 	}
 
 	UNiagaraDataInterfaceWater* WaterInterface = Cast<UNiagaraDataInterfaceWater>(OverrideParameters.GetDataInterface(Index));
 	if (!WaterInterface)
 	{
-		UE_LOG(LogWater, Warning, TEXT("Did not find a matching Water Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogWater, Warning, TEXT("Did not find a matching Water Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetActorNameOrLabel());
 		return;
 	}
 

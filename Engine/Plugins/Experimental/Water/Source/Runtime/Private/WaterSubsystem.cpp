@@ -834,7 +834,7 @@ void UWaterSubsystem::ShowOnScreenDebugInfo(const FVector& InViewLocation, const
 			MaterialDescription = FString::Format(TEXT("{0} (parent: {1})"), { MID->Parent->GetName(), MID->GetMaterial()->GetName() });
 		}
 		OutputStrings.Add(FText::Format(LOCTEXT("VisualizeActiveUnderwaterPostProcess_ActivePostprocess", "Active underwater post process water body {0} (material: {1})"),
-			FText::FromString(InDebugInfo.ActiveWaterBodyComponent->GetOwner()->GetName()),
+			FText::FromString(InDebugInfo.ActiveWaterBodyComponent->GetOwner()->GetActorNameOrLabel()),
 			FText::FromString(MaterialDescription)));
 	}
 	else
@@ -874,7 +874,7 @@ void UWaterSubsystem::ShowOnScreenDebugInfo(const FVector& InViewLocation, const
 				if (WaterBody.IsValid() && WaterBody->GetOwner())
 				{
 					OutputStrings.Add(FText::Format(LOCTEXT("VisualizeActiveUnderwaterPostProcess_OverlappedWaterBodyDetails", "- {0} (overlap material priority: {1})"),
-						FText::FromString(WaterBody->GetOwner()->GetName()),
+						FText::FromString(WaterBody->GetOwner()->GetActorNameOrLabel()),
 						FText::AsNumber(WaterBody->GetOverlapMaterialPriority())));
 				}
 			}

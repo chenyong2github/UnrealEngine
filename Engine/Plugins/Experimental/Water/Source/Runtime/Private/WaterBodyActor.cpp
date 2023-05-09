@@ -308,7 +308,7 @@ void AWaterBody::InitializeBody()
 		WaterBodyComponent->SetMobility(EComponentMobility::Static);
 	}
 
-	checkf(WaterBodyComponent, TEXT("Failed to create a water body component for a water body actor (%s)!"), *GetName());
+	checkf(WaterBodyComponent, TEXT("Failed to create a water body component for a water body actor (%s)!"), *GetActorNameOrLabel());
 
 	SetRootComponent(WaterBodyComponent);
 
