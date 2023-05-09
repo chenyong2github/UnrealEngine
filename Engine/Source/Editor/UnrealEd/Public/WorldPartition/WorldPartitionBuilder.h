@@ -77,7 +77,7 @@ protected:
 	 * Overridable method for derived classes to perform operations when world builder process completes.
 	 * This is called after loading all data (e.g. data layers, editor cells) and after calling `RunInternal` for all editor cells.
 	 */
-	virtual bool PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) { return true; }
+	virtual bool PostRun(UWorld* World, FPackageSourceControlHelper& PackageHelper, const bool bInRunSuccess) { return bInRunSuccess; }
 
 	/**
 	 * Overridable method for derived classes to perform operations when world builder has unloaded the world.

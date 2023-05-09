@@ -127,7 +127,7 @@ bool UWorldPartitionSmartObjectCollectionBuilder::PostRun(UWorld* World, FPackag
 		return false;
 	}
 
-	bool bErrorsEncountered = false;
+	bool bErrorsEncountered = !bInRunSuccess;
 
 	const int32 CollectionsCount = SmartObjectSubsystem->GetMutableRegisteredCollections().Num();
 	for (int32 CollectionIndex = 0; CollectionIndex < CollectionsCount; ++CollectionIndex)
