@@ -748,9 +748,7 @@ UE_NET_TEST_FIXTURE(FTestGroupsFixture, GroupFilterAPISubObjectIsFilteredOutWith
 	// Verify that both object and subobject are enabled
 	{
 		VerifyObjectFilterStatus(ServerHandle, Client->ConnectionIdOnServer, true);
-		
-		//$IRIS TODO: this fails since the subobject is not found on the client.  Needs to be looked into.
-		//VerifyObjectFilterStatus(ServerSubObjectHandle, Client->ConnectionIdOnServer, true);
+		VerifyObjectFilterStatus(ServerSubObjectHandle, Client->ConnectionIdOnServer, true);
 	}
 }
 

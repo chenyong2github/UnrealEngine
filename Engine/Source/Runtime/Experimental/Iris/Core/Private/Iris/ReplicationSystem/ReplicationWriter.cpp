@@ -467,6 +467,20 @@ void FReplicationWriter::StartReplication(uint32 InternalIndex)
 	UE_LOG_REPLICATIONWRITER_CONN(TEXT("ReplicationWriter.StartReplication for ( InternalIndex: %u ) %s"), InternalIndex, ToCStr(Data.RefHandle.ToString()));
 
 	ObjectsWithDirtyChanges.SetBit(InternalIndex);
+
+	// Subobject needs to mark its owner as dirty as the subobject could have been filtered out and now allowed to replicate again.
+	if (Info.IsSubObject)
+	{
+		FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(InternalIndex);
+		if (ensureAlways(ObjectData.SubObjectRootIndex != FNetRefHandleManager::InvalidInternalIndex))
+		{
+			// If owner is not pending destroy we mark the state of the SubObject to SubObjectPendingDestroy and mark owner as having dirty subobjects which will 
+			// destroy the subobject using the replicated state path of the owner.
+			FReplicationInfo& OwnerInfo = ReplicatedObjects[ObjectData.SubObjectRootIndex];
+			ObjectsWithDirtyChanges.SetBit(ObjectData.SubObjectRootIndex);
+			OwnerInfo.HasDirtySubObjects = 1U;
+		}
+	}
 }
 
 void FReplicationWriter::StopReplication(uint32 InternalIndex)
