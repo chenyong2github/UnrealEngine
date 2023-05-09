@@ -66,6 +66,13 @@ namespace Horde.Agent.Services
 			SocketsHttpHandler httpHandler = new()
 			{
 				KeepAlivePingDelay = TimeSpan.FromSeconds(50),
+				ConnectTimeout = TimeSpan.FromSeconds(20),
+				
+				// Certain load balancers, like AWS ALB, can rotate IPs quickly.
+				// By setting a short lifetime, new connections will be re-created and subsequently have the DNS name refreshed.
+				// This prevents using outdated IP addresses.
+				PooledConnectionLifetime = TimeSpan.FromSeconds(60),
+				
 				SslOptions = new SslClientAuthenticationOptions
 				{
 					RemoteCertificateValidationCallback = (sender, cert, chain, errors) => CertificateHelper.CertificateValidationCallBack(_logger, sender, cert, chain, errors, _serverProfile)
