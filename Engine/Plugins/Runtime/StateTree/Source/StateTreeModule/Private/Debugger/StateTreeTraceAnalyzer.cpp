@@ -60,9 +60,10 @@ bool FStateTreeTraceAnalyzer::OnEvent(const uint16 RouteId, EStyle Style, const 
 					FString InstanceName;
 					EventData.GetString("InstanceName", InstanceName);
 
-					Provider.AppendInstance(StateTree,
+					Provider.AppendInstanceEvent(StateTree,
 						FStateTreeInstanceDebugId(EventData.GetValue<uint32>("InstanceId"), EventData.GetValue<uint32>("InstanceSerial")),
 						*InstanceName,
+						Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")),
 						EventData.GetValue<EStateTreeTraceInstanceEventType>("EventType"));
 				}
 				else

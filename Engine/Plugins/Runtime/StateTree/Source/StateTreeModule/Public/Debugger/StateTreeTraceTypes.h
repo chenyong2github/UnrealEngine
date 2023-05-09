@@ -7,7 +7,7 @@
 
 struct FStateTreeStateHandle;
 enum class EStateTreeRunStatus : uint8;
-enum class EStateTreeUpdatePhase : uint8;
+enum class EStateTreeUpdatePhase : uint16;
 
 UENUM()
 enum class EStateTreeTraceInstanceEventType : uint8
@@ -23,7 +23,9 @@ enum class EStateTreeTraceNodeEventType : uint8
 	OnEnter,			// for State + Task events
 	OnExit,				// for State + Task events
 	OnStateCompleted,	// for State events
+	OnTickingTask,		// for Task events
 	OnTaskCompleted,	// for Task events
+	OnTaskTicked,		// for Task events
 	Passed,				// for Condition events
 	Failed				// for Condition events
 };

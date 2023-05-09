@@ -12,7 +12,7 @@ struct FStateTreeActiveStates;
 struct FStateTreeInstanceDebugId;
 enum class EStateTreeRunStatus : uint8;
 enum class EStateTreeTraceNodeEventType : uint8;
-enum class EStateTreeUpdatePhase : uint8;
+enum class EStateTreeUpdatePhase : uint16;
 enum class EStateTreeTraceInstanceEventType : uint8;
 
 UE_TRACE_CHANNEL_EXTERN(StateTreeDebugChannel, STATETREEMODULE_API)

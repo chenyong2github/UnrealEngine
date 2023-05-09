@@ -178,8 +178,10 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 	{
 		// From generic engine editor
 		UE::StateTree::Editor::FContentRootScope Scope(this, EngineEditorSlateContentDir);
-		Set("StateTreeEditor.Debugger.Back", new IMAGE_BRUSH_SVG("Starship/Blueprints/diff_prev", CoreStyleConstants::Icon20x20));
-		Set("StateTreeEditor.Debugger.Forward", new IMAGE_BRUSH_SVG("Starship/Blueprints/diff_next", CoreStyleConstants::Icon20x20));
+		Set("StateTreeEditor.Debugger.PreviousFrameWithStateChange", new IMAGE_BRUSH("Sequencer/Transport_Bar/Go_To_Front_24x", CoreStyleConstants::Icon16x16));
+		Set("StateTreeEditor.Debugger.PreviousFrameWithEvents", new IMAGE_BRUSH("Sequencer/Transport_Bar/Step_Backwards_24x", CoreStyleConstants::Icon16x16));
+		Set("StateTreeEditor.Debugger.NextFrameWithEvents", new IMAGE_BRUSH("Sequencer/Transport_Bar/Step_Forward_24x", CoreStyleConstants::Icon16x16));
+		Set("StateTreeEditor.Debugger.NextFrameWithStateChange", new IMAGE_BRUSH("Sequencer/Transport_Bar/Go_To_End_24x", CoreStyleConstants::Icon16x16));
 	}
 
 	{

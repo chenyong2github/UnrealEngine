@@ -5,7 +5,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "SPositiveActionButton.h"
 #include "SStateTreeViewRow.h"
-#include "StateTreeDebuggerCommands.h"
+#include "Debugger/StateTreeDebuggerCommands.h"
 #include "StateTreeViewModel.h"
 #include "StateTreeState.h"
 #include "StateTreeEditorCommands.h"

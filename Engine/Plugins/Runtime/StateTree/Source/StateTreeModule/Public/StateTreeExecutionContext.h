@@ -6,10 +6,6 @@
 #include "StateTreeNodeBase.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
 
-#if WITH_STATETREE_DEBUGGER
-#include "Debugger/StateTreeTraceTypes.h"
-#endif // WITH_STATETREE_DEBUGGER
-
 #include "StateTreeExecutionContext.generated.h"
 
 struct FGameplayTag;
@@ -24,23 +20,26 @@ struct FStateTreeInstanceDebugId;
 
 /**
  * Enumeration for the different update phases.
- * This is used as context information when tracing debug events.   
+ * This is used as context information when tracing debug events.
+ * The values are ordered based on their hierarchy starting with the "higher" parents.
  */
 UENUM()
-enum class EStateTreeUpdatePhase : uint8
+enum class EStateTreeUpdatePhase : uint16
 {
-	Unset,
-	TickingGlobalTasks,
-	StateSelection,
-	TickingTasks,
-	StateTransition,
-	TriggerTransitions,
-	RequestTransition,
-	StartGlobalTasks,
-	StopGlobalTasks,
-	StartTree,
-	StopTree
+	Unset				= 0,
+	StartTree			= 1ull << 1,
+	StopTree			= 1ull << 2,
+	StartGlobalTasks	= 1ull << 3,
+	StopGlobalTasks		= 1ull << 4,
+	TickStateTree		= 1ull << 5,
+	TickingGlobalTasks	= 1ull << 6,
+	TickingTasks		= 1ull << 7,
+	TriggerTransitions	= 1ull << 8,
+	StateSelection		= 1ull << 9,
+	StateTransition		= 1ull << 10,
+	RequestTransition	= 1ull << 11,
 };
+ENUM_CLASS_FLAGS(EStateTreeUpdatePhase);
 
 
 /**
@@ -469,7 +468,7 @@ protected:
 
 #if WITH_STATETREE_DEBUGGER
 	/** Current phase in the update. Used for debugging events */
-	EStateTreeUpdatePhase CurrentUpdatePhase = EStateTreeUpdatePhase::Unset;
+	EStateTreeUpdatePhase CurrentUpdatePhaseMask = EStateTreeUpdatePhase::Unset;
 #endif // WITH_STATETREE_DEBUGGER
 
 	/** True if transitions are allowed to be requested directly instead of buffering. */

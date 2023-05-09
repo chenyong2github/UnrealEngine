@@ -15,11 +15,11 @@
 #define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 
 #if WITH_STATETREE_DEBUGGER
-	#define STATETREE_SCOPED_PHASE(Phase) TGuardValue<EStateTreeUpdatePhase> ScopedPhase(CurrentUpdatePhase, Phase)
-    #define STATETREE_TRACE_LOG_EVENT(Format, ...) TRACE_STATETREE_LOG_EVENT(GetInstanceDebugId(), CurrentUpdatePhase, Format, ##__VA_ARGS__)
-	#define STATETREE_TRACE_STATE_EVENT(Index, EventType) TRACE_STATETREE_STATE_EVENT(GetInstanceDebugId(), CurrentUpdatePhase, Index, EventType);
-	#define STATETREE_TRACE_TASK_EVENT(Index, DataView, EventType, Status) TRACE_STATETREE_TASK_EVENT(GetInstanceDebugId(), CurrentUpdatePhase, Index, DataView, EventType, Status);
-	#define STATETREE_TRACE_CONDITION_EVENT(Index, DataViews, EventType) TRACE_STATETREE_CONDITION_EVENT(GetInstanceDebugId(), CurrentUpdatePhase, Index, DataView, EventType);	
+	#define STATETREE_SCOPED_PHASE(Phase) TGuardValue<EStateTreeUpdatePhase> PREPROCESSOR_JOIN(ScopedPhaseMask, __LINE__)(CurrentUpdatePhaseMask, (CurrentUpdatePhaseMask | Phase))
+    #define STATETREE_TRACE_LOG_EVENT(Format, ...) TRACE_STATETREE_LOG_EVENT(GetInstanceDebugId(), CurrentUpdatePhaseMask, Format, ##__VA_ARGS__)
+	#define STATETREE_TRACE_STATE_EVENT(Index, EventType) TRACE_STATETREE_STATE_EVENT(GetInstanceDebugId(), CurrentUpdatePhaseMask, Index, EventType);
+	#define STATETREE_TRACE_TASK_EVENT(Index, DataView, EventType, Status) TRACE_STATETREE_TASK_EVENT(GetInstanceDebugId(), CurrentUpdatePhaseMask, Index, DataView, EventType, Status);
+	#define STATETREE_TRACE_CONDITION_EVENT(Index, DataViews, EventType) TRACE_STATETREE_CONDITION_EVENT(GetInstanceDebugId(), CurrentUpdatePhaseMask, Index, DataView, EventType);	
 #else
 	#define STATETREE_SCOPED_PHASE(Phase)
 	#define STATETREE_TRACE_LOG_EVENT(Format, ...)
@@ -320,6 +320,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop()
 EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Tick);
+	STATETREE_SCOPED_PHASE(EStateTreeUpdatePhase::TickStateTree);
 
 	if (!IsValid())
 	{
@@ -1221,14 +1222,17 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 			{
 				continue;
 			}
+
+			const FStateTreeDataView TaskDataView = DataViews[Task.DataViewIndex.Get()];
 			
 			// Copy bound properties.
 			// Only copy properties when the task is actually ticked, and copy properties at tick is requested.
 			if (Task.BindingsBatch.IsValid() && Task.bShouldCopyBoundPropertiesOnTick)
 			{
-				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, DataViews[Task.DataViewIndex.Get()]);
+				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, TaskDataView);
 			}
 
+			STATETREE_TRACE_TASK_EVENT(TaskIndex, TaskDataView, EStateTreeTraceNodeEventType::OnTickingTask, EStateTreeRunStatus::Running);
 			EStateTreeRunStatus TaskResult = EStateTreeRunStatus::Unset;
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_Tick);
@@ -1237,11 +1241,13 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 				TaskResult = Task.Tick(*this, DeltaTime);
 			}
 
+			STATETREE_TRACE_TASK_EVENT(TaskIndex, TaskDataView,
+				TaskResult != EStateTreeRunStatus::Running ? EStateTreeTraceNodeEventType::OnTaskCompleted : EStateTreeTraceNodeEventType::OnTaskTicked,
+				TaskResult);
+			
 			// TODO: Add more control over which states can control the failed/succeeded result.
 			if (TaskResult != EStateTreeRunStatus::Running)
 			{
-				STATETREE_TRACE_TASK_EVENT(TaskIndex, DataViews[Task.DataViewIndex.Get()], EStateTreeTraceNodeEventType::OnTaskCompleted, TaskResult);
-
 				// Store the first state that completed, will be used to decide where to trigger transitions.
 				if (!Exec.CompletedStateHandle.IsValid())
 				{
@@ -1430,7 +1436,11 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 	FAllowDirectTransitionsScope AllowDirectTransitionsScope(*this); // Set flag for the scope of this function to allow direct transitions without buffering.
 	FStateTreeExecutionState& Exec = GetExecState();
 
-	STATETREE_CLOG(!EventsToProcess.IsEmpty(), Verbose, TEXT("Trigger transitions with events [%s]"), *DebugGetEventsAsString());
+	if (EventsToProcess.Num() > 0)
+	{
+		STATETREE_LOG(Verbose, TEXT("Trigger transitions with events [%s]"), *DebugGetEventsAsString());
+		STATETREE_TRACE_LOG_EVENT(TEXT("Trigger transitions with events [%s]"), *DebugGetEventsAsString());
+	}
 
 	NextTransition.Reset();
 

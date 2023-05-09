@@ -5,11 +5,12 @@
 #if WITH_STATETREE_DEBUGGER
 
 #include "IStateTreeTraceProvider.h"
-#include "StateTreeTypes.h"
 #include "StateTree.h"
+#include "StateTreeDebuggerTypes.h"
+#include "StateTreeTypes.h"
 #include "Tickable.h"
-#include "TraceServices/Model/Diagnostics.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/Diagnostics.h"
 #include "TraceServices/Model/Frames.h"
 
 namespace UE::Trace
@@ -21,61 +22,11 @@ class IStateTreeModule;
 class UStateTreeState;
 class UStateTree;
 
-namespace UE::StateTreeDebugger
-{
-	struct FFrameIndexSpan
-	{
-		FFrameIndexSpan() = default;
-		FFrameIndexSpan(const TraceServices::FFrame& Frame, const uint32 EventIdx)
-			: Frame(Frame)
-			, EventIdx(EventIdx)
-		{
-		}
-
-		/** Frame index in the analysis session */
-		TraceServices::FFrame Frame;
-
-		/** Index of the first event for that Frame index */
-		int32 EventIdx = INDEX_NONE;
-	};
-}
-
-struct STATETREEMODULE_API FStateTreeDebuggerInstanceDesc
-{
-	FStateTreeDebuggerInstanceDesc() = default;
-	FStateTreeDebuggerInstanceDesc(const UStateTree* InStateTree, const FStateTreeInstanceDebugId InId, const FString& InName);
-
-	bool IsValid() const;
-
-	bool operator==(const FStateTreeDebuggerInstanceDesc& Other) const
-	{
-		return StateTree == Other.StateTree
-			&& Id == Other.Id;
-	}
-
-	bool operator!=(const FStateTreeDebuggerInstanceDesc& Other) const
-	{
-		return !(*this == Other);
-	}
-
-	friend FString LexToString(const FStateTreeDebuggerInstanceDesc& InstanceDesc)
-	{
-		return FString::Printf(TEXT("%s | %s | %s"),
-			*GetNameSafe(InstanceDesc.StateTree.Get()),
-			*LexToString(InstanceDesc.Id),
-			*InstanceDesc.Name);
-	}
-
-	TWeakObjectPtr<const UStateTree> StateTree = nullptr;
-	FString Name;
-	FStateTreeInstanceDebugId Id = FStateTreeInstanceDebugId::Invalid;
-};
-
-
-DECLARE_DELEGATE_TwoParams(FOnStateTreeDebuggerTracesUpdated, TConstArrayView<FStateTreeTraceEventVariantType>, TConstArrayView<UE::StateTreeDebugger::FFrameIndexSpan>);
+DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerScrubStateChanged, const UE::StateTreeDebugger::FScrubState& ScrubState);
 DECLARE_DELEGATE_TwoParams(FOnStateTreeDebuggerBreakpointHit, FStateTreeInstanceDebugId InstanceId, FStateTreeStateHandle StateHandle);
 DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerBreakpointsChanged, TConstArrayView<FStateTreeStateHandle> Breakpoints);
 DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerActiveStatesChanges, TConstArrayView<FStateTreeStateHandle> ActiveStates);
+DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerNewInstance, FStateTreeInstanceDebugId InstanceId);
 DECLARE_DELEGATE(FOnStateTreeDebuggerDebuggedInstanceSet);
 
 struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
@@ -98,42 +49,66 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	FStateTreeDebugger();
 	virtual ~FStateTreeDebugger() override;
 
-	void SetAsset(const UStateTree* StateTreeAsset) { DebuggedAsset = StateTreeAsset; }
+	const UStateTree* GetAsset() const { return StateTreeAsset.Get(); }
+	void SetAsset(const UStateTree* InStateTreeAsset) { StateTreeAsset = InStateTreeAsset; }
 	
-	/** Stops reading traces every frame to preserve current state */
+	/** Stops reading traces every frame to preserve current state. */
 	void Pause();
 
-	/** Resumes reading traces every frame */
+	/** Indicates that the debugger was explicitly paused and is no longer fetching new events from the analysis session. */
+	bool IsPaused() const { return bPaused; }
+
+	/** Resumes reading traces every frame. */
 	void Unpause();
 
 	/** Forces a single refresh to latest state. Useful when simulation is paused. */
 	void SyncToCurrentSessionDuration();
 	
-	bool CanStepBack() const;
-	bool CanStepForward() const;
-	void StepBack();
-	void StepForward();
-	
+	bool CanStepBackToPreviousStateWithEvents() const;
+	void StepBackToPreviousStateWithEvents();
+
+	bool CanStepForwardToNextStateWithEvents() const;
+	void StepForwardToNextStateWithEvents();
+
+	bool CanStepBackToPreviousStateChange() const;
+	void StepBackToPreviousStateChange();
+
+	bool CanStepForwardToNextStateChange() const;
+	void StepForwardToNextStateChange();
+
 	bool IsAnalysisSessionActive() const { return GetAnalysisSession() != nullptr; }
 	const TraceServices::IAnalysisSession* GetAnalysisSession() const;
 
-	TConstArrayView<FStateTreeDebuggerInstanceDesc> GetActiveInstances() const;
-	const FStateTreeDebuggerInstanceDesc& GetDebuggedInstance() const;
-	void SetDebuggedInstance(const FStateTreeDebuggerInstanceDesc& SelectedInstance);
-	FString GetDebuggedInstanceDescription() const;
-	static FString DescribeTrace(const FTraceDescriptor& TraceDescriptor);
-	static FString DescribeInstance(const FStateTreeDebuggerInstanceDesc& StateTreeInstanceDesc);
+	bool IsActiveInstance(double Time, FStateTreeInstanceDebugId InstanceId) const;
+	FText GetInstanceDescription(FStateTreeInstanceDebugId InstanceId) const;
+	void SelectInstance(const FStateTreeInstanceDebugId InstanceId);
+
+	static FText DescribeTrace(const FTraceDescriptor& TraceDescriptor);
+	static FText DescribeInstance(const UE::StateTreeDebugger::FInstanceDescriptor& StateTreeInstanceDesc);
+
+	/**
+	 * Finds and returns the event collection associated to a given instance Id.
+	 * An invalid empty collection is returned if not found (IsValid needs to be called).
+	 * @param InstanceId Id of the instance for which the event collection is returned. 
+	 * @return Event collection associated to the provided Id or an invalid one if not found.
+	 */
+	const UE::StateTreeDebugger::FInstanceEventCollection& GetEventCollection(FStateTreeInstanceDebugId InstanceId) const;
+	
+	double GetRecordingDuration() const { return RecordingDuration; }
+	double GetScrubTime() const	{ return ScrubState.ScrubTime; }
+	void SetScrubTime(double ScrubTime);
 
 	void GetLiveTraces(TArray<FTraceDescriptor>& OutTraceDescriptors) const;
 	void StartLastLiveSessionAnalysis();
 	void StartSessionAnalysis(const FTraceDescriptor& TraceDescriptor);
-	FTraceDescriptor GetDebuggedTraceDescriptor() const { return ActiveSessionTraceDescriptor; }
-	FString GetDebuggedTraceDescription() const;
+	FTraceDescriptor GetSelectedTraceDescriptor() const { return ActiveSessionTraceDescriptor; }
+	FText GetSelectedTraceDescription() const;
 	
 	void ToggleBreakpoints(const TConstArrayView<FStateTreeStateHandle> SelectedStates);
 
-	FOnStateTreeDebuggerDebuggedInstanceSet OnDebuggedInstanceSet;
-	FOnStateTreeDebuggerTracesUpdated OnTracesUpdated;
+	FOnStateTreeDebuggerNewInstance OnNewInstance;
+	FOnStateTreeDebuggerDebuggedInstanceSet OnSelectedInstanceCleared;
+	FOnStateTreeDebuggerScrubStateChanged OnScrubStateChanged;
 	FOnStateTreeDebuggerBreakpointHit OnBreakpointHit;
 	FOnStateTreeDebuggerBreakpointsChanged OnBreakpointsChanged;
 	FOnStateTreeDebuggerActiveStatesChanges OnActiveStatesChanged;
@@ -147,7 +122,6 @@ protected:
 	
 private:
 	void StopAnalysis();
-	void ResetAnalysisData();
 
 	void ReadTrace(double ScrubTime);
 	void ReadTrace(uint64 FrameIndex);
@@ -160,43 +134,69 @@ private:
 	void SendNotifications();
 
 	void SetActiveStates(const TConstArrayView<FStateTreeStateHandle> NewActiveStates);
-	
+
+	/**
+	 * Recompute index of the span that contains the active states change event and update the active states.
+	 * This method handles unselected instances in which case it will reset the active states and set the span index to INDEX_NONE
+	 * */
+	void RefreshActiveStates();
+
 	UE::Trace::FStoreClient* GetStoreClient() const;
-	void GetSessionActiveInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const;
+	void GetSessionInstances(TArray<UE::StateTreeDebugger::FInstanceDescriptor>& OutInstances) const;
+	void UpdateInstances();
 
 	bool ProcessEvent(const FStateTreeInstanceDebugId InstanceId, const TraceServices::FFrame& Frame, const FStateTreeTraceEventVariantType& Event);
 	void AddEvents(float StartTime, float EndTime, const TraceServices::IFrameProvider& FrameProvider, const IStateTreeTraceProvider& StateTreeTraceProvider);
 	void UpdateMetadata(FTraceDescriptor& TraceDescriptor) const;
 
-	TWeakObjectPtr<const UStateTree> DebuggedAsset;
-	
+	/** Module used to access the store client and analysis sessions .*/
 	IStateTreeModule& StateTreeModule;
+
+	/** The StateTree asset associated to this debugger. All instances will be using this asset. */ 
+	TWeakObjectPtr<const UStateTree> StateTreeAsset;
 	
 	/** The trace analysis session. */
 	TSharedPtr<const TraceServices::IAnalysisSession> AnalysisSession;
-	
+
+	/** Descriptor of the currently selected session */
 	FTraceDescriptor ActiveSessionTraceDescriptor;
 
-	TArray<FStateTreeDebuggerInstanceDesc> ActiveInstances;
-	FStateTreeDebuggerInstanceDesc DebuggedInstance;
-	
+	/** Descriptors for all instances of the StateTree asset that have traces in the analysis session and still active. */
+	TArray<UE::StateTreeDebugger::FInstanceDescriptor> InstanceDescs;
+
+	/** Processed events for each instance. */
+	TArray<UE::StateTreeDebugger::FInstanceEventCollection> EventCollections;
+
+	/** Specific instance selected for more details */
+	FStateTreeInstanceDebugId SelectedInstanceId;
+
+	/** Handles of states on which a breakpoint has been set. This is per asset and not specific to an instance. */
 	TArray<FStateTreeStateHandle> StatesWithBreakpoint;
+
+	/** List of currently active states in the selected instance */
 	TArray<FStateTreeStateHandle> ActiveStates;
-	TArray<FStateTreeTraceEventVariantType> Events;
-	
-	FStateTreeInstanceDebugId HitBreakpointInstanceId = FStateTreeInstanceDebugId::Invalid;
-	int32 HitBreakpointStateIndex = INDEX_NONE;
 
 	inline static constexpr double UnsetTime = -1;
+
+	/** Recording duration of the analysis session. This is not related to the world simulation time. */
 	double RecordingDuration = UnsetTime;
-	double CurrentScrubTime = UnsetTime;
+
+	/** Last time in the recording that we use to fetch events and we will use for the next read. */
 	double LastTraceReadTime = UnsetTime;
 
-	uint64 CurrentFrameIndex = INDEX_NONE;
-	TArray<UE::StateTreeDebugger::FFrameIndexSpan> FramesWithEvents;
+	/** Combined information regarding current scrub time (e.g. frame index, event collection index, etc.) */ 
+	UE::StateTreeDebugger::FScrubState ScrubState;
 
-	bool bProcessingInitialEvents = false;
-	bool bNewEvents = false;
+	/** Indicates the instance for which a breakpoint has been hit */
+	FStateTreeInstanceDebugId HitBreakpointInstanceId = FStateTreeInstanceDebugId::Invalid;
+
+	/** Indicates the state for which a breakpoint has been hit */
+	int32 HitBreakpointStateIndex = INDEX_NONE;
+
+	/** List of new instances discovered by processing event in the analysis session. */
+	TArray<FStateTreeInstanceDebugId> NewInstances;
+
+	/** Indicates that the debugger was explicitly paused and will wait before fetching new events from the analysis session provider. */
 	bool bPaused = false;
 };
 

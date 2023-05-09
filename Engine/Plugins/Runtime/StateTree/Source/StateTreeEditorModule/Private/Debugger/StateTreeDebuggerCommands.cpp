@@ -23,8 +23,11 @@ FStateTreeDebuggerCommands::FStateTreeDebuggerCommands()
 void FStateTreeDebuggerCommands::RegisterCommands()
 {
 	UI_COMMAND(ToggleBreakpoint, "Toggle Breakpoint", "Adds or removes a breakpoint on each selected node", EUserInterfaceActionType::Button, FInputChord(EKeys::F9))
-	UI_COMMAND(Back, "Back", "Show previous recorded state", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(Forward, "Forward", "Show next recorded state", EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(PreviousFrameWithStateChange, "Previous State Change", "Jump to previous state changed frame", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Left));
+	UI_COMMAND(PreviousFrameWithEvents, "Previous Frame", "Step one frame back", EUserInterfaceActionType::Button, FInputChord(EKeys::Left));
+	UI_COMMAND(NextFrameWithEvents, "Next Frame", "Step one frame forward", EUserInterfaceActionType::Button, FInputChord(EKeys::Right));
+	UI_COMMAND(NextFrameWithStateChange, "Next State Change", "Jump to next state changed frame", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Right));
 }
 
 #undef LOCTEXT_NAMESPACE

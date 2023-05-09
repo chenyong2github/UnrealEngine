@@ -18,8 +18,10 @@ public:
 	virtual void RegisterCommands() override;
 
 	TSharedPtr<FUICommandInfo> ToggleBreakpoint;
-	TSharedPtr<FUICommandInfo> Back;
-	TSharedPtr<FUICommandInfo> Forward;
+	TSharedPtr<FUICommandInfo> PreviousFrameWithStateChange;
+	TSharedPtr<FUICommandInfo> PreviousFrameWithEvents;
+	TSharedPtr<FUICommandInfo> NextFrameWithEvents;
+	TSharedPtr<FUICommandInfo> NextFrameWithStateChange;
 };
 
 #endif // WITH_STATETREE_DEBUGGER

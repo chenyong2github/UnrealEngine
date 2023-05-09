@@ -1,0 +1,138 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+#include "Debugger/StateTreeDebugger.h"
+
+#if WITH_STATETREE_DEBUGGER
+
+#include "Debugger/StateTreeTraceTypes.h"
+#include "InstancedStruct.h"
+#include "Widgets/Views/STreeView.h"
+#include "Widgets/SCompoundWidget.h"
+
+namespace RewindDebugger
+{
+	class FRewindDebuggerTrack;
+}
+namespace UE::StateTreeDebugger
+{
+	struct FFrameSpan;
+	struct FEventTreeElement;
+}
+struct FStateTreeDebugger;
+struct FStateTreeInstanceDebugId;
+class FStateTreeEditor;
+class FStateTreeViewModel;
+class FUICommandList;
+class UStateTree;
+class SStateTreeDebuggerTimelines;
+class SStateTreeDebuggerInstanceTree;
+
+
+/**
+ * Widget holding the timelines for all statetree instances matching a given asset
+ * in addition to some frame details panels.
+ */
+class SStateTreeDebuggerView : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SStateTreeDebuggerView) {}
+	SLATE_END_ARGS()
+
+	SStateTreeDebuggerView();
+	~SStateTreeDebuggerView();
+
+	void Construct(const FArguments& InArgs, const UStateTree* InStateTree, const TSharedRef<FStateTreeViewModel>& InStateTreeViewModel, const TSharedRef<FUICommandList>& InCommandList);
+
+private:
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
+	void RefreshTracks();
+
+	void TrackCursor();
+
+	TSharedRef<SWidget> OnGetDebuggerTracesMenu() const;
+
+	void OnPIEStarted(bool bIsSimulating) const;
+	void OnPIEStopped(bool bIsSimulating) const;
+	void OnPIEPaused(bool bIsSimulating) const;
+	void OnPIEResumed(bool bIsSimulating) const;
+	void OnPIESingleStepped(bool bIsSimulating) const;
+	
+	void OnBreakpointHit(const FStateTreeInstanceDebugId InstanceId, const FStateTreeStateHandle StateHandle, const TSharedRef<FUICommandList> ActionList) const;
+	void OnNewInstance(FStateTreeInstanceDebugId InstanceId);
+	void OnSelectedInstanceCleared();
+
+	void BindDebuggerToolbarCommands(const TSharedRef<FUICommandList>& ToolkitCommands);
+
+	bool CanStepBackToPreviousStateWithEvents() const;
+	void StepBackToPreviousStateWithEvents();
+
+	bool CanStepForwardToNextStateWithEvents() const;
+	void StepForwardToNextStateWithEvents();
+
+	bool CanStepBackToPreviousStateChange() const;
+	void StepBackToPreviousStateChange();
+
+	bool CanStepForwardToNextStateChange() const;
+	void StepForwardToNextStateChange();
+	
+	bool CanToggleBreakpoint() const;
+	void ToggleBreakpoint() const;
+
+	TSharedPtr<FStateTreeDebugger> Debugger;
+	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
+	TWeakObjectPtr<const UStateTree> StateTree;
+
+	/** Tracks for all instances producing trace events for the associated state tree asset. */
+	TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>> InstanceTracks;
+
+	/**
+	 * Tree view displaying the instance names and synced with InstanceTimelinesTreeView.
+	 * Note that this is currently used as a list view but kept the tree view to be close
+	 * to the rewind debugger track implementation.
+	 */
+	TSharedPtr<SStateTreeDebuggerInstanceTree> InstancesTreeView;
+
+	/**
+	 * Tree view displaying the instance timelines and synced with InstancesTreeView.
+	 * Note that this is currently used as a list view but kept the tree view to be close
+	 * to the rewind debugger track implementation.
+	 */
+	TSharedPtr<SStateTreeDebuggerTimelines> InstanceTimelinesTreeView;
+
+	/** Splitter between instances selector and simple time slider. Used with TreeViewsSplitter to keep header and content in sync */
+	TSharedPtr<SSplitter> HeaderSplitter;
+
+	/** Splitter between instances names and their timelines. Used with HeaderSplitter to keep header and content in sync */
+	TSharedPtr<SSplitter> TreeViewsSplitter;
+
+	/** All trace events received for a given instance. */
+	TArray<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>> EventsTreeElements;
+	
+	/** Tree view displaying the frame events of the instance associated to the selected track. */
+	TSharedPtr<STreeView<TSharedPtr<UE::StateTreeDebugger::FEventTreeElement>>> EventsTreeView;
+
+	/** Widget holding the event details when available (i.e. property details of the associated struct or object). */
+	TSharedPtr<SBorder> PropertiesBorder;
+
+	/** Attribute provided by the debugger scrub position to control cursor and timelines positions. */
+	TAttribute<double> ScrubTimeAttribute;
+
+	/** Callback from timeline widgets to update the debugger scrub state. */
+	void OnTimeLineScrubPositionChanged(double Time, bool bIsScrubbing);
+
+	/** Callback used to reflect debugger scrub state in the UI. */
+	void OnDebuggerScrubStateChanged(const UE::StateTreeDebugger::FScrubState& ScrubState);
+
+	/** Range controlled by the timeline widgets and used to adjust cursor position and track content. */
+	TRange<double> ViewRange = TRange<double>(0, 10);
+
+	/** Struct created from the event data when statetree node was holding a struct. */
+	FInstancedStruct SelectedNodeDataStruct;
+
+	/** Object created from the event data when statetree node was holding an object. */
+	TWeakObjectPtr<UObject> SelectedNodeDataObject;
+};
+
+#endif // WITH_STATETREE_DEBUGGER

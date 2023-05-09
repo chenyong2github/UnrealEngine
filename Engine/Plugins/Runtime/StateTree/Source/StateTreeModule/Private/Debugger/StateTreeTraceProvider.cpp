@@ -5,7 +5,6 @@
 #include "Debugger/StateTreeTraceProvider.h"
 #include "StateTreeTypes.h"
 #include "Debugger/StateTreeDebugger.h"
-#include "Algo/RemoveIf.h"
 
 FName FStateTreeTraceProvider::ProviderName("StateTreeDebuggerProvider");
 
@@ -46,48 +45,69 @@ bool FStateTreeTraceProvider::ReadTimelines(const FStateTreeInstanceDebugId Inst
 	return false;
 }
 
-void FStateTreeTraceProvider::AppendEvent(const FStateTreeInstanceDebugId InInstanceId, const double InTime, const FStateTreeTraceEventVariantType& Event)
+bool FStateTreeTraceProvider::ReadTimelines(const UStateTree& StateTree, TFunctionRef<void(const FStateTreeInstanceDebugId ProcessedInstanceId, const FEventsTimeline&)> Callback) const
+{
+	Session.ReadAccessCheck();
+
+	for (auto It = InstanceIdToDebuggerEntryTimelines.CreateConstIterator(); It; ++It)
+	{
+		check(EventsTimelines.IsValidIndex(It.Value()));
+		check(Descriptors.Num() == EventsTimelines.Num());
+
+		if (Descriptors[It.Value()].StateTree == &StateTree)
+		{
+			Callback(Descriptors[It.Value()].Id, *EventsTimelines[It.Value()]);
+		}
+	}
+
+	return EventsTimelines.Num() > 0;
+}
+
+void FStateTreeTraceProvider::AppendEvent(const FStateTreeInstanceDebugId InInstanceId, const double InTime, const FStateTreeTraceEventVariantType& InEvent)
 {
 	Session.WriteAccessCheck();
 
-	TSharedPtr<TraceServices::TPointTimeline<FStateTreeTraceEventVariantType>> Timeline;
 	const uint32* IndexPtr = InstanceIdToDebuggerEntryTimelines.Find(InInstanceId);
-	if (IndexPtr != nullptr)
+	if (ensureMsgf(IndexPtr != nullptr, TEXT("Timeline can't be found: probably caused by a missing instance event 'Started'.")))
 	{
-		Timeline = EventsTimelines[*IndexPtr];
+		EventsTimelines[*IndexPtr]->AppendEvent(InTime, InEvent);
 	}
-	else
-	{
-		InstanceIdToDebuggerEntryTimelines.Add(InInstanceId, EventsTimelines.Num());
-		Timeline = EventsTimelines.Emplace_GetRef(MakeShared<TraceServices::TPointTimeline<FStateTreeTraceEventVariantType>>(Session.GetLinearAllocator()));
-	}
-
-	Timeline->AppendEvent(InTime, Event);
+	
 	Session.UpdateDurationSeconds(InTime);
 }
 
-void FStateTreeTraceProvider::AppendInstance(
+void FStateTreeTraceProvider::AppendInstanceEvent(
 	const UStateTree* InStateTree,
 	const FStateTreeInstanceDebugId InInstanceId,
 	const TCHAR* InInstanceName,
-	const EStateTreeTraceInstanceEventType EventType)
+	const double InTime,
+	const EStateTreeTraceInstanceEventType InEventType)
 {
-	if (EventType == EStateTreeTraceInstanceEventType::Started)
+	if (InEventType == EStateTreeTraceInstanceEventType::Started)
 	{
-		ActiveInstances.Emplace(InStateTree, InInstanceId, InInstanceName);	
+		Descriptors.Emplace(InStateTree, InInstanceId, InInstanceName, TRange<double>(InTime, std::numeric_limits<double>::max()));
+
+		check(InstanceIdToDebuggerEntryTimelines.Find(InInstanceId) == nullptr);
+		InstanceIdToDebuggerEntryTimelines.Add(InInstanceId, EventsTimelines.Num());
+		
+		EventsTimelines.Emplace(MakeShared<TraceServices::TPointTimeline<FStateTreeTraceEventVariantType>>(Session.GetLinearAllocator()));
 	}
-	else if (EventType == EStateTreeTraceInstanceEventType::Stopped)
+	else if (InEventType == EStateTreeTraceInstanceEventType::Stopped)
 	{
-		ActiveInstances.SetNum(Algo::RemoveIf(ActiveInstances, [InInstanceId](const FStateTreeDebuggerInstanceDesc& Instance)
-			{
-				return Instance.Id == InInstanceId;
-			}));
+		const uint32* Index = InstanceIdToDebuggerEntryTimelines.Find(InInstanceId);
+		if (ensureMsgf(Index != nullptr, TEXT("Unable to find matching instance. Looks like we never received event 'Started' for this instance.")))
+		{
+			check(Descriptors.IsValidIndex(*Index));
+			Descriptors[*Index].Lifetime.SetUpperBound(InTime);
+		}
 	}
+
+	Session.UpdateDurationSeconds(InTime);
 }
 
-void FStateTreeTraceProvider::GetActiveInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const
+void FStateTreeTraceProvider::GetInstances(TArray<UE::StateTreeDebugger::FInstanceDescriptor>& OutInstances) const
 {
-	OutInstances = ActiveInstances;
+	OutInstances = Descriptors;
 }
 
 #undef LOCTEXT_NAMESPACE

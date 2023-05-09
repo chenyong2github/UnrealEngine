@@ -21,6 +21,8 @@
 #include "TraceServices/Model/Diagnostics.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 
+#define LOCTEXT_NAMESPACE "StateTreeDebugger"
+
 //----------------------------------------------------------------//
 // UE::StateTreeDebugger
 //----------------------------------------------------------------//
@@ -71,26 +73,11 @@ namespace UE::StateTreeDebugger
 
 
 //----------------------------------------------------------------//
-// FStateTreeDebuggerInstanceDesc
-//----------------------------------------------------------------//
-FStateTreeDebuggerInstanceDesc::FStateTreeDebuggerInstanceDesc(const UStateTree* InStateTree, const FStateTreeInstanceDebugId InId, const FString& InName)
-	: StateTree(InStateTree)
-	, Name(InName)
-	, Id(InId)	
-{ 
-}
-
-bool FStateTreeDebuggerInstanceDesc::IsValid() const
-{
-	return StateTree.IsValid() && Name.Len() && Id.IsValid();
-}
-
-
-//----------------------------------------------------------------//
 // FStateTreeDebugger
 //----------------------------------------------------------------//
 FStateTreeDebugger::FStateTreeDebugger()
 	: StateTreeModule(FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule"))
+	, ScrubState(EventCollections)
 {
 }
 
@@ -101,21 +88,10 @@ FStateTreeDebugger::~FStateTreeDebugger()
 
 void FStateTreeDebugger::Tick(float DeltaTime)
 {
-	GetSessionActiveInstances(ActiveInstances);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStateTreeDebugger::Tick);
 
-	if (!bPaused)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FStateTreeDebugger::Tick);
-		SyncToCurrentSessionDuration();
-	}
-
-	if (DebuggedInstance.IsValid())
-	{
-		if (!ActiveInstances.Contains(DebuggedInstance))
-		{
-			SetDebuggedInstance(FStateTreeDebuggerInstanceDesc());
-		}
-	}
+	UpdateInstances();
+	SyncToCurrentSessionDuration();
 }
 
 bool FStateTreeDebugger::IsTickable() const
@@ -131,7 +107,7 @@ void FStateTreeDebugger::StopAnalysis()
 		AnalysisSession.Reset();	
 	}
 
-	ResetAnalysisData();
+	EventCollections.Reset();
 }
 
 void FStateTreeDebugger::Pause()
@@ -152,49 +128,51 @@ void FStateTreeDebugger::SyncToCurrentSessionDuration()
 {
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
 	{
-		double SessionDuration = 0.;
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
-			SessionDuration = Session->GetDurationSeconds();
+			RecordingDuration = Session->GetDurationSeconds();
 		}
-
-		ReadTrace(SessionDuration);
+		ReadTrace(RecordingDuration);
 	}
 }
 
-const FStateTreeDebuggerInstanceDesc& FStateTreeDebugger::GetDebuggedInstance() const
+FText FStateTreeDebugger::GetInstanceDescription(FStateTreeInstanceDebugId InstanceId) const
 {
-	return DebuggedInstance;
+	using namespace UE::StateTreeDebugger;
+	const FInstanceDescriptor* FoundInstance = InstanceDescs.FindByPredicate([InstanceId](const FInstanceDescriptor& InstanceDesc)
+		{
+			return InstanceDesc.Id == InstanceId;
+		});
+
+	return (FoundInstance != nullptr) ? DescribeInstance(*FoundInstance) : LOCTEXT("InstanceNotFound","Instance not found");
 }
 
-FString FStateTreeDebugger::GetDebuggedInstanceDescription() const
+void FStateTreeDebugger::SelectInstance(const FStateTreeInstanceDebugId InstanceId)
 {
-	return DescribeInstance(DebuggedInstance);
-}
-
-void FStateTreeDebugger::SetDebuggedInstance(const FStateTreeDebuggerInstanceDesc& SelectedInstance)
-{
-	if (DebuggedInstance != SelectedInstance)
+	if (SelectedInstanceId != InstanceId)
 	{
-		DebuggedInstance = SelectedInstance;
+		HitBreakpointStateIndex = INDEX_NONE;
+		HitBreakpointInstanceId.Reset();
 		
-		// Reparse traces
-		ResetAnalysisData();
+		SelectedInstanceId = InstanceId;
 
-		bProcessingInitialEvents = true;
-		SyncToCurrentSessionDuration();
-		bProcessingInitialEvents = false;
+		// Notify so listener can cleanup anything related to previous instance
+		OnSelectedInstanceCleared.ExecuteIfBound();
 
-		OnDebuggedInstanceSet.ExecuteIfBound();
+		// Update event collection index for newly debugged instance
+		ScrubState.EventCollectionIndex = InstanceId.IsValid() ? EventCollections.IndexOfByPredicate([InstanceId = InstanceId](const UE::StateTreeDebugger::FInstanceEventCollection& Entry)
+			{
+				return Entry.InstanceId == InstanceId;
+			})
+			: INDEX_NONE;
+
+		// Set scrub time to refresh internal tracking for the new instance
+		// This will notify scrub position changed and active states
+		SetScrubTime(ScrubState.ScrubTime);
 	}
 }
 
-TConstArrayView<FStateTreeDebuggerInstanceDesc> FStateTreeDebugger::GetActiveInstances() const
-{
-	return ActiveInstances;
-}
-
-void FStateTreeDebugger::GetSessionActiveInstances(TArray<FStateTreeDebuggerInstanceDesc>& OutInstances) const
+void FStateTreeDebugger::GetSessionInstances(TArray<UE::StateTreeDebugger::FInstanceDescriptor>& OutInstances) const
 {
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
 	{
@@ -202,7 +180,20 @@ void FStateTreeDebugger::GetSessionActiveInstances(TArray<FStateTreeDebuggerInst
 
 		if (const IStateTreeTraceProvider* Provider = Session->ReadProvider<IStateTreeTraceProvider>(FStateTreeTraceProvider::ProviderName))
 		{
-			Provider->GetActiveInstances(OutInstances);
+			Provider->GetInstances(OutInstances);
+		}
+	}
+}
+
+void FStateTreeDebugger::UpdateInstances()
+{
+	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
+
+		if (const IStateTreeTraceProvider* Provider = Session->ReadProvider<IStateTreeTraceProvider>(FStateTreeTraceProvider::ProviderName))
+		{
+			Provider->GetInstances(InstanceDescs);
 		}
 	}
 }
@@ -235,7 +226,7 @@ void FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescr
 	StopAnalysis();
 
 	const uint32 TraceId = TraceDescriptor.TraceId;
-	
+
 	// Make sure it is still live
 	const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByTraceId(TraceId);
 	if (SessionInfo != nullptr)
@@ -265,9 +256,7 @@ void FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescr
 			checkf(!AnalysisSession.IsValid(), TEXT("Must make sure that current session was properly stopped before starting a new one otherwise it can cause threading issues"));
 			AnalysisSession = TraceAnalysisService->StartAnalysis(TraceId, *TraceName, MoveTemp(TraceData));
 			
-			bProcessingInitialEvents = true;
 			SyncToCurrentSessionDuration();
-			bProcessingInitialEvents = false;
 		}
 
 		ActiveSessionTraceDescriptor = AnalysisSession.IsValid() ? TraceDescriptor : FTraceDescriptor();
@@ -360,40 +349,60 @@ void FStateTreeDebugger::UpdateMetadata(FTraceDescriptor& TraceDescriptor) const
 	TraceDescriptor.SessionInfo = Analyzer.SessionInfo;
 }
 
-FString FStateTreeDebugger::GetDebuggedTraceDescription() const
+FText FStateTreeDebugger::GetSelectedTraceDescription() const
 {
 	if (ActiveSessionTraceDescriptor.IsValid())
 	{
 		return DescribeTrace(ActiveSessionTraceDescriptor);
 	}
 
-	return TEXT("No trace selected");
+	return LOCTEXT("NoSelectedTraceDescriptor", "No trace selected");
 }
 
-FString FStateTreeDebugger::DescribeTrace(const FTraceDescriptor& TraceDescriptor)
+void FStateTreeDebugger::SetScrubTime(const double ScrubTime)
+{
+	ScrubState.SetScrubTime(ScrubTime);
+	OnScrubStateChanged.Execute(ScrubState);
+
+	RefreshActiveStates();
+}
+
+bool FStateTreeDebugger::IsActiveInstance(const double Time, const FStateTreeInstanceDebugId InstanceId) const
+{
+	for (const UE::StateTreeDebugger::FInstanceDescriptor& Desc : InstanceDescs)
+	{
+		if (Desc.Id == InstanceId && Desc.Lifetime.Contains(Time))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+FText FStateTreeDebugger::DescribeTrace(const FTraceDescriptor& TraceDescriptor)
 {
 	if (TraceDescriptor.IsValid())
 	{
 		const TraceServices::FSessionInfo& SessionInfo = TraceDescriptor.SessionInfo;
 
-		return FString::Printf(TEXT("%s-%s-%s-%s-%s"),
+		return FText::FromString(FString::Printf(TEXT("%s-%s-%s-%s-%s"),
 			*LexToString(TraceDescriptor.TraceId),
 			*SessionInfo.Platform,
 			*SessionInfo.AppName,
 			LexToString(SessionInfo.ConfigurationType),
-			LexToString(SessionInfo.TargetType));
+			LexToString(SessionInfo.TargetType)));
 	}
 
-	return TEXT("Invalid");
+	return LOCTEXT("InvalidTraceDescriptor", "Invalid");
 }
 
-FString FStateTreeDebugger::DescribeInstance(const FStateTreeDebuggerInstanceDesc& InstanceDesc)
+FText FStateTreeDebugger::DescribeInstance(const UE::StateTreeDebugger::FInstanceDescriptor& InstanceDesc)
 {
-	if (FStateTreeDebuggerInstanceDesc() == InstanceDesc)
+	if (InstanceDesc.IsValid() == false)
 	{
-		return TEXT("No instance selected");
+		return LOCTEXT("NoSelectedInstanceDescriptor", "No instance selected");
 	}
-	return LexToString(InstanceDesc);
+	return FText::FromString(LexToString(InstanceDesc));
 }
 
 void FStateTreeDebugger::SetActiveStates(const TConstArrayView<FStateTreeStateHandle> NewActiveStates)
@@ -402,59 +411,75 @@ void FStateTreeDebugger::SetActiveStates(const TConstArrayView<FStateTreeStateHa
 	OnActiveStatesChanged.ExecuteIfBound(ActiveStates);
 }
 
-bool FStateTreeDebugger::CanStepBack() const
+void FStateTreeDebugger::RefreshActiveStates()
 {
-	return bPaused && CurrentFrameIndex != INDEX_NONE
-		&& FramesWithEvents.ContainsByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
-		{
-			return IteratedFrame.Frame.Index < CurrentIndex;
-		});
-}
+	TArray<FStateTreeStateHandle> NewActiveStates;
 
-void FStateTreeDebugger::StepBack()
-{
-	const int32 PrevFrameIndex = FramesWithEvents.FindLastByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
+	if (ScrubState.IsPointingToValidActiveStates())
 	{
-		return IteratedFrame.Frame.Index < CurrentIndex;
-	});
-	
-	if (PrevFrameIndex != INDEX_NONE)
-	{
-		// Rebuild from beginning up to previous frame with events
-		Events.Reset();
-		LastTraceReadTime = UnsetTime;
-		ReadTrace(FramesWithEvents[PrevFrameIndex].Frame.Index);
-		check(CurrentFrameIndex == FramesWithEvents[PrevFrameIndex].Frame.Index);
+		const UE::StateTreeDebugger::FInstanceEventCollection& EventCollection = EventCollections[ScrubState.EventCollectionIndex];
+		const int32 EventIndex = EventCollection.ActiveStatesChanges[ScrubState.ActiveStatesIndex].Value;
+		NewActiveStates = EventCollection.Events[EventIndex].Get<FStateTreeTraceActiveStatesEvent>().ActiveStates;
 	}
+
+	SetActiveStates(NewActiveStates);
 }
 
-bool FStateTreeDebugger::CanStepForward() const
+bool FStateTreeDebugger::CanStepBackToPreviousStateWithEvents() const
 {
-	return bPaused && CurrentFrameIndex != INDEX_NONE
-		&& FramesWithEvents.ContainsByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
-		{
-			return IteratedFrame.Frame.Index > CurrentIndex;
-		});
+	return bPaused ? ScrubState.HasPreviousFrame() : false;
 }
 
-void FStateTreeDebugger::StepForward()
+void FStateTreeDebugger::StepBackToPreviousStateWithEvents()
 {
-	const UE::StateTreeDebugger::FFrameIndexSpan* NextFrame = FramesWithEvents.FindByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
-	{
-		return IteratedFrame.Frame.Index > CurrentIndex;
-	});
+	ScrubState.GotoPreviousFrame();
+	OnScrubStateChanged.Execute(ScrubState);
 	
-	if (NextFrame != nullptr)
-	{
-		const uint64 FrameIndex = (*NextFrame).Frame.Index; 
-		ReadTrace(FrameIndex);
-		check(CurrentFrameIndex == FrameIndex);
-	}
+	RefreshActiveStates();
+}
+
+bool FStateTreeDebugger::CanStepForwardToNextStateWithEvents() const
+{
+	return bPaused ? ScrubState.HasNextFrame() : false;
+}
+
+void FStateTreeDebugger::StepForwardToNextStateWithEvents()
+{
+	ScrubState.GotoNextFrame();
+	OnScrubStateChanged.Execute(ScrubState);
+
+	RefreshActiveStates();
+}
+
+bool FStateTreeDebugger::CanStepBackToPreviousStateChange() const
+{
+	return bPaused ? ScrubState.HasPreviousActiveStates() : false;
+}
+
+void FStateTreeDebugger::StepBackToPreviousStateChange()
+{
+	ScrubState.GotoPreviousActiveStates();
+	OnScrubStateChanged.Execute(ScrubState);
+	
+	RefreshActiveStates();
+}
+
+bool FStateTreeDebugger::CanStepForwardToNextStateChange() const
+{
+	return bPaused ? ScrubState.HasNextActiveStates() : false;
+}
+
+void FStateTreeDebugger::StepForwardToNextStateChange()
+{
+	ScrubState.GotoNextActiveStates();
+	OnScrubStateChanged.Execute(ScrubState);
+
+	RefreshActiveStates();
 }
 
 void FStateTreeDebugger::ToggleBreakpoints(const TConstArrayView<FStateTreeStateHandle> SelectedStates)
 {
-	TArray<FStateTreeStateHandle> CurrentBreakpoints = StatesWithBreakpoint;	
+	TArray<FStateTreeStateHandle> CurrentBreakpoints = StatesWithBreakpoint;
 	TArray<FStateTreeStateHandle> NewBreakpoints(SelectedStates);
 
 	// remove from the selected states any state that already has a breakpoint
@@ -490,19 +515,6 @@ UE::Trace::FStoreClient* FStateTreeDebugger::GetStoreClient() const
 	return StateTreeModule.GetStoreClient();
 }
 
-void FStateTreeDebugger::ResetAnalysisData()
-{
-	Events.Reset();
-	HitBreakpointStateIndex = INDEX_NONE;
-	HitBreakpointInstanceId.Reset();
-	LastTraceReadTime = UnsetTime;
-	CurrentScrubTime = UnsetTime;
-	CurrentFrameIndex = INDEX_NONE;
-	FramesWithEvents.Reset();
-
-	SetActiveStates({});
-}
-
 void FStateTreeDebugger::ReadTrace(const uint64 FrameIndex)
 {
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
@@ -513,7 +525,6 @@ void FStateTreeDebugger::ReadTrace(const uint64 FrameIndex)
 
 		if (const TraceServices::FFrame* TargetFrame = FrameProvider.GetFrame(TraceFrameType_Game, FrameIndex))
 		{
-			CurrentScrubTime = TargetFrame->EndTime;
 			ReadTrace(*Session, FrameProvider, *TargetFrame);
 		}
 	}
@@ -533,8 +544,18 @@ void FStateTreeDebugger::ReadTrace(const double ScrubTime)
 		TraceServices::FFrame TargetFrame;
 		if (FrameProvider.GetFrameFromTime(TraceFrameType_Game, ScrubTime, TargetFrame))
 		{
-			CurrentScrubTime = ScrubTime;
-			ReadTrace(*Session, FrameProvider, TargetFrame);						
+			// Process only completed frames 
+			if (TargetFrame.EndTime == std::numeric_limits<double>::infinity())
+			{
+				if (const TraceServices::FFrame* PreviousCompleteFrame = FrameProvider.GetFrame(TraceFrameType_Game, TargetFrame.Index - 1))
+				{
+					ReadTrace(*Session, FrameProvider, *PreviousCompleteFrame);
+				}
+			}
+			else
+			{
+				ReadTrace(*Session, FrameProvider, TargetFrame);
+			}
 		}
 	}
 
@@ -544,16 +565,26 @@ void FStateTreeDebugger::ReadTrace(const double ScrubTime)
 
 void FStateTreeDebugger::SendNotifications()
 {
-	if (bNewEvents)
+	if (NewInstances.Num() > 0)
 	{
-		OnTracesUpdated.ExecuteIfBound(Events, FramesWithEvents);
-		bNewEvents = false;
+		for (const FStateTreeInstanceDebugId NewInstanceId : NewInstances)
+		{
+			OnNewInstance.ExecuteIfBound(NewInstanceId);
+		}
+		NewInstances.Reset();
 	}
 
 	if (HitBreakpointStateIndex != INDEX_NONE)
 	{
 		check(HitBreakpointInstanceId.IsValid());
 		check(StatesWithBreakpoint.IsValidIndex(HitBreakpointStateIndex));
+
+		// Make sure the instance is selected in case the breakpoint was set for any instances 
+		if (SelectedInstanceId != HitBreakpointInstanceId)
+		{
+			SelectInstance(HitBreakpointInstanceId);
+		}
+
 		OnBreakpointHit.ExecuteIfBound(HitBreakpointInstanceId, StatesWithBreakpoint[HitBreakpointStateIndex]);
 
 		HitBreakpointStateIndex = INDEX_NONE;
@@ -574,95 +605,128 @@ void FStateTreeDebugger::ReadTrace(
 		if (const IStateTreeTraceProvider* Provider = Session.ReadProvider<IStateTreeTraceProvider>(FStateTreeTraceProvider::ProviderName))
 		{
 			AddEvents(LastTraceReadTime, Frame.EndTime, FrameProvider, *Provider);
-			LastTraceReadTime = CurrentScrubTime;
+			LastTraceReadTime = Frame.EndTime;
 		}
-	}
-
-	if (FramesWithEvents.ContainsByPredicate([CurrentIndex = CurrentFrameIndex](const UE::StateTreeDebugger::FFrameIndexSpan& IteratedFrame)
-		{
-			return IteratedFrame.Frame.Index == CurrentIndex;
-		}))
-	{
-		CurrentFrameIndex = Frame.Index;	
-	}
-	else if (FramesWithEvents.Num())
-	{
-		CurrentFrameIndex = FramesWithEvents.Last().Frame.Index;
 	}
 }
 
 bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId, const TraceServices::FFrame& Frame, const FStateTreeTraceEventVariantType& Event)
 {
-	if (DebuggedInstance.Id == InstanceId && Event.IsType<FStateTreeTraceActiveStatesEvent>())
+	using namespace UE::StateTreeDebugger;
+
+	// Breakpoints 
+	if (bPaused == false // ignored when scrubbing a paused session
+		&& StateTreeAsset != nullptr // asset is required to properly match state handles
+		&& HitBreakpointStateIndex == INDEX_NONE // stop on first hit breakpoint
+		&& StatesWithBreakpoint.Num()
+		&& (SelectedInstanceId == InstanceId || SelectedInstanceId.IsInvalid())) // allow breakpoints on any instances if not specified
 	{
-		// Active states
-		SetActiveStates(Event.Get<FStateTreeTraceActiveStatesEvent>().ActiveStates);
-	}
-	else
-	{
-		// Breakpoints 
-		if (bPaused == false // ignored when scrubbing a paused session
-			&& bProcessingInitialEvents == false // only processed for events added after the initial parsing
-			&& DebuggedAsset != nullptr // asset is required to properly match state handles
-			&& HitBreakpointStateIndex == INDEX_NONE // stop on first hit breakpoint
-			&& StatesWithBreakpoint.Num()
-			&& (DebuggedInstance.Id == InstanceId || !DebuggedInstance.IsValid())) // allow breakpoints on any instances if not specified
+		const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>();
+		if (StateEvent != nullptr && StateEvent->EventType == EStateTreeTraceNodeEventType::OnEnter)
 		{
-			const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>();
-			if (StateEvent != nullptr && StateEvent->EventType == EStateTreeTraceNodeEventType::OnEnter)
+			const UStateTree* InstanceStateTree = nullptr;
+			if (SelectedInstanceId.IsInvalid())
 			{
-				const UStateTree* InstanceStateTree = nullptr;
-				if (!DebuggedInstance.IsValid())
-				{
-					// No specific instance selected yet, find matching descriptor from id to extract the associated StateTree asset
-					const FStateTreeDebuggerInstanceDesc* FoundInstance = ActiveInstances.FindByPredicate(
-						[InstanceId](const FStateTreeDebuggerInstanceDesc& InstanceDesc)
-						{
-							return InstanceDesc.Id == InstanceId;
-						});
-
-					if (FoundInstance != nullptr)
+				// No specific instance selected yet, find matching descriptor from id to extract the associated StateTree asset
+				const FInstanceDescriptor* FoundInstance = InstanceDescs.FindByPredicate(
+					[InstanceId](const FInstanceDescriptor& InstanceDesc)
 					{
-						InstanceStateTree = FoundInstance->StateTree.Get();
-					}
+						return InstanceDesc.Id == InstanceId;
+					});
+
+				if (FoundInstance != nullptr)
+				{
+					InstanceStateTree = FoundInstance->StateTree.Get();
 				}
+			}
 
-				if (DebuggedInstance.IsValid() || InstanceStateTree == DebuggedAsset)
+			if (SelectedInstanceId.IsValid() || InstanceStateTree == StateTreeAsset)
+			{
+				HitBreakpointStateIndex = StatesWithBreakpoint.Find(FStateTreeStateHandle(StateEvent->Idx));
+				if (HitBreakpointStateIndex != INDEX_NONE)
 				{
-					HitBreakpointStateIndex = StatesWithBreakpoint.Find(FStateTreeStateHandle(StateEvent->Idx));
-					if (HitBreakpointStateIndex != INDEX_NONE)
-					{
-						HitBreakpointInstanceId = InstanceId;
-					}
+					HitBreakpointInstanceId = InstanceId;
 				}
 			}
 		}
+	}
 
-		// Store events for currently debugged entry 
-		if (DebuggedInstance.Id == InstanceId)
+	FInstanceEventCollection* ExistingCollection = EventCollections.FindByPredicate([InstanceId](const FInstanceEventCollection& Entry)
 		{
-			if (FramesWithEvents.IsEmpty() || FramesWithEvents.Last().Frame.Index < Frame.Index)
-			{
-				FramesWithEvents.Add(UE::StateTreeDebugger::FFrameIndexSpan(Frame, Events.Num()));
-			}
+			return Entry.InstanceId == InstanceId;
+		});
 
-			Events.Emplace(Event);
-			bNewEvents = true;
+	// Create missing EventCollection if necessary
+	if (ExistingCollection == nullptr)
+	{
+		// Push deferred notification for new instance Id
+		NewInstances.Push(InstanceId);
+
+		// Update the active event collection index when it's newly created for the currently debugged instance.
+		// Otherwise (i.e. EventCollection already exists) it is updated when switching instance (i.e. SelectInstance)
+		if (SelectedInstanceId == InstanceId && ScrubState.EventCollectionIndex == INDEX_NONE)
+		{
+			ScrubState.EventCollectionIndex = EventCollections.Num();
+		}
+
+		ExistingCollection = &EventCollections.Emplace_GetRef(InstanceId);
+	}
+
+	check(ExistingCollection);
+	TArray<FStateTreeTraceEventVariantType>& Events = ExistingCollection->Events;
+
+	// Add new frame span if none added yet or new frame
+	if (ExistingCollection->FrameSpans.IsEmpty() || ExistingCollection->FrameSpans.Last().Frame.Index < Frame.Index)
+	{
+		ExistingCollection->FrameSpans.Add(UE::StateTreeDebugger::FFrameSpan(Frame, Events.Num()));
+	}
+
+	// Add activate states change info
+	if (Event.IsType<FStateTreeTraceActiveStatesEvent>())
+	{
+		checkf(ExistingCollection->FrameSpans.Num() > 0, TEXT("Expecting to always be in a frame span at this point."));
+		const uint32 FrameSpanIndex = ExistingCollection->FrameSpans.Num()-1;
+
+		// Add new entry for the first event or if the last event is for a different frame
+		if (ExistingCollection->ActiveStatesChanges.IsEmpty()
+			|| ExistingCollection->ActiveStatesChanges.Last().Key != FrameSpanIndex)
+		{
+			ExistingCollection->ActiveStatesChanges.Push({FrameSpanIndex, Events.Num()});
+		}
+		else
+		{
+			// Multiple events for change of active states in the same frame, keep the last one until we implement scrubbing within a frame
+			ExistingCollection->ActiveStatesChanges.Last().Value = Events.Num();
 		}
 	}
-	
+
+	// Store event in the collection
+	Events.Emplace(Event);
+
 	return /*bKeepProcessing*/true;
+}
+
+const UE::StateTreeDebugger::FInstanceEventCollection& FStateTreeDebugger::GetEventCollection(FStateTreeInstanceDebugId InstanceId) const\
+{
+	using namespace UE::StateTreeDebugger;
+	const FInstanceEventCollection* ExistingCollection = EventCollections.FindByPredicate([InstanceId](const FInstanceEventCollection& Entry)
+	{
+		return Entry.InstanceId == InstanceId;
+	});
+
+	return ExistingCollection != nullptr ? *ExistingCollection : FInstanceEventCollection::Invalid;
 }
 
 void FStateTreeDebugger::AddEvents(float StartTime, float EndTime, const TraceServices::IFrameProvider& FrameProvider, const IStateTreeTraceProvider& StateTreeTraceProvider)
 {
-	StateTreeTraceProvider.ReadTimelines(DebuggedInstance.Id,
+	check(StateTreeAsset.IsValid());
+	StateTreeTraceProvider.ReadTimelines(*StateTreeAsset,
 		[this, StartTime, EndTime, &FrameProvider](const FStateTreeInstanceDebugId InstanceId, const IStateTreeTraceProvider::FEventsTimeline& TimelineData)
 		{
 			// Keep track of the frames containing events. Starting with an invalid frame.
 			TraceServices::FFrame Frame;
 			Frame.Index = INDEX_NONE;
-			
+
 			TimelineData.EnumerateEvents(StartTime,	EndTime,
 				[this, InstanceId, &FrameProvider, &Frame](const double EventStartTime, const double EventEndTime, uint32 InDepth, const FStateTreeTraceEventVariantType& Event)
 				{
@@ -670,13 +734,15 @@ void FStateTreeDebugger::AddEvents(float StartTime, float EndTime, const TraceSe
 					if (Frame.Index == INDEX_NONE ||
 						(EventEndTime < Frame.StartTime || Frame.EndTime < EventStartTime))
 					{
-						FrameProvider.GetFrameFromTime(TraceFrameType_Game, EventStartTime, Frame);	
+						FrameProvider.GetFrameFromTime(TraceFrameType_Game, EventStartTime, Frame);
 					}
-					
+
 					const bool bKeepProcessing = ProcessEvent(InstanceId, Frame, Event);
 					return bKeepProcessing ? TraceServices::EEventEnumerate::Continue : TraceServices::EEventEnumerate::Stop;
 				});
 		});
 }
+
+#undef LOCTEXT_NAMESPACE
 
 #endif // WITH_STATETREE_DEBUGGER

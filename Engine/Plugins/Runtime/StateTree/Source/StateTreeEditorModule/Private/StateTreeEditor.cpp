@@ -27,7 +27,7 @@
 #include "ToolMenuEntry.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "FileHelpers.h"
-#include "SStateTreeDebuggerView.h"
+#include "Debugger/SStateTreeDebuggerView.h"
 #include "StateTreeSettings.h"
 #include "ToolMenuSection.h"
 
