@@ -512,6 +512,15 @@ namespace UE::Chaos::ClothAsset
 		return Start;
 	}
 
+	int32 FClothCollection::GetElementsOffset(const TManagedArray<int32>* StartArray, int32 BaseElementIndex, int32 ElementIndex) const
+	{
+		while ((*StartArray)[BaseElementIndex] == INDEX_NONE && BaseElementIndex < ElementIndex)
+		{
+			++BaseElementIndex;
+		}
+		return (*StartArray)[ElementIndex] - (*StartArray)[BaseElementIndex];
+	}
+
 	int32 FClothCollection::GetNumSubElements(
 		const TManagedArray<int32>* StartArray,
 		const TManagedArray<int32>* EndArray,

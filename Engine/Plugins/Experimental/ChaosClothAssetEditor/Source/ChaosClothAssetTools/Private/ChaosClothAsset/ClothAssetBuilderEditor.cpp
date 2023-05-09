@@ -243,7 +243,8 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 		}
 
 		// Remap the LOD indices with the new vertex indices
-		for (uint32& RenderIndex : LODModel.IndexBuffer)
+		const TArrayView<uint32> SectionIndexBuffer(LODModel.IndexBuffer.GetData() + Section.BaseIndex, NumIndices);
+		for (uint32& RenderIndex : SectionIndexBuffer)
 		{
 			RenderIndex = LodRenderIndexRemap[RenderIndex];
 		}
@@ -263,20 +264,30 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 			Section.ClothingData.AssetGuid = ClothAsset.AssetGuid;  // There is only one cloth asset,
 			Section.CorrespondClothAssetIndex = 0;       // this one
 
-			TArray<FVector3f> RenderPositions;
-			TArray<FVector3f> RenderNormals;
-			TArray<FVector3f> RenderTangents;
+			TArray<FVector3f> SectionRenderPositions;
+			TArray<FVector3f> SectionRenderNormals;
+			TArray<FVector3f> SectionRenderTangents;
+			SectionRenderPositions.Reserve(NumVertices);
+			SectionRenderNormals.Reserve(NumVertices);
+			SectionRenderTangents.Reserve(NumVertices);
 			for (const FSoftSkinVertex& SoftVert : Section.SoftVertices)
 			{
-				RenderPositions.Add(SoftVert.Position);
-				RenderNormals.Add(SoftVert.TangentZ);
-				RenderTangents.Add(SoftVert.TangentX);
+				SectionRenderPositions.Add(SoftVert.Position);
+				SectionRenderNormals.Add(SoftVert.TangentZ);
+				SectionRenderTangents.Add(SoftVert.TangentX);
+			}
+			TArray<uint32> SectionRenderIndices;
+			SectionRenderIndices.Reserve(NumIndices);
+			for (const uint32 LodModelVertIndex : SectionIndexBuffer)
+			{
+				SectionRenderIndices.Add(LodModelVertIndex - Section.BaseVertexIndex);
 			}
 
-			const ClothingMeshUtils::ClothMeshDesc TargetMesh(RenderPositions, 
-				RenderNormals, 
-				RenderTangents,
-				LODModel.IndexBuffer);
+			const ClothingMeshUtils::ClothMeshDesc TargetMesh(
+				SectionRenderPositions, 
+				SectionRenderNormals, 
+				SectionRenderTangents,
+				SectionRenderIndices);
 
 			ClothingMeshUtils::GenerateMeshToMeshVertData(
 				Section.ClothMappingDataLODs[0],

@@ -69,7 +69,7 @@ namespace UE::Chaos::ClothAsset
 		 * Return the difference between the start index of an element to the start index of the first sub-element in the group (base).
 		 * Usefull for getting back and forth between LOD/pattern indexation modes.
 		 */
-		int32 GetElementsOffset(const TManagedArray<int32>* StartArray, int32 BaseElementIndex, int32 ElementIndex) const { return (*StartArray)[ElementIndex] - (*StartArray)[BaseElementIndex]; }
+		int32 GetElementsOffset(const TManagedArray<int32>* StartArray, int32 BaseElementIndex, int32 ElementIndex) const;
 
 		int32 GetNumSubElements(
 			const TManagedArray<int32>* StartArray,
