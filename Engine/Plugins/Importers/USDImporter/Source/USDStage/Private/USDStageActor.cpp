@@ -2275,6 +2275,8 @@ void AUsdStageActor::LoadUsdStage()
 	}
 #endif // WITH_EDITOR
 
+	OnStageLoaded.Broadcast();
+
 	// Log time spent to load the stage
 	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
 
@@ -2340,15 +2342,15 @@ void AUsdStageActor::UnloadUsdStage()
 	}
 #endif // WITH_EDITOR
 
-	CloseUsdStage();
-
 	if (UsdAssetCache)
 	{
 		UsdAssetCache->RemoveAllAssetReferences(this);
 		UsdAssetCache->RefreshStorage();
 	}
 
-	OnStageChanged.Broadcast();
+	OnStageUnloaded.Broadcast();
+
+	CloseUsdStage();
 }
 
 void AUsdStageActor::EnsureAssetCache()

@@ -99,6 +99,8 @@ public:
 	FOnStageActorEvent OnPreStageChanged;
 	FOnStageActorEvent OnStageChanged;
 	FOnStageActorEvent OnActorDestroyed;
+	FOnStageActorEvent OnStageLoaded;
+	FOnStageActorEvent OnStageUnloaded;
 
 	DECLARE_EVENT_TwoParams(AUsdStageActor, FOnPrimChanged, const FString&, bool);
 	FOnPrimChanged OnPrimChanged;
