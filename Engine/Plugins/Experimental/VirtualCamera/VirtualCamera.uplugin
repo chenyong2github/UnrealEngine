@@ -14,14 +14,6 @@
 	"IsBetaVersion": true,
 	"Installed": false,
 	"EnabledByDefault": false,
- 	"SupportedTargetPlatforms": [
- 		"Win64",
- 		"Linux"
- 	],
- 	"PlatformAllowList": [
- 		"Win64",
- 		"Linux"
- 	],
 	"Modules": [
 		{
 			"Name": "VCamExtensions",
