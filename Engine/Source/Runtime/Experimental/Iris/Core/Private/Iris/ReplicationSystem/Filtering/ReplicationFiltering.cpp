@@ -2,6 +2,8 @@
 
 #include "ReplicationFiltering.h"
 #include "HAL/PlatformMath.h"
+#include "HAL/IConsoleManager.h"
+
 #include "Iris/IrisConfigInternal.h"
 #include "Iris/IrisConstants.h"
 #include "Iris/Core/IrisLog.h"
