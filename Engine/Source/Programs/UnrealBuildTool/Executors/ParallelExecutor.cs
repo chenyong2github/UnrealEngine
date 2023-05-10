@@ -204,16 +204,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static System.Action? RunAction(ImmediateActionQueue queue, LinkedAction action)
+		private static Func<Task>? RunAction(ImmediateActionQueue queue, LinkedAction action)
 		{
 			return async () =>
 			{
-				Task<ExecuteResults> task = RunAction(action, queue.ProcessGroup, queue.CancellationToken);
-				await task;
-
-				ExecuteResults? results = task.Status == TaskStatus.RanToCompletion ? task.Result : null;
-				bool success = results?.ExitCode == 0;
-				queue.OnActionCompleted(action, success, results);
+				ExecuteResults results = await RunAction(action, queue.ProcessGroup, queue.CancellationToken);
+				queue.OnActionCompleted(action, results.ExitCode == 0, results);
 			};
 		}
 
