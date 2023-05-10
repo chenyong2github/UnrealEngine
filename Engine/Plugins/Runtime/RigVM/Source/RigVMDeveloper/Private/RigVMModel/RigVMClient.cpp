@@ -752,7 +752,10 @@ void FRigVMClient::DestroyObject(UObject* InObject)
 		static constexpr TCHAR ObjectNameFormat[] = TEXT("RigVMClient_ObjectToBeDestroyed_%d");
 		const FString NewObjectName = FString::Printf(ObjectNameFormat, ObjectIndexToBeDestroyed++);
 		InObject->Rename(*NewObjectName, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
-		InObject->MarkAsGarbage();
+		if (!InObject->IsRooted())
+		{
+			InObject->MarkAsGarbage();
+		}
 	}
 }
 
