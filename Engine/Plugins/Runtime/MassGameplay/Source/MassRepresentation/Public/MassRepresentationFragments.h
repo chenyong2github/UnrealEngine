@@ -16,6 +16,12 @@ class UMassRepresentationSubsystem;
 class UMassRepresentationActorManagement;
 
 USTRUCT()
+struct MASSREPRESENTATION_API FMassStaticRepresentationTag : public FMassTag
+{
+	GENERATED_BODY(); 
+};
+
+USTRUCT()
 struct MASSREPRESENTATION_API FMassRepresentationLODFragment : public FMassFragment
 {
 	GENERATED_BODY()

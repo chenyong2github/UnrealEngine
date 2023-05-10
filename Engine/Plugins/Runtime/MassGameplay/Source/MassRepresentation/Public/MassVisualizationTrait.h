@@ -13,7 +13,8 @@ class UMassRepresentationSubsystem;
 class UMassRepresentationActorManagement;
 class UMassProcessor;
 
-UCLASS(meta=(DisplayName="Visualization"))
+/** This class has been soft-deprecated. Use MassStationaryVisualizationTrait or MassMovableVisualizationTrait */
+UCLASS(meta=(DisplayName="DEPRECATED Visualization"))
 class MASSREPRESENTATION_API UMassVisualizationTrait : public UMassEntityTraitBase
 {
 	GENERATED_BODY()
@@ -24,7 +25,7 @@ public:
 
 	/** Instanced static mesh information for this agent */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
-	FStaticMeshInstanceVisualizationDesc StaticMeshInstanceDesc;
+	mutable FStaticMeshInstanceVisualizationDesc StaticMeshInstanceDesc;
 
 	/** Actor class of this agent when spawned in high resolution*/
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")

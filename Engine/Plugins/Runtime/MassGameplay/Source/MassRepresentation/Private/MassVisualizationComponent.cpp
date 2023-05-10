@@ -9,9 +9,9 @@
 #include "Engine/CollisionProfile.h"
 #include "RenderUtils.h"
 #include "SceneInterface.h"
-
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "MassInstancedStaticMeshComponent.h"
+#include "VisualLogger/VisualLogger.h"
 
 //---------------------------------------------------------------
 // UMassVisualizationComponent
@@ -82,6 +82,8 @@ void UMassVisualizationComponent::ConstructStaticMeshComponents()
 			{
 				ISMC = NewObject<UInstancedStaticMeshComponent>(ActorOwner, MeshDesc.ISMComponentClass);
 				CA_ASSUME(ISMC);
+				REDIRECT_OBJECT_TO_VLOG(ISMC, this);
+
 				ISMC->SetStaticMesh(MeshDesc.Mesh);
 				for (int32 ElementIndex = 0; ElementIndex < MeshDesc.MaterialOverrides.Num(); ++ElementIndex)
 				{
@@ -358,6 +360,18 @@ void FMassLODSignificanceRange::AddBatchedCustomDataFloats(const TArray<float>& 
 
 		FMassISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
 		SharedData.StaticMeshInstanceCustomFloats.Append(CustomFloats);
+	}
+}
+
+void FMassLODSignificanceRange::AddInstance(const int32 InstanceId, const FTransform& Transform)
+{
+	check(ISMCSharedDataPtr);
+	for (int i = 0; i < StaticMeshRefs.Num(); i++)
+	{
+		FMassISMCSharedData& SharedData = (*ISMCSharedDataPtr)[StaticMeshRefs[i]];
+		SharedData.UpdateInstanceIds.Add(InstanceId);
+		SharedData.StaticMeshInstanceTransforms.Add(Transform);
+		SharedData.StaticMeshInstancePrevTransforms.Add(Transform);
 	}
 }
 

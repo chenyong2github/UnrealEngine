@@ -226,6 +226,9 @@ public:
 
 	void AddBatchedCustomDataFloats(const TArray<float>& CustomFloats, const TArray<uint32>& ExcludeStaticMeshRefs);
 
+	/** Single-instance version of AddBatchedCustomData when called to add entities (as opposed to modify existing ones).*/
+	void AddInstance(const int32 InstanceId, const FTransform& Transform);
+
 	void RemoveInstance(const int32 InstanceId);
 
 	void WriteCustomDataFloatsAtStartIndex(int32 StaticMeshIndex, const TArrayView<float>& CustomFloats, const int32 FloatsPerInstance, const int32 StartIndex, const TArray<uint32>& ExcludeStaticMeshRefs);
@@ -363,6 +366,8 @@ public:
 			SharedData.StoreReference();
 		}
 	}
+
+	int32 GetLODSignificanceRangesNum() const { return LODSignificanceRanges.Num(); }
 
 protected:
 

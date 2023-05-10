@@ -61,6 +61,9 @@ void UMassInstancedStaticMeshComponent::AddInstancesWithIds(TConstArrayView<int3
 
 	for (int32 i = 0; i < InstanceIds.Num(); ++i)
 	{
+		checkfSlow(InstanceIdToInstanceIndexMap.Find(InstanceIds[i]) == nullptr
+			, TEXT("This occuring signals trouble. None of the InstanceIds is expected to have already been added to this MassISM component instance."));
+
 		InstanceIdToInstanceIndexMap.Add(InstanceIds[i], NewIndices[i]);
 		PerInstanceIds[NewIndices[i]] = InstanceIds[i];
 	}
@@ -215,6 +218,11 @@ bool UMassInstancedStaticMeshComponent::RemoveInstanceWithIds(TConstArrayView<in
 			}
 			InstanceIdToInstanceIndexMap.Remove(InstanceId);
 		}
+	}
+
+	if (InstanceIndices.Num() == 0)
+	{
+		return false;
 	}
 
 	InstanceIndices.Sort(TGreater<int32>());
