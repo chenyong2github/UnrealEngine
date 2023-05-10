@@ -3,6 +3,7 @@
 #include "STableTreeViewCell.h"
 
 #include "SlateOptMacros.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SBoxPanel.h"
@@ -28,8 +29,10 @@ namespace Insights
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void STableTreeViewCell::Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
+void STableTreeViewCell::Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& InTableRow)
 {
+	TableRow = InTableRow;
+
 	TablePtr = InArgs._TablePtr;
 	ColumnPtr = InArgs._ColumnPtr;
 	TableTreeNodePtr = InArgs._TableTreeNodePtr;
@@ -42,28 +45,31 @@ void STableTreeViewCell::Construct(const FArguments& InArgs, const TSharedRef<IT
 
 	ChildSlot
 	[
-		GenerateWidgetForColumn(InArgs, TableRow)
+		GenerateWidgetForColumn(InArgs)
 	];
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
+TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForColumn(const FArguments& InArgs)
 {
 	if (InArgs._IsNameColumn)
 	{
-		return GenerateWidgetForNameColumn(InArgs, TableRow);
+		return GenerateWidgetForNameColumn(InArgs);
 	}
 	else
 	{
-		return GenerateWidgetForTableColumn(InArgs, TableRow);
+		return GenerateWidgetForTableColumn(InArgs);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
+TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArguments& InArgs)
 {
+	TSharedPtr<STableTreeViewRow> Row = StaticCastSharedPtr<STableTreeViewRow, ITableRow>(TableRow);
+	TSharedPtr<IToolTip> RowToolTip = Row->GetRowToolTip();
+
 	return
 		SNew(SHorizontalBox)
 
@@ -81,60 +87,44 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForNameColumn(const FArgum
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SOverlay)
-			+ SOverlay::Slot()
-			[
-				SNew(SImage)
-				.Image(this, &STableTreeViewCell::GetIcon)
-				.ColorAndOpacity(this, &STableTreeViewCell::GetIconColorAndOpacity)
-			]
-			+ SOverlay::Slot()
-			[
-				SNew(SImage)
-				.Visibility(this, &STableTreeViewCell::GetHintIconVisibility)
-				.Image(FInsightsStyle::GetBrush("Icons.Hint.TreeItem"))
-				.ToolTip(GetRowToolTip(TableRow))
-			]
+			SNew(SImage)
+			.Image(this, &STableTreeViewCell::GetIcon)
+			.ColorAndOpacity(this, &STableTreeViewCell::GetIconColorAndOpacity)
+			.ToolTip(RowToolTip)
 		]
 
 		// Name
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.VAlign(VAlign_Top)
 		.HAlign(HAlign_Left)
-		.Padding(FMargin(2.0f, 1.5f, 2.0f, 0.0f))
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
 		[
 			SNew(STextBlock)
 			.Text(this, &STableTreeViewCell::GetDisplayName)
 			.HighlightText(InArgs._HighlightText)
-			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
-			.ColorAndOpacity(this, &STableTreeViewCell::GetColorAndOpacity)
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.NameText"))
+			.ColorAndOpacity(this, &STableTreeViewCell::GetDisplayNameColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)
+			.ToolTip(RowToolTip)
 		]
 
 		// Name Suffix
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.VAlign(VAlign_Top)
 		.HAlign(HAlign_Left)
-		.Padding(FMargin(2.0f, 1.5f, 2.0f, 0.0f))
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
 		[
 			SNew(STextBlock)
 			.Visibility(this, &STableTreeViewCell::HasExtraDisplayName)
 			.Text(this, &STableTreeViewCell::GetExtraDisplayName)
-			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
-			.ColorAndOpacity(this, &STableTreeViewCell::GetExtraColorAndOpacity)
+			.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.NameText"))
+			.ColorAndOpacity(this, &STableTreeViewCell::GetExtraDisplayNameColorAndOpacity)
 			.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity)
+			.ToolTip(RowToolTip)
 		]
 	;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedPtr<IToolTip> STableTreeViewCell::GetRowToolTip(const TSharedRef<ITableRow>& TableRow) const
-{
-	TSharedRef<STableTreeViewRow> Row = StaticCastSharedRef<STableTreeViewRow, ITableRow>(TableRow);
-	return Row->GetRowToolTip();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -146,11 +136,11 @@ FText STableTreeViewCell::GetValueAsText() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow)
+TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArguments& InArgs)
 {
 	TSharedRef<STextBlock> TextBox = SNew(STextBlock)
-		.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.Tooltip"))
-		.ColorAndOpacity(this, &STableTreeViewCell::GetStatsColorAndOpacity)
+		.TextStyle(FInsightsStyle::Get(), TEXT("TreeTable.NormalText"))
+		.ColorAndOpacity(this, &STableTreeViewCell::GetNormalTextColorAndOpacity)
 		.ShadowColorAndOpacity(this, &STableTreeViewCell::GetShadowColorAndOpacity);
 
 	if (ColumnPtr->IsDynamic())
@@ -163,15 +153,17 @@ TSharedRef<SWidget> STableTreeViewCell::GenerateWidgetForTableColumn(const FArgu
 		TextBox->SetText(CellText);
 	}
 
+	TSharedPtr<IToolTip> ColumnToolTip = ColumnPtr->GetValueFormatter()->GetCustomTooltip(*ColumnPtr, *TableTreeNodePtr);
+
 	return
 		SNew(SHorizontalBox)
-		.ToolTip(GetTooltip())
+		.ToolTip(ColumnToolTip)
 
 		+ SHorizontalBox::Slot()
 		.FillWidth(1.0f)
-		.VAlign(VAlign_Top)
 		.HAlign(ColumnPtr->GetHorizontalAlignment())
-		.Padding(FMargin(2.0f, 1.5f, 2.0f, 0.0f))
+		.VAlign(VAlign_Center)
+		.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
 		[
 			TextBox
 		];
@@ -181,9 +173,109 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedPtr<IToolTip> STableTreeViewCell::GetTooltip() const
+bool STableTreeViewCell::IsSelected() const
 {
-	return ColumnPtr->GetValueFormatter()->GetCustomTooltip(*ColumnPtr, *TableTreeNodePtr);
+	return TableRow->IsItemSelected();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSlateColor STableTreeViewCell::GetIconColorAndOpacity() const
+{
+	bool bIsHoveredOrSelected = IsHovered() || IsSelected();
+
+	return bIsHoveredOrSelected ?
+		TableTreeNodePtr->GetColor() :
+		TableTreeNodePtr->GetColor().CopyWithNewOpacity(0.5f);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSlateColor STableTreeViewCell::GetDisplayNameColorAndOpacity() const
+{
+	bool bIsHoveredOrSelected = IsHovered() || IsSelected();
+
+	if (TableTreeNodePtr->IsFiltered())
+	{
+		return bIsHoveredOrSelected ?
+			TableTreeNodePtr->GetColor().CopyWithNewOpacity(0.5f) :
+			TableTreeNodePtr->GetColor().CopyWithNewOpacity(0.4f);
+	}
+	else
+	{
+		return bIsHoveredOrSelected ?
+			TableTreeNodePtr->GetColor() :
+			TableTreeNodePtr->GetColor().CopyWithNewOpacity(0.8f);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSlateColor STableTreeViewCell::GetExtraDisplayNameColorAndOpacity() const
+{
+	bool bIsHoveredOrSelected = IsHovered() || IsSelected();
+
+	if (TableTreeNodePtr->IsFiltered())
+	{
+		return bIsHoveredOrSelected ?
+			FLinearColor(0.3f, 0.3f, 0.3f, 0.5f) :
+			FLinearColor(0.3f, 0.3f, 0.3f, 0.4f);
+	}
+	else
+	{
+		return bIsHoveredOrSelected ?
+			FLinearColor(0.3f, 0.3f, 0.3f, 1.0f) :
+			FLinearColor(0.3f, 0.3f, 0.3f, 0.8f);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FSlateColor STableTreeViewCell::GetNormalTextColorAndOpacity() const
+{
+	bool bIsHoveredOrSelected = IsHovered() || IsSelected();
+
+	if (TableTreeNodePtr->IsGroup())
+	{
+		if (TableTreeNodePtr->IsFiltered())
+		{
+			return bIsHoveredOrSelected ?
+				FStyleColors::ForegroundHover.GetSpecifiedColor().CopyWithNewOpacity(0.4f) :
+				FStyleColors::Foreground.GetSpecifiedColor().CopyWithNewOpacity(0.4f);
+		}
+		else
+		{
+			return bIsHoveredOrSelected ?
+				FStyleColors::ForegroundHover.GetSpecifiedColor().CopyWithNewOpacity(0.8f) :
+				FStyleColors::Foreground.GetSpecifiedColor().CopyWithNewOpacity(0.8f);
+		}
+	}
+	else
+	{
+		if (TableTreeNodePtr->IsFiltered())
+		{
+			return bIsHoveredOrSelected ?
+				FStyleColors::ForegroundHover.GetSpecifiedColor().CopyWithNewOpacity(0.5f) :
+				FStyleColors::Foreground.GetSpecifiedColor().CopyWithNewOpacity(0.5f);
+		}
+		else
+		{
+			return bIsHoveredOrSelected ?
+				FStyleColors::ForegroundHover :
+				FStyleColors::Foreground;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLinearColor STableTreeViewCell::GetShadowColorAndOpacity() const
+{
+	const FLinearColor ShadowColor =
+		TableTreeNodePtr->IsFiltered() ?
+		FLinearColor(0.0f, 0.0f, 0.0f, 0.25f) :
+		FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
+	return ShadowColor;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -2,6 +2,9 @@
 
 #include "BaseTreeNode.h"
 
+#include "Styling/SlateBrush.h"
+#include "Styling/StyleColors.h"
+
 // Insights
 #include "Insights/Common/InsightsStyle.h"
 #include "Insights/Table/ViewModels/TableCellValueSorter.h"
@@ -55,23 +58,30 @@ bool FBaseTreeNode::HasExtraDisplayName() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FBaseTreeNode::SetDefaultIcon()
+const FSlateBrush* FBaseTreeNode::GetDefaultIcon(bool bIsGroupNode)
 {
-	if (IsGroup())
+	if (bIsGroupNode)
 	{
-		IconBrush = FInsightsStyle::GetBrush("Icons.Group.TreeItem");
+		return FInsightsStyle::GetBrush("Icons.Group.TreeItem");
 	}
 	else
 	{
-		IconBrush = FInsightsStyle::GetBrush("Icons.Leaf.TreeItem");
+		return FInsightsStyle::GetBrush("Icons.Leaf.TreeItem");
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLinearColor FBaseTreeNode::GetColor() const
+FLinearColor FBaseTreeNode::GetDefaultColor(bool bIsGroupNode)
 {
-	return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	if (bIsGroupNode)
+	{
+		return FLinearColor(1.0f, 0.9f, 0.6f, 1.0f);
+	}
+	else
+	{
+		return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

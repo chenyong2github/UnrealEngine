@@ -31,6 +31,10 @@ void FAssetDependencyGrouping::GroupNodes(const TArray<UE::Insights::FTableTreeN
 	TSharedPtr<FAssetTable> AssetTable = StaticCastSharedPtr<FAssetTable>(InParentTable.Pin());
 	check(AssetTable.IsValid());
 
+	const FSlateBrush* IconBrush = FBaseTreeNode::GetDefaultIcon(true);
+	FLinearColor AssetGroupNodeColor(1.0f, 1.0f, 1.0f, 1.0f);
+	FLinearColor DependenciesGroupNodeColor(0.75f, 0.5f, 1.0f, 1.0f);
+
 	for (FTableTreeNodePtr NodePtr : Nodes)
 	{
 		if (InAsyncOperationProgress.ShouldCancelAsyncOp())
@@ -61,7 +65,7 @@ void FAssetDependencyGrouping::GroupNodes(const TArray<UE::Insights::FTableTreeN
 		FAssetTreeNode& AssetNode = NodePtr->As<FAssetTreeNode>();
 		const FAssetTableRow& Asset = AssetNode.GetAssetChecked();
 
-		FTableTreeNodePtr GroupPtr = MakeShared<FTableTreeNode>(FName(Asset.GetName(), 0), InParentTable);
+		FTableTreeNodePtr GroupPtr = MakeShared<FCustomTableTreeNode>(FName(Asset.GetName(), 0), InParentTable, IconBrush, AssetGroupNodeColor);
 		GroupPtr->SetExpansion(false);
 		ParentGroup.AddChildAndSetGroupPtr(GroupPtr);
 
@@ -71,7 +75,7 @@ void FAssetDependencyGrouping::GroupNodes(const TArray<UE::Insights::FTableTreeN
 		const TArray<int32>& Dependencies = Asset.GetDependencies();
 		if (Dependencies.Num() > 0)
 		{
-			DepGroupPtr = MakeShared<FTableTreeNode>(FName(TEXT("Dependencies"), 0), InParentTable);
+			DepGroupPtr = MakeShared<FCustomTableTreeNode>(FName(TEXT("Dependencies"), 0), InParentTable, IconBrush, DependenciesGroupNodeColor);
 			DepGroupPtr->SetExpansion(false);
 			GroupPtr->AddChildAndSetGroupPtr(DepGroupPtr);
 		}

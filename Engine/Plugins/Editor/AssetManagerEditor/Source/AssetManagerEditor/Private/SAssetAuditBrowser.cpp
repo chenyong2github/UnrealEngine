@@ -25,6 +25,7 @@
 #include "Editor.h"
 
 #if ASSET_TABLE_TREE_VIEW_ENABLED
+#include "Styling/StyleColors.h"
 #include "TreeView/AssetTable.h"
 #include "TreeView/SAssetTableTreeView.h"
 #endif
@@ -743,7 +744,7 @@ void SAssetAuditBrowser::PopulateAssetTableRow(const FAssetData& AssetData, clas
 	OutRow->NativeClass = AssetData.AssetClassPath.GetAssetName().ToString();
 	OutRow->Color = USlateThemeManager::Get().GetColor((EStyleColor)((int32)EStyleColor::AccentBlue + FMath::Rand() % 8)); // TODO: color by type!?
 }
-#endif
+#endif // ASSET_TABLE_TREE_VIEW_ENABLED
 
 void SAssetAuditBrowser::RefreshAssetView()
 {

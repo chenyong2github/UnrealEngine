@@ -114,10 +114,6 @@ void SAssetTableTreeView::RebuildTree(bool bResync)
 			//FName NodeName(BaseNodeName, AssetIndex + 1);
 			FName NodeName(Asset->GetName());
 			FAssetTreeNodePtr NodePtr = MakeShared<FAssetTreeNode>(NodeName, AssetTable, AssetIndex);
-			if (AssetIndex % 3) // TODO
-				NodePtr->SetIcon(UE::Insights::FInsightsStyle::GetBrush("Icons.Asset.TreeItem"));
-			else if (AssetIndex % 7) // TODO
-				NodePtr->SetIcon(UE::Insights::FInsightsStyle::GetBrush("Icons.Package.TreeItem"));
 			TableTreeNodes.Add(NodePtr);
 		}
 		ensure(TableTreeNodes.Num() == VisibleAssetCount);

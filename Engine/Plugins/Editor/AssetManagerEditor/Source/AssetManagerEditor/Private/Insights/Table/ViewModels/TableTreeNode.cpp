@@ -10,6 +10,7 @@ namespace Insights
 {
 
 INSIGHTS_IMPLEMENT_RTTI(FTableTreeNode)
+INSIGHTS_IMPLEMENT_RTTI(FCustomTableTreeNode)
 
 } // namespace Insights
 } // namespace UE

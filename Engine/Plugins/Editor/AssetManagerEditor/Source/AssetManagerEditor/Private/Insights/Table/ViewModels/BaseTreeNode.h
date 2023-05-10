@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/Color.h"
 
 #include "Insights/Common/SimpleRtti.h"
 
@@ -58,13 +59,11 @@ protected:
 
 public:
 	/** Initialization constructor for the node. */
-	FBaseTreeNode(const FName InName, bool bInIsGroup)
+	explicit FBaseTreeNode(const FName InName, bool bInIsGroup)
 		: DefaultSortOrder(0)
 		, Name(InName)
-		, IconBrush(nullptr)
 		, GroupData(bInIsGroup ? new FGroupNodeData() : &DefaultGroupData)
 	{
-		SetDefaultIcon();
 	}
 
 	virtual ~FBaseTreeNode()
@@ -125,30 +124,30 @@ public:
 	}
 
 	/**
+	 * @return the default icon for a group/leaf node.
+	 */
+	static const FSlateBrush* GetDefaultIcon(bool bIsGroupNode);
+
+	/**
 	 * @return a brush icon for this node.
 	 */
-	const FSlateBrush* GetIcon() const
+	virtual const FSlateBrush* GetIcon() const
 	{
-		return IconBrush;
+		return GetDefaultIcon(IsGroup());
 	}
 
 	/**
-	 * Sets an icon brush for this node.
+	 * @return the default color tint for a group/leaf node.
 	 */
-	void SetIcon(const FSlateBrush* InIconBrush)
+	static FLinearColor GetDefaultColor(bool bIsGroupNode);
+
+	/**
+	 * @return the color tint to be used for the icon and the name text of this node.
+	 */
+	virtual FLinearColor GetColor() const
 	{
-		IconBrush = InIconBrush;
+		return GetDefaultColor(IsGroup());
 	}
-
-	/**
-	 * Sets the default icon brush for this node.
-	 */
-	void SetDefaultIcon();
-
-	/**
-	 * @return the color tint for icon and name text.
-	 */
-	virtual FLinearColor GetColor() const;
 
 	/**
 	 * @return a pointer to a data context for this node.
@@ -321,9 +320,6 @@ private:
 
 	/** The name of this node. */
 	const FName Name;
-
-	/** The icon of this node. */
-	const FSlateBrush* IconBrush;
 
 	/** A weak pointer to the group/parent of this node. */
 	FBaseTreeNodeWeak GroupPtr;

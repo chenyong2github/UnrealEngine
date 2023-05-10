@@ -53,7 +53,7 @@ class FTableTreeNode : public FBaseTreeNode
 
 public:
 	/** Initialization constructor for a table record node. */
-	FTableTreeNode(const FName InName, TWeakPtr<FTable> InParentTable, int32 InRowIndex)
+	explicit FTableTreeNode(const FName InName, TWeakPtr<FTable> InParentTable, int32 InRowIndex)
 		: FBaseTreeNode(InName, false)
 		, ParentTable(InParentTable)
 		, RowId(InRowIndex)
@@ -62,7 +62,7 @@ public:
 	}
 
 	/** Initialization constructor for a group node. */
-	FTableTreeNode(const FName InGroupName, TWeakPtr<FTable> InParentTable)
+	explicit FTableTreeNode(const FName InGroupName, TWeakPtr<FTable> InParentTable)
 		: FBaseTreeNode(InGroupName, true)
 		, ParentTable(InParentTable)
 		, RowId(FTableRowId::InvalidRowIndex)
@@ -81,6 +81,7 @@ public:
 
 	void InitAggregatedValues()
 	{
+		check(IsGroup());
 		if (!AggregatedValues)
 		{
 			AggregatedValues = new TMap<FName, FTableCellValue>();
@@ -115,6 +116,65 @@ protected:
 
 private:
 	bool bIsFiltered = false;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FCustomTableTreeNode : public FTableTreeNode
+{
+	INSIGHTS_DECLARE_RTTI(FCustomTableTreeNode, FTableTreeNode)
+
+public:
+	/** Initialization constructor for a table record node. */
+	explicit FCustomTableTreeNode(const FName InName, TWeakPtr<FTable> InParentTable, int32 InRowIndex, const FSlateBrush* InIconBrush, FLinearColor InColor)
+		: FTableTreeNode(InName, InParentTable)
+		, IconBrush(InIconBrush)
+		, Color(InColor)
+	{
+	}
+
+	/** Initialization constructor for the group node. */
+	explicit FCustomTableTreeNode(const FName InName, TWeakPtr<FTable> InParentTable, const FSlateBrush* InIconBrush, FLinearColor InColor)
+		: FTableTreeNode(InName, InParentTable)
+		, IconBrush(InIconBrush)
+		, Color(InColor)
+	{
+	}
+
+	virtual ~FCustomTableTreeNode()
+	{
+	}
+
+	/**
+	 * @return a brush icon for this node.
+	 */
+	virtual const FSlateBrush* GetIcon() const override
+	{
+		return IconBrush;
+	}
+
+	/**
+	 * Sets an icon brush for this node.
+	 */
+	void SetIcon(const FSlateBrush* InIconBrush)
+	{
+		IconBrush = InIconBrush;
+	}
+
+	/**
+	 * @return the color tint for icon and name text.
+	 */
+	virtual FLinearColor GetColor() const override
+	{
+		return Color;
+	}
+
+private:
+	/** The icon of this node. */
+	const FSlateBrush* IconBrush;
+
+	/** The color tint of this node. */
+	FLinearColor Color;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

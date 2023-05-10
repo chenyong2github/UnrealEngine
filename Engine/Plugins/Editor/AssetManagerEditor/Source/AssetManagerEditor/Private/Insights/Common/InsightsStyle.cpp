@@ -141,7 +141,7 @@ void FInsightsStyle::FStyle::Initialize()
 	Set("Icons.ClassicFilterConfig", new IMAGE_BRUSH_SVG("FilterConfig", Icon16x16));
 
 	Set("Icons.SortBy", new CORE_IMAGE_BRUSH("Icons/Profiler/profiler_SortBy_32x", Icon16x16));
-	//Set("Icons.SortUp", new CORE_IMAGE_BRUSH_SVG("Starship/Common/SortUp", Icon16x16));	//-> use FAppStyle "Icons.SortUp"
+	//Set("Icons.SortUp", new CORE_IMAGE_BRUSH_SVG("Starship/Common/SortUp", Icon16x16));		//-> use FAppStyle "Icons.SortUp"
 	//Set("Icons.SortDown", new CORE_IMAGE_BRUSH_SVG("Starship/Common/SortDown", Icon16x16));	//-> use FAppStyle "Icons.SortDown"
 
 	Set("Icons.ViewColumn", new CORE_IMAGE_BRUSH("Icons/Profiler/profiler_ViewColumn_32x", Icon16x16));
@@ -178,6 +178,14 @@ void FInsightsStyle::FStyle::Initialize()
 		.SetColorAndOpacity(FLinearColor::White)
 		.SetShadowOffset(FVector2D(1.0f, 1.0f))
 		.SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f, 0.8f))
+	);
+
+	Set("TreeTable.NameText", FTextBlockStyle(NormalText)
+		.SetColorAndOpacity(FLinearColor::White)
+	);
+
+	Set("TreeTable.NormalText", FTextBlockStyle(NormalText)
+		.SetColorAndOpacity(FLinearColor::White)
 	);
 
 	//////////////////////////////////////////////////
