@@ -81,6 +81,12 @@ public:
 	/** Notification for numerictype value committed */
 	DECLARE_DELEGATE_FourParams(FOnNumericValueCommitted, ESlateRotationRepresentation::Type, ESlateTransformSubComponent::Type, NumericType, ETextCommit::Type);
 
+	/** Notification for begin slider movement */
+	DECLARE_DELEGATE_TwoParams(FOnBeginSliderMovement, ESlateRotationRepresentation::Type, ESlateTransformSubComponent::Type);
+
+	/** Notification for end slider movement */
+	DECLARE_DELEGATE_ThreeParams(FOnEndSliderMovement, ESlateRotationRepresentation::Type, ESlateTransformSubComponent::Type, NumericType);
+
 	/** Delegate to retrieve toggle checkstate */
 	DECLARE_DELEGATE_RetVal_TwoParams(ECheckBoxState, FOnGetToggleChecked, ESlateRotationRepresentation::Type, ESlateTransformSubComponent::Type);
 
@@ -126,6 +132,12 @@ public:
 		/** Optional delegate to notify a committed value */
 		SLATE_EVENT( FOnNumericValueCommitted, OnNumericValueCommitted )
 
+		/** Optional delegate to notify a begin slider movement */
+		SLATE_EVENT(FOnBeginSliderMovement, OnBeginSliderMovement)
+
+		/** Optional delegate to notify a end slider movement */
+		SLATE_EVENT(FOnEndSliderMovement, OnEndSliderMovement)
+
 		/** Should the axis labels be colored */
 		SLATE_ARGUMENT( bool, bColorAxisLabels )		
 
@@ -166,6 +178,8 @@ public:
 		OnGetNumericValue = InArgs._OnGetNumericValue; 
 		OnNumericValueChanged = InArgs._OnNumericValueChanged; 
 		OnNumericValueCommitted = InArgs._OnNumericValueCommitted; 
+		OnBeginSliderMovement = InArgs._OnBeginSliderMovement;
+		OnEndSliderMovement = InArgs._OnEndSliderMovement;
 		OnGetToggleChecked = InArgs._OnGetToggleChecked; 
 		OnToggleChanged = InArgs._OnToggleChanged;
 
@@ -208,6 +222,12 @@ public:
 				.OnToggleRollChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Roll)
 				.OnToggleYawChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Yaw)
 				.OnTogglePitchChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Pitch)
+				.OnPitchBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Pitch)
+				.OnYawBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Yaw)
+				.OnRollBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Roll)
+				.OnPitchEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Pitch)
+				.OnYawEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Yaw)
+				.OnRollEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Roll)
 				.TogglePadding(InArgs._TogglePadding)
 				.Visibility(this, &SAdvancedRotationInputBox::IsRotatorInputBoxVisible)
 			]
@@ -240,6 +260,12 @@ public:
 				.OnToggleXChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::X)
 				.OnToggleYChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Y)
 				.OnToggleZChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Z)
+				.OnXBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::X)
+				.OnXEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::X)
+				.OnYBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Y)
+				.OnYEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Y)
+				.OnZBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Z)
+				.OnZEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Z)
 				.TogglePadding(InArgs._TogglePadding)
 				.Visibility(this, &SAdvancedRotationInputBox::IsEulerInputBoxVisible)
 			]
@@ -277,6 +303,14 @@ public:
 				.OnToggleYChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Y)
 				.OnToggleZChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Z)
 				.OnToggleWChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::W)
+				.OnXBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::X)
+				.OnXEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::X)
+				.OnYBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Y)
+				.OnYEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Y)
+				.OnZBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Z)
+				.OnZEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Z)
+				.OnWBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::W)
+				.OnWEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::W)
 				.TogglePadding(InArgs._TogglePadding)
 				.Visibility(this, &SAdvancedRotationInputBox::IsQuaternionInputBoxVisible)
 			]
@@ -324,6 +358,12 @@ public:
 				.OnToggleXChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::X)
 				.OnToggleYChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Y)
 				.OnToggleZChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Z)
+				.OnXBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::X)
+				.OnXEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::X)
+				.OnYBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Y)
+				.OnYEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Y)
+				.OnZBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Z)
+				.OnZEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Z)
 				.TogglePadding(InArgs._TogglePadding)
 				.Visibility(this, &SAdvancedRotationInputBox::IsAxisAndAngleInputBoxVisible)
 			]
@@ -363,6 +403,8 @@ public:
 				.TogglePadding(InArgs._TogglePadding)
 				.ToggleChecked(this, &SAdvancedRotationInputBox::HandleGetToggleChecked, ESlateTransformSubComponent::Angle)
 				.OnToggleChanged(this, &SAdvancedRotationInputBox::HandleOnToggleChanged, ESlateTransformSubComponent::Angle)
+				.OnBeginSliderMovement(this, &SAdvancedRotationInputBox::HandleOnBeginSliderMovement, ESlateTransformSubComponent::Angle)
+				.OnEndSliderMovement(this, &SAdvancedRotationInputBox::HandleOnEndSliderMovement, ESlateTransformSubComponent::Angle)
 				.Visibility(this, &SAdvancedRotationInputBox::IsAxisAndAngleInputBoxVisible)
 			]
 		];
@@ -449,6 +491,8 @@ private:
 	FOnGetNumericValue OnGetNumericValue;
 	FOnNumericValueChanged OnNumericValueChanged;
 	FOnNumericValueCommitted OnNumericValueCommitted;
+	FOnBeginSliderMovement OnBeginSliderMovement;
+	FOnEndSliderMovement OnEndSliderMovement;
 	FOnGetToggleChecked OnGetToggleChecked;
 	FOnToggleChanged OnToggleChanged;
 
@@ -848,6 +892,30 @@ private:
 			if(OnToggleChanged.IsBound())
 			{
 				OnToggleChanged.Execute(Repr, InSubComponent, InValue);
+			}
+		}
+	}
+
+	void HandleOnBeginSliderMovement(ESlateTransformSubComponent::Type InSubComponent)
+	{
+		const ESlateRotationRepresentation::Type& Repr = Representation.Get();
+		if(IsValidComponent(Repr, InSubComponent))
+		{
+			if (OnBeginSliderMovement.IsBound())
+			{
+				OnBeginSliderMovement.Execute(Repr, InSubComponent);
+			}
+		}
+	}
+	
+	void HandleOnEndSliderMovement(NumericType InValue, ESlateTransformSubComponent::Type InSubComponent)
+	{
+		const ESlateRotationRepresentation::Type& Repr = Representation.Get();
+		if(IsValidComponent(Repr, InSubComponent))
+		{
+			if (OnEndSliderMovement.IsBound())
+			{
+				OnEndSliderMovement.Execute(Repr, InSubComponent, InValue);
 			}
 		}
 	}

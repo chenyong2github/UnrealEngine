@@ -89,11 +89,43 @@ public:
 		/** Called when the roll value is committed */
 		SLATE_EVENT( FOnNumericValueCommitted, OnRollCommitted )
 
+		FSimpleDelegate ConvertOnBeginSliderMovement(const FSimpleDelegate& LegacyDelegate)
+		{
+			return FSimpleDelegate::CreateLambda([LegacyDelegate]()
+			{
+				return LegacyDelegate.Execute();
+			});
+		}
 		/** Called when the slider begins to move on any axis */
-		SLATE_EVENT( FSimpleDelegate, OnBeginSliderMovement )
+		SLATE_EVENT_DEPRECATED(5.3, "Use the new OnPitchBeginSliderMovement()/OnYawBeginSliderMovement()/OnRollBeginSliderMovement() event instead", FSimpleDelegate, OnBeginSliderMovement, OnPitchBeginSliderMovement, ConvertOnBeginSliderMovement)
 
+		FOnNumericValueChanged ConvertOnEndSliderMovement(const FOnNumericValueChanged& LegacyDelegate)
+		{
+			return FOnNumericValueChanged::CreateLambda([LegacyDelegate](const NumericType& Value)
+			{
+				return LegacyDelegate.Execute(Value);
+			});
+		}
 		/** Called when the slider for any axis is released */
-		SLATE_EVENT( FOnNumericValueChanged, OnEndSliderMovement )
+		SLATE_EVENT_DEPRECATED(5.3, "Use the new OnPitchEndSliderMovement()/OnYawEndSliderMovement()/OnRollEndSliderMovement() event instead", FOnNumericValueChanged, OnEndSliderMovement, OnPitchEndSliderMovement, ConvertOnEndSliderMovement)
+	
+		/** Called when the slider begins to move on pitch */
+		SLATE_EVENT( FSimpleDelegate, OnPitchBeginSliderMovement )
+
+		/** Called when the slider begins to move on yaw */
+		SLATE_EVENT( FSimpleDelegate, OnYawBeginSliderMovement )
+
+		/** Called when the slider begins to move on roll */
+		SLATE_EVENT( FSimpleDelegate, OnRollBeginSliderMovement )
+
+		/** Called when the slider for pitch is released */
+		SLATE_EVENT( FOnNumericValueChanged, OnPitchEndSliderMovement )
+
+		/** Called when the slider for yaw is released */
+		SLATE_EVENT( FOnNumericValueChanged, OnYawEndSliderMovement )
+
+		/** Called when the slider for roll is released */
+		SLATE_EVENT( FOnNumericValueChanged, OnRollEndSliderMovement )
 
 		/** Provide custom type functionality for the rotator */
 		SLATE_ARGUMENT( TSharedPtr< INumericTypeInterface<NumericType> >, TypeInterface )
@@ -150,8 +182,8 @@ public:
 				.Value( InArgs._Roll )
 				.OnValueChanged( InArgs._OnRollChanged )
 				.OnValueCommitted( InArgs._OnRollCommitted )
-				.OnBeginSliderMovement( InArgs._OnBeginSliderMovement )
-				.OnEndSliderMovement( InArgs._OnEndSliderMovement )
+				.OnBeginSliderMovement( InArgs._OnRollBeginSliderMovement )
+				.OnEndSliderMovement( InArgs._OnRollEndSliderMovement )
 				.UndeterminedString( NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values") )
 				.ToolTipText_Lambda([RollAttr = InArgs._Roll]
 				{
@@ -182,8 +214,8 @@ public:
 				.Value( InArgs._Pitch )
 				.OnValueChanged( InArgs._OnPitchChanged )
 				.OnValueCommitted( InArgs._OnPitchCommitted )
-				.OnBeginSliderMovement( InArgs._OnBeginSliderMovement )
-				.OnEndSliderMovement( InArgs._OnEndSliderMovement )
+				.OnBeginSliderMovement( InArgs._OnPitchBeginSliderMovement )
+				.OnEndSliderMovement( InArgs._OnPitchEndSliderMovement )
 				.UndeterminedString( NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values") )
 				.ToolTipText_Lambda([PitchAttr = InArgs._Pitch]
 				{
@@ -214,8 +246,8 @@ public:
 				.Value( InArgs._Yaw )
 				.OnValueChanged( InArgs._OnYawChanged )
 				.OnValueCommitted( InArgs._OnYawCommitted )
-				.OnBeginSliderMovement( InArgs._OnBeginSliderMovement )
-				.OnEndSliderMovement( InArgs._OnEndSliderMovement )
+				.OnBeginSliderMovement( InArgs._OnYawBeginSliderMovement )
+				.OnEndSliderMovement( InArgs._OnYawEndSliderMovement )
 				.UndeterminedString( NSLOCTEXT("SRotatorInputBox", "MultipleValues", "Multiple Values") )
 				.ToolTipText_Lambda([YawAttr = InArgs._Yaw]
 				{

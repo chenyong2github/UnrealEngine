@@ -40,6 +40,12 @@ public:
 	/** Delegate to constrain the vector during a change */
 	DECLARE_DELEGATE_ThreeParams(FOnConstrainVector, int32 /* Component */, VectorType /* old */ , VectorType& /* new */);
 
+	/** Notification for vector value slider began movement */
+	DECLARE_DELEGATE(FOnBeginSliderMovement);
+
+	/** Notification for vector value slider ended movement */
+	DECLARE_DELEGATE_OneParam(FOnEndSliderMovement, NumericType);
+
 	struct FArguments;
 
 private:
@@ -72,6 +78,12 @@ private:
 
 		/** Menu extender delegate for the X value */
 		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtenderX)
+
+		/** Called when the x value of the vector slider began movement */
+		SLATE_EVENT(FOnBeginSliderMovement, OnXBeginSliderMovement)
+
+		/** Called when the x value of the vector slider ended movement */
+		SLATE_EVENT(FOnEndSliderMovement, OnXEndSliderMovement)
 	};
 
 	struct FVectorYArgumentsEmpty {};
@@ -101,6 +113,12 @@ private:
 
 		/** Menu extender delegate for the Y value */
 		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtenderY)
+
+		/** Called when the y value of the vector slider began movement */
+		SLATE_EVENT(FOnBeginSliderMovement, OnYBeginSliderMovement)
+
+		/** Called when the y value of the vector slider ended movement */
+		SLATE_EVENT(FOnEndSliderMovement, OnYEndSliderMovement)
 	};
 
 	struct FVectorZArgumentsEmpty {};
@@ -130,6 +148,12 @@ private:
 
 		/** Menu extender delegate for the Z value */
 		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtenderZ)
+
+		/** Called when the z value of the vector slider began movement */
+		SLATE_EVENT(FOnBeginSliderMovement, OnZBeginSliderMovement)
+
+		/** Called when the z value of the vector slider ended movement */
+		SLATE_EVENT(FOnEndSliderMovement, OnZEndSliderMovement)
 	};
 
 	struct FVectorWArgumentsEmpty {};
@@ -159,6 +183,12 @@ private:
 
 		/** Menu extender delegate for the W value */
 		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtenderW)
+
+		/** Called when the w value of the vector slider began movement */
+		SLATE_EVENT(FOnBeginSliderMovement, OnWBeginSliderMovement)
+
+		/** Called when the w value of the vector slider ended movement */
+		SLATE_EVENT(FOnEndSliderMovement, OnWEndSliderMovement)
 	};
 
 public:
@@ -390,7 +420,9 @@ private:
 		const FOnNumericValueCommitted& OnComponentCommitted,
 		const TAttribute<ECheckBoxState> ToggleChecked,
 		const FOnCheckStateChanged& OnToggleChanged,
-		const FMenuExtensionDelegate& OnContextMenuExtenderComponent)
+		const FMenuExtensionDelegate& OnContextMenuExtenderComponent,
+		const FSimpleDelegate& OnBeginSliderMovement,
+		const FOnNumericValueChanged& OnEndSliderMovement)
 	{
 		TSharedRef<SWidget> LabelWidget = SNullWidget::NullWidget;
 		if (InArgs._bColorAxisLabels)
@@ -430,8 +462,8 @@ private:
 			.MaxSliderValue(CreatePerComponentGetter(ComponentIndex, TOptional<NumericType>(), InArgs._MaxSliderVector))
 			.LinearDeltaSensitivity(InArgs._LinearDeltaSensitivity)
 			.Delta(InArgs._SpinDelta)
-			.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)
-			.OnEndSliderMovement(InArgs._OnEndSliderMovement)
+			.OnBeginSliderMovement(OnBeginSliderMovement)
+			.OnEndSliderMovement(OnEndSliderMovement)
 			.LabelPadding(FMargin(3.f))
 			.LabelLocation(SNumericEntryBox<NumericType>::ELabelLocation::Inside)
 			.Label()
@@ -460,7 +492,9 @@ private:
 			InArgs._OnXCommitted,
 			InArgs._ToggleXChecked,
 			InArgs._OnToggleXChanged,
-			InArgs._ContextMenuExtenderX
+			InArgs._ContextMenuExtenderX,
+			InArgs._OnXBeginSliderMovement,
+			InArgs._OnXEndSliderMovement
 		);
 	}
 
@@ -479,7 +513,9 @@ private:
 			InArgs._OnYCommitted,
 			InArgs._ToggleYChecked,
 			InArgs._OnToggleYChanged,
-			InArgs._ContextMenuExtenderY
+			InArgs._ContextMenuExtenderY,
+			InArgs._OnYBeginSliderMovement,
+			InArgs._OnYEndSliderMovement
 		);
 	}
 
@@ -498,7 +534,9 @@ private:
 			InArgs._OnZCommitted,
 			InArgs._ToggleZChecked,
 			InArgs._OnToggleZChanged,
-			InArgs._ContextMenuExtenderZ
+			InArgs._ContextMenuExtenderZ,
+			InArgs._OnZBeginSliderMovement,
+			InArgs._OnZEndSliderMovement
 		);
 	}
 
@@ -517,7 +555,9 @@ private:
 			InArgs._OnWCommitted,
 			InArgs._ToggleWChecked,
 			InArgs._OnToggleWChanged,
-			InArgs._ContextMenuExtenderW
+			InArgs._ContextMenuExtenderW,
+			InArgs._OnWBeginSliderMovement,
+			InArgs._OnWEndSliderMovement
 		);
 	}
 

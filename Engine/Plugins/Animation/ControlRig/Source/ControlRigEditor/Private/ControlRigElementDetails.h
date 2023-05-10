@@ -250,6 +250,7 @@ protected:
 
 	TArray<FPerElementInfo> PerElementInfos;
 	FDelegateHandle MetadataHandle;
+	TArray<FControlRigInteractionScope*> InteractionScopes;
 	
 	TSharedPtr<SButton> SelectParentElementButton;
 };

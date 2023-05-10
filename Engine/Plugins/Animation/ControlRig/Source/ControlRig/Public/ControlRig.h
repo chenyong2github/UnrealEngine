@@ -713,6 +713,7 @@ private:
 	friend class UControlRigGraph;
 	friend class AControlRigControlActor;
 	friend class AControlRigShapeActor;
+	friend class FRigTransformElementDetails;
 };
 
 class CONTROLRIG_API FControlRigBracketScope

@@ -16,6 +16,7 @@
 struct FRigControlElement;
 class UControlRig;
 class IPropertyHandle;
+class FControlRigInteractionScope;
 
 UCLASS(Abstract)
 class UControlRigControlsProxy : public UObject
@@ -31,7 +32,7 @@ public:
 	virtual void SetKey(const IPropertyHandle& KeyedPropertyHandle) {};
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedEvent ) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
@@ -53,6 +54,9 @@ public:
 protected:
 	bool bIsMultiple = 0;
 	FName Name;
+#if WITH_EDITOR
+	TArray<FControlRigInteractionScope*> InteractionScopes;
+#endif
 };
 
 UCLASS()
@@ -62,7 +66,7 @@ class UControlRigTransformControlProxy : public UControlRigControlsProxy
 	UControlRigTransformControlProxy() {}
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
@@ -85,7 +89,7 @@ class UControlRigEulerTransformControlProxy : public UControlRigControlsProxy
 	UControlRigEulerTransformControlProxy() {}
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
@@ -108,7 +112,7 @@ class UControlRigTransformNoScaleControlProxy : public UControlRigControlsProxy
 	UControlRigTransformNoScaleControlProxy() {}
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
@@ -130,7 +134,7 @@ class UControlRigFloatControlProxy : public UControlRigControlsProxy
 	UControlRigFloatControlProxy()  {}
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
@@ -152,7 +156,7 @@ class UControlRigIntegerControlProxy : public UControlRigControlsProxy
 	UControlRigIntegerControlProxy() {}
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
@@ -216,7 +220,7 @@ class UControlRigEnumControlProxy : public UControlRigControlsProxy
 	UControlRigEnumControlProxy() {}
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
@@ -238,7 +242,7 @@ class UControlRigVectorControlProxy : public UControlRigControlsProxy
 	UControlRigVectorControlProxy() {}
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
@@ -260,7 +264,7 @@ class UControlRigVector2DControlProxy : public UControlRigControlsProxy
 	UControlRigVector2DControlProxy() {}
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif
@@ -282,7 +286,7 @@ class UControlRigBoolControlProxy : public UControlRigControlsProxy
 	UControlRigBoolControlProxy() {}
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif

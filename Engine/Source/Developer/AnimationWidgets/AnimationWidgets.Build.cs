@@ -19,5 +19,15 @@ public class AnimationWidgets : ModuleRules
 				"AnimationCore",
 			}
 		);
+
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"PropertyEditor"
+				}
+			);
+		}
 	}
 }

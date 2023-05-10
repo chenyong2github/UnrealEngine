@@ -2267,6 +2267,59 @@ FDetailWidgetRow& FRigTransformElementDetails::CreateEulerTransformValueWidgetRo
 		SliderTransaction.Reset();
 	});
 
+	TransformWidgetArgs.OnBeginSliderMovement_Lambda(
+		[
+			this
+		](
+			ESlateTransformComponent::Type Component,
+			ESlateRotationRepresentation::Type Representation,
+			ESlateTransformSubComponent::Type SubComponent)
+		{
+			if (UControlRig* DebuggedRig = Cast<UControlRig>(PerElementInfos[0].GetBlueprint()->GetObjectBeingDebugged()))
+			{
+				EControlRigInteractionType Type = EControlRigInteractionType::None;
+				switch (Component)
+				{
+					case ESlateTransformComponent::Location: Type = EControlRigInteractionType::Translate; break;
+					case ESlateTransformComponent::Rotation: Type = EControlRigInteractionType::Rotate; break;
+					case ESlateTransformComponent::Scale: Type = EControlRigInteractionType::Scale; break;
+					default: Type = EControlRigInteractionType::All;
+				}
+				DebuggedRig->InteractionType = (uint8)Type;
+				DebuggedRig->ElementsBeingInteracted.Reset();
+				for (FPerElementInfo& ElementInfo : PerElementInfos)
+				{
+					DebuggedRig->ElementsBeingInteracted.AddUnique(ElementInfo.Element.GetKey());
+				}
+				
+				FControlRigInteractionScope* InteractionScope = new FControlRigInteractionScope(DebuggedRig);
+				InteractionScopes.Add(InteractionScope);
+			}
+		});
+	TransformWidgetArgs.OnEndSliderMovement_Lambda(
+		[
+			this
+		](
+			ESlateTransformComponent::Type Component,
+			ESlateRotationRepresentation::Type Representation,
+			ESlateTransformSubComponent::Type SubComponent,
+			FVector::FReal InNumericValue)
+		{
+			if (UControlRig* DebuggedRig = Cast<UControlRig>(PerElementInfos[0].GetBlueprint()->GetObjectBeingDebugged()))
+			{
+				DebuggedRig->InteractionType = (uint8)EControlRigInteractionType::None;
+				DebuggedRig->ElementsBeingInteracted.Reset();
+			}
+			for (FControlRigInteractionScope* InteractionScope : InteractionScopes)
+			{
+				if (InteractionScope)
+				{
+					delete InteractionScope; 
+				}
+			}
+			InteractionScopes.Reset();
+		});
+
 	TransformWidgetArgs.OnCopyToClipboard_Lambda([Keys, IsComponentRelative, ConformComponentRelative, GetSingleTransform](
 		ESlateTransformComponent::Type InComponent
 		)
