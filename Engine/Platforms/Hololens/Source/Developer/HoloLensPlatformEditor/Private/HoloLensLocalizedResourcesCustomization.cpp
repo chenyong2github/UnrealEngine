@@ -158,10 +158,11 @@ void FHoloLensLocalizedResourcesNodeBuilder::GenerateChildContent(IDetailChildre
 		}
 	}
 
-	check(DefaultResources.IsValid());
-
-	IDetailGroup& NeutralGroup = ChildrenBuilder.AddGroup("NeutralResources", LOCTEXT("NeutralResources", "Neutral Resources"));
-	NeutralGroup.AddPropertyRow(DefaultResources.ToSharedRef());
+	if (DefaultResources.IsValid())
+	{
+		IDetailGroup& NeutralGroup = ChildrenBuilder.AddGroup("NeutralResources", LOCTEXT("NeutralResources", "Neutral Resources"));
+		NeutralGroup.AddPropertyRow(DefaultResources.ToSharedRef());
+	}
 
 	IDetailGroup& LocalizedGroup = ChildrenBuilder.AddGroup("LocalizedResources", LOCTEXT("LocalizedResources", "Localized Resources"));
 
