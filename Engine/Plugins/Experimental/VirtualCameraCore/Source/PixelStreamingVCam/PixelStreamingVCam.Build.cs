@@ -25,7 +25,6 @@ namespace UnrealBuildTool.Rules
 				"ApplicationCore",
 				"Core",
 				"CoreUObject",
-				"CinematicCamera",
 				"DecoupledOutputProvider",
 				"Engine",
 				"InputCore",

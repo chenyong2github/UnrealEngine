@@ -13,9 +13,11 @@ public class VCamCore : ModuleRules
 			{
 				"Composure",
 				"Core",
-				"VPUtilities",
+				"CinematicCamera",
 				"EnhancedInput",
-				"VCamInput"
+				"RemoteSession",
+				"VCamInput",
+				"VPUtilities"
 			});
 		
 		PrivateDependencyModuleNames.AddRange(
@@ -24,11 +26,9 @@ public class VCamCore : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"UMG",
-				"CinematicCamera",
 				"GameplayTags",
 				"LiveLinkInterface",
 				"MediaIOCore",
-				"RemoteSession",
 				"InputCore",
 				"Slate",
 				"SlateCore",

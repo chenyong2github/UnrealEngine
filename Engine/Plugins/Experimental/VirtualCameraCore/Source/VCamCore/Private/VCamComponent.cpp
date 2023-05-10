@@ -92,6 +92,12 @@ UVCamComponent::UVCamComponent()
 	EnsureDelegatesRegistered();
 }
 
+void UVCamComponent::OnComponentCreated()
+{
+	Super::OnComponentCreated();
+	EnsureInitialized();
+}
+
 void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 	Deinitialize();
@@ -1030,7 +1036,7 @@ void UVCamComponent::GetOutputProvidersByClass(TSubclassOf<UVCamOutputProviderBa
 
 	if (ProviderClass)
 	{
-		FoundProviders = OutputProviders.FilterByPredicate([ProviderClass](const UVCamOutputProviderBase* ProviderInArray) { return ProviderInArray->IsA(ProviderClass); });
+		FoundProviders = OutputProviders.FilterByPredicate([ProviderClass](const UVCamOutputProviderBase* ProviderInArray) { return ProviderInArray && ProviderInArray->IsA(ProviderClass); });
 	}
 }
 

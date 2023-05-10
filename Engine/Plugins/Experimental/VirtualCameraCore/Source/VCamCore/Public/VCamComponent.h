@@ -82,6 +82,7 @@ public:
 	UVCamComponent();
 
 	//~ Begin UActorComponent Interface
+	virtual void OnComponentCreated() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	//~ End UActorComponent Interface
 

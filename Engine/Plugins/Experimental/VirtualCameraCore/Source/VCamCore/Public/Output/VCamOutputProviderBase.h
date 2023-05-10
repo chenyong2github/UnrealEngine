@@ -59,7 +59,15 @@ public:
 	virtual void Initialize();
 	/** Called when the provider is being shutdown such as before changing level or on exit */
 	virtual void Deinitialize();
-
+	
+	/** Called when the provider is Activated */
+	virtual void OnActivate();
+	/** Called when the provider is Deactivated */
+	virtual void OnDeactivate();
+	
+	/** Called to create the UMG overlay widget. */
+	virtual void CreateUMG();
+	
 	virtual void Tick(const float DeltaTime);
 	
 	/** @return Whether this output provider should require the viewport to be locked to the camera in order to function correctly. */
@@ -141,14 +149,6 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, Instanced, Category = "Output", meta = (DisplayPriority = "99"))
 	TObjectPtr<UGameplayViewTargetPolicy> GameplayViewTargetPolicy;
-	
-	/** Called when the provider is Activated */
-	virtual void OnActivate();
-	/** Called when the provider is Deactivated */
-	virtual void OnDeactivate();
-	
-	/** Called to create the UMG overlay widget. */
-	virtual void CreateUMG();
 	
 	/** Removes the override resolution from the given viewport. */
 	void RestoreOverrideResolutionForViewport(EVCamTargetViewportID ViewportToRestore);

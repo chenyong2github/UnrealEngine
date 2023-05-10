@@ -56,10 +56,6 @@
 		{
 			"Name" : "CineCameraRigs",
 			"Enabled": true
-		},
-		{
-			"Name" : "VCamPixelStreamingPreset",
-			"Enabled": true
 		}
 	]
 }

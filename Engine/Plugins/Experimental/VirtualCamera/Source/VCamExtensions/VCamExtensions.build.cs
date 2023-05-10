@@ -11,7 +11,9 @@ public class VCamExtensions : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
+				"Core", 
+				"VCamCore",
+				"CinematicCamera"
 			}
 		);
 			
@@ -20,11 +22,12 @@ public class VCamExtensions : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"DecoupledOutputProvider",
 				"Engine",
 				"InputCore",
+				"Projects",
 				"Slate",
-				"SlateCore",
-				"VCamCore",
+				"SlateCore", 
 			}
 		);
 	}
