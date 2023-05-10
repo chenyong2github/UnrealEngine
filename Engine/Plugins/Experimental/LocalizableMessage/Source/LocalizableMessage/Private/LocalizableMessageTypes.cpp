@@ -5,6 +5,7 @@
 #include "ILocalizableMessageModule.h"
 #include "LocalizableMessageBaseParameters.h"
 #include "LocalizableMessageProcessor.h"
+#include "LocalizationContext.h"
 
 namespace LocalizableMessageTypes
 {
@@ -12,11 +13,11 @@ namespace LocalizableMessageTypes
 
 	FText Int_LocalizeValue(const FLocalizableMessageParameterInt& Localizable, const FLocalizationContext& LocalizationContext)
 	{
-		return FText::AsNumber(Localizable.Value);
+		return FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.Culture);
 	}
 	FText Float_LocalizeValue(const FLocalizableMessageParameterFloat& Localizable, const FLocalizationContext& LocalizationContext)
 	{
-		return FText::AsNumber(Localizable.Value);
+		return FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.Culture);
 	}
 	FText String_LocalizeValue(const FLocalizableMessageParameterString& Localizable, const FLocalizationContext& LocalizationContext)
 	{

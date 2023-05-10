@@ -4,6 +4,7 @@
 
 #include "Components/TextBlock.h"
 #include "ILocalizableMessageModule.h"
+#include "Internationalization/Internationalization.h"
 #include "LocalizableMessageProcessor.h"
 #include "LocalizationContext.h"
 #include "Net/Core/PushModel/PushModel.h"
@@ -35,8 +36,7 @@ void UUIFrameworkTextBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 
 void UUIFrameworkTextBase::SetText(const FLocalizableMessage& InMessage)
 {
-	// TODO FORT-602964: Set Locale in FLocalizationContext
-	FLocalizationContext LocContext(this);
+	FLocalizationContext LocContext(this, FInternationalization::Get().GetCurrentCulture());
 	ILocalizableMessageModule& LocalizableMessageModule = ILocalizableMessageModule::Get();
 	FLocalizableMessageProcessor& Processor = LocalizableMessageModule.GetLocalizableMessageProcessor();
 	Text = Processor.Localize(InMessage, LocContext);

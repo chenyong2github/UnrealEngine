@@ -4,6 +4,7 @@
 
 #include "Blueprint/UserWidget.h"
 #include "ILocalizableMessageModule.h"
+#include "Internationalization/Internationalization.h"
 #include "LocalizableMessageProcessor.h"
 #include "LocalizationContext.h"
 #include "MVVMSubsystem.h"
@@ -84,8 +85,7 @@ void UUIFrameworkSimpleButton::ServerClick_Implementation(APlayerController* Pla
 
 void UUIFrameworkSimpleButton::SetText(const FLocalizableMessage& InMessage)
 {
-	// TODO FORT-602964: Set Locale in FLocalizationContext
-	FLocalizationContext LocContext(this);
+	FLocalizationContext LocContext(this, FInternationalization::Get().GetCurrentCulture());
 	ILocalizableMessageModule& LocalizableMessageModule = ILocalizableMessageModule::Get();
 	FLocalizableMessageProcessor& Processor = LocalizableMessageModule.GetLocalizableMessageProcessor();
 	Text = Processor.Localize(InMessage, LocContext);
