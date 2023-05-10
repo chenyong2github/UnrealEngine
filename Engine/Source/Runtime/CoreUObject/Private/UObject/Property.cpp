@@ -27,6 +27,7 @@
 #include "Math/InterpCurvePoint.h"
 #include "UObject/Package.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "Serialization/TestUndeclaredScriptStructObjectReferences.h"
 
 DEFINE_LOG_CATEGORY(LogProperty);
 
@@ -44,6 +45,7 @@ struct TVector3StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithStructuredSerializer = true,
 		WithStructuredSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 template<> struct TStructOpsTypeTraits<FVector3f> : public TVector3StructOpsTypeTraits<FVector3f> {};
 template<> struct TStructOpsTypeTraits<FVector3d> : public TVector3StructOpsTypeTraits<FVector3d> {};
@@ -62,6 +64,7 @@ struct TIntPointStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithSerializer = true,
 		WithSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 template<> struct TStructOpsTypeTraits<FInt32Point> : public TIntPointStructOpsTypeTraits<FInt32Point> {};
 template<> struct TStructOpsTypeTraits<FInt64Point> : public TIntPointStructOpsTypeTraits<FInt64Point> {};
@@ -85,6 +88,7 @@ struct TIntVectorStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithSerializer = true,
 		WithSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 template<> struct TStructOpsTypeTraits<FInt32Vector2> : public TIntVectorStructOpsTypeTraits<FInt32Vector2> {};
 template<> struct TStructOpsTypeTraits<FInt64Vector2> : public TIntVectorStructOpsTypeTraits<FInt64Vector2> {};
@@ -132,6 +136,7 @@ struct TVector2StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithSerializer = true,
 		WithSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 template<> struct TStructOpsTypeTraits<FVector2f> : public TVector2StructOpsTypeTraits<FVector2f> {};
 template<> struct TStructOpsTypeTraits<FVector2d> : public TVector2StructOpsTypeTraits<FVector2d> {};
@@ -150,6 +155,7 @@ struct TVector4StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithSerializer = true,
 		WithSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 template<> struct TStructOpsTypeTraits<FVector4f> : public TVector4StructOpsTypeTraits<FVector4f> {};
 template<> struct TStructOpsTypeTraits<FVector4d> : public TVector4StructOpsTypeTraits<FVector4d> {};
@@ -170,6 +176,7 @@ struct TPlaneStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithSerializer = true,
 		WithSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 template<> struct TStructOpsTypeTraits<FPlane4f> : public TPlaneStructOpsTypeTraits<FPlane4f> {};
 template<> struct TStructOpsTypeTraits<FPlane4d> : public TPlaneStructOpsTypeTraits<FPlane4d> {};
@@ -190,6 +197,7 @@ struct TRotatorStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithSerializer = true,
 		WithSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 template<> struct TStructOpsTypeTraits<FRotator3f> : public TRotatorStructOpsTypeTraits<FRotator3f> {};
@@ -209,6 +217,7 @@ struct TBox3StructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithSerializer = true,
 		WithSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 template<> struct TStructOpsTypeTraits<FBox3f> : public TBox3StructOpsTypeTraits<FBox3f> {};
 template<> struct TStructOpsTypeTraits<FBox3d> : public TBox3StructOpsTypeTraits<FBox3d> {};
@@ -244,6 +253,7 @@ struct TMatrixStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithSerializer = true,
 		WithSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 template<> struct TStructOpsTypeTraits<FMatrix44f> : public TMatrixStructOpsTypeTraits<FMatrix44f> {};
@@ -285,6 +295,7 @@ struct TStructOpsTypeTraits<FLinearColor> : public TStructOpsTypeTraitsBase2<FLi
 		WithZeroConstructor = true,
 		WithStructuredSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", LinearColor);
 
@@ -298,6 +309,7 @@ struct TStructOpsTypeTraits<FColor> : public TStructOpsTypeTraitsBase2<FColor>
 		WithZeroConstructor = true,
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Color);
 
@@ -315,6 +327,7 @@ struct TQuatStructOpsTypeTraits : public TStructOpsTypeTraitsBase2<T>
 		WithSerializer = true,
 		WithSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 template<> struct TStructOpsTypeTraits<FQuat4f> : public TQuatStructOpsTypeTraits<FQuat4f> {};
 template<> struct TStructOpsTypeTraits<FQuat4d> : public TQuatStructOpsTypeTraits<FQuat4d> {};
@@ -332,6 +345,7 @@ struct TStructOpsTypeTraits<FTwoVectors> : public TStructOpsTypeTraitsBase2<FTwo
 		WithSerializer = true,
 		WithNoDestructor = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TwoVectors);
 
@@ -443,6 +457,7 @@ struct TStructOpsTypeTraits<FGuid> : public TStructOpsTypeTraitsBase2<FGuid>
 		WithSerializer = true,
 		WithStructuredSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Guid);
 
@@ -486,6 +501,7 @@ struct TStructOpsTypeTraits<FDateTime> : public TStructOpsTypeTraitsBase2<FDateT
 		WithZeroConstructor = true,
 		WithIdenticalViaEquality = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", DateTime);
 
@@ -503,6 +519,7 @@ struct TStructOpsTypeTraits<FTimespan> : public TStructOpsTypeTraitsBase2<FTimes
 		WithZeroConstructor = true,
 		WithIdenticalViaEquality = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", Timespan);
 
@@ -514,6 +531,7 @@ struct TStructOpsTypeTraits<FFrameNumber> : public TStructOpsTypeTraitsBase2<FFr
 		WithSerializer = true,
 		WithIdenticalViaEquality = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", FrameNumber);
 
@@ -530,6 +548,7 @@ struct TStructOpsTypeTraits<FSoftObjectPath> : public TStructOpsTypeTraitsBase2<
 		WithImportTextItem = true,
 		WithStructuredSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::Soft;
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", SoftObjectPath);
 
@@ -546,6 +565,7 @@ struct TStructOpsTypeTraits<FSoftClassPath> : public TStructOpsTypeTraitsBase2<F
 		WithImportTextItem = true,
 		WithStructuredSerializeFromMismatchedTag = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::Soft;
 };
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", SoftClassPath);
 
@@ -580,6 +600,18 @@ struct TStructOpsTypeTraits<FPrimaryAssetId> : public TStructOpsTypeTraitsBase2<
 UE_IMPLEMENT_STRUCT("/Script/CoreUObject", PrimaryAssetId);
 
 template<>
+struct TStructOpsTypeTraits<FTestUndeclaredScriptStructObjectReferencesTest> : public TStructOpsTypeTraitsBase2<FTestUndeclaredScriptStructObjectReferencesTest>
+{
+	enum 
+	{
+		WithSerializer = true,
+	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak | EPropertyObjectReferenceType::Soft;
+};
+UE_IMPLEMENT_STRUCT("/Script/CoreUObject", TestUndeclaredScriptStructObjectReferencesTest);
+
+
+template<>
 struct TStructOpsTypeTraits<FFallbackStruct> : public TStructOpsTypeTraitsBase2<FFallbackStruct>
 {
 };
@@ -588,6 +620,24 @@ UE_IMPLEMENT_STRUCT("/Script/CoreUObject", FallbackStruct);
 /*-----------------------------------------------------------------------------
 	Helpers.
 -----------------------------------------------------------------------------*/
+
+const TCHAR* LexToString(EPropertyObjectReferenceType Type)
+{
+	switch(Type)
+	{
+	case EPropertyObjectReferenceType::None:
+		return TEXT("None");
+	case EPropertyObjectReferenceType::Strong:
+		return TEXT("Strong");
+	case EPropertyObjectReferenceType::Weak:
+		return TEXT("Weak");
+	case EPropertyObjectReferenceType::Soft:
+		return TEXT("Soft");
+	case EPropertyObjectReferenceType::Conservative:
+		return TEXT("Conservative");
+	}	
+	return TEXT("Unknown");
+}
 
 constexpr FAsciiSet AlphaNumericChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 

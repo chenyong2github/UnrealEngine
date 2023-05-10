@@ -4980,33 +4980,41 @@ bool FStructProperty::ContainsObjectReference(TArray<const FStructProperty*>& En
 	{
 		return false;
 	}
-	else
+
+	if (!Struct)
 	{
-		if (!Struct)
-		{
-			UE_LOG(LogGarbage, Warning, TEXT("Broken FStructProperty does not have a UStruct: %s"), *GetFullName() );
-		}
-		else if (Struct->StructFlags & STRUCT_AddStructReferencedObjects)
+		UE_LOG(LogGarbage, Warning, TEXT("Broken FStructProperty does not have a UStruct: %s"), *GetFullName() );
+		return false;
+	}
+
+	if (EnumHasAnyFlags(InReferenceType, EPropertyObjectReferenceType::Strong) && (Struct->StructFlags & STRUCT_AddStructReferencedObjects))
+	{
+		return true;
+	}
+
+	if (Struct->StructFlags & STRUCT_SerializeNative)
+	{
+		UScriptStruct::ICppStructOps* Ops = Struct->GetCppStructOps();
+		if (Ops && Ops->HasSerializerObjectReferences(InReferenceType))
 		{
 			return true;
 		}
-		else
-		{
-			EncounteredStructProps.Add(this);
-			FProperty* Property = Struct->PropertyLink;
-			while( Property )
-			{
-				if (Property->ContainsObjectReference(EncounteredStructProps, InReferenceType))
-				{
-					EncounteredStructProps.RemoveSingleSwap(this, false /*bAllowShrinking*/);
-					return true;
-				}
-				Property = Property->PropertyLinkNext;
-			}
-			EncounteredStructProps.RemoveSingleSwap(this, false /*bAllowShrinking*/);
-		}
-		return false;
 	}
+
+	EncounteredStructProps.Add(this);
+	bool bValue = false;
+	FProperty* Property = Struct->PropertyLink;
+	while (Property)
+	{
+		if (Property->ContainsObjectReference(EncounteredStructProps, InReferenceType))
+		{
+			bValue = true;
+			break;
+		}
+		Property = Property->PropertyLinkNext;
+	}
+	EncounteredStructProps.RemoveSingleSwap(this, false /*bAllowShrinking*/);
+	return bValue;
 }
 
 bool FFieldPathProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType /*= EPropertyObjectReferenceType::Strong*/) const

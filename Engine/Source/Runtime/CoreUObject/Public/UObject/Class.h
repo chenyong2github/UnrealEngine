@@ -109,6 +109,7 @@ struct FPropertyTag;
 struct FRandomStream;
 struct FUObjectSerializeContext;
 template <typename FuncType> class TFunctionRef;
+enum class EPropertyObjectReferenceType : uint32;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogClass, Log, All);
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogScriptSerialization, Log, All);
@@ -864,6 +865,8 @@ struct TStructOpsTypeTraitsBase2
 		WithPureVirtual                = false,                         // struct has PURE_VIRTUAL functions and cannot be constructed when CHECK_PUREVIRTUALS is true
 		WithCanEditChange			   = false,							// struct has an editor-only CanEditChange function that can conditionally make child properties read-only in the details panel (same idea as UObject::CanEditChange)
 	};
+
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::Conservative; // struct's Serialize method(s) may serialize object references of these types - default Conservative means unknown and object reference collector archives should serialize this struct 
 };
 
 template<class CPPSTRUCT>
@@ -903,6 +906,7 @@ public:
 		struct FCapabilities
 		{
 			EPropertyFlags ComputedPropertyFlags;
+			EPropertyObjectReferenceType HasSerializerObjectReferences;
 			bool HasNoopConstructor : 1;
 			bool HasZeroConstructor : 1;
 			bool HasDestructor : 1;
@@ -1107,6 +1111,11 @@ public:
 		{
 			return GetCapabilities().HasAddStructReferencedObjects;
 		}
+		/** returns true if the native serialize functions may serialize object references of the given type **/
+		bool HasSerializerObjectReferences(EPropertyObjectReferenceType Type) const
+		{
+			return EnumHasAnyFlags(GetCapabilities().HasSerializerObjectReferences, Type);
+		}
 		/** 
 		 * return a pointer to a function that can add referenced objects
 		 * @return true if the copy was imported, otherwise it will fall back to FStructProperty::ImportText
@@ -1187,6 +1196,7 @@ public:
 				| (TIsTriviallyDestructible<CPPSTRUCT>::Value ? CPF_NoDestructor : CPF_None)
 				| (TIsZeroConstructType<CPPSTRUCT>::Value ? CPF_ZeroConstructor : CPF_None)
 				| (TModels_V<CGetTypeHashable, CPPSTRUCT> ? CPF_HasGetValueTypeHash : CPF_None),
+				TTraits::WithSerializerObjectReferences,
 				TTraits::WithNoInitConstructor,
 				TTraits::WithZeroConstructor,
 				!(TTraits::WithNoDestructor || TIsPODType<CPPSTRUCT>::Value),

@@ -25,6 +25,7 @@
 #include "UObject/TopLevelAssetPath.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/PropertyAccessUtil.h"
+#include "Serialization/TestUndeclaredScriptStructObjectReferences.h"
 
 #include "Math/InterpCurvePoint.h"
 #include "Math/UnitConversion.h"
@@ -2714,6 +2715,22 @@ struct FTestUninitializedScriptStructMembersTest
 
 	UPROPERTY(Transient)
 	float UnusedValue;
+};
+
+USTRUCT(noexport, IsAlwaysAccessible, HasDefaults)
+struct FTestUndeclaredScriptStructObjectReferencesTest
+{
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> StrongObjectPointer;
+
+	UPROPERTY(Transient)
+	TSoftObjectPtr<UObject> SoftObjectPointer;
+
+	UPROPERTY(Transient)
+	FSoftObjectPath SoftObjectPath;
+	
+	UPROPERTY(Transient)
+	TWeakObjectPtr<UObject> WeakObjectPointer;
 };
 
 /**

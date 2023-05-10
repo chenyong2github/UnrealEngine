@@ -615,6 +615,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
+#if WITH_LOW_LEVEL_TESTS
+#include <ostream>
+COREUOBJECT_API std::ostream& operator<<(std::ostream& Stream, const FSoftObjectPath& Value);
+#endif
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #endif

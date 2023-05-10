@@ -35,9 +35,11 @@
 #include "UObject/Interface.h"
 #include "UObject/LinkerPlaceholderClass.h"
 #include "UObject/LinkerPlaceholderFunction.h"
+#include "UObject/StructOnScope.h"
 #include "UObject/StructScriptLoader.h"
 #include "UObject/PropertyHelper.h"
 #include "UObject/CoreRedirects.h"
+#include "UObject/ObjectMacros.h"
 #include "Internationalization/PolyglotTextData.h"
 #include "Serialization/ArchiveScriptReferenceCollector.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
@@ -59,7 +61,9 @@
 #include "AssetRegistry/AssetData.h"
 #include "HAL/PlatformStackWalk.h"
 #include "String/Find.h"
+#include "String/ParseTokens.h"
 #include "AutoRTFM/AutoRTFM.h"
+#include "Serialization/TestUndeclaredScriptStructObjectReferences.h"
 
 // This flag enables some expensive class tree validation that is meant to catch mutations of 
 // the class tree outside of SetSuperStruct. It has been disabled because loading blueprints 
@@ -940,7 +944,9 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 	{
 		FProperty* Property = *It;
 
-		if (Property->ContainsObjectReference(EncounteredStructProps) || Property->ContainsWeakObjectReference())
+		// Ref link contains any properties which contain object references including types with user-defined serializers which don't explicitly specify whether they 
+		// contain object references
+		if (Property->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Any))
 		{
 			*RefLinkPtr = Property;
 			RefLinkPtr = &(*RefLinkPtr)->NextRef;
@@ -1082,7 +1088,9 @@ void UStruct::SerializeBin( FStructuredArchive::FSlot Slot, void* Data ) const
 
 	FStructuredArchive::FStream PropertyStream = Slot.EnterStream();
 	
-	if (UnderlyingArchive.IsObjectReferenceCollector() && !UnderlyingArchive.IsModifyingWeakAndStrongReferences())
+	// RefLink contains Strong, Weak and Soft object references including FSoftObjectPath
+	// If objects wish to serialize other properties they should not set ArIsObjectReferenceCollector
+	if (UnderlyingArchive.IsObjectReferenceCollector())
 	{
 		// The FProperty instance might start in the middle of a cache line	
 		static constexpr uint32 ExtraPrefetchBytes = PLATFORM_CACHE_LINE_SIZE - /* min alignment */ 16;
@@ -3928,7 +3936,171 @@ bool FAutomationTestAttemptToFindShortTypeNamesInMetaData::RunTest(const FString
 
 #endif // WITH_EDITORONLY_DATA
 
+// bExactCheck - Check for places where structs serialize a different set of object references to what they declare (Conservative is always an error)
+// otherwise - Check for places where structs serialize object references they don't declare (Conservative allows serializing any reference types)
+static bool FindUndeclaredObjectReferencesInStructSerializers(FAutomationTestBase& Test, bool bExactCheck)
+{
+	struct FTestArchive : public FArchiveUObject
+	{
+		FTestArchive()
+		{
+			// Not persistent, loading, saving, etc
+			ArIsObjectReferenceCollector = true;
+		}
+		
+		EPropertyObjectReferenceType References = EPropertyObjectReferenceType::None;
+
+		virtual FArchive& operator<<(FLazyObjectPtr& Value) override 
+		{
+			References |= EPropertyObjectReferenceType::Weak;
+			return *this;
+		}
+		virtual FArchive& operator<<(FObjectPtr& Value) override 
+		{ 
+			References |= EPropertyObjectReferenceType::Strong;
+			return *this;
+		}
+		virtual FArchive& operator<<(FSoftObjectPtr& Value) override 
+		{
+			References |= EPropertyObjectReferenceType::Weak | EPropertyObjectReferenceType::Soft;
+			return *this;
+		}
+		virtual FArchive& operator<<(FSoftObjectPath& Value) override 
+		{
+			References |= EPropertyObjectReferenceType::Soft;
+			return *this;
+		}
+		virtual FArchive& operator<<(FWeakObjectPtr& Value) override 
+		{ 
+			References |= EPropertyObjectReferenceType::Weak;
+			return *this;
+		}
+	};
+
+	bool bFoundProblems = false;
+
+	for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
+	{
+		UScriptStruct* Struct = *ScriptIt;
+		if ((Struct->StructFlags & STRUCT_SerializeNative) == 0)
+		{
+			continue;
+		}
+
+		auto LogUndeclaredObjectReference = [&bFoundProblems, &Test, Struct](ELogVerbosity::Type Verbosity, const TCHAR* RefType)
+		{
+			Test.AddError(FString::Printf(TEXT("Struct %s%s serializes an object reference of type EPropertyObjectReferenceType::%s but does not declare it"),
+				Struct->GetPrefixCPP(),
+				*Struct->GetName(),
+				RefType
+				));
+			bFoundProblems = true;
+		};
+		auto LogOverdeclaredObjectReference = [&bFoundProblems, &Test, Struct](ELogVerbosity::Type Verbosity, const TCHAR* RefType)
+		{
+			Test.AddError(FString::Printf(TEXT("Struct %s%s declares an object reference of type EPropertyObjectReferenceType::%s but does not serialize it"),
+				Struct->GetPrefixCPP(),
+				*Struct->GetName(),
+				RefType
+				));
+			bFoundProblems = true;
+		};
+		EPropertyObjectReferenceType DeclaredReferences = Struct->GetCppStructOps()->GetCapabilities().HasSerializerObjectReferences;			
+		EPropertyObjectReferenceType PropertyReferences = EPropertyObjectReferenceType::None;
+		for (EPropertyObjectReferenceType Type : { EPropertyObjectReferenceType::Strong, EPropertyObjectReferenceType::Weak, EPropertyObjectReferenceType::Soft })
+		{
+			FProperty* Property = Struct->PropertyLink;
+			TArray<const FStructProperty*> EncounteredStructProps; 
+			while (Property && !EnumHasAllFlags(PropertyReferences, Type))
+			{
+				if (Property->ContainsObjectReference(EncounteredStructProps, Type))
+				{
+					PropertyReferences |= Type;
+				}
+				Property = Property->PropertyLinkNext;
+			}
+		}
+
+		FStructOnScope TempStruct(Struct);
+		
+		FTestArchive Ar;
+		Struct->SerializeItem(Ar, TempStruct.GetStructMemory(), nullptr);
+		
+		if(!bExactCheck && !EnumHasAllFlags(DeclaredReferences, EPropertyObjectReferenceType::Conservative))
+		{
+			for (EPropertyObjectReferenceType Type : { EPropertyObjectReferenceType::Strong, EPropertyObjectReferenceType::Weak, EPropertyObjectReferenceType::Soft })
+			{
+				if (EnumHasAllFlags(Ar.References, Type) && !EnumHasAllFlags(DeclaredReferences | PropertyReferences, Type))
+				{
+					LogUndeclaredObjectReference(ELogVerbosity::Warning, LexToString(Type));
+				}
+			}
+		}
+		if(bExactCheck && EnumHasAllFlags(DeclaredReferences, EPropertyObjectReferenceType::Conservative))
+		{
+			FString SerializedTypes;
+			for (uint32 Flag = 1, Max = (uint32)EPropertyObjectReferenceType::MAX; Flag != Max; Flag <<= 1)
+			{
+				EPropertyObjectReferenceType TypedFlag = (EPropertyObjectReferenceType)Flag;
+				if (EnumHasAllFlags(Ar.References, TypedFlag))
+				{
+					if (SerializedTypes.IsEmpty())
+					{
+						SerializedTypes = LexToString(TypedFlag);
+					}
+					else 
+					{
+						SerializedTypes.Appendf(TEXT(" | %s"),LexToString(TypedFlag));
+					}
+				}
+			}	
+			if (SerializedTypes.IsEmpty())
+			{
+				SerializedTypes = LexToString(EPropertyObjectReferenceType::None);
+			}
+			Test.AddError(FString::Printf(TEXT("Struct %s%s declares its object references as EPropertyObjectReferenceType::Conservative which is never exact. Actual types serialized: %s"),
+				Struct->GetPrefixCPP(),
+				*Struct->GetName(),
+				*SerializedTypes
+			));
+			bFoundProblems = true;
+		}
+		else if (bExactCheck)
+		{
+			for (EPropertyObjectReferenceType Type : { EPropertyObjectReferenceType::Strong, EPropertyObjectReferenceType::Weak, EPropertyObjectReferenceType::Soft })
+			{
+				if (EnumHasAllFlags(DeclaredReferences, Type) && !EnumHasAllFlags(Ar.References, Type))
+				{
+					LogOverdeclaredObjectReference(ELogVerbosity::Warning, LexToString(Type));
+				}
+			}
+		}
+	}
+	return !bFoundProblems;
+}
+
+// Test for finding structs which misreport their object properties for native serialization
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAutomationTestFindUndeclaredObjectReferencesInStructSerializers, "UObject.Class FindUndeclaredObjectReferencesInStructSerializers", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext | EAutomationTestFlags::SmokeFilter)
+bool FAutomationTestFindUndeclaredObjectReferencesInStructSerializers::RunTest(const FString& Parameters)
+{
+	return FindUndeclaredObjectReferencesInStructSerializers(*this, false);
+}
+
+// Test for finding structs which unoptimally their object properties for native serialization - not a smoke test
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAutomationTestFindInexactObjectReferencesInStructSerializers, "UObject.Class FindInexactObjectReferencesInStructSerializers", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ServerContext | EAutomationTestFlags::EngineFilter )
+bool FAutomationTestFindInexactObjectReferencesInStructSerializers::RunTest(const FString& Parameters)
+{
+	return FindUndeclaredObjectReferencesInStructSerializers(*this, true);
+}
+
 #endif // !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
+
+bool FTestUndeclaredScriptStructObjectReferencesTest::Serialize(FArchive& Ar)
+{
+	Ar << StrongObjectPointer << SoftObjectPointer << SoftObjectPath << WeakObjectPointer;
+	return true;
+}
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UScriptStruct, UStruct,
 	{
@@ -6894,6 +7066,12 @@ UScriptStruct* TBaseStructure<FAssetBundleData>::Get()
 UScriptStruct* TBaseStructure<FTestUninitializedScriptStructMembersTest>::Get()
 {
 	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("TestUninitializedScriptStructMembersTest"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FTestUndeclaredScriptStructObjectReferencesTest>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("TestUndeclaredScriptStructObjectReferencesTest"));
 	return ScriptStruct;
 }
 

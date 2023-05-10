@@ -12,6 +12,16 @@
 #include "UObject/SoftObjectPath.h"
 
 /**
+ * TIsSoftObjectPointerType
+ * Trait for recognizing 'soft' (path-based) object pointer types
+ */
+template<typename T> 
+struct TIsSoftObjectPointerType
+{ 
+	enum { Value = false };
+};
+
+/**
  * FSoftObjectPtr is a type of weak pointer to a UObject, that also keeps track of the path to the object on disk.
  * It will change back and forth between being Valid and Pending as the referenced object loads or unloads.
  * It has no impact on if the object is garbage collected or not.
@@ -96,6 +106,7 @@ public:
 
 template <> struct TIsPODType<FSoftObjectPtr> { enum { Value = TIsPODType<TPersistentObjectPtr<FSoftObjectPath> >::Value }; };
 template <> struct TIsWeakPointerType<FSoftObjectPtr> { enum { Value = TIsWeakPointerType<TPersistentObjectPtr<FSoftObjectPath> >::Value }; };
+template <> struct TIsSoftObjectPointerType<FSoftObjectPtr> { enum { Value = true }; };
 
 /**
  * TSoftObjectPtr is templatized wrapper of the generic FSoftObjectPtr, it can be used in UProperties
@@ -411,6 +422,7 @@ FArchive& operator<<(FArchive& Ar, TSoftObjectPtr<T>& Ptr)
 
 template<class T> struct TIsPODType<TSoftObjectPtr<T> > { enum { Value = TIsPODType<FSoftObjectPtr>::Value }; };
 template<class T> struct TIsWeakPointerType<TSoftObjectPtr<T> > { enum { Value = TIsWeakPointerType<FSoftObjectPtr>::Value }; };
+template<class T> struct TIsSoftObjectPointerType<TSoftObjectPtr<T>> { enum { Value = TIsSoftObjectPointerType<FSoftObjectPtr>::Value }; };
 
 template <typename T>
 struct TCallTraits<TSoftObjectPtr<T>> : public TCallTraitsBase<TSoftObjectPtr<T>>

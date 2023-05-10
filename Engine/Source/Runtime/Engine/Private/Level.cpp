@@ -4204,6 +4204,7 @@ void ULevel::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatfo
 
 void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> InCustomFixupFunction)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULevel::FixupForPIE);
 	FPIEFixupSerializer FixupSerializer(this, InPIEInstanceID, InCustomFixupFunction);
 	Serialize(FixupSerializer);
 }

@@ -839,7 +839,20 @@ bool FSoftObjectPathThreadContext::GetSerializationOptions(FName& OutPackageName
 FThreadSafeCounter FSoftObjectPath::CurrentTag(1);
 TSet<FName> FSoftObjectPath::PIEPackageNames;
 
+#if WITH_LOW_LEVEL_TESTS
 
+#include "TestHarness.h"
+
+std::ostream& operator<<(std::ostream& Stream, const FSoftObjectPath& Value)
+{
+	TStringBuilder<FName::StringBufferSize*2> Builder;
+	Builder << Value;
+	return Stream << Builder.ToView();
+}
+
+#endif
+
+#if WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSoftObjectPathImportTextTests, "System.CoreUObject.SoftObjectPath.ImportText", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 bool FSoftObjectPathImportTextTests::RunTest(const FString& Parameters)
@@ -995,3 +1008,18 @@ bool FSoftObjectPathTrySetPathTests::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSoftObjectPathFixupForPIETests, "System.CoreUObject.SoftObjectPath.FixupForPIE", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FSoftObjectPathFixupForPIETests::RunTest(const FString& Parameters)
+{
+	const TCHAR* TestOriginalPath = TEXT("/Game/Maps/Arena.Arena:PersistentLevel.Target");	
+	const int32 PieInstanceID = 7;
+	const FString ExpectedFinalPath = FString::Printf(TEXT("/Game/Maps/%s_%d_Arena.Arena:PersistentLevel.Target"), PLAYWORLD_PACKAGE_PREFIX, PieInstanceID);
+	
+	FSoftObjectPath SoftPath(TestOriginalPath);
+	SoftPath.FixupForPIE(PieInstanceID);	
+	TestEqual(TEXT("Fixed up path should be PIE package with correct id"), SoftPath.ToString(), ExpectedFinalPath);
+	return true;
+}
+
+#endif

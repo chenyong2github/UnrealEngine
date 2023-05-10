@@ -499,6 +499,21 @@ enum class EMapPropertyFlags : uint8
 
 ENUM_CLASS_FLAGS(EMapPropertyFlags)
 
+enum class EPropertyObjectReferenceType : uint32
+{
+	None = 0,
+	Strong = 1 << 0, // Hard reference to a UObject, keeps the object from being garbage collected
+	Weak = 1 << 1,   // Weak reference to a UObject, does not keep the object from being garbage collected, does not become valid again after object is unloaded and reloaded.
+	Soft = 1 << 2,	 // Soft path/identity-based reference to a UObject, does not keep the object from being garbage collected, does become valid again after object is unloaded and reloaded.
+	Conservative = 1 << 3,	 // Not a real reference type, used to mark native struct serializers which may serialize unknown reference types and to conservatively populate RefLink with such struct properties.
+	
+	MAX = Conservative << 1, // Marker for iterating over all flags
+	Any = Strong | Weak | Soft | Conservative,
+};
+ENUM_CLASS_FLAGS(EPropertyObjectReferenceType);
+
+COREUOBJECT_API const TCHAR* LexToString(EPropertyObjectReferenceType Type);
+
 /**
  * Flags describing an object instance
  */

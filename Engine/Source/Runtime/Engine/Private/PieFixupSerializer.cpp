@@ -3,6 +3,7 @@
 #include "PieFixupSerializer.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Misc/AutomationTest.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 
@@ -19,6 +20,8 @@ FPIEFixupSerializer::FPIEFixupSerializer(UObject* InRoot, int32 InPIEInstanceID)
 	, PIEInstanceID(InPIEInstanceID)
 {
 	this->ArShouldSkipBulkData = true;
+	this->ArIsObjectReferenceCollector = true;
+	this->ArIsModifyingWeakAndStrongReferences = true;
 }
 
 FPIEFixupSerializer::FPIEFixupSerializer(UObject* InRoot, int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> InSoftObjectPathFixupFunction)
@@ -27,6 +30,8 @@ FPIEFixupSerializer::FPIEFixupSerializer(UObject* InRoot, int32 InPIEInstanceID,
 	, PIEInstanceID(InPIEInstanceID)
 {
 	this->ArShouldSkipBulkData = true;
+	this->ArIsObjectReferenceCollector = true;
+	this->ArIsModifyingWeakAndStrongReferences = true;
 }
 
 bool FPIEFixupSerializer::ShouldSkipProperty(const FProperty* InProperty) const
@@ -76,3 +81,46 @@ FArchive& FPIEFixupSerializer::operator<<(FSoftObjectPtr& Value)
 	*this << Value.GetUniqueID();
 	return *this;
 }
+
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "Tests/PieFixupTestObjects.h"
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPIEFixupSerializerTest, "System.Engine.PIE.FixupSoftReferences", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+bool FPIEFixupSerializerTest::RunTest(const FString& Parameters)
+{
+	FName PackageName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), FName("/Memory/PieFixupTest"));
+	UPackage* Package = NewObject<UPackage>(nullptr, UPackage::StaticClass(), PackageName);
+	UPieFixupTestObject* Obj = NewObject<UPieFixupTestObject>(Package);
+	Obj->Path = TEXT("/Game/Maps/Arena.Arena:PersistentLevel.SpawnPoint.Root");
+	Obj->TypedPtr = TSoftObjectPtr<AActor>(FSoftObjectPath(TEXT("/Game/Maps/Arena.Arena:PersistentLevel.Target")));
+	
+	Obj->Struct.Path = Obj->Path;
+	Obj->Struct.TypedPtr = Obj->TypedPtr;
+	
+	FPieFixupStructWithSoftObjectPath& InArray = Obj->Array.AddZeroed_GetRef();
+	InArray.Path = Obj->Path;
+	InArray.TypedPtr = Obj->TypedPtr;
+	
+	int32 PieInstanceID  = 3;
+	FPIEFixupSerializer Fixup(Package, PieInstanceID );
+	Fixup << Obj;
+	
+	TestEqual(TEXT("Path is fixed up"), Obj->Path.ToString(),
+		FString::Printf(TEXT("/Game/Maps/%s_%d_Arena.Arena:PersistentLevel.SpawnPoint.Root"), PLAYWORLD_PACKAGE_PREFIX, PieInstanceID));
+	TestEqual(TEXT("Ptr is fixed up"), Obj->TypedPtr.GetUniqueID().ToString(),
+		FString::Printf(TEXT("/Game/Maps/%s_%d_Arena.Arena:PersistentLevel.Target"), PLAYWORLD_PACKAGE_PREFIX, PieInstanceID));
+	TestEqual(TEXT("Path in struct is fixed up"), Obj->Struct.Path.ToString(),
+		FString::Printf(TEXT("/Game/Maps/%s_%d_Arena.Arena:PersistentLevel.SpawnPoint.Root"), PLAYWORLD_PACKAGE_PREFIX, PieInstanceID));
+	TestEqual(TEXT("Ptr in struct is fixed up"), Obj->Struct.TypedPtr.GetUniqueID().ToString(),
+		FString::Printf(TEXT("/Game/Maps/%s_%d_Arena.Arena:PersistentLevel.Target"), PLAYWORLD_PACKAGE_PREFIX, PieInstanceID));
+	TestEqual(TEXT("Path in array of structs is fixed up "), InArray.Path.ToString(),
+		FString::Printf(TEXT("/Game/Maps/%s_%d_Arena.Arena:PersistentLevel.SpawnPoint.Root"), PLAYWORLD_PACKAGE_PREFIX, PieInstanceID));
+	TestEqual(TEXT("Ptr in array of structs is fixed up "), InArray.TypedPtr.GetUniqueID().ToString(),
+		FString::Printf(TEXT("/Game/Maps/%s_%d_Arena.Arena:PersistentLevel.Target"), PLAYWORLD_PACKAGE_PREFIX, PieInstanceID));
+
+	return true;
+}
+
+#endif

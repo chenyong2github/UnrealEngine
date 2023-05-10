@@ -3853,6 +3853,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	UWorld* PIELevelWorld = GetDuplicatedWorldForPIE(EditorLevelWorld, PIELevelPackage, PIEInstanceID);
 
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FixupForPIE);
 		// The owning world may contain lazy pointers to actors in the sub-level we just duplicated so make sure they are fixed up with the PIE GUIDs
 		FPIEFixupSerializer FixupSerializer(OwningWorld, PIEInstanceID);
 		FixupSerializer << OwningWorld;

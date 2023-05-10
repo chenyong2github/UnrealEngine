@@ -122,14 +122,6 @@ enum class EConvertFromTypeResult
 	Converted
 };
 
-enum class EPropertyObjectReferenceType : uint32
-{
-	None = 0,
-	Strong = 1 << 0,
-	Weak = 1 << 1
-};
-ENUM_CLASS_FLAGS(EPropertyObjectReferenceType);
-
 enum class EPropertyMemoryAccess : uint8
 {
 	// Direct memory access - the associated pointer points to the memory at the reflected item.
@@ -2873,8 +2865,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// FProperty interface.
 	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override
 	{
-		return (!!(InReferenceType & EPropertyObjectReferenceType::Strong) && !TIsWeakPointerType<InTCppType>::Value) ||
-			(!!(InReferenceType & EPropertyObjectReferenceType::Weak) && TIsWeakPointerType<InTCppType>::Value);
+		return (EnumHasAnyFlags(InReferenceType, EPropertyObjectReferenceType::Strong) && !TIsWeakPointerType<InTCppType>::Value)
+			|| (EnumHasAnyFlags(InReferenceType, EPropertyObjectReferenceType::Weak) && TIsWeakPointerType<InTCppType>::Value)
+			|| (EnumHasAnyFlags(InReferenceType, EPropertyObjectReferenceType::Soft) && TIsSoftObjectPointerType<InTCppType>::Value);
 	}
 	// End of FProperty interface
 
