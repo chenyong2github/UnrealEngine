@@ -205,6 +205,58 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Backup an existing log file if it already exists at the outputpath
+		/// </summary>
+		/// <param name="outputFile">The file to back up</param>
+		public static void BackupLogFile(FileReference outputFile)
+		{
+			if (!Log.BackupLogFiles || !FileReference.Exists(outputFile))
+			{
+				return;
+			}
+
+			// before creating a new backup, cap the number of existing files
+			string filenameWithoutExtension = outputFile.GetFileNameWithoutExtension();
+			string extension = outputFile.GetExtension();
+
+			Regex backupForm =
+				new Regex(filenameWithoutExtension + @"-backup-\d\d\d\d\.\d\d\.\d\d-\d\d\.\d\d\.\d\d" + extension);
+
+			foreach (FileReference oldBackup in DirectoryReference
+				.EnumerateFiles(outputFile.Directory)
+				// find files that match the way that we name backup files
+				.Where(x => backupForm.IsMatch(x.GetFileName()))
+				// sort them from newest to oldest
+				.OrderByDescending(x => x.GetFileName())
+				// skip the newest ones that are to be kept; -1 because we're about to create another backup.
+				.Skip(Log.LogFileBackupCount - 1))
+			{
+				Logger.TraceLog("Deleting old log file: {File}", oldBackup);
+				FileReference.Delete(oldBackup);
+			}
+
+			// Ensure that the backup gets a unique name, in the extremely unlikely case that UBT was run twice during
+			// the same second.
+			DateTime fileTime = File.GetCreationTimeUtc(outputFile.FullName);
+
+			FileReference backupFile;
+			for (; ; )
+			{
+				string timestamp = $"{fileTime:yyyy.MM.dd-HH.mm.ss}";
+				backupFile = FileReference.Combine(outputFile.Directory,
+					$"{filenameWithoutExtension}-backup-{timestamp}{extension}");
+				if (!FileReference.Exists(backupFile))
+				{
+					break;
+				}
+
+				fileTime = fileTime.AddSeconds(1);
+			}
+
+			FileReference.Move(outputFile, backupFile);
+		}
+
+		/// <summary>
 		/// Adds a trace listener that writes to a log file.
 		/// If a StartupTraceListener was in use, this function will copy its captured data to the log file(s)
 		/// and remove the startup listener from the list of registered listeners.
@@ -214,51 +266,9 @@ namespace EpicGames.Core
 		/// <returns>The created trace listener</returns>
 		public static void AddFileWriter(string name, FileReference outputFile)
 		{
-			Logger.LogInformation("Log file: {OutputFile}", outputFile);
+			Log.TraceInformation($"Log file: {outputFile}");
 
-			if (Log.BackupLogFiles && FileReference.Exists(outputFile))
-			{
-				// before creating a new backup, cap the number of existing files
-				string filenameWithoutExtension = outputFile.GetFileNameWithoutExtension();
-				string extension = outputFile.GetExtension();
-
-				Regex backupForm =
-					new Regex(filenameWithoutExtension + @"-backup-\d\d\d\d\.\d\d\.\d\d-\d\d\.\d\d\.\d\d" + extension);
-
-				foreach (FileReference oldBackup in DirectoryReference
-					.EnumerateFiles(outputFile.Directory)
-					// find files that match the way that we name backup files
-					.Where(x => backupForm.IsMatch(x.GetFileName()))
-					// sort them from newest to oldest
-					.OrderByDescending(x => x.GetFileName())
-					// skip the newest ones that are to be kept; -1 because we're about to create another backup.
-					.Skip(Log.LogFileBackupCount - 1))
-				{
-					Logger.LogDebug("Deleting old log file: {File}", oldBackup);
-					FileReference.Delete(oldBackup);
-				}
-
-				// Ensure that the backup gets a unique name, in the extremely unlikely case that UBT was run twice during
-				// the same second.
-				DateTime fileTime = File.GetCreationTimeUtc(outputFile.FullName);
-
-				FileReference backupFile;
-				for (; ; )
-				{
-					string timestamp = $"{fileTime:yyyy.MM.dd-HH.mm.ss}";
-					backupFile = FileReference.Combine(outputFile.Directory,
-						$"{filenameWithoutExtension}-backup-{timestamp}{extension}");
-					if (!FileReference.Exists(backupFile))
-					{
-						break;
-					}
-
-					fileTime = fileTime.AddSeconds(1);
-				}
-
-				FileReference.Move(outputFile, backupFile);
-			}
-
+			BackupLogFile(outputFile);
 			AddFileWriterWithoutBackup(name, outputFile);
 		}
 
