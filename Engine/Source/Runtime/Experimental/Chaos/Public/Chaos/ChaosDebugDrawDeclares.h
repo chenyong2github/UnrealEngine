@@ -4,15 +4,11 @@
 #include "Chaos/Core.h"
 #include "Chaos/Declares.h"
 #include "Chaos/GeometryParticlesfwd.h"
+#include "Chaos/Island/IslandManagerFwd.h"
 #include "Misc/Build.h"
 
 namespace Chaos
 {
-	namespace Private
-	{
-		class FPBDIslandManager;
-	}
-
 	class FConstraintHandle;
 
 	class FPBDCollisionConstraints;

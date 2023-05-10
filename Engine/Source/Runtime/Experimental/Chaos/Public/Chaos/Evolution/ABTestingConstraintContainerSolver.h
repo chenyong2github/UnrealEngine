@@ -12,10 +12,6 @@
 
 namespace Chaos
 {
-	namespace Private
-	{
-		class FPBDIslandConstraint;
-	}
 	class FConstraintHandleHolder;
 	class FSolverBodyContainer;
 
@@ -89,7 +85,7 @@ namespace Chaos
 				SolverB->AddConstraints();
 			}
 
-			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& Constraints) override final
+			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint*>& Constraints) override final
 			{
 				SolverA->AddConstraints(Constraints);
 				SolverB->AddConstraints(Constraints);

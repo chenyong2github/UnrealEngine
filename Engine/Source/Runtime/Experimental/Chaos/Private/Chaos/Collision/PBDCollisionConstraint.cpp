@@ -154,7 +154,7 @@ namespace Chaos
 		Constraint.GetContainerCookie().ClearContainerData();
 
 		// We are not in the constraint graph, even if Source was
-		Constraint.SetConstraintGraphIndex(INDEX_NONE);
+		Constraint.SetConstraintGraphEdge(nullptr);
 
 		return Constraint;
 	}
@@ -165,14 +165,14 @@ namespace Chaos
 		// We do not want to overwrite these properties because they are managed by the systems
 		// where the constraint is registsred (allocator, container, graph).
 		const FPBDCollisionConstraintContainerCookie Cookie = ContainerCookie;
-		const int32 ConstraintGraphIndex = GetConstraintGraphIndex();
+		Private::FPBDIslandConstraint* ConstraintGraphEdge = GetConstraintGraphEdge();
 
 		// Copy everything
 		*this = Source;
 
 		// Restore the system state
 		ContainerCookie = Cookie;
-		SetConstraintGraphIndex(ConstraintGraphIndex);
+		SetConstraintGraphEdge(ConstraintGraphEdge);
 	}
 
 	FPBDCollisionConstraint::FPBDCollisionConstraint()
@@ -259,7 +259,7 @@ namespace Chaos
 	{
 #if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
 		// Make sure we have been dropped by the graph
-		ensure(GetConstraintGraphIndex() == INDEX_NONE);
+		ensure(GetConstraintGraphEdge() == nullptr);
 #endif
 	}
 

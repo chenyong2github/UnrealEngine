@@ -181,7 +181,7 @@ namespace ChaosTest
 		}
 
 		// Initialize graph
-		Private::FPBDIslandManager Graph;
+		Private::FPBDIslandManager Graph(SOAs);
 		Container.SetContainerId(0); // Usually set by the evolution the container is registered with
 		Graph.AddConstraintContainer(Container);
 
@@ -193,11 +193,11 @@ namespace ChaosTest
 		{
 			Graph.AddParticle(Particle);
 		}
-		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
+		Graph.UpdateParticles();
 
 		// Add constraints and update graph
 		Container.AddConstraintsToGraph(Graph);
-		Graph.UpdateIslands(SOAs);
+		Graph.UpdateIslands();
 
 		auto Constraints = Container.GetConstraints();
 		for (FCharacterGroundConstraintHandle* Constraint : Constraints)
@@ -205,18 +205,18 @@ namespace ChaosTest
 			EXPECT_TRUE(Constraint->IsInConstraintGraph());
 		}
 
-		TArray<TSet<FGeometryParticleHandle*>> ExpectedParticlesInIsland =
+		TArray<TArray<FGeometryParticleHandle*>> ExpectedParticlesInIsland =
 		{
 			{ DynamicParticles[0], DynamicParticles[1], DynamicParticles[9] },
 			{ DynamicParticles[2] },
 			{ DynamicParticles[3], DynamicParticles[10] },
 			{ DynamicParticles[4], DynamicParticles[11], DynamicParticles[12] },
 			{ DynamicParticles[5], DynamicParticles[13] },
-			{ DynamicParticles[6], DynamicParticles[14] },
-			{ DynamicParticles[7] },
-			{ DynamicParticles[8] },
+			{ DynamicParticles[6], DynamicParticles[14], StaticParticles[0] },
+			{ DynamicParticles[7], StaticParticles[1] },
+			{ DynamicParticles[8], StaticParticles[1] },
 		};
-		TArray<TSet<FCharacterGroundConstraintHandle*>> ExpectedConstraintsInIsland =
+		TArray<TArray<FCharacterGroundConstraintHandle*>> ExpectedConstraintsInIsland =
 		{
 			{ Constraints[0], Constraints[1] },
 			{ Constraints[2] },
@@ -228,33 +228,27 @@ namespace ChaosTest
 			{ Constraints[11] },
 		};
 		const int ExpectedNumIslands = ExpectedParticlesInIsland.Num();
-		TArray<int32> IslandIndices =
-		{
-			DynamicParticles[0]->CastToRigidParticle()->IslandIndex(),
-			DynamicParticles[2]->CastToRigidParticle()->IslandIndex(),
-			DynamicParticles[3]->CastToRigidParticle()->IslandIndex(),
-			DynamicParticles[4]->CastToRigidParticle()->IslandIndex(),
-			DynamicParticles[5]->CastToRigidParticle()->IslandIndex(),
-			DynamicParticles[6]->CastToRigidParticle()->IslandIndex(),
-			DynamicParticles[7]->CastToRigidParticle()->IslandIndex(),
-			DynamicParticles[8]->CastToRigidParticle()->IslandIndex(),
-		};
 
 		for (int32 IslandIdx = 0; IslandIdx < ExpectedNumIslands; ++IslandIdx)
 		{
-			Private::FPBDIsland* Island = Graph.GetIsland(IslandIdx);
-			TArrayView<Private::FPBDIslandParticle> IslandParticles = Island->GetParticles();
+			// Find all the islands that contain one of these particles (should only be one because they are all dynamic)
+			const TArray<const Private::FPBDIsland*> Islands = Graph.FindParticleIslands(ExpectedParticlesInIsland[IslandIdx][0]);
+			EXPECT_EQ(Islands.Num(), 1);
+
+			// Find all the particles in the island and make sure they match the expected set
+			const TArray<const FGeometryParticleHandle*> IslandParticles = Graph.FindParticlesInIslands(Islands);
 			EXPECT_EQ(IslandParticles.Num(), ExpectedParticlesInIsland[IslandIdx].Num());
-			for (Private::FPBDIslandParticle& IslandParticle : IslandParticles)
+			for (const FGeometryParticleHandle* ExpectedIslandParticle : ExpectedParticlesInIsland[IslandIdx])
 			{
-				EXPECT_TRUE(ExpectedParticlesInIsland[IslandIdx].Contains(IslandParticle.GetParticle()));
+				EXPECT_TRUE(IslandParticles.Contains(ExpectedIslandParticle));
 			}
 
-			TArrayView<Private::FPBDIslandConstraint> IslandConstraints = Island->GetConstraints(Container.GetContainerId());
+			// Find all the constraints in the island and make sure they match the expected set
+			const TArray<const FConstraintHandle*> IslandConstraints = Graph.FindConstraintsInIslands(Islands, Container.GetContainerId());
 			EXPECT_EQ(IslandConstraints.Num(), ExpectedConstraintsInIsland[IslandIdx].Num());
-			for (Private::FPBDIslandConstraint& IslandConstraint : IslandConstraints)
+			for (const FConstraintHandle* ExpectedIslandConstraint : ExpectedConstraintsInIsland[IslandIdx])
 			{
-				EXPECT_TRUE(ExpectedConstraintsInIsland[IslandIdx].Contains(IslandConstraint.GetConstraint()->As<FCharacterGroundConstraintHandle>()));
+				EXPECT_TRUE(IslandConstraints.Contains(ExpectedIslandConstraint));
 			}
 		}
 
@@ -288,16 +282,16 @@ namespace ChaosTest
 		Constraints.Add(Container.AddConstraint(Settings[0], Data[0], Particles[1], Particles[3]));
 		Constraints.Add(Container.AddConstraint(Settings[0], Data[0], Particles[2]));
 
-		Private::FPBDIslandManager Graph;
+		Private::FPBDIslandManager Graph(SOAs);
 		Container.SetContainerId(0);
 		Graph.AddConstraintContainer(Container);
 		for (auto Particle : Particles)
 		{
 			Graph.AddParticle(Particle);
 		}
-		Graph.InitializeGraph(SOAs.GetNonDisabledDynamicView());
+		Graph.UpdateParticles();
 		Container.AddConstraintsToGraph(Graph);
-		Graph.UpdateIslands(SOAs);
+		Graph.UpdateIslands();
 
 		// First use non-island version
 		Solver->AddConstraints();

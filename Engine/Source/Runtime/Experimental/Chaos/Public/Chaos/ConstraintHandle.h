@@ -31,6 +31,11 @@ namespace Chaos
 	using FParticlePair = TVec2<FGeometryParticleHandle*>;
 	using FConstParticlePair = TVec2<const FGeometryParticleHandle*>;
 
+	namespace Private
+	{
+		class FPBDIslandConstraint;
+	}
+
 	/**
 	 * @brief A type id for constraint handles to support safe up/down casting (including intermediate classes in the hierrachy)
 	 *
@@ -95,18 +100,20 @@ namespace Chaos
 
 		FConstraintHandle() 
 			: ConstraintContainer(nullptr)
-			, GraphIndex(INDEX_NONE)
+			, GraphEdge(nullptr)
 		{
 		}
 
 		FConstraintHandle(FPBDConstraintContainer* InContainer)
 			: ConstraintContainer(InContainer)
-			, GraphIndex(INDEX_NONE)
+			, GraphEdge(nullptr)
 		{
 		}
 
 		virtual ~FConstraintHandle()
 		{
+			// Make sure we are not still in the graph
+			check(GraphEdge == nullptr);
 		}
 
 		virtual bool IsValid() const
@@ -126,17 +133,21 @@ namespace Chaos
 
 		bool IsInConstraintGraph() const
 		{
-			return (GraphIndex != INDEX_NONE);
+			return (GraphEdge != nullptr);
 		}
 
-		int32 GetConstraintGraphIndex() const
+		Private::FPBDIslandConstraint* GetConstraintGraphEdge() const
 		{
-			return GraphIndex;
+			return GraphEdge;
 		}
 
-		void SetConstraintGraphIndex(const int32 InIndex)
+		// NOTE: Should only be called by the IslandManager
+		void SetConstraintGraphEdge(Private::FPBDIslandConstraint* InEdge)
 		{
-			GraphIndex = InIndex;
+			// Check for double add
+			check((InEdge == nullptr) || (GraphEdge == nullptr));
+
+			GraphEdge = InEdge;
 		}
 
 		virtual TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const = 0;
@@ -181,12 +192,16 @@ namespace Chaos
 			return STypeID;
 		}
 
+		// Deprecated API
+		UE_DEPRECATED(5.3, "Use GetConstraintGraphEdge") int32 GetConstraintGraphIndex() const { return INDEX_NONE; }
+		UE_DEPRECATED(5.3, "Not supported") void SetConstraintGraphIndex(const int32 InIndex) const {}
+
 	protected:
 		friend class FPBDConstraintContainer;
 
 		FPBDConstraintContainer* ConstraintContainer;
 		
-		int32 GraphIndex;
+		Private::FPBDIslandConstraint* GraphEdge;
 	};
 
 

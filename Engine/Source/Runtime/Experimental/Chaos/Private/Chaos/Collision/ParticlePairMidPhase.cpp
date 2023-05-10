@@ -527,11 +527,6 @@ namespace Chaos
 	{
 		if (Constraint.IsValid() && IsUsedSince(SleepEpoch))
 		{
-#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
-			// If a particle changed to kinematic, all constraints without a dynamic should have been removed
-			CheckConstraintContainsDynamic(Constraint.Get());
-#endif
-
 			// We need to refresh the epoch so that the constraint state will be used as the previous
 			// state if the pair is still colliding in the next tick. However, we are not in the active 
 			// collisions array so reset the indices.
@@ -1784,7 +1779,7 @@ namespace Chaos
 		bool bInGraph = false;
 		VisitConstCollisions([&bInGraph](const FPBDCollisionConstraint& Constraint)
 		{
-			if (Constraint.GetConstraintGraphIndex() != INDEX_NONE)
+			if (Constraint.GetConstraintGraphEdge() != nullptr)
 			{
 				bInGraph = true;
 				return ECollisionVisitorResult::Stop;

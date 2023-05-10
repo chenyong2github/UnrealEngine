@@ -19,8 +19,6 @@
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
-#include "Chaos/PBDConstraintColor.h"
-#include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDRigidClustering.h"
 #include "Chaos/PBDRigidParticles.h"
@@ -196,19 +194,35 @@ namespace Chaos
 
 		FColor GetIslandColor(const int32 IslandIndex, const bool bIsAwake)
 		{
-			static FColor AwakeColors[] =
+			static const FColor AwakeColors[] =
 			{
 				FColor::Red,
 				FColor::Orange,
 				FColor::Yellow,
 				FColor::Green,
+				FColor::Emerald,
+				FColor::Cyan,
+				FColor::Turquoise,
 				FColor::Blue,
 				FColor::Magenta,
+				FColor::Purple,
 			};
 			const int32 NumAwakeColors = UE_ARRAY_COUNT(AwakeColors);
-			static FColor SleepingColor = FColor::Black;
 
-			return bIsAwake ? AwakeColors[IslandIndex % NumAwakeColors] : SleepingColor;
+			static const FColor SleepingColor = FColor::Black;
+			static const FColor NullColor = FColor::White;
+
+			if (IslandIndex == INDEX_NONE)
+			{
+				return NullColor;
+			}
+
+			if (!bIsAwake)
+			{
+				return SleepingColor;
+			}
+
+			return AwakeColors[IslandIndex % NumAwakeColors];
 		};
 
 
@@ -617,9 +631,10 @@ namespace Chaos
 				{
 					ShapeColor = Settings.ShapesColorsPerShapeType.GetColorFromShapeType(InnerType);
 				}
-				if (bChaosDebugDebugDrawColorShapesByIsland && (FConstGenericParticleHandle(Particle)->IslandIndex() != INDEX_NONE))
+				if (bChaosDebugDebugDrawColorShapesByIsland)
 				{
-					ShapeColor = GetIslandColor(FConstGenericParticleHandle(Particle)->IslandIndex(), true);
+					const int32 IslandId = (Particle->GetConstraintGraphNode() != nullptr) ? Particle->GetConstraintGraphNode()->GetIslandId() : INDEX_NONE;
+					ShapeColor = GetIslandColor(IslandId, true);
 				}
 				if (bChaosDebugDebugDrawColorShapesByInternalCluster)
 				{
@@ -1343,33 +1358,41 @@ namespace Chaos
 
 				if (bChaosDebugDebugDrawContactGraph)
 				{
-					FDebugDrawQueue::GetInstance().DrawDebugLine(Transform0.GetLocation(), ContactPos, FColor::Red, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
-					FDebugDrawQueue::GetInstance().DrawDebugLine(Transform1.GetLocation(), ContactPos, FColor::White, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
-					FDebugDrawQueue::GetInstance().DrawDebugString(ContactPos, FString::Format(TEXT("{0}-{1}-{2}"), { LevelIndex, ColorIndex, OrderIndex }), nullptr, FColor::Yellow, UE_KINDA_SMALL_NUMBER, false, Settings.FontScale);
+					if (FConstGenericParticleHandle(Constraint->GetParticle0())->IsDynamic())
+					{
+						FDebugDrawQueue::GetInstance().DrawDebugLine(Transform0.GetLocation(), ContactPos, FColor::Red, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+					}
+					if (FConstGenericParticleHandle(Constraint->GetParticle1())->IsDynamic())
+					{
+						FDebugDrawQueue::GetInstance().DrawDebugLine(Transform1.GetLocation(), ContactPos, FColor::White, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
+					}
+					if (ColorIndex >= 0)
+					{
+						FDebugDrawQueue::GetInstance().DrawDebugString(ContactPos, FString::Format(TEXT("{0} L{1} C{2}"), { OrderIndex, LevelIndex, ColorIndex }), nullptr, FColor::Yellow, UE_KINDA_SMALL_NUMBER, false, Settings.FontScale);
+					}
+					else if (LevelIndex >= 0)
+					{
+						FDebugDrawQueue::GetInstance().DrawDebugString(ContactPos, FString::Format(TEXT("{0} L{1}"), { OrderIndex, LevelIndex }), nullptr, FColor::Yellow, UE_KINDA_SMALL_NUMBER, false, Settings.FontScale);
+					}
+					else
+					{
+						FDebugDrawQueue::GetInstance().DrawDebugString(ContactPos, FString::Format(TEXT("{0}"), { OrderIndex }), nullptr, FColor::Yellow, UE_KINDA_SMALL_NUMBER, false, Settings.FontScale);
+					}
 				}
 			};
 
 			if (bChaosDebugDebugDrawIslands)
 			{
-				TArray<FAABB3> IslandBounds;
-				IslandBounds.SetNum(Graph.NumIslands());
+				for (int32 IslandIndex = 0; IslandIndex < Graph.GetNumIslands(); ++IslandIndex)
+				{
+					const Private::FPBDIsland* Island = Graph.GetIsland(IslandIndex);
+					FAABB3 IslandAABB = FAABB3::EmptyAABB();
 
-				const typename Private::FPBDIslandManager::GraphType* IslandGraph = Graph.GetIslandGraph();
-				for (const auto& GraphNode : IslandGraph->GraphNodes)
-				{
-					FConstGenericParticleHandle Particle = GraphNode.NodeItem;
-					if (Particle->IsDynamic() && Particle->HasBounds())
+					for (int32 NodeIndex = 0; NodeIndex < Island->GetNumParticles(); ++NodeIndex)
 					{
-						for (int32 ParticleIsland : Graph.FindParticleIslands(Particle->Handle()))
-						{
-							IslandBounds[ParticleIsland].GrowToInclude(Particle->BoundingBox());
-						}
+						FConstGenericParticleHandle Particle = Island->GetNode(NodeIndex)->GetParticle();
+						IslandAABB.GrowToInclude(Particle->BoundingBox());
 					}
-				}
-			
-				for (int32 IslandIndex = 0; IslandIndex < IslandBounds.Num(); ++IslandIndex)
-				{
-					FAABB3 IslandAABB = IslandBounds[IslandIndex];
 
 					const FColor IslandColor = GetIslandColor(IslandIndex, !Graph.GetIsland(IslandIndex)->IsSleeping());
 					const FAABB3 Bounds = IslandAABB.TransformedAABB(SpaceTransform);
@@ -1379,20 +1402,22 @@ namespace Chaos
 
 			if (bChaosDebugDebugDrawContactGraph || bChaosDebugDebugDrawContactGraphUnused || bChaosDebugDebugDrawContactGraphUsed)
 			{
-				const typename Private::FPBDIslandManager::GraphType* IslandGraph = Graph.GetIslandGraph();
-				for (const auto& GraphEdge : IslandGraph->GraphEdges)
+				for (int32 ContainerIndex = 0; ContainerIndex < Graph.GetNumConstraintContainers(); ++ContainerIndex)
 				{
-					const FConstraintHandle* Constraint = GraphEdge.EdgeItem;
-					if (const FPBDCollisionConstraintHandle* Collision = Constraint->As<FPBDCollisionConstraintHandle>())
-					{
-						const int32 IslandIndex = GraphEdge.IslandIndex;
-						// @chaos(todo): would be nice to have this data retained for debug draw...
-						const int32 LevelIndex = INDEX_NONE;
-						const int32 ColorIndex = INDEX_NONE;
-						const int32 OrderIndex = INDEX_NONE;
-						const bool bIsUsed = !Collision->GetConstraint()->AccumulatedImpulse.IsNearlyZero();
-						DrawGraphCollision(SpaceTransform, Collision->GetConstraint(), IslandIndex, LevelIndex, ColorIndex, OrderIndex, bIsUsed, Settings);
-					}
+					Graph.VisitConstConstraints(ContainerIndex,
+						[&Graph, &SpaceTransform, &Settings, &DrawGraphCollision](const Private::FPBDIslandConstraint* IslandConstraint)
+						{
+							const FConstraintHandle* Constraint = IslandConstraint->GetConstraint();
+							if (const FPBDCollisionConstraintHandle* Collision = Constraint->As<FPBDCollisionConstraintHandle>())
+							{
+								const int32 IslandIndex = Graph.GetIslandIndex(Graph.GetConstraintIsland(Collision));
+								const int32 LevelIndex = Graph.GetConstraintLevel(IslandConstraint);
+								const int32 ColorIndex = Graph.GetConstraintColor(IslandConstraint);
+								const int32 OrderIndex = Graph.GetIslandArrayIndex(IslandConstraint);
+								const bool bIsUsed = !Collision->GetConstraint()->AccumulatedImpulse.IsNearlyZero();
+								DrawGraphCollision(SpaceTransform, Collision->GetConstraint(), IslandIndex, LevelIndex, ColorIndex, OrderIndex, bIsUsed, Settings);
+							}
+						});
 				}
 			}
 		}

@@ -105,7 +105,7 @@ namespace Chaos
 			}
 			else if (bIsInGraph && !bShouldBeInGraph)
 			{
-				IslandManager.RemoveConstraint(ContainerId, Constraint);
+				IslandManager.RemoveConstraint(Constraint);
 			}
 		}
 	}

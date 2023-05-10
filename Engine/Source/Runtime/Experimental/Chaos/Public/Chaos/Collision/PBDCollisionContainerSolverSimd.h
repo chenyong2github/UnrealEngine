@@ -16,9 +16,6 @@ namespace Chaos
 
 	namespace Private
 	{
-		class FPBDIsland;
-		class FPBDIslandConstraint;
-
 		template<int TNumLanes>
 		using TConstraintPtrSimd = TSimdValue<FPBDCollisionConstraint*, TNumLanes>;
 
@@ -44,7 +41,7 @@ namespace Chaos
 			// IslandGroup API
 			//
 			virtual void AddConstraints() override final;
-			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& ConstraintHandles) override final;
+			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint*>& ConstraintHandles) override final;
 			virtual void AddBodies(FSolverBodyContainer& SolverBodyContainer) override final;
 			virtual void GatherInput(const FReal Dt) override final;
 			virtual void GatherInput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex) override final;

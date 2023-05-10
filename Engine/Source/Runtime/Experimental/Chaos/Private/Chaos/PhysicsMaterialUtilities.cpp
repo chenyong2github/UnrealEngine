@@ -11,24 +11,30 @@ namespace Chaos
 			const TGeometryParticleHandle<FReal, 3>* Particle,
 			const FShapeInstance* Shape,
 			const int32 ShapeFaceIndex,
-			const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials,
-			const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
+			const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>* PhysicsMaterials,
+			const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>* PerParticlePhysicsMaterials,
 			const THandleArray<FChaosPhysicsMaterial>* const SimMaterials)
 		{
 			// Use the per-particle material if it exists
-			const FChaosPhysicsMaterial* UniquePhysicsMaterial = Particle->AuxilaryValue(PerParticlePhysicsMaterials).Get();
-			if (UniquePhysicsMaterial != nullptr)
+			if (PerParticlePhysicsMaterials != nullptr)
 			{
-				return UniquePhysicsMaterial;
+				const FChaosPhysicsMaterial* UniquePhysicsMaterial = Particle->AuxilaryValue(*PerParticlePhysicsMaterials).Get();
+				if (UniquePhysicsMaterial != nullptr)
+				{
+					return UniquePhysicsMaterial;
+				}
 			}
 
 			// Use the.... other?.... per particle material if it exists. 
 			// @todo(chaos): I assume this is to support writable unique materials, but there must be a better 
 			// way that adding another pointer to every particle. E.g., a ref count or shared setting on the material.
-			const FChaosPhysicsMaterial* PhysicsMaterial = Particle->AuxilaryValue(PhysicsMaterials).Get();
-			if (PhysicsMaterial != nullptr)
+			if (PhysicsMaterials != nullptr)
 			{
-				return PhysicsMaterial;
+				const FChaosPhysicsMaterial* PhysicsMaterial = Particle->AuxilaryValue(*PhysicsMaterials).Get();
+				if (PhysicsMaterial != nullptr)
+				{
+					return PhysicsMaterial;
+				}
 			}
 
 			// If no particle material, see if the shape has one
@@ -54,7 +60,7 @@ namespace Chaos
 			return nullptr;
 		}
 
-		const FChaosPhysicsMaterial* GetFirstPhysicsMaterial(const TGeometryParticleHandle<FReal, 3>* Particle, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials, const THandleArray<FChaosPhysicsMaterial>* const SimMaterials)
+		const FChaosPhysicsMaterial* GetFirstPhysicsMaterial(const TGeometryParticleHandle<FReal, 3>* Particle, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>* PhysicsMaterials, const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>* PerParticlePhysicsMaterials, const THandleArray<FChaosPhysicsMaterial>* const SimMaterials)
 		{
 			const FShapeInstance* Shape = (Particle->ShapeInstances().IsEmpty()) ? nullptr : Particle->ShapeInstances()[0].Get();
 			return GetPhysicsMaterial(Particle, Shape, INDEX_NONE, PhysicsMaterials, PerParticlePhysicsMaterials, SimMaterials);

@@ -527,6 +527,7 @@ namespace ChaosTest {
 		PhysicalMaterial->SleepingAngularThreshold = 0;
 		PhysicalMaterial->DisabledLinearThreshold = 0;
 		PhysicalMaterial->DisabledAngularThreshold = 0;
+		PhysicalMaterial->SleepCounterThreshold = 20;
 
 		{
 			FParticleUniqueIndicesMultithreaded UniqueIndices;

@@ -3,7 +3,6 @@
 
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/Island/IslandManager.h"
-#include "Chaos/Island/SolverIsland.h"
 #include "Chaos/PBDConstraintContainer.h"
 
 namespace Chaos
@@ -48,7 +47,7 @@ namespace Chaos
 
 				for (int32 ContainerIndex = 0; ContainerIndex < ConstraintContainerSolvers.Num(); ++ContainerIndex)
 				{
-					const int32 NumIslandConstraints = Island->GetConstraints(ContainerIndex).Num();
+					const int32 NumIslandConstraints = Island->GetNumContainerConstraints(ContainerIndex);
 					NumContainerConstraints[ContainerIndex] += NumIslandConstraints;
 					NumConstraints += NumIslandConstraints;
 				}
@@ -71,7 +70,7 @@ namespace Chaos
 
 					for (FPBDIsland* Island : Islands)
 					{
-						TArrayView<FPBDIslandConstraint> IslandConstraints = MakeArrayView(Island->GetConstraints(ContainerIndex));
+						TArrayView<FPBDIslandConstraint*> IslandConstraints = Island->GetConstraints(ContainerIndex);
 						ConstraintContainerSolvers[ContainerIndex]->AddConstraints(IslandConstraints);
 					}
 				}
@@ -93,10 +92,10 @@ namespace Chaos
 		void FPBDIslandConstraintGroupSolver::SetIterationSettings(const FIterationSettings& InDefaultIterations)
 		{
 			Iterations = InDefaultIterations;
-			for (FPBDIsland* Island : Islands)
-			{
-				Iterations = FIterationSettings::Merge(Iterations, Island->GetIterationSettings());
-			}
+			//for (FPBDIsland* Island : Islands)
+			//{
+			//	Iterations = FIterationSettings::Merge(Iterations, Island->GetIterationSettings());
+			//}
 		}
 
 	}	// namespace Private

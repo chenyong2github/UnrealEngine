@@ -16,9 +16,6 @@ namespace Chaos
 
 	namespace Private
 	{
-		class FPBDIsland;
-		class FPBDIslandConstraint;
-
 		/**
 		 * The solver for a set of collision constraints. This collects all the data required to solve a set of collision
 		 * constraints into a contiguous, ordered buffer.
@@ -43,7 +40,7 @@ namespace Chaos
 			// IslandGroup API
 			//
 			virtual void AddConstraints() override final;
-			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& ConstraintHandles) override final;
+			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint*>& ConstraintHandles) override final;
 			virtual void AddBodies(FSolverBodyContainer& SolverBodyContainer) override final;
 			virtual void GatherInput(const FReal Dt) override final;
 			virtual void GatherInput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex) override final;

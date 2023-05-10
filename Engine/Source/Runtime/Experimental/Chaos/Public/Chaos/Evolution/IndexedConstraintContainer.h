@@ -3,7 +3,7 @@
 
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/Evolution/SolverConstraintContainer.h"
-#include "Chaos/Island/SolverIsland.h"
+#include "Chaos/Island/IslandManager.h"
 #include "Chaos/PBDConstraintContainer.h"
 
 namespace Chaos
@@ -153,12 +153,12 @@ namespace Chaos
 			ensure(false);
 		}
 
-		virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& Constraints) override final
+		virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint*>& IslandConstraints) override final
 		{
-			for (const Private::FPBDIslandConstraint& Constraint : Constraints)
+			for (const Private::FPBDIslandConstraint* IslandConstraint : IslandConstraints)
 			{
 				// We will only ever be given constraints from our container (asserts in non-shipping)
-				const FIndexedConstraintHandle* IndexedConstraintHandle = Constraint.GetConstraint()->AsUnsafe<FIndexedConstraintHandle>();
+				const FIndexedConstraintHandle* IndexedConstraintHandle = IslandConstraint->GetConstraint()->AsUnsafe<FIndexedConstraintHandle>();
 
 				int32 ConstraintIndex = IndexedConstraintHandle->GetConstraintIndex();
 

@@ -319,6 +319,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
+	// Test that isolated stationary particles without gravity sleep according to their sleep settings.
 	GTEST_TEST(AllEvolutions, SimTests_SleepAndWakeSimTest3)
 	{
 		FParticleUniqueIndicesMultithreaded UniqueIndices;

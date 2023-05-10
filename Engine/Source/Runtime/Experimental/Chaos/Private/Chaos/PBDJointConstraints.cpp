@@ -843,7 +843,7 @@ namespace Chaos
 			}
 			else if (bIsInGraph && !bShouldBeInGraph)
 			{
-				IslandManager.RemoveConstraint(ContainerId, ConstraintHandle);
+				IslandManager.RemoveConstraint(ConstraintHandle);
 			}
 		}
 	}

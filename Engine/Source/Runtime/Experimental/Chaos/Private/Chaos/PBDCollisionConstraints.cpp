@@ -32,6 +32,8 @@ namespace Chaos
 	namespace CVars
 	{
 		extern bool bChaos_PBDCollisionSolver_UseJacobiPairSolver2;
+		
+		extern bool bChaosSolverPersistentGraph;
 	}
 
 	int32 CollisionParticlesBVHDepth = 4;
@@ -78,8 +80,6 @@ namespace Chaos
 
 	bool DebugDrawProbeDetection = false;
 	FAutoConsoleVariableRef CVarDebugDrawProbeDetection(TEXT("p.Chaos.Collision.DebugDrawProbeDetection"), DebugDrawProbeDetection, TEXT("Draw probe constraint detection."));
-	
-	extern bool bChaosSolverPersistentGraph;
 
 #if CHAOS_DEBUG_DRAW
 	namespace CVars
@@ -416,8 +416,8 @@ namespace Chaos
 		}
 
 		// This is a bit dodgy - we pass the FaceIndex to both material requests, knowing that at most one of the shapes will use it
-		const FChaosPhysicsMaterial* PhysicsMaterial0 = Private::GetPhysicsMaterial(Constraint.Particle[0], Constraint.GetShape0(), ShapeFaceIndex, MPhysicsMaterials, MPerParticlePhysicsMaterials, SimMaterials);
-		const FChaosPhysicsMaterial* PhysicsMaterial1 = Private::GetPhysicsMaterial(Constraint.Particle[1], Constraint.GetShape1(), ShapeFaceIndex, MPhysicsMaterials, MPerParticlePhysicsMaterials, SimMaterials);
+		const FChaosPhysicsMaterial* PhysicsMaterial0 = Private::GetPhysicsMaterial(Constraint.Particle[0], Constraint.GetShape0(), ShapeFaceIndex, &MPhysicsMaterials, &MPerParticlePhysicsMaterials, SimMaterials);
+		const FChaosPhysicsMaterial* PhysicsMaterial1 = Private::GetPhysicsMaterial(Constraint.Particle[1], Constraint.GetShape1(), ShapeFaceIndex, &MPhysicsMaterials, &MPerParticlePhysicsMaterials, SimMaterials);
 
 		FReal MaterialRestitution = 0;
 		FReal MaterialRestitutionThreshold = 0;
@@ -604,30 +604,28 @@ namespace Chaos
 		// Debugging/diagnosing: if we have collisions disabled, remove all collisions from the graph and don't add any more
 		if (!GetCollisionsEnabled())
 		{
-			IslandManager.RemoveConstraints(GetContainerId());
+			IslandManager.RemoveContainerConstraints(GetContainerId());
 			return;
 		}
 
-		// If we are running with a persistent graph, remove expired collisions	
-		if (bChaosSolverPersistentGraph)
-		{
-			// Find all expired constraints in the graph
-			TempCollisions.Reset();
-			IslandManager.VisitConstraintsInAwakeIslands(GetContainerId(),
-				[this](FConstraintHandle* ConstraintHandle)
-				{
-					FPBDCollisionConstraintHandle* CollisionHandle = ConstraintHandle->AsUnsafe<FPBDCollisionConstraintHandle>();
-					if (!CollisionHandle->IsEnabled() || CollisionHandle->IsProbe() || ConstraintAllocator.IsConstraintExpired(CollisionHandle->GetContact()))
-					{
-						TempCollisions.Add(CollisionHandle);
-					}
-				});
-
-			// Remove expired constraints
-			for (FPBDCollisionConstraintHandle* CollisionHandle : TempCollisions)
+		// Remove expired collisions
+		// @chaos(todo): if graph persistent is disabled we remove all collisions, but in a non-optimal way...
+		TempCollisions.Reset();
+		const bool bRemoveAllAwakeCollisions = !CVars::bChaosSolverPersistentGraph;
+		IslandManager.VisitAwakeConstraints(GetContainerId(),
+			[this, bRemoveAllAwakeCollisions](const Private::FPBDIslandConstraint* IslandConstraint)
 			{
-				IslandManager.RemoveConstraint(GetContainerId(), CollisionHandle);
-			}
+				FPBDCollisionConstraintHandle* CollisionHandle = IslandConstraint->GetConstraint()->AsUnsafe<FPBDCollisionConstraintHandle>();
+				if (bRemoveAllAwakeCollisions || !CollisionHandle->IsEnabled() || CollisionHandle->IsProbe() || ConstraintAllocator.IsConstraintExpired(CollisionHandle->GetContact()))
+				{
+					TempCollisions.Add(CollisionHandle);
+				}
+			});
+
+		// Remove expired constraints
+		for (FPBDCollisionConstraintHandle* CollisionHandle : TempCollisions)
+		{
+			IslandManager.RemoveConstraint(CollisionHandle);
 		}
 
 		// Collect all the new constraints that need to be added to the graph

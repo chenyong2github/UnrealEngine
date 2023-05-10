@@ -6,15 +6,10 @@
 #include "Chaos/Evolution/SolverBody.h"
 #include "Chaos/Evolution/SolverConstraintContainer.h"
 #include "Chaos/Evolution/ConstraintGroupSolver.h"
+#include "Chaos/Island/IslandManagerFwd.h"
 
 namespace Chaos
 {
-	namespace Private
-	{
-		class FPBDIslandManager;
-	}
-	class FConstraintContainerSolver;
-
 	/**
 	 * Base class for containers of constraints.
 	 * A Constraint Container holds an array of constraints and provides methods to allocate and deallocate constraints

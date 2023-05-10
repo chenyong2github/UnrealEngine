@@ -549,7 +549,7 @@ namespace ChaosTest {
 						}
 
 
-					if (!bHasResimmed || Time < 4.5)
+						if (!bHasResimmed || Time < 4.5)
 						{
 							//simply movement without hitting floor because it's spawned too late
 							EXPECT_NEAR(Proxy->GetPhysicsThreadAPI()->X()[2], 14.5 - Time, 1e-2);

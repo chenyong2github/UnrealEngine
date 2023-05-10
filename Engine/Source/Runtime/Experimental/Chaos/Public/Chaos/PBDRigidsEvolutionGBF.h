@@ -160,14 +160,6 @@ namespace Chaos
 		 */
 		void ReloadParticlesCache();
 
-		/**
-		 * Build the list of disables particles and update the sleeping flag on the island
-		 * @param Island Index of the island in which the cache will be used
-		 * @param DisabledParticles List of islands disabled particles
-		 * @param SleepedIslands List of islands sleeping state 
-		 */
-		void BuildDisabledParticles(const int32 Island, TArray<TArray<FPBDRigidParticleHandle*>>& DisabledParticles, TArray<bool>& SleepedIslands);
-
 		void DestroyParticleCollisionsInAllocator(FGeometryParticleHandle* Particle);
 
 		virtual void DestroyTransientConstraints(FGeometryParticleHandle* Particle) override;

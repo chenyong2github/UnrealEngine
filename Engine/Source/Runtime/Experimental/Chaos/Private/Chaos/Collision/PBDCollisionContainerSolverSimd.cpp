@@ -348,7 +348,7 @@ namespace Chaos
 			check(false);
 		}
 
-		void FPBDCollisionContainerSolverSimd::AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& IslandConstraints)
+		void FPBDCollisionContainerSolverSimd::AddConstraints(const TArrayView<Private::FPBDIslandConstraint*>& IslandConstraints)
 		{
 			// Decide what lane this island goes into: Find the lane with the least constraints in it
 			int32 IslandLaneIndex = 0;
@@ -369,10 +369,10 @@ namespace Chaos
 			}
 
 			// Add all the constraints in the island to the selected lane
-			for (Private::FPBDIslandConstraint& IslandConstraint : IslandConstraints)
+			for (Private::FPBDIslandConstraint* IslandConstraint : IslandConstraints)
 			{
 				// NOTE: We will only ever be given constraints from our container (asserts in non-shipping)
-				FPBDCollisionConstraint& Constraint = IslandConstraint.GetConstraint()->AsUnsafe<FPBDCollisionConstraintHandle>()->GetContact();
+				FPBDCollisionConstraint& Constraint = IslandConstraint->GetConstraint()->AsUnsafe<FPBDCollisionConstraintHandle>()->GetContact();
 
 				const int32 SolverIndex = SimdData.SimdNumConstraints.GetValue(IslandLaneIndex);
 				SimdData.SimdNumConstraints.SetValue(IslandLaneIndex, SolverIndex + 1);

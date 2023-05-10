@@ -108,8 +108,9 @@ public:
 		, MaxLinearSpeedsSq(MoveTemp(Other.MaxLinearSpeedsSq))
 		, MaxAngularSpeedsSq(MoveTemp(Other.MaxAngularSpeedsSq))
 		, MCollisionParticles(MoveTemp(Other.MCollisionParticles))
-		, MIslandIndex(MoveTemp(Other.MIslandIndex))
 		, MSleepType(MoveTemp(Other.MSleepType))
+		, MSleepCounter(MoveTemp(Other.MSleepCounter))
+		, MDisableCounter(MoveTemp(Other.MDisableCounter))
 	{
 		RegisterArrays();
 	}
@@ -136,8 +137,9 @@ public:
 		TArrayCollection::AddArray(&MaxLinearSpeedsSq);
 		TArrayCollection::AddArray(&MaxAngularSpeedsSq);
 		TArrayCollection::AddArray(&MCollisionParticles);
-		TArrayCollection::AddArray(&MIslandIndex);
 		TArrayCollection::AddArray(&MSleepType);
+		TArrayCollection::AddArray(&MSleepCounter);
+		TArrayCollection::AddArray(&MDisableCounter);
 
 	}
 
@@ -229,6 +231,12 @@ public:
 	FORCEINLINE ESleepType SleepType(const int32 Index) const { return MSleepType[Index]; }
 	FORCEINLINE ESleepType& SleepType(const int32 Index) { return MSleepType[Index]; }
 
+	FORCEINLINE int8 SleepCounter(const int32 Index) const { return MSleepCounter[Index]; }
+	FORCEINLINE int8& SleepCounter(const int32 Index) { return MSleepCounter[Index]; }
+
+	FORCEINLINE int8 DisableCounter(const int32 Index) const { return MDisableCounter[Index]; }
+	FORCEINLINE int8& DisableCounter(const int32 Index) { return MDisableCounter[Index]; }
+
 	// @todo(chaos): This data should be marshalled via the proxies like everything else. There is probably a particle recycling bug here.
 	FORCEINLINE TArray<TSleepData<T, d>>& GetSleepData() { return MSleepData; }
 	FORCEINLINE	void AddSleepData(TGeometryParticleHandle<T, d>* Particle, bool Sleeping)
@@ -261,16 +269,13 @@ public:
 
 	FORCEINLINE const bool HasInfiniteMass(const int32 Index) const { return MInvM[Index] == (T)0; }
 
-	FORCEINLINE const int32 IslandIndex(const int32 Index) const { return MIslandIndex[Index]; }
-	FORCEINLINE int32& IslandIndex(const int32 Index) { return MIslandIndex[Index]; }
-
 	FORCEINLINE FString ToString(int32 Index) const
 	{
 		FString BaseString = TKinematicGeometryParticles<T, d>::ToString(Index);
-		return FString::Printf(TEXT("%s, MAcceleration:%s, MAngularAcceleration:%s, MLinearImpulseVelocity:%s, MAngularImpulseVelocity:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCenterOfMass:%s, MRotationOfMass:%s, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleeping:%d, MIslandIndex:%d"),
+		return FString::Printf(TEXT("%s, MAcceleration:%s, MAngularAcceleration:%s, MLinearImpulseVelocity:%s, MAngularImpulseVelocity:%s, MI:%s, MInvI:%s, MM:%f, MInvM:%f, MCenterOfMass:%s, MRotationOfMass:%s, MCollisionParticles(num):%d, MCollisionGroup:%d, MDisabled:%d, MSleeping:%d"),
 			*BaseString, *Acceleration(Index).ToString(), *AngularAcceleration(Index).ToString(), *LinearImpulseVelocity(Index).ToString(), *AngularImpulseVelocity(Index).ToString(),
 			*I(Index).ToString(), *InvI(Index).ToString(), M(Index), InvM(Index), *CenterOfMass(Index).ToString(), *RotationOfMass(Index).ToString(), CollisionParticlesSize(Index),
-			CollisionGroup(Index), Disabled(Index), Sleeping(Index), IslandIndex(Index));
+			CollisionGroup(Index), Disabled(Index), Sleeping(Index));
 	}
 
 	CHAOS_API virtual void Serialize(FChaosArchive& Ar) override
@@ -279,12 +284,17 @@ public:
 
 		// To avoid bumping file version, serialize to/from previous structures
 		// If we aren't loading (i.e., we are saving or copying) CoreData will be valid, so copy that to the legacy structure
+		// Also, Particles do not know their island index and it should not be serialized (but it used to be)
+		// @todo(chaos): I think its time to bump the version number and clean up particle serialization!
 		FLegacyData LegacyData;
+		TArrayCollectionArray<int32> LegacyIslandIndex;
+
 		if (!Ar.IsLoading())
 		{
 			LegacyData.CopyFromCoreData(CoreData);
+			LegacyIslandIndex.SetNumZeroed(MCollisionParticles.Num());
 		}
-		
+
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		if(Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::KinematicCentersOfMass)
 		{
@@ -328,8 +338,8 @@ public:
 			Ar << MLinearEtherDrag << MAngularEtherDrag;
 		}
 
-		Ar << MCollisionParticles << LegacyData.MCollisionGroup << MIslandIndex << LegacyData.MDisabled << LegacyData.MObjectState << MSleepType;
-		// @todo(chaos): what about ControlFlags, TransientFlags, PreObjectState, ..?
+		Ar << MCollisionParticles << LegacyData.MCollisionGroup << LegacyIslandIndex << LegacyData.MDisabled << LegacyData.MObjectState << MSleepType;
+		// @todo(chaos): what about ControlFlags, TransientFlags, PreObjectState, SleepCounter, ..?
 
 		// If we loaded into the legacy structure, copy to CoreData
 		if (Ar.IsLoading())
@@ -337,6 +347,10 @@ public:
 			LegacyData.CopyToCoreData(CoreData);
 		}
 	}
+
+	// Deprecated API
+	UE_DEPRECATED(5.3, "No longer supported") const int32 IslandIndex(const int32 Index) const { return INDEX_NONE; }
+	UE_DEPRECATED(5.3, "No longer supported") int32& IslandIndex(const int32 Index) { static int32 Dummy = INDEX_NONE; return Dummy; }
 
 private:
 	// Used during serialization to avoid bumping the file version as we switch to aggregated strunctures like FRigidParticleCoreData.
@@ -394,8 +408,9 @@ private:
 	TArrayCollectionArray<T> MaxLinearSpeedsSq;
 	TArrayCollectionArray<T> MaxAngularSpeedsSq;
 	TArrayCollectionArray<TUniquePtr<TBVHParticles<T, d>>> MCollisionParticles;
-	TArrayCollectionArray<int32> MIslandIndex;
 	TArrayCollectionArray<ESleepType> MSleepType;
+	TArrayCollectionArray<int8> MSleepCounter;
+	TArrayCollectionArray<int8> MDisableCounter;
 
 	TArray<TSleepData<T, d>> MSleepData;
 	FRWLock SleepDataLock;

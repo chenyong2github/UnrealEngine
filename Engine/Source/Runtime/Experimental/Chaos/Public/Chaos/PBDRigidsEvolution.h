@@ -3,7 +3,6 @@
 
 #include "Chaos/Character/CharacterGroundConstraintContainer.h"
 #include "Chaos/PBDCollisionConstraints.h"
-#include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDRigidClustering.h"
 #include "Chaos/PBDRigidParticles.h"
 #include "Chaos/ParticleHandle.h"
@@ -14,6 +13,7 @@
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/SpatialAccelerationCollection.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
+#include "Chaos/Island/IslandManager.h"
 #include "Chaos/Island/IslandGroupManager.h"
 #include "Chaos/Defines.h"
 #include "Chaos/PendingSpatialData.h"
@@ -464,6 +464,7 @@ public:
 		RemoveParticleFromAccelerationStructure(*Particle);
 		Particles.DisableParticle(Particle);
 		DisableConstraints(Particle);
+		DestroyTransientConstraints(Particle);
 		IslandManager.RemoveParticle(Particle);
 	}
 
@@ -581,6 +582,7 @@ public:
 
 		RemoveParticleFromAccelerationStructure(*Particle);
 		DisconnectConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
+		DestroyTransientConstraints(Particle);
 		IslandManager.RemoveParticle(Particle);
 		Particles.DestroyParticle(Particle);
 	}
@@ -608,7 +610,7 @@ public:
 	{
 		if (ConstraintHandle->IsInConstraintGraph())
 		{
-			IslandManager.RemoveConstraint(ConstraintHandle->GetContainerId(), ConstraintHandle);
+			IslandManager.RemoveConstraint(ConstraintHandle);
 		}
 	}
 
@@ -629,7 +631,7 @@ public:
 	}
 
 	/** 
-	* Disconnect constraints from a set of particles to be destroyed. 
+	* Disconnect constraints (all types except collisions) from a set of particles to be destroyed. 
 	* this will set the constraints to Enabled = false and set their respective bodies handles to nullptr.
 	* Once this is done, the constraints cannot be re-enabled.
 	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisions)
@@ -649,7 +651,7 @@ public:
 	}
 
 	/** 
-	* Disconnect constraints from a particle to be removed (or destroyed)
+	* Disconnect constraints (all types except collisions) from a particle to be removed (or destroyed)
 	* this will set the constraints to Enabled = false, but leave connections to the particles to support
 	* re-enabling at a later time.
 	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisions)
@@ -669,7 +671,7 @@ public:
 	}
 
 	/** 
-	* Enable constraints from the enabled particles; constraints will only become enabled if their particle end points are valid.
+	* Enable constraints (all types except collisions) from the enabled particles; constraints will only become enabled if their particle end points are valid.
 	* @note This only applies to persistent constraints (joints etc), not transient constraints (collisons)
 	*/
 	CHAOS_API void EnableConstraints(FGeometryParticleHandle* ParticleHandle)
@@ -689,8 +691,8 @@ public:
 	CHAOS_API void ResetConstraints()
 	{
 		// Remove all the constraints from the graph
-		GetIslandManager().RemoveConstraints();
-		
+		GetIslandManager().Reset();
+
 		// Clear all particle lists of collisions and constraints
 		// (this could be performed by the constraint containers
 		// but it would be unnecessarily expensive to remove them
@@ -709,7 +711,7 @@ public:
 	}
 
 	/**
-	* Destroy all transient constraints (collisions) onvolving the specified particle.
+	* Destroy all transient constraints (collisions) involving the specified particle.
 	*/
 	virtual void DestroyTransientConstraints(FGeometryParticleHandle* Particle) {}
 
@@ -722,12 +724,14 @@ public:
 	CHAOS_API void SetPerParticlePhysicsMaterial(FGeometryParticleHandle* Particle, TUniquePtr<FChaosPhysicsMaterial> &InMaterial)
 	{
 		Particle->AuxilaryValue(PerParticlePhysicsMaterials) = MoveTemp(InMaterial);
+		IslandManager.UpdateParticleMaterial(Particle);
 	}
 
 	CHAOS_API void SetPhysicsMaterial(FGeometryParticleHandle* Particle, TSerializablePtr<FChaosPhysicsMaterial> InMaterial)
 	{
 		check(!Particle->AuxilaryValue(PerParticlePhysicsMaterials)); //shouldn't be setting non unique material if a unique one already exists
 		Particle->AuxilaryValue(PhysicsMaterials) = InMaterial;
+		IslandManager.UpdateParticleMaterial(Particle);
 	}
 
 	void PrepareTick()
@@ -987,7 +991,7 @@ protected:
 	{
 		// Update the current state of the graph based on existing particles and constraints.
 		// Any new particles (from this tick) should have been added when they were enabled.
-		IslandManager.InitializeGraph(Particles.GetNonDisabledDynamicView());
+		IslandManager.UpdateParticles();
 
 		// Add all constraints to the graph.
 		// NOTE: in PersistentGraph mode, only new constraints need to be added and expired ones should be removed.
@@ -1004,7 +1008,7 @@ protected:
 	void CreateIslands()
 	{
 		// Package the constraints and particles into islands
-		IslandManager.UpdateIslands(Particles, IsResimming());
+		IslandManager.UpdateIslands();
 	}
 
 	void FlushInternalAccelerationQueue();
@@ -1023,7 +1027,6 @@ protected:
 	Private::FPBDIslandGroupManager IslandGroupManager;
 	TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
 	TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> PerParticlePhysicsMaterials;
-	TArrayCollectionArray<int32> ParticleDisableCount;
 	TArrayCollectionArray<bool> Collided;
 
 	FPBDRigidsSOAs& Particles;

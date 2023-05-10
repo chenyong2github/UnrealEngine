@@ -200,7 +200,8 @@ namespace Chaos
 	};
 
 	FPBDRigidsEvolutionBase::FPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, bool InIsSingleThreaded)
-	    : IslandGroupManager(IslandManager)
+	    : IslandManager(InParticles)
+		, IslandGroupManager(IslandManager)
 		, Particles(InParticles)
 		, SolverPhysicsMaterials(InSolverPhysicsMaterials)
 		, InternalAcceleration(nullptr)
@@ -213,7 +214,6 @@ namespace Chaos
 	{
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
-		Particles.GetParticleHandles().AddArray(&ParticleDisableCount);
 		Particles.GetParticleHandles().AddArray(&Collided);
 
 		for (auto& Particle : InParticles.GetNonDisabledView())
@@ -228,7 +228,6 @@ namespace Chaos
 	{
 		Particles.GetParticleHandles().RemoveArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().RemoveArray(&PerParticlePhysicsMaterials);
-		Particles.GetParticleHandles().RemoveArray(&ParticleDisableCount);
 		Particles.GetParticleHandles().RemoveArray(&Collided);
 		WaitOnAccelerationStructure();
 	}
@@ -1051,6 +1050,14 @@ namespace Chaos
 			if (ObjectState != EObjectStateType::Dynamic)
 			{
 				Particles.MarkTransientDirtyParticle(Particle);
+			}
+
+			// Reset the sleep counter when the state changes
+			// NOTE: this sleep counter is only used for particles
+			// that are not in the graph (have no constraints on them)
+			if (bIsDynamic)
+			{
+				Particle->SetSleepCounter(0);
 			}
 		}
 

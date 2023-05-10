@@ -5,11 +5,6 @@
 
 namespace Chaos
 {
-	namespace Private
-	{
-		class FPBDIsland;
-		class FPBDIslandManager;
-	}
 	class FPBDConstraintContainer;
 
 #if CSV_PROFILER

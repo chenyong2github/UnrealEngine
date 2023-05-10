@@ -31,7 +31,7 @@ namespace Chaos
 			virtual int32 GetNumConstraints() const override final { return ContainerConstraintIndices.Num(); }
 			virtual void Reset(const int32 InMaxCollisions) override final;
 			virtual void AddConstraints() override final;
-			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& IslandConstraints) override final;
+			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint*>& IslandConstraints) override final;
 			virtual void AddBodies(FSolverBodyContainer& SolverBodyContainer) override final;
 			virtual void GatherInput(const FReal Dt) override final;
 			virtual void GatherInput(const FReal Dt, const int32 BeginIndex, const int32 EndIndex) override final;

@@ -6,6 +6,7 @@
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/Collision/CollisionApplyType.h"
 #include "Chaos/Evolution/IndexedConstraintContainer.h"
+#include "Chaos/Island/IslandManagerFwd.h"
 #include "Chaos/ParticleHandleFwd.h"
 #include "Chaos/PBDJointConstraintTypes.h"
 #include "Chaos/PBDJointConstraintData.h"
@@ -16,7 +17,6 @@ namespace Chaos
 	namespace Private
 	{
 		class FPBDJointContainerSolver;
-		class FPBDIslandManager;
 	}
 
 	/**

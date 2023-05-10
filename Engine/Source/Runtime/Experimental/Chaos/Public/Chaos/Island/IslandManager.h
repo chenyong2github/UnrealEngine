@@ -1,110 +1,580 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
-
-#include "Containers/SparseArray.h"
-
-#include "Chaos/Real.h"
-#include "Chaos/Vector.h"
+#include "Chaos/Core.h"
+#include "Chaos/Framework/PoolBackedArray.h"
 #include "Chaos/Framework/Handles.h"
+#include "Chaos/Island/IslandManagerFwd.h"
 #include "Chaos/ParticleHandleFwd.h"
-#include "Chaos/GeometryParticlesfwd.h"
-#include "Chaos/Island/IslandGraph.h"
-#include "Chaos/Island/SolverIsland.h"
+#include "Chaos/Serializable.h"
 
 namespace Chaos
 {
+	class FPerParticleGravity;
+}
 
-/** Forward declaration */
-template<typename T, int D>
-class TPBDRigidParticles;
-template<class T>
-class TChaosPhysicsMaterial;
-template <typename T>
-class TSerializablePtr;
-template<typename T>
-class TArrayCollectionArray;
-template <typename T>
-class TParticleView;
-class FPBDRigidsSOAs;
-class FConstraintHandle;
-class FChaosPhysicsMaterial;
-
-using FPBDRigidParticles = TPBDRigidParticles<FReal, 3>;
-
-namespace Private
+namespace Chaos::Private
 {
-
-/** Island manager responsible to create the list of solver islands that will be persistent over time */
-class CHAOS_API FPBDIslandManager
-{
-public:
-	using GraphType = FIslandGraph<FGeometryParticleHandle*, FConstraintHandleHolder, FPBDIsland*, FPBDIslandManager>;
-	using FGraphNode = GraphType::FGraphNode;
-	using FGraphEdge = GraphType::FGraphEdge;
-	using FGraphIsland = GraphType::FGraphIsland;
+	class FPBDIslandMergeSet;
 
 	/**
-	  * Default island manager constructor
-	  */
-	FPBDIslandManager();
-	
-	/**
-	* Default island manager destructor
+	* A particle in the constraint graph.
 	*/
-	~FPBDIslandManager();
+	class CHAOS_API FPBDIslandParticle
+	{
+	public:
+		FPBDIslandParticle();
+		FPBDIslandParticle(FGeometryParticleHandle* InParticle);
+		~FPBDIslandParticle();
+
+		FGeometryParticleHandle* GetParticle()
+		{
+			return Particle;
+		}
+
+		const FGeometryParticleHandle* GetParticle() const
+		{
+			return Particle;
+		}
+
+		// TPoolBackedItemAdapter for FPBDIslandManager::Nodes
+		const int32 GetArrayIndex() const { return ArrayIndex; }
+		void SetArrayIndex(const int32 InIndex) { ArrayIndex = InIndex; }
+		void Reuse(FGeometryParticleHandle* InParticle);
+		void Trash();
+
+		// An integer ID for an island (for debug only). @see FPBDIsland::GetIslandId()
+		int32 GetIslandId() const;
+
+	private:
+		friend class FPBDIslandManager;
+		friend class FPBDIsland;
+
+		union FFlags
+		{
+		public:
+			FFlags() : Bits(0) {}
+			void Reset() { Bits = 0; }
+
+			struct
+			{
+				uint32 bIsDynamic : 1;
+				uint32 bIsSleeping : 1;
+				uint32 bIsMoving : 1;
+				uint32 bNeedsResim : 1;
+			};
+
+		private:
+			uint32 Bits;
+		};
+
+		// The particle we represent
+		FGeometryParticleHandle* Particle = nullptr;
+
+		// The island we are in (only if dynamic, always null for kinematics which may be in many islands)
+		FPBDIsland* Island = nullptr;
+
+		// All the edges connected to this node
+		TArray<FPBDIslandConstraint*> Edges;
+
+		// Used in a few places to track which nodes have been visited
+		int32 VisitEpoch = INDEX_NONE;
+
+		// Index into FPBDIslandManager::Nodes
+		int32 ArrayIndex = INDEX_NONE;
+
+		// Index into FPBDIsland::Nodes
+		int32 IslandArrayIndex = INDEX_NONE;
+
+		// All the flags
+		FFlags Flags;
+
+		// Distance to a kinematic through the graph
+		int32 Level = 0;
+
+		// Sleep thresholds
+		FRealSingle SleepLinearThresholdSq = 0;
+		FRealSingle SleepAngularThresholdSq = 0;
+		int32 SleepCounterThreshold = 0;
+
+		// Disable thresholds
+		FRealSingle DisableLinearThresholdSq = 0;
+		FRealSingle DisableAngularThresholdSq = 0;
+
+		int32 ResimFrame = INDEX_NONE;
+	};
 
 	/**
-	 * Set to true if we require deterministic behaviour.
-	 */
-	void SetIsDeterministic(const bool bInIsDeterministic);
-
-	/**
-	 * Clear all nodes and edges from the graph
+	* A constraint in the constraint graph.
 	*/
-	void Reset();
+	class CHAOS_API FPBDIslandConstraint
+	{
+	public:
+		FPBDIslandConstraint();
+		FPBDIslandConstraint(const int32 InContainerId, FConstraintHandle* InConstraint);
+		~FPBDIslandConstraint();
+
+		FConstraintHandle* GetConstraint() const
+		{
+			return Constraint;
+		}
+
+		uint64 GetSortKey() const
+		{
+			// NOTE: Level 0 means unasigned (used to be INDEX_NONE) so that this sort key still makes sense
+			return (uint64(Level) << 32) | uint64(LevelSortKey);
+		}
+
+		// TPoolBackedItemAdapter for FPBDIslandManager::Edges
+		const int32 GetArrayIndex() const { return ArrayIndex; }
+		void SetArrayIndex(const int32 InIndex) { ArrayIndex = InIndex; }
+		void Reuse(const int32 InContainerId, FConstraintHandle* InConstraint);
+		void Trash();
+
+		// An integer ID for an island (for debug only). @see FPBDIsland::GetIslandId()
+		int32 GetIslandId() const;
+
+	private:
+		friend class FPBDIslandManager;
+		friend class FPBDIsland;
+
+		union FFlags
+		{
+		public:
+			FFlags() : Bits(0) {}
+			void Reset() { Bits = 0; }
+
+			struct
+			{
+				uint32 bIsSleeping : 1;
+			};
+		private:
+			uint32 Bits;
+		};
+
+		FConstraintHandle* Constraint = nullptr;
+		FPBDIsland* Island = nullptr;
+		FPBDIslandParticle* Nodes[2] = { nullptr, nullptr };
+
+		// Used in a few places to track which nodes have been visited
+		int32 VisitEpoch = INDEX_NONE;
+
+		// Index into FPBDIslandManager::Edges
+		int32 ArrayIndex = INDEX_NONE;
+
+		// Index into FPBDIslandParticle::Edges for Node0 and Node1
+		int32 NodeArrayIndices[2] = { INDEX_NONE, INDEX_NONE };
+
+		// Indices into FPBDIsland::ContainerEdges
+		int32 ContainerIndex = INDEX_NONE;
+		int32 IslandArrayIndex = INDEX_NONE;
+
+		// Distance to a kinematic through the graph
+		int32 Level = 0;
+
+		// Used for consistent ordering within a level
+		uint32 LevelSortKey = 0;
+
+		FFlags Flags;
+	};
 
 	/**
-	 * Remove all particles (and their constraints) from the graph
+	* A set of connected constraints and particles.
+	* A dynamic particle can only be in one island, and each island explicitly holds an array of
+	* its dynamic particles. Kinematic particles may be in multiple islands and we do not hold
+	* the set of these. To find kinematic particles used by an island you would need to visit all
+	* the constraints.
 	*/
-	void RemoveParticles();
+	class CHAOS_API FPBDIsland
+	{
+	public:
+		FPBDIsland();
+		~FPBDIsland();
+
+		int32 GetNumParticles() const
+		{
+			return Nodes.Num();
+		}
+
+		int32 GetNumConstraints() const
+		{
+			return NumEdges;
+		}
+
+		int32 GetNumContainerConstraints(const int32 ContainerId) const
+		{
+			return ContainerEdges[ContainerId].Num();
+		}
+
+		const FPBDIslandParticle* GetNode(const int32 NodeIndex) const
+		{
+			return Nodes[NodeIndex];
+		}
+
+		bool IsSleeping() const
+		{
+			return Flags.bIsSleeping;
+		}
+
+		int32 GetSleepCounter() const
+		{
+			return SleepCounter;
+		}
+
+		void SetSleepCounter(const int32 InSleepCounter)
+		{
+			SleepCounter = InSleepCounter;
+		}
+
+		bool IsSleepAllowed() const
+		{
+			return Flags.bIsSleepAllowed;
+		}
+
+		bool NeedsResim() const
+		{
+			return Flags.bNeedsResim;
+		}
+
+		void SetNeedsResim(const bool bInNeedsResim)
+		{
+			Flags.bNeedsResim = bInNeedsResim;
+		}
+
+		int32 GetResimFrame() const
+		{
+			return ResimFrame;
+		}
+
+		void SetResimFrame(const int32 InResimFrame)
+		{
+			ResimFrame = InResimFrame;
+		}
+
+		bool IsUsingCache() const
+		{
+			return Flags.bIsUsingCache;
+		}
+
+		void SetIsUsingCache(const bool bInIsUsingCache)
+		{
+			Flags.bIsUsingCache = bInIsUsingCache;
+		}
+
+		TArrayView<FPBDIslandParticle*> GetParticles()
+		{
+			return MakeArrayView(Nodes);
+		}
+
+		TArrayView<FPBDIslandConstraint*> GetConstraints(const int32 ContainerId)
+		{
+			return MakeArrayView(ContainerEdges[ContainerId]);
+		}
+
+		// An integer ID for an island. For debug only (e.g., to assign a color in debug draw) - has no internal use.
+		// Not necessarily persistent between ticks.
+		int32 GetIslandId() const
+		{
+			return ArrayIndex;
+		}
+
+		// TPoolBackedItemAdapter for FPBDIslandManager::Islands
+		const int32 GetArrayIndex() const { return ArrayIndex; }
+		void SetArrayIndex(const int32 InIndex) { ArrayIndex = InIndex; }
+		void Reuse();
+		void Trash();
+
+	private:
+		friend class FPBDIslandManager;
+
+		void UpdateSyncState();
+
+		union FFlags
+		{
+		public:
+			FFlags() : Bits(0) {}
+			void Reset() { Bits = 0; }
+
+			struct
+			{
+				uint32 bItemsAdded : 1;
+				uint32 bItemsRemoved : 1;
+				uint32 bIsSleepAllowed : 1;
+				uint32 bIsSleeping : 1;
+				uint32 bWasSleeping : 1;
+				uint32 bCheckSleep : 1;
+				uint32 bNeedsResim : 1;
+				uint32 bIsUsingCache : 1;
+			};
+
+		private:
+			uint32 Bits;
+		};
+
+		// Nodes for dynamic particles in the Island (does not include kinematics)
+		// @todo(chaos): we only need to track allocated nodes for sleep logic when particles have no constraints - fix this
+		TArray<FPBDIslandParticle*> Nodes;
+
+		// All edges in the island for each constraint type
+		TConstraintTypeArray<TArray<FPBDIslandConstraint*>> ContainerEdges;
+
+		// When edges are added, islands merge. The MergeSet tracks which islands are merging together
+		FPBDIslandMergeSet* MergeSet = nullptr;
+
+		// Index into FPBDIslandMergeSet::Islands
+		int32 MergeSetIslandIndex = INDEX_NONE;
+
+		// Index into FPBDIslandManager::Islands
+		int32 ArrayIndex = INDEX_NONE;
+
+		// Total number of edges in ContainerEdges[0..N]
+		int32 NumEdges = 0;
+
+		// When SleepCounter hits a threshold the island will sleep
+		int32 SleepCounter = 0;
+
+		// When DisableCounter hits a threshold the island particle will be disabled
+		int32 DisableCounter = 0;
+
+		int32 ResimFrame = INDEX_NONE;
+
+		FFlags Flags;
+	};
 
 	/**
-	* Remove all the constraints from the graph
+	* A set of islands to be merged together.
 	*/
-	void RemoveConstraints();
+	class CHAOS_API FPBDIslandMergeSet
+	{
+	public:
+		FPBDIslandMergeSet();
+		~FPBDIslandMergeSet();
+
+		// TPoolBackedItemAdapter for FPBDIslandManager::MergeSets
+		const int32 GetArrayIndex() const { return ArrayIndex; }
+		void SetArrayIndex(const int32 InIndex) { ArrayIndex = InIndex; }
+		void Reuse();
+		void Trash();
+
+	private:
+		friend class FPBDIslandManager;
+
+		TArray<FPBDIsland*> Islands;
+		int32 NumEdges = 0;
+
+		// Index into FPBDIslandManager::MergeSets
+		int32 ArrayIndex = INDEX_NONE;
+	};
 
 	/**
-	* Clear the manager and set up the particle-to-graph-node mapping for the specified particles
-	* Should be called before AddConstraint.
-	* @param Particles List of particles to be used to fill the graph nodes
+	*
+	* Notes on the implementation:
+	*	- Particles are nodes in the graph
+	*	- Constraints are edges in the graph
+	*	- Each island knows about the constraints and dynamic particle in it
+	*	- Islands do not track their kinematic particles (kinematics may be in multiple islands)
+	*
+	* @todo(chaos): the sleep and disable logic feel like they don't belong in here. It requires
+	* that we know about materials, and the Disabled Particle concept sits at a higher level
+	* (in the Evolution, and in principle sleep does too since other system might need to know).
+	* The main reason it is here is so that we can cache the thresholds and don't have to check 
+	* the materials for every particle every tick.
 	*/
-	void InitializeGraph(const TParticleView<FPBDRigidParticles>& Particles);
+	class CHAOS_API FPBDIslandManager
+	{
+	public:
+		FPBDIslandManager(FPBDRigidsSOAs& InParticles);
+		~FPBDIslandManager();
 
-	/**
-	 * @brief Called at the end of the frame to perform cleanup
-	*/
-	void EndTick();
+		// The number of registered constraint containers
+		int32 GetNumConstraintContainers() const;
 
-	/**
-	  * Reserve space in the graph for NumConstraints additional constraints.
-	  * @param NumConstraints Number of constraints to be used to reserved memory space
-	  */
-	void ReserveConstraints(const int32 NumConstraints);
+		// Add/Remove particles
+		int32 GetNumParticles() const { return Nodes.Num(); }
+		void AddParticle(FGeometryParticleHandle* Particle);
+		void RemoveParticle(FGeometryParticleHandle* Particle);
+		int32 ReserveParticles(const int32 InNumParticles);
+		void UpdateParticleMaterial(FGeometryParticleHandle* Particle);
+		int32 GetParticleLevel(FGeometryParticleHandle* Particle) const;
 
-	/**
-	  * Add a constraint to the graph for each constraint in the container.
-	  * @param ContainerId Contaner id the constraint is belonging to
-	  * @param ConstraintHandle Constraint Handle that will be used for the edge item
-	  * @param ConstrainedParticles List of 2 particles handles that are used within the constraint
-	  * @return Edge index within the sparse graph edges list
-	  */
-	void AddConstraint(const uint32 ContainerId, FConstraintHandle* ConstraintHandle, const TVector<FGeometryParticleHandle*, 2>& ConstrainedParticles);
+		// Add/Remove constraints
+		int32 GetNumConstraints() const { return Edges.Num(); }
+		void AddConstraint(const int32 ContainerId, FConstraintHandle* Constraint, const TVec2<FGeometryParticleHandle*>& ConstrainedParticles);
+		template<typename ConstraintContainerType> void AddContainerConstraints(ConstraintContainerType& ConstraintContainer);
+		void RemoveConstraint(FConstraintHandle* ConstraintHandle);
+		void RemoveParticleConstraints(FGeometryParticleHandle* Particle, int32 ContainerId);
+		void RemoveContainerConstraints(int32 ContainerId);
 
-	/**
-	 * Utility function for use by the constraint containers to add all their constraints
-	 */
+		// Access to Islands
+		int32 GetNumIslands() const { return Islands.Num(); }
+		const FPBDIsland* GetIsland(const int32 IslandIndex) const { return Islands[IslandIndex]; }
+		const FPBDIsland* GetParticleIsland(const FGeometryParticleHandle* Particle) const;
+		const FPBDIsland* GetConstraintIsland(const FConstraintHandle* Constraint) const;
+
+		// Setup and update
+		void Reset();
+		void RemoveAllConstraints();
+		void AddConstraintContainer(const FPBDConstraintContainer& Container);
+		void RemoveConstraintContainer(const FPBDConstraintContainer& Container);
+		void SetMaterialContainers(const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>* InPhysicsMaterials, const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>* InPerParticlePhysicsMaterials, const THandleArray<FChaosPhysicsMaterial>* InSimMaterials);
+		void SetGravityForces(const FPerParticleGravity* InGravity);
+		void SetDisableCounterThreshold(const int32 InDisableCounterThreshold);
+		void SetIsDeterministic(const bool bInIsDeterministic);
+		void UpdateParticles();
+		void UpdateIslands();
+		void UpdateSleep();
+		void UpdateDisable(TFunctionRef<void(FPBDRigidParticleHandle*)> ParticleDisableFunctor);
+		void EndTick();
+
+		// Levels and Colors for sorting an parallelization
+		int32 GetParticleLevel(const FPBDIslandParticle* Node) const;
+		int32 GetParticleColor(const FPBDIslandParticle* Node) const;
+		int32 GetConstraintLevel(const FPBDIslandConstraint* Edge) const;
+		int32 GetConstraintColor(const FPBDIslandConstraint* Edge) const;
+
+		/**
+		* Visit all the awake constraints from the specified container.
+		* @tparam VisitorType void(const FPBDIslandConstraint*)
+		*/
+		template<typename VisitorType> void VisitAwakeConstraints(const int32 ContainerId, const VisitorType& Visitor);
+		template<typename VisitorType> void VisitAwakeConstConstraints(const int32 ContainerId, const VisitorType& Visitor) const;
+
+		/**
+		* Visit all the constraints from the specified container
+		* @tparam VisitorType void(const FPBDIslandConstraint*)
+		*/
+		template<typename VisitorType> void VisitConstraints(const int32 ContainerId, const VisitorType& Visitor);
+		template<typename VisitorType> void VisitConstConstraints(const int32 ContainerId, const VisitorType& Visitor) const;
+
+		// Resim functionality
+		int32 GetParticleResimFrame(const FGeometryParticleHandle* Particle) const;
+		void SetParticleResimFrame(FGeometryParticleHandle* Particle, const int32 ResimFrame);
+		void ResetParticleResimFrame(const int32 ResetFrame = INDEX_NONE);
+
+		// The following is intended for testing, debugging and visualization only and is not considered part of the API
+		FPBDIsland* GetIsland(const int32 IslandIndex) { return Islands[IslandIndex]; }
+		int32 GetIslandIndex(const FPBDIsland* Island) const;
+		int32 GetIslandArrayIndex(const FPBDIslandConstraint* Edge) const;
+		TArray<const FPBDIsland*> FindParticleIslands(const FGeometryParticleHandle* Particle) const;
+		TArray<const FGeometryParticleHandle*> FindParticlesInIslands(const TArray<const FPBDIsland*> Islands) const;
+		TArray<const FConstraintHandle*> FindConstraintsInIslands(const TArray<const FPBDIsland*> Islands, int32 ContainerId) const;
+		void SetParticleIslandIsSleeping(FGeometryParticleHandle* Particle, const bool bInIsSleeping);
+
+		// Deprecated API
+		UE_DEPRECATED(5.3, "Use Reset") void RemoveConstraints() { Reset(); }
+		UE_DEPRECATED(5.3, "Use UpdateParticles") void InitializeGraph(const TParticleView<FPBDRigidParticles>& InParticles) { UpdateParticles(); }
+		UE_DEPRECATED(5.3, "Use GetNumIslands") int32 NumIslands() const { return GetNumIslands(); }
+		UE_DEPRECATED(5.3, "Use GetParticleIsland") const FPBDIsland* GetIsland(const FGeometryParticleHandle* Particle) const { return GetParticleIsland(Particle); }
+		UE_DEPRECATED(5.3, "Use RemoveConstraint without ContainerId") void RemoveConstraint(const int32 ContainerId, FConstraintHandle* Constraint) { RemoveConstraint(Constraint); }
+
+	private:
+		// @todo(chaos): for access to non-const GetIsland(). Try to remove these...
+		friend class FPBDIslandGroupManager;
+		friend class FPBDRigidsEvolutionGBF;
+
+		// Node management
+		FPBDIslandParticle* GetGraphNode(const FGeometryParticleHandle* Particle) const;
+		FPBDIslandParticle* GetGraphNode(const FTransientGeometryParticleHandle& Particle) const;
+		FPBDIslandParticle* CreateGraphNode(FGeometryParticleHandle* Particle);
+		FPBDIslandParticle* GetOrCreateGraphNode(FGeometryParticleHandle* Particle);
+		void DestroyGraphNode(FPBDIslandParticle* Node);
+
+		// Edge management
+		FPBDIslandConstraint* GetGraphEdge(const FConstraintHandle* Constraint);
+		const FPBDIslandConstraint* GetGraphEdge(const FConstraintHandle* Constraint) const;
+		FPBDIslandConstraint* CreateGraphEdge(const int32 ContainerId, FConstraintHandle* Constraint, const TVec2<FGeometryParticleHandle*>& ConstrainedParticles);
+		void DestroyGraphEdge(FPBDIslandConstraint* Edge);
+		void BindEdgeToNodes(FPBDIslandConstraint* Edge, FPBDIslandParticle* Node0, FPBDIslandParticle* Node1);
+		void UnbindEdgeFromNodes(FPBDIslandConstraint* Edge);
+		void UpdateGraphNodeSleepSettings(FPBDIslandParticle* Node);
+
+		// Per-tick state transfer to nodes/edges
+		void UpdateGraphNode(FPBDIslandParticle* Node);
+		void UpdateGraphEdge(FPBDIslandConstraint* Edge);
+
+		// Island managament
+		FPBDIsland* CreateIsland();
+		void DestroyIsland(FPBDIsland* Island);
+		void AssignNodeIsland(FPBDIslandParticle* Node);
+		void AssignEdgeIsland(FPBDIslandConstraint* Edge);
+		void AddNodeToIsland(FPBDIslandParticle* Node, FPBDIsland* Island);
+		void RemoveNodeFromIsland(FPBDIslandParticle* Node);
+		void AddEdgeToIsland(FPBDIslandConstraint* Edge, FPBDIsland* Island);
+		void RemoveEdgeFromIsland(FPBDIslandConstraint* Edge);
+		void EnqueueIslandCheckSleep(FPBDIsland* Island, const bool bIsSleepAllowed);
+
+		// Island merge set management
+		FPBDIsland* MergeNodeIslands(FPBDIslandParticle* Node0, FPBDIslandParticle* Node1);
+		FPBDIsland* MergeIslands(FPBDIsland* Island0, FPBDIsland* Island1);
+		FPBDIslandMergeSet* CreateMergeSet(FPBDIsland* Island0, FPBDIsland* Island1);
+		void DestroyMergeSet(FPBDIslandMergeSet* IslandMergeSet);
+		void AddIslandToMergeSet(FPBDIsland* Island, FPBDIslandMergeSet* IslandMergeSet);
+		void RemoveIslandFromMergeSet(FPBDIsland* Island);
+		FPBDIslandMergeSet* CombineMergeSets(FPBDIslandMergeSet* IslandMergeSetParent, FPBDIslandMergeSet* IslandMergeSetChild);
+		FPBDIsland* GetMergeSetParentIsland(FPBDIslandMergeSet* MergeSet, int32& OutNumEdges, const TArrayView<int32>& OutNumContainerEdges);
+
+		// Merge/split processing
+		void ProcessIslands();
+		void ProcessWakes();
+		void ProcessMerges();
+		void ProcessSplits();
+		void AssignLevels();
+		void ProcessIslandMerge(FPBDIsland* ParentIsland, FPBDIsland* ChildIsland);
+		void ProcessIslandSplits(FPBDIsland* Island);
+
+		// Sorting
+		void AssignIslandLevels(FPBDIsland* Island);
+		void SortIslandEdges(FPBDIsland* Island);
+
+		// Sleeping
+		void ProcessSleep();
+		void ProcessParticlesSleep();
+		void ProcessIslandSleep(FPBDIsland* Island);
+		void PropagateIslandSleep(FPBDIsland* Island);
+
+		// Disabling
+		void ProcessDisable(TFunctionRef<void(FPBDRigidParticleHandle*)> ParticleDisableFunctor);
+		void ProcessParticlesDisable(TArray<FPBDRigidParticleHandle*>& OutDisableParticles);
+		void ProcessIslandDisable(FPBDIsland* Island, TArray<FPBDRigidParticleHandle*>& OutDisableParticles);
+
+		void FinalizeIslands();
+		void ApplyDeterminism();
+		bool Validate() const;
+
+		int32 GetNextVisitEpoch();
+
+		// Ideally the island manager would not know about the particles, materials etc, but
+		// it is currently required for particle sleep management
+		FPBDRigidsSOAs& Particles;
+		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>* PhysicsMaterials;
+		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>* PerParticlePhysicsMaterials;
+		const THandleArray<FChaosPhysicsMaterial>* SimMaterials;
+		const FPerParticleGravity* Gravity;
+		int32 DisableCounterThreshold = TNumericLimits<int32>::Max();
+
+		// The nodes, edges and islands in the graph
+		TPoolBackedArray<FPBDIslandParticle> Nodes;
+		TPoolBackedArray<FPBDIslandConstraint> Edges;
+		TPoolBackedArray<FPBDIsland> Islands;
+
+		// For tracking what islands need to be merged each tick
+		TPoolBackedArray<FPBDIslandMergeSet> MergeSets;
+
+		// All the constraint types registered with the graph
+		TArray<const FPBDConstraintContainer*> ConstraintContainers;
+
+		// A monotonically increasing key used to sort edges at the same level
+		int32 NextLevelSortKey = 0;
+
+		// A counter used to check if a node or edge has been visited in a loop
+		int32 NextVisitEpoch = 0;
+
+		// Whether we require determinism
+		bool bIsDeterministic = false;
+	};
+
+
 	template<typename ConstraintContainerType>
-	void AddContainerConstraints(ConstraintContainerType& ConstraintContainer)
+	void FPBDIslandManager::AddContainerConstraints(ConstraintContainerType& ConstraintContainer)
 	{
 		const int32 ContainerId = ConstraintContainer.GetContainerId();
 		for (FConstraintHandle* ConstraintHandle : ConstraintContainer.GetConstraintHandles())
@@ -116,273 +586,51 @@ public:
 		}
 	}
 
-	/**
-	  * Remove a constraint from the graph
-	  * @param ContainerId Container id the constraint is belonging to
-	  * @param ConstraintHandle Constraint Handle that will be used for the edge item
-	  * @param ConstrainedParticles List of 2 particles handles that are used within the constraint
-	  */
-	void RemoveConstraint(const uint32 ContainerId, FConstraintHandle* ConstraintHandle);
-
-	/**
-	 * Remove all constraints of the specified type.
-	 */
-	void RemoveConstraints(const uint32 ContainerId);
-
-	/**
-	 * @brief Remove all the constraints of the specified type (ContainerId) belonging to the Particle
-	 * @param Particle the particle to remove the constraints from
-	 * @param ContainerId Container id the constraint is belonging to
-	*/
-	void RemoveParticleConstraints(FGeometryParticleHandle* Particle, const uint32 ContainerId);
-	
-	/**
-	  * Preallocate buffers for \p Num particles.
-	  * @param NumParticles Number of particles to be used to reserve memory
-	  * @return Number of new slots created.
-	  */
-	int32 ReserveParticles(const int32 NumParticles);
-
-	/**
-	  * Add a particle to the graph
-	  * @param ParticleHandle Particle to be added to the graph
-	  * @param ParentParticleHandle Put the ParticleHandle in the same island as the parent with the same sleep state. May be null.
-	  * @return Sparse graph node index
-	  */
-	int32 AddParticle(FGeometryParticleHandle* ParticleHandle);
-
-	/**
-	  * Remove a particle from the graph
-	  * @param Particle Particle to be removed from the islands
-	  */
-	void RemoveParticle(FGeometryParticleHandle* Particle);
-
-	/**
-	 * Get the Level for the specified particle (distance to a kinmetic in the graph)
-	*/
-	int32 GetParticleLevel(FGeometryParticleHandle* Particle) const;
-
-
-	/**
-	  * Call the visitor on all constraints in an awake island. E.g., can be used to check if any constraints
-	  * in the graph are expired and should be removed. However, no constraints should be added or removed
-	  * from the visitor itself - build a list and remove them after.
-	  */
 	template<typename VisitorType>
-	void VisitConstraintsInAwakeIslands(const int32 ContainerId, const VisitorType& Visitor)
+	void FPBDIslandManager::VisitAwakeConstConstraints(const int32 ContainerId, const VisitorType& Visitor) const
 	{
-		for (FGraphEdge& GraphEdge : IslandGraph->GraphEdges)
+		for (FPBDIsland* Island : Islands)
 		{
-			// If a constraint is not in any island (kinematic-kinematic for example) it is considered asleep.
-			if ((GraphEdge.ItemContainer == ContainerId) && (GraphEdge.IslandIndex != INDEX_NONE))
+			if (!Island->Flags.bIsSleeping)
 			{
-				const FGraphIsland& GraphIsland = IslandGraph->GraphIslands[GraphEdge.IslandIndex];
-				if (!GraphIsland.bIsSleeping)
+				for (FPBDIslandConstraint* Edge : Island->ContainerEdges[ContainerId])
 				{
-					Visitor(GraphEdge.EdgeItem);
+					Visitor(Edge);
 				}
 			}
 		}
 	}
 
-	/**
-	  * Clear all the islands
-	  */
-	void ResetIslands(const TParticleView<FPBDRigidParticles>& PBDRigids);
-
-	/**
-	  * Pack all the constraints into their assigned islands in sorted order
-	  */
-	void UpdateIslands(FPBDRigidsSOAs& Particles, const bool IsResimming = false);
-
-	/**
-	  * @brief Put all particles and constraints in an island to sleep
-	  * @param Particles used in the islands
-	  * @param IslandIndex Island index to be woken up
-	*/
-	void SleepIsland(FPBDRigidsSOAs& Particles, const int32 IslandIndex);
-
-	/**
-	  * Put particles in inactive islands to sleep.
-	  * @param IslandIndex Island index
-	  * @param PerParticleMaterialAttributes Material attributes that has been set on each particles
-	  * @param SolverPhysicsMaterials Solver materials that could be used to find the sleeping thresholds
-	  * @return return true if the island is going to sleep
-	  */
-	bool SleepInactive(
-		const int32 IslandIndex, 
-		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, 
-		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
-		const THandleArray<FChaosPhysicsMaterial>& SimMaterials);
-
-	/**
-	 * Get the set of islands that the particle belongs to. Will be 0-1 island for dynamics and could be any number for non-dynamics.
-	 * This works for sleeping and waking particles (but we must iterate over constraints for this to work).
-	 */
-	TArray<int32> FindParticleIslands(const FGeometryParticleHandle* ParticleHandle) const;
-
-	/**
-	 * Get the island index of the constraint
-	*/
-	int32 GetConstraintIsland(const FConstraintHandle* ConstraintHandle) const;
-
-	/**
-	 * When resim is used, tells us whether we need to resolve island
-	 * @param IslandIndex Island index
-	 * @return If true the island need to be resim
-	 */
-	bool IslandNeedsResim(const int32 IslandIndex) const;
-
-	/** Get the particle resim frame */
-	int32 GetParticleResimFrame(const FGeometryParticleHandle* ParticleHandle) const;
-
-	/** Set the particle resim frame */
-	void SetParticleResimFrame(FGeometryParticleHandle* ParticleHandle, const int32 ResimFrame);
-
-	/** Reset all the particle resim frames to INDEX_NONE */
-	void ResetParticleResimFrame(const int32 ResetFrame = INDEX_NONE);
-
-	/**
-	  * The number of islands in the graph.
-	  * @return the number of islands
-	  */
-	FORCEINLINE int32 NumIslands() const
+	template<typename VisitorType>
+	void FPBDIslandManager::VisitAwakeConstraints(const int32 ContainerId, const VisitorType& Visitor)
 	{
-		return IslandIndexing.Num();
+		const_cast<FPBDIslandManager*>(this)->VisitAwakeConstConstraints(ContainerId, 
+			[&Visitor](const FPBDIslandConstraint* Edge)
+			{
+				Visitor(const_cast<FPBDIslandConstraint*>(Edge));
+			});
 	}
-	
-	/**
-	 * The number of islands in the graph.
-	 * @return Get the island graph
-	 */
-	FORCEINLINE const GraphType* GetIslandGraph() const
+
+	template<typename VisitorType>
+	void FPBDIslandManager::VisitConstConstraints(const int32 ContainerId, const VisitorType& Visitor) const
 	{
-		return IslandGraph.Get();
+		for (const FPBDIslandConstraint* Edge : Edges)
+		{
+			if (Edge->ContainerIndex == ContainerId)
+			{
+				Visitor(Edge);
+			}
+		}
 	}
-	/**
-	* Get the island graph
-	* @return Island graph of the manager
-	*/
-	FORCEINLINE GraphType* GetIslandGraph()
+
+	template<typename VisitorType>
+	void FPBDIslandManager::VisitConstraints(const int32 ContainerId, const VisitorType& Visitor)
 	{
-		return IslandGraph.Get();
+		const_cast<FPBDIslandManager*>(this)->VisitConstConstraints(ContainerId,
+			[&Visitor](const FPBDIslandConstraint* Edge)
+			{
+				Visitor(const_cast<FPBDIslandConstraint*>(Edge));
+			});
 	}
 
-	/**
-	 * Get Max UniqueIdx of the particles.
-	 * Used to create arrays large enough to use Particle.UniqueIdx().Idx for indexing.
-	 * @return the max index of the particles in the islands
-	 */
-	inline int32 GetMaxParticleUniqueIdx() const 
-	{ 
-		return MaxParticleIndex;
-	}
-
-	/**
-	 * Get the sparse island graph index given a dense index between 0 and NumIslands
-	 * @param IslandIndex Island index
-	 * @return the max index of the particles in the islands
-	 */
-	int32 GetGraphIndex(const int32 IslandIndex) const 
-	{
-		return IslandIndexing.IsValidIndex(IslandIndex) ? IslandIndexing[IslandIndex] : 0;
-	}
-
-	/**
-	 * Register a constraint container with the island manager. Currently this is only used to determin
-	 * how many ContainerIds we need in order to presize arrays etc.
-	*/
-	void AddConstraintContainer(FPBDConstraintContainer& ConstraintContainer);
-
-	/** Accessors of the graph island */
-	const FPBDIsland* GetIsland(const int32 IslandIndex) const {return IslandIndexing.IsValidIndex(IslandIndex) ? Islands[IslandIndexing[IslandIndex]].Get() : nullptr; }
-	FPBDIsland* GetIsland(const int32 IslandIndex) {return IslandIndexing.IsValidIndex(IslandIndex) ? Islands[IslandIndexing[IslandIndex]].Get() : nullptr; }
-
-	/** Get the graph nodes */
-	// @todo(chaos): remove this - only used by testing
-	const TSparseArray<GraphType::FGraphNode>& GetGraphNodes() const { return IslandGraph->GraphNodes; }
-	
-	/** Get the graph edges */
-	// @todo(chaos): remove this - only used by testing
-	const TSparseArray<GraphType::FGraphEdge>& GetGraphEdges() const { return IslandGraph->GraphEdges; }
-
-	/** Get the particle nodes */
-	// @todo(chaos): remove this - only used by testing
-	const TMap<FGeometryParticleHandle*, int32>& GetParticleNodes() const { return IslandGraph->ItemNodes; }
-
-	// Graph Owner API Implementation. Allows us to store edge/node indices on constraints and particles
-	void GraphIslandAdded(const int32 IslandIndex);
-	void GraphNodeAdded(FGeometryParticleHandle* NodeItem, const int32 NodeIndex);
-	void GraphNodeRemoved(FGeometryParticleHandle* NodeItem);
-	void GraphNodeLevelAssigned(FGraphNode& GraphNode);
-	void GraphEdgeAdded(const FConstraintHandleHolder& EdgeItem, const int32 EdgeIndex);
-	void GraphEdgeRemoved(const FConstraintHandleHolder& EdgeItem);
-	void GraphEdgeLevelAssigned(FGraphEdge& GraphEdge);
-
-#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
-	bool DebugCheckParticlesInGraph(const TParticleView<FPBDRigidParticles>& Particles) const;
-	bool DebugCheckParticleNotInGraph(const FGeometryParticleHandle* ParticleHandle) const;
-	bool DebugParticleConstraintsNotInGraph(const FGeometryParticleHandle* Particle, const int32 ContainerId) const;
-	bool DebugCheckConstraintNotInGraph(const FConstraintHandle* ConstraintHandle) const;
-#endif
-
-protected:
-
-#if CHAOS_CONSTRAINTHANDLE_DEBUG_ENABLED
-	bool DebugCheckIslandConstraints() const;
-	void DebugCheckParticleIslands(const FGeometryParticleHandle* ParticleHandle) const;
-	void DebugCheckConstraintIslands(const FConstraintHandle* ConstraintHandle, const int32 IslandIndex) const;
-	void DebugCheckIslands() const;
-#endif
-
-	// Add a particle to the graph if it is not already in it. Return the node index if present (added or existing)
-	int32 TryAddParticle(FGeometryParticleHandle* ParticleHandle, const int32 IslandIndex);
-
-	// Add a particle to the graph if it is dynamic and not already in it. Return the node index if present, even if not dynamic
-	int32 TryAddParticleIfDynamic(FGeometryParticleHandle* ParticleHandle, const int32 IslandIndex);
-
-	// Add a particle to the graph if it is kinematic and not already in it. Return the node index if present, even if dynamic
-	int32 TryAddParticleIfNotDynamic(FGeometryParticleHandle* ParticleHandle, const int32 IslandIndex);
-
-	void InitIslands();
-
-	/**
-	* Sync the Islands with the IslandGraph
-	*/
-	void SyncIslands(FPBDRigidsSOAs& Particles, const bool IsResimming);
-
-
-	/**
-	* Set the island and all particles' sleep state (called from the graph update).
-	*/
-	void SetIslandSleeping(FPBDRigidsSOAs& Particles, const int32 IslandIndex, const bool bIsSleeping);
-
-	void ValidateIslands() const;
-
-	TArray<FPBDConstraintContainer*>		ConstraintContainers;
-
-	/** List of solver islands in the manager */
-	TSparseArray<TUniquePtr<FPBDIsland>>	Islands;
-
-	/** Island map to make the redirect an index between 0...NumIslands to the persistent island index  */
-	TArray<int32>							IslandIndexing;
-
-	/** Global graph to deal with merging and splitting of islands */
-	TUniquePtr<GraphType>					IslandGraph;
-
-	/** Maximum particle index that we have in the graph*/
-	int32									MaxParticleIndex = INDEX_NONE;
-
-	/** Islands are only populated with constraints and particles during the solver phase. Trying to access them outside that is an error we can trap */
-	bool									bIslandsPopulated;
-
-	/** Make sure EndTick is called. Sanity check mostlyhelpful for unit tests */
-	bool									bEndTickCalled;
-};
-
-}	// namespace Private
-
-
-	using FPBDIslandManager UE_DEPRECATED(5.2, "Internal class moved to Private namespace") = Private::FPBDIslandManager;
-
-}	// namespace Chaos
+} // namespace Chaos::Private

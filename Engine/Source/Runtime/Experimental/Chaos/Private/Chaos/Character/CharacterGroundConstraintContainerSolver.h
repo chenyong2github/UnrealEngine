@@ -26,7 +26,7 @@ namespace Chaos
 			virtual void AddConstraints() override final;
 
 			/// Add all constraints from an island (guaranteed to be from the same constraint container)
-			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& IslandConstraints) override final;
+			virtual void AddConstraints(const TArrayView<Private::FPBDIslandConstraint*>& IslandConstraints) override final;
 
 			/// Set the bodies on the constraint from the constraint data solver
 			virtual void AddBodies(FSolverBodyContainer& SolverBodyContainer) override final;

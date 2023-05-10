@@ -219,7 +219,7 @@ namespace Chaos
 		{
 			const int32 ItemsSize = NumItems * PaddedItemSize;
 			const int32 BlockSize = NumPerBlock * PaddedItemSize;
-			const int32 NumBlocks = FMath::CeilToInt(static_cast<float>(ItemsSize) / BlockSize);
+			const int32 NumBlocks = int32(FMath::CeilToInt(static_cast<double>(ItemsSize) / BlockSize));
 			ReserveBlocks(NumBlocks);
 		}
 

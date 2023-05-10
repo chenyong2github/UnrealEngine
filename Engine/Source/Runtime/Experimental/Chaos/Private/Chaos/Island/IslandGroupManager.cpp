@@ -3,7 +3,6 @@
 
 #include "Chaos/ConstraintHandle.h"
 #include "Chaos/Island/IslandManager.h"
-#include "Chaos/Island/SolverIsland.h"
 #include "Chaos/PBDConstraintContainer.h"
 #include "ChaosStats.h"
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -116,7 +115,7 @@ namespace Chaos
 			// NOTE: We do not add islands with no constraints even if they have particles. There is no need since the Particles'
 			// predicted positions/rotations will not be changed by the solver. (Zero-constraint islands may contain one isolated Particle).
 			TArray<FPBDIsland*> Islands;
-			for (int32 IslandIndex = 0; IslandIndex < IslandManager.NumIslands(); ++IslandIndex)
+			for (int32 IslandIndex = 0; IslandIndex < IslandManager.GetNumIslands(); ++IslandIndex)
 			{
 				FPBDIsland* Island = IslandManager.GetIsland(IslandIndex); 
 
@@ -125,11 +124,11 @@ namespace Chaos
 				{
 					if(bIsResimming)
 					{ 
-						UE_LOG(LogChaos, Log, TEXT("Chaos Island[%d] needs resim = %d"), IslandIndex, IslandManager.IslandNeedsResim(IslandIndex));
+						UE_LOG(LogChaos, Log, TEXT("Chaos Island[%d] needs resim = %d"), IslandIndex, Island->NeedsResim());
 					}
 				}
 #endif
-				if (!Island->IsSleeping() && (Island->GetNumConstraints() > 0) && (!bIsResimming || (bIsResimming && IslandManager.IslandNeedsResim(IslandIndex))))
+				if (!Island->IsSleeping() && (Island->GetNumConstraints() > 0) && (!bIsResimming || (bIsResimming && Island->NeedsResim())))
 				{
 					Islands.Add(Island);
 				}

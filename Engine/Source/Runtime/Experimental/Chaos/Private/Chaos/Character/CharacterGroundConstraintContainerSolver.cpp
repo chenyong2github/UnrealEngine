@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CharacterGroundConstraintContainerSolver.h"
+#include "Chaos/Island/IslandManager.h"
 
 namespace Chaos
 {
@@ -34,12 +35,12 @@ namespace Chaos
 			}
 		}
 
-		void FCharacterGroundConstraintContainerSolver::AddConstraints(const TArrayView<Private::FPBDIslandConstraint>& IslandConstraints)
+		void FCharacterGroundConstraintContainerSolver::AddConstraints(const TArrayView<Private::FPBDIslandConstraint*>& IslandConstraints)
 		{
-			for (Private::FPBDIslandConstraint& IslandConstraint : IslandConstraints)
+			for (Private::FPBDIslandConstraint* IslandConstraint : IslandConstraints)
 			{
 				// We will only ever be given constraints from our container (asserts in non-shipping)
-				FCharacterGroundConstraintHandle* Constraint = IslandConstraint.GetConstraint()->AsUnsafe<FCharacterGroundConstraintHandle>();
+				FCharacterGroundConstraintHandle* Constraint = IslandConstraint->GetConstraint()->AsUnsafe<FCharacterGroundConstraintHandle>();
 
 				AddConstraint(Constraint);
 			}

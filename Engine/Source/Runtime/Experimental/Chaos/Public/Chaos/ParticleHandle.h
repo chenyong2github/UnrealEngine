@@ -415,7 +415,7 @@ protected:
 	TGeometryParticleHandleImp()
 		: TParticleHandleBase<T, d>()
 	{
-		SetConstraintGraphIndex(INDEX_NONE);
+		SetConstraintGraphNode(nullptr);
 	}
 
 	TGeometryParticleHandleImp(TSerializablePtr<TGeometryParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const FGeometryParticleParameters& Params)
@@ -427,7 +427,13 @@ protected:
 		GeometryParticleDefaultConstruct<T, d>(*this, Params);
 		SetHasBounds(false);
 		SetLightWeightDisabled(false);
-		SetConstraintGraphIndex(INDEX_NONE);
+		SetConstraintGraphNode(nullptr);
+	}
+
+	// For transient handle
+	TGeometryParticleHandleImp(TGeometryParticles<T, d>* InParticles, const int32 InParticleIdx)
+		: TParticleHandleBase<T, d>(InParticles, InParticleIdx)
+	{
 	}
 
 	template <typename TParticlesType, typename TParams>
@@ -446,14 +452,13 @@ public:
 		return TGeometryParticleHandleImp<T,d,bPersistent>::CreateParticleHandleHelper(InParticles, InParticleIdx, InHandleIdx, Params);
 	}
 
-
 	~TGeometryParticleHandleImp()
 	{
-		// If we weren't removed from the graph, invalid pointer dereferencing is possible
-		check(ConstraintGraphIndex() == INDEX_NONE);
-
-		if (bPersistent)
+		if constexpr (bPersistent)
 		{
+			// If we weren't removed from the graph, invalid pointer dereferencing is possible
+			check(GetConstraintGraphNode() == nullptr);
+
 			GeometryParticles->ResetWeakParticleHandle(ParticleIdx);
 			GeometryParticles->DestroyParticle(ParticleIdx);
 			if (static_cast<uint32>(ParticleIdx) < GeometryParticles->Size())
@@ -471,19 +476,27 @@ public:
 					}
 				}
 			}
-		}
 
-		// Zero the handle out to detect dangling handles and associated memory corruptions
-		HandleIdx = INDEX_NONE;
-		GeometryParticles = nullptr;
-		ParticleIdx = INDEX_NONE;
-		Type = EParticleType::Unknown;
+			// Zero the handle out to detect dangling handles and associated memory corruptions
+			HandleIdx = INDEX_NONE;
+			GeometryParticles = nullptr;
+			ParticleIdx = INDEX_NONE;
+			Type = EParticleType::Unknown;
+		}
 	}
 
 	template <typename T2, int d2>
 	friend TGeometryParticleHandle<T2, d2>* GetHandleHelper(TTransientGeometryParticleHandle<T2, d2>* Handle);
 	template <typename T2, int d2>
 	friend const TGeometryParticleHandle<T2, d2>* GetHandleHelper(const TTransientGeometryParticleHandle<T2, d2>* Handle);
+
+	friend class TGeometryParticleHandleImp<T, d, false>;
+	friend class TGeometryParticleHandleImp<T, d, true>;
+
+	TGeometryParticleHandleImp<T, d, false> AsTransient()
+	{
+		return TGeometryParticleHandleImp<T, d, false>(GeometryParticles, ParticleIdx);
+	}
 
 	TGeometryParticleHandleImp(const TGeometryParticleHandleImp&) = delete;
 
@@ -727,20 +740,24 @@ public:
 		return GeometryParticles->ParticleCollisions(ParticleIdx);
 	}
 
-	int32 ConstraintGraphIndex() const
-	{ 
-		return GeometryParticles->ConstraintGraphIndex(ParticleIdx);
-	}
-	
-	void SetConstraintGraphIndex(const int32 InGraphIndex)
-	{ 
-		GeometryParticles->ConstraintGraphIndex(ParticleIdx) = InGraphIndex;
-	}
-
 	bool IsInConstraintGraph() const
 	{
-		return ConstraintGraphIndex() != INDEX_NONE;
+		return (GetConstraintGraphNode() != nullptr);
 	}
+
+	Private::FPBDIslandParticle* GetConstraintGraphNode() const
+	{ 
+		return GeometryParticles->ConstraintGraphNode(ParticleIdx);
+	}
+
+	void SetConstraintGraphNode(Private::FPBDIslandParticle* InNode)
+	{
+		GeometryParticles->ConstraintGraphNode(ParticleIdx) = InNode;
+	}
+
+	// Deprecated API
+	UE_DEPRECATED(5.3, "Use GetConstraintGraphNode()") int32 ConstraintGraphIndex() const { return INDEX_NONE; }
+	UE_DEPRECATED(5.3, "Use GetConstraintGraphNode()") void SetConstraintGraphIndex(const int32 InGraphIndex) {}
 
 protected:
 
@@ -883,8 +900,9 @@ protected:
 		SetAngularAcceleration(TVector<T, d>(0));
 		SetObjectStateLowLevel(Params.bStartSleeping ? EObjectStateType::Sleeping : EObjectStateType::Dynamic);
 		SetPreObjectStateLowLevel(ObjectState());
-		SetIslandIndex(INDEX_NONE);
 		SetSleepType(ESleepType::MaterialSleep);
+		SetSleepCounter(0);
+		SetDisableCounter(0);
 		SetInvIConditioning(TVec3<FRealSingle>(1));
 	}
 public:
@@ -1086,10 +1104,6 @@ public:
 	T& MaxAngularSpeedSq() { return PBDRigidParticles->MaxAngularSpeedSq(ParticleIdx); }
 	void SetMaxAngularSpeedSq(const T& InMaxAngularSpeed) { PBDRigidParticles->MaxAngularSpeedSq(ParticleIdx) = InMaxAngularSpeed; }
 
-	int32 IslandIndex() const { return PBDRigidParticles->IslandIndex(ParticleIdx); }
-	int32& IslandIndex() { return PBDRigidParticles->IslandIndex(ParticleIdx); }
-	void SetIslandIndex(const int32 InIslandIndex) { PBDRigidParticles->IslandIndex(ParticleIdx) = InIslandIndex; }
-	
 	EObjectStateType ObjectState() const { return PBDRigidParticles->ObjectState(ParticleIdx); }
 	EObjectStateType PreObjectState() const { return PBDRigidParticles->PreObjectState(ParticleIdx); }
 
@@ -1097,6 +1111,7 @@ public:
 	void SetPreObjectStateLowLevel(EObjectStateType InState) { PBDRigidParticles->PreObjectState(ParticleIdx) = InState; }
 	
 	bool IsSleeping() const { return ObjectState() == EObjectStateType::Sleeping; }
+	bool WasSleeping() const { return PreObjectState() == EObjectStateType::Sleeping; }
 
 	bool Sleeping() const { return PBDRigidParticles->Sleeping(ParticleIdx); }
 	void SetSleeping(bool bSleeping) { PBDRigidParticles->SetSleeping(ParticleIdx, bSleeping); }
@@ -1216,8 +1231,33 @@ public:
 
 	void SetSleepType(ESleepType SleepType){ PBDRigidParticles->SetSleepType(ParticleIdx, SleepType); }
 
+	int8 SleepCounter() const
+	{
+		return PBDRigidParticles->SleepCounter(ParticleIdx);
+	}
+
+	void SetSleepCounter(int8 SleepCounter)
+	{
+		PBDRigidParticles->SleepCounter(ParticleIdx) = SleepCounter;
+	}
+
+	int8 DisableCounter() const
+	{
+		return PBDRigidParticles->DisableCounter(ParticleIdx);
+	}
+
+	void SetDisableCounter(int8 DisableCounter)
+	{
+		PBDRigidParticles->DisableCounter(ParticleIdx) = DisableCounter;
+	}
 
 	static constexpr EParticleType StaticType() { return EParticleType::Rigid; }
+
+	// Deprecated API
+	UE_DEPRECATED(5.3, "No longer supported") int32 IslandIndex() const { return INDEX_NONE; }
+	UE_DEPRECATED(5.3, "No longer supported") int32& IslandIndex() { static int32 Dummy = INDEX_NONE; return Dummy; }
+	UE_DEPRECATED(5.3, "No longer supported") void SetIslandIndex(const int32 InIslandIndex) {}
+
 };
 
 template <typename T, int d, bool bPersistent>
@@ -1489,6 +1529,15 @@ public:
 	bool IsKinematic() const { return (MHandle->ObjectState() == EObjectStateType::Kinematic); }
 	bool IsDynamic() const { return (MHandle->ObjectState() == EObjectStateType::Dynamic) || (MHandle->ObjectState() == EObjectStateType::Sleeping); }
 	bool IsSleeping() const { return (MHandle->ObjectState() == EObjectStateType::Sleeping); }
+	
+	bool WasSleeping() const 
+	{ 
+		if (FPBDRigidParticleHandle* Rigid = MHandle->CastToRigidParticle())
+		{
+			return Rigid->WasSleeping();
+		}
+		return IsSleeping();
+	}
 
 	const FKinematicGeometryParticleHandle* CastToKinematicParticle() const { return MHandle->CastToKinematicParticle(); }
 	FKinematicGeometryParticleHandle* CastToKinematicParticle() { return MHandle->CastToKinematicParticle(); }
@@ -2091,46 +2140,19 @@ public:
 	}
 #endif
 
-	/** Get the island index from the particle handle */
-	FORCEINLINE int32 IslandIndex() const
-	{
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
-		{
-			if (IsDynamic())
-			{
-				return RigidHandle->IslandIndex();
-			}
-		}
-		return INDEX_NONE;
-	}
-
-	/** Set the island index onto the particle handle 
-	 * @param IslandIndex Island Index to be set onto the particle 
-	 */
-	FORCEINLINE void SetIslandIndex( const int32 IslandIndex) 
-	{
-		if (auto RigidHandle = MHandle->CastToRigidParticle())
-		{
-			if (IsDynamic())
-			{
-				RigidHandle->IslandIndex() = IslandIndex;
-			}
-		}
-	}
-
-	FORCEINLINE int32 ConstraintGraphIndex() const
-	{
-		return MHandle->ConstraintGraphIndex();
-	}
-
-	FORCEINLINE void SetConstraintGraphIndex(const int32 InGraphIndex)
-	{
-		MHandle->SetConstraintGraphIndex(InGraphIndex);
-	}
-
 	FORCEINLINE bool IsInConstraintGraph() const
 	{
 		return MHandle->IsInConstraintGraph();
+	}
+
+	FORCEINLINE Private::FPBDIslandParticle* GetConstraintGraphNode() const
+	{
+		return MHandle->GetConstraintGraphNode();
+	}
+
+	FORCEINLINE void SetConstraintGraphNode(Private::FPBDIslandParticle* InNode)
+	{
+		MHandle->SetConstraintGraphNode(InNode);
 	}
 
 	const FShapesArray& ShapesArray() const { return MHandle->ShapesArray(); }
@@ -2140,6 +2162,12 @@ public:
 	{
 		return EParticleType::Unknown;
 	}
+
+	// Deprecated API
+	UE_DEPRECATED(5.3, "No longer supported") int32 IslandIndex() const { return INDEX_NONE; }
+	UE_DEPRECATED(5.3, "No longer supported") void SetIslandIndex(const int32 IslandIndex) {}
+	UE_DEPRECATED(5.3, "No longer supported") int32 ConstraintGraphIndex() const { return INDEX_NONE; }
+	UE_DEPRECATED(5.3, "No longer supported") void SetConstraintGraphIndex(const int32 InGraphIndex) {}
 
 private:
 	FGeometryParticleHandle* MHandle;

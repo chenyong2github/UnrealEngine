@@ -20,15 +20,15 @@ namespace Chaos
 			const FGeometryParticleHandle* Particle,
 			const FShapeInstance* Shape,
 			const int32 FaceIndex,
-			const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials,
-			const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
+			const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>* PhysicsMaterials,
+			const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>* PerParticlePhysicsMaterials,
 			const THandleArray<FChaosPhysicsMaterial>* const SimMaterials);
 
 		// Get the first physical material on the particle (a multi-shape particle may have many)
 		extern CHAOS_API const FChaosPhysicsMaterial* GetFirstPhysicsMaterial(
 			const FGeometryParticleHandle* Particle,
-			const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials,
-			const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials,
+			const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>* PhysicsMaterials,
+			const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>* PerParticlePhysicsMaterials,
 			const THandleArray<FChaosPhysicsMaterial>* const SimMaterials);
 	}
 }
