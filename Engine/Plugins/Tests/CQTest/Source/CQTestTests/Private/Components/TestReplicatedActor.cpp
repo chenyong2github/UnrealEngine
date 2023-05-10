@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "Components/TestReplicatedActor.h"
 
 #include "Net/UnrealNetwork.h"
