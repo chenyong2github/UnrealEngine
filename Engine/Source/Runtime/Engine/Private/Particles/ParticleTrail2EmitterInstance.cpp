@@ -3408,7 +3408,14 @@ float FParticleAnimTrailEmitterInstance::Spawn(float DeltaTime)
 	// Handle growing arrays.
 	bool bProcessSpawn = true;
 	int32 TotalCount = ActiveParticles + NewCount;
-	if (TotalCount >= MaxActiveParticles)
+
+	constexpr int32 MaxTrailParticles = FMath::Min(TRAIL_EMITTER_NEXT_MASK >> TRAIL_EMITTER_NEXT_SHIFT, TRAIL_EMITTER_PREV_MASK >> TRAIL_EMITTER_PREV_SHIFT);
+	if (TotalCount >= MaxTrailParticles)
+	{
+		// Note the above test is >= as null is considered == max value
+		bProcessSpawn = false;
+	}
+	else if (TotalCount >= MaxActiveParticles)
 	{
 		if (DeltaTime < 0.25f)
 		{
