@@ -775,7 +775,7 @@ TArray<TUsdStore<pxr::UsdGeomPrimvar>> UsdUtils::AssemblePrimvarsIntoUVSets(
 
 				if (!PrimvarsByUVIndex.IsValidIndex(TargetUVIndex))
 				{
-					if (TargetUVIndex < MAX_MESH_TEXTURE_COORDS_MD)
+					if (TargetUVIndex < USD_PREVIEW_SURFACE_MAX_UV_SETS)
 					{
 						PrimvarsByUVIndex.SetNum(TargetUVIndex + 1);
 					}
@@ -840,8 +840,8 @@ TMap<FString, int32> UsdUtils::CombinePrimvarsIntoUVSets(
 		}
 	);
 
-	// We can only have up to MAX_MESH_TEXTURE_COORDS_MD UV sets
-	SortedPrimvars.SetNum(FMath::Min(SortedPrimvars.Num(), (int32)MAX_MESH_TEXTURE_COORDS_MD));
+	// We can only have up to USD_PREVIEW_SURFACE_MAX_UV_SETS UV sets
+	SortedPrimvars.SetNum(FMath::Min(SortedPrimvars.Num(), (int32)USD_PREVIEW_SURFACE_MAX_UV_SETS));
 
 	TMap<FString, int32> PrimvarToUVIndex;
 	PrimvarToUVIndex.Reserve(SortedPrimvars.Num());

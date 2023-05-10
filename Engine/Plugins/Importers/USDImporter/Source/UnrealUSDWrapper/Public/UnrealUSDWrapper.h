@@ -24,6 +24,10 @@
 
 #include "UnrealUSDWrapper.generated.h"
 
+// We are capped to 4 because the geometry cache and skeletal mesh + morph target shaders have a hard-coded limit of 4 texture coordinates, so our
+// material instances can't cross that limit or else they wouldn't compile when assigned to those meshes
+#define USD_PREVIEW_SURFACE_MAX_UV_SETS 4
+
 #if USE_USD_SDK
 PXR_NAMESPACE_OPEN_SCOPE
 	class GfMatrix4d;

@@ -153,7 +153,7 @@ namespace UsdUtils
 	 */
 	USDUTILITIES_API TArray<TUsdStore<pxr::UsdGeomPrimvar>> GetUVSetPrimvars(
 		const pxr::UsdGeomMesh& UsdMesh,
-		int32 MaxNumPrimvars = MAX_MESH_TEXTURE_COORDS_MD
+		int32 MaxNumPrimvars = USD_PREVIEW_SURFACE_MAX_UV_SETS
 	);
 
 	/**
@@ -182,7 +182,7 @@ namespace UsdUtils
 	);
 
 	/**
-	 * Rearranges an array of primvars into another array of up to MAX_MESH_TEXTURE_COORDS_MD primvars, describing which
+	 * Rearranges an array of primvars into another array of up to USD_PREVIEW_SURFACE_MAX_UV_SETS primvars, describing which
 	 * primvars should be used for each UV set according to the provided AllowedPrimvarsToUVIndex mapping.
 	 *
 	 * The intent is to use this when e.g. a Mesh prim is to be collapsed together with other Mesh prims into a single
@@ -215,7 +215,7 @@ namespace UsdUtils
 	/**
 	 * Given an array of primvars, and an array of which of those are preferred (AllPrimvars should also include
 	 * PreferredPrimvars), this will sort lexicographically and return a prioritized PrimvarToUVIndex assignment map of
-	 * up to MAX_MESH_TEXTURE_COORDS_MD UV indices
+	 * up to USD_PREVIEW_SURFACE_MAX_UV_SETS UV indices
 	 */
 	USDUTILITIES_API TMap<FString, int32> CombinePrimvarsIntoUVSets(
 		const TSet<FString>& AllPrimvars,

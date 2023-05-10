@@ -35,7 +35,9 @@
 #include "pxr/usd/usdGeom/mesh.h"
 #include "USDIncludesEnd.h"
 
-#define UNUSED_UV_INDEX MAX_MESH_TEXTURE_COORDS_MD
+#define UNUSED_UV_INDEX USD_PREVIEW_SURFACE_MAX_UV_SETS
+
+static_assert(USD_PREVIEW_SURFACE_MAX_UV_SETS <= MAX_MESH_TEXTURE_COORDS_MD, "UsdPreviewSurface materials can only have up to as many UV sets as MeshDescription supports!");
 
 namespace UE::MeshTranslationImplInternal::Private
 {
@@ -170,7 +172,7 @@ namespace UE::MeshTranslationImplInternal::Private
 		);
 
 		TArray<TSet<FString>> UVIndexToMeshPrimvars;
-		UVIndexToMeshPrimvars.SetNum(MAX_MESH_TEXTURE_COORDS_MD);
+		UVIndexToMeshPrimvars.SetNum(USD_PREVIEW_SURFACE_MAX_UV_SETS);
 		for (const TPair<FString, int32>& MeshPair : MeshPrimvarToUVIndex)
 		{
 			if (UVIndexToMeshPrimvars.IsValidIndex(MeshPair.Value))
@@ -243,7 +245,7 @@ namespace UE::MeshTranslationImplInternal::Private
 			if (const int32* FoundMeshUVIndex = MeshPrimvarToUVIndex.Find(MaterialPrimvar))
 			{
 				int32 MeshUVIndex = *FoundMeshUVIndex;
-				if (MeshUVIndex >= 0 && MeshUVIndex < MAX_MESH_TEXTURE_COORDS_MD)
+				if (MeshUVIndex >= 0 && MeshUVIndex < USD_PREVIEW_SURFACE_MAX_UV_SETS)
 				{
 					CompatiblePrimvarAndUVIndexPairs.Add(TPair<FString, int32>{MaterialPrimvar, MeshUVIndex});
 					bFoundUVIndex = true;

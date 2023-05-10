@@ -1106,7 +1106,7 @@ bool UsdToUnreal::ConvertGeomMesh(
 				NumUVs = FMath::Max<int32>(ProvidedNumUVSets.GetValue(), NumUVs);
 			}
 
-			NumUVs = FMath::Min<int32>( MAX_MESH_TEXTURE_COORDS_MD, NumUVs );
+			NumUVs = FMath::Min<int32>( USD_PREVIEW_SURFACE_MAX_UV_SETS, NumUVs );
 			// At least one UV set must exist.
 			NumUVs = FMath::Max<int32>(1, NumUVs);
 
