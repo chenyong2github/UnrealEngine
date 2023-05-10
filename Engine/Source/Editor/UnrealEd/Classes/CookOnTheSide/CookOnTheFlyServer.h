@@ -1441,6 +1441,11 @@ private:
 	bool bSkipOnlyEditorOnly = false;
 	/** True if we're running cooklist; tweak output */
 	bool bCookListMode = false;
+	/**
+	 * True if we want to randomize cook order, for robustness validation or to avoid encountering the same DDC
+	 * build jobs when multiple machines are cooking at the same time.
+	 */
+	bool bRandomizeCookOrder = false;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	double SaveBusyStartTimeSeconds = MAX_flt;

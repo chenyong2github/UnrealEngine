@@ -6611,6 +6611,9 @@ void UCookOnTheFlyServer::SetInitializeConfigSettings(UE::Cook::FInitializeConfi
 				});
 		}
 	}
+
+	bRandomizeCookOrder = FParse::Param(FCommandLine::Get(), TEXT("RANDOMPACKAGEORDER")) ||
+		(FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY")) && !FParse::Param(FCommandLine::Get(), TEXT("DIFFNORANDCOOK")));
 }
 
 bool UCookOnTheFlyServer::TryInitializeCookWorker()
@@ -10617,17 +10620,6 @@ void UCookOnTheFlyServer::GenerateInitialRequests(FBeginCookContext& BeginContex
 	if (FilesInPath.Num() == 0)
 	{
 		LogCookerMessage(FString::Printf(TEXT("No files found to cook.")), EMessageSeverity::Warning);
-	}
-
-	if (FParse::Param(FCommandLine::Get(), TEXT("RANDOMPACKAGEORDER")) ||
-		(FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY")) && !FParse::Param(FCommandLine::Get(), TEXT("DIFFNORANDCOOK"))))
-	{
-		UE_LOG(LogCook, Log, TEXT("Randomizing package order."));
-		//randomize the array, taking the Array_Shuffle approach, in order to help bring cooking determinism issues to the surface.
-		for (int32 FileIndex = 0; FileIndex < FilesInPath.Num(); ++FileIndex)
-		{
-			FilesInPath.Swap(FileIndex, FMath::RandRange(FileIndex, FilesInPath.Num() - 1));
-		}
 	}
 
 	{

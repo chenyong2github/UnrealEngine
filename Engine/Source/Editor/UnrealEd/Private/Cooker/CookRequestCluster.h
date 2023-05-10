@@ -320,6 +320,8 @@ private:
 		FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
 		FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences,
 		bool bSkipOnlyEditorOnly, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable);
+	static void RandomizeCookOrder(TArray<FPackageData*>& InOutLeafToRootOrder,
+		const TMap<FPackageData*, TArray<FPackageData*>>& Edges);
 
 	TArray<FFilePlatformRequest> FilePlatformRequests;
 	TFastPointerMap<FPackageData*, ESuppressCookReason> OwnedPackageDatas;
