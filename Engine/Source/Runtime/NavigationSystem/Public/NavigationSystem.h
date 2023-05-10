@@ -916,7 +916,7 @@ public:
 	static void RequestCustomLinkRegistering(INavLinkCustomInterface& CustomLink, UObject* OwnerOb);
 	static void RequestCustomLinkUnregistering(INavLinkCustomInterface& CustomLink, UObject* ObjectOb);
 
-	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId call the version of this function that takes FNavLinkId. This function only returns nullptr.")
+	UE_DEPRECATED(5.3, "LinkIds are now based on FNavLinkId call the version of this function that takes FNavLinkId. This function only returns nullptr.")
 	INavLinkCustomInterface* GetCustomLink(uint32 UniqueLinkId) const { return nullptr; };
 
 	/** find custom link by unique ID */
@@ -1141,7 +1141,7 @@ protected:
 	FNavigationOctreeController DefaultOctreeController;
 
 	/** Map of all custom navigation links, that are relevant for path following */
-	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId. Use CustomNavLinksMap instead, CustomLinksMap is no longer populated or used in the engine.")
+	UE_DEPRECATED(5.3, "LinkIds are now based on FNavLinkId. Use CustomNavLinksMap instead, CustomLinksMap is no longer populated or used in the engine.")
 	TMap<uint32, FNavigationSystem::FCustomLinkOwnerInfo> CustomLinksMap;
 
 	TMap<FNavLinkId, FNavigationSystem::FCustomLinkOwnerInfo> CustomNavLinksMap;

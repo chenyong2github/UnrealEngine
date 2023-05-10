@@ -153,7 +153,7 @@ public:
 	bool FindStraightPath(const FVector& StartLoc, const FVector& EndLoc, const TArray<NavNodeRef>& PathCorridor, TArray<FNavPathPoint>& PathPoints, TArray<FNavLinkId>* CustomLinks = NULL) const;
 
 	/** finds stringpulled path from given corridor */
-	UE_DEPRECATED(5.4, "Please use FindStraightPath with the TArray<FNavPathPoint>* CustomLinks. This function has no effect.")
+	UE_DEPRECATED(5.3, "Please use FindStraightPath with the TArray<FNavPathPoint>* CustomLinks. This function has no effect.")
 	bool FindStraightPath(const FVector& StartLoc, const FVector& EndLoc, const TArray<NavNodeRef>& PathCorridor, TArray<FNavPathPoint>& PathPoints, TArray<uint32>* CustomLinks) const { return false; }
 
 	/** Filters nav polys in PolyRefs with Filter */
@@ -162,7 +162,7 @@ public:
 	/** Get all polys from tile */
 	bool GetPolysInTile(int32 TileIndex, TArray<FNavPoly>& Polys) const;
 
-	UE_DEPRECATED(5.4, "Please use the version of this function that takes a FNavLinkId. This function has no effect.")
+	UE_DEPRECATED(5.3, "Please use the version of this function that takes a FNavLinkId. This function has no effect.")
 	void UpdateNavigationLinkArea(int32 UserId, uint8 AreaType, uint16 PolyFlags) const {}
 
 	/** Updates area on polygons creating point-to-point connection with given UserId */
@@ -198,7 +198,7 @@ public:
 	/** Decode poly ID into FNavTileRef and poly index */
 	bool GetPolyTileRef(NavNodeRef PolyId, uint32& OutPolyIndex, FNavTileRef& OutTileRef) const;
 	/** Retrieves user ID for given offmesh link poly */
-	UE_DEPRECATED(5.4, "Please use GetNavLinkUserId() instead. This function only returns Invalid.")
+	UE_DEPRECATED(5.3, "Please use GetNavLinkUserId() instead. This function only returns Invalid.")
 	uint32 GetLinkUserId(NavNodeRef LinkPolyID) const
 	{
 		return FNavLinkId::Invalid.GetId();

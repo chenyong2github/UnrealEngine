@@ -55,7 +55,7 @@ struct NAVMESH_API dtQuerySpecialLinkFilter
 	
 	virtual bool isLinkAllowed(const unsigned long long int UserId) const { return true; }
 
-	UE_DEPRECATED(5.4, "LinkIds are now based on a 64 bit uint. Use the version of this function that takes an unsigned long long int")
+	UE_DEPRECATED(5.3, "LinkIds are now based on a 64 bit uint. Use the version of this function that takes an unsigned long long int")
 	virtual bool isLinkAllowed(const int UserId) const final { return true; }
 
 	/// Called before accessing in A* loop (can be called multiple time for updateSlicedFindPath)

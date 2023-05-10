@@ -1241,7 +1241,7 @@ public:
 
 	virtual void UpdateCustomLink(const INavLinkCustomInterface* CustomLink) override;
 
-	UE_DEPRECATED(5.4, "Use version of this function that takes a FNavLinkId. This function now has no effect.")
+	UE_DEPRECATED(5.3, "Use version of this function that takes a FNavLinkId. This function now has no effect.")
 	void UpdateNavigationLinkArea(int32 UserId, TSubclassOf<UNavArea> AreaClass) const {}
 
 	/** update area class and poly flags for all offmesh links with given UserId */
@@ -1272,7 +1272,7 @@ public:
 	/** dtNavMesh getter */
 	const dtNavMesh* GetRecastMesh() const;
 
-	UE_DEPRECATED(5.4, "Please use GetNavLinkUserId() instead. This function only returns Invalid.")
+	UE_DEPRECATED(5.3, "Please use GetNavLinkUserId() instead. This function only returns Invalid.")
 	int32 GetLinkUserId(NavNodeRef LinkPolyID) const
 	{
 		return FNavLinkId::Invalid.GetId();
@@ -1397,7 +1397,7 @@ public:
 	/** Check if poly is a custom link */
 	bool IsCustomLink(NavNodeRef PolyRef) const;
 
-	UE_DEPRECATED(5.4, "Use new override of this function with Array<FNavLinkId>* CustomLinks. This function has no effect.")
+	UE_DEPRECATED(5.3, "Use new override of this function with Array<FNavLinkId>* CustomLinks. This function has no effect.")
 	bool FindStraightPath(const FVector& StartLoc, const FVector& EndLoc, const TArray<NavNodeRef>& PathCorridor, TArray<FNavPathPoint>& PathPoints, TArray<uint32>* CustomLinks) const { return false; }
 
 	/** finds stringpulled path from given corridor */

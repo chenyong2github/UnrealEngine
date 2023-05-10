@@ -38,11 +38,11 @@ struct ENGINE_API FNavigationLinkBase
 	float MaxFallDownLength;
 
 	/** Needs to be 0 for recast data generator */
-	UE_DEPRECATED(5.4, "Use FNavLinkId::Invalid instead")
+	UE_DEPRECATED(5.3, "Use FNavLinkId::Invalid instead")
 	static constexpr uint32 InvalidUserId = 0;
 
 	/** ID passed to navigation data generator */
-	UE_DEPRECATED(5.4, "Use NavLinkId instead, this id is no longer used in the engine")
+	UE_DEPRECATED(5.3, "Use NavLinkId instead, this id is no longer used in the engine")
 	uint32 UserId;
 
 	FNavLinkId NavLinkId;

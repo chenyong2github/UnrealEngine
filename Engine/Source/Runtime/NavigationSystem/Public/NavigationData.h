@@ -239,7 +239,7 @@ struct NAVIGATIONSYSTEM_API FNavigationPath : public TSharedFromThis<FNavigation
 #endif // ENABLE_VISUAL_LOG
 
 	/** check if path contains specific custom nav link */
-	UE_DEPRECATED(5.4, "Use version that takes FNavLinkId instead. This function only returns false.")
+	UE_DEPRECATED(5.3, "Use version that takes FNavLinkId instead. This function only returns false.")
 	virtual bool ContainsCustomLink(uint32 UniqueLinkId) const final {	return false; }
 
 	virtual bool ContainsCustomLink(FNavLinkId UniqueLinkId) const;

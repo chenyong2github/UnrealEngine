@@ -316,7 +316,7 @@ struct FNavPathPoint : public FNavLocation
 	/** extra node flags */
 	uint32 Flags;
 
-	UE_DEPRECATED(5.4, "Use CustomNavLinkId instead. This id is no longer used in the engine.")
+	UE_DEPRECATED(5.3, "Use CustomNavLinkId instead. This id is no longer used in the engine.")
 	uint32 CustomLinkId;
 
 	/** unique Id of custom navigation link starting at this point */

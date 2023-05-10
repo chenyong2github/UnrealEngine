@@ -148,7 +148,7 @@ public:
 	TArray<FVector::FReal> PathCorridorCost;
 
 	/** set of unique link Ids */
-	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId. Use CustomNavLinkIds instead. CustomLinkIds array is no longer populated or used in the engine")
+	UE_DEPRECATED(5.3, "LinkIds are now based on FNavLinkId. Use CustomNavLinkIds instead. CustomLinkIds array is no longer populated or used in the engine")
 	TArray<uint32> CustomLinkIds;
 
 	TArray<FNavLinkId> CustomNavLinkIds;

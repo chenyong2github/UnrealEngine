@@ -46,7 +46,7 @@ class NAVIGATIONSYSTEM_API INavLinkCustomInterface
 
 	virtual FNavLinkAuxiliaryId GetAuxiliaryId() const { return FNavLinkAuxiliaryId::Invalid; }
 
-	UE_DEPRECATED(5.4, "LinkIds are now based on a FNavLinkId. Call GetId() instead. This function only returns Invalid Id.")
+	UE_DEPRECATED(5.3, "LinkIds are now based on a FNavLinkId. Call GetId() instead. This function only returns Invalid Id.")
 	virtual uint32 GetLinkId() const final { return FNavLinkId::Invalid.GetId(); }
 
 	/** Get unique ID number for custom link
@@ -54,7 +54,7 @@ class NAVIGATIONSYSTEM_API INavLinkCustomInterface
 	 */
 	virtual FNavLinkId GetId() const { return FNavLinkId::Invalid; }
 
-	UE_DEPRECATED(5.4, "LinkIds are now based on a FNavLinkId. Call the version of this function that takes a FNavLinkId. This function now has no effect.")
+	UE_DEPRECATED(5.3, "LinkIds are now based on a FNavLinkId. Call the version of this function that takes a FNavLinkId. This function now has no effect.")
 	virtual void UpdateLinkId(uint32 NewUniqueId) final {}
 
 	/** Update unique ID number for custom link by navigation system. */
@@ -76,25 +76,25 @@ class NAVIGATIONSYSTEM_API INavLinkCustomInterface
 	/** Notify called when agent finishes using this link for movement */
 	virtual void OnLinkMoveFinished(class UObject* PathComp) {}
 
-	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId using FNavLinkId::GenerateUniqueId(). This function will still generate an incremental Id however it does not work well in all circumstances.")
+	UE_DEPRECATED(5.3, "LinkIds are now based on FNavLinkId using FNavLinkId::GenerateUniqueId(). This function will still generate an incremental Id however it does not work well in all circumstances.")
 	static uint32 GetUniqueId();
 
 	/** Helper function: bump unique ID numbers above given one */
-	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId. If your project is still using any of the old incremental Ids (saved in actors in levels or licensee code) then this function must be called still (typically by existing engine code), otherwise it is not necessary.")
+	UE_DEPRECATED(5.3, "LinkIds are now based on FNavLinkId. If your project is still using any of the old incremental Ids (saved in actors in levels or licensee code) then this function must be called still (typically by existing engine code), otherwise it is not necessary.")
 	static void UpdateUniqueId(FNavLinkId AlreadyUsedId);
 
-	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId. You may need to call the other version of this function that takes a FNavLinkId. This function has no effect.")
+	UE_DEPRECATED(5.3, "LinkIds are now based on FNavLinkId. You may need to call the other version of this function that takes a FNavLinkId. This function has no effect.")
 	static void UpdateUniqueId(uint32 AlreadyUsedId) {}
 
 	/** Helper function: create modifier for navigation data export */
 	static FNavigationLink GetModifier(const INavLinkCustomInterface* CustomNavLink);
 	
-	UE_DEPRECATED(5.4, "LinkIds are now based on a FNavLinkId Hash. If your project is still using any of the old incremental Ids then this function must be called still (typically by existing engine code), otherwise it is not necessary.")
+	UE_DEPRECATED(5.3, "LinkIds are now based on a FNavLinkId Hash. If your project is still using any of the old incremental Ids then this function must be called still (typically by existing engine code), otherwise it is not necessary.")
 	static void ResetUniqueId();
 
 	static void OnPreWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);
 
-	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId using FNavLinkId::GenerateUniqueId().")
+	UE_DEPRECATED(5.3, "LinkIds are now based on FNavLinkId using FNavLinkId::GenerateUniqueId().")
 	static uint32 NextUniqueId;
 };
 

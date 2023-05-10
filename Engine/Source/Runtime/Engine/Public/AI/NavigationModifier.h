@@ -174,7 +174,7 @@ struct ENGINE_API FSimpleLinkNavModifier : public FNavigationModifier
 	TArray<FNavigationSegmentLink> SegmentLinks;
 	FTransform LocalToWorld;
 
-	UE_DEPRECATED(5.4, "Use NavLinkId instead, this id is no longer used in the engine.")
+	UE_DEPRECATED(5.3, "Use NavLinkId instead, this id is no longer used in the engine.")
 	int32 UserId;
 
 	FNavLinkId NavLinkId;

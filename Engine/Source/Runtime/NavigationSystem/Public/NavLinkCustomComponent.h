@@ -148,7 +148,7 @@ protected:
 
 protected:
 
-	UE_DEPRECATED(5.4, "LinkIds are now based on FNavLinkId. Use CustomLinkId instead. This Id is no longer used by the engine.")
+	UE_DEPRECATED(5.3, "LinkIds are now based on FNavLinkId. Use CustomLinkId instead. This Id is no longer used by the engine.")
 	UPROPERTY()
 	uint32 NavLinkUserId;
 
