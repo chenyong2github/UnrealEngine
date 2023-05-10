@@ -537,14 +537,6 @@ void FStreamReaderMP4::HandleRequest()
 			// Do we read the sample because the track is selected or do we discard it?
 			if (SelectedTrack.bIsSelectedTrack)
 			{
-				// Is this a sync sample?
-				if (bIsSyncSample && !SelectedTrack.bGotKeyframe)
-				{
-					SelectedTrack.bGotKeyframe = true;
-				}
-				// Do we need to skip samples from this track until we reach a sync sample?
-				bool bSkipUntilSyncSample = !SelectedTrack.bGotKeyframe && !Request->bIsContinuationSegment;
-
 				// Create an access unit.
 				FAccessUnit *AccessUnit = FAccessUnit::Create(Parameters.MemoryProvider);
 				if (AccessUnit)

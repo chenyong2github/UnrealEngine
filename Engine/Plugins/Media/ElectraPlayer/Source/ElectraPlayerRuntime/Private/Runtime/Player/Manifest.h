@@ -22,7 +22,8 @@ namespace Electra
 		Unknown,
 		ISOBMFF,					// mp4
 		HLS,						// Apple HLS (HTTP Live Streaming)
-		DASH						// MPEG DASH
+		DASH,						// MPEG DASH
+		MKV							// Matroska / WebM
 	};
 
 

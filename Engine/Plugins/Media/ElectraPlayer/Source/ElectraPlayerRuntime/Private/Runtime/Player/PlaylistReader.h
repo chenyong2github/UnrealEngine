@@ -7,6 +7,7 @@
 #include "StreamTypes.h"
 #include "Player/Playlist.h"
 #include "ParameterDictionary.h"
+#include "HTTP/HTTPManager.h"
 
 
 

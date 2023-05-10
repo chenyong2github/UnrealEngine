@@ -160,7 +160,7 @@ private:
 	struct FSelectedTrackData
 	{
 		FSelectedTrackData()
-			: StreamType(EStreamType::Video), Bitrate(0), bGotKeyframe(false), bIsSelectedTrack(false), bIsFirstInSequence(true), bReadPastLastPTS(false)
+			: StreamType(EStreamType::Video), Bitrate(0), bIsSelectedTrack(false), bIsFirstInSequence(true), bReadPastLastPTS(false)
 		{
 			DurationSuccessfullyRead.SetToZero();
 			DurationSuccessfullyDelivered.SetToZero();
@@ -169,7 +169,6 @@ private:
 		TSharedPtrTS<FBufferSourceInfo>			BufferSourceInfo;
 		EStreamType								StreamType;
 		int32									Bitrate;
-		bool									bGotKeyframe;
 		bool									bIsSelectedTrack;
 		bool									bIsFirstInSequence;
 		bool									bReadPastLastPTS;

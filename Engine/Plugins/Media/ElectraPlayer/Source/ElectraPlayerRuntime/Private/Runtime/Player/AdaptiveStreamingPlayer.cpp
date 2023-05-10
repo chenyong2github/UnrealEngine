@@ -2085,7 +2085,7 @@ bool FAdaptiveStreamingPlayer::HaveEnoughBufferedDataToStartPlayback()
 	// When we are dealing with a single multiplexed stream and one buffer is blocked then essentially all buffers
 	// must be considered blocked since demuxing cannot continue.
 	// FIXME: do this more elegant somehow
-	if (ManifestType == EMediaFormatType::ISOBMFF)
+	if (ManifestType == EMediaFormatType::ISOBMFF || ManifestType == EMediaFormatType::MKV)
 	{
 		if (VideoBufferStats.StreamBuffer.bLastPushWasBlocked ||
 			AudioBufferStats.StreamBuffer.bLastPushWasBlocked ||
@@ -2644,7 +2644,7 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 						if (BufferSourceInfoVid.IsValid())
 						{
 							SelectedStreamAttributesVid.UpdateWith(BufferSourceInfoVid->Kind, BufferSourceInfoVid->Language, BufferSourceInfoVid->Codec, BufferSourceInfoVid->HardIndex);
-							if (ManifestType != EMediaFormatType::ISOBMFF)
+							if (ManifestType != EMediaFormatType::ISOBMFF && ManifestType != EMediaFormatType::MKV)
 							{
 								StreamSelectionAttributesVid.UpdateIfOverrideSet(BufferSourceInfoVid->Kind, BufferSourceInfoVid->Language, BufferSourceInfoVid->Codec);
 							}
@@ -2652,7 +2652,7 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 						if (BufferSourceInfoAud.IsValid())
 						{
 							SelectedStreamAttributesAud.UpdateWith(BufferSourceInfoAud->Kind, BufferSourceInfoAud->Language, BufferSourceInfoAud->Codec, BufferSourceInfoAud->HardIndex);
-							if (ManifestType != EMediaFormatType::ISOBMFF)
+							if (ManifestType != EMediaFormatType::ISOBMFF && ManifestType != EMediaFormatType::MKV)
 							{
 								StreamSelectionAttributesAud.UpdateIfOverrideSet(BufferSourceInfoAud->Kind, BufferSourceInfoAud->Language, BufferSourceInfoAud->Codec);
 							}
@@ -2660,7 +2660,7 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 						if (BufferSourceInfoTxt.IsValid())
 						{
 							SelectedStreamAttributesTxt.UpdateWith(BufferSourceInfoTxt->Kind, BufferSourceInfoTxt->Language, BufferSourceInfoTxt->Codec, BufferSourceInfoTxt->HardIndex);
-							if (ManifestType != EMediaFormatType::ISOBMFF)
+							if (ManifestType != EMediaFormatType::ISOBMFF && ManifestType != EMediaFormatType::MKV)
 							{
 								StreamSelectionAttributesTxt.UpdateIfOverrideSet(BufferSourceInfoTxt->Kind, BufferSourceInfoTxt->Language, BufferSourceInfoTxt->Codec);
 							}
@@ -2845,9 +2845,9 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingFirstSegmentRequest(const FT
 			NewReceiveBuffers->AudBuffer = MakeSharedTS<FMultiTrackAccessUnitBuffer>(EStreamType::Audio);
 			NewReceiveBuffers->TxtBuffer = MakeSharedTS<FMultiTrackAccessUnitBuffer>(EStreamType::Subtitle);
 
-			if (ManifestType == EMediaFormatType::ISOBMFF)
+			if (ManifestType == EMediaFormatType::ISOBMFF || ManifestType == EMediaFormatType::MKV)
 			{
-				// mp4 has multiple tracks in a single stream that provide data all at the same time.
+				// mp4 and mkv have multiple tracks in a single stream that provide data all at the same time.
 				NewReceiveBuffers->VidBuffer->SetParallelTrackMode();
 				NewReceiveBuffers->AudBuffer->SetParallelTrackMode();
 				NewReceiveBuffers->TxtBuffer->SetParallelTrackMode();
@@ -3274,7 +3274,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 								case EStreamType::Video:
 								{
 									SelectedStreamAttributesVid.UpdateWith(BufferSourceInfo->Kind, BufferSourceInfo->Language, BufferSourceInfo->Codec, BufferSourceInfo->HardIndex);
-									if (ManifestType != EMediaFormatType::ISOBMFF)
+									if (ManifestType != EMediaFormatType::ISOBMFF && ManifestType != EMediaFormatType::MKV)
 									{
 										StreamSelectionAttributesVid.ClearOverrideIndex();
 									}
@@ -3283,7 +3283,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 								case EStreamType::Audio:
 								{
 									SelectedStreamAttributesAud.UpdateWith(BufferSourceInfo->Kind, BufferSourceInfo->Language, BufferSourceInfo->Codec, BufferSourceInfo->HardIndex);
-									if (ManifestType != EMediaFormatType::ISOBMFF)
+									if (ManifestType != EMediaFormatType::ISOBMFF && ManifestType != EMediaFormatType::MKV)
 									{
 										StreamSelectionAttributesAud.ClearOverrideIndex();
 									}
@@ -3292,7 +3292,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 								case EStreamType::Subtitle:
 								{
 									SelectedStreamAttributesTxt.UpdateWith(BufferSourceInfo->Kind, BufferSourceInfo->Language, BufferSourceInfo->Codec, BufferSourceInfo->HardIndex);
-									if (ManifestType != EMediaFormatType::ISOBMFF)
+									if (ManifestType != EMediaFormatType::ISOBMFF && ManifestType != EMediaFormatType::MKV)
 									{
 										StreamSelectionAttributesTxt.ClearOverrideIndex();
 									}
@@ -3549,7 +3549,7 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 {
 	bool bChangeMade = false;
 
-	if (ManifestType == EMediaFormatType::ISOBMFF)
+	if (ManifestType == EMediaFormatType::ISOBMFF || ManifestType == EMediaFormatType::MKV)
 	{
 		auto HandleISOBMFFTrackSelection = [&bChangeMade, this](FStreamSelectionAttributes& OutSelectionAttributes, FInternalStreamSelectionAttributes& InOutSelectedAttributes, EStreamType InType,
 																TSharedPtrTS<FStreamSelectionAttributes>& InPendingSelection, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPeriod) -> void
@@ -4502,8 +4502,8 @@ void FAdaptiveStreamingPlayer::InternalClose()
 	ExternalDataReader.Reset();
 
 	// Reset remaining internal state
-	CurrentState = EPlayerState::eState_Idle;
-	StreamState = EStreamState::eStream_Running;
+	CurrentState   	= EPlayerState::eState_Idle;
+	StreamState		= EStreamState::eStream_Running;
 	RebufferCause = ERebufferCause::None;
 	LastBufferingState = EPlayerState::eState_Buffering;
 	RebufferDetectedAtPlayPos.SetToInvalid();

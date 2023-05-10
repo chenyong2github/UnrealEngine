@@ -190,7 +190,7 @@ namespace Electra
 	void FAdaptiveStreamSelector::SetFormatType(EMediaFormatType InFormatType)
 	{
 		// Multiplexed stream with no bitrate switching alternatives?
-		if (InFormatType == EMediaFormatType::ISOBMFF)
+		if (InFormatType == EMediaFormatType::ISOBMFF || InFormatType == EMediaFormatType::MKV)
 		{
 			ABRMethod.Reset(IABRFixedStream::Create(this, InFormatType, EABRPresentationType::OnDemand));
 		}

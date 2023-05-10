@@ -4,7 +4,6 @@
 
 #include "PlayerCore.h"
 
-
 namespace Electra
 {
 	/**
@@ -23,10 +22,22 @@ namespace Electra
 			Deallocate();
 		}
 
+		void SetExternalBuffer(uint8* InExternalBuffer, uint64 InExternalBufferSize)
+		{
+			FScopeLock Lock(&AccessLock);
+			Deallocate();
+			ExternalBuffer = InExternalBuffer;
+			DataSize = InExternalBufferSize;
+		}
+
 		// Allocates buffer of the specified capacity, destroying any previous buffer.
 		bool Reserve(int64 InNumBytes)
 		{
 			FScopeLock Lock(&AccessLock);
+			if (ExternalBuffer)
+			{
+				return false;
+			}
 			Deallocate();
 			if (Allocate(InNumBytes))
 			{
@@ -40,6 +51,10 @@ namespace Electra
 		bool EnlargeTo(int64 InNewNumBytes)
 		{
 			FScopeLock Lock(&AccessLock);
+			if (ExternalBuffer)
+			{
+				return InNewNumBytes <= Capacity();
+			}
 			// Do we need a bigger capacity?
 			if (InNewNumBytes > Capacity())
 			{
@@ -151,6 +166,7 @@ namespace Electra
 		{
 			FScopeLock Lock(&AccessLock);
 			check(!bEOD);
+
 			// Zero elements can always be pushed...
 			if (NumElements == 0)
 			{
@@ -158,7 +174,10 @@ namespace Electra
 			}
 			if (Avail() >= NumElements)
 			{
-				CopyData(Buffer->GetData() + WritePos, InData, NumElements);
+				if (InData)
+				{
+					CopyData(GetBufferBase() + WritePos, InData, NumElements);
+				}
 				WritePos += NumElements;
 				if (WritePos >= WaitingForSize)
 				{
@@ -194,7 +213,7 @@ namespace Electra
 			// Copy out or skip over?
 			if (OutData)
 			{
-				CopyData(OutData, Buffer->GetData() + ReadPos, MaxElementsWanted);
+				CopyData(OutData, GetBufferBase() + ReadPos, MaxElementsWanted);
 			}
 			ReadPos += MaxElementsWanted;
 			return MaxElementsWanted;
@@ -219,11 +238,11 @@ namespace Electra
 		// Must control Lock()/Unlock() externally!
 		const uint8* GetLinearReadData() const
 		{
-			return Buffer.IsValid() ? (Buffer->GetData() + ReadPos) : nullptr;
+			return GetBufferBase() ? GetBufferBase() + ReadPos : nullptr;
 		}
 		uint8* GetLinearReadData()
 		{
-			return Buffer.IsValid() ? (Buffer->GetData() + ReadPos) : nullptr;
+			return GetBufferBase() ? GetBufferBase() + ReadPos : nullptr;
 		}
 
 		uint8* GetLinearWriteData(int64 InNumBytesToAppend)
@@ -235,7 +254,7 @@ namespace Electra
 				bool bOk = IsEmpty() ? Allocate(InNumBytesToAppend) : InternalGrowTo(DataSize + InNumBytesToAppend - Av);
 				check(bOk); (void)bOk;
 			}
-			return Buffer.IsValid() ? (Buffer->GetData() + WritePos) : nullptr;
+			return GetBufferBase() ? GetBufferBase() + WritePos : nullptr;
 		}
 		void AppendedNewData(int64 InNumAppended)
 		{
@@ -280,8 +299,17 @@ namespace Electra
 		}
 
 	protected:
+		uint8* GetBufferBase() const
+		{
+			return Buffer.IsValid() ? Buffer->GetData() : ExternalBuffer ? ExternalBuffer : nullptr;
+		}
+
 		bool Allocate(int64 InSize)
 		{
+			if (ExternalBuffer)
+			{
+				return false;
+			}
 			if (InSize)
 			{
 				DataSize = InSize;
@@ -300,6 +328,7 @@ namespace Electra
 			DataSize = 0;
 			WritePos = 0;
 			ReadPos = 0;
+			ExternalBuffer = nullptr;
 		}
 
 		bool InternalGrowTo(int64 InNewNumBytes)
@@ -333,6 +362,8 @@ namespace Electra
 		uint64 ReadPos = 0;
 		// Amount of data necessary to be present for `SizeAvailableSignal` to get set.
 		uint64 WaitingForSize = 0;
+		// If set a buffer is provided externally to read into directly.
+		uint8* ExternalBuffer = nullptr;
 		// Flag indicating that no additional data will be added to the buffer.
 		volatile bool bEOD = false;	
 		// Flag indicating that reading into the buffer has been aborted.
