@@ -11,7 +11,8 @@ class UInputBehaviorSet;
 
 namespace UE::Chaos::ClothAsset
 {
-class CHAOSCLOTHASSETEDITOR_API FChaosClothEditorRestSpaceViewportClient : public FEditorViewportClient
+
+class CHAOSCLOTHASSETEDITOR_API FChaosClothEditorRestSpaceViewportClient : public FEditorViewportClient, public IInputBehaviorSource
 {
 public:
 
@@ -19,7 +20,12 @@ public:
 
 	virtual ~FChaosClothEditorRestSpaceViewportClient() = default;
 
-	// FEditorViewportClient
+	// IInputBehaviorSource
+	virtual const UInputBehaviorSet* GetInputBehaviors() const override;
+
+	// FGCObject
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+
 	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
 	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
 
@@ -33,6 +39,13 @@ public:
 private:
 
 	bool b2DMode = false;
+
+	TObjectPtr<UInputBehaviorSet> BehaviorSet;
+
+	TArray<TObjectPtr<UInputBehavior>> BehaviorsFor2DMode;
+
+	TUniquePtr<FEditor2DScrollBehaviorTarget> ScrollBehaviorTarget;
+	TUniquePtr<FEditor2DMouseWheelZoomBehaviorTarget> ZoomBehaviorTarget;
 
 	TWeakPtr<FUICommandList> ToolCommandList;
 };

@@ -398,6 +398,13 @@ void UChaosClothAssetEditorMode::SetSelectedClothCollection(TSharedPtr<FManagedA
 {
 	SelectedClothCollection = Collection;
 	ReinitializeDynamicMeshComponents();
+
+	if (bFirstClothCollection && Collection)
+	{
+		// refocus the viewport if this is the first time a cloth collection has been set
+		RefocusRestSpaceViewportClient();
+		bFirstClothCollection = false;
+	}
 }
 
 TSharedPtr<FManagedArrayCollection> UChaosClothAssetEditorMode::GetClothCollection()
@@ -414,25 +421,16 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 	{
 		MeshComponent.SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateUObject(this, &UChaosClothAssetEditorMode::IsComponentSelected);
 
-		UMaterialInterface* const Material = ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
-		UMaterialInstanceDynamic* const MatInstance = UMaterialInstanceDynamic::Create(Material, GetToolManager());
-		MatInstance->SetVectorParameterValue(TEXT("Color"), FLinearColor::Gray);
-		MatInstance->TwoSided = 1;
-		MeshComponent.SetMaterial(0, MatInstance);
+		UMaterialInterface* const Material = bPattern2DMode ?
+			ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetToolManager(), FLinearColor{0.6, 0.6, 0.6}, 0.0) :
+			ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
 
-		if (bPattern2DMode)
-		{
-			// The LVT_OrthoXY viewport transform results in the positive y axis pointing down in screen space. The following transform rotates 
-			// the mesh around the z axis so that increasing y value in the cloth asset corresponds to "up" in screen space
-			MeshComponent.SetWorldRotation(FQuat(FVector(0, 0, 1), FMathd::Pi));
-		}
-
+		MeshComponent.SetMaterial(0, Material);
 		MeshComponent.RegisterComponentWithWorld(this->GetWorld());
 	};
 	
 	// Clean up any existing DynamicMeshComponents
 	// Save indices of selected mesh components
-	TArray<int32> PreviouslySelectedDynamicMeshComponents;
 	const int32 TotalNumberExistingDynamicMeshComponents = DynamicMeshComponents.Num();
 
 	USelection* SelectedComponents = GetModeManager()->GetSelectedComponents();
@@ -446,8 +444,8 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 
 		if (SelectedComponents->IsSelected(DynamicMeshComp))
 		{
-			PreviouslySelectedDynamicMeshComponents.Add(DynamicMeshComponentIndex);
 			SelectedComponents->Deselect(DynamicMeshComp);
+			DynamicMeshComp->PushSelectionToProxy();
 		}
 	}
 
@@ -557,12 +555,7 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 	{
 		// Set up the wireframe display of the rest space mesh.
 		TObjectPtr<UMeshElementsVisualizer> WireframeDisplay = NewObject<UMeshElementsVisualizer>(this);
-
-		// The LVT_OrthoXY viewport transform results in the positive y axis pointing down in screen space. The following transform rotates 
-		// the mesh around the z axis so that increasing y value in the cloth asset corresponds to "up" in screen space
-		const FTransform WireframeTransform = bPattern2DMode ? FTransform(FQuat(FVector(0, 0, 1), FMathd::Pi)) : FTransform::Identity;
-
-		WireframeDisplay->CreateInWorld(GetWorld(), WireframeTransform);
+		WireframeDisplay->CreateInWorld(GetWorld(), FTransform::Identity);
 
 		WireframeDisplay->Settings->DepthBias = 2.0;
 		WireframeDisplay->Settings->bAdjustDepthBiasUsingMeshSize = false;
@@ -615,26 +608,19 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 
 	}
 
-	const bool bNumberDynamicMeshesUnchanged = (TotalNumberExistingDynamicMeshComponents == DynamicMeshComponents.Num());
-	if (bNumberDynamicMeshesUnchanged && PreviouslySelectedDynamicMeshComponents.Num() > 0)
+	SelectedComponents->DeselectAll();
+	SelectedComponents->BeginBatchSelectOperation();
+	for (TObjectPtr<UDynamicMeshComponent> RestSpaceMeshComponent : DynamicMeshComponents)
 	{
-		SelectedComponents->Modify();
-		SelectedComponents->BeginBatchSelectOperation();
-		for (int32 DynamicMeshComponentIndex : PreviouslySelectedDynamicMeshComponents)
-		{
-			if (DynamicMeshComponentIndex < DynamicMeshComponents.Num())
-			{
-				SelectedComponents->Select(DynamicMeshComponents[DynamicMeshComponentIndex]);
-			}
-		}
-		SelectedComponents->EndBatchSelectOperation();
+		SelectedComponents->Select(RestSpaceMeshComponent);
+		RestSpaceMeshComponent->PushSelectionToProxy();
 	}
-
+	SelectedComponents->EndBatchSelectOperation();
 }
 
 void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
 {
-	TSharedPtr<FEditorViewportClient, ESPMode::ThreadSafe> PinnedVC = RestSpaceViewportClient.Pin();
+	TSharedPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> PinnedVC = RestSpaceViewportClient.Pin();
 	if (PinnedVC.IsValid())
 	{
 		// This will happen in FocusViewportOnBox anyways; do it now to get a consistent end result
@@ -644,7 +630,7 @@ void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
 		if (bPattern2DMode)
 		{
 			// 2D pattern
-			PinnedVC->SetInitialViewTransform(ELevelViewportType::LVT_OrthoXY, FVector(0, 0, 0), FRotator(0, 0, 0), DEFAULT_ORTHOZOOM);
+			PinnedVC->SetInitialViewTransform(ELevelViewportType::LVT_Perspective, FVector(0, 0, -100), FRotator(90, -90, 0), DEFAULT_ORTHOZOOM);
 		}
 		else
 		{
@@ -654,6 +640,9 @@ void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
 
 		constexpr bool bInstant = true;
 		PinnedVC->FocusViewportOnBox(SceneBounds, bInstant);
+
+		// Recompute near/far clip planes
+		PinnedVC->Set2DMode(bPattern2DMode);
 	}
 }
 

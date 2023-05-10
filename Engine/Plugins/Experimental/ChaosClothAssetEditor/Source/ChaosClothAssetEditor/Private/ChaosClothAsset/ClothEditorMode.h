@@ -175,8 +175,12 @@ private:
 	// Whether we can switch between 2D and 3D rest configuration
 	bool bCanTogglePattern2DMode = true;
 
+	// Whether a cloth collection has ever been set on this Mode object
+	bool bFirstClothCollection = true;
+
 	// Whether the rest space viewport should focus on the rest space mesh on the next tick
 	bool bShouldFocusRestSpaceView = true;
+
 	void RestSpaceViewportResized(FViewport* RestspaceViewport, uint32 Unused);
 
 	// Whether to combine all patterns into a single DynamicMeshComponent, or have separate components for each pattern
