@@ -671,6 +671,8 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 
 void FComponentTypeRegistryData::Tick(float)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FComponentTypeRegistryData::Tick);
+
 	bool bRequiresRefresh = bNeedsRefreshNextTick;
 
 	if (PendingAssetData.Num() != 0)
