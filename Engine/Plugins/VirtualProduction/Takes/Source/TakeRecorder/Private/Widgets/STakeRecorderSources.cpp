@@ -556,7 +556,7 @@ void STakeRecorderSources::ReconstructTree()
 
 		auto SortPredicate = [](TTuple<int32, FString>& A, TTuple<int32, FString>& B)
 		{
-			return A.Get<1>() < B.Get<1>();
+			return A.Get<1>() <= B.Get<1>();
 		};
 
 		Algo::Sort(SortData, SortPredicate);
