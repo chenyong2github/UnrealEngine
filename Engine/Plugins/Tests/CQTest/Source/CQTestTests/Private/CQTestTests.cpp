@@ -68,11 +68,11 @@ namespace CQTestTests
 		}
 	};
 
-	TEST_CLASS_WITH_FLAGS(OverrideFixtureTestFlags, "TestFramework.CQTest.Core", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+	TEST_CLASS_WITH_FLAGS(OverrideFixtureTestFlags, "TestFramework.CQTest.Core", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 	{
 		TEST_METHOD(GetTestFlags_ReturnsSetAutomationTestFlags)
 		{
-			ASSERT_THAT(AreEqual(EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter, TestRunner->GetTestFlags()));
+			ASSERT_THAT(AreEqual(EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter, TestRunner->GetTestFlags()));
 		}
 	};
 
