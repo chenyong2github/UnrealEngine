@@ -348,5 +348,7 @@ void SPropertyEditorEditInline::OnClassPicked(UClass* InClass)
 
 		// Force a rebuild of the children when this node changes
 		PropertyNode->RequestRebuildChildren();
+
+		ComboButton->SetIsOpen(false);
 	}
 }
