@@ -5,7 +5,7 @@
 #include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "UObject/ObjectMacros.h"
 
-#include "TypedElementMiscProcessors.generated.h"
+#include "TypedElementMiscQueries.generated.h"
 
 /**
  * Removes all FTypedElementSyncBackToWorldTags at the end of an update cycle.

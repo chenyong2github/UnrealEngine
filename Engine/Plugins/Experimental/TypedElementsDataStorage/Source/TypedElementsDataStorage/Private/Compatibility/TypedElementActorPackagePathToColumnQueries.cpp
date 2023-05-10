@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Compatibility/TypedElementActorPackagePathToColumnProcessor.h"
+#include "Compatibility/TypedElementActorPackagePathToColumnQueries.h"
 
 #include "Elements/Columns/TypedElementPackageColumns.h"
 #include "Elements/Framework/TypedElementQueryBuilder.h"

@@ -5,7 +5,7 @@
 #include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "UObject/ObjectMacros.h"
 
-#include "TypedElementActorLabelProcessors.generated.h"
+#include "TypedElementActorLabelQueries.generated.h"
 
 
 UCLASS()

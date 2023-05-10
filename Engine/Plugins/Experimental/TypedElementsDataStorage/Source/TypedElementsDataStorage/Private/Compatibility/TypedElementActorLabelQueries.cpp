@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Compatibility/TypedElementActorLabelProcessors.h"
+#include "Compatibility/TypedElementActorLabelQueries.h"
 
 #include "Elements/Columns/TypedElementMiscColumns.h"
 #include "Elements/Columns/TypedElementLabelColumns.h"

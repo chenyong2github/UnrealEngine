@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Compatibility/TypedElementActorTransformProcessors.h"
+#include "Compatibility/TypedElementActorTransformQueries.h"
 
 #include "Elements/Columns/TypedElementMiscColumns.h"
 #include "Elements/Columns/TypedElementTransformColumns.h"

@@ -5,7 +5,7 @@
 #include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "UObject/ObjectMacros.h"
 
-#include "TypedElementActorPackagePathToColumnProcessor.generated.h"
+#include "TypedElementActorPackagePathToColumnQueries.generated.h"
 
 UCLASS()
 class UTypedElementActorPackagePathFactory : public UTypedElementDataStorageFactory

@@ -5,7 +5,7 @@
 #include "Elements/Interfaces/TypedElementDataStorageFactory.h"
 #include "UObject/ObjectMacros.h"
 
-#include "TypedElementActorTransformProcessors.generated.h"
+#include "TypedElementActorTransformQueries.generated.h"
 
 UCLASS()
 class UTypedElementActorTransformFactory : public UTypedElementDataStorageFactory
