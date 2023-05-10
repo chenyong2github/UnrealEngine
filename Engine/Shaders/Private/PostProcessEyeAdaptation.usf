@@ -174,7 +174,7 @@ void BasicEyeAdaptationSetupPS(
 	OutColor = Texture2DSample(ColorTexture, ColorSampler, UV);
 
 	// Use max to ensure intensity is never zero (so the following log is well behaved)
-	const float Intensity = CalculateEyeAdaptationLuminance(OutColor.xyz);
+	const float Intensity = CalculateEyeAdaptationLuminance(OutColor.xyz * View.OneOverPreExposure);
 	const float LogIntensity = clamp(log2(Intensity),-10.0f,20.0f);
 
 	// Store log intensity in the alpha channel: scale to 0,1 range.
@@ -245,7 +245,7 @@ void BasicEyeAdaptationCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThre
 	LogLumAve = (LogLumAve - EyeAdaptation_HistogramBias) / EyeAdaptation_HistogramScale;
 	
 	// Convert LogLuminanceAverage to Average Intensity
-	const float AverageSceneLuminance = View.OneOverPreExposure * exp2(LogLumAve);
+	const float AverageSceneLuminance = exp2(LogLumAve);
 	
 	// The Exposure Scale (and thus intensity) used in the previous frame
 	const float OldExposureScale = EyeAdaptationBuffer[0].x;
