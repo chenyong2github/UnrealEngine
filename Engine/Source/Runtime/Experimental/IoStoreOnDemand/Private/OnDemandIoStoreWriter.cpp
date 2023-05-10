@@ -389,4 +389,4 @@ TUniquePtr<IOnDemandIoStoreWriter> MakeOnDemandIoStoreWriter(
 
 } // namespace UE
 
-#endif (IS_PROGRAM || WITH_EDITOR)
+#endif // (IS_PROGRAM || WITH_EDITOR)

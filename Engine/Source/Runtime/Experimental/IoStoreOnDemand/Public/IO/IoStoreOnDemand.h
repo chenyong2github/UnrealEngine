@@ -112,7 +112,7 @@ UE_API TUniquePtr<IOnDemandIoStoreWriter> MakeOnDemandIoStoreWriter(
 	const FString& OutputDirectory,
 	uint32 MaxConcurrentWrites = 64);
 
-#endif (IS_PROGRAM || WITH_EDITOR)
+#endif // (IS_PROGRAM || WITH_EDITOR)
 
 } // namespace UE
 
