@@ -1048,9 +1048,9 @@ EPropertyBagContainerType FPropertyBagContainerTypes::PopHead()
 	{
 		Head = Types[0];
 
-		for (uint32 i = 1; i < NumContainers; ++i)
+		for (uint32 i = 0; i < (NumContainers - 1u); ++i)
 		{
-			Types[i - 1] = Types[i];
+			Types[i] = Types[i + 1];
 		}
 		Types[NumContainers - 1] = EPropertyBagContainerType::None;
 		NumContainers = NumContainers - 1;

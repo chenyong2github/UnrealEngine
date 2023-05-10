@@ -273,9 +273,11 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
 	UPROPERTY(EditAnywhere, Category="Default")
 	EPropertyBagPropertyType ValueType = EPropertyBagPropertyType::None;
 
-	/** Type of the container described by this property. */
-	UE_DEPRECATED(5.3, "ContainerType has been deprecated as of 5.3. Please use ContainerTypes instead.")
-	FPropertyBagContainerTypes ContainerType;
+#if WITH_EDITORONLY_DATA
+	/** DEPRECATED 5.3 */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "ContainerType has been deprecated as of 5.3. Please use ContainerTypes instead."))
+	FPropertyBagContainerTypes ContainerType_DEPRECATED; 
+#endif
 
 	/** Type of the container described by this property. */
 	UPROPERTY(EditAnywhere, Category="Default")
