@@ -121,6 +121,7 @@ struct TStructOpsTypeTraits<FKeyHandleMap>
 		WithCopy = false,
 		WithIdenticalViaEquality = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 /**
@@ -207,4 +208,5 @@ struct TStructOpsTypeTraits<FKeyHandleLookupTable>
 	{
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };

@@ -112,5 +112,6 @@ struct TStructOpsTypeTraits< FNavAgentSelector > : public TStructOpsTypeTraitsBa
 	{
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 

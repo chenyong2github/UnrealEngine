@@ -93,4 +93,5 @@ struct TStructOpsTypeTraits<FKLevelSetElem> : public TStructOpsTypeTraitsBase2<F
 	{
 		WithSerializer = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };

@@ -71,6 +71,7 @@ struct TStructOpsTypeTraits<FNameCurveKey>
 		WithCopy = false,
 		WithIdenticalViaEquality = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 

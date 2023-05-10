@@ -46,6 +46,7 @@ struct TStructOpsTypeTraits<FMovieSceneKeyHandleMap>
 	{
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 namespace UE

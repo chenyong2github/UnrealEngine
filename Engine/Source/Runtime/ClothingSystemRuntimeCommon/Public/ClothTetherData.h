@@ -46,4 +46,5 @@ struct TStructOpsTypeTraits<FClothTetherData> : public TStructOpsTypeTraitsBase2
 	{
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };

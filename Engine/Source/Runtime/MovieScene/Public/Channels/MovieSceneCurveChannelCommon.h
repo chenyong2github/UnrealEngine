@@ -92,5 +92,6 @@ struct TStructOpsTypeTraits<FMovieSceneTangentData>
 		WithCopy = false,
 		WithIdenticalViaEquality = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 

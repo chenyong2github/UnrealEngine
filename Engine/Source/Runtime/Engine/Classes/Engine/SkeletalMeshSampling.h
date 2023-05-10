@@ -52,6 +52,7 @@ struct ENGINE_API FSkeletalMeshSamplingRegionBuiltData
 template<> struct TStructOpsTypeTraits<FSkeletalMeshSamplingRegionBuiltData> : public TStructOpsTypeTraitsBase2<FSkeletalMeshSamplingRegionBuiltData>
 {
 	enum{ WithSerializer = true };
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 /** Built data for sampling a the whole mesh at a particular LOD. */
@@ -75,6 +76,7 @@ struct ENGINE_API FSkeletalMeshSamplingLODBuiltData
 template<> struct TStructOpsTypeTraits<FSkeletalMeshSamplingLODBuiltData> : public TStructOpsTypeTraitsBase2<FSkeletalMeshSamplingLODBuiltData>
 {
 	enum{ WithSerializer = true };
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 USTRUCT()

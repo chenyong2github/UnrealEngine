@@ -124,4 +124,5 @@ struct TStructOpsTypeTraits<FMovieSceneEvaluationKey> : public TStructOpsTypeTra
 	{
 		WithSerializer = true, WithIdenticalViaEquality = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };

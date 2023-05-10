@@ -713,6 +713,7 @@ struct TStructOpsTypeTraits<FGameplayTagContainer> : public TStructOpsTypeTraits
 		WithCopy = true,
 		WithPostScriptConstruct = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 /** Class that can be subclassed by a game/plugin to allow easily adding native gameplay tags at startup */

@@ -213,6 +213,7 @@ struct TStructOpsTypeTraits<FPerQualityLevelInt>
 		WithSerializeFromMismatchedTag = true,
 		WithSerializer = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 USTRUCT()
@@ -255,5 +256,6 @@ struct TStructOpsTypeTraits<FPerQualityLevelFloat>
 		WithSerializeFromMismatchedTag = true,
 		WithSerializer = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 

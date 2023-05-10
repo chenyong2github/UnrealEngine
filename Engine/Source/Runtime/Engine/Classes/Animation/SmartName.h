@@ -262,4 +262,5 @@ struct TStructOpsTypeTraits<FSmartName> : public TStructOpsTypeTraitsBase2<FSmar
 		WithSerializer = true,
 		WithIdenticalViaEquality = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };

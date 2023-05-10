@@ -539,6 +539,7 @@ template<> struct TStructOpsTypeTraits<FAnimSyncMarker> : public TStructOpsTypeT
 	{ 
 		WithSerializer = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 #endif
 
@@ -933,6 +934,7 @@ struct ENGINE_API FRawAnimSequenceTrack
 template<> struct TStructOpsTypeTraits<FRawAnimSequenceTrack> : public TStructOpsTypeTraitsBase2<FRawAnimSequenceTrack>
 {
 	enum { WithSerializer = true };
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 UCLASS()

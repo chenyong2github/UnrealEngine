@@ -88,4 +88,5 @@ struct TStructOpsTypeTraits<FMovieSceneTrackIdentifier> : public TStructOpsTypeT
 	{
 		WithSerializer = true, WithIdenticalViaEquality = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };

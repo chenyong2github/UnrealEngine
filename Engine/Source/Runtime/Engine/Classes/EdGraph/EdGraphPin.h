@@ -232,6 +232,7 @@ struct TStructOpsTypeTraits< FEdGraphPinType > : public TStructOpsTypeTraitsBase
 		WithSerializer = true,
 		WithPostSerialize = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::Strong;
 };
 
 UENUM()

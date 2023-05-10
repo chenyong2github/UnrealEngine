@@ -119,6 +119,7 @@ struct TStructOpsTypeTraits<FExpressionInput>
 	{
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 //
@@ -199,6 +200,8 @@ struct TStructOpsTypeTraits<FColorMaterialInput>
 	{
 		WithSerializer = true,
 	};
+
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 struct FScalarMaterialInput : FMaterialInput<float>
@@ -218,6 +221,7 @@ struct TStructOpsTypeTraits<FScalarMaterialInput>
 	{
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 struct FShadingModelMaterialInput : FMaterialInput<uint32>
@@ -275,6 +279,7 @@ struct TStructOpsTypeTraits<FVectorMaterialInput>
 	{
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 struct FVector2MaterialInput : FMaterialInput<FVector2f>
@@ -294,6 +299,7 @@ struct TStructOpsTypeTraits<FVector2MaterialInput>
 	{
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 struct FMaterialAttributesInput : FExpressionInput
@@ -330,4 +336,5 @@ struct TStructOpsTypeTraits<FMaterialAttributesInput>
 	{
 		WithSerializer = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };

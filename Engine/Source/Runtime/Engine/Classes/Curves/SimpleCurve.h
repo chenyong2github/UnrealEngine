@@ -60,6 +60,7 @@ struct TStructOpsTypeTraits<FSimpleCurveKey>
 		WithCopy = false,
 		WithIdenticalViaEquality = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 

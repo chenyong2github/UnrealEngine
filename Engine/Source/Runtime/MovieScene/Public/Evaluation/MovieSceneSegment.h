@@ -72,6 +72,7 @@ struct FMovieSceneSegmentIdentifier
 template<> struct TStructOpsTypeTraits<FMovieSceneSegmentIdentifier> : public TStructOpsTypeTraitsBase2<FMovieSceneSegmentIdentifier>
 {
 	enum { WithSerializer = true, WithIdenticalViaEquality = true };
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 /**
@@ -246,4 +247,5 @@ struct FMovieSceneSegment
 template<> struct TStructOpsTypeTraits<FMovieSceneSegment> : public TStructOpsTypeTraitsBase2<FMovieSceneSegment>
 {
 	enum { WithSerializer = true, WithCopy = true, WithIdenticalViaEquality = true };
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };

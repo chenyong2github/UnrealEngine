@@ -87,6 +87,7 @@ struct TStructOpsTypeTraits<FMovieSceneSequenceID> : public TStructOpsTypeTraits
 		WithSerializer = true,
 		WithCopy = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 #if UE_MOVIESCENE_ENTITY_DEBUG

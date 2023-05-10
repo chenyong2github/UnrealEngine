@@ -295,6 +295,7 @@ struct TStructOpsTypeTraits<FPerPlatformInt>
 		WithSerializeFromMismatchedTag = true,
 		WithSerializer = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 struct FFreezablePerPlatformFloat;
@@ -376,6 +377,7 @@ struct TStructOpsTypeTraits<FPerPlatformFloat>
 		WithSerializeFromMismatchedTag = true,
 		WithSerializer = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 /** FPerPlatformBool - bool property with per-platform overrides */
@@ -416,6 +418,7 @@ struct TStructOpsTypeTraits<FPerPlatformBool>
 		WithSerializeFromMismatchedTag = true,
 		WithSerializer = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 /** FPerPlatformFrameRate - FFrameRate property with per-platform overrides */
@@ -472,4 +475,5 @@ struct TStructOpsTypeTraits<FPerPlatformFrameRate>
 		WithSerializeFromMismatchedTag = false,
 		WithSerializer = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };

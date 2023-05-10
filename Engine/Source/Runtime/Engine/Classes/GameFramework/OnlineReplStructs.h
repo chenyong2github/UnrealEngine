@@ -149,6 +149,7 @@ struct TStructOpsTypeTraits<FUniqueNetIdRepl> : public TStructOpsTypeTraitsBase2
 		// Import string contents as a unique id
 		WithImportTextItem = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 /** Test harness for Unique Id replication */

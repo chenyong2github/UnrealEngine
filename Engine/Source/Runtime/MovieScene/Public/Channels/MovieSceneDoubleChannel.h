@@ -108,6 +108,7 @@ struct TStructOpsTypeTraits<FMovieSceneDoubleValue>
 		WithCopy = false,
 		WithIdenticalViaEquality = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 
@@ -353,6 +354,7 @@ struct TStructOpsTypeTraits<FMovieSceneDoubleChannel> : public TStructOpsTypeTra
 		WithStructuredSerializeFromMismatchedTag = true, 
 	    WithSerializer = true
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 template<>

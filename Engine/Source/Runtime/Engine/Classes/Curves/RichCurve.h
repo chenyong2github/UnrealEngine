@@ -188,6 +188,7 @@ struct TStructOpsTypeTraits<FRichCurveKey>
 		WithCopy = false,
 		WithIdenticalViaEquality = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 
@@ -436,6 +437,7 @@ struct TStructOpsTypeTraits<FCompressedRichCurve>
 		WithCopy = false,
 		WithIdenticalViaEquality = true,
 	};
+	static constexpr EPropertyObjectReferenceType WithSerializerObjectReferences = EPropertyObjectReferenceType::None;
 };
 
 /**
