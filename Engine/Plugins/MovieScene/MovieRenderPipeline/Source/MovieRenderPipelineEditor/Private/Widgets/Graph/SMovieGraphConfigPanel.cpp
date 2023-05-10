@@ -31,6 +31,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SPrimaryButton.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "SNodePanel.h"
 
 // ContentBrowser Includes
 #include "IContentBrowserSingleton.h"
@@ -49,6 +50,8 @@
 #include "FileHelpers.h"
 #include "AssetToolsModule.h"
 #include "Misc/FileHelper.h"
+#include "EdGraphUtilities.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #include "Graph/MovieGraphConfig.h"
 #include "Graph/Nodes/MovieGraphVariableNode.h"
@@ -89,6 +92,9 @@ void SMoviePipelineGraphPanel::Construct(const FArguments& InArgs)
 		PipelineQueueEditorWidget->SetSelectedJobs(Jobs);
 	}
 
+	FGraphAppearanceInfo AppearanceInfo;
+	AppearanceInfo.CornerText = LOCTEXT("EditorCornerText", "Movie Graph Config");
+
 	SGraphEditor::FGraphEditorEvents InEvents;
 	InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &SMoviePipelineGraphPanel::OnSelectedNodesChanged);
 	InEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &SMoviePipelineGraphPanel::OnNodeDoubleClicked);
@@ -115,8 +121,11 @@ void SMoviePipelineGraphPanel::Construct(const FArguments& InArgs)
 		.GraphToEdit(GraphToEdit)
 		.AdditionalCommands(GraphEditorCommands)
 		.GraphEvents(InEvents)
+		.Appearance(AppearanceInfo)
 	];
 }
+
+UE_ENABLE_OPTIMIZATION_SHIP
 
 void SMoviePipelineGraphPanel::MakeEditorCommands()
 {
@@ -135,6 +144,68 @@ void SMoviePipelineGraphPanel::MakeEditorCommands()
 		GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
 			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::DeleteSelectedNodes),
 			FCanExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::CanDeleteSelectedNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Copy,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::CopySelectedNodes),
+			FCanExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::CanCopySelectedNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Cut,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::CutSelectedNodes),
+			FCanExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::CanCutSelectedNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Paste,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::PasteNodes),
+			FCanExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::CanPasteNodes)
+		);
+
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::DuplicateNodes),
+			FCanExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::CanDuplicateNodes)
+		);
+
+		// Alignment Commands
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnAlignTop)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesMiddle,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnAlignMiddle)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesBottom,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnAlignBottom)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesLeft,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnAlignLeft)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesCenter,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnAlignCenter)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesRight,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnAlignRight)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().StraightenConnections,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnStraightenConnections)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnCreateComment)
+		);
+
+		// Distribution Commands
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesHorizontally,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnDistributeNodesH)
+		);
+
+		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().DistributeNodesVertically,
+			FExecuteAction::CreateSP(this, &SMoviePipelineGraphPanel::OnDistributeNodesV)
 		);
 	}
 }
@@ -212,12 +283,276 @@ void SMoviePipelineGraphPanel::DeleteSelectedNodes()
 	ClearGraphSelection();
 }
 
+void SMoviePipelineGraphPanel::CopySelectedNodes()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		const FGraphPanelSelectionSet SelectedNodes = GraphEditorWidget->GetSelectedNodes();
+
+		for (UObject* SelectedNode : SelectedNodes)
+		{
+			UEdGraphNode* GraphNode = CastChecked<UEdGraphNode>(SelectedNode);
+
+			// This causes the editor node to become the temporary owner of the underlying data model node
+			GraphNode->PrepareForCopying();
+		}
+
+		// Serialize it all to text, the linked data model nodes are copied too due to (temporarily) being owned
+		// by the editor node we're copying. 
+		FString ExportedText;
+		FEdGraphUtilities::ExportNodesToText(SelectedNodes, ExportedText);
+		FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+
+		// Now go back through our nodes and restore their proper ownership. There's no matching PostPrepareForCopying
+		// in UEdGraphNode, so we have to cast it to our type first.
+		for (UObject* SelectedNode : SelectedNodes)
+		{
+			if (UMoviePipelineEdGraphNodeBase* MovieGraphNode = Cast<UMoviePipelineEdGraphNodeBase>(SelectedNode))
+			{
+				MovieGraphNode->PostCopy();
+			}
+		}
+	}
+}
+
+bool SMoviePipelineGraphPanel::CanCopySelectedNodes() const
+{
+	// We handle non-copyable nodes on paste so the toast warning happens on paste
+	// to warn the user that some nodes (Input/Outputs) weren't copied.
+	bool bAtLeastOneCopyableNode = false;
+	if (GraphEditorWidget.IsValid())
+	{
+		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
+		{
+			if (UEdGraphNode* GraphNode = CastChecked<UEdGraphNode>(Object))
+			{
+				if (GraphNode->CanDuplicateNode())
+				{
+					bAtLeastOneCopyableNode = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return bAtLeastOneCopyableNode;
+}
+
+void SMoviePipelineGraphPanel::CutSelectedNodes()
+{
+	CopySelectedNodes();
+	DeleteSelectedNodes();
+}
+
+bool SMoviePipelineGraphPanel::CanCutSelectedNodes() const
+{
+	return CanCopySelectedNodes() && CanDeleteSelectedNodes();
+}
+
+void SMoviePipelineGraphPanel::PasteNodes()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		PasteNodesHere(GraphEditorWidget->GetPasteLocation());
+	}
+}
+
+void SMoviePipelineGraphPanel::PasteNodesHere(const FVector2D& Location)
+{
+	if (!GraphEditorWidget.IsValid() || !CurrentGraph->PipelineEdGraph)
+	{
+		return;
+	}
+
+	const FScopedTransaction Transaction(LOCTEXT("PasteNodes_Transaction", "Movie Graph Paste Node(s)"));
+	UMoviePipelineEdGraph* EdGraph = Cast<UMoviePipelineEdGraph>(CurrentGraph->PipelineEdGraph);
+	EdGraph->Modify();
+
+	// Clear the selection set (newly pasted stuff will be selected)
+	GraphEditorWidget->ClearSelectionSet();
+
+	// Grab the text to paste from the clipboard.
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+
+	// Import the nodes
+	TSet<UEdGraphNode*> PastedNodes;
+	FEdGraphUtilities::ImportNodesFromText(EdGraph, TextToImport, PastedNodes);
+
+	//Average position of nodes so that resulting nodes are centered around the paste location
+	FVector2D AvgNodePosition(0.0f, 0.0f);
+
+	int32 AvgCount = 0;
+
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		if (PastedNode)
+		{
+			AvgNodePosition.X += PastedNode->NodePosX;
+			AvgNodePosition.Y += PastedNode->NodePosY;
+			++AvgCount;
+		}
+	}
+
+	if (AvgCount > 0)
+	{
+		float InvNumNodes = 1.0f / float(AvgCount);
+		AvgNodePosition.X *= InvNumNodes;
+		AvgNodePosition.Y *= InvNumNodes;
+	}
+
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		GraphEditorWidget->SetNodeSelection(PastedNode, true);
+
+		// Offset to center the nodes on the paste location
+		PastedNode->NodePosX = (PastedNode->NodePosX - AvgNodePosition.X) + Location.X;
+		PastedNode->NodePosY = (PastedNode->NodePosY - AvgNodePosition.Y) + Location.Y;
+
+		PastedNode->SnapToGrid(SNodePanel::GetSnapGridSize());
+
+		PastedNode->CreateNewGuid();
+
+		if (UMoviePipelineEdGraphNodeBase* PastedEdGraphNode = Cast<UMoviePipelineEdGraphNodeBase>(PastedNode))
+		{
+			if (UMovieGraphNode* PastedRuntimeNode = PastedEdGraphNode->GetRuntimeNode())
+			{
+				// AddNode fixes up ownership to ensure the graph owns this node
+				CurrentGraph->AddNode(PastedRuntimeNode);
+
+				// Rebuild the runtime node connections based on the editor node pins
+				PastedEdGraphNode->PostPaste();
+			}
+		}
+	}
+
+	GraphEditorWidget->NotifyGraphChanged();
+}
+
+bool SMoviePipelineGraphPanel::CanPasteNodes() const
+{
+	FString ClipboardContent;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+
+	return FEdGraphUtilities::CanImportNodesFromText(CurrentGraph->PipelineEdGraph, ClipboardContent);
+}
+
+void SMoviePipelineGraphPanel::DuplicateNodes()
+{
+	CopySelectedNodes();
+	PasteNodes();
+}
+
+bool SMoviePipelineGraphPanel::CanDuplicateNodes() const
+{
+	return CanCopySelectedNodes();
+}
+
+void SMoviePipelineGraphPanel::OnAlignTop()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignTop();
+	}
+}
+
+void SMoviePipelineGraphPanel::OnAlignMiddle()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignMiddle();
+	}
+}
+
+void SMoviePipelineGraphPanel::OnAlignBottom()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignBottom();
+	}
+}
+
+void SMoviePipelineGraphPanel::OnAlignLeft()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignLeft();
+	}
+}
+
+void SMoviePipelineGraphPanel::OnAlignCenter()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignCenter();
+	}
+}
+
+void SMoviePipelineGraphPanel::OnAlignRight()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnAlignRight();
+	}
+}
+
+void SMoviePipelineGraphPanel::OnStraightenConnections()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnStraightenConnections();
+	}
+}
+
+void SMoviePipelineGraphPanel::OnDistributeNodesH()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnDistributeNodesH();
+	}
+}
+
+void SMoviePipelineGraphPanel::OnDistributeNodesV()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->OnDistributeNodesV();
+	}
+}
+
 void SMoviePipelineGraphPanel::ClearGraphSelection() const
 {
 	GraphEditorWidget->ClearSelectionSet();
 }
 
-UE_ENABLE_OPTIMIZATION_SHIP
+bool SMoviePipelineGraphPanel::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const
+{
+	// ToDo: If we wanted to rebuild the graph less often, we could make all of our transactions have a context
+	// and only handle PostUndo if the undo actually matches the context. For now we'll just always rebuild the widget.
+	return true;
+}
+
+void SMoviePipelineGraphPanel::PostUndo(bool bSuccess)
+{
+	if (bSuccess)
+	{
+		if (CurrentGraph)
+		{
+			CurrentGraph->OnGraphChangedDelegate.Broadcast();
+		}
+
+		if (GraphEditorWidget.IsValid())
+		{
+			// This unfortunately causes the graph to flicker for one frame, but all Blueprint Graphs do this.
+			// This is needed so that when a node is pasted, then undone, the widgets on the graph for the now
+			// deleted nodes also get removed, otherwise we try to draw them and they're pointed to invalid uobjects.
+			GraphEditorWidget->ClearSelectionSet();
+			GraphEditorWidget->NotifyGraphChanged();
+
+			FSlateApplication::Get().DismissAllMenus();
+		}
+	}
+}
 
 void SMoviePipelineGraphPanel::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {

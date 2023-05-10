@@ -28,14 +28,22 @@ public:
 	virtual bool ShowPaletteIconOnNode() const override;
 	virtual void OnUpdateCommentText(const FString& NewComment) override;
 	virtual void OnCommentBubbleToggled(bool bInCommentBubbleVisible) override;
+	virtual void PrepareForCopying() override;
+	virtual void PostPasteNode() override;
+	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
 	//~ End UEdGraphNode Interface
-	
+
+	// Called after PrepareForCopying to restore changes made during preparation. 
+	virtual void PostCopy();
+	virtual void PostPaste();
+
 	//~ Begin UObject interface
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	//~ End UObject interface
 
 protected:
 	virtual bool ShouldCreatePin(const UMovieGraphPin* InPin) const;
+	void RebuildRuntimeEdgesFromPins();
 
 	void CreatePins(const TArray<UMovieGraphPin*>& InInputPins, const TArray<UMovieGraphPin*>& InOutputPins);
 
@@ -57,6 +65,9 @@ protected:
 	/** The runtime node that this editor node represents. */
 	UPROPERTY()
 	TObjectPtr<UMovieGraphNode> RuntimeNode;
+
+	/** Should we early out in ReconstructNode(), skipping restoring the connections to other nodes. Set during Copy/Paste. */
+	bool bDisableReconstructNode = false;
 };
 
 UCLASS()

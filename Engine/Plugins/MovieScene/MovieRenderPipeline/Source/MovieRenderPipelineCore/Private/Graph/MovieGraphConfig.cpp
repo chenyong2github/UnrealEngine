@@ -330,6 +330,27 @@ bool UMovieGraphConfig::RemoveOutboundEdges(UMovieGraphNode* InNode, const FName
 	return bChanged;
 }
 
+void UMovieGraphConfig::AddNode(UMovieGraphNode* InNode)
+{
+	if (!InNode)
+	{
+		return;
+	}
+
+	InNode->SetFlags(RF_Transactional);
+
+	Modify();
+
+	// Reparent node to this graph
+	InNode->Rename(nullptr, this);
+
+	AllNodes.Add(InNode);
+
+#if WITH_EDITOR
+	OnGraphChangedDelegate.Broadcast();
+#endif
+}
+
 bool UMovieGraphConfig::RemoveNodes(TArray<UMovieGraphNode*> InNodes)
 {
 	bool bChanged = false;

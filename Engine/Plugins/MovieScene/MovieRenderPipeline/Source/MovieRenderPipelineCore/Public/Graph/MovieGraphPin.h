@@ -81,6 +81,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Properties", meta = (ShowOnlyInnerProperties))
 	FMovieGraphPinProperties Properties;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Properties")
+	/** 
+	* A list of edges between pins. This is marked as TextExportTransient so that when we copy/paste nodes,
+	* we don't copy the edges, as they are rebuilt after paste based on the editor graph connections.
+	*/
+	UPROPERTY(BlueprintReadOnly, TextExportTransient, Category = "Properties")
 	TArray<TObjectPtr<UMovieGraphEdge>> Edges;
 };

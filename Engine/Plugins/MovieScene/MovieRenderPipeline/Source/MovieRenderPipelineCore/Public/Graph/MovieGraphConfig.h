@@ -355,8 +355,16 @@ public:
 	bool RemoveInboundEdges(UMovieGraphNode* InNode, const FName& InPinName);
 	bool RemoveOutboundEdges(UMovieGraphNode* InNode, const FName& InPinName);
 
+	/** 
+	* Add the specified node instance to the graph. This will rename the node to ensure the graph is the outer
+	* and then it will add it to the internal list of nodes used by the graph. See ConstructRuntimeNode if you
+	* want to construct a node by class and don't already have an instance.
+	*/
+	void AddNode(UMovieGraphNode* InNode);
+
 	/** Removes the specified node from the graph. */
 	bool RemoveNode(UMovieGraphNode* InNode);
+	/** Removes the specified nodes from the graph. */
 	bool RemoveNodes(TArray<UMovieGraphNode*> InNodes);
 
 	UMovieGraphNode* GetInputNode() const { return InputNode; }
@@ -435,7 +443,8 @@ public:
 	FOnMovieGraphOutputAdded OnGraphOutputAddedDelegate;
 	FOnMovieGraphNodesDeleted OnGraphNodesDeletedDelegate;
 #endif
-	
+
+protected:	
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieGraphNode>> AllNodes;
 
@@ -444,7 +453,7 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UMovieGraphNode> OutputNode;
-
+public:
 #if WITH_EDITORONLY_DATA
 	// Not strongly typed to avoid a circular dependency between the editor only module
 	// and the runtime module, but it should be a UMoviePipelineEdGraph.
@@ -456,15 +465,12 @@ public:
 	T* ConstructRuntimeNode(TSubclassOf<UMovieGraphNode> PipelineGraphNodeClass = T::StaticClass())
 	{
 		// Construct a new object with ourselves as the outer, then keep track of it.
-		// ToDo: This is a runtime node, kept track in AllNodes, which is ultimately editor only. Probably
-		// because the system it's based on (SoundCues) have a root node and links nodes together later?
 		T* RuntimeNode = NewObject<T>(this, PipelineGraphNodeClass, NAME_None, RF_Transactional);
 		RuntimeNode->UpdateDynamicProperties();
 		RuntimeNode->UpdatePins();
 		RuntimeNode->Guid = FGuid::NewGuid();
-#if WITH_EDITOR
-		AllNodes.Add(RuntimeNode);
-#endif
+		
+		AddNode(RuntimeNode);
 		return RuntimeNode;
 	}
 

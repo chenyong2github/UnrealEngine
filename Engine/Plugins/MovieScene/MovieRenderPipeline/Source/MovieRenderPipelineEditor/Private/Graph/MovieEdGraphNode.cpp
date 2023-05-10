@@ -4,6 +4,7 @@
 
 #include "Graph/MovieGraphPin.h"
 #include "Graph/MovieGraphNode.h"
+#include "Graph/MovieGraphConfig.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "MovieEdGraph.h"
@@ -11,6 +12,8 @@
 #include "PropertyBag.h"
 #include "ToolMenu.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "GraphEditorActions.h"
+#include "Framework/Commands/GenericCommands.h"
 
 #define LOCTEXT_NAMESPACE "MoviePipelineEdGraphNodeBase"
 
@@ -131,7 +134,8 @@ FText UMoviePipelineEdGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 
 FText UMoviePipelineEdGraphNode::GetTooltipText() const
 {
-	return LOCTEXT("GraphTestTooltip", "Test Tooltip");
+	// Return the UObject name for now for debugging purposes
+	return FText::FromString(GetName());
 }
 
 void UMoviePipelineEdGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
@@ -342,6 +346,14 @@ void UMoviePipelineEdGraphNodeBase::OnRuntimeNodeChanged(const UMovieGraphNode* 
 
 void UMoviePipelineEdGraphNodeBase::ReconstructNode()
 {
+	// Don't reconstruct the node during copy-paste. If we allow reconstruction,
+	// then the editor graph reconstructs connections to previous nodes that were
+	// not included in the copy/paste. This does not affect connections within the copy/pasted nodes.
+	if (bDisableReconstructNode)
+	{
+		return;
+	}
+
 	ReconstructPins();
 
 	UMoviePipelineEdGraph* Graph = CastChecked<UMoviePipelineEdGraph>(GetGraph());
@@ -385,6 +397,132 @@ void UMoviePipelineEdGraphNodeBase::ReconstructPins()
 		OldPin->BreakAllPinLinks();
 		OldPin->SubPins.Remove(nullptr);
 		DestroyPin(OldPin);
+	}
+}
+
+void UMoviePipelineEdGraphNodeBase::PrepareForCopying()
+{
+	if (RuntimeNode)
+	{
+		// Temporarily take ownership of the model's node, so that it is not deleted when copying.
+		// This is restored in PostCopy
+		RuntimeNode->Rename(nullptr, this, REN_DontCreateRedirectors | REN_DoNotDirty);
+	}
+}
+
+void UMoviePipelineEdGraphNodeBase::PostCopy()
+{
+	if (RuntimeNode)
+	{
+		// We briefly took ownership of the runtime node to create the copy/paste buffer,
+		// restore the ownership back to the owning graph.
+		UMoviePipelineEdGraph* MovieGraphEditorGraph = CastChecked<UMoviePipelineEdGraph>(GetGraph());
+		UMovieGraphConfig* RuntimeGraph = MovieGraphEditorGraph->GetPipelineGraph();
+		check(RuntimeGraph);
+		RuntimeNode->Rename(nullptr, RuntimeGraph, REN_DontCreateRedirectors | REN_DoNotDirty);
+	}
+}
+
+void UMoviePipelineEdGraphNodeBase::PostPasteNode()
+{
+	bDisableReconstructNode = true;
+}
+
+void UMoviePipelineEdGraphNodeBase::PostPaste()
+{
+	if (RuntimeNode)
+	{
+		// The editor nodes preserved the connections between nodes when copying/pasting
+		// but we intentionally don't preserve the edges of the runtime graph when copying
+		// (as the ownership isn't always clear given both input/output edges, which node owns
+		// the edge, the one inside the copied graph? Or the one outside it?), so instead 
+		// we just rebuild the runtime edge connections based on the editor graph connectivity. 
+		RebuildRuntimeEdgesFromPins();
+
+		// Ensure we're listening to the delegate for this pasted node, because we may have skipped ::Construct
+		RuntimeNode->OnNodeChangedDelegate.AddUObject(this, &UMoviePipelineEdGraphNodeBase::OnRuntimeNodeChanged);
+		RuntimeNode->SetNodePosX(NodePosX);
+		RuntimeNode->SetNodePosY(NodePosY);
+	}
+
+	bDisableReconstructNode = false;
+}
+
+void UMoviePipelineEdGraphNodeBase::RebuildRuntimeEdgesFromPins()
+{
+	check(RuntimeNode);
+	
+	for (UEdGraphPin* Pin : Pins)
+	{
+		// For each of our output pins, find the other editor node it's connected to, then
+		// translate that to runtime components and reconnect the runtime components. We only do
+		// the output side because it creates a two-way connection, and we're not worried about
+		// the nodes outside the copy/pasted nodes, as we won't have reconstructed the connection to them
+		// (so the resulting pasted nodes have no connection outside their "island" of copy/pasted nodes)
+		if (Pin->Direction == EEdGraphPinDirection::EGPD_Output)
+		{
+			for (UEdGraphPin* LinkedToPin : Pin->LinkedTo)
+			{
+				UEdGraphNode* ConnectedEdGraphNode = LinkedToPin->GetOwningNode();
+				UMoviePipelineEdGraphNodeBase* ConnectedMovieGraphNode = CastChecked<UMoviePipelineEdGraphNodeBase>(ConnectedEdGraphNode);
+				
+				if (UMovieGraphNode* ConnectedRuntimeNode = ConnectedMovieGraphNode->GetRuntimeNode())
+				{
+					UMovieGraphConfig* Graph = RuntimeNode->GetGraph();
+					check(Graph);
+
+					Graph->AddLabeledEdge(RuntimeNode, Pin->PinName, ConnectedRuntimeNode, LinkedToPin->PinName);
+				}
+			}
+		}
+	}
+
+}
+
+void UMoviePipelineEdGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
+{
+	if (!Context->Node)
+	{
+		return;
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsHeader", "Node Actions"));
+		Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+		Section.AddMenuEntry(FGenericCommands::Get().Delete);
+		Section.AddMenuEntry(FGenericCommands::Get().Cut);
+		Section.AddMenuEntry(FGenericCommands::Get().Copy);
+		Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
+		Section.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
+			{
+				{
+					FToolMenuSection& SubSection = AlignmentMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
+				}
+
+				{
+					FToolMenuSection& SubSection = AlignmentMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+					SubSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+				}
+			}));
+	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaCommentGroup", LOCTEXT("CommentGroupHeader", "Comment Group"));
+		Section.AddMenuEntry(FGraphEditorCommands::Get().CreateComment,
+			LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
+			LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."));
 	}
 }
 
