@@ -126,7 +126,7 @@ namespace UE::Chaos::ClothAsset::Private
 	}
 
 	template<bool bWeldNearlyCoincidentVertices>
-	static void UnwrapDynamicMesh(const UE::Geometry::FDynamicMesh3& DynamicMesh, TArray<FIsland>& OutIslands)
+	static void UnwrapDynamicMesh(const UE::Geometry::FDynamicMesh3& DynamicMesh, bool bForceSingleIsland, TArray<FIsland>& OutIslands)
 	{
 		using namespace UE::Geometry;
 
@@ -137,6 +137,11 @@ namespace UE::Chaos::ClothAsset::Private
 		const int32 NumTriangles = DynamicMesh.TriangleCount();
 		TSet<int32> VisitedTriangles;
 		VisitedTriangles.Reserve(NumTriangles);
+
+		if (bForceSingleIsland)
+		{
+			OutIslands.AddDefaulted();
+		}
 
 		for (int32 SeedTriangle : DynamicMesh.TriangleIndicesItr())
 		{
@@ -159,7 +164,7 @@ namespace UE::Chaos::ClothAsset::Private
 			}
 
 			// Setup first visitor from seed, and add the first two points
-			FIsland& Island = OutIslands.AddDefaulted_GetRef();
+			FIsland& Island = bForceSingleIsland ? OutIslands[0] : OutIslands.AddDefaulted_GetRef();
 
 			Island.RestPositions.Add(Position0);
 			Island.RestPositions.Add(Position1);
@@ -313,7 +318,7 @@ namespace UE::Chaos::ClothAsset::Private
 		}
 	}
 
-	static void BuildIslandsFromDynamicMeshUVs(const UE::Geometry::FDynamicMeshUVOverlay& UVOverlay, TArray<FIsland>& OutIslands, const FVector2f& UVScale)
+	static void BuildIslandsFromDynamicMeshUVs(const UE::Geometry::FDynamicMeshUVOverlay& UVOverlay, const FVector2f& UVScale, bool bForceSingleIsland, TArray<FIsland>& OutIslands)
 	{
 		using namespace UE::Geometry;
 
@@ -330,6 +335,12 @@ namespace UE::Chaos::ClothAsset::Private
 		// This is reused for each island, but only allocate once.
 		TArray<int32> SourceElementIndexToNewIndex;
 
+		if (bForceSingleIsland)
+		{
+			OutIslands.AddDefaulted();
+			SourceElementIndexToNewIndex.Init(INDEX_NONE, UVOverlay.MaxElementID());
+		}
+
 		for (int32 SeedTriangle : DynamicMesh->TriangleIndicesItr())
 		{
 			if (VisitedTriangles.Contains(SeedTriangle))
@@ -338,9 +349,12 @@ namespace UE::Chaos::ClothAsset::Private
 			}
 
 			// Setup first visitor from seed
-			FIsland& Island = OutIslands.AddDefaulted_GetRef();
+			FIsland& Island = bForceSingleIsland ? OutIslands[0] : OutIslands.AddDefaulted_GetRef();
 
-			SourceElementIndexToNewIndex.Init(INDEX_NONE, UVOverlay.MaxElementID());
+			if (!bForceSingleIsland)
+			{
+				SourceElementIndexToNewIndex.Init(INDEX_NONE, UVOverlay.MaxElementID());
+			}
 
 			struct FVisitor
 			{
@@ -929,7 +943,7 @@ namespace UE::Chaos::ClothAsset
 	}
 
 	template<bool bWeldNearlyCoincidentVertices>
-	void FCollectionClothLodFacade::InitializeFromDynamicMeshInternal(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale)
+	void FCollectionClothLodFacade::InitializeFromDynamicMeshInternal(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale, bool bGenerateSimPatternsFromUVIslands)
 	{
 		using namespace UE::Chaos::ClothAsset::Private;
 		Reset();
@@ -937,14 +951,16 @@ namespace UE::Chaos::ClothAsset
 		const UE::Geometry::FDynamicMeshAttributeSet* const AttributeSet = DynamicMesh.Attributes();
 		const UE::Geometry::FDynamicMeshUVOverlay* const UVOverlay = AttributeSet ? AttributeSet->GetUVLayer(UVChannelIndex) : nullptr;
 
+		const bool bForceSingleIsland = !bGenerateSimPatternsFromUVIslands;
+
 		TArray<FIsland> Islands;
 		if (UVOverlay)
 		{
-			BuildIslandsFromDynamicMeshUVs(*UVOverlay, Islands, UVScale);
+			BuildIslandsFromDynamicMeshUVs(*UVOverlay, UVScale, bForceSingleIsland, Islands);
 		}
 		else
 		{
-			UnwrapDynamicMesh<bWeldNearlyCoincidentVertices>(DynamicMesh, Islands);
+			UnwrapDynamicMesh<bWeldNearlyCoincidentVertices>(DynamicMesh, bForceSingleIsland, Islands);
 		}
 
 		for (FIsland& Island : Islands)
@@ -992,12 +1008,13 @@ namespace UE::Chaos::ClothAsset
 		ToDynamicMesh.Convert(DynamicMesh, SimpleSrc, [](FSimpleSrcMeshInterface::TriIDType) {return 0; });
 		UE::Geometry::FNonManifoldMappingSupport::AttachNonManifoldVertexMappingData(ToDynamicMesh.ToSrcVertIDMap, DynamicMesh);
 
-		InitializeFromDynamicMeshInternal<true>(DynamicMesh, INDEX_NONE, FVector2f(1.f));
+		constexpr bool bGenerateSimPatternsFromUVIslands = false;
+		InitializeFromDynamicMeshInternal<true>(DynamicMesh, INDEX_NONE, FVector2f(1.f), bGenerateSimPatternsFromUVIslands);
 	}
 
-	void FCollectionClothLodFacade::Initialize(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale)
+	void FCollectionClothLodFacade::Initialize(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale, bool bGenerateSimPatternsFromUVIslands)
 	{
-		InitializeFromDynamicMeshInternal<false>(DynamicMesh, UVChannelIndex, UVScale);
+		InitializeFromDynamicMeshInternal<false>(DynamicMesh, UVChannelIndex, UVScale, bGenerateSimPatternsFromUVIslands);
 	}
 
 	void FCollectionClothLodFacade::Initialize(const FCollectionClothLodConstFacade& Other)

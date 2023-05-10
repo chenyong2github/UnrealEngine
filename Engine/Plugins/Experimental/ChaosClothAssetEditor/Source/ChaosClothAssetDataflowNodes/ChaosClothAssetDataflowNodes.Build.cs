@@ -38,6 +38,7 @@ public class ChaosClothAssetDataflowNodes : ModuleRules
 				"SkeletalMeshDescription",
 				"Slate",
 				"SlateCore",
+				"StaticMeshDescription",
 				"UnrealEd",
 				// ... add private dependencies that you statically link with here ...	
 			}
