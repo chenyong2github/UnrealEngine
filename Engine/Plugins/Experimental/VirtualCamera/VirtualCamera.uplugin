@@ -32,6 +32,20 @@
 			"Name": "VCamExtensionsEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "VirtualCamera",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			]
+		},
+		{
+			"Name": "VirtualCameraEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		}
 	],
 	"Plugins": [
@@ -46,6 +60,6 @@
 		{
 			"Name" : "VCamPixelStreamingPreset",
 			"Enabled": true
-		},
+		}
 	]
 }

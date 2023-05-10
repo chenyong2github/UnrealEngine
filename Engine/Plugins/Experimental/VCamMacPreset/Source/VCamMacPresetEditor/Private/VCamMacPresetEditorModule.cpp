@@ -9,7 +9,6 @@
 #include "LevelEditor.h"
 #include "LevelEditorOutlinerSettings.h"
 #include "Modules/ModuleManager.h"
-#include "VirtualCameraActor.h"
 
 #define LOCTEXT_NAMESPACE "FVirtualCameraMacPresetEditorModule"
 

@@ -22,8 +22,6 @@ public class VCamPixelStreamingPresetEditor : ModuleRules
 				"PlacementMode",
 				"VPUtilities",
 				"VPUtilitiesEditor",
-				"VCamCore",
-				"VirtualCamera",
 			}
 		);
 			

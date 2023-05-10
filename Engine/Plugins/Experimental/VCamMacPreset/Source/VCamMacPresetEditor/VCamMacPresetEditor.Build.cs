@@ -21,8 +21,6 @@ public class VCamMacPresetEditor : ModuleRules
 				"PlacementMode",
 				"VPUtilities",
 				"VPUtilitiesEditor",
-				"VCamCore",
-				"VirtualCamera",
 			}
 		);
 			

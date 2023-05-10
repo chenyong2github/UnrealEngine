@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorFactories/ActorFactoryBlueprint.h"
+#include "CineCameraActor.h"
 #include "Filters/CustomClassFilterData.h"
 #include "Interfaces/IPluginManager.h"
 #include "IPlacementModeModule.h"
@@ -8,7 +9,6 @@
 #include "LevelEditor.h"
 #include "LevelEditorOutlinerSettings.h"
 #include "Modules/ModuleManager.h"
-#include "VirtualCameraActor.h"
 
 #define LOCTEXT_NAMESPACE "FVirtualCameraPixelStreamingPresetEditorModule"
 
