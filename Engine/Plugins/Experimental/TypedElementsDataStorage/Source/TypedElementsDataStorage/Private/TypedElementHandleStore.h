@@ -27,6 +27,8 @@ public:
 		FHandleData Data;
 		uint64 Handle;
 	};
+
+	using ListAliveEntriesCallback = TFunctionRef<void(const DataType&)>;
 	
 	template<typename... Args>
 	Handle Emplace(Args... Arguments);
@@ -39,13 +41,21 @@ public:
 	void Remove(Handle Entry);
 
 	bool IsAlive(Handle Entry) const;
-	void ListAliveEntries(const TFunctionRef<void(const DataType&)>& Callback) const;
+	void ListAliveEntries(const ListAliveEntriesCallback& Callback) const;
+
+	friend bool operator==(Handle Lhs, Handle Rhs) { return Lhs.Handle == Rhs.Handle; }
+	friend bool operator!=(Handle Lhs, Handle Rhs) { return Lhs.Handle != Rhs.Handle; }
+	friend bool operator<=(Handle Lhs, Handle Rhs) { return Lhs.Handle <= Rhs.Handle; }
+	friend bool operator>=(Handle Lhs, Handle Rhs) { return Lhs.Handle >= Rhs.Handle; }
+	friend bool operator< (Handle Lhs, Handle Rhs) { return Lhs.Handle <  Rhs.Handle; }
+	friend bool operator> (Handle Lhs, Handle Rhs) { return Lhs.Handle >  Rhs.Handle; }
 
 private:
 	TArray<DataType> Data;
 	TArray<FGeneration> Generations;
 	TDeque<uint32> RecycleBin; // Using a deque to avoid the same slot being constantly reused.
 };
+
 
 
 // Implementations
@@ -127,7 +137,7 @@ bool TTypedElementHandleStore<DataType, ReservationSize>::IsAlive(Handle Entry) 
 }
 
 template<typename DataType, uint32 ReservationSize>
-void TTypedElementHandleStore<DataType, ReservationSize>::ListAliveEntries(const TFunctionRef<void(const DataType&)>& Callback) const
+void TTypedElementHandleStore<DataType, ReservationSize>::ListAliveEntries(const ListAliveEntriesCallback& Callback) const
 {
 	int32 Count = Data.Num();
 	const DataType* EntryIt = Data.GetData();

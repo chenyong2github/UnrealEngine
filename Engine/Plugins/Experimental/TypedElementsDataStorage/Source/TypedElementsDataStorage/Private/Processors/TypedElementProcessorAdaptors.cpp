@@ -150,7 +150,7 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::I
 		}
 	}
 
-	void AddColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes)
+	void AddColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) override
 	{
 		for (const UScriptStruct* ColumnType : ColumnTypes)
 		{
@@ -178,7 +178,7 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::I
 		}
 	}
 
-	void AddColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes)
+	void AddColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes) override
 	{
 		for (TypedElementRowHandle Row : Rows)
 		{
@@ -186,7 +186,7 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::I
 		}
 	}
 
-	void RemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes)
+	void RemoveColumns(TypedElementRowHandle Row, TConstArrayView<const UScriptStruct*> ColumnTypes) override
 	{
 		for (const UScriptStruct* ColumnType : ColumnTypes)
 		{
@@ -214,7 +214,7 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::I
 		}
 	}
 
-	void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes)
+	void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes) override
 	{
 		for (TypedElementRowHandle Row : Rows)
 		{
@@ -427,7 +427,7 @@ FMassEntityQuery& UTypedElementQueryProcessorCallbackAdapterProcessor::GetQuery(
 	return Data.Query;
 }
 
-void UTypedElementQueryProcessorCallbackAdapterProcessor::ConfigureQueryCallback(FTypedElementDatabaseExtendedQuery& TargetParentQuery)
+void UTypedElementQueryProcessorCallbackAdapterProcessor::ConfigureQueryCallback(FTypedElementExtendedQuery& TargetParentQuery)
 {
 	Data.ParentQuery = &TargetParentQuery;
 
@@ -491,7 +491,7 @@ EMassObservedOperation UTypedElementQueryObserverCallbackAdapterProcessor::GetOb
 	return Operation;
 }
 
-void UTypedElementQueryObserverCallbackAdapterProcessor::ConfigureQueryCallback(FTypedElementDatabaseExtendedQuery& TargetParentQuery)
+void UTypedElementQueryObserverCallbackAdapterProcessor::ConfigureQueryCallback(FTypedElementExtendedQuery& TargetParentQuery)
 {
 	Data.ParentQuery = &TargetParentQuery;
 

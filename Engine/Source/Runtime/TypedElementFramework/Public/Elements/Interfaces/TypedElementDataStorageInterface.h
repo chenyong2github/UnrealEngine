@@ -272,6 +272,29 @@ public:
 		AlwaysRefresh = 1 << 2
 	};
 
+	struct FQueryResult
+	{
+		enum class ECompletion
+		{
+			/** Query could be fully executed. */
+			Fully,
+			/** Only portions of the query were executed. This is caused by a problem that was encountered partway through processing. */
+			Partially,
+			/**
+			 * The back-end doesn't support the particular query. This may be a limitation in how/where the query is run or because
+			 * the query contains actions and/or operations that are not supported.
+			 */
+			 Unsupported,
+			 /** The provided query is no longer available. */
+			 Unavailable,
+			 /** One or more dependencies declared on the query could not be retrieved. */
+			 MissingDependency
+		};
+
+		uint32 Count{ 0 }; /** The number of rows were processed. */
+		ECompletion Completed{ ECompletion::Unavailable };
+	};
+
 	/**
 	 * Base interface for any contexts provided to query callbacks.
 	 */
@@ -482,28 +505,6 @@ public:
 	 * Therefore a collection of common tick group names is provided to help create consistent tick group names.
 	 */
 	virtual FName GetQueryTickGroupName(EQueryTickGroups Group) const = 0;
-	struct FQueryResult
-	{
-		enum class ECompletion
-		{
-			/** Query could be fully executed. */
-			Fully,
-			/** Only portions of the query were executed. This is caused by a problem that was encountered partway through processing. */
-			Partially,
-			/** 
-			 * The back-end doesn't support the particular query. This may be a limitation in how/where the query is run or because
-			 * the query contains actions and/or operations that are not supported.
-			 */
-			Unsupported,
-			/** The provided query is no longer available. */
-			Unavailable,
-			/** One or more dependencies declared on the query could not be retrieved. */
-			MissingDependency
-		};
-		
-		uint32 Count{ 0 }; /** The number of rows were processed. */
-		ECompletion Completed{ ECompletion::Unavailable };
-	};
 	/** Directly runs a query. If the query handle is invalid or has been deleted nothing will happen. */
 	virtual FQueryResult RunQuery(TypedElementQueryHandle Query) = 0;
 	/**

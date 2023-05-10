@@ -5,9 +5,7 @@
 #include "Templates/SharedPointer.h"
 #include "Elements/Interfaces/TypedElementDataStorageInterface.h"
 #include "MassArchetypeTypes.h"
-#include "MassEntityQuery.h"
-#include "MassProcessor.h"
-#include "TypedElementHandleStore.h"
+#include "Queries/TypedElementExtendedQueryStore.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/StrongObjectPtr.h"
 
@@ -17,13 +15,6 @@ struct FMassEntityManager;
 struct FMassProcessingPhaseManager;
 class FOutputDevice;
 class UWorld;
-
-struct FTypedElementDatabaseExtendedQuery
-{
-	FMassEntityQuery NativeQuery; // Used if there's no processor bound.
-	ITypedElementDataStorageInterface::FQueryDescription Description;
-	TStrongObjectPtr<UMassProcessor> Processor;
-};
 
 UCLASS()
 class TYPEDELEMENTSDATASTORAGE_API UTypedElementDatabase 
@@ -91,44 +82,21 @@ public:
 	void* GetExternalSystemAddress(UClass* Target) override;
 
 	void DebugPrintQueryCallbacks(FOutputDevice& Output);
-private:
-	using QueryStore = TTypedElementHandleStore<FTypedElementDatabaseExtendedQuery>;
 
-	struct FTickGroupId
-	{
-		FName Name;
-		EQueryTickPhase Phase;
-
-		friend inline uint32 GetTypeHash(const FTickGroupId& Id){ return HashCombine(GetTypeHash(Id.Name), GetTypeHash(Id.Phase)); }
-		friend inline bool operator==(const FTickGroupId& Lhs, const FTickGroupId& Rhs) { return Lhs.Phase == Rhs.Phase && Lhs.Name == Rhs.Name; }
-		friend inline bool operator!=(const FTickGroupId& Lhs, const FTickGroupId& Rhs) { return Lhs.Phase != Rhs.Phase || Lhs.Name != Rhs.Name; }
-	};
-
-	struct FTickGroupDescription
-	{
-		TArray<FName> BeforeGroups;
-		TArray<FName> AfterGroups;
-		bool bRequiresMainThread{ false };
-	};
-	
+private:	
 	/** Converts a set of column types into Mass specific fragment and tag bit sets. Returns true if any values were added. */
 	static bool ColumnsToBitSets(TConstArrayView<const UScriptStruct*> Columns, FMassFragmentBitSet& Fragments, FMassTagBitSet& Tags);
 
 	void PreparePhase(EQueryTickPhase Phase, float DeltaTime);
 	void FinalizePhase(EQueryTickPhase Phase, float DeltaTime);
-	void PhasePreOrPostAmble(EQueryTickPhase Phase, float DeltaTime, TArray<TypedElementQueryHandle>& Queries);
 	void Reset();
 	
 	static const FName TickGroupName_SyncWidget;
 	
 	TArray<FMassArchetypeHandle> Tables;
 	TMap<FName, TypedElementTableHandle> TableNameLookup;
-	TMap<FTickGroupId, FTickGroupDescription> TickGroupDescriptions;
 
-	TArray<TypedElementQueryHandle> PhasePreparationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(EQueryTickPhase::Max)];
-	TArray<TypedElementQueryHandle> PhaseFinalizationQueries[static_cast<std::underlying_type_t<EQueryTickPhase>>(EQueryTickPhase::Max)];
-
-	QueryStore Queries;
+	FTypedElementExtendedQueryStore Queries;
 
 	FTypedElementOnDataStorageUpdate OnUpdateDelegate;
 

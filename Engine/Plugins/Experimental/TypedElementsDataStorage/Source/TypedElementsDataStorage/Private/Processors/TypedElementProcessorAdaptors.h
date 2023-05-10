@@ -11,7 +11,7 @@
 
 #include "TypedElementProcessorAdaptors.generated.h"
 
-struct FTypedElementDatabaseExtendedQuery;
+struct FTypedElementExtendedQuery;
 
 struct FPhasePreOrPostAmbleExecutor
 {
@@ -45,7 +45,7 @@ struct FTypedElementQueryProcessorData
 	static bool PrepareCachedDependenciesOnQuery(
 		ITypedElementDataStorageInterface::FQueryDescription& Description, FMassExecutionContext& Context);
 
-	FTypedElementDatabaseExtendedQuery* ParentQuery{ nullptr };
+	FTypedElementExtendedQuery* ParentQuery{ nullptr };
 	FMassEntityQuery Query;
 };
 
@@ -61,7 +61,7 @@ public:
 	UTypedElementQueryProcessorCallbackAdapterProcessor();
 
 	FMassEntityQuery& GetQuery();
-	void ConfigureQueryCallback(FTypedElementDatabaseExtendedQuery& Query);
+	void ConfigureQueryCallback(FTypedElementExtendedQuery& Query);
 
 protected:
 	void ConfigureQueries() override;
@@ -89,7 +89,7 @@ public:
 	FMassEntityQuery& GetQuery();
 	const UScriptStruct* GetObservedType() const;
 	EMassObservedOperation GetObservedOperation() const;
-	void ConfigureQueryCallback(FTypedElementDatabaseExtendedQuery& Query);
+	void ConfigureQueryCallback(FTypedElementExtendedQuery& Query);
 
 protected:
 	void ConfigureQueries() override;
