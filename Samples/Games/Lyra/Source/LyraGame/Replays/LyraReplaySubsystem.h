@@ -98,7 +98,7 @@ private:
 	TSharedPtr<INetworkReplayStreamer> CurrentReplayStreamer;
 
 	UPROPERTY()
-	ULocalPlayer* LocalPlayerDeletingReplays;
+	TObjectPtr<ULocalPlayer> LocalPlayerDeletingReplays;
 
 	int32 DeletingReplaysNumberToKeep;
 

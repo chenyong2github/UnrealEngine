@@ -11,6 +11,11 @@ public class LyraEditorTarget : TargetRules
 
 		ExtraModuleNames.AddRange(new string[] { "LyraGame", "LyraEditor" });
 
+		if (!bBuildAllModules)
+		{
+			NativePointerMemberBehaviorOverride = PointerMemberBehavior.Disallow;
+		}
+
 		LyraGameTarget.ApplySharedLyraTargetSettings(this);
 
 		// This is used for touch screen development along with the "Unreal Remote 2" app
