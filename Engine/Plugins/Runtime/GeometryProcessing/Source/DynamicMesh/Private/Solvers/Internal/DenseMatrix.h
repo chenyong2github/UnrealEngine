@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/Array.h"
 
 #ifndef EIGEN_MPL2_ONLY
 #define EIGEN_MPL2_ONLY
