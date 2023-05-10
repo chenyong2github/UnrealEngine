@@ -29,7 +29,11 @@ public:
 
 	void SetPollWithObject(FInternalNetRefIndex ObjectToPollWithInternalIndex, FInternalNetRefIndex InternalIndex);
 
-	void Update(const FNetBitArrayView& ScopableObjects, const FNetBitArrayView& DirtyObjects, FNetBitArrayView& OutObjectsToPoll);
+	/** 
+	* Produces the list of objects that should be polled this frame.
+	* This list is composed of relevant objects that are dirty or that hit their poll period this frame.
+	*/
+	void Update(const FNetBitArrayView& RelevantObjects, const FNetBitArrayView& DirtyObjects, FNetBitArrayView& OutObjectsToPoll);
 
 private:
 	uint32 GetPollFramePeriodForFrequency(float PollFrequency) const;

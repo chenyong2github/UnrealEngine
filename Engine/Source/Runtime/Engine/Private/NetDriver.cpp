@@ -3640,7 +3640,7 @@ void UNetDriver::NotifyActorIsTraveling(AActor* TravelingActor)
 
 void UNetDriver::ForceNetUpdate(AActor* Actor)
 {
-	// Let Replication Driver handle it if its exists
+	// Let Replication Driver handle it if it exists
 	if (ReplicationDriver)
 	{
 		ReplicationDriver->ForceNetUpdate(Actor);

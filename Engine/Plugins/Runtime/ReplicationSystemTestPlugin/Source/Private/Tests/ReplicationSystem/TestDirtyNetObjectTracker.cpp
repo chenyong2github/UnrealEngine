@@ -78,11 +78,54 @@ UE_NET_TEST_FIXTURE(FDirtyNetObjectTrackerTestFixture, CanClearDirtyObjects)
 	MarkNetObjectStateDirty(ReplicationSystemId, NetObjectIndexRangeStart);
 	MarkNetObjectStateDirty(ReplicationSystemId, NetObjectIndexRangeEnd);
 
-	DirtyNetObjectTracker->ClearDirtyNetObjects();
+	FNetBitArray CleanedObjects;
+	CleanedObjects.Init(NetObjectIndexRangeEnd+1);
 
-	FDirtyObjectsAccessor DirtyObjectsAccessor(*DirtyNetObjectTracker);
-	const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
-	UE_NET_ASSERT_FALSE(DirtyObjects.IsAnyBitSet());
+	CleanedObjects.SetBit(NetObjectIndexRangeStart);
+	CleanedObjects.SetBit(NetObjectIndexRangeEnd);
+
+	DirtyNetObjectTracker->UpdateAccumulatedDirtyList();
+	DirtyNetObjectTracker->ClearDirtyNetObjects(MakeNetBitArrayView(CleanedObjects));
+
+	const FNetBitArrayView AccumulatedDirtyObjects = DirtyNetObjectTracker->GetAccumulatedDirtyNetObjects();
+	UE_NET_ASSERT_FALSE(AccumulatedDirtyObjects.IsAnyBitSet());
+}
+
+UE_NET_TEST_FIXTURE(FDirtyNetObjectTrackerTestFixture, DelayedDirtyBitTracking)
+{
+
+	const uint32 FirstObjectIndex = NetObjectIndexRangeStart;
+	const uint32 SecondObjectIndex = NetObjectIndexRangeStart + 1;
+	MarkNetObjectStateDirty(ReplicationSystemId, FirstObjectIndex);
+	MarkNetObjectStateDirty(ReplicationSystemId, SecondObjectIndex);
+
+	// Clean first object
+	{
+		FNetBitArray CleanedObjects;
+		CleanedObjects.Init(NetObjectIndexRangeEnd + 1);
+		CleanedObjects.SetBit(FirstObjectIndex);
+
+		DirtyNetObjectTracker->UpdateAccumulatedDirtyList();
+		DirtyNetObjectTracker->ClearDirtyNetObjects(MakeNetBitArrayView(CleanedObjects));
+	}
+
+	const FNetBitArrayView AccumulatedDirtyObjects = DirtyNetObjectTracker->GetAccumulatedDirtyNetObjects();
+
+	UE_NET_ASSERT_FALSE(AccumulatedDirtyObjects.GetBit(FirstObjectIndex));
+	UE_NET_ASSERT_TRUE(AccumulatedDirtyObjects.GetBit(SecondObjectIndex));
+
+	// Clean second object
+	{
+		FNetBitArray CleanedObjects;
+		CleanedObjects.Init(NetObjectIndexRangeEnd + 1);
+		CleanedObjects.SetBit(SecondObjectIndex);
+
+		DirtyNetObjectTracker->UpdateAccumulatedDirtyList();
+		DirtyNetObjectTracker->ClearDirtyNetObjects(MakeNetBitArrayView(CleanedObjects));
+	}
+
+	UE_NET_ASSERT_FALSE(AccumulatedDirtyObjects.GetBit(FirstObjectIndex));
+	UE_NET_ASSERT_FALSE(AccumulatedDirtyObjects.GetBit(SecondObjectIndex));
 }
 
 UE_NET_TEST(DirtyNetObjectTracker, MarkingObjectAsDirtyInNonExistingSystemDoesNotCrash)

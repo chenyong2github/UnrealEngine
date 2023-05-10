@@ -28,13 +28,7 @@ namespace UE::Net::Private
 {
 
 FDirtyNetObjectTracker::FDirtyNetObjectTracker()
-: NetRefHandleManager(nullptr)
-, DirtyNetObjectContainer(nullptr)
-, ReplicationSystemId(InvalidReplicationSystemId)
-, DirtyNetObjectWordCount(0)
-, NetObjectIdRangeStart(0U)
-, NetObjectIdRangeEnd(0U)
-, NetObjectIdCount(0)
+: ReplicationSystemId(InvalidReplicationSystemId)
 {
 }
 
@@ -65,6 +59,8 @@ void FDirtyNetObjectTracker::Init(const FDirtyNetObjectTrackerInitParams& Params
 	DirtyNetObjectContainer = new StorageType[DirtyNetObjectWordCount];
 	FMemory::Memzero(DirtyNetObjectContainer, DirtyNetObjectWordCount * sizeof(StorageType));
 
+	AccumulatedDirtyNetObjects.Init(NetObjectIdCount);
+
 	AllowExternalAccess();
 
 	UE_LOG_DIRTYOBJECTTRACKER(TEXT("FDirtyNetObjectTracker::Init %u Id, Start:%u, End: %u"), ReplicationSystemId, NetObjectIdRangeStart, NetObjectIdRangeEnd);
@@ -91,6 +87,7 @@ void FDirtyNetObjectTracker::UpdateDirtyNetObjects()
 	LockExternalAccess();
 
 	bHasPolledGlobalDirtyTracker = true;
+
 	const TSet<FNetHandle>& GlobalDirtyNetObjects = FGlobalDirtyNetObjectTracker::GetDirtyNetObjects(GlobalDirtyTrackerPollHandle);
 	for (FNetHandle NetHandle : GlobalDirtyNetObjects)
 	{
@@ -103,7 +100,30 @@ void FDirtyNetObjectTracker::UpdateDirtyNetObjects()
 		}
 	}
 
+	const uint32* GlobalScopeListData = NetRefHandleManager->GetScopableInternalIndicesView().GetData();
+	uint32* AccumulatedDirtyNetObjectsData = AccumulatedDirtyNetObjects.GetData();
+
+	const uint32 NumWords = AccumulatedDirtyNetObjects.GetNumWords();
+	for (uint32 WordIndex = 0; WordIndex != NumWords; ++WordIndex)
+	{
+		// Due to objects having been marked as dirty and later removed we must make sure that all dirty objects are still in scope.
+		uint32 DirtyObjectWord = DirtyNetObjectContainer[WordIndex] & GlobalScopeListData[WordIndex];
+		DirtyNetObjectContainer[WordIndex] = DirtyObjectWord;
+
+		// Add new dirty objects to the accumulated list
+		AccumulatedDirtyNetObjectsData[WordIndex] = AccumulatedDirtyNetObjectsData[WordIndex] | DirtyObjectWord;
+	}
+
 	AllowExternalAccess();
+}
+
+void FDirtyNetObjectTracker::UpdateAccumulatedDirtyList()
+{
+	IRIS_PROFILER_SCOPE(FDirtyNetObjectTracker_UpdateDirtyNetObjects)
+
+	FNetBitArrayView DirtyObjectsThisFrame(DirtyNetObjectContainer, NetObjectIdCount);
+
+	MakeNetBitArrayView(AccumulatedDirtyNetObjects).Combine(DirtyObjectsThisFrame, FNetBitArrayView::OrOp);
 }
 
 void FDirtyNetObjectTracker::MarkNetObjectDirty(uint32 NetObjectIndex)
@@ -138,7 +158,7 @@ void FDirtyNetObjectTracker::AllowExternalAccess()
 #endif
 }
 
-FNetBitArrayView FDirtyNetObjectTracker::GetDirtyNetObjects() const
+FNetBitArrayView FDirtyNetObjectTracker::GetDirtyNetObjectsThisFrame()
 {
 #if UE_NET_THREAD_SAFETY_CHECK
 	checkf(!bIsExternalAccessAllowed, TEXT("Cannot access the DirtyNetObjects bitarray unless its locked for multithread access."));
@@ -146,7 +166,7 @@ FNetBitArrayView FDirtyNetObjectTracker::GetDirtyNetObjects() const
 	return FNetBitArrayView(DirtyNetObjectContainer, NetObjectIdCount);
 }
 
-void FDirtyNetObjectTracker::ClearDirtyNetObjects()
+void FDirtyNetObjectTracker::ClearDirtyNetObjects(const FNetBitArrayView& CleanNetObjects)
 {
 	LockExternalAccess();
 
@@ -156,8 +176,12 @@ void FDirtyNetObjectTracker::ClearDirtyNetObjects()
 		FGlobalDirtyNetObjectTracker::ResetDirtyNetObjects(GlobalDirtyTrackerPollHandle);
 	}
 
+	// Keep dirty flags for objects not cleaned this frame.
+	MakeNetBitArrayView(AccumulatedDirtyNetObjects).Combine(CleanNetObjects, FNetBitArrayView::AndNotOp);
+
+	// Clear the current frame dirty objects
 	FMemory::Memzero(DirtyNetObjectContainer, DirtyNetObjectWordCount*sizeof(StorageType));
-	
+
 	AllowExternalAccess();
 
 	std::atomic_thread_fence(std::memory_order_seq_cst);

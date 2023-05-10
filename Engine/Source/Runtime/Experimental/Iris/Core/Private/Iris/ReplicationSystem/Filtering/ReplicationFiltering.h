@@ -175,13 +175,13 @@ private:
 	void UpdateGroupFiltering();
 	void UpdateSubObjectFilters();
 
-	void UpdateDynamicFilters(ENetFilterType FilterPass, const FNetBitArrayView& DirtyObjects);
+	void UpdateDynamicFilters(ENetFilterType FilterPass);
 	void PreUpdateDynamicFiltering(ENetFilterType FilterType);
 	void UpdateDynamicFiltering(ENetFilterType FilterType);
 	void PostUpdateDynamicFiltering(ENetFilterType FilterType);
 
 	/** Build the list of always relevant objects + objects that are currently relevant to at least one connection. */
-	void FilterNonRelevantObjects(const FNetBitArrayView& DirtyObjects);
+	void FilterNonRelevantObjects();
 
 	bool HasDynamicFilters() const;
 	bool HasRawFilters() const;
@@ -212,7 +212,7 @@ private:
 
 	void RemoveFromDynamicFilter(uint32 ObjectIndex, uint32 FilterIndex);
 
-	void NotifyFiltersOfDirtyObjects(ENetFilterType FilterType, const FNetBitArrayView& DirtyObjects);
+	void NotifyFiltersOfDirtyObjects(ENetFilterType FilterType);
 	void BatchNotifyFiltersOfDirtyObjects(FUpdateDirtyObjectsBatchHelper& BatchHelper, const uint32* ObjectIndices, uint32 ObjectCount);
 
 	void InvalidateBaselinesForObject(uint32 ObjectIndex, uint32 NewOwningConnectionId, uint32 PrevOwningConnectionId);

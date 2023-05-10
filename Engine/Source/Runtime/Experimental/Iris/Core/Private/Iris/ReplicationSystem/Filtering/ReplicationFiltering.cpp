@@ -22,6 +22,10 @@ namespace UE::Net::Private
 
 DEFINE_LOG_CATEGORY_STATIC(LogIrisFiltering, Log, All);
 
+
+bool bCVarRepFilterCullNonRelevant = true;
+static FAutoConsoleVariableRef CVarRepFilterCullNonRelevant(TEXT("Net.Iris.CullNonRelevant"), bCVarRepFilterCullNonRelevant, TEXT("When enabled will cull replicated actors that are not relevant to any client."), ECVF_Default);
+
 FName GetStaticFilterName(FNetObjectFilterHandle Filter)
 {
 	switch (Filter)
@@ -297,32 +301,33 @@ void FReplicationFiltering::FilterPrePoll()
 
 	UpdateSubObjectFilters();
 
-	FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker());
-	const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
-
 	if (HasRawFilters())
 	{
-		UpdateDynamicFilters(ENetFilterType::PrePoll_Raw, DirtyObjects);
+		UpdateDynamicFilters(ENetFilterType::PrePoll_Raw);
 	}
 	else
 	{
 		// Dynamic filters are responsible for updating ObjectsInScope. 
 		// Do it here if no filters were executed.
-		auto UpdateConnectionScope = [this](uint32 ConnectionId)
+		ValidConnections.ForAllSetBits([this](uint32 ConnectionId)
 		{
 			FPerConnectionInfo& ConnectionInfo = ConnectionInfos[ConnectionId];
 			ConnectionInfo.ObjectsInScope.Copy(ConnectionInfo.ObjectsInScopeBeforeDynamicFiltering);
-		};
-
-		ValidConnections.ForAllSetBits(UpdateConnectionScope);
+		});
 	}
 
-	//$IRIS TODO: Filter culling is still WIP instead update the relevant list so it's equal to the global scope
-	//FilterNonRelevantObjects(DirtyObjects);
-	NetRefHandleManager->GetRelevantObjectsInternalIndices().Copy(MakeNetBitArrayView(NetRefHandleManager->GetScopableInternalIndices()));
+	if (bCVarRepFilterCullNonRelevant)
+	{
+		FilterNonRelevantObjects();
+	}
+	else
+	{
+		// Make every object in the global scope part of the relevant list
+		NetRefHandleManager->GetRelevantObjectsInternalIndices().Copy(MakeNetBitArrayView(NetRefHandleManager->GetScopableInternalIndices()));
+	}
 }
 
-void FReplicationFiltering::FilterNonRelevantObjects(const FNetBitArrayView& DirtyObjects)
+void FReplicationFiltering::FilterNonRelevantObjects()
 {
 	IRIS_PROFILER_SCOPE(FReplicationFiltering_FilterNonRelevantObjects);
 
@@ -340,10 +345,11 @@ void FReplicationFiltering::FilterNonRelevantObjects(const FNetBitArrayView& Dir
 	const uint32 MaxWords = GlobalRelevantObjects.GetNumWords();
 	for (uint32 WordIndex = 0; WordIndex < MaxWords; ++WordIndex)
 	{
+		// Build the list of always relevant objects (objects that have no filters)
 		GlobalRelevantData[WordIndex] = GlobalScopeData[WordIndex] & ~(WithOwnerData[WordIndex] | ConnectionFiltersData[WordIndex] | DynamicFilteredData[WordIndex] | GroupFilteredData[WordIndex]);
 	}
 
-	// Build the list of currently relevant objects. e.g. always relevant objects + filterable objects relevant to atleast one connection.	
+	// Build the list of currently relevant objects. e.g. always relevant objects + filterable objects relevant to at least one connection.	
 	auto MergeConnectionScopes = [this, &GlobalRelevantObjects](uint32 ConnectionId)
 	{
 		const FNetBitArrayView ConnectionFilteredScope = MakeNetBitArrayView(ConnectionInfos[ConnectionId].ObjectsInScope);
@@ -353,12 +359,12 @@ void FReplicationFiltering::FilterNonRelevantObjects(const FNetBitArrayView& Dir
 	ValidConnections.ForAllSetBits(MergeConnectionScopes);
 }
 
-void FReplicationFiltering::UpdateDynamicFilters(ENetFilterType FilterPass, const FNetBitArrayView& DirtyObjects)
+void FReplicationFiltering::UpdateDynamicFilters(ENetFilterType FilterPass)
 {
 	/**
 	* Dynamic filters allows users to filter out objects based on arbitrary criteria.
 	*/
-	NotifyFiltersOfDirtyObjects(FilterPass, DirtyObjects);
+	NotifyFiltersOfDirtyObjects(FilterPass);
 
 	PreUpdateDynamicFiltering(FilterPass);
 	UpdateDynamicFiltering(FilterPass);
@@ -369,10 +375,7 @@ void FReplicationFiltering::FilterPostPoll()
 {
 	if (HasFragmentFilters())
 	{
-		FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker());
-		const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
-
-		UpdateDynamicFilters(ENetFilterType::PostPoll_FragmentBased, DirtyObjects);
+		UpdateDynamicFilters(ENetFilterType::PostPoll_FragmentBased);
 	}
 }
 
@@ -1334,20 +1337,23 @@ void FReplicationFiltering::PostUpdateDynamicFiltering(ENetFilterType FilterType
 	}
 }
 
-void FReplicationFiltering::NotifyFiltersOfDirtyObjects(ENetFilterType FilterType, const FNetBitArrayView& DirtyObjects)
+void FReplicationFiltering::NotifyFiltersOfDirtyObjects(ENetFilterType FilterType)
 {
+	FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystem->GetReplicationSystemInternal()->GetDirtyNetObjectTracker());
+	const FNetBitArrayView DirtyObjectsThisFrame = DirtyObjectsAccessor.GetDirtyNetObjects();
+
 	FUpdateDirtyObjectsBatchHelper BatchHelper(NetRefHandleManager, DynamicFilterInfos, FilterType);
 
 	constexpr SIZE_T MaxBatchObjectCount = FUpdateDirtyObjectsBatchHelper::Constants::MaxObjectCountPerBatch;
 	uint32 ObjectIndices[MaxBatchObjectCount];
 
 	const uint32 BitCount = ~0U;
-	for (uint32 ObjectCount, StartIndex = 0; (ObjectCount = DirtyObjects.GetSetBitIndices(StartIndex, BitCount, ObjectIndices, MaxBatchObjectCount)) > 0; )
+	for (uint32 ObjectCount, StartIndex = 0; (ObjectCount = DirtyObjectsThisFrame.GetSetBitIndices(StartIndex, BitCount, ObjectIndices, MaxBatchObjectCount)) > 0; )
 	{
 		BatchNotifyFiltersOfDirtyObjects(BatchHelper, ObjectIndices, ObjectCount);
 
 		StartIndex = ObjectIndices[ObjectCount - 1] + 1U;
-		if ((StartIndex == DirtyObjects.GetNumBits()) | (ObjectCount < MaxBatchObjectCount))
+		if ((StartIndex == DirtyObjectsThisFrame.GetNumBits()) | (ObjectCount < MaxBatchObjectCount))
 		{
 			break;
 		}
@@ -1830,6 +1836,8 @@ void FReplicationFiltering::InternalSetGroupFilterStatus(FNetObjectGroupHandle G
 		FPerObjectInfo* ConnectionState = GetPerObjectInfo(GroupInfos[GroupHandle].ConnectionStateIndex);
 		if (GetConnectionFilterStatus(*ConnectionState, ConnectionId) == ENetFilterStatus::Allow)
 		{
+			IRIS_PROFILER_SCOPE(FReplicationFiltering_InternalSetGroupFilterStatus_Disallow);
+
 			// Mark filter as active for the connection
 			SetConnectionFilterStatus(*ConnectionState, ConnectionId, ENetFilterStatus::Disallow);
 
@@ -1868,6 +1876,8 @@ void FReplicationFiltering::InternalSetGroupFilterStatus(FNetObjectGroupHandle G
 		FPerObjectInfo* ConnectionState = GetPerObjectInfo(GroupInfos[GroupHandle].ConnectionStateIndex);
 		if (GetConnectionFilterStatus(*ConnectionState, ConnectionId) == ENetFilterStatus::Disallow)
 		{
+			IRIS_PROFILER_SCOPE(FReplicationFiltering_InternalSetGroupFilterStatus_Allow);
+
 			// Mark filter as no longer being active for the connection
 			SetConnectionFilterStatus(*ConnectionState, ConnectionId, ENetFilterStatus::Allow);
 

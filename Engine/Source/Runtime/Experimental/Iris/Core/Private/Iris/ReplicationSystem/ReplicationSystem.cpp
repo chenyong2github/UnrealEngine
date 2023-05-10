@@ -220,15 +220,12 @@ public:
 
 	void UpdateDirtyObjectList()
 	{
-		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
-		DirtyNetObjectTracker.UpdateDirtyNetObjects();
+		ReplicationSystemInternal.GetDirtyNetObjectTracker().UpdateDirtyNetObjects();
+	}
 
-		FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystemInternal.GetDirtyNetObjectTracker());
-		FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
-
-		// Due to objects having been marked as dirty and later removed we must make sure that all dirty objects are still in scope.
-		const FNetBitArrayView ScopableInternalIndices = MakeNetBitArrayView(ReplicationSystemInternal.GetNetRefHandleManager().GetScopableInternalIndices());
-		DirtyObjects.Combine(ScopableInternalIndices, FNetBitArrayView::AndOp);
+	void UpdateDirtyListPostPoll()
+	{
+		ReplicationSystemInternal.GetDirtyNetObjectTracker().UpdateAccumulatedDirtyList();
 	}
 
 	void UpdateWorldLocations()
@@ -329,22 +326,21 @@ public:
 
 		SerializationContext.SetInternalContext(&InternalContext);
 
+		// Build the list of dirty objects whom we will copy their data and "clean"
+		FNetBitArrayView CleanedObjects = NetRefHandleManager.GetCleanedObjectsInternalIndices();
+		const FNetBitArrayView AccumulatedDirtyNetObjects = ReplicationSystemInternal.GetDirtyNetObjectTracker().GetAccumulatedDirtyNetObjects();
+		const FNetBitArrayView RelevantObjects = NetRefHandleManager.GetRelevantObjectsInternalIndices();
+
+		CleanedObjects.Set(AccumulatedDirtyNetObjects, FNetBitArrayView::AndOp, RelevantObjects);
+
+
 		auto CopyFunction = [&ChangeMaskWriter, &Cache, &NetRefHandleManager, &CopiedObjectCount, &SerializationContext](uint32 DirtyIndex)
 		{
 			CopiedObjectCount += FReplicationInstanceOperationsInternal::CopyObjectStateData(ChangeMaskWriter, Cache, NetRefHandleManager, SerializationContext, DirtyIndex);
 		};
 
-
-		// Only iterate over dirty and relevant objects
-		FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystemInternal.GetDirtyNetObjectTracker());
-		const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
-
-		// Copy all ReplicatedObjects with dirty state data
-		DirtyObjects.ForAllSetBits(CopyFunction);
-
-		//$IRIS TODO Only copy relevant objects but keep dirty flag for those not copied.
-		//FNetBitArrayView RelevantObjects = NetRefHandleManager.GetRelevantObjectsInternalIndices();
-		//FNetBitArrayView::ForAllSetBits(DirtyObjects, RelevantObjects, FNetBitArrayView::AndOp, CopyFunction);
+		// Only copy both dirty and relevant objects
+		CleanedObjects.ForAllSetBits(CopyFunction);
 
 		const uint32 ReplicationSystemId = ReplicationSystem->GetId();
 		UE_NET_TRACE_FRAME_STATSCOUNTER(ReplicationSystemId, ReplicationSystem.CopiedObjectCount, CopiedObjectCount, ENetTraceVerbosity::Trace);
@@ -355,19 +351,16 @@ public:
 		IRIS_PROFILER_SCOPE(FReplicationSystem_ResetObjectStateDirtiness);
 
 		FNetRefHandleManager& NetRefHandleManager = ReplicationSystemInternal.GetNetRefHandleManager();
-		FDirtyNetObjectTracker& DirtyNetObjectTracker = ReplicationSystemInternal.GetDirtyNetObjectTracker();
+		const FNetBitArrayView CleanedObjects = NetRefHandleManager.GetCleanedObjectsInternalIndices();
 
-		auto ResetDirtinessFunction = [&NetRefHandleManager](uint32 DirtyIndex)
+		// Reset object dirtyness
+		CleanedObjects.ForAllSetBits([&NetRefHandleManager](uint32 DirtyIndex)
 		{
 			FReplicationInstanceOperationsInternal::ResetObjectStateDirtiness(NetRefHandleManager, DirtyIndex);
-		};
+		});
 
-		FDirtyObjectsAccessor DirtyObjectsAccessor(DirtyNetObjectTracker);
-		const FNetBitArrayView DirtyObjects = DirtyObjectsAccessor.GetDirtyNetObjects();
-
-		DirtyObjects.ForAllSetBits(ResetDirtinessFunction);
-
-		DirtyNetObjectTracker.ClearDirtyNetObjects();
+		// Reset cleaned objects in the tracker
+		ReplicationSystemInternal.GetDirtyNetObjectTracker().ClearDirtyNetObjects(CleanedObjects);
 	}
 
 	void ProcessNetObjectAttachmentSendQueue(FNetBlobManager::EProcessMode ProcessMode)
@@ -572,7 +565,7 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 	{
 		UE_NET_TRACE_FRAME_STATSCOUNTER(GetId(), ReplicationSystem.ReplicatedObjectCount, InternalSys.GetNetRefHandleManager().GetActiveObjectCount(), ENetTraceVerbosity::Verbose);
 
-		// Refresh dirty object list
+		// Refresh the dirty objects we were told about.
 		Impl->UpdateDirtyObjectList();
 
 		// Update world locations. We need this to happen before both filtering and prioritization.
@@ -582,7 +575,10 @@ void UReplicationSystem::PreSendUpdate(float DeltaSeconds)
 		Impl->UpdateFilterPrePoll();
 
 		// Invoke any operations we need to do before copying state data
-		InternalSys.GetReplicationBridge()->CallPreSendUpdate(DeltaSeconds);		
+		InternalSys.GetReplicationBridge()->CallPreSendUpdate(DeltaSeconds);
+
+		// Finalize the dirty list with objects set dirty during the poll phase
+		Impl->UpdateDirtyListPostPoll();
 
 		// Update conditionals
 		Impl->UpdateConditionals();

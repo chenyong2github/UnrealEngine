@@ -182,8 +182,9 @@ public:
 	// Get internal index from NetHandle
 	inline FInternalNetRefIndex GetInternalIndexFromNetHandle(FNetHandle Handle) const;
 
-	// Get bitarray for all currently scopable internal indices
+	/** Get bitarray for all currently scopable internal indices */
 	const FNetBitArray& GetScopableInternalIndices() const { return ScopableInternalIndices; }
+	const FNetBitArrayView GetScopableInternalIndicesView() const { return MakeNetBitArrayView(ScopableInternalIndices); }
 
 	// Get bitarray for all internal indices that was scopable last update
 	const FNetBitArray& GetPrevFrameScopableInternalIndices() const { return PrevFrameScopableInternalIndices; }
@@ -191,6 +192,9 @@ public:
 
 	/** List of objects that are always relevant or currently relevant to at least one connection. */
 	FNetBitArrayView GetRelevantObjectsInternalIndices() const { return MakeNetBitArrayView(RelevantObjectsInternalIndices); }
+
+	/** List of objects on whom we copied their dirty state this frame */
+	FNetBitArrayView GetCleanedObjectsInternalIndices() const { return MakeNetBitArrayView(CleanedObjectsInternalIndices); }
 
 	// Get bitarray for all internal indices that currently are assigned
 	const FNetBitArray& GetAssignedInternalIndices() const { return AssignedInternalIndices; }
@@ -241,6 +245,9 @@ public:
 	inline bool GetChildSubObjects(FInternalNetRefIndex OwnerIndex, FChildSubObjectsInfo& OutInfo) const;
 
 	const FRefHandleMap& GetReplicatedHandles() const { return RefHandleToInternalIndex; }
+
+	// Get the replicated object represented by a given internal index.
+	UObject* GetReplicatedObjectInstance(FInternalNetRefIndex ObjectIndex) const { return ReplicatedInstances[ObjectIndex]; }
 
 	const TArray<UObject*>& GetReplicatedInstances() const { return ReplicatedInstances; }
 
@@ -304,8 +311,11 @@ private:
 	// Which internal indices were used last net frame. This can be used to find out which ones are new and deleted this frame. 
 	FNetBitArray PrevFrameScopableInternalIndices;
 
-	/** The contains the ScopableInternalIndices list minus filtered objects that are not relevant to any connection this frame. */
+	/** This contains the ScopableInternalIndices list minus filtered objects that are not relevant to any connection this frame. */
 	FNetBitArray RelevantObjectsInternalIndices;
+
+	/** List of objects that were dirty but whom we copied their dirty data this frame */
+	FNetBitArray CleanedObjectsInternalIndices;
 
 	// Bitset containing all internal indices that are assigned
 	FNetBitArray AssignedInternalIndices;

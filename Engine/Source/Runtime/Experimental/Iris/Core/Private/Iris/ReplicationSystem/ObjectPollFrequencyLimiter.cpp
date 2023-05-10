@@ -38,7 +38,7 @@ void FObjectPollFrequencyLimiter::Deinit()
 	FrameCounters.Empty();
 }
 
-void FObjectPollFrequencyLimiter::Update(const FNetBitArrayView& ScopableObjects, const FNetBitArrayView& DirtyObjects, FNetBitArrayView& OutObjectsToPoll)
+void FObjectPollFrequencyLimiter::Update(const FNetBitArrayView& RelevantObjects, const FNetBitArrayView& DirtyObjects, FNetBitArrayView& OutObjectsToPoll)
 {
 	IRIS_PROFILER_SCOPE(ObjectPollFrequencyLimiter_Update);
 
@@ -55,7 +55,7 @@ void FObjectPollFrequencyLimiter::Update(const FNetBitArrayView& ScopableObjects
 	uint8* CountersData = FrameCounters.GetData();
 	const uint8* FramesBetweenUpdatesData = FramesBetweenUpdates.GetData();
 
-	const WordType* ScopableObjectsData = ScopableObjects.GetData();
+	const WordType* RelevantObjectsData = RelevantObjects.GetData();
 	const WordType* DirtyObjectsData = DirtyObjects.GetData();
 	WordType* ObjectsToPollData = OutObjectsToPoll.GetData();
 
@@ -71,10 +71,10 @@ void FObjectPollFrequencyLimiter::Update(const FNetBitArrayView& ScopableObjects
 
 		for (uint32 ObjectIndex = 0, ObjectEndIndex = MaxInternalHandle;
 			ObjectIndex <= ObjectEndIndex; 
-			ObjectIndex += WordBitCount, CountersData += WordBitCount, FramesBetweenUpdatesData += WordBitCount, ++ScopableObjectsData, ++DirtyObjectsData, ++ObjectsToPollData)
+			ObjectIndex += WordBitCount, CountersData += WordBitCount, FramesBetweenUpdatesData += WordBitCount, ++RelevantObjectsData, ++DirtyObjectsData, ++ObjectsToPollData)
 		{
 			// Skip ranges with no scopable objects.
-			const WordType ObjectsInScopeWord = *ScopableObjectsData;
+			const WordType ObjectsInScopeWord = *RelevantObjectsData;
 			if (!ObjectsInScopeWord)
 			{
 				continue;
@@ -111,10 +111,10 @@ void FObjectPollFrequencyLimiter::Update(const FNetBitArrayView& ScopableObjects
 	{
 		for (uint32 ObjectIndex = 0, ObjectEndIndex = MaxInternalHandle;
 			ObjectIndex <= ObjectEndIndex;
-			ObjectIndex += WordBitCount, CountersData += WordBitCount, FramesBetweenUpdatesData += WordBitCount, ++ScopableObjectsData, ++DirtyObjectsData, ++ObjectsToPollData)
+			ObjectIndex += WordBitCount, CountersData += WordBitCount, FramesBetweenUpdatesData += WordBitCount, ++RelevantObjectsData, ++DirtyObjectsData, ++ObjectsToPollData)
 		{
 			// Skip ranges with no scopable objects.
-			WordType ObjectsInScopeWord = *ScopableObjectsData;
+			WordType ObjectsInScopeWord = *RelevantObjectsData;
 			if (!ObjectsInScopeWord)
 			{
 				continue;
