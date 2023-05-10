@@ -164,9 +164,8 @@ void UMetasoundGeneratorHandle::AttachGraphChangedDelegate()
 		// the audio render thread so we need to take steps to assure this UMetasoundGeneratorHandle
 		// hasn't been garbage collected before trying to dereference it later when the delegate "fires".
 		// That is why we capture a TWeakObjectPtr and try to dereference that later!
-		GeneratorGraphChangedDelegateHandle = Generator->OnSetGraph.AddLambda(
-			[WeakGeneratorHandlePtr = TWeakObjectPtr<UMetasoundGeneratorHandle>(this),
-			StatId = this->GetStatID(true)]
+		Metasound::FOnSetGraph::FDelegate NewSetGraphDelegate;
+		NewSetGraphDelegate.BindLambda([WeakGeneratorHandlePtr = TWeakObjectPtr<UMetasoundGeneratorHandle>(this), StatId = this->GetStatID(true)]
 			()
 			{
 				// We are in the audio render thread here, so create a "dispatch task" to be
@@ -185,8 +184,10 @@ void UMetasoundGeneratorHandle::AttachGraphChangedDelegate()
 						}
 					},
 					StatId, nullptr, ENamedThreads::GameThread);
-		});
-}
+			});
+
+		GeneratorGraphChangedDelegateHandle = Generator->AddGraphSetCallback(MoveTemp(NewSetGraphDelegate));
+	}
 }
 
 void UMetasoundGeneratorHandle::DetachGeneratorDelegates()
@@ -205,7 +206,7 @@ void UMetasoundGeneratorHandle::DetachGeneratorDelegates()
 	TSharedPtr<Metasound::FMetasoundGenerator> PinnedGenerator = CachedGeneratorPtr.Pin();
 	if (PinnedGenerator)
 	{
-		PinnedGenerator->OnSetGraph.Remove(GeneratorGraphChangedDelegateHandle);
+		PinnedGenerator->RemoveGraphSetCallback(GeneratorGraphChangedDelegateHandle);
 		GeneratorGraphChangedDelegateHandle.Reset();
 	}
 }
@@ -273,7 +274,7 @@ TSharedPtr<Metasound::FMetasoundGenerator> UMetasoundGeneratorHandle::GetGenerat
 	return PinGenerator();
 }
 
-FDelegateHandle UMetasoundGeneratorHandle::AddGraphSetCallback(const UMetasoundGeneratorHandle::FOnSetGraph& Delegate)
+FDelegateHandle UMetasoundGeneratorHandle::AddGraphSetCallback(UMetasoundGeneratorHandle::FOnSetGraph::FDelegate&& Delegate)
 {
 	
 	FDelegateHandle Handle = OnGeneratorsGraphChanged.Add(Delegate);

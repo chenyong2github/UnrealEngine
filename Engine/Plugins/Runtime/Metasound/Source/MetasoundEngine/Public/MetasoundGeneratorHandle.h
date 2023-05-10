@@ -51,7 +51,7 @@ public:
 	// render thread. 
 	DECLARE_MULTICAST_DELEGATE(FOnAttached);
 	DECLARE_MULTICAST_DELEGATE(FOnDetached);
-	DECLARE_DELEGATE(FOnSetGraph);
+	DECLARE_MULTICAST_DELEGATE(FOnSetGraph);
 
 	/**
 	 * Makes a copy of the supplied parameter pack and passes it to the MetaSoundGenerator
@@ -69,7 +69,7 @@ public:
 	// Note: We don't allow direct assignment to the OnGeneratorsGraphChanged delegate
 	// because we need to know that someone actually wants this message so we can
 	// start actively listening for the corresponding audio render thread callback...
-	FDelegateHandle AddGraphSetCallback(const UMetasoundGeneratorHandle::FOnSetGraph& Delegate);
+	FDelegateHandle AddGraphSetCallback(UMetasoundGeneratorHandle::FOnSetGraph::FDelegate&& Delegate);
 	bool RemoveGraphSetCallback(const FDelegateHandle& Handle);
 
 	/**

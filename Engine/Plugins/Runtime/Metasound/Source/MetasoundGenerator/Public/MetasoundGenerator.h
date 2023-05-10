@@ -216,9 +216,12 @@ namespace Metasound
 
 #endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 		
-
 		// Called when a new graph has been "compiled" and set up as this generator's graph.
-		FOnSetGraph OnSetGraph;
+		// Note: We don't allow direct assignment to the FOnSetGraph delegate
+		// because we want to give the Delegate an initial immediate callback if the generator 
+		// already has a graph. 
+		FDelegateHandle AddGraphSetCallback(FOnSetGraph::FDelegate&& Delegate);
+		bool RemoveGraphSetCallback(const FDelegateHandle& Handle);
 
 	private:
 		bool TryUseCachedOperator(FMetasoundGeneratorInitParams& InParams, bool bTriggerGenerator);
@@ -311,6 +314,9 @@ namespace Metasound
 
 		TMpscQueue<TUniqueFunction<void()>> OutputAnalyzerModificationQueue;
 		TArray<TUniquePtr<Frontend::IVertexAnalyzer>> OutputAnalyzers;
+
+		FOnSetGraph OnSetGraph;
+
 #if ENABLE_METASOUND_GENERATOR_RENDER_TIMING
 		TUniquePtr<MetasoundGeneratorPrivate::FRenderTimer> RenderTimer;
 #endif // if ENABLE_METASOUND_GENERATOR_RENDER_TIMING

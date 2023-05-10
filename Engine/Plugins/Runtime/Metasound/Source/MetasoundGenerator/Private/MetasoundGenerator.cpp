@@ -354,6 +354,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ClearGraph();
 	}
 
+	FDelegateHandle FMetasoundGenerator::AddGraphSetCallback(FOnSetGraph::FDelegate&& Delegate)
+	{
+		FScopeLock SetPendingGraphLock(&PendingGraphMutex);
+		// If we already have a graph give the delegate an initial call
+		if (!bIsNewGraphPending && !bIsWaitingForFirstGraph)
+		{
+			Delegate.ExecuteIfBound();
+		}
+		return OnSetGraph.Add(Delegate);
+	}
+
+	bool FMetasoundGenerator::RemoveGraphSetCallback(const FDelegateHandle& Handle)
+	{
+		return OnSetGraph.Remove(Handle);
+	}
+
 	void FMetasoundGenerator::SetPendingGraph(MetasoundGeneratorPrivate::FMetasoundGeneratorData&& InData, bool bTriggerGraph)
 	{
 		using namespace MetasoundGeneratorPrivate;
