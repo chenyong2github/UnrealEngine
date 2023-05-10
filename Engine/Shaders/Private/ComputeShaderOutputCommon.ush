@@ -130,26 +130,26 @@ FPixelShaderOut ShadePixel(const uint2 PixelPos, uint QuadIndex)
 	return PixelShaderOut;
 }
 
-#define CONDITIONAL_EXPORT 0
+#define CONDITIONAL_EXPORT 1
 
 #if STRATA_OPAQUE_DEFERRED
 
-void ConditionalExport(uint2 PixelPos, FPixelShaderOut ShadedPixel, uint Index)
+void ConditionalExport(bool Forced, uint2 PixelPos, FPixelShaderOut ShadedPixel, uint Index)
 {
 #if CONDITIONAL_EXPORT
 	BRANCH
-	if (ShadedPixel.StrataOutput[Index] != 0)
+	if (Forced || ShadedPixel.StrataOutput[Index] != 0)
 #endif
 	{
 		OutTargets[uint3(PixelPos, Index)] = ShadedPixel.StrataOutput[Index];
 	}
 }
 
-void ConditionalExport(RWTexture2D<STRATA_TOP_LAYER_TYPE> OutTarget, uint2 PixelPos, STRATA_TOP_LAYER_TYPE TopLayerData)
+void ConditionalExport(bool Forced, RWTexture2D<STRATA_TOP_LAYER_TYPE> OutTarget, uint2 PixelPos, STRATA_TOP_LAYER_TYPE TopLayerData)
 {
 #if CONDITIONAL_EXPORT
 	BRANCH
-	if (TopLayerData != 0)
+	if (Forced || TopLayerData != 0)
 #endif
 	{
 		OutTarget[PixelPos] = TopLayerData;
@@ -158,11 +158,11 @@ void ConditionalExport(RWTexture2D<STRATA_TOP_LAYER_TYPE> OutTarget, uint2 Pixel
 
 #endif
 
-void ConditionalExport(RWTexture2D<float4> OutTarget, uint2 PixelPos, float4 Value)
+void ConditionalExport(bool Forced, RWTexture2D<float4> OutTarget, uint2 PixelPos, float4 Value)
 {
 #if CONDITIONAL_EXPORT
 	BRANCH
-	if(any(Value != 0.0f))
+	if (Forced || any(Value != 0.0f))
 #endif
 	{
 		OutTarget[PixelPos] = Value;
@@ -180,19 +180,19 @@ void ExportPixel(const uint2 PixelPos, FPixelShaderOut ShadedPixel)
 #endif 
 
 #if PIXELSHADEROUTPUT_MRT0
-	ConditionalExport(OutTarget0, PixelPos, ShadedPixel.MRT[0]);
+	ConditionalExport(true, OutTarget0, PixelPos, ShadedPixel.MRT[0]);
 #endif
 
 #if PIXELSHADEROUTPUT_MRT1
-	ConditionalExport(OutTarget1, PixelPos, ShadedPixel.MRT[1]);
+	ConditionalExport(true, OutTarget1, PixelPos, ShadedPixel.MRT[1]);
 #endif
 
 #if PIXELSHADEROUTPUT_MRT2
-	ConditionalExport(OutTarget2, PixelPos, ShadedPixel.MRT[2]);
+	ConditionalExport(true, OutTarget2, PixelPos, ShadedPixel.MRT[2]);
 #endif
 
 #if PIXELSHADEROUTPUT_MRT3
-	ConditionalExport(OutTarget3, PixelPos, ShadedPixel.MRT[3]);
+	ConditionalExport(true, OutTarget3, PixelPos, ShadedPixel.MRT[3]);
 #endif
 
 #if STRATA_OPAQUE_DEFERRED
@@ -203,36 +203,36 @@ void ExportPixel(const uint2 PixelPos, FPixelShaderOut ShadedPixel)
 	// MRT2 is precomputed shadow if both velocity and prec shadow are enabled.
 	// After, Substrate top layer data appended. Remaining Substrate outputs are in the 2d array UAV
 
-	ConditionalExport(PixelPos, ShadedPixel, 0);
-	ConditionalExport(PixelPos, ShadedPixel, 1);
-	ConditionalExport(PixelPos, ShadedPixel, 2);
+	ConditionalExport(true,  PixelPos, ShadedPixel, 0);
+	ConditionalExport(false, PixelPos, ShadedPixel, 1);
+	ConditionalExport(false, PixelPos, ShadedPixel, 2);
 
 #if PIXELSHADEROUTPUT_MRT3
-	ConditionalExport(OutTarget4, PixelPos, ShadedPixel.StrataTopLayerData);
+	ConditionalExport(true, OutTarget4, PixelPos, ShadedPixel.StrataTopLayerData);
 #elif PIXELSHADEROUTPUT_MRT2
-	ConditionalExport(OutTarget3, PixelPos, ShadedPixel.StrataTopLayerData);
+	ConditionalExport(true, OutTarget3, PixelPos, ShadedPixel.StrataTopLayerData);
 #elif PIXELSHADEROUTPUT_MRT1
-	ConditionalExport(OutTarget2, PixelPos, ShadedPixel.StrataTopLayerData);
+	ConditionalExport(true, OutTarget2, PixelPos, ShadedPixel.StrataTopLayerData);
 #else
-	ConditionalExport(OutTarget1, PixelPos, ShadedPixel.StrataTopLayerData);
+	ConditionalExport(true, OutTarget1, PixelPos, ShadedPixel.StrataTopLayerData);
 #endif
 
 #else // STRATA_OPAQUE_DEFERRED
 
 #if PIXELSHADEROUTPUT_MRT4
-	ConditionalExport(OutTarget4, PixelPos, ShadedPixel.MRT[4]);
+	ConditionalExport(false, OutTarget4, PixelPos, ShadedPixel.MRT[4]);
 #endif
 
 #if PIXELSHADEROUTPUT_MRT5
-	ConditionalExport(OutTarget5, PixelPos, ShadedPixel.MRT[5]);
+	ConditionalExport(false, OutTarget5, PixelPos, ShadedPixel.MRT[5]);
 #endif
 
 #if PIXELSHADEROUTPUT_MRT6
-	ConditionalExport(OutTarget6, PixelPos, ShadedPixel.MRT[6]);
+	ConditionalExport(false, OutTarget6, PixelPos, ShadedPixel.MRT[6]);
 #endif
 
 #if PIXELSHADEROUTPUT_MRT7
-	ConditionalExport(OutTarget7, PixelPos, ShadedPixel.MRT[7]);
+	ConditionalExport(false, OutTarget7, PixelPos, ShadedPixel.MRT[7]);
 #endif
 
 #endif // STRATA_OPAQUE_DEFERRED
