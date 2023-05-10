@@ -31,6 +31,14 @@
 
 TMap<TSubclassOf<AActor>, FWorldPartitionActorDesc::FActorDescDeprecator> FWorldPartitionActorDesc::Deprecators;
 
+static FGuid GetDefaultActorDescGuid(const FWorldPartitionActorDesc* ActorDesc)
+{
+	FArchiveMD5 ArMD5;
+	FString ClassPath = ActorDesc->GetBaseClass().IsValid() ? ActorDesc->GetBaseClass().ToString() : ActorDesc->GetNativeClass().ToString();	
+	ArMD5 << ClassPath;
+	return ArMD5.GetGuidFromHash();
+}
+
 FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	: bIsUsingDataLayerAsset(false)
 	, bIsBoundsValid(false)
@@ -41,13 +49,6 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	, bIsDefaultActorDesc(false)
 	, UnloadedReason(nullptr)
 {}
-
-FGuid FWorldPartitionActorDesc::GetDefaultActorDescGuid(FString ClassPath)
-{
-	FArchiveMD5 ArMD5;
-	ArMD5 << ClassPath;
-	return ArMD5.GetGuidFromHash();
-}
 
 void FWorldPartitionActorDesc::Init(const AActor* InActor)
 {	
@@ -69,8 +70,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	{
 		check(!InActor->IsPackageExternal());
 		check(!InActor->GetActorGuid().IsValid());
-		const FString ClassPath = BaseClass.IsValid() ? BaseClass.ToString() : NativeClass.ToString();
-		Guid = GetDefaultActorDescGuid(ClassPath);
+		Guid = GetDefaultActorDescGuid(this);
 		bIsDefaultActorDesc = true;
 	}
 	else
@@ -469,7 +469,24 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-	Ar << Guid;
+	if (bIsDefaultActorDesc)
+	{
+		if (Ar.IsLoading())
+		{
+			Guid = GetDefaultActorDescGuid(this);
+
+			if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionClasDescGuidTransient)
+			{
+				FGuid ClassDescGuid;
+				Ar << ClassDescGuid;
+				check(Guid == ClassDescGuid);
+			}
+		}
+	}
+	else
+	{
+		Ar << Guid;
+	}
 
 	if(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::LargeWorldCoordinates)
 	{

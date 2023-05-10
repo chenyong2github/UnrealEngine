@@ -313,6 +313,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Add support for soft object paths in actor descriptors
 		WorldPartitionActorDescSerializeSoftObjectPathSupport,
 
+		// Don't serialize class descriptor GUIDs
+		WorldPartitionClasDescGuidTransient,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
