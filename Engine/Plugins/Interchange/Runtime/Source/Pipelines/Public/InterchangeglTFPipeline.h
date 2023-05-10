@@ -51,7 +51,6 @@ class INTERCHANGEPIPELINES_API UInterchangeGLTFPipeline : public UInterchangePip
 	UInterchangeGLTFPipeline();
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "glTF", meta = (DisplayName = "glTF Pipeline Settings"))
 	TObjectPtr<UGLTFPipelineSettings> GLTFPipelineSettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "glTF", meta = (DisplayName = "Use glTF Material Instance Library"))

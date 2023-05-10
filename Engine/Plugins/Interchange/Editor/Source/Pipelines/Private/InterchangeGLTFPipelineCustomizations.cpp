@@ -8,6 +8,7 @@
 #include "DetailLayoutBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
+#include "Widgets/Text/STextBlock.h"
 
 TSharedRef<IDetailCustomization> FInterchangeGLTFPipelineCustomization::MakeInstance()
 {
@@ -45,16 +46,32 @@ void FInterchangeGLTFPipelineCustomization::CustomizeDetails(IDetailLayoutBuilde
 		Pipeline->GLTFPipelineSettings->SetMaterialParentsEditible(false);
 	}
 
-	DetailsView->SetObject(Pipeline->GLTFPipelineSettings);
+	if (Pipeline->CanEditPropertiesStates())
+	{
+		DetailsView->SetObject(Pipeline->GLTFPipelineSettings);
 
-	GLTFCategory.AddCustomRow(NSLOCTEXT("InterchangeGLTFPipelineCustomization", "GLTFPredefinedMaterialLibrary", "Predefined Material Functions"))
-	[
-		SNew( SVerticalBox )
-		+ SVerticalBox::Slot()
-		[
-			DetailsView.ToSharedRef()
-		]
-	];
+		GLTFCategory.AddCustomRow(NSLOCTEXT("InterchangeGLTFPipelineCustomization", "GLTFPredefinedMaterialLibrary", "Predefined Material Functions"))
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+			[
+				DetailsView.ToSharedRef()
+			]
+			];
+	}
+	else
+	{
+		GLTFCategory.AddCustomRow(NSLOCTEXT("InterchangeGLTFPipelineMaterialSubstitution::Message::Row", "GLTFPredefinedMaterialSubstitutionMessageRow", "GLTF Pipeline Material Substitution Message"))
+			.NameContent()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(NSLOCTEXT("InterchangeGLTFPipelineCustomization::Message", "GLTFPredefinedMaterialSubstitutionMessage", "Substitution can be custumized in 'Project Settings > Interchange GLTF'."))
+				.AutoWrapText(true)
+			];
+	}
+	
 }
 
 void FInterchangeGLTFPipelineSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
