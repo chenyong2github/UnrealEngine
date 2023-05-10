@@ -57,7 +57,7 @@ public abstract class DatasmithSketchUpRubyBaseTarget : TargetRules
 
 		// Copy support dlls
 		PostBuildSteps.Add(string.Format("echo F|xcopy /Y /R /F \"{0}\" \"{1}\"",
-			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/tbb.dll", ExeBinariesSubFolder),
+			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/tbbmalloc.dll", ExeBinariesSubFolder),
 			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp", ExeBinariesSubFolder)
 		));
 
