@@ -434,6 +434,7 @@ const TArrayView<uint8> FSoundWaveData::GetZerothChunkDataView() const
 
 bool FSoundWaveData::LoadZerothChunk()
 {
+#if WITH_EDITOR
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSoundWaveData::LoadZerothChunk);
 
 	LLM_SCOPE(ELLMTag::AudioSoundWaves);
@@ -448,7 +449,6 @@ bool FSoundWaveData::LoadZerothChunk()
 
 		if (ZerothChunkData.GetView().Num() == 0)
 		{
-#if WITH_EDITOR
 			if (!bLoadedFromCookedData)
 			{
 				// In editor, we wait until the zeroth chunk is required to force finish compilation
@@ -479,7 +479,6 @@ bool FSoundWaveData::LoadZerothChunk()
 				}
 			}
 			else
-#endif // WITH_EDITOR
 			{
 				// The zeroth chunk is cooked out to RunningPlatformData, so retrieve it.
 				if (ensureMsgf(GetNumChunks() > 0, TEXT("SoundWave '%s' is cooked but contains no chunks."), *GetFName().ToString()))
@@ -503,6 +502,7 @@ bool FSoundWaveData::LoadZerothChunk()
 			}
 		}
 	}
+#endif
 
 	return true;
 }

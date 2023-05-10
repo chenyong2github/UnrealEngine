@@ -1355,7 +1355,9 @@ private:
 
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
 	FBulkDataBuffer<uint8> ZerothChunkData;
+#if WITH_EDITOR
 	mutable FCriticalSection LoadZerothChunkDataCriticalSection;
+#endif
 
 	/* Accessor to get the zeroth chunk which might perform additional work in editor to handle async tasks. */
 	FBulkDataBuffer<uint8>& GetZerothChunkData() const;
