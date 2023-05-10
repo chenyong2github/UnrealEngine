@@ -1641,9 +1641,10 @@ bool USourceControlHelpers::GetFilesInDepotAtPath(const FString& PathToDirectory
 
 			TArray<FString> FileArray;
 			FileArray.Add(FullPath);
-
+			
 			TSharedRef<FGetFileList, ESPMode::ThreadSafe> Operation = ISourceControlOperation::Create<FGetFileList>();
 			Operation->SetIncludeDeleted(bIncludeDeleted);
+			Operation->SetSearchPattern(PathToDirectory);
 
 			ECommandResult::Type Result = SourceControlProvider.Execute(Operation, FileArray, EConcurrency::Synchronous);
 			bSuccess = (Result == ECommandResult::Succeeded);

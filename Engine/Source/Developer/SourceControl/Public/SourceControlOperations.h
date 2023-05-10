@@ -180,12 +180,25 @@ public:
 		FilesList = MoveTemp(InFilesList);
 	}
 
+	const FString& GetSearchPattern() const
+	{
+		return SearchPattern;
+	}
+
+	void SetSearchPattern(const FString& InSearchPattern)
+	{
+		SearchPattern = InSearchPattern;
+	}
+
 protected:
 	/** Include deleted files in the list. */
 	bool bIncludeDeleted = false;
 
 	/** Stored result of the operation */
 	TArray<FString> FilesList;
+
+	/** The search pattern for the file list */
+	FString SearchPattern;
 };
 
 /**
