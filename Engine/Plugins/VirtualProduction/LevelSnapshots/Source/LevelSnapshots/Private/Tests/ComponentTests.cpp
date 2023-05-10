@@ -1,7 +1,9 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Selection/PropertySelection.h"
-#include "Selection/PropertySelectionMap.h"
+#include "Filtering/PropertySelection.h"
+
+#include "Filtering/Diffing/EquivalenceUtil.h"
+#include "Filtering/PropertySelectionMap.h"
 #include "Util/SnapshotTestRunner.h"
 #include "Types/SnapshotTestActor.h"
 
@@ -13,7 +15,6 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Misc/AutomationTest.h"
-#include "Util/EquivalenceUtil.h"
 
 namespace UE::LevelSnapshots::Private::Tests
 {

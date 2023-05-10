@@ -1,9 +1,9 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConstantFilter.h"
+#include "Filtering/PropertySelectionMap.h"
 #include "ILevelSnapshotsModule.h"
 #include "Interfaces/ISnapshotRestorabilityOverrider.h"
-#include "Selection/PropertySelectionMap.h"
 #include "Util/SnapshotTestRunner.h"
 #include "Types/SnapshotTestActor.h"
 

@@ -2,10 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "ActorSnapshotHash.h"
 #include "ComponentSnapshotData.h"
 #include "CustomSerializationData.h"
+#include "Hashing/ActorSnapshotHash.h"
 #include "ObjectSnapshotData.h"
 #include "SnapshotUtilTypes.h"
 #include "ActorSnapshotData.generated.h"

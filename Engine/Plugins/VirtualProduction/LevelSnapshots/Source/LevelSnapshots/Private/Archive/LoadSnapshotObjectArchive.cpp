@@ -2,10 +2,10 @@
 
 #include "Archive/LoadSnapshotObjectArchive.h"
 
+#include "Data/Util/ObjectDependencyUtil.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "WorldSnapshotData.h"
-#include "Data/Util/WorldData/SnapshotObjectUtil.h"
 
 #include "Serialization/ObjectWriter.h"
 #include "Internationalization/TextNamespaceUtil.h"

@@ -2,7 +2,7 @@
 
 #include "LevelSnapshotsFunctionLibrary.h"
 
-#include "Selection/ApplySnapshotFilter.h"
+#include "Filtering/Diffing/ApplySnapshotFilter.h"
 #include "LevelSnapshot.h"
 #include "LevelSnapshotFilters.h"
 

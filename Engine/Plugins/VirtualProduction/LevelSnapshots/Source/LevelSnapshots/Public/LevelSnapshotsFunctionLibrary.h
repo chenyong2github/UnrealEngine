@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Selection/PropertySelectionMap.h"
+#include "Filtering/PropertySelectionMap.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "LevelSnapshotsFunctionLibrary.generated.h"
 

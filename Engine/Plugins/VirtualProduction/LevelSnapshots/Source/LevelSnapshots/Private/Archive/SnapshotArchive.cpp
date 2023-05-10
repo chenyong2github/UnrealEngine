@@ -2,11 +2,11 @@
 
 #include "SnapshotArchive.h"
 
+#include "Data/Util/ObjectDependencyUtil.h"
 #include "LevelSnapshotsModule.h"
 #include "ObjectSnapshotData.h"
 #include "SnapshotRestorability.h"
 #include "SnapshotVersion.h"
-#include "Util/WorldData/SnapshotObjectUtil.h"
 #include "WorldSnapshotData.h"
 #if UE_BUILD_DEBUG
 #include "SnapshotConsoleVariables.h"

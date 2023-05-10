@@ -2,11 +2,11 @@
 
 #include "LevelSnapshotsFilteringLibrary.h"
 
-#include "Selection/ApplySnapshotFilter.h"
 #include "ConstantFilter.h"
+#include "Filtering/Diffing/ApplySnapshotFilter.h"
+#include "Filtering/SnapshotSelectionBuilder.h"
 #include "LevelSnapshot.h"
 #include "LevelSnapshotFilters.h"
-#include "Selection/SnapshotSelectionBuilder.h"
 
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"

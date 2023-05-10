@@ -3,16 +3,16 @@
 #include "CustomSerializationDataManager.h"
 
 #include "CustomObjectSerializationWrapper.h"
+#include "CustomSerialization/LoadCustomObjectProxyArchive.h"
+#include "CustomSerialization/SaveCustomObjectProxyArchive.h"
+#include "Data/Util/ObjectDependencyUtil.h"
 #include "LevelSnapshotsLog.h"
 #include "SnapshotCustomVersion.h"
 #include "TakeWorldObjectSnapshotArchive.h"
-#include "CustomSerialization/LoadCustomObjectProxyArchive.h"
-#include "CustomSerialization/SaveCustomObjectProxyArchive.h"
 
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
-#include "Util/WorldData/SnapshotObjectUtil.h"
 
 namespace UE::LevelSnapshots::Private::Internal
 {

@@ -2,7 +2,7 @@
 
 #include "Settings/LevelSnapshotsSettings.h"
 
-#include "Data/Util/ActorHashUtil.h"
+#include "Data/Hashing/ActorHashUtil.h"
 #include "PropertyInfoHelpers.h"
 
 ULevelSnapshotsSettings* ULevelSnapshotsSettings::Get()

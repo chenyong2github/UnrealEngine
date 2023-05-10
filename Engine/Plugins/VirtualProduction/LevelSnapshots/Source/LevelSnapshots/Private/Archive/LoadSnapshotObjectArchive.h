@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SnapshotArchive.h"
-#include "Misc/ObjectDependencyCallback.h"
+#include "Util/ObjectDependencyCallback.h"
 
 struct FSnapshotDataCache;
 

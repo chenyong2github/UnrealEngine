@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Selection/PropertySelection.h"
-#include "Selection/PropertySelectionMap.h"
+#include "Filtering/PropertySelection.h"
+#include "Filtering/PropertySelectionMap.h"
 #include "SnapshotArchive.h"
 #include "SnapshotUtilTypes.h"
 

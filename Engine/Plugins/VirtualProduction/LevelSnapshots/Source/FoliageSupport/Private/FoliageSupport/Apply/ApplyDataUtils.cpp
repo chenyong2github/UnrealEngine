@@ -3,7 +3,7 @@
 #include "ApplyDataUtils.h"
 
 #include "LevelSnapshotsLog.h"
-#include "Selection/PropertySelectionMap.h"
+#include "Filtering/PropertySelectionMap.h"
 
 #include "FoliageType.h"
 #include "InstancedFoliageActor.h"

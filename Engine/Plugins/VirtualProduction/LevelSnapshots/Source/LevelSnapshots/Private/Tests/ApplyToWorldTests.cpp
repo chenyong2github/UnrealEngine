@@ -1,8 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Selection/PropertySelectionMap.h"
+#include "Filtering/PropertySelectionMap.h"
+#include "Filtering/Diffing/EquivalenceUtil.h"
 #include "Util/SnapshotTestRunner.h"
-#include "Util/EquivalenceUtil.h"
 #include "Types/SnapshotTestActor.h"
 
 #include "Components/PointLightComponent.h"

@@ -3,10 +3,10 @@
 #include "FoliageSupport/Data/InstancedFoliageActorData.h"
 
 #include "ApplyDataUtils.h"
+#include "Filtering/PropertySelectionMap.h"
 #include "FoliageLevelSnapshotsConsoleVariables.h"
 #include "FoliageRestorationInfo.h"
 #include "LevelSnapshotsLog.h"
-#include "Selection/PropertySelectionMap.h"
 #include "SnapshotCustomVersion.h"
 
 #include "FoliageType.h"

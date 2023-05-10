@@ -2,11 +2,11 @@
 
 #include "FoliageSupport/Apply/FoliageRestorationInfo.h"
 
+#include "Filtering/AddedAndRemovedComponentInfo.h"
+#include "Filtering/RestorableObjectSelection.h"
+#include "Filtering/PropertySelectionMap.h"
 #include "FoliageSupport/Data/FoliageInfoData.h"
 #include "LevelSnapshotsLog.h"
-#include "Selection/AddedAndRemovedComponentInfo.h"
-#include "Selection/RestorableObjectSelection.h"
-#include "Selection/PropertySelectionMap.h"
 
 #include "InstancedFoliageActor.h"
 

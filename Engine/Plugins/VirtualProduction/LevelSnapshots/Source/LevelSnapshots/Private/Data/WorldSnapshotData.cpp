@@ -2,15 +2,14 @@
 
 #include "Data/WorldSnapshotData.h"
 
+#include "Data/Compression/CompressionUtil.h"
+#include "Data/Util/ClassDataUtil.h"
 #include "LevelSnapshotsModule.h"
 #include "SnapshotCustomVersion.h"
-#include "Util/Property/PropertyIterator.h"
+#include "Util/PropertyIterator.h"
 
 #include "Serialization/BufferArchive.h"
 #include "UObject/UnrealType.h"
-#include "Util/SnapshotUtil.h"
-#include "Util/WorldData/ClassDataUtil.h"
-#include "Util/WorldData/CompressionUtil.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 

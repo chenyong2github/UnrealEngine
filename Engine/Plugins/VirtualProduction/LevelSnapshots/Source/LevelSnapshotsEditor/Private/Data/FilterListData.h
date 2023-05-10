@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "GameFramework/Actor.h"
-#include "Selection/PropertySelectionMap.h"
+#include "Filtering/PropertySelectionMap.h"
 
 class AActor;
 class ULevelSnapshot;

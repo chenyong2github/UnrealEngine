@@ -2,12 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "CustomSerializationData.h"
 #include "WorldSnapshotData.h"
 #include "Params/ObjectSnapshotSerializationData.h"
-
 
 namespace UE::LevelSnapshots::Private
 {

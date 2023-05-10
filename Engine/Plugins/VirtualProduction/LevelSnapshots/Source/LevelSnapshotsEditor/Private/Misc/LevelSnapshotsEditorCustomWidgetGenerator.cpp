@@ -3,10 +3,10 @@
 #include "Misc/LevelSnapshotsEditorCustomWidgetGenerator.h"
 
 #include "LevelSnapshotsLog.h"
-#include "Selection/PropertySelection.h"
+#include "Filtering/PropertySelection.h"
+#include "Views/Results/LevelSnapshotsEditorResultsRow.h"
 
 #include "Styling/AppStyle.h"
-#include "Views/Results/LevelSnapshotsEditorResultsRow.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"

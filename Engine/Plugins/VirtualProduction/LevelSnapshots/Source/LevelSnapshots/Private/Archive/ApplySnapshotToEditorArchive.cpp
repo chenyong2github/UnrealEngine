@@ -3,12 +3,12 @@
 #include "Archive/ApplySnapshotToEditorArchive.h"
 
 #include "Archive/ClassDefaults/ApplyClassDefaulDataArchive.h"
-#include "Data/RestorationEvents/ApplySnapshotPropertiesScope.h"
-#include "Data/Util/WorldData/ClassDataUtil.h"
-#include "Data/Util/WorldData/SnapshotObjectUtil.h"
+#include "Filtering/PropertySelection.h"
+#include "Data/Util/ClassDataUtil.h"
+#include "Data/Util/ObjectDependencyUtil.h"
 #include "Data/WorldSnapshotData.h"
 #include "LevelSnapshotsLog.h"
-#include "Selection/PropertySelection.h"
+#include "Restoration/Scope/ApplySnapshotPropertiesScope.h"
 
 #include "Serialization/ObjectReader.h"
 #include "UObject/UnrealType.h"

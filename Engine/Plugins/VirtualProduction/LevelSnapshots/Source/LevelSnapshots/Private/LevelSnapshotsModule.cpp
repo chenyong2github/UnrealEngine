@@ -6,13 +6,13 @@
 #include "LevelSnapshotsSettings.h"
 #include "LevelSnapshotsLog.h"
 #include "Params/PropertyComparisonParams.h"
+#include "SpecialSupport/EngineTypesRestorationFence.h"
 
 #include "Algo/AllOf.h"
 #include "Components/ActorComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
 #include "Modules/ModuleManager.h"
-#include "Restorability/EngineTypesRestorationFence.h"
 #if WITH_EDITOR
 #include "ISettingsModule.h"
 #endif

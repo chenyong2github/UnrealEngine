@@ -1,16 +1,16 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "EngineUtils.h"
-#include "LevelSnapshotsModule.h"
+#include "Filtering/CustomSubobjectRestorationInfo.h"
+#include "Filtering/PropertySelectionMap.h"
 #include "Interfaces/ICustomObjectSnapshotSerializer.h"
+#include "LevelSnapshotsModule.h"
 #include "Params/ObjectSnapshotSerializationData.h"
-#include "Selection/CustomSubobjectRestorationInfo.h"
-#include "Selection/PropertySelectionMap.h"
 #include "Types/SnapshotTestActor.h"
 #include "Util/CustomSubobjectTestUtil.h"
 #include "Util/SnapshotTestRunner.h"
 
 #include "Engine/StaticMeshActor.h"
+#include "EngineUtils.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 

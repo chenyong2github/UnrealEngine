@@ -2,10 +2,10 @@
 
 #include "FoliageSupport/FoliageSupport.h"
 
+#include "Filtering/PropertySelection.h"
+#include "Filtering/PropertySelectionMap.h"
 #include "FoliageSupport/Data/InstancedFoliageActorData.h"
 #include "Params/ObjectSnapshotSerializationData.h"
-#include "Selection/PropertySelection.h"
-#include "Selection/PropertySelectionMap.h"
 #include "SnapshotCustomVersion.h"
 #include "WorldSnapshotData.h"
 

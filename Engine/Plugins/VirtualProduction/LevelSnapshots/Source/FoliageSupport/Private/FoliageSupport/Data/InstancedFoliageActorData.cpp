@@ -2,7 +2,7 @@
 
 #include "FoliageSupport/Data/InstancedFoliageActorData.h"
 
-#include "Selection/PropertySelectionMap.h"
+#include "Filtering/PropertySelectionMap.h"
 #include "SnapshotCustomVersion.h"
 
 #include "FoliageType.h"

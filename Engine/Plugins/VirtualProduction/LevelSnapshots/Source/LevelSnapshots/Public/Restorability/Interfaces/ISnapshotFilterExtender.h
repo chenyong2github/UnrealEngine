@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Selection/PropertySelection.h"
+#include "Filtering/PropertySelection.h"
 
 class AActor;
 class UObject;
