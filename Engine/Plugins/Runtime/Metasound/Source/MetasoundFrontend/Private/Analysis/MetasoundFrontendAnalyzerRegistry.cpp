@@ -30,13 +30,14 @@ namespace Metasound
 			virtual const IVertexAnalyzerFactory* FindAnalyzerFactory(FName InAnalyzerName) const override
 			{
 				const TUniquePtr<IVertexAnalyzerFactory>* Factory = AnalyzerFactoryRegistry.Find(InAnalyzerName);
-				if (ensureMsgf(Factory, TEXT("Failed to find registered MetaSound Analyzer Factory with name '%s'"), *InAnalyzerName.ToString()))
+				if (nullptr == Factory)
 				{
-					check(Factory->IsValid());
-					return Factory->Get();
+					UE_LOG(LogMetaSound, Warning, TEXT("Failed to find registered MetaSound Analyzer Factory with name '%s'"), *InAnalyzerName.ToString());
+					return nullptr;
 				}
 
-				return nullptr;
+				check(Factory->IsValid());
+				return Factory->Get();
 			}
 
 			virtual void RegisterAnalyzerFactory(FName AnalyzerName, TUniquePtr<IVertexAnalyzerFactory>&& Factory) override

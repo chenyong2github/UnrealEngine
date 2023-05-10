@@ -2,11 +2,12 @@
 
 #include "MetasoundGeneratorHandle.h"
 
-#include "Components/AudioComponent.h"
 #include "MetasoundGenerator.h"
+#include "MetasoundParameterPack.h"
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
-#include "MetasoundParameterPack.h"
+#include "Analysis/MetasoundFrontendAnalyzerRegistry.h"
+#include "Components/AudioComponent.h"
 
 TMap<FName, UMetasoundGeneratorHandle::FPassthroughAnalyzerInfo> UMetasoundGeneratorHandle::PassthroughAnalyzers{};
 
@@ -352,6 +353,17 @@ bool UMetasoundGeneratorHandle::WatchOutput(
 	
 	AnalyzerAddress.AnalyzerInstanceID = FGuid::NewGuid();
 	AnalyzerAddress.NodeID = NodeId;
+
+	// Check to see if the analyzer exists
+	{
+		using namespace Metasound::Frontend;
+		const IVertexAnalyzerFactory* Factory =
+			IVertexAnalyzerRegistry::Get().FindAnalyzerFactory(AnalyzerAddress.AnalyzerName);
+		if (nullptr == Factory)
+		{
+			return false;
+		}
+	}
 
 	// if we already have a generator, go ahead and make the analyzer
 	if (const TSharedPtr<Metasound::FMetasoundGenerator> PinnedGenerator = PinGenerator())
