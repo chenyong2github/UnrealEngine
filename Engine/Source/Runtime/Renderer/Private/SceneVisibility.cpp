@@ -3215,7 +3215,7 @@ void FVisibilityViewPacket::BeginInitVisibility()
 	// Allocate the view's visibility maps.
 	View.PrimitiveVisibilityMap.Init(false, Scene.Primitives.Num());
 	View.PrimitiveRayTracingVisibilityMap.Init(false, Scene.Primitives.Num());
-	View.DynamicMeshEndIndices.SetNumZeroed(Scene.Primitives.Num());
+	View.DynamicMeshElementRanges.SetNumZeroed(Scene.Primitives.Num());
 	View.PotentiallyFadingPrimitiveMap.Init(false, Scene.Primitives.Num());
 	View.PrimitiveFadeUniformBuffers.AddZeroed(Scene.Primitives.Num());
 	View.PrimitiveFadeUniformBufferMap.Init(false, Scene.Primitives.Num());
@@ -3653,6 +3653,13 @@ void FVisibilityTaskData::GatherDynamicMeshElements()
 
 void FVisibilityTaskData::GatherDynamicMeshElementsForPrimitive(int32 PrimitiveIndex, uint8 ViewMask)
 {
+	TArray<int32, TInlineAllocator<4>> MeshBatchCountBefore;
+	MeshBatchCountBefore.SetNumUninitialized(Views.Num());
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		MeshBatchCountBefore[ViewIndex] = MeshCollector.GetMeshBatchCount(ViewIndex);
+	}
+
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene.Primitives[PrimitiveIndex];
 	MeshCollector.SetPrimitive(PrimitiveSceneInfo->Proxy, PrimitiveSceneInfo->DefaultDynamicHitProxyId);
 
@@ -3660,10 +3667,9 @@ void FVisibilityTaskData::GatherDynamicMeshElementsForPrimitive(int32 PrimitiveI
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
+		FViewInfo& View = Views[ViewIndex];
 		if (ViewMask & (1 << ViewIndex))
 		{
-			const FViewInfo& View = Views[ViewIndex];
-
 			FDynamicPrimitive& DynamicPrimitive = DynamicMeshElements.DynamicPrimitives.Emplace_GetRef();
 			DynamicPrimitive.PrimitiveIndex = PrimitiveIndex;
 			DynamicPrimitive.ViewIndex = ViewIndex;
@@ -3672,11 +3678,8 @@ void FVisibilityTaskData::GatherDynamicMeshElementsForPrimitive(int32 PrimitiveI
 
 			DynamicMeshElements.LastElementPerView[ViewIndex] = View.DynamicMeshElements.Num();
 		}
-	}
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		Views[ViewIndex].DynamicMeshEndIndices[PrimitiveIndex] = MeshCollector.GetMeshBatchCount(ViewIndex);
+		View.DynamicMeshElementRanges[PrimitiveIndex] = FInt32Vector2(MeshBatchCountBefore[ViewIndex], MeshCollector.GetMeshBatchCount(ViewIndex));
 	}
 };
 

@@ -1375,7 +1375,7 @@ public:
 	TArray<FMeshBatchAndRelevance,SceneRenderingAllocator> DynamicMeshElements;
 
 	/* [PrimitiveIndex] = end index index in DynamicMeshElements[], to support GetDynamicMeshElementRange(). Contains valid values only for visible primitives with bDynamicRelevance. */
-	TArray<uint32, SceneRenderingAllocator> DynamicMeshEndIndices;
+	TArray<FInt32Vector2, SceneRenderingAllocator> DynamicMeshElementRanges;
 
 	/** Hair strands & cards dynamic mesh element. */
 	TArray<FMeshBatchAndRelevance, SceneRenderingAllocator> HairStrandsMeshElements;
