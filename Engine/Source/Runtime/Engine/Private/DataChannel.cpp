@@ -1068,7 +1068,7 @@ void UChannel::AppendMustBeMappedGuids( FOutBunch* Bunch )
 
 		Bunch->bHasMustBeMappedGUIDs = 1;
 
-		MustBeMappedGuidsInLastBunch.Empty();
+		MustBeMappedGuidsInLastBunch.Reset();
 	}
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -1140,7 +1140,7 @@ void UActorChannel::AppendMustBeMappedGuids( FOutBunch* Bunch )
 
 			PackageMapClient->GetMustBeMappedGuidsInLastBunch().Append( QueuedMustBeMappedGuidsInLastBunch );
 
-			QueuedMustBeMappedGuidsInLastBunch.Empty();
+			QueuedMustBeMappedGuidsInLastBunch.Reset();
 		}
 	}
 

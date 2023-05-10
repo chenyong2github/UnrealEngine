@@ -4989,7 +4989,7 @@ void UNetConnection::FlushDormancyForObject(AActor* DormantActor, UObject* Repli
 		if (UPackageMapClient* PackageMapClient = CastChecked<UPackageMapClient>(PackageMap))
 		{
 			TArray< FNetworkGUID >& MustBeMappedGuidsInLastBunch = PackageMapClient->GetMustBeMappedGuidsInLastBunch();
-			MustBeMappedGuidsInLastBunch.Empty();
+			MustBeMappedGuidsInLastBunch.Reset();
 		}
 	}
 }
