@@ -1178,7 +1178,7 @@ void UCommonUIActionRouterBase::SetActiveRoot(FActivatableTreeRootPtr NewActiveR
 		if (!bRollbackResetInputConfigOnDormancy)
 		{
 			// Reset the input config when dormant so we don't get stuck in a non-default input mode when layout is dormant
-			SetActiveUIInputConfig(FUIInputConfig());
+			SetActiveUIInputConfig(FUIInputConfig(ECommonInputMode::All, EMouseCaptureMode::NoCapture));
 		}
 	}
 	else
