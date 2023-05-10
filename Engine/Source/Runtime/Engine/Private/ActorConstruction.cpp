@@ -557,8 +557,20 @@ void AActor::RerunConstructionScripts()
 			ExchangeNetRoles(true);
 		}
 
+		// Determine if we already have the correct world transform on the RootComponent. If so, we don't want to try to set it again in ExecuteConstruction()
+		// or else a re-computation of the relative transform can cause error accumulation on the RelativeLocation/etc which is supposed to derive the ComponentToWorld.
+		bool bIsDefaultTransform = false;
+		if (RootComponent != nullptr && bUseRootComponentProperties)
+		{
+			const double TransformTolerance = 0.0;
+			if (OldTransform.Equals(RootComponent->GetComponentTransform(), TransformTolerance))
+			{
+				bIsDefaultTransform = true;
+			}
+		}
+
 		// Run the construction scripts
-		const bool bErrorFree = ExecuteConstruction(OldTransform, &OldTransformRotationCache, InstanceDataCache);
+		const bool bErrorFree = ExecuteConstruction(OldTransform, &OldTransformRotationCache, InstanceDataCache, bIsDefaultTransform);
 
 		if(Parent)
 		{
