@@ -23,7 +23,7 @@ static TAutoConsoleVariable<bool> CVarPCGValidatePointMetadata(
 #define PCG_ELEMENT_EXECUTION_BREAKPOINT() \
 	if (Context && Context->GetInputSettingsInterface() && Context->GetInputSettingsInterface()->bBreakDebugger) \
 	{ \
-		PLATFORM_BREAK(); \
+		UE_DEBUG_BREAK(); \
 	}
 #else
 #define PCG_ELEMENT_EXECUTION_BREAKPOINT()
