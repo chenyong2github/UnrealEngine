@@ -1438,16 +1438,8 @@ int32 ComputeLODBias(const FMutableGraphGenerationContext& GenerationContext, co
 	}
 	
 	int32 LODBias = 0;
-	// We used to calculate the lod bias directly from the group like this:
-	//int LODBias = 0;
-	//if (LODSettings.TextureLODGroups.IsValidIndex(ReferenceTexture->LODGroup))
-	//{
-	//	const FTextureLODGroup& Group = LODSettings.GetTextureLODGroup(ReferenceTexture->LODGroup);
-	//	LODBias = Group.LODBias;
-	//}
 
-	// ...but now it seems to be more complicated and we may need this:
-	// This is not 100% correct either because it makes assumptions about the final texture size
+	// This is not 100% correct because it makes assumptions about the final texture size
 	// that may not be correct, but if the reference texture is really representative of the average 
 	// case, then it is as good as we can do.
 	if (ReferenceTexture)
@@ -1456,14 +1448,6 @@ int32 ComputeLODBias(const FMutableGraphGenerationContext& GenerationContext, co
 
 		LODBias = LODSettings.CalculateLODBias(ReferenceTexture->Source.GetSizeX(), ReferenceTexture->Source.GetSizeY(), MaxTextureSize,
 			ReferenceTexture->LODGroup, ReferenceTexture->LODBias, false, ReferenceTexture->MipGenSettings, ReferenceTexture->IsCurrentlyVirtualTextured());
-	}
-
-	// Reduce data size and compilation time for server platforms.
-	// \todo: review this hack
-	bool bIsServer = GenerationContext.Options.TargetPlatform->GetTargetPlatformInfo().PlatformType == EBuildTargetType::Server;
-	if (bIsServer)
-	{
-		LODBias += 4;
 	}
 
 	// Increment the LOD bias per each LOD if we are using automatic LODs

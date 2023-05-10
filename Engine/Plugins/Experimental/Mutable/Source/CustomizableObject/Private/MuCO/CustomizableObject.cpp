@@ -1985,6 +1985,12 @@ void UCustomizableObjectBulk::CookAdditionalFilesOverride(const TCHAR* PackageFi
 	const ITargetPlatform* TargetPlatform,
 	TFunctionRef<void(const TCHAR* Filename, void* Data, int64 Size)> WriteAdditionalFile)
 {
+	// Don't save streamed data on server builds since it won't be used anyway.
+	if (TargetPlatform->IsServerOnly())
+	{
+		return;
+	}
+	
 	check(CustomizableObject);
 	
 	FMutableCachedPlatformData* PlatformData = CustomizableObject->CachedPlatformsData.Find(TargetPlatform->PlatformName());
