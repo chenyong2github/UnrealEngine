@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "FilterModelFader.h"
 
 #include "DMXControlConsoleFaderBase.h"
