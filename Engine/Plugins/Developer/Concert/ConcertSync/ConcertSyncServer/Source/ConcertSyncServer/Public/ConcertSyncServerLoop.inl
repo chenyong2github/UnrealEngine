@@ -51,7 +51,10 @@ int32 ConcertSyncServerLoop(const TCHAR* CommandLine, const FConcertSyncServerLo
 	// Load Concert Sync plugins in default phase
 	IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::Default);
 
-	// Install graceful termination handler, this handles graceful CTRL+C shutdown, 
+	// Load Concert Sync plugins in post default phase.
+	IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PostDefault);
+
+	// Install graceful termination handler, this handles graceful CTRL+C shutdown,
 	// but not CTRL+CLOSE, which will potentially still exit process before the main thread exits.
 	// Double CTRL+C signal will also cause process to terminate.
 	FPlatformMisc::SetGracefulTerminationHandler();

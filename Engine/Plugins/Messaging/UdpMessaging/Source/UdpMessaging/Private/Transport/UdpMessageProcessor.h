@@ -4,6 +4,8 @@
 
 #include "Containers/Queue.h"
 
+#include "ModuleDescriptor.h"
+
 #include "HAL/Runnable.h"
 
 #include "INetworkMessagingExtension.h"
@@ -824,6 +826,11 @@ protected:
 	virtual void Tick() override;
 
 private:
+	/** Start the message processor thread. */
+	void StartThread();
+
+	/** Delegate invoke when plugin phase has been completed. */
+	void OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful);
 
 	/** Handles a communication error to a particular endpoint.*/
 	void HandleSocketError(const FNodeInfo& NodeInfo) const;
@@ -841,7 +848,7 @@ private:
 	TQueue<FOutboundMessage, EQueueMode::Mpsc> OutboundMessages;
 
 	/** Holds the hello sender. */
-	FUdpMessageBeacon* Beacon;
+	TUniquePtr<FUdpMessageBeacon> Beacon;
 
 	/** Holds the current time. */
 	FDateTime CurrentTime;
@@ -879,8 +886,8 @@ private:
 	/** Holds the network socket used to transport messages. */
 	FSocket* Socket;
 
-	/** Holds the socket sender. volatile pointer because used to validate thread shutdown. */
-	FUdpSocketSender* volatile SocketSender;
+	/** Holds the socket sender.*/
+	TUniquePtr<FUdpSocketSender> SocketSender;
 
 	/** Holds a flag indicating that the thread is stopping. */
 	bool bStopping;
@@ -889,7 +896,7 @@ private:
 	bool bIsInitialized;
 
 	/** Holds the thread object. */
-	FRunnableThread* Thread;
+	TUniquePtr<FRunnableThread> Thread;
 
 	/** Holds an event signaling that inbound messages need to be processed. */
 	TSharedPtr<FEvent, ESPMode::ThreadSafe> WorkEvent;

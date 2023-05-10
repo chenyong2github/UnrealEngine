@@ -17,6 +17,7 @@
 #include "Transport/UdpSerializeMessageTask.h"
 #include "Shared/UdpMessageSegment.h"
 
+#include "Interfaces/IPluginManager.h"
 
 /* FUdpMessageHelloSender static initialization
  *****************************************************************************/
@@ -97,7 +98,6 @@ FUdpMessageProcessor::FNodeInfo::FNodeInfo()
 	ComputeWindowSize(0,0);
 }
 
-
 FUdpMessageProcessor::FUdpMessageProcessor(FSocket& InSocket, const FGuid& InNodeId, const FIPv4Endpoint& InMulticastEndpoint)
 	: Beacon(nullptr)
 	, LocalNodeId(InNodeId)
@@ -117,7 +117,15 @@ FUdpMessageProcessor::FUdpMessageProcessor(FSocket& InSocket, const FGuid& InNod
 	});
 
 	CurrentTime = FDateTime::UtcNow();
-	Thread = FRunnableThread::Create(this, TEXT("FUdpMessageProcessor"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask());
+	const ELoadingPhase::Type LoadingPhase = IPluginManager::Get().GetLastCompletedLoadingPhase();
+	if (LoadingPhase == ELoadingPhase::None || LoadingPhase < ELoadingPhase::PostDefault)
+	{
+		IPluginManager::Get().OnLoadingPhaseComplete().AddRaw(this, &FUdpMessageProcessor::OnPluginLoadingPhaseComplete);
+	}
+	else
+	{
+		StartThread();
+	}
 }
 
 
@@ -126,14 +134,11 @@ FUdpMessageProcessor::~FUdpMessageProcessor()
 	// shut down worker thread if it is still running
 	Thread->Kill();
 
-	delete Thread;
-	Thread = nullptr;
+	Thread = {};
+	Beacon = {};
+	SocketSender = {};
 
-	delete Beacon;
-	Beacon = nullptr;
-
-	delete SocketSender;
-	SocketSender = nullptr;
+	IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
 
 	// remove all transport nodes
 	if (NodeLostDelegate.IsBound())
@@ -147,6 +152,20 @@ FUdpMessageProcessor::~FUdpMessageProcessor()
 	KnownNodes.Empty();
 }
 
+void FUdpMessageProcessor::StartThread()
+{
+	Thread = TUniquePtr<FRunnableThread>(FRunnableThread::Create(this, TEXT("FUdpMessageProcessor"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask()));
+}
+
+void FUdpMessageProcessor::OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful)
+{
+	check(!Thread);
+	if (LoadingPhase == ELoadingPhase::PostDefault)
+	{
+		IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
+		StartThread();
+	}
+}
 
 void FUdpMessageProcessor::AddStaticEndpoint(const FIPv4Endpoint& InEndpoint)
 {
@@ -308,8 +327,8 @@ bool FUdpMessageProcessor::Init()
 {
 	if (!bIsInitialized)
 	{
-		Beacon = new FUdpMessageBeacon(Socket, LocalNodeId, MulticastEndpoint);
-		SocketSender = new FUdpSocketSender(Socket, TEXT("FUdpMessageProcessor.Sender"));
+		Beacon = MakeUnique<FUdpMessageBeacon>(Socket, LocalNodeId, MulticastEndpoint);
+		SocketSender = MakeUnique<FUdpSocketSender>(Socket, TEXT("FUdpMessageProcessor.Sender"));
 
 		// Current protocol version 16
 		SupportedProtocolVersions.Add(UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION);
@@ -448,7 +467,7 @@ void FUdpMessageProcessor::ConsumeInboundSegments()
 	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_ConsumeInboundSegments);
 	FInboundSegment Segment;
 
-	FTimespan MaxWorkTimespan = ComputeMaxWorkTimespan(DeadHelloIntervals, Beacon);
+	FTimespan MaxWorkTimespan = ComputeMaxWorkTimespan(DeadHelloIntervals, Beacon.Get());
 	while (InboundSegments.Dequeue(Segment))
 	{
 		// quick hack for TTP# 247103

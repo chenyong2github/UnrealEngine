@@ -19,9 +19,10 @@ namespace UnrealBuildTool.Rules
 					"Json",
 					"Cbor",
 					"Messaging",
+					"Projects",
 					"Serialization",
 					"TraceLog",
-					"Sockets",
+					"Sockets"
 				});
 
 			PrivateIncludePathModuleNames.AddRange(
