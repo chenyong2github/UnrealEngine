@@ -103,6 +103,7 @@ protected:
 	void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode);
 	void OnNodeSelectionChanged(const TSet<UObject*>& NewSelection);
 	void OnNodeDeleted(const TSet<UObject*>& NewSelection);
+	void OnAssetPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
 	//~ End DataflowEditorActions
 
 private:
@@ -166,4 +167,6 @@ private:
 
 	FDelegateHandle OnSelectionChangedMulticastDelegateHandle;
 	FDelegateHandle OnNodeDeletedMulticastDelegateHandle;
+	FDelegateHandle OnFinishedChangingPropertiesDelegateHandle;
+	FDelegateHandle OnFinishedChangingAssetPropertiesDelegateHandle;
 };

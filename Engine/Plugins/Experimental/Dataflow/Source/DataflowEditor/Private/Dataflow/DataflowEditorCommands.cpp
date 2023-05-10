@@ -5,6 +5,7 @@
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
+#include "Dataflow/DataflowOverrideNode.h"
 #include "EdGraph/EdGraphNode.h"
 #include "IStructureDetailsView.h"
 #include "EdGraphNode_Comment.h"
@@ -240,6 +241,31 @@ void FDataflowEditorCommands::OnNodeTitleCommitted(const FText& InNewText, EText
 	}
 }
 
+void FDataflowEditorCommands::OnAssetPropertyValueChanged(UDataflow* Graph, TSharedPtr<Dataflow::FEngineContext>& Context, Dataflow::FTimestamp& OutLastNodeTimestamp, const FPropertyChangedEvent& InPropertyChangedEvent)
+{
+	if (ensureMsgf(Graph != nullptr, TEXT("Warning : Failed to find valid graph.")))
+	{
+		if (InPropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet ||
+			InPropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove ||
+			InPropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
+		{
+			if (InPropertyChangedEvent.GetPropertyName() == FName("Overrides_Key") ||
+				InPropertyChangedEvent.GetPropertyName() == FName("Overrides"))
+			{
+				for (const TSharedPtr<FDataflowNode>& DataflowNode : Graph->Dataflow->GetNodes())
+				{
+					if (DataflowNode->IsA(FDataflowOverrideNode::StaticType()))
+					{
+						// TODO: For now we invalidate all the FDataflowOverrideNode nodes
+						// Once the Variable system will be in place only the neccessary nodes
+						// will be invalidated
+						DataflowNode->Invalidate();
+					}
+				}
+			}
+		}
+	}
+}
 
 void FDataflowEditorCommands::OnPropertyValueChanged(UDataflow* OutDataflow, TSharedPtr<Dataflow::FEngineContext>& Context, Dataflow::FTimestamp& OutLastNodeTimestamp, const FPropertyChangedEvent& InPropertyChangedEvent, const TSet<UObject*>& SelectedNodes)
 {

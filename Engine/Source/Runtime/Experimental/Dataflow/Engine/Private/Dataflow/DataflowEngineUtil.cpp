@@ -18,7 +18,7 @@ namespace Dataflow
 				if (ParentIndex != INDEX_NONE && ParentIndex != Index) // why self check?
 				{
 					GlobalTransformsInternal(ParentIndex, Ref, Mat, Visited);
-					Mat[Index].SetFromMatrix(RefMat[Index].ToMatrixWithScale()*Mat[ParentIndex].ToMatrixWithScale());
+					Mat[Index].SetFromMatrix(RefMat[Index].ToMatrixWithScale() * Mat[ParentIndex].ToMatrixWithScale());
 				}
 				else
 				{
@@ -44,3 +44,4 @@ namespace Dataflow
 		}
 	}
 }
+

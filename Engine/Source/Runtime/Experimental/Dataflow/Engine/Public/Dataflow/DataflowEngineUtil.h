@@ -42,7 +42,7 @@ namespace Dataflow
 		}
 
 		template<class T>
-		const T FindOverrideProperty(const UObject* Owner, FName PropertyName, FName ArrayKey, const T & Default = T())
+		const T FindOverrideProperty(const UObject* Owner, FName PropertyName, FName ArrayKey, const T& Default = T())
 		{
 			if (Owner && Owner->GetClass())
 			{

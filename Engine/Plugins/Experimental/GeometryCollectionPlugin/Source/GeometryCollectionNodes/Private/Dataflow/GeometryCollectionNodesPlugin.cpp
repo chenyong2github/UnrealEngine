@@ -17,7 +17,7 @@
 #include "Dataflow/GeometryCollectionUtilityNodes.h"
 #include "Dataflow/GeometryCollectionMaterialNodes.h"
 #include "Dataflow/GeometryCollectionFieldNodes.h"
-//#include "Dataflow/GeometryCollectionOverrideNodes.h"
+#include "Dataflow/GeometryCollectionOverrideNodes.h"
 #include "Dataflow/GeometryCollectionMakeNodes.h"
 #include "Dataflow/GeometryCollectionMathNodes.h"
 #include "Dataflow/GeometryCollectionConversionNodes.h"
@@ -40,7 +40,7 @@ void IGeometryCollectionNodesPlugin::StartupModule()
 	Dataflow::GeometryCollectionUtilityNodes();
 	Dataflow::GeometryCollectionMaterialNodes();
 	Dataflow::GeometryCollectionFieldNodes();
-	//Dataflow::GeometryCollectionOverrideNodes();
+	Dataflow::GeometryCollectionOverrideNodes();
 	Dataflow::GeometryCollectionMakeNodes();
 	Dataflow::GeometryCollectionMathNodes();
 	Dataflow::GeometryCollectionConversionNodes();

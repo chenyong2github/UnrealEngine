@@ -10,6 +10,7 @@
 #include "InstanceUniformShaderParameters.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "Misc/Crc.h"
+#include "Containers/Map.h"
 
 #include "GeometryCollectionObject.generated.h"
 
@@ -781,6 +782,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	FString DataflowTerminal = "GeometryCollectionTerminal";
 
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	TMap<FString, FString> Overrides;
 
 private:
 #if WITH_EDITOR
