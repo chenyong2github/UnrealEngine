@@ -96,6 +96,11 @@ static TAutoConsoleVariable<int32> GDumpGPUFrameCount(
 	TEXT("Number of consecutive frames to dump (default=1)."),
 	ECVF_Default);
 
+static TAutoConsoleVariable<float> GDumpGPUFixedTickRate(
+	TEXT("r.DumpGPU.FixedTickRate"), 0.0f,
+	TEXT("Override the engine's tick rate to be fixed for every dumped frames (default=0)."),
+	ECVF_Default);
+
 static TAutoConsoleVariable<int32> GDumpGPUDraws(
 	TEXT("r.DumpGPU.Draws"), 0,
 	TEXT("Whether to dump resource after each individual draw call (disabled by default)."),
@@ -220,6 +225,9 @@ public:
 	int32 PassesCount = 0;
 	TMap<const FRDGResource*, const FRDGPass*> LastResourceVersion;
 	TSet<const void*> IsDumpedToDisk;
+
+	bool bOverrideFixedDeltaTime = false;
+	double PreviousFixedDeltaTime = 0.0f;
 
 	// Pass being dumping individual draws
 	const FRDGPass* DrawDumpingPass = nullptr;
@@ -1767,6 +1775,15 @@ FString FRDGBuilder::BeginResourceDump(const TCHAR* Cmd)
 		NewResourceDumpContext->GetDumpParameters().DumpServiceParametersFile();
 	}
 
+	if (GDumpGPUFixedTickRate.GetValueOnGameThread() > 0.0f && !FApp::UseFixedTimeStep())
+	{
+		NewResourceDumpContext->bOverrideFixedDeltaTime = true;
+		NewResourceDumpContext->PreviousFixedDeltaTime = FApp::GetFixedDeltaTime();
+
+		FApp::SetFixedDeltaTime(1.0f / GDumpGPUFixedTickRate.GetValueOnGameThread());
+		FApp::SetUseFixedTimeStep(true);
+	}
+
 	// Output informations
 	{
 		const TCHAR* BranchName = BuildSettings::GetBranchName();
@@ -1977,6 +1994,13 @@ void FRDGBuilder::EndResourceDump()
 		FPlatformProcess::ExploreFolder(*AbsDumpingDirectoryPath);
 	}
 	#endif
+
+	// Restore the engine tick rate to what it was
+	if (GRDGResourceDumpContext->bOverrideFixedDeltaTime)
+	{
+		FApp::SetFixedDeltaTime(GRDGResourceDumpContext->PreviousFixedDeltaTime);
+		FApp::SetUseFixedTimeStep(false);
+	}
 
 	delete GRDGResourceDumpContext;
 	GRDGResourceDumpContext = nullptr;

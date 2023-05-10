@@ -26,6 +26,9 @@
 #include "Widgets/Colors/SComplexGradient.h"
 #include "Modules/ModuleManager.h"
 #include "ISettingsModule.h"
+#if WITH_DUMPGPU
+	#include "RenderGraph.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "EditorViewport"
 
@@ -598,10 +601,6 @@ bool SEditorViewport::IsRealtime() const
 
 bool SEditorViewport::IsVisible() const
 {
-#if WITH_DUMPGPU
-	extern ENGINE_API uint32 GDumpGPU_FrameNumber;
-#endif
-
 	const float VisibilityTimeThreshold = .25f;
 	// The viewport is visible if we don't have a parent layout (likely a floating window) or this viewport is visible in the parent layout.
 	// Also, always render the viewport if DumpGPU is active, regardless of tick time threshold -- otherwise these don't show up due to lag
@@ -610,7 +609,7 @@ bool SEditorViewport::IsVisible() const
 		LastTickTime == 0.0	||	// Never been ticked
 		FPlatformTime::Seconds() - LastTickTime <= VisibilityTimeThreshold	// Ticked recently
 #if WITH_DUMPGPU
-		|| GDumpGPU_FrameNumber == GFrameNumber	// GPU dump in progress
+		|| FRDGBuilder::IsDumpingFrame()	// GPU dump in progress
 #endif		
 		;
 }
