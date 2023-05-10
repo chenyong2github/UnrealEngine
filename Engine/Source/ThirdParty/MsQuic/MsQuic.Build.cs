@@ -25,7 +25,7 @@ public class MsQuic : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
-            bShouldUseMsQuic = true;
+            bShouldUseMsQuic = false;
         }
         else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture == UnrealArch.X64)
         {
