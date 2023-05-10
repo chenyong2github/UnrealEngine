@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "TypedElementExportedTextWidget.h"
 
 #include "Elements/Columns/TypedElementMiscColumns.h"
