@@ -27,6 +27,6 @@ void FBufferedOutputDevice::RedirectTo(FOutputDevice& Ar)
 	FScopeLock ScopeLock(&SynchronizationObject);
 	for (const FBufferedLine& BufferedLine : BufferedLines)
 	{
-		Ar.Serialize(BufferedLine.Data, BufferedLine.Verbosity, BufferedLine.Category);
+		Ar.Serialize(BufferedLine.Data.Get(), BufferedLine.Verbosity, BufferedLine.Category);
 	}
 }

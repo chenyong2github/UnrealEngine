@@ -11275,7 +11275,7 @@ bool UEngine::FErrorsAndWarningsCollector::Tick(float Seconds)
 		// Remove any dupes and count them
 		do 
 		{
-			uint32 ThisHash = FCrc::StrCrc32(ActiveLines[DupeCount].Data);
+			uint32 ThisHash = FCrc::StrCrc32(ActiveLines[DupeCount].Data.Get());
 
 			if (CurrentHash && ThisHash != CurrentHash)
 			{
@@ -11288,7 +11288,7 @@ bool UEngine::FErrorsAndWarningsCollector::Tick(float Seconds)
 		} while (DupeCount < ActiveLines.Num());
 
 		// Save off properties
-		FString Msg = ActiveLines[0].Data;
+		FString Msg = ActiveLines[0].Data.Get();
 		ELogVerbosity::Type Verbosity = ActiveLines[0].Verbosity;
 
 		// Remove any lines we condensed

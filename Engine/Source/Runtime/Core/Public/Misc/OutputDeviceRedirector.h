@@ -9,6 +9,7 @@
 #include "Misc/EnumClassFlags.h"
 #include "Misc/OutputDevice.h"
 #include "Templates/PimplPtr.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 
 /*-----------------------------------------------------------------------------
@@ -20,34 +21,13 @@ namespace UE::Private { struct FOutputDeviceRedirectorState; }
 /** The type of lines buffered by secondary threads. */
 struct CORE_API FBufferedLine
 {
-	enum EBufferedLineInit
-	{
-		EMoveCtor = 0
-	};
-
-	const TCHAR* Data;
+	TUniquePtr<TCHAR[]> Data;
 	const FLazyName Category;
 	const double Time;
 	const ELogVerbosity::Type Verbosity;
 	bool bExternalAllocation;
 
-	FBufferedLine(const TCHAR* InData, const FName& InCategory, ELogVerbosity::Type InVerbosity, const double InTime = -1);
-
-	FBufferedLine(FBufferedLine& InBufferedLine, EBufferedLineInit Unused)
-		: Data(InBufferedLine.Data)
-		, Category(InBufferedLine.Category)
-		, Time(InBufferedLine.Time)
-		, Verbosity(InBufferedLine.Verbosity)
-		, bExternalAllocation(InBufferedLine.bExternalAllocation)
-	{
-		InBufferedLine.Data = nullptr;
-		InBufferedLine.bExternalAllocation = false;
-	}
-
-	/** Noncopyable for now, could be made movable */
-	FBufferedLine(const FBufferedLine&) = delete;
-	FBufferedLine& operator=(const FBufferedLine&) = delete;
-	~FBufferedLine();
+	explicit FBufferedLine(const TCHAR* InData, const FName& InCategory, ELogVerbosity::Type InVerbosity, const double InTime = -1);
 };
 
 enum class EOutputDeviceRedirectorFlushOptions : uint32

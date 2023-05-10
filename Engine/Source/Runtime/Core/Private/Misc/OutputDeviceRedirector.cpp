@@ -28,13 +28,8 @@ FBufferedLine::FBufferedLine(const TCHAR* InData, const FName& InCategory, ELogV
 	, Verbosity(InVerbosity)
 {
 	int32 NumChars = FCString::Strlen(InData) + 1;
-	void* Dest = FMemory::Malloc(sizeof(TCHAR) * NumChars);
-	Data = (TCHAR*)FMemory::Memcpy(Dest, InData, sizeof(TCHAR) * NumChars);
-}
-
-FBufferedLine::~FBufferedLine()
-{
-	FMemory::Free(const_cast<TCHAR*>(Data));
+	Data = MakeUniqueForOverwrite<TCHAR[]>(sizeof(TCHAR) * NumChars);
+	FMemory::Memcpy(Data.Get(), InData, sizeof(TCHAR) * NumChars);
 }
 
 namespace UE::Private
@@ -578,7 +573,7 @@ void FOutputDeviceRedirector::SerializeBacklog(FOutputDevice* OutputDevice)
 	FReadScopeLock ScopeLock(State->BacklogLock);
 	for (const FBufferedLine& BacklogLine : State->BacklogLines)
 	{
-		OutputDevice->Serialize(BacklogLine.Data, BacklogLine.Verbosity, BacklogLine.Category, BacklogLine.Time);
+		OutputDevice->Serialize(BacklogLine.Data.Get(), BacklogLine.Verbosity, BacklogLine.Category, BacklogLine.Time);
 	}
 }
 

@@ -170,7 +170,7 @@ void SDeviceOutputLog::Tick(const FGeometry& AllottedGeometry, const double InCu
 	{
 		for (const FBufferedLine& Line : BufferedLines)
 		{
-			MessagesTextMarshaller->AppendPendingMessage(Line.Data, Line.Verbosity, Line.Category);
+			MessagesTextMarshaller->AppendPendingMessage(Line.Data.Get(), Line.Verbosity, Line.Category);
 		}
 		BufferedLines.Empty(32);
 	}
