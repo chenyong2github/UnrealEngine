@@ -42,3 +42,12 @@ protected:
 		bool bIsAnimatable = true,
 		const TArray<FName>& SimilarPropertyNames = TArray<FName>()) const;
 };
+
+template<>
+struct TStructOpsTypeTraits<FChaosClothAssetSimulationBaseConfigNode> : public TStructOpsTypeTraitsBase2<FChaosClothAssetSimulationBaseConfigNode>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};
