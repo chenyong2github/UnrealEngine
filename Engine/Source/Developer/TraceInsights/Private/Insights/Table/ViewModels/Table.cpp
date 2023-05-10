@@ -51,11 +51,11 @@ int32 FTable::GetColumnPositionIndex(const FName& ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::SetColumns(const TArray<TSharedRef<Insights::FTableColumn>>& InColumns)
+void FTable::SetColumns(const TArray<TSharedRef<FTableColumn>>& InColumns)
 {
 	Columns.Reset(InColumns.Num());
 	ColumnIdToPtrMapping.Reset();
-	for (TSharedRef<Insights::FTableColumn> ColumnRef : InColumns)
+	for (TSharedRef<FTableColumn> ColumnRef : InColumns)
 	{
 		AddColumn(ColumnRef);
 	}
@@ -128,20 +128,20 @@ void FTable::GetVisibleColumns(TArray<TSharedRef<FTableColumn>>& InArray) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InNodes, const FName& LogListingName, TCHAR Separator, bool bIncludeHeaders, FString& OutData) const
+void FTable::GetVisibleColumnsData(const TArray<FBaseTreeNodePtr>& InNodes, const FName& LogListingName, TCHAR Separator, bool bIncludeHeaders, FString& OutData) const
 {
 	constexpr TCHAR LineEnd = TEXT('\n');
 	constexpr TCHAR QuotationMarkBegin = TEXT('\"');
 	constexpr TCHAR QuotationMarkEnd = TEXT('\"');
 
-	TArray<TSharedRef<Insights::FTableColumn>> VisibleColumns;
+	TArray<TSharedRef<FTableColumn>> VisibleColumns;
 	GetVisibleColumns(VisibleColumns);
 
 	// Table headers
 	if (bIncludeHeaders)
 	{
 		bool bIsFirstColumn = true;
-		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		for (const TSharedRef<FTableColumn>& ColumnRef : VisibleColumns)
 		{
 			if (bIsFirstColumn)
 			{
@@ -181,10 +181,10 @@ void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InN
 	// Selected items
 	for (int Index = 0; Index < NumItems; Index++)
 	{
-		const Insights::FBaseTreeNodePtr& Node = InNodes[Index];
+		const FBaseTreeNodePtr& Node = InNodes[Index];
 
 		bool bIsFirstColumn = true;
-		for (const TSharedRef<Insights::FTableColumn>& ColumnRef : VisibleColumns)
+		for (const TSharedRef<FTableColumn>& ColumnRef : VisibleColumns)
 		{
 			if (bIsFirstColumn)
 			{

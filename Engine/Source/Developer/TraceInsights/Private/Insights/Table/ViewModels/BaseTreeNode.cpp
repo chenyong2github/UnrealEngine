@@ -2,7 +2,11 @@
 
 #include "BaseTreeNode.h"
 
+#include "Styling/SlateBrush.h"
+#include "Styling/StyleColors.h"
+
 // Insights
+#include "Insights/InsightsStyle.h"
 #include "Insights/Table/ViewModels/TableCellValueSorter.h"
 
 #define LOCTEXT_NAMESPACE "Insights::FBaseTreeNode"
@@ -48,6 +52,34 @@ const FText FBaseTreeNode::GetExtraDisplayName() const
 bool FBaseTreeNode::HasExtraDisplayName() const
 {
 	return IsGroup();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FSlateBrush* FBaseTreeNode::GetDefaultIcon(bool bIsGroupNode)
+{
+	if (bIsGroupNode)
+	{
+		return FInsightsStyle::GetBrush("Icons.Group.TreeItem");
+	}
+	else
+	{
+		return FInsightsStyle::GetBrush("Icons.Leaf.TreeItem");
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLinearColor FBaseTreeNode::GetDefaultColor(bool bIsGroupNode)
+{
+	if (bIsGroupNode)
+	{
+		return FLinearColor(1.0f, 0.9f, 0.6f, 1.0f);
+	}
+	else
+	{
+		return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

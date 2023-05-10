@@ -22,15 +22,15 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
+#include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/Log.h"
 #include "Insights/Table/ViewModels/Table.h"
+#include "Insights/Table/ViewModels/TableCellValueSorter.h"
 #include "Insights/Table/ViewModels/TreeNodeGrouping.h"
-#include "Insights/Table/ViewModels/TreeNodeSorting.h"
-#include "Insights/Table/ViewModels/UntypedTable.h"
+
 #include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 #include "Insights/Table/Widgets/STableTreeViewRow.h"
-#include "Insights/TimingProfilerCommon.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
 #include "Insights/Widgets/SAsyncOperationStatus.h"
 
@@ -293,7 +293,7 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 			.VAlign(VAlign_Bottom)
 			.Padding(16.0f)
 			[
-				SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, SharedThis(this))
+				SAssignNew(AsyncOperationStatus, SAsyncOperationStatus, SharedThis(this))
 			]
 
 			+ SOverlay::Slot()
@@ -2363,7 +2363,7 @@ void STableTreeView::CreateSortings()
 		const FTableColumn& Column = ColumnRef.Get();
 		if (Column.CanBeSorted())
 		{
-			TSharedPtr<Insights::ITableCellValueSorter> SorterPtr = Column.GetValueSorter();
+			TSharedPtr<ITableCellValueSorter> SorterPtr = Column.GetValueSorter();
 			if (ensure(SorterPtr.IsValid()))
 			{
 				AvailableSorters.Add(SorterPtr);
@@ -2378,7 +2378,7 @@ void STableTreeView::CreateSortings()
 
 void STableTreeView::UpdateCurrentSortingByColumn()
 {
-	TSharedPtr<Insights::FTableColumn> ColumnPtr = Table->FindColumn(ColumnBeingSorted);
+	TSharedPtr<FTableColumn> ColumnPtr = Table->FindColumn(ColumnBeingSorted);
 	CurrentSorter = ColumnPtr.IsValid() ? ColumnPtr->GetValueSorter() : nullptr;
 }
 
@@ -3356,7 +3356,7 @@ void STableTreeView::ContextMenu_CopySelectedToClipboard_Execute()
 		return;
 	}
 
-	TArray<Insights::FBaseTreeNodePtr> SelectedNodes;
+	TArray<FBaseTreeNodePtr> SelectedNodes;
 	for (FTableTreeNodePtr TimerPtr : TreeView->GetSelectedItems())
 	{
 		SelectedNodes.Add(TimerPtr);
@@ -3371,7 +3371,7 @@ void STableTreeView::ContextMenu_CopySelectedToClipboard_Execute()
 
 	if (CurrentSorter.IsValid())
 	{
-		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? Insights::ESortMode::Ascending : Insights::ESortMode::Descending);
+		CurrentSorter->Sort(SelectedNodes, ColumnSortMode == EColumnSortMode::Ascending ? ESortMode::Ascending : ESortMode::Descending);
 	}
 
 	Table->GetVisibleColumnsData(SelectedNodes, GetLogListingName(), TEXT('\t'), true, ClipboardText);
@@ -3604,7 +3604,7 @@ void STableTreeView::ContextMenu_ExportToFile_Execute(bool bInExportCollapsed, b
 	ExportFileHandle->Write((uint8*)&BOM, sizeof(UTF16CHAR));
 
 	bool bIncludeHeaders = true;
-	auto WriteToFile = [this, &Path, &bIncludeHeaders, ExportFileHandle, Separator](TArray<Insights::FBaseTreeNodePtr>& InNodes)
+	auto WriteToFile = [this, &Path, &bIncludeHeaders, ExportFileHandle, Separator](TArray<FBaseTreeNodePtr>& InNodes)
 	{
 		FString Text;
 		this->GetTable()->GetVisibleColumnsData(InNodes, GetLogListingName(), Separator, bIncludeHeaders, Text);
@@ -3618,7 +3618,7 @@ void STableTreeView::ContextMenu_ExportToFile_Execute(bool bInExportCollapsed, b
 		InNodes.Empty(InNodes.Num());
 	};
 
-	TArray<Insights::FBaseTreeNodePtr> NodesBuffer;
+	TArray<FBaseTreeNodePtr> NodesBuffer;
 	ExportToFileRec(Root, NodesBuffer, bInExportCollapsed, InExportLeafs, WriteToFile);
 
 	// Write the remaining lines
@@ -3635,7 +3635,7 @@ void STableTreeView::ContextMenu_ExportToFile_Execute(bool bInExportCollapsed, b
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<Insights::FBaseTreeNodePtr>& InNodes, bool bInExportCollapsed, bool InExportLeafs, WriteToFileCallback Callback)
+void STableTreeView::ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<FBaseTreeNodePtr>& InNodes, bool bInExportCollapsed, bool InExportLeafs, WriteToFileCallback Callback)
 {
 	constexpr int MaxBufferSize = 10000;
 
@@ -3789,6 +3789,7 @@ SSessionTableTreeView::~SSessionTableTreeView()
 void SSessionTableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 {
 	STableTreeView::ConstructWidget(InTablePtr);
+
 	// Register ourselves with the Insights manager.
 	FInsightsManager::Get()->GetSessionChangedEvent().AddSP(this, &SSessionTableTreeView::InsightsManager_OnSessionChanged);
 

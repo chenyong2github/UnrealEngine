@@ -4,7 +4,7 @@
 
 #include "Insights/Table/ViewModels/BaseTreeNode.h"
 
-#define LOCTEXT_NAMESPACE "TableCellValueSorter"
+#define LOCTEXT_NAMESPACE "Insights::FTableCellValueSorter"
 
 // Default pre-sorting (group nodes sorts above leaf nodes)
 #define INSIGHTS_DEFAULT_PRESORTING_NODES(A, B) \

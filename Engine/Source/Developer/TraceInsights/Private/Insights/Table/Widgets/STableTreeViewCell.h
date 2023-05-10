@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 // Insights
 #include "Insights/Table/ViewModels/TableTreeNode.h"
+#include "Insights/Table/Widgets/STableTreeViewRow.h"
 
 class ITableRow;
 class IToolTip;
@@ -32,12 +34,12 @@ public:
 		SLATE_ARGUMENT(bool, IsNameColumn)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow);
+	void Construct(const FArguments& InArgs, const TSharedRef<ITableRow>& InTableRow);
 
 protected:
-	TSharedRef<SWidget> GenerateWidgetForColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow);
-	TSharedRef<SWidget> GenerateWidgetForNameColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow);
-	TSharedRef<SWidget> GenerateWidgetForTableColumn(const FArguments& InArgs, const TSharedRef<ITableRow>& TableRow);
+	TSharedRef<SWidget> GenerateWidgetForColumn(const FArguments& InArgs);
+	TSharedRef<SWidget> GenerateWidgetForNameColumn(const FArguments& InArgs);
+	TSharedRef<SWidget> GenerateWidgetForTableColumn(const FArguments& InArgs);
 
 	/**
 	 * The system will use this event to notify a widget that the cursor has entered it. This event is NOT bubbled.
@@ -101,7 +103,12 @@ protected:
 		return IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
 	}
 
-	TSharedPtr<class IToolTip> GetRowToolTip(const TSharedRef<ITableRow>& TableRow) const;
+	bool IsSelected() const;
+
+	const FSlateBrush* GetIcon() const
+	{
+		return TableTreeNodePtr->GetIcon();
+	}
 
 	FText GetDisplayName() const
 	{
@@ -120,47 +127,15 @@ protected:
 
 	FText GetValueAsText() const;
 
-	FSlateColor GetColorAndOpacity() const
-	{
-		const FLinearColor TextColor =
-			TableTreeNodePtr->IsFiltered() ?
-				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
-				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
-		return TextColor;
-	}
-
-	FSlateColor GetExtraColorAndOpacity() const
-	{
-		const FLinearColor TextColor =
-			TableTreeNodePtr->IsFiltered() ?
-				FLinearColor(0.5f, 0.5f, 0.5f, 0.5f) :
-				FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
-		return TextColor;
-	}
-
-	FSlateColor GetStatsColorAndOpacity() const
-	{
-		const FLinearColor TextColor =
-			TableTreeNodePtr->IsGroup() ?
-				FLinearColor(0.7f, 0.7f, 0.7f, 1.0f) :
-			TableTreeNodePtr->IsFiltered() ?
-				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
-				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
-		return TextColor;
-	}
-
-	FLinearColor GetShadowColorAndOpacity() const
-	{
-		const FLinearColor ShadowColor =
-			TableTreeNodePtr->IsFiltered() ?
-				FLinearColor(0.f, 0.f, 0.f, 0.25f) :
-				FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
-		return ShadowColor;
-	}
-
-	TSharedPtr<IToolTip> GetTooltip() const;
+	FSlateColor GetIconColorAndOpacity() const;
+	FSlateColor GetDisplayNameColorAndOpacity() const;
+	FSlateColor GetExtraDisplayNameColorAndOpacity() const;
+	FSlateColor GetNormalTextColorAndOpacity() const;
+	FLinearColor GetShadowColorAndOpacity() const;
 
 protected:
+	TSharedPtr<ITableRow> TableRow;
+
 	/** A shared pointer to the table view model. */
 	TSharedPtr<FTable> TablePtr;
 

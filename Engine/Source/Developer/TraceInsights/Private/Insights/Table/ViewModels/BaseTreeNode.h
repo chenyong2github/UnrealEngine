@@ -3,8 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/Color.h"
 
 #include "Insights/Common/SimpleRtti.h"
+
+struct FSlateBrush;
 
 namespace Insights
 {
@@ -54,7 +57,7 @@ protected:
 
 public:
 	/** Initialization constructor for the node. */
-	FBaseTreeNode(const FName InName, bool bInIsGroup)
+	explicit FBaseTreeNode(const FName InName, bool bInIsGroup)
 		: DefaultSortOrder(0)
 		, Name(InName)
 		, GroupData(bInIsGroup ? new FGroupNodeData() : &DefaultGroupData)
@@ -116,6 +119,32 @@ public:
 		{
 			GroupData->Tooltip = InTooltip;
 		}
+	}
+
+	/**
+	 * @return the default icon for a group/leaf node.
+	 */
+	static const FSlateBrush* GetDefaultIcon(bool bIsGroupNode);
+
+	/**
+	 * @return a brush icon for this node.
+	 */
+	virtual const FSlateBrush* GetIcon() const
+	{
+		return GetDefaultIcon(IsGroup());
+	}
+
+	/**
+	 * @return the default color tint for a group/leaf node.
+	 */
+	static FLinearColor GetDefaultColor(bool bIsGroupNode);
+
+	/**
+	 * @return the color tint to be used for the icon and the name text of this node.
+	 */
+	virtual FLinearColor GetColor() const
+	{
+		return GetDefaultColor(IsGroup());
 	}
 
 	/**

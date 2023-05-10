@@ -32,7 +32,7 @@ public:
 	bool IsValid() const { return Columns.Num() > 0; }
 
 	const TArray<TSharedRef<FTableColumn>>& GetColumns() const { return Columns; }
-	void SetColumns(const TArray<TSharedRef<Insights::FTableColumn>>& InColumns);
+	void SetColumns(const TArray<TSharedRef<FTableColumn>>& InColumns);
 
 	void GetVisibleColumns(TArray<TSharedRef<FTableColumn>>& InArray) const;
 

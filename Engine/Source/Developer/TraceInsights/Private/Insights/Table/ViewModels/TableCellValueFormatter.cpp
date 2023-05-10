@@ -11,7 +11,7 @@
 #include "Insights/Table/ViewModels/TableCellValueGetter.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 
-#define LOCTEXT_NAMESPACE "TableCellValueFormatter"
+#define LOCTEXT_NAMESPACE "Insights::FTableCellValueFormatter"
 
 namespace Insights
 {

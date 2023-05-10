@@ -33,7 +33,7 @@ class FUICommandList;
 
 namespace TraceServices
 {
-class IAnalysisSession;
+	class IAnalysisSession;
 }
 
 namespace Insights
@@ -129,10 +129,10 @@ public:
 	 * Construct this widget
 	 * @param InArgs - The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs, TSharedPtr<Insights::FTable> InTablePtr);
+	void Construct(const FArguments& InArgs, TSharedPtr<FTable> InTablePtr);
 
-	TSharedPtr<Insights::FTable>& GetTable() { return Table; }
-	const TSharedPtr<Insights::FTable>& GetTable() const { return Table; }
+	TSharedPtr<FTable>& GetTable() { return Table; }
+	const TSharedPtr<FTable>& GetTable() const { return Table; }
 
 	virtual void Reset();
 
@@ -460,8 +460,8 @@ protected:
 
 	virtual void ExtendMenu(FMenuBuilder& Menu) {}
 
-	typedef TFunctionRef<void(TArray<Insights::FBaseTreeNodePtr>& InNodes)> WriteToFileCallback;
-	void ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<Insights::FBaseTreeNodePtr>& InNodes, bool bInExportCollapsed, bool InExportLeafs, WriteToFileCallback Callback);
+	typedef TFunctionRef<void(TArray<FBaseTreeNodePtr>& InNodes)> WriteToFileCallback;
+	void ExportToFileRec(const FBaseTreeNodePtr& InGroupNode, TArray<FBaseTreeNodePtr>& InNodes, bool bInExportCollapsed, bool InExportLeafs, WriteToFileCallback Callback);
 
 	FText GetTreeViewBannerText() const { return TreeViewBannerText; }
 
@@ -494,7 +494,7 @@ protected:
 
 protected:
 	/** Table view model. */
-	TSharedPtr<Insights::FTable> Table;
+	TSharedPtr<FTable> Table;
 	//////////////////////////////////////////////////
 	// Tree View, Columns
 

@@ -224,7 +224,10 @@ FMemAllocGroupingByCallstack::FCallstackGroup* FMemAllocGroupingByCallstack::Cre
 
 	InOutAllCallstackGroup.Add(NewGroupPtr);
 
-	FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(InGroupName, InParentTable);
+	const FSlateBrush* IconBrush = FBaseTreeNode::GetDefaultIcon(true);
+	FLinearColor GroupNodeColor(0.5f, 0.75f, 1.0f, 1.0f);
+
+	FTableTreeNodePtr NodePtr = MakeShared<FCustomTableTreeNode>(InGroupName, InParentTable, IconBrush, GroupNodeColor);
 	NodePtr->SetExpansion(false);
 	InParentGroup->Node->AddChildAndSetGroupPtr(NodePtr);
 
