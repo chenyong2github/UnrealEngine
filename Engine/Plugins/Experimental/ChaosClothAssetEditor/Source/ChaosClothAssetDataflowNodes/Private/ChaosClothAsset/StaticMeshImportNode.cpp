@@ -48,7 +48,11 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 				Converter.Convert(MeshDescription, DynamicMesh);
 
 				FCollectionClothLodFacade ClothLodFacade = ClothFacade.AddGetLod();
-				ClothLodFacade.Initialize(DynamicMesh, UVChannel);
+				ClothLodFacade.Initialize(DynamicMesh, UVChannel, UVScale);
+
+				// Set a default skeleton
+				static const TCHAR* const DefaultSkeletonPathName = TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton");
+				ClothLodFacade.SetSkeletonAssetPathName(DefaultSkeletonPathName);
 			}
 			// Make sure that whatever happens there is always at least one empty LOD to avoid crashing the render data
 			if (ClothFacade.GetNumLods() < 1)

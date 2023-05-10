@@ -313,7 +313,7 @@ namespace UE::Chaos::ClothAsset::Private
 		}
 	}
 
-	static void BuildIslandsFromDynamicMeshUVs(const UE::Geometry::FDynamicMeshUVOverlay& UVOverlay, TArray<FIsland>& OutIslands)
+	static void BuildIslandsFromDynamicMeshUVs(const UE::Geometry::FDynamicMeshUVOverlay& UVOverlay, TArray<FIsland>& OutIslands, const FVector2f& UVScale)
 	{
 		using namespace UE::Geometry;
 
@@ -359,13 +359,13 @@ namespace UE::Chaos::ClothAsset::Private
 				const FIndex3i TriangleIndices = DynamicMesh->GetTriangle(Triangle);
 				const FIndex3i TriangleUVElements = UVOverlay.GetTriangle(Triangle);
 
-				auto GetOrAddNewIndex = [&UVOverlay, &Island, &SourceElementIndexToNewIndex, &DynamicMesh](int32 ElementId, int32 VertexId)
+				auto GetOrAddNewIndex = [&UVOverlay, &Island, &SourceElementIndexToNewIndex, &DynamicMesh, &UVScale](int32 ElementId, int32 VertexId)
 				{
 					int32& NewIndex = SourceElementIndexToNewIndex[ElementId];
 					if (NewIndex == INDEX_NONE)
 					{
 						NewIndex = Island.RestPositions.Add(FVector3f(DynamicMesh->GetVertexRef(VertexId)));
-						Island.Positions.Add(UVOverlay.GetElement(ElementId));
+						Island.Positions.Add((FVector2f(1.f) - UVOverlay.GetElement(ElementId)) * UVScale);  // The static mesh import uses 1 - UV for some reason
 						Island.PositionToSourceIndex.Add(VertexId);
 					}
 					return NewIndex;
@@ -929,7 +929,7 @@ namespace UE::Chaos::ClothAsset
 	}
 
 	template<bool bWeldNearlyCoincidentVertices>
-	void FCollectionClothLodFacade::InitializeFromDynamicMeshInternal(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex)
+	void FCollectionClothLodFacade::InitializeFromDynamicMeshInternal(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale)
 	{
 		using namespace UE::Chaos::ClothAsset::Private;
 		Reset();
@@ -940,7 +940,7 @@ namespace UE::Chaos::ClothAsset
 		TArray<FIsland> Islands;
 		if (UVOverlay)
 		{
-			BuildIslandsFromDynamicMeshUVs(*UVOverlay, Islands);
+			BuildIslandsFromDynamicMeshUVs(*UVOverlay, Islands, UVScale);
 		}
 		else
 		{
@@ -992,12 +992,12 @@ namespace UE::Chaos::ClothAsset
 		ToDynamicMesh.Convert(DynamicMesh, SimpleSrc, [](FSimpleSrcMeshInterface::TriIDType) {return 0; });
 		UE::Geometry::FNonManifoldMappingSupport::AttachNonManifoldVertexMappingData(ToDynamicMesh.ToSrcVertIDMap, DynamicMesh);
 
-		InitializeFromDynamicMeshInternal<true>(DynamicMesh, INDEX_NONE);	
+		InitializeFromDynamicMeshInternal<true>(DynamicMesh, INDEX_NONE, FVector2f(1.f));
 	}
 
-	void FCollectionClothLodFacade::Initialize(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex)
+	void FCollectionClothLodFacade::Initialize(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale)
 	{
-		InitializeFromDynamicMeshInternal<false>(DynamicMesh, UVChannelIndex);
+		InitializeFromDynamicMeshInternal<false>(DynamicMesh, UVChannelIndex, UVScale);
 	}
 
 	void FCollectionClothLodFacade::Initialize(const FCollectionClothLodConstFacade& Other)
@@ -1040,6 +1040,70 @@ namespace UE::Chaos::ClothAsset
 		// LODs Group
 		SetPhysicsAssetPathName(Other.GetPhysicsAssetPathName());
 		SetSkeletonAssetPathName(Other.GetSkeletonAssetPathName());
+	}
+
+	void FCollectionClothLodFacade::Append(const FCollectionClothLodConstFacade& Other)
+	{
+		// Expand the cloth collection
+		const int32 StartMaterial = GetNumMaterials();
+		const int32 StartTetherBatch = GetNumTetherBatches();
+		const int32 StartSeam = GetNumSeams();
+		const int32 StartPattern = GetNumPatterns();
+		const int32 StartVertex = GetNumSimVertices();
+
+		const int32 OtherNumMaterials = Other.GetNumMaterials();
+		const int32 OtherNumTetherBatches = Other.GetNumTetherBatches();
+		const int32 OtherNumSeams = Other.GetNumSeams();
+		const int32 OtherNumPatterns = Other.GetNumPatterns();
+
+		SetNumMaterials(StartMaterial + OtherNumMaterials);
+		SetNumTetherBatches(StartTetherBatch + OtherNumTetherBatches);
+		SetNumSeams(StartSeam + OtherNumSeams);
+		SetNumPatterns(StartPattern + OtherNumPatterns);
+
+		// Materials Group
+		TArrayView<FString> RenderMaterialPathNameArray = GetRenderMaterialPathName();
+		TConstArrayView<FString> OtherRenderMaterialPathNameArray = Other.GetRenderMaterialPathName();
+		for (int32 MaterialIndex = 0; MaterialIndex < OtherNumMaterials; ++MaterialIndex)
+		{
+			RenderMaterialPathNameArray[StartMaterial + MaterialIndex] = OtherRenderMaterialPathNameArray[MaterialIndex];
+		}
+
+		// Patterns Group, make sure to do this before the Tether and Seam groups so that the sim vertex indices are already added
+		for (int32 PatternIndex = 0; PatternIndex < OtherNumPatterns; ++PatternIndex)
+		{
+			FCollectionClothPatternFacade ThisClothPattern = GetPattern(StartPattern + PatternIndex);
+			const FCollectionClothPatternConstFacade OtherClothPattern = Other.GetPattern(PatternIndex);
+			ThisClothPattern.Initialize(OtherClothPattern, StartMaterial);
+		}
+
+		// Tether Batches Group
+		for (int32 TetherBatchIndex = 0; TetherBatchIndex < OtherNumTetherBatches; ++TetherBatchIndex)
+		{
+			//FCollectionClothTetherBatchFacade ThisClothTetherBatch = GetTetherBatch(StartTetherBatch + TetherBatchIndex);  // TODO: Tether Batches facade
+			//const FCollectionClothTetherBatchConstFacade OtherClothTetherBatch = Other.GetTetherBatch(TetherBatchIndex);
+			//ThisClothTetherBatch.Initialize(OtherClothTetherBatch, StartVertex);
+		}
+
+		// Seam Group
+		for (int32 SeamIndex = 0; SeamIndex < OtherNumSeams; ++SeamIndex)
+		{
+			FIntVector2 OtherSeamPattern = Other.GetSeamPatterns()[SeamIndex];
+			OtherSeamPattern.X += StartPattern;  // Reindex the seam pattern indices
+			OtherSeamPattern.Y += StartPattern;  //
+			GetSeamPatterns()[StartSeam + SeamIndex] = OtherSeamPattern;
+
+			TArray<FIntVector2> OtherSeamStitches = Other.GetSeamStitches()[SeamIndex];
+			for (FIntVector2& OtherSeamStich : OtherSeamStitches)
+			{
+				OtherSeamStich.X += StartVertex;  // Reindex the seam vertex indices
+				OtherSeamStich.Y += StartVertex;  //
+			}
+			GetSeamStitches()[StartSeam + SeamIndex] = MoveTemp(OtherSeamStitches);
+		}
+
+		// LODs Group
+		// Note: It is non intuitive to replace the current LOD's physics or skeleton asset even if it's empty
 	}
 
 	void FCollectionClothLodFacade::SetNumMaterials(int32 InNumMaterials)

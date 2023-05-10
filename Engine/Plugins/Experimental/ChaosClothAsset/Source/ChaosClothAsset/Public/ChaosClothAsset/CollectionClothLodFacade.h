@@ -139,8 +139,11 @@ namespace UE::Chaos::ClothAsset
 		/** Initialize the cloth LOD using another cloth collection. */
 		void Initialize(const FCollectionClothLodConstFacade& Other);
 
-		/** Initialize the cloth LOD from a DynamicMesh (possibly using UV islands to define Patterns)*/
-		void Initialize(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex);
+		/** Initialize the cloth LOD from a DynamicMesh (possibly using UV islands to define patterns). */
+		void Initialize(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale);
+
+		/** Append to this cloth LOD another cloth LOD. */
+		void Append(const FCollectionClothLodConstFacade& Other);
 
 		/** Set the new number of materials to this cloth LOD. */
 		void SetNumMaterials(int32 NumMaterials);
@@ -212,7 +215,7 @@ namespace UE::Chaos::ClothAsset
 		void SetDefaults();
 
 		template<bool bWeldNearlyCoincidentVertices>
-		void InitializeFromDynamicMeshInternal(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex);
+		void InitializeFromDynamicMeshInternal(const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale);
 
 		TSharedPtr<FClothCollection> GetClothCollection() { return ConstCastSharedPtr<FClothCollection>(ClothCollection); }
 	};

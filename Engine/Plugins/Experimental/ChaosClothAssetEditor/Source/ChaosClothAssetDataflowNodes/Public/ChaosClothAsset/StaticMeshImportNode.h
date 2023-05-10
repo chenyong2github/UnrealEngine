@@ -18,11 +18,14 @@ public:
 	UPROPERTY(Meta = (DataflowOutput, DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
-	UPROPERTY(EditAnywhere, Category = "Static Mesh")
+	UPROPERTY(EditAnywhere, Category = "Static Mesh Import")
 	TObjectPtr<const UStaticMesh> StaticMesh;
 
-	UPROPERTY(EditAnywhere, Category = "Static Mesh")
+	UPROPERTY(EditAnywhere, Category = "Static Mesh Import")
 	int32 UVChannel = INDEX_NONE;
+
+	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", Meta = (AllowPreserveRatio))
+	FVector2f UVScale = { 1.f, 1.f };
 
 	FChaosClothAssetStaticMeshImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 

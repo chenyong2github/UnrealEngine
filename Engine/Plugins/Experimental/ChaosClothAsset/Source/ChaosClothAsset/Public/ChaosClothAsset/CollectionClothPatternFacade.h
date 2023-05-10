@@ -128,8 +128,8 @@ namespace UE::Chaos::ClothAsset
 		template<typename IndexType>
 		void Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<IndexType>& Indices);
 
-		/** Initialize the cloth pattern using another pattern. */
-		void Initialize(const FCollectionClothPatternConstFacade& Other);
+		/** Initialize the cloth pattern using another pattern, offsetting the RenderMaterialIndex in the process if needed. */
+		void Initialize(const FCollectionClothPatternConstFacade& Other, int32 RenderMaterialOffset = 0);
 
 		/** Grow or shrink the space reserved for simulation vertices for this pattern within the cloth collection and return its start index. */
 		void SetNumSimVertices(int32 NumSimVertices);

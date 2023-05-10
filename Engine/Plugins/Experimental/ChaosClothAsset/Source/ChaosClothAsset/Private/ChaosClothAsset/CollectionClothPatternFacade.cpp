@@ -339,7 +339,7 @@ namespace UE::Chaos::ClothAsset
 	template CHAOSCLOTHASSET_API void FCollectionClothPatternFacade::Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<int32>& Indices);
 	template CHAOSCLOTHASSET_API void FCollectionClothPatternFacade::Initialize(const TArray<FVector2f>& Positions, const TArray<FVector3f>& RestPositions, const TArray<uint32>& Indices);
 
-	void FCollectionClothPatternFacade::Initialize(const FCollectionClothPatternConstFacade& Other)
+	void FCollectionClothPatternFacade::Initialize(const FCollectionClothPatternConstFacade& Other, int32 RenderMaterialOffset)
 	{
 		Reset();
 
@@ -440,16 +440,16 @@ namespace UE::Chaos::ClothAsset
 			GetBaseElementIndex(),
 			GetElementIndex());
 		const int32 OtherLodRenderVerticesOffset = Other.ClothCollection->GetElementsOffset(
-			ClothCollection->GetRenderVerticesStart(),
-			GetBaseElementIndex(),
-			GetElementIndex());
+			Other.ClothCollection->GetRenderVerticesStart(),
+			Other.GetBaseElementIndex(),
+			Other.GetElementIndex());
 
 		const FIntVector3 OtherToLodRenderVerticesOffset(LodRenderVerticesOffset - OtherLodRenderVerticesOffset);
 
 		for (int32 RenderFaceIndex = 0; RenderFaceIndex < NumRenderFaces; ++RenderFaceIndex)
 		{
 			GetRenderIndices()[RenderFaceIndex] = Other.GetRenderIndices()[RenderFaceIndex] + OtherToLodRenderVerticesOffset;
-			GetRenderMaterialIndex()[RenderFaceIndex] = Other.GetRenderMaterialIndex()[RenderFaceIndex];
+			GetRenderMaterialIndex()[RenderFaceIndex] = Other.GetRenderMaterialIndex()[RenderFaceIndex] + RenderMaterialOffset;
 		}
 	}
 
