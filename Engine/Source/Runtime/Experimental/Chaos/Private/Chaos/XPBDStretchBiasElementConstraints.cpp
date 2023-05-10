@@ -38,8 +38,8 @@ FXPBDStretchBiasElementConstraints::FXPBDStretchBiasElementConstraints(const FSo
 	: ParticleOffset(InParticleOffset)
 	, ParticleCount(InParticleCount)
 	, StiffnessWarp(
-		FSolverVec2(GetWeightedFloatXPBDStretchBiasElementStiffnessWarp(PropertyCollection, MaxStiffness)),
-		WeightMaps.FindRef(GetXPBDStretchBiasElementStiffnessWarpString(PropertyCollection, XPBDStretchBiasElementStiffnessWarpName.ToString())),
+		FSolverVec2(GetWeightedFloatXPBDAnisoStretchStiffnessWarp(PropertyCollection, MaxStiffness)),
+		WeightMaps.FindRef(GetXPBDAnisoStretchStiffnessWarpString(PropertyCollection, XPBDAnisoStretchStiffnessWarpName.ToString())),
 		TConstArrayView<TVec3<int32>>(Constraints),
 		ParticleOffset,
 		ParticleCount,
@@ -47,8 +47,8 @@ FXPBDStretchBiasElementConstraints::FXPBDStretchBiasElementConstraints(const FSo
 		FPBDStiffness::DefaultParameterFitBase,
 		MaxStiffness)
 	, StiffnessWeft(
-		FSolverVec2(GetWeightedFloatXPBDStretchBiasElementStiffnessWeft(PropertyCollection, MaxStiffness)),
-		WeightMaps.FindRef(GetXPBDStretchBiasElementStiffnessWeftString(PropertyCollection, XPBDStretchBiasElementStiffnessWeftName.ToString())),
+		FSolverVec2(GetWeightedFloatXPBDAnisoStretchStiffnessWeft(PropertyCollection, MaxStiffness)),
+		WeightMaps.FindRef(GetXPBDAnisoStretchStiffnessWeftString(PropertyCollection, XPBDAnisoStretchStiffnessWeftName.ToString())),
 		TConstArrayView<TVec3<int32>>(Constraints),
 		ParticleOffset,
 		ParticleCount,
@@ -56,8 +56,8 @@ FXPBDStretchBiasElementConstraints::FXPBDStretchBiasElementConstraints(const FSo
 		FPBDStiffness::DefaultParameterFitBase,
 		MaxStiffness)
 	, StiffnessBias(
-		FSolverVec2(GetWeightedFloatXPBDStretchBiasElementStiffnessBias(PropertyCollection, MaxStiffness)),
-		WeightMaps.FindRef(GetXPBDStretchBiasElementStiffnessBiasString(PropertyCollection, XPBDStretchBiasElementStiffnessBiasName.ToString())),
+		FSolverVec2(GetWeightedFloatXPBDAnisoStretchStiffnessBias(PropertyCollection, MaxStiffness)),
+		WeightMaps.FindRef(GetXPBDAnisoStretchStiffnessBiasString(PropertyCollection, XPBDAnisoStretchStiffnessBiasName.ToString())),
 		TConstArrayView<TVec3<int32>>(Constraints),
 		ParticleOffset,
 		ParticleCount,
@@ -65,26 +65,26 @@ FXPBDStretchBiasElementConstraints::FXPBDStretchBiasElementConstraints(const FSo
 		FPBDStiffness::DefaultParameterFitBase,
 		MaxStiffness)
 	, DampingRatio(
-		FSolverVec2(GetWeightedFloatXPBDStretchBiasElementDamping(PropertyCollection, MinDamping)).ClampAxes(MinDamping, MaxDamping),
-		WeightMaps.FindRef(GetXPBDStretchBiasElementDampingString(PropertyCollection, XPBDStretchBiasElementDampingName.ToString())),
+		FSolverVec2(GetWeightedFloatXPBDAnisoStretchDamping(PropertyCollection, MinDamping)).ClampAxes(MinDamping, MaxDamping),
+		WeightMaps.FindRef(GetXPBDAnisoStretchDampingString(PropertyCollection, XPBDAnisoStretchDampingName.ToString())),
 		TConstArrayView<TVec3<int32>>(Constraints),
 		ParticleOffset,
 		ParticleCount)
 	, WarpScale(
-		FSolverVec2(GetWeightedFloatXPBDStretchBiasElementWarpScale(PropertyCollection, DefaultWarpWeftScale)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale),
-		WeightMaps.FindRef(GetXPBDStretchBiasElementWarpScaleString(PropertyCollection, XPBDStretchBiasElementWarpScaleName.ToString())),
+		FSolverVec2(GetWeightedFloatXPBDAnisoStretchWarpScale(PropertyCollection, DefaultWarpWeftScale)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale),
+		WeightMaps.FindRef(GetXPBDAnisoStretchWarpScaleString(PropertyCollection, XPBDAnisoStretchWarpScaleName.ToString())),
 		TConstArrayView<TVec3<int32>>(Constraints),
 		ParticleOffset,
 		ParticleCount)
 	, WeftScale(
-		FSolverVec2(GetWeightedFloatXPBDStretchBiasElementWeftScale(PropertyCollection, DefaultWarpWeftScale)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale),
-		WeightMaps.FindRef(GetXPBDStretchBiasElementWeftScaleString(PropertyCollection, XPBDStretchBiasElementWeftScaleName.ToString())),
+		FSolverVec2(GetWeightedFloatXPBDAnisoStretchWeftScale(PropertyCollection, DefaultWarpWeftScale)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale),
+		WeightMaps.FindRef(GetXPBDAnisoStretchWeftScaleString(PropertyCollection, XPBDAnisoStretchWeftScaleName.ToString())),
 		TConstArrayView<TVec3<int32>>(Constraints),
 		ParticleOffset,
 		ParticleCount)
 {
 	Lambdas.Init(FSolverVec3(0.), Constraints.Num());
-	InitConstraintsAndRestData(InParticles, TriangleMesh, FaceVertexUVs, GetXPBDStretchBiasElementUse3dRestLengths(PropertyCollection, bDefaultUse3dRestLengths), bTrimKinematicConstraints);
+	InitConstraintsAndRestData(InParticles, TriangleMesh, FaceVertexUVs, GetXPBDAnisoStretchUse3dRestLengths(PropertyCollection, bDefaultUse3dRestLengths), bTrimKinematicConstraints);
 	InitColor(InParticles);
 }
 
@@ -302,12 +302,12 @@ void FXPBDStretchBiasElementConstraints::SetProperties(
 	const FCollectionPropertyConstFacade& PropertyCollection,
 	const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps)
 {
-	if (IsXPBDStretchBiasElementStiffnessWarpMutable(PropertyCollection))
+	if (IsXPBDAnisoStretchStiffnessWarpMutable(PropertyCollection))
 	{
-		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDStretchBiasElementStiffnessWarp(PropertyCollection));
-		if (IsXPBDStretchBiasElementStiffnessWarpStringDirty(PropertyCollection))
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDAnisoStretchStiffnessWarp(PropertyCollection));
+		if (IsXPBDAnisoStretchStiffnessWarpStringDirty(PropertyCollection))
 		{
-			const FString& WeightMapName = GetXPBDStretchBiasElementStiffnessWarpString(PropertyCollection);
+			const FString& WeightMapName = GetXPBDAnisoStretchStiffnessWarpString(PropertyCollection);
 			StiffnessWarp = FPBDStiffness(
 				WeightedValue,
 				WeightMaps.FindRef(WeightMapName),
@@ -323,12 +323,12 @@ void FXPBDStretchBiasElementConstraints::SetProperties(
 			StiffnessWarp.SetWeightedValue(WeightedValue, MaxStiffness);
 		}
 	}
-	if (IsXPBDStretchBiasElementStiffnessWeftMutable(PropertyCollection))
+	if (IsXPBDAnisoStretchStiffnessWeftMutable(PropertyCollection))
 	{
-		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDStretchBiasElementStiffnessWeft(PropertyCollection));
-		if (IsXPBDStretchBiasElementStiffnessWeftStringDirty(PropertyCollection))
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDAnisoStretchStiffnessWeft(PropertyCollection));
+		if (IsXPBDAnisoStretchStiffnessWeftStringDirty(PropertyCollection))
 		{
-			const FString& WeightMapName = GetXPBDStretchBiasElementStiffnessWeftString(PropertyCollection);
+			const FString& WeightMapName = GetXPBDAnisoStretchStiffnessWeftString(PropertyCollection);
 			StiffnessWeft = FPBDStiffness(
 				WeightedValue,
 				WeightMaps.FindRef(WeightMapName),
@@ -344,12 +344,12 @@ void FXPBDStretchBiasElementConstraints::SetProperties(
 			StiffnessWeft.SetWeightedValue(WeightedValue, MaxStiffness);
 		}
 	}
-	if (IsXPBDStretchBiasElementStiffnessBiasMutable(PropertyCollection))
+	if (IsXPBDAnisoStretchStiffnessBiasMutable(PropertyCollection))
 	{
-		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDStretchBiasElementStiffnessBias(PropertyCollection));
-		if (IsXPBDStretchBiasElementStiffnessBiasStringDirty(PropertyCollection))
+		const FSolverVec2 WeightedValue(GetWeightedFloatXPBDAnisoStretchStiffnessBias(PropertyCollection));
+		if (IsXPBDAnisoStretchStiffnessBiasStringDirty(PropertyCollection))
 		{
-			const FString& WeightMapName = GetXPBDStretchBiasElementStiffnessBiasString(PropertyCollection);
+			const FString& WeightMapName = GetXPBDAnisoStretchStiffnessBiasString(PropertyCollection);
 			StiffnessBias = FPBDStiffness(
 				WeightedValue,
 				WeightMaps.FindRef(WeightMapName),
@@ -365,12 +365,12 @@ void FXPBDStretchBiasElementConstraints::SetProperties(
 			StiffnessBias.SetWeightedValue(WeightedValue, MaxStiffness);
 		}
 	}
-	if (IsXPBDStretchBiasElementDampingMutable(PropertyCollection))
+	if (IsXPBDAnisoStretchDampingMutable(PropertyCollection))
 	{
-		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDStretchBiasElementDamping(PropertyCollection)).ClampAxes(MinDamping, MaxDamping);
-		if (IsXPBDStretchBiasElementDampingStringDirty(PropertyCollection))
+		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDAnisoStretchDamping(PropertyCollection)).ClampAxes(MinDamping, MaxDamping);
+		if (IsXPBDAnisoStretchDampingStringDirty(PropertyCollection))
 		{
-			const FString& WeightMapName = GetXPBDStretchBiasElementDampingString(PropertyCollection);
+			const FString& WeightMapName = GetXPBDAnisoStretchDampingString(PropertyCollection);
 			DampingRatio = FPBDWeightMap(
 				WeightedValue,
 				WeightMaps.FindRef(WeightMapName),
@@ -383,12 +383,12 @@ void FXPBDStretchBiasElementConstraints::SetProperties(
 			DampingRatio.SetWeightedValue(WeightedValue);
 		}
 	}
-	if (IsXPBDStretchBiasElementWarpScaleMutable(PropertyCollection))
+	if (IsXPBDAnisoStretchWarpScaleMutable(PropertyCollection))
 	{
-		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDStretchBiasElementWarpScale(PropertyCollection)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale);
-		if (IsXPBDStretchBiasElementWarpScaleStringDirty(PropertyCollection))
+		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDAnisoStretchWarpScale(PropertyCollection)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale);
+		if (IsXPBDAnisoStretchWarpScaleStringDirty(PropertyCollection))
 		{
-			const FString& WeightMapName = GetXPBDStretchBiasElementWarpScaleString(PropertyCollection);
+			const FString& WeightMapName = GetXPBDAnisoStretchWarpScaleString(PropertyCollection);
 			WarpScale = FPBDWeightMap(
 				WeightedValue,
 				WeightMaps.FindRef(WeightMapName),
@@ -401,12 +401,12 @@ void FXPBDStretchBiasElementConstraints::SetProperties(
 			WarpScale.SetWeightedValue(WeightedValue);
 		}
 	}
-	if (IsXPBDStretchBiasElementWeftScaleMutable(PropertyCollection))
+	if (IsXPBDAnisoStretchWeftScaleMutable(PropertyCollection))
 	{
-		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDStretchBiasElementWeftScale(PropertyCollection)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale);
-		if (IsXPBDStretchBiasElementWeftScaleStringDirty(PropertyCollection))
+		const FSolverVec2 WeightedValue = FSolverVec2(GetWeightedFloatXPBDAnisoStretchWeftScale(PropertyCollection)).ClampAxes(MinWarpWeftScale, MaxWarpWeftScale);
+		if (IsXPBDAnisoStretchWeftScaleStringDirty(PropertyCollection))
 		{
-			const FString& WeightMapName = GetXPBDStretchBiasElementWeftScaleString(PropertyCollection);
+			const FString& WeightMapName = GetXPBDAnisoStretchWeftScaleString(PropertyCollection);
 			WeftScale = FPBDWeightMap(
 				WeightedValue,
 				WeightMaps.FindRef(WeightMapName),

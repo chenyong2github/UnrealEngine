@@ -10,7 +10,9 @@
 namespace UE::Chaos::ClothAsset::DataflowNodes
 {
 	void Register();
-	void LogAndToastWarning(const FText& Error);
+	void LogAndToastWarning(const FText& Message);
+
+	FString MakeAttributeName(const FString& String);
 }
 
 DECLARE_LOG_CATEGORY_EXTERN(LogChaosClothAssetDataflowNodes, Log, All);

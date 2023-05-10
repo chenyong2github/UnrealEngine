@@ -31,7 +31,7 @@ public:
 
 	static bool IsEnabled(const FCollectionPropertyConstFacade& PropertyCollection)
 	{
-		return IsXPBDStretchBiasElementStiffnessWarpEnabled(PropertyCollection, false);
+		return IsXPBDAnisoStretchStiffnessWarpEnabled(PropertyCollection, false);
 	}
 
 	FXPBDStretchBiasElementConstraints(const FSolverParticles& InParticles,
@@ -130,13 +130,13 @@ private:
 	TArray<FSolverVec2> RestStretchLengths;
 	TArray<FSolverVec3> StiffnessScales; // Used to make everything resolution independent.
 
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDStretchBiasElementUse3dRestLengths, bool);
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDStretchBiasElementStiffnessWarp, float);
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDStretchBiasElementStiffnessWeft, float);
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDStretchBiasElementStiffnessBias, float);
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDStretchBiasElementDamping, float);
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDStretchBiasElementWarpScale, float);
-	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDStretchBiasElementWeftScale, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoStretchUse3dRestLengths, bool);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoStretchStiffnessWarp, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoStretchStiffnessWeft, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoStretchStiffnessBias, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoStretchDamping, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoStretchWarpScale, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoStretchWeftScale, float);
 };
 
 }  // End namespace Chaos::Softs

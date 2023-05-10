@@ -1,0 +1,38 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "ChaosClothAsset/SimulationXPBDAnisoBendingConfigNode.h"
+#include "ChaosClothAsset/DataflowNodes.h"
+#include "ChaosClothAsset/SimulationBaseConfigNodePrivate.h"
+#include "Chaos/CollectionPropertyFacade.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SimulationXPBDAnisoBendingConfigNode)
+
+FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::FChaosClothAssetSimulationXPBDAnisoBendingConfigNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FChaosClothAssetSimulationBaseConfigNode(InParam, InGuid)
+{
+	RegisterCollectionConnections();
+}
+
+void FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
+{
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED4(
+		XPBDAnisoBendingStiffnessWarp,
+		BendingSpringStiffness,        // Existing properties to warn against
+		BendingElementStiffness,       //
+		XPBDBendingSpringStiffness,    //
+		XPBDBendingElementStiffness);  //
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTED(XPBDAnisoBendingStiffnessWeft);
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTED(XPBDAnisoBendingStiffnessBias);
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED2(
+		XPBDAnisoBendingDamping,
+		XPBDBendingSpringDamping,    // Existing properties to warn against
+		XPBDBendingElementDamping);  //
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYCHECKED2(
+		XPBDAnisoBucklingRatio,
+		BucklingRatio,       // Existing properties to warn against
+		XPBDBucklingRatio);  //
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED2(
+		XPBDAnisoBucklingStiffnessWarp,
+		BucklingStiffness,       // Existing properties to warn against
+		XPBDBucklingStiffness);  //
+}
