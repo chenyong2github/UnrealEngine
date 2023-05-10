@@ -5,7 +5,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
-#include "GameplayTagStyle.h"
 #include "ScopedTransaction.h"
 #include "Editor.h"
 #include "GameplayTagEditorUtilities.h"
@@ -238,13 +237,17 @@ void SGameplayTagQueryEntryBox::CacheQueryList()
 
 	if (PropertyHandle.IsValid())
 	{
+		// Cache queries from the property handle. Add empty queries even if the instance data is null so that the indices match with the property handle.
 		TArray<void*> RawStructData;
 		PropertyHandle->AccessRawData(RawStructData);
 		
 		for (int32 Idx = 0; Idx < RawStructData.Num(); ++Idx)
 		{
-			const FGameplayTagQuery& Query = *(FGameplayTagQuery*)RawStructData[Idx]; 
-			CachedQueries.Add(Query);
+			FGameplayTagQuery& Query = CachedQueries.AddDefaulted_GetRef();
+			if (RawStructData[Idx])
+			{
+				Query = *(FGameplayTagQuery*)RawStructData[Idx]; 
+			}
 		}
 	}
 	else

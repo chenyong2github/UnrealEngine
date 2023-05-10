@@ -13,11 +13,7 @@
 #include "Textures/SlateIcon.h"
 #include "PropertyHandle.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "GameplayTagsEditorModule.h"
-#include "AssetToolsModule.h"
-#include "Widgets/Input/SHyperlink.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "SAddNewGameplayTagWidget.h"
 #include "SAddNewRestrictedGameplayTagWidget.h"
@@ -26,7 +22,6 @@
 #include "Editor.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "GameplayTagStyle.h"
 #include "Framework/Docking/TabManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SPositiveActionButton.h"
@@ -44,7 +39,12 @@ bool SGameplayTagPicker::EnumerateEditableTagContainersFromPropertyHandle(const 
 	{
 		PropHandle->EnumerateRawData([&Callback](void* RawData, const int32 /*DataIndex*/, const int32 /*NumDatas*/)
 		{
-			return Callback(*static_cast<FGameplayTagContainer*>(RawData));
+			// Report empty container even if the instance data is null to match all the instances indices of the property handle.
+			if (RawData)
+			{
+				return Callback(*static_cast<FGameplayTagContainer*>(RawData));
+			}
+			return Callback(FGameplayTagContainer());
 		});
 		return true;
 	}
@@ -52,7 +52,12 @@ bool SGameplayTagPicker::EnumerateEditableTagContainersFromPropertyHandle(const 
 	{
 		PropHandle->EnumerateRawData([&Callback](void* RawData, const int32 /*DataIndex*/, const int32 /*NumDatas*/)
 		{
-			const FGameplayTagContainer Container(*static_cast<FGameplayTag*>(RawData));
+			// Report empty container even if the instance data is null to match all the instances indices of the property handle.
+			FGameplayTagContainer Container;
+			if (RawData)
+			{
+				Container.AddTag(*static_cast<FGameplayTag*>(RawData));
+			}
 			return Callback(Container);
 		});
 		return true;
