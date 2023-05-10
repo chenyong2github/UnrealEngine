@@ -1169,7 +1169,7 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 
 	if (KeyHash == DataKeyHash)
 	{
-		if (CompressedData.IsValid(this) && !CacheTasksByKeyHash.Contains(KeyHash))
+		if (!CacheTasksByKeyHash.Contains(KeyHash) && CompressedData.IsValid(this, true))
 		{
 			return true;
 		}
@@ -1182,7 +1182,7 @@ bool UAnimSequence::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Targ
 	{
 		if(const TUniquePtr<FCompressedAnimSequence>* CompressedDataPtr = DataByPlatformKeyHash.Find(KeyHash))
 		{
-			if ((*CompressedDataPtr)->IsValid(this) && !CacheTasksByKeyHash.Contains(KeyHash))
+			if (!CacheTasksByKeyHash.Contains(KeyHash) && (*CompressedDataPtr)->IsValid(this, true))
 			{
 				return true;
 			}

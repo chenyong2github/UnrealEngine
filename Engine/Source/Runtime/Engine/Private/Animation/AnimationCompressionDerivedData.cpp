@@ -138,7 +138,16 @@ void FAnimationSequenceAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueR
 				FMemoryReaderView Ar(RecordData, /*bIsPersistent*/ true);
 				CompressedData->SerializeCompressedData(Ar, true, AnimSequence, AnimSequence->GetSkeleton(), CompressibleAnimPtr->BoneCompressionSettings, CompressibleAnimPtr->CurveCompressionSettings);
 
-				UE_LOG(LogAnimationCompression, Verbose, TEXT("Fetched compressed animation data for %s"), *CompressibleAnimPtr->FullName);
+				if (!CompressedData->IsValid(AnimSequence, true))
+				{
+					UE_LOG(LogAnimationCompression, Warning, TEXT("Fetched invalid compressed animation data for %s"), *CompressibleAnimPtr->FullName);
+					CompressedData->Reset();
+				}
+				else
+				{
+					UE_LOG(LogAnimationCompression, Verbose, TEXT("Fetched compressed animation data for %s"), *CompressibleAnimPtr->FullName);
+				}
+
 				if (Compression::FAnimationCompressionMemorySummaryScope::ShouldStoreCompressionResults())
 				{
 					const double CompressionEndTime = FPlatformTime::Seconds();
@@ -169,12 +178,20 @@ void FAnimationSequenceAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueR
 			
 			if (const UAnimSequence* AnimSequence = WeakAnimSequence.Get())
 			{
-				TArray64<uint8> RecordData;
-				FMemoryWriter64 Ar(RecordData, /*bIsPersistent*/ true);
-				CompressedData->SerializeCompressedData(Ar, true, nullptr, nullptr, CompressibleAnimPtr->BoneCompressionSettings, CompressibleAnimPtr->CurveCompressionSettings);
+				if (!CompressedData->IsValid(AnimSequence, true))
+				{
+					UE_LOG(LogAnimationCompression, Warning, TEXT("Generated invalid compressed animation data for %s"), *CompressibleAnimPtr->FullName);
+				}
+				else
+				{
+					TArray64<uint8> RecordData;
+					FMemoryWriter64 Ar(RecordData, /*bIsPersistent*/ true);
+					CompressedData->SerializeCompressedData(Ar, true, nullptr, nullptr, CompressibleAnimPtr->BoneCompressionSettings, CompressibleAnimPtr->CurveCompressionSettings);
+					UE_LOG(LogAnimationCompression, Display, TEXT("Storing compressed animation data for %s, at %s/%s"), *Name, *FString(Key.Bucket.ToString()), *LexToString(Key.Hash));
+					GetCache().PutValue({ {Name, Key, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(RecordData)))} }, Owner);
 
-				UE_LOG(LogAnimationCompression, Display, TEXT("Storing compressed animation data for %s, at %s/%s"), *Name, *FString(Key.Bucket.ToString()), *LexToString(Key.Hash));
-				GetCache().PutValue({ {Name, Key, FValue::Compress(MakeSharedBufferFromArray(MoveTemp(RecordData)))} }, Owner);
+					COOK_STAT(Timer.AddMiss(int64(Ar.Tell())));
+				}
 				
 				if (Compression::FAnimationCompressionMemorySummaryScope::ShouldStoreCompressionResults())
 				{
@@ -183,7 +200,6 @@ void FAnimationSequenceAsyncCacheTask::EndCache(UE::DerivedData::FCacheGetValueR
 					Compression::FAnimationCompressionMemorySummaryScope::CompressionResultSummary().GatherPostCompressionStats(*CompressedData, CompressibleAnimPtr->BoneData, AnimSequence->GetFName(), CompressionTime, true);
 				}
 				
-				COOK_STAT(Timer.AddMiss(int64(Ar.Tell())));
 			}
 		});
 	}

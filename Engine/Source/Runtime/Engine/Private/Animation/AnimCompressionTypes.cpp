@@ -1487,7 +1487,7 @@ bool FCompressedAnimSequence::IsValid(const UAnimSequence* AnimSequence, bool bL
 	const bool bHasValidCompressedCurveData = CompressedCurveByteStream.Num() != 0;
 	const bool bValidCompressedData = (!bHasBoneTracks || bHasValidCompressedBoneData) && (!bHasCurveData || bHasValidCompressedCurveData || AnimSequence->IsValidAdditive());
 
-	if(bLogInformation)
+	if(bLogInformation && !bValidCompressedData)
 	{
 		UE_LOG(LogAnimation, Warning, TEXT("Num Bone Tracks: %i\nNum Curves: %i\nCompressed bone data: %i (%i)\nCompressed curve data %i\nValid additive: %i"), AnimSequence->GetDataModelInterface()->GetNumBoneTracks(), AnimSequence->GetDataModelInterface()->GetNumberOfFloatCurves(), CompressedDataStructure != nullptr ? 1 : 0, CompressedTrackToSkeletonMapTable.Num(), CompressedCurveByteStream.Num() != 0 ? 1 : 0, AnimSequence->IsValidAdditive() ? 1 : 0);
 	}
