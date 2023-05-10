@@ -83,9 +83,9 @@ void FLevelInstanceActorDesc::UpdateBounds()
 	UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(LevelInstanceContainerWorldContext.Get());
 	check(WorldPartitionSubsystem);
 
-	FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(LevelPackage));
+	FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(GetContainerPackage()));
 	FTransform FinalLevelTransform = LevelInstancePivotOffsetTransform * LevelInstanceTransform;
-	FBox ContainerBounds = WorldPartitionSubsystem->GetContainerBounds(LevelPackage).TransformBy(FinalLevelTransform);
+	FBox ContainerBounds = WorldPartitionSubsystem->GetContainerBounds(GetContainerPackage()).TransformBy(FinalLevelTransform);
 
 	ContainerBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
 }
@@ -105,7 +105,7 @@ void FLevelInstanceActorDesc::RegisterContainerInstance(UWorld* InWorldContext)
 			UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(InWorldContext);
 			check(WorldPartitionSubsystem);
 
-			LevelInstanceContainer = WorldPartitionSubsystem->RegisterContainer(LevelPackage);
+			LevelInstanceContainer = WorldPartitionSubsystem->RegisterContainer(GetContainerPackage());
 			check(LevelInstanceContainer.IsValid());
 
 			// Should only be called on RegisterContainerInstance before ActorDesc is hashed
@@ -161,17 +161,17 @@ bool FLevelInstanceActorDesc::IsContainerInstanceInternal() const
 		return false;
 	}
 
-	if (LevelPackage.IsNone())
+	if (LevelPackage.IsNull())
 	{
 		return false;
 	}
 	
-	if (!ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage))
+	if (!ULevel::GetIsLevelUsingExternalActorsFromPackage(GetContainerPackage()))
 	{
 		return false;
 	}
 
-	return ULevelInstanceSubsystem::CanUsePackage(LevelPackage);
+	return ULevelInstanceSubsystem::CanUsePackage(GetContainerPackage());
 }
 
 bool FLevelInstanceActorDesc::GetContainerInstance(FContainerInstance& OutContainerInstance) const
@@ -198,22 +198,22 @@ void FLevelInstanceActorDesc::CheckForErrors(IStreamingGenerationErrorHandler* E
 	FWorldPartitionActorDesc::CheckForErrors(ErrorHandler);
 
 	FPackagePath WorldAssetPath;
-	if (!FPackagePath::TryFromPackageName(LevelPackage, WorldAssetPath) || !FPackageName::DoesPackageExist(WorldAssetPath))
+	if (!FPackagePath::TryFromPackageName(GetContainerPackage(), WorldAssetPath) || !FPackageName::DoesPackageExist(WorldAssetPath))
 	{
-		ErrorHandler->OnLevelInstanceInvalidWorldAsset(this, LevelPackage, IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetNotFound);
+		ErrorHandler->OnLevelInstanceInvalidWorldAsset(this, GetContainerPackage(), IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetNotFound);
 	}
-	else if (!ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage))
+	else if (!ULevel::GetIsLevelUsingExternalActorsFromPackage(GetContainerPackage()))
 	{
 		if (DesiredRuntimeBehavior != ELevelInstanceRuntimeBehavior::LevelStreaming)
 		{
-			ErrorHandler->OnLevelInstanceInvalidWorldAsset(this, LevelPackage, IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetNotUsingExternalActors);
+			ErrorHandler->OnLevelInstanceInvalidWorldAsset(this, GetContainerPackage(), IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetNotUsingExternalActors);
 		}
 	}
-	else if (ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
+	else if (ULevel::GetIsLevelPartitionedFromPackage(GetContainerPackage()))
 	{
-		if ((DesiredRuntimeBehavior != ELevelInstanceRuntimeBehavior::Partitioned) || !ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(LevelPackage))
+		if ((DesiredRuntimeBehavior != ELevelInstanceRuntimeBehavior::Partitioned) || !ULevel::GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(GetContainerPackage()))
 		{
-			ErrorHandler->OnLevelInstanceInvalidWorldAsset(this, LevelPackage, IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetImcompatiblePartitioned);
+			ErrorHandler->OnLevelInstanceInvalidWorldAsset(this, GetContainerPackage(), IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetImcompatiblePartitioned);
 		}
 	}
 }
@@ -241,7 +241,17 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-	Ar << TDeltaSerialize<FName>(LevelPackage);
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeSoftObjectPathSupport)
+	{
+		Ar << TDeltaSerialize<FSoftObjectPath, FName>(LevelPackage, [](FSoftObjectPath& Value, const FName& DeprecatedValue)
+		{
+			Value = FSoftObjectPath(*DeprecatedValue.ToString());
+		});
+	}
+	else
+	{
+		Ar << TDeltaSerialize<FSoftObjectPath>(LevelPackage);
+	}
 
 	if (!bIsDefaultActorDesc)
 	{
@@ -276,12 +286,12 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 
 			const AActor* CDO = GetActorNativeClass()->GetDefaultObject<AActor>();
 			const ILevelInstanceInterface* LevelInstanceCDO = CastChecked<ILevelInstanceInterface>(CDO);
-			if (!LevelPackage.IsNone() && (LevelInstanceCDO->IsLoadingEnabled() || bFixupOldVersion))
+			if (LevelPackage.IsValid() && (LevelInstanceCDO->IsLoadingEnabled() || bFixupOldVersion))
 			{
 				if (!IsContainerInstance())
 				{
 					FBox OutBounds;
-					if (ULevelInstanceSubsystem::GetLevelInstanceBoundsFromPackage(LevelInstanceTransform, LevelPackage, OutBounds))
+					if (ULevelInstanceSubsystem::GetLevelInstanceBoundsFromPackage(LevelInstanceTransform, GetContainerPackage(), OutBounds))
 					{
 						OutBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
 					}
@@ -302,5 +312,4 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 		}
 	}
 }
-
 #endif

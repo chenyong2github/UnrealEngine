@@ -69,7 +69,7 @@ bool FWorldPartitionActorDescView::GetActorIsHLODRelevant() const
 	return ActorDesc->GetActorIsHLODRelevant();
 }
 
-FName FWorldPartitionActorDescView::GetHLODLayer() const
+FSoftObjectPath FWorldPartitionActorDescView::GetHLODLayer() const
 {
 	return ActorDesc->GetHLODLayer();
 }

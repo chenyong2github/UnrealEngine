@@ -114,7 +114,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline void SetIsSpatiallyLoadedRaw(bool bNewIsSpatiallyLoaded) { bIsSpatiallyLoaded = bNewIsSpatiallyLoaded; }
 
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
-	inline FName GetHLODLayer() const { return HLODLayer; }
+	inline FSoftObjectPath GetHLODLayer() const { return HLODLayer; }
 	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
 	inline bool HasResolvedDataLayerInstanceNames() const { return ResolvedDataLayerInstanceNames.IsSet(); }
 	const TArray<FName>& GetDataLayerInstanceNames() const;
@@ -301,7 +301,7 @@ protected:
 	bool							bActorIsHLODRelevant;
 	bool							bIsUsingDataLayerAsset; // Used to know if DataLayers array represents DataLayers Asset paths or the FNames of the deprecated version of Data Layers
 	bool							bIsBoundsValid;
-	FName							HLODLayer;
+	FSoftObjectPath					HLODLayer;
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
 	TArray<FGuid>					EditorOnlyReferences; // References that aren't necessarily editor only but referenced through an editor only property.

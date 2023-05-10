@@ -4,6 +4,7 @@
 #include "WorldPartition/WorldPartitionActorDescArchive.h"
 #include "WorldPartition/WorldPartitionClassDescRegistry.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
@@ -80,5 +81,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	ClassDescSizeof = ClassDesc ? ClassDesc->GetSizeOf() : 0;
+}
+
+FArchive& FActorDescArchive::operator<<(FSoftObjectPath& Value)
+{
+	Value.SerializePathWithoutFixup(*this);
+
+	if (IsLoading())
+	{
+		FWorldPartitionHelpers::FixupRedirectedAssetPath(Value);
+	}
+
+	return *this;
 }
 #endif

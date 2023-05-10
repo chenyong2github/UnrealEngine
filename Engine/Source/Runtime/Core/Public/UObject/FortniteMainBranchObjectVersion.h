@@ -310,6 +310,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Serialize editor only references in world partition actor descriptors
 		WorldPartitionActorDescSerializeEditorOnlyReferences,
 
+		// Add support for soft object paths in actor descriptors
+		WorldPartitionActorDescSerializeSoftObjectPathSupport,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

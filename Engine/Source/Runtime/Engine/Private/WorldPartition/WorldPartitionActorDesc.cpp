@@ -91,7 +91,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	bActorIsEditorOnly = InActor->IsEditorOnly();
 	bActorIsRuntimeOnly = InActor->IsRuntimeOnly();
 	bActorIsHLODRelevant = InActor->IsHLODRelevant();
-	HLODLayer = InActor->GetHLODLayer() ? FName(InActor->GetHLODLayer()->GetPathName()) : FName();
+	HLODLayer = InActor->GetHLODLayer() ? FSoftObjectPath(InActor->GetHLODLayer()->GetPathName()) : FSoftObjectPath();
 	
 	// DataLayers
 	{
@@ -413,7 +413,7 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 			Result.Appendf(TEXT(" Parent:%s"), *ParentActor.ToString());
 		}
 
-		if (!HLODLayer.IsNone())
+		if (HLODLayer.IsValid())
 		{
 			Result.Appendf(TEXT(" HLODLayer:%s"), *HLODLayer.ToString());
 		}
@@ -581,12 +581,23 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeHLODInfo))
 	{
 		Ar << TDeltaSerialize<bool>(bActorIsHLODRelevant);
-		Ar << TDeltaSerialize<FName>(HLODLayer);
+
+		if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeSoftObjectPathSupport)
+		{
+			Ar << TDeltaSerialize<FSoftObjectPath, FName>(HLODLayer, [](FSoftObjectPath& Value, const FName& DeprecatedValue)
+			{
+				Value = FSoftObjectPath(*DeprecatedValue.ToString());
+			});
+		}
+		else
+		{
+			Ar << TDeltaSerialize<FSoftObjectPath>(HLODLayer);
+		}
 	}
 	else
 	{
 		bActorIsHLODRelevant = true;
-		HLODLayer = FName();
+		HLODLayer = FSoftObjectPath();
 	}
 
 	if (!bIsDefaultActorDesc)

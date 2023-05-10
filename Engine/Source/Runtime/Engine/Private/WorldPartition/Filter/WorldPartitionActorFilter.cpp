@@ -3,6 +3,7 @@
 #include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #if WITH_EDITORONLY_DATA
 FWorldPartitionActorFilter::FOnWorldPartitionActorFilterChanged FWorldPartitionActorFilter::OnWorldPartitionActorFilterChanged;
@@ -146,6 +147,8 @@ bool FWorldPartitionActorFilter::operator==(const FWorldPartitionActorFilter& Ot
 
 bool FWorldPartitionActorFilter::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+
 	uint32 DataLayerFilterCount = DataLayerFilters.Num();
 	Ar << DataLayerFilterCount;
 
@@ -155,23 +158,31 @@ bool FWorldPartitionActorFilter::Serialize(FArchive& Ar)
 
 		for (uint32 i = 0; i < DataLayerFilterCount; ++i)
 		{
-			FString AssetPath;
-			Ar << AssetPath;
+			FSoftObjectPath AssetPath;
+
+			if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeSoftObjectPathSupport)
+			{
+				FString AssetPathStr;
+				Ar << AssetPathStr;
+				AssetPath = FSoftObjectPath(AssetPathStr);
+				FWorldPartitionHelpers::FixupRedirectedAssetPath(AssetPath);
+			}
+			else
+			{
+				Ar << AssetPath;
+			}
+
 			bool bIncluded;
 			Ar << bIncluded;
-
-			FSoftObjectPath SoftObjectPath(AssetPath);
-			FWorldPartitionHelpers::FixupRedirectedAssetPath(SoftObjectPath);
-			DataLayerFilters.Add(SoftObjectPath).bIncluded = bIncluded;
+			
+			DataLayerFilters.Add(AssetPath).bIncluded = bIncluded;
 		}
 	}
 	else
 	{
 		for (auto& [AssetPath, DataLayerFilter] : DataLayerFilters)
 		{
-			FString AssetPathStr = AssetPath.ToString();
-			Ar << AssetPathStr;
-			Ar << DataLayerFilter.bIncluded;
+			Ar << AssetPath << DataLayerFilter.bIncluded;
 		}
 	}
 

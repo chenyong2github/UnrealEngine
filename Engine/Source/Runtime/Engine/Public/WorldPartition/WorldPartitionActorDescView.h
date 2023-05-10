@@ -37,7 +37,7 @@ public:
 	bool GetActorIsEditorOnly() const;
 	bool GetActorIsRuntimeOnly() const;
 	bool GetActorIsHLODRelevant() const;
-	FName GetHLODLayer() const;
+	FSoftObjectPath GetHLODLayer() const;
 	const TArray<FName>& GetDataLayerInstanceNames() const;
 	const TArray<FName>& GetRuntimeDataLayerInstanceNames() const;
 	const TArray<FName>& GetTags() const;
