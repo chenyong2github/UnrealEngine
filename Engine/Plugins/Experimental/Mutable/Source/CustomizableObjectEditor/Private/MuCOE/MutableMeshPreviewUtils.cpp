@@ -276,264 +276,60 @@ namespace MutableMeshPreviewUtils
 			return bCanBeConverted;
 		}
 
-		/** Loads up the OutSkeletalMesh with all the bone data found on the InMutableMesh if found to be a skeleton there. If not it will fail
-		 * @param InMutableMesh - The mutable mesh to read bone data from
-		 * @param OutFinalBoneNames - An array of names containing the names of the bones to be used on the skeletal mesh
-		 * @param OutBoneMap - Array with all the bones used on the final mesh
-		 */ 
-		void PrepareSkeletonData(mu::MeshPtrConst InMutableMesh, TArray<FName>& OutFinalBoneNames, TArray<uint16>& OutBoneMap)
-		{
-			if (!InMutableMesh)
-			{
-				return;
-			}
-			
-			// Helpers
-			TMap<FName, int16> BoneNameToIndex;
-			TArray<int16> ParentBoneIndices;
-			TArray<int16> ParentChain;
-			TArray<bool> UsedBones;
-			
 
-			// Use first valid LOD bone count as a potential total number of bones, used for pre-allocating data arrays
-			if ( InMutableMesh && InMutableMesh->GetSkeleton())
-			{
-				const int32 TotalPossibleBones = InMutableMesh->GetSkeleton()->GetBoneCount();
-				
-				// Helpers
-				BoneNameToIndex.Empty(TotalPossibleBones);
-				ParentBoneIndices.Empty(TotalPossibleBones);
-
-				ParentChain.SetNumZeroed(TotalPossibleBones);
-
-				// Out Data
-				OutFinalBoneNames.Reserve(TotalPossibleBones);
-			}
-
-			// Locate what bones are being used by asking each vertex with what bone index it is related with.
-			// We end up having an array of Bool variables where each index corresponds to a bone on the mutable skeleton
-			// and the value determines if the bone is found to be used by any of the vertices located on the
-			// mutable mesh surfaces
-			{
-				if (!InMutableMesh || !InMutableMesh->GetSkeleton())
-				{
-					return;
-				}
-
-				const mu::Skeleton* Skeleton = InMutableMesh->GetSkeleton().get();
-				const int32 BoneCount = Skeleton->GetBoneCount();
-
-				const mu::FMeshBufferSet& MutableMeshVertexBuffers = InMutableMesh->GetVertexBuffers();
-
-				const int32 NumVerticesLODModel = InMutableMesh->GetVertexCount();
-				const int32 SurfaceCount = InMutableMesh->GetSurfaceCount();
-
-				mu::MESH_BUFFER_FORMAT BoneIndexFormat = mu::MBF_NONE;
-				int32 BoneIndexComponents = 0;
-				int32 BoneIndexOffset = 0;
-				int32 BoneIndexBuffer = -1;
-				int32 BoneIndexChannel = -1;
-				MutableMeshVertexBuffers.FindChannel(mu::MBS_BONEINDICES, 0, &BoneIndexBuffer, &BoneIndexChannel);
-				if (BoneIndexBuffer >= 0 || BoneIndexChannel >= 0)
-				{
-					MutableMeshVertexBuffers.GetChannel(BoneIndexBuffer, BoneIndexChannel,
-						nullptr, nullptr, &BoneIndexFormat, &BoneIndexComponents, &BoneIndexOffset);
-				}
-
-				const int32 ElementSize = MutableMeshVertexBuffers.GetElementSize(BoneIndexBuffer);
-
-				const uint8_t* BufferStart = MutableMeshVertexBuffers.GetBufferData(BoneIndexBuffer) + BoneIndexOffset;
-
-				const int NumBoneInfluences = BoneIndexComponents;
-				{
-					UsedBones.Empty(BoneCount);
-					UsedBones.AddDefaulted(BoneCount);
-
-					for (int32 Surface = 0; Surface < SurfaceCount; Surface++)
-					{
-						int32 FirstIndex;
-						int32 IndexCount;
-						int32 FirstVertex;
-						int32 VertexCount;
-						InMutableMesh->GetSurface(Surface, &FirstVertex, &VertexCount, &FirstIndex, &IndexCount);
-
-						if (VertexCount == 0 || IndexCount == 0)
-						{
-							continue;
-						}
-
-						const uint8_t* VertexBoneIndexPtr = BufferStart + FirstVertex * ElementSize;
-
-						if (BoneIndexFormat == mu::MBF_UINT8)
-						{
-							for (int32 v = 0; v < VertexCount; ++v)
-							{
-								for (int32 i = 0; i < BoneIndexComponents; ++i)
-								{
-									const size_t SectionBoneIndex = VertexBoneIndexPtr[i];
-									UsedBones[SectionBoneIndex] = true;
-								}
-								VertexBoneIndexPtr += ElementSize;
-							}
-						}
-						else if (BoneIndexFormat == mu::MBF_UINT16)
-						{
-							for (int32 v = 0; v < VertexCount; ++v)
-							{
-								for (int32 i = 0; i < BoneIndexComponents; ++i)
-								{
-									const size_t SectionBoneIndex = ((uint16*)VertexBoneIndexPtr)[i];
-									UsedBones[SectionBoneIndex] = true;
-								}
-								VertexBoneIndexPtr += ElementSize;
-							}
-						}
-						else if (BoneIndexFormat == mu::MBF_UINT32)
-						{
-							for (int32 v = 0; v < VertexCount; ++v)
-							{
-								for (int32 i = 0; i < BoneIndexComponents; ++i)
-								{
-									const size_t SectionBoneIndex = ((uint32_t*)VertexBoneIndexPtr)[i];
-									UsedBones[SectionBoneIndex] = true;
-								}
-								VertexBoneIndexPtr += ElementSize;
-							}
-						}
-						else
-						{
-							// Unsupported bone index format in generated mutable mesh
-							check(false);
-						}
-
-					}
-				}
-
-				// Fill the BoneMap with the data found on the mutable skeleton and with the aid of the
-				// bool array with all the bones we are using in this mesh from all the ones found on the mu::Skeleton
-				{
-					OutBoneMap.Reserve(BoneCount);
-
-					for (int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
-					{
-						if (!UsedBones[BoneIndex])
-						{
-							// Add root as a placeholder
-							OutBoneMap.Add(0);
-							continue;
-						}
-
-						FName BoneName = Skeleton->GetBoneName(BoneIndex);
-
-						int16* FinalBoneIndexPtr = BoneNameToIndex.Find(BoneName);
-						if (!FinalBoneIndexPtr) // New bone!
-						{
-							// Ensure parent chain is valid
-							int16 FinalParentIndex = INDEX_NONE;
-
-							const int16 MutParentIndex = Skeleton->GetBoneParent(BoneIndex);
-							if (MutParentIndex != INDEX_NONE) // Bone has a parent, ensure the parent exists
-							{
-								// Ensure parent chain until root exists
-								uint16 ParentChainCount = 0;
-
-								// Find parents to add
-								int16 NextMutParentIndex = MutParentIndex;
-								while (NextMutParentIndex != INDEX_NONE)
-								{
-									if (int16* Found = BoneNameToIndex.Find(Skeleton->GetBoneName(NextMutParentIndex)))
-									{
-										FinalParentIndex = *Found;
-										break;
-									}
-
-									ParentChain[ParentChainCount] = NextMutParentIndex;
-									++ParentChainCount;
-
-									NextMutParentIndex = Skeleton->GetBoneParent(NextMutParentIndex);
-								}
-
-								// Add parent bones to the list and to the active bones array
-								for (int16 ParentChainIndex = ParentChainCount - 1; ParentChainIndex >= 0; --ParentChainIndex)
-								{
-									FName ChainParentName = Skeleton->GetBoneName(ParentChain[ParentChainIndex]);
-
-									// Set the parent for the bone we're about to add (previous ParentIndex)
-									ParentBoneIndices.Add(FinalParentIndex);
-
-									// Add the parent
-									FinalParentIndex = OutFinalBoneNames.Num();
-									BoneNameToIndex.Add(ChainParentName, FinalParentIndex);
-									OutFinalBoneNames.Add(ChainParentName);
-								}
-							}
-
-							const int16 NewBoneIndex = OutFinalBoneNames.Num();
-							OutBoneMap.Add(NewBoneIndex);
-
-							// Add new bone to the ReferenceSkeleton
-							BoneNameToIndex.Add(BoneName, NewBoneIndex);
-							OutFinalBoneNames.Add(BoneName);
-							ParentBoneIndices.Add(FinalParentIndex);
-						}
-						else
-						{
-							const int16 FinalBoneIndex = *FinalBoneIndexPtr;
-							OutBoneMap.Add(FinalBoneIndex);
-						}
-					}
-				}
-
-				OutBoneMap.Shrink();
-			}
-
-			OutFinalBoneNames.Shrink();
-		}
-
-		/** Provides the OutSkeletalMesh with a new reference skeleton based on the data found on the other method inputs
-		 * @param InRefSkeletalMesh - The skeletal mesh to be used as reference for the copying of data not held by the mutable
-		 * @param OutSkeletalMesh - The skeletal mesh whose reference skeleton we want to generate.
+		/** Provides the OutSkeletalMesh with a new skeleton
+		 * @param OutSkeletalMesh - The skeletal mesh whose skeleton we want to generate.
 		 * @return True if the operation could be performed successfully, false if not.
 		 */
-		bool BuildSkeletalMeshSkeletonData(const USkeletalMesh* InRefSkeletalMesh, USkeletalMesh* OutSkeletalMesh)
+		bool BuildSkeletalMeshSkeletonData(mu::MeshPtrConst InMutableMesh, USkeletalMesh* OutSkeletalMesh)
 		{
-			if (!OutSkeletalMesh || !InRefSkeletalMesh)
-			{
-				return false;
-			}
-
-			// get a copy of the skeleton used by the reference skeletal mesh
-			const USkeleton* OriginalSkeleton = InRefSkeletalMesh->GetSkeleton();
-			if (!OriginalSkeleton)
+			if (!InMutableMesh || !OutSkeletalMesh)
 			{
 				return false;
 			}
 			
-			TObjectPtr<USkeleton> Skeleton = DuplicateObject(OriginalSkeleton,OriginalSkeleton->GetExternalPackage()) ;
+			// The skeleton will only have one bone, and all bon indices will be mapped to it.
+			TObjectPtr<USkeleton> Skeleton = NewObject<USkeleton>();
+
+			// Build new RefSkeleton	
+			{
+				// Scope is important, FReferenceSkeletonModifier will rebuild the reference skeleon on destroy
+				FReferenceSkeletonModifier RefSkeletonModifier(Skeleton);
+				RefSkeletonModifier.Add(FMeshBoneInfo(FName("Root"), FString("Root"), INDEX_NONE), FTransform::Identity);
+			}
+
 			OutSkeletalMesh->SetSkeleton(Skeleton);
-			
-			const FReferenceSkeleton& SourceReferenceSkeleton = Skeleton->GetReferenceSkeleton();
-			const int32 SourceBoneCount = SourceReferenceSkeleton.GetRawBoneNum();
-			
-			// Used to add them in strictly increasing order
-			TArray<bool> UsedBones;
-			UsedBones.Init(true, SourceBoneCount);	
-
-			// New reference skeleton
-			FReferenceSkeleton RefSkeleton;
-			
-			// Build RefSkeleton
-			UnrealConversionUtils::BuildRefSkeleton(
-				nullptr,
-				SourceReferenceSkeleton,
-				UsedBones,
-				RefSkeleton,
-				Skeleton);
-
-			OutSkeletalMesh->SetRefSkeleton(RefSkeleton);
-
-			OutSkeletalMesh->GetRefBasesInvMatrix().Empty(RefSkeleton.GetRawBoneNum());
+			OutSkeletalMesh->SetRefSkeleton(Skeleton->GetReferenceSkeleton());
+			OutSkeletalMesh->GetRefBasesInvMatrix().Empty(1);
 			OutSkeletalMesh->CalculateInvRefMatrices();
+
+			// Compute imported bounds
+			FBoxSphereBounds Bounds;
+
+			const int32 BonePoseCount = InMutableMesh->GetBonePoseCount();
+			if (BonePoseCount > 0)
+			{
+				// Extract bounds from the pose of the mesh
+				TArray<FVector> Points;
+				Points.Reserve(BonePoseCount);
+				for (int32 BoneIndex = 0; BoneIndex < BonePoseCount; ++BoneIndex)
+				{
+					FTransform3f Transform;
+					InMutableMesh->GetBoneTransform(BoneIndex, Transform);
+
+					Points.Add(FVector(Transform.GetTranslation()));
+				}
+
+				Bounds = FBoxSphereBounds(Points.GetData(), Points.Num());
+				Bounds.ExpandBy(1.2f);
+			}
+			else
+			{
+				// Set bounds even if they're not correct
+				Bounds = FBoxSphereBounds(FSphere(FVector(0,0,0), 1000));
+			}
+
+			OutSkeletalMesh->SetImportedBounds(Bounds);
 
 			return true;
 		}
@@ -570,12 +366,17 @@ namespace MutableMeshPreviewUtils
 		 * @param OutSkeletalMesh - The skeletal mesh to set up.
 		 * @return True if the operation could be performed successfully, false if not.
 		 */
-		bool BuildSkeletalMeshRenderData(
-			const mu::MeshPtrConst InMutableMesh, const USkeletalMesh* InRefSkeletalMesh,
-			const TArray<uint16>& InBoneMap, USkeletalMesh* OutSkeletalMesh)
+		bool BuildSkeletalMeshRenderData(const mu::MeshPtrConst InMutableMesh, USkeletalMesh* OutSkeletalMesh)
 		{
 			OutSkeletalMesh->SetHasBeenSimplified(false);
 			OutSkeletalMesh->SetHasVertexColors(false);
+
+			// Find how many bones the bonemap could have
+			int32 NumBoneMapIndices = !InMutableMesh->GetBoneMap().IsEmpty() ? InMutableMesh->GetBoneMap().Num() : InMutableMesh->GetBonePoseCount();
+			
+			// Fill the bonemap with zeros
+			TArray<uint16> BoneMap;
+			BoneMap.SetNumZeroed(FMath::Max(NumBoneMapIndices, 1));
 
 			// Load buffer data found on the mutable model onto the out skeletal mesh
 			// It includes vertex and index buffers
@@ -583,7 +384,8 @@ namespace MutableMeshPreviewUtils
 				OutSkeletalMesh,
 				InMutableMesh,
 				0,
-				InBoneMap);
+				BoneMap,
+				0);
 
 			UnrealConversionUtils::CopyMutableVertexBuffers(
 				OutSkeletalMesh,
@@ -592,19 +394,18 @@ namespace MutableMeshPreviewUtils
 			
 			FSkeletalMeshLODRenderData& LODModel = OutSkeletalMesh->GetResourceForRendering()->LODRenderData[0];
 
-			// Generate the active bones array based on the bones found on BoneMap
-			TArray<uint16> ActiveBones;
+			// Ensure there's at least one bone in the bonemap of each render section, the root.
+			for (FSkelMeshRenderSection& RenderSection : LODModel.RenderSections)
 			{
-				ActiveBones.Reserve(InBoneMap.Num());
-				for (const uint16& BoneMapIndex : InBoneMap)
+				if (RenderSection.BoneMap.IsEmpty())
 				{
-					ActiveBones.AddUnique(BoneMapIndex);
+					RenderSection.BoneMap.Add(0);
 				}
-				ActiveBones.Sort();
 			}
 
-			LODModel.ActiveBoneIndices.Append(ActiveBones);
-			LODModel.RequiredBones.Append(ActiveBones);
+			// Add root as the only required bone
+			LODModel.ActiveBoneIndices.Add(0);
+			LODModel.RequiredBones.Add(0);
 			
 			// Copy index buffers or fail to generate the mesh
 			if (!UnrealConversionUtils::CopyMutableIndexBuffers(InMutableMesh, LODModel))
@@ -615,12 +416,6 @@ namespace MutableMeshPreviewUtils
 			// Update LOD and streaming data
 			LODModel.bIsLODOptional = false;
 			LODModel.bStreamedDataInlined = false;
-
-			if (InRefSkeletalMesh)
-			{
-				const FBoxSphereBounds Bounds = ((USkeletalMesh*)InRefSkeletalMesh)->GetBounds();
-				OutSkeletalMesh->SetImportedBounds(Bounds);
-			}
 			
 			return true;
 		}
@@ -630,11 +425,9 @@ namespace MutableMeshPreviewUtils
 	 * Publicly accessible functions of MutableMeshPreviewUtils
 	 */
 
-	USkeletalMesh* GenerateSkeletalMeshFromMutableMesh(mu::MeshPtrConst InMutableMesh,
-		const USkeletalMesh* InReferenceSkeletalMesh)
+	USkeletalMesh* GenerateSkeletalMeshFromMutableMesh(mu::MeshPtrConst InMutableMesh)
 	{
-		if (!InMutableMesh ||
-			!InReferenceSkeletalMesh)
+		if (!InMutableMesh)
 		{
 			return nullptr;
 		}
@@ -668,83 +461,31 @@ namespace MutableMeshPreviewUtils
 			// later found and used to generate a proper Skeletal Mesh
 		}
 		
-		
-		// Bone processed data containers
-		TArray<uint16> BoneMap;
-		TArray<FName> BoneNames;
-
-		// Provided a mutable skeleton do load the BoneNames and BoneMap from there
-		if (InMutableMesh->GetSkeleton())
-		{
-			// Prepare the skeleton data and get the bone names to be used on the generated mesh alongside with the indices of
-			// such bones on the final mesh.
-			PrepareSkeletonData(InMutableMesh,BoneNames,BoneMap);
-		}
-		else
-		{
-			// No mutable skeleton has been loaded.
-			// Use the data already set on the reference skeletal mesh to do the work of PrepareSkeletonData
-			// but without having access to the mutable skeleton
-
-			// Add all reference bones set on the reference skeleton onto our new mesh.
-			const FReferenceSkeleton& ReferenceMeshReferenceSkeleton = InReferenceSkeletalMesh->GetRefSkeleton();
-			for	(int32 RefBone = 0; RefBone < ReferenceMeshReferenceSkeleton.GetRawBoneNum(); RefBone++)
-			{
-				BoneMap.Add(RefBone);
-			}
-		}
-		
 		// Generate a new skeletal mesh to be filled up with the data found on the mutable mesh and the reference skeletal mesh
-		USkeletalMesh* GeneratedSkeletalMesh =
-			NewObject<USkeletalMesh>(GetTransientPackage(), NAME_None, RF_Transient);
+		USkeletalMesh* GeneratedSkeletalMesh = NewObject<USkeletalMesh>();
 
-		// build the reference skeleton for the Generated Skeletal mesh
-		bool bSuccess = BuildSkeletalMeshSkeletonData(InReferenceSkeletalMesh,GeneratedSkeletalMesh);
+		// Build the reference skeleton for the Generated Skeletal mesh
+		bool bSuccess = BuildSkeletalMeshSkeletonData(InMutableMesh, GeneratedSkeletalMesh);
 		if (!bSuccess)
 		{
 			return nullptr;
 		}
 		
-		// Load the data present on the reference skeletal mesh that could not be grabbed from the mu::Mesh
-		GeneratedSkeletalMesh->SetImportedBounds(InReferenceSkeletalMesh->GetBounds()); // TODO Generate Bounds
-		GeneratedSkeletalMesh->SetPhysicsAsset(InReferenceSkeletalMesh->GetPhysicsAsset());
-		GeneratedSkeletalMesh->SetEnablePerPolyCollision(InReferenceSkeletalMesh->GetEnablePerPolyCollision());
-
-		GeneratedSkeletalMesh->AllocateResourceForRendering();
-
 		// Prepare the mesh to be filled with rendering data (buffers)
 		{
-			GeneratedSkeletalMesh->GetResourceForRendering()->LODRenderData.Add(( GeneratedSkeletalMesh->GetResourceForRendering()->LODRenderData.Num()) ? &GeneratedSkeletalMesh->GetResourceForRendering()->LODRenderData[0] : new FSkeletalMeshLODRenderData());
-			GeneratedSkeletalMesh->GetLODInfoArray().Add(FSkeletalMeshLODInfo());
+			GeneratedSkeletalMesh->AllocateResourceForRendering();
+			GeneratedSkeletalMesh->GetResourceForRendering()->LODRenderData.Add(new FSkeletalMeshLODRenderData());
 
-			FSkeletalMeshLODInfo& LastLODInfo = GeneratedSkeletalMesh->GetLODInfoArray().Last();
-
-	#if WITH_EDITORONLY_DATA
+			FSkeletalMeshLODInfo& LastLODInfo = GeneratedSkeletalMesh->GetLODInfoArray().AddDefaulted_GetRef();
 			LastLODInfo.BuildSettings.bUseFullPrecisionUVs = true;
-	#endif
-
-			constexpr int32 LODIndex = 0;
-			if (InReferenceSkeletalMesh->GetLODInfoArray().IsValidIndex(LODIndex))
-			{
-				const FSkeletalMeshLODInfo& RefLODIndex = InReferenceSkeletalMesh->GetLODInfoArray()[LODIndex];
-				LastLODInfo.ScreenSize = RefLODIndex.ScreenSize;
-				LastLODInfo.LODHysteresis = RefLODIndex.LODHysteresis;
-				LastLODInfo.bSupportUniformlyDistributedSampling = RefLODIndex.bSupportUniformlyDistributedSampling;
-				LastLODInfo.bAllowCPUAccess = RefLODIndex.bAllowCPUAccess;
-			}
-			else
-			{
-				LastLODInfo.ScreenSize = 0.3f / (LODIndex + 1);
-				LastLODInfo.LODHysteresis = 0.02f;
-				UE_LOG(LogMutable, Warning, TEXT("Setting default values for LOD ScreenSize and LODHysteresis because the values cannot be found in the reference mesh"));
-			}
+			LastLODInfo.bAllowCPUAccess = false;
 		}
 
 		// Set the material data and initialize the sections that will be used later
 		BuildSkeletalMeshElementData(InMutableMesh,GeneratedSkeletalMesh);
 		
 		// Load all data from the mutable mesh onto the skeletal mesh object
-		bSuccess = BuildSkeletalMeshRenderData(InMutableMesh,InReferenceSkeletalMesh,BoneMap,GeneratedSkeletalMesh);
+		bSuccess = BuildSkeletalMeshRenderData(InMutableMesh, GeneratedSkeletalMesh);
 		if (!bSuccess)
 		{
 			return nullptr;
@@ -755,14 +496,4 @@ namespace MutableMeshPreviewUtils
 		
 		return GeneratedSkeletalMesh;
 	}
-
 }
-
-
-
-
-
-
-
-
-

@@ -198,12 +198,6 @@ void SMutableMeshViewer::Construct(const FArguments& InArgs)
 }
 
 
-void SMutableMeshViewer::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	Collector.AddReferencedObject(SelectedReferenceMesh);
-}
-
-
 void SMutableMeshViewer::SetMesh(const mu::MeshPtrConst& InMesh)
 {
 	if (InMesh != MutableMesh)
@@ -232,79 +226,9 @@ void SMutableMeshViewer::SetMesh(const mu::MeshPtrConst& InMesh)
 	}
 }
 
-
-void SMutableMeshViewer::OnSelectedReferenceSkeletalMeshChanged(const FAssetData& AssetData)
-{
-	SelectedReferenceMesh = nullptr;
-
-	const UObject* SelectedAsset = AssetData.GetAsset();
-	if (SelectedAsset)
-	{
-		SelectedReferenceMesh = Cast<USkeletalMesh>(SelectedAsset);
-	}
-
-	// Notify the viewport from the selected reference mesh change
-	MeshViewport->SetReferenceMesh(SelectedReferenceMesh);
-}
-
-bool SMutableMeshViewer::OnShouldFilterAsset(const FAssetData& AssetData) const
-{
-	if (!AssetData.IsValid())
-	{
-		// Filter it out if it is not valid
-		return true;
-	}
-
-	// This is too slow to run for all 
-	const USkeleton* ParsedResourceSkeleton = Cast<USkeletalMesh>(AssetData.GetAsset())->GetSkeleton();
-	if (!ParsedResourceSkeleton)
-	{
-		// Only meshes with skeletons
-		return true;
-	}
-
-	return false;
-}
-
-FString SMutableMeshViewer::OnObjectPath() const
-{
-	if (SelectedReferenceMesh)
-	{
-		return SelectedReferenceMesh->GetPathName();
-	}
-
-	return FString();
-}
-
 TSharedRef<SWidget> SMutableMeshViewer::GenerateViewportSlates()
 {
 	TSharedRef<SWidget> Container = SNew(SVerticalBox)
-
-		// Reference selection space
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SAssignNew(ReferenceMeshSelectionSpace, SBorder)
-			[
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(FText(LOCTEXT("ReferenceMesh", "Reference Mesh : ")))
-				]
-
-				+ SHorizontalBox::Slot()
-				[
-					SNew(SObjectPropertyEntryBox)
-					.AllowedClass(USkeletalMesh::StaticClass())
-					.ObjectPath(this, &SMutableMeshViewer::OnObjectPath)
-					.OnObjectChanged(this, &SMutableMeshViewer::OnSelectedReferenceSkeletalMeshChanged)
-					.OnShouldFilterAsset(this, &SMutableMeshViewer::OnShouldFilterAsset)
-				]
-			]
-		]
 
 		// User warning messages 
 		// + SVerticalBox::Slot()

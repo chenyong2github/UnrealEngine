@@ -45,7 +45,7 @@ struct FBufferElement
 };
 
 /** Widget designed to show the statistical data from a Mutable Mesh*/
-class SMutableMeshViewer : public SCompoundWidget, public FGCObject
+class SMutableMeshViewer : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SMutableMeshViewer) {}
@@ -54,17 +54,6 @@ public:
 
 	/** Builds the widget */
 	void Construct(const FArguments& InArgs);
-
-	// SWidget interface
-	// void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-
-	// FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("SMutableMeshViewer");
-	}
 
 	/** Set the Mutable Mesh to be used for this widget */
 	void SetMesh(const mu::MeshPtrConst& InMesh);
@@ -111,9 +100,6 @@ private:
 	TSharedPtr<SListView<TSharedPtr<FBufferElement>>> FaceBuffersSlateView;
 
 private:
-	
-	/** The border where the object responsible for providing the user of a way to select objects is */
-	TSharedPtr<SBorder> ReferenceMeshSelectionSpace;
 
 	/** Generates all slate objects related with the Mesh Viewport Slate */
 	TSharedRef<SWidget> GenerateViewportSlates();
@@ -185,27 +171,4 @@ private:
 	TSharedRef<ITableRow> OnGenerateBufferChannelRow(TSharedPtr<FBufferChannelElement> InBufferChannel,
 	                                                 const TSharedRef<STableViewBase>& OwnerTable);
 	
-	
-	/*
-	 * Reference skeleton mesh selection
-	 */
-
-	/** Currently selected reference mesh */
-	const USkeletalMesh* SelectedReferenceMesh = nullptr;
-
-	/** Callback invoked when the selected asset on the reference skeletal mesh selection space has changed
-	 * @param AssetData - The data of the selected asset on the selection space
-	 */
-	void OnSelectedReferenceSkeletalMeshChanged(const FAssetData& AssetData);
-
-	/** Filters the assets found in order to know if the asset should be exposed on the UI for usage
-	 * @param AssetData - The data of the asset being checked for validation
-	 * @return - True means that the asset WILL NOT appear on the list of selectable resources
-	 */
-	bool OnShouldFilterAsset(const FAssetData& AssetData) const;
-
-	/**
-	 * Provides the SObjectPropertyEntryBox a way to know what to display in the selected object space
-	 */
-	FString OnObjectPath() const;
 };

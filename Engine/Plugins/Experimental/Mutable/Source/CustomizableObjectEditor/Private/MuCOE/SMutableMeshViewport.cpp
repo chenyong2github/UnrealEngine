@@ -47,22 +47,8 @@ void SMutableMeshViewport::SetMesh(const mu::MeshPtrConst& InMesh)
 	RefreshViewportContents();
 }
 
-void SMutableMeshViewport::SetReferenceMesh(const USkeletalMesh* InReferenceMesh)
-{
-	if (ReferenceSkeletalMesh == InReferenceMesh)
-	{
-		return;
-	}
-
-	ReferenceSkeletalMesh = InReferenceMesh;
-	
-	// Update viewport 
-	RefreshViewportContents();
-}
-
 void SMutableMeshViewport::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(ReferenceSkeletalMesh);
 	Collector.AddReferencedObject(SkeletalMeshComponent);
 }
 
@@ -125,8 +111,7 @@ void SMutableMeshViewport::SendMeshToViewport()
 bool SMutableMeshViewport::GenerateUnrealMesh()
 {
 	// Convert the provided mutable mesh to unreal with heavy aid of the Reference Skeletal Mesh
-	USkeletalMesh* GeneratedSkeletalMesh =
-		MutableMeshPreviewUtils::GenerateSkeletalMeshFromMutableMesh(MutableMesh,ReferenceSkeletalMesh);
+	USkeletalMesh* GeneratedSkeletalMesh = MutableMeshPreviewUtils::GenerateSkeletalMeshFromMutableMesh(MutableMesh);
 	
 	if (!GeneratedSkeletalMesh)
 	{

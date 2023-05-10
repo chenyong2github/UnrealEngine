@@ -14,4 +14,10 @@ FMutableMeshViewportClient::FMutableMeshViewportClient(const TSharedRef<FAdvance
 	FAdvancedPreviewScene* PreviewSceneCasted = static_cast<FAdvancedPreviewScene*>(PreviewScene);
 	//PreviewSceneCasted->SetEnvironmentVisibility(false);
 	PreviewSceneCasted->SetFloorVisibility(false);
+
+	// Set standard FOV
+	const float FOVMin = 5.f;
+	const float FOVMax = 170.f;
+	ViewFOV = FMath::Clamp<float>(53.43f, FOVMin, FOVMax);
+
 }

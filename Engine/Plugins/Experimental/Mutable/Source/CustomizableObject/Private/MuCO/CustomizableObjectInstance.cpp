@@ -3506,9 +3506,11 @@ bool UCustomizableInstancePrivateData::BuildSkeletonData(const TSharedPtr<FMutab
 				continue;
 			}
 
-			for (uint16& BoneIndex : Component.BoneMap)
+			for (uint32 BoneMapIndex = Component.FirstBoneMap; BoneMapIndex < Component.FirstBoneMap + Component.BoneMapCount; ++BoneMapIndex)
 			{
-				BoneIndex = BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]];
+				const int32 BoneIndex = OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex];
+				const FName& BoneName = MutSkeletonData.BoneNames[BoneIndex];
+				OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex] = BoneToFinalBoneIndexMap[BoneName];
 			}
 
 			for (uint16& BoneIndex : Component.ActiveBones)
@@ -3642,9 +3644,11 @@ bool UCustomizableInstancePrivateData::CopySkeletonData(const TSharedPtr<FMutabl
 				continue;
 			}
 
-			for (uint16& BoneIndex : Component.BoneMap)
+			for (uint32 BoneMapIndex = Component.FirstBoneMap; BoneMapIndex < Component.FirstBoneMap + Component.BoneMapCount; ++BoneMapIndex)
 			{
-				BoneIndex = BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]];
+				const int32 BoneIndex = OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex];
+				const FName& BoneName = MutSkeletonData.BoneNames[BoneIndex];
+				OperationData->InstanceUpdateData.BoneMaps[BoneMapIndex] = BoneToFinalBoneIndexMap[BoneName];
 			}
 
 			TArray<uint16> UniqueActiveBones;
@@ -3902,7 +3906,7 @@ void UCustomizableInstancePrivateData::BuildOrCopyMorphTargetsData(const TShared
 				}
 
 				int FirstVertex, VerticesCount, FirstIndex, IndiciesCount;
-				Component.Mesh->GetSurface(Section, &FirstVertex, &VerticesCount, &FirstIndex, &IndiciesCount);
+				Component.Mesh->GetSurface(Section, &FirstVertex, &VerticesCount, &FirstIndex, &IndiciesCount, nullptr, nullptr);
 
 				for (int32 VertexIdx = FirstVertex; VertexIdx < FirstVertex + VerticesCount; ++VertexIdx)
 				{
@@ -4084,7 +4088,7 @@ void UCustomizableInstancePrivateData::BuildOrCopyClothingData(const TSharedPtr<
 				for (int32 Section = 0; Section < SurfaceCount; ++Section)
 				{
 					int FirstVertex, VerticesCount, FirstIndex, IndicesCount;
-					MutableMesh->GetSurface(Section, &FirstVertex, &VerticesCount, &FirstIndex, &IndicesCount);
+					MutableMesh->GetSurface(Section, &FirstVertex, &VerticesCount, &FirstIndex, &IndicesCount, nullptr, nullptr);
 
 					if (VerticesCount == 0 || IndicesCount == 0)
 					{
@@ -4728,7 +4732,7 @@ void UCustomizableInstancePrivateData::BuildOrCopyClothingData(const TSharedPtr<
 				{
 					// Check that is a valid surface.
 					int32 FirstVertex, VerticesCount, FirstIndex, IndicesCount;
-					MutableMesh->GetSurface(Section, &FirstVertex, &VerticesCount, &FirstIndex, &IndicesCount);
+					MutableMesh->GetSurface(Section, &FirstVertex, &VerticesCount, &FirstIndex, &IndicesCount, nullptr, nullptr);
 
 					if (VerticesCount == 0 || IndicesCount == 0 )
 					{
@@ -4962,7 +4966,8 @@ bool UCustomizableInstancePrivateData::BuildOrCopyRenderData(const TSharedPtr<FM
 			SkeletalMesh,
 			Component.Mesh,
 			LODIndex,
-			Component.BoneMap);
+			OperationData->InstanceUpdateData.BoneMaps,
+			Component.FirstBoneMap);
 
 		UnrealConversionUtils::CopyMutableVertexBuffers(
 			SkeletalMesh,

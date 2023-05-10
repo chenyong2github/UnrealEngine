@@ -633,7 +633,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, const TS
 			{
 				if (ErrorMessage.IsEmpty())
 				{
-					GenerationContext.Compiler->CompilerLog(FText::FromString(ErrorMessage), CurrentNode, EMessageSeverity::Info);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(ErrorMessage), CurrentNode, EMessageSeverity::Warning);
 				}
 				return nullptr;
 			}
@@ -712,20 +712,30 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, const TS
 			bBoneMapModified = bBoneMapModified || SourceBoneMap[BoneIndex] != FinalBoneIndex;
 		}
 
-		TMap<int32, int32> InverseBoneMap;
+		const int32 NumBonesBoneMap = BoneMap.Num();
+		const int32 NumRequiredBones = RequiredBones.Num();
 
-		const int32 BoneMapCount = BoneMap.Num();
-		for (int32 BoneIndex = 0; BoneIndex < BoneMapCount; ++BoneIndex)
+		// BoneMap mapping the BoneMap indices to those of the mu::skeleton
+		TArray<uint16> MutableBoneMap;
+		MutableBoneMap.Reserve(NumBonesBoneMap);
+
+		// Mapping of RequiredBones from RefSkeletonIndex to mu::Skeleton BoneIndex
+		TMap<int32, int32> InverseBoneMap;
+		InverseBoneMap.Reserve(NumRequiredBones);
+
+		for (int32 BoneIndex = 0; BoneIndex < NumBonesBoneMap; ++BoneIndex)
 		{
 			int32 RefSkeletonIndex = BoneMap[BoneIndex];
 			InverseBoneMap.Add(RefSkeletonIndex, BoneIndex);
+			MutableBoneMap.Add(BoneIndex);
 		}
+
+		MutableMesh->SetBoneMap(MutableBoneMap);
 
 		// Create the skeleton and poses for this mesh
 		mu::SkeletonPtr MutableSkeleton = new mu::Skeleton;
 		MutableMesh->SetSkeleton(MutableSkeleton);
 
-		const int32 NumRequiredBones = RequiredBones.Num();
 		MutableMesh->SetBonePoseCount(NumRequiredBones);
 		MutableSkeleton->SetBoneCount(NumRequiredBones);
 
@@ -733,16 +743,15 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, const TS
 		for (int32 RequiredBoneIndex = 0; RequiredBoneIndex < NumRequiredBones; ++RequiredBoneIndex)
 		{
 			const int32 RefSkelIndex = RequiredBones[RequiredBoneIndex];
-
 			const FMeshBoneInfo& BoneInfo = RefBoneInfo[RefSkelIndex];
-
-			const FString BoneName = BoneInfo.Name.ToString();
-			const int32 BoneMapIndex = InverseBoneMap.FindOrAdd(RefSkelIndex, InverseBoneMap.Num());
-			const int32 ParentBoneMapIndex = BoneInfo.ParentIndex != INDEX_NONE ? InverseBoneMap.FindOrAdd(BoneInfo.ParentIndex, InverseBoneMap.Num()) : INDEX_NONE;
+			
+			const int32 BoneIndex = InverseBoneMap.FindOrAdd(RefSkelIndex, InverseBoneMap.Num());
+			const int32 ParentBoneIndex = BoneInfo.ParentIndex != INDEX_NONE ? InverseBoneMap.FindOrAdd(BoneInfo.ParentIndex, InverseBoneMap.Num()) : INDEX_NONE;
 
 			// Set bone hierarchy
-			MutableSkeleton->SetBoneName(BoneMapIndex, StringCast<ANSICHAR>(*BoneName).Get());
-			MutableSkeleton->SetBoneParent(BoneMapIndex, ParentBoneMapIndex);
+			const FString BoneName = BoneInfo.Name.ToString();
+			MutableSkeleton->SetBoneName(BoneIndex, StringCast<ANSICHAR>(*BoneName).Get());
+			MutableSkeleton->SetBoneParent(BoneIndex, ParentBoneIndex);
 
 			// Set bone pose
 			FMatrix44f BaseInvMatrix = InSkeletalMesh->GetRefBasesInvMatrix()[RefSkelIndex];
@@ -750,9 +759,10 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, const TS
 			BaseInvTransform.SetFromMatrix(BaseInvMatrix);
 
 			mu::EBoneUsageFlags BoneUsageFlags = mu::EBoneUsageFlags::None;
-			EnumAddFlags(BoneUsageFlags, BoneMapIndex < BoneMapCount ? mu::EBoneUsageFlags::Skinning : mu::EBoneUsageFlags::None);
+			EnumAddFlags(BoneUsageFlags, BoneIndex < NumBonesBoneMap ? mu::EBoneUsageFlags::Skinning : mu::EBoneUsageFlags::None);
 			EnumAddFlags(BoneUsageFlags, BoneInfo.ParentIndex == INDEX_NONE ? mu::EBoneUsageFlags::Root : mu::EBoneUsageFlags::None);
-			MutableMesh->SetBonePose(BoneMapIndex, StringCast<ANSICHAR>(*BoneName).Get(), BaseInvTransform.Inverse(), BoneUsageFlags);
+
+			MutableMesh->SetBonePose(BoneIndex, StringCast<ANSICHAR>(*BoneName).Get(), BaseInvTransform.Inverse(), BoneUsageFlags);
 		}
 	}
 
@@ -2895,7 +2905,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				MeshData.bHasVertexColors = TypedNodeSkel->SkeletalMesh->GetHasVertexColors();
 				FSkeletalMeshModel* importModel = TypedNodeSkel->SkeletalMesh->GetImportedModel();
 				MeshData.NumTexCoordChannels = importModel->LODModels[LOD].NumTexCoords;
-				MeshData.MaxBoneIndexTypeSizeBytes = importModel->LODModels[LOD].RequiredBones.Num() > 256 ? 2 : 1;
+				MeshData.MaxBoneIndexTypeSizeBytes = MutableMesh->GetBoneMap().Num() > 256 ? 2 : 1;
 				MeshData.MaxNumBonesPerVertex = importModel->LODModels[LOD].GetMaxBoneInfluences();
 				
 				// When mesh data is combined we will get an upper and lower bound of the number of triangles.

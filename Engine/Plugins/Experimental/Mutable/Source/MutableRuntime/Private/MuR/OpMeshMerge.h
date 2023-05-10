@@ -16,7 +16,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//! Merge two meshes into one new mesh
 	//---------------------------------------------------------------------------------------------
-	inline MeshPtr MeshMerge(const Mesh* pFirst, const Mesh* pSecond)
+	inline MeshPtr MeshMerge(const Mesh* pFirst, const Mesh* pSecond, bool bMergeSurfaces)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(MeshMerge);
 
@@ -34,122 +34,113 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Indices);
 
-			int firstCount = pFirst->GetIndexBuffers().GetElementCount();
-			int secondCount = pSecond->GetIndexBuffers().GetElementCount();
-			pResult->GetIndexBuffers().SetElementCount(firstCount + secondCount);
+			const int32 FirstCount = pFirst->GetIndexBuffers().GetElementCount();
+			const int32 SecondCount = pSecond->GetIndexBuffers().GetElementCount();
+			pResult->GetIndexBuffers().SetElementCount(FirstCount + SecondCount);
 
 			check(pFirst->GetIndexBuffers().GetBufferCount() <= 1);
 			check(pSecond->GetIndexBuffers().GetBufferCount() <= 1);
 			pResult->GetIndexBuffers().SetBufferCount(1);
 
+			MESH_BUFFER& ResultIndexBuffer = pResult->GetIndexBuffers().m_buffers[0];
+
+			const MESH_BUFFER& FirstIndexBuffer = pFirst->GetIndexBuffers().m_buffers[0];
+			const MESH_BUFFER& SecondIndexBuffer = pSecond->GetIndexBuffers().m_buffers[0];
+
+			// Avoid unused variable warnings
+			(void)FirstIndexBuffer;
+			(void)SecondIndexBuffer;
+
 			// This will be changed below if need to change the format of the index buffers.
-			MESH_BUFFER_FORMAT requiredBufferFormatChange = MBF_NONE;
+			MESH_BUFFER_FORMAT IndexBufferFormat = MBF_NONE;
 
-			if (firstCount && secondCount)
+			if (FirstCount && SecondCount)
 			{
-				const MESH_BUFFER& first = pFirst->GetIndexBuffers().m_buffers[0];
-				const MESH_BUFFER& second = pSecond->GetIndexBuffers().m_buffers[0];
-				check(first.m_channels == second.m_channels);
-				check(first.m_elementSize == second.m_elementSize);
-				check(first.m_channels.IsEmpty() || first.m_channels[0].m_format == second.m_channels[0].m_format);
-
-				// Avoid unused variable warnings
-				(void)first;
-				(void)second;
+				check(!FirstIndexBuffer.m_channels.IsEmpty());
+				check(FirstIndexBuffer.m_channels == SecondIndexBuffer.m_channels);
+				check(FirstIndexBuffer.m_elementSize == SecondIndexBuffer.m_elementSize);
 
 				// We need to know the total number of vertices in case we need to adjust the index buffer format.
-				uint64_t totalVertexCount = pFirst->GetVertexBuffers().GetElementCount()
-					+ pSecond->GetVertexBuffers().GetElementCount();
-				uint64_t maxValueBits = GetMeshFormatData(pFirst->GetIndexBuffers().m_buffers[0].m_channels[0].m_format).m_maxValueBits;
-				uint64_t maxSupportedVertices = uint64_t(1) << maxValueBits;
+				const uint64 totalVertexCount = pFirst->GetVertexBuffers().GetElementCount() + pSecond->GetVertexBuffers().GetElementCount();
+				const uint64 maxValueBits = GetMeshFormatData(pFirst->GetIndexBuffers().m_buffers[0].m_channels[0].m_format).m_maxValueBits;
+				const uint64 maxSupportedVertices = uint64(1) << maxValueBits;
+				
 				if (totalVertexCount > maxSupportedVertices)
 				{
-					if (totalVertexCount > 0xFFFF)
-					{
-						requiredBufferFormatChange = MBF_UINT32;
-					}
-					else
-					{
-						requiredBufferFormatChange = MBF_UINT16;
-					}
+					IndexBufferFormat = totalVertexCount > MAX_uint16 ? MBF_UINT32 : MBF_UINT16;
 				}
+
 			}
-
-			MESH_BUFFER& result = pResult->GetIndexBuffers().m_buffers[0];
-
-			if (requiredBufferFormatChange != MBF_NONE)
+			
+			if (IndexBufferFormat != MBF_NONE)
 			{
 				// We only support vertex indices in case of having to change the format.
-				check(pFirst->GetIndexBuffers().m_buffers[0].m_channels.Num() == 1);
+				check(FirstIndexBuffer.m_channels.Num() == 1);
 
-				result.m_channels.SetNum(1);
-				result.m_channels[0].m_semantic = MBS_VERTEXINDEX;
-				result.m_channels[0].m_format = requiredBufferFormatChange;
-				result.m_channels[0].m_componentCount = 1;
-				result.m_channels[0].m_semanticIndex = 0;
-				result.m_channels[0].m_offset = 0;
-				result.m_elementSize = GetMeshFormatData(requiredBufferFormatChange).m_size;
+				ResultIndexBuffer.m_channels.SetNum(1);
+				ResultIndexBuffer.m_channels[0].m_semantic = MBS_VERTEXINDEX;
+				ResultIndexBuffer.m_channels[0].m_format = IndexBufferFormat;
+				ResultIndexBuffer.m_channels[0].m_componentCount = 1;
+				ResultIndexBuffer.m_channels[0].m_semanticIndex = 0;
+				ResultIndexBuffer.m_channels[0].m_offset = 0;
+				ResultIndexBuffer.m_elementSize = GetMeshFormatData(IndexBufferFormat).m_size;
 			}
-			else if (firstCount)
+			else if (FirstCount)
 			{
-				const MESH_BUFFER& first = pFirst->GetIndexBuffers().m_buffers[0];
-				result.m_channels = first.m_channels;
-				result.m_elementSize = first.m_elementSize;
+				ResultIndexBuffer.m_channels = FirstIndexBuffer.m_channels;
+				ResultIndexBuffer.m_elementSize = FirstIndexBuffer.m_elementSize;
 			}
-			else if (secondCount)
+			else if (SecondCount)
 			{
-				const MESH_BUFFER& second = pSecond->GetIndexBuffers().m_buffers[0];
-				result.m_channels = second.m_channels;
-				result.m_elementSize = second.m_elementSize;
+				ResultIndexBuffer.m_channels = SecondIndexBuffer.m_channels;
+				ResultIndexBuffer.m_elementSize = SecondIndexBuffer.m_elementSize;
 			}
 
-			result.m_data.SetNum(result.m_elementSize * (firstCount + secondCount));
+			ResultIndexBuffer.m_data.SetNum(ResultIndexBuffer.m_elementSize * (FirstCount + SecondCount));
 
-			check(result.m_channels.Num() == 1);
-			check(result.m_channels[0].m_semantic == MBS_VERTEXINDEX);
+			check(ResultIndexBuffer.m_channels.Num() == 1);
+			check(ResultIndexBuffer.m_channels[0].m_semantic == MBS_VERTEXINDEX);
 
-			if (result.m_data.Num())
+			if (!ResultIndexBuffer.m_data.IsEmpty())
 			{
-				if (firstCount)
+				if (FirstCount)
 				{
-					const MESH_BUFFER& first = pFirst->GetIndexBuffers().m_buffers[0];
-
-					if (requiredBufferFormatChange == MBF_NONE
-						|| requiredBufferFormatChange == first.m_channels[0].m_format)
+					if (IndexBufferFormat == MBF_NONE
+						|| IndexBufferFormat == FirstIndexBuffer.m_channels[0].m_format)
 					{
-						FMemory::Memcpy(&result.m_data[0],
-							&first.m_data[0],
-							first.m_elementSize * firstCount);
+						FMemory::Memcpy(&ResultIndexBuffer.m_data[0],
+							&FirstIndexBuffer.m_data[0],
+							FirstIndexBuffer.m_elementSize * FirstCount);
 					}
 					else
 					{
 						// Conversion required
-						const uint8_t* pSource = &first.m_data[0];
-						uint8_t* pDest = &result.m_data[0];
-						switch (requiredBufferFormatChange)
+						const uint8_t* pSource = &FirstIndexBuffer.m_data[0];
+						uint8_t* pDest = &ResultIndexBuffer.m_data[0];
+						switch (IndexBufferFormat)
 						{
 						case MBF_UINT32:
 						{
-							switch (first.m_channels[0].m_format)
+							switch (FirstIndexBuffer.m_channels[0].m_format)
 							{
 							case MBF_UINT16:
 							{
-								for (int v = 0; v < firstCount; ++v)
+								for (int v = 0; v < FirstCount; ++v)
 								{
 									*(uint32_t*)pDest = *(const uint16*)pSource;
-									pSource += first.m_elementSize;
-									pDest += result.m_elementSize;
+									pSource += FirstIndexBuffer.m_elementSize;
+									pDest += ResultIndexBuffer.m_elementSize;
 								}
 								break;
 							}
 
 							case MBF_UINT8:
 							{
-								for (int v = 0; v < firstCount; ++v)
+								for (int v = 0; v < FirstCount; ++v)
 								{
 									*(uint32_t*)pDest = *(const uint8_t*)pSource;
-									pSource += first.m_elementSize;
-									pDest += result.m_elementSize;
+									pSource += FirstIndexBuffer.m_elementSize;
+									pDest += ResultIndexBuffer.m_elementSize;
 								}
 								break;
 							}
@@ -163,16 +154,16 @@ namespace mu
 
 						case MBF_UINT16:
 						{
-							switch (first.m_channels[0].m_format)
+							switch (FirstIndexBuffer.m_channels[0].m_format)
 							{
 
 							case MBF_UINT8:
 							{
-								for (int v = 0; v < firstCount; ++v)
+								for (int v = 0; v < FirstCount; ++v)
 								{
 									*(uint16*)pDest = *(const uint8_t*)pSource;
-									pSource += first.m_elementSize;
-									pDest += result.m_elementSize;
+									pSource += FirstIndexBuffer.m_elementSize;
+									pDest += ResultIndexBuffer.m_elementSize;
 								}
 								break;
 							}
@@ -191,29 +182,28 @@ namespace mu
 					}
 				}
 
-				if (secondCount)
+				if (SecondCount)
 				{
-					const MESH_BUFFER& second = pSecond->GetIndexBuffers().m_buffers[0];
-					const uint8_t* pSource = &second.m_data[0];
-					uint8_t* pDest = &result.m_data[result.m_elementSize * firstCount];
+					const uint8_t* pSource = &SecondIndexBuffer.m_data[0];
+					uint8_t* pDest = &ResultIndexBuffer.m_data[ResultIndexBuffer.m_elementSize * FirstCount];
 
 					uint32_t firstVertexCount = pFirst->GetVertexBuffers().GetElementCount();
 
-					if (requiredBufferFormatChange == MBF_NONE
-						|| requiredBufferFormatChange == second.m_channels[0].m_format)
+					if (IndexBufferFormat == MBF_NONE
+						|| IndexBufferFormat == SecondIndexBuffer.m_channels[0].m_format)
 					{
-						switch (second.m_channels[0].m_format)
+						switch (SecondIndexBuffer.m_channels[0].m_format)
 						{
 						case MBF_INT32:
 						case MBF_UINT32:
 						case MBF_NINT32:
 						case MBF_NUINT32:
 						{
-							for (int v = 0; v < secondCount; ++v)
+							for (int v = 0; v < SecondCount; ++v)
 							{
 								*(uint32_t*)pDest = firstVertexCount + *(const uint32_t*)pSource;
-								pSource += second.m_elementSize;
-								pDest += result.m_elementSize;
+								pSource += SecondIndexBuffer.m_elementSize;
+								pDest += ResultIndexBuffer.m_elementSize;
 							}
 							break;
 						}
@@ -223,11 +213,11 @@ namespace mu
 						case MBF_NINT16:
 						case MBF_NUINT16:
 						{
-							for (int v = 0; v < secondCount; ++v)
+							for (int v = 0; v < SecondCount; ++v)
 							{
 								*(uint16*)pDest = uint16(firstVertexCount) + *(const uint16*)pSource;
-								pSource += second.m_elementSize;
-								pDest += result.m_elementSize;
+								pSource += SecondIndexBuffer.m_elementSize;
+								pDest += ResultIndexBuffer.m_elementSize;
 							}
 							break;
 						}
@@ -237,11 +227,11 @@ namespace mu
 						case MBF_NINT8:
 						case MBF_NUINT8:
 						{
-							for (int v = 0; v < secondCount; ++v)
+							for (int v = 0; v < SecondCount; ++v)
 							{
 								*(uint8_t*)pDest = uint8_t(firstVertexCount) + *(const uint8_t*)pSource;
-								pSource += second.m_elementSize;
-								pDest += result.m_elementSize;
+								pSource += SecondIndexBuffer.m_elementSize;
+								pDest += ResultIndexBuffer.m_elementSize;
 							}
 							break;
 						}
@@ -254,23 +244,23 @@ namespace mu
 					else
 					{
 						// Format conversion required
-						switch (requiredBufferFormatChange)
+						switch (IndexBufferFormat)
 						{
 
 						case MBF_UINT32:
 						{
-							switch (second.m_channels[0].m_format)
+							switch (SecondIndexBuffer.m_channels[0].m_format)
 							{
 							case MBF_INT16:
 							case MBF_UINT16:
 							case MBF_NINT16:
 							case MBF_NUINT16:
 							{
-								for (int v = 0; v < secondCount; ++v)
+								for (int v = 0; v < SecondCount; ++v)
 								{
 									*(uint32_t*)pDest = uint32_t(firstVertexCount) + *(const uint16*)pSource;
-									pSource += second.m_elementSize;
-									pDest += result.m_elementSize;
+									pSource += SecondIndexBuffer.m_elementSize;
+									pDest += ResultIndexBuffer.m_elementSize;
 								}
 								break;
 							}
@@ -280,11 +270,11 @@ namespace mu
 							case MBF_NINT8:
 							case MBF_NUINT8:
 							{
-								for (int v = 0; v < secondCount; ++v)
+								for (int v = 0; v < SecondCount; ++v)
 								{
 									*(uint32_t*)pDest = uint32_t(firstVertexCount) + *(const uint8_t*)pSource;
-									pSource += second.m_elementSize;
-									pDest += result.m_elementSize;
+									pSource += SecondIndexBuffer.m_elementSize;
+									pDest += ResultIndexBuffer.m_elementSize;
 								}
 								break;
 							}
@@ -299,18 +289,18 @@ namespace mu
 
 						case MBF_UINT16:
 						{
-							switch (second.m_channels[0].m_format)
+							switch (SecondIndexBuffer.m_channels[0].m_format)
 							{
 							case MBF_INT8:
 							case MBF_UINT8:
 							case MBF_NINT8:
 							case MBF_NUINT8:
 							{
-								for (int v = 0; v < secondCount; ++v)
+								for (int v = 0; v < SecondCount; ++v)
 								{
 									*(uint16*)pDest = uint16(firstVertexCount) + *(const uint8_t*)pSource;
-									pSource += second.m_elementSize;
-									pDest += result.m_elementSize;
+									pSource += SecondIndexBuffer.m_elementSize;
+									pDest += ResultIndexBuffer.m_elementSize;
 								}
 								break;
 							}
@@ -338,20 +328,20 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Faces);
 
-			int firstCount = pFirst->GetFaceBuffers().GetElementCount();
-			int secondCount = pSecond->GetFaceBuffers().GetElementCount();
-			pResult->GetFaceBuffers().SetElementCount(firstCount + secondCount);
+			const int32 FirstCount = pFirst->GetFaceBuffers().GetElementCount();
+			const int32 SecondCount = pSecond->GetFaceBuffers().GetElementCount();
+			pResult->GetFaceBuffers().SetElementCount(FirstCount + SecondCount);
 			pResult->GetFaceBuffers().SetBufferCount(pFirst->GetFaceBuffers().GetBufferCount());
 
 			// Merge only the buffers present in the first mesh
-			for (int b = 0; b < pResult->GetFaceBuffers().GetBufferCount(); ++b)
+			for (int32 b = 0; b < pResult->GetFaceBuffers().GetBufferCount(); ++b)
 			{
 				const MESH_BUFFER& first = pFirst->GetFaceBuffers().m_buffers[b];
 
 				MESH_BUFFER& result = pResult->GetFaceBuffers().m_buffers[b];
 				result.m_channels = first.m_channels;
 				result.m_elementSize = first.m_elementSize;
-				result.m_data.SetNum(result.m_elementSize * (firstCount + secondCount));
+				result.m_data.SetNum(result.m_elementSize * (FirstCount + SecondCount));
 
 				MESH_BUFFER_SEMANTIC semantic = MBS_NONE;
 				int semanticIndex = 0;
@@ -361,15 +351,15 @@ namespace mu
 				pFirst->GetFaceBuffers().GetChannel
 				(b, 0, &semantic, &semanticIndex, &type, &components, &offset);
 
-				if (firstCount)
+				if (FirstCount)
 				{
 					FMemory::Memcpy(&result.m_data[0],
 						&first.m_data[0],
-						result.m_elementSize * firstCount
+						result.m_elementSize * FirstCount
 					);
 				}
 
-				if (secondCount)
+				if (SecondCount)
 				{
 					// Find in the second mesh
 					int otherBuffer = -1;
@@ -384,15 +374,15 @@ namespace mu
 						check(first.m_channels == second.m_channels);
 
 						// Raw copy
-						FMemory::Memcpy(&result.m_data[result.m_elementSize * firstCount],
+						FMemory::Memcpy(&result.m_data[result.m_elementSize * FirstCount],
 							&second.m_data[0],
-							result.m_elementSize * secondCount);
+							result.m_elementSize * SecondCount);
 					}
 					else
 					{
 						// Fill with zeroes
-						FMemory::Memzero(&result.m_data[result.m_elementSize * firstCount],
-							result.m_elementSize * secondCount);
+						FMemory::Memzero(&result.m_data[result.m_elementSize * FirstCount],
+							result.m_elementSize * SecondCount);
 					}
 				}
 			}
@@ -422,18 +412,6 @@ namespace mu
 		}
 
 
-		// Surfaces
-		//-----------------
-		pResult->m_surfaces = pFirst->m_surfaces;
-
-		for (const auto& s : pSecond->m_surfaces)
-		{
-			pResult->m_surfaces.Add(s);
-			pResult->m_surfaces.Last().m_firstVertex += pFirst->GetVertexCount();
-			pResult->m_surfaces.Last().m_firstIndex += pFirst->GetIndexCount();
-		}
-
-
 		// Skeleton
 		//---------------------------
 
@@ -446,20 +424,17 @@ namespace mu
 		}
 
 		// Do they have the same skeleton?
-		bool remapNeeded = pFirst->GetSkeleton() != pSecond->GetSkeleton();
+		bool bMergeSkeletons = pFirst->GetSkeleton() != pSecond->GetSkeleton();
 
 		// Are they different skeletons but with the same data?
-		if (remapNeeded && pFirst->GetSkeleton() && pSecond->GetSkeleton())
+		if (bMergeSkeletons && pFirst->GetSkeleton() && pSecond->GetSkeleton())
 		{
-			remapNeeded = !(*pFirst->GetSkeleton()
-				==
-				*pSecond->GetSkeleton());
+			bMergeSkeletons = !(*pFirst->GetSkeleton() == *pSecond->GetSkeleton());
 		}
 
+		TArray<uint16> SecondToResultBoneIndices;
 
-		TArray<int32> secondToFirstBones;
-
-		if (remapNeeded)
+		if (bMergeSkeletons)
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Skeleton);
 			Ptr<Skeleton> pResultSkeleton;
@@ -467,53 +442,122 @@ namespace mu
 			mu::SkeletonPtrConst pFirstSkeleton = pFirst->GetSkeleton();
 			mu::SkeletonPtrConst pSecondSkeleton = pSecond->GetSkeleton();
 
-			const int32 pFirstBoneCount = pFirstSkeleton ? pFirstSkeleton->GetBoneCount() : 0;
-			const int32 pSecondBoneCount = pSecondSkeleton ? pSecondSkeleton->GetBoneCount() : 0;
+			const int32 NumBonesFirst = pFirstSkeleton ? pFirstSkeleton->GetBoneCount() : 0;
+			const int32 NumBonesSecond = pSecondSkeleton ? pSecondSkeleton->GetBoneCount() : 0;
 
 			pResultSkeleton = pFirstSkeleton ? pFirstSkeleton->Clone() : new Skeleton;
 			pResult->SetSkeleton(pResultSkeleton);
 
-			secondToFirstBones.SetNumUninitialized(pSecondBoneCount);
+			SecondToResultBoneIndices.SetNumUninitialized(NumBonesSecond);
 
 			// Merge pSecond and build the remap array 
-			for (int32 ob = 0; ob < pSecondBoneCount; ++ob)
+			for (int32 SecondBoneIndex = 0; SecondBoneIndex < NumBonesSecond; ++SecondBoneIndex)
 			{
-				int32 tb = INDEX_NONE;
-				for (int32 c = 0; tb < 0 && c < pResultSkeleton->m_bones.Num(); ++c)
+				int16 BoneIndex = INDEX_NONE;
+				for (int32 FirstBoneIndex = 0; FirstBoneIndex < NumBonesFirst; ++FirstBoneIndex)
 				{
-					if (pResultSkeleton->m_bones[c] == pSecondSkeleton->GetBoneName(ob))
+					if (pResultSkeleton->m_bones[FirstBoneIndex] == pSecondSkeleton->GetBoneName(SecondBoneIndex))
 					{
-						tb = c;
+						BoneIndex = FirstBoneIndex;
 						break;
 					}
 				}
 
 				// Add a new bone
-				if (tb == INDEX_NONE)
+				if (BoneIndex == INDEX_NONE)
 				{
-					tb = pResultSkeleton->m_bones.Num();
-					pResultSkeleton->m_bones.Add(pSecondSkeleton->m_bones[ob]);
+					BoneIndex = pResultSkeleton->m_bones.Add(pSecondSkeleton->m_bones[SecondBoneIndex]);
 
 					// Add an incorrect index, to be fixed below in case the parent index is later in the bone array.
-					pResultSkeleton->m_boneParents.Add(pSecondSkeleton->m_boneParents[ob]);
+					pResultSkeleton->m_boneParents.Add(pSecondSkeleton->m_boneParents[SecondBoneIndex]);
 				}
 
-				secondToFirstBones[ob] = tb;
+				SecondToResultBoneIndices[SecondBoneIndex] = (uint16)BoneIndex;
 			}
 
 			// Fix second mesh bone parents
-			for (int32 ob = pFirstBoneCount; ob < pResultSkeleton->m_boneParents.Num(); ++ob)
+			for (int32 ob = NumBonesFirst; ob < pResultSkeleton->m_boneParents.Num(); ++ob)
 			{
 				int16_t secondMeshIndex = pResultSkeleton->m_boneParents[ob];
 				if (secondMeshIndex != INDEX_NONE)
 				{
-					pResultSkeleton->m_boneParents[ob] = (uint16)secondToFirstBones[secondMeshIndex];
+					pResultSkeleton->m_boneParents[ob] = SecondToResultBoneIndices[secondMeshIndex];
 				}
 			}
 		}
 		else
 		{
 			pResult->SetSkeleton(pFirst->GetSkeleton());
+		}
+
+
+		// Surfaces
+		//---------------------------
+		
+		// Remap bone indices if we merge surfaces since bonemaps will be merged too.
+		bool bRemapBoneIndices = false;
+		TArray<uint16> RemappedBoneMapIndices;
+
+		// Used to know the format of the bone index buffer
+		uint32 MaxBoneMapIndices = 0;
+		const int32 NumSecondBoneMapIndices = pSecond->BoneMapIndices.Num();
+
+		{
+			MUTABLE_CPUPROFILER_SCOPE(Surfaces);
+			
+			const int32 NumFirstBoneMapIndices = pFirst->BoneMapIndices.Num();
+			pResult->BoneMapIndices = pFirst->BoneMapIndices;
+
+			if (bMergeSurfaces)
+			{
+				// Merge BoneMaps
+				RemappedBoneMapIndices.SetNumUninitialized(NumSecondBoneMapIndices);
+
+				for (uint16 SecondBoneMapIndex = 0; SecondBoneMapIndex < NumSecondBoneMapIndices; ++SecondBoneMapIndex)
+				{
+					const int32 SecondBoneIndex = pSecond->BoneMapIndices[SecondBoneMapIndex];
+					const int32 BoneIndex = bMergeSkeletons ? SecondToResultBoneIndices[SecondBoneIndex] : SecondBoneIndex;
+					const int32 BoneMapIndex = pResult->BoneMapIndices.AddUnique(BoneIndex);
+					RemappedBoneMapIndices[SecondBoneMapIndex] = BoneMapIndex;
+
+					bRemapBoneIndices = bRemapBoneIndices || BoneMapIndex != SecondBoneMapIndex;
+				}
+
+				MESH_SURFACE& NewSurface = pResult->m_surfaces.AddDefaulted_GetRef();
+				NewSurface.m_vertexCount = pFirst->GetVertexCount() + pSecond->GetVertexCount();
+				NewSurface.m_indexCount = pFirst->GetIndexCount() + pSecond->GetIndexCount();
+				NewSurface.BoneMapCount = pResult->BoneMapIndices.Num();
+			}
+			else
+			{
+				// Add the bonemaps of the second mesh with the fixed BoneIndices
+				const int32 NumBoneMapIndices = NumFirstBoneMapIndices + NumSecondBoneMapIndices;
+				pResult->BoneMapIndices.Reserve(NumBoneMapIndices);
+
+				for (const uint16& BoneIndex : pSecond->BoneMapIndices)
+				{
+					pResult->BoneMapIndices.Add(bMergeSkeletons ? SecondToResultBoneIndices[BoneIndex] : BoneIndex);
+				}
+
+				// Add pFirst surfaces
+				pResult->m_surfaces = pFirst->m_surfaces;
+
+				const int32 FirstVertexIndex = pFirst->GetVertexCount();
+				const int32 FirstIndexIndex = pFirst->GetIndexCount();
+
+				check(pSecond->m_surfaces.Num() == 1);
+				MESH_SURFACE& NewSurface = pResult->m_surfaces.Add_GetRef(pSecond->m_surfaces[0]);
+				NewSurface.m_firstVertex += FirstVertexIndex;
+				NewSurface.m_firstIndex += FirstIndexIndex;
+				NewSurface.BoneMapIndex += NumFirstBoneMapIndices;
+			}
+
+			for (const MESH_SURFACE& Surface : pResult->m_surfaces)
+			{
+				MaxBoneMapIndices = FMath::Max(MaxBoneMapIndices, Surface.BoneMapCount);
+			}
+
+			pResult->BoneMapIndices.Shrink();
 		}
 
 
@@ -708,18 +752,44 @@ namespace mu
 		{
             MUTABLE_CPUPROFILER_SCOPE(Vertices);
 
-            int firstCount = pFirst->GetVertexBuffers().GetElementCount();
-			int secondCount = pSecond->GetVertexBuffers().GetElementCount();
+            const int32 FirstCount = pFirst->GetVertexBuffers().GetElementCount();
+			const int32 SecondCount = pSecond->GetVertexBuffers().GetElementCount();
 
 			// TODO: when formats match, which at runtime should be always.
-			bool fastPath = pFirst->GetVertexBuffers().HasSameFormat( pSecond->GetVertexBuffers() );
+			bool FastPath = pFirst->GetVertexBuffers().HasSameFormat( pSecond->GetVertexBuffers() );
 
-			fastPath = fastPath && !remapNeeded;
+			// Check if the format of the BoneIndex buffer has to change
+			bool bChangeBoneIndicesFormat = false;
+			MESH_BUFFER_FORMAT BoneIndexFormat = MaxBoneMapIndices > MAX_uint8 ? MBF_UINT16 : MBF_UINT8;
+
+			{
+				// Iterate all vertex buffers 
+				FMeshBufferSet& VertexBuffers = pResult->GetVertexBuffers();
+				for (int32 VertexBufferIndex = 0; !bChangeBoneIndicesFormat &&  VertexBufferIndex < VertexBuffers.m_buffers.Num(); ++VertexBufferIndex)
+				{
+					MESH_BUFFER& Buffer = VertexBuffers.m_buffers[VertexBufferIndex];
+
+					const int32 elemSize = VertexBuffers.GetElementSize(VertexBufferIndex);
+					const int32 firstSize = FirstCount * elemSize;
+
+					const int32 ChannelsCount = VertexBuffers.GetBufferChannelCount(VertexBufferIndex);
+					for (int32 ChannelIndex = 0; ChannelIndex < ChannelsCount; ++ChannelIndex)
+					{
+						if (Buffer.m_channels[ChannelIndex].m_semantic == MBS_BONEINDICES)
+						{
+							bChangeBoneIndicesFormat = Buffer.m_channels[ChannelIndex].m_format != BoneIndexFormat;
+							break;
+						}
+					}
+				}
+
+				FastPath = FastPath && !bChangeBoneIndicesFormat;
+			}
 
 			MeshPtrConst pVFirst;
 			MeshPtrConst pVSecond;
 
-			if ( !fastPath )
+			if ( !FastPath )
 			{
                 MUTABLE_CPUPROFILER_SCOPE(SlowPath);
 
@@ -815,29 +885,21 @@ namespace mu
                     }
                 }
 
-				// Change the format of the bone indices buffer if there are more than 256 bones.
-                int pResultBoneCount =
-                    pResult->GetSkeleton()  ? pResult->GetSkeleton()->GetBoneCount() : 0;
-                if (pResultBoneCount > 256)
+				// Change the format of the bone indices buffer
+				if(bChangeBoneIndicesFormat)
 				{
-					// Desired format
-					MESH_BUFFER_FORMAT format = pResultBoneCount > 65535 ? MBF_UINT32 : MBF_UINT16;
-
 					// Iterate all vertex buffers and update the format
 					FMeshBufferSet& VertexBuffers = pResult->GetVertexBuffers();
 					for (int32 VertexBufferIndex = 0; VertexBufferIndex < VertexBuffers.m_buffers.Num(); ++VertexBufferIndex)
 					{
 						MESH_BUFFER& result = VertexBuffers.m_buffers[VertexBufferIndex];
 
-						const int32 elemSize = VertexBuffers.GetElementSize(VertexBufferIndex);
-						const int32 firstSize = firstCount * elemSize;
-
 						const int32 ChannelsCount = VertexBuffers.GetBufferChannelCount(VertexBufferIndex);
 						for (int32 ChannelIndex = 0; ChannelIndex < ChannelsCount; ++ChannelIndex)
 						{
 							if (result.m_channels[ChannelIndex].m_semantic == MBS_BONEINDICES)
 							{
-								result.m_channels[ChannelIndex].m_format = format;
+								result.m_channels[ChannelIndex].m_format = BoneIndexFormat;
 
 								// Reset offsets
 								int32 offset = 0;
@@ -855,7 +917,7 @@ namespace mu
 				}
 
                 // Allocate vertices
-                pResult->GetVertexBuffers().SetElementCount( firstCount + secondCount );
+                pResult->GetVertexBuffers().SetElementCount( FirstCount + SecondCount );
 
 				// Convert the source meshes to the new format
                 if (pFirst->GetVertexBuffers().HasSameFormat(pResult->GetVertexBuffers()))
@@ -890,7 +952,7 @@ namespace mu
 
 
 			pResult->m_VertexBuffers = pVFirst->m_VertexBuffers;
-			pResult->GetVertexBuffers().SetElementCount( firstCount + secondCount );
+			pResult->GetVertexBuffers().SetElementCount( FirstCount + SecondCount );
 
             // first copy all the vertex data
 			{
@@ -898,132 +960,112 @@ namespace mu
 				{
 					MESH_BUFFER& result = pResult->GetVertexBuffers().m_buffers[vb];
 					const MESH_BUFFER& second = pVSecond->GetVertexBuffers().m_buffers[vb];
-					if ( secondCount )
+					if ( SecondCount )
 					{
 						int elemSize = pResult->GetVertexBuffers().GetElementSize((int)vb);
-						int firstSize = firstCount * elemSize;
-						int secondSize = secondCount * elemSize;
+						int firstSize = FirstCount * elemSize;
+						int secondSize = SecondCount * elemSize;
 
 						FMemory::Memcpy( &result.m_data[firstSize], &second.m_data[0], secondSize );
 					}
 				}
 			}
 
-            // TODO This could eventually be part of the mesh format: force the same skeleton.
-            if (remapNeeded)
+
+            if (bRemapBoneIndices)
             {
                 MUTABLE_CPUPROFILER_SCOPE(Remap);
 
-                // We need to remap the bone indices of the second mesh vertices that we already copied
-                // to result
-				for ( int32 vb=0; vb<pResult->GetVertexBuffers().m_buffers.Num(); ++vb )
+				// We need to remap the bone indices of the second mesh vertices that we already copied
+				// to result
+				check(!RemappedBoneMapIndices.IsEmpty())
+
+				// Iterate all vertex buffers and update the format
+				FMeshBufferSet& VertexBuffers = pResult->GetVertexBuffers();
+				for (int32 VertexBufferIndex = 0; VertexBufferIndex < VertexBuffers.m_buffers.Num(); ++VertexBufferIndex)
 				{
-					MESH_BUFFER& result = pResult->GetVertexBuffers().m_buffers[vb];
+					MESH_BUFFER& ResultBuffer = VertexBuffers.m_buffers[VertexBufferIndex];
 
-					int elemSize = pResult->GetVertexBuffers().GetElementSize((int)vb);
-                    int firstSize = firstCount * elemSize;
+					const int32 ElemSize = VertexBuffers.GetElementSize(VertexBufferIndex);
+					const int32 FirstSize = FirstCount * ElemSize;
 
-					for ( int c=0; c<pResult->GetVertexBuffers().GetBufferChannelCount( (int)vb ); ++c )
+					const int32 ChannelsCount = VertexBuffers.GetBufferChannelCount(VertexBufferIndex);
+					for (int32 ChannelIndex = 0; ChannelIndex < ChannelsCount; ++ChannelIndex)
 					{
-						// Get info about the destination channel
-						MESH_BUFFER_SEMANTIC semantic = MBS_NONE;
-						int semanticIndex = 0;
-						MESH_BUFFER_FORMAT format = MBF_NONE;
-						int components = 0;
-						int offset = 0;
-						pResult->GetVertexBuffers().GetChannel
-								( (int)vb, c, &semantic, &semanticIndex, &format, &components, &offset );
-
-                        int resultOffset = firstSize + offset;
-
-						// Check special channels that need extra work
-						if ( semantic==MBS_BONEINDICES )
+						if (ResultBuffer.m_channels[ChannelIndex].m_semantic != MBS_BONEINDICES)
 						{
-							// Bone indices may need remapping
-                            for ( int si=0; si<pVSecond->GetVertexCount(); ++si )
+							continue;
+						}
+						
+						int32 ResultOffset = FirstSize + ResultBuffer.m_channels[ChannelIndex].m_offset;
+
+						const int32 NumComponents = ResultBuffer.m_channels[ChannelIndex].m_componentCount;
+
+						// Bone indices may need remapping
+						for (int32 VertexIndex = 0; VertexIndex < pVSecond->GetVertexCount(); ++VertexIndex)
+						{
+							switch (BoneIndexFormat)
 							{
-								switch ( format )
-								{
-								case MBF_INT8:
-								case MBF_UINT8:
-								{
-                                    uint8_t* pD = reinterpret_cast<uint8_t*>
-											( &result.m_data[resultOffset] );
+							case MBF_INT8:
+							case MBF_UINT8:
+							{
+								uint8* pD = reinterpret_cast<uint8*>
+									(&ResultBuffer.m_data[ResultOffset]);
 
-                                    int comp=0;
-                                    for ( ; comp<components; ++comp )
+								for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
+								{
+									uint8 BoneMapIndex = pD[ComponentIndex];
+
+									// be defensive
+									if (BoneMapIndex < NumSecondBoneMapIndices)
 									{
-                                        uint8_t bone = pD[comp];
-
-                                        // be defensive
-                                        if (bone<secondToFirstBones.Num())
-                                        {
-                                            pD[comp] = (uint8_t)secondToFirstBones[ bone ];
-                                        }
-                                        else
-                                        {
-                                            pD[comp] = 0;
-                                        }
+										pD[ComponentIndex] = (uint8)RemappedBoneMapIndices[BoneMapIndex];
 									}
-
-									resultOffset += elemSize;
-									break;
-								}
-
-								case MBF_INT16:
-								case MBF_UINT16:
-								{
-                                    uint16* pD = reinterpret_cast<uint16*>
-											( &result.m_data[resultOffset] );
-
-                                    int comp=0;
-                                    for ( ; comp<components; ++comp )
+									else
 									{
-                                        uint16 bone = pD[comp];
-
-                                        // be defensive
-                                        if (bone<secondToFirstBones.Num())
-                                        {
-                                            pD[comp] = (uint16)secondToFirstBones[ bone ];
-                                        }
-                                        else
-                                        {
-                                            pD[comp] = 0;
-                                        }
-                                    }
-
-									resultOffset += elemSize;
-									break;
+										pD[ComponentIndex] = 0;
+									}
 								}
 
-								case MBF_INT32:
-								case MBF_UINT32:
+								ResultOffset += ElemSize;
+								break;
+							}
+
+							case MBF_INT16:
+							case MBF_UINT16:
+							{
+								uint16* pD = reinterpret_cast<uint16*>
+									(&ResultBuffer.m_data[ResultOffset]);
+
+								for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
 								{
-                                    uint32_t* pD = reinterpret_cast<uint32_t*>
-											( &result.m_data[resultOffset] );
+									uint16 BoneMapIndex = pD[ComponentIndex];
 
-                                    for ( int comp=0; comp<components; ++comp )
+									// be defensive
+									if (BoneMapIndex < NumSecondBoneMapIndices)
 									{
-                                        uint32_t bone = pD[comp];
-
-                                        // be defensive
-                                        if (bone< (uint32_t)secondToFirstBones.Num())
-                                        {
-                                            pD[comp] = (uint32_t)secondToFirstBones[ bone ];
-                                        }
-                                        else
-                                        {
-                                            pD[comp] = 0;
-                                        }
-                                    }
-
-									resultOffset += elemSize;
-									break;
+										pD[ComponentIndex] = (uint16)RemappedBoneMapIndices[BoneMapIndex];
+									}
+									else
+									{
+										pD[ComponentIndex] = 0;
+									}
 								}
 
-								default:
-									checkf(false, TEXT("Format not supported."));
-								}
+								ResultOffset += ElemSize;
+								break;
+							}
+
+							case MBF_INT32:
+							case MBF_UINT32:
+							{
+								// Unreal does not support 32 bit bone indices
+								checkf(false, TEXT("Format not supported."));
+								break;
+							}
+
+							default:
+								checkf(false, TEXT("Format not supported."));
 							}
 						}
 					}
@@ -1055,7 +1097,7 @@ namespace mu
 
 		return pResult;
 	}
-
+	
 
     //---------------------------------------------------------------------------------------------
     //!
@@ -1098,150 +1140,47 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //! Return null if there is no need to remap the mesh
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshRemapSkeleton( const Mesh* pSource, const Skeleton* pSkeleton )
+    inline MeshPtr MeshRemapSkeleton( const Mesh* SourceMesh, const Skeleton* Skeleton )
     {
-        if ( pSource->GetVertexCount()==0
+        if (SourceMesh->GetVertexCount()==0
              ||
-             !pSource->GetSkeleton()
+             !SourceMesh->GetSkeleton()
              ||
-             pSource->GetSkeleton()->GetBoneCount()==0 )
+			SourceMesh->GetSkeleton()->GetBoneCount()==0 )
         {
             return nullptr;
         }
 
-        auto pSourceSkeleton = pSource->GetSkeleton();
+        mu::SkeletonPtrConst SourceSkeleton = SourceMesh->GetSkeleton();
+		const TArray<uint16>& SourceBoneMaps = SourceMesh->GetBoneMap();
 
-        MeshPtr pResult = pSource->Clone();
-        pResult->SetSkeleton( pSkeleton );
+        // Remap the indices of the bonemap to those of the new skeleton
+		TArray<uint16> RemappedBoneMap;
 
-        // Build a skeleton map
-        TArray<int> sourceToSkeleton;
-        for ( const auto& boneName: pSourceSkeleton->m_bones )
+		const int32 NumBonesBoneMap = SourceBoneMaps.Num();
+		RemappedBoneMap.Reserve(NumBonesBoneMap);
+
+		bool bBonesRemapped = false;
+
+		for (const uint16& SourceBoneIndex : SourceBoneMaps)
+		{
+			const char* BoneName = SourceSkeleton->GetBoneName(SourceBoneIndex);
+			const uint16 BoneIndex = Skeleton->FindBone(BoneName);
+
+			bBonesRemapped = bBonesRemapped || BoneIndex != SourceBoneIndex;
+			RemappedBoneMap.Add(BoneIndex);
+		}
+
+        if (!bBonesRemapped)
         {
-            sourceToSkeleton.Add( pResult->GetSkeleton()->FindBone(boneName.c_str()) );
+            return nullptr;
         }
 
-        bool somethingRemapped = false;
-
-        // Convert all bone index channels
-        FMeshBufferSet& BufSet = pResult->m_VertexBuffers;
-        for (auto& buf: BufSet.m_buffers)
-        {
-            for (auto& chan: buf.m_channels)
-            {
-                if (chan.m_semantic==MBS_BONEINDICES)
-                {
-                    uint8_t* pData = &buf.m_data[chan.m_offset];
-
-                    switch ( chan.m_format )
-                    {
-                    case MBF_INT8:
-                    case MBF_UINT8:
-                    {
-                        for (uint32_t v=0;v<BufSet.m_elementCount; ++v)
-                        {
-                            uint8_t* pTypedData = (uint8_t*)pData;
-
-                            for (int c=0; c<chan.m_componentCount; ++c)
-                            {
-                                size_t boneIndex = size_t( pTypedData[c] );
-                                //check( boneIndex < sourceToSkeleton.Num() );
-                                if ( boneIndex < sourceToSkeleton.Num() )
-                                {
-                                    int bone = sourceToSkeleton[pTypedData[c]];
-                                    if ( pTypedData[c] != uint8_t( bone ) )
-                                    {
-                                        pTypedData[c] = uint8_t( bone );
-                                        somethingRemapped = true;
-                                    }
-                                }
-                                else
-                                {
-                                    UE_LOG(LogMutableCore, Error, TEXT("Bone index out of range.") );
-                                }
-                            }
-
-                            pData += buf.m_elementSize;
-                        }
-                        break;
-                    }
-
-                    case MBF_INT16:
-                    case MBF_UINT16:
-                    {
-                        for (uint32_t v=0;v<BufSet.m_elementCount; ++v)
-                        {
-                            uint16* pTypedData = (uint16*)pData;
-
-                            for (int c=0; c<chan.m_componentCount; ++c)
-                            {
-                                size_t boneIndex = size_t(pTypedData[c]);
-                                //check( boneIndex < sourceToSkeleton.size() );
-                                if ( boneIndex < sourceToSkeleton.Num() )
-                                {
-                                    int bone = sourceToSkeleton[boneIndex];
-                                    if ( pTypedData[c] != uint16(bone) )
-                                    {
-                                        pTypedData[c] = uint16(bone);
-                                        somethingRemapped = true;
-                                    }
-                                }
-                                else
-                                {
-                                    UE_LOG(LogMutableCore, Error, TEXT("Bone index out of range.") );
-                                }
-                            }
-
-                            pData += buf.m_elementSize;
-                        }
-                        break;
-                    }
-
-                    case MBF_INT32:
-                    case MBF_UINT32: 
-                    {
-                        for (uint32_t v=0;v<BufSet.m_elementCount; ++v)
-                        {
-                            uint32_t* pTypedData = (uint32_t*)pData;
-
-                            for (int c=0; c<chan.m_componentCount; ++c)
-                            {
-                                size_t boneIndex = size_t( pTypedData[c] );
-                                //check( boneIndex < sourceToSkeleton.size() );
-                                if ( boneIndex < sourceToSkeleton.Num() )
-                                {
-                                    int bone = sourceToSkeleton[pTypedData[c]];
-                                    if ( pTypedData[c] != uint32_t( bone ) )
-                                    {
-                                        pTypedData[c] = uint32_t( bone );
-                                        somethingRemapped = true;
-                                    }
-                                }
-                                else
-                                {
-                                    UE_LOG(LogMutableCore, Error, TEXT("Bone index out of range.") );
-                                }
-                            }
-
-                            pData += buf.m_elementSize;
-                        }
-                        break;
-                    }
-
-                    default:
-						checkf(false, TEXT("Not implemented."));
-						break;
-                    }
-                }
-            }
-        }
-
-        if (!somethingRemapped)
-        {
-            pResult = nullptr;
-        }
+		MeshPtr pResult = SourceMesh->Clone();
+		pResult->SetSkeleton(Skeleton);
+		pResult->SetBoneMap(RemappedBoneMap);
 
         return pResult;
     }
-
+	
 }

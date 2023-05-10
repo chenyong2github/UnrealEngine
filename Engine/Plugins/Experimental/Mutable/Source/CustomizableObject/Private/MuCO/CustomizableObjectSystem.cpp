@@ -1624,34 +1624,40 @@ namespace impl
 					SkeletonIds.AddUnique(Mesh->GetSkeletonID(SkeletonIndex));
 				}
 
+				// Add bonemaps from this mesh
+				const TArray<uint16>& BoneMap = Mesh->GetBoneMap();
+				CurrentLODComponent.FirstBoneMap = OperationData->InstanceUpdateData.BoneMaps.Num();
+				CurrentLODComponent.BoneMapCount = BoneMap.Num();
 
+				OperationData->InstanceUpdateData.BoneMaps.Reserve(CurrentLODComponent.FirstBoneMap + CurrentLODComponent.BoneMapCount);
+
+				const mu::SkeletonPtrConst Skeleton = Mesh->GetSkeleton();
+				for (const uint16& BoneIndex : BoneMap)
+				{
+					const FName BoneName = Skeleton->GetBoneName(BoneIndex);
+					check(BoneName != NAME_None);
+
+					const int32 FinalBoneIndex = BoneNames.AddUnique(BoneName);
+					OperationData->InstanceUpdateData.BoneMaps.Add(FinalBoneIndex);
+				}
+				
+				// Add active bone indices and poses
 				const int32 MaxBoneIndex = Mesh->GetBonePoseCount();
-
-				// Add active bones and new names to the BoneNames array 
-				CurrentLODComponent.BoneMap.Reserve(MaxBoneIndex);
 				CurrentLODComponent.ActiveBones.Reserve(MaxBoneIndex);
-
 				for (int32 BonePoseIndex = 0; BonePoseIndex < MaxBoneIndex; ++BonePoseIndex)
 				{
 					const FName BoneName = Mesh->GetBonePoseName(BonePoseIndex);
 					check(BoneName != NAME_None);
 
-					int32 BoneIndex = BoneNames.Find(BoneName);
-					if (BoneIndex == INDEX_NONE)
-					{
-						BoneIndex = BoneNames.Add(BoneName);
+					const int32 BoneIndex = BoneNames.AddUnique(BoneName); 
+					CurrentLODComponent.ActiveBones.Add(BoneIndex);
 
+					if (!BoneMatricesWithScale.Contains(BoneName))
+					{
 						FTransform3f Transform;
 						Mesh->GetBoneTransform(BonePoseIndex, Transform);
 						BoneMatricesWithScale.Emplace(BoneName, Transform.Inverse().ToMatrixWithScale());
 					}
-
-					if (EnumHasAnyFlags(Mesh->GetBoneUsageFlags(BonePoseIndex), mu::EBoneUsageFlags::Skinning))
-					{
-						CurrentLODComponent.BoneMap.Add(BoneIndex);
-					}
-
-					CurrentLODComponent.ActiveBones.Add(BoneIndex);
 				}
 			}
 		}

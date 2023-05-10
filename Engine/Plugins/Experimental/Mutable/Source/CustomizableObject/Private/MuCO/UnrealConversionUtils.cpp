@@ -98,52 +98,12 @@ namespace UnrealConversionUtils
 	}
 
 
-
-	void BuildRefSkeleton(FInstanceUpdateData::FSkeletonData* OutMutSkeletonData
-		, const FReferenceSkeleton& InSourceReferenceSkeleton, const TArray<bool>& InUsedBones,
-		FReferenceSkeleton& InRefSkeleton, const USkeleton* InSkeleton)
-	{
-		const int32 SourceBoneCount = InSourceReferenceSkeleton.GetRawBoneNum();
-		const TArray<FTransform>& SourceRawMeshBonePose = InSourceReferenceSkeleton.GetRawRefBonePose();
-
-		MUTABLE_CPUPROFILER_SCOPE(BuildRefSkeleton);
-
-		// Build new RefSkeleton	
-		FReferenceSkeletonModifier RefSkeletonModifier(InRefSkeleton, InSkeleton);
-
-		const TArray<FMeshBoneInfo>& BoneInfo = InSourceReferenceSkeleton.GetRawRefBoneInfo();
-
-		TMap<FName, uint16> BoneToFinalBoneIndexMap;
-		BoneToFinalBoneIndexMap.Reserve(SourceBoneCount);
-
-		uint32 FinalBoneCount = 0;
-		for (int32 BoneIndex = 0; BoneIndex < SourceBoneCount; ++BoneIndex)
-		{
-			if (!InUsedBones[BoneIndex])
-			{
-				continue;
-			}
-
-			FName BoneName = BoneInfo[BoneIndex].Name;
-
-			// Build a bone to index map so we can remap BoneMaps and ActiveBoneIndices later on
-			BoneToFinalBoneIndexMap.Add(BoneName, FinalBoneCount);
-			FinalBoneCount++;
-
-			// Find parent index
-			const int32 SourceParentIndex = BoneInfo[BoneIndex].ParentIndex;
-			const int32 ParentIndex = SourceParentIndex != INDEX_NONE ? BoneToFinalBoneIndexMap[BoneInfo[SourceParentIndex].Name] : INDEX_NONE;
-
-			RefSkeletonModifier.Add(FMeshBoneInfo(BoneName, BoneName.ToString(), ParentIndex), SourceRawMeshBonePose[BoneIndex]);
-		}
-	}
-
-
 	void SetupRenderSections(
 		const USkeletalMesh* OutSkeletalMesh,
 		const mu::MeshPtrConst InMutableMesh,
 		const int32 MeshLODIndex,
-		const TArray<uint16>& InBoneMap)
+		const TArray<uint16>& InBoneMap,
+		const int32 InFirstBoneMapIndex)
 	{
 		check(InMutableMesh);
 
@@ -169,7 +129,9 @@ namespace UnrealConversionUtils
 			int32 IndexCount;
 			int32 FirstVertex;
 			int32 VertexCount;
-			InMutableMesh->GetSurface(SurfaceIndex, &FirstVertex, &VertexCount, &FirstIndex, &IndexCount);
+			int32 FirstBone;
+			int32 BoneCount;
+			InMutableMesh->GetSurface(SurfaceIndex, &FirstVertex, &VertexCount, &FirstIndex, &IndexCount, &FirstBone, &BoneCount);
 			FSkelMeshRenderSection& Section = OutSkeletalMesh->GetResourceForRendering()->LODRenderData[MeshLODIndex].RenderSections[SurfaceIndex];
 
 			Section.DuplicatedVerticesBuffer.Init(1, TMap<int, TArray<int32>>());
@@ -185,7 +147,15 @@ namespace UnrealConversionUtils
 			Section.BaseVertexIndex = FirstVertex;
 			Section.MaxBoneInfluences = NumBoneInfluences;
 			Section.NumVertices = VertexCount;
-			Section.BoneMap.Append(InBoneMap);
+
+			// InBoneMaps may contain bonemaps from other sections. Copy the bones belonging to this mesh.
+			FirstBone += InFirstBoneMapIndex;
+			
+			Section.BoneMap.Reserve(BoneCount);
+			for (int32 BoneMapIndex = 0; BoneMapIndex < BoneCount; ++BoneMapIndex, ++FirstBone)
+			{
+				Section.BoneMap.Add(InBoneMap[FirstBone]);
+			}
 		}
 	}
 

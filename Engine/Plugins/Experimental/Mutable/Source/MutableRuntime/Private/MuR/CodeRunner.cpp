@@ -1307,18 +1307,12 @@ namespace mu
 
                 if (pA && pB && pA->GetVertexCount() && pB->GetVertexCount())
                 {
-                    pResult = MeshMerge( pA.get(), pB.get() );
+                    pResult = MeshMerge( pA.get(), pB.get(), !args.newSurfaceID);
 
-                    if (!args.newSurfaceID)
+                    if (args.newSurfaceID)
                     {
-                        // Make it a single surface.
-                        pResult->m_surfaces.Empty();
-                        pResult->EnsureSurfaceData();
-                    }
-                    else
-                    {
-                        check(pB->GetSurfaceCount()==1);
-                        pResult->m_surfaces.Last().m_id=args.newSurfaceID;
+						check(pB->GetSurfaceCount() == 1);
+						pResult->m_surfaces.Last().m_id = args.newSurfaceID;
                     }
                 }
                 else if (pA && pA->GetVertexCount())

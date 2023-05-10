@@ -383,11 +383,9 @@ struct FInstanceUpdateData
 		//uint32 FirstActiveBone;
 		//uint32 ActiveBoneCount;
 
-		// \TODO: Flatten
-		TArray<uint16> BoneMap;
 		/** Range in the external Bones array */
-		//uint32 FirstBoneMap;
-		//uint32 BoneMapCount;
+		uint32 FirstBoneMap = 0;
+		uint32 BoneMapCount = 0;
 	};
 
 	struct FLOD
@@ -403,6 +401,8 @@ struct FInstanceUpdateData
 	TArray<FImage> Images;
 	TArray<FVector> Vectors;
 	TArray<FScalar> Scalars;
+
+	TArray<uint16> BoneMaps;
 
 	struct FSkeletonData
 	{

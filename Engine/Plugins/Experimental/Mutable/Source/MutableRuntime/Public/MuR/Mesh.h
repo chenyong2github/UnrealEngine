@@ -50,6 +50,9 @@ namespace mu
 			m_firstIndex = 0;
 			m_indexCount = 0;
 			m_id = 0;
+
+			BoneMapIndex = 0;
+			BoneMapCount = 0;
 		}
 
 		int32 m_firstVertex;
@@ -57,7 +60,9 @@ namespace mu
 		int32 m_firstIndex;
 		int32 m_indexCount;
 		uint32 m_id;
-
+		
+		uint32 BoneMapIndex;
+		uint32 BoneMapCount;
 
 		//!
 		inline bool operator==(const MESH_SURFACE& o) const
@@ -66,8 +71,14 @@ namespace mu
 				&& m_vertexCount == o.m_vertexCount
 				&& m_firstIndex == o.m_firstIndex
 				&& m_indexCount == o.m_indexCount
-				&& m_id == o.m_id;
+				&& m_id == o.m_id
+				&& BoneMapIndex == o.BoneMapIndex
+				&& BoneMapCount == o.BoneMapCount;
 		}
+
+		inline void Serialise(OutputArchive& arch) const;
+
+		inline void Unserialise(InputArchive& arch);
 
 	};
 
@@ -121,8 +132,9 @@ namespace mu
 		WithAdditionalBuffers = 1 << 10,
 		WithLayouts           = 1 << 11,
 		WithPoses			  = 1 << 12,
-		WithSkeletonIDs		  = 1 << 13,
-		WithAdditionalPhysics = 1 << 14
+		WithBoneMap			  = 1 << 13,
+		WithSkeletonIDs		  = 1 << 14,
+		WithAdditionalPhysics = 1 << 15
 	};
 	
 	ENUM_CLASS_FLAGS(EMeshCloneFlags);
@@ -183,9 +195,10 @@ namespace mu
         //! Get the number of surfaces defined in this mesh. Surfaces are buffer-contiguous mesh
         //! fragments that share common properties (usually material)
         int GetSurfaceCount() const;
-        void GetSurface( int surfaceIndex,
-                         int* firstVertex, int* vertexCount,
-                         int* firstIndex, int* indexCount ) const;
+        void GetSurface( int32 surfaceIndex,
+                         int32* FirstVertex, int32* VertexCount,
+                         int32* FirstIndex, int32* IndexCount,
+						 int32* FirstBone, int32* BoneCount) const;
 
         //! Return an internal id that can be used to match mesh surfaces and instance surfaces.
         //! Only valid for meshes that are part of instances.
@@ -292,6 +305,12 @@ namespace mu
 
 		//! 
 		EBoneUsageFlags GetBoneUsageFlags(int32 BoneIndex) const;
+
+		//! Set the bonemap of this mesh
+		void SetBoneMap(const TArray<uint16>& InBoneMap);
+
+		//! Return an array containing the bonemap indices of all surfaces in the mesh.
+		const TArray<uint16>& GetBoneMap() const;
 
 		//!
 		int32 GetSkeletonIDsCount() const;
@@ -402,6 +421,9 @@ namespace mu
 		// taking into consideration the meshes being used.
 		TArray<FBonePose> BonePoses;
 
+		// Array containing the bonemap indices of all surfaces in the mesh.
+		TArray<uint16> BoneMapIndices;
+
 		//!
 		inline void Serialise(OutputArchive& arch) const;
 
@@ -417,6 +439,7 @@ namespace mu
 			if (equal) equal = (m_FaceBuffers == o.m_FaceBuffers);
 			if (equal) equal = (m_layouts.Num() == o.m_layouts.Num());
 			if (equal) equal = (BonePoses.Num() == o.BonePoses.Num());
+			if (equal) equal = (BoneMapIndices.Num() == o.BoneMapIndices.Num());
 			if (equal && m_pSkeleton != o.m_pSkeleton)
 			{
 				if (m_pSkeleton && o.m_pSkeleton)
@@ -449,6 +472,8 @@ namespace mu
 			{
 				equal &= BonePoses[i] == o.BonePoses[i];
 			}
+
+			if (equal) equal = BoneMapIndices == o.BoneMapIndices;
 
 			equal &= AdditionalPhysicsBodies.Num() == o.AdditionalPhysicsBodies.Num();
 			for (int32 i = 0; equal && i < AdditionalPhysicsBodies.Num(); ++i)
@@ -520,7 +545,6 @@ namespace mu
     };
 
 
-	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(MESH_SURFACE)
 	MUTABLE_DEFINE_ENUM_SERIALISABLE(EBoneUsageFlags)
 	MUTABLE_DEFINE_ENUM_SERIALISABLE(EMeshBufferType)
 	MUTABLE_DEFINE_ENUM_SERIALISABLE(EShapeBindingMethod)

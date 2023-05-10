@@ -34,11 +34,6 @@ public:
      */
     void SetMesh(const mu::MeshPtrConst& InMesh);
 
-	/** Set the reference mesh used by the mutable to skeletal mesh conversion process
-	 * @param InReferenceMesh - The Skeletal mesh to be used to aid on the conversion of the MutableMesh to a SkeletalMesh
-	 */
-	void SetReferenceMesh(const USkeletalMesh* InReferenceMesh);
-
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override
@@ -62,9 +57,6 @@ private:
 	/*
 	 *	UI  
 	 */
-	
-	/** Skeleton provided by the user */
-	const USkeletalMesh* ReferenceSkeletalMesh = nullptr;
 	
 	/** The preview scene that we are viewing */
 	TSharedPtr<FAdvancedPreviewScene> PreviewScene = nullptr;

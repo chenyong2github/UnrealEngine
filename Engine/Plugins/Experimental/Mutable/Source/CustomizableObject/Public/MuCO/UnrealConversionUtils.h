@@ -20,24 +20,6 @@ namespace UnrealConversionUtils
 	 * current pipelines (instance update and USkeletal mesh generation for a mesh viewport)
 	 */
 	
-	
-	/**
-	 * Builds the reference skeleton by adding bones to the reference skeleton modifier provided. When exiting the scope
-	 * of this method those bones get generated on the reference skeleton. It also updates an array with the used bones.
-	 * @param OutMutSkeletonData - Object map used later when remaking bones.
-	 * @param InSourceReferenceSkeleton - The reference skeleton from the source object. Is used to get the skeleton bone info
-	 * @param InUsedBones - Array with the same count as the bones present on the skeleton and determines what bones are used and what not.
-	 * @param InRefSkeleton - The reference skeleton to be updated with new bone data
-	 * @param InSkeleton - Skeleton to be updated as consequence of the destruction of the FReferenceSkeletonModifier
-	 */
-	CUSTOMIZABLEOBJECT_API void BuildRefSkeleton(
-		FInstanceUpdateData::FSkeletonData* OutMutSkeletonData,
-		const FReferenceSkeleton& InSourceReferenceSkeleton,
-		const TArray<bool>& InUsedBones,
-		FReferenceSkeleton& InRefSkeleton,
-		const USkeleton* InSkeleton );
-
-	
 	/**
 	 * Prepares the render sections found on the InSkeletalMesh and sets them up accordingly what the InMutableMesh requires
 	 * @param OutSkeletalMesh - The Skeletal mesh whose sections are ought to be updated
@@ -49,7 +31,8 @@ namespace UnrealConversionUtils
 		const USkeletalMesh* OutSkeletalMesh,
 		const mu::MeshPtrConst InMutableMesh,
 		const int32 InMeshLODIndex,
-		const TArray<uint16>& InBoneMap);
+		const TArray<uint16>& InBoneMap,
+		const int32 InFirstBoneMapIndex);
 
 
 	/** Performs a copy of the data found on the vertex buffers on the mutable mesh to the buffers of the skeletal mesh

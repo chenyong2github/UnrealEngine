@@ -663,19 +663,20 @@ namespace mu
 			pResult->m_layouts.Add(Layout->Clone());
 		}
 
-		pResult->ResetStaticFormatFlags();
-		pResult->EnsureSurfaceData();
-
 		pResult->m_tags = pSource->m_tags;
 
 		pResult->m_AdditionalBuffers = pSource->m_AdditionalBuffers;
 
 		pResult->BonePoses = pSource->BonePoses;
+		pResult->BoneMapIndices = pSource->BoneMapIndices;
 
 		pResult->SkeletonIDs = pSource->SkeletonIDs;
 
 		// A shallow copy is done here, it should not be a problem.
 		pResult->AdditionalPhysicsBodies = pSource->AdditionalPhysicsBodies;
+
+		pResult->ResetStaticFormatFlags();
+		pResult->EnsureSurfaceData();
 
 		return pResult;
 

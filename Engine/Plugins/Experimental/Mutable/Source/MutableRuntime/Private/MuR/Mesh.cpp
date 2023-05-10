@@ -72,6 +72,7 @@ MeshPtr Mesh::Clone() const
 	
 	// Clone bone poses
 	pResult->BonePoses = BonePoses;
+	pResult->BoneMapIndices = BoneMapIndices;
 
 	// Clone SkeletonIDs
 	pResult->SkeletonIDs = SkeletonIDs;
@@ -151,6 +152,12 @@ MeshPtr Mesh::Clone(EMeshCloneFlags Flags) const
 	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithPoses))
 	{
 		pResult->BonePoses = BonePoses;
+	}
+
+	// Clone BoneMap
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithBoneMap))
+	{
+		pResult->BoneMapIndices = BoneMapIndices;
 	}
 
 	// Clone SkeletonIDs
@@ -297,9 +304,10 @@ int Mesh::GetSurfaceCount() const
 
 
 //---------------------------------------------------------------------------------------------
-void Mesh::GetSurface( int surfaceIndex,
-                       int* firstVertex, int* vertexCount,
-                       int* firstIndex, int* indexCount ) const
+void Mesh::GetSurface( int32 surfaceIndex,
+                       int32* firstVertex, int32* vertexCount,
+                       int32* firstIndex, int32* indexCount,
+					   int32* BoneIndex, int32* BoneCount) const
 {
     int count = GetSurfaceCount();
 
@@ -312,6 +320,8 @@ void Mesh::GetSurface( int surfaceIndex,
             if (vertexCount) *vertexCount = surf.m_vertexCount;
             if (firstIndex) *firstIndex = surf.m_firstIndex;
             if (indexCount) *indexCount = surf.m_indexCount;
+            if (BoneIndex) *BoneIndex = surf.BoneMapIndex;
+            if (BoneCount) *BoneCount = surf.BoneMapCount;
         }
         else
         {
@@ -320,6 +330,8 @@ void Mesh::GetSurface( int surfaceIndex,
             if (vertexCount) *vertexCount = GetVertexCount();
             if (firstIndex) *firstIndex = 0;
             if (indexCount) *indexCount = GetIndexCount();
+			if (BoneIndex) *BoneIndex = 0;
+			if (BoneCount) *BoneCount = BoneMapIndices.Num();
         }
     }
     else
@@ -329,6 +341,8 @@ void Mesh::GetSurface( int surfaceIndex,
         if (vertexCount) *vertexCount = 0;
         if (firstIndex) *firstIndex = 0;
         if (indexCount) *indexCount = 0;
+		if (BoneIndex) *BoneIndex = 0;
+		if (BoneCount) *BoneCount = 0;
     }
 }
 
@@ -542,10 +556,26 @@ void mu::Mesh::GetBoneTransform(int32 BoneIndex, FTransform3f& Transform) const
 	Transform = BoneIndex > INDEX_NONE ? BonePoses[BoneIndex].BoneTransform : FTransform3f::Identity;
 }
 
+
+//---------------------------------------------------------------------------------------------
 EBoneUsageFlags Mesh::GetBoneUsageFlags(int32 BoneIndex) const
 {
 	check(BoneIndex >= 0 && BoneIndex < BonePoses.Num());
 	return BoneIndex > INDEX_NONE ? BonePoses[BoneIndex].BoneUsageFlags : EBoneUsageFlags::None;
+}
+
+
+//---------------------------------------------------------------------------------------------
+void Mesh::SetBoneMap(const TArray<uint16>& InBoneMap)
+{
+	BoneMapIndices = InBoneMap;
+}
+
+
+//---------------------------------------------------------------------------------------------
+const TArray<uint16>& Mesh::GetBoneMap() const
+{
+	return BoneMapIndices;
 }
 
 
@@ -973,6 +1003,7 @@ void Mesh::EnsureSurfaceData()
 		MESH_SURFACE s;
 		s.m_vertexCount = m_VertexBuffers.GetElementCount();
 		s.m_indexCount = m_IndexBuffers.GetElementCount();
+		s.BoneMapCount = BoneMapIndices.Num();
 		m_surfaces.Add(s);
 	}
 }
@@ -984,6 +1015,87 @@ void Mesh::ResetBufferIndices()
 	m_VertexBuffers.ResetBufferIndices();
 	m_IndexBuffers.ResetBufferIndices();
 	m_FaceBuffers.ResetBufferIndices();
+}
+
+
+//---------------------------------------------------------------------------------------------
+void UnserialiseLegacySurfaces(InputArchive& arch, TArray<MESH_SURFACE>& OutMeshSurfaces)
+{
+	struct FMeshSurfaceLegacy
+	{
+		FMeshSurfaceLegacy()
+		{}
+
+		int32 m_firstVertex = 0;
+		int32 m_vertexCount = 0;
+		int32 m_firstIndex = 0;
+		int32 m_indexCount = 0;
+		uint32 m_id = 0;
+
+		void Unserialise(InputArchive& arch)
+		{
+			arch >> m_firstVertex;
+			arch >> m_vertexCount;
+			arch >> m_firstIndex;
+			arch >> m_indexCount;
+			arch >> m_id;
+		}
+	}; 
+
+	TArray<FMeshSurfaceLegacy> LegacyMeshSurfaces;
+	arch >> LegacyMeshSurfaces;
+	
+	const int32 NumSurfaces = LegacyMeshSurfaces.Num();
+	OutMeshSurfaces.SetNumZeroed(NumSurfaces);
+
+	MESH_SURFACE* Surfaces = OutMeshSurfaces.GetData();
+	FMeshSurfaceLegacy* LegacySurfaces = LegacyMeshSurfaces.GetData();
+
+	for (int32 SurfaceIndex = 0; SurfaceIndex < NumSurfaces; ++SurfaceIndex)
+	{
+		Surfaces->m_firstVertex = LegacySurfaces->m_firstVertex;
+		Surfaces->m_vertexCount = LegacySurfaces->m_vertexCount;
+		Surfaces->m_firstIndex = LegacySurfaces->m_firstIndex;
+		Surfaces->m_indexCount = LegacySurfaces->m_indexCount;
+		Surfaces->m_id = LegacySurfaces->m_id;
+	}
+}
+
+
+//-------------------------------------------------------------------------------------------------
+void MESH_SURFACE::Serialise(OutputArchive& arch) const
+{
+
+	const int32 ver = 0;
+	arch << ver;
+
+	arch << m_firstVertex;
+	arch << m_vertexCount;
+	arch << m_firstIndex;
+	arch << m_indexCount;
+	arch << BoneMapIndex;
+	arch << BoneMapCount;
+	
+	arch << m_id;
+
+}
+
+
+//-------------------------------------------------------------------------------------------------
+void MESH_SURFACE::Unserialise(InputArchive& arch)
+{
+	int32 ver = 0;
+	arch >> ver;
+	check(ver == 0);
+
+	arch >> m_firstVertex;
+	arch >> m_vertexCount;
+	arch >> m_firstIndex;
+	arch >> m_indexCount;
+	arch >> BoneMapIndex;
+	arch >> BoneMapCount;
+		 
+	arch >> m_id;
 }
 
 
@@ -1049,7 +1161,7 @@ void Mesh::FBonePose::Unserialise(InputArchive& arch)
 //-------------------------------------------------------------------------------------------------
 void Mesh::Serialise(OutputArchive& arch) const
 {
-	uint32 ver = 15;
+	uint32 ver = 16;
 	arch << ver;
 
 	arch << m_IndexBuffers;
@@ -1070,6 +1182,7 @@ void Mesh::Serialise(OutputArchive& arch) const
 	arch << m_tags;
 
 	arch << BonePoses;
+	arch << BoneMapIndices;
 
 	arch << AdditionalPhysicsBodies;
 }
@@ -1080,7 +1193,7 @@ void Mesh::Unserialise(InputArchive& arch)
 {
 	uint32 ver;
 	arch >> ver;
-	check(ver <= 15);
+	check(ver <= 16);
 
 	arch >> m_IndexBuffers;
 	arch >> m_VertexBuffers;
@@ -1104,7 +1217,16 @@ void Mesh::Unserialise(InputArchive& arch)
 	}
 
 	arch >> m_staticFormatFlags;
-	arch >> m_surfaces;
+
+	if (ver >= 16)
+	{
+		arch >> m_surfaces;
+	}
+	else
+	{
+		// Deserialize LegacySurfaces
+		UnserialiseLegacySurfaces(arch, m_surfaces);
+	}
 	arch >> m_faceGroups;
 
 	arch >> m_tags;
@@ -1124,6 +1246,25 @@ void Mesh::Unserialise(InputArchive& arch)
 			BonePoses[BoneIndex].BoneName = m_pSkeleton->GetBoneName(BoneIndex);
 			BonePoses[BoneIndex].BoneUsageFlags = EBoneUsageFlags::Skinning;
 			BonePoses[BoneIndex].BoneTransform = m_pSkeleton->m_boneTransforms_DEPRECATED[BoneIndex];
+		}
+	}
+
+	if (ver >= 16)
+	{
+		arch >> BoneMapIndices;
+	}
+	else
+	{
+		const int32 NumBonePoses = BonePoses.Num();
+		BoneMapIndices.SetNum(NumBonePoses);
+		for (int32 BoneIndex = 0; BoneIndex < NumBonePoses; ++BoneIndex)
+		{
+			BoneMapIndices[BoneIndex] = BoneIndex;
+		}
+
+		for (MESH_SURFACE& Surface : m_surfaces)
+		{
+			Surface.BoneMapCount = NumBonePoses;
 		}
 	}
 
@@ -1606,7 +1747,6 @@ void Mesh::Log( FString& out, int32 BufferElementLimit)
 }
 
 
-MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(MESH_SURFACE)
 MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(EBoneUsageFlags)
 MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(EMeshBufferType)
 MUTABLE_IMPLEMENT_ENUM_SERIALISABLE(EShapeBindingMethod)

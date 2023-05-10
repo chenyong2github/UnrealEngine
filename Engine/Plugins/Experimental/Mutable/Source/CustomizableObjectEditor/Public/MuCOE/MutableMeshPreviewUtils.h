@@ -14,17 +14,12 @@ class USkeletalMesh;
 namespace MutableMeshPreviewUtils
 {
 	/**
-	 * Method designed to provide a way of getting a USkeletalMesh based on the data found on a mutable mesh. The
-	 * usage of a Reference Skeletal mesh is required to aid on the generation of the skeletal mesh.
+	 * Method designed to provide a way of getting a USkeletalMesh based on the data found on a mutable mesh. 
 	 * @param InMutableMesh - The mutable mesh used as base for the generation of the USkeletalMesh
-	 * @param InReferenceSkeletalMesh - Skeletal mesh used as source for the data not stored by mutable mesh. It must be
-	 * "similar" in terms of bone structure to the mutable mesh. Example: If generating a mesh from a mutable mesh found
-	 * on an instance (using the mutable debugger) you may want to provide as reference skeletal mesh the one used by
-	 * the Customizable Object.
 	 * @return - A new Skeletal mesh based on the provided data. It may be a nullptr if the conversion fails.
 	 */
 	CUSTOMIZABLEOBJECTEDITOR_API USkeletalMesh* GenerateSkeletalMeshFromMutableMesh(
-		mu::MeshPtrConst InMutableMesh, const USkeletalMesh* InReferenceSkeletalMesh);
+		mu::MeshPtrConst InMutableMesh);
 
 }
 
