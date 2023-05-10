@@ -210,6 +210,11 @@ public:
 		BorderImageFocused = &InArgs._EditableTextBoxStyle->BackgroundImageFocused;
 		Interface = InArgs._TypeInterface.IsValid() ? InArgs._TypeInterface : MakeShareable( new TDefaultNumericTypeInterface<NumericType> );
 
+		if (InArgs._TypeInterface.IsValid() && Interface->GetOnSettingChanged())
+		{
+			Interface->GetOnSettingChanged()->AddSP(this, &SNumericEntryBox::ResetCachedValueString);
+		}
+
 		MinFractionalDigits = (InArgs._MinFractionalDigits.Get().IsSet()) ? InArgs._MinFractionalDigits : DefaultMinFractionalDigits;
 		MaxFractionalDigits = (InArgs._MaxFractionalDigits.Get().IsSet()) ? InArgs._MaxFractionalDigits : DefaultMaxFractionalDigits;
 		SetMinFractionalDigits(MinFractionalDigits);
@@ -735,6 +740,14 @@ private:
 		if(OnToggleChanged.IsBound())
 		{
 			OnToggleChanged.Execute(InCheckState);
+		}
+	}
+
+	void ResetCachedValueString() 
+	{ 
+		if (ValueAttribute.Get().IsSet())
+		{
+			bCachedValueStringDirty = true;
 		}
 	}
 

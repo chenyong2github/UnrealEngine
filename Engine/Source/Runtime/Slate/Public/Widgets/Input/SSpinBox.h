@@ -182,6 +182,11 @@ public:
 		SetForegroundColor(InArgs._Style->ForegroundColor);
 		Interface = InArgs._TypeInterface.IsValid() ? InArgs._TypeInterface : MakeShareable(new TDefaultNumericTypeInterface<NumericType>);
 
+		if (InArgs._TypeInterface.IsValid() && Interface->GetOnSettingChanged())
+		{
+			Interface->GetOnSettingChanged()->AddSP(this, &SSpinBox::ResetCachedValueString);
+		}
+
 		ValueAttribute = InArgs._Value;
 		OnValueChanged = InArgs._OnValueChanged;
 		OnValueCommitted = InArgs._OnValueCommitted;
@@ -1207,6 +1212,10 @@ private:
 
 	/** Used to prevent per-frame re-conversion of the cached numeric value to a string. */
 	FString CachedValueString;
+	void ResetCachedValueString() 
+	{ 
+		CachedValueString = Interface->ToString(ValueAttribute.Get()); 
+	}
 
 	/** Whetever the interfaced setting changed and the CachedValueString needs to be recomputed. */
 	mutable bool bCachedValueStringDirty;

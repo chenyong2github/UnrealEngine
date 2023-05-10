@@ -872,6 +872,11 @@ void FSequencer::Tick(float InDeltaTime)
 			}
 
 			SuppressAutoEvalSignature.Reset();
+
+			if (GetNumericTypeInterface()->GetOnSettingChanged() != nullptr)
+			{
+				GetNumericTypeInterface()->GetOnSettingChanged()->Broadcast();
+			}
 		}
 	}
 
@@ -4361,6 +4366,10 @@ void FSequencer::ResetPerMovieSceneData()
 
 	SuppressAutoEvalSignature.Reset();
 
+	if (GetNumericTypeInterface()->GetOnSettingChanged() != nullptr)
+	{
+		GetNumericTypeInterface()->GetOnSettingChanged()->Broadcast();
+	}
 	// @todo run through all tracks for new movie scene changes
 	//  needed for audio track decompression
 }

@@ -184,7 +184,13 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	TAttribute<FFrameRate> GetDisplayRateAttr    = TAttribute<FFrameRate>(InSequencer, &FSequencer::GetFocusedDisplayRate);
 
 	// Create our numeric type interface so we can pass it to the time slider below.
-	NumericTypeInterface = MakeShareable(new FFrameNumberInterface(GetDisplayFormatAttr, GetZeroPadFramesAttr, GetTickResolutionAttr, GetDisplayRateAttr));
+	TSharedPtr<FFrameNumberInterface> FrameNumberInterface = MakeShareable(new FFrameNumberInterface(GetDisplayFormatAttr, GetZeroPadFramesAttr, GetTickResolutionAttr, GetDisplayRateAttr));
+	NumericTypeInterface = FrameNumberInterface;
+	
+	if (USequencerSettings* Settings = GetSequencerSettings())
+	{
+		Settings->GetOnTimeDisplayFormatChanged().AddRaw(FrameNumberInterface.Get(), &FFrameNumberInterface::DisplayFormatChanged);
+	}
 
 	FTimeSliderArgs TimeSliderArgs;
 	{
@@ -2808,6 +2814,11 @@ SSequencer::~SSequencer()
 	{
 		Window->DestroyWindowImmediately();
 		NodeGroupManager.Reset();
+	}
+
+	if (USequencerSettings* Settings = GetSequencerSettings())
+	{
+		Settings->GetOnTimeDisplayFormatChanged().RemoveAll(NumericTypeInterface.Get());
 	}
 }
 

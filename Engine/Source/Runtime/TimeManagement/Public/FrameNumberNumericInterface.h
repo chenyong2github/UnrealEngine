@@ -223,6 +223,16 @@ struct FFrameNumberInterface : public INumericTypeInterface<double>
 		SubframeIndicator = InSubframeIndicator;
 	}
 
+	void DisplayFormatChanged()
+	{
+		OnSettingChangedEvent.Broadcast();
+	}
+
+	virtual FOnSettingChanged* GetOnSettingChanged() override
+	{
+		return &OnSettingChangedEvent;
+	}
+
 private:
 	TAttribute<EFrameNumberDisplayFormats> DisplayFormatAttr;
 	TAttribute<FFrameRate> TickResolutionAttr;
@@ -230,4 +240,5 @@ private:
 	TAttribute<uint8> ZeroPadFramesAttr;
 
 	FString SubframeIndicator;
+	FOnSettingChanged OnSettingChangedEvent;
 };

@@ -13,6 +13,8 @@
 
 enum class EUnit : uint8;
 
+DECLARE_MULTICAST_DELEGATE(FOnSettingChanged);
+
 /** Interface to provide specific functionality for dealing with a numeric type. Currently includes string conversion functionality. */
 template<typename NumericType>
 struct INumericTypeInterface
@@ -33,6 +35,9 @@ struct INumericTypeInterface
 
 	/** Check whether the typed character is valid */
 	virtual bool IsCharacterValid(TCHAR InChar) const = 0;
+
+	/** Optional callback to broadcast when a setting in the type interface changes */
+	virtual FOnSettingChanged* GetOnSettingChanged() { return nullptr;}
 };
 
 /** Default numeric type interface */
