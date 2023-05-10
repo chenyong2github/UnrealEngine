@@ -50,7 +50,47 @@ FNaniteMaterialFlags GetShadingBinMaterialFlags(uint BinIndex)
 
 #if SHADING_BIN_COUNT || SHADING_BIN_SCATTER
 
-void BinShadingQuad(uint2 Coord)
+groupshared uint GroupVotedBinAndThread;
+groupshared uint GroupWriteCount;
+groupshared uint GroupWriteOffset;
+
+#if 1
+uint CalculateBinCoverage(uint4 VotingBins, uint VotingMask, uint VotedBin)
+{
+    uint MatchMask = 0;
+    UNROLL
+    for (uint PixelIndex = 0u; PixelIndex < 4u; ++PixelIndex)
+    {
+        MatchMask |= (VotingBins[PixelIndex] == VotedBin) ? (1u << PixelIndex) : 0u;
+    }
+    return VotingMask & MatchMask;
+}
+#else
+uint CalculateBinCoverage(uint4 VotingBins, uint VotingMask, uint VotedBin)
+{
+	uint BinCoverage = 0;
+	// Activate all quad lanes that have not fully binned all pixels yet.
+	if (VotingMask != 0u)
+	{
+		// Determine mask of which pixels (if any) in this quad-lane shade 
+		// using the currently voted shading bin.
+		UNROLL
+		for (uint PixelIndex = 0u; PixelIndex < 4u; ++PixelIndex)
+		{
+			const uint PixelMask = (1u << PixelIndex);
+			const bool bPixelActive = (VotingMask & PixelMask) != 0u;
+			if (bPixelActive && VotingBins[PixelIndex] == VotedBin)
+			{
+				// Include pixel in shading bin coverage mask.
+				BinCoverage |=  PixelMask;
+			}
+		}
+	}
+	return BinCoverage;
+}
+#endif
+
+void BinShadingQuad(uint2 Coord, uint ThreadIndex)
 {
 	const uint ViewWidth  = ViewRect.z - ViewRect.x;
 	const uint ViewHeight = ViewRect.w - ViewRect.y;
@@ -95,7 +135,10 @@ void BinShadingQuad(uint2 Coord)
 		all(ValidMask.zw) && ShadingMaskBR.bIsNanitePixel
 	);
 
-	if (!any(ValidPixels))
+	const bool bValidWave = WaveActiveAnyTrue(any(ValidPixels));
+
+	BRANCH
+	if (!bValidWave)
 	{
 		// Quad is entirely non-Nanite or out of bounds.
 		return;
@@ -188,95 +231,108 @@ void BinShadingQuad(uint2 Coord)
 	// Create quad-lane mask of valid pixels to vote with (exclude non-Nanite or out of bounds).
 	uint VotingMask = PackQuadCoverage(ValidPixels);
 
-	// All quad-lanes process until every pixel has been binned.
+#if SHADING_BIN_COUNT
 	while (WaveActiveAnyTrue(VotingMask != 0u))
 	{
-		// Activate all quad lanes that have not fully binned all pixels yet.
 		if (VotingMask != 0u)
 		{
 			// Determine current shading bin for all quad-lanes to classify.
-			const uint VotedBinIndex = firstbitlow(VotingMask);
-			const uint VotedBin = WaveReadLaneFirst(VotingBins[VotedBinIndex]);
+			const uint VotedBin = WaveReadLaneFirst(VotingBins[firstbitlow(VotingMask)]);
 
-			uint BinCoverage = 0u;
+			const uint BinCoverage = CalculateBinCoverage(VotingBins, VotingMask, VotedBin);
+			VotingMask &= ~BinCoverage;
 
-			// Determine mask of which pixels (if any) in this quad-lane shade 
-			// using the currently voted shading bin.
-			UNROLL
-			for (uint PixelIndex = 0u; PixelIndex < 4u; ++PixelIndex)
-			{
-				const uint PixelMask = (1u << PixelIndex);
-				const bool bPixelActive = (VotingMask & PixelMask) != 0u;
-				if (bPixelActive && VotingBins[PixelIndex] == VotedBin)
-				{
-					// Remove pixel from voting mask.
-					VotingMask  &= ~PixelMask;
-
-					// Include pixel in shading bin coverage mask.
-					BinCoverage |=  PixelMask;
-				}
-			}
-
-		#if !QUAD_BINNING || GATHER_STATS
-			const uint PixelCount  = countbits(BinCoverage);
-			const uint WavePixelCount = WaveActiveSum(PixelCount);
-		#endif
-
-	#if QUAD_BINNING
+		#if QUAD_BINNING
 			const uint WaveQuadCount = WaveActiveCountBits(BinCoverage != 0u);
-		#if SHADING_BIN_COUNT
 			if (WaveIsFirstLane())
 			{
 				InterlockedAdd(OutShadingBinMeta[VotedBin].QuadCount, WaveQuadCount);
-			#if GATHER_STATS
-				InterlockedAdd(OutShadingBinMeta[VotedBin].PixelCount, WavePixelCount);
-			#endif
-			}
-		#elif SHADING_BIN_SCATTER
-			uint WaveWriteOffset = 0u;
-			if (WaveIsFirstLane())
-			{
-				InterlockedAdd(OutShadingBinMeta[VotedBin].QuadCount, WaveQuadCount, WaveWriteOffset);
-				WaveWriteOffset += OutShadingBinMeta[VotedBin].RangeStart;
-			}
-
-			const uint DataWriteOffset = WaveReadLaneFirst(WaveWriteOffset) + WavePrefixCountBits(BinCoverage != 0u);
-			if (BinCoverage != 0u)
-			{
-				OutShadingBinData[DataWriteOffset] = PackShadingQuad(QuadTLCoord, BinCoverage);
 			}
 		#endif
-	#else // QUAD_BINNING
-		#if SHADING_BIN_COUNT
-			if (WaveIsFirstLane())
-			{
-				InterlockedAdd(OutShadingBinMeta[VotedBin].PixelCount, WavePixelCount);
-			}
-		#elif SHADING_BIN_SCATTER
-			uint WaveWriteOffset = 0u;
-			if (WaveIsFirstLane())
-			{
-				InterlockedAdd(OutShadingBinMeta[VotedBin].PixelCount, WavePixelCount, WaveWriteOffset);
-				WaveWriteOffset += OutShadingBinMeta[VotedBin].RangeStart;
-			}
-
-			const uint DataWriteOffset = WaveReadLaneFirst(WaveWriteOffset) + WavePrefixSum(PixelCount);
-
-			uint PackedIndex = 0;
-
-			UNROLL
-			for (uint PixelIndex = 0u; PixelIndex < 4u; ++PixelIndex)
-			{
-				if ((BinCoverage & (1u << PixelIndex)) != 0u)
-				{
-					OutShadingBinData[DataWriteOffset + PackedIndex] = PackShadingPixel(QuadCoords[PixelIndex], CopyMasks[PixelIndex]);
-					++PackedIndex;
-				}
-			}
+		#if !QUAD_BINNING || GATHER_STATS
+			const uint PixelCount  = countbits(BinCoverage);
+			WaveInterlockedAdd(OutShadingBinMeta[VotedBin].PixelCount, PixelCount);
 		#endif
-	#endif // QUAD_BINNING
 		}
 	}
+#elif SHADING_BIN_SCATTER
+	while (WaveActiveAnyTrue(VotingMask != 0u))
+	{
+		uint VotedBin = VotingMask ? VotingBins[firstbitlow(VotingMask)] : 0xFFFFFFFF;
+
+		if (WaveIsFirstLane())
+		{
+			GroupVotedBinAndThread = 0xFFFFFFFFu;
+			GroupWriteCount = 0u;
+		}
+		GroupMemoryBarrierWithGroupSync();
+		const uint VotedBinAndThread = (VotedBin << 10) | ThreadIndex; // But a live thread that votes for the bin in the low bits
+		WaveInterlockedMin(GroupVotedBinAndThread, VotedBinAndThread);
+		GroupMemoryBarrierWithGroupSync();
+		VotedBin = GroupVotedBinAndThread >> 10;
+		const uint GroupUpdateThread = GroupVotedBinAndThread & 1023; // The thread from the low bits gets to do the group update
+
+		const uint BinCoverage = CalculateBinCoverage(VotingBins, VotingMask, VotedBin);
+		VotingMask &= ~BinCoverage;
+
+	#if QUAD_BINNING	
+		const uint WaveQuadCount = WaveActiveCountBits(BinCoverage != 0u);
+
+		uint WaveWriteOffset = 0;
+		if (WaveIsFirstLane()) 
+		{
+			InterlockedAdd(GroupWriteCount, WaveQuadCount, WaveWriteOffset);
+		}
+		GroupMemoryBarrierWithGroupSync();
+
+		if (ThreadIndex == GroupUpdateThread)
+		{
+			InterlockedAdd(OutShadingBinMeta[VotedBin].QuadCount, GroupWriteCount, GroupWriteOffset);
+			GroupWriteOffset += OutShadingBinMeta[VotedBin].RangeStart;
+		}
+		GroupMemoryBarrierWithGroupSync();
+
+		const uint DataWriteOffset = GroupWriteOffset + WaveReadLaneFirst(WaveWriteOffset) + WavePrefixCountBits(BinCoverage != 0u);
+		GroupMemoryBarrierWithGroupSync();
+
+		if (BinCoverage != 0u)
+		{
+			OutShadingBinData[DataWriteOffset] = PackShadingQuad(QuadTLCoord, BinCoverage);
+		}
+	#else // QUAD_BINNING
+		const uint PixelCount  = countbits(BinCoverage);
+		const uint WavePixelCount = WaveActiveSum(PixelCount);
+		uint WaveWriteOffset = 0u;
+		if (WaveIsFirstLane())
+		{
+			InterlockedAdd(GroupWriteCount, WavePixelCount, WaveWriteOffset);
+		}
+		GroupMemoryBarrierWithGroupSync();
+
+		if (ThreadIndex == GroupUpdateThread)
+		{
+			InterlockedAdd(OutShadingBinMeta[VotedBin].PixelCount, GroupWriteCount, GroupWriteOffset);
+			GroupWriteOffset += OutShadingBinMeta[VotedBin].RangeStart;
+		}
+		GroupMemoryBarrierWithGroupSync();
+
+		const uint DataWriteOffset = GroupWriteOffset + WaveReadLaneFirst(WaveWriteOffset) + WavePrefixSum(PixelCount);
+		GroupMemoryBarrierWithGroupSync();
+
+		uint PackedIndex = 0;
+
+		UNROLL
+		for (uint PixelIndex = 0u; PixelIndex < 4u; ++PixelIndex)
+		{
+			if ((BinCoverage & (1u << PixelIndex)) != 0u)
+			{
+				OutShadingBinData[DataWriteOffset + PackedIndex] = PackShadingPixel(QuadCoords[PixelIndex], CopyMasks[PixelIndex]);
+				++PackedIndex;
+			}
+		}
+	#endif // QUAD_BINNING
+	}
+#endif
 }
 
 uint2 LinearToSwizzled(uint LinearIndex)
@@ -312,16 +368,16 @@ void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_Grou
 	const uint2 BaseCoord = MicroTileStart + LinearToSwizzled(TileQuad);
 
 	// TL MacroTile
-	BinShadingQuad(MacroTileBase + uint2(0, 0) + BaseCoord);
+	BinShadingQuad(MacroTileBase + uint2(0, 0) + BaseCoord, ThreadIndex);
 
 	// TR MacroTile
-	BinShadingQuad(MacroTileBase + uint2(MacroTileDim.x, 0) + BaseCoord);
+	BinShadingQuad(MacroTileBase + uint2(MacroTileDim.x, 0) + BaseCoord, ThreadIndex);
 
 	// BL MacroTile
-	BinShadingQuad(MacroTileBase + uint2(0, MacroTileDim.y) + BaseCoord);
+	BinShadingQuad(MacroTileBase + uint2(0, MacroTileDim.y) + BaseCoord, ThreadIndex);
 
 	// BR MacroTile
-	BinShadingQuad(MacroTileBase + MacroTileDim + BaseCoord);
+	BinShadingQuad(MacroTileBase + MacroTileDim + BaseCoord, ThreadIndex);
 }
 
 #elif BINNING_TECHNIQUE == 1
@@ -346,7 +402,7 @@ void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_Grou
 	const uint2 MicroTileStart = LinearToSwizzled(MicroTileIndex) * MicroTileDim;
 	uint2 Coord = MacroTileStart + MicroTileStart + LinearToSwizzled(TileQuad);
 
-	BinShadingQuad(Coord);
+	BinShadingQuad(Coord, ThreadIndex);
 }
 
 #else
@@ -362,7 +418,7 @@ void ShadingBinBuildCS(uint ThreadIndex : SV_GroupIndex, uint2 GroupId : SV_Grou
 	Coord += Unflatten2D(ThreadIndex, uint2(8u, 8u));
 #endif
 
-	BinShadingQuad(Coord);
+	BinShadingQuad(Coord, ThreadIndex);
 }
 
 #endif // BINNING_TECHNIQUE
