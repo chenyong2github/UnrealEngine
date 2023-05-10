@@ -1129,7 +1129,10 @@ static FArchive& operator<<(FArchive& Ar, FPropertyBagPropertyDesc& Bag)
 			EPropertyBagContainerType TmpContainerType = EPropertyBagContainerType::None;
 			Ar << TmpContainerType;
 
-			Bag.ContainerTypes.Add(TmpContainerType);
+			if (TmpContainerType != EPropertyBagContainerType::None)
+			{
+				Bag.ContainerTypes.Add(TmpContainerType);
+			}
 		}
 		else
 		{
