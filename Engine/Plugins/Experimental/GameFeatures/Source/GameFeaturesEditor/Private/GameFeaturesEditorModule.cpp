@@ -117,13 +117,15 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 
 		// Activate the new game feature plugin
 		auto AdditionalFilter = [](const FString&, const FGameFeaturePluginDetails&, FBuiltInGameFeaturePluginBehaviorOptions&) -> bool { return true; };
-		UGameFeaturesSubsystem::Get().LoadBuiltInGameFeaturePlugin(NewPlugin.ToSharedRef(), AdditionalFilter);
-
-		// Edit the new game feature data
-		if (GameFeatureDataAsset != nullptr)
-		{
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(GameFeatureDataAsset);
-		}
+		UGameFeaturesSubsystem::Get().LoadBuiltInGameFeaturePlugin(NewPlugin.ToSharedRef(), AdditionalFilter,
+			FGameFeaturePluginLoadComplete::CreateLambda([GameFeatureDataAsset](const UE::GameFeatures::FResult&)
+			{
+				// Edit the new game feature data
+				if (GameFeatureDataAsset != nullptr)
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(GameFeatureDataAsset);
+				}
+			}));
 	}
 
 	FString GetGameFeatureRoot() const

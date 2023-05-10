@@ -47,15 +47,14 @@ namespace UE::GameFeatures
 
 	namespace CommonErrorCodes
 	{
-		const FString PluginNotAllowed = TEXT("Plugin_Denied_By_GameSpecificPolicy");
-		const FString DependencyFailedRegister = TEXT("Failed_Dependency_Register");
-		const FString BadURL = TEXT("Bad_URL");
-		const FString UnreachableState = TEXT("State_Currently_Unreachable");
-		const FString NoURLUpdateNeeded = TEXT("URL_Not_Updated");
+		const TCHAR* PluginNotAllowed = TEXT("Plugin_Denied_By_GameSpecificPolicy");
+		const TCHAR* PluginFiltered = TEXT("Plugin_Filtered_By_GameSpecificPolicy");
+		const TCHAR* PluginDetailsNotFound = TEXT("Plugin_Details_Not_Found");
+		const TCHAR* DependencyFailedRegister = TEXT("Failed_Dependency_Register");
+		const TCHAR* BadURL = TEXT("Bad_URL");
+		const TCHAR* UnreachableState = TEXT("State_Currently_Unreachable");
 
-		const FString CancelAddonCode = TEXT("_Cancel");
-
-		const FText GenericError = NSLOCTEXT("GameFeatures", "CommonErrors.Generic", "An error has occurred. Please try again later.");
+		const TCHAR* CancelAddonCode = TEXT("_Cancel");
 	}
 
 	static bool GCachePluginDetails = true;
@@ -1207,7 +1206,7 @@ void UGameFeaturesSubsystem::CancelGameFeatureStateChange(const FString& PluginU
 	}
 }
 
-void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlugin>& Plugin, FBuiltInPluginAdditionalFilters AdditionalFilter)
+void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlugin>& Plugin, FBuiltInPluginAdditionalFilters AdditionalFilter, const FGameFeaturePluginLoadComplete& CompleteDelegate /*= FGameFeaturePluginLoadComplete()*/)
 {
 	UE_SCOPED_ENGINE_ACTIVITY(TEXT("Loading GameFeaturePlugin %s"), *Plugin->GetName());
 
@@ -1232,9 +1231,25 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 				// If we're already at the destination or beyond, don't transition back
 				FGameFeaturePluginStateRange Destination(DestinationState, EGameFeaturePluginState::Active);
 				ChangeGameFeatureDestination(StateMachine, Destination, 
-					FGameFeaturePluginChangeStateComplete::CreateUObject(this, &ThisClass::LoadBuiltInGameFeaturePluginComplete, StateMachine, Destination));
+					FGameFeaturePluginChangeStateComplete::CreateWeakLambda(this, [this, StateMachine, Destination, CompleteDelegate](const UE::GameFeatures::FResult& Result)
+					{
+						LoadBuiltInGameFeaturePluginComplete(Result, StateMachine, Destination);
+						CompleteDelegate.ExecuteIfBound(Result);
+					}));
+			}
+			else
+			{
+				CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(UE::GameFeatures::SubsystemErrorNamespace + UE::GameFeatures::CommonErrorCodes::PluginFiltered)));
 			}
 		}
+		else
+		{
+			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(UE::GameFeatures::SubsystemErrorNamespace + UE::GameFeatures::CommonErrorCodes::PluginNotAllowed)));
+		}
+	}
+	else
+	{
+		CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(UE::GameFeatures::SubsystemErrorNamespace + UE::GameFeatures::CommonErrorCodes::PluginDetailsNotFound)));
 	}
 
 	UAssetManager::Get().PopBulkScanning();
@@ -1309,22 +1324,55 @@ private:
 
 #endif // !UE_BUILD_SHIPPING
 
-void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditionalFilters AdditionalFilter)
+// @TODO: Need to make sure all code paths wait for this properly
+// For example, after login, UFortGlobalUIContext::SetSubGame can call ChangeBundleStateForPrimaryAssets which may cancel pending loads
+void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditionalFilters AdditionalFilter, const FBuiltInGameFeaturePluginsLoaded& InCompleteDelegate /*= FBuiltInGameFeaturePluginsLoaded()*/)
 {
-	SCOPE_LOG_TIME_IN_SECONDS(TEXT("BuiltInGameFeaturePlugins loaded."), nullptr);
+	struct FLoadContext
+	{
+		FScopeLogTime ScopeLogTime{TEXT("BuiltInGameFeaturePlugins loaded."), nullptr, FConditionalScopeLogTime::ScopeLog_Seconds};
+
+		TMap<FString, UE::GameFeatures::FResult> Results;
+		FBuiltInGameFeaturePluginsLoaded CompleteDelegate;
+
+		int32 NumPluginsLoaded = 0;
+
+		~FLoadContext()
+		{
+			UGameplayTagsManager::Get().PopDeferOnGameplayTagTreeChangedBroadcast();
+			UAssetManager::Get().PopBulkScanning();
+
+			CompleteDelegate.ExecuteIfBound(Results);
+		}
+	};
+	TSharedRef LoadContext = MakeShared<FLoadContext>();
+	LoadContext->CompleteDelegate = InCompleteDelegate;
+
 	UAssetManager::Get().PushBulkScanning();
 	UGameplayTagsManager::Get().PushDeferOnGameplayTagTreeChangedBroadcast();
 
 	FBuiltInPluginLoadTimeTracker PluginLoadTimeTracker;
 	TArray<TSharedRef<IPlugin>> EnabledPlugins = IPluginManager::Get().GetEnabledPlugins();
+
+	LoadContext->Results.Reserve(EnabledPlugins.Num());
+	for (const TSharedRef<IPlugin>& Plugin : EnabledPlugins)
+	{
+		LoadContext->Results.Add(Plugin->GetName(), MakeError("Pending"));
+	}
+
+	const int32 NumPluginsToLoad = EnabledPlugins.Num();
+	UE_LOG(LogGameFeatures, Log, TEXT("Loading %i builtins"), NumPluginsToLoad);
+
 	for (const TSharedRef<IPlugin>& Plugin : EnabledPlugins)
 	{
 		FBuiltInPluginLoadTimeTrackerScope TrackerScope(PluginLoadTimeTracker, Plugin);
-		LoadBuiltInGameFeaturePlugin(Plugin, AdditionalFilter);
+		LoadBuiltInGameFeaturePlugin(Plugin, AdditionalFilter, FGameFeaturePluginLoadComplete::CreateLambda([LoadContext, Plugin, NumPluginsToLoad](const UE::GameFeatures::FResult& Result)
+		{
+			LoadContext->Results.Add(Plugin->GetName(), Result);
+			++LoadContext->NumPluginsLoaded;
+			UE_LOG(LogGameFeatures, VeryVerbose, TEXT("Finished Loading %i builtins"), LoadContext->NumPluginsLoaded);
+		}));
 	}
-
-	UGameplayTagsManager::Get().PopDeferOnGameplayTagTreeChangedBroadcast();
-	UAssetManager::Get().PopBulkScanning();
 }
 
 bool UGameFeaturesSubsystem::GetPluginURLByName(const FString& PluginName, FString& OutPluginURL) const

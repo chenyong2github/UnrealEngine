@@ -39,18 +39,7 @@ namespace UE::GameFeatures
 
 	namespace CommonErrorCodes
 	{
-		extern const FString PluginNotAllowed;
-		extern const FString DependencyFailedRegister;
-		extern const FString BadURL;
-		extern const FString UnreachableState;
-		extern const FString NoURLUpdateNeeded;
-		
-		extern const FString CancelAddonCode;
-	};
-
-	namespace CommonErrorText
-	{
-		extern const FText GenericError;
+		extern const TCHAR* DependencyFailedRegister;
 	};
 };
 
@@ -177,16 +166,7 @@ using FGameFeaturePluginUninstallComplete = FGameFeaturePluginChangeStateComplet
 using FGameFeaturePluginTerminateComplete = FGameFeaturePluginChangeStateComplete;
 using FGameFeaturePluginUpdateURLComplete = FGameFeaturePluginChangeStateComplete;
 
-/** Notification delegate to be called by certain states that want to notify when they pause/resume work without leaving their current state.
-EX: Downloading can be paused due to cellular or internet connection outages without failing the download,
-but bubbling that pause information up to the user can be beneficial for messaging */
-DECLARE_DELEGATE_TwoParams(FGameFeaturePluginOnStatePausedChange, bool /*bIsPaused*/, const FString& /*PauseReason*/);
-
-/** Notification that a game feature plugin load has finished successfully and feeds back the GameFeatureData*/
-DECLARE_MULTICAST_DELEGATE_TwoParams(FGameFeaturePluginLoadCompleteDataReady, const FString& /*Name*/, const UGameFeatureData* /*Data*/);
-
-/** Notification that a game feature plugin load has deactivated successfully and feeds back the GameFeatureData that was being used*/
-DECLARE_MULTICAST_DELEGATE_TwoParams(FGameFeaturePluginDeativated, const FString& /*Name*/, const UGameFeatureData* /*Data*/);
+DECLARE_DELEGATE_OneParam(FBuiltInGameFeaturePluginsLoaded, PREPROCESSOR_COMMA_SEPARATED(const TMap<FString, UE::GameFeatures::FResult>& /*Results*/));
 
 enum class EBuiltInAutoState : uint8
 {
@@ -510,10 +490,10 @@ public:
 	typedef TFunctionRef<bool(const FString& PluginFilename, const FGameFeaturePluginDetails& Details, FBuiltInGameFeaturePluginBehaviorOptions& OutOptions)> FBuiltInPluginAdditionalFilters;
 
 	/** Loads a built-in game feature plugin if it passes the specified filter */
-	void LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlugin>& Plugin, FBuiltInPluginAdditionalFilters AdditionalFilter);
+	void LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlugin>& Plugin, FBuiltInPluginAdditionalFilters AdditionalFilter, const FGameFeaturePluginLoadComplete& CompleteDelegate = FGameFeaturePluginLoadComplete());
 
 	/** Loads all built-in game feature plugins that pass the specified filters */
-	void LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditionalFilters AdditionalFilter);
+	void LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditionalFilters AdditionalFilter, const FBuiltInGameFeaturePluginsLoaded& CompleteDelegate = FBuiltInGameFeaturePluginsLoaded());
 
 	/** Returns the list of plugin filenames that have progressed beyond installed. Used in cooking to determine which will be cooked. */
 	//@TODO: GameFeaturePluginEnginePush: Might not be general enough for engine level, TBD
