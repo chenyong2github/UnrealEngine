@@ -6099,6 +6099,16 @@ void FAsyncPackage2::EventDrivenCreateExport(const FAsyncPackageHeaderData& Head
 		return;
 	}
 
+	if ((Export.ObjectFlags & RF_ClassDefaultObject) == 0 
+		&& !ExportObject.TemplateObject->IsA(LoadClass))
+	{
+		UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("CreateExport"), TEXT("Export class type (%s) differs from the template object type (%s)"),
+			*(LoadClass->GetFullName()),
+			*(ExportObject.TemplateObject->GetClass()->GetFullName()));
+		ExportObject.bExportLoadFailed = true;
+		return;
+	}
+
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(LoadClass, ELLMTagSet::AssetClasses);
     UE_TRACE_METADATA_SCOPE_ASSET_FNAME(ObjectName, LoadClass->GetFName(), GetLinkerRoot()->GetFName());
