@@ -6,7 +6,6 @@
 
 #include "HairStrandsInterface.h"
 #include "HairStrandsRendering.h"
-#include "HairStrandsMeshProjection.h"
 #include "HairStrandsData.h"
 
 #include "DataDrivenShaderPlatformInfo.h"

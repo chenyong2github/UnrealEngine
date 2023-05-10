@@ -9,7 +9,6 @@
 #include "HairStrandsRendering.h"
 #include "HairStrandsVisibility.h"
 #include "HairStrandsInterface.h"
-#include "HairStrandsMeshProjection.h"
 #include "HairStrandsTile.h"
 #include "HairStrandsData.h"
 
