@@ -18,6 +18,8 @@
 
 namespace Audio
 {
+	static void CopyOptionalWavChunks(TSharedPtr<ISoundFileReader>& InSoundDataReader, const int32 InInputFormat, TSharedPtr<ISoundFileWriter>& InSoundFileWriter, const int32 InOutputFormat);
+
 	bool AUDIOMIXER_API InitSoundFileIOManager()
 	{
 		return Audio::SoundFileIOManagerInit();
@@ -60,6 +62,9 @@ namespace Audio
 		{
 			return false;
 		}
+
+		// Copy optional chunks before writing data chunk which libsndfile assumes will be the last chunk
+		CopyOptionalWavChunks(InputSoundDataReader, InputDescription.FormatFlags, SoundFileWriter, NewSoundFileDescription.FormatFlags);
 
 		// Create a buffer to do the processing 
 		SoundFileCount ProcessBufferSamples = static_cast<SoundFileCount>(1024) * NewSoundFileDescription.NumChannels;
@@ -155,22 +160,6 @@ namespace Audio
 		Error = SoundFileWriter->WriteSamples((const float*)ProcessBuffer.GetData(), InputSamplesRead, SamplesWritten);
 		check(Error == ESoundFileError::Type::NONE);
 
-		// The required chunks ('fmt ' and 'data') have been written, now copy over the optional chunks.
-		FSoundFileChunkArray OptionalChunks;
-		Error = InputSoundDataReader->GetOptionalChunks(OptionalChunks);
-		if (Error != ESoundFileError::Type::NONE)
-		{
-			UE_LOG(LogAudioMixer, Error, TEXT("Error encountered while reading optional chunk data...skipping"));
-		}
-		else
-		{
-			Error = SoundFileWriter->WriteOptionalChunks(OptionalChunks);
-			if (Error != ESoundFileError::Type::NONE)
-			{
-				UE_LOG(LogAudioMixer, Error, TEXT("Error encountered while writing optional chunk data...skipping"));
-			}
-		}
-		
 		// Release the sound file handles as soon as we finished converting the file
 		InputSoundDataReader->Release();
 		SoundFileWriter->Release();
@@ -183,5 +172,29 @@ namespace Audio
 		FMemory::Memcpy(OutWaveData.GetData(), (const void*)&(*Data)[0], OutWaveData.Num());
 
 		return true;
+	}
+
+	void CopyOptionalWavChunks(TSharedPtr<ISoundFileReader>& InSoundDataReader, const int32 InInputFormat, TSharedPtr<ISoundFileWriter>& InSoundFileWriter, const int32 InOutputFormat)
+	{
+		// libsndfile only supports chunk operations with wave file formats
+		if ((InInputFormat & ESoundFileFormat::WAV) && (InOutputFormat & ESoundFileFormat::WAV))
+		{
+			// Get the optional chunks from the input data
+			FSoundFileChunkArray OptionalChunks;
+			ESoundFileError::Type Error = InSoundDataReader->GetOptionalChunks(OptionalChunks);
+			if (Error != ESoundFileError::Type::NONE)
+			{
+				UE_LOG(LogAudioMixer, Error, TEXT("Error encountered while reading optional chunk data...skipping"));
+			}
+			else
+			{
+				// Copy any chunks found over to the output file
+				Error = InSoundFileWriter->WriteOptionalChunks(OptionalChunks);
+				if (Error != ESoundFileError::Type::NONE)
+				{
+					UE_LOG(LogAudioMixer, Error, TEXT("Error encountered while writing optional chunk data...skipping"));
+				}
+			}
+		}
 	}
 }

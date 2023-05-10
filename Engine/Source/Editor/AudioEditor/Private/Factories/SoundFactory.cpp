@@ -371,6 +371,8 @@ UObject* USoundFactory::CreateObject
 		if (*WaveInfo.pBitsPerSample != 16)
 		{
 #if WITH_SNDFILE_IO
+			const uint32 OrigNumSamples = WaveInfo.GetNumSamples();
+
 			// Attempt to convert to 16 bit audio
 			if (Audio::ConvertAudioToWav(RawWaveData, ConvertedRawWaveData))
 			{
@@ -381,6 +383,10 @@ UObject* USoundFactory::CreateObject
 					GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, nullptr);
 					return nullptr;
 				}
+
+				// Sanity check that the same number of samples exist in the converted file as the original
+				const uint32 ConvertedNumSamples = WaveInfo.GetNumSamples();
+				ensure(ConvertedNumSamples == OrigNumSamples);
 			}
 
 			// Copy over the data

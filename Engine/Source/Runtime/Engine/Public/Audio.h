@@ -935,6 +935,10 @@ public:
 	ENGINE_API bool ReadWaveHeader(const uint8* RawWaveData, int32 Size, int32 Offset );
 
 	ENGINE_API void ReportImportFailure() const;
+
+	/** Return total number of samples */
+	ENGINE_API uint32 GetNumSamples() const;
+
 };
 
 /** Utility to serialize raw PCM data into a wave file. */

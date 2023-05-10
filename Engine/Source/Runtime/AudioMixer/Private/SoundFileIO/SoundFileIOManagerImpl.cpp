@@ -39,6 +39,7 @@ namespace Audio
 	static const int32 SET_ENCODING_QUALITY = 0x1300;
 	static const int32 SET_CHANNEL_MAP_INFO = 0x1101;
 	static const int32 GET_CHANNEL_MAP_INFO = 0x1100;
+	static const int32 UPDATE_HEADER_NOW = 0x1060;
 
 	// Exported SoundFile Functions
 	typedef LibSoundFileHandle*(*SoundFileOpenFuncPtr)(const char* Path, int32 Mode, FSoundFileDescription* Description);
@@ -369,43 +370,52 @@ namespace Audio
 
 	static ESoundFileError::Type GetOptionalChunksInternal(LibSoundFileHandle* FileHandle, FSoundFileChunkArray& OutChunkInfoArray)
 	{
-		const TArray<uint32>& OptionalChunkIds = FWaveModInfo::GetOptionalWaveChunkIds();
-
-		for (const uint32 Id : OptionalChunkIds)
+		// Verify that the necessary library function pointers have been properly set
+		if (SoundFileGetChunkIterator != nullptr && SoundFileGetChunkSize != nullptr &&
+			SoundFileGetChunkData != nullptr && SoundFileNextChunkIterator != nullptr)
 		{
-			FSoundFileChunkInfo ChunkLookup;
-			ChunkLookup.ChunkIdSize = sizeof(Id);
-			FCStringAnsi::Strncpy(ChunkLookup.ChunkId, (ANSICHAR*)&(INTEL_ORDER32(Id)), ChunkLookup.ChunkIdSize + 1);
+			const TArray<uint32>& OptionalChunkIds = FWaveModInfo::GetOptionalWaveChunkIds();
 
-			// Lookup chunk of given Id. Multiple chunks can exist of a given type
-			// so we loop here.
-			LibSoundFileChunkIterator* ChunkItr = SoundFileGetChunkIterator(FileHandle, &ChunkLookup);
-			while (ChunkItr)
+			for (const uint32 Id : OptionalChunkIds)
 			{
-				FSoundFileChunkInfoWrapper ChunkInfo;
-				// SoundFileGetChunkSize retrieves the chunk data size. Oddly,
-				// it does not fill in the chunk Id.
-				int32 Result = SoundFileGetChunkSize(ChunkItr, ChunkInfo.GetPtr());
-				if (Result == 0 && ChunkInfo.GetPtr()->DataLength > 0)
+				FSoundFileChunkInfo ChunkLookup;
+				ChunkLookup.ChunkIdSize = sizeof(Id);
+				FCStringAnsi::Strncpy(ChunkLookup.ChunkId, (ANSICHAR*)&(INTEL_ORDER32(Id)), ChunkLookup.ChunkIdSize + 1);
+
+				// Lookup chunk of given Id. Multiple chunks can exist of a given type
+				// so we loop here.
+				LibSoundFileChunkIterator* ChunkItr = SoundFileGetChunkIterator(FileHandle, &ChunkLookup);
+				while (ChunkItr)
 				{
-					ChunkInfo.AllocateChunkData();
-					// SoundFileGetChunkData copies in the chunk data and fills
-					// in the ChunkId.
-					Result = SoundFileGetChunkData(ChunkItr, ChunkInfo.GetPtr());
+					FSoundFileChunkInfoWrapper ChunkInfo;
+					// SoundFileGetChunkSize retrieves the chunk data size. Oddly,
+					// it does not fill in the chunk Id.
+					int32 Result = SoundFileGetChunkSize(ChunkItr, ChunkInfo.GetPtr());
+					if (Result == 0 && ChunkInfo.GetPtr()->DataLength > 0)
+					{
+						ChunkInfo.AllocateChunkData();
+						// SoundFileGetChunkData copies in the chunk data and fills
+						// in the ChunkId.
+						Result = SoundFileGetChunkData(ChunkItr, ChunkInfo.GetPtr());
 
-					if (Result == 0)
-					{
-						OutChunkInfoArray.Add(MoveTemp(ChunkInfo));
+						if (Result == 0)
+						{
+							OutChunkInfoArray.Add(MoveTemp(ChunkInfo));
+						}
+						else
+						{
+							UE_LOG(LogAudioMixer, Error, TEXT("LibSoundFile unable to read invalid chunk: %s"), *FString((ANSICHAR*)ChunkLookup.ChunkId));
+							return ESoundFileError::Type::INVALID_CHUNK;
+						}
 					}
-					else
-					{
-						UE_LOG(LogAudioMixer, Error, TEXT("LibSoundFile unable to read invalid chunk: %s"), ChunkLookup.ChunkId);
-						return ESoundFileError::Type::INVALID_CHUNK;
-					}
+
+					ChunkItr = SoundFileNextChunkIterator(ChunkItr);
 				}
-
-				ChunkItr = SoundFileNextChunkIterator(ChunkItr);
 			}
+		}
+		else
+		{
+			UE_LOG(LogAudioMixer, Error, TEXT("LibSoundFile wasn't properly loaded with symbols for accessing wav chunk data."));
 		}
 
 		return ESoundFileError::Type::NONE;
@@ -413,15 +423,35 @@ namespace Audio
 
 	static ESoundFileError::Type WriteOptionalChunksInternal(LibSoundFileHandle* FileHandle, const FSoundFileChunkArray& ChunkInfoArray)
 	{
-		for (const FSoundFileChunkInfoWrapper& ChunkInfo : ChunkInfoArray)
+		// Verify that the necessary library function pointers have been properly set
+		if (SoundFileSetChunk != nullptr && SoundFileCommand != nullptr)
 		{
-			// Note, libsndfile uses 4-byte pad when writing chunk data
-			int32 Result = SoundFileSetChunk(FileHandle, ChunkInfo.GetPtr());
-			if (Result)
+			for (const FSoundFileChunkInfoWrapper& ChunkInfo : ChunkInfoArray)
 			{
-				UE_LOG(LogAudioMixer, Error, TEXT("LibSoundFile failed to write chunk data; Result = %d"), Result);
-				return ESoundFileError::Type::INVALID_STATE;
+				// Note, libsndfile uses 4-byte pad when writing chunk data
+				int32 Result = SoundFileSetChunk(FileHandle, ChunkInfo.GetPtr());
+				if (Result)
+				{
+					UE_LOG(LogAudioMixer, Error, TEXT("LibSoundFile failed to write chunk data; Result = %d"), Result);
+					return ESoundFileError::Type::INVALID_STATE;
+				}
+				else
+				{
+					UE_LOG(LogAudioMixer, VeryVerbose, TEXT("Wrote ChunkId: %s, chunk DataLength: %d"), *FString((ANSICHAR*)ChunkInfo.GetPtr()->ChunkId), ChunkInfo.GetPtr()->DataLength);
+
+					// Update file header after adding a new chunk
+					Result = SoundFileCommand(FileHandle, UPDATE_HEADER_NOW, nullptr, 0);
+					if (Result)
+					{
+						UE_LOG(LogAudioMixer, Error, TEXT("LibSoundFile failed to update file header; Result = %d"), Result);
+						return ESoundFileError::Type::INVALID_STATE;
+					}
+				}
 			}
+		}
+		else
+		{
+			UE_LOG(LogAudioMixer, Error, TEXT("LibSoundFile wasn't properly loaded with symbols for accessing wav chunk data."));
 		}
 
 		return ESoundFileError::Type::NONE;
