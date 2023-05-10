@@ -16,13 +16,6 @@ class FTakeRecorderProjectSettingsCustomization : public IDetailCustomization
 {
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override
 	{
-		// Enumerate audio devices before building the UI. Note, this can be expensive depending on the hardware
-		// attached to the machine, so we wait as late as possible before enumerating.
-		if (UTakeRecorderAudioInputSettings* AudioInputSettings = TakeRecorderAudioSettingsUtils::GetTakeRecorderAudioInputSettings())
-		{
-			AudioInputSettings->EnumerateAudioDevices();
-		}
-
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 		// Register audio device details customization for the project settings window

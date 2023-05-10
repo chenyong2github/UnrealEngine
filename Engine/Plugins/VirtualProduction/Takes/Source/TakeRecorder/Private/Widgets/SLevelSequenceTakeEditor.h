@@ -62,6 +62,12 @@ private:
 	 */
 	void CheckForNewLevelSequence();
 
+	/**
+	 * Initialize the audio settings object so that microphone sources can build their input channel menus
+	 * based on the current audio device
+	 */
+	void InitializeAudioSettings();
+
 	void AddDetails(const TPair<const UClass*, TArray<UObject*> >& Pair, TArray<FObjectKey>& PreviousClasses);
 
 	/**

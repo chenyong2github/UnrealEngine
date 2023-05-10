@@ -123,6 +123,7 @@ void SLevelSequenceTakeEditor::Construct(const FArguments& InArgs)
 	.OnSelectionChanged(this, &SLevelSequenceTakeEditor::OnSourcesSelectionChanged);
 
 	CheckForNewLevelSequence();
+	InitializeAudioSettings();
 
 	ChildSlot
 	[
@@ -190,6 +191,16 @@ void SLevelSequenceTakeEditor::CheckForNewLevelSequence()
 
 		SourcesWidget->SetSourceObject(Sources);
 		bRequestDetailsRefresh = true;
+	}
+}
+
+void SLevelSequenceTakeEditor::InitializeAudioSettings()
+{
+	// Enumerate audio devices before building the UI. Note, this can be expensive depending on the hardware
+	// attached to the machine, so we wait as late as possible before enumerating.
+	if (UTakeRecorderAudioInputSettings* AudioInputSettings = TakeRecorderAudioSettingsUtils::GetTakeRecorderAudioInputSettings())
+	{
+		AudioInputSettings->EnumerateAudioDevices();
 	}
 }
 
@@ -790,9 +801,6 @@ private:
 					InputDeviceChannelHandle->SetValue(*InSelection);
 					InputChannelTitleBlock->SetText(FText::AsNumber(*InSelection));
 				}
-			})
-			.OnComboBoxOpening_Lambda([this]()
-			{
 			})
 			[
 				SAssignNew(InputChannelTitleBlock, STextBlock)
