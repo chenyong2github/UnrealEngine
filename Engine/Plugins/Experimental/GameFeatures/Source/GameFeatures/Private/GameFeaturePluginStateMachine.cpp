@@ -1136,6 +1136,23 @@ struct FBaseDataReleaseGameFeaturePluginState : public FGameFeaturePluginState
 	virtual EGameFeaturePluginState GetFailureTransitionState() const = 0;
 };
 
+struct FGameFeaturePluginState_Uninstalled : public FDestinationGameFeaturePluginState
+{
+	FGameFeaturePluginState_Uninstalled(FGameFeaturePluginStateMachineProperties& InStateProperties) : FDestinationGameFeaturePluginState(InStateProperties) {}
+
+	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
+	{
+		if (StateProperties.Destination < EGameFeaturePluginState::Uninstalled)
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::Terminal);
+		}
+		else if (StateProperties.Destination > EGameFeaturePluginState::Uninstalled)
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::CheckingStatus);
+		}
+	}
+};
+
 struct FGameFeaturePluginState_Uninstalling : public FBaseDataReleaseGameFeaturePluginState
 {
 	FGameFeaturePluginState_Uninstalling(FGameFeaturePluginStateMachineProperties& InStateProperties)
@@ -1144,7 +1161,7 @@ struct FGameFeaturePluginState_Uninstalling : public FBaseDataReleaseGameFeature
 
 	virtual EGameFeaturePluginState GetSuccessTransitionState() const override
 	{
-		return EGameFeaturePluginState::Terminal;
+		return EGameFeaturePluginState::Uninstalled;
 	}
 	
 	virtual EGameFeaturePluginState GetFailureTransitionState() const override

@@ -39,6 +39,12 @@ Transition states are expected to transition the machine to another state after 
         |           ^                      ^        |               |          |
         |           |                      |        +-------+-------+          |
         |           |                      |                |                  |
+        |    +------+-------+              |                |                  |
+        |    |      *       |              |                |                  |
+        |    | Uninstalled  +--------------~--------------->|                  |
+        |    |              |              |                |                  |
+        |    +------^-------+              |                |                  |
+        |           |                      |                |                  |
         |    +------+-------+    *---------+---------+      |                  |
         |    |              |    |         !         |      |                  |
         |    | Uninstalling <----> ErrorUninstalling |      |                  |
@@ -185,7 +191,7 @@ struct FGameFeaturePluginStateRange
 
 	bool operator==(const FGameFeaturePluginStateRange& Other) const { return MinState == Other.MinState && MaxState == Other.MaxState; }
 	bool operator<(const FGameFeaturePluginStateRange& Other) const { return MaxState < Other.MinState; }
-	bool operator>(const FGameFeaturePluginStateRange& Other) const { return MinState < Other.MaxState; }
+	bool operator>(const FGameFeaturePluginStateRange& Other) const { return MinState > Other.MaxState; }
 };
 
 inline bool operator<(EGameFeaturePluginState State, const FGameFeaturePluginStateRange& StateRange)

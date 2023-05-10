@@ -1074,6 +1074,9 @@ void UGameFeaturesSubsystem::ReleaseGameFeaturePlugin(const FString& PluginURL, 
 
 void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate)
 {
+	//FindOrCreate so that we can make sure we uninstall data for plugins that were installed on a previous application run
+	//but have not yet been requested on this application run and so are not yet in the plugin list but might have data on disk
+	//to uninstall
 	UGameFeaturePluginStateMachine* StateMachine = FindOrCreateGameFeaturePluginStateMachine(PluginURL);
 	check(StateMachine);
 
@@ -1100,7 +1103,48 @@ void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL
 		}
 	}
 
-	TerminateGameFeaturePlugin(PluginURLForTerminate, CompleteDelegate);
+	//Weird flow here because we need to do a few tasks asynchronously
+	// Update URL   -->    Call to set destination to Uninstall --> After we get to Uninstall go to Terminate
+	// (Called Directly)	   (UninstallTransitionLambda)              (StartTerminateLambda)
+
+	// THIRD:
+	//Lambda that will kick off the actual Terminate after we successfully transition to Uninstalled state
+	const FGameFeaturePluginTerminateComplete StartTerminateLambda = FGameFeaturePluginTerminateComplete::CreateWeakLambda(this,
+		[this, PluginURLForTerminate, CompleteDelegate](const UE::GameFeatures::FResult& Result)
+		{
+			if (Result.HasValue())
+			{
+				TerminateGameFeaturePlugin(PluginURLForTerminate, CompleteDelegate);
+			}
+			//If we failed just bubble error up
+			else
+			{
+				CompleteDelegate.ExecuteIfBound(Result);
+			}
+		});
+
+	// SECOND:
+	//Lambda that will kick off the Uninstall destination after updating our URL if necessary
+	const FGameFeaturePluginUpdateURLComplete UninstallTransitionLambda = FGameFeaturePluginUpdateURLComplete::CreateWeakLambda(this,
+		[this, PluginURLForTerminate, StartTerminateLambda](const UE::GameFeatures::FResult& Result)
+		{
+			UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURLForTerminate);
+			check(StateMachine);
+			ChangeGameFeatureDestination(StateMachine, FGameFeaturePluginStateRange(EGameFeaturePluginState::Uninstalled), StartTerminateLambda);
+		});
+
+
+	// FIRST:
+	//If we need to update our URLData, try to do that first before starting the Uninstall. This allows us to update
+	//URL Metadata flags that might be important on the way to Terminal if they are changed. EX: FInstallBundlePluginProtocolMetaData::bUninstallBeforeTerminate
+	if (ShouldUpdatePluginURLData(PluginURLForTerminate))
+	{
+		UpdateGameFeaturePluginURL(PluginURLForTerminate, UninstallTransitionLambda);
+	}
+	else
+	{
+		UninstallTransitionLambda.Execute(MakeValue());
+	}
 }
 
 void UGameFeaturesSubsystem::TerminateGameFeaturePlugin(const FString& PluginURL)

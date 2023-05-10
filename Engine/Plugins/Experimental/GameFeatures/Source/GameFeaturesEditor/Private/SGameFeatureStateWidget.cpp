@@ -65,7 +65,7 @@ FText SGameFeatureStateWidget::GetDisplayNameOfState(EGameFeaturePluginState Sta
 
 FText SGameFeatureStateWidget::GetTooltipOfState(EGameFeaturePluginState State)
 {
-	static_assert((int32)EGameFeaturePluginState::MAX == 28, "");
+	static_assert((int32)EGameFeaturePluginState::MAX == 29, "");
 
 	switch (State)
 	{
@@ -75,6 +75,8 @@ FText SGameFeatureStateWidget::GetTooltipOfState(EGameFeaturePluginState State)
 		return LOCTEXT("StateTooltip_Terminal", "Final State before removal of the state machine");
 	case EGameFeaturePluginState::UnknownStatus:
 		return LOCTEXT("StateTooltip_UnknownStatus", "Initialized, but the only thing known is the URL to query status.");
+	case EGameFeaturePluginState::Uninstalled:
+		return LOCTEXT("StateTooltip_Uninstalled", "All installed data for this plugin has now been uninstalled from local storage (i.e the hard drive)");
 	case EGameFeaturePluginState::Uninstalling:
 		return LOCTEXT("StateTooltip_Uninstalling", "Transition state between StatusKnown -> Terminal for any plugin that can have data that needs to have local datat uninstalled.");
 	case EGameFeaturePluginState::ErrorUninstalling:
