@@ -396,6 +396,12 @@ template<class T> struct TIsPODType<TAutoWeakObjectPtr<T> > { enum { Value = tru
 template<class T> struct TIsZeroConstructType<TAutoWeakObjectPtr<T> > { enum { Value = true }; };
 template<class T> struct TIsWeakPointerType<TAutoWeakObjectPtr<T> > { enum { Value = true }; };
 
+template <typename T>
+struct TCallTraits<TWeakObjectPtr<T>> : public TCallTraitsBase<TWeakObjectPtr<T>>
+{
+	using ConstPointerType = TWeakObjectPtr<const T>;
+};
+
 /** Utility function to fill in a TArray<ClassName*> from a TArray<TWeakObjectPtr<ClassName>> */
 template<typename DestArrayType, typename SourceArrayType>
 void CopyFromWeakArray(DestArrayType& Dest, const SourceArrayType& Src)

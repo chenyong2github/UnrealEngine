@@ -171,6 +171,12 @@ private:
 };
 
 template <typename T>
+struct TCallTraits<TSubclassOf<T>> : public TCallTraitsBase<TSubclassOf<T>>
+{
+	using ConstPointerType = TSubclassOf<const T>;
+};
+
+template <typename T>
 FArchive& operator<<(FArchive& Ar, TSubclassOf<T>& SubclassOf)
 {
 	SubclassOf.Serialize(Ar);

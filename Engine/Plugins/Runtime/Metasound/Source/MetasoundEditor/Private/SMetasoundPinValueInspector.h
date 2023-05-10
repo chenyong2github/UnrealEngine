@@ -88,7 +88,7 @@ namespace Metasound
 
 			virtual bool Compare(const FDebugLineItem* BaseOther) const override;
 
-			virtual uint32 GetHash() override;
+			virtual uint32 GetHash() const override;
 
 		private:
 			FLinearColor GetEdgeStyleColorAtIndex(int32 InIndex) const;

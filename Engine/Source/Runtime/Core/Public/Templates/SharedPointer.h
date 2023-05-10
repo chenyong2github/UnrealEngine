@@ -652,6 +652,12 @@ template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedRef_V<const
 template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedRef_V<      volatile TSharedRef<ObjectType, InMode>> = true;
 template <class ObjectType, ESPMode InMode> constexpr bool TIsTSharedRef_V<const volatile TSharedRef<ObjectType, InMode>> = true;
 
+template <class ObjectType, ESPMode Mode>
+struct TCallTraits<TSharedRef<ObjectType, Mode>> : public TCallTraitsBase<TSharedRef<ObjectType, Mode>>
+{
+	using ConstPointerType = TSharedRef<const ObjectType, Mode>;
+};
+
 
 /**
  * Wrapper for a type that yields a reference to that type.
@@ -1236,6 +1242,12 @@ DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template<class ObjectType, ESPMode Mode>
 
 template<class ObjectType, ESPMode Mode> struct TIsZeroConstructType<TSharedPtr<ObjectType, Mode>> { enum { Value = true }; };
 
+template <class ObjectType, ESPMode Mode>
+struct TCallTraits<TSharedPtr<ObjectType, Mode>> : public TCallTraitsBase<TSharedPtr<ObjectType, Mode>>
+{
+	using ConstPointerType = TSharedPtr<const ObjectType, Mode>;
+};
+
 
 /**
  * TWeakPtr is a non-intrusive reference-counted weak object pointer.  This weak pointer will be
@@ -1541,6 +1553,12 @@ template <class ObjectType, ESPMode InMode> constexpr bool TIsTWeakPtr_V<const v
 
 template<class T, ESPMode Mode> struct TIsWeakPointerType<TWeakPtr<T, Mode> > { enum { Value = true }; };
 template<class T, ESPMode Mode> struct TIsZeroConstructType<TWeakPtr<T, Mode> > { enum { Value = true }; };
+
+template <class ObjectType, ESPMode Mode>
+struct TCallTraits<TWeakPtr<ObjectType, Mode>> : public TCallTraitsBase<TWeakPtr<ObjectType, Mode>>
+{
+	using ConstPointerType = TWeakPtr<const ObjectType, Mode>;
+};
 
 
 /**

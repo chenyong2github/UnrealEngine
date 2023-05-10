@@ -146,7 +146,7 @@ public:
 	TScriptInterface(TYPE_OF_NULLPTR) {}
 
 	/**
-	 * Assignment from an object type that implements the InterfaceType native interface class
+	 * Construction from an object type that implements the InterfaceType native interface class
 	 */
 	template <
 		typename U,
@@ -162,6 +162,21 @@ public:
 	}
 
 	/**
+	 * Construction from another script interface of a compatible interface type
+	 */
+	template <
+		typename OtherInterfaceType,
+		decltype(ImplicitConv<InterfaceType*>(std::declval<OtherInterfaceType>()))* = nullptr
+	>
+	FORCEINLINE TScriptInterface(const TScriptInterface<OtherInterfaceType>& Other)
+	{
+		SetObject(Other.GetObject());
+
+		InterfaceType* SourceInterface = Other.GetInterface();
+		SetInterface(SourceInterface);
+	}
+
+	/**
 	 * Assignment from an object type that implements the InterfaceType native interface class
 	 */
 	template <typename ObjectType>
@@ -171,6 +186,12 @@ public:
 
 		InterfaceType* SourceInterface = Cast<InterfaceType>(ToRawPtr(SourceObject));
 		SetInterface(SourceInterface);
+	}
+
+	template <typename OtherInterfaceType>
+	TScriptInterface(const TScriptInterface<OtherInterfaceType>& Other)
+	{
+
 	}
 
 	/**
@@ -198,6 +219,19 @@ public:
 	TScriptInterface& operator=(U&& Source)
 	{
 		*this = TScriptInterface(Source);
+		return *this;
+	}
+
+	/**
+	 * Assignment from another script interface of a compatible interface type
+	 */
+	template <
+		typename OtherInterfaceType,
+		decltype(ImplicitConv<InterfaceType*>(std::declval<OtherInterfaceType>()))* = nullptr
+	>
+	TScriptInterface& operator=(const TScriptInterface<OtherInterfaceType>& Other)
+	{
+		*this = TScriptInterface(Other);
 		return *this;
 	}
 
@@ -297,6 +331,12 @@ public:
 	{
 		return Interface.Serialize(Ar, InterfaceType::UClassType::StaticClass());
 	}
+};
+
+template <typename InterfaceType>
+struct TCallTraits<TScriptInterface<InterfaceType>> : public TCallTraitsBase<TScriptInterface<InterfaceType>>
+{
+	using ConstPointerType = TScriptInterface<const InterfaceType>;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

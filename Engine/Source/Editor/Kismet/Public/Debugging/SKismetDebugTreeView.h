@@ -152,7 +152,7 @@ protected:
 	virtual bool Compare(const FDebugLineItem* Other) const = 0;
 
 	// used for sets
-	virtual uint32 GetHash() = 0;
+	virtual uint32 GetHash() const = 0;
 
 	// Used to update the state of a line item rather than replace it.
 	// called after Compare returns true

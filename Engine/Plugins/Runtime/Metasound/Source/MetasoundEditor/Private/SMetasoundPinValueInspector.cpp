@@ -625,7 +625,7 @@ namespace Metasound
 			return Message == Other->Message;
 		}
 
-		uint32 FMetasoundNumericDebugLineItem::GetHash()
+		uint32 FMetasoundNumericDebugLineItem::GetHash() const
 		{
 			return GetTypeHash(Message);
 		}

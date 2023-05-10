@@ -412,6 +412,12 @@ FArchive& operator<<(FArchive& Ar, TSoftObjectPtr<T>& Ptr)
 template<class T> struct TIsPODType<TSoftObjectPtr<T> > { enum { Value = TIsPODType<FSoftObjectPtr>::Value }; };
 template<class T> struct TIsWeakPointerType<TSoftObjectPtr<T> > { enum { Value = TIsWeakPointerType<FSoftObjectPtr>::Value }; };
 
+template <typename T>
+struct TCallTraits<TSoftObjectPtr<T>> : public TCallTraitsBase<TSoftObjectPtr<T>>
+{
+	using ConstPointerType = TSoftObjectPtr<const T>;
+};
+
 /** Utility to create a TSoftObjectPtr without specifying the type */
 template <class T>
 TSoftObjectPtr<std::remove_cv_t<T>> MakeSoftObjectPtr(T* Object)
@@ -651,6 +657,12 @@ private:
 
 template <class T> struct TIsPODType<TSoftClassPtr<T> > { enum { Value = TIsPODType<FSoftObjectPtr>::Value }; };
 template <class T> struct TIsWeakPointerType<TSoftClassPtr<T> > { enum { Value = TIsWeakPointerType<FSoftObjectPtr>::Value }; };
+
+template <typename T>
+struct TCallTraits<TSoftClassPtr<T>> : public TCallTraitsBase<TSoftClassPtr<T>>
+{
+	using ConstPointerType = TSoftClassPtr<const T>;
+};
 
 /** Utility to create a TSoftObjectPtr without specifying the type */
 template <class T>

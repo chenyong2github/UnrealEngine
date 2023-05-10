@@ -592,8 +592,8 @@ public:
 		*/
 		static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
 		{
-			FDebugLineItem* APtr = A.Get();
-			FDebugLineItem* BPtr = B.Get();
+			const FDebugLineItem* APtr = A.Get();
+			const FDebugLineItem* BPtr = B.Get();
 			if (APtr && BPtr)
 			{
 				return (APtr->Type == BPtr->Type) && APtr->Compare(BPtr);
@@ -604,7 +604,7 @@ public:
 		/** Calculates a hash index for a key. */
 		static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
 		{
-			if (FDebugLineItem* KeyPtr = Key.Get())
+			if (const FDebugLineItem* KeyPtr = Key.Get())
 			{
 				return KeyPtr->GetHash();
 			}
@@ -757,7 +757,7 @@ protected:
 		return Message == Other->Message;
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		return GetTypeHash(Message);
 	}
@@ -798,7 +798,7 @@ protected:
 			(UUID == Other->UUID);
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		return HashCombine(GetTypeHash(UUID), GetTypeHash(ParentObjectRef));
 	}
@@ -1061,7 +1061,7 @@ protected:
 			Data->DisplayName.CompareTo(Other->Data->DisplayName) == 0;
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		return HashCombine(GetTypeHash(Data->Property), GetTypeHash(Data->DisplayName.ToString()));
 	}
@@ -1272,7 +1272,7 @@ protected:
 		return (ObjectToWatch.Get() == Other->ObjectToWatch.Get());
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		return GetTypeHash(ObjectToWatch);
 	}
@@ -1409,7 +1409,7 @@ protected:
 			(PathToProperty == Other->PathToProperty);
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		return HashCombine(GetTypeHash(ParentObjectRef), GetTypeHash(ObjectRef));
 	}
@@ -2181,7 +2181,7 @@ protected:
 			(BreakpointNode == Other->BreakpointNode);
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		return HashCombine(GetTypeHash(ParentObjectRef), GetTypeHash(BreakpointNode));
 	}
@@ -2398,7 +2398,7 @@ protected:
 		return false;
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		check(false);
 		return 0;
@@ -2601,7 +2601,7 @@ protected:
 		return ObjectRef.Get() == Other->ObjectRef.Get();
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		return GetTypeHash(ObjectRef);
 	}
@@ -2731,7 +2731,7 @@ protected:
 		return false;
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		check(false);
 		return 0;
@@ -2850,7 +2850,7 @@ protected:
 		return false;
 	}
 
-	virtual uint32 GetHash() override
+	virtual uint32 GetHash() const override
 	{
 		check(false);
 		return 0;
