@@ -451,7 +451,7 @@ void UNiagaraHierarchyViewModelBase::ForceFullRefreshOnTimer()
 
 void UNiagaraHierarchyViewModelBase::RequestFullRefreshNextFrame()
 {
-	if(!FullRefreshNextFrameHandle.IsValid())
+	if(!FullRefreshNextFrameHandle.IsValid() && GEditor != nullptr)
 	{
 		FullRefreshNextFrameHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateUObject(this, &UNiagaraHierarchyViewModelBase::ForceFullRefreshOnTimer));
 	}
