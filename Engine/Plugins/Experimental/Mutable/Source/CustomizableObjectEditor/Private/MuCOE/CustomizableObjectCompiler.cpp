@@ -618,6 +618,14 @@ mu::NodeObjectPtr FCustomizableObjectCompiler::GenerateMutableRoot(
 		ActualRootObject = Root->ParentObject ? GetFullGraphRootObject(Root, VisitedObjects) : Object;
 		GenerationContext.bDisableTextureLayoutManagementFlag = ActualRootObject->bDisableTextureLayoutManagement;
 
+
+	}
+
+	// Ensure that the CO has a valid AutoLODStrategy on the ActualRoot.
+	if (ActualRoot->AutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::Inherited)
+	{
+		CompilerLog(LOCTEXT("RootInheritsFromParent", "Error! Base CustomizableObject's LOD Strategy can't be set to 'Inherit from parent object'"), ActualRoot);
+		return nullptr;
 	}
 
 	// Make sure we have a valid Reference SkeletalMesh and Skeleton for each component

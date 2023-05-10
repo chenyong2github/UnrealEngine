@@ -164,7 +164,7 @@ public:
 	int32 NumLODs;
 
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
-	ECustomizableObjectAutomaticLODStrategy AutoLODStrategy;
+	ECustomizableObjectAutomaticLODStrategy AutoLODStrategy = ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh;
 
 	UPROPERTY(EditAnywhere, Category = CustomizableObject, meta = (ClampMin = "1"))
 	int32 NumMeshComponents = 1;
