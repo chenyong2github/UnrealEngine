@@ -100,18 +100,17 @@ public:
 	FORCEINLINE static FName GetMinValuePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, MinValue); }
 	FORCEINLINE static FName GetMaxValuePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, MaxValue); }
 	FORCEINLINE static FName GetUseLSBModePropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, bUseLSBMode); }
-	FORCEINLINE static FName GetIsMutedPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, bIsMuted); }
 #if WITH_EDITOR
 	FORCEINLINE static FName GetFloatOscillatorClassPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, FloatOscillatorClass); }
 #endif // WITH_EDITOR
 	FORCEINLINE static FName GetFloatOscillatorPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, FloatOscillator); }
+	FORCEINLINE static FName GetIsMutedPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, bIsMuted); }
 	FORCEINLINE static FName GetIsLockedPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleFaderBase, bIsLocked); }
 
 protected:
 	//~ Begin of UObject interface
 	virtual void PostInitProperties() override;
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End of UObject interface
@@ -141,23 +140,23 @@ protected:
 	FString FaderName;
 
 	/** The number of channels this Fader uses */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "2"), Category = "DMX Fader")
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "2", HideEditConditionToggle, EditCondition = "bCanEditDMXAssignment"), Category = "DMX Fader")
 	EDMXFixtureSignalFormat DataType;
 
 	/** The universe the should send to fader */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "3"), Category = "DMX Fader")
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "3", HideEditConditionToggle, EditCondition = "bCanEditDMXAssignment"), Category = "DMX Fader")
 	int32 UniverseID = 1;
 
 	/** The starting channel Address to send DMX to */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "4"), Category = "DMX Fader")
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "4", HideEditConditionToggle, EditCondition = "bCanEditDMXAssignment"), Category = "DMX Fader")
 	int32 StartingAddress = 1;
 
 	/** The end channel Address to send DMX to */
-	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "5"), Category = "DMX Fader")
+	UPROPERTY(VisibleAnywhere, meta = (DisplayPriority = "5", HideEditConditionToggle, EditCondition = "bCanEditDMXAssignment"), Category = "DMX Fader")
 	int32 EndingAddress = 1;
 
 	/** The current Fader Value */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "6"), Category = "DMX Fader", Meta = (EditCondition = "!bIsMuted && !bIsLocked"))
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "6", HideEditConditionToggle, EditCondition = "!bIsMuted && !bIsLocked"), Category = "DMX Fader")
 	uint32 Value = 0;
 
 	/** Fader's default Value */
@@ -173,7 +172,7 @@ protected:
 	uint32 MaxValue = 255;
 
 	/** Use Least Significant Byte mode. Individual bytes(channels) be interpreted with the first bytes being the lowest part of the number(endianness). */
-	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "9"), Category = "DMX Fader")
+	UPROPERTY(EditAnywhere, meta = (DisplayPriority = "9", HideEditConditionToggle, EditCondition = "bCanEditDMXAssignment"), Category = "DMX Fader")
 	bool bUseLSBMode = false;
 
 #if WITH_EDITORONLY_DATA
@@ -196,5 +195,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "DMX Fader")
 	/** If true, Fader's value can't be changed */
 	bool bIsLocked = false;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	/** If true, the property is editable in editor */
+	bool bCanEditDMXAssignment = false;
+#endif // WITH_EDITORONLY_DATA
 };
 

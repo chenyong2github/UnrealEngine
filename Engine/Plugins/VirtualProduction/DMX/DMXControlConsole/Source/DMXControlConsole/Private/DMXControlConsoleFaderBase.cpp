@@ -124,25 +124,6 @@ void UDMXControlConsoleFaderBase::PostInitProperties()
 }
 
 #if WITH_EDITOR
-bool UDMXControlConsoleFaderBase::CanEditChange(const FProperty* InProperty) const
-{
-	if (InProperty->NamePrivate == GetFaderNamePropertyName() ||
-		InProperty->NamePrivate == GetMinValuePropertyName() ||
-		InProperty->NamePrivate == GetMaxValuePropertyName() ||
-		InProperty->NamePrivate == GetFloatOscillatorClassPropertyName() ||
-		InProperty->NamePrivate == GetFloatOscillatorPropertyName() ||
-		InProperty->NamePrivate == GetIsLockedPropertyName())
-	{
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
 void UDMXControlConsoleFaderBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

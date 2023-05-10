@@ -24,11 +24,4 @@ public:
 	virtual void SetUniverseID(int32 InUniversID) override { Super::SetUniverseID(InUniversID); }
 	virtual void SetAddressRange(int32 InStartingAddress) override { Super::SetAddressRange(InStartingAddress); }
 	//~ End DMXControlConsoleFaderBase interface
-
-protected:
-	//~ Begin of UObject interface
-#if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-#endif // WITH_EDITOR
-	//~ End of UObject interface
 };

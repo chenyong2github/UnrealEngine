@@ -6,21 +6,8 @@
 UDMXControlConsoleRawFader::UDMXControlConsoleRawFader()
 {
 	FaderName = TEXT("Fader");
-}
 
 #if WITH_EDITOR
-bool UDMXControlConsoleRawFader::CanEditChange(const FProperty* InProperty) const
-{
-	if (InProperty->NamePrivate == GetDataTypePropertyName() ||
-		InProperty->NamePrivate == GetUniverseIDPropertyName() ||
-		InProperty->NamePrivate == GetStartingAddressPropertyName() ||
-		InProperty->NamePrivate == GetUseLSBModePropertyName())
-	{
-		return true;
-	}
-	else
-	{
-		return Super::CanEditChange(InProperty);
-	}
-}
+	bCanEditDMXAssignment = true;
 #endif // WITH_EDITOR
+}
