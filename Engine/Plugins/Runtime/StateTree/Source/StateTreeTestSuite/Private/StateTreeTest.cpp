@@ -290,6 +290,7 @@ struct FStateTreeTest_FailEnterState : FAITestBase
 		AITEST_TRUE("StateTree Task1 should exit state", Exec.Expect(Task1.GetName(), ExitStateStr));
 		AITEST_TRUE("StateTree Task2 should exit state", Exec.Expect(Task2.GetName(), ExitStateStr));
 		AITEST_FALSE("StateTree Task3 should not exit state", Exec.Expect(Task3.GetName(), ExitStateStr));
+		AITEST_TRUE("StateTree status should be stopped", Status == EStateTreeRunStatus::Stopped);
 		Exec.LogClear();
 
 		return true;

@@ -294,14 +294,14 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop()
 	{
 		// Transition to Succeeded state.
 		FStateTreeTransitionResult Transition;
-		Transition.TargetState = FStateTreeStateHandle::Succeeded;
+		Transition.TargetState = FStateTreeStateHandle::Stopped;
 		Transition.CurrentActiveStates = Exec.ActiveStates;
 		Transition.CurrentRunStatus = Exec.LastTickStatus;
-		Transition.NextActiveStates = FStateTreeActiveStates(FStateTreeStateHandle::Succeeded);
+		Transition.NextActiveStates = FStateTreeActiveStates(FStateTreeStateHandle::Stopped);
 
 		ExitState(Transition);
 
-		Result = EStateTreeRunStatus::Succeeded;
+		Result = EStateTreeRunStatus::Stopped;
 	}
 
 	// Stop evaluators and global tasks.

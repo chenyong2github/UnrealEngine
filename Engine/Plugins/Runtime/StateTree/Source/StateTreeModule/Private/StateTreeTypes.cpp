@@ -10,6 +10,7 @@ DEFINE_LOG_CATEGORY(LogStateTree);
 const FStateTreeStateHandle FStateTreeStateHandle::Invalid = FStateTreeStateHandle();
 const FStateTreeStateHandle FStateTreeStateHandle::Succeeded = FStateTreeStateHandle(FStateTreeStateHandle::SucceededIndex);
 const FStateTreeStateHandle FStateTreeStateHandle::Failed = FStateTreeStateHandle(FStateTreeStateHandle::FailedIndex);
+const FStateTreeStateHandle FStateTreeStateHandle::Stopped = FStateTreeStateHandle(FStateTreeStateHandle::StoppedIndex);
 const FStateTreeStateHandle FStateTreeStateHandle::Root = FStateTreeStateHandle(0);
 
 const FStateTreeIndex16 FStateTreeIndex16::Invalid = FStateTreeIndex16();

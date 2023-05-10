@@ -32,7 +32,10 @@ enum class EStateTreeRunStatus : uint8
 	
 	/** Tree execution has stopped on success. */
 	Succeeded,
-	
+
+	/** The State Tree was requested to stop without a particular success or failure state. */
+	Stopped,
+
 	/** Status not set. */
 	Unset,
 };
@@ -178,13 +181,15 @@ struct STATETREEMODULE_API FStateTreeStateHandle
 {
 	GENERATED_BODY()
 
-	static constexpr uint16 InvalidIndex = uint16(-1);		// Index value indicating invalid item.
-	static constexpr uint16 SucceededIndex = uint16(-2);	// Index value indicating a Succeeded item.
-	static constexpr uint16 FailedIndex = uint16(-3);		// Index value indicating a Failed item.
+	static constexpr uint16 InvalidIndex = uint16(-1);		// Index value indicating invalid state.
+	static constexpr uint16 SucceededIndex = uint16(-2);	// Index value indicating a Succeeded state.
+	static constexpr uint16 FailedIndex = uint16(-3);		// Index value indicating a Failed state.
+	static constexpr uint16 StoppedIndex = uint16(-4);		// Index value indicating a Stopped state.
 	
 	static const FStateTreeStateHandle Invalid;
 	static const FStateTreeStateHandle Succeeded;
 	static const FStateTreeStateHandle Failed;
+	static const FStateTreeStateHandle Stopped;
 	static const FStateTreeStateHandle Root;
 
 	FStateTreeStateHandle() = default;
@@ -192,7 +197,7 @@ struct STATETREEMODULE_API FStateTreeStateHandle
 
 	bool IsValid() const { return Index != InvalidIndex; }
 	void Invalidate() { Index = InvalidIndex; }
-	bool IsCompletionState() const { return Index == SucceededIndex || Index == FailedIndex; }
+	bool IsCompletionState() const { return Index == SucceededIndex || Index == FailedIndex || Index == StoppedIndex; }
 	EStateTreeRunStatus ToCompletionStatus() const
 	{
 		if (Index == SucceededIndex)
@@ -202,6 +207,10 @@ struct STATETREEMODULE_API FStateTreeStateHandle
 		else if (Index == FailedIndex)
 		{
 			return EStateTreeRunStatus::Failed;
+		}
+		else if (Index == StoppedIndex)
+		{
+			return EStateTreeRunStatus::Stopped;
 		}
 		return EStateTreeRunStatus::Unset;
 	}
@@ -213,9 +222,10 @@ struct STATETREEMODULE_API FStateTreeStateHandle
 	{
 		switch (Index)
 		{
-		case InvalidIndex:		return TEXT("Invalid Item");
-		case SucceededIndex:	return TEXT("Succeeded Item");
-		case FailedIndex: 		return TEXT("Failed Item");
+		case InvalidIndex:		return TEXT("Invalid");
+		case SucceededIndex:	return TEXT("Succeeded");
+		case FailedIndex: 		return TEXT("Failed");
+		case StoppedIndex: 		return TEXT("Stopped");
 		default: 				return FString::Printf(TEXT("%d"), Index);
 		}
 	}
