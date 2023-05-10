@@ -162,6 +162,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Convex")
 	bool bPreferExternalCollisionShapes = true;
 
+	/** Method to determine which convex hull pairs can potentially be merged */
+	UPROPERTY(EditAnywhere, Category = "Convex")
+	EAllowConvexMergeMethod AllowMerges = EAllowConvexMergeMethod::ByProximity;
+
 	/** Optional transform selection to compute cluster hulls on -- if not provided, all cluster hulls will be computed. */
 	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
 	FDataflowTransformSelection OptionalSelectionFilter;

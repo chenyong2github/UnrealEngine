@@ -172,21 +172,21 @@ void FGenerateClusterConvexHullsFromLeafHullsDataflowNode::Evaluate(Dataflow::FC
 			if (IsConnected(&OptionalSelectionFilter))
 			{
 				const FDataflowTransformSelection& InOptionalSelectionFilter = GetValue<FDataflowTransformSelection>(Context, &OptionalSelectionFilter);
+				FGeometryCollectionConvexUtility::FClusterConvexHullSettings Settings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
+				Settings.AllowMergesMethod = AllowMerges;
 				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(
 					*GeomCollection,
-					InConvexCount,
-					InErrorToleranceInCm,
-					InOptionalSelectionFilter.AsArray(),
-					bPreferExternalCollisionShapes
+					Settings,
+					InOptionalSelectionFilter.AsArray()
 				);
 			}
 			else
 			{
+				FGeometryCollectionConvexUtility::FClusterConvexHullSettings Settings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
+				Settings.AllowMergesMethod = AllowMerges;
 				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(
 					*GeomCollection,
-					InConvexCount,
-					InErrorToleranceInCm,
-					bPreferExternalCollisionShapes
+					Settings
 				);
 			}
 
@@ -219,21 +219,19 @@ void FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::Evaluate(Dataflow
 			if (IsConnected(&OptionalSelectionFilter))
 			{
 				const FDataflowTransformSelection& InOptionalSelectionFilter = GetValue<FDataflowTransformSelection>(Context, &OptionalSelectionFilter);
+				FGeometryCollectionConvexUtility::FClusterConvexHullSettings Settings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
 				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(
 					*GeomCollection,
-					InConvexCount,
-					InErrorToleranceInCm,
-					InOptionalSelectionFilter.AsArray(),
-					bPreferExternalCollisionShapes
+					Settings,
+					InOptionalSelectionFilter.AsArray()
 				);
 			}
 			else
 			{
+				FGeometryCollectionConvexUtility::FClusterConvexHullSettings Settings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
 				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(
 					*GeomCollection,
-					InConvexCount,
-					InErrorToleranceInCm,
-					bPreferExternalCollisionShapes
+					Settings
 				);
 			}
 

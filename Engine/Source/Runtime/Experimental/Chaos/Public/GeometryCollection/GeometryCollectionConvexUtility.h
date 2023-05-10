@@ -38,6 +38,15 @@ enum class EGenerateConvexMethod : uint8
 	IntersectExternalWithComputed
 };
 
+UENUM()
+enum class EAllowConvexMergeMethod : uint8
+{
+	// Only allow merging convex hulls that are in proximity
+	ByProximity,
+	// Allow any pair of convex hulls to merge
+	Any
+};
+
 namespace UE::GeometryCollectionConvexUtility
 {
 	// Used to pass computed convex hulls along with metadata
@@ -99,10 +108,23 @@ public:
 	static FGeometryCollectionConvexData CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FractionAllowRemove = .3, double SimplificationDistanceThreshold = 0.0, double CanExceedFraction = .5, 
 		EConvexOverlapRemoval OverlapRemovalMethod = EConvexOverlapRemoval::All, double OverlapRemovalShrinkPercent = 0.0, UE::GeometryCollectionConvexUtility::FConvexHulls* ComputedLeafHullsToModify = nullptr);
 
-	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> TransformSubset, bool bUseExternalCollisionIfAvailable = true);
-	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bUseExternalCollisionIfAvailable = true);
-	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> OptionalTransformSubset, bool bUseExternalCollisionIfAvailable = true);
-	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bUseExternalCollisionIfAvailable = true);
+	struct FClusterConvexHullSettings
+	{
+		FClusterConvexHullSettings() = default;
+		FClusterConvexHullSettings(int32 ConvexCount, double ErrorToleranceInCm, bool bUseExternalCollisionIfAvailable = true)
+			: ConvexCount(ConvexCount), ErrorToleranceInCm(ErrorToleranceInCm), bUseExternalCollisionIfAvailable(bUseExternalCollisionIfAvailable)
+		{}
+
+		int32 ConvexCount = 4;
+		double ErrorToleranceInCm = 0.0;
+		bool bUseExternalCollisionIfAvailable = true;
+		EAllowConvexMergeMethod AllowMergesMethod = EAllowConvexMergeMethod::ByProximity;
+	};
+
+	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> TransformSubset);
+	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings);
+	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> OptionalTransformSubset);
+	static void GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings);
 
 	// Additional settings for filtering when the EGenerateConvexMethod::IntersectExternalWithComputed is applied
 	struct FIntersectionFilters
@@ -182,6 +204,6 @@ private:
 	static void CreateConvexHullAttributesIfNeeded(FManagedArrayCollection& GeometryCollection);
 
 	// Implementation for GenerateClusterConvexHullsFromLeafHulls, supporting the full-collection and subset cases
-	static void GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bOnlySubset, bool bUseDirectChildren, const TArrayView<const int32> OptionalTransformSubset, bool bUseExternalCollisionIfAvailable = true);
+	static void GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, bool bOnlySubset, bool bUseDirectChildren, const TArrayView<const int32> OptionalTransformSubset);
 };
 

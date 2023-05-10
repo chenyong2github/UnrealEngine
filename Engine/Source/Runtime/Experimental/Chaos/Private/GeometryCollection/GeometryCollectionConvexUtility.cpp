@@ -1645,24 +1645,24 @@ void FGeometryCollectionConvexUtility::GenerateLeafConvexHulls(FGeometryCollecti
 	RemoveEmptyConvexHulls(Collection);
 }
 
-void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> TransformSubset, bool bUseExternalCollisionIfAvailable)
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> TransformSubset)
 {
-	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, true, true/*bUseDirectChildren*/, TransformSubset, bUseExternalCollisionIfAvailable);
+	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, Settings, true, true/*bUseDirectChildren*/, TransformSubset);
 }
-void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bUseExternalCollisionIfAvailable)
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings)
 {
-	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, false, true/*bUseDirectChildren*/, TArrayView<const int32>(), bUseExternalCollisionIfAvailable);
+	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, Settings, false, true/*bUseDirectChildren*/, TArrayView<const int32>());
 }
-void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, const TArrayView<const int32> TransformSubset, bool bUseExternalCollisionIfAvailable)
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> TransformSubset)
 {
-	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, true, false/*bUseDirectChildren*/, TransformSubset, bUseExternalCollisionIfAvailable);
+	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, Settings, true, false/*bUseDirectChildren*/, TransformSubset);
 }
-void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bUseExternalCollisionIfAvailable)
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings)
 {
-	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, ConvexCount, ErrorToleranceInCm, false, false/*bUseDirectChildren*/, TArrayView<const int32>(), bUseExternalCollisionIfAvailable);
+	GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(Collection, Settings, false, false/*bUseDirectChildren*/, TArrayView<const int32>());
 }
 
-void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(FGeometryCollection& Collection, int32 ConvexCount, double ErrorToleranceInCm, bool bOnlySubset, bool bUseDirectChildren, const TArrayView<const int32> TransformSubset, bool bUseExternalCollisionIfAvailable)
+void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChildrenHullsInternal(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, bool bOnlySubset, bool bUseDirectChildren, const TArrayView<const int32> TransformSubset)
 {
 	static FName ConvexGroupName("Convex");
 	static FName ConvexHullAttributeName("ConvexHull");
@@ -1754,7 +1754,7 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChild
 					FTransform ChildToParentTransform = InnerTransform.GetRelativeTransform(ParentTransform);
 
 					const FSharedImplicit ExternalCollision = (ExternalCollisionAttribute.IsValid()) ? ExternalCollisionAttribute.Get()[SourceTransformIndex] : FSharedImplicit();
-					if (ExternalCollision && bUseExternalCollisionIfAvailable)
+					if (ExternalCollision && Settings.bUseExternalCollisionIfAvailable)
 					{
 						const int32 ExternalHullsStart = ExternalHulls.Num();
 						ConvertImplicitToConvexArray(*ExternalCollision, FTransform::Identity, ExternalHulls);
@@ -1781,12 +1781,12 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChild
 						}
 					}
 				}
-				// get hull proximity out of geometry proximity.  (Note: Only works if merging leaf convexes ... need a more general source of proximity!)
-				if (bUseDirectChildren)
+				// Set HullProximity for convex merges -- the connections between convex hulls that can be merged
+				if (bUseDirectChildren || Settings.AllowMergesMethod == EAllowConvexMergeMethod::Any)
 				{
-					// when using direct childre, proximity data may not be available ( if children are not leaves ) 
-					// so we use declare everything connected to everything for now 
-					// @todo this is suboptimal in some cases and we could precompute proximity and use it instead 
+					// With MergeMethod of Any, any pair of convex hulls can be merged
+					// Note: Currently bUseDirectChildren only supports this method
+					// This is likely to be slower and may consider additional merges that the proximity method cannot
 					for (int32 IndexA = 0; IndexA < SourceTransformIndices.Num(); IndexA++)
 					{
 						const int32 TransformIndexA = SourceTransformIndices[IndexA];
@@ -1809,7 +1809,7 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChild
 						}
 					}
 				}
-				else
+				else // Settings.MergeMethod == EAllowConvexMergeMethod::ByProximity
 				{
 					for (int32 SourceTransformIndex : SourceTransformIndices)
 					{
@@ -1844,7 +1844,7 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChild
 				};
 				UE::Geometry::FConvexDecomposition3 ConvexDecomposition;
 				ConvexDecomposition.InitializeFromHulls(Hulls.Num(), GetHullVolume, GetHullNumVertices, GetHullVertex, HullProximity);
-				ConvexDecomposition.MergeBest(ConvexCount, ErrorToleranceInCm, 0, true);
+				ConvexDecomposition.MergeBest(Settings.ConvexCount, Settings.ErrorToleranceInCm, 0, true);
 				
 				// reset existing hulls for this transform index
 				for (int32 ConvexIndex : TransformToConvexIndices[TransformIndex])
