@@ -7,6 +7,8 @@ using System.Net.Security;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Grpc.Core;
+using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Horde.Agent.Utility;
 using Microsoft.Extensions.Logging;
@@ -24,6 +26,7 @@ namespace Horde.Agent.Services
 			public int UnencryptedHttp2 { get; set; }
 		}
 
+		private readonly IOptions<AgentSettings> _settings;
 		private readonly ServerProfile _serverProfile;
 		private readonly ILogger _logger;
 		private readonly ILoggerFactory _loggerFactory;
@@ -41,6 +44,7 @@ namespace Horde.Agent.Services
 		/// <param name="loggerFactory"></param>
 		public GrpcService(IOptions<AgentSettings> settings, ILogger<GrpcService> logger, ILoggerFactory loggerFactory)
 		{
+			_settings = settings;
 			_serverProfile = settings.Value.GetCurrentServerProfile();
 			_logger = logger;
 			_loggerFactory = loggerFactory;
@@ -119,6 +123,24 @@ namespace Horde.Agent.Services
 				HttpClient = httpClient,
 				DisposeHttpClient = true
 			});
+		}
+
+		/// <summary>
+		/// Get a gRPC call invoker for the given channel with extra metadata attached,
+		/// such as current version and name
+		/// </summary>
+		/// <param name="channel">gRPC channel to use</param>
+		/// <returns>A call invoker</returns>
+		public CallInvoker GetInvoker(GrpcChannel channel)
+		{
+			CallInvoker invoker = channel.Intercept(headers =>
+			{
+				headers.Add("Horde-Agent-Version", Program.Version);
+				headers.Add("Horde-Agent-Name", _settings.Value.GetAgentName());
+				return headers;
+			});
+			
+			return invoker;
 		}
 	}
 }

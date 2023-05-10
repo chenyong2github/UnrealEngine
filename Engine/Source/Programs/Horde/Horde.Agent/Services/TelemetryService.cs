@@ -289,7 +289,8 @@ class TelemetryService : BackgroundService
 		}
 		
 		using GrpcChannel channel = await _grpcService.CreateGrpcChannelAsync(stoppingToken);
-		HordeRpc.HordeRpcClient client = new (channel);
+		CallInvoker invoker = _grpcService.GetInvoker(channel);
+		HordeRpc.HordeRpcClient client = new (invoker);
 		
 		while (!stoppingToken.IsCancellationRequested)
 		{
