@@ -30,4 +30,31 @@ namespace Metasound
 	{
 		return Info;
 	}
+
+	const FVertexInterface& FNode::GetVertexInterface() const
+	{
+		return Info.DefaultInterface;
+	}
+
+	bool FNode::SetVertexInterface(const FVertexInterface& InInterface)
+	{
+		// This code looks a bit counter-intuitive. Here's the explanation: 
+		// 1. This node doesn't support manipulating the interface. The default 
+		//    interface is the only interface that works with this node.
+		// 2. The only valid argument to this function is so set the interface 
+		//    to it's default state. 
+		// 3. If the input vertex interface is exactly the same as the default 
+		//    interface, then we can say that this function executed 
+		//    successfully.
+		// 4. Return "true" if the supplied interface is the same as the 
+		//    default interface, false otherwise. 
+		return GetVertexInterface() == InInterface;
+	}
+
+	bool FNode::IsVertexInterfaceSupported(const FVertexInterface& InInterface) const
+	{
+		// This node doesn't support manipulating the interface. The default 
+		// interface is the only interface that works with this node.
+		return GetVertexInterface() == InInterface;
+	}
 }

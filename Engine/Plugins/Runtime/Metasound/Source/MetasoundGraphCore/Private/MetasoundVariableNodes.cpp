@@ -33,4 +33,31 @@ namespace Metasound
 			return FNodeClassName{NodeNamespace, InDataTypeName, ""};
 		}
 	}
+
+	
+	namespace MetasoundVariableNodesPrivate
+	{
+		bool IsSupportedVertexData(const IDataReference& InCurrentVariableRef, const FInputVertexInterfaceData& InNew)
+		{
+			using namespace VariableNames;
+#if DO_CHECK
+			// Variable nodes are internal to the graph and their underlying TVariable<> Object should 
+			// never change. Changing the underlying variable would break the state of the TVariable<>
+			// object which is initialized during CreateOperator(...) calls of various TVariable*Operators.
+			FDataReferenceID CurrentID = GetDataReferenceID(InCurrentVariableRef);
+			FDataReferenceID NewID = nullptr;
+
+			if (const FAnyDataReference* InNewVar = InNew.FindDataReference(METASOUND_GET_PARAM_NAME(InputVariable)))
+			{
+				NewID = GetDataReferenceID(*InNewVar);
+			}
+
+			// The new data reference must be missing or equal to the current data reference.
+			return  (NewID == nullptr) || (NewID == CurrentID);
+#else
+			return true;
+#endif // #if DO_CHECK
+
+		}
+	}
 }

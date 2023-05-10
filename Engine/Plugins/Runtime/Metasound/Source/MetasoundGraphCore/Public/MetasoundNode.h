@@ -16,13 +16,19 @@ namespace Metasound
 			virtual ~FNode() = default;
 
 			/** Return the name of this specific instance of the node class. */
-			const FVertexName& GetInstanceName() const override;
+			virtual const FVertexName& GetInstanceName() const override;
 
 			/** Return the ID of this specific instance of the node class. */
-			const FGuid& GetInstanceID() const override;
+			virtual const FGuid& GetInstanceID() const override;
 
 			/** Return metadata associated with this node. */
-			const FNodeClassMetadata& GetMetadata() const override;
+			virtual const FNodeClassMetadata& GetMetadata() const override;
+
+			virtual const FVertexInterface& GetVertexInterface() const override;
+
+			virtual bool SetVertexInterface(const FVertexInterface& InInterface) override;
+
+			virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override;
 
 		private:
 
