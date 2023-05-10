@@ -174,7 +174,7 @@ namespace mu
              comp>=0 && comp<m_pD->m_lods[lod].m_components.Num() &&
              surf>=0 && surf<m_pD->m_lods[lod].m_components[comp].m_surfaces.Num() )
         {
-            return m_pD->m_lods[lod].m_components[comp].m_surfaces[surf].m_internalID;
+            return m_pD->m_lods[lod].m_components[comp].m_surfaces[surf].InternalId;
         }
 		else
 		{
@@ -193,7 +193,7 @@ namespace mu
 		{
 			for (int i = 0; i < m_pD->m_lods[lod].m_components[comp].m_surfaces.Num(); ++i)
 			{
-				if (m_pD->m_lods[lod].m_components[comp].m_surfaces[i].m_internalID == id)
+				if (m_pD->m_lods[lod].m_components[comp].m_surfaces[i].InternalId == id)
 				{
 					return i;
 				}
@@ -207,6 +207,49 @@ namespace mu
         return -1;
     }
 
+	
+	//---------------------------------------------------------------------------------------------
+	void Instance::FindBaseSurfaceBySharedId(int32 CompIndex, int32 SharedId, int32& OutSurfaceIndex, int32& OutLODIndex) const
+	{
+		for (int32 LodIndex = 0; LodIndex < m_pD->m_lods.Num(); LodIndex++)
+		{
+			if (m_pD->m_lods[LodIndex].m_components.IsValidIndex(CompIndex))
+			{
+				for (int32 SurfaceIndex = 0; SurfaceIndex < m_pD->m_lods[LodIndex].m_components[CompIndex].m_surfaces.Num(); ++SurfaceIndex)
+				{
+					if (m_pD->m_lods[LodIndex].m_components[CompIndex].m_surfaces[SurfaceIndex].SharedId == SharedId)
+					{
+						OutSurfaceIndex = SurfaceIndex;
+						OutLODIndex = LodIndex;
+						return;
+					}
+				}
+			}
+
+		}
+
+		OutSurfaceIndex = INDEX_NONE;
+		OutLODIndex = INDEX_NONE;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	int32 Instance::GetSharedSurfaceId(int32 LodIndex, int32 CompIndex, int32 SurfaceIndex) const
+	{
+		if (LodIndex >= 0 && LodIndex < m_pD->m_lods.Num() &&
+			CompIndex >= 0 && CompIndex < m_pD->m_lods[LodIndex].m_components.Num() &&
+			SurfaceIndex >= 0 && SurfaceIndex < m_pD->m_lods[LodIndex].m_components[CompIndex].m_surfaces.Num())
+		{
+			return m_pD->m_lods[LodIndex].m_components[CompIndex].m_surfaces[SurfaceIndex].SharedId;
+		}
+		else
+		{
+			check(false);
+		}
+
+		return 0;
+	}
+	
 
     //---------------------------------------------------------------------------------------------
     uint32_t Instance::GetSurfaceCustomId( int lod, int comp, int surf ) const
@@ -215,7 +258,7 @@ namespace mu
              comp>=0 && comp<m_pD->m_lods[lod].m_components.Num() &&
              surf>=0 && surf<m_pD->m_lods[lod].m_components[comp].m_surfaces.Num() )
         {
-            return m_pD->m_lods[lod].m_components[comp].m_surfaces[surf].m_customID;
+            return m_pD->m_lods[lod].m_components[comp].m_surfaces[surf].ExternalId;
         }
 		else
 		{

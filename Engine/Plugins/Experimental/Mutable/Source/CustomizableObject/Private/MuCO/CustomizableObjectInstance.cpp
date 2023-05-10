@@ -5541,9 +5541,13 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::BuildMaterials)
 
-		UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
+	UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
 
 	const int32 LODCount = OperationData->InstanceUpdateData.LODs.Num();
+
+	// Find skipped LODs. The following valid LOD will be copied into them. 
+	TArray<bool> LODsSkipped;
+	LODsSkipped.SetNum(OperationData->CurrentMaxLOD);
 
 	TArray<FGeneratedTexture> NewGeneratedTextures;
 
@@ -5573,27 +5577,29 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 		SkeletalMesh->GetMaterials().Reset();
 
 		// Maps serializations of FMutableMaterialPlaceholder to Created Dynamic Material instances, used to reuse materials across LODs
-		TMap<FString, FMutableMaterialPlaceholder*> ReuseMaterialCache;
-		// Stores the FMutableMaterialPlaceholders and keeps them in memory while the component's LODs are being processed
-		TArray<TSharedPtr<FMutableMaterialPlaceholder>> MutableMaterialPlaceholderArray;
+		TMap<FString, TSharedPtr<FMutableMaterialPlaceholder>> ReuseMaterialCache;
+
+		// Map of SharedSurfaceId to FMutableMaterialPlaceholder serialization key 
+		TMap<int32, FString> SharedSurfacesCache;
 
 		MUTABLE_CPUPROFILER_SCOPE(BuildMaterials_LODLoop);
 
-		int32 LastValidLODIndex = OperationData->CurrentMaxLOD;
-		for (int32 LODIndex = OperationData->CurrentMaxLOD; LODIndex >= FirstLODAvailable; --LODIndex)
+		for (int32 LODIndex = FirstLODAvailable; LODIndex <= OperationData->CurrentMaxLOD; LODIndex++)
 		{
+			const FInstanceUpdateData::FLOD& LOD = OperationData->InstanceUpdateData.LODs[LODIndex];
+			const FInstanceUpdateData::FComponent& Component = OperationData->InstanceUpdateData.Components[LOD.FirstComponent + ComponentIndex];
+
+			if (!Component.bGenerated)
+			{
+				LODsSkipped[LODIndex] = true;
+				continue;
+			}
+
 			if (SkeletalMesh->GetLODInfoArray().Num() != 0)
 			{
 				SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap.Reset();
 			}
 
-			if (LODIndex >= OperationData->CurrentMinLOD && OperationData->InstanceUpdateData.Components[OperationData->InstanceUpdateData.LODs[LODIndex].FirstComponent + ComponentIndex].bGenerated)
-			{
-				LastValidLODIndex = LODIndex;
-			}
-
-			const FInstanceUpdateData::FLOD& LOD = OperationData->InstanceUpdateData.LODs[LastValidLODIndex];
-			const FInstanceUpdateData::FComponent& Component = OperationData->InstanceUpdateData.Components[LOD.FirstComponent + ComponentIndex];
 			check(Component.bGenerated);
 
 			const FMutableRefSkeletalMeshData* RefSkeletalMeshData = CustomizableObject->GetRefSkeletalMeshData(Component.Id);
@@ -5603,16 +5609,30 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 			{
 				const FInstanceUpdateData::FSurface& Surface = OperationData->InstanceUpdateData.Surfaces[Component.FirstSurface + SurfaceIndex];
 
-				MutableMaterialPlaceholderArray.Add(TSharedPtr<FMutableMaterialPlaceholder>(new FMutableMaterialPlaceholder));
-				FMutableMaterialPlaceholder& MutableMaterialPlaceholder = *MutableMaterialPlaceholderArray.Last();
-
-				if (LastValidLODIndex != LODIndex)
+				const uint32 ReferencedMaterialIndex = ObjectToInstanceIndexMap[Surface.MaterialIndex];
+				UMaterialInterface* MaterialTemplate = ReferencedMaterials[ReferencedMaterialIndex];
+				if (!MaterialTemplate)
 				{
-					// Copy information from the LastValidLODIndex
-					SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap = SkeletalMesh->GetLODInfoArray()[LastValidLODIndex].LODMaterialMap;
-					SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SurfaceIndex].MaterialIndex = SkeletalMesh->GetResourceForRendering()->LODRenderData[LastValidLODIndex].RenderSections[SurfaceIndex].MaterialIndex;
+					UE_LOG(LogMutable, Error, TEXT("Build Materials: Missing referenced template to use as parent material on CustomizableObject [%s]."), *CustomizableObject->GetName());
 					continue;
 				}
+
+				// Reuse surface between LODs when using AutomaticLODs from mesh.
+				if (const FString* SharedSurfaceSerialization = SharedSurfacesCache.Find(Surface.SurfaceId))
+				{
+					TSharedPtr<FMutableMaterialPlaceholder>* FoundMaterialPlaceholder = ReuseMaterialCache.Find(*SharedSurfaceSerialization);
+					check(FoundMaterialPlaceholder);
+
+					const int32 MaterialIndex = (*FoundMaterialPlaceholder)->MatIndex;
+					check(MaterialIndex >= 0);
+
+					int32 LODMaterialIndex = SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap.Add(MaterialIndex);
+					SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SurfaceIndex].MaterialIndex = LODMaterialIndex;
+					continue;
+				}
+
+				TSharedPtr<FMutableMaterialPlaceholder> MutableMaterialPlaceholderPtr(new FMutableMaterialPlaceholder);
+				FMutableMaterialPlaceholder& MutableMaterialPlaceholder = *MutableMaterialPlaceholderPtr;
 
 				{
 					MUTABLE_CPUPROFILER_SCOPE(ParamLoop);
@@ -5703,7 +5723,7 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 						UTexture2D* Texture = nullptr;
 
 						// \TODO: Change this key to a struct.
-						FString TextureReuseCacheRef = bReuseTextures ? FString::Printf(TEXT("%d-%d-%d-%d"), LastValidLODIndex, ComponentIndex, Surface.SurfaceId, ImageIndex) : FString();
+						FString TextureReuseCacheRef = bReuseTextures ? FString::Printf(TEXT("%d-%d-%d-%d"), Image.BaseLOD, ComponentIndex, Surface.SurfaceId, ImageIndex) : FString();
 
 						// If the mutable image is null, it must be in the cache
 						FMutableImageCacheKey ImageCacheKey = { Image.ImageID, OperationData->MipsToSkip };
@@ -5851,10 +5871,10 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 													if (MutableMipDataProviderFactory)
 													{
 														MutableMipDataProviderFactory->CustomizableObjectInstance = Public;
-														check(LastValidLODIndex < 256 && ComponentIndex < 256 && ImageIndex < 256);
+														check(LODIndex < 256 && ComponentIndex < 256 && ImageIndex < 256);
 														MutableMipDataProviderFactory->ImageRef.ImageID = Image.ImageID;
 														MutableMipDataProviderFactory->ImageRef.SurfaceId = Surface.SurfaceId;
-														MutableMipDataProviderFactory->ImageRef.LOD = uint8(LastValidLODIndex);
+														MutableMipDataProviderFactory->ImageRef.LOD = uint8(Image.BaseLOD);
 														MutableMipDataProviderFactory->ImageRef.Component = uint8(ComponentIndex);
 														MutableMipDataProviderFactory->ImageRef.Image = uint8(ImageIndex);
 														MutableMipDataProviderFactory->UpdateContext = UpdateContext;
@@ -5928,114 +5948,138 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 					}
 				}
 
-				const uint32 ReferencedMaterialIndex = ObjectToInstanceIndexMap[Surface.MaterialIndex];
-				UMaterialInterface* MaterialTemplate = ReferencedMaterials[ReferencedMaterialIndex];
 				MutableMaterialPlaceholder.ParentMaterial = MaterialTemplate;
 
-				FString MaterialPlaceholderSerialization = MutableMaterialPlaceholder.GetSerialization();
-				FMutableMaterialPlaceholder** FoundMaterialPlaceholder = ReuseMaterialCache.Find(MaterialPlaceholderSerialization);
+				const FString MaterialPlaceholderSerialization = MutableMaterialPlaceholder.GetSerialization();
+				check(MaterialPlaceholderSerialization != FString("null"));
 
-				if (FoundMaterialPlaceholder)
+				int32 MatIndex = INDEX_NONE;
+				
+				if (TSharedPtr<FMutableMaterialPlaceholder>* FoundMaterialPlaceholder = ReuseMaterialCache.Find(MaterialPlaceholderSerialization))
 				{
-					int32 MatIndex = (*FoundMaterialPlaceholder)->MatIndex;
-					check(MatIndex >= 0);
-					int32 LODMaterialIndex = SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap.Add(MatIndex);
-					SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SurfaceIndex].MaterialIndex = LODMaterialIndex;
+					MatIndex = (*FoundMaterialPlaceholder)->MatIndex;
 				}
-				else
+				else // Material not cached, create a new one
 				{
-					if (MutableMaterialPlaceholder.ParentMaterial)
-					{
-						check(MaterialPlaceholderSerialization != FString("null"));
-						ReuseMaterialCache.Add(MaterialPlaceholderSerialization, &MutableMaterialPlaceholder);
-					}
+					MUTABLE_CPUPROFILER_SCOPE(BuildMaterials_CreateMaterial);
+
+					ReuseMaterialCache.Add(MaterialPlaceholderSerialization, MutableMaterialPlaceholderPtr);
+
+					SharedSurfacesCache.Add(Surface.SurfaceId, MaterialPlaceholderSerialization);
 
 					FGeneratedMaterial Material;
 					UMaterialInstanceDynamic* MaterialInstance = nullptr;
+					UMaterialInterface* ActualMaterialInterface = MaterialTemplate;
 
-					if (MaterialTemplate)
+					if (MutableMaterialPlaceholder.Params.Num() != 0)
 					{
-						MUTABLE_CPUPROFILER_SCOPE(BuildMaterials_CreateMaterial);
+						MaterialInstance = UMaterialInstanceDynamic::Create(MaterialTemplate, GetTransientPackage());
+						ActualMaterialInterface = MaterialInstance;
+					}
 
-						UMaterialInterface* ActualMaterialInterface = MaterialTemplate;
+					if (SkeletalMesh)
+					{
+						MatIndex = SkeletalMesh->GetMaterials().Num();
+						MutableMaterialPlaceholder.MatIndex = MatIndex;
 
-						if (MutableMaterialPlaceholder.Params.Num() != 0)
+						// Set up SkeletalMaterial data
+						FSkeletalMaterial& SkeletalMaterial = SkeletalMesh->GetMaterials().Add_GetRef(ActualMaterialInterface);
+						SkeletalMaterial.MaterialSlotName = CustomizableObject->ReferencedMaterialSlotNames[Surface.MaterialIndex];
+						SetMeshUVChannelDensity(SkeletalMaterial.UVChannelData, RefSkeletalMeshData->Settings.DefaultUVChannelDensity);
+					}
+
+					if (MaterialInstance)
+					{
+						for (const FMutableMaterialPlaceholder::FMutableMaterialPlaceHolderParam& Param : MutableMaterialPlaceholder.Params)
 						{
-							MaterialInstance = UMaterialInstanceDynamic::Create(MaterialTemplate, GetTransientPackage());
-							ActualMaterialInterface = MaterialInstance;
-						}
-
-						if (SkeletalMesh)
-						{
-							const int32 MatIndex = SkeletalMesh->GetMaterials().Num();
-							MutableMaterialPlaceholder.MatIndex = MatIndex;
-
-							// Set up SkeletalMaterial data
-							FSkeletalMaterial& SkeletalMaterial = SkeletalMesh->GetMaterials().Add_GetRef(ActualMaterialInterface);
-							SkeletalMaterial.MaterialSlotName = CustomizableObject->ReferencedMaterialSlotNames[Surface.MaterialIndex];
-							SetMeshUVChannelDensity(SkeletalMaterial.UVChannelData, RefSkeletalMeshData->Settings.DefaultUVChannelDensity);
-
-							const int32 LODMaterialIndex = SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap.Add(MatIndex);
-							SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SurfaceIndex].MaterialIndex = LODMaterialIndex;
-						}
-
-						if (MaterialInstance)
-						{
-							for (const FMutableMaterialPlaceholder::FMutableMaterialPlaceHolderParam& Param : MutableMaterialPlaceholder.Params)
+							switch (Param.Type)
 							{
-								switch (Param.Type)
+							case FMutableMaterialPlaceholder::EPlaceHolderParamType::Vector:
+								if (Param.LayerIndex < 0)
 								{
-								case FMutableMaterialPlaceholder::EPlaceHolderParamType::Vector:
-									if (Param.LayerIndex < 0)
-									{
-										MaterialInstance->SetVectorParameterValue(Param.ParamName, Param.Vector);
-									}
-									else
-									{
-										FMaterialParameterInfo ParameterInfo = FMaterialParameterInfo(Param.ParamName, EMaterialParameterAssociation::LayerParameter, Param.LayerIndex);
-										MaterialInstance->SetVectorParameterValueByInfo(ParameterInfo, Param.Vector);
-									}
-
-									break;
-
-								case FMutableMaterialPlaceholder::EPlaceHolderParamType::Scalar:
-									if (Param.LayerIndex < 0)
-									{
-										MaterialInstance->SetScalarParameterValue(FName(Param.ParamName), Param.Scalar);
-									}
-									else
-									{
-										FMaterialParameterInfo ParameterInfo = FMaterialParameterInfo(Param.ParamName, EMaterialParameterAssociation::LayerParameter, Param.LayerIndex);
-										MaterialInstance->SetScalarParameterValueByInfo(ParameterInfo, Param.Scalar);
-									}
-
-									break;
-
-								case FMutableMaterialPlaceholder::EPlaceHolderParamType::Texture:
-									if (Param.LayerIndex < 0)
-									{
-										MaterialInstance->SetTextureParameterValue(Param.ParamName, Param.Texture.Texture);
-									}
-									else
-									{
-										FMaterialParameterInfo ParameterInfo = FMaterialParameterInfo(Param.ParamName, EMaterialParameterAssociation::LayerParameter, Param.LayerIndex);
-										MaterialInstance->SetTextureParameterValueByInfo(ParameterInfo, Param.Texture.Texture);
-									}
-
-									Material.Textures.Add(Param.Texture);
-
-									break;
+									MaterialInstance->SetVectorParameterValue(Param.ParamName, Param.Vector);
 								}
+								else
+								{
+									FMaterialParameterInfo ParameterInfo = FMaterialParameterInfo(Param.ParamName, EMaterialParameterAssociation::LayerParameter, Param.LayerIndex);
+									MaterialInstance->SetVectorParameterValueByInfo(ParameterInfo, Param.Vector);
+								}
+
+								break;
+
+							case FMutableMaterialPlaceholder::EPlaceHolderParamType::Scalar:
+								if (Param.LayerIndex < 0)
+								{
+									MaterialInstance->SetScalarParameterValue(FName(Param.ParamName), Param.Scalar);
+								}
+								else
+								{
+									FMaterialParameterInfo ParameterInfo = FMaterialParameterInfo(Param.ParamName, EMaterialParameterAssociation::LayerParameter, Param.LayerIndex);
+									MaterialInstance->SetScalarParameterValueByInfo(ParameterInfo, Param.Scalar);
+								}
+
+								break;
+
+							case FMutableMaterialPlaceholder::EPlaceHolderParamType::Texture:
+								if (Param.LayerIndex < 0)
+								{
+									MaterialInstance->SetTextureParameterValue(Param.ParamName, Param.Texture.Texture);
+								}
+								else
+								{
+									FMaterialParameterInfo ParameterInfo = FMaterialParameterInfo(Param.ParamName, EMaterialParameterAssociation::LayerParameter, Param.LayerIndex);
+									MaterialInstance->SetTextureParameterValueByInfo(ParameterInfo, Param.Texture.Texture);
+								}
+
+								Material.Textures.Add(Param.Texture);
+
+								break;
 							}
 						}
-
-						GeneratedMaterials.Add(Material);
 					}
+
+					GeneratedMaterials.Add(Material);
+				}
+
+				int32 LODMaterialIndex = SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap.Add(MatIndex);
+				SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex].RenderSections[SurfaceIndex].MaterialIndex = LODMaterialIndex;
+
+			}
+		}
+
+		{
+			// Copy data from valid LODs into the skipped ones.
+			int32 LastValidLODIndex = OperationData->CurrentMaxLOD;
+			for (int32 LODIndex = OperationData->CurrentMaxLOD; LODIndex < FirstLODAvailable; ++LODIndex)
+			{
+				// Copy information from the LastValidLODIndex
+				if (LODsSkipped[LODIndex])
+				{
+					SkeletalMesh->GetLODInfoArray()[LODIndex].LODMaterialMap = SkeletalMesh->GetLODInfoArray()[LastValidLODIndex].LODMaterialMap;
+
+					TIndirectArray<FSkeletalMeshLODRenderData>& LODRenderData = SkeletalMesh->GetResourceForRendering()->LODRenderData;
+
+					const int32 NumRenderSections = LODRenderData[LODIndex].RenderSections.Num();
+					check(NumRenderSections == LODRenderData[LastValidLODIndex].RenderSections.Num());
+
+					if (NumRenderSections == LODRenderData[LastValidLODIndex].RenderSections.Num())
+					{
+						for (int32 RenderSectionIndex = 0; RenderSectionIndex < NumRenderSections; ++RenderSectionIndex)
+						{
+							const int32 MaterialIndex = LODRenderData[LastValidLODIndex].RenderSections[RenderSectionIndex].MaterialIndex;
+							LODRenderData[LODIndex].RenderSections[RenderSectionIndex].MaterialIndex = MaterialIndex;
+						}
+					}
+				}
+				else
+				{
+					LastValidLODIndex = LODIndex;
 				}
 			}
 		}
 	}
 
+	
 	{
 		MUTABLE_CPUPROFILER_SCOPE(BuildMaterials_Exchange);
 

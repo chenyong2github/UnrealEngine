@@ -1285,6 +1285,9 @@ namespace impl
 			}
 		}
 
+		// Map SharedSurfaceId to surface index
+		TArray<int32> SurfacesSharedId;
+
 		// Generate the mesh and gather all the required resource Ids
 		OperationData->InstanceUpdateData.LODs.SetNum(Instance->GetLODCount());
 		for (int32 MutableLODIndex = 0; MutableLODIndex < Instance->GetLODCount(); ++MutableLODIndex)
@@ -1356,6 +1359,9 @@ namespace impl
 					int32 InstanceSurfaceIndex = Instance->FindSurfaceById(MutableLODIndex, ComponentIndex, SurfaceId);
 					check(Component.bReuseMesh || Component.Mesh->GetVertexCount() == 0 || InstanceSurfaceIndex >= 0);
 
+					int32 BaseSurfaceIndex = InstanceSurfaceIndex;
+					int32 BaseLODIndex = MutableLODIndex;
+
 					if (InstanceSurfaceIndex >= 0)
 					{
 						OperationData->InstanceUpdateData.Surfaces.Push({});
@@ -1364,6 +1370,25 @@ namespace impl
 
 						Surface.MaterialIndex = Instance->GetSurfaceCustomId(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex);
 						Surface.SurfaceId = SurfaceId;
+
+						const int32 SharedSurfaceId = Instance->GetSharedSurfaceId(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex);
+						const int32 SharedSurfaceIndex = SurfacesSharedId.Find(SharedSurfaceId);
+
+						SurfacesSharedId.Add(SharedSurfaceId);
+
+						if (SharedSurfaceId != INDEX_NONE)
+						{
+							if (SharedSurfaceIndex >= 0)
+							{
+								Surface = OperationData->InstanceUpdateData.Surfaces[SharedSurfaceIndex];
+								continue;
+							}
+
+							// Find the first LOD where this surface can be found
+							Instance->FindBaseSurfaceBySharedId(ComponentIndex, SharedSurfaceId, BaseSurfaceIndex, BaseLODIndex);
+
+							Surface.SurfaceId = Instance->GetSurfaceId(BaseLODIndex, ComponentIndex, BaseSurfaceIndex);
+						}
 
 						// Images
 						Surface.FirstImage = OperationData->InstanceUpdateData.Images.Num();
@@ -1375,11 +1400,10 @@ namespace impl
 							OperationData->InstanceUpdateData.Images.Push({});
 							FInstanceUpdateData::FImage& Image = OperationData->InstanceUpdateData.Images.Last();
 							Image.Name = Instance->GetImageName(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex, ImageIndex);
-							Image.ImageID = Instance->GetImageId(MutableLODIndex, ComponentIndex, InstanceSurfaceIndex, ImageIndex);
+							Image.ImageID = Instance->GetImageId(BaseLODIndex, ComponentIndex, BaseSurfaceIndex, ImageIndex);
 							Image.FullImageSizeX = 0;
 							Image.FullImageSizeY = 0;
-							Image.LOD = MutableLODIndex;
-
+							Image.BaseLOD = BaseLODIndex;
 						}
 
 						// Vectors
@@ -1505,7 +1529,7 @@ namespace impl
 				}
 				else
 				{
-					Image.Image = System->GetImage(OperationData->InstanceID, Image.ImageID, MipsToSkip, Image.LOD);
+					Image.Image = System->GetImage(OperationData->InstanceID, Image.ImageID, MipsToSkip, Image.BaseLOD);
 				}
 
 				check(Image.Image);

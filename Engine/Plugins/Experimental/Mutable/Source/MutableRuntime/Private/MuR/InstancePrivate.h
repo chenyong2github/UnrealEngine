@@ -14,8 +14,9 @@ namespace mu
     struct INSTANCE_SURFACE
 	{
 		string m_name;
-        uint32_t m_internalID=0;
-        uint32_t m_customID=0;
+        uint32_t InternalId=0;
+        uint32_t ExternalId =0;
+        uint32_t SharedId =0;
 
 		struct IMAGE
 		{

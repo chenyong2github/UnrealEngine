@@ -44,7 +44,8 @@ namespace mu
 				instance == other->instance &&
 				value == other->value &&
 				id == other->id &&
-				externalId == other->externalId &&
+				ExternalId == other->ExternalId &&
+				SharedSurfaceId == other->SharedSurfaceId &&
 				name == other->name;
 		}
 		return false;
@@ -59,7 +60,8 @@ namespace mu
 		n->instance = mapChild(instance.child());
 		n->value = mapChild(value.child());
 		n->id = id;
-		n->externalId = externalId;
+		n->ExternalId = ExternalId;
+		n->SharedSurfaceId = SharedSurfaceId;
 		n->name = name;
 		return n;
 	}
@@ -116,8 +118,8 @@ namespace mu
 			OP::InstanceAddArgs args;
 			memset(&args, 0, sizeof(args));
 			args.id = id;
-			args.externalId = externalId;
-
+			args.ExternalId = ExternalId;
+			args.SharedSurfaceId = SharedSurfaceId;
 			args.name = program.AddConstant(name);
 
 			if (instance) args.instance = instance->linkedAddress;

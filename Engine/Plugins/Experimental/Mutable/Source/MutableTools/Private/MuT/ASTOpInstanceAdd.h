@@ -26,7 +26,8 @@ struct FProgram;
 		ASTChild instance;
 		ASTChild value;
 		uint32_t id = 0;
-		uint32_t externalId = 0;
+		uint32_t ExternalId = 0;
+		int32 SharedSurfaceId = INDEX_NONE;
 		string name;
 
 	public:

@@ -322,7 +322,10 @@ struct FInstanceUpdateData
 	{
 		FString Name;
 		mu::RESOURCE_ID ImageID;
-		int32 LOD;
+		
+		// LOD of the ImageId. If the texture is shared between LOD, first LOD where this image can be found. 
+		int32 BaseLOD;
+		
 		uint16 FullImageSizeX, FullImageSizeY;
 		mu::Ptr<const mu::Image> Image;
 		TWeakObjectPtr<UTexture2D> Cached;

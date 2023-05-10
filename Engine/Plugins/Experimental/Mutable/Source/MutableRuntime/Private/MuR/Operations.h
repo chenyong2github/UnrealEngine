@@ -1009,7 +1009,11 @@ namespace mu
             ADDRESS instance;
             ADDRESS value;
             uint32 id;
-            uint32 externalId;
+            uint32 ExternalId;
+
+			// Id used to identify shared surfaces between lods.
+			int32 SharedSurfaceId;
+
             ADDRESS name;
 
             // Index in the FProgram::m_parameterLists with the parameters that are relevant

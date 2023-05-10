@@ -184,10 +184,24 @@ namespace mu
     }
 
 
+	//---------------------------------------------------------------------------------------------
+	void NodeSurfaceNew::SetSharedSurfaceId(int32 SharedSurfaceId)
+    {
+		m_pD->SharedSurfaceId = SharedSurfaceId;
+    }
+
+
+	//---------------------------------------------------------------------------------------------
+	int32 NodeSurfaceNew::GetSharedSurfaceId() const
+    {
+		return m_pD->SharedSurfaceId;
+    }
+
+
     //---------------------------------------------------------------------------------------------
     void NodeSurfaceNew::SetCustomID( uint32_t id )
     {
-        m_pD->m_customID = id;
+        m_pD->ExternalId = id;
     }
 
 

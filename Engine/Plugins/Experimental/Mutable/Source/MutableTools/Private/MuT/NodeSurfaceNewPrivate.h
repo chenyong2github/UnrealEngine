@@ -31,7 +31,8 @@ namespace mu
 		static NODE_TYPE s_type;
 
 		string m_name;
-        uint32_t m_customID=0;
+        uint32_t ExternalId =0;
+        int32 SharedSurfaceId =INDEX_NONE;
 
 		struct MESH
 		{
@@ -170,11 +171,12 @@ namespace mu
         //!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 7;
+            uint32_t ver = 8;
 			arch << ver;
 
 			arch << m_name;
-            arch << m_customID;
+            arch << ExternalId;
+			arch << SharedSurfaceId;
 
 			arch << m_meshes;
 			arch << m_images;
@@ -189,10 +191,15 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-            check(ver==7);
+            check(ver<=8);
 
 			arch >> m_name;
-            arch >> m_customID;
+            arch >> ExternalId;
+
+			if (ver >= 8)
+			{
+				arch >> SharedSurfaceId;
+			}
 
 			arch >> m_meshes;
 			arch >> m_images;

@@ -1793,7 +1793,8 @@ namespace mu
                 sop->value = surfaceGenerationResult.surfaceOp;
 
                 sop->id = surfaceID;
-                sop->externalId = its.node->GetPrivate()->m_customID;
+                sop->ExternalId = its.node->GetPrivate()->ExternalId;
+                sop->SharedSurfaceId = its.node->GetPrivate()->SharedSurfaceId;
                 Ptr<ASTOp> surfaceAt = sop;
 
 				// TODO: This could be done earlier?

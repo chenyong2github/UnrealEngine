@@ -1478,11 +1478,16 @@ namespace mu
 
 			// Match the block id of the block we are generating with the id that resulted in the generated mesh
 			GeneratedLayoutBlockId = -1;
-			if (node.m_layout<MeshResult.GeneratedLayouts.Num() 
-				&& 
-				LayoutBlockIndex >= 0 && LayoutBlockIndex< MeshResult.GeneratedLayouts[node.m_layout]->m_blocks.Num() )
+			
+			mu::LayoutPtrConst Layout = MeshResult.GeneratedLayouts.IsValidIndex(node.m_layout) ? MeshResult.GeneratedLayouts[node.m_layout] : nullptr;
+			if (Layout && Layout->m_blocks.IsValidIndex(LayoutBlockIndex))
 			{
-				GeneratedLayoutBlockId = MeshResult.GeneratedLayouts[node.m_layout]->m_blocks[LayoutBlockIndex].m_id;
+				GeneratedLayoutBlockId = Layout->m_blocks[LayoutBlockIndex].m_id;
+			}
+			else if (Layout && Layout->m_blocks.Num() == 1)
+			{
+				// Layout management disabled, use the only block available
+				GeneratedLayoutBlockId = Layout->m_blocks[0].m_id;
 			}
 			else
 			{

@@ -85,6 +85,12 @@ namespace mu
         //! See Instance::GetSurfaceCustomId
         void SetCustomID( uint32 id );
 
+		//! Add an id that will be used to identify the same surface in other LODs 
+		void SetSharedSurfaceId( int32 SharedSurfaceId );
+
+		//! Return the surface ID shared between LODs 
+		int32 GetSharedSurfaceId() const;
+
         //! \name Tags
         //! \{
 

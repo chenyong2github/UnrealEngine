@@ -210,6 +210,31 @@ void SetSurfaceFormat( FMutableGraphGenerationContext& GenerationContext,
 }
 
 
+void UpdateSharedSurfaceId(FMutableGraphGenerationContext& GenerationContext, UCustomizableObjectNodeMaterial* NodeMaterial, mu::NodeSurfaceNewPtr InNodeSurface)
+{
+	const bool bCanShareSurface = GenerationContext.Options.bReuseTexturesEnabled && GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh;
+
+	// Set shared surface Id to reuse materials and textures between LODs if automatic LODs from mesh is being used
+	if (bCanShareSurface && InNodeSurface)
+	{
+		FMutableGraphGenerationContext::FSharedSurfaces& SharedSurface = GenerationContext.SharedSurfaceIds.FindOrAdd(NodeMaterial, { GenerationContext.SharedSurfaceIds.Num(), InNodeSurface });
+		SharedSurface.NodeSurface = InNodeSurface;
+
+		InNodeSurface->SetSharedSurfaceId(SharedSurface.SharedSurfaceId);
+	}
+
+	// Invalidate the shared surface Id. 
+	else if (!bCanShareSurface && !InNodeSurface)
+	{
+		FMutableGraphGenerationContext::FSharedSurfaces* SharedSurface = GenerationContext.SharedSurfaceIds.Find(NodeMaterial);
+		if (SharedSurface && SharedSurface->NodeSurface)
+		{
+			SharedSurface->NodeSurface->SetSharedSurfaceId(INDEX_NONE);
+		}
+	}
+}
+
+
 mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutableGraphGenerationContext & GenerationContext, FMutableGraphSurfaceGenerationData& SurfaceData)
 {
 	check(Pin)
@@ -298,6 +323,9 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			ReferencedMaterialsIndex = GenerationContext.ReferencedMaterials.AddUnique(TypedNodeMat->Material);
 			// Used ReferencedMaterialsIndex instead of TypedNodeMat->Material->GetName() to prevent material name collisions
 			SurfNode->SetCustomID(ReferencedMaterialsIndex);
+
+			// Set shared surface Id to reuse materials and textures between LODs if automatic LODs from mesh is being used
+			UpdateSharedSurfaceId(GenerationContext, TypedNodeMat, SurfNode);
 
 			// Take slot name from skeletal mesh if one can be found, else leave empty.
 			// Keep Referenced Materials and Materail Slot Names synchronized even if no material name can be found.
@@ -1148,6 +1176,9 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 				const int32 UVIndex = ParentMaterialNode->GetImageUVLayout(ImageIndex);
 				LayoutOperationUVNormalizedWarning(GenerationContext, ParentMaterialNode->GetMeshPin(), Node, UVIndex);
 				LayoutOperationUVNormalizedWarning(GenerationContext, TypedNodeExt->AddMeshPin(), Node, UVIndex);
+
+				// Validate if the ParentMaterialNode can be shared between LODs.
+				UpdateSharedSurfaceId(GenerationContext, ParentMaterialNode, nullptr);
 			}
 		
 			for (const FString& Tag : TypedNodeExt->Tags)
@@ -1162,7 +1193,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 		mu::NodeSurfaceEditPtr SurfNode = new mu::NodeSurfaceEdit();
 		Result = SurfNode;
 
-		UCustomizableObjectNodeMaterialBase* ParentMaterialNode = TypedNodeRem->GetParentMaterialNode();
+		UCustomizableObjectNodeMaterial* ParentMaterialNode = TypedNodeRem->GetParentMaterialNode();
 		if (!ParentMaterialNode)
 		{
 			GenerationContext.Compiler->CompilerLog(LOCTEXT("ParentMissing", "Parent node not set (or not found)."), Node);
@@ -1189,6 +1220,9 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 				SurfNode->SetMesh(MeshPatch.get());
 				MeshPatch->SetMessageContext(Node);
 			}
+
+			// Validate if the ParentMaterialNode can be shared between LODs.
+			UpdateSharedSurfaceId(GenerationContext, ParentMaterialNode, nullptr);
 		}
 	}
 
@@ -1272,6 +1306,9 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			}
 
 			LayoutOperationUVNormalizedWarning(GenerationContext, ParentMaterialNode->GetMeshPin(), Node, TypedNodeRemBlocks->ParentLayoutIndex);
+
+			// Validate if the ParentMaterialNode can be shared between LODs.
+			UpdateSharedSurfaceId(GenerationContext, ParentMaterialNode, nullptr);
 		}
 	}
 
@@ -1382,6 +1419,9 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 				}
 				
 				LayoutOperationUVNormalizedWarning(GenerationContext, ParentMaterialNode->GetMeshPin(), Node, ParentMaterialNode->GetImageUVLayout(ImageIndex));
+
+				// Validate if the ParentMaterialNode can be shared between LODs.
+				UpdateSharedSurfaceId(GenerationContext, ParentMaterialNode, nullptr);
 			}
 		}
 	}
@@ -1391,7 +1431,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 		mu::NodeSurfaceEditPtr SurfNode = new mu::NodeSurfaceEdit();
 		Result = SurfNode;
 
-		UCustomizableObjectNodeMaterialBase* ParentMaterialNode = TypedNodeMorph->GetParentMaterialNode();
+		UCustomizableObjectNodeMaterial* ParentMaterialNode = TypedNodeMorph->GetParentMaterialNode();
 		if (!ParentMaterialNode)
 		{
 			GenerationContext.Compiler->CompilerLog(LOCTEXT("ParentMissing", "Parent node not set (or not found)."), Node);
@@ -1462,6 +1502,9 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 					}
 				}
 			}
+
+			// Validate if the ParentMaterialNode can be shared between LODs.
+			UpdateSharedSurfaceId(GenerationContext, ParentMaterialNode, nullptr);
 		}
 	}
 

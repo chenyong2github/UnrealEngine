@@ -182,6 +182,9 @@ struct FCompilationOptions
 	// Used to enable AnimBp override physics mainipualtion.  
 	bool bAnimBpPhysicsManipulationEnabled = false;
 
+	// Used to enable Reuse textures between lods. Requires automatic LODs to be enabled.  
+	bool bReuseTexturesEnabled = false;
+
 	// Used to reduce the number of notifications when compiling objects
 	bool bSilentCompilation = true;
 
@@ -1410,7 +1413,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 384;
+	static const int32 CurrentSupportedVersion = 385;
 
 public:
 

@@ -716,6 +716,24 @@ struct FMutableGraphGenerationContext
 	// Stores the parameters generated in the node tables
 	TMap<const class UCustomizableObjectNodeTable*, TArray<FGuid>> GeneratedParametersInTables;
 
+	struct FSharedSurfaces
+	{
+		FSharedSurfaces(int32 InSurfaceId, mu::NodeSurfaceNewPtr InNodeSurface)
+		{
+			check(InSurfaceId != INDEX_NONE);
+			check(InNodeSurface);
+			SharedSurfaceId = InSurfaceId;
+			NodeSurface = InNodeSurface;
+		}
+
+		int32 SharedSurfaceId = INDEX_NONE;
+
+		// NodeSurface of the current LOD 
+		mu::NodeSurfaceNewPtr NodeSurface;
+	};
+
+	// UCustomizableObjectNodeMaterial material to SharedSurfaceId
+	TMap<UCustomizableObjectNodeMaterial*, FSharedSurfaces> SharedSurfaceIds;
 
 	/** Extension Data constants are collected here */
 	FExtensionDataCompilerInterface ExtensionDataCompilerInterface;

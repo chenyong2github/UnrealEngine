@@ -88,6 +88,23 @@ namespace mu
         //! \param id ID of the surface to look for.
         int FindSurfaceById( int lod, int comp, uint32_t id ) const;
 
+
+		//! Find the base surface index and Lod index when reusing surfaces between LODs. Return the surface index
+		//! and the LOD it belongs to.
+		//! \param Comp - Index of the component, from 0 to GetComponentCount(lod)-1
+		//! \param SharedSurfaceId - Id of the surface to look for (as returned by GetSharedSurfaceId).
+		//! \param OutSurfaceIndex - Index of the surface in the OutLODIndex lod. 
+		//! \param OutLODIndex - Index of the first LOD where the surface can be found. 
+		void FindBaseSurfaceBySharedId(int32 CompIndex, int32 SharedId, int32& OutSurfaceIndex, int32& OutLODIndex) const;
+
+		
+		//! Get an id that can be used to find the same surface on other LODs
+		//! \param lod Index of the level of detail, from 0 to GetLODCount()-1
+		//! \param comp Index of the component, from 0 to GetComponentCount(lod)-1
+		//! \param surf Index of the surface, from 0 to GetSurfaceCount(lod,comp)-1
+		int32 GetSharedSurfaceId(int32 lod, int32 comp, int32 surf) const;
+
+
         //! Get an optional, opaque application-defined identifier for this surface. The meaning of
         //! this ID depends on each application, and it is specified when creating the source data
         //! that generates this surface.
