@@ -1934,9 +1934,11 @@ public:
 	static bool HasRestrictedNodes(const UBlueprint* BP, TArray<UEdGraphNode*>* OutRestrictedNodes = nullptr);
 
 	/**
-	 * Checks the given Blueprint for any restricted content within the current editor context and sanitizes it prior to saving.
+	 * Checks the given Blueprint for any restricted content within the current editor context and sanitizes it away.
+	 * 
+	 * Note: If any restricted content is removed, this will also recompile the Blueprint.
 	 */
-	static void SanitizeRestrictedContentOnSave(UBlueprint* BP);
+	static void SanitizeRestrictedContent(UBlueprint* BP);
 
 public:
 	static bool ShouldOpenWithDataOnlyEditor(const UBlueprint* Blueprint);

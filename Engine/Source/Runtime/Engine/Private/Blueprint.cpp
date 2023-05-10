@@ -411,7 +411,7 @@ void UBlueprint::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 #if WITH_EDITOR
 	// Sanitize the Blueprint by clearing out any objects/types that are restricted within the current editor context.
-	FBlueprintEditorUtils::SanitizeRestrictedContentOnSave(this);
+	FBlueprintEditorUtils::SanitizeRestrictedContent(this);
 #endif	// WITH_EDITOR
 }
 
