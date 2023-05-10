@@ -2219,7 +2219,7 @@ FStrataData FStrataTree::StrataVerticalLayering(FStrataData Top, FStrataData Bas
 	Operators[OperatorIndex].LeftIndex				= Top.OperatorIndex;
 	Operators[OperatorIndex].RightIndex				= Base.OperatorIndex;
 
-	Operators[Top.OperatorIndex].ParentIndex			= OperatorIndex;
+	Operators[Top.OperatorIndex].ParentIndex		= OperatorIndex;
 	Operators[Base.OperatorIndex].ParentIndex		= OperatorIndex;
 
 	return StrataData;
@@ -2276,7 +2276,7 @@ uint StrataMergeSSSType(uint SSSType0, uint SSSType1)
 //  - Slab node with SSSprofile cannot be blendend. Those will have to be specifically handled by the user and not mixed with any other slab if it can be demoted to parameter blending
 
 // ==> NOTE: Always pair with the compiler behavior in StrataCompilationInfoHorizontalMixingParamBlend
-FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStrataData Foreground, float HorizontalMixValue, float NormalMixCodeChunk, uint NewNormalIndex)
+FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStrataData Foreground, float HorizontalMixValue, float NormalMixCodeChunk, uint NewNormalIndex, inout uint OutSharedLocalBasisTypes)
 {
 	const float ForegroundOtherMixFactor = saturate(NormalMixCodeChunk);	// Horizontal mixing value combined with coverage
 	const float ForegroundLightingMixFactor = saturate(HorizontalMixValue);
@@ -2345,6 +2345,11 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 		}
 	}
 
+	// Request a tangent basis if the blended BSDF has anisotropy
+	if (!STRATA_FASTPATH && BSDF_GETHASANISOTROPY(ResultBSDF))
+	{
+		StrataRequestSharedLocalBasisTangent(OutSharedLocalBasisTypes, NewNormalIndex);
+	}
 
 #if STRATA_INLINE_SHADING
 	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the MFP on the side to not override SSSPROFILE data.

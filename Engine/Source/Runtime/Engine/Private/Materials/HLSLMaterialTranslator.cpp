@@ -11095,7 +11095,7 @@ void FHLSLMaterialTranslator::FStrataCompilationContext::StrataEvaluateSharedLoc
 	* FStrataData BSDF1 = GetStrataSlabBSDF(... SHAREDLOCALBASIS_1, NormalCode1 ...)
 	*
 	* float3 NormalCode2 = lerp(NormalCode0, NormalCode1, mix)
-	* FStrataData BSDF2 = StrataHorizontalMixingParameterBlending(BSDF0, BSDF1, mix, NormalCode2, SHAREDLOCALBASIS_INDEX_2) // will internally create NormalCode2
+	* FStrataData BSDF2 = StrataHorizontalMixingParameterBlending(BSDF0, BSDF1, mix, NormalCode2, SHAREDLOCALBASIS_INDEX_2, SharedLocalBases.Types) // will internally create NormalCode2
 	*
 	* tParameters.SharedLocalBases.Normals[SHAREDLOCALBASIS_INDEX_2] = NormalCode2;
 	* #if MATERIAL_TANGENTSPACENORMAL
@@ -12258,13 +12258,14 @@ int32 FHLSLMaterialTranslator::StrataHorizontalMixingParameterBlending(
 		check(PromoteToOperator->Index != INDEX_NONE);
 		check(PromoteToOperator->BSDFIndex != INDEX_NONE);
 		return AddCodeChunk(
-			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(StrataHorizontalMixingParameterBlending(%s, %s, %s, %s, %s), %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("Parameters.%s.PromoteParameterBlendedBSDFToOperator(StrataHorizontalMixingParameterBlending(%s, %s, %s, %s, %s, Parameters.%s.Types), %u, %u, %u, %u)"),
 			*GetParametersStrataTreeName(CurrentStrataCompilationContext),
 			*GetParameterCode(Background),
 			*GetParameterCode(Foreground),
 			*GetParameterCode(HorizontalMixCodeChunk),
 			*GetParameterCode(NormalMixCodeChunk),
 			*SharedLocalBasisIndexMacro,
+			*GetParametersSharedLocalBasesName(CurrentStrataCompilationContext),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
 			PromoteToOperator->LayerDepth,
@@ -12273,12 +12274,13 @@ int32 FHLSLMaterialTranslator::StrataHorizontalMixingParameterBlending(
 	}
 
 	return AddCodeChunk(
-		MCT_Strata, TEXT("StrataHorizontalMixingParameterBlending(%s, %s, %s, %s, %s)"),
+		MCT_Strata, TEXT("StrataHorizontalMixingParameterBlending(%s, %s, %s, %s, %s, Parameters.%s.Types)"),
 		*GetParameterCode(Background),
 		*GetParameterCode(Foreground),
 		*GetParameterCode(HorizontalMixCodeChunk),
 		*GetParameterCode(NormalMixCodeChunk),
-		*SharedLocalBasisIndexMacro
+		*SharedLocalBasisIndexMacro,
+		*GetParametersSharedLocalBasesName(CurrentStrataCompilationContext)
 	);
 }
 

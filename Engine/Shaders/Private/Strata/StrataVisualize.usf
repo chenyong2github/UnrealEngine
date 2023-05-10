@@ -154,7 +154,7 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 
 			Print(Context, TEXT("Slab "), FontBSDFType);
 			Newline(Context, RectMax);
-			Print(Context, TEXT(" NormalID Aniso TopLayer Scattering SimpleVolume IsThin WeightV "), FontBSDFStateName);
+			Print(Context, TEXT(" NormalID BasisType Aniso TopLayer Scattering SimpleVolume IsThin WeightV "), FontBSDFStateName);
 			if (!bGreyWeightV)
 			{
 				Print(Context, TEXT("            "), FontBSDFStateName);
@@ -170,8 +170,18 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			}
 			Newline(Context, RectMax);
 
+			const uint BasisType  = StrataGetSharedLocalBasisType(Header.SharedLocalBasesTypes_PackedHeader, BSDF_GETSHAREDLOCALBASISID(BSDF));
+
 			Print(Context, TEXT(" "), FontSilver);
 			Print(Context, BSDF_GETSHAREDLOCALBASISID(BSDF), FontBSDF, 2, 1);	Print(Context, TEXT("       "), FontSilver);
+			if (BasisType == 0)
+			{
+				Print(Context, TEXT("Normal"), FontBSDF);	Print(Context, TEXT("    "), FontSilver);
+			}
+			else
+			{
+				Print(Context, TEXT("Tangent"), FontBSDF);	Print(Context, TEXT("   "), FontSilver);
+			}
 			PrintBool(Context, BSDF_GETHASANISOTROPY(BSDF));					Print(Context, TEXT("  "));
 			PrintBool(Context, BSDF_GETISTOPLAYER(BSDF));						Print(Context, TEXT("     "));
 			PrintBool(Context, BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID);		Print(Context, TEXT("       "));
