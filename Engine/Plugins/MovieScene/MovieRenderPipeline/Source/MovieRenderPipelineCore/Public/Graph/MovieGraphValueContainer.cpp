@@ -223,7 +223,7 @@ EMovieGraphContainerType UMovieGraphValueContainer::GetValueContainerType() cons
 {
 	if (const FPropertyBagPropertyDesc* Desc = Value.FindPropertyDescByName(PropertyBagDefaultPropertyName))
 	{
-		return static_cast<EMovieGraphContainerType>(Desc->ContainerType);
+		return static_cast<EMovieGraphContainerType>(Desc->ContainerTypes.GetFirstContainerType());
 	}
 
 	return EMovieGraphContainerType::None;
@@ -234,7 +234,7 @@ void UMovieGraphValueContainer::SetValueContainerType(EMovieGraphContainerType C
 	if (const FPropertyBagPropertyDesc* Desc = Value.FindPropertyDescByName(PropertyBagDefaultPropertyName))
 	{
 		FPropertyBagPropertyDesc NewDesc(*Desc);
-		NewDesc.ContainerType = static_cast<EPropertyBagContainerType>(ContainerType);
+		NewDesc.ContainerTypes = { static_cast<EPropertyBagContainerType>(ContainerType) };
 
 		const UPropertyBag* NewPropBag = UPropertyBag::GetOrCreateFromDescs({NewDesc});
 		Value.MigrateToNewBagStruct(NewPropBag);

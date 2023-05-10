@@ -41,6 +41,112 @@ enum class EPropertyBagContainerType : uint8
 	Count UMETA(Hidden)
 };
 
+/** Helper to manage container types, with nested container support. */
+USTRUCT()
+struct STRUCTUTILS_API FPropertyBagContainerTypes
+{
+	GENERATED_BODY()
+
+	FPropertyBagContainerTypes()
+		: Types{ EPropertyBagContainerType::None, EPropertyBagContainerType::None }
+		, NumContainers(0)
+	{}
+
+	explicit FPropertyBagContainerTypes(EPropertyBagContainerType ContainerType)
+		: Types{ ContainerType, EPropertyBagContainerType::None }
+		, NumContainers(1)
+	{}
+
+	FPropertyBagContainerTypes(const std::initializer_list<EPropertyBagContainerType>& InTypes)
+		: Types{ EPropertyBagContainerType::None, EPropertyBagContainerType::None }
+		, NumContainers(0)
+	{
+		for (EPropertyBagContainerType ContainerType : InTypes)
+		{
+			Add(ContainerType);
+		}
+	}
+
+	bool Add(EPropertyBagContainerType PropertyBagContainerType)
+	{
+		if (ensure(NumContainers < MaxNestedTypes))
+		{
+			Types[NumContainers] = PropertyBagContainerType;
+			NumContainers++;
+			return true;
+		}
+
+		return false;
+	}
+
+	void Reset()
+	{
+		for (auto& Type : Types)
+		{
+			Type = EPropertyBagContainerType::None;
+		}
+		NumContainers = 0;
+	}
+
+	bool IsEmpty() const
+	{
+		return NumContainers == 0;
+	}
+
+	uint32 Num() const
+	{
+		return NumContainers;
+	}
+
+	bool CanAdd() const
+	{
+		return NumContainers < MaxNestedTypes;
+	}
+
+	EPropertyBagContainerType GetFirstContainerType() const
+	{
+		return NumContainers > 0 ? Types[0] : EPropertyBagContainerType::None;
+	}
+
+	EPropertyBagContainerType operator[] (int32 Index) const
+	{
+		return ensure(Index < NumContainers) ? Types[Index] : EPropertyBagContainerType::None;
+	}
+
+	EPropertyBagContainerType PopHead();
+
+	void Serialize(FArchive& Ar);
+
+	friend FArchive& operator<<(FArchive& Ar, FPropertyBagContainerTypes& ContainerTypesData)
+	{
+		ContainerTypesData.Serialize(Ar);
+		return Ar;
+	}
+
+	bool operator == (const FPropertyBagContainerTypes& Other) const;
+
+	FORCEINLINE bool operator !=(const FPropertyBagContainerTypes& Other) const
+	{
+		return !(Other == *this);
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const FPropertyBagContainerTypes& PropertyBagContainerTypes)
+	{
+		return HashCombine(GetTypeHash(PropertyBagContainerTypes.Types), GetTypeHash(PropertyBagContainerTypes.NumContainers));
+	}
+
+	EPropertyBagContainerType* begin() { return &Types[0]; }
+	const EPropertyBagContainerType* begin() const { return &Types[0]; }
+	EPropertyBagContainerType* end()  { return &Types[NumContainers]; }
+	const EPropertyBagContainerType* end() const { return &Types[NumContainers]; }
+
+protected:
+	static constexpr uint8 MaxNestedTypes = 2;
+
+	EPropertyBagContainerType Types[MaxNestedTypes];
+	uint8 NumContainers = 0;
+};
+
 /** Getter and setter result code. */
 UENUM()
 enum class EPropertyBagResult : uint8
@@ -116,9 +222,25 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
 		: ValueTypeObject(InValueTypeObject)
 		, Name(InName)
 		, ValueType(InValueType)
-		, ContainerType(InContainerType)
+		, ContainerTypes(InContainerType)
 	{
 	}
+
+	FPropertyBagPropertyDesc(const FName InName, const FPropertyBagContainerTypes& InNestedContainers, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr)
+		: ValueTypeObject(InValueTypeObject)
+		, Name(InName)
+		, ValueType(InValueType)
+		, ContainerTypes(InNestedContainers)
+	{
+	}
+
+	// @todo: Remove these when ContainerType deprecation is removed.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FPropertyBagPropertyDesc(const FPropertyBagPropertyDesc&) = default;
+	FPropertyBagPropertyDesc(FPropertyBagPropertyDesc&&) noexcept = default;
+	FPropertyBagPropertyDesc& operator= (const FPropertyBagPropertyDesc&) = default;
+	FPropertyBagPropertyDesc& operator= (FPropertyBagPropertyDesc&& other) noexcept = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** @return true if the two descriptors have the same type. Object types are compatible if Other can be cast to this type. */
 	bool CompatibleType(const FPropertyBagPropertyDesc& Other) const;
@@ -152,8 +274,12 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
 	EPropertyBagPropertyType ValueType = EPropertyBagPropertyType::None;
 
 	/** Type of the container described by this property. */
+	UE_DEPRECATED(5.3, "ContainerType has been deprecated as of 5.3. Please use ContainerTypes instead.")
+	FPropertyBagContainerTypes ContainerType;
+
+	/** Type of the container described by this property. */
 	UPROPERTY(EditAnywhere, Category="Default")
-	EPropertyBagContainerType ContainerType = EPropertyBagContainerType::None;
+	FPropertyBagContainerTypes ContainerTypes;
 
 #if WITH_EDITORONLY_DATA
 	/** Editor-only meta data for CachedProperty */
@@ -271,6 +397,15 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	 * @param InValueTypeObject Type object (for struct, class, enum) of the new property
 	 */
 	void AddContainerProperty(const FName InName, const EPropertyBagContainerType InContainerType, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr);
+
+	/**
+	 * Adds a new container property to the bag. If property of same name already exists, it will be replaced with the new type.
+	 * @param InName Name of the new property
+	 * @param InContainerTypes List of (optionally nested) containers to create
+	 * @param InValueType Type of the new property
+	 * @param InValueTypeObject Type object (for struct, class, enum) of the new property
+	 */
+	void AddContainerProperty(const FName InName, const FPropertyBagContainerTypes InContainerTypes, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject);
 
 	/**
 	 * Adds a new property to the bag. Property type duplicated from source property to. If property of same name already exists, it will be replaced with the new type.
@@ -532,7 +667,8 @@ public:
 		ValueDesc.ValueType = InDesc.ValueType;
 		ValueDesc.ValueTypeObject = InDesc.ValueTypeObject;
 		ValueDesc.CachedProperty = ArrayProperty->Inner;
-		ValueDesc.ContainerType = EPropertyBagContainerType::None;
+		ValueDesc.ContainerTypes = InDesc.ContainerTypes;
+		ValueDesc.ContainerTypes.PopHead();
 	}
 
 	/**
@@ -605,6 +741,20 @@ public:
 		}
 		return MakeError(EPropertyBagResult::TypeMismatch);
 	}
+
+	/**
+     * Returns helper class to modify and access a nested array (mutable version).
+     * Note: Note: The array reference is not valid after the layout of the referenced property bag has changed!
+     * @returns helper class to modify and access arrays
+    */
+	TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> GetMutableNestedArrayRef(const int32 Index = 0) const;
+
+	/**
+     * Returns helper class to access a nested array (const version).
+     * Note: Note: The array reference is not valid after the layout of the referenced property bag has changed!
+     * @returns helper class to access arrays
+    */
+	TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> GetNestedArrayRef(const int32 Index = 0) const;
 
 	/**
 	 * Value Setters. A property must exists in that bag before it can be set.  

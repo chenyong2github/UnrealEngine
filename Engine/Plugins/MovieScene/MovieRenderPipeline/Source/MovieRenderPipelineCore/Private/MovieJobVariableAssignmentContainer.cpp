@@ -212,7 +212,7 @@ EMovieGraphContainerType UMovieJobVariableAssignmentContainer::GetValueContainer
 {
 	if (const FPropertyBagPropertyDesc* Desc = Value.FindPropertyDescByName(PropertyName))
 	{
-		return static_cast<EMovieGraphContainerType>(Desc->ContainerType);
+		return static_cast<EMovieGraphContainerType>(Desc->ContainerTypes.GetFirstContainerType());
 	}
 
 	return EMovieGraphContainerType::None;
@@ -254,7 +254,7 @@ bool UMovieJobVariableAssignmentContainer::GenerateVariableOverride(const UMovie
 	FPropertyBagPropertyDesc NewProperty = FPropertyBagPropertyDesc();
 	NewProperty.ValueType = static_cast<EPropertyBagPropertyType>(InGraphVariable->GetValueType());
 	NewProperty.ValueTypeObject = InGraphVariable->GetValueTypeObject();
-	NewProperty.ContainerType = static_cast<EPropertyBagContainerType>(InGraphVariable->GetValueContainerType());
+	NewProperty.ContainerTypes = { static_cast<EPropertyBagContainerType>(InGraphVariable->GetValueContainerType()) };
 	NewProperty.Name = FName(InGraphVariable->Name);
 	NewProperty.ID = FGuid::NewGuid();
 #if WITH_EDITOR
@@ -384,10 +384,10 @@ void UMovieJobVariableAssignmentContainer::UpdateGraphVariableOverrides()
 				Desc.ValueTypeObject = Variable->GetValueTypeObject();
 			}
 
-			if ((uint8)Desc.ContainerType != (uint8)(Variable->GetValueContainerType()))
+			if ((uint8)Desc.ContainerTypes.GetFirstContainerType() != (uint8)(Variable->GetValueContainerType()))
 			{
 				bNeedsToRegenerate = true;
-				Desc.ContainerType = static_cast<EPropertyBagContainerType>(Variable->GetValueContainerType());
+				Desc.ContainerTypes = { static_cast<EPropertyBagContainerType>(Variable->GetValueContainerType()) };
 			}
 		}
 	}

@@ -255,6 +255,109 @@ struct FTest_Enum : FAITestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FTest_Enum, "System.StructUtils.PropertyBag.Enum");
 
+struct FTest_NestedArray : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		static const FName NestedInt32ArrayPropName(TEXT("NestedInt32ArrayProp"));
+		static const TArray<TArray<int32>> NestedInt32ArrayTestValue = { { 1, 2, 3} };
+
+		FInstancedPropertyBag Bag;
+
+		// Set properties
+		{
+			Bag.AddContainerProperty(NestedInt32ArrayPropName, { EPropertyBagContainerType::Array, EPropertyBagContainerType::Array }, EPropertyBagPropertyType::Int32, nullptr);
+
+			AITEST_TRUE(TEXT("Missing Float Array property in the Bag."), Bag.FindPropertyDescByName(NestedInt32ArrayPropName) != nullptr);
+		}
+
+		// Check Default Value
+		{
+			TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> NestedInt32ArrayDefaultResult = Bag.GetArrayRef(NestedInt32ArrayPropName);
+
+			AITEST_TRUE(TEXT("Bag getting Nested Int32 Array default value should succeed."), NestedInt32ArrayDefaultResult.IsValid());
+
+			if (NestedInt32ArrayDefaultResult.IsValid())
+			{
+				AITEST_TRUE(TEXT("Bag Nested Int32 Array default value incorrect size"), NestedInt32ArrayDefaultResult.GetValue().Num() == 0);
+			}
+		}
+
+		// Set Nested Array values using FPropertyBagArrayRef interface
+		{
+			TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> NestedInt32ArrayMutable = Bag.GetMutableArrayRef(NestedInt32ArrayPropName);
+
+			AITEST_TRUE(TEXT("Getting PropertyBag Nested Int32 Array should succeed."), NestedInt32ArrayMutable.IsValid());
+
+			FPropertyBagArrayRef& PropertyBagArrayRef = NestedInt32ArrayMutable.GetValue();
+
+			const int32 NumArrays = NestedInt32ArrayTestValue.Num();
+			PropertyBagArrayRef.AddValues(NumArrays);
+
+			for (int32 n = 0; n < NumArrays; n++)
+			{
+				TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> InnerArrayTestResult = PropertyBagArrayRef.GetMutableNestedArrayRef(n);
+					
+				AITEST_TRUE(TEXT("Getting PropertyBag Nested Inner Int32 Array should succeed."), InnerArrayTestResult.IsValid());
+					
+				FPropertyBagArrayRef& InnerPropertyBagArrayRef = InnerArrayTestResult.GetValue();
+
+				const int32 NumElem = NestedInt32ArrayTestValue[n].Num();
+				InnerPropertyBagArrayRef.AddUninitializedValues(NumElem);
+
+				for (int32 i = 0; i < NumElem; i++)
+				{
+					const int32& value = NestedInt32ArrayTestValue[n][i];
+
+					AITEST_TRUE(TEXT("Setting value to Nested Inner Array property failed."), InnerPropertyBagArrayRef.SetValueInt32(i, value) == EPropertyBagResult::Success);
+				}
+			}
+		}
+
+		// Test Nested Array Values using FPropertyBagArrayRef interface
+		{
+			TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> NestedInt32ArrayTestResult = Bag.GetArrayRef(NestedInt32ArrayPropName);
+
+			AITEST_TRUE(TEXT("Getting PropertyBag Nested Int32 Array should succeed."), NestedInt32ArrayTestResult.IsValid());
+
+			if (NestedInt32ArrayTestResult.IsValid())
+			{
+				const FPropertyBagArrayRef& NestedPropertyBagArrayRef = NestedInt32ArrayTestResult.GetValue();
+
+				const int32 NumArrays = NestedPropertyBagArrayRef.Num();
+				const int32 NumTestArrays = NestedInt32ArrayTestValue.Num();
+
+				AITEST_TRUE(TEXT("Bag [%s] Nested Int32 Array Num value mismatch."), NumArrays == NumTestArrays);
+
+				for (int32 n = 0; n < NumArrays; ++n)
+				{
+					TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> InnerArrayTestResult = NestedPropertyBagArrayRef.GetNestedArrayRef();
+
+					AITEST_TRUE(TEXT("Getting PropertyBag Nested Inner Int32 Array should succeed."), InnerArrayTestResult.IsValid());
+
+					const FPropertyBagArrayRef& PropertyBagArrayRef = InnerArrayTestResult.GetValue();
+
+					const int32 NumElem = InnerArrayTestResult.GetValue().Num();
+					for (int32 i = 0; i < NumElem; i++)
+					{
+						const TValueOrError<int32, EPropertyBagResult> Int32Res = PropertyBagArrayRef.GetValueInt32(i);
+
+						AITEST_TRUE(TEXT("Getting Nested Array Element should succeed."), Int32Res.IsValid());
+
+						if (Int32Res.IsValid())
+						{
+							AITEST_TRUE(TEXT("Nested Arrauy test value mismatch."), Int32Res.GetValue() == NestedInt32ArrayTestValue[n][i]);
+						}
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FTest_NestedArray, "System.StructUtils.PropertyBag.NestedArray");
+
 struct FTest_GC : FAITestBase
 {
 	virtual bool InstantTest() override

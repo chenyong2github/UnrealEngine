@@ -16,6 +16,7 @@ struct STRUCTUTILS_API FPropertyBagCustomVersion
 
 		// Added support for array types
 		ContainerTypes = 1,
+		NestedContainerTypes = 2,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -53,9 +54,9 @@ namespace UE::StructUtils::Private
 	uint64 CalcPropertyDescHash(const FPropertyBagPropertyDesc& Desc)
 	{
 #if WITH_EDITORONLY_DATA
-		const uint32 Hashes[] = { GetTypeHash(Desc.ID), GetTypeHash(Desc.Name), GetTypeHash(Desc.ValueType), GetTypeHash(Desc.ContainerType), GetTypeHash(Desc.MetaData) };
+		const uint32 Hashes[] = { GetTypeHash(Desc.ID), GetTypeHash(Desc.Name), GetTypeHash(Desc.ValueType), GetTypeHash(Desc.ContainerTypes), GetTypeHash(Desc.MetaData) };
 #else
-		const uint32 Hashes[] = { GetTypeHash(Desc.ID), GetTypeHash(Desc.Name), GetTypeHash(Desc.ValueType), GetTypeHash(Desc.ContainerType)};
+		const uint32 Hashes[] = { GetTypeHash(Desc.ID), GetTypeHash(Desc.Name), GetTypeHash(Desc.ValueType), GetTypeHash(Desc.ContainerTypes)};
 #endif
 		return CityHash64WithSeed((const char*)Hashes, sizeof(Hashes), GetObjectHash(Desc.ValueTypeObject));
 	}
@@ -70,14 +71,24 @@ namespace UE::StructUtils::Private
 		return Hash;
 	}
 
-	EPropertyBagContainerType GetContainerTypeFromProperty(const FProperty* InSourceProperty)
+	FPropertyBagContainerTypes GetContainerTypesFromProperty(const FProperty* InSourceProperty)
 	{
-		if (CastField<FArrayProperty>(InSourceProperty))
+		FPropertyBagContainerTypes ContainerTypes;
+
+		while (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InSourceProperty))
 		{
-			return EPropertyBagContainerType::Array;
+			if (ContainerTypes.Add(EPropertyBagContainerType::Array))
+			{
+				InSourceProperty = CastField<FArrayProperty>(ArrayProperty->Inner);
+			}
+			else // we reached the nested containers limit
+			{
+				ContainerTypes.Reset();
+				break;
+			}
 		}
-		
-		return EPropertyBagContainerType::None;
+
+		return ContainerTypes;
 	}
 
 	EPropertyBagPropertyType GetValueTypeFromProperty(const FProperty* InSourceProperty)
@@ -198,15 +209,43 @@ namespace UE::StructUtils::Private
 
 	FProperty* CreatePropertyFromDesc(const FPropertyBagPropertyDesc& Desc, const FFieldVariant PropertyScope)
 	{
-		// Handle array property
-		if (Desc.ContainerType == EPropertyBagContainerType::Array)
+		// Handle array and nested containers properties
+		if (Desc.ContainerTypes.Num() > 0)
 		{
-			FArrayProperty* Prop = new FArrayProperty(PropertyScope, Desc.Name, RF_Public);
+			FProperty* Prop = nullptr; // the first created container will fill the return value, nested ones will fill the inner
 
+			// support for nested containers, i.e. : TArray<TArray<float>>
+			FFieldVariant PropertyOwner = PropertyScope;
+			FProperty** ValuePropertyPtr = &Prop;
+			FString ParentName;
+
+			// Create the container list
+			for (EPropertyBagContainerType BagContainerType : Desc.ContainerTypes)
+			{
+				switch(BagContainerType)
+				{
+				case EPropertyBagContainerType::Array:
+					{
+						// create an array property as a container for the tail
+						const FString PropName = ParentName.IsEmpty() ? Desc.Name.ToString() : ParentName + TEXT("_InnerArray");
+						FArrayProperty* ArrayProperty = new FArrayProperty(PropertyOwner, FName(PropName), RF_Public);
+						*ValuePropertyPtr = ArrayProperty;
+						ValuePropertyPtr = &ArrayProperty->Inner;
+						PropertyOwner = ArrayProperty;
+						ParentName = PropName;
+						break;
+					}
+				default:
+					ensureMsgf(false, TEXT("Unsuported container type %s"), *UEnum::GetValueAsString(BagContainerType));
+					break;
+				}
+			}
+
+			// finally create the tail type
 			FPropertyBagPropertyDesc InnerDesc = Desc;
-			InnerDesc.Name = FName(InnerDesc.Name.ToString() + TEXT("_inner"));
-			InnerDesc.ContainerType = EPropertyBagContainerType::None;
-			Prop->Inner = CreatePropertyFromDesc(InnerDesc, Prop);
+			InnerDesc.Name = FName(ParentName + TEXT("_InnerType"));
+			InnerDesc.ContainerTypes.Reset();
+			*ValuePropertyPtr = CreatePropertyFromDesc(InnerDesc, PropertyOwner);
 				
 			return Prop;
 		}
@@ -216,6 +255,7 @@ namespace UE::StructUtils::Private
 		case EPropertyBagPropertyType::Bool:
 			{
 				FBoolProperty* Prop = new FBoolProperty(PropertyScope, Desc.Name, RF_Public);
+				Prop->SetBoolSize(sizeof(bool), true); // Enable native access (init the whole byte, rather than just first bit)
 				return Prop;
 			}
 		case EPropertyBagPropertyType::Byte:
@@ -363,7 +403,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -429,7 +469,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -497,7 +537,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -527,7 +567,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -560,7 +600,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -595,7 +635,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -627,7 +667,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -693,7 +733,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -761,7 +801,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -791,7 +831,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -824,7 +864,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -865,7 +905,7 @@ namespace UE::StructUtils::Private
 		{
 			return EPropertyBagResult::OutOfBounds;
 		}
-		if (Desc->ContainerType != EPropertyBagContainerType::None)
+		if (Desc->ContainerTypes.Num() > 0)
 		{
 			return EPropertyBagResult::TypeMismatch;
 		}
@@ -941,8 +981,8 @@ namespace UE::StructUtils::Private
 			{
 				TargetDesc.CachedProperty->CopyCompleteValue(TargetAddress, SourceAddress);
 			}
-			else if (TargetDesc.ContainerType == EPropertyBagContainerType::None
-					&& SourceDesc.ContainerType == EPropertyBagContainerType::None)
+			else if (TargetDesc.ContainerTypes.Num() == 0
+					&& SourceDesc.ContainerTypes.Num() == 0)
 			{
 				if (TargetDesc.IsNumericType() && SourceDesc.IsNumericType())
 				{
@@ -998,6 +1038,55 @@ namespace UE::StructUtils::Private
 
 
 //----------------------------------------------------------------//
+//  FPropertyBagContainerTypes
+//----------------------------------------------------------------//
+EPropertyBagContainerType FPropertyBagContainerTypes::PopHead()
+{
+	EPropertyBagContainerType Head = EPropertyBagContainerType::None;
+		
+	if (NumContainers > 0)
+	{
+		Head = Types[0];
+
+		for (uint32 i = 1; i < NumContainers; ++i)
+		{
+			Types[i - 1] = Types[i];
+		}
+		Types[NumContainers - 1] = EPropertyBagContainerType::None;
+		NumContainers = NumContainers - 1;
+	}
+
+	return Head;
+}
+
+void FPropertyBagContainerTypes::Serialize(FArchive& Ar)
+{
+	Ar << NumContainers;
+	for (int i = 0; i < NumContainers; ++i)
+	{
+		Ar << Types[i];
+	}
+}
+
+bool FPropertyBagContainerTypes::operator == (const FPropertyBagContainerTypes& Other) const
+{
+	if (NumContainers != Other.NumContainers)
+	{
+		return false;
+	}
+
+	for (int i = 0; i < NumContainers; ++i)
+	{
+		if (Types[i] != Other.Types[i])
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+//----------------------------------------------------------------//
 //  FPropertyBagPropertyDesc
 //----------------------------------------------------------------//
 
@@ -1012,7 +1101,8 @@ FPropertyBagPropertyDesc::FPropertyBagPropertyDesc(const FName InName, const FPr
 {
 	ValueType = UE::StructUtils::Private::GetValueTypeFromProperty(InSourceProperty);
 	ValueTypeObject = UE::StructUtils::Private::GetValueTypeObjectFromProperty(InSourceProperty);
-	ContainerType = UE::StructUtils::Private::GetContainerTypeFromProperty(InSourceProperty);
+	// @todo : improve error handling - if we reach the nested containers limit, the Desc will be invalid (empty container types)
+	ContainerTypes = UE::StructUtils::Private::GetContainerTypesFromProperty(InSourceProperty);
 
 #if WITH_EDITORONLY_DATA
 	if (const TMap<FName, FString>* SourcePropertyMetaData = InSourceProperty->GetMetaDataMap())
@@ -1034,7 +1124,17 @@ static FArchive& operator<<(FArchive& Ar, FPropertyBagPropertyDesc& Bag)
 
 	if (Ar.CustomVer(FPropertyBagCustomVersion::GUID) >= FPropertyBagCustomVersion::ContainerTypes)
 	{
-		Ar << Bag.ContainerType;
+		if (Ar.IsLoading() && Ar.CustomVer(FPropertyBagCustomVersion::GUID) < FPropertyBagCustomVersion::NestedContainerTypes)
+		{
+			EPropertyBagContainerType TmpContainerType = EPropertyBagContainerType::None;
+			Ar << TmpContainerType;
+
+			Bag.ContainerTypes.Add(TmpContainerType);
+		}
+		else
+		{
+			Ar << Bag.ContainerTypes;
+		}
 	}
 
 	bool bHasMetaData = false;
@@ -1106,7 +1206,7 @@ bool FPropertyBagPropertyDesc::IsClassType() const
 bool FPropertyBagPropertyDesc::CompatibleType(const FPropertyBagPropertyDesc& Other) const
 {
 	// Containers must match
-	if (ContainerType != Other.ContainerType)
+	if (ContainerTypes != Other.ContainerTypes)
 	{
 		return false;
 	}
@@ -1192,6 +1292,11 @@ void FInstancedPropertyBag::AddProperty(const FName InName, const EPropertyBagPr
 void FInstancedPropertyBag::AddContainerProperty(const FName InName, const EPropertyBagContainerType InContainerType, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject)
 {
 	AddProperties({ FPropertyBagPropertyDesc(InName, InContainerType, InValueType, InValueTypeObject) });
+}
+
+void FInstancedPropertyBag::AddContainerProperty(const FName InName, const FPropertyBagContainerTypes InContainerTypes, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject)
+{
+	AddProperties({ FPropertyBagPropertyDesc(InName, InContainerTypes, InValueType, InValueTypeObject) });
 }
 
 void FInstancedPropertyBag::AddProperty(const FName InName, const FProperty* InSourceProperty)
@@ -1594,7 +1699,7 @@ TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> FInstancedPropertyBag::G
 	}
 	check(Desc->CachedProperty);
 
-	if (Desc->ContainerType != EPropertyBagContainerType::Array)
+	if (Desc->ContainerTypes.GetFirstContainerType() != EPropertyBagContainerType::Array)
 	{
 		return MakeError(EPropertyBagResult::TypeMismatch);
 	}
@@ -1617,7 +1722,7 @@ TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> FInstancedProperty
 	}
 	check(Desc->CachedProperty);
 
-	if (Desc->ContainerType != EPropertyBagContainerType::Array)
+	if (Desc->ContainerTypes.GetFirstContainerType() != EPropertyBagContainerType::Array)
 	{
 		return MakeError(EPropertyBagResult::TypeMismatch);
 	}
@@ -1866,6 +1971,49 @@ TValueOrError<UClass*, EPropertyBagResult> FPropertyBagArrayRef::GetValueClass(c
 	return MakeValue(Class);
 }
 
+TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> FPropertyBagArrayRef::GetMutableNestedArrayRef(const int32 Index) const
+{
+	if (ValueDesc.ContainerTypes.GetFirstContainerType() != EPropertyBagContainerType::Array)
+	{
+		return MakeError(EPropertyBagResult::TypeMismatch);
+	}
+
+	check(ValueDesc.CachedProperty);
+
+	const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ValueDesc.CachedProperty);
+
+	// Get the array address
+	const void* Address = GetAddress(Index);
+	if (Address == nullptr)
+	{
+		return MakeError(EPropertyBagResult::PropertyNotFound);
+	}
+	
+	// And create a FPropertyBagArrayRef with the dummy desc and the element address
+	return MakeValue(FPropertyBagArrayRef(ValueDesc, Address));
+}
+
+TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> FPropertyBagArrayRef::GetNestedArrayRef(const int32 Index) const
+{
+	if (ValueDesc.ContainerTypes.GetFirstContainerType() != EPropertyBagContainerType::Array)
+	{
+		return MakeError(EPropertyBagResult::TypeMismatch);
+	}
+
+	check(ValueDesc.CachedProperty);
+
+	const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ValueDesc.CachedProperty);
+
+	// Get the array address
+	const void* Address = GetAddress(Index);
+	if (Address == nullptr)
+	{
+		return MakeError(EPropertyBagResult::PropertyNotFound);
+	}
+	
+	// And create a FPropertyBagArrayRef with the dummy desc and the element address
+	return MakeValue(FPropertyBagArrayRef(ValueDesc, Address));
+}
 
 EPropertyBagResult FPropertyBagArrayRef::SetValueBool(const int32 Index, const bool bInValue)
 {

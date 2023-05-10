@@ -35,7 +35,7 @@ bool IsScriptStruct(const TSharedPtr<IPropertyHandle>& PropertyHandle)
 	}
 
 	FStructProperty* StructProperty = CastField<FStructProperty>(PropertyHandle->GetProperty());
-	return StructProperty && StructProperty->Struct == TBaseStructure<T>::Get();
+	return StructProperty && StructProperty->Struct->IsA(TBaseStructure<T>::Get()->GetClass());
 }
 
 /** @return true if the property is one of the known missing types. */
@@ -219,7 +219,9 @@ FEdGraphPinType GetPropertyDescAsPin(const FPropertyBagPropertyDesc& Desc)
 	PinType.PinSubCategory = NAME_None;
 
 	// Container type
-	switch (Desc.ContainerType)
+	//@todo: Handle nested containers in property selection.
+	const EPropertyBagContainerType ContainerType = Desc.ContainerTypes.GetFirstContainerType();
+	switch (ContainerType)
 	{
 	case EPropertyBagContainerType::Array:
 		PinType.ContainerType = EPinContainerType::Array;
@@ -299,14 +301,23 @@ void SetPropertyDescFromPin(FPropertyBagPropertyDesc& Desc, const FEdGraphPinTyp
 	const UPropertyBagSchema* Schema = GetDefault<UPropertyBagSchema>();
 	check(Schema);
 
-	// Container type
+	// remove any existing containers
+	Desc.ContainerTypes.Reset();
+
+	// Fill Container types, if any
 	switch (PinType.ContainerType)
 	{
 	case EPinContainerType::Array:
-		Desc.ContainerType = EPropertyBagContainerType::Array;
+		Desc.ContainerTypes.Add(EPropertyBagContainerType::Array);
+		break;
+	case EPinContainerType::Set:
+		ensureMsgf(false, TEXT("Unsuported container type [Set] "));
+		break;
+	case EPinContainerType::Map:
+		ensureMsgf(false, TEXT("Unsuported container type [Map] "));
 		break;
 	default:
-		Desc.ContainerType = EPropertyBagContainerType::None;
+		break;
 	}
 	
 	// Value type
@@ -478,6 +489,19 @@ void FPropertyBagInstanceDataDetails::OnChildRowAdded(IDetailPropertyRow& ChildR
 
 	TSharedPtr<IPropertyHandle> ChildPropertyHandle = ChildRow.GetPropertyHandle();
 	
+	bool bSupportedType = true;
+
+	TArray<FPropertyBagPropertyDesc> PropertyDescs = UE::StructUtils::Private::GetCommonPropertyDescs(BagStructProperty);
+	const FProperty* Property = ChildPropertyHandle->GetProperty();
+	if (FPropertyBagPropertyDesc* Desc = PropertyDescs.FindByPredicate([Property](const FPropertyBagPropertyDesc& Desc){ return Desc.CachedProperty == Property; }))
+	{
+		if (Desc->ContainerTypes.Num() > 1)
+		{
+			bSupportedType = false;
+			ChildRow.IsEnabled(false);
+		}
+	}
+
 	if (!bFixedLayout)
 	{
 		// Inline editable name
@@ -552,10 +576,15 @@ void FPropertyBagInstanceDataDetails::OnChildRowAdded(IDetailPropertyRow& ChildR
 				.HeightOverride(12)
 				[
 					SNew(SImage)
-					.ToolTipText(LOCTEXT("MissingType", "The property is missing type. The Struct, Enum, or Object may have been removed."))
-					.Visibility_Lambda([ChildPropertyHandle]()
+					.ToolTipText_Lambda([ChildPropertyHandle, bSupportedType]()
 					{
-						return UE::StructUtils::Private::HasMissingType(ChildPropertyHandle) ? EVisibility::Visible : EVisibility::Collapsed;
+						return !bSupportedType
+							? LOCTEXT("UnsupportedType", "This property type is not supported in the property bag UI.")
+							: LOCTEXT("MissingType", "The property is missing type. The Struct, Enum, or Object may have been removed.");
+					})
+					.Visibility_Lambda([ChildPropertyHandle, bSupportedType]()
+					{
+						return UE::StructUtils::Private::HasMissingType(ChildPropertyHandle) || !bSupportedType ? EVisibility::Visible : EVisibility::Collapsed;
 					})
 					.Image(FAppStyle::GetBrush("Icons.Error"))
 				]
