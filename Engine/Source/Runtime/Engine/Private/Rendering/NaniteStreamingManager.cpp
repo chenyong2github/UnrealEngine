@@ -1004,12 +1004,32 @@ uint32 FStreamingManager::GPUPageIndexToGPUOffset(uint32 PageIndex) const
 	return (FMath::Min(PageIndex, MaxStreamingPages) << NANITE_STREAMING_PAGE_GPU_SIZE_BITS) + ((uint32)FMath::Max((int32)PageIndex - (int32)MaxStreamingPages, 0) << NANITE_ROOT_PAGE_GPU_SIZE_BITS);
 }
 
+static void ValidateFixupChunk(const FFixupChunk& FixupChunk)
+{
+	const bool bValid =	FixupChunk.Header.NumClusters > 0 &&
+						FixupChunk.Header.NumHierachyFixups > 0 &&
+						FixupChunk.Header.Pad == 0;	// TODO: Turn Pad into a magic on a future format bump.
+	if (!bValid)
+	{
+		UE_LOG(LogNaniteStreaming, Error,
+			TEXT("Encountered a corrupt fixup chunk. NumClusters: %d, NumClusterFixups: %d, NumHierarchyFixups: %d, Pad: %d, This should never happen."),
+			FixupChunk.Header.NumClusters,
+			FixupChunk.Header.NumClusterFixups,
+			FixupChunk.Header.NumHierachyFixups,
+			FixupChunk.Header.Pad
+		);
+	}
+}
+	
+
 // Applies the fixups required to install/uninstall a page.
 // Hierarchy references are patched up and leaf flags of parent clusters are set accordingly.
 void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResources& Resources, bool bUninstall )
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
+	ValidateFixupChunk(FixupChunk);
+	
 	const uint32 RuntimeResourceID = Resources.RuntimeResourceID;
 	const uint32 HierarchyOffset = Resources.HierarchyOffset;
 	
@@ -1268,7 +1288,8 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 #endif
 					SrcPtr = PendingPage.RequestBuffer.GetData();
 				}
-
+				
+				ValidateFixupChunk(*(const FFixupChunk*)SrcPtr);
 				const uint32 FixupChunkSize = ((const FFixupChunk*)SrcPtr)->GetSize();
 				FFixupChunk* FixupChunk = (FFixupChunk*)FMemory::Realloc(StreamingPageFixupChunks[PendingPage.GPUPageIndex], FixupChunkSize, sizeof(uint16));	// TODO: Get rid of this alloc. Can we come up with a tight conservative bound, so we could preallocate?
 				StreamingPageFixupChunks[PendingPage.GPUPageIndex] = FixupChunk;
@@ -1473,6 +1494,7 @@ void FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 
 			const uint8* Ptr = Resources->RootData.GetData() + PageStreamingState.BulkOffset;
 			const FFixupChunk& FixupChunk = *(FFixupChunk*)Ptr;
+			ValidateFixupChunk(FixupChunk);
 			const uint32 FixupChunkSize = FixupChunk.GetSize();
 			const uint32 NumClusters = FixupChunk.Header.NumClusters;
 
@@ -1640,7 +1662,25 @@ uint32 FStreamingManager::DetermineReadyPages(uint32& TotalPageSize)
 #if WITH_EDITOR
 				check(PendingPage.State == FPendingPage::EState::Disk);
 #endif
-				if (!PendingPage.Request.IsCompleted())
+				if (PendingPage.Request.IsCompleted())
+				{
+					if (!PendingPage.Request.IsOk())
+					{
+						// Retry if IO request failed for some reason
+						FResources** Resources = RuntimeResourceMap.Find(PendingPage.InstallKey.RuntimeResourceID);
+						if (Resources)	// If the resource is gone, no need to do anything as the page will be ignored by InstallReadyPages
+						{
+							const FPageStreamingState& PageStreamingState = (*Resources)->PageStreamingStates[PendingPage.InstallKey.PageIndex];
+							UE_LOG(LogNaniteStreaming, Warning, TEXT("IO Request failed. RuntimeResourceID: %8X, Offset: %d, Size: %d. Retrying..."), PendingPage.InstallKey.RuntimeResourceID, PageStreamingState.BulkOffset, PageStreamingState.BulkSize);
+
+							FBulkDataBatchRequest::FBatchBuilder Batch = FBulkDataBatchRequest::NewBatch(1);
+							Batch.Read((*Resources)->StreamablePages, PageStreamingState.BulkOffset, PageStreamingState.BulkSize, AIOP_Low, PendingPage.RequestBuffer, PendingPage.Request);
+							(void)Batch.Issue();
+							break;
+						}
+					}
+				}
+				else
 				{
 					break;
 				}
@@ -2554,9 +2594,7 @@ void FStreamingManager::RequestDDCData(TConstArrayView<FCacheGetChunkRequest> DD
 			const uint32 PendingPageIndex = (uint32)Response.UserData;
 			FPendingPage& PendingPage = PendingPages[PendingPageIndex];
 
-			//const bool bRandomFalure = FMath::RandHelper(16) == 0;
-			const bool bRandomFalure = false;
-			if (Response.Status == EStatus::Ok && !bRandomFalure)
+			if (Response.Status == EStatus::Ok)
 			{
 				PendingPage.SharedBuffer = MoveTemp(Response.RawData);
 				PendingPage.State = FPendingPage::EState::DDC_Ready;
