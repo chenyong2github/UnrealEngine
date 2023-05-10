@@ -80,6 +80,10 @@ struct ENHANCEDINPUT_API FMapPlayerKeyArgs final
 	/** If there is not a player mapping already with the same Slot and Hardware Device ID, then create a new mapping for this slot. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Enhanced Input|User Settings")
 	uint8 bCreateMatchingSlotIfNeeded : 1;
+
+	/** Defers setting changed delegates until the next frame if set to true. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Enhanced Input|User Settings")
+	uint8 bDeferOnSettingsChangedBroadcast : 1;
 };
 
 /** Represents a single key mapping that is set by the player */
@@ -536,6 +540,11 @@ protected:
 public:
 	
 	ULocalPlayer* GetLocalPlayer() const;
+
+protected:
+	// Used to track when a settings change callback has been deferred till the next frame.
+	FTimerHandle DeferredSettingsChangedTimerHandle;
+public:
 	
 	/** Fired when the user settings have changed, such as their key mappings. */
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEnhancedInputUserSettingsChanged, UEnhancedInputUserSettings*, Settings);

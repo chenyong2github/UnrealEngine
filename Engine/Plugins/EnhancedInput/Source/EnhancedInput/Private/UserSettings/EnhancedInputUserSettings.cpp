@@ -9,6 +9,7 @@
 #include "EnhancedActionKeyMapping.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "EnhancedInputDeveloperSettings.h"
 #include "Internationalization/Text.h"
@@ -86,6 +87,7 @@ FMapPlayerKeyArgs::FMapPlayerKeyArgs()
 	, NewKey(EKeys::Invalid)
 	, HardwareDeviceId(NAME_None)
 	, bCreateMatchingSlotIfNeeded(true)
+	, bDeferOnSettingsChangedBroadcast (false)
 {
 }
 
@@ -864,7 +866,26 @@ void UEnhancedInputUserSettings::MapPlayerKey(const FMapPlayerKeyArgs& InArgs, F
 		FoundMapping->SetCurrentKey(InArgs.NewKey);
 		OnKeyMappingUpdated(FoundMapping, InArgs, false);
 		
-		OnSettingsChanged.Broadcast(this);
+		if(InArgs.bDeferOnSettingsChangedBroadcast  && !DeferredSettingsChangedTimerHandle.IsValid())
+		{
+			if(UWorld* World = GetWorld())
+			{
+				TWeakObjectPtr<UEnhancedInputUserSettings> WeakThis = this;
+				DeferredSettingsChangedTimerHandle = World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, 
+					[WeakThis]
+					{
+						if(WeakThis.IsValid())
+						{
+							WeakThis->OnSettingsChanged.Broadcast(WeakThis.Get());
+							WeakThis->DeferredSettingsChangedTimerHandle.Invalidate();
+						}
+					}));
+			}
+		}
+		else
+		{
+			OnSettingsChanged.Broadcast(this);
+		}
 	}
 	// If it doesn't exist, then we need to make it if there is a valid action name
 	else if (FKeyMappingRow* MappingRow = KeyProfile->FindKeyMappingRowMutable(InArgs.MappingName))
@@ -911,7 +932,26 @@ void UEnhancedInputUserSettings::MapPlayerKey(const FMapPlayerKeyArgs& InArgs, F
 			const FSetElementId SetElem = MappingRow->Mappings.Add(PlayerMappingData);
 			OnKeyMappingUpdated(&MappingRow->Mappings.Get(SetElem), InArgs, false);
 			
-			OnSettingsChanged.Broadcast(this);
+			if(InArgs.bDeferOnSettingsChangedBroadcast  && !DeferredSettingsChangedTimerHandle.IsValid())
+			{
+				if(UWorld* World = GetWorld())
+				{
+					TWeakObjectPtr<UEnhancedInputUserSettings> WeakThis = this;
+					DeferredSettingsChangedTimerHandle = World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, 
+						[WeakThis]
+						{
+							if(WeakThis.IsValid())
+							{
+								WeakThis->OnSettingsChanged.Broadcast(WeakThis.Get());
+								WeakThis->DeferredSettingsChangedTimerHandle.Invalidate();
+							}
+						}));
+				}
+			}
+			else
+			{
+				OnSettingsChanged.Broadcast(this);
+			}
 		}
 	}
 	else
