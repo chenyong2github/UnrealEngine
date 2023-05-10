@@ -27,6 +27,7 @@ void FCustomizableObjectNodeEditMaterialBaseDetails::CustomizeDetails(IDetailLay
 {
 	FCustomizableObjectNodeParentedMaterialDetails::CustomizeDetails(DetailBuilder);
 
+	DetailBuilderPtr = &DetailBuilder;
 	NodeEditMaterialBase = nullptr;
 
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = DetailBuilder.GetDetailsView()->GetSelectedObjects();
@@ -42,7 +43,7 @@ void FCustomizableObjectNodeEditMaterialBaseDetails::CustomizeDetails(IDetailLay
 		// Add all the materials to the combobox
 		TSharedPtr<FString> LayoutToSelect = GenerateLayoutComboboxOptions();
 
-		TSharedRef<IPropertyHandle> LayoutProperty = DetailBuilder.GetProperty("ParentLayoutIndex");
+		TSharedRef<IPropertyHandle> LayoutProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UCustomizableObjectNodeEditMaterialBase, ParentLayoutIndex));
 
 		BlocksCategory.AddCustomRow(LOCTEXT("BlocksRow", "Blocks"))
 		[
@@ -121,6 +122,7 @@ void FCustomizableObjectNodeEditMaterialBaseDetails::OnLayoutComboBoxSelectionCh
 		if (LayoutOptionNames[OptionIndex] == Selection)
 		{
 			LayoutProperty->SetValue(LayoutOptionReferences[OptionIndex]);
+			DetailBuilderPtr->ForceRefreshDetails();
 			break;	
 		}
 	}
@@ -134,6 +136,5 @@ void FCustomizableObjectNodeEditMaterialBaseDetails::OnParentComboBoxSelectionCh
 	const TSharedPtr<FString> LayoutToSelect = GenerateLayoutComboboxOptions();
 	LayoutComboBox->SetSelectedItem(LayoutToSelect);
 }
-
 
 #undef LOCTEXT_NAMESPACE

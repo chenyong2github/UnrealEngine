@@ -32,6 +32,9 @@ private:
 	
 	UCustomizableObjectNodeEditMaterialBase* NodeEditMaterialBase;
 
+	// Pointer of the details to refresh the view whenever is necessary
+	IDetailLayoutBuilder* DetailBuilderPtr;
+
 	// Prepares combobox options for the Layout
 	TSharedPtr<FString> GenerateLayoutComboboxOptions();
 

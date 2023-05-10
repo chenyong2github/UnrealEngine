@@ -85,6 +85,12 @@ void FCustomizableObjectNodeUseMaterial::PinConnectionListChangedWork(UEdGraphPi
 {
 	if (Pin == OutputPin())
 	{
+		if (Pin->LinkedTo.Num() == 0)
+		{
+			FCustomizableObjectNodeParentedMaterial& NodeParentedMaterial = GetNodeParentedMaterial();
+			NodeParentedMaterial.SetParentNode(nullptr, FGuid());
+		}
+
 		if (const TSharedPtr<ICustomizableObjectEditor> Editor = GetNode().GetGraphEditor())
 		{
 			Editor->UpdateGraphNodeProperties();
