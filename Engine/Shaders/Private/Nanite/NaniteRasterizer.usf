@@ -88,7 +88,7 @@ ViewState ResolveView(FNaniteView NaniteView)
 	Ret.TranslatedWorldToView 		= NaniteView.TranslatedWorldToView;
 	Ret.TranslatedWorldToClip 		= NaniteView.TranslatedWorldToClip;
 	Ret.ViewToClip 					= NaniteView.ViewToClip;
-	Ret.ClipToWorld 				= NaniteView.ClipToWorld;	
+	Ret.ClipToWorld 				= NaniteView.ClipToWorld;
 	Ret.PrevTranslatedWorldToView 	= NaniteView.PrevTranslatedWorldToView;
 	Ret.PrevTranslatedWorldToClip 	= NaniteView.PrevTranslatedWorldToClip;
 	Ret.PrevViewToClip 				= NaniteView.PrevViewToClip;
@@ -97,11 +97,15 @@ ViewState ResolveView(FNaniteView NaniteView)
 	Ret.ViewSizeAndInvSize 			= NaniteView.ViewSizeAndInvSize;
 	Ret.PreViewTranslation 			= NaniteView.PreViewTranslation;
 	Ret.PrevPreViewTranslation 		= NaniteView.PrevPreViewTranslation;
-	Ret.WorldCameraOrigin 			= NaniteView.WorldCameraOrigin;
 	Ret.ViewForward 				= NaniteView.ViewForward;
 	Ret.ViewTilePosition 			= NaniteView.ViewTilePosition;
 	Ret.MatrixTilePosition 			= NaniteView.MatrixTilePosition;
 	Ret.NearPlane 					= NaniteView.NearPlane;
+
+	// HACK: This fixes some material nodes for shadows, as shadow views borrow some view uniforms from the closest
+	// camera view, rather than exposing their own parameters.
+	Ret.WorldCameraOrigin = LWCNegate(NaniteView.PreViewTranslation);
+	Ret.WorldCameraOrigin.Offset += NaniteView.DrawDistanceOriginTranslatedWorld;
 
 	return Ret;
 }
