@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "TypedElementGeneralRegistration.h"
 
 #include "Elements/Interfaces/TypedElementDataStorageUiInterface.h"
