@@ -74,7 +74,19 @@ namespace EpicGames.Horde.Storage.Backends
 
 		#endregion
 
-		#region Nodes
+		#region Aliases
+
+		/// <inheritdoc/>
+		public override Task AddAliasAsync(Utf8String name, NodeHandle locator, CancellationToken cancellationToken = default)
+		{
+			throw new NotSupportedException("File storage client does not currently support aliases.");
+		}
+
+		/// <inheritdoc/>
+		public override Task RemoveAliasAsync(Utf8String name, NodeHandle locator, CancellationToken cancellationToken = default)
+		{
+			throw new NotSupportedException("File storage client does not currently support aliases.");
+		}
 
 		/// <inheritdoc/>
 		public override IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, CancellationToken cancellationToken = default)

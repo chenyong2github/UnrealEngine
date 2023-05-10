@@ -72,22 +72,25 @@ namespace EpicGames.Horde.Storage.Backends
 			Bundle bundle = await Bundle.FromStreamAsync(stream, cancellationToken);
 			_blobs[locator] = bundle;
 
-			for (int idx = 0; idx < bundle.Header.Exports.Count; idx++)
-			{
-				BundleExport export = bundle.Header.Exports[idx];
-				if(!export.Alias.IsEmpty)
-				{
-					NodeHandle handle = new NodeHandle(export.Hash, locator, idx);
-					_exports.AddOrUpdate(export.Alias, _ => new ExportEntry(handle, null), (_, entry) => new ExportEntry(handle, entry));
-				}
-			}
-
 			return locator;
 		}
 
 		#endregion
 
-		#region Nodes
+		#region Aliases
+
+		/// <inheritdoc/>
+		public override Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default)
+		{
+			_exports.AddOrUpdate(name, _ => new ExportEntry(handle, null), (_, entry) => new ExportEntry(handle, entry));
+			return Task.CompletedTask;
+		}
+
+		/// <inheritdoc/>
+		public override Task RemoveAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default)
+		{
+			throw new NotSupportedException();
+		}
 
 		/// <inheritdoc/>
 		public override async IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, [EnumeratorCancellation] CancellationToken cancellationToken = default)

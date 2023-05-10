@@ -162,18 +162,8 @@ namespace Horde.Server.Storage
 						memoryStream.Position = 0;
 						BundleHeader header = await BundleHeader.FromStreamAsync(memoryStream, cancellationToken);
 
-						List<ExportInfo> exports = new List<ExportInfo>();
-						for (int idx = 0; idx < header.Exports.Count; idx++)
-						{
-							BundleExport export = header.Exports[idx];
-							if (!export.Alias.IsEmpty)
-							{
-								exports.Add(new ExportInfo(export.Alias.ToString(), export.Hash, idx));
-							}
-						}
-
 						// Add the blob record
-						locator = await _outer.AddBlobAsync(NamespaceId, prefix, exports, cancellationToken);
+						locator = await _outer.AddBlobAsync(NamespaceId, prefix, null, cancellationToken);
 
 						// Write it to the backend
 						string path = GetBlobPath(locator.BlobId);
@@ -222,6 +212,12 @@ namespace Horde.Server.Storage
 			#endregion
 
 			#region Nodes
+
+			/// <inheritdoc/>
+			public override Task AddAliasAsync(Utf8String name, NodeHandle locator, CancellationToken cancellationToken = default) => _outer.AddAliasAsync(NamespaceId, name, locator, cancellationToken);
+		
+			/// <inheritdoc/>
+			public override Task RemoveAliasAsync(Utf8String name, NodeHandle locator, CancellationToken cancellationToken = default) => _outer.RemoveAliasAsync(NamespaceId, name, locator, cancellationToken);
 
 			/// <inheritdoc/>
 			public override IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String alias, CancellationToken cancellationToken = default) => _outer.FindNodesAsync(NamespaceId, alias, cancellationToken);
@@ -677,6 +673,45 @@ namespace Horde.Server.Storage
 		#endregion
 
 		#region Nodes
+
+		/// <summary>
+		/// Adds a node alias
+		/// </summary>
+		/// <param name="namespaceId">Namespace to search</param>
+		/// <param name="alias">Alias for the node</param>
+		/// <param name="target">Target node for the alias</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Sequence of thandles</returns>
+		async Task AddAliasAsync(NamespaceId namespaceId, Utf8String alias, NodeHandle target, CancellationToken cancellationToken = default)
+		{
+			BlobInfo? blobInfo = await _blobCollection.Find(x => x.NamespaceId == namespaceId && x.BlobId == target.Locator.Blob.BlobId).FirstOrDefaultAsync(cancellationToken);
+			if (blobInfo == null)
+			{
+				throw new KeyNotFoundException($"Missing blob {target.Locator.Blob}");
+			}
+
+			if (blobInfo.Exports != null && blobInfo.Exports.Any(x => x.Alias == alias && x.Index == target.Locator.ExportIdx))
+			{
+				return;
+			}
+
+			FilterDefinition<BlobInfo> filter = Builders<BlobInfo>.Filter.Expr(x => x.NamespaceId == blobInfo.NamespaceId && x.BlobId == target.Locator.Blob.BlobId);
+			UpdateDefinition<BlobInfo> update = Builders<BlobInfo>.Update.Push(x => x.Exports, new ExportInfo(alias.ToString(), target.Hash, target.Locator.ExportIdx));
+			await _blobCollection.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
+		}
+
+		/// <summary>
+		/// Removes a node alias
+		/// </summary>
+		/// <param name="namespaceId">Namespace to search</param>
+		/// <param name="alias">Alias for the node</param>
+		/// <param name="target">Target node for the alias</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Sequence of thandles</returns>
+		Task RemoveAliasAsync(NamespaceId namespaceId, Utf8String alias, NodeHandle target, CancellationToken cancellationToken = default)
+		{
+			throw new NotSupportedException();
+		}
 
 		/// <summary>
 		/// Finds nodes with the given type and hash

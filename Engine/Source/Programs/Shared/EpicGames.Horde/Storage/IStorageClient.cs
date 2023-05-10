@@ -109,7 +109,23 @@ namespace EpicGames.Horde.Storage
 
 		#endregion
 
-		#region Nodes
+		#region Aliases
+
+		/// <summary>
+		/// Adds an alias to a given node
+		/// </summary>
+		/// <param name="name">Alias for the node</param>
+		/// <param name="handle">Locator for the node</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Removes an alias from a node
+		/// </summary>
+		/// <param name="name">Name of the alias</param>
+		/// <param name="handle">Locator for the node</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		Task RemoveAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Finds nodes with the given alias. Unlike refs, aliases do not serve as GC roots.
@@ -209,7 +225,13 @@ namespace EpicGames.Horde.Storage
 
 			#endregion
 
-			#region Nodes
+			#region Aliases
+
+			/// <inheritdoc/>
+			public Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _inner.AddAliasAsync(name, handle, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task RemoveAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default) => _inner.RemoveAliasAsync(name, handle, cancellationToken);
 
 			/// <inheritdoc/>
 			public IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String name, CancellationToken cancellationToken = default) => _inner.FindNodesAsync(name, cancellationToken);

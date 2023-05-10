@@ -37,6 +37,12 @@ namespace EpicGames.Horde.Storage
 		#region Nodes
 
 		/// <inheritdoc/>
+		public abstract Task AddAliasAsync(Utf8String name, NodeHandle locator, CancellationToken cancellationToken = default);
+
+		/// <inheritdoc/>
+		public abstract Task RemoveAliasAsync(Utf8String name, NodeHandle locator, CancellationToken cancellationToken = default);
+
+		/// <inheritdoc/>
 		public abstract IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String name, CancellationToken cancellationToken = default);
 
 		#endregion

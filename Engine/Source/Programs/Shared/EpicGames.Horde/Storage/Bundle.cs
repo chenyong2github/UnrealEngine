@@ -30,9 +30,14 @@ namespace EpicGames.Horde.Storage
 		Initial = 0,
 
 		/// <summary>
-		/// Added the <see cref="BundleExport.Alias"/> property
+		/// Added the BundleExport.Alias property
 		/// </summary>
 		ExportAliases = 1,
+
+		/// <summary>
+		/// Back out change to include aliases. Will likely do this through an API rather than baked into the data. 
+		/// </summary>
+		RemoveAliases = 2,
 
 		/// <summary>
 		/// Last item in the enum. Used for <see cref="Latest"/>
@@ -524,20 +529,14 @@ namespace EpicGames.Horde.Storage
 		public IReadOnlyList<int> References { get; }
 
 		/// <summary>
-		/// Alias for the content of this node. Used for content addressing.
-		/// </summary>
-		public Utf8String Alias { get; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExport(int typeIdx, IoHash hash, int length, IReadOnlyList<int> references, Utf8String alias = default)
+		public BundleExport(int typeIdx, IoHash hash, int length, IReadOnlyList<int> references)
 		{
 			TypeIdx = typeIdx;
 			Hash = hash;
 			Length = length;
 			References = references;
-			Alias = alias;
 		}
 
 		/// <summary>
@@ -566,9 +565,9 @@ namespace EpicGames.Horde.Storage
 				References = references;
 			}
 
-			if (version >= BundleVersion.ExportAliases)
+			if (version == BundleVersion.ExportAliases)
 			{
-				Alias = reader.ReadUtf8String();
+				_ = reader.ReadUtf8String();
 			}
 		}
 
@@ -587,8 +586,6 @@ namespace EpicGames.Horde.Storage
 			{
 				writer.WriteUnsignedVarInt(References[idx]);
 			}
-
-			writer.WriteUtf8String(Alias);
 		}
 	}
 
