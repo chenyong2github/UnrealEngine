@@ -6,8 +6,6 @@
 #define EIGEN_MPL2_ONLY
 #endif
 
-#include "Math/RandomStream.h"
-
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(push)
 #pragma warning(disable : 6011)
@@ -15,14 +13,28 @@
 #pragma warning(disable : 6313)
 #pragma warning(disable : 6294)
 #endif
+
+#if defined(__clang__) && __clang_major__ > 9
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#endif
+
 PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Eigen/Dense>
 THIRD_PARTY_INCLUDES_END
 PRAGMA_DEFAULT_VISIBILITY_END
+
+#if defined(__clang__) && __clang_major__ > 9
+#pragma clang diagnostic pop
+#endif
+
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(pop)
 #endif
+
+// Forward declarations
+struct FRandomStream;
 
 namespace UE
 {
@@ -59,11 +71,37 @@ template <typename ScalarType, int RowsAtCompileTime, int ColsAtCompileTime>
 void RandomDenseMatrix(TDenseMatrix<ScalarType, RowsAtCompileTime, ColsAtCompileTime>& OutMatrix, 
 					   const int32 InRowsAtRunTime,
 					   const int32 InColsAtRunTime,
-					   const FRandomStream& InRandomStream) 
-{
-	auto RandNumFunc = [&InRandomStream]() { return InRandomStream.FRandRange(-1.0f, 1.0f); };
-	OutMatrix = TDenseMatrix<ScalarType, RowsAtCompileTime, ColsAtCompileTime>::NullaryExpr(InRowsAtRunTime, InColsAtRunTime, RandNumFunc);
-}
+					   const FRandomStream& InRandomStream);
+
+/** 
+ * Slice the matrix such that OutSlicedMatrix = InMatrix[InRowsToSlice, InColsToSlice].
+ * 
+ * @param InMatrix The matrix we are slicing.
+ * @param InRowsToSlice Rows slice mask. If empty all rows will be used. 
+ * @param InColsToSlice Columns slice mask. If empty all columns will be used.
+ * @param OutSlicedMatrix The sliced matrix.
+ * 
+ * @return true if slicing succeeds, false otherwise. Slicing can fail if one of the input parameters is invalid.
+ */
+template <typename ScalarType, int RowsAtCompileTime, int ColsAtCompileTime>
+bool SliceDenseMatrix(const TDenseMatrix<ScalarType, RowsAtCompileTime,ColsAtCompileTime>& InMatrix, 
+                      const TArray<int>& InRowsToSlice,
+                      const TArray<int>& InColsToSlice,
+                      TDenseMatrixX<ScalarType>& OutSlicedMatrix);
+
+/**
+ * Slice the matrix only along the rows such that OutSlicedMatrix = InMatrix[InRowsToSlice, :].
+ *
+ * @param InMatrix The matrix we are slicing.
+ * @param InRowsToSlice Rows slice mask. If empty all rows will be used.
+ * @param OutSlicedMatrix The sliced matrix.
+ *
+ * @return true if slicing succeeds, false otherwise. Slicing can fail if one of the input parameters is invalid.
+ */
+template <typename ScalarType, int RowsAtCompileTime, int ColsAtCompileTime>
+bool SliceDenseMatrix(const TDenseMatrix<ScalarType, RowsAtCompileTime, ColsAtCompileTime>& InMatrix,
+					  const TArray<int>& InRowsToSlice,
+					  TDenseMatrixX<ScalarType>& OutSlicedMatrix);
 
 } // end namespace UE::Geometry
 } // end namespace UE
