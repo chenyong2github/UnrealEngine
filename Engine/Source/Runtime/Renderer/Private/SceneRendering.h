@@ -1745,10 +1745,13 @@ public:
 	using FSceneView::GetEyeAdaptationBuffer;
 	FRDGPooledBuffer* GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder) const;
 
-	/** Get the last valid exposure value for eye adapation. */
+	/** Get the last valid exposure value for eye adaptation. */
 	float GetLastEyeAdaptationExposure() const;
 
-	/** Get the last valid average scene luminange for eye adapation (exposure compensation curve). */
+	/** Get the last valid average local exposure value. */
+	float GetLastAverageLocalExposure() const;
+
+	/** Get the last valid average scene luminance for eye adaptation (exposure compensation curve). */
 	float GetLastAverageSceneLuminance() const;
 
 	/**Swap the order of the two eye adaptation targets in the double buffer system */

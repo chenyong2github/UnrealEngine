@@ -102,7 +102,8 @@ FRDGBufferRef AddHistogramEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
-	FRDGTextureRef HistogramTexture);
+	FRDGTextureRef HistogramTexture,
+	bool bComputeAverageLocalExposure);
 
 // Computes luma of scene color stores in Alpha.
 FScreenPassTexture AddBasicEyeAdaptationSetupPass(
@@ -117,7 +118,8 @@ FRDGBufferRef AddBasicEyeAdaptationPass(
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FScreenPassTexture SceneColor,
-	FRDGBufferRef EyeAdaptationBuffer);
+	FRDGBufferRef EyeAdaptationBuffer,
+	bool bComputeAverageLocalExposure);
 
 /**
 * Helper function to get current eye adaptation in a texture.

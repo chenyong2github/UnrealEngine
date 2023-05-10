@@ -2276,6 +2276,15 @@ float FViewInfo::GetLastEyeAdaptationExposure() const
 	return 0.0f; // Invalid exposure
 }
 
+float FViewInfo::GetLastAverageLocalExposure() const
+{
+	if (const FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())
+	{
+		return EffectiveViewState->GetLastAverageLocalExposure();
+	}
+	return 1.0f; // Default to "local exposure disabled"
+}
+
 float FViewInfo::GetLastAverageSceneLuminance() const
 {
 	if (const FSceneViewState* EffectiveViewState = GetEyeAdaptationViewState())

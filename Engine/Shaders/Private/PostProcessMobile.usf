@@ -1302,6 +1302,7 @@ RWStructuredBuffer<float4> OutputBuffer;
 void BasicEyeAdaptationCS_Mobile()
 {
 	OutputBuffer[0] = BasicEyeAdaptation_Mobile();
+	OutputBuffer[1] = float4(1.0f, 0.0f, 0.0f, 0.0f);
 }
 
 #endif
@@ -1550,5 +1551,6 @@ void HistogramEyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	OutColor.w = MiddleGreyExposureCompensation;
 
 	OutputBuffer[0] = OutColor;
+	OutputBuffer[1] = float4(1.0f, 0.0f, 0.0f, 0.0f);
 }
 #endif

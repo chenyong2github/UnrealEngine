@@ -903,7 +903,8 @@ void AddPostProcessingPasses(
 				GraphBuilder, View,
 				EyeAdaptationParameters,
 				SceneDownsampleChain.GetLastTexture(),
-				LastEyeAdaptationBuffer);
+				LastEyeAdaptationBuffer,
+				bLocalExposureEnabled);
 		}
 		// Add histogram eye adaptation pass even if no histogram exists to support the manual clamping mode.
 		else if (bEyeAdaptationEnabled)
@@ -911,7 +912,8 @@ void AddPostProcessingPasses(
 			EyeAdaptationBuffer = AddHistogramEyeAdaptationPass(
 				GraphBuilder, View,
 				EyeAdaptationParameters,
-				HistogramTexture);
+				HistogramTexture,
+				bLocalExposureEnabled);
 		}
 
 		FScreenPassTexture Bloom;

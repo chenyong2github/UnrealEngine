@@ -115,6 +115,46 @@ float2 ComputeWeightedTextureAverageAlphaSubRegion(
 	return float2(Value, max(WeightTotal,0.0000000001f));
 }
 
+float2 ComputeTextureAverageAlphaSubRegion(
+	Texture2D Texture,
+	uint2 SubRectMin,
+	uint2 SubRectMax,
+	uint2 RectMin,
+	uint2 RectMax)
+{
+	if (((SubRectMax.x - SubRectMin.x) == 0) || ((SubRectMax.y - SubRectMin.y) == 0))
+	{
+		return float2(0.0, 0.0000000001f);
+	}
+
+	// The inverse of the Region of Interest size.
+	const float InvRectWidth = 1.f / float(RectMax.x - RectMin.x);
+	const float InvRectHeight = 1.f / float(RectMax.y - RectMin.y);
+
+	// use product of linear weight in x and y.
+	float Value = 0.0f;
+
+	for (uint i = SubRectMin.x; i < SubRectMax.x; ++i)
+	{
+		// for precision, accumulate in rows
+		float RowValue = 0.0;
+		for (uint j = SubRectMin.y; j < SubRectMax.y; ++j)
+		{
+			float2 ScreenUV = float2(float(i) * InvRectWidth, float(j) * InvRectHeight);
+
+			// Accumulate values from alpha channel.
+			float Sample = Texture.Load(int3(i, j, 0)).w;
+			RowValue += Sample;
+		}
+
+		Value += RowValue;
+	}
+
+	const float NumSamples = (SubRectMax.x - SubRectMin.x) * (SubRectMax.y - SubRectMin.y);
+
+	return float2(Value, NumSamples);
+}
+
 float4 EyeAdaptationCommon(float AverageSceneLuminance, float OldExposureScale)
 {
 	const float TargetAverageLuminance = clamp(AverageSceneLuminance, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
@@ -145,6 +185,35 @@ float4 EyeAdaptationCommon(float AverageSceneLuminance, float OldExposureScale)
 	return OutData;
 }
 
+#if COMPUTE_AVERAGE_LOCAL_EXPOSURE
+float ComputeAverageLocalExposure(Texture2D HistogramTexture, float ExposureScale, float MiddleGreyExposureCompensation)
+{
+	// Average Local Exposure is calculated using log(LocalExposure) 
+	// since it results in a more consistent value when applied to Pre-Exposure
+
+	const float MiddleGreyLumValue = log2(0.18 * MiddleGreyExposureCompensation * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);
+
+	float2 Sum = 0;
+
+	UNROLL for (uint i = 0; i < HISTOGRAM_SIZE; ++i)
+	{
+		float LocalValue = GetHistogramBucket(HistogramTexture, i);
+
+		float LogLuminanceAtBucket = ComputeLogLuminanceFromHistogramPosition(float(i) / (float)(HISTOGRAM_SIZE - 1));
+
+		float BaseLogLum = LogLuminanceAtBucket + log2(ExposureScale);
+		float LogLocalExposure = CalculateLogLocalExposure(BaseLogLum, BaseLogLum, MiddleGreyLumValue, EyeAdaptation_LocalExposureHighlightContrastScale, EyeAdaptation_LocalExposureShadowContrastScale, 0.0f);
+
+		Sum += float2(LogLocalExposure, 1) * LocalValue;
+	}
+
+	float AverageLocalExposure = Sum.x / max(0.0001f, Sum.y);
+	AverageLocalExposure = exp2(AverageLocalExposure);
+
+	return AverageLocalExposure;
+}
+#endif
+
 #if COMPUTESHADER
 [numthreads(1, 1, 1)]
 void EyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
@@ -153,8 +222,16 @@ void EyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const float OldExposureScale = HistogramTexture.Load(int3(0, 1, 0)).x;
 
 	const float4 OutData0 = EyeAdaptationCommon(AverageSceneLuminance, OldExposureScale);
+	
+
+#if COMPUTE_AVERAGE_LOCAL_EXPOSURE
+	const float AverageLocalExposure = ComputeAverageLocalExposure(HistogramTexture, OutData0.x, OutData0.w);
+#else
+	const float AverageLocalExposure = 1.0f;
+#endif
 
 	RWEyeAdaptationBuffer[0] = OutData0;
+	RWEyeAdaptationBuffer[1] = float4(AverageLocalExposure, 0.0f, 0.0f, 0.0f);
 }
 
 RWTexture2D<float4> RWEyeAdaptationTexture;
@@ -251,6 +328,26 @@ void BasicEyeAdaptationCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThre
 	const float OldExposureScale = EyeAdaptationBuffer[0].x;
 
 	const float4 OutData0 = EyeAdaptationCommon(AverageSceneLuminance, OldExposureScale);
+
+#if COMPUTE_AVERAGE_LOCAL_EXPOSURE
+	const float MiddleGreyLumValue = log2(0.18 * OutData0.w * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);
+
+	const float2 LogLumSumWithCount = ComputeTextureAverageAlphaSubRegion(ColorTexture, SubRectMin, SubRectMax, Color_ViewportMin, Color_ViewportMax);
+
+	float LogLum = LogLumSumWithCount.x / LogLumSumWithCount.y;
+	LogLum = (LogLum - EyeAdaptation_HistogramBias) / EyeAdaptation_HistogramScale;
+
+	const float BaseLogLum = LogLum + log2(OutData0.x);
+	const float LogLocalExposure = CalculateLogLocalExposure(BaseLogLum, BaseLogLum, MiddleGreyLumValue, EyeAdaptation_LocalExposureHighlightContrastScale, EyeAdaptation_LocalExposureShadowContrastScale, 0.0f);
+
+	const float2 LogLocalExposureSumWithCount = float2(LogLocalExposure, 1.0f) * LogLumSumWithCount.y;
+
+	const float2 ReducedLogLocalExposureSumWithCount = Reduce(GIndex, LogLocalExposureSumWithCount);
+
+	const float AverageLocalExposure = exp2(ReducedLogLocalExposureSumWithCount.x / ReducedLogLocalExposureSumWithCount.y);
+#else
+	const float AverageLocalExposure = 1.0f;
+#endif
 	
 #if XBOXONE_PROFILE
 	OutData0 = !all(IsFinite(OutData0)) ? float4(1, 1, 1, 0) : OutData0;
@@ -259,6 +356,7 @@ void BasicEyeAdaptationCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThre
 	if(GIndex == 0)
 	{
 		RWEyeAdaptationBuffer[0] = OutData0;
+		RWEyeAdaptationBuffer[1] = float4(AverageLocalExposure, 0.0f, 0.0f, 0.0f);
 	}
 }
 

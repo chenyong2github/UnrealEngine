@@ -793,6 +793,9 @@ class FEyeAdaptationCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistogramTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, RWEyeAdaptationBuffer)
 	END_SHADER_PARAMETER_STRUCT()
+		
+	class FComputeAverageLocalExposure : SHADER_PERMUTATION_BOOL("COMPUTE_AVERAGE_LOCAL_EXPOSURE");
+	using FPermutationDomain = TShaderPermutationDomain<FComputeAverageLocalExposure>;
 
 	static const EPixelFormat OutputFormat = PF_A32B32G32R32F;
 
@@ -808,7 +811,8 @@ FRDGBufferRef AddHistogramEyeAdaptationPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
-	FRDGTextureRef HistogramTexture)
+	FRDGTextureRef HistogramTexture,
+	bool bComputeAverageLocalExposure)
 {
 	View.UpdateEyeAdaptationLastExposureFromBuffer();
 	View.SwapEyeAdaptationBuffers();
@@ -820,7 +824,11 @@ FRDGBufferRef AddHistogramEyeAdaptationPass(
 	PassParameters->HistogramTexture = HistogramTexture;
 	PassParameters->RWEyeAdaptationBuffer = GraphBuilder.CreateUAV(OutputBuffer);
 
-	TShaderMapRef<FEyeAdaptationCS> ComputeShader(View.ShaderMap);
+	FEyeAdaptationCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FEyeAdaptationCS::FComputeAverageLocalExposure>(bComputeAverageLocalExposure);
+
+	auto ComputeShader = View.ShaderMap->GetShader<FEyeAdaptationCS>(PermutationVector);
+
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HistogramEyeAdaptation (CS)"),
@@ -919,6 +927,9 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, EyeAdaptationBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, RWEyeAdaptationBuffer)
 	END_SHADER_PARAMETER_STRUCT()
+		
+	class FComputeAverageLocalExposure : SHADER_PERMUTATION_BOOL("COMPUTE_AVERAGE_LOCAL_EXPOSURE");
+	using FPermutationDomain = TShaderPermutationDomain<FComputeAverageLocalExposure>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -933,7 +944,8 @@ FRDGBufferRef AddBasicEyeAdaptationPass(
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FScreenPassTexture SceneColor,
-	FRDGBufferRef EyeAdaptationBuffer)
+	FRDGBufferRef EyeAdaptationBuffer,
+	bool bComputeAverageLocalExposure)
 {
 	View.UpdateEyeAdaptationLastExposureFromBuffer();
 	View.SwapEyeAdaptationBuffers();
@@ -950,7 +962,10 @@ FRDGBufferRef AddBasicEyeAdaptationPass(
 	PassParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(EyeAdaptationBuffer);
 	PassParameters->RWEyeAdaptationBuffer = GraphBuilder.CreateUAV(OutputBuffer);
 
-	TShaderMapRef<FBasicEyeAdaptationCS> ComputeShader(View.ShaderMap);
+	FBasicEyeAdaptationCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FBasicEyeAdaptationCS::FComputeAverageLocalExposure>(bComputeAverageLocalExposure);
+
+	auto ComputeShader = View.ShaderMap->GetShader<FBasicEyeAdaptationCS>(PermutationVector);
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
@@ -983,6 +998,7 @@ void FSceneViewState::FEyeAdaptationManager::SafeRelease()
 	ReadbackBuffersNumPending = 0;
 
 	LastExposure = 0;
+	LastAverageLocalExposure = 1.0f;
 	LastAverageSceneLuminance = 0;
 
 	for (int32 Index = 0; Index < NUM_BUFFERS; Index++)
@@ -1044,14 +1060,15 @@ const TRefCountPtr<FRDGPooledBuffer>& FSceneViewState::FEyeAdaptationManager::Ge
 	// Create buffer if needed.
 	if (!ExposureBufferData[BufferIndex].IsValid())
 	{
-		FRDGBufferDesc RDGBufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), 1);
+		FRDGBufferDesc RDGBufferDesc = FRDGBufferDesc::CreateStructuredDesc(EXPOSURE_BUFFER_SIZE_IN_VECTOR4 * sizeof(FVector4f), 1);
 		RDGBufferDesc.Usage |= BUF_SourceCopy;
 		FRDGBufferRef RDGBuffer = GraphBuilder.CreateBuffer(RDGBufferDesc, TEXT("EyeAdaptationBuffer"), ERDGBufferFlags::MultiFrame);
 
 		ExposureBufferData[BufferIndex] = GraphBuilder.ConvertToExternalBuffer(RDGBuffer);
 
-		FVector4f* BufferData = (FVector4f*)GraphBuilder.RHICmdList.LockBuffer(ExposureBufferData[BufferIndex]->GetRHI(), 0, sizeof(FVector4f), RLM_WriteOnly);
-		*BufferData = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
+		FVector4f* BufferData = (FVector4f*)GraphBuilder.RHICmdList.LockBuffer(ExposureBufferData[BufferIndex]->GetRHI(), 0, EXPOSURE_BUFFER_SIZE_IN_VECTOR4 * sizeof(FVector4f), RLM_WriteOnly);
+		BufferData[0] = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
+		BufferData[1] = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 		GraphBuilder.RHICmdList.UnlockBuffer(ExposureBufferData[BufferIndex]->GetRHI());
 	}
 
@@ -1096,11 +1113,12 @@ void FSceneViewState::FEyeAdaptationManager::UpdateLastExposureFromBuffer()
 	if (ReadbackBuffer)
 	{
 		// Read the last request results.
-		FVector4f* ReadbackData = (FVector4f*)ReadbackBuffer->Lock(sizeof(FVector4f));
+		FVector4f* ReadbackData = (FVector4f*)ReadbackBuffer->Lock(EXPOSURE_BUFFER_SIZE_IN_VECTOR4 * sizeof(FVector4f));
 		if (ReadbackData)
 		{
-			LastExposure = ReadbackData->X;
-			LastAverageSceneLuminance = ReadbackData->Z;
+			LastExposure = ReadbackData[0].X;
+			LastAverageSceneLuminance = ReadbackData[0].Z;
+			LastAverageLocalExposure = ReadbackData[1].X;
 
 			ReadbackBuffer->Unlock();
 		}
@@ -1198,7 +1216,7 @@ void FViewInfo::UpdatePreExposure()
 		const float VignetteMask = 1.0;
 
 		// How much the local exposure may change the overall image exposure when configured wrongly.
-		const float LocalExposure = 1.0; // TODO(FORT-518192).
+		const float LocalExposure = GetLastAverageLocalExposure();
 
 		// The global exposure of the scene regardless of the method used.
 		float GlobalExposure = 1.0;
@@ -1218,6 +1236,7 @@ void FViewInfo::UpdatePreExposure()
 
 		// This computation must match FinalLinearColor in PostProcessTonemap.usf.
 		const float FinalPreExposure = SceneColorTint * GlobalExposure * VignetteMask * LocalExposure;
+		ensure(FinalPreExposure > 0.0f);
 
 		// Apply the computed PreExposure to view and view state.
 		PreExposure = FinalPreExposure;

@@ -233,7 +233,7 @@ float CalculateBaseLogLuminance(float LogLum, float BlurredLumBlend, float Expos
 	return CalculateBaseLogLuminance(BilateralLum, BlurredLum, BlurredLumBlend, ExposureScale);
 }
 
-float CalculateLocalExposure(float LogLum, float BaseLogLum, float LogMiddleGrey, float HighlightContrastScale, float ShadowContrastScale, float DetailStrength)
+float CalculateLogLocalExposure(float LogLum, float BaseLogLum, float LogMiddleGrey, float HighlightContrastScale, float ShadowContrastScale, float DetailStrength)
 {
 	float DetailLogLum = LogLum - BaseLogLum;
 
@@ -241,5 +241,10 @@ float CalculateLocalExposure(float LogLum, float BaseLogLum, float LogMiddleGrey
 	float ContrastScale = BaseCentered > 0 ? HighlightContrastScale : ShadowContrastScale;
 
 	float LogLocalLum = LogMiddleGrey + BaseCentered * ContrastScale + DetailLogLum * DetailStrength;
-	return exp2(LogLocalLum - LogLum);
+	return LogLocalLum - LogLum;
+}
+
+float CalculateLocalExposure(float LogLum, float BaseLogLum, float LogMiddleGrey, float HighlightContrastScale, float ShadowContrastScale, float DetailStrength)
+{
+	return exp2(CalculateLogLocalExposure(LogLum, BaseLogLum, LogMiddleGrey, HighlightContrastScale, ShadowContrastScale, DetailStrength));
 }

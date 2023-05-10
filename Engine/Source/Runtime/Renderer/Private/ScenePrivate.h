@@ -817,6 +817,9 @@ private:
 		/** Get the last frame exposure value (used to compute pre-exposure) */
 		float GetLastExposure() const { return LastExposure; }
 
+		/** Get the last frame average local exposure approximation value (used to compute pre-exposure) */
+		float GetLastAverageLocalExposure() const { return LastAverageLocalExposure; }
+
 		/** Get the last frame average scene luminance (used for exposure compensation curve) */
 		float GetLastAverageSceneLuminance() const { return LastAverageSceneLuminance; }
 
@@ -864,9 +867,12 @@ private:
 		//		and assert if current is accessed too early in frame.
 		static const int32 NUM_BUFFERS = 2;
 
+		static const int32 EXPOSURE_BUFFER_SIZE_IN_VECTOR4 = 2;
+
 		int32 CurrentBufferIndex = 0;
 
 		float LastExposure = 0;
+		float LastAverageLocalExposure = 1.0f;
 		float LastAverageSceneLuminance = 0; // 0 means invalid. Used for Exposure Compensation Curve.
 
 		UE_DEPRECATED(5.2, "Use ExposureBufferData instead.")
@@ -1258,6 +1264,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	float GetLastEyeAdaptationExposure() const
 	{
 		return EyeAdaptationManager.GetLastExposure();
+	}
+
+	float GetLastAverageLocalExposure() const
+	{
+		return EyeAdaptationManager.GetLastAverageLocalExposure();
 	}
 
 	float GetLastAverageSceneLuminance() const
