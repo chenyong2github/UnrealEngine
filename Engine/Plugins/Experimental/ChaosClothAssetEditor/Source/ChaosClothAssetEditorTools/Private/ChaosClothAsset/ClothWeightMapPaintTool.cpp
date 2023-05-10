@@ -1277,6 +1277,26 @@ void UClothEditorWeightMapPaintTool::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
+
+void UClothEditorWeightMapPaintTool::UpdateMaterialMode(EMeshEditingMaterialModes MaterialMode)
+{
+	if (MaterialMode == EMeshEditingMaterialModes::VertexColor)
+	{
+		constexpr bool bUseTwoSidedMaterial = true;
+		ActiveOverrideMaterial = ToolSetupUtil::GetVertexColorMaterial(GetToolManager(), bUseTwoSidedMaterial);
+		if (ensure(ActiveOverrideMaterial != nullptr))
+		{
+			GetSculptMeshComponent()->SetOverrideRenderMaterial(ActiveOverrideMaterial);
+			ActiveOverrideMaterial->SetScalarParameterValue(TEXT("FlatShading"), (ViewProperties->bFlatShading) ? 1.0f : 0.0f);
+		}
+		GetSculptMeshComponent()->SetShadowsEnabled(false);
+	}
+	else
+	{
+		UMeshSculptToolBase::UpdateMaterialMode(MaterialMode);
+	}
+}
+
 void UClothEditorWeightMapPaintTool::UpdateStampPendingState()
 {
 	if (InStroke() == false) return;

@@ -34,7 +34,7 @@ namespace ToolSetupUtil
 	/**
 	 * @return configurable vertex color material
 	 */
-	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetVertexColorMaterial(UInteractiveToolManager* ToolManager);
+	MODELINGCOMPONENTS_API UMaterialInstanceDynamic* GetVertexColorMaterial(UInteractiveToolManager* ToolManager, bool bTwoSided = false);
 
 
 	/**
