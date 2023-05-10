@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreTypes.h"
+
 #ifndef EIGEN_MPL2_ONLY
 #define EIGEN_MPL2_ONLY
 #endif
