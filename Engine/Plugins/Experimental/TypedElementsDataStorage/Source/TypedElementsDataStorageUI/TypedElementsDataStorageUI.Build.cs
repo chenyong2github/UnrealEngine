@@ -20,6 +20,7 @@ public class TypedElementsDataStorageUI : ModuleRules
 					"CoreUObject",
 					"Engine",
 					"EditorFramework",
+					"SceneOutliner",
 					"Slate",
 					"SlateCore",
 					"ToolMenus",
