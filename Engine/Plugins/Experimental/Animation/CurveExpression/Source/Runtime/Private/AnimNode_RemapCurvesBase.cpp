@@ -75,14 +75,17 @@ void FAnimNode_RemapCurvesBase::SerializeNode(
 	UScriptStruct* InNodeStruct
 	)
 {
-	Ar.UsingCustomVersion(FCurveExpressionCustomVersion::GUID);
-	
-	InNodeStruct->SerializeTaggedProperties(Ar, static_cast<uint8*>(InNodeThisPtr), InNodeStruct, nullptr);
-
-	if (Ar.CustomVer(FCurveExpressionCustomVersion::GUID) >= FCurveExpressionCustomVersion::SerializedExpressions)
+	if (Ar.IsLoading() || Ar.IsSaving() || Ar.IsCountingMemory() || Ar.IsObjectReferenceCollector())
 	{
-		Ar << CachedExpressions;
-		Ar << ExpressionMapHash;
+		Ar.UsingCustomVersion(FCurveExpressionCustomVersion::GUID);
+	
+		InNodeStruct->SerializeTaggedProperties(Ar, static_cast<uint8*>(InNodeThisPtr), InNodeStruct, nullptr);
+
+		if (Ar.CustomVer(FCurveExpressionCustomVersion::GUID) >= FCurveExpressionCustomVersion::SerializedExpressions)
+		{
+			Ar << CachedExpressions;
+			Ar << ExpressionMapHash;
+		}
 	}
 }
 
