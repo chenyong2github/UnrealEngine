@@ -1605,7 +1605,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 		if (FPackageName::DoesPackageExist(PackagePath, &PackagePath))
 		{
 			SetCurrentState(ELevelStreamingState::Loading);
-			FWorldNotifyStreamingLevelLoading::Started(PersistentWorld);
+			OnLoadingStarted();
 			
 			ULevel::StreamedLevelsOwningWorld.Add(DesiredPackageName, PersistentWorld);
 			UWorld::WorldTypePreLoadMap.FindOrAdd(DesiredPackageName) = PersistentWorld->WorldType;
@@ -1672,13 +1672,7 @@ void ULevelStreaming::AsyncLevelLoadComplete(const FName& InPackageName, UPackag
 {
 	// TODO: Should not set state here so that observers will have access to LoadedLevel
 	SetCurrentState(ELevelStreamingState::LoadedNotVisible);
-	if (UWorld* World = GetWorld())
-	{
-		if (World->GetStreamingLevels().Contains(this))
-		{
-			FWorldNotifyStreamingLevelLoading::Finished(World);
-		}
-	}
+	OnLoadingFinished();
 
 	if (InLoadedPackage)
 	{
@@ -1980,6 +1974,27 @@ FName ULevelStreaming::GetLoadedLevelPackageName() const
 	}
 
 	return CachedLoadedLevelPackageName;
+}
+
+void ULevelStreaming::OnLoadingStarted()
+{
+	UWorld* World = GetWorld();
+	if (World && World->IsGameWorld())
+	{
+		FWorldNotifyStreamingLevelLoading::Started(World);
+	}
+}
+
+void ULevelStreaming::OnLoadingFinished()
+{
+	UWorld* World = GetWorld();
+	if (World && World->IsGameWorld())
+	{
+		if (World->GetStreamingLevels().Contains(this))
+		{
+			FWorldNotifyStreamingLevelLoading::Finished(World);
+		}
+	}
 }
 
 void ULevelStreaming::SetWorldAssetByPackageName(FName InPackageName)

@@ -681,6 +681,9 @@ protected:
 	/** Called by SetLoadedLevel */
 	virtual void OnLevelLoadedChanged(ULevel* Level) {}
 
+	void OnLoadingStarted();
+	void OnLoadingFinished();
+
 	/** @return Name of the level package that is currently loaded.																	*/
 	FName GetLoadedLevelPackageName() const;
 
