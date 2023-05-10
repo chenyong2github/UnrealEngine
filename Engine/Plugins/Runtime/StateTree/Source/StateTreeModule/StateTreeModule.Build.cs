@@ -40,6 +40,8 @@ namespace UnrealBuildTool.Rules
 				);
 			}
 
+			UnsafeTypeCastWarningLevel = WarningLevel.Error;
+
 			if (Target.Platform == UnrealTargetPlatform.Win64 && 
 				(Target.Configuration != UnrealTargetConfiguration.Shipping || Target.bBuildEditor))
 			{

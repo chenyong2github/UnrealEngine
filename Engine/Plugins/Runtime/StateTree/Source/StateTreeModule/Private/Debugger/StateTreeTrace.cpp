@@ -27,7 +27,7 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, LogEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
-	UE_TRACE_EVENT_FIELD(uint8, Phase)
+	UE_TRACE_EVENT_FIELD(uint16, Phase)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Message)
 UE_TRACE_EVENT_END()
 
@@ -35,7 +35,7 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, StateEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
-	UE_TRACE_EVENT_FIELD(uint8, Phase)
+	UE_TRACE_EVENT_FIELD(uint16, Phase)
 	UE_TRACE_EVENT_FIELD(uint16, Idx)
 	UE_TRACE_EVENT_FIELD(uint8, EventType)
 UE_TRACE_EVENT_END()
@@ -44,7 +44,7 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, TaskEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
-	UE_TRACE_EVENT_FIELD(uint8, Phase)
+	UE_TRACE_EVENT_FIELD(uint16, Phase)
 	UE_TRACE_EVENT_FIELD(uint16, Idx)
 	UE_TRACE_EVENT_FIELD(uint8[], DataView)
 	UE_TRACE_EVENT_FIELD(uint8, EventType)
@@ -55,7 +55,7 @@ UE_TRACE_EVENT_BEGIN(StateTreeDebugger, ConditionEvent)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceId)
 	UE_TRACE_EVENT_FIELD(uint32, InstanceSerial)
-	UE_TRACE_EVENT_FIELD(uint8, Phase)
+	UE_TRACE_EVENT_FIELD(uint16, Phase)
 	UE_TRACE_EVENT_FIELD(uint16, Idx)
 	UE_TRACE_EVENT_FIELD(uint8[], DataView)
 	UE_TRACE_EVENT_FIELD(uint8, EventType)
@@ -122,7 +122,7 @@ void UE::StateTreeTrace::OutputInstanceLifetimeEvent(
 		<< InstanceEvent.InstanceId(InstanceId.Id)
 		<< InstanceEvent.InstanceSerial(InstanceId.SerialNumber)
 		<< InstanceEvent.InstanceName(InstanceName)
-		<< InstanceEvent.EventType(static_cast<uint8>(EventType));
+		<< InstanceEvent.EventType(static_cast<std::underlying_type_t<EStateTreeTraceNodeEventType>>(EventType));
 }
 
 void UE::StateTreeTrace::OutputLogEventTrace(
@@ -138,14 +138,14 @@ void UE::StateTreeTrace::OutputLogEventTrace(
 		<< LogEvent.Cycle(FPlatformTime::Cycles64())
 		<< LogEvent.InstanceId(InstanceId.Id)
 		<< LogEvent.InstanceSerial(InstanceId.SerialNumber)
-		<< LogEvent.Phase(static_cast<uint8>(Phase))
+		<< LogEvent.Phase(static_cast<std::underlying_type_t<EStateTreeUpdatePhase>>(Phase))
 		<< LogEvent.Message(TraceStaticBuffer);
 }
 
 void UE::StateTreeTrace::OutputStateEventTrace(
 	const FStateTreeInstanceDebugId InstanceId,
 	const EStateTreeUpdatePhase Phase,
-	const uint16 StateIdx,
+	const FStateTreeStateHandle StateHandle,
 	const EStateTreeTraceNodeEventType EventType
 	)
 {
@@ -153,15 +153,15 @@ void UE::StateTreeTrace::OutputStateEventTrace(
 		<< StateEvent.Cycle(FPlatformTime::Cycles64())
 		<< StateEvent.InstanceId(InstanceId.Id)
 		<< StateEvent.InstanceSerial(InstanceId.SerialNumber)
-		<< StateEvent.Phase(static_cast<uint8>(Phase))
-		<< StateEvent.Idx(StateIdx)
-		<< StateEvent.EventType(static_cast<uint8>(EventType));
+		<< StateEvent.Phase(static_cast<std::underlying_type_t<EStateTreeUpdatePhase>>(Phase))
+		<< StateEvent.Idx(StateHandle.Index)
+		<< StateEvent.EventType(static_cast<std::underlying_type_t<EStateTreeTraceNodeEventType>>(EventType));
 }
 
 void UE::StateTreeTrace::OutputTaskEventTrace(
 	const FStateTreeInstanceDebugId InstanceId,
 	const EStateTreeUpdatePhase Phase,
-	const uint16 TaskIdx,
+	const FStateTreeIndex16 TaskIdx,
 	const FStateTreeDataView DataView,
 	const EStateTreeTraceNodeEventType EventType,
 	const EStateTreeRunStatus Status
@@ -174,17 +174,17 @@ void UE::StateTreeTrace::OutputTaskEventTrace(
 		<< TaskEvent.Cycle(FPlatformTime::Cycles64())
 		<< TaskEvent.InstanceId(InstanceId.Id)
 		<< TaskEvent.InstanceSerial(InstanceId.SerialNumber)
-		<< TaskEvent.Phase(static_cast<uint8>(Phase))
-		<< TaskEvent.Idx(TaskIdx)
+		<< TaskEvent.Phase(static_cast<std::underlying_type_t<EStateTreeUpdatePhase>>(Phase))
+		<< TaskEvent.Idx(TaskIdx.Get())
 		<< TaskEvent.DataView(Archive.GetData(), Archive.Num())
-		<< TaskEvent.EventType(static_cast<uint8>(EventType))
-		<< TaskEvent.Status(static_cast<uint8>(Status));
+		<< TaskEvent.EventType(static_cast<std::underlying_type_t<EStateTreeTraceNodeEventType>>(EventType))
+		<< TaskEvent.Status(static_cast<std::underlying_type_t<EStateTreeRunStatus>>(Status));
 }
 
 void UE::StateTreeTrace::OutputConditionEventTrace(
 	const FStateTreeInstanceDebugId InstanceId,
 	const EStateTreeUpdatePhase Phase,
-	const uint16 ConditionIdx,
+	const FStateTreeIndex16 ConditionIdx,
 	const FStateTreeDataView DataView,
 	const EStateTreeTraceNodeEventType EventType
 	)
@@ -196,10 +196,10 @@ void UE::StateTreeTrace::OutputConditionEventTrace(
 	<< ConditionEvent.Cycle(FPlatformTime::Cycles64())
 	<< ConditionEvent.InstanceId(InstanceId.Id)
 	<< ConditionEvent.InstanceSerial(InstanceId.SerialNumber)
-	<< ConditionEvent.Phase(static_cast<uint8>(Phase))
-	<< ConditionEvent.Idx(ConditionIdx)
+	<< ConditionEvent.Phase(static_cast<std::underlying_type_t<EStateTreeUpdatePhase>>(Phase))
+	<< ConditionEvent.Idx(ConditionIdx.Get())
 	<< ConditionEvent.DataView(Archive.GetData(), Archive.Num())
-	<< ConditionEvent.EventType(static_cast<uint8>(EventType));
+	<< ConditionEvent.EventType(static_cast<std::underlying_type_t<EStateTreeTraceNodeEventType>>(EventType));
 }
 
 void UE::StateTreeTrace::OutputActiveStatesEventTrace(

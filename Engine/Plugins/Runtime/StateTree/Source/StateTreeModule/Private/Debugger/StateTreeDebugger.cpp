@@ -717,7 +717,7 @@ const UE::StateTreeDebugger::FInstanceEventCollection& FStateTreeDebugger::GetEv
 	return ExistingCollection != nullptr ? *ExistingCollection : FInstanceEventCollection::Invalid;
 }
 
-void FStateTreeDebugger::AddEvents(float StartTime, float EndTime, const TraceServices::IFrameProvider& FrameProvider, const IStateTreeTraceProvider& StateTreeTraceProvider)
+void FStateTreeDebugger::AddEvents(const double StartTime, const double EndTime, const TraceServices::IFrameProvider& FrameProvider, const IStateTreeTraceProvider& StateTreeTraceProvider)
 {
 	check(StateTreeAsset.IsValid());
 	StateTreeTraceProvider.ReadTimelines(*StateTreeAsset,

@@ -178,7 +178,9 @@ bool FStateTreePropertyBindings::ResolvePath(const UStruct* Struct, const FState
 	{
 		FStateTreePropertyIndirection& Indirection = TempIndirections.AddDefaulted_GetRef();
 
-		Indirection.Offset = PathIndirection.GetPropertyOffset();
+		check(PathIndirection.GetPropertyOffset() >= MIN_uint16 && PathIndirection.GetPropertyOffset() <= MAX_uint16);
+
+		Indirection.Offset = static_cast<uint16>(PathIndirection.GetPropertyOffset());
 		Indirection.Type = PathIndirection.GetAccessType();
 
 		if (Indirection.Type == EStateTreePropertyAccessType::IndexArray)

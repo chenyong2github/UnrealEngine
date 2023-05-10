@@ -192,8 +192,19 @@ struct STATETREEMODULE_API FStateTreeStateHandle
 	static const FStateTreeStateHandle Stopped;
 	static const FStateTreeStateHandle Root;
 
+	/** @return true if the given index can be represented by the type. */
+	static bool IsValidIndex(const int32 Index)
+	{
+		return Index >= 0 && Index < (int32)MAX_uint16;
+	}
+	
 	FStateTreeStateHandle() = default;
-	explicit FStateTreeStateHandle(uint16 InIndex) : Index(InIndex) {}
+	explicit FStateTreeStateHandle(const uint16 InIndex) : Index(InIndex) {}
+	explicit FStateTreeStateHandle(const int32 InIndex) : Index()
+	{
+		check(InIndex == INDEX_NONE || IsValidIndex(InIndex));
+		Index = InIndex == INDEX_NONE ? InvalidIndex : static_cast<uint16>(InIndex);	
+	}
 
 	bool IsValid() const { return Index != InvalidIndex; }
 	void Invalidate() { Index = InvalidIndex; }
@@ -560,7 +571,7 @@ struct STATETREEMODULE_API FStateTreeRandomTimeDuration
 	{
 		const int32 MinVal = FMath::Max(0, static_cast<int32>(Duration) - static_cast<int32>(RandomVariance));
 		const int32 MaxVal = static_cast<int32>(Duration) + static_cast<int32>(RandomVariance);
-		return FMath::RandRange(MinVal, MaxVal) / Scale;
+		return static_cast<decltype(Scale)>(FMath::RandRange(MinVal, MaxVal)) / Scale;
 	}
 	
 protected:

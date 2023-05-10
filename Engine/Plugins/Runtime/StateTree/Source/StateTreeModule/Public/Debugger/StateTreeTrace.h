@@ -10,6 +10,8 @@ class UStateTree;
 struct FStateTreeDataView;
 struct FStateTreeActiveStates;
 struct FStateTreeInstanceDebugId;
+struct FStateTreeIndex16;
+struct FStateTreeStateHandle;
 enum class EStateTreeRunStatus : uint8;
 enum class EStateTreeTraceNodeEventType : uint8;
 enum class EStateTreeUpdatePhase : uint16;
@@ -21,9 +23,9 @@ namespace UE::StateTreeTrace
 {
 	void OutputInstanceLifetimeEvent(const FStateTreeInstanceDebugId InstanceId, const UStateTree* StateTree, const TCHAR* InstanceName, const EStateTreeTraceInstanceEventType EventType);
 	void OutputLogEventTrace(const FStateTreeInstanceDebugId InstanceId, const EStateTreeUpdatePhase Phase, const TCHAR* Fmt, ...);
-	void OutputStateEventTrace(const FStateTreeInstanceDebugId InstanceId, const EStateTreeUpdatePhase Phase, const uint16 StateIdx, const EStateTreeTraceNodeEventType EventType);
-	void OutputTaskEventTrace(const FStateTreeInstanceDebugId InstanceId, const EStateTreeUpdatePhase Phase, const uint16 TaskIdx, FStateTreeDataView DataView, const EStateTreeTraceNodeEventType EventType, const EStateTreeRunStatus Status);
-	void OutputConditionEventTrace(const FStateTreeInstanceDebugId InstanceId, const EStateTreeUpdatePhase Phase, const uint16 ConditionIdx, FStateTreeDataView DataView, const EStateTreeTraceNodeEventType EventType);
+	void OutputStateEventTrace(const FStateTreeInstanceDebugId InstanceId, const EStateTreeUpdatePhase Phase, const FStateTreeStateHandle StateHandle, const EStateTreeTraceNodeEventType EventType);
+	void OutputTaskEventTrace(const FStateTreeInstanceDebugId InstanceId, const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 TaskIdx, FStateTreeDataView DataView, const EStateTreeTraceNodeEventType EventType, const EStateTreeRunStatus Status);
+	void OutputConditionEventTrace(const FStateTreeInstanceDebugId InstanceId, const EStateTreeUpdatePhase Phase, const FStateTreeIndex16 ConditionIdx, FStateTreeDataView DataView, const EStateTreeTraceNodeEventType EventType);
 	void OutputActiveStatesEventTrace(const FStateTreeInstanceDebugId InstanceId, const FStateTreeActiveStates& ActiveStates);
 }
 
