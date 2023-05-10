@@ -1140,15 +1140,9 @@ bool FAssetContextMenu::IsSelectedAssetPublic()
 		FAssetData ItemAssetData;
 		if (SelectedFiles[0].Legacy_TryGetAssetData(ItemAssetData))
 		{
-			UPackage* ItemAssetPackage = ItemAssetData.GetPackage();
-
-			if (ItemAssetPackage)
-			{
-				return ItemAssetPackage->IsExternallyReferenceable();
-			}
+			return !(ItemAssetData.PackageFlags & PKG_NotExternallyReferenceable);
 		}
 	}
-
 	return true;
 }
 
