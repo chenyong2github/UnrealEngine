@@ -67,21 +67,16 @@ private:
 	friend struct FAnimNode_RigLogic;
 	friend struct FRigUnit_RigLogic;
 
-	enum class EDNARetentionPolicy
-	{
-		Keep,
-		Unload
-	};
-
-	TSharedPtr<FSharedRigRuntimeContext> GetRigRuntimeContext(EDNARetentionPolicy Policy);
+	TSharedPtr<FSharedRigRuntimeContext> GetRigRuntimeContext();
 	void InvalidateRigRuntimeContext();
+	void InitializeRigRuntimeContext();
 	TSharedPtr<FDNAIndexMapping> GetDNAIndexMapping(const USkeleton* Skeleton,
 													const USkeletalMesh* SkeletalMesh,
 													const USkeletalMeshComponent* SkeletalMeshComponent);
 
 private:
 	// Synchronize DNA updates
-	FCriticalSection DNAUpdateSection;
+	FRWLock DNAUpdateLock;
 
 	// Synchronize Rig Runtime Context updates
 	FRWLock RigRuntimeContextUpdateLock;

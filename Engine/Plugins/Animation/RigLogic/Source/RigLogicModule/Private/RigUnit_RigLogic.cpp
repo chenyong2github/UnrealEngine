@@ -333,7 +333,7 @@ TSharedPtr<FSharedRigRuntimeContext> FRigUnit_RigLogic::GetSharedRigRuntimeConte
 		return nullptr;
 	}
 	UDNAAsset* DNAAsset = Cast<UDNAAsset>(UserData);
-	return DNAAsset->GetRigRuntimeContext(UDNAAsset::EDNARetentionPolicy::Keep);
+	return DNAAsset->GetRigRuntimeContext();
 }
 
 FRigUnit_RigLogic_Execute()
