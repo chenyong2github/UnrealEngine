@@ -54,8 +54,9 @@ bool UImmunityGameplayEffectComponent::AllowGameplayEffectApplication(const FAct
 		return false;
 	}
 
+	// ActiveGE can be null (IsPendingRemove) but we could have not yet received OnEffectRemoved. This can happen when applying more effects during its removal.
 	const FActiveGameplayEffect* ActiveGE = ASC->GetActiveGameplayEffect(ImmunityActiveGEHandle);
-	if (!ensure(ActiveGE) || ActiveGE->bIsInhibited)
+	if (!ActiveGE || ActiveGE->bIsInhibited)
 	{
 		return true;
 	}
