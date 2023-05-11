@@ -216,6 +216,9 @@ namespace DatasmithRuntime
 			Referencers = Other.Referencers;
 		}
 
+		// Non-assignable due to DataState atomic member
+		FBaseData& operator=(const FBaseData& Other) = delete;
+
 		bool HasState(EAssetState Value) const
 		{
 			return !!(DataState & Value);
@@ -262,6 +265,9 @@ namespace DatasmithRuntime
 			, Requirements(-1)
 		{
 		}
+
+		// Copy constructor intentionally copies the MetadataId member whereas the assignment operator doesn't - is this intentional?
+		FAssetData(const FAssetData&) = default;
 
 		FAssetData& operator=(const FAssetData& Source)
 		{
@@ -310,6 +316,9 @@ namespace DatasmithRuntime
 			, AssetId(INDEX_NONE)
 		{
 		}
+
+		// Copy constructor intentionally copies the MetadataId member whereas the assignment operator doesn't - is this intentional?
+		FActorData(const FActorData&) = default;
 
 		FActorData& operator=(const FActorData& Source)
 		{
