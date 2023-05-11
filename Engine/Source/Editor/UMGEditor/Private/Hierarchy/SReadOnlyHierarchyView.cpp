@@ -15,6 +15,7 @@ void SReadOnlyHierarchyView::Construct(const FArguments& InArgs, const UWidgetBl
 	WidgetBlueprint = InWidgetBlueprint;
 	ShowOnly = InArgs._ShowOnly;
 	RootSelectionMode = InArgs._RootSelectionMode;
+	bExpandAll = InArgs._ExpandAll;
 
 	SearchFilter = MakeShared<FTextFilter>(FTextFilter::FItemToStringArray::CreateSP(this, &SReadOnlyHierarchyView::GetFilterStringsForItem));
 	FilterHandler = MakeShared<FTreeFilterHandler>();
@@ -57,8 +58,6 @@ void SReadOnlyHierarchyView::Construct(const FArguments& InArgs, const UWidgetBl
 	[
 		ContentBox
 	];
-
-	ExpandAll();
 }
 
 SReadOnlyHierarchyView::~SReadOnlyHierarchyView()
@@ -96,7 +95,10 @@ void SReadOnlyHierarchyView::Refresh()
 	FilteredRootWidgets.Reset();
 	RebuildTree();
 	FilterHandler->RefreshAndFilterTree();
-	ExpandAll();
+	if (bExpandAll)
+	{
+		ExpandAll();
+	}
 }
 
 void SReadOnlyHierarchyView::SetItemExpansionRecursive(TSharedPtr<FItem> Item, bool bShouldBeExpanded)
@@ -326,7 +328,10 @@ void SReadOnlyHierarchyView::RebuildTree()
 		BuildWidgetChildren(RootWidget, RootItem);
 	}
 
-	ExpandAll();
+	if (bExpandAll)
+	{
+		ExpandAll();
+	}
 }
 
 void SReadOnlyHierarchyView::ExpandAll()

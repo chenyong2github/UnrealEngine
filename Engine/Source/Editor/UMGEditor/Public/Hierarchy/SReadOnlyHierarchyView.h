@@ -58,6 +58,7 @@ public:
 		SLATE_ARGUMENT_DEFAULT(ESelectionMode::Type, SelectionMode) = ESelectionMode::Single;
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
 		SLATE_ARGUMENT(TArray<FName>, ShowOnly)
+		SLATE_ARGUMENT_DEFAULT(bool, ExpandAll) = true;
 	SLATE_END_ARGS()
 
 	virtual ~SReadOnlyHierarchyView();
@@ -112,4 +113,6 @@ private:
 	TSharedPtr<FTreeFilterHandler> FilterHandler;
 
 	TSharedPtr<STreeView<TSharedPtr<FItem>>> TreeView;
+
+	bool bExpandAll;
 };
