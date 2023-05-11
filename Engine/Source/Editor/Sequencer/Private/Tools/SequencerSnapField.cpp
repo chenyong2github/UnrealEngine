@@ -11,6 +11,7 @@
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/Views/SOutlinerView.h"
 #include "MVVM/Extensions/ISnappableExtension.h"
+#include "IKeyArea.h"
 
 struct FSnapGridVisitor : ISequencerEntityVisitor, UE::Sequencer::ISnapField
 {

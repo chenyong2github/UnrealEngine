@@ -11,16 +11,18 @@
 #include "Misc/FrameRate.h"
 #include "Templates/SharedPointer.h"
 #include "TimeToPixel.h"
+#include "UObject/StrongObjectPtr.h"
 
-namespace UE::Sequencer { template <typename T> struct TAutoRegisterViewModelTypeID; }
+class USequencerScriptingLayer;
 
-namespace UE
-{
-namespace Sequencer
+namespace UE::Sequencer
 {
 
 class FOutlinerViewModel;
 class FTrackAreaViewModel;
+class FSequencerCoreSelection;
+
+template <typename T> struct TAutoRegisterViewModelTypeID;
 
 /**
  * This represents to root view-model for a sequencer-like editor.
@@ -63,6 +65,12 @@ public:
 	/** Gets the track area view-model. */
 	TSharedPtr<FTrackAreaViewModel> GetTrackArea() const;
 
+	/** Gets the selection class */
+	TSharedPtr<FSequencerCoreSelection> GetSelection() const;
+
+	/** Gets the scripting layer */
+	USequencerScriptingLayer* GetScriptingLayer() const;
+
 	/** Returns whether this editor is currently read-only */
 	virtual bool IsReadOnly() const;
 
@@ -76,6 +84,10 @@ protected:
 	virtual TSharedPtr<FOutlinerViewModel> CreateOutlinerImpl();
 	/** Creates the track-area for this editor. */
 	virtual TSharedPtr<FTrackAreaViewModel> CreateTrackAreaImpl();
+	/** Creates the selection class for this editor. */
+	virtual TSharedPtr<FSequencerCoreSelection> CreateSelectionImpl();
+	/** Creates the scripting layer class for this editor. */
+	virtual USequencerScriptingLayer* CreateScriptingLayerImpl();
 	/** Creates any other panels for this editor. */
 	virtual void InitializeEditorImpl() {}
 
@@ -90,11 +102,14 @@ private:
 	TSharedPtr<FOutlinerViewModel>  Outliner;
 	/** Cached pointer to the track area panel view-model */
 	TSharedPtr<FTrackAreaViewModel> TrackArea;
+	/** Cached pointer to the selection class */
+	TSharedPtr<FSequencerCoreSelection> Selection;
+	/** Cached pointer to the scripting layer class */
+	TStrongObjectPtr<USequencerScriptingLayer> ScriptingLayer;
 
 	/** The root view-model for the data being edited */
 	TSharedPtr<FViewModel>  RootDataModel;
 };
 
-} // namespace Sequencer
-} // namespace UE
+} // namespace UE::Sequencer
 

@@ -8,6 +8,9 @@
 #include "MVVM/ViewModels/ViewModel.h"
 #include "Tree/CurveEditorTreeFilter.h"
 
+namespace UE::Sequencer
+{
+
 /**
  * A specialized filter for showing items in the curve editor selected from the sequencer panel.
  * This filter will store the selected nodes and all the parents of the selected nodes in a NodesToFilter set.
@@ -24,42 +27,31 @@ struct FSequencerSelectionCurveFilter : FCurveEditorTreeFilter
 	/**
 	 * Adds all selected nodes and their object parents to the NodesToFilter set
 	 */
-	void Update(const TSet<TWeakPtr<UE::Sequencer::FViewModel>>& SelectedNodes, const bool bExpandTreeToSelectedNodes = true)
+	void Update(TSharedPtr<FSequencerSelection> Selection, const bool bExpandTreeToSelectedNodes = true)
 	{
-		using namespace UE::Sequencer;
+		NodesToFilter.Empty(Selection->Outliner.Num());
 
-		NodesToFilter.Empty(SelectedNodes.Num());
-
-		for (const TWeakPtr<FViewModel>& WeakSelectedNode : SelectedNodes)
+		for (TViewModelPtr<IOutlinerExtension> SelectedNode : Selection->Outliner)
 		{
-			if (TSharedPtr<FViewModel> SelectedNode = WeakSelectedNode.Pin())
+			NodesToFilter.Add(SelectedNode.AsModel());
+
+			for (TViewModelPtr<IObjectBindingExtension> ParentObject : SelectedNode.AsModel()->GetAncestorsOfType<IObjectBindingExtension>())
 			{
-				NodesToFilter.Add(WeakSelectedNode);
-
-				TSharedPtr<FViewModel> Parent = SelectedNode->GetParent();
-				while (Parent.IsValid())
-				{
-					if (Parent->IsA<IObjectBindingExtension>())
-					{
-						NodesToFilter.Add(Parent);
-						break;
-					}
-
-					Parent = Parent->GetParent();
-				}
+				NodesToFilter.Add(ParentObject.AsModel());
 			}
 		}
 
 		bExpandToMatchedItems = bExpandTreeToSelectedNodes;
 	}
 
-	bool Match(TSharedRef<const UE::Sequencer::FViewModel> InNode) const
+	bool Match(TSharedRef<const FViewModel> InNode) const
 	{
 		return NodesToFilter.Contains(InNode);
 	}
 
 private:
 
-	TSet<TWeakPtr<const UE::Sequencer::FViewModel>> NodesToFilter;
+	TSet<TWeakPtr<const FViewModel>> NodesToFilter;
 };
 
+} // namespace UE::Sequencer

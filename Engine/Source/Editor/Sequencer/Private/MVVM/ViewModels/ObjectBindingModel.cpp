@@ -11,6 +11,7 @@
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/OutlinerViewModelDragDropOp.h"
 #include "MVVM/Views/SOutlinerObjectBindingView.h"
+#include "MVVM/Selection/Selection.h"
 #include "MVVM/Extensions/IRecyclableExtension.h"
 #include "Algo/Sort.h"
 #include "ClassViewerModule.h"
@@ -128,19 +129,16 @@ struct FMovieSceneSpawnableFlagCheckState
 		using namespace UE::Sequencer;
 
 		ECheckBoxState CheckState = ECheckBoxState::Undetermined;
-		for (TWeakPtr<FViewModel> WeakItem : Sequencer->GetSelection().GetSelectedOutlinerItems())
+		for (TViewModelPtr<IObjectBindingExtension> ObjectBinding : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<IObjectBindingExtension>())
 		{
-			if (IObjectBindingExtension* ObjectBindingID = ICastable::CastWeakPtr<IObjectBindingExtension>(WeakItem))
+			FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(ObjectBinding->GetObjectGuid());
+			if (SelectedSpawnable)
 			{
-				FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(ObjectBindingID->GetObjectGuid());
-				if (SelectedSpawnable)
+				if (CheckState != ECheckBoxState::Undetermined && SelectedSpawnable->*PtrToFlag != ( CheckState == ECheckBoxState::Checked ))
 				{
-					if (CheckState != ECheckBoxState::Undetermined && SelectedSpawnable->*PtrToFlag != ( CheckState == ECheckBoxState::Checked ))
-					{
-						return ECheckBoxState::Undetermined;
-					}
-					CheckState = SelectedSpawnable->*PtrToFlag ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					return ECheckBoxState::Undetermined;
 				}
+				CheckState = SelectedSpawnable->*PtrToFlag ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 			}
 		}
 		return CheckState;
@@ -163,15 +161,12 @@ struct FMovieSceneSpawnableFlagToggler
 		const ECheckBoxState CheckState = FMovieSceneSpawnableFlagCheckState{Sequencer, MovieScene, PtrToFlag}();
 
 		MovieScene->Modify();
-		for (TWeakPtr<FViewModel> WeakItem : Sequencer->GetSelection().GetSelectedOutlinerItems())
+		for (TViewModelPtr<IObjectBindingExtension> ObjectBinding : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<IObjectBindingExtension>())
 		{
-			if (IObjectBindingExtension* ObjectBinding = ICastable::CastWeakPtr<IObjectBindingExtension>(WeakItem))
+			FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(ObjectBinding->GetObjectGuid());
+			if (SelectedSpawnable)
 			{
-				FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(ObjectBinding->GetObjectGuid());
-				if (SelectedSpawnable)
-				{
-					SelectedSpawnable->*PtrToFlag = (CheckState == ECheckBoxState::Unchecked);
-				}
+				SelectedSpawnable->*PtrToFlag = (CheckState == ECheckBoxState::Unchecked);
 			}
 		}
 	}
@@ -535,16 +530,10 @@ TSharedRef<SWidget> FObjectBindingModel::GetAddTrackMenuContent()
 
 	// Only include other selected object bindings if this binding is selected. Otherwise, this will lead to 
 	// confusion with multiple tracks being added to possibly unrelated objects
-	if (Sequencer->GetSelection().IsSelected(AsShared()))
+	if (Sequencer->GetViewModel()->GetSelection()->Outliner.IsSelected(SharedThis(this)))
 	{
-		for (const TWeakPtr<FViewModel>& Node : Sequencer->GetSelection().GetSelectedOutlinerItems())
+		for (TViewModelPtr<FObjectBindingModel> ObjectBindingNode : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<FObjectBindingModel>())
 		{
-			const FObjectBindingModel* ObjectBindingNode = Node.Pin()->CastThis<FObjectBindingModel>();
-			if (!ObjectBindingNode)
-			{
-				continue;
-			}
-
 			const FGuid Guid = ObjectBindingNode->GetObjectGuid();
 			for (auto RuntimeObject : Sequencer->FindBoundObjects(Guid, OwnerModel->GetSequenceID()))
 			{
@@ -854,18 +843,14 @@ void FObjectBindingModel::HandlePropertyMenuItemExecute(FPropertyPath PropertyPa
 		}
 	}
 
-	for (const TWeakPtr<FViewModel>& Node : Sequencer->GetSelection().GetSelectedOutlinerItems())
+	for (TViewModelPtr<FObjectBindingModel> ObjectBindingNode : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<FObjectBindingModel>())
 	{
-		FObjectBindingModel* ObjectBindingNode = ICastable::CastWeakPtr<FObjectBindingModel>(Node);
-		if (ObjectBindingNode)
+		FGuid Guid = ObjectBindingNode->GetObjectGuid();
+		for (auto RuntimeObject : Sequencer->FindBoundObjects(Guid, OwnerModel->GetSequenceID()))
 		{
-			FGuid Guid = ObjectBindingNode->GetObjectGuid();
-			for (auto RuntimeObject : Sequencer->FindBoundObjects(Guid, OwnerModel->GetSequenceID()))
+			if (Sequencer->CanKeyProperty(FCanKeyPropertyParams(RuntimeObject->GetClass(), PropertyPath)))
 			{
-				if (Sequencer->CanKeyProperty(FCanKeyPropertyParams(RuntimeObject->GetClass(), PropertyPath)))
-				{
-					KeyableBoundObjects.AddUnique(RuntimeObject.Get());
-				}
+				KeyableBoundObjects.AddUnique(RuntimeObject.Get());
 			}
 		}
 	}
@@ -1070,21 +1055,30 @@ void FObjectBindingModel::AddSpawnOwnershipMenu(FMenuBuilder& MenuBuilder)
 	}
 	auto Callback = [=](ESpawnOwnership NewOwnership){
 
+		using namespace UE::Sequencer;
+
 		FScopedTransaction Transaction(LOCTEXT("SetSpawnOwnership", "Set Spawnable Ownership"));
 
-		Spawnable->SetSpawnOwnership(NewOwnership);
+		MovieScene->Modify();
 
-		// Overwrite the completion state for all spawn sections to ensure the expected behaviour.
-		EMovieSceneCompletionMode NewCompletionMode = NewOwnership == ESpawnOwnership::InnerSequence ? EMovieSceneCompletionMode::RestoreState : EMovieSceneCompletionMode::KeepState;
-
-		// Make all spawn sections retain state
-		UMovieSceneSpawnTrack* SpawnTrack = MovieScene->FindTrack<UMovieSceneSpawnTrack>(ObjectBindingID);
-		if (SpawnTrack)
+		for (TViewModelPtr<IObjectBindingExtension> ObjectBinding : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<IObjectBindingExtension>())
 		{
-			for (UMovieSceneSection* Section : SpawnTrack->GetAllSections())
+			FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBinding->GetObjectGuid());
+		
+			Spawnable->SetSpawnOwnership(NewOwnership);
+
+			// Overwrite the completion state for all spawn sections to ensure the expected behaviour.
+			EMovieSceneCompletionMode NewCompletionMode = NewOwnership == ESpawnOwnership::InnerSequence ? EMovieSceneCompletionMode::RestoreState : EMovieSceneCompletionMode::KeepState;
+
+			// Make all spawn sections retain state
+			UMovieSceneSpawnTrack* SpawnTrack = MovieScene->FindTrack<UMovieSceneSpawnTrack>(ObjectBinding->GetObjectGuid());
+			if (SpawnTrack)
 			{
-				Section->Modify();
-				Section->EvalOptions.CompletionMode = NewCompletionMode;
+				for (UMovieSceneSection* Section : SpawnTrack->GetAllSections())
+				{
+					Section->Modify();
+					Section->EvalOptions.CompletionMode = NewCompletionMode;
+				}
 			}
 		}
 	};
@@ -1354,17 +1348,14 @@ void FObjectBindingModel::AddTagMenu(FMenuBuilder& MenuBuilder)
 
 		// Gather all the tags on all currently selected object binding IDs
 		FMovieSceneSequenceID SequenceID = OwnerModel->GetSequenceID();
-		for (const TWeakPtr<FViewModel>& Node : Sequencer->GetSelection().GetSelectedOutlinerItems())
+		for (TViewModelPtr<FObjectBindingModel> ObjectBindingNode : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<FObjectBindingModel>())
 		{
-			if (FObjectBindingModel* ObjectBindingNode = ICastable::CastWeakPtr<FObjectBindingModel>(Node))
-			{
-				const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
+			const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
 
-				UE::MovieScene::FFixedObjectBindingID BindingID(ObjectID, SequenceID);
-				for (auto It = Sequencer->GetObjectBindingTagCache()->IterateTags(BindingID); It; ++It)
-				{
-					AllTags.Add(It.Value());
-				}
+			UE::MovieScene::FFixedObjectBindingID BindingID(ObjectID, SequenceID);
+			for (auto It = Sequencer->GetObjectBindingTagCache()->IterateTags(BindingID); It; ++It)
+			{
+				AllTags.Add(It.Value());
 			}
 		}
 
@@ -1408,25 +1399,22 @@ ECheckBoxState FObjectBindingModel::GetTagCheckState(FName TagName)
 	TSharedPtr<FSequencer> Sequencer = OwnerModel->GetSequencerImpl();
 	FMovieSceneSequenceID SequenceID = OwnerModel->GetSequenceID();
 
-	for (const TWeakPtr<FViewModel>& Node : Sequencer->GetSelection().GetSelectedOutlinerItems())
+	for (TViewModelPtr<FObjectBindingModel> ObjectBindingNode : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<FObjectBindingModel>())
 	{
-		if (FObjectBindingModel* ObjectBindingNode = ICastable::CastWeakPtr<FObjectBindingModel>(Node))
+		const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
+
+		UE::MovieScene::FFixedObjectBindingID BindingID(ObjectID, SequenceID);
+		ECheckBoxState ThisCheckState = Sequencer->GetObjectBindingTagCache()->HasTag(BindingID, TagName)
+			? ECheckBoxState::Checked
+			: ECheckBoxState::Unchecked;
+
+		if (CheckBoxState == ECheckBoxState::Undetermined)
 		{
-			const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
-
-			UE::MovieScene::FFixedObjectBindingID BindingID(ObjectID, SequenceID);
-			ECheckBoxState ThisCheckState = Sequencer->GetObjectBindingTagCache()->HasTag(BindingID, TagName)
-				? ECheckBoxState::Checked
-				: ECheckBoxState::Unchecked;
-
-			if (CheckBoxState == ECheckBoxState::Undetermined)
-			{
-				CheckBoxState = ThisCheckState;
-			}
-			else if (CheckBoxState != ThisCheckState)
-			{
-				return ECheckBoxState::Undetermined;
-			}
+			CheckBoxState = ThisCheckState;
+		}
+		else if (CheckBoxState != ThisCheckState)
+		{
+			return ECheckBoxState::Undetermined;
 		}
 	}
 
@@ -1438,18 +1426,15 @@ void FObjectBindingModel::ToggleTag(FName TagName)
 	TSharedPtr<FSequencer> Sequencer = OwnerModel->GetSequencerImpl();
 	FMovieSceneSequenceID SequenceID = OwnerModel->GetSequenceID();
 
-	for (TWeakPtr<FViewModel> Node : Sequencer->GetSelection().GetSelectedOutlinerItems())
+	for (TViewModelPtr<FObjectBindingModel> ObjectBindingNode : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<FObjectBindingModel>())
 	{
-		if (FObjectBindingModel* ObjectBindingNode = ICastable::CastWeakPtr<FObjectBindingModel>(Node))
-		{
-			const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
+		const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
 
-			UE::MovieScene::FFixedObjectBindingID BindingID(ObjectID, SequenceID);
-			if (!Sequencer->GetObjectBindingTagCache()->HasTag(BindingID, TagName))
-			{
-				HandleAddTag(TagName);
-				return;
-			}
+		UE::MovieScene::FFixedObjectBindingID BindingID(ObjectID, SequenceID);
+		if (!Sequencer->GetObjectBindingTagCache()->HasTag(BindingID, TagName))
+		{
+			HandleAddTag(TagName);
+			return;
 		}
 	}
 
@@ -1465,14 +1450,10 @@ void FObjectBindingModel::HandleDeleteTag(FName TagName)
 	MovieScene->Modify();
 
 	FMovieSceneSequenceID SequenceID = OwnerModel->GetSequenceID();
-	for (TWeakPtr<FViewModel> Node : Sequencer->GetSelection().GetSelectedOutlinerItems())
+	for (TViewModelPtr<FObjectBindingModel> ObjectBindingNode : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<FObjectBindingModel>())
 	{
-		if (FObjectBindingModel* ObjectBindingNode = ICastable::CastWeakPtr<FObjectBindingModel>(Node))
-		{
-			const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
-
-			MovieScene->UntagBinding(TagName, UE::MovieScene::FFixedObjectBindingID(ObjectID, SequenceID));
-		}
+		const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
+		MovieScene->UntagBinding(TagName, UE::MovieScene::FFixedObjectBindingID(ObjectID, SequenceID));
 	}
 }
 
@@ -1485,14 +1466,10 @@ void FObjectBindingModel::HandleAddTag(FName TagName)
 	MovieScene->Modify();
 
 	FMovieSceneSequenceID SequenceID = OwnerModel->GetSequenceID();
-	for (TWeakPtr<FViewModel> Node : Sequencer->GetSelection().GetSelectedOutlinerItems())
+	for (TViewModelPtr<FObjectBindingModel> ObjectBindingNode : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<FObjectBindingModel>())
 	{
-		if (FObjectBindingModel* ObjectBindingNode = ICastable::CastWeakPtr<FObjectBindingModel>(Node))
-		{
-			const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
-
-			MovieScene->TagBinding(TagName, UE::MovieScene::FFixedObjectBindingID(ObjectID, SequenceID));
-		}
+		const FGuid& ObjectID = ObjectBindingNode->GetObjectGuid();
+		MovieScene->TagBinding(TagName, UE::MovieScene::FFixedObjectBindingID(ObjectID, SequenceID));
 	}
 }
 

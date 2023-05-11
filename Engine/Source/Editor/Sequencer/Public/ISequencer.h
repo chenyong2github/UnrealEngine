@@ -41,7 +41,6 @@
 class AActor;
 class ACameraActor;
 class FSequencerKeyCollection;
-class FSequencerSelection;
 class FSequencerSelectionPreview;
 class FUICommandList;
 class IDetailsView;
@@ -80,7 +79,7 @@ namespace UE
 namespace Sequencer
 {
 
-class FEditorViewModel;
+class FSequencerEditorViewModel;
 
 } // namespace Sequencer
 } // namespace UE
@@ -286,7 +285,7 @@ public:
 	/**
 	 * Retrieve the top level view model for this sequence
 	 */
-	virtual TSharedPtr<UE::Sequencer::FEditorViewModel> GetViewModel() const = 0;
+	virtual TSharedPtr<UE::Sequencer::FSequencerEditorViewModel> GetViewModel() const = 0;
 
 	/**
 	 * Suppresses automatic evaluation the specified sequence and signature are the only difference that would prompt a re-evaluation
@@ -601,12 +600,6 @@ public:
 	virtual void GetKeysFromSelection(TUniquePtr<FSequencerKeyCollection>& KeyCollection, float DuplicateThresoldTime) = 0;
 
 	virtual TArray<FMovieSceneMarkedFrame> GetMarkedFrames() const = 0;
-
-	virtual FSequencerSelection& GetSelection() = 0;
-	virtual FSequencerSelectionPreview& GetSelectionPreview() = 0;
-
-	virtual void SuspendSelectionBroadcast() = 0;
-	virtual void ResumeSelectionBroadcast() = 0;
 
 	/** Gets the currently selected tracks. */
 	virtual void GetSelectedTracks(TArray<UMovieSceneTrack*>& OutSelectedTracks) = 0;

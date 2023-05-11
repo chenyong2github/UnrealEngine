@@ -11,6 +11,7 @@
 #include "MVVM/ViewModels/TrackModelLayoutBuilder.h"
 #include "MVVM/Views/SOutlinerTrackView.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/Selection/Selection.h"
 
 #include "SequencerNodeTree.h"
 #include "ISequencer.h"
@@ -298,7 +299,7 @@ void FTrackRowModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		return;
 	}
 
-	TSharedPtr<ISequencer> WeakSequencer = GetEditor()->GetSequencer();
+	TSharedPtr<ISequencer> Sequencer = GetEditor()->GetSequencer();
 
 	const int32 TrackRowIndex = GetRowIndex();
 
@@ -311,7 +312,7 @@ void FTrackRowModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("AddSection", "Add Section"),
 			FText(),
 			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder){
-				FSequencerUtilities::PopulateMenu_CreateNewSection(SubMenuBuilder, TrackRowIndex + 1, Track, WeakSequencer);
+				FSequencerUtilities::PopulateMenu_CreateNewSection(SubMenuBuilder, TrackRowIndex + 1, Track, Sequencer);
 			})
 		);	
 	}
@@ -329,7 +330,7 @@ void FTrackRowModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				LOCTEXT("BlendingAlgorithmSubMenu", "Blending Algorithm"),
 				FText(),
 				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder){
-					FSequencerUtilities::PopulateMenu_BlenderSubMenu(SubMenuBuilder, Track, WeakSequencer);
+					FSequencerUtilities::PopulateMenu_BlenderSubMenu(SubMenuBuilder, Track, Sequencer);
 				})
 			);
 		}
@@ -338,14 +339,11 @@ void FTrackRowModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	// Find sections in the track to add batch properties for
 	TArray<TWeakObjectPtr<UObject>> TrackSections;
 	
-	for (TWeakPtr<FViewModel> Node : GetEditor()->GetSequencer()->GetSelection().GetSelectedOutlinerItems())
+	for (TViewModelPtr<ITrackExtension> TrackExtension : Sequencer->GetViewModel()->GetSelection()->Outliner.Filter<ITrackExtension>())
 	{
-		if (ITrackExtension* TrackExtension = ICastable::CastWeakPtr<ITrackExtension>(Node))
+		for (UMovieSceneSection* Section : TrackExtension->GetSections())
 		{
-			for (UMovieSceneSection* Section : TrackExtension->GetSections())
-			{
-				TrackSections.Add(Section);
-			}
+			TrackSections.Add(Section);
 		}
 	}
 	
@@ -363,12 +361,11 @@ void FTrackRowModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		
 	if (TrackSections.Num())
 	{
-		TSharedPtr<FSequencer> Sequencer = GetEditor()->GetSequencerImpl();
 		MenuBuilder.AddSubMenu(
 			TrackSections.Num() > 1 ? LOCTEXT("BatchEditSections", "Batch Edit Sections") : LOCTEXT("EditSection", "Edit Section"),
 			FText(),
 			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder){
-				SequencerHelpers::AddPropertiesMenu(*Sequencer, SubMenuBuilder, TrackSections);
+				SequencerHelpers::AddPropertiesMenu(static_cast<FSequencer&>(*Sequencer), SubMenuBuilder, TrackSections);
 			})
 		);
 	}

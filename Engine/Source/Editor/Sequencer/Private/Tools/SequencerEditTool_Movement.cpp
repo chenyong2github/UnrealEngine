@@ -3,6 +3,7 @@
 #include "Tools/SequencerEditTool_Movement.h"
 #include "MVVM/ViewModels/SectionModel.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/Selection/Selection.h"
 #include "Editor.h"
 #include "Fonts/FontMeasure.h"
 #include "MVVM/Views/STrackAreaView.h"
@@ -151,7 +152,7 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 {
 	using namespace UE::Sequencer;
 
-	FSequencerSelection& Selection = Sequencer.GetSelection();
+	FSequencerSelection& Selection = *Sequencer.GetViewModel()->GetSelection();
 	TSharedRef<SSequencer> SequencerWidget = StaticCastSharedRef<SSequencer>(Sequencer.GetSequencerWidget());
 
 	GetHotspotTime(OriginalHotspotTime);
@@ -166,8 +167,8 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 		}
 
 		// Gather the draggable sections from all selected models
-		const bool bModelsSelected = Selection.GetSelectedTrackAreaItems().Num() > 0;
-		const bool bKeySelected = Selection.GetSelectedKeys().Num() > 0;
+		const bool bModelsSelected = Selection.TrackArea.Num() > 0;
+		const bool bKeySelected = Selection.KeySelection.Num() > 0;
 		// @todo sequencer: Make this a customizable UI command modifier?
 		const bool bIsDuplicateEvent = MouseEvent.IsAltDown() || MouseEvent.GetEffectingButton() == EKeys::MiddleMouseButton;
 
@@ -190,7 +191,7 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 				for (const FSequencerSelectedKey& Key : HoveredKeys)
 				{
 					// If any are not selected, we'll treat this as a unique drag
-					if (!Selection.IsSelected(Key))
+					if (!Selection.KeySelection.IsSelected(Key.KeyHandle))
 					{
 						bUniqueDrag = true;
 					}
@@ -198,21 +199,21 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 
 				if (bUniqueDrag)
 				{
-					Selection.EmptySelectedKeys();
-					Selection.EmptySelectedTrackAreaItems();
+					Selection.KeySelection.Empty();
+					Selection.TrackArea.Empty();
 					for (const FSequencerSelectedKey& Key : HoveredKeys)
 					{
-						Selection.AddToSelection(Key);
+						Selection.KeySelection.Select(Key.WeakChannel.Pin(), Key.KeyHandle);
 					}
 				}
 			}
 			else if (SectionHotspot)
 			{
-				if (!Selection.IsSelected(SectionHotspot->WeakSectionModel.Pin()))
+				if (!Selection.TrackArea.IsSelected(SectionHotspot->WeakSectionModel.Pin()))
 				{
-					Selection.EmptySelectedKeys();
-					Selection.EmptySelectedTrackAreaItems();
-					Selection.AddToSelection(SectionHotspot->WeakSectionModel.Pin());
+					Selection.KeySelection.Empty();
+					Selection.TrackArea.Empty();
+					Selection.TrackArea.Select(SectionHotspot->WeakSectionModel.Pin());
 				}
 			}
 
@@ -222,18 +223,18 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 		// Moving section(s)?
 		if (SectionHotspot)
 		{
-			if (!Selection.IsSelected(SectionHotspot->WeakSectionModel.Pin()))
+			if (!Selection.TrackArea.IsSelected(SectionHotspot->WeakSectionModel.Pin()))
 			{
-				Selection.EmptySelectedKeys();
-				Selection.EmptySelectedTrackAreaItems();
-				Selection.AddToSelection(SectionHotspot->WeakSectionModel.Pin());
+				Selection.KeySelection.Empty();
+				Selection.TrackArea.Empty();
+				Selection.TrackArea.Select(SectionHotspot->WeakSectionModel.Pin());
 			}
 
 			if (MouseEvent.IsShiftDown())
 			{
 				const bool bDraggingByEnd = false;
 				const bool bIsSlipping = true;
-				return MakeShareable( new FResizeSection( Sequencer, Selection.GetSelectedSections(), bDraggingByEnd, bIsSlipping ) );
+				return MakeShareable( new FResizeSection( Sequencer, bDraggingByEnd, bIsSlipping ) );
 			}
 			else
 			{
@@ -249,7 +250,7 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 			for (const FSequencerSelectedKey& Key : HoveredKeys)
 			{
 				// If any are not selected, we'll treat this as a unique drag
-				if (!Selection.IsSelected(Key))
+				if (!Selection.KeySelection.IsSelected(Key.KeyHandle))
 				{
 					bUniqueDrag = true;
 				}
@@ -257,11 +258,11 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 
 			if (bUniqueDrag)
 			{
-				Selection.EmptySelectedKeys();
-				Selection.EmptySelectedTrackAreaItems();
+				Selection.KeySelection.Empty();
+				Selection.TrackArea.Empty();
 				for (const FSequencerSelectedKey& Key : HoveredKeys)
 				{
-					Selection.AddToSelection(Key);
+					Selection.KeySelection.Select(Key.WeakChannel.Pin(), Key.KeyHandle);
 				}
 			}
 
@@ -270,11 +271,11 @@ TSharedPtr<UE::Sequencer::ISequencerEditToolDragOperation> FSequencerEditTool_Mo
 		}
 	}
 	// If we're not dragging a hotspot, sections take precedence over keys
-	else if (Selection.GetSelectedTrackAreaItems().Num())
+	else if (Selection.TrackArea.Num())
 	{
 		return MakeShareable( new FMoveKeysAndSections( Sequencer, ESequencerMoveOperationType::MoveSections ) );
 	}
-	else if (Selection.GetSelectedKeys().Num())
+	else if (Selection.KeySelection.Num())
 	{
 		return MakeShareable( new FMoveKeysAndSections( Sequencer, ESequencerMoveOperationType::MoveKeys) );
 	}

@@ -26,6 +26,7 @@ class FMenuBuilder;
 class UMovieSceneCompiledDataManager;
 class UMovieSceneFolder;
 class UMovieSceneSection;
+class USequencerScriptingLayer;
 
 USTRUCT(BlueprintType)
 struct FMovieSceneScriptingParams
@@ -53,6 +54,10 @@ public:
 	virtual void Deinitialize() override;
 
 	void OnSequencerCreated(TSharedRef<ISequencer> InSequencer);
+
+	/** Retrieve the outliner */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	USequencerScriptingLayer* GetScriptingLayer();
 
 	/** Add existing actors to Sequencer. Tracks will be automatically added based on default track settings. */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")

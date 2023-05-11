@@ -6,8 +6,53 @@
 #include "Containers/Map.h"
 #include "IKeyArea.h"
 #include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/Selection/Selection.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/FrameNumber.h"
+
+void FSequencerSelectedKey::AppendKeySelection(TSet<FSequencerSelectedKey>& OutSelectedKeys, const UE::Sequencer::FKeySelection& InKeySelection)
+{
+	using namespace UE::Sequencer;
+
+	for (FKeyHandle Key : InKeySelection)
+	{
+		TSharedPtr<FChannelModel> Channel = InKeySelection.GetModelForKey(Key);
+		UMovieSceneSection*       Section = Channel ? Channel->GetSection() : nullptr;
+		if (Channel && Section)
+		{
+			OutSelectedKeys.Emplace(FSequencerSelectedKey(*Section, Channel, Key));
+		}
+	}
+}
+
+FSelectedKeysByChannel::FSelectedKeysByChannel(const UE::Sequencer::FKeySelection& KeySelection)
+{
+	using namespace UE::Sequencer;
+
+	TMap<const IKeyArea*, int32> KeyAreaToChannelIndex;
+
+	int32 Index = 0;
+	for (FKeyHandle Key : KeySelection)
+	{
+		TSharedPtr<FChannelModel> Channel = KeySelection.GetModelForKey(Key);
+
+		if (Channel)
+		{
+			const int32* ChannelArrayIndex = KeyAreaToChannelIndex.Find(Channel->GetKeyArea().Get());
+			if (!ChannelArrayIndex)
+			{
+				int32 NewIndex = SelectedChannels.Add(FSelectedChannelInfo(Channel->GetKeyArea()->GetChannel(), Channel->GetSection()));
+				ChannelArrayIndex = &KeyAreaToChannelIndex.Add(Channel->GetKeyArea().Get(), NewIndex);
+			}
+
+			FSelectedChannelInfo& ThisChannelInfo = SelectedChannels[*ChannelArrayIndex];
+			ThisChannelInfo.KeyHandles.Add(Key);
+			ThisChannelInfo.OriginalIndices.Add(Index);
+
+			++Index;
+		}
+	}
+}
 
 FSelectedKeysByChannel::FSelectedKeysByChannel(TArrayView<const FSequencerSelectedKey> InSelectedKeys)
 {

@@ -27,7 +27,8 @@
 #include "MVVM/ViewModels/OutlinerViewModelDragDropOp.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
-#include "MVVM/Views/IOutlinerSelectionHandler.h"
+#include "MVVM/Selection/SequencerCoreSelection.h"
+#include "MVVM/Selection/SequencerOutlinerSelection.h"
 #include "MVVM/Views/STrackAreaView.h"
 #include "MVVM/Views/STrackLane.h"
 #include "MVVM/Views/TreeViewTraits.h"
@@ -40,6 +41,7 @@
 #include "Rendering/SlateLayoutTransform.h"
 #include "ScopedTransaction.h"
 #include "SequencerCoreFwd.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/WidgetStyle.h"
 #include "Templates/Tuple.h"
@@ -254,9 +256,17 @@ void SOutlinerView::Construct(const FArguments& InArgs, TWeakPtr<FOutlinerViewMo
 	bShowPinnedNodes = false;
 	bSelectionChangesPending = false;
 	bRefreshPhysicalGeometry = false;
-	bForwardToSelectionHandler = true;
 
-	SelectionHandlerAttribute = InArgs._SelectionHandler;
+	Selection = InArgs._Selection;
+
+	if (Selection)
+	{
+		TSharedPtr<FOutlinerSelection> OutlinerSelection = Selection->GetOutlinerSelection();
+		if (OutlinerSelection)
+		{
+			OutlinerSelection->OnChanged.AddSP(this, &SOutlinerView::UpdateViewSelectionFromModel);
+		}
+	}
 
 	HeaderRow = SNew(SHeaderRow).Visibility(EVisibility::Collapsed);
 
@@ -282,7 +292,12 @@ void SOutlinerView::Construct(const FArguments& InArgs, TWeakPtr<FOutlinerViewMo
 		.HighlightParentNodesForSelection(true)
 		.AllowInvisibleItemSelection(true)  //without this we deselect everything when we filter or we collapse, etc..
 	);
+
+	UpdateViewSelectionFromModel();
 }
+
+SOutlinerView::SOutlinerView()
+{}
 
 SOutlinerView::~SOutlinerView()
 {
@@ -295,6 +310,11 @@ void SOutlinerView::Tick(const FGeometry& AllottedGeometry, const double InCurre
 	const bool bWasPendingRefresh = IsPendingRefresh();
 
 	STreeView::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	if (!FSlateApplication::Get().AnyMenusVisible())
+	{
+		DelayedEventSuppressor = nullptr;
+	}
 
 	if (bWasPendingRefresh || bRefreshPhysicalGeometry)
 	{
@@ -327,26 +347,26 @@ FReply SOutlinerView::OnDragRow(const FGeometry&, const FPointerEvent&, TSharedR
 		return FReply::Unhandled();
 	}
 
-	TArray<TWeakViewModelPtr<IOutlinerExtension>> Selection = GetSelectedItems();
-	if (Selection.Num() > 0)
+	TArray<TWeakViewModelPtr<IOutlinerExtension>> WeakSelectedItems = GetSelectedItems();
+	if (WeakSelectedItems.Num() > 0)
 	{
-		for (int32 Index = Selection.Num()-1; Index >= 0; --Index)
+		for (int32 Index = WeakSelectedItems.Num()-1; Index >= 0; --Index)
 		{
-			TSharedPtr<IDraggableOutlinerExtension> Draggable = Selection[Index].ImplicitPin();
+			TSharedPtr<IDraggableOutlinerExtension> Draggable = WeakSelectedItems[Index].ImplicitPin();
 			if (!Draggable || !Draggable->CanDrag())
 			{
 				// Order is not important so we can opt for performance with RemoveAtSwap
-				Selection.RemoveAtSwap(Index, 1, false);
+				WeakSelectedItems.RemoveAtSwap(Index, 1, false);
 			}
 		}
 
 		// If there were no nodes selected, don't start a drag drop operation.
-		if (Selection.Num() == 0)
+		if (WeakSelectedItems.Num() == 0)
 		{
 			return FReply::Unhandled();
 		}
 
-		TSharedRef<FDragDropOperation> DragDropOp = Outliner->InitiateDrag( MoveTemp(Selection) );
+		TSharedRef<FDragDropOperation> DragDropOp = Outliner->InitiateDrag( MoveTemp(WeakSelectedItems) );
 		return FReply::Handled().BeginDragDrop( DragDropOp );
 	}
 
@@ -356,7 +376,7 @@ FReply SOutlinerView::OnDragRow(const FGeometry&, const FPointerEvent&, TSharedR
 void SOutlinerView::ReportChildRowGeometry(const TViewModelPtr<IOutlinerExtension>& InNode, const FGeometry& InGeometry)
 {
 	FCachedGeometry* PhysicalNode = PhysicalNodes.FindByPredicate(
-			[InNode](FCachedGeometry& Item) { return Item.WeakItem == InNode; });
+			[InNode](FCachedGeometry& Item) { return Item.WeakItem.Pin() == InNode; });
 	if (PhysicalNode)
 	{
 		PhysicalNode->PhysicalHeight = InGeometry.Size.Y;
@@ -375,18 +395,12 @@ void SOutlinerView::GetVisibleItems(TArray<TViewModelPtr<IOutlinerExtension>>& O
 	}
 }
 
-void SOutlinerView::ForceSetSelectedItems(const TSet<TWeakPtr<FViewModel>>& InItems)
+void SOutlinerView::ForceSetSelectedItems(const TSet<TWeakViewModelPtr<IOutlinerExtension>>& InItems)
 {
-	TGuardValue<bool> Guard(bForwardToSelectionHandler, false);
-
 	Private_ClearSelection();
-	for (const TWeakPtr<FViewModel>& Item : InItems)
+	for (const TWeakViewModelPtr<IOutlinerExtension>& Item : InItems)
 	{
-		TWeakViewModelPtr<IOutlinerExtension> WeakItem = CastViewModel<IOutlinerExtension>(Item.Pin());
-		if (WeakItem.Pin())
-		{
-			Private_SetItemSelection(WeakItem, true, false);
-		}
+		Private_SetItemSelection(Item, true, false);
 	}
 
 	Private_SignalSelectionChanged(ESelectInfo::Direct);
@@ -774,17 +788,57 @@ void SOutlinerView::Private_SelectRangeFromCurrentTo( TWeakViewModelPtr<IOutline
 
 void SOutlinerView::Private_SignalSelectionChanged(ESelectInfo::Type SelectInfo)
 {
-	// If bForwardToSelectionHandler is set here that means we are responding to a
-	// selection change event that originated from a user interaction with this outliner view.
-	// Therefore we must go through and re-assign selection states to the selection handler.
-
 	STreeView::Private_SignalSelectionChanged(SelectInfo);
 
-	TSharedPtr<IOutlinerSelectionHandler> SelectionHandler = SelectionHandlerAttribute.Get();
-	if (SelectionHandler && bForwardToSelectionHandler)
+	UpdateModelSelectionFromView();
+}
+
+void SOutlinerView::UpdateViewSelectionFromModel()
+{
+	if (!Selection)
 	{
-		TGuardValue<bool> Guard(bForwardToSelectionHandler, false);
-		SelectionHandler->SelectOutlinerItems(GetSelectedItems(), bRightMouseButtonDown);
+		return;
+	}
+
+	TSharedPtr<const FOutlinerSelection> OutlinerSelection = Selection->GetOutlinerSelection();
+	if (OutlinerSelection != nullptr)
+	{
+		Private_ClearSelection();
+
+		for (TViewModelPtr<IOutlinerExtension> SelectedItem : *OutlinerSelection)
+		{
+			Private_SetItemSelection(SelectedItem, true, false);
+		}
+
+		Private_SignalSelectionChanged(ESelectInfo::Direct);
+	}
+}
+
+void SOutlinerView::UpdateModelSelectionFromView()
+{
+	if (!Selection || Selection->IsTriggeringSelectionChangedEvents())
+	{
+		return;
+	}
+
+	TSharedPtr<FOutlinerSelection> OutlinerSelection = Selection->GetOutlinerSelection();
+	if (OutlinerSelection == nullptr)
+	{
+		return;
+	}
+
+	DelayedEventSuppressor = Selection->SuppressEventsLongRunning();
+
+	OutlinerSelection->Empty();
+	for (TWeakViewModelPtr<IOutlinerExtension> SelectedItem : GetSelectedItems())
+	{
+		OutlinerSelection->Select(SelectedItem);
+	}
+
+	if (bRightMouseButtonDown == false)
+	{
+		// If we're not going to open a context menu - trigger events now
+		DelayedEventSuppressor = nullptr;
 	}
 }
 
@@ -984,10 +1038,10 @@ void SOutlinerView::UpdatePhysicalGeometry(bool bIsRefresh)
 	}
 }
 
-bool ShouldExpand(const TArrayView<const TWeakViewModelPtr<IOutlinerExtension>>& Selection, ETreeRecursion Recursion, TSharedPtr<FOutlinerViewModel> Outliner)
+bool ShouldExpand(const TArrayView<const TWeakViewModelPtr<IOutlinerExtension>>& WeakSelectedItems, ETreeRecursion Recursion, TSharedPtr<FOutlinerViewModel> Outliner)
 {
 	bool bAllExpanded = true;
-	for (TWeakViewModelPtr<IOutlinerExtension> WeakItem : Selection)
+	for (TWeakViewModelPtr<IOutlinerExtension> WeakItem : WeakSelectedItems)
 	{
 		// @todo_sequencer_mvvm: Do we need to check selection state here if it's already in a supposed selection set??
 		TViewModelPtr<IOutlinerExtension> SelectedItem = WeakItem.Pin();
@@ -1018,13 +1072,13 @@ void SOutlinerView::ToggleExpandCollapseNodes(ETreeRecursion Recursion, bool bEx
 		return;
 	}
 
-	TArray<TWeakViewModelPtr<IOutlinerExtension>> Selection = GetSelectedItems();
+	TArray<TWeakViewModelPtr<IOutlinerExtension>> WeakSelectedItems = GetSelectedItems();
 
-	if (Selection.Num() > 0 && !bExpandAll && !bCollapseAll)
+	if (WeakSelectedItems.Num() > 0 && !bExpandAll && !bCollapseAll)
 	{
-		const bool bExpand = ShouldExpand(Selection, Recursion, Outliner);
+		const bool bExpand = ShouldExpand(WeakSelectedItems, Recursion, Outliner);
 		
-		for (TWeakViewModelPtr<IOutlinerExtension> WeakItem : Selection)
+		for (TWeakViewModelPtr<IOutlinerExtension> WeakItem : WeakSelectedItems)
 		{
 			TViewModelPtr<IOutlinerExtension> Item = WeakItem.Pin();
 			if (Item)

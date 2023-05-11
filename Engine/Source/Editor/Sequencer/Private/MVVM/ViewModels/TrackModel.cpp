@@ -16,6 +16,7 @@
 #include "MVVM/TrackRowModelStorageExtension.h"
 #include "MVVM/Views/SOutlinerTrackView.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/Selection/Selection.h"
 
 #include "MovieScene.h"
 #include "MovieSceneFolder.h"
@@ -688,14 +689,11 @@ void FTrackModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	// Find sections in the track to add batch properties for
 	TArray<TWeakObjectPtr<UObject>> TrackSections;
 
-	for (TWeakPtr<FViewModel> Node : GetEditor()->GetSequencer()->GetSelection().GetSelectedOutlinerItems())
+	for (TViewModelPtr<ITrackExtension> TrackExtension : WeakSequencer.Pin()->GetViewModel()->GetSelection()->Outliner.Filter<ITrackExtension>())
 	{
-		if (ITrackExtension* TrackExtension = ICastable::CastWeakPtr<ITrackExtension>(Node))
+		for (UMovieSceneSection* Section : TrackExtension->GetSections())
 		{
-			for (UMovieSceneSection* Section : TrackExtension->GetSections())
-			{
-				TrackSections.Add(Section);
-			}
+			TrackSections.Add(Section);
 		}
 	}
 

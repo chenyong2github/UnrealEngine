@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sequencer/ControlRigParameterTrackEditor.h"
+#include "MVVM/Selection/Selection.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "Animation/AnimMontage.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
@@ -2923,6 +2925,8 @@ void FControlRigParameterTrackEditor::SetUpEditModeIfNeeded(UControlRig* Control
 
 void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
 {
+	using namespace UE::Sequencer;
+
 	if(ControlElement == nullptr)
 	{
 		return;
@@ -3023,7 +3027,8 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 		UMovieSceneControlRigParameterTrack* Track = CastChecked<UMovieSceneControlRigParameterTrack>(TrackResult.Track, ECastCheckedType::NullAllowed);
 		if (Track)
 		{
-			GetSequencer()->SuspendSelectionBroadcast();
+			FSelectionEventSuppressor SuppressSelectionEvents = GetSequencer()->GetViewModel()->GetSelection()->SuppressEvents();
+
 			//Just select in section to key, if deselecting makes sure deselected everywhere
 			if (bSelected == true)
 			{
@@ -3041,8 +3046,6 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 					}
 				}
 			}
-			
-			GetSequencer()->ResumeSelectionBroadcast();
 
 			SetUpEditModeIfNeeded(Subject);
 

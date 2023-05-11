@@ -88,7 +88,7 @@ class FResizeSection
 public:
 
 	/** Create and initialize a new instance. */
-	FResizeSection( FSequencer& InSequencer, const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, bool bInDraggingByEnd, bool bIsSlipping );
+	FResizeSection( FSequencer& InSequencer, bool bInDraggingByEnd, bool bIsSlipping );
 
 public:
 

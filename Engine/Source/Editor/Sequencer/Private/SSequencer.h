@@ -40,17 +40,16 @@ class SSequencerGroupManager;
 class SSequencerTreeFilterStatusBar;
 struct FPaintPlaybackRangeArgs;
 struct FSequencerCustomizationInfo;
-struct FSequencerSelectionCurveFilter;
 
 namespace UE
 {
 namespace Sequencer
 {
 
-	class IOutlinerSelectionHandler;
 	class SOutlinerView;
 	class STrackAreaView;
 	class FVirtualTrackArea;
+	struct FSequencerSelectionCurveFilter;
 
 } // namespace Sequencer
 } // namespace UE
@@ -287,9 +286,6 @@ public:
 
 		/** Extender to use for the toolbar. */
 		SLATE_ARGUMENT( TSharedPtr<FExtender>, ToolbarExtender )
-
-		/** Selection handler to pass to outliner view */
-		SLATE_ATTRIBUTE( TSharedPtr<UE::Sequencer::IOutlinerSelectionHandler>, SelectionHandler )
 
 		/** Whether to display the playback range spin box in time range slider */
 		SLATE_ARGUMENT( bool, ShowPlaybackRangeInTimeSlider )
@@ -681,7 +677,7 @@ private:
 	TSharedPtr<UE::Sequencer::STrackAreaView> PinnedTrackArea;
 
 	/** Curve editor filter that shows only the selected nodes */
-	TSharedPtr<FSequencerSelectionCurveFilter> SequencerSelectionCurveEditorFilter;
+	TSharedPtr<UE::Sequencer::FSequencerSelectionCurveFilter> SequencerSelectionCurveEditorFilter;
 
 	/** The breadcrumb trail widget for this sequencer */
 	TSharedPtr<SBreadcrumbTrail<FSequencerBreadcrumb>> BreadcrumbTrail;

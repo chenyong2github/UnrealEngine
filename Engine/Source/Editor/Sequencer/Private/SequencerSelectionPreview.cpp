@@ -8,17 +8,17 @@
 
 namespace UE::Sequencer { class FViewModel; }
 
-void FSequencerSelectionPreview::SetSelectionState(const FSequencerSelectedKey& Key, ESelectionPreviewState InState)
+void FSequencerSelectionPreview::SetSelectionState(const UE::Sequencer::TWeakViewModelPtr<UE::Sequencer::FChannelModel>& Channel, FKeyHandle Key, ESelectionPreviewState InState)
 {
 	if (InState == ESelectionPreviewState::Undefined)
 	{
-		DefinedKeyStates.Remove(Key);
-		RawDefinedKeyStates.Remove(Key.KeyHandle);
+		RawDefinedKeyStates.Remove(Key);
+		KeyHandleToModel.Remove(Key);
 	}
 	else
 	{
-		DefinedKeyStates.Add(Key, InState);
-		RawDefinedKeyStates.Add(Key.KeyHandle, InState);
+		RawDefinedKeyStates.Add(Key, InState);
+		KeyHandleToModel.Add(Key, Channel);
 	}
 
 	CachedSelectionHash.Reset();
@@ -35,15 +35,6 @@ void FSequencerSelectionPreview::SetSelectionState(TWeakPtr<UE::Sequencer::FView
 		DefinedModelStates.Add(InModel, InState);
 	}
 	CachedSelectionHash.Reset();
-}
-
-ESelectionPreviewState FSequencerSelectionPreview::GetSelectionState(const FSequencerSelectedKey& Key) const
-{
-	if (const ESelectionPreviewState* State = DefinedKeyStates.Find(Key))
-	{
-		return *State;
-	}
-	return ESelectionPreviewState::Undefined;
 }
 
 ESelectionPreviewState FSequencerSelectionPreview::GetSelectionState(FKeyHandle Key) const
@@ -65,6 +56,11 @@ ESelectionPreviewState FSequencerSelectionPreview::GetSelectionState(TWeakPtr<UE
 	return ESelectionPreviewState::Undefined;
 }
 
+UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel> FSequencerSelectionPreview::GetChannelForKey(FKeyHandle KeyHandle) const
+{
+	return KeyHandleToModel.FindRef(KeyHandle).Pin();
+}
+
 void FSequencerSelectionPreview::Empty()
 {
 	EmptyDefinedKeyStates();
@@ -73,8 +69,8 @@ void FSequencerSelectionPreview::Empty()
 
 void FSequencerSelectionPreview::EmptyDefinedKeyStates()
 {
-	DefinedKeyStates.Reset();
 	RawDefinedKeyStates.Reset();
+	KeyHandleToModel.Reset();
 	CachedSelectionHash.Reset();
 }
 

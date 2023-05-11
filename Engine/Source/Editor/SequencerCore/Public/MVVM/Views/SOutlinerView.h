@@ -47,8 +47,10 @@ namespace UE
 namespace Sequencer
 {
 
+struct FSelectionEventSuppressor;
+
 class FViewModel;
-class IOutlinerSelectionHandler;
+class FSequencerCoreSelection;
 class SOutlinerViewRow;
 class STrackAreaView;
 class STrackLane;
@@ -81,7 +83,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SOutlinerView){}
 
-		SLATE_ATTRIBUTE( TSharedPtr<IOutlinerSelectionHandler>, SelectionHandler )
+		SLATE_ARGUMENT( TSharedPtr<FSequencerCoreSelection>, Selection )
 		/** Externally supplied scroll bar */
 		SLATE_ARGUMENT( TSharedPtr<SScrollBar>, ExternalScrollbar )
 
@@ -89,6 +91,7 @@ public:
 
 	static const FName TrackNameColumn;
 
+	SOutlinerView();
 	~SOutlinerView();
 
 	/** Construct this widget */
@@ -105,7 +108,7 @@ public:
 
 	void GetVisibleItems(TArray<TViewModelPtr<IOutlinerExtension>>& OutItems) const;
 
-	void ForceSetSelectedItems(const TSet<TWeakPtr<FViewModel>>& InItems);
+	void ForceSetSelectedItems(const TSet<TWeakViewModelPtr<IOutlinerExtension>>& InItems);
 
 public:
 
@@ -175,6 +178,9 @@ private:
 	void SetItemSelection();
 	// Private, unimplemented overloaded name for SetItemSelection to prevent external calls - use ForceSetItemSelection instead
 	void ClearSelection();
+
+	void UpdateViewSelectionFromModel();
+	void UpdateModelSelectionFromView();
 
 	void HandleTableViewScrolled(double InScrollOffset);
 	void UpdatePhysicalGeometry(bool bIsRefresh);
@@ -246,7 +252,8 @@ private:
 	/** Column definitions for each of the columns in the tree view */
 	TMap<FName, FOutlinerViewColumn> Columns;
 
-	TAttribute<TSharedPtr<IOutlinerSelectionHandler>> SelectionHandlerAttribute;
+	TSharedPtr<FSequencerCoreSelection> Selection;
+	TUniquePtr<FSelectionEventSuppressor> DelayedEventSuppressor;
 
 	/** Strong pointer to the track area so we can generate track lanes as we need them */
 	TSharedPtr<STrackAreaView> TrackArea;
@@ -258,8 +265,6 @@ private:
 	TWeakPtr<SOutlinerView> PrimaryTreeView;
 
 	float VirtualTop;
-
-	bool bForwardToSelectionHandler;
 
 	/** When true, the tree selection is being updated from a change in the sequencer selection. */
 	bool bUpdatingTreeSelection;

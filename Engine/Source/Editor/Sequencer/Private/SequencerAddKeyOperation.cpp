@@ -31,19 +31,19 @@ namespace UE
 namespace Sequencer
 {
 
-FAddKeyOperation FAddKeyOperation::FromNodes(const TSet<TWeakPtr<FViewModel>>& InNodes)
+FAddKeyOperation FAddKeyOperation::FromNodes(const TSet<TWeakViewModelPtr<IOutlinerExtension>>& InNodes)
 {
 	FAddKeyOperation Operation;
 
 	TArray<TWeakPtr<FViewModel>> FilteredNodes;
 
 	// Remove any child nodes that have a parent also included in the set
-	for (const TWeakPtr<FViewModel>& ProspectiveNode : InNodes)
+	for (const TWeakViewModelPtr<IOutlinerExtension>& ProspectiveNode : InNodes)
 	{
-		TSharedPtr<FViewModel> Parent = ProspectiveNode.Pin()->GetParent();
+		TSharedPtr<FViewModel> Parent = ProspectiveNode.Pin().AsModel()->GetParent();
 		while (Parent)
 		{
-			if (InNodes.Contains(Parent.ToSharedRef()))
+			if (InNodes.Contains(CastViewModel<IOutlinerExtension>(Parent)))
 			{
 				goto Continue;
 			}

@@ -17,6 +17,7 @@
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/VirtualTrackArea.h"
 #include "MVVM/Views/ITrackAreaHotspot.h"
+#include "MVVM/Selection/Selection.h"
 #include "Modules/ModuleManager.h"
 #include "MovieScene.h"
 #include "MovieSceneSectionDetailsCustomization.h"
@@ -170,6 +171,8 @@ bool IsSectionSelectedInNode(FSequencer& Sequencer, TSharedPtr<UE::Sequencer::FV
 {
 	using namespace UE::Sequencer;
 
+	const FTrackAreaSelection& Selection = Sequencer.GetViewModel()->GetSelection()->TrackArea;
+
 	if (ITrackAreaExtension* TrackArea = InModel->CastThis<ITrackAreaExtension>())
 	{
 		for (TSharedPtr<FViewModel> TrackAreaModel : TrackArea->GetTrackAreaModelList())
@@ -177,7 +180,7 @@ bool IsSectionSelectedInNode(FSequencer& Sequencer, TSharedPtr<UE::Sequencer::FV
 			constexpr bool bIncludeThis = true;
 			for (TSharedPtr<FSectionModel> Section : TParentFirstChildIterator<FSectionModel>(TrackAreaModel, bIncludeThis))
 			{
-				if (Sequencer.GetSelection().IsSelected(Section))
+				if (Selection.IsSelected(Section))
 				{
 					return true;
 				}
@@ -190,12 +193,17 @@ bool IsSectionSelectedInNode(FSequencer& Sequencer, TSharedPtr<UE::Sequencer::FV
 
 bool AreKeysSelectedInNode(FSequencer& Sequencer, TSharedPtr<UE::Sequencer::FViewModel> InModel)
 {
-	TSet<TSharedPtr<UE::Sequencer::FChannelModel>> Channels;
+	using namespace UE::Sequencer;
+
+	TSet<TSharedPtr<FChannelModel>> Channels;
 	SequencerHelpers::GetAllChannels(InModel, Channels);
 
-	for (const FSequencerSelectedKey& Key : Sequencer.GetSelection().GetSelectedKeys())
+	const FKeySelection& Selection = Sequencer.GetViewModel()->GetSelection()->KeySelection;
+
+	for (FKeyHandle Key : Selection)
 	{
-		if (Channels.Contains(Key.WeakChannel.Pin()))
+		TSharedPtr<FChannelModel> Channel = Selection.GetModelForKey(Key);
+		if (Channels.Contains(Channel))
 		{
 			return true;
 		}

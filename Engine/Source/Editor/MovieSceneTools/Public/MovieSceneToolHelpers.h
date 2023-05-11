@@ -106,7 +106,7 @@ public:
 	 * @param bTrimLeft Trim left or trim right
 	 * @param bDeleteKeys Delete keys outside the split ranges
 	 */
-	static void TrimSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time, bool bTrimLeft, bool bDeleteKeys);
+	static void TrimSection(const TSet<UMovieSceneSection*>& Sections, FQualifiedFrameTime Time, bool bTrimLeft, bool bDeleteKeys);
 
 	/**
 	 * Trim or extend section at the given time
@@ -126,7 +126,7 @@ public:
 	 * @param Time	The time at which to split
 	 * @param bDeleteKeys Delete keys outside the split ranges
 	 */
-	static void SplitSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time, bool bDeleteKeys);
+	static void SplitSection(const TSet<UMovieSceneSection*>& Sections, FQualifiedFrameTime Time, bool bDeleteKeys);
 
 	/**
 	 * Parse a shot name into its components.

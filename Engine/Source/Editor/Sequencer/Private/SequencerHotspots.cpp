@@ -2,6 +2,8 @@
 
 #include "SequencerHotspots.h"
 #include "MVVM/Extensions/IObjectBindingExtension.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/Selection/Selection.h"
 #include "SequencerCommonHelpers.h"
 #include "SequencerSettings.h"
 #include "SSequencer.h"
@@ -43,10 +45,10 @@ UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IMouseHandlerHotspot);
 
 FHotspotSelectionManager::FHotspotSelectionManager(const FPointerEvent* InMouseEvent, FSequencer* InSequencer)
 	: MouseEvent(InMouseEvent)
-	, Selection(&InSequencer->GetSelection())
+	, Selection(InSequencer->GetViewModel()->GetSelection())
 	, Sequencer(InSequencer)
 {
-	Selection->SuspendBroadcast();
+	EventSuppressor = Selection->SuppressEventsLongRunning();
 
 	bForceSelect = !MouseEvent->IsControlDown();
 	bAddingToSelection = MouseEvent->IsShiftDown() || MouseEvent->IsControlDown();
@@ -60,16 +62,16 @@ FHotspotSelectionManager::FHotspotSelectionManager(const FPointerEvent* InMouseE
 
 FHotspotSelectionManager::~FHotspotSelectionManager()
 {
-	Selection->ResumeBroadcast();
-	Selection->GetOnOutlinerNodeSelectionChanged().Broadcast();
+	// Broadcast selection events by destroying the suppressor
+	EventSuppressor = nullptr;
 }
 
 void FHotspotSelectionManager::ConditionallyClearSelection()
 {
 	if (!bAddingToSelection)
 	{
-		Selection->EmptySelectedTrackAreaItems();
-		Selection->EmptySelectedKeys();
+		Selection->TrackArea.Empty();
+		Selection->KeySelection.Empty();
 
 		bAddingToSelection = true;
 	}
@@ -79,7 +81,7 @@ void FHotspotSelectionManager::ToggleKeys(TArrayView<const FSequencerSelectedKey
 {
 	for (const FSequencerSelectedKey& Key : InKeys)
 	{
-		const bool bIsSelected = Selection->IsSelected(Key);
+		const bool bIsSelected = Selection->KeySelection.IsSelected(Key.KeyHandle);
 		if (bIsSelected && bForceSelect)
 		{
 			continue;
@@ -87,18 +89,18 @@ void FHotspotSelectionManager::ToggleKeys(TArrayView<const FSequencerSelectedKey
 
 		if (!bIsSelected)
 		{
-			Selection->AddToSelection(Key);
+			Selection->KeySelection.Select(Key.WeakChannel.Pin(), Key.KeyHandle);
 		}
 		else
 		{
-			Selection->RemoveFromSelection(Key);
+			Selection->KeySelection.Deselect(Key.KeyHandle);
 		}
 	}
 }
 
 void FHotspotSelectionManager::ToggleModel(TSharedPtr<FViewModel> InModel)
 {
-	const bool bIsSelected = Selection->IsSelected(InModel);
+	const bool bIsSelected = Selection->TrackArea.IsSelected(InModel);
 	if (bIsSelected && bForceSelect)
 	{
 		return;
@@ -120,11 +122,11 @@ void FHotspotSelectionManager::ToggleModel(TSharedPtr<FViewModel> InModel)
 
 	if (!bIsSelected)
 	{
-		Selection->AddToSelection(InModel);
+		Selection->TrackArea.Select(InModel);
 	}
 	else
 	{
-		Selection->RemoveFromSelection(InModel);
+		Selection->TrackArea.Deselect(InModel);
 	}
 }
 
@@ -132,20 +134,20 @@ void FHotspotSelectionManager::SelectKeysExclusive(TArrayView<const FSequencerSe
 {
 	for (const FSequencerSelectedKey& Key : InKeys)
 	{
-		if (!Selection->IsSelected(Key))
+		if (!Selection->KeySelection.IsSelected(Key.KeyHandle))
 		{
 			ConditionallyClearSelection();
-			Selection->AddToSelection(Key);
+			Selection->KeySelection.Select(Key.WeakChannel.Pin(), Key.KeyHandle);
 		}
 	}
 }
 
 void FHotspotSelectionManager::SelectModelExclusive(TSharedPtr<FViewModel> InModel)
 {
-	if (!Selection->IsSelected(InModel))
+	if (!Selection->TrackArea.IsSelected(InModel))
 	{
 		ConditionallyClearSelection();
-		Selection->AddToSelection(InModel);
+		Selection->TrackArea.Select(InModel);
 	}
 }
 
@@ -317,7 +319,7 @@ TSharedPtr<ISequencerEditToolDragOperation> FKeyBarHotspot::InitiateDrag(const F
 		{
 			AllKeys.Append(Hotspot->LeadingKeys);
 			AllKeys.Append(Hotspot->TrailingKeys);
-			AllKeys.Append(InSequencer->GetSelection().GetSelectedKeys());
+			FSequencerSelectedKey::AppendKeySelection(AllKeys, InSequencer->GetViewModel()->GetSelection()->KeySelection);
 
 			AllLinearKeys = AllKeys.Array();
 
@@ -459,7 +461,7 @@ void FSectionHotspotBase::UpdateOnHover(FTrackAreaViewModel& InTrackArea) const
 
 	// Move sections if they are selected
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-	if (Sequencer->GetSelection().IsSelected(WeakSectionModel))
+	if (Sequencer->GetViewModel()->GetSelection()->TrackArea.IsSelected(WeakSectionModel))
 	{
 		if (ThisSection && ThisSection->GetRange() != TRange<FFrameNumber>::All())
 		{
@@ -535,14 +537,18 @@ void FSectionResizeHotspot::UpdateOnHover(FTrackAreaViewModel& InTrackArea) cons
 TSharedPtr<ISequencerEditToolDragOperation> FSectionResizeHotspot::InitiateDrag(const FPointerEvent& MouseEvent)
 {
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
-	if (!Sequencer->GetSelection().IsSelected(WeakSectionModel))
+	TSharedPtr<FSequencerSelection> Selection = Sequencer->GetViewModel()->GetSelection();
+
+	if (!Selection->TrackArea.IsSelected(WeakSectionModel))
 	{
-		Sequencer->GetSelection().Empty();
-		Sequencer->GetSelection().AddToSelection(WeakSectionModel.Pin());
+		FSelectionEventSuppressor SuppressEvents = Selection->SuppressEvents();
+
+		Selection->Empty();
+		Selection->TrackArea.Select(WeakSectionModel);
 	}
 
 	const bool bIsSlipping = false;
-	return MakeShareable( new FResizeSection(*Sequencer, Sequencer->GetSelection().GetSelectedSections(), HandleType == Right, bIsSlipping) );
+	return MakeShareable( new FResizeSection(*Sequencer, HandleType == Right, bIsSlipping) );
 }
 
 const FSlateBrush* FSectionResizeHotspot::GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const

@@ -12,13 +12,13 @@
 #include "MVVM/ViewModels/SequenceModel.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
+#include "MVVM/Selection/Selection.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/Views/STrackAreaView.h"
 
 #include "CommonMovieSceneTools.h"
 #include "SequencerCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
-#include "SequencerSelection.h"
 #include "Sequencer.h"
 #include "ISequencerSection.h"
 
@@ -63,11 +63,11 @@ struct FLayerBarHotspot
 
 		FSequencerSelection& Selection = Sequencer->GetSelection();
 
-		if (!Selection.IsSelected(LayerBar))
+		if (!Selection.TrackArea.IsSelected(LayerBar))
 		{
-			Selection.EmptySelectedKeys();
-			Selection.EmptySelectedTrackAreaItems();
-			Selection.AddToSelection(LayerBar);
+			Selection.KeySelection.Empty();
+			Selection.TrackArea.Empty();
+			Selection.TrackArea.Select(LayerBar);
 		}
 
 		if (!MouseEvent.IsShiftDown())
@@ -122,11 +122,11 @@ struct FLayerBarStretchHotspot
 		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 		FSequencerSelection& Selection = Sequencer->GetSelection();
 
-		if (!Selection.IsSelected(LayerBar))
+		if (!Selection.TrackArea.IsSelected(LayerBar))
 		{
-			Selection.EmptySelectedKeys();
-			Selection.EmptySelectedTrackAreaItems();
-			Selection.AddToSelection(LayerBar);
+			Selection.KeySelection.Empty();
+			Selection.TrackArea.Empty();
+			Selection.TrackArea.Select(LayerBar);
 		}
 
 		return MakeShared<FEditToolDragOperation_Stretch>(Sequencer.Get(), StretchConstraint, GetTime().GetValue());
@@ -314,7 +314,7 @@ int32 SSequencerLayerBar::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	ESelectionPreviewState SelectionPreviewState = SelectionPreview.GetSelectionState(WeakLayerBar);
 
 	const bool bIsPreviewUnselected = SelectionPreviewState == ESelectionPreviewState::NotSelected;
-	const bool bIsUnSelected        = SelectionPreviewState == ESelectionPreviewState::Undefined && !Selection.IsSelected(WeakLayerBar);
+	const bool bIsUnSelected        = SelectionPreviewState == ESelectionPreviewState::Undefined && !Selection.TrackArea.IsSelected(WeakLayerBar);
 
 	if (!bIsPreviewUnselected && !bIsUnSelected)
 	{

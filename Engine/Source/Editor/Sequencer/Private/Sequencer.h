@@ -27,7 +27,6 @@
 #include "ISequencer.h"
 #include "ISequencerModule.h"
 #include "ISequencerObjectChangeListener.h"
-#include "SequencerSelection.h"
 #include "SequencerSelectionPreview.h"
 #include "SequencerCustomizationManager.h"
 #include "ITransportControl.h"
@@ -54,7 +53,6 @@ class IMenu;
 class FCurveEditor;
 class ISequencerEditTool;
 class FSequencerKeyCollection;
-class FSequencerOutlinerSelectionHandler;
 class FObjectBindingTagCache;
 class ISequencerTrackEditor;
 class ISequencerEditorObjectBinding;
@@ -96,6 +94,7 @@ namespace UE
 		class FSequenceModel;
 		class FSequencerEditorViewModel;
 		class FViewModel;
+		class FSequencerSelection;
 
 	} // namespace Sequencer
 } // namespace UE
@@ -251,7 +250,7 @@ public:
 	virtual void PopToSequenceInstance( FMovieSceneSequenceIDRef SequenceID ) override;
 
 	/** Deletes the passed in sections. */
-	void DeleteSections(const TSet<TWeakObjectPtr<UMovieSceneSection> > & Sections);
+	void DeleteSections(const TSet<UMovieSceneSection*> & Sections);
 
 	/** Deletes the currently selected in keys. */
 	void DeleteSelectedKeys();
@@ -557,10 +556,6 @@ public:
 	bool PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
 	bool PasteObjectBindings(const FString& TextToImport, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 
-	/** Called when a user executes the active node menu item */
-	void ToggleNodeActive();
-	bool IsNodeActive() const;
-
 	/** Called when a user executes the locked node menu item */
 	void ToggleNodeLocked();
 	bool IsNodeLocked() const;
@@ -704,7 +699,7 @@ public:
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() override { return RootTemplateInstance; }
 	virtual void ResetToNewRootSequence(UMovieSceneSequence& NewSequence) override;
 	virtual void FocusSequenceInstance(UMovieSceneSubSection& InSubSection) override;
-	virtual TSharedPtr<UE::Sequencer::FEditorViewModel> GetViewModel() const override;
+	virtual TSharedPtr<UE::Sequencer::FSequencerEditorViewModel> GetViewModel() const override;
 	virtual void SuppressAutoEvaluation(UMovieSceneSequence* Sequence, const FGuid& InSequenceSignature) override;
 	virtual EAutoChangeMode GetAutoChangeMode() const override;
 	virtual void SetAutoChangeMode(EAutoChangeMode AutoChangeMode) override;
@@ -753,10 +748,6 @@ public:
 	virtual void AddSubSequence(UMovieSceneSequence* Sequence) override;
 	virtual bool CanKeyProperty(FCanKeyPropertyParams CanKeyPropertyParams) const override;
 	virtual void KeyProperty(FKeyPropertyParams KeyPropertyParams) override;
-	virtual FSequencerSelection& GetSelection() override;
-	virtual FSequencerSelectionPreview& GetSelectionPreview() override;
-	virtual void SuspendSelectionBroadcast() override;
-	virtual void ResumeSelectionBroadcast() override;
 	virtual void GetSelectedTracks(TArray<UMovieSceneTrack*>& OutSelectedTracks) override;
 	virtual void GetSelectedSections(TArray<UMovieSceneSection*>& OutSelectedSections) override;
 	virtual void GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolders) override;
@@ -832,6 +823,10 @@ public:
 	virtual FMovieSceneSpawnRegister& GetSpawnRegister() override { return *SpawnRegister; }
 	virtual bool IsPreview() const override { return SilentModeCount != 0; }
 	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;
+
+	/** Shortcut for GetEditorModel()->GetSelection() for backwards compat with existing code */
+	UE::Sequencer::FSequencerSelection& GetSelection();
+	FSequencerSelectionPreview& GetSelectionPreview();
 
 protected:
 
@@ -1033,8 +1028,8 @@ protected:
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	// End of FEditorUndoClient
 
-	void OnSelectedOutlinerNodesChanged();
-	// Called on Tick after OnSelectedOutlinerNodesChanged has been called
+	void OnSelectionChanged();
+	// Called on Tick after OnSelectionChanged has been called
 	void HandleSelectedOutlinerNodesChanged();
 
 	void AddNodeGroupsCollectionChangedDelegate();
@@ -1045,7 +1040,7 @@ protected:
 public:
 	void AddSelectedNodesToNewNodeGroup();
 	void AddSelectedNodesToExistingNodeGroup(UMovieSceneNodeGroup* NodeGroup);
-	void AddNodesToExistingNodeGroup(const TArray<TWeakPtr<UE::Sequencer::FViewModel>>& Nodes, UMovieSceneNodeGroup* NodeGroup);
+	void AddNodesToExistingNodeGroup(TArrayView<const UE::Sequencer::TWeakViewModelPtr<UE::Sequencer::IOutlinerExtension>> InItems, UMovieSceneNodeGroup* NodeGroup);
 
 	void ClearFilters();
 
@@ -1177,9 +1172,6 @@ private:
 	/** Main sequencer widget */
 	TSharedPtr<SSequencer> SequencerWidget;
 
-	/** Selection handler for interfacing with sequencer selection */
-	TSharedPtr<FSequencerOutlinerSelectionHandler> SelectionHandler;
-
 	/** Spawn register for keeping track of what is spawned */
 	TSharedPtr<FMovieSceneSpawnRegister> SpawnRegister;
 
@@ -1303,7 +1295,7 @@ private:
 		the MovieScene data can change many times per frame.) */
 	bool bNeedTreeRefresh;
 
-	FSequencerSelection Selection;
+	//FSequencerSelection Selection;
 	FSequencerSelectionPreview SelectionPreview;
 
 	/** Represents the tree of nodes to display in the animation outliner. */

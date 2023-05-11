@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/CurveEditorExtension.h"
+#include "MVVM/Selection/Selection.h"
 
 #include "FrameNumberDetailsCustomization.h"
 #include "Framework/Docking/TabManager.h"
@@ -404,10 +405,9 @@ void FCurveEditorExtension::SyncSelection()
 	CurveEditorTreeView->ClearSelection();
 
 	FCurveEditorTreeItemID FirstCurveEditorTreeItemID;
-	const TSet<TWeakPtr<FViewModel>>& SelectedItems = Sequencer->GetSelection().GetSelectedOutlinerItems();
-	for (TWeakPtr<FViewModel> SelectedItem : SelectedItems)
+	for (TViewModelPtr<IOutlinerExtension> SelectedItem : OwnerModel->GetSelection()->Outliner)
 	{
-		if (ICurveEditorTreeItemExtension* CurveEditorItem = ICastable::CastWeakPtr<ICurveEditorTreeItemExtension>(SelectedItem))
+		if (TViewModelPtr<ICurveEditorTreeItemExtension> CurveEditorItem = SelectedItem.ImplicitCast())
 		{
 			FCurveEditorTreeItemID CurveEditorTreeItem = CurveEditorItem->GetCurveEditorItemID();
 			if (CurveEditorTreeItem != FCurveEditorTreeItemID::Invalid())

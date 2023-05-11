@@ -2,11 +2,12 @@
 
 #include "DragOperation_Stretch.h"
 #include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/Selection/Selection.h"
 #include "SequencerSettings.h"
 
 #include "ISequencer.h"
 #include "Sequencer.h"
-#include "SequencerSelection.h"
 #include "MVVM/ViewModels/SectionModel.h"
 #include "MVVM/ViewModels/VirtualTrackArea.h"
 
@@ -61,12 +62,9 @@ void FEditToolDragOperation_Stretch::OnBeginDrag(const FPointerEvent& MouseEvent
 {
 	TArray<IStretchableExtension*> AllStretchables;
 
-	for (TWeakPtr<FViewModel> WeakSelectedModel : Sequencer->GetSelection().GetSelectedTrackAreaItems())
+	for (FViewModelPtr SelectedModel : Sequencer->GetViewModel()->GetSelection()->TrackArea)
 	{
-		TSharedPtr<FViewModel> Model       = WeakSelectedModel.Pin();
-		IStretchableExtension*         Stretchable = Model ? Model->CastThis<IStretchableExtension>() : nullptr;
-
-		if (Stretchable)
+		if (TViewModelPtr<IStretchableExtension> Stretchable = SelectedModel.ImplicitCast())
 		{
 			Stretchable->OnInitiateStretch(*this, StretchConstraint, &GlobalParameters);
 		}

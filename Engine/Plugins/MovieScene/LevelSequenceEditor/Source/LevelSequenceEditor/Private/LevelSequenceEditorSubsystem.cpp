@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceEditorSubsystem.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "Scripting/SequencerScriptingLayer.h"
 
 #include "Evaluation/MovieScenePlayback.h"
 #include "ISequencerModule.h"
@@ -205,6 +207,16 @@ TSharedPtr<ISequencer> ULevelSequenceEditorSubsystem::GetActiveSequencer()
 		}
 	}
 
+	return nullptr;
+}
+
+USequencerScriptingLayer* ULevelSequenceEditorSubsystem::GetScriptingLayer()
+{
+	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (Sequencer)
+	{
+		return Sequencer->GetViewModel()->GetScriptingLayer();
+	}
 	return nullptr;
 }
 

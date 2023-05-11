@@ -5,6 +5,8 @@
 #include "CoreTypes.h"
 #include "MVVM/ViewModels/OutlinerViewModel.h"
 #include "MVVM/ViewModels/TrackAreaViewModel.h"
+#include "MVVM/Selection/SequencerCoreSelection.h"
+#include "Scripting/SequencerScriptingLayer.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/TypeHash.h"
 
@@ -47,6 +49,13 @@ void FEditorViewModel::InitializeEditor()
 	TWeakPtr<FViewModel> WeakRootDataModel(RootDataModel);
 	Outliner->Initialize(FWeakViewModelPtr(WeakRootDataModel));
 
+	Selection = CreateSelectionImpl();
+
+	USequencerScriptingLayer* Scripting = CreateScriptingLayerImpl();
+	Scripting->Initialize(SharedThis(this));
+
+	ScriptingLayer.Reset(Scripting);
+
 	InitializeEditorImpl();
 }
 
@@ -70,6 +79,16 @@ TSharedPtr<FTrackAreaViewModel> FEditorViewModel::GetTrackArea() const
 	return TrackArea;
 }
 
+TSharedPtr<FSequencerCoreSelection> FEditorViewModel::GetSelection() const
+{
+	return Selection;
+}
+
+USequencerScriptingLayer* FEditorViewModel::GetScriptingLayer() const
+{
+	return ScriptingLayer.Get();
+}
+
 TSharedPtr<FViewModel> FEditorViewModel::CreateRootModelImpl()
 {
 	return MakeShared<FViewModel>();
@@ -83,6 +102,18 @@ TSharedPtr<FOutlinerViewModel> FEditorViewModel::CreateOutlinerImpl()
 TSharedPtr<FTrackAreaViewModel> FEditorViewModel::CreateTrackAreaImpl()
 {
 	return MakeShared<FTrackAreaViewModel>();
+}
+
+TSharedPtr<FSequencerCoreSelection> FEditorViewModel::CreateSelectionImpl()
+{
+	struct FShellSelection : FSequencerCoreSelection
+	{};
+	return MakeShared<FShellSelection>();
+}
+
+USequencerScriptingLayer* FEditorViewModel::CreateScriptingLayerImpl()
+{
+	return NewObject<USequencerScriptingLayer>();
 }
 
 bool FEditorViewModel::IsReadOnly() const

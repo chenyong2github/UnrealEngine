@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTimeSliderController.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/Selection/Selection.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Rendering/DrawElements.h"
 #include "Misc/Paths.h"
@@ -332,6 +334,8 @@ void FSequencerTimeSliderController::DrawTicks( FSlateWindowElementList& OutDraw
 
 int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& AllottedGeometry, const FScrubRangeToScreen& RangeToScreen, FSlateWindowElementList& OutDrawElements, int32 LayerId, const ESlateDrawEffect& DrawEffects, const FWidgetStyle& InWidgetStyle, bool bDrawLabels ) const
 {
+	using namespace UE::Sequencer;
+
 	const TArray<FMovieSceneMarkedFrame> & MarkedFrames = TimeSliderArgs.MarkedFrames.Get();
 	const TArray<FMovieSceneMarkedFrame> & GlobalMarkedFrames = TimeSliderArgs.GlobalMarkedFrames.Get();
 	if (MarkedFrames.Num() < 1 && GlobalMarkedFrames.Num() < 1)
@@ -339,7 +343,7 @@ int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& Allotte
 		return LayerId;
 	}
 
-	const TSet<int32>& SelectedMarkedFrames = WeakSequencer.Pin()->GetSelection().GetSelectedMarkedFrames();
+	const FMarkedFrameSelection& SelectedMarkedFrames = WeakSequencer.Pin()->GetViewModel()->GetSelection()->MarkedFrames;
 	//const FLinearColor SelectedColor = FLinearColor::White; //FAppStyle::GetSlateColor("SelectionColor").GetColor(InWidgetStyle);
 	const FLinearColor WhiteColorHSV = FLinearColor::White.LinearRGBToHSV();
 
@@ -351,7 +355,7 @@ int32 FSequencerTimeSliderController::DrawMarkedFrames( const FGeometry& Allotte
 			double Seconds = MarkedFrame.FrameNumber / GetTickResolution();
 
 			const bool bIsHovered = (!bIsGlobal && HoverMarkIndex == MarkIndex);
-			const bool bIsSelected = (!bIsGlobal && SelectedMarkedFrames.Contains(MarkIndex));
+			const bool bIsSelected = (!bIsGlobal && SelectedMarkedFrames.IsSelected(MarkIndex));
 
 			// Get a selected color that's the marked frame color but at full opacity, full brightness, and a bit desaturated if it's
 			// already bright to begin with.
@@ -955,7 +959,7 @@ FReply FSequencerTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, co
 
 					// We weren't scrubbing, so this is a single click in the time slider. This should
 					// also act as a deselection of any selected markers.
-					Sequencer->GetSelection().EmptySelectedMarkedFrames();
+					Sequencer->GetViewModel()->GetSelection()->MarkedFrames.Empty();
 				}
 
 				// If middle mouse button down we don't evaluate on the time change
@@ -1530,6 +1534,8 @@ ETimeSliderPlaybackStatus FSequencerTimeSliderController::GetPlaybackStatus() co
 
 TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 	const bool bReadOnly = Sequencer && Sequencer->IsReadOnly();
 	
@@ -1669,8 +1675,8 @@ TSharedRef<SWidget> FSequencerTimeSliderController::OpenSetPlaybackRangeMenu(con
 
 		if (MarkedIndex != INDEX_NONE)
 		{
-			SequencerSelection.EmptySelectedMarkedFrames();
-			SequencerSelection.AddToSelection(MarkedIndex);
+			SequencerSelection.MarkedFrames.Empty();
+			SequencerSelection.MarkedFrames.Select(MarkedIndex);
 
 			class SMarkedFramePropertyWidget : public SCompoundWidget, public FNotifyHook
 			{
@@ -2021,8 +2027,7 @@ FFrameTime FSequencerTimeSliderController::SnapTimeToNearestKey(const FPointerEv
 
 		// If there are any tracks selected we'll find the nearest key only on that track. If there are no keys selected,
 		// we will try to find the nearest keys on all tracks. This mirrors the behavior of the Jump to Next Keyframe commands.
-		const TSet< TWeakPtr<FViewModel> >& SelectedNodes = WeakSequencer.Pin()->GetSelection().GetSelectedOutlinerItems();
-		if (SelectedNodes.Num() == 0)
+		if (WeakSequencer.Pin()->GetViewModel()->GetSelection()->Outliner.Num() == 0)
 		{
 			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchAllTracks);
 		}
@@ -2106,6 +2111,8 @@ void FSequencerTimeSliderController::SetSelectionRangeEnd(FFrameNumber NewEnd)
 
 void FSequencerTimeSliderController::HandleMarkSelection(int32 InMarkIndex)
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 	FSequencerSelection& SequencerSelection = Sequencer->GetSelection();
 
@@ -2116,29 +2123,31 @@ void FSequencerTimeSliderController::HandleMarkSelection(int32 InMarkIndex)
 	if (!bToggleSelection && !bAddToSelection)
 	{
 		SequencerSelection.Empty();
-		SequencerSelection.AddToSelection(InMarkIndex);
+		SequencerSelection.MarkedFrames.Select(InMarkIndex);
 	}
-	else if (bAddToSelection || !SequencerSelection.IsSelected(InMarkIndex))
+	else if (bAddToSelection || !SequencerSelection.MarkedFrames.IsSelected(InMarkIndex))
 	{
-		SequencerSelection.AddToSelection(InMarkIndex);
+		SequencerSelection.MarkedFrames.Select(InMarkIndex);
 	}
 	else
 	{
-		SequencerSelection.RemoveFromSelection(InMarkIndex);
+		SequencerSelection.MarkedFrames.Deselect(InMarkIndex);
 	}
 }
 
 void FSequencerTimeSliderController::UpdateMarkSelection(int32 InOldMarkIndex, FFrameNumber InMarkFrameNumber)
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 	FSequencerSelection& SequencerSelection = Sequencer->GetSelection();
-	SequencerSelection.RemoveFromSelection(InOldMarkIndex);
+	SequencerSelection.MarkedFrames.Deselect(InOldMarkIndex);
 
 	UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 	int32 NewMarkIndex = MovieScene->FindMarkedFrameByFrameNumber(InMarkFrameNumber);
 	if (ensure(NewMarkIndex != INDEX_NONE))
 	{
-		SequencerSelection.AddToSelection(NewMarkIndex);
+		SequencerSelection.MarkedFrames.Select(NewMarkIndex);
 	}
 }
 

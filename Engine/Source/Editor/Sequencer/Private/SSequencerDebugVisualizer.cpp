@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SSequencerDebugVisualizer.h"
+#include "MVVM/Selection/Selection.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "CommonMovieSceneTools.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/SToolTip.h"
@@ -457,6 +459,7 @@ void SSequencerEntityComponentSystemDebugVisualizer::Refresh()
 bool SSequencerEntityComponentSystemDebugVisualizer::DoRefresh()
 {
 	using namespace UE::MovieScene;
+	using namespace UE::Sequencer;
 
  	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
  	if (!Sequencer.IsValid())
@@ -484,9 +487,7 @@ bool SSequencerEntityComponentSystemDebugVisualizer::DoRefresh()
 		return false;
 	}
 
-	TSet<TWeakObjectPtr<UMovieSceneSection>> SelectedSections = Sequencer->GetSelection().GetSelectedSections();
-	CachedSelection = SelectedSections;
-
+	CachedSelectionSerialNumber = Sequencer->GetViewModel()->GetSelection()->GetSerialNumber();
 	CachedSignature = CompiledDataManager->GetEntryRef(CompiledDataID).CompiledSignature;
 
  	const FFrameRate SequenceResolution = ActiveMovieScene->GetTickResolution();
@@ -498,9 +499,9 @@ bool SSequencerEntityComponentSystemDebugVisualizer::DoRefresh()
 		SectionToWidget.Add(Child->GetSection(), Child);
 	}
 
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : SelectedSections)
+	for (TViewModelPtr<FSectionModel> SectionModel : Sequencer->GetViewModel()->GetSelection()->TrackArea.Filter<FSectionModel>())
 	{
-		UMovieSceneSection* Section = WeakSection.Get();
+		UMovieSceneSection* Section = SectionModel->GetSection();
 		if (Section != nullptr)
 		{
 			TSharedRef<SSequencerEntityComponentSystemDebugSlot>* ExistingChild = SectionToWidget.Find(Section);
@@ -575,11 +576,7 @@ void SSequencerEntityComponentSystemDebugVisualizer::Tick( const FGeometry& Allo
  	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
  	if (Sequencer.IsValid())
 	{
-		TSet<TWeakObjectPtr<UMovieSceneSection>> SelectedSections = Sequencer->GetSelection().GetSelectedSections();
-		if (SelectedSections.Difference(CachedSelection).Num() > 0 || CachedSelection.Difference(SelectedSections).Num() > 0)
-		{
-			bSelectionChanged = true;
-		}
+		bSelectionChanged = CachedSelectionSerialNumber != Sequencer->GetViewModel()->GetSelection()->GetSerialNumber();
 
 		UMovieSceneSequence* ActiveSequence = Sequencer->GetFocusedMovieSceneSequence();
 		if (ActiveSequence != nullptr)

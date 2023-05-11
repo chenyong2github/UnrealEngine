@@ -17,6 +17,7 @@ namespace Sequencer
 {
 
 class FSequenceModel;
+class FSequencerSelection;
 class STrackAreaView;
 struct ITrackAreaHotspot;
 
@@ -31,8 +32,11 @@ public:
 
 	FSequencerEditorViewModel(TSharedRef<ISequencer> InSequencer, const FSequencerHostCapabilities& InHostCapabilities);
 
+	/** Retrieve this editor's selection class */
+	SEQUENCER_API TSharedPtr<FSequencerSelection> GetSelection() const;
+
 	// @todo_sequencer_mvvm remove this later
-	TSharedPtr<ISequencer> GetSequencer() const;
+	SEQUENCER_API TSharedPtr<ISequencer> GetSequencer() const;
 	// @todo_sequencer_mvvm remove this ASAP
 	TSharedPtr<FSequencer> GetSequencerImpl() const;
 
@@ -54,6 +58,7 @@ protected:
 	virtual TSharedPtr<FViewModel> CreateRootModelImpl() override;
 	virtual TSharedPtr<FOutlinerViewModel> CreateOutlinerImpl() override;
 	virtual TSharedPtr<FTrackAreaViewModel> CreateTrackAreaImpl() override;
+	virtual TSharedPtr<FSequencerCoreSelection> CreateSelectionImpl() override;
 	virtual bool IsReadOnly() const override;
 
 	void OnTrackAreaHotspotChanged(TSharedPtr<ITrackAreaHotspot> NewHotspot);

@@ -7,7 +7,7 @@
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/SparseArray.h"
-#include "MVVM/ViewModelPtr.h"
+#include "SequencerCoreFwd.h"
 #include "Misc/FrameNumber.h"
 #include "SequencerKeyParams.h"
 #include "Templates/SharedPointer.h"
@@ -28,6 +28,7 @@ namespace Sequencer
 class FChannelGroupModel;
 class FViewModel;
 class ITrackExtension;
+class IOutlinerExtension;
 
 /**
  * Temporary structure used for consistent add-key behavior for a set of display nodes
@@ -40,7 +41,7 @@ struct SEQUENCER_API FAddKeyOperation
 	 *
 	 * @param InModels A set of all the models to key
 	 */
-	static FAddKeyOperation FromNodes(const TSet<TWeakPtr<FViewModel>>& InModels);
+	static FAddKeyOperation FromNodes(const TSet<TWeakViewModelPtr<IOutlinerExtension>>& InModels);
 
 
 	/**

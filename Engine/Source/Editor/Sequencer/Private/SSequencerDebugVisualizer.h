@@ -169,5 +169,5 @@ private:
  	FGuid CachedSignature;
 
 	/** Last known selection */
-	TSet<TWeakObjectPtr<UMovieSceneSection>> CachedSelection;
+	uint32 CachedSelectionSerialNumber;
 };

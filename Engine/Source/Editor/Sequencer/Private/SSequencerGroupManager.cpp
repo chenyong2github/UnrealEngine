@@ -2,8 +2,10 @@
 
 #include "SSequencerGroupManager.h"
 
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/Extensions/IGroupableExtension.h"
+#include "MVVM/Selection/Selection.h"
 #include "Sequencer.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
@@ -283,12 +285,7 @@ private:
 				if (SequencerGroupTreeNode->GetType() == FSequencerNodeGroupTreeNode::Type::GroupNode)
 				{
 					TSharedPtr<FSequencerNodeGroupNode> NodeGroupNode = StaticCastSharedPtr<FSequencerNodeGroupNode>(SequencerGroupTreeNode);
-					TArray<TWeakPtr<FViewModel>> DraggedNodes;
-					for (const TWeakViewModelPtr<IOutlinerExtension>& DraggedNode : DragDropOp->GetDraggedViewModels())
-					{
-						DraggedNodes.Add(DraggedNode);
-					}
-					Sequencer->AddNodesToExistingNodeGroup(DraggedNodes, NodeGroupNode->Group);
+					Sequencer->AddNodesToExistingNodeGroup(DragDropOp->GetDraggedViewModels(), NodeGroupNode->Group);
 
 					return FReply::Handled();
 				}
@@ -661,20 +658,12 @@ void SSequencerGroupManager::SelectItemsSelectedInSequencer()
 		return;
 	}
 
-	const TSet<TWeakPtr<FViewModel>>& SelectedModels = Sequencer->GetSelection().GetSelectedOutlinerItems();
-
 	TStringBuilder<128> TempString;
 
 	// Build a list of the nodepaths that we want to consider for selection
 	TSet<FString> NodesPathsToSelect;
-	for (TWeakPtr<FViewModel> WeakModel : SelectedModels)
+	for (FViewModelPtr Model : Sequencer->GetViewModel()->GetSelection()->Outliner)
 	{
-		TSharedPtr<FViewModel> Model = WeakModel.Pin();
-		if (!Model)
-		{
-			continue;
-		}
-
 		TViewModelPtr<IGroupableExtension> Groupable = Model->FindAncestorOfType<IGroupableExtension>(true);
 		if (Groupable)
 		{

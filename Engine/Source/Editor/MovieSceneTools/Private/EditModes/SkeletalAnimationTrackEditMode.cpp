@@ -259,10 +259,8 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 	// Gather a map of object bindings to their implict selection state
 	TMap<const FMovieSceneBinding*, bool> ObjectBindingNodesSelectionMap;
 
-	const FSequencerSelection& Selection = Sequencer->GetSelection();
 	for (const FMovieSceneBinding& Binding : Sequence->GetMovieScene()->GetBindings())
 	{
-
 		TArrayView<TWeakObjectPtr<UObject>> BoundObjects = Sequencer->FindObjectsInCurrentSequence(Binding.GetObjectGuid());
 		for (UMovieSceneTrack* Track : Binding.GetTracks())
 		{

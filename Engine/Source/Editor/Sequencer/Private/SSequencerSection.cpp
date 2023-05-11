@@ -12,6 +12,7 @@
 #include "MVVM/Views/STrackLane.h"
 #include "MVVM/Views/SChannelView.h"
 #include "MVVM/Extensions/IObjectBindingExtension.h"
+#include "MVVM/Selection/Selection.h"
 #include "AnimatedRange.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
@@ -331,7 +332,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 	void CalculateSelectionColor()
 	{
-		FSequencerSelection& Selection = Sequencer.GetSelection();
+		FSequencerSelection& Selection = *Sequencer.GetViewModel()->GetSelection();
 		FSequencerSelectionPreview& SelectionPreview = Sequencer.GetSelectionPreview();
 
 		ESelectionPreviewState SelectionPreviewState = SelectionPreview.GetSelectionState(SectionWidget.WeakSectionModel);
@@ -342,7 +343,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 			return;
 		}
 		
-		if (SelectionPreviewState == ESelectionPreviewState::Undefined && !Selection.IsSelected(SectionModel))
+		if (SelectionPreviewState == ESelectionPreviewState::Undefined && !Selection.TrackArea.IsSelected(SectionModel))
 		{
 			// No preview selection for this section, and it's not selected
 			return;
@@ -1338,7 +1339,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 		}
 	}
 
-	Painter.bIsSelected = GetSequencer().GetSelection().IsSelected(SectionModel);
+	Painter.bIsSelected = GetSequencer().GetSelection().TrackArea.IsSelected(SectionModel);
 
 	// Ask the interface to draw the section
 	LayerId = SectionInterface->OnPaintSection(Painter);
@@ -1360,7 +1361,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	// --------------------------------------------
 	// Draw section selection tint
 	const float SectionThrobValue = GetSectionSelectionThrobValue();
-	if (SectionThrobValue != 0.f && GetSequencer().GetSelection().IsSelected(SectionModel))
+	if (SectionThrobValue != 0.f && GetSequencer().GetSelection().TrackArea.IsSelected(SectionModel))
 	{
 		static const FName BackgroundTrackTintBrushName("Sequencer.Section.BackgroundTint");
 

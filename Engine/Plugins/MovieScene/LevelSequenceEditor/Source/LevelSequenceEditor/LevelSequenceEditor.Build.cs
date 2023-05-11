@@ -41,6 +41,7 @@ public class LevelSequenceEditor : ModuleRules
                 "MovieSceneTools",
 				"MovieSceneTracks",
                 "PropertyEditor",
+                "SequencerCore",
 				"Sequencer",
                 "Slate",
                 "SlateCore",

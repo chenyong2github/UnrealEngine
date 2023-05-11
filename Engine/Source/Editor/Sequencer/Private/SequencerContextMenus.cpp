@@ -46,6 +46,7 @@
 #include "MVVM/ViewModels/TrackModel.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/Selection/Selection.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "Algo/AnyOf.h"
 #include "IKeyArea.h"
@@ -55,16 +56,19 @@
 
 static void CreateKeyStructForSelection(TSharedPtr<ISequencer> InSequencer, TSharedPtr<FStructOnScope>& OutKeyStruct, TWeakObjectPtr<UMovieSceneSection>& OutKeyStructSection)
 {
-	const TSet<FSequencerSelectedKey>& SelectedKeys = InSequencer->GetSelection().GetSelectedKeys();
+	using namespace UE::Sequencer;
+
+	const FKeySelection& SelectedKeys = InSequencer->GetViewModel()->GetSelection()->KeySelection;
 
 	if (SelectedKeys.Num() == 1)
 	{
-		for (const FSequencerSelectedKey& Key : SelectedKeys)
+		for (FKeyHandle Key : SelectedKeys)
 		{
-			if (Key.IsValid())
+			TSharedPtr<FChannelModel> Channel = SelectedKeys.GetModelForKey(Key);
+			if (Channel)
 			{
-				OutKeyStruct = Key.WeakChannel.Pin()->GetKeyArea()->GetKeyStruct(Key.KeyHandle);
-				OutKeyStructSection = Key.WeakChannel.Pin()->GetSection();
+				OutKeyStruct = Channel->GetKeyArea()->GetKeyStruct(Key);
+				OutKeyStructSection = Channel->GetSection();
 				return;
 			}
 		}
@@ -73,17 +77,18 @@ static void CreateKeyStructForSelection(TSharedPtr<ISequencer> InSequencer, TSha
 	{
 		TArray<FKeyHandle> KeyHandles;
 		UMovieSceneSection* CommonSection = nullptr;
-		for (const FSequencerSelectedKey& Key : SelectedKeys)
+		for (FKeyHandle Key : SelectedKeys)
 		{
-			if (Key.IsValid())
+			TSharedPtr<FChannelModel> Channel = SelectedKeys.GetModelForKey(Key);
+			if (Channel)
 			{
-				KeyHandles.Add(Key.KeyHandle);
+				KeyHandles.Add(Key);
 
 				if (!CommonSection)
 				{
-					CommonSection = Key.WeakChannel.Pin()->GetSection();
+					CommonSection = Channel->GetSection();
 				}
-				else if (CommonSection != Key.WeakChannel.Pin()->GetSection())
+				else if (CommonSection != Channel->GetSection())
 				{
 					CommonSection = nullptr;
 					return;
@@ -117,7 +122,7 @@ void FKeyContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtend
 	{
 		ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked<ISequencerModule>("Sequencer");
 
-		FSelectedKeysByChannel SelectedKeysByChannel(SequencerPtr->GetSelection().GetSelectedKeys().Array());
+		FSelectedKeysByChannel SelectedKeysByChannel(SequencerPtr->GetViewModel()->GetSelection()->KeySelection);
 
 		TMap<FName, TArray<FExtendKeyMenuParams>> ChannelAndHandlesByType;
 		for (FSelectedChannelInfo& ChannelInfo : SelectedKeysByChannel.SelectedChannels)
@@ -198,25 +203,22 @@ FSectionContextMenu::FSectionContextMenu(FSequencer& InSeqeuncer, FFrameTime InM
 	: Sequencer(StaticCastSharedRef<FSequencer>(InSeqeuncer.AsShared()))
 	, MouseDownTime(InMouseDownTime)
 {
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (UMovieSceneSection* Section = WeakSection.Get())
+		FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
+		for (const FMovieSceneChannelEntry& Entry : ChannelProxy.GetAllEntries())
 		{
-			FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
-			for (const FMovieSceneChannelEntry& Entry : ChannelProxy.GetAllEntries())
+			FName ChannelTypeName = Entry.GetChannelTypeName();
+
+			TArray<UMovieSceneSection*>& SectionArray = SectionsByType.FindOrAdd(ChannelTypeName);
+			SectionArray.Add(Section);
+
+			TArray<FMovieSceneChannelHandle>& ChannelHandles = ChannelsByType.FindOrAdd(ChannelTypeName);
+
+			const int32 NumChannels = Entry.GetChannels().Num();
+			for (int32 Index = 0; Index < NumChannels; ++Index)
 			{
-				FName ChannelTypeName = Entry.GetChannelTypeName();
-
-				TArray<UMovieSceneSection*>& SectionArray = SectionsByType.FindOrAdd(ChannelTypeName);
-				SectionArray.Add(Section);
-
-				TArray<FMovieSceneChannelHandle>& ChannelHandles = ChannelsByType.FindOrAdd(ChannelTypeName);
-
-				const int32 NumChannels = Entry.GetChannels().Num();
-				for (int32 Index = 0; Index < NumChannels; ++Index)
-				{
-					ChannelHandles.Add(ChannelProxy.MakeHandle(ChannelTypeName, Index));
-				}
+				ChannelHandles.Add(ChannelProxy.MakeHandle(ChannelTypeName, Index));
 			}
 		}
 	}
@@ -231,6 +233,8 @@ void FSectionContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExten
 
 void FSectionContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FExtender> MenuExtender)
 {
+	using namespace UE::Sequencer;
+
 	// Copy a reference to the context menu by value into each lambda handler to ensure the type stays alive until the menu is closed
 	TSharedRef<FSectionContextMenu> Shared = AsShared();
 
@@ -260,15 +264,14 @@ void FSectionContextMenu::PopulateMenu(FMenuBuilder& MenuBuilder, TSharedPtr<FEx
 		FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder)
 		{
 			TArray<TWeakObjectPtr<UObject>> Sections;
+			for (TViewModelPtr<FSectionModel> SectionModel : Sequencer->GetViewModel()->GetSelection()->TrackArea.Filter<FSectionModel>())
 			{
-				for (TWeakObjectPtr<UMovieSceneSection> Section : Sequencer->GetSelection().GetSelectedSections())
+				if (UMovieSceneSection* Section = SectionModel->GetSection())
 				{
-					if (Section.IsValid())
-					{
-						Sections.Add(Section);
-					}
+					Sections.Add(Section);
 				}
 			}
+
 			SequencerHelpers::AddPropertiesMenu(*Sequencer, SubMenuBuilder, Sections);
 		})
 	);
@@ -570,13 +573,10 @@ FMovieSceneBlendTypeField FSectionContextMenu::GetSupportedBlendTypes() const
 {
 	FMovieSceneBlendTypeField BlendTypes = FMovieSceneBlendTypeField::All();
 
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (UMovieSceneSection* Section = WeakSection.Get())
-		{
-			// Remove unsupported blend types
-			BlendTypes.Remove(Section->GetSupportedBlendTypes().Invert());
-		}
+		// Remove unsupported blend types
+		BlendTypes.Remove(Section->GetSupportedBlendTypes().Invert());
 	}
 
 	return BlendTypes;
@@ -602,13 +602,14 @@ void FSectionContextMenu::AddOrderMenu(FMenuBuilder& MenuBuilder)
 
 void FSectionContextMenu::AddBlendTypeMenu(FMenuBuilder& MenuBuilder)
 {
-	TArray<TWeakObjectPtr<UMovieSceneSection>> Sections;
+	using namespace UE::Sequencer;
 
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
+	TArray<TWeakObjectPtr<UMovieSceneSection>> Sections;
+	for (TViewModelPtr<FSectionModel> SectionModel : Sequencer->GetViewModel()->GetSelection()->TrackArea.Filter<FSectionModel>())
 	{
-		if (WeakSection.IsValid())
+		if (UMovieSceneSection* Section = SectionModel->GetSection())
 		{
-			Sections.Add(WeakSection);
+			Sections.Add(Section);
 		}
 	}
 
@@ -622,32 +623,23 @@ void FSectionContextMenu::SelectAllKeys()
 
 	TArray<FKeyHandle> HandlesScratch;
 
-	FSequencerSelection& Selection = Sequencer->GetSelection();
-	for (const TWeakPtr<FViewModel>& WeakModel : Selection.GetSelectedTrackAreaItems())
+	FSequencerSelection& Selection = *Sequencer->GetViewModel()->GetSelection();
+	for (TViewModelPtr<FSectionModel> Section : Selection.TrackArea.Filter<FSectionModel>())
 	{
-		TViewModelPtr<FSectionModel> Section = CastViewModel<FSectionModel>(WeakModel.Pin());
-		if (Section)
+		UMovieSceneSection* SectionObject = Section->GetSection();
+		if (SectionObject)
 		{
-			UMovieSceneSection* SectionObject = Section->GetSection();
-			if (SectionObject)
+			// Iterate all channels
+			for (const TViewModelPtr<FChannelModel>& Channel : Section->GetDescendantsOfType<FChannelModel>())
 			{
-				FSequencerSelectedKey SelectedKey(*SectionObject, nullptr, FKeyHandle::Invalid());
-
-				// Iterate all channels
-				for (const TViewModelPtr<FChannelModel>& Channel : Section->GetDescendantsOfType<FChannelModel>())
+				if (Channel->GetLinkedOutlinerItem() && !Channel->GetLinkedOutlinerItem()->IsFilteredOut())
 				{
-					if (Channel->GetLinkedOutlinerItem() && !Channel->GetLinkedOutlinerItem()->IsFilteredOut())
+					HandlesScratch.Reset();
+					Channel->GetKeyArea()->GetKeyHandles(HandlesScratch);
+
+					for (FKeyHandle KeyHandle : HandlesScratch)
 					{
-						SelectedKey.WeakChannel = Channel;
-
-						HandlesScratch.Reset();
-						Channel->GetKeyArea()->GetKeyHandles(HandlesScratch);
-
-						for (FKeyHandle KeyHandle : HandlesScratch)
-						{
-							SelectedKey.KeyHandle = KeyHandle;
-							Selection.AddToSelection(SelectedKey);
-						}
+						Selection.KeySelection.Select(Channel, KeyHandle);
 					}
 				}
 			}
@@ -663,39 +655,34 @@ void FSectionContextMenu::CopyAllKeys()
 
 void FSectionContextMenu::SetSectionToKey()
 {
-	if (Sequencer->GetSelection().GetSelectedSections().Num() != 1)
+	if (Sequencer->GetViewModel()->GetSelection()->GetSelectedSections().Num() != 1)
 	{
 		return;
 	}
 
 	const bool bToggle = IsSectionToKey();
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (UMovieSceneSection* Section = WeakSection.Get())
+		UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
+		if (Track)
 		{
-			UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
-			if (Track)
-			{
-				FScopedTransaction Transaction(LOCTEXT("SetSectionToKey", "Set Section To Key"));
-				Track->Modify();
-				Track->SetSectionToKey(bToggle ? nullptr : Section);
-			}
+			FScopedTransaction Transaction(LOCTEXT("SetSectionToKey", "Set Section To Key"));
+			Track->Modify();
+			Track->SetSectionToKey(bToggle ? nullptr : Section);
 		}
+
 		break;
 	}
 }
 
 bool FSectionContextMenu::IsSectionToKey() const
 {
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (UMovieSceneSection* Section = WeakSection.Get())
+		UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
+		if (Track && Track->GetSectionToKey() != Section)
 		{
-			UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
-			if (Track && Track->GetSectionToKey() != Section)
-			{
-				return false;
-			}
+			return false;
 		}
 	}
 	return true;
@@ -703,20 +690,17 @@ bool FSectionContextMenu::IsSectionToKey() const
 
 bool FSectionContextMenu::CanSetSectionToKey() const
 {
-	if (Sequencer->GetSelection().GetSelectedSections().Num() != 1)
+	if (Sequencer->GetViewModel()->GetSelection()->GetSelectedSections().Num() != 1)
 	{
 		return false;
 	}
 
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (UMovieSceneSection* Section = WeakSection.Get())
+		UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
+		if (Track && Section->GetBlendType().IsValid() && (Section->GetBlendType().Get() == EMovieSceneBlendType::Absolute || Section->GetBlendType().Get() == EMovieSceneBlendType::Additive))
 		{
-			UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
-			if (Track && Section->GetBlendType().IsValid() && (Section->GetBlendType().Get() == EMovieSceneBlendType::Absolute || Section->GetBlendType().Get() == EMovieSceneBlendType::Additive))
-			{
-				return true;
-			}
+			return true;
 		}
 
 		break;
@@ -744,9 +728,9 @@ void FSectionContextMenu::AutoSizeSection()
 {
 	FScopedTransaction AutoSizeSectionTransaction(LOCTEXT("AutoSizeSection_Transaction", "Auto Size Section"));
 
-	for (auto Section : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (Section.IsValid() && Section->GetAutoSizeRange().IsSet())
+		if (Section && Section->GetAutoSizeRange().IsSet())
 		{
 			TOptional<TRange<FFrameNumber> > DefaultSectionLength = Section->GetAutoSizeRange();
 
@@ -768,14 +752,14 @@ void FSectionContextMenu::ReduceKeys()
 	FScopedTransaction ReduceKeysTransaction(LOCTEXT("ReduceKeys_Transaction", "Reduce Keys"));
 
 	TSet<TSharedPtr<IKeyArea> > KeyAreas;
-	for (const TWeakPtr<FViewModel>& WeakItem : Sequencer->GetSelection().GetSelectedOutlinerItems())
+	for (TViewModelPtr<IOutlinerExtension> Item : Sequencer->GetViewModel()->GetSelection()->Outliner)
 	{
-		SequencerHelpers::GetAllKeyAreas(WeakItem.Pin(), KeyAreas);
+		SequencerHelpers::GetAllKeyAreas(Item, KeyAreas);
 	}
 
 	if (KeyAreas.Num() == 0)
 	{
-		for (const TWeakPtr<FViewModel>& DisplayNode : Sequencer->GetSelection().GetNodesWithSelectedKeysOrSections())
+		for (const TWeakViewModelPtr<IOutlinerExtension>& DisplayNode : Sequencer->GetViewModel()->GetSelection()->GetNodesWithSelectedKeysOrSections())
 		{
 			SequencerHelpers::GetAllKeyAreas(DisplayNode.Pin(), KeyAreas);
 		}
@@ -807,9 +791,9 @@ void FSectionContextMenu::ReduceKeys()
 
 bool FSectionContextMenu::CanAutoSize() const
 {
-	for (auto Section : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (Section.IsValid() && Section->GetAutoSizeRange().IsSet())
+		if (Section && Section->GetAutoSizeRange().IsSet())
 		{
 			return true;
 		}
@@ -822,14 +806,14 @@ bool FSectionContextMenu::CanReduceKeys() const
 	using namespace UE::Sequencer;
 
 	TSet<TSharedPtr<IKeyArea> > KeyAreas;
-	for (const TWeakPtr<FViewModel>& WeakItem : Sequencer->GetSelection().GetSelectedOutlinerItems())
+	for (const TWeakPtr<FViewModel>& WeakItem : Sequencer->GetViewModel()->GetSelection()->Outliner)
 	{
 		SequencerHelpers::GetAllKeyAreas(WeakItem.Pin(), KeyAreas);
 	}
 
 	if (KeyAreas.Num() == 0)
 	{
-		for (const TWeakPtr<FViewModel>& DisplayNode : Sequencer->GetSelection().GetNodesWithSelectedKeysOrSections())
+		for (const TWeakViewModelPtr<IOutlinerExtension>& DisplayNode : Sequencer->GetViewModel()->GetSelection()->GetNodesWithSelectedKeysOrSections())
 		{
 			SequencerHelpers::GetAllKeyAreas(DisplayNode.Pin(), KeyAreas);
 		}
@@ -845,14 +829,14 @@ void FSectionContextMenu::SetInterpTangentMode(ERichCurveInterpMode InterpMode, 
 	FScopedTransaction SetInterpTangentModeTransaction(LOCTEXT("SetInterpTangentMode_Transaction", "Set Interpolation and Tangent Mode"));
 
 	TSet<TSharedPtr<IKeyArea> > KeyAreas;
-	for (const TWeakPtr<FViewModel>& WeakItem : Sequencer->GetSelection().GetSelectedOutlinerItems())
+	for (const TWeakPtr<FViewModel>& WeakItem : Sequencer->GetViewModel()->GetSelection()->Outliner)
 	{
 		SequencerHelpers::GetAllKeyAreas(WeakItem.Pin(), KeyAreas);
 	}
 
 	if (KeyAreas.Num() == 0)
 	{
-		for (const TWeakPtr<FViewModel>& DisplayNode : Sequencer->GetSelection().GetNodesWithSelectedKeysOrSections())
+		for (const TWeakViewModelPtr<IOutlinerExtension>& DisplayNode : Sequencer->GetViewModel()->GetSelection()->GetNodesWithSelectedKeysOrSections())
 		{
 			SequencerHelpers::GetAllKeyAreas(DisplayNode.Pin(), KeyAreas);
 		}
@@ -915,14 +899,14 @@ bool FSectionContextMenu::CanSetInterpTangentMode() const
 	using namespace UE::Sequencer;
 
 	TSet<TSharedPtr<IKeyArea> > KeyAreas;
-	for (const TWeakPtr<FViewModel>& WeakItem : Sequencer->GetSelection().GetSelectedOutlinerItems())
+	for (const TWeakPtr<FViewModel>& WeakItem : Sequencer->GetViewModel()->GetSelection()->Outliner)
 	{
 		SequencerHelpers::GetAllKeyAreas(WeakItem.Pin(), KeyAreas);
 	}
 
 	if (KeyAreas.Num() == 0)
 	{
-		for (const TWeakPtr<FViewModel>& DisplayNode : Sequencer->GetSelection().GetNodesWithSelectedKeysOrSections())
+		for (const TWeakViewModelPtr<IOutlinerExtension>& DisplayNode : Sequencer->GetViewModel()->GetSelection()->GetNodesWithSelectedKeysOrSections())
 		{
 			SequencerHelpers::GetAllKeyAreas(DisplayNode.Pin(), KeyAreas);
 		}
@@ -948,14 +932,11 @@ void FSectionContextMenu::ToggleSectionActive()
 	bool bIsActive = !IsSectionActive();
 	bool bAnythingChanged = false;
 
-	for (auto Section : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (Section.IsValid())
-		{
-			bAnythingChanged = true;
-			Section->Modify();
-			Section->SetIsActive(bIsActive);
-		}
+		bAnythingChanged = true;
+		Section->Modify();
+		Section->SetIsActive(bIsActive);
 	}
 
 	if (bAnythingChanged)
@@ -971,9 +952,9 @@ void FSectionContextMenu::ToggleSectionActive()
 bool FSectionContextMenu::IsSectionActive() const
 {
 	// Active only if all are active
-	for (auto Section : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (Section.IsValid() && !Section->IsActive())
+		if (Section && !Section->IsActive())
 		{
 			return false;
 		}
@@ -989,9 +970,9 @@ void FSectionContextMenu::ToggleSectionLocked()
 	bool bIsLocked = !IsSectionLocked();
 	bool bAnythingChanged = false;
 
-	for (auto Section : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (Section.IsValid())
+		if (Section)
 		{
 			bAnythingChanged = true;
 			Section->Modify();
@@ -1013,9 +994,9 @@ void FSectionContextMenu::ToggleSectionLocked()
 bool FSectionContextMenu::IsSectionLocked() const
 {
 	// Locked only if all are locked
-	for (auto Section : Sequencer->GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		if (Section.IsValid() && !Section->IsLocked())
+		if (Section && !Section->IsLocked())
 		{
 			return false;
 		}
@@ -1027,7 +1008,7 @@ bool FSectionContextMenu::IsSectionLocked() const
 
 void FSectionContextMenu::DeleteSection()
 {
-	Sequencer->DeleteSections(Sequencer->GetSelection().GetSelectedSections());
+	Sequencer->DeleteSections(Sequencer->GetViewModel()->GetSelection()->GetSelectedSections());
 }
 
 
@@ -1061,14 +1042,8 @@ TMap<UMovieSceneTrack*, TMap<int32, FTrackSectionRow>> GenerateTrackRowsFromSele
 {
 	TMap<UMovieSceneTrack*, TMap<int32, FTrackSectionRow>> TrackRows;
 
-	for (const TWeakObjectPtr<UMovieSceneSection>& SectionPtr : Sequencer.GetSelection().GetSelectedSections())
+	for (UMovieSceneSection* Section : Sequencer.GetViewModel()->GetSelection()->GetSelectedSections())
 	{
-		UMovieSceneSection* Section = SectionPtr.Get();
-		if (!Section)
-		{
-			continue;
-		}
-
 		UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
 		if (!Track)
 		{
@@ -1473,9 +1448,9 @@ void FPasteContextMenu::Setup()
 	else
 	{
 		// Use the selected sections
-		for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sequencer->GetSelection().GetSelectedSections())
+		for (UMovieSceneSection* WeakSection : Sequencer->GetViewModel()->GetSelection()->GetSelectedSections())
 		{
-			if (TSharedPtr<FSectionModel> SectionHandle = Sequencer->GetNodeTree()->GetSectionModel(WeakSection.Get()))
+			if (TSharedPtr<FSectionModel> SectionHandle = Sequencer->GetNodeTree()->GetSectionModel(WeakSection))
 			{
 				SectionModels.Add(SectionHandle);
 			}
@@ -1623,6 +1598,8 @@ void FPasteContextMenu::BeginPasteInto()
 
 void FPasteContextMenu::EndPasteInto(bool bAnythingPasted, const TSet<FSequencerSelectedKey>& NewSelection)
 {
+	using namespace UE::Sequencer;
+
 	if (!bAnythingPasted)
 	{
 		GEditor->CancelTransaction(0);
@@ -1633,17 +1610,21 @@ void FPasteContextMenu::EndPasteInto(bool bAnythingPasted, const TSet<FSequencer
 
 	UE::Sequencer::SSequencerSection::ThrobKeySelection();
 
-	FSequencerSelection& Selection = Sequencer->GetSelection();
-	Selection.SuspendBroadcast();
-	Selection.EmptySelectedTrackAreaItems();
-	Selection.EmptySelectedKeys();
-
-	for (const FSequencerSelectedKey& Key : NewSelection)
+	FSequencerSelection& Selection = *Sequencer->GetViewModel()->GetSelection();
 	{
-		Selection.AddToSelection(Key);
+		FSelectionEventSuppressor EventSuppressor = Selection.SuppressEvents();
+
+		Selection.TrackArea.Empty();
+		Selection.KeySelection.Empty();
+
+		for (const FSequencerSelectedKey& NewKey : NewSelection)
+		{
+			if (TSharedPtr<FChannelModel> Channel = NewKey.WeakChannel.Pin())
+			{
+				Selection.KeySelection.Select(Channel, NewKey.KeyHandle);
+			}
+		}
 	}
-	Selection.ResumeBroadcast();
-	Selection.GetOnKeySelectionChanged().Broadcast();
 
 	Sequencer->OnClipboardUsed(Args.Clipboard);
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);

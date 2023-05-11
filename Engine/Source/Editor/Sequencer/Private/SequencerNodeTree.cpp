@@ -2,6 +2,7 @@
 
 #include "SequencerNodeTree.h"
 #include "MVVM/ViewModels/ViewModelHierarchy.h"
+#include "MVVM/Selection/Selection.h"
 #include "MovieSceneBinding.h"
 #include "GameFramework/Actor.h"
 #include "MovieScene.h"
@@ -345,9 +346,7 @@ bool FSequencerNodeTree::IsSelectedNodesSolo() const
 {
 	using namespace UE::Sequencer;
 
-	const TSet<TWeakPtr<FViewModel>> SelectedNodes = Sequencer.GetSelection().GetSelectedOutlinerItems();
-	
-	if (SelectedNodes.Num() == 0)
+	if (Sequencer.GetViewModel()->GetSelection()->Outliner.Num() == 0)
 	{
 		return false;
 	}
@@ -355,7 +354,7 @@ bool FSequencerNodeTree::IsSelectedNodesSolo() const
 	const TArray<FString>& SoloNodes = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetSoloNodes();
 
 	bool bIsSolo = true;
-	for (const TWeakPtr<FViewModel>& Node : SelectedNodes)
+	for (FViewModelPtr Node : Sequencer.GetViewModel()->GetSelection()->Outliner)
 	{
 		if (!SoloNodes.Contains(IOutlinerExtension::GetPathName(Node)))
 		{
@@ -380,8 +379,7 @@ void FSequencerNodeTree::ToggleSelectedNodesSolo()
 	
 	TArray<FString>& SoloNodes = MovieScene->GetSoloNodes();
 
-	const TSet<TWeakPtr<FViewModel>> SelectedNodes = Sequencer.GetSelection().GetSelectedOutlinerItems();
-	if (SelectedNodes.Num() == 0)
+	if (Sequencer.GetViewModel()->GetSelection()->Outliner.Num() == 0)
 	{
 		return;
 	}
@@ -389,7 +387,7 @@ void FSequencerNodeTree::ToggleSelectedNodesSolo()
 	// First, determine if any of the selected nodes are not marked as solo
 	// If we have a mix, we should default to setting them all as solo
 	bool bIsSolo = true;
-	for (const TWeakPtr<const FViewModel> Node : SelectedNodes)
+	for (FViewModelPtr Node : Sequencer.GetViewModel()->GetSelection()->Outliner)
 	{
 		if (!SoloNodes.Contains(IOutlinerExtension::GetPathName(Node)))
 		{
@@ -402,7 +400,7 @@ void FSequencerNodeTree::ToggleSelectedNodesSolo()
 
 	MovieScene->Modify();
 
-	for (const TWeakPtr<FViewModel>& Node : SelectedNodes)
+	for (FViewModelPtr Node : Sequencer.GetViewModel()->GetSelection()->Outliner)
 	{
 		FString NodePath = IOutlinerExtension::GetPathName(Node);
 		if (bIsSolo)
@@ -446,9 +444,7 @@ bool FSequencerNodeTree::IsSelectedNodesMute() const
 {
 	using namespace UE::Sequencer;
 
-	const TSet<TWeakPtr<FViewModel>> SelectedNodes = Sequencer.GetSelection().GetSelectedOutlinerItems();
-
-	if (SelectedNodes.Num() == 0)
+	if (Sequencer.GetViewModel()->GetSelection()->Outliner.Num() == 0)
 	{
 		return false;
 	}
@@ -456,7 +452,7 @@ bool FSequencerNodeTree::IsSelectedNodesMute() const
 	const TArray<FString>& MuteNodes = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetMuteNodes();
 
 	bool bIsMute = true;
-	for (const TWeakPtr<const FViewModel> Node : SelectedNodes)
+	for (FViewModelPtr Node : Sequencer.GetViewModel()->GetSelection()->Outliner)
 	{
 		if (!MuteNodes.Contains(IOutlinerExtension::GetPathName(Node)))
 		{
@@ -481,8 +477,7 @@ void FSequencerNodeTree::ToggleSelectedNodesMute()
 
 	TArray<FString>& MuteNodes = MovieScene->GetMuteNodes();
 
-	const TSet<TWeakPtr<FViewModel>> SelectedNodes = Sequencer.GetSelection().GetSelectedOutlinerItems();
-	if (SelectedNodes.Num() == 0)
+	if (Sequencer.GetViewModel()->GetSelection()->Outliner.Num() == 0)
 	{
 		return;
 	}
@@ -490,7 +485,7 @@ void FSequencerNodeTree::ToggleSelectedNodesMute()
 	// First, determine if any of the selected nodes are not marked as Mute
 	// If we have a mix, we should default to setting them all as Mute
 	bool bIsMute = true;
-	for (const TWeakPtr<const FViewModel> Node : SelectedNodes)
+	for (FViewModelPtr Node : Sequencer.GetViewModel()->GetSelection()->Outliner)
 	{
 		if (!MuteNodes.Contains(IOutlinerExtension::GetPathName(Node)))
 		{
@@ -503,7 +498,7 @@ void FSequencerNodeTree::ToggleSelectedNodesMute()
 
 	MovieScene->Modify();
 
-	for (const TWeakPtr<FViewModel>& Node : SelectedNodes)
+	for (FViewModelPtr Node : Sequencer.GetViewModel()->GetSelection()->Outliner)
 	{
 		FString NodePath = IOutlinerExtension::GetPathName(Node);
 		if (bIsMute)
@@ -575,6 +570,9 @@ bool FSequencerNodeTree::GetSavedPinnedState(const UE::Sequencer::FViewModel& No
 bool FSequencerNodeTree::IsNodeFiltered(const TSharedPtr<UE::Sequencer::FViewModel>& Node) const
 {
 	using namespace UE::Sequencer;
+
+	TViewModelPtr<IOutlinerExtension> OutlinerItem = CastViewModel<IOutlinerExtension>(Node);
+	return OutlinerItem && FilteredNodes.Contains(OutlinerItem);
 	return FilteredNodes.Contains(CastViewModel<IOutlinerExtension>(Node));
 }
 

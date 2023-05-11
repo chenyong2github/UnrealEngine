@@ -3,6 +3,7 @@
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "MVVM/ViewModels/SequencerOutlinerViewModel.h"
 #include "MVVM/ViewModels/SequencerTrackAreaViewModel.h"
+#include "MVVM/Selection/Selection.h"
 #include "MVVM/CurveEditorExtension.h"
 #include "MVVM/Extensions/IOutlinerExtension.h"
 #include "MVVM/SharedViewModelData.h"
@@ -85,6 +86,13 @@ void FSequencerEditorViewModel::InitializeEditorImpl()
 	}
 }
 
+TSharedPtr<FSequencerCoreSelection> FSequencerEditorViewModel::CreateSelectionImpl()
+{
+	TSharedPtr<FSequencerSelection> SelectionInst = MakeShared<FSequencerSelection>();
+	SelectionInst->Initialize(SharedThis(this));
+	return SelectionInst;
+}
+
 TSharedPtr<FTrackAreaViewModel> FSequencerEditorViewModel::GetPinnedTrackArea() const
 {
 	return PinnedTrackArea;
@@ -111,6 +119,11 @@ bool FSequencerEditorViewModel::IsReadOnly() const
 {
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	return !Sequencer || Sequencer->IsReadOnly();
+}
+
+TSharedPtr<FSequencerSelection> FSequencerEditorViewModel::GetSelection() const
+{
+	return StaticCastSharedPtr<FSequencerSelection>(FEditorViewModel::GetSelection());
 }
 
 void FSequencerEditorViewModel::HandleDataHierarchyChanged()

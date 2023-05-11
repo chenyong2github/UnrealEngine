@@ -8,7 +8,7 @@
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "MVVM/CurveEditorExtension.h"
-#include "MVVM/ViewModels/EditorViewModel.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 #include "Rigs/RigControlHierarchy.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
@@ -95,7 +95,7 @@ bool FAnimSliderKeySelection::Setup(TWeakPtr<ISequencer>& InSequencer)
 	KeyMap.Reset();
 	if (InSequencer.IsValid())
 	{
-		TSharedPtr<FEditorViewModel> SequencerViewModel = InSequencer.Pin()->GetViewModel();
+		TSharedPtr<FSequencerEditorViewModel> SequencerViewModel = InSequencer.Pin()->GetViewModel();
 		FCurveEditorExtension* CurveEditorExtension = SequencerViewModel->CastDynamic<FCurveEditorExtension>();
 		check(CurveEditorExtension);
 		CurveEditor = CurveEditorExtension->GetCurveEditor();

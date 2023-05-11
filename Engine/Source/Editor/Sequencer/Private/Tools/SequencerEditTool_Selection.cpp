@@ -10,6 +10,7 @@
 #include "IKeyArea.h"
 #include "Tools/SequencerEntityVisitor.h"
 #include "SequencerCommands.h"
+#include "MVVM/Selection/Selection.h"
 #include "MVVM/Views/ISequencerTreeView.h"
 #include "MVVM/Views/ITrackAreaHotspot.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
@@ -27,12 +28,14 @@
 struct FSelectionPreviewVisitor final
 	: ISequencerEntityVisitor
 {
-	FSelectionPreviewVisitor(FSequencerSelectionPreview& InSelectionPreview, FSequencerSelection& InSelection, ESelectionPreviewState InSetStateTo, bool bInPinned)
+	FSelectionPreviewVisitor(FSequencerSelectionPreview& InSelectionPreview, UE::Sequencer::FSequencerSelection& InSelection, ESelectionPreviewState InSetStateTo, bool bInPinned)
 		: SelectionPreview(InSelectionPreview)
-		, ExistingSelection(InSelection.GetRawSelectedKeys())
+		, ExistingSelection(InSelection.KeySelection.GetSelected())
 		, SetStateTo(InSetStateTo)
 		, bPinned(bInPinned)
-	{}
+	{
+		bIsControlDown = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+	}
 
 	virtual void VisitKeys(const UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel>& Channel, const TRange<FFrameNumber>& VisitRangeFrames) const override
 	{
@@ -44,12 +47,6 @@ struct FSelectionPreviewVisitor final
 			return;
 		}
 
-		UMovieSceneSection* Section = Channel->GetSection();
-		if (!Section)
-		{
-			return;
-		}
-
 		KeyHandlesScratch.Reset();
 		Channel->GetKeyArea()->GetKeyInfo(&KeyHandlesScratch, nullptr, VisitRangeFrames);
 
@@ -57,7 +54,7 @@ struct FSelectionPreviewVisitor final
 		{
 			// Under default behavior keys have priority, so if a key is changing selection state then we remove any sections from the selection. The user can bypass this
 			// by holding down the control key which will allow selecting both keys and sections.
-			bool bKeySelectionHasPriority = !FSlateApplication::Get().GetModifierKeys().IsControlDown();
+			bool bKeySelectionHasPriority = !bIsControlDown;
 			bool bKeyIsSelected = ExistingSelection.Contains(KeyHandlesScratch[Index]);
 
 			if (bKeySelectionHasPriority && 
@@ -68,8 +65,7 @@ struct FSelectionPreviewVisitor final
 				SelectionPreview.EmptyDefinedModelStates();
 			}
 
-			FSequencerSelectedKey Key(*Section, Channel, KeyHandlesScratch[Index]);
-			SelectionPreview.SetSelectionState(Key, SetStateTo);
+			SelectionPreview.SetSelectionState(Channel, KeyHandlesScratch[Index], SetStateTo);
 		}
 	}
 
@@ -101,6 +97,7 @@ private:
 	mutable TArray<FKeyHandle> KeyHandlesScratch;
 	ESelectionPreviewState SetStateTo;
 	bool bPinned;
+	bool bIsControlDown;
 };
 
 class FScrubTimeDragOperation
@@ -200,7 +197,7 @@ public:
 		InitialPosition = CurrentPosition = VirtualTrackArea.PhysicalToVirtual(LocalMousePos);
 		CurrentMousePos = LocalMousePos;
 
-		Sequencer.GetSelection().SuspendBroadcast();
+		EventSuppressor = Sequencer.GetViewModel()->GetSelection()->SuppressEventsLongRunning();
 
 		if (MouseEvent.IsShiftDown())
 		{
@@ -216,8 +213,8 @@ public:
 
 			// @todo: selection in transactions
 			//leave selections in the tree view alone so that dragging operations act similarly to click operations which don't change treeview selection state.
-			Sequencer.GetSelection().EmptySelectedKeys();
-			Sequencer.GetSelection().EmptySelectedTrackAreaItems();
+			Sequencer.GetViewModel()->GetSelection()->KeySelection.Empty();
+			Sequencer.GetViewModel()->GetSelection()->TrackArea.Empty();
 		}
 	}
 
@@ -294,44 +291,47 @@ public:
 
 		// Now walk everything within the current marquee range, setting preview selection states as we go
 		FSequencerEntityWalker Walker(FSequencerEntityRange(TopLeft(), BottomRight(), VirtualTrackArea.GetTickResolution()), VirtualKeySize);
-		Walker.Traverse(FSelectionPreviewVisitor(SelectionPreview, Sequencer.GetSelection(), PreviewState, TrackArea.ShowPinned()), Sequencer.GetViewModel()->GetRootModel());
+		Walker.Traverse(FSelectionPreviewVisitor(SelectionPreview, *Sequencer.GetViewModel()->GetSelection(), PreviewState, TrackArea.ShowPinned()), Sequencer.GetViewModel()->GetRootModel());
 	}
 
 	virtual void OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea) override
 	{
+		using namespace UE::Sequencer;
+
 		// finish dragging the marquee selection
-		auto& Selection = Sequencer.GetSelection();
-		auto& SelectionPreview = Sequencer.GetSelectionPreview();
+		FSequencerSelection& Selection = *Sequencer.GetViewModel()->GetSelection();
+		FSequencerSelectionPreview& SelectionPreview = Sequencer.GetSelectionPreview();
 
 		// Patch everything from the selection preview into the actual selection
-		for (const auto& Pair : SelectionPreview.GetDefinedKeyStates())
+		for (const TPair<FKeyHandle, ESelectionPreviewState>& Pair : SelectionPreview.GetDefinedKeyStates())
 		{
 			if (Pair.Value == ESelectionPreviewState::Selected)
 			{
-				// Select it in the main selection
-				Selection.AddToSelection(Pair.Key);
+				Selection.KeySelection.Select(SelectionPreview.GetChannelForKey(Pair.Key), Pair.Key);
 			}
 			else
 			{
-				Selection.RemoveFromSelection(Pair.Key);
+				Selection.KeySelection.Deselect(Pair.Key);
 			}
 		}
 
-		for (const auto& Pair : SelectionPreview.GetDefinedModelStates())
+		for (const TPair<TWeakPtr<FViewModel>, ESelectionPreviewState>& Pair : SelectionPreview.GetDefinedModelStates())
 		{
-			if (Pair.Value == ESelectionPreviewState::Selected)
+			if (TSharedPtr<FViewModel> Model = Pair.Key.Pin())
 			{
-				// Select it in the main selection
-				Selection.AddToSelection(Pair.Key.Pin());
-			}
-			else
-			{
-				Selection.RemoveFromSelection(Pair.Key.Pin());
+				if (TViewModelPtr<IOutlinerExtension> OutlinerItem = CastViewModel<IOutlinerExtension>(Model))
+				{
+					Selection.Outliner.Select(OutlinerItem);
+				}
+				else
+				{
+					Selection.TrackArea.Select(Model);
+				}
 			}
 		}
 
-		Selection.ResumeBroadcast();
-		Selection.RequestOutlinerNodeSelectionChangedBroadcast();
+		// Broadcast selection events
+		EventSuppressor = nullptr;
 
 		// We're done with this now
 		SelectionPreview.Empty();
@@ -379,6 +379,8 @@ private:
 	FSequencer& Sequencer;
 
 	UE::Sequencer::STrackAreaView& TrackArea;
+
+	TUniquePtr<UE::Sequencer::FSelectionEventSuppressor> EventSuppressor;
 
 	/** Sequencer widget */
 	TSharedRef<SSequencer> SequencerWidget;

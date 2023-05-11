@@ -2,6 +2,7 @@
 
 #include "SequencerCoreModule.h"
 #include "Modules/ModuleManager.h"
+#include "SequencerCoreLog.h"
 
 namespace UE
 {
@@ -23,4 +24,5 @@ class FSequencerCoreModule
 } // namespace UE
 
 
+DEFINE_LOG_CATEGORY(LogSequencerCore);
 IMPLEMENT_MODULE(UE::Sequencer::FSequencerCoreModule, SequencerCore);

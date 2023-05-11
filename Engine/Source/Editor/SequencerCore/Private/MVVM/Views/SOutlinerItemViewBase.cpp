@@ -412,22 +412,33 @@ FSlateColor SOutlinerItemViewBase::GetNodeBackgroundTint() const
 	{
 		return FStyleColors::Select;
 	}
-	else if (EnumHasAnyFlags(SelectionState, EOutlinerSelectionState::HasSelectedKeys | EOutlinerSelectionState::HasSelectedTrackAreaItems))
+	if (EnumHasAnyFlags(SelectionState, EOutlinerSelectionState::HasSelectedKeys | EOutlinerSelectionState::HasSelectedTrackAreaItems))
 	{
 		return FStyleColors::Header;
 	}
-	else if (Editor->GetOutliner()->GetHoveredItem() == OutlinerItem.AsModel())
+
+	// If this is collapsed but has any children with selected keys or sections, we report that state on the parent
+	if (!OutlinerItem->IsExpanded())
+	{
+		for (TViewModelPtr<IOutlinerExtension> Child : OutlinerItem.AsModel()->GetDescendantsOfType<IOutlinerExtension>())
+		{
+			if (EnumHasAnyFlags(SelectionState, EOutlinerSelectionState::HasSelectedKeys | EOutlinerSelectionState::HasSelectedTrackAreaItems))
+			{
+				return FStyleColors::Header;
+			}
+		}
+	}
+
+	if (Editor->GetOutliner()->GetHoveredItem() == OutlinerItem)
 	{
 		return ItemStyle == EOutlinerItemViewBaseStyle::ContainerHeader
 			? FLinearColor(FColor(52, 52, 52, 255))
 			: FLinearColor(FColor(72, 72, 72, 255));
 	}
-	else
-	{
-		return ItemStyle == EOutlinerItemViewBaseStyle::ContainerHeader
-			? FLinearColor(FColor(48, 48, 48, 255))
-			: FLinearColor(FColor(62, 62, 62, 255));
-	}
+
+	return ItemStyle == EOutlinerItemViewBaseStyle::ContainerHeader
+		? FLinearColor(FColor(48, 48, 48, 255))
+		: FLinearColor(FColor(62, 62, 62, 255));
 }
 
 FSlateColor SOutlinerItemViewBase::GetNodeInnerBackgroundTint() const
@@ -445,7 +456,7 @@ FSlateColor SOutlinerItemViewBase::GetNodeInnerBackgroundTint() const
 		{
 			return FStyleColors::Header;
 		}
-		else if (Editor->GetOutliner()->GetHoveredItem() == OutlinerItem.AsModel())
+		else if (Editor->GetOutliner()->GetHoveredItem() == OutlinerItem)
 		{
 			return FLinearColor( FColor( 52, 52, 52, 255 ) );
 		}

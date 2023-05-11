@@ -139,7 +139,7 @@ public:
 	 *
 	 * @return (Optional) The channel's default value
 	 */
-	FORCEINLINE FMovieSceneActorReferenceKey GetDefault() const
+	FORCEINLINE const FMovieSceneActorReferenceKey& GetDefault() const
 	{
 		return DefaultValue;
 	}

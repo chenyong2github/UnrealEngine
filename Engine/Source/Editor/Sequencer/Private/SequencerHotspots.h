@@ -19,14 +19,17 @@ namespace UE
 namespace Sequencer
 {
 
+struct FSelectionEventSuppressor;
+
 class FSectionModel;
 class ISequencerEditToolDragOperation;
 
 struct FHotspotSelectionManager
 {
 	const FPointerEvent* MouseEvent;
-	FSequencerSelection* Selection;
+	TSharedPtr<FSequencerSelection> Selection;
 	FSequencer* Sequencer;
+	TUniquePtr<FSelectionEventSuppressor> EventSuppressor;
 
 	bool bForceSelect;
 	bool bAddingToSelection;

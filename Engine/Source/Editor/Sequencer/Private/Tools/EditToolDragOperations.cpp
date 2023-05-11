@@ -8,6 +8,7 @@
 #include "Sequencer.h"
 #include "SequencerSettings.h"
 #include "SequencerCommonHelpers.h"
+#include "MVVM/Selection/Selection.h"
 #include "MVVM/ViewModels/ViewModel.h"
 #include "MVVM/SectionModelStorageExtension.h"
 #include "MVVM/Extensions/IDraggableTrackAreaExtension.h"
@@ -100,15 +101,16 @@ void FEditToolDragOperation::EndTransaction()
 	Sequencer.NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
 }
 
-FResizeSection::FResizeSection( FSequencer& InSequencer, const TSet<TWeakObjectPtr<UMovieSceneSection>>& InSections, bool bInDraggingByEnd, bool bInIsSlipping )
+FResizeSection::FResizeSection( FSequencer& InSequencer, bool bInDraggingByEnd, bool bInIsSlipping )
 	: FEditToolDragOperation( InSequencer )
 	, bDraggingByEnd(bInDraggingByEnd)
 	, bIsSlipping(bInIsSlipping)
 	, MouseDownTime(0)
 {
-	Sections.Reserve(InSections.Num());
+	TSet<UMovieSceneSection*> SelectedSections = Sequencer.GetViewModel()->GetSelection()->GetSelectedSections();
+	Sections.Reserve(SelectedSections.Num());
 
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : InSections)
+	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : SelectedSections)
 	{
 		UMovieSceneSection* Section = WeakSection.Get();
 		if (Section)
@@ -625,11 +627,17 @@ FMoveKeysAndSections::FMoveKeysAndSections(FSequencer& InSequencer, ESequencerMo
 	if (EnumHasAnyFlags(MoveType, ESequencerMoveOperationType::MoveKeys))
 	{
 		// Filter out the keys on sections that are read only
-		for (const FSequencerSelectedKey& SelectedKey : Sequencer.GetSelection().GetSelectedKeys())
+		const FKeySelection& KeySelection = Sequencer.GetViewModel()->GetSelection()->KeySelection;
+
+		Keys.Reserve(KeySelection.Num());
+
+		for (FKeyHandle Key : KeySelection)
 		{
-			if (!SelectedKey.Section->IsReadOnly())
+			TSharedPtr<FChannelModel> Channel = KeySelection.GetModelForKey(Key);
+			UMovieSceneSection*       Section = Channel ? Channel->GetSection() : nullptr;
+			if (Section && !Section->IsReadOnly())
 			{
-				Keys.Add(SelectedKey);
+				Keys.Emplace(FSequencerSelectedKey(*Section, Channel, Key));
 			}
 		}
 
@@ -638,17 +646,14 @@ FMoveKeysAndSections::FMoveKeysAndSections(FSequencer& InSequencer, ESequencerMo
 
 	if (EnumHasAnyFlags(MoveType, ESequencerMoveOperationType::MoveSections))
 	{
-		for (TWeakPtr<FViewModel> WeakSelectedModel : Sequencer.GetSelection().GetSelectedTrackAreaItems())
+		for (TViewModelPtr<IDraggableTrackAreaExtension> DraggableItem : Sequencer.GetViewModel()->GetSelection()->TrackArea.Filter<IDraggableTrackAreaExtension>())
 		{
-			if (TSharedPtr<IDraggableTrackAreaExtension> DraggableItem = ICastable::CastWeakPtrShared<IDraggableTrackAreaExtension>(WeakSelectedModel))
-			{
-				DraggableItem->OnBeginDrag(*this);
-			}
+			DraggableItem->OnBeginDrag(*this);
 		}
 	}
 
 	// Always move selected marked frames along with keys and/or sections.
-	MarkedFrames = Sequencer.GetSelection().GetSelectedMarkedFrames();
+	MarkedFrames = Sequencer.GetViewModel()->GetSelection()->MarkedFrames.GetSelected();
 }
 
 void FMoveKeysAndSections::AddSnapTime(FFrameNumber SnapTime)

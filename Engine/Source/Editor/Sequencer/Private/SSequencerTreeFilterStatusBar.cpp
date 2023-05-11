@@ -5,6 +5,8 @@
 
 #include "MovieScene.h"
 #include "MovieSceneSequence.h"
+#include "MVVM/Selection/Selection.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
 
 #include "Algo/Count.h"
 #include "Widgets/SBoxPanel.h"
@@ -82,7 +84,7 @@ void SSequencerTreeFilterStatusBar::UpdateText()
 	FLinearColor NewColor = FLinearColor::White;
 
 	const TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
-	const TSet<TWeakPtr<FViewModel>>& SelectedOutlinerItems = Sequencer->GetSelection().GetSelectedOutlinerItems();
+	const FOutlinerSelection& SelectedOutlinerItems = Sequencer->GetViewModel()->GetSelection()->Outliner;
 
 	FFormatNamedArguments NamedArgs;
 	NamedArgs.Add("Total", NodeTree->GetTotalDisplayNodeCount());

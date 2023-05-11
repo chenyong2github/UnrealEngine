@@ -9,6 +9,7 @@ public class SequencerCore : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"CoreUObject",
 				"CurveEditor",
 				"Engine",
 				"GraphEditor",

@@ -5,6 +5,7 @@
 #include "Channels/MovieSceneChannelHandle.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Set.h"
 #include "Curves/KeyHandle.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
@@ -20,6 +21,7 @@ namespace UE
 namespace Sequencer
 {
 
+struct FKeySelection;
 class FChannelModel;
 
 } // namespace Sequencer 
@@ -40,6 +42,8 @@ struct FSequencerSelectedKey
 	FKeyHandle KeyHandle;
 
 public:
+
+	static void AppendKeySelection(TSet<FSequencerSelectedKey>& OutSelectedKeys, const UE::Sequencer::FKeySelection& InKeySelection);
 
 	/** Create and initialize a new instance. */
 	FSequencerSelectedKey(UMovieSceneSection& InSection, TWeakPtr<UE::Sequencer::FChannelModel> InChannel, FKeyHandle InKeyHandle)
@@ -101,6 +105,7 @@ struct FSelectedChannelInfo
  */
 struct FSelectedKeysByChannel
 {
+	explicit FSelectedKeysByChannel(const UE::Sequencer::FKeySelection& KeySelection);
 	explicit FSelectedKeysByChannel(TArrayView<const FSequencerSelectedKey> InSelectedKeys);
 
 	/** Array storing all selected keys for each channel */

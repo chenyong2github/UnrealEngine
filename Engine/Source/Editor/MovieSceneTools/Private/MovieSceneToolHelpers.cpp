@@ -123,11 +123,11 @@ void FSkelMeshRecorderState::FinishRecording()
 /* MovieSceneToolHelpers
  *****************************************************************************/
 
-void MovieSceneToolHelpers::TrimSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time, bool bTrimLeft, bool bDeleteKeys)
+void MovieSceneToolHelpers::TrimSection(const TSet<UMovieSceneSection*>& Sections, FQualifiedFrameTime Time, bool bTrimLeft, bool bDeleteKeys)
 {
-	for (auto Section : Sections)
+	for (UMovieSceneSection* Section : Sections)
 	{
-		if (Section.IsValid())
+		if (Section)
 		{
 			Section->TrimSection(Time, bTrimLeft, bDeleteKeys);
 		}
@@ -217,11 +217,11 @@ void MovieSceneToolHelpers::TrimOrExtendSection(UMovieSceneTrack* Track, TOption
 }
 
 
-void MovieSceneToolHelpers::SplitSection(const TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections, FQualifiedFrameTime Time, bool bDeleteKeys)
+void MovieSceneToolHelpers::SplitSection(const TSet<UMovieSceneSection*>& Sections, FQualifiedFrameTime Time, bool bDeleteKeys)
 {
-	for (auto Section : Sections)
+	for (UMovieSceneSection* Section : Sections)
 	{
-		if (Section.IsValid())
+		if (Section)
 		{
 			Section->SplitSection(Time, bDeleteKeys);
 		}
