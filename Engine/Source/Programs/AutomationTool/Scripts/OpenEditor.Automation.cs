@@ -17,6 +17,7 @@ namespace AutomationTool
 
 	[Help("Opens the specified project.")]
 	[Help("project=<QAGame>", "Project to open. Will search current path and paths in ueprojectdirs. If omitted will open vanilla UnrealEditor")]
+	[ParamHelp("Run", "The name of the commandlet to run")]
 	public class OpenEditor : BuildCommand
 	{
 		// exposed as a property so projects can derive and set this directly
