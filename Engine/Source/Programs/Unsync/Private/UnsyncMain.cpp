@@ -146,6 +146,13 @@ InnerMain(int Argc, char** Argv)
 	SubInfo->add_option("Input 1", InputFilenameUtf8, "Input manifest file or root directory")->required();
 	SubInfo->add_option("Input 2", InputFilename2Utf8, "Optional input manifest file or root directory");
 	SubInfo->add_flag("--files", bInfoFiles, "List all files in the manifest");
+	SubInfo->add_option(
+		"--include",
+		IncludeFilterArrayUtf8,
+		"Include filenames that contain specified words (comma separated). If this is not present, all files will be included.");
+	SubInfo->add_option("--exclude",
+						ExcludeFilterArrayUtf8,
+						"Exclude filenames that contain specified words (comma separated). Filter is run after --include.");
 	SubCommands.push_back(SubInfo);
 
 	CLI::App* SubDiff = Cli.add_subcommand("diff", "Compute difference required to transform BaseFile into SourceFile");
@@ -702,7 +709,12 @@ InnerMain(int Argc, char** Argv)
 	}
 	else if (Cli.got_subcommand(SubInfo))
 	{
-		return CmdInfo(InputFilename, InputFilename2, bInfoFiles);
+		FCmdInfoOptions Options;
+		Options.InputA = InputFilename;
+		Options.InputB = InputFilename2;
+		Options.bListFiles = bInfoFiles;
+		Options.SyncFilter = &SyncFilter;
+		return CmdInfo(Options);
 	}
 	else if (Cli.got_subcommand(SubQuery))
 	{

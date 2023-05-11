@@ -427,6 +427,13 @@ FHash160 ComputeSerializedManifestHash160(const FDirectoryManifest& Manifest);
 FBlock128			   ToBlock128(const FGenericBlock& GenericBlock);
 std::vector<FBlock128> ToBlock128(FGenericBlockArray& GenericBlocks);
 
-int32 CmdInfo(const FPath& InputA, const FPath& InputB, bool bListFiles);
+struct FCmdInfoOptions
+{
+	FPath InputA;
+	FPath InputB;
+	bool bListFiles = false;
+	const FSyncFilter* SyncFilter = nullptr;
+};
+int32 CmdInfo(const FCmdInfoOptions& Options);
 
 }  // namespace unsync
