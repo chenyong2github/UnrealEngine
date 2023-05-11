@@ -274,7 +274,7 @@ namespace UE::Tasks
 				// execute other tasks of this named thread while waiting
 				ETaskPriority Dummy;
 				EExtendedTaskPriority ExtendedPriority;
-				FBaseGraphTask::TranslatePriority(CurrentThread, Dummy, ExtendedPriority);
+				TranslatePriority(CurrentThread, Dummy, ExtendedPriority);
 
 				auto TaskBody = [CurrentThread, &TaskGraph] { TaskGraph.RequestReturn(CurrentThread); };
 				using FReturnFromNamedThreadTask = TExecutableTask<decltype(TaskBody)>;
@@ -283,7 +283,8 @@ namespace UE::Tasks
 				ReturnTask.TryLaunch(sizeof(ReturnTask)); // the result doesn't matter
 
 				TaskGraph.ProcessThreadUntilRequestReturn(CurrentThread);
-				return IsCompleted();
+				check(Task.IsCompleted());
+				return true;
 			}
 #endif
 
@@ -458,7 +459,31 @@ namespace UE::Tasks
 #endif
 		}
 
-#if TASKGRAPH_NEW_FRONTEND
+		ENamedThreads::Type TranslatePriority(ETaskPriority Priority)
+		{
+			checkSlow(Priority < ETaskPriority::Count);
+
+			ENamedThreads::Type ConversionMap[] =
+			{
+				ENamedThreads::AnyHiPriThreadNormalTask,
+				ENamedThreads::AnyNormalThreadNormalTask,
+				ENamedThreads::AnyBackgroundHiPriTask,
+				ENamedThreads::AnyBackgroundThreadNormalTask,
+				ENamedThreads::AnyBackgroundThreadNormalTask // same as above
+			};
+
+			return ConversionMap[(int32)Priority];
+		}
+
+#if !TASKGRAPH_NEW_FRONTEND
+
+		ENamedThreads::Type TranslatePriority(ETaskPriority Priority, EExtendedTaskPriority /*ExtendedPriority*/)
+		{
+			checkSlow(Priority <= ETaskPriority::Count);
+			return TranslatePriority(Priority);
+		}
+
+#else // !TASKGRAPH_NEW_FRONTEND
 
 		// task priority translation from the new API to the old API
 		ENamedThreads::Type TranslatePriority(EExtendedTaskPriority Priority)
@@ -486,22 +511,14 @@ namespace UE::Tasks
 			return (ENamedThreads::Type)ConversionMap[(int32)Priority - (int32)EExtendedTaskPriority::GameThreadNormalPri];
 		}
 
-#endif
-
-		ENamedThreads::Type TranslatePriority(ETaskPriority Priority)
+		ENamedThreads::Type TranslatePriority(ETaskPriority Priority, EExtendedTaskPriority ExtendedPriority)
 		{
-			checkSlow(Priority < ETaskPriority::Count);
+			checkSlow(Priority <= ETaskPriority::Count);
+			checkSlow(ExtendedPriority <= EExtendedTaskPriority::Count);
 
-			ENamedThreads::Type ConversionMap[] =
-			{
-				ENamedThreads::AnyHiPriThreadNormalTask,
-				ENamedThreads::AnyNormalThreadNormalTask,
-				ENamedThreads::AnyBackgroundHiPriTask,
-				ENamedThreads::AnyBackgroundThreadNormalTask,
-				ENamedThreads::AnyBackgroundThreadNormalTask // same as above
-			};
-
-			return ConversionMap[(int32)Priority];
+			return ExtendedPriority < EExtendedTaskPriority::GameThreadNormalPri || ExtendedPriority == EExtendedTaskPriority::Count ? TranslatePriority(Priority) : TranslatePriority(ExtendedPriority);
 		}
+
+#endif // !TASKGRAPH_NEW_FRONTEND
 	}
 }

@@ -23,6 +23,7 @@
 #include "Containers/LockFreeFixedSizeAllocator.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
 #include "Misc/MemStack.h"
+#include "Misc/Timeout.h"
 #include "Templates/Atomic.h"
 #include "ProfilingDebugging/MetadataTrace.h"
 
@@ -551,14 +552,13 @@ public:
 			return FTaskGraphInterface::Get().WaitUntilTaskCompletes(this, CurrentThreadIfKnown);
 		}
 
-		return FTaskBase::Wait();
+		FTaskBase::Wait(UE::FTimeout::Never());
 	}
 
 	ENamedThreads::Type GetThreadToExecuteOn() const
 	{
-		return UE::Tasks::Private::TranslatePriority(GetExtendedPriority());
+		return UE::Tasks::Private::TranslatePriority(GetPriority(), GetExtendedPriority());
 	}
-
 };
 
 static constexpr int32 SmallTaskSize = 256;
@@ -692,7 +692,7 @@ public:
 		: FBaseGraphTask(nullptr)
 	{
 		TaskTrace::Created(GetTraceId(), sizeof(*this));
-		Init((TEXT("GraphEvent"), UE::Tasks::ETaskPriority::Normal, UE::Tasks::EExtendedTaskPriority::TaskEvent);
+		Init(TEXT("GraphEvent"), UE::Tasks::ETaskPriority::Normal, UE::Tasks::EExtendedTaskPriority::TaskEvent);
 	}
 
 	static void* operator new(size_t Size);

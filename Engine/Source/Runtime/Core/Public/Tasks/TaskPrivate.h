@@ -76,10 +76,7 @@ namespace UE::Tasks
 	namespace Private
 	{
 		CORE_API void TranslatePriority(ENamedThreads::Type ThreadType, ETaskPriority& OutPriority, EExtendedTaskPriority& OutExtendedPriority);
-		CORE_API ENamedThreads::Type TranslatePriority(ETaskPriority Priority);
-#if TASKGRAPH_NEW_FRONTEND
-		CORE_API ENamedThreads::Type TranslatePriority(EExtendedTaskPriority Priority);
-#endif
+		CORE_API ENamedThreads::Type TranslatePriority(ETaskPriority Priority, EExtendedTaskPriority ExtendedPriority);
 	}
 
 	class FPipe;
@@ -129,7 +126,7 @@ namespace UE::Tasks
 				}
 			}
 
-			uint32 GetRefCount(std::memory_order MemoryOrder) const
+			uint32 GetRefCount(std::memory_order MemoryOrder = std::memory_order_relaxed) const
 			{
 				return RefCount.load(MemoryOrder);
 			}
@@ -189,6 +186,11 @@ namespace UE::Tasks
 				return ExtendedPriority >= EExtendedTaskPriority::GameThreadNormalPri;
 			}
 #endif
+
+			ETaskPriority GetPriority() const
+			{
+				return LowLevelTask.GetPriority();
+			}
 
 			EExtendedTaskPriority GetExtendedPriority() const
 			{
@@ -317,7 +319,7 @@ namespace UE::Tasks
 			// In this case the task will be automatically scheduled when all dependencies are completed.
 			bool TryLaunch(uint64 TaskSize)
 			{
-				TaskTrace::Launched(GetTraceId(), LowLevelTask.GetDebugName(), true, TranslatePriority(LowLevelTask.GetPriority()), TaskSize);
+				TaskTrace::Launched(GetTraceId(), LowLevelTask.GetDebugName(), true, TranslatePriority(LowLevelTask.GetPriority(), ExtendedPriority), TaskSize);
 				return TryUnlock();
 			}
 
