@@ -214,15 +214,8 @@ protected:
 		return MakeAccessPtr<FConstDocumentAccessPtr>(RootMetasoundDocument.AccessPoint, RootMetasoundDocument);
 	}
 
-	virtual const FMetasoundFrontendDocument& GetDocument() const override
-	{
-		return RootMetasoundDocument;
-	}
-
-	virtual const UClass& GetBaseMetaSoundUClass() const final override
-	{
-		return *UMetaSoundSource::StaticClass();
-	}
+	virtual const UClass& GetBaseMetaSoundUClass() const final override;
+	virtual const FMetasoundFrontendDocument& GetDocument() const override;
 
 	/** Gets all the default parameters for this Asset.  */
 	virtual bool GetAllDefaultParameters(TArray<FAudioParameter>& OutParameters) const override;

@@ -130,15 +130,8 @@ public:
 
 #endif // #if WITH_EDITORONLY_DATA
 
-	virtual const FMetasoundFrontendDocument& GetDocument() const override
-	{
-		return RootMetaSoundDocument;
-	}
-
-	virtual const UClass& GetBaseMetaSoundUClass() const final override
-	{
-		return *UMetaSoundPatch::StaticClass();
-	}
+	virtual const UClass& GetBaseMetaSoundUClass() const final override;
+	virtual const FMetasoundFrontendDocument& GetDocument() const override;
 
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;

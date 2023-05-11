@@ -144,6 +144,16 @@ UMetaSoundSource::UMetaSoundSource(const FObjectInitializer& ObjectInitializer)
 	SampleRate = 48000.f;
 }
 
+const UClass& UMetaSoundSource::GetBaseMetaSoundUClass() const
+{
+	return *UMetaSoundSource::StaticClass();
+}
+
+const FMetasoundFrontendDocument& UMetaSoundSource::GetDocument() const
+{
+	return RootMetasoundDocument;
+}
+
 #if WITH_EDITOR
 void UMetaSoundSource::PostEditUndo()
 {
@@ -178,9 +188,7 @@ void UMetaSoundSource::PostEditChangeOutputFormat()
 {
 	using namespace Metasound::Frontend;
 
-	const UMetaSoundBuilderSubsystem* BuilderSubsystem = GEngine->GetEngineSubsystem<UMetaSoundBuilderSubsystem>();
-	check(BuilderSubsystem);
-	UMetaSoundSourceBuilder* SourceBuilder = BuilderSubsystem->AttachSourceBuilderToAsset(this);
+	UMetaSoundSourceBuilder* SourceBuilder = UMetaSoundBuilderSubsystem::GetConstChecked().AttachSourceBuilderToAsset(this);
 	EMetaSoundBuilderResult Result;
 	SourceBuilder->SetFormat(OutputFormat, Result);
 	if (Result == EMetaSoundBuilderResult::Succeeded)
@@ -226,7 +234,6 @@ bool UMetaSoundSource::ConformObjectDataToInterfaces()
 
 	return bDidAlterObjectData;
 }
-
 
 void UMetaSoundSource::BeginDestroy()
 {

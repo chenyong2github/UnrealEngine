@@ -4,6 +4,7 @@
 #include "Algo/Find.h"
 #include "Algo/Transform.h"
 #include "Components/AudioComponent.h"
+#include "Engine/Engine.h"
 #include "HAL/IConsoleManager.h"
 #include "Interfaces/MetasoundOutputFormatInterfaces.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
@@ -476,10 +477,10 @@ FMetaSoundNodeHandle UMetaSoundBuilderBase::FindGraphOutputNode(FName OutputName
 
 void UMetaSoundBuilderBase::CreateTransientDocument()
 {
-	TObjectPtr<UMetaSoundBuilderDocument> NewBuilder = NewObject<UMetaSoundBuilderDocument>();
-	TScriptInterface<IMetaSoundDocumentInterface> MetaSoundSourceDocInterface = NewBuilder;
-	const FTopLevelAssetPath BuilderPath = GetBuilderUClass().GetClassPathName();
-	Builder = FMetaSoundFrontendDocumentBuilder(BuilderPath, MetaSoundSourceDocInterface);
+	UMetaSoundBuilderDocument* NewDoc = NewObject<UMetaSoundBuilderDocument>();
+	NewDoc->SetBaseMetaSoundUClass(GetBuilderUClass());
+	TScriptInterface<IMetaSoundDocumentInterface> MetaSoundSourceDocInterface = NewDoc;
+	Builder = FMetaSoundFrontendDocumentBuilder(MetaSoundSourceDocInterface);
 	Builder.InitDocument();
 }
 
@@ -507,6 +508,18 @@ bool UMetaSoundBuilderBase::NodeInputIsConnected(const FMetaSoundBuilderNodeInpu
 bool UMetaSoundBuilderBase::NodeOutputIsConnected(const FMetaSoundBuilderNodeOutputHandle& OutputHandle) const
 {
 	return Builder.IsNodeOutputConnected(OutputHandle.NodeID, OutputHandle.VertexID);
+}
+
+void UMetaSoundBuilderBase::RemoveGraphInput(FName Name, EMetaSoundBuilderResult& OutResult)
+{
+	const bool bRemoved = Builder.RemoveGraphInput(Name);
+	OutResult = bRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
+}
+
+void UMetaSoundBuilderBase::RemoveGraphOutput(FName Name, EMetaSoundBuilderResult& OutResult)
+{
+	const bool bRemoved = Builder.RemoveGraphOutput(Name);
+	OutResult = bRemoved ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
 void UMetaSoundBuilderBase::RemoveInterface(FName InterfaceName, EMetaSoundBuilderResult& OutResult)
@@ -726,7 +739,13 @@ void UMetaSoundSourceBuilder::SetFormat(EMetaSoundOutputAudioFormat OutputFormat
 		}
 	}
 
-	const bool bSuccess = Builder.ModifyInterfaces(OutputFormatsToRemove, OutputFormatsToAdd);
+	FModifyInterfaceOptions Options(OutputFormatsToRemove, OutputFormatsToAdd);
+
+#if WITH_EDITORONLY_DATA
+	Options.bSetDefaultNodeLocations = true;
+#endif // WITH_EDITORONLY_DATA
+
+	const bool bSuccess = Builder.ModifyInterfaces(MoveTemp(Options));
 	OutResult = bSuccess ? EMetaSoundBuilderResult::Succeeded : EMetaSoundBuilderResult::Failed;
 }
 
@@ -843,14 +862,63 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 	return &NewBuilder;
 }
 
+UMetaSoundBuilderSubsystem& UMetaSoundBuilderSubsystem::GetChecked()
+{
+	checkf(GEngine, TEXT("Cannot access UMetaSoundBuilderSubsystem without engine loaded"));
+	UMetaSoundBuilderSubsystem* BuilderSubsystem = GEngine->GetEngineSubsystem<UMetaSoundBuilderSubsystem>();
+	checkf(BuilderSubsystem, TEXT("Failed to find initialized 'UMetaSoundBuilderSubsystem"));
+	return *BuilderSubsystem;
+}
+
+const UMetaSoundBuilderSubsystem& UMetaSoundBuilderSubsystem::GetConstChecked()
+{
+	checkf(GEngine, TEXT("Cannot access UMetaSoundBuilderSubsystem without engine loaded"));
+	UMetaSoundBuilderSubsystem* BuilderSubsystem = GEngine->GetEngineSubsystem<UMetaSoundBuilderSubsystem>();
+	checkf(BuilderSubsystem, TEXT("Failed to find initialized 'UMetaSoundBuilderSubsystem"));
+	return *BuilderSubsystem;
+}
+
+UMetaSoundBuilderBase& UMetaSoundBuilderSubsystem::AttachBuilderToObjectChecked(TScriptInterface<IMetaSoundDocumentInterface> InInterface) const
+{
+	checkf(InInterface.GetInterface(), TEXT("Failed to attach MetaSound builder to asset: Interface not supplied"))
+	const UClass* BaseClass = &InInterface->GetBaseMetaSoundUClass();
+	if (BaseClass == UMetaSoundSource::StaticClass())
+	{
+		UMetaSoundSourceBuilder* NewBuilder = AttachSourceBuilderToAsset(CastChecked<UMetaSoundSource>(InInterface.GetObject()));
+		return *NewBuilder;
+	}
+	else if (BaseClass == UMetaSoundPatch::StaticClass())
+	{
+		UMetaSoundPatchBuilder* NewBuilder = AttachPatchBuilderToAsset(CastChecked<UMetaSoundPatch>(InInterface.GetObject()));
+		return *NewBuilder;
+	}
+	else
+	{
+		checkf(false, TEXT("UClass '%s' is not a base MetaSound that supports attachment via the MetaSoundBuilderSubsystem"), *BaseClass->GetFullName());
+		return Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
+	}
+}
+
+UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::AttachPatchBuilderToAsset(UMetaSoundPatch* InPatch) const
+{
+	if (InPatch)
+	{
+		TObjectPtr<UMetaSoundPatchBuilder> NewBuilder = NewObject<UMetaSoundPatchBuilder>(InPatch);
+		TScriptInterface<IMetaSoundDocumentInterface> MetaSoundPatchDocInterface = InPatch;
+		NewBuilder->Builder = FMetaSoundFrontendDocumentBuilder(MetaSoundPatchDocInterface);
+		return NewBuilder;
+	}
+
+	return nullptr;
+}
+
 UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::AttachSourceBuilderToAsset(UMetaSoundSource* InSource) const
 {
 	if (InSource)
 	{
 		TObjectPtr<UMetaSoundSourceBuilder> NewBuilder = NewObject<UMetaSoundSourceBuilder>(InSource);
 		TScriptInterface<IMetaSoundDocumentInterface> MetaSoundSourceDocInterface = InSource;
-		const FTopLevelAssetPath BuilderPath = NewBuilder->GetBuilderUClass().GetClassPathName();
-		NewBuilder->Builder = FMetaSoundFrontendDocumentBuilder(BuilderPath, MetaSoundSourceDocInterface);
+		NewBuilder->Builder = FMetaSoundFrontendDocumentBuilder(MetaSoundSourceDocInterface);
 		return NewBuilder;
 	}
 

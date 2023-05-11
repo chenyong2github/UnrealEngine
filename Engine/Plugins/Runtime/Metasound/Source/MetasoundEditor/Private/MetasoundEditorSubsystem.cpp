@@ -5,6 +5,7 @@
 #include "MetasoundBuilderSubsystem.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphSchema.h"
+#include "MetasoundFactory.h"
 #include "MetasoundUObjectRegistry.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundEditorSubsystem)
@@ -33,11 +34,7 @@ TScriptInterface<IMetaSoundDocumentInterface> UMetaSoundEditorSubsystem::BuildTo
 			BuilderOptions.ExistingMetaSound = NewMetaSound;
 			TScriptInterface<IMetaSoundDocumentInterface> DocInterface = InBuilder->Build(Parent, BuilderOptions);
 
-			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(NewMetaSound);
-			UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(NewMetaSound, FName(), RF_Transactional);
-			Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
-			MetaSoundAsset->SetGraph(Graph);
-
+			UMetaSoundFactory::InitEdGraph(*NewMetaSound);
 			OutResult = EMetaSoundBuilderResult::Succeeded;
 			return NewMetaSound;
 		}

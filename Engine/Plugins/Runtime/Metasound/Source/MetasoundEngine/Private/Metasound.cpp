@@ -6,6 +6,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundAudioFormats.h"
+#include "MetasoundBuilderSubsystem.h"
 #include "MetasoundEngineAsset.h"
 #include "MetasoundEngineEnvironment.h"
 #include "MetasoundEnvironment.h"
@@ -54,6 +55,16 @@ UMetaSoundPatch::UMetaSoundPatch(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, FMetasoundAssetBase()
 {
+}
+
+const UClass& UMetaSoundPatch::GetBaseMetaSoundUClass() const
+{
+	return *UMetaSoundPatch::StaticClass();
+}
+
+const FMetasoundFrontendDocument& UMetaSoundPatch::GetDocument() const
+{
+	return RootMetaSoundDocument;
 }
 
 #if WITH_EDITOR

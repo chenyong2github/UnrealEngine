@@ -13,6 +13,7 @@
 #include "Input/Events.h"
 #include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundBuilderSubsystem.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorSettings.h"
@@ -381,10 +382,11 @@ namespace Metasound
 							MetaSound.Get()->Modify();
 							MetaSoundAsset->GetGraphChecked().Modify();
 
-							FDocumentHandle DocumentHandle = MetaSoundAsset->GetDocumentHandle();
-							FModifyRootGraphInterfaces ModifyTransform({ }, { InterfaceToAdd });
-							ModifyTransform.SetDefaultNodeLocations(false); // Don't automatically add nodes to ed graph
-							ModifyTransform.Transform(DocumentHandle);
+							TScriptInterface<IMetaSoundDocumentInterface> MetaSoundPatchDocInterface = MetaSound.Get();
+							FMetaSoundFrontendDocumentBuilder Builder(MetaSoundPatchDocInterface);
+							FModifyInterfaceOptions Options({ }, { InterfaceToAdd });
+							Options.bSetDefaultNodeLocations = false; // Don't automatically add nodes to ed graph
+							Builder.ModifyInterfaces(MoveTemp(Options));
 						}
 
 						UpdateInterfaceNames();

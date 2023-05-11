@@ -366,12 +366,12 @@ namespace Metasound
 				bDidEdit |= SwapPairedVertices(GraphHandle);
 				bDidEdit |= RemoveUnsupportedVertices(GraphHandle);
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 				if (bAddedVertices && bSetDefaultNodeLocations)
 				{
 					UpdateAddedVertexNodePositions(GraphHandle);
 				}
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 			}
 
 			return bDidEdit;
@@ -399,7 +399,7 @@ namespace Metasound
 			return !InterfacesToRemove.IsEmpty() || !InterfacesToAdd.IsEmpty();
 		}
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 		void FModifyRootGraphInterfaces::UpdateAddedVertexNodePositions(FGraphHandle GraphHandle) const
 		{
 			auto SortAndPlaceMemberNodes = [&GraphHandle](EMetasoundFrontendClassType ClassType, TSet<FName>& AddedNames, TFunctionRef<int32(const FVertexName&)> InGetSortOrder)

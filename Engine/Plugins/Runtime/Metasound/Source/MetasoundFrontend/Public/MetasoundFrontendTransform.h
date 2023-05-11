@@ -100,11 +100,11 @@ namespace Metasound
 			bool RemoveUnsupportedVertices(FGraphHandle GraphHandle) const;
 			bool UpdateInterfacesInternal(FDocumentHandle DocumentHandle) const;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 			void UpdateAddedVertexNodePositions(FGraphHandle GraphHandle) const;
 
 			bool bSetDefaultNodeLocations = true;
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 
 			TArray<FMetasoundFrontendInterface> InterfacesToRemove;
 			TArray<FMetasoundFrontendInterface> InterfacesToAdd;

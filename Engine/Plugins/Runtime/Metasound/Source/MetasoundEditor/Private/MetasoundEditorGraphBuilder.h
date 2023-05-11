@@ -233,6 +233,7 @@ namespace Metasound
 			static FLinearColor GetPinCategoryColor(const FEdGraphPinType& PinType);
 
 			// Initializes MetaSound with default inputs & outputs.
+			UE_DEPRECATED(5.3, "Use FMetaSoundFrontendBuilder::InitDocument instead.")
 			static void InitMetaSound(UObject& InMetaSound, const FString& InAuthor);
 
 			// Initializes a MetaSound Preset using the provided ReferencedMetaSound asset's

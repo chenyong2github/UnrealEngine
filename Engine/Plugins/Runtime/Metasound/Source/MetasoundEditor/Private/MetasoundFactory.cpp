@@ -7,6 +7,7 @@
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorSettings.h"
+#include "MetasoundFrontendDocumentBuilder.h"
 #include "MetasoundFrontendTransform.h"
 #include "MetasoundSource.h"
 
@@ -20,44 +21,10 @@ namespace Metasound
 		template <typename T>
 		T* CreateNewMetaSoundObject(UObject* InParent, FName InName, EObjectFlags InFlags, UObject* InReferencedMetaSoundObject)
 		{
-			using namespace Editor;
-			using namespace Frontend;
-
 			T* MetaSoundObject = NewObject<T>(InParent, InName, InFlags);
 			check(MetaSoundObject);
 
-			FString Author = UKismetSystemLibrary::GetPlatformUserName();
-			if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
-			{
-				if (!EditorSettings->DefaultAuthor.IsEmpty())
-				{
-					Author = EditorSettings->DefaultAuthor;
-				}
-			}
-
-			FGraphBuilder::InitMetaSound(*MetaSoundObject, Author);
-
-			if (InReferencedMetaSoundObject)
-			{
-				FGraphBuilder::InitMetaSoundPreset(*InReferencedMetaSoundObject, *MetaSoundObject);
-			}
-
-			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(MetaSoundObject);
-			check(MetaSoundAsset);
-
-			// Initial graph generation is not something to be managed by the transaction
-			// stack, so don't track dirty state until after initial setup if necessary.
-			UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetaSoundAsset->GetGraph());
-			if (!Graph)
-			{
-				Graph = NewObject<UMetasoundEditorGraph>(MetaSoundObject, FName(), RF_Transactional);
-				Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
-				MetaSoundAsset->SetGraph(Graph);
-
-				// Has to be done inline to have valid graph initially when opening editor for the first time
-				FGraphBuilder::SynchronizeGraph(*MetaSoundObject);
-			}
-
+			UMetaSoundBaseFactory::InitAsset(*MetaSoundObject, InReferencedMetaSoundObject);
 			return MetaSoundObject;
 		}
 	}
@@ -69,6 +36,58 @@ UMetaSoundBaseFactory::UMetaSoundBaseFactory(const FObjectInitializer& ObjectIni
 	bCreateNew = true;
 	bEditorImport = false;
 	bEditAfterNew = true;
+}
+
+void UMetaSoundBaseFactory::InitAsset(UObject& InNewMetaSound, UObject* InReferencedMetaSound)
+{
+	using namespace Metasound;
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	TScriptInterface<IMetaSoundDocumentInterface> DocInterface = &InNewMetaSound;
+	FMetaSoundFrontendDocumentBuilder Builder(DocInterface);
+	Builder.InitDocument();
+	Builder.InitNodeLocations();
+
+	FString Author = UKismetSystemLibrary::GetPlatformUserName();
+	if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
+	{
+		if (!EditorSettings->DefaultAuthor.IsEmpty())
+		{
+			Author = EditorSettings->DefaultAuthor;
+		}
+	}
+	Builder.SetAuthor(Author);
+
+	if (InReferencedMetaSound)
+	{
+		FGraphBuilder::InitMetaSoundPreset(*InReferencedMetaSound, InNewMetaSound);
+	}
+
+	// Initial graph generation is not something to be managed by the transaction
+	// stack, so don't track dirty state until after initial setup if necessary.
+	InitEdGraph(InNewMetaSound);
+}
+
+void UMetaSoundBaseFactory::InitEdGraph(UObject& InMetaSound)
+{
+	using namespace Metasound;
+	using namespace Metasound::Editor;
+
+	FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
+	checkf(MetaSoundAsset, TEXT("EdGraph can only be initialized on registered MetaSoundAsset type"));
+
+	UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetaSoundAsset->GetGraph());
+	if (!Graph)
+	{
+		Graph = NewObject<UMetasoundEditorGraph>(&InMetaSound, FName(), RF_Transactional);
+		Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
+		MetaSoundAsset->SetGraph(Graph);
+
+		// Has to be done inline to have valid graph initially when opening editor for the first
+		// time (as opposed to being applied on tick when the document's modify context has updates)
+		FGraphBuilder::SynchronizeGraph(InMetaSound);
+	}
 }
 
 UMetaSoundFactory::UMetaSoundFactory(const FObjectInitializer& ObjectInitializer)

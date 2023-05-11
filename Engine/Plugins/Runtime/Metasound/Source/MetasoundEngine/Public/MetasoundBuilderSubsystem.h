@@ -16,10 +16,13 @@
 
 
 // Forward Declarations
-class UMetaSound;
-class UMetaSoundSource;
-struct FMetasoundFrontendVersion;
 class UAudioComponent;
+class UMetaSound;
+class UMetaSoundPatch;
+class UMetaSoundSource;
+
+struct FMetasoundFrontendVersion;
+
 enum class EMetaSoundOutputAudioFormat : uint8;
 
 namespace Metasound::Engine
@@ -265,6 +268,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
 	UPARAM(DisplayName = "Connected") bool NodeOutputIsConnected(const FMetaSoundBuilderNodeOutputHandle& OutputHandle) const;
 
+	// Removes graph input if it exists; sets result to succeeded if it was removed and failed if it was not.
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
+	void RemoveGraphInput(FName Name, EMetaSoundBuilderResult& OutResult);
+
+	// Removes graph output if it exists; sets result to succeeded if it was removed and failed if it was not.
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
+	void RemoveGraphOutput(FName Name, EMetaSoundBuilderResult& OutResult);
+
 	// Removes the interface with the given name from the builder's MetaSound. Removes any graph inputs
 	// and outputs associated with the given interface and their respective connections (if any).
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder", meta = (ExpandEnumAsExecs = "OutResult"))
@@ -421,6 +432,11 @@ class METASOUNDENGINE_API UMetaSoundBuilderSubsystem : public UEngineSubsystem
 	TMap<FName, TObjectPtr<UMetaSoundSourceBuilder>> SourceBuilders;
 
 public:
+	static UMetaSoundBuilderSubsystem& GetChecked();
+	static const UMetaSoundBuilderSubsystem& GetConstChecked();
+
+	UMetaSoundBuilderBase& AttachBuilderToObjectChecked(TScriptInterface<IMetaSoundDocumentInterface> InInterface) const;
+	UMetaSoundPatchBuilder* AttachPatchBuilderToAsset(UMetaSoundPatch* InPatch) const;
 	UMetaSoundSourceBuilder* AttachSourceBuilderToAsset(UMetaSoundSource* InSource) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder",  meta = (ExpandEnumAsExecs = "OutResult"))

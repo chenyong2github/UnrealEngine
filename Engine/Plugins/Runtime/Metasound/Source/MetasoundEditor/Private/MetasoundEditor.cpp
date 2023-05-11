@@ -1776,7 +1776,7 @@ namespace Metasound
 				check(MetaSoundClass);
 
 				TScriptInterface<IMetaSoundDocumentInterface> DocInterface = MetasoundAsset->GetOwningAsset();
-				FMetaSoundFrontendDocumentBuilder Builder(MetaSoundClass->GetClassPathName(), DocInterface);
+				FMetaSoundFrontendDocumentBuilder Builder(DocInterface);
 				Builder.ConvertFromPreset();
 
 				// Hack until toolbar is polished up & corner text properly dynamically updates

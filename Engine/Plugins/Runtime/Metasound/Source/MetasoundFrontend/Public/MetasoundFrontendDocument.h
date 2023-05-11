@@ -91,8 +91,8 @@ public:
 	// Performs union of provided interface set with the set of interfaces that have been modified since last context reset/construction
 	void AddInterfacesModified(const TSet<FName>& InInterfacesModified);
 
-	// Adds a MemberID to the set of interfaces that have been modified since last context reset/construction
-	void AddMemberIDModified(const FGuid& InMemberIDModified);
+	// Adds a MemberID to the set of MemberIDs that have been modified since last context reset/construction
+	void AddMemberIDModified(const FGuid& InMemberNodeIDModified);
 
 	// Performs union of provided MemberIDs set with the set of MemberIDs that have been modified since last context reset/construction
 	void AddMemberIDsModified(const TSet<FGuid>& InMemberIDsModified);
@@ -100,7 +100,7 @@ public:
 	// Performs union of provided NodeID set with the set of NodeIDs that have been modified since last context reset/construction
 	void AddNodeIDModified(const FGuid& InNodeIDModified);
 
-	// Performs union of provided interface set with the set of interfaces that have been modified since last context reset/construction
+	// Performs union of provided NodeID set with the set of NodeIDs that have been modified since last context reset/construction
 	void AddNodeIDsModified(const TSet<FGuid>& InNodeIDsModified);
 };
 #endif // WITH_EDITORONLY_DATA

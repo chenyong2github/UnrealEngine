@@ -5,7 +5,6 @@
 #include "Interfaces/MetasoundFrontendInterfaceRegistry.h"
 #include "MetasoundFrontendDocumentCacheInterface.h"
 #include "MetasoundDocumentInterface.h"
-#include "MetasoundFrontendController.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendTransform.h"
@@ -49,26 +48,54 @@ namespace Metasound::Frontend
 			return HashCombineFast(NameHash, GuidHash);
 		}
 	};
+
+	struct METASOUNDFRONTEND_API FModifyInterfaceOptions
+	{
+		FModifyInterfaceOptions(const TArray<FMetasoundFrontendInterface>& InInterfacesToRemove, const TArray<FMetasoundFrontendInterface>& InInterfacesToAdd);
+		FModifyInterfaceOptions(const TArray<FMetasoundFrontendVersion>& InInterfaceVersionsToRemove, const TArray<FMetasoundFrontendVersion>& InInterfaceVersionsToAdd);
+
+		TArray<FMetasoundFrontendInterface> InterfacesToRemove;
+		TArray<FMetasoundFrontendInterface> InterfacesToAdd;
+
+		// Function used to determine if an old of a removed interface
+		// and new member of an added interface are considered equal and
+		// to be swapped, retaining preexisting connections (and locations
+		// if in editor and 'SetDefaultNodeLocations' option is set)
+		TFunction<bool(FName, FName)> NamePairingFunction;
+
+#if WITH_EDITORONLY_DATA
+		bool bSetDefaultNodeLocations = true;
+#endif // WITH_EDITORONLY_DATA
+	};
 } // namespace Metasound::Frontend
 
 
 UCLASS()
-class  METASOUNDFRONTEND_API UMetaSoundBuilderDocument : public UObject, public IMetaSoundDocumentInterface
+class METASOUNDFRONTEND_API UMetaSoundBuilderDocument : public UObject, public IMetaSoundDocumentInterface
 {
 	GENERATED_BODY()
 
 public:
+	// Returns the document
 	virtual const FMetasoundFrontendDocument& GetDocument() const override
 	{
 		return Document;
 	}
 
+	// Base MetaSoundClass that document is published to.
 	virtual const UClass& GetBaseMetaSoundUClass() const final override
 	{
-		return *UMetaSoundBuilderDocument::StaticClass();
+		checkf(MetaSoundUClass, TEXT("BaseMetaSoundUClass must be set upon creation of UMetaSoundBuilderDocument instance"));
+		return *MetaSoundUClass;
 	}
 
 private:
+	// Sets the base MetaSound UClass (to be called immediately following UObject construction)
+	void SetBaseMetaSoundUClass(const UClass& InMetaSoundClass)
+	{
+		MetaSoundUClass = &InMetaSoundClass;
+	}
+
 	virtual FMetasoundFrontendDocument& GetDocument() override
 	{
 		return Document;
@@ -77,7 +104,11 @@ private:
 	UPROPERTY(Transient)
 	FMetasoundFrontendDocument Document;
 
+	UPROPERTY(Transient)
+	TObjectPtr<const UClass> MetaSoundUClass = nullptr;
+
 	friend struct FMetaSoundFrontendDocumentBuilder;
+	friend class UMetaSoundBuilderBase;
 };
 
 // Builder used to support dynamically generating MetaSound documents at runtime. Builder contains caches that speed up
@@ -92,10 +123,9 @@ struct METASOUNDFRONTEND_API FMetaSoundFrontendDocumentBuilder
 public:
 	// Exists only to make UObject reflection happy.  Should never be
 	// used directly as builder class should be specified on construction.
-	FMetaSoundFrontendDocumentBuilder();
-	FMetaSoundFrontendDocumentBuilder(const FTopLevelAssetPath& InBuilderClassPath);
-	FMetaSoundFrontendDocumentBuilder(const FTopLevelAssetPath& InBuilderClassPath, FMetaSoundFrontendDocumentBuilder&& InBuilder);
-	FMetaSoundFrontendDocumentBuilder(const FTopLevelAssetPath& InBuilderClassPath, TScriptInterface<IMetaSoundDocumentInterface> InDocumentInterface);
+	FMetaSoundFrontendDocumentBuilder() = default;
+	FMetaSoundFrontendDocumentBuilder(FMetaSoundFrontendDocumentBuilder&& InBuilder);
+	FMetaSoundFrontendDocumentBuilder(TScriptInterface<IMetaSoundDocumentInterface> InDocumentInterface);
 
 	// Copying actively used builders is highly discouraged (as only one builder should be acting on a document at any given time
 	// to avoid internal cache state to become out-of-date) but must contractually be implemented in this case as a USTRUCT (builders
@@ -134,7 +164,9 @@ public:
 	bool FindInterfaceInputNodes(FName InterfaceName, TArray<const FMetasoundFrontendNode*>& OutInputs) const;
 	bool FindInterfaceOutputNodes(FName InterfaceName, TArray<const FMetasoundFrontendNode*>& OutOutputs) const;
 
+	const FMetasoundFrontendClassInput* FindGraphInput(FName InputName) const;
 	const FMetasoundFrontendNode* FindGraphInputNode(FName InputName) const;
+	const FMetasoundFrontendClassOutput* FindGraphOutput(FName OutputName) const;
 	const FMetasoundFrontendNode* FindGraphOutputNode(FName OutputName) const;
 
 	const FMetasoundFrontendVertex* FindNodeInput(const FGuid& InNodeID, const FGuid& InVertexID) const;
@@ -153,28 +185,35 @@ public:
 	void InitDocument();
 	void InitNodeLocations();
 
+	bool IsDependencyReferenced(const FGuid& InClassID) const;
 	bool IsNodeInputConnected(const FGuid& InNodeID, const FGuid& InVertexID) const;
 	bool IsNodeOutputConnected(const FGuid& InNodeID, const FGuid& InVertexID) const;
 
 	bool IsInterfaceDeclared(FName InInterfaceName) const;
 	bool IsInterfaceDeclared(const FMetasoundFrontendVersion& InInterfaceVersion) const;
 
-	bool ModifyInterfaces(TArray<FMetasoundFrontendVersion> OutputFormatsToRemove, TArray<FMetasoundFrontendVersion> OutputFormatsToAdd);
+	bool ModifyInterfaces(Metasound::Frontend::FModifyInterfaceOptions&& InOptions);
 
+	bool RemoveDependency(const FGuid& InClassID);
 	bool RemoveDependency(EMetasoundFrontendClassType ClassType, const FMetasoundFrontendClassName& InClassName, const FMetasoundFrontendVersionNumber& InClassVersionNumber);
 	bool RemoveEdge(const FMetasoundFrontendEdge& EdgeToRemove);
-	bool RemoveNamedEdges(const TSet<Metasound::Frontend::FNamedEdge>& InNamedEdgesToRemove, TArray<FMetasoundFrontendEdge>* OutRemovedEdges = nullptr);
 	bool RemoveEdgesByNodeClassInterfaceBindings(const FGuid& InOutputNodeID, const FGuid& InInputNodeID);
 	bool RemoveEdgesFromNodeOutput(const FGuid& InNodeID, const FGuid& InVertexID);
 	bool RemoveEdgeToNodeInput(const FGuid& InNodeID, const FGuid& InVertexID);
+	bool RemoveGraphInput(FName InInputName);
+	bool RemoveGraphOutput(FName InOutputName);
 	bool RemoveInterface(FName InName);
+	bool RemoveNamedEdges(const TSet<Metasound::Frontend::FNamedEdge>& InNamedEdgesToRemove, TArray<FMetasoundFrontendEdge>* OutRemovedEdges = nullptr);
 	bool RemoveNode(const FGuid& InNodeID);
+	bool RemoveUnusedDependencies();
 
 #if WITH_EDITOR
 	void SetAuthor(const FString& InAuthor);
 #endif // WITH_EDITOR
 
 	bool SetNodeInputDefault(const FGuid& InNodeID, const FGuid& InVertexID, const FMetasoundFrontendLiteral& InLiteral);
+	bool SwapGraphInput(const FMetasoundFrontendClassVertex& InExistingInputVertex, const FMetasoundFrontendClassVertex& NewInputVertex);
+	bool SwapGraphOutput(const FMetasoundFrontendClassVertex& InExistingOutputVertex, const FMetasoundFrontendClassVertex& NewOutputVertex);
 
 private:
 	using FFinalizeNodeFunctionRef = TFunctionRef<void(FMetasoundFrontendNode&, const Metasound::Frontend::FNodeRegistryKey&)>;
@@ -183,8 +222,8 @@ private:
 	TScriptInterface<IMetaSoundDocumentInterface> DocumentInterface;
 
 	TUniquePtr<Metasound::Frontend::IDocumentCache> DocumentCache;
-	FTopLevelAssetPath BuilderClassPath;
 
+	const FTopLevelAssetPath GetBuilderClassPath() const;
 	FMetasoundFrontendDocument& GetDocument();
 
 	FMetasoundFrontendNode* AddNodeInternal(const FMetasoundFrontendClassMetadata& InClassMetadata, FFinalizeNodeFunctionRef FinalizeNode, FGuid InNodeID = FGuid::NewGuid());

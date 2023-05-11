@@ -28,6 +28,8 @@ public:
 	// Returns read-only reference to the the MetaSoundFrontendDocument
 	// containing all MetaSound runtime & editor data.
 	virtual const FMetasoundFrontendDocument& GetDocument() const = 0;
+
+	// Returns the parent class registered with the MetaSound UObject registry.
 	virtual const UClass& GetBaseMetaSoundUClass() const = 0;
 
 	// Returns the parent class registered with the MetaSound UObject registry.

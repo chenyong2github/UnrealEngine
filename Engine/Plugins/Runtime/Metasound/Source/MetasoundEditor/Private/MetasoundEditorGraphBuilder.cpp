@@ -24,8 +24,10 @@
 #include "MetasoundEditorGraphValidation.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundEditorSettings.h"
+#include "MetasoundFactory.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendDocumentAccessPtr.h"
+#include "MetasoundFrontendDocumentBuilder.h"
 #include "MetasoundFrontendDocumentVersioning.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
@@ -119,26 +121,9 @@ namespace Metasound
 				}
 
 				// If no graph is set, MetaSound has been created outside of asset factory, so initialize it here.
-				// TODO: Move factory initialization and this code to single builder function (in header so cannot move
-				// until 5.1+).
 				if (!MetaSoundAsset->GetGraph())
 				{
-					FString Author = UKismetSystemLibrary::GetPlatformUserName();
-					if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
-					{
-						if (!EditorSettings->DefaultAuthor.IsEmpty())
-						{
-							Author = EditorSettings->DefaultAuthor;
-						}
-					}
-
-					FGraphBuilder::InitMetaSound(InMetaSound, Author);
-
-					// Initial graph generation is not something to be managed by the transaction
-					// stack, so don't track dirty state until after initial setup if necessary.
-					UMetasoundEditorGraph* Graph = NewObject<UMetasoundEditorGraph>(&InMetaSound, FName(), RF_Transactional);
-					Graph->Schema = UMetasoundEditorGraphSchema::StaticClass();
-					MetaSoundAsset->SetGraph(Graph);
+					UMetaSoundBaseFactory::InitAsset(InMetaSound);
 				}
 
 				bEditorGraphModified |= FGraphBuilder::SynchronizeGraphMembers(InMetaSound);

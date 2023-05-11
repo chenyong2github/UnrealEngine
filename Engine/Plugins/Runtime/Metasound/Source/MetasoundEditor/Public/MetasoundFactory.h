@@ -20,6 +20,9 @@ class UMetaSoundBaseFactory : public UFactory
 	// using the provided MetaSound as a Reference
 	UPROPERTY(EditAnywhere, Transient, Category = Factory)
 	TObjectPtr<UObject> ReferencedMetaSoundObject;
+
+	static void InitAsset(UObject& InNewMetaSound, UObject* InReferencedMetaSound = nullptr);
+	static void InitEdGraph(UObject& InMetaSound);
 };
 
 UCLASS(hidecategories=Object, MinimalAPI)
