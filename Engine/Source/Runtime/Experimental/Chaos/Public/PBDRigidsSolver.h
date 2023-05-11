@@ -51,6 +51,7 @@ namespace ChaosTest
 */
 namespace Chaos
 {
+	CHAOS_API extern int32 SyncKinematicOnGameThread;
 	class FPersistentPhysicsTask;
 	class FChaosArchive;
 	class FCharacterGroundConstraint;
