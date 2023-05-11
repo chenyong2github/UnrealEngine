@@ -24,7 +24,7 @@ public:
 
 
 	/**
-	 * Apply a color transform to a texture asset.
+	 * Apply a color space transform to a texture asset.
 	 *
 	 * @param ConversionSettings Color transformation settings.
 	 * @param InOutTexture Texture object to transform.
@@ -32,5 +32,5 @@ public:
 	 * @return true upon success.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "OpenColorIO")
-	static OPENCOLORIOEDITOR_API bool ApplyTextureColorTransform(const FOpenColorIOColorConversionSettings& ConversionSettings, UTexture* InOutTexture, bool bSynchronous = false);
+	static OPENCOLORIOEDITOR_API bool ApplyColorSpaceTransformToTexture(const FOpenColorIOColorConversionSettings& ConversionSettings, UTexture* InOutTexture, bool bSynchronous = false);
 };
