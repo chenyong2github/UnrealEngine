@@ -11,8 +11,15 @@
 #include "Serialization/Archive.h"
 #include "String/BytesToHex.h"
 
+class FCbFieldView; 
+class FCbWriter;
 class FCompositeBuffer;
 template <typename CharType> class TStringBuilderBase;
+namespace UE::Tasks 
+{
+	template<typename ResultType>
+	class TTask;
+}
 
 /** A 64-bit hash from XXH3. */
 struct FXxHash64
@@ -20,6 +27,11 @@ struct FXxHash64
 	[[nodiscard]] CORE_API static FXxHash64 HashBuffer(FMemoryView View);
 	[[nodiscard]] CORE_API static FXxHash64 HashBuffer(const void* Data, uint64 Size);
 	[[nodiscard]] CORE_API static FXxHash64 HashBuffer(const FCompositeBuffer& Buffer);
+
+	// Kick off a task to hash the given memory. Buffers are hashed in ChunkSize independent pieces, with the results
+	// hashed together in to a final result. ChunkSize should be fairly large to cover the cost of dispatching tasks. (e.g. 256kb+)
+	[[nodiscard]] CORE_API static UE::Tasks::TTask<FXxHash64> HashBufferChunkedAsync(FMemoryView View, uint64 ChunkSize);
+	[[nodiscard]] CORE_API static UE::Tasks::TTask<FXxHash64> HashBufferChunkedAsync(const void* Data, uint64 Size, uint64 ChunkSize);
 
 	/** Load the hash from its canonical (big-endian) representation. */
 	static inline FXxHash64 FromByteArray(uint8 (&Bytes)[sizeof(uint64)])
@@ -49,6 +61,11 @@ struct FXxHash64
 	inline bool operator<(const FXxHash64& B) const
 	{
 		return Hash < B.Hash;
+	}
+
+	inline bool IsZero() const
+	{
+		return Hash == 0;
 	}
 
 	friend inline uint32 GetTypeHash(const FXxHash64& InHash)
@@ -86,6 +103,11 @@ public:
 	[[nodiscard]] CORE_API static FXxHash128 HashBuffer(FMemoryView View);
 	[[nodiscard]] CORE_API static FXxHash128 HashBuffer(const void* Data, uint64 Size);
 	[[nodiscard]] CORE_API static FXxHash128 HashBuffer(const FCompositeBuffer& Buffer);
+
+	// Kick off a task to hash the given memory. Buffers are hashed in ChunkSize independent pieces, with the results
+	// hashed together in to a final result. ChunkSize should be fairly large to cover the cost of dispatching tasks. (e.g. 256kb+)
+	[[nodiscard]] CORE_API static UE::Tasks::TTask<FXxHash128> HashBufferChunkedAsync(FMemoryView View, uint64 ChunkSize);
+	[[nodiscard]] CORE_API static UE::Tasks::TTask<FXxHash128> HashBufferChunkedAsync(const void* Data, uint64 Size, uint64 ChunkSize);
 
 	/** Load the hash from its canonical (big-endian) representation. */
 	static inline FXxHash128 FromByteArray(uint8 (&Bytes)[sizeof(uint64[2])])
@@ -128,6 +150,11 @@ public:
 	inline bool operator<(const FXxHash128& B) const
 	{
 		return HashHigh != B.HashHigh ? HashHigh < B.HashHigh : HashLow < B.HashLow;
+	}
+
+	inline bool IsZero() const
+	{
+		return HashHigh == 0 && HashLow == 0;
 	}
 
 	friend inline uint32 GetTypeHash(const FXxHash128& Hash)
