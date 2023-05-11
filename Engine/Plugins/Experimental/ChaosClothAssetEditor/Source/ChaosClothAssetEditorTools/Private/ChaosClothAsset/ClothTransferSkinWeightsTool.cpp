@@ -77,10 +77,11 @@ namespace UE::Chaos::ClothAsset::Private
 
 			// Do the transfer
 			FTransferBoneWeights TransferBoneWeights(SourceMesh.Get(), FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
+			TransferBoneWeights.TargetToWorld = FTransformSRT3d(SourceMeshTransform.Inverse());
 			bool bComputeOK = false;
 			if (TransferBoneWeights.Validate() == EOperationValidationResult::Ok)
 			{
-				bComputeOK = TransferBoneWeights.Compute(*ResultMesh, FTransformSRT3d(SourceMeshTransform.Inverse()), FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
+				bComputeOK = TransferBoneWeights.TransferWeightsToMesh(*ResultMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
 			}
 
 			FGeometryResult OpResult;

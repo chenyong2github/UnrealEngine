@@ -12,6 +12,8 @@
 #include "BoneWeights.h"
 #include "IndexTypes.h"
 #include "TransformTypes.h"
+#include "Solvers/Internal/QuadraticProgramming.h"
+#include "Solvers/LaplacianMatrixAssembly.h"
 
 using namespace UE::AnimationCore;
 using namespace UE::Geometry;
@@ -161,10 +163,15 @@ EOperationValidationResult FTransferBoneWeights::Validate()
 		return EOperationValidationResult::Failed_UnknownReason;
 	}
 
+	if (NormalThreshold >= 0 && !SourceMesh->Attributes()->PrimaryNormals())
+	{
+		return EOperationValidationResult::Failed_UnknownReason;
+	}
+
 	return EOperationValidationResult::Ok;
 }
 
-bool FTransferBoneWeights::Compute(FDynamicMesh3& InOutTargetMesh, const FTransformSRT3d& InToWorld, const FName& InTargetProfileName)
+bool FTransferBoneWeights::TransferWeightsToMesh(FDynamicMesh3& InOutTargetMesh, const FName& InTargetProfileName)
 {	
 	if (Validate() != EOperationValidationResult::Ok) 
 	{
@@ -179,6 +186,11 @@ bool FTransferBoneWeights::Compute(FDynamicMesh3& InOutTargetMesh, const FTransf
 	if (!bIgnoreBoneAttributes && !InOutTargetMesh.Attributes()->HasBones())
 	{
 		return false; // the target mesh must have bone attributes
+	}
+
+	if (NormalThreshold >= 0 && !InOutTargetMesh.Attributes()->PrimaryNormals())
+	{
+		return false; // the target mesh must have normal attributes if we are comparing source and target normals
 	}
 	
 	FDynamicMeshVertexSkinWeightsAttribute* TargetSkinWeights = TransferBoneWeightsLocals::GetOrCreateSkinWeightsAttribute(InOutTargetMesh, InTargetProfileName);
@@ -212,28 +224,205 @@ bool FTransferBoneWeights::Compute(FDynamicMesh3& InOutTargetMesh, const FTransf
 
 	bool bFailed = false;
 	
-	ParallelFor(InOutTargetMesh.MaxVertexID(), [&](int32 VertexID)
+	MatchedVertices.Init(false, InOutTargetMesh.MaxVertexID());
+
+	if (TransferMethod == ETransferBoneWeightsMethod::ClosestPointOnSurface)
 	{
-		if (Cancelled() || bFailed) 
+		ParallelFor(InOutTargetMesh.MaxVertexID(), [&](int32 VertexID)
 		{
-			return;
-		}
-		
-		if (InOutTargetMesh.IsVertex(VertexID)) 
-		{
-			FVector3d Point = InOutTargetMesh.GetVertex(VertexID);
-		
-			FBoneWeights Weights;
-			if (Compute(Point, InToWorld, Weights, TargetBoneToIndex.Get()) == false)
+			if (Cancelled()) 
 			{
-				bFailed = true;
 				return;
 			}
 			
-			TargetSkinWeights->SetValue(VertexID, Weights);
+			if (InOutTargetMesh.IsVertex(VertexID)) 
+			{
+				const FVector3d Point = InOutTargetMesh.GetVertex(VertexID);
+				const FVector3f Normal = NormalThreshold >= 0 ? InOutTargetMesh.Attributes()->PrimaryNormals()->GetElement(VertexID) : FVector3f::Zero();
+
+				FBoneWeights Weights;
+				if (TransferWeightsToPoint(Weights, Point, TargetBoneToIndex.Get(), Normal))
+				{
+					TargetSkinWeights->SetValue(VertexID, Weights);
+					MatchedVertices[VertexID] = true;
+				}
+			}
+
+		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+
+		// If the caller requested to simply find the closest point for all vertices then the number of matched vertices
+		// must be equal to the target mesh vertex count
+		if (SearchRadius < 0 && NormalThreshold < 0)
+		{
+			int NumMatched = 0;
+			for (bool Flag : MatchedVertices)
+			{
+				if (Flag) 
+				{ 
+					NumMatched++;
+				}
+			}
+			bFailed = NumMatched != InOutTargetMesh.VertexCount();
+		}
+	} 
+	else if (TransferMethod == ETransferBoneWeightsMethod::InpaintWeights)
+	{
+		/**
+         *  Given two meshes, Mesh1 without weights and Mesh2 with weights, assume they are aligned in 3d space.
+         *  For every vertex on Mesh1 find the closest point on the surface of Mesh2 within a radius R. If the difference 
+         *  between the normals of the two points is below the threshold, then it's a match. Otherwise no match.
+         *  So now we have two sets of vertices on Mesh1. One with a match on the source mesh and one without a match.
+         *  For all the vertices with a match, copy weights over. For all the vertices without the match, do nothing.
+         *  Now, for all the vertices without a match, try to approximate the weights by smoothly interpolating between 
+         *  the weights at the known vertices via solving a quadratic problem. 
+         *  
+         *  The solver minimizes an energy
+         *      trace(W^t Q W)
+         *      W \in R^(nxm) is a matrix where n is the number of vertices and m is the number of bones. So (i,j) entry is 
+         *                    the influence (weight) of a vertex i by bone j
+         *      Q \in R^(nxn) is a matrix that combines both Dirichlet and Laplacian energies, Q = -0.5L + 0.5LM^-1L
+         *                    where L is a cotangent Laplacian and M is a mass matrix
+         *  
+         *  subject to constraints
+         *      All weights at a single vertex sum to 1: sum(W(i,:)) = 1
+         *      All weights must be non-negative: W(i,j) >=0 for any i, j
+         *      Any vertex for which we found a match must have fixed weights that can't be changed, 
+         *      i.e. W(i,j) = KnownWeights(i,j) where i is a vertex for which we found a match on the body.
+		 */
+		
+		// For every vertex on the target mesh try to find the match on the source mesh using the distance and normal checks
+		ParallelFor(InOutTargetMesh.MaxVertexID(), [&](int32 VertexID)
+		{
+			if (Cancelled()) 
+			{
+				return;
+			}
+			
+			if (InOutTargetMesh.IsVertex(VertexID)) 
+			{
+				const FVector3d Point = InOutTargetMesh.GetVertex(VertexID);
+				const FVector3f Normal = NormalThreshold >= 0 ? InOutTargetMesh.Attributes()->PrimaryNormals()->GetElement(VertexID) : FVector3f::Zero();
+
+				FBoneWeights Weights;
+				if (TransferWeightsToPoint(Weights, Point, TargetBoneToIndex.Get(), Normal))
+				{
+					TargetSkinWeights->SetValue(VertexID, Weights);
+					MatchedVertices[VertexID] = true;
+				}
+			}
+		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+
+		if (Cancelled()) 
+		{
+			return false;
 		}
 
-	}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+		// Compute linearization so we can store constraints at linearized indices
+		FVertexLinearization VtxLinearization(InOutTargetMesh, false);
+		const TArray<int32>& ToMeshV = VtxLinearization.ToId();
+		const TArray<int32>& ToIndex = VtxLinearization.ToIndex();
+		
+		int32 NumMatched = 0;
+		for (bool Flag : MatchedVertices)
+		{
+			if (Flag) 
+			{ 
+				NumMatched++;
+			}
+		}
+
+		// If all vertices were matched then nothing else to do
+		if (NumMatched == InOutTargetMesh.VertexCount())
+		{
+			return true;
+		}
+
+		// Setup the sparse matrix FixedValues of known (matched) weight values and the array (FixedIndices) of the matched vertex IDs
+		const int TargetNumBones = InOutTargetMesh.Attributes()->GetBoneNames()->GetAttribValues().Num();
+		FSparseMatrixD FixedValues;
+		FixedValues.resize(NumMatched, TargetNumBones);
+		std::vector<Eigen::Triplet<FSparseMatrixD::Scalar>> FixedValuesTriplets;
+		FixedValuesTriplets.reserve(NumMatched);
+		
+		TArray<int> FixedIndices;
+		FixedIndices.Reserve(NumMatched);
+
+		for (int VertexID = 0; VertexID < InOutTargetMesh.MaxVertexID(); ++VertexID)
+		{
+			if (InOutTargetMesh.IsVertex(VertexID) && MatchedVertices[VertexID])
+			{
+				FBoneWeights Data;
+				TargetSkinWeights->GetValue(VertexID, Data);
+
+				const int NumBones = Data.Num();
+				checkSlow(NumBones > 0);
+				const int CurIdx = FixedIndices.Num();
+				for (int BoneID = 0; BoneID < NumBones; ++BoneID)
+				{
+					const int BoneIdx = Data[BoneID].GetBoneIndex();
+					const double BoneWeight = (double)Data[BoneID].GetWeight();
+					FixedValuesTriplets.emplace_back(CurIdx, BoneIdx, BoneWeight);
+				}
+
+				checkSlow(VertexID < ToIndex.Num());
+				FixedIndices.Add(ToIndex[VertexID]);
+			}
+		}
+		FixedValues.setFromTriplets(FixedValuesTriplets.begin(), FixedValuesTriplets.end());
+
+		// Setup the Laplacian matrix
+		const int32 NumVerts = VtxLinearization.NumVerts();
+		FEigenSparseMatrixAssembler LaplacianAssembler(NumVerts, NumVerts);
+		UE::MeshDeformation::ConstructFullCotangentLaplacian<double>(InOutTargetMesh, 
+																	 VtxLinearization, 
+																	 LaplacianAssembler,
+																	 UE::MeshDeformation::ECotangentWeightMode::Default,
+																	 UE::MeshDeformation::ECotangentAreaMode::NoArea);
+		FSparseMatrixD CotangentMatrix;
+		LaplacianAssembler.ExtractResult(CotangentMatrix);
+		FSparseMatrixD NegativeCotangentMatrix = -0.25 * CotangentMatrix; //TODO: Add LM^-1L term in the future
+
+		// Solve the QP problem with fixed constraints
+		bFailed = true;
+		FQuadraticProgramming QProgram(&NegativeCotangentMatrix);
+		if (ensure(QProgram.SetFixedConstraints(&FixedIndices, &FixedValues)))
+		{
+			if (ensure(QProgram.PreFactorize()))
+			{
+				FDenseMatrixD TargetWeights;
+				if (ensure(QProgram.Solve(TargetWeights)))
+				{
+					FBoneWeightsSettings BoneSettings;
+					BoneSettings.SetNormalizeType(EBoneWeightNormalizeType::None);
+					for (int IdxI = 0; IdxI < TargetWeights.rows(); ++IdxI)
+					{
+						FBoneWeights WeightArray;
+						for (int IdxJ = 0; IdxJ < TargetWeights.cols(); ++IdxJ)
+						{
+							const FBoneIndexType BoneId = static_cast<FBoneIndexType>(IdxJ);
+							const float Weight = (float)TargetWeights(IdxI, IdxJ);
+							if (Weight > KINDA_SMALL_NUMBER)
+							{
+								FBoneWeight Bweight(BoneId, Weight);
+								WeightArray.SetBoneWeight(Bweight, BoneSettings);
+							}
+						}
+
+						WeightArray.Renormalize(FBoneWeightsSettings());
+
+						checkSlow(IdxI < ToMeshV.Num());
+						TargetSkinWeights->SetValue(ToMeshV[IdxI], WeightArray);
+					}
+
+					bFailed = false;
+				}
+			}
+		}
+	}
+	else 
+	{
+		checkNoEntry(); // unsupported method
+	}
 
 	if (Cancelled() || bFailed) 
 	{
@@ -243,20 +432,71 @@ bool FTransferBoneWeights::Compute(FDynamicMesh3& InOutTargetMesh, const FTransf
 	return true;
 }
 
-bool FTransferBoneWeights::Compute(const FVector3d& InPoint, const FTransformSRT3d& InToWorld, FBoneWeights& OutWeights, const TMap<FName, uint16>* TargetBoneToIndex) 
-{
-	const FDynamicMeshVertexSkinWeightsAttribute* SourceSkinWeights = SourceMesh->Attributes()->GetSkinWeightsAttribute(SourceProfileName);
-	checkSlow(SourceSkinWeights);
+bool FTransferBoneWeights::TransferWeightsToPoint(UE::AnimationCore::FBoneWeights& OutWeights, 
+												  const FVector3d& InPoint, 
+												  const TMap<FName, uint16>* TargetBoneToIndex,
+												  const FVector3f& InNormal)
+{	
+	// Find the containing triangle and the barycentric coordinates of the closest point
+	int32 TriID; 
+	FVector3d Bary;
+	if (!FindClosestPointOnSourceSurface(InPoint, TargetToWorld, TriID, Bary))
+	{
+		return false;
+	}
+	FVector3f BaryF = FVector3f((float)Bary[0], (float)Bary[1], (float)Bary[2]);
+	const FIndex3i TriVertex = SourceMesh->GetTriangle(TriID);
 
+	const FDynamicMeshVertexSkinWeightsAttribute* SourceSkinWeights = SourceMesh->Attributes()->GetSkinWeightsAttribute(SourceProfileName);
 	const TArray<FName>* SourceBoneNames = nullptr;
 	if (!bIgnoreBoneAttributes) 
 	{
 		SourceBoneNames = &SourceMesh->Attributes()->GetBoneNames()->GetAttribValues();
 	}
 
+	if (SearchRadius < 0 && NormalThreshold < 0)
+	{
+		// If the radius and normals are ignored, simply interpolate the weights and return the result
+		TransferBoneWeightsLocals::InterpolateBoneWeights(OutWeights, TriVertex, BaryF, SourceSkinWeights, SourceBoneNames, TargetBoneToIndex);
+	}
+	else
+	{
+		bool bPassedRadiusCheck = true;
+		if (SearchRadius >= 0)
+		{
+			const FVector3d MatchedPoint = SourceMesh->GetTriBaryPoint(TriID, Bary[0], Bary[1], Bary[2]);
+			bPassedRadiusCheck = (InPoint - MatchedPoint).Length() <= SearchRadius;
+		}
+
+		bool bPassedNormalsCheck = true;
+		if (NormalThreshold >= 0)
+		{
+			FVector3f Normal0, Normal1, Normal2;
+			SourceMesh->Attributes()->PrimaryNormals()->GetTriElements(TriID, Normal0, Normal1, Normal2);
+
+			const FVector3f MatchedNormal = Normalized(BaryF[0]*Normal0 + BaryF[1]*Normal1 + BaryF[2]*Normal2);
+			const FVector3f InNormalNormalized = Normalized(InNormal);
+			const float NormalAngle = FMathf::ACos(InNormalNormalized.Dot(MatchedNormal));
+			bPassedNormalsCheck = (double)NormalAngle <= NormalThreshold;
+		}
+		
+		if (bPassedRadiusCheck && bPassedNormalsCheck)
+		{
+			TransferBoneWeightsLocals::InterpolateBoneWeights(OutWeights, TriVertex, BaryF, SourceSkinWeights, SourceBoneNames, TargetBoneToIndex);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool FTransferBoneWeights::FindClosestPointOnSourceSurface(const FVector3d& InPoint, const FTransformSRT3d& InToWorld, int32& NearTriID, FVector3d& Bary)
+{
 	IMeshSpatial::FQueryOptions Options;
 	double NearestDistSqr;
-	int32 NearTriID;
 	
 	const FVector3d WorldPoint = InToWorld.TransformPosition(InPoint);
 	if (SourceBVH != nullptr) 
@@ -277,17 +517,9 @@ bool FTransferBoneWeights::Compute(const FVector3d& InPoint, const FTransformSRT
 	const FVector3d NearestPnt = Query.ClosestTrianglePoint;
 	const FIndex3i TriVertex = SourceMesh->GetTriangle(NearTriID);
 
-	const FVector3d Bary = VectorUtil::BarycentricCoords(NearestPnt,
-														 SourceMesh->GetVertexRef(TriVertex.A),
-														 SourceMesh->GetVertexRef(TriVertex.B),
-														 SourceMesh->GetVertexRef(TriVertex.C));
-
-	TransferBoneWeightsLocals::InterpolateBoneWeights(OutWeights,
-													  TriVertex,
-													  FVector3f((float)Bary[0], (float)Bary[1], (float)Bary[2]),
-													  SourceSkinWeights,
-													  SourceBoneNames,
-													  TargetBoneToIndex);
+	Bary = VectorUtil::BarycentricCoords(NearestPnt, SourceMesh->GetVertexRef(TriVertex.A),
+													 SourceMesh->GetVertexRef(TriVertex.B),
+													 SourceMesh->GetVertexRef(TriVertex.C));
 
 	return true;
 }

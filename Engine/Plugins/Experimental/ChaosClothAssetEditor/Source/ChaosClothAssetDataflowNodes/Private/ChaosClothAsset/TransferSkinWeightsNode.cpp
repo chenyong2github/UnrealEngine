@@ -130,7 +130,7 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 						const FVector3d PosD = FVector3d(SimPositions[VertexID]);
 
 						UE::AnimationCore::FBoneWeights BoneWeights;
-						TransferBoneWeights.Compute(PosD, FTransformSRT3d::Identity(), BoneWeights, &TargetBoneToIndex);
+						TransferBoneWeights.TransferWeightsToPoint(BoneWeights, PosD, &TargetBoneToIndex);
 
 						const int32 NumBones = BoneWeights.Num();
 
@@ -160,7 +160,7 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 						const FVector3d PosD = FVector3d(RenderPositions[VertexID]);
 
 						UE::AnimationCore::FBoneWeights BoneWeights;
-						TransferBoneWeights.Compute(PosD, FTransformSRT3d::Identity(), BoneWeights, &TargetBoneToIndex);
+						TransferBoneWeights.TransferWeightsToPoint(BoneWeights, PosD, &TargetBoneToIndex);
 
 						const int32 NumBones = BoneWeights.Num();
 

@@ -415,7 +415,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::TransferBoneWeight
 				}
 			}
 			
-			if (!TransferBoneWeights.Compute(EditMesh, FTransformSRT3d::Identity(), Options.TargetProfile.GetProfileName()))
+			if (!TransferBoneWeights.TransferWeightsToMesh(EditMesh, Options.TargetProfile.GetProfileName()))
 			{
 				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("TransferBoneWeightsFromMesh_TransferFailed", "TransferBoneWeightsFromMesh: Failed to transfer the weights"));
 			}

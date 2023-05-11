@@ -4,7 +4,8 @@
 
 #include "GeometryTypes.h"
 #include "UObject/NameTypes.h"
-
+#include "Containers/BitArray.h"
+#include "TransformTypes.h"
 
 // Forward declarations
 class FProgressCancel;
@@ -13,9 +14,6 @@ namespace UE::AnimationCore { class FBoneWeights; }
 
 namespace UE::Geometry
 {
-	template<typename RealType> class TTransformSRT3;
-	typedef TTransformSRT3<double> FTransformSRT3d;
-
 	class FDynamicMesh3;
 	template<typename MeshType> class TMeshAABBTree3;
 	typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3;
@@ -27,25 +25,25 @@ namespace UE
 namespace Geometry
 {
 /**
- * Transfer bone weights from one mesh (source) to another (target). Uses the dynamic mesh bone attributes to reindex 
- * the bone indices of the transferred weights from the source to the target skeletons. If both meshes have identical 
+ * Transfer bone weights from one mesh (source) to another (target). Uses the dynamic mesh bone attributes to reindex
+ * the bone indices of the transferred weights from the source to the target skeletons. If both meshes have identical
  * bone name attributes, then reindexing is skipped.
- * 
+ *
  * During the reindexing, if a weighted bone in the source skeleton is not present in the target skeleton, then the
  * weight is not transferred (skipped), and an error is printed to the console. For best results, the target skeleton
  * should be a superset of all the bones that are indexed by the transferred weights.
- * 
- * 
+ *
+ *
  * Example usage:
- * 
+ *
  * FDynamicMesh SourceMesh = ...; // Mesh we transferring weights from. Must have bone attributes.
  * FDynamicMesh TargetMesh = ...; // Mesh we are transferring weights to.
  *
  * FTransferBoneWeights TransferBoneWeights(&SourceMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
- * 
+ *
  * // Optionally, transform the target mesh. This is useful when you want to align the two meshes in world space.
- * FTransformSRT3d InToWorld = ...; 
- * 
+ * TransferBoneWeights.TargetToWorld = ...;
+ *
  * // When transferring weights from a dynamic mesh with bone attributes to a dynamic mesh without bone attributes,
  * // first copy over the bone attributes from the source to the target.
  * if (!TargetMesh.HasAttributes() || !TargetMesh.Attributes()->HasBones())
@@ -53,12 +51,39 @@ namespace Geometry
  *     TargetMesh.EnableAttributes();
  *     TargetMesh.Attributes()->CopyBoneAttributes(*SourceMesh.Attributes());
  * }
- * 
- * if (TransferBoneWeights.Validate() == EOperationValidationResult::Ok) 
+ *
+ * // Set the transfer method.
+ * TransferBoneWeights.TransferMethod = ETransferBoneWeightsMethod::...;
+ *
+ * // if ETransferBoneWeightsMethod::ClosestPointOnSurface is used and you simply want to copy weights over from the
+ * // closest points then set the radius and normal threshold to -1 (default).
+ * TransferBoneWeights.SearchRadius = -1
+ * TransferBoneWeights.NormalThreshold = -1
+ *
+ * // if ETransferBoneWeightsMethod::InpaintWeights is used then additionally set the radius and normal parameters
+ * TransferBoneWeights.SearchRadius = ...    // Good estimate is to use a small value (0.05) of the bounding box radius
+ * TransferBoneWeights.NormalThreshold = ... // 30 degrees (0.52 rad) works well in practice
+ *
+ * if (TransferBoneWeights.Validate() == EOperationValidationResult::Ok)
  * {
- *      TransferBoneWeights.Compute(TargetMesh, InToWorld, FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
+ *      TransferBoneWeights.TransferWeightsToMesh(TargetMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName);
  * }
+ *
+ * // Alternatively if you don't want to use FDynamicMesh3 to represent your target mesh you can transfer weights to
+ * // to each point separately by calling
+ * if (TransferBoneWeights.Validate() == EOperationValidationResult::Ok)
+ * {
+ *      for each Point:
+ *          FBoneWeights Weights;
+ *          TransferBoneWeights.TransferWeightsToPoint(Weights, Point);
+ * }
+ *
+ * // After the transfer you can check which target mesh vertices had the weight transferred directly from the source mesh
+ * // via the FTransferBoneWeights:MatchedVertices array
+ *
  */
+
+
 
 class DYNAMICMESH_API FTransferBoneWeights
 {
@@ -66,9 +91,14 @@ public:
 
 	enum class ETransferBoneWeightsMethod : uint8
 	{
-        // For every vertex on the target mesh, find the closest point on the surface of the source mesh.
-        // This is usually a point on a triangle where the bone weights are interpolated via barycentric coordinates.
-		ClosestPointOnSurface = 0
+        // For every vertex on the target mesh, find the closest point on the surface of the source mesh. If that point 
+        // is within the SearchRadius, and their normals differ by less than the NormalThreshold, then we directly copy  
+        // the weights from the source point to the target mesh vertex.
+		ClosestPointOnSurface = 0,
+
+        // Same as the ClosestPointOnSurface but for all the vertices we didn't copy the weights directly, automatically 
+		// compute the smooth weights.
+		InpaintWeights = 1
 	};
 
 	//
@@ -84,11 +114,30 @@ public:
 	/** The transfer method to compute the bone weights. */
 	ETransferBoneWeightsMethod TransferMethod = ETransferBoneWeightsMethod::ClosestPointOnSurface;
 
+	/** Transform applied to the input target mesh or target point before transfer. */
+	FTransformSRT3d TargetToWorld = FTransformSRT3d::Identity(); 
+
+	/**  Radius for searching the closest point. If negative, all points are considered. */
+	double SearchRadius = -1;
+
+	/** 
+	 * Maximum angle (in radians) difference between target and source point normals to be considred a match. 
+	 * If negative, normals are ignored.
+	 */
+	double NormalThreshold = -1;
+
 	/** 
      * Completely ignore the source and target mesh bone attributes when transferring weights from one dynamic mesh to another.
      * This skips re-indexing and simply copies skin weights over. Use with caution.
 	 */
 	bool bIgnoreBoneAttributes = false;
+
+	//
+	// Outputs
+	//
+
+	/** MatchedVertices[VertexID] is set to true for a tartet mesh vertex ID with a match found, false otherwise. */
+	TArray<bool> MatchedVertices;
 
 protected:
 		
@@ -132,35 +181,46 @@ public:
      * Transfer the bone weights from the source mesh to the given target mesh and store the result in the skin weight  
      * attribute with the given profile name.
 	 * 
-	 * @param InOutTargetMesh Target mesh we are transfering weights into
-	 * @param InToWorld Transform applied to the input target mesh
+	 * @param InOutTargetMesh	  Target mesh we are transfering weights into
      * @param InTargetProfileName Skin weight profile name we are writing into. If the profile with that name exists,  
-     *       					  then the data will be overwritten, otherwise a new attribute will be created.
+     *							  then the data will be overwritten, otherwise a new attribute will be created.
      * 
      * @return true if the algorithm succeeds, false if it failed or was canceled by the user.
 	 * 
 	 * @note Assumes that the InOutTargetMesh has bone attributes, use bIgnoreBoneAttributes flag to ignore the bone 
 	 * 		 attributes and skip re-indexing.
 	 */
-	virtual bool Compute(FDynamicMesh3& InOutTargetMesh, const FTransformSRT3d& InToWorld, const FName& InTargetProfileName);
+	virtual bool TransferWeightsToMesh(FDynamicMesh3& InOutTargetMesh, const FName& InTargetProfileName);
+
 
 	/**
-     * Compute a single bone weight for a given point.
-     *
-	 * @param InPoint Point for which we are computing a bone weight
-	 * @param InToWorld Transform applied to the point
-     * @param OutWeights Bone weight computed for the input transformed point
+	 * Compute the bone weights for a given point using the ETransferBoneWeightsMethod::ClosestPointOnSurface algorithm.
+	 *
+	 * @param OutWeights 		Bone weight computed for the input transformed point
+	 * @param InPoint 		    Point for which we are computing the bone weight
 	 * @param TargetBoneToIndex Optional map from the bone names to the bone indices of the target skeleton. 
 	 * 							If null, the bone indices of the skinning weights will not be re-indexed after the transfer.
+	 * @param InNormal			Normal at the input point. Should be set if NormalThreshold >= 0.
 	 * 
-     * @return true if the algorithm succeeds, false if it failed or was canceled by the user.
+	 * @return true if the algorithm succeeds, false if it failed to find the matching point or was canceled by the user.
 	 */
-	virtual bool Compute(const FVector3d& InPoint, const FTransformSRT3d& InToWorld, UE::AnimationCore::FBoneWeights& OutWeights, const TMap<FName, uint16>* TargetBoneToIndex = nullptr);
-
+	virtual bool TransferWeightsToPoint(UE::AnimationCore::FBoneWeights& OutWeights, 
+										const FVector3d& InPoint, 
+										const TMap<FName, uint16>* TargetBoneToIndex = nullptr,
+										const FVector3f& InNormal = FVector3f::Zero());
 protected:
 	
     /** @return if true, abort the computation. */
 	virtual bool Cancelled();
+	
+	/** 
+	 * Find the closest point on the surface of the source mesh and return the ID of the triangle containing it and its 
+	 * barycentric coordinates.
+	 * 
+	 * @return true if point is found, false otherwise
+	 */
+	bool FindClosestPointOnSourceSurface(const FVector3d& InPoint, const FTransformSRT3d& InToWorld, int32& OutTriID, FVector3d& OutBary);
+
 };
 
 } // end namespace UE::Geometry
