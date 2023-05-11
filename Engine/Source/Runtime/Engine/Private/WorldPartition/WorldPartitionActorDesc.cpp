@@ -48,6 +48,7 @@ FWorldPartitionActorDesc::FWorldPartitionActorDesc()
 	, bIsForcedNonSpatiallyLoaded(false)
 	, bIsDefaultActorDesc(false)
 	, UnloadedReason(nullptr)
+	, bActorIsMainWorldOnly(false)
 {}
 
 void FWorldPartitionActorDesc::Init(const AActor* InActor)
