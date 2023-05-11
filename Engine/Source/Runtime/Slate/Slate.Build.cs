@@ -13,16 +13,12 @@ public class Slate : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
+				"ApplicationCore",
 				"InputCore",
 				"Json",
 				"SlateCore",
 				"ImageWrapper"
 			});
-
-		if (Target.bCompileAgainstApplicationCore)
-		{
-			PublicDependencyModuleNames.Add("ApplicationCore");
-		}
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

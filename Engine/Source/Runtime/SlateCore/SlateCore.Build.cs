@@ -13,16 +13,12 @@ public class SlateCore : ModuleRules
 				"Core",
 				"CoreUObject",
 				"InputCore",
+				"ApplicationCore",
 				"Json",
 				"TraceLog",
 			});
 
-		if (Target.bCompileAgainstApplicationCore)
-		{
-			PublicDependencyModuleNames.Add("ApplicationCore");
-		}
-
-		if (Target.Type != TargetType.Server)
+        if (Target.Type != TargetType.Server)
 		{
 			if (Target.bCompileFreeType)
 			{

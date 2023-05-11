@@ -21,6 +21,7 @@ public class Engine : ModuleRules
 				"AudioMixer", 
 				"AudioMixerCore",
 				"MovieSceneCapture", 
+				"PacketHandler", 
 				"Renderer"
 			}
 		);
@@ -42,7 +43,9 @@ public class Engine : ModuleRules
 				"EyeTracker",
 				"MRMesh",
 				"Advertising",
+				"MovieSceneCapture",
 				"AutomationWorker",
+				"MovieSceneCapture",
 				"DesktopPlatform"
 			}
 		);
@@ -76,6 +79,7 @@ public class Engine : ModuleRules
 				"CoreUObject",
 				"FieldNotification",
 				"NetCore",
+				"ApplicationCore",
 				"ImageCore",
 				"Json",
 				"JsonUtilities",
@@ -110,16 +114,20 @@ public class Engine : ModuleRules
 			}
 		);
 
-		if (Target.bCompileAgainstApplicationCore)
-		{
-			PublicDependencyModuleNames.Add("ApplicationCore");
-		}
-
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"TypedElementFramework",
 				"TypedElementRuntime",
+				"NetCore",
+				"RenderCore",
+				"CoreUObject",
+				"CoreOnline",
+				"PhysicsCore",
+				"ChaosCore",
+				"DeveloperSettings",
 				"NetCommon",
+				"Sockets",
+				"MeshDescription"
 			}
 		);
 
@@ -140,11 +148,13 @@ public class Engine : ModuleRules
 				"Analytics",
 				"AudioMixer",
 				"AudioMixerCore",
+				"SignalProcessing",
 				"IntelISPC",
 				"TraceLog",
 				"ColorManagement",
 				"Icmp",
 				"XmlParser",
+				"AudioExtensions"
 			}
 		);
 
