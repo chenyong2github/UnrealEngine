@@ -182,14 +182,15 @@ namespace UE
 	}
 }
 
- FSavePackageSettings& FSavePackageSettings::GetDefaultSettings()
+FSavePackageSettings& FSavePackageSettings::GetDefaultSettings()
 {
 	static FSavePackageSettings Default;
 	return Default;
 }
 
-namespace SavePackageUtilities
+namespace UE::SavePackageUtilities
 {
+
 const FName NAME_World("World");
 const FName NAME_Level("Level");
 const FName NAME_PrestreamPackage("PrestreamPackage");
@@ -618,11 +619,6 @@ bool IsStrippedEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, b
 	return true;
 #endif
 }
-	
-} // end namespace SavePackageUtilities
-
-namespace UE::SavePackageUtilities
-{
 
 bool IsUpdatingLoadedPath(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags)
 {
@@ -1736,10 +1732,6 @@ bool CanSkipEditorReferencedPackagesWhenCooking()
 	return bResult;
 }
 
-}
-
-namespace SavePackageUtilities
-{
 /**
  * Static: Saves thumbnail data for the specified package outer and linker
  *
@@ -1992,7 +1984,7 @@ void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchi
 	}
 }
 
-} // end namespace SavePackageUtilities
+} // end namespace UE::SavePackageUtilities
 
 void UPackage::WaitForAsyncFileWrites()
 {
@@ -2041,161 +2033,160 @@ bool UPackage::IsEmptyPackage(UPackage* Package, const UObject* LastReferencer)
 }
 
 
-namespace UE
+namespace UE::AssetRegistry
 {
-namespace AssetRegistry
+
+// See the corresponding ReadPackageDataMain and ReadPackageDataDependencies defined in PackageReader.cpp in AssetRegistry module
+void WritePackageData(FStructuredArchiveRecord& ParentRecord, bool bIsCooking, const UPackage* Package,
+	FLinkerSave* Linker, const TSet<UObject*>& ImportsUsedInGame, const TSet<FName>& SoftPackagesUsedInGame,
+	const ITargetPlatform* TargetPlatform, TArray<FAssetData>* OutAssetDatas)
 {
-	// See the corresponding ReadPackageDataMain and ReadPackageDataDependencies defined in PackageReader.cpp in AssetRegistry module
-	void WritePackageData(FStructuredArchiveRecord& ParentRecord, bool bIsCooking, const UPackage* Package,
-		FLinkerSave* Linker, const TSet<UObject*>& ImportsUsedInGame, const TSet<FName>& SoftPackagesUsedInGame,
-		const ITargetPlatform* TargetPlatform, TArray<FAssetData>* OutAssetDatas)
+	// To avoid large patch sizes, we have frozen cooked package format at the format before VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS
+	bool bPreDependencyFormat = bIsCooking;
+
+	// WritePackageData is currently only called if not bTextFormat; we rely on that to save offsets
+	FArchive& BinaryArchive = ParentRecord.GetUnderlyingArchive();
+	check(!BinaryArchive.IsTextFormat());
+
+	// Store the asset registry offset in the file and enter a record for the asset registry data
+	Linker->Summary.AssetRegistryDataOffset = (int32)BinaryArchive.Tell();
+	FStructuredArchiveRecord AssetRegistryRecord = ParentRecord.EnterField(TEXT("AssetRegistry")).EnterRecord();
+
+	// Offset to Dependencies
+	int64 OffsetToAssetRegistryDependencyDataOffset = INDEX_NONE;
+	if (!bPreDependencyFormat)
 	{
-		// To avoid large patch sizes, we have frozen cooked package format at the format before VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS
-		bool bPreDependencyFormat = bIsCooking;
+		// Write placeholder data for the offset to the separately-serialized AssetRegistryDependencyData
+		OffsetToAssetRegistryDependencyDataOffset = BinaryArchive.Tell();
+		int64 AssetRegistryDependencyDataOffset = 0;
+		AssetRegistryRecord << SA_VALUE(TEXT("AssetRegistryDependencyDataOffset"), AssetRegistryDependencyDataOffset);
+		check(BinaryArchive.Tell() == OffsetToAssetRegistryDependencyDataOffset + sizeof(AssetRegistryDependencyDataOffset));
+	}
 
-		// WritePackageData is currently only called if not bTextFormat; we rely on that to save offsets
-		FArchive& BinaryArchive = ParentRecord.GetUnderlyingArchive();
-		check(!BinaryArchive.IsTextFormat());
-
-		// Store the asset registry offset in the file and enter a record for the asset registry data
-		Linker->Summary.AssetRegistryDataOffset = (int32)BinaryArchive.Tell();
-		FStructuredArchiveRecord AssetRegistryRecord = ParentRecord.EnterField(TEXT("AssetRegistry")).EnterRecord();
-
-		// Offset to Dependencies
-		int64 OffsetToAssetRegistryDependencyDataOffset = INDEX_NONE;
-		if (!bPreDependencyFormat)
+	// Collect the tag map
+	TArray<UObject*> AssetObjects;
+	if (!(Linker->Summary.GetPackageFlags() & PKG_FilterEditorOnly))
+	{
+		// Find any exports which are not in the tag map
+		for (int32 i = 0; i < Linker->ExportMap.Num(); i++)
 		{
-			// Write placeholder data for the offset to the separately-serialized AssetRegistryDependencyData
-			OffsetToAssetRegistryDependencyDataOffset = BinaryArchive.Tell();
-			int64 AssetRegistryDependencyDataOffset = 0;
-			AssetRegistryRecord << SA_VALUE(TEXT("AssetRegistryDependencyDataOffset"), AssetRegistryDependencyDataOffset);
-			check(BinaryArchive.Tell() == OffsetToAssetRegistryDependencyDataOffset + sizeof(AssetRegistryDependencyDataOffset));
-		}
-
-		// Collect the tag map
-		TArray<UObject*> AssetObjects;
-		if (!(Linker->Summary.GetPackageFlags() & PKG_FilterEditorOnly))
-		{
-			// Find any exports which are not in the tag map
-			for (int32 i = 0; i < Linker->ExportMap.Num(); i++)
+			FObjectExport& Export = Linker->ExportMap[i];
+			if (Export.Object && Export.Object->IsAsset())
 			{
-				FObjectExport& Export = Linker->ExportMap[i];
-				if (Export.Object && Export.Object->IsAsset())
-				{
-					AssetObjects.Add(Export.Object);
-				}
+				AssetObjects.Add(Export.Object);
 			}
 		}
-		int32 ObjectCount = AssetObjects.Num();
-		FStructuredArchive::FArray AssetArray = AssetRegistryRecord.EnterArray(TEXT("TagMap"), ObjectCount);
-		if (OutAssetDatas)
-		{
-			OutAssetDatas->Reset();
-		}
-		FString PackageName = Package->GetName();
+	}
+	int32 ObjectCount = AssetObjects.Num();
+	FStructuredArchive::FArray AssetArray = AssetRegistryRecord.EnterArray(TEXT("TagMap"), ObjectCount);
+	if (OutAssetDatas)
+	{
+		OutAssetDatas->Reset();
+	}
+	FString PackageName = Package->GetName();
 
-		for (int32 ObjectIdx = 0; ObjectIdx < AssetObjects.Num(); ++ObjectIdx)
-		{
-			const UObject* Object = AssetObjects[ObjectIdx];
+	for (int32 ObjectIdx = 0; ObjectIdx < AssetObjects.Num(); ++ObjectIdx)
+	{
+		const UObject* Object = AssetObjects[ObjectIdx];
 
-			// Exclude the package name in the object path, we just need to know the path relative to the package we are saving
-			FString ObjectPath = Object->GetPathName(Package);
-			FString ObjectClassName = Object->GetClass()->GetPathName();
+		// Exclude the package name in the object path, we just need to know the path relative to the package we are saving
+		FString ObjectPath = Object->GetPathName(Package);
+		FString ObjectClassName = Object->GetClass()->GetPathName();
 
-			TArray<UObject::FAssetRegistryTag> SourceTags;
-			Object->GetAssetRegistryTags(SourceTags);
+		TArray<UObject::FAssetRegistryTag> SourceTags;
+		Object->GetAssetRegistryTags(SourceTags);
 #if WITH_EDITOR
-			Object->GetExtendedAssetRegistryTagsForSave(TargetPlatform, SourceTags);
+		Object->GetExtendedAssetRegistryTagsForSave(TargetPlatform, SourceTags);
 #endif // WITH_EDITOR
 
-			TArray<UObject::FAssetRegistryTag> Tags;
-			for (UObject::FAssetRegistryTag& SourceTag : SourceTags)
+		TArray<UObject::FAssetRegistryTag> Tags;
+		for (UObject::FAssetRegistryTag& SourceTag : SourceTags)
+		{
+			UObject::FAssetRegistryTag* Existing = Tags.FindByPredicate([SourceTag](const UObject::FAssetRegistryTag& InTag) { return InTag.Name == SourceTag.Name; });
+			if (Existing)
 			{
-				UObject::FAssetRegistryTag* Existing = Tags.FindByPredicate([SourceTag](const UObject::FAssetRegistryTag& InTag) { return InTag.Name == SourceTag.Name; });
-				if (Existing)
-				{
-					Existing->Value = SourceTag.Value;
-				}
-				else
-				{
-					Tags.Add(SourceTag);
-				}
+				Existing->Value = SourceTag.Value;
 			}
-
-			int32 TagCount = Tags.Num();
-
-			FStructuredArchive::FRecord AssetRecord = AssetArray.EnterElement().EnterRecord();
-			AssetRecord << SA_VALUE(TEXT("Path"), ObjectPath) << SA_VALUE(TEXT("Class"), ObjectClassName);
-
-			FStructuredArchive::FMap TagMap = AssetRecord.EnterField(TEXT("Tags")).EnterMap(TagCount);
-
-			for (TArray<UObject::FAssetRegistryTag>::TConstIterator TagIter(Tags); TagIter; ++TagIter)
+			else
 			{
-				FString Key = TagIter->Name.ToString();
-				FString Value = TagIter->Value;
-
-				TagMap.EnterElement(Key) << Value;
-			}
-
-			if (OutAssetDatas)
-			{
-				FAssetDataTagMap TagsAndValues;
-				for (UObject::FAssetRegistryTag& Tag : Tags)
-				{
-					if (!Tag.Name.IsNone() && !Tag.Value.IsEmpty())
-					{
-						TagsAndValues.Add(Tag.Name, MoveTemp(Tag.Value));
-					}
-				}
-				// if we do not have a full object path already, build it
-				const bool bFullObjectPath = ObjectPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive);
-				if (!bFullObjectPath)
-				{
-					// if we do not have a full object path, ensure that we have a top level object for the package and not a sub object
-					if (!ensureMsgf(!ObjectPath.Contains(TEXT("."), ESearchCase::CaseSensitive),
-						TEXT("Cannot make FAssetData for sub object %s in package %s!"), *ObjectPath, *PackageName))
-					{
-						continue;
-					}
-					ObjectPath = PackageName + TEXT(".") + ObjectPath;
-				}
-
-				OutAssetDatas->Emplace(PackageName, ObjectPath, FTopLevelAssetPath(ObjectClassName),
-					MoveTemp(TagsAndValues), Package->GetChunkIDs(), Package->GetPackageFlags());
+				Tags.Add(SourceTag);
 			}
 		}
-		if (bPreDependencyFormat)
+
+		int32 TagCount = Tags.Num();
+
+		FStructuredArchive::FRecord AssetRecord = AssetArray.EnterElement().EnterRecord();
+		AssetRecord << SA_VALUE(TEXT("Path"), ObjectPath) << SA_VALUE(TEXT("Class"), ObjectClassName);
+
+		FStructuredArchive::FMap TagMap = AssetRecord.EnterField(TEXT("Tags")).EnterMap(TagCount);
+
+		for (TArray<UObject::FAssetRegistryTag>::TConstIterator TagIter(Tags); TagIter; ++TagIter)
 		{
-			// The legacy format did not write the other sections, or the offsets to those other sections
-			return;
+			FString Key = TagIter->Name.ToString();
+			FString Value = TagIter->Value;
+
+			TagMap.EnterElement(Key) << Value;
 		}
 
-		// Overwrite the placeholder offset for the AssetRegistryDependencyData and enter a record for the asset registry dependency data
+		if (OutAssetDatas)
 		{
-			int64 AssetRegistryDependencyDataOffset = Linker->Tell();
-			BinaryArchive.Seek(OffsetToAssetRegistryDependencyDataOffset);
-			BinaryArchive << AssetRegistryDependencyDataOffset;
-			BinaryArchive.Seek(AssetRegistryDependencyDataOffset);
-		}
-		FStructuredArchiveRecord DependencyDataRecord = ParentRecord.EnterField(TEXT("AssetRegistryDependencyData")).EnterRecord();
+			FAssetDataTagMap TagsAndValues;
+			for (UObject::FAssetRegistryTag& Tag : Tags)
+			{
+				if (!Tag.Name.IsNone() && !Tag.Value.IsEmpty())
+				{
+					TagsAndValues.Add(Tag.Name, MoveTemp(Tag.Value));
+				}
+			}
+			// if we do not have a full object path already, build it
+			const bool bFullObjectPath = ObjectPath.StartsWith(TEXT("/"), ESearchCase::CaseSensitive);
+			if (!bFullObjectPath)
+			{
+				// if we do not have a full object path, ensure that we have a top level object for the package and not a sub object
+				if (!ensureMsgf(!ObjectPath.Contains(TEXT("."), ESearchCase::CaseSensitive),
+					TEXT("Cannot make FAssetData for sub object %s in package %s!"), *ObjectPath, *PackageName))
+				{
+					continue;
+				}
+				ObjectPath = PackageName + TEXT(".") + ObjectPath;
+			}
 
-		// Convert the IsUsedInGame sets into a bitarray with a value per import/softpackagereference
-		TBitArray<> ImportUsedInGameBits;
-		TBitArray<> SoftPackageUsedInGameBits;
-		ImportUsedInGameBits.Reserve(Linker->ImportMap.Num());
-		for (int32 ImportIndex = 0; ImportIndex < Linker->ImportMap.Num(); ++ImportIndex)
-		{
-			ImportUsedInGameBits.Add(ImportsUsedInGame.Contains(Linker->ImportMap[ImportIndex].XObject));
+			OutAssetDatas->Emplace(PackageName, ObjectPath, FTopLevelAssetPath(ObjectClassName),
+				MoveTemp(TagsAndValues), Package->GetChunkIDs(), Package->GetPackageFlags());
 		}
-		SoftPackageUsedInGameBits.Reserve(Linker->SoftPackageReferenceList.Num());
-		for (int32 SoftPackageIndex = 0; SoftPackageIndex < Linker->SoftPackageReferenceList.Num(); ++SoftPackageIndex)
-		{
-			SoftPackageUsedInGameBits.Add(SoftPackagesUsedInGame.Contains(Linker->SoftPackageReferenceList[SoftPackageIndex]));
-		}
-
-		// Serialize the Dependency section
-		DependencyDataRecord << SA_VALUE(TEXT("ImportUsedInGame"), ImportUsedInGameBits);
-		DependencyDataRecord << SA_VALUE(TEXT("SoftPackageUsedInGame"), SoftPackageUsedInGameBits);
 	}
+	if (bPreDependencyFormat)
+	{
+		// The legacy format did not write the other sections, or the offsets to those other sections
+		return;
+	}
+
+	// Overwrite the placeholder offset for the AssetRegistryDependencyData and enter a record for the asset registry dependency data
+	{
+		int64 AssetRegistryDependencyDataOffset = Linker->Tell();
+		BinaryArchive.Seek(OffsetToAssetRegistryDependencyDataOffset);
+		BinaryArchive << AssetRegistryDependencyDataOffset;
+		BinaryArchive.Seek(AssetRegistryDependencyDataOffset);
+	}
+	FStructuredArchiveRecord DependencyDataRecord = ParentRecord.EnterField(TEXT("AssetRegistryDependencyData")).EnterRecord();
+
+	// Convert the IsUsedInGame sets into a bitarray with a value per import/softpackagereference
+	TBitArray<> ImportUsedInGameBits;
+	TBitArray<> SoftPackageUsedInGameBits;
+	ImportUsedInGameBits.Reserve(Linker->ImportMap.Num());
+	for (int32 ImportIndex = 0; ImportIndex < Linker->ImportMap.Num(); ++ImportIndex)
+	{
+		ImportUsedInGameBits.Add(ImportsUsedInGame.Contains(Linker->ImportMap[ImportIndex].XObject));
+	}
+	SoftPackageUsedInGameBits.Reserve(Linker->SoftPackageReferenceList.Num());
+	for (int32 SoftPackageIndex = 0; SoftPackageIndex < Linker->SoftPackageReferenceList.Num(); ++SoftPackageIndex)
+	{
+		SoftPackageUsedInGameBits.Add(SoftPackagesUsedInGame.Contains(Linker->SoftPackageReferenceList[SoftPackageIndex]));
+	}
+
+	// Serialize the Dependency section
+	DependencyDataRecord << SA_VALUE(TEXT("ImportUsedInGame"), ImportUsedInGameBits);
+	DependencyDataRecord << SA_VALUE(TEXT("SoftPackageUsedInGame"), SoftPackageUsedInGameBits);
 }
+
 }

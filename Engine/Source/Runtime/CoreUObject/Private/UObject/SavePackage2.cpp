@@ -432,7 +432,7 @@ ESavePackageResult HarvestPackage(FSaveContext& SaveContext)
 		// Harvest the PrestreamPackage class name if needed
 		if (PrestreamPackages.Num() > 0)
 		{
-			Harvester.HarvestPackageHeaderName(SavePackageUtilities::NAME_PrestreamPackage);
+			Harvester.HarvestPackageHeaderName(UE::SavePackageUtilities::NAME_PrestreamPackage);
 		}
 
 		// if we have a WorldTileInfo, we need to harvest its dependencies as well, i.e. Custom Version
@@ -575,7 +575,7 @@ ESavePackageResult ValidateExports(FSaveContext& SaveContext)
 			if (Object)
 			{
 				FName ClassName = Object->GetClass()->GetFName();
-				bContainsMap |= (ClassName == SavePackageUtilities::NAME_World || ClassName == SavePackageUtilities::NAME_Level);
+				bContainsMap |= (ClassName == UE::SavePackageUtilities::NAME_World || ClassName == UE::SavePackageUtilities::NAME_Level);
 			}
 		}
 		if (!bContainsMap)
@@ -657,7 +657,7 @@ ESavePackageResult ValidateIllegalReferences(FSaveContext& SaveContext, TArray<U
 		UObject* MostLikelyCulprit = nullptr;
 		FString CulpritString = TEXT("Unknown");
 		FString Referencer;
-		SavePackageUtilities::FindMostLikelyCulprit(ObjectsInOtherMaps, MostLikelyCulprit, Referencer, &SaveContext);
+		UE::SavePackageUtilities::FindMostLikelyCulprit(ObjectsInOtherMaps, MostLikelyCulprit, Referencer, &SaveContext);
 		if (MostLikelyCulprit != nullptr)
 		{
 			CulpritString = FString::Printf(TEXT("%s (%s)"), *MostLikelyCulprit->GetFullName(), *Referencer);
@@ -680,7 +680,7 @@ ESavePackageResult ValidateIllegalReferences(FSaveContext& SaveContext, TArray<U
 		UObject* MostLikelyCulprit = nullptr;
 		FString CulpritString = TEXT("Unknown");
 		FString Referencer;
-		SavePackageUtilities::FindMostLikelyCulprit(PrivateObjects, MostLikelyCulprit, Referencer, &SaveContext);
+		UE::SavePackageUtilities::FindMostLikelyCulprit(PrivateObjects, MostLikelyCulprit, Referencer, &SaveContext);
 		CulpritString = FString::Printf(TEXT("%s (%s)"),
 			(MostLikelyCulprit != nullptr) ? *MostLikelyCulprit->GetFullName() : TEXT("(unknown culprit)"),
 			*Referencer);
@@ -1204,7 +1204,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 			// If the package import is a prestream package, mark it as such by hacking its class name
 			if (SaveContext.IsPrestreamPackage(Cast<UPackage>(Import)))
 			{
-				ObjectImport.ClassName = SavePackageUtilities::NAME_PrestreamPackage;
+				ObjectImport.ClassName = UE::SavePackageUtilities::NAME_PrestreamPackage;
 			}
 
 			if (ReplacedName != NAME_None)
@@ -1872,7 +1872,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 	// Save thumbnails
 	{
 		SCOPED_SAVETIMER(UPackage_Save_SaveThumbnails);
-		SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(TEXT("Thumbnails")));
+		UE::SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(TEXT("Thumbnails")));
 	}
 	{
 		// Save asset registry data so the editor can search for information about assets in this package
@@ -1884,7 +1884,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 	// Save level information used by World browser
 	{
 		SCOPED_SAVETIMER(UPackage_Save_WorldLevelData);
-		SavePackageUtilities::SaveWorldLevelInfo(SaveContext.GetPackage(), Linker, StructuredArchiveRoot);
+		UE::SavePackageUtilities::SaveWorldLevelInfo(SaveContext.GetPackage(), Linker, StructuredArchiveRoot);
 	}
 
 	// Write Preload Dependencies
@@ -1937,12 +1937,12 @@ ESavePackageResult WritePackageTextHeader(FStructuredArchive::FRecord& Structure
 	// Save thumbnails
 	{
 		SCOPED_SAVETIMER(UPackage_Save_SaveThumbnails);
-		SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(TEXT("Thumbnails")));
+		UE::SavePackageUtilities::SaveThumbnails(SaveContext.GetPackage(), Linker, StructuredArchiveRoot.EnterField(TEXT("Thumbnails")));
 	}
 	// Save level information used by World browser
 	{
 		SCOPED_SAVETIMER(UPackage_Save_WorldLevelData);
-		SavePackageUtilities::SaveWorldLevelInfo(SaveContext.GetPackage(), Linker, StructuredArchiveRoot);
+		UE::SavePackageUtilities::SaveWorldLevelInfo(SaveContext.GetPackage(), Linker, StructuredArchiveRoot);
 	}
 
 	return ReturnSuccessOrCancel();
@@ -2465,7 +2465,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 
 			for (FSavePackageOutputFile& Entry : SaveContext.AdditionalPackageFiles)
 			{
-				SavePackageUtilities::AsyncWriteFile(WriteOptions, Entry);
+				UE::SavePackageUtilities::AsyncWriteFile(WriteOptions, Entry);
 			}
 		}
 		SaveContext.CloseLinkerArchives();
@@ -2495,7 +2495,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 		// Add the .uasset file to the list of output files (TODO: Fix the 0 size, it isn't used after this point but needs to be cleaned up)
 		SaveContext.AdditionalPackageFiles.Emplace(SaveContext.GetFilename(), SaveContext.GetTempFilename().GetValue(), 0);
 
-		ESavePackageResult FinalizeResult = SavePackageUtilities::FinalizeTempOutputFiles(SaveContext.GetTargetPackagePath(), SaveContext.AdditionalPackageFiles,
+		ESavePackageResult FinalizeResult = UE::SavePackageUtilities::FinalizeTempOutputFiles(SaveContext.GetTargetPackagePath(), SaveContext.AdditionalPackageFiles,
 			SaveContext.GetFinalTimestamp());
 		
 		SaveContext.SetTempFilename(TOptional<FString>());
@@ -2998,14 +2998,14 @@ ESavePackageResult WriteAdditionalFiles(FSaveContext& SaveContext, FScopedSlowTa
 	SlowTask.EnterProgressFrame();
 
 	// Add any pending data blobs to the end of the file by invoking the callbacks
-	ESavePackageResult Result = SavePackageUtilities::AppendAdditionalData(*SaveContext.GetLinker(), VirtualExportsFileOffset, SaveContext.GetSavePackageContext());
+	ESavePackageResult Result = UE::SavePackageUtilities::AppendAdditionalData(*SaveContext.GetLinker(), VirtualExportsFileOffset, SaveContext.GetSavePackageContext());
 	if (Result != ESavePackageResult::Success)
 	{
 		return Result;
 	}
 
 	// Create the payload side car file (if needed)
-	Result = SavePackageUtilities::CreatePayloadSidecarFile(*SaveContext.GetLinker(), SaveContext.GetTargetPackagePath(), SaveContext.IsSaveToMemory(),
+	Result = UE::SavePackageUtilities::CreatePayloadSidecarFile(*SaveContext.GetLinker(), SaveContext.GetTargetPackagePath(), SaveContext.IsSaveToMemory(),
 		SaveContext.AdditionalPackageFiles, SaveContext.GetSavePackageContext());
 	if (Result != ESavePackageResult::Success)
 	{

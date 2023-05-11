@@ -195,7 +195,7 @@ EObjectMark FSaveContext::GetExcludedObjectMarksForGameRealm(const ITargetPlatfo
 {
 	if (TargetPlatform)
 	{
-		return SavePackageUtilities::GetExcludedObjectMarksForTargetPlatform(TargetPlatform);
+		return UE::SavePackageUtilities::GetExcludedObjectMarksForTargetPlatform(TargetPlatform);
 	}
 	else
 	{

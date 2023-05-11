@@ -46,7 +46,7 @@ EObjectMark GenerateMarksForObject(const UObject* InObject, const ITargetPlatfor
 	}
 #endif
 	
-	if (SavePackageUtilities::IsStrippedEditorOnlyObject(InObject, true, false))
+	if (UE::SavePackageUtilities::IsStrippedEditorOnlyObject(InObject, true, false))
 	{
 		Marks = (EObjectMark)(Marks | OBJECTMARK_EditorOnly);
 	}
@@ -549,7 +549,8 @@ void FPackageHarvester::TryHarvestExportInternal(UObject* InObject)
 
 #if WITH_EDITORONLY_DATA
 	// Remove the Game realm if the object is editoronly
-	bool bIsEditorOnlyObject = SavePackageUtilities::IsStrippedEditorOnlyObject(InObject, true /* bCheckRecursive */, false /* bCheckMarks */)
+	bool bIsEditorOnlyObject = UE::SavePackageUtilities::IsStrippedEditorOnlyObject(InObject,
+		true /* bCheckRecursive */, false /* bCheckMarks */)
 		&& !InObject->HasNonEditorOnlyReferences();
 	FHarvestScope EditorOnlyScope = EnterConditionalEditorOnlyScope(bIsEditorOnlyObject);
 #endif
@@ -633,7 +634,7 @@ void FPackageHarvester::ProcessImport(UObject* InObject)
 				// Gets all subobjects defined in a class, including the CDO, CDO components and blueprint-created components
 				TArray<UObject*> ObjectTemplates;
 				ObjectTemplates.Add(CDO);
-				SavePackageUtilities::GetCDOSubobjects(CDO, ObjectTemplates);
+				UE::SavePackageUtilities::GetCDOSubobjects(CDO, ObjectTemplates);
 				for (UObject* ObjTemplate : ObjectTemplates)
 				{
 					// Recurse into templates
