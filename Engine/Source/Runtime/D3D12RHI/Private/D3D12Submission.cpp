@@ -196,9 +196,14 @@ IRHIPlatformCommandList* FD3D12DynamicRHI::RHIFinalizeContext(IRHIComputeContext
 	}
 }
 
-void FD3D12DynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists)
+void FD3D12DynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists, bool bFlushResources)
 {
 	SubmitCommands(MakeArrayView(reinterpret_cast<FD3D12FinalizedCommands**>(CommandLists.GetData()), CommandLists.Num()));
+
+	if (bFlushResources)
+	{
+		ProcessDeferredDeletionQueue();
+	}
 }
 
 void FD3D12DynamicRHI::SubmitCommands(TConstArrayView<FD3D12FinalizedCommands*> Commands)

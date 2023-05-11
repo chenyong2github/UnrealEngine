@@ -3605,7 +3605,7 @@ class RHI_API FRHICommandListImmediate : public FRHICommandList
 	//
 	// Used internally. Do not call directly. Use FRHICommandListImmediate::ImmediateFlush() to submit GPU work.
 	//
-	void ExecuteAndReset();
+	void ExecuteAndReset(bool bFlushResources);
 
 	//
 	// Blocks the calling thread until all dispatch prerequisites of enqueued parallel command lists are completed.

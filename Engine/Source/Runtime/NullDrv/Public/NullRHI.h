@@ -599,7 +599,7 @@ public:
 		return nullptr;
 	}
 
-	virtual void RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists) final override
+	virtual void RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists, bool bFlushResources) final override
 	{
 	}
 

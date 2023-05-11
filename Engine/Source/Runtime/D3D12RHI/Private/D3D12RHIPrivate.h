@@ -275,8 +275,6 @@ public:
 		return false;
 	}
 
-	virtual void RHIPerFrameRHIFlushComplete() override;
-
 	virtual FSamplerStateRHIRef RHICreateSamplerState(const FSamplerStateInitializerRHI& Initializer) final override;
 	virtual FRasterizerStateRHIRef RHICreateRasterizerState(const FRasterizerStateInitializerRHI& Initializer) final override;
 	virtual FDepthStencilStateRHIRef RHICreateDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer) final override;
@@ -378,7 +376,7 @@ public:
 	virtual class IRHIComputeContext* RHIGetDefaultAsyncComputeContext() final override;
 	virtual IRHIComputeContext* RHIGetCommandContext(ERHIPipeline Pipeline, FRHIGPUMask GPUMask) final override;
 	virtual IRHIPlatformCommandList* RHIFinalizeContext(IRHIComputeContext* Context) final override;
-	virtual void RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists) final override;
+	virtual void RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists, bool bFlushResources) final override;
 
 	virtual IRHITransientResourceAllocator* RHICreateTransientResourceAllocator() override;
 
@@ -586,6 +584,9 @@ protected:
 	const bool bAllowVendorDevice;
 
 	FDisplayInformationArray DisplayList;
+
+	void ProcessDeferredDeletionQueue();
+	void ProcessDeferredDeletionQueue_Platform();
 };
 
 ENUM_CLASS_FLAGS(FD3D12DynamicRHI::EQueueStatus);

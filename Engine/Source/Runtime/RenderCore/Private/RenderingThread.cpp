@@ -1363,14 +1363,14 @@ void FlushPendingDeleteRHIResources_GameThread()
 			});
 	}
 }
+
 void FlushPendingDeleteRHIResources_RenderThread()
 {
 	if (!IsRunningRHIInSeparateThread())
 	{
-		FRHIResource::FlushPendingDeletes(FRHICommandListExecutor::GetImmediateCommandList());
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 	}
 }
-
 
 FRHICommandListImmediate& GetImmediateCommandList_ForRenderCommand()
 {

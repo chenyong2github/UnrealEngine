@@ -81,7 +81,8 @@ FORCEINLINE_DEBUGGABLE void FRHICommandListImmediate::ImmediateFlush(EImmediateF
 		{
 			// Execution and initialization are separate functions because initializing the immediate contexts
 			// may enqueue a lambda call to SwitchPipeline, which needs special handling in LatchBypass().
-			ExecuteAndReset();
+			const bool bFlushingResources = FlushType >= EImmediateFlushType::FlushRHIThreadFlushResources;
+			ExecuteAndReset(bFlushingResources);
 			InitializeImmediateContexts();
 		}
 
@@ -94,10 +95,20 @@ FORCEINLINE_DEBUGGABLE void FRHICommandListImmediate::ImmediateFlush(EImmediateF
 		if (FlushType >= EImmediateFlushType::FlushRHIThreadFlushResources)
 		{
 			CSV_SCOPED_TIMING_STAT(RHITFlushes, FlushRHIThreadFlushResourcesTotal);
-			// @todo: do this before the dispatch, since FlushResources enqueues a lambda to hand down the list of RHI resources to the RHI thread.
-			// Also work out when the PSO cache needs to be flushed (before dispatch, or after thread flush?)
 			PipelineStateCache::FlushResources();
-			FRHIResource::FlushPendingDeletes(*this);
+
+			// RHIPerFrameRHIFlushComplete was originally called from FlushPendingDeletes, which used to be here, so it was
+			// running as part of the next command list. FlushPendingDeletes now runs as part of the command list being finalized
+			// and submitted by this function, as it should be, but moving RHIPerFrameRHIFlushComplete there is risky, because
+			// the RHIs which use it do weird things in there (e.g. D3D11 does blocking query resolve calls in that function which
+			// happen to not stall because this runs when the next command list is executed, so they have time to be executed).
+			EnqueueLambda([](FRHICommandListImmediate& RHICmdList)
+			{
+				if (GDynamicRHI)
+				{
+					GDynamicRHI->RHIPerFrameRHIFlushComplete();
+				}
+			});
 		}
 	}
 }

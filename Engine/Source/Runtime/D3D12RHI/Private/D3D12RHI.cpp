@@ -333,7 +333,7 @@ void FD3D12DynamicRHI::Shutdown()
 		int32 DeletedCount;
 		do
 		{
-			DeletedCount = FRHIResource::FlushPendingDeletes(RHICmdList);
+			DeletedCount = RHICmdList.FlushPendingDeletes();
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 		} while (DeletedCount);
 
@@ -497,8 +497,10 @@ void FD3D12DynamicRHI::FlushTiming(bool bCreateNew)
 	});
 }
 
-void FD3D12DynamicRHI::RHIPerFrameRHIFlushComplete()
+void FD3D12DynamicRHI::ProcessDeferredDeletionQueue()
 {
+	ProcessDeferredDeletionQueue_Platform();
+
 	TArray<FD3D12DeferredDeleteObject> Local;
 	{
 		FScopeLock Lock(&ObjectsToDeleteCS);

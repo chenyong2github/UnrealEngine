@@ -2989,9 +2989,8 @@ IRHIPlatformCommandList* FOpenGLDynamicRHI::RHIFinalizeContext(IRHIComputeContex
 	return nullptr;
 }
 
-void FOpenGLDynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists)
+void FOpenGLDynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists, bool bFlushResources)
 {
-	UE_LOG(LogRHI, Fatal, TEXT("FOpenGLDynamicRHI::RHISubmitCommandLists should never be called. OpenGL RHI does not implement parallel command list execution."));
 }
 
 void FOpenGLDynamicRHI::RHIInvalidateCachedState()

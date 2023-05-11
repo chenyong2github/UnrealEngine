@@ -432,7 +432,7 @@ IRHIPlatformCommandList* FValidationRHI::RHIFinalizeContext(IRHIComputeContext* 
 	return OuterCommandList;
 }
 
-void FValidationRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> OuterCommandLists)
+void FValidationRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> OuterCommandLists, bool bFlushResources)
 {
 	FMemMark Mark(FMemStack::Get());
 	TArray<IRHIPlatformCommandList*, TMemStackAllocator<>> InnerCommandLists;
@@ -455,7 +455,7 @@ void FValidationRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> 
 
 	if (InnerCommandLists.Num())
 	{
-		RHI->RHISubmitCommandLists(InnerCommandLists);
+		RHI->RHISubmitCommandLists(InnerCommandLists, bFlushResources);
 	}
 }
 

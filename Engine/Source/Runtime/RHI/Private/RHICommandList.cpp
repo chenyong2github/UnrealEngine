@@ -494,7 +494,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 		
 		// Commands may already be queued on the immediate command list. These need to be executed
 		// first before any parallel commands can be inserted, otherwise commands will run out-of-order.
-		ExecuteAndReset();
+		ExecuteAndReset(false);
 		InitializeImmediateContexts();
 
 		struct FTask
@@ -651,7 +651,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 
 			if (AllCmdLists.Num())
 			{
-				GDynamicRHI->RHISubmitCommandLists(AllCmdLists);
+				GDynamicRHI->RHISubmitCommandLists(AllCmdLists, false);
 			}
 		});
 	}
@@ -679,7 +679,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 	}
 }
 
-void FRHICommandListImmediate::ExecuteAndReset()
+void FRHICommandListImmediate::ExecuteAndReset(bool bFlushResources)
 {
 	check(IsInRenderingThread());
 
@@ -708,7 +708,7 @@ void FRHICommandListImmediate::ExecuteAndReset()
 	//
 	// In non-bypass mode, always submit.
 	//
-	EnqueueLambda([](FRHICommandListImmediate& ExecutingCmdList)
+	EnqueueLambda([bFlushResources](FRHICommandListImmediate& ExecutingCmdList)
 	{
 		TArray<IRHIPlatformCommandList*, TInlineAllocator<GetRHIPipelineCount()>> CommandLists;
 		for (IRHIComputeContext* Context : ExecutingCmdList.Contexts)
@@ -723,11 +723,17 @@ void FRHICommandListImmediate::ExecuteAndReset()
 			}
 		}
 
-		if (CommandLists.Num())
+		if (CommandLists.Num() || (GDynamicRHI && bFlushResources))
 		{
-			GDynamicRHI->RHISubmitCommandLists(CommandLists);
+			GDynamicRHI->RHISubmitCommandLists(CommandLists, bFlushResources);
 		}
 	});
+
+	if (bFlushResources)
+	{
+		CSV_SCOPED_TIMING_STAT(RHITFlushes, FlushRHIThreadFlushResourcesTotal);
+		FlushPendingDeletes();
+	}
 
 	// Equivalent to FinishRecording(), without the check(!IsImmediate()).
 	DispatchEvent->DispatchSubsequents();
@@ -919,7 +925,7 @@ void FRHICommandListExecutor::LatchBypass()
 	}
 	else
 	{
-		RHICmdList.ExecuteAndReset();
+		RHICmdList.ExecuteAndReset(false);
 
 		CheckNoOutstandingCmdLists();
 		check(!RHICmdList.HasCommands());
@@ -946,8 +952,7 @@ void FRHICommandListExecutor::LatchBypass()
 		bool NewBypass = IsInGameThread() || (CVarRHICmdBypass.GetValueOnAnyThread() >= 1);
 		if (NewBypass && !bLatchedBypass)
 		{
-			FRHIResource::FlushPendingDeletes(RHICmdList);
-			RHICmdList.ExecuteAndReset();
+			RHICmdList.ExecuteAndReset(true);
 		}
 
 		bLatchedBypass = NewBypass;
@@ -1038,12 +1043,6 @@ int32 FRHICommandListImmediate::FlushPendingDeletes()
 	EnqueueLambda([DeletedResources = MoveTemp(DeletedResources)](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		SCOPED_NAMED_EVENT(STAT_FRHICommandListImmediate_DeleteResources, FColor::Magenta);
-
-		if (GDynamicRHI)
-		{
-			GDynamicRHI->RHIPerFrameRHIFlushComplete();
-		}
-
 		for (int32 i = DeletedResources.Num() - 1; i >= 0; i--)
 		{
 			FRHIResource* Resource = DeletedResources[i];

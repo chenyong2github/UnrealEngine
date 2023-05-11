@@ -455,7 +455,6 @@ public:
 		{
 			RHICmdList.SubmitCommandsAndFlushGPU();
 			RHICmdList.BlockUntilGPUIdle();
-			FRHIResource::FlushPendingDeletes(RHICmdList);
 			RHICmdList.FlushResources();
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 		}

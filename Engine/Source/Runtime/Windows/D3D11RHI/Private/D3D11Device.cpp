@@ -607,7 +607,7 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		do
 		{
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-			NumDeletes = FRHIResource::FlushPendingDeletes(RHICmdList);
+			NumDeletes = RHICmdList.FlushPendingDeletes();
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 		} while (NumDeletes > 0);
 

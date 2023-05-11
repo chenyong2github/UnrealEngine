@@ -591,11 +591,11 @@ void FVulkanDynamicRHI::Shutdown()
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 		// Flush all pending deletes before destroying the device.
-		FRHIResource::FlushPendingDeletes(RHICmdList);
+		RHICmdList.FlushPendingDeletes();
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 
 		// And again since some might get on a pending queue
-		FRHIResource::FlushPendingDeletes(RHICmdList);
+		RHICmdList.FlushPendingDeletes();
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	}
 

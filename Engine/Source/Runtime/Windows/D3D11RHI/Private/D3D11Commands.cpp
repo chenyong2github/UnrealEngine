@@ -1555,9 +1555,8 @@ IRHIPlatformCommandList* FD3D11DynamicRHI::RHIFinalizeContext(IRHIComputeContext
 	return nullptr;
 }
 
-void FD3D11DynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists)
+void FD3D11DynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists, bool bFlushResources)
 {
-	UE_LOG(LogRHI, Fatal, TEXT("FD3D11DynamicRHI::RHISubmitCommandLists should never be called. D3D11 RHI does not implement parallel command list execution."));
 }
 
 void FD3D11DynamicRHI::EnableUAVOverlap()

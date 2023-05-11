@@ -923,7 +923,7 @@ IRHIPlatformCommandList* FVulkanDynamicRHI::RHIFinalizeContext(IRHIComputeContex
 	return PlatformCmdList;
 }
 
-void FVulkanDynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists)
+void FVulkanDynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists, bool bFlushResources)
 {
 	for (IRHIPlatformCommandList* Ptr : CommandLists)
 	{

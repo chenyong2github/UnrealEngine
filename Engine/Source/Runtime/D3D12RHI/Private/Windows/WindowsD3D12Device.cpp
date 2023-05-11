@@ -2089,3 +2089,8 @@ FD3D12DiagnosticBuffer::~FD3D12DiagnosticBuffer()
 	CpuAddress = nullptr;
 	GpuAddress = 0;
 }
+
+void FD3D12DynamicRHI::ProcessDeferredDeletionQueue_Platform()
+{
+	// Nothing Windows-specific here.
+}

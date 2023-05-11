@@ -1426,7 +1426,6 @@ IRHIPlatformCommandList* FMetalDynamicRHI::RHIFinalizeContext(IRHIComputeContext
 	return nullptr;
 }
 
-void FMetalDynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists)
+void FMetalDynamicRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> CommandLists, bool bFlushResources)
 {
-	UE_LOG(LogRHI, Fatal, TEXT("FMetalDynamicRHI::RHISubmitCommandLists should never be called. Metal RHI does not implement parallel command list execution."));
 }

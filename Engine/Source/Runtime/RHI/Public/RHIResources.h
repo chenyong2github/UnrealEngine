@@ -89,6 +89,7 @@ public:
 		return uint32(CurrentValue);
 	}
 
+	UE_DEPRECATED(5.3, "FlushPendingDeletes is deprecated, please use FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources)")
 	RHI_API static int32 FlushPendingDeletes(FRHICommandListImmediate& RHICmdList);
 
 	RHI_API static bool Bypass();
