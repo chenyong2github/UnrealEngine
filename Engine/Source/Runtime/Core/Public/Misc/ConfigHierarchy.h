@@ -89,9 +89,16 @@ inline FConfigLayerExpansion GConfigExpansions[] =
 
 	// Platform Extensions
 	{
-		TEXT("{ENGINE}/Config/{PLATFORM}/"),	TEXT("{EXTENGINE}/Config/"),	
-		TEXT("{PROJECT}/Config/{PLATFORM}/"),	TEXT("{EXTPROJECT}/Config/"), 
-		EConfigExpansionFlags::ForUncooked | EConfigExpansionFlags::ForCooked | EConfigExpansionFlags::ForPlugin
+		TEXT("{ENGINE}/Config/{PLATFORM}/"),	TEXT("{EXTENGINE}/Config/"),
+		TEXT("{PROJECT}/Config/{PLATFORM}/"),	TEXT("{EXTPROJECT}/Config/"),
+		EConfigExpansionFlags::ForUncooked | EConfigExpansionFlags::ForCooked,
+	},
+
+	// Plugin Platform Extensions
+	{
+		TEXT("{PLUGIN}/Config/{PLATFORM}/"),	TEXT("{EXTPLUGIN}/Config/"),
+		TEXT("{PROJECT}/Config/{PLATFORM}/"),	TEXT("{EXTPROJECT}/Config/"),
+		EConfigExpansionFlags::ForPlugin,
 	},
 
 	// Platform Extensions in Restricted Locations

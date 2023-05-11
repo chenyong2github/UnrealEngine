@@ -92,11 +92,13 @@ public:
 	/**
 	 * Create a context to read a plugin's ini file named for the plugin. This is not used for inserting, say, Engine.ini into GConfig
 	 */
-	static FConfigContext ReadIntoPluginFile(FConfigFile& DestConfigFile, const FString& PluginRootDir)
+	static FConfigContext ReadIntoPluginFile(FConfigFile& DestConfigFile, const FString& PluginRootDir, const TArray<FString>& ChildPluginsBaseDirs)
 	{
 		FConfigContext Context(nullptr, true, FString(), &DestConfigFile);
 		Context.bIsForPlugin = true;
 		Context.PluginRootDir = PluginRootDir;
+		Context.ChildPluginBaseDirs = ChildPluginsBaseDirs;
+
 
 		// plugins are read in parallel, so we are reading into a file, but not touching GConfig, so bWriteDest would be false, but we
 		// want to write them out as if we had been using GConfig
@@ -140,6 +142,7 @@ public:
 	{
 		FString PlatformExtensionEngineDir;
 		FString PlatformExtensionProjectDir;
+		FString PlatformExtensionPluginDir;
 	};
 	/**
 	 * Return the paths to use to find hierarchical config files for the given platform (note that these are independent of the ini name)
@@ -163,7 +166,8 @@ public:
 	FString ProjectConfigDir;
 	FString ProjectRootDir;
 	FString PluginRootDir;
-
+	TArray<FString> ChildPluginBaseDirs;
+	
 	// useful strings that are used alot when walking the hierarchy
 	FString ProjectNotForLicenseesDir;
 	FString ProjectNoRedistDir;

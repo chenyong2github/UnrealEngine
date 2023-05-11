@@ -1713,7 +1713,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 
 					FConfigFile& PluginConfig = GConfig->Add(PluginConfigFilename, FConfigFile());
 
-					FConfigContext Context = FConfigContext::ReadIntoPluginFile(PluginConfig, FPaths::GetPath(Plugin.FileName));
+					FConfigContext Context = FConfigContext::ReadIntoPluginFile(PluginConfig, FPaths::GetPath(Plugin.FileName), Plugin.GetExtensionBaseDirs());
 
 					if (PluginSystemDefs::IsCachingIniFilesForProcessing())
 					{

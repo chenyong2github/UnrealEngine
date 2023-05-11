@@ -110,12 +110,33 @@ const FConfigContext::FPerPlatformDirs& FConfigContext::GetPerPlatformDirs(const
 	FConfigContext::FPerPlatformDirs* Dirs = FConfigContext::PerPlatformDirs.Find(PlatformName);
 	if (Dirs == nullptr)
 	{
+		FString PluginExtDir;
+		if (bIsForPlugin)
+		{
+ 			if (DestIniFilename.Contains(TEXT("Enhanced")))
+			{
+				UE_LOG(LogConfig, Display, TEXT("paper2d"));
+			}
+			// look if there's a plugin extension for this platform, it will have the platform name in the path
+			for (const FString& ChildDir : ChildPluginBaseDirs)
+			{
+				UE_LOG(LogConfig, Display, TEXT("HAVE CHILD PLUGIN DIR: %s"), *ChildDir);
+				if (ChildDir.Contains(*FString::Printf(TEXT("/%s/"), *PlatformName)))
+				{
+					PluginExtDir = ChildDir;
+					break;
+				}
+			}
+		}
+		
 		Dirs = &PerPlatformDirs.Emplace(PlatformName, FConfigContext::FPerPlatformDirs
 			{
 				// PlatformExtensionEngineDir
 				FPaths::Combine(*FPaths::EnginePlatformExtensionsDir(), *PlatformName).Replace(*FPaths::EngineDir(), *(EngineRootDir + "/")),
 				// PlatformExtensionProjectDir
-				FPaths::Combine(*FPaths::ProjectPlatformExtensionsDir(), *PlatformName).Replace(*FPaths::ProjectDir(), *(ProjectRootDir + "/"))
+				FPaths::Combine(*FPaths::ProjectPlatformExtensionsDir(), *PlatformName).Replace(*FPaths::ProjectDir(), *(ProjectRootDir + "/")),
+				// PluginExtensionDir
+				PluginExtDir,
 			});
 	}
 	return *Dirs;
@@ -456,6 +477,7 @@ FString FConfigContext::PerformFinalExpansions(const FString& InString, const FS
 	if (bIsForPlugin)
 	{
 		OutString = OutString.Replace(TEXT("{PLUGIN}"), *PluginRootDir);
+		OutString = OutString.Replace(TEXT("{EXTPLUGIN}"), *GetPerPlatformDirs(InPlatform).PlatformExtensionPluginDir);
 	}
 
 	return OutString;
@@ -611,6 +633,8 @@ void FConfigContext::AddStaticLayersToHierarchy()
  **/
 static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FConfigFile& ConfigFile, bool bUseCache, const TSet<FString>* IniCacheSet)
 {
+	static bool bDumpIniLoadInfo = FParse::Param(FCommandLine::Get(), TEXT("dumpiniloads"));
+	
 	TRACE_CPUPROFILER_EVENT_SCOPE(LoadIniFileHierarchy);
 	// Traverse ini list back to front, merging along the way.
 	for (const TPair<int32, FString>& HierarchyIt : HierarchyToLoad)
@@ -618,6 +642,8 @@ static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FC
 		bool bDoCombine = (HierarchyIt.Key != 0);
 		const FString& IniFileName = HierarchyIt.Value;
 
+		UE_CLOG(bDumpIniLoadInfo, LogConfig, Display, TEXT("Looking for file: %s"), *IniFileName);
+		
 		// skip non-existant files
 		if (IsUsingLocalIniFile(*IniFileName, nullptr) && !DoesConfigFileExistWrapper(*IniFileName, IniCacheSet))
 		{
@@ -627,6 +653,8 @@ static bool LoadIniFileHierarchy(const FConfigFileHierarchy& HierarchyToLoad, FC
 		bool bDoEmptyConfig = false;
 		//UE_LOG(LogConfig, Log,  TEXT( "Combining configFile: %s" ), *IniList(IniIndex) );
 		ProcessIniContents(*IniFileName, *IniFileName, &ConfigFile, bDoEmptyConfig, bDoCombine);
+
+		UE_CLOG(bDumpIniLoadInfo, LogConfig, Display, TEXT("   Found!"));
 	}
 
 	// Set this configs files source ini hierarchy to show where it was loaded from.

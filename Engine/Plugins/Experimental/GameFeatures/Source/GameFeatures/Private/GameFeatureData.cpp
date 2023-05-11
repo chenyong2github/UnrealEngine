@@ -10,6 +10,7 @@
 #include "GameFeatureAction_AddWPContent.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "AssetRegistry/AssetData.h"
+#include "Interfaces/IPluginManager.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -82,7 +83,8 @@ void UGameFeatureData::InitializeBasePluginIniFile(const FString& PluginInstalle
 	if (!FConfigCacheIni::LoadExternalIniFile(PluginConfig, *PluginName, *EngineConfigDir, *PluginConfigDir, bIsBaseIniName, nullptr, bForceReloadFromDisk, bWriteDestIni))
 	{
 		// Now try the same rules as PluginManager using Default and the config hierarchy
-		FConfigContext Context = FConfigContext::ReadIntoPluginFile(PluginConfig, *FPaths::GetPath(PluginInstalledFilename));
+		FConfigContext Context = FConfigContext::ReadIntoPluginFile(PluginConfig, *FPaths::GetPath(PluginInstalledFilename),
+				IPluginManager::Get().FindPluginFromPath(PluginName)->GetExtensionBaseDirs());
 
 		if (!Context.Load(*PluginName))
 		{
