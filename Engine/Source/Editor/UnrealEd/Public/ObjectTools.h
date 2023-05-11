@@ -722,7 +722,10 @@ namespace ThumbnailTools
 	/** Returns the thumbnail for the specified object or NULL if one doesn't exist yet */
 	UNREALED_API FObjectThumbnail* GetThumbnailForObject( UObject* InObject );
 
-	/** Loads thumbnails from the specified package file name */
+	/** Loads the thumbnail of an asset from the specified package file name (or from the external thumbnail cache file if it exists) */
+	UNREALED_API bool LoadThumbnailFromPackage(const FAssetData& AssetData, FObjectThumbnail& OutThumbnail);
+
+	/** Loads thumbnails from the specified package file name (or from the external thumbnail cache file if it exists) */
 	UNREALED_API bool LoadThumbnailsFromPackage( const FString& InPackageFileName, const TSet<FName>& InObjectFullNames, FThumbnailMap& InOutThumbnails );
 
 	/** Loads thumbnails from a package unless they're already cached in that package's thumbnail map */
@@ -730,6 +733,7 @@ namespace ThumbnailTools
 
 	/** Loads thumbnails for the specified objects (or copies them from a cache, if they're already loaded.) */
 	UNREALED_API bool ConditionallyLoadThumbnailsForObjects( const TArray< FName >& InObjectFullNames, FThumbnailMap& InOutThumbnails );
+
 	/** Standard thumbnail height setting used by generation */
 	inline const int32 DefaultThumbnailSize=256;
 

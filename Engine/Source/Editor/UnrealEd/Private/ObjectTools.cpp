@@ -4993,23 +4993,19 @@ namespace ThumbnailTools
 		// Get the rendering info for this object
 		FThumbnailRenderingInfo* RenderInfo = GUnrealEd ? GUnrealEd->GetThumbnailManager()->GetRenderingInfo( InObject ) : nullptr;
 
-		// Wait for all textures to be streamed in before we render the thumbnail
-		// @todo CB: This helps but doesn't result in 100%-streamed-in resources every time! :(
 		if( InFlushMode == EThumbnailTextureFlushMode::AlwaysFlush )
 		{
-			if (GShaderCompilingManager)
-			{
-				GShaderCompilingManager->ProcessAsyncResults(false, true);
-			}
-
-			if (UTexture* Texture = Cast<UTexture>(InObject))
-			{
-				FTextureCompilingManager::Get().FinishCompilation({Texture});
-			}
-
+			// Wait for pending load requests.
 			FlushAsyncLoading();
 
-			IStreamingManager::Get().StreamAllResources( 100.0f );
+			// Wait for shader and other asset compilation to finish.
+			FAssetCompilingManager::Get().FinishAllCompilation();
+
+			// Force all mips to load.
+			UTexture::ForceUpdateTextureStreaming();
+
+			// Force all streamed resources to finish.
+			IStreamingManager::Get().StreamAllResources();
 		}
 
 		// If this object's thumbnail will be rendered to a texture on the GPU.
@@ -5122,13 +5118,13 @@ namespace ThumbnailTools
 		if( RenderInfo != NULL && RenderInfo->Renderer != NULL )
 		{
 			// Set the size of cached thumbnails
-			const int32 ImageWidth = 	ThumbnailTools::DefaultThumbnailSize;
+			const int32 ImageWidth = ThumbnailTools::DefaultThumbnailSize;
 			const int32 ImageHeight = ThumbnailTools::DefaultThumbnailSize;
 
 			// For cached thumbnails we want to make sure that textures are fully streamed in so that the thumbnail we're saving won't have artifacts
 			// However, this can add 30s - 100s to editor load
 			//@todo - come up with a cleaner solution for this, preferably not blocking on texture streaming at all but updating when textures are fully streamed in
-			ThumbnailTools::EThumbnailTextureFlushMode::Type TextureFlushMode = ThumbnailTools::EThumbnailTextureFlushMode::NeverFlush;
+			const ThumbnailTools::EThumbnailTextureFlushMode::Type TextureFlushMode = ThumbnailTools::EThumbnailTextureFlushMode::NeverFlush;
 
 			if ( UTexture* Texture = Cast<UTexture>(InObject) )
 			{
@@ -5156,7 +5152,7 @@ namespace ThumbnailTools
 
 			// Generate the thumbnail
 			FObjectThumbnail NewThumbnail;
-			ThumbnailTools::RenderThumbnail(
+			RenderThumbnail(
 				InObject, ImageWidth, ImageHeight, TextureFlushMode, NULL,
 				&NewThumbnail );		// Out
 
@@ -5539,6 +5535,44 @@ namespace ThumbnailTools
 
 
 
+	bool GetPackageFilePathAndAssetFullName(const FAssetData& AssetData, FString& OutPackageFilePath, FName& OutAssetFullName)
+	{
+		// Determine package file path
+		if (FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), &OutPackageFilePath))
+		{
+			// Determine asset fullname
+			FNameBuilder FullNameBuilder;
+			AssetData.GetFullName(FullNameBuilder);
+			OutAssetFullName = FName(FullNameBuilder);
+			return true;
+		}
+		return false;
+	}
+
+
+
+	bool LoadThumbnailFromPackage(const FAssetData& AssetData, FObjectThumbnail& OutThumbnail)
+	{
+		FString PackageFilePath;
+		FName AssetFullName;
+		if (GetPackageFilePathAndAssetFullName(AssetData, PackageFilePath, AssetFullName))
+		{
+			TSet<FName> AssetFullNames;
+			AssetFullNames.Add(AssetFullName);
+
+			FThumbnailMap ThumbnailMap;
+			LoadThumbnailsFromPackage(PackageFilePath, AssetFullNames, ThumbnailMap);
+			if (FObjectThumbnail* Found = ThumbnailMap.Find(AssetFullName))
+			{
+				OutThumbnail = MoveTemp(*Found);
+				return true;
+			}
+		}
+		return false;
+	}
+
+
+
 	/** Loads thumbnails from the specified package file name, try loading from external cache file if not found in package file */
 	bool LoadThumbnailsFromPackage( const FString& InPackageFileName, const TSet< FName >& InObjectFullNames, FThumbnailMap& InOutThumbnails )
 	{
@@ -5695,5 +5729,5 @@ namespace ThumbnailTools
 
 		return false;
 	}
-}
+		}
 

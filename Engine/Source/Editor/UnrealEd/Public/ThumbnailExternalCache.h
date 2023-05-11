@@ -40,9 +40,6 @@ public:
 	/** Sort asset data list if determinism needed */
 	UNREALED_API static void SortAssetDatas(TArray<FAssetData>& InOutAssetDatas);
 
-	/** Try to load thumbnail for a given asset data */
-	static FObjectThumbnail LoadThumbnailFromPackage(const FAssetData& AssetData);
-
 	enum class EThumbnailExternalCacheHeaderFlags : uint64
 	{
 		None = 0,

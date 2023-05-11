@@ -173,8 +173,7 @@ void FSaveThumbnailCache::Save(FArchive& Ar, const TArrayView<FAssetData> InAsse
 		ParallelFor(AssetsForSegment.Num(), [AssetsForSegment, &Tasks, &InSettings](int32 Index)
 		{
 			FSaveThumbnailCacheTask& Task = Tasks[Index];
-			Task.ObjectThumbnail = FThumbnailExternalCache::LoadThumbnailFromPackage(AssetsForSegment[Index]);
-			if (!Task.ObjectThumbnail.IsEmpty())
+			if (ThumbnailTools::LoadThumbnailFromPackage(AssetsForSegment[Index], Task.ObjectThumbnail) && !Task.ObjectThumbnail.IsEmpty())
 			{
 				{
 					FNameBuilder ObjectFullNameBuilder;
@@ -443,30 +442,6 @@ void FThumbnailExternalCache::SaveExternalCache(FArchive& Ar, const TArrayView<F
 	FSaveThumbnailCache SaveJob;
 	SaveJob.Save(Ar, InAssetDatas, InSettings);
 	bIsSavingCache = false;
-}
-
-FObjectThumbnail FThumbnailExternalCache::LoadThumbnailFromPackage(const FAssetData& AssetData)
-{
-	// Determine filename
-	FString PackageFilename;
-	if (FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), &PackageFilename))
-	{
-		// Thumbnails are identified in package with full object names
-		TSet<FName> ObjectFullNames;
-		FNameBuilder ObjectFullNameBuilder;
-		AssetData.GetFullName(ObjectFullNameBuilder);
-		const FName ObjectFullName(ObjectFullNameBuilder);
-		ObjectFullNames.Add(ObjectFullName);
-
-		FThumbnailMap ThumbnailMap;
-		ThumbnailTools::LoadThumbnailsFromPackage(PackageFilename, ObjectFullNames, ThumbnailMap);
-		if (FObjectThumbnail* Found = ThumbnailMap.Find(ObjectFullName))
-		{
-			return MoveTemp(*Found);
-		}
-	}
-
-	return FObjectThumbnail();
 }
 
 void FThumbnailExternalCache::OnContentPathMounted(const FString& InAssetPath, const FString& InFilesystemPath)

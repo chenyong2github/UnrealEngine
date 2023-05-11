@@ -43,7 +43,7 @@
 
 namespace AssetThumbnailPool
 {
-	const FObjectThumbnail* LoadThumbnailFromPackage(const FAssetData& AssetData, FThumbnailMap& OutThumbnailMap)
+	const FObjectThumbnail* LoadThumbnailsFromPackage(const FAssetData& AssetData, FThumbnailMap& OutThumbnailMap)
 	{
 		FString PackageFilename;
 		if (FPackageName::DoesPackageExist(AssetData.PackageName.ToString(), &PackageFilename))
@@ -1203,7 +1203,7 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 	// rendering it without editor-only data might not give the same result as when it was rendered uncooked.
 	if (AssetData.PackageFlags & PKG_Cooked)
 	{
-		FoundThumbnail = AssetThumbnailPool::LoadThumbnailFromPackage(AssetData, ThumbnailMap);
+		FoundThumbnail = AssetThumbnailPool::LoadThumbnailsFromPackage(AssetData, ThumbnailMap);
 	}
 
 	if (!FoundThumbnail)
@@ -1303,7 +1303,7 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 	// If we don't have a thumbnail cached in memory, try to find it on disk
 	if (!FoundThumbnail && !(AssetData.PackageFlags & PKG_Cooked))
 	{
-		FoundThumbnail = AssetThumbnailPool::LoadThumbnailFromPackage(AssetData, ThumbnailMap);
+		FoundThumbnail = AssetThumbnailPool::LoadThumbnailsFromPackage(AssetData, ThumbnailMap);
 	}
 
 	if (FoundThumbnail)
