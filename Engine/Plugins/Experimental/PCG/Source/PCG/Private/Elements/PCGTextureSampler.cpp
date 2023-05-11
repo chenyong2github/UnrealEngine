@@ -36,6 +36,11 @@ bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGTextureSamplerSettings* Settings = Context->GetInputSettings<UPCGTextureSamplerSettings>();
 	check(Settings);
 
+	if (Settings->Texture.IsNull())
+	{
+		return true;
+	}
+
 	UTexture2D* Texture = Settings->Texture.LoadSynchronous();
 	if (!Texture)
 	{
@@ -45,7 +50,7 @@ bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
 
 	if (!UPCGTextureData::IsSupported(Texture))
 	{
-		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("UnsupportedTextureFormat", "Texture '{0}' has unsupported texture format, currently supported formats are B8G8R8A8, R8G8B8A8 and G8"), FText::FromName(Texture->GetFName())));
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("UnsupportedTextureFormat", "Texture '{0}' has unsupported texture format, currently supported formats are B8G8R8A8, R8G8B8A8 and G8. Also ensure mipmap generation is disabled and sRGB is disabled."), FText::FromName(Texture->GetFName())));
 		return true;
 	}
 
@@ -71,9 +76,7 @@ bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	TextureData->TargetActor = Context->SourceComponent->GetOwner();
 
 	AActor* OriginalActor = UPCGBlueprintHelpers::GetOriginalComponent(*Context)->GetOwner();
-	
 	FTransform FinalTransform = Transform;
-
 	if (!bUseAbsoluteTransform)
 	{
 		FTransform OriginalActorTransform = OriginalActor->GetTransform();

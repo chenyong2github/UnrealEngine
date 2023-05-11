@@ -285,8 +285,8 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 
 				if (const uint8_t* BulkData = reinterpret_cast<const uint8_t*>(PlatformData->Mips[0].BulkData.LockReadOnly()))
 				{
-					Width = Texture->GetSizeX();
-					Height = Texture->GetSizeY();
+					Width = PlatformData->SizeX;
+					Height = PlatformData->SizeY;
 					const int32 PixelCount = Width * Height;
 					ColorData.SetNum(PixelCount);
 
@@ -319,7 +319,7 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 				}
 				else
 				{
-					UE_LOG(LogPCG, Error, TEXT("PCGTextureData unable to get bulk data from %s"), *Texture->GetFName().ToString());
+					UE_LOG(LogPCG, Error, TEXT("PCGTextureData unable to get bulk data from '%s'"), *Texture->GetFName().ToString());
 				}
 
 				PlatformData->Mips[0].BulkData.Unlock();
@@ -327,7 +327,7 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 		}
 		else
 		{
-			UE_LOG(LogPCG, Error, TEXT("PCGTextureData does not support the format of %s"), *Texture->GetFName().ToString());
+			UE_LOG(LogPCG, Error, TEXT("PCGTextureData does not support the format of '%s'"), *Texture->GetFName().ToString());
 		}
 	}
 
