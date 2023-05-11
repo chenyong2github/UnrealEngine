@@ -131,7 +131,8 @@ void FObjectProperty::PostSerializeObjectItem(FArchive& SerializingArchive, void
 		!ObjectValue && HasAnyPropertyFlags(CPF_NonNullable) &&
 		!SerializingArchive.IsSerializingDefaults() && // null values when Serializing CDOs are allowed, they will be fixed up later
 		!SerializingArchive.IsSaving() && // Constructing new objects when saving may confuse package saving code (new import/export created after import/export collection pass)
-		!SerializingArchive.IsTransacting()) // Don't create new objects when loading from the transaction buffer
+		!SerializingArchive.IsTransacting() && // Don't create new objects when loading from the transaction buffer
+		!SerializingArchive.IsCountingMemory())
 	{
 		UObject* DefaultValue = ConstructDefaultObjectValueIfNecessary(CurrentValue);
 
