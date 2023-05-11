@@ -1795,7 +1795,10 @@ namespace Chaos
 						{
 							if(!bIsResim || DirtyParticle.SyncState() == ESyncState::HardDesync)
 							{
-								ActiveRigid.AddUnique((FSingleParticlePhysicsProxy*)Proxy);
+								if (!(Chaos::SyncKinematicOnGameThread == 0 && DirtyParticle.ObjectState() == EObjectStateType::Kinematic))
+								{
+									ActiveRigid.AddUnique((FSingleParticlePhysicsProxy*)Proxy);
+								}
 							}
 							break;
 						}
