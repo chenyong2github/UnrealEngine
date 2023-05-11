@@ -306,11 +306,23 @@ bool FWorldPartitionHelpers::ConvertRuntimePathToEditorPath(const FSoftObjectPat
 
 bool FWorldPartitionHelpers::FixupRedirectedAssetPath(FSoftObjectPath& InOutSoftObjectPath)
 {
+	if (InOutSoftObjectPath.IsNull())
+	{
+		// Empty path, no redirect
+		return true;
+	}
+
 	// Check GRedirectCollector first for faster fixup
 	FSoftObjectPath FoundRedirection = GRedirectCollector.GetAssetPathRedirection(InOutSoftObjectPath.GetWithoutSubPath());
 	if (!FoundRedirection.IsNull())
 	{
 		InOutSoftObjectPath.SetPath(FoundRedirection.GetAssetPath(), InOutSoftObjectPath.GetSubPathString());
+		return true;
+	}
+
+	if (InOutSoftObjectPath.GetAssetName().IsEmpty())
+	{
+		// A package name. No need to ask the asset registry for assets, it wont find any
 		return true;
 	}
 
