@@ -439,43 +439,51 @@ UHLODBuilderSettings* FWorldPartitionHLODUtilities::CreateHLODBuilderSettings(UH
 	return HLODBuilderSettings;
 }
 
-void GatherInputStats(AWorldPartitionHLOD* InHLODActor, const TArray<AActor*> SubActors)
+void GatherInputStats(AWorldPartitionHLOD* InHLODActor, const TArray<UActorComponent*> InHLODRelevantComponents)
 {
 	int64 NumActors = 0;
 	int64 NumTriangles = 0;
 	int64 NumVertices = 0;
 
-	for (AActor* SubActor : SubActors)
+	TSet<AActor*> HLODRelevantActors;
+
+	for (UActorComponent* HLODRelevantComponent : InHLODRelevantComponents)
 	{
-		if (SubActor && SubActor->IsHLODRelevant())
+		bool bAlreadyInSet = false;
+		AActor* SubActor = HLODRelevantActors.FindOrAdd(HLODRelevantComponent->GetOwner(), &bAlreadyInSet);
+
+		if (!bAlreadyInSet)
 		{
 			if (AWorldPartitionHLOD* SubHLODActor = Cast<AWorldPartitionHLOD>(SubActor))
 			{
 				NumActors += SubHLODActor->GetStat(FWorldPartitionHLODStats::InputActorCount);
 				NumTriangles += SubHLODActor->GetStat(FWorldPartitionHLODStats::InputTriangleCount);
-				NumVertices += SubHLODActor->GetStat(FWorldPartitionHLODStats::InputVertexCount);				
+				NumVertices += SubHLODActor->GetStat(FWorldPartitionHLODStats::InputVertexCount);
 			}
 			else
 			{
 				NumActors++;
+			}
+		}
 
-				SubActor->ForEachComponent<UStaticMeshComponent>(false, [&] (UStaticMeshComponent* SMComponent)
+		if (!SubActor->IsA<AWorldPartitionHLOD>())
+		{
+			if (UStaticMeshComponent* SMComponent = Cast<UStaticMeshComponent>(HLODRelevantComponent))
+			{
+				const UStaticMesh* StaticMesh = SMComponent->GetStaticMesh();
+				const FStaticMeshRenderData* RenderData = StaticMesh ? StaticMesh->GetRenderData() : nullptr;
+				const bool bHasRenderData = RenderData && !RenderData->LODResources.IsEmpty();
+
+				if (bHasRenderData)
 				{
-					const UStaticMesh* StaticMesh = SMComponent->GetStaticMesh();
-					const FStaticMeshRenderData* RenderData = StaticMesh ? StaticMesh->GetRenderData() : nullptr;
-					const bool bHasRenderData = RenderData && !RenderData->LODResources.IsEmpty();
-
-					if (bHasRenderData)
-					{
-						const UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(SMComponent);
-						const int64 LOD0TriCount = RenderData->LODResources[0].GetNumTriangles();
-						const int64 LOD0VtxCount = RenderData->LODResources[0].GetNumVertices();
-						const int64 NumInstances = ISMComponent ? ISMComponent->GetInstanceCount() : 1;
-
-						NumTriangles += LOD0TriCount * NumInstances;
-						NumVertices += LOD0VtxCount * NumInstances;
-					}
-				});
+					const UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(SMComponent);
+					const int64 LOD0TriCount = RenderData->LODResources[0].GetNumTriangles();
+					const int64 LOD0VtxCount = RenderData->LODResources[0].GetNumVertices();
+					const int64 NumInstances = ISMComponent ? ISMComponent->GetInstanceCount() : 1;
+					
+					NumTriangles += LOD0TriCount * NumInstances;
+					NumVertices += LOD0VtxCount * NumInstances;
+				}
 			}
 		}
 	}
@@ -658,7 +666,12 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 		UWorldPartitionLevelStreamingDynamic::UnloadFromEditor(LevelStreaming);
 	};
 
-	TArray<UActorComponent*> HLODRelevantComponents = GatherHLODRelevantComponents(LevelStreaming->GetLoadedLevel()->Actors);
+	TArray<UActorComponent*> HLODRelevantComponents;
+	
+	if (LevelStreaming->GetLoadedLevel())
+	{
+		HLODRelevantComponents = GatherHLODRelevantComponents(LevelStreaming->GetLoadedLevel()->Actors);
+	}
 
 	uint32 OldHLODHash = bIsDirty ? 0 : InHLODActor->GetHLODHash();
 	uint32 NewHLODHash = ComputeHLODHash(InHLODActor, HLODRelevantComponents);
@@ -695,7 +708,7 @@ uint32 FWorldPartitionHLODUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 	}
 
 	// Gather stats from the input to our HLOD build
-	GatherInputStats(InHLODActor, LevelStreaming->GetLoadedLevel()->Actors);
+	GatherInputStats(InHLODActor, HLODRelevantComponents);
 	
 	const UHLODLayer* HLODLayer = InHLODActor->GetSubActorsHLODLayer();
 	TSubclassOf<UHLODBuilder> HLODBuilderClass = GetHLODBuilderClass(HLODLayer);

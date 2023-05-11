@@ -113,16 +113,19 @@ void UWorldPartitionLevelStreamingDynamic::UnloadFromEditor(UWorldPartitionLevel
 	UWorld* World = InLevelStreaming->GetWorld();
 	check(World->WorldType == EWorldType::Editor);
 
-	ULevel* Level = InLevelStreaming->GetLoadedLevel();
 	InLevelStreaming->SetShouldBeVisibleInEditor(false);
 	InLevelStreaming->SetIsRequestingUnloadAndRemoval(true);
-	World->RemoveLevel(Level);
-	World->FlushLevelStreaming();
 
-	// Destroy the package world and remove it from root
-	UPackage* Package = Level->GetPackage();
-	UWorld* PackageWorld = UWorld::FindWorldInPackage(Package);
-	PackageWorld->DestroyWorld(false);
+	if (ULevel* Level = InLevelStreaming->GetLoadedLevel())
+	{
+		World->RemoveLevel(Level);
+		World->FlushLevelStreaming();
+
+		// Destroy the package world and remove it from root
+		UPackage* Package = Level->GetPackage();
+		UWorld* PackageWorld = UWorld::FindWorldInPackage(Package);
+		PackageWorld->DestroyWorld(false);
+	}
 }
 
 void UWorldPartitionLevelStreamingDynamic::Initialize(UWorld* OuterWorld, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InPackages)
