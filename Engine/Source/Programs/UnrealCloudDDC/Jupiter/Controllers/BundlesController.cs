@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Mime;
 using System.Reflection;
 using System.Text.Json.Serialization;
@@ -203,9 +204,11 @@ namespace Jupiter.Controllers
             }
 
             IStorageClientJupiter client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-            if (file == null)
+            // disable redirected responses for upload so that we can parse the blobs for references
+            // TODO: Add way to parse objects after upload similar to BlobTick in Horde
+            /*if (file == null)
             {
-                (BlobLocator Locator, Uri UploadUrl)? response = await client.GetWriteRedirectAsync(prefix ?? String.Empty, cancellationToken);
+                (BlobLocator Locator, Uri UploadUrl)? response = await client.GetWriteRedirectAsync(prefix ?? string.Empty, cancellationToken);
                 if (response == null)
                 {
                     return new WriteBlobResponse { SupportsRedirects = false };
@@ -214,6 +217,10 @@ namespace Jupiter.Controllers
                 {
                     return new WriteBlobResponse { Blob = response.Value.Locator, UploadUrl = response.Value.UploadUrl };
                 }
+            }*/
+            if (file == null)
+            {
+                return new WriteBlobResponse { SupportsRedirects = false };
             }
             else
             {
@@ -351,8 +358,8 @@ namespace Jupiter.Controllers
                 return NotFound();
             }
 
-            string link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = target.Locator, export = target.Locator.ExportIdx })!;
-            return new ReadRefResponse(target, link);
+            string link = Url.Action("GetNode", new { namespaceId = namespaceId, locator = target.Locator.Blob, export = target.Locator.ExportIdx })!;
+            return new ReadRefResponse(target, WebUtility.UrlDecode(link));
         }
 
         /// <summary>
@@ -430,8 +437,7 @@ namespace Jupiter.Controllers
                 }
             }
 
-            return new { header.CompressionFormat, imports = responseImports, exports = responseExports, packets = responsePackets };
-        }
+            return new { header.CompressionFormat, imports = responseImports, exports = responseExports, packets = responsePackets };        }
 
         /// <summary>
         /// Gets information about a particular bundle in storage

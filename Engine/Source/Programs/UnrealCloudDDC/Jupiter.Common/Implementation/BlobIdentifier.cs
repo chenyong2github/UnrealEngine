@@ -156,8 +156,12 @@ namespace Jupiter.Implementation
 
         public static BlobIdentifier FromBlobLocator(BlobLocator locator)
         {
-            // Hash the locator string rather then the content itself
-            return FromBlob(Encoding.UTF8.GetBytes(locator.BlobId.ToString()));
+            return new BlobIdentifier(Encoding.UTF8.GetBytes(locator.BlobId.ToString()));
+        }
+
+        public BlobLocator AsBlobLocator()
+        {
+            return new BlobLocator(HostId.Empty, new BlobId(Encoding.UTF8.GetString(HashData)));
         }
     }
 

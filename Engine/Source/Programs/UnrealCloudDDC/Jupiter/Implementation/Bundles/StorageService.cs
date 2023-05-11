@@ -1,0 +1,178 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Horde.Storage;
+using EpicGames.Serialization;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Jupiter.Implementation.Bundles;
+
+public interface IStorageClientJupiter : IStorageClient
+{
+    Task<(BlobLocator Locator, Uri UploadUrl)?> GetWriteRedirectAsync(string prefix, CancellationToken cancellationToken);
+    bool SupportsRedirects { get; set; }
+    Task<Uri?> GetReadRedirectAsync(BlobLocator locator, CancellationToken cancellationToken);
+}
+
+public interface IStorageService
+{
+    Task<IStorageClientJupiter> GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken);
+}
+
+public class StorageService : IStorageService
+{
+    private readonly IServiceProvider _provider;
+    private readonly ConcurrentDictionary<NamespaceId, StorageClient> _backends = new ConcurrentDictionary<NamespaceId, StorageClient>();
+
+    public StorageService(IServiceProvider provider)
+    {
+        _provider = provider;
+    }
+
+    public Task<IStorageClientJupiter> GetClientAsync(NamespaceId namespaceId, CancellationToken cancellationToken)
+    {
+        IStorageClientJupiter storageClient = _backends.GetOrAdd(namespaceId, x => ActivatorUtilities.CreateInstance<StorageClient>(_provider, namespaceId));
+        return Task.FromResult(storageClient);
+    }
+}
+
+public class StorageClient : IStorageClientJupiter
+{
+    private readonly NamespaceId _namespaceId;
+    private readonly IBlobService _blobService;
+    private readonly IReferencesStore _refStore;
+    private readonly BucketId _defaultBucket = new BucketId("bundles");
+
+    public bool SupportsRedirects { get; set; } = true;
+
+    public StorageClient(NamespaceId namespaceId, IBlobService blobService, IReferencesStore refStore)
+    {
+        _namespaceId = namespaceId;
+        _blobService = blobService;
+        _refStore = refStore;
+    }
+
+    public async Task<(BlobLocator Locator, Uri UploadUrl)?> GetWriteRedirectAsync(string prefix, CancellationToken cancellationToken)
+    {
+        BlobLocator locator = BlobLocator.Create(HostId.Empty, prefix);
+        BlobIdentifier blobIdentifier = BlobIdentifier.FromBlobLocator(locator);
+        Uri? redirectUri = await _blobService.MaybePutObjectWithRedirect(_namespaceId, blobIdentifier);
+        if (redirectUri == null)
+        {
+            return null;
+        }
+        return (locator, redirectUri);
+    }
+
+    public async Task<BlobLocator> WriteBlobAsync(Stream stream, Utf8String prefix, CancellationToken cancellationToken)
+    {
+        BlobLocator locator = BlobLocator.Create(HostId.Empty, prefix);
+        BlobIdentifier blobIdentifier = BlobIdentifier.FromBlobLocator(locator);
+        await using MemoryStream ms = new MemoryStream();
+        await stream.CopyToAsync(ms, cancellationToken);
+        await _blobService.PutObject(_namespaceId, ms.ToArray(), blobIdentifier);
+        return locator;
+    }
+
+    public async IAsyncEnumerable<NodeHandle> FindNodesAsync(Utf8String name, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        // TODO: Implement aliases
+        await Task.CompletedTask;
+        yield break;
+    }
+
+    public async Task<Uri?> GetReadRedirectAsync(BlobLocator locator, CancellationToken cancellationToken)
+    {
+        BlobIdentifier blobIdentifier = BlobIdentifier.FromBlobLocator(locator);
+        Uri? redirectUri = await _blobService.GetObjectWithRedirect(_namespaceId, blobIdentifier);
+        return redirectUri;
+    }
+
+    public async Task<Stream> ReadBlobAsync(BlobLocator locator, CancellationToken cancellationToken)
+    {
+        BlobIdentifier blobIdentifier = BlobIdentifier.FromBlobLocator(locator);
+        BlobContents blobContents = await _blobService.GetObject(_namespaceId, blobIdentifier);
+        return blobContents.Stream;
+    }
+
+    public async Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken)
+    {
+        await using Stream stream = await ReadBlobAsync(locator, cancellationToken);
+        using BinaryReader br = new BinaryReader(stream);
+        // skip in the stream, TODO: will fail if stream is very large
+        br.ReadBytes(offset);
+        byte[] data = br.ReadBytes(length);
+        return new MemoryStream(data);
+
+    }
+
+    public async Task<NodeHandle?> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default)
+    {
+        // TODO: Cache time is ignored
+        try
+        {
+            ObjectRecord record = await _refStore.Get(_namespaceId, _defaultBucket,  IoHashKey.FromName(name.ToString()), IReferencesStore.FieldFlags.IncludePayload);
+            if (record.InlinePayload == null)
+            {
+                // if there is no inline payload this is not a bundle ref
+                return null;
+            }
+
+            RefInlinePayload inlinePayload = CbSerializer.Deserialize<RefInlinePayload>(record.InlinePayload);
+            IoHash nodeHash = inlinePayload.BlobHash;
+            BlobLocator blobLocator = new BlobLocator(inlinePayload.BlobLocator);
+            int exportId = inlinePayload.ExportId;
+
+            return new NodeHandle(nodeHash, blobLocator, exportId);
+        }
+        catch (ObjectNotFoundException )
+        {
+            return null;
+        }
+    }
+
+    public async Task<NodeHandle> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
+        NodeHandle target = new NodeHandle(bundle.Header.Exports[exportIdx].Hash, locator, exportIdx);
+        await WriteRefTargetAsync(name, target, options, cancellationToken);
+
+        return target;
+    }
+
+    public async Task WriteRefTargetAsync(RefName refName, NodeHandle target, RefOptions? requestOptions, CancellationToken cancellationToken)
+    {
+        RefInlinePayload inlinePayload = new RefInlinePayload()
+        {
+            BlobHash = target.Hash, BlobLocator = target.Locator.Blob.ToString(), ExportId = target.Locator.ExportIdx
+        };
+        byte[] payload = CbSerializer.SerializeToByteArray(inlinePayload);
+        BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(payload);
+        // TODO: Calculate isFinalized which requires us to be able to resovle references
+        await _refStore.Put(_namespaceId, _defaultBucket, IoHashKey.FromName(refName.ToString()), blobIdentifier, payload, isFinalized: true); 
+    }
+
+    public  async Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)
+    {
+        await _refStore.Delete(_namespaceId, _defaultBucket, IoHashKey.FromName(name.ToString()));
+    }
+}
+
+public class RefInlinePayload
+{
+    [CbField("hash")]
+    public IoHash BlobHash { get; set; }
+
+    [CbField("loc")]
+    public string BlobLocator { get; set; } = null!;
+
+    [CbField("export")]
+    public int ExportId { get; set; }
+}

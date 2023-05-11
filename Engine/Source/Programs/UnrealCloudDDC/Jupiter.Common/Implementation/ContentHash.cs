@@ -25,10 +25,10 @@ namespace Jupiter.Implementation
         public ContentHash(byte[] identifier)
         {
             Identifier = identifier;
-            if (identifier.Length != HashLength)
+            /*if (identifier.Length != HashLength)
             {
                 throw new ArgumentException("Supplied identifier was not 20 bytes, this is not a valid identifier", nameof(identifier));
-            }
+            }*/
         }
 
         [JsonConstructor]
@@ -41,10 +41,10 @@ namespace Jupiter.Implementation
 
             byte[] byteIdentifier = StringUtils.ToHashFromHexString(identifier);
             Identifier = byteIdentifier;
-            if (byteIdentifier.Length != HashLength)
+            /*if (byteIdentifier.Length != HashLength)
             {
                 throw new ArgumentException("Supplied identifier was not 20 bytes, this is not a valid identifier", nameof(identifier));
-            }
+            }*/
         }
 
         public override int GetHashCode()

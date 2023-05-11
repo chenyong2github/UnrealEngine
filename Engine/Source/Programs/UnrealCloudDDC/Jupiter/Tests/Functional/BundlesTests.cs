@@ -9,16 +9,13 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Amazon.S3;
 using Amazon.S3.Model;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
-using EpicGames.Horde.Storage.Backends;
 using Jupiter.Controllers;
 using Jupiter.Implementation;
-using Jupiter.Implementation.Bundles;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -150,6 +147,7 @@ public abstract class BundlesTests
     [TestMethod]
     public async Task PutSmallBlobRedirect()
     {
+        Assert.Inconclusive("Disabled as redirect uploads is currently disabled");
         byte[] payload = Encoding.ASCII.GetBytes("I am also a small blob");
 
         HttpResponseMessage result = await _httpClient!.PostAsync(new Uri($"api/v1/storage/{TestNamespaceName}/blobs", UriKind.Relative), null);
@@ -170,7 +168,7 @@ public abstract class BundlesTests
         redirectResult.EnsureSuccessStatusCode();
     }
 
-    /*[TestMethod]
+    [TestMethod]
     public async Task PutGetRef()
     {
         IoHash targetHash = IoHash.Compute(Encoding.ASCII.GetBytes(SmallFileContents));
@@ -187,15 +185,15 @@ public abstract class BundlesTests
 
         Assert.AreEqual(targetHash, getResponse.Hash);
         Assert.AreEqual(SmallFileLocator, getResponse.Blob);
-        Assert.AreEqual(0, getResponse.ExportIdx);
+        Assert.AreEqual(exportIdx, getResponse.ExportIdx);
         Assert.AreEqual($"/api/v1/storage/test-namespace-bundle/nodes/{SmallFileLocator}?export={exportIdx}", getResponse.Link);
-    }*/
+    }
 
     [TestMethod]
     public async Task PutGetBundle()
     {
         Bundle manualBundle = CreateBundleManually();
-        byte[] payload = manualBundle.AsSequence().ToArray(); // TODO: create bundle
+        byte[] payload = manualBundle.AsSequence().ToArray();
         using ByteArrayContent requestContent = new ByteArrayContent(payload);
         requestContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         requestContent.Headers.ContentLength = payload.Length;
@@ -212,8 +210,6 @@ public abstract class BundlesTests
 
         HttpResponseMessage getResult = await _httpClient!.GetAsync(new Uri($"api/v1/storage/{TestNamespaceName}/bundles/{bundleLocator}", UriKind.Relative));
         getResult.EnsureSuccessStatusCode();
-
-        // TODO: validate result?
     }
     
     static Bundle CreateBundleManually()
