@@ -76,6 +76,13 @@ public:
 		OcclusionBased = 6
 	};
 
+
+	enum class EVertexColorMappingMode
+	{
+		None = 0,
+		TriangleCountMetric = 1
+	};
+
 	struct FOptions
 	{
 		// number of requested LODs
@@ -123,6 +130,14 @@ public:
 		bool bMergeCoplanarFaces = true;
 		int32 MergeCoplanarFacesStartLOD = 1;
 		TFunction<UE::Geometry::FIndex3i(const UE::Geometry::FDynamicMesh3& Mesh, int32 TriangleID)> TriangleGroupingIDFunc;
+
+		// If enabled, attempt to retriangulate planar areas of Source LODs to remove redundant coplanar geometry
+		bool bRetriangulateSourceLODs = true;
+		// which Source LOD to start retriangulating at
+		int32 StartRetriangulateSourceLOD = 1;
+
+		// Color mapping modes for vertex colors, primarily used for debugging
+		EVertexColorMappingMode VertexColorMappingMode = EVertexColorMappingMode::None;
 	};
 
 
