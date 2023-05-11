@@ -145,6 +145,44 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Input", meta=(AutoCreateRefTerm="Modifiers,Triggers"))
 	virtual void InjectInputVectorForPlayerMapping(const FName MappingName, FVector Value, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+
+	/**
+	 * Starts simulation of input via injection. This injects the given input every tick until it is stopped with StopContinuousInputInjectionForAction.
+	 *
+	 * @param Action		The Input Action to set inject input for
+	 * @param RawValue		The value to set the action to (the type will be controlled by the Action)
+	 * @param Modifiers		The modifiers to apply to the injected input.
+	 * @param Triggers		The triggers to apply to the injected input.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Input", meta=(AutoCreateRefTerm="Modifiers,Triggers"))
+	virtual void StartContinuousInputInjectionForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+
+	/**
+	 * Starts simulation of input via injection. This injects the given input every tick until it is stopped with StopContinuousInputInjectionForAction.
+	 *
+	 * @param MappingName		The name of the player mapping that can be used for look up an associated UInputAction object.
+	 * @param RawValue			The value to set the action to (the type will be controlled by the Action)
+	 * @param Modifiers			The modifiers to apply to the injected input.
+	 * @param Triggers			The triggers to apply to the injected input.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Input", meta=(AutoCreateRefTerm="Modifiers,Triggers"))
+	virtual void StartContinuousInputInjectionForPlayerMapping(const FName MappingName, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers);
+
+	/**
+	 * Stops continuous input injection for the given action.
+	 *
+	 * @param Action		The action to stop injecting input for
+	 */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void StopContinuousInputInjectionForAction(const UInputAction* Action);
+
+	/**
+	 * Stops continuous input injection for the given player mapping name.
+	 *
+	 * @param MappingName		The name of the player mapping that can be used for look up an associated UInputAction object.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Input")
+	virtual void StopContinuousInputInjectionForPlayerMapping(const FName MappingName);
 	
 	/**
 	 * Remove all applied mapping contexts.
@@ -401,6 +439,9 @@ private:
 
 	/** A map of any player mapped keys to the keys that they should redirect to instead */
 	TMap<FName, TMap<FPlayerMappableKeySlot, FKey>> PlayerMappedSettings;
+
+	/** A map of inputs that should be injected every frame. This inputs will be injected when ForcedInput is ticked. */
+	TMap<TObjectPtr<const UInputAction>, FInjectedInput> ContinuouslyInjectedInputs;
 
 	/**
 	 * A map of input actions with a Chorded trigger, mapped to the action they are dependent on.

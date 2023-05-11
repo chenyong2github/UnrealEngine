@@ -93,6 +93,58 @@ void IEnhancedInputSubsystemInterface::InjectInputForPlayerMapping(const FName M
 	InjectInputVectorForPlayerMapping(MappingName, RawValue.Get<FVector>(), Modifiers, Triggers);
 }
 
+void IEnhancedInputSubsystemInterface::StartContinuousInputInjectionForAction(const UInputAction* Action, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
+{
+	FInjectedInput& Injection = ContinuouslyInjectedInputs.FindOrAdd(Action);
+	
+	Injection.RawValue = RawValue;
+	Injection.Modifiers = Modifiers;
+	Injection.Triggers = Triggers;
+}
+
+void IEnhancedInputSubsystemInterface::StartContinuousInputInjectionForPlayerMapping(const FName MappingName, FInputActionValue RawValue, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
+{
+	if (const UEnhancedInputUserSettings* UserSettings = GetUserSettings())
+	{
+		if (const UInputAction* Action = UserSettings->FindInputActionForMapping(MappingName))
+		{
+			StartContinuousInputInjectionForAction(Action, RawValue, Modifiers, Triggers);
+		}
+		else
+		{
+			UE_LOG(LogEnhancedInput, Warning, TEXT("Could not find a Input Action for mapping name '%s'"), *MappingName.ToString());
+		}
+	}
+	else
+	{
+		UE_LOG(LogEnhancedInput, Warning, TEXT("Could not find a valid UEnhancedInputUserSettings object, is it enabled in the project settings?"));
+	}
+}
+
+void IEnhancedInputSubsystemInterface::StopContinuousInputInjectionForAction(const UInputAction* Action)
+{
+	ContinuouslyInjectedInputs.Remove(Action);
+}
+
+void IEnhancedInputSubsystemInterface::StopContinuousInputInjectionForPlayerMapping(const FName MappingName)
+{
+	if (const UEnhancedInputUserSettings* UserSettings = GetUserSettings())
+	{
+		if (const UInputAction* Action = UserSettings->FindInputActionForMapping(MappingName))
+		{
+			StopContinuousInputInjectionForAction(Action);
+		}
+		else
+		{
+			UE_LOG(LogEnhancedInput, Warning, TEXT("Could not find a Input Action for mapping name '%s'"), *MappingName.ToString());
+		}
+	}
+	else
+	{
+		UE_LOG(LogEnhancedInput, Warning, TEXT("Could not find a valid UEnhancedInputUserSettings object, is it enabled in the project settings?"));
+	}
+}
+
 void IEnhancedInputSubsystemInterface::InjectInputVectorForPlayerMapping(const FName MappingName, FVector Value, const TArray<UInputModifier*>& Modifiers, const TArray<UInputTrigger*>& Triggers)
 {
 	if (const UEnhancedInputUserSettings* UserSettings = GetUserSettings())
@@ -989,6 +1041,16 @@ void IEnhancedInputSubsystemInterface::TickForcedInput(float DeltaTime)
 	if (!PlayerInput)
 	{
 		return;
+	}
+
+	// Any continuous input injection needs to be added each frame until its stopped
+	for (TPair<TObjectPtr<const UInputAction>, FInjectedInput>& ContinuousInjection : ContinuouslyInjectedInputs)
+	{
+		TObjectPtr<const UInputAction>& Action = ContinuousInjection.Key;
+		if (const UInputAction* InputAction = Action.Get())
+		{
+			PlayerInput->InjectInputForAction(InputAction, ContinuousInjection.Value.RawValue, ContinuousInjection.Value.Modifiers, ContinuousInjection.Value.Triggers);
+		}
 	}
 
 	// Forced action triggering
