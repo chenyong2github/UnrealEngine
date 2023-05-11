@@ -5,6 +5,11 @@
 #if WITH_EDITOR
 #include "WaterZoneActor.h"
 
+FWaterZoneActorDesc::FWaterZoneActorDesc()
+	: OverlapPriority(0)
+{
+}
+
 void FWaterZoneActorDesc::Init(const AActor* InActor)
 {
 	FWorldPartitionActorDesc::Init(InActor);

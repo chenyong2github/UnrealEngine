@@ -11,6 +11,7 @@
 class FWaterZoneActorDesc : public FWorldPartitionActorDesc
 {
 public:
+	FWaterZoneActorDesc();
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
 

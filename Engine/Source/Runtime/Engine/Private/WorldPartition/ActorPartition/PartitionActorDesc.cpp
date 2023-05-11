@@ -6,6 +6,14 @@
 #if WITH_EDITOR
 #include "UObject/UE5MainStreamObjectVersion.h"
 
+FPartitionActorDesc::FPartitionActorDesc()
+	: GridSize(0)
+	, GridIndexX(0)
+	, GridIndexY(0)
+	, GridIndexZ(0)
+{
+}
+
 void FPartitionActorDesc::Init(const AActor* InActor)
 {
 	FWorldPartitionActorDesc::Init(InActor);

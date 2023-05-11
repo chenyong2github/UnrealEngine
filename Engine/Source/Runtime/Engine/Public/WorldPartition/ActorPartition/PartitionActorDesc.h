@@ -19,6 +19,7 @@ public:
 	int64 GridIndexZ;
 	FGuid GridGuid;
 
+	FPartitionActorDesc();
 protected:
 	virtual void Init(const AActor* InActor) override;
 	virtual bool Equals(const FWorldPartitionActorDesc* Other) const override;
