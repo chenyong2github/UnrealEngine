@@ -16,7 +16,7 @@ void UpdatePrimIdToCollisionGroupMap(uint Index : SV_DispatchThreadID)
 	{
 		uint PrimId = NewPrimIdCollisionGroupPairs[Index].x;
 		uint CollisionGroupId = NewPrimIdCollisionGroupPairs[Index].y;
-		uint CollisionGroupIdIndex;
+		uint CollisionGroupIdIndex = MurmurMix(PrimId);
 
 		//TODO: Handle failures.
 		if (PrimId != -1)

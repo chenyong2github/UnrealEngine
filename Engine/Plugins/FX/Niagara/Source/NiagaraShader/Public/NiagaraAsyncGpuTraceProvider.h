@@ -66,7 +66,7 @@ public:
 	*/
 	struct FCollisionGroupHashMap
 	{
-		FRWBuffer PrimIdHashTable;
+		FRWBufferStructured PrimIdHashTable;
 		FRWBuffer HashToCollisionGroups;
 		uint32 HashTableSize = 0;
 	};

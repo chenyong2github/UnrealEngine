@@ -73,6 +73,7 @@
 #include "SceneCaptureRendering.h"
 #include "NaniteSceneProxy.h"
 #include "Nanite/NaniteRayTracing.h"
+#include "Nanite/Voxel.h"
 #include "RayTracing/RayTracingInstanceCulling.h"
 #include "GPUMessaging.h"
 #include "RectLightTextureManager.h"
@@ -4031,6 +4032,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, HairRendering);
 		RenderHairComposition(GraphBuilder, Views, SceneTextures.Color.Target, SceneTextures.Depth.Target, SceneTextures.Velocity, TranslucencyResourceMap);
+	}
+
+	// Experimental voxel test code
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+	
+		Nanite::DrawVisibleBricks( GraphBuilder, *Scene, View, SceneTextures );
 	}
 
 	// Draw translucency.
