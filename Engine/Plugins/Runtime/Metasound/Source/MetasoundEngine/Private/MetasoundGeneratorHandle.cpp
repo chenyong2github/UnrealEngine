@@ -41,7 +41,7 @@ void UMetasoundGeneratorHandle::BeginDestroy()
 
 	if (TSharedPtr<Metasound::FMetasoundGenerator> PinnedGenerator = CachedGeneratorPtr.Pin())
 	{
-		PinnedGenerator->OnOutputChanged.RemoveAll(this);
+		PinnedGenerator->OnOutputChanged.Remove(OutputChangedDelegateHandle);
 	}
 }
 
@@ -389,7 +389,7 @@ void UMetasoundGeneratorHandle::UpdateWatchers()
 	METASOUND_LLM_SCOPE;
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetasoundGeneratorHandle::UpdateWatchers);
 
-	while (TOptional<FOutputPayload> ChangedOutput = ChangedOutputs.Dequeue())
+	while (TOptional<FOutputPayload> ChangedOutput = ChangedOutputs->Dequeue())
 	{
 		if (const FOutputListener* OutputListener = OutputListeners.FindByPredicate(
 			[&ChangedOutput](const FOutputListener& ExistingListener)
@@ -472,9 +472,20 @@ void UMetasoundGeneratorHandle::CreateAnalyzer(
 	Generator->AddOutputVertexAnalyzer(AnalyzerAddress);
 
 	// Subscribe for output updates if we haven't already
-	if (!Generator->OnOutputChanged.IsBoundToObject(this))
+	if (!OutputChangedDelegateHandle.IsValid())
 	{
-		Generator->OnOutputChanged.AddUObject(this, &UMetasoundGeneratorHandle::HandleOutputChanged);
+		TWeakPtr<TSpscQueue<FOutputPayload>> ChangedOutputQueue{ ChangedOutputs };
+		OutputChangedDelegateHandle = Generator->OnOutputChanged.AddLambda([ChangedOutputQueue](
+			FName AnalyzerName,
+			FName OutputName,
+			FName AnalyzerOutputName,
+			TSharedPtr<Metasound::IOutputStorage> OutputData)
+		{
+			if (const TSharedPtr<TSpscQueue<FOutputPayload>> PinnedQueue = ChangedOutputQueue.Pin())
+			{
+				PinnedQueue->Enqueue(AnalyzerName, OutputName, AnalyzerOutputName, OutputData);
+			}
+		});
 	}
 }
 
@@ -501,15 +512,4 @@ void UMetasoundGeneratorHandle::CreateListener(
 	{
 		OutputListeners.Emplace(AnalyzerAddress, OnOutputValueChanged);
 	}
-}
-
-// NOTE: We're in an audio render thread here, so get out fast
-// and be mindful of touching things that get touched on the game thread
-void UMetasoundGeneratorHandle::HandleOutputChanged(
-	FName AnalyzerName,
-	FName OutputName,
-	FName AnalyzerOutputName,
-	TSharedPtr<Metasound::IOutputStorage> OutputData)
-{
-	ChangedOutputs.Enqueue(AnalyzerName, OutputName, AnalyzerOutputName, OutputData);
 }

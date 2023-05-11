@@ -150,11 +150,6 @@ private:
 	void CreateListener(
 		const Metasound::Frontend::FAnalyzerAddress& AnalyzerAddress,
 		const FOnMetasoundOutputValueChanged& OnOutputValueChanged);
-	void HandleOutputChanged(
-		FName AnalyzerName,
-		FName OutputName,
-		FName AnalyzerOutputName,
-		TSharedPtr<Metasound::IOutputStorage> OutputData);
 
 	struct FPassthroughAnalyzerInfo
 	{
@@ -203,6 +198,7 @@ private:
 				, OutputValue(AnalyzerOutputName, OutputData)
 		{}
 	};
-
-	TSpscQueue<FOutputPayload> ChangedOutputs;
+	
+	TSharedRef<TSpscQueue<FOutputPayload>> ChangedOutputs = MakeShared<TSpscQueue<FOutputPayload>>();
+	FDelegateHandle OutputChangedDelegateHandle;
 };
