@@ -120,6 +120,7 @@ FUIActionBinding::FUIActionBinding(const UWidget& InBoundWidget, const FBindUIAc
 {
 	OnHoldActionProgressed.Add(BindArgs.OnHoldActionProgressed);
 	OnHoldActionPressed.Add(BindArgs.OnHoldActionPressed);
+	OnHoldActionReleased.Add(BindArgs.OnHoldActionReleased);
 
 	const auto RegisterKeyMappingFunc = 
 		[this](const FUIActionKeyMapping& KeyMapping)
@@ -605,6 +606,8 @@ EProcessHoldActionResult FActionRouterBindingCollection::ProcessHoldInput(ECommo
 							else if (InputEvent == IE_Released)
 							{
 								const float SecondsHeld = Binding->GetSecondsHeld();
+
+								Binding->OnHoldActionReleased.Broadcast();
 
 								UE_LOG(LogUIActionRouter, VeryVerbose, TEXT("Hold released: %s after %f"), *Binding->ActionName.ToString(), SecondsHeld);
 

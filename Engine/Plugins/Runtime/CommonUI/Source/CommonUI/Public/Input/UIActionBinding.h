@@ -74,6 +74,9 @@ struct COMMONUI_API FUIActionBinding
 	DECLARE_MULTICAST_DELEGATE(FOnHoldActionPressed);
 	FOnHoldActionPressed OnHoldActionPressed;
 
+	DECLARE_MULTICAST_DELEGATE(FOnHoldActionReleased);
+	FOnHoldActionPressed OnHoldActionReleased;
+
 	// @TODO: Rename non-legacy in 5.3. We no longer have any active plans to remove data tables in CommonUI.
 	FDataTableRowHandle LegacyActionTableRow;
 

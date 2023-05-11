@@ -602,7 +602,8 @@ void UCommonButtonBase::BindTriggeringInputActionToClick()
 	{
 		FBindUIActionArgs BindArgs(TriggeringInputAction, false, FSimpleDelegate::CreateUObject(this, &UCommonButtonBase::HandleTriggeringActionCommited));
 		BindArgs.OnHoldActionProgressed.BindUObject(this, &UCommonButtonBase::NativeOnActionProgress);
-		BindArgs.OnHoldActionPressed.BindUObject(this, &UCommonButtonBase::HoldReset);
+		BindArgs.OnHoldActionPressed.BindUObject(this, &UCommonButtonBase::NativeOnPressed);
+		BindArgs.OnHoldActionReleased.BindUObject(this, &UCommonButtonBase::NativeOnReleased);
 		BindArgs.bIsPersistent = bIsPersistentBinding;
 		BindArgs.bForceHold = GetConvertInputActionToHold();
 
@@ -1525,6 +1526,7 @@ void UCommonButtonBase::StopDoubleClickPropagation()
 
 void UCommonButtonBase::NativeOnPressed()
 {
+	HoldReset();
 	BP_OnPressed();
 	OnPressed().Broadcast();
 }
