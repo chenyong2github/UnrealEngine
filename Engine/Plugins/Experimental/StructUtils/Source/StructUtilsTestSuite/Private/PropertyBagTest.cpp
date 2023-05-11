@@ -255,6 +255,35 @@ struct FTest_Enum : FAITestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FTest_Enum, "System.StructUtils.PropertyBag.Enum");
 
+struct FTest_ContainerTypes : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		FPropertyBagContainerTypes Container = { EPropertyBagContainerType::None, EPropertyBagContainerType::None };
+		AITEST_TRUE(TEXT("Invalid Num Containers after creation."), Container.Num() == 0);
+		AITEST_TRUE(TEXT("Invalid First Container type after creation."), Container.GetFirstContainerType() == EPropertyBagContainerType::None);
+
+		Container.Add(EPropertyBagContainerType::Array);
+		AITEST_TRUE(TEXT("Invalid num containers"), Container.Num() == 1);
+		AITEST_TRUE(TEXT("Invalid First Container type."), Container.GetFirstContainerType() == EPropertyBagContainerType::Array);
+
+		Container.Add(EPropertyBagContainerType::Array);
+		AITEST_TRUE(TEXT("Invalid num containers"), Container.Num() == 2);
+
+		Container.PopHead();
+		AITEST_TRUE(TEXT("Invalid num containers"), Container.Num() == 1);
+
+		Container.PopHead();
+		AITEST_TRUE(TEXT("Invalid num containers"), Container.Num() == 0);
+
+		Container.Add(EPropertyBagContainerType::None);
+		AITEST_TRUE(TEXT("Adding None sould not change Num containers"), Container.Num() == 0);
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FTest_ContainerTypes, "System.StructUtils.PropertyBag.ContainerTypes");
+
 struct FTest_NestedArray : FAITestBase
 {
 	virtual bool InstantTest() override

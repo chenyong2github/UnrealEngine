@@ -79,9 +79,13 @@ struct STRUCTUTILS_API FPropertyBagContainerTypes
 	{
 		if (ensure(NumContainers < MaxNestedTypes))
 		{
-			Types[NumContainers] = PropertyBagContainerType;
-			NumContainers++;
-			return true;
+			if (PropertyBagContainerType != EPropertyBagContainerType::None)
+			{
+				Types[NumContainers] = PropertyBagContainerType;
+				NumContainers++;
+
+				return true;
+			}
 		}
 
 		return false;
