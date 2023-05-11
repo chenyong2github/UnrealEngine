@@ -99,6 +99,12 @@ namespace PCG
 			return IsOfTypes<Types...>(MetadataTypes<T>::Id);
 		}
 
+		inline FString GetTypeName(uint16 InType)
+		{
+			UEnum* PCGDataTypeEnum = StaticEnum<EPCGMetadataTypes>();
+			return PCGDataTypeEnum ? PCGDataTypeEnum->GetNameStringByValue(InType) : FString(TEXT("Unknown"));
+		}
+
 		// Wrapper around a standard 2-dimensional CArray that is constexpr, to know if a type is broadcastable to another.
 		// First index is the original type, second index is the wanted type. Returns true if we can broadcast first type into second type.
 		struct UBroadcastableTypes

@@ -43,7 +43,31 @@ enum class EPCGPointFilterOperator : uint8
 	Lesser UMETA(DisplayName="<"),
 	LesserOrEqual UMETA(DisplayName="<="),
 	Equal UMETA(DisplayName="="),
-	NotEqual UMETA(DisplayName="!=")
+	NotEqual UMETA(DisplayName="!="),
+	InRange UMETA(Hidden)
+};
+
+USTRUCT(BlueprintType)
+struct PCG_API FPCGPointFilterThresholdSettings
+{
+	GENERATED_BODY()
+
+	/** If the threshold in included or excluded from the range. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	bool bInclusive = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	bool bUseConstantThreshold = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides, PCG_NotOverridable))
+	FPCGAttributePropertySelector ThresholdAttribute;
+
+	/** If the threshold data is Point data, it will sample input points in threshold data. Always true with Spatial data.*/
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides, PCG_Overridable))
+	bool bUseSpatialQuery = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bUseConstantThreshold", EditConditionHides, ShowOnlyInnerProperties, DisplayAfter = "bUseConstantThreshold", PCG_NotOverridable))
+	FPCGMetadataTypesConstantStruct AttributeTypes;
 };
 
 /**
@@ -73,14 +97,13 @@ public:
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PointFilter")); }
-	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGPointFilterSettings", "NodeTitle", "Point Filter"); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGPointFilterElement", "NodeTitle", "Point Filter"); }
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Filter; }
 #endif
 
+protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
-
-protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
 
@@ -96,13 +119,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
 	bool bUseConstantThreshold = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides, PCG_NotOverridable))
 	FPCGAttributePropertySelector ThresholdAttribute;
 
+	/** If the threshold data is Point data, it will sample input points in threshold data. Always true with Spatial data.*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides, PCG_Overridable))
 	bool bUseSpatialQuery = true;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Constant, meta = (EditCondition = "bUseConstantThreshold", EditConditionHides, ShowOnlyInnerProperties, DisplayAfter = "bUseConstantThreshold"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bUseConstantThreshold", EditConditionHides, ShowOnlyInnerProperties, DisplayAfter = "bUseConstantThreshold", PCG_NotOverridable))
 	FPCGMetadataTypesConstantStruct AttributeTypes;
 
 #if WITH_EDITORONLY_DATA
@@ -146,8 +170,69 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif 
 };
 
-class FPCGPointFilterElement : public FSimplePCGElement
+
+/**
+* Point filter on range that allows to do "A op B" type filtering, where A is the input spatial data,
+* and B is either a constant, another spatial data, a param data (in filter) or the input itself.
+* The filtering can be done either on properties or attributes.
+* Some examples (that might not make sense, but are valid):
+* - Threshold on property by constant (A.Density in [0.2, 0.5])
+* - Threshold on attribute by constant (A.aaa in [0.4, 0.6])
+* - Threshold on property by metadata attribute(A.density in [B.bbmin, B.bbmax])
+* - Threshold on property by property(A.density in [B.position.x, B.steepness])
+* - Threshold on attribute by metadata attribute(A.aaa in [B.bbmin, B.bbmax])
+* - Threshold on attribute by property(A.aaa in [B.position, B.scale])
+*/
+UCLASS(BlueprintType, ClassGroup = (Procedural))
+class PCG_API UPCGPointFilterRangeSettings : public UPCGSettings
+{
+	GENERATED_BODY()
+
+public:
+	UPCGPointFilterRangeSettings();
+
+
+	//~Begin UPCGSettings interface
+#if WITH_EDITOR
+	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PointFilterRange")); }
+	virtual FText GetDefaultNodeTitle() const override { return NSLOCTEXT("PCGPointFilterElement", "NodeTitleRange", "Point Filter Range"); }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Filter; }
+#endif
+
+protected:
+	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+	virtual FPCGElementPtr CreateElement() const override;
+	//~End UPCGSettings interface
+
+public:
+	/** Target property/attribute related properties */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	FPCGAttributePropertySelector TargetAttribute;
+
+	/** Threshold property/attribute/constant related properties */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	FPCGPointFilterThresholdSettings MinThreshold;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	FPCGPointFilterThresholdSettings MaxThreshold;
+};
+
+class FPCGPointFilterElementBase : public FSimplePCGElement
+{
+protected:
+	bool DoFiltering(FPCGContext* Context, EPCGPointFilterOperator InOperation, const FPCGAttributePropertySelector& TargetAttribute, const FPCGPointFilterThresholdSettings& FirstThreshold, const FPCGPointFilterThresholdSettings* SecondThreshold = nullptr) const;
+};
+
+class FPCGPointFilterElement : public FPCGPointFilterElementBase
 {
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };
+
+class FPCGPointFilterRangeElement : public FPCGPointFilterElementBase
+{
+protected:
+	virtual bool ExecuteInternal(FPCGContext* Context) const override;
+};
+
