@@ -484,7 +484,7 @@ void FDisplayClusterScenePreviewModule::AutoPopulateScene(FRendererConfig& Rende
 			{
 				for (const TWeakObjectPtr<AActor> WeakActor : TActorRange<AActor>(World))
 				{
-					if (WeakActor.IsValid() && WeakActor->Implements<UDisplayClusterStageActor>())
+					if (WeakActor.IsValid() && WeakActor->Implements<UDisplayClusterStageActor>() && !WeakActor->IsA<ADisplayClusterLightCardActor>())
 					{
 						Actors.Add(WeakActor.Get());
 					}
