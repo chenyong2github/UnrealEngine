@@ -765,6 +765,11 @@ void SSequencerPlaylistPanel::LoadPlaylist(USequencerPlaylist* PlaylistToLoad)
 	{
 		Playlist->GetPackage()->ClearDirtyFlag();
 	}
+
+	if (USequencerPlaylistsSubsystem* Subsystem = GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>())
+	{
+		Subsystem->UpdatePrecacheSet();
+	}
 }
 
 
@@ -1362,7 +1367,7 @@ TSharedRef<SWidget> SSequencerPlaylistItemWidget::GenerateWidgetForColumn(const 
 			CastChecked<USequencerPlaylistItem_Sequence>(Item);
 
 		TSharedPtr<ISinglePropertyView> PropView = PropertyEditorModule.CreateSingleProperty(SequenceItem,
-			GET_MEMBER_NAME_CHECKED(USequencerPlaylistItem_Sequence, Sequence),
+			USequencerPlaylistItem_Sequence::GetSequencePropertyName(),
 			SinglePropParams);
 
 		return SNew(SBox)
@@ -1650,9 +1655,9 @@ TOptional<int32> SSequencerPlaylistItemWidget::GetItemLengthDisplayFrames() cons
 {
 	if (const USequencerPlaylistItem_Sequence* SequenceItem = Cast<const USequencerPlaylistItem_Sequence>(GetItem()))
 	{
-		if (SequenceItem->Sequence && SequenceItem->Sequence->GetMovieScene())
+		if (SequenceItem->GetSequence() && SequenceItem->GetSequence()->GetMovieScene())
 		{
-			UMovieScene* MovieScene = SequenceItem->Sequence->GetMovieScene();
+			UMovieScene* MovieScene = SequenceItem->GetSequence()->GetMovieScene();
 			TRange<FFrameNumber> Range = MovieScene->GetPlaybackRange();
 			if (Range.GetLowerBound().IsClosed() && Range.GetUpperBound().IsClosed())
 			{

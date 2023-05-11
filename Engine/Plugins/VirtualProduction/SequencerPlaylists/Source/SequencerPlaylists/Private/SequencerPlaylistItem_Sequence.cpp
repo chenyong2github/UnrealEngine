@@ -8,6 +8,7 @@
 #include "MovieSceneFolder.h"
 #include "Recorder/TakeRecorder.h"
 #include "SequencerPlaylist.h"
+#include "SequencerPlaylistsSubsystem.h"
 #include "TrackEditors/SubTrackEditorBase.h" // for FSubTrackEditorUtil::CanAddSubSequence
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -66,9 +67,49 @@ namespace UE::Private::SequencerPlaylistItem_Sequence
 }
 
 
+/*static*/ FName USequencerPlaylistItem_Sequence::GetSequencePropertyName()
+{
+	static const FName SequencePropertyName =
+		GET_MEMBER_NAME_CHECKED(USequencerPlaylistItem_Sequence, Sequence);
+
+	return SequencePropertyName;
+}
+
+
 FText USequencerPlaylistItem_Sequence::GetDisplayName()
 {
 	return Sequence ? Sequence->GetDisplayName() : LOCTEXT("SequenceItemNullDisplayName", "(No sequence)");
+}
+
+
+void USequencerPlaylistItem_Sequence::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName ChangedPropertyName = PropertyChangedEvent.MemberProperty
+		? PropertyChangedEvent.MemberProperty->GetFName()
+		: NAME_None;
+
+	if (ChangedPropertyName == NAME_None || ChangedPropertyName == GetSequencePropertyName())
+	{
+		USequencerPlaylistsSubsystem* Subsystem =
+			GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>();
+		if (Subsystem)
+		{
+			Subsystem->UpdatePrecacheSet();
+		}
+	}
+}
+
+
+void USequencerPlaylistItem_Sequence::SetSequence(ULevelSequence* NewSequence)
+{
+	Sequence = NewSequence;
+
+	if (USequencerPlaylistsSubsystem* Subsystem = GEditor->GetEditorSubsystem<USequencerPlaylistsSubsystem>())
+	{
+		Subsystem->UpdatePrecacheSet();
+	}
 }
 
 
@@ -129,7 +170,7 @@ FSequencerPlaylistItemPlayer_Sequence::GetPlaybackState(USequencerPlaylistItem* 
 	FSequencerPlaylistPlaybackState Result;
 
 	USequencerPlaylistItem_Sequence* SequenceItem = CastChecked<USequencerPlaylistItem_Sequence>(Item);
-	if (!SequenceItem || !SequenceItem->Sequence)
+	if (!SequenceItem || !SequenceItem->GetSequence())
 	{
 		return Result;
 	}
@@ -167,7 +208,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalPlay(
 )
 {
 	USequencerPlaylistItem_Sequence* SequenceItem = CastChecked<USequencerPlaylistItem_Sequence>(Item);
-	if (!SequenceItem || !SequenceItem->Sequence)
+	if (!SequenceItem || !SequenceItem->GetSequence())
 	{
 		return false;
 	}
@@ -181,9 +222,9 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalPlay(
 	ULevelSequence* RootSequence = Cast<ULevelSequence>(Sequencer->GetRootMovieSceneSequence());
 	UMovieScene* RootScene = RootSequence->GetMovieScene();
 
-	if (!FSubTrackEditorUtil::CanAddSubSequence(RootSequence, *SequenceItem->Sequence))
+	if (!FSubTrackEditorUtil::CanAddSubSequence(RootSequence, *SequenceItem->GetSequence()))
 	{
-		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequence", "Invalid level sequence {0}. There could be a circular dependency."), SequenceItem->Sequence->GetDisplayName()));
+		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequence", "Invalid level sequence {0}. There could be a circular dependency."), SequenceItem->GetSequence()->GetDisplayName()));
 		Info.bUseLargeFont = false;
 		FSlateNotificationManager::Get().AddNotification(Info);
 		return false;
@@ -203,7 +244,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalPlay(
 
 	ItemState.LastPlayDirection = PlayParams.Direction;
 
-	UMovieScene* PlayScene = SequenceItem->Sequence->GetMovieScene();
+	UMovieScene* PlayScene = SequenceItem->GetSequence()->GetMovieScene();
 	const TRange<FFrameNumber> SequencePlayRange = PlayScene->GetPlaybackRange();
 
 	const FFrameTime StartFrameOffset_Ticks = PlayParams.StartFrameOffset_SceneTicks.IsSet()
@@ -236,7 +277,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalPlay(
 
 	ItemState.PlayingUntil_RootTicks = FMath::Max(StartFrame.Value + Duration, ItemState.PlayingUntil_RootTicks);
 
-	UMovieSceneSubSection* WorkingSubSection = WorkingTrack->AddSequence(SequenceItem->Sequence, StartFrame, Duration);
+	UMovieSceneSubSection* WorkingSubSection = WorkingTrack->AddSequence(SequenceItem->GetSequence(), StartFrame, Duration);
 
 	WorkingSubSection->Parameters.TimeScale = TimeScale;
 	WorkingSubSection->Parameters.StartFrameOffset = StartFrameOffset_Ticks.FloorToFrame();
@@ -267,7 +308,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalPause(USequencerPlaylistItem
 	bool bSequenceWasModified = false;
 
 	USequencerPlaylistItem_Sequence* SequenceItem = CastChecked<USequencerPlaylistItem_Sequence>(Item);
-	if (!SequenceItem || !SequenceItem->Sequence)
+	if (!SequenceItem || !SequenceItem->GetSequence())
 	{
 		return bSequenceWasModified;
 	}
@@ -321,7 +362,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalStop(USequencerPlaylistItem*
 	bool bSequenceWasModified = false;
 
 	USequencerPlaylistItem_Sequence* SequenceItem = CastChecked<USequencerPlaylistItem_Sequence>(Item);
-	if (!SequenceItem || !SequenceItem->Sequence)
+	if (!SequenceItem || !SequenceItem->GetSequence())
 	{
 		return bSequenceWasModified;
 	}
@@ -358,7 +399,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalStop(USequencerPlaylistItem*
 bool FSequencerPlaylistItemPlayer_Sequence::InternalAddHold(USequencerPlaylistItem* Item, const FHoldParams& HoldParams)
 {
 	USequencerPlaylistItem_Sequence* SequenceItem = CastChecked<USequencerPlaylistItem_Sequence>(Item);
-	if (!SequenceItem || !SequenceItem->Sequence)
+	if (!SequenceItem || !SequenceItem->GetSequence())
 	{
 		return false;
 	}
@@ -379,9 +420,9 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalAddHold(USequencerPlaylistIt
 	ULevelSequence* RootSequence = Cast<ULevelSequence>(Sequencer->GetRootMovieSceneSequence());
 	UMovieScene* RootScene = RootSequence->GetMovieScene();
 
-	if (!FSubTrackEditorUtil::CanAddSubSequence(RootSequence, *SequenceItem->Sequence))
+	if (!FSubTrackEditorUtil::CanAddSubSequence(RootSequence, *SequenceItem->GetSequence()))
 	{
-		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequence", "Invalid level sequence {0}. There could be a circular dependency."), SequenceItem->Sequence->GetDisplayName()));
+		FNotificationInfo Info(FText::Format(LOCTEXT("InvalidSequence", "Invalid level sequence {0}. There could be a circular dependency."), SequenceItem->GetSequence()->GetDisplayName()));
 		Info.bUseLargeFont = false;
 		FSlateNotificationManager::Get().AddNotification(Info);
 		return false;
@@ -391,7 +432,7 @@ bool FSequencerPlaylistItemPlayer_Sequence::InternalAddHold(USequencerPlaylistIt
 
 	UMovieSceneSubTrack* WorkingTrack = GetOrCreateWorkingTrack(Item);
 
-	ULevelSequence* HoldSequence = SequenceItem->Sequence;
+	ULevelSequence* HoldSequence = SequenceItem->GetSequence();
 	UMovieScene* HoldScene = HoldSequence->GetMovieScene();
 
 	const FQualifiedFrameTime GlobalTime = Sequencer->GetGlobalTime();
@@ -472,7 +513,7 @@ void FSequencerPlaylistItemPlayer_Sequence::ClearItemStates()
 UMovieSceneSubTrack* FSequencerPlaylistItemPlayer_Sequence::GetOrCreateWorkingTrack(USequencerPlaylistItem* Item)
 {
 	USequencerPlaylistItem_Sequence* SequenceItem = CastChecked<USequencerPlaylistItem_Sequence>(Item);
-	if (!SequenceItem || !SequenceItem->Sequence)
+	if (!SequenceItem || !SequenceItem->GetSequence())
 	{
 		return nullptr;
 	}
@@ -495,7 +536,7 @@ UMovieSceneSubTrack* FSequencerPlaylistItemPlayer_Sequence::GetOrCreateWorkingTr
 	}
 
 	UMovieSceneSubTrack* NewWorkingTrack = RootScene->AddTrack<UMovieSceneSubTrack>();
-	NewWorkingTrack->SetDisplayName(FText::Format(LOCTEXT("SequenceItemTrackName", "Item - {0}"), SequenceItem->Sequence->GetDisplayName()));
+	NewWorkingTrack->SetDisplayName(FText::Format(LOCTEXT("SequenceItemTrackName", "Item - {0}"), SequenceItem->GetSequence()->GetDisplayName()));
 
 	// Find or create folder named for our playlist, and organize our track beneath it.
 	FText PlaylistName = FText::GetEmpty();

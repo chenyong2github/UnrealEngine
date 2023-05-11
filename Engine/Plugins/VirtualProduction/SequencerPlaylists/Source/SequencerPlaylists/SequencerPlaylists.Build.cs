@@ -31,6 +31,9 @@ public class SequencerPlaylists : ModuleRules
 			"ToolWidgets",
 			"MovieSceneTools",
 			"EditorSubsystem",
+			"ConcertClient",
+			"ConcertSyncClient",
+			"ConcertSyncCore",
 		});
 
 		DynamicallyLoadedModuleNames.AddRange(new string[] {

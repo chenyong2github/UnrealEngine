@@ -6,7 +6,9 @@
 #include "SequencerPlaylistsSubsystem.generated.h"
 
 
+class IConcertClientSession;
 class SSequencerPlaylistPanel;
+class ULevelSequence;
 class USequencerPlaylist;
 class USequencerPlaylistPlayer;
 
@@ -52,8 +54,13 @@ public:
 	USequencerPlaylistPlayer* CreatePlayerForEditor(TSharedRef<SSequencerPlaylistPanel> Editor);
 	void NotifyEditorClosed(SSequencerPlaylistPanel* Editor);
 
+	void UpdatePrecacheSet();
+
 protected:
 	USequencerPlaylist* CreateTransientPlaylistForEditor(TSharedRef<SSequencerPlaylistPanel> Editor);
+
+	void OnConcertSessionStartup(TSharedRef<IConcertClientSession> InSession);
+	void OnConcertSessionShutdown(TSharedRef<IConcertClientSession> InSession);
 
 protected:
 	UPROPERTY(Transient)
@@ -64,4 +71,10 @@ protected:
 
 	UPROPERTY(Transient)
 	TMap<FSequencerPlaylistEditorHandle, TObjectPtr<USequencerPlaylist>> EditorPlaylists;
+
+	UPROPERTY(Transient)
+	TSet<TObjectPtr<ULevelSequence>> PrecacheSequences;
+
+	/** Weak pointer to the client session with which to send events. May be null or stale. */
+	TWeakPtr<IConcertClientSession> WeakSession;
 };

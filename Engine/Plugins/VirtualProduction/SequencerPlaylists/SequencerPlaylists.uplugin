@@ -16,6 +16,14 @@
 	"Installed": false,
 	"Plugins": [
 		{
+			"Name": "ConcertSyncClient",
+			"Enabled": true
+		},
+		{
+			"Name": "ConcertSyncCore",
+			"Enabled": true
+		},
+		{
 			"Name": "Takes",
 			"Enabled": true
 		}

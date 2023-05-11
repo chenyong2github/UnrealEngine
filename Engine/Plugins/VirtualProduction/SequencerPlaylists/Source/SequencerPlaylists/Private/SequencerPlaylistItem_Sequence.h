@@ -20,10 +20,24 @@ class USequencerPlaylistItem_Sequence : public USequencerPlaylistItem
 {
 	GENERATED_BODY()
 
-	FText GetDisplayName() override;
-
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Sequencer Playlists", meta=(NoResetToDefault))
+	static FName GetSequencePropertyName();
+
+	//~ Begin USequencerPlaylistItem interface
+	virtual FText GetDisplayName() override;
+	//~ End USequencerPlaylistItem interface
+
+	//~ Begin UObject interface
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+	//~ End UObject interface
+
+	UFUNCTION(BlueprintCallable, Category="Sequencer Playlists")
+	void SetSequence(ULevelSequence* NewSequence);
+
+	ULevelSequence* GetSequence() const { return Sequence; }
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter=SetSequence, Category="Sequencer Playlists", meta=(NoResetToDefault))
 	TObjectPtr<ULevelSequence> Sequence;
 };
 
@@ -41,7 +55,7 @@ class FSequencerPlaylistItemPlayer_Sequence : public ISequencerPlaylistItemPlaye
 
 public:
 	FSequencerPlaylistItemPlayer_Sequence(TSharedRef<ISequencer> Sequencer);
-	~FSequencerPlaylistItemPlayer_Sequence() override;
+	virtual ~FSequencerPlaylistItemPlayer_Sequence() override;
 
 	//~ Begin ISequencerPlaylistItemPlayer
 	virtual bool Play(USequencerPlaylistItem* Item,
