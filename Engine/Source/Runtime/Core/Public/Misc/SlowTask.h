@@ -132,6 +132,12 @@ public:
 	 */
 	void TickProgress();
 
+	/** 
+	* Whenever we encounter edge condition requiring to force a UI refresh
+	* (Like if another popup would show when the slow task finishes and you want it to show 100%)
+	*/
+	void ForceRefresh();
+
 	/**
 	 * Get the frame message or default message if empty
 	 */

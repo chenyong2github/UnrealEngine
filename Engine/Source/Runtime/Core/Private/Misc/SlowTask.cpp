@@ -186,6 +186,11 @@ void FSlowTask::TickProgress()
 	}
 }
 
+void FSlowTask::ForceRefresh()
+{
+	ForceRefresh(Context);
+}
+
 const FText& FSlowTask::GetCurrentMessage() const
 {
 	return FrameMessage.IsEmpty() ? DefaultMessage : FrameMessage;
