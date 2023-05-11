@@ -4471,9 +4471,6 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 			SceneRenderer->Render(GraphBuilder);
 		}
 
-		// Must call this to make sure that scene changes are uploaded even if there was no rendering done that used the hierarchy.
-		Scene->SceneCulling->EndUpdate(GraphBuilder, false);
-
 		SceneRenderer->FlushCrossGPUFences(GraphBuilder);
 
 		GraphBuilder.Execute();

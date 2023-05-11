@@ -6574,13 +6574,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		checkSlow(PersistentPrimitiveIdToIndexMap[PrimitiveSceneInfo->PersistentIndex.Index] == PrimitiveSceneInfo->PackedIndex);
 	}
 #endif
-
-	// No async going on, we must sync here or there will be buildup of accumulated & unuploaded crap.
-	// As a more robust alternative we may stipulate a list of callbacks that need to be done before the graph builder is executed. These may do cleanup in case no one did along the way.
-	if (AsyncOps == EUpdateAllPrimitiveSceneInfosAsyncOps::None)
-	{
-		SceneCulling->EndUpdate(GraphBuilder, false);
-	}
 }
 
 void FScene::CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* PrimitiveInfo)
