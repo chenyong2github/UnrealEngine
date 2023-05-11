@@ -145,7 +145,15 @@ void ALightWeightInstanceManager::OnSpawnedActorDestroyed(AActor* DestroyedActor
 {
 	check(DestroyedActor);
 	const int32 DestroyedActorInstanceIndex = FindIndexForActor(DestroyedActor);
-	check(DestroyedActorInstanceIndex != INDEX_NONE);
+
+	if (!ensure(DestroyedActorInstanceIndex != INDEX_NONE))
+	{
+		UE_LOG(LogLightWeightInstance, Error,
+			TEXT("OnSpawnedActorDestroyed - actor [ %s ] is not being tracked by manager [ %s ]"),
+			*DestroyedActor->GetName(),
+			*BaseInstanceName);
+	}
+
 	Actors.Remove(DestroyedActorInstanceIndex);
 	DestroyedActor->OnDestroyed.RemoveAll(this);
 }
