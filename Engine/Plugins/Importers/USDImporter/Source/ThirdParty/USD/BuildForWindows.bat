@@ -16,7 +16,7 @@ rem Note also that this path may be emitted as part of USD error messages, so
 rem it is suggested that it not reveal any sensitive information.
 set USD_SOURCE_LOCATION=C:\USD_src
 
-rem Set as VS2015 for backwards compatibility even though VS2019 is used
+rem Set as VS2015 for backwards compatibility even though VS2022 is used
 rem when building.
 set COMPILER_VERSION_NAME=VS2015
 set TOOLCHAIN_NAME=vc14
@@ -63,7 +63,7 @@ mkdir %BUILD_LOCATION%
 pushd %BUILD_LOCATION%
 
 echo Configuring build for USD version %USD_VERSION%...
-cmake -G "Visual Studio 16 2019" %USD_SOURCE_LOCATION%^
+cmake -G "Visual Studio 17 2022" %USD_SOURCE_LOCATION%^
     -DCMAKE_INSTALL_PREFIX="%INSTALL_LOCATION%"^
     -DCMAKE_PREFIX_PATH="%IMATH_CMAKE_LOCATION%;%MATERIALX_CMAKE_LOCATION%"^
     -DTBB_INCLUDE_DIR="%TBB_INCLUDE_LOCATION%"^
