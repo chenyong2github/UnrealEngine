@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "Chaos/Core.h"
+#include "Chaos/ConstraintHandle.h"
 #include "Chaos/Framework/PoolBackedArray.h"
 #include "Chaos/Framework/Handles.h"
 #include "Chaos/Island/IslandManagerFwd.h"
