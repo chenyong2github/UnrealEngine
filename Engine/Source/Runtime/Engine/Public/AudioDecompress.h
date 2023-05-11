@@ -20,6 +20,7 @@
 #define MONO_PCM_BUFFER_SIZE		( MONO_PCM_BUFFER_SAMPLES * sizeof( int16 ) )
 
 struct FSoundQualityInfo;
+class FStreamedAudioChunkSeekTable;
 
 /**
  * Interface class to decompress various types of audio data
@@ -278,6 +279,13 @@ protected:
 	 */
 	ENGINE_API const uint8* GetLoadedChunk(const FSoundWaveProxyPtr& InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
 
+	/**
+	 * Gets the current chunks seektable instance (or creates one)
+	 * @return the currently loaded chunk seektable
+	 */
+	const FStreamedAudioChunkSeekTable& GetCurrentSeekTable() const;
+	FStreamedAudioChunkSeekTable& GetCurrentSeekTable();
+
 	/** bool set before ParseHeader. Whether we are streaming a file or not. */
 	bool bIsStreaming;
 	/** Ptr to the current streamed chunk. */
@@ -315,8 +323,9 @@ protected:
 	/** Number of bytes of padding used, overridden in some implementations. Defaults to 0. */
 	uint32 SrcBufferPadding;
 	/** Chunk Handle to ensure that this chunk of streamed audio is not deleted while we are using it. */
-	FAudioChunkHandle CurCompressedChunkHandle;
-
+	FAudioChunkHandle CurCompressedChunkHandle;		
+	/** If there's a chunked seek-table present, this contains the current chunks portion. */
+	TPimplPtr<FStreamedAudioChunkSeekTable> CurrentChunkSeekTable;
 	/** 
 		When a streaming seek request comes down, this is the block we are going to. INDEX_NONE means no seek pending.
 		When using the legacy streaming system this is read on a thread other than the decompression thread
@@ -328,6 +337,9 @@ protected:
 	std::atomic<int32> StreamSeekBlockIndex;
 	/** When a streaming seek request comes down, this is the offset in to the block we want to start decoding from. */
 	int32 StreamSeekBlockOffset;
+
+	/** If using the Chunked seek-tables, we request the seek in samples so we can resolve after the chunk table loads. */
+	uint32 StreamSeekToSamples = INDEX_NONE;	
 };
 
 struct IAudioInfoFactory 

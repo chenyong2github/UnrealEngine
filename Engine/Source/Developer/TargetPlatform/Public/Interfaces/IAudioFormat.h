@@ -123,6 +123,23 @@ public:
 	 */
 	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 FirstChunkMaxSize, const int32 MaxChunkSize) const {return false;}
 
+	virtual bool RequiresStreamingSeekTable() const { return false; }
+
+	struct FSeekTable
+	{
+		TArray<uint32> Times;			// Times in AudioFrames.
+		TArray<uint32> Offsets;			// Offset in the compressed data.
+	};	
+
+	/**
+	* Extracts the embedded seek-table, removing it, and outputting it separately.
+	* NOTE: TArray is modified in place. The seek-table is parsed and removed from it.	
+	* @param InOutBuffer Pre-compressed data containing seek-table and compressed data as array of bytes.
+	* @param OutSeekTable Seektable in its generic form.
+	* @return Success or failure
+	*/
+	virtual bool ExtractSeekTableForStreaming(TArray<uint8>& InOutBuffer, FSeekTable& OutSeektable) const { return false; }
+
 public:
 
 	/** Virtual destructor. */

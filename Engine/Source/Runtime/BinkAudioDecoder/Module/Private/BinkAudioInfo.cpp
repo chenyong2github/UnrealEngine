@@ -114,16 +114,23 @@ void FBinkAudioInfo::PrepareToLoop()
 //-----------------------------------------------------------------------------
 void FBinkAudioInfo::SeekToTime(const float SeekTimeSeconds)
 {
-	if (Decoder->SeekTableCount == 0)
-	{
-		// Can't seek without a seek table.
-		return;
-	}
-
 	uint32 SeekTimeSamples = 0;
 	if (SeekTimeSeconds > 0)
 	{
 		SeekTimeSamples = (uint32)(SeekTimeSeconds * SampleRate);
+	}
+	
+	// If there's no seek table on the header, see if we there's an embedded one on the chunk.
+	if (Decoder->SeekTableCount == 0)
+	{
+		int32 ChunkIndexToSeekTo = StreamingSoundWave->GetSoundWaveData()->FindChunkIndexForSeeking(SeekTimeSamples);
+		if (ChunkIndexToSeekTo >= 0)
+		{
+			this->StreamSeekBlockIndex = ChunkIndexToSeekTo;
+			this->StreamSeekBlockOffset = 0;
+			this->StreamSeekToSamples = SeekTimeSamples;
+		}
+		return;
 	}
 
 	uint32 SamplesInFrame = GetMaxFrameSizeSamples();
