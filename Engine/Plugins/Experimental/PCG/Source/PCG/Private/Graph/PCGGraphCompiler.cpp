@@ -39,6 +39,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 
 		const UPCGBaseSubgraphNode* SubgraphNode = Cast<const UPCGBaseSubgraphNode>(Node);
 		UPCGGraph* Subgraph = SubgraphNode ? SubgraphNode->GetSubgraph() : nullptr;
+		const UPCGBaseSubgraphSettings* SubgraphSettings = SubgraphNode ? Cast<const UPCGBaseSubgraphSettings>(SubgraphNode->GetSettings()) : nullptr;
 
 		// Only catch immediate infinite recursion.
 		// TODO: Add a better mecanism for detecting more complex cyclic recursions
@@ -53,7 +54,7 @@ TArray<FPCGGraphTask> FPCGGraphCompiler::CompileGraph(UPCGGraph* InGraph, FPCGTa
 			return TArray<FPCGGraphTask>();
 		}
 
-		const bool bIsNonDynamicAndNonDisabledSubgraphNode = (SubgraphNode != nullptr && !SubgraphNode->bDynamicGraph && Subgraph && SubgraphNode->GetSettings() && SubgraphNode->GetSettings()->bEnabled);
+		const bool bIsNonDynamicAndNonDisabledSubgraphNode = (SubgraphNode && Subgraph && SubgraphSettings && !SubgraphSettings->IsDynamicGraph() && !SubgraphSettings->bEnabled);
 		if (bIsNonDynamicAndNonDisabledSubgraphNode)
 		{
 			const FPCGTaskId PreId = NextId++;

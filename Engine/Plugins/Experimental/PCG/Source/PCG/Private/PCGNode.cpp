@@ -526,6 +526,19 @@ bool UPCGNode::IsEdgeUsedByNodeExecution(const UPCGEdge* InEdge) const
 	return Settings->IsPinUsedByNodeExecution(Pin);
 }
 
+const UPCGPin* UPCGNode::GetFirstConnectedInputPin() const
+{
+	for (const UPCGPin* InputPin : InputPins)
+	{
+		if (InputPin && InputPin->EdgeCount() > 0)
+		{
+			return InputPin;
+		}
+	}
+
+	return nullptr;
+}
+
 void UPCGNode::SetSettingsInterface(UPCGSettingsInterface* InSettingsInterface, bool bUpdatePins)
 {
 	const bool bDifferentInterface = (SettingsInterface.Get() != InSettingsInterface);

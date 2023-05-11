@@ -22,6 +22,7 @@ class PCG_API UPCGBaseSubgraphSettings : public UPCGSettings
 public:
 	UPCGGraph* GetSubgraph() const;
 	virtual UPCGGraphInterface* GetSubgraphInterface() const { return nullptr; }
+	virtual bool IsDynamicGraph() const { return false; }
 
 	// Use this method from the outside to set the subgraph, as it will connect editor callbacks
 	virtual void SetSubgraph(UPCGGraphInterface* InGraph);
@@ -115,9 +116,6 @@ class PCG_API UPCGBaseSubgraphNode : public UPCGNode
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bDynamicGraph = false;
-
 	TObjectPtr<UPCGGraph> GetSubgraph() const;
 	virtual TObjectPtr<UPCGGraphInterface> GetSubgraphInterface() const { return nullptr; }
 };
@@ -135,7 +133,7 @@ public:
 
 struct PCG_API FPCGSubgraphContext : public FPCGContext
 {
-	FPCGTaskId SubgraphTaskId = InvalidPCGTaskId;
+	TArray<FPCGTaskId> SubgraphTaskIds;
 	bool bScheduledSubgraph = false;
 	FInstancedStruct GraphInstanceParametersOverride;
 
@@ -147,10 +145,13 @@ class PCG_API FPCGSubgraphElement : public IPCGElement
 {
 public:
 	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, TWeakObjectPtr<UPCGComponent> SourceComponent, const UPCGNode* Node) override;
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override;
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 	virtual bool IsPassthrough(const UPCGSettings* InSettings) const override { return !InSettings || InSettings->bEnabled; }
+	void PrepareSubgraphData(const UPCGSubgraphSettings* Settings, FPCGSubgraphContext* Context, const FPCGDataCollection& InputData, FPCGDataCollection& OutputData) const;
+	void PrepareSubgraphUserParameters(const UPCGSubgraphSettings* Settings, FPCGSubgraphContext* Context, FPCGDataCollection& OutputData) const;
 };
 
 class PCG_API FPCGInputForwardingElement : public FSimplePCGElement

@@ -347,6 +347,61 @@ FPCGContext* FPCGSubgraphElement::Initialize(const FPCGDataCollection& InputData
 	return Context;
 }
 
+void FPCGSubgraphElement::PrepareSubgraphData(const UPCGSubgraphSettings* Settings, FPCGSubgraphContext* Context, const FPCGDataCollection& InputData, FPCGDataCollection& OutputData) const
+{
+	// Don't forward overrides
+	if (Settings->HasOverridableParams())
+	{
+		OutputData.TaggedData.Reserve(InputData.TaggedData.Num());
+		const TArray<FPCGPinProperties> InputPins = Settings->DefaultInputPinProperties();
+
+		for (const FPCGTaggedData& Input : InputData.TaggedData)
+		{
+			if (!Input.Data)
+			{
+				continue;
+			}
+
+			// Discard params that don't have a pin on the subgraph input node
+			if (!Input.Data->IsA<UPCGParamData>() || Algo::FindByPredicate(InputPins, [Pin = Input.Pin](const FPCGPinProperties& PinProperty) { return PinProperty.Label == Pin; }))
+			{
+				OutputData.TaggedData.Add(Input);
+			}
+		}
+	}
+	else
+	{
+		OutputData = InputData;
+	}
+}
+
+void FPCGSubgraphElement::PrepareSubgraphUserParameters(const UPCGSubgraphSettings* Settings, FPCGSubgraphContext* Context, FPCGDataCollection& OutputData) const
+{
+	// Also create a new data containing information about the original subgraph and the parameters override
+	// It is used mainly by the UserParameterGetElement to access the correct value.
+	if (const UPCGGraphInterface* SubgraphInterface = Settings->GetSubgraphInterface())
+	{
+		UPCGUserParametersData* UserParamData = NewObject<UPCGUserParametersData>();
+		UserParamData->OriginalGraph = SubgraphInterface;
+		if (Context->GraphInstanceParametersOverride.IsValid())
+		{
+			UserParamData->UserParameters = std::move(Context->GraphInstanceParametersOverride);
+		}
+
+		FPCGTaggedData& TaggedData = OutputData.TaggedData.Emplace_GetRef();
+		TaggedData.Data = UserParamData;
+		TaggedData.Tags.Add(PCGBaseSubgraphConstants::UserParameterTagData);
+		// Mark this data pinless, since it is internal data, not meant to be shown in the graph editor.
+		TaggedData.bPinlessData = true;
+	}
+}
+
+bool FPCGSubgraphElement::IsCacheable(const UPCGSettings* InSettings) const
+{
+	const UPCGSubgraphSettings* Settings = Cast<const UPCGSubgraphSettings>(InSettings);
+	return (!Settings || !Settings->IsDynamicGraph());
+}
+
 bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 {
 	FPCGSubgraphContext* Context = static_cast<FPCGSubgraphContext*>(InContext);
@@ -354,8 +409,7 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 	const UPCGSubgraphSettings* Settings = Context->GetInputSettings<UPCGSubgraphSettings>();
 	check(Settings);
 
-	const UPCGSubgraphNode* SubgraphNode = Cast<const UPCGSubgraphNode>(Context->Node);
-	if (SubgraphNode && SubgraphNode->bDynamicGraph)
+	if(Settings->IsDynamicGraph())
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGSubgraphElement::Execute);
 
@@ -368,20 +422,35 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 			{
 				// Dispatch graph to execute with the given information we have
 				// using this node's task id as additional inputs
-				FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Subgraph, Context->SourceComponent.Get(), MakeShared<FPCGInputForwardingElement>(Context->InputData), {});
+				FPCGDataCollection PreSubgraphInputData;
+				PrepareSubgraphUserParameters(Settings, Context, PreSubgraphInputData);
 
-				Context->SubgraphTaskId = SubgraphTaskId;
-				Context->bScheduledSubgraph = true;
-				Context->bIsPaused = true;
+				FPCGDataCollection SubgraphInputData;
+				PrepareSubgraphData(Settings, Context, Context->InputData, SubgraphInputData);
 
-				// add a trivial task after the output task that wakes up this task
-				Subsystem->ScheduleGeneric([Context]() {
-					// Wake up the current task
-					Context->bIsPaused = false;
+				FPCGTaskId SubgraphTaskId = Subsystem->ScheduleGraph(Subgraph, Context->SourceComponent.Get(), MakeShared<FPCGInputForwardingElement>(PreSubgraphInputData), MakeShared<FPCGInputForwardingElement>(SubgraphInputData), {});
+
+				if (SubgraphTaskId != InvalidPCGTaskId)
+				{
+					Context->SubgraphTaskIds.Add(SubgraphTaskId);
+					Context->bScheduledSubgraph = true;
+					Context->bIsPaused = true;
+					
+					// add a trivial task after the output task that wakes up this task
+					Subsystem->ScheduleGeneric([Context]() {
+						// Wake up the current task
+						Context->bIsPaused = false;
 					return true;
-					}, Context->SourceComponent.Get(), { Context->SubgraphTaskId });
+					}, Context->SourceComponent.Get(), Context->SubgraphTaskIds);
 
-				return false;
+					return false;
+				}
+				else
+				{
+					// Scheduling failed - early out
+					Context->OutputData.bCancelExecution = true;
+					return true;
+				}
 			}
 			else
 			{
@@ -402,7 +471,14 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 			UPCGSubsystem* Subsystem = Context->SourceComponent->GetSubsystem();
 			if (Subsystem)
 			{
-				ensure(Subsystem->GetOutputData(Context->SubgraphTaskId, Context->OutputData));
+				if (Context->SubgraphTaskIds.Num() > 0)
+				{
+					// This element does not support multiple results/dispatches. Note that this would be easy to fix;
+					// as we just can call the GetOutputData on a fresh data collection and merge it afterwards in the output data,
+					// but this is not needed here so we will keep the full assignment & benefit from the crc as well.
+					ensure(Context->SubgraphTaskIds.Num() == 1);
+					ensure(Subsystem->GetOutputData(Context->SubgraphTaskIds[0], Context->OutputData));
+				}
 			}
 			else
 			{
@@ -415,49 +491,9 @@ bool FPCGSubgraphElement::ExecuteInternal(FPCGContext* InContext) const
 	}
 	else
 	{
-		// Don't forward overrides
-		if (Settings->HasOverridableParams())
-		{
-			Context->OutputData.TaggedData.Reserve(Context->InputData.TaggedData.Num());
-			const TArray<FPCGPinProperties> InputPins = Settings->DefaultInputPinProperties();
-
-			for (const FPCGTaggedData& InputData : Context->InputData.TaggedData)
-			{
-				if (!InputData.Data)
-				{
-					continue;
-				}
-
-				// Discard params that don't have a pin on the subgraph input node
-				if (!InputData.Data->IsA<UPCGParamData>() || Algo::FindByPredicate(InputPins, [Pin = InputData.Pin](const FPCGPinProperties& PinProperty) { return PinProperty.Label == Pin;}))
-				{
-					Context->OutputData.TaggedData.Add(InputData);
-				}
-			}
-		}
-		else
-		{
-			Context->OutputData = Context->InputData;
-		}
-
-		// Also create a new data containing information about the original subgraph and the parameters override
-		// It is used mainly by the UseParameterGetElement to access the correct value.
-		if (const UPCGGraphInterface* SubgraphInterface = Settings->GetSubgraphInterface())
-		{
-			UPCGUserParametersData* UserParamData = NewObject<UPCGUserParametersData>();
-			UserParamData->OriginalGraph = SubgraphInterface;
-			if (Context->GraphInstanceParametersOverride.IsValid())
-			{
-				UserParamData->UserParameters = std::move(Context->GraphInstanceParametersOverride);
-			}
-
-			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
-			TaggedData.Data = UserParamData;
-			TaggedData.Tags.Add(PCGBaseSubgraphConstants::UserParameterTagData);
-			// Mark this data pinless, since it is internal data, not meant to be shown in the graph editor.
-			TaggedData.bPinlessData = true;
-		}
-
+		// This node acts as both the pre-graph node and the input node so it should have both the user parameters & the actual inputs
+		PrepareSubgraphData(Settings, Context, Context->InputData, Context->OutputData);
+		PrepareSubgraphUserParameters(Settings, Context, Context->OutputData);
 		return true;
 	}
 }

@@ -440,11 +440,11 @@ FPCGTaskId UPCGSubsystem::ScheduleGraph(UPCGComponent* SourceComponent, const TA
 	}
 }
 
-FPCGTaskId UPCGSubsystem::ScheduleGraph(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& Dependencies)
+FPCGTaskId UPCGSubsystem::ScheduleGraph(UPCGGraph* Graph, UPCGComponent* SourceComponent, FPCGElementPtr PreGraphElement, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& Dependencies)
 {
 	if (SourceComponent)
 	{
-		return GraphExecutor->Schedule(Graph, SourceComponent, InputElement, Dependencies);
+		return GraphExecutor->Schedule(Graph, SourceComponent, PreGraphElement, InputElement, Dependencies);
 	}
 	else
 	{
