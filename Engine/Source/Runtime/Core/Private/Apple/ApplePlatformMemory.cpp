@@ -287,8 +287,49 @@ void FApplePlatformMemory::Init()
 	
 }
 
-// Set rather to use BinnedMalloc2 for binned malloc, can be overridden below
-#define USE_MALLOC_BINNED2 (PLATFORM_MAC)
+// Use MallocBinned2 as default, can be overriden below.
+#define USE_MALLOC_BINNED2 1
+
+void FApplePlatformMemory::SetAllocatorToUse()
+{
+    // force Ansi allocator in particular cases
+    if(getenv("UE4_FORCE_MALLOC_ANSI") != nullptr)
+    {
+        UE_LOG(LogTemp, Display, TEXT("Using Ansi allocator."));
+        AllocatorToUse = EMemoryAllocatorToUse::Ansi;
+        return;
+    }
+    if (FORCE_ANSI_ALLOCATOR)
+    {
+        UE_LOG(LogTemp, Display, TEXT("Using Ansi allocator."));
+        AllocatorToUse = EMemoryAllocatorToUse::Ansi;
+        return;
+    }
+    if (USE_MALLOC_BINNED2)
+    {
+ #if PLATFORM_IOS || PLATFORM_TVOS
+        if(!FIOSPlatformMisc::IsEntitlementEnabled("com.apple.developer.kernel.extended-virtual-addressing"))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("MallocBinned2 requested but Virtual Address Space entitlement not found. Check your entitlements. Falling back to Ansi."));
+            AllocatorToUse = EMemoryAllocatorToUse::Ansi;
+            return;
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Virtual Address Space entitlement found. Using MallocBinned2 allocator"));
+        }
+#endif
+        UE_LOG(LogTemp, Display, TEXT("Using MallocBinned2 allocator."));
+        AllocatorToUse = EMemoryAllocatorToUse::Binned2;
+        return;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Display, TEXT("Defaulting to Ansi allocator."));
+        AllocatorToUse = EMemoryAllocatorToUse::Ansi;
+        return;
+    }
+}
 
 FMalloc* FApplePlatformMemory::BaseAllocator()
 {
@@ -302,31 +343,8 @@ FMalloc* FApplePlatformMemory::BaseAllocator()
 	FPlatformMemoryStats MemStats = FApplePlatformMemory::GetStats();
 	FLowLevelMemTracker::Get().SetProgramSize(MemStats.UsedPhysical);
 #endif
-
-#if PLATFORM_IOS || PLATFORM_TVOS
-    if (FIOSPlatformMisc::IsEntitlementEnabled("com.apple.developer.kernel.extended-virtual-addressing"))
-    {
-        UE_LOG(LogTemp, Display, TEXT("Virtual Address Space entitlement found. Using MallocBinned2 to allocate memory"));
-        AllocatorToUse = EMemoryAllocatorToUse::Binned2;
-#undef USE_MALLOC_BINNED2
-#define USE_MALLOC_BINNED2 1
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Virtual Address Space entitlement NOT found. Defaulting to Ansi allocator"));
-    }
-#elif USE_MALLOC_BINNED2
-    if (USE_MALLOC_BINNED2)
-    {
-        UE_LOG(LogTemp, Display, TEXT("Using MallocBinned2 to allocate memory"));
-        AllocatorToUse = EMemoryAllocatorToUse::Binned2;
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Defaulting to Ansi allocator"));
-        AllocatorToUse = EMemoryAllocatorToUse::Ansi;
-    }
-#endif
+    
+    SetAllocatorToUse();
     
     switch (AllocatorToUse)
     {

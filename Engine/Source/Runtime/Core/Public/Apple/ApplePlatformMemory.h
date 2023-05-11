@@ -75,6 +75,7 @@ struct CORE_API FApplePlatformMemory : public FGenericPlatformMemory
 	static bool PtrIsFromNanoMalloc( void* Ptr);
 	static bool IsNanoMallocAvailable();
 	static void NanoMallocInit();
+    static void SetAllocatorToUse();
 
 	class FPlatformVirtualMemoryBlock : public FBasicVirtualMemoryBlock
 	{
