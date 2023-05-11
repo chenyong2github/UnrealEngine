@@ -65,8 +65,18 @@ struct FPCGSettingsOverridableParam
 	UPROPERTY()
 	TObjectPtr<const UStruct> PropertyClass;
 
+	// If this flag is true, Label will be the full property path.
+	UPROPERTY()
+	bool bHasNameClash = false;
+
 	// Transient
 	TArray<const FProperty*> Properties;
+
+	FString GetPropertyPath() const;
+
+#if WITH_EDITOR
+	FString GetDisplayPropertyPath() const;
+#endif // WITH_EDITOR
 };
 
 /**
@@ -218,6 +228,13 @@ public:
 	virtual FText GetNodeTooltipText() const { return FText::GetEmpty(); }
 	virtual FLinearColor GetNodeTitleColor() const { return FLinearColor::White; }
 	virtual EPCGSettingsType GetType() const { return EPCGSettingsType::Generic; }
+
+	/** Can override the label style for a pin. Return false if no override is available. */
+	virtual bool GetPinLabelStyle(const UPCGPin* InPin, FName& OutLabelStyle) const { return false; }
+
+	/** Can override to add a custom icon next to the pin label (and an optional tooltip). Return false if no override is available. */
+	virtual bool GetPinExtraIcon(const UPCGPin* InPin, FName& OutExtraIcon, FText& OutTooltip) const { return false; }
+
 	/** Derived classes must implement this to communicate dependencies on external actors */
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings, TArray<TObjectPtr<const UPCGGraph>>& OutVisitedGraphs) const {}
 	/** Override this class to provide an UObject to jump to in case of double click on node

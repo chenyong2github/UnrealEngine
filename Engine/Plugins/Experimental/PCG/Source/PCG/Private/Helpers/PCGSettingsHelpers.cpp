@@ -2,6 +2,7 @@
 
 #include "Helpers/PCGSettingsHelpers.h"
 
+#include "PCGCommon.h"
 #include "PCGComponent.h"
 #include "PCGEdge.h"
 #include "PCGPin.h"
@@ -275,23 +276,10 @@ namespace PCGSettingsHelpers
 	template <typename ClassType>
 	TArray<FPCGSettingsOverridableParam> GetAllOverridableParamsImpl(const ClassType* InClass, const FPCGGetAllOverridableParamsConfig& InConfig)
 	{
-		// TODO: Was not a concern until now, and we didn't have a solution, but this function
-		// only worked if we don't have names clashes in overriable parameters.
-		// The previous override solution was flattening structs, and only override use the struct member name,
-		// not prefixed by the struct name or anything else.
-		// We cannot prefix it now, because it will break existing node that were assuming the flattening.
-		// We'll keep this behavior for now, as it might be solved by passing structs instead of param data,
-		// but we'll still at least raise a warning if there is a clash.
-		TSet<FName> LabelCache;
+		TArray<FName> LabelCache;
 
 		TArray<FPCGSettingsOverridableParam> Res;
 
-		// Can't check metadata in non-editor build
-#if WITH_EDITOR
-		const bool bCheckMetadata = !InConfig.MetadataValues.IsEmpty();
-#endif // WITH_EDITOR
-
-		const bool bCheckExcludePropertyFlags = (InConfig.ExcludePropertyFlags != 0);
 		const EFieldIteratorFlags::SuperClassFlags SuperFlag = InConfig.bExcludeSuperProperties ? EFieldIteratorFlags::ExcludeSuper : EFieldIteratorFlags::IncludeSuper;
 
 		check(InClass);
@@ -307,29 +295,57 @@ namespace PCGSettingsHelpers
 			bool bValid = true;
 
 #if WITH_EDITOR
-			if (bCheckMetadata)
+			auto HasMetadata = [Property](const TArray<FName>& InValues, bool bIsConjunction) -> bool
 			{
-				bool bFoundAny = false;
-				for (const FName& Metadata : InConfig.MetadataValues)
+				bool bFound = false;
+				for (const FName& Metadata : InValues)
 				{
-					if (Property->HasMetaData(Metadata))
+					if (Property->HasMetaData(Metadata) && !bIsConjunction)
 					{
-						bFoundAny = true;
+						bFound = true;
+						if (!bIsConjunction)
+						{
+							break;
+						}
+					}
+					else if (bIsConjunction)
+					{
+						bFound = false;
 						break;
 					}
 				}
 
-				bValid &= bFoundAny;
+				return bFound;
+			};
+
+			if (!InConfig.IncludeMetadataValues.IsEmpty())
+			{
+				bValid &= HasMetadata(InConfig.IncludeMetadataValues, InConfig.bIncludeMetadataIsConjunction);
+			}
+
+			if (!InConfig.ExcludeMetadataValues.IsEmpty())
+			{
+				bValid &= !HasMetadata(InConfig.ExcludeMetadataValues, InConfig.bExcludeMetadataIsConjunction);
 			}
 #endif // WITH_EDITOR
 
-			if (bCheckExcludePropertyFlags)
+			auto HasPropertyFlags = [Property](uint64 InFlags, bool bIsConjunction) -> bool
 			{
-				bValid &= !Property->HasAnyPropertyFlags(InConfig.ExcludePropertyFlags);
+				return bIsConjunction ? Property->HasAllPropertyFlags(InFlags) : Property->HasAnyPropertyFlags(InFlags);
+			};
+
+			if (InConfig.IncludePropertyFlags != 0)
+			{
+				bValid &= HasPropertyFlags(InConfig.IncludePropertyFlags, InConfig.bIncludePropertyFlagsIsConjunction);
+			}
+
+			if (InConfig.ExcludePropertyFlags != 0)
+			{
+				bValid &= !HasPropertyFlags(InConfig.ExcludePropertyFlags, InConfig.bExcludePropertyFlagsIsConjunction);
 			}
 
 			// Don't allow to override the seed if the settings doesn't use the seed.
-			if (!InConfig.bUseSeed)
+			if (!InConfig.bUseSeed && Property->GetOwnerClass()->IsChildOf<UPCGSettings>())
 			{
 				bValid &= (Property->GetFName() != GET_MEMBER_NAME_CHECKED(UPCGSettings, Seed));
 			}
@@ -343,22 +359,30 @@ namespace PCGSettingsHelpers
 			if (PCGAttributeAccessorHelpers::IsPropertyAccessorSupported(Property))
 			{
 				FName Label = NAME_None;
+				bool bHasNameClash = false;
 #if WITH_EDITOR
 				// GetDisplayNameText is not available in non-editor build.
 				Label = *Property->GetDisplayNameText().ToString();
-				if (LabelCache.Contains(Label))
+				const int32 CachedLabelIndex = LabelCache.IndexOfByKey(Label);
+				if (CachedLabelIndex != INDEX_NONE)
 				{
-					UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored."), *Label.ToString());
-					continue;
+					// If we have a clash, we will use the full path, so mark this param and the other that clashed to use the full path.
+					Res[CachedLabelIndex].bHasNameClash = true;
+					Res[CachedLabelIndex].Label = FName(Res[CachedLabelIndex].GetDisplayPropertyPath());
+					bHasNameClash = true;
 				}
 
-				LabelCache.Add(Label);
+				LabelCache.AddUnique(Label);
 #endif // WITH_EDITOR
 
 				FPCGSettingsOverridableParam& Param = Res.Emplace_GetRef();
-				Param.Label = Label;
 				Param.PropertiesNames.Add(Property->GetFName());
+				Param.Properties.Add(Property);
 				Param.PropertyClass = InClass;
+				Param.bHasNameClash = bHasNameClash;
+#if WITH_EDITOR
+				Param.Label = bHasNameClash ? FName(Param.GetDisplayPropertyPath()) : Label;
+#endif // WITH_EDITOR
 			}
 			else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 			{
@@ -368,11 +392,11 @@ namespace PCGSettingsHelpers
 					continue;
 				}
 
-				// Use the seed, and don't check metadata.
+				// Use the seed, and don't check metadata for PCG overridable.
 				FPCGGetAllOverridableParamsConfig RecurseConfig = InConfig;
 				RecurseConfig.bUseSeed = true;
 #if WITH_EDITOR
-				RecurseConfig.MetadataValues.Empty();
+				RecurseConfig.IncludeMetadataValues.Remove(PCGObjectMetadata::Overridable);
 #endif // WITH_EDITOR
 
 				if (RecurseConfig.MaxStructDepth > 0)
@@ -383,22 +407,38 @@ namespace PCGSettingsHelpers
 				for (const FPCGSettingsOverridableParam& ChildParam : GetAllOverridableParams(StructProperty->Struct, RecurseConfig))
 				{
 					FName Label = ChildParam.Label;
+					bool bHasNameClash = false;
 #if WITH_EDITOR
 					// Don't check for label clash, as they would all be equal to None in non-editor build
-					if (LabelCache.Contains(Label))
+					const int32 CachedLabelIndex = LabelCache.IndexOfByKey(Label);
+					if (CachedLabelIndex != INDEX_NONE)
 					{
-						UE_LOG(LogPCG, Warning, TEXT("%s property clashes with another property already found. It is a limitation at the moment and this property will be ignored."), *Label.ToString());
-						continue;
+						// If we have a clash, we will use the full path, so mark this param and the other that clashed to use the full path.
+						Res[CachedLabelIndex].bHasNameClash = true;
+						Res[CachedLabelIndex].Label = FName(Res[CachedLabelIndex].GetDisplayPropertyPath());
+						bHasNameClash = true;
 					}
 
-					LabelCache.Add(Label);
+					LabelCache.AddUnique(Label);
 #endif // WITH_EDITOR
 
 					FPCGSettingsOverridableParam& Param = Res.Emplace_GetRef();
-					Param.Label = Label;
 					Param.PropertiesNames.Add(Property->GetFName());
-					Param.PropertiesNames.Append(ChildParam.PropertiesNames);
+					Param.PropertiesNames.Append(std::move(ChildParam.PropertiesNames));
+					Param.Properties.Add(Property);
+					Param.Properties.Append(std::move(ChildParam.Properties));
 					Param.PropertyClass = InClass;
+					if (!ChildParam.bHasNameClash && !bHasNameClash)
+					{
+						Param.Label = Label;
+					}
+					else
+					{
+#if WITH_EDITOR
+						Param.Label = FName(Param.GetDisplayPropertyPath());
+#endif // WITH_EDITOR
+						Param.bHasNameClash = true;
+					}
 				}
 			}
 		}

@@ -257,8 +257,10 @@ TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConst
 
 	if (ParamData && ParamData->Metadata && ParamData->Metadata->GetAttributeCount() > 0)
 	{
-		// If the param only has a single attribute and is not from the global Params pin, use this one. Otherwise we need perfect name matching.
-		const FName AttributeName = (ParamData->Metadata->GetAttributeCount() == 1 && !bFromGlobalParamsPin) ? ParamData->Metadata->GetLatestAttributeNameOrNone() : InParam.Properties.Last()->GetFName();
+		// If the param only has a single attribute and is not from the global Params pin, use this one. Otherwise we need perfect name matching, either the property name or its full path if there is a name clash.
+		const FName AttributeName = (ParamData->Metadata->GetAttributeCount() == 1 && !bFromGlobalParamsPin) 
+			? ParamData->Metadata->GetLatestAttributeNameOrNone() 
+			: (!InParam.bHasNameClash ? InParam.PropertiesNames.Last() : FName(InParam.GetPropertyPath()));
 
 		if (OutAttributeName)
 		{

@@ -71,11 +71,15 @@ namespace Private
 namespace PCGObjectMetadata
 {
 	const FName Overridable = TEXT("PCG_Overridable");
+	const FName NotOverridable = TEXT("PCG_NotOverridable");
 
 	// Metadata usable in UPROPERTY for customizing the behavior when displaying the property in a property panel or graph node
 	enum
 	{
 		/// [PropertyMetadata] Indicates that the property is overridable by params.
-		PCG_Overridable
+		PCG_Overridable,
+
+		/// [PropertyMetadata] Indicates that the property is not-overridable by params. Used in structs to hide some parameters
+		PCG_NotOverridable
 	};
 }

@@ -131,7 +131,7 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 		ObjectToInspect = FoundActor->GetComponentByClass(Settings->ComponentClass);
 		if (!ObjectToInspect)
 		{
-			PCGE_LOG(Error, GraphAndLog, LOCTEXT("ComponentDoesNotExist", "Component does not exist in the found actor"));
+			PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("ComponentDoesNotExist", "Component class '{0}' does not exist in the found actor"), FText::FromString(Settings->ComponentClass->GetName())));
 			return true;
 		}
 	}
@@ -140,7 +140,16 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 	FProperty* Property = FindFProperty<FProperty>(ObjectToInspect->GetClass(), Settings->PropertyName);
 	if (!Property)
 	{
-		PCGE_LOG(Error, GraphAndLog, LOCTEXT("PropertyDoesNotExist", "Property does not exist in the found actor"));
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("PropertyDoesNotExist", "Property '{0}' does not exist in the found actor"), FText::FromName(Settings->PropertyName)));
+		return true;
+	}
+
+	// Make sure the property is visible
+	const uint64 ExcludePropertyFlags = CPF_DisableEditOnInstance;
+	const uint64 IncludePropertyFlags = CPF_BlueprintVisible;
+	if (Property->HasAnyPropertyFlags(ExcludePropertyFlags) || !Property->HasAnyPropertyFlags(IncludePropertyFlags))
+	{
+		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("PropertyExistsButNotVisible", "Property '{0}' does exist in the found actor, but is not visible."), FText::FromName(Settings->PropertyName)));
 		return true;
 	}
 
@@ -174,6 +183,9 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 		Config.bUseSeed = true;
 		Config.bExcludeSuperProperties = true;
 		Config.MaxStructDepth = 0;
+		// Can only get exposed properties and visible
+		Config.ExcludePropertyFlags = ExcludePropertyFlags;
+		Config.IncludePropertyFlags = IncludePropertyFlags;
 		TArray<FPCGSettingsOverridableParam> AllChildProperties = UnderlyingStruct ? PCGSettingsHelpers::GetAllOverridableParams(UnderlyingStruct, Config) : PCGSettingsHelpers::GetAllOverridableParams(UnderlyingClass, Config);
 
 		for (const FPCGSettingsOverridableParam& Param : AllChildProperties)

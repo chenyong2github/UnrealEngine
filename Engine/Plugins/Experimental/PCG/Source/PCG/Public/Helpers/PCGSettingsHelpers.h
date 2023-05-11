@@ -212,11 +212,29 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 		// List of metadata values to find in property metadata. Only works in editor builds as metadata on property is not available elsewise.
-		TArray<FName> MetadataValues{};
+		TArray<FName> IncludeMetadataValues;
+
+		// If the metadata values is a conjunction (all values need to be present to keep), or disjunction (any values needs to be present to keep)
+		bool bIncludeMetadataIsConjunction = false;
+
+		// List of metadata values to find in property metadata. Only works in editor builds as metadata on property is not available elsewise.
+		TArray<FName> ExcludeMetadataValues;
+
+		// If the exclude values is a conjunction (all values need to be present to discard), or disjunction (any values needs to be present to discard)
+		bool bExcludeMetadataIsConjunction = false;
 #endif // WITH_EDITOR
 
 		// Flags to exclude in property flags
 		uint64 ExcludePropertyFlags = 0;
+
+		// If the exclude flags is a conjunction (all flags need to be present to discard), or disjunction (any flag needs to be present to discard)
+		bool bExcludePropertyFlagsIsConjunction = false;
+
+		// Flags to include in property flags. Note that if exclusion says discard, it will be discarded.
+		uint64 IncludePropertyFlags = 0;
+
+		// If the include flags is a conjunction (all flags need to be present to keep), or disjunction (any flag needs to be present to keep)
+		bool bIncludePropertyFlagsIsConjunction = false;
 
 		// Max depth for structs of structs. -1 = no limit
 		int32 MaxStructDepth = -1;

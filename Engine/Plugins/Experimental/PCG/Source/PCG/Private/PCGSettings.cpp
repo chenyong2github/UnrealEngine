@@ -60,6 +60,18 @@ public:
 #endif // WITH_EDITOR
 };
 
+FString FPCGSettingsOverridableParam::GetPropertyPath() const
+{
+	return FString::JoinBy(Properties, TEXT("/"), [](const FProperty* InProperty) { return InProperty ? InProperty->GetName() : FString(); });
+}
+
+#if WITH_EDITOR
+FString FPCGSettingsOverridableParam::GetDisplayPropertyPath() const
+{
+	return FString::JoinBy(Properties, TEXT("/"), [](const FProperty* InProperty) { return InProperty ? InProperty->GetDisplayNameText().ToString() : FString(); });
+}
+#endif // WITH_EDITOR
+
 bool UPCGSettingsInterface::IsInstance() const
 {
 	return this != GetSettings();
@@ -328,7 +340,7 @@ void UPCGSettings::FillOverridableParamsPins(TArray<FPCGPinProperties>& OutPins)
 		ParamPin.Tooltip = FText::Format(LOCTEXT("OverridableParamPinTooltip", "{0}Attribute type is \"{1}\" and its exact name is \"{2}\""),
 			FText::FromString(Tooltip),
 			FText::FromString(Property->GetCPPType()),
-			FText::FromName(Property->GetFName()));
+			FText::FromString(OverridableParam.GetPropertyPath()));
 #endif // WITH_EDITOR
 	}
 }
@@ -511,7 +523,8 @@ TArray<FPCGSettingsOverridableParam> UPCGSettings::GatherOverridableParams() con
 {
 	PCGSettingsHelpers::FPCGGetAllOverridableParamsConfig Config;
 	Config.bUseSeed = bUseSeed;
-	Config.MetadataValues.Add(PCGObjectMetadata::Overridable);
+	Config.IncludeMetadataValues.Add(PCGObjectMetadata::Overridable);
+	Config.ExcludeMetadataValues.Add(PCGObjectMetadata::NotOverridable);
 
 	return PCGSettingsHelpers::GetAllOverridableParams(GetClass(), Config);
 }

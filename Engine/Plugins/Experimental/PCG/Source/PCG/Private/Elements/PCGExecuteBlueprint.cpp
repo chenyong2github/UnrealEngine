@@ -582,7 +582,7 @@ TArray<FPCGSettingsOverridableParam> UPCGBlueprintSettings::GatherOverridablePar
 		{
 			PCGSettingsHelpers::FPCGGetAllOverridableParamsConfig Config;
 			Config.bExcludeSuperProperties = true;
-			Config.ExcludePropertyFlags = CPF_DisableEditOnInstance;
+			Config.ExcludePropertyFlags = CPF_DisableEditOnInstance | CPF_EditConst | CPF_BlueprintReadOnly;
 			OverridableParams.Append(PCGSettingsHelpers::GetAllOverridableParams(BPClass, Config));
 		}
 	}
