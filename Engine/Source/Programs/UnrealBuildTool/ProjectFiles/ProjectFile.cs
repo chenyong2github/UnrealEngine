@@ -108,6 +108,9 @@ namespace UnrealBuildTool
 			set;
 		}
 
+		/// Returns true if this is a content only project, and will be re-using the engine targets
+		public bool IsContentOnlyProject = false;
+
 		/// Whether this project should be built for all solution targets
 		public bool ShouldBuildForAllSolutionTargets
 		{
