@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "HeaderParser.h"
 #include "UnrealHeaderTool.h"
 #include "PropertyTypes.h"
@@ -656,57 +655,150 @@ namespace
 		return nullptr;
 	}
 
-	void SkipAlignasIfNecessary(FBaseParser& Parser)
+	void ParseCppIdentifier(FBaseParser& Parser, FUHTStringBuilder& Out, FToken& InitialIdentifier)
 	{
-		if (Parser.MatchIdentifier(TEXT("alignas"), ESearchCase::CaseSensitive))
+		Out.Append(InitialIdentifier.Value);
+		for (;;)
 		{
-			Parser.RequireSymbol(TEXT('('), TEXT("'alignas'"));
-			Parser.RequireAnyConstInt(TEXT("'alignas'"));
-			Parser.RequireSymbol(TEXT(')'), TEXT("'alignas'"));
+			FToken Token;
+			if (!Parser.GetToken(Token))
+			{
+				break;
+			}
+			if (!Token.IsSymbol(TEXT("::"), ESearchCase::CaseSensitive))
+			{
+				Parser.UngetToken(Token);
+				break;
+			}
+
+			if (!Parser.GetToken(Token) || !Token.IsIdentifier())
+			{
+				Parser.Throwf(TEXT("Expected identifier"));
+			}
+			Out.Append(TEXT("::"));
+			Out.Append(Token.Value);
 		}
 	}
 
-	void SkipDeprecatedMacroIfNecessary(FBaseParser& Parser)
+	void ParseAttributes(FBaseParser& Parser, bool bAllowAlignAs)
 	{
-		FToken MacroToken;
-		if (!Parser.GetToken(MacroToken))
+		for (;;)
 		{
-			return;
+			FToken Token;
+			if (!Parser.GetToken(Token))
+			{
+				return;
+			}
+
+			if (Token.IsIdentifier(TEXT("DEPRECATED"), ESearchCase::CaseSensitive) ||
+				Token.IsIdentifier(TEXT("UE_DEPRECATED"), ESearchCase::CaseSensitive))
+			{
+				auto ErrorMessageGetter = [&Token]() { return FString::Printf(TEXT("%s macro"), *Token.GetTokenValue()); };
+
+				Parser.RequireSymbol(TEXT('('), ErrorMessageGetter);
+
+				if (Parser.GetToken(Token) && !Token.IsConstFloat())
+				{
+					Parser.Throwf(TEXT("Expected engine version in %s macro"), *Token.GetTokenValue());
+				}
+
+				Parser.RequireSymbol(TEXT(','), ErrorMessageGetter);
+				if (Parser.GetToken(Token) && !Token.IsConstString())
+				{
+					Parser.Throwf(TEXT("Expected deprecation message in %s macro"), *Token.GetTokenValue());
+				}
+
+				Parser.RequireSymbol(TEXT(')'), ErrorMessageGetter);
+			}
+			else if (Token.IsIdentifier(TEXT("UE_NODISCARD"), ESearchCase::CaseSensitive) ||
+				Token.IsIdentifier(TEXT("UE_NODISCARD_CTOR"), ESearchCase::CaseSensitive))
+			{
+			}
+			else if (Token.IsIdentifier(TEXT("UE_NORETURN"), ESearchCase::CaseSensitive))
+			{
+			}
+			else if (Token.IsIdentifier(TEXT("UE_NO_UNIQUE_ADDRESS"), ESearchCase::CaseSensitive))
+			{
+			}
+			else if (Token.IsSymbol(TEXT("[["), ESearchCase::CaseSensitive))
+			{
+				FUHTStringBuilder IdentifierBuilder;
+				if (Parser.MatchIdentifier(TEXT("using"), ESearchCase::CaseSensitive))
+				{
+					if (!Parser.GetToken(Token) || !Token.IsIdentifier())
+					{
+						Parser.Throwf(TEXT("Expected identifier"));
+					}
+					ParseCppIdentifier(Parser, IdentifierBuilder, Token);
+					Parser.RequireSymbol(':', TEXT("end of using statement in attribute"), ESymbolParseOption::Normal);
+				}
+				if (IdentifierBuilder.Len() > 0)
+				{
+					IdentifierBuilder.Append(TEXT("::"));
+				}
+				int identifierBuilderLength = IdentifierBuilder.Len();
+
+				// Attributes do allow patterns such as [[,]].
+				for (;;)
+				{
+					if (!Parser.GetToken(Token))
+					{
+						Parser.Throwf(TEXT("Expected attribute"));
+					}
+					if (Token.IsIdentifier())
+					{
+						ParseCppIdentifier(Parser, IdentifierBuilder, Token);
+
+						if (Parser.MatchSymbol('('))
+						{
+							int nestingCount = 1;
+							while (nestingCount > 0)
+							{
+								if (!Parser.GetToken(Token))
+								{
+									Parser.Throwf(TEXT("Expected end of attribute arguments"));
+								}
+								else if (Token.IsSymbol(')'))
+								{
+									nestingCount--;
+								}
+								else if (Token.IsSymbol('('))
+								{
+									nestingCount++;
+								}
+							}
+						}
+
+						IdentifierBuilder.LeftChopInline(identifierBuilderLength);
+					}
+					else if (Token.IsSymbol(','))
+					{
+					}
+					else if (Token.IsSymbol(']'))
+					{
+						// This isn't technically correct since it could be "] ]"
+						Parser.RequireSymbol(']', TEXT("end of attribute"), ESymbolParseOption::Normal);
+						break;
+					}
+					else
+					{
+						Parser.Throwf(TEXT("Expected end of attribute"));
+					}
+				}
+			}
+			else if (bAllowAlignAs && Token.IsIdentifier(TEXT("alignas"), ESearchCase::CaseSensitive))
+			{
+				Parser.RequireSymbol(TEXT('('), TEXT("'alignas'"));
+				Parser.RequireAnyConstInt(TEXT("'alignas'"));
+				Parser.RequireSymbol(TEXT(')'), TEXT("'alignas'"));
+			}
+			else
+			{
+				Parser.UngetToken(Token);
+				break;
+			}
 		}
-
-		if (!MacroToken.IsIdentifier() || 
-			(!MacroToken.IsValue(TEXT("DEPRECATED"), ESearchCase::CaseSensitive) && !MacroToken.IsValue(TEXT("UE_DEPRECATED"), ESearchCase::CaseSensitive)))
-		{
-			Parser.UngetToken(MacroToken);
-			return;
-		}
-
-		auto ErrorMessageGetter = [&MacroToken]() { return FString::Printf(TEXT("%s macro"), *MacroToken.GetTokenValue()); };
-
-		Parser.RequireSymbol(TEXT('('), ErrorMessageGetter);
-
-		FToken Token;
-		if (Parser.GetToken(Token) && !Token.IsConstFloat())
-		{
-			Parser.Throwf(TEXT("Expected engine version in %s macro"), *MacroToken.GetTokenValue());
-		}
-
-		Parser.RequireSymbol(TEXT(','), ErrorMessageGetter);
-		if (Parser.GetToken(Token) && !Token.IsConstString())
-		{
-			Parser.Throwf(TEXT("Expected deprecation message in %s macro"), *MacroToken.GetTokenValue());
-		}
-
-		Parser.RequireSymbol(TEXT(')'), ErrorMessageGetter);
-	}
-
-	void SkipAlignasAndDeprecatedMacroIfNecessary(FBaseParser& Parser)
-	{
-		// alignas() can come before or after the deprecation macro.
-		// We can't have both, but the compiler will catch that anyway.
-		SkipAlignasIfNecessary(Parser);
-		SkipDeprecatedMacroIfNecessary(Parser);
-		SkipAlignasIfNecessary(Parser);
+		return;
 	}
 
 	inline EPointerMemberBehavior ToPointerMemberBehavior(const FString& InString)
@@ -1089,7 +1181,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 	{
 		CppForm = UEnum::ECppForm::Namespaced;
 
-		SkipDeprecatedMacroIfNecessary(*this);
+		ParseAttributes(*this, false);
 
 		bReadEnumName = GetIdentifier(EnumToken);
 	}
@@ -1112,7 +1204,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 			CppForm = UEnum::ECppForm::Regular;
 		}
 
-		SkipAlignasAndDeprecatedMacroIfNecessary(*this);
+		ParseAttributes(*this, true);
 
 		bReadEnumName = GetIdentifier(EnumToken);
 	}
@@ -1203,7 +1295,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 			// Now handle the inner true enum portion
 			RequireIdentifier(TEXT("enum"), ESearchCase::CaseSensitive, TEXT("'Enum'"));
 
-			SkipAlignasAndDeprecatedMacroIfNecessary(*this);
+			ParseAttributes(*this, true);
 
 			FToken InnerEnumToken;
 			if (!GetIdentifier(InnerEnumToken))
@@ -1247,7 +1339,7 @@ FUnrealEnumDefinitionInfo& FHeaderParser::CompileEnum()
 		FTokenValue TagIdentifier = TagToken.GetTokenValue();
 		AddFormattedPrevCommentAsTooltipMetaData(TagMetaData);
 
-		SkipDeprecatedMacroIfNecessary(*this);
+		ParseAttributes(*this, false);
 
 		// Try to read an optional explicit enum value specification
 		if (MatchSymbol(TEXT('=')))
@@ -1838,7 +1930,7 @@ FUnrealScriptStructDefinitionInfo& FHeaderParser::CompileStructDeclaration()
 	// The required API module for this struct, if any
 	FString RequiredAPIMacroIfPresent;
 
-	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
+	ParseAttributes(*this, true);
 
 	// Read the struct name
 	ParseNameWithPotentialAPIMacroPrefix(/*out*/ StructNameInScript, /*out*/ RequiredAPIMacroIfPresent, TEXT("struct"));
@@ -6313,7 +6405,7 @@ FUnrealClassDefinitionInfo& FHeaderParser::CompileClassDeclaration()
 	// New style files have the class name / extends afterwards
 	RequireIdentifier(TEXT("class"), ESearchCase::CaseSensitive, TEXT("Class declaration"));
 
-	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
+	ParseAttributes(*this, true);
 
 	FString DeclaredClassName;
 	FString RequiredAPIMacroIfPresent;
@@ -9121,7 +9213,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseClassDeclaration(co
 	// Require 'class'
 	RequireIdentifier(TEXT("class"), ESearchCase::CaseSensitive, ErrorMsg);
 
-	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
+	ParseAttributes(*this, true);
 
 	// Read the class name
 	FString RequiredAPIMacroIfPresent;
@@ -9193,7 +9285,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 	{
 		CppForm = UEnum::ECppForm::Namespaced;
 
-		SkipDeprecatedMacroIfNecessary(*this);
+		ParseAttributes(*this, false);
 
 		bReadEnumName = GetIdentifier(EnumToken);
 	}
@@ -9216,7 +9308,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseEnumDeclaration(con
 			CppForm = UEnum::ECppForm::Regular;
 		}
 
-		SkipAlignasAndDeprecatedMacroIfNecessary(*this);
+		ParseAttributes(*this, true);
 
 		bReadEnumName = GetIdentifier(EnumToken);
 	}
@@ -9259,7 +9351,7 @@ TSharedRef<FUnrealTypeDefinitionInfo> FHeaderPreParser::ParseStructDeclaration(c
 	// Consume the struct keyword
 	RequireIdentifier(TEXT("struct"), ESearchCase::CaseSensitive, TEXT("Struct declaration specifier"));
 
-	SkipAlignasAndDeprecatedMacroIfNecessary(*this);
+	ParseAttributes(*this, true);
 
 	// The struct name as parsed in script and stripped of it's prefix
 	FString StructNameInScript;

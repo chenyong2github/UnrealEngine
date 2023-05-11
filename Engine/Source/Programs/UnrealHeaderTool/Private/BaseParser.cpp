@@ -601,6 +601,7 @@ bool FBaseParser::GetToken(FToken& Token, bool bNoConsts/*=false*/, ESymbolParse
 		||	PAIR('*','*')
 		||	PAIR('~','=')
 		||	PAIR(':',':')
+		||	PAIR('[','[')
 		)
 		{
 			if (c == TEXT('>') && d == TEXT('>') &&  *Pos == TEXT('>'))

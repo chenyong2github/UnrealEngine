@@ -41,19 +41,20 @@ namespace EpicGames.UHT.Parsers
 					specifiers.ParseSpecifiers();
 
 					// Read the name and the CPP type
-					switch (topScope.TokenReader.TryOptional(new string[] { "namespace", "enum" }))
+					if (topScope.TokenReader.TryOptional("namespace"))
 					{
-						case 0: // namespace
-							enumObject.CppForm = UhtEnumCppForm.Namespaced;
-							topScope.TokenReader.SkipDeprecatedMacroIfNecessary();
-							break;
-						case 1: // enum
-							enumObject.CppForm = topScope.TokenReader.TryOptional(new string[] { "class", "struct" }) >= 0 ? UhtEnumCppForm.EnumClass : UhtEnumCppForm.Regular;
-							topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
-							break;
-						default:
-							throw new UhtTokenException(topScope.TokenReader, topScope.TokenReader.PeekToken(), null);
+						enumObject.CppForm = UhtEnumCppForm.Namespaced;
 					}
+					else if (topScope.TokenReader.TryOptional("enum"))
+					{
+						enumObject.CppForm = topScope.TokenReader.TryOptional("class") || topScope.TokenReader.TryOptional("struct") ? UhtEnumCppForm.EnumClass : UhtEnumCppForm.Regular;
+					}
+					else
+					{
+						throw new UhtTokenException(topScope.TokenReader, topScope.TokenReader.PeekToken(), null);
+					}
+
+					topScope.TokenReader.OptionalAttributes(false);
 
 					UhtToken enumToken = topScope.TokenReader.GetIdentifier("enumeration name");
 
@@ -104,7 +105,7 @@ namespace EpicGames.UHT.Parsers
 						case UhtEnumCppForm.Namespaced:
 							// Now handle the inner true enum portion
 							topScope.TokenReader.Require("enum");
-							topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
+							topScope.TokenReader.OptionalAttributes(true);
 
 							UhtToken innerEnumToken = topScope.TokenReader.GetIdentifier("enumeration type name");
 
@@ -183,7 +184,7 @@ namespace EpicGames.UHT.Parsers
 						topScope.AddFormattedCommentsAsTooltipMetaData(enumIndex);
 
 						// Skip any deprecation
-						topScope.TokenReader.SkipDeprecatedMacroIfNecessary();
+						topScope.TokenReader.OptionalAttributes(false);
 
 						// Try to read an optional explicit enum value specification
 						if (topScope.TokenReader.TryOptional('='))

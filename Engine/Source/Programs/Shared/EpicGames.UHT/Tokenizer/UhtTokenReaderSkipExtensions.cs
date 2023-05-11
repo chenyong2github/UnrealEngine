@@ -23,58 +23,6 @@ namespace EpicGames.UHT.Tokenizer
 		}
 
 		/// <summary>
-		/// Skip an alignas expression
-		/// </summary>
-		/// <param name="tokenReader">Token reader</param>
-		/// <returns>Token reader</returns>
-		public static IUhtTokenReader SkipAlignasIfNecessary(this IUhtTokenReader tokenReader)
-		{
-			const string Identifier = "alignas";
-			if (tokenReader.TryOptional(Identifier))
-			{
-				tokenReader
-					.Require('(', Identifier)
-					.RequireConstInt(Identifier)
-					.Require(')', Identifier);
-			}
-			return tokenReader;
-		}
-
-		/// <summary>
-		/// Skip deprecation macro
-		/// </summary>
-		/// <param name="tokenReader">Token reader</param>
-		/// <returns>Token reader</returns>
-		public static IUhtTokenReader SkipDeprecatedMacroIfNecessary(this IUhtTokenReader tokenReader)
-		{
-			if (tokenReader.TryOptional(new string[] { "DEPRECATED", "UE_DEPRECATED" }) >= 0)
-			{
-				tokenReader
-					.Require('(', "deprecation macro")
-					.RequireConstFloat("version in deprecation macro")
-					.Require(',', "deprecation macro")
-					.RequireConstString("message in deprecation macro")
-					.Require(')', "deprecation macro");
-			}
-			return tokenReader;
-		}
-
-		/// <summary>
-		/// Skip alignas and/or deprecation macros
-		/// </summary>
-		/// <param name="tokenReader">Token reader</param>
-		/// <returns>Token reader</returns>
-		public static IUhtTokenReader SkipAlignasAndDeprecatedMacroIfNecessary(this IUhtTokenReader tokenReader)
-		{
-			// alignas() can come before or after the deprecation macro.
-			// We can't have both, but the compiler will catch that anyway.
-			return tokenReader
-				.SkipAlignasIfNecessary()
-				.SkipDeprecatedMacroIfNecessary()
-				.SkipAlignasIfNecessary();
-		}
-
-		/// <summary>
 		/// Skip any block of tokens wrapped by the given token symbols
 		/// </summary>
 		/// <param name="tokenReader">Token reader</param>

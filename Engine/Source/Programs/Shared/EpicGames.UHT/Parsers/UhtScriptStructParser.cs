@@ -81,7 +81,7 @@ namespace EpicGames.UHT.Parsers
 					// Consume the struct specifier
 					topScope.TokenReader.Require("struct");
 
-					topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
+					topScope.TokenReader.OptionalAttributes(true);
 
 					// Read the struct name and possible API macro name
 					topScope.TokenReader.TryOptionalAPIMacro(out UhtToken apiMacroToken);

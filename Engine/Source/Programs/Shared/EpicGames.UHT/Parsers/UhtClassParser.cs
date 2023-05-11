@@ -76,7 +76,7 @@ namespace EpicGames.UHT.Parsers
 					// Consume the class specifier
 					topScope.TokenReader.Require("class");
 
-					topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
+					topScope.TokenReader.OptionalAttributes(true);
 
 					// Read the class name and possible API macro name
 					topScope.TokenReader.TryOptionalAPIMacro(out UhtToken apiMacroToken);

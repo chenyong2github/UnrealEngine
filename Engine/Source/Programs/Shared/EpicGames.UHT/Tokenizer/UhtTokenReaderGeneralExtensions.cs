@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Utils;
 
@@ -57,26 +58,6 @@ namespace EpicGames.UHT.Tokenizer
 		{
 			ref UhtToken token = ref tokenReader.PeekToken();
 			return token.IsIdentifier(text) || token.IsSymbol(text);
-		}
-
-		/// <summary>
-		/// Test to see if the next token is one of the given strings.
-		/// </summary>
-		/// <param name="tokenReader">Token reader</param>
-		/// <param name="text">List of keywords to test</param>
-		/// <returns>Index of matched string or -1 if nothing matched</returns>
-		public static int TryOptional(this IUhtTokenReader tokenReader, string[] text)
-		{
-			ref UhtToken token = ref tokenReader.PeekToken();
-			for (int index = 0, endIndex = text.Length; index < endIndex; ++index)
-			{
-				if (token.IsIdentifier(text[index]) || token.IsSymbol(text[index]))
-				{
-					tokenReader.ConsumeToken();
-					return index;
-				}
-			}
-			return -1;
 		}
 
 		/// <summary>
@@ -227,6 +208,131 @@ namespace EpicGames.UHT.Tokenizer
 				UhtToken currentToken = token;
 				tokenReader.ConsumeToken();
 				tokenDelegate(ref currentToken);
+			}
+			return tokenReader;
+		}
+
+		/// <summary>
+		/// Parse attributes and optionally alignment specifier 
+		/// </summary>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="enableAlignAs">If true, also parse alignment specifiers</param>
+		/// <param name="attributeAction">If specified, action to be invoked for every attribute found</param>
+		/// <returns>Token reader</returns>
+		public static IUhtTokenReader OptionalAttributes(this IUhtTokenReader tokenReader, bool enableAlignAs, Action<string>? attributeAction = null)
+		{
+			for (; ; )
+			{
+				UhtToken token = tokenReader.PeekToken();
+				if (token.IsIdentifier("DEPRECATED") || token.IsIdentifier("UE_DEPRECATED"))
+				{
+					tokenReader.ConsumeToken();
+					tokenReader
+						.Require('(', "deprecation macro")
+						.RequireConstFloat("version in deprecation macro")
+						.Require(',', "deprecation macro")
+						.RequireConstString("message in deprecation macro")
+						.Require(')', "deprecation macro");
+					attributeAction?.Invoke("deprecated");
+				}
+				else if (token.IsIdentifier("UE_NODISCARD") || token.IsIdentifier("UE_NODISCARD_CTOR"))
+				{
+					tokenReader.ConsumeToken();
+					attributeAction?.Invoke("nodiscard");
+				}
+				else if (token.IsIdentifier("UE_NORETURN"))
+				{
+					tokenReader.ConsumeToken();
+					attributeAction?.Invoke("noreturn");
+				}
+				else if (token.IsIdentifier("UE_NO_UNIQUE_ADDRESS"))
+				{
+					tokenReader.ConsumeToken();
+					attributeAction?.Invoke("no_unique_address");
+				}
+				else if (token.IsSymbol("[["))
+				{
+					tokenReader.ConsumeToken();
+
+					StringBuilder identifierBuilder = StringBuilderCache.Small.Borrow();
+					try
+					{
+						if (tokenReader.TryOptional("using"))
+						{
+							tokenReader
+								.RequireCppIdentifier(UhtCppIdentifierOptions.None, x => x.Join(identifierBuilder, "::"))
+								.Require(':');
+						}
+						if (identifierBuilder.Length > 0)
+						{
+							identifierBuilder.Append("::");
+						}
+						int identifierBuilderLength = identifierBuilder.Length;
+
+						// Attributes do allow patterns such as [[,]].
+						for (; ; )
+						{
+							token = tokenReader.GetToken();
+							if (token.IsIdentifier())
+							{
+								tokenReader.RequireCppIdentifier(ref token, UhtCppIdentifierOptions.None, x => x.Join(identifierBuilder, "::"));
+
+								if (tokenReader.TryOptional('('))
+								{
+									int nestingCount = 1;
+									while (nestingCount > 0)
+									{
+										if (tokenReader.IsEOF)
+										{
+											throw new UhtTokenException(tokenReader, tokenReader.GetToken(), ")");
+										}
+										else if (tokenReader.TryOptional(')'))
+										{
+											nestingCount--;
+										}
+										else if (tokenReader.TryOptional('('))
+										{
+											nestingCount++;
+										}
+										tokenReader.ConsumeToken();
+									}
+								}
+
+								attributeAction?.Invoke(identifierBuilder.ToString());
+								identifierBuilder.Length = identifierBuilderLength;
+							}
+							else if (token.IsSymbol(','))
+							{
+							}
+							else if (token.IsSymbol(']'))
+							{
+								// This isn't technically correct since it could be "] ]"
+								tokenReader.Require(']');
+								break;
+							}
+							else
+							{
+								throw new UhtTokenException(tokenReader, token, "]], ',', or identifier");
+							}
+						}
+					}
+					finally
+					{
+						StringBuilderCache.Small.Return(identifierBuilder);
+					}
+				}
+				else if (enableAlignAs && token.IsIdentifier("alignas"))
+				{
+					tokenReader.ConsumeToken();
+					tokenReader
+						.Require('(', "alignment specifier")
+						.RequireConstInt("alignment specifier")
+						.Require(')', "alignment specifier");
+				}
+				else
+				{
+					break;
+				}
 			}
 			return tokenReader;
 		}
