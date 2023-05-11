@@ -606,6 +606,7 @@ public:
 		template<typename...T>
 		FORCEINLINE_DEBUGGABLE TGraphTask* ConstructAndHoldImpl(T&&... Args)
 		{
+			LLM_SCOPE_BYNAME(TEXT("Tasks/TGraphTask/ConstructAndHoldImpl"));
 			TGraphTask* Task = new TGraphTask(Prerequisites);
 			TTask* TaskObject = new(&Task->TaskStorage) TTask(Forward<T>(Args)...);
 
@@ -720,6 +721,8 @@ inline void FGraphEventImpl::operator delete(void* Ptr)
 
 inline FGraphEventRef FBaseGraphTask::CreateGraphEvent()
 {
+	LLM_SCOPE_BYNAME(TEXT("Tasks/FGraphEvent/CreateGraphEvent"));
+
 	FGraphEventImpl* GraphEvent = new FGraphEventImpl;
 	return FGraphEventRef{ GraphEvent, /*bAddRef = */ false };
 }
@@ -936,6 +939,7 @@ public:
 	**/
 	bool AddSubsequent(class FBaseGraphTask* Subsequent)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Tasks/FGraphEvent/AddSubsequent"));
 		bool bSucceeded = SubsequentList.PushIfNotClosed(Subsequent);
 		if (bSucceeded)
 		{
@@ -959,6 +963,7 @@ public:
 	**/
 	void DontCompleteUntil(FGraphEventRef EventToWaitFor)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Tasks/FGraphEvent/DontCompleteUntil"));
 		checkThreadGraph(!IsComplete()); // it is not legal to add a DontCompleteUntil after the event has been completed. Basically, this is only legal within a task function.
 		EventsToWaitFor.Emplace(EventToWaitFor);
 		TaskTrace::SubsequentAdded(EventToWaitFor->GetTraceId(), GetTraceId());
@@ -1215,8 +1220,12 @@ public:
 	**/
 	static FConstructor CreateTask(const FGraphEventArray* Prerequisites = NULL, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
+		FGraphEventRef GraphEvent = TTask::GetSubsequentsMode() == ESubsequentsMode::FireAndForget ? NULL : FGraphEvent::CreateGraphEvent();
+
+		LLM_SCOPE_BYNAME(TEXT("Tasks/TGraphTask/CreateTask"));
+
 		int32 NumPrereq = Prerequisites ? Prerequisites->Num() : 0;
-		return FConstructor(new TGraphTask(TTask::GetSubsequentsMode() == ESubsequentsMode::FireAndForget ? NULL : FGraphEvent::CreateGraphEvent(), NumPrereq), Prerequisites, CurrentThreadIfKnown);
+		return FConstructor(new TGraphTask(MoveTemp(GraphEvent), NumPrereq), Prerequisites, CurrentThreadIfKnown);
 	}
 
 	void Unlock(ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)

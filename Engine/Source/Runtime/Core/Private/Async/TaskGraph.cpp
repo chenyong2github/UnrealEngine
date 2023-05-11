@@ -1037,7 +1037,7 @@ private:
 	**/
 	uint64 ProcessTasks()
 	{
-		LLM_SCOPE(ELLMTag::TaskGraphTasksMisc);
+		LLM_SCOPE_BYNAME(TEXT("Tasks/AnyThread/ProcessTasks"));
 
 		TStatId StallStatId;
 		bool bCountAsStall = true;
@@ -1951,6 +1951,8 @@ public:
 private:
 	void QueueTask(class FBaseGraphTask* Task, bool bWakeUpWorker, ENamedThreads::Type InThreadToExecuteOn, ENamedThreads::Type InCurrentThreadIfKnown) override
 	{
+		LLM_SCOPE_BYNAME(TEXT("Tasks/Scheduler/QueueTask"));
+
 		if (ENamedThreads::GetThreadIndex(InThreadToExecuteOn) == ENamedThreads::AnyThread)
 		{
 #if TASKGRAPH_NEW_FRONTEND
@@ -2428,6 +2430,7 @@ static TLockFreeClassAllocator_TLSCache<FGraphEvent, PLATFORM_CACHE_LINE_SIZE>& 
 
 FGraphEventRef FGraphEvent::CreateGraphEvent()
 {
+	LLM_SCOPE_BYNAME(TEXT("Tasks/FGraphEvent/CreateGraphEvent"));
 	FGraphEvent* Instance = new(GetGraphEventAllocator().Allocate()) FGraphEvent{};
 	return Instance;
 }
