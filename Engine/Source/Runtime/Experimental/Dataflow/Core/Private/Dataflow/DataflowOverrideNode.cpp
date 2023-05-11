@@ -46,15 +46,15 @@ FString FDataflowOverrideNode::GetDefaultValue(Dataflow::FContext& Context) cons
 FString FDataflowOverrideNode::GetValueFromAsset(Dataflow::FContext& Context, const UObject* InOwner) const
 {
 	FName InKey = GetValue<FName>(Context, &Key, Key);
-	FString InDefault = GetValue<FString>(Context, &Default, Default);
+	FString EmptyString;
 
 	if (InOwner)
 	{
 		if (!InKey.IsNone() && InKey.IsValid() && InKey.ToString().Len() > 0)
 		{
-			return FindOverrideMapProperty<FString>(InOwner, FName("Overrides"), InKey, InDefault);
+			return FindOverrideMapProperty<FString>(InOwner, FName("Overrides"), InKey, EmptyString);
 		}
 	}
 
-	return InDefault;
+	return EmptyString;
 }

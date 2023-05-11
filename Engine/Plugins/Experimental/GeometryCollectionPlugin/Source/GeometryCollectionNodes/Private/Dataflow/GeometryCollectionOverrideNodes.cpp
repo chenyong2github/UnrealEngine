@@ -26,9 +26,11 @@ namespace Dataflow
 
 void FGetFloatOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA(&Float))
+	if (Out->IsA(&Float) || Out->IsA(&FloatDefault) || Out->IsA(&IsOverriden))
 	{
-		float NewValue = FCString::Atof(*GetDefaultValue(Context));
+		const float DefaultValue = FCString::Atof(*GetDefaultValue(Context));
+		float NewValue = DefaultValue;
+		bool bIsOverriden = false;
 
 		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
@@ -37,18 +39,23 @@ void FGetFloatOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Contex
 			if (!ValueFromAsset.IsEmpty() && ValueFromAsset.IsNumeric())
 			{
 				NewValue = FCString::Atof(*ValueFromAsset);
+				bIsOverriden = true;
 			}
 		}
 
 		SetValue(Context, NewValue, &Float);
+		SetValue(Context, DefaultValue, &FloatDefault);
+		SetValue(Context, bIsOverriden, &IsOverriden);
 	}
 }
 
 void FGetIntOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA(&Int))
+	if (Out->IsA(&Int) || Out->IsA(&IntDefault) || Out->IsA(&IsOverriden))
 	{
-		int32 NewValue = FCString::Atoi(*GetDefaultValue(Context));
+		const int32 DefaultValue = FCString::Atoi(*GetDefaultValue(Context));
+		int32 NewValue = DefaultValue;
+		bool bIsOverriden = false;
 
 		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
@@ -57,10 +64,13 @@ void FGetIntOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context,
 			if (!ValueFromAsset.IsEmpty() && ValueFromAsset.IsNumeric())
 			{
 				NewValue = FCString::Atoi(*ValueFromAsset);
+				bIsOverriden = true;
 			}
 		}
 
 		SetValue(Context, NewValue, &Int);
+		SetValue(Context, DefaultValue, &IntDefault);
+		SetValue(Context, bIsOverriden, &IsOverriden);
 	}
 }
 
@@ -85,9 +95,11 @@ static bool StringToBool(const FString& InString, bool InDefault)
 
 void FGetBoolOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA(&Bool))
+	if (Out->IsA(&Bool) || Out->IsA(&BoolDefault) || Out->IsA(&IsOverriden))
 	{
-		bool NewValue = StringToBool(GetDefaultValue(Context), false);
+		const bool DefaultValue = StringToBool(GetDefaultValue(Context), false);
+		bool NewValue = DefaultValue;
+		bool bIsOverriden = false;
 
 		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
@@ -96,18 +108,23 @@ void FGetBoolOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context
 			if (!ValueFromAsset.IsEmpty())
 			{
 				NewValue = StringToBool(ValueFromAsset, false);
+				bIsOverriden = true;
 			}
 		}
 
 		SetValue(Context, NewValue, &Bool);
+		SetValue(Context, DefaultValue, &BoolDefault);
+		SetValue(Context, bIsOverriden, &IsOverriden);
 	}
 }
 
 void FGetStringOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out->IsA(&String))
+	if (Out->IsA(&String) || Out->IsA(&StringDefault) || Out->IsA(&IsOverriden))
 	{
-		FString NewValue = GetDefaultValue(Context);
+		const FString DefaultValue = GetDefaultValue(Context);
+		FString NewValue = DefaultValue;
+		bool bIsOverriden = false;
 
 		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
@@ -116,9 +133,12 @@ void FGetStringOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Conte
 			if (!ValueFromAsset.IsEmpty())
 			{
 				NewValue = ValueFromAsset;
+				bIsOverriden = true;
 			}
 		}
 
 		SetValue(Context, NewValue, &String);
+		SetValue(Context, DefaultValue, &StringDefault);
+		SetValue(Context, bIsOverriden, &IsOverriden);
 	}
 }

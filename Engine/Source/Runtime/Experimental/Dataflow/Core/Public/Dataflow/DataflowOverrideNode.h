@@ -33,6 +33,7 @@ public:
 	{
 		RegisterInputConnection(&Key);
 		RegisterInputConnection(&Default);
+		RegisterOutputConnection(&IsOverriden);
 	}
 
 	virtual ~FDataflowOverrideNode() { }
@@ -54,6 +55,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Overrides", meta = (DataflowInput))
 	FString Default = FString("0");
+
+	UPROPERTY(meta = (DataflowOutput))
+	bool IsOverriden = false;
 };
 
 
