@@ -2,9 +2,12 @@
 
 #pragma once
 
+#include "ChaosVDPlaybackControllerInstigator.h"
+#include "ChaosVDPlaybackControllerObserver.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SChaosVDSolverPlaybackControls;
 class FChaosVDPlaybackController;
 class SChaosVDTimelineWidget;
 struct FChaosVDRecording;
@@ -14,7 +17,7 @@ class FSceneViewport;
 class SViewport;
 
 /* Widget that contains the 3D viewport and playback controls */
-class SChaosVDPlaybackViewport : public SCompoundWidget
+class SChaosVDPlaybackViewport : public SCompoundWidget, public FChaosVDPlaybackControllerObserver, public IChaosVDPlaybackControllerInstigator
 {
 public:
 
@@ -29,19 +32,16 @@ protected:
 
 	TSharedPtr<FLevelEditorViewportClient> CreateViewportClient() const;
 
-	void OnPlaybackControllerUpdated(TWeakPtr<FChaosVDPlaybackController> InController);
-
-	void RegisterNewController(TWeakPtr<FChaosVDPlaybackController> NewController);
+	virtual void RegisterNewController(TWeakPtr<FChaosVDPlaybackController> NewController )override;
+	virtual void HandlePlaybackControllerDataUpdated(TWeakPtr<FChaosVDPlaybackController> InController) override;
+	virtual void HandleControllerTrackFrameUpdated(TWeakPtr<FChaosVDPlaybackController> InController, const FChaosVDTrackInfo* UpdatedTrackInfo, FGuid InstigatorGuid) override;
+	void OnPlaybackSceneUpdated();
 
 	void OnFrameSelectionUpdated(int32 NewFrameIndex) const;
-	void OnStepSelectionUpdated(int32 NewStepIndex) const;
 	
-	TSharedPtr<SChaosVDTimelineWidget> FramesTimelineWidget;
-	TSharedPtr<SChaosVDTimelineWidget> StepsTimelineWidget;
+	TSharedPtr<SChaosVDTimelineWidget> GameFramesTimelineWidget;
 
 	TSharedPtr<FLevelEditorViewportClient> LevelViewportClient;
 	TSharedPtr<SViewport> ViewportWidget;
 	TSharedPtr<FSceneViewport> SceneViewport;
-
-	TWeakPtr<FChaosVDPlaybackController> PlaybackController;
 };

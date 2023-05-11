@@ -13,4 +13,5 @@ public:
 	static const FName WorldOutliner;
 	static const FName DetailsPanel;
 	static const FName OutputLog;
+	static const FName SolversTrack;
 };

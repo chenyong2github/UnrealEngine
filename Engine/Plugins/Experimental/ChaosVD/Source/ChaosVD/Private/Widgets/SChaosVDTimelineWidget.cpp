@@ -25,7 +25,7 @@ void SChaosVDTimelineWidget::Construct(const FArguments& InArgs)
 			+SHorizontalBox::Slot()
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.FillWidth(0.2)
+			.FillWidth(0.2f)
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -89,18 +89,18 @@ void SChaosVDTimelineWidget::Construct(const FArguments& InArgs)
 			]
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
-			.FillWidth(0.75)
+			.FillWidth(0.7f)
 			[
 			  SAssignNew(TimelineSlider, SSlider)
 			  .ToolTipText_Lambda([this]()-> FText{ return FText::AsNumber(CurrentFrame); })
 			  .Value(CurrentFrame)
-			  .OnValueChanged_Raw(this, &SChaosVDTimelineWidget::SetCurrentTimelineFrame)
+			  .OnValueChanged_Raw(this, &SChaosVDTimelineWidget::SetCurrentTimelineFrame, EChaosVDSetTimelineFrameFlags::BroadcastChange)
 			  .StepSize(1)
 			  .MaxValue(MaxFrames)
 			  .MinValue(0)
 			]
 			+SHorizontalBox::Slot()
-			.FillWidth(0.05)
+			.FillWidth(0.1f)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			[
@@ -135,11 +135,18 @@ void SChaosVDTimelineWidget::ResetTimeline()
 	CurrentFrame = MinFrames;
 }
 
-void SChaosVDTimelineWidget::SetCurrentTimelineFrame(float FrameNumber)
+void SChaosVDTimelineWidget::SetCurrentTimelineFrame(float FrameNumber, EChaosVDSetTimelineFrameFlags Options)
 {
 	CurrentFrame = static_cast<int32>(FrameNumber);
-	TimelineSlider->SetValue(CurrentFrame);
-	FrameChangedDelegate.ExecuteIfBound(CurrentFrame);
+
+	if (TimelineSlider.IsValid())
+	{
+		TimelineSlider->SetValue(CurrentFrame);
+		if (EnumHasAnyFlags(Options, EChaosVDSetTimelineFrameFlags::BroadcastChange))
+		{
+			FrameChangedDelegate.ExecuteIfBound(CurrentFrame);
+		}
+	}
 }
 
 FReply SChaosVDTimelineWidget::Play()

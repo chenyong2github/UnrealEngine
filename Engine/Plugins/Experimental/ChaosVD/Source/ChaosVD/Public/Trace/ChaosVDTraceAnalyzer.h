@@ -44,7 +44,9 @@ private:
 		RouteId_ChaosVDBinaryDataStart,
 		RouteId_ChaosVDBinaryDataContent,
 		RouteId_ChaosVDBinaryDataEnd,
-		RouteId_ChaosVDSolverSimulationSpace
+		RouteId_ChaosVDSolverSimulationSpace,
+		RouteId_BeginFrame,
+		RouteId_EndFrame
 	};
 
 	void ReadParticleDataFromEvent(const FEventData& InEventData, FChaosVDParticleDebugData& OutParticleData);

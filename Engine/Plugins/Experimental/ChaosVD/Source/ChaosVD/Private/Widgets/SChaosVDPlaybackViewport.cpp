@@ -3,6 +3,7 @@
 #include "Widgets/SChaosVDPlaybackViewport.h"
 
 #include "ChaosVDPlaybackController.h"
+#include "ChaosVDScene.h"
 #include "Framework/Application/SlateApplication.h"
 #include "LevelEditorViewport.h"
 #include "Slate/SceneViewport.h"
@@ -14,11 +15,6 @@
 
 SChaosVDPlaybackViewport::~SChaosVDPlaybackViewport()
 {
-	if (const TSharedPtr<FChaosVDPlaybackController> CurrentPlaybackControllerPtr = PlaybackController.Pin())
-	{
-		CurrentPlaybackControllerPtr->OnControllerUpdated().Unbind();
-	}
-
 	LevelViewportClient->Viewport = nullptr;
 	LevelViewportClient.Reset();
 }
@@ -78,54 +74,29 @@ void SChaosVDPlaybackViewport::Construct(const FArguments& InArgs, const UWorld*
 		.Padding(16.0f, 16.0f, 16.0f, 16.0f)
 		.FillHeight(0.1f)
 		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.FillWidth(0.7f)
-			[
 			SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.0f, 0.0f, 0.0f, 2.0f)
-				[
-					SNew(STextBlock)
-					.Justification(ETextJustify::Center)
-					.Text(LOCTEXT("PlaybackViewportWidgetPhysicsFramesLabel", "Physics Frames" ))
-				]
-				+SVerticalBox::Slot()
-				[
-					SAssignNew(FramesTimelineWidget, SChaosVDTimelineWidget)
-						.HidePlayStopButtons(false)
-						.OnFrameChanged_Raw(this, &SChaosVDPlaybackViewport::OnFrameSelectionUpdated)
-						.MaxFrames(0)
-				]
-			]
-			+SHorizontalBox::Slot()
-			.FillWidth(0.3f)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f, 0.0f, 0.0f, 2.0f)
 			[
-				SNew(SVerticalBox)
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(0.0f, 0.0f, 0.0f, 2.0f)
-				[
-					SNew(STextBlock)
-					.Justification(ETextJustify::Center)
-					.Text(LOCTEXT("PlaybackViewportWidgetStepsLabel", "Solver Steps" ))
-				]
-				+SVerticalBox::Slot()
-				[
-					SAssignNew(StepsTimelineWidget, SChaosVDTimelineWidget)
-					.HidePlayStopButtons(true)
-					.OnFrameChanged_Raw(this, &SChaosVDPlaybackViewport::OnStepSelectionUpdated)
-					.MaxFrames(0)
-				]	
+				SNew(STextBlock)
+				.Justification(ETextJustify::Center)
+				.Text(LOCTEXT("PlaybackViewportWidgetPhysicsFramesLabel", "Game Frames" ))
 			]
-		]
+			+SVerticalBox::Slot()
+			[
+				SAssignNew(GameFramesTimelineWidget, SChaosVDTimelineWidget)
+				.HidePlayStopButtons(false)
+				.OnFrameChanged_Raw(this, &SChaosVDPlaybackViewport::OnFrameSelectionUpdated)
+				.MaxFrames(0)
+			]
+		]	
 	];
 
 	RegisterNewController(InPlaybackController);
 }
 
-void SChaosVDPlaybackViewport::OnPlaybackControllerUpdated(TWeakPtr<FChaosVDPlaybackController> InController)
+void SChaosVDPlaybackViewport::HandlePlaybackControllerDataUpdated(TWeakPtr<FChaosVDPlaybackController> InController)
 {
 	if (PlaybackController != InController)
 	{
@@ -135,26 +106,34 @@ void SChaosVDPlaybackViewport::OnPlaybackControllerUpdated(TWeakPtr<FChaosVDPlay
 	const TSharedPtr<FChaosVDPlaybackController> ControllerSharedPtr = PlaybackController.Pin();
 	if (ControllerSharedPtr.IsValid() && ControllerSharedPtr->IsRecordingLoaded())
 	{
-		const int32 TrackID = ControllerSharedPtr->GetActiveSolverTrackID();
-		
-		const int32 AvailableFrames = ControllerSharedPtr->GetAvailableFramesNumber(TrackID);
-		const int32 AvailableSteps = ControllerSharedPtr->GetStepsForFrame(TrackID, ControllerSharedPtr->GetCurrentFrame(TrackID));
-
-		// Max is inclusive and we use this to request as the index on the recorded frames/steps arrays so we need to -1 to the available frames/steps
-		FramesTimelineWidget->UpdateMinMaxValue(0, AvailableFrames != INDEX_NONE ? AvailableFrames -1  : 0);
-
-		//TODO: This will show steps 0/0 if only one step is recorded, we need to add a way to override that functionality
-		// or just set the slider to start from 1 and handle the offset later 
-		StepsTimelineWidget->UpdateMinMaxValue(0,AvailableSteps != INDEX_NONE ? AvailableSteps -1 : 0);
+		if (const FChaosVDTrackInfo* TrackInfo = ControllerSharedPtr->GetTrackInfo(EChaosVDTrackType::Game, FChaosVDPlaybackController::GameTrackID))
+		{
+			// Max is inclusive and we use this to request as the index on the recorded frames/steps arrays so we need to -1 to the available frames/steps
+			GameFramesTimelineWidget->UpdateMinMaxValue(0, TrackInfo->MaxFrames != INDEX_NONE ? TrackInfo->MaxFrames -1  : 0);
+		}
 	}
 	else
 	{
-		FramesTimelineWidget->UpdateMinMaxValue(0, 0);
-		FramesTimelineWidget->ResetTimeline();
-		StepsTimelineWidget->UpdateMinMaxValue(0,0);
-		StepsTimelineWidget->ResetTimeline();
+		GameFramesTimelineWidget->UpdateMinMaxValue(0, 0);
+		GameFramesTimelineWidget->ResetTimeline();
 	}
 
+	LevelViewportClient->bNeedsRedraw = true;
+}
+
+void SChaosVDPlaybackViewport::HandleControllerTrackFrameUpdated(TWeakPtr<FChaosVDPlaybackController> InController, const FChaosVDTrackInfo* UpdatedTrackInfo, FGuid InstigatorGuid)
+{
+	if (InstigatorGuid == GetInstigatorID())
+	{
+		// Ignore the update if we initiated it
+		return;
+	}
+
+	GameFramesTimelineWidget->SetCurrentTimelineFrame(UpdatedTrackInfo->CurrentFrame, EChaosVDSetTimelineFrameFlags::None);
+}
+
+void SChaosVDPlaybackViewport::OnPlaybackSceneUpdated()
+{
 	LevelViewportClient->bNeedsRedraw = true;
 }
 
@@ -164,14 +143,20 @@ void SChaosVDPlaybackViewport::RegisterNewController(TWeakPtr<FChaosVDPlaybackCo
 	{
 		if (const TSharedPtr<FChaosVDPlaybackController> CurrentPlaybackControllerPtr = PlaybackController.Pin())
 		{
-			CurrentPlaybackControllerPtr->OnControllerUpdated().Unbind();
+			if (TSharedPtr<FChaosVDScene> ScenePtr = CurrentPlaybackControllerPtr->GetControllerScene().Pin())
+			{
+				ScenePtr->OnSceneUpdated().RemoveAll(this);
+			}
 		}
 
-		PlaybackController = NewController;
+		FChaosVDPlaybackControllerObserver::RegisterNewController(NewController);
 
 		if (const TSharedPtr<FChaosVDPlaybackController> NewPlaybackControllerPtr = PlaybackController.Pin())
 		{
-			NewPlaybackControllerPtr->OnControllerUpdated().BindRaw(this, &SChaosVDPlaybackViewport::OnPlaybackControllerUpdated);
+			if (TSharedPtr<FChaosVDScene> ScenePtr = NewPlaybackControllerPtr->GetControllerScene().Pin())
+			{
+				ScenePtr->OnSceneUpdated().AddRaw(this, &SChaosVDPlaybackViewport::OnPlaybackSceneUpdated);
+			}
 		}
 	}
 }
@@ -180,27 +165,9 @@ void SChaosVDPlaybackViewport::OnFrameSelectionUpdated(int32 NewFrameIndex) cons
 {
 	if (const TSharedPtr<FChaosVDPlaybackController> PlaybackControllerPtr = PlaybackController.Pin())
 	{
-		const int32 TrackID = PlaybackControllerPtr->GetActiveSolverTrackID();
-		
-		const int32 AvailableSteps = PlaybackControllerPtr->GetStepsForFrame(TrackID, PlaybackControllerPtr->GetCurrentFrame(TrackID));
-		StepsTimelineWidget->UpdateMinMaxValue(0,AvailableSteps != INDEX_NONE ? AvailableSteps -1 : 0);
+		constexpr int32 StepNumber = 0;
+		PlaybackControllerPtr->GoToTrackFrame(GetInstigatorID(), EChaosVDTrackType::Game, FChaosVDPlaybackController::GameTrackID, NewFrameIndex, StepNumber);
 
-		// On Frame updates, always use Step 0
-		StepsTimelineWidget->SetCurrentTimelineFrame(0);
-		PlaybackControllerPtr->GoToRecordedStep(TrackID, NewFrameIndex, 0);
-
-		LevelViewportClient->bNeedsRedraw = true;
-	}
-}
-
-void SChaosVDPlaybackViewport::OnStepSelectionUpdated(int32 NewStepIndex) const
-{
-	if (const TSharedPtr<FChaosVDPlaybackController> PlaybackControllerPtr = PlaybackController.Pin())
-	{
-		const int32 TrackID = PlaybackControllerPtr->GetActiveSolverTrackID();
-		// On Steps updates. Always use the current Frame
-		PlaybackControllerPtr->GoToRecordedStep(TrackID, PlaybackControllerPtr->GetCurrentFrame(TrackID), NewStepIndex);
-	
 		LevelViewportClient->bNeedsRedraw = true;
 	}
 }

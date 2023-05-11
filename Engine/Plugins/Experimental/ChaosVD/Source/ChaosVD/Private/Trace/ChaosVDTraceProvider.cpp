@@ -26,7 +26,7 @@ void FChaosVDTraceProvider::DeleteRecordingInstanceForSession()
 	InternalRecording.Reset();
 }
 
-void FChaosVDTraceProvider::AddFrame(const int32 InSolverID, FChaosVDSolverFrameData&& FrameData)
+void FChaosVDTraceProvider::AddSolverFrame(const int32 InSolverID, FChaosVDSolverFrameData&& FrameData)
 {
 	if (InternalRecording.IsValid())
 	{
@@ -34,24 +34,59 @@ void FChaosVDTraceProvider::AddFrame(const int32 InSolverID, FChaosVDSolverFrame
 	}
 }
 
-FChaosVDSolverFrameData* FChaosVDTraceProvider::GetFrame(const int32 InSolverID, const int32 FrameNumber) const
+void FChaosVDTraceProvider::AddGameFrame(FChaosVDGameFrameData&& FrameData)
 {
-	return InternalRecording.IsValid() ? InternalRecording->GetFrameForSolver(InSolverID, FrameNumber) : nullptr;
+	if (InternalRecording.IsValid())
+	{
+		// In PIE, we can have a lot of empty frames at the beginning, so we discard them here
+		if (InternalRecording->GetAvailableSolvers().IsEmpty())
+		{
+			if (FChaosVDGameFrameData* GameFrame = InternalRecording->GetLastGameFrameData())
+			{
+				GameFrame = &FrameData;
+				return;
+			}
+		}
+
+		InternalRecording->AddGameFrameData(MoveTemp(FrameData));
+	}
 }
 
-FChaosVDSolverFrameData* FChaosVDTraceProvider::GetLastFrame(const int32 InSolverID) const
+FChaosVDSolverFrameData* FChaosVDTraceProvider::GetSolverFrame(const int32 InSolverID, const int32 FrameNumber) const
 {
-	if (InternalRecording.IsValid() && InternalRecording->GetAvailableFramesNumber(InSolverID) > 0)
+	return InternalRecording.IsValid() ? InternalRecording->GetSolverFrameData(InSolverID, FrameNumber) : nullptr;
+}
+
+FChaosVDSolverFrameData* FChaosVDTraceProvider::GetLastSolverFrame(const int32 InSolverID) const
+{
+	if (InternalRecording.IsValid() && InternalRecording->GetAvailableSolverFramesNumber(InSolverID) > 0)
 	{
-		const int32 AvailableFramesNumber = InternalRecording->GetAvailableFramesNumber(InSolverID);
+		const int32 AvailableFramesNumber = InternalRecording->GetAvailableSolverFramesNumber(InSolverID);
 
 		if (AvailableFramesNumber != INDEX_NONE)
 		{
-			return GetFrame(InSolverID, InternalRecording->GetAvailableFramesNumber(InSolverID) - 1);
+			return GetSolverFrame(InSolverID, InternalRecording->GetAvailableSolverFramesNumber(InSolverID) - 1);
 		}
 	}
 
 	return nullptr;
+}
+
+FChaosVDGameFrameData* FChaosVDTraceProvider::GetSolverFrame(uint64 FrameStartCycle) const
+{
+	FChaosVDGameFrameData* FoundFrameData = nullptr;
+
+	if (InternalRecording.IsValid() && InternalRecording->GetAvailableGameFrames().Num() > 0)
+	{
+		return InternalRecording->GetGameFrameDataAtCycle(FrameStartCycle);
+	}
+	
+	return FoundFrameData;
+}
+
+FChaosVDGameFrameData* FChaosVDTraceProvider::GetLastGameFrame() const
+{
+	return InternalRecording.IsValid() ? InternalRecording->GetLastGameFrameData() : nullptr;
 }
 
 FChaosVDBinaryDataContainer& FChaosVDTraceProvider::FindOrAddUnprocessedData(const int32 DataID)

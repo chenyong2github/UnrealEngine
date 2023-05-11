@@ -8,3 +8,4 @@ const FName FChaosVDTabID::PlaybackViewport = TEXT("PlaybackViewport");
 const FName FChaosVDTabID::WorldOutliner = TEXT("WorldOutliner");
 const FName FChaosVDTabID::DetailsPanel = TEXT("DetailsPanel");
 const FName FChaosVDTabID::OutputLog = TEXT("ChaosVDOutputLog");
+const FName FChaosVDTabID::SolversTrack = TEXT("SolversTrack");

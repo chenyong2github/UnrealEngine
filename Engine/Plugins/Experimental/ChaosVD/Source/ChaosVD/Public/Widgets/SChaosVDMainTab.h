@@ -6,6 +6,7 @@
 #include "Templates/SharedPointer.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FChaosVDSolversTracksTab;
 class FChaosVDEngine;
 class FChaosVDOutputLogTab;
 class FChaosVDPlaybackViewportTab;
@@ -39,6 +40,7 @@ private:
 	TSharedPtr<FChaosVDWorldOutlinerTab> WorldOutlinerTab;
 	TSharedPtr<FChaosVDObjectDetailsTab> ObjectDetailsTab;
 	TSharedPtr<FChaosVDPlaybackViewportTab> PlaybackViewportTab;
+	TSharedPtr<FChaosVDSolversTracksTab> SolversTracksTab;
 	TSharedPtr<FChaosVDOutputLogTab> OutputLogTab;
 
 	TSharedPtr<FTabManager> TabManager;

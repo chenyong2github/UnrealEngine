@@ -11,6 +11,15 @@ struct FSlateBrush;
 
 DECLARE_DELEGATE_OneParam(FChaosVDFrameChangedDelegate, int32)
 
+enum class EChaosVDSetTimelineFrameFlags
+{
+	None = 0,
+	BroadcastChange = 1 << 0,
+	Silent = 1 << 1,
+};
+ENUM_CLASS_FLAGS(EChaosVDSetTimelineFrameFlags)
+
+
 /** Simple timeline control widget */
 class SChaosVDTimelineWidget : public SCompoundWidget
 {
@@ -26,7 +35,7 @@ public:
 
 	void UpdateMinMaxValue(float NewMin, float NewMax);
 
-	void SetCurrentTimelineFrame(float FrameNumber);
+	void SetCurrentTimelineFrame(float FrameNumber, EChaosVDSetTimelineFrameFlags Options = EChaosVDSetTimelineFrameFlags::BroadcastChange);
 
 	/** Brings back the state of the timeline to its original state*/
 	void ResetTimeline();

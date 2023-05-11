@@ -10,6 +10,7 @@
 
 #include "Chaos/ChaosArchive.h"
 
+struct FChaosVDGameFrameData;
 class FChaosVDEngine;
 struct FChaosVDSolverFrameData;
 struct FChaosVDRecording;
@@ -52,9 +53,13 @@ public:
 
 	void CreateRecordingInstanceForSession(const FString& InSessionName);
 	void DeleteRecordingInstanceForSession();
-	void AddFrame(const int32 InSolverGUID, FChaosVDSolverFrameData&& FrameData);
-	FChaosVDSolverFrameData* GetFrame(const int32 InSolverGUID, const int32 FrameNumber) const;
-	FChaosVDSolverFrameData* GetLastFrame(const int32 InSolverGUID) const;
+	void AddSolverFrame(const int32 InSolverGUID, FChaosVDSolverFrameData&& FrameData);
+	void AddGameFrame(FChaosVDGameFrameData&& FrameData);
+	FChaosVDSolverFrameData* GetSolverFrame(const int32 InSolverGUID, const int32 FrameNumber) const;
+	FChaosVDSolverFrameData* GetLastSolverFrame(const int32 InSolverGUID) const;
+
+	FChaosVDGameFrameData* GetSolverFrame(uint64 FrameStartCycle) const;
+	FChaosVDGameFrameData* GetLastGameFrame() const;
 
 	FChaosVDBinaryDataContainer& FindOrAddUnprocessedData(const int32 DataID);
 

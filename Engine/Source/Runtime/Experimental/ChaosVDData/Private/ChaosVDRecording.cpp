@@ -3,7 +3,7 @@
 #include "ChaosVDRecording.h"
 #include "Chaos/ImplicitObject.h"
 
-int32 FChaosVDRecording::GetAvailableFramesNumber(const int32 SolverID) const
+int32 FChaosVDRecording::GetAvailableSolverFramesNumber(const int32 SolverID) const
 {
 	if (const TArray<FChaosVDSolverFrameData>* SolverData = RecordedFramesDataPerSolver.Find(SolverID))
 	{
@@ -13,7 +13,24 @@ int32 FChaosVDRecording::GetAvailableFramesNumber(const int32 SolverID) const
 	return INDEX_NONE;
 }
 
-FChaosVDSolverFrameData* FChaosVDRecording::GetFrameForSolver(const int32 SolverID, const int32 FrameNumber)
+FString FChaosVDRecording::GetSolverName(int32 SolverID)
+{
+	static FString DefaultName(TEXT("Invalid"));
+
+	// Currently we don't create an entry per solver, so we need to get the name from the frame data
+	// TODO: Record Solver specific data per instance and not per frame
+	if (TArray<FChaosVDSolverFrameData>* SolverFramesData = RecordedFramesDataPerSolver.Find(SolverID))
+	{
+		if(!SolverFramesData->IsEmpty())
+		{
+			return (*SolverFramesData)[0].DebugName;
+		}
+	}
+
+	return DefaultName;
+}
+
+FChaosVDSolverFrameData* FChaosVDRecording::GetSolverFrameData(const int32 SolverID, const int32 FrameNumber)
 {
 	if (TArray<FChaosVDSolverFrameData>* SolverFrames = RecordedFramesDataPerSolver.Find(SolverID))
 	{
@@ -22,6 +39,61 @@ FChaosVDSolverFrameData* FChaosVDRecording::GetFrameForSolver(const int32 Solver
 	}
 
 	return nullptr;
+}
+
+FChaosVDSolverFrameData* FChaosVDRecording::GetSolverFrameDataAtCycle(int32 SolverID, uint64 Cycle)
+{
+	if (TArray<FChaosVDSolverFrameData>* SolverFramesPtr = RecordedFramesDataPerSolver.Find(SolverID))
+	{
+		TArray<FChaosVDSolverFrameData>& SolverFrames = *SolverFramesPtr;
+		int32 FrameIndex = Algo::BinarySearchBy(SolverFrames, Cycle, &FChaosVDSolverFrameData::FrameCycle);
+		return SolverFrames.IsValidIndex(FrameIndex) ? &SolverFrames[FrameIndex] : nullptr;
+	}
+
+	return nullptr;
+}
+
+int32 FChaosVDRecording::GetLowestSolverFrameNumberAtCycle(int32 SolverID, uint64 Cycle)
+{
+	if (TArray<FChaosVDSolverFrameData>* SolverFramesPtr = RecordedFramesDataPerSolver.Find(SolverID))
+	{
+		TArray<FChaosVDSolverFrameData>& SolverFrames = *SolverFramesPtr;
+		return Algo::LowerBoundBy(SolverFrames, Cycle, &FChaosVDSolverFrameData::FrameCycle);
+	}
+
+	return INDEX_NONE;
+}
+
+int32 FChaosVDRecording::GetLowestSolverFrameNumberGameFrame(int32 SolverID, int32 GameFrame)
+{
+	if (!GameFrames.IsValidIndex(GameFrame))
+	{
+		return INDEX_NONE;
+	}
+
+	if (TArray<FChaosVDSolverFrameData>* SolverFramesPtr = RecordedFramesDataPerSolver.Find(SolverID))
+	{
+		TArray<FChaosVDSolverFrameData>& SolverFrames = *SolverFramesPtr;
+		
+		return Algo::LowerBoundBy(SolverFrames,GameFrames[GameFrame].FirstCycle, &FChaosVDSolverFrameData::FrameCycle);
+	}
+
+	return INDEX_NONE;
+}
+
+int32 FChaosVDRecording::GetLowestGameFrameAtSolverFrameNumber(int32 SolverID, int32 SolverFrame)
+{
+	if (TArray<FChaosVDSolverFrameData>* SolverFramesPtr = RecordedFramesDataPerSolver.Find(SolverID))
+	{
+		TArray<FChaosVDSolverFrameData>& SolverFrames = *SolverFramesPtr;
+
+		if (SolverFrames.IsValidIndex(SolverFrame))
+		{
+			return Algo::LowerBoundBy(GameFrames, SolverFrames[SolverFrame].FrameCycle, &FChaosVDGameFrameData::FirstCycle);
+		}	
+	}
+
+	return INDEX_NONE;
 }
 
 void FChaosVDRecording::AddFrameForSolver(const int32 SolverID, FChaosVDSolverFrameData&& InFrameData)
@@ -38,19 +110,68 @@ void FChaosVDRecording::AddFrameForSolver(const int32 SolverID, FChaosVDSolverFr
 	OnRecordingUpdated().Broadcast();
 }
 
-EChaosVDFrameLoadState FChaosVDRecording::GetFrameState(const int32 SolverID, const int32 FrameNumber)
+void FChaosVDRecording::AddGameFrameData(FChaosVDGameFrameData&& InFrameData)
 {
-	const TArray<FChaosVDSolverFrameData>* SolverFrames = RecordedFramesDataPerSolver.Find(SolverID);
-	if (SolverFrames && SolverFrames->IsValidIndex(FrameNumber))
-	{
-		return EChaosVDFrameLoadState::Loaded;
-	}
-	//TODO: Implement "Buffering" state handling
-	// I already implemented this on the version where we didn't use trace and CVD files were streamed from disk
-	// But removed the code for this CL - Leaving this getter here as it is used by the controller and I also left part
-	// of the implementation to handle different states there
+	GameFrames.Add(MoveTemp(InFrameData));
+}
 
-	return EChaosVDFrameLoadState::Unknown;
+FChaosVDGameFrameData* FChaosVDRecording::GetGameFrameDataAtCycle(uint64 Cycle)
+{
+	int32 FrameIndex = Algo::BinarySearchBy(GameFrames, Cycle, &FChaosVDGameFrameData::FirstCycle);
+
+	if (FrameIndex != INDEX_NONE)
+	{
+		return &GameFrames[FrameIndex];
+	}
+
+	return nullptr;
+}
+
+FChaosVDGameFrameData* FChaosVDRecording::GetGameFrameData(int32 FrameNumber)
+{
+	return GameFrames.IsValidIndex(FrameNumber) ? &GameFrames[FrameNumber] : nullptr;
+}
+
+FChaosVDGameFrameData* FChaosVDRecording::GetLastGameFrameData()
+{
+	return GameFrames.Num() > 0 ? &GameFrames.Last() : nullptr;
+}
+
+int32 FChaosVDRecording::GetLowestGameFrameNumberAtCycle(uint64 Cycle)
+{
+	return Algo::LowerBoundBy(GameFrames, Cycle, &FChaosVDGameFrameData::FirstCycle);
+}
+
+void FChaosVDRecording::GetAvailableSolverIDsAtGameFrameNumber(int32 FrameNumber, TArray<int32>& OutSolversID)
+{
+	if (!GameFrames.IsValidIndex(FrameNumber))
+	{
+		return;
+	}
+	
+	FChaosVDGameFrameData& FrameData = GameFrames[FrameNumber];
+
+	OutSolversID.Reserve(RecordedFramesDataPerSolver.Num());
+
+	for (const TPair<int32, TArray<FChaosVDSolverFrameData>>& SolverFramesWithIDPair : RecordedFramesDataPerSolver)
+	{
+		if (SolverFramesWithIDPair.Value.IsEmpty())
+		{
+			continue;
+		}
+
+		if (SolverFramesWithIDPair.Value.Num() == 1 && SolverFramesWithIDPair.Value[0].FrameCycle < FrameData.FirstCycle)
+		{
+			OutSolversID.Add(SolverFramesWithIDPair.Key);
+		}
+		else
+		{
+			if (FrameData.FirstCycle > SolverFramesWithIDPair.Value[0].FrameCycle && FrameData.FirstCycle < SolverFramesWithIDPair.Value.Last().FrameCycle)
+			{
+				OutSolversID.Add(SolverFramesWithIDPair.Key);
+			}
+		}	
+	}
 }
 
 void FChaosVDRecording::AddImplicitObject(const int32 ID, const TSharedPtr<Chaos::FImplicitObject>& InImplicitObject)

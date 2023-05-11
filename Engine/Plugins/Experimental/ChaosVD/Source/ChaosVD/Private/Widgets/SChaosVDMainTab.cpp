@@ -7,6 +7,7 @@
 #include "ChaosVDOutputLogTab.h"
 #include "ChaosVDPlaybackController.h"
 #include "ChaosVDPlaybackViewportTab.h"
+#include "ChaosVDSolversTracksTab.h"
 #include "ChaosVDTabsIDs.h"
 #include "ChaosVDWorldOutlinerTab.h"
 #include "DesktopPlatformModule.h"
@@ -34,6 +35,7 @@ void SChaosVDMainTab::Construct(const FArguments& InArgs, TSharedPtr<FChaosVDEng
 	ObjectDetailsTab = MakeShared<FChaosVDObjectDetailsTab>(FChaosVDTabID::DetailsPanel, TabManager, this);
 	OutputLogTab = MakeShared<FChaosVDOutputLogTab>(FChaosVDTabID::OutputLog, TabManager, this);
 	PlaybackViewportTab = MakeShared<FChaosVDPlaybackViewportTab>(FChaosVDTabID::PlaybackViewport, TabManager, this);
+	SolversTracksTab = MakeShared<FChaosVDSolversTracksTab>(FChaosVDTabID::SolversTrack, TabManager, this);
 
 	GenerateMainWindowMenu();
 
@@ -138,8 +140,11 @@ void SChaosVDMainTab::Construct(const FArguments& InArgs, TSharedPtr<FChaosVDEng
 		.Padding(FMargin(0.0f,5.0f,0.0f,0.0f))
 		[
 			TabManager->RestoreFrom(GenerateMainLayout(), TabManager->GetOwnerTab()->GetParentWindow()).ToSharedRef()
+			
 		]
 	];
+
+	TabManager->TryInvokeTab(FChaosVDTabID::SolversTrack);
 }
 
 TSharedRef<FTabManager::FLayout> SChaosVDMainTab::GenerateMainLayout()
@@ -166,6 +171,7 @@ TSharedRef<FTabManager::FLayout> SChaosVDMainTab::GenerateMainLayout()
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.3f)
+					->AddTab(FChaosVDTabID::SolversTrack, ETabState::OpenedTab)
 					->AddTab(FChaosVDTabID::OutputLog, ETabState::OpenedTab)
 				)
 			)

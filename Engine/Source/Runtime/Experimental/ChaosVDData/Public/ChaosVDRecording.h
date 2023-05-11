@@ -82,16 +82,15 @@ struct CHAOSVDDATA_API FChaosVDSolverFrameData
 {
 	FString DebugName;
 	int32 SolverID;
+	uint64 FrameCycle;
 	Chaos::FRigidTransform3 SimulationTransform;
 	TArray<FChaosVDStepData, TInlineAllocator<16>> SolverSteps;
 };
 
-enum class EChaosVDFrameLoadState
+struct FChaosVDGameFrameData
 {
-	Unloaded,
-	Loaded,
-	Buffering,
-	Unknown
+	uint64 FirstCycle;
+	uint64 LastCycle;
 };
 
 /**
@@ -99,28 +98,122 @@ enum class EChaosVDFrameLoadState
  * It is currently populated while analyzing a Trace session
  */
 struct CHAOSVDDATA_API FChaosVDRecording
-{
-	/** Returns the current available recorded frames per recorded solver */
-	int32 GetAvailableFramesNumber(const int32 SolverID) const;
+{	
 	/** Returns the current available recorded solvers number */
-	int32 GetAvailableSolversNumber() const { return RecordedFramesDataPerSolver.Num();}
+	int32 GetAvailableSolversNumber() const { return RecordedFramesDataPerSolver.Num(); }
 	
+	/** Returns the current available Game Frames */
+	int32 GetAvailableGameFramesNumber() const { return GameFrames.Num(); }
+
+	/** Returns a reference to the array holding all the available game frames */
+	const TArray<FChaosVDGameFrameData>& GetAvailableGameFrames() const { return GameFrames; }
+
+	/** Returns a reference to the map containing the available solver data */
 	const TMap<int32, TArray<FChaosVDSolverFrameData>>& GetAvailableSolvers() const { return RecordedFramesDataPerSolver; }
 
-	/** Returns a ptr to the recorded frame data for a specific solver -  Do not store as it is a reference to the element in the array */
-	FChaosVDSolverFrameData* GetFrameForSolver(const int32 SolverID, const int32 FrameNumber);
+	/**
+	 * Returns the number of available frame data for the specified solver ID
+	 * @param SolverID ID of the solver 
+	 */
+	int32 GetAvailableSolverFramesNumber(int32 SolverID) const;
+	
+	/**
+	 * Returns the name of the specified solver id
+	 * @param SolverID ID of the solver 
+	 */
+	FString GetSolverName(int32 SolverID);
 
-	/** Adds a Frame Data for a specific Solver ID. Creates a solver entry if it does not exist */
+	/**
+	 * Return a ptr to the existing solver frame data from the specified ID and Frame number
+	 * @param SolverID ID of the solver
+	 * @param FrameNumber Frame number
+	 * @return Ptr to the existing solver frame data from the specified ID and Frame number - It is a ptr to the array element, Do not store
+	 */
+	FChaosVDSolverFrameData* GetSolverFrameData(int32 SolverID, int32 FrameNumber);
+	
+	/**
+	 * Return a ptr to the existing solver frame data from the specified ID and Frame number
+	 * @param SolverID ID if the solver
+	 * @param Cycle Platform cycle at which the solver frame was recorded
+	 * @return Ptr to the existing solver frame data from the specified ID and Frame number - It is a ptr to the array element, Do not store
+	 */
+	FChaosVDSolverFrameData* GetSolverFrameDataAtCycle(int32 SolverID, uint64 Cycle);
+
+	/**
+	 * Searches and returns the lowest frame number of a solver at the specified cycle
+	 * @param SolverID ID if the solver
+	 * @param Cycle Platform cycle to use as lower bound
+	 * @return Found frame number. INDEX_NONE if no frame is found for the specified cycle
+	 */
+	int32 GetLowestSolverFrameNumberAtCycle(int32 SolverID, uint64 Cycle);
+	
+	/**
+	 * Searches and returns the lowest frame number of a solver at the specified cycle
+	 * @param SolverID ID if the solver
+	 * @param GameFrame Platform cycle to use as lower bound
+	 * @return Found frame number. INDEX_NONE if no frame is found for the specified cycle
+	 */
+	int32 GetLowestSolverFrameNumberGameFrame(int32 SolverID, int32 GameFrame);
+	
+	/**
+	 * Searches and returns the lowest game frame number at the specified solver frame
+	 * @param SolverID ID if the solver to evaluate
+	 * @param SolverFrame Frame number of the solver to evaluate
+	 * @return Found Game frame number. INDEX_NONE if no frame is found for the specified cycle
+	 */
+	int32 GetLowestGameFrameAtSolverFrameNumber(int32 SolverID, int32 SolverFrame);
+
+	/**
+	 * Adds a Solver Frame Data entry for a specific Solver ID. Creates a solver entry if it does not exist 
+	 * @param SolverID ID of the solver to add
+	 * @param InFrameData Reference to the frame data we want to add
+	 */
 	void AddFrameForSolver(const int32 SolverID, FChaosVDSolverFrameData&& InFrameData);
 
-	/** Returns the current frame state of a frame used to determine if it is ready for use*/
-	EChaosVDFrameLoadState GetFrameState(const int32 SolverID, const int32 FrameNumber);
+	/**
+	 * Adds a Game Frame Data entry. Creates a solver entry if it does not exist 
+	 * @param InFrameData Reference to the frame data we want to add
+	 */
+	void AddGameFrameData(FChaosVDGameFrameData&& InFrameData);
 
 	/** Called each time the recording changes - Mainly when a new frame is added from the Trace analysis */
 	FChaosVDRecordingUpdated& OnRecordingUpdated() { return RecordingUpdatedDelegate; };
 
+	/** Called each time new geometry data becomes available in the recording - Mainly when a new frame is added from the Trace analysis */
 	FChaosVDGeometryDataLoaded& OnGeometryDataLoaded() { return GeometryDataLoaded; };
 
+	/**
+	 * Searches for a recorded Game frame at the specified cycle 
+	 * @param Cycle Platform Cycle to be used in the search
+	 * @return A ptr to the recorded game frame data - This is a ptr to the array element. Do not store
+	 */
+	FChaosVDGameFrameData* GetGameFrameDataAtCycle(uint64 Cycle);
+
+	/**
+	 * Searches for a recorded Game frame at the specified cycle 
+	 * @param FrameNumber Frame Number
+	 * @return A ptr to the recorded game frame data - This is a ptr to the array element. Do not store
+	 */
+	FChaosVDGameFrameData* GetGameFrameData(int32 FrameNumber);
+
+	/** Returns a ptr to the last recorded game frame - This is a ptr to the array element. Do not store */
+	FChaosVDGameFrameData* GetLastGameFrameData();
+
+	/**
+	 * Searches and returns the lowest game frame number at the specified cycle
+	 * @param Cycle Platform Cycle to be used in the search as lower bound
+	 * @return Found Game frame number. INDEX_NONE if no frame is found for the specified cycle
+	 */
+	int32 GetLowestGameFrameNumberAtCycle(uint64 Cycle);
+
+	/**
+     * Gathers all available solvers IDs at the given Game frame number
+     * @param FrameNumber Game Frame number to evaluate
+     * @param OutSolversID Solver's ID array to be filled with any IDs found
+     */
+	void GetAvailableSolverIDsAtGameFrameNumber(int32 FrameNumber, TArray<int32>& OutSolversID);
+
+	/** Returns a reference to the GeometryID-ImplicitObject map of this recording */
 	const TMap<int32, TSharedPtr<const Chaos::FImplicitObject>>& GetGeometryDataMap() const { return ImplicitObjects; };
 
 	/** Adds a shared Implicit Object to the recording */
@@ -136,8 +229,8 @@ protected:
 	
 	void AddImplicitObject_Internal(const int32 ID, const TSharedPtr<const Chaos::FImplicitObject>& InImplicitObject);
 	
-	TMap<int32, EChaosVDFrameLoadState> AvailableFramesState;
 	TMap<int32, TArray<FChaosVDSolverFrameData>> RecordedFramesDataPerSolver;
+	TArray<FChaosVDGameFrameData> GameFrames;
 	FChaosVDRecordingUpdated RecordingUpdatedDelegate;
 	FChaosVDGeometryDataLoaded GeometryDataLoaded;
 

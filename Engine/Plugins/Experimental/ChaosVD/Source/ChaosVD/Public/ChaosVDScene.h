@@ -13,6 +13,8 @@ class AChaosVDParticleActor;
 class FReferenceCollector;
 class UWorld;
 
+typedef TMap<int32, AChaosVDParticleActor*> FChaosVDParticlesByIDMap;
+
 DECLARE_MULTICAST_DELEGATE(FChaosVDSceneUpdatedDelegate)
 
 /** Recreates a UWorld from a recorded Chaos VD Frame */
@@ -38,6 +40,8 @@ public:
 	void UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData, const FChaosVDSolverFrameData& InFrameData);
 
 	void HandleNewGeometryData(const TSharedPtr<const Chaos::FImplicitObject>&, const int32 GeometryID) const;
+
+	void HandleEnterNewGameFrame(int32 FrameNumber, const TArray<int32>& AvailableSolversIds);
 
 	/** Deletes all actors of the Scene and underlying UWorld */
 	void CleanUpScene();
@@ -65,7 +69,7 @@ private:
 	UWorld* CreatePhysicsVDWorld() const;
 
 	/** Map of ID-ChaosVDParticle Actor. Used to keep track of actor instances and be able to modify them as needed*/
-	TMap<int32, AChaosVDParticleActor*> ParticleVDInstancesByID;
+	TMap<int32, FChaosVDParticlesByIDMap> ParticlesBySolverID;
 
 	/** UWorld instance used to represent the recorded debug data */
 	UWorld* PhysicsVDWorld = nullptr;

@@ -7,6 +7,8 @@
 #include "ChaosVDParticleActor.h"
 #include "Chaos/ImplicitObject.h"
 #include "ChaosVDRecording.h"
+#include "EditorActorFolders.h"
+#include "WorldPersistentFolders.h"
 #include "Engine/Engine.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Engine/World.h"
@@ -59,7 +61,6 @@ void FChaosVDScene::DeInitialize()
 void FChaosVDScene::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(PhysicsVDWorld);
-	Collector.AddStableReferenceMap(ParticleVDInstancesByID);
 }
 
 void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData, const FChaosVDSolverFrameData& InFrameData)
@@ -67,13 +68,15 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 	TSet<int32> ParticlesIDsInRecordedStepData;
 	ParticlesIDsInRecordedStepData.Reserve(InRecordedStepData.RecordedParticles.Num());
 
+	FChaosVDParticlesByIDMap& SolverParticlesByID = ParticlesBySolverID.FindChecked(SolverID);
+
 	// Go over existing Particle VD Instances and update them or create them if needed 
 	for (const FChaosVDParticleDebugData& Particle : InRecordedStepData.RecordedParticles)
 	{
 		const int32 ParticleVDInstanceID = GetIDForRecordedParticleData(Particle);
 		ParticlesIDsInRecordedStepData.Add(ParticleVDInstanceID);
 
-		if (AChaosVDParticleActor** ExistingParticleVDInstancePtrPtr = ParticleVDInstancesByID.Find(ParticleVDInstanceID))
+		if (AChaosVDParticleActor** ExistingParticleVDInstancePtrPtr = SolverParticlesByID.Find(ParticleVDInstanceID))
 		{
 			if (AChaosVDParticleActor* ExistingParticleVDInstancePtr = *ExistingParticleVDInstancePtrPtr)
 			{
@@ -95,7 +98,7 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 				NewParticleVDInstance->SetFolderPath(FolderPath);
 
 				// TODO: Precalculate the max num of entries we would see in the loaded file, and use that number to pre-allocate this map
-				ParticleVDInstancesByID.Add(ParticleVDInstanceID, NewParticleVDInstance);
+				SolverParticlesByID.Add(ParticleVDInstanceID, NewParticleVDInstance);
 			}
 			else
 			{
@@ -105,8 +108,10 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 		}
 	}
 
+	// TODO: This will not work once the recording has what changes between solver steps
+	// So it needs to be update to remove particles based on a Particles Removed event
 	int32 AmountRemoved = 0;
-	for (TMap<int32, AChaosVDParticleActor*>::TIterator RemoveIterator = ParticleVDInstancesByID.CreateIterator(); RemoveIterator; ++RemoveIterator)
+	for (FChaosVDParticlesByIDMap::TIterator RemoveIterator = SolverParticlesByID.CreateIterator(); RemoveIterator; ++RemoveIterator)
 	{
 		if (!ParticlesIDsInRecordedStepData.Contains(RemoveIterator.Key()))
 		{
@@ -129,17 +134,62 @@ void FChaosVDScene::HandleNewGeometryData(const TSharedPtr<const Chaos::FImplici
 	NewGeometryAvailableDelegate.Broadcast(GeometryData, GeometryID);
 }
 
+void FChaosVDScene::HandleEnterNewGameFrame(int32 FrameNumber, const TArray<int32>& AvailableSolversIds)
+{
+	// Currently the particle actors from all the solvers are in the same level, and we manage them by keeping track
+	// of to which solvers they belong using maps.
+	// Using Level instead or a Sub ChaosVDScene could be a better solution
+	// I'm intentionally not making that change right now until the "level streaming" solution for the tool is defined
+	// As that would impose restriction on how levels could be used. For now the map approach is simpler and will be easier to refactor later on.
+
+	TSet<int32> AvailableSolversSet;
+	AvailableSolversSet.Reserve(AvailableSolversIds.Num());
+
+	for (int32 SolverID : AvailableSolversIds)
+	{
+		AvailableSolversSet.Add(SolverID);
+		if (!ParticlesBySolverID.Contains(SolverID))
+		{
+			ParticlesBySolverID.Add(SolverID);
+		}
+	}
+
+	int32 AmountRemoved = 0;
+	for (TMap<int32, FChaosVDParticlesByIDMap>::TIterator RemoveIterator = ParticlesBySolverID.CreateIterator(); RemoveIterator; ++RemoveIterator)
+	{
+		if (!AvailableSolversSet.Contains(RemoveIterator.Key()))
+		{
+			for (const TPair<int32, AChaosVDParticleActor*>& ParticleVDInstanceWithID : RemoveIterator.Value())
+			{
+				PhysicsVDWorld->DestroyActor(ParticleVDInstanceWithID.Value);
+			}
+
+			RemoveIterator.RemoveCurrent();
+
+			AmountRemoved++;
+		}
+	}
+
+	if (AmountRemoved > 0)
+	{
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+	}
+}
+
 void FChaosVDScene::CleanUpScene()
 {
 	if (PhysicsVDWorld)
 	{
-		for (const TPair<int32, AChaosVDParticleActor*>& ParticleVDInstanceWithID : ParticleVDInstancesByID)
+		for (const TPair<int32, FChaosVDParticlesByIDMap>& SolverParticleVDInstanceWithID : ParticlesBySolverID)
 		{
-			PhysicsVDWorld->DestroyActor(ParticleVDInstanceWithID.Value);
+			for (const TPair<int32, AChaosVDParticleActor*>& ParticleVDInstanceWithID : SolverParticleVDInstanceWithID.Value)
+			{
+				PhysicsVDWorld->DestroyActor(ParticleVDInstanceWithID.Value);
+			}
 		}
 	}
 
-	ParticleVDInstancesByID.Reset();
+	ParticlesBySolverID.Reset();
 }
 
 AChaosVDParticleActor* FChaosVDScene::SpawnParticleFromRecordedData(const FChaosVDParticleDebugData& InParticleData, const FChaosVDSolverFrameData& InFrameData)
