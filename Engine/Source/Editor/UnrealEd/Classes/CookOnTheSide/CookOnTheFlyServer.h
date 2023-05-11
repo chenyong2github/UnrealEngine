@@ -526,9 +526,9 @@ private:
 	 * @param PackageData			The PackageData to be considered for saving.
 	 */
 	void QueueDiscoveredPackage(UE::Cook::FPackageData& PackageData, UE::Cook::FInstigator&& Instigator, 
-		UE::Cook::FDiscoveredPlatformSet&& ReachablePlatforms);
+		UE::Cook::FDiscoveredPlatformSet&& ReachablePlatforms, bool bUrgent=false);
 	void QueueDiscoveredPackageOnDirector(UE::Cook::FPackageData& PackageData, UE::Cook::FInstigator&& Instigator,
-		UE::Cook::FDiscoveredPlatformSet&& ReachablePlatforms);
+		UE::Cook::FDiscoveredPlatformSet&& ReachablePlatforms, bool bUrgent);
 
 	/** Called when a package is cancelled and returned to idle. Notifies CookDirector when on a CookWorker. */
 	void DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::Cook::ESendFlags SendFlags, UE::Cook::ESuppressCookReason Reason);

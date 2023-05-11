@@ -883,7 +883,7 @@ void FCookWorkerServer::QueueDiscoveredPackage(FDiscoveredPackageReplication&& D
 	}
 	Director.ResetFinalIdleHeartbeatFence();
 	Platforms.ConvertFromBitfield(OrderedSessionAndSpecialPlatforms);
-	COTFS.QueueDiscoveredPackageOnDirector(PackageData, MoveTemp(Instigator), MoveTemp(Platforms));
+	COTFS.QueueDiscoveredPackageOnDirector(PackageData, MoveTemp(Instigator), MoveTemp(Platforms), false /* bUrgent */);
 }
 
 FCookWorkerServer::FTickState::FTickState()

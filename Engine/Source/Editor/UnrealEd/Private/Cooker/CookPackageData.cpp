@@ -221,17 +221,17 @@ void FPackageData::AddReachablePlatformsInternal(FPackageData& PackageData,
 	}
 }
 
-void FPackageData::QueueAsDiscovered(FInstigator&& InInstigator, FDiscoveredPlatformSet&& ReachablePlatforms)
+void FPackageData::QueueAsDiscovered(FInstigator&& InInstigator, FDiscoveredPlatformSet&& ReachablePlatforms, bool bUrgent)
 {
-	QueueAsDiscoveredInternal(*this, MoveTemp(InInstigator), MoveTemp(ReachablePlatforms));
+	QueueAsDiscoveredInternal(*this, MoveTemp(InInstigator), MoveTemp(ReachablePlatforms), bUrgent);
 }
 
 void FPackageData::QueueAsDiscoveredInternal(FPackageData& PackageData, FInstigator&& InInstigator,
-	FDiscoveredPlatformSet&& ReachablePlatforms)
+	FDiscoveredPlatformSet&& ReachablePlatforms, bool bUrgent)
 {
 	// This is a static helper function to make it impossible to make a typo and use this->Instigator instead of InInstigator
 	TRingBuffer<FDiscoveryQueueElement>& Queue = PackageData.PackageDatas.GetRequestQueue().GetDiscoveryQueue();
-	Queue.Add(FDiscoveryQueueElement{ &PackageData, MoveTemp(InInstigator), MoveTemp(ReachablePlatforms) });
+	Queue.Add(FDiscoveryQueueElement{ &PackageData, MoveTemp(InInstigator), MoveTemp(ReachablePlatforms), bUrgent });
 }
 
 void FPackageData::SetIsUrgent(bool Value)

@@ -279,7 +279,7 @@ public:
 		FInstigator&& InInstigator);
 
 	/** Add the given reachable platforms to this PackageData and send it back to Request state for exploration. */
-	void QueueAsDiscovered(FInstigator&& InInstigator, FDiscoveredPlatformSet&& ReachablePlatforms);
+	void QueueAsDiscovered(FInstigator&& InInstigator, FDiscoveredPlatformSet&& ReachablePlatforms, bool bUrgent);
 
 	/**
 	 * Clear all the inprogress variables from the current PackageData. It is invalid to call this except when
@@ -566,8 +566,10 @@ private:
 
 	void SetIsUrgent(bool Value);
 	void SetInstigatorInternal(FInstigator&& InInstigator);
-	static void AddReachablePlatformsInternal(FPackageData& PackageData, TConstArrayView<const ITargetPlatform*> Platforms, FInstigator&& InInstigator);
-	static void QueueAsDiscoveredInternal(FPackageData& PackageData, FInstigator&& InInstigator, FDiscoveredPlatformSet&& ReachablePlatforms);
+	static void AddReachablePlatformsInternal(FPackageData& PackageData, TConstArrayView<const ITargetPlatform*> Platforms,
+		FInstigator&& InInstigator);
+	static void QueueAsDiscoveredInternal(FPackageData& PackageData, FInstigator&& InInstigator,
+		FDiscoveredPlatformSet&& ReachablePlatforms, bool bUrgent);
 
 	/**
 	 * Set the FileName of the file that contains the package. This member is private because FPackageDatas
@@ -1032,6 +1034,7 @@ struct FDiscoveryQueueElement
 	FPackageData* PackageData;
 	FInstigator Instigator;
 	FDiscoveredPlatformSet ReachablePlatforms;
+	bool bUrgent;
 };
 
 /**

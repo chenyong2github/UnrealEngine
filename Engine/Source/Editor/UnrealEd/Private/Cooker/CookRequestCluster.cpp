@@ -192,6 +192,7 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 		// Send it to the Request state if it's not already there, remove it from its old container
 		// and add it to this cluster.
 		PackageData.SendToState(EPackageState::Request, ESendFlags::QueueRemove);
+		PackageData.AddUrgency(Discovery->bUrgent, false /* bAllowUpdateState */);
 		OwnedPackageDatas.Add(&PackageData, ESuppressCookReason::NotSuppressed);
 	}
 }
