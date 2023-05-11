@@ -20,14 +20,14 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewConversionPath
 	GENERATED_BODY()
 
 	/** The Conversion function when converting the value from the destination to the source. */
-	UPROPERTY(EditAnywhere, Category = "Viewmodel", AdvancedDisplay)
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel", AdvancedDisplay)
 	FMemberReference DestinationToSourceFunction;
 	
 	UPROPERTY()
 	FName DestinationToSourceWrapper;
 
 	/** The Conversion function when converting the value from the source to the destination. */
-	UPROPERTY(EditAnywhere, Category = "Viewmodel", AdvancedDisplay)
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel", AdvancedDisplay)
 	FMemberReference SourceToDestinationFunction;
 
 	UPROPERTY()
@@ -42,10 +42,10 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Viewmodel")
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	FMVVMBlueprintPropertyPath SourcePath;
 
-	UPROPERTY(EditAnywhere, Category = "Viewmodel")
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	FMVVMBlueprintPropertyPath DestinationPath;
 
 	/** */
@@ -59,7 +59,7 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 	EMVVMExecutionMode OverrideExecutionMode = EMVVMExecutionMode::Immediate;
 
 	/** */
-	UPROPERTY(EditAnywhere, Category = "Viewmodel")
+	UPROPERTY(VisibleAnywhere, Category = "Viewmodel")
 	FMVVMBlueprintViewConversionPath Conversion;
 
 	/** The unique ID of this binding. */

@@ -19,9 +19,13 @@ enum class ECheckBoxState : uint8;
 namespace UE::MVVM
 {
 class SBindingsList;
+namespace Private { struct FStructDetailNotifyHook; }
 
 class SBindingsPanel : public SCompoundWidget
 {
+private:
+	using Super = SCompoundWidget;
+
 public:
 	SLATE_BEGIN_ARGS(SBindingsPanel) {}
 	SLATE_END_ARGS()
@@ -32,6 +36,7 @@ public:
 	//~ Begin SWidget Interface
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual bool SupportsKeyboardFocus() const override;
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	//~ End SWidget Interface
 
 	void OnBindingListSelectionChanged(TConstArrayView<FMVVMBlueprintViewBinding*> Selection);
@@ -68,6 +73,7 @@ private:
 	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<IStructureDetailsView> StructDetailsView;
 	TWeakObjectPtr<UMVVMWidgetBlueprintExtension_View> MVVMExtension;
+	TPimplPtr<Private::FStructDetailNotifyHook> NotifyHook;
 	FDelegateHandle BlueprintViewChangedDelegateHandle;
 	bool bIsDrawerTab;
 };

@@ -210,21 +210,21 @@ struct FMVVMBlueprintPropertyPath
 
 private:
 	/** Reference to property for this binding. */
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(VisibleAnywhere, Category = "MVVM")
 	TArray<FMVVMBlueprintFieldPath> Paths;
 
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(VisibleAnywhere, Category = "MVVM")
 	FName WidgetName;
 
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(VisibleAnywhere, Category = "MVVM")
 	FGuid ContextId;
 
 #if WITH_EDITORONLY_DATA
 	// Use the Paths. BindingReference and BindingKind are deprecated.
 	UPROPERTY()
-	FMemberReference BindingReference;
+	FMemberReference BindingReference_DEPRECATED;
 	UPROPERTY()
-	EBindingKind BindingKind = EBindingKind::Function;
+	EBindingKind BindingKind_DEPRECATED = EBindingKind::Function;
 #endif
 
 public:
@@ -343,7 +343,7 @@ public:
 
 	bool IsEmpty() const
 	{
-		return !IsFromWidget() && !IsFromViewModel() && BindingReference.GetMemberName() == FName();
+		return !IsFromWidget() && !IsFromViewModel() && BindingReference_DEPRECATED.GetMemberName() == FName();
 	}
 
 	/**
@@ -380,10 +380,10 @@ public:
 	{
 		if (Ar.IsLoading())
 		{
-			if (!BindingReference.GetMemberName().IsNone())
+			if (!BindingReference_DEPRECATED.GetMemberName().IsNone())
 			{
-				Paths.AddDefaulted_GetRef().SetDeprecatedBindingReference(BindingReference, BindingKind);
-				BindingReference = FMemberReference();
+				Paths.AddDefaulted_GetRef().SetDeprecatedBindingReference(BindingReference_DEPRECATED, BindingKind_DEPRECATED);
+				BindingReference_DEPRECATED = FMemberReference();
 			}
 		}
 	}
