@@ -470,10 +470,11 @@ void UGeometryCollectionComponent::GetLifetimeReplicatedProps(TArray<FLifetimePr
 
 namespace
 {
-	void UpdateGlobalMatricesWithExplodedVectors(TArray<FMatrix>& GlobalMatricesIn, FGeometryCollection& GeometryCollection)
+	template <typename TTransformType>
+	void UpdateGlobalMatricesWithExplodedVectors(TArray<TTransformType>& GlobalMatricesInOut, FGeometryCollection& GeometryCollection)
 	{
-		int32 NumMatrices = GlobalMatricesIn.Num();
-		if (GlobalMatricesIn.Num() > 0)
+		int32 NumMatrices = GlobalMatricesInOut.Num();
+		if (GlobalMatricesInOut.Num() > 0)
 		{
 			if (GeometryCollection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
 			{
@@ -483,9 +484,20 @@ namespace
 				{
 					return;
 				}
-				for (int32 TransformIndex = 0; TransformIndex < ExplodedVectors.Num(); ++TransformIndex)
+				constexpr bool bIsMatrixType = std::is_same<TTransformType, FMatrix>::value;
+				if constexpr (bIsMatrixType)
 				{
-					GlobalMatricesIn[TransformIndex] = GlobalMatricesIn[TransformIndex].ConcatTranslation((FVector)ExplodedVectors[TransformIndex]);
+					for (int32 TransformIndex = 0; TransformIndex < ExplodedVectors.Num(); ++TransformIndex)
+					{
+						GlobalMatricesInOut[TransformIndex] = GlobalMatricesInOut[TransformIndex].ConcatTranslation((FVector)ExplodedVectors[TransformIndex]);
+					}
+				}
+				else
+				{
+					for (int32 TransformIndex = 0; TransformIndex < ExplodedVectors.Num(); ++TransformIndex)
+					{
+						GlobalMatricesInOut[TransformIndex].AddToTranslation((FVector)ExplodedVectors[TransformIndex]);
+					}
 				}
 			}
 		}
@@ -494,42 +506,48 @@ namespace
 	/**
 	* compute the bounding box from the bounding boxes stored in the geometry group
 	*/
+	template <typename TTransformType>
 	inline FBox ComputeBoundsFromGeometryBoundingBoxes(
 		const TManagedArray<int32>& TransformToGeometryIndex,
 		const TManagedArray<int32>& TransformIndices,
 		const TManagedArray<FBox>& BoundingBoxes,
-		const TArray<FMatrix>& GlobalMatrices,
-		const FMatrix& LocalToWorldWithScale)
+		const TArray<TTransformType>& GlobalMatrices,
+		const TTransformType& LocalToWorldWithScale)
 	{
 		FBox BoundingBox(ForceInit);
-		if (bChaos_BoxCalcBounds_ISPC_Enabled && !bGeometryCollectionSingleThreadedBoundsCalculation)
+		// todo(chaos ) implement ISPC function using FTransform 
+		constexpr bool bIsMatrixType = std::is_same<TTransformType, FMatrix>::value;
+		if constexpr (bIsMatrixType)
 		{
-			ensure(BoundingBoxes.Num() > 0);
-			ensure(TransformIndices.Num() == BoundingBoxes.Num());
-			ensure(TransformToGeometryIndex.Num() > 0);
-			ensure(TransformToGeometryIndex.Num() == GlobalMatrices.Num());
-			
-#if INTEL_ISPC
-			ispc::BoxCalcBoundsFromGeometryGroup(
-				(int32*)&TransformToGeometryIndex[0],
-				(int32*)&TransformIndices[0],
-				(ispc::FMatrix*)&GlobalMatrices[0],
-				(ispc::FBox*)&BoundingBoxes[0],
-				(ispc::FMatrix&)LocalToWorldWithScale,
-				(ispc::FBox&)BoundingBox,
-				BoundingBoxes.Num());
-#endif
-		}
-		else
-		{
-			for (int32 BoxIdx = 0; BoxIdx < BoundingBoxes.Num(); ++BoxIdx)
+			if (bChaos_BoxCalcBounds_ISPC_Enabled && !bGeometryCollectionSingleThreadedBoundsCalculation)
 			{
-				const int32 TransformIndex = TransformIndices[BoxIdx];
+				ensure(BoundingBoxes.Num() > 0);
+				ensure(TransformIndices.Num() == BoundingBoxes.Num());
+				ensure(TransformToGeometryIndex.Num() > 0);
+				ensure(TransformToGeometryIndex.Num() == GlobalMatrices.Num());
 
-				if (TransformToGeometryIndex[TransformIndex] != INDEX_NONE)
-				{
-					BoundingBox += BoundingBoxes[BoxIdx].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
-				}
+#if INTEL_ISPC
+				ispc::BoxCalcBoundsFromGeometryGroup(
+					(int32*)&TransformToGeometryIndex[0],
+					(int32*)&TransformIndices[0],
+					(ispc::FMatrix*)&GlobalMatrices[0],
+					(ispc::FBox*)&BoundingBoxes[0],
+					(ispc::FMatrix&)LocalToWorldWithScale,
+					(ispc::FBox&)BoundingBox,
+					BoundingBoxes.Num());
+#endif
+				return BoundingBox;
+			}
+		}
+
+		// non-ISPC path
+		for (int32 BoxIdx = 0; BoxIdx < BoundingBoxes.Num(); ++BoxIdx)
+		{
+			const int32 TransformIndex = TransformIndices[BoxIdx];
+			
+			if (TransformToGeometryIndex[TransformIndex] != INDEX_NONE)
+			{
+				BoundingBox += BoundingBoxes[BoxIdx].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
 			}
 		}
 		return BoundingBox;
@@ -539,56 +557,79 @@ namespace
 	* compute the bounding box from the bounding boxes stored in the transform group
 	* (used for nanite or when the geometry group data has been stripped on cook )
 	*/
+	template <typename TTransformType>
 	inline FBox ComputeBoundsFromTransformBoundingBoxes(
 		const TManagedArray<int32>& TransformToGeometryIndex,
 		const TManagedArray<FBox>& BoundingBoxes,
-		const TArray<FMatrix>& GlobalMatrices,
-		const FMatrix& LocalToWorldWithScale)
+		const TArray<TTransformType>& GlobalMatrices,
+		const TTransformType& LocalToWorldWithScale)
 	{
 		FBox BoundingBox(ForceInit);
-		if (bChaos_BoxCalcBounds_ISPC_Enabled && !bGeometryCollectionSingleThreadedBoundsCalculation)
+
+		// todo(chaos ) implement ISPC function using FTransform 
+		constexpr bool bIsMatrixType = std::is_same<TTransformType, FMatrix>::value;
+		if constexpr (bIsMatrixType)
 		{
-#if INTEL_ISPC
-			ispc::BoxCalcBoundsFromTransformGroup(
-				(int32*)&TransformToGeometryIndex[0],
-				(ispc::FMatrix*)&GlobalMatrices[0],
-				(ispc::FBox*)&BoundingBoxes[0],
-				(ispc::FMatrix&)LocalToWorldWithScale,
-				(ispc::FBox&)BoundingBox,
-				BoundingBoxes.Num());
-#endif
-		}
-		else
-		{
-			for (int32 TransformIndex = 0; TransformIndex < BoundingBoxes.Num(); ++TransformIndex)
+			if (bChaos_BoxCalcBounds_ISPC_Enabled && !bGeometryCollectionSingleThreadedBoundsCalculation)
 			{
-				if (TransformToGeometryIndex[TransformIndex] != INDEX_NONE)
-				{
-					BoundingBox += BoundingBoxes[TransformIndex].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
-				}
+#if INTEL_ISPC
+				ispc::BoxCalcBoundsFromTransformGroup(
+					(int32*)&TransformToGeometryIndex[0],
+					(ispc::FMatrix*)&GlobalMatrices[0],
+					(ispc::FBox*)&BoundingBoxes[0],
+					(ispc::FMatrix&)LocalToWorldWithScale,
+					(ispc::FBox&)BoundingBox,
+					BoundingBoxes.Num());
+#endif
+				return BoundingBox;
+			}
+		}
+
+		// non-ISPC path 
+		for (int32 TransformIndex = 0; TransformIndex < BoundingBoxes.Num(); ++TransformIndex)
+		{
+			if (TransformToGeometryIndex[TransformIndex] != INDEX_NONE)
+			{
+				BoundingBox += BoundingBoxes[TransformIndex].TransformBy(GlobalMatrices[TransformIndex] * LocalToWorldWithScale);
 			}
 		}
 		return BoundingBox;
+	}
+
+	template <typename TTransformType>
+	inline FBox ComputeBoundsFromTransforms(const UGeometryCollectionComponent& Component, const TTransformType& LocalToWorldWithScale, const TArray<TTransformType>& GlobalMatricesArray)
+	{
+		auto GeometryCollectionPtr = Component.GetRestCollection()->GetGeometryCollection();
+		const TManagedArray<FBox>* TransformBoundingBoxes = GeometryCollectionPtr->FindAttribute<FBox>("BoundingBox", FGeometryCollection::TransformGroup);
+		const TManagedArray<FBox>& GeometryBoundingBoxes = Component.GetBoundingBoxArray();
+		const TManagedArray<int32>& TransformToGeometryIndex = Component.GetTransformToGeometryIndexArray();
+
+		if (TransformBoundingBoxes)
+		{
+			return ComputeBoundsFromTransformBoundingBoxes(TransformToGeometryIndex, *TransformBoundingBoxes, GlobalMatricesArray, LocalToWorldWithScale);
+		}
+
+		const TManagedArray<int32>& TransformIndices = Component.GetTransformIndexArray();
+		return ComputeBoundsFromGeometryBoundingBoxes(TransformToGeometryIndex, TransformIndices, GeometryBoundingBoxes, GlobalMatricesArray, LocalToWorldWithScale);
 	}
 }
 
 FBox UGeometryCollectionComponent::ComputeBoundsFromGlobalMatrices(const FMatrix& LocalToWorldWithScale, const TArray<FMatrix>& GlobalMatricesArray) const
 {
-	auto GeometryCollectionPtr = RestCollection->GetGeometryCollection();
-	const TManagedArray<FBox>* TransformBoundingBoxes = GeometryCollectionPtr->FindAttribute<FBox>("BoundingBox", FGeometryCollection::TransformGroup);
-	const TManagedArray<FBox>& GeometryBoundingBoxes = GetBoundingBoxArray();
-	const TManagedArray<int32>& TransformToGeometryIndex = GetTransformToGeometryIndexArray();
+	return ComputeBoundsFromTransforms<FMatrix>(*this, LocalToWorldWithScale, GlobalMatricesArray);
+}
 
-	if (TransformBoundingBoxes)
-	{
-		return ComputeBoundsFromTransformBoundingBoxes(TransformToGeometryIndex, *TransformBoundingBoxes, GlobalMatricesArray, LocalToWorldWithScale);
-	}
-
-	const TManagedArray<int32>& TransformIndices = GetTransformIndexArray();
-	return ComputeBoundsFromGeometryBoundingBoxes(TransformToGeometryIndex, TransformIndices, GeometryBoundingBoxes, GlobalMatricesArray, LocalToWorldWithScale);
+FBox UGeometryCollectionComponent::ComputeBoundsFromComponentSpaceTransforms(const FTransform& LocalToWorldWithScale, const TArray<FTransform>& ComponentSpaceTransformsArray) const
+{
+	return ComputeBoundsFromTransforms<FTransform>(*this, LocalToWorldWithScale, ComponentSpaceTransformsArray);
 }
 
 FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWithScale) const
+{
+	return ComputeBounds(FTransform(LocalToWorldWithScale));
+}
+
+FBox UGeometryCollectionComponent::ComputeBounds(const FTransform& LocalToWorldWithScale) const
 {
 	FBox BoundingBox(ForceInit);
 	if (RestCollection)
@@ -597,7 +638,7 @@ FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWith
 		auto GeometryCollectionPtr = RestCollection->GetGeometryCollection();
 
 		const int32 NumElements = GeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
-		if (NumElements == 0 || GlobalMatrices.Num() != RestCollection->NumElements(FGeometryCollection::TransformGroup))
+		if (NumElements == 0 || ComponentSpaceTransforms.Num() != RestCollection->NumElements(FGeometryCollection::TransformGroup))
 		{
 			// #todo(dmp): we could do the bbox transform in parallel with a bit of reformulating		
 			// #todo(dmp):  there are some cases where the calcbounds function is called before the component
@@ -608,21 +649,21 @@ FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWith
 			const TManagedArray<FTransform>& Transforms = GetTransformArray();
 			const TManagedArray<int32>& ParentIndices = GetParentArray();
 
-			TArray<FMatrix> TmpGlobalMatrices;
-			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
-			if (TmpGlobalMatrices.Num() == 0)
+			TArray<FTransform> TmpComponentSpaceTransforms;
+			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpComponentSpaceTransforms);
+			if (TmpComponentSpaceTransforms.Num() == 0)
 			{
 				BoundingBox = FBox(ForceInitToZero);
 			}
 			else
 			{
-				UpdateGlobalMatricesWithExplodedVectors(TmpGlobalMatrices, *GeometryCollectionPtr);
-				BoundingBox = ComputeBoundsFromGlobalMatrices(LocalToWorldWithScale, TmpGlobalMatrices);
+				UpdateGlobalMatricesWithExplodedVectors(TmpComponentSpaceTransforms, *GeometryCollectionPtr);
+				BoundingBox = ComputeBoundsFromComponentSpaceTransforms(LocalToWorldWithScale, TmpComponentSpaceTransforms);
 			}
 		}
 		else
 		{
-			BoundingBox = ComputeBoundsFromGlobalMatrices(LocalToWorldWithScale, GlobalMatrices);
+			BoundingBox = ComputeBoundsFromComponentSpaceTransforms(LocalToWorldWithScale, ComponentSpaceTransforms);
 		}
 	}
 	return BoundingBox;
@@ -648,7 +689,7 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 		
 		if (NeedBoundsUpdate)
 		{
-			ComponentSpaceBounds = ComputeBounds(FMatrix::Identity);
+			ComponentSpaceBounds = ComputeBounds(FTransform::Identity);
 		}
 		else
 		{
@@ -658,8 +699,7 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 		return ComponentSpaceBounds.TransformBy(LocalToWorldIn);
 	}
 
-	const FMatrix LocalToWorldWithScale = LocalToWorldIn.ToMatrixWithScale();
-	return FBoxSphereBounds(ComputeBounds(LocalToWorldWithScale));
+	return FBoxSphereBounds(ComputeBounds(LocalToWorldIn));
 }
 
 int32 UGeometryCollectionComponent::GetNumElements(FName Group) const
@@ -683,7 +723,7 @@ void UGeometryCollectionComponent::SetDamageThreshold(const TArray<float>& InDam
 
 void UGeometryCollectionComponent::UpdateCachedBounds()
 {
-	ComponentSpaceBounds = ComputeBounds(FMatrix::Identity);
+	ComponentSpaceBounds = ComputeBounds(FTransform::Identity);
 	CalculateLocalBounds();
 	UpdateBounds();
 }
@@ -1141,7 +1181,7 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 	}
 
 	const TManagedArray<int32>& ExemplarIndexArray = GetExemplarIndexArray();
-	const int32 TransformCount = GlobalMatrices.Num();
+	const int32 TransformCount = ComponentSpaceTransforms.Num();
 	if (!ensureMsgf(TransformCount == ExemplarIndexArray.Num(), TEXT("GlobalMatrices (Num=%d) cached on GeometryCollectionComponent are not in sync with ExemplarIndexArray (Num=%d) on underlying GeometryCollection; likely missed a dynamic data update"), TransformCount, ExemplarIndexArray.Num()))
 	{
 		return;
@@ -1174,7 +1214,7 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 			{
 				if (!HideArray || !(*HideArray)[Idx])
 				{ 
-					InstanceTransforms.Add(FTransform(GlobalMatrices[Idx]));
+					InstanceTransforms.Add(ComponentSpaceTransforms[Idx]);
 #if WITH_EDITOR
 					int32 InstanceIndex = EmbeddedBoneMaps[ExemplarIndex].Add(Idx);
 					EmbeddedInstanceIndex[Idx] = InstanceIndex;
@@ -1247,9 +1287,9 @@ void UGeometryCollectionComponent::SetRestState(TArray<FTransform>&& InRestTrans
 	}
 
 	FGeometryCollectionDynamicData* DynamicData = GDynamicDataPool.Allocate();
-	DynamicData->SetPrevTransforms(GlobalMatrices);
+	DynamicData->SetPrevTransforms(ComponentSpaceTransforms);
 	CalculateGlobalMatrices();
-	DynamicData->SetTransforms(GlobalMatrices);
+	DynamicData->SetTransforms(ComponentSpaceTransforms);
 	DynamicData->IsDynamic = true;
 
 	if (SceneProxy)
@@ -1317,7 +1357,7 @@ void UGeometryCollectionComponent::GetResourceSizeEx(FResourceSizeEx& Cumulative
 		+ RestTransforms.GetAllocatedSize()
 		+ DisabledFlags.GetAllocatedSize()
 		+ CollisionProfilePerLevel.GetAllocatedSize()
-		+ GlobalMatrices.GetAllocatedSize()
+		+ ComponentSpaceTransforms.GetAllocatedSize()
 		+ EventsPlayed.GetAllocatedSize()
 		+ CopyOnWriteAttributeList.GetAllocatedSize()
 		+ EmbeddedGeometryComponents.GetAllocatedSize()
@@ -2169,17 +2209,17 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 		DynamicData->IsLoading = GetIsObjectLoading();
 
 		// If we have no transforms stored in the dynamic data, then assign both prev and current to the same global matrices
-		if (GlobalMatrices.Num() == 0)
+		if (ComponentSpaceTransforms.Num() == 0)
 		{
 			// Copy global matrices over to DynamicData
 			CalculateGlobalMatrices();
 
-			DynamicData->SetAllTransforms(GlobalMatrices);
+			DynamicData->SetAllTransforms(ComponentSpaceTransforms);
 		}
 		else
 		{
 			// Copy existing global matrices into prev transforms
-			DynamicData->SetPrevTransforms(GlobalMatrices);
+			DynamicData->SetPrevTransforms(ComponentSpaceTransforms);
 
 			// Copy global matrices over to DynamicData
 			CalculateGlobalMatrices();
@@ -2187,14 +2227,14 @@ FGeometryCollectionDynamicData* UGeometryCollectionComponent::InitDynamicData(bo
 			bool bComputeChanges = true;
 
 			// if the number of matrices has changed between frames, then sync previous to current
-			if (GlobalMatrices.Num() != DynamicData->PrevTransforms.Num())
+			if (ComponentSpaceTransforms.Num() != DynamicData->PrevTransforms.Num())
 			{
-				DynamicData->SetPrevTransforms(GlobalMatrices);
-				DynamicData->ChangedCount = GlobalMatrices.Num();
+				DynamicData->SetPrevTransforms(ComponentSpaceTransforms);
+				DynamicData->ChangedCount = ComponentSpaceTransforms.Num();
 				bComputeChanges = false; // Optimization to just force all transforms as changed and skip comparison
 			}
 
-			DynamicData->SetTransforms(GlobalMatrices);
+			DynamicData->SetTransforms(ComponentSpaceTransforms);
 
 			// The number of transforms for current and previous should match now
 			check(DynamicData->PrevTransforms.Num() == DynamicData->Transforms.Num());
@@ -2289,9 +2329,9 @@ FTransform UGeometryCollectionComponent::GetSocketTransform(FName InSocketName, 
 		if (TransformIndex != INDEX_NONE)
 		{
 			
-			if (GlobalMatrices.IsValidIndex(TransformIndex))
+			if (ComponentSpaceTransforms.IsValidIndex(TransformIndex))
 			{
-				const FTransform BoneComponentSpaceTransform = FTransform(GlobalMatrices[TransformIndex]);
+				const FTransform BoneComponentSpaceTransform = ComponentSpaceTransforms[TransformIndex];
 				switch (TransformSpace)
 				{
 				case RTS_World:
@@ -2314,9 +2354,9 @@ FTransform UGeometryCollectionComponent::GetSocketTransform(FName InSocketName, 
 					{
 						const int32 ParentTransformIndex = Collection->Parent[TransformIndex];
 						FTransform ParentComponentSpaceTransform{ FTransform::Identity };
-						if (GlobalMatrices.IsValidIndex(ParentTransformIndex))
+						if (ComponentSpaceTransforms.IsValidIndex(ParentTransformIndex))
 						{
-							ParentComponentSpaceTransform = FTransform(GlobalMatrices[ParentTransformIndex]);
+							ParentComponentSpaceTransform = ComponentSpaceTransforms[ParentTransformIndex];
 						}
 						return BoneComponentSpaceTransform.GetRelativeTransform(ParentComponentSpaceTransform);
 					}
@@ -2990,7 +3030,7 @@ void UGeometryCollectionComponent::UpdateRemovalIfNeeded()
 							ShrinkRadius = -AccumulatedSphere.W;
 						}
 
-						const FQuat LocalRotation = (InverseComponentTransform * FTransform(GlobalMatrices[Idx]).Inverse()).GetRotation();
+						const FQuat LocalRotation = (InverseComponentTransform * ComponentSpaceTransforms[Idx].Inverse()).GetRotation();
 						const FVector LocalDown = LocalRotation.RotateVector(FVector(0.f, 0.f, ShrinkRadius));
 						const FVector CenterOfMass = DynamicCollection->MassToLocal[Idx].GetTranslation();
 						const FVector ScaleCenter = LocalDown + CenterOfMass;
@@ -4160,17 +4200,17 @@ AChaosSolverActor* UGeometryCollectionComponent::GetPhysicsSolverActor() const
 void UGeometryCollectionComponent::CalculateLocalBounds()
 {
 	LocalBounds.Init();
-	LocalBounds = ComputeBounds(FMatrix::Identity);
+	LocalBounds = ComputeBounds(FTransform::Identity);
 }
 
-#define GEOMETRY_COLLECTION_CHECK_FOR_NANS_IN_MATRICES 0
+#define GEOMETRY_COLLECTION_CHECK_FOR_NANS_IN_TRANSFORMS 0
 
-#if GEOMETRY_COLLECTION_CHECK_FOR_NANS_IN_MATRICES
-static void CheckForNaNs(const TArray<FMatrix>& Matrices)
+#if GEOMETRY_COLLECTION_CHECK_FOR_NANS_IN_TRANSFORMS
+static void CheckForNaNs(const TArray<FTransform>& Transforms)
 {
-	for (const FMatrix& Matrix : Matrices)
+	for (const FTransform& Transform : Transforms)
 	{
-		ensureAlways(false == Matrix.ContainsNaN());
+		ensureAlways(false == Transform.ContainsNaN());
 	}
 }
 #endif
@@ -4185,8 +4225,8 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 	if(NumTransforms > 0)
 	{
 		// Just calc from results
-		GlobalMatrices.Reset();
-		GlobalMatrices.Append(Results->GlobalTransforms);	
+		ComponentSpaceTransforms.Reset();
+		ComponentSpaceTransforms.Append(Results->GlobalTransforms);
 	}
 	else
 	{
@@ -4198,20 +4238,20 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 
 		if (!DynamicCollection && RestTransforms.Num() > 0)
 		{
-			GeometryCollectionAlgo::GlobalMatrices(RestTransforms, GetParentArray(), GlobalMatrices);
+			GeometryCollectionAlgo::GlobalMatrices(RestTransforms, GetParentArray(), ComponentSpaceTransforms);
 		}
 		else
 		{
-			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);
+			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), ComponentSpaceTransforms);
 		}
 	}
 
 #if WITH_EDITOR
-	UpdateGlobalMatricesWithExplodedVectors(GlobalMatrices, *(RestCollection->GetGeometryCollection()));
+	UpdateGlobalMatricesWithExplodedVectors(ComponentSpaceTransforms, *(RestCollection->GetGeometryCollection()));
 #endif
 
-#if GEOMETRY_COLLECTION_CHECK_FOR_NANS_IN_MATRICES
-	CheckForNaNs(GlobalMatrices);
+#if GEOMETRY_COLLECTION_CHECK_FOR_NANS_IN_TRANSFORMS
+	CheckForNaNs(ComponentSpaceTransforms);
 #endif
 }
 
@@ -4439,11 +4479,11 @@ void UGeometryCollectionComponent::RefreshCustomRenderer()
 
 				if (bIsBroken)
 				{
-					RendererInterface->UpdateTransforms(*RestCollection, GlobalMatrices);
+					RendererInterface->UpdateTransforms(*RestCollection, ComponentSpaceTransforms);
 				}
 				else
 				{
-					const FTransform RootTransform = GlobalMatrices.IsValidIndex(RootIndex) ? FTransform(GlobalMatrices[RootIndex]) : FTransform::Identity;
+					const FTransform RootTransform = ComponentSpaceTransforms.IsValidIndex(RootIndex) ? ComponentSpaceTransforms[RootIndex] : FTransform::Identity;
 					RendererInterface->UpdateRootTransform(*RestCollection, RootTransform);
 				}
 			}
@@ -4868,9 +4908,9 @@ FTransform UGeometryCollectionComponent::GetRootCurrentTransform() const
 	if (RestCollection)
 	{
 		const int32 RootIndex = RestCollection->GetRootIndex();
-		if (GlobalMatrices.IsValidIndex(RootIndex))
+		if (ComponentSpaceTransforms.IsValidIndex(RootIndex))
 		{
-			RootInitialTransform = FTransform(GlobalMatrices[RootIndex]) * GetComponentTransform();
+			RootInitialTransform = ComponentSpaceTransforms[RootIndex] * GetComponentTransform();
 		}
 	}
 	return RootInitialTransform;
@@ -4942,6 +4982,18 @@ void UGeometryCollectionComponent::SetLocalRestTransforms(const TArray<FTransfor
 			SetRestState(MoveTemp(LocalTransforms));
 		}
 	}
+}
+
+TArray<FMatrix> UGeometryCollectionComponent::ComputeGlobalMatricesFromComponentSpaceTransforms() const
+{
+	TArray<FMatrix> ComponentSpaceMatrices;
+	ComponentSpaceMatrices.SetNumUninitialized(ComponentSpaceTransforms.Num());
+
+	for (int32 TransformIndex = 0; TransformIndex < ComponentSpaceTransforms.Num(); TransformIndex++)
+	{
+		ComponentSpaceMatrices[TransformIndex] = ComponentSpaceTransforms[TransformIndex].ToMatrixWithScale();
+	}
+	return ComponentSpaceMatrices;
 }
 
 void UGeometryCollectionComponent::GetMassAndExtents(int32 ItemIndex, float& OutMass, FBox& OutExtents)

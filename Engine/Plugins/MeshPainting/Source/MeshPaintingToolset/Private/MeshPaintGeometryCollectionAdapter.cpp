@@ -86,15 +86,15 @@ bool FMeshPaintGeometryCollectionComponentAdapter::InitializeVertexData()
 	const TManagedArray<int32>& BoneMap = Collection->BoneMap;
 	const TManagedArray<int32>& SimTypes = Collection->SimulationType;
 	const TManagedArray<bool>& Visible = Collection->Visible;
-	const TArray<FMatrix>& Matrices = GeometryCollectionComponent->GetGlobalMatrices();
+	const TArray<FTransform>& ComponentSpaceTransforms = GeometryCollectionComponent->GetComponentSpaceTransforms();
 	const int32 NumVertices = Vertices.Num();
 	MeshVertices.Reset();
 	MeshVertices.AddZeroed(NumVertices);
 	for (int32 Index = 0; Index < NumVertices; ++Index)
 	{
-		int32 BoneIndex = BoneMap[Index];
-		const FMatrix& Matrix = Matrices[BoneIndex];
-		const FVector Position = Matrix.TransformPosition((FVector)Vertices[Index]);
+		const int32 BoneIndex = BoneMap[Index];
+		const FTransform& Transform = ComponentSpaceTransforms[BoneIndex];
+		const FVector Position = Transform.TransformPosition((FVector)Vertices[Index]);
 		MeshVertices[Index] = Position;
 	}
 

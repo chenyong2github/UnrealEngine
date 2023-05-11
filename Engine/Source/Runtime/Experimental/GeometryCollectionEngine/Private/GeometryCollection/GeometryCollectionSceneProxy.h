@@ -48,7 +48,6 @@ public:
 	FShaderResourceViewRHIRef VertexBufferSRV;
 };
 
-
 inline void CopyTransformsWithConversionWhenNeeded(TArray<FMatrix44f>& DstTransforms, const TArray<FMatrix>& SrcTransforms)
 {
 	// LWC_TODO : we have no choice but to convert each element at this point to avoid changing GeometryCollectionAlgo::GlobalMatrices that is used all over the place
@@ -59,6 +58,15 @@ inline void CopyTransformsWithConversionWhenNeeded(TArray<FMatrix44f>& DstTransf
 	}
 }
 
+inline void CopyTransformsWithConversionWhenNeeded(TArray<FMatrix44f>& DstTransforms, const TArray<FTransform>& SrcTransforms)
+{
+	// LWC_TODO : we have no choice but to convert each element at this point to avoid changing GeometryCollectionAlgo::GlobalMatrices that is used all over the place
+	DstTransforms.SetNumUninitialized(SrcTransforms.Num());
+	for (int TransformIndex = 0; TransformIndex < SrcTransforms.Num(); ++TransformIndex)
+	{
+		DstTransforms[TransformIndex] = FTransform3f(SrcTransforms[TransformIndex]).ToMatrixWithScale(); // LWC_TODO: Perf pessimization
+	}
+}
 
 /** Mutable rendering data */
 struct FGeometryCollectionDynamicData
@@ -82,19 +90,43 @@ struct FGeometryCollectionDynamicData
 		IsLoading = false;
 	}
 
+	UE_DEPRECATED(5.3, "Use FTransform version of SetTransforms instead")
 	void SetTransforms(const TArray<FMatrix>& InTransforms)
 	{
 		// use for LWC as FMatrix and FMatrix44f are different when LWC is on 
 		CopyTransformsWithConversionWhenNeeded(Transforms, InTransforms);
 	}
 
+	void SetTransforms(const TArray<FTransform>& InTransforms)
+	{
+		// use for LWC as FMatrix and FMatrix44f are different when LWC is on 
+		CopyTransformsWithConversionWhenNeeded(Transforms, InTransforms);
+	}
+
+	UE_DEPRECATED(5.3, "Use FTransform version of SetPrevTransforms instead")
 	void SetPrevTransforms(const TArray<FMatrix>& InTransforms)
 	{
 		// use for LWC as FMatrix and FMatrix44f are different when LWC is on 
 		CopyTransformsWithConversionWhenNeeded(PrevTransforms, InTransforms);
 	}
 
+	void SetPrevTransforms(const TArray<FTransform>& InTransforms)
+	{
+		// use for LWC as FMatrix and FMatrix44f are different when LWC is on 
+		CopyTransformsWithConversionWhenNeeded(PrevTransforms, InTransforms);
+	}
+
+	UE_DEPRECATED(5.3, "Use FTransform version of SetAllTransforms instead")
 	void SetAllTransforms(const TArray<FMatrix>& InTransforms)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		SetTransforms(InTransforms);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		PrevTransforms = Transforms;
+		ChangedCount = Transforms.Num();
+	}
+
+	void SetAllTransforms(const TArray<FTransform>& InTransforms)
 	{
 		SetTransforms(InTransforms);
 		PrevTransforms = Transforms;

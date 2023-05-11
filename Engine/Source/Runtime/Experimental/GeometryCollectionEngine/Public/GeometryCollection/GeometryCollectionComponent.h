@@ -1050,7 +1050,10 @@ public:
 	void SetInitialClusterBreaks(const TArray<int32>& ReleaseIndices);
 
 	/** Used by Niagara DI to query global matrices rather than recalculating them again */
-	const TArray<FMatrix>& GetGlobalMatrices() { return GlobalMatrices; }
+	UE_DEPRECATED(5.3, "Use GetComponentSpaceTransforms instead")
+	TArray<FMatrix> GetGlobalMatrices() { return ComputeGlobalMatricesFromComponentSpaceTransforms(); }
+
+	const TArray<FTransform> GetComponentSpaceTransforms() { return ComponentSpaceTransforms; }
 
 	const FGeometryDynamicCollection* GetDynamicCollection() const;
 	FGeometryDynamicCollection* GetDynamicCollection();  // TEMP HACK?
@@ -1152,8 +1155,16 @@ protected:
 	Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent);
 	void CalculateLocalBounds();
 	void CalculateGlobalMatrices();
+	
+	UE_DEPRECATED(5.3, "Use ComputeBoundsFromComponentSpaceTransforms instead")
 	FBox ComputeBoundsFromGlobalMatrices(const FMatrix& LocalToWorldWithScale, const TArray<FMatrix>& GlobalMatricesArray) const;
+
+	FBox ComputeBoundsFromComponentSpaceTransforms(const FTransform& LocalToWorldWithScale, const TArray<FTransform>& ComponentSpaceTransformsArray) const;
+
+	UE_DEPRECATED(5.3, "Use FTransform version of ComputeBounds instead")
 	FBox ComputeBounds(const FMatrix& LocalToWorldWithScale) const;
+
+	FBox ComputeBounds(const FTransform& LocalToWorldWithScale) const;
 
 	void RegisterForEvents();
 	void UpdateRBCollisionEventRegistration();
@@ -1261,7 +1272,11 @@ private:
 	TArray<int32> HighlightedBones;
 #endif
 
+	UE_DEPRECATED(5.3, "Use ComponentSpaceTransforms instead")
 	TArray<FMatrix> GlobalMatrices;
+
+	TArray<FTransform> ComponentSpaceTransforms;
+
 	FBox LocalBounds;
 
 	mutable FBoxSphereBounds ComponentSpaceBounds;
@@ -1338,6 +1353,9 @@ private:
 	void OnPostPhysicsSync();
 
 	bool HasVisibleGeometry() const;
+
+	/** backward compatibility method, until we can remove GlobalMatrices */
+	TArray<FMatrix> ComputeGlobalMatricesFromComponentSpaceTransforms() const;
 
 	/** The clusters we need to replicate */
 	TUniquePtr<TSet<Chaos::FPBDRigidClusteredParticleHandle*>> ClustersToRep;

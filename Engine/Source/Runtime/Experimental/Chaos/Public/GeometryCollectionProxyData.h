@@ -301,7 +301,7 @@ public:
 
 	Chaos::FReal SolverDt;
 	TArray<FState> States;
-	TArray<FMatrix> GlobalTransforms;
+	TArray<FTransform> GlobalTransforms;
 	TArray<Chaos::FVec3> ParticleXs;
 	TArray<Chaos::FRotation3> ParticleRs;
 	TArray<Chaos::FVec3> ParticleVs;
