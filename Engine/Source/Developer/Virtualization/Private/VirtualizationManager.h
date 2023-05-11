@@ -321,6 +321,8 @@ private:
 	/** An additional error message to display when pulling payloads fails */
 	FString PullErrorAdditionalMsg;
 
+	/** Optional url used to augment connection failure error messages */
+	static FString ConnectionHelpUrl;
 private:
 
 	/** The name of the current project */
@@ -385,6 +387,13 @@ private:
 		/** The number of upcoming payload pulls that should be failed */
 		std::atomic<int32> MissCount = 0;
 	} DebugValues;
+
+public:
+	/**
+	 * Temp accessor for backends until we add a better system for connection failure notification. Note that
+	 * this is not exposed outside of the module so that we can change/remove this easily in the future.
+	 */
+	static FString GetConnectionHelpUrl();
 };
 
 } // namespace UE::Virtualization

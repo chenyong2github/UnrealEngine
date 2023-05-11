@@ -8,6 +8,7 @@
 #include "IO/IoHash.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
+#include "Interfaces/IPluginManager.h"
 #include "Logging/MessageLog.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
@@ -16,9 +17,9 @@
 #include "Misc/ScopeExit.h"
 #include "SourceControlInitSettings.h"
 #include "SourceControlOperations.h"
+#include "VirtualizationManager.h"
 #include "VirtualizationSourceControlUtilities.h"
 #include "VirtualizationUtilities.h"
-#include "Interfaces/IPluginManager.h"
 
 // When the SourceControl module (or at least the perforce source control module) is thread safe we
 // can enable this and stop using the hacky work around 'TryToDownloadFileFromBackgroundThread'
@@ -1112,48 +1113,61 @@ void FSourceControlBackend::OnConnectionError(FText Message)
 	// GameThread and at a point where notification will work. In addition if we do need
 	// to defer the error message until next tick (rather than just the notification) then
 	// we will write it to the log at the point it is raised rather than the point it is
-	// defered to in an attempt to make the log more readable.
-	if (!Message.IsEmpty())
-	{
-		if (::IsInGameThread())
-		{
-			// If we are on the game thread we can post the error message immediately
-			FMessageLog Log("LogVirtualization");
-			Log.Error(Message);
+	// deferred to in an attempt to make the log more readable.
 
-			// Clear the message so we don't log it a second time
-			Message = FText();
-		}
-		else
-		{
-			// We can only send a FMessageLog on the GameThread so for now just log the error
-			// and we can send it to the FMessageLog system next tick
-			UE_LOG(LogVirtualization, Error, TEXT("%s"), *Message.ToString());
-		}
+	if (Message.IsEmpty())
+	{
+		return;
 	}
 
-	if (!bSuppressNotifications || !Message.IsEmpty())
+	TSharedRef<FTokenizedMessage> TokenizedMsg = FTokenizedMessage::Create(EMessageSeverity::Error);
+	TokenizedMsg->AddToken(FTextToken::Create(Message));
+
+	FString ConnectionHelpUrl = FVirtualizationManager::GetConnectionHelpUrl();
+	if (!ConnectionHelpUrl.IsEmpty())
 	{
-		auto Callback = [Message, bShouldNotify = bSuppressNotifications](float Delta)->bool
+		TokenizedMsg->AddToken(FURLToken::Create(ConnectionHelpUrl, LOCTEXT("URL", "Additional connection help")));
+	}
+
+	if (::IsInGameThread())
+	{
+		// If we are on the game thread we can post the error message immediately
+		FMessageLog Log("LogVirtualization");
+		Log.AddMessage(TokenizedMsg);
+	}
+	else
+	{
+		// We can only send a FMessageLog on the GameThread so for now just log the error
+		// and we can send it to the FMessageLog system next tick
+		UE_LOG(LogVirtualization, Error, TEXT("%s"), *Message.ToString());
+
+		auto Callback = [TokenizedMsg, bShouldNotify = !bSuppressNotifications](float Delta)->bool
 		{
 			FMessageLog Log("LogVirtualization");
 			Log.SuppressLoggingToOutputLog();
+			Log.AddMessage(TokenizedMsg);
 
-			if (!Message.IsEmpty())
-			{
-				Log.Error(Message);
-			}
-
-			if (!bShouldNotify)
-			{
-				Log.Notify(LOCTEXT("ConnectionError", "Asset virtualization connection errors were encountered, see the message log for more info"));
-			}
-
-			// This tick callback is one shot, so return false to prevent it being invoked again
 			return false;
-		}; 
-	
+		};
+
 		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(MoveTemp(Callback)));
+	}
+
+	if (!bSuppressNotifications)
+	{
+		// Add the notification to the ticker so that if this is called during editor startup it will only
+		// be issued on the first frame, increasing the chance that the user will see it.
+		auto NotificationCallback = [](float Delta)->bool
+			{
+				FMessageLog Notification("LogVirtualization");;
+				Notification.SuppressLoggingToOutputLog();
+
+				Notification.Notify(LOCTEXT("ConnectionError", "Asset virtualization connection errors were encountered, see the message log for more info"));
+
+				return false;
+			};
+
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(MoveTemp(NotificationCallback)));
 	}
 }
 

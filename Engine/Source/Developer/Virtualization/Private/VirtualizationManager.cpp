@@ -481,6 +481,8 @@ namespace Profiling
 #endif // ENABLE_COOK_STATS
 } //namespace Profiling
 
+FString FVirtualizationManager::ConnectionHelpUrl;
+
 FVirtualizationManager::FVirtualizationManager()
 	: bAllowPackageVirtualization(true)
 	, CachingPolicy(ECachingPolicy::AlwaysCache)
@@ -1133,6 +1135,11 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 	{
 		ConfigFile.GetString(ConfigSection, TEXT("PullErrorAdditionalMsg"), PullErrorAdditionalMsg);
 		// This value is not echoed to the log file, as seeing an error string there might confuse users
+	}
+	
+	{
+		ConfigFile.GetString(ConfigSection, TEXT("ConnectionHelpUrl"), ConnectionHelpUrl);
+		// This value is not echoed to the log file
 	}
 
 	{
@@ -2195,6 +2202,11 @@ void FVirtualizationManager::GatherAnalytics(TArray<FAnalyticsEventAttribute>& A
 			Attributes.Emplace(MoveTemp(AttrName), (double)PayloadActivityInfo.Pull.TotalBytes);
 		}
 	}
+}
+
+FString FVirtualizationManager::GetConnectionHelpUrl()
+{
+	return ConnectionHelpUrl;
 }
 
 } // namespace UE::Virtualization
