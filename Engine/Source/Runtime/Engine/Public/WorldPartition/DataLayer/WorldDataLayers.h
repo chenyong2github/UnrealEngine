@@ -179,7 +179,7 @@ private:
 	void DumpDataLayerRecursively(const UDataLayerInstance* DataLayer, FString Prefix, FOutputDevice& OutputDevice) const;
 
 #if WITH_EDITOR
-	virtual bool ActorTypeShouldSkipFromLevelInstance() const override { return true; }
+	virtual bool ActorTypeIsMainWorldOnly() const override { return true; }
 
 	void ConvertDataLayerToInstancces();
 	void UpdateContainsDeprecatedDataLayers();

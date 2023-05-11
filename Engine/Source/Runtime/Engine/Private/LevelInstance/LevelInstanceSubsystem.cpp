@@ -1351,7 +1351,7 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ILevelInstanceInterface* L
 			// Skip some actor types
 			if ((Actor != Actor->GetLevel()->GetDefaultBrush()) &&
 				!Actor->IsA<AWorldSettings>() &&
-				!Actor->ShouldSkipFromLevelInstance())
+				!Actor->IsMainWorldOnly())
 			{
 				if (CanMoveActorToLevel(Actor))
 				{

@@ -316,6 +316,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Don't serialize class descriptor GUIDs
 		WorldPartitionClasDescGuidTransient,
 
+		// Serialize ActorDesc bIsMainWorldOnly
+		WorldPartitionActorDescIsMainWorldOnly,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

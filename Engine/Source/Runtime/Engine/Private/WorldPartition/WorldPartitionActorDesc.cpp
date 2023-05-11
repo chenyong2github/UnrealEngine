@@ -91,6 +91,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	bActorIsEditorOnly = InActor->IsEditorOnly();
 	bActorIsRuntimeOnly = InActor->IsRuntimeOnly();
 	bActorIsHLODRelevant = InActor->IsHLODRelevant();
+	bActorIsMainWorldOnly = InActor->bIsMainWorldOnly;
 	HLODLayer = InActor->GetHLODLayer() ? FSoftObjectPath(InActor->GetHLODLayer()->GetPathName()) : FSoftObjectPath();
 	
 	// DataLayers
@@ -257,6 +258,7 @@ bool FWorldPartitionActorDesc::Equals(const FWorldPartitionActorDesc* Other) con
 		bIsSpatiallyLoaded == Other->bIsSpatiallyLoaded &&
 		bActorIsEditorOnly == Other->bActorIsEditorOnly &&
 		bActorIsRuntimeOnly == Other->bActorIsRuntimeOnly &&
+		bActorIsMainWorldOnly == Other->bActorIsMainWorldOnly &&
 		bActorIsHLODRelevant == Other->bActorIsHLODRelevant &&
 		bIsUsingDataLayerAsset == Other->bIsUsingDataLayerAsset &&
 		HLODLayer == Other->HLODLayer &&
@@ -281,6 +283,7 @@ bool FWorldPartitionActorDesc::ShouldResave(const FWorldPartitionActorDesc* Othe
 		bIsSpatiallyLoaded != Other->bIsSpatiallyLoaded ||
 		bActorIsEditorOnly != Other->bActorIsEditorOnly ||
 		bActorIsRuntimeOnly != Other->bActorIsRuntimeOnly ||
+		bActorIsMainWorldOnly != Other->bActorIsMainWorldOnly ||
 		bIsBoundsValid != Other->bIsBoundsValid ||
 		HLODLayer != Other->HLODLayer ||
 		ParentActor != Other->ParentActor ||
@@ -395,7 +398,7 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 		}
 
 		Result.Appendf(
-			TEXT(" BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s RuntimeOnly:%s HLODRelevant:%s"),
+			TEXT(" BaseClass:%s NativeClass:%s Name:%s Label:%s SpatiallyLoaded:%s Bounds:%s RuntimeGrid:%s EditorOnly:%s RuntimeOnly:%s HLODRelevant:%s IsMainWorldOnly:%s"),
 			*BaseClass.ToString(), 
 			*NativeClass.ToString(), 
 			*GetActorName().ToString(),
@@ -405,7 +408,8 @@ FString FWorldPartitionActorDesc::ToString(EToStringMode Mode) const
 			*RuntimeGrid.ToString(),
 			GetBoolStr(bActorIsEditorOnly),
 			GetBoolStr(bActorIsRuntimeOnly),
-			GetBoolStr(bActorIsHLODRelevant)
+			GetBoolStr(bActorIsHLODRelevant),
+			GetBoolStr(IsMainWorldOnly())
 		);
 
 		if (ParentActor.IsValid())
@@ -660,6 +664,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 
+	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorDescIsMainWorldOnly)
+	{
+		Ar << TDeltaSerialize<bool>(bActorIsMainWorldOnly);
+	}
+
 	// Fixup redirected data layer asset paths
 	if (Ar.IsLoading() && bIsUsingDataLayerAsset)
 	{
@@ -722,6 +731,11 @@ void FWorldPartitionActorDesc::CheckForErrors(IStreamingGenerationErrorHandler* 
 	}
 }
 
+bool FWorldPartitionActorDesc::IsMainWorldOnly() const
+{
+	return bActorIsMainWorldOnly || CastChecked<AActor>(ActorNativeClass->GetDefaultObject())->IsMainWorldOnly();
+}
+
 bool FWorldPartitionActorDesc::IsEditorRelevant() const
 {
 	if (GetActorIsRuntimeOnly())
@@ -729,7 +743,7 @@ bool FWorldPartitionActorDesc::IsEditorRelevant() const
 		return false;
 	}
 
-	if (CastChecked<AActor>(ActorNativeClass->GetDefaultObject())->ShouldSkipFromLevelInstance())
+	if (IsMainWorldOnly())
 	{
 		return GetContainer() && !GetContainer()->IsTemplateContainer() && GetContainer()->GetWorldPartition()->IsMainWorldPartition();
 	}
@@ -739,7 +753,7 @@ bool FWorldPartitionActorDesc::IsEditorRelevant() const
 
 bool FWorldPartitionActorDesc::IsRuntimeRelevant(const FActorContainerID& InContainerID) const
 {
-	return InContainerID.IsMainContainer() || !CastChecked<AActor>(ActorNativeClass->GetDefaultObject())->ShouldSkipFromLevelInstance();
+	return InContainerID.IsMainContainer() || !IsMainWorldOnly();
 }
 
 bool FWorldPartitionActorDesc::IsLoaded(bool bEvenIfPendingKill) const

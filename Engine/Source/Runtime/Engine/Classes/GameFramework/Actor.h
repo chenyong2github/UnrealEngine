@@ -294,6 +294,11 @@ private:
 	 */
 	UPROPERTY(Transient)
 	uint8 bIsInEditingLevelInstance:1;
+
+public:
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = LevelInstance, meta = (Tooltip = "If checked, this Actor will only get loaded in a main world (persistent level), it will not be loaded through Level Instances."))
+	uint8 bIsMainWorldOnly : 1;
+private:
 #endif
 
 	/** If true, PreReplication will be called on this actor before each potential replication. */
@@ -961,9 +966,10 @@ public:
 	virtual bool ShouldLevelKeepRefIfExternal() const { return false; }
 
 	/**
-	 * Whether this actor should be ignored when it is loaded from a level instance
+	 * Whether this actor should be ignored when it is not loaded as part of the Main World (Persistent Level).
+	 * eg. Will not be loaded through Level Instances.
 	 */
-	bool ShouldSkipFromLevelInstance() const;
+	bool IsMainWorldOnly() const;
 
 	FActorOnPackagingModeChanged OnPackagingModeChanged;
 
@@ -1265,7 +1271,7 @@ public:
 #if WITH_EDITOR
 private:
 	virtual bool ActorTypeSupportsDataLayer() const { return true; }
-	virtual bool ActorTypeShouldSkipFromLevelInstance() const { return false; }
+	virtual bool ActorTypeIsMainWorldOnly() const { return false; }
 	TArray<const UDataLayerAsset*> ResolveDataLayerAssets(const TArray<TSoftObjectPtr<UDataLayerAsset>>& InDataLayerAssets) const;
 public:
 	bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);

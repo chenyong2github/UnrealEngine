@@ -83,8 +83,9 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 	const bool bIsRuntimeGridProperty = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, RuntimeGrid);
 	const bool bIsDataLayersProperty = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, DataLayerAssets);
 	const bool bIsHLODLayerProperty = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, HLODLayer);
+	const bool bIsMainWorldOnlyProperty = PropertyThatWillChange->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, bIsMainWorldOnly);
 
-	if (bIsSpatiallyLoadedProperty || bIsRuntimeGridProperty || bIsDataLayersProperty || bIsHLODLayerProperty)
+	if (bIsSpatiallyLoadedProperty || bIsRuntimeGridProperty || bIsDataLayersProperty || bIsHLODLayerProperty || bIsMainWorldOnlyProperty)
 	{
 		if (!IsTemplate())
 		{
@@ -1040,15 +1041,20 @@ void AActor::SetHLODLayer(class UHLODLayer* InHLODLayer)
 	HLODLayer = InHLODLayer;
 }
 
-bool AActor::ShouldSkipFromLevelInstance() const
+bool AActor::IsMainWorldOnly() const
 {
+	if (bIsMainWorldOnly)
+	{
+		return true;
+	}
+	
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		return ActorTypeShouldSkipFromLevelInstance();
+		return ActorTypeIsMainWorldOnly();
 	}
 	else
 	{
-		return CastChecked<AActor>(GetClass()->GetDefaultObject())->ShouldSkipFromLevelInstance();
+		return CastChecked<AActor>(GetClass()->GetDefaultObject())->IsMainWorldOnly();
 	}
 }
 

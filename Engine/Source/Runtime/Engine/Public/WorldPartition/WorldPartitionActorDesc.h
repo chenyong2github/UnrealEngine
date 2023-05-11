@@ -268,6 +268,7 @@ public:
 	using FActorDescDeprecator = TFunction<void(FArchive&, FWorldPartitionActorDesc*)>;
 	static void RegisterActorDescDeprecator(TSubclassOf<AActor> ActorClass, const FActorDescDeprecator& Deprecator);
 
+	bool IsMainWorldOnly() const;
 protected:
 	FWorldPartitionActorDesc();
 
@@ -296,6 +297,7 @@ protected:
 	bool							bIsSpatiallyLoaded;
 	bool							bActorIsEditorOnly;
 	bool							bActorIsRuntimeOnly;
+	bool							bActorIsMainWorldOnly;
 	bool							bActorIsHLODRelevant;
 	bool							bIsUsingDataLayerAsset; // Used to know if DataLayers array represents DataLayers Asset paths or the FNames of the deprecated version of Data Layers
 	bool							bIsBoundsValid;

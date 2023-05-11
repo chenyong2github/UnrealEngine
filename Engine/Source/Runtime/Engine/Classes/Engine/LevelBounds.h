@@ -108,6 +108,6 @@ protected:
 	FDelegateHandle OnLevelActorAddedDelegateHandle;
 
 private:
-	virtual bool ActorTypeShouldSkipFromLevelInstance() const override { return true; }
+	virtual bool ActorTypeIsMainWorldOnly() const override { return true; }
 #endif
 };
