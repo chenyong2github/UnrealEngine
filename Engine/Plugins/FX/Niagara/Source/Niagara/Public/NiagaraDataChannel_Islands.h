@@ -27,6 +27,8 @@ USTRUCT()
 struct FNDCIsland
 {
 	GENERATED_BODY()
+
+	UE_NONCOPYABLE(FNDCIsland)
 public:
 
 	FNDCIsland();
@@ -74,11 +76,6 @@ private:
 	
 	/** Publish requests from game code/BP or other Niagara Systems wishing to write data into the data channel for this island. */
 	TArray<FNiagaraDataChannelPublishRequest> PublishRequests;
- 
- 	FNDCIsland(const FNDCIsland&) = delete;
- 	FNDCIsland& operator=(const FNDCIsland&) = delete;
- 	FNDCIsland(const FNDCIsland&&) = delete;
- 	FNDCIsland& operator=(const FNDCIsland&&) = delete;
 };
 
 template<>
@@ -87,8 +84,8 @@ struct TStructOpsTypeTraits<FNDCIsland> : public TStructOpsTypeTraitsBase2<FNDCI
 	enum{ WithCopy = false };
 };
 
-UCLASS(Experimental, MinimalAPI)
-class UNiagaraDataChannel_Islands : public UNiagaraDataChannel
+UCLASS(Experimental)
+class NIAGARA_API UNiagaraDataChannel_Islands : public UNiagaraDataChannel
 {
 	GENERATED_BODY()
 
@@ -139,7 +136,7 @@ public:
 };
 
 UCLASS(Experimental, BlueprintType)
-class UNiagaraDataChannelHandler_Islands : public UNiagaraDataChannelHandler
+class NIAGARA_API UNiagaraDataChannelHandler_Islands : public UNiagaraDataChannelHandler
 {
 	GENERATED_UCLASS_BODY()
 

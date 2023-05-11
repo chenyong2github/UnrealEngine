@@ -8,7 +8,7 @@
 
 
 UCLASS(Experimental)
-class UNiagaraDataChannel_Global : public UNiagaraDataChannel
+class NIAGARA_API UNiagaraDataChannel_Global : public UNiagaraDataChannel
 {
 	GENERATED_BODY()
 
@@ -19,7 +19,7 @@ class UNiagaraDataChannel_Global : public UNiagaraDataChannel
 Basic DataChannel handler that makes all data visible globally.
 */
 UCLASS(Experimental, BlueprintType)
-class UNiagaraDataChannelHandler_Global : public UNiagaraDataChannelHandler
+class NIAGARA_API UNiagaraDataChannelHandler_Global : public UNiagaraDataChannelHandler
 {
 	GENERATED_UCLASS_BODY()
 
