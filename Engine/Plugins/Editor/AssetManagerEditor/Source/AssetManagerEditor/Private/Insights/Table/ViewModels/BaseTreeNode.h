@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Math/Color.h"
+#include "Templates/Function.h"
 
 #include "Insights/Common/SimpleRtti.h"
 
@@ -85,7 +86,7 @@ public:
 	}
 
 	/**
-	 * @return a name of this node.
+	 * @returns a name of this node.
 	 */
 	const FName& GetName() const
 	{
@@ -93,19 +94,22 @@ public:
 	}
 
 	/**
-	 * @return a name of this node to display in tree view.
+	 * @returns a name of this node to display in tree view.
 	 */
 	virtual const FText GetDisplayName() const;
 
 	/**
-	 * @return a name suffix for this node to display in tree view. Ex.: group nodes may include additional info, like the number of visible / total children.
+	 * @returns a name suffix for this node to display in tree view. Ex.: group nodes may include additional info, like the number of visible / total children.
 	 */
 	virtual const FText GetExtraDisplayName() const;
 
+	/**
+	 * @returns true if the node has an extra display name (a name suffix to display in tree view).
+	 */
 	virtual bool HasExtraDisplayName() const;
 
 	/**
-	 * @return a descriptive text for this node to display in a tooltip.
+	 * @returns a descriptive text for this node to display in a tooltip.
 	 */
 	virtual const FText GetTooltip() const
 	{
@@ -124,12 +128,12 @@ public:
 	}
 
 	/**
-	 * @return the default icon for a group/leaf node.
+	 * @returns the default icon for a group/leaf node.
 	 */
 	static const FSlateBrush* GetDefaultIcon(bool bIsGroupNode);
 
 	/**
-	 * @return a brush icon for this node.
+	 * @returns a brush icon for this node.
 	 */
 	virtual const FSlateBrush* GetIcon() const
 	{
@@ -137,12 +141,12 @@ public:
 	}
 
 	/**
-	 * @return the default color tint for a group/leaf node.
+	 * @returns the default color tint for a group/leaf node.
 	 */
 	static FLinearColor GetDefaultColor(bool bIsGroupNode);
 
 	/**
-	 * @return the color tint to be used for the icon and the name text of this node.
+	 * @returns the color tint to be used for the icon and the name text of this node.
 	 */
 	virtual FLinearColor GetColor() const
 	{
@@ -150,7 +154,7 @@ public:
 	}
 
 	/**
-	 * @return a pointer to a data context for this node.
+	 * @returns a pointer to a data context for this node. Only available for group nodes.
 	 */
 	virtual void* GetContext() const
 	{
@@ -158,7 +162,7 @@ public:
 	}
 
 	/**
-	 * Sets a pointer to a data context for this node.
+	 * Sets a pointer to a data context for this node. Only available for group nodes.
 	 */
 	virtual void SetContext(void* InContext)
 	{
@@ -169,7 +173,7 @@ public:
 	}
 
 	/**
-	 * @return true, if this node is a group node.
+	 * @returns true if this node is a group node.
 	 */
 	bool IsGroup() const
 	{
@@ -188,23 +192,67 @@ public:
 	}
 
 	/**
-	 * @return a const reference to the child nodes of this group.
+	 * @returns the number of children nodes.
 	 */
-	FORCEINLINE_DEBUGGABLE const TArray<FBaseTreeNodePtr>& GetChildren() const
+	int32 GetChildrenCount() const
+	{
+		return GroupData->Children.Num();
+	}
+
+	/**
+	 * @returns the number of filtered children nodes.
+	 */
+	int32 GetFilteredChildrenCount() const
+	{
+		return GroupData->FilteredChildren.Num();
+	}
+
+	/**
+	 * Enumerates the children nodes.
+	 */
+	void EnumerateChildren(TFunction<bool(const FBaseTreeNodePtr&)> Callback) const
+	{
+		for (const FBaseTreeNodePtr& ChildNode : GroupData->Children)
+		{
+			if (!Callback(ChildNode))
+			{
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Enumerates the filtered children nodes.
+	 */
+	void EnumerateFilteredChildren(TFunction<bool(const FBaseTreeNodePtr&)> Callback) const
+	{
+		for (const FBaseTreeNodePtr& ChildNode : GroupData->FilteredChildren)
+		{
+			if (!Callback(ChildNode))
+			{
+				break;
+			}
+		}
+	}
+
+	/**
+	 * @returns a const reference to the children nodes of this group.
+	 */
+	const TArray<FBaseTreeNodePtr>& GetChildren() const
 	{
 		return GroupData->Children;
 	}
 
 	/**
-	 * @return a const reference to the child nodes that should be visible to the UI based on filtering.
+	 * @returns a const reference to the children nodes that should be visible to the UI based on filtering.
 	 */
-	FORCEINLINE_DEBUGGABLE const TArray<FBaseTreeNodePtr>& GetFilteredChildren() const
+	const TArray<FBaseTreeNodePtr>& GetFilteredChildren() const
 	{
 		return GroupData->FilteredChildren;
 	}
 
 	/**
-	 * @return a weak reference to the group of this node, may be invalid.
+	 * @returns a weak reference to the group of this node, may be invalid.
 	 */
 	FBaseTreeNodeWeak GetGroupPtr() const
 	{
@@ -212,16 +260,11 @@ public:
 	}
 
 	/**
-	 * @return a name of the group node that this node belongs to.
+	 * @returns a weak reference to the group of this node, may be invalid.
 	 */
-	const FName& GetGroupName() const
+	FBaseTreeNodePtr GetParentNode() const
 	{
-		return GroupPtr.Pin()->GetName();
-	}
-
-	virtual bool IsFiltered() const
-	{
-		return false;
+		return GroupPtr.Pin();
 	}
 
 	void SortChildrenAscending(const ITableCellValueSorter& Sorter);
@@ -233,16 +276,16 @@ public:
 		GroupData->Children.Sort(Predicate);
 	}
 
-	/** Adds specified child to the children and sets group for it. */
-	FORCEINLINE_DEBUGGABLE void AddChildAndSetGroupPtr(const FBaseTreeNodePtr& ChildPtr)
+	/** Adds specified node to the children nodes. Also sets the current node as the group of the specified node. */
+	void AddChildAndSetGroupPtr(const FBaseTreeNodePtr& ChildPtr)
 	{
-		ChildPtr->GroupPtr = AsShared();
+		ChildPtr->GroupPtr = AsWeak();
 		GroupData->Children.Add(ChildPtr);
 	}
 
 	void SetGroupPtrForAllChildren()
 	{
-		FBaseTreeNodeWeak ThisNode = AsShared();
+		FBaseTreeNodeWeak ThisNode = AsWeak();
 		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
 		{
 			NodePtr->GroupPtr = ThisNode;
@@ -258,40 +301,65 @@ public:
 	}
 
 	/** Clears children. */
-	FORCEINLINE_DEBUGGABLE void ClearChildren(int32 NewSize = 0)
+	void ClearChildren(int32 NewSize = 0)
 	{
 		ResetGroupPtrForAllChildren();
 		GroupData->Children.Reset(NewSize);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SwapChildren(TArray<FBaseTreeNodePtr>& NewChildren)
+	void SwapChildren(TArray<FBaseTreeNodePtr>& NewChildren)
 	{
 		ResetGroupPtrForAllChildren();
 		Swap(NewChildren, GroupData->Children);
 		SetGroupPtrForAllChildren();
 	}
 
-	FORCEINLINE_DEBUGGABLE void SwapChildrenFast(TArray<FBaseTreeNodePtr>& NewChildren)
+	void SwapChildrenFast(TArray<FBaseTreeNodePtr>& NewChildren)
 	{
 		Swap(NewChildren, GroupData->Children);
 	}
 
-	/** Adds specified child to the filtered children. */
-	FORCEINLINE_DEBUGGABLE void AddFilteredChild(const FBaseTreeNodePtr& ChildPtr)
+	/** Adds specified child to the filtered children nodes. */
+	void AddFilteredChild(const FBaseTreeNodePtr& ChildPtr)
 	{
 		GroupData->FilteredChildren.Add(ChildPtr);
 	}
 
-	/** Clears filtered children. */
+	/** Clears the filtered children nodes. */
 	void ClearFilteredChildren(int32 NewSize = 0)
 	{
 		GroupData->FilteredChildren.Reset(NewSize);
+	}
+
+	/**
+	 * Resets the filtered children nodes.
+	 * The filtered array of children nodes will be initialized with the unfiltered array of children.
+	 */
+	void ResetFilteredChildren()
+	{
+		const int32 Size = GroupData->Children.Num();
+		GroupData->FilteredChildren.Reset();
+		GroupData->FilteredChildren.Append(GroupData->Children);
+	}
+
+	/**
+	 * Resets the filtered children for this node and also recursively for all children nodes.
+	 * The filtered array of children nodes will be initialized with the unfiltered array of children.
+	 */
+	void ResetFilteredChildrenRec()
+	{
+		this->ResetFilteredChildren();
+		for (FBaseTreeNodePtr Node : GroupData->Children)
+		{
+			Node->ResetFilteredChildrenRec();
+		}
 	}
 
 	bool IsExpanded() const
 	{
 		return GroupData->bIsExpanded;
 	}
+
 	void SetExpansion(bool bOnOff)
 	{
 		if (IsGroup())
@@ -302,9 +370,9 @@ public:
 
 protected:
 	/**
-	 * @return a reference to the child nodes of this group.
+	 * @returns a reference to the children nodes of this group.
 	 */
-	FORCEINLINE_DEBUGGABLE TArray<FBaseTreeNodePtr>& GetChildrenMutable()
+	TArray<FBaseTreeNodePtr>& GetChildrenMutable()
 	{
 		return GroupData->Children;
 	}

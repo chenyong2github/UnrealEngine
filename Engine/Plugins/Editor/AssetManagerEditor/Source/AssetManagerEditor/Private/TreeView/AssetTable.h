@@ -57,8 +57,12 @@ public:
 	//const TCHAR* GetCookRule() const { return *CookRule; }
 	//const TCHAR* GetChunks() const { return *Chunks; }
 	const TCHAR* GetNativeClass() const { return *NativeClass; }
-	const TArray<int32>& GetDependencies() const { return Dependencies; }
 	const TCHAR* GetGameFeaturePlugin() const { return *GameFeaturePlugin; }
+
+	int32 GetNumDependencies() const { return Dependencies.Num(); }
+	const TArray<int32>& GetDependencies() const { return Dependencies; }
+
+	FName GetNodeName() const { return FName(Name, 0); }
 	FLinearColor GetColor() const { return Color; }
 
 private:
@@ -74,8 +78,8 @@ private:
 	//FString CookRule;
 	//FString Chunks;
 	FString NativeClass;
-	TArray<int32> Dependencies;
 	FString GameFeaturePlugin;
+	TArray<int32> Dependencies;
 	FLinearColor Color;
 };
 

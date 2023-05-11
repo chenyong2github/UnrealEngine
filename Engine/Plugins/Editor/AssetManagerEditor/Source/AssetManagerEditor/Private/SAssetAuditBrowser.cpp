@@ -25,6 +25,7 @@
 #include "Editor.h"
 
 #if ASSET_TABLE_TREE_VIEW_ENABLED
+#include "Insights/Common/Log.h"
 #include "Styling/StyleColors.h"
 #include "TreeView/AssetTable.h"
 #include "TreeView/SAssetTableTreeView.h"
@@ -732,20 +733,30 @@ void SAssetAuditBrowser::GoToHistoryIndex(int32 InHistoryIdx)
 #if ASSET_TABLE_TREE_VIEW_ENABLED
 void SAssetAuditBrowser::PopulateAssetTableRow(const FAssetData& AssetData, class FAssetTableRow* OutRow)
 {
-	OutRow->Type = AssetData.AssetClassPath.ToString();
-	OutRow->Name = AssetData.AssetName.ToString();
-	OutRow->Path = AssetData.GetObjectPathString();
+	OutRow->Type = AssetData.AssetClassPath.ToString(); // ???
+
+	//OutRow->PackageName = PackageName.ToString();     // ???
+	//OutRow->PackagePath = PackagePath.ToString();     // ???
+
+	OutRow->Name = AssetData.AssetName.ToString();      // vs. AssetData.AssetClassPath.GetAssetName().ToString() ???
+	OutRow->Path = AssetData.GetObjectPathString();     // vs. *AssetClassPath.ToString() ???
+
 	EditorModule->GetStringValueForCustomColumn(AssetData, FPrimaryAssetId::PrimaryAssetTypeTag, OutRow->PrimaryType);
 	EditorModule->GetStringValueForCustomColumn(AssetData, FPrimaryAssetId::PrimaryAssetNameTag, OutRow->PrimaryName);
+
 	//EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::ManagedDiskSizeName, OutRow->ManagedDiskSize);
 	//EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::DiskSizeName, OutRow->DiskSize);
+
 	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::StageChunkCompressedSizeName, OutRow->StagedCompressedSize);
 	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::TotalUsageName, OutRow->TotalUsageCount);
 	//EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::CookRuleName, OutRow->CookRule);
 	//EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::ChunksName, OutRow->Chunks);
+
 	EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::GameFeaturePluginsName, OutRow->GameFeaturePlugin);
 	OutRow->NativeClass = AssetData.AssetClassPath.GetAssetName().ToString();
-	OutRow->Color = USlateThemeManager::Get().GetColor((EStyleColor)((int32)EStyleColor::AccentBlue + FMath::Rand() % 8)); // TODO: color by type!?
+
+	const uint32 Hash = GetTypeHash(OutRow->Type);
+	OutRow->Color = USlateThemeManager::Get().GetColor((EStyleColor)((uint32)EStyleColor::AccentBlue + Hash % 8));
 }
 #endif // ASSET_TABLE_TREE_VIEW_ENABLED
 
@@ -776,6 +787,11 @@ void SAssetAuditBrowser::RefreshAssetView()
 		TSharedPtr<FAssetTable> AssetTable = AssetTableTreeView->GetAssetTable();
 		if (AssetTable.IsValid())
 		{
+			UE_LOG(LogInsights, Log, TEXT("[AssetTree] Build asset table..."));
+
+			UE::Insights::FStopwatch Stopwatch;
+			Stopwatch.Start();
+
 			// Clears all tree nodes (that references the previous assets).
 			AssetTable->SetVisibleAssetCount(0);
 			AssetTableTreeView->RebuildTree(true);
@@ -815,7 +831,6 @@ void SAssetAuditBrowser::RefreshAssetView()
 				{
 					AlreadyProcessedPackages.Add(SourceAssets[SourceAssetIndex].PackageName);
 				}
-
 
 				FAssetIdentifier CurrentIdentifier(SourceAssets[SourceAssetIndex].PackageName);
 				// We'll have to add the dependencies to all these entries
@@ -868,6 +883,11 @@ void SAssetAuditBrowser::RefreshAssetView()
 					}
 				}
 			}
+
+			Stopwatch.Stop();
+			const double TotalTime = Stopwatch.GetAccumulatedTime();
+			UE_LOG(LogInsights, Log, TEXT("[AssetTree] Asset table rebuilt in %.4fs (%d visible + %d hidden = %d assets)"),
+				TotalTime, AssetTable->GetVisibleAssetCount(), AssetTable->GetHiddenAssetCount(), AssetTable->GetTotalAssetCount());
 
 			AssetTableTreeView->RebuildTreeAsync();
 		}

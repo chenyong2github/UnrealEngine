@@ -15,7 +15,4 @@ public:
 	virtual ~FAssetDependencyGrouping();
 
 	virtual void GroupNodes(const TArray<UE::Insights::FTableTreeNodePtr>& Nodes, UE::Insights::FTableTreeNode& ParentGroup, TWeakPtr<UE::Insights::FTable> InParentTable, UE::Insights::IAsyncOperationProgress& InAsyncOperationProgress) const override;
-
-private:
-	//...
 };

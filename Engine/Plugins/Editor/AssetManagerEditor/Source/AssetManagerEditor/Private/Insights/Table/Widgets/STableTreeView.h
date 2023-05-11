@@ -243,6 +243,9 @@ protected:
 	/** Called by STreeView when selection has changed. */
 	void TreeView_OnSelectionChanged(FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo);
 
+	/** Called by STreeView when a tree node is expanded or collapsed. */
+	void TreeView_OnExpansionChanged(FTableTreeNodePtr TreeNode, bool bShouldBeExpanded);
+
 	/** Called by STreeView when a tree item is double clicked. */
 	virtual void TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr TreeNode);
 
@@ -267,9 +270,8 @@ protected:
 
 	/** Populates the group and stat tree with items based on the current data. */
 	void ApplyFiltering();
-
+	void ApplyFiltering(FTableTreeNodePtr NodePtr);
 	bool ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr);
-
 	bool ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, bool bFilterIsEmpty);
 
 	/** Set all the nodes belonging to a subtree as visible. Returns true if the caller node should be expanded. */
@@ -314,47 +316,17 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Aggregation
 
-	void UpdateAggregatedValues(FTableTreeNode& GroupNode);
+	static void UpdateCStringSameValueAggregationSingleNode(const FTableColumn& InColumn, FTableTreeNode& GroupNode);
+	static void UpdateCStringSameValueAggregationRec(const FTableColumn& InColumn, FTableTreeNode& GroupNode);
 
-	template<typename T>
-	static void UpdateAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode, T InitialAggregatedValue, bool bSetInitialValue, TFunctionRef<T(T, const FTableCellValue&)> ValueGetterFunc)
-	{
-		T AggregatedValue = InitialAggregatedValue;
+	template<typename T, bool bSetInitialValue, bool bIsRercursive>
+	static void UpdateAggregation(const FTableColumn& InColumn, FTableTreeNode& InOutGroupNode, const T InitialAggregatedValue, TFunctionRef<T(T, const FTableCellValue&)> ValueGetterFunc);
 
-		for (FBaseTreeNodePtr NodePtr : GroupNode.GetChildren())
-		{
-			if (NodePtr->IsFiltered())
-			{
-				continue;
-			}
+	template<bool bIsRercursive>
+	static void UpdateAggregatedValues(TSharedPtr<FTable> InTable, FTableTreeNode& InOutGroupNode);
 
-			if (!NodePtr->IsGroup())
-			{
-				const TOptional<FTableCellValue> NodeValue = Column.GetValue(*NodePtr);
-				if (NodeValue.IsSet())
-				{
-					AggregatedValue = ValueGetterFunc(AggregatedValue, NodeValue.GetValue());
-				}
-			}
-			else
-			{
-				FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
-				TableNode.ResetAggregatedValues(Column.GetId());
-				UpdateAggregationRec(Column, TableNode, InitialAggregatedValue, bSetInitialValue, ValueGetterFunc);
-				if (TableNode.HasAggregatedValue(Column.GetId()))
-				{
-					AggregatedValue = ValueGetterFunc(AggregatedValue, TableNode.GetAggregatedValue(Column.GetId()));
-				}
-			}
-		}
-
-		if (bSetInitialValue || InitialAggregatedValue != AggregatedValue)
-		{
-			GroupNode.AddAggregatedValue(Column.GetId(), FTableCellValue(AggregatedValue));
-		}
-	}
-
-	static void UpdateCStringSameValueAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode);
+	void UpdateAggregatedValuesSingleNode(FTableTreeNode& GroupNode);
+	void UpdateAggregatedValuesRec(FTableTreeNode& GroupNode);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
