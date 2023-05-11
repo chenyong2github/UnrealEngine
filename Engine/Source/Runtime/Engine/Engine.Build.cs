@@ -105,7 +105,8 @@ public class Engine : ModuleRules
 				"AudioExtensions",
 				"DeveloperSettings",
 				"AudioLinkCore",
-				"CookOnTheFly"
+				"CookOnTheFly",
+				"IoStoreOnDemand"
 			}
 		);
 
