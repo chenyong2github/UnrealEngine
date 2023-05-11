@@ -54,6 +54,7 @@ public:
 	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasFuzz);
 	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasSecondRoughnessOrSimpleClearCoat);
 	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasAnisotropy);
+	LAYOUT_FIELD_EDITORONLY(uint8, bBSDFHasGlint);
 
 	// Data derived after the tree has been built.
 	LAYOUT_FIELD_EDITORONLY(int32, MaxDistanceFromLeaves);

@@ -995,6 +995,10 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	ShadingEnergyClothSpecTexture = GBlackTextureWithSRV->TextureRHI;
 	ShadingEnergyDiffuseTexture = GBlackTextureWithSRV->TextureRHI;
 
+	// Glint
+	GlintTexture = GBlackArrayTexture->TextureRHI;
+	GlintSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 	// Rect light atlas
 	RectLightAtlasMaxMipLevel = 1;
 	RectLightAtlasSizeAndInvSize = FVector4f(1, 1, 1, 1);

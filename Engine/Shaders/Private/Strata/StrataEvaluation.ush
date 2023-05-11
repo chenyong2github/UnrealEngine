@@ -12,6 +12,10 @@
 
 #include "Strata.ush"
 
+#if STRATA_COMPLEXPATH && STRATA_GLINTS
+#include "Glint/GlintThirdParty.ush"
+#endif
+
 #include "../ParticipatingMediaCommon.ush"
 #include "../MonteCarlo.ush"
 #include "../SHCommon.ush"
@@ -240,6 +244,17 @@ half3 Strata_F_GGX(half3 F0, half3 F90, half VoH)
 //#endif
 }
 
+// Conversion of GGX roughness to Beckmann roughness
+// Using Microfacet Distribution Function: To Change or Not to Change, That Is the Question.
+float GGXRoughnessToBeckmannRoughness(float Roughness)
+{
+	return saturate(0.8388 * Roughness + 0.7 * Pow4(Roughness));
+}
+float2 GGXRoughnessToBeckmannRoughness(float2 Roughness)
+{
+	return float2(GGXRoughnessToBeckmannRoughness(Roughness.x), GGXRoughnessToBeckmannRoughness(Roughness.y));
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // BSDF evaluation (punctual/area)
 
@@ -304,7 +319,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				EnvBRDFApproxFullyRough(DiffuseColor, F0, F90);
 			}
 
-			float Alpha2 = Pow4(SafeRoughness);
+			float Alpha2Spec = Pow4(SafeRoughness);
 
 			float NoV, VoH, NoH;
 		#if STRATA_COMPLEXPATH
@@ -340,7 +355,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				// * The Chan model bakes transmittance specular directional albedo assuming F=0.04. In previous code we reapplied 
 				//   this transmittance, as the energy preservation code we remove it as well. However the visual effect was small 
 				//   and the cost was rather large (~8%). This is why we removed it in recent iteration
-				Sample.DiffusePathValue = Diffuse_Chan(DiffuseColor, Alpha2, NoV, AreaLightContext.NoL, VoH, NoH, GetAreaLightDiffuseMicroReflWeight(AreaLightContext.AreaLight));
+				Sample.DiffusePathValue = Diffuse_Chan(DiffuseColor, Alpha2Spec, NoV, AreaLightContext.NoL, VoH, NoH, GetAreaLightDiffuseMicroReflWeight(AreaLightContext.AreaLight));
 			}
 			else
 #endif
@@ -381,7 +396,9 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			
 				float D = 0;
 				float Vis = 0;
-			
+
+				float3 TangentL = normalize(mul(BSDFContext.TangentBasis, BSDFContext.L));
+
 				float3 RectLightSpec = 0;
 				#if STRATA_COMPLEXPATH
 				BRANCH
@@ -393,7 +410,24 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 						float2 AlphaXY = 0;
 						GetAnisotropicRoughness(Alpha, SLAB_ANISOTROPY(BSDFContext.BSDF), AlphaXY.x, AlphaXY.y);
 
-						D   = Strata_D_GGX_Aniso(AlphaXY.x, AlphaXY.y, BSDFContext.Context.NoH, BSDFContext.Context.XoH, BSDFContext.Context.YoH);
+					#if STRATA_GLINTS
+						// Glint shading only in the complex path
+						BRANCH
+						if (BSDF_GETHASGLINT(BSDFContext.BSDF))
+						{
+							const float2 GGXRoughnessXY = float2(sqrtFast(AlphaXY.x), sqrtFast(AlphaXY.y));
+							const float2 BeckmannRoughnessXY = GGXRoughnessToBeckmannRoughness(GGXRoughnessXY);
+							const float2 AlphaXY = Square(BeckmannRoughnessXY);
+							float2 SigmaXY = AlphaXY * InvSqrt2;
+							const float Rho = 0.0f;
+							D = f_P(BSDFContext.TangentV, TangentL, float3(SigmaXY, Rho), SLAB_GLINT_VALUE(BSDFContext.BSDF), SLAB_GLINT_UV(BSDFContext.BSDF));
+						}
+						else
+					#endif
+						{
+							D = Strata_D_GGX_Aniso(AlphaXY.x, AlphaXY.y, BSDFContext.Context.NoH, BSDFContext.Context.XoH, BSDFContext.Context.YoH);
+						}
+
 						Vis = Strata_Vis_GGX_Aniso(AlphaXY.x, AlphaXY.y, BSDFContext.Context.NoV, BSDFContext.SatNoL, BSDFContext.Context.XoV, BSDFContext.Context.XoL, BSDFContext.Context.YoV, BSDFContext.Context.YoL);
 						const float H_PDF = VisibleGGXPDF_aniso(BSDFContext.TangentV, BSDFContext.TangentH, AlphaXY);
 						PDF = RayPDFToReflectionRayPDF(BSDFContext.Context.VoH, H_PDF);
@@ -407,9 +441,28 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 					{
 						// In this case, we set D to 1 and Vis will contain the area light / GGX integration
 						{
-							RectLightSpec = RectGGXApproxLTC(SafeRoughness, F0, BSDFContext.N, BSDFContext.V, AreaLightContext.AreaLight.Rect, AreaLightContext.AreaLight.Texture);
+							float3 MeanLightWorldDirection = 0.0f;
+							RectLightSpec = RectGGXApproxLTC(SafeRoughness, F0, BSDFContext.N, BSDFContext.V, AreaLightContext.AreaLight.Rect, AreaLightContext.AreaLight.Texture, MeanLightWorldDirection);
+							
+							// Now combine the rectangular area light with Glints.
+						#if STRATA_COMPLEXPATH && STRATA_GLINTS
+							BRANCH
+							if (BSDF_GETHASGLINT(BSDFContext.BSDF))
+							{
+								float3 MeanLightLocalDirection = normalize(mul(BSDFContext.TangentBasis, MeanLightWorldDirection));
 
-							const float H_PDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, Alpha2);
+								const float BeckmannRoughness = GGXRoughnessToBeckmannRoughness(SafeRoughness);
+								const float Alpha = Square(BeckmannRoughness);
+								float Sigma = Alpha * InvSqrt2;
+								const float Rho = 0.0f;
+
+								// It is wrong to multiply again the GGXevaluation together with the glint function (representing Beckmann D function).
+								// But visually it works and that is an acceptable solution in the meantime we find something more correct.
+								RectLightSpec *= f_P(BSDFContext.TangentV, MeanLightLocalDirection, float3(Sigma, Sigma, Rho), SLAB_GLINT_VALUE(BSDFContext.BSDF), SLAB_GLINT_UV(BSDFContext.BSDF));
+							}
+						#endif // STRATA_COMPLEXPATH
+
+							const float H_PDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, Alpha2Spec);
 							PDF = RayPDFToReflectionRayPDF(BSDFContext.Context.VoH, H_PDF);
 						}
 					}
@@ -419,16 +472,45 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 						// Generalized microfacet specular
 						{
-							float Alpha2Spec = Alpha2;
 							if(IntegrationType == INTEGRATION_PUNCTUAL_LIGHT)
 							{
-								D = Strata_D_GGX(SafeRoughness, Alpha2Spec, BSDFContext.Context.NoH);
+							#if STRATA_COMPLEXPATH && STRATA_GLINTS
+								BRANCH
+								if (BSDF_GETHASGLINT(BSDFContext.BSDF))
+								{
+									const float BeckmannRoughness = GGXRoughnessToBeckmannRoughness(SafeRoughness);
+									const float Alpha = Square(BeckmannRoughness);
+									float Sigma = Alpha * InvSqrt2;
+									const float Rho = 0.0f;
+									D = f_P(BSDFContext.TangentV, TangentL, float3(Sigma, Sigma, Rho), SLAB_GLINT_VALUE(BSDFContext.BSDF), SLAB_GLINT_UV(BSDFContext.BSDF));
+								}
+								else
+							#endif // STRATA_COMPLEXPATH
+								{
+									D = Strata_D_GGX(SafeRoughness, Alpha2Spec, BSDFContext.Context.NoH);
+								}
 							}
 							else
 							{
 								const float Energy = EnergyNormalization(Alpha2Spec, BSDFContext.Context.VoH, AreaLightContext.AreaLight);
-								D = Strata_D_GGX(SafeRoughness, Alpha2Spec, BSDFContext.Context.NoH) * Energy;
+
+							#if STRATA_COMPLEXPATH && STRATA_GLINTS
+								BRANCH
+								if (BSDF_GETHASGLINT(BSDFContext.BSDF))
+								{
+									const float BeckmannRoughness = GGXRoughnessToBeckmannRoughness(SafeRoughness);
+									const float Alpha = Square(BeckmannRoughness);
+									float Sigma = Alpha * InvSqrt2;
+									const float Rho = 0.0f;
+									D = Energy * f_P(BSDFContext.TangentV, TangentL, float3(Sigma, Sigma, Rho), SLAB_GLINT_VALUE(BSDFContext.BSDF), SLAB_GLINT_UV(BSDFContext.BSDF));
+								}
+								else
+							#endif // STRATA_COMPLEXPATH
+								{
+									D = Energy * Strata_D_GGX(SafeRoughness, Alpha2Spec, BSDFContext.Context.NoH);
+								}
 							}
+
 							Vis = Strata_Vis_GGX(SafeRoughness, Alpha2Spec, BSDFContext.Context.NoV, AreaLightContext.NoL);
 							const float H_PDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, Alpha2Spec);
 							PDF = RayPDFToReflectionRayPDF(BSDFContext.Context.VoH, H_PDF);
@@ -1376,6 +1458,29 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF * SpecularMicroOcclusion;
 				StrataEnvLightResult.SpecularSafeRoughness = SafeRoughness;
 				StrataEnvLightResult.SpecularColor = F0;
+
+				// STRATA_TODO environment light importance sampling
+		//	#if STRATA_COMPLEXPATH && STRATA_GLINTS
+		//		BRANCH
+		//		if (BSDF_GETHASGLINT(BSDFContext.BSDF))
+		//		{
+		//			float3 MeanLightLocalDirection = normalize(mul(BSDFContext.TangentBasis, StrataEnvLightResult.SpecularDirection));
+		//
+		//			const float BeckmannRoughness = GGXRoughnessToBeckmannRoughness(SafeRoughness);
+		//			const float Alpha = Square(BeckmannRoughness);
+		//			float Sigma = Alpha * InvSqrt2;
+		//			const float Rho = 0.0f;
+		//
+		//			// It is wrong to multiply again the split env lighting (for split-sum approxiation) together with the glint function (representing Beckmann D function).
+		//			// But visually it works and that is an acceptable solution in the meantime we find something more correct.
+		//			float GlintD = f_P(BSDFContext.TangentV, MeanLightLocalDirection, float3(Sigma, Sigma, Rho), SLAB_GLINT_VALUE(BSDFContext.BSDF), SLAB_GLINT_UV(BSDFContext.BSDF));
+		//
+		//			// We need a way to lerp to the glint direction with a roughness of 0. 
+		//			// STRATA_TODO recover glint direction.
+		//			StrataEnvLightResult.SpecularWeight *= saturate(GlintD);
+		//			StrataEnvLightResult.SpecularSafeRoughness = lerp(StrataEnvLightResult.SpecularSafeRoughness, 0.001f, saturate(GlintD));
+		//		}
+		//	#endif // STRATA_COMPLEXPATH
 
 				StrataEnvLightResult.SSRSpecularWeight = StrataEnvLightResult.SpecularWeight;
 

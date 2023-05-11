@@ -1000,6 +1000,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_TEXTURE(Texture2D<float2>, ShadingEnergyClothSpecTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float>, ShadingEnergyDiffuseTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ShadingEnergySampler)
+	// Glints
+	SHADER_PARAMETER_TEXTURE(Texture2DArray<float4>, GlintTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, GlintSampler)
 	// SSS
 	SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SSProfilesSampler)

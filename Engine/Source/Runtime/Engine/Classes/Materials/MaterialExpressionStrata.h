@@ -296,6 +296,18 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	UPROPERTY()
 	FExpressionInput FuzzColor;
 
+	/**
+	 * This represent the logarithm of the micro facet density. Only used when `r.Substrate.Glints=1`. Defaults to 0.
+	 */
+	UPROPERTY()
+	FExpressionInput GlintValue;
+
+	/**
+	 * The parameterization of the surface required to position glints on a surface. Only used when `r.Substrate.Glints=1`. Defaults to (0,0).
+	 */
+	UPROPERTY()
+	FExpressionInput GlintUV;
+
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Substrate diffuse node, and the material node at the moment. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
@@ -325,6 +337,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	bool HasSSSProfile() const;
 	bool HasMFPPluggedIn() const;
 	bool HasAnisotropy() const;
+	bool HasGlint() const;
 #endif
 	//~ End UMaterialExpression Interface
 };

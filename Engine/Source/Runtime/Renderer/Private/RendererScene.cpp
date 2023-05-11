@@ -1198,6 +1198,11 @@ uint64 FShadingEnergyConservationStateData::GetGPUSizeBytes(bool bLogSizes) cons
 		GetRenderTargetGPUSizeBytes(DiffuseEnergyTexture, bLogSizes);
 }
 
+uint64 FGlintShadingLUTsStateData::GetGPUSizeBytes(bool bLogSizes) const
+{
+	return GetTextureGPUSizeBytes(RHIGlintShadingLUTs, bLogSizes);
+}
+
 uint64 FVirtualShadowMapArrayFrameData::GetGPUSizeBytes(bool bLogSizes) const
 {
 	return
@@ -1272,6 +1277,7 @@ uint64 FSceneViewState::GetGPUSizeBytes(bool bLogSizes) const
 	TotalSize += GetBufferGPUSizeBytes(ShaderPrintStateData.EntryBuffer, bLogSizes);
 	TotalSize += GetBufferGPUSizeBytes(ShaderPrintStateData.StateBuffer, bLogSizes);
 	TotalSize += ShadingEnergyConservationData.GetGPUSizeBytes(bLogSizes);
+	TotalSize += GlintShadingLUTsData.GetGPUSizeBytes(bLogSizes);
 	if (ViewVirtualShadowMapCache)
 	{
 		TotalSize += ViewVirtualShadowMapCache->GetGPUSizeBytes(bLogSizes);

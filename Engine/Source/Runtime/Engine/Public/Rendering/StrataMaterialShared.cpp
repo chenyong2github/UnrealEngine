@@ -49,6 +49,7 @@ FStrataOperator::FStrataOperator()
 	bBSDFHasFuzz = false;
 	bBSDFHasSecondRoughnessOrSimpleClearCoat = false;
 	bBSDFHasAnisotropy = false;
+	bBSDFHasGlint = false;
 
 	MaxDistanceFromLeaves = 0;
 	LayerDepth = 0;
@@ -68,6 +69,7 @@ void FStrataOperator::CombineFlagsForParameterBlending(FStrataOperator& A, FStra
 	bBSDFHasFuzz = A.bBSDFHasFuzz || B.bBSDFHasFuzz;
 	bBSDFHasSecondRoughnessOrSimpleClearCoat = A.bBSDFHasSecondRoughnessOrSimpleClearCoat || B.bBSDFHasSecondRoughnessOrSimpleClearCoat;
 	bBSDFHasAnisotropy = A.bBSDFHasAnisotropy || B.bBSDFHasAnisotropy;
+	bBSDFHasGlint = A.bBSDFHasGlint || B.bBSDFHasGlint;
 #endif
 }
 
@@ -80,6 +82,7 @@ void FStrataOperator::CopyFlagsForParameterBlending(FStrataOperator& A)
 	bBSDFHasFuzz = A.bBSDFHasFuzz;
 	bBSDFHasSecondRoughnessOrSimpleClearCoat = A.bBSDFHasSecondRoughnessOrSimpleClearCoat;
 	bBSDFHasAnisotropy = A.bBSDFHasAnisotropy;
+	bBSDFHasGlint = A.bBSDFHasGlint;
 #endif
 }
 

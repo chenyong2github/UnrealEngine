@@ -2558,6 +2558,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 		ShadingEnergyConservation::Init(GraphBuilder, View);
+
+		FGlintShadingLUTsStateData::Init(GraphBuilder, View);
 	}
 
 	// kick off dependent scene updates 

@@ -1364,6 +1364,14 @@ public:
 	/** Path of the tiled blue-noise texture */
 	UPROPERTY(globalconfig)
 	FSoftObjectPath BlueNoiseVec2TextureName;
+	
+	/** Stable glint BSDF texture */
+	UPROPERTY()
+	TObjectPtr<class UTexture2DArray> GlintTexture;
+
+	/** Path of the glint BSDF texture */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath GlintTextureName;
 
 	/** Texture used to do font rendering in shaders */
 	UPROPERTY()
@@ -1904,6 +1912,11 @@ public:
 
 	/** Conditionally load this texture for a platform. Always loaded in Editor */
 	void ConditionallyLoadPreIntegratedSkinBRDFTexture();
+
+	/** Delay loading the glint texture until it is needed by the renderer.
+	* This texture is not going to be streamed to be available right away.
+	*/
+	void LoadGlintTexture();
 
 private:
 	#if WITH_DYNAMIC_RESOLUTION

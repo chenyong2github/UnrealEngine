@@ -363,7 +363,7 @@ float3 PolygonIrradiance( float3 Poly[4] )
 }
 
 // [ Heitz et al. 2016, "Real-Time Polygonal-Light Shading with Linearly Transformed Cosines" ]
-float3 RectGGXApproxLTC( float Roughness, float3 SpecularColor, half3 N, float3 V, FRect Rect, FRectTexture RectTexture )
+float3 RectGGXApproxLTC( float Roughness, float3 SpecularColor, half3 N, float3 V, FRect Rect, FRectTexture RectTexture, inout float3 MeanLightWorldDirection)
 {
 	// F90 is derived as, anything less than 2% is physically impossible and is instead considered to be shadowing
 	const float3 F0  = SpecularColor;
@@ -443,10 +443,16 @@ float3 RectGGXApproxLTC( float Roughness, float3 SpecularColor, half3 N, float3 
 	
 	// Transform to world space
 	L = mul( InvLTC, L );
+	MeanLightWorldDirection = L;
 
 	float3 LightColor = SampleSourceTexture( L, Rect, RectTexture );
 	
 	return LightColor * Irradiance * IrradianceScale;
+}
+float3 RectGGXApproxLTC(float Roughness, float3 SpecularColor, half3 N, float3 V, FRect Rect, FRectTexture RectTexture)
+{
+	float3 MeanLightWorldDirection = 0.0f;
+	return RectGGXApproxLTC(Roughness, SpecularColor, N, V, Rect, RectTexture, MeanLightWorldDirection);
 }
 
 

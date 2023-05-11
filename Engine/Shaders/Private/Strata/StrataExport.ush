@@ -190,12 +190,18 @@ void PackStrataOut(
 						// Simple and single bsdf do not allow weights other than 1
 						const bool LuminanceWeightEqualOne = all(BSDF.LuminanceWeightV == 1.0f);
 
+						#if STRATA_GLINTS
+						const bool bForceComplexMaterial = BSDF_GETHASANISOTROPY(BSDF) || BSDF_GETHASGLINT(BSDF);
+						#else
+						const bool bForceComplexMaterial = BSDF_GETHASANISOTROPY(BSDF);
+						#endif
+
 						// Update simple material compatibility
-						bIsSimpleMaterial = bIsSimpleMaterial && IsStrataSlabFastPathCompatible(BSDF) && LuminanceWeightEqualOne;
+						bIsSimpleMaterial = bIsSimpleMaterial && IsStrataSlabFastPathCompatible(BSDF) && LuminanceWeightEqualOne && !bForceComplexMaterial;
 
 						// Update single material compatibility. For now, single materials don't support anisotropy, 
 						// they use the complex pass, as the toplayer data does not contain the full frame basis, only the top normal.
-						bIsSingleMaterial = bIsSingleMaterial && BSDF_GETHASANISOTROPY(BSDF) == 0 && LuminanceWeightEqualOne;
+						bIsSingleMaterial = bIsSingleMaterial && LuminanceWeightEqualOne && !bForceComplexMaterial;
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						float TopLayerRoughnessContribution = BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
@@ -777,7 +783,16 @@ void PackStrataOut(
 								STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(BSDF.TransmittanceAboveAlongN, BSDF.CoverageAboveAlongN)));
 							}
 
-							// 8-24 bytes
+							#if STRATA_GLINTS
+							if (BSDF_GETHASGLINT(BSDF))
+							{
+								uint2 GlintData = PackR16G16B16A16F(float4(SLAB_GLINT_UV(BSDF), SLAB_GLINT_VALUE(BSDF), 0.0f));
+								STRATA_STORE_UINT1(GlintData.x);
+								STRATA_STORE_UINT1(GlintData.y);
+							}
+							#endif // STRATA_GLINTS
+
+							// 8-28 bytes
 						}
 						break;
 						case STRATA_BSDF_TYPE_HAIR:

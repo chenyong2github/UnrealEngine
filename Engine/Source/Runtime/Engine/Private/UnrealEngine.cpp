@@ -62,6 +62,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Engine/SkinnedAssetCommon.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Texture2D.h"
+#include "Engine/Texture2DArray.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/VolumeTexture.h"
 #include "Particles/ParticleModule.h"
@@ -3312,6 +3313,14 @@ void UEngine::ConditionallyLoadPreIntegratedSkinBRDFTexture()
 		{
 			LoadEngineTexture(PreIntegratedSkinBRDFTexture, *PreIntegratedSkinBRDFTextureName.ToString());
 		}
+	}
+}
+
+void UEngine::LoadGlintTexture()
+{
+	if (GlintTexture == nullptr && GlintTextureName.IsValid())
+	{
+		LoadEngineTexture(GlintTexture, *GlintTextureName.ToString());
 	}
 }
 

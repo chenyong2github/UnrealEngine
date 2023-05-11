@@ -865,6 +865,8 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		for (FViewInfo& View : Views)
 		{
 			ShadingEnergyConservation::Init(GraphBuilder, View);
+
+			FGlintShadingLUTsStateData::Init(GraphBuilder, View);
 		}
 	}
 	Strata::InitialiseStrataFrameSceneData(GraphBuilder, *this);

@@ -138,6 +138,8 @@ void WriteOutMaterial(
 		/*float3 FuzzColor						*/0.0f,
 		/*float FuzzRoughness					*/0.0f,
 		/*float Thickness						*/0.0f,
+		/*float GlintValue						*/0.0f,
+		/*float GlintUV							*/0.0f.xx,
 		/*bool bIsThinSurface					*/false,
 		/*uint SharedLocalBasisIndex			*/SharedLocalBasisIndex,
 		/*inout uint SharedLocalBasisTypes		*/StrataPixelHeader.SharedLocalBases.Types);

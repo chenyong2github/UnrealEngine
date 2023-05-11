@@ -314,13 +314,14 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 							case STRATA_OPERATOR_BSDF_LEGACY:	// legacy BSDF should have been converted to BSDF already.
 							case STRATA_OPERATOR_BSDF:
 							{
-								FString BSDFDesc = FString::Printf(TEXT("BSDF (%s%s%s%s%s%s)")
+								FString BSDFDesc = FString::Printf(TEXT("BSDF (%s%s%s%s%s%s%s)")
 									, Op.bBSDFHasEdgeColor ? TEXT("F90 ") : TEXT("")
 									, Op.bBSDFHasSSS ? TEXT("SSS ") : TEXT("")
 									, Op.bBSDFHasMFPPluggedIn ? TEXT("MFP ") : TEXT("")
 									, Op.bBSDFHasAnisotropy ? TEXT("Ani ") : TEXT("")
 									, Op.bBSDFHasSecondRoughnessOrSimpleClearCoat ? TEXT("2Ro ") : TEXT("")
 									, Op.bBSDFHasFuzz ? TEXT("Fuz ") : TEXT("")
+									, Op.bBSDFHasGlint ? TEXT("Gli ") : TEXT("")
 								);
 
 								static FString ToolTip;
@@ -332,6 +333,7 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 									ToolTip += TEXT("Fuz means the BSDF fuzz layer is enabled.\n");
 									ToolTip += TEXT("2Ro means the BSDF either uses a second specular lob with a second roughness, or the legacy simple clear coat.\n");
 									ToolTip += TEXT("Ani means the BSDF anisotropic specular lighting is used.");
+									ToolTip += TEXT("Gli means the BSDF features glints.");
 								}
 
 								auto BSDF = SNew(SErrorText)

@@ -554,6 +554,7 @@ public:
 		int32 SecondRoughness, int32 SecondRoughnessWeight, int32 SecondRoughnessAsSimpleClearCoat,
 		int32 FuzzAmount, int32 FuzzColor, int32 FuzzRoughness,
 		int32 Thickness,
+		int32 GlintValue, int32 GlintUV,
 		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
 		FStrataOperator* PromoteToOperator) = 0;
 	virtual int32 StrataConversionFromLegacy(
@@ -1173,6 +1174,7 @@ public:
 		int32 SecondRoughness, int32 SecondRoughnessWeight, int32 SecondRoughnessAsSimpleClearCoat,
 		int32 FuzzAmount, int32 FuzzColor, int32 FuzzRoughness,
 		int32 Thickness,
+		int32 GlintValue, int32 GlintUV,
 		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
 		FStrataOperator* PromoteToOperator) override
 	{
@@ -1184,6 +1186,7 @@ public:
 			SecondRoughness, SecondRoughnessWeight, SecondRoughnessAsSimpleClearCoat,
 			FuzzAmount, FuzzColor, FuzzRoughness,
 			Thickness,
+			GlintValue, GlintUV,
 			Normal, Tangent, SharedLocalBasisIndexMacro,
 			PromoteToOperator);
 	}

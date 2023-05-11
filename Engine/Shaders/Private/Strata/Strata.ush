@@ -157,7 +157,11 @@ struct FStrataBSDF
 	float4 InlineVGPRs[3];
 #endif
 
+#if STRATA_GLINTS
+	float4 VGPRs[6];
+#else
 	float4 VGPRs[5];
+#endif
 	uint   Haziness;					// Compilers such as FXC have troubles when using asfloat and asuint to propagate correct haziness bitfield around through registers. So we store that data as an actual uint.
 
 
@@ -357,7 +361,8 @@ struct FStrataBSDF
 #define BSDF_BIT_COUNT_BSDF_TYPE				3
 #define BSDF_BIT_COUNT_SHAREDLOCALBASESID		2
 #define BSDF_BIT_COUNT_HASTRANSABOVE			1
-#define BSDF_BIT_COUNT___UNUSED___				5
+#define BSDF_BIT_COUNT_HASGLINT					1
+#define BSDF_BIT_COUNT___UNUSED___				4
 #define BSDF_BIT_COUNT_WEIGHT10F				10
 
 // Bit offset of each component store in BSDF state 
@@ -374,6 +379,7 @@ struct FStrataBSDF
 #define BSDF_BIT_OFFSET_BSDF_TYPE				(BSDF_BIT_OFFSET_ISTHIN				+ BSDF_BIT_COUNT_ISTHIN)
 #define BSDF_BIT_OFFSET_SHAREDLOCALBASESID		(BSDF_BIT_OFFSET_BSDF_TYPE			+ BSDF_BIT_COUNT_BSDF_TYPE)
 #define BSDF_BIT_OFFSET_HASTRANSABOVE			(BSDF_BIT_OFFSET_SHAREDLOCALBASESID	+ BSDF_BIT_COUNT_SHAREDLOCALBASESID)
+#define BSDF_BIT_OFFSET_HASGLINT				(BSDF_BIT_OFFSET_HASTRANSABOVE	+ BSDF_BIT_COUNT_HASTRANSABOVE)
 #define BSDF_BIT_OFFSET_WEIGHT10F				22
 
 // Special optmised modes for the single BSDF path.
@@ -469,6 +475,10 @@ struct FStrataBSDF
 #define BSDF_GETHASTRANSABOVE(X)		READ_BITS(X.State,  BSDF_BIT_COUNT_HASTRANSABOVE, BSDF_BIT_OFFSET_HASTRANSABOVE)
 #define BSDF_SETHASTRANSABOVE(X, Value)	WRITE_BITS(X.State, BSDF_BIT_COUNT_HASTRANSABOVE, BSDF_BIT_OFFSET_HASTRANSABOVE, Value)
 
+// Indicates if the BSDF is part of the top layer
+#define BSDF_GETHASGLINT(X)				READ_BITS(X.State,  BSDF_BIT_COUNT_HASGLINT, BSDF_BIT_OFFSET_HASGLINT) 
+#define BSDF_SETHASGLINT(X, Value)		WRITE_BITS(X.State, BSDF_BIT_COUNT_HASGLINT, BSDF_BIT_OFFSET_HASGLINT, Value)
+
 #if STRATA_INLINE_SHADING
 #define BSDF_SETEMISSIVE(X, V)			X.Emissive = V
 #define BSDF_GETEMISSIVE(X)				X.Emissive
@@ -508,6 +518,11 @@ struct FStrataBSDF
 #define SLAB_FUZZ_COLOR(X)				X.VGPRs[4].xyz
 #define SLAB_FUZZ_AMOUNT(X)				X.VGPRs[4].w
 #define SLAB_FUZZ_ROUGHNESS(X)			X.VGPRs[2].w
+#if STRATA_GLINTS
+// Glints
+#define SLAB_GLINT_UV(X)				X.VGPRs[5].xy
+#define SLAB_GLINT_VALUE(X)				X.VGPRs[5].z
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // Volumetric BSDF members
@@ -1423,6 +1438,7 @@ FStrataData GetStrataSlabBSDF(
 	float3 Emissive, 
 	float SecondRoughness, float SecondRoughnessWeight, float SecondRoughnessAsSimpleClearCoat,
 	float FuzzAmount, float3 FuzzColor, float FuzzRoughness,
+	float GlintValue, float2 GlintUV,
 	float ThicknessCm,
 	bool bIsThinSurface,
 	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
@@ -1512,6 +1528,15 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETHASHAZINESS		(StrataData.InlinedBSDF,		bHasHaziness);
 	BSDF_SETHASFUZZ			(StrataData.InlinedBSDF,		bHasFuzz);
 	BSDF_SETTHICKNESSCM		(StrataData.InlinedBSDF,		ThicknessCm);
+#endif
+
+#if STRATA_COMPLEXPATH && STRATA_GLINTS
+	if (GlintValue > 0.0f)
+	{
+		BSDF_SETHASGLINT(StrataData.InlinedBSDF, 1);
+		SLAB_GLINT_VALUE(StrataData.InlinedBSDF)		= GlintValue;
+		SLAB_GLINT_UV(StrataData.InlinedBSDF)			= GlintUV;
+	}
 #endif
 
 #if !STRATA_FASTPATH
@@ -2300,6 +2325,10 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	BSDF_SETHASFUZZ(ResultBSDF,			BSDF_GETHASFUZZ(ForegroundBSDF)					| BSDF_GETHASFUZZ(BackgroundBSDF));
 	BSDF_SETHASTRANSABOVE(ResultBSDF,	BSDF_GETHASTRANSABOVE(ForegroundBSDF)			| BSDF_GETHASTRANSABOVE(BackgroundBSDF));
 
+#if STRATA_GLINTS
+	BSDF_SETHASGLINT(ResultBSDF, 0); // Disable for now
+#endif
+
 	BSDF_SETEMISSIVE(ResultBSDF,		lerp(BSDF_GETEMISSIVE(BackgroundBSDF),			BSDF_GETEMISSIVE(ForegroundBSDF),			ForegroundOtherMixFactor));
 	SLAB_DIFFUSEALBEDO(ResultBSDF) =	lerp(SLAB_DIFFUSEALBEDO(BackgroundBSDF),		SLAB_DIFFUSEALBEDO(ForegroundBSDF),			ForegroundOtherMixFactor);
 	SLAB_F0(ResultBSDF) =				lerp(SLAB_F0(BackgroundBSDF),					SLAB_F0(ForegroundBSDF),					ForegroundOtherMixFactor);
@@ -2403,6 +2432,9 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	BSDF_SETHASF90(ResultBSDF,			BSDF_GETHASF90(BBSDF)							| BSDF_GETHASF90(ABSDF));
 	BSDF_SETHASFUZZ(ResultBSDF,			BSDF_GETHASFUZZ(BBSDF)							| BSDF_GETHASFUZZ(ABSDF));
 
+#if STRATA_GLINTS
+	BSDF_SETHASGLINT(ResultBSDF, 0); // Disable for now
+#endif
 
 	// Some parameters will contribute to added luminance: in this case we add them together and saturate to not go out of the safe range
 	BSDF_SETEMISSIVE(ResultBSDF,		BSDF_GETEMISSIVE(ABSDF)								+ BSDF_GETEMISSIVE(ABSDF));
@@ -2495,6 +2527,10 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(TopBSDF));														// We only keep haziness if the top layer has it
 	BSDF_SETHASF90(ResultBSDF,			BSDF_GETHASF90(BaseBSDF)						| BSDF_GETHASF90(TopBSDF));			// F90: keep union of both even though it will be hard to get a match
 	BSDF_SETHASFUZZ(ResultBSDF,			BSDF_GETHASFUZZ(BaseBSDF)						| BSDF_GETHASFUZZ(TopBSDF));		// Fuzz: keep union of both even though it will be hard to get a match
+
+#if STRATA_GLINTS
+	BSDF_SETHASGLINT(ResultBSDF, 0); // Disable for now
+#endif
 
 	// Compute the top slab transmittance that will be used to blend the top and base material parameters.
 	// We do not check BSDF_GETISSIMPLEVOLUME(BSDFContext.BSDF) because that is set when we know the BSDF is not at the bottom later. And here we already know it is not the case.
@@ -3528,6 +3564,8 @@ void FStrataPixelHeader::StrataConvertFromDBuffer(
 		0.f,				// FuzzAmount
 		0.f,				// FuzzColor
 		In.Roughness,		// FuzzRoughness
+		0.f,				// GlintValue, 
+		0.f.xx,				// GlintUV,
 		DefaultThicknessCm,
 		false,				// bIsThinSurface,
 		SharedLocalBasisIndex,
@@ -3788,6 +3826,7 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, in
 	BSDF_SETISTHIN(OutBSDF, 0);
 	BSDF_SETHASFUZZ(OutBSDF, 0);
 	BSDF_SETHASTRANSABOVE(OutBSDF, 0);
+	BSDF_SETHASGLINT(OutBSDF, 0);
 
 	return OutBSDF;
 }
@@ -3834,6 +3873,7 @@ FStrataBSDF UnpackFastWaterPathStrataBSDFIn(FStrataMaterialContainer StrataBuffe
 	BSDF_SETISTHIN(OutBSDF, 0);
 	BSDF_SETHASFUZZ(OutBSDF, 0);
 	BSDF_SETHASTRANSABOVE(OutBSDF, 0);
+	BSDF_SETHASGLINT(OutBSDF, 0);
 
 	return OutBSDF;
 }
@@ -3920,6 +3960,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETISTHIN(OutBSDF, 0);
 				BSDF_SETHASFUZZ(OutBSDF, 0);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
+				BSDF_SETHASGLINT(OutBSDF, 0);
 			}
 			else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_CLOTH)
 			{
@@ -3953,6 +3994,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETISTHIN(OutBSDF, 0);
 				BSDF_SETHASFUZZ(OutBSDF, 1);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
+				BSDF_SETHASGLINT(OutBSDF, 0);
 			}
 			else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP || OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP_THIN)
 			{
@@ -3992,6 +4034,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETISTHIN(OutBSDF, (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP_THIN ? 1 : 0));
 				BSDF_SETHASFUZZ(OutBSDF, 0);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
+				BSDF_SETHASGLINT(OutBSDF, 0);
 			}
 			else if (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSPROFILE)
 			{
@@ -4041,6 +4084,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETISTHIN(OutBSDF, 0);
 				BSDF_SETHASFUZZ(OutBSDF, 0);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
+				BSDF_SETHASGLINT(OutBSDF, 0);
 			}
 			return OutBSDF;
 		}
@@ -4157,6 +4201,19 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		{
 			StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, OutBSDF.TransmittanceAboveAlongN, OutBSDF.CoverageAboveAlongN);
 		}
+
+
+	#if STRATA_GLINTS
+		if (BSDF_GETHASGLINT(OutBSDF))
+		{
+			uint2 GlintPackedData;
+			GlintPackedData.x = StrataLoadUint1(StrataBuffer, StrataAddressing);
+			GlintPackedData.y = StrataLoadUint1(StrataBuffer, StrataAddressing);
+			float4 GlintUnpackedData	= UnpackR16G16B16A16F(GlintPackedData);
+			SLAB_GLINT_UV(OutBSDF)		= GlintUnpackedData.xy;
+			SLAB_GLINT_VALUE(OutBSDF)	= GlintUnpackedData.z;
+		}
+	#endif
 	}
 	break;
 	case STRATA_BSDF_TYPE_HAIR:

@@ -1592,6 +1592,12 @@ static TAutoConsoleVariable<int32> CVarSubstrateRoughDiffuse(
 	TEXT("Enable Substrate rough diffuse model (works only if r.Material.RoughDiffuse is enabled in the project settings). Togglable at runtime"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarSubstrateGlints(
+	TEXT("r.Substrate.Glints"),
+	0,
+	TEXT("Enable Glint support for Strata slabs."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarSubstrateDebugAdvancedVisualizationShaders(
 	TEXT("r.Substrate.Debug.AdvancedVisualizationShaders"),
 	0,
@@ -1689,6 +1695,11 @@ namespace Strata
 	bool IsRoughDiffuseEnabled()
 	{
 		return CVarSubstrateRoughDiffuse.GetValueOnAnyThread() > 0;
+	}
+
+	bool IsGlintEnabled()
+	{
+		return IsStrataEnabled() && CVarSubstrateGlints.GetValueOnAnyThread() > 0;
 	}
 
 	bool Is8bitTileCoordEnabled()

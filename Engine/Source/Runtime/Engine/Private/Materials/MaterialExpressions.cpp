@@ -22851,6 +22851,23 @@ static int32 CompileWithDefaultFloat1(class FMaterialCompiler* Compiler, FExpres
 	}
 	return CodeChunk == INDEX_NONE ? Compiler->Constant(X) : CodeChunk;
 }
+static int32 CompileWithDefaultFloat2(class FMaterialCompiler* Compiler, FExpressionInput& Input, float X, float Y, bool* bDefaultIsUsed = nullptr)
+{
+	if (bDefaultIsUsed)
+	{
+		*bDefaultIsUsed = Input.GetTracedInput().Expression == nullptr;
+	}
+	int32 CodeChunk = Input.GetTracedInput().Expression ? Input.Compile(Compiler) : Compiler->Constant2(X, Y);
+	if (bDefaultIsUsed)
+	{
+		*bDefaultIsUsed |= CodeChunk == INDEX_NONE;
+	}
+	else
+	{
+		CodeChunk = CastToNonLWCType(Compiler, CodeChunk);
+	}
+	return CodeChunk == INDEX_NONE ? Compiler->Constant2(X, Y) : CodeChunk;
+}
 static int32 CompileWithDefaultFloat3(class FMaterialCompiler* Compiler, FExpressionInput& Input, float X, float Y, float Z, bool* bDefaultIsUsed = nullptr)
 {
 	if (bDefaultIsUsed)
@@ -23372,6 +23389,8 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat3(Compiler, FuzzColor, 0.0f, 0.0f, 0.0f),
 		bHasFuzzRoughness ? CompileWithDefaultFloat1(Compiler, FuzzRoughness, 0.5f) : RoughnessCodeChunk,
 		ThicknesCodeChunk,
+		CompileWithDefaultFloat1(Compiler, GlintValue, 0.0f),
+		CompileWithDefaultFloat2(Compiler, GlintUV, 0.0f, 0.0f),
 		NormalCodeChunk,
 		TangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
@@ -23400,6 +23419,8 @@ const TArray<FExpressionInput*> UMaterialExpressionStrataSlabBSDF::GetInputs()
 	Result.Add(&FuzzRoughness);
 	Result.Add(&FuzzAmount);
 	Result.Add(&FuzzColor);
+	Result.Add(&GlintValue);
+	Result.Add(&GlintUV);
 	return Result;
 }
 
@@ -23479,6 +23500,14 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	{
 		return MCT_Float3; // FuzzColor
 	}
+	else if (InputIndex == 16)
+	{
+		return MCT_Float; // GlintValue
+	}
+	else if (InputIndex == 17)
+	{
+		return MCT_Float2; // GlintUV
+	}
 
 	check(false);
 	return MCT_Float1;
@@ -23550,6 +23579,14 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	{
 		return TEXT("Fuzz Color");
 	}
+	else if (InputIndex == 16)
+	{
+		return Strata::IsGlintEnabled() ? TEXT("Glint Value") : TEXT("Glint Value (Disabled)");
+	}
+	else if (InputIndex == 17)
+	{
+		return Strata::IsGlintEnabled() ? TEXT("Glint UVs") : TEXT("Glint UVs (Disabled)");
+	}
 
 	return TEXT("Unknown");
 }
@@ -23607,6 +23644,7 @@ FStrataOperator* UMaterialExpressionStrataSlabBSDF::StrataGenerateMaterialTopolo
 	StrataOperator.bBSDFHasSSS = HasSSS();
 	StrataOperator.bBSDFHasMFPPluggedIn = HasMFPPluggedIn();
 	StrataOperator.bBSDFHasAnisotropy = HasAnisotropy();
+	StrataOperator.bBSDFHasGlint = HasGlint();
 	StrataOperator.ThicknessIndex = Compiler->StrataThicknessStackGetThicknessIndex();
 	return &StrataOperator;
 }
@@ -23649,6 +23687,11 @@ bool UMaterialExpressionStrataSlabBSDF::HasSecondRoughness() const
 bool UMaterialExpressionStrataSlabBSDF::HasAnisotropy() const
 {
 	return Anisotropy.IsConnected();
+}
+
+bool UMaterialExpressionStrataSlabBSDF::HasGlint() const
+{
+	return GlintValue.IsConnected();
 }
 #endif // WITH_EDITOR
 
@@ -23705,6 +23748,8 @@ int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompi
 		Compiler->Constant3(0.0f, 0.0f, 0.0f),					// FuzzColor
 		RoughnessCodeChunk,										// FuzzRoughness
 		ThicknessCodeChunk,										// Thickness
+		Compiler->Constant(0.0f),								// GlintValue
+		Compiler->Constant2(0.0f, 0.0f),						// GlintUV
 		NormalCodeChunk,
 		NullTangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
@@ -23834,6 +23879,7 @@ FStrataOperator* UMaterialExpressionStrataSimpleClearCoatBSDF::StrataGenerateMat
 	StrataOperator.bBSDFHasSSS = false;
 	StrataOperator.bBSDFHasMFPPluggedIn = false;
 	StrataOperator.bBSDFHasAnisotropy = false;
+	StrataOperator.bBSDFHasGlint = false;
 	StrataOperator.ThicknessIndex = Compiler->StrataThicknessStackGetThicknessIndex();
 	return &StrataOperator;
 }

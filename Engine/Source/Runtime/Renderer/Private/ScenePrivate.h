@@ -49,6 +49,7 @@
 #include "PrimitiveInstanceUpdateCommand.h"
 #include "OIT/OIT.h"
 #include "ShadingEnergyConservation.h"
+#include "Strata/Glint/GlintShadingLUTs.h"
 #include "Experimental/Containers/RobinHoodHashTable.h"
 #include "SpanAllocator.h"
 #include "GlobalDistanceField.h"
@@ -1079,6 +1080,8 @@ public:
 	FShaderPrintStateData ShaderPrintStateData;
 
 	FShadingEnergyConservationStateData ShadingEnergyConservationData;
+
+	FGlintShadingLUTsStateData GlintShadingLUTsData;
 
 	bool bVirtualShadowMapCacheAdded;
 	bool bLumenSceneDataAdded;
