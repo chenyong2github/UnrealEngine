@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Math/Transform.h" // IWYU pragma: keep
+#include "UObject/Class.h"
+
 #include "PCGMetadataAttributeTraits.generated.h"
 
 UENUM(BlueprintType)
