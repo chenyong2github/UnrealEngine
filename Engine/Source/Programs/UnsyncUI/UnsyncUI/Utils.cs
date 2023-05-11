@@ -78,6 +78,9 @@ namespace UnsyncUI
 			var tcs = new TaskCompletionSource<IEnumerable<string>>();
             Task.Run(() =>
 			{
+				var enumOptions = new EnumerationOptions();
+				enumOptions.IgnoreInaccessible = true;
+
 				using var cancel = token.Register(() => tcs.TrySetCanceled());
 				try
 				{
@@ -87,7 +90,7 @@ namespace UnsyncUI
 						var timer = new Stopwatch();
 						timer.Start();
 
-						var dirs = Directory.EnumerateDirectories(path).ToList();
+						var dirs = Directory.EnumerateDirectories(path, "*", enumOptions).ToList();
 
 						timer.Stop();
 						Debug.WriteLine($"Time: {timer.Elapsed.TotalSeconds:0.000} s - {path}");
