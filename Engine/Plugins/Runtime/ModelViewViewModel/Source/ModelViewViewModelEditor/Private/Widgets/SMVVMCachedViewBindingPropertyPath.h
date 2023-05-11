@@ -13,28 +13,33 @@ class UWidgetBlueprint;
 
 namespace UE::MVVM
 {
+class SPropertyPath;
 
-class SPropertyPath : public SCompoundWidget
+DECLARE_DELEGATE_RetVal(FMVVMBlueprintPropertyPath, FOnGetPropertyPath);
+
+class SCachedViewBindingPropertyPath : public SCompoundWidget
 {
+private:
+	using Super = SCompoundWidget;
+
 public:
-	SLATE_BEGIN_ARGS(SPropertyPath)
+	SLATE_BEGIN_ARGS(SCachedViewBindingPropertyPath)
 		: _TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 	{}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
-		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath, PropertyPath)
+		SLATE_EVENT(FOnGetPropertyPath, OnGetPropertyPath)
 		SLATE_ARGUMENT_DEFAULT(bool, ShowContext) = true;
 		SLATE_ARGUMENT_DEFAULT(bool, ShowOnlyLastPath) = false;
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint);
-	void SetPropertyPath(const FMVVMBlueprintPropertyPath& InPropertyPath);
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 	TWeakObjectPtr<const UWidgetBlueprint> WidgetBlueprint;
-	const FTextBlockStyle* TextStyle = nullptr;
-	TSharedPtr<SHorizontalBox> FieldBox;
-	bool bShowContext = false;
-	bool bShowOnlyLastPath = false;
+	TSharedPtr<SPropertyPath> PropertyPathWidget;
+	FOnGetPropertyPath OnGetPropertyPath;
+	TArray<FMVVMConstFieldVariant> CachedPropertyPath;
 };
 
 } // namespace UE::MVVM

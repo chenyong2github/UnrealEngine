@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SMVVMFieldEntry.h"
+#include "Widgets/SMVVMFieldEntry.h"
 
 #include "Bindings/MVVMBindingHelper.h"
 #include "SMVVMFieldIcon.h"
@@ -123,9 +123,8 @@ FText GetPathToolTip(TConstArrayView<FMVVMConstFieldVariant> Path)
 
 } // namespace Private
 
-void SFieldEntry::Construct(const FArguments& InArgs)
+void SFieldPaths::Construct(const FArguments& InArgs)
 {
-	Field = InArgs._Field;
 	TextStyle = InArgs._TextStyle;
 
 	ChildSlot
@@ -133,67 +132,79 @@ void SFieldEntry::Construct(const FArguments& InArgs)
 		SAssignNew(FieldBox, SHorizontalBox)
 	];
 
-	Refresh();
+	SetFieldPaths(InArgs._FieldPaths);
 }
 
-void SFieldEntry::Refresh()
+void SFieldPaths::SetFieldPaths(TArrayView<UE::MVVM::FMVVMConstFieldVariant> InPropertyPath)
 {
 	FieldBox->ClearChildren();
 
-	TArray<FMVVMConstFieldVariant> Fields = Field.GetFields();
-
 	int32 Index = 0;
-	if (bShowOnlyLast && Fields.Num() > 0)
+	if (bShowOnlyLast && InPropertyPath.Num() > 0)
 	{
-		Index = Fields.Num() - 1;
+		Index = InPropertyPath.Num() - 1;
 	}
 
-	for (; Index < Fields.Num(); ++Index)
+	for (; Index < InPropertyPath.Num(); ++Index)
 	{
-		FieldBox->AddSlot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(SFieldIcon)
-			.Field(Fields[Index])
-		];
+		bool bIsValid = InPropertyPath[Index].IsValid();
+		bool bIsFieldValid = bIsValid && !InPropertyPath[Index].HasAnyFlags(RF_NewerVersionExists);
+		UStruct* Struct = InPropertyPath[Index].GetOwner();
+		bool bIsOwnerValid = bIsValid && Struct && !Struct->HasAnyFlags(RF_NewerVersionExists);
 
-		FieldBox->AddSlot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Center)
-		.Padding(4, 0, 0, 0)
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.TextStyle(TextStyle)
-			.Clipping(EWidgetClipping::OnDemand)
-			.Text(Private::GetFieldDisplayName(Fields[Index]))
-		];
-
-		// if not the last, then we need to add a chevron separator
-		if (Index != Fields.Num() - 1)
+		if (bIsFieldValid && bIsOwnerValid)
 		{
 			FieldBox->AddSlot()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.Padding(6, 0)
-			.AutoWidth()
-			[
-				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
-			];
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SFieldIcon)
+					.Field(InPropertyPath[Index])
+				];
+
+			FieldBox->AddSlot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				.Padding(4, 0, 0, 0)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.TextStyle(TextStyle)
+					.Clipping(EWidgetClipping::OnDemand)
+					.Text(Private::GetFieldDisplayName(InPropertyPath[Index]))
+				];
+		}
+		else
+		{
+			FieldBox->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.TextStyle(TextStyle)
+					.Clipping(EWidgetClipping::OnDemand)
+					.Text(LOCTEXT("Invalid", "Invalid Field"))
+				];
+		}
+
+		// if not the last, then we need to add a chevron separator
+		if (Index != InPropertyPath.Num() - 1)
+		{
+			FieldBox->AddSlot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(6, 0)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
+				];
 		}
 	}
 
-	SetToolTipText(Private::GetPathToolTip(Fields));
-}
-
-void SFieldEntry::SetField(const FMVVMBlueprintPropertyPath& InField)
-{
-	Field = InField;
-
-	Refresh();
+	SetToolTipText(Private::GetPathToolTip(InPropertyPath));
 } 
 
 } // namespace UE::MVVM

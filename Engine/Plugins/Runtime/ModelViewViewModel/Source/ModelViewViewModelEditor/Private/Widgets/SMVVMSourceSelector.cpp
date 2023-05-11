@@ -18,11 +18,11 @@
 namespace UE::MVVM
 {
 
-void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* InWidgetBlueprint)
+void SBindingContextSelector::Construct(const FArguments& Args, const UWidgetBlueprint* InWidgetBlueprint)
 {
 	TextStyle = Args._TextStyle;
 
-	SelectedSourceAttribute = Args._SelectedSource;
+	SelectedSourceAttribute = Args._SelectedBindingSource;
 	check(SelectedSourceAttribute.IsSet());
 
 	InitialSource = SelectedSourceAttribute.Get();
@@ -37,7 +37,7 @@ void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* 
 	Refresh();
 
 	MenuAnchor = SNew(SMenuAnchor)
-		.OnGetMenuContent(this, &SSourceSelector::OnGetMenuContent)
+		.OnGetMenuContent(this, &SBindingContextSelector::OnGetMenuContent)
 		[
 			SNew(SButton)
 			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton").ButtonStyle)
@@ -52,8 +52,8 @@ void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* 
 				.Padding(0, 2)
 				.HAlign(HAlign_Fill)
 				[
-					SAssignNew(SelectedSourceWidget, SSourceEntry)
-					.Source(SelectedSource)
+					SAssignNew(SelectedSourceWidget, SBindingContextEntry)
+					.BindingContext(SelectedSource)
 					.TextStyle(TextStyle)
 				]
 				+ SHorizontalBox::Slot()
@@ -87,8 +87,8 @@ void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* 
 				SNew(SSimpleButton)
 				.Icon(FAppStyle::Get().GetBrush("Icons.X"))
 				.ToolTipText(LOCTEXT("ClearField", "Clear source selection."))
-				.Visibility(this, &SSourceSelector::GetClearVisibility)
-				.OnClicked(this, &SSourceSelector::OnClearSource)
+				.Visibility(this, &SBindingContextSelector::GetClearVisibility)
+				.OnClicked(this, &SBindingContextSelector::OnClearSource)
 			]
 		];
 	}
@@ -104,15 +104,15 @@ void SSourceSelector::Construct(const FArguments& Args, const UWidgetBlueprint* 
 	check(OnSelectionChangedDelegate.IsBound());
 }
 
-TSharedRef<SWidget> SSourceSelector::OnGetMenuContent()
+TSharedRef<SWidget> SBindingContextSelector::OnGetMenuContent()
 {
 	TSharedRef<SVerticalBox> VBox = SNew(SVerticalBox);
 
 	if (bViewModels)
 	{
 		ViewModelList = SNew(SListView<FBindingSource>)
-			.OnGenerateRow(this, &SSourceSelector::OnGenerateRow)
-			.OnSelectionChanged(this, &SSourceSelector::OnViewModelSelectionChanged)
+			.OnGenerateRow(this, &SBindingContextSelector::OnGenerateRow)
+			.OnSelectionChanged(this, &SBindingContextSelector::OnViewModelSelectionChanged)
 			.SelectionMode(ESelectionMode::Single)
 			.ListItemsSource(&ViewModelSources);
 
@@ -130,7 +130,7 @@ TSharedRef<SWidget> SSourceSelector::OnGetMenuContent()
 	else
 	{
 		WidgetHierarchy = SNew(SReadOnlyHierarchyView, WidgetBlueprint.Get())
-			.OnSelectionChanged(this, &SSourceSelector::OnWidgetSelectionChanged)
+			.OnSelectionChanged(this, &SBindingContextSelector::OnWidgetSelectionChanged)
 			.ShowSearch(false);
 
 		VBox->AddSlot()
@@ -158,8 +158,8 @@ TSharedRef<SWidget> SSourceSelector::OnGetMenuContent()
 			[
 				SNew(SPrimaryButton)
 				.Text(LOCTEXT("Select", "Select"))
-				.OnClicked(this, &SSourceSelector::HandleSelect)
-				.IsEnabled(this, &SSourceSelector::IsSelectEnabled)
+				.OnClicked(this, &SBindingContextSelector::HandleSelect)
+				.IsEnabled(this, &SBindingContextSelector::IsSelectEnabled)
 			]
 			+ SHorizontalBox::Slot()
 			.Padding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
@@ -168,7 +168,7 @@ TSharedRef<SWidget> SSourceSelector::OnGetMenuContent()
 				SNew(SButton)
 				.Text(LOCTEXT("Cancel", "Cancel"))
 				.HAlign(HAlign_Center)
-				.OnClicked(this, &SSourceSelector::HandleCancel)
+				.OnClicked(this, &SBindingContextSelector::HandleCancel)
 			]
 		];
 
@@ -185,12 +185,12 @@ TSharedRef<SWidget> SSourceSelector::OnGetMenuContent()
 		];
 }
 
-bool SSourceSelector::IsSelectEnabled() const
+bool SBindingContextSelector::IsSelectEnabled() const
 {
 	return SelectedSource.IsValid();
 }
 
-FReply SSourceSelector::HandleCancel()
+FReply SBindingContextSelector::HandleCancel()
 {
 	OnViewModelSelectionChanged(InitialSource, ESelectInfo::Direct);
 
@@ -198,7 +198,7 @@ FReply SSourceSelector::HandleCancel()
 	return FReply::Handled();
 }
 
-FReply SSourceSelector::HandleSelect()
+FReply SBindingContextSelector::HandleSelect()
 {
 	if (SelectedSourceWidget.IsValid())
 	{
@@ -212,19 +212,19 @@ FReply SSourceSelector::HandleSelect()
 	return FReply::Handled();
 }
 
-void SSourceSelector::OnViewModelSelectionChanged(FBindingSource Selected, ESelectInfo::Type SelectionType)
+void SBindingContextSelector::OnViewModelSelectionChanged(FBindingSource Selected, ESelectInfo::Type SelectionType)
 {
 	SelectedSource = Selected;
 }
 
-void SSourceSelector::OnWidgetSelectionChanged(FName SelectedName, ESelectInfo::Type SelectionType)
+void SBindingContextSelector::OnWidgetSelectionChanged(FName SelectedName, ESelectInfo::Type SelectionType)
 {
 	FBindingSource Selected = FBindingSource::CreateForWidget(WidgetBlueprint.Get(), SelectedName);
 
 	SelectedSource = Selected;
 }
 
-void SSourceSelector::Refresh()
+void SBindingContextSelector::Refresh()
 {
 	SelectedSource = SelectedSourceAttribute.Get();
 
@@ -271,12 +271,12 @@ void SSourceSelector::Refresh()
 	}
 }
 
-EVisibility SSourceSelector::GetClearVisibility() const
+EVisibility SBindingContextSelector::GetClearVisibility() const
 {
 	return SelectedSource.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-FReply SSourceSelector::OnClearSource()
+FReply SBindingContextSelector::OnClearSource()
 {
 	if (ViewModelList.IsValid())
 	{
@@ -286,15 +286,15 @@ FReply SSourceSelector::OnClearSource()
 	return FReply::Handled();
 }
 
-TSharedRef<ITableRow> SSourceSelector::OnGenerateRow(FBindingSource Source, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SBindingContextSelector::OnGenerateRow(FBindingSource Source, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(STableRow<FBindingSource>, OwnerTable)
 	[
 		SNew(SBox)
 		.Padding(4, 3)
 		[
-			SNew(SSourceEntry)
-			.Source(Source)
+			SNew(SBindingContextEntry)
+			.BindingContext(Source)
 			.TextStyle(TextStyle)
 		]
 	];

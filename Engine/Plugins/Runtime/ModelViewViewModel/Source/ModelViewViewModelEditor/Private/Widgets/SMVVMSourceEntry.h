@@ -14,15 +14,15 @@ class STextBlock;
 namespace UE::MVVM
 {
 
-class SSourceEntry : public SCompoundWidget
+class SBindingContextEntry : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SSourceEntry) :
-		_TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+	SLATE_BEGIN_ARGS(SBindingContextEntry)
+		: _TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 		{
 		}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
-		SLATE_ARGUMENT(UE::MVVM::FBindingSource, Source)
+		SLATE_ARGUMENT(UE::MVVM::FBindingSource, BindingContext)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& Args);

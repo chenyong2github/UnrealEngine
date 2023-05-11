@@ -4,6 +4,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Editor.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMPropertyPath.h"
 #include "MVVMEditorSubsystem.h"
 #include "Types/MVVMBindingName.h"
 #include "WidgetBlueprint.h"
@@ -83,3 +84,16 @@ UE::MVVM::FBindingSource UE::MVVM::FBindingSource::CreateForViewModel(const UWid
 	return Source;
 }
 
+
+UE::MVVM::FBindingSource UE::MVVM::FBindingSource::CreateFromPropertyPath(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintPropertyPath& Path)
+{
+	if (Path.IsFromViewModel())
+	{
+		return FBindingSource::CreateForViewModel(WidgetBlueprint, Path.GetViewModelId());
+	}
+	else if (Path.IsFromWidget())
+	{
+		return FBindingSource::CreateForWidget(WidgetBlueprint, Path.GetWidgetName());
+	}
+	return FBindingSource();
+}

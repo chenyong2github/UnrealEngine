@@ -121,6 +121,32 @@ namespace UE::MVVM
 			return nullptr;
 		}
 
+		UE_NODISCARD bool HasAnyFlags(EObjectFlags InFlags) const
+		{
+			if (Type == EVariantType::Property)
+			{
+				return Binding.Property ? Binding.Property->HasAnyFlags(InFlags) : false;
+			}
+			else if (Type == EVariantType::Function)
+			{
+				return Binding.Function ? Binding.Function->HasAnyFlags(InFlags) : false;
+			}
+			return false;
+		}
+
+		UE_NODISCARD bool IsValid() const
+		{
+			if (Type == EVariantType::Property)
+			{
+				return Binding.Property != nullptr;
+			}
+			else if (Type == EVariantType::Function)
+			{
+				return Binding.Function != nullptr;
+			}
+			return false;
+		}
+
 		UE_NODISCARD bool IsEmpty() const
 		{
 			return Type == EVariantType::Empty || Binding.Function == nullptr;

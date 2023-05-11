@@ -4,6 +4,7 @@
 
 #include "MVVMPropertyPath.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/SMVVMFieldSelectorMenu.h"
 
 class SGraphPin;
 class UK2Node_CallFunction;
@@ -22,44 +23,34 @@ class SFieldSelector;
 class SFunctionParameter : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_RetVal(EMVVMBindingMode, FGetBindingMode)
-
-	SLATE_BEGIN_ARGS(SFunctionParameter) :
-		_WidgetBlueprint(nullptr),
-		_Binding(nullptr)
-		{}
-		SLATE_EVENT(FGetBindingMode, OnGetBindingMode)
-		SLATE_ARGUMENT(UWidgetBlueprint*, WidgetBlueprint)
-		SLATE_ARGUMENT(FMVVMBlueprintViewBinding*, Binding)
+	SLATE_BEGIN_ARGS(SFunctionParameter) {}
+		SLATE_ARGUMENT(FGuid, BindingId)
 		SLATE_ARGUMENT(FName, ParameterName)
 		SLATE_ARGUMENT_DEFAULT(bool, SourceToDestination) = true;
 		SLATE_ARGUMENT_DEFAULT(bool, AllowDefault) = true;
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, UWidgetBlueprint* WidgetBlueprint);
 
 private:
-
 	ECheckBoxState OnGetIsBindArgumentChecked() const;
 	void OnBindArgumentChecked(ECheckBoxState Checked);
-	EVisibility OnGetVisibility(bool bDefaultValue) const;
 
 	FMVVMBlueprintPropertyPath OnGetSelectedField() const;
 	void SetSelectedField(const FMVVMBlueprintPropertyPath& Path);
 
-	void OnFieldSelectionChanged(FMVVMBlueprintPropertyPath Selected);
+	void HandleFieldSelectionChanged(FMVVMBlueprintPropertyPath SelectedField, const UFunction* Function);
+	FFieldSelectionContext GetSelectedSelectionContext() const;
+
+	int32 GetCurrentWidgetIndex() const;
 
 private:
-
 	TWeakObjectPtr<UWidgetBlueprint> WidgetBlueprint;
-	FMVVMBlueprintViewBinding* Binding = nullptr;
+	FGuid BindingId;
 	FName ParameterName;
 	/** This reference is just to keep the default value widget alive. */
 	TSharedPtr<SGraphPin> GraphPin;
-	TSharedPtr<UE::MVVM::SFieldSelector> FieldSelector;
-	FGetBindingMode GetBindingModeDelegate;
 
-	// Previously selected field value so that toggling bind on and off doesn't clear the reference.
 	FMVVMBlueprintPropertyPath PreviousSelectedField;
 
 	bool bSourceToDestination = true;

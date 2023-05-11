@@ -7,9 +7,13 @@
 #include "MVVMBlueprintView.h"
 #include "MVVMEditorSubsystem.h"
 #include "Styling/MVVMEditorStyle.h"
+#include "Types/MVVMBindingSource.h"
 #include "WidgetBlueprint.h"
+#include "Widgets/SMVVMFieldEntry.h"
 #include "Widgets/SMVVMFieldIcon.h"
+#include "Widgets/SMVVMSourceEntry.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SPropertyPath"
@@ -17,72 +21,69 @@
 namespace UE::MVVM
 {
 
-void SPropertyPath::Construct(const FArguments& InArgs)
+void SPropertyPath::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint)
 {
-	WidgetBlueprint = InArgs._WidgetBlueprint;
-	check(InArgs._WidgetBlueprint != nullptr);
-	PropertyPath = InArgs._PropertyPath;
-	check(PropertyPath);
+	WidgetBlueprint = InWidgetBlueprint;
+	TextStyle = InArgs._TextStyle;
+	bShowContext = InArgs._ShowContext;
+	bShowOnlyLastPath = InArgs._ShowOnlyLastPath;
 
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.TextStyle(FMVVMEditorStyle::Get(), "PropertyPath.ContextText")
-			.Text(this, &SPropertyPath::GetSourceDisplayName)
-		]
-		+ SHorizontalBox::Slot()
-		.Padding(FMargin(5, 0, 0, 0))
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(SFieldIcon)
-			.Field(GetLastField())
-		]
-		+ SHorizontalBox::Slot()
-		.Padding(FMargin(2, 0, 5, 0))
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.TextStyle(FMVVMEditorStyle::Get(), "PropertyPath.ContextText")
-			.Text(this, &SPropertyPath::GetFieldDisplayName)
-		]
+		SAssignNew(FieldBox, SHorizontalBox)
 	];
+	SetPropertyPath(InArgs._PropertyPath);
 }
 
-FText SPropertyPath::GetSourceDisplayName() const
+
+void SPropertyPath::SetPropertyPath(const FMVVMBlueprintPropertyPath& InPropertyPath)
 {
-	if (PropertyPath->IsFromWidget())
+	FieldBox->ClearChildren();
+
+	bool bHasSource = InPropertyPath.IsFromWidget() || InPropertyPath.IsFromViewModel();
+	if (bShowContext && bHasSource)
 	{
-		const UWidget* Widget = WidgetBlueprint->WidgetTree->FindWidget(PropertyPath->GetWidgetName());
-		return FText::FromString(Widget->GetDisplayLabel());
-	}
-	else if (PropertyPath->IsFromViewModel())
-	{
-		const UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		if (const UMVVMBlueprintView* View = Subsystem->GetView(WidgetBlueprint.Get()))
+		FieldBox->AddSlot()
+			.Padding(8, 0, 0, 0)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SBindingContextEntry)
+				.TextStyle(TextStyle)
+				.BindingContext(FBindingSource::CreateFromPropertyPath(WidgetBlueprint.Get(), InPropertyPath))
+			];
+
+		if (InPropertyPath.HasPaths())
 		{
-			const FMVVMBlueprintViewModelContext* ViewModel = View->FindViewModel(PropertyPath->GetViewModelId());
-			return ViewModel->GetDisplayName();
+			FieldBox->AddSlot()
+				.Padding(6, 0)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
+				];
 		}
 	}
-	return FText::GetEmpty();
+
+	if (InPropertyPath.HasPaths())
+	{
+		FieldBox->AddSlot()
+			.Padding(0, 0, 8, 0)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SFieldPaths)
+				.TextStyle(TextStyle)
+				.FieldPaths(InPropertyPath.GetFields())
+				.ShowOnlyLast(bShowOnlyLastPath)
+			];
+	}
 }
 
-FText SPropertyPath::GetFieldDisplayName() const
-{
-	return FText::FromString(PropertyPath->GetBasePropertyPath());
-}
-
-FMVVMConstFieldVariant SPropertyPath::GetLastField() const
-{
-	return PropertyPath->GetFields().Last();
-}
 
 } // namespace UE::MVVM
 

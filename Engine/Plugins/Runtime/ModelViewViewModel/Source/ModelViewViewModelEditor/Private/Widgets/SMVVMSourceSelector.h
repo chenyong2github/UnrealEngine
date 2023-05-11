@@ -17,14 +17,14 @@ template <typename ItemType> class SListView;
 namespace UE::MVVM
 {
 
-class SSourceEntry;
+class SBindingContextEntry;
 
-class SSourceSelector : public SCompoundWidget
+class SBindingContextSelector : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FSelectionChanged, FBindingSource);
 
-	SLATE_BEGIN_ARGS(SSourceSelector) :
+	SLATE_BEGIN_ARGS(SBindingContextSelector) :
 		_TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "NormalText" ) )
 		{
 		}
@@ -32,7 +32,7 @@ public:
 		SLATE_ARGUMENT_DEFAULT(bool, ShowClear) = true;
 		SLATE_ARGUMENT_DEFAULT(bool, AutoRefresh) = false;
 		SLATE_ARGUMENT_DEFAULT(bool, ViewModels) = false;
-		SLATE_ATTRIBUTE(FBindingSource, SelectedSource)
+		SLATE_ATTRIBUTE(FBindingSource, SelectedBindingSource)
 		SLATE_EVENT(FSelectionChanged, OnSelectionChanged)
 	SLATE_END_ARGS()
 
@@ -68,7 +68,7 @@ private:
 	TSharedPtr<SMenuAnchor> MenuAnchor;
 	TSharedPtr<SListView<FBindingSource>> ViewModelList;
 	TSharedPtr<SReadOnlyHierarchyView> WidgetHierarchy;
-	TSharedPtr<SSourceEntry> SelectedSourceWidget;
+	TSharedPtr<SBindingContextEntry> SelectedSourceWidget;
 
 	bool bAutoRefresh = false;
 	bool bViewModels = false;

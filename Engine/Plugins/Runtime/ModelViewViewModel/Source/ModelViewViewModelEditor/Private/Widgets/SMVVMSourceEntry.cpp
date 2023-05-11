@@ -52,7 +52,7 @@ FText GetSourceDisplayName(const FBindingSource& Source)
 
 } // namespace Private
 
-void SSourceEntry::Construct(const FArguments& InArgs)
+void SBindingContextEntry::Construct(const FArguments& InArgs)
 {
 	ChildSlot
 	[
@@ -75,10 +75,10 @@ void SSourceEntry::Construct(const FArguments& InArgs)
 		]
 	];
 
-	RefreshSource(InArgs._Source);
+	RefreshSource(InArgs._BindingContext);
 }
 
-void SSourceEntry::RefreshSource(const FBindingSource& Source)
+void SBindingContextEntry::RefreshSource(const FBindingSource& Source)
 {
 	Image->SetImage(Private::GetSourceIcon(Source));
 	Image->SetColorAndOpacity(Private::GetSourceColor(Source));

@@ -27,6 +27,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SMVVMViewModelPanel.h" // IWYU pragma: keep
+#include "Widgets/SMVVMViewModelBindingListWidget.h"
 #include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "BindingListView"
@@ -183,11 +184,11 @@ public:
 					SNew(SBox)
 					.MinDesiredWidth(150)
 					[
-						SNew(SSourceSelector, InWidgetBlueprint)
+						SNew(SBindingContextSelector, InWidgetBlueprint)
 						.ShowClear(false)
 						.AutoRefresh(true)
 						.ViewModels(false)
-						.SelectedSource(this, &SWidgetRow::GetSelectedWidget)
+						.SelectedBindingSource(this, &SWidgetRow::GetSelectedWidget)
 						.OnSelectionChanged(this, &SWidgetRow::SetSelectedWidget)
 					]
 				]
@@ -282,11 +283,9 @@ public:
 		Entry = InEntry;
 		WidgetBlueprintWeak = InWidgetBlueprint;
 
-		OnBlueprintChangedHandle = InWidgetBlueprint->OnChanged().AddSP(this, &SBindingRow::HandleBlueprintChanged);
 		CVarDefaultExecutionMode = IConsoleManager::Get().FindConsoleVariable(TEXT("MVVM.DefaultExecutionMode"));
 		
 		FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding();
-		FBindingSource WidgetSource = FBindingSource::CreateForWidget(InWidgetBlueprint, ViewBinding->DestinationPath.GetWidgetName());
 
 		STableRow<TSharedPtr<FBindingEntry>>::Construct(
 			STableRow<TSharedPtr<FBindingEntry>>::FArguments()
@@ -336,16 +335,12 @@ public:
 							SNew(SBox)
 							.MinDesiredWidth(150)
 							[
-								SAssignNew(WidgetFieldSelector, SFieldSelector, InWidgetBlueprint, false)
-								.BindingMode(this, &SBindingRow::GetCurrentBindingMode)
-								.SelectedField(this, &SBindingRow::GetSelectedWidgetProperty)
-								.OnFieldSelectionChanged(this, &SBindingRow::OnWidgetPropertySelected)
-								.SelectedConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, false)
-								.OnConversionFunctionSelectionChanged(this, &SBindingRow::OnConversionFunctionChanged, false)
-								.ShowConversionFunctions(this, &SBindingRow::ShouldShowConversionFunctions, false)
-								.ShowSource(false)
-								.Source(WidgetSource)
-								.AssignableTo(this, &SBindingRow::GetAssignableToProperty, false)
+								SNew(SFieldSelector, InWidgetBlueprint)
+								.OnGetPropertyPath(this, &SBindingRow::GetSelectedPropertyPath, false)
+								.OnGetConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, false)
+								.OnFieldSelectionChanged(this, &SBindingRow::HandleFieldSelectionChanged, false)
+								.OnGetSelectionContext(this, &SBindingRow::GetSelectedSelectionContext, false)
+								.ShowContext(false)
 							]
 						]
 
@@ -384,14 +379,11 @@ public:
 							SNew(SBox)
 							.MinDesiredWidth(150)
 							[
-								SAssignNew(ViewModelFieldSelector, SFieldSelector, InWidgetBlueprint, true)
-								.BindingMode(this, &SBindingRow::GetCurrentBindingMode)
-								.SelectedField(this, &SBindingRow::GetSelectedViewModelProperty)
-								.OnFieldSelectionChanged(this, &SBindingRow::OnViewModelPropertySelected)
-								.SelectedConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, true)
-								.OnConversionFunctionSelectionChanged(this, &SBindingRow::OnConversionFunctionChanged, true)
-								.ShowConversionFunctions(this, &SBindingRow::ShouldShowConversionFunctions, true)
-								.AssignableTo(this, &SBindingRow::GetAssignableToProperty, true)
+								SNew(SFieldSelector, InWidgetBlueprint)
+								.OnGetPropertyPath(this, &SBindingRow::GetSelectedPropertyPath, true)
+								.OnGetConversionFunction(this, &SBindingRow::GetSelectedConversionFunction, true)
+								.OnFieldSelectionChanged(this, &SBindingRow::HandleFieldSelectionChanged, true)
+								.OnGetSelectionContext(this, &SBindingRow::GetSelectedSelectionContext, true)
 							]
 						]
 
@@ -453,14 +445,6 @@ public:
 		];
 	}
 
-	~SBindingRow()
-	{
-		if (UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintWeak.Get())
-		{
-			WidgetBlueprint->OnChanged().Remove(OnBlueprintChangedHandle);
-		}
-	}
-
 	FMVVMBlueprintViewBinding* GetThisViewBinding() const
 	{
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
@@ -486,20 +470,20 @@ private:
 
 	FSlateColor GetErrorBorderColor() const
 	{
-		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		UMVVMBlueprintView* BlueprintViewPtr = EditorSubsystem->GetView(WidgetBlueprintWeak.Get());
-		if (BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Error))
+		if (const FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
 		{
-			return FStyleColors::Error;
+			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			UMVVMBlueprintView* BlueprintViewPtr = EditorSubsystem->GetView(WidgetBlueprintWeak.Get());
+			if (BlueprintViewPtr->HasBindingMessage(ViewModelBinding->BindingId, EBindingMessageType::Error))
+			{
+				return FStyleColors::Error;
+			}
+			else if (BlueprintViewPtr->HasBindingMessage(ViewModelBinding->BindingId, EBindingMessageType::Warning))
+			{
+				return FStyleColors::Warning;
+			}
 		}
-		else if (BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Warning))
-		{
-			return FStyleColors::Warning;
-		}
-		else
-		{
-			return FStyleColors::Transparent;
-		}
+		return FStyleColors::Transparent;
 	}
 
 	ECheckBoxState IsBindingEnabled() const
@@ -522,25 +506,33 @@ private:
 
 	EVisibility GetErrorButtonVisibility() const
 	{
-		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		UMVVMBlueprintView* BlueprintViewPtr = EditorSubsystem->GetView(WidgetBlueprintWeak.Get());
-		bool HasBindingError = BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Error) || BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Warning);
-		return HasBindingError ? EVisibility::Visible : EVisibility::Collapsed;
+		if (const FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
+		{
+			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			UMVVMBlueprintView* BlueprintViewPtr = EditorSubsystem->GetView(WidgetBlueprintWeak.Get());
+			bool HasBindingError = BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Error) || BlueprintViewPtr->HasBindingMessage(GetThisViewBinding()->BindingId, EBindingMessageType::Warning);
+			return HasBindingError ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+		return EVisibility::Collapsed;
 	}
 
 	FText GetErrorButtonToolTip() const
 	{
 		// Get error messages of this binding
-		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		UMVVMBlueprintView* BlueprintViewPtr = EditorSubsystem->GetView(WidgetBlueprintWeak.Get());
-		TArray<FText> BindingErrorList = BlueprintViewPtr->GetBindingMessages(GetThisViewBinding()->BindingId, EBindingMessageType::Error);
-		TArray<FText> BindingWarningList = BlueprintViewPtr->GetBindingMessages(GetThisViewBinding()->BindingId, EBindingMessageType::Warning);
-		BindingErrorList.Append(BindingWarningList);
+		if (const FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
+		{
+			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			UMVVMBlueprintView* BlueprintViewPtr = EditorSubsystem->GetView(WidgetBlueprintWeak.Get());
+			TArray<FText> BindingErrorList = BlueprintViewPtr->GetBindingMessages(ViewModelBinding->BindingId, EBindingMessageType::Error);
+			TArray<FText> BindingWarningList = BlueprintViewPtr->GetBindingMessages(ViewModelBinding->BindingId, EBindingMessageType::Warning);
+			BindingErrorList.Append(BindingWarningList);
 
-		static const FText NewLineText = FText::FromString(TEXT("\n"));
-		FText HintText = LOCTEXT("ErrorButtonText", "Errors and Warnings: (Click to show in a separate window)");
-		FText ErrorsText = FText::Join(NewLineText, BindingErrorList);
-		return FText::Join(NewLineText, HintText, ErrorsText);
+			static const FText NewLineText = FText::FromString(TEXT("\n"));
+			FText HintText = LOCTEXT("ErrorButtonText", "Errors and Warnings: (Click to show in a separate window)");
+			FText ErrorsText = FText::Join(NewLineText, BindingErrorList);
+			return FText::Join(NewLineText, HintText, ErrorsText);
+		}
+		return FText();
 	}
 
 	FReply OnErrorButtonClicked()
@@ -584,65 +576,6 @@ private:
 		return FReply::Handled();
 	}
 
-	EMVVMBindingMode GetCurrentBindingMode() const
-	{
-		if (const FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
-		{
-			return ViewModelBinding->BindingType;
-		}
-		return EMVVMBindingMode::OneWayToDestination;
-	}
-
-	bool ShouldShowConversionFunctions(bool bViewModel) const
-	{
-		EMVVMBindingMode Mode = GetCurrentBindingMode();
-		if (IsForwardBinding(Mode))
-		{
-			return bViewModel;
-		}
-		else if (IsBackwardBinding(Mode))
-		{
-			return !bViewModel;
-		}
-		
-		return false;
-	}
-
-	const FProperty* GetAssignableToProperty(bool bViewModel) const
-	{
-		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
-		{
-			TArray<FMVVMConstFieldVariant> Fields;
-			if (bViewModel)
-			{
-				Fields = ViewBinding->DestinationPath.GetFields();
-			}
-			else
-			{
-				Fields = ViewBinding->SourcePath.GetFields();
-			}
-
-			if (Fields.Num() > 0)
-			{
-				FMVVMConstFieldVariant LastField = Fields.Last();
-				if (LastField.IsProperty())
-				{
-					return LastField.GetProperty();
-				}
-				else if (LastField.IsFunction())
-				{
-					const UFunction* Function = LastField.GetFunction();
-					if (Function != nullptr)
-					{
-						return BindingHelper::GetReturnProperty(Function);
-					}
-				}
-			}
-		}
-
-		return nullptr;
-	}
-
 	TSharedRef<ITableRow> OnGenerateErrorRow(TSharedPtr<FText> Text, const TSharedRef<STableViewBase>& TableView) const
 	{
 		return SNew(STableRow<TSharedPtr<FText>>, TableView)
@@ -655,43 +588,17 @@ private:
 			];
 	}
 
-	void OnConversionFunctionChanged(const UFunction* Function, bool bSourceToDest)
-	{
-		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
-		{
-			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-
-			if (bSourceToDest)
-			{
-				EditorSubsystem->SetSourceToDestinationConversionFunction(WidgetBlueprintWeak.Get(), *ViewBinding, Function);
-			} 
-			else
-			{
-				EditorSubsystem->SetDestinationToSourceConversionFunction(WidgetBlueprintWeak.Get(), *ViewBinding, Function);
-			}
-		}
-	}
-
 	TArray<FBindingSource> GetAvailableViewModels() const
 	{
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 		return EditorSubsystem->GetAllViewModels(WidgetBlueprintWeak.Get());
 	}
 
-	FMVVMBlueprintPropertyPath GetSelectedViewModelProperty() const
+	FMVVMBlueprintPropertyPath GetSelectedPropertyPath(bool bSource) const
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			return ViewBinding->SourcePath;
-		}
-		return FMVVMBlueprintPropertyPath();
-	}
-
-	FMVVMBlueprintPropertyPath GetSelectedWidgetProperty() const
-	{
-		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
-		{
-			return ViewBinding->DestinationPath;
+			return bSource ? ViewBinding->SourcePath : ViewBinding->DestinationPath;
 		}
 		return FMVVMBlueprintPropertyPath();
 	}
@@ -707,43 +614,84 @@ private:
 		return nullptr;
 	}
 
-	void OnViewModelPropertySelected(FMVVMBlueprintPropertyPath SelectedField)
+	void HandleFieldSelectionChanged(FMVVMBlueprintPropertyPath SelectedField, const UFunction* Function, bool bSource)
 	{
+		UWidgetBlueprint* WidgetBlueprintPtr = WidgetBlueprintWeak.Get();
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			if (ViewBinding->SourcePath != SelectedField)
+			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			if (bSource)
 			{
-				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-				Subsystem->SetViewModelPropertyForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, SelectedField);
-
-				if (WidgetFieldSelector.IsValid())
+				Subsystem->SetSourceToDestinationConversionFunction(WidgetBlueprintPtr, *ViewBinding, Function);
+				if (ViewBinding->SourcePath != SelectedField)
 				{
-					WidgetFieldSelector->Refresh();
+					Subsystem->SetViewModelPropertyForBinding(WidgetBlueprintPtr, *ViewBinding, SelectedField);
+				}
+			}
+			else
+			{
+				Subsystem->SetDestinationToSourceConversionFunction(WidgetBlueprintPtr, *ViewBinding, Function);
+				if (ViewBinding->DestinationPath != SelectedField)
+				{
+					Subsystem->SetWidgetPropertyForBinding(WidgetBlueprintPtr, *ViewBinding, SelectedField);
 				}
 			}
 		}
 	}
 
-	void OnWidgetPropertySelected(FMVVMBlueprintPropertyPath SelectedField)
+	FFieldSelectionContext GetSelectedSelectionContext(bool bSource) const
 	{
-		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		FFieldSelectionContext Result;
+
+		const UWidgetBlueprint* WidgetBlueprintPtr = WidgetBlueprintWeak.Get();
+		if (WidgetBlueprintPtr == nullptr)
 		{
-			if (ViewBinding->DestinationPath != SelectedField)
+			return Result;
+		}
+		
+		if (const FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			Result.BindingMode = ViewBinding->BindingType;
+
 			{
-				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-				Subsystem->SetWidgetPropertyForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, SelectedField);
-
-				if (ViewModelFieldSelector.IsValid())
+				TArray<FMVVMConstFieldVariant> Fields = bSource ? ViewBinding->DestinationPath.GetFields() : ViewBinding->SourcePath.GetFields();
+				if (Fields.Num() > 0)
 				{
-					ViewModelFieldSelector->Refresh();
-				}
-
-				if (SelectedWidget.IsValid())
-				{
-					SelectedWidget->SetField(SelectedField);
+					FMVVMConstFieldVariant LastField = Fields.Last();
+					if (LastField.IsProperty())
+					{
+						Result.AssignableTo = LastField.GetProperty();
+					}
+					else if (LastField.IsFunction())
+					{
+						if (const UFunction* Function = LastField.GetFunction())
+						{
+							Result.AssignableTo = BindingHelper::GetReturnProperty(Function);
+						}
+					}
 				}
 			}
+
+			if (!bSource && !ViewBinding->DestinationPath.GetWidgetName().IsNone())
+			{
+				Result.FixedBindingSource = FBindingSource::CreateForWidget(WidgetBlueprintPtr, ViewBinding->DestinationPath.GetWidgetName());
+			}
+
+			Result.bAllowWidgets = !bSource;
+			Result.bAllowViewModels = bSource;
+			Result.bAllowConversionFunctions = false;
+			bool bIsReadingValue = (IsForwardBinding(ViewBinding->BindingType) && bSource)
+				|| (IsBackwardBinding(ViewBinding->BindingType) && !bSource);
+			if (!(IsBackwardBinding(ViewBinding->BindingType) && IsForwardBinding(ViewBinding->BindingType)))
+			{
+				Result.bAllowConversionFunctions = bIsReadingValue;
+			}
+
+			Result.bReadable = bIsReadingValue;
+			Result.bWritable = (IsForwardBinding(ViewBinding->BindingType) && !bSource)
+				|| (IsBackwardBinding(ViewBinding->BindingType) && bSource);
 		}
+		return Result;
 	}
 
 	ECheckBoxState IsExecutionModeOverrideChecked() const
@@ -976,45 +924,14 @@ private:
 
 			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 			Subsystem->SetBindingTypeForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, NewMode);
-
-			if (ViewModelFieldSelector.IsValid())
-			{
-				ViewModelFieldSelector->Refresh();
-			}
-
-			if (WidgetFieldSelector.IsValid())
-			{
-				WidgetFieldSelector->Refresh();
-			}
-		}
-	}
-
-	void HandleBlueprintChanged(UBlueprint* Blueprint)
-	{
-		if (ViewModelFieldSelector.IsValid())
-		{
-			ViewModelFieldSelector->Refresh();
-		}
-
-		if (WidgetFieldSelector.IsValid())
-		{
-			WidgetFieldSelector->Refresh();
 		}
 	}
 
 private:
 	TSharedPtr<FBindingEntry> Entry;
 	TWeakObjectPtr<UWidgetBlueprint> WidgetBlueprintWeak;
-	TSharedPtr<SFieldSelector> WidgetFieldSelector;
-	TSharedPtr<SFieldSelector> ViewModelFieldSelector;
-	TSharedPtr<SWidget> ContextMenuOptionHelper;
 	TSharedPtr<SCustomDialog> ErrorDialog;
 	TArray<TSharedPtr<FText>> ErrorItems;
-	FDelegateHandle OnBlueprintChangedHandle;
-	TSharedPtr<UE::MVVM::FFieldIterator_Bindable> WidgetFieldIterator;
-	TSharedPtr<SMenuAnchor> WidgetMenuAnchor;
-	TSharedPtr<SSourceBindingList> WidgetBindingList;
-	TSharedPtr<SFieldEntry> SelectedWidget;
 	IConsoleVariable* CVarDefaultExecutionMode = nullptr;
 };
 
@@ -1100,17 +1017,11 @@ class SFunctionParameterRow : public STableRow<TSharedPtr<FBindingEntry>>
 					.VAlign(VAlign_Center)
 					.AutoWidth()
 					[
-						SNew(SBox)
-						.MinDesiredWidth(200)
-						[
-							SNew(SFunctionParameter)
-							.OnGetBindingMode(this, &SFunctionParameterRow::OnGetBindingMode)
-							.WidgetBlueprint(InWidgetBlueprint)
-							.Binding(Binding)
-							.ParameterName(Entry->GetName())
-							.SourceToDestination(bSourceToDestination)
-							.AllowDefault(!bSimpleConversionFunction)
-						]
+						SNew(SFunctionParameter, InWidgetBlueprint)
+						.BindingId(Binding->BindingId)
+						.ParameterName(Entry->GetName())
+						.SourceToDestination(bSourceToDestination)
+						.AllowDefault(!bSimpleConversionFunction)
 					]
 				]
 			], 

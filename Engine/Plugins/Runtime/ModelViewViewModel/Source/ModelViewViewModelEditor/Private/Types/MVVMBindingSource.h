@@ -6,54 +6,55 @@
 #include "UObject/Class.h"
 
 struct FMVVMBindingName;
-
+struct FMVVMBlueprintPropertyPath;
 class UWidgetBlueprint;
 
 namespace UE::MVVM
 {
-	struct FBindingSource
+struct FBindingSource
+{
+	FGuid ViewModelId;
+	FName Name;
+	TWeakObjectPtr<UClass> Class;
+	FText DisplayName;
+
+	bool operator==(const FBindingSource& Other) const
 	{
-		FGuid ViewModelId;
-		FName Name;
-		TWeakObjectPtr<UClass> Class;
-		FText DisplayName;
+		return ViewModelId == Other.ViewModelId && Name == Other.Name && Class == Other.Class;
+	}
 
-		bool operator==(const FBindingSource& Other) const
-		{
-			return ViewModelId == Other.ViewModelId && Name == Other.Name && Class == Other.Class;
-		}
+	bool operator!=(const FBindingSource& Other) const
+	{
+		return !(operator==(Other));
+	}
 
-		bool operator!=(const FBindingSource& Other) const
-		{
-			return !(operator==(Other));
-		}
+	friend int32 GetTypeHash(const FBindingSource& Source)
+	{
+		uint32 Hash = HashCombine(GetTypeHash(Source.ViewModelId), GetTypeHash(Source.Name));
+		Hash = HashCombine(Hash, GetTypeHash(Source.Class));
+		return Hash;
+	}
 
-		friend int32 GetTypeHash(const FBindingSource& Source)
-		{
-			uint32 Hash = HashCombine(GetTypeHash(Source.ViewModelId), GetTypeHash(Source.Name));
-			Hash = HashCombine(Hash, GetTypeHash(Source.Class));
-			return Hash;
-		}
+	bool IsValid() const
+	{
+		return Class != nullptr && (ViewModelId.IsValid() || !Name.IsNone());
+	}
 
-		bool IsValid() const
-		{
-			return Class != nullptr && (ViewModelId.IsValid() || !Name.IsNone());
-		}
+	void Reset()
+	{
+		ViewModelId = FGuid();
+		Name = FName();
+		Class = nullptr;
+		DisplayName = FText::GetEmpty();
+	}
 
-		void Reset()
-		{
-			ViewModelId = FGuid();
-			Name = FName();
-			Class = nullptr;
-			DisplayName = FText::GetEmpty();
-		}
+	FMVVMBindingName ToBindingName(const UWidgetBlueprint* WidgetBlueprint) const;
 
-		FMVVMBindingName ToBindingName(const UWidgetBlueprint* WidgetBlueprint) const;
-
-		static FBindingSource CreateForWidget(const UWidgetBlueprint* WidgetBlueprint, FName WidgetName);
-		static FBindingSource CreateForViewModel(const UWidgetBlueprint* WidgetBlueprint, FGuid ViewModelId);
-		static FBindingSource CreateForViewModel(const UWidgetBlueprint* WidgetBlueprint, FName ViewModelName);
-	};
+	static FBindingSource CreateForWidget(const UWidgetBlueprint* WidgetBlueprint, FName WidgetName);
+	static FBindingSource CreateForViewModel(const UWidgetBlueprint* WidgetBlueprint, FGuid ViewModelId);
+	static FBindingSource CreateForViewModel(const UWidgetBlueprint* WidgetBlueprint, FName ViewModelName);
+	static FBindingSource CreateFromPropertyPath(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintPropertyPath& Path);
+};
 }
 
 template <>

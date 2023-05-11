@@ -17,27 +17,23 @@ namespace UE::MVVM
 
 class SFieldIcon;
 
-using FIsFieldValidResult = TValueOrError<bool, FString>;
-DECLARE_DELEGATE_RetVal_OneParam(FIsFieldValidResult, FIsFieldValid, FMVVMBlueprintPropertyPath);
-
-class SFieldEntry : public SCompoundWidget
+/** Show the TArray<FMVVMBlueprintFieldPath>. */
+class SFieldPaths : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SFieldEntry) :
-		_TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+	SLATE_BEGIN_ARGS(SFieldPaths)
+		: _TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 	{}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
-		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath, Field)
+		SLATE_ARGUMENT(TArrayView<UE::MVVM::FMVVMConstFieldVariant>, FieldPaths)
 		SLATE_ARGUMENT(bool, ShowOnlyLast)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
-	void Refresh();
-	void SetField(const FMVVMBlueprintPropertyPath& InField);
+	void SetFieldPaths(TArrayView<UE::MVVM::FMVVMConstFieldVariant> InField);
 
 private:
 	const FTextBlockStyle* TextStyle = nullptr;
-	FMVVMBlueprintPropertyPath Field;
 	TSharedPtr<SHorizontalBox> FieldBox;
 	bool bShowOnlyLast = false;
 };
