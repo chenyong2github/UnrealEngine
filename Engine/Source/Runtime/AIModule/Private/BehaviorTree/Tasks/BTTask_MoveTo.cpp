@@ -23,6 +23,7 @@ UBTTask_MoveTo::UBTTask_MoveTo(const FObjectInitializer& ObjectInitializer) : Su
 	bAllowStrafe = GET_AI_CONFIG_VAR(bAllowStrafing);
 	bAllowPartialPath = GET_AI_CONFIG_VAR(bAcceptPartialPaths);
 	bTrackMovingGoal = true;
+	bRequireNavigableEndLocation = true;
 	bProjectGoalLocation = true;
 	bUsePathfinding = true;
 
@@ -87,6 +88,7 @@ EBTNodeResult::Type UBTTask_MoveTo::PerformMoveTask(UBehaviorTreeComponent& Owne
 		MoveReq.SetCanStrafe(bAllowStrafe);
 		MoveReq.SetReachTestIncludesAgentRadius(bReachTestIncludesAgentRadius);
 		MoveReq.SetReachTestIncludesGoalRadius(bReachTestIncludesGoalRadius);
+		MoveReq.SetRequireNavigableEndLocation(bRequireNavigableEndLocation);
 		MoveReq.SetProjectGoalLocation(bProjectGoalLocation);
 		MoveReq.SetUsePathfinding(bUsePathfinding);
 

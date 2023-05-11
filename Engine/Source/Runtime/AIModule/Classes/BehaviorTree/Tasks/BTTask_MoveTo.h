@@ -65,6 +65,10 @@ class AIMODULE_API UBTTask_MoveTo : public UBTTask_BlackboardBase
 	UPROPERTY(Category = Node, EditAnywhere, AdvancedDisplay)
 	uint32 bTrackMovingGoal : 1;
 
+	/** if set, the goal location will need to be navigable */
+	UPROPERTY(Category = Node, EditAnywhere, AdvancedDisplay)
+	uint32 bRequireNavigableEndLocation : 1;
+
 	/** if set, goal location will be projected on navigation data (navmesh) before using */
 	UPROPERTY(Category = Node, EditAnywhere, AdvancedDisplay)
 	uint32 bProjectGoalLocation : 1;
