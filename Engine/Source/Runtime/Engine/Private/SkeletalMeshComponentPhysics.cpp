@@ -3355,7 +3355,7 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 							break;
 
 						default: 
-							ensure(false);  // Is there a missing collision type?
+							UE_LOG(LogSkeletalMesh, Verbose, TEXT("Found unsupported collision type during environmental collision with the cloth in [%s]"), !Component->GetOwner() ? TEXT("Unknown") : *Component->GetOwner()->GetFName().ToString());
 							break;
 						}
 					}
