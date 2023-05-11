@@ -20,7 +20,12 @@ struct APPLEARKIT_API FAppleARKitFrame
 	
 	FAppleARKitFrame() = default;
 	FAppleARKitFrame(const FAppleARKitFrame& Other) = delete;
-	
+
+	/** 
+	 * Assignment operator. CapturedImage is skipped as we don't need / want to retain access to the image buffer.
+	 */
+	FAppleARKitFrame& operator=(const FAppleARKitFrame& Other);
+
 #if SUPPORTS_ARKIT_1_0
 	/** 
 	 * This is a conversion copy-constructor that takes a raw ARFrame and fills this structs members
@@ -34,12 +39,7 @@ struct APPLEARKIT_API FAppleARKitFrame
 	
 	/** Destructor. Calls CFRelease on CapturedImage */
 	virtual ~FAppleARKitFrame();
-	
-	/** 
-	 * Assignment operator. CapturedImage is skipped as we don't need / want to retain access to the image buffer.
-	 */
-	FAppleARKitFrame& operator=(const FAppleARKitFrame& Other);
-	
+
 	void ReleaseResources();
 #endif
 	
