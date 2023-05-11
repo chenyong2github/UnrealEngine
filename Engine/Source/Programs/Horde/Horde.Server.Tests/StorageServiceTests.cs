@@ -36,9 +36,9 @@ namespace Horde.Server.Tests
 
 			List<BundleExport> exports = new List<BundleExport>();
 
-			exports.Add(new BundleExport(0, hash1, 0, 0, data1.Length, Array.Empty<BundleNodeRef>()));
-			exports.Add(new BundleExport(0, hash1, 0, 0, data1.Length, Array.Empty<BundleNodeRef>()));
-			exports.Add(new BundleExport(0, hash2, 0, data1.Length, data2.Length, Array.Empty<BundleNodeRef>()));
+			exports.Add(new BundleExport(0, hash1, 0, 0, data1.Length, Array.Empty<BundleExportRef>()));
+			exports.Add(new BundleExport(0, hash1, 0, 0, data1.Length, Array.Empty<BundleExportRef>()));
+			exports.Add(new BundleExport(0, hash2, 0, data1.Length, data2.Length, Array.Empty<BundleExportRef>()));
 
 			BundleHeader header = new BundleHeader(types, Array.Empty<BlobLocator>(), exports, Array.Empty<BundlePacket>());
 			Bundle bundle = new Bundle(header, Array.Empty<ReadOnlyMemory<byte>>());

@@ -55,7 +55,6 @@ namespace Horde.Commands.Bundles
 			logger.LogInformation("");
 			logger.LogInformation("Imports: {NumImports}", header.Imports.Count);
 
-			List<string> nodeNames = new List<string>();
 			for (int importIdx = 0; importIdx < header.Imports.Count; importIdx++)
 			{
 				logger.LogInformation("  IMP [{ImportIdx}] = {BlobId}", importIdx, header.Imports[importIdx]);
@@ -75,7 +74,7 @@ namespace Horde.Commands.Bundles
 				{
 					for(int referenceIdx = 0; referenceIdx < export.References.Count; referenceIdx++)
 					{
-						BundleNodeRef exportRef = export.References[referenceIdx];
+						BundleExportRef exportRef = export.References[referenceIdx];
 						NodeLocator nodeLocator = new NodeLocator(header.Imports[exportRef.ImportIdx], exportRef.NodeIdx);
 						logger.LogInformation("            REF {RefIdx,-3} -> {Node}", referenceIdx, nodeLocator);
 					}

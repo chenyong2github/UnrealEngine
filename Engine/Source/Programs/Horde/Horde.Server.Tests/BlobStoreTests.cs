@@ -49,10 +49,10 @@ namespace Horde.Server.Tests
 
 			List<BlobLocator> imports = new List<BlobLocator>(refs);
 
-			List<BundleNodeRef> exportRefs = new List<BundleNodeRef>();
+			List<BundleExportRef> exportRefs = new List<BundleExportRef>();
 			for(int idx = 0; idx < refs.Count; idx++)
 			{
-				exportRefs.Add(new BundleNodeRef(idx, 0));
+				exportRefs.Add(new BundleExportRef(idx, 0));
 			}
 
 			List<BundleExport> exports = new List<BundleExport>();

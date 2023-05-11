@@ -145,8 +145,8 @@ namespace EpicGames.Horde.Tests
 				imports.Add(new BlobLocator("import2"));
 
 				List<BundleExport> exports = new List<BundleExport>();
-				exports.Add(new BundleExport(0, IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 0, 0, 2, new BundleNodeRef[] { new BundleNodeRef(0, 5), new BundleNodeRef(0, 6) }));
-				exports.Add(new BundleExport(0, IoHash.Compute(Encoding.UTF8.GetBytes("export2")), 1, 0, 3, new BundleNodeRef[] { new BundleNodeRef(-1, 0) }));
+				exports.Add(new BundleExport(0, IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 0, 0, 2, new BundleExportRef[] { new BundleExportRef(0, 5), new BundleExportRef(0, 6) }));
+				exports.Add(new BundleExport(0, IoHash.Compute(Encoding.UTF8.GetBytes("export2")), 1, 0, 3, new BundleExportRef[] { new BundleExportRef(-1, 0) }));
 
 				List<BundlePacket> packets = new List<BundlePacket>();
 				packets.Add(new BundlePacket(BundleCompressionFormat.LZ4, 0, 20, 40));
