@@ -40,7 +40,6 @@ namespace UnrealBuildTool.Rules
                     "EditorWidgets",
                     "Kismet",
                     "LiveLinkInterface",
-                    "SerializedRecorderInterface",
 					"SceneOutliner",
                 }
                 );

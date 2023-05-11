@@ -24,18 +24,11 @@ public class CustomizableObjectEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] { 
 				"AssetRegistry", 
-				"Kismet", 
-				"EditorWidgets",
 				"MeshUtilities",
-				"ContentBrowser",
 				"SkeletonEditor",
-				"Persona",
 				"WorkspaceMenuStructure",
-				"AdvancedPreviewScene",
 				"MessageLog",
 				"KismetWidgets",
-				"AnimGraphRuntime",
-				"AnimGraph",
 			}
 		);
 
@@ -55,7 +48,6 @@ public class CustomizableObjectEditor : ModuleRules
 				"UnrealEd",
 				"TargetPlatform",
 				"RawMesh",
-				"PropertyEditor",
 				"LevelEditor",
 				"AssetTools",
 				"GraphEditor",

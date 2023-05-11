@@ -43,7 +43,6 @@ namespace UnrealBuildTool.Rules
 					"ToolWidgets",
 					"EditorWidgets",
 					"GeometryCache",
-					"SequencerWidgets",
 					"TimeManagement",
 					"RenderCore",
 					"RHI",

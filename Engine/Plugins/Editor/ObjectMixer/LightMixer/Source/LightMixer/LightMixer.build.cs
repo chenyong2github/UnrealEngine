@@ -32,7 +32,6 @@ public class LightMixer : ModuleRules
 				"EditorWidgets",
 				"InputCore",
 				"Kismet",
-				"ObjectMixerEditor",
 				"Projects",
 				"Slate",
 				"SlateCore",

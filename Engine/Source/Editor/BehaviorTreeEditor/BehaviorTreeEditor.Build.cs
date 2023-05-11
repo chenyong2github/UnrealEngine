@@ -16,7 +16,6 @@ public class BehaviorTreeEditor : ModuleRules
             new string[] {
 				"AssetRegistry",
 				"AssetTools",
-                "PropertyEditor",
 				"ContentBrowser"
 			}
 		);

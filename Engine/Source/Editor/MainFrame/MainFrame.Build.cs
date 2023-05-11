@@ -52,7 +52,6 @@ public class MainFrame : ModuleRules
 			new string[] {
 				"AssetTools",
 				"DerivedDataCache",
-				"DesktopPlatform",
 				"LauncherPlatform",
 				"GameProjectGeneration",
 				"ProjectTargetPlatformEditor",

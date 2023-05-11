@@ -24,7 +24,6 @@ public class RemoteSessionEditor : ModuleRules
 			new string[]
 			{
 				"AssetRegistry",
-				"CoreUObject",
 				"EditorFramework",
 				"Engine",
 				"LevelEditor",

@@ -19,9 +19,7 @@ public class UnsavedAssetsTracker : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Core",
 				"CoreUObject",
-				"Engine",
 				"SlateCore",
 				"Slate",
 				"UnrealEd",

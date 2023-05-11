@@ -35,7 +35,6 @@ namespace UnrealBuildTool.Rules
 					"ImageCore",
 					"ImageWrapper",
 					"InterchangeCommonParser",
-					"InterchangeDispatcher",
 					"InterchangeMessages",
 					"Json",
 					"RenderCore",

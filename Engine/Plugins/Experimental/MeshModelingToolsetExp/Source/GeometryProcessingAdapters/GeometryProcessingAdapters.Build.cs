@@ -55,7 +55,6 @@ public class GeometryProcessingAdapters : ModuleRules
 
 				"MaterialUtilities",
 				"MeshBuilder",
-				"MeshUtilitiesCommon",  
 				"MeshReductionInterface", // for UE standard simplification 
 				"MeshUtilities",			// for tangents calculation
 			}

@@ -20,7 +20,6 @@ public class EnvironmentQueryEditor : ModuleRules
 		   new string[] {
 				"AssetRegistry",
 				"AssetTools",
-				"PropertyEditor",
 				"DesktopPlatform",
 				"LevelEditor",
 		   });

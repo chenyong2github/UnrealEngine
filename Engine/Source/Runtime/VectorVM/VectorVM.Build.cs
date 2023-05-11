@@ -13,12 +13,6 @@ public class VectorVM : ModuleRules
             }
         );
 
-        PrivateDependencyModuleNames.AddRange(
-            new string[] {
-                "Core",
-                "CoreUObject"
-            });
-
         PublicDefinitions.AddRange(
             new string[]
             {

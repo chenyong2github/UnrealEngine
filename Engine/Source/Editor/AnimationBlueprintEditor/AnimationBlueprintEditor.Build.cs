@@ -34,7 +34,6 @@ public class AnimationBlueprintEditor : ModuleRules
 				"SlateCore",
                 "EditorStyle",
 				"Engine", 
-				"EditorFramework",
 				"UnrealEd", 
 				"GraphEditor", 
                 "InputCore",

@@ -19,7 +19,7 @@ public class DerivedDataCache : ModuleRules
 		//		 DDC module, should add a dependency on DesktopPlatform if they require interactive login.  This will
 		//		 change in the future as the DDC module dependencies are refactored in the future.
 		PrivateDependencyModuleNames.AddRange(new string[] { "SSL", "Json", "Zen" });
-		PrivateIncludePathModuleNames.AddRange(new string[] { "DesktopPlatform", "Zen", "Analytics" });
+		PrivateIncludePathModuleNames.AddRange(new string[] { "DesktopPlatform", "Analytics" });
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
 

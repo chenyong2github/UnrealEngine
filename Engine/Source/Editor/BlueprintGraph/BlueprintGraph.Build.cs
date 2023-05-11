@@ -7,12 +7,6 @@ public class BlueprintGraph : ModuleRules
 {
 	public BlueprintGraph(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "KismetCompiler",
-            }
-		);
-
 		OverridePackageType = PackageOverrideType.EngineDeveloper;
 		 
 		PublicDependencyModuleNames.AddRange(

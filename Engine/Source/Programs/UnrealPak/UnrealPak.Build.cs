@@ -20,10 +20,6 @@ public class UnrealPak : ModuleRules
 			"ApplicationCore" 
 		});
 
-		PrivateIncludePathModuleNames.AddRange(new string[] {
-			"Json"
-		});
-
 		if (Target.bBuildWithEditorOnlyData)
 		{
 			DynamicallyLoadedModuleNames.AddRange(new string[] {

@@ -42,7 +42,6 @@ namespace UnrealBuildTool.Rules
 				"GraphEditor",
 				"KismetWidgets",
 				"PropertyPath",
-				"PropertyEditor",
 				"ToolMenus",
 				"ToolWidgets",
 				"ApplicationCore",

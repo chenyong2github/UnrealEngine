@@ -18,10 +18,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Core",
 					"ImageCore",
-					"CoreUObject",
-					"Engine",
 					"ImageWrapper",
 					"MediaAssets",
 					"RenderCore",

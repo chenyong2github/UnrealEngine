@@ -13,7 +13,6 @@ public class NiagaraEditor : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Engine",
                 "RHI",
                 "Core", 
 				"CoreUObject", 
@@ -26,11 +25,7 @@ public class NiagaraEditor : ModuleRules
 				"SlateNullRenderer",
 				"Kismet",
                 "EditorStyle",
-				"UnrealEd", 
 				"VectorVM",
-                "NiagaraCore",
-                "Niagara",
-                "NiagaraShader",
                 "MovieScene",
 				"Sequencer",
 				"TimeManagement",
@@ -71,10 +66,8 @@ public class NiagaraEditor : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"Engine",
 				"MessageLog",
 				"Messaging",
-				"ContentBrowser",
                 "DerivedDataCache",
                 "LevelEditor",
 				"WorkspaceMenuStructure"

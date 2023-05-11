@@ -25,7 +25,6 @@ public class StatsViewer : ModuleRules
         PrivateIncludePathModuleNames.AddRange(
 			new string[] {
                 "PropertyEditor",
-				"Landscape"
 			}
 		);
 

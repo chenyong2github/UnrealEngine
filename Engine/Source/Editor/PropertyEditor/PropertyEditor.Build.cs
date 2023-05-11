@@ -30,7 +30,6 @@ public class PropertyEditor : ModuleRules
 				"ClassViewer",
 				"StructViewer",
 				"ContentBrowser",
-				"ConfigEditor",
 			}
 		);
 

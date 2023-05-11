@@ -15,7 +15,6 @@ public class CryptoKeys : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Core",
 				"CoreUObject",
 				"ApplicationCore",
 				"Engine",

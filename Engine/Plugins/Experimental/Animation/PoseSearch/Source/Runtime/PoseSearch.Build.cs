@@ -26,15 +26,6 @@ public class PoseSearch : ModuleRules
 			}
 		);
 
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-            {
-				"Core",
-				"CoreUObject",
-				"Engine"
-			}
-		);
-
 		if (Target.bCompileAgainstEditor)
 		{
 			PrivateDependencyModuleNames.AddRange(

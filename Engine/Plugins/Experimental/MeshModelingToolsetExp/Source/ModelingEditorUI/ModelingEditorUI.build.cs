@@ -20,7 +20,6 @@ public class ModelingEditorUI : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-                "Core",
                 "CoreUObject",
                 "ApplicationCore",
                 "Slate",

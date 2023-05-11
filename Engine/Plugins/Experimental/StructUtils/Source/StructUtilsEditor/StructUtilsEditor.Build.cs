@@ -36,7 +36,6 @@ namespace UnrealBuildTool.Rules
 				"RenderCore",
 				"GraphEditor",
 				"KismetWidgets",
-				"PropertyEditor",
 				"AIGraph",
 				"ToolMenus",
 				"BlueprintGraph",

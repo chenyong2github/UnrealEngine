@@ -27,10 +27,8 @@ public class FontEditor : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"DesktopPlatform",
 				"MainFrame",
 				"EditorFramework",
-				"UnrealEd",
 			}
 		);
 

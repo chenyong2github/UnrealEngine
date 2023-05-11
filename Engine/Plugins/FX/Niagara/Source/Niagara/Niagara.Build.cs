@@ -33,8 +33,6 @@ public class Niagara : ModuleRules
                 "Json",
                 "JsonUtilities",
                 "Landscape",
-                "NiagaraCore",
-                "NiagaraShader",
                 "Renderer",
                 "SignalProcessing",
                 "TimeManagement",

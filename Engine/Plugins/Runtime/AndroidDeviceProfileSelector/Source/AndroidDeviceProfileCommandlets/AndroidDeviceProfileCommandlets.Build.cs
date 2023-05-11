@@ -20,8 +20,6 @@ public class AndroidDeviceProfileCommandlets : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
-				"CoreUObject",
 				"Engine",
 				"Json",
 				"JsonUtilities",

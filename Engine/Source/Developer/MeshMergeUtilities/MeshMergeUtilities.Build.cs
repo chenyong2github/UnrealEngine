@@ -46,15 +46,6 @@ public class MeshMergeUtilities : ModuleRules
           }
         );
 
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "HierarchicalLODUtilities",
-                "MeshUtilities",
-                "MeshReductionInterface",
-                "MaterialBaking",
-            }
-       );
-
         DynamicallyLoadedModuleNames.AddRange(
             new string[] {
                 "HierarchicalLODUtilities",

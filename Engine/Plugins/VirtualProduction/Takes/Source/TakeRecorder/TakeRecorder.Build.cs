@@ -29,7 +29,6 @@ public class TakeRecorder : ModuleRules
 				"Settings",
 				"Slate",
 				"SlateCore",
-				"UMG",
 				"EditorFramework",
 				"UnrealEd",
 				"WorkspaceMenuStructure",

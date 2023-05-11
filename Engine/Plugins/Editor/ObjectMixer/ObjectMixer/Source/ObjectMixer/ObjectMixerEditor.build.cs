@@ -44,7 +44,6 @@ public class ObjectMixerEditor : ModuleRules
 				"LevelEditor",
 				"LevelSequence",
 				"Projects",
-				"SceneOutliner",
 				"Sequencer",
 				"Slate",
 				"SlateCore",

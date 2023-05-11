@@ -16,8 +16,6 @@ public class TextureEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Settings",
-				"UnrealEd",
-                "PropertyEditor"
 			}
 		);
 

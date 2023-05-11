@@ -40,8 +40,6 @@ public class CommonUIEditor : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"AssetRegistry",
-				"AssetTools",
 				"DataTableEditor",
 			}
 		);

@@ -45,7 +45,6 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"AssetTools",
-					"LevelEditor",
 					"PlacementMode",
 				}
 			);

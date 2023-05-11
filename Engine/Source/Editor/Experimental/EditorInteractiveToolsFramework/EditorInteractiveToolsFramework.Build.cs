@@ -35,7 +35,6 @@ public class EditorInteractiveToolsFramework : ModuleRules
 				"MeshDescription",
 				"StaticMeshDescription",
                 "EditorSubsystem",
-                "TypedElementFramework",
                 "TypedElementRuntime"
 
 				// ... add private dependencies that you statically link with here ...	

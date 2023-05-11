@@ -20,7 +20,6 @@ public class CurveEditor : ModuleRules
 				"TimeManagement",
 				"UMG",
 				"UnrealEd",
-				"SequencerWidgets",
 				"ToolMenus",
 			}
 		);

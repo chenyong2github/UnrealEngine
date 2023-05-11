@@ -23,7 +23,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"CoreUObject",
 					"Engine",
 					"NonRealtimeAudioRenderer",
 					"AudioMixerCore",
@@ -32,7 +31,6 @@ namespace UnrealBuildTool.Rules
 					"SoundFieldRendering",
 					"AudioExtensions",
 					"AudioLinkCore",
-					"AudioLinkEngine",
 					"HeadMountedDisplay",
 					"TraceLog"
 				}

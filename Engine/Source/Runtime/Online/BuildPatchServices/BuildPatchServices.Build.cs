@@ -34,12 +34,6 @@ public class BuildPatchServices : ModuleRules
 			}
 		);
 
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"HTTP"
-			}
-		);
-
 		if (EnableDiskOverflowStore)
 		{
 			PublicDefinitions.Add("ENABLE_PATCH_DISK_OVERFLOW_STORE=1");

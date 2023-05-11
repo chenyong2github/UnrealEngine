@@ -58,8 +58,6 @@ public class LevelSequenceEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetTools",
-                "MovieSceneTools",
-				"SceneOutliner",
 				"PlacementMode",
                 "Settings",
                 "MovieSceneCaptureDialog",

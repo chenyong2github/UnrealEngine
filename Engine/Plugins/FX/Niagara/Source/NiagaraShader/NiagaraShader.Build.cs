@@ -9,11 +9,8 @@ public class NiagaraShader : ModuleRules
     {
         PrivateDependencyModuleNames.AddRange(
             new string[] {
-                "Core",
                 "CoreUObject",
                 "Engine",
-                "NiagaraCore",
-                "NiagaraVertexFactories",
                 "Renderer",
             }
         );

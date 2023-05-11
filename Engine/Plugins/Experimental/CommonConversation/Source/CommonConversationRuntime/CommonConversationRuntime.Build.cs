@@ -21,7 +21,6 @@ public class CommonConversationRuntime : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"Engine",
 				"Slate",
 				"SlateCore",
 				"Projects",

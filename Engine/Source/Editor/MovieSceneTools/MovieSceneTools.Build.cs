@@ -75,12 +75,8 @@ public class MovieSceneTools : ModuleRules
 			new string[] {
                 "AssetRegistry",
 				"AssetTools",
-				"Sequencer",
                 "Settings",
-				"SceneOutliner",
                 "MainFrame",
-				"EditorFramework",
-                "UnrealEd",
                 "Analytics",
             }
         );

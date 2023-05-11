@@ -20,14 +20,12 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Concert",
 					"ConcertTransport",
 					"ConcertSyncCore",
 					"InputCore",
 					"Json",
 					"Projects",
 					"SlateCore",
-					"UndoHistory",
 					"ToolWidgets"
 				}
 			);

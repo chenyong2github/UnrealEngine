@@ -45,12 +45,6 @@ public class FunctionalTesting : ModuleRules
 			);
 		}
 
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"ImageWrapper",
-			}
-		);
-
 		//make sure this is compiled for binary builds
 		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{

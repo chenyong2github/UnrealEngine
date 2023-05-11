@@ -19,22 +19,9 @@ public class PythonAutomationTest : ModuleRules
         
         PrivateDependencyModuleNames.AddRange(
              new string[] {
-		            "Core",
-	                "CoreUObject",
 					"EditorFramework",
-                    "Engine",
-                    "UnrealEd",
                     "PythonScriptPlugin",
                 }
          );
-
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "Core",
-                "CoreUObject",
-                "Engine",
-                "UnrealEd",
-            }
-        );
     }
 }

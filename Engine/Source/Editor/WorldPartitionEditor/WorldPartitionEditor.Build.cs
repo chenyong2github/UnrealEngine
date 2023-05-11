@@ -40,7 +40,6 @@ public class WorldPartitionEditor : ModuleRules
 		(
 			new string[]
 			{
-				"SceneOutliner",
 				"WorkspaceMenuStructure",
 			}
 		);

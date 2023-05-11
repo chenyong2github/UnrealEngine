@@ -16,7 +16,6 @@ namespace UnrealBuildTool.Rules
 					"AssetTools",
 					"UnrealEd",
 					"AssetDefinition",
-					"Chooser",
 					"GameplayTags",
 					"StructUtils",
 					"BlueprintGraph",

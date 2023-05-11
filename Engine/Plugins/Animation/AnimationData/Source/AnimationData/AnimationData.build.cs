@@ -9,7 +9,6 @@ public class AnimationData : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
-                "Core",
                 "CoreUObject",
                 "Engine",
                 "MovieScene",

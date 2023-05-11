@@ -38,7 +38,6 @@ public class MaterialUtilities : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
-                "Landscape",
                 "MeshMergeUtilities",
             }
         );

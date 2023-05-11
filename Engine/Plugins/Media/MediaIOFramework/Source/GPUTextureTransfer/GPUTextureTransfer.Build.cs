@@ -44,7 +44,6 @@ namespace UnrealBuildTool.Rules
 				{
                 	"GPUDirect",
 					"RenderCore",
-					"RHI"
 				});
 
 			PublicDefinitions.Add("PERF_LOGGING=0");

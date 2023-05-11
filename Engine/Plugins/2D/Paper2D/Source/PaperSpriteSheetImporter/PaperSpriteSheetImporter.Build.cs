@@ -25,7 +25,6 @@ public class PaperSpriteSheetImporter : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"AssetTools",
 				"AssetRegistry"
 			});
 

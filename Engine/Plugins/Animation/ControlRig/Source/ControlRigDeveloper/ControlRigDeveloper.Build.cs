@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
                 new string[]
                 {
                     "AnimGraphRuntime",
-                    "AnimationCore",
                     "ControlRig",
                     "Core",
                     "CoreUObject",

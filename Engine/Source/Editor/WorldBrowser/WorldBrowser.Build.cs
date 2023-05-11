@@ -11,9 +11,7 @@ public class WorldBrowser : ModuleRules
                 "AssetRegistry",
 				"AssetTools",
                 "ContentBrowser",
-				"Landscape",
                 "MeshUtilities",
-                "MaterialUtilities",
                 "MeshMergeUtilities",
             }
         );

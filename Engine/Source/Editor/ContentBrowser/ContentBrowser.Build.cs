@@ -10,14 +10,9 @@ public class ContentBrowser : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"AssetRegistry",
-				"CollectionManager",
-				"EditorWidgets",
 				"GameProjectGeneration",
                 "MainFrame",
 				"PackagesDialog",
-				"SourceControl",
-				"SourceControlWindows"
 			}
 		);
 

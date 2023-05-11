@@ -43,9 +43,7 @@ public class Engine : ModuleRules
 				"EyeTracker",
 				"MRMesh",
 				"Advertising",
-				"MovieSceneCapture",
 				"AutomationWorker",
-				"MovieSceneCapture",
 				"DesktopPlatform"
 			}
 		);
@@ -148,13 +146,11 @@ public class Engine : ModuleRules
 				"Analytics",
 				"AudioMixer",
 				"AudioMixerCore",
-				"SignalProcessing",
 				"IntelISPC",
 				"TraceLog",
 				"ColorManagement",
 				"Icmp",
 				"XmlParser",
-				"AudioExtensions"
 			}
 		);
 

@@ -12,12 +12,6 @@ public class SequencerWidgets : ModuleRules
 			}
 		   );
 
-		PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "MovieScene",
-            }
-           );
-
         PublicDependencyModuleNames.AddRange(
             new string[] {
                 "MovieScene",
@@ -30,10 +24,8 @@ public class SequencerWidgets : ModuleRules
 				"CoreUObject",
 				"Engine",
                 "InputCore",
-                "MovieScene",
 				"Slate",
 				"SlateCore",
-                "MovieScene",
 				"EditorFramework",
                 "UnrealEd",
 				"TimeManagement"

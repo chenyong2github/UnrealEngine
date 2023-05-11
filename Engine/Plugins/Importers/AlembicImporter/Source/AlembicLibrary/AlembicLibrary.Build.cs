@@ -29,11 +29,7 @@ public class AlembicLibrary : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
-                "Core",
-                "CoreUObject",
-                "Engine",
 				"EditorFramework",
-                "UnrealEd",
                 "MeshDescription",
 				"StaticMeshDescription",
             }

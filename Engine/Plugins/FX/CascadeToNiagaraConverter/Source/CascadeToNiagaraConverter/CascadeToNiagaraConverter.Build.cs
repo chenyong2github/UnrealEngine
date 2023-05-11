@@ -11,8 +11,6 @@ public class CascadeToNiagaraConverter : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
-				"Engine",
 				"MessageLog",
 			}
 		);	

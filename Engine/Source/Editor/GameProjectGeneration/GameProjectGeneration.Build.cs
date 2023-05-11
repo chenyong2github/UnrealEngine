@@ -16,11 +16,7 @@ public class GameProjectGeneration : ModuleRules
 			new string[] {
 				"AssetRegistry",
 				"ContentBrowser",
-				"DesktopPlatform",
-				"LauncherPlatform",
 				"MainFrame",
-				"AddContentDialog",
-				"HardwareTargeting",
 			}
 		);
 
@@ -48,7 +44,6 @@ public class GameProjectGeneration : ModuleRules
 				"UnrealEd",
 				"DesktopPlatform",
 				"LauncherPlatform",
-				"HardwareTargeting",
 				"AddContentDialog",
 				"AudioMixer",
 				"AudioMixerCore"

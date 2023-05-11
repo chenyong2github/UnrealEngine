@@ -34,12 +34,8 @@ public class SparseVolumeTexture : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Renderer",
-				"RenderCore",
 				"RHI",
-				"Core",
 				"CoreUObject",
-				"Engine",
                 "InputCore",
                 "Settings",
 			}

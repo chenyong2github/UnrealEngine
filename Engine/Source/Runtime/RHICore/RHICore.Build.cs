@@ -8,7 +8,7 @@ public class RHICore : ModuleRules
 	{
 		PublicDependencyModuleNames.AddRange(new string[] { "RHI" });
 		PublicDependencyModuleNames.AddRange(new string[] { "RenderCore" });
-		PrivateDependencyModuleNames.AddRange(new string[] { "Core", "Projects", "RHI", "ApplicationCore", "TraceLog" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "Core", "Projects", "ApplicationCore", "TraceLog" });
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{

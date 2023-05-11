@@ -17,21 +17,15 @@ public class CustomizableObject : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] {
             "InputCore",
             "SlateCore",
-            "Slate",
-            "Core",
             "CoreUObject",
-            "Engine",
             "RenderCore",
             "RHI",
             "AppFramework",
             "Projects",
             "ApplicationCore",
-			"ClothingSystemRuntimeCommon",
 			"ClothingSystemRuntimeInterface",
-			"AnimGraphRuntime",
 			//"ClothingSystemEditor",
 			"UMG",
-			"MutableRuntime",
 		});
 
         PublicDependencyModuleNames.AddRange(new string[] {

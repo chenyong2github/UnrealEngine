@@ -23,7 +23,6 @@ public class MeshUtilities : ModuleRules
 				"RenderCore", // For FPackedNormal
 				"SlateCore",
 				"Slate",
-				"MaterialUtilities",
 				"MeshBoneReduction",
 				"EditorFramework",
 				"UnrealEd",
@@ -56,7 +55,6 @@ public class MeshUtilities : ModuleRules
           new string[] {
 				"AnimationBlueprintEditor",
 				"AnimationEditor",
-                "MeshMergeUtilities",
                 "MaterialBaking",
 				"SkeletalMeshEditor",
           }

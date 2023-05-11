@@ -49,14 +49,9 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "Core",
-                    "CoreUObject",
-                    "Engine",
 					"EditorFramework",
-                    "UnrealEd",
 					"AnimationBlueprintLibrary",
                     "MeshBoneReduction",
-                    "QuadricMeshReduction",
                     "ClothingSystemRuntimeCommon"
 					// ... add private dependencies that you statically link with here ...
                     // QuadricMeshReduction is only for testing

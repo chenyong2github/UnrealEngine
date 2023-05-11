@@ -23,8 +23,6 @@ public class SequencerAnimTools: ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
-				"Slate",
-				"SlateCore",
 				"InputCore",
 				"UnrealEd",
 				"LevelEditor",

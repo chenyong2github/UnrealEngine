@@ -15,7 +15,6 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"AssetTools",
 					"AssetDefinition",
-					"Chooser",
 					"UnrealEd",
 					"EditorWidgets",
 					"ToolWidgets",

@@ -14,7 +14,6 @@ public class MaterialEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] 
 			{
-				"AssetRegistry", 
 				"AssetTools",
 				"Kismet",
 				"EditorWidgets",

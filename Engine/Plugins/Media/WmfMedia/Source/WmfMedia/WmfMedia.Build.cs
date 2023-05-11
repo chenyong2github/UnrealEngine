@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 					"RenderCore",
                     "RHI",
-                    "WmfMediaFactory"
                 });
 
 

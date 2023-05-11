@@ -31,7 +31,6 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Messaging",
-					"DesktopPlatform",
 					"DerivedDataCache",
 				});
 		}

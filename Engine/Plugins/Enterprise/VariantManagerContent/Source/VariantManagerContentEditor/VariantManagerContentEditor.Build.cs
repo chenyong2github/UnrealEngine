@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"InputCore", // For ListView keyboard control
 					"Slate",
 					"SlateCore",
-					"ToolMenus",
 					"VariantManagerContent",
 					"WorkspaceMenuStructure",
 				}

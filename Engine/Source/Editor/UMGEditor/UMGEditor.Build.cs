@@ -8,12 +8,6 @@ public class UMGEditor : ModuleRules
 	{
 		OverridePackageType = PackageOverrideType.EngineDeveloper;
 
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"AssetTools",
-				"UMG",
-			});
-
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{

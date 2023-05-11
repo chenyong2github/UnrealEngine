@@ -52,13 +52,8 @@ public class ResonanceAudio : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
-                "Core",
-                "CoreUObject",
-                "Engine",
                 "InputCore",
                 "Projects",
-                "AudioMixer",
-                "ProceduralMeshComponent",
                 "AudioExtensions"
             }
         );

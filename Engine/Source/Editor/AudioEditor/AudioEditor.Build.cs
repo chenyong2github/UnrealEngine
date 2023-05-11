@@ -10,7 +10,6 @@ public class AudioEditor : ModuleRules
 		(
 			new string[]
 			{
-				"AudioMixer",
 				"EditorSubsystem",
 				"GameProjectGeneration",
 				"ToolMenus",

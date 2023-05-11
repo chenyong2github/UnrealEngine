@@ -43,7 +43,6 @@ namespace UnrealBuildTool.Rules
 					new string[]
 					{
 						"DirectoryWatcher",
-						"EditorStyle",
 					}
 				);
 

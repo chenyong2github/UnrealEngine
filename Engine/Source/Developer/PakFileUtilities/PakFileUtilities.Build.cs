@@ -18,7 +18,6 @@ public class PakFileUtilities : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(new string[] {
 			"DerivedDataCache",
-			"Json",
 		});
 
 		if (Target.bBuildWithEditorOnlyData)

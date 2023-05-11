@@ -23,7 +23,6 @@ public class ShaderCompileWorker : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Launch",
-				"TargetPlatform",
 			});
 
 		// Include D3D compiler binaries

@@ -30,7 +30,6 @@ public class LocalizationDashboard : ModuleRules
                 "MainFrame",
                 "SourceControl",
                 "SharedSettingsWidgets",
-                "Localization",
 				"LocalizationCommandletExecution",
 				"LocalizationService",
 				"InternationalizationSettings",

@@ -71,15 +71,10 @@ public class DetailCustomizations : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"Engine",
 				"Media",
-				"Landscape",
 				"LandscapeEditor",
 				"Layers",
-				"PropertyEditor",
 				"GameProjectGeneration",
-				"ComponentVisualizers",
-				"GraphEditor",
 				"MeshMergeUtilities",
 				"MeshReductionInterface",
 				"GeometryProcessingInterfaces"

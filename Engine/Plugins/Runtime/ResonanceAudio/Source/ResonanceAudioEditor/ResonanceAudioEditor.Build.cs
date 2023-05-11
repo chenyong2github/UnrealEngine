@@ -38,7 +38,6 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePathModuleNames.AddRange(
                 new string[] {
                     "AssetTools",
-                    "Landscape"
             });
 
             PrivateDependencyModuleNames.AddRange(
@@ -46,18 +45,10 @@ namespace UnrealBuildTool.Rules
                     "Slate",
                     "SlateCore",
 					"EditorFramework",
-                    "UnrealEd",
-                    "AudioEditor",
-                    "LevelEditor",
                     "Landscape",
-                    "Core",
-                    "CoreUObject",
-                    "Engine",
-                    "InputCore",
                     "PropertyEditor",
                     "Projects",
                     
-                    "ResonanceAudio",
 					"Eigen"
                  }
             );

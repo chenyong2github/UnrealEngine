@@ -18,8 +18,6 @@ public class StaticMeshEditor : ModuleRules
 				"AssetRegistry",
 				"Kismet",
 				"EditorWidgets",
-				"MeshUtilities",
-                "PropertyEditor",
                 "MeshReductionInterface",
             }
 		);

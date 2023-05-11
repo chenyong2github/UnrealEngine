@@ -20,13 +20,6 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-			PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"NetCore",
-				}
-				);
-
             // Only needed for the PIE delegate in FNetworkPredictionModule::StartupModule
             if (Target.Type == TargetType.Editor) {
                 PrivateDependencyModuleNames.AddRange(

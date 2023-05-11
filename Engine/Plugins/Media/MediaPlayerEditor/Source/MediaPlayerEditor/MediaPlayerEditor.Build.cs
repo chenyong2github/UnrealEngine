@@ -50,7 +50,6 @@ public class MediaPlayerEditor : ModuleRules
 			new string[] {
 				"AssetTools",
 				"Media",
-				"UnrealEd",
 				"WorkspaceMenuStructure",
 			});
 

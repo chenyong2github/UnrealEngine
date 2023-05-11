@@ -57,7 +57,6 @@ namespace UnrealBuildTool.Rules
                         "UnrealEd",
                         "BlueprintGraph",
                         "PropertyEditor",
-                        "RigVMDeveloper",
                     }
                 );
 

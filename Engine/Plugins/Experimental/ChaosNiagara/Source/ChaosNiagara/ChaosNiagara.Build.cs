@@ -13,24 +13,14 @@ public class ChaosNiagara : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
-				"CoreUObject",
 				"Engine",
 				"Projects",
 				"Slate",
 				"SlateCore",
-				"NiagaraCore",
-				"Niagara",
-				"NiagaraShader",
 				"RenderCore",
-				"VectorVM",
-				"RHI",
-				"ChaosSolverEngine",
                 "Chaos",
 				"PhysicsCore",
-                "GeometryCollectionEngine",
 				"PhysicsCore",
-				"FieldSystemEngine",
 			}
         );
 					

@@ -18,9 +18,6 @@ public class AssetSearch : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Core",
-				"CoreUObject",
-				"Engine",
 				"SQLiteCore",
 				"InputCore",
 				"Slate",
@@ -29,7 +26,6 @@ public class AssetSearch : ModuleRules
 				"WorkspaceMenuStructure",
 				"EditorFramework",
 				"UnrealEd",
-				"Json",
 				"AssetRegistry",
 				"JsonUtilities",
 				"Projects",

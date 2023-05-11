@@ -31,7 +31,6 @@ public class ModelingOperatorsEditorOnly : ModuleRules
 				"Engine",
 
 				"MeshBuilder",
-				"MeshUtilitiesCommon",  
 				"MeshReductionInterface", // for UE standard simplification 
 				"MeshUtilities",			// for tangents calculation
 			}

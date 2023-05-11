@@ -17,8 +17,6 @@ public class Landscape : ModuleRules
 			new string[] {
 				"TargetPlatform",
 				"DerivedDataCache",
-				"Foliage",
-				"Renderer",
 			}
 		);
 

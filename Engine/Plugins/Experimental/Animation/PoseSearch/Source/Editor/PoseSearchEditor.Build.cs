@@ -43,9 +43,6 @@ public class PoseSearchEditor : ModuleRules
 			{
 				"AssetDefinition",
 				"BlueprintGraph",
-				"PropertyEditor",
-				"SlateCore",
-				"Slate",
 				"EditorStyle",
 				"DetailCustomizations",
 				"AdvancedPreviewScene",

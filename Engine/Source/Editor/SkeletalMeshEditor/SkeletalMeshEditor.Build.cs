@@ -43,16 +43,5 @@ public class SkeletalMeshEditor : ModuleRules
 				"InterchangeEngine"
 			}
 		);
-
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "PropertyEditor",
-            }
-        );
-
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[] {
-            }
-		);
 	}
 }
