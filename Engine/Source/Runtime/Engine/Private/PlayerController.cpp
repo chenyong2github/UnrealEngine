@@ -3664,6 +3664,7 @@ bool APlayerController::GetStreamingSourcesInternal(TArray<FWorldPartitionStream
 	StreamingSource.bBlockOnSlowLoading = StreamingSourceShouldBlockOnSlowStreaming();
 	StreamingSource.DebugColor = StreamingSourceDebugColor;
 	StreamingSource.Priority = GetStreamingSourcePriority();
+	StreamingSource.bRemote = !IsLocalController();
 	GetStreamingSourceShapes(StreamingSource.Shapes);
 	return true;
 }
