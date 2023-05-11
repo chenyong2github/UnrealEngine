@@ -173,8 +173,9 @@ void SStandaloneAssetEditorToolkitHost::CreateDefaultStandaloneMenuBar(UToolMenu
 
 void SStandaloneAssetEditorToolkitHost::RestoreFromLayout( const TSharedRef<FTabManager::FLayout>& NewLayout )
 {
+	BindEditorCloseRequestToHostTab();
+
 	const TSharedRef<SDockTab> HostTab = HostTabPtr.Pin().ToSharedRef();
-	HostTab->SetCanCloseTab(EditorCloseRequest);
 	HostTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateSP(this, &SStandaloneAssetEditorToolkitHost::OnTabClosed));
 
 	this->ChildSlot[SNullWidget::NullWidget];
@@ -275,6 +276,22 @@ FEditorModeTools& SStandaloneAssetEditorToolkitHost::GetEditorModeManager() cons
 	check(HostedAssetEditorToolkit.IsValid());
 
 	return HostedAssetEditorToolkit->GetEditorModeManager();
+}
+
+void SStandaloneAssetEditorToolkitHost::BindEditorCloseRequestToHostTab()
+{
+	if (TSharedPtr<SDockTab> HostTab = HostTabPtr.Pin())
+	{
+		HostTab->SetCanCloseTab(EditorCloseRequest);
+	}
+}
+
+void SStandaloneAssetEditorToolkitHost::UnbindEditorCloseRequestFromHostTab()
+{
+	if (TSharedPtr<SDockTab> HostTab = HostTabPtr.Pin())
+	{
+		HostTab->SetCanCloseTab(SDockTab::FCanCloseTab());
+	}
 }
 
 SStandaloneAssetEditorToolkitHost::~SStandaloneAssetEditorToolkitHost()

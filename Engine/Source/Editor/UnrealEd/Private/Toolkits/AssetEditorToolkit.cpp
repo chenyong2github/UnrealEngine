@@ -502,6 +502,12 @@ bool FAssetEditorToolkit::CloseWindow(EAssetEditorCloseReason InCloseReason)
 {
 	if (OnRequestClose(InCloseReason))
 	{
+		// We are closing, unbind OnRequestClose since we're past that point and we want to make sure we don't redo the request close process when closing the host tab
+		if (TSharedPtr<SStandaloneAssetEditorToolkitHost> StandaloneHostPtr = StandaloneHost.Pin())
+		{
+			StandaloneHostPtr->UnbindEditorCloseRequestFromHostTab();
+		}
+
 		OnClose();
 
 		// Close this toolkit

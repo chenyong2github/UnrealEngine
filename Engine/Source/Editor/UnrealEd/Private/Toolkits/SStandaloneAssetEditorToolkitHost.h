@@ -102,6 +102,16 @@ public:
 
 	virtual FEditorModeTools& GetEditorModeManager() const override;
 
+	/**
+	 * Binds EditorCloseRequest to the HostTab so that it triggers when the tab is trying to close.
+	 */
+	void BindEditorCloseRequestToHostTab();
+
+	/**
+	 * Unbinds EditorCloseRequest from the HostTab so that it doesn't trigger when the tab is trying to close.
+	 */
+	void UnbindEditorCloseRequestFromHostTab();
+
 private:
 	void OnTabClosed(TSharedRef<SDockTab> TabClosed) const;
 	void ShutdownToolkitHost();
