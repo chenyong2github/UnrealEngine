@@ -21,4 +21,16 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "OpenColorIO")
 	static OPENCOLORIOEDITOR_API void SetActiveViewportConfiguration(const FOpenColorIODisplayConfiguration& InConfiguration);
+
+
+	/**
+	 * Apply a color transform to a texture asset.
+	 *
+	 * @param ConversionSettings Color transformation settings.
+	 * @param InOutTexture Texture object to transform.
+	 * @param bSynchronous Whether the texture transform is a nlocking operation.
+	 * @return true upon success.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "OpenColorIO")
+	static OPENCOLORIOEDITOR_API bool ApplyTextureColorTransform(const FOpenColorIOColorConversionSettings& ConversionSettings, UTexture* InOutTexture, bool bSynchronous = false);
 };

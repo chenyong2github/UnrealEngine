@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 					"DesktopWidgets",
 					"EditorFramework",
 					"Engine",
+					"ImageCore",
 					"LevelEditor",
 					"OpenColorIOWrapper",
 					"OpenColorIO",
