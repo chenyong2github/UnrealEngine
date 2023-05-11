@@ -312,7 +312,8 @@ void FConstraintBaker::Bake(UWorld* InWorld,
 				//we also set the tangent at the break to the default type
 				FMovieSceneConstraintChannelHelper::ChangeKeyInterpolation(DoubleTransformChannels, Frame, KeyType);
 			}
-			if (int32 RemoveIndex = Algo::BinarySearch(FramesToBake, FrameMinusOne) != INDEX_NONE)
+			if (const int32 RemoveIndex = Algo::BinarySearch(FramesToBake, FrameMinusOne);
+				RemoveIndex != INDEX_NONE)
 			{
 				FramesToBake.RemoveAt(RemoveIndex);
 				Transforms.RemoveAt(RemoveIndex);
