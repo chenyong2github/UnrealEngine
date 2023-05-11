@@ -210,7 +210,7 @@ namespace UnsyncUI
 	public sealed class ProjectModel : TabModel
 	{
 		private bool firstRefresh = true;
-		private Action<IEnumerable<(string DstPath, string[] Exclusions, BuildPlatformModel Model)>> onBuildsSelected;
+		private Action<IEnumerable<(SyncStartConfig Config, BuildPlatformModel Model)>> onBuildsSelected;
 
 		private string statusString = null;
 		public string StatusString
@@ -347,7 +347,7 @@ namespace UnsyncUI
 			}
 		}
 
-		public ProjectModel(Config.Project definition, Action<IEnumerable<(string DstPath, string[] Exclusions, BuildPlatformModel Model)>> onBuildsSelected)
+		public ProjectModel(Config.Project definition, Action<IEnumerable<(SyncStartConfig Config, BuildPlatformModel Model)>> onBuildsSelected)
 		{
 			this.Definition = definition;
 			this.onBuildsSelected = onBuildsSelected;
@@ -473,7 +473,16 @@ namespace UnsyncUI
 
 		public void StartSync(IEnumerable<BuildPlatformModel> selectedBuilds)
 		{
-			onBuildsSelected?.Invoke(selectedBuilds.Select(s => (Path.Combine(finalDstPath, s.DestPathRelative), Definition.Exclusions?.ToArray(), s)).ToList());
+			onBuildsSelected?.Invoke(selectedBuilds.Select(s => {
+				var Config = new SyncStartConfig();
+				Config.DstPath = Path.Combine(finalDstPath, s.DestPathRelative);
+				Config.Exclusions = Definition.Exclusions?.ToArray();
+				if (App.Current.UserConfig.AppendBuildName)
+				{
+					Config.ScavengePath = DstPath;
+				}
+				return (Config, s);
+			}).ToList());
 		}
 
 		public override void OnSelected()

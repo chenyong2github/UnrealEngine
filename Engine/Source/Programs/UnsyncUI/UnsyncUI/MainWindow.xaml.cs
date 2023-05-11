@@ -63,7 +63,7 @@ namespace UnsyncUI
 
 	public sealed class CustomModel : TabModel
 	{
-		private Action<IEnumerable<(string DstPath, string[] Exclusions, BuildPlatformModel Model)>> onBuildsSelected;
+		private Action<IEnumerable<(SyncStartConfig Config, BuildPlatformModel Model)>> onBuildsSelected;
 
 		public string Name => "Custom";
 
@@ -109,20 +109,30 @@ namespace UnsyncUI
 		private void UpdateSyncCommand()
 			=> OnSyncClicked.Enabled = !string.IsNullOrWhiteSpace(SrcPath) && !string.IsNullOrWhiteSpace(DstPath);
 
-		public CustomModel(Action<IEnumerable<(string DstPath, string[] Exclusions, BuildPlatformModel Model)>> onBuildsSelected)
+		public CustomModel(Action<IEnumerable<(SyncStartConfig Config, BuildPlatformModel Model)>> onBuildsSelected)
 		{
 			this.onBuildsSelected = onBuildsSelected;
 			OnSyncClicked = new Command(() =>
 			{
+				var config = new SyncStartConfig();
+				config.DstPath = DstPath;
+				config.Exclusions = default(string[]);
 				onBuildsSelected(new[]
 				{
-					(DstPath, default(string[]), new BuildPlatformModel(null, null, SrcPath, null, Include))
+					(config, new BuildPlatformModel(null, null, SrcPath, null, Include))
 				});
 			});
 
 			UpdateSyncCommand();
 		}
 	}
+
+	public class SyncStartConfig
+	{
+		public string DstPath;
+		public string ScavengePath;
+		public string[] Exclusions;
+	};
 
 	public sealed class MainWindowModel : BaseModel
 	{
@@ -250,18 +260,19 @@ namespace UnsyncUI
 			UpdateProgressState();
 		}
 
-		public void OnBuildsSelected(IEnumerable<(string DstPath, string[] Exclusions, BuildPlatformModel Model)> selectedBuilds)
+		public void OnBuildsSelected(IEnumerable<(SyncStartConfig Config, BuildPlatformModel Model)> selectedBuilds)
 		{
 			foreach (var build in selectedBuilds)
 			{
 				AddJob(new JobModel(
 					build.Model, 
-					build.DstPath, 
+					build.Config.DstPath,
+					build.Config.ScavengePath,
 					DryRun, 
 					SelectedProxy?.Path,
 					DFS, 
 					AdditionalArgs, 
-					build.Exclusions, 
+					build.Config.Exclusions, 
 					OnJobCompleted, 
 					OnClearJob, 
 					OnJobProgress

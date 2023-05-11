@@ -64,6 +64,7 @@ namespace UnsyncUI
     {
         public BuildPlatformModel Build { get; }
         public string DstPath { get; }
+		public string ScavengePath { get; }
 		public string DstPathBase => Path.GetDirectoryName(DstPath);
         public bool DryRun { get; }
         public string Proxy { get; }
@@ -169,6 +170,7 @@ namespace UnsyncUI
 		public JobModel(
 			BuildPlatformModel build,
 			string dstPath,
+			string scavengePath,
 			bool dryRun,
 			string proxy,
 			string dfs,
@@ -180,6 +182,7 @@ namespace UnsyncUI
 		{
             Build = build;
             DstPath = dstPath;
+			ScavengePath = scavengePath;
             DryRun = dryRun;
             Proxy = proxy;
 			DFS = dfs;
@@ -382,6 +385,11 @@ namespace UnsyncUI
 				if (Exclusions != null && Exclusions.Length > 0)
 				{
 					args.Add($"--exclude {string.Join(",", Exclusions)}");
+				}
+
+				if (ScavengePath != null)
+				{
+					args.Add($"--scavenge \"{ScavengePath}\"");
 				}
 
 				args.Add($"\"{Build.FullPath}\"");
