@@ -289,14 +289,8 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 
 			if (IssueLoadRequests())
 			{
-				bool bBlock = (InBlockPolicy == AlwaysBlock || (ShouldBeAlwaysLoaded() && InBlockPolicy != NeverBlock));
-				if (const UWorldPartitionRuntimeLevelStreamingCell* RuntimeLevelStreamingCell = StreamingCell.Get())
-				{
-					bBlock = RuntimeLevelStreamingCell->GetOwningWorld()->GetWorldPartition()->IsMainWorldPartition();
-				}
-
 				// Editor immediately blocks on load and we also block if background level streaming is disabled.
-				if (bBlock)
+				if (InBlockPolicy == AlwaysBlock || (ShouldBeAlwaysLoaded() && InBlockPolicy != NeverBlock))
 				{
 					if (IsAsyncLoading())
 					{
