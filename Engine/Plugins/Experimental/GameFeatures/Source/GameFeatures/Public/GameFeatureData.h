@@ -32,6 +32,11 @@ public:
 	/** Method to process ini files for the plugin during activation */
 	void InitializeHierarchicalPluginIniFiles(const FString& PluginInstalledFilename) const;
 
+	UFUNCTION(BlueprintCallable, Category = "GameFeature")
+	static void GetPluginName(const UGameFeatureData* GFD, FString& PluginName);
+
+	void GetPluginName(FString& PluginName) const;
+
 #if WITH_EDITOR
 	static FName GetContentBundleGuidsAssetRegistryTag();
 	static void GetContentBundleGuidsFromAsset(const FAssetData& Asset, TArray<FGuid>& OutContentBundleGuids);

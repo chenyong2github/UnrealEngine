@@ -2,6 +2,7 @@
 
 #include "GameFeatureData.h"
 #include "AssetRegistry/AssetData.h"
+#include "Engine/AssetManager.h"
 #include "GameFeaturesSubsystem.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigContext.h"
@@ -267,6 +268,29 @@ void UGameFeatureData::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) 
 	}
 }
 #endif
+
+void UGameFeatureData::GetPluginName(FString& PluginName) const
+{
+	UGameFeatureData::GetPluginName(this, PluginName);
+}
+
+void UGameFeatureData::GetPluginName(const UGameFeatureData* GFD, FString& PluginName)
+{
+	if (GFD)
+	{
+		const FString GameFeaturePath = GFD->GetOutermost()->GetName();
+		if (ensureMsgf(UAssetManager::GetContentRootPathFromPackageName(GameFeaturePath, PluginName), TEXT("Must be a valid package path with a root. GameFeaturePath: %s"), *GameFeaturePath))
+		{
+			// Trim the leading and trailing slashes
+			PluginName = PluginName.LeftChop(1).RightChop(1);
+		}
+		else
+		{
+			// Not a great fallback but better than nothing. Make sure this asset is in the right folder so we can get the plugin name.
+			PluginName = GFD->GetName();
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
 

@@ -513,6 +513,9 @@ public:
 	/** Helper function to write out asset reports */
 	virtual bool WriteCustomReport(FString FileName, TArray<FString>& FileLines) const;
 
+	/** Apply a single custom primary asset rule, calls function below */
+	virtual void ApplyCustomPrimaryAssetRulesOverride(const FPrimaryAssetRulesCustomOverride& CustomOverride);
+
 #if WITH_EDITOR
 	// EDITOR ONLY FUNCTIONALITY
 
@@ -667,9 +670,6 @@ protected:
 
 	/** Called to apply the primary asset rule overrides from config */
 	virtual void ScanPrimaryAssetRulesFromConfig();
-	
-	/** Apply a single custom primary asset rule, calls function below */
-	virtual void ApplyCustomPrimaryAssetRulesOverride(const FPrimaryAssetRulesCustomOverride& CustomOverride);
 
 	/** Sees if a specific primary asset passes the custom override filter, subclass this to handle FilterString */
 	virtual bool DoesPrimaryAssetMatchCustomOverride(FPrimaryAssetId PrimaryAssetId, const FPrimaryAssetRulesCustomOverride& CustomOverride) const;
