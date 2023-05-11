@@ -214,7 +214,7 @@ namespace EpicGames.Horde.Storage
 			Packets = packets;
 		}
 
-		record class ExportInfo(int TypeIdx, IoHash Hash, int Length, List<BundleNodeRef> References);
+		record class ExportInfo(int TypeIdx, IoHash Hash, int Length, List<BundleExportRef> References);
 
 		/// <summary>
 		/// Reads a bundle header from memory
@@ -252,7 +252,7 @@ namespace EpicGames.Horde.Storage
 			// Read the imports
 			int numImports = (int)reader.ReadUnsignedVarInt();
 			List<BlobLocator> imports = new List<BlobLocator>(numImports);
-			List<BundleNodeRef> allExportReferences = new List<BundleNodeRef>();
+			List<BundleExportRef> allExportReferences = new List<BundleExportRef>();
 
 			for (int importIdx = 0; importIdx < numImports; importIdx++)
 			{
@@ -262,7 +262,7 @@ namespace EpicGames.Horde.Storage
 				int[] exportIndexes = reader.ReadVariableLengthArray(() => (int)reader.ReadUnsignedVarInt());
 				for (int exportIdx = 0; exportIdx < exportIndexes.Length; exportIdx++)
 				{
-					BundleNodeRef exportReference = new BundleNodeRef(imports.Count - 1, exportIndexes[exportIdx]);
+					BundleExportRef exportReference = new BundleExportRef(imports.Count - 1, exportIndexes[exportIdx]);
 					allExportReferences.Add(exportReference);
 				}
 			}
@@ -275,13 +275,13 @@ namespace EpicGames.Horde.Storage
 
 			for (int exportIdx = 0; exportIdx < numExports; exportIdx++)
 			{
-				allExportReferences.Add(new BundleNodeRef(-1, exportIdx));
+				allExportReferences.Add(new BundleExportRef(-1, exportIdx));
 
 				int typeIdx = (int)reader.ReadUnsignedVarInt();
 				IoHash hash = reader.ReadIoHash();
 				int length = (int)reader.ReadUnsignedVarInt();
 
-				List<BundleNodeRef> exportReferences = new List<BundleNodeRef>();
+				List<BundleExportRef> exportReferences = new List<BundleExportRef>();
 
 				int numReferences = (int)reader.ReadUnsignedVarInt();
 				if (numReferences > 0)
@@ -426,25 +426,25 @@ namespace EpicGames.Horde.Storage
 			{
 				nodes[idx] = new SortedSet<int>();
 			}
-			foreach (BundleNodeRef exportRef in Exports.SelectMany(x => x.References).Where(x => x.ImportIdx != -1))
+			foreach (BundleExportRef exportRef in Exports.SelectMany(x => x.References).Where(x => x.ImportIdx != -1))
 			{
 				nodes[exportRef.ImportIdx].Add(exportRef.NodeIdx);
 			}
 
 			// Map all the imports to an index
-			Dictionary<BundleNodeRef, int> exportRefToIndex = new Dictionary<BundleNodeRef, int>();
+			Dictionary<BundleExportRef, int> exportRefToIndex = new Dictionary<BundleExportRef, int>();
 			for (int importIdx = 0; importIdx < Imports.Count; importIdx++)
 			{
 				foreach (int nodeIdx in nodes[importIdx])
 				{
 					int index = exportRefToIndex.Count;
-					exportRefToIndex[new BundleNodeRef(importIdx, nodeIdx)] = index;
+					exportRefToIndex[new BundleExportRef(importIdx, nodeIdx)] = index;
 				}
 			}
 			for (int exportIdx = 0; exportIdx < Exports.Count; exportIdx++)
 			{
 				int index = exportRefToIndex.Count;
-				exportRefToIndex[new BundleNodeRef(-1, exportIdx)] = index;
+				exportRefToIndex[new BundleExportRef(-1, exportIdx)] = index;
 			}
 
 			// Write all the imports
@@ -630,12 +630,12 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// References to other nodes
 		/// </summary>
-		public IReadOnlyList<BundleNodeRef> References { get; }
+		public IReadOnlyList<BundleExportRef> References { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExport(int typeIdx, IoHash hash, int packet, int offset, int length, IReadOnlyList<BundleNodeRef> references)
+		public BundleExport(int typeIdx, IoHash hash, int packet, int offset, int length, IReadOnlyList<BundleExportRef> references)
 		{
 			TypeIdx = typeIdx;
 			Hash = hash;
@@ -651,7 +651,7 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	/// <param name="ImportIdx">Index into the import table of the blob containing the referenced node. Can be -1 for references within the same bundle.</param>
 	/// <param name="NodeIdx">Node imported from the bundle</param>
-	public record class BundleNodeRef(int ImportIdx, int NodeIdx);
+	public record class BundleExportRef(int ImportIdx, int NodeIdx);
 
 	/// <summary>
 	/// Utility methods for bundles

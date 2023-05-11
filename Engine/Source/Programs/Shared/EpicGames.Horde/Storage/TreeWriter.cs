@@ -557,10 +557,10 @@ namespace EpicGames.Horde.Storage
 				Dictionary<BundleType, int> typeToIndex = new Dictionary<BundleType, int>();
 
 				// Map of node handle to reference
-				Dictionary<NodeHandle, BundleNodeRef> nodeHandleToExportRef = new Dictionary<NodeHandle, BundleNodeRef>();
+				Dictionary<NodeHandle, BundleExportRef> nodeHandleToExportRef = new Dictionary<NodeHandle, BundleExportRef>();
 				for (int exportIdx = 0; exportIdx < _queue.Count; exportIdx++)
 				{
-					nodeHandleToExportRef[_queue[exportIdx]] = new BundleNodeRef(-1, exportIdx);
+					nodeHandleToExportRef[_queue[exportIdx]] = new BundleExportRef(-1, exportIdx);
 				}
 
 				// Create the export list
@@ -575,10 +575,10 @@ namespace EpicGames.Horde.Storage
 						types.Add(nodeInfo.Key.Type);
 					}
 
-					List<BundleNodeRef> exportRefs = new List<BundleNodeRef>();
+					List<BundleExportRef> exportRefs = new List<BundleExportRef>();
 					foreach (NodeHandle nodeRef in nodeInfo.Refs)
 					{
-						BundleNodeRef? exportRef;
+						BundleExportRef? exportRef;
 						if (!nodeHandleToExportRef.TryGetValue(nodeRef, out exportRef))
 						{
 							int importIdx;
@@ -588,7 +588,7 @@ namespace EpicGames.Horde.Storage
 								imports.Add(nodeRef.Locator.Blob);
 								importToIndex.Add(nodeRef.Locator.Blob, importIdx);
 							}
-							exportRef = new BundleNodeRef(importIdx, nodeRef.Locator.ExportIdx);
+							exportRef = new BundleExportRef(importIdx, nodeRef.Locator.ExportIdx);
 						}
 						exportRefs.Add(exportRef);
 					}

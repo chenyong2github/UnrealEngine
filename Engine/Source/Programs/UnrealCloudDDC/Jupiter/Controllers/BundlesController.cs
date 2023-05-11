@@ -383,7 +383,7 @@ namespace Jupiter.Controllers
             }
 
             IStorageClient storageClient = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-            
+
             TreeReader reader = new TreeReader(storageClient, _memoryCache, _logger);
 
             BundleHeader header = await reader.ReadBundleHeaderAsync(locator, cancellationToken);
@@ -392,10 +392,10 @@ namespace Jupiter.Controllers
             if (includeImports)
             {
                 responseImports = new List<object>();
-                foreach (BundleImport import in header.Imports)
+                foreach (BlobLocator import in header.Imports)
                 {
-                    List<string> exports = import.Exports.ConvertAll(x => Url.Action("GetNode", new { namespaceId = namespaceId, locator = import.Locator, export = x})!);
-                    responseImports.Add(new { bundle = Url.Action("GetBundle", new { namespaceId = namespaceId, locator = import.Locator}) });
+                    string link = Url.Action("GetBundle", new { namespaceId = namespaceId, locator = import })!;
+                    responseImports.Add(link);
                 }
             }
 
@@ -437,7 +437,8 @@ namespace Jupiter.Controllers
                 }
             }
 
-            return new { header.CompressionFormat, imports = responseImports, exports = responseExports, packets = responsePackets };        }
+            return new { imports = responseImports, exports = responseExports, packets = responsePackets };
+        }
 
         /// <summary>
         /// Gets information about a particular bundle in storage

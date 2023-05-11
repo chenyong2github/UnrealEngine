@@ -738,7 +738,7 @@ namespace EpicGames.Horde.Storage
 			BundleExport export = bundleInfo.Header.Exports[locator.ExportIdx];
 
 			List<NodeLocator> refs = new List<NodeLocator>(export.References.Count);
-			foreach (BundleNodeRef reference in export.References)
+			foreach (BundleExportRef reference in export.References)
 			{
 				BlobLocator importBlob;
 				if (reference.ImportIdx == -1)
