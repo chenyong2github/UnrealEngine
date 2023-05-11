@@ -673,26 +673,32 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 	AddComponentFilter.PermittedNodeTypes.Add(UK2Node_AddComponent::StaticClass());
 	AddComponentFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsUnBoundSpawner));
 
-
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	TArray<FAssetData> SelectedAssets;
-	ContentBrowserModule.Get().GetSelectedAssets(SelectedAssets);
-
-	for (FAssetData& Asset : SelectedAssets)
+	if (BlueprintSettings->bIncludeActionsForSelectedAssetsInContextMenu)
 	{
-		UClass* AssetClass = Asset.GetClass();
-		// filter here (rather than in FBlueprintActionFilter) so we only load
-		// assets that we can use
-		if ((AssetClass == nullptr) || (FComponentAssetBrokerage::GetPrimaryComponentForAsset(AssetClass) == nullptr))
-		{
-			continue;
-		}
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+		TArray<FAssetData> SelectedAssets;
+		ContentBrowserModule.Get().GetSelectedAssets(SelectedAssets);
 
-		// @TODO: loading assets here may be slow (but we need a UObject to 
-		//        properly bind to), consider adding a editor option that will 
-		//        only offer then if the asset is already loaded
-		UObject* AssetObj = Asset.GetAsset();
-		AddComponentFilter.Context.SelectedObjects.Add(AssetObj);
+		if (SelectedAssets.Num() <= 1 || !BlueprintSettings->bLimitAssetActionBindingToSingleSelectionOnly)
+		{
+			for (FAssetData& Asset : SelectedAssets)
+			{
+				UClass* AssetClass = Asset.GetClass();
+				// filter here (rather than in FBlueprintActionFilter) so we only load
+				// assets that we can use
+				if ((AssetClass == nullptr) || (FComponentAssetBrokerage::GetPrimaryComponentForAsset(AssetClass) == nullptr))
+				{
+					continue;
+				}
+
+				// loading assets here may be slow (but we need a UObject to properly bind to)
+				if (Asset.IsAssetLoaded() || BlueprintSettings->bLoadSelectedAssetsForContextMenuActionBinding)
+				{
+					UObject* AssetObj = Asset.GetAsset();
+					AddComponentFilter.Context.SelectedObjects.Add(AssetObj);
+				}
+			}
+		}
 	}
 
 	//--------------------------------------

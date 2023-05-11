@@ -55,6 +55,9 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bEnableNamespaceEditorFeatures(true)
 	, bEnableContextMenuTimeSlicing(true)
 	, ContextMenuTimeSlicingThresholdMs(50)
+	, bIncludeActionsForSelectedAssetsInContextMenu(false)
+	, bLimitAssetActionBindingToSingleSelectionOnly(false)
+	, bLoadSelectedAssetsForContextMenuActionBinding(true)
 	, bDoNotMarkAllInstancesDirtyOnDefaultValueChange(true)
 	// Experimental
 	, bFavorPureCastNodes(false)

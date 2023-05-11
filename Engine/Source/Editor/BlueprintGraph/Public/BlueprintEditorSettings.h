@@ -204,6 +204,18 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Workflow, AdvancedDisplay, meta = (EditCondition = "bEnableContextMenuTimeSlicing", DisplayName = "Context Menu: Non-Blocking Per-Frame Threshold (ms)", ClampMin = "1"))
 	int32 ContextMenuTimeSlicingThresholdMs;
 
+	/** If enabled, invoking the Blueprint graph context menu with one or more compatible assets selected in the Content Browser will generate an additional set of pre-bound menu actions when the "Context Sensitive" option is enabled. For example, selecting a Static Mesh asset in the Content Browser will result in an extra "Add Static Mesh Component" menu action that's already bound to the selected asset. */
+	UPROPERTY(EditAnywhere, config, Category = Workflow, meta = (DisplayName = "Context Menu: Include Pre-Bound Actions for Selected Assets"))
+	bool bIncludeActionsForSelectedAssetsInContextMenu;
+
+	/** Only generate pre-bound "Add Component" actions when there is a single asset selected in the Content Browser. If more than one asset is selected, pre-bound "Add Component" actions will not be generated. Enabling this option can improve UI responsiveness and decrease the time it takes to build the context menu, while still preserving the ability to include actions pre-bound to the selected asset. */
+	UPROPERTY(EditAnywhere, config, Category = Workflow, meta = (EditCondition = "bIncludeActionsForSelectedAssetsInContextMenu", DisplayName = "Context Menu: Pre-Bound Actions: Restrict to Single Selection"))
+	bool bLimitAssetActionBindingToSingleSelectionOnly;
+
+	/** When generating pre-bound "Add Component" actions, any selected assets that are not yet loaded will be synchronously loaded as part of building the Blueprint Graph context menu. Enabling this option will ensure that all pre-bound actions for all selected assets are included in the menu, but load times may also affect editor UI responsiveness while the context menu is building. */
+	UPROPERTY(EditAnywhere, config, Category = Workflow, meta = (EditCondition = "bIncludeActionsForSelectedAssetsInContextMenu", DisplayName = "Context Menu: Pre-Bound Actions: Always Load Selected Asset(s)"))
+	bool bLoadSelectedAssetsForContextMenuActionBinding;
+
 	/** If enabled, assets containing Blueprint instances (e.g. maps) will not be marked dirty when default values are edited, unless it results in the instance becoming realigned with the new default value. */
 	UPROPERTY(EditAnywhere, config, Category = Workflow)
 	bool bDoNotMarkAllInstancesDirtyOnDefaultValueChange;
