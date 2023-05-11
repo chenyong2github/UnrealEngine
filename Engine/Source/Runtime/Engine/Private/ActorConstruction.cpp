@@ -293,13 +293,20 @@ void AActor::RerunConstructionScripts()
 		ITransaction* CurrentTransaction = GUndo;
 		GUndo = nullptr;
 
-		// Mark package as clean on exit if not transient and not already dirty.
-		bool bMarkPackageClean = false;
-		UPackage* ActorPackage = GetPackage();
-		if (ActorPackage && !ActorPackage->IsDirty() && ActorPackage != GetTransientPackage())
+		// Keep track of non-dirty packages, so we can clear the dirty state after reconstruction.
+		TSet<UPackage*> CleanPackageList;
+		auto CheckAndSaveOuterPackageToCleanList = [&CleanPackageList](const UObject* InObject)
 		{
-			bMarkPackageClean = true;
-		}
+			check(InObject);
+			UPackage* ObjectPackage = InObject->GetPackage();
+			if (ObjectPackage && !ObjectPackage->IsDirty() && ObjectPackage != GetTransientPackage())
+			{
+				CleanPackageList.Add(ObjectPackage);
+			}
+		};
+
+		// Mark package as clean on exit if not transient and not already dirty.
+		CheckAndSaveOuterPackageToCleanList(this);
 		
 		// Create cache to store component data across rerunning construction scripts
 		FComponentInstanceDataCache* InstanceDataCache;
@@ -382,6 +389,10 @@ void AActor::RerunConstructionScripts()
 				AActor* AttachedActor = CachedAttachInfo.Actor.Get();
 				if (AttachedActor)
 				{
+					// Detaching will mark the attached actor's package as dirty, but we don't actually need
+					// it to be re-saved after reconstruction since attachment relationships will be restored.
+					CheckAndSaveOuterPackageToCleanList(AttachedActor);
+
 					FAttachedActorInfo Info;
 					Info.AttachedActor = AttachedActor;
 					Info.AttachedToSocket = CachedAttachInfo.SocketName;
@@ -404,6 +415,10 @@ void AActor::RerunConstructionScripts()
 
 			for (AActor* AttachedActor : AttachedActors)
 			{
+				// Detaching will mark the attached actor's package as dirty, but we don't actually need
+				// it to be re-saved after reconstruction since attachment relationships will be restored.
+				CheckAndSaveOuterPackageToCleanList(AttachedActor);
+
 				// We don't need to detach child actors, that will be handled by component tear down
 				if (!AttachedActor->IsChildActor())
 				{
@@ -630,12 +645,15 @@ void AActor::RerunConstructionScripts()
 			}
 		}
 
-		// If any of the code above caused the package dirty state to change, we reset it back to a "clean" state now. Note that we have to do this
+		// If any of the code above caused a package dirty state to change, we reset it back to a "clean" state now. Note that we have to do this
 		// before we restore the undo buffer below - otherwise, the state change will become part of the current transaction, and we don't want that.
-		if (bMarkPackageClean && ActorPackage->IsDirty())
+		for (UPackage* PackageToMarkAsClean : CleanPackageList)
 		{
-			ActorPackage->SetDirtyFlag(false);
+			check(PackageToMarkAsClean);
+			PackageToMarkAsClean->SetDirtyFlag(false);
 		}
+
+		CleanPackageList.Empty();
 
 		// Restore the undo buffer
 		GUndo = CurrentTransaction;

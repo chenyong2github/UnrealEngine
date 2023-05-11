@@ -2562,6 +2562,20 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(const TMap<UCla
 						UObject* NewUObject = nullptr;
 						if (OldActor->GetLevel() && OldActor->GetWorld())
 						{
+							// Attached actors will be marked dirty as well when the old instance is destroyed, but
+							// since these attachments will get restored as part of replacement, there's no need to
+							// re-save after reinstancing. In general, this applies only to OFPA-enabled levels, as
+							// in that case, attached actors reside in their own external packages and not the level.
+							TArray<AActor*> AttachedActors;
+							OldActor->GetAttachedActors(AttachedActors);
+							for (AActor* AttachedActor : AttachedActors)
+							{
+								if (AttachedActor)
+								{
+									CheckAndSaveOuterPackageToCleanList(AttachedActor);
+								}
+							}
+
 							ReplaceActorHelper(OldActor, OldClass, NewUObject, NewClass, OldToNewInstanceMap, InOldToNewClassMap, ReinstancedObjectsWeakReferenceMap, ActorAttachmentData, ReplacementActors, bPreserveRootComponent, bSelectionChanged);
 						}
 						else
