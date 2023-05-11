@@ -2,6 +2,16 @@
 
 #include "CoreHttp/Client.h"
 
+#if !defined(NO_UE_INCLUDES)
+#include "IO/IoBuffer.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/ScopeExit.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/StringBuilder.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Tasks/Task.h"
+#endif
+
 // {{{1 platforms ..............................................................
 
 #if PLATFORM_MICROSOFT
@@ -172,16 +182,6 @@
 // however competes with UE definitions related to pixel formats.
 #if defined(PF_MAX)
 #	undef PF_MAX
-#endif
-
-#if !defined(NO_UE_INCLUDES)
-#include "IO/IoDispatcher.h"
-#include "Math/UnrealMathUtility.h"
-#include "Misc/ScopeExit.h"
-#include "Misc/ScopeLock.h"
-#include "Misc/StringBuilder.h"
-#include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "Tasks/Task.h"
 #endif
 
 static_assert(sizeof(sockaddr_in::sin_addr) == sizeof(uint32));

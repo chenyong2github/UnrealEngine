@@ -2,7 +2,6 @@
 
 #include "IoStoreUtilities.h"
 
-#include "IoStoreOnDemand.h"
 #include "Async/AsyncWork.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
@@ -32,6 +31,7 @@
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"
 #include "Settings/ProjectPackagingSettings.h" // for EAssetRegistryWritebackMethod
+#include "IO/IoStoreOnDemand.h"
 #include "IO/PackageStore.h"
 #include "UObject/Class.h"
 #include "UObject/NameBatchSerialization.h"
@@ -3720,7 +3720,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 	TArray<TSharedPtr<IIoStoreWriter>> IoStoreWriters;
 	TSharedPtr<IIoStoreWriter> GlobalIoStoreWriter;
-	TUniquePtr<IIoStoreOnDemandWriter> IoStoreOnDemandWriter;
+	TUniquePtr<UE::IOnDemandIoStoreWriter> OnDemandIoStoreWriter;
 	{
 		IOSTORE_CPU_SCOPE(InitializeWriters);
 		if (!Arguments.IsDLC())
@@ -3747,11 +3747,11 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 			if (!ContainerTarget->OnDemandOutputPath.IsEmpty())
 			{
-				if (!IoStoreOnDemandWriter.IsValid())
+				if (!OnDemandIoStoreWriter.IsValid())
 				{
 					FIoStoreWriterSettings WriterSettings;
 					WriterSettings.CompressionMethod = NAME_Oodle;
-					IoStoreOnDemandWriter = MakeIoStoreOnDemandWriter(WriterSettings, ContainerTarget->OnDemandOutputPath);
+					OnDemandIoStoreWriter = UE::MakeOnDemandIoStoreWriter(WriterSettings, ContainerTarget->OnDemandOutputPath);
 				}
 
 				FIoContainerSettings ContainerSettings;
@@ -3770,7 +3770,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 						UE_LOG(LogIoStore, Warning, TEXT("Failed to find encryption key '%s' for container '%s'"), *ContainerTarget->EncryptionKeyGuid.ToString(), *ContainerTarget->Name.ToString());
 					}
 				}
-				ContainerTarget->IoStoreWriter = IoStoreOnDemandWriter->CreateContainer(ContainerTarget->Name.ToString(), ContainerSettings);
+				ContainerTarget->IoStoreWriter = OnDemandIoStoreWriter->CreateContainer(ContainerTarget->Name.ToString(), ContainerSettings);
 				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 			}
 			else
@@ -3961,11 +3961,11 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::ScriptObjects), ScriptObjectsBuffer, WriteOptions);
 	}
 
-	if (IoStoreOnDemandWriter.IsValid())
+	if (OnDemandIoStoreWriter.IsValid())
 	{
 		UE_LOG(LogIoStore, Display, TEXT("Serializing ondemand content..."));
 		IOSTORE_CPU_SCOPE(SerializingContentOnDemand);
-		IoStoreOnDemandWriter->Flush();
+		OnDemandIoStoreWriter->Flush();
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
