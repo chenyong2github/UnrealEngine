@@ -83,7 +83,8 @@ namespace AutomationTool
 			Store,
 			Store_True,
 			Store_False,
-			Append
+			Append,
+			Override
 		}
 
 		private ParamHelpAttribute(string Description) : base(Description)
