@@ -67,6 +67,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	/** If false, the asset being edited will not be included in reopen assets prompt on restart */
+	virtual bool IncludeAssetInRestoreOpenAssetsPrompt() const { return true; }
 	virtual bool IsPrimaryEditor() const = 0;
 	virtual void InvokeTab(const struct FTabId& TabId) = 0;
 	UE_DEPRECATED(5.0, "Toolbar tab no longer exists and tab ID will return None; do not add it to layouts")
@@ -307,6 +309,8 @@ public:
 	/** Get the current value of bAutoRestoreAndDisableSaving */
 	TOptional<bool> GetAutoRestoreAndDisableSavingOverride() const;
 
+	void SetRecentAssetsFilter(const FMainMRUFavoritesList::FDoesMRUFavoritesItemPassFilter& InFilter);
+
 private:
 
 	/** Handles a package being reloaded */
@@ -453,4 +457,10 @@ private:
 	
 	/** Map keeping track of the asset editor each recent asset was opened in */
 	TMap<FString, FString> RecentAssetToAssetEditorMap;
+
+	/** The filter run through any assets before they are shown in the recents menu or restore prompt */
+	FMainMRUFavoritesList::FDoesMRUFavoritesItemPassFilter RecentAssetsFilter;
+
+	/** The max number of recent assets to show in the menu */
+	int32 MaxRecentAssetsToShowInMenu = 20;
 };

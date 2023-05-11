@@ -58,7 +58,7 @@ public:
 	bool bDisplayFriendlyNameForPluginFolders = true;
 
 	/** The number of objects to keep in the Content Browser Recently Opened filter */
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use NumRecentAssets in UEditorLoadingSavingSettings instead"))
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "The filter now always keeps track of your last 30 recent assets"))
 	int32 NumObjectsInRecentList_DEPRECATED;
 
 	/** Enables the rendering of Material Instance thumbnail previews */

@@ -211,64 +211,7 @@ public:
 	 * @param bStartImmersive True to force a main frame viewport into immersive mode
 	 * @param bStartPIE True to start a PIE session right away
 	 */
-	void ShowMainFrameWindow(TSharedRef<SWindow> Window, const bool bStartImmersive, const bool bStartPIE) const
-	{
-		// Make sure viewport windows are maximized/immersed if they need to be
-		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked< FLevelEditorModule >( TEXT( "LevelEditor" ) );
-
-		if( bStartPIE )
-		{
-			// Kick off an immersive PIE session immediately!
-
-			if( bStartImmersive )
-			{
-				// When in immersive play in editor, toggle game view on the active viewport
-				const bool bForceGameView = true;
-
-				// Start level viewport initially in immersive mode
-				LevelEditor.GoImmersiveWithActiveLevelViewport( bForceGameView );
-			}
-
-			LevelEditor.StartPlayInEditorSession();
-			Window->ShowWindow();
-			// Ensure the window is at the front or else we could end up capturing and locking the mouse to a window that isn't visible
-			bool bForceWindowToFront = true;
-			Window->BringToFront( bForceWindowToFront );
-
-			// Need to register after the window is shown or else we cant capture the mouse
-			TSharedPtr<IAssetViewport> Viewport = LevelEditor.GetFirstActiveViewport();
-			Viewport->RegisterGameViewportIfPIE();
-		}
-		else
-		{
-			if( bStartImmersive )
-			{
-				// When in immersive play in editor, toggle game view on the active viewport
-				const bool bForceGameView = true;
-
-				// Start level viewport initially in immersive mode
-				LevelEditor.GoImmersiveWithActiveLevelViewport( bForceGameView );
-			}
-
-			// Show the window!
-			Window->ShowWindow();
-
-			if( bStartImmersive )
-			{
-				// Ensure the window is at the front or else we could end up capturing and locking the mouse to a window that isn't visible
-				bool bForceWindowToFront = true;
-				Window->BringToFront( bForceWindowToFront );
-			}
-			else
-			{
-				// Focus the level editor viewport
-				LevelEditor.FocusViewport();
-
-				// Restore any assets we had open. Note we don't do this on immersive PIE as its annoying to the user.
-				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->RequestRestorePreviouslyOpenAssets();
-			}
-		}
-	}
+	void ShowMainFrameWindow(TSharedRef<SWindow> Window, const bool bStartImmersive, const bool bStartPIE) const;
 
 	/** Gets the parent window of the mainframe */
 	TSharedPtr<SWindow> GetParentWindow() const

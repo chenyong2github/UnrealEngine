@@ -110,8 +110,8 @@ void UAssetEditorSubsystem::Deinitialize()
 
 void UAssetEditorSubsystem::InitializeRecentAssets()
 {
-	// The current max allowed is 30 assets, we keep track of 40 to be safe since we are ignoring levels when showing the list
-	RecentAssetsList = MakeUnique<FMainMRUFavoritesList>(TEXT("AssetEditorSubsystemRecents"), 40);
+	// The current max allowed is 30 assets
+	RecentAssetsList = MakeUnique<FMainMRUFavoritesList>(TEXT("AssetEditorSubsystemRecents"), 30);
 	RecentAssetsList->ReadFromINI();
 	
 	TArray<FString> RecentAssetEditors;
@@ -389,7 +389,10 @@ void UAssetEditorSubsystem::NotifyAssetOpened(UObject* Asset, IAssetEditorInstan
 
 	AssetOpenedInEditorEvent.Broadcast(Asset, InInstance);
 
-	SaveOpenAssetEditors(false);
+	if(InInstance->IncludeAssetInRestoreOpenAssetsPrompt())
+	{
+		SaveOpenAssetEditors(false);
+	}
 }
 
 
@@ -927,8 +930,25 @@ FOnModeUnregistered& UAssetEditorSubsystem::OnEditorModeUnregistered()
 
 void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 {
-	TArray<FString> OpenAssets;
-	GConfig->GetArray(TEXT("AssetEditorSubsystem"), TEXT("OpenAssetsAtExit"), OpenAssets, GEditorPerProjectIni);
+	TArray<FString> AllOpenAssets;
+	TArray<FString> FilteredOpenAssets;
+	
+	GConfig->GetArray(TEXT("AssetEditorSubsystem"), TEXT("OpenAssetsAtExit"), AllOpenAssets, GEditorPerProjectIni);
+
+	if(!RecentAssetsFilter.IsBound())
+	{
+		FilteredOpenAssets = AllOpenAssets;
+	}
+	else
+	{
+		for(const FString& Asset : AllOpenAssets)
+		{
+			if(RecentAssetsFilter.Execute(Asset))
+			{
+				FilteredOpenAssets.Add(Asset);
+			}
+		}
+	}
 
 	bool bCleanShutdown = true;
 	GConfig->GetBool(TEXT("AssetEditorSubsystem"), TEXT("CleanShutdown"), bCleanShutdown, GEditorPerProjectIni);
@@ -944,7 +964,7 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 	 */
 	bool bCrashedWithoutDebugger = !bDebuggerAttachedLastSession && !bCleanShutdown;
 
-	if (OpenAssets.Num() > 0)
+	if (FilteredOpenAssets.Num() > 0)
 	{
 		// This option overrides the saved setting
 		if(bAutoRestoreAndDisableSaving.IsSet())
@@ -952,7 +972,7 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 			// If bAutoRestoreAndDisableSaving is true, we automatically restore the opened assets
 			if(bAutoRestoreAndDisableSaving.GetValue())
 			{
-				OpenEditorsForAssets(OpenAssets);
+				OpenEditorsForAssets(FilteredOpenAssets);
 			}
 			return;
 		}
@@ -962,7 +982,7 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 		 */
 		if(bCrashedWithoutDebugger)
 		{
-			SpawnRestorePreviouslyOpenAssetsNotification(!bCrashedWithoutDebugger, OpenAssets);
+			SpawnRestorePreviouslyOpenAssetsNotification(!bCrashedWithoutDebugger, FilteredOpenAssets);
 			return;
 		}
 
@@ -972,7 +992,7 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 		{
 		case ERestoreOpenAssetTabsMethod::AlwaysPrompt:
 			{
-				SpawnRestorePreviouslyOpenAssetsNotification(!bCrashedWithoutDebugger, OpenAssets);
+				SpawnRestorePreviouslyOpenAssetsNotification(!bCrashedWithoutDebugger, FilteredOpenAssets);
 				break;
 			}
 			
@@ -982,7 +1002,7 @@ void UAssetEditorSubsystem::RestorePreviouslyOpenAssets()
 		case ERestoreOpenAssetTabsMethod::AlwaysRestore:
 			{
 				// Pretend that we showed the notification and that the user clicked "Restore Now"
-				OpenEditorsForAssets(OpenAssets);
+				OpenEditorsForAssets(FilteredOpenAssets);
 				break;
 			}
 		}
@@ -1007,6 +1027,16 @@ void UAssetEditorSubsystem::SetAutoRestoreAndDisableSavingOverride(TOptional<boo
 TOptional<bool> UAssetEditorSubsystem::GetAutoRestoreAndDisableSavingOverride() const
 {
 	return bAutoRestoreAndDisableSaving;
+}
+
+void UAssetEditorSubsystem::SetRecentAssetsFilter(const FMainMRUFavoritesList::FDoesMRUFavoritesItemPassFilter& InFilter)
+{
+	RecentAssetsFilter = InFilter;
+
+	if(RecentAssetsList)
+	{
+		RecentAssetsList->RegisterDoesMRUFavoritesItemPassFilterDelegate(InFilter);
+	}
 }
 
 void UAssetEditorSubsystem::SpawnRestorePreviouslyOpenAssetsNotification(const bool bCleanShutdown, const TArray<FString>& AssetsToOpen)
@@ -1146,9 +1176,7 @@ bool UAssetEditorSubsystem::ShouldShowRecentAssetsMenu(const FName& InAssetEdito
 		return false;
 	}
 
-	const int32 MaxRecentAssets = GetDefault<UEditorLoadingSavingSettings>()->NumRecentAssets;
-
-	for ( int32 CurRecentIndex = 0; CurRecentIndex < RecentAssetsList->GetNumItems() && CurRecentIndex < MaxRecentAssets; ++CurRecentIndex )
+	for ( int32 CurRecentIndex = 0; CurRecentIndex < RecentAssetsList->GetNumItems() && CurRecentIndex < MaxRecentAssetsToShowInMenu; ++CurRecentIndex )
 	{
 		const FString& CurRecent = RecentAssetsList->GetMRUItem(CurRecentIndex);
 
@@ -1164,12 +1192,10 @@ bool UAssetEditorSubsystem::ShouldShowRecentAssetsMenu(const FName& InAssetEdito
 
 void UAssetEditorSubsystem::CreateRecentAssetsMenu(UToolMenu* InMenu, const FName InAssetEditorName)
 {
-	const int32 MaxRecentAssets = GetDefault<UEditorLoadingSavingSettings>()->NumRecentAssets;
-
 	FToolMenuSection& Section = InMenu->FindOrAddSection("Recents");
 	
 	// Keep adding assets until we reach the end of the MRU list, or we reach the max allowed assets
-	for ( int32 CurRecentIndex = 0; CurRecentIndex < RecentAssetsList->GetNumItems() && CurRecentIndex < MaxRecentAssets; ++CurRecentIndex )
+	for ( int32 CurRecentIndex = 0; CurRecentIndex < RecentAssetsList->GetNumItems() && CurRecentIndex < MaxRecentAssetsToShowInMenu; ++CurRecentIndex )
 	{
 		const FString& CurRecent = RecentAssetsList->GetMRUItem(CurRecentIndex);
 
@@ -1215,7 +1241,7 @@ void UAssetEditorSubsystem::RegisterLevelEditorMenuExtensions()
 		InSection.AddSubMenu(
 			"RecentAssetsSubmenu",
 			LOCTEXT("RecentAssetsSubmenu_Label", "Recent Assets"),
-			LOCTEXT("RecentAssetsSubMenu_ToolTip", "Access your recently opened assets"),
+			FText::Format(LOCTEXT("RecentAssetsSubMenu_ToolTip", "Access your last {0} recently opened assets"), MaxRecentAssetsToShowInMenu),
 			FNewToolMenuDelegate::CreateUObject(this, &UAssetEditorSubsystem::CreateRecentAssetsMenu, AssetEditorName),
 			false,
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.RecentAssets"));
@@ -1247,7 +1273,7 @@ void UAssetEditorSubsystem::CreateRecentAssetsMenuForEditor(const IAssetEditorIn
 			InSection.AddSubMenu(
 			"RecentAssetsSubmenu",
 			LOCTEXT("RecentAssetsSubmenu_Label", "Recent Assets"),
-			LOCTEXT("RecentAssetsSubMenu_ToolTip", "Access your recently opened assets"),
+			FText::Format(LOCTEXT("RecentAssetsSubMenu_ToolTip", "Access your last {0} recently opened assets"), MaxRecentAssetsToShowInMenu),
 			FNewToolMenuDelegate::CreateUObject(this, &UAssetEditorSubsystem::CreateRecentAssetsMenu, AssetEditorName),
 			false,
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.RecentAssets")
@@ -1262,7 +1288,7 @@ void UAssetEditorSubsystem::CreateRecentAssetsMenuForEditor(const IAssetEditorIn
 			InSection.AddSubMenu(
 				"RecentAssetEditorAssetsSubmenu",
 				FText::Format(LOCTEXT("RecentAssetEditorAssetsSubmenu_Label", "{0}"), FText::FromName(RecentAssetsMenuName)),
-				LOCTEXT("RecentAssetEditorAssetsSubMenu_ToolTip", "Access your recently opened assets"),
+				FText::Format(LOCTEXT("RecentAssetEditorAssetsSubmenu_Label", "Access your recently opened {0} assets"), FText::FromName(EditingAssetTypeName)),
 				FNewToolMenuDelegate::CreateUObject(this, &UAssetEditorSubsystem::CreateRecentAssetsMenu, AssetEditorName),
 				false,
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.RecentAssets")
@@ -1277,7 +1303,8 @@ void UAssetEditorSubsystem::SaveOpenAssetEditors(const bool bOnShutdown)
 {
 	SaveRecentAssets(bOnShutdown);
 
-	// Saving is disabled if bAutoRestoreAndDisableSaving is set
+	// We are already saving the open asset editors manually before bSavingOnShutdown is true. This is to avoid saving that there are no open asset editors b/c the editor is shutting down
+	// If we are restoring the layout, bAutoRestoreAndDisable saving is true
 	if (!bSavingOnShutdown && !bAutoRestoreAndDisableSaving.IsSet())
 	{
 		TArray<FString> OpenAssets;
@@ -1285,14 +1312,14 @@ void UAssetEditorSubsystem::SaveOpenAssetEditors(const bool bOnShutdown)
 		for (const TPair<IAssetEditorInstance*, FAssetEntry>& EditorPair : OpenedEditors)
 		{
 			IAssetEditorInstance* Editor = EditorPair.Key;
-			if (Editor != nullptr)
+			if (Editor != nullptr && Editor->IncludeAssetInRestoreOpenAssetsPrompt())
 			{
 				UObject* EditedObject = EditorPair.Value.ObjectPtr.Get();
 				if (EditedObject != nullptr)
 				{
 					// only record assets that have a valid saved package
 					UPackage* Package = EditedObject->GetOutermost();
-					if (Package != nullptr && Package->GetFileSize() != 0)
+					if (Package != nullptr && Package->GetFileSize() != 0 )
 					{
 						OpenAssets.Add(EditedObject->GetPathName());
 					}
