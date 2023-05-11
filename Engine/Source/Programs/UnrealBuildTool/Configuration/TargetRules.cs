@@ -504,6 +504,14 @@ namespace UnrealBuildTool
 		public ILogger Logger { get; internal set; }
 
 		/// <summary>
+		/// Generic nullable object so a user can set additional data in a project's TargetRule and access in a project's ModuleRule without needing to add new properties post-release.
+		/// For example:
+		/// * in .Target.cs:	AdditionalData = "data";
+		/// * in .Build.cs:		if ((Target.AdditionalData as string) == "data") { ... }
+		/// </summary>
+		public object? AdditionalData { get; set; }
+
+		/// <summary>
 		/// Platform that this target is being built for.
 		/// </summary>
 		public readonly UnrealTargetPlatform Platform;
@@ -2816,6 +2824,11 @@ namespace UnrealBuildTool
 		internal IReadOnlySet<FileReference> TargetFiles
 		{
 			get { return Inner.TargetFiles!; }
+		}
+
+		public object? AdditionalData
+		{
+			get { return Inner.AdditionalData; }
 		}
 
 		public UnrealTargetPlatform Platform
