@@ -18,6 +18,7 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
 #include "EditorDomain/EditorDomainUtils.h"
+#include "Engine/AssetManager.h"
 #include "Engine/Level.h"
 #include "HAL/Event.h"
 #include "HAL/PlatformProcess.h"
@@ -1005,6 +1006,9 @@ void FRequestCluster::FGraphSearch::ExploreVertexEdges(FVertexData& Vertex)
 
 			// LocalizationReferences are a source of SoftGameDependencies that are not present in the AssetRegistry
 			SoftGameDependencies.Append(GetLocalizationReferences(PackageName, Cluster.COTFS));
+
+			// The AssetManager can provide additional SoftGameDependencies
+			SoftGameDependencies.Append(GetAssetManagerReferences(PackageName));
 		}
 	}
 
@@ -1568,6 +1572,13 @@ TConstArrayView<FName> FRequestCluster::GetLocalizationReferences(FName PackageN
 		}
 	}
 	return TConstArrayView<FName>();
+}
+
+TArray<FName> FRequestCluster::GetAssetManagerReferences(FName PackageName)
+{
+	TArray<FName> Results;
+	UAssetManager::Get().ModifyCookReferences(PackageName, Results);
+	return Results;
 }
 
 template <typename T>

@@ -80,6 +80,7 @@ public:
 		TMap<FPackageData*, TArray<FPackageData*>>& OutRequestGraph);
 
 	static TConstArrayView<FName> GetLocalizationReferences(FName PackageName, UCookOnTheFlyServer& InCOTFS);
+	static TArray<FName> GetAssetManagerReferences(FName PackageName);
 	static void IsRequestCookable(const ITargetPlatform* TargetPlatform, FPackageData& PackageData,
 		UCookOnTheFlyServer& COTFS, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable);
 

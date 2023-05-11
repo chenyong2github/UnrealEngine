@@ -6176,6 +6176,17 @@ void FSaveCookedPackageContext::FinishPackage()
 					FDiscoveredPlatformSet(ReachablePlatforms));
 			}
 		}
+		// Also add any references from the package that are required by the AssetManager
+		for (FName AMPackageName : FRequestCluster::GetAssetManagerReferences(PackageFName))
+		{
+			UE::Cook::FPackageData* AMPackageData = COTFS.PackageDatas->TryAddPackageDataByPackageName(AMPackageName);
+			if (AMPackageData)
+			{
+				COTFS.QueueDiscoveredPackage(*AMPackageData,
+					UE::Cook::FInstigator(UE::Cook::EInstigator::SoftDependency, PackageFName),
+					FDiscoveredPlatformSet(ReachablePlatforms));
+			}
+		}
 
 		// When using legacy WhatGetsCookedRules, add all the SoftObjectPaths discovered during the package's load, plus any added on
 		// during save, to the cook for all platforms

@@ -527,6 +527,13 @@ public:
 	virtual void ModifyDLCCook(const FString& DLCName, TConstArrayView<const ITargetPlatform*> TargetPlatforms,
 		TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook);
 
+	/**
+	 * If the given package contains a primary asset, get the packages referenced by its AssetBundleEntries.
+	 * Used to inform the cook of should-be-cooked dependencies of PrimaryAssets for PrimaryAssets that
+	 * are recorded in the AssetManager but have cooktype Unknown and so are not returned from ModifyCook.
+	 */
+	virtual void ModifyCookReferences(FName PackageName, TArray<FName>& PackagesToCook);
+
 	/** Returns whether or not a specific UPackage should be cooked for the provied TargetPlatform */
 	virtual bool ShouldCookForPlatform(const UPackage* Package, const ITargetPlatform* TargetPlatform);
 
@@ -869,6 +876,14 @@ private:
 
 	/** Per-type asset information, cannot be accessed by children as it is defined in CPP file */
 	TMap<FName, TSharedRef<FPrimaryAssetTypeData>> AssetTypeMap;
+
+#if WITH_EDITOR
+	/**
+	 * Map from the PackageName of a PrimaryAsset to the packages that should be added to the cook
+	 * based on the PrimaryAsset's AssetBundleData, if the PrimaryAsset is ever referenced.
+	 */
+	TMap<FName, TArray<FTopLevelAssetPath>> AssetBundlePathsForPackage;
+#endif
 
 	mutable class IAssetRegistry* CachedAssetRegistry;
 	mutable const class UAssetManagerSettings* CachedSettings;

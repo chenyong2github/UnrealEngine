@@ -1215,32 +1215,23 @@ bool UAssetManager::TryUpdateCachedAssetData(const FPrimaryAssetId& PrimaryAsset
 		{
 			CachedAssetBundles.Add(PrimaryAssetId, NewAssetData.TaggedAssetBundles);
 
-			// FSoftObjectPathSerializationScope is costly and FSoftObjectPath::PostLoadPath()
-			// is only useful to make sure soft bundle references are cooked.
-			//
-			// Ideally we should not need this code, we should be able to pick up these
-			// references when we load the package header and then queue them up for cooking.
-			//
-			// For some reason, this doesn't work. StartupSoftObjectPackages in CookOnTheFlyServer.cpp
-			// become the same without this code, but GRedirectCollector picks up other soft references 
-			// thanks to this code that are not detected otherwise.
 #if WITH_EDITOR
 			if (GIsEditor)
 			{
-				static FName AssetBundleDataName("AssetBundleData");
-
-				// Mark these as editor only if our type is editor only
-				FSoftObjectPathSerializationScope SerializationScope(NewAssetData.PackageName, AssetBundleDataName,
-					TypeData.Info.bIsEditorOnly ? ESoftObjectPathCollectType::EditorOnlyCollect : ESoftObjectPathCollectType::AlwaysCollect,
-					ESoftObjectPathSerializeType::AlwaysSerialize);
-			
-				for (const FAssetBundleEntry& Entry : NewAssetData.TaggedAssetBundles->Bundles)
+				// Add the bundles to our data that notifies the cooker of extra soft references from
+				// primary assets, if the cooker encounters those primary assets referenced from elsewhere
+				// rather than us reporting them as AlwaysCook in ModifyCook
+				// Ignore the links from editor-only TypeDatas; the cooker only cares about the UsedInGame links.
+				if (!TypeData.Info.bIsEditorOnly)
 				{
-					for (const FTopLevelAssetPath& Path : Entry.AssetPaths)
+					TArray<FTopLevelAssetPath>& Paths = AssetBundlePathsForPackage.FindOrAdd(NewAssetData.PackageName);
+					Paths.Empty();
+					for (const FAssetBundleEntry& Entry : NewAssetData.TaggedAssetBundles->Bundles)
 					{
-						FSoftObjectPath FullPath(Path);
-						FullPath.PostLoadPath(nullptr);
+						Paths.Append(Entry.AssetPaths);
 					}
+					Paths.Sort([](const FTopLevelAssetPath& A, const FTopLevelAssetPath& B) { return A.CompareFast(B) < 0; });
+					Paths.SetNum(Algo::Unique(Paths));
 				}
 			}
 #endif
@@ -4227,6 +4218,22 @@ void UAssetManager::ModifyDLCCook(const FString& DLCName, TConstArrayView<const 
 			FPackageName::RegisterMountPoint(ExternalMountPointName, DLCPath);
 		}
 	}
+}
+
+void UAssetManager::ModifyCookReferences(FName PackageName, TArray<FName>& PackagesToCook)
+{
+	TArray<FTopLevelAssetPath>* Paths = AssetBundlePathsForPackage.Find(PackageName);
+	if (!Paths)
+	{
+		return;
+	}
+	PackagesToCook.Reserve(Paths->Num());
+	for (const FTopLevelAssetPath& Path : *Paths)
+	{
+		PackagesToCook.Add(Path.GetPackageName());
+	}
+	Algo::Sort(PackagesToCook, FNameFastLess());
+	PackagesToCook.SetNum(Algo::Unique(PackagesToCook));
 }
 
 void UAssetManager::GatherPublicAssetsForPackage(FName PackagePath, TArray<FName>& PackagesToCook) const
