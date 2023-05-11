@@ -132,6 +132,7 @@ public:
 	uint32 EventCollectionIndex = INDEX_NONE;
 	uint64 TraceFrameIndex = INDEX_NONE;
 	uint32 FrameSpanIndex = INDEX_NONE;
+	uint32 PreviousFrameSpanIndex = INDEX_NONE;
 	uint32 ActiveStatesIndex = INDEX_NONE;
 	
 
@@ -199,7 +200,7 @@ public:
 private:
 	void SetFrameSpanIndex(uint32 NewFrameSpanIndex);
 	void SetActiveStatesIndex(uint32 NewActiveStatesIndex);
-	void UpdateActiveStatesIndex();
+	void UpdateActiveStatesIndex(uint32 SpanIndex);
 };
 
 } // UE::StateTreeDebugger
