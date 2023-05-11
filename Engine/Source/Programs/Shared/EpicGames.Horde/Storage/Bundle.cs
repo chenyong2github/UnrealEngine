@@ -180,19 +180,14 @@ namespace EpicGames.Horde.Storage
 		public const int PreludeLength = 8;
 
 		/// <summary>
-		/// Compression format for the bundle
-		/// </summary>
-		public BundleCompressionFormat CompressionFormat { get; }
-
-		/// <summary>
 		/// Types for exports within this bundle
 		/// </summary>
 		public IReadOnlyList<BundleType> Types { get; }
 
 		/// <summary>
-		/// References to nodes in other bundles
+		/// Bundles that we reference nodes in
 		/// </summary>
-		public IReadOnlyList<BundleImport> Imports { get; }
+		public IReadOnlyList<BlobLocator> Imports { get; }
 
 		/// <summary>
 		/// Nodes exported from this bundle
@@ -207,19 +202,19 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructs a new bundle header
 		/// </summary>
-		/// <param name="compressionFormat">Compression format for bundle packets</param>
 		/// <param name="types">Type array indexed by each export</param>
-		/// <param name="imports">Imports from other bundles</param>
+		/// <param name="imports">Imported bundles</param>
 		/// <param name="exports">Exports for nodes</param>
 		/// <param name="packets">Compression packets within the bundle</param>
-		public BundleHeader(BundleCompressionFormat compressionFormat, IReadOnlyList<BundleType> types, IReadOnlyList<BundleImport> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
+		public BundleHeader(IReadOnlyList<BundleType> types, IReadOnlyList<BlobLocator> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
 		{
-			CompressionFormat = compressionFormat;
 			Types = types;
 			Imports = imports;
 			Exports = exports;
 			Packets = packets;
 		}
+
+		record class ExportInfo(int TypeIdx, IoHash Hash, int Length, List<BundleNodeRef> References);
 
 		/// <summary>
 		/// Reads a bundle header from memory
@@ -238,19 +233,124 @@ namespace EpicGames.Horde.Storage
 				throw new InvalidDataException($"Unknown bundle version {(int)version}. Max supported is {(int)BundleVersion.Latest}.");
 			}
 
-			CompressionFormat = (BundleCompressionFormat)reader.ReadUnsignedVarInt();
-			Types = reader.ReadVariableLengthArray(() => new BundleType(reader));
-			Imports = reader.ReadVariableLengthArray(() => new BundleImport(reader));
-			Exports = reader.ReadVariableLengthArray(() => new BundleExport(reader, version));
+			BundleCompressionFormat compressionFormat = (BundleCompressionFormat)reader.ReadUnsignedVarInt();
 
-			if (CompressionFormat == BundleCompressionFormat.None)
+			// Read the types
+			int numTypes = (int)reader.ReadUnsignedVarInt();
+			List<BundleType> types = new List<BundleType>(numTypes);
+
+			for (int typeIdx = 0; typeIdx < numTypes; typeIdx++)
 			{
-				Packets = Exports.ConvertAll(x => new BundlePacket(x.Length, x.Length));
+				Guid guid = reader.ReadGuid();
+				int serializerVersion = (int)reader.ReadUnsignedVarInt();
+
+				types.Add(new BundleType(guid, serializerVersion));
+			}
+
+			Types = types;
+
+			// Read the imports
+			int numImports = (int)reader.ReadUnsignedVarInt();
+			List<BlobLocator> imports = new List<BlobLocator>(numImports);
+			List<BundleNodeRef> allExportReferences = new List<BundleNodeRef>();
+
+			for (int importIdx = 0; importIdx < numImports; importIdx++)
+			{
+				BlobLocator locator = reader.ReadBlobLocator();
+				imports.Add(locator);
+
+				int[] exportIndexes = reader.ReadVariableLengthArray(() => (int)reader.ReadUnsignedVarInt());
+				for (int exportIdx = 0; exportIdx < exportIndexes.Length; exportIdx++)
+				{
+					BundleNodeRef exportReference = new BundleNodeRef(imports.Count - 1, exportIndexes[exportIdx]);
+					allExportReferences.Add(exportReference);
+				}
+			}
+
+			Imports = imports;
+
+			// Read the exports
+			int numExports = (int)reader.ReadUnsignedVarInt();
+			List<ExportInfo> exportInfos = new List<ExportInfo>(numExports);
+
+			for (int exportIdx = 0; exportIdx < numExports; exportIdx++)
+			{
+				allExportReferences.Add(new BundleNodeRef(-1, exportIdx));
+
+				int typeIdx = (int)reader.ReadUnsignedVarInt();
+				IoHash hash = reader.ReadIoHash();
+				int length = (int)reader.ReadUnsignedVarInt();
+
+				List<BundleNodeRef> exportReferences = new List<BundleNodeRef>();
+
+				int numReferences = (int)reader.ReadUnsignedVarInt();
+				if (numReferences > 0)
+				{
+					for (int idx = 0; idx < numReferences; idx++)
+					{
+						int referenceIdx = (int)reader.ReadUnsignedVarInt();
+						exportReferences.Add(allExportReferences[referenceIdx]);
+					}
+				}
+
+				if (version == BundleVersion.ExportAliases)
+				{
+					_ = reader.ReadUtf8String();
+				}
+
+				exportInfos.Add(new ExportInfo(typeIdx, hash, length, exportReferences));
+			}
+
+			// Read the compression packets
+			if (compressionFormat == BundleCompressionFormat.None)
+			{
+				List<BundlePacket> packets = new List<BundlePacket>(exportInfos.Count);
+
+				int encodedOffset = 0;
+				foreach (ExportInfo export in exportInfos)
+				{
+					packets.Add(new BundlePacket(compressionFormat, encodedOffset, export.Length, export.Length));
+					encodedOffset += export.Length;
+				}
+
+				Packets = packets;
 			}
 			else
 			{
-				Packets = reader.ReadVariableLengthArray(() => new BundlePacket(reader));
+				int numPackets = (int)reader.ReadUnsignedVarInt();
+				List<BundlePacket> packets = new List<BundlePacket>(numPackets);
+
+				int encodedOffset = 0;
+				for (int packetIdx = 0; packetIdx < numPackets; packetIdx++)
+				{
+					int encodedLength = (int)reader.ReadUnsignedVarInt();
+					int decodedLength = (int)reader.ReadUnsignedVarInt();
+					packets.Add(new BundlePacket(compressionFormat, encodedOffset, encodedLength, decodedLength));
+					encodedOffset += encodedLength;
+				}
+
+				Packets = packets;
 			}
+
+			// Create the final export list
+			List<BundleExport> exports = new List<BundleExport>();
+			{
+				int packetIdx = 0;
+				int packetOffset = 0;
+
+				foreach (ExportInfo exportInfo in exportInfos)
+				{
+					if (packetOffset + exportInfo.Length > Packets[packetIdx].DecodedLength)
+					{
+						packetIdx++;
+						packetOffset = 0;
+					}
+
+					exports.Add(new BundleExport(exportInfo.TypeIdx, exportInfo.Hash, packetIdx, packetOffset, exportInfo.Length, exportInfo.References));
+					packetOffset += exportInfo.Length;
+				}
+			}
+			Exports = exports;
 		}
 
 		/// <summary>
@@ -315,14 +415,71 @@ namespace EpicGames.Horde.Storage
 			// Write the header data
 			writer.WriteUnsignedVarInt((ulong)BundleVersion.Latest);
 
-			writer.WriteUnsignedVarInt((ulong)CompressionFormat);
-			writer.WriteVariableLengthArray(Types, x => x.Write(writer));
-			writer.WriteVariableLengthArray(Imports, x => x.Write(writer));
-			writer.WriteVariableLengthArray(Exports, x => x.Write(writer));
+			BundleCompressionFormat compressionFormat = (Packets.Count > 0) ? Packets[0].CompressionFormat : BundleCompressionFormat.None;
 
-			if (CompressionFormat != BundleCompressionFormat.None)
+			writer.WriteUnsignedVarInt((ulong)compressionFormat);
+			writer.WriteVariableLengthArray(Types, x => x.Write(writer));
+
+			// Find all the referenced nodes in each import
+			SortedSet<int>[] nodes = new SortedSet<int>[Imports.Count];
+			for (int idx = 0; idx < Imports.Count; idx++)
 			{
-				writer.WriteVariableLengthArray(Packets, x => x.Write(writer));
+				nodes[idx] = new SortedSet<int>();
+			}
+			foreach (BundleNodeRef exportRef in Exports.SelectMany(x => x.References).Where(x => x.ImportIdx != -1))
+			{
+				nodes[exportRef.ImportIdx].Add(exportRef.NodeIdx);
+			}
+
+			// Map all the imports to an index
+			Dictionary<BundleNodeRef, int> exportRefToIndex = new Dictionary<BundleNodeRef, int>();
+			for (int importIdx = 0; importIdx < Imports.Count; importIdx++)
+			{
+				foreach (int nodeIdx in nodes[importIdx])
+				{
+					int index = exportRefToIndex.Count;
+					exportRefToIndex[new BundleNodeRef(importIdx, nodeIdx)] = index;
+				}
+			}
+			for (int exportIdx = 0; exportIdx < Exports.Count; exportIdx++)
+			{
+				int index = exportRefToIndex.Count;
+				exportRefToIndex[new BundleNodeRef(-1, exportIdx)] = index;
+			}
+
+			// Write all the imports
+			writer.WriteUnsignedVarInt(Imports.Count);
+			for (int importIdx = 0; importIdx < Imports.Count; importIdx++)
+			{
+				Debug.Assert(Imports[importIdx].IsValid());
+				writer.WriteBlobLocator(Imports[importIdx]);
+				writer.WriteVariableLengthArray(nodes[importIdx].ToArray(), x => writer.WriteUnsignedVarInt(x));
+			}
+
+			// Write all the exports
+			writer.WriteUnsignedVarInt(Exports.Count);
+			foreach (BundleExport export in Exports)
+			{
+				writer.WriteUnsignedVarInt(export.TypeIdx);
+				writer.WriteIoHash(export.Hash);
+				writer.WriteUnsignedVarInt(export.Length);
+
+				writer.WriteUnsignedVarInt(export.References.Count);
+				for (int idx = 0; idx < export.References.Count; idx++)
+				{
+					writer.WriteUnsignedVarInt(exportRefToIndex[export.References[idx]]);
+				}
+			}
+
+			// Write the packets
+			if (compressionFormat != BundleCompressionFormat.None)
+			{
+				writer.WriteUnsignedVarInt(Packets.Count);
+				foreach(BundlePacket packet in Packets)
+				{
+					writer.WriteUnsignedVarInt(packet.EncodedLength);
+					writer.WriteUnsignedVarInt(packet.DecodedLength);
+				}
 			}
 
 			// Go back and write the length of the header
@@ -355,16 +512,6 @@ namespace EpicGames.Horde.Storage
 		{
 			Guid = guid;
 			Version = version;
-		}
-
-		/// <summary>
-		/// Deserialize a bundle type
-		/// </summary>
-		/// <param name="reader">Reader to deserialize from</param>
-		public BundleType(IMemoryReader reader)
-		{
-			Guid = reader.ReadGuid();
-			Version = (int)reader.ReadUnsignedVarInt();
 		}
 
 		/// <summary>
@@ -410,55 +557,20 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Reference to nodes in another bundle
-	/// </summary>
-	public class BundleImport
-	{
-		/// <summary>
-		/// Blob containing the bundle data.
-		/// </summary>
-		public BlobLocator Locator { get; }
-
-		/// <summary>
-		/// Entries for each node
-		/// </summary>
-		public IReadOnlyList<int> Exports { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public BundleImport(BlobLocator locator, IReadOnlyList<int> exports)
-		{
-			Locator = locator;
-			Exports = exports;
-		}
-
-		/// <summary>
-		/// Deserialize a bundle import
-		/// </summary>
-		/// <param name="reader">Reader to deserialize from</param>
-		internal BundleImport(IMemoryReader reader)
-		{
-			Locator = reader.ReadBlobLocator();
-			Exports = reader.ReadVariableLengthArray(() => (int)reader.ReadUnsignedVarInt());
-		}
-
-		/// <summary>
-		/// Serializes a bundle import
-		/// </summary>
-		/// <param name="writer">Writer to serialize to</param>
-		public void Write(IMemoryWriter writer)
-		{
-			writer.WriteBlobLocator(Locator);
-			writer.WriteVariableLengthArray(Exports, x => writer.WriteUnsignedVarInt(x));
-		}
-	}
-
-	/// <summary>
 	/// Descriptor for a compression packet
 	/// </summary>
 	public class BundlePacket
 	{
+		/// <summary>
+		/// Compression format for this packet
+		/// </summary>
+		public BundleCompressionFormat CompressionFormat { get; }
+
+		/// <summary>
+		/// Offset of the packet within the payload stream
+		/// </summary>
+		public int EncodedOffset { get; }
+
 		/// <summary>
 		/// Encoded length of the packet
 		/// </summary>
@@ -472,32 +584,16 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="compressionFormat">Compression format for the packet</param>
+		/// <param name="encodedOffset">Offset of the data within the payload stream</param>
 		/// <param name="encodedLength">Size of the encoded data</param>
 		/// <param name="decodedLength">Size of the decoded data</param>
-		public BundlePacket(int encodedLength, int decodedLength)
+		public BundlePacket(BundleCompressionFormat compressionFormat, int encodedOffset, int encodedLength, int decodedLength)
 		{
+			CompressionFormat = compressionFormat;
+			EncodedOffset = encodedOffset;
 			EncodedLength = encodedLength;
 			DecodedLength = decodedLength;
-		}
-
-		/// <summary>
-		/// Deserialize a packet header from a memory reader
-		/// </summary>
-		/// <param name="reader">Reader to deserialize from</param>
-		public BundlePacket(IMemoryReader reader)
-		{
-			EncodedLength = (int)reader.ReadUnsignedVarInt();
-			DecodedLength = (int)reader.ReadUnsignedVarInt();
-		}
-
-		/// <summary>
-		/// Serializes this packet header 
-		/// </summary>
-		/// <param name="writer"></param>
-		public void Write(IMemoryWriter writer)
-		{
-			writer.WriteUnsignedVarInt(EncodedLength);
-			writer.WriteUnsignedVarInt(DecodedLength);
 		}
 	}
 
@@ -517,77 +613,45 @@ namespace EpicGames.Horde.Storage
 		public IoHash Hash { get; }
 
 		/// <summary>
+		/// Index of the packet containing this bundle
+		/// </summary>
+		public int Packet { get; }
+
+		/// <summary>
+		/// Offset of this export's data within the (decompressed) packet
+		/// </summary>
+		public int Offset { get; }
+
+		/// <summary>
 		/// Uncompressed length of this node
 		/// </summary>
 		public int Length { get; }
 
 		/// <summary>
-		/// Nodes referenced by this export. Indices in this array correspond to a lookup table consisting
-        /// of the imported nodes in the order they are declared in the header, followed by nodes listed in the
-        /// export table itself.
-        /// </summary>
-		public IReadOnlyList<int> References { get; }
+		/// References to other nodes
+		/// </summary>
+		public IReadOnlyList<BundleNodeRef> References { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExport(int typeIdx, IoHash hash, int length, IReadOnlyList<int> references)
+		public BundleExport(int typeIdx, IoHash hash, int packet, int offset, int length, IReadOnlyList<BundleNodeRef> references)
 		{
 			TypeIdx = typeIdx;
 			Hash = hash;
+			Packet = packet;
+			Offset = offset;
 			Length = length;
 			References = references;
 		}
-
-		/// <summary>
-		/// Deserialize an export
-		/// </summary>
-		/// <param name="reader">Reader to deserialize from</param>
-		/// <param name="version">Version number of the bundle</param>
-		public BundleExport(IMemoryReader reader, BundleVersion version)
-		{
-			TypeIdx = (int)reader.ReadUnsignedVarInt();
-			Hash = reader.ReadIoHash();
-			Length = (int)reader.ReadUnsignedVarInt();
-
-			int numReferences = (int)reader.ReadUnsignedVarInt();
-			if (numReferences == 0)
-			{
-				References = Array.Empty<int>();
-			}
-			else
-			{
-				int[] references = new int[numReferences];
-				for (int idx = 0; idx < numReferences; idx++)
-				{
-					references[idx] = (int)reader.ReadUnsignedVarInt();
-				}
-				References = references;
-			}
-
-			if (version == BundleVersion.ExportAliases)
-			{
-				_ = reader.ReadUtf8String();
-			}
-		}
-
-		/// <summary>
-		/// Serializes an export
-		/// </summary>
-		/// <param name="writer">Writer to serialize to</param>
-		public void Write(IMemoryWriter writer)
-		{
-			writer.WriteUnsignedVarInt(TypeIdx);
-			writer.WriteIoHash(Hash);
-			writer.WriteUnsignedVarInt(Length);
-
-			writer.WriteUnsignedVarInt(References.Count);
-			for(int idx = 0; idx < References.Count; idx++)
-			{
-				writer.WriteUnsignedVarInt(References[idx]);
-			}
-		}
 	}
+
+	/// <summary>
+	/// Reference to a node in another bundle
+	/// </summary>
+	/// <param name="ImportIdx">Index into the import table of the blob containing the referenced node. Can be -1 for references within the same bundle.</param>
+	/// <param name="NodeIdx">Node imported from the bundle</param>
+	public record class BundleNodeRef(int ImportIdx, int NodeIdx);
 
 	/// <summary>
 	/// Utility methods for bundles

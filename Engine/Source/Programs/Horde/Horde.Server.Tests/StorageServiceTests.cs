@@ -36,11 +36,11 @@ namespace Horde.Server.Tests
 
 			List<BundleExport> exports = new List<BundleExport>();
 
-			exports.Add(new BundleExport(0, hash1, data1.Length, Array.Empty<int>()));
-			exports.Add(new BundleExport(0, hash1, data1.Length, Array.Empty<int>()));
-			exports.Add(new BundleExport(0, hash2, data2.Length, Array.Empty<int>()));
+			exports.Add(new BundleExport(0, hash1, 0, 0, data1.Length, Array.Empty<BundleNodeRef>()));
+			exports.Add(new BundleExport(0, hash1, 0, 0, data1.Length, Array.Empty<BundleNodeRef>()));
+			exports.Add(new BundleExport(0, hash2, 0, data1.Length, data2.Length, Array.Empty<BundleNodeRef>()));
 
-			BundleHeader header = new BundleHeader(BundleCompressionFormat.None, types, Array.Empty<BundleImport>(), exports, Array.Empty<BundlePacket>());
+			BundleHeader header = new BundleHeader(types, Array.Empty<BlobLocator>(), exports, Array.Empty<BundlePacket>());
 			Bundle bundle = new Bundle(header, Array.Empty<ReadOnlyMemory<byte>>());
 			BlobLocator locator = await client.WriteBundleAsync(bundle);
 
@@ -61,3 +61,4 @@ namespace Horde.Server.Tests
 		}
 	}
 }
+

@@ -140,19 +140,19 @@ namespace EpicGames.Horde.Tests
 				List<BundleType> types = new List<BundleType>();
 				types.Add(new BundleType(Guid.NewGuid(), 0));
 
-				List<BundleImport> imports = new List<BundleImport>();
-				imports.Add(new BundleImport(new BlobLocator("import1"), new[] { 5 }));
-				imports.Add(new BundleImport(new BlobLocator("import2"), new[] { 6 }));
+				List<BlobLocator> imports = new List<BlobLocator>();
+				imports.Add(new BlobLocator("import1"));
+				imports.Add(new BlobLocator("import2"));
 
 				List<BundleExport> exports = new List<BundleExport>();
-				exports.Add(new BundleExport(0, IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 2, new int[] { 1, 2 }));
-				exports.Add(new BundleExport(0, IoHash.Compute(Encoding.UTF8.GetBytes("export2")), 3, new int[] { 3 }));
+				exports.Add(new BundleExport(0, IoHash.Compute(Encoding.UTF8.GetBytes("export1")), 0, 0, 2, new BundleNodeRef[] { new BundleNodeRef(0, 5), new BundleNodeRef(0, 6) }));
+				exports.Add(new BundleExport(0, IoHash.Compute(Encoding.UTF8.GetBytes("export2")), 1, 0, 3, new BundleNodeRef[] { new BundleNodeRef(-1, 0) }));
 
 				List<BundlePacket> packets = new List<BundlePacket>();
-				packets.Add(new BundlePacket(20, 40));
-				packets.Add(new BundlePacket(10, 20));
+				packets.Add(new BundlePacket(BundleCompressionFormat.LZ4, 0, 20, 40));
+				packets.Add(new BundlePacket(BundleCompressionFormat.LZ4, 20, 10, 20));
 
-				oldHeader = new BundleHeader(BundleCompressionFormat.LZ4, types, imports, exports, packets);
+				oldHeader = new BundleHeader(types, imports, exports, packets);
 			}
 
 			ByteArrayBuilder writer = new ByteArrayBuilder();
@@ -164,19 +164,7 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(oldHeader.Imports.Count, newHeader.Imports.Count);
 			for (int idx = 0; idx < oldHeader.Imports.Count; idx++)
 			{
-				BundleImport oldImport = oldHeader.Imports[idx];
-				BundleImport newImport = newHeader.Imports[idx];
-
-				Assert.AreEqual(oldImport.Locator, newImport.Locator);
-				Assert.AreEqual(oldImport.Exports.Count, newImport.Exports.Count);
-
-				for (int importIdx = 0; importIdx < oldImport.Exports.Count; importIdx++)
-				{
-					int oldExportIdx = oldImport.Exports[importIdx];
-					int newExportIdx = newImport.Exports[importIdx];
-
-					Assert.AreEqual(oldExportIdx, newExportIdx);
-				}
+				Assert.AreEqual(oldHeader.Imports[idx], newHeader.Imports[idx]);
 			}
 
 			Assert.AreEqual(oldHeader.Exports.Count, newHeader.Exports.Count);

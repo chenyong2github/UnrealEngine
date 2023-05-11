@@ -47,27 +47,21 @@ namespace Horde.Server.Tests
 			List<BundleType> types = new List<BundleType>();
 			types.Add(new BundleType(Guid.Parse("{AFDF76A7-5333-4DEE-B837-B5F5CA511245}"), 1));
 
-			List<BundleImport> imports = new List<BundleImport>();
+			List<BlobLocator> imports = new List<BlobLocator>(refs);
 
-			Dictionary<BlobLocator, int> locatorToIndex = new Dictionary<BlobLocator, int>();
-			foreach (BlobLocator locator in refs)
+			List<BundleNodeRef> exportRefs = new List<BundleNodeRef>();
+			for(int idx = 0; idx < refs.Count; idx++)
 			{
-				int index;
-				if (!locatorToIndex.TryGetValue(locator, out index))
-				{
-					BundleImport import = new BundleImport(locator, new int[] { 0 });
-					imports.Add(import);
-					locatorToIndex.Add(locator, imports.Count - 1);
-				}
+				exportRefs.Add(new BundleNodeRef(idx, 0));
 			}
 
 			List<BundleExport> exports = new List<BundleExport>();
-			exports.Add(new BundleExport(0, IoHash.Compute(data.Span), (int)data.Length, refs.Select(x => locatorToIndex[x]).ToArray()));
+			exports.Add(new BundleExport(0, IoHash.Compute(data.Span), 0, 0, (int)data.Length, exportRefs));
 
 			List<BundlePacket> packets = new List<BundlePacket>();
-			packets.Add(new BundlePacket((int)data.Length, (int)data.Length));
+			packets.Add(new BundlePacket(BundleCompressionFormat.None, 0, (int)data.Length, (int)data.Length));
 
-			BundleHeader header = new BundleHeader(BundleCompressionFormat.None, types, imports, exports, packets);
+			BundleHeader header = new BundleHeader(types, imports, exports, packets);
 			return new Bundle(header, new[] { data });
 		}
 
@@ -81,7 +75,7 @@ namespace Horde.Server.Tests
 		{
 			Blob blob = new Blob();
 			blob.Data = bundle.Packets[0];
-			blob.References = bundle.Header.Exports[0].References.Select(x => bundle.Header.Imports[x].Locator).ToList();
+			blob.References = bundle.Header.Imports.ToList();
 			return blob;
 		}
 
@@ -182,3 +176,4 @@ namespace Horde.Server.Tests
 		}
 	}
 }
+

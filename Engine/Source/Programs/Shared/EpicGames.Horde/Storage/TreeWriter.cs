@@ -247,13 +247,17 @@ namespace EpicGames.Horde.Storage
 		internal class PendingNode : NodeHandle
 		{
 			public readonly NodeKey Key;
+			public readonly int Packet;
+			public readonly int Offset;
 			public readonly int Length;
 			public readonly NodeHandle[] Refs;
 
-			public PendingNode(NodeKey key, int length, IReadOnlyList<NodeHandle> refs, PendingBundle pendingBundle)
+			public PendingNode(NodeKey key, int packet, int offset, int length, IReadOnlyList<NodeHandle> refs, PendingBundle pendingBundle)
 				: base(key.Hash, default)
 			{
 				Key = key;
+				Packet = packet;
+				Offset = offset;
 				Length = length;
 				Refs = refs.ToArray();
 				PendingBundle = pendingBundle;
@@ -285,6 +289,9 @@ namespace EpicGames.Horde.Storage
 
 			// The current packet being built
 			IMemoryOwner<byte>? _currentPacket;
+
+			// Index of the current packet being written to
+			int _currentPacketIdx;
 
 			// Length of the packet that has been written
 			int _currentPacketLength;
@@ -414,10 +421,12 @@ namespace EpicGames.Horde.Storage
 			// Finish a node write
 			public PendingNode WriteNode(NodeKey nodeKey, int size, IReadOnlyList<NodeHandle> refs)
 			{
+				int offset = _currentPacketLength;
+
 				_currentPacketLength += size;
 				UncompressedLength += size;
 
-				PendingNode pendingNode = new PendingNode(nodeKey, (int)size, refs, this);
+				PendingNode pendingNode = new PendingNode(nodeKey, _currentPacketIdx, offset, (int)size, refs, this);
 				_queue.Add(pendingNode);
 				_nodeKeyToInfo.Add(nodeKey, pendingNode);
 
@@ -442,6 +451,7 @@ namespace EpicGames.Horde.Storage
 					}
 
 					_currentPacket = null;
+					_currentPacketIdx++;
 					_currentPacketLength = 0;
 				}
 			}
@@ -450,7 +460,8 @@ namespace EpicGames.Horde.Storage
 			{
 				int encodedLength = BundleData.Compress(_compressionFormat, packetData.Memory.Slice(0, length), _encodedPacketWriter);
 
-				BundlePacket packet = new BundlePacket(encodedLength, length);
+				int encodedOffset = (_packets.Count == 0) ? 0 : _packets[^1].EncodedOffset + _packets[^1].EncodedLength;
+				BundlePacket packet = new BundlePacket(_compressionFormat, encodedOffset, encodedLength, length);
 				_packets.Add(packet);
 
 				packetData.Dispose();
@@ -538,30 +549,19 @@ namespace EpicGames.Horde.Storage
 					}
 				}
 
-				// Map from node hash to index, with imported nodes first, ordered by blob, and exported nodes second.
-				int nodeIdx = 0;
-				Dictionary<NodeHandle, int> nodeToIndex = new Dictionary<NodeHandle, int>();
-
-				// Add all the imports and assign them identifiers
-				List<BundleImport> imports = new List<BundleImport>();
-				foreach ((BlobLocator blobLocator, List<(int, NodeHandle)> importEntries) in bundleToImports)
-				{
-					importEntries.SortBy(x => x.Item1);
-
-					int[] entries = new int[importEntries.Count];
-					for (int idx = 0; idx < importEntries.Count; idx++)
-					{
-						NodeHandle key = importEntries[idx].Item2;
-						nodeToIndex.Add(key, nodeIdx++);
-						entries[idx] = importEntries[idx].Item1;
-					}
-
-					imports.Add(new BundleImport(blobLocator, entries));
-				}
+				List<BlobLocator> imports = new List<BlobLocator>();
+				Dictionary<BlobLocator, int> importToIndex = new Dictionary<BlobLocator, int>();
 
 				// List of types in the bundle
 				List<BundleType> types = new List<BundleType>();
 				Dictionary<BundleType, int> typeToIndex = new Dictionary<BundleType, int>();
+
+				// Map of node handle to reference
+				Dictionary<NodeHandle, BundleNodeRef> nodeHandleToExportRef = new Dictionary<NodeHandle, BundleNodeRef>();
+				for (int exportIdx = 0; exportIdx < _queue.Count; exportIdx++)
+				{
+					nodeHandleToExportRef[_queue[exportIdx]] = new BundleNodeRef(-1, exportIdx);
+				}
 
 				// Create the export list
 				List<BundleExport> exports = new List<BundleExport>(_queue.Count);
@@ -575,11 +575,26 @@ namespace EpicGames.Horde.Storage
 						types.Add(nodeInfo.Key.Type);
 					}
 
-					int[] references = nodeInfo.Refs.Select(x => nodeToIndex[x]).ToArray();
-					BundleExport export = new BundleExport(typeIdx, nodeInfo.Key.Hash, nodeInfo.Length, references);
-					nodeToIndex[nodeInfo] = nodeIdx;
+					List<BundleNodeRef> exportRefs = new List<BundleNodeRef>();
+					foreach (NodeHandle nodeRef in nodeInfo.Refs)
+					{
+						BundleNodeRef? exportRef;
+						if (!nodeHandleToExportRef.TryGetValue(nodeRef, out exportRef))
+						{
+							int importIdx;
+							if (!importToIndex.TryGetValue(nodeRef.Locator.Blob, out importIdx))
+							{
+								importIdx = imports.Count;
+								imports.Add(nodeRef.Locator.Blob);
+								importToIndex.Add(nodeRef.Locator.Blob, importIdx);
+							}
+							exportRef = new BundleNodeRef(importIdx, nodeRef.Locator.ExportIdx);
+						}
+						exportRefs.Add(exportRef);
+					}
+
+					BundleExport export = new BundleExport(typeIdx, nodeInfo.Key.Hash, nodeInfo.Packet, nodeInfo.Offset, nodeInfo.Length, exportRefs);
 					exports.Add(export);
-					nodeIdx++;
 				}
 
 				// Get the memory for each packet
@@ -602,7 +617,7 @@ namespace EpicGames.Horde.Storage
 				}
 
 				// Create the bundle
-				BundleHeader header = new BundleHeader(_compressionFormat, types, imports, exports, _packets.ToArray());
+				BundleHeader header = new BundleHeader(types, imports, exports, _packets.ToArray());
 				return new Bundle(header, packetData);
 			}
 		}

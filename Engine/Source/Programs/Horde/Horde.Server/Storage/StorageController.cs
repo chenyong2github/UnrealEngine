@@ -500,11 +500,9 @@ namespace Horde.Server.Storage
 			if (includeImports)
 			{
 				responseImports = new List<object>();
-				foreach (BundleImport import in header.Imports)
+				foreach (BlobLocator import in header.Imports)
 				{
-					string link = $"{linkBase}/bundles/{import.Locator}";
-					List<string> exports = import.Exports.ConvertAll(x => $"{linkBase}/nodes/{import.Locator}?export={x}");
-					responseImports.Add(new { bundle = link, exports });
+					responseImports.Add($"{linkBase}/bundles/{import}");
 				}
 			}
 
@@ -546,7 +544,7 @@ namespace Horde.Server.Storage
 				}
 			}
 
-			return new { header.CompressionFormat, imports = responseImports, exports = responseExports, packets = responsePackets };
+			return new { imports = responseImports, exports = responseExports, packets = responsePackets };
 		}
 
 		/// <summary>

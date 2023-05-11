@@ -651,10 +651,10 @@ namespace Horde.Server.Storage
 							if (header != null)
 							{
 								List<ObjectId> importInfoIds = new List<ObjectId>();
-								foreach (BundleImport import in header.Imports)
+								foreach (BlobLocator import in header.Imports)
 								{
-									FilterDefinition<BlobInfo> filter = Builders<BlobInfo>.Filter.Expr(x => x.NamespaceId == blobInfo.NamespaceId && x.BlobId == import.Locator.BlobId);
-									UpdateDefinition<BlobInfo> update = Builders<BlobInfo>.Update.SetOnInsert(x => x.HostId, import.Locator.HostId);
+									FilterDefinition<BlobInfo> filter = Builders<BlobInfo>.Filter.Expr(x => x.NamespaceId == blobInfo.NamespaceId && x.BlobId == import.BlobId);
+									UpdateDefinition<BlobInfo> update = Builders<BlobInfo>.Update.SetOnInsert(x => x.HostId, import.HostId);
 									BlobInfo blobInfoDoc = await _blobCollection.FindOneAndUpdateAsync(filter, update, new FindOneAndUpdateOptions<BlobInfo> { IsUpsert = true, ReturnDocument = ReturnDocument.After }, cancellationToken);
 									importInfoIds.Add(blobInfoDoc.Id);
 								}

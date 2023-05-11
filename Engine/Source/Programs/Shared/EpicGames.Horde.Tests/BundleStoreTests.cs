@@ -75,12 +75,12 @@ namespace EpicGames.Horde.Tests
 			types.Add(new BundleType(Guid.Parse("F63606D4-5DBB-4061-A655-6F444F65229E"), 1));
 
 			List<BundleExport> exports = new List<BundleExport>();
-			exports.Add(new BundleExport(0, IoHash.Compute(payload), payload.Length, Array.Empty<int>()));
+			exports.Add(new BundleExport(0, IoHash.Compute(payload), 0, 0, payload.Length, Array.Empty<BundleNodeRef>()));
 
 			List<BundlePacket> packets = new List<BundlePacket>();
-			packets.Add(new BundlePacket(payload.Length, payload.Length));
+			packets.Add(new BundlePacket(BundleCompressionFormat.None, 0, payload.Length, payload.Length));
 
-			BundleHeader header = new BundleHeader(BundleCompressionFormat.None, types, Array.Empty<BundleImport>(), exports, packets);
+			BundleHeader header = new BundleHeader(types, Array.Empty<BlobLocator>(), exports, packets);
 			return new Bundle(header, new List<ReadOnlyMemory<byte>> { payload });
 		}
 

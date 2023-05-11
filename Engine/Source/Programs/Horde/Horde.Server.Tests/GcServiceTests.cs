@@ -70,7 +70,7 @@ namespace Horde.Server.Tests
 				if (nodes.Add(root))
 				{
 					Bundle bundle = await store.ReadBundleAsync(root);
-					await FindNodes(store, bundle.Header.Imports.Select(x => x.Locator), nodes);
+					await FindNodes(store, bundle.Header.Imports, nodes);
 				}
 			}
 		}
@@ -103,8 +103,8 @@ namespace Horde.Server.Tests
 			for (int idx = numNodes - 1; idx >= 0; idx--)
 			{
 				List<BundleType> types = new List<BundleType> { new BundleType(Guid.Parse("{AFDF76A7-5333-4DEE-B837-B5F5CA511245}"), 0) };
-				List<BundleImport> imports = children[idx].ConvertAll(x => new BundleImport(locators[x], Array.Empty<int>()));
-				BundleHeader header = new BundleHeader(BundleCompressionFormat.None, types, imports, Array.Empty<BundleExport>(), Array.Empty<BundlePacket>());
+				List<BlobLocator> imports = children[idx].ConvertAll(x => locators[x]);
+				BundleHeader header = new BundleHeader(types, imports, Array.Empty<BundleExport>(), Array.Empty<BundlePacket>());
 				Bundle bundle = new Bundle(header, Array.Empty<ReadOnlyMemory<byte>>());
 				locators[idx] = await store.WriteBundleAsync(bundle, prefix: "gctest");
 			}

@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using Microsoft.CodeAnalysis;
 using Blake3;
+using System.Diagnostics;
 
 namespace EpicGames.Horde.Storage
 {
@@ -90,13 +91,6 @@ namespace EpicGames.Horde.Storage
 	public class TreeReader
 	{
 		/// <summary>
-		/// Describes a bundle export
-		/// </summary>
-		/// <param name="PacketIdx">Index of the packet within a bundle</param>
-		/// <param name="Offset">Offset within the packet</param>
-		record struct ExportInfo(int PacketIdx, int Offset);
-
-		/// <summary>
 		/// Information about a known type that can be deserialized from a bundle
 		/// </summary>
 		class TypeInfo
@@ -151,52 +145,14 @@ namespace EpicGames.Horde.Storage
 		{
 			public readonly BlobLocator Locator;
 			public readonly BundleHeader Header;
-			public readonly int[] PacketOffsets;
-			public readonly ExportInfo[] Exports;
-			public readonly NodeLocator[] References;
+			public readonly int HeaderLength;
 			public readonly TypeInfo?[] Types;
 
 			public BundleInfo(BlobLocator locator, BundleHeader header, int headerLength, TypeInfo?[] types)
 			{
 				Locator = locator;
 				Header = header;
-
-				PacketOffsets = new int[header.Packets.Count];
-				Exports = new ExportInfo[header.Exports.Count];
-
-				int exportIdx = 0;
-				int packetOffset = headerLength;
-				for (int packetIdx = 0; packetIdx < header.Packets.Count; packetIdx++)
-				{
-					BundlePacket packet = header.Packets[packetIdx];
-					PacketOffsets[packetIdx] = packetOffset;
-
-					int nodeOffset = 0;
-					for (; exportIdx < header.Exports.Count && nodeOffset + header.Exports[exportIdx].Length <= packet.DecodedLength; exportIdx++)
-					{
-						Exports[exportIdx] = new ExportInfo(packetIdx, nodeOffset);
-						nodeOffset += header.Exports[exportIdx].Length;
-					}
-
-					packetOffset += packet.EncodedLength;
-				}
-
-				References = new NodeLocator[header.Imports.Sum(x => x.Exports.Count) + header.Exports.Count];
-
-				int referenceIdx = 0;
-				foreach (BundleImport import in header.Imports)
-				{
-					foreach (int importExportIdx in import.Exports)
-					{
-						NodeLocator importLocator = new NodeLocator(import.Locator, importExportIdx);
-						References[referenceIdx++] = importLocator;
-					}
-				}
-				for (int idx = 0; idx < header.Exports.Count; idx++)
-				{
-					References[referenceIdx++] = new NodeLocator(locator, idx);
-				}
-
+				HeaderLength = headerLength;
 				Types = types;
 			}
 		}
@@ -555,7 +511,7 @@ namespace EpicGames.Horde.Storage
 			using (IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(readLength))
 			{
 				Memory<byte> buffer = owner.Memory.Slice(0, readLength);
-				buffer = await _store.ReadBlobRangeAsync(bundleInfo.Locator, bundleInfo.PacketOffsets[minPacketIdx], buffer, cancellationToken);
+				buffer = await _store.ReadBlobRangeAsync(bundleInfo.Locator, bundleInfo.HeaderLength + bundleInfo.Header.Packets[minPacketIdx].EncodedOffset, buffer, cancellationToken);
 
 				// Copy all the packets that have been read into separate buffers, so we can cache them individually.
 				ReadOnlyMemory<byte>?[] packets = new ReadOnlyMemory<byte>?[maxPacketIdx - minPacketIdx];
@@ -564,7 +520,7 @@ namespace EpicGames.Horde.Storage
 					for (int idx = minPacketIdx; idx < maxPacketIdx; idx++)
 					{
 						string cacheKey = GetEncodedPacketCacheKey(bundleInfo.Locator.BlobId, idx);
-						ReadOnlyMemory<byte> data = buffer.Slice(bundleInfo.PacketOffsets[idx] - bundleInfo.PacketOffsets[minPacketIdx], bundleInfo.Header.Packets[idx].EncodedLength).ToArray();
+						ReadOnlyMemory<byte> data = buffer.Slice(bundleInfo.Header.Packets[idx].EncodedOffset - bundleInfo.Header.Packets[minPacketIdx].EncodedOffset, bundleInfo.Header.Packets[idx].EncodedLength).ToArray();
 						packets[idx - minPacketIdx] = data;
 						AddToCache(cacheKey, data, data.Length);
 					}
@@ -583,7 +539,7 @@ namespace EpicGames.Horde.Storage
 					ReadOnlyMemory<byte>? data = packets[updatePacket.PacketIdx - minPacketIdx];
 					if (data == null)
 					{
-						data = buffer.Slice(bundleInfo.PacketOffsets[updatePacket.PacketIdx] - bundleInfo.PacketOffsets[minPacketIdx], bundleInfo.Header.Packets[updatePacket.PacketIdx].EncodedLength).ToArray();
+						data = buffer.Slice(bundleInfo.Header.Packets[updatePacket.PacketIdx].EncodedOffset - bundleInfo.Header.Packets[minPacketIdx].EncodedOffset, bundleInfo.Header.Packets[updatePacket.PacketIdx].EncodedLength).ToArray();
 					}
 					updatePacket.CompletionSource.SetResult((ReadOnlyMemory<byte>)data);
 				}
@@ -616,6 +572,8 @@ namespace EpicGames.Horde.Storage
 		/// <returns>Information about the bundle</returns>
 		async ValueTask<BundleInfo> GetBundleInfoAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
+			Debug.Assert(locator.IsValid());
+
 			string cacheKey = GetBundleInfoCacheKey(locator.BlobId);
 			if (_cache != null && _cache.TryGetValue(cacheKey, out BundleInfo bundleInfo))
 			{
@@ -695,7 +653,7 @@ namespace EpicGames.Horde.Storage
 			BundlePacket packet = bundleInfo.Header.Packets[packetIdx];
 			byte[] decodedPacket = new byte[packet.DecodedLength];
 
-			BundleData.Decompress(bundleInfo.Header.CompressionFormat, encodedPacket, decodedPacket);
+			BundleData.Decompress(packet.CompressionFormat, encodedPacket, decodedPacket);
 
 			string decodedCacheKey = GetDecodedPacketCacheKey(bundleInfo.Locator.BlobId, packetIdx);
 			AddToCache(decodedCacheKey, (ReadOnlyMemory<byte>)decodedPacket, decodedPacket.Length);
@@ -779,20 +737,27 @@ namespace EpicGames.Horde.Storage
 			BundleInfo bundleInfo = await GetBundleInfoAsync(locator.Blob, cancellationToken);
 			BundleExport export = bundleInfo.Header.Exports[locator.ExportIdx];
 
-			ExportInfo exportInfo = bundleInfo.Exports[locator.ExportIdx];
-
 			List<NodeLocator> refs = new List<NodeLocator>(export.References.Count);
-			for (int idx = 0; idx < export.References.Count; idx++)
+			foreach (BundleNodeRef reference in export.References)
 			{
-				NodeLocator reference = bundleInfo.References[export.References[idx]];
-				refs.Add(reference);
+				BlobLocator importBlob;
+				if (reference.ImportIdx == -1)
+				{
+					importBlob = locator.Blob;
+				}
+				else
+				{
+					importBlob = bundleInfo.Header.Imports[reference.ImportIdx];
+				}
+				Debug.Assert(importBlob.IsValid());
+				refs.Add(new NodeLocator(importBlob, reference.NodeIdx));
 			}
 
 			ReadOnlyMemory<byte> nodeData = ReadOnlyMemory<byte>.Empty;
 			if (export.Length > 0)
 			{
-				ReadOnlyMemory<byte> packetData = await ReadBundlePacketAsync(bundleInfo, exportInfo.PacketIdx, cancellationToken);
-				nodeData = packetData.Slice(exportInfo.Offset, export.Length);
+				ReadOnlyMemory<byte> packetData = await ReadBundlePacketAsync(bundleInfo, export.Packet, cancellationToken);
+				nodeData = packetData.Slice(export.Offset, export.Length);
 			}
 
 			TypeInfo? typeInfo = bundleInfo.Types[export.TypeIdx];

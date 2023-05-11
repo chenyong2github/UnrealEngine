@@ -56,20 +56,9 @@ namespace Horde.Commands.Bundles
 			logger.LogInformation("Imports: {NumImports}", header.Imports.Count);
 
 			List<string> nodeNames = new List<string>();
-
-			int refIdx = 0;
-			foreach (BundleImport import in header.Imports)
+			for (int importIdx = 0; importIdx < header.Imports.Count; importIdx++)
 			{
-				logger.LogInformation("  From blob {BlobId} ({NumExports} nodes)", import.Locator, import.Exports.Count);
-				foreach (int exportIdx in import.Exports)
-				{
-					nodeNames.Add($"IMP {import.Locator}#{exportIdx}");
-					if (Verbose)
-					{
-						logger.LogInformation("    [{Index}] IMP {ExportIdx}", refIdx, exportIdx);
-					}
-					refIdx++;
-				}
+				logger.LogInformation("  IMP [{ImportIdx}] = {BlobId}", importIdx, header.Imports[importIdx]);
 			}
 
 			logger.LogInformation("");
@@ -80,17 +69,15 @@ namespace Horde.Commands.Bundles
 			for(int exportIdx = 0; exportIdx < header.Exports.Count; exportIdx++)
 			{
 				BundleExport export = header.Exports[exportIdx];
-				logger.LogInformation("  [{Index}] EXP {ExportHash} (type: {Type}, length: {NumBytes:n0}, packet: {PacketIdx})", refIdx, export.Hash, types[export.TypeIdx], export.Length, packetIdx);
-
-				nodeNames.Add($"EXP {exportIdx}");
-				refIdx++;
+				logger.LogInformation("  EXP [{ExportIdx}] EXP = hash: {ExportHash}, type: {Type}, length: {NumBytes:n0}, packet: {PacketIdx}", exportIdx, export.Hash, types[export.TypeIdx], export.Length, packetIdx);
 
 				if (Verbose)
 				{
-					for (int idx = 0; idx < export.References.Count; idx++)
+					for(int referenceIdx = 0; referenceIdx < export.References.Count; referenceIdx++)
 					{
-						int nodeIdx = export.References[idx];
-						logger.LogInformation("            REF {RefIdx,-3} -> {NodeIdx,-3} ({RefName})", idx, nodeIdx, nodeNames[nodeIdx]);
+						BundleNodeRef exportRef = export.References[referenceIdx];
+						NodeLocator nodeLocator = new NodeLocator(header.Imports[exportRef.ImportIdx], exportRef.NodeIdx);
+						logger.LogInformation("            REF {RefIdx,-3} -> {Node}", referenceIdx, nodeLocator);
 					}
 				}
 
