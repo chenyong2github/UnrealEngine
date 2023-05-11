@@ -394,6 +394,9 @@ private:
 	/** The number of additional buttons this picker has. */
 	int32 NumButtons;
 
+	/** Base attribute passed to specify whether this editor is enabled */ 
+	TAttribute<bool> OnIsEnabled;
+
 	/** Delegate to call when our object value is set */
 	FOnSetObject OnSetObject;
 

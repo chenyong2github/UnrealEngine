@@ -241,10 +241,14 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	PropertyEditor = InPropertyEditor;
 	PropertyHandle = InArgs._PropertyHandle;
 	OwnerAssetDataArray = InArgs._OwnerAssetDataArray;
+	OnIsEnabled = InArgs._IsEnabled;
 	OnSetObject = InArgs._OnSetObject;
 	OnShouldFilterAsset = InArgs._OnShouldFilterAsset;
 	OnShouldFilterActor = InArgs._OnShouldFilterActor;
 	ObjectPath = InArgs._ObjectPath;
+
+	// Override this as we stole the value to use as OnIsEnabled for the inner widgets
+	SetEnabled(true);
 
 	if(InArgs._InWidgetRow.IsSet() && InArgs._InWidgetRow.GetValue() != nullptr)
 	{
@@ -1357,7 +1361,11 @@ FReply SPropertyEditorAsset::OnAssetThumbnailDoubleClick( const FGeometry& InMyG
 
 bool SPropertyEditorAsset::CanEdit() const
 {
-	return PropertyEditor.IsValid() ? !PropertyEditor->IsEditConst() : true;
+	if (PropertyEditor.IsValid() && PropertyEditor->IsEditConst())
+	{
+		return false;
+	}
+	return OnIsEnabled.Get(true);
 }
 
 bool SPropertyEditorAsset::CanSetBasedOnCustomClasses( const FAssetData& InAssetData ) const
