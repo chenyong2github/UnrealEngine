@@ -345,7 +345,7 @@ namespace PCGSettingsHelpers
 			}
 
 			// Don't allow to override the seed if the settings doesn't use the seed.
-			if (!InConfig.bUseSeed && Property->GetOwnerClass()->IsChildOf<UPCGSettings>())
+			if (!InConfig.bUseSeed && Property->GetOwnerClass() && Property->GetOwnerClass()->IsChildOf<UPCGSettings>())
 			{
 				bValid &= (Property->GetFName() != GET_MEMBER_NAME_CHECKED(UPCGSettings, Seed));
 			}
