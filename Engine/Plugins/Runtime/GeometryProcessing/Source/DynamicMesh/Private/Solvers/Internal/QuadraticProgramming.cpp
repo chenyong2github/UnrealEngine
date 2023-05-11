@@ -13,11 +13,6 @@ VectorF(InVectorF)
     checkSlow(InMatrixQ);
 }
 
-FQuadraticProgramming::~FQuadraticProgramming()
-{
-
-}
-
 bool FQuadraticProgramming::SetFixedConstraints(const TArray<int>* InFixedRowIndices, const FSparseMatrixD* InFixedValues)
 {
     if (InFixedRowIndices && InFixedValues && InFixedRowIndices->Num() == InFixedValues->rows())
