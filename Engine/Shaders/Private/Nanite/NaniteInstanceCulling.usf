@@ -392,11 +392,6 @@ void InstanceCull(
 				Cull.bSkipCullGlobalClipPlane = true;
 			}
 
-			// For now, disable draw distance culling with cached views because we don't want to create issues where a given
-			// instance's visibility is not consistent between cached pages. Since caching is an optimization for reducing draw call
-			// counts, its effectiveness should inherently trump this optimization anyway.
-			Cull.bSkipDrawDistance |= bIsShadowPass && !Cull.bIsViewUncached;
-
 			bool bEnableWPO = Cull.Distance( PrimitiveData );
 			bAnyEnableWPO |= bEnableWPO;
 
@@ -623,11 +618,6 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 		Cull.bSkipCullFrustum = true;
 		Cull.bSkipCullGlobalClipPlane = true;
 	}
-
-	// For now, disable draw distance culling with cached views because we don't want to create issues where a given
-	// instance's visibility is not consistent between cached pages. Since caching is an optimization for reducing draw call
-	// counts, its effectiveness should inherently trump this optimization anyway.
-	Cull.bSkipDrawDistance |= !Cull.bIsViewUncached;
 	
 	bool bEnableWPO = Cull.Distance( PrimitiveData );
 	bAnyEnableWPO |= bEnableWPO;
