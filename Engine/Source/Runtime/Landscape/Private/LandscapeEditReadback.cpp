@@ -5,8 +5,6 @@
 #include "Engine/Texture2D.h"
 #include "LandscapePrivate.h"
 #include "RenderingThread.h"
-#include "Hash/CityHashHelpers.h"
-
 
 /** Data for a read back task. */
 struct FLandscapeEditReadbackTaskImpl
@@ -264,7 +262,7 @@ static TGlobalResource< FLandscapeEditReadbackTaskPool > GReadbackTaskPool;
 
 
 FLandscapeEditLayerReadback::FLandscapeEditLayerReadback()
-	: Hash(0ull)
+	: Hash(0)
 {}
 
 FLandscapeEditLayerReadback::~FLandscapeEditLayerReadback()
@@ -275,14 +273,12 @@ FLandscapeEditLayerReadback::~FLandscapeEditLayerReadback()
 	}
 }
 
-uint64 FLandscapeEditLayerReadback::CalculateHash(const uint8* InMipData, int32 InSizeInBytes)
+uint32 FLandscapeEditLayerReadback::CalculateHash(const uint8* InMipData, int32 InSizeInBytes)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FLandscapeEditLayerReadback::CalculateHash);
-
-	return CityHash64(reinterpret_cast<const char*>(InMipData), InSizeInBytes);
+	return FCrc::MemCrc32(InMipData, InSizeInBytes);
 }
 
-bool FLandscapeEditLayerReadback::SetHash(uint64 InHash)
+bool FLandscapeEditLayerReadback::SetHash(uint32 InHash)
 {
 	const bool bChanged = InHash != Hash;
 	Hash = InHash;

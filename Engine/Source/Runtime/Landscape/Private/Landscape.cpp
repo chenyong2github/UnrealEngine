@@ -448,7 +448,7 @@ FGuid ALandscapeProxy::GetNaniteContentId() const
 
 	FBufferArchive ContentStateAr;
 
-	int32 LocalNaniteLODIndex = GetNaniteLODIndex();
+	int32 LocalNaniteLODIndex = GetNaniteLODIndex(); // Use the getter to validate it's set at the same value as the parent actor's
 	ContentStateAr << LocalNaniteLODIndex;
 
 	struct FCompareULandscapeComponentBySectionBase
