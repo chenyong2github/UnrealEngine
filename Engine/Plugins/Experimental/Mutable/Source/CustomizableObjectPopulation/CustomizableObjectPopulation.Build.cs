@@ -13,10 +13,7 @@ public class CustomizableObjectPopulation : ModuleRules
         PrivateDependencyModuleNames.AddRange(new string[] {
             "InputCore",
             "SlateCore",
-            "Slate",
-            "Core",
             "CoreUObject",
-            "Engine",
             "RenderCore",
             "RHI",
             "AppFramework",
@@ -35,7 +32,6 @@ public class CustomizableObjectPopulation : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
         new string[] {
-				"CustomizableObjectEditor",
 				"TargetPlatform"
 		});
 
@@ -45,6 +41,7 @@ public class CustomizableObjectPopulation : ModuleRules
             PublicDependencyModuleNames.Add("DerivedDataCache");
             PublicDependencyModuleNames.Add("EditorStyle");
             PublicDependencyModuleNames.Add("MessageLog");
-        }
+			PrivateIncludePathModuleNames.Add("CustomizableObjectEditor");
+		}
     }
 }

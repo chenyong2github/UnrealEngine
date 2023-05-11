@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_EDITOR
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -33,9 +34,7 @@ public:
 
 };
 
-
 IMPLEMENT_MODULE( FCustomizableObjectPopulationModule, CustomizableObjectPopulation );
-
 
 //-------------------------------------------------------------------------------------------------
 
@@ -50,8 +49,6 @@ FString FCustomizableObjectPopulationModule::GetPluginVersion() const
 	return Version;
 }
 
-
-#if WITH_EDITOR
 void FCustomizableObjectPopulationModule::RecompilePopulations(UCustomizableObject* Object)
 {
 	if (!Object)
