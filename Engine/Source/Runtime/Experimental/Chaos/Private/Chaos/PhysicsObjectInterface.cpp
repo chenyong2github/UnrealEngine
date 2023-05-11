@@ -234,6 +234,44 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
+	FVector FReadPhysicsObjectInterface<Id>::GetV(const FConstPhysicsObjectHandle Object)
+	{
+		if (!Object)
+		{
+			return FVector::Zero();
+		}
+
+		if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
+		{
+			if (Chaos::TThreadRigidParticle<Id>* Rigid = Particle->CastToRigidParticle())
+			{
+				return Rigid->V();
+			}
+		}
+
+		return FVector::Zero();
+	}
+
+	template<EThreadContext Id>
+	FVector FReadPhysicsObjectInterface<Id>::GetW(const FConstPhysicsObjectHandle Object)
+	{
+		if (!Object)
+		{
+			return FVector::Zero();
+		}
+
+		if (TThreadParticle<Id>* Particle = Object->GetParticle<Id>())
+		{
+			if (Chaos::TThreadRigidParticle<Id>* Rigid = Particle->CastToRigidParticle())
+			{
+				return Rigid->W();
+			}
+		}
+
+		return FVector::Zero();
+	}
+
+	template<EThreadContext Id>
 	FSpatialAccelerationIdx FReadPhysicsObjectInterface<Id>::GetSpatialIndex(const FConstPhysicsObjectHandle Object)
 	{
 		if (!Object)
@@ -257,6 +295,23 @@ namespace Chaos
 			return nullptr;
 		}
 		return Handle->GetParticle<Id>();
+	}
+
+	template<EThreadContext Id>
+	TThreadRigidParticle<Id>* FReadPhysicsObjectInterface<Id>::GetRigidParticle(const FConstPhysicsObjectHandle Handle)
+	{
+		if (Handle)
+		{
+			if (TThreadParticle<Id>* Particle = Handle->GetParticle<Id>())
+			{
+				if (TThreadRigidParticle<Id>* RigidParticle = Particle->CastToRigidParticle())
+				{
+					return RigidParticle;
+				}
+			}
+		}
+
+		return nullptr;
 	}
 
 	template<EThreadContext Id>

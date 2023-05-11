@@ -67,9 +67,12 @@ namespace Chaos
 		FVector GetCoM(const FConstPhysicsObjectHandle Object);
 		FVector GetWorldCoM(const FConstPhysicsObjectHandle Object);
 		FQuat GetR(const FConstPhysicsObjectHandle Object);
+		FVector GetV(const FConstPhysicsObjectHandle Object);
+		FVector GetW(const FConstPhysicsObjectHandle Object);
 		FSpatialAccelerationIdx GetSpatialIndex(const FConstPhysicsObjectHandle Object);
 
 		TThreadParticle<Id>* GetParticle(const FConstPhysicsObjectHandle Object);
+		TThreadRigidParticle<Id>* GetRigidParticle(const FConstPhysicsObjectHandle Object);
 		TArray<TThreadParticle<Id>*> GetAllParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 		TArray<TThreadRigidParticle<Id>*> GetAllRigidParticles(TArrayView<const FConstPhysicsObjectHandle> InObjects);
 
