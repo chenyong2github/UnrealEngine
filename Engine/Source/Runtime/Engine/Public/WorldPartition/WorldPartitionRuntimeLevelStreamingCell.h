@@ -66,6 +66,12 @@ class ENGINE_API UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartiti
 	const TArray<FWorldPartitionRuntimeCellObjectMapping>& GetPackages() const { return Packages; }
 #endif
 
+protected:
+	// Called when cell is shown
+	virtual void OnCellShown() const;
+	// Called when cell is hidden
+	virtual void OnCellHidden() const;
+
 private:
 	UFUNCTION()
 	void OnLevelShown();

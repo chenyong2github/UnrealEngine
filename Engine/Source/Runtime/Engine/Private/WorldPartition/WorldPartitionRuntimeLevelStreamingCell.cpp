@@ -512,6 +512,11 @@ void UWorldPartitionRuntimeLevelStreamingCell::Deactivate() const
 
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown()
 {
+	OnCellShown();
+}
+
+void UWorldPartitionRuntimeLevelStreamingCell::OnCellShown() const
+{
 	UWorldPartition* OuterWorldPartition = GetOuterWorld()->GetWorldPartition();
 	if (OuterWorldPartition && OuterWorldPartition->IsInitialized())
 	{
@@ -520,6 +525,11 @@ void UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown()
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden()
+{
+	OnCellHidden();
+}
+
+void UWorldPartitionRuntimeLevelStreamingCell::OnCellHidden() const
 {
 	UWorldPartition* OuterWorldPartition = GetOuterWorld()->GetWorldPartition();
 	if (OuterWorldPartition && OuterWorldPartition->IsInitialized())
