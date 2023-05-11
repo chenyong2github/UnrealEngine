@@ -176,6 +176,27 @@ public:
 	 */
 	ENGINE_API FName FindReplace(FName InName) const;
 
+	/**
+	 * Finds the "best matching" mirrored bone across the specified axis. Priority is given to bones with the mirrored name,
+	 * falling back to spatial proximity if no mirrored bone is found using the naming rules.
+	 *
+	 * When falling back to proximity, bones within the SearchThreshold distance are considered coincident and a fuzzy string
+	 * comparison is used to find the most likely bone that matches the input bone.
+	 *
+	 * NOTE: The naming scheme assumes a mirror axis of X (Left/Right). Naming rules for other axes are not supported.
+	 *
+	 * @param	InBoneName		The input bone for which you want to find the mirrored equivalent
+	 * @param	InRefSkeleton	The reference skeleton used to find bone names and their spatial relationships (in ref pose)
+	 * @param	InMirrorAxis	The axis to cross when searching for a mirrored bone
+	 * @param	SearchThreshold	The distance in Unreal units to consider when trying to "tie-break" coincident bones
+	 * @return					The "best match" mirrored bone
+	 */
+	ENGINE_API static FName FindBestMirroredBone(
+		const FName InBoneName,
+		const FReferenceSkeleton& InRefSkeleton,
+		EAxis::Type InMirrorAxis,
+		const float SearchThreshold = 2.0f);
+
 public:
 
 	UPROPERTY(EditAnywhere, Category = CreateTable)

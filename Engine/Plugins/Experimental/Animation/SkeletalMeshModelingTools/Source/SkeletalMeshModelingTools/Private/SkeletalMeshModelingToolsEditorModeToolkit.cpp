@@ -246,7 +246,7 @@ FText FSkeletalMeshModelingToolsEditorModeToolkit::GetActiveToolMessage() const
 	return ActiveToolMessage;
 }
 
-static const FName EditTabName(TEXT("Edit"));
+static const FName EditTabName(TEXT("Edit Mesh"));
 static const FName ProcessingTabName(TEXT("MeshOps"));
 static const FName DeformTabName(TEXT("Deform"));
 static const FName SkinWeightsTabName(TEXT("Skin"));

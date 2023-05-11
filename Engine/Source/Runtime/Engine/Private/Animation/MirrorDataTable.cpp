@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/MirrorDataTable.h"
+
+#include "AnimationRuntime.h"
+#include "Algo/LevenshteinDistance.h"
 #include "Animation/AnimationSettings.h"
 #include "Animation/Skeleton.h"
 #include "Internationalization/Regex.h"
@@ -145,6 +148,91 @@ FName UMirrorDataTable::GetMirrorName(FName InName, const TArray<FMirrorFindRepl
 FName UMirrorDataTable::FindReplace(FName InName) const
 {
 	return GetMirrorName(InName, MirrorFindReplaceExpressions); 
+}
+
+FName UMirrorDataTable::FindBestMirroredBone(
+	const FName InBoneName,
+	const FReferenceSkeleton& InRefSkeleton,
+	EAxis::Type InMirrorAxis,
+	const float SearchThreshold)
+{
+	const int32 SourceBoneIndex = InRefSkeleton.FindBoneIndex(InBoneName);
+	if (!ensureMsgf(SourceBoneIndex != INDEX_NONE, TEXT("Trying to find a mirror for a bone that isn't in the skeleton.")))
+	{
+		return NAME_None;
+	}
+	
+	// if the bone with the mirrored name exists in the skeleton, then great just use that...
+	const FName MirroredName = GetSettingsMirrorName(InBoneName);
+	if (InRefSkeleton.FindBoneIndex(MirroredName) != INDEX_NONE)
+	{
+		return MirroredName;
+	}
+
+	// fallback to closest mirrored bone, breaking ties (coincident bones) with fuzzy string score
+	TArray<FTransform> RefPoseGlobal;
+	FAnimationRuntime::FillUpComponentSpaceTransforms(InRefSkeleton, InRefSkeleton.GetRefBonePose(), RefPoseGlobal);
+	FVector MirroredLocation = RefPoseGlobal[SourceBoneIndex].GetLocation();
+	switch (InMirrorAxis)
+	{
+	case EAxis::X:
+		MirroredLocation.X *= -1.f;
+		break;
+	case EAxis::Y:
+		MirroredLocation.Y *= -1.f;
+		break;
+	case EAxis::Z:
+		MirroredLocation.Z *= -1.f;
+		break;
+	default:
+		checkNoEntry();
+	}
+
+	// find closest bone and all bones near the mirrored location within our search threshold
+	TArray<int32> BonesWithinThreshold;
+	int32 ClosestBone = 0;
+	int32 CurrentBone = 0;
+	float ClosestDistSq = TNumericLimits<float>::Max();
+	for (const FTransform& BoneTransform : RefPoseGlobal)
+	{
+		const float DistSq = (BoneTransform.GetLocation() - MirroredLocation).SizeSquared();
+		if (DistSq < ClosestDistSq)
+		{
+			ClosestDistSq = DistSq;
+			ClosestBone = CurrentBone;
+		}
+		if (DistSq <= FMath::Pow(SearchThreshold, 2.f))
+		{
+			BonesWithinThreshold.Add(CurrentBone);
+		}
+		++CurrentBone;
+	}
+
+	// no other bones were found near the mirrored location, so return the closest one
+	if (BonesWithinThreshold.Num() <= 1)
+	{
+		return InRefSkeleton.GetBoneName(ClosestBone);
+	}
+	
+	// in the case where we have multiple bones at or near the mirrored location (that are within our search threshold)
+	// it would be arbitrary to pick the "closest" one since bones are not always placed with that degree of precision.
+	// in this case, we break the tie with a fuzzy string comparison with the source bone name...
+	const FString SourceBoneStr = InBoneName.ToString().ToLower();
+	float BestScore = 0.f;
+	int32 BestBoneIndex = INDEX_NONE;
+	for (const int32 BoneToTestIndex : BonesWithinThreshold)
+	{
+		FString BoneToTestStr = InRefSkeleton.GetBoneName(BoneToTestIndex).ToString().ToLower();
+		const float WorstCase = SourceBoneStr.Len() + BoneToTestStr.Len();
+		const float Score = 1.0f - (Algo::LevenshteinDistance(BoneToTestStr, SourceBoneStr) / WorstCase);
+		if (Score > BestScore)
+		{
+			BestBoneIndex = BoneToTestIndex;
+			BestScore = Score;
+		}
+	}
+	
+	return InRefSkeleton.GetBoneName(BestBoneIndex);
 }
 
 #if WITH_EDITOR  

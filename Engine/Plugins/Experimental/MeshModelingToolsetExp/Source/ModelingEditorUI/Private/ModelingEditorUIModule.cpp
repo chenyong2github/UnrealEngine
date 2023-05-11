@@ -2,17 +2,25 @@
 
 #include "ModelingEditorUIModule.h"
 
+#include "SkinWeightDetailCustomization.h"
+#include "SkinWeightsPaintTool.h"
+#include "PropertyEditorModule.h"
+
 #define LOCTEXT_NAMESPACE "FModelingEditorUIModule"
 
 void FModelingEditorUIModule::StartupModule()
 {
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
+	// register detail customizations
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyEditorModule.RegisterCustomClassLayout(USkinWeightsPaintToolProperties::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSkinWeightDetailCustomization::MakeInstance));
+	
 }
 
 void FModelingEditorUIModule::ShutdownModule()
 {
-	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
-	// we call this function before unloading the module.
+	// unregister detail customizations
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyEditorModule.UnregisterCustomClassLayout(USkinWeightsPaintToolProperties::StaticClass()->GetFName());
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -91,9 +91,9 @@ namespace SkinPaintTool
 			return FString(TEXT("Paint Skin Weights"));
 		}
 
-		void Apply(UObject* Object) override;
+		virtual void Apply(UObject* Object) override;
 
-		void Revert(UObject* Object) override;
+		virtual void Revert(UObject* Object) override;
 
 		void AddBoneWeightEdit(const FSingleBoneWeightEdits& BoneWeightEdit);
 
@@ -112,13 +112,13 @@ namespace SkinPaintTool
 		// applies an edit to a single vertex weight on a single bone, then normalizes the remaining weights while
 		// keeping the edited weight intact (ie, adapts OTHER influences to achieve normalization)
 		void EditVertexWeightAndNormalize(
-			const FName BoneToHoldConstant,
+			const int32 BoneIndex,
 			const int32 VertexId,
-			const float NewWeightValue,
+			float NewWeightValue,
 			FMultiBoneWeightEdits& WeightEdits);
 
 		void ApplyCurrentWeightsToMeshDescription(FMeshDescription* EditedMesh);
-
+		
 		static float GetWeightOfBoneOnVertex(
 			const int32 BoneIndex,
 			const int32 VertexID,
@@ -130,7 +130,7 @@ namespace SkinPaintTool
 			const float Weight,
 			TArray<VertexWeights>& InOutVertexData);
 
-		void ResetAfterStroke();
+		void ResetAfterChange();
 
 		float SetCurrentFalloffAndGetMaxFalloffThisStroke(int32 VertexID, float CurrentStrength);
 
@@ -139,8 +139,8 @@ namespace SkinPaintTool
 		// double-buffer of the entire weight matrix (stored sparsely for fast deformation)
 		// "Pre" is state of weights at stroke start
 		// "Current" is state of weights during stroke
-		// When stroke is over, Pre weights are synchronized with current.
-		TArray<VertexWeights> PreStrokeWeights;
+		// When stroke is over, PreChangeWeights are synchronized with CurrentWeights
+		TArray<VertexWeights> PreChangeWeights;
 		TArray<VertexWeights> CurrentWeights;
 
 		// record the current maximum amount of falloff applied to each vertex during the current stroke
@@ -151,19 +151,14 @@ namespace SkinPaintTool
 		// update deformation when vertex weights are modified
 		FSkinToolDeformer Deformer;
 	};
-
 }
 
-/**
- *
- */
-UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsPaintToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
+// weight edit mode
+UENUM()
+enum class EWeightEditMode : uint8
 {
-	GENERATED_BODY()
-
-public:
-	UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	Brush,
+	Selection,
 };
 
 // weight color mode
@@ -182,9 +177,9 @@ enum class EWeightBrushFalloffMode : uint8
 	Volume,
 };
 
-// brush behavior mode
+// operation type when editing weights
 UENUM()
-enum class EBrushBehaviorMode : uint8
+enum class EWeightEditOperation : uint8
 {
 	Add,
 	Replace,
@@ -192,41 +187,70 @@ enum class EBrushBehaviorMode : uint8
 	Relax
 };
 
+// mirror direction mode
+UENUM()
+enum class EMirrorDirection : uint8
+{
+	PositiveToNegative,
+	NegativeToPositive,
+};
 
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USkinWeightsPaintToolProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLSEXP_API USkinWeightsPaintToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
-	USkinWeightsPaintToolProperties(const FObjectInitializer& ObjectInitializer);
+public:
+	UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+};
+
+// Container for properties displayed in Details panel while using USkinWeightsPaintTool
+UCLASS()
+class MESHMODELINGTOOLSEXP_API USkinWeightsPaintToolProperties : public UBrushBaseProperties
+{
+	GENERATED_BODY()
+
+	USkinWeightsPaintToolProperties();
 	
 public:
 
-	UPROPERTY(EditAnywhere, Category = Brush)
-	EBrushBehaviorMode BrushMode;
-	
-	UPROPERTY(EditAnywhere, Category = Brush)
+	// brush vs selection modes
+	UPROPERTY()
+	EWeightEditMode EditingMode;
+
+	// custom brush modes and falloff types
+	UPROPERTY()
+	EWeightEditOperation BrushMode;
+	UPROPERTY()
 	EWeightBrushFalloffMode FalloffMode;
 
-	UPROPERTY(EditAnywhere, Category = Brush)
+	// weight color properties
+	UPROPERTY(EditAnywhere, Category = WeightColors)
 	EWeightColorMode ColorMode;
-	
 	UPROPERTY(EditAnywhere, Category = WeightColors)
 	TArray<FLinearColor> ColorRamp;
-
 	UPROPERTY(EditAnywhere, Category = WeightColors)
 	FLinearColor MinColor;
-
 	UPROPERTY(EditAnywhere, Category = WeightColors)
 	FLinearColor MaxColor;
-	
-	TObjectPtr<USkeletalMesh> SkeletalMesh;
 	bool bColorModeChanged = false;
+
+	// weight editing arguments
+	UPROPERTY()
+	TEnumAsByte<EAxis::Type> MirrorAxis = EAxis::X;
+	UPROPERTY()
+	EMirrorDirection MirrorDirection = EMirrorDirection::PositiveToNegative;
+	UPROPERTY()
+	EWeightEditOperation FloodMode;
+	UPROPERTY()
+	float FloodValue = 1.f;
+	UPROPERTY()
+	float PruneValue = 0.01;
+
+	TObjectPtr<USkinWeightsPaintTool> WeightTool;
 };
 
-/**
- *
- */
+// An interactive tool for painting and editing skin weights.
 UCLASS()
 class MESHMODELINGTOOLSEXP_API USkinWeightsPaintTool : public UDynamicMeshBrushTool, public ISkeletalMeshEditionInterface
 {
@@ -250,6 +274,13 @@ public:
 
 	void ExternalUpdateWeights(const int32 BoneIndex, const TMap<int32, float>& IndexValues);
 
+	// weight editing operations (selection based)
+	void MirrorWeights(EAxis::Type Axis, EMirrorDirection Direction);
+	void FloodWeights(const float Weight, const EWeightEditOperation FloodMode);
+	void PruneWeights(const float Threshold);
+	void AverageWeights();
+	void NormalizeWeights();
+
 protected:
 
 	virtual void ApplyStamp(const FBrushStampData& Stamp);
@@ -257,20 +288,12 @@ protected:
 	void OnTick(float DeltaTime) override;
 
 	// stamp
-	double CalculateBrushFalloff(double Distance) const;
+	float CalculateBrushFalloff(float Distance) const;
 	void CalculateVertexROI(
 		const FBrushStampData& Stamp,
-		TArray<int>& VertexROI,
-		TArray<float>& VertexSqDistances) const;
-	void EditWeightOfVerticesInStamp(
-		EBrushBehaviorMode EditMode,
-		const TArray<int32>& VerticesInStamp,
-		const TArray<float>& VertexSqDistances,
-		SkinPaintTool::FMultiBoneWeightEdits& AllBoneWeightEditsFromStamp);
-	void RelaxWeightOnVertices(
-		TArray<int32> VerticesInStamp,
-		TArray<float> VertexSqDistances,
-		SkinPaintTool::FMultiBoneWeightEdits& AllBoneWeightEditsFromStamp);
+		TArray<VertexIndex>& VertexIDs,
+		TArray<float>& VertexFalloffs);
+	float CalculateBrushStrengthToUse(EWeightEditOperation EditMode) const;
 	bool bInvertStroke = false;
 	bool bSmoothStroke = false;
 	FBrushStampData StartStamp;
@@ -278,6 +301,21 @@ protected:
 	bool bStampPending;
 	int32 TriangleUnderStamp;
 	FVector StampLocalPos;
+
+	// modify vertex weights according to the specified operation,
+	// generating bone weight edits to be stored in a transaction
+	void EditWeightOnVertices(
+		EWeightEditOperation EditOperation,
+		const TArray<int32>& VerticesToEdit,
+		const TArray<float>& VertexFalloffs,
+		const float UseStrength,
+		SkinPaintTool::FMultiBoneWeightEdits& InOutWeightEdits);
+	// same as EditWeightOfVertices() but specific to relaxation (topology aware operation)
+	void RelaxWeightOnVertices(
+		TArray<int32> VerticesToEdit,
+		TArray<float> VertexFalloffs,
+		const float UseStrength,
+		SkinPaintTool::FMultiBoneWeightEdits& InOutWeightEdits);
 
 	// used to accelerate mesh queries
 	UE::Geometry::TDynamicVerticesOctree3<FDynamicMesh3> VerticesOctree;
@@ -287,8 +325,8 @@ protected:
 
 	// tool properties
 	UPROPERTY()
-	TObjectPtr<USkinWeightsPaintToolProperties> ToolProps;
-	void OnToolPropertiesModified(UObject* ModifiedObject, FProperty* ModifiedProperty);
+	TObjectPtr<USkinWeightsPaintToolProperties> WeightToolProperties;
+	virtual void OnPropertyModified(UObject* ModifiedObject, FProperty* ModifiedProperty) override;
 	
 	// the currently edited mesh description
 	TUniquePtr<FMeshDescription> EditedMesh;
@@ -305,12 +343,22 @@ protected:
 	void BeginChange();
 	TUniquePtr<SkinPaintTool::FMeshSkinWeightsChange> EndChange();
 	TUniquePtr<SkinPaintTool::FMeshSkinWeightsChange> ActiveChange;
+	// used to apply manual weight modifications (not from the brush)
+	void ApplyWeightEditsToMesh(const FText& TransactionLabel, const SkinPaintTool::FMultiBoneWeightEdits& WeightEdits);
 
 	// which bone are we currently painting?
 	void UpdateCurrentBone(const FName &BoneName);
 	FName CurrentBone = NAME_None;
 	TOptional<FName> PendingCurrentBone;
+	TArray<FName> SelectedBoneNames;
+	TArray<BoneIndex> SelectedBoneIndices;
 
+	// determines the set of vertices to operate on, using selection as the priority
+	void GetVerticesToEdit(TArray<VertexIndex>& OutVertexIndices) const;
+	
+	BoneIndex GetBoneIndexFromName(const FName BoneName) const;
+
+	// ISkeletalMeshEditionInterface
 	virtual void HandleSkeletalMeshModified(const TArray<FName>& InBoneNames, const ESkeletalMeshNotifyType InNotifyType) override;
 
 	friend SkinPaintTool::FSkinToolDeformer;
