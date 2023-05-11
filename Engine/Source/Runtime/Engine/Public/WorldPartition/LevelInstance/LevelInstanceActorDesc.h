@@ -27,7 +27,7 @@ public:
 
 	virtual bool IsContainerInstance() const override;
 	virtual bool IsContainerFilter() const override { return IsContainerInstance(); }
-	virtual FName GetContainerPackage() const override { return *LevelPackage.ToString(); }
+	virtual FName GetContainerPackage() const override { return WorldAsset.GetLongPackageFName(); }
 	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance) const override;
 	virtual const FWorldPartitionActorFilter* GetContainerFilter() const override { return &Filter; }
 	virtual void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const override;
@@ -41,7 +41,7 @@ protected:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void SetContainer(UActorDescContainer* InContainer, UWorld* InWorldContext) override;
 
-	FSoftObjectPath LevelPackage;
+	FSoftObjectPath WorldAsset;
 	FTransform LevelInstanceTransform;
 	ELevelInstanceRuntimeBehavior DesiredRuntimeBehavior;
 

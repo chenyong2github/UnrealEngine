@@ -42,7 +42,7 @@ void FLevelInstanceActorDesc::Init(const AActor* InActor)
 	FWorldPartitionActorDesc::Init(InActor);
 
 	const ILevelInstanceInterface* LevelInstance = CastChecked<ILevelInstanceInterface>(InActor);
-	LevelPackage = *LevelInstance->GetWorldAssetPackage();
+	WorldAsset = LevelInstance->GetWorldAsset().ToSoftObjectPath();
 	LevelInstanceTransform = InActor->GetActorTransform();
 	DesiredRuntimeBehavior = LevelInstance->GetDesiredRuntimeBehavior();
 	Filter = LevelInstance->GetFilter();
@@ -68,7 +68,7 @@ bool FLevelInstanceActorDesc::Equals(const FWorldPartitionActorDesc* Other) cons
 		const FLevelInstanceActorDesc* LevelInstanceActorDesc = (FLevelInstanceActorDesc*)Other;
 
 		return
-			LevelPackage == LevelInstanceActorDesc->LevelPackage &&
+			WorldAsset == LevelInstanceActorDesc->WorldAsset &&
 			LevelInstanceTransform.Equals(LevelInstanceActorDesc->LevelInstanceTransform, 0.1f) &&
 			DesiredRuntimeBehavior == LevelInstanceActorDesc->DesiredRuntimeBehavior;
 	}
@@ -161,7 +161,7 @@ bool FLevelInstanceActorDesc::IsContainerInstanceInternal() const
 		return false;
 	}
 
-	if (LevelPackage.IsNull())
+	if (WorldAsset.IsNull())
 	{
 		return false;
 	}
@@ -243,14 +243,14 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeSoftObjectPathSupport)
 	{
-		Ar << TDeltaSerialize<FSoftObjectPath, FName>(LevelPackage, [](FSoftObjectPath& Value, const FName& DeprecatedValue)
+		Ar << TDeltaSerialize<FSoftObjectPath, FName>(WorldAsset, [](FSoftObjectPath& Value, const FName& DeprecatedValue)
 		{
 			Value = FSoftObjectPath(*DeprecatedValue.ToString());
 		});
 	}
 	else
 	{
-		Ar << TDeltaSerialize<FSoftObjectPath>(LevelPackage);
+		Ar << TDeltaSerialize<FSoftObjectPath>(WorldAsset);
 	}
 
 	if (!bIsDefaultActorDesc)
@@ -286,7 +286,7 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 
 			const AActor* CDO = GetActorNativeClass()->GetDefaultObject<AActor>();
 			const ILevelInstanceInterface* LevelInstanceCDO = CastChecked<ILevelInstanceInterface>(CDO);
-			if (LevelPackage.IsValid() && (LevelInstanceCDO->IsLoadingEnabled() || bFixupOldVersion))
+			if (WorldAsset.IsValid() && (LevelInstanceCDO->IsLoadingEnabled() || bFixupOldVersion))
 			{
 				if (!IsContainerInstance())
 				{
