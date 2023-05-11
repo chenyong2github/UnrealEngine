@@ -257,13 +257,17 @@ void FVPFullScreenUserWidget_PostProcessBase::TickRenderer(UWorld* World, float 
 
 		if (WidgetRenderer && CurrentWidgetDrawSize != FIntPoint::ZeroValue)
 		{
+			// Deferring the update is important or you'll run into timing issues; they'd manifest by the render target having size 1x1 when it comes time to update draw the post process material on the GPU.
+			constexpr bool bDeferRenderTargetUpdate = true;
 			WidgetRenderer->DrawWindow(
 				WidgetRenderTarget,
 				SlateWindow->GetHittestGrid(),
 				SlateWindow.ToSharedRef(),
 				DrawScale,
 				CurrentWidgetDrawSize,
-				DeltaSeconds);
+				DeltaSeconds,
+				bDeferRenderTargetUpdate
+				);
 		}
 	}
 }
