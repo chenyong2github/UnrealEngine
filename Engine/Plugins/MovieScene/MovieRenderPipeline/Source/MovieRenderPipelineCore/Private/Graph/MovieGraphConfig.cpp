@@ -623,7 +623,6 @@ bool UMovieGraphConfig::DeleteOutputMember(UMovieGraphOutput* OutputMemberToDele
 
 FBoolProperty* UMovieGraphConfig::FindOverridePropertyForRealProperty(UClass* InClass, const FProperty* InRealProperty)
 {
-	static const FName EditConditionKey = FName("EditCondition");
 	if (!ensure(InClass && InRealProperty))
 	{
 		return nullptr;
@@ -650,8 +649,6 @@ FBoolProperty* UMovieGraphConfig::FindOverridePropertyForRealProperty(UClass* In
 
 void UMovieGraphConfig::InitializeFlattenedNode(UMovieGraphNode* InNode)
 {
-	static const FName EditConditionKey = FName("EditCondition");
-	
 	// We go through each of the bOverride_ properties on this new instance and set
 	// them all as "not overridden", so that as we traverse the graph, we can only
 	// update the node the first time we hit another property that is overridden.
@@ -666,6 +663,9 @@ void UMovieGraphConfig::InitializeFlattenedNode(UMovieGraphNode* InNode)
 			EditConditionProperty->SetPropertyValue_InContainer(InNode, false);
 		}
 	}
+
+	// Initialize the dynamic properties so they can be updated during traversal like UPROPERTY properties
+	InNode->UpdateDynamicProperties();
 }
 
 void UMovieGraphConfig::CopyOverriddenProperties(UMovieGraphNode* FromNode, UMovieGraphNode* ToNode)
@@ -680,59 +680,113 @@ void UMovieGraphConfig::CopyOverriddenProperties(UMovieGraphNode* FromNode, UMov
 		return;
 	}
 
-	for (TFieldIterator<FProperty> PropertyIterator(ToNode->GetClass()); PropertyIterator; ++PropertyIterator)
+	for (const FProperty* DestNodeProperty : ToNode->GetAllOverrideableProperties())
 	{
-		// For each property on the destination node, decide if we need to try to update it (we don't update bOverride_ properties)
-		FProperty* PropertyToCheckOnDestNode = *PropertyIterator;
+		if (!DestNodeProperty)
+		{
+			continue;
+		}
 
+		const FName PropertyName = DestNodeProperty->GetFName();
+		
+		// For each property on the destination node, decide if we need to try to update it (we don't update bOverride_ properties)
+		//
 		// We use the existence of a matching edit condition node to signal that this property is overrideable, ie:
 		// float MyFoo would have a bOverride_MyFoo, so FindOverridePropertyForRealProperty would match it. However when
 		// looking at the bOverride_MyFoo property it would look for bOverride_bOverride_MyFoo, which wouldn't exist, successfully
 		// filtering us to only the "real" overrideable properties.
-		FBoolProperty* EditConditionProperty = FindOverridePropertyForRealProperty(ToNode->GetClass(), PropertyToCheckOnDestNode);
-		if (PropertyToCheckOnDestNode && EditConditionProperty)
+
+		const bool bIsDynamic = ToNode->GetDynamicPropertyDescriptions().ContainsByPredicate([&PropertyName](const FPropertyBagPropertyDesc& PropDesc)
 		{
-			// The user has indicated that this property should be overrideable in the Graph network.
-			// The first thing we do is check to see if it is exposed, and if it's exposed, we need to get the value from the graph.
-			bool bGetValueFromPin = false;
-			const TArray<FName>& ExposedPins = FromNode->GetExposedDynamicProperties();
-			for (const FName& Name : ExposedPins)
+			return PropDesc.Name == PropertyName;
+		});
+		
+		const bool bIsExposed = FromNode->GetExposedProperties().ContainsByPredicate([&PropertyName](const FMovieGraphPropertyInfo& ExposedPropertyInfo)
+		{
+			return ExposedPropertyInfo.Name == PropertyName;
+		});
+
+		// Ensure there's a property (the "bOverride_*" property) that tracks whether or not this property has already
+		// been set/overridden
+		const FBoolProperty* EditConditionProperty = bIsDynamic
+			? ToNode->FindOverridePropertyForDynamicProperty(PropertyName)
+			: FindOverridePropertyForRealProperty(ToNode->GetClass(), DestNodeProperty);
+		if (!EditConditionProperty)
+		{
+			continue;
+		}
+
+		// If our destination node already has this property marked as overridden, then some other node in the graph has
+		// taken priority and set the value to something, so we don't want to override it.
+		const bool bAlreadyOverriddenOnDestNode = bIsDynamic
+			? ToNode->IsDynamicPropertyOverridden(PropertyName)
+			: EditConditionProperty->GetPropertyValue_InContainer(ToNode);
+		if (bAlreadyOverriddenOnDestNode)
+		{
+			continue;
+		}
+
+		// If this property (dynamic or not) has been exposed, attempt to get its value via the connection to it (if any)
+		if (bIsExposed)
+		{
+			if (const UMovieGraphPin* InputPin = FromNode->GetInputPin(PropertyName))
 			{
-				if (Name == PropertyToCheckOnDestNode->GetName())
+				const UMovieGraphPin* ConnectedPin = InputPin->GetFirstConnectedPin();
+				if (ConnectedPin && (ConnectedPin->Properties.Type == InputPin->Properties.Type) && ConnectedPin->Node)
 				{
-					bGetValueFromPin = true;
-					break;
+					// There was a valid connection to the input pin; resolve the value from the connected output and set the
+					// value on this property
+					const FString ResolvedValue = ConnectedPin->Node->GetResolvedValueForOutputPin(ConnectedPin->Properties.Label);
+					if (bIsDynamic)
+					{
+						ToNode->SetDynamicPropertyValue(PropertyName, ResolvedValue);
+						ToNode->SetDynamicPropertyOverridden(PropertyName, true);
+					}
+					else
+					{
+						DestNodeProperty->ImportText_Direct(*ResolvedValue, DestNodeProperty->ContainerPtrToValuePtr<uint8>(ToNode), nullptr, PPF_None);
+						EditConditionProperty->SetPropertyValue_InContainer(ToNode, true);
+					}
+
+					// The property value was set via a connected pin; move on to the next property
+					continue;
 				}
 			}
+		}
 
-			if (bGetValueFromPin)
-			{
-				UE_LOG(LogMovieRenderPipeline, Error, TEXT("not yet implemented."));
-				continue;
-			}
+		// We know it's not already overridden, so now we should check to see if the incoming node wants to override it.
+		const bool bSourceNodeOverwrites = bIsDynamic
+			? FromNode->IsDynamicPropertyOverridden(PropertyName)
+			: EditConditionProperty->GetPropertyValue_InContainer(FromNode);
+		if (!bSourceNodeOverwrites)
+		{
+			// The source node didn't have the override flag checked, so we don't copy the value from it.
+			continue;
+		}
 
-			// If our destination node already has this property marked as overridden, then some other node in the graph has
-			// taken priority and set the value to something, so we don't want to override it.
-			bool bAlreadyOverridenOnDestNode = EditConditionProperty->GetPropertyValue_InContainer(ToNode);
-			if (bAlreadyOverridenOnDestNode)
-			{
-				continue;
-			}
-
-			// We know it's not already overridden, so now we should check to see if the incoming node wants to override it.
-			bool bSourceNodeOverwrites = EditConditionProperty->GetPropertyValue_InContainer(FromNode);
-			if (!bSourceNodeOverwrites)
-			{
-				// The source node didn't have the override flag checked, so we don't copy the value from it.
-				continue;
-			}
-
-			// Okay at this point we know that on our target node, no one has overridden it yet, and our source node wants to override this property.
-			// First, we update the booleans to say that yes, this property has been overridden on the target node.
+		// Okay at this point we know that on our target node, no one has overridden it yet, and our source node wants to override this property.
+		// First, we update the booleans to say that yes, this property has been overridden on the target node.
+		if (bIsDynamic)
+		{
+			ToNode->SetDynamicPropertyOverridden(PropertyName, true);
+		}
+		else
+		{
 			EditConditionProperty->SetPropertyValue_InContainer(ToNode, true);
+		}
 
-			// Now we need to copy the value from the source to the destination
-			PropertyToCheckOnDestNode->CopyCompleteValue_InContainer(ToNode, FromNode);
+		// Now we need to copy the value from the source to the destination
+		if (bIsDynamic)
+		{
+			FString SourceValue;
+			if (FromNode->GetDynamicPropertyValue(PropertyName, SourceValue))
+			{
+				ToNode->SetDynamicPropertyValue(PropertyName, SourceValue);
+			}
+		}
+		else
+		{
+			DestNodeProperty->CopyCompleteValue_InContainer(ToNode, FromNode);
 		}
 	}
 }

@@ -61,7 +61,7 @@ public:
 	TObjectPtr<UMovieGraphNode> SettingsNode = nullptr;
 
 	/** If this element represents a property on a node, this is the pointer to that property. */
-	FProperty* SettingsProperty = nullptr;
+	const FProperty* SettingsProperty = nullptr;
 
 	/** The result of the graph traversal. */
 	TWeakObjectPtr<UMovieGraphEvaluatedConfig> FlattenedGraph = nullptr;

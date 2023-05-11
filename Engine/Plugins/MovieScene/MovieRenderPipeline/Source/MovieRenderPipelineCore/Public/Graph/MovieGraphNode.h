@@ -31,6 +31,47 @@ class UEdGraphNode;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphNodeChanged, const UMovieGraphNode*);
 
 /**
+ * Information about a property that currently is (or can be) exposed on a node.
+ */
+USTRUCT(BlueprintType)
+struct FMovieGraphPropertyInfo
+{
+	GENERATED_BODY()
+	
+	/** The name of the property. */
+	UPROPERTY()
+	FName Name;
+
+	/** Whether this property is dynamic (ie, it does not correspond to a native UPROPERTY on the node). */
+	UPROPERTY()
+	bool bIsDynamicProperty = false;
+
+	/** The type of the value pointed to by the property. */
+	UPROPERTY()
+	EMovieGraphValueType ValueType = EMovieGraphValueType::None;
+
+	/**
+	 * Determines if this struct represents the same property as another instance of this struct.
+	 *
+	 * The equality operator ensures equality of all members of the struct. However, there may be cases where, for
+	 * example, a dynamic property changes its value type, and the ValueType member has not been changed yet. Two
+	 * structs that have the same Name and bIsDynamicProperty values should still be considered identical for the
+	 * purposes of determining if they identify the same property.
+	 */
+	bool IsSamePropertyAs(const FMovieGraphPropertyInfo& Other) const
+	{
+		return (Name == Other.Name) && (bIsDynamicProperty == Other.bIsDynamicProperty);
+	}
+
+	bool operator==(const FMovieGraphPropertyInfo& Other) const
+	{
+		return (Name == Other.Name)
+			&& (bIsDynamicProperty == Other.bIsDynamicProperty)
+			&& (ValueType == Other.ValueType);
+	}
+};
+
+/**
 * This is a base class for all nodes that can exist in the UMovieGraphConfig network.
 * In the editor, each node in the network will have an editor-only representation too 
 * which contains data about it's visual position in the graph, comments, etc.
@@ -55,19 +96,64 @@ public:
 	{
 		return TArray<FMovieGraphPinProperties>();
 	}
+	
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const
 	{
 		return TArray<FMovieGraphPinProperties>();
 	}
 
+	/**
+	 * Gets the resolved value of a named output pin (one that is returned in GetOutputPinProperties()). If the resolved
+	 * value could not be determined, an empty string is returned.
+	 */
+	virtual FString GetResolvedValueForOutputPin(const FName& InPinName) const
+	{
+		return FString();
+	}
+
+	/**
+	 * Gets the descriptions of properties which can be dynamically added to the node. These types of properties
+	 * do not correspond to a UPROPERTY defined on the node itself.
+	 */
 	virtual TArray<FPropertyBagPropertyDesc> GetDynamicPropertyDescriptions() const
 	{
 		return TArray<FPropertyBagPropertyDesc>();
 	}
 
-	virtual TArray<FName> GetExposedDynamicProperties() const
-	{ 
-		return ExposedDynamicPropertyNames;
+	/**
+	 * Sets the value of the dynamic property with the specified name. Note that the provided value must be the serialized
+	 * representation of the value. Returns true upon success, else false.
+	 */
+	bool SetDynamicPropertyValue(const FName PropertyName, const FString& InNewValue);
+
+	/**
+	 * Gets the value of the dynamic property with the specified name. Provides the serialized value of the property in
+	 * "OutValue". Returns true if "OutValue" was set and there were no errors, else returns false.
+	 */
+	bool GetDynamicPropertyValue(const FName PropertyName, FString& OutValue);
+
+	/** Gets the override property for the specified dynamic property. If one does not exist, returns nullptr. */
+	const FBoolProperty* FindOverridePropertyForDynamicProperty(const FName& InPropertyName) const;
+
+	/**
+	 * Returns true if the dynamic property with the provided name has been overridden, else false. Note that the name
+	 * provided should not be prefixed with "bOverride_".
+	 */
+	bool IsDynamicPropertyOverridden(const FName& InPropertyName) const;
+
+	/**
+	 * Sets the dynamic property with the provided name to the specified override state. Note that the name provided
+	 * should not be prefixed with "bOverride_".
+	 */
+	void SetDynamicPropertyOverridden(const FName& InPropertyName, const bool bIsOverridden);
+
+	/** Gets the information about properties which can be exposed as a pin on the node. */
+	virtual TArray<FMovieGraphPropertyInfo> GetOverrideablePropertyInfo() const;
+
+	/** Gets the information about properties which are currently exposed as pins on the node. */
+	virtual TArray<FMovieGraphPropertyInfo> GetExposedProperties() const
+	{
+		return ExposedPropertyInfo;
 	}
 
 	/** 
@@ -89,8 +175,15 @@ public:
 		return nullptr;
 	}
 
-	/** Promotes the property with the given name to a pin on the node via a dynamic property. */
-	virtual void PromoteDynamicPropertyToPin(const FName& PropertyName);
+	/** Toggles the promotion of the property with the given name to a pin on the node. */
+	virtual void TogglePromotePropertyToPin(const FName& PropertyName);
+
+	/**
+	 * Gets all overrideable properties that are defined on the node. This includes UPROPERTY-defined properties, as
+	 * well as dynamic properties. "Overrideable" means that the property has a corresponding property prefixed with
+	 * "bOverride_".
+	 */
+	TArray<const FProperty*> GetAllOverrideableProperties() const;
 
 	void UpdatePins();
 	void UpdateDynamicProperties();
@@ -151,7 +244,8 @@ public:
 #endif
 
 protected:
-	virtual TArray<FMovieGraphPinProperties> GetExposedDynamicPinProperties() const;
+	/** Gets the pin properties for all properties which have been exposed on the node. */
+	virtual TArray<FMovieGraphPinProperties> GetExposedPinProperties() const;
 
 	/** Register any delegates that need to be set up on the node. Called in PostLoad(). */
 	virtual void RegisterDelegates() const { }
@@ -163,11 +257,13 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieGraphPin>> OutputPins;
 
+	/** Properties which can be dynamically declared on the node (vs. native properties which are always present). */
 	UPROPERTY(EditAnywhere, meta=(FixedLayout, ShowOnlyInnerProperties), Category = "Node")
 	FInstancedPropertyBag DynamicProperties;
 
+	/** Tracks which properties have been exposed on the node as inputs. */
 	UPROPERTY()
-	TArray<FName> ExposedDynamicPropertyNames;
+	TArray<FMovieGraphPropertyInfo> ExposedPropertyInfo;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

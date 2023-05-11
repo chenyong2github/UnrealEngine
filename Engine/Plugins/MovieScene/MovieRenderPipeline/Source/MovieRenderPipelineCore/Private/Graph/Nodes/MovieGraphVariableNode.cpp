@@ -29,6 +29,16 @@ TArray<FMovieGraphPinProperties> UMovieGraphVariableNode::GetOutputPinProperties
 	return Properties;
 }
 
+FString UMovieGraphVariableNode::GetResolvedValueForOutputPin(const FName& InPinName) const
+{
+	if (GraphVariable && (GraphVariable->Name == InPinName))
+	{
+		return GraphVariable->GetValueSerializedString();
+	}
+	
+	return FString();
+}
+
 void UMovieGraphVariableNode::SetVariable(UMovieGraphVariable* InVariable)
 {
 	if (InVariable)

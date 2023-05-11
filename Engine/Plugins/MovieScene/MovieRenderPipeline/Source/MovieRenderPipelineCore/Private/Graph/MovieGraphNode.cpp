@@ -3,48 +3,171 @@
 #include "Graph/MovieGraphNode.h"
 
 #include "Graph/MovieGraphConfig.h"
+#include "UObject/TextProperty.h"
 
 FName UMovieGraphNode::GlobalsPinName = FName("Globals");
+
+namespace UE::MovieGraph::Private
+{
+	EMovieGraphValueType GetValueTypeFromProperty(const FProperty* InSourceProperty)
+	{
+		if (CastField<FBoolProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Bool;
+		}
+		if (const FByteProperty* ByteProperty = CastField<FByteProperty>(InSourceProperty))
+		{
+			return ByteProperty->IsEnum() ? EMovieGraphValueType::Enum : EMovieGraphValueType::Byte;
+		}
+		if (CastField<FIntProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Int32;
+		}
+		if (CastField<FInt64Property>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Int64;
+		}
+		if (CastField<FFloatProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Float;
+		}
+		if (CastField<FDoubleProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Double;
+		}
+		if (CastField<FNameProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Name;
+		}
+		if (CastField<FStrProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::String;
+		}
+		if (CastField<FTextProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Text;
+		}
+		if (CastField<FEnumProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Enum;
+		}
+		if (CastField<FStructProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Struct;
+		}
+		if (CastField<FObjectProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Object;
+		}
+		if (CastField<FSoftObjectProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::SoftObject;
+		}
+		if (CastField<FClassProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::Class;
+		}
+		if (CastField<FSoftClassProperty>(InSourceProperty))
+		{
+			return EMovieGraphValueType::SoftClass;
+		}
+
+		// Handle array property
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InSourceProperty))
+		{
+			return GetValueTypeFromProperty(ArrayProperty->Inner);	
+		}
+
+		return EMovieGraphValueType::None;
+	}
+}
 
 UMovieGraphNode::UMovieGraphNode()
 {
 }
 
-TArray<FMovieGraphPinProperties> UMovieGraphNode::GetExposedDynamicPinProperties() const
+TArray<FMovieGraphPinProperties> UMovieGraphNode::GetExposedPinProperties() const
 {
 	TArray<FMovieGraphPinProperties> Properties;
 
-	// Exposed dynamic properties are tracked by name; convert to pin properties
-	for (const FName& PropertyName : GetExposedDynamicProperties())
+	// Exposed properties are tracked by name; convert to pin properties
+	for (const FMovieGraphPropertyInfo& PropertyInfo : GetExposedProperties())
 	{
-		// Note: Currently hardcoded to not allow multiple connections, but this may need to change in the future
-		const bool bInAllowMultipleConnections = false;
-		Properties.Add(FMovieGraphPinProperties(PropertyName, EMovieGraphValueType::Float, bInAllowMultipleConnections));
+		if (PropertyInfo.ValueType == EMovieGraphValueType::None)
+		{
+			continue;
+		}
+		
+		constexpr bool bAllowMultipleConnections = false;
+		Properties.Add(FMovieGraphPinProperties(PropertyInfo.Name, PropertyInfo.ValueType, bAllowMultipleConnections));
 	}
 
 	return Properties;
 }
 
-void UMovieGraphNode::PromoteDynamicPropertyToPin(const FName& PropertyName)
+void UMovieGraphNode::TogglePromotePropertyToPin(const FName& PropertyName)
 {
-	// Ensure this is a real dynamic property
-	bool bFoundMatchingProperty = false;
-	for (const FPropertyBagPropertyDesc& PropertyDescription : GetDynamicPropertyDescriptions())
+	// Ensure this is a property that can be promoted
+	bool bIsPromotableProperty = false;
+	FMovieGraphPropertyInfo OverrideablePropertyInfo;
+	for (const FMovieGraphPropertyInfo& ExposablePropertyInfo : GetOverrideablePropertyInfo())
 	{
-		if (PropertyDescription.Name == PropertyName)
+		if (ExposablePropertyInfo.Name == PropertyName)
 		{
-			bFoundMatchingProperty = true;
+			bIsPromotableProperty = true;
+			OverrideablePropertyInfo = ExposablePropertyInfo;
 			break;
 		}
 	}
 
-	// Add this property to promoted properties if it hasn't already been promoted
-	if (bFoundMatchingProperty && !ExposedDynamicPropertyNames.Contains(PropertyName))
+	// Add this property to promoted properties if it hasn't already been promoted, otherwise remove it
+	if (bIsPromotableProperty)
 	{
-		ExposedDynamicPropertyNames.Add(PropertyName);
+		const bool bFoundExposedPropertyInfo = ExposedPropertyInfo.ContainsByPredicate([&OverrideablePropertyInfo](const FMovieGraphPropertyInfo& ExposedInfo)
+		{
+			return OverrideablePropertyInfo.IsSamePropertyAs(ExposedInfo);
+		});
+
+		if (!bFoundExposedPropertyInfo)
+		{
+			ExposedPropertyInfo.Add(MoveTemp(OverrideablePropertyInfo));
+		}
+		else
+		{
+			ExposedPropertyInfo.RemoveAll([&OverrideablePropertyInfo](const FMovieGraphPropertyInfo& ExposedInfo)
+			{
+				return OverrideablePropertyInfo.IsSamePropertyAs(ExposedInfo);
+			});
+		}
 	}
 
 	UpdatePins();
+}
+
+TArray<const FProperty*> UMovieGraphNode::GetAllOverrideableProperties() const
+{
+	TArray<const FProperty*> AllProperties;
+	
+	for (TFieldIterator<FProperty> PropertyIterator(GetClass()); PropertyIterator; ++PropertyIterator)
+	{
+		if (UMovieGraphConfig::FindOverridePropertyForRealProperty(GetClass(), *PropertyIterator))
+		{
+			AllProperties.Add(*PropertyIterator);
+		}
+	}
+
+	if (const UPropertyBag* PropertyBag = DynamicProperties.GetPropertyBagStruct())
+	{
+		for (const FPropertyBagPropertyDesc& Desc : PropertyBag->GetPropertyDescs())
+		{
+			if (FindOverridePropertyForDynamicProperty(Desc.Name))
+			{
+				AllProperties.Add(Desc.CachedProperty);
+			}
+		}
+	}
+
+	return AllProperties;
 }
 
 void UMovieGraphNode::UpdatePins()
@@ -53,7 +176,7 @@ void UMovieGraphNode::UpdatePins()
 	TArray<FMovieGraphPinProperties> OutputPinProperties = GetOutputPinProperties();
 
 	// Include the exposed dynamic properties in the input pins
-	InputPinProperties.Append(GetExposedDynamicPinProperties());
+	InputPinProperties.Append(GetExposedPinProperties());
 
 	auto UpdatePins = [this](TArray<UMovieGraphPin*>& Pins, const TArray<FMovieGraphPinProperties>& PinProperties)
 	{
@@ -206,6 +329,92 @@ void UMovieGraphNode::PostLoad()
 	Super::PostLoad();
 
 	RegisterDelegates();
+}
+
+bool UMovieGraphNode::SetDynamicPropertyValue(const FName PropertyName, const FString& InNewValue)
+{
+	return DynamicProperties.SetValueSerializedString(PropertyName, InNewValue) == EPropertyBagResult::Success;
+}
+
+bool UMovieGraphNode::GetDynamicPropertyValue(const FName PropertyName, FString& OutValue)
+{
+	const TValueOrError<FString, EPropertyBagResult> Result = DynamicProperties.GetValueSerializedString(PropertyName);
+	if (Result.IsValid())
+	{
+		OutValue = Result.GetValue();
+	}
+
+	return Result.IsValid();
+}
+
+const FBoolProperty* UMovieGraphNode::FindOverridePropertyForDynamicProperty(const FName& InPropertyName) const
+{
+	const FString OverridePropertyName = FString::Printf(TEXT("bOverride_%s"), *InPropertyName.ToString());
+	const FPropertyBagPropertyDesc* Desc = DynamicProperties.FindPropertyDescByName(FName(OverridePropertyName));
+
+	if (!Desc)
+	{
+		return nullptr;
+	}
+
+	if (const FBoolProperty* DescBoolProperty = CastField<FBoolProperty>(Desc->CachedProperty))
+	{
+		return DescBoolProperty;
+	}
+	
+	return nullptr;
+}
+
+bool UMovieGraphNode::IsDynamicPropertyOverridden(const FName& InPropertyName) const
+{
+	if (const FBoolProperty* OverrideProperty = FindOverridePropertyForDynamicProperty(InPropertyName))
+	{
+		TValueOrError<bool, EPropertyBagResult> Result = DynamicProperties.GetValueBool(OverrideProperty->GetFName());
+		return Result.IsValid() && Result.GetValue();
+	}
+
+	return false;
+}
+
+void UMovieGraphNode::SetDynamicPropertyOverridden(const FName& InPropertyName, const bool bIsOverridden)
+{
+	if (const FBoolProperty* OverrideProperty = FindOverridePropertyForDynamicProperty(InPropertyName))
+	{
+		DynamicProperties.SetValueBool(OverrideProperty->GetFName(), bIsOverridden);
+	}
+}
+
+TArray<FMovieGraphPropertyInfo> UMovieGraphNode::GetOverrideablePropertyInfo() const
+{
+	TArray<FMovieGraphPropertyInfo> OverrideableProperties;
+	
+	for (TFieldIterator<FProperty> PropertyIterator(GetClass()); PropertyIterator; ++PropertyIterator)
+	{
+		if (UMovieGraphConfig::FindOverridePropertyForRealProperty(GetClass(), *PropertyIterator))
+		{
+			FMovieGraphPropertyInfo Info;
+			Info.Name = PropertyIterator->GetFName();
+			Info.bIsDynamicProperty = false;
+			Info.ValueType = UE::MovieGraph::Private::GetValueTypeFromProperty(*PropertyIterator);
+			
+			OverrideableProperties.Add(MoveTemp(Info));
+		}
+	}
+
+	for (const FPropertyBagPropertyDesc& Desc : GetDynamicPropertyDescriptions())
+	{
+		if (FindOverridePropertyForDynamicProperty(Desc.Name))
+		{
+			FMovieGraphPropertyInfo Info;
+			Info.Name = Desc.Name;
+			Info.bIsDynamicProperty = true;
+			Info.ValueType = static_cast<EMovieGraphValueType>(Desc.ValueType);
+
+			OverrideableProperties.Add(MoveTemp(Info));
+		}
+	}
+
+	return OverrideableProperties;
 }
 
 TArray<UMovieGraphPin*> UMovieGraphNode::EvaluatePinsToFollow(FMovieGraphEvaluationContext& InContext) const

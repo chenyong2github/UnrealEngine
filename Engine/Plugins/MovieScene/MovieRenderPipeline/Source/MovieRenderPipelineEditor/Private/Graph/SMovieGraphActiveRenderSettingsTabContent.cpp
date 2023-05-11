@@ -23,14 +23,26 @@ FActiveRenderSettingsTreeElement::FActiveRenderSettingsTreeElement(const FName& 
 
 FString FActiveRenderSettingsTreeElement::GetValue() const
 {
-	if (SettingsProperty && SettingsNode)
+	FString ValueString;
+	
+	if (!SettingsProperty || !SettingsNode)
 	{
-		FString ValueString;
-		SettingsProperty->ExportTextItem_InContainer(ValueString, SettingsNode, nullptr, nullptr, PPF_None);
 		return ValueString;
 	}
 
-	return FString();
+	// If the property is a dynamic property, then get its value from the node
+	for (const FPropertyBagPropertyDesc& PropertyDesc : SettingsNode->GetDynamicPropertyDescriptions())
+	{
+		if (SettingsProperty->GetFName() == PropertyDesc.Name)
+		{
+			SettingsNode->GetDynamicPropertyValue(PropertyDesc.Name, ValueString);
+			return ValueString;
+		}
+	}
+
+	// Otherwise, ask the property for its value directly
+	SettingsProperty->ExportTextItem_InContainer(ValueString, SettingsNode, nullptr, nullptr, PPF_None);
+	return ValueString;
 }
 
 bool FActiveRenderSettingsTreeElement::IsBranchRenderable() const
@@ -128,19 +140,15 @@ const TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& FActiveRenderSetting
 	// For node elements: all overrideable properties on the node should be children
 	if (Type == EElementType::Node)
 	{
-		for (TFieldIterator<FProperty> PropertyIterator(SettingsNode->GetClass()); PropertyIterator; ++PropertyIterator)
+		for (const FProperty* Property : SettingsNode->GetAllOverrideableProperties())
 		{
-			FProperty* NodeProperty = *PropertyIterator;
-			if (UMovieGraphConfig::FindOverridePropertyForRealProperty(SettingsNode->GetClass(), NodeProperty))
-			{
-				TSharedPtr<FActiveRenderSettingsTreeElement> Element =
-					MakeShared<FActiveRenderSettingsTreeElement>(NodeProperty->GetFName(), EElementType::Property);
-				Element->SettingsNode = SettingsNode;
-				Element->SettingsProperty = NodeProperty;
-				Element->FlattenedGraph = FlattenedGraph;
-				
-				ChildrenCache.Add(MoveTemp(Element));
-			}
+			TSharedPtr<FActiveRenderSettingsTreeElement> Element =
+				MakeShared<FActiveRenderSettingsTreeElement>(Property->GetFName(), EElementType::Property);
+			Element->SettingsNode = SettingsNode;
+			Element->SettingsProperty = Property;
+			Element->FlattenedGraph = FlattenedGraph;
+			
+			ChildrenCache.Add(MoveTemp(Element));
 		}
 	}
 	

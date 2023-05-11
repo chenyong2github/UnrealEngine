@@ -84,8 +84,8 @@ public:
 	//~ End UEdGraphNode Interface
 
 protected:
-	/** Promote the property with the given name to a pin exposed on the node. */
-	void PromotePropertyToPin(const FName PropertyName) const;
+	/** Toggle the promotion of the property with the given name to a pin. */
+	void TogglePromotePropertyToPin(const FName PropertyName) const;
 
 private:
 	void GetPropertyPromotionContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const;

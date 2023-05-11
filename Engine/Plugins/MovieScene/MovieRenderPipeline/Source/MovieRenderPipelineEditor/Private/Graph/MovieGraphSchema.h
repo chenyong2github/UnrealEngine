@@ -38,11 +38,21 @@ public:
 public:
 	// Allowed "PinCategory" values for use on EdGraphPin
 	static const FName PC_Branch;
-	static const FName PC_Float;
-	static const FName PC_Integer;
 	static const FName PC_Boolean;
+	static const FName PC_Byte;
+	static const FName PC_Integer;
+	static const FName PC_Int64;
+	static const FName PC_Float;
+	static const FName PC_Double;
+	static const FName PC_Name;
 	static const FName PC_String;
-	static const FName PC_IntPoint;
+	static const FName PC_Text;
+	static const FName PC_Enum;
+	static const FName PC_Struct;
+	static const FName PC_Object;
+	static const FName PC_SoftObject;
+	static const FName PC_Class;
+	static const FName PC_SoftClass;
 	
 private:
 	static TArray<UClass*> MoviePipelineNodeClasses;

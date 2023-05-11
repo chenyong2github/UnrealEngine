@@ -20,11 +20,21 @@ TArray<UClass*> UMovieGraphSchema::MoviePipelineNodeClasses;
 #define LOCTEXT_NAMESPACE "MoviePipelineGraphSchema"
 
 const FName UMovieGraphSchema::PC_Branch(TEXT("branch"));
-const FName UMovieGraphSchema::PC_Float(TEXT("float"));
-const FName UMovieGraphSchema::PC_Integer(TEXT("integer"));
 const FName UMovieGraphSchema::PC_Boolean(TEXT("boolean"));
+const FName UMovieGraphSchema::PC_Byte(TEXT("byte"));
+const FName UMovieGraphSchema::PC_Integer(TEXT("integer"));
+const FName UMovieGraphSchema::PC_Int64(TEXT("int64"));
+const FName UMovieGraphSchema::PC_Float(TEXT("float"));
+const FName UMovieGraphSchema::PC_Double(TEXT("double"));
+const FName UMovieGraphSchema::PC_Name(TEXT("name"));
 const FName UMovieGraphSchema::PC_String(TEXT("string"));
-const FName UMovieGraphSchema::PC_IntPoint(TEXT("intpoint"));
+const FName UMovieGraphSchema::PC_Text(TEXT("text"));
+const FName UMovieGraphSchema::PC_Enum(TEXT("enum"));
+const FName UMovieGraphSchema::PC_Struct(TEXT("struct"));
+const FName UMovieGraphSchema::PC_Object(TEXT("object"));
+const FName UMovieGraphSchema::PC_SoftObject(TEXT("softobject"));
+const FName UMovieGraphSchema::PC_Class(TEXT("class"));
+const FName UMovieGraphSchema::PC_SoftClass(TEXT("softclass"));
 
 void UMovieGraphSchema::CreateDefaultNodesForGraph(UEdGraph& Graph) const
 {
@@ -259,9 +269,14 @@ FLinearColor UMovieGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) 
 		return Settings->ExecutionPinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Float)
+	if (PinType.PinCategory == PC_Boolean)
 	{
-		return Settings->FloatPinTypeColor;
+		return Settings->BooleanPinTypeColor;
+	}
+	
+	if (PinType.PinCategory == PC_Byte)
+	{
+		return Settings->BytePinTypeColor;
 	}
 
 	if (PinType.PinCategory == PC_Integer)
@@ -269,9 +284,24 @@ FLinearColor UMovieGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) 
 		return Settings->IntPinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_Boolean)
+	if (PinType.PinCategory == PC_Int64)
 	{
-		return Settings->BooleanPinTypeColor;
+		return Settings->Int64PinTypeColor;
+	}
+
+	if (PinType.PinCategory == PC_Float)
+	{
+		return Settings->FloatPinTypeColor;
+	}
+
+	if (PinType.PinCategory == PC_Double)
+	{
+		return Settings->DoublePinTypeColor;
+	}
+
+	if (PinType.PinCategory == PC_Name)
+	{
+		return Settings->NamePinTypeColor;
 	}
 
 	if (PinType.PinCategory == PC_String)
@@ -279,9 +309,39 @@ FLinearColor UMovieGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) 
 		return Settings->StringPinTypeColor;
 	}
 
-	if (PinType.PinCategory == PC_IntPoint)
+	if (PinType.PinCategory == PC_Text)
 	{
-		return Settings->VectorPinTypeColor;
+		return Settings->TextPinTypeColor;
+	}
+
+	if (PinType.PinCategory == PC_Enum)
+	{
+		return Settings->BytePinTypeColor;
+	}
+
+	if (PinType.PinCategory == PC_Struct)
+	{
+		return Settings->StructPinTypeColor;
+	}
+	
+	if (PinType.PinCategory == PC_Object)
+	{
+		return Settings->ObjectPinTypeColor;
+	}
+
+	if (PinType.PinCategory == PC_SoftObject)
+	{
+		return Settings->SoftObjectPinTypeColor;
+	}
+	
+	if (PinType.PinCategory == PC_Class)
+    {
+    	return Settings->ClassPinTypeColor;
+    }
+
+	if (PinType.PinCategory == PC_SoftClass)
+	{
+		return Settings->SoftClassPinTypeColor;
 	}
 	
 	return Settings->DefaultPinTypeColor;

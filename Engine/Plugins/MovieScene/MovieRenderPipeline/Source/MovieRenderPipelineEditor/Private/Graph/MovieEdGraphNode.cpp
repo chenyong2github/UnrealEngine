@@ -63,20 +63,52 @@ FEdGraphPinType UMoviePipelineEdGraphNodeBase::GetPinType(const UMovieGraphPin* 
 		return EdPinType;
 	}
 
-	// TODO: This needs to properly fill in the category/subcategory for all types. Also, container type?
 	switch (InPin->Properties.Type)
 	{
-	case EMovieGraphValueType::Float:
-		EdPinType.PinCategory = UMovieGraphSchema::PC_Float;
+	case EMovieGraphValueType::Bool:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Boolean;
+		break;
+	case EMovieGraphValueType::Byte:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Byte;
 		break;
 	case EMovieGraphValueType::Int32:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_Integer;
 		break;
-	case EMovieGraphValueType::Bool:
-		EdPinType.PinCategory = UMovieGraphSchema::PC_Boolean;
+	case EMovieGraphValueType::Int64:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Int64;
+		break;
+	case EMovieGraphValueType::Float:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Float;
+		break;
+	case EMovieGraphValueType::Double:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Double;
+		break;
+	case EMovieGraphValueType::Name:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Name;
 		break;
 	case EMovieGraphValueType::String:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_String;
+		break;
+	case EMovieGraphValueType::Text:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Text;
+		break;
+	case EMovieGraphValueType::Enum:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Enum;
+		break;
+	case EMovieGraphValueType::Struct:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Struct;
+		break;
+	case EMovieGraphValueType::Object:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Object;
+		break;
+	case EMovieGraphValueType::SoftObject:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_SoftObject;
+		break;
+	case EMovieGraphValueType::Class:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_Class;
+		break;
+	case EMovieGraphValueType::SoftClass:
+		EdPinType.PinCategory = UMovieGraphSchema::PC_SoftClass;
 		break;
 	default:
 		EdPinType.PinCategory = UMovieGraphSchema::PC_Float;
@@ -152,45 +184,29 @@ void UMoviePipelineEdGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGrap
 
 void UMoviePipelineEdGraphNode::GetPropertyPromotionContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	// Exclude the dynamic properties which are used for EditCondition metadata
-	static const FName EditConditionKey = FName("EditCondition");
-	TArray<FName> ExcludedPropertyNames;
-	for (const FPropertyBagPropertyDesc& PropertyDescription : RuntimeNode->GetDynamicPropertyDescriptions())
-	{
-		for (const FPropertyBagPropertyDescMetaData& Metadata : PropertyDescription.MetaData)
-		{
-			if (Metadata.Key == EditConditionKey)
-			{
-				ExcludedPropertyNames.Add(FName(Metadata.Value));
-			}
-		}
-	}
-
-	// Exclude dynamic properties which have already been promoted
-	ExcludedPropertyNames.Append(RuntimeNode->GetExposedDynamicProperties());
-
 	FToolMenuSection& Section = Menu->AddSection("MoviePipelineGraphExposeAsPin", LOCTEXT("ExposeAsPin", "Expose Property as Pin"));
 
-	const TArray<FPropertyBagPropertyDesc>& PropertyDescriptions = RuntimeNode->GetDynamicPropertyDescriptions();
-	for (const FPropertyBagPropertyDesc& PropertyDescription : PropertyDescriptions)
+	const TArray<FMovieGraphPropertyInfo>& OverrideablePropertyInfo = RuntimeNode->GetOverrideablePropertyInfo();
+	for (const FMovieGraphPropertyInfo& PropertyInfo : OverrideablePropertyInfo)
 	{
-		if (ExcludedPropertyNames.Contains(PropertyDescription.Name))
-		{
-			continue;
-		}
-		
 		Section.AddMenuEntry(
-			PropertyDescription.Name,
-			FText::FromName(PropertyDescription.Name),
+			PropertyInfo.Name,
+			FText::FromName(PropertyInfo.Name),
 			LOCTEXT("PromotePropertyToPin", "Promote this property to a pin on this node."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateUObject(this, &UMoviePipelineEdGraphNode::PromotePropertyToPin, PropertyDescription.Name),
-				FCanExecuteAction())
+				FExecuteAction::CreateUObject(this, &UMoviePipelineEdGraphNode::TogglePromotePropertyToPin, PropertyInfo.Name),
+				FCanExecuteAction(),
+				FGetActionCheckState::CreateLambda([this, PropertyInfo]()
+				{
+					const TArray<FMovieGraphPropertyInfo>& ExposedProperties = RuntimeNode->GetExposedProperties();
+					return ExposedProperties.Contains(PropertyInfo) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				})),
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 
-	if (PropertyDescriptions.Num() == ExcludedPropertyNames.Num())
+	if (OverrideablePropertyInfo.IsEmpty())
 	{
 		Section.AddMenuEntry(
 			"NoPropertiesAvailable",
@@ -204,9 +220,9 @@ void UMoviePipelineEdGraphNode::GetPropertyPromotionContextMenuActions(UToolMenu
 	}
 }
 
-void UMoviePipelineEdGraphNode::PromotePropertyToPin(const FName PropertyName) const
+void UMoviePipelineEdGraphNode::TogglePromotePropertyToPin(const FName PropertyName) const
 {
-	RuntimeNode->PromoteDynamicPropertyToPin(PropertyName);
+	RuntimeNode->TogglePromotePropertyToPin(PropertyName);
 }
 
 bool UMoviePipelineEdGraphNodeBase::ShouldCreatePin(const UMovieGraphPin* InPin) const

@@ -125,3 +125,18 @@ bool UMovieGraphPin::AllowsMultipleConnections() const
 	// Always allow multiple connection on output pin
 	return IsOutputPin() || Properties.bAllowMultipleConnections;
 }
+
+UMovieGraphPin* UMovieGraphPin::GetFirstConnectedPin() const
+{
+	if (Edges.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	if (ensureMsgf(Edges[0], TEXT("Null edge found when trying to get connected pin!")))
+	{
+		return Edges[0]->GetOtherPin(this);
+	}
+
+	return nullptr;
+}
