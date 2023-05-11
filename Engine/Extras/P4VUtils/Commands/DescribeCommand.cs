@@ -58,22 +58,6 @@ namespace P4VUtils.Commands
 		private int MaxDaysHistory = 30;
 		private int MaxChangeListCount = 10000;
 
-		static void OSOpenFile(string FilePath)
-		{
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-			{
-				Process.Start(new ProcessStartInfo(FilePath) { UseShellExecute = true });
-			}
-			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-			{
-				Process.Start("xdg-open", FilePath);
-			}
-			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-			{
-				Process.Start("open", FilePath);
-			}
-		}
-
 		public override async Task<int> Execute(string[] Args, IReadOnlyDictionary<string, string> ConfigValues, ILogger Logger)
 		{
 			if (Args.Length < 2)
@@ -182,7 +166,7 @@ namespace P4VUtils.Commands
 				await Writer.WriteLineAsync(CSVFormat.ToString());
 			}
 
-			OSOpenFile(PlainTextPath);
+			ProcessUtils.OpenInNewProcess(PlainTextPath);
 
 			Logger.LogInformation("Complete");
 			Logger.LogInformation("PlainText: {PlainText}", PlainTextPath);

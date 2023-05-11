@@ -468,6 +468,7 @@ namespace P4VUtils
 				InstallCommandsListInFolder("UE Toolbox", true/*AddFolderToContextMenu*/, CommandCategory.Toolbox, Document, ExecutableLocation, Logger);
 				InstallCommandsListInFolder("UE Integrate", true/*AddFolderToContextMenu*/, CommandCategory.Integrate, Document, ExecutableLocation, Logger);
 				InstallCommandsListInFolder("UE Horde", true/*AddFolderToContextMenu*/, CommandCategory.Horde, Document, ExecutableLocation, Logger);
+				InstallCommandsListInFolder("UE Browser", true/*AddFolderToContextMenu*/, CommandCategory.Browser, Document, ExecutableLocation, Logger);
 			}
 
 			// Save the new document

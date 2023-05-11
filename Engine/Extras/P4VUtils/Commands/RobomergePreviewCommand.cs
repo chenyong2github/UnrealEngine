@@ -68,7 +68,8 @@ namespace P4VUtils.Commands
 
 			string Url = GetUrl(Change, ConfigValues);
 			Logger.LogInformation("Opening {Url}", Url);
-			OpenUrl(Url);
+
+			ProcessUtils.OpenInNewProcess(Url);
 
 			return 0;
 		}
@@ -83,22 +84,6 @@ namespace P4VUtils.Commands
 
 			return $"{BaseUrl.TrimEnd('/')}/{Change}";
 
-		}
-
-		static void OpenUrl(string Url)
-		{
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-			{
-				Process.Start(new ProcessStartInfo(Url) { UseShellExecute = true });
-			}
-			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-			{
-				Process.Start("xdg-open", Url);
-			}
-			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-			{
-				Process.Start("open", Url);
-			}
 		}
 	}
 }

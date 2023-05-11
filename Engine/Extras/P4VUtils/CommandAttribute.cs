@@ -29,7 +29,12 @@ namespace P4VUtils
 		/// <summary>
 		/// Local build and horde preflights
 		/// </summary>
-		Horde
+		Horde,
+
+		/// <summary>
+		/// Commands that open pages in the users browser
+		/// </summary>
+		Browser
 	}
 
 	/// <summary>

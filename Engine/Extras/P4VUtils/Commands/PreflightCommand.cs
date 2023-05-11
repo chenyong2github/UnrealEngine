@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Security.Policy;
 
 namespace P4VUtils.Commands
 {
@@ -157,7 +158,7 @@ namespace P4VUtils.Commands
 
 			string Url = GetUrl(Stream.Stream, Change, ConfigValues);
 			Logger.LogInformation("Opening {Url}", Url);
-			OpenUrl(Url);
+			ProcessUtils.OpenInNewProcess(Url);
 
 			return 0;
 		}
@@ -184,21 +185,6 @@ namespace P4VUtils.Commands
 			}
 
 			return BaseUrl.TrimEnd('/');
-		}
-		public static void OpenUrl(string Url)
-		{
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-			{
-				Process.Start(new ProcessStartInfo(Url) { UseShellExecute = true });
-			}
-			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-			{
-				Process.Start("xdg-open", Url);
-			}
-			else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-			{
-				Process.Start("open", Url);
-			}
 		}
 	}
 
@@ -230,7 +216,7 @@ namespace P4VUtils.Commands
 		}
 	}
 
-	[Command("openpreflight", CommandCategory.Horde, 4)]
+	[Command("openpreflight", CommandCategory.Browser, 1)]
 	class OpenPreflightCommand : Command
 	{
 		public override string Description => "If the changelist has been tagged with #preflight, open the preflight Horde page in the browser";
@@ -290,7 +276,7 @@ namespace P4VUtils.Commands
 				string preflightURL = GetUrl(match!.Groups[1].Value, configValues);
 
 				logger.LogInformation("Opening URL '{URL}' in browser", preflightURL);
-				PreflightCommand.OpenUrl(preflightURL);
+				ProcessUtils.OpenInNewProcess(preflightURL);
 			}
 
 			return 0;
