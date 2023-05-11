@@ -7,7 +7,7 @@
 #include "SkeletalMesh/SkeletonEditingTool.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SEditableTextBox.h"
-#include "Windows/WindowsPlatformApplicationMisc.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "InteractiveToolManager.h"
 
 
