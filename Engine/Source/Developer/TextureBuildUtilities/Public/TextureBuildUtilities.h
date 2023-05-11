@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IO/IoHash.h"
 #include "ImageCore.h"
 #include "Interfaces/ITextureFormat.h"
 
@@ -51,7 +50,7 @@ struct TEXTUREBUILDUTILITIES_API FTextureBuildMetadata
 	
 	// Digests of the data at various processing stages so we can track down determinism issues
 	// that arise.
-	FIoHash PreEncodeMipsHash;
+	uint64 PreEncodeMipsHash = 0;
 
 	FCbObject ToCompactBinaryWithDefaults() const;
 	FTextureBuildMetadata(FCbObject InCbObject);

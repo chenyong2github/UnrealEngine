@@ -36,6 +36,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureBuildFunction, Log, All);
 //
 static const FGuid TextureBuildFunctionVersion(TEXT("B20676CE-A786-43EE-96F0-2620A4C38ACA"));
 
+// This is mirrored in TextureDerivedData.cpp
+static const FGuid TextureMetadataDerivedDataVer(0xB9106D68, 0xA61B4F2A, 0x8105E16F, 0x48799976);
+
 static void ReadCbField(FCbFieldView Field, bool& OutValue) { OutValue = Field.AsBool(OutValue); }
 static void ReadCbField(FCbFieldView Field, int32& OutValue) { OutValue = Field.AsInt32(OutValue); }
 static void ReadCbField(FCbFieldView Field, uint8& OutValue) { OutValue = Field.AsUInt8(OutValue); }
@@ -280,6 +283,7 @@ FGuid FTextureBuildFunction::GetVersion() const
 {
 	UE::DerivedData::FBuildVersionBuilder Builder;
 	Builder << TextureBuildFunctionVersion;
+	Builder << TextureMetadataDerivedDataVer;
 	ITextureFormat* TextureFormat = nullptr;
 	GetVersion(Builder, TextureFormat);
 	if (TextureFormat)

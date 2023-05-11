@@ -31,6 +31,7 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataRequestOwner.h"
+#include "Hash/xxhash.h"
 #include "ImageCoreUtils.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -73,6 +74,9 @@ static TAutoConsoleVariable<int32> CVarTexturesCookToDerivedDataReferences(
 // rebuild. This is in both texture build paths.
 static const FGuid GTextureSLEDerivedDataVer(0xBD855730U, 0xA5B44BBBU, 0x89D051D0U, 0x695AC618U);
 const FGuid& GetTextureSLEDerivedDataVersion() { return GTextureSLEDerivedDataVer; }
+
+// This GUID is copied in TextureBuildFunction.cpp for the IBuild flow (TextureMetadataDerivedDataVer)
+#define TEXTURE_METADATA_DERIVEDDATA_VER TEXT("B9106D68A61B4F2A8105E16F48799976")
 
 static bool IsUsingNewDerivedData()
 {
@@ -508,12 +512,12 @@ void GetTextureDerivedMipKey(
 // Get the ddc key for the texture metadata (old build flow).
 UE::DerivedData::FCacheKey GetTextureDerivedMetadataKeyFromSuffix(
 	const FString& KeySuffix
-)
+	)
 {
 	FString Key = FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("TEXTURE"),
 		TEXTURE_DERIVEDDATA_VER,
-		*(KeySuffix + FString(TEXT("_METADATA"))));
+		*(KeySuffix + FString(TEXT("_METADATA_" TEXTURE_METADATA_DERIVEDDATA_VER))));
 	return UE::DerivedData::ConvertLegacyCacheKey(Key);
 }
 
@@ -2575,9 +2579,13 @@ static void SerializePlatformData(
 			// Did something in the image processing change?
 			// We haven't yet forced a rebuild of textures, so this hash might not exist in the
 			// platform data.
-			if (PlatformData->PreEncodeMipsHash.IsZero() == false)
+			if (PlatformData->PreEncodeMipsHash != 0)
 			{
-				CookTags->Add(Texture, "Diff_30_Tex2D_PreEncodeHash", LexToString(PlatformData->PreEncodeMipsHash));
+				FXxHash64 XxHash;
+				XxHash.Hash = PlatformData->PreEncodeMipsHash;
+				TStringBuilder<33> HashStr;
+				HashStr << XxHash;
+				CookTags->Add(Texture, "Diff_30_Tex2D_PreEncodeHash", *HashStr);
 			}
 		}
 	}

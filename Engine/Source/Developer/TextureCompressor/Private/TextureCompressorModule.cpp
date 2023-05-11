@@ -4,6 +4,7 @@
 #include "Math/RandomStream.h"
 #include "ChildTextureFormat.h"
 #include "Containers/IndirectArray.h"
+#include "Hash/xxhash.h"
 #include "ImageCoreUtils.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
@@ -3538,18 +3539,19 @@ public:
 	// compute a hash used to identify the contents of a mip chain
 	// this is used by bulkdata diff tool, stored in asset registry
 	// it is for debug tools only and skipping it is optional
-	static FIoHash ComputeMipChainHash(const TArray<FImage> & IntermediateMipChain)
+	static uint64 ComputeMipChainHash(const TArray<FImage> & IntermediateMipChain)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.ComputeMipChainHash);
 
-		// @todo: ComputeMipChainHash is quite slow and often not necessary
-		//	todo: use xxhash instead of blake3
-		//  todo: don't do it at all when it's not needed
-		//	  eg. in interactive Editor runs and in UEFN contentworker
+		TArray<UE::Tasks::TTask<FXxHash64>, TInlineAllocator<16>> MipHashTasks;
+		MipHashTasks.Reserve(IntermediateMipChain.Num());
+
+		//double start_time = FPlatformTime::Seconds();
+		//uint64 raw_bytes_hashed = 0;
 
 		// Hash the mips before we compress them. This gets saved as part of the derived data and then added to the
 		// diff tags during cook so we can catch determinism issues.
-		FIoHashBuilder MipHashBuilder;
+		FXxHash64Builder MipHashBuilder;
 		for (const FImage& Mip : IntermediateMipChain)
 		{
 			const FImageInfo* Info = &Mip;
@@ -3562,15 +3564,25 @@ public:
 
 			check( Mip.RawData.Num() != 0 );
 
-			// show perf of hash function :
-			//double t1 = FPlatformTime::Seconds();
-			MipHashBuilder.Update(Mip.RawData.GetData(), Mip.RawData.Num());
-			//double t2 = FPlatformTime::Seconds();
-			//UE_LOG(LogTextureCompressor, Display, TEXT("Hashed %lld bytes in %.3f millis = %.3f GB/s"),Mip.RawData.Num(),(t2-t1)*1000,(Mip.RawData.Num()/(t2-t1))/(1000*1000*1000));
-			//Blake3 is ~3.5 GB/s , around 4X slower than xxHash
+			MipHashTasks.Add(FXxHash64::HashBufferChunkedAsync(Mip.RawData.GetData(), Mip.RawData.Num(), 256 << 10));
+
+			//raw_bytes_hashed += Mip.RawData.Num();
+
+			//Blake3 is ~3.5 GB/s , around 4X slower than xxHash.
 		}
 
-		return MipHashBuilder.Finalize();
+		for (UE::Tasks::TTask<FXxHash64>& HashTask : MipHashTasks)
+		{
+			FXxHash64 MipHash = HashTask.GetResult();
+			MipHashBuilder.Update(&MipHash.Hash, sizeof(MipHash.Hash));
+		}
+
+		//double end_time = FPlatformTime::Seconds();
+
+		//UE_LOG(LogTextureCompressor, Display, TEXT("Hashed %lld bytes in %.3f millis = %.3f GB/s"), raw_bytes_hashed, (end_time - start_time) * 1000, (raw_bytes_hashed / (end_time - start_time)) / (1000 * 1000 * 1000));
+		// Threaded chunked xxHash with 256kb blocks ~120 GB / s, has a lot of tiny hashes in this timing scope though.
+
+		return MipHashBuilder.Finalize().Hash;
 	}
 
 	virtual bool BuildTexture(
@@ -3676,7 +3688,7 @@ public:
 		// shown this to be 99.9% the same, and allows us to get the pixel format earlier.
 		const bool bImageHasAlphaChannel = BuildSettings.GetTextureExpectsAlphaInPixelFormat(FImageCore::DetectAlphaChannel(IntermediateMipChain[0]));
 		
-		UE::Tasks::TTask<FIoHash> HashingTask;
+		UE::Tasks::TTask<uint64> HashingTask;
 		TArray<FImageInfo> SaveImageInfos;
 		
 		//FIoHash DebugOnly_HashBefore = ComputeMipChainHash(IntermediateMipChain);
