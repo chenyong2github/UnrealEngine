@@ -11,8 +11,6 @@
 #include "Serialization/Archive.h"
 #include "String/BytesToHex.h"
 
-class FCbFieldView; 
-class FCbWriter;
 class FCompositeBuffer;
 template <typename CharType> class TStringBuilderBase;
 namespace UE::Tasks 
