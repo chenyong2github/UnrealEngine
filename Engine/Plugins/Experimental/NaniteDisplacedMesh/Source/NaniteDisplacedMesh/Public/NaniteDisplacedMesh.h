@@ -36,12 +36,6 @@ struct FNaniteDisplacedMeshDisplacementMap
 		, Center(0.0f)
 	{}
 
-	FNaniteDisplacedMeshDisplacementMap(const FNaniteDisplacedMeshDisplacementMap& Other)
-		: Texture(Other.Texture)
-		, Magnitude(Other.Magnitude)
-		, Center(Other.Center)
-	{}
-
 	bool operator==(const FNaniteDisplacedMeshDisplacementMap& Other) const
 	{
 		return Texture		== Other.Texture
