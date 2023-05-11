@@ -822,7 +822,7 @@ TArray<UTakeRecorderSource*> UTakeRecorderActorSource::PostRecording(ULevelSeque
 			{
 				FGuid RecordedCameraGuid = GetRecordedActorGuid(Target.Get());
 				FMovieSceneSequenceID RecordedCameraSequenceID = GetLevelSequenceID(Target.Get());
-				TakesUtils::CreateCameraCutTrack(InRootSequence, RecordedCameraGuid, RecordedCameraSequenceID, InSequence->GetMovieScene()->GetPlaybackRange());
+				TakesUtils::CreateCameraCutTrack(InRootSequence, RecordedCameraGuid, RecordedCameraSequenceID, InRootSequence->GetMovieScene()->GetPlaybackRange());
 			}
 
 			// Swap our target actor to the Editor actor (in case the recording was added while in PIE)
