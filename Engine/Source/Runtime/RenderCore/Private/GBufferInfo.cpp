@@ -185,7 +185,7 @@ FGBufferBinding FindGBufferBindingByName(const FGBufferInfo& GBufferInfo, const 
 
 		if (NaniteComputeMaterialsSupported())
 		{
-			Binding.Flags |= TexCreate_UAV;
+			Binding.Flags |= TexCreate_UAV | TexCreate_DisableDCC;
 		}
 	}
 
