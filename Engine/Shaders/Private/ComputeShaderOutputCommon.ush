@@ -180,7 +180,7 @@ void ExportPixel(const uint2 PixelPos, FPixelShaderOut ShadedPixel)
 #endif 
 
 #if PIXELSHADEROUTPUT_MRT0
-	ConditionalExport(true, OutTarget0, PixelPos, ShadedPixel.MRT[0]);
+	ConditionalExport(false, OutTarget0, PixelPos, ShadedPixel.MRT[0]);
 #endif
 
 #if PIXELSHADEROUTPUT_MRT1
