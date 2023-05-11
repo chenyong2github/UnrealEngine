@@ -19,11 +19,7 @@ class ALevelSequenceActor;
 class ISequencer;
 class FConcertClientWorkspace;
 struct FSequencerInitParams;
-
-struct FSequencePlayer
-{
-	TWeakObjectPtr<ALevelSequenceActor> Actor;
-};
+class ULevelSequence;
 
 /**
  * Sequencer manager that is held by the client sync module that keeps track of open sequencer UIs, regardless of whether a session is open or not
@@ -204,6 +200,13 @@ private:
 	void OnTimeAdjustmentEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerTimeAdjustmentEvent& InEvent);
 
 	/**
+	 * Called on receipt of an external sequence precaching event from the server
+	 * @param InEventContext             The session context for the received message.
+	 * @param InEvent                    The sequence precache event.
+	 */
+	void OnPrecacheEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPrecacheEvent& InEvent);
+
+	/**
 	 * Called when the global time has been changed for the specified Sequencer
 	 *
 	 * @param InSequencer                 The sequencer that has just updated its time
@@ -320,7 +323,7 @@ private:
 
 private:
 	/** Destroy the given sequence player with corresponding actor. */
-	void DestroyPlayer(FSequencePlayer& Player, ALevelSequenceActor* LevelSequenceActor);
+	void DestroyPlayer(ALevelSequenceActor* LevelSequenceActor);
 
 	/** Indicates if this sequence player can be closed. */
 	bool CanClose(const FConcertSequencerCloseEvent& InEvent) const;
@@ -357,7 +360,10 @@ private:
 	TArray<FOpenSequencerData> OpenSequencers;
 
 	/** Map of opened sequence players, if not in editor mode. */
-	TMap<FName, FSequencePlayer> SequencePlayers;
+	TMap<FName, ALevelSequenceActor*> SequencePlayers;
+
+	/** Map of precached sequence assets. */
+	TMap<FName, ULevelSequence*> PrecachedSequences;
 
 	/** Boolean that is set when we are handling any transport event to prevent re-entrancy */
 	bool bRespondingToTransportEvent;

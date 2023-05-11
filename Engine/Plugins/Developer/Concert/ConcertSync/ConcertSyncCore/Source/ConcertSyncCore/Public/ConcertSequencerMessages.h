@@ -128,6 +128,31 @@ struct FConcertSequencerTimeAdjustmentEvent
 	FString SequenceObjectPath;
 };
 
+
+/**
+ * Event indicating one or more sequences have been added or removed from the
+ * set of sequences to keep precached for quick dynamic instantiation.
+ *
+ * Can be sent by clients as a request to add or remove their references.
+ *
+ * Can also be received from the server in response to changes to the active set,
+ * or as an initial snapshot of the complete set when joining a session.
+ */
+USTRUCT()
+struct FConcertSequencerPrecacheEvent
+{
+	GENERATED_BODY()
+
+	/** The list of full paths to affected sequences. */
+	UPROPERTY()
+	TArray<FString> SequenceObjectPaths;
+
+	/** True if being added to the precache set, false if being removed. */
+	UPROPERTY()
+	bool bShouldBePrecached = false;
+};
+
+
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
 #endif

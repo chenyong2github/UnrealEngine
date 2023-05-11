@@ -199,10 +199,13 @@ void FConcertClientSequencerManager::Register(TSharedRef<IConcertClientSession> 
 	InSession->RegisterCustomEventHandler<FConcertSequencerOpenEvent>(this, &FConcertClientSequencerManager::OnOpenEvent);
 	InSession->RegisterCustomEventHandler<FConcertSequencerStateSyncEvent>(this, &FConcertClientSequencerManager::OnStateSyncEvent);
 	InSession->RegisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this, &FConcertClientSequencerManager::OnTimeAdjustmentEvent);
+	InSession->RegisterCustomEventHandler<FConcertSequencerPrecacheEvent>(this, &FConcertClientSequencerManager::OnPrecacheEvent);
 }
 
 void FConcertClientSequencerManager::Unregister(TSharedRef<IConcertClientSession> InSession)
 {
+	PrecachedSequences.Empty();
+
 	// Unregister our events and explicitly reset the session ptr
 	if (TSharedPtr<IConcertClientSession> Session = WeakSession.Pin())
 	{
@@ -212,6 +215,7 @@ void FConcertClientSequencerManager::Unregister(TSharedRef<IConcertClientSession
 		Session->UnregisterCustomEventHandler<FConcertSequencerOpenEvent>(this);
 		Session->UnregisterCustomEventHandler<FConcertSequencerStateSyncEvent>(this);
 		Session->UnregisterCustomEventHandler<FConcertSequencerTimeAdjustmentEvent>(this);
+		Session->UnregisterCustomEventHandler<FConcertSequencerPrecacheEvent>(this);
 	}
 	WeakSession.Reset();
 }
@@ -531,12 +535,11 @@ void FConcertClientSequencerManager::HandleAssetReload(const EPackageReloadPhase
 		return;
 	}
 
-	for (TTuple<FName, FSequencePlayer>& Item : SequencePlayers)
+	for (TTuple<FName, ALevelSequenceActor*>& Item : SequencePlayers)
 	{
-		ALevelSequenceActor* LevelSequenceActor = Item.Value.Actor.Get();
+		ALevelSequenceActor* LevelSequenceActor = Item.Value;
 		// If we have a null LevelSequenceActor it means that it has already been destroyed by a close event.  We will not
 		// recreate the asset until all editors have closed it.
-		//
 		if (LevelSequenceActor)
 		{
 			const UPackage* PackageReloaded = InPackageReloadedEvent->GetNewPackage();
@@ -556,14 +559,14 @@ void FConcertClientSequencerManager::ApplyCloseEventToPlayers(const FConcertSequ
 {
 	UE_LOG(LogConcertSequencerSync, Verbose, TEXT("    Closing sequence players: %s, is from controller: %d"), *CloseEvent.SequenceObjectPath, CloseEvent.bControllerClose);
 
-	FSequencePlayer* Player = SequencePlayers.Find(*CloseEvent.SequenceObjectPath);
+	ALevelSequenceActor** Player = SequencePlayers.Find(*CloseEvent.SequenceObjectPath);
 	if (!Player)
 	{
 		UE_LOG(LogConcertSequencerSync, Verbose, TEXT("        No open players to close for sequence %s"), *CloseEvent.SequenceObjectPath);
 		return;
 	}
 
-	ALevelSequenceActor* LevelSequenceActor = Player->Actor.Get();
+	ALevelSequenceActor* LevelSequenceActor = *Player;
 
 	if (CloseEvent.bControllerClose && LevelSequenceActor && LevelSequenceActor->SequencePlayer)
 	{
@@ -575,9 +578,7 @@ void FConcertClientSequencerManager::ApplyCloseEventToPlayers(const FConcertSequ
 		return;
 	}
 
-	DestroyPlayer(*Player, LevelSequenceActor);
-
-	Player->Actor = nullptr;
+	DestroyPlayer(LevelSequenceActor);
 
 	// Always remove the player on close event. This will allow it to be re-opened on an OpenEvent.
 	UE_LOG(LogConcertSequencerSync, VeryVerbose, TEXT("    Removing sequence player for sequence: %s"), *CloseEvent.SequenceObjectPath);
@@ -695,7 +696,7 @@ bool FConcertClientSequencerManager::CanClose(const FConcertSequencerCloseEvent&
 	return InEvent.EditorsWithSequencerOpened == 0 || bShouldClose;
 }
 
-void FConcertClientSequencerManager::DestroyPlayer(FSequencePlayer& Player, ALevelSequenceActor* LevelSequenceActor)
+void FConcertClientSequencerManager::DestroyPlayer(ALevelSequenceActor* LevelSequenceActor)
 {
 	if (LevelSequenceActor && LevelSequenceActor->SequencePlayer)
 	{
@@ -795,14 +796,14 @@ void FConcertClientSequencerManager::ApplyTimeAdjustmentToPlayers(const FConcert
 {
 	UE_LOG(LogConcertSequencerSync, Verbose, TEXT("    TimeAdjustment: Updating sequence players for sequence %s"), *TimeAdjustmentEvent.SequenceObjectPath);
 
-	FSequencePlayer* SeqPlayer = SequencePlayers.Find(*TimeAdjustmentEvent.SequenceObjectPath);
+	ALevelSequenceActor** SeqPlayer = SequencePlayers.Find(*TimeAdjustmentEvent.SequenceObjectPath);
 	if (!SeqPlayer)
 	{
 		UE_LOG(LogConcertSequencerSync, Verbose, TEXT("        No sequence player for sequence %s"), *TimeAdjustmentEvent.SequenceObjectPath);
 		return;
 	}
 
-	ALevelSequenceActor* LevelSequenceActor = SeqPlayer->Actor.Get();
+	ALevelSequenceActor* LevelSequenceActor = *SeqPlayer;
 	if (LevelSequenceActor && LevelSequenceActor->SequencePlayer)
 	{
 		UMovieScene* MovieScene = LevelSequenceActor->LevelSequenceAsset->GetMovieScene();
@@ -813,6 +814,41 @@ void FConcertClientSequencerManager::ApplyTimeAdjustmentToPlayers(const FConcert
 	}
 }
 
+void FConcertClientSequencerManager::OnPrecacheEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerPrecacheEvent& InEvent)
+{
+	for (const FString& SequenceObjectPathStr : InEvent.SequenceObjectPaths)
+	{
+		const FName SequenceObjectPath = *SequenceObjectPathStr;
+		const bool bShouldPrecache = InEvent.bShouldBePrecached;
+		UE_LOG(LogConcertSequencerSync, Verbose, TEXT("OnPrecacheEvent: %s should be %s the precache set"),
+			*SequenceObjectPathStr, bShouldPrecache ? TEXT("added to") : TEXT("removed from"));
+		if (bShouldPrecache)
+		{
+			if (ULevelSequence** ExistingSequence = PrecachedSequences.Find(SequenceObjectPath))
+			{
+				ensure(*ExistingSequence != nullptr);
+				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: %s already in precache set"), SequenceObjectPath);
+				continue;
+			}
+
+			ULevelSequence* LoadedSequence = LoadObject<ULevelSequence>(nullptr, *SequenceObjectPathStr);
+			if (!LoadedSequence)
+			{
+				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: Failed to load sequence %s"), SequenceObjectPath);
+				continue;
+			}
+
+			PrecachedSequences.Add(SequenceObjectPath, LoadedSequence);
+		}
+		else
+		{
+			if (!PrecachedSequences.Remove(SequenceObjectPath))
+			{
+				UE_LOG(LogConcertSequencerSync, Warning, TEXT("OnPrecacheEvent: %s not in precache set"), SequenceObjectPath);
+			}
+		}
+	}
+}
 
 void FConcertClientSequencerManager::ApplyTransportEvent(const FConcertSequencerState& EventState)
 {
@@ -938,14 +974,14 @@ void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencer
 {
 	UE_LOG(LogConcertSequencerSync, Verbose, TEXT("    Transport: Update sequence player for sequence %s, at frame: %d"), *EventState.SequenceObjectPath, EventState.Time.Time.FrameNumber.Value);
 
-	FSequencePlayer* SeqPlayer = SequencePlayers.Find(*EventState.SequenceObjectPath);
+	ALevelSequenceActor** SeqPlayer = SequencePlayers.Find(*EventState.SequenceObjectPath);
 	if (!SeqPlayer)
 	{
 		UE_LOG(LogConcertSequencerSync, Verbose, TEXT("        No sequence player for sequence %s"), *EventState.SequenceObjectPath);
 		return;
 	}
 
-	ALevelSequenceActor* LevelSequenceActor = SeqPlayer->Actor.Get();
+	ALevelSequenceActor* LevelSequenceActor = *SeqPlayer;
 	if (LevelSequenceActor && LevelSequenceActor->SequencePlayer)
 	{
 		ULevelSequencePlayer* Player = LevelSequenceActor->SequencePlayer;
@@ -1056,9 +1092,9 @@ void FConcertClientSequencerManager::OnWorkspaceEndFrameCompleted()
 	{
 		for (const TTuple<FName, FString>& Player : PendingDestroy)
 		{
-			if (FSequencePlayer* SequencePlayer = SequencePlayers.Find(Player.Get<0>()))
+			if (ALevelSequenceActor** SequencePlayer = SequencePlayers.Find(Player.Get<0>()))
 			{
-				DestroyPlayer(*SequencePlayer, SequencePlayer->Actor.Get());
+				DestroyPlayer(*SequencePlayer);
 				SequencePlayers.Remove(Player.Get<0>());
 				PendingCreate.Add(Player.Get<1>());
 			}
@@ -1105,15 +1141,8 @@ void FConcertClientSequencerManager::OnWorkspaceEndFrameCompleted()
 
 void FConcertClientSequencerManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	TArray<ALevelSequenceActor*> Actors;
-	for (TTuple<FName, FSequencePlayer>& Item : SequencePlayers)
-	{
-		if (Item.Value.Actor.IsValid())
-		{
-			Actors.Add(Item.Value.Actor.Get());
-		}
-	}
-	Collector.AddReferencedObjects(Actors);
+	Collector.AddReferencedObjects(SequencePlayers);
+	Collector.AddReferencedObjects(PrecachedSequences);
 }
 
 #endif
