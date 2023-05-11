@@ -449,7 +449,7 @@ FText FInstancedStructDetails::GetTooltipText() const
 	const UScriptStruct* CommonStruct = nullptr;
 	const FPropertyAccess::Result Result = UE::StructUtils::Private::GetCommonScriptStruct(StructProperty, CommonStruct);
 	
-	if (Result == FPropertyAccess::Success)
+	if (CommonStruct && Result == FPropertyAccess::Success)
 	{
 		return CommonStruct->GetToolTipText();
 	}
