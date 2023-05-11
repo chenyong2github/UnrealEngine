@@ -2029,19 +2029,20 @@ FReply SWorldPartitionEditorGrid2D::FocusLoadedRegions()
 
 void SWorldPartitionEditorGrid2D::FocusBox(const FBox& Box) const
 {
-	check(ScreenRect.bIsValid);
-
-	const FBox2D Box2D(FVector2D(Box.Min), FVector2D(Box.Max));
-	Trans = -FVector2D(Box2D.GetCenter());
-
-	if (Box2D.GetArea() > 0.0f)
+	if (ScreenRect.bIsValid)
 	{
-		const FVector2D ScreenExtent = ScreenRect.GetExtent();
-		const FVector2D SelectExtent = FVector2D(Box2D.GetExtent());
-		Scale = (ScreenExtent / SelectExtent).GetMin() * 0.85f;
-	}
+		const FBox2D Box2D(FVector2D(Box.Min), FVector2D(Box.Max));
+		Trans = -FVector2D(Box2D.GetCenter());
 
-	UpdateTransform();
+		if (Box2D.GetArea() > 0.0f)
+		{
+			const FVector2D ScreenExtent = ScreenRect.GetExtent();
+			const FVector2D SelectExtent = FVector2D(Box2D.GetExtent());
+			Scale = (ScreenExtent / SelectExtent).GetMin() * 0.85f;
+		}
+
+		UpdateTransform();
+	}
 }
 
 void SWorldPartitionEditorGrid2D::UpdateTransform() const
