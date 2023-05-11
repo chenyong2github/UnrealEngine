@@ -2,6 +2,9 @@
 
 #include "Elements/Metadata/PCGMetadataMakeTransform.h"
 
+#include "PCGParamData.h"
+#include "Elements/Metadata/PCGMetadataElementCommon.h"
+#include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataMakeTransform)
@@ -115,6 +118,67 @@ FName UPCGMetadataMakeTransformSettings::GetDefaultNodeName() const
 FText UPCGMetadataMakeTransformSettings::GetDefaultNodeTitle() const
 {
 	return NSLOCTEXT("PCGMetadataMakeTransformSettings", "NodeTitle", "Make Transform Attribute");
+}
+#endif // WITH_EDITOR
+
+bool UPCGMetadataMakeTransformSettings::DoesInputSupportDefaultValue(uint32 Index) const
+{
+	return true;
+}
+
+UPCGParamData* UPCGMetadataMakeTransformSettings::CreateDefaultValueParam(uint32 Index) const
+{
+	switch (Index)
+	{
+	case 0:
+	{
+		// Location -> Default is Zero vector
+		UPCGParamData* NewParamData = NewObject<UPCGParamData>();
+		NewParamData->Metadata->CreateAttribute<FVector>(NAME_None, FVector::ZeroVector, /*bAllowsInterpolation=*/ true, /*bOverrideParent=*/ false);
+		return NewParamData;
+	}
+	case 1:
+	{
+		// Rotation -> Default is Zero rotator
+		UPCGParamData* NewParamData = NewObject<UPCGParamData>();
+		NewParamData->Metadata->CreateAttribute<FRotator>(NAME_None, FRotator::ZeroRotator, /*bAllowsInterpolation=*/ true, /*bOverrideParent=*/ false);
+		return NewParamData;
+	}
+	case 2:
+	{
+		// Scale -> Default is Vector (1, 1, 1)
+		UPCGParamData* NewParamData = NewObject<UPCGParamData>();
+		NewParamData->Metadata->CreateAttribute<FVector>(NAME_None, FVector::OneVector, /*bAllowsInterpolation=*/ true, /*bOverrideParent=*/ false);
+		return NewParamData;
+	}
+	default:
+		return nullptr;
+	}
+}
+
+#if WITH_EDITOR
+FString UPCGMetadataMakeTransformSettings::GetDefaultValueString(uint32 Index) const
+{
+	switch (Index)
+	{
+	case 0:
+	{
+		// Location -> Default is Zero vector
+		return FVector::ZeroVector.ToString();
+	}
+	case 1:
+	{
+		// Rotation -> Default is Zero rotator
+		return FRotator::ZeroRotator.ToString();
+	}
+	case 2:
+	{
+		// Scale -> Default is Vector (1, 1, 1)
+		return FVector::OneVector.ToString();
+	}
+	default:
+		return FString();
+	}
 }
 #endif // WITH_EDITOR
 

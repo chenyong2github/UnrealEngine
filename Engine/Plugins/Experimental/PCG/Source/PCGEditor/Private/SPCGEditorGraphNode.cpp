@@ -41,9 +41,12 @@ public:
 
 	virtual FSlateColor GetPinColor() const override;
 	virtual FSlateColor GetPinTextColor() const override;
+	FName GetLabelStyle(FName DefaultLabelStyle) const;
+	bool GetExtraIcon(FName& OutExtraIcon, FText& OutTooltip) const;
 
 private:
 	void ApplyUnusedPinStyle(FSlateColor& InOutColor) const;
+	void GetPCGNodeAndPin(const UPCGNode*& OutNode, const UPCGPin*& OutPin) const;
 };
 
 void SPCGEditorGraphNodePin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
@@ -99,12 +102,26 @@ void SPCGEditorGraphNodePin::Construct(const FArguments& InArgs, UEdGraphPin* In
 			.Image(this, &SPCGEditorGraphNodePin::GetPinStatusIcon)
 		];
 
-	TSharedRef<SWidget> LabelWidget = GetLabelWidget(InArgs._PinLabelStyle);
+	TSharedRef<SWidget> LabelWidget = GetLabelWidget(GetLabelStyle(InArgs._PinLabelStyle));
 
 	// Create the widget used for the pin body (status indicator, label, and value)
 	LabelAndValue =
 		SNew(SWrapBox)
 		.PreferredSize(150.f);
+
+	TSharedPtr<SImage> ExtraPinIconWidget;
+	FName ExtraPinIcon;
+	FText ExtraPinIconTooltip;
+	if (GetExtraIcon(ExtraPinIcon, ExtraPinIconTooltip))
+	{
+		ExtraPinIconWidget = SNew(SImage)
+			.Image(FAppStyle::GetBrush(ExtraPinIcon));
+
+		if (!ExtraPinIconTooltip.IsEmpty())
+		{
+			ExtraPinIconWidget->SetToolTipText(ExtraPinIconTooltip);
+		}
+	}
 
 	if (!bIsInput)
 	{
@@ -113,6 +130,15 @@ void SPCGEditorGraphNodePin::Construct(const FArguments& InArgs, UEdGraphPin* In
 			[
 				PinStatusIndicator
 			];
+
+		if (ExtraPinIconWidget.IsValid())
+		{
+			LabelAndValue->AddSlot()
+				.VAlign(VAlign_Center)
+				[
+					ExtraPinIconWidget.ToSharedRef()
+				];
+		}
 
 		LabelAndValue->AddSlot()
 			.VAlign(VAlign_Center)
@@ -148,6 +174,15 @@ void SPCGEditorGraphNodePin::Construct(const FArguments& InArgs, UEdGraphPin* In
 			{
 				ValueBox->SetEnabled(TAttribute<bool>(this, &SPCGEditorGraphNodePin::IsEditingEnabled));
 			}
+		}
+
+		if (ExtraPinIconWidget.IsValid())
+		{
+			LabelAndValue->AddSlot()
+				.VAlign(VAlign_Center)
+				[
+					ExtraPinIconWidget.ToSharedRef()
+				];
 		}
 
 		LabelAndValue->AddSlot()
@@ -231,22 +266,35 @@ void SPCGEditorGraphNodePin::Construct(const FArguments& InArgs, UEdGraphPin* In
 
 }
 
-void SPCGEditorGraphNodePin::ApplyUnusedPinStyle(FSlateColor& InOutColor) const
+void SPCGEditorGraphNodePin::GetPCGNodeAndPin(const UPCGNode*& OutNode, const UPCGPin*& OutPin) const
 {
 	UEdGraphPin* GraphPin = GetPinObj();
 	if (GraphPin && !GraphPin->IsPendingKill())
 	{
 		const UPCGEditorGraphNodeBase* EditorNode = CastChecked<const UPCGEditorGraphNodeBase>(GraphPinObj->GetOwningNode());
-		const UPCGNode* PCGNode = EditorNode ? EditorNode->GetPCGNode() : nullptr;
-		const UPCGPin* PCGPin = PCGNode ? PCGNode->GetInputPin(GraphPin->GetFName()) : nullptr;
+		OutNode = EditorNode ? EditorNode->GetPCGNode() : nullptr;
+		OutPin = OutNode ? OutNode->GetInputPin(GraphPin->GetFName()) : nullptr;
+	}
+	else
+	{
+		OutNode = nullptr;
+		OutPin = nullptr;
+	}
+}
 
-		// Halve opacity if pin is unused - intended to happen whether disabled or not
-		if (PCGPin && !PCGNode->IsPinUsedByNodeExecution(PCGPin))
-		{
-			FLinearColor Color = InOutColor.GetSpecifiedColor();
-			Color.A *= 0.5;
-			InOutColor = Color;
-		}
+void SPCGEditorGraphNodePin::ApplyUnusedPinStyle(FSlateColor& InOutColor) const
+{
+	const UPCGPin* PCGPin = nullptr;
+	const UPCGNode* PCGNode = nullptr;
+
+	GetPCGNodeAndPin(PCGNode, PCGPin);
+
+	// Halve opacity if pin is unused - intended to happen whether disabled or not
+	if (PCGPin && PCGNode && !PCGNode->IsPinUsedByNodeExecution(PCGPin))
+	{
+		FLinearColor Color = InOutColor.GetSpecifiedColor();
+		Color.A *= 0.5;
+		InOutColor = Color;
 	}
 }
 
@@ -267,6 +315,35 @@ FSlateColor SPCGEditorGraphNodePin::GetPinTextColor() const
 	ApplyUnusedPinStyle(Color);
 
 	return Color;
+}
+
+FName SPCGEditorGraphNodePin::GetLabelStyle(FName DefaultLabelStyle) const
+{
+	const UPCGPin* PCGPin = nullptr;
+	const UPCGNode* PCGNode = nullptr;
+	FName LabelStyle = NAME_None;
+
+	GetPCGNodeAndPin(PCGNode, PCGPin);
+
+	const UPCGSettings* Settings = PCGNode ? PCGNode->GetSettings() : nullptr;
+
+	if (!PCGPin || !Settings || !Settings->GetPinLabelStyle(PCGPin, LabelStyle))
+	{
+		LabelStyle = DefaultLabelStyle;
+	}
+
+	return LabelStyle;
+}
+
+bool SPCGEditorGraphNodePin::GetExtraIcon(FName& OutExtraIcon, FText& OutTooltip) const
+{
+	const UPCGPin* PCGPin = nullptr;
+	const UPCGNode* PCGNode = nullptr;
+
+	GetPCGNodeAndPin(PCGNode, PCGPin);
+
+	const UPCGSettings* Settings = PCGNode ? PCGNode->GetSettings() : nullptr;
+	return (PCGPin && Settings) ? Settings->GetPinExtraIcon(PCGPin, OutExtraIcon, OutTooltip) : false;
 }
 
 void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNodeBase* InNode)

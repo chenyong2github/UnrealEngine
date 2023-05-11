@@ -2,7 +2,9 @@
 
 #include "Elements/Metadata/PCGMetadataMakeRotator.h"
 
+#include "PCGParamData.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
+#include "Metadata/PCGMetadata.h"
 
 #define LOCTEXT_NAMESPACE "PCGMetadataMakeRotatorSettings"
 
@@ -28,9 +30,12 @@ FName UPCGMetadataMakeRotatorSettings::GetInputPinLabel(uint32 Index) const
 		return (Index == 0 ? PCGMetadataMakeRotatorConstants::YLabel : PCGMetadataMakeRotatorConstants::ZLabel);
 	case EPCGMetadataMakeRotatorOp::MakeRotFromZY:
 		return (Index == 1 ? PCGMetadataMakeRotatorConstants::YLabel : PCGMetadataMakeRotatorConstants::ZLabel);
-	case EPCGMetadataMakeRotatorOp::MakeRotFromAxis:
-	default:
+	case EPCGMetadataMakeRotatorOp::MakeRotFromAxes:
 		return (Index == 0 ? PCGMetadataMakeRotatorConstants::ForwardLabel : (Index == 1 ? PCGMetadataMakeRotatorConstants::RightLabel : PCGMetadataMakeRotatorConstants::UpLabel));
+	case EPCGMetadataMakeRotatorOp::MakeRotFromAngles:
+		return (Index == 0 ? PCGMetadataMakeRotatorConstants::RollLabel : (Index == 1 ? PCGMetadataMakeRotatorConstants::PitchLabel : PCGMetadataMakeRotatorConstants::YawLabel));
+	default:
+		return NAME_None;
 	}
 }
 
@@ -49,7 +54,8 @@ uint32 UPCGMetadataMakeRotatorSettings::GetInputPinNum() const
 	case EPCGMetadataMakeRotatorOp::MakeRotFromYZ: // fall-through
 	case EPCGMetadataMakeRotatorOp::MakeRotFromZY:
 		return 2;
-	case EPCGMetadataMakeRotatorOp::MakeRotFromAxis:
+	case EPCGMetadataMakeRotatorOp::MakeRotFromAxes: // fall-through
+	case EPCGMetadataMakeRotatorOp::MakeRotFromAngles:
 	default:
 		return 3;
 	}
@@ -58,7 +64,14 @@ uint32 UPCGMetadataMakeRotatorSettings::GetInputPinNum() const
 bool UPCGMetadataMakeRotatorSettings::IsSupportedInputType(uint16 TypeId, uint32 InputIndex, bool& bHasSpecialRequirement) const
 {
 	bHasSpecialRequirement = false;
-	return PCG::Private::IsOfTypes<FVector, FVector2D, float, double, int32, int64>(TypeId);
+	if (Operation == EPCGMetadataMakeRotatorOp::MakeRotFromAngles)
+	{
+		return PCG::Private::IsOfTypes<float, double, int32, int64>(TypeId);
+	}
+	else
+	{
+		return PCG::Private::IsOfTypes<FVector, FVector2D, float, double, int32, int64>(TypeId);
+	}
 }
 
 FPCGAttributePropertySelector UPCGMetadataMakeRotatorSettings::GetInputSource(uint32 Index) const
@@ -114,6 +127,30 @@ FPCGElementPtr UPCGMetadataMakeRotatorSettings::CreateElement() const
 	return MakeShared<FPCGMetadataMakeRotatorElement>();
 }
 
+bool UPCGMetadataMakeRotatorSettings::DoesInputSupportDefaultValue(uint32 Index) const
+{
+	return Operation == EPCGMetadataMakeRotatorOp::MakeRotFromAngles;
+}
+
+UPCGParamData* UPCGMetadataMakeRotatorSettings::CreateDefaultValueParam(uint32 Index) const
+{
+	if (Operation != EPCGMetadataMakeRotatorOp::MakeRotFromAngles)
+	{
+		return nullptr;
+	}
+
+	UPCGParamData* NewParamData = NewObject<UPCGParamData>();
+	NewParamData->Metadata->CreateAttribute<double>(NAME_None, 0, /*bAllowsInterpolation=*/ true, /*bOverrideParent=*/ false);
+	return NewParamData;
+}
+
+#if WITH_EDITOR
+FString UPCGMetadataMakeRotatorSettings::GetDefaultValueString(uint32 Index) const
+{
+	return (Operation == EPCGMetadataMakeRotatorOp::MakeRotFromAngles ? FString::Printf(TEXT("%f"), 0.0) : FString());
+}
+#endif // WITH_EDITOR
+
 bool FPCGMetadataMakeRotatorElement::DoOperation(FOperationData& OperationData) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGMetadataMakeRotatorElement::Execute);
@@ -140,10 +177,15 @@ bool FPCGMetadataMakeRotatorElement::DoOperation(FOperationData& OperationData) 
 		return DoBinaryOp<FVector, FVector>(OperationData, [](const FVector& Y, const FVector& Z) -> FRotator { return FRotationMatrix::MakeFromYZ(Y, Z).Rotator(); });
 	case EPCGMetadataMakeRotatorOp::MakeRotFromZY:
 		return DoBinaryOp<FVector, FVector>(OperationData, [](const FVector& Z, const FVector& Y) -> FRotator { return FRotationMatrix::MakeFromZY(Z, Y).Rotator(); });
-	case EPCGMetadataMakeRotatorOp::MakeRotFromAxis:
+	case EPCGMetadataMakeRotatorOp::MakeRotFromAxes:
 		return DoTernaryOp<FVector, FVector, FVector>(OperationData, [](const FVector& X, const FVector& Y, const FVector& Z) -> FRotator
 		{
 			return FMatrix(X.GetSafeNormal(), Y.GetSafeNormal(), Z.GetSafeNormal(), FVector::ZeroVector).Rotator();
+		});
+	case EPCGMetadataMakeRotatorOp::MakeRotFromAngles:
+		return DoTernaryOp<double, double, double>(OperationData, [](const double& Roll, const double& Pitch, const double& Yaw) -> FRotator
+		{
+			return FRotator{ Pitch, Yaw, Roll };
 		});
 	}
 

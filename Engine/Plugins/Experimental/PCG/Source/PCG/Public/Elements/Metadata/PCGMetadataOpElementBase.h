@@ -23,6 +23,8 @@ namespace PCGMetadataSettingsBaseConstants
 	const FName ClampMaxLabel = TEXT("Max");
 	const FName LerpRatioLabel = TEXT("Ratio");
 	const FName TransformLabel = TEXT("Transform");
+
+	const FName DefaultOutputDataFromPinName = TEXT("Default");
 }
 
 // Defines behavior when number of entries doesn't match in inputs
@@ -45,7 +47,9 @@ enum class EPCGMetadataSettingsBaseTypes
  * Base class for all Metadata operations.
  * Metadata operation can work with attributes or properties. For example you could compute the addition between all points density and a constant from
  * a param data.
- * The output will be the duplication of the first input, with the same metadata + the result of the operation (either in an attribute or a property)
+ * The output will be the duplication of the first spatial input (by default - can be overridden by OutputDataFromPin), 
+ * with the same metadata + the result of the operation (either in an attribute or a property).
+ * 
  * The new attribute can collide with one of the attributes in the incoming metadata. In this case, the attribute value will be overridden by the result
  * of the operation. It will also override the type of the attribute if it doesn't match the original.
  * 
@@ -73,12 +77,18 @@ class PCG_API UPCGMetadataSettingsBase : public UPCGSettings
 public:
 	// ~Begin UObject interface
 	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 	// ~End UObject interface
 
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 	virtual bool HasDynamicPins() const override { return true; }
+	virtual bool GetPinExtraIcon(const UPCGPin* InPin, FName& OutExtraIcon, FText& OutTooltip) const override;
+	virtual FText GetNodeTooltipText() const override;
 #endif
 	virtual EPCGDataType GetCurrentPinTypes(const UPCGPin* InPin) const override;
 
@@ -103,8 +113,22 @@ public:
 	virtual bool HasDifferentOutputTypes() const { return false; }
 	virtual TArray<uint16> GetAllOutputTypes() const { return TArray<uint16>(); };
 
+	/* Can be overriden by child class to support default values on unplugged pins. */
+	virtual bool DoesInputSupportDefaultValue(uint32 Index) const { return false; }
+	virtual UPCGParamData* CreateDefaultValueParam(uint32 Index) const { return nullptr; }
+#if WITH_EDITOR
+	virtual FString GetDefaultValueString(uint32 Index) const { return FString(); }
+#endif // WITH_EDITOR
+
+	/* Return the current input pin to forward to the output. */
+	uint32 GetInputPinToForward() const;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output")
 	FPCGAttributePropertySelector OutputTarget;
+
+	/* By default, output is taken from first non-param pin (aka if the second pin is a point data, the output will be this point data). You can change it to any available input pin. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = "Output", meta = (GetOptions = GetOutputDataFromPinOptions))
+	FName OutputDataFromPin = PCGMetadataSettingsBaseConstants::DefaultOutputDataFromPinName;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -121,6 +145,17 @@ public:
 	// Useful for unit tests. Allow to force a connection to allow the node to do its operation, even if nothing is connected to it.
 	TStaticArray<bool, MaxNumberOfOutputs> ForceOutputConnections{};
 #endif // WITH_EDITORONLY_DATA
+
+protected:
+	/* Return the type union from incident edges with the support for default values. */
+	EPCGDataType GetInputPinType(uint32 Index) const;
+
+	/* Return the index of the given input pin label. INDEX_NONE if not found*/
+	uint32 GetInputPinIndex(FName InPinLabel) const;
+
+	/* Return the list of all the Input pins */
+	UFUNCTION()
+	TArray<FName> GetOutputDataFromPinOptions() const;
 };
 
 
@@ -146,7 +181,6 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-
 	virtual bool DoOperation(FOperationData& InOperationData) const = 0;
 
 	/**
