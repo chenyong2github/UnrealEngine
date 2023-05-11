@@ -2489,6 +2489,8 @@ FTextureSource::FMipData FTextureSource::GetMipData(IImageWrapperModule* )
 	check(NumLockedMips == 0);
 
 #if WITH_EDITOR
+	// We can end up waiting here a lot as the bulk data gets serialized for entry in to the transaction buffer.
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureSource::GetMipData (StartLock) );
 	FReadScopeLock _(BulkDataLock.Get());
 #endif //WITH_EDITOR
 
