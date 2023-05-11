@@ -13,7 +13,7 @@
 bool FLoaderAdapterPinnedActors::PassActorDescFilter(const FWorldPartitionHandle& ActorHandle) const
 {
 	// We want to be able to pin any type of actors (HLODs, etc).
-	return ActorHandle.IsValid() && !ActorsToRemove.Contains(ActorHandle);
+	return ActorHandle.IsValid() && !ActorsToRemove.Contains(ActorHandle) && SupportsPinning(ActorHandle.Get());
 }
 
 bool FLoaderAdapterPinnedActors::SupportsPinning(FWorldPartitionActorDesc* InActorDesc)
@@ -25,6 +25,12 @@ bool FLoaderAdapterPinnedActors::SupportsPinning(FWorldPartitionActorDesc* InAct
 
 	// Only Spatially loaded actors can be pinned with the exception of non spatially loaded, runtime only actors (ex: HLODs)
 	if (!InActorDesc->GetIsSpatiallyLoaded() && !InActorDesc->GetActorIsRuntimeOnly())
+	{
+		return false;
+	}
+
+	// This allows skipping actors that can never be loaded in current context: ex: bActorShouldSkipLevelInstance
+	if (!InActorDesc->IsEditorRelevant() && !InActorDesc->GetActorIsRuntimeOnly())
 	{
 		return false;
 	}

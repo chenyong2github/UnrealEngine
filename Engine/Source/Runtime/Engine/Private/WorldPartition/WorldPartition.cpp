@@ -341,7 +341,7 @@ void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
 		{
 			if (Package->IsDirty())
 			{
-				DirtyActors.Add(ActorHandle.ToReference(), Actor);
+				ForceLoadedActors.Add(ActorHandle.ToReference(), Actor);
 			}
 		}
 	}
@@ -709,7 +709,7 @@ void UWorldPartition::Uninitialize()
 			RegisteredEditorLoaderAdapters.Empty();
 		}
 
-		DirtyActors.Empty();
+		ForceLoadedActors.Empty();
 
 		UninitializeActorDescContainers();
 		ActorDescContainer = nullptr;
@@ -833,11 +833,11 @@ void UWorldPartition::RegisterDelegates()
 			GEditor->OnPostBugItGoCalled().AddUObject(this, &UWorldPartition::OnPostBugItGoCalled);
 			GEditor->OnEditorClose().AddUObject(this, &UWorldPartition::SavePerUserSettings);
 			FWorldDelegates::OnPostWorldRename.AddUObject(this, &UWorldPartition::OnWorldRenamed);
+		}
 
-			if (!IsRunningCommandlet())
-			{
-				UPackage::PackageDirtyStateChangedEvent.AddUObject(this, &UWorldPartition::OnPackageDirtyStateChanged);
-			}
+		if (!IsRunningCommandlet())
+		{
+			UPackage::PackageDirtyStateChangedEvent.AddUObject(this, &UWorldPartition::OnPackageDirtyStateChanged);
 		}
 	}
 #endif
@@ -881,11 +881,11 @@ void UWorldPartition::UnregisterDelegates()
 
 			GEditor->OnPostBugItGoCalled().RemoveAll(this);
 			GEditor->OnEditorClose().RemoveAll(this);
+		}
 
-			if (!IsRunningCommandlet())
-			{
-				UPackage::PackageDirtyStateChangedEvent.RemoveAll(this);
-			}
+		if (!IsRunningCommandlet())
+		{
+			UPackage::PackageDirtyStateChangedEvent.RemoveAll(this);
 		}
 	}
 #endif
@@ -1140,7 +1140,7 @@ void UWorldPartition::OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc)
 
 	if (AActor* NewActor = NewActorDesc->GetActor())
 	{
-		DirtyActors.Add(FWorldPartitionReference(NewActorDesc->GetContainer(), NewActorDesc->GetGuid()), NewActor);
+		ForceLoadedActors.Add(FWorldPartitionReference(NewActorDesc->GetContainer(), NewActorDesc->GetGuid()), NewActor);
 	}
 
 	if (WorldPartitionEditor)
@@ -1373,7 +1373,7 @@ void UWorldPartition::AddReferencedObjects(UObject* InThis, FReferenceCollector&
 	if (IsGarbageCollecting())
 	{
 		Collector.AllowEliminatingReferences(false);
-		for (auto& [ActorReference, Actor] : This->DirtyActors)
+		for (auto& [ActorReference, Actor] : This->ForceLoadedActors)
 		{
 			Collector.AddReferencedObject(Actor);
 		}
@@ -1397,19 +1397,23 @@ void UWorldPartition::Tick(float DeltaSeconds)
 		EditorHash->Tick(DeltaSeconds);
 	}
 
-	if (PinnedActors)
+	for (TMap<FWorldPartitionReference, AActor*>::TIterator ForceLoadedActorIt(ForceLoadedActors); ForceLoadedActorIt; ++ForceLoadedActorIt)
 	{
-		for (TMap<FWorldPartitionReference, AActor*>::TIterator DirtyActorIt(DirtyActors); DirtyActorIt; ++DirtyActorIt)
+		if (!ForceLoadedActorIt.Key().IsValid())
 		{
-			if (!DirtyActorIt.Key().IsValid() || !DirtyActorIt.Value()->GetPackage()->IsDirty())
+			ForceLoadedActorIt.RemoveCurrent();
+		}
+		else if (!ForceLoadedActorIt.Value()->GetPackage()->IsDirty())
+		{
+			// Transfer ownership of the last ref if actor can be pinned
+			if (ForceLoadedActorIt.Key()->GetHardRefCount() <= 1 && PinnedActors && FLoaderAdapterPinnedActors::SupportsPinning(ForceLoadedActorIt.Key().Get()))
 			{
-				// If we hold the last reference to that actor (or no reference are held at all), pin it to avoid unloading
-				if (DirtyActorIt.Key().IsValid() && DirtyActorIt.Key()->GetHardRefCount() <= 1)
-				{
-					PinnedActors->AddActors({ DirtyActorIt.Key().ToHandle() });
-				}
-
-				DirtyActorIt.RemoveCurrent();
+				PinnedActors->AddActors({ ForceLoadedActorIt.Key().ToHandle() });
+				ForceLoadedActorIt.RemoveCurrent();
+			} // Clean up if a loader took a reference on the actor (ILoaderAdapter::RefreshLoadedState was called since)
+			else if (ForceLoadedActorIt.Key()->GetHardRefCount() > 1)
+			{
+				ForceLoadedActorIt.RemoveCurrent();
 			}
 		}
 	}
@@ -1853,11 +1857,11 @@ bool UWorldPartition::UnregisterActorDescContainer(UActorDescContainer* InActorD
 			{
 				ActorGuids.Add(It->GetGuid());
 
-				for (TMap<FWorldPartitionReference, AActor*>::TIterator DirtyActorIt(DirtyActors); DirtyActorIt; ++DirtyActorIt)
+				for (TMap<FWorldPartitionReference, AActor*>::TIterator ForceLoadedActorIt(ForceLoadedActors); ForceLoadedActorIt; ++ForceLoadedActorIt)
 				{
-					if (DirtyActorIt.Key() == ActorHandle)
+					if (ForceLoadedActorIt.Key() == ActorHandle)
 					{
-						DirtyActorIt.RemoveCurrent();
+						ForceLoadedActorIt.RemoveCurrent();
 					}
 				}
 			}
