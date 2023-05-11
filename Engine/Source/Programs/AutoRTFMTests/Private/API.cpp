@@ -28,7 +28,7 @@ TEST_CASE("API.autortfm_result")
 
     REQUIRE(42 == Answer);
 
-    REQUIRE(autortfm_aborted_by_language == autortfm_transact([](void* const Arg)
+    REQUIRE(autortfm_aborted_by_request == autortfm_transact([](void* const Arg)
     {
         *static_cast<int* const>(Arg) = 13;
         AutoRTFM::AbortIfTransactional();
@@ -167,7 +167,7 @@ TEST_CASE("API.autortfm_abort_if_transactional")
     REQUIRE(true == BeforeNest);
     REQUIRE(false == InNest);
     REQUIRE(true == AfterNest);
-    REQUIRE(AutoRTFM::ETransactionResult::AbortedByLanguage == NestResult);
+    REQUIRE(AutoRTFM::ETransactionResult::AbortedByRequest == NestResult);
 }
 
 TEST_CASE("API.autortfm_abort_if_closed")
@@ -179,7 +179,7 @@ TEST_CASE("API.autortfm_abort_if_closed")
     bool InNest = false;
     bool AfterNest = false;
 
-    REQUIRE(AutoRTFM::ETransactionResult::AbortedByLanguage == AutoRTFM::Transact([&]
+    REQUIRE(AutoRTFM::ETransactionResult::AbortedByRequest == AutoRTFM::Transact([&]
     {
         BeforeNest = true;
 
@@ -623,7 +623,7 @@ TEST_CASE("API.ETransactionResult")
 
     REQUIRE(42 == Answer);
 
-    REQUIRE(AutoRTFM::ETransactionResult::AbortedByLanguage == AutoRTFM::Transact([&]
+    REQUIRE(AutoRTFM::ETransactionResult::AbortedByRequest == AutoRTFM::Transact([&]
     {
         Answer = 13;
         AutoRTFM::AbortIfTransactional();
@@ -762,7 +762,7 @@ TEST_CASE("API.AbortIfTransactional")
     REQUIRE(true == BeforeNest);
     REQUIRE(false == InNest);
     REQUIRE(true == AfterNest);
-    REQUIRE(AutoRTFM::ETransactionResult::AbortedByLanguage == NestResult);
+    REQUIRE(AutoRTFM::ETransactionResult::AbortedByRequest == NestResult);
 }
 
 TEST_CASE("API.AbortIfClosed")
@@ -774,7 +774,7 @@ TEST_CASE("API.AbortIfClosed")
     bool InNest = false;
     bool AfterNest = false;
 
-    REQUIRE(AutoRTFM::ETransactionResult::AbortedByLanguage == AutoRTFM::Transact([&]
+    REQUIRE(AutoRTFM::ETransactionResult::AbortedByRequest == AutoRTFM::Transact([&]
     {
         BeforeNest = true;
 

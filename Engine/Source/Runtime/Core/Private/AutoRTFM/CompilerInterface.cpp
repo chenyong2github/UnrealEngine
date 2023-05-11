@@ -3,7 +3,6 @@
 #if (defined(__AUTORTFM) && __AUTORTFM)
 
 #include "ContextInlines.h"
-#include "Debug.h"
 #include "FunctionMapInlines.h"
 #include "Memcpy.h"
 
@@ -41,25 +40,21 @@ extern "C" void autortfm_record_write(FContext* Context, void* Ptr, size_t Size)
 
 extern "C" void* autortfm_lookup_function(FContext* Context, void* OriginalFunction, const char* Where)
 {
-    FDebug Debug(Context, OriginalFunction, nullptr, 0, 0, __FUNCTION__);
     return FunctionMapLookup(OriginalFunction, Context, Where);
 }
 
 extern "C" void autortfm_memcpy(void* Dst, const void* Src, size_t Size, FContext* Context)
 {
-    FDebug Debug(Context, Dst, Src, Size, 0, __FUNCTION__);
     Memcpy(Dst, Src, Size, Context);
 }
 
 extern "C" void autortfm_memmove(void* Dst, const void* Src, size_t Size, FContext* Context)
 {
-    FDebug Debug(Context, Dst, Src, Size, 0, __FUNCTION__);
     Memmove(Dst, Src, Size, Context);
 }
 
 extern "C" void autortfm_memset(void* Dst, int Value, size_t Size, FContext* Context)
 {
-    FDebug Debug(Context, Dst, nullptr, Size, 0, __FUNCTION__);
     Memset(Dst, Value, Size, Context);
 }
 
@@ -67,12 +62,13 @@ extern "C" void autortfm_llvm_fail(FContext* Context, const char* Message)
 {
     if (Message)
     {
-        fprintf(stderr, "Transaction failing because of language issue:\n%s\n", Message);
+		UE_LOG(LogAutoRTFM, Warning, TEXT("Transaction failing because of language issue '%s'."), Message);
     }
     else
     {
-        fprintf(stderr, "Transaction failing because of language issue.\n");
-    }
+		UE_LOG(LogAutoRTFM, Warning, TEXT("Transaction failing because of language issue."));
+	}
+
     Context->AbortByLanguageAndThrow();
 }
 
@@ -83,15 +79,14 @@ extern "C" void autortfm_llvm_alignment_error(FContext* Context, void* Ptr, size
 
 extern "C" void autortfm_llvm_error(FContext* Context, const char* Message)
 {
-    if (Message)
-    {
-        fprintf(stderr, "Aborting because LLVM error:\n%s\n", Message);
-    }
-    else
-    {
-        fprintf(stderr, "Aborting because LLVM error.\n");
-    }
-    abort();
+	if (Message)
+	{
+		UE_LOG(LogAutoRTFM, Fatal, TEXT("Transaction failing because of LLVM issue '%s'."), Message);
+	}
+	else
+	{
+		UE_LOG(LogAutoRTFM, Fatal, TEXT("Transaction failing because of LLVM issue."));
+	}
 }
 
 } // namespace AutoRTFM

@@ -73,7 +73,12 @@ void FMsg::LogV(const ANSICHAR* File, int32 Line, const FLogCategoryName& Catego
 		default:
 			break;
 		}
-		(OutputDevice ? OutputDevice : GLog)->Serialize(Message, Verbosity, Category);
+
+		// Logging is always done in the open as we want logs even with transactionalized code.
+		AutoRTFM::Open([OutputDevice, Message, Verbosity, Category]
+		{
+			(OutputDevice ? OutputDevice : GLog)->Serialize(Message, Verbosity, Category);
+		});
 	}
 	else
 	{

@@ -566,7 +566,7 @@ struct FRegisterOpenFunction
 
 #if UE_AUTORTFM
 #define UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(OriginalFunction, NewFunction) static const FRegisterOpenFunction UE_AUTORTFM_CONCAT(AutoRTFMFunctionRegistration, __COUNTER__)(reinterpret_cast<void*>(OriginalFunction), reinterpret_cast<void*>(NewFunction))
-#define UE_AUTORTFM_REGISTER_OPEN_FUNCTION(OriginalFunction) UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(OriginalFunction, STM_ ## OriginalFunction)
+#define UE_AUTORTFM_REGISTER_OPEN_FUNCTION(OriginalFunction) UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(OriginalFunction, RTFM_ ## OriginalFunction)
 #define UE_AUTORTFM_REGISTER_SELF_FUNCTION(OriginalFunction) UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(OriginalFunction, OriginalFunction)
 #else
 #define UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(OriginalFunction, NewFunction)

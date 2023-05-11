@@ -15,11 +15,15 @@ inline void* FunctionMapLookup(void* OldFunction, FContext* Context, const char*
     void* Result = FunctionMapTryLookup(OldFunction);
     if (!Result)
     {
-        fprintf(stderr, "Could not find function %p (%s)\n", OldFunction, TCHAR_TO_ANSI(*GetFunctionDescription(OldFunction)));
-        if (Where)
-        {
-            fprintf(stderr, "%s\n", Where);
-        }
+		if (Where)
+		{
+			UE_LOG(LogAutoRTFM, Warning, TEXT("Could not find function %p '%s' where '%s'."), OldFunction, *GetFunctionDescription(OldFunction), Where);
+		}
+		else
+		{
+			UE_LOG(LogAutoRTFM, Warning, TEXT("Could not find function %p '%s'."), OldFunction, *GetFunctionDescription(OldFunction));
+		}
+
         Context->AbortByLanguageAndThrow();
     }
     return Result;

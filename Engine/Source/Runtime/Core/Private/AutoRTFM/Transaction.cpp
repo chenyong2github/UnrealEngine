@@ -4,7 +4,6 @@
 #include "Transaction.h"
 #include "TransactionInlines.h"
 #include "CallNestInlines.h"
-#include "Debug.h"
 #include "GlobalData.h"
 
 namespace AutoRTFM
@@ -26,14 +25,13 @@ bool FTransaction::IsFresh() const
 
 void FTransaction::AbortWithoutThrowing()
 {
-    if (FDebug::bVerbose)
-    {
-        fprintf(GetLogFile(), "Aborting (%s)\n", GetContextStatusName(Context->GetStatus()));
-    }
+	UE_LOG(LogAutoRTFM, Verbose, TEXT("Aborting '%s'!"), GetContextStatusName(Context->GetStatus()));
+
     ASSERT(Context->GetStatus() == EContextStatus::AbortedByFailedLockAcquisition
            || Context->GetStatus() == EContextStatus::AbortedByLanguage
            || Context->GetStatus() == EContextStatus::AbortedByRequest);
     ASSERT(Context->GetCurrentTransaction() == this);
+
     if (IsNested())
     {
         AbortNested();
@@ -71,14 +69,10 @@ bool FTransaction::AttemptToCommit()
 
 void FTransaction::Undo()
 {
-	const bool bVerboseUndo = false;
-
-	if (bVerboseUndo)
-	{
-		fprintf(GetLogFile(), "[FTransaction::Undo] START\n");
-	}
+	UE_LOG(LogAutoRTFM, Verbose, TEXT("Undoing a transaction..."));
 
 	int VerboseCounter = 0;
+
 	for(auto Iter = WriteLog.rbegin(); Iter != WriteLog.rend(); ++Iter)
     {
 		FWriteLogEntry& Entry = *Iter;
@@ -94,29 +88,30 @@ void FTransaction::Undo()
         const size_t Size = Entry.OriginalAndSize.GetTopTag();
         void* const Copy = Entry.Copy;
 
-		if (bVerboseUndo)
+		if (UE_LOG_ACTIVE(LogAutoRTFM, Verbose))
 		{
-			FILE* LogFile = GetLogFile();
-			fprintf(LogFile, "%4d [UNDO] %p %4llu : ", VerboseCounter, Original, Size);
+			TStringBuilder<1024> Builder;
+
+			Builder.Appendf(TEXT("%4d [UNDO] %p %4llu : [ "), VerboseCounter, Original, Size);
 
 			unsigned char* Current = (unsigned char*)Original;
 			unsigned char* Old = (unsigned char*)Copy;
 
-			fprintf(LogFile, "[");
-
-			for(size_t i = 0; i < Size; i++)
+			for (size_t i = 0; i < Size; i++)
 			{
-				fprintf(LogFile, "%02X ", Current[i]);
+				Builder.Appendf(TEXT("%02X "), Current[i]);
 			}
 
-			fprintf(LogFile, "] -> [");
+			Builder << TEXT("] -> [ ");
 
-			for(size_t i = 0; i < Size; i++)
+			for (size_t i = 0; i < Size; i++)
 			{
-				fprintf(LogFile, "%02X ", Old[i]);
+				Builder.Appendf(TEXT("%02X "), Old[i]);
 			}
 
-			fprintf(LogFile, "]\n");
+			Builder << TEXT("]");
+
+			UE_LOG(LogAutoRTFM, Verbose, TEXT("%s"), Builder.ToString());
 		}
 
         memcpy(Original, Copy, Size);
@@ -124,10 +119,7 @@ void FTransaction::Undo()
 		VerboseCounter++;
     }
 
-	if (bVerboseUndo)
-	{
-		fprintf(GetLogFile(), "[FTransaction::Undo] END\n");
-	}
+	UE_LOG(LogAutoRTFM, Verbose, TEXT("Undone a transaction!"));
 }
 
 void FTransaction::AbortNested()
@@ -190,12 +182,9 @@ bool FTransaction::AttemptToCommitOuterNest()
 {
     ASSERT(!Parent);
 
-    if (FDebug::bVerbose)
-    {
-        fprintf(GetLogFile(), "About to run commit tasks!\n");
-        Context->DumpState();
-        fprintf(GetLogFile(), "Running commit tasks...\n");
-    }
+	UE_LOG(LogAutoRTFM, Verbose, TEXT("About to run commit tasks!"));
+	Context->DumpState();
+	UE_LOG(LogAutoRTFM, Verbose, TEXT("Running commit tasks..."));
 
     CommitTasks.ForEachForward([] (const TFunction<void()>& Task) -> bool { Task(); return true; });
 

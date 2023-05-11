@@ -95,12 +95,9 @@ ETransactionResult FContext::CommitTransaction()
 	}
 	else
 	{
-		if (bVerbose)
-		{
-			fprintf(GetLogFile(), "About to commit; my state is:\n");
-			DumpState();
-			fprintf(GetLogFile(), "Committing...\n");
-		}
+		UE_LOG(LogAutoRTFM, Verbose, TEXT("About to commit; my state is:"));
+		DumpState();
+		UE_LOG(LogAutoRTFM, Verbose, TEXT("Committing..."));
 
 		if (CurrentTransaction->AttemptToCommit())
 		{
@@ -108,10 +105,7 @@ ETransactionResult FContext::CommitTransaction()
 		}
 		else
 		{
-			if (bVerbose)
-			{
-				fprintf(GetLogFile(), "Commit failed!\n");
-			}
+			UE_LOG(LogAutoRTFM, Verbose, TEXT("Commit failed!"));
 			ASSERT(Status != EContextStatus::OnTrack);
 			ASSERT(Status != EContextStatus::Idle);
 		}
@@ -259,7 +253,7 @@ ETransactionResult FContext::Transact(void (*Function)(void* Arg), void* Arg)
     void (*ClonedFunction)(void* Arg, FContext* Context) = FunctionMapTryLookup(Function);
     if (!ClonedFunction)
     {
-        fprintf(stderr, "Could not find function %p (%s) in AutoRTFM::FContext::Transact.\n", Function, TCHAR_TO_ANSI(*GetFunctionDescription(Function)));
+		UE_LOG(LogAutoRTFM, Warning, TEXT("Could not find function %p (%s) in AutoRTFM::FContext::Transact."), Function, *GetFunctionDescription(Function));
         return ETransactionResult::AbortedByLanguage;
     }
     
@@ -295,12 +289,9 @@ ETransactionResult FContext::Transact(void (*Function)(void* Arg), void* Arg)
 
             if (Status == EContextStatus::OnTrack)
             {
-                if (bVerbose)
-                {
-                    fprintf(GetLogFile(), "About to commit; my state is:\n");
-                    DumpState();
-                    fprintf(GetLogFile(), "Committing...\n");
-                }
+				UE_LOG(LogAutoRTFM, Verbose, TEXT("About to commit; my state is:"));
+				DumpState();
+				UE_LOG(LogAutoRTFM, Verbose, TEXT("Committing..."));
 
                 if (CurrentTransaction->AttemptToCommit())
                 {
@@ -308,33 +299,25 @@ ETransactionResult FContext::Transact(void (*Function)(void* Arg), void* Arg)
                     break;
                 }
 
-                if (bVerbose)
-                {
-                    fprintf(GetLogFile(), "Commit failed!\n");
-                }
+				UE_LOG(LogAutoRTFM, Verbose, TEXT("Commit failed!"));
 
                 ASSERT(Status != EContextStatus::OnTrack);
                 ASSERT(Status != EContextStatus::Idle);
             }
+
             if (Status == EContextStatus::AbortedByRequest)
             {
                 Result = ETransactionResult::AbortedByRequest;
                 break;
             }
+
             if (Status == EContextStatus::AbortedByLanguage)
             {
                 Result = ETransactionResult::AbortedByLanguage;
                 break;
             }
-            ASSERT(Status == EContextStatus::AbortedByFailedLockAcquisition);
 
-            if (bVerbose)
-            {
-                fprintf(GetLogFile(), "About to prelock some locks!\n");
-            }
-            ASSERT(!bLocksToHoldAreHeld);
-            
-            bLocksToHoldAreHeld = true;
+            ASSERT(Status == EContextStatus::AbortedByFailedLockAcquisition);
         }
 
 		NewTransaction->SetIsDone();
@@ -387,13 +370,8 @@ void FContext::AbortByRequestWithoutThrowing()
 
 void FContext::AbortByLanguageAndThrow()
 {
-    constexpr bool bAbortProgram = false;
+	UE_DEBUG_BREAK();
     ASSERT(Status == EContextStatus::OnTrack);
-    if (bAbortProgram)
-    {
-        fprintf(stderr, "FATAL: Unexpected language abort.\n");
-        abort();
-    }
     Status = EContextStatus::AbortedByLanguage;
     CurrentTransaction->AbortAndThrow();
 }
@@ -436,8 +414,7 @@ void FContext::Throw()
 
 void FContext::DumpState() const
 {
-    fprintf(GetLogFile(), "Context at %p.\n", this);
-    fprintf(GetLogFile(), "Transaction stack: %p...%p\n", StackBegin, OuterTransactStackAddress);
+	UE_LOG(LogAutoRTFM, Verbose, TEXT("Context at %p, transaction stack: %p..%p."), this, StackBegin, OuterTransactStackAddress);
 }
 
 } // namespace AutoRTFM

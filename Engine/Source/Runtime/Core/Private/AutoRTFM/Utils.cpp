@@ -16,40 +16,10 @@
 #include "Containers/StringConv.h"
 #include "Misc/CoreMiscDefines.h"
 
+DEFINE_LOG_CATEGORY(LogAutoRTFM)
+
 namespace AutoRTFM
 {
-
-// To log to a file, comment out LogFilename = nullptr and uncomment the other one.
-constexpr const char* LogFilename = nullptr;
-// constexpr const char* LogFilename = "log.txt";
-
-constexpr const char* LogFileMode = "wt";
-
-FILE* LogFile;
-
-FILE* GetLogFile()
-{
-    UE_CALL_ONCE([]
-    {
-        if (LogFilename)
-        {
-            ASSERT(LogFileMode);
-
-            LogFile = fopen(LogFilename, LogFileMode);
-
-            if (!LogFile)
-            {
-                fprintf(stderr, "Could not open %s: %s\n", LogFilename, strerror(errno));
-            }
-        }
-        if (!LogFile)
-        {
-            LogFile = stderr;
-        }
-        setvbuf(LogFile, NULL, _IONBF, 0);
-    });
-    return LogFile;
-}
 
 FString GetFunctionDescription(void* FunctionPtr)
 {

@@ -51,9 +51,8 @@ inline void FTransaction::RecordWrite(void* LogicalAddress, size_t Size, bool bI
 		&& !bIsClosed
 		&& Context->IsInnerTransactionStack(LogicalAddress))
 	{
-		// It is an error to write to stack variables within an open nest
-		fprintf(stderr, "FATAL: Writing to local stack memory from an unscoped transaction is not allowed.\n");
-		abort();
+		// It is an error to write to stack variables within an open nest.
+		UE_LOG(LogAutoRTFM, Fatal, TEXT("Writing to local stack memory from an unscoped transaction is not allowed."));
 	}
 
     uint8_t* Address = reinterpret_cast<uint8_t*>(LogicalAddress);

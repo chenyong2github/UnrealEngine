@@ -28,7 +28,7 @@ UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(memcpy, Memcpy);
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(memmove, Memmove);
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION_EXPLICIT(memset, Memset);
 
-void* STM_malloc(size_t Size, FContext* Context)
+void* RTFM_malloc(size_t Size, FContext* Context)
 {
     void* Result = malloc(Size);
     Context->GetCurrentTransaction()->DeferUntilAbort([Result]
@@ -41,7 +41,7 @@ void* STM_malloc(size_t Size, FContext* Context)
 
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(malloc);
 
-void STM_free(void* Ptr, FContext* Context)
+void RTFM_free(void* Ptr, FContext* Context)
 {
     if (Ptr)
     {
@@ -53,9 +53,9 @@ void STM_free(void* Ptr, FContext* Context)
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(free);
 
-void* STM_realloc(void* Ptr, size_t Size, FContext* Context)
+void* RTFM_realloc(void* Ptr, size_t Size, FContext* Context)
 {
-    void* NewObject = STM_malloc(Size, Context);
+    void* NewObject = RTFM_malloc(Size, Context);
     if (Ptr)
     {
 #if defined(__APPLE__)
@@ -66,13 +66,13 @@ void* STM_realloc(void* Ptr, size_t Size, FContext* Context)
 		const size_t OldSize = malloc_usable_size(Ptr);
 #endif
         MemcpyToNew(NewObject, Ptr,  FMath::Min(OldSize, Size), Context);
-        STM_free(Ptr, Context);
+        RTFM_free(Ptr, Context);
     }
     return NewObject;
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(realloc);
 
-char* STM_strcpy(char* const Dst, const char* const Src, FContext* const Context)
+char* RTFM_strcpy(char* const Dst, const char* const Src, FContext* const Context)
 {
     const size_t SrcLen = strlen(Src);
 
@@ -81,14 +81,14 @@ char* STM_strcpy(char* const Dst, const char* const Src, FContext* const Context
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strcpy);
 
-char* STM_strncpy(char* const Dst, const char* const Src, const size_t Num, FContext* const Context)
+char* RTFM_strncpy(char* const Dst, const char* const Src, const size_t Num, FContext* const Context)
 {
     Context->RecordWrite(Dst, Num, true);
     return strncpy(Dst, Src, Num);
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strncpy);
 
-char* STM_strcat(char* const Dst, const char* const Src, FContext* const Context)
+char* RTFM_strcat(char* const Dst, const char* const Src, FContext* const Context)
 {
     const size_t DstLen = strlen(Dst);
     const size_t SrcLen = strlen(Src);
@@ -98,7 +98,7 @@ char* STM_strcat(char* const Dst, const char* const Src, FContext* const Context
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strcat);
 
-char* STM_strncat(char* const Dst, const char* const Src, const size_t Num, FContext* const Context)
+char* RTFM_strncat(char* const Dst, const char* const Src, const size_t Num, FContext* const Context)
 {
     const size_t DstLen = strlen(Dst);
 
@@ -154,7 +154,7 @@ UE_AUTORTFM_REGISTER_SELF_FUNCTION(llrint);
 // - Str is newly allocated
 // - Format is either newly allocated or not mutated
 // - any strings passed as arguments are either newly allocated or not mutated
-int STM_snprintf(char* Str, size_t Size, char* Format, FContext* Context, ...)
+int RTFM_snprintf(char* Str, size_t Size, char* Format, FContext* Context, ...)
 {
     va_list ArgList;
     va_start(ArgList, Context);
@@ -164,7 +164,7 @@ int STM_snprintf(char* Str, size_t Size, char* Format, FContext* Context, ...)
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(snprintf);
 
-int STM_printf(const char* Format, FContext* Context, ...)
+int RTFM_printf(const char* Format, FContext* Context, ...)
 {
     va_list ArgList;
     va_start(ArgList, Context);
@@ -174,13 +174,13 @@ int STM_printf(const char* Format, FContext* Context, ...)
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(printf);
 
-int STM_putchar(int Char, FContext* Context)
+int RTFM_putchar(int Char, FContext* Context)
 {
     return putchar(Char);
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(putchar);
 
-int STM_puts(const char* Str, FContext* Context)
+int RTFM_puts(const char* Str, FContext* Context)
 {
     return puts(Str);
 }
@@ -188,7 +188,7 @@ UE_AUTORTFM_REGISTER_OPEN_FUNCTION(puts);
 
 #if PLATFORM_WINDOWS
 
-FILE* STM___acrt_iob_func(int Index, FContext* Context)
+FILE* RTFM___acrt_iob_func(int Index, FContext* Context)
 {
     switch (Index)
     {
@@ -196,7 +196,7 @@ FILE* STM___acrt_iob_func(int Index, FContext* Context)
     case 2:
         return __acrt_iob_func(Index);
     default:
-        fprintf(stderr, "Attempt to get file descriptor %d (not 1 or 2) in __acrt_iob_func.\n", Index);
+		UE_LOG(LogAutoRTFM, Warning, TEXT("Attempt to get file descriptor %d (not 1 or 2) in __acrt_iob_func."), Index);
         Context->AbortByLanguageAndThrow();
         return NULL;
     }
@@ -227,7 +227,7 @@ UE_AUTORTFM_REGISTER_SELF_FUNCTION(GetCurrentThreadId);
 
 UE_AUTORTFM_REGISTER_SELF_FUNCTION(TlsGetValue);
 
-BOOL STM_TlsSetValue(DWORD dwTlsIndex, LPVOID lpTlsValue, FContext* Context)
+BOOL RTFM_TlsSetValue(DWORD dwTlsIndex, LPVOID lpTlsValue, FContext* Context)
 {
 	LPVOID CurrentValue = TlsGetValue(dwTlsIndex);
 
@@ -241,7 +241,7 @@ BOOL STM_TlsSetValue(DWORD dwTlsIndex, LPVOID lpTlsValue, FContext* Context)
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(TlsSetValue);
 #endif // PLATFORM_WINDOWS
 
-wchar_t* STM_wcsncpy(wchar_t* Dst, const wchar_t* Src, size_t Count, FContext* Context)
+wchar_t* RTFM_wcsncpy(wchar_t* Dst, const wchar_t* Src, size_t Count, FContext* Context)
 {
 	AutoRTFM::Unreachable();
 }
@@ -261,7 +261,7 @@ UE_AUTORTFM_REGISTER_OPEN_FUNCTION(wcsncpy);
 #pragma warning(pop)
 #endif
 
-int STM_atexit(void(__cdecl*Callback)(void), FContext* Context)
+int RTFM_atexit(void(__cdecl*Callback)(void), FContext* Context)
 {
 	Context->GetCurrentTransaction()->DeferUntilCommit([Callback]
 		{

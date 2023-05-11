@@ -8,6 +8,10 @@
 #include <atomic>
 #include <vector>
 #include <cstring>
+#include "Logging/LogMacros.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogAutoRTFMTests, Display, All)
+DEFINE_LOG_CATEGORY(LogAutoRTFMTests)
 
 TEST_CASE("Tests.WriteInt")
 {
@@ -16,6 +20,14 @@ TEST_CASE("Tests.WriteInt")
         AutoRTFM::ETransactionResult::Committed ==
         AutoRTFM::Transact([&] () { X = 2; }));
     REQUIRE(X == 2);
+}
+
+TEST_CASE("Tests.UE_LOG")
+{
+	AutoRTFM::Commit([&]
+	{
+		UE_LOG(LogAutoRTFMTests, Display, TEXT("Testing this works!"));
+	});
 }
 
 // This test ensures that if you have STM and non-STM modifying data that is

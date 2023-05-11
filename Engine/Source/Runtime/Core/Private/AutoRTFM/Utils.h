@@ -9,20 +9,18 @@
 #include <stdlib.h>
 
 #include "Containers/UnrealString.h"
+#include "Logging/LogMacros.h"
 
-#define ASSERT(exp) do { \
-    if (!(exp)) { \
-        fprintf(stderr, "%s:%d:%s: assertion %s failed.\n", __FILE__, __LINE__, __PRETTY_FUNCTION__, #exp); \
-        abort(); \
-    } \
-} while (false)
+DECLARE_LOG_CATEGORY_EXTERN(LogAutoRTFM, NoLogging, All)
+
+#define ASSERT(exp) UE_CLOG(!(exp), LogAutoRTFM, Fatal, TEXT("%s:%d:%s: assertion %s failed."), __FILE__, __LINE__, __PRETTY_FUNCTION__, #exp)
 
 namespace AutoRTFM
 {
 
 [[noreturn]] inline void Unreachable()
 {
-    fprintf(stderr, "Unreachable encountered!\n");
+	UE_LOG(LogAutoRTFM, Fatal, TEXT("Unreachable encountered!"));
 
 #if PLATFORM_WINDOWS
     __assume(false);
@@ -30,8 +28,6 @@ namespace AutoRTFM
     __builtin_unreachable();
 #endif // PLATFORM_WINDOWS
 }
-
-FILE* GetLogFile();
 
 FString GetFunctionDescription(void* FunctionPtr);
 

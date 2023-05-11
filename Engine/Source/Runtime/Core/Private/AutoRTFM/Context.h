@@ -78,7 +78,6 @@ private:
     void* StackEnd{nullptr};
     void* OuterTransactStackAddress{nullptr};
     void* CurrentTransactStackAddress{nullptr};
-    bool bLocksToHoldAreHeld{false};
     EContextStatus Status{EContextStatus::Idle};
 };
 
