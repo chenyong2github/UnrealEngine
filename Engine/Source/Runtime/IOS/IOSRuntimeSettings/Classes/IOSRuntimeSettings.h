@@ -204,6 +204,10 @@ public:
 	// Whether or not to compile iOS Metal shaders for the desktop renderer (requires iOS 10+ and an A10 processor)
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Rendering, meta = (DisplayName = "Metal Desktop Renderer"))
 	bool bSupportsMetalMRT;
+    
+    // Should the app be compatible for high refresh rate (iPhone only)
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Rendering", meta = (DisplayName = "Enable ProMotion 120Hz on supported iPhone devices"))
+    bool bSupportHighRefreshRates;
 	
 	// Support a secondary remote mac ?
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (DisplayName = "Supports a secondary remote mac to facilitate debug of iOS / tvOS builds"))

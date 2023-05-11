@@ -528,6 +528,16 @@ namespace UnrealBuildTool
 					Text.AppendLine("\t<array><string>runs-as-current-user</string></array>");
 				}
 
+				// Support high refresh rates (iPhone only)
+				// https://developer.apple.com/documentation/quartzcore/optimizing_promotion_refresh_rates_for_iphone_13_pro_and_ipad_pro
+				bool bSupportHighRefreshRates = false;
+				PlatformGameConfig.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportHighRefreshRates", out bSupportHighRefreshRates);
+
+				if (bSupportHighRefreshRates && Platform == UnrealTargetPlatform.IOS)
+				{
+					Text.AppendLine("\t<key>CADisableMinimumFrameDurationOnPhone</key><true/>");
+				}
+
 
 				// End of entitlements
 				Text.AppendLine("</dict>");

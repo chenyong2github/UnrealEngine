@@ -49,6 +49,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
     bEnableBackgroundFetch = false;
 	bSupportsMetal = true;
 	bSupportsMetalMRT = false;
+    bSupportHighRefreshRates = false;
 	bDisableHTTPS = false;
     bSupportsBackgroundAudio = false;
 }
