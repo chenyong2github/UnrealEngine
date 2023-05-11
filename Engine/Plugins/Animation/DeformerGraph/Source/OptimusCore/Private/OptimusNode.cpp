@@ -10,6 +10,7 @@
 #include "OptimusBindingTypes.h"
 #include "OptimusDeformer.h"
 #include "OptimusDiagnostic.h"
+#include "OptimusHelpers.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
 #include "OptimusObjectVersion.h"
@@ -377,6 +378,11 @@ void UOptimusNode::PostLoad()
 
 	// Earlier iterations didn't set this flag. 
 	SetFlags(RF_Transactional);
+
+	for (UOptimusNodePin* Pin : Pins)
+	{
+		Pin->ConditionalPostLoad();
+	}
 }
 
 
@@ -660,9 +666,8 @@ bool UOptimusNode::RemovePinDirect(UOptimusNodePin* InPin)
 	for (UOptimusNodePin* Pin: PinsToRemove)
 	{
 		ExpandedPins.Remove(Pin->GetUniqueName());
-		
-		Pin->Rename(nullptr, GetTransientPackage());
-		Pin->MarkAsGarbage();
+
+		Optimus::RemoveObject(Pin);
 	}
 
 	CachedPinLookup.Reset();
@@ -741,6 +746,20 @@ bool UOptimusNode::MovePinDirect(
 	return true;
 }
 
+bool UOptimusNode::MovePinToGroupPinDirect(UOptimusNodePin* InPinToMove, UOptimusNodePin* InGroupPin)
+{
+	UOptimusNodePin* CurrentGroupPin = InPinToMove->GetParentPin();
+	TArray<UOptimusNodePin*>& PinGroup = CurrentGroupPin ? CurrentGroupPin->SubPins : Pins;
+	
+	PinGroup.Remove(InPinToMove);
+
+	Optimus::RenameObject(InPinToMove, nullptr, InGroupPin);
+	
+	InsertPinIntoHierarchy(InPinToMove, InGroupPin, nullptr);
+
+	return true;
+}
+
 
 bool UOptimusNode::SetPinDataType
 (
@@ -794,10 +813,10 @@ bool UOptimusNode::SetPinDataTypeDirect(
 		{
 			// Remove all sub-pins, if there were any.		
 			TGuardValue<bool> SuppressNotifications(bSendNotifications, false);
-				
+			
 			// If the type was already a sub-element type, remove the existing pins.
 			InPin->ClearSubPins();
-				
+			
 			// Add sub-pins, if the registered type is set to show them but only for value types.
 			if (EnumHasAllFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
 			{
@@ -807,7 +826,7 @@ bool UOptimusNode::SetPinDataTypeDirect(
 				}
 			}
 		}
-
+		
 		if (CanNotify())
 		{
 			InPin->Notify(EOptimusGraphNotifyType::PinTypeChanged);

@@ -19,6 +19,7 @@ struct OPTIMUSCORE_API FOptimusObjectVersion
 		ComponentProviderSupport,
 		SetPrimaryBindingName,
 		DataDomainExpansion,
+		KernelDataInterface,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

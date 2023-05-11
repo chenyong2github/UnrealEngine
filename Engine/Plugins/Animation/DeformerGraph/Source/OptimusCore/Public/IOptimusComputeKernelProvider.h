@@ -50,6 +50,8 @@ using FOptimus_NodeToDataInterfaceMap =  TMap<const UOptimusNode*, UOptimusCompu
 // that it represents.
 using FOptimus_PinToDataInterfaceMap = TMap<const UOptimusNodePin*, UOptimusComputeDataInterface*>;
 
+// Maps from a kernel node to the kernel data interface 
+using FOptimus_KernelNodeToKernelDataInterfaceMap = TMap<const UOptimusNode*, UComputeDataInterface*>;
 
 using FOptimus_ComputeKernelResult = TVariant<UOptimusKernelSource* /* Kernel */, FText /* Error */>;
 
@@ -78,6 +80,7 @@ public:
 	 * @param InValueNodes
 	 * @param InGraphDataInterface
 	 * @param InGraphDataComponentBinding
+	 * @param InKernelDataInterface
 	 * @param OutInputDataBindings
 	 * @param OutOutputDataBindings
 	 * @param OutExecutionDataInterface
@@ -90,6 +93,7 @@ public:
 		const TArray<const UOptimusNode*>& InValueNodes,
 		const UComputeDataInterface* InGraphDataInterface,
 		const UOptimusComponentSourceBinding* InGraphDataComponentBinding,
+		const UComputeDataInterface* InKernelDataInterface,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings,
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 		) const = 0;
@@ -97,8 +101,9 @@ public:
 	/** Returns the execution domain that this kernel should iterate over */
 	virtual FName GetExecutionDomain() const = 0;
 
-	/** Returns the input pins of the primary group only. Used for traversing up the graph to identify the component
-	 *  source.
-	 */
-	virtual TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const = 0; 
+	/** Used for traversing up the graph to identify the component source of the compute kernel */
+	virtual const UOptimusNodePin* GetPrimaryGroupPin() const = 0;
+	
+	/** Each kernel may have its own data interface responsible for passing kernel related data to GPU */
+	virtual UComputeDataInterface* GetKernelDataInterface(UObject* InOuter) const = 0;
 };

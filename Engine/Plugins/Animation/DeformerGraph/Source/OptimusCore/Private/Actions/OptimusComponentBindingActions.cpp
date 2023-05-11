@@ -5,6 +5,7 @@
 #include "IOptimusPathResolver.h"
 #include "OptimusComponentSource.h"
 #include "OptimusDeformer.h"
+#include "OptimusHelpers.h"
 
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h" 
@@ -58,7 +59,7 @@ bool FOptimusComponentBindingAction_AddBinding::Do(IOptimusPathResolver* InRoot)
 
 	if (!Deformer->AddComponentBindingDirect(Binding, INDEX_NONE))
 	{
-		Binding->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Binding);
 		return false;
 	}
 
@@ -133,7 +134,7 @@ bool FOptimusComponentBindingAction_RemoveBinding::Undo(IOptimusPathResolver* In
 
 	if (!Deformer->AddComponentBindingDirect(Binding, ComponentBindingIndex))
 	{
-		Binding->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Binding);
 		return false;
 	}
 

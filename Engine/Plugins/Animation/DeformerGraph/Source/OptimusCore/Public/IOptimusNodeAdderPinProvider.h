@@ -43,6 +43,4 @@ public:
 		) = 0;
 	
 	virtual bool RemoveAddedPins(TConstArrayView<UOptimusNodePin*> InAddedPinsToRemove) = 0;
-
-	virtual FName GetSanitizedNewPinName(UOptimusNodePin* InTargetParentPin, FName InPinName)= 0;
 };

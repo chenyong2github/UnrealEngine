@@ -52,7 +52,7 @@ bool FOptimusVariableAction_AddVariable::Do(IOptimusPathResolver* InRoot)
 
 	if (!Deformer->AddVariableDirect(Variable, INDEX_NONE))
 	{
-		Variable->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Variable);
 		return false;
 	}
 	
@@ -139,7 +139,7 @@ bool FOptimusVariableAction_RemoveVariable::Undo(IOptimusPathResolver* InRoot)
 	
 	if (!Deformer->AddVariableDirect(Variable, VariableIndex))
 	{
-		Variable->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Variable);
 		return false;
 	}
 	

@@ -2,6 +2,7 @@
 
 #include "DeformerDataInterfaceGroomExec.h"
 
+#include "DeformerGroomComponentSource.h"
 #include "GroomComponent.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "ShaderCompilerCore.h"
@@ -79,6 +80,21 @@ UComputeDataProvider* UOptimusGroomExecDataInterface::CreateDataProvider(TObject
 	Provider->GroomComponent = Cast<UGroomComponent>(InBinding);
 	Provider->Domain = Domain;
 	return Provider;
+}
+
+FName UOptimusGroomExecDataInterface::GetSelectedExecutionDomainName() const
+{
+	if (Domain == EOptimusGroomExecDomain::ControlPoint)
+	{
+		return UOptimusGroomComponentSource::Domains::ControlPoint;
+	}
+
+	if (Domain == EOptimusGroomExecDomain::Curve)
+	{
+		return UOptimusGroomComponentSource::Domains::Curve;
+	}
+
+	return NAME_None;
 }
 
 

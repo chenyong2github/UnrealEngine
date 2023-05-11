@@ -380,7 +380,7 @@ public:
 			ExpanderWidget =
 				SNew(SOptimusEditorExpanderArrow, InOptionalOwnerRow)
 					.LeftAligned(bLeftAligned)
-					.AlwaysVisible(bIsGroupPin);
+					.AlwaysVisible(false);
 		}
 		else
 		{
@@ -557,6 +557,18 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 	        .ItemHeight(20.0f)
 		];
 
+	// Padding for group pin
+	if (EditorGraphNode->GetTopLevelInputPins().IsValidIndex(0) &&
+		EditorGraphNode->GetTopLevelInputPins()[0]->IsGroupingPin())
+	{
+		RightNodeBox->AddSlot()
+			.MaxHeight(26.0f)
+			[
+				SNew(SSpacer)
+				.Size(FVector2d(1.0f,26.0f))
+			];
+	}
+	
 	RightNodeBox->AddSlot()
 	    .AutoHeight()
 		[
@@ -590,7 +602,7 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 			EHorizontalAlignment Alignment = Direction == EGPD_Input ? HAlign_Left : HAlign_Right;
 			
 			NodeBox->AddSlot()
-				.MaxHeight(22.0f)
+				.MaxHeight(26.0f)
 				.HAlign(Alignment)
 				[
 					SNew(SHorizontalBox)
@@ -754,7 +766,7 @@ void SOptimusEditorGraphNode::UpdatePinIcon(
 	{
 		if (ModelPin->IsGroupingPin())
 		{
-			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Grouping, CachedImg_Pin_Grouping);
+			InPinToUpdate->SetCustomPinIcon(CachedImg_Pin_Value_Connected, CachedImg_Pin_Value_Disconnected);
 		}
 		else if (ModelPin->GetDataDomain().IsSingleton())
 		{
@@ -979,7 +991,9 @@ TSharedRef<ITableRow> SOptimusEditorGraphNode::MakeTableRowWidget(
 	}
 	else
 	{
-		RowWidget->SetToolTipText(LOCTEXT("GroupPinToolTip", "Click to open or close the pin group"));
+		RowWidget->SetToolTipText(
+			LOCTEXT("GroupPinToolTip",
+				"Group Pin accepts direct connection from Component Source Node"));
 	}
 
 	RowWidget->SetContent(

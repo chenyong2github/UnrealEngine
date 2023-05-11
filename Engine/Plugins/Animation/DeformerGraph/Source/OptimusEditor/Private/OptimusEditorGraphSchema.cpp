@@ -16,6 +16,7 @@
 #include "EdGraphSchema_K2.h"
 #include "Editor.h"
 #include "OptimusActionStack.h"
+#include "OptimusComponentSource.h"
 #include "OptimusComputeDataInterface.h"
 #include "OptimusEditorGraphConnectionDrawingPolicy.h"
 #include "Styling/SlateIconFinder.h"
@@ -430,6 +431,17 @@ FLinearColor UOptimusEditorGraphSchema::GetColorFromPinType(const FEdGraphPinTyp
 	{
 		const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
 		return Settings->WildcardPinTypeColor;
+	}
+	
+	if (InPinType.PinCategory == UOptimusEditorGraphNode::GroupTypeName)
+	{
+		// We allow direct connection from component source to group pin, thus use the same color for them
+		FOptimusDataTypeHandle ComponentSourceType = FOptimusDataTypeRegistry::Get().FindType(*UOptimusComponentSourceBinding::StaticClass());
+
+		if (ensure(ComponentSourceType->bHasCustomPinColor))
+		{
+			return ComponentSourceType->CustomPinColor;
+		}
 	}
 	
 	// Use the PinSubCategory value to resolve the type. It's set in

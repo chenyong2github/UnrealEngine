@@ -43,6 +43,13 @@ public:
 		return 0;
 	}
 
+	/** Returns the total number of thread invocations a component
+	  * requires in case of non-unified dispatch. */
+	virtual uint32 GetDefaultNumInvocations(const UActorComponent* InComponent, int32 InLod) const
+	{
+		return 0;
+	}
+	
 	/** For a given execution domain, and component LOD index, return the range of the domain as given by 
 	 *  the component that is associated with this source.
 	 */

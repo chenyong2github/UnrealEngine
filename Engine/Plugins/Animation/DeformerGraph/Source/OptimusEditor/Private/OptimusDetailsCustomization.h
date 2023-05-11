@@ -7,7 +7,9 @@
 #include "OptimusDataType.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyHandle.h"
+#include "Widgets/Input/SComboBox.h"
 
+class IOptimusExecutionDomainProvider;
 class FOptimusHLSLSyntaxHighlighter;
 class SEditableTextBox;
 class SExpandableArea;
@@ -72,7 +74,14 @@ public:
 	{ }
 
 private:
+
+	void UpdateContextNames();
+
+	TSharedPtr<SComboBox<FName>> ComboBox;
+	
 	TArray<FName> ContextNames;
+
+	TArray<TWeakObjectPtr<UObject>> WeakOwningObjects;
 };
 
 

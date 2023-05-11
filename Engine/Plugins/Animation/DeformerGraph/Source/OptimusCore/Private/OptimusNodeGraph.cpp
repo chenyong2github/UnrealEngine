@@ -153,6 +153,26 @@ void UOptimusNodeGraph::PostDuplicate(EDuplicateMode::Type DuplicateMode)
 	}
 }
 
+void UOptimusNodeGraph::PostLoad()
+{
+	Super::PostLoad();
+
+	for (UOptimusNodeGraph* SubGraph: SubGraphs)
+	{
+		SubGraph->ConditionalPostLoad();
+	}
+	
+	for (UOptimusNode* Node : Nodes)
+	{
+		Node->ConditionalPostLoad();
+	}
+
+	for (UOptimusNodeLink* Link : Links)
+	{
+		Link->ConditionalPostLoad();
+	}
+}
+
 UOptimusNodeGraph* UOptimusNodeGraph::GetParentGraph() const
 {
 	return Cast<UOptimusNodeGraph>(GetOuter());
@@ -1116,7 +1136,7 @@ UOptimusNode* UOptimusNodeGraph::CreateNodeDirect(
 		
 		if (!InConfigureNodeFunc(NewNode))
 		{
-			NewNode->Rename(nullptr, GetTransientPackage());
+			Optimus::RemoveObject(NewNode);
 			return nullptr;
 		}
 	}
@@ -1147,7 +1167,7 @@ bool UOptimusNodeGraph::AddNodeDirect(UOptimusNode* InNode)
 			return false;
 		}
 
-		InNode->Rename(nullptr, this);
+		Optimus::RenameObject(InNode, nullptr, this);
 	}
 
 	Nodes.Add(InNode);
@@ -1193,7 +1213,7 @@ bool UOptimusNodeGraph::RemoveNodeDirect(
 	Notify(EOptimusGraphNotifyType::NodeRemoved, InNode);
 
 	// Unparent this node to a temporary storage and mark it for kill.
-	InNode->Rename(nullptr, GetTransientPackage());
+	Optimus::RemoveObject(InNode);
 
 	return true;
 }
@@ -1398,15 +1418,14 @@ TSet<UOptimusComponentSourceBinding*> UOptimusNodeGraph::GetComponentSourceBindi
 		TArray<FOptimusRoutedNodePin> RoutedPins = GetConnectedPinsWithRouting(InNodePin, {});
 		if (RoutedPins.IsEmpty())
 		{
-			// this can happen if the pin is directly on a compute kernel and not connected to anything
-			StartNode = InNodePin->GetOwningNode();
-		}
-		else
-		{
-			check(RoutedPins.Num() == 1);
-			StartNode = RoutedPins[0].NodePin->GetOwningNode();
+			// If the input pin is directly on a compute kernel and not connected to anything
+			// we consider it to not have a component source, even if other pins in the same group
+			// has one. Pin group level gathering is caller's responsibility
+			return {};
 		}
 		
+		check(RoutedPins.Num() == 1);
+		StartNode = RoutedPins[0].NodePin->GetOwningNode();
 	}
 	else
 	{
@@ -1432,7 +1451,11 @@ TSet<UOptimusComponentSourceBinding*> UOptimusNodeGraph::GetComponentSourceBindi
 		
 		if (const IOptimusComputeKernelProvider* KernelProvider = Cast<const IOptimusComputeKernelProvider>(Node))
 		{
-			InputPins = KernelProvider->GetPrimaryGroupInputPins();
+			const UOptimusNodePin* PrimaryGroupPin = KernelProvider->GetPrimaryGroupPin();
+
+			// Group pin traversal is useful when the kernel does not have any input data pins
+			InputPins.Add(PrimaryGroupPin);
+			InputPins.Append(PrimaryGroupPin->GetSubPins());
 		}
 		else
 		{
@@ -1500,7 +1523,7 @@ void UOptimusNodeGraph::RemoveLinkByIndex(int32 LinkIndex)
 	Notify(EOptimusGraphNotifyType::LinkRemoved, Link);
 
 	// Unparent the link to a temporary storage and mark it for kill.
-	Link->Rename(nullptr, GetTransientPackage());
+	Optimus::RemoveObject(Link);
 }
 
 bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNode* InOutputNode, const UOptimusNode* InInputNode) const
@@ -1691,7 +1714,7 @@ UOptimusNodeGraph* UOptimusNodeGraph::CreateGraph(
 	{
 		if (!AddGraph(Graph, InInsertBefore.GetValue()))
 		{
-			Graph->Rename(nullptr, GetTransientPackage());
+			Optimus::RemoveObject(Graph);
 			return nullptr;
 		}
 	}
@@ -1752,7 +1775,7 @@ bool UOptimusNodeGraph::RemoveGraph(
 	if (bInDeleteGraph)
 	{
 		// Un-parent this graph to a temporary storage and mark it for kill.
-		InGraph->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(InGraph);
 	}
 
 	return true;

@@ -32,7 +32,7 @@
 #include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SComboBox.h"
+
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/STextComboBox.h"
@@ -248,32 +248,8 @@ void FOptimusExecutionDomainCustomization::CustomizeHeader(
 
 	TArray<UObject*> OwningObjects;
 	InPropertyHandle->GetOuterObjects(OwningObjects);
-
-	TSet<FName> CollectedContextNames;
-	for (int32 Index = 0; Index < OwningObjects.Num(); Index++)
-	{
-		TSet<FName> ProviderContextNames;
-		if (const IOptimusExecutionDomainProvider* ExecutionDomainProvider = Cast<IOptimusExecutionDomainProvider>(OwningObjects[Index]))
-		{
-			if (Index == 0)
-			{
-				CollectedContextNames.Append(ExecutionDomainProvider->GetExecutionDomains());
-			}
-			else
-			{
-				CollectedContextNames = CollectedContextNames.Intersect(TSet<FName>{ExecutionDomainProvider->GetExecutionDomains()});
-			}
-		}
-	}
-	ContextNames = CollectedContextNames.Array();
-	if (ContextNames.IsEmpty())
-	{
-		ContextNames.Add(NAME_None);
-	}
-	else
-	{
-		ContextNames.Sort(FNameLexicalLess{});
-	}
+	
+	WeakOwningObjects = TArray<TWeakObjectPtr<UObject>>(OwningObjects);
 	
 	InHeaderRow.NameContent()
 	[
@@ -281,8 +257,7 @@ void FOptimusExecutionDomainCustomization::CustomizeHeader(
 	]
 	.ValueContent()
 	[
-		SNew(SComboBox<FName>)
-			.ToolTipText(LOCTEXT("ExecContextListerToolTip", "Select an execution context from the list of available contexts."))
+		SAssignNew(ComboBox, SComboBox<FName>)
 			.OptionsSource(&ContextNames)
 			.IsEnabled_Lambda([InPropertyHandle]() -> bool
 			{
@@ -299,6 +274,7 @@ void FOptimusExecutionDomainCustomization::CustomizeHeader(
 			{
 				ContextNameProperty->SetValue(InName);
 			})
+			.OnComboBoxOpening(this, &FOptimusExecutionDomainCustomization::UpdateContextNames)
 			[
 				SNew(STextBlock)
 				.Font(IPropertyTypeCustomizationUtils::GetRegularFont())
@@ -310,6 +286,38 @@ void FOptimusExecutionDomainCustomization::CustomizeHeader(
 				})
 			]
 	];
+}
+
+void FOptimusExecutionDomainCustomization::UpdateContextNames()
+{
+	TSet<FName> CollectedContextNames;
+	for (int32 Index = 0; Index < WeakOwningObjects.Num(); Index++)
+	{
+		TSet<FName> ProviderContextNames;
+		if (const IOptimusExecutionDomainProvider* ExecutionDomainProvider = Cast<IOptimusExecutionDomainProvider>(WeakOwningObjects[Index]))
+		{
+			if (Index == 0)
+			{
+				CollectedContextNames.Append(ExecutionDomainProvider->GetExecutionDomains());
+			}
+			else
+			{
+				CollectedContextNames = CollectedContextNames.Intersect(TSet<FName>{ExecutionDomainProvider->GetExecutionDomains()});
+			}
+		}
+	}
+	
+	ContextNames = CollectedContextNames.Array();
+	if (ContextNames.IsEmpty())
+	{
+		ContextNames.Add(NAME_None);
+	}
+	else
+	{
+		ContextNames.Sort(FNameLexicalLess{});
+	}
+	
+	ComboBox->RefreshOptions();
 }
 
 

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "IOptimusDeprecatedExecutionDataInterface.h"
 #include "OptimusComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "DeformerDataInterfaceGroomExec.generated.h"
@@ -21,7 +22,9 @@ enum class EOptimusGroomExecDomain : uint8
 
 /** Compute Framework Data Interface for executing kernels over a skinned mesh domain. */
 UCLASS(Category = ComputeFramework)
-class HAIRSTRANDSCORE_API UOptimusGroomExecDataInterface : public UOptimusComputeDataInterface
+class HAIRSTRANDSCORE_API UOptimusGroomExecDataInterface :
+	public UOptimusComputeDataInterface,
+	public IOptimusDeprecatedExecutionDataInterface
 {
 	GENERATED_BODY()
 
@@ -29,6 +32,7 @@ public:
 	//~ Begin UOptimusComputeDataInterface Interface
 	FString GetDisplayName() const override;
 	FName GetCategory() const override;
+	bool IsVisible() const override {return false;};
 	TArray<FOptimusCDIPinDefinition> GetPinDefinitions() const override;
 	TSubclassOf<UActorComponent> GetRequiredComponentClass() const override;
 	//~ End UOptimusComputeDataInterface Interface
@@ -44,6 +48,10 @@ public:
 	UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 
+	//~ Begin IOptimusDeprecatedExecutionDataInterface Interface
+	FName GetSelectedExecutionDomainName() const override;
+	//~ End IOptimusDeprecatedExecutionDataInterface Interface
+	
 	UPROPERTY(EditAnywhere, Category = Execution)
 	EOptimusGroomExecDomain Domain = EOptimusGroomExecDomain::ControlPoint;
 

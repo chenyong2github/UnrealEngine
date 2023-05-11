@@ -41,13 +41,15 @@ public:
 		const TArray<const UOptimusNode*>& InValueNodes,
 		const UComputeDataInterface* InGraphDataInterface,
 		const UOptimusComponentSourceBinding* InGraphDataComponentBinding,
+		const UComputeDataInterface* InKernelDataInterface,
 		FOptimus_InterfaceBindingMap& OutInputDataBindings,
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 	) const override;
 
 	FName GetExecutionDomain() const override PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetExecutionDomain, return NAME_None; );
-	TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const override PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetPrimaryGroupInputPins, return {}; );  
-
+	const UOptimusNodePin* GetPrimaryGroupPin() const override PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetPrimaryGroupPin, return {}; );  
+	UComputeDataInterface* GetKernelDataInterface(UObject* InOuter) const override PURE_VIRTUAL(UOptimusNode_ComputeKernelBase::GetKernelDataInterface, return {}; );
+	
 	// -- UOptimusNode overrides
 	TOptional<FText> ValidateForCompile() const override;
 	
@@ -71,7 +73,8 @@ protected:
 		const FString& InKernelName,
 		FIntVector InGroupSize
 		);
-	
+
+	static TSet<UOptimusComponentSourceBinding*> GetGroupComponentSourceBindings(const UOptimusNodePin* InGroupPin);
 	
 private:
 	TOptional<FText> ProcessInputPinForComputeKernel(
@@ -98,5 +101,11 @@ private:
 		FOptimus_InterfaceBindingMap& OutOutputDataBindings
 		) const;
 
+	void BindKernelDataInterfaceForComputeKernel(
+		const UOptimusComponentSourceBinding* InKernelPrimaryComponentSourceBinding,
+		const UComputeDataInterface* InKernelDataInterface,
+		UOptimusKernelSource* InKernelSource,
+		FOptimus_InterfaceBindingMap& OutInputDataBindings
+		) const;
 };
 

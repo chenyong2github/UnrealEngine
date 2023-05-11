@@ -79,6 +79,9 @@ namespace Optimus
 
 	bool RenameObject(UObject* InObjectToRename, const TCHAR* InNewName, UObject* InNewOuter);
 
+	/** Use this function to remove objects during postload safely */
+	void RemoveObject(UObject* InObjectToRemove);
+
 	/** Our generated classes are parented to the package, this is a utility function
 		to collect them */
 	TArray<UClass*> GetClassObjectsInPackage(UPackage* InPackage);

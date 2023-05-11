@@ -77,7 +77,9 @@ public:
 	
 	// IOptimusComputeKernelProvider
 	FName GetExecutionDomain() const override; 
-	TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const override { return {}; }
+	const UOptimusNodePin* GetPrimaryGroupPin() const override { return {}; }
+	UComputeDataInterface* GetKernelDataInterface(UObject* InOuter) const override { return nullptr; };
+	
 private:
 	UOptimusNode_ComputeKernelFunctionGeneratorClass *GetGeneratorClass() const;
 };

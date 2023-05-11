@@ -55,6 +55,7 @@ FOptimus_ComputeKernelResult UOptimusNode_ComputeKernelBase::CreateComputeKernel
 	const TArray<const UOptimusNode *>& InValueNodes,
 	const UComputeDataInterface* InGraphDataInterface,
 	const UOptimusComponentSourceBinding* InGraphDataComponentBinding,
+	const UComputeDataInterface* InKernelDataInterface,
 	FOptimus_InterfaceBindingMap& OutInputDataBindings,
 	FOptimus_InterfaceBindingMap& OutOutputDataBindings
 ) const
@@ -110,13 +111,10 @@ FOptimus_ComputeKernelResult UOptimusNode_ComputeKernelBase::CreateComputeKernel
 		return {};
 	};
 
-	TSet<UOptimusComponentSourceBinding*> PrimaryBinding;
 	for (const UOptimusNodePin* Pin: GetPins())
 	{
 		if (Pin->IsGroupingPin())
 		{
-			TSet<UOptimusComponentSourceBinding*> SecondaryBindings;
-			
 			for (const UOptimusNodePin* SubPin: Pin->GetSubPins())
 			{
 				if (TOptional<FText> Result = GetStructTypeDefFromPin(SubPin); Result.IsSet())
@@ -134,12 +132,21 @@ FOptimus_ComputeKernelResult UOptimusNode_ComputeKernelBase::CreateComputeKernel
 		}
 	}
 
+	TSet<UOptimusComponentSourceBinding*> PrimaryBindings = GetGroupComponentSourceBindings(GetPrimaryGroupPin());
+	
+	// ValidateForCompile() should guaranteed that we don't hit this error
+	if (!ensure(PrimaryBindings.Num() == 1))
+	{
+		return ReturnError(LOCTEXT("ZeroOrMultiplePrimaryBindings", "Primary Group has zero or more than one Component Bindings"));
+	}
+
 	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter);
 
 	// Wrap functions for unconnected resource pins (or value pins) that return default values
 	// (for reads) or do nothing (for writes).
 	TArray<FString> GeneratedFunctions;
 
+	int32 GroupIndex = 0;
 	for (const UOptimusNodePin* Pin: GetPins())
 	{
 		if (Pin->IsGroupingPin())
@@ -147,7 +154,7 @@ FOptimus_ComputeKernelResult UOptimusNode_ComputeKernelBase::CreateComputeKernel
 			for (const UOptimusNodePin* SubPin: Pin->GetSubPins())
 			{
 				TOptional<FText> Result = ProcessInputPinForComputeKernel(
-					InTraversalContext, SubPin, Pin->GetName(),
+					InTraversalContext, SubPin, GroupIndex == 0 ? FString() : Pin->GetName(),
 					InNodeDataInterfaceMap, InLinkDataInterfaceMap, InValueNodes,
 					InGraphDataInterface, InGraphDataComponentBinding,
 					KernelSource, GeneratedFunctions, OutInputDataBindings
@@ -157,20 +164,8 @@ FOptimus_ComputeKernelResult UOptimusNode_ComputeKernelBase::CreateComputeKernel
 					return ReturnError(Result.GetValue());
 				}
 			}
-		}
-		else if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
-		{
-			TOptional<FText> Result = ProcessInputPinForComputeKernel(
-				InTraversalContext, Pin, FString(),
-				InNodeDataInterfaceMap, InLinkDataInterfaceMap, InValueNodes,
-				InGraphDataInterface, InGraphDataComponentBinding,
-				KernelSource, GeneratedFunctions, OutInputDataBindings
-				);
 			
-			if (Result.IsSet())
-			{
-				return ReturnError(Result.GetValue());
-			}
+			GroupIndex++;
 		}
 		else if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 		{
@@ -179,6 +174,14 @@ FOptimus_ComputeKernelResult UOptimusNode_ComputeKernelBase::CreateComputeKernel
 				InNodeDataInterfaceMap, InLinkDataInterfaceMap,
 				KernelSource, GeneratedFunctions, OutOutputDataBindings);
 		}
+	}
+
+	if (ensure(InKernelDataInterface))
+	{
+		BindKernelDataInterfaceForComputeKernel(
+			PrimaryBindings.Array()[0],
+			InKernelDataInterface,
+			KernelSource, OutInputDataBindings);
 	}
 
 	FString CookedSource;
@@ -253,39 +256,43 @@ TOptional<FText> UOptimusNode_ComputeKernelBase::ValidateForCompile() const
 	// Collect struct types and ensure all groups have the same component source (or none) within each group
 	auto VerifyPinBindings = [](TSet<UOptimusComponentSourceBinding*> &InCollectedBindings, const UOptimusNodePin* InPin)-> TOptional<FText>
 	{
-		// Component bindings only matter for resource pins.
-		if (!InPin->GetDataDomain().IsSingleton())
+		// Check for all pins, even if the data domain is singleton, it can have different values per invocation
+		// UOptimusNode_DataInterface::ValidateForCompile also double checks
+		const TSet<UOptimusComponentSourceBinding*> PinBindings = InPin->GetComponentSourceBindings();
+		if (PinBindings.Num() > 1)
 		{
-			const TSet<UOptimusComponentSourceBinding*> PinBindings = InPin->GetComponentSourceBindings();
-			if (PinBindings.Num() > 1)
+			return FText::Format(LOCTEXT("MultipleBindingsOnPin", "Multiple component bindings arriving into pin '{0}'"), FText::FromName(InPin->GetUniqueName()));
+		}
+		if (InCollectedBindings.IsEmpty())
+		{
+			InCollectedBindings = PinBindings;
+		}
+		else if (!PinBindings.IsEmpty())
+		{
+			if (InCollectedBindings.Num() != PinBindings.Num() || !InCollectedBindings.Includes(PinBindings))
 			{
-				return FText::Format(LOCTEXT("MultipleBindingsOnPin", "Multiple component bindings arriving into pin '{0}'"), FText::FromName(InPin->GetUniqueName()));
-			}
-			if (InCollectedBindings.IsEmpty())
-			{
-				InCollectedBindings = PinBindings;
-			}
-			else if (!PinBindings.IsEmpty())
-			{
-				if (InCollectedBindings.Num() != PinBindings.Num() || !InCollectedBindings.Includes(PinBindings))
-				{
-					return FText::Format(LOCTEXT("IncompatibleBindingsPinGroup", "Component binding for pin '{0}' is different from the component bindings of the other pins in its group"), FText::FromName(InPin->GetUniqueName()));
-				}
+				return FText::Format(LOCTEXT("IncompatibleBindingsPinGroup", "Component binding for pin '{0}' is different from the component bindings of the other pins in its group"), FText::FromName(InPin->GetUniqueName()));
 			}
 		}
 		return {};
 	};
 	
-	TSet<UOptimusComponentSourceBinding*> PrimaryBinding;
+	TArray<TSet<UOptimusComponentSourceBinding*>> BindingsPerGroup;
+	
 	for (const UOptimusNodePin* Pin: GetPins())
 	{
 		if (Pin->IsGroupingPin())
 		{
-			TSet<UOptimusComponentSourceBinding*> SecondaryBindings;
+			TSet<UOptimusComponentSourceBinding*>& Bindings = BindingsPerGroup.AddDefaulted_GetRef();
+
+			if(TOptional<FText> Result = VerifyPinBindings(Bindings, Pin); Result.IsSet())
+			{
+				return Result;
+			}
 			
 			for (const UOptimusNodePin* SubPin: Pin->GetSubPins())
 			{
-				if(TOptional<FText> Result = VerifyPinBindings(SecondaryBindings, Pin); Result.IsSet())
+				if(TOptional<FText> Result = VerifyPinBindings(Bindings, SubPin); Result.IsSet())
 				{
 					return Result;
 				}
@@ -296,21 +303,14 @@ TOptional<FText> UOptimusNode_ComputeKernelBase::ValidateForCompile() const
 				}
 			}
 		}
-		else 
-		{
-			if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
-			{
-				if(TOptional<FText> Result = VerifyPinBindings(PrimaryBinding, Pin); Result.IsSet())
-				{
-					return Result;
-				}
-			}
-			if (TOptional<FText> Result = GetStructTypeDefFromPin(Pin); Result.IsSet())
-			{
-				return Result;
-			}
-		}
 	}
+
+	// We should have at least the primary group, which needs to have a unique component binding
+	if (ensure(BindingsPerGroup.Num() >= 1) && BindingsPerGroup[0].Num() == 0)
+	{
+		return LOCTEXT("NoPrimaryBinding", "Primary Group has no Component Binding");
+	}
+	
 	return {};
 }
 
@@ -334,7 +334,7 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 	FString ShaderPathName = InObjectPathName;
 	Optimus::ConvertObjectPathToShaderFilePath(ShaderPathName);
 
-	const bool bHasKernelKeyword = Source.Contains(TEXT("KERNEL"));
+	const bool bHasKernelKeyword = Source.Contains(TEXT("KERNEL"), ESearchCase::CaseSensitive);
 
 	const FString ComputeShaderUtilsInclude = TEXT("#include \"/Engine/Private/ComputeShaderUtils.ush\"");
 	
@@ -349,7 +349,7 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 
 	if (bHasKernelKeyword)
 	{
-		Source.ReplaceInline(TEXT("KERNEL"), TEXT("void __kernel_func(uint Index)"));
+		Source.ReplaceInline(TEXT("KERNEL"), TEXT("void __kernel_func(uint Index)"), ESearchCase::CaseSensitive);
 
 		return FString::Printf(
 			TEXT(
@@ -373,6 +373,21 @@ FString UOptimusNode_ComputeKernelBase::GetCookedKernelSource(
 			), *ComputeShaderUtilsInclude,*KernelFunc, *UnWrappedDispatchThreadId, *ShaderPathName, *Source);
 	}
 }
+
+TSet<UOptimusComponentSourceBinding*> UOptimusNode_ComputeKernelBase::GetGroupComponentSourceBindings(const UOptimusNodePin* InGroupPin)
+{
+	TSet<UOptimusComponentSourceBinding*> Bindings;
+
+	Bindings.Append(InGroupPin->GetComponentSourceBindings());
+	
+	for (const UOptimusNodePin* Pin: InGroupPin->GetSubPins())
+	{
+		Bindings.Append(Pin->GetComponentSourceBindings());
+	}
+	
+	return Bindings;
+}
+
 
 
 TOptional<FText> UOptimusNode_ComputeKernelBase::ProcessInputPinForComputeKernel(
@@ -696,6 +711,43 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 		OutGeneratedFunctions.Add(
 			FString::Printf(TEXT("void Write%s(%s, %s Value) { }"),
 				*InOutputPin->GetName(), *FString::Join(StubIndexes, TEXT(", ")), *ValueType->ToString()));
+	}
+}
+
+void UOptimusNode_ComputeKernelBase::BindKernelDataInterfaceForComputeKernel(
+	const UOptimusComponentSourceBinding* InKernelPrimaryComponentSourceBinding,
+	const UComputeDataInterface* InKernelDataInterface,
+	UOptimusKernelSource* InKernelSource,
+	FOptimus_InterfaceBindingMap& OutInputDataBindings
+	) const
+{
+	check(InKernelDataInterface);
+	check(InKernelPrimaryComponentSourceBinding);
+	
+	TArray<FShaderFunctionDefinition> ReadFunctions;
+	InKernelDataInterface->GetSupportedInputs(ReadFunctions);	
+
+	// Simply grab everything the kernel data interface has to offer
+	for (int32 FuncIndex = 0; FuncIndex < ReadFunctions.Num(); FuncIndex++)
+	{
+		FShaderFunctionDefinition FuncDef = ReadFunctions[FuncIndex];
+
+		for (FShaderParamTypeDefinition& ParamType : FuncDef.ParamTypes)
+		{
+			// Making sure parameter has type declaration generated
+			CopyValueType(ParamType.ValueType, ParamType);
+		}
+
+		FOptimus_InterfaceBinding InterfaceBinding;
+		InterfaceBinding.DataInterface = InKernelDataInterface;
+		InterfaceBinding.ComponentBinding = InKernelPrimaryComponentSourceBinding;
+		InterfaceBinding.DataInterfaceBindingIndex = FuncIndex;
+		InterfaceBinding.BindingFunctionName = FuncDef.Name;
+		InterfaceBinding.BindingFunctionNamespace = FString();
+				
+		OutInputDataBindings.Add(InKernelSource->ExternalInputs.Num(), InterfaceBinding);  
+				
+		InKernelSource->ExternalInputs.Emplace(FuncDef);	
 	}
 }
 

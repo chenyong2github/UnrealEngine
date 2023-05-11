@@ -44,8 +44,7 @@ public:
 	/// @return The direction of this pin.
 	EOptimusNodePinDirection GetDirection() const { return Direction; }
 
-	/// Returns \c true if this pin is a grouping pin. A grouping pin accepts no connections
-	/// but just acts as a grouping mechanism for other sub-pins.
+	/// Returns \c true if this pin is a grouping pin. 
 	bool IsGroupingPin() const { return bIsGroupingPin; }
 
 	/// Returns the parent pin of this pin, or nullptr if it is the top-most pin.

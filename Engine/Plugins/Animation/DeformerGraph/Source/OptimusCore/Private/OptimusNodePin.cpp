@@ -4,6 +4,7 @@
 
 #include "Actions/OptimusNodeActions.h"
 #include "OptimusActionStack.h"
+#include "OptimusComponentSource.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
@@ -461,12 +462,26 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 		return false;
 	}
 
+	if (IsGroupingPin() || InOtherPin->IsGroupingPin())
+	{
+		// Allow direct connection from component source to group pin
+		FOptimusDataTypeHandle ComponentSourceType = FOptimusDataTypeRegistry::Get().FindType(*UOptimusComponentSourceBinding::StaticClass());
+
+		if (DataType == ComponentSourceType || InOtherPin->DataType == ComponentSourceType)
+		{
+			return true;
+		}
+
+		return false;
+	}
+	
 	// Check for incompatible types.
 	if (!((DataType->ShaderValueType.IsValid() && InOtherPin->DataType->ShaderValueType.IsValid() &&
 		  DataType->ShaderValueType == InOtherPin->DataType->ShaderValueType) ||
 		 DataType == InOtherPin->DataType))
 	{
 		// TBD: Automatic conversion.
+
 		if (OutReason)
 		{
 			*OutReason = TEXT("Incompatible pin types.");
@@ -525,6 +540,11 @@ void UOptimusNodePin::PostLoad()
 {
 	UObject::PostLoad();
 
+	for (UOptimusNodePin* SubPin : SubPins)
+	{
+		SubPin->ConditionalPostLoad();
+	}
+	
 	// If the storage was marked as a value, the domain should now be a singleton.
 	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::DataDomainExpansion)
 	{
@@ -579,7 +599,7 @@ void UOptimusNodePin::ClearSubPins()
 	for (UOptimusNodePin* Pin: SubPins)
 	{
 		// Consign them to oblivion.
-		Pin->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Pin);
 	}
 	SubPins.Reset();
 }

@@ -9,6 +9,7 @@
 #include "ShaderCompilerCore.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
+#include "ComponentSources/OptimusSkinnedMeshComponentSource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDataInterfaceSkinnedMeshExec)
 
@@ -83,6 +84,21 @@ UComputeDataProvider* UOptimusSkinnedMeshExecDataInterface::CreateDataProvider(T
 	Provider->SkinnedMesh = Cast<USkinnedMeshComponent>(InBinding);
 	Provider->Domain = Domain;
 	return Provider;
+}
+
+FName UOptimusSkinnedMeshExecDataInterface::GetSelectedExecutionDomainName() const
+{
+	if (Domain == EOptimusSkinnedMeshExecDomain::Vertex)
+	{
+		return UOptimusSkinnedMeshComponentSource::Domains::Vertex;
+	}
+
+	if (Domain == EOptimusSkinnedMeshExecDomain::Triangle)
+	{
+		return UOptimusSkinnedMeshComponentSource::Domains::Triangle;
+	}
+
+	return NAME_None;
 }
 
 

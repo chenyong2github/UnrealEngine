@@ -41,6 +41,27 @@ int32 UOptimusSkinnedMeshComponentSource::GetLodIndex(const UActorComponent* InC
 	return SkinnedMeshComponent ? SkinnedMeshComponent->GetPredictedLODLevel() : 0;
 }
 
+uint32 UOptimusSkinnedMeshComponentSource::GetDefaultNumInvocations(const UActorComponent* InComponent,
+                                                                    int32 InLod) const
+{
+	const USkinnedMeshComponent* SkinnedMeshComponent = Cast<USkinnedMeshComponent>(InComponent);
+	if (!SkinnedMeshComponent)
+	{
+		return 0;
+	}
+
+	const FSkeletalMeshObject* SkeletalMeshObject = SkinnedMeshComponent->MeshObject;
+	if (!SkeletalMeshObject)
+	{
+		return 0;
+	}
+
+	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
+	FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData.LODRenderData[InLod];
+
+	return LodRenderData->RenderSections.Num();
+}
+
 bool UOptimusSkinnedMeshComponentSource::GetComponentElementCountsForExecutionDomain(
 	FName InDomainName,
 	const UActorComponent* InComponent,

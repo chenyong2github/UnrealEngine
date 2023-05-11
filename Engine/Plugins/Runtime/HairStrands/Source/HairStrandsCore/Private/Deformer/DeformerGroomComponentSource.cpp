@@ -34,6 +34,22 @@ int32 UOptimusGroomComponentSource::GetLodIndex(const UActorComponent* InCompone
 	return 0;
 }
 
+uint32 UOptimusGroomComponentSource::GetDefaultNumInvocations(
+	const UActorComponent* InComponent,
+	int32 InLod
+	) const
+{
+	const UGroomComponent* GroomComponent = Cast<UGroomComponent>(InComponent);
+	if (!GroomComponent)
+	{
+		return 0;
+	}
+
+	const uint32 GroupCount = GroomComponent->GetGroupCount();
+
+	return GroupCount;
+}
+
 bool UOptimusGroomComponentSource::GetComponentElementCountsForExecutionDomain(
 	FName InDomainName,
 	const UActorComponent* InComponent,

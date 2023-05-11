@@ -207,7 +207,6 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
 		if (InModelPin->IsGroupingPin())
 		{
 			GraphPin->PinType.PinCategory = GroupTypeName;
-			GraphPin->bNotConnectable = true;
 		}
 		else
 		{
@@ -339,7 +338,6 @@ bool UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 	UEdGraphPin *GraphPin = CreatePin(InDirection, PinType, PinPath);
 
 	GraphPin->PinFriendlyName = InModelPin->GetDisplayName();
-	GraphPin->bNotConnectable = InModelPin->IsGroupingPin();
 
 	if (InParentPin)
 	{

@@ -45,6 +45,11 @@
 #include "Nodes/OptimusNode_GetVariable.h"
 #include "Nodes/OptimusNode_ResourceAccessorBase.h"
 
+#include "IOptimusDeprecatedExecutionDataInterface.h"
+#include "OptimusNodeLink.h"
+#include "Nodes/OptimusNode_CustomComputeKernel.h"
+
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusDeformer)
 
 #include <limits>
@@ -459,8 +464,7 @@ bool UOptimusDeformer::RemoveVariableDirect(
 
 	Notify(EOptimusGlobalNotifyType::VariableRemoved, InVariableDesc);
 
-	InVariableDesc->Rename(nullptr, GetTransientPackage());
-	InVariableDesc->MarkAsGarbage();
+	Optimus::RemoveObject(InVariableDesc);
 
 	(void)MarkPackageDirty();
 
@@ -479,7 +483,8 @@ bool UOptimusDeformer::RenameVariableDirect(
 		return false;
 	}
 
-	if (InVariableDesc->Rename(*InNewName.ToString(), nullptr, REN_NonTransactional))
+	
+	if (Optimus::RenameObject(InVariableDesc, *InNewName.ToString(), nullptr))
 	{
 		InVariableDesc->VariableName = InNewName;
 		Notify(EOptimusGlobalNotifyType::VariableRenamed, InVariableDesc);
@@ -878,8 +883,7 @@ bool UOptimusDeformer::RemoveResourceDirect(
 
 	Notify(EOptimusGlobalNotifyType::ResourceRemoved, InResourceDesc);
 
-	InResourceDesc->Rename(nullptr, GetTransientPackage());
-	InResourceDesc->MarkAsGarbage();
+	Optimus::RemoveObject(InResourceDesc);
 
 	(void)MarkPackageDirty();
 
@@ -900,7 +904,7 @@ bool UOptimusDeformer::RenameResourceDirect(
 	}
 
 	// Rename in a non-transactional manner, since we're handling undo/redo.
-	if (InResourceDesc->Rename(*InNewName.ToString(), nullptr, REN_NonTransactional))
+	if (Optimus::RenameObject(InResourceDesc, *InNewName.ToString(), nullptr))
 	{
 		InResourceDesc->ResourceName = InNewName;
 		Notify(EOptimusGlobalNotifyType::ResourceRenamed, InResourceDesc);
@@ -1100,9 +1104,8 @@ bool UOptimusDeformer::RemoveComponentBindingDirect(UOptimusComponentSourceBindi
 
 	Notify(EOptimusGlobalNotifyType::ComponentBindingRemoved, InBinding);
 
-	InBinding->Rename(nullptr, GetTransientPackage());
-	InBinding->MarkAsGarbage();
-
+	Optimus::RemoveObject(InBinding);
+	
 	(void)MarkPackageDirty();
 	
 	return true;
@@ -1174,7 +1177,7 @@ bool UOptimusDeformer::RenameComponentBindingDirect(
 		return false;
 	}
 	
-	if (InBinding->Rename(*InNewName.ToString(), nullptr, REN_NonTransactional))
+	if (Optimus::RenameObject(InBinding, *InNewName.ToString(), nullptr))
 	{
 		InBinding->BindingName = InNewName;
 		Notify(EOptimusGlobalNotifyType::ComponentBindingRenamed, InBinding);
@@ -1580,6 +1583,9 @@ UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
 	// because a resource output may be used multiple times, but only written into once.
 	FOptimus_PinToDataInterfaceMap LinkDataInterfaceMap;
 
+	// Each kernel spawns a data interface to pass along kernel specific data to the kernel itself
+	FOptimus_KernelNodeToKernelDataInterfaceMap KernelDataInterfaceMap;
+
 	// Find all value nodes (constant and variable) 
 	TArray<const UOptimusNode *> ValueNodes; 
 
@@ -1596,8 +1602,12 @@ UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
 
 			NodeDataInterfaceMap.Add(ConnectedNode.Node, DataInterface);
 		}
-		else if (Cast<const IOptimusComputeKernelProvider>(ConnectedNode.Node) != nullptr)
+		else if (const IOptimusComputeKernelProvider* KernelProvider = Cast<const IOptimusComputeKernelProvider>(ConnectedNode.Node))
 		{
+			UComputeDataInterface* KernelDataInterface = KernelProvider->GetKernelDataInterface(this);
+
+			KernelDataInterfaceMap.Add(ConnectedNode.Node, KernelDataInterface);
+			
 			for (const UOptimusNodePin* Pin: ConnectedNode.Node->GetPins())
 			{
 				if (Pin->GetDirection() == EOptimusNodePinDirection::Output &&
@@ -1682,11 +1692,14 @@ UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
 			BoundKernel.KernelNodeIndex = InNodeGraph->Nodes.IndexOfByKey(ConnectedNode.Node);
 			BoundKernel.Kernel = NewObject<UComputeKernel>(this);
 
+			UComputeDataInterface* KernelDataInterface = KernelDataInterfaceMap[ConnectedNode.Node];
+			
 			FOptimus_ComputeKernelResult KernelSourceResult = KernelProvider->CreateComputeKernel(	
 				BoundKernel.Kernel, ConnectedNode.TraversalContext,
 				NodeDataInterfaceMap, LinkDataInterfaceMap,
 				ValueNodes,
 				GraphDataInterface, GraphDataComponentBinding,
+				KernelDataInterface,
 				BoundKernel.InputDataBindings, BoundKernel.OutputDataBindings
 			);
 			if (FText* ErrorMessage = KernelSourceResult.TryGet<FText>())
@@ -1800,6 +1813,11 @@ UOptimusComputeGraph* UOptimusDeformer::CompileNodeGraphToComputeGraph(
 		ComputeGraph->DataInterfaceToBinding.Add(DataInterfaceToBindingIndexMap[Item.Value]);
 	}
 	for (TPair<const UOptimusNodePin *, UOptimusComputeDataInterface *>&Item: LinkDataInterfaceMap)
+	{
+		ComputeGraph->DataInterfaces.Add(Item.Value);
+		ComputeGraph->DataInterfaceToBinding.Add(DataInterfaceToBindingIndexMap[Item.Value]);
+	}
+	for (TPair<const UOptimusNode *, UComputeDataInterface *>&Item: KernelDataInterfaceMap)
 	{
 		ComputeGraph->DataInterfaces.Add(Item.Value);
 		ComputeGraph->DataInterfaceToBinding.Add(DataInterfaceToBindingIndexMap[Item.Value]);
@@ -2126,6 +2144,13 @@ void UOptimusDeformer::PostLoad()
 {
 	Super::PostLoad();
 
+	// PostLoad everything first before changing anything for back compat
+	// Each graph postloads everything it owns
+	for (UOptimusNodeGraph* Graph: GetGraphs())
+	{
+		Graph->ConditionalPostLoad();
+	}
+	
 	// Fixup any empty array entries.
 	Resources->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusResourceDescription>& Value) { return Value == nullptr; });
 	Variables->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusVariableDescription>& Value) { return Value == nullptr; });
@@ -2152,14 +2177,14 @@ void UOptimusDeformer::PostLoad()
 		{
 			if (ResourceDescription->GetOuter() != Resources)
 			{
-				ResourceDescription->Rename(nullptr, Resources);
+				Optimus::RenameObject(ResourceDescription, nullptr, Resources);
 			}
 		}
 		for (UObject* VariableDescription: Variables->Descriptions)
 		{
 			if (VariableDescription->GetOuter() != Variables)
 			{
-				VariableDescription->Rename(nullptr, Variables);
+				Optimus::RenameObject(VariableDescription, nullptr, Variables);
 			}
 		}
 	}
@@ -2186,7 +2211,7 @@ void UOptimusDeformer::PostLoad()
 		{
 			if (Binding->bIsPrimaryBinding)
 			{
-				Binding->Rename(*PrimaryBindingName.ToString(), nullptr, REN_ForceNoResetLoaders | REN_NonTransactional);
+				Optimus::RenameObject(Binding, *PrimaryBindingName.ToString(), nullptr);
 				Binding->BindingName = PrimaryBindingName;
 			}
 		}
@@ -2207,6 +2232,11 @@ void UOptimusDeformer::PostLoad()
 	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::DataDomainExpansion)
 	{
 		PostLoadFixupMismatchedResourceDataDomains();
+	}
+
+	if (GetLinkerCustomVersion(FOptimusObjectVersion::GUID) < FOptimusObjectVersion::KernelDataInterface)
+	{
+		PostLoadRemoveDeprecatedExecutionNodes();
 	}
 }
 
@@ -2310,6 +2340,103 @@ void UOptimusDeformer::PostLoadFixupMismatchedResourceDataDomains()
 		}
 	}
 #endif
+}
+
+void UOptimusDeformer::PostLoadRemoveDeprecatedExecutionNodes()
+{
+	for (UOptimusNodeGraph* Graph: GetGraphs())
+	{
+		// At the time of deprecation, subgraph is not supported
+		if (!ensure(Optimus::IsExecutionGraphType(Graph->GetGraphType())))
+		{
+			continue;
+		}
+	
+		TArray<UOptimusNode*> DeprecatedExecutionDataInterfaceNodes;
+
+		for (UOptimusNode* Node: Graph->GetAllNodes())
+		{
+			// PostLoad fixup for Kernel Nodes
+			if (UOptimusNode_CustomComputeKernel* KernelNode = Cast<UOptimusNode_CustomComputeKernel>(Node))
+			{
+				// Find the primary ComponentSourceNode for each kernel node
+				const UOptimusNodePin* PrimaryGroupPin = KernelNode->GetPrimaryGroupPin();
+
+				UOptimusNode_ComponentSource* ComponentSourceNode = nullptr;
+				FOptimusDataTypeHandle IntVector3Type = FOptimusDataTypeRegistry::Get().FindType(Optimus::GetTypeName(TBaseStructure<FIntVector3>::Get()));
+				
+				for (const UOptimusNodePin* Pin : PrimaryGroupPin->GetSubPins())
+				{
+					if (Pin->GetDirection() == EOptimusNodePinDirection::Input && Pin->GetDataType() == IntVector3Type)
+					{
+						TArray<FOptimusRoutedNodePin> ConnectedPins = Pin->GetConnectedPinsWithRouting();
+						if (ConnectedPins.Num() != 1)
+						{
+							// Skip if invalid/no connection
+							continue;
+						}
+
+						const UOptimusNode_DataInterface* DataInterfaceNode =
+							Cast<UOptimusNode_DataInterface>(ConnectedPins[0].NodePin->GetOwningNode());
+						const IOptimusDeprecatedExecutionDataInterface* ExecDataInterface =
+							Cast<IOptimusDeprecatedExecutionDataInterface>(DataInterfaceNode->GetDataInterface(GetTransientPackage()));
+
+						if (!ExecDataInterface)
+						{
+							// Skip if not connected to exec data interface
+							continue;
+						}
+
+						UOptimusNodePin* ComponentPin = DataInterfaceNode->GetComponentPin();
+
+						TArray<FOptimusRoutedNodePin> ConnectedComponentPins = ComponentPin->GetConnectedPinsWithRouting();
+
+						if (ConnectedComponentPins.Num() != 1)
+						{
+							// Skip if the exec data interface does not have a component source
+							continue;
+						}
+
+						ComponentSourceNode = Cast<UOptimusNode_ComponentSource>(ConnectedComponentPins[0].NodePin->GetOwningNode());
+						
+						if (ComponentSourceNode)
+						{
+							// Found a valid component source node, ready to link
+							break;
+						}
+					}
+				}
+
+				// Now that we have extract information from every pin, the deprecated ones have no more use and can be removed
+				KernelNode->PostLoadRemoveDeprecatedNumThreadsPin();
+
+				// After pin removal, we may have no input data pin to infer component source from,
+				// in which case we have to force a direct link between component source node and the kernel primary group pin
+				if (PrimaryGroupPin->GetSubPins().Num() > 0)
+				{
+					continue;
+				}
+
+				if (ComponentSourceNode)
+				{
+					Graph->AddLink(ComponentSourceNode->GetComponentPin(), KernelNode->GetPrimaryGroupPin_Internal());	
+				}
+			}
+
+			// PostLoad remove execution data interface nodes
+			if (const UOptimusNode_DataInterface* DataInterfaceNode = Cast<UOptimusNode_DataInterface>(Node))
+			{
+				if (Cast<IOptimusDeprecatedExecutionDataInterface>(DataInterfaceNode->GetDataInterface(GetTransientPackage())))
+				{
+					DeprecatedExecutionDataInterfaceNodes.Add(Node);
+				}
+			}
+		}
+		
+		Graph->RemoveNodes(DeprecatedExecutionDataInterfaceNodes);
+	}
+	
+	(void)MarkPackageDirty();
 }
 
 
@@ -2556,7 +2683,7 @@ UOptimusNodeGraph* UOptimusDeformer::CreateGraph(
 	{
 		if (!AddGraph(Graph, InInsertBefore.GetValue()))
 		{
-			Graph->Rename(nullptr, GetTransientPackage());
+			Optimus::RemoveObject(Graph);
 			return nullptr;
 		}
 	}
@@ -2650,7 +2777,7 @@ bool UOptimusDeformer::RemoveGraph(
 	if (bInDeleteGraph)
 	{
 		// Un-parent this graph to a temporary storage and mark it for kill.
-		InGraph->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(InGraph);
 	}
 
 	return true;

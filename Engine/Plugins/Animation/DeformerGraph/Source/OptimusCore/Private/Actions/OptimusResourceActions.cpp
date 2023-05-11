@@ -54,7 +54,7 @@ bool FOptimusResourceAction_AddResource::Do(
 
 	if (!Deformer->AddResourceDirect(Resource, INDEX_NONE))
 	{
-		Resource->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Resource);
 		return false;
 	}
 	
@@ -134,7 +134,7 @@ bool FOptimusResourceAction_RemoveResource::Undo(
 
 	if (!Deformer->AddResourceDirect(Resource, ResourceIndex))
 	{
-		Resource->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Resource);
 		return false;
 	}
 	

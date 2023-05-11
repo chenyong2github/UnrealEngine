@@ -72,14 +72,14 @@ bool FOptimusNodeGraphAction_AddGraph::Do(
 	
 	if (ConfigureGraphFunc && !ConfigureGraphFunc(Graph))
 	{
-		Graph->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Graph);
 		return false;
 	}
 
 	// Add the graph to the collection
 	if (!GraphOwner->AddGraph(Graph, GraphIndex))
 	{
-		Graph->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Graph);
 		return false;
 	}
 	
@@ -174,7 +174,7 @@ bool FOptimusNodeGraphAction_RemoveGraph::Undo(
 	// Now add the graph such that interested parties get notified.
 	if (!GraphOwner->AddGraph(Graph, GraphIndex))
 	{
-		Graph->Rename(nullptr, GetTransientPackage());
+		Optimus::RemoveObject(Graph);
 		return false;
 	}
 	
@@ -216,8 +216,8 @@ bool FOptimusNodeGraphAction_RenameGraph::Do(
 	{
 		return false;
 	}
-
-	return Graph->Rename(*NewGraphName.ToString(), nullptr);
+	
+	return Optimus::RenameObject(Graph, *NewGraphName.ToString(), nullptr);
 }
 
 
@@ -231,7 +231,7 @@ bool FOptimusNodeGraphAction_RenameGraph::Undo(
 		return false;
 	}
 
-	return Graph->Rename(*OldGraphName.ToString(), nullptr);
+	return Optimus::RenameObject(Graph, *OldGraphName.ToString(), nullptr);
 }
 
 

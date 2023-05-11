@@ -71,6 +71,8 @@ public:
 	// in the source package/asset are not duplicated automatically to the new package/asset
 	void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
+	void PostLoad() override;
+
 	UOptimusNodeGraph *GetParentGraph() const;
 	
 	FString GetGraphPath() const;

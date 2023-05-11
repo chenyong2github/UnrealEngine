@@ -290,6 +290,11 @@ protected:
 		UOptimusNodePin* InPinToMove,
 		const UOptimusNodePin* InPinBefore
 		);
+
+	bool MovePinToGroupPinDirect(
+		UOptimusNodePin* InPinToMove,
+		UOptimusNodePin* InGroupPin
+		);
 	
 	/** Set the pin data type. */
 	bool SetPinDataType(

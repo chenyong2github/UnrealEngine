@@ -60,8 +60,9 @@ public:
 
 	// IOptimusComputeKernelProvider
 	FName GetExecutionDomain() const override { return ExecutionDomain.Name; } 
-	TArray<const UOptimusNodePin*> GetPrimaryGroupInputPins() const override;
-	
+	const UOptimusNodePin* GetPrimaryGroupPin() const override;
+	UComputeDataInterface* GetKernelDataInterface(UObject* InOuter) const override;
+
 #if WITH_EDITOR
 	// IOptimusShaderTextProvider overrides
 	FString GetNameForShaderTextEditor() const override;
@@ -90,10 +91,7 @@ public:
 		TConstArrayView<UOptimusNodePin*> InAddedPinsToRemove
 	) override;
 	
-	FName GetSanitizedNewPinName(
-		UOptimusNodePin* InTargetParentPin,
-		FName InPinName
-		) override;
+
 
 	// IOptimusExecutionDomainProvider
 	TArray<FName> GetExecutionDomains() const override;
@@ -164,6 +162,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void Serialize(FArchive& Ar) override;
 	void PostLoad() override;
+
+	
 	
 protected:
 	void ConstructNode() override;
@@ -183,7 +183,21 @@ private:
 	
 	void UpdatePreamble();
 
+	UOptimusNodePin* GetPrimaryGroupPin_Internal() const;
+	void PostLoadExtractExecutionDomain();
+	void PostLoadAddMissingPrimaryGroupPin();
+	
+	// Called during UOptimusDeformer::PostLoad()
+	bool PostLoadRemoveDeprecatedNumThreadsPin();
+	
+	FName GetSanitizedNewPinName(
+		UOptimusNodePin* InParentPin,
+		FName InPinName
+		);
+	
 	static FString GetDeclarationForBinding(const FOptimusParameterBinding& Binding, bool bIsInput);
 
 	static bool DoesSourceSupportUnifiedDispatch(const UOptimusNodePin& InOtherNodesPin);
+	friend class UOptimusDeformer; // For PostLoad fixup
+	friend class UOptimusCustomComputeKernelDataInterface;
 };

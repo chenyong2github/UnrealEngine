@@ -448,11 +448,12 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	// FIXME: Add type aliases (e.g. "3x4 Float" above should really be "float3x4")
 
 	// Actor Component
+	// ComponentSourceBinding pin does not carry concrete data, and is special
 	Registry.RegisterType(
 		UOptimusComponentSourceBinding::StaticClass(),
 		FText::FromString("Component"),
 		FLinearColor(0.3f, 0.3f, 0.4f, 1.0f),
-		EOptimusDataTypeUsageFlags::Variable
+		EOptimusDataTypeUsageFlags::None
 		);
 }
 

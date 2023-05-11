@@ -26,5 +26,6 @@ public:
 	TSubclassOf<UActorComponent> GetComponentClass() const override;
 	TArray<FName> GetExecutionDomains() const override;
 	int32 GetLodIndex(const UActorComponent* InComponent) const override;
+	uint32 GetDefaultNumInvocations(const UActorComponent* InComponent, int32 InLod) const override;
 	bool GetComponentElementCountsForExecutionDomain(FName InDomainName, const UActorComponent* InComponent, int32 InLodIndex, TArray<int32>& OutInvocationElementCounts) const override;
 };
