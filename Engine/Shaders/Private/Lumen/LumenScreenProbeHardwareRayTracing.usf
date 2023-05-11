@@ -53,39 +53,6 @@ float SkipFirstTwoSidedHitDistance;
 uint MaxTraversalIterations;
 float MinTraceDistanceToSampleSurfaceCache;
 
-FRayTracedLightingResult EpsilonTrace(in RaytracingAccelerationStructure TLAS, FRayDesc Ray, inout FRayTracedLightingContext Context, out float RemainingTraceTMin)
-{
-	FRayTracedLightingResult Result = CreateRayTracedLightingResult();
-	RemainingTraceTMin = AvoidSelfIntersectionTraceDistance;
-
-	#if ENABLE_NEAR_FIELD_TRACING
-	{
-		uint OriginalCullingMode = Context.CullingMode;
-		Context.CullingMode = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-		Ray.TMax = AvoidSelfIntersectionTraceDistance;
-
-		if (Ray.TMax > Ray.TMin)
-		{
-			// First trace - short distance with backface culling enabled to avoid self intersecting in cases where the traced geometry doesn't match what's in the GBuffer (Nanite, Ray Tracing LODs, etc)
-			Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(TLAS, Ray, Context);
-		}
-
-		// RAY_FLAG_CULL_BACK_FACING_TRIANGLES doesn't work on two sided geometry, but we still need to avoid self-intersections with the Nanite fallback mesh
-		// Skip the first two sided material we hit within a short distance
-		if (Result.bHitTwoSided && Result.TraceHitDistance < SkipFirstTwoSidedHitDistance)
-		{
-			float Epsilon = 0.01;
-			RemainingTraceTMin = Result.TraceHitDistance + Epsilon;
-			Result.bIsHit = false;
-		}
-
-		Context.CullingMode = OriginalCullingMode;
-	}
-	#endif
-
-	return Result;
-}
-
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenScreenProbeGatherHardwareRayTracing)
 {
 	uint ThreadIndex = DispatchThreadIndex.x;
