@@ -18,6 +18,12 @@ int32 UGeneratePayloadManifestCommandlet::Main(const FString& Params)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UGeneratePayloadManifestCommandlet);
 
+	if (!ParseCmdline(Params))
+	{
+		UE_LOG(LogVirtualization, Error, TEXT("Failed to parse the command line correctly"));
+		return -1;
+	}
+
 	TArray<FString> PackageNames = UE::Virtualization::DiscoverPackages(Params, UE::Virtualization::EFindPackageFlags::ExcludeEngineContent);
 
 	UE_LOG(LogVirtualization, Display, TEXT("Found %d files to look in"), PackageNames.Num());
@@ -50,8 +56,13 @@ int32 UGeneratePayloadManifestCommandlet::Main(const FString& Params)
 				{
 					PackageTrailerCount++;
 
-					Trailer.ForEachPayload([&ManifestFile,&PackagePath](const FIoHash& Id, uint64 SizeOnDisk, uint64 RawSize, UE::EPayloadAccessMode Mode, UE::Virtualization::EPayloadFilterReason Filter)->void
+					Trailer.ForEachPayload([&ManifestFile, &PackagePath, bLocalOnly = bLocalOnly](const FIoHash& Id, uint64 SizeOnDisk, uint64 RawSize, UE::EPayloadAccessMode Mode, UE::Virtualization::EPayloadFilterReason Filter)->void
 						{
+							if (bLocalOnly && Mode != UE::EPayloadAccessMode::Local)
+							{
+								return;
+							}
+
 							TAnsiStringBuilder<256> LineBuilder;
 							LineBuilder << PackagePath << "," << Id << "," << SizeOnDisk << "," << RawSize << "," << Mode << "," << *LexToString(Filter) <<"\n";
 							ManifestFile->Serialize((void*)LineBuilder.ToString(), LineBuilder.Len());
@@ -74,4 +85,16 @@ int32 UGeneratePayloadManifestCommandlet::Main(const FString& Params)
 	UE_LOG(LogVirtualization, Display, TEXT("Manifest written to '%s'"), *CSVPath);
 
 	return  0;
+}
+
+bool UGeneratePayloadManifestCommandlet::ParseCmdline(const FString& Params)
+{
+	TArray<FString> Tokens;
+	TArray<FString> Switches;
+
+	ParseCommandLine(*Params, Tokens, Switches);
+
+	bLocalOnly = Switches.Contains(TEXT("LocalOnly"));
+
+	return true;
 }

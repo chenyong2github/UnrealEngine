@@ -28,4 +28,10 @@ class UGeneratePayloadManifestCommandlet
 	//~ End UCommandlet Interface
 
 	static int32 StaticMain(const FString& Params);
+
+	bool ParseCmdline(const FString& Params);
+
+private:
+
+	bool bLocalOnly = false;
 };
