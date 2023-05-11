@@ -75,7 +75,7 @@ struct TTypedElementColumnTypeList
 {
 	const UScriptStruct* ColumnTypes[sizeof...(Columns)] = { Columns::StaticStruct()... };
 	
-	operator TConstArrayView<const UScriptStruct*>() { return ColumnTypes; }
+	operator TConstArrayView<const UScriptStruct*>() const { return ColumnTypes; }
 };
 
 class TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageInterface
