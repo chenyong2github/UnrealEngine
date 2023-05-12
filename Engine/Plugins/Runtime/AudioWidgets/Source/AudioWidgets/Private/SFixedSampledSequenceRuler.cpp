@@ -87,16 +87,21 @@ void SFixedSampledSequenceRuler::DrawRulerTicks(const FGeometry& AllottedGeometr
 		for (int32 MinorTickIndex = 1; MinorTickIndex < GridMetrics.NumMinorGridDivisions; ++MinorTickIndex)
 		{
 			const double MinorTickX = MajorTickX + MinorGridXStep * MinorTickIndex;
-			LinePoints[0] = FVector2D(MinorTickX, MinorTickY);
-			LinePoints[1] = FVector2D(MinorTickX, AllottedGeometry.Size.Y);
-			FSlateDrawElement::MakeLines(
-				OutDrawElements,
-				++LayerId,
-				AllottedGeometry.ToPaintGeometry(),
-				LinePoints,
-				ESlateDrawEffect::None,
-				TicksColor.GetSpecifiedColor(),
-				false);
+
+			if (MinorTickX < AllottedGeometry.Size.X)
+			{
+				LinePoints[0] = FVector2D(MinorTickX, MinorTickY);
+				LinePoints[1] = FVector2D(MinorTickX, AllottedGeometry.Size.Y);
+
+				FSlateDrawElement::MakeLines(
+					OutDrawElements,
+					++LayerId,
+					AllottedGeometry.ToPaintGeometry(),
+					LinePoints,
+					ESlateDrawEffect::None,
+					TicksColor.GetSpecifiedColor(),
+					false);
+			}
 		}
 		
 		uint32 TickFrame = FMath::RoundToInt32(MajorTickX / GridMetrics.PixelsPerFrame) + GridMetrics.StartFrame;

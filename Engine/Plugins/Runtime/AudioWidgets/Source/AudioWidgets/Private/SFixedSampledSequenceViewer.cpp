@@ -201,23 +201,24 @@ void SFixedSampledSequenceViewer::DrawGridLines(const FGeometry& AllottedGeometr
 			MajorGridLineColor.GetSpecifiedColor(),
 			false);
 
-
 		for (int32 MinorLineIndex = 1; MinorLineIndex < GridMetrics.NumMinorGridDivisions; ++MinorLineIndex)
 		{
 			const double MinorLineX = MajorLineX + MinorGridXStep * MinorLineIndex;
 
-			LinePoints[0] = FVector2D(MinorLineX, 0.);
-			LinePoints[1] = FVector2D(MinorLineX, AllottedGeometry.Size.Y);
+			if (MinorLineX < AllottedGeometry.Size.X)
+			{
+				LinePoints[0] = FVector2D(MinorLineX, 0.);
+				LinePoints[1] = FVector2D(MinorLineX, AllottedGeometry.Size.Y);
 
-			FSlateDrawElement::MakeLines(
-				OutDrawElements,
-				++LayerId,
-				AllottedGeometry.ToPaintGeometry(),
-				LinePoints,
-				ESlateDrawEffect::None,
-				MinorGridLineColor.GetSpecifiedColor(),
-				false);
-
+				FSlateDrawElement::MakeLines(
+					OutDrawElements,
+					++LayerId,
+					AllottedGeometry.ToPaintGeometry(),
+					LinePoints,
+					ESlateDrawEffect::None,
+					MinorGridLineColor.GetSpecifiedColor(),
+					false);
+			}
 		}
 	}
 
