@@ -6,6 +6,13 @@
 #include "Chaos/SimCallbackInput.h"
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/GeometryParticlesfwd.h"
+#include "ChaosStats.h"
+
+// Enable through build or just here in code to cause an untracked callback to fail to compile
+// Untracked callbacks will show up a such in profiling sessions and this can help track them down
+#ifndef UE_CHAOS_UNTRACKED_CALLBACK_IS_ERROR
+#define UE_CHAOS_UNTRACKED_CALLBACK_IS_ERROR 0
+#endif
 
 namespace Chaos
 {
@@ -112,15 +119,54 @@ public:
 	 */
 	virtual void FreeInputData_Internal(FSimCallbackInput* Input) = 0;
 
+#if STATS
+	/**
+	 * Get a stat to describe this callback. Uses GetFNameForStatId() which derived classes should implement to describe themselves
+	 */
+	TStatId GetStatId() const
+	{
+		static TStatId StatId = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_Chaos>(GetFNameForStatId());
+		return StatId;
+	};
+#endif
 
-	FPhysicsSolverBase* GetSolver() { return Solver; }
+	/**
+	 * Get a stat name to describe this callback in external profiling and STATS when Named events are enabled
+	 */
+#if UE_CHAOS_UNTRACKED_CALLBACK_IS_ERROR
+	virtual FName GetFNameForStatId() const = 0;
+#else
+	virtual FName GetFNameForStatId() const
+	{
+		const static FLazyName StaticName("Untracked Physics Callback");
+		return StaticName;
+	}
+#endif
 
-	const FPhysicsSolverBase* GetSolver() const { return Solver; }
+	FPhysicsSolverBase* GetSolver()
+	{ 
+		return Solver; 
+	}
+	
+	const FPhysicsSolverBase* GetSolver() const 
+	{ 
+		return Solver; 
+	}
 
 	// Rewind API
-	virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) { ensure(false); return INDEX_NONE; }
-	virtual void ApplyCorrections_Internal(int32 PhysicsStep, FSimCallbackInput* Input) { ensure(false); }
-	virtual void FirstPreResimStep_Internal(int32 PhysicsStep) { }
+	virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep)
+	{ 
+		ensure(false); 
+		return INDEX_NONE; 
+	}
+
+	virtual void ApplyCorrections_Internal(int32 PhysicsStep, FSimCallbackInput* Input)
+	{
+		ensure(false);
+	}
+	
+	virtual void FirstPreResimStep_Internal(int32 PhysicsStep)
+	{}
 
 	bool HasOption(const ESimCallbackOptions Option) const
 	{
@@ -250,7 +296,10 @@ private:
 	FPhysicsSolverBase* Solver;
 
 	//putting this here so that user classes don't have to bother with non-default constructor
-	void SetSolver_External(FPhysicsSolverBase* InSolver) { Solver = InSolver;}
+	void SetSolver_External(FPhysicsSolverBase* InSolver)
+	{
+		Solver = InSolver;
+	}
 	
 	UE_DEPRECATED(5.1, "Do not change options after creation of the callback object - instead, specify them using the TOptions template parameter.")
 	void SetContactModification(bool InContactModification)
@@ -261,7 +310,11 @@ private:
 protected:
 	FSimCallbackOutput* CurrentOutput_Internal;	//the output currently being written to in this sim step
 
-	const FSimCallbackInput* GetCurrentInput_Internal() const { return CurrentInput_Internal; }
+	const FSimCallbackInput* GetCurrentInput_Internal() const 
+	{ 
+		return CurrentInput_Internal; 
+	}
+
 private:
 	FSimCallbackInput* CurrentInput_Internal;	        //the input associated with the step we are executing.
 
@@ -287,6 +340,12 @@ public:
 	{
 		//data management handled by command passed in (data should be copied by value as commands run async and memory lifetime is hard to predict)
 		check(false);
+	}
+
+	virtual FName GetFNameForStatId() const override
+	{
+		const static FLazyName StaticName("FSimCallbackCommandObject");
+		return StaticName;
 	}
 
 private:

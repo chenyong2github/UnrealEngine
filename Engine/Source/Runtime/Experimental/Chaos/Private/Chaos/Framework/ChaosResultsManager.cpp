@@ -5,6 +5,9 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Chaos/ChaosMarshallingManager.h"
+#include "Chaos/Framework/PhysicsSolverBase.h"
+
+DECLARE_CYCLE_STAT(TEXT("Process Rigid Resim Targets"), STAT_RigidResimTargets, STATGROUP_Chaos);
 
 namespace Chaos
 {	
@@ -124,23 +127,37 @@ namespace Chaos
 	{
 		//clear results
 		const int32 Timestamp = PullData.SolverTimestamp;
+		
+		{
+			SCOPE_CYCLE_COUNTER(STAT_ProcessSingleProxy);
+			SetPrevNextDataHelperTyped<Mode>(PullData.DirtyRigids, Results.RigidInterpolations);
+		}
 
-		SetPrevNextDataHelperTyped<Mode>(PullData.DirtyRigids, Results.RigidInterpolations);
-		SetPrevNextDataHelperTyped<Mode>(PullData.DirtyGeometryCollections, Results.GeometryCollectionInterpolations);
-		SetPrevNextDataHelperTyped<Mode>(PullData.DirtyClusterUnions, Results.ClusterUnionInterpolations);
+		{
+			SCOPE_CYCLE_COUNTER(STAT_ProcessGCProxy);
+			SetPrevNextDataHelperTyped<Mode>(PullData.DirtyGeometryCollections, Results.GeometryCollectionInterpolations);
+		}
+
+		{
+			SCOPE_CYCLE_COUNTER(STAT_ProcessClusterUnionProxy);
+			SetPrevNextDataHelperTyped<Mode>(PullData.DirtyClusterUnions, Results.ClusterUnionInterpolations);
+		}
 
 		// update resim target for rigids
-		for (const FDirtyRigidParticleData& Data : PullData.DirtyRigids)
 		{
-			if (FSingleParticlePhysicsProxy* Proxy = Data.GetProxy())
+			SCOPE_CYCLE_COUNTER(STAT_RigidResimTargets);
+			for(const FDirtyRigidParticleData& Data : PullData.DirtyRigids)
 			{
-				// only if the proxy is associated with this channel 
-				if (Proxy->GetInterpolationData().GetInterpChannel_External() == ChannelIdx)
+				if(FSingleParticlePhysicsProxy* Proxy = Data.GetProxy())
 				{
-					//update leash target
-					if(FDirtyRigidParticleData* ResimTarget = ParticleToResimTarget.Find(Proxy))
+					// only if the proxy is associated with this channel 
+					if(Proxy->GetInterpolationData().GetInterpChannel_External() == ChannelIdx)
 					{
-						*ResimTarget = Data;
+						//update leash target
+						if(FDirtyRigidParticleData* ResimTarget = ParticleToResimTarget.Find(Proxy))
+						{
+							*ResimTarget = Data;
+						}
 					}
 				}
 			}

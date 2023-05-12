@@ -302,6 +302,12 @@ void ABuoyancyManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 }
 
+FName FBuoyancyManagerAsyncCallback::GetFNameForStatId() const
+{
+	const static FLazyName StaticName("FBuoyancyManagerAsyncCallback");
+	return StaticName;
+}
+
 void FBuoyancyManagerAsyncCallback::CreateAsyncAux_External(Chaos::FUniqueIdx HandleIndex, TUniquePtr<FBuoyancyComponentAsyncAux>&& AsyncAux)
 {
 	GetSolver()->EnqueueCommandImmediate([this, HandleIndex, AsyncAux = MoveTemp(AsyncAux)]() mutable

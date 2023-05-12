@@ -73,6 +73,7 @@ struct FChaosSceneCallbackInput : public Chaos::FSimCallbackInput
 struct FChaosSceneSimCallback : public Chaos::TSimCallbackObject<FChaosSceneCallbackInput>
 {
 	virtual void OnPreSimulate_Internal() override;
+	virtual FName GetFNameForStatId() const override;
 };
 
 /**

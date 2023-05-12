@@ -148,15 +148,29 @@ public:
 		const FReal DeltaTime = GetDeltaTime_Internal();
 		const FReal SimTime = GetSimTime_Internal();
 		//TODO: handle case where callbacks modify AsyncPhysicsTickComponents or AsyncPhysicsTickActors
-		for (UActorComponent* Component : AsyncPhysicsTickComponents)
 		{
-			Component->AsyncPhysicsTickComponent(DeltaTime, SimTime);
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_AsyncPhys_TickComponents);
+			for(UActorComponent* Component : AsyncPhysicsTickComponents)
+			{
+				FScopeCycleCounterUObject ComponentScope(Component);
+				Component->AsyncPhysicsTickComponent(DeltaTime, SimTime);
+			}
 		}
 
-		for(AActor* Actor : AsyncPhysicsTickActors)
 		{
-			Actor->AsyncPhysicsTickActor(DeltaTime, SimTime);
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_AsyncPhys_TickActors);
+			for(AActor* Actor : AsyncPhysicsTickActors)
+			{
+				FScopeCycleCounterUObject ActorScope(Actor);
+				Actor->AsyncPhysicsTickActor(DeltaTime, SimTime);
+			}
 		}
+	}
+
+	virtual FName GetFNameForStatId() const override
+	{
+		const static FLazyName StaticName("FAsyncPhysicsTickCallback");
+		return StaticName;
 	}
 };
 

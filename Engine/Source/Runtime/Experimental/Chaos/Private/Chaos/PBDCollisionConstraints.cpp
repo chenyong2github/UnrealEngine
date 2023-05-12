@@ -579,6 +579,7 @@ namespace Chaos
 
 			for(ISimCallbackObject* ModifierCallback : CollisionModifiers)
 			{
+				FScopedTraceSolverCallback ScopedCallback(ModifierCallback);
 				ModifierCallback->ContactModification_Internal(Modifier);
 			}
 

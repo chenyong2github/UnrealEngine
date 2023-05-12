@@ -621,6 +621,8 @@ struct ENGINE_API FCharacterMovementComponentAsyncInput : public Chaos::FSimCall
 
 class FCharacterMovementComponentAsyncCallback : public Chaos::TSimCallbackObject<FCharacterMovementComponentAsyncInput, FCharacterMovementComponentAsyncOutput>
 {
+public:
+	virtual FName GetFNameForStatId() const override;
 private:
 	virtual void OnPreSimulate_Internal() override;
 };

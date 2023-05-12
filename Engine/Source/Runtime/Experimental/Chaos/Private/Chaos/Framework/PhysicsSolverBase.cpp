@@ -14,6 +14,14 @@
 #include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 #include "ChaosVisualDebugger/ChaosVDContextProvider.h"
 
+DEFINE_STAT(STAT_AsyncPullResults);
+DEFINE_STAT(STAT_AsyncInterpolateResults);
+DEFINE_STAT(STAT_SyncPullResults);
+DEFINE_STAT(STAT_ProcessSingleProxy);
+DEFINE_STAT(STAT_ProcessGCProxy);
+DEFINE_STAT(STAT_ProcessClusterUnionProxy);
+DEFINE_STAT(STAT_PullConstraints);
+
 namespace Chaos
 {	
 	extern int GSingleThreadedPhysics;

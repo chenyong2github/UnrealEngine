@@ -320,6 +320,12 @@ void FChaosSceneSimCallback::OnPreSimulate_Internal()
 	}
 }
 
+FName FChaosSceneSimCallback::GetFNameForStatId() const
+{
+	const static FLazyName StaticName("FChaosSceneSimCallback");
+	return StaticName;
+}
+
 void FChaosScene::SetGravity(const Chaos::FVec3& Acceleration)
 {
 	SimCallback->GetProducerInputData_External()->Gravity = Acceleration;

@@ -96,6 +96,16 @@ struct FAsyncPhysicsRepCallbackData : public Chaos::FSimCallbackInput
 
 class FPhysicsReplicationAsyncCallback final : public Chaos::TSimCallbackObject<FAsyncPhysicsRepCallbackData>
 {
+public:
+
+	virtual FName GetFNameForStatId() const override
+	{
+		const static FLazyName StaticName("FPhysicsReplicationAsyncCallback");
+		return StaticName;
+	}
+
+private:
+
 	virtual void OnPreSimulate_Internal() override
 	{
 		FPhysicsReplication::ApplyAsyncDesiredState(GetDeltaTime_Internal(), GetConsumerInput_Internal());

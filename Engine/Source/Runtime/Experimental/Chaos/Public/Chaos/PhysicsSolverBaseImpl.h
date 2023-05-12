@@ -50,6 +50,8 @@ namespace Chaos
 		FPullPhysicsData* LatestData = nullptr;
 		if (IsUsingAsyncResults() && UseAsyncInterpolation)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_AsyncInterpolateResults);
+
 			const FReal ResultsTime = GetPhysicsResultsTime_External();
 			//we want to interpolate between prev and next. There are a few cases to consider:
 			//case 1: dirty data exists in both prev and next. In this case continuous data is interpolated, state data is a step function from prev to next
@@ -58,7 +60,13 @@ namespace Chaos
 			//case 4: prev has no dirty data and next does. In this case interpolate from gt data to next
 			//case 5: prev has no dirty data and next was overwritten. In this case do nothing as the overwritten data wins, and also particle may be deleted
 
-			TArray<const FChaosInterpolationResults*> ResultsPerChannel = PullResultsManager->PullAsyncPhysicsResults_External(ResultsTime);
+			TArray<const FChaosInterpolationResults*> ResultsPerChannel;
+			
+			{
+				SCOPE_CYCLE_COUNTER(STAT_AsyncPullResults);
+				ResultsPerChannel = PullResultsManager->PullAsyncPhysicsResults_External(ResultsTime);
+			}
+
 			for (int32 ChannelIdx = 0; ChannelIdx < ResultsPerChannel.Num(); ++ChannelIdx)
 			{
 				const FChaosInterpolationResults& Results = *ResultsPerChannel[ChannelIdx];
@@ -67,37 +75,46 @@ namespace Chaos
 				const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
 
 				// single particles
-				for (const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 				{
-					if (FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
+					SCOPE_CYCLE_COUNTER(STAT_ProcessSingleProxy);
+					for(const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 					{
-						if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
+						if(FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
 						{
-							Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+							if(Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
+							{
+								Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+							}
 						}
 					}
 				}
 
 				// geometry collections
-				for (const FChaosGeometryCollectionInterpolationData& GCInterp : Results.GeometryCollectionInterpolations)
 				{
-					if (FGeometryCollectionPhysicsProxy* Proxy = GCInterp.Prev.GetProxy())
+					SCOPE_CYCLE_COUNTER(STAT_ProcessGCProxy);
+					for(const FChaosGeometryCollectionInterpolationData& GCInterp : Results.GeometryCollectionInterpolations)
 					{
-						if (Proxy->PullFromPhysicsState(GCInterp.Prev, SolverTimestamp, &GCInterp.Next, &Results.Alpha))
+						if(FGeometryCollectionPhysicsProxy* Proxy = GCInterp.Prev.GetProxy())
 						{
-							Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+							if(Proxy->PullFromPhysicsState(GCInterp.Prev, SolverTimestamp, &GCInterp.Next, &Results.Alpha))
+							{
+								Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+							}
 						}
 					}
 				}
 
 				// cluster unions
-				for (const FChaosClusterUnionInterpolationData& ClusterInterp : Results.ClusterUnionInterpolations)
 				{
-					if (FClusterUnionPhysicsProxy* Proxy = ClusterInterp.Prev.GetProxy())
+					SCOPE_CYCLE_COUNTER(STAT_ProcessClusterUnionProxy)
+					for(const FChaosClusterUnionInterpolationData& ClusterInterp : Results.ClusterUnionInterpolations)
 					{
-						if (Proxy->PullFromPhysicsState(ClusterInterp.Prev, SolverTimestamp, &ClusterInterp.Next, &Results.Alpha))
+						if(FClusterUnionPhysicsProxy* Proxy = ClusterInterp.Prev.GetProxy())
 						{
-							Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+							if(Proxy->PullFromPhysicsState(ClusterInterp.Prev, SolverTimestamp, &ClusterInterp.Next, &Results.Alpha))
+							{
+								Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+							}
 						}
 					}
 				}
@@ -105,6 +122,8 @@ namespace Chaos
 		}
 		else
 		{
+			SCOPE_CYCLE_COUNTER(STAT_SyncPullResults);
+
 			//no interpolation so just use latest, in non-substepping modes this will just be the next result
 			// available in the queue - however if we substepped externally we need to consume the whole
 			// queue by telling the sync pull that we expect multiple results.
@@ -115,37 +134,46 @@ namespace Chaos
 			const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
 
 			// Single particles
-			for (const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 			{
-				if (FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
+				SCOPE_CYCLE_COUNTER(STAT_ProcessSingleProxy);
+				for(const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 				{
-					if (Proxy->PullFromPhysicsState(RigidInterp.Next, SolverTimestamp))
+					if(FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
 					{
-						Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+						if(Proxy->PullFromPhysicsState(RigidInterp.Next, SolverTimestamp))
+						{
+							Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+						}
 					}
 				}
 			}
 
 			// geometry collections
-			for (const FChaosGeometryCollectionInterpolationData& GCInterp : Results.GeometryCollectionInterpolations)
 			{
-				if (FGeometryCollectionPhysicsProxy* Proxy = GCInterp.Prev.GetProxy())
+				SCOPE_CYCLE_COUNTER(STAT_ProcessGCProxy);
+				for(const FChaosGeometryCollectionInterpolationData& GCInterp : Results.GeometryCollectionInterpolations)
 				{
-					if (Proxy->PullFromPhysicsState(GCInterp.Next, SolverTimestamp))
+					if(FGeometryCollectionPhysicsProxy* Proxy = GCInterp.Prev.GetProxy())
 					{
-						Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+						if(Proxy->PullFromPhysicsState(GCInterp.Next, SolverTimestamp))
+						{
+							Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+						}
 					}
 				}
 			}
 
 			// cluster unions
-			for (const FChaosClusterUnionInterpolationData& ClusterInterp : Results.ClusterUnionInterpolations)
 			{
-				if (FClusterUnionPhysicsProxy* Proxy = ClusterInterp.Prev.GetProxy())
+				SCOPE_CYCLE_COUNTER(STAT_ProcessClusterUnionProxy)
+				for(const FChaosClusterUnionInterpolationData& ClusterInterp : Results.ClusterUnionInterpolations)
 				{
-					if (Proxy->PullFromPhysicsState(ClusterInterp.Prev, SolverTimestamp))
+					if(FClusterUnionPhysicsProxy* Proxy = ClusterInterp.Prev.GetProxy())
 					{
-						Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+						if(Proxy->PullFromPhysicsState(ClusterInterp.Prev, SolverTimestamp))
+						{
+							Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
+						}
 					}
 				}
 			}
@@ -154,6 +182,7 @@ namespace Chaos
 		//no interpolation for GC or joints at the moment
 		if (LatestData)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_PullConstraints);
 			const int32 SyncTimestamp = LatestData->SolverTimestamp;
 
 			//

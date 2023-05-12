@@ -17,8 +17,9 @@ class AWaterBody;
 
 class FBuoyancyManagerAsyncCallback : public Chaos::TSimCallbackObject<FBuoyancyManagerAsyncInput, FBuoyancyManagerAsyncOutput>
 {
-
 public:
+	virtual FName GetFNameForStatId() const override;
+
 	void CreateAsyncAux_External(Chaos::FUniqueIdx UniqueIndex, TUniquePtr<FBuoyancyComponentAsyncAux>&& Aux);
 	void ClearAsyncAux_External(Chaos::FUniqueIdx UniqueIndex);
 

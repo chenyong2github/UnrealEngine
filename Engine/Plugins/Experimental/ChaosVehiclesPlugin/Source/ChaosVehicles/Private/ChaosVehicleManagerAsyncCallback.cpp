@@ -11,6 +11,12 @@ extern FVehicleDebugParams GVehicleDebugParams;
 
 DECLARE_CYCLE_STAT(TEXT("AsyncCallback:OnPreSimulate_Internal"), STAT_AsyncCallback_OnPreSimulate, STATGROUP_ChaosVehicleManager);
 
+FName FChaosVehicleManagerAsyncCallback::GetFNameForStatId() const
+{
+	const static FLazyName StaticName("FChaosVehicleManagerAsyncCallback");
+	return StaticName;
+}
+
 /**
  * Callback from Physics thread
  */

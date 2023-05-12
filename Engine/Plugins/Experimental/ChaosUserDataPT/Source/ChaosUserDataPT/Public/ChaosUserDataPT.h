@@ -208,6 +208,12 @@ namespace Chaos
 			return false;
 		}
 
+		virtual FName GetFNameForStatId() const override
+		{
+			const static FLazyName StaticName("TUserDataManagerPT");
+			return StaticName;
+		}
+
 	protected:
 
 		virtual void OnPreSimulate_Internal() override

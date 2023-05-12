@@ -24,6 +24,18 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPreBuffer, Chaos::FReal);
 DECLARE_MULTICAST_DELEGATE_OneParam(FSolverPostAdvance, Chaos::FReal);
 DECLARE_MULTICAST_DELEGATE(FSolverTeardown);
 
+#ifndef UE_CHAOS_CALLBACK_TRACESTATS
+#define UE_CHAOS_CALLBACK_TRACESTATS STATS && !UE_BUILD_SHIPPING
+#endif
+
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Async Pull Results"), STAT_AsyncPullResults, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Async Interpolate Results"), STAT_AsyncInterpolateResults, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Sync Pull Results"), STAT_SyncPullResults, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Process Single Particle Proxies"), STAT_ProcessSingleProxy, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Process Geometry Collections Proxies"), STAT_ProcessGCProxy, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Process Cluster Union Proxies"), STAT_ProcessClusterUnionProxy, STATGROUP_Chaos, CHAOS_API);
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Pull Constraints"), STAT_PullConstraints, STATGROUP_Chaos, CHAOS_API);
+
 namespace Chaos
 {
 	class FPhysicsSolverBase;
@@ -222,6 +234,34 @@ namespace Chaos
 		FSolverTeardown EventTeardown;
 	};
 
+#if UE_CHAOS_CALLBACK_TRACESTATS
+	class FScopedTraceSolverCallback : public FCycleCounter
+	{
+	public:
+		FScopedTraceSolverCallback(ISimCallbackObject* InCallback)
+		{
+			if(InCallback)
+			{
+				if(TStatId CallbackStatId = InCallback->GetStatId(); FThreadStats::IsCollectingData(CallbackStatId))
+				{
+					Start(CallbackStatId);
+				}
+			}
+		}
+
+		~FScopedTraceSolverCallback()
+		{
+			Stop();
+		}
+	};
+#else
+	class FScopedTraceSolverCallback
+	{
+	public:
+		FScopedTraceSolverCallback(ISimCallbackObject* InCallback)
+		{}
+	};
+#endif
 
 	class CHAOS_API FPhysicsSolverBase : public FPhysicsSolverEvents
 	{
@@ -480,6 +520,8 @@ namespace Chaos
 				{
 					if (Callback->HasOption(ESimCallbackOptions::RunOnFrozenGameThread) == bGameThreadFrozen)
 					{
+						FScopedTraceSolverCallback TraceCallback(Callback);
+
 						Callback->SetSimAndDeltaTime_Internal(SimTime, MLastDt);
 						Callback->PreSimulate_Internal();
 					}

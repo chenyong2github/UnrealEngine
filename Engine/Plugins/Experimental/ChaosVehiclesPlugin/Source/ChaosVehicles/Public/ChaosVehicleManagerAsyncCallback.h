@@ -180,6 +180,8 @@ struct FChaosVehicleManagerAsyncOutput : public Chaos::FSimCallbackOutput
  */
 class CHAOSVEHICLES_API FChaosVehicleManagerAsyncCallback : public Chaos::TSimCallbackObject<FChaosVehicleManagerAsyncInput, FChaosVehicleManagerAsyncOutput, Chaos::ESimCallbackOptions::Presimulate | Chaos::ESimCallbackOptions::ContactModification>
 {
+public:
+	virtual FName GetFNameForStatId() const override;
 private:
 	virtual void OnPreSimulate_Internal() override;
 	virtual void OnContactModification_Internal(Chaos::FCollisionContactModifier& Modifications) override;

@@ -4557,6 +4557,12 @@ void FCharacterAsyncInput::OnMovementModeChanged(EMovementMode PrevMovementMode,
 	//MovementModeChangedDelegate.Broadcast(this, PrevMovementMode, PrevCustomMode);
 }
 
+FName FCharacterMovementComponentAsyncCallback::GetFNameForStatId() const
+{
+	const static FLazyName StaticName("FCharacterMovementComponentAsyncCallback");
+	return StaticName;
+}
+
 void FCharacterMovementComponentAsyncCallback::OnPreSimulate_Internal()
 {
 	PreSimulateImpl<FCharacterMovementComponentAsyncInput, FCharacterMovementComponentAsyncOutput>(*this);
