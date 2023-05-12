@@ -5,6 +5,7 @@
 #include "UObject/Package.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "RigVMObjectVersion.h"
 #include "HAL/PlatformTLS.h"
 #include "Async/ParallelFor.h"
 #include "GenericPlatform/GenericPlatformSurvey.h"
@@ -112,6 +113,7 @@ void URigVM::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FRigVMObjectVersion::GUID);
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::StoreMarkerNamesOnSkeleton)
 	{
@@ -144,9 +146,6 @@ void URigVM::Save(FArchive& Ar)
 {
 	CopyDeferredVMIfRequired();
 
-	int32 RigVMUClassBasedStorageDefine = 0; // this used to 
-	Ar << RigVMUClassBasedStorageDefine;
-
 	// we rely on Ar.IsIgnoringArchetypeRef for determining if we are currently performing
 	// CPFUO (Copy Properties for unrelated objects). During a reinstance pass we don't
 	// want to overwrite the bytecode and some other properties - since that's handled already
@@ -170,44 +169,47 @@ void URigVM::Load(FArchive& Ar)
 	// by the RigVMCompiler.
 	Reset(Ar.IsIgnoringArchetypeRef());
 
-	int32 RigVMUClassBasedStorageDefine = 1;
-	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::RigVMMemoryStorageObject)
+	if (Ar.CustomVer(FRigVMObjectVersion::GUID) < FRigVMObjectVersion::BeforeCustomVersionWasAdded)
 	{
-		Ar << RigVMUClassBasedStorageDefine;
-	}
+		int32 RigVMUClassBasedStorageDefine = 1;
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::RigVMMemoryStorageObject)
+		{
+			Ar << RigVMUClassBasedStorageDefine;
+		}
 
-	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMExternalExecuteContextStruct 
-		&& Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::RigVMSerializeExecuteContextStruct)
-	{
-		FString ExecuteContextPath;
-		Ar << ExecuteContextPath;
-		// Context is now external to the VM, just serializing the string to keep compatibility
-	}
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMExternalExecuteContextStruct
+			&& Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::RigVMSerializeExecuteContextStruct)
+		{
+			FString ExecuteContextPath;
+			Ar << ExecuteContextPath;
+			// Context is now external to the VM, just serializing the string to keep compatibility
+		}
 
-	if(RigVMUClassBasedStorageDefine == 1)
-	{
-		FRigVMMemoryContainer WorkMemoryStorage;
-		FRigVMMemoryContainer LiteralMemoryStorage;
-		
-		Ar << WorkMemoryStorage;
-		Ar << LiteralMemoryStorage;
-		Ar << FunctionNamesStorage;
-		Ar << ByteCodeStorage;
-		Ar << Parameters;
-		
-		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
+		if (RigVMUClassBasedStorageDefine == 1)
+		{
+			FRigVMMemoryContainer WorkMemoryStorage;
+			FRigVMMemoryContainer LiteralMemoryStorage;
+
+			Ar << WorkMemoryStorage;
+			Ar << LiteralMemoryStorage;
+			Ar << FunctionNamesStorage;
+			Ar << ByteCodeStorage;
+			Ar << Parameters;
+
+			if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RigVMCopyOpStoreNumBytes)
+			{
+				Reset();
+				return;
+			}
+		}
+
+		// we only deal with virtual machines now that use the new memory infrastructure.
+		ensure(UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED == 0);
+		if (RigVMUClassBasedStorageDefine != UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED)
 		{
 			Reset();
 			return;
 		}
-	}
-
-	// we only deal with virtual machines now that use the new memory infrastructure.
-	ensure(UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED == 0);
-	if(RigVMUClassBasedStorageDefine != UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED)
-	{
-		Reset();
-		return;
 	}
 
 	// requesting the memory types will create them

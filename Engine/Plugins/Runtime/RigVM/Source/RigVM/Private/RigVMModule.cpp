@@ -7,10 +7,17 @@
 #include "RigVMModule.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/IConsoleManager.h"
+#include "RigVMObjectVersion.h"
+#include "UObject/DevObjectVersion.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, RigVM);
 
 DEFINE_LOG_CATEGORY(LogRigVM);
+
+// Unique Control Rig Object version id
+const FGuid FRigVMObjectVersion::GUID(0xDC49959B, 0x53C04DE7, 0x9156EA88, 0x5E7C5D39);
+// Register RigVM custom version with Core
+static FDevVersionRegistration GRegisterRigVMObjectVersion(FRigVMObjectVersion::GUID, FRigVMObjectVersion::LatestVersion, TEXT("Dev-RigVM"));
 
 #if UE_RIGVM_UOBJECT_PROPERTIES_ENABLED
 TAutoConsoleVariable<bool> CVarRigVMEnableUObjects(TEXT("RigVM.UObjectSupport"), true, TEXT("When true the RigVMCompiler will allow UObjects."));
