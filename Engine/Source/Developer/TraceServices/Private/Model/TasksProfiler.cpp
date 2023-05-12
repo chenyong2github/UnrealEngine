@@ -606,8 +606,13 @@ namespace TraceServices
 			// Alive
 			[](double StartTime, double EndTime, const FTaskInfo& Task)
 			{	// created before `StartTime` and destroyed after `EndTime`
-				return (Task.CreatedTimestamp <= StartTime || Task.CreatedTimestamp == FTaskInfo::InvalidTimestamp) &&
-					(Task.DestroyedTimestamp >= EndTime || Task.DestroyedTimestamp == FTaskInfo::InvalidTimestamp);
+				return (Task.CreatedTimestamp <= EndTime || Task.CreatedTimestamp == FTaskInfo::InvalidTimestamp) &&
+					(Task.DestroyedTimestamp >= StartTime || Task.DestroyedTimestamp == FTaskInfo::InvalidTimestamp);
+			},
+			// Launched
+			[](double StartTime, double EndTime, const FTaskInfo& Task)
+			{	// launched between `StartTime` and `EndTime`
+				return Task.LaunchedTimestamp >= StartTime && Task.LaunchedTimestamp <= EndTime;
 			},
 			// Active
 			[](double StartTime, double EndTime, const FTaskInfo& Task)

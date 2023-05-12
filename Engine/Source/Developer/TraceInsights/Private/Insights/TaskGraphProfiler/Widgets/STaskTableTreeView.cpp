@@ -401,6 +401,10 @@ TSharedRef<SWidget> STaskTableTreeView::TasksSelectionOptions_OnGenerateWidget(T
 		{
 			return LOCTEXT("AliveTooltip", "Tasks that were created before the selection and destroyed after.");
 		}
+		case ETaskEnumerationOption::Launched:
+		{
+			return LOCTEXT("LaunchedTooltip", "Tasks that were launched during the selection.");
+		}
 		case ETaskEnumerationOption::Active:
 		{
 			return LOCTEXT("ActiveTooltip", "Tasks that were active (being executed) at any moment of the selection.");
@@ -472,6 +476,7 @@ const TArray<TSharedPtr<ETaskEnumerationOption>>* STaskTableTreeView::GetAvailab
 	if (AvailableTasksSelectionOptions.Num() == 0)
 	{
 		AvailableTasksSelectionOptions.Add(MakeShared<ETaskEnumerationOption>(ETaskEnumerationOption::Alive));
+		AvailableTasksSelectionOptions.Add(MakeShared<ETaskEnumerationOption>(ETaskEnumerationOption::Launched));
 		AvailableTasksSelectionOptions.Add(MakeShared<ETaskEnumerationOption>(ETaskEnumerationOption::Active));
 		AvailableTasksSelectionOptions.Add(MakeShared<ETaskEnumerationOption>(ETaskEnumerationOption::WaitingForPrerequisites));
 		AvailableTasksSelectionOptions.Add(MakeShared<ETaskEnumerationOption>(ETaskEnumerationOption::Queued));
@@ -579,6 +584,10 @@ FText STaskTableTreeView::TasksSelectionOptions_GetText(ETaskEnumerationOption I
 	case ETaskEnumerationOption::Alive:
 	{
 		return LOCTEXT("Alive", "Alive");
+	}
+	case ETaskEnumerationOption::Launched:
+	{
+		return LOCTEXT("Launched", "Launched");
 	}
 	case ETaskEnumerationOption::Active:
 	{

@@ -87,6 +87,7 @@ struct FWaitingForTasks
 enum class ETaskEnumerationOption
 {
 	Alive,
+	Launched,
 	Active,
 	WaitingForPrerequisites,
 	Queued,
