@@ -72,6 +72,7 @@ const TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& FActiveRenderSetting
 			MakeShared<FActiveRenderSettingsTreeElement>(FName(*Node->GetNodeTitle().ToString()), EElementType::Node);
 		Element->SettingsNode = Node;
 		Element->FlattenedGraph = FlattenedGraph;
+		Element->ParentElement = AsWeak();
 
 		return MoveTemp(Element);
 	};
@@ -112,6 +113,7 @@ const TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& FActiveRenderSetting
 				TSharedPtr<FActiveRenderSettingsTreeElement> Element =
 					MakeShared<FActiveRenderSettingsTreeElement>(FName(Pair.Key), EElementType::NamedBranch);
 				Element->FlattenedGraph = FlattenedGraph;
+				Element->ParentElement = AsWeak();
 				
 				ChildrenCache.Add(MoveTemp(Element));
 			}
@@ -147,6 +149,7 @@ const TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& FActiveRenderSetting
 			Element->SettingsNode = SettingsNode;
 			Element->SettingsProperty = Property;
 			Element->FlattenedGraph = FlattenedGraph;
+			Element->ParentElement = AsWeak();
 			
 			ChildrenCache.Add(MoveTemp(Element));
 		}
@@ -158,6 +161,22 @@ const TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& FActiveRenderSetting
 void FActiveRenderSettingsTreeElement::ClearCachedChildren() const
 {
 	ChildrenCache.Empty();
+}
+
+uint32 FActiveRenderSettingsTreeElement::GetHash() const
+{
+	if (ElementHash != 0)
+	{
+		return ElementHash;
+	}
+
+	ElementHash = GetTypeHash(Name);
+	if (ParentElement.IsValid())
+	{
+		ElementHash = HashCombine(ElementHash, ParentElement.Pin()->GetHash());
+	}
+
+	return ElementHash;
 }
 
 void SMovieGraphActiveRenderSettingsTreeItem::Construct(
@@ -288,6 +307,7 @@ void SMovieGraphActiveRenderSettingsTabContent::Construct(const FArguments& InAr
 			.SelectionMode(ESelectionMode::Single)
 			.OnGenerateRow(this, &SMovieGraphActiveRenderSettingsTabContent::GenerateTreeRow)
 			.OnGetChildren(this, &SMovieGraphActiveRenderSettingsTabContent::GetChildrenForTree)
+			.OnExpansionChanged(this, &SMovieGraphActiveRenderSettingsTabContent::OnExpansionChanged)
 			.HeaderRow
 			(
 				SNew(SHeaderRow)
@@ -346,12 +366,40 @@ void SMovieGraphActiveRenderSettingsTabContent::TraverseGraph()
 	}
 	
 	TreeView->RequestTreeRefresh();
+
+	// Restore tree expansion state after the refresh
+	for (const TSharedPtr<FActiveRenderSettingsTreeElement>& RootElement : RootElements)
+	{
+		RestoreExpansionStateRecursive(RootElement);
+	}
 }
 
 FReply SMovieGraphActiveRenderSettingsTabContent::OnEvaluateGraphClicked()
 {
 	TraverseGraph();
 	return FReply::Handled();
+}
+
+void SMovieGraphActiveRenderSettingsTabContent::OnExpansionChanged(TSharedPtr<FActiveRenderSettingsTreeElement> InElement, bool bInExpanded)
+{
+	if (bInExpanded)
+	{
+		ExpandedElements.Add(InElement->GetHash());
+	}
+	else
+	{
+		ExpandedElements.Remove(InElement->GetHash());
+	}
+}
+
+void SMovieGraphActiveRenderSettingsTabContent::RestoreExpansionStateRecursive(const TSharedPtr<FActiveRenderSettingsTreeElement>& InElement)
+{
+	TreeView->SetItemExpansion(InElement, ExpandedElements.Contains(InElement->GetHash()));
+	
+	for (const TSharedPtr<FActiveRenderSettingsTreeElement>& ChildElement : InElement->GetChildren())
+	{
+		RestoreExpansionStateRecursive(ChildElement);
+	}
 }
 
 TSharedRef<ITableRow> SMovieGraphActiveRenderSettingsTabContent::GenerateTreeRow(

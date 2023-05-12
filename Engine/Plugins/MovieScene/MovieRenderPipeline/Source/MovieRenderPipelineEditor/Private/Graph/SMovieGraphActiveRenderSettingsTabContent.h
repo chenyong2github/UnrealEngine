@@ -14,7 +14,7 @@ class UMovieGraphNode;
  * Represents the data of one element displayed in the tree, which is one of the types in EElementType. Provides a way
  * of getting the children under the element.
  */
-class FActiveRenderSettingsTreeElement
+class FActiveRenderSettingsTreeElement : public TSharedFromThis<FActiveRenderSettingsTreeElement>
 {
 public:
 	/** The type of this element. */
@@ -47,6 +47,9 @@ public:
 	/** Clears the cached result of GetChildren(). */
 	void ClearCachedChildren() const;
 
+	/** Gets the hash that uniquely identifies this element in the tree. */
+	uint32 GetHash() const;
+
 public:
 	/** The name of the element as it appears in the tree. */
 	FName Name;
@@ -66,9 +69,15 @@ public:
 	/** The result of the graph traversal. */
 	TWeakObjectPtr<UMovieGraphEvaluatedConfig> FlattenedGraph = nullptr;
 
+	/** This element's parent element in the tree.  */
+	TWeakPtr<const FActiveRenderSettingsTreeElement> ParentElement = nullptr;
+
 private:
 	/** The (cached) child elements nested under this element. */
 	mutable TArray<TSharedPtr<FActiveRenderSettingsTreeElement>> ChildrenCache;
+
+	/** The (cached) hash of this element. */
+	mutable uint32 ElementHash = 0;
 };
 
 /**
@@ -119,6 +128,12 @@ private:
 	/** Handles the button click for evaluating the graph. */
 	FReply OnEvaluateGraphClicked();
 
+	/** Handles the expansion state change of an element in the tree. */
+	void OnExpansionChanged(TSharedPtr<FActiveRenderSettingsTreeElement> InElement, bool bInExpanded);
+
+	/** Recursively restores the cached expansion state of the tree, starting at the specified element. */
+	void RestoreExpansionStateRecursive(const TSharedPtr<FActiveRenderSettingsTreeElement>& InElement);
+
 	/** Generates a row in the tree widget based on the provided element. */
 	TSharedRef<ITableRow> GenerateTreeRow(TSharedPtr<FActiveRenderSettingsTreeElement> InTreeElement, const TSharedRef<STableViewBase>& OwnerTable);
 
@@ -131,6 +146,9 @@ private:
 
 	/** The main tree widget displayed in the tab. */
 	TSharedPtr<STreeView<TSharedPtr<FActiveRenderSettingsTreeElement>>> TreeView = nullptr;
+
+	/** The hashes of elements that are currently expanded in the tree. */
+	TSet<uint32> ExpandedElements;
 
 	/** The last result of a graph traversal. */
 	TStrongObjectPtr<UMovieGraphEvaluatedConfig> FlattenedGraph = nullptr;
