@@ -1890,13 +1890,24 @@ void FTechSoftFileParser::ExtractCoordinateSystem(const A3DRiCoordinateSystem* C
 
 bool FTechSoftFileParser::IsConfigurationSet(const A3DAsmProductOccurrence* Occurrence)
 {
-	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(Occurrence);
-	if (!OccurrenceData.IsValid())
+	switch (Format)
 	{
-		return false;
+	case ECADFormat::CATIAV4:
+	case ECADFormat::N_X:
+	case ECADFormat::SOLIDWORKS:
+	{
+		TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(Occurrence);
+		if (!OccurrenceData.IsValid())
+		{
+			return false;
+		}
+
+		return OccurrenceData->m_uiProductFlags & A3D_PRODUCT_FLAG_CONTAINER;
 	}
 
-	return OccurrenceData->m_uiProductFlags & A3D_PRODUCT_FLAG_CONTAINER;
+	default : 
+		return false;
+	}
 }
 
 uint32 FTechSoftFileParser::CountColorAndMaterial()
