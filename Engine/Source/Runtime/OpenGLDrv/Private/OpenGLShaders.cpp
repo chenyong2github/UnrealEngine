@@ -2590,8 +2590,8 @@ static FOpenGLProgramBinary ExternalProgramCompile(const FOpenGLProgramKey& Prog
 	TArray<ANSICHAR> ComputeGlslCode;
 	{
 		FScopeLock Lock(&GCompiledShaderCacheCS);
-		VSCode = GetOpenGLCompiledShaderCache().FindRef(VSKey)->GetUncompressedShader();
-		PSCode = GetOpenGLCompiledShaderCache().FindRef(PSKey)->GetUncompressedShader();
+		VSCode = GetOpenGLCompiledShaderCache().FindRef(VSKey).GetUncompressedShader();
+		PSCode = GetOpenGLCompiledShaderCache().FindRef(PSKey).GetUncompressedShader();
 	}
 
 	FString FailLog;
