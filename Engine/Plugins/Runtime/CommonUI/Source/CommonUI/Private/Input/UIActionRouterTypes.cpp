@@ -325,8 +325,8 @@ bool FUIActionBinding::UpdateHold(float TargetHoldTime)
 	if (HeldPercent >= 1.f)
 	{
 		CancelHold();
-		OnHoldActionProgressed.Broadcast(0.0f); //approximate CommonButton::OnActionComplete without adding extra bind
 		OnExecuteAction.ExecuteIfBound();
+		OnHoldActionProgressed.Broadcast(0.0f); //approximate CommonButton::OnActionComplete without adding extra bind
 		HoldStartSecond = 0.0f;
 		CurrentHoldSecond = 0.0f;
 
