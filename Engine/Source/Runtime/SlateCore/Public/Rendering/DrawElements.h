@@ -453,7 +453,7 @@ struct FSlateCachedElementData
 
 	FSlateCachedElementsHandle AddCache(const SWidget* Widget);
 
-	FSlateDrawElement& AddCachedElement(FSlateCachedElementsHandle& CacheHandle, const FSlateClippingManager& ParentClipManager, const SWidget* Widget);
+	FSlateDrawElement& AddCachedElement(FSlateCachedElementsHandle& CacheHandle, const FSlateClippingManager& ParentClipManager, const SWidget* Widget, EElementType InElementType);
 
 	FSlateRenderBatch& AddCachedRenderBatch(FSlateRenderBatch&& NewBatch, int32& OutIndex);
 	void RemoveCachedRenderBatches(const TArray<int32>& CachedRenderBatchIndices);
@@ -677,7 +677,7 @@ public:
 		}
 	}
 private:
-	FSlateDrawElement& AddCachedElement();
+	FSlateDrawElement& AddCachedElement(EElementType InElementType);
 
 	TArrayView<FSlateCachedElementData* const> GetCachedElementDataList() const { return MakeArrayView(CachedElementDataList.GetData(), CachedElementDataList.Num()); }
 
