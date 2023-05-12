@@ -58,29 +58,29 @@ void FAssetDependencyGrouping::GroupNodes(const TArray<UE::Insights::FTableTreeN
 		//
 		// By default, the dependencies node is collapsed.
 		// |
-		// +-- [group:{AssetName}(Self+Deps)]               *[ASSET0]
+		// +-- [group:{AssetName}] (self + dependencies)
 		// |   |
-		// |   +-- [group:_Self]                            *[ASSET0]
+		// |   +-- [group:_Self]
 		// |   |   |
-		// |   |   +-- [asset:{AssetName}]                  [ASSET0]
+		// |   |   +-- [asset:{AssetName}]
 		// |   |
-		// |   +-- [group:Dependencies]                     *[0]
+		// |   +-- [group:Dependencies] (double click to expand)
 
 		// When dependencies node is expanded, it will be populated with actual dependencies.
 		// |
-		// +-- [group:{AssetName}(Self+Deps)]               *[ASSET0+DEPS0']
+		// +-- [group:{AssetName}] (self + dependencies)
 		// |   |
-		// |   +-- [group:_Self]                            *[ASSET0]
+		// |   +-- [group:_Self]
 		// |   |   |
-		// |   |   +-- [asset:{AssetName}]                  [ASSET0]
+		// |   |   +-- [asset:{AssetName}]
 		// |   |
-		// |   +-- [group:Dependencies]                     *[DEPS0']
+		// |   +-- [group:Dependencies]
 		// |       |
-		// |       +-- [asset:{DependentAsset1}]            [ASSET1]
+		// |       +-- [asset:{DependentAsset1}]
 		// |       |
-		// |       +-- [asset:{DependentAsset2}]            [ASSET2]
+		// |       +-- [asset:{DependentAsset2}]
 		// |       |
-		// |       +-- [group:{DependentAsset3}(Self+Deps)] *[ASSET3+DEPS3']
+		// |       +-- [group:{DependentAsset3}] (self + dependencies)
 		// |       |
 		// |       ...
 

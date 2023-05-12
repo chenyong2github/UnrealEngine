@@ -127,6 +127,8 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, TSharedPtr<FTable> InTablePtr);
 
+	TSharedPtr<STreeView<FTableTreeNodePtr>> GetInnerTreeView() const { return TreeView; }
+
 	TSharedPtr<FTable>& GetTable() { return Table; }
 	const TSharedPtr<FTable>& GetTable() const { return Table; }
 

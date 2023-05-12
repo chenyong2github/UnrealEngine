@@ -85,6 +85,8 @@ public:
 
 	virtual ~FAssetDependenciesGroupTreeNode() {}
 
+	virtual const FText GetExtraDisplayName() const;
+
 	virtual FLinearColor GetColor() const override;
 
 	virtual bool OnLazyCreateChildren(TSharedPtr<class UE::Insights::STableTreeView> InTableTreeView) override;

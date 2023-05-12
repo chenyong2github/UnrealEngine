@@ -6,6 +6,9 @@
 #include "Insights/Common/AsyncOperationProgress.h"
 #include "Insights/Common/InsightsStyle.h"
 #include "Insights/Table/Widgets/STableTreeView.h"
+#include "Internationalization/Internationalization.h"
+
+#define LOCTEXT_NAMESPACE "FAssetTreeNode"
 
 INSIGHTS_IMPLEMENT_RTTI(FAssetTreeNode)
 INSIGHTS_IMPLEMENT_RTTI(FAssetDependenciesGroupTreeNode)
@@ -51,9 +54,26 @@ FLinearColor FAssetDependenciesGroupTreeNode::GetColor() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const FText FAssetDependenciesGroupTreeNode::GetExtraDisplayName() const
+{
+	if (!bAreChildrenCreated)
+	{
+		return LOCTEXT("DblClickToExpand", "(double click to expand)");
+	}
+	return FTableTreeNode::GetExtraDisplayName();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool FAssetDependenciesGroupTreeNode::OnLazyCreateChildren(TSharedPtr<UE::Insights::STableTreeView> InTableTreeView)
 {
 	if (bAreChildrenCreated)
+	{
+		return false;
+	}
+
+	TSharedPtr<STreeView<UE::Insights::FTableTreeNodePtr>> TreeView = InTableTreeView->GetInnerTreeView();
+	if (!TreeView || !TreeView->IsItemExpanded(SharedThis(this)))
 	{
 		return false;
 	}
@@ -83,3 +103,6 @@ bool FAssetDependenciesGroupTreeNode::OnLazyCreateChildren(TSharedPtr<UE::Insigh
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#undef LOCTEXT_NAMESPACE
