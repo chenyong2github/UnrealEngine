@@ -26,16 +26,6 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Additional set of components that should be suggested to be installed for Visual Studio 2019 or 2022
-		/// to support the HoloLens platform.
-		/// </summary>
-		static readonly string[] VisualStudioSuggestedHololensComponents = new string[]
-		{
-			"Microsoft.VisualStudio.Workload.Universal",
-			"Microsoft.VisualStudio.Component.VC.Tools.ARM64",
-		};
-
-		/// <summary>
-		/// Additional set of components that should be suggested to be installed for Visual Studio 2019 or 2022
 		/// to support the Linux platform.
 		/// </summary>
 		static readonly string[] VisualStudioSuggestedLinuxComponents = new string[]
@@ -61,22 +51,12 @@ namespace UnrealBuildTool
 		};
 
 		/// <summary>
-		/// Additional set of components that should be suggested to be installed for Visual Studio 2022
-		/// to support the HoloLens platform.
-		/// </summary>
-		static readonly string[] VisualStudio2022SuggestedHololensComponents = new string[]
-		{
-			"Microsoft.VisualStudio.Component.VC.14.35.17.5.ARM64",
-		};
-
-		/// <summary>
 		/// Returns the list of suggested of components that should be suggested to be installed for Visual Studio.
 		/// Used to generate a .vsconfig file which will prompt Visual Studio to ask the user to install these components.
 		/// </summary>
 		public static IEnumerable<string> GetVisualStudioSuggestedComponents(VCProjectFileFormat Format)
 		{
 			bool LinuxValid = InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.Linux) && UEBuildPlatform.IsPlatformAvailable(UnrealTargetPlatform.Linux);
-			bool HololensValid = InstalledPlatformInfo.IsValidPlatform(UnrealTargetPlatform.HoloLens) && UEBuildPlatform.IsPlatformAvailable(UnrealTargetPlatform.HoloLens);
 
 			SortedSet<string> Components = new SortedSet<string>();
 			Components.UnionWith(VisualStudioSuggestedComponents);
@@ -88,10 +68,6 @@ namespace UnrealBuildTool
 					break;
 				case VCProjectFileFormat.VisualStudio2022:
 					Components.UnionWith(VisualStudio2022SuggestedComponents);
-					if (HololensValid)
-					{
-						Components.UnionWith(VisualStudio2022SuggestedHololensComponents);
-					}
 					break;
 				default:
 					throw new BuildException("Unsupported Visual Studio version");
@@ -100,11 +76,6 @@ namespace UnrealBuildTool
 			if (LinuxValid)
 			{
 				Components.UnionWith(VisualStudioSuggestedLinuxComponents);
-			}
-
-			if (HololensValid)
-			{
-				Components.UnionWith(VisualStudioSuggestedHololensComponents);
 			}
 
 			return Components;

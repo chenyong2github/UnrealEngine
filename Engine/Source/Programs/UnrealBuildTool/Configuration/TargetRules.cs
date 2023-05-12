@@ -2085,14 +2085,6 @@ namespace UnrealBuildTool
 		public CppStandardVersion CppStandard = CppStandardVersion.Default;
 
 		/// <summary>
-		/// Which C++ standard is the maximum allowed for compiling modules in this target if they override the Target's CppStandard for any reason.
-		/// </summary>
-		[RequiresUniqueBuildEnvironment]
-		[CommandLine("-MaxCppStd")]
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public CppStandardVersion MaxCppStandard = CppStandardVersion.Latest;
-
-		/// <summary>
 		/// Which C standard to use for compiling this target
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -3832,11 +3824,6 @@ namespace UnrealBuildTool
 		public CppStandardVersion CppStandard
 		{
 			get { return Inner.CppStandard; }
-		}
-
-		public CppStandardVersion MaxCppStandard
-		{
-			get { return Inner.MaxCppStandard; }
 		}
 
 		public CStandardVersion CStandard

@@ -1777,11 +1777,6 @@ namespace UnrealBuildTool
 			{
 				Result.CppStandard = CppStandardVersion.Cpp20;
 			}
-			// Downgrade CppStandard if a max version has been set.
-			if (Result.CppStandard > Target.MaxCppStandard)
-			{
-				Result.CppStandard = Target.MaxCppStandard;
-			}
 
 			// If the module overrides the C language version, override it on the compile environment
 			if (Rules.CStandard != null)

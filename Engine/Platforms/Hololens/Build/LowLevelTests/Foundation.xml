@@ -1,6 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<BuildGraph xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.epicgames.com/BuildGraph ../../Build/Graph/Schema.xsd" xmlns="http://www.epicgames.com/BuildGraph">
-  <Property Name="HoloLensFoundationTags" Value="" />
-  <Property Name="HoloLensFoundationExtraCompilationArgs" Value="-allmodules" />
-  <Property Name="HoloLensFoundationRunSupported" Value="True" />
-</BuildGraph>

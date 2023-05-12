@@ -260,11 +260,6 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Win64 = FindOrAddByName("Win64");
 
 		/// <summary>
-		/// HoloLens
-		/// </summary>
-		public static UnrealTargetPlatform HoloLens = FindOrAddByName("HoloLens");
-
-		/// <summary>
 		/// Mac
 		/// </summary>
 		public static UnrealTargetPlatform Mac = FindOrAddByName("Mac");
