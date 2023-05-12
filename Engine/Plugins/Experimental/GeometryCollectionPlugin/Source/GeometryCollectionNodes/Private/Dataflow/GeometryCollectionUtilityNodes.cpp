@@ -155,6 +155,11 @@ FGenerateClusterConvexHullsFromLeafHullsDataflowNode::FGenerateClusterConvexHull
 	RegisterInputConnection(&ConvexCount);
 	RegisterInputConnection(&ErrorTolerance);
 	RegisterInputConnection(&OptionalSelectionFilter);
+	RegisterInputConnection(&bProtectNegativeSpace);
+	RegisterInputConnection(&TargetNumSamples);
+	RegisterInputConnection(&MinSampleSpacing);
+	RegisterInputConnection(&NegativeSpaceTolerance);
+	RegisterInputConnection(&MinRadius);
 
 	RegisterOutputConnection(&Collection);
 }
@@ -167,26 +172,45 @@ void FGenerateClusterConvexHullsFromLeafHullsDataflowNode::Evaluate(Dataflow::FC
 
 		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
-			const int32 InConvexCount = GetValue(Context, &ConvexCount);
-			const double InErrorToleranceInCm = GetValue(Context, &ErrorTolerance);
-			if (IsConnected(&OptionalSelectionFilter))
+			TArray<int32> SelectionArray;
+			bool bHasSelectionFilter = IsConnected(&OptionalSelectionFilter);
+			if (bHasSelectionFilter)
 			{
 				const FDataflowTransformSelection& InOptionalSelectionFilter = GetValue<FDataflowTransformSelection>(Context, &OptionalSelectionFilter);
-				FGeometryCollectionConvexUtility::FClusterConvexHullSettings Settings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
-				Settings.AllowMergesMethod = AllowMerges;
+				SelectionArray = InOptionalSelectionFilter.AsArray();
+			}
+
+			bool bHasNegativeSpace = false;
+			UE::Geometry::FSphereCovering NegativeSpace;
+			if (GetValue(Context, &bProtectNegativeSpace))
+			{
+				UE::Geometry::FNegativeSpaceSampleSettings NegativeSpaceSettings;
+				NegativeSpaceSettings.TargetNumSamples = GetValue(Context, &TargetNumSamples);
+				NegativeSpaceSettings.MinRadius = GetValue(Context, &MinRadius);
+				NegativeSpaceSettings.ReduceRadiusMargin = GetValue(Context, &NegativeSpaceTolerance);
+				NegativeSpaceSettings.MinSpacing = GetValue(Context, &MinSampleSpacing);
+				bHasNegativeSpace = UE::FractureEngine::Convex::ComputeConvexHullsNegativeSpace(*GeomCollection, NegativeSpace, NegativeSpaceSettings, bHasSelectionFilter, SelectionArray);
+			}
+
+			const int32 InConvexCount = GetValue(Context, &ConvexCount);
+			const double InErrorToleranceInCm = GetValue(Context, &ErrorTolerance);
+			FGeometryCollectionConvexUtility::FClusterConvexHullSettings HullMergeSettings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
+			HullMergeSettings.AllowMergesMethod = AllowMerges;
+			HullMergeSettings.EmptySpace = bHasNegativeSpace ? &NegativeSpace : nullptr;
+
+			if (bHasSelectionFilter)
+			{
 				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(
 					*GeomCollection,
-					Settings,
-					InOptionalSelectionFilter.AsArray()
+					HullMergeSettings,
+					SelectionArray
 				);
 			}
 			else
 			{
-				FGeometryCollectionConvexUtility::FClusterConvexHullSettings Settings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
-				Settings.AllowMergesMethod = AllowMerges;
 				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafHulls(
 					*GeomCollection,
-					Settings
+					HullMergeSettings
 				);
 			}
 
@@ -202,6 +226,11 @@ FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::FGenerateClusterConvex
 	RegisterInputConnection(&ConvexCount);
 	RegisterInputConnection(&ErrorTolerance);
 	RegisterInputConnection(&OptionalSelectionFilter);
+	RegisterInputConnection(&bProtectNegativeSpace);
+	RegisterInputConnection(&TargetNumSamples);
+	RegisterInputConnection(&MinSampleSpacing);
+	RegisterInputConnection(&NegativeSpaceTolerance);
+	RegisterInputConnection(&MinRadius);
 
 	RegisterOutputConnection(&Collection);
 }
@@ -214,24 +243,45 @@ void FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::Evaluate(Dataflow
 
 		if (TUniquePtr<FGeometryCollection> GeomCollection = TUniquePtr<FGeometryCollection>(InCollection.NewCopy<FGeometryCollection>()))
 		{
-			const int32 InConvexCount = GetValue(Context, &ConvexCount);
-			const double InErrorToleranceInCm = GetValue(Context, &ErrorTolerance);
-			if (IsConnected(&OptionalSelectionFilter))
+			TArray<int32> SelectionArray;
+			bool bHasSelectionFilter = IsConnected(&OptionalSelectionFilter);
+			if (bHasSelectionFilter)
 			{
 				const FDataflowTransformSelection& InOptionalSelectionFilter = GetValue<FDataflowTransformSelection>(Context, &OptionalSelectionFilter);
-				FGeometryCollectionConvexUtility::FClusterConvexHullSettings Settings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
+				SelectionArray = InOptionalSelectionFilter.AsArray();
+			}
+
+			bool bHasNegativeSpace = false;
+			UE::Geometry::FSphereCovering NegativeSpace;
+			if (GetValue(Context, &bProtectNegativeSpace))
+			{
+				UE::Geometry::FNegativeSpaceSampleSettings NegativeSpaceSettings;
+				NegativeSpaceSettings.TargetNumSamples = GetValue(Context, &TargetNumSamples);
+				NegativeSpaceSettings.MinRadius = GetValue(Context, &MinRadius);
+				NegativeSpaceSettings.ReduceRadiusMargin = GetValue(Context, &NegativeSpaceTolerance);
+				NegativeSpaceSettings.MinSpacing = GetValue(Context, &MinSampleSpacing);
+				bHasNegativeSpace = UE::FractureEngine::Convex::ComputeConvexHullsNegativeSpace(*GeomCollection, NegativeSpace, NegativeSpaceSettings, bHasSelectionFilter, SelectionArray);
+			}
+
+			const int32 InConvexCount = GetValue(Context, &ConvexCount);
+			const double InErrorToleranceInCm = GetValue(Context, &ErrorTolerance);
+			FGeometryCollectionConvexUtility::FClusterConvexHullSettings HullMergeSettings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
+			HullMergeSettings.AllowMergesMethod = EAllowConvexMergeMethod::Any; // Note: Only 'Any' is supported for this node currently
+			HullMergeSettings.EmptySpace = bHasNegativeSpace ? &NegativeSpace : nullptr;
+
+			if (bHasSelectionFilter)
+			{
 				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(
 					*GeomCollection,
-					Settings,
-					InOptionalSelectionFilter.AsArray()
+					HullMergeSettings,
+					SelectionArray
 				);
 			}
 			else
 			{
-				FGeometryCollectionConvexUtility::FClusterConvexHullSettings Settings(InConvexCount, InErrorToleranceInCm, bPreferExternalCollisionShapes);
 				FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromChildrenHulls(
 					*GeomCollection,
-					Settings
+					HullMergeSettings
 				);
 			}
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/ArrayView.h"
+#include "CompGeom/ConvexDecomposition3.h"
 
 namespace Chaos { class FConvex; }
 struct FManagedArrayCollection;
@@ -32,6 +33,12 @@ namespace UE::FractureEngine::Convex
 	 * @return true if the hull had valid data and either was simplified or did not need to be (e.g. already had few enough triangles)
 	 */
 	bool FRACTUREENGINE_API SimplifyConvexHull(const ::Chaos::FConvex* InConvexHull, ::Chaos::FConvex* OutConvexHull, const FSimplifyHullSettings& Settings);
+
+	/**
+	 * Compute negative space for the convex hulls on a geometry collection
+	 * @return true if any negative space was found
+	 */
+	bool FRACTUREENGINE_API ComputeConvexHullsNegativeSpace(FManagedArrayCollection& Collection, UE::Geometry::FSphereCovering& OutNegativeSpace, const UE::Geometry::FNegativeSpaceSampleSettings& Settings, bool bRestrictToSelection = false, const TArrayView<const int32> TransformSelection = TArrayView<const int32>());
 
 }
 

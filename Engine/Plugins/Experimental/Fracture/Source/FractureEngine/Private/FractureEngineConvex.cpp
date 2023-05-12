@@ -4,10 +4,56 @@
 #include "Chaos/Convex.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "Spatial/FastWinding.h"
 #include "ProjectionTargets.h"
 #include "MeshSimplification.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
+#include "GeometryCollection/Facades/CollectionTransformFacade.h"
+#include "GeometryCollection/Facades/CollectionTransformSelectionFacade.h"
+
+namespace
+{
+	// Local helpers for converting convex hulls to dynamic meshes, used to run geometry processing tasks on convex hulls (e.g., simplification, computing negative space)
+
+	static void AppendConvexHullToCompactDynamicMesh(const ::Chaos::FConvex* InConvexHull, UE::Geometry::FDynamicMesh3& Mesh, FTransform* OptionalTransform = nullptr)
+	{
+		check(Mesh.IsCompact());
+
+		const ::Chaos::FConvexStructureData& ConvexStructure = InConvexHull->GetStructureData();
+		const int32 NumV = InConvexHull->NumVertices();
+		const int32 NumP = InConvexHull->NumPlanes();
+		int32 StartV = Mesh.MaxVertexID();
+		for (int32 VIdx = 0; VIdx < NumV; ++VIdx)
+		{
+			FVector3d V = (FVector3d)InConvexHull->GetVertex(VIdx);
+			if (OptionalTransform)
+			{
+				V = OptionalTransform->TransformPosition(V);
+			}
+			int32 MeshVIdx = Mesh.AppendVertex(V);
+			checkSlow(MeshVIdx == VIdx + StartV); // Must be true because the mesh is compact
+		}
+		for (int32 PIdx = 0; PIdx < NumP; ++PIdx)
+		{
+			const int32 NumFaceV = ConvexStructure.NumPlaneVertices(PIdx);
+			const int32 V0 = StartV + ConvexStructure.GetPlaneVertex(PIdx, 0);
+			for (int32 SubIdx = 1; SubIdx + 1 < NumFaceV; ++SubIdx)
+			{
+				const int32 V1 = StartV + ConvexStructure.GetPlaneVertex(PIdx, SubIdx);
+				const int32 V2 = StartV + ConvexStructure.GetPlaneVertex(PIdx, SubIdx + 1);
+				Mesh.AppendTriangle(UE::Geometry::FIndex3i(V0, V1, V2));
+			}
+		}
+	}
+
+	static UE::Geometry::FDynamicMesh3 ConvexHullToDynamicMesh(const ::Chaos::FConvex* InConvexHull)
+	{
+		UE::Geometry::FDynamicMesh3 Mesh;
+		AppendConvexHullToCompactDynamicMesh(InConvexHull, Mesh);
+		return Mesh;
+	}
+}
 
 namespace UE::FractureEngine::Convex
 {
@@ -68,7 +114,6 @@ namespace UE::FractureEngine::Convex
 		}
 
 		const ::Chaos::FConvexStructureData& ConvexStructure = InConvexHull->GetStructureData();
-		const int32 NumV = InConvexHull->NumVertices();
 		const int32 NumP = InConvexHull->NumPlanes();
 
 		// Check if no simplification required, and skip simplification in that case
@@ -88,23 +133,7 @@ namespace UE::FractureEngine::Convex
 		}
 	
 		// Convert to DynamicMesh to run simplifier
-		UE::Geometry::FDynamicMesh3 Mesh;
-		for (int32 VIdx = 0; VIdx < NumV; ++VIdx)
-		{
-			int32 MeshVIdx = Mesh.AppendVertex((FVector3d)InConvexHull->GetVertex(VIdx));
-			checkSlow(MeshVIdx == VIdx);
-		}
-		for (int32 PIdx = 0; PIdx < NumP; ++PIdx)
-		{
-			const int32 NumFaceV = ConvexStructure.NumPlaneVertices(PIdx);
-			const int32 V0 = ConvexStructure.GetPlaneVertex(PIdx, 0);
-			for (int32 SubIdx = 1; SubIdx + 1 < NumFaceV; ++SubIdx)
-			{
-				const int32 V1 = ConvexStructure.GetPlaneVertex(PIdx, SubIdx);
-				const int32 V2 = ConvexStructure.GetPlaneVertex(PIdx, SubIdx + 1);
-				Mesh.AppendTriangle(UE::Geometry::FIndex3i(V0, V1, V2));
-			}
-		}
+		UE::Geometry::FDynamicMesh3 Mesh = ConvexHullToDynamicMesh(InConvexHull);
 		
 		// Run simplification
 		UE::Geometry::FVolPresMeshSimplification Simplifier(&Mesh);
@@ -147,5 +176,61 @@ namespace UE::FractureEngine::Convex
 		*OutConvexHull = ::Chaos::FConvex(NewConvexVerts, InConvexHull->GetMargin(), ::Chaos::FConvexBuilder::EBuildMethod::Default);
 
 		return true;
+	}
+
+	bool ComputeConvexHullsNegativeSpace(FManagedArrayCollection& Collection, UE::Geometry::FSphereCovering& OutNegativeSpace, const UE::Geometry::FNegativeSpaceSampleSettings& Settings, bool bRestrictToSelection, const TArrayView<const int32> TransformSelection)
+	{
+		if (!FGeometryCollectionConvexUtility::HasConvexHullData(&Collection))
+		{
+			return false;
+		}
+
+		TManagedArray<TSet<int32>>& TransformToConvexInds = Collection.ModifyAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
+		TManagedArray<TUniquePtr<::Chaos::FConvex>>& ConvexHulls = Collection.ModifyAttribute<TUniquePtr<::Chaos::FConvex>>("ConvexHull", "Convex");
+
+		UE::Geometry::FDynamicMesh3 CombinedMesh;
+
+		GeometryCollection::Facades::FCollectionTransformFacade TransformFacade(Collection);
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade SelectionFacade(Collection);
+		TArray<int> RigidSelection;
+		if (!bRestrictToSelection)
+		{
+			RigidSelection = SelectionFacade.SelectLeaf();
+		}
+		else
+		{
+			RigidSelection.Append(TransformSelection);
+			SelectionFacade.ConvertSelectionToRigidNodes(RigidSelection);
+		}
+		
+		TArray<FTransform> GlobalTransformArray = TransformFacade.ComputeCollectionSpaceTransforms();
+		
+		auto ProcessBone = [&TransformToConvexInds, &ConvexHulls, &CombinedMesh, &GlobalTransformArray](int32 BoneIdx) -> bool
+		{
+			if (BoneIdx < 0 || BoneIdx >= TransformToConvexInds.Num())
+			{
+				// invalid bone index
+				return false;
+			}
+			bool bNoFailures = true;
+			for (int32 ConvexIdx : TransformToConvexInds[BoneIdx])
+			{
+				AppendConvexHullToCompactDynamicMesh(ConvexHulls[ConvexIdx].Get(), CombinedMesh, &GlobalTransformArray[BoneIdx]);
+			}
+			return bNoFailures;
+		};
+
+		bool bNoFailures = true;
+		for (int32 BoneIdx : RigidSelection)
+		{
+			bool bSuccess = ProcessBone(BoneIdx);
+			bNoFailures = bNoFailures && bSuccess;
+		}
+
+		UE::Geometry::FDynamicMeshAABBTree3 Tree(&CombinedMesh, true);
+		UE::Geometry::TFastWindingTree<UE::Geometry::FDynamicMesh3> Winding(&Tree, true);
+		OutNegativeSpace.AddNegativeSpace(Winding, Settings);
+
+		return bNoFailures;
 	}
 }

@@ -20,6 +20,10 @@
 namespace UE {
 namespace Geometry {
 
+// Forward declare fast winding tree for negative space sampling
+template<class TriangleMeshType>
+class TFastWindingTree;
+
 // TODO: To support meshes where volume is not well defined (e.g., open boundaries or many self-intersecting parts), we'll need alternative error metrics
 enum class EConvexErrorMethod
 {
@@ -28,6 +32,74 @@ enum class EConvexErrorMethod
 	//BothDistances,
 	RelativeVolume
 };
+
+struct FNegativeSpaceSampleSettings
+{
+	FNegativeSpaceSampleSettings() = default;
+	FNegativeSpaceSampleSettings(int32 TargetNumSamples, double MinSpacing, double ReduceRadiusMargin)
+		: TargetNumSamples(TargetNumSamples), MinSpacing(MinSpacing), ReduceRadiusMargin(ReduceRadiusMargin)
+	{}
+
+	enum class ESampleMethod
+	{
+		Uniform
+		// TODO: Consider e.g. sampling based on local search / floodfill
+	};
+
+	// Method used to place samples
+	ESampleMethod SampleMethod = ESampleMethod::Uniform;
+
+	// Target number of spheres to use to cover negative space. Intended as a rough guide; actual number used may be larger or smaller.
+	int32 TargetNumSamples = 30;
+
+	// Minimum desired spacing between sampling spheres; not a strictly enforced bound.
+	double MinSpacing = 3.0;
+
+	// Space to allow between spheres and actual surface
+	double ReduceRadiusMargin = 3.0;
+
+	// Ignore spheres with smaller radius than this
+	double MinRadius = 10.0;
+};
+
+// Define a volume with a set of spheres
+class GEOMETRYCORE_API FSphereCovering
+{
+public:
+
+	inline int32 Num() const
+	{
+		return Position.Num();
+	}
+
+	inline FVector3d GetCenter(int32 Idx) const
+	{
+		return Position[Idx];
+	}
+
+	inline double GetRadius(int32 Idx) const
+	{
+		return Radius[Idx];
+	}
+
+	// Add spheres covering the negative space of the given fast winding tree
+	// @return true if any spheres were added
+	bool AddNegativeSpace(const TFastWindingTree<FDynamicMesh3>& Spatial, const FNegativeSpaceSampleSettings& Settings);
+
+	void Reset()
+	{
+		Position.Reset();
+		Radius.Reset();
+	}
+
+private:
+	// Sphere centers
+	TArray<FVector3d> Position;
+	// Sphere radii
+	TArray<double> Radius;
+};
+
+
 
 class GEOMETRYCORE_API FConvexDecomposition3
 {
@@ -125,8 +197,11 @@ public:
 	//								Note: These parts may be further split so they can be merged into multiple hulls
 	// @param bAllowCompact			Allow the algorithm to discard underlying geometry once it will no longer be used, resulting in a smaller representation & faster merges
 	// @param bRequireHullTriangles	Require all hulls to have associated triangles after MergeBest is completed. (If using InitializeFromHulls, will need to triangulate any un-merged hulls.)
+	// @param OptionalNegativeSpace Optional representation of negative space that should not be covered by merges
+	// @param OptionalNegativeSpaceTransform Optional transform from space of the convex hulls into the space of the sphere covering; if not provided, assume spheres are in the same coordinate space as the hulls
 	// @return						The number of merges performed
-	int32 MergeBest(int32 TargetNumParts, double ErrorTolerance = 0, double MinThicknessTolerance = 0, bool bAllowCompact = true, bool bRequireHullTriangles = false);
+	int32 MergeBest(int32 TargetNumParts, double ErrorTolerance = 0, double MinThicknessTolerance = 0, bool bAllowCompact = true, bool bRequireHullTriangles = false, 
+		const FSphereCovering* OptionalNegativeSpace = nullptr, const FTransform* OptionalTransformIntoNegativeSpace = nullptr);
 
 	// simple helper to convert an error tolerance expressed in world space to a local-space volume tolerance
 	inline double ConvertDistanceToleranceToLocalVolumeTolerance(double DistTolerance) const
@@ -329,6 +404,9 @@ public:
 		
 		// Whether the geometry is separated by Plane
 		bool bPlaneSeparates = false;
+
+		// Whether this merge can be allowed (e.g. has not been ruled out by negative space)
+		bool bIsValidLink = true;
 		
 		// What the volume of the convex hull would be if we merged these two parts
 		double MergedVolume = VolumeNotComputed();

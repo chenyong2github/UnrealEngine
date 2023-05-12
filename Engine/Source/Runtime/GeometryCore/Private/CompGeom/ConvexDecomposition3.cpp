@@ -7,10 +7,13 @@
 #include "VectorUtil.h"
 #include "Spatial/PriorityOrderPoints.h"
 #include "VertexConnectedComponents.h"
+#include "Distance/DistPoint3Triangle3.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "DynamicMesh/MeshTransforms.h"
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "Spatial/FastWinding.h"
 
 #include "Async/ParallelFor.h"
 
@@ -19,7 +22,66 @@ namespace UE
 namespace Geometry
 {
 
+bool FSphereCovering::AddNegativeSpace(const TFastWindingTree<FDynamicMesh3>& Spatial, const FNegativeSpaceSampleSettings& SampleSettings)
+{
+	bool bAddedPoints = false;
 
+	check(Spatial.IsBuilt());
+
+	FAxisAlignedBox3d Bounds = Spatial.GetTree()->GetBoundingBox();
+
+	if (SampleSettings.SampleMethod == FNegativeSpaceSampleSettings::ESampleMethod::Uniform)
+	{
+		double MinCellSize = FMath::Max(SampleSettings.MinSpacing, Bounds.MaxDim() / SampleSettings.TargetNumSamples);
+		if (MinCellSize == 0)
+		{
+			return false; // no space to sample
+		}
+		FVector3d Ranges = Bounds.Diagonal();
+		FIndex3i Dims(FMath::Max(1, int(Ranges.X / MinCellSize)), FMath::Max(1, int(Ranges.Y / MinCellSize)), FMath::Max(1, int(Ranges.Z / MinCellSize)));
+		double ReduceFactor = FMath::Min(1.0, FMath::Pow(double(SampleSettings.TargetNumSamples) / double(Dims.A * Dims.B * Dims.C), 1.0/3.0));
+		Dims.A = FMath::Max(1, FMath::CeilToInt32(Dims.A * ReduceFactor));
+		Dims.B = FMath::Max(1, FMath::CeilToInt32(Dims.B * ReduceFactor));
+		Dims.C = FMath::Max(1, FMath::CeilToInt32(Dims.C * ReduceFactor));
+		int32 MaxSamples = Dims.A * Dims.B * Dims.C;
+		FVector3d Denoms(1.0 / (Dims.A + 1), 1.0 / (Dims.B + 1), 1.0 / (Dims.C + 1));
+		FVector3d StepSizes = Ranges * Denoms;
+
+		Position.Reserve(Position.Num() + MaxSamples);
+		Radius.Reserve(Radius.Num() + MaxSamples);
+		for (int32 X = 0; X < Dims.A; ++X)
+		{
+			double XPos = Bounds.Min.X + Ranges.X * (1.0 + X) * Denoms.X;
+			for (int32 Y = 0; Y < Dims.B; ++Y)
+			{
+				double YPos = Bounds.Min.Y + Ranges.Y * (1.0 + Y) * Denoms.Y;
+				for (int32 Z = 0; Z < Dims.C; ++Z)
+				{
+					double ZPos = Bounds.Min.Z + Ranges.Z * (1.0 + Z) * Denoms.Z;
+					FVector3d Pos(XPos, YPos, ZPos);
+					double Winding = Spatial.FastWindingNumber(Pos);
+					if (Winding < -.5)
+					{
+						continue;
+					}
+					double NearDistSq;
+					int NearTID = Spatial.GetTree()->FindNearestTriangle(Pos, NearDistSq);
+					double R = FMath::Sqrt(NearDistSq) - SampleSettings.ReduceRadiusMargin;
+					if (R < SampleSettings.MinRadius)
+					{
+						// point too close to the surfaces; skip it
+						continue;
+					}
+					bAddedPoints = true;
+					Position.Add(Pos);
+					Radius.Add(R);
+				}
+			}
+		}
+	}
+
+	return bAddedPoints;
+}
 
 // Internal struct to run templated TriangleMeshType functions on the hull mesh
 // Assumes the convex part is not compacted (i.e. is using the dynamic mesh vertices)
@@ -719,7 +781,7 @@ void FConvexDecomposition3::FConvexPart::Compact()
 		return;
 	}
 
-	// remove all triangles, and all verties that are not reference by the hull
+	// remove all triangles, and all vertices that are not reference by the hull
 	// and remap HullTriangles to the new compact indices
 	TMap<int32, int32> VertexRemapIDs;
 	FDynamicMesh3 VertexMesh;
@@ -1230,7 +1292,8 @@ void FConvexDecomposition3::InitializeFromHulls(int32 NumHulls, TFunctionRef<dou
 	}
 }
 
-int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTolerance, double MinThicknessToleranceWorldSpace, bool bAllowCompact, bool bRequireHullTriangles)
+int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTolerance, double MinThicknessToleranceWorldSpace, bool bAllowCompact, bool bRequireHullTriangles, 
+	const FSphereCovering* OptionalNegativeSpace, const FTransform* OptionalTransformIntoNegativeSpace)
 {
 	// Support having a max error tolerance
 	double VolumeTolerance = ConvertDistanceToleranceToLocalVolumeTolerance(MaxErrorTolerance);
@@ -1239,6 +1302,69 @@ int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTole
 	int32 MergeNum = 0;
 
 	TMap<int32, TUniquePtr<FConvexPart>> ProximityComputedParts;
+
+	auto ConvexNegativeSpaceSphereOverlapTest = [OptionalNegativeSpace, OptionalTransformIntoNegativeSpace](FConvexPart* Part, int PtIdx)
+	{
+		check(OptionalNegativeSpace);
+		double Radius = OptionalNegativeSpace->GetRadius(PtIdx);
+		FVector3d Center = OptionalNegativeSpace->GetCenter(PtIdx);
+
+		bool bMustTransformConvex = false;
+		if (OptionalTransformIntoNegativeSpace)
+		{
+			FVector ScaleVec = OptionalTransformIntoNegativeSpace->GetScale3D();
+			// Uniform scale: Can tranform into negative space into part space
+			if (ScaleVec.AllComponentsEqual())
+			{
+				if (ScaleVec.X == 0)
+				{
+					return false;
+				}
+				Radius = FMath::Abs(Radius / ScaleVec.X);
+				Center = OptionalTransformIntoNegativeSpace->InverseTransformPosition(Center);
+			}
+			else // Non-uniform scale: Must transform convex into negative space
+			{
+				bMustTransformConvex = true;
+			}
+		}
+		
+		double RadiusSq = Radius * Radius;
+		double MaxPlaneDist = 0;
+		for (int32 PlaneIdx = 0; PlaneIdx < Part->HullPlanes.Num(); ++PlaneIdx)
+		{
+			FPlane3d Plane = Part->HullPlanes[PlaneIdx];
+			if (bMustTransformConvex)
+			{
+				Plane.Transform(*OptionalTransformIntoNegativeSpace);
+			}
+			double PlaneDist = Plane.DistanceTo(Center);
+			MaxPlaneDist = FMath::Max(MaxPlaneDist, PlaneDist);
+			if (PlaneDist > Radius)
+			{
+				return false;
+			}
+			else if (Radius > 0 && PlaneDist > FMath::Max(0, MaxPlaneDist - FMathd::ZeroTolerance))
+			{
+				FIndex3i TriInds = Part->HullTriangles[PlaneIdx];
+				FTriangle3d Tri(Part->InternalGeo.GetVertex(TriInds.A), Part->InternalGeo.GetVertex(TriInds.B), Part->InternalGeo.GetVertex(TriInds.C));
+				if (bMustTransformConvex)
+				{
+					Tri.V[0] = OptionalTransformIntoNegativeSpace->TransformPosition(Tri.V[0]);
+					Tri.V[1] = OptionalTransformIntoNegativeSpace->TransformPosition(Tri.V[1]);
+					Tri.V[2] = OptionalTransformIntoNegativeSpace->TransformPosition(Tri.V[2]);
+				}
+				// TODO: Can optimize this by writing custom Point-Tri distance logic to re-use what we already know and early-out if a vertex or edge distance is < Radius
+				FDistPoint3Triangle3d Dist(Center, Tri);
+				double TriDistSq = Dist.GetSquared();
+				if (TriDistSq < RadiusSq)
+				{
+					return true;
+				}
+			}
+		}
+		return (MaxPlaneDist <= 0);
+	};
 
 	auto IsPartBelowSizeTolerance = [MinThicknessTolerance](const FConvexPart& Part) -> bool
 	{ 
@@ -1422,6 +1548,11 @@ int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTole
 		int32 BestKnownIdx = -1;
 		for (int32 ProxIdx = 0; ProxIdx < Proximities.Num(); ProxIdx++)
 		{
+			if (!Proximities[ProxIdx].bIsValidLink)
+			{
+				continue;
+			}
+
 			bool bIncludesMustMergePart =
 				Decomposition[Proximities[ProxIdx].Link.A].bMustMerge ||
 				Decomposition[Proximities[ProxIdx].Link.B].bMustMerge;
@@ -1455,6 +1586,31 @@ int32 FConvexDecomposition3::MergeBest(int32 TargetNumParts, double MaxErrorTole
 			if (bIncludesMustMergePart && !bOnlyMustMergeParts)
 			{
 				MergeCost -= BiasToRemoveTooThinParts;
+			}
+
+			// if this would be the new best candidate, and we have negative space, check if the merge would cross protected negative space
+			if (OptionalNegativeSpace && OptionalNegativeSpace->Num() > 0 && MergeCost < BestKnownCost)
+			{
+				TUniquePtr<FConvexPart>* FoundMergeHull = ProximityComputedParts.Find(ProxIdx);
+				if (!FoundMergeHull)
+				{
+					FoundMergeHull = &ProximityComputedParts.Add(ProxIdx, CreateMergedPart(Proximities[ProxIdx]));
+				}
+				bool bCoversProtectedPt = false;
+				for (int32 PtIdx = 0; PtIdx < OptionalNegativeSpace->Num(); ++PtIdx)
+				{
+					if (ConvexNegativeSpaceSphereOverlapTest(FoundMergeHull->Get(), PtIdx))
+					{
+						bCoversProtectedPt = true;
+						break;
+					}
+				}
+				if (bCoversProtectedPt)
+				{
+					// Mark link as invalid so we don't repeat this overlap test in later iterations
+					Proximities[ProxIdx].bIsValidLink = false;
+					continue;
+				}
 			}
 
 			if (MergeCost < BestKnownCost)

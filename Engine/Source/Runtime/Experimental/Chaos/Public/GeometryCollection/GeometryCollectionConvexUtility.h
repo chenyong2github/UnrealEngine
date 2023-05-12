@@ -14,6 +14,11 @@ namespace Chaos
 	class FConvex;
 }
 
+namespace UE::Geometry
+{
+	class FSphereCovering;
+}
+
 UENUM()
 enum class EConvexOverlapRemoval : int32
 {
@@ -119,6 +124,7 @@ public:
 		double ErrorToleranceInCm = 0.0;
 		bool bUseExternalCollisionIfAvailable = true;
 		EAllowConvexMergeMethod AllowMergesMethod = EAllowConvexMergeMethod::ByProximity;
+		UE::Geometry::FSphereCovering* EmptySpace = nullptr;
 	};
 
 	static void GenerateClusterConvexHullsFromChildrenHulls(FGeometryCollection& Collection, const FClusterConvexHullSettings& Settings, const TArrayView<const int32> TransformSubset);

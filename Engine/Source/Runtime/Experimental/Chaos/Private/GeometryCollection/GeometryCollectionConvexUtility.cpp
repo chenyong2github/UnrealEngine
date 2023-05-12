@@ -1685,22 +1685,38 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChild
 
 	const TArray<FTransform> GlobalTransforms = TransformFacade.ComputeCollectionSpaceTransforms();
 	const TManagedArrayAccessor<int32> SimulationTypeAttribute(Collection, FGeometryCollection::SimulationTypeAttribute, FTransformCollection::TransformGroup);
+	const TArray<int32> DepthFirstTransformIndices = HierarchyFacade.GetTransformArrayInDepthFirstOrder();
 	TArray<int32> TransformsToProcess;
 	if (bOnlySubset)
 	{
-		TransformsToProcess.Append(TransformSubset);
 		if (TransformsToProcess.IsEmpty())
 		{
 			return;
 		}
+
+		if (bUseDirectChildren)
+		{
+			// If using direct children, order matters -- use depth-first order
+			TSet<int32> ToProcessSet;
+			ToProcessSet.Append(TransformSubset);
+			TransformsToProcess.Reserve(TransformSubset.Num());
+			for (int32 TransformIdx : DepthFirstTransformIndices)
+			{
+				if (ToProcessSet.Contains(TransformIdx))
+				{
+					TransformsToProcess.Add(TransformIdx);
+				}
+			}
+		}
+		else
+		{
+			// Order doesn't matter
+			TransformsToProcess.Append(TransformSubset);
+		}
 	}
 	else // process all
 	{
-		TransformsToProcess.Reserve(GlobalTransforms.Num());
-		for (int32 Idx = 0; Idx < GlobalTransforms.Num(); ++Idx)
-		{
-			TransformsToProcess.Add(Idx);
-		}
+		TransformsToProcess = DepthFirstTransformIndices;
 	}
 
 	// Simulation types must be present
@@ -1715,12 +1731,11 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChild
 		const bool bIsCluster = (SimulationTypeAttribute.Get()[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered);
 		if (bIsCluster)
 		{
-			// compute using the leaf nodes 
-			// we cannot use the direct cluster children because they do not have proximity data that is stored at the geo level )
 			TArray<int32> SourceTransformIndices;
 			if (bUseDirectChildren)
 			{
 				SourceTransformIndices = HierarchyFacade.GetChildrenAsArray(TransformIndex);
+				// TODO: consider expanding this recursively to children for any nodes without convex hulls, until we hit a leaf/rigid node
 			}
 			else
 			{
@@ -1844,7 +1859,7 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChild
 				};
 				UE::Geometry::FConvexDecomposition3 ConvexDecomposition;
 				ConvexDecomposition.InitializeFromHulls(Hulls.Num(), GetHullVolume, GetHullNumVertices, GetHullVertex, HullProximity);
-				ConvexDecomposition.MergeBest(Settings.ConvexCount, Settings.ErrorToleranceInCm, 0, true);
+				ConvexDecomposition.MergeBest(Settings.ConvexCount, Settings.ErrorToleranceInCm, 0, true /*bAllowCompact*/, false /*bRequireHullTriangles*/, Settings.EmptySpace, &ParentTransform);
 				
 				// reset existing hulls for this transform index
 				for (int32 ConvexIndex : TransformToConvexIndices[TransformIndex])
