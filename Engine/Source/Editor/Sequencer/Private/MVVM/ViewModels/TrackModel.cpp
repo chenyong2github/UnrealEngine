@@ -153,6 +153,7 @@ void FTrackModel::ForceUpdate()
 
 	FViewModelChildren OutlinerChildren = GetChildList(EViewModelListType::Outliner);
 	FViewModelChildren SectionChildren  = GetChildList(EViewModelListType::TrackArea);
+	FViewModelChildren TopLevelChannelChildren = GetChildList(GetTopLevelChannelGroupType());
 
 	UMovieSceneTrack* Track = WeakTrack.Get();
 	if (!Track)
@@ -160,6 +161,7 @@ void FTrackModel::ForceUpdate()
 		// Free outliner and section children, this track is gone.
 		OutlinerChildren.Empty();
 		SectionChildren.Empty();
+		TopLevelChannelChildren.Empty();
 		return;
 	}
 
@@ -197,6 +199,7 @@ void FTrackModel::ForceUpdate()
 		// Clear any left-over row models, layout models, or section models.
 		OutlinerChildren.Empty();
 		SectionChildren.Empty();
+		TopLevelChannelChildren.Empty();
 	}
 	else if (NumRows == 1)
 	{
@@ -206,6 +209,7 @@ void FTrackModel::ForceUpdate()
 		FScopedViewModelListHead RecycledModels(AsShared(), EViewModelListType::Recycled);
 		GetChildrenForList(&SectionList).MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
 		OutlinerChildren.MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
+		TopLevelChannelChildren.MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
 
 		// Add all sections directly to this track row
 		for (UMovieSceneSection* Section : Track->GetAllSections())
@@ -252,6 +256,7 @@ void FTrackModel::ForceUpdate()
 		FScopedViewModelListHead RecycledModels(AsShared(), EViewModelListType::Recycled);
 		GetChildrenForList(&SectionList).MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
 		OutlinerChildren.MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
+		TopLevelChannelChildren.MoveChildrenTo<IRecyclableExtension>(RecycledModels.GetChildren(), IRecyclableExtension::CallOnRecycle);
 
 		// We need to build row models so let's grab the storage for that
 		FTrackRowModelStorageExtension* TrackRowModelStorage = SequenceModel->CastDynamic<FTrackRowModelStorageExtension>();
@@ -323,11 +328,6 @@ void FTrackModel::ForceUpdate()
 			// else: unset row... it should only happen while we are dragging sections, until
 			//       we fixup row indices
 		}
-	}
-
-	for (TSharedPtr<FChannelGroupModel> ChannelModel : GetDescendantsOfType<FChannelGroupModel>(false, EViewModelListType::Outliner))
-	{
-
 	}
 }
 
