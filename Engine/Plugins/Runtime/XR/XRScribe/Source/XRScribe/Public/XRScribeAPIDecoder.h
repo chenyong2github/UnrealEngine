@@ -33,10 +33,12 @@ public:
 	[[nodiscard]] const TMap<XrViewConfigurationType, TArray<XrViewConfigurationView>>& GetViewConfigurationViews() { return ViewConfigurationViews; }
 	[[nodiscard]] const TMap<XrViewConfigurationType, TArray<FOpenXRLocateViewsPacket>>& GetViewLocations() { return ViewLocations; }
 	[[nodiscard]] const TArray<FOpenXRCreateReferenceSpacePacket>& GetCreatedReferenceSpaces() { return CreatedReferenceSpaces; }
+	[[nodiscard]] const TArray<FOpenXRCreateActionSpacePacket>& GetCreatedActionSpaces() { return CreatedActionSpaces; }
 	[[nodiscard]] const TMap<XrSpace, TArray<FOpenXRLocateSpacePacket>>& GetSpaceLocations() { return SpaceLocations; }
 	[[nodiscard]] const TArray<XrReferenceSpaceType>& GetReferenceSpaceTypes() { return ReferenceSpaceTypes; }
 	[[nodiscard]] const TMap<XrReferenceSpaceType, XrExtent2Df>& GetReferenceSpaceBounds() { return ReferenceSpaceBounds; }
 	[[nodiscard]] const TArray<int64>& GetSwapchainFormats() { return SwapchainFormats; }
+	[[nodiscard]] const TArray<FOpenXRCreateActionPacket>& GetCreatedActions() { return CreatedActions; }
 
 	TArray<uint8>& GetEncodedData()
 	{
@@ -139,6 +141,7 @@ protected:
 	TMap<XrSpace, XrReferenceSpaceType> ReferenceSpaceMap;
 	TArray<FOpenXRCreateReferenceSpacePacket> CreatedReferenceSpaces;
 
+	TArray<FOpenXRCreateActionSpacePacket> CreatedActionSpaces;
 	TMap<XrSpace, XrAction> ActionSpaceMap;
 
 	TMap<XrSpace, TArray<FOpenXRLocateSpacePacket>> SpaceLocations;
@@ -153,6 +156,8 @@ protected:
 
 	TMap<XrPath, FString> PathToStringMap;
 	TMap<FString, TArray<XrActionSuggestedBinding>> StringToSuggestedBindingsMap;
+
+	TArray<FOpenXRCreateActionPacket> CreatedActions;
 
 	// TODO: Would I ever want to bin properties into per-instance collections?
 	// When we are repaying, we're just going to create our own set of 'valid' parameters

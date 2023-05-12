@@ -344,20 +344,12 @@ void FOpenXREmulationLayer::PostLoadActions()
 		FCStringAnsi::Strncpy(&EmulatedSystemProperties.systemName[ActualSystemNameLen], EmuStringAddend, RemainingSpace);
 	}
 
-	// TODO: build pose history relative to primary used tracking space (STAGE + LOCAL)
-	// TODO: build pose lookups relative to any reference space
+	PoseManager.RegisterCapturedReferenceSpaces(CaptureDecoder.GetCreatedReferenceSpaces());
 
-	const TArray<FOpenXRCreateReferenceSpacePacket>& CapturedRefSpaces = CaptureDecoder.GetCreatedReferenceSpaces();
-	for (const FOpenXRCreateReferenceSpacePacket& RefSpace : CapturedRefSpaces)
-	{
-		PoseManager.RegisterCapturedReferenceSpace(RefSpace);
-	}
+	PoseManager.RegisterCapturedActions(CaptureDecoder.GetCreatedActions());
+	PoseManager.RegisterCapturedActionSpaces(CaptureDecoder.GetCreatedActionSpaces());
 
-	const TMap<XrSpace, TArray<FOpenXRLocateSpacePacket>>& CapturedSpaceLocations = CaptureDecoder.GetSpaceLocations();
-	for (const auto& SpaceHistory : CapturedSpaceLocations)
-	{
-		PoseManager.RegisterCapturedSpaceHistory(SpaceHistory.Value);
-	}
+	PoseManager.RegisterCapturedSpaceHistories(CaptureDecoder.GetSpaceLocations());
 }
 
 bool FOpenXREmulationLayer::InstanceHandleCheck(XrInstance InputInstance)
@@ -1167,6 +1159,11 @@ XrResult FOpenXREmulationLayer::XrLayerCreateActionSpace(XrSession session, cons
 		FWriteScopeLock SessionLock(SessionMutex);
 		CurrentSession->ActiveSpaces.Add(MoveTemp(CreatedActionSpace));
 		*space = reinterpret_cast<XrSpace>(CurrentSession->ActiveSpaces.Last().Get());
+	}
+
+	{
+		FOpenXREmulatedAction* OwningAction = reinterpret_cast<FOpenXREmulatedAction*>(createInfo->action);
+		PoseManager.RegisterEmulatedActionSpace(OwningAction->ActionName, *createInfo, *space);
 	}
 
 	return XrResult::XR_SUCCESS;
@@ -2288,6 +2285,13 @@ XrResult FOpenXREmulationLayer::XrLayerAttachSessionActionSets(XrSession session
 
 	// TODO: save off list of action sets + sets in session
 
+	for (uint32 ActionSetIndex = 0; ActionSetIndex < attachInfo->countActionSets; ActionSetIndex++)
+	{
+		FOpenXREmulatedActionSet* EmulatedActionSet = reinterpret_cast<FOpenXREmulatedActionSet*>(attachInfo->actionSets[ActionSetIndex]);
+		check(!EmulatedActionSet->bAttached);
+		EmulatedActionSet->bAttached = true;
+	}
+
 	{
 		FWriteScopeLock SessionLock(SessionMutex);
 		CurrentSession->bActionSetsAttached = true;
@@ -2432,11 +2436,26 @@ XrResult FOpenXREmulationLayer::XrLayerGetActionStatePose(XrSession session, con
 		return XR_ERROR_VALIDATION_FAILURE;
 	}
 
-	// TODO: check action exists and is attached
-	// TODO: check subaction path
+	if (!ActionHandleCheck(getInfo->action))
+	{
+		UE_LOG(LogXRScribeEmulate, Error, TEXT("GetActionStatePose: unknown action"));
+		return XR_ERROR_VALIDATION_FAILURE;
+	}
 
-	// TODO: fill XrActionStatePose with real data
-	state->isActive = XR_FALSE;
+	FOpenXREmulatedAction* Action = reinterpret_cast<FOpenXREmulatedAction*>(getInfo->action);
+	if (!Action->OwningActionSet->bAttached)
+	{
+		return XR_ERROR_ACTIONSET_NOT_ATTACHED;
+	}
+
+	if (Action->ActionType != XR_ACTION_TYPE_POSE_INPUT)
+	{
+		return XR_ERROR_ACTION_TYPE_MISMATCH;
+	}
+
+	// TODO: check subaction path?
+
+	state->isActive = PoseManager.DoesActionContainPoseHistory(Action->ActionName);
 
 	return XR_SUCCESS;
 }

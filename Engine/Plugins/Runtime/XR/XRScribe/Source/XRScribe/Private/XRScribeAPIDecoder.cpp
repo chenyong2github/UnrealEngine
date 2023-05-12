@@ -308,6 +308,7 @@ void FOpenXRCaptureDecoder::DecodeCreateActionSpace(const FOpenXRAPIPacketBase& 
 	EncodedData << Data;
 
 	ActionSpaceMap.Add(Data.Space, Data.ActionSpaceCreateInfo.action);
+	CreatedActionSpaces.Add(Data);
 }
 
 void FOpenXRCaptureDecoder::DecodeLocateSpace(const FOpenXRAPIPacketBase& BasePacket)
@@ -613,7 +614,8 @@ void FOpenXRCaptureDecoder::DecodeCreateAction(const FOpenXRAPIPacketBase& BaseP
 	FOpenXRCreateActionPacket Data(XrResult::XR_ERROR_RUNTIME_FAILURE);
 
 	EncodedData << Data;
-	// nothing to do yet
+
+	CreatedActions.Add(Data);
 }
 
 void FOpenXRCaptureDecoder::DecodeDestroyAction(const FOpenXRAPIPacketBase& BasePacket)
