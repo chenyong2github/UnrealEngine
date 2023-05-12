@@ -12,6 +12,10 @@ public class MacTargetPlatform : ModuleRules
 				"CoreUObject",
 				"TargetPlatform",
 				"DesktopPlatform",
+                "InputCore",
+                "SlateCore",
+                "Slate",
+                "SourceControl"
 			}
 		);
 
