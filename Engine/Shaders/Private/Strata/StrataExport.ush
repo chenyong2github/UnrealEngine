@@ -371,7 +371,7 @@ void PackStrataOut(
 					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSWRAP;
 					SSSData.Header.Bytes = 0; // Force to skip SSSData writing
 				}
-				else if ((OptimisedModeMask & SingleIsSSSProfile) == SingleIsSSSProfile)
+				else if ((OptimisedModeMask & (SingleIsSSSProfile|SingleIsThin)) == SingleIsSSSProfile) // Force to skip SINGLE_OPTLEGACYMODE_SSSPROFILE when set to ThinSurface
 				{
 					// SingleIsSSSProfile appears critically after SingleIsWrapThin because thin will disable subsurface profile.
 					OptimisedLegacyMode = SINGLE_OPTLEGACYMODE_SSSPROFILE;
@@ -764,10 +764,19 @@ void PackStrataOut(
 								if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && !bIsSimpleVolume)
 								{
 									// Simple volume overrides SSS profile because it takes over for when not at the bottom of the BSDF layer, or during forward rendering.
-									STRATA_STORE_UINT1(PackRGBA8(float4(SLAB_SSSPROFILEID(BSDF), SLAB_SSSPROFILERADIUSSCALE(BSDF), 0, 0)));
+									// Note: Since it is a profile, we can't rescale its MFP value. So we store the 'thin' thickness value for computing the correct transmission during evaluation
+									STRATA_STORE_UINT1(PackSSSProfile(SLAB_SSSPROFILEID(BSDF), SLAB_SSSPROFILERADIUSSCALE(BSDF), BSDF_GETTHICKNESSCM(BSDF)));
 								}
 								else
 								{
+									// If using non-profile SSS diffusion, rescale SSS so that we take into account the slab thickness. 
+									// Note: This is done 'after' storing the SSSHeader/SSSData, as the original MFP needs to be preserved for correct post-process diffusion.
+									//       This rescaled MFP value is only used for transmission evaluation, not the diffusion
+									if (BSDF_GETISTHIN(BSDF) && BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION)
+									{
+										SLAB_SSSMFP(BSDF)= RescaleMFPToComputationSpace(SLAB_SSSMFP(BSDF), BSDF_GETTHICKNESSCM(BSDF), STRATA_SIMPLEVOLUME_THICKNESS_CM);
+									}
+
 									// Path used for bottom most layer SSS, simple volume and two sided lighting.
 									STRATA_STORE_UINT1(PackR11G11B10F(SLAB_SSSMFP(BSDF)));
 								}

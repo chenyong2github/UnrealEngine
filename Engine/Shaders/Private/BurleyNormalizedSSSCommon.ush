@@ -191,6 +191,15 @@ float3 InternalGetBurleyTransmissionProfile(
 	return Output;
 }
 
+float3 GetBurleyTransmission(
+	float3 SubsurfaceAlebdo,
+	float3 MeanFreePathInCm,
+	float ThicknessInCm)
+{
+	const float TransmissionMFPScaleFactor = 100.f; // This factor compensate a mistake in SSS profile transmission computation. See BurleyNormalizedSSS.cpp for more details
+	return InternalGetBurleyTransmissionProfile(SubsurfaceAlebdo, MeanFreePathInCm * TransmissionMFPScaleFactor, ThicknessInCm);
+}
+
 float3 GetBurleyTransmissionProfile(
 	float3 SubsurfaceAlebdo,
 	float3 MeanFreePathInCm,

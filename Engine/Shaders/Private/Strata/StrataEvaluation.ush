@@ -809,17 +809,18 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			////
 			//// Evaluate transmitted light through a mesh due to sub surface scattering.
 			////
-
 			#if STRATA_FASTPATH==0 && STRATA_SSS_TRANSMISSION
 			if (BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION_PROFILE || BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION)
 			{
-				const float ThicknessInCm = DecodeThickness(ShadowTerms.TransmissionThickness) * SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
+				float ThicknessInCm = DecodeThickness(ShadowTerms.TransmissionThickness) * SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
 
 				float OneOverIOR = 1.0f;
 				float PhaseFunctionAnisotropy = 0.0f;
 				float3 TransmissionThroughput = 1.0f;
 				if (BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 				{
+					ThicknessInCm = BSDF_GETISTHIN(BSDFContext.BSDF) ? SLAB_SSSPROFILETHICKNESSCM(BSDFContext.BSDF) : ThicknessInCm;
+
 					const uint ProfileId = StrataSubsurfaceProfileIdTo8bits(SLAB_SSSPROFILEID(BSDFContext.BSDF)); // TODO move this into the PackStrataOut( function, to avoid this decode here
 					const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(ProfileId);
 					TransmissionThroughput	= GetTransmissionProfile(ProfileId, ThicknessInCm).rgb;
@@ -828,9 +829,13 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				}
 				else
 				{
-					const float3 SubsurfaceAlebdo = SLAB_DIFFUSEALBEDO(BSDFContext.BSDF);
+					// When the surface 'IsThin' MFP is rescaled to STRATA_SIMPLEVOLUME_THICKNESS_CM
+					ThicknessInCm = BSDF_GETISTHIN(BSDFContext.BSDF) ? STRATA_SIMPLEVOLUME_THICKNESS_CM : ThicknessInCm;
+
 					const float3 MeanFreePathInCm = SLAB_SSSMFP(BSDFContext.BSDF);
-					TransmissionThroughput	= GetBurleyTransmissionProfile(SubsurfaceAlebdo, MeanFreePathInCm, ThicknessInCm);
+					const float3 SubsurfaceAlebdo = SLAB_DIFFUSEALBEDO(BSDFContext.BSDF);
+					TransmissionThroughput = GetBurleyTransmission(SubsurfaceAlebdo, MeanFreePathInCm, ThicknessInCm).xyz;
+
 					PhaseFunctionAnisotropy = SLAB_SSSPHASEANISOTROPY(BSDFContext.BSDF);
 					OneOverIOR				= 1.f / DielectricF0ToIor(F0.y);
 				}

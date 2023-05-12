@@ -169,8 +169,6 @@ struct FStrataBSDF
 
 	void EnableSlabBSDFSimpleVolumetric();
 
-	void EnableSlabBSDFIsThin();
-
 	void StrataSanitizeBSDF();
 
 	void StrataSetBSDFRoughness(in float Roughness);
@@ -214,8 +212,8 @@ struct FStrataBSDF
 //            BSDF(1)       ?? |  Adaptive
 //                             |
 // * LAYOUT 1 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-//  (Single)  HEADER        27 |  State | AO | Aniso | TopLayer | SSSType | GreyWeighV | Haze | F90 | Simple vol. | MFP Plugged | Fuzz | Thin
-//                             |  8       8    1       1          2         1            1      1     1             1             1      1            
+//  (Single)  HEADER        27 |  State | AO | Opt Layout | Aniso | TopLayer | SSSType | GreyWeighV | Haze | F90 | Simple vol. | MFP Plugged | Fuzz | Thin
+//                             |  8       8    3            1       1          2         1            1      1     1             1             1      1            
 //            BASIS(0)       0 | (Use top layer normal)
 //            BSDF(0)       ?? |  Adaptive
 // * LAYOUT 0 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------          
@@ -511,6 +509,7 @@ struct FStrataBSDF
 // Either with SSS profile
 #define SLAB_SSSPROFILEID(X)			X.VGPRs[3].x
 #define SLAB_SSSPROFILERADIUSSCALE(X)	X.VGPRs[3].y
+#define SLAB_SSSPROFILETHICKNESSCM(X)	X.VGPRs[3].z
 // Or explicit MFP in centimeter
 #define SLAB_SSSMFP(X)					X.VGPRs[3].xyz
 #define SLAB_SSSPHASEANISOTROPY(X)		X.VGPRs[3].w
@@ -1007,6 +1006,25 @@ uint StrataSubsurfaceProfileIdTo8bits(float In)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// PackSSSProfile
+
+uint PackSSSProfile(float InProfileId, float InRadius, half InThickness)
+{
+	uint Out = 0; 	
+	Out |= (PackR8(InProfileId));
+	Out |= (PackR8(InRadius)<<8);
+	Out |= (Pack10F(InThickness)<<16);
+	return Out;
+}
+
+void UnpackSSSProfile(uint In, inout float OutProfileId, inout float OutRadius, inout float OutThickness)
+{
+	OutProfileId = UnpackR8(In);
+	OutRadius = UnpackR8(In >> 8);
+	OutThickness = Unpack10F((In >> 16) & 0x3FF);
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Fuzz
 
 uint PackFuzz(half3 InColor, half InAmount, half InRoughness, half InDither)
@@ -1456,7 +1474,7 @@ FStrataData GetStrataSlabBSDF(
 	const bool bMFPPlugged = any(SSSMFP > 0);
 	bool bIsThin = bMFPPlugged && bIsThinSurface; // Enable thin only if MFP is plugged, as otherwise there will be no back-tramission
 	bool bHasSSSWrap = bMFPPlugged && !UseSSSDiffusion;
-	bool bHasSSSProfile = !bIsThin && bSSSProfilePlugged && SSSMFPScale > 0.f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
+	bool bHasSSSProfile = bSSSProfilePlugged && SSSMFPScale > 0.f;
 	bool bHasSSS = bMFPPlugged || bHasSSSProfile || bHasSSSWrap;
 
 	FHaziness Haziness = InitialiseHaziness();
@@ -1559,6 +1577,7 @@ FStrataData GetStrataSlabBSDF(
 	{
 		SLAB_SSSPROFILEID	(StrataData.InlinedBSDF)		= SSSProfileID;
 		SLAB_SSSPROFILERADIUSSCALE(StrataData.InlinedBSDF)	= SSSMFPScale;
+		SLAB_SSSPROFILETHICKNESSCM(StrataData.InlinedBSDF)	= ThicknessCm;
 	}
 	else
 	{
@@ -2357,6 +2376,8 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 			bForegroundHasSSSProfile ? SLAB_SSSPROFILERADIUSSCALE(ForegroundBSDF) : 0.0f,
 			ForegroundOtherMixFactor);
 
+		SLAB_SSSPROFILETHICKNESSCM(ResultBSDF) = bForegroundHasSSSProfile ? BSDF_GETTHICKNESSCM(ForegroundBSDF) : BSDF_GETTHICKNESSCM(BackgroundBSDF);
+
 		if (SLAB_SSSPROFILERADIUSSCALE(ResultBSDF) == 0.0f)
 		{
 			SLAB_SSSPROFILEID(ResultBSDF) = SSS_PROFILE_ID_INVALID;
@@ -2458,6 +2479,7 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 		{
 			SLAB_SSSPROFILEID(ResultBSDF) = SLAB_SSSPROFILEID(ABSDF);
 			SLAB_SSSPROFILERADIUSSCALE(ResultBSDF) = SLAB_SSSPROFILERADIUSSCALE(ABSDF);
+			SLAB_SSSPROFILETHICKNESSCM(ResultBSDF) = BSDF_GETTHICKNESSCM(ABSDF);
 		}
 		else
 		{
@@ -2598,7 +2620,7 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	const float3 NewMFP = Info2.TransmittanceOnlyBottom * BaseBSDF.TmpMFP + Info2.TransmittanceOnlyTop * TopBSDF.TmpMFP + Info2.TransmittanceTopAndBottom * min(TopBSDF.TmpMFP, BaseBSDF.TmpMFP);
 #endif
 
-	ResultBSDF.TmpMFP					= NewMFP;
+	ResultBSDF.TmpMFP				= NewMFP;
 	SLAB_SSSMFP(ResultBSDF)			= NewMFP;
 
 	ResultBSDF.Coverage				= MaxCoverage;
@@ -2809,11 +2831,36 @@ void FStrataBSDF::StrataSanitizeBSDF()
 	}
 }
 
+// Description of SSS conversions
+//
+// Opaque
+// ======
+//               |                     Bottom                      |         !Bottom          |
+//               |          Thin          |          Thick         |                          |
+//               |----------------------------------------------------------------------------|
+// SSS Diffusion |        SSS / MFP       |       SSS / MFP        |  SimpleVolume / Res.MFP  | 
+// SSS Profile   |        SSS / MFP       |       SSS / MFP        |  SimpleVolume / Res.MFP  | 
+// SSS Wrap      |      SSS / Res.MFP     |     SSS / Res.MFP      |  SimpleVolume / Res.MFP  | 
+// SSS Invalid   |                        |                        |                          | 
+//
+// Translucent
+// ===========
+//               |                     Bottom                      |         !Bottom          |
+//               |          Thin          |          Thick         |                          |
+//               |----------------------------------------------------------------------------|
+// SSS Diffusion | SimpleVolume / Res.MFP | SimpleVolume / Res.MFP |  SimpleVolume / Res.MFP  | 
+// SSS Profile   | SimpleVolume / Res.MFP | SimpleVolume / Res.MFP |  SimpleVolume / Res.MFP  | 
+// SSS Wrap      | SimpleVolume / Res.MFP | SimpleVolume / Res.MFP |  SimpleVolume / Res.MFP  | 
+// SSS Invalid   |                        |                        |                          | 
+
+//  Res.MFP : Rescaled MFP in computation space i.e., MFP is rescaled for a thickness of 1m
+
+// Convert to simple volume to get some transmittance
 void FStrataBSDF::PostProcessSlabBeforeLighting(bool bIsStrataOpaqueMaterial)
 {
 	// Two sided lighting can only be evaluated on the bottom layer, together with option SSS. Otherwise, the simple volume will be used.
 	// At the moment, a material can't be thin & simple volume at the same time. This should be fixed by unifying SSSDiffusion|SSSWrap|SimpleVolume into a single evaluation function
-	const bool bIsThin = this.bIsBottom && BSDF_GETISTHIN(this);
+	const bool bIsThin = this.bIsBottom && BSDF_GETISTHIN(this) && bIsStrataOpaqueMaterial;
 
 	// We want simple volumetric only if the MFP input is pluged in, otherwise we avoid dealing with simple volumetric.
 	// We also do not want to use the simple volumetric path if we are dealing with an opaque material and this slab is not at the bottom.
@@ -2822,12 +2869,22 @@ void FStrataBSDF::PostProcessSlabBeforeLighting(bool bIsStrataOpaqueMaterial)
 
 	if (bIsSimpleVolume)
 	{
+		// * Rescale MFP to computation space
+		// * Set Invalid SSS type
+		// * Set IsSimpleVolume
 		this.EnableSlabBSDFSimpleVolumetric();
 	}
 
 	if (bIsThin)
 	{
-		this.EnableSlabBSDFIsThin();
+		BSDF_SETISSIMPLEVOLUME(this, 0);
+
+		// Only rescale MFP to computation space for SSS wrap. 
+		// SSS Diffuse types use their 'original' MFP for diffusion
+		if (BSDF_GETSSSTYPE(this) == SSS_TYPE_WRAP)
+		{
+			this.EnableSlabMFPComputationSpace();
+		}
 	}
 	else
 	{
@@ -2930,13 +2987,6 @@ void FStrataBSDF::EnableSlabBSDFSimpleVolumetric()
 	// Notify that the Slab can use SSS post-process only if at the bottom (layered considered optically thick, e.g. cannot see-through)
 	// When forward rendering is used or if a layer is not a bottom layer, SSS post cannot be used and simple scattering is used.
 	BSDF_SETISSIMPLEVOLUME(this, 1);
-}
-
-void FStrataBSDF::EnableSlabBSDFIsThin()
-{
-	// BSDF_SETISTHIN is already set when creating the Slab.
-	BSDF_SETISSIMPLEVOLUME(this, 0);
-	this.EnableSlabMFPComputationSpace();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -4167,9 +4217,8 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		{
 			if (BSDF_GETSSSTYPE(OutBSDF) == SSS_TYPE_DIFFUSION_PROFILE && !bIsSimpleVolume)
 			{
-				float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
-				SLAB_SSSPROFILEID(OutBSDF) = Data.r;
-				SLAB_SSSPROFILERADIUSSCALE(OutBSDF) = Data.g;
+				uint RawData = StrataLoadUint1(StrataBuffer, StrataAddressing);
+				UnpackSSSProfile(RawData, SLAB_SSSPROFILEID(OutBSDF), SLAB_SSSPROFILERADIUSSCALE(OutBSDF), SLAB_SSSPROFILETHICKNESSCM(OutBSDF));
 			}
 			else
 			{

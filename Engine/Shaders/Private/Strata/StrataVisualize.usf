@@ -268,30 +268,58 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 
 			if (BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID || BSDF_GETISSIMPLEVOLUME(BSDF) || BSDF_GETISTHIN(BSDF))
 			{
+				const bool bIsThin = BSDF_GETISTHIN(BSDF);
 				const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.MaterialTextureArray, Strata.FirstSliceStoringStrataSSSData, StrataAddressing.PixelCoords);
 				Print(Context, TEXT(" SSS Type    "), FontBSDFPropName);	PrintSSSType(Context, BSDF_GETSSSTYPE(BSDF), BSDF_GETISSIMPLEVOLUME(BSDF), BSDF_GETISTHIN(BSDF), FontYellow);	Newline(Context, RectMax);
 				if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_WRAP)
 				{
 					const float Opacity = StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader);
-					Print(Context, TEXT(" SSS Opacity "), FontBSDFPropName);	Print(Context, Opacity, FontBSDFPropValu);	Newline(Context, RectMax);
-					Print(Context, TEXT(" SSS Phase   "), FontBSDFPropName);	Print(Context, SLAB_SSSPHASEANISOTROPY(BSDF), FontBSDFPropValu);		Newline(Context, RectMax);
+					Print(Context, TEXT(" SSS Opacity "), FontBSDFPropName);	Print(Context, Opacity, FontBSDFPropValu);						Newline(Context, RectMax);
+					Print(Context, TEXT(" SSS MFP     "), FontBSDFPropName);	Print(Context, SLAB_SSSMFP(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
+					Print(Context, TEXT(" SSS Phase   "), FontBSDFPropName);	Print(Context, SLAB_SSSPHASEANISOTROPY(BSDF), FontBSDFPropValu);Newline(Context, RectMax);
+					Print(Context, TEXT(" SSS Thicknes"), FontBSDFPropName);	Print(Context, BSDF_GETTHICKNESSCM(BSDF), FontBSDFPropValu);	Newline(Context, RectMax);
 				}
-				if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && BSDF_GETISSIMPLEVOLUME(BSDF) == 0)
+				else if (BSDF_GETISSIMPLEVOLUME(BSDF))
+				{
+					const float Opacity = StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader);
+					Print(Context, TEXT(" SSS Opacity "), FontBSDFPropName);	Print(Context, Opacity, FontBSDFPropValu);						Newline(Context, RectMax);
+					Print(Context, TEXT(" SSS MFP     "), FontBSDFPropName);	Print(Context, SLAB_SSSMFP(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
+					Print(Context, TEXT(" SSS Phase   "), FontBSDFPropName);	Print(Context, SLAB_SSSPHASEANISOTROPY(BSDF), FontBSDFPropValu);Newline(Context, RectMax);
+					Print(Context, TEXT(" SSS Thicknes"), FontBSDFPropName);	Print(Context, BSDF_GETTHICKNESSCM(BSDF), FontBSDFPropValu);	Newline(Context, RectMax);
+				}
+				else if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 				{
 					const uint ProfileId = StrataSubSurfaceHeaderGetProfileId(SSSHeader);
 					const float RadiusScale = StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader);
-					const float3 DiffuseMFP = GetSubsurfaceProfileMFPInCm(ProfileId) * RadiusScale;
+					const float3 DiffuseMFP = GetSubsurfaceProfileMFPInCm(ProfileId).xyz * RadiusScale;
 					const float Phase = GetTransmissionProfileParams(ProfileId).ScatteringDistribution;
 
 					Print(Context, TEXT(" SSS ID.     "), FontBSDFPropName);	Print(Context, ProfileId, FontBSDFPropValu);	Newline(Context, RectMax);
 					Print(Context, TEXT(" SSS Radius  "), FontBSDFPropName);	Print(Context, RadiusScale, FontBSDFPropValu);	Newline(Context, RectMax);
 					Print(Context, TEXT(" SSS MFP     "), FontBSDFPropName);	Print(Context, DiffuseMFP, FontBSDFPropValu);	Newline(Context, RectMax);
 					Print(Context, TEXT(" SSS Phase   "), FontBSDFPropName);	Print(Context, Phase, FontBSDFPropValu);		Newline(Context, RectMax);
+					if (bIsThin)
+					{
+					Print(Context, TEXT(" SSS Thicknes"), FontBSDFPropName);	Print(Context, SLAB_SSSPROFILETHICKNESSCM(BSDF), FontBSDFPropValu);		Newline(Context, RectMax);
+					}
 				}
-				else
+				else if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION)
 				{
-					Print(Context, TEXT(" SSS MFP     "), FontBSDFPropName);	Print(Context, SLAB_SSSMFP(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
-					Print(Context, TEXT(" SSS Phase   "), FontBSDFPropName);	Print(Context, SLAB_SSSPHASEANISOTROPY(BSDF), FontBSDFPropValu);		Newline(Context, RectMax);
+					const float3 OriginalMFP = StrataSubSurfaceHeaderGetMFP(SSSHeader);
+					const float3 RescaledMFP = SLAB_SSSMFP(BSDF);
+
+					if (bIsThin)
+					{
+						Print(Context, TEXT(" SSS MFP     "), FontBSDFPropName);	Print(Context, OriginalMFP, FontBSDFPropValu);				Newline(Context, RectMax);
+						Print(Context, TEXT(" SSS MFP Norm"), FontBSDFPropName);	Print(Context, RescaledMFP, FontBSDFPropValu);				Newline(Context, RectMax);
+						Print(Context, TEXT(" SSS Thicknes"), FontBSDFPropName);	Print(Context, BSDF_GETTHICKNESSCM(BSDF), FontBSDFPropValu);Newline(Context, RectMax);
+					}
+					else
+					{
+						Print(Context, TEXT(" SSS MFP     "), FontBSDFPropName);	Print(Context, OriginalMFP, FontBSDFPropValu);				Newline(Context, RectMax);
+					}
+
+					Print(Context, TEXT(" SSS Phase   "), FontBSDFPropName);	Print(Context, SLAB_SSSPHASEANISOTROPY(BSDF), FontBSDFPropValu);Newline(Context, RectMax);
 				}
 			} // SSS
 

@@ -4526,15 +4526,7 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, SubsurfaceProfile))
 		{
-			const bool bCommonTest = MaterialDomain == MD_Surface && UseSubsurfaceProfile(ShadingModels) && IsOpaqueOrMaskedBlendMode(BlendMode);
-			if (bStrataEnabled)
-			{
-				return !IsThinSurface() && bCommonTest;
-			}
-			else
-			{
-				return bCommonTest;
-			}
+			return MaterialDomain == MD_Surface && UseSubsurfaceProfile(ShadingModels) && IsOpaqueOrMaskedBlendMode(BlendMode);
 		}
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FLightmassMaterialInterfaceSettings, bCastShadowAsMasked))
@@ -5059,8 +5051,7 @@ void UMaterial::RebuildShadingModelField()
 
 		// Now, reset the subsurface profile (in case it has been removed from any slab before) and set it only if needed.
 		SubsurfaceProfile = nullptr;
-		if ((StrataMaterialInfo.HasOnlyShadingModel(SSM_Eye) || StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit)) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0 
-			&& !IsThinSurface())	// Thin surfaces disable subsurface profile because this is not compatible with fast path.
+		if ((StrataMaterialInfo.HasOnlyShadingModel(SSM_Eye) || StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit)) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0)
 		{
 			if (StrataMaterialInfo.CountSubsurfaceProfiles() > 1)
 			{
