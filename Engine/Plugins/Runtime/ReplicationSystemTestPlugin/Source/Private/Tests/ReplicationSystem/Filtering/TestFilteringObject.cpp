@@ -19,6 +19,7 @@ void UTestFilteringObject::GetLifetimeReplicatedProps( TArray< class FLifetimePr
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(ThisClass, NetTest_FilterOut);
+	DOREPLIFETIME(ThisClass, ReplicatedCounter);
 }
 
 

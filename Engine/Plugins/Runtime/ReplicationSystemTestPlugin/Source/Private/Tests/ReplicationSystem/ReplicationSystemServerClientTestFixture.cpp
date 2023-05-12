@@ -369,6 +369,22 @@ void FReplicationSystemTestServer::DeliverTo(FReplicationSystemTestClient* Clien
 	FReplicationSystemTestNode::DeliverTo(*Client, Client->ConnectionIdOnServer, Client->LocalConnectionId, bDeliver);
 }
 
+bool FReplicationSystemTestServer::UpdateAndSend(const TArray<FReplicationSystemTestClient*>& Clients, bool bDeliver /*= true*/)
+{
+	bool bSuccess = true;
+
+	PreSendUpdate();
+
+	for (FReplicationSystemTestClient* Client : Clients)
+	{
+		bSuccess &= SendAndDeliverTo(Client, bDeliver);
+	}
+	
+	PostSendUpdate();
+
+	return bSuccess;
+}
+
 // FReplicationSystemServerClientTestFixture implementation
 void FReplicationSystemServerClientTestFixture::SetUp()
 {

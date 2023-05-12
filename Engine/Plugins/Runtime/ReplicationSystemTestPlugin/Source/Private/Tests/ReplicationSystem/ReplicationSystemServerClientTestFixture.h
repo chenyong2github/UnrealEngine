@@ -179,6 +179,9 @@ public:
 
 	// Explicitly set delivery status
 	void DeliverTo(FReplicationSystemTestClient* Client, bool bDeliver);
+
+	// Tick and send packets to one or all clients
+	bool UpdateAndSend(const TArray<FReplicationSystemTestClient*>& Clients, bool bDeliver=true);
 };
 
 class FReplicationSystemServerClientTestFixture : public FNetworkAutomationTestSuiteFixture

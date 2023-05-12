@@ -109,3 +109,22 @@ private:
 	TMap<uint32, UPTRINT> ObjectToFilterOutOffset;
 	TMap<uint32, bool> ObjectToFilterOut;
 };
+
+/**
+ * Filter that checks object data to decide to filter out an object.
+ */
+UCLASS()
+class UMockNetObjectFilterWithCondition : public UMockNetObjectFilter
+{
+	GENERATED_BODY()
+
+protected:
+
+	virtual void OnInit(FNetObjectFilterInitParams&) override;
+	virtual bool AddObject(uint32 ObjectIndex, FNetObjectFilterAddObjectParams&) override;
+	virtual void Filter(FNetObjectFilteringParams&) override;
+
+private:
+
+	const UReplicationSystem* ReplicationSystem = nullptr;
+};

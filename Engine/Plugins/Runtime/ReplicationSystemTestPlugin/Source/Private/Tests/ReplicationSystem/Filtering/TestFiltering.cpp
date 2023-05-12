@@ -28,6 +28,9 @@ protected:
 		RestoreFilterDefinitions();
 	}
 
+	virtual FName GetMockFilterName() const { return FName("MockFilter"); }
+	virtual FName GetMockFilterClassName() const { return FName("/Script/ReplicationSystemTestPlugin.MockNetObjectFilter"); }
+
 private:
 	void InitNetObjectFilterDefinitions()
 	{
@@ -43,8 +46,8 @@ private:
 		TArray<FNetObjectFilterDefinition> NewFilterDefinitions;
 		{
 			FNetObjectFilterDefinition& MockDefinition = NewFilterDefinitions.Emplace_GetRef();
-			MockDefinition.FilterName = "MockFilter";
-			MockDefinition.ClassName = "/Script/ReplicationSystemTestPlugin.MockNetObjectFilter";
+			MockDefinition.FilterName = GetMockFilterName();
+			MockDefinition.ClassName = GetMockFilterClassName();
 			MockDefinition.ConfigClassName = "/Script/ReplicationSystemTestPlugin.MockNetObjectFilterConfig";
 		}
 
@@ -76,8 +79,8 @@ private:
 
 	void InitMockNetObjectFilter()
 	{
-		MockNetObjectFilter = ExactCast<UMockNetObjectFilter>(Server->GetReplicationSystem()->GetFilter("MockFilter"));
-		MockFilterHandle = Server->GetReplicationSystem()->GetFilterHandle("MockFilter");
+		MockNetObjectFilter = CastChecked<UMockNetObjectFilter>(Server->GetReplicationSystem()->GetFilter(GetMockFilterName()));
+		MockFilterHandle = Server->GetReplicationSystem()->GetFilterHandle(GetMockFilterName());
 
 		MockNetObjectFilterWithFragments = ExactCast<UMockNetObjectFilterUsingFragmentData>(Server->GetReplicationSystem()->GetFilter("MockFilterWithFragments"));
 		MockFilterWithFragmentsHandle = Server->GetReplicationSystem()->GetFilterHandle("MockFilterWithFragments");
@@ -92,6 +95,15 @@ protected:
 
 private:
 	TArray<FNetObjectFilterDefinition> OriginalFilterDefinitions;
+};
+
+
+class FTestFilteringWithConditionFixture : public FTestFilteringFixture
+{
+protected:
+
+	virtual FName GetMockFilterName() const { return FName("MockFilterWithCondition"); }
+	virtual FName GetMockFilterClassName() const { return FName("/Script/ReplicationSystemTestPlugin.MockNetObjectFilterWithCondition"); }
 };
 
 // Owner filtering tests
@@ -1312,4 +1324,120 @@ UE_NET_TEST_FIXTURE(FTestFilteringFixture, DynamicFilteredOutSubObjectsAreResetW
 }
 
 
+UE_NET_TEST_FIXTURE(FTestFilteringWithConditionFixture, TestCulledDirtyActors)
+{
+	// Setup dynamic filter for the test.
+	{
+		UMockNetObjectFilter::FFunctionCallSetup CallSetup;
+		CallSetup.AddObject.bReturnValue = true;
+		CallSetup.Filter.bFilterOutByDefault = true;
+
+		MockNetObjectFilter->SetFunctionCallSetup(CallSetup);
+		MockNetObjectFilter->ResetFunctionCallStatus();
+	}
+
+	const uint32 RepSystemID = Server->GetReplicationSystemId();
+
+	// Add client
+	FReplicationSystemTestClient* Client = CreateClient();
+
+	// Create multiple filtered objects
+	UTestFilteringObject* ServerObjectA = Server->CreateObject<UTestFilteringObject>();
+	Server->ReplicationSystem->SetFilter(ServerObjectA->NetRefHandle, MockFilterHandle);
+
+	UTestFilteringObject* ServerObjectB = Server->CreateObject<UTestFilteringObject>();
+	Server->ReplicationSystem->SetFilter(ServerObjectB->NetRefHandle, MockFilterHandle);
+
+	UTestFilteringObject* ServerObjectC = Server->CreateObject<UTestFilteringObject>();
+	Server->ReplicationSystem->SetFilter(ServerObjectC->NetRefHandle, MockFilterHandle);
+
+	// Create a non-filtered object
+	UTestFilteringObject* ServerObjectNoFilter = Server->CreateObject<UTestFilteringObject>();
+
+	// Filter them in
+	{	
+		constexpr bool bFilterIn = false;
+		ServerObjectA->SetFilterOut(bFilterIn);
+		ServerObjectB->SetFilterOut(bFilterIn);
+		ServerObjectC->SetFilterOut(bFilterIn);
+
+		// Send and deliver packets
+		Server->UpdateAndSend({Client});
+
+		// Check that the filtered object do exist on the client.
+		UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectA->NetRefHandle), nullptr);
+		UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectB->NetRefHandle), nullptr);
+		UE_NET_ASSERT_NE(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectC->NetRefHandle), nullptr);
+	}
+
+	// Now filter them out
+	{
+		constexpr bool bFilterOut = true;
+		ServerObjectA->SetFilterOut(bFilterOut);
+		ServerObjectB->SetFilterOut(bFilterOut);
+		ServerObjectC->SetFilterOut(bFilterOut);
+
+		// Send and deliver packets
+		Server->UpdateAndSend({ Client });
+
+		// Check that the filtered object do not exist on the client.
+		UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectA->NetRefHandle), nullptr);
+		UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectB->NetRefHandle), nullptr);
+		UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectC->NetRefHandle), nullptr);
+	}
+
+	// Mark objects dirty
+	{
+		ServerObjectA->ReplicatedCounter = 0x01;
+		ServerObjectB->ReplicatedCounter = 0x01;
+		ServerObjectC->ReplicatedCounter = 0x01;
+		Server->GetReplicationSystem()->MarkDirty(ServerObjectA->NetRefHandle);
+		Server->GetReplicationSystem()->MarkDirty(ServerObjectB->NetRefHandle);
+		Server->GetReplicationSystem()->MarkDirty(ServerObjectC->NetRefHandle);
+
+		// Send and deliver packets
+		Server->UpdateAndSend({ Client });
+
+		// Should still not exist on the client.
+		UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectA->NetRefHandle), nullptr);
+		UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectB->NetRefHandle), nullptr);
+		UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectC->NetRefHandle), nullptr);
+	}
+
+	// Put one of them back in the scope
+	{
+		constexpr bool bFilterIn = false;
+		ServerObjectA->SetFilterOut(bFilterIn);
+
+		// Send and deliver packets
+		Server->UpdateAndSend({ Client });
+
+		// This one exists
+		UTestFilteringObject* ClientObjectA = Cast<UTestFilteringObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectA->NetRefHandle));
+		UE_NET_ASSERT_NE(ClientObjectA, nullptr);
+		UE_NET_ASSERT_TRUE(ClientObjectA->ReplicatedCounter == 0x01);
+
+		// These don't
+		UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectB->NetRefHandle), nullptr);
+		UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectC->NetRefHandle), nullptr);
+	}
+
+	// Add another one back in the scope
+	{
+		constexpr bool bFilterIn = false;
+		ServerObjectB->SetFilterOut(bFilterIn);
+
+		// Send and deliver packets
+		Server->UpdateAndSend({ Client });
+
+		// This one exists
+		UTestFilteringObject* ClientObjectB = Cast<UTestFilteringObject>(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectB->NetRefHandle));
+		UE_NET_ASSERT_NE(ClientObjectB, nullptr);
+		UE_NET_ASSERT_TRUE(ClientObjectB->ReplicatedCounter == 0x01);
+
+		// These don't
+		UE_NET_ASSERT_EQ(Client->GetReplicationBridge()->GetReplicatedObject(ServerObjectC->NetRefHandle), nullptr);
+	}
 }
+
+} // end namespace UE::Net::Private

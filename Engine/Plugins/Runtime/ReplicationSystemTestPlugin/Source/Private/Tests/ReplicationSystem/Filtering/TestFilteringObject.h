@@ -12,6 +12,10 @@ class UTestFilteringObject : public UReplicatedTestObject
 
 public:
 	void SetFilterOut(bool bFilterOut);
+	bool GetFilterOut() const { return NetTest_FilterOut; }
+
+	UPROPERTY(Replicated)
+	uint32 ReplicatedCounter = 0;
 
 protected:
 	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Fragments, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;

@@ -2,6 +2,10 @@
 
 #include "MockNetObjectFilter.h"
 #include "Containers/ArrayView.h"
+#include "TestFilteringObject.h"
+
+#include "Iris/ReplicationSystem/ReplicationSystem.h"
+#include "Iris/ReplicationSystem/ReplicationSystemInternal.h"
 
 UMockNetObjectFilter::UMockNetObjectFilter()
 : CallStatus({})
@@ -203,4 +207,47 @@ void UMockNetObjectFilterUsingFragmentData::Filter(FNetObjectFilteringParams& Pa
 	{
 		Params.OutAllowedObjects.SetBitValue(Pair.Key, !Pair.Value);
 	}
+}
+
+
+//**************************************************************************************************
+// UMockNetObjectFilterWithCondition
+//**************************************************************************************************
+
+void UMockNetObjectFilterWithCondition::OnInit(FNetObjectFilterInitParams& Params)
+{
+	Super::OnInit(Params);
+
+	SetupFilterType(ENetFilterType::PrePoll_Raw);
+
+	ReplicationSystem = Params.ReplicationSystem.Get();
+}
+
+bool UMockNetObjectFilterWithCondition::AddObject(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params)
+{
+	bool bResult = Super::AddObject(ObjectIndex, Params);
+
+	// Make sure the object is of the proper class
+	UObject* ReplicatedObject = ReplicationSystem->GetReplicationSystemInternal()->GetNetRefHandleManager().GetReplicatedObjectInstance(ObjectIndex);
+	UTestFilteringObject* FilterObject = CastChecked<UTestFilteringObject>(ReplicatedObject);
+
+	return bResult;
+}
+
+void UMockNetObjectFilterWithCondition::Filter(FNetObjectFilteringParams& Params)
+{
+	++CallStatus.CallCounts.Filter;
+
+	bool bIsProperCall = true;
+
+	Params.FilteredObjects.ForAllSetBits([&](uint32 ObjectIndex)
+	{
+		UTestFilteringObject* FilterObject = CastChecked<UTestFilteringObject>(ReplicationSystem->GetReplicationSystemInternal()->GetNetRefHandleManager().GetReplicatedObjectInstance(ObjectIndex));
+		
+		const bool bIsFilteredOut = FilterObject->GetFilterOut();
+
+		Params.OutAllowedObjects.SetBitValue(ObjectIndex, !bIsFilteredOut);
+	});
+	
+	CallStatus.SuccessfulCallCounts.Filter += bIsProperCall;
 }
