@@ -64,7 +64,27 @@ namespace Chaos
 		bool CHAOS_API ShouldUseCCD(const FGeometryParticleHandle* Particle0, const FVec3& DeltaX0, const FGeometryParticleHandle* Particle1, const FVec3& DeltaX1, FVec3& Dir, FReal& Length);
 
 		// Create constraints for the particle pair. This could create multiple constraints: one for each potentially colliding shape pair in multi-shape particles.
-		void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const bool bEnableSweep, const FCollisionContext& Context);
+		// @param ImplicitID0 Used to differentiate contacts when an implicit is used multiple times in a geometry hierarchy
+		// @param ImplicitID1 Used to differentiate contacts when an implicit is used multiple times in a geometry hierarchy
+		void CHAOS_API ConstructConstraints(
+			TGeometryParticleHandle<FReal, 3>* Particle0, 
+			TGeometryParticleHandle<FReal, 3>* Particle1, 
+			const FImplicitObject* Implicit0, 
+			const FPerShapeData* Shape0, 
+			const FBVHParticles* Simplicial0, 
+			const int32 ImplicitID0,
+			const FImplicitObject* Implicit1,
+			const FPerShapeData* Shape1, 
+			const FBVHParticles* Simplicial1, 
+			const int32 ImplicitID1,
+			const FRigidTransform3& ParticleWorldTransform0,
+			const FRigidTransform3& Transform0, 
+			const FRigidTransform3& ParticleWorldTransform1, 
+			const FRigidTransform3& Transform1, 
+			const FReal CullDistance, 
+			const FReal Dt, 
+			const bool bEnableSweep, 
+			const FCollisionContext& Context);
 
 		// @todo(chaos): this should not be exposed but is currently used in tests
 		void UpdateLevelsetLevelsetConstraint(const FRigidTransform3& WorldTransform0, const FRigidTransform3& WorldTransform1, const FReal Dt, FPBDCollisionConstraint& Constraint);
@@ -72,17 +92,22 @@ namespace Chaos
 		// Reset per-frame collision stat counters
 		void CHAOS_API ResetChaosCollisionCounters();
 
-
 		//
 		//
 		// DEPRECATED STUFF (see above)
 		//
 		//
 
+		UE_DEPRECATED(5.3, "Replaced with a version that takes a ImplicitIDs")
+		inline void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const bool bEnableSweep, const FCollisionContext& Context)
+		{
+			ConstructConstraints(Particle0, Particle1, Implicit0, Shape0, Simplicial0, 0, Implicit1, Shape1, Simplicial1, 0, ParticleWorldTransform0, Transform0, ParticleWorldTransform1, Transform1, CullDistance, Dt, bEnableSweep, Context);
+		}
+
 		UE_DEPRECATED(5.3, "Replaced with a version that takes a bEnableSweep flag")
 		inline void CHAOS_API ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FPerShapeData* Shape0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FPerShapeData* Shape1, const FBVHParticles* Simplicial1, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& Transform0, const FRigidTransform3& ParticleWorldTransform1, const FRigidTransform3& Transform1, const FReal CullDistance, const FReal Dt, const FCollisionContext& Context)
 		{
-			ConstructConstraints(Particle0, Particle1, Implicit0, Shape0, Simplicial0, Implicit1, Shape1, Simplicial1, ParticleWorldTransform0, Transform0, ParticleWorldTransform1, Transform1, CullDistance, Dt, false, Context);
+			ConstructConstraints(Particle0, Particle1, Implicit0, Shape0, Simplicial0, 0, Implicit1, Shape1, Simplicial1, 0, ParticleWorldTransform0, Transform0, ParticleWorldTransform1, Transform1, CullDistance, Dt, false, Context);
 		}
 
 		template<ECollisionUpdateType UpdateType>

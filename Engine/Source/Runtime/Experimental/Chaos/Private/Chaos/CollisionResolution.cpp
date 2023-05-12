@@ -1678,10 +1678,12 @@ namespace Chaos
 			const FImplicitObject* Implicit0, 
 			const FPerShapeData* Shape0, 
 			const FBVHParticles* Simplicial0, 
+			const int32 ImplicitID0,
 			const FImplicitObject* Implicit1, 
 			const FPerShapeData* Shape1, 
 			const FBVHParticles* Simplicial1, 
-			const FRigidTransform3& ParticleWorldTransform0, 
+			const int32 ImplicitID1,
+			const FRigidTransform3& ParticleWorldTransform0,
 			const FRigidTransform3& LocalTransform0, 
 			const FRigidTransform3& ParticleWorldTransform1, 
 			const FRigidTransform3& LocalTransform1, 
@@ -1692,7 +1694,7 @@ namespace Chaos
 		{
 			INC_DWORD_STAT(STAT_ChaosCollisionCounter_NumParticlePairs);
 
-			ConstructConstraintsRecursive(Particle0, Particle1, Implicit0, Shape0->AsShapeInstance(), Simplicial0, 0, Implicit1, Shape1->AsShapeInstance(), Simplicial1, 0, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, dT, bEnableSweep, Context);
+			ConstructConstraintsRecursive(Particle0, Particle1, Implicit0, Shape0->AsShapeInstance(), Simplicial0, ImplicitID0, Implicit1, Shape1->AsShapeInstance(), Simplicial1, ImplicitID1, ParticleWorldTransform0, LocalTransform0, ParticleWorldTransform1, LocalTransform1, CullDistance, dT, bEnableSweep, Context);
 		}
 
 		// This is deprecated

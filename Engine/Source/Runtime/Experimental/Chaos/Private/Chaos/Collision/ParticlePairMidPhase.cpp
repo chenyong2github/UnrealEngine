@@ -396,7 +396,7 @@ namespace Chaos
 				}
 			}
 
-			// If we get here, we did not activate hte constraint and it should be disabled for this tick
+			// If we get here, we did not activate the constraint and it should be disabled for this tick
 			Constraint->SetDisabled(true);
 		}
 
@@ -644,8 +644,8 @@ namespace Chaos
 		// overlapping shape pair on the two bodies via a callback to FindOrCreateConstraint
 		Collisions::ConstructConstraints(
 			Particle0, Particle1,
-			Implicit0, Shape0, BVHParticles0,
-			Implicit1, Shape1, BVHParticles1,
+			Implicit0, Shape0, BVHParticles0, 0,
+			Implicit1, Shape1, BVHParticles1, 0,
 			ParticleWorldTransform0, ShapeRelativeTransform0,
 			ParticleWorldTransform1, ShapeRelativeTransform1,
 			CullDistance, Dt, bEnableCCDSweep, LocalContext);
@@ -1078,8 +1078,8 @@ namespace Chaos
 				// Create the constraint for the shape pair if the bounds overlap
 				Collisions::ConstructConstraints(
 					Particle0, Particle1,
-					Object0.Geometry, Object0.ShapeInstance, BVHParticles0,
-					Object1.Geometry, Object1.ShapeInstance, BVHParticles1,
+					Object0.Geometry, Object0.ShapeInstance, BVHParticles0, Object0.LeafObjectIndex,
+					Object1.Geometry, Object1.ShapeInstance, BVHParticles1, Object1.LeafObjectIndex,
 					ParticleWorldTransform0, Object0.RelativeTransform,
 					ParticleWorldTransform1, Object1.RelativeTransform,
 					CullDistance, Dt, bEnableCCDSweep, LocalContext);
@@ -1300,7 +1300,7 @@ namespace Chaos
 			}
 		}
 
-		// If we get here, we did not activate hte constraint and it should be disabled for this tick
+		// If we get here, we did not activate the constraint and it should be disabled for this tick
 		Constraint->SetDisabled(true);
 	}
 
@@ -1364,15 +1364,12 @@ namespace Chaos
 		}
 #endif
 
-		// If we did get a hit but it's at TOI = 1, treat this constraint as a regular non-swept constraint (skip the rewind)
-		if ((!bDidSweep) || Constraint->GetCCDTimeOfImpact() == FReal(1))
+		// If we did not get a sweep hit (TOI > 1) or did not sweep (bDidSweep = false), we need to run standard collision detection at T=1.
+		// Likewise, if we did get a sweep hit but it's at TOI = 1, treat this constraint as a regular non-swept constraint and skip the rewind.
+		// NOTE: The sweep will report TOI==1 for "shallow" sweep hits below the CCD thresholds in the constraint.
+		if ((!bDidSweep) || (Constraint->GetCCDTimeOfImpact() >= FReal(1)))
 		{
 			Collisions::UpdateConstraint(*Constraint, Constraint->GetShapeWorldTransform0(), Constraint->GetShapeWorldTransform1(), Dt);
-		}
-
-		// If the sweep did not find a hit, or we are treating it like a regular contact, we will skip the CCD rewind step for this contact
-		if (Constraint->GetCCDTimeOfImpact() >= FReal(1))
-		{
 			Constraint->SetCCDSweepEnabled(false);
 		}
 
