@@ -3028,6 +3028,9 @@ void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRe
 		return;
 	}
 
+	// Stop any existing cloth simulation pior to replacing the asset
+	RemoveAllClothingActors();
+
 	// Update property alias
 //#if WITH_EDITORONLY_DATA  // TODO: Re-add these guards once the MovieScene getters/setters are working, so that we can get rid of this redundant pointer in all cooked builds
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
