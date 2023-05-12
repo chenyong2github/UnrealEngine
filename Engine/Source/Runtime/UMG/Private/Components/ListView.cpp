@@ -361,11 +361,11 @@ void UListView::PostLoad()
 #if WITH_EDITOR
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-		if (EntrySpacing_DEPRECATED != 0.f)
+		if (EntrySpacing != 0.f)
 		{
-			HorizontalEntrySpacing = EntrySpacing_DEPRECATED;
-			VerticalEntrySpacing = EntrySpacing_DEPRECATED;
-			EntrySpacing_DEPRECATED = 0.f;
+			HorizontalEntrySpacing = EntrySpacing;
+			VerticalEntrySpacing = EntrySpacing;
+			EntrySpacing = 0.f;
 		}
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS

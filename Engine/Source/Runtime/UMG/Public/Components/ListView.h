@@ -212,7 +212,7 @@ protected:
 	 * it relies on the newly added UFunction GetHorizontalEntrySpacing() to act as its BlueprintGetter.
 	 */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "EntrySpacing has been deprecated. Please use HorizontalEntrySpacing and VerticalEntrySpacing."), BlueprintReadOnly, BlueprintGetter = "GetHorizontalEntrySpacing", Category = ListView, meta = (ClampMin = 0))
-	float EntrySpacing_DEPRECATED = 0.f;
+	float EntrySpacing = 0.f;
 #endif  // WITH_EDITOR
 
 private:
