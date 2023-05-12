@@ -44,6 +44,12 @@ private:
 	void UpdateAnimMapCurves(const FDNAIndexMapping* DNAIndexMapping, TArrayView<const float> AnimMapOutputs, FPoseContext& OutputContext);
 
 private:
+	struct FJointCompactPoseBoneMapping {
+		uint16 JointIndex;
+		FCompactPoseBoneIndex CompactPoseBoneIndex;
+	};
+
+private:
 	/*
 	 * Max LOD level that post-process AnimBPs are evaluated.
 	 * For example if you have the threshold set to 2, it will evaluate until including LOD 2 (based on 0 index). In case the LOD level gets set to 3, it will stop evaluating the post-process AnimBP.
@@ -52,8 +58,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = RigLogic)
 	int32 LODThreshold = INDEX_NONE;
 
+private:
 	TSharedPtr<FSharedRigRuntimeContext> LocalRigRuntimeContext;
 	TSharedPtr<FDNAIndexMapping> LocalDNAIndexMapping;
 	FRigInstance* RigInstance;
-	TArray<FCompactPoseBoneIndex> JointsMapDNAIndicesToCompactPoseBoneIndices;
+	TArray<FJointCompactPoseBoneMapping> JointsMapDNAIndicesToCompactPoseBoneIndices;
 };
