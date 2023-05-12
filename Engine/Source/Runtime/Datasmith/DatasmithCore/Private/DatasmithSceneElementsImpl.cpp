@@ -1086,7 +1086,7 @@ void FDatasmithSceneImpl::Reset()
 	ProductVersion = TEXT("");
 	UserID = TEXT("");
 	UserOS = TEXT("");
-	Geolocation = FVector::ZeroVector;
+	Geolocation = FVector(TNumericLimits<double>::Max(), TNumericLimits<double>::Max(), TNumericLimits<double>::Max());  // max double indicates values are not set
 	ResourcePath = TEXT("");
 
 	ExportDuration = 0;

@@ -198,9 +198,21 @@ ADatasmithSceneActor* FDatasmithImporterUtils::CreateImportSceneActor( FDatasmit
 	}
 
 	FVector Geolocation = ImportContext.Scene->GetGeolocation();
-	UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(SceneActor, TEXT("Geolocation_Latitude"),  FString::SanitizeFloat(Geolocation.X));
-	UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(SceneActor, TEXT("Geolocation_Longitude"),  FString::SanitizeFloat(Geolocation.Y));
-	UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(SceneActor, TEXT("Geolocation_Elevation"),  FString::SanitizeFloat(Geolocation.Z));
+
+	if (Geolocation.X != TNumericLimits<double>::Max())
+	{
+		UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(SceneActor, TEXT("Geolocation_Latitude"),  FString::SanitizeFloat(Geolocation.X));
+	}
+
+	if (Geolocation.Y != TNumericLimits<double>::Max())
+	{
+		UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(SceneActor, TEXT("Geolocation_Longitude"),  FString::SanitizeFloat(Geolocation.Y));
+	}
+
+	if (Geolocation.Z != TNumericLimits<double>::Max())
+	{
+		UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(SceneActor, TEXT("Geolocation_Elevation"),  FString::SanitizeFloat(Geolocation.Z));
+	}
 
 	ImportContext.ActorsContext.ImportSceneActor = SceneActor;
 

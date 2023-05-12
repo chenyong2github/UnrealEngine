@@ -1934,16 +1934,27 @@ void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > Datasmit
 
 	FDatasmithSceneXmlWriterImpl::WriteIndent(Archive, 1);
 
-	FVector Geolocation = DatasmithScene->GetGeolocation();
-	
-	XmlString = FString::Printf( TEXT("<%s %s=\"%s\" %s=\"%s\" %s=\"%s\"/>"),
-		DATASMITH_GEOLOCATION,
-		DATASMITH_GEOLOCATION_LATITUDE, *FString::SanitizeFloat(Geolocation.X),
-		DATASMITH_GEOLOCATION_LONGITUDE, *FString::SanitizeFloat(Geolocation.Y),
-		DATASMITH_GEOLOCATION_ELEVATION, *FString::SanitizeFloat(Geolocation.Z)
-		) + LINE_TERMINATOR;
+	// Geolocation
+	{
+		FVector Geolocation = DatasmithScene->GetGeolocation();
 
-	FDatasmithSceneXmlWriterImpl::SerializeToArchive(Archive, XmlString);
+		XmlString = FString::Printf( TEXT("<%s"), DATASMITH_GEOLOCATION);
+
+		auto WriteGeolocationComponent = [&XmlString](const TCHAR* AttrName, double Value)
+		{
+			if (Value != TNumericLimits<double>::Max())
+			{
+				XmlString += FString::Printf( TEXT(" %s=\"%s\""), AttrName, *FString::SanitizeFloat(Value));
+			}
+		};
+		WriteGeolocationComponent(DATASMITH_GEOLOCATION_LATITUDE, Geolocation.X);
+		WriteGeolocationComponent(DATASMITH_GEOLOCATION_LONGITUDE, Geolocation.Y);
+		WriteGeolocationComponent(DATASMITH_GEOLOCATION_ELEVATION, Geolocation.Z);
+		XmlString += TEXT("/>");
+		XmlString += LINE_TERMINATOR;
+
+		FDatasmithSceneXmlWriterImpl::SerializeToArchive(Archive, XmlString);
+	}
 
 	FDatasmithSceneXmlWriterImpl::WritePostProcessElement( DatasmithScene->GetPostProcess(), Archive, 1 );
 

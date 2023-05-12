@@ -1554,11 +1554,14 @@ public:
 	 */
 	virtual void SetUserOS(const TCHAR*) = 0;
 
-	/** Get Geolocation data of the scene. Where X = Latitude, Y = Longitude, Z = Elevation */
+	/** Get Geolocation data of the scene. Where X = Latitude, Y = Longitude, Z = Elevation
+	 *   Components are initialized to TNumericLimits<double>::Max() to indicate they are not "set"
+	 */
 	virtual FVector GetGeolocation() const = 0; 
 
-	/** Set Geolocation data of the scene. Where X = Latitude, Y = Longitude, Z = Elevation */
-	virtual void SetGeolocation(FVector) = 0;
+	virtual void SetGeolocationLatitude(double) = 0;
+	virtual void SetGeolocationLongitude(double) = 0;
+	virtual void SetGeolocationElevation(double) = 0;
 
 	/** Returns the time taken to export the scene */
 	virtual int32 GetExportDuration() const = 0;

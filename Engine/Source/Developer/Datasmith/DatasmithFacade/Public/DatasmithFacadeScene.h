@@ -248,11 +248,13 @@ public:
 	/** Get the path were additional assets will be saved to. */
 	const TCHAR* GetAssetsOutputPath() const;
 
-	/** Set the Datasmith scene Geolocation data*/
-	void SetGeolocation(double Latitude, double Longitude, double Elevation);
-
 	/** Get the Datasmith scene Geolocation data*/
 	void GetGeolocation(double& OutLatitude, double& OutLongitude, double& OutElevation) const;
+
+	/** Set the Datasmith scene Geolocation data*/
+	void SetGeolocationLatitude(double Latitude);
+	void SetGeolocationLongitude(double Longitude);
+	void SetGeolocationElevation(double Elevation);
 
 	/** Instantiate an exporter and register export start time */
 	void PreExport();

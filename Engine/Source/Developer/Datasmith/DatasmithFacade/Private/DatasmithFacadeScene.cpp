@@ -483,9 +483,19 @@ const TCHAR* FDatasmithFacadeScene::GetAssetsOutputPath() const
 	return SceneExporterRef->GetAssetsOutputPath();
 }
 
-void FDatasmithFacadeScene::SetGeolocation(double Latitude, double Longitude, double Elevation)
+void FDatasmithFacadeScene::SetGeolocationLatitude(double Latitude)
 {
-	SceneRef->SetGeolocation(FVector(Latitude, Longitude, Elevation));
+	SceneRef->SetGeolocationLatitude(Latitude);
+}
+
+void FDatasmithFacadeScene::SetGeolocationLongitude(double Longitude)
+{
+	SceneRef->SetGeolocationLongitude(Longitude);
+}
+
+void FDatasmithFacadeScene::SetGeolocationElevation(double Elevation)
+{
+	SceneRef->SetGeolocationElevation(Elevation);
 }
 
 void FDatasmithFacadeScene::GetGeolocation(double& OutLatitude, double& OutLongitude, double& OutElevation) const

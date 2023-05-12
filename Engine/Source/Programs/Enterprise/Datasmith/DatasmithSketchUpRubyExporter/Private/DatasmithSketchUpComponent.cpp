@@ -387,8 +387,10 @@ SUTransformation FModelDefinition::GetMeshBakedTransform()
 bool FModelDefinition::UpdateModel(FExportContext& Context)
 {
 	// SketchUp API has no notification of Geolocation change so retrieve it every time and compare to check if we need to set DirectLink update
-	FVector Geolocation = Context.DatasmithScene->GetGeolocation();
-	FVector GeolocationNew = Geolocation;
+	FVector GeolocationDatasmith = Context.DatasmithScene->GetGeolocation();
+
+	FVector2d Geolocation(GeolocationDatasmith);
+	FVector2d GeolocationNew = Geolocation;
 
 	SULocationRef Location = SU_INVALID;
 	if (SU_ERROR_NONE == SUModelGetLocation(Model, &Location))
@@ -397,7 +399,7 @@ bool FModelDefinition::UpdateModel(FExportContext& Context)
 		double Longitude = 0;
 		SULocationGetLatLong(Location, &Latitude, &Longitude);
 
-		GeolocationNew = FVector(Latitude, Longitude, 0);
+		GeolocationNew = FVector2d(Latitude, Longitude);
 	}
 
 	if ((Geolocation - GeolocationNew).IsNearlyZero(1e-10))
@@ -405,7 +407,8 @@ bool FModelDefinition::UpdateModel(FExportContext& Context)
 		return false;
 	}
 
-	Context.DatasmithScene->SetGeolocation(GeolocationNew);
+	Context.DatasmithScene->SetGeolocationLatitude(GeolocationNew.X);
+	Context.DatasmithScene->SetGeolocationLongitude(GeolocationNew.Y);
 	return true;
 }
 
