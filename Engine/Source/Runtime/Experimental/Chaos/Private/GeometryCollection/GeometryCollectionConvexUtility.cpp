@@ -1689,7 +1689,7 @@ void FGeometryCollectionConvexUtility::GenerateClusterConvexHullsFromLeafOrChild
 	TArray<int32> TransformsToProcess;
 	if (bOnlySubset)
 	{
-		if (TransformsToProcess.IsEmpty())
+		if (TransformSubset.IsEmpty())
 		{
 			return;
 		}
