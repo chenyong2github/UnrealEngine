@@ -273,6 +273,12 @@ bool TAABB<T, d>::Raycast(const TVector<FReal, d>& StartPoint, const TVector<FRe
 template<typename T>
 inline TAABB<T, 3> TransformedAABBHelper(const TAABB<T, 3>& AABB, const FMatrix44& SpaceTransform)
 {
+	// Full and empty bounds do not transform
+	if (AABB.IsFull() || AABB.IsEmpty())
+	{
+		return AABB;
+	}
+
 	// Initialize to center
 	FVec3 Translation(SpaceTransform.M[3][0], SpaceTransform.M[3][1], SpaceTransform.M[3][2]);
 	FVec3 Min = Translation;
@@ -303,6 +309,12 @@ inline TAABB<T, 3> TransformedAABBHelper(const TAABB<T, 3>& AABB, const FMatrix4
 
 inline TAABB<FReal, 3> TransformedAABBHelperISPC(const TAABB<FReal, 3>& AABB, const FTransform& SpaceTransform)
 {
+	// Full and empty bounds do not transform
+	if (AABB.IsFull() || AABB.IsEmpty())
+	{
+		return AABB;
+	}
+
 	check(bRealTypeCompatibleWithISPC);
 #if INTEL_ISPC
 	TVector<Chaos::FReal, 3> NewMin, NewMax;
@@ -373,8 +385,14 @@ TAABB<T, d> TAABB<T, d>::TransformedAABB(const FTransform& SpaceTransform) const
 }
 
 template<typename T, int d>
-inline TAABB<T, d> TAABB<T, d>::InverseTransformedAABB(const FRigidTransform3& SpaceTransform) const
+TAABB<T, d> TAABB<T, d>::InverseTransformedAABB(const FRigidTransform3& SpaceTransform) const
 {
+	// Full and empty bounds do not transform
+	if (IsFull() || IsEmpty())
+	{
+		return *this;
+	}
+
 	TVector<T, d> CurrentExtents = Extents();
 	int32 Idx = 0;
 	const TVector<T, d> MinToNewSpace = SpaceTransform.InverseTransformPosition(FVector(Min()));

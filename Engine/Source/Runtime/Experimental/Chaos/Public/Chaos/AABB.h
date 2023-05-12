@@ -537,9 +537,33 @@ namespace Chaos
 		FORCEINLINE T GetMargin() const { return 0; }
 		FORCEINLINE T GetRadius() const { return 0; }
 
+		// A bounding box that will fail all overlap tests.
+		// NOTE: this bounds cannot be transformed (all transform return EmptyAABB)
 		FORCEINLINE static TAABB<T, d> EmptyAABB() { return TAABB<T, d>(TVector<T, d>(TNumericLimits<T>::Max()), TVector<T, d>(-TNumericLimits<T>::Max())); }
-		FORCEINLINE static TAABB<T, d> ZeroAABB() { return TAABB<T, d>(TVector<T, d>((T)0), TVector<T, d>((T)0)); }
+
+		// A bounding box that overlaps all space.
+		// NOTE: this bounds cannot be transformed (all transforms return FullAABB)
 		FORCEINLINE static TAABB<T, d> FullAABB() { return TAABB<T, d>(TVector<T, d>(-TNumericLimits<T>::Max()), TVector<T, d>(TNumericLimits<T>::Max())); }
+
+		// A single-point bounds at the origin
+		FORCEINLINE static TAABB<T, d> ZeroAABB() { return TAABB<T, d>(TVector<T, d>((T)0), TVector<T, d>((T)0)); }
+
+
+		// If this AABB covering all of space (all overlap tests will succeed)
+		// NOTE: This just checks if Max.X is Real::Max. The assumption is that max numeric values 
+		// are only used when explicitly set in EmptyAABB() and FullAABB().
+		FORCEINLINE bool IsFull() const
+		{
+			return (MMax.X == TNumericLimits<T>::Max());
+		}
+
+		// If this AABB empty (all overlap tests will fail)
+		// NOTE: This just checks if Min.X is Real::Max. The assumption is that max numeric values 
+		// are only used when explicitly set in EmptyAABB() and FullAABB().
+		FORCEINLINE bool IsEmpty() const
+		{
+			return (MMin.X == TNumericLimits<T>::Max());
+		}
 
 		FORCEINLINE void Serialize(FChaosArchive& Ar)
 		{
