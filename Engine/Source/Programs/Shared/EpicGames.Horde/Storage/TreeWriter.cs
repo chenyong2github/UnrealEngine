@@ -578,7 +578,7 @@ namespace EpicGames.Horde.Storage
 					List<BundleExportRef> exportRefs = new List<BundleExportRef>();
 					foreach (NodeHandle nodeRef in nodeInfo.Refs)
 					{
-						BundleExportRef? exportRef;
+						BundleExportRef exportRef;
 						if (!nodeHandleToExportRef.TryGetValue(nodeRef, out exportRef))
 						{
 							int importIdx;
@@ -617,7 +617,7 @@ namespace EpicGames.Horde.Storage
 				}
 
 				// Create the bundle
-				BundleHeader header = new BundleHeader(types, imports, exports, _packets.ToArray());
+				BundleHeader header = new BundleHeader(types, new BundleImportCollection(imports), new BundleExportCollection(exports), new BundlePacketCollection(_packets));
 				return new Bundle(header, packetData);
 			}
 		}
