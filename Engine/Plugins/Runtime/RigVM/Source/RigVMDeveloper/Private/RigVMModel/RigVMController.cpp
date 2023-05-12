@@ -18819,6 +18819,11 @@ FRigVMClientPatchResult URigVMController::PatchRerouteNodesOnLoad()
 							ReroutesToTurnIntoConstant.Add(RerouteNode);
 						}
 					}
+					else if(!bOnlyTopLevelTargetLinks && !bOnlySubPinTargetLinks)
+					{
+						check(ValuePin->IsStruct());
+						ReroutesToTurnIntoRerouteAndBreakStruct.Add(RerouteNode);
+					}
 					else // bOnlySubPinTargetLinks
 					{
 						check(ValuePin->IsStruct());
