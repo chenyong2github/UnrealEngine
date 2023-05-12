@@ -1046,17 +1046,16 @@ EPropertyBagContainerType FPropertyBagContainerTypes::PopHead()
 		
 	if (NumContainers > 0)
 	{
-		Head = Types[0];
+		Swap(Head, Types[0]);
 
-		const uint32 NewNumContainers = NumContainers - 1u;
-		check(NewNumContainers < UE_ARRAY_COUNT(Types))
-
-		for (uint32 i = 0; i < NewNumContainers; ++i)
+		uint8 Index = NumContainers - 1;
+		while (Index > 0)
 		{
-			Types[i] = Types[i + 1];
+			Types[Index - 1] = Types[Index];
+			Types[Index] = EPropertyBagContainerType::None;
+			Index--;
 		}
-		Types[NewNumContainers] = EPropertyBagContainerType::None;
-		NumContainers = NewNumContainers;
+		NumContainers--;
 	}
 
 	return Head;

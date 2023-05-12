@@ -270,11 +270,15 @@ struct FTest_ContainerTypes : FAITestBase
 		Container.Add(EPropertyBagContainerType::Array);
 		AITEST_TRUE(TEXT("Invalid num containers"), Container.Num() == 2);
 
-		Container.PopHead();
+		const EPropertyBagContainerType HeadContainerType1 = Container.PopHead();
 		AITEST_TRUE(TEXT("Invalid num containers"), Container.Num() == 1);
+		AITEST_TRUE(TEXT("Invalid extracted head container 1"), HeadContainerType1 == EPropertyBagContainerType::Array);
+		AITEST_TRUE(TEXT("Invalid first container type after removing Head 1"), Container.GetFirstContainerType() == EPropertyBagContainerType::Array);
 
-		Container.PopHead();
+		const EPropertyBagContainerType HeadContainerType2 = Container.PopHead();
 		AITEST_TRUE(TEXT("Invalid num containers"), Container.Num() == 0);
+		AITEST_TRUE(TEXT("Invalid extracted head container 2"), HeadContainerType2 == EPropertyBagContainerType::Array);
+		AITEST_TRUE(TEXT("Invalid first container type after removing Head 2"), Container.GetFirstContainerType() == EPropertyBagContainerType::None);
 
 		Container.Add(EPropertyBagContainerType::None);
 		AITEST_TRUE(TEXT("Adding None sould not change Num containers"), Container.Num() == 0);
