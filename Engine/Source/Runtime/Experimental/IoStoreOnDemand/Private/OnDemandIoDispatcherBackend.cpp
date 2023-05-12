@@ -25,7 +25,7 @@
 #include "Tasks/Pipe.h"
 #include <atomic>
 
-#define WITH_HTTP_CLIENT 0
+#define WITH_HTTP_CLIENT 1
 #if WITH_HTTP_CLIENT
 #include "CoreHttp/Client.h"
 #endif
@@ -60,7 +60,7 @@ FIoHash GetChunkKey(const FIoHash& ChunkHash, const FIoOffsetAndLength& Range)
 class FHttpClient
 {
 public:
-	FHttpClient();
+	FHttpClient(UE::HTTP::FEventLoop& EventLoop);
 	void Get(FAnsiStringView Url, FIoReadCallback&& Callback, const TCHAR* DebugName = nullptr);
 	void Get(FAnsiStringView Url, const FIoOffsetAndLength& Range, FIoReadCallback&& Callback, const TCHAR* DebugName = nullptr);
 	bool Tick();
@@ -68,11 +68,12 @@ public:
 private:
 #if WITH_HTTP_CLIENT
 	void Issue(UE::HTTP::FRequest&& Request, FIoReadCallback&& Callback, FAnsiStringView Url = FAnsiStringView(), const TCHAR* DebugName = nullptr);
-	UE::HTTP::FEventLoop EventLoop;
+	UE::HTTP::FEventLoop& EventLoop;
 #endif
 };
 
-FHttpClient::FHttpClient()
+FHttpClient::FHttpClient(UE::HTTP::FEventLoop& Loop)
+	: EventLoop(Loop)
 {
 }
 
@@ -516,7 +517,8 @@ class FOnDemandIoBackend final
 
 		FString DebugName;
 		UE::Tasks::FPipe Pipe;
-		FHttpClient Client;
+		UE::HTTP::FEventLoop HttpLoop;
+		FHttpClient Client{HttpLoop};
 	};
 
 	struct FBackendData
