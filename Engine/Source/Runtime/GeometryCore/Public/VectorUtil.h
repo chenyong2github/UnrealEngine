@@ -4,7 +4,7 @@
 
 #include "MathUtil.h"
 #include "VectorTypes.h"
-
+#include "Math/Transform.h"
 
 enum class EIntersectionResult
 {
@@ -525,6 +525,23 @@ namespace VectorUtil
 		double a = Distance(v1, v2), b = Distance(v2, v3), c = Distance(v3, v1);
 		double s = (a + b + c) / 2.0;
 		return (a * b * c) / (8.0 * (s - a) * (s - b) * (s - c));
+	}
+
+
+	template<typename RealType>
+	inline TVector<RealType> TransformNormal(const TTransform<RealType>& Transform, const TVector<RealType>& Normal)
+	{
+		const TVector<RealType>& S = Transform.GetScale3D();
+		RealType DetSign = FMathd::SignNonZero(S.X * S.Y * S.Z); // we only need to multiply by the sign of the determinant, rather than divide by it, since we normalize later anyway
+		TVector<RealType> SafeInvS(S.Y * S.Z * DetSign, S.X * S.Z * DetSign, S.X * S.Y * DetSign);
+		return Transform.TransformVectorNoScale(Normalized(SafeInvS * Normal));
+	}
+
+
+	template<typename RealType>
+	inline TVector<RealType> InverseTransformNormal(const TTransform<RealType>& Transform, const TVector<RealType>& Normal)
+	{
+		return Normalized(Transform.GetScale3D() * Transform.InverseTransformVectorNoScale(Normal));
 	}
 
 

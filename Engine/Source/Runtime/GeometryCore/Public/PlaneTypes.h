@@ -7,6 +7,7 @@
 #include "VectorTypes.h"
 #include "VectorUtil.h"
 #include "Math/Plane.h"
+#include "Math/Transform.h"
 
 namespace UE
 {
@@ -53,6 +54,29 @@ struct TPlane3
 		return FPlane(Normal.X, Normal.Y, Normal.Z, Constant);
 	}
 
+	/**
+	 * Transform the plane by the given transform
+	 */
+	void Transform(const TTransform<RealType>& Tr)
+	{
+		TVector<RealType> TransformedOrigin = Tr.TransformPosition(Normal * Constant);
+		// Transform the normal
+		Normal = VectorUtil::TransformNormal(Tr, Normal);
+		// Update the plane constant using the transformed normal and origin
+		Constant = Normal.Dot(TransformedOrigin);
+	}
+
+	/**
+	 * Transform the plane by the inverse of the given transform
+	 */
+	void InverseTransform(const TTransform<RealType>& Tr)
+	{
+		TVector<RealType> TransformedOrigin = Tr.InverseTransformPosition(Normal * Constant);
+		// Inverse transform the normal
+		Normal = VectorUtil::InverseTransformNormal(Tr, Normal);
+		// Update the plane constant using the transformed normal and origin
+		Constant = Normal.Dot(TransformedOrigin);
+	}
 
 	/**
 	 * Compute d = Dot(N,P)-c where N is the plane normal and c is the plane
