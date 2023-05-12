@@ -50,6 +50,9 @@ protected:
 	/** Return true if the an object of type ObjectClass is allowed to be created; If false is returned, the object and subobjects will be ignored. */
 	virtual bool CanCreateClass(UClass* ObjectClass, bool& bOmitSubObjs) const;
 
+	/** Return true if the an object of type ObjectClass is allowed to be created with a given name under the provided parent; If false is returned, the object and subobjects will be ignored. */
+	virtual bool CanCreateObject(UObject* InParent, UClass* ObjectClass, const FName& InDesiredName) const;
+
 	/** This is called on each created object after the property text is imported */
 	virtual void ProcessConstructedObject(UObject* CreatedObject);
 

@@ -5518,6 +5518,12 @@ void FCustomizableTextObjectFactory::ProcessBuffer(UObject* InParent, EObjectFla
 
 				UObject* ObjectParent = InParent ? InParent : GetParentForNewObject(ObjClass);
 
+				// Make sure we are allowed to create this object
+				if(!CanCreateObject(ObjectParent, ObjClass, ObjName))
+				{
+					continue;
+				}
+
 				// Make sure this name is not used by anything else. Will rename other stuff if necessary
 				UpdateObjectName(ObjClass, ObjectParent, ObjName);
 				ClearObjectNameUsage(ObjectParent, ObjName);
@@ -5646,7 +5652,13 @@ bool FCustomizableTextObjectFactory::CanCreateClass(UClass* ObjectClass, bool& b
 {
 	return false;
 }
-		
+
+bool FCustomizableTextObjectFactory::CanCreateObject(UObject* InParent, UClass* ObjectClass,
+	const FName& InDesiredName) const
+{
+	return true;
+}
+
 /** This is called on each created object after PreEditChange and the property text is imported, but before PostEditChange */
 void FCustomizableTextObjectFactory::ProcessConstructedObject(UObject* CreatedObject)
 {
