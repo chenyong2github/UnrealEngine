@@ -29,6 +29,9 @@
 #include "SceneDefinitions.h"
 #include "PrimitiveSceneShaderData.h"
 
+// Defaults to being disabled, enable using the command line argument: -CsvCategory GPUScene
+CSV_DEFINE_CATEGORY(GPUScene, false);
+
 #define LOG_INSTANCE_ALLOCATIONS 0
 
 static void ConstructDefault(FGPUSceneResourceParameters& GPUScene, FRDGBuilder& GraphBuilder)
@@ -47,42 +50,23 @@ static void ConstructDefault(FGPUSceneResourceParameters& GPUScene, FRDGBuilder&
 }
 IMPLEMENT_SCENE_UB_STRUCT(FGPUSceneResourceParameters, GPUScene, ConstructDefault);
 
-int32 GGPUSceneUploadEveryFrame = 0;
-FAutoConsoleVariableRef CVarGPUSceneUploadEveryFrame(
+static TAutoConsoleVariable<int32> CVarGPUSceneUploadEveryFrame(
 	TEXT("r.GPUScene.UploadEveryFrame"),
-	GGPUSceneUploadEveryFrame,
+	0,
 	TEXT("Whether to upload the entire scene's primitive data every frame.  Useful for debugging."),
 	ECVF_RenderThreadSafe
 );
 
-int32 GGPUSceneValidatePrimitiveBuffer = 0;
-FAutoConsoleVariableRef CVarGPUSceneValidatePrimitiveBuffer(
-	TEXT("r.GPUScene.ValidatePrimitiveBuffer"),
-	GGPUSceneValidatePrimitiveBuffer,
-	TEXT("Whether to readback the GPU primitive data and assert if it doesn't match the RT primitive data.  Useful for debugging."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GGPUSceneValidateInstanceBuffer = 0;
-FAutoConsoleVariableRef CVarGPUSceneValidateInstanceBuffer(
-	TEXT("r.GPUScene.ValidateInstanceBuffer"),
-	GGPUSceneValidateInstanceBuffer,
-	TEXT("Whether to readback the GPU instance data and assert if it doesn't match the RT primitive data.  Useful for debugging."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GGPUSceneMaxPooledUploadBufferSize = 256000;
-FAutoConsoleVariableRef CVarGGPUSceneMaxPooledUploadBufferSize(
+static TAutoConsoleVariable<int32> CVarGPUSceneMaxPooledUploadBufferSize(
 	TEXT("r.GPUScene.MaxPooledUploadBufferSize"),
-	GGPUSceneMaxPooledUploadBufferSize,
+	256000,
 	TEXT("Maximum size of GPU Scene upload buffer size to pool."),
 	ECVF_RenderThreadSafe
 );
 
-int32 GGPUSceneParallelUpdate = 0;
-FAutoConsoleVariableRef CVarGPUSceneParallelUpdate(
+static TAutoConsoleVariable<int32> CVarGPUSceneParallelUpdate(
 	TEXT("r.GPUScene.ParallelUpdate"),
-	GGPUSceneParallelUpdate,
+	0,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
@@ -114,22 +98,13 @@ static TAutoConsoleVariable<float> CVarGPUSceneDebugDrawRange(
 	ECVF_RenderThreadSafe
 );
 
-static int32 GGPUSceneAllowDeferredAllocatorMerges = 1;
-FAutoConsoleVariableRef CVarGPUSceneAllowDeferredAllocatorMerges(
-	TEXT("r.GPUScene.AllowDeferredAllocatorMerges"),
-	GGPUSceneAllowDeferredAllocatorMerges,
-	TEXT(""),
-	ECVF_RenderThreadSafe
+static TAutoConsoleVariable<int32> CVarGPUSceneUseGrowOnlyAllocationPolicy(
+	TEXT("r.GPUScene.UseGrowOnlyAllocationPolicy"),
+	0,
+	TEXT("Deprecated 5.3. If set to 1 the allocators used for GPU-scene instances and similar will use a grow-only allocation policy to mimic the behavior in 5.2 and earlier.\n")
+	TEXT("  Disabled by default, which means that the buffers can shrink as well as grow."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
-
-int32 GGPUSceneInstanceUploadViaCreate = 1;
-FAutoConsoleVariableRef CVarGPUSceneInstanceUploadViaCreate(
-	TEXT("r.GPUScene.InstanceUploadViaCreate"),
-	GGPUSceneInstanceUploadViaCreate,
-	TEXT("When uploading GPUScene InstanceData, upload via resource creation when the RHI supports it efficiently."),
-	ECVF_RenderThreadSafe
-);
-
 
 LLM_DECLARE_TAG_API(GPUScene, RENDERER_API);
 DECLARE_LLM_MEMORY_STAT(TEXT("GPUScene"), STAT_GPUSceneLLM, STATGROUP_LLMFULL);
@@ -579,6 +554,16 @@ void FGPUScene::SetEnabled(ERHIFeatureLevel::Type InFeatureLevel)
 	bIsEnabled = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
 }
 
+FGPUScene::FGPUScene()
+	: bUpdateAllPrimitives(false)
+	, InstanceSceneDataAllocator(CVarGPUSceneUseGrowOnlyAllocationPolicy.GetValueOnAnyThread() != 0)
+	, InstanceSceneDataSOAStride(0)
+	, InstancePayloadDataAllocator(CVarGPUSceneUseGrowOnlyAllocationPolicy.GetValueOnAnyThread() != 0)
+	, LightmapDataAllocator(CVarGPUSceneUseGrowOnlyAllocationPolicy.GetValueOnAnyThread() != 0)
+{
+}
+
+
 FGPUScene::~FGPUScene()
 {
 }
@@ -676,11 +661,23 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FSceneUniformBuffer& S
 	ensure(NumScenePrimitives == Scene.Primitives.Num());
 	ensure(DynamicPrimitivesOffset >= Scene.Primitives.Num());
 
+	CSV_CUSTOM_STAT(GPUScene, InstanceAllocMaxSize, InstanceSceneDataAllocator.GetMaxSize(), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(GPUScene, InstanceAllocUsedSize, InstanceSceneDataAllocator.GetSparselyAllocatedSize(), ECsvCustomStatOp::Set);
+
+	CSV_CUSTOM_STAT(GPUScene, InstancePayloadAllocMaxSize, InstancePayloadDataAllocator.GetMaxSize(), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(GPUScene, InstancePayloadAllocUsedSize, InstancePayloadDataAllocator.GetSparselyAllocatedSize(), ECsvCustomStatOp::Set);
+
+	CSV_CUSTOM_STAT(GPUScene, LightmapDataAllocMaxSize, LightmapDataAllocator.GetMaxSize(), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(GPUScene, LightmapDataAllocUsedSize, LightmapDataAllocator.GetSparselyAllocatedSize(), ECsvCustomStatOp::Set);
+
 	RDG_EVENT_SCOPE(GraphBuilder, "GPUScene.Update");
+
+	// Do this stat separately since it should always be on.
+	CSV_CUSTOM_STAT_GLOBAL(GPUSceneInstanceCount, float(InstanceSceneDataAllocator.GetMaxSize()), ECsvCustomStatOp::Set);
 
 	LastDeferredGPUWritePass = EGPUSceneGPUWritePass::None;
 
-	if (GGPUSceneUploadEveryFrame || bUpdateAllPrimitives)
+	if ((CVarGPUSceneUploadEveryFrame.GetValueOnRenderThread() != 0) || bUpdateAllPrimitives)
 	{
 		PrimitivesToUpdate.Reset();
 
@@ -769,8 +766,6 @@ void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSceneUniformBuffer
 
 	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(DynamicPrimitivesOffset, InitialBufferSize));
 	BufferState.PrimitiveBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, PrimitiveBuffer, SizeReserve * sizeof(FPrimitiveSceneShaderData::Data), TEXT("GPUScene.PrimitiveData"));
-
-	CSV_CUSTOM_STAT_GLOBAL(GPUSceneInstanceCount, float(InstanceSceneDataAllocator.GetMaxSize()), ECsvCustomStatOp::Accumulate);
 
 	const uint32 InstanceSceneDataSizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(InstanceSceneDataAllocator.GetMaxSize(), InitialBufferSize));
 	FResizeResourceSOAParams ResizeParams;
@@ -913,7 +908,7 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExte
 		return;
 	}
 
-	const bool bExecuteInParallel = GGPUSceneParallelUpdate != 0 && FApp::ShouldUseThreadingForPerformance();
+	const bool bExecuteInParallel = CVarGPUSceneParallelUpdate.GetValueOnRenderThread() != 0 && FApp::ShouldUseThreadingForPerformance();
 	const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
 
 	SCOPED_NAMED_EVENT(UpdateGPUScene, FColor::Green);
@@ -1306,28 +1301,28 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExte
 			Scene.NaniteMaterials[NaniteMeshPassIndex].Finish(GraphBuilder, ExternalAccessQueue, TaskContext.NaniteMaterialUploaders[NaniteMeshPassIndex]);
 		}
 	}
-
-	if (PrimitiveUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+	const uint32 MaxPooledSize = uint32(CVarGPUSceneMaxPooledUploadBufferSize.GetValueOnRenderThread());
+	if (PrimitiveUploadBuffer.GetNumBytes() > MaxPooledSize)
 	{
 		PrimitiveUploadBuffer.Release();
 	}
 
-	if (InstanceSceneUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+	if (InstanceSceneUploadBuffer.GetNumBytes() > MaxPooledSize)
 	{
 		InstanceSceneUploadBuffer.Release();
 	}
 
-	if (InstancePayloadUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+	if (InstancePayloadUploadBuffer.GetNumBytes() > MaxPooledSize)
 	{
 		InstancePayloadUploadBuffer.Release();
 	}
 
-	if (InstanceBVHUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+	if (InstanceBVHUploadBuffer.GetNumBytes() > MaxPooledSize)
 	{
 		InstanceBVHUploadBuffer.Release();
 	}
 
-	if (LightmapUploadBuffer.GetNumBytes() > (uint32)GGPUSceneMaxPooledUploadBufferSize)
+	if (LightmapUploadBuffer.GetNumBytes() > MaxPooledSize)
 	{
 		LightmapUploadBuffer.Release();
 	}
@@ -1868,27 +1863,14 @@ void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo&
 	}
 }
 
-
-void FGPUScene::BeginDeferAllocatorMerges()
+void FGPUScene::ConsolidateInstanceDataAllocations()
 {
-	if (GGPUSceneAllowDeferredAllocatorMerges != 0)
-	{
-		InstanceSceneDataAllocator.BeginDeferMerges();
-		InstancePayloadDataAllocator.BeginDeferMerges();
-		LightmapDataAllocator.BeginDeferMerges();
-	}
-}
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ConsolidateInstanceDataAllocations);
 
-
-void FGPUScene::EndDeferAllocatorMerges()
-{
-	if (GGPUSceneAllowDeferredAllocatorMerges != 0)
-	{
+	InstanceSceneDataAllocator.Consolidate();
+	InstancePayloadDataAllocator.Consolidate();
+	LightmapDataAllocator.Consolidate();
 		SCOPED_NAMED_EVENT(FGPUScene_EndDeferAllocatorMerges, FColor::Green);
-		InstanceSceneDataAllocator.EndDeferMerges();
-		InstancePayloadDataAllocator.EndDeferMerges();
-		LightmapDataAllocator.EndDeferMerges();
-	}
 }
 
 

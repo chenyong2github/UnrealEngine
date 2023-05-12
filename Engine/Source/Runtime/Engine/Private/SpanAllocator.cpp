@@ -3,6 +3,55 @@
 #include "SpanAllocator.h"
 #include "CoreGlobals.h"
 
+FSpanAllocator::FSpanAllocator(bool bInGrowOnly) 
+	: CurrentMaxSize(0)
+	, PeakMaxSize(0)
+	, FirstNonEmptySpan(0)
+	, bGrowOnly(bInGrowOnly)
+{}
+
+
+void FSpanAllocator::Reset()
+{
+	CurrentMaxSize = 0;
+	PeakMaxSize = 0;
+	FirstNonEmptySpan = 0;
+	FreeSpans.Reset();
+	PendingFreeSpans.Reset();
+}
+
+void FSpanAllocator::Empty()
+{
+	CurrentMaxSize = 0;
+	PeakMaxSize = 0;
+	FirstNonEmptySpan = 0;
+	FreeSpans.Empty();
+	PendingFreeSpans.Empty();
+}
+
+#if DO_CHECK
+
+bool FSpanAllocator::IsFree(int32 Index) const
+{
+	// If outside the max size, it is considered free as the allocator can grow at will
+	if (Index >= CurrentMaxSize)
+	{
+		return true;
+	}
+
+	for (const auto& FreeSpan : FreeSpans)
+	{
+		if (Index >= FreeSpan.StartOffset && Index < FreeSpan.StartOffset + FreeSpan.Num)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+#endif // DO_CHECK
+
 void FSpanAllocator::Consolidate()
 {
 	// Consolidation 
@@ -57,9 +106,9 @@ void FSpanAllocator::Consolidate()
 	}
 
 	// Trim last span
-	if (!FreeSpansTmp.IsEmpty() && FreeSpansTmp.Last().StartOffset + FreeSpansTmp.Last().Num == MaxSize)
+	if (!FreeSpansTmp.IsEmpty() && FreeSpansTmp.Last().StartOffset + FreeSpansTmp.Last().Num == CurrentMaxSize)
 	{
-		MaxSize -= FreeSpansTmp.Last().Num;
+		CurrentMaxSize -= FreeSpansTmp.Last().Num;
 		FreeSpansTmp.Pop(false);
 	}
 

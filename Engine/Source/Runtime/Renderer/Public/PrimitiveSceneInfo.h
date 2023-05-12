@@ -411,9 +411,10 @@ public:
 
 	/** Allocate/Free slots for instance data in GPU-Scene */
 	static void AllocateGPUSceneInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
-	static void ReallocateGPUSceneInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 	void FreeGPUSceneInstances();
 
+	UE_DEPRECATED(5.3, "ReallocateGPUSceneInstances has been deprecated.")
+	static void ReallocateGPUSceneInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 
 	/** return true if we need to call LazyUpdateForRendering */
 	FORCEINLINE bool NeedsIndirectLightingCacheBufferUpdate()

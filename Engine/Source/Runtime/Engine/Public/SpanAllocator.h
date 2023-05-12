@@ -14,10 +14,10 @@
 class FSpanAllocator
 {
 public:
-	FSpanAllocator() 
-		: MaxSize(0)
-		, FirstNonEmptySpan(0)
-	{}
+	/**
+	 * If bInGrowOnly is true the size reported by GetMaxSize() will never decrease except when for when Reset() or Empty() is called.
+	 */
+	ENGINE_API FSpanAllocator(bool bInGrowOnly = false);
 
 	// Allocate a range.  Returns allocated StartOffset.
 	inline int32 Allocate(int32 Num = 1)
@@ -49,8 +49,10 @@ public:
 		}
 
 		// New allocation
-		int32 StartOffset = MaxSize;
-		MaxSize = MaxSize + Num;
+		int32 StartOffset = CurrentMaxSize;
+		CurrentMaxSize = CurrentMaxSize + Num;
+
+		PeakMaxSize = FMath::Max(PeakMaxSize, CurrentMaxSize);
 
 		return StartOffset;
 	}
@@ -58,29 +60,17 @@ public:
 	// Free an already allocated range.  
 	FORCEINLINE void Free(int32 BaseOffset, int32 Num = 1)
 	{
-		checkSlow(BaseOffset + Num <= MaxSize);
+		checkSlow(BaseOffset + Num <= CurrentMaxSize);
 		PendingFreeSpans.Add(FLinearAllocation{ BaseOffset, Num });
 	}
 
-	void Reset()
-	{
-		MaxSize = 0;
-		FirstNonEmptySpan = 0;
-		FreeSpans.Reset();
-		PendingFreeSpans.Reset();
-	}
+	ENGINE_API void Reset();
 
-	void Empty()
-	{
-		MaxSize = 0;
-		FirstNonEmptySpan = 0;
-		FreeSpans.Empty();
-		PendingFreeSpans.Empty();
-	}
+	ENGINE_API void Empty();
 
 	inline int32 GetSparselyAllocatedSize() const
 	{
-		int32 AllocatedSize = MaxSize;
+		int32 AllocatedSize = CurrentMaxSize;
 
 		for (int32 i = 0; i < FreeSpans.Num(); i++)
 		{
@@ -92,7 +82,7 @@ public:
 
 	FORCEINLINE int32 GetMaxSize() const
 	{
-		return MaxSize;
+		return bGrowOnly ? PeakMaxSize : CurrentMaxSize;
 	}
 
 	FORCEINLINE int32 GetNumFreeSpans() const
@@ -115,24 +105,7 @@ public:
 	 * Loop over all free spans and check if Index is in any of them.
 	 * Note: Very costly, only intended for debugging use, and probably best if under a toggle even then.
 	 */
-	FORCEINLINE bool IsFree(int32 Index) const
-	{
-		// If outside the max size, it is considered free as the allocator can grow at will
-		if (Index >= MaxSize)
-		{
-			return true;
-		}
-
-		for (const auto& FreeSpan : FreeSpans)
-		{
-			if (Index >= FreeSpan.StartOffset && Index < FreeSpan.StartOffset + FreeSpan.Num)
-			{
-				return true;
-			}
-		}
-
-		return false;
-	}
+	ENGINE_API bool IsFree(int32 Index) const;
 #endif // DO_CHECK
 
 	/**
@@ -155,13 +128,16 @@ private:
 	};
 
 	// Size of the linear range used by the allocator
-	int32 MaxSize;
+	int32 CurrentMaxSize;
+	// Peak tracked size since last Reset or Empty
+	int32 PeakMaxSize;
 	// First span in free list that is not empty, used to speed up search for free items
 	int32 FirstNonEmptySpan;
 	// Ordered free list from low to high
 	TArray<FLinearAllocation, TInlineAllocator<10>> FreeSpans;
 	// Unordered list of freed items since last consolidate
 	TArray<FLinearAllocation, TInlineAllocator<10>> PendingFreeSpans;
+	bool bGrowOnly;
 
 	ENGINE_API int32 SearchFreeList(int32 Num, int32 SearchStartIndex = 0);
 };

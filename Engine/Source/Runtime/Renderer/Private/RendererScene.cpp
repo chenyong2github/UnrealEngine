@@ -233,126 +233,6 @@ public:
 	}
 };
 
-
-#define ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV 0
-
-#if ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV
-
-int32 GDumpPrimitiveAllocatorStatsToCSV = 0;
-FAutoConsoleVariableRef CVarDumpPrimitiveStatsToCSV(
-	TEXT("r.DumpPrimitiveStatsToCSV"),
-	GDumpPrimitiveAllocatorStatsToCSV,
-	TEXT("Dump primitive and instance stats to CSV\n")
-	TEXT(" 0 - stop recording, dump to csv and clear array.\n")
-	TEXT(" 1 - start recording into array\n")
-	TEXT(" 2 - dump to csv and continue recording without clearing array\n"),
-	ECVF_RenderThreadSafe
-);
-
-static constexpr int32 StatStride = 8;
-TArray<int32> GPrimitiveAllocatorStats;
-
-void DumpPrimitiveAllocatorStats()
-{
-	if (!GPrimitiveAllocatorStats.IsEmpty())
-	{
-		FString FileName = FPaths::ProjectLogDir() / TEXT("PrimitiveStats-") + FDateTime::Now().ToString() + TEXT(".csv");
-
-		UE_LOG(LogRenderer, Log, TEXT("Dumping primitive allocator stats trace to: '%s'"), *FileName);
-
-		FArchive* FileToLogTo = IFileManager::Get().CreateFileWriter(*FileName, false);
-		
-		ensure(FileToLogTo);
-		if (FileToLogTo)
-		{
-			static const FString StatNames[StatStride] =
-			{
-				TEXT("NumPrimitives"),
-				TEXT("MaxPersistent"),
-				TEXT("NumPersistentAllocated"),
-				TEXT("PersistentFreeListSizeBC"),
-				TEXT("PersistentPendingListSizeBC"),
-				TEXT("PersistentFreeListSize"),
-				TEXT("MaxInstances"),
-				TEXT("NumInstancesAllocated"),
-			};
-
-			// Print header
-			FString StringToPrint;
-			for (int32 Index = 0; Index < StatStride; ++Index)
-			{
-				if (!StringToPrint.IsEmpty())
-				{
-					StringToPrint += TEXT(",");
-				}
-				if (Index < int32(UE_ARRAY_COUNT(StatNames)))
-				{
-					StringToPrint.Append(StatNames[Index]);
-				}
-				else
-				{
-					StringToPrint.Appendf(TEXT("Stat_%d"), Index);
-				}
-			}
-
-			StringToPrint += TEXT("\n");
-			FileToLogTo->Serialize(TCHAR_TO_ANSI(*StringToPrint), StringToPrint.Len());
-
-			int32 Num = GPrimitiveAllocatorStats.Num() / StatStride;
-			for (int32 Ind = 0; Ind < Num; ++Ind)
-			{
-				StringToPrint.Empty();
-
-				for (int32 StatInd = 0; StatInd < StatStride; ++StatInd)
-				{
-					if (!StringToPrint.IsEmpty())
-					{
-						StringToPrint.Append(TEXT(","));
-					}
-
-					StringToPrint.Appendf(TEXT("%d"), GPrimitiveAllocatorStats[Ind * StatStride + StatInd]);
-				}
-
-				StringToPrint += TEXT("\n");
-				FileToLogTo->Serialize(TCHAR_TO_ANSI(*StringToPrint), StringToPrint.Len());
-			}
-
-
-			FileToLogTo->Close();
-		}
-	}
-}
-
-void UpdatePrimitiveAllocatorStats(int32 NumPrimitives, int32 MaxPersistent, int32 NumPersistentAllocated, int32 PersistemFreeListSize, int32 PersistemFreeListSizeBC, int32 PersistentPendingListSizeBC, int32 MaxInstances, int32 NumInstancesAllocated)
-{
-	// Dump and clear when turning off the cvar
-	if (GDumpPrimitiveAllocatorStatsToCSV == 0 && !GPrimitiveAllocatorStats.IsEmpty())
-	{
-		DumpPrimitiveAllocatorStats();
-		GPrimitiveAllocatorStats.Empty();
-	}
-
-	// Dump snapshot (and don't clear or stop) when cvar is set to 2
-	if (GDumpPrimitiveAllocatorStatsToCSV == 2 && !GPrimitiveAllocatorStats.IsEmpty())
-	{
-		DumpPrimitiveAllocatorStats();
-		GDumpPrimitiveAllocatorStatsToCSV = 1;
-	}
-
-	if (GDumpPrimitiveAllocatorStatsToCSV != 0)
-	{
-		GPrimitiveAllocatorStats.Add(NumPrimitives);
-		GPrimitiveAllocatorStats.Add(MaxPersistent);
-		GPrimitiveAllocatorStats.Add(NumPersistentAllocated);
-		GPrimitiveAllocatorStats.Add(PersistemFreeListSizeBC);
-		GPrimitiveAllocatorStats.Add(PersistentPendingListSizeBC);
-		GPrimitiveAllocatorStats.Add(PersistemFreeListSize);
-		GPrimitiveAllocatorStats.Add(MaxInstances);
-		GPrimitiveAllocatorStats.Add(NumInstancesAllocated);
-	}
-}
-#endif // ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV
-
 /**
  * Holds the info to update SpeedTree wind per unique tree object in the scene, instead of per instance
  */
@@ -5599,8 +5479,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		SCOPED_NAMED_EVENT(FScene_RemovePrimitiveSceneInfos, FColor::Red);
 		SCOPE_CYCLE_COUNTER(STAT_RemoveScenePrimitiveTime);
 
-		GPUScene.BeginDeferAllocatorMerges();
-
 		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedLocalPrimitiveSceneInfos)
 		{
 			// clear it up, parent is getting removed
@@ -5814,7 +5692,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 			RemovedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, RemovedLocalPrimitiveSceneInfos.Num() - StartIndex, false);
 		}
 	
-		GPUScene.EndDeferAllocatorMerges();
 	}
 
 	bool bNeedPathTracedInvalidation = false;
@@ -5862,14 +5739,90 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		return false;
 	};
 
+#if RHI_RAYTRACING
+	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> RayTracingPrimitivesToUpdate;
+	RayTracingPrimitivesToUpdate.Reserve(UpdatedInstances.Num());
+	bool bUpdateCachedRayTracingInstances = false;
+#endif
+	
+	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> UpdatedInstancesWithInstanceCountChange;
+	UpdatedInstancesWithInstanceCountChange.Reserve(UpdatedInstances.Num());
+	// Perform instance releases before adds, such that allocator consolidation can happen only once.
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdatePrimitiveInstances);
+		SCOPED_NAMED_EVENT(FScene_UpdatePrimitiveInstances, FColor::Emerald);
+		SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveInstanceRenderThreadTime);
+
+		for (const auto& UpdateInstance : UpdatedInstances)
+		{
+			FPrimitiveSceneProxy* PrimitiveSceneProxy = UpdateInstance.Key;
+			FScopeCycleCounter Context(PrimitiveSceneProxy->GetStatId());
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+			
+			// being added or deleted, skip update logic
+			if (PrimitiveSceneInfo->PackedIndex == INDEX_NONE || DeletedSceneInfos.Contains(PrimitiveSceneInfo))
+			{
+				continue;
+			}
+			
+			QueueFlushVirtualTexture(PrimitiveSceneInfo);
+
+			// If we recorded no adds or removes the instance count has stayed the same.  Therefore the cached mesh draw commands do not
+			// need to be updated.  In situations where the instance count changes the mesh draw command stores the instance count which
+			// would need to be updated.
+			const bool bInstanceCountChanged = (UpdateInstance.Value.CmdBuffer.NumAdds > 0) || (UpdateInstance.Value.CmdBuffer.NumRemoves > 0);
+			const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer() || bInstanceCountChanged;
+
+			if (QueueAddToScene(PrimitiveSceneInfo))
+			{
+				PrimitiveSceneInfo->RemoveFromScene(bUpdateStaticDrawLists);
+
+				if (bUpdateStaticDrawLists)
+				{
+					QueueAddStaticMeshes(PrimitiveSceneInfo);
+				}
+				else
+				{
+#if RHI_RAYTRACING
+					RayTracingPrimitivesToUpdate.Add(PrimitiveSceneInfo);
+					bUpdateCachedRayTracingInstances = true;
+#endif
+				}
+			}
+
+			// Update the Proxy's data.
+			PrimitiveSceneProxy->UpdateInstances_RenderThread(UpdateInstance.Value.CmdBuffer, UpdateInstance.Value.WorldBounds, UpdateInstance.Value.LocalBounds, UpdateInstance.Value.StaticMeshBounds);
+
+			if (!RHISupportsVolumeTextures(GetFeatureLevel())
+				&& (PrimitiveSceneProxy->IsMovable() || PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting() || PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
+			{
+				PrimitiveSceneInfo->MarkIndirectLightingCacheBufferDirty();
+			}
+
+			if (bInstanceCountChanged)
+			{
+				PrimitiveSceneInfo->FreeGPUSceneInstances();
+				UpdatedInstancesWithInstanceCountChange.Add(PrimitiveSceneInfo);
+			}
+			else
+			{
+				GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->PackedIndex, EPrimitiveDirtyState::ChangedAll);
+
+				DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
+				LumenUpdatePrimitive(PrimitiveSceneInfo);
+			}
+
+			bNeedPathTracedInvalidation = bNeedPathTracedInvalidation || IsPrimitiveRelevantToPathTracing(PrimitiveSceneInfo);
+		}
+	}
+
+	GPUScene.ConsolidateInstanceDataAllocations();
+
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AddPrimitiveSceneInfos);
 		SCOPED_NAMED_EVENT(FScene_AddPrimitiveSceneInfos, FColor::Green);
 		SCOPE_CYCLE_COUNTER(STAT_AddScenePrimitiveRenderThreadTime);
-#if ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV
-		int32 PersistentPrimitiveFreeListSizeBeforeConsolidate = PersistentPrimitiveIdAllocator.GetNumFreeSpans();
-		int32 PersistentPrimitivePendingFreeListSizeBeforeConsolidate = PersistentPrimitiveIdAllocator.GetNumPendingFreeSpans();
-#endif
+
 		PersistentPrimitiveIdAllocator.Consolidate();
 
 		if (AddedLocalPrimitiveSceneInfos.Num())
@@ -6056,10 +6009,6 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 
 			CheckPrimitiveArrays();
 
-#if ENABLE_LOG_PRIMITIVE_INSTANCE_ID_STATS_TO_CSV
-			UpdatePrimitiveAllocatorStats(Primitives.Num(), PersistentPrimitiveIdAllocator.GetMaxSize(), PersistentPrimitiveIdAllocator.GetSparselyAllocatedSize(), PersistentPrimitiveIdAllocator.GetNumFreeSpans(), PersistentPrimitiveFreeListSizeBeforeConsolidate, PersistentPrimitivePendingFreeListSizeBeforeConsolidate, GPUScene.GetNumInstances(), GPUScene.GetInstanceSceneDataAllocator().GetSparselyAllocatedSize());
-#endif
-
 			for (int32 AddIndex = StartIndex; AddIndex < AddedLocalPrimitiveSceneInfos.Num(); AddIndex++)
 			{
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = AddedLocalPrimitiveSceneInfos[AddIndex];
@@ -6193,85 +6142,25 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 		CacheManager->OnSceneChange();
 	}
 
-#if RHI_RAYTRACING
-	TArray<FPrimitiveSceneInfo*, SceneRenderingAllocator> RayTracingPrimitivesToUpdate;
-	RayTracingPrimitivesToUpdate.Reserve(UpdatedInstances.Num());
-	bool bUpdateCachedRayTracingInstances = false;
-#endif
-
+	// Re-adding step of instance update for those that had the instance count updated.
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdatePrimitiveInstances);
 		SCOPED_NAMED_EVENT(FScene_UpdatePrimitiveInstances, FColor::Emerald);
 		SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveInstanceRenderThreadTime);
 
-		for (const auto& UpdateInstance : UpdatedInstances)
+		FPrimitiveSceneInfo::AllocateGPUSceneInstances(this, UpdatedInstancesWithInstanceCountChange);
+
+		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : UpdatedInstancesWithInstanceCountChange)
 		{
-			FPrimitiveSceneProxy* PrimitiveSceneProxy = UpdateInstance.Key;
-			if (DeletedSceneInfos.Contains(PrimitiveSceneProxy->GetPrimitiveSceneInfo()))
-			{
-				continue;
-			}
-
-			check(PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex != INDEX_NONE);
-
-			FScopeCycleCounter Context(PrimitiveSceneProxy->GetStatId());
-			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+			check(PrimitiveSceneInfo->PackedIndex != INDEX_NONE);
+			FScopeCycleCounter Context(PrimitiveSceneInfo->Proxy->GetStatId());
 			
-			QueueFlushVirtualTexture(PrimitiveSceneInfo);
 
-			// If we recorded no adds or removes the instance count has stayed the same.  Therefore the cached mesh draw commands do not
-			// need to be updated.  In situations where the instance count changes the mesh draw command stores the instance count which
-			// would need to be updated.
-			const bool bInstanceCountChanged = (UpdateInstance.Value.CmdBuffer.NumAdds > 0) || (UpdateInstance.Value.CmdBuffer.NumRemoves > 0);
+			DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
+			DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 
-			const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer() || bInstanceCountChanged;
-
-			if (QueueAddToScene(PrimitiveSceneInfo))
-			{
-				PrimitiveSceneInfo->RemoveFromScene(bUpdateStaticDrawLists);
-
-				if (bUpdateStaticDrawLists)
-				{
-					QueueAddStaticMeshes(PrimitiveSceneInfo);
-				}
-				else
-				{
-#if RHI_RAYTRACING
-					RayTracingPrimitivesToUpdate.Add(PrimitiveSceneInfo);
-					bUpdateCachedRayTracingInstances = true;
-#endif
-				}
-			}
-
-			// Update the Proxy's data.
-			PrimitiveSceneProxy->UpdateInstances_RenderThread(UpdateInstance.Value.CmdBuffer, UpdateInstance.Value.WorldBounds, UpdateInstance.Value.LocalBounds, UpdateInstance.Value.StaticMeshBounds);
-
-			if (!RHISupportsVolumeTextures(GetFeatureLevel())
-				&& (PrimitiveSceneProxy->IsMovable() || PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting() || PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
-			{
-				PrimitiveSceneInfo->MarkIndirectLightingCacheBufferDirty();
-			}
-
-			if (UpdateInstance.Value.CmdBuffer.NumAdds > 0 || UpdateInstance.Value.CmdBuffer.NumRemoves > 0)
-			{
-				PrimitiveSceneInfo->FreeGPUSceneInstances();
-				FPrimitiveSceneInfo::AllocateGPUSceneInstances(this, MakeArrayView(&PrimitiveSceneInfo, 1));
-
-				DistanceFieldSceneData.RemovePrimitive(PrimitiveSceneInfo);
-				DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
-
-				LumenRemovePrimitive(PrimitiveSceneInfo, PrimitiveSceneInfo->GetIndex());
-				LumenAddPrimitive(PrimitiveSceneInfo);
-			}
-			else
-			{
-				GPUScene.AddPrimitiveToUpdate(PrimitiveSceneInfo->PackedIndex, EPrimitiveDirtyState::ChangedAll);
-
-				DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
-				LumenUpdatePrimitive(PrimitiveSceneInfo);
-			}
-
-			bNeedPathTracedInvalidation = bNeedPathTracedInvalidation || IsPrimitiveRelevantToPathTracing(PrimitiveSceneInfo);
+			LumenRemovePrimitive(PrimitiveSceneInfo, PrimitiveSceneInfo->GetIndex());
+			LumenAddPrimitive(PrimitiveSceneInfo);
 		}
 
 #if RHI_RAYTRACING

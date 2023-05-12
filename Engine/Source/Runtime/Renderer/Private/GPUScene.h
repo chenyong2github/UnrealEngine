@@ -6,6 +6,7 @@
 #include "RendererInterface.h"
 #include "PrimitiveUniformShaderParameters.h"
 #include "PrimitiveSceneInfo.h"
+#include "SpanAllocator.h"
 #include "GrowOnlySpanAllocator.h"
 #include "InstanceCulling/InstanceCullingLoadBalancer.h"
 #include "MeshBatch.h"
@@ -185,11 +186,7 @@ struct FGPUSceneBufferState
 class FGPUScene
 {
 public:
-	FGPUScene()
-		: bUpdateAllPrimitives(false)
-		, InstanceSceneDataSOAStride(0)
-	{
-	}
+	FGPUScene();
 	~FGPUScene();
 
 	void SetEnabled(ERHIFeatureLevel::Type InFeatureLevel);
@@ -299,7 +296,7 @@ public:
 	int32 GetNumPrimitives() const { return DynamicPrimitivesOffset; }
 	int32 GetNumLightmapDataItems() const { return LightmapDataAllocator.GetMaxSize(); }
 
-	const FGrowOnlySpanAllocator& GetInstanceSceneDataAllocator() const { return InstanceSceneDataAllocator; }
+	const FSpanAllocator& GetInstanceSceneDataAllocator() const { return InstanceSceneDataAllocator; }
 
 	/**
 	 * Return the GPU scene resource
@@ -313,11 +310,9 @@ public:
 	void DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo& View);
 
 	/**
-	 * Between these calls to FGrowOnlySpanAllocator::Free just appends the allocation to the free list, rather than trying to merge with existing allocations.
-	 * At EndDeferAllocatorMerges the free list is consolidated by sorting and merging all spans. This amortises the cost of the merge over many calls.
+	 * Manually trigger an allocator consolidate (will otherwise be done when an item is allocated).
 	 */
-	void BeginDeferAllocatorMerges();
-	void EndDeferAllocatorMerges();
+	void ConsolidateInstanceDataAllocations();
 
 	/**
 	 * Executes GPUScene writes that were deferred until a later point in scene rendering
@@ -337,12 +332,12 @@ public:
 	FRDGAsyncScatterUploadBuffer   PrimitiveUploadBuffer;
 
 	/** GPU primitive instance list */
-	FGrowOnlySpanAllocator         InstanceSceneDataAllocator;
+	FSpanAllocator		           InstanceSceneDataAllocator;
 	TRefCountPtr<FRDGPooledBuffer> InstanceSceneDataBuffer;
 	FRDGAsyncScatterUploadBuffer   InstanceSceneUploadBuffer;
 	uint32                         InstanceSceneDataSOAStride;	// Distance between arrays in float4s
 
-	FGrowOnlySpanAllocator         InstancePayloadDataAllocator;
+	FSpanAllocator                 InstancePayloadDataAllocator;
 	TRefCountPtr<FRDGPooledBuffer> InstancePayloadDataBuffer;
 	FRDGAsyncScatterUploadBuffer   InstancePayloadUploadBuffer;
 
@@ -350,9 +345,9 @@ public:
 	FRDGAsyncScatterUploadBuffer   InstanceBVHUploadBuffer;
 
 	/** GPU light map data */
-	FGrowOnlySpanAllocator         LightmapDataAllocator;
+	FSpanAllocator                 LightmapDataAllocator;
 	TRefCountPtr<FRDGPooledBuffer> LightmapDataBuffer;
-	FRDGAsyncScatterUploadBuffer        LightmapUploadBuffer;
+	FRDGAsyncScatterUploadBuffer   LightmapUploadBuffer;
 
 	struct FInstanceRange
 	{
