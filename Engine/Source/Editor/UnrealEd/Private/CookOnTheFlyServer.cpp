@@ -9418,7 +9418,7 @@ void UCookOnTheFlyServer::WriteMapDependencyGraph(const ITargetPlatform* TargetP
 
 void UCookOnTheFlyServer::GenerateCachedEditorThumbnails()
 {
-	if (!FParse::Param(FCommandLine::Get(), TEXT("GenerateCachedEditorThumbnails")))
+	if (!FParse::Param(FCommandLine::Get(), TEXT("CachedEditorThumbnails")))
 	{
 		return;
 	}
