@@ -211,7 +211,6 @@ void UMDLImporterFactory::SendAnalytics(int32 ImportDurationInSeconds, bool bImp
 		FString ImporterName = TEXT("MDL");
 
 		EventAttributes.Emplace(TEXT("ImporterType"), ImporterName);
-		EventAttributes.Emplace(TEXT("ImporterID"), FPlatformMisc::GetEpicAccountId());
 		EventAttributes.Emplace(TEXT("ImportDuration"), ImportDurationInSeconds);
 
 		if (bImportSuccess)

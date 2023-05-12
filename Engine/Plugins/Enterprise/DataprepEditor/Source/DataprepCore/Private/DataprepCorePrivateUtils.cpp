@@ -229,7 +229,6 @@ void DataprepCorePrivateUtils::Analytics::RecipeExecuted( UDataprepAssetInterfac
 	{
 		TArray<FAnalyticsEventAttribute> EventAttributes;
 
-		EventAttributes.Emplace( TEXT("EpicAccountID"), FPlatformMisc::GetEpicAccountId() );
 		EventAttributes.Emplace( TEXT("EngineVersion"), FEngineVersion::Current().ToString( EVersionComponent::Patch ) );
 		
 		const TArray<UDataprepActionAsset*>& Actions = InDataprepAsset->GetActions();
@@ -256,7 +255,6 @@ void DataprepCorePrivateUtils::Analytics::DataprepAssetCreated( UDataprepAssetIn
 	{
 		TArray<FAnalyticsEventAttribute> EventAttributes;
 
-		EventAttributes.Emplace( TEXT("EpicAccountID"), FPlatformMisc::GetEpicAccountId() );
 		EventAttributes.Emplace( TEXT("EngineVersion"), FEngineVersion::Current().ToString( EVersionComponent::Patch ) );
 
 		const bool bIsDataprepInstance = InDataprepAsset->IsA<UDataprepAssetInstance>();
@@ -272,7 +270,6 @@ void DataprepCorePrivateUtils::Analytics::DataprepEditorOpened( UDataprepAssetIn
 	{
 		TArray<FAnalyticsEventAttribute> EventAttributes;
 
-		EventAttributes.Emplace( TEXT("EpicAccountID"), FPlatformMisc::GetEpicAccountId() );
 		EventAttributes.Emplace( TEXT("EngineVersion"), FEngineVersion::Current().ToString( EVersionComponent::Patch ) );
 
 		FEngineAnalytics::GetProvider().RecordEvent( TEXT("Editor.Dataprep.EditorOpened"), EventAttributes );
@@ -285,7 +282,6 @@ void DataprepCorePrivateUtils::Analytics::ExecuteTriggered( UDataprepAssetInterf
 	{
 		TArray<FAnalyticsEventAttribute> EventAttributes;
 
-		EventAttributes.Emplace( TEXT("EpicAccountID"), FPlatformMisc::GetEpicAccountId() );
 		EventAttributes.Emplace( TEXT("EngineVersion"), FEngineVersion::Current().ToString( EVersionComponent::Patch ) );
 
 		FEngineAnalytics::GetProvider().RecordEvent( TEXT("Editor.Dataprep.ExecuteTriggered"), EventAttributes );
@@ -298,7 +294,6 @@ void DataprepCorePrivateUtils::Analytics::ImportTriggered( UDataprepAssetInterfa
 	{
 		TArray<FAnalyticsEventAttribute> EventAttributes;
 
-		EventAttributes.Emplace( TEXT("EpicAccountID"), FPlatformMisc::GetEpicAccountId() );
 		EventAttributes.Emplace( TEXT("EngineVersion"), FEngineVersion::Current().ToString( EVersionComponent::Patch ) );
 
 		FEngineAnalytics::GetProvider().RecordEvent( TEXT("Editor.Dataprep.ImportTriggered"), EventAttributes );
@@ -311,7 +306,6 @@ void DataprepCorePrivateUtils::Analytics::CommitTriggered( UDataprepAssetInterfa
 	{
 		TArray<FAnalyticsEventAttribute> EventAttributes;
 
-		EventAttributes.Emplace( TEXT("EpicAccountID"), FPlatformMisc::GetEpicAccountId() );
 		EventAttributes.Emplace( TEXT("EngineVersion"), FEngineVersion::Current().ToString( EVersionComponent::Patch ) );
 
 		FEngineAnalytics::GetProvider().RecordEvent( TEXT("Editor.Dataprep.CommitTriggered"), EventAttributes );

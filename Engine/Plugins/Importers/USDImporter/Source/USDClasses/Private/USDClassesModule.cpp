@@ -205,7 +205,6 @@ void IUsdClassesModule::SendAnalytics( TArray<FAnalyticsEventAttribute>&& InAttr
 		Attributes.Emplace( TEXT( "Platform" ), FPlatformProperties::IniPlatformName() );
 		Attributes.Emplace( TEXT( "EngineVersion" ), FEngineVersion::Current().ToString() );
 		Attributes.Emplace( TEXT( "EngineMode" ), FPlatformMisc::GetEngineMode() );
-		Attributes.Emplace( TEXT( "EpicAccountId" ), FPlatformMisc::GetEpicAccountId() );
 
 		const FString EventText = FString::Printf( TEXT( "Engine.Usage.USD.%s" ), *EventName);
 		FEngineAnalytics::GetProvider().RecordEvent( EventText, Attributes );
