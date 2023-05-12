@@ -13,13 +13,13 @@ const FName UTypedElementGeneralRegistrationFactory::HeaderDefaultPurpose(TEXT("
 void UTypedElementGeneralRegistrationFactory::RegisterWidgetPurposes(ITypedElementDataStorageUiInterface& DataStorageUi) const
 {
 	DataStorageUi.RegisterWidgetPurpose(CellPurpose, ITypedElementDataStorageUiInterface::EPurposeType::UniqueByNameAndColumn,
-		LOCTEXT("TypedElementsUI_GeneralRegistration", "General purpose widgets that can be used as cells for specific columns or column combinations."));
+		LOCTEXT("CellPurpose", "General purpose widgets that can be used as cells for specific columns or column combinations."));
 	
 	DataStorageUi.RegisterWidgetPurpose(HeaderDefaultPurpose, ITypedElementDataStorageUiInterface::EPurposeType::UniqueByName,
-		LOCTEXT("TypedElementsUI_GeneralRegistration", "The default widget to use in headers if no other specialization is provided."));
+		LOCTEXT("HeaderDefaultPurpose", "The default widget to use in headers if no other specialization is provided."));
 	
 	DataStorageUi.RegisterWidgetPurpose(CellDefaultPurpose, ITypedElementDataStorageUiInterface::EPurposeType::UniqueByName,
-		LOCTEXT("TypedElementsUI_GeneralRegistration", "The default widget to use in cells if no other specialization is provided."));
+		LOCTEXT("CellDefaultPurpose", "The default widget to use in cells if no other specialization is provided."));
 }
 
 #undef LOCTEXT_NAMESPACE

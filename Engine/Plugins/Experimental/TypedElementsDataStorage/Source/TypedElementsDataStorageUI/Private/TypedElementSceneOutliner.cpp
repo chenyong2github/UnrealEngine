@@ -17,6 +17,7 @@
 #include "ISceneOutlinerColumn.h"
 #include "ISceneOutlinerTreeItem.h"
 #include "LevelEditor.h"
+#include "MassEntityTypes.h"
 #include "SSceneOutliner.h"
 #include "SceneOutlinerFwd.h"
 #include "SceneOutlinerPublicTypes.h"
@@ -81,7 +82,7 @@ FAutoConsoleCommand BindColumnsToSceneOutlinerConsoleCommand(
 								if (!Arg.IsEmpty() && Arg[0] == '/' && Path.TrySetPath(Arg))
 								{
 									const UScriptStruct* ColumnType = TypeOptional(Path);
-									if (ColumnType)
+									if (ColumnType && ColumnType->IsChildOf(FMassFragment::StaticStruct()))
 									{
 										Query.ReadOnly(ColumnType);
 										++AdditionCount;
@@ -248,14 +249,14 @@ void UTypedElementSceneOutlinerFactory::RegisterWidgetPurposes(ITypedElementData
 	using PurposeType = ITypedElementDataStorageUiInterface::EPurposeType;
 
 	DataStorageUi.RegisterWidgetPurpose(FTypedElementSceneOutlinerQueryBinder::HeaderWidgetPurpose, PurposeType::UniqueByNameAndColumn,
-		LOCTEXT("SceneOutlinerCellDescription", "Widgets for headers in any Scene Outliner for specific columns or column combinations."));
+		LOCTEXT("HeaderWidgetPurpose", "Widgets for headers in any Scene Outliner for specific columns or column combinations."));
 	DataStorageUi.RegisterWidgetPurpose(FTypedElementSceneOutlinerQueryBinder::DefaultHeaderWidgetPurpose, PurposeType::UniqueByName,
-		LOCTEXT("SceneOutlinerCellDescription", "The default widget to use in headers for the Scene Outliner."));
+		LOCTEXT("DefaultHeaderWidgetPurpose", "The default widget to use in headers for the Scene Outliner."));
 	
 	DataStorageUi.RegisterWidgetPurpose(FTypedElementSceneOutlinerQueryBinder::CellWidgetPurpose, PurposeType::UniqueByNameAndColumn,
-		LOCTEXT("SceneOutlinerCellDescription", "Widgets for cells in any Scene Outliner for specific columns or column combinations."));
+		LOCTEXT("CellWidgetPurpose", "Widgets for cells in any Scene Outliner for specific columns or column combinations."));
 	DataStorageUi.RegisterWidgetPurpose(FTypedElementSceneOutlinerQueryBinder::DefaultCellWidgetPurpose, PurposeType::UniqueByName,
-		LOCTEXT("SceneOutlinerCellDescription", "The default widget to use in cells for the Scene Outliner."));
+		LOCTEXT("DefaultCellWidgetPurpose", "The default widget to use in cells for the Scene Outliner."));
 }
 
 
