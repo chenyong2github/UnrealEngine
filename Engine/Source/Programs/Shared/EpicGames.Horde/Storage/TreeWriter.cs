@@ -617,7 +617,7 @@ namespace EpicGames.Horde.Storage
 				}
 
 				// Create the bundle
-				BundleHeader header = new BundleHeader(types, new BundleImportCollection(imports), new BundleExportCollection(exports), new BundlePacketCollection(_packets));
+				BundleHeader header = new BundleHeader(new BundleTypeCollection(types), new BundleImportCollection(imports), new BundleExportCollection(exports), new BundlePacketCollection(_packets));
 				return new Bundle(header, packetData);
 			}
 		}
