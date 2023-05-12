@@ -19,8 +19,6 @@ class UInterpCurveEdSetup;
 class UMaterialInterface;
 class UParticleSystemComponent;
 class UParticleEmitter;
-struct FPSOPrecacheVertexFactoryData;
-typedef TArray<FPSOPrecacheVertexFactoryData, TInlineAllocator<2> > FPSOPrecacheVertexFactoryDataList;
 
 /**
  *	ParticleSystemUpdateMode
