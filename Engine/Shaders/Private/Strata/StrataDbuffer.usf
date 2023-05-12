@@ -220,9 +220,8 @@ void MainCS(
 					++RWOffset;
 				}
 
-				const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
 				const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID;
-				if (bHasSSS || bIsSimpleVolume)
+				if (bHasSSS)
 				{
 					// Disable SSS when the coverage reach one to preserve the decal color
 					SLAB_SSSMFP(BSDF) *= DBufferData.OneMinusCoverage_BaseColor;
@@ -231,7 +230,7 @@ void MainCS(
 						BSDF_SETSSSTYPE(BSDF, SSS_TYPE_INVALID);
 					}
 
-					if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && !bIsSimpleVolume)
+					if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 					{
 						// Nothing to do
 					}

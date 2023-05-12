@@ -178,6 +178,10 @@ struct FStrataBSDF
 	void PostProcessSlabBeforeLighting(bool bIsStrataOpaqueMaterial);
 
 	void PostProcessBSDFBeforeLighting(bool bIsStrataOpaqueMaterial);
+
+	bool HasScatteringData();
+
+	bool HasBackScattering();
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -348,11 +352,10 @@ struct FStrataBSDF
 // Bit count for each component stored in a Strata BSDF state
 #define BSDF_BIT_COUNT_ANISOTROPY				1
 #define BSDF_BIT_COUNT_TOPLAYER					1
-#define BSDF_BIT_COUNT_SSSTYPE					2
+#define BSDF_BIT_COUNT_SSSTYPE					3
 #define BSDF_BIT_COUNT_GREYWEIGHT_V				1
 #define BSDF_BIT_COUNT_HAZINESS					1
 #define BSDF_BIT_COUNT_F90						1
-#define BSDF_BIT_COUNT_SIMPLEVOLUME				1
 #define BSDF_BIT_COUNT_MFPPLUGGED				1
 #define BSDF_BIT_COUNT_HASFUZZ					1
 #define BSDF_BIT_COUNT_ISTHIN					1
@@ -370,8 +373,7 @@ struct FStrataBSDF
 #define BSDF_BIT_OFFSET_GREYWEIGHT_V			(BSDF_BIT_OFFSET_SSSTYPE			+ BSDF_BIT_COUNT_SSSTYPE)
 #define BSDF_BIT_OFFSET_HAZINESS				(BSDF_BIT_OFFSET_GREYWEIGHT_V		+ BSDF_BIT_COUNT_GREYWEIGHT_V)
 #define BSDF_BIT_OFFSET_F90						(BSDF_BIT_OFFSET_HAZINESS			+ BSDF_BIT_COUNT_HAZINESS)
-#define BSDF_BIT_OFFSET_SIMPLEVOLUME			(BSDF_BIT_OFFSET_F90				+ BSDF_BIT_COUNT_F90)
-#define BSDF_BIT_OFFSET_MFPPLUGGED				(BSDF_BIT_OFFSET_SIMPLEVOLUME		+ BSDF_BIT_COUNT_SIMPLEVOLUME)
+#define BSDF_BIT_OFFSET_MFPPLUGGED				(BSDF_BIT_OFFSET_F90				+ BSDF_BIT_COUNT_F90)
 #define BSDF_BIT_OFFSET_HASFUZZ					(BSDF_BIT_OFFSET_MFPPLUGGED			+ BSDF_BIT_COUNT_MFPPLUGGED)
 #define BSDF_BIT_OFFSET_ISTHIN					(BSDF_BIT_OFFSET_HASFUZZ			+ BSDF_BIT_COUNT_HASFUZZ)
 #define BSDF_BIT_OFFSET_BSDF_TYPE				(BSDF_BIT_OFFSET_ISTHIN				+ BSDF_BIT_COUNT_ISTHIN)
@@ -406,6 +408,8 @@ struct FStrataBSDF
 #define SSS_TYPE_WRAP							(1u)
 #define SSS_TYPE_DIFFUSION						(2u)
 #define SSS_TYPE_DIFFUSION_PROFILE				(3u)
+#define SSS_TYPE_SIMPLEVOLUME					(4u)
+#define SSS_TYPE_COUNT							(5u)
 
 // Sanity check
 #if (BSDF_BIT_OFFSET_WEIGHT10F + BSDF_BIT_COUNT_WEIGHT10F) > 32
@@ -453,10 +457,6 @@ struct FStrataBSDF
 #define BSDF_GETWEIGHT10F(X)			READ_BITS(X.State,  BSDF_BIT_COUNT_WEIGHT10F, BSDF_BIT_OFFSET_WEIGHT10F)
 #define BSDF_SETWEIGHT10F(X, Weight)	WRITE_BITS(X.State, BSDF_BIT_COUNT_WEIGHT10F, BSDF_BIT_OFFSET_WEIGHT10F, Weight)
 
-// Indicates if the BSDF uses our simple volume shading to represent a layer of participating media
-#define BSDF_GETISSIMPLEVOLUME(X)		READ_BITS(X.State,  BSDF_BIT_COUNT_SIMPLEVOLUME, BSDF_BIT_OFFSET_SIMPLEVOLUME)
-#define BSDF_SETISSIMPLEVOLUME(X, Value) WRITE_BITS(X.State, BSDF_BIT_COUNT_SIMPLEVOLUME, BSDF_BIT_OFFSET_SIMPLEVOLUME, Value)
-
 // Indicates if the BSDF has explicit MFP data
 #define BSDF_GETHASMFP(X)				READ_BITS(X.State,  BSDF_BIT_COUNT_MFPPLUGGED, BSDF_BIT_OFFSET_MFPPLUGGED)
 #define BSDF_SETHASMFP(X, Value)		WRITE_BITS(X.State, BSDF_BIT_COUNT_MFPPLUGGED, BSDF_BIT_OFFSET_MFPPLUGGED, Value)
@@ -495,10 +495,12 @@ struct FStrataBSDF
 
 ///////////////////////////////////////////////////////////////////////////////
 // Slab BSDF members
-#define SLAB_COMPLEX_PATH_MASK (TO_OFFSET_BITMASK(BSDF_BIT_COUNT_ANISOTROPY, BSDF_BIT_OFFSET_ANISOTROPY)		| \
-								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_SSSTYPE,    BSDF_BIT_OFFSET_SSSTYPE)			| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HAZINESS,     BSDF_BIT_OFFSET_HAZINESS) | \
-								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_F90,        BSDF_BIT_OFFSET_F90)				| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_SIMPLEVOLUME, BSDF_BIT_OFFSET_SIMPLEVOLUME) | \
-								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HASFUZZ,    BSDF_BIT_OFFSET_HASFUZZ)			| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_ISTHIN,       BSDF_BIT_OFFSET_ISTHIN) )
+#define SLAB_COMPLEX_PATH_MASK (TO_OFFSET_BITMASK(BSDF_BIT_COUNT_ANISOTROPY, BSDF_BIT_OFFSET_ANISOTROPY)| \
+								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_SSSTYPE,    BSDF_BIT_OFFSET_SSSTYPE)	| \
+								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HAZINESS,   BSDF_BIT_OFFSET_HAZINESS)	| \
+								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_F90,        BSDF_BIT_OFFSET_F90)		| \
+								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HASFUZZ,    BSDF_BIT_OFFSET_HASFUZZ)	| \
+								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_ISTHIN,     BSDF_BIT_OFFSET_ISTHIN))
 
 #define SLAB_DIFFUSEALBEDO(X)			X.VGPRs[0].xyz
 #define SLAB_ROUGHNESS(X)				X.VGPRs[0].w
@@ -822,13 +824,19 @@ struct FStrataSubsurfaceHeader
 	// If !bIsProfile: 101010 mean free path
 	uint Bytes;
 };
+
+// Note: SSSHeader only stores INVALID, WRAP, DIFFUSION, DIFFUSION_PROFILE type. This is because the type is represented onto 2bits and 
+//       other SSS types don't have/need side payload. This means SIMPLEVOLUME is trunked.
+#if SSS_TYPE_COUNT != 5
+#error Update this code to ensure all SSS types requiering side payload can be represented in the 2bits allocated for types.
+#endif
 #define SSSHEADER_TYPE(Header)	(Header.Bytes & 0x3)
 #define SSSHEADER_TYPE_MASK		(0x00000003)
 
 void StrataSubSurfaceHeaderSetSSSType(inout FStrataSubsurfaceHeader SSSHeader, uint SSSType)
 {
 	SSSHeader.Bytes &= (~SSSHEADER_TYPE_MASK);
-	SSSHeader.Bytes |= SSSType;
+	SSSHeader.Bytes |= SSSType & SSSHEADER_TYPE_MASK;
 }
 
 void StrataSubSurfaceHeaderSetProfile(inout FStrataSubsurfaceHeader SSSHeader, float RadiusScale, uint ProfileId)
@@ -2874,11 +2882,8 @@ void FStrataBSDF::PostProcessSlabBeforeLighting(bool bIsStrataOpaqueMaterial)
 		// * Set IsSimpleVolume
 		this.EnableSlabBSDFSimpleVolumetric();
 	}
-
-	if (bIsThin)
+	else if (bIsThin)
 	{
-		BSDF_SETISSIMPLEVOLUME(this, 0);
-
 		// Only rescale MFP to computation space for SSS wrap. 
 		// SSS Diffuse types use their 'original' MFP for diffusion
 		if (BSDF_GETSSSTYPE(this) == SSS_TYPE_WRAP)
@@ -2903,6 +2908,18 @@ void FStrataBSDF::PostProcessBSDFBeforeLighting(bool bIsStrataOpaqueMaterial)
 		break;
 	}
 	}
+}
+
+bool FStrataBSDF::HasScatteringData()
+{
+	const uint SSSType = BSDF_GETTYPE(this);
+	return SSSType != SSS_TYPE_INVALID && SSSType != SSS_TYPE_SIMPLEVOLUME;
+}
+
+bool FStrataBSDF::HasBackScattering()
+{
+	const uint SSSType = BSDF_GETTYPE(this);
+	return SSSType != SSS_TYPE_INVALID && SSSType != SSS_TYPE_SIMPLEVOLUME;
 }
 
 // Return 0 if v is zero, 1 otherwise
@@ -2982,11 +2999,9 @@ void FStrataBSDF::EnableSlabBSDFSimpleVolumetric()
 	this.EnableSlabMFPComputationSpace();
 
 	// Mark the BSDF has not having any SSS through post process.
-	BSDF_SETSSSTYPE(this, SSS_TYPE_INVALID);
-
 	// Notify that the Slab can use SSS post-process only if at the bottom (layered considered optically thick, e.g. cannot see-through)
 	// When forward rendering is used or if a layer is not a bottom layer, SSS post cannot be used and simple scattering is used.
-	BSDF_SETISSIMPLEVOLUME(this, 1);
+	BSDF_SETSSSTYPE(this, SSS_TYPE_SIMPLEVOLUME);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -3872,7 +3887,6 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, in
 	BSDF_SETISTOPLAYER(OutBSDF, 1);
 	BSDF_SETSSSTYPE(OutBSDF, SSS_TYPE_INVALID);
 	BSDF_SETHASHAZINESS(OutBSDF, 0);
-	BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
 	BSDF_SETISTHIN(OutBSDF, 0);
 	BSDF_SETHASFUZZ(OutBSDF, 0);
 	BSDF_SETHASTRANSABOVE(OutBSDF, 0);
@@ -3919,7 +3933,6 @@ FStrataBSDF UnpackFastWaterPathStrataBSDFIn(FStrataMaterialContainer StrataBuffe
 	BSDF_SETISTOPLAYER(OutBSDF, 1);
 	BSDF_SETSSSTYPE(OutBSDF, SSS_TYPE_INVALID);
 	BSDF_SETHASHAZINESS(OutBSDF, 0);
-	BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
 	BSDF_SETISTHIN(OutBSDF, 0);
 	BSDF_SETHASFUZZ(OutBSDF, 0);
 	BSDF_SETHASTRANSABOVE(OutBSDF, 0);
@@ -4006,7 +4019,6 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETISTOPLAYER(OutBSDF, 1);
 				BSDF_SETSSSTYPE(OutBSDF, SSS_TYPE_INVALID);
 				BSDF_SETHASHAZINESS(OutBSDF, 1);
-				BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
 				BSDF_SETISTHIN(OutBSDF, 0);
 				BSDF_SETHASFUZZ(OutBSDF, 0);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
@@ -4040,7 +4052,6 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETISTOPLAYER(OutBSDF, 1);
 				BSDF_SETSSSTYPE(OutBSDF, SSS_TYPE_INVALID);
 				BSDF_SETHASHAZINESS(OutBSDF, 0);
-				BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
 				BSDF_SETISTHIN(OutBSDF, 0);
 				BSDF_SETHASFUZZ(OutBSDF, 1);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
@@ -4080,7 +4091,6 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETSSSTYPE(OutBSDF, SSS_TYPE_WRAP);
 				BSDF_SETHASMFP(OutBSDF, 1);
 				BSDF_SETHASHAZINESS(OutBSDF, 0);
-				BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
 				BSDF_SETISTHIN(OutBSDF, (OptimisedLegacyMode == SINGLE_OPTLEGACYMODE_SSSWRAP_THIN ? 1 : 0));
 				BSDF_SETHASFUZZ(OutBSDF, 0);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
@@ -4130,7 +4140,6 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 				BSDF_SETSSSTYPE(OutBSDF, SSS_TYPE_DIFFUSION_PROFILE);
 				BSDF_SETHASMFP(OutBSDF, 1);
 				BSDF_SETHASHAZINESS(OutBSDF, 0);
-				BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
 				BSDF_SETISTHIN(OutBSDF, 0);
 				BSDF_SETHASFUZZ(OutBSDF, 0);
 				BSDF_SETHASTRANSABOVE(OutBSDF, 0);
@@ -4211,11 +4220,10 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 			SLAB_HAZINESS(OutBSDF) = RawData >> 16; // Keeping the top 16 bits
 		}
 
-		const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(OutBSDF);
 		const bool bHasSSS = BSDF_GETSSSTYPE(OutBSDF) != SSS_TYPE_INVALID;
-		if (bHasSSS || bIsSimpleVolume)
+		if (bHasSSS)
 		{
-			if (BSDF_GETSSSTYPE(OutBSDF) == SSS_TYPE_DIFFUSION_PROFILE && !bIsSimpleVolume)
+			if (BSDF_GETSSSTYPE(OutBSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 			{
 				uint RawData = StrataLoadUint1(StrataBuffer, StrataAddressing);
 				UnpackSSSProfile(RawData, SLAB_SSSPROFILEID(OutBSDF), SLAB_SSSPROFILERADIUSSCALE(OutBSDF), SLAB_SSSPROFILETHICKNESSCM(OutBSDF));

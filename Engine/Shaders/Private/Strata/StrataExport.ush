@@ -221,11 +221,11 @@ void PackStrataOut(
 						TopLayerData.Material = TOP_LAYER_MATERIAL_VALID;
 
 						const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID;
-						const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
+						const bool bIsSimpleVolume = BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_SIMPLEVOLUME;
 						bStrataSubsurfaceEnable = bStrataSubsurfaceEnable || (bHasSSS && BSDF.Coverage > 0.0f && !bIsSimpleVolume); // Should it be coverage>0 or any(LuminanceWeight>0) ?
 
 						const bool bSSSMask = BSDF.bIsBottom;	// SSS and Thin can only be on the bottom layer, so ignoring bIsSimpleVolume here.
-						StrataPixelHeader.SetHasSubsurface(bSSSMask && bHasSSS);
+						StrataPixelHeader.SetHasSubsurface(bSSSMask && bHasSSS && !bIsSimpleVolume);
 						break;
 					}
 
@@ -340,7 +340,7 @@ void PackStrataOut(
 				{
 					OptimisedModeMask |= SingleIsThin;
 				}
-				if (BSDF_GETISSIMPLEVOLUME(BSDF))
+				if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_SIMPLEVOLUME)
 				{
 					OptimisedModeMask |= SingleIsSimpleVolume;
 				}
@@ -738,11 +738,10 @@ void PackStrataOut(
 								STRATA_STORE_UINT1(HazinessData << 16 | F90Data);
 							}
 
-							const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
-							const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID;
-							if (bHasSSS || bIsSimpleVolume)
+							if (BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID)
 							{
-								if (bHasSSS)
+								// All SSS types store side data (SSSHeader/SSSData), apart from SIMPLEVOLUME
+								if (BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_SIMPLEVOLUME)
 								{
 									StrataSubSurfaceHeaderSetSSSType(SSSData.Header, BSDF_GETSSSTYPE(BSDF));
 									if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_WRAP)
@@ -761,7 +760,7 @@ void PackStrataOut(
 									StrataSubsurfaceExtrasSetBaseColor(SSSData.Extras, SLAB_DIFFUSEALBEDO(BSDF));
 								}
 
-								if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && !bIsSimpleVolume)
+								if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 								{
 									// Simple volume overrides SSS profile because it takes over for when not at the bottom of the BSDF layer, or during forward rendering.
 									// Note: Since it is a profile, we can't rescale its MFP value. So we store the 'thin' thickness value for computing the correct transmission during evaluation

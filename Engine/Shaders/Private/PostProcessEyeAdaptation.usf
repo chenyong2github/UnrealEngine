@@ -502,7 +502,7 @@ FExposureMaterial GetExposureMaterial(uint2 InPixelPos)
 				DirectionalAlbedo        += BSDFThroughput * StrataEnvLight.DiffuseWeight;
 				DirectionalAlbedo        += BSDFThroughput * StrataEnvLight.SpecularWeight;
 
-				const bool bHasBackfaceDiffuse = StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_SLAB && BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID;
+				const bool bHasBackfaceDiffuse = StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_SLAB && BSDF.HasBackScattering();
 				if (bHasBackfaceDiffuse)
 				{
 					DirectionalAlbedo += BSDFThroughput * StrataEnvLight.DiffuseBackFaceWeight; // StrataEnvLight.DiffuseBackFaceWeight is already divided PI

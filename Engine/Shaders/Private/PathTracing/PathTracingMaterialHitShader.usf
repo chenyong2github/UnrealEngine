@@ -644,7 +644,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 									Spec1E = ComputeGGXSpecEnergyTermsRGB(Roughness1, NoV, F0, F90).E;
 								}
 							}
-							if (BSDF_GETISSIMPLEVOLUME(BSDF))
+							if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_SIMPLEVOLUME)
 							{
 								DiffuseColor = GetSimpleVolumeDiffuseColor(DiffuseColor, SLAB_SSSMFP(BSDF));
 							}
@@ -768,7 +768,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 						Payload.FuzzColor     = 0.0;
 						Payload.FuzzRoughness = 0.0;
 					}
-					if (BSDF_GETISSIMPLEVOLUME(BSDF))
+					if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_SIMPLEVOLUME)
 					{
 						Payload.DiffuseColor = GetSimpleVolumeDiffuseColor(Payload.DiffuseColor, SLAB_SSSMFP(BSDF));
 					}

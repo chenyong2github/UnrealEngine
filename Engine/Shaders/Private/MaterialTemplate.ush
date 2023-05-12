@@ -2534,7 +2534,7 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 				case PPI_Specular:				return StrataGetBSDFSpecular(BSDF);
 				case PPI_Metallic:				return StrataGetBSDFMetallic(BSDF);
 				case PPI_WorldNormal:			return float4(StrataGetWorldNormal(StrataPixelHeader, BSDF, StrataAddressing), 0);
-				case PPI_Opacity:				return SSSType != SSS_TYPE_INVALID ? StrataSubSurfaceHeaderGetOpacity(SSSHeader) : 1.f;
+				case PPI_Opacity:				return BSDF.HasScatteringData() ? StrataSubSurfaceHeaderGetOpacity(SSSHeader) : 1.f;
 				case PPI_Roughness:				return StrataGetBSDFRoughness(BSDF);
 				case PPI_MaterialAO:			return StrataGetAO(StrataPixelHeader);
 				case PPI_ShadingModelColor:		return float4(GetShadingModelColor(StrataGetLegacyShadingModels(BSDF)), 1);
