@@ -3531,7 +3531,7 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 						}
 						else
 						{
-							TilesInMinDistance.Add(FNavMeshDirtyTileElement{FIntPoint(X,Y), Invoker.Priority});
+							TilesInMinDistance.Add(FNavMeshDirtyTileElement{FIntPoint(X,Y), DistanceSq, Invoker.Priority});
 							TileToAppend.Add(FIntPoint(X,Y));
 						}
 					}
@@ -3607,7 +3607,7 @@ void ARecastNavMesh::RebuildTile(const TArray<FIntPoint>& Tiles)
 	ActiveTiles.Reserve(Tiles.Num());
 	for (const FIntPoint& Point : Tiles)
 	{
-		ActiveTiles.Add(FNavMeshDirtyTileElement{Point, ENavigationInvokerPriority::Default});
+		ActiveTiles.Add(FNavMeshDirtyTileElement{Point, TNumericLimits<FVector::FReal>::Max(), ENavigationInvokerPriority::Default});
 	}
 	RebuildTile(ActiveTiles);
 }
@@ -3672,7 +3672,7 @@ void ARecastNavMesh::DirtyTilesInBounds(const FBox& Bounds)
 			for (int32 TileX = TileBox.XMin; TileX <= TileBox.XMax; ++TileX)
 			{
 				// For now, new dirtiness is made with default priority.
-				Tiles.Add(FNavMeshDirtyTileElement{FIntPoint(TileX, TileY), ENavigationInvokerPriority::Default});
+				Tiles.Add(FNavMeshDirtyTileElement{FIntPoint(TileX, TileY), TNumericLimits<FVector::FReal>::Max(), ENavigationInvokerPriority::Default});
 			}
 		}
 		RebuildTile(Tiles);

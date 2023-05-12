@@ -562,8 +562,16 @@ struct FPendingTileElement
 	/** time at which the element was first added to the queue */
 	double		CreationTime;
 
+#if !UE_BUILD_SHIPPING	
+	/** Squared distance to invoker source */
+	FVector::FReal DebugInvokerDistanceSquared = TNumericLimits<FVector::FReal>::Max();
+
 	/** Priority from navigation invoker */
-	ENavigationInvokerPriority InvokerPriority = ENavigationInvokerPriority::Default;
+	ENavigationInvokerPriority DebugInvokerPriority = ENavigationInvokerPriority::Default;
+#endif // !UE_BUILD_SHIPPING
+
+	/** Priority used for sorting */
+	ENavigationInvokerPriority SortingPriority = ENavigationInvokerPriority::Default;
 
 	/** Whether we need a full rebuild for this tile grid cell */
 	bool		bRebuildGeometry;

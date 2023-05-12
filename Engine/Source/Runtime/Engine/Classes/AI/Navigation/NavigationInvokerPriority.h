@@ -7,6 +7,7 @@
 UENUM()
 enum class ENavigationInvokerPriority : uint8
 {
+	// Enum values are used (keep in ascending order)
 	VeryLow = 1,
 	Low = 2,
 	Default = 3,

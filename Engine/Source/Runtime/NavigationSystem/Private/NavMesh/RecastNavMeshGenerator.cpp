@@ -5293,7 +5293,7 @@ void FRecastNavMeshGenerator::ReAddTiles(const TArray<FIntPoint>& Tiles)
 	TArray<FNavMeshDirtyTileElement> ConvertedTiles;
 	for (const FIntPoint& Point : Tiles)
 	{
-		ConvertedTiles.Add(FNavMeshDirtyTileElement{Point, ENavigationInvokerPriority::Default});
+		ConvertedTiles.Add(FNavMeshDirtyTileElement{Point, TNumericLimits<FVector::FReal>::Max(), ENavigationInvokerPriority::Default});
 	}
 	ReAddTiles(ConvertedTiles);
 }
@@ -5308,13 +5308,29 @@ void FRecastNavMeshGenerator::ReAddTiles(const TArray<FNavMeshDirtyTileElement>&
 	TSet<FPendingTileElement> DirtyTiles;
 
 	const double CurrentTimeSeconds = FPlatformTime::Seconds();
+	const FVector::FReal NearDistanceSquared = FMath::Square(DestNavMesh->InvokerTilePriorityBumpDistanceThresholdInTileUnits*GetConfig().GetTileSizeUU());
+	const uint8 PriorityIncrease = DestNavMesh->InvokerTilePriorityBumpIncrease;
 
 	// @note we act on assumption all items in Tiles are unique
 	for (const FNavMeshDirtyTileElement& Tile : Tiles)
 	{
 		FPendingTileElement Element;
 		Element.Coord = Tile.Coordinates;
-		Element.InvokerPriority = Tile.InvokerPriority;
+#if !UE_BUILD_SHIPPING		
+		Element.DebugInvokerDistanceSquared = Tile.InvokerDistanceSquared;
+		Element.DebugInvokerPriority = Tile.InvokerPriority;
+#endif // !UE_BUILD_SHIPPING			
+
+		// Bump sorting priority for tiles near invokers
+		if (Tile.InvokerDistanceSquared < NearDistanceSquared)
+		{
+			Element.SortingPriority = (ENavigationInvokerPriority)FMath::Min((int)Tile.InvokerPriority+PriorityIncrease, (int)ENavigationInvokerPriority::MAX-1);	
+		}
+		else
+		{
+			Element.SortingPriority = Tile.InvokerPriority;
+		}
+
 		Element.bRebuildGeometry = true;
 		Element.CreationTime = CurrentTimeSeconds;
 		DirtyTiles.Add(Element);
@@ -5328,7 +5344,11 @@ void FRecastNavMeshGenerator::ReAddTiles(const TArray<FNavMeshDirtyTileElement>&
 		FPendingTileElement* ExistingElement = DirtyTiles.Find(Element);
 		if (ExistingElement)
 		{
-			ExistingElement->InvokerPriority = FMath::Max(ExistingElement->InvokerPriority, Element.InvokerPriority);
+#if !UE_BUILD_SHIPPING			
+			ExistingElement->DebugInvokerDistanceSquared = FMath::Min(ExistingElement->DebugInvokerDistanceSquared, Element.DebugInvokerDistanceSquared);
+			ExistingElement->DebugInvokerPriority = FMath::Max(ExistingElement->DebugInvokerPriority, Element.DebugInvokerPriority);
+#endif // !UE_BUILD_SHIPPING			
+			ExistingElement->SortingPriority = FMath::Max(ExistingElement->SortingPriority, Element.SortingPriority);
 			ExistingElement->bRebuildGeometry |= Element.bRebuildGeometry;
 			ExistingElement->CreationTime = FMath::Min(Element.CreationTime, ExistingElement->CreationTime);
 			// Append area bounds to existing list 
@@ -6160,7 +6180,7 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 	else if (SortPendingTilesMethod == ENavigationSortPendingTilesMethod::SortByPriority)
 	{
 		// Highest priority should be at the end of the list
-		PendingDirtyTiles.Sort([](const FPendingTileElement& A, const FPendingTileElement& B){ return A.InvokerPriority < B.InvokerPriority; });
+		PendingDirtyTiles.Sort([](const FPendingTileElement& A, const FPendingTileElement& B){ return A.SortingPriority < B.SortingPriority; });
 
 		UE_SUPPRESS(LogNavigation, VeryVerbose,
 		{
@@ -6170,7 +6190,7 @@ void FRecastNavMeshGenerator::SortPendingBuildTiles()
 				const FVector::FReal TileSizeInWorldUnits = Config.GetTileSizeUU();
 				const FBox TileBox = FRecastTileGenerator::CalculateTileBounds(Element.Coord.X, Element.Coord.Y, FVector::ZeroVector, TotalNavBounds, TileSizeInWorldUnits);
 				const ARecastNavMesh* const OwnerNav = GetOwner();
-				UE_VLOG_BOX(OwnerNav, LogNavigation, VeryVerbose, TileBox, FColor::Silver, TEXT("Index: %i, Priority %i"), Index, Element.InvokerPriority);
+				UE_VLOG_BOX(OwnerNav, LogNavigation, VeryVerbose, TileBox, FColor::Silver, TEXT("Index: %i, Priority %i"), Index, Element.SortingPriority);
 			}
 		});
 	}

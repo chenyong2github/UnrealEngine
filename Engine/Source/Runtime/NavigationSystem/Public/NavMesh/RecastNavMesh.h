@@ -510,6 +510,7 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshTileGenerationDebug
 struct FNavMeshDirtyTileElement
 {
 	FIntPoint Coordinates;
+	FVector::FReal InvokerDistanceSquared;
 	ENavigationInvokerPriority InvokerPriority;
 };
 
@@ -907,6 +908,14 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	/** If a single time sliced section of navmesh regen code exceeds this duration then it will trigger debug logging */
 	UPROPERTY(EditAnywhere, Category = TimeSlicing, config, AdvancedDisplay)
 	double TimeSliceLongDurationDebug = 0.002;
+
+	/** If >= 1, when sorting pending tiles by priority, tiles near invokers (within the distance threshold) will have their priority increased. */
+	UPROPERTY(EditAnywhere, Category = Generation, config, AdvancedDisplay)
+	uint32 InvokerTilePriorityBumpDistanceThresholdInTileUnits = 1;
+
+	/** Priority increase steps for tiles that are withing near distance. */
+	UPROPERTY(EditAnywhere, Category = Generation, config, AdvancedDisplay)
+	uint8 InvokerTilePriorityBumpIncrease = 1;
 
 protected:
 #if WITH_EDITORONLY_DATA
