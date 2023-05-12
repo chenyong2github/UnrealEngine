@@ -27,7 +27,7 @@ class UWorldPartitionStreamingPolicy : public UObject
 public:
 	virtual bool GetIntersectingCells(const TArray<FWorldPartitionStreamingQuerySource>& InSources, TArray<const IWorldPartitionCell*>& OutCells) const;
 	virtual void UpdateStreamingState();
-	virtual bool CanAddLoadedLevelToWorld(class ULevel* InLevel) const;
+	virtual bool CanAddCellToWorld(const UWorldPartitionRuntimeCell* InCell) const;
 	virtual bool DrawRuntimeHash2D(FWorldPartitionDraw2DContext& DrawContext);
 	virtual void DrawRuntimeHash3D();
 	virtual void DrawRuntimeCellsDetails(class UCanvas* Canvas, FVector2D& Offset) {}
@@ -37,6 +37,9 @@ public:
 
 	virtual void OnCellShown(const UWorldPartitionRuntimeCell* InCell);
 	virtual void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);
+
+	UE_DEPRECATED(5.3, "CanAddLoadedLevelToWorld is deprecated.")
+	virtual bool CanAddLoadedLevelToWorld(class ULevel* InLevel) const { return true; }
 
 #if WITH_EDITOR
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const PURE_VIRTUAL(UWorldPartitionStreamingPolicy::GetRuntimeCellClass, return UWorldPartitionRuntimeCell::StaticClass(); );
@@ -66,11 +69,11 @@ public:
 	virtual bool RemoveExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject) { return true; }
 
 protected:
-	virtual int32 SetCellsStateToLoaded(const TArray<const UWorldPartitionRuntimeCell*>& ToLoadCells);
-	virtual int32 SetCellsStateToActivated(const TArray<const UWorldPartitionRuntimeCell*>& ToActivateCells);
+	virtual void SetCellStateToLoaded(const UWorldPartitionRuntimeCell* InCell, int32& InOutMaxCellsToLoad);
+	virtual void SetCellStateToActivated(const UWorldPartitionRuntimeCell* InCell, int32& InOutMaxCellsToLoad);
 	virtual void SetCellsStateToUnloaded(const TArray<const UWorldPartitionRuntimeCell*>& ToUnloadCells);
-	virtual int32 GetCellLoadingCount() const { return 0; }
-	virtual int32 GetMaxCellsToLoad() const;
+	virtual void GetCellsToUpdate(TArray<const UWorldPartitionRuntimeCell*>& OutToLoadCells, TArray<const UWorldPartitionRuntimeCell*>& OutToActivateCells);
+	virtual void GetCellsToReprioritize(TArray<const UWorldPartitionRuntimeCell*>& OutToLoadCells, TArray<const UWorldPartitionRuntimeCell*>& OutToActivateCells);
 	virtual void UpdateStreamingSources(bool bCanOptimizeUpdate);
 	void UpdateStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& InCells);
 	bool ShouldSkipCellForPerformance(const UWorldPartitionRuntimeCell* Cell) const;
@@ -105,6 +108,12 @@ protected:
 	TSet<const UWorldPartitionRuntimeCell*> FrameActivateCells;
 	TSet<const UWorldPartitionRuntimeCell*> FrameLoadCells;
 
+	// Used by UWorldPartitionSubsystem
+	TArray<const UWorldPartitionRuntimeCell*> ToActivateCells;
+	TArray<const UWorldPartitionRuntimeCell*> ToLoadCells;
+	int32 ProcessedToActivateCells;
+	int32 ProcessedToLoadCells;
+
 private:
 	// Update optimization
 	uint32 ComputeUpdateStreamingHash(bool bCanOptimizeUpdate) const;
@@ -118,7 +127,6 @@ private:
 	static FAutoConsoleVariableRef CVarUpdateOptimEnabled;
 	static FAutoConsoleVariableRef CVarForceUpdateFrameCount;
 
-	bool bLastUpdateCompletedLoadingAndActivation;
 	bool bCriticalPerformanceRequestedBlockTillOnWorld;
 	int32 CriticalPerformanceBlockTillLevelStreamingCompletedEpoch;
 	int32 ServerDataLayersStatesEpoch;
@@ -137,4 +145,6 @@ private:
 	double OnScreenMessageStartTime;
 	EWorldPartitionStreamingPerformance  OnScreenMessageStreamingPerformance;
 #endif
+
+	friend class UWorldPartitionSubsystem;
 };

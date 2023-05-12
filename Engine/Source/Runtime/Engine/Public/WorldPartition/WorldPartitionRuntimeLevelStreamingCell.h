@@ -29,7 +29,6 @@ class ENGINE_API UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartiti
 	virtual FLinearColor GetDebugColor(EWorldPartitionRuntimeCellVisualizeMode VisualizeMode) const override;
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) override;
 	virtual EStreamingStatus GetStreamingStatus() const override;
-	virtual bool IsLoading() const override;
 	//~End UWorldPartitionRuntimeCell Interface
 
 	//~Begin IWorldPartitionCell Interface

@@ -332,8 +332,7 @@ public:
 	bool IsMainWorldPartition() const;
 
 	void Tick(float DeltaSeconds);
-	void UpdateStreamingState();
-	bool CanAddLoadedLevelToWorld(ULevel* InLevel) const;
+	bool CanAddCellToWorld(const IWorldPartitionCell* InCell) const;
 	bool IsStreamingCompleted(const TArray<FWorldPartitionStreamingSource>* InStreamingSources) const;
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 	bool GetIntersectingCells(const TArray<FWorldPartitionStreamingQuerySource>& InSources, TArray<const IWorldPartitionCell*>& OutCells) const;
@@ -358,6 +357,11 @@ public:
 	void EnableStreamingIn();
 
 	UDataLayerManager* GetDataLayerManager() const;
+
+	UE_DEPRECATED(5.3, "UpdateStreamingState is deprecated, use UWorldPartitionSubsystem::UpdateStreamingState instead.")
+	void UpdateStreamingState() {}
+	UE_DEPRECATED(5.3, "CanAddLoadedLevelToWorld is deprecated, use CanAddCellToWorld instead.")
+	bool CanAddLoadedLevelToWorld(ULevel* InLevel) const { return true; }
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(DuplicateTransient)

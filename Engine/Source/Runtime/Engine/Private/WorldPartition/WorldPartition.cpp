@@ -11,6 +11,7 @@
 #include "Misc/StringFormatArg.h"
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionReplay.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "GameFramework/WorldSettings.h"
@@ -657,6 +658,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 void UWorldPartition::Uninitialize()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::Uninitialize);
+
 	if (IsInitialized())
 	{
 		check(World);
@@ -673,7 +676,7 @@ void UWorldPartition::Uninitialize()
 		// Unload all loaded cells
 		if (World->IsGameWorld())
 		{
-			UpdateStreamingState();
+			UWorldPartitionSubsystem::UpdateStreamingStateInternal(World, { this });
 		}
 
 #if WITH_EDITOR
@@ -1458,21 +1461,6 @@ void UWorldPartition::Tick(float DeltaSeconds)
 #endif
 }
 
-DECLARE_CYCLE_STAT(TEXT("World Partition Update Streaming"), STAT_WorldPartitionUpdateStreaming, STATGROUP_Engine);
-
-void UWorldPartition::UpdateStreamingState()
-{
-	SCOPE_CYCLE_COUNTER(STAT_WorldPartitionUpdateStreaming);
-
-	if (GetWorld()->IsGameWorld())
-	{
-		if (StreamingPolicy)
-		{
-			StreamingPolicy->UpdateStreamingState();
-		}
-	}
-}
-
 bool UWorldPartition::InjectExternalStreamingObject(URuntimeHashExternalStreamingObjectBase* InExternalStreamingObject)
 {
 	bool bInjected = RuntimeHash->InjectExternalStreamingObject(InExternalStreamingObject);
@@ -1515,11 +1503,14 @@ bool UWorldPartition::GetIntersectingCells(const TArray<FWorldPartitionStreaming
 	return false;
 }
 
-bool UWorldPartition::CanAddLoadedLevelToWorld(class ULevel* InLevel) const
+bool UWorldPartition::CanAddCellToWorld(const IWorldPartitionCell* InCell) const
 {
 	if (GetWorld()->IsGameWorld() && StreamingPolicy)
 	{
-		return StreamingPolicy->CanAddLoadedLevelToWorld(InLevel);
+		if (const UWorldPartitionRuntimeCell* Cell = Cast<const UWorldPartitionRuntimeCell>(InCell))
+		{
+			return StreamingPolicy->CanAddCellToWorld(Cell);
+		}
 	}
 	return true;
 }

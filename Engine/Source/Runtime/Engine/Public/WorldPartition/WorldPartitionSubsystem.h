@@ -167,6 +167,8 @@ private:
 	void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
 	void OnLevelStreamingTargetStateChanged(UWorld* World, const ULevelStreaming* StreamingLevel, ULevel* LevelIfLoaded, ELevelStreamingState CurrentState, ELevelStreamingTargetState PrevTarget, ELevelStreamingTargetState NewTarget);
 
+	static void UpdateStreamingStateInternal(const UWorld* InWorld, const TArray<TObjectPtr<UWorldPartition>>& InWorldPartitions);
+
 	UWorldPartition* GetWorldPartition();
 	const UWorldPartition* GetWorldPartition() const;
 	bool CanDebugDraw() const;

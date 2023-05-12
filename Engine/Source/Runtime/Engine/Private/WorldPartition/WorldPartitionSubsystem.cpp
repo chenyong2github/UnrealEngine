@@ -11,6 +11,7 @@
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionReplay.h"
 #include "WorldPartition/WorldPartitionDraw2DContext.h"
+#include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
 #include "WorldPartition/DataLayer/DataLayerManager.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
@@ -124,6 +125,12 @@ static FAutoConsoleCommandWithOutputDevice GDumpStreamingSourcesCmd(
 		}
 	})
 );
+
+static int32 GMaxLoadingStreamingCells = 4;
+static FAutoConsoleVariableRef CMaxLoadingStreamingCells(
+	TEXT("wp.Runtime.MaxLoadingStreamingCells"),
+	GMaxLoadingStreamingCells,
+	TEXT("Used to limit the number of concurrent loading world partition streaming cells."));
 
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
 : StreamingSourcesHash(0)
@@ -418,7 +425,10 @@ void UWorldPartitionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	GetWorld()->OnWorldPartitionInitialized().AddUObject(this, &UWorldPartitionSubsystem::OnWorldPartitionInitialized);
 	GetWorld()->OnWorldPartitionUninitialized().AddUObject(this, &UWorldPartitionSubsystem::OnWorldPartitionUninitialized);
-	FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.AddUObject(this, &UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged);
+	if (GetWorld()->IsGameWorld())
+	{
+		FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.AddUObject(this, &UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged);
+	}
 }
 
 void UWorldPartitionSubsystem::Deinitialize()
@@ -433,7 +443,10 @@ void UWorldPartitionSubsystem::Deinitialize()
 
 	GetWorld()->OnWorldPartitionInitialized().RemoveAll(this);
 	GetWorld()->OnWorldPartitionUninitialized().RemoveAll(this);
-	FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.RemoveAll(this);
+	if (GetWorld()->IsGameWorld())
+	{
+		FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.RemoveAll(this);
+	}
 
 	// At this point World Partition should be uninitialized
 	check(!GetWorldPartition() || !GetWorldPartition()->IsInitialized());
@@ -514,7 +527,8 @@ void UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged(UWorld* World,
 		UWorldPartition* WorldPartition = LevelIfLoaded->GetTypedOuter<UWorld>()->GetWorldPartition();
 		if (WorldPartition && WorldPartition->IsInitialized() && !WorldPartition->CanStream())
 		{
-			WorldPartition->UpdateStreamingState();
+			TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged);
+			UWorldPartitionSubsystem::UpdateStreamingStateInternal(World, { WorldPartition });
 		}
 	}
 }
@@ -764,15 +778,118 @@ void UWorldPartitionSubsystem::GetStreamingSources(const UWorldPartition* InWorl
 	}
 }
 
+DECLARE_CYCLE_STAT(TEXT("World Partition Update Streaming"), STAT_WorldPartitionUpdateStreaming, STATGROUP_Engine);
+
 void UWorldPartitionSubsystem::UpdateStreamingState()
 {
-	UpdateStreamingSources();
+	SCOPE_CYCLE_COUNTER(STAT_WorldPartitionUpdateStreaming);
 
-	//make temp copy of array as UpdateStreamingState may FlushAsyncLoading, which may add a new world partition to RegisteredWorldPartitions while iterating
-	const TArray<UWorldPartition*> RegisteredWorldPartitionsCopy = RegisteredWorldPartitions;
-	for (UWorldPartition* RegisteredWorldParition : RegisteredWorldPartitionsCopy)
+	UWorldPartitionSubsystem::UpdateStreamingStateInternal(GetWorld(), RegisteredWorldPartitions);
+}
+
+void UWorldPartitionSubsystem::UpdateStreamingStateInternal(const UWorld* InWorld, const TArray<TObjectPtr<UWorldPartition>>& InWorldPartitions)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::UpdateStreamingState);
+
+	const UWorld* World = InWorld;
+	if (!World->IsGameWorld())
 	{
-		RegisteredWorldParition->UpdateStreamingState();
+		return;
+	}
+
+	// Subsystem can be null during EndPlayMap. WorldPartition::Uninitialize will still call UpdateStreamingStateInternal to cleanup it's streaming levels
+	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(World))
+	{
+		// Update streaming sources
+		WorldPartitionSubsystem->UpdateStreamingSources();
+	}
+	
+	// Make temp copy of array as UpdateStreamingState may FlushAsyncLoading, which may add a new world partition to RegisteredWorldPartitions while iterating
+	const TArray<UWorldPartition*> RegisteredWorldPartitionsCopy = InWorldPartitions;
+
+	TArray<const UWorldPartitionRuntimeCell*> ToActivateCells;
+	TArray<const UWorldPartitionRuntimeCell*> ToLoadCells;
+
+	// Update streaming state of all registered world partitions and cumulate cells to activate and load
+	TMap<const UWorldPartitionRuntimeCell*, UWorldPartition*> CellToWorldPartition;
+	for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitionsCopy)
+	{
+		if (RegisteredWorldPartition->StreamingPolicy)
+		{
+			RegisteredWorldPartition->StreamingPolicy->UpdateStreamingState();
+			RegisteredWorldPartition->StreamingPolicy->GetCellsToUpdate(ToLoadCells, ToActivateCells);
+		}
+	}
+
+	// Sort all cells to activate and load
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SortStreamingCellsByImportance);
+		Algo::Sort(ToActivateCells, [](const UWorldPartitionRuntimeCell* CellA, const UWorldPartitionRuntimeCell* CellB) { return CellA->SortCompare(CellB) < 0; });
+		Algo::Sort(ToLoadCells, [](const UWorldPartitionRuntimeCell* CellA, const UWorldPartitionRuntimeCell* CellB) { return CellA->SortCompare(CellB) < 0; });
+	}
+
+	// Compute maximum number of cells to load
+	const ENetMode NetMode = World->GetNetMode();
+	const bool bIsServer = (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer);
+	int32 MaxCellsToLoad = (!bIsServer && !World->GetIsInBlockTillLevelStreamingCompleted() && (GMaxLoadingStreamingCells > 0)) ? (GMaxLoadingStreamingCells - (int32)World->GetNumStreamingLevelsBeingLoaded()) : MAX_int32;
+
+	// Process cells to activate
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ToActivateCells);
+		// Trigger cell activation. Depending on actual state of cell limit loading.
+		for (const UWorldPartitionRuntimeCell* Cell : ToActivateCells)
+		{
+			Cell->GetOuterWorld()->GetWorldPartition()->StreamingPolicy->SetCellStateToActivated(Cell, MaxCellsToLoad);
+		}
+	}
+	// Process cells to load
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ToLoadCells);
+		for (const UWorldPartitionRuntimeCell* Cell : ToLoadCells)
+		{
+			Cell->GetOuterWorld()->GetWorldPartition()->StreamingPolicy->SetCellStateToLoaded(Cell, MaxCellsToLoad);
+		}
+	}
+
+	// Build and reprioritize cells that are still in a pending state (waiting to be loaded or activated)
+	TArray<const UWorldPartitionRuntimeCell*> PendingToLoadCells;
+	TArray<const UWorldPartitionRuntimeCell*> PendingToActivateCells;
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(BuildPendingCells);
+		PendingToLoadCells.Reserve(ToLoadCells.Num());
+		PendingToActivateCells.Reserve(ToActivateCells.Num());
+		for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitionsCopy)
+		{
+			RegisteredWorldPartition->StreamingPolicy->GetCellsToReprioritize(PendingToLoadCells, PendingToActivateCells);
+		}
+	}
+	{
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(SortPendingCells);
+			Algo::Sort(PendingToLoadCells, [](const UWorldPartitionRuntimeCell* CellA, const UWorldPartitionRuntimeCell* CellB) { return CellA->SortCompare(CellB) < 0; });
+			Algo::Sort(PendingToActivateCells, [](const UWorldPartitionRuntimeCell* CellA, const UWorldPartitionRuntimeCell* CellB) { return CellA->SortCompare(CellB) < 0; });
+		}
+
+		const ULevel* CurrentPendingVisibility = World->GetCurrentLevelPendingVisibility();
+		const UWorldPartitionRuntimeCell* CurrentPendingVisibilityCell = CurrentPendingVisibility ? Cast<const UWorldPartitionRuntimeCell>(CurrentPendingVisibility->GetWorldPartitionRuntimeCell()) : nullptr;
+		auto SetCellsStreamingPriority = [CurrentPendingVisibilityCell](const TArray<const UWorldPartitionRuntimeCell*>& InCells, int32 InPriorityBias = 0)
+		{
+			const int32 MaxPrio = InCells.Num() + InPriorityBias;
+			int32 Prio = MaxPrio;
+			for (const UWorldPartitionRuntimeCell* Cell : InCells)
+			{
+				// Make sure that the current pending visibility level is the most important so that level streaming update will process it right away
+				const int32 SortedPriority = (Cell == CurrentPendingVisibilityCell) ? MaxPrio + 1 : Prio--;
+				Cell->SetStreamingPriority(SortedPriority);
+			}
+		};
+
+		// Update level streaming priority so that UWorld::UpdateLevelStreaming will naturally process the levels in the correct order
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(SetPendingCellsStreamingPriority);
+			SetCellsStreamingPriority(PendingToLoadCells);
+			SetCellsStreamingPriority(PendingToActivateCells, PendingToLoadCells.Num());
+		}
 	}
 }
 
