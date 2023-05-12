@@ -184,6 +184,8 @@ namespace mu
 	//-------------------------------------------------------------------------------------------------
 	void FConvexBody::Unserialise(InputArchive& arch)
 	{
+		FBodyShape::Unserialise( arch );
+
 		uint32 ver;
 		arch >> ver;
 		check(ver == 0);
