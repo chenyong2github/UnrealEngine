@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "GenericMacTargetPlatform.h"
 #include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
 #include "ISettingsModule.h"
 #include "Interfaces/ITargetPlatformModule.h"
 #include "Modules/ModuleManager.h"
@@ -13,8 +12,6 @@
 #include "UObject/WeakObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "FMacTargetPlatformModule"
-
-
 
 /**
  * Module for Mac as a target platform
@@ -75,12 +72,6 @@ public:
         ProjectSettings->AddToRoot();
 
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-        
-        FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-        PropertyModule.RegisterCustomClassLayout(
-            "XcodeProjectSettings",
-            FOnGetDetailCustomizationInstance::CreateStatic(&FXcodeProjectSettingsDetailsCustomization::MakeInstance)
-        );
 
 		if (SettingsModule != nullptr)
 		{

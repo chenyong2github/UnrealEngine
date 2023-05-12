@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "XcodeProjectSettingsDetailsCustomization.h"
 #include "XcodeProjectSettings.h"
 #include "HAL/FileManager.h"
 #include "DetailCategoryBuilder.h"

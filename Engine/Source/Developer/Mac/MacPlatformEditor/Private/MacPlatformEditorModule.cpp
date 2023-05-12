@@ -8,9 +8,10 @@
 #include "XcodeProjectSettings.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/Class.h"
+#include "PropertyEditorModule.h"
+#include "XcodeProjectSettingsDetailsCustomization.h"
 
 #define LOCTEXT_NAMESPACE "MacPlatformEditorModule"
-
 
 /**
  * Module for Mac project settings
@@ -36,6 +37,12 @@ class FMacPlatformEditorModule
                 LOCTEXT("XcodeProjectSettingsName", "Xcode Projects"),
                 LOCTEXT("XcodeProjectSettingsDescription", "Settings for Xcode projects"),
                 GetMutableDefault<UXcodeProjectSettings>()
+            );
+            
+            FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+            PropertyModule.RegisterCustomClassLayout(
+                "XcodeProjectSettings",
+                FOnGetDetailCustomizationInstance::CreateStatic(&FXcodeProjectSettingsDetailsCustomization::MakeInstance)
             );
 		}
 	}
