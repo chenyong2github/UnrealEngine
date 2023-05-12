@@ -918,7 +918,7 @@ UK2Node::ERedirectType UK2Node::DoPinsMatchForReconstruction(const UEdGraphPin* 
 				}
 				else
 				{
-					RedirectType = ERedirectType_None;
+					RedirectType = ERedirectType_Name;
 				}
 			}
 		}
