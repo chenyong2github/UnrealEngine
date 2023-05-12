@@ -2,9 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Amazon.S3.Model;
 using EpicGames.Core;
 using Horde.Server.Server;
 using Horde.Server.Utilities;
@@ -154,13 +157,17 @@ namespace Horde.Server.Auditing
 			public IAsyncEnumerable<IAuditLogMessage> FindAsync(DateTime? minTime, DateTime? maxTime, int? index, int? count) => Outer.FindAsync(Subject, minTime, maxTime, index, count);
 
 			public Task<long> DeleteAsync(DateTime? minTime, DateTime? maxTime) => Outer.DeleteAsync(Subject, minTime, maxTime);
+
+			public Task FlushAsync(CancellationToken cancellationToken) => Outer.FlushAsync(cancellationToken);
 		}
 
 		readonly IMongoCollection<AuditLogMessage> _messages;
-		readonly Channel<AuditLogMessage> _messageChannel;
+		readonly Channel<AuditLogMessage?> _messageChannel;
 		readonly string _subjectProperty;
 		readonly ILogger _logger;
 		readonly Task _backgroundTask;
+		
+		TaskCompletionSource? _flushEvent;
 
 		public IAuditLogChannel<TSubject> this[TSubject subject] => new AuditLogChannel(this, subject);
 
@@ -171,7 +178,7 @@ namespace Horde.Server.Auditing
 
 			_messages = mongoService.GetCollection<AuditLogMessage>(collectionName, indexes);
 
-			_messageChannel = Channel.CreateUnbounded<AuditLogMessage>();
+			_messageChannel = Channel.CreateUnbounded<AuditLogMessage?>();
 			_subjectProperty = subjectProperty;
 			_logger = logger;
 
@@ -198,7 +205,10 @@ namespace Horde.Server.Auditing
 			List<AuditLogMessage> newMessages = new ();
 			while (_messageChannel.Reader.TryRead(out AuditLogMessage? newMessage))
 			{
-				newMessages.Add(newMessage);
+				if (newMessage != null)
+				{
+					newMessages.Add(newMessage);
+				}
 			}
 			if (newMessages.Count > 0)
 			{
@@ -212,8 +222,36 @@ namespace Horde.Server.Auditing
 		{
 			while (await _messageChannel.Reader.WaitToReadAsync())
 			{
-				await FlushMessagesInternalAsync();
+				TaskCompletionSource? flushEvent = Interlocked.Exchange(ref _flushEvent, null);
+
+				List<AuditLogMessage> newMessages = new();
+				while (_messageChannel.Reader.TryRead(out AuditLogMessage? newMessage))
+				{
+					if (newMessage != null)
+					{
+						newMessages.Add(newMessage);
+					}
+				}
+				if (newMessages.Count > 0)
+				{
+					await _messages.InsertManyAsync(newMessages);
+				}
+
+				flushEvent?.TrySetResult();
 			}
+		}
+
+		public async Task FlushAsync(CancellationToken cancellationToken)
+		{
+			// Get the existing task completion source, or create a new one
+			TaskCompletionSource newTcs = new TaskCompletionSource();
+			TaskCompletionSource? tcs = Interlocked.CompareExchange(ref _flushEvent, newTcs, null) ?? newTcs;
+
+			// Force the background task to run once 
+			await _messageChannel.Writer.WriteAsync(null, cancellationToken);
+
+			// Wait for the event to trigger
+			await tcs.Task;
 		}
 
 		async IAsyncEnumerable<IAuditLogMessage<TSubject>> FindAsync(TSubject subject, DateTime? minTime = null, DateTime? maxTime = null, int? index = null, int? count = null)

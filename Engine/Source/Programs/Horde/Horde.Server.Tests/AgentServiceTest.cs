@@ -135,9 +135,9 @@ public class AgentServiceTest : TestSetup
 		Fixture fixture = await CreateFixtureAsync();
 		IAuditLogChannel<AgentId> agentLogger = AgentCollection.GetLogger(fixture.Agent1.Id);
 
-		async Task<bool> AuditLogContains(string text, int waitForNumMessages = -1)
+		async Task<bool> AuditLogContains(string text)
 		{
-			await FlushAuditLogsAsync(waitForNumMessages);
+			await agentLogger.FlushAsync();
 			return await agentLogger.FindAsync().AnyAsync(x => x.Data.Contains(text, StringComparison.Ordinal));
 		}
 		
@@ -147,33 +147,7 @@ public class AgentServiceTest : TestSetup
 		
 		props = new () { $"{KnownPropertyNames.AwsInstanceType}=c6.xlarge" };
 		agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, props, new Dictionary<string, int>(), "test");
-		Assert.IsTrue(await AuditLogContains("AWS EC2 instance type changed", 1));
-	}
-
-	private async Task FlushAuditLogsAsync(int waitForNumMessages = -1, int maxWaitMs = 3000)
-	{
-		IAuditLog<AgentId> auditLog = ServiceProvider.GetRequiredService<IAuditLog<AgentId>>();
-		AuditLog<AgentId> log = (AuditLog<AgentId>)auditLog;
-		using CancellationTokenSource cts = new (maxWaitMs);
-		
-		if (waitForNumMessages >= 1)
-		{
-			int numMessagesFlushed = 0;
-			for (;;)
-			{
-				numMessagesFlushed += await log.FlushMessagesInternalAsync();
-				if (numMessagesFlushed >= waitForNumMessages || cts.Token.IsCancellationRequested)
-				{
-					break;
-				}
-				
-				await Task.Delay(100, cts.Token);
-			}
-		}
-		else
-		{
-			await log.FlushMessagesInternalAsync();	
-		}
+		Assert.IsTrue(await AuditLogContains("AWS EC2 instance type changed"));
 	}
 	
 	[TestMethod]

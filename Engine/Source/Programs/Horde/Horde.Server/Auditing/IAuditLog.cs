@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO.Pipelines;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -52,6 +53,12 @@ namespace Horde.Server.Auditing
 		/// <param name="maxTime">Maximum time to remove</param>
 		/// <returns>Async task</returns>
 		Task<long> DeleteAsync(DateTime? minTime = null, DateTime? maxTime = null);
+
+		/// <summary>
+		/// Flush all writes to this log
+		/// </summary>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		Task FlushAsync(CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
