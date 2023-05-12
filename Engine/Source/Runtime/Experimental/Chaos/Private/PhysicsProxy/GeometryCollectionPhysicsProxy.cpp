@@ -2291,6 +2291,10 @@ static void ApplyToChildrenAtPointWithRadiusAndPropagation_Internal(
 			}
 		}
 	}
+	else
+	{
+		Action(&ClusteredHandle, 1.0);
+	}
 }
 
 
