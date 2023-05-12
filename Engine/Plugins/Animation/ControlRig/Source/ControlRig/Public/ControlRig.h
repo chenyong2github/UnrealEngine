@@ -396,7 +396,7 @@ private:
 #endif
 	
 	/** The registry to access data source */
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	TObjectPtr<UAnimationDataSourceRegistry> DataSourceRegistry;
 
 	/** Broadcasts a notification when launching the construction event */

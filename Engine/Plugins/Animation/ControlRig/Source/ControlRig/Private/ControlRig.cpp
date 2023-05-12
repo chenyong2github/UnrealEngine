@@ -1278,16 +1278,23 @@ void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>
 
 UAnimationDataSourceRegistry* UControlRig::GetDataSourceRegistry()
 {
-	if (DataSourceRegistry)
+	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		if (DataSourceRegistry->GetOuter() != this)
+		if (DataSourceRegistry)
 		{
-			DataSourceRegistry = nullptr;
+			if (DataSourceRegistry->GetOuter() != this)
+			{
+				DataSourceRegistry = nullptr;
+			}
+		}
+		if (DataSourceRegistry == nullptr)
+		{
+			DataSourceRegistry = NewObject<UAnimationDataSourceRegistry>(this);
 		}
 	}
-	if (DataSourceRegistry == nullptr)
+	else
 	{
-		DataSourceRegistry = NewObject<UAnimationDataSourceRegistry>(this);
+		DataSourceRegistry = nullptr;
 	}
 	return DataSourceRegistry;
 }
