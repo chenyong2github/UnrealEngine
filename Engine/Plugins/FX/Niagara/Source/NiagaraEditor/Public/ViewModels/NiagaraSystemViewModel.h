@@ -591,6 +591,9 @@ private:
 	/** Utility method to gather all emitter handle viewmodels marked as selected via the system selection viewmodel. */
 	TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> GetSelectedEmitterHandleViewModels();
 
+	/** Indicates whether this instance of the view model should impact whether the System's CompileForEdit flag should be updated by the viewmodel. */
+	bool CanImpactCompileForEdit() const;
+
 private:
 	/** The System being viewed and edited by this view model. */
 	UNiagaraSystem* System;

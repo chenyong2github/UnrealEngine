@@ -108,7 +108,6 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel()
 void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions)
 {
 	System = &InSystem;
-	System->bCompileForEdit = bSupportCompileForEdit;
 
 	RegisteredHandle = RegisterViewModelWithMap(System, this);
 
@@ -163,6 +162,11 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 
 	SystemGraphSelectionViewModel = MakeShared<FNiagaraSystemGraphSelectionViewModel>();
 	SystemGraphSelectionViewModel->Initialize(this->AsShared());
+
+	if (CanImpactCompileForEdit())
+	{
+		System->bCompileForEdit = true;
+	}
 	
 	if (bIsForDataProcessingOnly == false)
 	{
@@ -255,7 +259,7 @@ void FNiagaraSystemViewModel::Cleanup()
 
 	if (System)
 	{
-		if ( System->bCompileForEdit )
+		if (CanImpactCompileForEdit())
 		{
 			System->bCompileForEdit = false;
 			System->InvalidateActiveCompiles();
@@ -1042,7 +1046,7 @@ void FNiagaraSystemViewModel::NotifyPreSave()
 	}
 
 	// we want to save without compile for edit turned on for best results, but make sure to turn in back on again after save is done
-	if (bSupportCompileForEdit)
+	if (CanImpactCompileForEdit())
 	{
 		check(System->bCompileForEdit);
 		System->bCompileForEdit = false;
@@ -1054,7 +1058,7 @@ void FNiagaraSystemViewModel::NotifyPreSave()
 void FNiagaraSystemViewModel::NotifyPostSave()
 {
 	// we compile for edit again after having it turned off for PreSave. This should fetch DDC data and must not update the ChangeID
-	if (bSupportCompileForEdit)
+	if (CanImpactCompileForEdit())
 	{
 		check(!System->bCompileForEdit);
 		System->bCompileForEdit = true;
@@ -3126,6 +3130,11 @@ void FNiagaraSystemViewModel::RefreshAssetMessages()
 TSharedPtr<FNiagaraOverviewGraphViewModel> FNiagaraSystemViewModel::GetOverviewGraphViewModel() const
 {
 	return OverviewGraphViewModel;
+}
+
+bool FNiagaraSystemViewModel::CanImpactCompileForEdit() const
+{
+	return bSupportCompileForEdit && !bIsForDataProcessingOnly && EditMode == ENiagaraSystemViewModelEditMode::SystemAsset;
 }
 
 #undef LOCTEXT_NAMESPACE // NiagaraSystemViewModel
