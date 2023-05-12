@@ -169,8 +169,14 @@ protected:
 	// Returns the class to use when spawning a new actor
 	virtual UClass* GetActorClassToSpawn(const FActorInstanceHandle& Handle) const;
 
+	// Called after actor construction but before other systems see this actor spawn
+	virtual void PreSpawnInitalization(const FActorInstanceHandle& Handle, AActor* SpawnedActor);
+
 	// Called after spawning a new actor from a light weight instance
 	virtual void PostActorSpawn(const FActorInstanceHandle& Handle);
+
+	// Called after a spawned actor is destroyed
+	virtual void OnSpawnedActorDestroyed(AActor* DestroyedActor, const int32 DestroyedActorInstanceIndex);
 
 	// Create an object that implements interfaces for the light weight instance specified by Handle
 	UObject* CreateInterfaceObject(const FActorInstanceHandle& Handle)

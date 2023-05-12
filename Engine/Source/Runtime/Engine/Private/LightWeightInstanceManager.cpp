@@ -122,8 +122,7 @@ AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstance
 		SetSpawnParameters(SpawnParams);
 		SpawnParams.CustomPreSpawnInitalization = [this, &Handle](AActor* SpawnedActor)
 		{
-			Handle.Actor = SpawnedActor;
-			Actors.Add(Handle.GetInstanceIndex(), SpawnedActor);
+			PreSpawnInitalization(Handle, SpawnedActor);
 		};
 
 		NewActor = GetLevel()->GetWorld()->SpawnActor<AActor>(GetActorClassToSpawn(Handle), GetTransform(Handle), SpawnParams);
@@ -143,9 +142,12 @@ AActor* ALightWeightInstanceManager::ConvertInstanceToActor(const FActorInstance
 
 void ALightWeightInstanceManager::OnSpawnedActorDestroyed(AActor* DestroyedActor)
 {
-	check(DestroyedActor);
-	const int32 DestroyedActorInstanceIndex = FindIndexForActor(DestroyedActor);
+	OnSpawnedActorDestroyed(DestroyedActor, FindIndexForActor(DestroyedActor));
+}
 
+void ALightWeightInstanceManager::OnSpawnedActorDestroyed(AActor* DestroyedActor, const int32 DestroyedActorInstanceIndex)
+{
+	check(DestroyedActor);
 	if (!ensure(DestroyedActorInstanceIndex != INDEX_NONE))
 	{
 		UE_LOG(LogLightWeightInstance, Error,
@@ -296,6 +298,12 @@ void ALightWeightInstanceManager::SetSpawnParameters(FActorSpawnParameters& Spaw
 UClass* ALightWeightInstanceManager::GetActorClassToSpawn(const FActorInstanceHandle& Handle) const
 {
 	return RepresentedClass;
+}
+
+void ALightWeightInstanceManager::PreSpawnInitalization(const FActorInstanceHandle& Handle, AActor* SpawnedActor)
+{
+	Handle.Actor = SpawnedActor;
+	Actors.Add(Handle.GetInstanceIndex(), SpawnedActor);
 }
 
 void ALightWeightInstanceManager::PostActorSpawn(const FActorInstanceHandle& Handle)
