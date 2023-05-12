@@ -13,7 +13,6 @@ public class MergeActors : ModuleRules
                 "Documentation",
                 "MeshUtilities",
                 "PropertyEditor",
-                "RawMesh",
                 "WorkspaceMenuStructure",
                 "MeshReductionInterface",
                 "MeshMergeUtilities",

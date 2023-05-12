@@ -8,9 +8,6 @@ public class EnvironmentLightingViewer : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"AssetRegistry",
-                "AssetTools",
-				"EditorWidgets",
 				"WorkspaceMenuStructure"
 			}
 		);

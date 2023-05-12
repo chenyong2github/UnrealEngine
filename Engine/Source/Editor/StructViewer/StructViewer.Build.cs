@@ -9,7 +9,6 @@ public class StructViewer : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry",
-                "AssetTools",
 				"EditorWidgets",
 				"WorkspaceMenuStructure",
 			}

@@ -27,7 +27,6 @@ public class DeviceProfileServices : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"TargetDeviceServices",
 			});
 	}
 }

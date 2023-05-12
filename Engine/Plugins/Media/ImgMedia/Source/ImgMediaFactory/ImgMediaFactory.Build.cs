@@ -19,7 +19,7 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Media",
-					"ImgMedia",
+					"ImgMedia"
 				});
 
 			PublicDependencyModuleNames.AddRange(

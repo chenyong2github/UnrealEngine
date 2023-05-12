@@ -11,8 +11,6 @@ public class RenderResourceViewer : ModuleRules
 			{
 				"WorkspaceMenuStructure",
 				"ContentBrowser",
-				"UnrealEd",
-				"AssetDefinition"
 			}
 		);
 

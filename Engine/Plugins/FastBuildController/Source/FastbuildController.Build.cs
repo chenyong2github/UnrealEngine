@@ -16,7 +16,7 @@ public class FastBuildController : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"DistributedBuildInterface",
-				"Engine",
+				"TargetPlatform"
 			}
 		);
 	}

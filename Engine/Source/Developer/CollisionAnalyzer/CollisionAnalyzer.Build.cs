@@ -9,7 +9,6 @@ public class CollisionAnalyzer : ModuleRules
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
 				"DesktopPlatform",
-				"MainFrame",
 			}
         );
 

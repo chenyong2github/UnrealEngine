@@ -24,7 +24,6 @@ namespace UnrealBuildTool.Rules
                 new string[] {
                     "Messaging",
                     "MessagingCommon",
-                    "PortalServices",
                 }
             );
 		}

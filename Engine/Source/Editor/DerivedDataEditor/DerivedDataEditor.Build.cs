@@ -35,7 +35,6 @@ public class DerivedDataEditor : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"MainFrame",
 			});
 		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 	}

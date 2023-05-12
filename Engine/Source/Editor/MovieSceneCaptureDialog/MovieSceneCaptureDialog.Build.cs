@@ -28,7 +28,6 @@ public class MovieSceneCaptureDialog : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"LevelEditor"
 			}
 		);
 	}

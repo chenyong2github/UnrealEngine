@@ -68,7 +68,6 @@ public class NiagaraEditor : ModuleRules
 			new string[] {
 				"MessageLog",
 				"Messaging",
-                "DerivedDataCache",
                 "LevelEditor",
 				"WorkspaceMenuStructure"
 			}

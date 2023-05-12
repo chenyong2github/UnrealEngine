@@ -10,9 +10,7 @@ public class ContentBrowser : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"GameProjectGeneration",
                 "MainFrame",
-				"PackagesDialog",
 			}
 		);
 

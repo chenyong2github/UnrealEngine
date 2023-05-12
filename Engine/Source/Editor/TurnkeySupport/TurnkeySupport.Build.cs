@@ -49,13 +49,10 @@ public class TurnkeySupport : ModuleRules
 			);
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
-					"AssetTools",
 					"GameProjectGeneration",
 					"ProjectTargetPlatformEditor",
 					"LevelEditor",
 					"Settings",
-					"SourceCodeAccess",
-					"LocalizationDashboard",
 	 				"MainFrame",
 				}
 			);

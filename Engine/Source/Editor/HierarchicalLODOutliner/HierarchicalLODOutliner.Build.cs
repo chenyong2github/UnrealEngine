@@ -24,7 +24,6 @@ public class HierarchicalLODOutliner : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"LevelEditor"
 				}
 		);
 

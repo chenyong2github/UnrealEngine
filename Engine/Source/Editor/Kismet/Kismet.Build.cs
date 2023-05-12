@@ -13,7 +13,6 @@ public class Kismet : ModuleRules
                 "BlueprintRuntime",
                 "ClassViewer",
 				"Analytics",
-                "DerivedDataCache",
                 "LevelEditor",
 				"GameProjectGeneration",
 				"SourceCodeAccess",

@@ -29,7 +29,6 @@ public class WindowsPlatformEditor : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"GameProjectGeneration",
 				"Settings",
 			}
 		);

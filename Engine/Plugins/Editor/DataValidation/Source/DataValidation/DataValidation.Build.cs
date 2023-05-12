@@ -8,7 +8,6 @@ public class DataValidation : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"MessageLog",
 			}
 		);
 

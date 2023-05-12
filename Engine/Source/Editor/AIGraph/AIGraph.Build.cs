@@ -17,8 +17,6 @@ public class AIGraph : ModuleRules
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
 				"AssetRegistry",
-				"AssetTools",
-				"ContentBrowser"
 			}
         );
 

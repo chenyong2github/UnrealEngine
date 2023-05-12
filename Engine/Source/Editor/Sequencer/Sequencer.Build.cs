@@ -63,9 +63,7 @@ public class Sequencer : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"Kismet",
 				"LevelEditor",
-				"MainFrame",
 				"DesktopPlatform",
 				}
 			);

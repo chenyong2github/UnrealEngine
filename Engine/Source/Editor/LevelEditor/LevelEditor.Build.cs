@@ -20,7 +20,6 @@ public class LevelEditor : ModuleRules
                 "PlacementMode",
 				"SlateReflector",
                 "PortalServices",
-                "Persona",
 				"MergeActors",
 				"Layers",
 				"WorldBrowser",

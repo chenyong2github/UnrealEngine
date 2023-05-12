@@ -14,9 +14,6 @@ public class CSVtoSVG : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"AssetRegistry",
-                "AssetTools",
-				"EditorWidgets",
 				"WorkspaceMenuStructure",
 			}
 		);

@@ -10,8 +10,6 @@ public class LogVisualizer : ModuleRules
         PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"DesktopPlatform",
-				"MainFrame",
-				"LevelEditor"
 			}
 		);
 

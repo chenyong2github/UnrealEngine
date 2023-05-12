@@ -19,9 +19,7 @@ public class EnvironmentQueryEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 		   new string[] {
 				"AssetRegistry",
-				"AssetTools",
 				"DesktopPlatform",
-				"LevelEditor",
 		   });
 
 		PrivateDependencyModuleNames.AddRange(

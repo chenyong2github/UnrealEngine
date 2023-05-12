@@ -9,9 +9,8 @@ public class TextureFormatASTC : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(new string[]
 		{
 			"DerivedDataCache",
-			"Engine",
-			"TargetPlatform",
 			"TextureCompressor",
+			"TextureFormat",
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new string[]

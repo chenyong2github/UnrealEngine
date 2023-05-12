@@ -18,7 +18,9 @@ public class AssetTools : ModuleRules
 
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
+				"AssetDefinition",
 				"Merge",
+				"UnrealEd",
 			}
 		);
 
@@ -54,28 +56,14 @@ public class AssetTools : ModuleRules
 				"Analytics",
 				"ContentBrowser",
 				"CollectionManager",
-                "CurveAssetEditor",
 				"DesktopPlatform",
 				"EditorWidgets",
-				"GameProjectGeneration",
-                "ActorPickerMode",
 				"MainFrame",
 				"MessageLog",
 				"PackagesDialog",
 				"Persona",
-				"FontEditor",
-                "AudioEditor",
-                "SkeletonEditor",
-                "SkeletalMeshEditor",
                 "AnimationEditor",
-                "AnimationBlueprintEditor",
-                "AnimationModifiers",
-			    "TextureEditor",
-				"DataTableEditor",
 				"Cascade",
-				"PhysicsAssetEditor",
-				"CurveTableEditor",
-				"StaticMeshEditor",
 				"VirtualTexturingEditor"
 			}
 		);

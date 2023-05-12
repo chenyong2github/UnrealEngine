@@ -10,7 +10,6 @@ public class WorldBrowser : ModuleRules
             new string[] {
                 "AssetRegistry",
 				"AssetTools",
-                "ContentBrowser",
                 "MeshUtilities",
                 "MeshMergeUtilities",
             }

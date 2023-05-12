@@ -15,14 +15,8 @@ public class CustomizableObjectPopulationEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry",
-				"EditorWidgets",
-				"MeshUtilities",
-				"SkeletonEditor",
-				"Persona",
 				"WorkspaceMenuStructure",
 
-				"MessageLog",
-				"KismetWidgets",
 			}
 		);
 

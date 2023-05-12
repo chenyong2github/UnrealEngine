@@ -8,7 +8,6 @@ public class PluginWarden : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"LauncherServices",
 			}
 		);
 

@@ -40,7 +40,6 @@ public class LandscapeEditor : ModuleRules
 			new string[] {
 				"MainFrame",
 				"DesktopPlatform",
-				"ContentBrowser",
                 "AssetTools",
 				"LevelEditor"
 			}

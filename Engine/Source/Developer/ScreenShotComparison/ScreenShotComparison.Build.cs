@@ -35,7 +35,6 @@ public class ScreenShotComparison : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"SessionServices",
 			}
 		);
 	}

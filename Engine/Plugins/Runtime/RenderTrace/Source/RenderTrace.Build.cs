@@ -9,7 +9,6 @@ public class RenderTrace : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"TargetPlatform",
 			}
 		);
 

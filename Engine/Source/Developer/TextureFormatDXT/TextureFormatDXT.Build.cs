@@ -10,7 +10,6 @@ public class TextureFormatDXT : ModuleRules
 		{
 			"DerivedDataCache",
 			"Engine",
-			"TargetPlatform",
 			"TextureCompressor",
 		});
 

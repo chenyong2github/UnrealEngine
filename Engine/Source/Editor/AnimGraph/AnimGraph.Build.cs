@@ -49,8 +49,6 @@ public class AnimGraph : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
-	            "SkeletonEditor",
-                "AdvancedPreviewScene",
                 "AnimationBlueprintEditor",
             }
         );

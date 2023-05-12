@@ -8,13 +8,7 @@ public class AnimationBlueprintEditor : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"AssetRegistry", 
-				"MainFrame",
-				"DesktopPlatform",
                 "SkeletonEditor",
-                "ContentBrowser",
-                "AssetTools",
-                "AnimationEditor",
 				"MessageLog"
 			}
 		);

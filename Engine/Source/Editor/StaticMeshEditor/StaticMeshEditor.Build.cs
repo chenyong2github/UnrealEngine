@@ -16,8 +16,6 @@ public class StaticMeshEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetRegistry",
-				"Kismet",
-				"EditorWidgets",
                 "MeshReductionInterface",
             }
 		);

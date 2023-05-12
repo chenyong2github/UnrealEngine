@@ -37,8 +37,6 @@ public class LoginFlow : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"Analytics",
-				"AnalyticsET",
 			}
 		);
 	}

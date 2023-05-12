@@ -35,7 +35,6 @@ public class ProjectLauncher : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"SessionServices",
 				"TargetDeviceServices",
 			}
 		);

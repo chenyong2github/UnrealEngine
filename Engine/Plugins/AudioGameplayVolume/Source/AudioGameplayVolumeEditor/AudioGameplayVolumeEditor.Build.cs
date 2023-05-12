@@ -31,7 +31,6 @@ public class AudioGameplayVolumeEditor : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[]
 			{
-				"AssetTools",
 			}
 			);
 	}

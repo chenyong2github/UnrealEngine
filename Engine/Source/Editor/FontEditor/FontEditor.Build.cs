@@ -27,7 +27,6 @@ public class FontEditor : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"MainFrame",
 				"EditorFramework",
 			}
 		);
