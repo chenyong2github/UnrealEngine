@@ -163,6 +163,10 @@ void FWaveformEditorSequenceDataProvider::GenerateSequenceDataInternal()
 
 		if (!bChainChangesFileLength)
 		{
+			if (TransformedPCMData.Num() != TransformationsBuffer.Num())
+			{
+				TransformedPCMData.SetNumUninitialized(TransformationsBuffer.Num());
+			}
 			FMemory::Memcpy(TransformedPCMData.GetData(), TransformationsBuffer.GetData(), TransformationsBuffer.GetAllocatedSize());
 		}
 		else
