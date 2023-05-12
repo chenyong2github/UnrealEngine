@@ -11,8 +11,8 @@ namespace UnrealBuildTool.Rules
 		{
 			CppStandard = CppStandardVersion.Cpp17;
 
-			PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-			//OptimizeCode = CodeOptimization.Never;
+			// Remove when this plugin can compile with cpp20
+			PCHUsage = PCHUsageMode.NoPCHs;
 
 			PublicDependencyModuleNames.Add("ACLPlugin");
 			PublicDependencyModuleNames.Add("Core");
