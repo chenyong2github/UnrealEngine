@@ -63,6 +63,7 @@ private:
 		FString GetCategoryName() { return CategoryPath.Num() > 0 ? CategoryPath.Last() : FString(); }
 
 		TArray<FString> CategoryPath;
+		TArray<FString> SearchKeywords;
 		const UFunction* Function = nullptr;
 		TArray<TSharedPtr<FConversionFunctionItem>> Children;
 		int32 NumFunctions = 0;
