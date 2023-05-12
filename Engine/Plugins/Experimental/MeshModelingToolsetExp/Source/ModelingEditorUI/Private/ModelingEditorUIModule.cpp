@@ -10,17 +10,33 @@
 
 void FModelingEditorUIModule::StartupModule()
 {
-	// register detail customizations
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyEditorModule.RegisterCustomClassLayout(USkinWeightsPaintToolProperties::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FSkinWeightDetailCustomization::MakeInstance));
 	
+	auto RegisterDetailCustomization = [&](FName InStructName, auto InCustomizationFactory)
+    {
+    	PropertyEditorModule.RegisterCustomClassLayout(
+    		InStructName,
+    		FOnGetDetailCustomizationInstance::CreateStatic(InCustomizationFactory)
+    	);
+    	CustomizedClasses.Add(InStructName);
+    };
+
+	// register detail customizations
+	RegisterDetailCustomization(USkinWeightsPaintToolProperties::StaticClass()->GetFName(), &FSkinWeightDetailCustomization::MakeInstance);
+	
+	PropertyEditorModule.NotifyCustomizationModuleChanged();
 }
 
 void FModelingEditorUIModule::ShutdownModule()
 {
-	// unregister detail customizations
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyEditorModule.UnregisterCustomClassLayout(USkinWeightsPaintToolProperties::StaticClass()->GetFName());
+	if (FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor"))
+	{
+		for (const FName& ClassName : CustomizedClasses)
+		{
+			PropertyModule->UnregisterCustomClassLayout(ClassName);
+		}
+		PropertyModule->NotifyCustomizationModuleChanged();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
