@@ -1304,61 +1304,6 @@ bool UsdToUnreal::ConvertGeomMesh(
 	return true;
 }
 
-// Deprecated
-bool UsdToUnreal::ConvertGeomMesh(
-	const pxr::UsdTyped& UsdSchema,
-	FMeshDescription& MeshDescription,
-	UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
-	const pxr::UsdTimeCode TimeCode,
-	const pxr::TfToken& RenderContext
-)
-{
-	FUsdMeshConversionOptions Options;
-	Options.TimeCode = TimeCode;
-	Options.RenderContext = RenderContext;
-
-	return ConvertGeomMesh( pxr::UsdGeomMesh{ UsdSchema }, MeshDescription, MaterialAssignments, Options );
-}
-
-// Deprecated
-bool UsdToUnreal::ConvertGeomMesh(
-	const pxr::UsdTyped& UsdSchema,
-	FMeshDescription& MeshDescription,
-	UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
-	const FTransform& AdditionalTransform,
-	const pxr::UsdTimeCode TimeCode,
-	const pxr::TfToken& RenderContext
-)
-{
-	FUsdMeshConversionOptions Options;
-	Options.AdditionalTransform = AdditionalTransform;
-	Options.TimeCode = TimeCode;
-	Options.RenderContext = RenderContext;
-
-	return ConvertGeomMesh( pxr::UsdGeomMesh{ UsdSchema }, MeshDescription, MaterialAssignments, Options );
-}
-
-// Deprecated
-bool UsdToUnreal::ConvertGeomMesh(
-	const pxr::UsdTyped& UsdSchema,
-	FMeshDescription& MeshDescription,
-	UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
-	const FTransform& AdditionalTransform,
-	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
-	const pxr::UsdTimeCode TimeCode,
-	const pxr::TfToken& RenderContext,
-	bool bMergeIdenticalMaterialSlots
-)
-{
-	FUsdMeshConversionOptions Options;
-	Options.AdditionalTransform = AdditionalTransform;
-	Options.TimeCode = TimeCode;
-	Options.RenderContext = RenderContext;
-	Options.bMergeIdenticalMaterialSlots = bMergeIdenticalMaterialSlots;
-
-	return ConvertGeomMesh( pxr::UsdGeomMesh{ UsdSchema }, MeshDescription, MaterialAssignments, Options );
-}
-
 bool UsdToUnreal::ConvertPointInstancerToMesh(
 	const pxr::UsdGeomPointInstancer& PointInstancer,
 	FMeshDescription& OutMeshDescription,
@@ -1581,34 +1526,6 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 		OutMeshDescription,
 		OutMaterialAssignments,
 		OptionsCopy,
-		bSkipRootPrimTransformAndVisibility
-	);
-}
-
-// Deprecated
-bool UsdToUnreal::ConvertGeomMeshHierarchy(
-	const pxr::UsdPrim& Prim,
-	const pxr::UsdTimeCode& TimeCode,
-	const EUsdPurpose PurposesToLoad,
-	const pxr::TfToken& RenderContext,
-	const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex,
-	FMeshDescription& OutMeshDescription,
-	UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
-	bool bSkipRootPrimTransformAndVisibility,
-	bool bMergeIdenticalMaterialSlots
-)
-{
-	FUsdMeshConversionOptions Options;
-	Options.TimeCode = TimeCode;
-	Options.PurposesToLoad = PurposesToLoad;
-	Options.RenderContext = RenderContext;
-	Options.bMergeIdenticalMaterialSlots = bMergeIdenticalMaterialSlots;
-
-	return ConvertGeomMeshHierarchy(
-		Prim,
-		OutMeshDescription,
-		OutMaterialAssignments,
-		Options,
 		bSkipRootPrimTransformAndVisibility
 	);
 }

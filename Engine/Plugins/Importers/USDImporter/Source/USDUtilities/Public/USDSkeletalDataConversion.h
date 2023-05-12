@@ -116,10 +116,6 @@ namespace UsdUtils
 	 */
 	USDUTILITIES_API void BindAnimationSource( pxr::UsdPrim& Prim, const pxr::UsdPrim& AnimationSource );
 
-	// Finds the SkelAnimation prim that is bound to Prim as its animationSource, if Prim has the UsdSkelBindingAPI. Returns an invalid prim otherwise.
-	UE_DEPRECATED( 5.1, "Prefer UsdUtils::FindFirstAnimationSource instead" )
-	USDUTILITIES_API UE::FUsdPrim FindAnimationSource( const UE::FUsdPrim& Prim );
-
 	/**
 	 * Returns the SkelAnimation prim that is resolved for the first skeletal binding of SkelRootPrim, if it is a SkelRoot.
 	 * We use this as we currently only parse a single Skeleton per SkelRoot (and so a single SkelAnimation), but in the future we may
@@ -153,10 +149,6 @@ namespace UsdToUnreal
 	 */
 	USDUTILITIES_API bool ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape, const FUsdStageInfo& StageInfo, uint32 PointIndexOffset, TSet<FString>& UsedMorphTargetNames, UsdUtils::FBlendShapeMap& OutBlendShapes );
 	USDUTILITIES_API bool ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape, const FUsdStageInfo& StageInfo, int32 LODIndex, uint32 PointIndexOffset, TSet<FString>& UsedMorphTargetNames, UsdUtils::FBlendShapeMap& OutBlendShapes );
-	UE_DEPRECATED( 5.1, "AdditionalTransform is no longer used, please use the other overloads that don't receive it as a parameter." )
-	USDUTILITIES_API bool ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape, const FUsdStageInfo& StageInfo, const FTransform& AdditionalTransform, uint32 PointIndexOffset, TSet<FString>& UsedMorphTargetNames, UsdUtils::FBlendShapeMap& OutBlendShapes );
-	UE_DEPRECATED( 5.1, "AdditionalTransform is no longer used, please use the other overloads that don't receive it as a parameter." )
-	USDUTILITIES_API bool ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape, const FUsdStageInfo& StageInfo, int32 LODIndex, const FTransform& AdditionalTransform, uint32 PointIndexOffset, TSet<FString>& UsedMorphTargetNames, UsdUtils::FBlendShapeMap& OutBlendShapes );
 
 	/**
 	 * Extracts skeletal mesh data fro UsdSkinningQuery, and places the results in SkelMeshImportData.
@@ -186,16 +178,6 @@ namespace UsdToUnreal
 	USDUTILITIES_API bool ConvertSkinnedMesh(
 		const pxr::UsdSkelSkinningQuery& UsdSkinningQuery,
 		const pxr::UsdSkelSkeletonQuery& SkeletonQuery,
-		FSkeletalMeshImportData& SkelMeshImportData,
-		TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments,
-		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
-		const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext,
-		const pxr::TfToken& MaterialPurpose = pxr::UsdShadeTokens->allPurpose
-	);
-	UE_DEPRECATED( 5.1, "Please use the other overload that also receives the relevant UsdSkelSkeletonQuery object." )
-	USDUTILITIES_API bool ConvertSkinnedMesh(
-		const pxr::UsdSkelSkinningQuery& UsdSkinningQuery,
-		const FTransform& AdditionalTransform,
 		FSkeletalMeshImportData& SkelMeshImportData,
 		TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments,
 		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,

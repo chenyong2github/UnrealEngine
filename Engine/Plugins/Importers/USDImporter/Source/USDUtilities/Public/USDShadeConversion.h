@@ -153,13 +153,6 @@ namespace UsdUtils
 	 */
 	USDUTILITIES_API bool IsMaterialTranslucent( const pxr::UsdShadeMaterial& UsdShadeMaterial );
 
-	/**
-	* Returns whether the material uses UDIMs textures.
-	* This function exists because we need this information *before* we pick the right parent for a material instance and properly convert it.
-	*/
-	UE_DEPRECATED( 5.1, "No longer used: Textures and materials will be upgraded to VT-based on-demand" )
-	USDUTILITIES_API bool IsMaterialUsingUDIMs( const pxr::UsdShadeMaterial& UsdShadeMaterial );
-
 	USDUTILITIES_API FSHAHash HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext );
 
 	/** Returns the resolved path from a pxr::SdfAssetPath attribute. For UDIMs path, returns the path to the 1001 tile. */

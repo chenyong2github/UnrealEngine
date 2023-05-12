@@ -3103,55 +3103,6 @@ bool UsdUtils::IsMaterialTranslucent( const pxr::UsdShadeMaterial& UsdShadeMater
 	return bHasOpacityConnection && ( bIsTranslucentFloat || bHasBoundTexture );
 }
 
-bool UsdUtils::IsMaterialUsingUDIMs( const pxr::UsdShadeMaterial& UsdShadeMaterial )
-{
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
-	if ( !SurfaceShader )
-	{
-		return false;
-	}
-
-	for ( const pxr::UsdShadeInput& ShadeInput : SurfaceShader.GetInputs() )
-	{
-		pxr::UsdShadeConnectableAPI Source;
-		pxr::TfToken SourceName;
-		pxr::UsdShadeAttributeType AttributeType;
-
-		if ( pxr::UsdShadeConnectableAPI::GetConnectedSource( ShadeInput.GetAttr(), &Source, &SourceName, &AttributeType ) )
-		{
-			pxr::UsdShadeInput FileInput;
-
-			// UsdUVTexture: Get its file input
-			if ( AttributeType == pxr::UsdShadeAttributeType::Output )
-			{
-				FileInput = Source.GetInput( UnrealIdentifiers::File );
-			}
-			// Check if we are being directly passed an asset
-			else
-			{
-				FileInput = Source.GetInput( SourceName );
-			}
-
-			if ( FileInput && FileInput.GetTypeName() == pxr::SdfValueTypeNames->Asset ) // Check that FileInput is of type Asset
-			{
-				pxr::SdfAssetPath TextureAssetPath;
-				FileInput.GetAttr().Get< pxr::SdfAssetPath >( &TextureAssetPath );
-
-				FString TexturePath = UsdToUnreal::ConvertString( TextureAssetPath.GetAssetPath() );
-
-				if ( TexturePath.Contains( TEXT("<UDIM>") ) )
-				{
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;
-}
-
 FSHAHash UsdUtils::HashShadeMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, const pxr::TfToken& RenderContext )
 {
 	FScopedUsdAllocs UsdAllocs;

@@ -1920,101 +1920,6 @@ bool UsdToUnreal::ConvertSkinnedMesh(
 	return bResult;
 }
 
-bool UsdToUnreal::ConvertSkinnedMesh(
-	const pxr::UsdSkelSkinningQuery& UsdSkinningQuery,
-	const FTransform& AdditionalTransform,
-	FSkeletalMeshImportData& SkelMeshImportData,
-	TArray< UsdUtils::FUsdPrimMaterialSlot >& MaterialAssignments,
-	const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
-	const pxr::TfToken& RenderContext,
-	const pxr::TfToken& MaterialPurpose
-)
-{
-	FScopedUsdAllocs UEAllocs;
-
-	// We must use a SkeletonQuery to properly convert the skinned mesh to the target pose. If we weren't provided one,
-	// we must fetch it manually
-
-	pxr::UsdPrim SkinnedPrim = UsdSkinningQuery.GetPrim();
-	if ( !SkinnedPrim )
-	{
-		return false;
-	}
-
-	bool bFoundSkelRoot = false;
-	pxr::UsdPrim ParentPrim = SkinnedPrim.GetParent();
-	while ( ParentPrim && !ParentPrim.IsPseudoRoot() )
-	{
-		if ( ParentPrim.IsA<pxr::UsdSkelRoot>() )
-		{
-			bFoundSkelRoot = true;
-			break;
-		}
-
-		ParentPrim = ParentPrim.GetParent();
-	}
-	if ( !bFoundSkelRoot )
-	{
-		return false;
-	}
-
-	pxr::UsdSkelRoot SkelRoot{ ParentPrim };
-
-	pxr::UsdSkelCache SkelCache;
-	if ( !SkelCache.Populate( SkelRoot, pxr::UsdTraverseInstanceProxies() ) )
-	{
-		return false;
-	}
-
-	std::vector< pxr::UsdSkelBinding > SkeletonBindings;
-	if ( !SkelCache.ComputeSkelBindings( SkelRoot, &SkeletonBindings, pxr::UsdTraverseInstanceProxies() ) )
-	{
-		return false;
-	}
-
-	for ( const pxr::UsdSkelBinding& Binding : SkeletonBindings )
-	{
-		const pxr::UsdSkelSkeleton& Skeleton = Binding.GetSkeleton();
-		pxr::UsdSkelSkeletonQuery SkelQuery = SkelCache.GetSkelQuery( Skeleton );
-
-		// Double-check that we're talking about the same mesh, at least. Each mesh can only be bound to one
-		// skeleton so this is probably guaranteed to be the same SkelBinding
-		bool bFoundSkinningQuery = false;
-		for ( const pxr::UsdSkelSkinningQuery& SomeSkinningQuery : Binding.GetSkinningTargets() )
-		{
-			if ( SomeSkinningQuery.GetPrim() == SkinnedPrim )
-			{
-				bFoundSkinningQuery = true;
-				break;
-			}
-		}
-		if ( !bFoundSkinningQuery )
-		{
-			break;
-		}
-
-		UsdToUnreal::FUsdMeshConversionOptions Options;
-		Options.RenderContext = RenderContext;
-		Options.MaterialPurpose = MaterialPurpose;
-
-		UsdUtils::FUsdPrimMaterialAssignmentInfo Info;
-		Swap(Info.Slots, MaterialAssignments);
-		const bool bSuccess = ConvertSkinnedMesh(
-			UsdSkinningQuery,
-			SkelQuery,
-			SkelMeshImportData,
-			Info,
-			Options
-		);
-		Swap(Info.Slots, MaterialAssignments);
-
-		// We really only ever deal with the first binding, so we can return here
-		return bSuccess;
-	}
-
-	return false;
-}
-
 // Using UsdSkelSkeletonQuery instead of UsdSkelAnimQuery as it automatically does the joint remapping when we ask it to compute joint transforms.
 // It also initializes the joint transforms with the rest pose, if available, in case the animation doesn't provide data for all joints.
 bool UsdToUnreal::ConvertSkelAnim(
@@ -2551,16 +2456,6 @@ bool UsdToUnreal::ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape
 	return true;
 }
 
-bool UsdToUnreal::ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape, const FUsdStageInfo& StageInfo, const FTransform& AdditionalTransform, uint32 PointIndexOffset, TSet<FString>& UsedMorphTargetNames, UsdUtils::FBlendShapeMap& OutBlendShapes )
-{
-	return UsdToUnreal::ConvertBlendShape( UsdBlendShape, StageInfo, 0, PointIndexOffset, UsedMorphTargetNames, OutBlendShapes );
-}
-
-bool UsdToUnreal::ConvertBlendShape( const pxr::UsdSkelBlendShape& UsdBlendShape, const FUsdStageInfo& StageInfo, int32 LODIndex, const FTransform& AdditionalTransform, uint32 PointIndexOffset, TSet<FString>& UsedMorphTargetNames, UsdUtils::FBlendShapeMap& OutBlendShapes )
-{
-	return UsdToUnreal::ConvertBlendShape( UsdBlendShape, StageInfo, LODIndex, PointIndexOffset, UsedMorphTargetNames, OutBlendShapes );
-}
-
 USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 	TArray<FSkeletalMeshImportData>& LODIndexToSkeletalMeshImportData,
 	const TArray<SkeletalMeshImportData::FBone>& InSkeletonBones,
@@ -2830,58 +2725,6 @@ void UsdUtils::BindAnimationSource( pxr::UsdPrim& Prim, const pxr::UsdPrim& Anim
 
 	pxr::UsdSkelBindingAPI SkelBindingAPI = pxr::UsdSkelBindingAPI::Apply( Prim );
 	SkelBindingAPI.CreateAnimationSourceRel().SetTargets( pxr::SdfPathVector( { AnimationSource.GetPath() } ) );
-}
-
-UE::FUsdPrim UsdUtils::FindAnimationSource( const UE::FUsdPrim& Prim )
-{
-	if ( !Prim )
-	{
-		return {};
-	}
-
-	FScopedUsdAllocs UsdAllocs;
-
-	pxr::UsdPrim UsdPrim{ Prim };
-	if ( !UsdPrim.HasAPI<pxr::UsdSkelBindingAPI>() )
-	{
-		UE_LOG( LogUsd, Warning, TEXT( "Failed to find animation source for prim '%s' because it doesn't have a UsdSkelBindingAPI!" ), *Prim.GetPrimPath().GetString() );
-		return {};
-	}
-
-	// According to https://graphics.pixar.com/usd/release/api/_usd_skel__schemas.html#UsdSkel_BindingAPI_Skeletons,
-	// "Since a UsdSkelRoot primitive provides encapsulation of skeletal data, bindings defined on any primitives
-	// that do not have a UsdSkelRoot primitive as one of their ancestors have no meaning, and should be ignored."
-	// So here we make sure that Prim has at least one SkelRoot ancestor
-	bool bFoundSkelRoot = false;
-	pxr::UsdPrim Parent = UsdPrim.GetParent();
-	while ( Parent && !Parent.IsPseudoRoot() )
-	{
-		if ( Parent.IsA<pxr::UsdSkelRoot>() )
-		{
-			bFoundSkelRoot = true;
-			break;
-		}
-
-		Parent = Parent.GetParent();
-	}
-	if ( !bFoundSkelRoot )
-	{
-		return {};
-	}
-
-	pxr::UsdSkelBindingAPI SkelBindingAPI{ Prim };
-
-	pxr::SdfPathVector AnimationSources;
-	const bool bSuccess = SkelBindingAPI.GetAnimationSourceRel().GetTargets( &AnimationSources );
-	if ( !bSuccess || AnimationSources.size() < 1 )
-	{
-		return {};
-	}
-
-	const pxr::SdfPath& FirstSource = AnimationSources[ 0 ];
-	pxr::UsdStageRefPtr UsdStage = Prim.GetStage();
-
-	return UE::FUsdPrim{ UsdStage->GetPrimAtPath( FirstSource ) };
 }
 
 UE::FUsdPrim UsdUtils::FindFirstAnimationSource( const UE::FUsdPrim& SkelRootPrim )

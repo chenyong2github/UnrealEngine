@@ -105,34 +105,6 @@ namespace UsdToUnreal
 		UsdUtils::FUsdPrimMaterialAssignmentInfo& InOutMaterialAssignments,
 		const FUsdMeshConversionOptions& CommonOptions = FUsdMeshConversionOptions::DefaultOptions
 	);
-	UE_DEPRECATED( 5.1, "Please use the overload that receives FUsdMeshConversionOptions." )
-	USDUTILITIES_API bool ConvertGeomMesh(
-		const pxr::UsdTyped& UsdSchema,
-		FMeshDescription& MeshDescription,
-		UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
-		const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime(),
-		const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext
-	);
-	UE_DEPRECATED( 5.1, "Please use the overload that receives FUsdMeshConversionOptions." )
-	USDUTILITIES_API bool ConvertGeomMesh(
-		const pxr::UsdTyped& UsdSchema,
-		FMeshDescription& MeshDescription,
-		UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
-		const FTransform& AdditionalTransform,
-		const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime(),
-		const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext
-	);
-	UE_DEPRECATED( 5.1, "Please use the overload that receives FUsdMeshConversionOptions." )
-	USDUTILITIES_API bool ConvertGeomMesh(
-		const pxr::UsdTyped& UsdSchema,
-		FMeshDescription& MeshDescription,
-		UsdUtils::FUsdPrimMaterialAssignmentInfo& MaterialAssignments,
-		const FTransform& AdditionalTransform,
-		const TMap< FString, TMap< FString, int32 > >& MaterialToPrimvarsUVSetNames,
-		const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::EarliestTime(),
-		const pxr::TfToken& RenderContext = pxr::UsdShadeTokens->universalRenderContext,
-		bool bMergeIdenticalMaterialSlots = true
-	);
 
 	/** Bake a point instancer prim into a single FMeshDescription and MaterialAssignments, manually "instancing" all
 	 *  the prototype instances into a single combined mesh.
@@ -173,19 +145,6 @@ namespace UsdToUnreal
 		UsdUtils::FUsdPrimMaterialAssignmentInfo& InOutMaterialAssignments,
 		const FUsdMeshConversionOptions& CommonOptions = FUsdMeshConversionOptions::DefaultOptions,
 		bool bSkipRootPrimTransformAndVisibility = false
-	);
-
-	UE_DEPRECATED( 5.1, "Please use the overload that receives FUsdMeshConversionOptions." )
-	USDUTILITIES_API bool ConvertGeomMeshHierarchy(
-		const pxr::UsdPrim& Prim,
-		const pxr::UsdTimeCode& TimeCode,
-		const EUsdPurpose PurposesToLoad,
-		const pxr::TfToken& RenderContext,
-		const TMap< FString, TMap<FString, int32> >& MaterialToPrimvarToUVIndex,
-		FMeshDescription& OutMeshDescription,
-		UsdUtils::FUsdPrimMaterialAssignmentInfo& OutMaterialAssignments,
-		bool bSkipRootPrimTransformAndVisibility = false,
-		bool bMergeIdenticalMaterialSlots = true
 	);
 }
 
