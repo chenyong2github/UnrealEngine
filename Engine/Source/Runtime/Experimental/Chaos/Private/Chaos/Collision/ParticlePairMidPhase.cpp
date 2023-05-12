@@ -20,12 +20,20 @@ extern bool Chaos_Collision_NarrowPhase_AABBBoundsCheck;
 
 namespace Chaos
 {
+#if CHAOS_DEBUG_DRAW
 	namespace CVars
 	{
 		extern int32 ChaosSolverDrawCCDInteractions;
-#if CHAOS_DEBUG_DRAW
 		extern DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings;
+	}
+	namespace DebugDraw
+	{
+		extern float ChaosDebugDrawCCDDuration;
+	}
 #endif
+
+	namespace CVars
+	{
 
 		bool bChaos_Collision_MidPhase_EnableBoundsChecks = true;
 		FAutoConsoleVariableRef CVarChaos_Collision_EnableBoundsChecks(TEXT("p.Chaos.Collision.EnableBoundsChecks"), bChaos_Collision_MidPhase_EnableBoundsChecks, TEXT(""));
@@ -468,13 +476,13 @@ namespace Chaos
 			{
 				if (FConstGenericParticleHandle(Constraint->GetParticle0())->CCDEnabled())
 				{
-					DebugDraw::DrawShape(CCDShapeWorldTransform0, Constraint->GetImplicit0(), Shape0, FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
-					DebugDraw::DrawShape(ShapeWorldTransform0, Constraint->GetImplicit0(), Shape0, FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
+					DebugDraw::DrawShape(CCDShapeWorldTransform0, Constraint->GetImplicit0(), Shape0, FColor::Black, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
+					DebugDraw::DrawShape(ShapeWorldTransform0, Constraint->GetImplicit0(), Shape0, FColor::White, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
 				}
 				if (FConstGenericParticleHandle(Constraint->GetParticle1())->CCDEnabled())
 				{
-					DebugDraw::DrawShape(CCDShapeWorldTransform1, Constraint->GetImplicit1(), Shape1, FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
-					DebugDraw::DrawShape(ShapeWorldTransform1, Constraint->GetImplicit1(), Shape1, FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
+					DebugDraw::DrawShape(CCDShapeWorldTransform1, Constraint->GetImplicit1(), Shape1, FColor::Black, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
+					DebugDraw::DrawShape(ShapeWorldTransform1, Constraint->GetImplicit1(), Shape1, FColor::White, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
 				}
 			}
 #endif
@@ -917,13 +925,13 @@ namespace Chaos
 		{
 			if (FConstGenericParticleHandle(Constraint->GetParticle0())->CCDEnabled())
 			{
-				DebugDraw::DrawShape(CCDShapeWorldTransform0, Constraint->GetImplicit0(), Constraint->GetShape0(), FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
-				DebugDraw::DrawShape(ShapeWorldTransform0, Constraint->GetImplicit0(), Constraint->GetShape0(), FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
+				DebugDraw::DrawShape(CCDShapeWorldTransform0, Constraint->GetImplicit0(), Constraint->GetShape0(), FColor::Black, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
+				DebugDraw::DrawShape(ShapeWorldTransform0, Constraint->GetImplicit0(), Constraint->GetShape0(), FColor::White, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
 			}
 			if (FConstGenericParticleHandle(Constraint->GetParticle1())->CCDEnabled())
 			{
-				DebugDraw::DrawShape(CCDShapeWorldTransform1, Constraint->GetImplicit1(), Constraint->GetShape1(), FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
-				DebugDraw::DrawShape(ShapeWorldTransform1, Constraint->GetImplicit1(), Constraint->GetShape1(), FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
+				DebugDraw::DrawShape(CCDShapeWorldTransform1, Constraint->GetImplicit1(), Constraint->GetShape1(), FColor::Black, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
+				DebugDraw::DrawShape(ShapeWorldTransform1, Constraint->GetImplicit1(), Constraint->GetShape1(), FColor::White, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
 			}
 		}
 #endif
@@ -1353,13 +1361,13 @@ namespace Chaos
 		{
 			if (FConstGenericParticleHandle(Constraint->GetParticle0())->CCDEnabled())
 			{
-				DebugDraw::DrawShape(CCDShapeWorldTransform0, Constraint->GetImplicit0(), Constraint->GetShape0(), FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
-				DebugDraw::DrawShape(ShapeWorldTransform0, Constraint->GetImplicit0(), Constraint->GetShape0(), FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
+				DebugDraw::DrawShape(CCDShapeWorldTransform0, Constraint->GetImplicit0(), Constraint->GetShape0(), FColor::Black, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
+				DebugDraw::DrawShape(ShapeWorldTransform0, Constraint->GetImplicit0(), Constraint->GetShape0(), FColor::White, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
 			}
 			if (FConstGenericParticleHandle(Constraint->GetParticle1())->CCDEnabled())
 			{
-				DebugDraw::DrawShape(CCDShapeWorldTransform1, Constraint->GetImplicit1(), Constraint->GetShape1(), FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
-				DebugDraw::DrawShape(ShapeWorldTransform1, Constraint->GetImplicit1(), Constraint->GetShape1(), FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
+				DebugDraw::DrawShape(CCDShapeWorldTransform1, Constraint->GetImplicit1(), Constraint->GetShape1(), FColor::Black, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
+				DebugDraw::DrawShape(ShapeWorldTransform1, Constraint->GetImplicit1(), Constraint->GetShape1(), FColor::White, DebugDraw::ChaosDebugDrawCCDDuration, &CVars::ChaosSolverDebugDebugDrawSettings);
 			}
 		}
 #endif

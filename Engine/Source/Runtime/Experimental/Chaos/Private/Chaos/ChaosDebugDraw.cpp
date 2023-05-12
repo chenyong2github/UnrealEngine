@@ -296,8 +296,12 @@ namespace Chaos
 
 		void DrawShape(const FRigidTransform3& ShapeTransform, const FImplicitObject* Implicit, const FShapeOrShapesArray& Shapes, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
-			// Note: At the time of commenting this function does nothing as DrawShapesImpl does not handle null particle.
 			DrawShapesImpl(nullptr, ShapeTransform, Implicit, Shapes, 0.0f, Color, 0.0f, GetChaosDebugDrawSettings(Settings));
+		}
+
+		void DrawShape(const FRigidTransform3& ShapeTransform, const FImplicitObject* Implicit, const FShapeOrShapesArray& Shapes, const FColor& Color, const float Duration, const FChaosDebugDrawSettings* Settings)
+		{
+			DrawShapesImpl(nullptr, ShapeTransform, Implicit, Shapes, 0.0f, Color, Duration, GetChaosDebugDrawSettings(Settings));
 		}
 
 		void DrawShapesConvexImpl(const TGeometryParticleHandle<FReal, 3>* Particle, const FRigidTransform3& ShapeTransform, const FConvex* Shape, const FReal InMargin, const FColor& Color, const FRealSingle Duration, const FChaosDebugDrawSettings& Settings)
