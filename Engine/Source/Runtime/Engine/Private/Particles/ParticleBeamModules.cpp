@@ -702,6 +702,17 @@ const FVertexFactoryType* UParticleModuleTypeDataBeam2::GetVertexFactoryType() c
 	return &FParticleBeamTrailVertexFactory::StaticType;
 }
 
+void UParticleModuleTypeDataBeam2::CollectPSOPrecacheData(const UParticleEmitter* Emitter, FPSOPrecacheParams& OutParams)
+{
+	bool bUsesDynamicParameter = (Emitter->DynamicParameterDataOffset > 0);
+	
+	FPSOPrecacheVertexFactoryData VFData;
+	VFData.VertexFactoryType = &FParticleBeamTrailVertexFactory::StaticType;
+	VFData.CustomDefaultVertexDeclaration = FParticleBeamTrailVertexFactory::GetPSOPrecacheVertexDeclaration(bUsesDynamicParameter);
+	OutParams.VertexFactoryDataList.Add(VFData);
+	OutParams.PrimitiveType = GetPrimitiveType();
+}
+
 void UParticleModuleTypeDataBeam2::CacheModuleInfo(UParticleEmitter* Emitter)
 {
 	int32 LODCount = Emitter->LODLevels.Num();

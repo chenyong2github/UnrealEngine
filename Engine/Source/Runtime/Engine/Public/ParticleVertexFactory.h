@@ -138,6 +138,7 @@ public:
 	 * Get vertex elements used when during PSO precaching materials using this vertex factory type
 	 */
 	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static FRHIVertexDeclaration* GetPSOPrecacheVertexDeclaration(bool bUsesDynamicParameter);
 
 	/**
 	 * Set the source vertex buffer that contains particle instance data.

@@ -125,6 +125,11 @@ void FParticleBeamTrailVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexI
 	GParticleBeamTrailVertexDeclaration.VertexDeclarationRHI->GetInitializer(Elements);
 }
 
+FRHIVertexDeclaration* FParticleBeamTrailVertexFactory::GetPSOPrecacheVertexDeclaration(bool bUsesDynamicParameter)
+{
+	return (bUsesDynamicParameter ? GParticleBeamTrailVertexDeclarationDynamic.VertexDeclarationRHI : GParticleBeamTrailVertexDeclaration.VertexDeclarationRHI);
+}
+
 /**
  *	Initialize the Render Hardware Interface for this vertex factory
  */

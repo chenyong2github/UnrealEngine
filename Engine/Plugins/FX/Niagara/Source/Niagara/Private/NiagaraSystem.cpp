@@ -1067,13 +1067,12 @@ void UNiagaraSystem::PrecachePSOs()
 					}
 					bool bDisableBackfaceCulling = Properties->IsBackfaceCullingDisabled();
 
-					// Don't have an instance yet to retrieve the possible material override data from
-					const FNiagaraEmitterInstance* EmitterInstance = nullptr;
-					TArray<UMaterialInterface*> Mats;
-					Properties->GetUsedMaterials(EmitterInstance, Mats);
+					UNiagaraRendererProperties::FPSOPrecacheParamsList PSOPrecacheParamsList;
+					Properties->CollectPSOPrecacheData(PSOPrecacheParamsList);
 
-					for (UMaterialInterface* MaterialInterface : Mats)
+					for (UNiagaraRendererProperties::FPSOPrecacheParams& PSOPrecacheParams: PSOPrecacheParamsList)
 					{
+						UMaterialInterface* MaterialInterface = PSOPrecacheParams.MaterialInterface;
 						VFsPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([MaterialInterface, bDisableBackfaceCulling](const VFsPerMaterialData& Other) 
 						{ 
 							return (Other.MaterialInterface == MaterialInterface &&
@@ -1085,7 +1084,11 @@ void UNiagaraSystem::PrecachePSOs()
 							VFsPerMaterial->MaterialInterface = MaterialInterface;
 							VFsPerMaterial->bDisableBackfaceCulling = bDisableBackfaceCulling;
 						}
-						VFsPerMaterial->VertexFactoryTypes.AddUnique(VFType);
+
+						for (FPSOPrecacheVertexFactoryData& VFData : PSOPrecacheParams.VertexFactoryDataList)
+						{
+							VFsPerMaterial->VertexFactoryData.AddUnique(VFData);
+						}
 					}
 				}
 			);

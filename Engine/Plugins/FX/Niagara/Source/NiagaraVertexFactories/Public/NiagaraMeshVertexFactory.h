@@ -157,6 +157,7 @@ public:
 	* Get vertex elements used when during PSO precaching materials using this vertex factory type
 	*/
 	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, bool bSupportsManualVertexFetch, FStaticMeshDataType& Data, FVertexDeclarationElementList& Elements);
 
 	/**
 	* An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
@@ -220,6 +221,8 @@ public:
 	{
 		FNiagaraVertexFactoryBase::SetFeatureLevel(InFeatureLevel);
 	}
+protected:
+	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, bool bSupportsManualVertexFetch, FStaticMeshDataType& Data, FVertexDeclarationElementList& Elements, FVertexStreamList& InOutStreams);
 
 protected:
 	FStaticMeshDataType Data;

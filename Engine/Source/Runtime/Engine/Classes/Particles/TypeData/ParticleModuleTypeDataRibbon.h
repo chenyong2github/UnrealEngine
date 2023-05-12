@@ -180,6 +180,7 @@ class UParticleModuleTypeDataRibbon : public UParticleModuleTypeDataBase
 	virtual FParticleEmitterInstance* CreateInstance(UParticleEmitter* InEmitterParent, UParticleSystemComponent* InComponent) override;
 	virtual const FVertexFactoryType* GetVertexFactoryType() const override;
 	virtual EPrimitiveType GetPrimitiveType() const override { return PT_TriangleStrip; }
+	virtual void CollectPSOPrecacheData(const UParticleEmitter* Emitter, FPSOPrecacheParams& OutParams) override;
 	//~ End UParticleModuleTypeDataBase Interface
 };
 
