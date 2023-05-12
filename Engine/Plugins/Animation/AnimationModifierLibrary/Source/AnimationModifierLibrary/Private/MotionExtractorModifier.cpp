@@ -10,6 +10,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MotionExtractorModifier)
 
+#define LOCTEXT_NAMESPACE "UMotionExtractorModifier"
+
 UMotionExtractorModifier::UMotionExtractorModifier()
 	:Super()
 {
@@ -136,11 +138,13 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 	}
 
 	IAnimationDataController& Controller = Animation->GetController();
+	Controller.OpenBracket(LOCTEXT("SetMotionCurveBracket", "Setting Motion Curve"));
 	const FAnimationCurveIdentifier CurveId = UAnimationCurveIdentifierExtensions::GetCurveIdentifier(Animation->GetSkeleton(), GetCurveName(), ERawCurveTrackTypes::RCT_Float);
 	if(CurveKeys.Num() && Controller.AddCurve(CurveId))
 	{
 		Controller.SetCurveKeys(CurveId, CurveKeys);
 	}
+	Controller.CloseBracket();
 }
 
 void UMotionExtractorModifier::OnRevert_Implementation(UAnimSequence* Animation)
@@ -186,3 +190,5 @@ float UMotionExtractorModifier::GetDesiredValue(const FTransform& BoneTransform,
 
 	return Value;
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -360,16 +360,29 @@ public:
 
 	struct ENGINE_API FEvaluationAndModificationLock
 	{
-		FEvaluationAndModificationLock(IAnimationDataModel& InModel) : Model(InModel) { InModel.LockEvaluationAndModification(); }
-		~FEvaluationAndModificationLock()  { Model.UnlockEvaluationAndModification(); }
+		FEvaluationAndModificationLock(IAnimationDataModel& InModel) : Model(InModel) { InModel.LockEvaluationAndModification(); bLocked = true; }
+		FEvaluationAndModificationLock(IAnimationDataModel& InModel, const TFunction<bool()>& SpinFunc) : Model(InModel)
+		{
+			while(SpinFunc())
+			{
+				bLocked = InModel.TryLockEvaluationAndModification();
+				if (bLocked)
+				{
+					break;
+				}
+			}
+		}
+		~FEvaluationAndModificationLock()  { if(bLocked) {Model.UnlockEvaluationAndModification(); } }
 	private:
 		IAnimationDataModel& Model;
+		bool bLocked = false;
 	};
 protected:
 	virtual FAnimDataModelModifiedDynamicEvent& GetModifiedDynamicEvent() = 0;
 	virtual void OnNotify(const EAnimDataModelNotifyType& NotifyType, const FAnimDataModelNotifPayload& Payload) = 0;
 
 	virtual void LockEvaluationAndModification() const = 0;
+	virtual bool TryLockEvaluationAndModification() const = 0;
 	virtual void UnlockEvaluationAndModification() const = 0;	
 	
 	struct FModelNotifier;

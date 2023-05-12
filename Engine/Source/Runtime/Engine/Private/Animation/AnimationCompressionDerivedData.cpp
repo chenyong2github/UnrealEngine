@@ -50,6 +50,7 @@ FAnimationSequenceAsyncCacheTask::~FAnimationSequenceAsyncCacheTask()
 
 void FAnimationSequenceAsyncCacheTask::Cancel()
 {
+	CompressibleAnimPtr->IsCancelledSignal.Cancel();		
 	if (BuildTask)
 	{
 		BuildTask->Cancel();
@@ -227,6 +228,11 @@ bool FAnimationSequenceAsyncCacheTask::BuildData() const
 	
 	FCompressibleAnimDataResult CompressionResult;
 	DataToCompress.FetchData(TargetPlatform);
+		
+	if (Owner.IsCanceled())
+	{
+		return false;
+	}
 	DataToCompress.Update(OutData);
 		
 	const bool bBoneCompressionOk = FAnimationUtils::CompressAnimBones(DataToCompress, CompressionResult);

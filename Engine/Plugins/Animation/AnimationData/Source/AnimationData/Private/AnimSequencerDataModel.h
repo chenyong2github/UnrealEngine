@@ -119,6 +119,12 @@ protected:
 	{
 		EvaluationLock.Lock();
 	}
+
+	virtual bool TryLockEvaluationAndModification() const override final
+	{
+		return EvaluationLock.TryLock();
+	}
+	
 	virtual void UnlockEvaluationAndModification() const override final
 	{
 		EvaluationLock.Unlock();

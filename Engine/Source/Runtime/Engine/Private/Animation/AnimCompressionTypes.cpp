@@ -186,15 +186,26 @@ void FCompressibleAnimData::BakeOutAdditiveIntoRawData(const FFrameRate& SampleR
 	checkf(bSelfAdditiveType || (AdditiveBaseAnimation && !AdditiveBaseAnimation->HasAnyFlags(EObjectFlags::RF_NeedPostLoad)), TEXT("Invalid additive base animation state"));
 
 	// Lock DataModel evaluation
-	IAnimationDataModel::FEvaluationAndModificationLock Lock(*AnimSequence->GetDataModelInterface());
+	IAnimationDataModel::FEvaluationAndModificationLock Lock(*AnimSequence->GetDataModelInterface(), [this]() -> bool
+	{
+		return !IsCancelled();
+	});
 	
 	TUniquePtr<IAnimationDataModel::FEvaluationAndModificationLock> AdditiveBaseLock = nullptr;
 	if (!bSelfAdditiveType)
 	{
 		// Additive is based off another Animation Asset, so lock its evaluation path as well
-		AdditiveBaseLock = MakeUnique<IAnimationDataModel::FEvaluationAndModificationLock>(*AdditiveBaseAnimation->GetDataModelInterface());
+		AdditiveBaseLock = MakeUnique<IAnimationDataModel::FEvaluationAndModificationLock>(*AdditiveBaseAnimation->GetDataModelInterface(), [this]() -> bool
+		{
+			return !IsCancelled();
+		});
 	}
-	
+
+	if (IsCancelled())
+	{
+		return;
+	}
+
 	FMemMark Mark(FMemStack::Get());
 	FByFramePoseEvalContext EvalContext(AnimSequence);
 
@@ -393,7 +404,15 @@ void FCompressibleAnimData::ResampleAnimationTrackData(const FFrameRate& SampleR
 	
 		ensure(DataModelInterface != nullptr);
 		{
-			IAnimationDataModel::FEvaluationAndModificationLock Lock(*DataModelInterface);
+			IAnimationDataModel::FEvaluationAndModificationLock Lock(*DataModelInterface, [this]() -> bool
+			{
+				return !IsCancelled();
+			});
+			
+			if (IsCancelled())
+            {		
+            	return;
+            }
 			
 			FMemMark Mark(FMemStack::Get());
 			FByFramePoseEvalContext EvalContext(AnimSequence);
@@ -766,6 +785,11 @@ void FCompressibleAnimData::FetchData(const ITargetPlatform* InPlatform)
 		ResampleAnimationTrackData(SampledFrameRate, ResampledTrackData);	
 		RawFloatCurves = AnimSequence->GetDataModelInterface()->GetFloatCurves();
     }
+
+	if (IsCancelled())
+	{		
+		return;
+	}
 
 	for (const FBoneAnimationTrack& AnimTrack : ResampledTrackData)
 	{

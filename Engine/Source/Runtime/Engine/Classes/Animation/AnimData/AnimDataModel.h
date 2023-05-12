@@ -82,6 +82,7 @@ protected:
 	virtual FAnimDataModelModifiedDynamicEvent& GetModifiedDynamicEvent() override { return ModifiedEventDynamic; }
 	virtual void OnNotify(const EAnimDataModelNotifyType& NotifyType, const FAnimDataModelNotifPayload& Payload) override {}
 	virtual void LockEvaluationAndModification() const override final {}
+	virtual bool TryLockEvaluationAndModification() const override final { return true; }
 	virtual void UnlockEvaluationAndModification() const override final {}
 	/** End IAnimationDataModel overrides */
 
