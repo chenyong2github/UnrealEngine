@@ -11,8 +11,6 @@
 #include "ClearQuad.h"
 #include "DataDrivenShaderPlatformInfo.h"
 
-#if !UE_BUILD_SHIPPING 
-
 static TAutoConsoleVariable<int32> CVarVoxel(
 	TEXT("r.Voxel"),
 	0,
@@ -36,6 +34,7 @@ static TAutoConsoleVariable<int32> CVarVoxelLevel2(
 
 namespace Nanite
 {
+#if !UE_BUILD_SHIPPING
 
 TGlobalResource< FSpriteIndexBuffer<64> > GSpriteIndexBuffer;
 
@@ -163,6 +162,8 @@ class FDrawBricksPS : public FVoxelShader
 IMPLEMENT_SHADER_TYPE(, FDrawBricksVS, TEXT("/Engine/Private/Nanite/Voxel/RasterizeBricks.usf"), TEXT("DrawBricksVS"), SF_Vertex );
 IMPLEMENT_SHADER_TYPE(, FDrawBricksPS, TEXT("/Engine/Private/Nanite/Voxel/RasterizeBricks.usf"), TEXT("DrawBricksPS"), SF_Pixel );
 
+#endif
+
 
 void DrawVisibleBricks(
 	FRDGBuilder& GraphBuilder,
@@ -170,6 +171,7 @@ void DrawVisibleBricks(
 	const FViewInfo& View,
 	FMinimalSceneTextures& SceneTextures )
 {
+#if !UE_BUILD_SHIPPING
 	if( CVarVoxel.GetValueOnRenderThread() == 0 )
 		return;
 
@@ -538,8 +540,7 @@ void DrawVisibleBricks(
 		}
 		break;
 	}
+#endif
 }
 
 } // namespace Nanite
-
-#endif
