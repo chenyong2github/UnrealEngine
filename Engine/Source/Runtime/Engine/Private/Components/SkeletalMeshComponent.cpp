@@ -3028,7 +3028,7 @@ void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRe
 		return;
 	}
 
-	// Stop any existing cloth simulation pior to replacing the asset
+	// Stop any existing cloth simulation prior to replacing the asset
 	RemoveAllClothingActors();
 
 	// Update property alias
