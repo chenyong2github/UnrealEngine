@@ -146,7 +146,7 @@ namespace Metasound
 			friend FTime operator-(const FTime& InLHS, const ArithmeticType& InRHS)
 			{
 				static_assert(TIsArithmetic<ArithmeticType>::Value, "Must be arithmetic type.");
-				return InLHS.Time - InRHS;
+				return FTime(InLHS.Time - InRHS);
 			}
 
 			FTime operator+(const FTime& InRHS) const
