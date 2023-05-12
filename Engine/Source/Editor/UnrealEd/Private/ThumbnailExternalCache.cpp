@@ -22,9 +22,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogThumbnailExternalCache, Log, All);
 
 namespace ThumbnailExternalCache
 {
-	bool bLogEntries = false;
-	FAutoConsoleVariableRef CVarLogEntries(TEXT("ThumbnailExternalCache.LogEntries"), bLogEntries, TEXT("Whether log entries added to a thumbnail cache"));
-
 	const int64 LatestVersion = 0;
 	const uint64 ExpectedHeaderId = 0x424d5548545f4555; // "UE_THUMB"
 	const FString ThumbnailImageFormatName(TEXT(""));
@@ -249,10 +246,7 @@ void FSaveThumbnailCache::Save(FArchive& Ar, const TArrayView<FAssetData> InAsse
 		{
 			ThumbnailNameString.Reset();
 			PackageThumbnailRecord.Name.AppendString(ThumbnailNameString);
-			if (ThumbnailExternalCache::bLogEntries)
-			{
-				UE_LOG(LogThumbnailExternalCache, Log, TEXT("\t[%d] %s"), Index++, *ThumbnailNameString);
-			}
+			UE_LOG(LogThumbnailExternalCache, Verbose, TEXT("\t[%d] %s"), Index++, *ThumbnailNameString);
 			Ar << ThumbnailNameString;
 			Ar << PackageThumbnailRecord.Offset;
 		}

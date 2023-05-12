@@ -9440,19 +9440,25 @@ void UCookOnTheFlyServer::GenerateCachedEditorThumbnails()
 		TArray<FAssetData> PublicAssets;
 		{
 			TArray<UE::Cook::FPackageData*> CookedPackages;
-			PackageDatas->GetCookedPackagesForPlatform(Platform, CookedPackages, CookedPackages);
+			{
+				TArray<UE::Cook::FPackageData*> FailedPackages;
+				PackageDatas->GetCookedPackagesForPlatform(Platform, CookedPackages, FailedPackages);
+			}
 
 			for (const UE::Cook::FPackageData* const CookedPackage : CookedPackages)
 			{
-				TArray<FAssetData> Assets;
-				ensure(AssetRegistry->GetAssetsByPackageName(CookedPackage->GetPackageName(), Assets, /*bIncludeOnlyDiskAssets=*/true));
-
-				for (FAssetData& Asset : Assets)
+				if (CookedPackage->GetWasCookedThisSession())
 				{
-					if (!(Asset.PackageFlags & PKG_NotExternallyReferenceable))
+					TArray<FAssetData> Assets;
+					ensure(AssetRegistry->GetAssetsByPackageName(CookedPackage->GetPackageName(), Assets, /*bIncludeOnlyDiskAssets=*/true));
+
+					for (FAssetData& Asset : Assets)
 					{
-						UE_LOG(LogCook, Display, TEXT("Adding thumbnail for '%s'"), *Asset.GetObjectPathString());
-						PublicAssets.Add(MoveTemp(Asset));
+						if (!(Asset.PackageFlags & PKG_NotExternallyReferenceable))
+						{
+							UE_LOG(LogCook, Verbose, TEXT("Adding thumbnail for '%s'"), *Asset.GetObjectPathString());
+							PublicAssets.Add(MoveTemp(Asset));
+						}
 					}
 				}
 			}
@@ -10852,7 +10858,7 @@ void UCookOnTheFlyServer::RecordDLCPackagesFromBaseGame(FBeginCookContext& Begin
 		{
 			if (UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByFileName(FName(*AssetPath)))
 			{
-				PackageData->SetPlatformsCooked(BeginContext.TargetPlatforms, UE::Cook::ECookResult::Succeeded);
+				PackageData->SetPlatformsCooked(BeginContext.TargetPlatforms, UE::Cook::ECookResult::Succeeded, /*bWasCookedThisSession=*/false);
 				++PackageDataFromBaseGameNum;
 			}
 			else
