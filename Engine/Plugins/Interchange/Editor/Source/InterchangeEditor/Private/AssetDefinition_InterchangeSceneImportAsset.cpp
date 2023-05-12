@@ -76,15 +76,20 @@ namespace MenuExtension_InterchangeSceneImportAsset
 			return;
 		}
 		
+#if WITH_EDITORONLY_DATA
 		UInterchangeSceneImportAsset* SceneImportAsset = SceneImportAssets[0];
+		if (!SceneImportAsset->AssetImportData)
+		{
+			return;
+		}
 
-		TArray<FString> OpenFilenames;
+		TArray<FString> OpenFilenames = SceneImportAsset->AssetImportData->ExtractFilenames();
 		FReimportManager::Instance()->GetNewReimportPath(SceneImportAsset, OpenFilenames);
 		if (OpenFilenames.Num() == 1 && !OpenFilenames[0].IsEmpty())
 		{
 			ExecuteReimportOneAsset(SceneImportAsset, OpenFilenames[0]);
 		}
-
+#endif
 	}
 
 	bool CanExecuteReimport(const FToolMenuContext& InContext)
