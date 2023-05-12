@@ -18,6 +18,9 @@ class FSharedMemoryMediaPlatformWindowsD3D12 : public FSharedMemoryMediaPlatform
 {
 private:
 
+	/** Pointer to the D3D12 shared memory heap. */
+	ID3D12Resource* CommittedResource[UE::SharedMemoryMedia::SenderNumBuffers]{ 0 };
+
 	/** Handles to the shared handles of the cross gpu resources */
 	HANDLE SharedHandle[UE::SharedMemoryMedia::SenderNumBuffers]{ 0 };
 
