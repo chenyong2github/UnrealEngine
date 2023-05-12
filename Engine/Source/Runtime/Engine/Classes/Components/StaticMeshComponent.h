@@ -705,6 +705,9 @@ protected:
 
 	bool ShouldCreateNaniteProxy(Nanite::FMaterialAudit* OutNaniteMaterials = nullptr) const;
 
+	// Overload this in child implementations that wish to extend Static Mesh or Nanite scene proxy implementations
+	virtual FPrimitiveSceneProxy* CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite);
+
 public:
 
 	void ReleaseResources();

@@ -2693,13 +2693,22 @@ FBodyInstance* UInstancedStaticMeshComponent::GetBodyInstance(FName BoneName, bo
 	return  const_cast<FBodyInstance*>(&BodyInstance); // If no index is specified we return the primitive component body instance instead
 }
 
-FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
+FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite)
 {
-	static const auto NaniteProxyRenderModeVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.ProxyRenderMode"));
-	const int32 NaniteProxyRenderMode = (NaniteProxyRenderModeVar != nullptr) ? (NaniteProxyRenderModeVar->GetInt() != 0) : 0;
+	// Override which constructor is used for the Nanite scene proxy or create FInstancedStaticMeshSceneProxy
 
 	LLM_SCOPE(ELLMTag::InstancedMesh);
 
+	if (bCreateNanite)
+	{
+		return ::new Nanite::FSceneProxy(NaniteMaterials, this);
+	}
+
+	return ::new FInstancedStaticMeshSceneProxy(this, GetWorld()->GetFeatureLevel());
+}
+
+FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
+{
 	ProxySize = 0;
 
 	// Verify that the mesh is valid before using it.
@@ -2724,31 +2733,9 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		}
 		
 		ProxySize = PerInstanceRenderData->ResourceSize;
-
-		Nanite::FMaterialAudit NaniteMaterials{};
-
-		// Is Nanite supported, and is there built Nanite data for this static mesh?
-		bool bUseNanite = ShouldCreateNaniteProxy(&NaniteMaterials);
-
-		if (bUseNanite)
-		{
-			return ::new Nanite::FSceneProxy(NaniteMaterials, this);
-		}
-		// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
-		else if (GetStaticMesh()->HasValidNaniteData() && NaniteProxyRenderMode != 0)
-		{
-			// Do not render Nanite proxy
-			return nullptr;
-		}
-		else
-		{
-			return ::new FInstancedStaticMeshSceneProxy(this, GetWorld()->GetFeatureLevel());
-		}
 	}
-	else
-	{
-		return nullptr;
-	}
+
+	return Super::CreateSceneProxy();
 }
 
 FMatrix UInstancedStaticMeshComponent::GetRenderMatrix() const

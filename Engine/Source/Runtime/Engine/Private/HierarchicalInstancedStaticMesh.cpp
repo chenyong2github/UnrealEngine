@@ -3243,12 +3243,23 @@ void UHierarchicalInstancedStaticMeshComponent::SetPerInstanceLightMapAndEditorD
 	}
 }
 
+FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite)
+{
+	LLM_SCOPE(ELLMTag::InstancedMesh);
+
+	if (bCreateNanite)
+	{
+		return ::new Nanite::FSceneProxy(NaniteMaterials, this);
+	}
+	
+	return ::new FHierarchicalStaticMeshSceneProxy(this, GetWorld()->GetFeatureLevel());
+}
+
 FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProxy()
 {
 	static const auto NaniteProxyRenderModeVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.ProxyRenderMode"));
 	const int32 NaniteProxyRenderMode = (NaniteProxyRenderModeVar != nullptr) ? (NaniteProxyRenderModeVar->GetInt() != 0) : 0;
 
-	LLM_SCOPE(ELLMTag::InstancedMesh);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_HierarchicalInstancedStaticMeshComponent_CreateSceneProxy);
 	SCOPE_CYCLE_COUNTER(STAT_FoliageCreateProxy);
 
@@ -3281,28 +3292,10 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 
 		ProxySize = PerInstanceRenderData->ResourceSize;
 		INC_DWORD_STAT_BY(STAT_FoliageInstanceBuffers, ProxySize);
-
-		Nanite::FMaterialAudit NaniteMaterials{};
-
-		bool bUseNanite = ShouldCreateNaniteProxy(&NaniteMaterials);
-
-		if (bUseNanite)
-		{
-			return ::new Nanite::FSceneProxy(NaniteMaterials, this);
-		}
-		// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
-		else if (GetStaticMesh()->HasValidNaniteData() && NaniteProxyRenderMode != 0)
-		{
-			// Do not render Nanite proxy
-			return nullptr;
-		}
-		else
-		{
-			return ::new FHierarchicalStaticMeshSceneProxy(this, GetWorld()->GetFeatureLevel());
-		}
 	}
 
-	return nullptr;
+	// NOTE: Purposefully skipping UInstancedStaticMeshComponent implementation
+	return UStaticMeshComponent::CreateSceneProxy();
 }
 
 void UHierarchicalInstancedStaticMeshComponent::UpdateDensityScaling()

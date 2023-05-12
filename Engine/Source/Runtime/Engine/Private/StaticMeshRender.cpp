@@ -2555,6 +2555,35 @@ bool UStaticMeshComponent::ShouldCreateNaniteProxy(Nanite::FMaterialAudit* OutNa
 	return true;
 }
 
+FPrimitiveSceneProxy* UStaticMeshComponent::CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite)
+{
+	// Default implementation: Nanite::FSceneProxy or FStaticMeshSceneProxy
+
+	LLM_SCOPE(ELLMTag::StaticMesh);
+
+	if (bCreateNanite)
+	{
+		return ::new Nanite::FSceneProxy(NaniteMaterials, this);
+	}
+
+	// Validate the LOD resources here
+	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->GetRenderData()->LODResources;
+	const int32 SMCurrentMinLOD = GetStaticMesh()->GetMinLODIdx();
+	const int32 EffectiveMinLOD = bOverrideMinLOD ? MinLOD : SMCurrentMinLOD;
+	if (LODResources.Num() == 0	|| LODResources[FMath::Clamp<int32>(EffectiveMinLOD, 0, LODResources.Num()-1)].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
+	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (LOD problems)"), *GetFullName());
+		return nullptr;
+	}
+	
+	auto* Proxy = ::new FStaticMeshSceneProxy(this, false);
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+	SendRenderDebugPhysics(Proxy);
+#endif
+
+	return Proxy;
+}
+
 FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 {
 	if (GetStaticMesh() == nullptr)
@@ -2597,10 +2626,8 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 
 	if (bUseNanite)
 	{
-		LLM_SCOPE(ELLMTag::StaticMesh);
-
 		// Nanite is fully supported
-		return ::new Nanite::FSceneProxy(NaniteMaterials, this);
+		return CreateStaticMeshSceneProxy(NaniteMaterials, true);
 	}
 	// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
 	else if (HasValidNaniteData() && NaniteMaterials.IsValid(bIsMaskingAllowed))
@@ -2621,23 +2648,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		// Fall back to rendering Nanite proxy meshes with traditional static mesh scene proxies
 	}
 
-	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->GetRenderData()->LODResources;
-	const int32 SMCurrentMinLOD = GetStaticMesh()->GetMinLODIdx();
-	const int32 EffectiveMinLOD = bOverrideMinLOD ? MinLOD : SMCurrentMinLOD;
-	if (LODResources.Num() == 0	|| LODResources[FMath::Clamp<int32>(EffectiveMinLOD, 0, LODResources.Num()-1)].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
-	{
-		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (LOD problems)"), *GetFullName());
-		return nullptr;
-	}
-
-	LLM_SCOPE(ELLMTag::StaticMesh);
-
-	FPrimitiveSceneProxy* Proxy = ::new FStaticMeshSceneProxy(this, false);
-#if STATICMESH_ENABLE_DEBUG_RENDERING
-	SendRenderDebugPhysics(Proxy);
-#endif
-
-	return Proxy;
+	return CreateStaticMeshSceneProxy(NaniteMaterials, false);
 }
 
 bool UStaticMeshComponent::ShouldRecreateProxyOnUpdateTransform() const
