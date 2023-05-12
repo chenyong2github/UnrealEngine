@@ -455,6 +455,20 @@ void ALightWeightInstanceManager::RemoveInstance(const int32 Index)
 	}
 }
 
+bool ALightWeightInstanceManager::HasAnyValidInstancesOrManagedActors() const
+{
+	bool bHasAnyValidIndex = false;
+	for (const bool bIsIndexValid : ValidIndices)
+	{
+		if (bIsIndexValid)
+		{
+			bHasAnyValidIndex = true;
+			break;
+		}
+	}
+	return bHasAnyValidIndex;
+}
+
 void ALightWeightInstanceManager::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);

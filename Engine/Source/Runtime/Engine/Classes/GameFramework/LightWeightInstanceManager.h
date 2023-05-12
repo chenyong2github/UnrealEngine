@@ -143,6 +143,8 @@ public:
 
 	AActor* FindActorForInstanceIndex(const int32 InstanceIndex);
 
+	bool HasAnyValidInstancesOrManagedActors() const;
+
 protected:
 	// Creates an actor to replace the instance specified by Handle
 	AActor* ConvertInstanceToActor(const FActorInstanceHandle& Handle);
