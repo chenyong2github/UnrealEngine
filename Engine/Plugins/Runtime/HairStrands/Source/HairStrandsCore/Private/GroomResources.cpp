@@ -1003,7 +1003,7 @@ bool FHairStrandsRestResource::InternalGetOrRequestData(uint32 InRequestedCurveC
 {
 	if (StreamingRequest.IsNone())
 	{
-		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, InLODIndex, BulkData, false, false, OwnerName);
+		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, InLODIndex, BulkData, false, false, false, OwnerName);
 	}
 	return StreamingRequest.IsCompleted();
 }
@@ -1180,7 +1180,7 @@ bool FHairStrandsClusterCullingResource::InternalGetOrRequestData(uint32 InReque
 {
 	if (StreamingRequest.IsNone())
 	{
-		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, InLODIndex, BulkData, true, true, OwnerName);
+		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, InLODIndex, BulkData, true, true, false, OwnerName);
 	}
 	return StreamingRequest.IsCompleted();
 }
@@ -1258,7 +1258,7 @@ bool FHairStrandsRestRootResource::InternalGetOrRequestData(uint32 InRequestedCu
 {
 	if (StreamingRequest.IsNone() && InLODIndex >= 0)
 	{
-		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, InLODIndex, BulkData, false, false, OwnerName);
+		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, InLODIndex, BulkData, false, false, false, OwnerName);
 	}
 	return StreamingRequest.IsCompleted();
 }
@@ -1441,7 +1441,7 @@ bool FHairStrandsInterpolationResource::InternalGetOrRequestData(uint32 InReques
 {
 	if (StreamingRequest.IsNone())
 	{
-		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, InLODIndex, BulkData, false, false, OwnerName);
+		StreamingRequest.Request(InRequestedCurveCount, InRequestedPointCount, InLODIndex, BulkData, false, false, false, OwnerName);
 	}
 	return StreamingRequest.IsCompleted();
 }

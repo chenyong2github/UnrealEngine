@@ -319,7 +319,7 @@ bool FHairStreamingRequest::IsCompleted()
 // Request fullfil 2 use cases:
 // * Load IO/DDC data and upload them to GPU
 // * Load DDC data and store them into bulkdata for serialization
-void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex, FHairStrandsBulkCommon& In, bool bWait, bool bFillBulkdata, const FName& InOwnerName)
+void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex, FHairStrandsBulkCommon& In, bool bWait, bool bFillBulkdata, bool bWarmCache, const FName& InOwnerName)
 {
 	if (In.GetResourceCount() == 0 || InRequestedCurveCount == 0)
 	{
@@ -352,7 +352,21 @@ void FHairStreamingRequest::Request(uint32 InRequestedCurveCount, uint32 InReque
 	
 		check(DDCRequestOwner == nullptr);
 		DDCRequestOwner = MakeUnique<FRequestOwner>(bWait ? UE::DerivedData::EPriority::Blocking : UE::DerivedData::EPriority::Normal); // <= Move this onto the resource (Buffer, in order to ensure no race condition)
-	
+		
+		// Currently GetChunk request have long latency if not cached locally. 
+		// To reduce cook time, we warming cache by issuing 'Value' request (vs.'Chunk' request)
+		if (bWarmCache)
+		{
+			const ECachePolicy Policy = ECachePolicy::Default | ECachePolicy::SkipData;
+			TArray<FCacheGetValueRequest, TInlineAllocator<16>> WarmRequest;
+			for (const FCacheGetChunkRequest& R : Requests)
+			{				
+				WarmRequest.Add({R.Name, R.Key, Policy, 0});
+			}
+			GetCache().GetValue(WarmRequest, *DDCRequestOwner, [](FCacheGetValueResponse && Response) { check(Response.Status == EStatus::Ok); });
+			DDCRequestOwner->Wait();
+		}
+
 		//FRequestBarrier Barrier(*DDCRequestOwner);	// This is a critical section on the owner. It does not constrain ordering
 		GetCache().GetChunks(Requests, *DDCRequestOwner,
 		[this, &In, bFillBulkdata, InOwnerName](FCacheGetChunkResponse && Response)
