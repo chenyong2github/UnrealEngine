@@ -495,8 +495,8 @@ public:
 	/**
 	 * Accessor functions for internals
 	 */
-	const int32 GetArrayOffset() const { return ArrayOffset; }
-	const int32 GetArrayIndex() const { return ArrayIndex; }
+	int32 GetArrayOffset() const { return ArrayOffset; }
+	int32 GetArrayIndex() const { return ArrayIndex; }
 
 	/**
 	 * Return number of children that survived being filtered

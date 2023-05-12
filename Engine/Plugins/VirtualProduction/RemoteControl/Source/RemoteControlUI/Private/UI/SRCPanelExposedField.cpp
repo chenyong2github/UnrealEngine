@@ -14,7 +14,6 @@
 #include "IRemoteControlUIModule.h"
 #include "Layout/Visibility.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "PropertyNode.h"
 #include "RCPanelWidgetRegistry.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPanelStyle.h"
@@ -585,10 +584,10 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject*
 				FRCResetToDefaultArgs Args;
 				Args.Property = InPropertyHandle->GetProperty();
 				
-				if (TSharedPtr<FPropertyNode> PropertyNode = InPropertyHandle->GetPropertyNode())
+				if (InPropertyHandle->IsValidHandle())
 				{
-					Args.Path = PropertyNode->GetPropertyPath();
-					Args.ArrayIndex = PropertyNode->GetArrayIndex();
+					Args.Path = InPropertyHandle->GetPropertyPath();
+					Args.ArrayIndex = InPropertyHandle->GetArrayIndex();
 				}
 
 				Args.bCreateTransaction = false;
@@ -608,10 +607,10 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject*
 				FRCResetToDefaultArgs Args;
 				Args.Property = InPropertyHandle->GetProperty();
 				
-				if (TSharedPtr<FPropertyNode> PropertyNode = InPropertyHandle->GetPropertyNode())
+				if (InPropertyHandle->IsValidHandle())
 				{
-					Args.Path = PropertyNode->GetPropertyPath();
-					Args.ArrayIndex = PropertyNode->GetArrayIndex();
+					Args.Path = InPropertyHandle->GetPropertyPath();
+					Args.ArrayIndex = InPropertyHandle->GetArrayIndex();
 				}
 				
 				Args.bCreateTransaction = true;
@@ -629,18 +628,14 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructResetToDefaultWidget(UObject*
 	if (UMeshComponent* MeshComponent = Cast<UMeshComponent>(InObject))
 	{
 		if (InPropertyHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UMeshComponent, OverrideMaterials) &&
-			MeshComponent->OverrideMaterials[InPropertyHandle->GetPropertyNode()->GetArrayIndex()] == NULL)
+			MeshComponent->OverrideMaterials[InPropertyHandle->GetArrayIndex()] == NULL)
 		{
 			IRemoteControlModule& RemoteControlModule = IRemoteControlModule::Get();
 
 			FRCResetToDefaultArgs Args;
 			Args.Property = InPropertyHandle->GetProperty();
-			
-			if (TSharedPtr<FPropertyNode> PropertyNode = InPropertyHandle->GetPropertyNode())
-			{
-				Args.Path = PropertyNode->GetPropertyPath();
-				Args.ArrayIndex = PropertyNode->GetArrayIndex();
-			}
+			Args.Path = InPropertyHandle->GetPropertyPath();
+			Args.ArrayIndex = InPropertyHandle->GetArrayIndex();
 
 			Args.bCreateTransaction = false;
 			RemoteControlModule.ResetToDefaultValue(InObject, Args);

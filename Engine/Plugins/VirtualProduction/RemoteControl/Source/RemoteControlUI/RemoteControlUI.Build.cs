@@ -7,14 +7,6 @@ public class RemoteControlUI : ModuleRules
 {
 	public RemoteControlUI(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(new string[] {
-			Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
-		});
-
-		PublicDependencyModuleNames.AddRange(
-			new string[] {}
-		);
-
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"ApplicationCore",

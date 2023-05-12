@@ -745,7 +745,7 @@ bool FDetailLayoutBuilderImpl::IsPropertyVisible( TSharedRef<IPropertyHandle> Pr
 {
 	if (PropertyHandle->IsValidHandle() && DetailsView != nullptr)
 	{
-		TSharedPtr<FPropertyNode> PropertyNode = PropertyHandle->GetPropertyNode();
+		TSharedPtr<FPropertyNode> PropertyNode = StaticCastSharedRef<FPropertyHandleBase>(PropertyHandle)->GetPropertyNode();
 		const FCategoryPropertyNode* CategoryNode = PropertyNode.IsValid() ? PropertyNode->AsCategoryNode() : nullptr;
 		if (CategoryNode != nullptr)
 		{

@@ -939,14 +939,14 @@ bool SDisplayClusterColorGradingDetailTreeRow::IsValidDrop(const FDragDropEvent&
 		{
 			TSharedPtr<IPropertyHandle> SwappingPropertyHandle = ArrayRowDropOp->RowBeingDragged.Pin()->GetPropertyHandle();
 			TSharedPtr<IPropertyHandle> ThisPropertyHandle = GetPropertyHandle();
-			if (ThisPropertyHandle.IsValid() && SwappingPropertyHandle.IsValid() && SwappingPropertyHandle->GetPropertyNode() != ThisPropertyHandle->GetPropertyNode())
+			if (ThisPropertyHandle.IsValid() && SwappingPropertyHandle.IsValid() && !SwappingPropertyHandle->IsSamePropertyNode(ThisPropertyHandle))
 			{
 				const int32 OriginalIndex = SwappingPropertyHandle->GetIndexInArray();
 				const int32 NewIndex = GetDropNewIndex(OriginalIndex, ThisPropertyHandle->GetIndexInArray(), DropZone);
 
 				if (OriginalIndex != NewIndex)
 				{
-					if (SwappingPropertyHandle->GetParentHandle()->AsArray() && SwappingPropertyHandle->GetParentHandle()->GetPropertyNode() == ThisPropertyHandle->GetParentHandle()->GetPropertyNode())
+					if (SwappingPropertyHandle->GetParentHandle()->AsArray() && SwappingPropertyHandle->GetParentHandle()->IsSamePropertyNode(ThisPropertyHandle->GetParentHandle()))
 					{
 						return true;
 					}

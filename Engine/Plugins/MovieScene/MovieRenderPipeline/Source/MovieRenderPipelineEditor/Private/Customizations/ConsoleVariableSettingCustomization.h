@@ -12,8 +12,6 @@
 #include "PropertyHandle.h"
 #include "Sections/MovieSceneConsoleVariableTrackInterface.h"
 
-#include "Editor/PropertyEditor/Private/PropertyNode.h"
-
 #define LOCTEXT_NAMESPACE "SMoviePipelineEditor"
 
 /** Customize how properties in UMoviePipelineConsoleVariableSetting appear in the details panel. */
@@ -71,8 +69,8 @@ protected:
 		static const FText ConsoleVariableDisabledText = LOCTEXT("DisabledConsoleVariable", "This console variable is disabled.");
 
 		// Add the preset asset chooser as the group header
-		const FString& PropName = ElementProperty->GetPropertyNode()->GetPropertyPath();
-		IDetailGroup& Group = ChildrenBuilder.AddGroup(FName(PropName), FText::FromString(PropName));
+		FStringView PropName = ElementProperty->GetPropertyPath();
+		IDetailGroup& Group = ChildrenBuilder.AddGroup(FName(PropName), FText::FromStringView(PropName));
 		Group.HeaderRow()
 		[
 			ElementProperty->CreatePropertyValueWidget()

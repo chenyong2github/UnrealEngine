@@ -5,7 +5,7 @@
 #include "HAL/PlatformCrt.h"
 #include "Misc/AssertionMacros.h"
 #include "ObjectPropertyNode.h"
-#include "PropertyHandle.h"
+#include "PropertyHandleImpl.h"
 #include "PropertyNode.h"
 
 class FProperty;
@@ -13,7 +13,7 @@ class FProperty;
 FPropertyAndParent::FPropertyAndParent(const TSharedRef<IPropertyHandle>& InPropertyHandle) :
 	Property(*InPropertyHandle->GetProperty())
 {
-	Initialize(InPropertyHandle->GetPropertyNode().ToSharedRef());
+	Initialize(StaticCastSharedRef<FPropertyHandleBase>(InPropertyHandle)->GetPropertyNode().ToSharedRef());
 }
 
 FPropertyAndParent::FPropertyAndParent(const TSharedRef<FPropertyNode>& InPropertyNode) :

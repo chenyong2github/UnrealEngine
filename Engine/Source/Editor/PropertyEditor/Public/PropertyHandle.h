@@ -14,6 +14,7 @@ class FResetToDefaultOverride;
 class IPropertyHandleArray;
 class IPropertyHandleMap;
 class IPropertyHandleSet;
+class IPropertyHandleStruct;
 class IStructureDataProvider;
 
 namespace EPropertyValueSetFlags
@@ -44,6 +45,11 @@ public:
 	 * @return Whether or not the handle points to a valid property node. This can be true but GetProperty may still return null
 	 */
 	virtual bool IsValidHandle() const = 0;
+
+	/**
+	 * @return Whether or not the handle points to the same property node. Will return true if both point to an invalid node.
+	 */
+	virtual bool IsSamePropertyNode(TSharedPtr<IPropertyHandle> OtherHandle) const = 0;
 	
 	/**
 	 * @return Whether or not the property is edit const (can't be changed)
@@ -66,9 +72,19 @@ public:
 	virtual FProperty* GetProperty() const = 0;
 
 	/**
-	 * Gets the property node being edited.
+	 * Helper to fetch a PropertyPath 
 	 */
-	virtual TSharedPtr<FPropertyNode> GetPropertyNode() const = 0;
+	virtual FStringView GetPropertyPath() const = 0;
+
+	/**
+	 * Helper to fetch the ArrayIndex
+	 */
+	virtual int32 GetArrayIndex() const = 0;
+
+	/**
+	 * Indicates that children of this node should be rebuilt next tick.  Some topology changes will require this
+	 */
+	virtual void RequestRebuildChildren() = 0;
 
 	/**
 	 * Gets the property we should use to read meta-data
@@ -506,6 +522,11 @@ public:
 	virtual TSharedPtr<IPropertyHandleMap> AsMap() = 0;
 
 	/**
+	 * @return This handle as struct if possible
+	 */
+	virtual TSharedPtr<IPropertyHandleStruct> AsStruct() = 0;
+
+	/**
 	 * @return The display name of the property
 	 */
 	virtual FText GetPropertyDisplayName() const = 0;
@@ -549,6 +570,11 @@ public:
 	 * Marks this property as not having a custom reset to default (useful when a widget customizing reset to default goes away)
 	 */
 	virtual void ClearResetToDefaultCustomized() = 0;
+
+	/**
+	* @return true if the property is mark as a favorite
+	*/
+	virtual bool IsFavorite() const = 0;
 
 	/**
 	 * @return True if this property's UI is customized                                                              
@@ -874,4 +900,15 @@ public:
 	 * Unregisters a delegate that is called when the number of elements changes
 	 */
 	virtual void UnregisterOnNumElementsChanged(FDelegateHandle Handle) = 0;
+};
+
+/**
+ * A handle to a property which allows you to access a Struct's Data
+ */
+class IPropertyHandleStruct
+{
+public:
+	virtual ~IPropertyHandleStruct() {}
+
+	virtual TSharedPtr<FStructOnScope> GetStructData() const = 0;
 };

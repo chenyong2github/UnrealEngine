@@ -1156,7 +1156,7 @@ void SPropertyEditorAsset::OnBrowse()
 			if (Value.Object)
 			{
 				// This code only works on loaded objects
-				if (TSharedPtr<FPropertyNode> PropertyNodeToSync = PropertyHandleToUse->GetPropertyNode())
+				if (TSharedPtr<FPropertyNode> PropertyNodeToSync = StaticCastSharedPtr<FPropertyHandleBase>(PropertyHandleToUse)->GetPropertyNode())
 				{
 					FPropertyEditor::SyncToObjectsInNode(PropertyNodeToSync);
 				}

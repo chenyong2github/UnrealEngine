@@ -2,7 +2,6 @@
 
 #pragma once
 #include "DisplayClusterConfigurationTypes_Viewport.h"
-#include "Editor/PropertyEditor/Private/PropertyNode.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

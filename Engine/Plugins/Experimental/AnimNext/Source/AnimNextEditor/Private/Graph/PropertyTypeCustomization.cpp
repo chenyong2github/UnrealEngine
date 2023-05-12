@@ -4,7 +4,6 @@
 
 #include "Graph/WidgetFactories.h"
 #include "DetailWidgetRow.h"
-#include "Editor/PropertyEditor/Private/PropertyNode.h"
 #include "IDetailChildrenBuilder.h"
 #include "PropertyHandle.h"
 #include "SClassViewer.h"
@@ -47,7 +46,7 @@ void FPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> Pro
 						PropertyHandle->NotifyPreChange();
 						PropertyHandle->SetValue(NewValue);
 						PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
-						PropertyHandle->GetPropertyNode()->GetParentNode()->RequestRebuildChildren();
+						PropertyHandle->GetParentHandle()->RequestRebuildChildren();
 					}
 				}),
 				nullptr

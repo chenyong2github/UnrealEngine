@@ -2220,6 +2220,16 @@ bool FPropertyHandleBase::IsValidHandle() const
 	return Implementation->HasValidPropertyNode();
 }
 
+bool FPropertyHandleBase::IsSamePropertyNode(TSharedPtr<IPropertyHandle> OtherHandle) const
+{
+	if (OtherHandle.IsValid() && OtherHandle->IsValidHandle())
+	{
+		return GetPropertyNode() == StaticCastSharedPtr<FPropertyHandleBase>(OtherHandle)->GetPropertyNode();
+	}
+
+	return !IsValidHandle();
+}
+
 FText FPropertyHandleBase::GetPropertyDisplayName() const
 {
 	return Implementation->GetDisplayName();
@@ -2270,6 +2280,42 @@ void FPropertyHandleBase::ClearResetToDefaultCustomized()
 	{
 		Implementation->GetPropertyNode()->SetNodeFlags(EPropertyNodeFlags::HasCustomResetToDefault, false);
 	}
+}
+
+FStringView FPropertyHandleBase::GetPropertyPath() const
+{
+	if (Implementation->GetPropertyNode().IsValid())
+	{
+		return Implementation->GetPropertyNode()->GetPropertyPath();
+	}
+
+	return FStringView();
+}
+
+int32 FPropertyHandleBase::GetArrayIndex() const
+{
+	if (Implementation->GetPropertyNode().IsValid())
+	{
+		return Implementation->GetPropertyNode()->GetArrayIndex();
+	}
+	return INDEX_NONE;
+}
+
+void FPropertyHandleBase::RequestRebuildChildren()
+{
+	if (Implementation->GetPropertyNode().IsValid())
+	{
+		Implementation->GetPropertyNode()->RequestRebuildChildren();
+	}
+}
+
+bool FPropertyHandleBase::IsFavorite() const
+{
+	if (Implementation->GetPropertyNode().IsValid())
+	{
+		return Implementation->GetPropertyNode()->IsFavorite();
+	}
+	return false;
 }
 
 bool FPropertyHandleBase::IsCustomized() const
@@ -3472,6 +3518,7 @@ IMPLEMENT_PROPERTY_VALUE( FPropertyHandleText )
 IMPLEMENT_PROPERTY_VALUE( FPropertyHandleSet )
 IMPLEMENT_PROPERTY_VALUE( FPropertyHandleMap )
 IMPLEMENT_PROPERTY_VALUE( FPropertyHandleFieldPath )
+IMPLEMENT_PROPERTY_VALUE( FPropertyHandleStruct )
 
 // int32 
 bool FPropertyHandleInt::Supports( TSharedRef<FPropertyNode> PropertyNode )
@@ -4384,6 +4431,34 @@ FPropertyAccess::Result FPropertyHandleMixed::SetValue(const float& NewValue, EP
 	return SetValue((double)NewValue);
 }
 
+// Struct
+bool FPropertyHandleStruct::Supports( TSharedRef<FPropertyNode> PropertyNode )
+{
+	if (FComplexPropertyNode* ComplexNode = PropertyNode->AsComplexNode())
+	{
+		return (ComplexNode->AsStructureNode() != nullptr);
+	}
+
+	return false;
+}
+
+TSharedPtr<IPropertyHandleStruct> FPropertyHandleStruct::AsStruct()
+{
+	return SharedThis(this);
+}
+
+TSharedPtr<FStructOnScope> FPropertyHandleStruct::GetStructData() const
+{
+	TSharedPtr<FStructurePropertyNode> StructPropertyNode = StaticCastSharedPtr<FStructurePropertyNode>(Implementation->GetPropertyNode());
+
+	if (StructPropertyNode.IsValid())
+	{
+		return StructPropertyNode->GetStructData();
+	}
+
+	return nullptr;
+}
+
 // Vector
 bool FPropertyHandleVector::Supports( TSharedRef<FPropertyNode> PropertyNode )
 {
@@ -4411,7 +4486,7 @@ bool FPropertyHandleVector::Supports( TSharedRef<FPropertyNode> PropertyNode )
 }
 
 FPropertyHandleVector::FPropertyHandleVector( TSharedRef<class FPropertyNode> PropertyNode, class FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities )
-	: FPropertyHandleBase( PropertyNode, NotifyHook, PropertyUtilities ) 
+	: FPropertyHandleStruct( PropertyNode, NotifyHook, PropertyUtilities ) 
 {
 	if( Implementation->GetNumChildren() > 0 )
 	{
@@ -4661,7 +4736,7 @@ bool FPropertyHandleRotator::Supports( TSharedRef<FPropertyNode> PropertyNode )
 }
 
 FPropertyHandleRotator::FPropertyHandleRotator( TSharedRef<class FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities )
-	: FPropertyHandleBase( PropertyNode, NotifyHook, PropertyUtilities ) 
+	: FPropertyHandleStruct( PropertyNode, NotifyHook, PropertyUtilities ) 
 {
 	const bool bRecurse = false;
 	// A vector is a struct property that has 3 children.  We get/set the values from the children
@@ -4729,8 +4804,8 @@ FPropertyAccess::Result FPropertyHandleRotator::SetYaw( double InYaw, EPropertyV
 	return Res;
 }
 
-FPropertyHandleColor::FPropertyHandleColor(TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities)\
-	: FPropertyHandleBase(PropertyNode, NotifyHook, PropertyUtilities)
+FPropertyHandleColor::FPropertyHandleColor(TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities)
+	: FPropertyHandleStruct(PropertyNode, NotifyHook, PropertyUtilities)
 {
 }
 

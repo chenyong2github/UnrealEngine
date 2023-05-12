@@ -8,7 +8,6 @@ namespace UnrealBuildTool.Rules
         {
 			PrivateIncludePaths.AddRange(new string[] {
 				System.IO.Path.Combine(GetModuleDirectory("OptimusCore"), "Private"),
-				System.IO.Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
 			});
 
             PrivateDependencyModuleNames.AddRange(

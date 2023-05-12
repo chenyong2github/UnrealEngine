@@ -27,7 +27,6 @@
 #include "OptimusSource.h"
 #include "OptimusValidatedName.h"
 #include "OptimusValueContainer.h"
-#include "PropertyNode.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateIconFinder.h"
@@ -992,11 +991,10 @@ private:
 	void OnDeleteItem() const
 	{
 		TSharedPtr<IPropertyHandleArray> ArrayHandle = BindingPropertyHandle->GetParentHandle()->AsArray();
-		TSharedPtr<FPropertyNode> PropertyNode = BindingPropertyHandle->GetPropertyNode(); 
 
 		check(ArrayHandle.IsValid());
 
-		int32 Index = PropertyNode->GetArrayIndex();
+		int32 Index = BindingPropertyHandle->GetArrayIndex();
 
 		if (ArrayHandle.IsValid())
 		{
@@ -1004,7 +1002,7 @@ private:
 		}
 
 		//In case the property is show in the favorite category refresh the whole tree
-		if (PropertyNode->IsFavorite() || (PropertyNode->GetParentNode() != nullptr && PropertyNode->GetParentNode()->IsFavorite()))
+		if (BindingPropertyHandle->IsFavorite() || (BindingPropertyHandle->GetParentHandle() != nullptr && BindingPropertyHandle->GetParentHandle()->IsFavorite()))
 		{
 			CustomizationUtils->GetPropertyUtilities()->ForceRefresh();
 		}

@@ -18,8 +18,6 @@
 #include "NiagaraTypes.h"
 #include "PlatformInfo.h"
 #include "PropertyHandle.h"
-#include "PropertyNode.h"
-#include "StructurePropertyNode.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -39,26 +37,26 @@ uint8* GetBaseAddress(TSharedRef<IPropertyHandle> PropertyHandle)
 		PropertyHandle->GetOuterObjects(Objects);
 		return reinterpret_cast<uint8*>(Objects[0]);
 	}
-	
+
 	// walk the struct hierarchy to find the parent StructOnScope
-	FStructurePropertyNode* StructurePropertyNode = nullptr;
 	TSharedPtr<IPropertyHandle> LastParent = PropertyHandle;
-	while (StructurePropertyNode == nullptr)
+	while (true)
 	{
 		TSharedPtr<IPropertyHandle> NewParent = LastParent->GetParentHandle();
 		if (!ensureMsgf(NewParent.IsValid() && NewParent != LastParent, TEXT("Unable to walk property chain")))
 		{
-			return nullptr;
+			break;
 		}
 		
-		if (FComplexPropertyNode* ComplexPropertyNode = NewParent->GetPropertyNode()->AsComplexNode())
+		TSharedPtr<IPropertyHandleStruct> StructHandle = NewParent->AsStruct();
+		if (StructHandle.IsValid())
 		{
-			StructurePropertyNode = ComplexPropertyNode->AsStructureNode();
+			return StructHandle->GetStructData()->GetStructMemory();
 		}
 		LastParent = NewParent;
 	}
-	TSharedPtr<FStructOnScope> StructOnScope = StructurePropertyNode->GetStructData();
-	return StructOnScope->GetStructMemory();
+
+	return nullptr;
 }
 
 void FNiagaraPlatformSetCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)

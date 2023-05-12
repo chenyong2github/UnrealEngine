@@ -1200,7 +1200,7 @@ bool SDetailSingleItemRow::IsFavorite() const
 			TSharedPtr<IPropertyHandle> PropertyHandle = Customization->CustomBuilderRow->GetPropertyHandle();
 			if (PropertyHandle.IsValid())
 			{
-				return PropertyHandle->GetPropertyNode()->IsFavorite();
+				return PropertyHandle->IsFavorite();
 			}
 
 			const FString& OriginalPath = Customization->CustomBuilderRow->GetOriginalPath();
@@ -1242,7 +1242,7 @@ void SDetailSingleItemRow::OnFavoriteMenuToggle()
 
 		if (PropertyHandle.IsValid())
 		{
-			PropertyHandle->GetPropertyNode()->SetFavorite(bNewValue); 
+			StaticCastSharedPtr<FPropertyHandleBase>(PropertyHandle)->GetPropertyNode()->SetFavorite(bNewValue); 
 		}
 		else if (!OriginalPath.IsEmpty())
 		{		

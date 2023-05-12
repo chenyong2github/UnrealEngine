@@ -415,6 +415,7 @@ public:
 
 	/** IPropertyHandle interface */
 	virtual bool IsValidHandle() const override;
+	virtual bool IsSamePropertyNode(TSharedPtr<IPropertyHandle> OtherHandle) const override;
 	virtual FText GetPropertyDisplayName() const override;
 	virtual void SetPropertyDisplayName(FText InDisplayName) override;
 	virtual void ResetToDefault() override;
@@ -464,6 +465,7 @@ public:
 	virtual TSharedPtr<IPropertyHandleArray> AsArray() override { return nullptr; }
 	virtual TSharedPtr<IPropertyHandleSet> AsSet() override { return nullptr; }
 	virtual TSharedPtr<IPropertyHandleMap> AsMap() override { return nullptr; }
+	virtual TSharedPtr<IPropertyHandleStruct> AsStruct() override { return nullptr; }
 	virtual const FFieldClass* GetPropertyClass() const override;
 	virtual FProperty* GetProperty() const override;
 	virtual FProperty* GetMetaDataProperty() const override;
@@ -508,8 +510,12 @@ public:
 	virtual void ExecuteCustomResetToDefault(const FResetToDefaultOverride& InOnCustomResetToDefault) override;
 	virtual FName GetDefaultCategoryName() const override;
 	virtual FText GetDefaultCategoryText() const override;
+	virtual FStringView GetPropertyPath() const override;
+	virtual int32 GetArrayIndex() const override;
+	virtual void RequestRebuildChildren() override;
+	virtual bool IsFavorite() const override;
 
-	TSharedPtr<FPropertyNode> GetPropertyNode() const;
+	PROPERTYEDITOR_API TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	void OnCustomResetToDefault(const FResetToDefaultOverride& OnCustomResetToDefault);
 
 private:
@@ -625,7 +631,16 @@ public:
 	virtual FPropertyAccess::Result SetValue(const double& InValue, EPropertyValueSetFlags::Type Flags = EPropertyValueSetFlags::DefaultFlags) override;
 };
 
-class FPropertyHandleVector : public FPropertyHandleBase
+class FPropertyHandleStruct : public FPropertyHandleBase, public IPropertyHandleStruct
+{
+public:
+	FPropertyHandleStruct(TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities);
+	static bool Supports(TSharedRef<FPropertyNode> PropertyNode);
+	virtual TSharedPtr<IPropertyHandleStruct> AsStruct() override;
+	virtual TSharedPtr<FStructOnScope> GetStructData() const override;
+};
+
+class FPropertyHandleVector : public FPropertyHandleStruct
 {
 public:
 	FPropertyHandleVector( TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities );
@@ -650,7 +665,7 @@ private:
 	TArray< TSharedPtr<FPropertyHandleMixed> > VectorComponents;	
 };
 
-class FPropertyHandleRotator : public FPropertyHandleBase
+class FPropertyHandleRotator : public FPropertyHandleStruct
 {
 public:
 	FPropertyHandleRotator( TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities  );
@@ -667,7 +682,7 @@ private:
 	TSharedPtr<FPropertyHandleMixed> YawValue;
 };
 
-class FPropertyHandleColor : public FPropertyHandleBase
+class FPropertyHandleColor : public FPropertyHandleStruct
 {
 public:
 	FPropertyHandleColor( TSharedRef<FPropertyNode> PropertyNode, FNotifyHook* NotifyHook, TSharedPtr<IPropertyUtilities> PropertyUtilities );

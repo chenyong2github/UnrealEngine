@@ -9,7 +9,6 @@
 #include "WorldConditionQuery.h"
 #include "WorldConditionSchema.h"
 #include "Editor.h"
-#include "Editor/PropertyEditor/Private/PropertyNode.h"
 
 #define LOCTEXT_NAMESPACE "WorldCondition"
 
@@ -73,9 +72,9 @@ void FWorldConditionContextDataRefDetails::CacheContextData()
 
 	if (!BaseStruct)
 	{
-		check(StructProperty.IsValid() && StructProperty->GetPropertyNode().IsValid())
+		check(StructProperty.IsValid() && StructProperty->IsValidHandle())
 		UE_LOG(LogWorldCondition, Error, TEXT("%s: Could not find BaseStruct '%s' nor BaseClass '%s' based on the property metadata, expecting full struct name."),
-			*StructProperty->GetPropertyNode()->GetPropertyPath(), *BaseStructName, *BaseClassName);
+			*FString(StructProperty->GetPropertyPath()), *BaseStructName, *BaseClassName);
 	}
 
 	// Find schema from outer FWorldConditionQueryDefinition.

@@ -7,10 +7,6 @@ public class NiagaraEditor : ModuleRules
 {
 	public NiagaraEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(new string[] {
-			Path.Combine(GetModuleDirectory("PropertyEditor"), "Private"),
-		});
-
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
                 "RHI",
