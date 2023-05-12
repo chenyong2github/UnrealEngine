@@ -8,6 +8,7 @@
 #include "Engine/EngineTypes.h"
 #include "PerPlatformProperties.h"
 #include "PerQualityLevelProperties.h"
+#include "SceneTypes.h"
 #include "LandscapeGrassType.generated.h"
 
 class UStaticMesh;
