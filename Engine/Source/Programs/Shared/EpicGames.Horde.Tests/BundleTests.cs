@@ -152,14 +152,14 @@ namespace EpicGames.Horde.Tests
 				packets.Add(new BundlePacket(BundleCompressionFormat.LZ4, 0, 20, 40));
 				packets.Add(new BundlePacket(BundleCompressionFormat.LZ4, 20, 10, 20));
 
-				oldHeader = new BundleHeader(types, imports, exports, packets);
+				oldHeader = BundleHeader.Create(types, imports, exports, packets);
 			}
 
 			ByteArrayBuilder writer = new ByteArrayBuilder();
 			oldHeader.Write(writer);
 			byte[] serializedData = writer.ToByteArray();
 
-			BundleHeader newHeader = new BundleHeader(new MemoryReader(serializedData));
+			BundleHeader newHeader = BundleHeader.Read(new MemoryReader(serializedData));
 				
 			Assert.AreEqual(oldHeader.Imports.Count, newHeader.Imports.Count);
 			for (int idx = 0; idx < oldHeader.Imports.Count; idx++)

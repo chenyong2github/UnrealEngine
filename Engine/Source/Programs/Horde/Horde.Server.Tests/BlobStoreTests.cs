@@ -61,7 +61,7 @@ namespace Horde.Server.Tests
 			List<BundlePacket> packets = new List<BundlePacket>();
 			packets.Add(new BundlePacket(BundleCompressionFormat.None, 0, (int)data.Length, (int)data.Length));
 
-			BundleHeader header = new BundleHeader(types, imports, exports, packets);
+			BundleHeader header = BundleHeader.Create(types, imports, exports, packets);
 			return new Bundle(header, new[] { data });
 		}
 

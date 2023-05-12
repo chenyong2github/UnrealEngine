@@ -1047,7 +1047,7 @@ namespace Horde.Server.Storage
 						int headerSize = BundleHeader.ReadPrelude(memory);
 						if (headerSize <= fetchSize)
 						{
-							return new BundleHeader(new MemoryReader(memory));
+							return BundleHeader.Read(new MemoryReader(memory));
 						}
 
 						// Increase the fetch size and retry

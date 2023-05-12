@@ -417,7 +417,7 @@ namespace EpicGames.Horde.Storage
 					}
 
 					// Parse the header and construct the bundle info from it
-					BundleHeader header = new BundleHeader(new MemoryReader(memory));
+					BundleHeader header = BundleHeader.Read(new MemoryReader(memory));
 
 					// Get the types within this bundle
 					TypeInfo?[] types = new TypeInfo?[header.Types.Count];

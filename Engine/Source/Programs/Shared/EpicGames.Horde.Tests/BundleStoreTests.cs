@@ -80,7 +80,7 @@ namespace EpicGames.Horde.Tests
 			List<BundlePacket> packets = new List<BundlePacket>();
 			packets.Add(new BundlePacket(BundleCompressionFormat.None, 0, payload.Length, payload.Length));
 
-			BundleHeader header = new BundleHeader(types, Array.Empty<BlobLocator>(), exports, packets);
+			BundleHeader header = BundleHeader.Create(types, Array.Empty<BlobLocator>(), exports, packets);
 			return new Bundle(header, new List<ReadOnlyMemory<byte>> { payload });
 		}
 
