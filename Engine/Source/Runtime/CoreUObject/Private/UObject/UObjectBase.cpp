@@ -1049,7 +1049,7 @@ void UObjectBaseInit()
 	GUObjectAllocator.AllocatePermanentObjectPool(SizeOfPermanentObjectPool);
 	GUObjectArray.AllocateObjectPool(MaxUObjects, MaxObjectsNotConsideredByGC, bPreAllocateUObjectArray);
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-	UE::CoreUObject::Private::InitObjectHandles(MaxUObjects);
+	UE::CoreUObject::Private::InitObjectHandles(GUObjectArray.GetObjectArrayCapacity());
 #endif
 
 	void InitNoPendingKill();
