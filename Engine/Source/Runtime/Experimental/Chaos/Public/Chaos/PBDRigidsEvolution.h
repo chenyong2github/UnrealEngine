@@ -617,16 +617,9 @@ public:
 	/** remove a list of constraints from the constraint graph */
 	CHAOS_API void RemoveConstraintsFromConstraintGraph(const FConstraintHandleArray& Constraints)
 	{
-		for (FConstraintHandle* BaseConstraintHandle : Constraints)
+		for (FConstraintHandle* ConstraintHandle : Constraints)
 		{
-			if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
-			{
-				RemoveConstraintFromConstraintGraph(ConstraintHandle);
-			}
-			else if (FCharacterGroundConstraintHandle* CharacterGroundConstraint = BaseConstraintHandle->As<FCharacterGroundConstraintHandle>())
-			{
-				RemoveConstraintFromConstraintGraph(CharacterGroundConstraint);
-			}
+			RemoveConstraintFromConstraintGraph(ConstraintHandle);
 		}
 	}
 
