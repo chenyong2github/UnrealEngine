@@ -20,12 +20,12 @@ public:
 	~FLandscapeEditLayerReadback();
 
 	/** Hash function to generate a hash used to detect change in read back data. This expects to take raw data from first mip. */
-	static uint32 CalculateHash(const uint8* InMipData, int32 InSizeInBytes);
+	static uint64 CalculateHash(const uint8* InMipData, int32 InSizeInBytes);
 
 	/** Update the stored hash value. Return true if this changes the value. */
-	bool SetHash(uint32 InHash);
+	bool SetHash(uint64 InHash);
 	/** Get the stored hash value. */
-	uint32 GetHash() const { return Hash; }
+	uint64 GetHash() const { return Hash; }
 
 	using FPerChannelLayerNames = TStaticArray<FName, 4>;
 
@@ -68,6 +68,6 @@ public:
 	static void GarbageCollectTasks();
 
 private:
-	uint32 Hash;
+	uint64 Hash;
 	TArray<int32> TaskHandles;
 };
