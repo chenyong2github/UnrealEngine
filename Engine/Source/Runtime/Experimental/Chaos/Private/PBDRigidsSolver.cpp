@@ -355,6 +355,8 @@ namespace Chaos
 {
 	using namespace CVars;
 
+	CHAOS_API extern int32 SyncKinematicOnGameThread;
+
 	class AdvanceOneTimeStepTask : public FNonAbandonableTask
 	{
 		friend class FAutoDeleteAsyncTask<AdvanceOneTimeStepTask>;
