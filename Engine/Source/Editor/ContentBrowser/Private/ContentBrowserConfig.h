@@ -86,6 +86,8 @@ struct FContentBrowserInstanceConfig
 	UPROPERTY()
 	bool bShowCppFolders = false;
 
+	bool bCollectionsDocked = true;
+
 	UPROPERTY()
 	bool bSearchClasses = false;
 

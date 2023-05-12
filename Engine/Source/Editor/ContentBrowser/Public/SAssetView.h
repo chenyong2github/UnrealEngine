@@ -110,6 +110,7 @@ public:
 		, _CanShowRealTimeThumbnails(false)
 		, _CanShowDevelopersFolder(false)
 		, _CanShowFavorites(false)
+		, _CanDockCollections(false)
 		, _SelectionMode( ESelectionMode::Multi )
 		, _AllowDragging(true)
 		, _AllowFocusOnSync(true)
@@ -227,7 +228,7 @@ public:
 		SLATE_ARGUMENT(bool, CanShowFavorites)
 
 		/** Indicates if the 'Dock Collections' option should be enabled or disabled */
-		SLATE_ARGUMENT_DEPRECATED(bool, CanDockCollections, 5.2, "CanDockCollections is no longer supported (now defaults to true).")
+		SLATE_ARGUMENT(bool, CanDockCollections)
 
 		/** The selection mode the asset view should use */
 		SLATE_ARGUMENT( ESelectionMode::Type, SelectionMode )
@@ -594,6 +595,15 @@ private:
 
 	/** @return true when we are showing favorites */
 	bool IsShowingFavorites() const;
+
+	/** Toggle whether the collections view should be docked under the paths view */
+	void ToggleDockCollections();
+
+	/** Whether or not it's possible to dock the collections view */
+	bool IsToggleDockCollectionsAllowed() const;
+
+	/** @return true when the collections view is docked */
+	bool HasDockedCollections() const;
 
 	/** Toggle whether C++ content should be shown or not */
 	void ToggleShowCppContent();
@@ -1060,6 +1070,9 @@ private:
 
 	/** Indicates if the 'Show Favorites' option should be enabled or disabled */
 	bool bCanShowFavorites : 1;
+
+	/** Indicates if the 'Dock Collections' option should be enabled or disabled */
+	bool bCanDockCollections : 1;
 
 	/** If true, it will show path column in the asset view */
 	bool bShowPathInColumnView : 1;
