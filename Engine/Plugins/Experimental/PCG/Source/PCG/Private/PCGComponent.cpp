@@ -231,6 +231,8 @@ void UPCGComponent::SetPropertiesFromOriginal(const UPCGComponent* Original)
 		RefreshTrackingData();
 	}
 
+	UpdateTrackedLandscape();
+
 	// Note that while we dirty here, we won't trigger a refresh since we don't have the required context
 	if (bIsDirty)
 	{
