@@ -23,6 +23,8 @@ const FName FAssetTableColumns::CountColumnId(TEXT("Count"));
 const FName FAssetTableColumns::NameColumnId(TEXT("Name"));
 const FName FAssetTableColumns::TypeColumnId(TEXT("Type"));
 const FName FAssetTableColumns::PathColumnId(TEXT("Path"));
+//const FName FAssetTableColumns::PackageTypeColumnId(TEXT("PackageType"));
+//const FName FAssetTableColumns::PackageNameColumnId(TEXT("PackageName"));
 const FName FAssetTableColumns::PrimaryTypeColumnId(TEXT("PrimaryType"));
 const FName FAssetTableColumns::PrimaryNameColumnId(TEXT("PrimaryName"));
 //const FName FAssetTableColumns::ManagedDiskSizeColumnId(TEXT("ManagedDiskSize"));
@@ -33,6 +35,118 @@ const FName FAssetTableColumns::TotalUsageCountColumnId(TEXT("TotalUsageCount"))
 //const FName FAssetTableColumns::ChunksColumnId(TEXT("Chunks"));
 const FName FAssetTableColumns::NativeClassColumnId(TEXT("NativeClass"));
 const FName FAssetTableColumns::GameFeaturePluginColumnId(TEXT("GameFeaturePlugin"));
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FAssetTableStringStore
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FAssetTableStringStore::FAssetTableStringStore()
+	: Chunks()
+	, Cache()
+	, TotalInputStringSize(0)
+	, TotalStoredStringSize(0)
+	, NumInputStrings(0)
+	, NumStoredStrings(0)
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FAssetTableStringStore::~FAssetTableStringStore()
+{
+	Reset();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAssetTableStringStore::Reset()
+{
+	for (FChunk& Chunk : Chunks)
+	{
+		delete[] Chunk.Buffer;
+	}
+	Chunks.Reset();
+	Cache.Reset();
+	TotalInputStringSize = 0;
+	TotalStoredStringSize = 0;
+	NumInputStrings = 0;
+	NumStoredStrings = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FStringView FAssetTableStringStore::Store(const TCHAR* InStr)
+{
+	if (!InStr)
+	{
+		return FStringView();
+	}
+	return Store(FStringView(InStr));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FStringView FAssetTableStringStore::Store(const FStringView InStr)
+{
+	if (InStr.IsEmpty())
+	{
+		return FStringView();
+	}
+
+	check(InStr.Len() <= GetMaxStringLength());
+
+	TotalInputStringSize += (InStr.Len() + 1) * sizeof(TCHAR);
+	++NumInputStrings;
+
+	uint32 Hash = GetTypeHash(InStr);
+
+	TArray<FStringView> CachedStrings;
+	Cache.MultiFind(Hash, CachedStrings);
+	for (const FStringView& CachedString : CachedStrings)
+	{
+		if (CachedString.Equals(InStr, SearchCase))
+		{
+			return CachedString;
+		}
+	}
+
+	if (Chunks.Num() == 0 ||
+		Chunks.Last().Used + InStr.Len() + 1 > ChunkBufferLen)
+	{
+		AddChunk();
+	}
+
+	TotalStoredStringSize += (InStr.Len() + 1) * sizeof(TCHAR);
+	++NumStoredStrings;
+
+	FChunk& Chunk = Chunks.Last();
+	FStringView StoredStr(Chunk.Buffer + Chunk.Used, InStr.Len());
+	FMemory::Memcpy((void*)(Chunk.Buffer + Chunk.Used), (const void*)InStr.GetData(), InStr.Len() * sizeof(TCHAR));
+	Chunk.Used += InStr.Len();
+	Chunk.Buffer[Chunk.Used] = TEXT('\0');
+	Chunk.Used ++;
+	Cache.Add(Hash, StoredStr);
+	return StoredStr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAssetTableStringStore::AddChunk()
+{
+	FChunk& Chunk = Chunks.AddDefaulted_GetRef();
+	Chunk.Buffer = new TCHAR[ChunkBufferLen];
+	Chunk.Used = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAssetTableStringStore::EnumerateStrings(TFunction<void(const FStringView Str)> Callback) const
+{
+	for (const auto& Pair : Cache)
+	{
+		Callback(Pair.Value);
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FAssetTable

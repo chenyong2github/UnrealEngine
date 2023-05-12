@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/StringView.h"
+#include "Misc/CString.h"
+
 #include "Insights/Table/ViewModels/Table.h"
 
 namespace UE
@@ -13,13 +16,105 @@ namespace UE
 	}
 }
 
+// Simple string store.
+class FAssetTableStringStore
+{
+private:
+	static constexpr int32 ChunkBufferLen = 1024 * 1024; // 2 MiB/buffer
+	static constexpr ESearchCase::Type SearchCase = ESearchCase::CaseSensitive;
+
+	struct FChunk
+	{
+		TCHAR* Buffer = nullptr;
+		uint32 Used = 0;
+	};
+
+public:
+	FAssetTableStringStore();
+	~FAssetTableStringStore();
+
+	// Resets this string store. Frees all memory.
+	void Reset();
+
+	// Store a string. Gets the stored string for specified input string.
+	// @param InStr - the input string
+	// @returns the stored string view.
+	const FStringView Store(const TCHAR* InStr);
+
+	// Store a string. Gets the stored string for specified input string.
+	// The returned string is guaranteed to be null terminated.
+	// @param InStr - the input string
+	// @returns the stored string view.
+	const FStringView Store(const FStringView InStr);
+
+	// Gets the maximum length of a single string that can be stored.
+	// @returns the maximum string length
+	int32 GetMaxStringLength() const
+	{
+		return ChunkBufferLen - 1;
+	}
+
+	// Gets number of input strings, including duplicates.
+	// @returns number of input strings.
+	int32 GetNumInputStrings() const
+	{
+		return NumInputStrings;
+	}
+
+	// Gets size of input strings, including duplicates, in [bytes].
+	// @returns size of input strings, in [bytes].
+	SIZE_T GetTotalInputStringSize() const
+	{
+		return TotalInputStringSize;
+	}
+
+	// Gets number of stored (unique) strings.
+	// @returns number of stored strings.
+	int32 GetNumStrings() const
+	{
+		return NumStoredStrings;
+	}
+
+	// Gets size of stored (unique) strings, in [bytes].
+	// @returns size of stored strings, in [bytes].
+	SIZE_T GetTotalStringSize() const
+	{
+		return TotalStoredStringSize;
+	}
+
+	// Gets (estimated) total allocated memory for this string store, in [bytes].
+	// @returns memory size, in [bytes].
+	SIZE_T GetAllocatedSize() const
+	{
+		return Chunks.Num() * ChunkBufferLen * sizeof(TCHAR)
+			+ Chunks.GetAllocatedSize()
+			+ Cache.GetAllocatedSize()
+			+ sizeof(this);
+	}
+
+	void EnumerateStrings(TFunction<void(const FStringView Str)> Callback) const;
+
+private:
+	void AddChunk();
+
+private:
+	TArray<FChunk> Chunks;
+	TMultiMap<uint32, FStringView> Cache; // Hash --> FStringView
+	SIZE_T TotalInputStringSize;
+	SIZE_T TotalStoredStringSize;
+	int32 NumInputStrings;
+	int32 NumStoredStrings;
+};
+
 // Column identifiers
 struct FAssetTableColumns
 {
 	static const FName CountColumnId;
-	static const FName NameColumnId;
 	static const FName TypeColumnId;
+	static const FName NameColumnId;
 	static const FName PathColumnId;
+	//static const FName PackageNameColumnId;
+	//static const FName PackageTypeColumnId;
 	static const FName PrimaryTypeColumnId;
 	static const FName PrimaryNameColumnId;
 	//static const FName ManagedDiskSizeColumnId;
@@ -45,40 +140,42 @@ public:
 	{
 	}
 
-	const TCHAR* GetType() const { return *Type; }
-	const TCHAR* GetName() const { return *Name; }
-	const TCHAR* GetPath() const { return *Path; }
-	const TCHAR* GetPrimaryType() const { return *PrimaryType; }
-	const TCHAR* GetPrimaryName() const { return *PrimaryName; }
+	const TCHAR* GetType() const { return Type; }
+	const TCHAR* GetName() const { return Name; }
+	const TCHAR* GetPath() const { return Path; }
+	//const TCHAR* GetPackageName() const { return PackageName; }
+	//const TCHAR* GetPackagePath() const { return PackagePath; }
+	const TCHAR* GetPrimaryType() const { return PrimaryType; }
+	const TCHAR* GetPrimaryName() const { return PrimaryName; }
 	//int64 GetManagedDiskSize() const { return ManagedDiskSize; }
 	//int64 GetDiskSize() const { return DiskSize; }
 	int64 GetStagedCompressedSize() const { return StagedCompressedSize; }
 	int64 GetTotalUsageCount() const { return TotalUsageCount; }
-	//const TCHAR* GetCookRule() const { return *CookRule; }
-	//const TCHAR* GetChunks() const { return *Chunks; }
-	const TCHAR* GetNativeClass() const { return *NativeClass; }
-	const TCHAR* GetGameFeaturePlugin() const { return *GameFeaturePlugin; }
-
+	//const TCHAR* GetCookRule() const { return CookRule; }
+	//const TCHAR* GetChunks() const { return Chunks; }
+	const TCHAR* GetNativeClass() const { return NativeClass; }
+	const TCHAR* GetGameFeaturePlugin() const { return GameFeaturePlugin; }
 	int32 GetNumDependencies() const { return Dependencies.Num(); }
 	const TArray<int32>& GetDependencies() const { return Dependencies; }
-
 	FName GetNodeName() const { return FName(Name, 0); }
 	FLinearColor GetColor() const { return Color; }
 
 private:
-	FString Type;
-	FString Name;
-	FString Path;
-	FString PrimaryType;
-	FString PrimaryName;
+	const TCHAR* Type = nullptr;
+	const TCHAR* Name = nullptr;
+	const TCHAR* Path = nullptr;
+	//const TCHAR* PackageName = nullptr;
+	//const TCHAR* PackagePath = nullptr;
+	const TCHAR* PrimaryType = nullptr;
+	const TCHAR* PrimaryName = nullptr;
 	//int64 ManagedDiskSize = 0;
 	//int64 DiskSize = 0;
 	int64 StagedCompressedSize = 0;
 	int64 TotalUsageCount = 0;
-	//FString CookRule;
-	//FString Chunks;
-	FString NativeClass;
-	FString GameFeaturePlugin;
+	//const TCHAR* CookRule = nullptr;
+	//const TCHAR* Chunks = nullptr;
+	const TCHAR* NativeClass = nullptr;
+	const TCHAR* GameFeaturePlugin = nullptr;
 	TArray<int32> Dependencies;
 	FLinearColor Color;
 };
@@ -108,10 +205,16 @@ public:
 
 	void AddAsset(const FAssetTableRow& AssetRow) { Assets.Add(AssetRow); }
 
+	const FStringView StoreString(const FStringView InStr) { return StringStore.Store(InStr); }
+	const TCHAR* StoreStr(const FString& InStr) { return StringStore.Store(InStr).GetData(); }
+	const FAssetTableStringStore& GetStringStore() const { return StringStore; }
+	FAssetTableStringStore& GetStringStore() { return StringStore; }
+
 	void ClearAllData()
 	{
 		Assets.Empty();
 		VisibleAssetCount = 0;
+		StringStore.Reset();
 	}
 
 private:
@@ -120,4 +223,5 @@ private:
 private:
 	TArray<FAssetTableRow> Assets;
 	int32 VisibleAssetCount = 0;
+	FAssetTableStringStore StringStore;
 };

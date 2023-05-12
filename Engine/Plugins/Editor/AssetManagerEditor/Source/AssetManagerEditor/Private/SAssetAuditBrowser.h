@@ -133,7 +133,7 @@ protected:
 	void RefreshAssetView();
 
 #if ASSET_TABLE_TREE_VIEW_ENABLED
-	void PopulateAssetTableRow(const FAssetData& AssetData, class FAssetTableRow* OutRow);
+	void PopulateAssetTableRow(class FAssetTableRow& OutRow, const FAssetData& AssetData, class FAssetTable& AssetTable) const;
 #endif
 	/** Commands handled by this widget */
 	TSharedPtr<FUICommandList> Commands;

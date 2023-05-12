@@ -731,32 +731,72 @@ void SAssetAuditBrowser::GoToHistoryIndex(int32 InHistoryIdx)
 }
 
 #if ASSET_TABLE_TREE_VIEW_ENABLED
-void SAssetAuditBrowser::PopulateAssetTableRow(const FAssetData& AssetData, class FAssetTableRow* OutRow)
+void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAssetData& AssetData, FAssetTable& AssetTable) const
 {
-	OutRow->Type = AssetData.AssetClassPath.ToString(); // ???
+	// Asset Type
+	FString AssetType;
+	if (!EditorModule->GetStringValueForCustomColumn(AssetData, FName(TEXT("Type")), AssetType)) // TODO: verify @Matt.Breindel
+	{
+		AssetType = AssetData.AssetClassPath.ToString(); // TODO: verify @Matt.Breindel
+	}
+	const uint32 AssetTypeHash = GetTypeHash(AssetType);
+	OutRow.Type = AssetTable.StoreStr(AssetType);
 
-	//OutRow->PackageName = PackageName.ToString();     // ???
-	//OutRow->PackagePath = PackagePath.ToString();     // ???
+	// Asset Name
+	OutRow.Name = AssetTable.StoreStr(AssetData.AssetName.ToString()); // TODO: verify @Matt.Breindel; see also AssetData.AssetClassPath.GetAssetName().ToString()
 
-	OutRow->Name = AssetData.AssetName.ToString();      // vs. AssetData.AssetClassPath.GetAssetName().ToString() ???
-	OutRow->Path = AssetData.GetObjectPathString();     // vs. *AssetClassPath.ToString() ???
+	// Path (without package or asset name)
+	FString ObjectPathString = AssetData.GetObjectPathString(); // TODO: verify @Matt.Breindel; see also *AssetClassPath.ToString()
+	int Index;
+	ObjectPathString.FindLastChar(TEXT('/'), Index);
+	if (Index != INDEX_NONE)
+	{
+		ObjectPathString = ObjectPathString.Left(Index + 1);
+	}
+	OutRow.Path = AssetTable.StoreStr(ObjectPathString);
 
-	EditorModule->GetStringValueForCustomColumn(AssetData, FPrimaryAssetId::PrimaryAssetTypeTag, OutRow->PrimaryType);
-	EditorModule->GetStringValueForCustomColumn(AssetData, FPrimaryAssetId::PrimaryAssetNameTag, OutRow->PrimaryName);
+	//OutRow.PackageName = AssetTable.StoreStr(AssetTable.PackageName.ToString()); // TODO: @Matt.Breindel, verify if this is needed/useful
+	//OutRow.PackagePath = AssetTable.StoreStr(AssetTable.PackagePath.ToString()); // TODO: @Matt.Breindel, verify if this is needed/useful
 
-	//EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::ManagedDiskSizeName, OutRow->ManagedDiskSize);
-	//EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::DiskSizeName, OutRow->DiskSize);
+	FString Str;
 
-	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::StageChunkCompressedSizeName, OutRow->StagedCompressedSize);
-	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::TotalUsageName, OutRow->TotalUsageCount);
-	//EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::CookRuleName, OutRow->CookRule);
-	//EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::ChunksName, OutRow->Chunks);
+	if (EditorModule->GetStringValueForCustomColumn(AssetData, FPrimaryAssetId::PrimaryAssetTypeTag, Str))
+	{
+		OutRow.PrimaryType = AssetTable.StoreStr(Str);
+	}
+	if (EditorModule->GetStringValueForCustomColumn(AssetData, FPrimaryAssetId::PrimaryAssetNameTag, Str))
+	{
+		OutRow.PrimaryName = AssetTable.StoreStr(Str);
+	}
 
-	EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::GameFeaturePluginsName, OutRow->GameFeaturePlugin);
-	OutRow->NativeClass = AssetData.AssetClassPath.GetAssetName().ToString();
+	// TODO: @Matt.Breindel, verify if these columns are still needed
+	//EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::ManagedDiskSizeName, OutRow.ManagedDiskSize);
+	//EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::DiskSizeName, OutRow.DiskSize);
 
-	const uint32 Hash = GetTypeHash(OutRow->Type);
-	OutRow->Color = USlateThemeManager::Get().GetColor((EStyleColor)((uint32)EStyleColor::AccentBlue + Hash % 8));
+	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::StageChunkCompressedSizeName, OutRow.StagedCompressedSize);
+	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::TotalUsageName, OutRow.TotalUsageCount);
+
+	// TODO: @Matt.Breindel, verify if this column is still needed
+	//if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::CookRuleName, Str))
+	//{
+	//	OutRow.CookRule = AssetTable.StoreStr(Str);
+	//}
+
+	// TODO: @Matt.Breindel, verify if this column is still needed
+	//if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::ChunksName, Str))
+	//{
+	//	OutRow.Chunks = AssetTable.StoreStr(Str);
+	//}
+
+	if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::GameFeaturePluginsName, Str))
+	{
+		OutRow.GameFeaturePlugin = AssetTable.StoreStr(Str);
+	}
+
+	OutRow.NativeClass = AssetTable.StoreStr(AssetData.AssetClassPath.GetAssetName().ToString());
+
+	// Sets the color based on asset type.
+	OutRow.Color = USlateThemeManager::Get().GetColor((EStyleColor)((uint32)EStyleColor::AccentBlue + AssetTypeHash % 8));
 }
 #endif // ASSET_TABLE_TREE_VIEW_ENABLED
 
@@ -807,7 +847,7 @@ void SAssetAuditBrowser::RefreshAssetView()
 			{
 				const FAssetData& SourceAsset = SourceAssets[Index];
 				FAssetTableRow AssetRow;
-				PopulateAssetTableRow(SourceAsset, &AssetRow);
+				PopulateAssetTableRow(AssetRow, SourceAsset, *AssetTable);
 				AssetTable->AddAsset(AssetRow);
 				AssetToIndexMap.Add(SourceAsset, Index);
 			}
@@ -860,7 +900,7 @@ void SAssetAuditBrowser::RefreshAssetView()
 							{
 								// We don't know about this asset yet. Create a new row for it and add it to the source list for further dependency analysis
 								FAssetTableRow NewRow;
-								PopulateAssetTableRow(DependencyAsset, &NewRow);
+								PopulateAssetTableRow(NewRow, DependencyAsset, *AssetTable);
 								AssetTable->AddAsset(NewRow);
 								IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(SourceAssets.Num());
 								AssetToIndexMap.Add(DependencyAsset, SourceAssets.Num());
@@ -888,6 +928,12 @@ void SAssetAuditBrowser::RefreshAssetView()
 			const double TotalTime = Stopwatch.GetAccumulatedTime();
 			UE_LOG(LogInsights, Log, TEXT("[AssetTree] Asset table rebuilt in %.4fs (%d visible + %d hidden = %d assets)"),
 				TotalTime, AssetTable->GetVisibleAssetCount(), AssetTable->GetHiddenAssetCount(), AssetTable->GetTotalAssetCount());
+
+			const FAssetTableStringStore& StringStore = AssetTable->GetStringStore();
+			UE_LOG(LogInsights, Log, TEXT("[AssetTree] String store: %d strings (%lld bytes) --> %d strings (%lld bytes | %lld bytes) %.0f%%"),
+				StringStore.GetNumInputStrings(), StringStore.GetTotalInputStringSize(), 
+				StringStore.GetNumStrings(), StringStore.GetTotalStringSize(), StringStore.GetAllocatedSize(),
+				(double)StringStore.GetAllocatedSize() * 100.0 / (double)StringStore.GetTotalInputStringSize());
 
 			AssetTableTreeView->RebuildTreeAsync();
 		}
