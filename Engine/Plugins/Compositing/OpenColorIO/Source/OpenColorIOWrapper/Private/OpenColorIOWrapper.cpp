@@ -27,7 +27,7 @@ namespace OpenColorIOWrapper
 	// Build routine since there is no FAnsiString
 	TUniquePtr<ANSICHAR[]> MakeAnsiString(const TCHAR* Str)
 	{
-		int32 Num = FCString::Strlen(Str);
+		int32 Num = FPlatformString::ConvertedLength<ANSICHAR>(Str);
 		TUniquePtr<ANSICHAR[]> Ret =  MakeUnique<ANSICHAR[]>(Num);
 		FMemory::Memcpy(Ret.Get(), StringCast<ANSICHAR>(Str).Get(), Num);
 		return Ret;
