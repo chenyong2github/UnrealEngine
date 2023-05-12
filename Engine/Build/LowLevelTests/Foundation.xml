@@ -33,7 +33,4 @@
   <Property Name="LinuxFoundationRunSupported" Value="True" />
   <Property Name="LinuxArm64FoundationRunSupported" Value="True" />
   <Property Name="TVOSFoundationRunSupported" Value="True" />
-  <Property Name="HoloLensFoundationTags" Value="" />
-  <Property Name="HoloLensFoundationExtraCompilationArgs" Value="-allmodules" />
-  <Property Name="HoloLensFoundationRunSupported" Value="True" />
 </BuildGraph>

@@ -20,7 +20,6 @@
 	<Property Name="IOSStripFilter" Value="*.a;"/>
 	<Property Name="TVOSStripFilter" Value="*.a;"/>
 	<Property Name="LinuxStripFilter" Value="Engine\Binaries\Linux\*."/>
-	<Property Name="HoloLensStripFilter" Value="*.pdb"/>
 
 
 	<Property Name="WindowsSignFilter" Value="*.exe;*.dll"/>

@@ -59,7 +59,7 @@
 
 	<Option Name="GauntletDevicePool" DefaultValue="UE4" Description="Gauntlet Device Pool to use to run target platform tests"/>
 	<Option Name="AlternateGauntletDevicePool" DefaultValue="UE5" Description="Alternate Gauntlet Device Pool to use to run target platform tests"/>
-	<Option Name="AlternateDevicePoolPlatforms" DefaultValue="$(AlternateDevicePoolPlatformsProperty);HoloLens" Description="Platforms that need to use the Alternate Gauntlet Device Pool"/>
+	<Option Name="AlternateDevicePoolPlatforms" DefaultValue="$(AlternateDevicePoolPlatformsProperty)" Description="Platforms that need to use the Alternate Gauntlet Device Pool"/>
 	<Option Name="Device" DefaultValue="" Description="Device address to run tests on"/>
 	<Option Name="Configuration" DefaultValue="Development" Description="Configuration type: development, debug, test, shipping etc."/>
 	<Option Name="AttachToDebugger" DefaultValue="false" Description="Wait for debugger to attach."/>

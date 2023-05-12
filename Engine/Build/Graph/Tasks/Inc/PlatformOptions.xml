@@ -27,7 +27,7 @@
 <Property Name="ShowExplicitFlags" Value="true" />
 
 <Property Name="AllEditorPlatforms" Value="Mac+Win64+Linux" />
-<Property Name="AllTargetPlatforms" Value="Android+HoloLens+iOS+Mac+PS4+PS5+Switch+tvOS+Win64+WinGDK+XboxOneGDK+XB1+XSX" />
+<Property Name="AllTargetPlatforms" Value="Android+iOS+Mac+PS4+PS5+Switch+tvOS+Win64+WinGDK+XboxOneGDK+XB1+XSX" />
 
 <Option Name="EditorPlatforms" DefaultValue="" Description="Alternative to 'WithFooEditor', a list of editors to build and test. Win64+Mac etc"/>
 <Option Name="TargetPlatforms" DefaultValue="" Description="Alternative to 'WithFoo', a list of Platforms to build and test. PS4+XSX etc"/>
@@ -41,7 +41,7 @@
 
 <!-- No means of reliably running these tests atm -->
 <Option Name="EditorPlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of editor platforms that editor tests won't be run on" />
-<Option Name="TargetPlatformsToSkipTests" DefaultValue="HoloLens+IOS+Linux+TVOS" Restrict=".*" Description="List of target platforms that target tests won't be run on" />
+<Option Name="TargetPlatformsToSkipTests" DefaultValue="IOS+Linux+TVOS" Restrict=".*" Description="List of target platforms that target tests won't be run on" />
 <Option Name="CookedEditorPlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of editor cooked platforms that editor tests won't be run on" />
 <Option Name="PlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of platforms that all tests won't be run on. Overrides Editor/TargetPlatformsToSkipTests when non-empty." />
 
@@ -56,7 +56,6 @@
 	<Option Name="WithLinuxCookedEditor" DefaultValue="false" Description="Build and cook Linux CookedEditor"/>
 
 	<Option Name="WithAndroid" DefaultValue="false" Description="Build and test Android"/>
-	<Option Name="WithHoloLens" DefaultValue="false" Description="Build and test HoloLens"/>
 	<Option Name="WithIOS" DefaultValue="false" Description="Build and test IOS"/>
 	<Option Name="WithLinux" DefaultValue="false" Description="Build and test Linux"/>
 	<Option Name="WithMac" DefaultValue="false" Description="Build and test Mac"/>
@@ -87,7 +86,6 @@
 	<Do If="'$(TargetPlatforms)' == ''" >
 		<Property Name="TargetPlatforms" Value="" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Android+" If="$(WithAndroid)" />
-		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)HoloLens+" If="$(WithHoloLens)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)IOS+" If="$(WithIOS)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Linux+" If="$(WithLinux)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Mac+" If="$(WithMac)" />

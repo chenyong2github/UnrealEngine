@@ -33,7 +33,4 @@
   <Property Name="LinuxNetworkPredictionPluginRunSupported" Value="True" />
   <Property Name="LinuxArm64NetworkPredictionPluginRunSupported" Value="True" />
   <Property Name="TVOSNetworkPredictionPluginRunSupported" Value="True" />
-  <Property Name="HoloLensNetworkPredictionPluginTags" Value="" />
-  <Property Name="HoloLensNetworkPredictionPluginExtraCompilationArgs" Value="" />
-  <Property Name="HoloLensNetworkPredictionPluginRunSupported" Value="True" />
 </BuildGraph>

@@ -5,17 +5,14 @@
 	<Property Name="MacExtraArgs" Value=""/>
 	<Property Name="IOSExtraArgs" Value=""/>
 	<Property Name="AndroidExtraArgs" Value=""/>
-	<Property Name="HoloLensExtraArgs" Value=""/>
 	<Property Name="Win64RequiresSpecialAgent" Value="False"/>
 	<Property Name="LinuxRequiresSpecialAgent" Value="False"/>
 	<Property Name="MacRequiresSpecialAgent" Value="False"/>
 	<Property Name="IOSRequiresSpecialAgent" Value="False"/>
 	<Property Name="AndroidRequiresSpecialAgent" Value="False"/>
-	<Property Name="HoloLensRequiresSpecialAgent" Value="False"/>
 	<Property Name="Win64RequiresCatch2BuildExtraCMakeArgs" Value="False"/>
 	<Property Name="LinuxRequiresCatch2BuildExtraCMakeArgs" Value="False"/>
 	<Property Name="MacRequiresCatch2BuildExtraCMakeArgs" Value="False"/>
 	<Property Name="IOSRequiresCatch2BuildExtraCMakeArgs" Value="False"/>
 	<Property Name="AndroidRequiresCatch2BuildExtraCMakeArgs" Value="False"/>
-	<Property Name="HoloLensRequiresCatch2BuildExtraCMakeArgs" Value="False"/>
 </BuildGraph>

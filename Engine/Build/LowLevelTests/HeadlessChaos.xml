@@ -33,7 +33,4 @@
   <Property Name="LinuxHeadlessChaosRunSupported" Value="True" />
   <Property Name="LinuxArm64HeadlessChaosRunSupported" Value="True" />
   <Property Name="TVOSHeadlessChaosRunSupported" Value="True" />
-  <Property Name="HoloLensHeadlessChaosTags" Value="" />
-  <Property Name="HoloLensHeadlessChaosExtraCompilationArgs" Value="" />
-  <Property Name="HoloLensHeadlessChaosRunSupported" Value="True" />
 </BuildGraph>
