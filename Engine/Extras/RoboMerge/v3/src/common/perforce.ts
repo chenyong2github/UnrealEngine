@@ -296,6 +296,11 @@ export interface EditChangeOpts {
 	edgeServerAddress?: string
 }
 
+export interface IntegrateOpts {
+	edgeServerAddress?: string
+	virtual?: boolean
+}
+
 export interface SyncParams {
 	opts?: string[]
 	edgeServerAddress?: string
@@ -806,19 +811,24 @@ export class PerforceContext {
 	// integrate a CL from source to destination, resolve, and place the results in a new CL
 	// output format is true if the integration resolved or false if the integration wasn't necessary (still considered a success)
 	// failure to resolve is treated as an error condition
-	async integrate(roboWorkspace: RoboWorkspace, source: IntegrationSource, dest_changelist: number, target: IntegrationTarget, edgeServerAddress?: string)
+	async integrate(roboWorkspace: RoboWorkspace, source: IntegrationSource, dest_changelist: number, target: IntegrationTarget, opts?: IntegrateOpts)
 		: Promise<[string, (Change | string)[]]> {
+
+		opts = opts || {};
 		const workspace = coercePerforceWorkspace(roboWorkspace);
+
 		// build a command
 		let cmdList = [
 			"integrate",
 			"-Ob",
 			"-Or",
-			"-Rd",
-			"-Rb",
 			"-c" + dest_changelist
 		];
 		const range = `@${source.changelist},${source.changelist}`
+
+		if (opts.virtual) {
+			cmdList.push('-v')
+		}
 
 		let noSuchFilesPossible = false // Helper variable for error catching
 		// Branchspec -- takes priority above other possibilities
@@ -849,7 +859,7 @@ export class PerforceContext {
 		// execute the P4 command
 		let changes;
 		try {
-			changes = await this._execP4Ztag(workspace, cmdList, { numRetries: 0, edgeServerAddress });
+			changes = await this._execP4Ztag(workspace, cmdList, { numRetries: 0, edgeServerAddress: opts.edgeServerAddress });
 		}
 		catch (reason) {
 			if (!isExecP4Error(reason)) {
@@ -974,6 +984,10 @@ export class PerforceContext {
 
 		// If resolveHelper() returned a string, we do not need to return a dashNResult
 		if (typeof fileInfo === 'string') {
+			// If our error is just there are no files to resolve, that is a success
+			if (fileInfo.startsWith('No file(s) to resolve.')) {
+				return new ResolveResult(null, 'success', this.logger)
+			}
 			return new ResolveResult(null, fileInfo, this.logger)
 		}
 
@@ -993,7 +1007,7 @@ export class PerforceContext {
 
 			let [err, output] = reason
 			
-			// If our error is just there are no files to resolve, 
+			// If our error is just there are no files to resolve, that is a success
 			if (output.startsWith('No file(s) to resolve.')) {
 				dashNresult = ['success']
 			} else {
