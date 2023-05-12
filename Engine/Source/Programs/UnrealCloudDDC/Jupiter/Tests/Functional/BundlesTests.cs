@@ -14,12 +14,15 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Backends;
 using Jupiter.Controllers;
 using Jupiter.Implementation;
+using Jupiter.Implementation.Blob;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Serilog;
 using Serilog.Core;
@@ -27,7 +30,7 @@ using Serilog.Core;
 namespace Jupiter.FunctionalTests.Storage;
 
 [TestClass]
-public class S3BundlesTests : BundlesTests
+public class MemoryBundlesTests : BundlesTests
 {
     private IAmazonS3? _s3;
     protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
@@ -35,7 +38,93 @@ public class S3BundlesTests : BundlesTests
         return new[]
         {
             new KeyValuePair<string, string>("UnrealCloudDDC:StorageImplementations:0", UnrealCloudDDCSettings.StorageBackendImplementations.S3.ToString()),
-            new KeyValuePair<string, string>("S3:BucketName", $"tests-{TestNamespaceName}")
+            new KeyValuePair<string, string>("S3:BucketName", $"tests-{TestNamespaceName}"),
+            new KeyValuePair<string, string>("UnrealCloudDDC:BlobIndexImplementation", "Memory"),
+            new KeyValuePair<string, string>("UnrealCloudDDC:ReferencesDbImplementation", "Memory"),
+        };
+    }
+
+    protected override async Task Seed(IServiceProvider provider)
+    {
+        string s3BucketName = $"tests-{TestNamespaceName}";
+
+        _s3 = provider.GetService<IAmazonS3>();
+        Assert.IsNotNull(_s3);
+        if (await _s3!.DoesS3BucketExistAsync(s3BucketName))
+        {
+            // if we have failed to run the cleanup for some reason we run it now
+            await Teardown(provider);
+        }
+
+        await _s3.PutBucketAsync(s3BucketName);
+        await _s3.PutObjectAsync(new PutObjectRequest { BucketName = s3BucketName, Key = BlobIdentifier.FromBlobLocator(SmallFileLocator).AsS3Key(), ContentBody = SmallFileContents });
+    }
+
+    protected override async Task Teardown(IServiceProvider provider)
+    {
+        string s3BucketName = $"tests-{TestNamespaceName}";
+        ListObjectsResponse response = await _s3!.ListObjectsAsync(s3BucketName);
+        List<KeyVersion> objectKeys = response.S3Objects.Select(o => new KeyVersion { Key = o.Key }).ToList();
+        await _s3.DeleteObjectsAsync(new DeleteObjectsRequest { BucketName = s3BucketName, Objects = objectKeys });
+
+        await _s3.DeleteBucketAsync(s3BucketName);
+    }
+}
+
+[TestClass]
+public class ScyllaBundlesTests : BundlesTests
+{
+    private IAmazonS3? _s3;
+    protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
+    {
+        return new[]
+        {
+            new KeyValuePair<string, string>("UnrealCloudDDC:StorageImplementations:0", UnrealCloudDDCSettings.StorageBackendImplementations.S3.ToString()),
+            new KeyValuePair<string, string>("S3:BucketName", $"tests-{TestNamespaceName}"),
+            new KeyValuePair<string, string>("UnrealCloudDDC:BlobIndexImplementation", "Scylla"),
+            new KeyValuePair<string, string>("UnrealCloudDDC:ReferencesDbImplementation", "Scylla"),
+        };
+    }
+
+    protected override async Task Seed(IServiceProvider provider)
+    {
+        string s3BucketName = $"tests-{TestNamespaceName}";
+
+        _s3 = provider.GetService<IAmazonS3>();
+        Assert.IsNotNull(_s3);
+        if (await _s3!.DoesS3BucketExistAsync(s3BucketName))
+        {
+            // if we have failed to run the cleanup for some reason we run it now
+            await Teardown(provider);
+        }
+
+        await _s3.PutBucketAsync(s3BucketName);
+        await _s3.PutObjectAsync(new PutObjectRequest { BucketName = s3BucketName, Key = BlobIdentifier.FromBlobLocator(SmallFileLocator).AsS3Key(), ContentBody = SmallFileContents });
+    }
+
+    protected override async Task Teardown(IServiceProvider provider)
+    {
+        string s3BucketName = $"tests-{TestNamespaceName}";
+        ListObjectsResponse response = await _s3!.ListObjectsAsync(s3BucketName);
+        List<KeyVersion> objectKeys = response.S3Objects.Select(o => new KeyVersion { Key = o.Key }).ToList();
+        await _s3.DeleteObjectsAsync(new DeleteObjectsRequest { BucketName = s3BucketName, Objects = objectKeys });
+
+        await _s3.DeleteBucketAsync(s3BucketName);
+    }
+}
+
+[TestClass]
+public class MongoBundlesTests : BundlesTests
+{
+    private IAmazonS3? _s3;
+    protected override IEnumerable<KeyValuePair<string, string>> GetSettings()
+    {
+        return new[]
+        {
+            new KeyValuePair<string, string>("UnrealCloudDDC:StorageImplementations:0", UnrealCloudDDCSettings.StorageBackendImplementations.S3.ToString()),
+            new KeyValuePair<string, string>("S3:BucketName", $"tests-{TestNamespaceName}"),
+            new KeyValuePair<string, string>("UnrealCloudDDC:BlobIndexImplementation", "Mongo"),
+            new KeyValuePair<string, string>("UnrealCloudDDC:ReferencesDbImplementation", "Mongo"),
         };
     }
 
@@ -179,7 +268,7 @@ public abstract class BundlesTests
         result.EnsureSuccessStatusCode();
 
         HttpResponseMessage getResult = await _httpClient!.GetAsync(new Uri($"api/v1/storage/{TestNamespaceName}/refs/{refName}", UriKind.Relative));
-        result.EnsureSuccessStatusCode();
+        getResult.EnsureSuccessStatusCode();
         ReadRefResponse? getResponse = await getResult.Content.ReadFromJsonAsync<ReadRefResponse>();
         Assert.IsNotNull(getResponse);
 
@@ -212,6 +301,52 @@ public abstract class BundlesTests
         getResult.EnsureSuccessStatusCode();
     }
     
+    [TestMethod]
+    public async Task TestTreeAsync()
+    {
+        RefName rootRefName = new RefName("test");
+        RefName leafRefName = new RefName("leaf");
+        HttpMessageHandler httpMessageHandler = Server!.CreateHandler();
+
+        HttpStorageClient blobStore = new HttpStorageClient(() => new HttpClient(httpMessageHandler) {BaseAddress = new Uri(Server.BaseAddress, $"api/v1/storage/{TestNamespaceName}/")}!, () => null!, NullLogger.Instance);
+        await SeedTreeAsync(blobStore, rootRefName, leafRefName, new TreeOptions { MaxBlobSize = 1 });
+
+        IBlobIndex blobIndex = Server.Services.GetService<IBlobIndex>()!;
+
+        HttpResponseMessage getResultRoot = await _httpClient!.GetAsync(new Uri($"api/v1/storage/{TestNamespaceName}/refs/{rootRefName.Text}", UriKind.Relative));
+        getResultRoot.EnsureSuccessStatusCode();
+        ReadRefResponse? getResponseRoot = await getResultRoot.Content.ReadFromJsonAsync<ReadRefResponse>();
+        Assert.IsNotNull(getResponseRoot);
+        BlobIdentifier rootBlob = BlobIdentifier.FromBlobLocator(getResponseRoot.Blob);
+
+        IAsyncEnumerable<BaseBlobReference> referencesEnumerable = blobIndex.GetBlobReferences(TestNamespaceName, rootBlob);
+        BaseBlobReference[] references = await referencesEnumerable.ToArrayAsync();
+        Assert.AreEqual(1, references.Length); // only the ref depends on the root node
+
+        HttpResponseMessage getResultLeaf = await _httpClient!.GetAsync(new Uri($"api/v1/storage/{TestNamespaceName}/refs/{leafRefName.Text}", UriKind.Relative));
+        getResultLeaf.EnsureSuccessStatusCode();
+        ReadRefResponse? getResponseLeaf = await getResultLeaf.Content.ReadFromJsonAsync<ReadRefResponse>();
+        Assert.IsNotNull(getResponseLeaf);
+        BlobIdentifier node1Blob = BlobIdentifier.FromBlobLocator(getResponseLeaf.Blob);
+
+        // node 1
+        BaseBlobReference[] node1References = await blobIndex.GetBlobReferences(TestNamespaceName, node1Blob).ToArrayAsync();
+        Assert.AreEqual(2, node1References.Length); // this has 2 incoming references, one from its import and one from the leafRef
+
+        BlobIdentifier node2Blob = ((BlobToBlobReference)node1References.First()).Blob;
+        // node 2
+        BaseBlobReference[] node2References = await blobIndex.GetBlobReferences(TestNamespaceName, node2Blob).ToArrayAsync();
+        Assert.AreEqual(1, node2References.Length);
+
+        BlobIdentifier node3Blob = ((BlobToBlobReference)node2References.First()).Blob;
+        // node 3
+        BaseBlobReference[] node3References = await blobIndex.GetBlobReferences(TestNamespaceName, node3Blob).ToArrayAsync();
+        Assert.AreEqual(1, node3References.Length);
+
+        BlobIdentifier expectedRootNode = ((BlobToBlobReference)node3References.First()).Blob;
+        Assert.AreEqual(rootBlob, expectedRootNode);
+    }
+
     static Bundle CreateBundleManually()
     {
         ArrayMemoryWriter payloadWriter = new ArrayMemoryWriter(200);
@@ -231,4 +366,48 @@ public abstract class BundlesTests
         return new Bundle(header, new List<ReadOnlyMemory<byte>> { payload });
     }
 
+    [TreeNode("{F63606D4-5DBB-4061-A655-6F444F65229F}")]
+    class SimpleNode : TreeNode
+    {
+        public ReadOnlySequence<byte> Data { get; }
+        public IReadOnlyList<TreeNodeRef<SimpleNode>> Refs { get; }
+
+        public SimpleNode(ReadOnlySequence<byte> data, IReadOnlyList<TreeNodeRef<SimpleNode>> refs)
+        {
+            Data = data;
+            Refs = refs;
+        }
+
+        public SimpleNode(ITreeNodeReader reader)
+        {
+            Data = new ReadOnlySequence<byte>(reader.ReadVariableLengthBytes());
+            Refs = reader.ReadVariableLengthArray(() => reader.ReadRef<SimpleNode>());
+        }
+
+        public override void Serialize(ITreeNodeWriter writer)
+        {
+            writer.WriteVariableLengthBytes(Data);
+            writer.WriteVariableLengthArray(Refs, x => writer.WriteRef(x));
+        }
+
+        public override IEnumerable<TreeNodeRef> EnumerateRefs() => Refs;
+    }
+
+    static async Task SeedTreeAsync(IStorageClient store, RefName rootRefName, RefName leafRefName, TreeOptions options)
+    {
+        // Generate a tree
+        {
+            using TreeWriter writer = new TreeWriter(store, options, "test");
+
+            SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<TreeNodeRef<SimpleNode>>());
+            SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new TreeNodeRef<SimpleNode>(node1) });
+            SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { new TreeNodeRef<SimpleNode>(node2) });
+            SimpleNode node4 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<TreeNodeRef<SimpleNode>>());
+
+            SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new TreeNodeRef<SimpleNode>(node4), new TreeNodeRef<SimpleNode>(node3) });
+
+            await writer.WriteAsync(rootRefName, root);
+            await writer.WriteAsync(leafRefName, node1);
+        }
+    }
 }

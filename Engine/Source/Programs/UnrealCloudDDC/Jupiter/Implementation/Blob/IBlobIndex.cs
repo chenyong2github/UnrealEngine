@@ -21,6 +21,7 @@ namespace Jupiter.Implementation.Blob
 
         Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<BaseBlobReference> referencesToRemove);
         Task<List<string>> GetBlobRegions(NamespaceId ns, BlobIdentifier blob);
+        Task AddBlobReferences(NamespaceId ns, BlobIdentifier sourceBlob, BlobIdentifier targetBlob);
     }
 
     public abstract class BaseBlobReference

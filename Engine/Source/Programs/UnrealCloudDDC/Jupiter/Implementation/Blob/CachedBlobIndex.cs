@@ -62,4 +62,9 @@ public class CachedBlobIndex : IBlobIndex
     {
         throw new NotImplementedException();
     }
+
+    public Task AddBlobReferences(NamespaceId ns, BlobIdentifier sourceBlob, BlobIdentifier targetBlob)
+    {
+        throw new NotImplementedException();
+    }
 }

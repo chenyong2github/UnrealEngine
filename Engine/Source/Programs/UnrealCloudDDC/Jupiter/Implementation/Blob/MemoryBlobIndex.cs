@@ -150,6 +150,18 @@ public class MemoryBlobIndex : IBlobIndex
         throw new BlobNotFoundException(ns, blob);
     }
 
+    public async Task AddBlobReferences(NamespaceId ns, BlobIdentifier sourceBlob, BlobIdentifier targetBlob)
+    {
+        MemoryBlobInfo? blobInfo = await GetBlobInfo(ns, sourceBlob);
+
+        if (blobInfo == null)
+        {
+            throw new BlobNotFoundException(ns, sourceBlob);
+        }
+
+        blobInfo.References.Add(new BlobToBlobReference(targetBlob));
+    }
+
     private static MemoryBlobInfo NewBlobInfo(NamespaceId ns, BlobIdentifier blob, string region)
     {
         MemoryBlobInfo info = new MemoryBlobInfo

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
+using Jupiter.Implementation.Blob;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jupiter.Implementation.Bundles;
@@ -48,15 +49,17 @@ public class StorageClient : IStorageClientJupiter
     private readonly NamespaceId _namespaceId;
     private readonly IBlobService _blobService;
     private readonly IReferencesStore _refStore;
+    private readonly IBlobIndex _blobIndex;
     private readonly BucketId _defaultBucket = new BucketId("bundles");
 
     public bool SupportsRedirects { get; set; } = true;
 
-    public StorageClient(NamespaceId namespaceId, IBlobService blobService, IReferencesStore refStore)
+    public StorageClient(NamespaceId namespaceId, IBlobService blobService, IReferencesStore refStore, IBlobIndex blobIndex)
     {
         _namespaceId = namespaceId;
         _blobService = blobService;
         _refStore = refStore;
+        _blobIndex = blobIndex;
     }
 
     public async Task<(BlobLocator Locator, Uri UploadUrl)?> GetWriteRedirectAsync(string prefix, CancellationToken cancellationToken)
@@ -77,10 +80,36 @@ public class StorageClient : IStorageClientJupiter
         BlobIdentifier blobIdentifier = BlobIdentifier.FromBlobLocator(locator);
         await using MemoryStream ms = new MemoryStream();
         await stream.CopyToAsync(ms, cancellationToken);
-        await _blobService.PutObject(_namespaceId, ms.ToArray(), blobIdentifier);
+        byte[] blob = ms.ToArray();
+        await _blobService.PutObject(_namespaceId, blob, blobIdentifier);
+
+        bool isBundle;
+        try
+        {
+            BundleHeader.ReadPrelude(blob);
+            isBundle = true;
+        }
+        catch (InvalidDataException)
+        {
+            isBundle = false;
+        }
+
+        if (isBundle)
+        {
+            await using MemoryStream bundleStream = new MemoryStream(blob);
+            BundleHeader bundleHeader = await BundleHeader.FromStreamAsync(bundleStream, cancellationToken);
+            List<Task> addReferencesTasks = new List<Task>();
+            foreach (BlobLocator import in bundleHeader.Imports)
+            {
+                BlobIdentifier dependentBlob = BlobIdentifier.FromBlobLocator(import);
+                addReferencesTasks.Add(_blobIndex.AddBlobReferences(_namespaceId, dependentBlob, blobIdentifier));
+            }
+
+            await Task.WhenAll(addReferencesTasks);
+        }
+        
         return locator;
     }
-
 
     public async Task AddAliasAsync(Utf8String name, NodeHandle handle, CancellationToken cancellationToken = default)
     {
@@ -162,14 +191,18 @@ public class StorageClient : IStorageClientJupiter
 
     public async Task WriteRefTargetAsync(RefName refName, NodeHandle target, RefOptions? requestOptions, CancellationToken cancellationToken)
     {
+        BlobIdentifier bundleBlob = BlobIdentifier.FromBlobLocator(target.Locator.Blob);
+        IoHashKey refKey = IoHashKey.FromName(refName.ToString());
         RefInlinePayload inlinePayload = new RefInlinePayload()
         {
             BlobHash = target.Hash, BlobLocator = target.Locator.Blob.ToString(), ExportId = target.Locator.ExportIdx
         };
         byte[] payload = CbSerializer.SerializeToByteArray(inlinePayload);
         BlobIdentifier blobIdentifier = BlobIdentifier.FromBlob(payload);
+        await _blobIndex.AddRefToBlobs(_namespaceId, _defaultBucket, refKey, new BlobIdentifier[] { bundleBlob });
+
         // TODO: Calculate isFinalized which requires us to be able to resovle references
-        await _refStore.Put(_namespaceId, _defaultBucket, IoHashKey.FromName(refName.ToString()), blobIdentifier, payload, isFinalized: true); 
+        await _refStore.Put(_namespaceId, _defaultBucket, refKey, blobIdentifier, payload, isFinalized: true); 
     }
 
     public  async Task DeleteRefAsync(RefName name, CancellationToken cancellationToken = default)

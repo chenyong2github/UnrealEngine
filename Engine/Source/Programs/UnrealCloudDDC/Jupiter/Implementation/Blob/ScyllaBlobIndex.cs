@@ -177,6 +177,16 @@ public class ScyllaBlobIndex : IBlobIndex
         return regions;
     }
 
+    public async Task AddBlobReferences(NamespaceId ns, BlobIdentifier sourceBlob, BlobIdentifier targetBlob)
+    {
+        using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.add_blob_to_blob_ref");
+
+        string nsAsString = ns.ToString();
+        ScyllaBlobIncomingReference incomingReference = new ScyllaBlobIncomingReference(nsAsString, sourceBlob, targetBlob);
+
+        await  _mapper.InsertAsync<ScyllaBlobIncomingReference>(incomingReference);
+    }
+
     public async IAsyncEnumerable<BaseBlobReference> GetBlobReferences(NamespaceId ns, BlobIdentifier id)
     {
         using TelemetrySpan scope =  _tracer.BuildScyllaSpan("scylla.get_blob_references").SetAttribute("resource.name", $"{ns}.{id}");

@@ -195,6 +195,18 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
         }
         return blobInfo.Regions.ToList();
     }
+
+    public async Task AddBlobReferences(NamespaceId ns, BlobIdentifier sourceBlob, BlobIdentifier targetBlob)
+    {
+        IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
+
+        string nsAsString = ns.ToString();
+
+        UpdateDefinition<MongoBlobIndexModelV0> update = Builders<MongoBlobIndexModelV0>.Update.AddToSet(m => m.References, new Dictionary<string, string> {{ "blob_id", targetBlob.ToString()}});
+        FilterDefinition<MongoBlobIndexModelV0> filter = Builders<MongoBlobIndexModelV0>.Filter.Where(m => m.Ns == nsAsString && m.BlobId == sourceBlob.ToString());
+
+        await collection.FindOneAndUpdateAsync(filter, update);
+    }
 }
 
 [BsonDiscriminator("blob-index.v0")]
