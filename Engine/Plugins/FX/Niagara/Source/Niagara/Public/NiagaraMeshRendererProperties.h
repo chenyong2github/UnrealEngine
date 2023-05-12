@@ -206,8 +206,6 @@ public:
 	virtual const FVertexFactoryType* GetVertexFactoryType() const override;
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return true; };
 	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) override;
-	virtual void CollectPSOPrecacheData(FPSOPrecacheParamsList& OutParams) override;
-
 #if WITH_EDITORONLY_DATA
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
 	virtual void GetAdditionalVariables(TArray<FNiagaraVariableBase>& OutArray) const override;

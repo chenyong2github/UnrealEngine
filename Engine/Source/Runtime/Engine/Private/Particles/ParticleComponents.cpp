@@ -154,12 +154,9 @@ void UFXSystemAsset::LaunchPSOPrecaching(TArrayView<VFsPerMaterialData> VFsPerMa
 	{
 		if (VFsPerMaterial.MaterialInterface)
 		{
-			// Material has to be fully loaded for a static permutations to work
-			VFsPerMaterial.MaterialInterface->ConditionalPostLoad();
-			
 			PreCachePSOParams.PrimitiveType = (EPrimitiveType)VFsPerMaterial.PrimitiveType;
 			PreCachePSOParams.bDisableBackFaceCulling = VFsPerMaterial.bDisableBackfaceCulling;
-			PrecachePSOsEvents.Append(VFsPerMaterial.MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryData, PreCachePSOParams,EPSOPrecachePriority::Medium, MaterialPSOPrecacheRequestIDs));
+			PrecachePSOsEvents.Append(VFsPerMaterial.MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryTypes, PreCachePSOParams,EPSOPrecachePriority::Medium, MaterialPSOPrecacheRequestIDs));
 		}
 	}
 }
@@ -2657,7 +2654,7 @@ void UParticleSystem::PrecachePSOs()
 		return;
 	}
 
-	TArray<VFsPerMaterialData, TInlineAllocator<4>> VFsPerMaterials;
+	TArray<VFsPerMaterialData, TInlineAllocator<2>> VFsPerMaterials;
 
 	// No per component emitter materials known at this point in time
 	TArray<UMaterialInterface*> EmptyEmitterMaterials;
@@ -2677,28 +2674,15 @@ void UParticleSystem::PrecachePSOs()
 			const UParticleLODLevel* LOD = Emitter->LODLevels[LodIndex];
 			if (LOD && LOD->bEnabled)
 			{
-				UParticleModuleTypeDataBase::FPSOPrecacheParams PrecacheParams;
-				if (LOD->TypeDataModule)
-				{
-					LOD->TypeDataModule->CollectPSOPrecacheData(Emitter, PrecacheParams);
-				}
-				else
-				{
-					bool bUsesDynamicParameter = (Emitter->DynamicParameterDataOffset > 0);
-					FPSOPrecacheVertexFactoryData VFData;
-					VFData.VertexFactoryType = &FParticleSpriteVertexFactory::StaticType;
-					VFData.CustomDefaultVertexDeclaration = FParticleSpriteVertexFactory::GetPSOPrecacheVertexDeclaration(bUsesDynamicParameter);
-					PrecacheParams.VertexFactoryDataList.Add(VFData);
-					PrecacheParams.PrimitiveType = PT_TriangleList;
-				}
+				const FVertexFactoryType* VFType = LOD->TypeDataModule ? LOD->TypeDataModule->GetVertexFactoryType() : &FParticleSpriteVertexFactory::StaticType;
+				check(VFType);
+				EPrimitiveType PrimitiveType = LOD->TypeDataModule ? LOD->TypeDataModule->GetPrimitiveType() : PT_TriangleList;
 
 				Materials.Empty();
 				LOD->GetUsedMaterials(Materials, NamedMaterialSlots, EmptyEmitterMaterials);
 
 				for (UMaterialInterface* MaterialInterface : Materials)
 				{
-					EPrimitiveType PrimitiveType = PrecacheParams.PrimitiveType;
-
 					VFsPerMaterialData* VFsPerMaterial = VFsPerMaterials.FindByPredicate([MaterialInterface, PrimitiveType](const VFsPerMaterialData& Other)
 						{
 							return Other.MaterialInterface == MaterialInterface && Other.PrimitiveType == PrimitiveType;
@@ -2709,11 +2693,7 @@ void UParticleSystem::PrecachePSOs()
 						VFsPerMaterial->MaterialInterface = MaterialInterface;
 						VFsPerMaterial->PrimitiveType = PrimitiveType;
 					}
-					
-					for (FPSOPrecacheVertexFactoryData VFData : PrecacheParams.VertexFactoryDataList)
-					{
-						VFsPerMaterial->VertexFactoryData.AddUnique(VFData);
-					}
+					VFsPerMaterial->VertexFactoryTypes.AddUnique(VFType);
 				}
 			}
 		}

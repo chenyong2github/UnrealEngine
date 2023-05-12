@@ -2189,70 +2189,66 @@ void FDynamicMeshEmitterData::GetInstanceData(void* InstanceData, void* DynamicP
 	}
 }
 
-void InitMeshParticleVertexFactoryComponents(FMeshParticleVertexFactory* InVertexFactory, const FStaticMeshLODResources& LODResources, FMeshParticleVertexFactory::FDataType& Data)
+void FDynamicMeshEmitterData::SetupVertexFactory( FMeshParticleVertexFactory* InVertexFactory, const FStaticMeshLODResources& LODResources, uint32 LODIdx) const
 {
-	LODResources.VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(InVertexFactory, Data);
-	LODResources.VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(InVertexFactory, Data);
-	LODResources.VertexBuffers.StaticMeshVertexBuffer.BindTexCoordVertexBuffer(InVertexFactory, Data, MAX_TEXCOORDS);
-	LODResources.VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(InVertexFactory, Data);
+		FMeshParticleVertexFactory::FDataType Data;
 
-	// Initialize instanced data. Vertex buffer and stride are set before render.
-	// Particle color
-	Data.ParticleColorComponent = FVertexStreamComponent(
-		NULL,
-		STRUCT_OFFSET(FMeshParticleInstanceVertex, Color),
-		0,
-		VET_Float4,
-		EVertexStreamUsage::Instancing
-	);
+		LODResources.VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(InVertexFactory, Data);
+		LODResources.VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(InVertexFactory, Data);
+		LODResources.VertexBuffers.StaticMeshVertexBuffer.BindTexCoordVertexBuffer(InVertexFactory, Data, MAX_TEXCOORDS);
+		LODResources.VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(InVertexFactory, Data);
 
-	// Particle transform matrix
-	for (int32 MatrixRow = 0; MatrixRow < 3; MatrixRow++)
-	{
-		Data.TransformComponent[MatrixRow] = FVertexStreamComponent(
+		// Initialize instanced data. Vertex buffer and stride are set before render.
+		// Particle color
+		Data.ParticleColorComponent = FVertexStreamComponent(
 			NULL,
-			STRUCT_OFFSET(FMeshParticleInstanceVertex, Transform) + sizeof(FVector4f) * MatrixRow, 
+			STRUCT_OFFSET(FMeshParticleInstanceVertex, Color),
 			0,
 			VET_Float4,
 			EVertexStreamUsage::Instancing
-		);
-	}
+			);
 
-	Data.VelocityComponent = FVertexStreamComponent(
-		NULL,
-		STRUCT_OFFSET(FMeshParticleInstanceVertex,Velocity),
-		0,
-		VET_Float4,
-		EVertexStreamUsage::Instancing
-	);
+		// Particle transform matrix
+		for (int32 MatrixRow = 0; MatrixRow < 3; MatrixRow++)
+		{
+			Data.TransformComponent[MatrixRow] = FVertexStreamComponent(
+				NULL,
+				STRUCT_OFFSET(FMeshParticleInstanceVertex, Transform) + sizeof(FVector4f) * MatrixRow, 
+				0,
+				VET_Float4,
+				EVertexStreamUsage::Instancing
+				);
+		}
 
-	// SubUVs.
-	Data.SubUVs = FVertexStreamComponent(
-		NULL,
-		STRUCT_OFFSET(FMeshParticleInstanceVertex, SubUVParams), 
-		0,
-		VET_Short4,
-		EVertexStreamUsage::Instancing
-	);
+		Data.VelocityComponent = FVertexStreamComponent(
+			NULL,
+			STRUCT_OFFSET(FMeshParticleInstanceVertex,Velocity),
+			0,
+			VET_Float4,
+			EVertexStreamUsage::Instancing
+			);
 
-	// Pack SubUV Lerp and the particle's relative time
-	Data.SubUVLerpAndRelTime = FVertexStreamComponent(
-		NULL,
-		STRUCT_OFFSET(FMeshParticleInstanceVertex, SubUVLerp), 
-		0,
-		VET_Float2,
-		EVertexStreamUsage::Instancing
-	);
+		// SubUVs.
+		Data.SubUVs = FVertexStreamComponent(
+			NULL,
+			STRUCT_OFFSET(FMeshParticleInstanceVertex, SubUVParams), 
+			0,
+			VET_Short4,
+			EVertexStreamUsage::Instancing
+			);
 
-	Data.bInitialized = true;
-}
+		// Pack SubUV Lerp and the particle's relative time
+		Data.SubUVLerpAndRelTime = FVertexStreamComponent(
+			NULL,
+			STRUCT_OFFSET(FMeshParticleInstanceVertex, SubUVLerp), 
+			0,
+			VET_Float2,
+			EVertexStreamUsage::Instancing
+			);
 
-void FDynamicMeshEmitterData::SetupVertexFactory( FMeshParticleVertexFactory* InVertexFactory, const FStaticMeshLODResources& LODResources, uint32 LODIdx) const
-{
-	FMeshParticleVertexFactory::FDataType Data;
-	InitMeshParticleVertexFactoryComponents(InVertexFactory, LODResources, Data);
-	InVertexFactory->SetData(Data);
-	InVertexFactory->SetLODIdx((uint8)LODIdx);
+		Data.bInitialized = true;
+		InVertexFactory->SetData(Data);
+		InVertexFactory->SetLODIdx((uint8)LODIdx);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

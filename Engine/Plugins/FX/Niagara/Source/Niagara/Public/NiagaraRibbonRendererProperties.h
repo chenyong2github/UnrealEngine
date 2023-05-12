@@ -219,7 +219,6 @@ public:
 	virtual bool IsBackfaceCullingDisabled() const override;
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return true; };
 	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) override;
-	virtual void CollectPSOPrecacheData(FPSOPrecacheParamsList& OutParams) override;
 
 #if WITH_EDITOR
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;

@@ -70,14 +70,21 @@ public:
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraMeshVertexFactoryShaderParametersPS);
 
-void FNiagaraMeshVertexFactory::GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, bool bSupportsManualVertexFetch, FStaticMeshDataType& Data, FVertexDeclarationElementList& Elements, FVertexStreamList& InOutStreams)
+void FNiagaraMeshVertexFactory::InitRHI()
 {
+	FVertexDeclarationElementList Elements;
+		
 	if (Data.PositionComponent.VertexBuffer != NULL)
 	{
-		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0, InOutStreams));
+		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
 	}
 
-	if (!bSupportsManualVertexFetch)
+	// Should also work in editor (PIE with ES 3.1 preview seems to work), but we don't precache PSOs for that platform currently, so keep it safe in case there's a flow we missed
+#if !WITH_EDITOR
+	const bool bHasValidFeatureLevel = ensure(HasValidFeatureLevel());
+	const bool bRemoveUnusedVertexElements = bHasValidFeatureLevel ? SupportsManualVertexFetch(GetFeatureLevel()) : false;
+	if (!bRemoveUnusedVertexElements)
+#endif
 	{
 		// only tangent,normal are used by the stream. the binormal is derived in the shader
 		uint8 TangentBasisAttributes[2] = { 1, 2 };
@@ -85,7 +92,7 @@ void FNiagaraMeshVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Feature
 		{
 			if (Data.TangentBasisComponents[AxisIndex].VertexBuffer != NULL)
 			{
-				Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex], TangentBasisAttributes[AxisIndex], InOutStreams));
+				Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex], TangentBasisAttributes[AxisIndex]));
 			}
 		}
 
@@ -98,14 +105,14 @@ void FNiagaraMeshVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Feature
 		// Vertex color
 		if (Data.ColorComponent.VertexBuffer != NULL)
 		{
-			Elements.Add(AccessStreamComponent(Data.ColorComponent, 3, InOutStreams));
+			Elements.Add(AccessStreamComponent(Data.ColorComponent, 3));
 		}
 		else
 		{
 			//If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
 			//This wastes 4 bytes of bandwidth per vertex, but prevents having to compile out twice the number of vertex factories.
 			FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
-			Elements.Add(AccessStreamComponent(NullColorComponent, 3, InOutStreams));
+			Elements.Add(AccessStreamComponent(NullColorComponent, 3));
 		}
 
 		if (Data.TextureCoordinates.Num())
@@ -115,8 +122,7 @@ void FNiagaraMeshVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Feature
 			{
 				Elements.Add(AccessStreamComponent(
 					Data.TextureCoordinates[CoordinateIndex],
-					BaseTexCoordAttribute + CoordinateIndex,
-					InOutStreams
+					BaseTexCoordAttribute + CoordinateIndex
 				));
 			}
 
@@ -124,21 +130,11 @@ void FNiagaraMeshVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Feature
 			{
 				Elements.Add(AccessStreamComponent(
 					Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
-					BaseTexCoordAttribute + CoordinateIndex,
-					InOutStreams
+					BaseTexCoordAttribute + CoordinateIndex
 				));
 			}
 		}
 	}
-}
-
-void FNiagaraMeshVertexFactory::InitRHI()
-{
-	check(HasValidFeatureLevel());
-	const bool bSupportsManualVertexFetch = SupportsManualVertexFetch(GetFeatureLevel());
-
-	FVertexDeclarationElementList Elements;
-	GetVertexElements(GetFeatureLevel(), bSupportsManualVertexFetch, Data, Elements, Streams);
 
 #if NIAGARA_ENABLE_GPU_SCENE_MESHES
 	if (bAddPrimitiveIDElement)
@@ -202,21 +198,6 @@ void FNiagaraMeshVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputSt
 	Elements.Add(FVertexElement(0, 0, VET_Float3, 0, 0, false));
 #if NIAGARA_ENABLE_GPU_SCENE_MESHES
 	Elements.Add(FVertexElement(1, 0, VET_UInt, 13, 0, true));
-#endif
-}
-
-void FNiagaraMeshVertexFactory::GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, bool bSupportsManualVertexFetch, FStaticMeshDataType& Data, FVertexDeclarationElementList& Elements)
-{
-	FVertexStreamList InOutStreams;
-	GetVertexElements(FeatureLevel, bSupportsManualVertexFetch, Data, Elements, InOutStreams);
-
-#if NIAGARA_ENABLE_GPU_SCENE_MESHES
-	if (UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel))
-	{
-		// For ES3.1 attribute ID needs to be done differently
-		check(FeatureLevel > ERHIFeatureLevel::ES3_1);
-		Elements.Add(FVertexElement(InOutStreams.Num(), 0, VET_UInt, 13, 0, true));
-	}
 #endif
 }
 

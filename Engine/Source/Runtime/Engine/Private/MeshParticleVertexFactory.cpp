@@ -89,48 +89,58 @@ private:
 
 static TGlobalResource<FDummyPrevTransformBuffer> GDummyPrevTransformBuffer;
 
-void FMeshParticleVertexFactory::GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, int32 InDynamicVertexStride, int32 InDynamicParameterVertexStride, FDataType& Data, FVertexDeclarationElementList& Elements, FVertexStreamList& InOutStreams)
+void FMeshParticleVertexFactory::InitRHI()
 {
+	FVertexDeclarationElementList Elements;
+
 	if (Data.bInitialized)
 	{
 		// Stream 0 - Instance data
 		{
-			checkf(InDynamicVertexStride != -1, TEXT("FMeshParticleVertexFactory does not have a valid DynamicVertexStride - likely an empty one was made, but SetStrides was not called"));
+			checkf(DynamicVertexStride != -1, TEXT("FMeshParticleVertexFactory does not have a valid DynamicVertexStride - likely an empty one was made, but SetStrides was not called"));
 			FVertexStream VertexStream;
 			VertexStream.VertexBuffer = NULL;
 			VertexStream.Stride = 0;
 			VertexStream.Offset = 0;
-			InOutStreams.Add(VertexStream);
-
+			Streams.Add(VertexStream);
+	
 			// @todo metal: this will need a valid stride when we get to instanced meshes!
-			Elements.Add(FVertexElement(0, Data.TransformComponent[0].Offset, Data.TransformComponent[0].Type, 8, InDynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.TransformComponent[0].VertexStreamUsage)));
-			Elements.Add(FVertexElement(0, Data.TransformComponent[1].Offset, Data.TransformComponent[1].Type, 9, InDynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.TransformComponent[1].VertexStreamUsage)));
-			Elements.Add(FVertexElement(0, Data.TransformComponent[2].Offset, Data.TransformComponent[2].Type, 10, InDynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.TransformComponent[2].VertexStreamUsage)));
-
-			Elements.Add(FVertexElement(0, Data.SubUVs.Offset, Data.SubUVs.Type, 11, InDynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.SubUVs.VertexStreamUsage)));
-			Elements.Add(FVertexElement(0, Data.SubUVLerpAndRelTime.Offset, Data.SubUVLerpAndRelTime.Type, 12, InDynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.SubUVLerpAndRelTime.VertexStreamUsage)));
-
-			Elements.Add(FVertexElement(0, Data.ParticleColorComponent.Offset, Data.ParticleColorComponent.Type, 14, InDynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.ParticleColorComponent.VertexStreamUsage)));
-			Elements.Add(FVertexElement(0, Data.VelocityComponent.Offset, Data.VelocityComponent.Type, 15, InDynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.VelocityComponent.VertexStreamUsage)));
+			Elements.Add(FVertexElement(0, Data.TransformComponent[0].Offset, Data.TransformComponent[0].Type, 8, DynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.TransformComponent[0].VertexStreamUsage)));
+			Elements.Add(FVertexElement(0, Data.TransformComponent[1].Offset, Data.TransformComponent[1].Type, 9, DynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.TransformComponent[1].VertexStreamUsage)));
+			Elements.Add(FVertexElement(0, Data.TransformComponent[2].Offset, Data.TransformComponent[2].Type, 10, DynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.TransformComponent[2].VertexStreamUsage)));
+	
+			Elements.Add(FVertexElement(0, Data.SubUVs.Offset, Data.SubUVs.Type, 11, DynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.SubUVs.VertexStreamUsage)));
+			Elements.Add(FVertexElement(0, Data.SubUVLerpAndRelTime.Offset, Data.SubUVLerpAndRelTime.Type, 12, DynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.SubUVLerpAndRelTime.VertexStreamUsage)));
+	
+			Elements.Add(FVertexElement(0, Data.ParticleColorComponent.Offset, Data.ParticleColorComponent.Type, 14, DynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.ParticleColorComponent.VertexStreamUsage)));
+			Elements.Add(FVertexElement(0, Data.VelocityComponent.Offset, Data.VelocityComponent.Type, 15, DynamicVertexStride, EnumHasAnyFlags(EVertexStreamUsage::Instancing, Data.VelocityComponent.VertexStreamUsage)));
 		}
 
 		// Stream 1 - Dynamic parameter
 		{
-			checkf(InDynamicParameterVertexStride != -1, TEXT("FMeshParticleVertexFactory does not have a valid DynamicParameterVertexStride - likely an empty one was made, but SetStrides was not called"));
-
+			checkf(DynamicParameterVertexStride != -1, TEXT("FMeshParticleVertexFactory does not have a valid DynamicParameterVertexStride - likely an empty one was made, but SetStrides was not called"));
+				
 			FVertexStream VertexStream;
 			VertexStream.VertexBuffer = NULL;
 			VertexStream.Stride = 0;
 			VertexStream.Offset = 0;
-			InOutStreams.Add(VertexStream);
+			Streams.Add(VertexStream);
+	
+			Elements.Add(FVertexElement(1, 0, VET_Float4, 13, DynamicParameterVertexStride, true));
+		}
 
-			Elements.Add(FVertexElement(1, 0, VET_Float4, 13, InDynamicParameterVertexStride, true));
+		// Add a dummy resource to avoid crash due to missing resource
+		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
+		{
+			PrevTransformBuffer.NumBytes = 0;
+			PrevTransformBuffer.Buffer = GDummyPrevTransformBuffer.GetVB();
+			PrevTransformBuffer.SRV = GDummyPrevTransformBuffer.GetSRV();
 		}
 	}
 
 	if(Data.PositionComponent.VertexBuffer != NULL)
 	{
-		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0, InOutStreams));
+		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
 	}
 
 	// only tangent,normal are used by the stream. the binormal is derived in the shader
@@ -139,7 +149,7 @@ void FMeshParticleVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Featur
 	{
 		if(Data.TangentBasisComponents[AxisIndex].VertexBuffer != NULL)
 		{
-			Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex],TangentBasisAttributes[AxisIndex], InOutStreams));
+			Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex],TangentBasisAttributes[AxisIndex]));
 		}
 	}
 
@@ -152,16 +162,16 @@ void FMeshParticleVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Featur
 	// Vertex color
 	if(Data.ColorComponent.VertexBuffer != NULL)
 	{
-		Elements.Add(AccessStreamComponent(Data.ColorComponent,3, InOutStreams));
+		Elements.Add(AccessStreamComponent(Data.ColorComponent,3));
 	}
 	else
 	{
 		//If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
 		//This wastes 4 bytes of bandwidth per vertex, but prevents having to compile out twice the number of vertex factories.
 		FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
-		Elements.Add(AccessStreamComponent(NullColorComponent, 3, InOutStreams));
+		Elements.Add(AccessStreamComponent(NullColorComponent, 3));
 	}
-
+		
 	if(Data.TextureCoordinates.Num())
 	{
 		const int32 BaseTexCoordAttribute = 4;
@@ -169,33 +179,17 @@ void FMeshParticleVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Featur
 		{
 			Elements.Add(AccessStreamComponent(
 				Data.TextureCoordinates[CoordinateIndex],
-				BaseTexCoordAttribute + CoordinateIndex,
-				InOutStreams
-			));
+				BaseTexCoordAttribute + CoordinateIndex
+				));
 		}
 
 		for(int32 CoordinateIndex = Data.TextureCoordinates.Num();CoordinateIndex < MAX_TEXCOORDS;CoordinateIndex++)
 		{
 			Elements.Add(AccessStreamComponent(
 				Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
-				BaseTexCoordAttribute + CoordinateIndex,
-				InOutStreams
-			));
+				BaseTexCoordAttribute + CoordinateIndex
+				));
 		}
-	}
-}
-
-void FMeshParticleVertexFactory::InitRHI()
-{
-	FVertexDeclarationElementList Elements;
-	GetVertexElements(GMaxRHIFeatureLevel, DynamicVertexStride, DynamicParameterVertexStride, Data, Elements, Streams);
-
-	// Add a dummy resource to avoid crash due to missing resource
-	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
-	{
-		PrevTransformBuffer.NumBytes = 0;
-		PrevTransformBuffer.Buffer = GDummyPrevTransformBuffer.GetVB();
-		PrevTransformBuffer.SRV = GDummyPrevTransformBuffer.GetSRV();
 	}
 
 	if(Streams.Num() > 0)
@@ -203,12 +197,6 @@ void FMeshParticleVertexFactory::InitRHI()
 		InitDeclaration(Elements);
 		check(IsValidRef(GetDeclaration()));
 	}
-}
-
-void FMeshParticleVertexFactory::GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, int32 InDynamicVertexStride, int32 InDynamicParameterVertexStride, FDataType& Data, FVertexDeclarationElementList& Elements)
-{
-	FVertexStreamList InOutStreams;
-	GetVertexElements(FeatureLevel, InDynamicVertexStride, InDynamicParameterVertexStride, Data, Elements, InOutStreams);
 }
 
 void FMeshParticleVertexFactory::SetInstanceBuffer(const FVertexBuffer* InstanceBuffer, uint32 StreamOffset, uint32 Stride)

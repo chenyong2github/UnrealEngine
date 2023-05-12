@@ -484,7 +484,6 @@ class UParticleModuleTypeDataGpu : public UParticleModuleTypeDataBase
 	virtual bool RequiresBuild() const override { return true; }
 	virtual FParticleEmitterInstance* CreateInstance(UParticleEmitter* InEmitterParent, UParticleSystemComponent* InComponent) override;
 	virtual const FVertexFactoryType* GetVertexFactoryType() const override;
-	virtual void CollectPSOPrecacheData(const UParticleEmitter* Emitter, FPSOPrecacheParams& OutParams) override;
 	//~ End UParticleModuleTypeDataBase Interface
 };
 

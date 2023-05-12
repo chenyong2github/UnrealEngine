@@ -243,11 +243,6 @@ void FParticleSpriteVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInpu
 	GParticleSpriteVertexDeclarationInstanced.VertexDeclarationRHI->GetInitializer(Elements);
 }
 
-FRHIVertexDeclaration* FParticleSpriteVertexFactory::GetPSOPrecacheVertexDeclaration(bool bUsesDynamicParameter)
-{
-	return GetParticleSpriteVertexDeclaration(4, bUsesDynamicParameter).VertexDeclarationRHI;
-}
-
 /**
  *	Initialize the Render Hardware Interface for this vertex factory
  */

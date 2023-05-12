@@ -15,7 +15,6 @@
 #include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
 #include "ParticleBeamTrailVertexFactory.h"
 #include "UObject/UnrealType.h"
-#include "Particles/ParticleEmitter.h"
 
 UParticleModuleTrailBase::UParticleModuleTrailBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -245,17 +244,6 @@ const FVertexFactoryType* UParticleModuleTypeDataRibbon::GetVertexFactoryType() 
 	return &FParticleBeamTrailVertexFactory::StaticType;
 }
 
-void UParticleModuleTypeDataRibbon::CollectPSOPrecacheData(const UParticleEmitter* Emitter, FPSOPrecacheParams& OutParams)
-{
-	bool bUsesDynamicParameter = (Emitter->DynamicParameterDataOffset > 0);
-
-	FPSOPrecacheVertexFactoryData VFData;
-	VFData.VertexFactoryType = &FParticleBeamTrailVertexFactory::StaticType;
-	VFData.CustomDefaultVertexDeclaration = FParticleBeamTrailVertexFactory::GetPSOPrecacheVertexDeclaration(bUsesDynamicParameter);
-	OutParams.VertexFactoryDataList.Add(VFData);
-	OutParams.PrimitiveType = GetPrimitiveType();
-}
-
 /*-----------------------------------------------------------------------------
 	UParticleModuleTypeDataAnimTrail implementation.
 -----------------------------------------------------------------------------*/
@@ -285,15 +273,4 @@ FParticleEmitterInstance* UParticleModuleTypeDataAnimTrail::CreateInstance(UPart
 const FVertexFactoryType* UParticleModuleTypeDataAnimTrail::GetVertexFactoryType() const
 {
 	return &FParticleBeamTrailVertexFactory::StaticType;
-}
-
-void UParticleModuleTypeDataAnimTrail::CollectPSOPrecacheData(const UParticleEmitter* Emitter, FPSOPrecacheParams& OutParams)
-{
-	bool bUsesDynamicParameter = (Emitter->DynamicParameterDataOffset > 0);
-
-	FPSOPrecacheVertexFactoryData VFData;
-	VFData.VertexFactoryType = &FParticleBeamTrailVertexFactory::StaticType;
-	VFData.CustomDefaultVertexDeclaration = FParticleBeamTrailVertexFactory::GetPSOPrecacheVertexDeclaration(bUsesDynamicParameter);
-	OutParams.VertexFactoryDataList.Add(VFData);
-	OutParams.PrimitiveType = GetPrimitiveType();
 }

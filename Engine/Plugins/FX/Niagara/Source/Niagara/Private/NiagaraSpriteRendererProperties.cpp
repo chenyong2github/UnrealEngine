@@ -138,20 +138,6 @@ void UNiagaraSpriteRendererProperties::GetUsedMaterials(const FNiagaraEmitterIns
 	OutMaterials.Add(MaterialInterface ? MaterialInterface : ToRawPtr(Material));
 }
 
-void UNiagaraSpriteRendererProperties::CollectPSOPrecacheData(FPSOPrecacheParamsList& OutParams)
-{
-	const FVertexFactoryType* VFType = GetVertexFactoryType();
-	UMaterialInterface* MaterialInterface = ToRawPtr(Material);
-
-	if (MaterialInterface)
-	{
-		FPSOPrecacheParams& PSOPrecacheParams = OutParams.AddDefaulted_GetRef();
-		PSOPrecacheParams.MaterialInterface = MaterialInterface;
-		// Spite VF is the same for MVF and non-MVF cases
-		PSOPrecacheParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(VFType));
-	}
-}
-
 const FVertexFactoryType* UNiagaraSpriteRendererProperties::GetVertexFactoryType() const
 {
 	return &FNiagaraSpriteVertexFactory::StaticType;
