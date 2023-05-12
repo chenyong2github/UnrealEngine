@@ -167,6 +167,7 @@ struct FMassArchetypeCompositionDescriptor
 		Fragments.Reset();
 		Tags.Reset();
 		ChunkFragments.Reset();
+		SharedFragments.Reset();
 	}
 
 	bool IsEquivalent(const FMassArchetypeCompositionDescriptor& OtherDescriptor) const
