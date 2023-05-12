@@ -1632,6 +1632,11 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 			bNeedsMarkRenderStateDirty = true;
 			bNeedsInvalidateLightingCache = true;
 		}
+		if (Component->ShadowCacheInvalidationBehavior != FoliageType->ShadowCacheInvalidationBehavior)
+		{
+			Component->ShadowCacheInvalidationBehavior = FoliageType->ShadowCacheInvalidationBehavior;
+			bNeedsMarkRenderStateDirty = true;
+		}
 		if (Component->RuntimeVirtualTextures != FoliageType->RuntimeVirtualTextures)
 		{
 			Component->RuntimeVirtualTextures = FoliageType->RuntimeVirtualTextures;

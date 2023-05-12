@@ -1007,6 +1007,8 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 	CustomDepthStencilValue = LandscapeProxy->CustomDepthStencilValue;
 	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
 	LightingChannels = LandscapeProxy->LightingChannels;
+	ShadowCacheInvalidationBehavior = LandscapeProxy->ShadowCacheInvalidationBehavior;
+
 	UpdateNavigationRelevance();
 	UpdateRejectNavmeshUnderneath();
 }
@@ -3718,6 +3720,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		VirtualTextureNumLods = Landscape->VirtualTextureNumLods;
 		VirtualTextureRenderPassType = Landscape->VirtualTextureRenderPassType;
 		bEnableNanite = Landscape->bEnableNanite;
+		ShadowCacheInvalidationBehavior = Landscape->ShadowCacheInvalidationBehavior;
 
 		bUseCompressedHeightmapStorage = Landscape->bUseCompressedHeightmapStorage;
 

@@ -182,7 +182,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent, FScen
 	bIndirectLightingCacheBufferDirty(false),
 	bRegisteredVirtualTextureProducerCallback(false),
 	bRegisteredWithVelocityData(false),
-	bCacheShadowAsStatic(InComponent->Mobility != EComponentMobility::Movable),
+	bCacheShadowAsStatic((InComponent->Mobility != EComponentMobility::Movable && InComponent->ShadowCacheInvalidationBehavior != EShadowCacheInvalidationBehavior::Always) || InComponent->ShadowCacheInvalidationBehavior == EShadowCacheInvalidationBehavior::Static),
 	bNaniteRasterBinsRenderCustomDepth(false),
 	bPendingAddToScene(false),
 	bPendingAddStaticMeshes(false),

@@ -364,6 +364,12 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::AddInv
 	const FPersistentPrimitiveIndex PersistentPrimitiveIndex = PrimitiveSceneInfo->GetPersistentIndex();
 	const EPrimitiveDirtyState DirtyState = GPUScene.GetPrimitiveDirtyState(PrimitiveID);
 
+	// suppress invalidations from moved primitives that are marked to behave as if they were static.
+	if (!bRemovedPrimitive && PrimitiveSceneInfo->Proxy->GetShadowCacheInvalidationBehavior() == EShadowCacheInvalidationBehavior::Static)
+	{
+		return;
+	}
+
 	// Nanite meshes need special handling because they don't get culled on CPU, thus always process invalidations for those
 	const bool bIsNaniteMesh = Scene.PrimitiveFlagsCompact[PrimitiveID].bIsNaniteMesh;
 	const bool bPreviouslyCachedAsStatic = PrimitiveSceneInfo->ShouldCacheShadowAsStatic();

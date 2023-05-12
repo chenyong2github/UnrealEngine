@@ -229,12 +229,14 @@ struct FNaniteTraversalClusterCullCallback
 		{
 			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
+
+			FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 			float4 LODBounds = HierarchyNodeSlice.LODBounds;
 
 			const float3 LocalWPOExtent = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u ?
-				abs(GetPrimitiveData(InstanceData.PrimitiveId).MaxWPOExtent * InstanceData.InvNonUniformScale) : (float3)0;
+				abs(PrimitiveData.MaxWPOExtent * InstanceData.InvNonUniformScale) : (float3)0;
 			const float3 NodeBoxBoundsCenter = HierarchyNodeSlice.BoxBoundsCenter;
-			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent + LocalWPOExtent + GetAbsMaxMaterialDisplacement(GetPrimitiveData(InstanceData.PrimitiveId)).xxx;
+			const float3 NodeBoxBoundsExtent = HierarchyNodeSlice.BoxBoundsExtent + LocalWPOExtent + GetAbsMaxMaterialDisplacement(PrimitiveData).xxx;
 
 			FBoxCull Cull;
 			Cull.Init( NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, InstanceData.NonUniformScale.xyz, DynamicData.LocalToTranslatedWorld, DynamicData.PrevLocalToTranslatedWorld );
@@ -252,7 +254,7 @@ struct FNaniteTraversalClusterCullCallback
 			if (Cull.bIsVisible)
 			{
 			#if VIRTUAL_TEXTURE_TARGET
-				const bool bMaterialInvalidates = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
+				const bool bMaterialInvalidates = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u && ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS) == 0u);
 				const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
 				Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 			#endif
@@ -436,7 +438,7 @@ struct FNaniteTraversalClusterCullCallback
 		}
 
 #if VIRTUAL_TEXTURE_TARGET
-		const bool bMaterialInvalidates = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
+		const bool bMaterialInvalidates = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u && ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS) == 0u);
 		const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates || bInvalidateFromSteamingLODDelta;
 		const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, Cull.bIsViewUncached);
 

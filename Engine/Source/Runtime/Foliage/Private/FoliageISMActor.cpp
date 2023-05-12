@@ -99,6 +99,7 @@ void InitDescriptorFromFoliageType(FISMComponentDescriptor& Descriptor, const UF
 
 	Descriptor.bHasCustomNavigableGeometry = FoliageType->CustomNavigableGeometry;
 	Descriptor.bEnableDiscardOnLoad = FoliageType->bEnableDiscardOnLoad;
+	Descriptor.ShadowCacheInvalidationBehavior = FoliageType->ShadowCacheInvalidationBehavior;
 }
 
 void FFoliageISMActor::Initialize(const UFoliageType* FoliageType)

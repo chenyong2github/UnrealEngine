@@ -84,6 +84,23 @@ void FShadowScene::PostLightsUpdate(FRDGBuilder& GraphBuilder, const FLightScene
 	}
 }
 
+void FShadowScene::PostSceneUpdate(const FScenePreUpdateChangeSet &ScenePreUpdateChangeSet, const FScenePostUpdateChangeSet &ScenePostUpdateChangeSet)
+{
+	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : ScenePreUpdateChangeSet.RemovedPrimitiveSceneInfos)
+	{
+		if (PrimitiveSceneInfo->Proxy->GetShadowCacheInvalidationBehavior() == EShadowCacheInvalidationBehavior::Always)
+		{
+			AlwaysInvalidatingPrimitives.RemoveSwap(PrimitiveSceneInfo);
+		}
+	}
+	for (FPrimitiveSceneInfo* PrimitiveSceneInfo : ScenePostUpdateChangeSet.AddedPrimitiveSceneInfos)
+	{
+		if (PrimitiveSceneInfo->Proxy->GetShadowCacheInvalidationBehavior() == EShadowCacheInvalidationBehavior::Always)
+		{
+			AlwaysInvalidatingPrimitives.Add(PrimitiveSceneInfo);
+		}
+	}
+}
 
 void FShadowScene::UpdateForRenderedFrame(FRDGBuilder& GraphBuilder)
 {

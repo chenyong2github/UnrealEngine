@@ -98,6 +98,7 @@ void FISMComponentDescriptorBase::InitFrom(const UStaticMeshComponent* Template,
 	bVisibleInRayTracing = Template->bVisibleInRayTracing;
 	bEvaluateWorldPositionOffset = Template->bEvaluateWorldPositionOffset;
 	WorldPositionOffsetDisableDistance = Template->WorldPositionOffsetDisableDistance;
+	ShadowCacheInvalidationBehavior = Template->ShadowCacheInvalidationBehavior;
 	// Determine if this instance must render with reversed culling based on both scale and the component property
 	const bool bIsLocalToWorldDeterminantNegative = Template->GetRenderMatrix().Determinant() < 0;
 	bReverseCulling = Template->bReverseCulling != bIsLocalToWorldDeterminantNegative;
@@ -202,6 +203,7 @@ bool FISMComponentDescriptorBase::operator==(const FISMComponentDescriptorBase& 
 	bUseDefaultCollision == Other.bUseDefaultCollision &&
 	bGenerateOverlapEvents == Other.bGenerateOverlapEvents &&
 	WorldPositionOffsetDisableDistance == Other.WorldPositionOffsetDisableDistance &&
+	ShadowCacheInvalidationBehavior == Other.ShadowCacheInvalidationBehavior &&
 #if WITH_EDITORONLY_DATA
 	HLODBatchingPolicy == Other.HLODBatchingPolicy &&
 	bIncludeInHLOD == Other.bIncludeInHLOD &&
@@ -310,6 +312,7 @@ void FISMComponentDescriptorBase::InitComponent(UInstancedStaticMeshComponent* I
 	ISMComponent->bUseDefaultCollision = bUseDefaultCollision;
 	ISMComponent->SetGenerateOverlapEvents(bGenerateOverlapEvents);
 	ISMComponent->WorldPositionOffsetDisableDistance = WorldPositionOffsetDisableDistance;
+	ISMComponent->ShadowCacheInvalidationBehavior = ShadowCacheInvalidationBehavior;
 	
 #if WITH_EDITORONLY_DATA
 	ISMComponent->HLODBatchingPolicy = HLODBatchingPolicy;

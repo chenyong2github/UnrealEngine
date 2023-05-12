@@ -331,6 +331,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=InstanceSettings, meta=(InlineEditConditionToggle))
 	uint32 bOverrideLightMapRes:1;
 
+	/** Control shadow invalidation behavior, in particular with respect to Virtual Shadow Maps and material effects like World Position Offset. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=InstanceSettings, meta=(EditCondition="CastShadow"))
+	EShadowCacheInvalidationBehavior ShadowCacheInvalidationBehavior;
+
 	/** Overrides the lightmap resolution defined in the static mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=InstanceSettings, meta=(DisplayName="Light Map Resolution", EditCondition="bOverrideLightMapRes"))
 	int32 OverriddenLightMapRes;

@@ -144,14 +144,13 @@ bool ReverseWindingOrder(FNaniteView NaniteView, FPrimitiveSceneData PrimitiveDa
 	float DeterminantSign = InstanceData.DeterminantSign;
 	bool bReverseInstanceCull = (DeterminantSign < 0.0f);
 
-	// TODO: Support the reverse culling flag in Nanite. This has been temporarily disabled because it caused some issues
-	// with facing direction of packed level actors, which use this flag to flip non-Nanite back outward.
-	//if (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING)
-	//{
-	//	// reverse culling if the primitive has elected to do so
-	//	bReverseInstanceCull = !bReverseInstanceCull;
-	//}
-
+#if SUPPORT_REVERSE_CULLING_IN_NANITE
+	if (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING)
+	{
+		// reverse culling if the primitive has elected to do so
+		bReverseInstanceCull = !bReverseInstanceCull;
+	}
+#endif
 	bool bViewReverseCull = (NaniteView.Flags & NANITE_VIEW_FLAG_REVERSE_CULLING);
 	
 	// Logical XOR

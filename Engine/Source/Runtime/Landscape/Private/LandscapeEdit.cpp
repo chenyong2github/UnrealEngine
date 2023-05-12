@@ -5523,6 +5523,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, CastShadow))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastDynamicShadow))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, ShadowCacheInvalidationBehavior))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastStaticShadow))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastFarShadow))
 		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastHiddenShadow))

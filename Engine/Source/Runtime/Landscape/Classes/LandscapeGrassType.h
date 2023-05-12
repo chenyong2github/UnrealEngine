@@ -133,6 +133,10 @@ struct FGrassVariety
 	UPROPERTY(EditAnywhere, Category = Grass)
 	uint32 InstanceWorldPositionOffsetDisableDistance;
 
+	/** Control shadow invalidation behavior, in particular with respect to Virtual Shadow Maps and material effects like World Position Offset. */
+	UPROPERTY(EditAnywhere, Category=Grass, AdvancedDisplay)
+	EShadowCacheInvalidationBehavior ShadowCacheInvalidationBehavior;
+
 	bool IsGrassQualityLevelEnable() const;
 
 	int32 GetStartCullDistance() const;

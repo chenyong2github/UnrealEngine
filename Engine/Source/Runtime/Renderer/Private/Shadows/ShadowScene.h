@@ -14,6 +14,9 @@ class FRDGBuilder;
 class FVirtualShadowMapPerLightCacheEntry;
 struct FLightSceneChangeSet;
 class FViewInfo;
+class FPrimitiveSceneInfo;
+class FScenePreUpdateChangeSet;
+class FScenePostUpdateChangeSet;
 
 /**
  * Persistent scene-representation of for shadow rendering.
@@ -27,6 +30,11 @@ public:
 	void PostLightsUpdate(FRDGBuilder& GraphBuilder, const FLightSceneChangeSet &LightSceneChangeSet);
 
 	/**
+	 * Handle scene changes, notably track all primitives that always invalidate the shadows.
+	 */
+	void PostSceneUpdate(const FScenePreUpdateChangeSet& ScenePreUpdateChangeSet, const FScenePostUpdateChangeSet& ScenePostUpdateChangeSet);
+
+	/**
 	 * Fetch the "mobility factor" for the light, [0,1] where 0.0 means not moving, and 1.0 means was updated this frame.
 	 * Does a smooth transition from 1 to 0 over N frames, defined by the cvar.
 	 */
@@ -38,6 +46,10 @@ public:
 	void UpdateForRenderedFrame(FRDGBuilder& GraphBuilder);
 
 	void DebugRender(TArrayView<FViewInfo> Views);
+	
+	// List of always invalidating primitives, if this gets too popular perhaps a TSet or some such is more appropriate for performance scaling.
+	TArrayView<FPrimitiveSceneInfo*> GetAlwaysInvalidatingPrimitives() { return AlwaysInvalidatingPrimitives; }
+
 private:
 	//friend class FShadowSceneRenderer;
 
@@ -67,4 +79,7 @@ private:
 	// Links to other systems etc.
 	FScene& Scene;
 	mutable UE::Tasks::FTask SceneChangeUpdateTask;
+
+	// List of always invalidating primitives, if this gets too popular perhaps a TSet or some such is more appropriate for performance scaling.
+	TArray<FPrimitiveSceneInfo*> AlwaysInvalidatingPrimitives;
 };

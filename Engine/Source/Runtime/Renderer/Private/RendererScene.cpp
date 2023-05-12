@@ -5436,6 +5436,12 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 			FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector InvalidatingPrimitiveCollector(CacheManager);
 			InvalidatingPrimitiveCollector.AddDynamicAndGPUPrimitives();
 
+			// Primitives that are tracked as always invalidating shadows, pipe through as transform updates
+			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : ShadowScene->GetAlwaysInvalidatingPrimitives())
+			{
+				InvalidatingPrimitiveCollector.UpdatedTransform(PrimitiveSceneInfo);
+			}
+
 			// All removed primitives must invalidate their footprints in the VSM before leaving
 			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedLocalPrimitiveSceneInfos)
 			{
@@ -6233,6 +6239,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 	SceneCullingUpdater.OnPostSceneUpdate(GraphBuilder, SceneUpdateChangeSetStorage.GetPostUpdateSet());
 
 	UpdateCachedShadowState(SceneUpdateChangeSetStorage.GetPreUpdateSet(), SceneUpdateChangeSetStorage.GetPostUpdateSet());
+	ShadowScene->PostSceneUpdate(SceneUpdateChangeSetStorage.GetPreUpdateSet(), SceneUpdateChangeSetStorage.GetPostUpdateSet());
 
 	if (SceneInfosWithStaticDrawListUpdate.Num() > 0)
 	{

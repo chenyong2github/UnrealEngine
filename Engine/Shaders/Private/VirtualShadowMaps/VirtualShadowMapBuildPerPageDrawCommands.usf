@@ -241,7 +241,7 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 			FNaniteView NaniteView = GetNaniteView(PrimaryViewId);
 
 			uint CullingFlags = INSTANCE_CULLING_FLAGS_DEFAULT;
-			bool bMaterialInvalidates = DrawCommandDesc.bMaterialUsesWorldPositionOffset;
+			bool bEnableWPO = DrawCommandDesc.bMaterialUsesWorldPositionOffset;
 			
 			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
@@ -254,12 +254,14 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 				DynamicData.LocalToTranslatedWorld,
 				DynamicData.PrevLocalToTranslatedWorld );
 
-			bMaterialInvalidates &= Cull.Distance( PrimitiveData );
-			if (!bMaterialInvalidates)
+			bEnableWPO = Cull.Distance( PrimitiveData ) && bEnableWPO;
+			if (!bEnableWPO)
 			{
 				// Disable the Evaluate WPO culling flag if WPO was disabled
 				CullingFlags &= ~INSTANCE_CULLING_FLAG_EVALUATE_WPO;
 			}
+
+			const bool bMaterialInvalidates = bEnableWPO && ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS) == 0u);
 
 			bMaterialInvalidatesAnyView |= bMaterialInvalidates;
 

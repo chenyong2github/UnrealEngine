@@ -56,6 +56,7 @@ public:
 		bWritesCustomDepthStencil					= false;
 		bReverseCulling								= false;
 		bHoldout									= false;
+		bDisableMaterialInvalidations				= false;
 
 		Parameters.MaxWPOExtent						= 0.0f;
 		Parameters.MinMaterialDisplacement			= 0.0f;
@@ -118,6 +119,7 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HiddenInSceneCapture);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			ForceHidden);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,         Holdout);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,         DisableMaterialInvalidations);
 
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			InstanceSceneDataOffset);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NumInstanceSceneDataEntries);
@@ -390,8 +392,11 @@ public:
 		Parameters.Flags |= bHasInstanceDrawDistanceCull ? PRIMITIVE_SCENE_DATA_FLAG_INSTANCE_DRAW_DISTANCE_CULL : 0u;
 		Parameters.Flags |= bHasWPODisableDistance ? PRIMITIVE_SCENE_DATA_FLAG_WPO_DISABLE_DISTANCE : 0u;
 		Parameters.Flags |= bWritesCustomDepthStencil ? PRIMITIVE_SCENE_DATA_FLAG_WRITES_CUSTOM_DEPTH_STENCIL : 0u;
+#if SUPPORT_REVERSE_CULLING_IN_NANITE
 		Parameters.Flags |= bReverseCulling ? PRIMITIVE_SCENE_DATA_FLAG_REVERSE_CULLING : 0u;
+#endif
 		Parameters.Flags |= bHoldout ? PRIMITIVE_SCENE_DATA_FLAG_HOLDOUT : 0u;
+		Parameters.Flags |= bDisableMaterialInvalidations ? PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS : 0u;
 		return Parameters;
 	}
 
@@ -436,4 +441,5 @@ private:
 	uint32 bWritesCustomDepthStencil : 1;
 	uint32 bReverseCulling: 1;
 	uint32 bHoldout : 1;
+	uint32 bDisableMaterialInvalidations : 1;
 };

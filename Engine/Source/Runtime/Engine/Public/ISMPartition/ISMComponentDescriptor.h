@@ -162,6 +162,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Component Settings")
 	int32 WorldPositionOffsetDisableDistance;
+
+	UPROPERTY(EditAnywhere, Category = "Component Settings")
+	EShadowCacheInvalidationBehavior ShadowCacheInvalidationBehavior;
 };
 
 USTRUCT()

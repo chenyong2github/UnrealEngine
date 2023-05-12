@@ -1095,6 +1095,8 @@ public:
 	 */
 	ENGINE_API const FCustomPrimitiveData* GetCustomPrimitiveData() const { return &CustomPrimitiveData; }
 
+	EShadowCacheInvalidationBehavior GetShadowCacheInvalidationBehavior() const { return ShadowCacheInvalidationBehavior; }
+
 protected:
 	ENGINE_API void UpdateDefaultInstanceSceneData();
 
@@ -1241,6 +1243,8 @@ protected:
 
 	/** True if the primitive casts static shadows. */
 	uint8 bCastStaticShadow : 1;
+
+	EShadowCacheInvalidationBehavior ShadowCacheInvalidationBehavior;
 
 	/** 
 	 * Whether the object should cast a volumetric translucent shadow.

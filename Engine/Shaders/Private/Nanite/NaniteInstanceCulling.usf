@@ -369,7 +369,7 @@ void InstanceCull(
 		const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent;
 
 		bool bVisibleAndShouldCacheAsStaticForAnyView = false;
-		bool bAnyEnableWPO = false;
+		bool bAnyMaterialInvalidates = false;
 
 		for (uint ViewIndex = 0; ViewIndex < ViewDrawGroup.NumViews; ++ViewIndex)
 		{
@@ -393,7 +393,6 @@ void InstanceCull(
 			}
 
 			bool bEnableWPO = Cull.Distance( PrimitiveData );
-			bAnyEnableWPO |= bEnableWPO;
 
 			const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || bEnableWPO;
 #if DEBUG_FLAGS
@@ -407,15 +406,16 @@ void InstanceCull(
 			Cull.GlobalClipPlane();
 
 			BRANCH
-            if( Cull.bIsVisible )
-            {
+			if( Cull.bIsVisible )
+			{
 #if VIRTUAL_TEXTURE_TARGET
-                const bool bMaterialInvalidates = bEnableWPO;
-                const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
-                Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
+				const bool bMaterialInvalidates = bEnableWPO && ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS) == 0u);
+				bAnyMaterialInvalidates |= bMaterialInvalidates;
+				const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
+				Cull.PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 #endif
-                Cull.FrustumHZB( false );
-            }
+				Cull.FrustumHZB( false );
+			}
 
 		#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 			if( Cull.bWasOccluded )
@@ -486,8 +486,7 @@ void InstanceCull(
 			}
 		}
 #if VIRTUAL_TEXTURE_TARGET
-		bool bMaterialInvalidates = bAnyEnableWPO;
-		if (bVisibleAndShouldCacheAsStaticForAnyView && bMaterialInvalidates)
+		if (bVisibleAndShouldCacheAsStaticForAnyView && bAnyMaterialInvalidates)
 		{
 			RecordStaticPrimitiveInvalidation(PrimitiveData.PersistentPrimitiveIndex);
 		}
@@ -603,7 +602,7 @@ void CompactViewsVSM_CS(uint DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 
-void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, const uint InstanceId, FInstanceSceneData InstanceData, FCompactedViewInfo ViewInfo, FNaniteView NaniteView, bool bHasMoved, inout bool bVisibleAndShouldCacheAsStaticForAnyView, inout bool bAnyEnableWPO)
+void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, const uint InstanceId, FInstanceSceneData InstanceData, FCompactedViewInfo ViewInfo, FNaniteView NaniteView, bool bHasMoved, inout bool bVisibleAndShouldCacheAsStaticForAnyView, inout bool bOutAnyMaterialInvalidates)
 {
 	const float3 LocalBoundsCenter = InstanceData.LocalBoundsCenter;
 	const float3 LocalBoundsExtent = InstanceData.LocalBoundsExtent;
@@ -620,7 +619,10 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 	}
 	
 	bool bEnableWPO = Cull.Distance( PrimitiveData );
-	bAnyEnableWPO |= bEnableWPO;
+
+	const bool bMaterialInvalidates = bEnableWPO && ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_DISABLE_MATERIAL_INVALIDATIONS) == 0u);
+
+	bOutAnyMaterialInvalidates |= bMaterialInvalidates;
 
 	Cull.GlobalClipPlane();
 
@@ -635,7 +637,7 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 #if VIRTUAL_TEXTURE_TARGET
 	const bool bShouldCacheAsStatic = ShouldCacheInstanceAsStatic(InstanceData, Cull.bIsViewUncached);
 	float PixelEstRadius = CalcClipSpaceRadiusEstimate(bIsOrtho, InstanceData, DynamicData.LocalToTranslatedWorld, NaniteView.ViewToClip) * float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
-	Cull.PageFlagMask	= GetPageFlagMaskForRendering(bShouldCacheAsStatic, bHasMoved || bEnableWPO)
+	Cull.PageFlagMask	= GetPageFlagMaskForRendering(bShouldCacheAsStatic, bHasMoved || bMaterialInvalidates)
 						| GetDetailGeometryFlagMaskForCulling(bShouldCacheAsStatic, true, PixelEstRadius);
 #endif
 
@@ -764,7 +766,7 @@ void InstanceCullVSM(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex
 	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
 
 	bool bVisibleAndShouldCacheAsStaticForAnyView = false;
-	bool bAnyEnableWPO = false;
+	bool bAnyMaterialInvalidates = false;
 
 	// Loop over each of the views
 	uint NumCompactedPrimaryViews = CompactedViewsAllocation[0];
@@ -778,16 +780,16 @@ void InstanceCullVSM(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex
 		// Depth clipping should only be disabled with orthographic projections
 		if (IsOrthoProjection(NaniteView.ViewToClip))
 		{
-			ProcessPrimaryView(true, PrimitiveData, InstanceId, InstanceData, ViewInfo, NaniteView, bHasMoved, bVisibleAndShouldCacheAsStaticForAnyView, bAnyEnableWPO);
+			ProcessPrimaryView(true, PrimitiveData, InstanceId, InstanceData, ViewInfo, NaniteView, bHasMoved, bVisibleAndShouldCacheAsStaticForAnyView, bAnyMaterialInvalidates);
 		}
 		else
 		{
-			ProcessPrimaryView(false, PrimitiveData, InstanceId, InstanceData, ViewInfo, NaniteView, bHasMoved, bVisibleAndShouldCacheAsStaticForAnyView, bAnyEnableWPO);
+			ProcessPrimaryView(false, PrimitiveData, InstanceId, InstanceData, ViewInfo, NaniteView, bHasMoved, bVisibleAndShouldCacheAsStaticForAnyView, bAnyMaterialInvalidates);
 		}
 	}
 
 	// Let host know that this instance (potentially) caused invalidations even though it was assumed to be cached as static
-	if (bVisibleAndShouldCacheAsStaticForAnyView && bAnyEnableWPO)
+	if (bVisibleAndShouldCacheAsStaticForAnyView && bAnyMaterialInvalidates)
 	{
 		RecordStaticPrimitiveInvalidation(PrimitiveData.PersistentPrimitiveIndex);
 	}
