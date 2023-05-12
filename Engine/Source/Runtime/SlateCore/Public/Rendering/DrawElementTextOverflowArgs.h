@@ -19,18 +19,20 @@ struct FTextOverflowArgs
 	FTextOverflowArgs(FShapedGlyphSequencePtr& InOverflowText, ETextOverflowDirection InOverflowDirection)
 		: OverflowTextPtr(InOverflowText)
 		, OverflowDirection(InOverflowDirection)
-		, bForceEllipsisDueToClippedLine(false)
+		, bIsLastVisibleBlock(false)
+		, bIsNextBlockClipped(false)
 		
 	{}
 
 	FTextOverflowArgs()
 		: OverflowDirection(ETextOverflowDirection::NoOverflow)
-		, bForceEllipsisDueToClippedLine(false)
+		, bIsLastVisibleBlock(false)
+		, bIsNextBlockClipped(false)
 	{}
 
 	/** Sequence that represents the ellipsis glyph */
 	FShapedGlyphSequencePtr OverflowTextPtr;
 	ETextOverflowDirection OverflowDirection;
-	bool bForceEllipsisDueToClippedLine;
-	
+	bool bIsLastVisibleBlock;
+	bool bIsNextBlockClipped;
 };

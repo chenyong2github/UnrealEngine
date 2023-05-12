@@ -69,39 +69,36 @@ int32 FSlateTextLayout::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 
 	int32 HighestLayerId = LayerId;
 
-	auto IsLineViewVisible = [&AllottedGeometry, &InverseScale, &MyCullingRect](const FTextLayout::FLineView& LineView, bool bTestForVerticallyClippedLine = false)
+	auto IsVisible = [&AllottedGeometry, &InverseScale, &MyCullingRect](FVector2D Offset, FVector2D Size)
 	{
 		// Is this line visible?  This checks if the culling rect, which represents the AABB around the last clipping rect, intersects the 
 		// line of text, this requires that we get the text line into render space.
 		// TODO perhaps save off this line view rect during text layout?
-		const FVector2D LocalLineOffset = LineView.Offset * InverseScale;
-		FSlateRect LineViewRect(AllottedGeometry.GetRenderBoundingRect(FSlateRect(LocalLineOffset, LocalLineOffset + (LineView.Size * InverseScale))));
+		const FVector2D LocalLineOffset = Offset * InverseScale;
+		FSlateRect Rect(AllottedGeometry.GetRenderBoundingRect(FSlateRect(LocalLineOffset, LocalLineOffset + (Size * InverseScale))));
 
-		if (!bTestForVerticallyClippedLine)
-		{
-			return FSlateRect::DoRectanglesIntersect(LineViewRect, MyCullingRect);
-		}
-		else
-		{
-			// We only care about vertically clipped lines. Horizontal clipping will be replaced with an ellipsis
-			// So make the left and right side the same as the clip rect to avoid the test failing due to being larger horizontally
-
-			FSlateRect GeometryRect = AllottedGeometry.GetRenderBoundingRect();
-			LineViewRect.Left = GeometryRect.Left;
-			LineViewRect.Right = GeometryRect.Right;
-
-			return FSlateRect::IsRectangleContained(GeometryRect, LineViewRect);
-		}
-
+		return FSlateRect::DoRectanglesIntersect(Rect, MyCullingRect);
 	};
 
+
+	int32 LastVisibleLineIndex = -1;
+	for (int32 LineIndex = 0; LineIndex < LineViews.Num(); ++LineIndex)
+	{	//Depending on their length, some lines can be invisible, but following ones could be visible, so we have to parse all of them to get the real last one.
+		if (IsVisible(LineViews[LineIndex].Offset, LineViews[LineIndex].Size))
+		{
+			LastVisibleLineIndex = LineIndex;
+		}
+	}
+
+	const bool bIsMultiline = LineViews.Num() > 1;
 	for (int32 LineIndex = 0; LineIndex < LineViews.Num(); ++LineIndex)
 	{
 		const FTextLayout::FLineView& LineView = LineViews[LineIndex];
 
 		ETextOverflowPolicy OverflowPolicy = TextOverflowPolicyOverride.Get(DefaultTextStyle.OverflowPolicy);
+		ETextOverflowDirection OverflowDirection = ETextOverflowDirection::NoOverflow;
 
-		if (!IsLineViewVisible(LineView))
+		if (!IsVisible(LineView.Offset, LineView.Size))
 		{
 			continue;
 		}
@@ -113,22 +110,70 @@ int32 FSlateTextLayout::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 		const int32 TextLayer = BlockDebugLayer + 1;
 		int32 HighestBlockLayerId = TextLayer;
 
-		const ETextJustify::Type VisualJustification = CalculateLineViewVisualJustification(LineView);
-		ETextOverflowDirection OverflowDirection = VisualJustification == ETextJustify::Left ? ETextOverflowDirection::LeftToRight : (VisualJustification == ETextJustify::Right ? ETextOverflowDirection::RightToLeft : ETextOverflowDirection::NoOverflow);
-
-		bool bForceEllipsisDueToClippedLine = false;
-	
-		if (OverflowPolicy == ETextOverflowPolicy::Ellipsis && LineViews.Num() > 1)
+		bool bIsLastVisibleLine = false;
+		bool bIsNextLineClipped = false;
+		if (OverflowPolicy == ETextOverflowPolicy::Ellipsis)
 		{
-			// Force the ellipsis to be on when the next line in a multi line text layout is clipped. This forces an ellipsis on this line even when its not clipped to indicate that an entire line or more is clipped
-			bForceEllipsisDueToClippedLine = LineViews.IsValidIndex(LineIndex + 1) ? !IsLineViewVisible(LineViews[LineIndex + 1], true) : false;
+			if (bIsMultiline)
+			{
+				bIsLastVisibleLine = LastVisibleLineIndex == LineIndex;
+				bIsNextLineClipped = LineViews.IsValidIndex(LineIndex + 1) ? bIsLastVisibleLine : false;
+
+				//When wrapping/multiline text, we have to use the reading direction of the text, not the justification.
+				OverflowDirection = LineView.TextBaseDirection == TextBiDi::ETextDirection::LeftToRight ? ETextOverflowDirection::LeftToRight : ETextOverflowDirection::RightToLeft;
+			}
+			else
+			{
+				bIsLastVisibleLine = true;
+				const ETextJustify::Type VisualJustification = CalculateLineViewVisualJustification(LineView);
+				OverflowDirection = VisualJustification == ETextJustify::Left ? ETextOverflowDirection::LeftToRight : (VisualJustification == ETextJustify::Right ? ETextOverflowDirection::RightToLeft : ETextOverflowDirection::NoOverflow);
+			}
+		}
+
+		int32 LastVisibleBlockIndex = -1;
+		int32 NextBlockOffset = 0;
+		if (bIsLastVisibleLine)
+		{
+			int32 StartValue = 0;
+			int32 EndValue = 0;
+			if (OverflowDirection == ETextOverflowDirection::LeftToRight)
+			{
+				EndValue = LineView.Blocks.Num();
+				NextBlockOffset = 1;
+			}
+			else if (OverflowDirection == ETextOverflowDirection::RightToLeft)
+			{
+				StartValue = LineView.Blocks.Num() - 1;
+				EndValue = -1;
+				NextBlockOffset = -1;
+			}
+
+			for (int32 BlockIndex = StartValue; BlockIndex != EndValue; BlockIndex += NextBlockOffset)
+			{	//Depending on their position, some blocks can be invisible, but a following one could be visible, so we have to parse all of them.
+				const TSharedRef< ILayoutBlock >& Block = LineView.Blocks[BlockIndex];
+				if (IsVisible(Block->GetLocationOffset(), Block->GetSize()))
+				{
+					LastVisibleBlockIndex = BlockIndex;
+				}
+			}
+		}
+		else
+		{
+			OverflowDirection = ETextOverflowDirection::NoOverflow;
+			OverflowPolicy = ETextOverflowPolicy::Clip;
 		}
 
 		// Render every block for this line
-		for (const TSharedRef< ILayoutBlock >& Block : LineView.Blocks)
+		for (int32 BlockIndex = 0; BlockIndex < LineView.Blocks.Num(); ++BlockIndex)
 		{
+			const TSharedRef< ILayoutBlock >& Block = LineView.Blocks[BlockIndex];
+			if (!IsVisible(Block->GetLocationOffset(), Block->GetSize()))
+			{
+				continue;
+			}
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if ( GShowTextDebugging )
+			if ( GShowTextDebugging)
 			{
 				BlockDebugHue.R += 50.0f;
 
@@ -144,7 +189,8 @@ int32 FSlateTextLayout::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 #endif
 
 			FTextArgs TextArgs(LineView, Block, DefaultTextStyle, OverflowPolicy, OverflowDirection);
-			TextArgs.bForceEllipsisDueToClippedLine = bForceEllipsisDueToClippedLine;
+			TextArgs.bIsLastVisibleBlock = bIsLastVisibleLine && BlockIndex == LastVisibleBlockIndex;
+			TextArgs.bIsNextBlockClipped = bIsNextLineClipped && (LineView.Blocks.IsValidIndex(BlockIndex + NextBlockOffset) ? TextArgs.bIsLastVisibleBlock : true);
 
 			const TSharedRef< ISlateRun > Run = StaticCastSharedRef< ISlateRun >( Block->GetRun() );
 

@@ -123,7 +123,8 @@ int32 FSlateTextRun::OnPaint(const FPaintArgs& PaintArgs, const FTextArgs& TextA
 	{
 		OverflowArgs.OverflowTextPtr = BlockTextContext.ShapedTextCache->FindOrAddOverflowEllipsisText(AllottedGeometry.GetAccumulatedLayoutTransform().GetScale(), BlockTextContext, Style.Font);
 		OverflowArgs.OverflowDirection = TextArgs.OverflowDirection;
-		OverflowArgs.bForceEllipsisDueToClippedLine = TextArgs.bForceEllipsisDueToClippedLine;
+		OverflowArgs.bIsLastVisibleBlock = TextArgs.bIsLastVisibleBlock;
+		OverflowArgs.bIsNextBlockClipped = TextArgs.bIsNextBlockClipped;
 	}
 
 	// Draw the optional shadow

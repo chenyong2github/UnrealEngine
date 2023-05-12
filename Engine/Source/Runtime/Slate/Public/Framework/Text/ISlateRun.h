@@ -20,7 +20,8 @@ struct FTextArgs
 		, DefaultStyle(InDefaultStyle)
 		, OverflowPolicy(InOverflowPolicy)
 		, OverflowDirection(InOverflowDirection)
-		, bForceEllipsisDueToClippedLine(false)
+		, bIsLastVisibleBlock(false)
+		, bIsNextBlockClipped(false)
 	{}
 
 	const FTextLayout::FLineView& Line;
@@ -28,7 +29,8 @@ struct FTextArgs
 	const FTextBlockStyle& DefaultStyle;
 	ETextOverflowPolicy OverflowPolicy;
 	ETextOverflowDirection OverflowDirection;
-	bool bForceEllipsisDueToClippedLine;
+	bool bIsLastVisibleBlock;
+	bool bIsNextBlockClipped;
 
 };
 

@@ -1368,7 +1368,7 @@ void FSlateElementBatcher::AddTextElement(const FSlateDrawElement& DrawElement)
 					}
 					else
 					{
-						RenderBatch->ReserveIndices(GlyphsLeft * 6);
+					RenderBatch->ReserveIndices(GlyphsLeft * 6);
 					}
 
 					InvTextureSizeX = 1.0f / FontAtlasTexture->GetWidth();
@@ -1439,14 +1439,14 @@ void FSlateElementBatcher::AddTextElement(const FSlateDrawElement& DrawElement)
 						}
 						else
 						{
-							RenderBatch->AddIndex(IndexStart + 0);
-							RenderBatch->AddIndex(IndexStart + 1);
-							RenderBatch->AddIndex(IndexStart + 2);
-							RenderBatch->AddIndex(IndexStart + 1);
-							RenderBatch->AddIndex(IndexStart + 3);
-							RenderBatch->AddIndex(IndexStart + 2);
-						}
+						RenderBatch->AddIndex(IndexStart + 0);
+						RenderBatch->AddIndex(IndexStart + 1);
+						RenderBatch->AddIndex(IndexStart + 2);
+						RenderBatch->AddIndex(IndexStart + 1);
+						RenderBatch->AddIndex(IndexStart + 3);
+						RenderBatch->AddIndex(IndexStart + 2);
 					}
+				}
 				}
 
 				LineX += Entry.XAdvance;
@@ -1581,7 +1581,7 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 		// Optimize by culling
 		// Todo: this doesn't work with cached clipping
 		BuildContext.bEnableCulling = false;
-		BuildContext.bForceEllipsis = DrawElementPayload.OverflowArgs.bForceEllipsisDueToClippedLine;
+		BuildContext.bForceEllipsis = DrawElementPayload.OverflowArgs.bIsLastVisibleBlock && DrawElementPayload.OverflowArgs.bIsNextBlockClipped;
 		BuildContext.OverflowDirection = DrawElementPayload.OverflowArgs.OverflowDirection;
 
 		if (ShapedGlyphSequence->GetGlyphsToRender().Num() > 200 || (OverflowGlyphSequence && BuildContext.OverflowDirection != ETextOverflowDirection::NoOverflow))
@@ -1597,12 +1597,13 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 				// checked that the render transform is axis-aligned as well
 				const FSlateRect LocalClipBoundingBox = TransformRect(RenderTransform.Inverse(), ScissorRectBox);
 				BuildContext.LocalClipBoundingBoxLeft = LocalClipBoundingBox.Left;
-				BuildContext.LocalClipBoundingBoxRight = LocalClipBoundingBox.Right - (BuildContext.bForceEllipsis ? OverflowGlyphSequence->GetMeasuredWidth() : 0);
+				BuildContext.LocalClipBoundingBoxRight = LocalClipBoundingBox.Right;
 
 				// In checks below, ignore floating-point differences caused by transforming and untransforming the clip rect
-				if (OverflowGlyphSequence && FMath::FloorToInt(BuildContext.LocalClipBoundingBoxLeft) <= 0 && FMath::CeilToInt(BuildContext.LocalClipBoundingBoxRight) >= ShapedGlyphSequence->GetMeasuredWidth())
+				const bool NeedLeftEllipsis = FMath::FloorToInt(BuildContext.LocalClipBoundingBoxLeft) > 0 && BuildContext.OverflowDirection == ETextOverflowDirection::RightToLeft;
+				const bool NeedRightEllipsis = ShapedGlyphSequence->GetMeasuredWidth() > FMath::CeilToInt(BuildContext.LocalClipBoundingBoxRight) && BuildContext.OverflowDirection == ETextOverflowDirection::LeftToRight;
+				if (!NeedLeftEllipsis && !NeedRightEllipsis && !DrawElementPayload.OverflowArgs.bIsNextBlockClipped)
 				{
-					// Override overflow if the text is smaller than (or is the same size as) the clipping rect and wont be clipped
 					BuildContext.OverflowDirection = ETextOverflowDirection::NoOverflow;
 				}
 				else if(!OverflowGlyphSequence)
@@ -2960,7 +2961,7 @@ void FSlateElementBatcher::BuildShapedTextSequence(const FShapedTextBuildContext
 	float EllipsisLineX = 0;
 	float EllipsisLineY = 0;
 	bool bNeedEllipsis = false;
-	bool bChararcterWasClipped = false;
+	bool bNeedSpaceForEllipsis = false;
 
 	// For left to right overflow direction - Sum of total whitespace we're currently advancing through. Once a non-whitespace glyph is detected this will return to 0
 	// For right to left this value is unused. We just skip all leading whitespace
@@ -2970,7 +2971,7 @@ void FSlateElementBatcher::BuildShapedTextSequence(const FShapedTextBuildContext
 	const int32 MaxPreAllocatedGlyphIndicies = 4096 + 1024;
 	const bool bUseStaticIndicies = GlyphSequenceToRender->GetGlyphsToRender().Num() < MaxPreAllocatedGlyphIndicies;
 
-	int32 NumGlyphs = GlyphSequenceToRender->GetGlyphsToRender().Num();
+	const int32 NumGlyphs = GlyphSequenceToRender->GetGlyphsToRender().Num();
 	const TArray<FShapedGlyphEntry>& GlyphsToRender = GlyphSequenceToRender->GetGlyphsToRender();
 	for (int32 GlyphIndex = 0; GlyphIndex < NumGlyphs; ++GlyphIndex)
 	{
@@ -3064,7 +3065,7 @@ void FSlateElementBatcher::BuildShapedTextSequence(const FShapedTextBuildContext
 					}
 					else
 					{
-						RenderBatch->ReserveIndices(GlyphsLeft * 6);
+					RenderBatch->ReserveIndices(GlyphsLeft * 6);
 					}
 
 					InvTextureSizeX = 1.0f / FontAtlasTexture->GetWidth();
@@ -3093,7 +3094,7 @@ void FSlateElementBatcher::BuildShapedTextSequence(const FShapedTextBuildContext
 		}
 
 		// Overflow Detection
-		// First figure out the size of the glyph. If the glyph contains multiple characters we have to measure all of them and if clicked, omit them all. This is common in complex languages with lots of diacritics
+		// First figure out the size of the glyph. If the glyph contains multiple characters we have to measure all of them and if clipped, omit them all. This is common in complex languages with lots of diacritics
 		float OverflowTestWidth = SizeX;
 		if (OverflowDirection != ETextOverflowDirection::NoOverflow && (GlyphToRender.NumGraphemeClustersInGlyph > 1 || GlyphToRender.NumCharactersInGlyph > 1))
 		{
@@ -3115,7 +3116,7 @@ void FSlateElementBatcher::BuildShapedTextSequence(const FShapedTextBuildContext
 		// Left to right overflow - If the current pen position + the ellipsis cannot fit, we have reached the end of the possible area for drawing this text. 
 		if (OverflowDirection == ETextOverflowDirection::LeftToRight)
 		{
-			// If we are on the last glyph dont bother checking if the ellipsis can fit. If the last glyph can fit there is no need for ellipsis
+			// If we are on the last glyph don't bother checking if the ellipsis can fit. If the last glyph can fit there is no need for ellipsis
 			float OverflowSequenceNeededSize = GlyphIndex < NumGlyphs - 1 ? Context.OverflowGlyphSequence->GetMeasuredWidth() : 0;
 			if(X + OverflowTestWidth + OverflowSequenceNeededSize >= Context.LocalClipBoundingBoxRight)
 			{
@@ -3136,33 +3137,36 @@ void FSlateElementBatcher::BuildShapedTextSequence(const FShapedTextBuildContext
 			{
 				// This glyph is in the clipped region or is not visible so just advance. It cannot be shown
 				bClipped = true;
-				bChararcterWasClipped = true;
+				bNeedSpaceForEllipsis = true;
 			}
-			else if(bChararcterWasClipped)
+			if (bNeedSpaceForEllipsis || !GlyphToRender.bIsVisible)
 			{
+				bClipped = true;
+
 				// Can the ellipsis fit in the free spot by skipping the previous glyph(s)
-				float EllipsisWidth = Context.OverflowGlyphSequence->GetMeasuredWidth();
-				float AvailableX = X-Context.LocalClipBoundingBoxLeft;
+				const float EllipsisWidth = Context.OverflowGlyphSequence->GetMeasuredWidth();
+				const float AvailableX = X + SizeX - Context.LocalClipBoundingBoxLeft;
 				if (AvailableX >= EllipsisWidth)
 				{
 					// The available area can fit the ellipsis. Mark that we need an ellipsis and stop checking for overflow. The rest of the text can be built normally
+					bNeedSpaceForEllipsis = false;
+				}
+
+				//Always try to put the ellipsis, wether it fits or not: it's better to have an ellipsis a bit clipped than no feedback at all.
 					bNeedEllipsis = true;
-					EllipsisLineX = (LineX - EllipsisWidth);
+				EllipsisLineX = (LineX + SizeX - EllipsisWidth);
 					EllipsisLineY = LineY;
-					OverflowDirection = ETextOverflowDirection::NoOverflow;
 				}
 				else
 				{
-					bClipped = true;
-					bChararcterWasClipped = true;
+				OverflowDirection = ETextOverflowDirection::NoOverflow;
 				}
 
-			}
 			// If we just clipped a glyph omit all characters in said glyph. Otherwise floating diacritics would be visible above the ellipsis. This is common in complex languages.
 			if (bClipped && GlyphToRender.NumCharactersInGlyph > 1)
 			{
 				GlyphIndex += GlyphToRender.NumCharactersInGlyph - 1;
-				LineX += OverflowTestWidth;
+				LineX += GlyphToRender.XAdvance;
 				continue;
 			}
 
@@ -3205,12 +3209,12 @@ void FSlateElementBatcher::BuildShapedTextSequence(const FShapedTextBuildContext
 			}
 			else
 			{
-				RenderBatch->AddIndex(IndexStart + 0);
-				RenderBatch->AddIndex(IndexStart + 1);
-				RenderBatch->AddIndex(IndexStart + 2);
-				RenderBatch->AddIndex(IndexStart + 1);
-				RenderBatch->AddIndex(IndexStart + 3);
-				RenderBatch->AddIndex(IndexStart + 2);
+			RenderBatch->AddIndex(IndexStart + 0);
+			RenderBatch->AddIndex(IndexStart + 1);
+			RenderBatch->AddIndex(IndexStart + 2);
+			RenderBatch->AddIndex(IndexStart + 1);
+			RenderBatch->AddIndex(IndexStart + 3);
+			RenderBatch->AddIndex(IndexStart + 2);
 			}
 
 			// Reset whitespace advance to 0, this is a visible character
