@@ -677,7 +677,7 @@ private:
 				Result.FixedBindingSource = FBindingSource::CreateForWidget(WidgetBlueprintPtr, ViewBinding->DestinationPath.GetWidgetName());
 			}
 
-			Result.bAllowWidgets = !bSource;
+			Result.bAllowWidgets = true;
 			Result.bAllowViewModels = bSource;
 			Result.bAllowConversionFunctions = false;
 			bool bIsReadingValue = (IsForwardBinding(ViewBinding->BindingType) && bSource)

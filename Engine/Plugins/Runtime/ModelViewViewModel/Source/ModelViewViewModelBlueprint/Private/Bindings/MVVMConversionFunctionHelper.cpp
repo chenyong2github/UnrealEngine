@@ -134,6 +134,10 @@ namespace Private
 			{
 				PathParts.Insert(Getter->VariableReference, 0);
 			}
+			else if (UK2Node_CallFunction* Function = Cast<UK2Node_CallFunction>(Node))
+			{
+				PathParts.Insert(Function->FunctionReference, 0);
+			}
 
 			for (UEdGraphPin* Pin : Node->Pins)
 			{

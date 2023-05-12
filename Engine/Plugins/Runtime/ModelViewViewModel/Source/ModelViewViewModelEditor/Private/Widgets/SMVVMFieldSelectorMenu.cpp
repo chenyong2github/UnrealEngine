@@ -385,6 +385,11 @@ void SFieldSelectorMenu::HandleViewModelSelected(FBindingSource Source, ESelectI
 		return;
 	}
 
+	if (WidgetList.IsValid())
+	{
+		WidgetList->ClearSelection();
+	}
+
 	if (ConversionFunctionCategoryTree.IsValid())
 	{
 		ConversionFunctionCategoryTree->ClearSelection();
@@ -412,6 +417,11 @@ void SFieldSelectorMenu::HandleWidgetSelected(FName WidgetName, ESelectInfo::Typ
 	if (Selection.Num() == 0)
 	{
 		return;
+	}
+
+	if (ViewModelList.IsValid())
+	{
+		ViewModelList->ClearSelection();
 	}
 
 	if (ConversionFunctionCategoryTree.IsValid())

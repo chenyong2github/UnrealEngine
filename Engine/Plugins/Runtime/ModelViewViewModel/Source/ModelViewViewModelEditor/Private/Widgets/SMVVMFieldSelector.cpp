@@ -109,22 +109,6 @@ int32 SFieldSelector::GetCurrentDisplayIndex() const
 	return 2;
 }
 
-//void SFieldSelector::Refresh()
-//{
-//	CachedSelectedField = SelectedField.Get();
-//	CachedSelectedConversionFunction = SelectedConversionFunction.Get(nullptr);
-//
-//	//if (PropertyPathWidget.IsValid())
-//	//{
-//	//	PropertyPathWidget->SetPropertyPath(CachedSelectedField);
-//	//}
-//
-//	//if (SelectedSourceWidget.IsValid() && WidgetBlueprint.IsValid())
-//	//{
-//	//	SelectedSourceWidget->RefreshSource(Private::GetSourceFromPath(WidgetBlueprint.Get(), CachedSelectedField));
-//	//}
-//}
-
 TSharedRef<SWidget> SFieldSelector::HandleGetMenuContent()
 {
 	const UWidgetBlueprint* WidgetBlueprintPtr = WidgetBlueprint.Get();
