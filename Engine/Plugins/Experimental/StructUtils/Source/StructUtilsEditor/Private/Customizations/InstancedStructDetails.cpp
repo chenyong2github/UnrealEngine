@@ -491,7 +491,7 @@ TSharedRef<SWidget> FInstancedStructDetails::GenerateStructPicker()
 	Options.DisplayMode = bShowTreeView ? EStructViewerDisplayMode::TreeView : EStructViewerDisplayMode::ListView;
 	Options.bAllowViewOptions = !bHideViewOptions;
 
-	FOnStructPicked OnPicked(FOnStructPicked::CreateRaw(this, &FInstancedStructDetails::OnStructPicked));
+	FOnStructPicked OnPicked(FOnStructPicked::CreateSP(this, &FInstancedStructDetails::OnStructPicked));
 
 	return SNew(SBox)
 		.WidthOverride(280)
