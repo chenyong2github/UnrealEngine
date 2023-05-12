@@ -28,6 +28,8 @@ void FOpenColorIOColorConversionSettingsCustomization::CustomizeHeader(TSharedRe
 			ColorSpaceConversion = reinterpret_cast<FOpenColorIOColorConversionSettings*>(StructData);
 			check(ColorSpaceConversion);
 
+			ColorSpaceConversion->ValidateColorSpaces();
+
 			TSharedPtr<IPropertyUtilities> PropertyUtils = CustomizationUtils.GetPropertyUtilities();
 
 			HeaderRow.NameContent()
@@ -45,8 +47,6 @@ void FOpenColorIOColorConversionSettingsCustomization::CustomizeHeader(TSharedRe
 						SNew(STextBlock)
 						.Text(MakeAttributeLambda([=]
 							{
-								ColorSpaceConversion->ValidateColorSpaces();
-
 								if (ColorSpaceConversion->IsValid())
 								{
 									return FText::FromString(*ColorSpaceConversion->ToString());

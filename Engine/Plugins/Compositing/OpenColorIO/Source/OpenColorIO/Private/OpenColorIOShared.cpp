@@ -9,6 +9,7 @@
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "OpenColorIOConfiguration.h"
+#include "OpenColorIOModule.h"
 #include "OpenColorIOShaderType.h"
 #include "OpenColorIOShader.h"
 #include "OpenColorIOShaderCompilationManager.h"
@@ -286,11 +287,11 @@ bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& 
 				FOpenColorIOShaderMap::LoadFromDerivedDataCache(this, InShaderMapId, InPlatform, GameThreadShaderMap);
 				if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
 				{
-					UE_LOG(LogTemp, Display, TEXT("Loaded shader %s for OCIO ColorSpace %s from DDC"), *GameThreadShaderMap->GetFriendlyName(), *GetFriendlyName());
+					UE_LOG(LogOpenColorIO, Display, TEXT("Loaded shader %s for OCIO ColorSpace %s from DDC"), *GameThreadShaderMap->GetFriendlyName(), *GetFriendlyName());
 				}
 				else
 				{
-					UE_LOG(LogTemp, Display, TEXT("Loading shader for OCIO ColorSpace %s from DDC failed. Shader needs recompile."), *GetFriendlyName());
+					UE_LOG(LogOpenColorIO, Display, TEXT("Loading shader for OCIO ColorSpace %s from DDC failed. Shader needs recompile."), *GetFriendlyName());
 				}
 #endif // WITH_EDITOR
 			}

@@ -348,6 +348,64 @@ FString FOpenColorIOConfigWrapper::GetCacheID() const
 	return {};
 }
 
+FString FOpenColorIOConfigWrapper::GetDebugString() const
+{
+	TStringBuilder<1024> DebugStringBuilder;
+	
+#if WITH_OCIO
+	if (IsValid())
+	{
+		const OCIO_NAMESPACE::ConstConfigRcPtr& Config = Pimpl->Config;
+		if (Config->getNumColorSpaces() > 0)
+		{
+			DebugStringBuilder.Append(TEXT("** ColorSpaces **\n"));
+			
+			const int32 NumCS = Config->getNumColorSpaces(
+				OCIO_NAMESPACE::SEARCH_REFERENCE_SPACE_ALL,   // Iterate over scene & display color spaces.
+				OCIO_NAMESPACE::COLORSPACE_ALL);              // Iterate over active & inactive color spaces.
+
+			for (int32 IndexCS = 0; IndexCS < NumCS; ++IndexCS)
+			{
+				OCIO_NAMESPACE::ConstColorSpaceRcPtr cs = Config->getColorSpace(Config->getColorSpaceNameByIndex(
+					OCIO_NAMESPACE::SEARCH_REFERENCE_SPACE_ALL,
+					OCIO_NAMESPACE::COLORSPACE_ALL,
+					IndexCS));
+
+				DebugStringBuilder.Append(cs->getName());
+				DebugStringBuilder.Append(TEXT("\n"));
+			}
+
+			DebugStringBuilder.Append(TEXT("** (Display, View) pairs **\n"));
+
+			for (int32 IndexDisplay = 0; IndexDisplay < Config->getNumDisplaysAll(); ++IndexDisplay)
+			{
+				const ANSICHAR* DisplayName = Config->getDisplayAll(IndexDisplay);
+
+				// Iterate over shared views.
+				int32 NumViews = Config->getNumViews(DisplayName);
+				for (int IndexView = 0; IndexView < NumViews; ++IndexView)
+				{
+					const ANSICHAR* ViewName = Config->getView(
+						DisplayName,
+						IndexView);
+
+					DebugStringBuilder.Append(TEXT("("));
+					DebugStringBuilder.Append(DisplayName);
+					DebugStringBuilder.Append(TEXT(", "));
+					DebugStringBuilder.Append(ViewName);
+					DebugStringBuilder.Append(TEXT(")\n"));
+				}
+			}
+		}
+	}
+
+#endif // WITH_OCIO
+
+	return DebugStringBuilder.ToString();
+}
+
+
+
 FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(
 	const FOpenColorIOConfigWrapper* InConfig,
 	FStringView InSourceColorSpace,

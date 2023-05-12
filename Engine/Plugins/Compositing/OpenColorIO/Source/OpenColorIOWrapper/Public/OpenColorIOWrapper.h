@@ -92,6 +92,9 @@ public:
 	/** Get the string hash of the config. */
 	FString GetCacheID() const;
 
+	/** Returns a config debug string. */
+	FString GetDebugString() const;
+
 private:
 
 	/** Convenience to create a config between the working color space and the default interchange one. */

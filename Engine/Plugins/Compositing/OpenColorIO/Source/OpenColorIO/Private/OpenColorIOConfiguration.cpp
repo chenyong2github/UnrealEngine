@@ -162,7 +162,7 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 	TArray<FOpenColorIODisplayView> DisplayViewsToBeReloaded = DesiredDisplayViews;
 	DesiredColorSpaces.Reset();
 	DesiredDisplayViews.Reset();
-	CleanupTransforms();
+	ColorTransforms.Reset();
 	LoadConfiguration();
 
 	if (Config == nullptr)
@@ -189,14 +189,15 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 
 	for (const FOpenColorIODisplayView& ExistingDisplayView : DisplayViewsToBeReloaded)
 	{
-		const FString TransformName = Config->GetDisplayViewTransformName(*ExistingDisplayView.Display, *ExistingDisplayView.View);
-		if (TransformName.IsEmpty())
+		for (int32 ViewIndex = 0; ViewIndex < Config->GetNumViews(*ExistingDisplayView.Display); ++ViewIndex)
 		{
-			// Name not found, therefore we don't need to re-add this display-view.
-			continue;
+			const FString ViewName = Config->GetViewName(*ExistingDisplayView.Display, ViewIndex);
+			
+			if (ViewName == ExistingDisplayView.View)
+			{
+				DesiredDisplayViews.Add(ExistingDisplayView);
+			}
 		}
-
-		DesiredDisplayViews.Add(ExistingDisplayView);
 	}
 
 	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
@@ -354,7 +355,7 @@ void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColo
 	}
 
 	UOpenColorIOColorTransform* NewTransform = NewObject<UOpenColorIOColorTransform>(this, NAME_None, RF_NoFlags);
-	const bool bSuccess = NewTransform->Initialize(this, InSourceColorSpace, InDestinationColorSpace);
+	const bool bSuccess = NewTransform->Initialize(InSourceColorSpace, InDestinationColorSpace);
 
 	if (bSuccess)
 	{
@@ -380,7 +381,7 @@ void UOpenColorIOConfiguration::CreateColorTransform(const FString& InSourceColo
 	}
 
 	UOpenColorIOColorTransform* NewTransform = NewObject<UOpenColorIOColorTransform>(this, NAME_None, RF_NoFlags);
-	const bool bSuccess = NewTransform->Initialize(this, InSourceColorSpace, InDisplay, InView, InDirection);
+	const bool bSuccess = NewTransform->Initialize(InSourceColorSpace, InDisplay, InView, InDirection);
 
 	if (bSuccess)
 	{
@@ -522,7 +523,8 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UOpenColorIOConfiguration, ConfigurationFile))
 	{
-		LoadConfiguration();
+		// Note: Reload calls LoadConfiguration() internally.
+		ReloadExistingColorspaces();
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UOpenColorIOConfiguration, DesiredColorSpaces))
 	{

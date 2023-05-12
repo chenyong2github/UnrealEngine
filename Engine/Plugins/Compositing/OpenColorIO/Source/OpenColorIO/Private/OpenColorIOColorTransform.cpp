@@ -25,34 +25,28 @@
 
 namespace
 {
-	// Check whether the configuration asset has correctly created its native OpenColorIO config object.
-	bool HasValidConfiguration(const TObjectPtr<UOpenColorIOConfiguration>& InConfiguration)
+	// Returns the (native) config wrapper from the configuration object.
+	FOpenColorIOConfigWrapper* GetTransformConfigWrapper(const UOpenColorIOConfiguration* InConfigurationOwner)
 	{
-		if (IsValid(InConfiguration))
+		if (IsValid(InConfigurationOwner))
 		{
-			const FOpenColorIOConfigWrapper* ConfigWrapper = InConfiguration->GetConfigWrapper();
-			if (ConfigWrapper != nullptr)
-			{
-				return ConfigWrapper->IsValid();
-			}
+			return InConfigurationOwner->GetConfigWrapper();
 		}
 
-		return false;
+		return nullptr;
 	}
 
 	// Note: Since OpenColorIO caches processors automatically, we can recreate them without significant additional costs.
-	FOpenColorIOProcessorWrapper GetTransformProcessor(const UOpenColorIOColorTransform* InTransform)
+	FOpenColorIOProcessorWrapper GetTransformProcessor(const UOpenColorIOColorTransform* InTransform, const FOpenColorIOConfigWrapper* InConfigWrapper)
 	{
 		check(InTransform);
-		check(InTransform->ConfigurationOwner);
-
-		const FOpenColorIOConfigWrapper* ConfigWrapper = InTransform->ConfigurationOwner->GetConfigWrapper();
+		ensure(InConfigWrapper);
 
 		EOpenColorIOViewTransformDirection DisplayViewDirection;
 		if (InTransform->GetDisplayViewDirection(DisplayViewDirection))
 		{
 			return FOpenColorIOProcessorWrapper(
-				ConfigWrapper,
+				InConfigWrapper,
 				InTransform->SourceColorSpace,
 				InTransform->Display,
 				InTransform->View,
@@ -62,7 +56,7 @@ namespace
 		else
 		{
 			return FOpenColorIOProcessorWrapper(
-				ConfigWrapper,
+				InConfigWrapper,
 				InTransform->SourceColorSpace,
 				InTransform->DestinationColorSpace,
 				InTransform->GetContextKeyValues());
@@ -168,28 +162,34 @@ UOpenColorIOColorTransform::UOpenColorIOColorTransform(const FObjectInitializer&
 
 bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, const TMap<FString, FString>& InContextKeyValues)
 {
-	check(InOwner);
-	ConfigurationOwner = InOwner;
+	return Initialize(InSourceColorSpace, InDestinationColorSpace, InContextKeyValues);
+}
+
+bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection, const TMap<FString, FString>& InContextKeyValues)
+{
+	return Initialize(InSourceColorSpace, InDisplay, InView, InDirection, InContextKeyValues);
+}
+
+bool UOpenColorIOColorTransform::Initialize(const FString& InSourceColorSpace, const FString& InDestinationColorSpace, const TMap<FString, FString>& InContextKeyValues)
+{
 	ContextKeyValues = InContextKeyValues;
-	
+
 #if WITH_EDITOR
 	if (InSourceColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
 	{
 		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
 	}
-	else if(InDestinationColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
+	else if (InDestinationColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
 	{
 		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
 	}
 #endif
-	
+
 	return GenerateColorTransformData(InSourceColorSpace, InDestinationColorSpace);
 }
 
-bool UOpenColorIOColorTransform::Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection, const TMap<FString, FString>& InContextKeyValues)
+bool UOpenColorIOColorTransform::Initialize(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection, const TMap<FString, FString>& InContextKeyValues)
 {
-	check(InOwner);
-	ConfigurationOwner = InOwner;
 	ContextKeyValues = InContextKeyValues;
 
 #if WITH_EDITOR
@@ -278,9 +278,12 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 #if WITH_EDITOR
 	if (Textures.IsEmpty())
 	{
-		if (HasValidConfiguration(ConfigurationOwner))
+		const UOpenColorIOConfiguration* ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
+		const FOpenColorIOConfigWrapper* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
+
+		if (ConfigWrapper != nullptr)
 		{
-			const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
+			const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, ConfigWrapper);
 			if (TransformProcessor.IsValid())
 			{
 				const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(TransformProcessor);
@@ -492,9 +495,12 @@ bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, 
 #if WITH_EDITOR
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutImage) const
 {
-	if (HasValidConfiguration(ConfigurationOwner))
+	const UOpenColorIOConfiguration* ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
+	const FOpenColorIOConfigWrapper* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
+
+	if (ConfigWrapper != nullptr)
 	{
-		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
+		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, ConfigWrapper);
 		if (TransformProcessor.IsValid())
 		{
 			const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
@@ -512,9 +518,12 @@ bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutIma
 
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& SrcImage, const FImageView& DestImage) const
 {
-	if (HasValidConfiguration(ConfigurationOwner))
+	const UOpenColorIOConfiguration* ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
+	const FOpenColorIOConfigWrapper* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
+
+	if (ConfigWrapper != nullptr)
 	{
-		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this);
+		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, ConfigWrapper);
 		if (TransformProcessor.IsValid())
 		{
 			const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
@@ -618,9 +627,12 @@ FString UOpenColorIOColorTransform::GetTransformFriendlyName() const
 bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FString& OutShaderCode, FString& OutRawConfigHash)
 {
 #if WITH_EDITOR
-	if (HasValidConfiguration(ConfigurationOwner))
+	const UOpenColorIOConfiguration* ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
+	const FOpenColorIOConfigWrapper* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
+
+	if (ConfigWrapper != nullptr)
 	{
-		const FOpenColorIOProcessorWrapper Processor = GetTransformProcessor(this);
+		const FOpenColorIOProcessorWrapper Processor = GetTransformProcessor(this, ConfigWrapper);
 		if (Processor.IsValid())
 		{
 			const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(Processor);
@@ -800,18 +812,33 @@ void UOpenColorIOColorTransform::PostLoad()
 		}
 	}
 
-	if (!ConfigurationOwner && GetOuter())
-	{
-		UE_LOG(LogOpenColorIO, Verbose, TEXT("ConfigurationOwner is null. Assigning Outer to ConfigurationOwner."));
-		ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
-	}
+	UOpenColorIOConfiguration* ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
 
 	//To be able to fetch OCIO data, make sure our config owner has been postloaded.
 	if (ConfigurationOwner)
 	{
 		ConfigurationOwner->ConditionalPostLoad();
-		CacheResourceTextures();
-		CacheResourceShadersForRendering(false);
+
+		bool bIsTransformActive = false;
+
+		if (bIsDisplayViewType)
+		{
+			bIsTransformActive = ConfigurationOwner->HasTransform(SourceColorSpace, Display, View, DisplayViewDirection);
+		}
+		else
+		{
+			bIsTransformActive = ConfigurationOwner->HasTransform(SourceColorSpace, DestinationColorSpace);
+		}
+		
+		if (bIsTransformActive)
+		{
+			CacheResourceTextures();
+			CacheResourceShadersForRendering(false);
+		}
+		else
+		{
+			UE_LOG(LogOpenColorIO, Verbose, TEXT("ConfigurationOwner does not contain [%s], aborting transform load."), *GetTransformFriendlyName());
+		}
 	}
 	else
 	{

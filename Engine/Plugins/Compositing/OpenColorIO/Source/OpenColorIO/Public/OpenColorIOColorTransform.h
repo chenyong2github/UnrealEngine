@@ -33,8 +33,15 @@ public:
 	virtual ~UOpenColorIOColorTransform() {};
 
 public:
+	UE_DEPRECATED(5.3, "This method is deprecated, please use Initialize without the owner argument.")
 	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDestinationColorSpace, const TMap<FString, FString>& InContextKeyValues = {});
+	UE_DEPRECATED(5.3, "This method is deprecated, please use Initialize without the owner argument.")
 	bool Initialize(UOpenColorIOConfiguration* InOwner, const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection, const TMap<FString, FString>& InContextKeyValues = {});
+
+	/** Initialize resources for color space transform. */
+	bool Initialize(const FString& InSourceColorSpace, const FString& InDestinationColorSpace, const TMap<FString, FString>& InContextKeyValues = {});
+	/** Initialize resources for display-view transform. */
+	bool Initialize(const FString& InSourceColorSpace, const FString& InDisplay, const FString& InView, EOpenColorIOViewTransformDirection InDirection, const TMap<FString, FString>& InContextKeyValues = {});
 
 	/**
 	 * Cache resource shaders for cooking on the given shader platform.
@@ -181,8 +188,11 @@ public:
 
 public:
 
-	UPROPERTY()
-	TObjectPtr<UOpenColorIOConfiguration> ConfigurationOwner;
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.3, "ConfigurationOwner is deprecated, use GetOuter() instead.")
+	UPROPERTY(Transient, meta = (DeprecatedProperty))
+	TObjectPtr<UOpenColorIOConfiguration> ConfigurationOwner_DEPRECATED;
+#endif
 
 	UPROPERTY(VisibleAnywhere, Category = "ColorSpace")
 	bool bIsDisplayViewType = false;
