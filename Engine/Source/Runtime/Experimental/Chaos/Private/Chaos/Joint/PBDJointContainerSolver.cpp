@@ -120,14 +120,17 @@ namespace Chaos
 			}
 		}
 
-		void FPBDJointContainerSolver::FPBDJointContainerSolver::AddConstraints()
+		void FPBDJointContainerSolver::AddConstraints()
 		{
 			Reset(ConstraintContainer.GetNumConstraints());
 
 			// @todo(chaos): we could eliminate the index array if we're solving all constraints in the scene (RBAN)
 			for (int32 ContainerConstraintIndex = 0; ContainerConstraintIndex < ConstraintContainer.GetNumConstraints(); ++ContainerConstraintIndex)
 			{
-				AddConstraint(ContainerConstraintIndex);
+				if (ConstraintContainer.IsConstraintEnabled(ContainerConstraintIndex))
+				{
+					AddConstraint(ContainerConstraintIndex);
+				}
 			}
 		}
 
