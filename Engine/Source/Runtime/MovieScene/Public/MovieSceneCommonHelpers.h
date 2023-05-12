@@ -51,17 +51,19 @@ public:
 	 * Finds a section that exists at a given time
 	 *
 	 * @param Time	The time to find a section at
+	 * @param RowIndex  Limit the search to a given row index
 	 * @return The found section or null
 	 */
-	static UMovieSceneSection* FindSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time );
+	static UMovieSceneSection* FindSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time, int32 RowIndex = INDEX_NONE );
 
 	/**
 	 * Finds the nearest section to the given time
 	 *
 	 * @param Time	The time to find a section at
+	 * @param RowIndex  Limit the search to a given row index
 	 * @return The found section or null
 	 */
-	static UMovieSceneSection* FindNearestSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time );
+	static UMovieSceneSection* FindNearestSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time, int32 RowIndex = INDEX_NONE );
 
 	/** Find the next section that doesn't overlap - the section that has the next closest start time to the requested start time */
 	static UMovieSceneSection* FindNextSection(TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time);
