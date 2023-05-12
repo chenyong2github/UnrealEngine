@@ -308,7 +308,7 @@ public:
 	const ANSICHAR*  GlslCodeString; // make it easier in VS to see shader code in debug mode; points to begin of GlslCode
 #endif
 
-	FOpenGLShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash, GLenum TypeEnum);
+	FOpenGLShader(TArrayView<const uint8> Code, const FSHAHash& Hash, GLenum TypeEnum);
 
 	~FOpenGLShader()
 	{
@@ -318,8 +318,8 @@ public:
 //		}
 	}
 
-private:
-	void Compile(const FOpenGLCodeHeader& Header, const FSHAHash& LibraryHash, GLenum TypeEnum);
+protected:
+	void Compile(GLenum TypeEnum);
 };
 
 class FOpenGLVertexShader : public FRHIVertexShader, public FOpenGLShader
@@ -327,9 +327,17 @@ class FOpenGLVertexShader : public FRHIVertexShader, public FOpenGLShader
 public:
 	static constexpr EShaderFrequency Frequency = SF_Vertex;
 
-	FOpenGLVertexShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
-		: FOpenGLShader(RHICmdList, Code, Hash, GL_VERTEX_SHADER)
+	FOpenGLVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+		: FOpenGLShader(Code, Hash, GL_VERTEX_SHADER)
 	{}
+
+	void ConditionalyCompile()
+	{
+		if (Resource == 0)
+		{
+			Compile(GL_VERTEX_SHADER);
+		}
+	}
 };
 
 class FOpenGLPixelShader : public FRHIPixelShader, public FOpenGLShader
@@ -337,9 +345,17 @@ class FOpenGLPixelShader : public FRHIPixelShader, public FOpenGLShader
 public:
 	static constexpr EShaderFrequency Frequency = SF_Pixel;
 
-	FOpenGLPixelShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
-		: FOpenGLShader(RHICmdList, Code, Hash, GL_FRAGMENT_SHADER)
+	FOpenGLPixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+		: FOpenGLShader(Code, Hash, GL_FRAGMENT_SHADER)
 	{}
+
+	void ConditionalyCompile()
+	{
+		if (Resource == 0)
+		{
+			Compile(GL_FRAGMENT_SHADER);
+		}
+	}
 };
 
 class FOpenGLGeometryShader : public FRHIGeometryShader, public FOpenGLShader
@@ -347,9 +363,17 @@ class FOpenGLGeometryShader : public FRHIGeometryShader, public FOpenGLShader
 public:
 	static constexpr EShaderFrequency Frequency = SF_Geometry;
 
-	FOpenGLGeometryShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
-		: FOpenGLShader(RHICmdList, Code, Hash, GL_GEOMETRY_SHADER)
+	FOpenGLGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+		: FOpenGLShader(Code, Hash, GL_GEOMETRY_SHADER)
 	{}
+
+	void ConditionalyCompile()
+	{
+		if (Resource == 0)
+		{
+			Compile(GL_GEOMETRY_SHADER);
+		}
+	}
 };
 
 class FOpenGLComputeShader : public FRHIComputeShader, public FOpenGLShader
@@ -357,9 +381,17 @@ class FOpenGLComputeShader : public FRHIComputeShader, public FOpenGLShader
 public:
 	static constexpr EShaderFrequency Frequency = SF_Compute;
 
-	FOpenGLComputeShader(FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
-		: FOpenGLShader(RHICmdList, Code, Hash, GL_COMPUTE_SHADER)
+	FOpenGLComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+		: FOpenGLShader(Code, Hash, GL_COMPUTE_SHADER)
 	{}
+
+	void ConditionalyCompile()
+	{
+		if (Resource == 0)
+		{
+			Compile(GL_COMPUTE_SHADER);
+		}
+	}
 
 	bool NeedsTextureStage(int32 TextureStageIndex);
 	int32 MaxTextureStageUsed();
@@ -497,8 +529,8 @@ public:
 	{
 		FOpenGLShaderBindings Bindings;
 		GLuint Resource;
-
 		FOpenGLCompiledShaderKey ShaderKey; // This is the key to the shader within FOpenGLCompiledShader container
+		bool bValid; // To mark that stage is valid for this program, even when shader Resource could be zero
 	}
 	Shaders[CrossCompiler::NUM_SHADER_STAGES];
 	FOpenGLProgramKey ProgramKey;
@@ -508,6 +540,7 @@ public:
 		for (int32 Stage = 0; Stage < CrossCompiler::NUM_SHADER_STAGES; Stage++)
 		{
 			Shaders[Stage].Resource = 0;
+			Shaders[Stage].bValid = false;
 		}
 	}
 
@@ -517,6 +550,7 @@ public:
 		for (int32 Stage = 0; Stage < CrossCompiler::NUM_SHADER_STAGES && bEqual; Stage++)
 		{
 			bEqual &= A.Shaders[Stage].Resource == B.Shaders[Stage].Resource;
+			bEqual &= A.Shaders[Stage].bValid == B.Shaders[Stage].bValid;
 			bEqual &= A.Shaders[Stage].Bindings == B.Shaders[Stage].Bindings;
 		}
 		return bEqual;
