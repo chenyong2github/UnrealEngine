@@ -184,9 +184,6 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 					]
 				]
 			];
-
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorFader::OnSelectionChanged);
 }
 
 void SDMXControlConsoleEditorFader::SetValueByPercentage(float InNewPercentage)
@@ -198,58 +195,6 @@ void SDMXControlConsoleEditorFader::SetValueByPercentage(float InNewPercentage)
 
 	const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
 	FaderSpinBox->SetValue(static_cast<uint32>(Range * InNewPercentage / 100.f) + Fader->GetMinValue());
-}
-
-FReply SDMXControlConsoleEditorFader::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
-{
-	if (InKeyEvent.GetKey() == EKeys::Delete)
-	{
-		if (!Fader.IsValid())
-		{
-			return FReply::Handled();
-		}
-
-		UDMXControlConsoleFaderGroup& FaderGroup = Fader->GetOwnerFaderGroupChecked();
-		if (FaderGroup.HasFixturePatch())
-		{
-			return FReply::Handled();
-		}
-
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
-
-		// If there's only one fader to delete, replace it in selection
-		if (SelectedFadersObjects.Num() == 1)
-		{
-			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFadersObjects[0]);
-			SelectionHandler->ReplaceInSelection(SelectedFader);
-		}
-
-		const FScopedTransaction DeleteSelectedFaderTransaction(LOCTEXT("DeleteSelectedFaderTransaction", "Delete selected Faders"));
-
-		// Delete all selected fadersC
-		for (TWeakObjectPtr<UObject> SelectedFaderObject : SelectedFadersObjects)
-		{
-			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
-			if (!SelectedFader)
-			{
-				continue;
-			}
-
-			UDMXControlConsoleFaderGroup& SelectedFaderGroup = SelectedFader->GetOwnerFaderGroupChecked();
-			SelectedFaderGroup.Modify();
-
-			constexpr bool bNotifyFaderSelectionChange = false;
-			SelectionHandler->RemoveFromSelection(SelectedFader, bNotifyFaderSelectionChange);
-			SelectedFader->Destroy();
-		}
-
-		SelectionHandler->RemoveInvalidObjectsFromSelection();
-
-		return FReply::Handled();
-	}
-
-	return FReply::Unhandled();
 }
 
 FReply SDMXControlConsoleEditorFader::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -625,15 +570,6 @@ void SDMXControlConsoleEditorFader::OnLockFader(bool bLock) const
 		Fader->PreEditChange(UDMXControlConsoleFaderBase::StaticClass()->FindPropertyByName(UDMXControlConsoleFaderBase::GetIsLockedPropertyName()));
 		Fader->SetLock(bLock);
 		Fader->PostEditChange();
-	}
-}
-
-void SDMXControlConsoleEditorFader::OnSelectionChanged()
-{
-	// Set keyboard focus on the Fader, if selected
-	if (IsSelected())
-	{
-		FSlateApplication::Get().SetKeyboardFocus(AsShared());
 	}
 }
 

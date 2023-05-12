@@ -4,6 +4,8 @@
 
 #include "DMXControlConsole.h"
 #include "DMXControlConsoleData.h"
+#include "DMXControlConsoleFaderBase.h"
+#include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "Models/DMXControlConsoleEditorModel.h"
 
@@ -95,6 +97,63 @@ bool FDMXControlConsoleEditorManager::IsSendingDMX() const
 		return EditorConsoleData->IsSendingDMX();
 	}
 	return false;
+}
+
+void FDMXControlConsoleEditorManager::RemoveAllSelectedElements()
+{
+	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
+	if (!SelectedFaderGroupsObjects.IsEmpty())
+	{
+		const FScopedTransaction RemoveAllSelectedElementsTransaction(LOCTEXT("RemoveAllSelectedElementsTransaction", "Selected Elements removed"));
+		
+		// Delete all selected fader groups
+		for (const TWeakObjectPtr<UObject>& SelectedFaderGroupObject : SelectedFaderGroupsObjects)
+		{
+			UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
+			if (SelectedFaderGroup && SelectionHandler->GetSelectedFadersFromFaderGroup(SelectedFaderGroup).IsEmpty())
+			{
+				// If there's only one fader group to delete, replace it in selection
+				if (SelectedFaderGroupsObjects.Num() == 1)
+				{
+					SelectionHandler->ReplaceInSelection(SelectedFaderGroup);
+				}
+
+				constexpr bool bNotifySelectedFaderGroupChange = false;
+				SelectionHandler->RemoveFromSelection(SelectedFaderGroup, bNotifySelectedFaderGroupChange);
+				
+				SelectedFaderGroup->PreEditChange(nullptr);
+				SelectedFaderGroup->Destroy();
+				SelectedFaderGroup->PostEditChange();
+			}
+		}
+
+		// Delete all selected faders
+		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+		if (!SelectedFadersObjects.IsEmpty())
+		{
+			for (TWeakObjectPtr<UObject> SelectedFaderObject : SelectedFadersObjects)
+			{
+				UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
+				if (SelectedFader && !SelectedFader->GetOwnerFaderGroupChecked().HasFixturePatch())
+				{
+					// If there's only one fader to delete, replace it in selection
+					if (SelectedFadersObjects.Num() == 1)
+					{
+						SelectionHandler->ReplaceInSelection(SelectedFader);
+					}
+
+					constexpr bool bNotifyFaderSelectionChange = false;
+					SelectionHandler->RemoveFromSelection(SelectedFader, bNotifyFaderSelectionChange);
+					
+					SelectedFader->PreEditChange(nullptr);
+					SelectedFader->Destroy();
+					SelectedFader->PostEditChange();
+				}
+			}
+		}
+	}
+
+	SelectionHandler->RemoveInvalidObjectsFromSelection();
 }
 
 void FDMXControlConsoleEditorManager::ClearAll()

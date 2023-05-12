@@ -28,7 +28,6 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		Names.Reset();
 	}
 
-
 	FFilterModelFaderGroup::FFilterModelFaderGroup(UDMXControlConsoleFaderGroup* InFaderGroup)
 		: WeakFaderGroup(InFaderGroup)
 	{

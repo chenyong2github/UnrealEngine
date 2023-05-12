@@ -38,7 +38,6 @@ public:
 
 protected:
 	//~ Begin SWidget interface
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 	//~ End of SWidget interface
@@ -103,9 +102,6 @@ private:
 
 	/** Called when lock option is selected */
 	void OnLockFader(bool bLock) const;
-
-	/** Called when fader selection changes */
-	void OnSelectionChanged();
 
 	/** Called when the delete button was clicked */
 	FReply OnDeleteClicked();

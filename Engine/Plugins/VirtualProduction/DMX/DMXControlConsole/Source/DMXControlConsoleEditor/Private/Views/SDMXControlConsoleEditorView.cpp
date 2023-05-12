@@ -257,7 +257,11 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 	RestoreGlobalFilter();
 	OnSelectedPortsChanged();
 
-	FSlateApplication::Get().SetKeyboardFocus(AsShared());
+	const TSharedRef<SWidget> SharedThis = AsShared();
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda([SharedThis]()
+		{
+			FSlateApplication::Get().SetKeyboardFocus(SharedThis);
+		}));
 }
 
 UDMXControlConsoleData* SDMXControlConsoleEditorView::GetControlConsoleData() const
@@ -297,13 +301,6 @@ FReply SDMXControlConsoleEditorView::OnKeyDown(const FGeometry& MyGeometry, cons
 	}
 
 	return FReply::Unhandled();
-}
-
-FReply SDMXControlConsoleEditorView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	FSlateApplication::Get().SetKeyboardFocus(AsShared());
-
-	return FReply::Handled();
 }
 
 void SDMXControlConsoleEditorView::RegisterCommands()
@@ -353,6 +350,12 @@ void SDMXControlConsoleEditorView::RegisterCommands()
 	(
 		FDMXControlConsoleEditorCommands::Get().ClearAll,
 		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::ClearAll)
+	);
+
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().RemoveElements,
+		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::RemoveAllSelectedElements)
 	);
 }
 

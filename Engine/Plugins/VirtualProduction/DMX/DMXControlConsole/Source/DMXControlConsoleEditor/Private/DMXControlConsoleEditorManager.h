@@ -67,6 +67,9 @@ public:
 	/** True if DMX data sending can be stopped */
 	bool CanStopDMX() const { return IsSendingDMX(); };
 
+	/** Removes all selected elements from DMX Control Console */
+	void RemoveAllSelectedElements();
+
 	/** Resets DMX Control Console */
 	void ClearAll();
 

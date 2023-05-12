@@ -59,7 +59,6 @@ public:
 
 protected:
 	//~ Begin SWidget interface
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual bool SupportsKeyboardFocus() const override { return true; }
@@ -93,9 +92,6 @@ private:
 
 	/** Called when the Expand Arrow button is clicked */
 	void OnExpandArrowClicked(bool bExpand);
-
-	/** Called when fader group selection changes */
-	void OnSelectionChanged();
 
 	/** Adds a new Fader Group to the owner row */
 	void OnAddFaderGroup() const;
