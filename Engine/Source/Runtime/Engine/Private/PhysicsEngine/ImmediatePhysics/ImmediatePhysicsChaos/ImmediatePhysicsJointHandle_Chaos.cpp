@@ -193,14 +193,16 @@ namespace ImmediatePhysics_Chaos
 
 		ConstraintHandle = Constraints->AddConstraint({ Actor1->ParticleHandle, Actor2->ParticleHandle }, ConstraintSettings);
 
-		if (Actor1->ParticleHandle != nullptr)
-		{
-			FGenericParticleHandle(Actor1->ParticleHandle)->SetInertiaConditioningDirty();
-		}
-		if (Actor2->ParticleHandle != nullptr)
-		{
-			FGenericParticleHandle(Actor2->ParticleHandle)->SetInertiaConditioningDirty();
-		}
+		SetActorInertiaConditioningDirty();
+	}
+
+	FJointHandle::FJointHandle(FChaosConstraintContainer* InConstraints, const FPBDJointSettings& ConstraintSettings, FActorHandle* const Actor1, FActorHandle* const Actor2)
+		: ActorHandles({ Actor1, Actor2 })
+		, Constraints(InConstraints)
+	{
+		ConstraintHandle = Constraints->AddConstraint({ Actor1->ParticleHandle, Actor2->ParticleHandle }, ConstraintSettings);
+
+		SetActorInertiaConditioningDirty();
 	}
 
 	FJointHandle::~FJointHandle()
@@ -237,6 +239,21 @@ namespace ImmediatePhysics_Chaos
 		JointSettings.SoftLinearStiffness = bLinearSoft ? LinearStiffness : 0.0f;
 		JointSettings.SoftLinearDamping = bLinearSoft ? LinearDamping : 0.0f;
 		ConstraintHandle->SetSettings(JointSettings);
+	}
+
+	void FJointHandle::SetActorInertiaConditioningDirty()
+	{
+		using namespace Chaos;
+
+		if (ActorHandles[0]->ParticleHandle != nullptr)
+		{
+			FGenericParticleHandle(ActorHandles[0]->ParticleHandle)->SetInertiaConditioningDirty();
+		}
+
+		if (ActorHandles[1]->ParticleHandle != nullptr)
+		{
+			FGenericParticleHandle(ActorHandles[1]->ParticleHandle)->SetInertiaConditioningDirty();
+		}
 	}
 }
 

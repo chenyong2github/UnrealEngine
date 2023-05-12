@@ -8,6 +8,11 @@
 #include "Engine/EngineTypes.h"
 #include "Templates/UniquePtr.h"
 
+namespace Chaos
+{
+	class FPBDJointSettings;
+}
+
 namespace ImmediatePhysics_Chaos
 {
 	/** Owns all the data associated with the simulation. Can be considered a single scene or world */
@@ -38,6 +43,10 @@ namespace ImmediatePhysics_Chaos
 
 		/** Create a physical joint and add it to the simulation */
 		FJointHandle* CreateJoint(FConstraintInstance* ConstraintInstance, FActorHandle* Body1, FActorHandle* Body2);
+
+		/** Create a physical joint and add it to the simulation */
+		FJointHandle* CreateJoint(const Chaos::FPBDJointSettings& ConstraintSettings, FActorHandle* const Body1, FActorHandle* const Body2);
+
 		void DestroyJoint(FJointHandle* JointHandle);
 
 		/** Sets the number of active bodies. This number is reset any time a new simulated body is created */

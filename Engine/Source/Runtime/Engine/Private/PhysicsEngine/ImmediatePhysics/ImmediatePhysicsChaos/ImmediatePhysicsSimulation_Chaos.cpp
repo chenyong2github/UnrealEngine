@@ -508,6 +508,13 @@ namespace ImmediatePhysics_Chaos
 		return JointHandle;
 	}
 
+	FJointHandle* FSimulation::CreateJoint(const Chaos::FPBDJointSettings& ConstraintSettings, FActorHandle* const Body1, FActorHandle* const Body2)
+	{
+		FJointHandle* JointHandle = new FJointHandle(&Implementation->Joints, ConstraintSettings, Body1, Body2);
+		Implementation->JointHandles.Add(JointHandle);
+		return JointHandle;
+	}
+
 	void FSimulation::DestroyJoint(FJointHandle* JointHandle)
 	{
 		// @todo(ccaulfield): FJointHandle could remember its index to optimize this

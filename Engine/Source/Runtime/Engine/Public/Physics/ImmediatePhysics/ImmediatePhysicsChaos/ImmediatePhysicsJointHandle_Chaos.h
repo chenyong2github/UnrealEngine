@@ -9,6 +9,11 @@
 
 #include "Engine/EngineTypes.h"
 
+namespace Chaos
+{
+	class FPBDJointSettings;
+}
+
 namespace ImmediatePhysics_Chaos
 {
 	/** handle associated with a physics joint. This is the proper way to read/write to the physics simulation */
@@ -17,8 +22,10 @@ namespace ImmediatePhysics_Chaos
 	public:
 		using FChaosConstraintContainer = Chaos::FPBDJointConstraints;
 		using FChaosConstraintHandle = typename Chaos::FPBDJointConstraintHandle;
+		using FPBDJointSettings = Chaos::FPBDJointSettings;
 
 		FJointHandle(FChaosConstraintContainer* InConstraints, FConstraintInstance* ConstraintInstance, FActorHandle* InActor1, FActorHandle* InActor2);
+		FJointHandle(FChaosConstraintContainer* InConstraints, const FPBDJointSettings& ConstraintSettings, FActorHandle* InActor1, FActorHandle* InActor2);
 		~FJointHandle();
 
 		FChaosConstraintHandle* GetConstraint();
@@ -30,6 +37,8 @@ namespace ImmediatePhysics_Chaos
 		void SetSoftLinearSettings(bool bLinearSoft, FReal LinearStiffness, FReal LinearDamping);
 
 	private:
+		void SetActorInertiaConditioningDirty();
+		
 		Chaos::TVec2<FActorHandle*> ActorHandles;
 		FChaosConstraintContainer* Constraints;
 		FChaosConstraintHandle* ConstraintHandle;
