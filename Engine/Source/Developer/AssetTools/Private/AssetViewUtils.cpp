@@ -1516,8 +1516,10 @@ int32 AssetViewUtils::GetPackageLengthForCooking(const FString& PackageName, boo
 
 			int32 InternalCookPathLen = FCString::Strlen(TEXT("d:/build/XXX+RXX.XX+Inc/Sync")) + CookPathRelativeToTargetRootLen + AssetPathRelativeToCookRootLen;
 
-			// Only add game name padding to project plugins so that they can ported to other projects
-			if (PluginContainingAsset && bIsProjectAsset)
+			// Only add game name padding to non-GameFeature project plugins so that they can ported to other projects.
+			// GameFeaturePlugins are not designed to be ported between projects since they can depend on /Game/ assets and non-plugin code.
+			const bool bIsGameFeaturePlugin = AbsolutePathToAsset.Contains(TEXT("/Plugins/GameFeatures/"));
+			if (PluginContainingAsset && bIsProjectAsset && !bIsGameFeaturePlugin)
 			{
 				// We assume the game name is 20 characters (the maximum allowed) to make sure that content can be ported between projects
 				constexpr int32 MaxGameNameLen = 20;
