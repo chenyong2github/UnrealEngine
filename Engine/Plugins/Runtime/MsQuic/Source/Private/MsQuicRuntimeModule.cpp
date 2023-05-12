@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "MsQuicRuntimeModule.h"
 #include "MsQuicRuntimePrivate.h"
-#include "IMsQuicRuntimeModule.h"
 
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
@@ -15,107 +15,76 @@ DEFINE_LOG_CATEGORY(LogMsQuicRuntime);
 #define LOCTEXT_NAMESPACE "FMsQuicRuntimeModule"
 
 
-class FMsQuicRuntimeModule
-	: public IMsQuicRuntimeModule
+bool FMsQuicRuntimeModule::InitRuntime()
 {
-
-public:
-
-	// IMsQuicRuntimeModule interface
-
-	bool InitRuntime() override
-    {
-		if (MsQuicLibraryHandle)
-		{
-			UE_LOG(LogMsQuicRuntime, Display,
-				TEXT("[MsQuicRuntimeModule] MsQuic DLL already loaded."));
-
-			return true;
-		}
-
-		if (!LoadMsQuicDll())
-		{
-			UE_LOG(LogMsQuicRuntime, Error,
-				TEXT("[MsQuicRuntimeModule] Could not load MsQuic DLL."));
-
-			return false;
-		}
+	if (MsQuicLibraryHandle)
+	{
+		UE_LOG(LogMsQuicRuntime, Display,
+			TEXT("[MsQuicRuntimeModule] MsQuic DLL already loaded."));
 
 		return true;
-    }
+	}
 
-public:
-
-	// IModuleInterface interface
-
-    virtual void StartupModule() override
-    {
-    }
-
-    virtual void ShutdownModule() override
-    {
-		FreeMsQuicDll();
-    }
-
-private:
-
-	/**
-	 * Load the appropriate MsQuic DLL/So for this platform.
-	 */
-	bool LoadMsQuicDll()
+	if (!LoadMsQuicDll())
 	{
-		const FString MsQuicBinariesDir = FPaths::Combine(
-			*FPaths::EngineDir(), *MSQUIC_BINARIES_PATH);
+		UE_LOG(LogMsQuicRuntime, Error,
+			TEXT("[MsQuicRuntimeModule] Could not load MsQuic DLL."));
 
-		FString MsQuicLib = "";
+		return false;
+	}
+
+	return true;
+}
+
+
+void FMsQuicRuntimeModule::ShutdownModule()
+{
+	FreeMsQuicDll();
+}
+
+
+bool FMsQuicRuntimeModule::LoadMsQuicDll()
+{
+	const FString MsQuicBinariesDir = FPaths::Combine(
+		*FPaths::EngineDir(), *MSQUIC_BINARIES_PATH);
+
+	FString MsQuicLib = "";
 
 #if PLATFORM_WINDOWS
 
-		MsQuicLib = FPaths::Combine(*MsQuicBinariesDir,
-			TEXT("win64/msquic.dll"));
+	MsQuicLib = FPaths::Combine(*MsQuicBinariesDir,
+		TEXT("win64/msquic.dll"));
 
 #elif PLATFORM_LINUX
 
-		MsQuicLib = FPaths::Combine(*MsQuicBinariesDir,
-			TEXT("linux/libmsquic.so"));
+	MsQuicLib = FPaths::Combine(*MsQuicBinariesDir,
+		TEXT("linux/libmsquic.so"));
 
 #elif PLATFORM_MAC
 
-		MsQuicLib = FPaths::Combine(*MsQuicBinariesDir,
-			TEXT("macos/libmsquic.dylib"));
+	MsQuicLib = FPaths::Combine(*MsQuicBinariesDir,
+		TEXT("macos/libmsquic.dylib"));
 
 #endif
 
-		MsQuicLibraryHandle = (MsQuicLib.IsEmpty())
-			? nullptr : FPlatformProcess::GetDllHandle(*MsQuicLib);
+	MsQuicLibraryHandle = (MsQuicLib.IsEmpty())
+		? nullptr : FPlatformProcess::GetDllHandle(*MsQuicLib);
 
-		return MsQuicLibraryHandle != nullptr;
-	}
+	return MsQuicLibraryHandle != nullptr;
+}
 
-	/**
-	 * Free the MsQuic DLL/So if the LibraryHandle is valid.
-	 */
-	void FreeMsQuicDll()
+
+/**
+ * Free the MsQuic DLL/So if the LibraryHandle is valid.
+ */
+void FMsQuicRuntimeModule::FreeMsQuicDll()
+{
+	if (MsQuicLibraryHandle)
 	{
-		if (MsQuicLibraryHandle)
-		{
-			FPlatformProcess::FreeDllHandle(MsQuicLibraryHandle);
-			MsQuicLibraryHandle = nullptr;
-		}
+		FPlatformProcess::FreeDllHandle(MsQuicLibraryHandle);
+		MsQuicLibraryHandle = nullptr;
 	}
-
-private:
-
-	/** Holds the MsQuic library dll handle. */
-	void* MsQuicLibraryHandle = nullptr;
-
-	/** Defines the MsQuic version to be used. */
-	const FString MSQUIC_VERSION = "v220";
-
-	/** Defines the MsQuic binaries path. */
-	const FString MSQUIC_BINARIES_PATH = "Binaries/ThirdParty/MsQuic/" + MSQUIC_VERSION;
-
-};
+}
 
 
 #undef LOCTEXT_NAMESPACE
