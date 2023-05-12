@@ -218,6 +218,41 @@ namespace ChaosTest
 		EXPECT_EQ(Test.IslandManager->FindParticleIslands(Test.ParticleHandles[1]).Num(), 2);
 	}
 
+	// Start with an island containing 2 particle connected in a chain, then invalidate one of the particles.
+	// Check that the particles and constraints are removed from the graph and then re-added at the next tick.
+	//		(d=dynamic, s=sleeping, k=kinematic)
+	//		Ad - Bd
+	// =>	Ad   Bd
+	// =>	Ad - Bd
+	//
+	GTEST_TEST(GraphEvolutionTests, TestConstraintGraph_Invalidate)
+	{
+		FGraphEvolutionTest Test(2);
+		Test.MakeChain();
+
+		Test.Advance();
+
+		EXPECT_EQ(Test.IslandManager->GetNumIslands(), 1);
+		EXPECT_TRUE(Test.ParticleHandles[0]->IsInConstraintGraph());
+		EXPECT_TRUE(Test.ParticleHandles[1]->IsInConstraintGraph());
+		EXPECT_TRUE(Test.ConstraintHandles[0]->IsInConstraintGraph());
+
+		// Invalidate B
+		Test.Evolution.InvalidateParticle(Test.ParticleHandles[1]);
+
+		// Everything was kicked from the graph
+		EXPECT_FALSE(Test.ParticleHandles[0]->IsInConstraintGraph());
+		EXPECT_FALSE(Test.ParticleHandles[1]->IsInConstraintGraph());
+		EXPECT_FALSE(Test.ConstraintHandles[0]->IsInConstraintGraph());
+
+		Test.Advance();
+
+		// Everything was added back to the graph
+		EXPECT_TRUE(Test.ParticleHandles[0]->IsInConstraintGraph());
+		EXPECT_TRUE(Test.ParticleHandles[1]->IsInConstraintGraph());
+		EXPECT_TRUE(Test.ConstraintHandles[0]->IsInConstraintGraph());
+	}
+
 	// An isolated stationary particle with no gravity should go to sleep
 	GTEST_TEST(GraphEvolutionTests, TestConstraintGraph_ParticleSleep_Isolated)
 	{

@@ -908,7 +908,7 @@ void FPBDRigidsEvolutionGBF::DestroyTransientConstraints(FGeometryParticleHandle
 	if (Particle != nullptr)
 	{
 		// Remove all the particle's collisions from the graph
-		GetIslandManager().RemoveParticleConstraints(Particle, CollisionConstraints.GetContainerId());
+		GetIslandManager().RemoveParticleContainerConstraints(Particle, CollisionConstraints.GetContainerId());
 
 		// Mark all collision constraints for destruction
 		DestroyParticleCollisionsInAllocator(Particle);

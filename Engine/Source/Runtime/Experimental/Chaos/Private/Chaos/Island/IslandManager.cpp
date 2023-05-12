@@ -657,11 +657,16 @@ namespace Chaos::Private
 	{
 		if (FPBDIslandParticle* Node = GetGraphNode(Particle))
 		{
-			// All constraints for this particle should have been removed first
-			check(Node->Edges.Num() == 0);
-			check(Node->Island == nullptr);
+			// All nodes in the graph have at least one edge
+			check(Node->Edges.Num() > 0);
 
-			DestroyGraphNode(Node);
+			// Remove all the constraints attached to the particle. This will
+			// also destroy the particle's node (and possibly others) 
+			// because empty nodes are removed as they occur
+			RemoveParticleConstraints(Particle);
+
+			// We should not be in the graph anymore
+			check(GetGraphNode(Particle) == nullptr);
 		}
 	}
 
@@ -752,7 +757,25 @@ namespace Chaos::Private
 		}
 	}
 
-	void FPBDIslandManager::RemoveParticleConstraints(FGeometryParticleHandle* Particle, int32 ContainerId)
+	void FPBDIslandManager::RemoveParticleConstraints(FGeometryParticleHandle* Particle)
+	{
+		if (FPBDIslandParticle* Node = GetGraphNode(Particle))
+		{
+			// Reverse loop because we remove as we iterate
+			for (int32 EdgeIndex = Node->Edges.Num() - 1; EdgeIndex >= 0; --EdgeIndex)
+			{
+				FPBDIslandConstraint* Edge = Node->Edges[EdgeIndex];
+
+				// NOTE: Destroys the edge and possibly this and other nodes (if this was their last constraint)
+				RemoveConstraint(Edge->Constraint);
+			}
+
+			// A node with no edges will have been removed
+			check(GetGraphNode(Particle) == nullptr);
+		}
+	}
+
+	void FPBDIslandManager::RemoveParticleContainerConstraints(FGeometryParticleHandle* Particle, const int32 ContainerId)
 	{
 		if (FPBDIslandParticle* Node = GetGraphNode(Particle))
 		{
@@ -769,7 +792,7 @@ namespace Chaos::Private
 		}
 	}
 
-	void FPBDIslandManager::RemoveContainerConstraints(int32 ContainerId)
+	void FPBDIslandManager::RemoveContainerConstraints(const int32 ContainerId)
 	{
 		// Reverse loop because we remove as we iterate
 		for (int32 EdgeIndex = Edges.Num() - 1; EdgeIndex >= 0; --EdgeIndex)
@@ -799,9 +822,9 @@ namespace Chaos::Private
 	{
 		if (FPBDIslandParticle* Node = GetGraphNode(Particle))
 		{
-			if ((Node->Island != nullptr) && !Node->Island->Flags.bIsSleeping)
+			if ((Node->Island != nullptr) && (Node->Island->Flags.bIsSleeping != bInIsSleeping))
 			{
-				Node->Island->Flags.bIsSleeping = true;
+				Node->Island->Flags.bIsSleeping = bInIsSleeping;
 				Node->Island->SleepCounter = 0;
 				PropagateIslandSleep(Node->Island);
 			}
@@ -1467,6 +1490,8 @@ namespace Chaos::Private
 		// Find the largest island and count the nodes and edges from all islands
 		for (FPBDIsland* Island : MergeSet->Islands)
 		{
+			check(Island != nullptr);
+
 			if ((LargestIsland == nullptr) || (Island->NumEdges > LargestIsland->NumEdges))
 			{
 				LargestIsland = Island;

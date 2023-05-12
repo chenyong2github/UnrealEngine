@@ -402,8 +402,9 @@ namespace Chaos::Private
 		void AddConstraint(const int32 ContainerId, FConstraintHandle* Constraint, const TVec2<FGeometryParticleHandle*>& ConstrainedParticles);
 		template<typename ConstraintContainerType> void AddContainerConstraints(ConstraintContainerType& ConstraintContainer);
 		void RemoveConstraint(FConstraintHandle* ConstraintHandle);
-		void RemoveParticleConstraints(FGeometryParticleHandle* Particle, int32 ContainerId);
-		void RemoveContainerConstraints(int32 ContainerId);
+		void RemoveParticleConstraints(FGeometryParticleHandle* Particle);
+		void RemoveParticleContainerConstraints(FGeometryParticleHandle* Particle, const int32 ContainerId);
+		void RemoveContainerConstraints(const int32 ContainerId);
 
 		// Access to Islands
 		int32 GetNumIslands() const { return Islands.Num(); }

@@ -470,26 +470,15 @@ public:
 
 	/**
 	* To be called when a particle geometry changes. We must clear collisions and anything else that may reference the prior shapes.
-	* @note This is also called during particle creation before we even know if the particle is static or kinematic, so we don't (re)add to 
-	* the graph unless it was already in there. There should be a call to either RegisterParticle or EnableParticle
-	* after creating a particle which will handle initially adding to the graph.
 	*/
 	CHAOS_API void InvalidateParticle(FGeometryParticleHandle* Particle)
 	{
+		// Remove all constraints (collisions, joints etc) from the graph
+		IslandManager.RemoveParticleConstraints(Particle);
+
 		// Destroy all the transient constraints (collisions) because the particle has changed somehow (e.g. new shapes) and they may have cached the previous state
+		// @todo(chaos): if any other types depended on geometry, they would also need to be notified here. Maybe make this more specific and tell all types...
 		DestroyTransientConstraints(Particle);
-
-		// Remove all persistent constraints (joints etc) from the graph too
-		// @todo(chaos): do we still need to do this? Only if some non-collision constraints hold refs to shapes...
-		if (Particle->IsInConstraintGraph())
-		{
-			// Remove the particle from the constraint graph. This should remove all the constraints too
-			IslandManager.RemoveParticle(Particle);
-
-			// Re-add the particle to the constraint graph
-			// (we could add a RemoveParticleConstraints method to the graph, but removing and adding a particle isn't too bad)
-			IslandManager.AddParticle(Particle);
-		}
 	}
 	
 	CHAOS_API void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration,FPendingSpatialDataQueue& ExternalQueue);
