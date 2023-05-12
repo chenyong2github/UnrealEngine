@@ -1647,7 +1647,6 @@ namespace UnrealBuildTool
 
 				if (bUseVSCodeExtension)
 				{
-					WorkspaceFile.AddField("UE.loggingLevel", "Warning");
 					if (HostPlatform == UnrealTargetPlatform.Win64)
 					{
 						WorkspaceFile.AddField("UE.UBTScriptPath", MakePathString(FileReference.Combine(ProjectRoot, "Engine", "Build", "BatchFiles", "RunUBT.bat"), true));
