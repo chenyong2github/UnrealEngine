@@ -13,11 +13,11 @@ class FFoveatedImageGenerator : public IVariableRateShadingImageGenerator
 {
 public:
 	virtual ~FFoveatedImageGenerator() override {};
-	virtual FRDGTextureRef GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSPassType PassType) override;
+	virtual FRDGTextureRef GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType) override;
 	virtual void PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures) override;
 	virtual bool IsEnabledForView(const FSceneView& View) const override;
 	virtual FVariableRateShadingImageManager::EVRSSourceType GetType() const override;
-	virtual FRDGTextureRef GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo) override;
+	virtual FRDGTextureRef GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType) override;
 private:
 	FRDGTextureRef CachedImage = nullptr;
 	struct FDynamicVRSData

@@ -19,7 +19,7 @@ class FVariableRateShadingImageManager : public FRenderResource
 {
 public:
 	/**
-	 * Pass type used by some generators. Must be provided by passes requesting a VRS image.
+	 * Pass type used to determine requested image type based on current CVar settings.
 	 */
 	enum EVRSPassType
 	{
@@ -32,6 +32,16 @@ public:
 		LightFunctions,
 		Decals,
 		Num
+	};
+
+	/**
+	 * Image type to request from generator. Only the CAS generator currently distinguishes between Full and Conservative
+	 */
+	enum EVRSImageType : uint32
+	{
+		Disabled = 0,
+		Full = 1,
+		Conservative = 2
 	};
 
 	/**
@@ -105,7 +115,9 @@ private:
 	TArray<TUniquePtr<IVariableRateShadingImageGenerator>> ImageGenerators;
 
 	FRDGTextureRef CombineShadingRateImages(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, TArray<FRDGTextureRef> Sources);
-	FRDGTextureRef GetForceRateImage(FRDGBuilder& GraphBuilder, int RateIndex = 0);
+	FRDGTextureRef GetForceRateImage(FRDGBuilder& GraphBuilder, int RateIndex = 0, EVRSImageType ImageType = EVRSImageType::Full);
+
+	EVRSImageType GetImageTypeFromPassType(EVRSPassType PassType);
 };
 
 ENUM_CLASS_FLAGS(FVariableRateShadingImageManager::EVRSSourceType);
@@ -118,7 +130,7 @@ public:
 	virtual ~IVariableRateShadingImageGenerator() {};
 
 	// Returns cached VRS image.
-	virtual FRDGTextureRef GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSPassType PassType) = 0;
+	virtual FRDGTextureRef GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType) = 0;
 
 	// Generates image(s) and saves to generator cache. Should only be run once per view per frame, in Render().
 	virtual void PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures) = 0;
@@ -130,5 +142,5 @@ public:
 	virtual FVariableRateShadingImageManager::EVRSSourceType GetType() const { return FVariableRateShadingImageManager::EVRSSourceType::None; };
 
 	// Get VRS image to be used w/ debug overlay
-	virtual FRDGTextureRef GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo) = 0;
+	virtual FRDGTextureRef GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType) = 0;
 };

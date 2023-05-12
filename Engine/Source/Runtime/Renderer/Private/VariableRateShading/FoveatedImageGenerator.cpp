@@ -120,15 +120,17 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FComputeVariableRateShadingImageGeneration, "/Engine/Private/VariableRateShading/VRSShadingRateFoveated.usf", "GenerateShadingRateTexture", SF_Compute);
 
-FRDGTextureRef FFoveatedImageGenerator::GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSPassType PassType)
+FRDGTextureRef FFoveatedImageGenerator::GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType)
 {
 	// Generator only supports up to two side-by-side views
-	if (ViewInfo.StereoViewIndex > 1)
+	if (ImageType == FVariableRateShadingImageManager::EVRSImageType::Disabled || ViewInfo.StereoViewIndex > 1)
 	{
 		return nullptr;
 	}
-
-	return CachedImage;
+	else
+	{
+		return CachedImage;
+	}
 }
 
 void FFoveatedImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures)
@@ -136,7 +138,7 @@ void FFoveatedImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, const FSc
 
 	// VRS level parameters - pretty arbitrary right now, later should depend on device characteristics
 	static const TArray<float> kFoveationFullRateCutoffs = { 1.0f, 0.7f, 0.50f, 0.35f, 0.35f };
-	static const TArray<float> kFoveationHalfRateCutofffs = { 1.0f, 0.9f, 0.75f, 0.55f, 0.55f };
+	static const TArray<float> kFoveationHalfRateCutoffs = { 1.0f, 0.9f, 0.75f, 0.55f, 0.55f };
 	static const TArray<float> kFixedFoveationCenterX = { 0.5f, 0.5f, 0.5f, 0.5f, 0.5f };
 	static const TArray<float> kFixedFoveationCenterY = { 0.5f, 0.5f, 0.5f, 0.5f, 0.42f };
 
@@ -156,7 +158,7 @@ void FFoveatedImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, const FSc
 	}
 
 	const float FoveationFullRateCutoff = FMath::Lerp(kFoveationFullRateCutoffs[0], kFoveationFullRateCutoffs[VRSMaxLevel], VRSDynamicAmount);
-	const float FoveationHalfRateCutoff = FMath::Lerp(kFoveationHalfRateCutofffs[0], kFoveationFullRateCutoffs[VRSMaxLevel], VRSDynamicAmount);
+	const float FoveationHalfRateCutoff = FMath::Lerp(kFoveationHalfRateCutoffs[0], kFoveationHalfRateCutoffs[VRSMaxLevel], VRSDynamicAmount);
 
 	// Default to fixed center point
 	float FoveationCenterX = kFixedFoveationCenterX[VRSMaxLevel];
@@ -251,9 +253,16 @@ FVariableRateShadingImageManager::EVRSSourceType FFoveatedImageGenerator::GetTyp
 	return IsGazeTrackingEnabled() ? FVariableRateShadingImageManager::EVRSSourceType::FixedFoveation : FVariableRateShadingImageManager::EVRSSourceType::EyeTrackedFoveation;
 }
 
-FRDGTextureRef FFoveatedImageGenerator::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo)
+FRDGTextureRef FFoveatedImageGenerator::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType)
 {
-	return CachedImage;
+	if (CVarFoveationPreview.GetValueOnRenderThread() && ImageType != FVariableRateShadingImageManager::EVRSImageType::Disabled)
+	{
+		return CachedImage;
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 float FFoveatedImageGenerator::UpdateDynamicVRSAmount()

@@ -25,14 +25,14 @@
 TGlobalResource<FVariableRateShadingImageManager> GVRSImageManager;
 
 /**
- * CVars
+ * Basic CVars
  */
 
 TAutoConsoleVariable<int32> CVarVRSPreview(
 	TEXT("r.VRS.Preview"),
 	0,
-	TEXT("Show a debug visualiation of the VRS shading rate image texture.")
-	TEXT("0 - off, 1 - on"),
+	TEXT("Show a debug visualization of the VRS shading rate image texture.")
+	TEXT("0 - off, 1 - on, 2 - conservative (affects CAS only)"),
 	ECVF_RenderThreadSafe);
 
 int GVRSDebugForceRate = -1;
@@ -40,6 +40,75 @@ FAutoConsoleVariableRef CVarVRSDebugForceRate(
 	TEXT("r.VRS.DebugForceRate"),
 	GVRSDebugForceRate,
 	TEXT("-1 : None, 0 : Force 1x1, 1 : Force 1x2, 2 : Force 2x1, 3: Force 2x2, 4 : Force 2x4, 5 : Force 4x2, 6 : Force 4x4"),
+	ECVF_RenderThreadSafe);
+
+/**
+ * Pass Settings
+ */
+
+TAutoConsoleVariable<int32> CVarVRSBasePass(
+	TEXT("r.VRS.BasePass"),
+	2,
+	TEXT("Enables Variable Rate Shading for the base pass\n")
+	TEXT("0: Disabled")
+	TEXT("1: Full")
+	TEXT("2: Conservative (default)"),
+	ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarVRSTranslucency(
+	TEXT("r.VRS.Translucency"),
+	1,
+	TEXT("Enable VRS with translucency rendering.\n")
+	TEXT("0: Disabled")
+	TEXT("1: Full (default)")
+	TEXT("2: Conservative"),
+	ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarVRSNaniteEmitGBuffer(
+	TEXT("r.VRS.NaniteEmitGBuffer"),
+	2,
+	TEXT("Enable VRS with Nanite EmitGBuffer rendering.\n")
+	TEXT("0: Disabled")
+	TEXT("1: Full")
+	TEXT("2: Conservative (default)"),
+	ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarVRS_SSAO(
+	TEXT("r.VRS.SSAO"),
+	0,
+	TEXT("Enable VRS with SSAO rendering.\n")
+	TEXT("0: Disabled")
+	TEXT("1: Full")
+	TEXT("2: Conservative (default)"),
+	ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarVRS_SSR(
+	TEXT("r.VRS.SSR"),
+	2,
+	TEXT("Enable VRS with SSR (PS) rendering.\n")
+	TEXT("0: Disabled")
+	TEXT("1: Full")
+	TEXT("2: Conservative (default)"),
+	ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarVRSReflectionEnvironmentSky(
+	TEXT("r.VRS.ReflectionEnvironmentSky"),
+	2,
+	TEXT("Enable VRS with ReflectionEnvironmentAndSky (PS) rendering.\n")
+	TEXT("0: Disabled")
+	TEXT("1: Full")
+	TEXT("2: Conservative (default)"),
+	ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarVRSLightFunctions(
+	TEXT("r.VRS.LightFunctions"),
+	1,
+	TEXT("Enables Variable Rate Shading for light functions\n")
+	TEXT("0: Disabled")
+	TEXT("1: Full (default)")
+	TEXT("2: Conservative"),
+	ECVF_RenderThreadSafe);
+TAutoConsoleVariable<int32> CVarVRSDecals(
+	TEXT("r.VRS.Decals"),
+	2,
+	TEXT("Enables Variable Rate Shading for decals\n")
+	TEXT("0: Disabled")
+	TEXT("1: Full")
+	TEXT("2: Conservative (default)"),
 	ECVF_RenderThreadSafe);
 
 /**
@@ -243,7 +312,7 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 	// Use debug rate if provided
 	if (CVarVRSDebugForceRate->GetInt() >= 0)
 	{
-		return GetForceRateImage(GraphBuilder, CVarVRSDebugForceRate->GetInt());
+		return GetForceRateImage(GraphBuilder, CVarVRSDebugForceRate->GetInt(), GetImageTypeFromPassType(PassType));
 	}
 
 	// Otherwise collate all internal sources
@@ -254,7 +323,7 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 		FRDGTextureRef Image = nullptr;
 		if (Generator->IsEnabledForView(ViewInfo) && !EnumHasAnyFlags(VRSTypesToExclude, Generator->GetType()))
 		{
-			Image = Generator->GetImage(GraphBuilder, ViewInfo, PassType);
+			Image = Generator->GetImage(GraphBuilder, ViewInfo, GetImageTypeFromPassType(PassType));
 		}
 
 		if (Image)
@@ -362,8 +431,14 @@ TRefCountPtr<IPooledRenderTarget> FVariableRateShadingImageManager::GetMobileVar
 
 void FVariableRateShadingImageManager::DrawDebugPreview(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FRDGTextureRef OutputSceneColor)
 {
+	uint32 ImageTypeAsInt = CVarVRSPreview.GetValueOnRenderThread();
+	EVRSImageType PreviewImageType = EVRSImageType::Disabled;
+	if (ImageTypeAsInt >= 0 && ImageTypeAsInt <= EVRSImageType::Conservative)
+	{
+		PreviewImageType = static_cast<EVRSImageType>(ImageTypeAsInt);
+	}
 
-	if (CVarVRSPreview.GetValueOnRenderThread() != 1 || !OutputSceneColor)
+	if (PreviewImageType == EVRSImageType::Disabled || !OutputSceneColor)
 	{
 		return;
 	}
@@ -379,7 +454,7 @@ void FVariableRateShadingImageManager::DrawDebugPreview(FRDGBuilder& GraphBuilde
 			// Use debug rate if provided
 			if (CVarVRSDebugForceRate->GetInt() >= 0)
 			{
-				PreviewTexture = GetForceRateImage(GraphBuilder, CVarVRSDebugForceRate->GetInt());
+				PreviewTexture = GetForceRateImage(GraphBuilder, CVarVRSDebugForceRate->GetInt(), PreviewImageType);
 			}
 
 			// Otherwise collate debug images
@@ -393,7 +468,7 @@ void FVariableRateShadingImageManager::DrawDebugPreview(FRDGBuilder& GraphBuilde
 					FRDGTextureRef Image = nullptr;
 					if (Generator->IsEnabledForView(*View))
 					{
-						Image = Generator->GetDebugImage(GraphBuilder, *ViewInfo);
+						Image = Generator->GetDebugImage(GraphBuilder, *ViewInfo, PreviewImageType);
 					}
 
 					if (Image)
@@ -495,7 +570,7 @@ FRDGTextureRef FVariableRateShadingImageManager::CombineShadingRateImages(FRDGBu
 
 }
 
-FRDGTextureRef FVariableRateShadingImageManager::GetForceRateImage(FRDGBuilder& GraphBuilder, int RateIndex /* = 0*/)
+FRDGTextureRef FVariableRateShadingImageManager::GetForceRateImage(FRDGBuilder& GraphBuilder, int RateIndex /* = 0*/, EVRSImageType ImageType /* = EVRSImageType::Full*/)
 {
 	static const TArray<uint32> ValidShadingRates = { VRSSR_1x1, VRSSR_1x2, VRSSR_2x1, VRSSR_2x2, VRSSR_2x4, VRSSR_4x2, VRSSR_4x4 };
 
@@ -505,9 +580,43 @@ FRDGTextureRef FVariableRateShadingImageManager::GetForceRateImage(FRDGBuilder& 
 		RateIndex = ValidShadingRates.Num() - 1; // Default to maximum shading rate if value exceeds valid rates
 	}
 
+	if (ImageType == EVRSImageType::Disabled)
+	{
+		RateIndex = ValidShadingRates[0]; // Force to minimum shading rate if VRS is disabled for this pass
+	}
+
 	FRDGTextureRef ForceShadingRateTexture = GraphBuilder.CreateTexture(GetSRIDesc(), TEXT("ForceShadingRateTexture"));
 	FRDGTextureUAVRef ForceShadingRateUAV = GraphBuilder.CreateUAV(ForceShadingRateTexture);
 	AddClearUAVPass(GraphBuilder, ForceShadingRateUAV, ValidShadingRates[RateIndex]);
 
 	return ForceShadingRateTexture;
+}
+
+FVariableRateShadingImageManager::EVRSImageType FVariableRateShadingImageManager::GetImageTypeFromPassType(EVRSPassType PassType)
+{
+	static struct FStaticPassToImageCVarData
+	{
+		TAutoConsoleVariable<int32>* CVarByPassType[EVRSPassType::Num] = {};
+		FStaticPassToImageCVarData()
+		{
+			CVarByPassType[EVRSPassType::BasePass] = &CVarVRSBasePass;
+			CVarByPassType[EVRSPassType::TranslucencyAll] = &CVarVRSTranslucency;
+			CVarByPassType[EVRSPassType::NaniteEmitGBufferPass] = &CVarVRSNaniteEmitGBuffer;
+			CVarByPassType[EVRSPassType::SSAO] = &CVarVRS_SSAO;
+			CVarByPassType[EVRSPassType::SSR] = &CVarVRS_SSR;
+			CVarByPassType[EVRSPassType::ReflectionEnvironmentAndSky] = &CVarVRSReflectionEnvironmentSky;
+			CVarByPassType[EVRSPassType::LightFunctions] = &CVarVRSLightFunctions;
+			CVarByPassType[EVRSPassType::Decals] = &CVarVRSDecals;
+		}
+	} StaticData;
+
+	uint32 ImageTypeAsInt = StaticData.CVarByPassType[PassType]->GetValueOnRenderThread();
+	if (ImageTypeAsInt >= 0 && ImageTypeAsInt <= EVRSImageType::Conservative)
+	{
+		return static_cast<EVRSImageType>(ImageTypeAsInt);
+	}
+	else
+	{
+		return EVRSImageType::Disabled;
+	}
 }

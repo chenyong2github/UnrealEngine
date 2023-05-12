@@ -31,105 +31,43 @@
  * CAS Parameters
  */
 
-TAutoConsoleVariable<int32> CVarVRSContrastAdaptiveShading(
+TAutoConsoleVariable<int32> CVarCASContrastAdaptiveShading(
 	TEXT("r.VRS.ContrastAdaptiveShading"),
 	0,
 	TEXT("Enables using Variable Rate Shading based on the luminance from the previous frame's post process output \n"),
 	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<float> CVarVRSEdgeThreshold(
+TAutoConsoleVariable<float> CVarCASEdgeThreshold(
 	TEXT("r.VRS.ContrastAdaptiveShading.EdgeThreshold"),
 	0.2,
 	TEXT(""),
 	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<float> CVarVRSConservativeEdgeThreshold(
+TAutoConsoleVariable<float> CVarCASConservativeEdgeThreshold(
 	TEXT("r.VRS.ContrastAdaptiveShading.ConservativeEdgeThreshold"),
 	0.1,
 	TEXT(""),
 	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<float> CVarVRS_HDR10CorrectionMultiplier(
+TAutoConsoleVariable<float> CVarCAS_HDR10CorrectionMultiplier(
 	TEXT("r.VRS.ContrastAdaptiveShading.HDR10CorrectionMultiplier"),
 	0.55,
 	TEXT("Approximation multiplier to account for how perceptual values are spread out in SDR vs HDR10\n"),
 	ECVF_RenderThreadSafe);
 
 /**
- * Pass Settings
- */
-
-TAutoConsoleVariable<int32> CVarVRSBasePass(
-	TEXT("r.VRS.BasePass"),
-	2,
-	TEXT("Enables Variable Rate Shading for the base pass\n")
-	TEXT("0: Disabled")
-	TEXT("1: Full")
-	TEXT("2: Conservative (default)"),
-	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<int32> CVarVRSTranslucency(
-	TEXT("r.VRS.Translucency"),
-	1,
-	TEXT("Enable VRS with translucency rendering.\n")
-	TEXT("0: Disabled")
-	TEXT("1: Full (default)")
-	TEXT("2: Conservative"),
-	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<int32> CVarVRSNaniteEmitGBuffer(
-	TEXT("r.VRS.NaniteEmitGBuffer"),
-	2,
-	TEXT("Enable VRS with Nanite EmitGBuffer rendering.\n")
-	TEXT("0: Disabled")
-	TEXT("1: Full")
-	TEXT("2: Conservative (default)"),
-	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<int32> CVarVRS_SSAO(
-	TEXT("r.VRS.SSAO"),
-	0,
-	TEXT("Enable VRS with SSAO rendering.\n")
-	TEXT("0: Disabled")
-	TEXT("1: Full")
-	TEXT("2: Conservative (default)"),
-	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<int32> CVarVRS_SSR(
-	TEXT("r.VRS.SSR"),
-	2,
-	TEXT("Enable VRS with SSR (PS) rendering.\n")
-	TEXT("0: Disabled")
-	TEXT("1: Full")
-	TEXT("2: Conservative (default)"),
-	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<int32> CVarVRSReflectionEnvironmentSky(
-	TEXT("r.VRS.ReflectionEnvironmentSky"),
-	2,
-	TEXT("Enable VRS with ReflectionEnvironmentAndSky (PS) rendering.\n")
-	TEXT("0: Disabled")
-	TEXT("1: Full")
-	TEXT("2: Conservative (default)"),
-	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<int32> CVarVRSLightFunctions(
-	TEXT("r.VRS.LightFunctions"),
-	1,
-	TEXT("Enables Variable Rate Shading for light functions\n")
-	TEXT("0: Disabled")
-	TEXT("1: Full (default)")
-	TEXT("2: Conservative"),
-	ECVF_RenderThreadSafe);
-TAutoConsoleVariable<int32> CVarVRSDecals(
-	TEXT("r.VRS.Decals"),
-	2,
-	TEXT("Enables Variable Rate Shading for decals\n")
-	TEXT("0: Disabled")
-	TEXT("1: Full")
-	TEXT("2: Conservative (default)"),
-	ECVF_RenderThreadSafe);
-
-/**
  * Debug Settings 
  */
 
-TAutoConsoleVariable<int32> CVarCASPreviewType(
-	TEXT("r.VRS.ContrastAdaptiveShading.PreviewType"),
+TAutoConsoleVariable<int32> CVarCASPreview(
+	TEXT("r.VRS.ContrastAdaptiveShading.Preview"),
 	1,
-	TEXT("Include CAS in the VRS debug overlay.")
-	TEXT("0 - off, 1 - the SRI texture, 2- the conservative SRI texture, 3 - the pre-reprojection SRI texture"),
+	TEXT("Whether to include CAS in VRS preview overlay.")
+	TEXT("0 - off, 1 - on (default)"),
+	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarCASPreviewPreReprojection(
+	TEXT("r.VRS.ContrastAdaptiveShading.PreviewPreReprojection"),
+	0,
+	TEXT("Sets CAS preview to use the pre-reprojection SRI. Overrides full vs. conservative images.")
+	TEXT("0 - off (default), 1 - on"),
 	ECVF_RenderThreadSafe);
 
 
@@ -178,9 +116,9 @@ class FCalculateShadingRateImageCS : public FGlobalShader
 	{
 		Parameters.LuminanceTexture = Luminance;
 		Parameters.ViewRect = FVector4f(ViewRect.Min.X, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y);
-		const float cEdgeThresholdCorrectionValue = bIsHDR10 ? CVarVRS_HDR10CorrectionMultiplier.GetValueOnRenderThread() : 1.0;
-		Parameters.EdgeThreshold = cEdgeThresholdCorrectionValue * CVarVRSEdgeThreshold.GetValueOnRenderThread();
-		Parameters.ConservativeEdgeThreshold = cEdgeThresholdCorrectionValue * CVarVRSConservativeEdgeThreshold.GetValueOnRenderThread();
+		const float cEdgeThresholdCorrectionValue = bIsHDR10 ? CVarCAS_HDR10CorrectionMultiplier.GetValueOnRenderThread() : 1.0;
+		Parameters.EdgeThreshold = cEdgeThresholdCorrectionValue * CVarCASEdgeThreshold.GetValueOnRenderThread();
+		Parameters.ConservativeEdgeThreshold = cEdgeThresholdCorrectionValue * CVarCASConservativeEdgeThreshold.GetValueOnRenderThread();
 		Parameters.VariableRateShadingTexture = ShadingRateImage;
 	}
 };
@@ -280,37 +218,9 @@ namespace ESRITextureType
 	{
 		return IsValidShadingRateTexture(static_cast<int32>(TextureType));
 	}
-	ESRITextureType::Type GetTextureType(FVariableRateShadingImageManager::EVRSPassType PassType)
+	ESRITextureType::Type GetTextureType(FVariableRateShadingImageManager::EVRSImageType ImageType)
 	{
-		static struct FStaticData
-		{
-			TAutoConsoleVariable<int32>*CVarByPassType[FVariableRateShadingImageManager::EVRSPassType::Num] = {};
-			FStaticData()
-			{
-				CVarByPassType[FVariableRateShadingImageManager::EVRSPassType::BasePass] = &CVarVRSBasePass;
-				CVarByPassType[FVariableRateShadingImageManager::EVRSPassType::TranslucencyAll] = &CVarVRSTranslucency;
-				CVarByPassType[FVariableRateShadingImageManager::EVRSPassType::NaniteEmitGBufferPass] = &CVarVRSNaniteEmitGBuffer;
-				CVarByPassType[FVariableRateShadingImageManager::EVRSPassType::SSAO] = &CVarVRS_SSAO;
-				CVarByPassType[FVariableRateShadingImageManager::EVRSPassType::SSR] = &CVarVRS_SSR;
-				CVarByPassType[FVariableRateShadingImageManager::EVRSPassType::ReflectionEnvironmentAndSky] = &CVarVRSReflectionEnvironmentSky;
-				CVarByPassType[FVariableRateShadingImageManager::EVRSPassType::LightFunctions] = &CVarVRSLightFunctions;
-				CVarByPassType[FVariableRateShadingImageManager::EVRSPassType::Decals] = &CVarVRSDecals;
-			}
-		} StaticData;
-		const int32 PassTypeAsInt = static_cast<int32>(PassType);
-		if (PassTypeAsInt >= 0 && PassTypeAsInt < EMeshPass::Num)
-		{
-			auto* CVar = StaticData.CVarByPassType[PassTypeAsInt];
-			if (CVar)
-			{
-				int32 TextureTypeAsInt = CVar->GetValueOnRenderThread();
-				if (IsValidShadingRateTexture(TextureTypeAsInt))
-				{
-					return static_cast<ESRITextureType::Type>(TextureTypeAsInt);
-				}
-			}
-		}
-		return ESRITextureType::None;
+		return static_cast<ESRITextureType::Type>(ImageType);
 	}
 };
 
@@ -412,7 +322,7 @@ static bool IsHDR10(const EDisplayOutputFormat& OutputFormat)
 
 static bool IsContrastAdaptiveShadingEnabled()
 {
-	return GRHISupportsAttachmentVariableRateShading && GRHIAttachmentVariableRateShadingEnabled && (CVarVRSContrastAdaptiveShading.GetValueOnRenderThread() != 0);
+	return GRHISupportsAttachmentVariableRateShading && GRHIAttachmentVariableRateShadingEnabled && (CVarCASContrastAdaptiveShading.GetValueOnRenderThread() != 0);
 }
 
 static FIntRect GetPostProcessOutputRect(const FViewInfo& ViewInfo)
@@ -550,11 +460,11 @@ void AddPrepareImageBasedVRSPass(
  * Interface Functions
  */
 
-FRDGTextureRef FContrastAdaptiveImageGenerator::GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSPassType PassType)
+FRDGTextureRef FContrastAdaptiveImageGenerator::GetImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType)
 {
 	if (FVRSTextures::IsInitialized(GraphBuilder))
 	{
-		ESRITextureType::Type TextureType = ESRITextureType::GetTextureType(PassType);
+		ESRITextureType::Type TextureType = ESRITextureType::GetTextureType(ImageType);
 		if (TextureType != ESRITextureType::None)
 		{
 			const FVRSTextures& VRSTextures = FVRSTextures::Get(GraphBuilder);
@@ -606,17 +516,20 @@ bool FContrastAdaptiveImageGenerator::IsEnabledForView(const FSceneView& View) c
 	return IsContrastAdaptiveShadingEnabled() && !View.bIsSceneCapture && bCompatibleWithOutputType;
 }
 
-FRDGTextureRef FContrastAdaptiveImageGenerator::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo)
+FRDGTextureRef FContrastAdaptiveImageGenerator::GetDebugImage(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, FVariableRateShadingImageManager::EVRSImageType ImageType)
 {
-	if (!FVRSTextures::IsInitialized(GraphBuilder))
+	if (!CVarCASPreview.GetValueOnRenderThread() || !FVRSTextures::IsInitialized(GraphBuilder))
 	{
 		return nullptr;
 	}
 
+	ESRIPreviewType::Type PreviewType = static_cast<ESRIPreviewType::Type>(ImageType);
+	if (CVarCASPreviewPreReprojection.GetValueOnRenderThread() && PreviewType != ESRIPreviewType::Off)
+	{
+		PreviewType = ESRIPreviewType::BeforeReprojection;
+	}
+
 	const FVRSTextures& VRSTextures = FVRSTextures::Get(GraphBuilder);
-
-	ESRIPreviewType::Type PreviewType = static_cast<ESRIPreviewType::Type>(CVarCASPreviewType.GetValueOnRenderThread());
-
 	switch (PreviewType)
 	{
 	case ESRIPreviewType::Projected:
