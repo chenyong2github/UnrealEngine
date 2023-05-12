@@ -246,12 +246,12 @@ namespace Electra
 			// Presently not supported.
 			return false;
 		}
-		else if (CodecOTI.Equals("Opus"))
+		else if (CodecOTI.Equals("opus"))
 		{
 			StreamType = EStreamType::Audio;
 			CodecSpecifier = CodecOTI;
 			Codec = ECodec::Audio4CC;
-			Codec4CC = Make4CC('O','p','u','s');
+			Codec4CC = Make4CC('o','p','u','s');
 			return true;
 		}
 		else if (CodecOTI.Equals(TEXT("wvtt")))

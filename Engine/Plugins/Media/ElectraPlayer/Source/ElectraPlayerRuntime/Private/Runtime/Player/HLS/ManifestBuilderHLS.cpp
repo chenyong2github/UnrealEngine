@@ -600,7 +600,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				{
 					si.SetStreamType(EStreamType::Audio);
 					si.SetCodec(FStreamCodecInformation::ECodec::Audio4CC);
-					si.SetCodec4CC(0x4f707573);	// Make4CC('O','p','u','s'));
+					si.SetCodec4CC(0x6f707573);	// Make4CC('o','p','u','s'));
 					si.SetCodecSpecifierRFC6381(CodecList[nCodec]);
 					// For lack of knowledge pretend this is stereo.
 					si.SetChannelConfiguration(2);
