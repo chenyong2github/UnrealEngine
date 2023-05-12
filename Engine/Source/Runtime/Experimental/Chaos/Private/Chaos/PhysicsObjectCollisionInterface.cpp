@@ -76,6 +76,28 @@ namespace Chaos
 	}
 
 	template<EThreadContext Id>
+	bool FPhysicsObjectCollisionInterface<Id>::PhysicsObjectOverlapWithAABBIntersections(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, const FVector& Tolerance, TArray<FBox>& OutIntersections)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FPhysicsObjectCollisionInterface<Id>::PhysicsObjectOverlapWithAABBIntersections);
+		OutIntersections.Reset();
+		return PairwiseShapeOverlapHelper(
+			ObjectA,
+			InTransformA,
+			ObjectB,
+			InTransformB,
+			bTraceComplex,
+			false,
+			Tolerance,
+			[&OutIntersections, &Tolerance](const FShapeOverlapData& ShapeA, const FShapeOverlapData& ShapeB, const FMTDInfo&)
+			{
+				const FAABB3 Intersection = ShapeA.BoundingBox.GetIntersection(ShapeB.BoundingBox);
+				OutIntersections.Emplace(Intersection.Min(), Intersection.Max());
+				return true;
+			}
+		);
+	}
+
+	template<EThreadContext Id>
 	bool FPhysicsObjectCollisionInterface<Id>::PairwiseShapeOverlapHelper(const FConstPhysicsObjectHandle ObjectA, const FTransform& InTransformA, const FConstPhysicsObjectHandle ObjectB, const FTransform& InTransformB, bool bTraceComplex, bool bComputeMTD, const FVector& Tolerance, const TFunction<bool(const FShapeOverlapData&, const FShapeOverlapData&, const FMTDInfo&)>& Lambda)
 	{
 		TArray<TThreadShapeInstance<Id>*> ShapesA = Interface.GetAllThreadShapes({ &ObjectA, 1 });
