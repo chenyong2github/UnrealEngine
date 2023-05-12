@@ -9,127 +9,44 @@
 
 #include "NaniteAttributeDecode.ush"
 
-uint4 PackQuadCoord(uint2 QuadTopLeft)
+struct FShadingElement
 {
-	uint4 Packed;
-	Packed.x = PackUInt2ToUInt(QuadTopLeft);
-	Packed.y = Packed.x + 0x00000001u;
-	Packed.z = Packed.x + 0x00010000u;
-	Packed.w = Packed.x + 0x00010001u;
-	return Packed;
-}
+	uint2 TopLeft;
+	uint Mask;		// 0: TL, 1: TR, 2: BL, 3: BR
+					// Quad:  CoverageMask. At least one set bit.
+					// Pixel: WriteMask:	TL always 1.
+};
 
-uint PackQuadCoverage(bool4 Coverage)
+uint PackQuadMask(bool4 Quad)
 {
 	// [X][Y]
 	// [Z][W] -> 0000 wzyx
 
-	uint CoverageMask = 0u;
-	CoverageMask |= select(Coverage.x, 1u << 0u, 0u);
-	CoverageMask |= select(Coverage.y, 1u << 1u, 0u);
-	CoverageMask |= select(Coverage.z, 1u << 2u, 0u);
-	CoverageMask |= select(Coverage.w, 1u << 3u, 0u);
-	return CoverageMask;
+	uint Mask = 0u;
+	Mask |= select(Quad.x, 1u << 0u, 0u);
+	Mask |= select(Quad.y, 1u << 1u, 0u);
+	Mask |= select(Quad.z, 1u << 2u, 0u);
+	Mask |= select(Quad.w, 1u << 3u, 0u);
+	return Mask;
 }
 
-bool4 UnpackQuadCoverage(uint CoverageMask)
+uint PackShadingElement(uint2 TopLeft, uint Mask)
 {
-	return bool4(
-		BitFieldExtractU32(CoverageMask, 1u, 0u) != 0,
-		BitFieldExtractU32(CoverageMask, 1u, 1u) != 0,
-		BitFieldExtractU32(CoverageMask, 1u, 2u) != 0,
-		BitFieldExtractU32(CoverageMask, 1u, 3u) != 0
-	);
-}
-
-uint PackQuadCoverageDX(bool4 Coverage)
-{
-	return PackQuadCoverage(Coverage.wzyx);
-}
-
-bool4 UnpackQuadCoverageDX(uint CoverageMask)
-{
-	return UnpackQuadCoverage(CoverageMask).wzyx;
-}
-
-struct FShadingQuad
-{
-	uint2 TopLeft;
-	bool4 Coverage; // .x = TL, .y = TR, .w = BL, .w = BR
-};
-
-uint PackShadingQuad(uint2 TopLeft, uint CoverageMask)
-{
-	uint Packed = 0;
-	Packed |= (BitFieldMaskU32( 4,  0) & (CoverageMask << 0u)); //  4 bits for coverage mask
-	Packed |= (BitFieldMaskU32(14,  4) & (TopLeft.x << 4u));    // 14 bits for quad TL x
-	Packed |= (BitFieldMaskU32(14, 18) & (TopLeft.y << 18u));   // 14 bits for quad TL y
-	return Packed;
-}
-
-uint PackShadingQuad(FShadingQuad Quad)
-{
-	const uint CoverageMask = PackQuadCoverage(Quad.Coverage);
-	return PackShadingQuad(Quad.TopLeft, CoverageMask);
-}
-
-FShadingQuad UnpackShadingQuad(uint Packed)
-{
-	FShadingQuad Quad;
-	Quad.Coverage  = UnpackQuadCoverage(Packed);
-	Quad.TopLeft.x = BitFieldExtractU32(Packed, 14,  4);
-	Quad.TopLeft.y = BitFieldExtractU32(Packed, 14, 18);
-	return Quad;
-}
-
-uint PackPixelCopy(bool3 Copy)
-{
-	uint CopyMask = 0u;
-	CopyMask |= select(Copy.x, 1u << 0u, 0u);
-	CopyMask |= select(Copy.y, 1u << 1u, 0u);
-	CopyMask |= select(Copy.z, 1u << 2u, 0u);
-	return CopyMask;
-}
-
-bool3 UnpackPixelCopy(uint CopyMask)
-{
-	return bool3(
-		BitFieldExtractU32(CopyMask, 1u, 0u) != 0,
-		BitFieldExtractU32(CopyMask, 1u, 1u) != 0,
-		BitFieldExtractU32(CopyMask, 1u, 2u) != 0
-	);
-}
-
-struct FShadingPixel
-{
-	uint2 PosXY;
-	bool3 Copy; // H, V, D
-};
-
-uint PackShadingPixel(uint2 PixelPos, uint CopyMask)
-{
+	//  4 bits Mask
 	// 14 bits X
 	// 14 bits Y
-	//  3 bits Copy
-	//  1 bit  Unused
 	uint Packed = 0;
-	Packed |= (BitFieldMaskU32( 4,  1) & (CopyMask << 1u));   //  3 bits for copy mask
-	Packed |= (BitFieldMaskU32(14,  4) & (PixelPos.x << 4u));  // 14 bits for pixel x
-	Packed |= (BitFieldMaskU32(14, 18) & (PixelPos.y << 18u)); // 14 bits for pixel y
+	Packed |= (BitFieldMaskU32( 4,  0) & Mask);
+	Packed |= (BitFieldMaskU32(14,  4) & (TopLeft.x << 4u));
+	Packed |= (BitFieldMaskU32(14, 18) & (TopLeft.y << 18u));
 	return Packed;
 }
 
-uint PackShadingPixel(FShadingPixel Pixel)
+FShadingElement UnpackShadingElement(uint Packed)
 {
-	const uint CopyMask = PackPixelCopy(Pixel.Copy);
-	return PackShadingPixel(Pixel.PosXY, CopyMask);
-}
-
-FShadingPixel UnpackShadingPixel(uint Packed)
-{
-	FShadingPixel Pixel;
-	Pixel.Copy		= UnpackPixelCopy(BitFieldExtractU32(Packed, 4,  1));
-	Pixel.PosXY.x	= BitFieldExtractU32(Packed, 14,  4);
-	Pixel.PosXY.y	= BitFieldExtractU32(Packed, 14, 18);
-	return Pixel;
+	FShadingElement Element;
+	Element.Mask		= BitFieldExtractU32(Packed,  4, 0);
+	Element.TopLeft.x	= BitFieldExtractU32(Packed, 14, 4);
+	Element.TopLeft.y	= BitFieldExtractU32(Packed, 14, 18);
+	return Element;
 }

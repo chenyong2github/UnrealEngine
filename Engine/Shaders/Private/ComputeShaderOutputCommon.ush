@@ -240,7 +240,7 @@ void ExportPixel(const uint2 PixelPos, FPixelShaderOut ShadedPixel)
 
 #define VIS_HELPER_LANES 0
 
-void ProcessPixel(bool bActiveLane, uint ShadingBin, const uint2 PixelPos, uint QuadIndex, uint DispatchIndex, bool3 PixelCopy, uint HelperLaneCount)
+void ProcessPixel(uint ShadingBin, const uint2 PixelPos, uint QuadIndex, uint DispatchIndex, uint PixelWriteMask, uint HelperLaneCount)
 {
 	// All lanes shade (regardless of export - so ddx/ddy are valid)
 	FPixelShaderOut ShadedPixel = ShadePixel(PixelPos, QuadIndex);
@@ -265,24 +265,24 @@ void ProcessPixel(bool bActiveLane, uint ShadingBin, const uint2 PixelPos, uint 
 
 	// Disable helper lanes from final export
 	BRANCH
-	if (bActiveLane)
+	if (PixelWriteMask & 1u)
 	{
 		ExportPixel(PixelPos, ShadedPixel);
 
 		BRANCH
-		if (PixelCopy.x) // Copy H
+		if (PixelWriteMask & 2u) // Copy H
 		{
 			ExportPixel(PixelPos + uint2(1, 0), ShadedPixel);
 		}
 
 		BRANCH
-		if (PixelCopy.y) // Copy V
+		if (PixelWriteMask & 4u) // Copy V
 		{
 			ExportPixel(PixelPos + uint2(0, 1), ShadedPixel);
 		}
 
 		BRANCH
-		if (PixelCopy.z) // Copy D
+		if (PixelWriteMask & 8u) // Copy D
 		{
 			ExportPixel(PixelPos + uint2(1, 1), ShadedPixel);
 		}
@@ -297,81 +297,28 @@ void MainCS(uint ThreadIndex : SV_GroupIndex, uint GroupID : SV_GroupID, uint3 G
 
 	const uint PixelIndex = (GroupID * 64u) + ThreadIndex;
 
-	uint HelperLaneCount = 0u;
-
-	uint CornerIndex = 0;
-	uint QuadIndex = 0;
-	bool3 PixelCopy = bool3(false, false, false);
-
-	FShadingQuad Quad;
+	const uint3 ShadingBinMeta = Nanite.ShadingBinMeta[ShadingBin].xyz;
+	const uint ElementCount = bQuadBinning ? ShadingBinMeta.x : ShadingBinMeta.y;
+	const uint ElementIndex = bQuadBinning ? (PixelIndex >> 2) : PixelIndex;
 
 	BRANCH
-	if (bQuadBinning)
+	if (ElementIndex >= ElementCount)
 	{
-		// New 2x2 shading quad every 4 samples
-		CornerIndex = ThreadIndex & 3u;
-		QuadIndex = GroupID * 16u + (ThreadIndex >> 2u);
-
-		const bool bIsQuadTL = CornerIndex == 0u;
-		const bool bIsQuadTR = CornerIndex == 1u;
-		const bool bIsQuadBL = CornerIndex == 2u;
-		const bool bIsQuadBR = CornerIndex == 3u;
-	
-		const uint LaneTL = WaveGetLaneIndex() & ~3u;
-
-		uint PackedQuad = 0u;
-		if (bIsQuadTL)
-		{
-			const uint QuadCount = Nanite.ShadingBinMeta[ShadingBin].x;
-			if (QuadIndex < QuadCount)
-			{
-				const uint QuadStart = Nanite.ShadingBinMeta[ShadingBin].z;
-				PackedQuad = Nanite.ShadingBinData[QuadStart + QuadIndex];
-			}
-		}
-		PackedQuad = WaveReadLaneAt(PackedQuad, LaneTL);
-		Quad = UnpackShadingQuad(PackedQuad);
-	}
-	else
-	{
-		const uint PixelCount = Nanite.ShadingBinMeta[ShadingBin].y;
-		
-		if (PixelIndex >= PixelCount)
-		{
-			Quad.Coverage = bool4(false, false, false, false);
-		}
-		else
-		{
-			Quad.Coverage = bool4(true, true, true, true);
-
-			const uint PixelStart = Nanite.ShadingBinMeta[ShadingBin].z;
-			FShadingPixel Pixel = UnpackShadingPixel(Nanite.ShadingBinData[PixelStart + PixelIndex]);
-			Quad.TopLeft = Pixel.PosXY;
-			PixelCopy = Pixel.Copy;
-		}
-	}
-
-	if (!any(Quad.Coverage))
-	{
-		// None of the 2x2 pixels have coverage (likely an out of bounds wave).
 		return;
 	}
 
-	const bool bActiveLane = Quad.Coverage[CornerIndex];
+	const uint PackedElement = Nanite.ShadingBinData[ShadingBinMeta.z + ElementIndex];
+	const FShadingElement Element = UnpackShadingElement(PackedElement);
 
-#if VIS_HELPER_LANES
-	HelperLaneCount = 4u;
+	const uint CornerIndex = bQuadBinning ? (ThreadIndex & 3u) : 0u;
 
-	UNROLL
-	for (uint CoverageIndex = 0; CoverageIndex < 4u; ++CoverageIndex)
-	{
-		HelperLaneCount -= Quad.Coverage[CoverageIndex] ? 1u : 0u;
-	}
-#endif
+	const uint2 PixelPos = Element.TopLeft + uint2(CornerIndex & 1u, CornerIndex >> 1u);
 
-	// Determine final pixel position on the screen for shading
-	const uint2 PixelPos = Quad.TopLeft + uint2(CornerIndex & 1u, (CornerIndex >> 1u) & 1u);
+	const uint PixelWriteMask = bQuadBinning ? BitFieldExtractU32(Element.Mask, 1, CornerIndex) :	// Set TL bit based on coverage mask
+												Element.Mask;										// Take write mask directly from pixel
+
+	const uint HelperLaneCount = (VIS_HELPER_LANES && bQuadBinning) ? (4u - countbits(Element.Mask)) : 0u;
 
 	// Shade and export quad
-	ProcessPixel(bActiveLane, ShadingBin, PixelPos, QuadIndex, PixelIndex, PixelCopy, HelperLaneCount);
+	ProcessPixel(ShadingBin, PixelPos, ElementIndex, PixelIndex, PixelWriteMask, HelperLaneCount);
 }

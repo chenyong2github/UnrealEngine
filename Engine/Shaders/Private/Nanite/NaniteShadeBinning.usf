@@ -144,7 +144,7 @@ void BinShadingQuad(uint2 Coord, uint ThreadIndex)
 		return;
 	}
 
-	uint4 CopyMasks = uint4(0, 0, 0, 0);
+	uint4 WriteMasks = PackQuadMask(bool4(true, false, false, false));
 
 #if VARIABLE_SHADING_RATE
 	uint WaveShadingRate = D3D12_SHADING_RATE_1X1;
@@ -175,36 +175,36 @@ void BinShadingQuad(uint2 Coord, uint ThreadIndex)
 			// [A]
 			// [B]
 
-			const uint CopyHMask = PackPixelCopy(bool3(true, false, false));
+			const uint WriteMask = PackQuadMask(bool4(true, true, false, false));
 
 			if (VotingBins[0] == VotingBins[1])
 			{
 				ValidPixels[1] = false;
-				CopyMasks[0] = CopyHMask;
+				WriteMasks[0] = WriteMask;
 			}
 
 			if (VotingBins[2] == VotingBins[3])
 			{
 				ValidPixels[3] = false;
-				CopyMasks[2] = CopyHMask;
+				WriteMasks[2] = WriteMask;
 			}
 		}
 		else if (WaveShadingRate == D3D12_SHADING_RATE_2X1)
 		{
 			// [A][B]
 
-			const uint CopyVMask = PackPixelCopy(bool3(false, true, false));
+			const uint WriteMask = PackQuadMask(bool4(true, false, true, false));
 
 			if (VotingBins[0] == VotingBins[2])
 			{
 				ValidPixels[2] = false;
-				CopyMasks[0] = CopyVMask;
+				WriteMasks[0] = WriteMask;
 			}
 
 			if (VotingBins[1] == VotingBins[3])
 			{
 				ValidPixels[3] = false;
-				CopyMasks[1] = CopyVMask;
+				WriteMasks[1] = WriteMask;
 			}
 		}
 		else if (WaveShadingRate == D3D12_SHADING_RATE_2X2)
@@ -212,7 +212,7 @@ void BinShadingQuad(uint2 Coord, uint ThreadIndex)
 			// [A][B]
 			// [C][D]
 
-			const uint CopyAMask = PackPixelCopy(bool3(true, true, true));
+			const uint WriteMask = PackQuadMask(bool4(true, true, true, true));
 
 			if (VotingBins[0] == VotingBins[1] &&
 				VotingBins[0] == VotingBins[2] &&
@@ -222,14 +222,14 @@ void BinShadingQuad(uint2 Coord, uint ThreadIndex)
 				ValidPixels[2] = false;
 				ValidPixels[3] = false;
 
-				CopyMasks[0] = CopyAMask;
+				WriteMasks[0] = WriteMask;
 			}
 		}
 	}
 #endif
 
 	// Create quad-lane mask of valid pixels to vote with (exclude non-Nanite or out of bounds).
-	uint VotingMask = PackQuadCoverage(ValidPixels);
+	uint VotingMask = PackQuadMask(ValidPixels);
 
 #if SHADING_BIN_COUNT
 	while (WaveActiveAnyTrue(VotingMask != 0u))
@@ -297,7 +297,7 @@ void BinShadingQuad(uint2 Coord, uint ThreadIndex)
 
 		if (BinCoverage != 0u)
 		{
-			OutShadingBinData[DataWriteOffset] = PackShadingQuad(QuadTLCoord, BinCoverage);
+			OutShadingBinData[DataWriteOffset] = PackShadingElement(QuadTLCoord, BinCoverage);
 		}
 	#else // QUAD_BINNING
 		const uint PixelCount  = countbits(BinCoverage);
@@ -326,7 +326,7 @@ void BinShadingQuad(uint2 Coord, uint ThreadIndex)
 		{
 			if ((BinCoverage & (1u << PixelIndex)) != 0u)
 			{
-				OutShadingBinData[DataWriteOffset + PackedIndex] = PackShadingPixel(QuadCoords[PixelIndex], CopyMasks[PixelIndex]);
+				OutShadingBinData[DataWriteOffset + PackedIndex] = PackShadingElement(QuadCoords[PixelIndex], WriteMasks[PixelIndex]);
 				++PackedIndex;
 			}
 		}
