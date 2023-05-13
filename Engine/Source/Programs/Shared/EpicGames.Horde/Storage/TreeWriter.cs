@@ -444,6 +444,7 @@ namespace EpicGames.Horde.Storage
 					if (currentPacketLength > 0)
 					{
 						_writeTask = _writeTask.ContinueWith(x => CompressPacket(currentPacket, currentPacketLength), TaskScheduler.Default);
+						_currentPacketIdx++;
 					}
 					else
 					{
@@ -451,7 +452,6 @@ namespace EpicGames.Horde.Storage
 					}
 
 					_currentPacket = null;
-					_currentPacketIdx++;
 					_currentPacketLength = 0;
 				}
 			}
