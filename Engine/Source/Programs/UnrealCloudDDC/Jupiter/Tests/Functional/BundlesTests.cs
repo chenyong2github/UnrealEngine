@@ -353,8 +353,8 @@ public abstract class BundlesTests
         payloadWriter.WriteString("Hello world");
         byte[] payload = payloadWriter.WrittenMemory.ToArray();
 
-        List<BundleType> types = new List<BundleType>();
-        types.Add(new BundleType(Guid.Parse("F63606D4-5DBB-4061-A655-6F444F65229E"), 1));
+        List<NodeType> types = new List<NodeType>();
+        types.Add(new NodeType(Guid.Parse("F63606D4-5DBB-4061-A655-6F444F65229E"), 1));
 
         List<BundleExport> exports = new List<BundleExport>();
         exports.Add(new BundleExport(0, IoHash.Compute(payload), 0, 0, payload.Length, Array.Empty<BundleExportRef>()));
@@ -362,17 +362,17 @@ public abstract class BundlesTests
         List<BundlePacket> packets = new List<BundlePacket>();
         packets.Add(new BundlePacket(BundleCompressionFormat.None, 0, payload.Length, payload.Length));
 
-        BundleHeader header = new BundleHeader(types, Array.Empty<BlobLocator>(), exports, packets);
+        BundleHeader header = BundleHeader.Create(types, Array.Empty<BlobLocator>(), exports, packets);
         return new Bundle(header, new List<ReadOnlyMemory<byte>> { payload });
     }
 
-    [TreeNode("{F63606D4-5DBB-4061-A655-6F444F65229F}")]
-    class SimpleNode : TreeNode
+    [NodeType("{F63606D4-5DBB-4061-A655-6F444F65229F}")]
+    class SimpleNode : Node
     {
         public ReadOnlySequence<byte> Data { get; }
-        public IReadOnlyList<TreeNodeRef<SimpleNode>> Refs { get; }
+        public IReadOnlyList<NodeRef<SimpleNode>> Refs { get; }
 
-        public SimpleNode(ReadOnlySequence<byte> data, IReadOnlyList<TreeNodeRef<SimpleNode>> refs)
+        public SimpleNode(ReadOnlySequence<byte> data, IReadOnlyList<NodeRef<SimpleNode>> refs)
         {
             Data = data;
             Refs = refs;
@@ -390,7 +390,7 @@ public abstract class BundlesTests
             writer.WriteVariableLengthArray(Refs, x => writer.WriteRef(x));
         }
 
-        public override IEnumerable<TreeNodeRef> EnumerateRefs() => Refs;
+        public override IEnumerable<NodeRef> EnumerateRefs() => Refs;
     }
 
     static async Task SeedTreeAsync(IStorageClient store, RefName rootRefName, RefName leafRefName, TreeOptions options)
@@ -399,12 +399,12 @@ public abstract class BundlesTests
         {
             using TreeWriter writer = new TreeWriter(store, options, "test");
 
-            SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<TreeNodeRef<SimpleNode>>());
-            SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new TreeNodeRef<SimpleNode>(node1) });
-            SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { new TreeNodeRef<SimpleNode>(node2) });
-            SimpleNode node4 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<TreeNodeRef<SimpleNode>>());
+            SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<NodeRef<SimpleNode>>());
+            SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new NodeRef<SimpleNode>(node1) });
+            SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { new NodeRef<SimpleNode>(node2) });
+            SimpleNode node4 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<NodeRef<SimpleNode>>());
 
-            SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new TreeNodeRef<SimpleNode>(node4), new TreeNodeRef<SimpleNode>(node3) });
+            SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new NodeRef<SimpleNode>(node4), new NodeRef<SimpleNode>(node3) });
 
             await writer.WriteAsync(rootRefName, root);
             await writer.WriteAsync(leafRefName, node1);

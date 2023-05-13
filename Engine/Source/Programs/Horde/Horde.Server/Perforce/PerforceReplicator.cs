@@ -37,15 +37,15 @@ namespace Horde.Server.Perforce
 	/// </summary>
 	class PerforceReplicator
 	{
-		[TreeNode("{8C874966-2E89-4273-A4AB-AC9F5491C86D}")]
-		class SyncNode : TreeNode
+		[NodeType("{8C874966-2E89-4273-A4AB-AC9F5491C86D}")]
+		class SyncNode : Node
 		{
 			public int Change { get; }
 			public int ParentChange { get; }
-			public TreeNodeRef<DirectoryNode> Contents { get; }
+			public NodeRef<DirectoryNode> Contents { get; }
 			public List<Utf8String> Paths { get; }
 
-			public SyncNode(int number, int parentNumber, TreeNodeRef<DirectoryNode> contents)
+			public SyncNode(int number, int parentNumber, NodeRef<DirectoryNode> contents)
 			{
 				Change = number;
 				ParentChange = parentNumber;
@@ -71,7 +71,7 @@ namespace Horde.Server.Perforce
 			}
 
 			/// <inheritdoc/>
-			public override IEnumerable<TreeNodeRef> EnumerateRefs()
+			public override IEnumerable<NodeRef> EnumerateRefs()
 			{
 				yield return Contents;
 			}
@@ -263,7 +263,7 @@ namespace Horde.Server.Perforce
 			// Find the parent node
 			RefName refName = GetRefName(streamConfig.Id);
 			CommitNode? parent = await FindParentAsync(reader, refName, change, cancellationToken);
-			TreeNodeRef<CommitNode>? parentRef = (parent == null) ? null : new TreeNodeRef<CommitNode>(parent);
+			NodeRef<CommitNode>? parentRef = (parent == null) ? null : new NodeRef<CommitNode>(parent);
 			int parentChange = parent?.Number ?? 0;
 
 			// Read the current incremental state or create a new node to track the incremental state
@@ -271,7 +271,7 @@ namespace Horde.Server.Perforce
 			SyncNode? syncNode = await reader.TryReadNodeAsync<SyncNode>(incRefName, cancellationToken: cancellationToken);
 			if (syncNode == null || syncNode.Change != change || syncNode.ParentChange != parentChange)
 			{
-				syncNode = new SyncNode(change, parentChange, parent?.Contents ?? new TreeNodeRef<DirectoryNode>(new DirectoryNode()));
+				syncNode = new SyncNode(change, parentChange, parent?.Contents ?? new NodeRef<DirectoryNode>(new DirectoryNode()));
 			}
 			DirectoryNode root = await syncNode.Contents.ExpandAsync(reader, cancellationToken);
 
@@ -519,7 +519,7 @@ namespace Horde.Server.Perforce
 
 		static async Task<CommitNode?> FindParentAsync(TreeReader reader, RefName refName, int change, CancellationToken cancellationToken)
 		{
-			TreeNodeRef<CommitNode>? parentRef = await reader.TryReadNodeRefAsync<CommitNode>(refName, cancellationToken: cancellationToken);
+			NodeRef<CommitNode>? parentRef = await reader.TryReadNodeRefAsync<CommitNode>(refName, cancellationToken: cancellationToken);
 			while (parentRef != null)
 			{
 				CommitNode parent = await parentRef.ExpandCopyAsync(reader, cancellationToken);

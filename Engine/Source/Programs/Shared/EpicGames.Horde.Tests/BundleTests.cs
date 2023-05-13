@@ -137,8 +137,8 @@ namespace EpicGames.Horde.Tests
 		{
 			BundleHeader oldHeader;
 			{
-				List<BundleType> types = new List<BundleType>();
-				types.Add(new BundleType(Guid.NewGuid(), 0));
+				List<NodeType> types = new List<NodeType>();
+				types.Add(new NodeType(Guid.NewGuid(), 0));
 
 				List<BlobLocator> imports = new List<BlobLocator>();
 				imports.Add(new BlobLocator("import1"));

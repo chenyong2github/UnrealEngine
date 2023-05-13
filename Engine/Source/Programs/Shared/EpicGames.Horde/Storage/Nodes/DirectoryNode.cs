@@ -75,8 +75,8 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// A directory node
 	/// </summary>
-	[TreeNode("{0714EC11-291A-4D07-867F-E78AD6809979}", 1)]
-	public class DirectoryNode : TreeNode
+	[NodeType("{0714EC11-291A-4D07-867F-E78AD6809979}", 1)]
+	public class DirectoryNode : Node
 	{
 		readonly Dictionary<Utf8String, FileEntry> _nameToFileEntry = new Dictionary<Utf8String, FileEntry>();
 		readonly Dictionary<Utf8String, DirectoryEntry> _nameToDirectoryEntry = new Dictionary<Utf8String, DirectoryEntry>();
@@ -166,7 +166,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<TreeNodeRef> EnumerateRefs()
+		public override IEnumerable<NodeRef> EnumerateRefs()
 		{
 			foreach (FileEntry fileEntry in _nameToFileEntry.Values)
 			{

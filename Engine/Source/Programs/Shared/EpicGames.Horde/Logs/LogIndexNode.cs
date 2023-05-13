@@ -27,8 +27,8 @@ namespace EpicGames.Horde.Logs
 	/// Since alignment of ngrams may not match alignment of ngrams in the search term, we offset the search term by
 	/// 1-4 bytes and include the union of blocks matching at any offset.
 	/// </summary>
-	[TreeNode("{BAE1A00E-FD63-474E-A804-8081E20134F9}", 1)]
-	public class LogIndexNode : TreeNode
+	[NodeType("{BAE1A00E-FD63-474E-A804-8081E20134F9}", 1)]
+	public class LogIndexNode : Node
 	{
 		/// <summary>
 		/// Version number for serialized data
@@ -110,7 +110,7 @@ namespace EpicGames.Horde.Logs
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<TreeNodeRef> EnumerateRefs() => _plainTextChunkRefs;
+		public override IEnumerable<NodeRef> EnumerateRefs() => _plainTextChunkRefs;
 
 		/// <summary>
 		/// Appends a set of text blocks to this index

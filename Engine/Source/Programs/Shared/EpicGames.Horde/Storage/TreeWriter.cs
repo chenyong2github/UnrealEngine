@@ -52,7 +52,7 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	/// <param name="Hash">Hash of the node</param>
 	/// <param name="Type">Type of the node</param>
-	public record NodeKey(IoHash Hash, BundleType Type);
+	public record NodeKey(IoHash Hash, NodeType Type);
 
 	/// <summary>
 	/// Handle to a node. Can be used to reference nodes that have not been flushed yet.
@@ -553,8 +553,8 @@ namespace EpicGames.Horde.Storage
 				Dictionary<BlobLocator, int> importToIndex = new Dictionary<BlobLocator, int>();
 
 				// List of types in the bundle
-				List<BundleType> types = new List<BundleType>();
-				Dictionary<BundleType, int> typeToIndex = new Dictionary<BundleType, int>();
+				List<NodeType> types = new List<NodeType>();
+				Dictionary<NodeType, int> typeToIndex = new Dictionary<NodeType, int>();
 
 				// Map of node handle to reference
 				Dictionary<NodeHandle, BundleExportRef> nodeHandleToExportRef = new Dictionary<NodeHandle, BundleExportRef>();
@@ -727,7 +727,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="type">Type of the node that was written</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Handle to the written node</returns>
-		public async ValueTask<NodeHandle> WriteNodeAsync(int size, IReadOnlyList<NodeHandle> references, BundleType type, CancellationToken cancellationToken = default)
+		public async ValueTask<NodeHandle> WriteNodeAsync(int size, IReadOnlyList<NodeHandle> references, NodeType type, CancellationToken cancellationToken = default)
 		{
 			PendingBundle currentBundle = GetCurrentBundle();
 

@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Artifacts
 		/// Collection of output file references.  There should be exactly the same number
 		/// of file references as outputs in the mapping
 		/// </summary>
-		public readonly TreeNodeRef<FileNode>[] OutputRefs;
+		public readonly NodeRef<FileNode>[] OutputRefs;
 
 		/// <summary>
 		/// Construct a new horde artifact number
@@ -40,7 +40,7 @@ namespace UnrealBuildTool.Artifacts
 		public HordeArtifactMapping(ArtifactMapping artifactMapping)
 		{
 			ArtifactMapping = artifactMapping;
-			OutputRefs = new TreeNodeRef<FileNode>[ArtifactMapping.Outputs.Length];
+			OutputRefs = new NodeRef<FileNode>[ArtifactMapping.Outputs.Length];
 		}
 
 		/// <summary>
@@ -50,7 +50,7 @@ namespace UnrealBuildTool.Artifacts
 		public HordeArtifactMapping(ITreeNodeReader reader)
 		{
 			ArtifactMapping = reader.ReadArtifactMapping();
-			OutputRefs = reader.ReadVariableLengthArray(() => new TreeNodeRef<FileNode>(reader));
+			OutputRefs = reader.ReadVariableLengthArray(() => new NodeRef<FileNode>(reader));
 		}
 
 		/// <summary>
@@ -67,7 +67,7 @@ namespace UnrealBuildTool.Artifacts
 		/// Return an enumeration of the references
 		/// </summary>
 		/// <returns></returns>
-		public IEnumerable<TreeNodeRef> EnumerateRefs() => OutputRefs;
+		public IEnumerable<NodeRef> EnumerateRefs() => OutputRefs;
 
 		/// <summary>
 		/// Write all the files to disk
@@ -86,7 +86,7 @@ namespace UnrealBuildTool.Artifacts
 			{
 				string outputName = artifact.Name.ToString();
 				using FileStream stream = new(outputName, FileMode.Open, FileAccess.Read, FileShare.Read);
-				OutputRefs[index++] = new TreeNodeRef<FileNode>(await fileWriter.CreateAsync(stream, nodeTypeOptions.TargetSize, cancellationToken)); 
+				OutputRefs[index++] = new NodeRef<FileNode>(await fileWriter.CreateAsync(stream, nodeTypeOptions.TargetSize, cancellationToken)); 
 			}
 		}
 	}
@@ -121,8 +121,8 @@ namespace UnrealBuildTool.Artifacts
 	/// <summary>
 	/// Horde node that represents a collection of mapping nodes 
 	/// </summary>
-	[TreeNode("{E8DBCD77-861D-4CAE-B77F-5807D26E2533}")]
-	class ArtifactMappingCollectionNode : TreeNode
+	[NodeType("{E8DBCD77-861D-4CAE-B77F-5807D26E2533}")]
+	class ArtifactMappingCollectionNode : Node
 	{
 
 		/// <summary>
@@ -153,11 +153,11 @@ namespace UnrealBuildTool.Artifacts
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<TreeNodeRef> EnumerateRefs()
+		public override IEnumerable<NodeRef> EnumerateRefs()
 		{
 			foreach (HordeArtifactMapping artifactMapping in Mappings.Values)
 			{
-				foreach (TreeNodeRef outputRef in artifactMapping.OutputRefs)
+				foreach (NodeRef outputRef in artifactMapping.OutputRefs)
 				{
 					yield return outputRef;
 				}
@@ -339,7 +339,7 @@ namespace UnrealBuildTool.Artifacts
 						output[index] = true;
 
 						int refIndex = 0;
-						foreach (TreeNodeRef<FileNode> artifactRef in hordeArtifactMapping.OutputRefs)
+						foreach (NodeRef<FileNode> artifactRef in hordeArtifactMapping.OutputRefs)
 						{
 							if (artifactRef.Handle == null)
 							{

@@ -9,8 +9,8 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// A node representing commit metadata
 	/// </summary>
-	[TreeNode("{64D50724-6B22-41C0-A890-B51CD6241817}", 1)]
-	public class CommitNode : TreeNode
+	[NodeType("{64D50724-6B22-41C0-A890-B51CD6241817}", 1)]
+	public class CommitNode : Node
 	{
 		/// <summary>
 		/// The commit number
@@ -20,7 +20,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Reference to the parent commit
 		/// </summary>
-		public TreeNodeRef<CommitNode>? Parent { get; set; }
+		public NodeRef<CommitNode>? Parent { get; set; }
 
 		/// <summary>
 		/// Human readable name of the author of this change
@@ -60,7 +60,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Metadata for this commit, keyed by arbitrary GUID
 		/// </summary>
-		public Dictionary<Guid, TreeNodeRef> Metadata { get; } = new Dictionary<Guid, TreeNodeRef>();
+		public Dictionary<Guid, NodeRef> Metadata { get; } = new Dictionary<Guid, NodeRef>();
 
 		/// <summary>
 		/// Constructor
@@ -71,7 +71,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="message">Message for the commit</param>
 		/// <param name="time">The commit time</param>
 		/// <param name="contents">Contents of the tree at this commit</param>
-		public CommitNode(int number, TreeNodeRef<CommitNode>? parent, string author, string message, DateTime time, DirectoryNodeRef contents)
+		public CommitNode(int number, NodeRef<CommitNode>? parent, string author, string message, DateTime time, DirectoryNodeRef contents)
 		{
 			Number = number;
 			Parent = parent;
@@ -115,7 +115,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<TreeNodeRef> EnumerateRefs()
+		public override IEnumerable<NodeRef> EnumerateRefs()
 		{
 			if (Parent != null)
 			{
@@ -124,7 +124,7 @@ namespace EpicGames.Horde.Storage.Nodes
 
 			yield return Contents;
 
-			foreach (TreeNodeRef metadataRef in Metadata.Values)
+			foreach (NodeRef metadataRef in Metadata.Values)
 			{
 				yield return metadataRef;
 			}

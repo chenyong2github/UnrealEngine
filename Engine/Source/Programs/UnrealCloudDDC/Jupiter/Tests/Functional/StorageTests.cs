@@ -881,8 +881,8 @@ namespace Jupiter.FunctionalTests.Storage
         public BlobIdentifier? Identifier { get; set; }
     }
 
-    [TreeNode("{F63606D4-5DBB-4061-A655-6F444F65229E}")]
-    class TextNode : TreeNode
+    [NodeType("{F63606D4-5DBB-4061-A655-6F444F65229E}")]
+    class TextNode : Node
     {
         public string Text { get; }
 
@@ -898,6 +898,6 @@ namespace Jupiter.FunctionalTests.Storage
             writer.WriteString(Text);
         }
 
-        public override IEnumerable<TreeNodeRef> EnumerateRefs() => Array.Empty<TreeNodeRef>();
+        public override IEnumerable<NodeRef> EnumerateRefs() => Array.Empty<NodeRef>();
     }
 }

@@ -24,7 +24,7 @@ namespace EpicGames.Horde.Storage
 	public interface ITreeNodeReader : IMemoryReader
 	{
 		/// <summary>
-		/// Version of the current node, as specified via <see cref="TreeNodeAttribute"/>
+		/// Version of the current node, as specified via <see cref="NodeTypeAttribute"/>
 		/// </summary>
 		int Version { get; }
 
@@ -55,7 +55,7 @@ namespace EpicGames.Horde.Storage
 	public class TreeReaderOptions
 	{
 		/// <summary>
-		/// Known node types. Each node type should have a <see cref="TreeNodeAttribute"/> indicating the guid and latest supported version number.
+		/// Known node types. Each node type should have a <see cref="NodeTypeAttribute"/> indicating the guid and latest supported version number.
 		/// </summary>
 		public List<Type> Types { get; } = new List<Type>
 		{
@@ -83,7 +83,7 @@ namespace EpicGames.Horde.Storage
 	/// </summary>
 	/// <param name="Type">TreeNode type being read</param>
 	/// <param name="Deserialize">Deserialization function commonly </param>
-	public record struct ReadNodeAsyncCallbackParams(Type Type, Func<ITreeNodeReader, TreeNode> Deserialize);
+	public record struct ReadNodeAsyncCallbackParams(Type Type, Func<ITreeNodeReader, Node> Deserialize);
 
 	/// <summary>
 	/// Writes nodes from bundles in an <see cref="IStorageClient"/> instance.
@@ -98,10 +98,10 @@ namespace EpicGames.Horde.Storage
 			static readonly ConcurrentDictionary<Type, TypeInfo> s_cachedTypeInfo = new ConcurrentDictionary<Type, TypeInfo>();
 
 			public Type Type { get; }
-			public BundleType BundleType { get; }
-			public Func<ITreeNodeReader, TreeNode> Deserialize { get; }
+			public NodeType BundleType { get; }
+			public Func<ITreeNodeReader, Node> Deserialize { get; }
 
-			private TypeInfo(Type type, BundleType bundleType, Func<ITreeNodeReader, TreeNode> deserialize)
+			private TypeInfo(Type type, NodeType bundleType, Func<ITreeNodeReader, Node> deserialize)
 			{
 				Type = type;
 				BundleType = bundleType;
@@ -113,7 +113,7 @@ namespace EpicGames.Horde.Storage
 				TypeInfo? typeInfo;
 				if (!s_cachedTypeInfo.TryGetValue(type, out typeInfo))
 				{
-					BundleType bundleType = TreeNode.GetBundleType(type);
+					NodeType bundleType = NodeType.Get(type);
 
 					Type[] signature = new[] { typeof(ITreeNodeReader) };
 
@@ -130,7 +130,7 @@ namespace EpicGames.Horde.Storage
 					generator.Emit(OpCodes.Newobj, constructorInfo);
 					generator.Emit(OpCodes.Ret);
 
-					Func<ITreeNodeReader, TreeNode> deserialize = (Func<ITreeNodeReader, TreeNode>)method.CreateDelegate(typeof(Func<ITreeNodeReader, TreeNode>));
+					Func<ITreeNodeReader, Node> deserialize = (Func<ITreeNodeReader, Node>)method.CreateDelegate(typeof(Func<ITreeNodeReader, Node>));
 
 					typeInfo = s_cachedTypeInfo.GetOrAdd(type, new TypeInfo(type, bundleType, deserialize));
 				}
@@ -198,12 +198,12 @@ namespace EpicGames.Horde.Storage
 		{
 			readonly IReadOnlyList<NodeLocator> _refs;
 			readonly IoHash _hash;
-			readonly BundleType _type;
+			readonly NodeType _type;
 			readonly int _length;
 
 			int _refIdx;
 
-			public NodeReader(ReadOnlyMemory<byte> data, IoHash hash, IReadOnlyList<NodeLocator> refs, BundleType type)
+			public NodeReader(ReadOnlyMemory<byte> data, IoHash hash, IReadOnlyList<NodeLocator> refs, NodeType type)
 				: base(data)
 			{
 				_refs = refs;
@@ -720,9 +720,9 @@ namespace EpicGames.Horde.Storage
 		/// <param name="locator">Locator for the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Node data read from the given bundle</returns>
-		public async ValueTask<TreeNode> ReadNodeAsync(NodeLocator locator, CancellationToken cancellationToken = default)
+		public async ValueTask<Node> ReadNodeAsync(NodeLocator locator, CancellationToken cancellationToken = default)
 		{
-			TreeNode? treeNode = null;
+			Node? treeNode = null;
 			await ReadNodeAsync(locator, (ReadNodeAsyncCallbackParams parms, ITreeNodeReader reader) =>
 			{
 				treeNode = parms.Deserialize(reader);
@@ -781,7 +781,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="locator">Locator for the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Node data read from the given bundle</returns>
-		public async ValueTask<TNode> ReadNodeAsync<TNode>(NodeLocator locator, CancellationToken cancellationToken = default) where TNode : TreeNode
+		public async ValueTask<TNode> ReadNodeAsync<TNode>(NodeLocator locator, CancellationToken cancellationToken = default) where TNode : Node
 		{
 			return (TNode)await ReadNodeAsync(locator, cancellationToken);
 		}
@@ -793,7 +793,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Node for the given ref, or null if it does not exist</returns>
-		public async Task<TNode?> TryReadNodeAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode
+		public async Task<TNode?> TryReadNodeAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : Node
 		{
 			NodeHandle? refTarget = await _store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 			if (refTarget == null)
@@ -810,14 +810,14 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Node for the given ref, or null if it does not exist</returns>
-		public async Task<TreeNodeRef<TNode>?> TryReadNodeRefAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode
+		public async Task<NodeRef<TNode>?> TryReadNodeRefAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : Node
 		{
 			NodeHandle? refTarget = await _store.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 			if (refTarget == null)
 			{
 				return null;
 			}
-			return new TreeNodeRef<TNode>(refTarget);
+			return new NodeRef<TNode>(refTarget);
 		}
 
 		/// <summary>
@@ -827,7 +827,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency of any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public async Task<TNode> ReadNodeAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode
+		public async Task<TNode> ReadNodeAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : Node
 		{
 			TNode? refValue = await TryReadNodeAsync<TNode>(name, cacheTime, cancellationToken);
 			if (refValue == null)
@@ -844,9 +844,9 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cacheTime">Minimum coherency of any cached result</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The blob instance</returns>
-		public async Task<TreeNodeRef<TNode>> ReadNodeRefAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode
+		public async Task<NodeRef<TNode>> ReadNodeRefAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : Node
 		{
-			TreeNodeRef<TNode>? refValue = await TryReadNodeRefAsync<TNode>(name, cacheTime, cancellationToken);
+			NodeRef<TNode>? refValue = await TryReadNodeRefAsync<TNode>(name, cacheTime, cancellationToken);
 			if (refValue == null)
 			{
 				throw new RefNameNotFoundException(name);

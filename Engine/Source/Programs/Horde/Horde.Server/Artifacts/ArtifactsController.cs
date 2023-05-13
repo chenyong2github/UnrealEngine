@@ -240,7 +240,7 @@ namespace Horde.Server.Artifacts
 
 			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
 
-			TreeNodeRef<DirectoryNode> directoryRef;
+			NodeRef<DirectoryNode> directoryRef;
 			try
 			{
 				directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
@@ -334,7 +334,7 @@ namespace Horde.Server.Artifacts
 			}
 
 			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
-			TreeNodeRef<DirectoryNode> directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
+			NodeRef<DirectoryNode> directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
 			DirectoryNode directory = await directoryRef.ExpandAsync(reader, cancellationToken);
 
 			FileEntry? fileEntry = await directory.GetFileEntryByPathAsync(reader, path, cancellationToken);
@@ -407,7 +407,7 @@ namespace Horde.Server.Artifacts
 			}
 
 			TreeReader reader = await _storageService.GetReaderAsync(artifact.NamespaceId, cancellationToken);
-			TreeNodeRef<DirectoryNode> directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
+			NodeRef<DirectoryNode> directoryRef = await reader.ReadNodeRefAsync<DirectoryNode>(artifact.RefName, DateTime.UtcNow.AddHours(1.0), cancellationToken);
 			DirectoryNode directory = await directoryRef.ExpandAsync(reader, cancellationToken);
 
 			Stream stream = directory.AsZipStream(reader, filter);

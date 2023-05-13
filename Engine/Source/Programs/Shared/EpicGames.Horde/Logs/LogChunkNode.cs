@@ -16,8 +16,8 @@ namespace EpicGames.Horde.Logs
 	/// <summary>
 	/// Read-only buffer for log text, with indexed line offsets.
 	/// </summary>
-	[TreeNode("{7020B6CA-0F72-4174-B6AA-06AA60A3EF30}", 1)]
-	public class LogChunkNode : TreeNode
+	[NodeType("{7020B6CA-0F72-4174-B6AA-06AA60A3EF30}", 1)]
+	public class LogChunkNode : Node
 	{
 		/// <summary>
 		/// Provides access to the lines for this chunk through a list interface
@@ -125,7 +125,7 @@ namespace EpicGames.Horde.Logs
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<TreeNodeRef> EnumerateRefs() => Enumerable.Empty<TreeNodeRef>();
+		public override IEnumerable<NodeRef> EnumerateRefs() => Enumerable.Empty<NodeRef>();
 
 		/// <summary>
 		/// Accessor for an individual line
@@ -190,7 +190,7 @@ namespace EpicGames.Horde.Logs
 	/// <summary>
 	/// Reference to a chunk of text, with information about its placement in the larger log file
 	/// </summary>
-	public class LogChunkRef : TreeNodeRef<LogChunkNode>
+	public class LogChunkRef : NodeRef<LogChunkNode>
 	{
 		/// <summary>
 		/// First line within the file

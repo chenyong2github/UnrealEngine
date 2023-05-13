@@ -408,7 +408,7 @@ namespace Jupiter.Controllers
                     BundleExport export = header.Exports[exportIdx];
 
                     string details = Url.Action("GetNode", new { namespaceId = namespaceId, locator = locator, export = exportIdx})!;
-                    BundleType type = header.Types[export.TypeIdx];
+                    NodeType type = header.Types[export.TypeIdx];
                     string typeName = GetNodeType(type.Guid)?.Name ?? type.Guid.ToString();
 
                     responseExports.Add(new { export.Hash, export.Length, details, type = typeName });
@@ -466,7 +466,7 @@ namespace Jupiter.Controllers
 
             object content;
 
-            TreeNode node = await reader.ReadNodeAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+            Node node = await reader.ReadNodeAsync(new NodeLocator(locator, exportIdx), cancellationToken);
             switch (node)
             {
                 case DirectoryNode directoryNode:
@@ -501,7 +501,7 @@ namespace Jupiter.Controllers
             Dictionary<Guid, Type> guidToType = new Dictionary<Guid, Type>();
             foreach (Type nodeType in new TreeReaderOptions().Types)
             {
-                TreeNodeAttribute? attribute = nodeType.GetCustomAttribute<TreeNodeAttribute>();
+                NodeTypeAttribute? attribute = nodeType.GetCustomAttribute<NodeTypeAttribute>();
                 if (attribute != null)
                 {
                     guidToType.Add(Guid.Parse(attribute.Guid), nodeType);

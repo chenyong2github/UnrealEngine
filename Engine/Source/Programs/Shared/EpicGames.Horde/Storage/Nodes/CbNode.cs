@@ -12,8 +12,8 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// A node containing arbitrary compact binary data
 	/// </summary>
-	[TreeNode("{34A0793F-8364-42F4-8632-98A71C843229}", 1)]
-	public class CbNode : TreeNode
+	[NodeType("{34A0793F-8364-42F4-8632-98A71C843229}", 1)]
+	public class CbNode : Node
 	{
 		class HandleMapper
 		{
@@ -54,14 +54,14 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Imported nodes
 		/// </summary>
-		public IReadOnlyList<TreeNodeRef> References { get; }
+		public IReadOnlyList<NodeRef> References { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="obj">The compact binary object</param>
 		/// <param name="references">List of references to attachments</param>
-		public CbNode(CbObject obj, IReadOnlyList<TreeNodeRef> references)
+		public CbNode(CbObject obj, IReadOnlyList<NodeRef> references)
 		{
 			Object = obj;
 			References = references;
@@ -78,7 +78,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			HandleMapper mapper = new HandleMapper(reader.References);
 			Object.IterateAttachments(mapper.IterateField);
 
-			References = mapper.Handles.ConvertAll(x => new TreeNodeRef(x));
+			References = mapper.Handles.ConvertAll(x => new NodeRef(x));
 		}
 
 		/// <inheritdoc/>
@@ -88,6 +88,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<TreeNodeRef> EnumerateRefs() => References;
+		public override IEnumerable<NodeRef> EnumerateRefs() => References;
 	}
 }

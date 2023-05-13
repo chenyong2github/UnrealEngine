@@ -32,7 +32,7 @@ namespace Horde.Commands.Bundles
 			TreeReaderOptions options = new TreeReaderOptions();
 			foreach (Type type in options.Types)
 			{
-				TreeNodeAttribute? attribute = type.GetCustomAttribute<TreeNodeAttribute>();
+				NodeTypeAttribute? attribute = type.GetCustomAttribute<NodeTypeAttribute>();
 				if (attribute != null)
 				{
 					typeIdToName.Add(Guid.Parse(attribute.Guid), type.Name);

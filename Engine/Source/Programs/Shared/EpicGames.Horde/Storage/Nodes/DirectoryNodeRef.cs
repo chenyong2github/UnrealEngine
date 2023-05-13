@@ -12,7 +12,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// Reference to a directory node, including the target hash and length
 	/// </summary>
-	public class DirectoryNodeRef : TreeNodeRef<DirectoryNode>
+	public class DirectoryNodeRef : NodeRef<DirectoryNode>
 	{
 		/// <summary>
 		/// Length of this directory tree

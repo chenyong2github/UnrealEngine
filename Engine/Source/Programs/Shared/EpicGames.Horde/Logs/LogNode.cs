@@ -35,13 +35,13 @@ namespace EpicGames.Horde.Logs
 	/// <summary>
 	/// Represents an entire log
 	/// </summary>
-	[TreeNode("{274DF8F7-9E87-4B4F-8AD5-318CDB25AD33}", 1)]
-	public class LogNode : TreeNode
+	[NodeType("{274DF8F7-9E87-4B4F-8AD5-318CDB25AD33}", 1)]
+	public class LogNode : Node
 	{
 		/// <summary>
 		/// Default value for an empty log file
 		/// </summary>
-		public static LogNode Empty { get; } = new LogNode(LogFormat.Json, 0, 0, Array.Empty<LogChunkRef>(), new TreeNodeRef<LogIndexNode>(LogIndexNode.Empty), false);
+		public static LogNode Empty { get; } = new LogNode(LogFormat.Json, 0, 0, Array.Empty<LogChunkRef>(), new NodeRef<LogIndexNode>(LogIndexNode.Empty), false);
 
 		/// <summary>
 		/// Format for this log file
@@ -66,7 +66,7 @@ namespace EpicGames.Horde.Logs
 		/// <summary>
 		/// Index for this log
 		/// </summary>
-		public TreeNodeRef<LogIndexNode> IndexRef { get; }
+		public NodeRef<LogIndexNode> IndexRef { get; }
 
 		/// <summary>
 		/// Whether this log is complete
@@ -76,7 +76,7 @@ namespace EpicGames.Horde.Logs
 		/// <summary>
 		/// Deserializing constructor
 		/// </summary>
-		public LogNode(LogFormat format, int lineCount, long length, IReadOnlyList<LogChunkRef> textChunkRefs, TreeNodeRef<LogIndexNode> indexRef, bool complete)
+		public LogNode(LogFormat format, int lineCount, long length, IReadOnlyList<LogChunkRef> textChunkRefs, NodeRef<LogIndexNode> indexRef, bool complete)
 		{
 			Format = format;
 			LineCount = lineCount;
@@ -112,11 +112,11 @@ namespace EpicGames.Horde.Logs
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<TreeNodeRef> EnumerateRefs()
+		public override IEnumerable<NodeRef> EnumerateRefs()
 		{
 			yield return IndexRef;
 
-			foreach (TreeNodeRef<LogChunkNode> textChunkRef in TextChunkRefs)
+			foreach (NodeRef<LogChunkNode> textChunkRef in TextChunkRefs)
 			{
 				yield return textChunkRef;
 			}
@@ -297,7 +297,7 @@ namespace EpicGames.Horde.Logs
 				length += writeTextChunk.Length;
 			}
 
-			LogNode newRoot = new LogNode(_format, lineCount, length, newJsonChunkRefs, new TreeNodeRef<LogIndexNode>(newIndex), complete);
+			LogNode newRoot = new LogNode(_format, lineCount, length, newJsonChunkRefs, new NodeRef<LogIndexNode>(newIndex), complete);
 
 			NodeHandle newRootHandle = await writer.FlushAsync(newRoot, cancellationToken);
 

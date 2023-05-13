@@ -24,9 +24,9 @@ namespace Horde.Server.Tests
 			StorageService storageService = ServiceProvider.GetRequiredService<StorageService>();
 			IStorageClient client = await storageService.GetClientAsync(new NamespaceId("memory"), default);
 
-			List<BundleType> types = new List<BundleType>();
-			types.Add(new BundleType(Guid.Parse("{11C2D886-3349-4164-946F-E9D10BD12E3D}"), 0));
-			types.Add(new BundleType(Guid.Parse("{6CB3A005-26BA-4787-86D2-793ED13771CB}"), 0));
+			List<NodeType> types = new List<NodeType>();
+			types.Add(new NodeType(Guid.Parse("{11C2D886-3349-4164-946F-E9D10BD12E3D}"), 0));
+			types.Add(new NodeType(Guid.Parse("{6CB3A005-26BA-4787-86D2-793ED13771CB}"), 0));
 
 			byte[] data1 = new byte[] { 1, 2, 3 };
 			IoHash hash1 = IoHash.Compute(data1);

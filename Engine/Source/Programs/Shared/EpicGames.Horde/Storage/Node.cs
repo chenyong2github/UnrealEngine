@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,7 +13,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Base class for user-defined types that are stored in a tree
 	/// </summary>
-	public abstract class TreeNode
+	public abstract class Node
 	{
 		/// <summary>
 		/// Revision number of the node. Incremented whenever the node is modified, and used to track whether nodes are modified between 
@@ -30,12 +29,12 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Accessor for the bundle type definition associated with this node
 		/// </summary>
-		public BundleType BundleType => GetBundleType(GetType());
+		public NodeType NodeType => NodeType.Get(GetType());
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		protected TreeNode()
+		protected Node()
 		{
 		}
 
@@ -43,7 +42,7 @@ namespace EpicGames.Horde.Storage
 		/// Serialization constructor. Leaves the revision number zeroed by default.
 		/// </summary>
 		/// <param name="reader"></param>
-		protected TreeNode(ITreeNodeReader reader)
+		protected Node(ITreeNodeReader reader)
 		{
 			Hash = reader.Hash;
 		}
@@ -67,42 +66,7 @@ namespace EpicGames.Horde.Storage
 		/// Enumerate all outward references from this node
 		/// </summary>
 		/// <returns>References to other nodes</returns>
-		public abstract IEnumerable<TreeNodeRef> EnumerateRefs();
-
-		#region Static Methods
-
-		/// <summary>
-		/// Cache of constructed <see cref="BundleType"/> instances.
-		/// </summary>
-		static readonly ConcurrentDictionary<Type, BundleType> s_typeToBundleType = new ConcurrentDictionary<Type, BundleType>();
-
-		/// <summary>
-		/// Gets the <see cref="BundleType"/> instance for a particular node type
-		/// </summary>
-		/// <param name="type"></param>
-		/// <returns>Bundle</returns>
-		public static BundleType GetBundleType(Type type)
-		{
-			BundleType? bundleType;
-			if (!s_typeToBundleType.TryGetValue(type, out bundleType))
-			{
-				TreeNodeAttribute? attribute = type.GetCustomAttribute<TreeNodeAttribute>();
-				if (attribute == null)
-				{
-					throw new InvalidOperationException($"Missing {nameof(TreeNodeAttribute)} from type {type.Name}");
-				}
-				bundleType = s_typeToBundleType.GetOrAdd(type, new BundleType(Guid.Parse(attribute.Guid), attribute.Version));
-			}
-			return bundleType;
-		}
-
-		/// <summary>
-		/// Gets the <see cref="BundleType"/> instance for a particular node type
-		/// </summary>
-		/// <typeparam name="T">Type of the node</typeparam>
-		public static BundleType GetBundleType<T>() where T : TreeNode => GetBundleType(typeof(T));
-
-		#endregion
+		public abstract IEnumerable<NodeRef> EnumerateRefs();
 	}
 
 	/// <summary>
@@ -118,44 +82,18 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Attribute used to define a factory for a particular node type
+	/// Extension methods for serializing <see cref="Node"/> objects
 	/// </summary>
-	[AttributeUsage(AttributeTargets.Class)]
-	public sealed class TreeNodeAttribute : Attribute
-	{
-		/// <summary>
-		/// Name of the type to store in the bundle header
-		/// </summary>
-		public string Guid { get; }
-
-		/// <summary>
-		/// Version number of the serializer
-		/// </summary>
-		public int Version { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public TreeNodeAttribute(string guid, int version = 1)
-		{
-			Guid = guid;
-			Version = version;
-		}
-	}
-
-	/// <summary>
-	/// Extension methods for serializing <see cref="TreeNode"/> objects
-	/// </summary>
-	public static class TreeNodeExtensions
+	public static class NodeExtensions
 	{
 		/// <summary>
 		/// Read an untyped ref from the reader
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New untyped ref</returns>
-		public static TreeNodeRef ReadRef(this ITreeNodeReader reader)
+		public static NodeRef ReadRef(this ITreeNodeReader reader)
 		{
-			return new TreeNodeRef(reader);
+			return new NodeRef(reader);
 		}
 
 		/// <summary>
@@ -164,9 +102,9 @@ namespace EpicGames.Horde.Storage
 		/// <typeparam name="T">Type of the referenced node</typeparam>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New strongly typed ref</returns>
-		public static TreeNodeRef<T> ReadRef<T>(this ITreeNodeReader reader) where T : TreeNode
+		public static NodeRef<T> ReadRef<T>(this ITreeNodeReader reader) where T : Node
 		{
-			return new TreeNodeRef<T>(reader);
+			return new NodeRef<T>(reader);
 		}
 
 		/// <summary>
@@ -174,7 +112,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New untyped ref</returns>
-		public static TreeNodeRef? ReadOptionalRef(this ITreeNodeReader reader)
+		public static NodeRef? ReadOptionalRef(this ITreeNodeReader reader)
 		{
 			if (reader.ReadBoolean())
 			{
@@ -191,7 +129,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns>New strongly typed ref</returns>
-		public static TreeNodeRef<T>? ReadOptionalRef<T>(this ITreeNodeReader reader) where T : TreeNode
+		public static NodeRef<T>? ReadOptionalRef<T>(this ITreeNodeReader reader) where T : Node
 		{
 			if (reader.ReadBoolean())
 			{
@@ -208,7 +146,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public static void WriteRef(this ITreeNodeWriter writer, TreeNodeRef value)
+		public static void WriteRef(this ITreeNodeWriter writer, NodeRef value)
 		{
 			value.Serialize(writer);
 		}
@@ -218,7 +156,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public static void WriteOptionalRef(this ITreeNodeWriter writer, TreeNodeRef? value)
+		public static void WriteOptionalRef(this ITreeNodeWriter writer, NodeRef? value)
 		{
 			if (value == null)
 			{
@@ -242,7 +180,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="refOptions">Options for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Location of node targetted by the ref</returns>
-		public static async Task<NodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, TreeNode node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
+		public static async Task<NodeHandle> WriteNodeAsync(this IStorageClient store, RefName name, Node node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
 			using TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
 			return await writer.WriteAsync(name, node, refOptions, cancellationToken);

@@ -56,7 +56,7 @@ namespace Horde.Commands.Vcs
 			TreeReader reader = new TreeReader(store, cache, logger);
 
 			CommitNode? tip = await reader.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
-			TreeNodeRef<CommitNode>? tipRef = (tip == null) ? null : new TreeNodeRef<CommitNode>(tip);
+			NodeRef<CommitNode>? tipRef = (tip == null) ? null : new NodeRef<CommitNode>(tip);
 
 			DirectoryNode rootNode;
 			if (tip == null)

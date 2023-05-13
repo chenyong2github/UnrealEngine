@@ -34,14 +34,14 @@ namespace EpicGames.Horde.Storage
 	/// Multiple refs MAY point to the same target object.
 	/// 
 	/// To read an untracked object that can be added to a new ref, call <see cref="TreeReader.ReadNodeAsync(NodeLocator, CancellationToken)"/> 
-	/// directly, or use <see cref="TreeNodeRef{T}.ExpandCopyAsync(TreeReader, CancellationToken)"/>.
+	/// directly, or use <see cref="NodeRef{T}.ExpandCopyAsync(TreeReader, CancellationToken)"/>.
 	/// </summary>
-	public class TreeNodeRef
+	public class NodeRef
 	{
 		/// <summary>
 		/// The target node, or null if the node is not resident in memory.
 		/// </summary>
-		public TreeNode? Target { get; private set; }
+		public Node? Target { get; private set; }
 
 		/// <summary>
 		/// Handle to the node if in storage (or pending write to storage)
@@ -52,7 +52,7 @@ namespace EpicGames.Horde.Storage
 		/// Creates a reference to a node in memory.
 		/// </summary>
 		/// <param name="target">Node to reference</param>
-		public TreeNodeRef(TreeNode target)
+		public NodeRef(Node target)
 		{
 			Target = target;
 		}
@@ -61,7 +61,7 @@ namespace EpicGames.Horde.Storage
 		/// Creates a reference to a node in storage.
 		/// </summary>
 		/// <param name="handle">Handle to the referenced node</param>
-		public TreeNodeRef(NodeHandle handle)
+		public NodeRef(NodeHandle handle)
 		{
 			Handle = handle;
 		}
@@ -70,7 +70,7 @@ namespace EpicGames.Horde.Storage
 		/// Deserialization constructor
 		/// </summary>
 		/// <param name="reader"></param>
-		public TreeNodeRef(ITreeNodeReader reader) : this(reader.ReadNodeHandle())
+		public NodeRef(ITreeNodeReader reader) : this(reader.ReadNodeHandle())
 		{
 		}
 
@@ -130,7 +130,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="reader">Reader to use for expanding this ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async ValueTask<TreeNode> ExpandAsync(TreeReader reader, CancellationToken cancellationToken = default)
+		public async ValueTask<Node> ExpandAsync(TreeReader reader, CancellationToken cancellationToken = default)
 		{
 			if (Target == null)
 			{
@@ -168,10 +168,10 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Strongly typed reference to a <see cref="TreeNode"/>
+	/// Strongly typed reference to a <see cref="Node"/>
 	/// </summary>
 	/// <typeparam name="T">Type of the node</typeparam>
-	public class TreeNodeRef<T> : TreeNodeRef where T : TreeNode
+	public class NodeRef<T> : NodeRef where T : Node
 	{
 		/// <summary>
 		/// Accessor for the target node
@@ -182,7 +182,7 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="target">The referenced node</param>
-		public TreeNodeRef(T target) : base(target)
+		public NodeRef(T target) : base(target)
 		{
 		}
 
@@ -190,7 +190,7 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="handle">Handle to the referenced node</param>
-		public TreeNodeRef(NodeHandle handle) : base(handle)
+		public NodeRef(NodeHandle handle) : base(handle)
 		{
 		}
 
@@ -198,7 +198,7 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="reader">The reader to deserialize from</param>
-		public TreeNodeRef(ITreeNodeReader reader) : base(reader)
+		public NodeRef(ITreeNodeReader reader) : base(reader)
 		{
 		}
 
@@ -232,7 +232,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Extension methods for writing node
 	/// </summary>
-	public static class TreeNodeRefExtensions
+	public static class NodeRefExtensions
 	{
 		// Implementation of INodeWriter that tracks refs
 		class NodeWriter : ITreeNodeWriter
@@ -285,10 +285,10 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		internal class NodeWriteCallback : TreeWriter.WriteCallback
 		{
-			readonly TreeNodeRef _nodeRef;
+			readonly NodeRef _nodeRef;
 			readonly NodeHandle _handle;
 
-			public NodeWriteCallback(TreeNodeRef nodeRef, NodeHandle handle)
+			public NodeWriteCallback(NodeRef nodeRef, NodeHandle handle)
 			{
 				_nodeRef = nodeRef;
 				_handle = handle;
@@ -310,10 +310,10 @@ namespace EpicGames.Horde.Storage
 		/// <param name="nodeRef">Reference to the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>A flag indicating whether the node is dirty, and if it is, an optional bundle that contains it</returns>
-		public static async ValueTask<NodeHandle> WriteAsync(this TreeWriter writer, TreeNodeRef nodeRef, CancellationToken cancellationToken)
+		public static async ValueTask<NodeHandle> WriteAsync(this TreeWriter writer, NodeRef nodeRef, CancellationToken cancellationToken)
 		{
 			// Check we actually have a target node. If we don't, we don't need to write anything.
-			TreeNode? target = nodeRef.Target;
+			Node? target = nodeRef.Target;
 			if (target == null)
 			{
 				Debug.Assert(nodeRef.Handle != null);
@@ -321,9 +321,9 @@ namespace EpicGames.Horde.Storage
 			}
 
 			// Write all the nodes it references, and mark the ref as dirty if any of them change.
-			List<TreeNodeRef> nextRefs = target.EnumerateRefs().ToList();
+			List<NodeRef> nextRefs = target.EnumerateRefs().ToList();
 			List<NodeHandle> nextRefHandles = new List<NodeHandle>(nextRefs.Count);
-			foreach (TreeNodeRef nextRef in nextRefs)
+			foreach (NodeRef nextRef in nextRefs)
 			{
 				NodeHandle nextRefHandle = await WriteAsync(writer, nextRef, cancellationToken);
 				if (!nextRefHandle.Locator.IsValid())
@@ -350,7 +350,7 @@ namespace EpicGames.Horde.Storage
 			target.Serialize(nodeWriter);
 
 			// Write the final data
-			NodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nextRefHandles, target.BundleType, cancellationToken);
+			NodeHandle handle = await writer.WriteNodeAsync(nodeWriter.Length, nextRefHandles, target.NodeType, cancellationToken);
 			target.Hash = handle.Hash;
 
 			NodeWriteCallback writeState = new NodeWriteCallback(nodeRef, handle);
@@ -369,9 +369,9 @@ namespace EpicGames.Horde.Storage
 		/// <param name="options"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<NodeHandle> WriteAsync(this TreeWriter writer, RefName name, TreeNode node, RefOptions? options = null, CancellationToken cancellationToken = default)
+		public static async Task<NodeHandle> WriteAsync(this TreeWriter writer, RefName name, Node node, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
-			TreeNodeRef nodeRef = new TreeNodeRef(node);
+			NodeRef nodeRef = new NodeRef(node);
 			await writer.WriteAsync(nodeRef, cancellationToken);
 			await writer.FlushAsync(cancellationToken);
 
@@ -387,9 +387,9 @@ namespace EpicGames.Horde.Storage
 		/// <param name="root">Root for the tree</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public static async Task<NodeHandle> FlushAsync(this TreeWriter writer, TreeNode root, CancellationToken cancellationToken = default)
+		public static async Task<NodeHandle> FlushAsync(this TreeWriter writer, Node root, CancellationToken cancellationToken = default)
 		{
-			TreeNodeRef rootRef = new TreeNodeRef(root);
+			NodeRef rootRef = new NodeRef(root);
 
 			NodeHandle handle = await writer.WriteAsync(rootRef, cancellationToken);
 			writer._traceLogger?.LogInformation("Written root node {Handle}", handle);

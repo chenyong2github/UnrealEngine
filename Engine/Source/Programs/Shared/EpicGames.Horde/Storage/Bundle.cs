@@ -297,7 +297,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="imports">Imported bundles</param>
 		/// <param name="exports">Exports for nodes</param>
 		/// <param name="packets">Compression packets within the bundle</param>
-		public static BundleHeader Create(IReadOnlyList<BundleType> types, IReadOnlyList<BlobLocator> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
+		public static BundleHeader Create(IReadOnlyList<NodeType> types, IReadOnlyList<BlobLocator> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
 		{
 			// Find the size of all the sections
 			int typesLength = BundleTypeCollection.Measure(types);
@@ -451,14 +451,14 @@ namespace EpicGames.Horde.Storage
 
 			// Read the types
 			int numTypes = (int)reader.ReadUnsignedVarInt();
-			List<BundleType> types = new List<BundleType>(numTypes);
+			List<NodeType> types = new List<NodeType>(numTypes);
 
 			for (int typeIdx = 0; typeIdx < numTypes; typeIdx++)
 			{
 				Guid guid = reader.ReadGuid();
 				int serializerVersion = (int)reader.ReadUnsignedVarInt();
 
-				types.Add(new BundleType(guid, serializerVersion));
+				types.Add(new NodeType(guid, serializerVersion));
 			}
 
 			// Read the imports
@@ -604,93 +604,15 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Information about a type within a bundle
-	/// </summary>
-	[DebuggerDisplay("{Guid}#{Version}")]
-	public class BundleType : IEquatable<BundleType>
-	{
-		/// <summary>
-		/// Number of bytes in a serialized object
-		/// </summary>
-		public const int NumBytes = 20;
-
-		/// <summary>
-		/// Nominal identifier for the type
-		/// </summary>
-		public Guid Guid { get; }
-
-		/// <summary>
-		/// Version number for the serializer
-		/// </summary>
-		public int Version { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="guid">Nominal identifier for the type</param>
-		/// <param name="version">Version number for the serializer</param>
-		public BundleType(Guid guid, int version)
-		{
-			Guid = guid;
-			Version = version;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="data">Data to read from</param>
-		public BundleType(ReadOnlySpan<byte> data)
-			: this(new Guid(data.Slice(0, 16)), BinaryPrimitives.ReadInt32LittleEndian(data.Slice(16)))
-		{
-		}
-
-		/// <summary>
-		/// Serializes a type to storage
-		/// </summary>
-		/// <param name="data">Data to write to</param>
-		public void CopyTo(Span<byte> data)
-		{
-			Guid.TryWriteBytes(data.Slice(0, 16));
-			BinaryPrimitives.WriteInt32LittleEndian(data.Slice(16), Version);
-		}
-
-		/// <summary>
-		/// Parse a span of characters as a bundle type
-		/// </summary>
-		/// <param name="text">Text to parse</param>
-		/// <returns>The parsed bundle type</returns>
-		public static BundleType Parse(ReadOnlySpan<char> text)
-		{
-			int hashIdx = text.IndexOf('#');
-			Guid guid = Guid.Parse(text.Slice(0, hashIdx));
-			int version = Int32.Parse(text.Slice(hashIdx + 1), NumberStyles.None, CultureInfo.InvariantCulture);
-			return new BundleType(guid, version);
-		}
-
-		/// <inheritdoc/>
-		public override bool Equals(object? obj) => obj is BundleType type && Equals(type);
-
-		/// <inheritdoc/>
-		public override int GetHashCode() => HashCode.Combine(Guid, Version);
-
-		/// <inheritdoc/>
-		public bool Equals(BundleType? type) => type is object && Guid == type.Guid && Version == type.Version;
-
-		/// <inheritdoc/>
-		public override string ToString() => $"{Guid}#{Version}";
-
-		/// <inheritdoc/>
-		public static bool operator ==(BundleType lhs, BundleType rhs) => lhs.Equals(rhs);
-
-		/// <inheritdoc/>
-		public static bool operator !=(BundleType lhs, BundleType rhs) => !lhs.Equals(rhs);
-	}
-
-	/// <summary>
 	/// Collection of node types in a bundle
 	/// </summary>
-	public struct BundleTypeCollection : IReadOnlyList<BundleType>
+	public struct BundleTypeCollection
 	{
+		/// <summary>
+		/// Number of bytes in a serialized <see cref="NodeType"/> instance
+		/// </summary>
+		const int NumBytesPerType = 20;
+
 		/// <summary>
 		/// Data for this collection
 		/// </summary>
@@ -704,7 +626,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleTypeCollection(IReadOnlyList<BundleType> types)
+		public BundleTypeCollection(IReadOnlyList<NodeType> types)
 		{
 			byte[] data = new byte[Measure(types)];
 			Write(data, types);
@@ -712,43 +634,44 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <inheritdoc/>
-		public int Count => Data.Length / BundleType.NumBytes;
+		public int Count => Data.Length / NumBytesPerType;
 
 		/// <inheritdoc/>
-		public BundleType this[int index] => new BundleType(Data.Slice(index * BundleType.NumBytes).Span);
-
-		/// <inheritdoc/>
-		public IEnumerator<BundleType> GetEnumerator()
+		public NodeType this[int index]
 		{
-			int count = Count;
-			for (int idx = 0; idx < count; idx++)
+			get
 			{
-				yield return this[idx];
+				ReadOnlySpan<byte> span = Data.Slice(index * NumBytesPerType, NumBytesPerType).Span;
+
+				Guid guid = new Guid(span.Slice(0, 16));
+				int version = BinaryPrimitives.ReadInt32LittleEndian(span.Slice(16));
+
+				return new NodeType(guid, version);
 			}
 		}
-
-		/// <inheritdoc/>
-		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 		/// <summary>
 		/// Gets the size of memory required to serialize a collection of types
 		/// </summary>
 		/// <param name="types">Type collection</param>
 		/// <returns>Number of bytes required to serialize the types</returns>
-		public static int Measure(IReadOnlyCollection<BundleType> types) => types.Count * BundleType.NumBytes;
+		public static int Measure(IReadOnlyCollection<NodeType> types) => types.Count * NumBytesPerType;
 
 		/// <summary>
 		/// Serializes a set of types to a fixed block of memory
 		/// </summary>
 		/// <param name="span">Span to write the types to</param>
 		/// <param name="types">Collection of types to be written</param>
-		public static void Write(Span<byte> span, IReadOnlyCollection<BundleType> types)
+		public static void Write(Span<byte> span, IReadOnlyCollection<NodeType> types)
 		{
 			Span<byte> next = span;
-			foreach (BundleType type in types)
+			foreach (NodeType type in types)
 			{
-				type.CopyTo(next);
-				next = next.Slice(BundleType.NumBytes);
+				type.Guid.TryWriteBytes(next.Slice(0, 16));
+				next = next.Slice(16);
+
+				BinaryPrimitives.WriteInt32LittleEndian(next, type.Version);
+				next = next.Slice(4);
 			}
 			Debug.Assert(next.Length == 0);
 		}

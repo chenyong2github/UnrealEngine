@@ -515,7 +515,7 @@ namespace Horde.Server.Storage
 					BundleExport export = header.Exports[exportIdx];
 
 					string details = $"{linkBase}/nodes/{locator}?export={exportIdx}";
-					BundleType type = header.Types[export.TypeIdx];
+					NodeType type = header.Types[export.TypeIdx];
 					string typeName = GetNodeType(type.Guid)?.Name ?? type.Guid.ToString();
 
 					responseExports.Add(new { export.Hash, export.Length, details, type = typeName });
@@ -579,7 +579,7 @@ namespace Horde.Server.Storage
 
 			object content;
 
-			TreeNode node = await reader.ReadNodeAsync(new NodeLocator(locator, exportIdx), cancellationToken);
+			Node node = await reader.ReadNodeAsync(new NodeLocator(locator, exportIdx), cancellationToken);
 			switch (node)
 			{
 				case DirectoryNode directoryNode:
@@ -607,7 +607,7 @@ namespace Horde.Server.Storage
 			return new { bundle = $"{linkBase}/bundles/{locator}", export.Hash, export.Length, guid = header.Types[export.TypeIdx].Guid, type = node.GetType().Name, content = content };
 		}
 
-		static string GetNodeLink(string linkBase, TreeNodeRef treeNodeRef) => $"{linkBase}/nodes/{treeNodeRef.Handle!.Locator.Blob}?export={treeNodeRef.Handle!.Locator.ExportIdx}";
+		static string GetNodeLink(string linkBase, NodeRef treeNodeRef) => $"{linkBase}/nodes/{treeNodeRef.Handle!.Locator.Blob}?export={treeNodeRef.Handle!.Locator.ExportIdx}";
 
 		static readonly Dictionary<Guid, Type> s_guidToType = GetGuidToTypeMap();
 
@@ -616,7 +616,7 @@ namespace Horde.Server.Storage
 			Dictionary<Guid, Type> guidToType = new Dictionary<Guid, Type>();
 			foreach (Type nodeType in new TreeReaderOptions().Types)
 			{
-				TreeNodeAttribute? attribute = nodeType.GetCustomAttribute<TreeNodeAttribute>();
+				NodeTypeAttribute? attribute = nodeType.GetCustomAttribute<NodeTypeAttribute>();
 				if (attribute != null)
 				{
 					guidToType.Add(Guid.Parse(attribute.Guid), nodeType);

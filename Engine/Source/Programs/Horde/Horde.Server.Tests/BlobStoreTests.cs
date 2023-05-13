@@ -44,8 +44,8 @@ namespace Horde.Server.Tests
 
 		static Bundle CreateTestBundle(ReadOnlyMemory<byte> data, IReadOnlyList<BlobLocator> refs)
 		{
-			List<BundleType> types = new List<BundleType>();
-			types.Add(new BundleType(Guid.Parse("{AFDF76A7-5333-4DEE-B837-B5F5CA511245}"), 1));
+			List<NodeType> types = new List<NodeType>();
+			types.Add(new NodeType(Guid.Parse("{AFDF76A7-5333-4DEE-B837-B5F5CA511245}"), 1));
 
 			List<BlobLocator> imports = new List<BlobLocator>(refs);
 

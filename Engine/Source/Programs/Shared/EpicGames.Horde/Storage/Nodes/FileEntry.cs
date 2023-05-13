@@ -49,7 +49,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// Entry for a file within a directory node
 	/// </summary>
-	public sealed class FileEntry : TreeNodeRef<FileNode>
+	public sealed class FileEntry : NodeRef<FileNode>
 	{
 		/// <summary>
 		/// Name of this file

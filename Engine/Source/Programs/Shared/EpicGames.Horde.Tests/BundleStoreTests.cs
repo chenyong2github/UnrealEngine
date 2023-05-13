@@ -34,8 +34,8 @@ namespace EpicGames.Horde.Tests
 			Assert.IsTrue(bytesA.SequenceEqual(bytesB));
 		}
 
-		[TreeNode("{F63606D4-5DBB-4061-A655-6F444F65229E}")]
-		class TextNode : TreeNode
+		[NodeType("{F63606D4-5DBB-4061-A655-6F444F65229E}")]
+		class TextNode : Node
 		{
 			public string Text { get; }
 
@@ -51,7 +51,7 @@ namespace EpicGames.Horde.Tests
 				writer.WriteString(Text);
 			}
 
-			public override IEnumerable<TreeNodeRef> EnumerateRefs() => Array.Empty<TreeNodeRef>();
+			public override IEnumerable<NodeRef> EnumerateRefs() => Array.Empty<NodeRef>();
 		}
 
 		static async Task<Bundle> CreateBundleNormalAsync()
@@ -71,8 +71,8 @@ namespace EpicGames.Horde.Tests
 			payloadWriter.WriteString("Hello world");
 			byte[] payload = payloadWriter.WrittenMemory.ToArray();
 
-			List<BundleType> types = new List<BundleType>();
-			types.Add(new BundleType(Guid.Parse("F63606D4-5DBB-4061-A655-6F444F65229E"), 1));
+			List<NodeType> types = new List<NodeType>();
+			types.Add(new NodeType(Guid.Parse("F63606D4-5DBB-4061-A655-6F444F65229E"), 1));
 
 			List<BundleExport> exports = new List<BundleExport>();
 			exports.Add(new BundleExport(0, IoHash.Compute(payload), 0, 0, payload.Length, Array.Empty<BundleExportRef>()));
@@ -108,13 +108,13 @@ namespace EpicGames.Horde.Tests
 			Assert.AreEqual(1, blobStore.Refs.Count);
 		}
 		
-		[TreeNode("{F63606D4-5DBB-4061-A655-6F444F65229F}")]
-		class SimpleNode : TreeNode
+		[NodeType("{F63606D4-5DBB-4061-A655-6F444F65229F}")]
+		class SimpleNode : Node
 		{
 			public ReadOnlySequence<byte> Data { get; }
-			public IReadOnlyList<TreeNodeRef<SimpleNode>> Refs { get; }
+			public IReadOnlyList<NodeRef<SimpleNode>> Refs { get; }
 
-			public SimpleNode(ReadOnlySequence<byte> data, IReadOnlyList<TreeNodeRef<SimpleNode>> refs)
+			public SimpleNode(ReadOnlySequence<byte> data, IReadOnlyList<NodeRef<SimpleNode>> refs)
 			{
 				Data = data;
 				Refs = refs;
@@ -132,7 +132,7 @@ namespace EpicGames.Horde.Tests
 				writer.WriteVariableLengthArray(Refs, x => writer.WriteRef(x));
 			}
 
-			public override IEnumerable<TreeNodeRef> EnumerateRefs() => Refs;
+			public override IEnumerable<NodeRef> EnumerateRefs() => Refs;
 		}
 
 		static async Task TestTreeAsync(MemoryStorageClient store, TreeOptions options)
@@ -141,12 +141,12 @@ namespace EpicGames.Horde.Tests
 			{
 				using TreeWriter writer = new TreeWriter(store, options, "test");
 
-				SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<TreeNodeRef<SimpleNode>>());
-				SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new TreeNodeRef<SimpleNode>(node1) });
-				SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { new TreeNodeRef<SimpleNode>(node2) });
-				SimpleNode node4 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<TreeNodeRef<SimpleNode>>());
+				SimpleNode node1 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 1 }), Array.Empty<NodeRef<SimpleNode>>());
+				SimpleNode node2 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 2 }), new[] { new NodeRef<SimpleNode>(node1) });
+				SimpleNode node3 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 3 }), new[] { new NodeRef<SimpleNode>(node2) });
+				SimpleNode node4 = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 4 }), Array.Empty<NodeRef<SimpleNode>>());
 
-				SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new TreeNodeRef<SimpleNode>(node4), new TreeNodeRef<SimpleNode>(node3) });
+				SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new NodeRef<SimpleNode>(node4), new NodeRef<SimpleNode>(node3) });
 
 				await writer.WriteAsync(new RefName("test"), root);
 
@@ -167,31 +167,31 @@ namespace EpicGames.Horde.Tests
 			SimpleNode node5 = root;
 			byte[] data5 = node5.Data.ToArray();
 			Assert.IsTrue(data5.SequenceEqual(new byte[] { 5 }));
-			IReadOnlyList<TreeNodeRef<SimpleNode>> refs5 = node5.Refs;
+			IReadOnlyList<NodeRef<SimpleNode>> refs5 = node5.Refs;
 			Assert.AreEqual(2, refs5.Count);
 
 			SimpleNode node4 = await refs5[0].ExpandAsync(reader);
 			byte[] data4 = node4.Data.ToArray();
 			Assert.IsTrue(data4.SequenceEqual(new byte[] { 4 }));
-			IReadOnlyList<TreeNodeRef<SimpleNode>> refs4 = node4.Refs;
+			IReadOnlyList<NodeRef<SimpleNode>> refs4 = node4.Refs;
 			Assert.AreEqual(0, refs4.Count);
 
 			SimpleNode node3 = await refs5[1].ExpandAsync(reader);
 			byte[] data3 = node3.Data.ToArray();
 			Assert.IsTrue(data3.SequenceEqual(new byte[] { 3 }));
-			IReadOnlyList<TreeNodeRef<SimpleNode>> refs3 = node3.Refs;
+			IReadOnlyList<NodeRef<SimpleNode>> refs3 = node3.Refs;
 			Assert.AreEqual(1, refs3.Count);
 
 			SimpleNode node2 = await refs3[0].ExpandAsync(reader);
 			byte[] data2 = node2.Data.ToArray();
 			Assert.IsTrue(data2.SequenceEqual(new byte[] { 2 }));
-			IReadOnlyList<TreeNodeRef<SimpleNode>> refs2 = node2.Refs;
+			IReadOnlyList<NodeRef<SimpleNode>> refs2 = node2.Refs;
 			Assert.AreEqual(1, refs2.Count);
 
 			SimpleNode node1 = await refs2[0].ExpandAsync(reader);
 			byte[] data1 = node1.Data.ToArray();
 			Assert.IsTrue(data1.SequenceEqual(new byte[] { 1 }));
-			IReadOnlyList<TreeNodeRef<SimpleNode>> refs1 = node1.Refs;
+			IReadOnlyList<NodeRef<SimpleNode>> refs1 = node1.Refs;
 			Assert.AreEqual(0, refs1.Count);
 		}
 
@@ -201,7 +201,7 @@ namespace EpicGames.Horde.Tests
 			MemoryStorageClient store = new MemoryStorageClient();
 
 			RefName refName = new RefName("test");
-			await store.WriteNodeAsync(refName, new SimpleNode(new ReadOnlySequence<byte>(new byte[] { (byte)123 }), Array.Empty<TreeNodeRef<SimpleNode>>()));
+			await store.WriteNodeAsync(refName, new SimpleNode(new ReadOnlySequence<byte>(new byte[] { (byte)123 }), Array.Empty<NodeRef<SimpleNode>>()));
 
 			TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
 			SimpleNode node = await reader.ReadNodeAsync<SimpleNode>(refName);
@@ -384,7 +384,7 @@ namespace EpicGames.Horde.Tests
 				await CompareTrees(reader, root, newRoot);
 				await CheckLargeFileTreeAsync(reader, root, data);
 
-				TreeNodeRef<FileNode> file = root.GetFileEntry("test");
+				NodeRef<FileNode> file = root.GetFileEntry("test");
 
 				long uniqueSize = store.Blobs.Values.SelectMany(x => x.Header.Packets).Sum(x => x.DecodedLength);
 				Assert.IsTrue(uniqueSize < data.Length / 3); // random fraction meaning "lots of dedupe happened"
@@ -413,7 +413,7 @@ namespace EpicGames.Horde.Tests
 				Assert.AreEqual(oldInteriorNode.Children.Count, newInteriorNode.Children.Count);
 
 				int index = 0;
-				foreach ((TreeNodeRef<FileNode> oldFileRef, TreeNodeRef<FileNode> newFileRef) in oldInteriorNode.Children.Zip(newInteriorNode.Children))
+				foreach ((NodeRef<FileNode> oldFileRef, NodeRef<FileNode> newFileRef) in oldInteriorNode.Children.Zip(newInteriorNode.Children))
 				{
 					FileNode oldFile = await oldFileRef.ExpandAsync(reader);
 					FileNode newFile = await newFileRef.ExpandAsync(reader);
@@ -453,7 +453,7 @@ namespace EpicGames.Horde.Tests
 			}
 			else if (fileNode is InteriorFileNode interiorFileNode)
 			{
-				foreach (TreeNodeRef<FileNode> childRef in interiorFileNode.Children)
+				foreach (NodeRef<FileNode> childRef in interiorFileNode.Children)
 				{
 					FileNode child = await childRef.ExpandAsync(reader);
 					offset += await CheckFileDataAsync(reader, child, data.Slice(offset));
