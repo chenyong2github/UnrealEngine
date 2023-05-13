@@ -30,6 +30,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Misc/TrackedActivity.h"
 #include "AssetRegistry/PackageReader.h"
+#include "ProfilingDebugging/MiscTrace.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -1591,6 +1592,7 @@ namespace UE::AssetRegistry
 void FAssetRegistryImpl::SearchAllAssets(Impl::FEventContext& EventContext,
 	Impl::FClassInheritanceContext& InheritanceContext, bool bSynchronousSearch)
 {
+	TRACE_BEGIN_REGION(TEXT("Asset Registry Scan"));
 	ConstructGatherer();
 	FAssetDataGatherer& Gatherer = *GlobalGatherer;
 	if (!Gatherer.IsAsyncEnabled())
@@ -3799,6 +3801,7 @@ bool FAssetRegistryImpl::IsLoadingAssets() const
 void UAssetRegistryImpl::Tick(float DeltaTime)
 {
 	checkf(IsInGameThread(), TEXT("The tick function executes deferred loads and events and must be on the game thread to do so."));
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR("Asset Registry Tick");
 
 	UE::AssetRegistry::Impl::EGatherStatus Status = UE::AssetRegistry::Impl::EGatherStatus::Active;
 	double TickStartTime = -1; // Force a full flush if DeltaTime < 0
@@ -4024,6 +4027,7 @@ Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventC
 #endif
 			RecordTimer();
 			LogSearchDiagnostics();
+			TRACE_END_REGION(TEXT("Asset Registry Scan"));
 
 			bInitialSearchCompleted = true;
 
@@ -4662,7 +4666,7 @@ void FAssetRegistryImpl::ScanPathsSynchronous(Impl::FScanPathContext& Context)
 	if (!CacheFilePackagePaths.IsEmpty())
 	{
 		CacheFilename = Gatherer.GetCacheFilename(CacheFilePackagePaths);
-		Gatherer.LoadCacheFile(CacheFilename);
+		Gatherer.LoadCacheFiles({CacheFilename});
 	}
 
 	Gatherer.ScanPathsSynchronous(Context.LocalPaths, Context.bForceRescan, Context.bIgnoreDenyListScanFilters, CacheFilename, Context.PackageDirs);
@@ -4809,6 +4813,7 @@ void FAssetRegistryImpl::PostLoadAssetRegistryTags(FAssetData* AssetData)
 
 void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventContext, const double TickStartTime, TMultiMap<FName, FAssetData*>& AssetResults)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AssetSearchDataGathered);
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	// Refreshes ClassGeneratorNames if out of date due to module load
@@ -4906,6 +4911,7 @@ void FAssetRegistryImpl::AssetSearchDataGathered(Impl::FEventContext& EventConte
 
 void FAssetRegistryImpl::PathDataGathered(Impl::FEventContext& EventContext, const double TickStartTime, TRingBuffer<FString>& PathResults)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(PathDataGathered);
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
 	TSet<FString> MountPoints;
@@ -4941,6 +4947,7 @@ void FAssetRegistryImpl::PathDataGathered(Impl::FEventContext& EventContext, con
 
 void FAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TMultiMap<FName, FPackageDependencyData>& DependsResults)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(DependencyDataGathered);
 	using namespace UE::AssetRegistry;
 	const bool bFlushFullBuffer = TickStartTime < 0;
 
@@ -5067,6 +5074,7 @@ void FAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TMul
 void FAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(Impl::FEventContext& EventContext,
 	const double TickStartTime, TRingBuffer<FString>& CookedPackageNamesWithoutAssetDataResults, bool& bOutInterrupted)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(CookedPackageNamesWithoutAssetDataGathered);
 	bOutInterrupted = false;
 
 	struct FConfigValue
@@ -5110,6 +5118,7 @@ void FAssetRegistryImpl::CookedPackageNamesWithoutAssetDataGathered(Impl::FEvent
 
 void FAssetRegistryImpl::VerseFilesGathered(Impl::FEventContext& EventContext, const double TickStartTime, TRingBuffer<FName>& VerseResults)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(VerseFilesGathered);
 	while (VerseResults.Num() > 0)
 	{
 		FName VerseFilePath = VerseResults.PopFrontValue();

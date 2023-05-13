@@ -171,7 +171,7 @@ public:
 	/** Calculate the cache filename that should be used for the given list of package paths. */
 	FString GetCacheFilename(TConstArrayView<FString> CacheFilePackagePaths);
 	/** Attempt to read the cache file at the given LocalPath, and store all of its results in the in-memory cache. */
-	void LoadCacheFile(FStringView CacheFilename);
+	void LoadCacheFiles(TConstArrayView<FString> CacheFilename);
 	/** Return the memory used by the gatherer. Used for performance metrics. */
 	SIZE_T GetAllocatedSize() const;
 
@@ -279,25 +279,35 @@ private:
 		TArray<FString>& CookedPackagesToLoadUponDiscovery, bool& OutCanRetry) const;
 
 	/** Add the given AssetDatas into DiskCachedAssetDataMap and DiskCachedAssetBlocks. */
-	void ConsumeCacheFile(UE::AssetDataGather::Private::FCachePayload&& Payload);
+	void ConsumeCacheFiles(TArray<UE::AssetDataGather::Private::FCachePayload> Payloads);
 	/**
 	 * If a save of the monolithic cache has been triggered, get the cache filename and pointers to all elements that
 	 * should be saved, for later saving outside of the critical section.
 	 */
 	void TryReserveSaveMonolithicCache(bool& bOutShouldSave, TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave);
+	/** 
+	 * Save a monolithic cache for the main asset discovery process, possibly sharded into multiple files.
+	*/
+	void SaveMonolithicCacheFile(const TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave);
 	/**
 	 * If the CacheFilename/AssetsToSave are non empty, save the cache file. 
 	 * This function reads the read-only-after-creation data from each FDiskCachedAssetData*, but otherwise does not use
 	 * data from this Gatherer and so can be run outside any critical section.
+	 * Returns the size of the saved file, or 0 if nothing was saved for any reason.
 	 */
-	void SaveCacheFileInternal(const FString& CacheFilename,
-		const TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave, bool bIsAsyncCacheSave, bool bIsMonolithicCache);
+	int64 SaveCacheFileInternal(const FString& CacheFilename,
+		const TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave);
 	/**
 	 * Get the list of FDiskCachedAssetData* that have been loaded in the gatherer, for saving into a cachefile.
 	 * Filters the list of assets by child paths of the elements in SaveCacheLongPackageNameDirs, if it is non-empty.
 	 */
 	void GetAssetsToSave(TArrayView<const FString> SaveCacheLongPackageNameDirs,
 		TArray<TPair<FName,FDiskCachedAssetData*>>& OutAssetsToSave);
+	/**
+	 * Get the list of FDiskCachedAssetData* for saving into the monolithic cache.
+	 * Includes both assets that were loaded in the gatherer and assets which were loaded from the monolithic cache and have not been pruned.
+	 */
+	void GetMonolithicCacheAssetsToSave(TArray<TPair<FName,FDiskCachedAssetData*>>& OutAssetsToSave);
 
 	/* Adds the given pair into NewCachedAssetDataMap. Detects collisions for multiple files with the same PackageName */
 	void AddToCache(FName PackageName, FDiskCachedAssetData* DiskCachedAssetData);
@@ -358,6 +368,8 @@ private:
 	/** True if dependency data should be gathered. Constant during threading. */
 	bool bGatherDependsData;
 
+	/** Timestamp of the start of the gather for consistent marking of 'last discovered' time in caching */
+	FDateTime GatherStartTime;
 
 	// Variable section for variables that are atomics read/writable from outside critical sections.
 
@@ -450,7 +462,7 @@ private:
 	TArray<TPair<int32, FDiskCachedAssetData*>> DiskCachedAssetBlocks;
 	/**
 	 * Map of PackageName to cached discovered assets that were loaded from disk.
-	 * This should only be modified by ConsumeCacheFile.
+	 * This should only be modified by ConsumeCacheFiles.
 	 */
 	TMap<FName, FDiskCachedAssetData*> DiskCachedAssetDataMap;
 	/** Map of PackageName to cached discovered assets that will be written to disk at shutdown. */
@@ -461,6 +473,8 @@ private:
 	int32 NumCachedAssetFiles;
 	/** How many files in the search results were not in the cache and were read by parsing the file. */
 	int32 NumUncachedAssetFiles;
+	/** How many uncached asset files had been discovered at the last async cache save */
+	int32 LastMonolithicCacheSaveUncachedAssetFiles;
 	/**
 	 * Incremented when a thread is in the middle of saving any cache and therefore the cache cannot be deleted,
 	 * decremented when the thread is done. Only incremented when bCacheEnabled has been recently confirmed to be true.
