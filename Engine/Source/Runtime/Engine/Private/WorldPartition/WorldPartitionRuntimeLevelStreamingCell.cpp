@@ -193,6 +193,16 @@ EStreamingStatus UWorldPartitionRuntimeLevelStreamingCell::GetStreamingStatus() 
 	return Super::GetStreamingStatus();
 }
 
+bool UWorldPartitionRuntimeLevelStreamingCell::IsLoading() const
+{
+	if (LevelStreaming)
+	{
+		ELevelStreamingState CurrentState = LevelStreaming->GetLevelStreamingState();
+		return (CurrentState == ELevelStreamingState::Removed || CurrentState == ELevelStreamingState::Unloaded || CurrentState == ELevelStreamingState::Loading);
+	}
+	return Super::IsLoading();
+}
+
 FLinearColor UWorldPartitionRuntimeLevelStreamingCell::GetDebugColor(EWorldPartitionRuntimeCellVisualizeMode VisualizeMode) const
 {
 	switch (VisualizeMode)

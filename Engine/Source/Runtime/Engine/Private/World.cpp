@@ -4164,13 +4164,9 @@ bool UWorld::CanAddLoadedLevelToWorld(ULevel* Level) const
 	if (CurrentLevelPendingVisibility == nullptr)
 	{
 		// Allow world partition to decide wether a level should be added or not to the world
-		if (const IWorldPartitionCell* Cell = Level->GetWorldPartitionRuntimeCell())
+		if (const UWorldPartition* WorldPartition = GetWorldPartition())
 		{
-			const UWorld* OuterWorld = Cell->GetOuterWorld();
-			if (UWorldPartition* OuterWorldPartition = OuterWorld ? OuterWorld->GetWorldPartition() : nullptr)
-			{
-				return OuterWorldPartition->CanAddCellToWorld(Cell);
-			}
+			return WorldPartition->CanAddLoadedLevelToWorld(Level);
 		}
 	}
 	return true;
