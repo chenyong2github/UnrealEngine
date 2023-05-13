@@ -155,11 +155,9 @@ namespace EpicGames.Horde.Tests
 				oldHeader = BundleHeader.Create(types, imports, exports, packets);
 			}
 
-			ByteArrayBuilder writer = new ByteArrayBuilder();
-			oldHeader.Write(writer);
-			byte[] serializedData = writer.ToByteArray();
+			byte[] serializedData = oldHeader.Data.ToArray();
 
-			BundleHeader newHeader = BundleHeader.Read(new MemoryReader(serializedData));
+			BundleHeader newHeader = BundleHeader.Read(serializedData);
 				
 			Assert.AreEqual(oldHeader.Imports.Count, newHeader.Imports.Count);
 			for (int idx = 0; idx < oldHeader.Imports.Count; idx++)

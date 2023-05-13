@@ -409,7 +409,7 @@ namespace EpicGames.Horde.Storage
 					memory = await _store.ReadBlobRangeAsync(queuedHeader.Blob, 0, memory, cancellationToken);
 
 					// Make sure it's large enough to hold the header
-					int headerSize = BundleHeader.ReadPrelude(memory);
+					int headerSize = BundleHeader.ReadPrelude(memory.Span);
 					if (headerSize > prefetchSize)
 					{
 						prefetchSize = headerSize;
@@ -417,7 +417,7 @@ namespace EpicGames.Horde.Storage
 					}
 
 					// Parse the header and construct the bundle info from it
-					BundleHeader header = BundleHeader.Read(new MemoryReader(memory));
+					BundleHeader header = BundleHeader.Read(memory.ToArray());
 
 					// Get the types within this bundle
 					TypeInfo?[] types = new TypeInfo?[header.Types.Count];
@@ -610,6 +610,9 @@ namespace EpicGames.Horde.Storage
 		/// <returns>The decoded data</returns>
 		async ValueTask<ReadOnlyMemory<byte>> ReadBundlePacketAsync(BundleInfo bundleInfo, int packetIdx, CancellationToken cancellationToken)
 		{
+			char c = bundleInfo.Locator.BlobId.ToString()[0];
+			Debug.Assert(Char.IsLetterOrDigit(c));
+
 			if (packetIdx < 0 || packetIdx >= bundleInfo.Header.Packets.Count)
 			{
 				throw new ArgumentException("Packet index is out of range", nameof(packetIdx));
@@ -674,6 +677,9 @@ namespace EpicGames.Horde.Storage
 		/// <returns>The encoded packet data</returns>
 		async ValueTask<ReadOnlyMemory<byte>> ReadEncodedPacketAsync(BundleInfo bundleInfo, int packetIdx)
 		{
+			char c = bundleInfo.Locator.BlobId.ToString()[0];
+			Debug.Assert(Char.IsLetterOrDigit(c));
+
 			if (packetIdx < 0 || packetIdx >= bundleInfo.Header.Packets.Count)
 			{
 				throw new ArgumentException("Packet index is out of range", nameof(packetIdx));

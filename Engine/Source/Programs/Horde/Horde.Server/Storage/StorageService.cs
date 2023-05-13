@@ -1044,10 +1044,11 @@ namespace Horde.Server.Storage
 						memory = memory.Slice(0, length);
 
 						// Make sure it's large enough to hold the header
-						int headerSize = BundleHeader.ReadPrelude(memory);
+						int headerSize = BundleHeader.ReadPrelude(memory.Span);
 						if (headerSize <= fetchSize)
 						{
-							return BundleHeader.Read(new MemoryReader(memory));
+							byte[] data = memory.ToArray(); // Need to copy data since rented memory will be disposed
+							return BundleHeader.Read(data);
 						}
 
 						// Increase the fetch size and retry

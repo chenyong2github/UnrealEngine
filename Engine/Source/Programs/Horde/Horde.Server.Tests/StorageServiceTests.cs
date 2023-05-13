@@ -40,7 +40,7 @@ namespace Horde.Server.Tests
 			exports.Add(new BundleExport(0, hash1, 0, 0, data1.Length, Array.Empty<BundleExportRef>()));
 			exports.Add(new BundleExport(0, hash2, 0, data1.Length, data2.Length, Array.Empty<BundleExportRef>()));
 
-			BundleHeader header = BundleHeader.Create(types, Array.Empty<BlobLocator>(), exports, Array.Empty<BundlePacket>());
+			BundleHeader header = BundleHeader.Create(types, Array.Empty<BlobLocator>(), exports, new BundlePacket[1]);
 			Bundle bundle = new Bundle(header, Array.Empty<ReadOnlyMemory<byte>>());
 			BlobLocator locator = await client.WriteBundleAsync(bundle);
 
