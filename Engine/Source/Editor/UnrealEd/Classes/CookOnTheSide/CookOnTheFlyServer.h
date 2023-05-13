@@ -869,6 +869,9 @@ public:
 	/** Is the local CookOnTheFlyServer cooking a DLC plugin rather than a Project+Engine+EmbeddedPlugins? */
 	bool IsCookingDLC() const;
 
+	/** Return whether EDLCookInfo verification has NOT been rendered useless by settings such as CookFilter. */
+	bool ShouldVerifyEDLCookInfo() const;
+
 protected:
 	// FExec interface used in the editor
 	virtual bool Exec_Editor(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
@@ -1061,6 +1064,7 @@ private:
 	/** Set parameters that rely on config settings from startup and don't depend on StartCook* functions. */
 	void LoadInitializeConfigSettings(const FString& InOutputDirectoryOverride);
 	void SetInitializeConfigSettings(UE::Cook::FInitializeConfigSettings&& Settings);
+	void ParseCookFilters();
 
 	/** Set parameters that rely on config and CookByTheBook settings. */
 	void LoadBeginCookConfigSettings(FBeginCookContext& BeginContext);
@@ -1410,6 +1414,8 @@ private:
 
 	/** Package -> Package dependencies that were hidden and discovered when a package loaded or ran system-specific code. */
 	TMap<FName, TArray<FName>> DiscoveredDependencies;
+	/** Classes (and all subclasses) that were listed as the only classes that should be cooked in the filter settings. */
+	TSet<FName> CookFilterIncludedClasses;
 
 	/** True when PumpLoads has detected it is blocked on async work and CookOnTheFlyServer should do work elsewhere. */
 	bool bLoadBusy = false;
@@ -1446,6 +1452,8 @@ private:
 	 * build jobs when multiple machines are cooking at the same time.
 	 */
 	bool bRandomizeCookOrder = false;
+	/** True if commandline arguments specified that we suppress the cook of packages based on filter criteria. */
+	bool bCookFilter = false;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	double SaveBusyStartTimeSeconds = MAX_flt;

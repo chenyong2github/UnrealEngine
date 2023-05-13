@@ -546,7 +546,7 @@ void UCookCommandlet::RunCookByTheBookCook(UCookOnTheFlyServer* CookOnTheFlyServ
 	FLowLevelMemTracker::Get().UpdateStatsPerFrame();
 #endif
 
-	if (StartupOptions.DLCName.IsEmpty())
+	if (CookOnTheFlyServer->ShouldVerifyEDLCookInfo())
 	{
 		bool bFullReferencesExpected = !(CookOptions & ECookByTheBookOptions::SkipHardReferences);
 		UE::SavePackageUtilities::VerifyEDLCookInfo(bFullReferencesExpected);

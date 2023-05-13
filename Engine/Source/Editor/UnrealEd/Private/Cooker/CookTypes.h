@@ -160,6 +160,7 @@ namespace UE::Cook
 		CookCanceled,
 		MultiprocessAssignmentError,
 		RetractedByCookDirector,
+		CookFilter,
 	};
 	const TCHAR* LexToString(UE::Cook::ESuppressCookReason Reason);
 

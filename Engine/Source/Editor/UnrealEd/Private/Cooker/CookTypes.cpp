@@ -55,6 +55,7 @@ const TCHAR* LexToString(ESuppressCookReason Reason)
 	case ESuppressCookReason::CookCanceled: return TEXT("CookCanceled");
 	case ESuppressCookReason::MultiprocessAssignmentError: return TEXT("MultiprocessAssignmentError");
 	case ESuppressCookReason::RetractedByCookDirector: return TEXT("RetractedByCookDirector");
+	case ESuppressCookReason::CookFilter: return TEXT("CookFilter");
 	default: return TEXT("Invalid");
 	}
 }

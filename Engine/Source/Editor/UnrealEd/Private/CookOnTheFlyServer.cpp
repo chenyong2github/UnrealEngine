@@ -6637,6 +6637,70 @@ void UCookOnTheFlyServer::SetInitializeConfigSettings(UE::Cook::FInitializeConfi
 
 	bRandomizeCookOrder = FParse::Param(FCommandLine::Get(), TEXT("RANDOMPACKAGEORDER")) ||
 		(FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY")) && !FParse::Param(FCommandLine::Get(), TEXT("DIFFNORANDCOOK")));
+
+	ParseCookFilters();
+}
+
+void UCookOnTheFlyServer::ParseCookFilters()
+{
+	CookFilterIncludedClasses.Empty();
+	bCookFilter = false;
+	if (!IsCookByTheBookMode() || IsCookingInEditor())
+	{
+		return;
+	}
+
+	FString IncludeClassesString;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-cookincludeclass="), IncludeClassesString))
+	{
+		TArray<FString> IncludeClasses;
+		const TCHAR* Delimiters[] = { TEXT(","), TEXT("+"), TEXT(";")};
+		IncludeClassesString.ParseIntoArray(IncludeClasses, Delimiters,
+			UE_ARRAY_COUNT(Delimiters), true /* bCullEmpty */);
+		TArray<FTopLevelAssetPath> RootNames;
+		for (FString& IncludeClassString : IncludeClasses)
+		{
+			FTopLevelAssetPath ClassPath;
+			if (!UClass::IsShortTypeName(IncludeClassString))
+			{
+				ClassPath.TrySetPath(IncludeClassString);
+			}
+			else
+			{
+				ClassPath = UClass::TryConvertShortTypeNameToPathName<UClass>(IncludeClassString);
+			}
+			if (!ClassPath.IsValid())
+			{
+				UE_LOG(LogCook, Error, TEXT("CookIncludeClass: Could not convert string '%s' into a class path. Ignoring it."),
+					*IncludeClassString);
+				continue;
+			}
+			UClass* IncludedClass = FindObject<UClass>(nullptr, *ClassPath.ToString());
+			if (!IncludedClass)
+			{
+				UE_LOG(LogCook, Error, TEXT("CookIncludeClass: Could not find class with ClassPath '%s'. Ignoring it."),
+					*IncludeClassString);
+				continue;
+			}
+			FTopLevelAssetPath NormalizedClassPath(IncludedClass);
+			RootNames.Add(NormalizedClassPath);
+			CookFilterIncludedClasses.Add(FName(*NormalizedClassPath.ToString()));
+		}
+		if (!RootNames.IsEmpty())
+		{
+			TSet<FTopLevelAssetPath> DerivedClassNames;
+			AssetRegistry->GetDerivedClassNames(RootNames, TSet<FTopLevelAssetPath>() /* ExcludedClassNames */,
+				DerivedClassNames);
+			for (const FTopLevelAssetPath& NormalizedClassPath : DerivedClassNames)
+			{
+				CookFilterIncludedClasses.Add(FName(*NormalizedClassPath.ToString()));
+			}
+
+			UE_LOG(LogCook, Display, TEXT("CookIncludeClass: Only cooking packages that contains objects with class in { %s }"),
+				*FString::JoinBy(RootNames, TEXT(", "), [](const FTopLevelAssetPath& P) { return P.ToString(); }));
+			bCookFilter = true;
+		}
+	}
 }
 
 bool UCookOnTheFlyServer::TryInitializeCookWorker()
@@ -10965,6 +11029,11 @@ void FEDLMPCollector::ServerReceiveMessage(FMPCollectorServerMessageContext& Con
 	UE::SavePackageUtilities::EDLCookInfoAppendFromCompactBinary(Message.AsFieldView());
 }
 
+}
+
+bool UCookOnTheFlyServer::ShouldVerifyEDLCookInfo() const
+{
+	return CookByTheBookOptions->DlcName.IsEmpty() && !bCookFilter;
 }
 
 void UCookOnTheFlyServer::BeginCookEDLCookInfo(FBeginCookContext& BeginContext)

@@ -40,21 +40,19 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS)
 	, PackageTracker(*InCOTFS.PackageTracker)
 	, BuildDefinitions(*InCOTFS.BuildDefinitions)
 {
-	if (!COTFS.IsCookOnTheFlyMode())
-	{
-		UE::Cook::FCookByTheBookOptions& Options = *COTFS.CookByTheBookOptions;
-		bAllowHardDependencies = !Options.bSkipHardReferences;
-		bAllowSoftDependencies = !Options.bSkipSoftReferences;
-		bErrorOnEngineContentUse = Options.bErrorOnEngineContentUse;
-		bAllowUncookedAssetReferences = Options.bAllowUncookedAssetReferences;
-	}
-	else
+	// CookByTheBookOptions is always available; in other modes it is set to the default values
+	UE::Cook::FCookByTheBookOptions& Options = *COTFS.CookByTheBookOptions;
+	bAllowHardDependencies = !Options.bSkipHardReferences;
+	bAllowSoftDependencies = !Options.bSkipSoftReferences;
+	bErrorOnEngineContentUse = Options.bErrorOnEngineContentUse;
+	if (COTFS.IsCookOnTheFlyMode())
 	{
 		// Do not queue soft-dependencies during CookOnTheFly; wait for them to be requested
 		// TODO: Report soft dependencies separately, and mark them as normal priority,
 		// and mark all hard dependencies as high priority in cook on the fly.
 		bAllowSoftDependencies = false;
 	}
+
 	bHybridIterativeEnabled = COTFS.bHybridIterativeEnabled;
 	if (bErrorOnEngineContentUse)
 	{
@@ -1456,38 +1454,25 @@ void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FPackag
 	UCookOnTheFlyServer& COTFS, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable)
 {
 	FString LocalDLCPath;
-	bool bLocalErrorOnEngineContentUse = false;
-	bool bLocalAllowUncookedAssetReferences = false;
-	if (!COTFS.IsCookOnTheFlyMode())
-	{
-		UE::Cook::FCookByTheBookOptions& Options = *COTFS.CookByTheBookOptions;
-		bLocalErrorOnEngineContentUse = Options.bErrorOnEngineContentUse;
-		bLocalAllowUncookedAssetReferences = Options.bAllowUncookedAssetReferences;
-	}
-	if (bLocalErrorOnEngineContentUse)
+	if (COTFS.CookByTheBookOptions->bErrorOnEngineContentUse)
 	{
 		LocalDLCPath = FPaths::Combine(*COTFS.GetBaseDirectoryForDLC(), TEXT("Content"));
 		FPaths::MakeStandardFilename(LocalDLCPath);
 	}
 
-	IsRequestCookable(Platform, PackageData.GetPackageName(), PackageData, *COTFS.PackageDatas,
-		*COTFS.PackageTracker, LocalDLCPath, bLocalErrorOnEngineContentUse, bLocalAllowUncookedAssetReferences,
-		COTFS.bSkipOnlyEditorOnly, OutReason, bOutCookable, bOutExplorable);
+	IsRequestCookable(Platform, PackageData.GetPackageName(), PackageData, COTFS,
+		LocalDLCPath, OutReason, bOutCookable, bOutExplorable);
 }
 
 void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName PackageName, FPackageData& PackageData,
 	ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable)
 {
-	return IsRequestCookable(Platform, PackageName, PackageData, PackageDatas, PackageTracker,
-		DLCPath, bErrorOnEngineContentUse, bAllowUncookedAssetReferences,
-		COTFS.bSkipOnlyEditorOnly,
-		OutReason, bOutCookable, bOutExplorable);
+	return IsRequestCookable(Platform, PackageName, PackageData, COTFS,
+		DLCPath, OutReason, bOutCookable, bOutExplorable);
 }
 
 void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName PackageName, FPackageData& PackageData,
-	FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
-	FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences,
-	bool bSkipOnlyEditorOnly, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable)
+	UCookOnTheFlyServer& InCOTFS, FStringView InDLCPath, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable)
 {
 	check(Platform != CookerLoadingPlatformKey); // IsRequestCookable should not be called for The CookerLoadingPlatform; it has different rules
 
@@ -1504,7 +1489,7 @@ void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName P
 	}
 
 	FName FileName = PackageData.GetFileName();
-	if (InPackageTracker.NeverCookPackageList.Contains(FileName))
+	if (InCOTFS.PackageTracker->NeverCookPackageList.Contains(FileName))
 	{
 		if (INDEX_NONE != UE::String::FindFirst(NameBuffer, ULevel::GetExternalActorsFolderName(), ESearchCase::IgnoreCase))
 		{
@@ -1513,7 +1498,7 @@ void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName P
 			OutReason = ESuppressCookReason::NeverCook;
 			bOutCookable = false;
 			bOutExplorable = true;
-			if (bSkipOnlyEditorOnly)
+			if (InCOTFS.bSkipOnlyEditorOnly)
 			{
 				bOutExplorable = true;
 			}
@@ -1536,7 +1521,7 @@ void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName P
 		return;
 	}
 
-	if (bInErrorOnEngineContentUse && !InDLCPath.IsEmpty())
+	if (InCOTFS.CookByTheBookOptions->bErrorOnEngineContentUse && !InDLCPath.IsEmpty())
 	{
 		FileName.ToString(NameBuffer);
 		if (!FStringView(NameBuffer).StartsWith(InDLCPath))
@@ -1545,7 +1530,7 @@ void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName P
 			{
 				// AllowUncookedAssetReferences should only be used when the DLC plugin to cook is going to be mounted where uncooked packages are available.
 				// This will allow a DLC plugin to be recooked continually and mounted in an uncooked editor which is useful for CI.
-				if (!bInAllowUncookedAssetReferences)
+				if (!InCOTFS.CookByTheBookOptions->bAllowUncookedAssetReferences)
 				{
 					UE_LOG(LogCook, Error, TEXT("Uncooked Engine or Game content %s is being referenced by DLC!"), *NameBuffer);
 				}
@@ -1557,9 +1542,34 @@ void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName P
 		}
 	}
 
+	// The package is ordinarily cookable and explorable. In some cases we filter out for testing
+	// packages that are ordinarily cookable; set bOutCookable to false if so.
+	bOutExplorable = true;
+	if (InCOTFS.bCookFilter && !InCOTFS.CookFilterIncludedClasses.IsEmpty())
+	{
+		TOptional<FAssetPackageData> AssetData = IAssetRegistry::GetChecked().GetAssetPackageDataCopy(PackageName);
+		if (AssetData)
+		{
+			bool bIncluded = false;
+			for (FName ClassName : AssetData->ImportedClasses)
+			{
+				if (InCOTFS.CookFilterIncludedClasses.Contains(ClassName))
+				{
+					bIncluded = true;
+					break;
+				}
+			}
+			if (!bIncluded)
+			{
+				OutReason = ESuppressCookReason::CookFilter;
+				bOutCookable = false;
+				return;
+			}
+		}
+	}
+
 	OutReason = ESuppressCookReason::NotSuppressed;
 	bOutCookable = true;
-	bOutExplorable = true;
 }
 
 TConstArrayView<FName> FRequestCluster::GetLocalizationReferences(FName PackageName, UCookOnTheFlyServer& InCOTFS)

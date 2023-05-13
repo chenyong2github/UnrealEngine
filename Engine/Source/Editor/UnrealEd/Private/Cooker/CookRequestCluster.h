@@ -318,9 +318,8 @@ private:
 	void IsRequestCookable(const ITargetPlatform* TargetPlatform, FName PackageName, FPackageData& PackageData,
 		ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable);
 	static void IsRequestCookable(const ITargetPlatform* TargetPlatform, FName PackageName, FPackageData& PackageData,
-		FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
-		FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences,
-		bool bSkipOnlyEditorOnly, ESuppressCookReason& OutReason, bool& bOutCookable, bool& bOutExplorable);
+		UCookOnTheFlyServer& InCOTFS, FStringView InDLCPath, ESuppressCookReason& OutReason, bool& bOutCookable,
+		bool& bOutExplorable);
 	static void RandomizeCookOrder(TArray<FPackageData*>& InOutLeafToRootOrder,
 		const TMap<FPackageData*, TArray<FPackageData*>>& Edges);
 
@@ -338,7 +337,6 @@ private:
 	bool bAllowSoftDependencies = true;
 	bool bHybridIterativeEnabled = true;
 	bool bErrorOnEngineContentUse = false;
-	bool bAllowUncookedAssetReferences = false;
 	bool bPackageNamesComplete = false;
 	bool bDependenciesComplete = false;
 	bool bStartAsyncComplete = false;
