@@ -1098,7 +1098,20 @@ void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL
 		if (!ProtocolMetadata.bUninstallBeforeTerminate)
 		{
 			ProtocolMetadata.bUninstallBeforeTerminate = true;
-			PluginURLForTerminate = GetPluginURL_InstallBundleProtocol(StateMachine->GetPluginName(), ProtocolMetadata);
+			
+			FString PluginFilename;
+
+			//Try and pull PluginFilename from the StateMachine first, but this may not be set yet
+			//as this may be running too early before we have parsed the URL
+			StateMachine->GetPluginFilename(PluginFilename);
+			if (PluginFilename.IsEmpty())
+			{
+				//The PluginIdentifyingString is currently just the PluginFilename so we can fallback to that
+				PluginFilename = StateMachine->GetPluginIdentifier().GetIdentifyingString();
+			}
+			check(!PluginFilename.IsEmpty());
+
+			PluginURLForTerminate = GetPluginURL_InstallBundleProtocol(PluginFilename, ProtocolMetadata);
 		}
 	}
 
