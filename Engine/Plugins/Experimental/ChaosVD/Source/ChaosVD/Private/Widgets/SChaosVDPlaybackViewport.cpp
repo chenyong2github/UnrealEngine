@@ -81,7 +81,7 @@ void SChaosVDPlaybackViewport::Construct(const FArguments& InArgs, const UWorld*
 			[
 				SNew(STextBlock)
 				.Justification(ETextJustify::Center)
-				.Text(LOCTEXT("PlaybackViewportWidgetPhysicsFramesLabel", "Game Frames" ))
+				.Text(LOCTEXT("PlaybackViewportWidgetGameFramesLabel", "Game Frames" ))
 			]
 			+SVerticalBox::Slot()
 			[
