@@ -86,6 +86,7 @@
 #include "Components/PointLightComponent.h"
 #include "Particles/Collision/ParticleModuleCollisionGPU.h"
 #include "DerivedDataCacheInterface.h"
+#include "StaticMeshResources.h"
 
 static TAutoConsoleVariable<bool> CVarFxCascadeUseVelocityForMotionBlur(
 	TEXT("fx.Cascade.UseVelocityForMotionBlur"),
@@ -3420,6 +3421,32 @@ const FVertexFactoryType* UParticleModuleTypeDataMesh::GetVertexFactoryType() co
 	return &FMeshParticleVertexFactory::StaticType;
 }
 
+extern void InitMeshParticleVertexFactoryComponents(FMeshParticleVertexFactory* InVertexFactory, const FStaticMeshLODResources& LODResources, FMeshParticleVertexFactory::FDataType& Data);
+
+void UParticleModuleTypeDataMesh::CollectPSOPrecacheData(const UParticleEmitter* Emitter, FPSOPrecacheParams& OutParams)
+{
+	if (Mesh != nullptr)
+	{
+		FStaticMeshRenderData* RenderData = Mesh->GetRenderData();
+		// Assuming here that all LOD use same vertex decl
+		int32 MeshLODIdx = Mesh->GetMinLODIdx();
+		if (RenderData->LODResources.IsValidIndex(MeshLODIdx))
+		{
+			bool bUsesDynamicParameter = (Emitter->DynamicParameterDataOffset > 0);
+			int32 DynamicVertexStride = sizeof(FMeshParticleInstanceVertex);
+			int32 DynamicParameterVertexStride = bUsesDynamicParameter ? sizeof(FMeshParticleInstanceVertexDynamicParameter) : 0;
+						
+			FVertexDeclarationElementList Elements;
+			FMeshParticleVertexFactory::FDataType Data;
+			InitMeshParticleVertexFactoryComponents(nullptr, RenderData->LODResources[MeshLODIdx], Data);
+			FMeshParticleVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, DynamicVertexStride, DynamicParameterVertexStride, Data, Elements);
+			const FVertexFactoryType* VFType = &FMeshParticleVertexFactory::StaticType;
+			OutParams.PrimitiveType = GetPrimitiveType();
+			OutParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(VFType, Elements));
+		}
+	}
+}
+
 void UParticleModuleTypeDataMesh::SetToSensibleDefaults(UParticleEmitter* Owner)
 {
 	if ((Mesh == NULL) && GIsEditor )
@@ -4936,6 +4963,12 @@ FParticleEmitterInstance* UParticleModuleTypeDataGpu::CreateInstance(UParticleEm
 const FVertexFactoryType* UParticleModuleTypeDataGpu::GetVertexFactoryType() const
 {
 	return &FGPUSpriteVertexFactory::StaticType;
+}
+
+void UParticleModuleTypeDataGpu::CollectPSOPrecacheData(const UParticleEmitter* Emitter, FPSOPrecacheParams& OutParams)
+{
+	OutParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(GetVertexFactoryType()));
+	OutParams.PrimitiveType = GetPrimitiveType();
 }
 
 /*-----------------------------------------------------------------------------

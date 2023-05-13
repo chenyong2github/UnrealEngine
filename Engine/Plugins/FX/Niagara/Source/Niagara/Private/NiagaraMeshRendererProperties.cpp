@@ -79,14 +79,22 @@ public:
 		}
 	}
 
+	static void InitVertexFactoryComponents(
+		const FStaticMeshVertexBuffers& VertexBuffers,
+		FNiagaraMeshVertexFactory* VertexFactory,
+		FStaticMeshDataType& OutData)
+	{
+		VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(VertexFactory, OutData);
+		VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(VertexFactory, OutData);
+		VertexBuffers.StaticMeshVertexBuffer.BindPackedTexCoordVertexBuffer(VertexFactory, OutData, MAX_TEXCOORDS);
+		VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(VertexFactory, OutData);
+	}
+
 	void SetupVertexFactory(FNiagaraMeshVertexFactory& InVertexFactory, const FLODModelData& LODModelData) const override
 	{
 		FStaticMeshDataType Data;
 		const FStaticMeshLODResources& LODResources = RenderData->LODResources[LODModelData.LODIndex];
-		LODResources.VertexBuffers.PositionVertexBuffer.BindPositionVertexBuffer(&InVertexFactory, Data);
-		LODResources.VertexBuffers.StaticMeshVertexBuffer.BindTangentVertexBuffer(&InVertexFactory, Data);
-		LODResources.VertexBuffers.StaticMeshVertexBuffer.BindTexCoordVertexBuffer(&InVertexFactory, Data, MAX_TEXCOORDS);
-		LODResources.VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&InVertexFactory, Data);
+		InitVertexFactoryComponents(LODResources.VertexBuffers, &InVertexFactory, Data);
 		InVertexFactory.SetData(Data);
 	}
 
@@ -656,6 +664,55 @@ void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInsta
 				if (MaterialInterface)
 				{
 					OutMaterials.AddUnique(MaterialInterface);
+				}
+			}
+		}
+	}
+}
+
+void UNiagaraMeshRendererProperties::CollectPSOPrecacheData(FPSOPrecacheParamsList& OutParams)
+{
+	const FVertexFactoryType* VFType = GetVertexFactoryType();
+	bool bSupportsManualVertexFetch = VFType->SupportsManualVertexFetch(GMaxRHIFeatureLevel);
+		
+	for (int32 MeshIndex = 0; MeshIndex < Meshes.Num(); ++MeshIndex)
+	{
+		// Don't have an instance yet to retrieve the possible material override data from
+		FNiagaraEmitterInstance* EmitterInstance = nullptr;
+		INiagaraRenderableMeshInterface* RenderableMeshInterface = nullptr;
+		UStaticMesh* StaticMesh = nullptr;
+		NiagaraMeshRendererPropertiesInternal::ResolveRenderableMeshInternal(Meshes[MeshIndex], EmitterInstance, RenderableMeshInterface, StaticMesh);
+		if (StaticMesh)
+		{
+			TArray<UMaterialInterface*> OrderedMeshMaterials;
+			FNiagaraRenderableStaticMesh(StaticMesh).GetUsedMaterials(OrderedMeshMaterials);
+			if (OrderedMeshMaterials.Num())
+			{
+				ApplyMaterialOverrides(nullptr, OrderedMeshMaterials);
+				for (UMaterialInterface* MeshMaterial : OrderedMeshMaterials)
+				{
+					if (MeshMaterial)
+					{
+						FPSOPrecacheParams& PSOPrecacheParams = OutParams.AddDefaulted_GetRef();
+						PSOPrecacheParams.MaterialInterface = MeshMaterial;
+						if (!bSupportsManualVertexFetch)
+						{
+							// Assuming here that all LOD use same vertex decl
+							int32 MeshLODIdx = StaticMesh->GetMinLODIdx();
+							if (StaticMesh->GetRenderData()->LODResources.IsValidIndex(MeshLODIdx))
+							{
+								FStaticMeshDataType Data;
+								FVertexDeclarationElementList Elements;
+								FNiagaraRenderableStaticMesh::InitVertexFactoryComponents(StaticMesh->GetRenderData()->LODResources[MeshLODIdx].VertexBuffers, nullptr, Data);
+								FNiagaraMeshVertexFactory::GetVertexElements(GMaxRHIFeatureLevel, bSupportsManualVertexFetch, Data, Elements);
+								PSOPrecacheParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(VFType, Elements));
+							}
+						}
+						else
+						{
+							PSOPrecacheParams.VertexFactoryDataList.Add(FPSOPrecacheVertexFactoryData(VFType));
+						}
+					}
 				}
 			}
 		}

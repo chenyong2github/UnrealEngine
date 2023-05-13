@@ -52,6 +52,16 @@ class UParticleModuleTypeDataBase : public UParticleModule
 	/** Determine if motion blur is enabled for the owning emitter. */
 	virtual bool		IsMotionBlurEnabled() const  { return false; }
 
+
+	/**
+	* Collect all the data required for PSO precaching 
+	*/
+	struct FPSOPrecacheParams
+	{
+		EPrimitiveType PrimitiveType;
+		FPSOPrecacheVertexFactoryDataList VertexFactoryDataList;
+	};
+	virtual void CollectPSOPrecacheData(const UParticleEmitter* Emitter, FPSOPrecacheParams& OutParams) {};
 };
 
 

@@ -9,6 +9,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraMergeable.h"
 #include "NiagaraPlatformSet.h"
+#include "PSOPrecache.h"
 #include "NiagaraRendererProperties.generated.h"
 
 struct FVersionedNiagaraEmitterData;
@@ -314,6 +315,18 @@ public:
 
 	/** In the case that we need parameters bound in that aren't Particle variables, these should be set up here so that the data is appropriately populated after the simulation.*/
 	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore);
+
+	
+	/**
+	* Collect all the data required for PSO precaching 
+	*/
+	struct FPSOPrecacheParams
+	{
+		UMaterialInterface* MaterialInterface = nullptr;
+		FPSOPrecacheVertexFactoryDataList VertexFactoryDataList;
+	};
+	typedef TArray<FPSOPrecacheParams, TInlineAllocator<2> > FPSOPrecacheParamsList;
+	virtual void CollectPSOPrecacheData(FPSOPrecacheParamsList& OutParams) {};
 
 #if WITH_EDITORONLY_DATA
 

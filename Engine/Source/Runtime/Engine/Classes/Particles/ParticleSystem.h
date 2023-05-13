@@ -10,6 +10,7 @@
 #include "Particles/ParticlePerfStats.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "RHIDefinitions.h"
+#include "PSOPrecache.h"
 
 #include "ParticleSystem.generated.h"
 
@@ -162,7 +163,7 @@ protected:
 		UMaterialInterface* MaterialInterface = nullptr;
 		EPrimitiveType PrimitiveType = PT_TriangleList; // must match FPSOPrecacheParams::PrimitiveType default value
 		bool bDisableBackfaceCulling = false;  // must match FPSOPrecacheParams::bDisableBackfaceCulling default value
-		TArray<const class FVertexFactoryType*, TInlineAllocator<2>> VertexFactoryTypes;
+		FPSOPrecacheVertexFactoryDataList VertexFactoryData;
 	};
 
 	ENGINE_API void LaunchPSOPrecaching(TArrayView<VFsPerMaterialData> VFsPerMaterials);

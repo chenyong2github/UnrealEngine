@@ -134,7 +134,7 @@ struct FPSOPrecacheVertexFactoryData
 {
 	FPSOPrecacheVertexFactoryData() = default;
 	FPSOPrecacheVertexFactoryData(const FVertexFactoryType* InVertexFactoryType) : VertexFactoryType(InVertexFactoryType), CustomDefaultVertexDeclaration(nullptr) {}
-	FPSOPrecacheVertexFactoryData(const FVertexFactoryType* InVertexFactoryType, const FVertexDeclarationElementList& ElementList);
+	ENGINE_API FPSOPrecacheVertexFactoryData(const FVertexFactoryType* InVertexFactoryType, const FVertexDeclarationElementList& ElementList);
 
 	const FVertexFactoryType* VertexFactoryType = nullptr;
 
