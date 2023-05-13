@@ -152,3 +152,5 @@ FReply FXcodeProjectSettingsDetailsCustomization::OnRestoreEntitlementClicked()
 
     return FReply::Handled();
 }
+
+#undef LOCTEXT_NAMESPACE
