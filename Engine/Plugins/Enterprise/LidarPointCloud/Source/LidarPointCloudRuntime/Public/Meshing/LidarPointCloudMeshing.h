@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LidarPointCloudShared.h"
+#include "HAL/ThreadSafeBool.h"
 
 class FLidarPointCloudOctree;
 struct FTriMeshCollisionData;
