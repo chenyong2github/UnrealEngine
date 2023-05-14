@@ -14,6 +14,7 @@
 #include "Animation/AnimationAsset.h"
 
 #include "Async/MappedFileHandle.h"
+#include "HAL/ThreadSafeBool.h"
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Misc/Paths.h"
