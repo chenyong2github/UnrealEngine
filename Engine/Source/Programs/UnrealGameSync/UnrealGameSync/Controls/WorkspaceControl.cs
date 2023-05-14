@@ -2046,7 +2046,7 @@ namespace UnrealGameSync
 						int index = _sortedChangeNumbers.BinarySearch(changeNumber);
 						if (index > 0)
 						{
-							archivePath = GetArchiveKeyForChangeNumber(archive, _sortedChangeNumbers[index - 1]);
+							archivePath = GetArchiveKeyForChangeNumber(archive, _sortedChangeNumbers[index - 1], maxChangeNumber, changeNumberToArchivePath);
 						}
 					}
 				}
