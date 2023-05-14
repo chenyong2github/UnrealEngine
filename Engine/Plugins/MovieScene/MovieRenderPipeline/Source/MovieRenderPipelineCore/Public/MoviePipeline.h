@@ -2,6 +2,7 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "HAL/ThreadSafeBool.h"
 #include "Engine/EngineCustomTimeStep.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineBlueprintLibrary.h"

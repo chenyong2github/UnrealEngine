@@ -9,6 +9,7 @@
 #include "UObject/GCObject.h"
 #include "Async/AsyncWork.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "HAL/ThreadSafeBool.h"
 #include "Templates/Function.h"
 #include "Stats/Stats.h"
 #include "CanvasTypes.h"
