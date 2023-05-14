@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/ThreadSafeBool.h"
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Quartz/QuartzMetronome.h"
 
