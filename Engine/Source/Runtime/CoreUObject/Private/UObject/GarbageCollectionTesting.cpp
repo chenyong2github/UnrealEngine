@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GarbageCollectionTesting.h"
+#include "UObject/GarbageCollectionSchema.h"
 #include "UObject/UnrealType.h"
 
 /*
@@ -52,6 +53,5 @@ void UnlinkReachabilityStressData(UObjectReachabilityStressData* Data)
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectReachabilityStressData, UObject,
 	{
-		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
-		Builder.EmitObjectArrayReference(STRUCT_OFFSET(UObjectReachabilityStressData, Children), TEXT("Children"));
+		UE::GC::DeclareIntrinsicMembers(Class, { UE_GC_MEMBER(UObjectReachabilityStressData, Children) });
 	});

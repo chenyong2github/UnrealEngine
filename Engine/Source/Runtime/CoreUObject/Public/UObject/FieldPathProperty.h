@@ -20,7 +20,7 @@ class UObject;
 class UStruct;
 namespace UECodeGen_Private { struct FFieldPathPropertyParams; }
 struct FPropertyTag;
-namespace UE::GC { class FTokenStreamBuilder; }
+
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma
 typedef TProperty<FFieldPath, FProperty> FFieldPathProperty_Super;
 
@@ -75,7 +75,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual const TCHAR* ImportText_Internal(const TCHAR* Buffer, void* ContainerOrPropertyPtr, EPropertyPointerType PropertyPointerType, UObject* OwnerObject, int32 PortFlags, FOutputDevice* ErrorText) const override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual bool ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType = EPropertyObjectReferenceType::Strong) const override;
-	virtual void EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper) override;
+	virtual void EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath) override;
 	virtual bool SupportsNetSharedSerialization() const override;
 	// End of FProperty interface
 

@@ -2886,8 +2886,8 @@ public:
 	 */
 	TArray<FImplementedInterface> Interfaces;
 
-	/** Reference token stream used by realtime garbage collector, finalized in AssembleReferenceTokenStream */
-	UE::GC::FTokenStreamOwner ReferenceTokens;
+	/** GC schema, finalized in AssembleReferenceTokenStream */
+	UE::GC::FSchemaOwner ReferenceSchema;
 
 	/** This class's native functions. */
 	TArray<FNativeFunctionLookup> NativeFunctionLookupTable;

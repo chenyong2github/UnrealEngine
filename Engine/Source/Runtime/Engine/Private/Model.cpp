@@ -9,6 +9,7 @@
 #include "EngineUtils.h"
 #include "Engine/Polys.h"
 #include "StaticLighting.h"
+#include "UObject/GarbageCollectionSchema.h"
 
 float UModel::BSPTexelScale = 100.0f;
 
@@ -537,35 +538,19 @@ void UModel::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 }
 
 #if WITH_EDITOR
-
-IMPLEMENT_INTRINSIC_CLASS(UModel, ENGINE_API, UObject, CORE_API, "/Script/Engine",
-	{
-		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UModel);
-
-		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
-		Builder.EmitObjectReference(STRUCT_OFFSET(UModel, Polys), TEXT("Polys"));
-		const uint32 SkipIndexIndex = Builder.EmitStructArrayBegin(STRUCT_OFFSET(UModel, Surfs), TEXT("Surfs"), sizeof(FBspSurf));
-		Builder.EmitObjectReference(STRUCT_OFFSET(FBspSurf, Material), TEXT("Material"));
-		Builder.EmitObjectReference(STRUCT_OFFSET(FBspSurf, Actor), TEXT("Actor"));
-		Builder.EmitStructArrayEnd( SkipIndexIndex );
-	}
-);
-
+#define UMODEL_EDITOR_GC_MEMBERS UE_GC_MEMBER(UModel, Polys), 
 #else
+#define UMODEL_EDITOR_GC_MEMBERS
+#endif
 
 IMPLEMENT_INTRINSIC_CLASS(UModel, ENGINE_API, UObject, CORE_API, "/Script/Engine",
 	{
 		Class->CppClassStaticFunctions = UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS(UModel);
 
-		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
-		const uint32 SkipIndexIndex = Builder.EmitStructArrayBegin(STRUCT_OFFSET(UModel, Surfs), TEXT("Surfs"), sizeof(FBspSurf));
-		Builder.EmitObjectReference(STRUCT_OFFSET(FBspSurf, Material), TEXT("Material"));
-		Builder.EmitObjectReference(STRUCT_OFFSET(FBspSurf, Actor), TEXT("Actor"));
-		Builder.EmitStructArrayEnd( SkipIndexIndex );
+		UE::GC::TSchemaBuilder<FBspSurf> SurfSchema({ UE_GC_MEMBER(FBspSurf, Material), UE_GC_MEMBER(FBspSurf, Actor) });
+		UE::GC::DeclareIntrinsicMembers(Class, { UMODEL_EDITOR_GC_MEMBERS UE_GC_MEMBER(UModel, Surfs, SurfSchema) });
 	}
 );
-
-#endif // WITH_EDITOR
 
 /*---------------------------------------------------------------------------------------
 	UModel implementation.

@@ -3028,7 +3028,7 @@ void FKismetCompilerContext::FinishCompilingClass(UClass* Class)
 	if (ParentClass != NULL)
 	{
 		// Propagate the new parent's inheritable class flags
-		Class->ReferenceTokens.Reset();
+		Class->ReferenceSchema.Reset();
 		Class->ClassFlags &= ~CLASS_RecompilerClear;
 		Class->ClassFlags |= (ParentClass->ClassFlags & CLASS_ScriptInherit);//@TODO: ChangeParentClass had this, but I don't think I want it: | UClass::StaticClassFlags;  // will end up with CLASS_Intrinsic
 		Class->ClassCastFlags |= ParentClass->ClassCastFlags;

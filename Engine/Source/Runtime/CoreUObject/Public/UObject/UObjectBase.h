@@ -27,8 +27,6 @@ class UScriptStruct;
 
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("STAT_UObjectsStatGroupTester"), STAT_UObjectsStatGroupTester, STATGROUP_UObjects, COREUOBJECT_API);
 
-namespace UE::GC { class FTokenStreamBuilder; }
-
 /** 
  * Low level implementation of UObject, should not be used directly in game code 
  */

@@ -52,9 +52,6 @@ DEFINE_LOG_CATEGORY(LogGarbage);
 
 #define PERF_DETAILED_PER_CLASS_GC_STATS				(LOOKING_FOR_PERF_ISSUES || 0) 
 
-static_assert(sizeof(FGCSkipInfo) == sizeof(uint32),		"Must have size of a GC token");
-static_assert(sizeof(FGCReferenceInfo) == sizeof(uint32),	"Must have size of a GC token");
-
 /** Object count during last mark phase																				*/
 FThreadSafeCounter		GObjectCountDuringLastMarkPhase;
 /** Whether UObject hash tables are locked by GC */
@@ -293,310 +290,6 @@ static FAutoConsoleVariableRef CGarbageReferenceTrackingEnabled(
 
 namespace UE::GC
 {
-
-namespace TokenDebugNames
-{
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-#define DEFINE_TOKEN_DEBUG_ID(ID) static const FLazyName ID(#ID "Token")
-#else
-#define DEFINE_TOKEN_DEBUG_ID(ID) static constexpr EName ID = EName::None;
-#endif
-	DEFINE_TOKEN_DEBUG_ID(SkipInfo);
-	DEFINE_TOKEN_DEBUG_ID(Stride);
-	DEFINE_TOKEN_DEBUG_ID(Count);
-	DEFINE_TOKEN_DEBUG_ID(Pointer);
-	DEFINE_TOKEN_DEBUG_ID(EndOfPointer);
-	DEFINE_TOKEN_DEBUG_ID(ARO);
-	DEFINE_TOKEN_DEBUG_ID(EndOfStream);
-}
-
-#if !UE_BUILD_SHIPPING
-	static const TCHAR* ToStatName(EGCReferenceType Type)
-	{
-		switch (Type)
-		{
-		case GCRT_Object:								return TEXT("Reference");
-		case GCRT_ArrayObject:							return TEXT("Array<Reference>");
-		case GCRT_ArrayStruct:							return TEXT("Array<Struct>");
-		case GCRT_FixedArray:							return TEXT("FixedArray");
-		case GCRT_AddStructReferencedObjects:			return TEXT("StructARO");
-		case GCRT_AddReferencedObjects:					return TEXT("ClassARO");
-		case GCRT_AddTMapReferencedObjects:				return TEXT("Map");
-		case GCRT_AddTSetReferencedObjects:				return TEXT("Set");
-		case GCRT_AddFieldPathReferencedObject:			return TEXT("FieldPath");
-		case GCRT_ArrayAddFieldPathReferencedObject:	return TEXT("Array<FieldPath>");
-		case GCRT_EndOfStream:							return TEXT("EndOfStream");
-		case GCRT_ArrayObjectFreezable:					return TEXT("FrozenArray<Reference>");
-		case GCRT_ArrayStructFreezable:					return TEXT("FrozenArray<Struct>");
-		case GCRT_DynamicallyTypedValue:				return TEXT("DynamicallyTypedValue");
-		case GCRT_SlowAddReferencedObjects:				return TEXT("SlowARO");
-		default:										return TEXT("!!ERROR!!");
-		}
-	}
-
-	class FTokenStreamStats
-	{
-	public:
-		uint32 Counters[GCRT_Count] = {};
-		uint32 NumTokens = 0;
-		uint32 NumPointers = 0;
-		uint32 MinOffset = 0;
-		uint32 MaxOffset = 0;
-		uint32 MaxJump = 0;
-
-		FTokenStreamStats()  {}
-		explicit FTokenStreamStats(const FTokenStreamOwner& Tokens)
-			: NumTokens(Tokens.Strong.NumTokens())
-		{
-			FIterator It{Tokens.Strong, Tokens};
-			CountTokensUntil(It, NumTokens);
-		}
-
-		FTokenStreamStats& operator+=(const FTokenStreamStats& In)
-		{
-			for (uint32 Idx = 0; Idx < GCRT_Count; ++Idx)
-			{
-				Counters[Idx] += In.Counters[Idx];
-			}
-			NumTokens += In.NumTokens;
-			NumPointers += In.NumPointers;
-			MinOffset = MinOffset == 0 ? In.MinOffset : FMath::Min(MinOffset, In.MinOffset);
-			MaxOffset = FMath::Max(MaxOffset, In.MaxOffset);
-			MaxJump = FMath::Max(MaxJump, In.MaxJump);
-
-			return *this;
-		}
-	
-	private:
-		struct FIterator
-		{
-			const FTokenStreamView Tokens;
-			const FTokenStreamOwner& Owner; // Only for debug name access
-			uint32 Idx = 0;
-		
-			FGCReferenceInfo ConsumeReferenceInfo()
-			{
-				return Tokens.AccessReferenceInfo(Idx++);
-			}
-			
-			void Skip(FName DebugName)
-			{
-				check(GetDebugName() == DebugName);
-				++Idx;
-			}
-
-			uint32 ConsumeSkipInfo()
-			{
-				check(GetDebugName() == TokenDebugNames::SkipInfo);
-				return Tokens.ReadSkipInfo(/* in-out */ Idx).SkipIndex;
-			}
-
-			void* ConsumePointer()
-			{
-				check(GetDebugName() == TokenDebugNames::Pointer);
-				void* Ptr = Tokens.ReadPointer(/* in-out */ Idx);
-				Skip(TokenDebugNames::EndOfPointer);
-
-				return Ptr;
-			}
-
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-			FName GetDebugName() const { return Owner.GetTokenInfo(FTokenId(Idx)).Name;}
-#else
-			static constexpr EName GetDebugName() { return EName::None; }
-#endif
-		};
-
-		void CountTokensUntil(FIterator& It, uint32 EndIdx)
-		{
-			static constexpr EGCReferenceType StrongFieldTokens[] = { 
-				GCRT_Object, GCRT_ArrayObject, GCRT_ArrayStruct, GCRT_AddTMapReferencedObjects, GCRT_AddTSetReferencedObjects, GCRT_FixedArray,
-				GCRT_AddFieldPathReferencedObject, GCRT_ArrayAddFieldPathReferencedObject, GCRT_ArrayObjectFreezable, GCRT_ArrayStructFreezable,
-				GCRT_Optional, GCRT_DynamicallyTypedValue };
-
-			const bool bObjectTokens = EndIdx == It.Tokens.NumTokens();
-			uint32 LastOffset = 0;
-			while (It.Idx < EndIdx)
-			{
-				FGCReferenceInfo Token = It.ConsumeReferenceInfo();
-				++Counters[Token.Type];
-
-				if (bObjectTokens && Algo::Find(StrongFieldTokens, Token.Type))
-				{
-					check(Token.Offset);
-					MinOffset = MinOffset == 0 ? Token.Offset : FMath::Min(MinOffset, Token.Offset);
-					MaxOffset = FMath::Max(Token.Offset, MaxOffset);
-					uint32 Jump = (uint32)FMath::Abs((int32)(Token.Offset - LastOffset));
-					LastOffset = Token.Offset;
-					MaxJump = FMath::Max(MaxJump, Jump);
-				}
-
-				// Traverse structural tokens
-				switch (Token.Type)
-				{
-					case GCRT_Optional:
-					case GCRT_ArrayStructFreezable:
-					case GCRT_ArrayStruct:
-						It.Skip(TokenDebugNames::Stride);
-						CountTokensUntil(It, It.ConsumeSkipInfo());
-						break;
-					case GCRT_FixedArray:
-						It.Skip(TokenDebugNames::Stride);
-						It.Skip(TokenDebugNames::Count);
-						break;
-					case GCRT_AddTSetReferencedObjects:
-					case GCRT_AddTMapReferencedObjects:
-					{
-						FProperty* Property = (FProperty*)It.ConsumePointer();
-						check(Property->IsA<FMapProperty>() || Property->IsA<FSetProperty>());
-						++NumPointers;
-						CountTokensUntil(It, It.ConsumeSkipInfo());
-						break;	
-					}
-					case GCRT_EndOfPointer:
-						checkf(false, TEXT("ConsumePointer() should consume all GCRT_EndOfPointer tokens"));
-						break;
-					case GCRT_AddStructReferencedObjects:
-						It.ConsumePointer();
-						++NumPointers;
-						break;
-					case GCRT_AddReferencedObjects:
-						It.ConsumePointer();
-						++NumPointers;
-						[[fallthrough]];
-					case GCRT_SlowAddReferencedObjects:
-						It.Skip(TokenDebugNames::EndOfStream);
-						[[fallthrough]];
-					case GCRT_EndOfStream:
-						check(It.Idx == EndIdx);
-						break;
-					default: // Non-structural leaf field
-						break;
-				}
-			}
-		} 
-	};
-
-	using FLog2Distribution = uint32[32];
-	enum class EDumpUnit {Bytes, Number};
-
-	static void DumpDistribution(FOutputDevice& Out, const TCHAR* Title, const FLog2Distribution& Bins, uint32 Total, EDumpUnit Unit)
-	{
-		uint32 End = 32;
-		for (; End > 0 && Bins[End - 1] == 0; --End);
-
-		uint32 Begin = 0;
-		for (; Begin < End && Bins[Begin] == 0; ++Begin);
-
-		Out.Logf(TEXT(" --- %-24s ---"), Title);
-
-		for (uint32 Idx = Begin, Sum = 0; Idx < End; ++Idx)
-		{
-			uint32 Num = Bins[Idx];
-			Sum += Num;
-			uint32 Max = Idx == 0 ? 0 : 1u << (Idx - 1);
-			float Percentage = (100.f * Num) / Total;
-			float Cumulative = (100.f * Sum) / Total;
-			if (Unit == EDumpUnit::Number)
-			{
-				Out.Logf(TEXT(" %4d %5.1f%% %5.1f%%  %d"), Max, Percentage, Cumulative, Num);
-			}
-			else
-			{
-				uint32 bK = Idx > 10;
-				Out.Logf(TEXT(" %3d%c %5.1f%% %5.1f%%  %d"), Max >> bK*10, "BK"[bK], Percentage, Cumulative, Num);
-			}
-		}
-	}
-
-	static void DumpTokenStats(FOutputDevice& Out, const FTokenStreamStats& Stats)
-	{
-		static constexpr TCHAR FormatStr[] = TEXT(" %18s %5.1f%% %5.1f%%  %d");
-
-		uint32 Sum = 0;
-		for (uint32 Idx = 0; Idx < GCRT_Count; ++Idx)
-		{
-			if (uint32 Num = Stats.Counters[Idx])
-			{
-				Sum += Num;
-				float Percentage = (100.f * Num) / Stats.NumTokens;
-				float Cumulative = (100.f * Sum) / Stats.NumTokens;
-				Out.Logf(FormatStr, ToStatName((EGCReferenceType)Idx), Percentage, Cumulative, Num);
-			}
-		}
-
-		uint32 Num = Stats.NumPointers * 3; // EndOfPointer + 2 32-bit tokens for 64-bit pointer
-		Sum += Num;
-		float Percentage = (100.f * Num) / Stats.NumTokens;
-		float Cumulative = (100.f * Sum) / Stats.NumTokens;
-		Out.Logf(FormatStr, TEXT("Pointer tokens"), Percentage, Cumulative, Num);
-		Out.Logf(FormatStr, TEXT("Skip/Stride/Count"), 100 - Cumulative, 100.f, Stats.NumTokens - Sum);
-	}
-	
-	static void DumpSchemaStats(FOutputDevice& Out)
-	{
-		TMap<void*, FTokenStreamStats> AllStats;
-		uint32 NumClasses = 0;
-		uint32 NumTokens = 0;
-		for (TObjectIterator<UClass> It; It; ++It)
-		{
-			FTokenStreamOwner& Tokens = It->ReferenceTokens;
-			FTokenStreamStats& Stats = AllStats.FindOrAdd(Tokens.Strong.GetTokenData());
-			if (Stats.NumTokens == 0)
-			{
-				Stats = FTokenStreamStats(Tokens);
-				NumTokens += Stats.NumTokens;
-			}
-			++NumClasses;
-		}
-		
-		FTokenStreamStats Sum;
-		FLog2Distribution SizeBins = {};
-		FLog2Distribution MinOffsetBins = {};
-		FLog2Distribution OffsetRangeBins = {};
-		FLog2Distribution MaxJumpBins = {};
-		FLog2Distribution NumTokenBins = {};
-		FLog2Distribution TokenBins[GCRT_Count] = {};
-		uint32 NumObjects = 0;
-		for (TObjectIterator<UObject> It; It; ++It)
-		{
-			const uint32 Size = It->GetClass()->GetPropertiesSize();
-			const FTokenStreamStats& Stats = AllStats.FindChecked(It->GetClass()->ReferenceTokens.Strong.GetTokenData());
-			Sum += Stats;
-			++SizeBins[FMath::CeilLogTwo(Size)];
-			++MinOffsetBins[FMath::CeilLogTwo(Stats.MinOffset)];
-			++OffsetRangeBins[FMath::CeilLogTwo(Stats.MaxOffset - Stats.MinOffset)];
-			++MaxJumpBins[FMath::CeilLogTwo(Stats.MaxJump)];
-			++NumTokenBins[FMath::CeilLogTwo(Stats.NumTokens)];
-			++NumObjects;
-
-			for (uint32 Idx = 0; Idx < GCRT_Count; ++Idx)
-			{
-				 ++TokenBins[Idx][FMath::CeilLogTwo(Stats.Counters[Idx])];
-			}
-		}
-
-		Out.Logf(TEXT("-------------------- GC strong token statistics --------------------"));
-		Out.Logf(TEXT(" %d token streams shared by %d classes contain %d tokens"), AllStats.Num(), NumClasses, NumTokens);
-		Out.Logf(TEXT(" Sweeping %d objects will process %d tokens"), NumObjects, Sum.NumTokens);
-		Out.Logf(TEXT("--------------------------- Distributions --------------------------"));
-		DumpDistribution(Out, TEXT("Object size"), SizeBins, NumObjects, EDumpUnit::Bytes);
-		DumpDistribution(Out, TEXT("Min offset"),	MinOffsetBins, NumObjects, EDumpUnit::Bytes);
-		DumpDistribution(Out, TEXT("Offset range"),	OffsetRangeBins, NumObjects, EDumpUnit::Bytes);
-		DumpDistribution(Out, TEXT("Max jump"),	MaxJumpBins, NumObjects, EDumpUnit::Bytes);
-		DumpDistribution(Out, TEXT("Tokens"), NumTokenBins, NumObjects, EDumpUnit::Number);
-		for (EGCReferenceType TokenType : {	GCRT_Object, GCRT_ArrayObject, GCRT_ArrayStruct, GCRT_AddTMapReferencedObjects, GCRT_AddTSetReferencedObjects, GCRT_FixedArray })
-		{
-			DumpDistribution(Out, ToStatName(TokenType), TokenBins[TokenType], NumObjects, EDumpUnit::Number);
-		}
-		Out.Logf(TEXT("------------------------ Tokens to process -------------------------"));
-		DumpTokenStats(Out, Sum);
-		Out.Logf(TEXT("--------------------------------------------------------------------"));
-	}
-
-	static FAutoConsoleCommandWithOutputDevice GDumpSchemaStats(TEXT("gc.DumpSchemaStats"), TEXT("Dump GC token stream statistics"), FConsoleCommandWithOutputDeviceDelegate::CreateStatic(&DumpSchemaStats));
-
-#endif // !UE_BUILD_SHIPPING
 
 	struct FStats
 	{
@@ -1117,21 +810,14 @@ bool IsInGarbageCollectorThread()
 	return GAsyncPurge ? GAsyncPurge->IsInAsyncPurgeThread() : IsInGameThread();
 }
 
-namespace UE::GC {
-
-	
-
-
-using AROFunc = void (*)(UObject*, FReferenceCollector&);
-
 //////////////////////////////////////////////////////////////////////////
+
+namespace UE::GC {
 
 /** Pool for reusing contexts between CollectReferences calls */
 class FContextPool
 {
-	friend class FContextPoolScope;
-	FContextPool();
-	
+	friend class FContextPoolScope;	
 	TArray<TUniquePtr<FWorkerContext>> Reusable;
 	int32 NumAllocated = 0;
 };
@@ -1141,6 +827,8 @@ class FContextPool
 // Bit of defensive coding during a large refactor, can be removed in the long run
 class FContextPoolScope
 {
+	UE_NONCOPYABLE(FContextPoolScope);
+
 	FContextPool& Pool;
 	bool bNested;
 	static FContextPool& Get();
@@ -1151,7 +839,6 @@ class FContextPoolScope
 	}
 public:
 	FContextPoolScope() : Pool(Get()) { CheckGameThread(); }
-	~FContextPoolScope() { CheckGameThread(); }
 
 	FWorkerContext* AllocateFromPool();
 	void ReturnToPool(FWorkerContext* Context);
@@ -1203,14 +890,6 @@ void FContextPoolScope::Cleanup()
 	UE_LOG(LogGarbage, Log, TEXT("Freed %" SIZE_T_FMT "b from %d GC contexts"), FreedMemory, Pool.Reusable.Num());
 
 	Pool.Reusable.Empty();
-}
-
-static void DumpMemoryStats(FOutputDevice& OutputDevice);
-
-FContextPool::FContextPool()
-{
-	static FAutoConsoleCommandWithOutputDevice Cmd(TEXT("gc.DumpMemoryStats"), TEXT("Dump GC memory stats"),
-		FConsoleCommandWithOutputDeviceDelegate::CreateStatic(&DumpMemoryStats));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1411,7 +1090,7 @@ struct FResolvedMutableReference : FImmutableReference
 	UObject** Mutable;
 };
 
-FORCEINLINE_DEBUGGABLE static bool ValidateReference(UObject* Object, FPermanentObjectPoolExtents PermanentPool, const UObject* ReferencingObject, FTokenId TokenId)
+FORCEINLINE_DEBUGGABLE static bool ValidateReference(UObject* Object, FPermanentObjectPoolExtents PermanentPool, const UObject* ReferencingObject, FMemberId MemberId)
 {
 	bool bOk = (!PermanentPool.Contains(Object)) & (!!Object) & IsObjectHandleResolved(reinterpret_cast<FObjectHandle&>(Object)); //-V792
 
@@ -1425,12 +1104,12 @@ FORCEINLINE_DEBUGGABLE static bool ValidateReference(UObject* Object, FPermanent
 			!Object->IsValidLowLevelFast())
 		{
 			UClass* ReferencingClass = ReferencingObject ? ReferencingObject->GetClass() : nullptr;
-			FString TokenName = ReferencingClass ? ReferencingClass->ReferenceTokens.GetTokenInfo(TokenId).Name.ToString() : TEXT("N/A");
+			FString MemberName = ReferencingClass ? GetMemberDebugInfo(ReferencingClass->ReferenceSchema.Get(), MemberId).Name.ToString() : TEXT("N/A");
 
-			UE_LOG(LogGarbage, Fatal, TEXT("Invalid object in GC: 0x%016llx, ReferencingObject: %s, TokenId %s (%d)"),
+			UE_LOG(LogGarbage, Fatal, TEXT("Invalid object in GC: 0x%016llx, ReferencingObject: %s, MemberId %s (%d)"),
 				(int64)(PTRINT)Object,
 				ReferencingObject ? *ReferencingObject->GetFullName() : TEXT("N/A"),
-				*TokenName, TokenId.AsPrintableIndex());
+				*MemberName, MemberId.AsPrintableIndex());
 		}
 	}
 #endif // ENABLE_GC_OBJECT_CHECKS
@@ -1456,21 +1135,170 @@ struct FReferenceMetadata
 
 //////////////////////////////////////////////////////////////////////////
 
-class FReferenceBatcherBase
+// Work-stealing algorithms are O(N^2), everyone steals from everyone.
+// Might want to improve that before going much wider.
+static constexpr int32 MaxWorkers = 16;
+
+int32 GetNumSlowAROs();
+
+// Allocates and caches 4K pages used for temporary allocations during GC
+//
+// Currently doesn't free pages until shutdown
+class FPageAllocator
+{
+	struct alignas(PLATFORM_CACHE_LINE_SIZE) FWorkerCache
+	{
+		UE_NONCOPYABLE(FWorkerCache);
+		FWorkerCache() = default;
+		~FWorkerCache()
+		{
+			for (void* Page : MakeArrayView(Pages, Num))
+			{
+				FreePage(Page);
+			}
+		}
+
+		bool Push(void* Page)
+		{
+			check(Page);
+			if (Num < Capacity)
+			{
+				Pages[Num++] = Page;
+				return true;	
+			}
+			return false;
+		}
+
+		void* Pop()
+		{
+			return Num > 0 ? Pages[--Num] : nullptr;
+		}
+
+		static constexpr uint32 Capacity = 512 / MaxWorkers;
+		uint32 Num = 0;
+		void* Pages[Capacity] = {};
+	};	
+
+	struct FSharedCache
+	{
+		UE_NONCOPYABLE(FSharedCache);
+		FSharedCache() = default;
+		~FSharedCache()
+		{
+			for (void* Page : Pages)
+			{
+				FreePage(Page);
+			}
+		}
+
+		void Push(void* Page)
+		{
+			FScopeLock Scope(&Lock);
+			Pages.Add(Page);
+		}
+
+		void PushSurplus(FWorkerCache& Worker)
+		{
+			// Each worker context also needs a page for FWorkBlockifier and FStructBlockifer
+			const uint32 NumWorkerInitialPages = 2 + GetNumSlowAROs();
+
+			if (Worker.Num > NumWorkerInitialPages)
+			{
+				FScopeLock Scope(&Lock);
+				Pages.Append(Worker.Pages + NumWorkerInitialPages, Worker.Num - NumWorkerInitialPages);
+				Worker.Num = NumWorkerInitialPages;
+			}
+		}
+
+		void* Pop()
+		{
+			FScopeLock Scope(&Lock);
+			return Pages.IsEmpty() ? nullptr : Pages.Pop(/* shrink */ false);
+		}
+
+		FCriticalSection Lock;
+		TArray<void*> Pages;
+	};	
+
+	FSharedCache SharedCache;
+	FWorkerCache WorkerCaches[MaxWorkers];
+
+public:
+	static constexpr uint64 PageSize = 4096;
+
+	void* AllocatePage(int32 WorkerIdx)
+	{
+		check(WorkerIdx >=0 && WorkerIdx < MaxWorkers);
+		if (void* WorkerPage = WorkerCaches[WorkerIdx].Pop())
+		{
+			check(IsValidPage(WorkerPage));
+			return WorkerPage;
+		}
+		else if (void* SharedPage = SharedCache.Pop())
+		{
+			check(IsValidPage(SharedPage));
+			return SharedPage;
+		}
+
+		void* NewPage = FMemory::Malloc(PageSize, PageSize);
+		return NewPage;
+	}
+	
+	void ReturnWorkerPage(int32 WorkerIdx, void* Page)
+	{
+		check(IsValidPage(Page));
+		if (!WorkerCaches[WorkerIdx].Push(Page))
+		{
+			FreePage(Page);
+		}
+	}
+
+	void ReturnSharedPage(void* Page)
+	{
+		check(IsValidPage(Page));
+		SharedCache.Push(Page);
+	}
+
+	static void FreePage(void* Page)
+	{
+		check(IsValidPage(Page));
+		FMemory::Free(Page);
+	}
+
+	uint64 CountBytes() const
+	{
+		uint64 NumPages = SharedCache.Pages.Num();
+		for (const FWorkerCache& WorkerCache : WorkerCaches)
+		{
+			NumPages += WorkerCache.Num;
+		}
+		return NumPages * PageSize;
+	}
+
+	static bool IsValidPage(void* Page)
+	{
+		return Page && UPTRINT(Page) % PageSize == 0;
+	}
+};
+
+static FPageAllocator GScratchPages;
+
+////////////// TReferenceBatcher and FStructBatcher helpers //////////////
+
+class FBatcherBase
 {
 protected:
-
-	template<class ReferenceType, uint32 Capacity, uint32 PrefetchCapacity = 0>
+	template<class EntryType, uint32 Capacity, uint32 PrefetchCapacity = 0>
 	struct TBatchQueue
 	{
 		uint32 Num = 0;
-		ReferenceType Entries[Capacity + PrefetchCapacity];
+		EntryType Entries[Capacity + PrefetchCapacity];
 
 		FORCEINLINE static constexpr uint32 Max() { return Capacity; }
 		FORCEINLINE bool IsFull() const { return Num == Capacity; }
-		FORCEINLINE void Push(ReferenceType Entry) { Entries[Num++] = Entry; }
+		FORCEINLINE void Push(EntryType Entry) { Entries[Num++] = Entry; }
 		FORCEINLINE uint32 Slack() const { return Capacity - Num; }
-		FORCEINLINE ReferenceType& operator[](uint32 Idx) { return Entries[Idx]; }
+		FORCEINLINE EntryType& operator[](uint32 Idx) { return Entries[Idx]; }
 
 		TBatchQueue() { FMemory::Memzero(Entries); } // Zero out so prefetching ahead fetches same (near) null addresses
 		~TBatchQueue() { checkf(Num == 0, TEXT("Failed to flush")); }
@@ -1521,7 +1349,6 @@ protected:
 	};
 };
 
-// TReferenceBatcher helpers
 FORCEINLINE UObject*						GetObject(FImmutableReference In) { return In.Object; }
 FORCEINLINE UObject*						GetObject(FMutableReference In) { return *In.Object; }
 FORCEINLINE void							PrefetchObjectPointer(FImmutableReference) {}
@@ -1536,6 +1363,31 @@ template<class RefType> RefType				MakeReference(UObject*& Object);
 template<> FORCEINLINE FImmutableReference	MakeReference(UObject*& Object) { return {Object}; }
 template<> FORCEINLINE FMutableReference	MakeReference(UObject*& Object) { return {&Object}; }
 
+using FStructArray = Private::FStructArray;
+using FStridedReferenceArray = Private::FStridedReferenceArray;
+using FStridedReferenceView = Private::FStridedReferenceView;
+
+FORCEINLINE_DEBUGGABLE static TArrayView<UObject*> Split(/* in-out */ TArrayView<UObject*>& Body, int32 Idx)
+{
+	check(Idx <= Body.Num());
+	TArrayView<UObject*> Head(Body.GetData(), Idx);
+	Body = TArrayView<UObject*>(Body.GetData() + Idx, Body.Num() - Idx);
+	return Head;
+}
+
+FORCEINLINE_DEBUGGABLE static FStridedReferenceView Split(/* in-out */ FStridedReferenceView& Body, int32 Idx)
+{
+	check(Idx <= Body.Num);
+	check(Body.Stride > 0);
+	FStridedReferenceView Head = Body;
+	Head.Num = Idx;
+	Body.Data += Idx * Body.Stride;
+	Body.Num -= Idx;
+	return Head;
+}
+
+/////////////////////////// TReferenceBatcher ///////////////////////////
+
 /**
  * Queues up memory indirection to avoid synchronous cache misses by prefetching data just in time.
  *
@@ -1547,52 +1399,63 @@ template<> FORCEINLINE FMutableReference	MakeReference(UObject*& Object) { retur
  * Unvalidated means references that might be nullptr or part of the permanent object pool, neither of which require processing.
  */
 template <class UnvalidatedReferenceType, class ValidatedReferenceType, class ProcessorType>
-class TReferenceBatcher : public FReferenceBatcherBase
+class TReferenceBatcher : public FBatcherBase
 {
 	FWorkerContext& Context;
 	const FPermanentObjectPoolExtents PermanentPool;
 
-	alignas (PLATFORM_CACHE_LINE_SIZE)	TBatchQueue<FReferenceArray, ArrayBatchSize>									UnvalidatedArrays;
-	alignas (PLATFORM_CACHE_LINE_SIZE)	TBatchQueue<UnvalidatedReferenceType, UnvalidatedBatchSize>						UnvalidatedReferences;
-	alignas (PLATFORM_CACHE_LINE_SIZE)	TBatchQueue<ValidatedReferenceType, ValidatedBatchSize, ValidatedPrefetchAhead>	ValidatedReferences;
+	alignas (PLATFORM_CACHE_LINE_SIZE)	TBatchQueue<FReferenceArray, ArrayBatchSize>									UnvalidatedArrays;			// Drains to UnvalidatedReferences
+	alignas (PLATFORM_CACHE_LINE_SIZE)	TBatchQueue<FStridedReferenceArray, ArrayBatchSize>								UnvalidatedStridedArrays;	// Drains to UnvalidatedReferences
+	alignas (PLATFORM_CACHE_LINE_SIZE)	TBatchQueue<UnvalidatedReferenceType, UnvalidatedBatchSize>						UnvalidatedReferences;		// Drains to ValidatedReferences
+	alignas (PLATFORM_CACHE_LINE_SIZE)	TBatchQueue<ValidatedReferenceType, ValidatedBatchSize, ValidatedPrefetchAhead>	ValidatedReferences;		// Drains to ProcessorType::HandleBatchedReference
 
 public:
 	TReferenceBatcher(FWorkerContext& InContext) : Context(InContext) {}
 	
-	FORCEINLINE_DEBUGGABLE void PushArray(FReferenceArray UnvalidatedArray)
+	FORCEINLINE_DEBUGGABLE void PushArray(TArray<UObject*>& Array)
 	{
-		FPlatformMisc::Prefetch(UnvalidatedArray.Array);
-		UnvalidatedArrays.Push({ UnvalidatedArray });
+		FPlatformMisc::Prefetch(&Array);
+		UnvalidatedArrays.Push({&Array});
 		if (UnvalidatedArrays.IsFull())
 		{
 			DrainArraysFull();
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void PushReference(UnvalidatedReferenceType UnvalidatedReference)
+	FORCEINLINE_DEBUGGABLE void PushArray(FStridedReferenceArray StridedArray)
 	{
-		UnvalidatedReferences.Push({ UnvalidatedReference });
-		if (UnvalidatedReferences.IsFull())
+		FPlatformMisc::Prefetch(StridedArray.Array);
+		UnvalidatedStridedArrays.Push(StridedArray);
+		if (UnvalidatedStridedArrays.IsFull())
 		{
-			DrainUnvalidatedFull();
+			DrainStridedArraysFull();
 		}
 	}
-	
-	FORCEINLINE_DEBUGGABLE void PushReferences(TArrayView<UObject*> Range)
+
+	template<class ViewType>
+	FORCEINLINE_DEBUGGABLE void PushReferenceView(ViewType View)
 	{
-		if (Range.Num())
+		if (GetNum(View))
 		{
 			// Fill up UnvalidatedReferences slack and drain it to avoid inserting an element at a time and testing if full
-			for (uint32 Slack = UnvalidatedReferences.Slack(); (uint32)Range.Num() >= Slack; Slack = UnvalidatedBatchSize) //-V1021
+			for (uint32 Slack = UnvalidatedReferences.Slack(); (uint32)GetNum(View) >= Slack; Slack = UnvalidatedBatchSize) //-V1021
 			{
-				QueueUnvalidated(Range.Left(Slack));
-				Range.RightChopInline(Slack);
+				QueueUnvalidated(Split(/* in-out */ View, Slack));
 				check(UnvalidatedReferences.IsFull());
 				DrainUnvalidatedFull();
 			}
 
-			QueueUnvalidated(Range);
+			QueueUnvalidated(View);
 			check(!UnvalidatedReferences.IsFull());
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void PushReference(UnvalidatedReferenceType UnvalidatedReference)
+	{
+		UnvalidatedReferences.Push(UnvalidatedReference);
+		if (UnvalidatedReferences.IsFull())
+		{
+			DrainUnvalidatedFull();
 		}
 	}
 
@@ -1600,11 +1463,13 @@ public:
 	{
 		// Slower path with dynamic Num that the compiler won't unroll or vectorize, unlike DrainXyzFull methods
 		DrainArrays(UnvalidatedArrays.Num);
+		DrainStridedArrays(UnvalidatedStridedArrays.Num);
 		DrainUnvalidated(UnvalidatedReferences.Num);
 		DrainValidated(ValidatedReferences.Num);
 	}
 
 private:
+
 	// Process queued arrays of references and feed contents to unvalidated queue
 	FORCEINLINE_DEBUGGABLE void DrainArrays(uint32 Num)
 	{
@@ -1617,29 +1482,49 @@ private:
 
 		for (FReferenceArray Entry : MakeArrayView(UnvalidatedArrays.Entries, Num))
 		{
-			PushReferences(*Entry.Array);
+			PushReferenceView(MakeArrayView(*Entry.Array));
 		}
 
 		UnvalidatedArrays.Num = 0;
 	}
 
-	// Helps generate vectorized code with static Num
-	FORCENOINLINE void DrainArraysFull()
+	// Process queued strided arrays of references and feed contents to unvalidated queue
+	FORCEINLINE_DEBUGGABLE void DrainStridedArrays(uint32 Num)
 	{
-		DrainArrays(UnvalidatedArrays.Max());
-	}
+		check(Num <= ArrayBatchSize);
 
-	FORCEINLINE_DEBUGGABLE void QueueUnvalidated(TArrayView<UObject*> Range)
-	{
-		check((uint32)Range.Num() <= UnvalidatedReferences.Slack());
-
-		UnvalidatedReferenceType* Unvalidated = UnvalidatedReferences.Entries + UnvalidatedReferences.Num;
-		for (int32 Idx = 0; Idx < Range.Num(); ++Idx)
+		FStridedReferenceView Views[ArrayBatchSize];
+		for (uint32 Idx = 0; Idx < Num; ++Idx)
 		{
-			Unvalidated[Idx] = { MakeReference<UnvalidatedReferenceType>(Range[Idx]) };
+			Views[Idx] = ToView(UnvalidatedStridedArrays.Entries[Idx]);
 		}
 
-		UnvalidatedReferences.Num += Range.Num();
+		for (FStridedReferenceView View : MakeArrayView(Views, Num))
+		{
+			FPlatformMisc::Prefetch(View.Data);
+		}
+		
+		for (FStridedReferenceView View : MakeArrayView(Views, Num))
+		{
+			PushReferenceView(View);
+		}
+
+		UnvalidatedStridedArrays.Num = 0;
+	}
+
+
+	template<class ViewType>
+	FORCEINLINE_DEBUGGABLE void QueueUnvalidated(ViewType View)
+	{
+		check((uint32)GetNum(View) <= UnvalidatedReferences.Slack());
+
+		UnvalidatedReferenceType* UnvalidatedIt = UnvalidatedReferences.Entries + UnvalidatedReferences.Num;
+		for (UObject*& Object : View)
+		{
+			*UnvalidatedIt++ = MakeReference<UnvalidatedReferenceType>(Object);
+		}
+
+		UnvalidatedReferences.Num += GetNum(View);
 	}
 
 	// Validate all unvalidated references and feed referencing in need of processing to validated queue
@@ -1678,12 +1563,6 @@ private:
 		check(!ValidatedReferences.IsFull());
 
 		UnvalidatedReferences.Num = 0;
-	}
-
-	// Helps generate vectorized code with static Num
-	FORCENOINLINE void DrainUnvalidatedFull()
-	{
-		DrainUnvalidated(UnvalidatedReferences.Max());
 	}
 
 	FORCEINLINE_DEBUGGABLE void QueueValidReferences(uint32 NumToAppend, FValidatedBitmask Validations, uint32& InOutIdx)
@@ -1779,11 +1658,281 @@ private:
 		ValidatedReferences.Num = 0;
 	}
 
-	// Helps generate code with static Num
-	FORCENOINLINE void DrainValidatedFull()
+	// Helps generate vectorized code with static Num
+
+	FORCENOINLINE void DrainArraysFull()			{ DrainArrays(UnvalidatedArrays.Max()); }
+	FORCENOINLINE void DrainStridedArraysFull()		{ DrainStridedArrays(UnvalidatedStridedArrays.Max()); }
+	FORCENOINLINE void DrainUnvalidatedFull()		{ DrainUnvalidated(UnvalidatedReferences.Max()); }
+	FORCENOINLINE void DrainValidatedFull()			{ DrainValidated(ValidatedReferences.Max()); }
+};
+
+
+///////////////////////// FStructBatcher + helpers ///////////////////////
+
+// Fixed block of array-of-structs waiting to be processed
+struct FStructArrayBlock
+{
+	static constexpr uint32 Lookahead = 2;
+	static constexpr uint32 Capacity = (FPageAllocator::PageSize - sizeof(FStructArrayBlock*)) / sizeof(FStructArray) - Lookahead;
+
+	FStructArray Data[Capacity + Lookahead];
+	FStructArrayBlock* NextFull;
+
+	FStructArray* GetPadEnd() { return Data + Capacity; }
+};
+
+// Unbounded queue of validated / non-empty AoS
+class FStructBlockifier
+{
+	UE_NONCOPYABLE(FStructBlockifier);
+public:
+	explicit FStructBlockifier(int32 WorkerIdx)
+	: WorkerIndex(WorkerIdx)
 	{
-		DrainValidated(ValidatedReferences.Max());
+		AllocateWipBlock(nullptr);
 	}
+
+	~FStructBlockifier()
+	{
+		check(!CanPop());
+		FreeBlock(Wip);
+	}
+	
+	void Push(FStructArray AoS)
+	{
+		*WipIt = AoS;
+		if (++WipIt == Wip->Data+ FStructArrayBlock::Capacity)
+		{
+			AllocateWipBlock(Wip);
+		}
+	}
+
+	FStructArray* PushUninitialized(int32 Num)
+	{
+		check(Num > 0 && Num <= GetSlack());
+
+		FStructArray* Out = WipIt;
+
+		WipIt += Num;
+		if (WipIt == Wip->Data + FStructArrayBlock::Capacity)
+		{
+			AllocateWipBlock(Wip);
+		}
+		return Out;
+	}
+
+	int32 GetSlack() const
+	{
+		return IntCastChecked<int32>(Wip->Data + FStructArrayBlock::Capacity - WipIt);
+	}
+
+	bool CanPop() const
+	{
+		return (PartialNum() > 0) | !!(Wip->NextFull);
+	}
+
+	FStructArrayBlock* PopBlock(int32& OutNum)
+	{
+		if (FStructArrayBlock* Full = Wip->NextFull)
+		{
+			FPlatformMisc::Prefetch(Full->NextFull);
+			FPlatformMisc::Prefetch(Full->Data);
+			PadBlock(Full, FStructArrayBlock::Capacity);
+			Wip->NextFull = Full->NextFull;
+			OutNum = FStructArrayBlock::Capacity;
+			return Full;
+		}
+		
+		OutNum = PartialNum();
+		check(OutNum > 0);
+		PadBlock(Wip, OutNum);
+		FStructArrayBlock* Out = Wip;
+		AllocateWipBlock(nullptr);
+		return Out;
+	}
+
+	void FreeBlock(FStructArrayBlock* Block)
+	{
+		GScratchPages.ReturnWorkerPage(WorkerIndex, Block);
+	}
+
+private:
+	FStructArray* WipIt; // Wip->Data cursor
+	FStructArrayBlock* Wip;
+	const int32 WorkerIndex;
+	
+	int32 PartialNum() const
+	{
+		check(WipIt >= Wip->Data && WipIt < Wip->Data + FStructArrayBlock::Capacity);
+		return static_cast<int32>(WipIt - Wip->Data);
+	}
+
+	static void PadBlock(FStructArrayBlock* Block, int32 PadIdx)
+	{
+		check(PadIdx <= FStructArrayBlock::Capacity);
+		FMemory::Memzero(Block->Data + PadIdx, sizeof(FStructArray) * FStructArrayBlock::Lookahead);
+	}
+
+	void AllocateWipBlock(FStructArrayBlock* NextFull)
+	{	
+		static_assert(sizeof(FStructArrayBlock) <= FPageAllocator::PageSize, "Block must fit in page");
+	
+		Wip = reinterpret_cast<FStructArrayBlock*>(GScratchPages.AllocatePage(WorkerIndex));
+		//Wip = new (GScratchPages.AllocatePage(WorkerIndex)) FStructArrayBlock;
+		Wip->NextFull = NextFull;
+		WipIt = Wip->Data;
+	}
+};
+
+struct FSparseStructArray
+{
+	FSchemaView Schema{NoInit};
+	FScriptSparseArray* Array;
+	int32 Num;
+	uint32 Stride;
+};
+
+struct FStructArrayWithoutStride
+{
+	FSchemaView Schema{NoInit};
+	uint8* Data;
+	int32 Num;
+};
+
+static FStructArray CopyAndLoadStride(FStructArrayWithoutStride In)
+{
+	return {In.Schema, In.Data, In.Num, In.Schema.GetStructStride() };
+}
+
+// Queues up arrays-of-structs and maps/sets as sparse array-of-structs for later processing by ProcessStructs
+class FStructBatcher : public FBatcherBase
+{
+	alignas (PLATFORM_CACHE_LINE_SIZE)	TBatchQueue<FSparseStructArray, ArrayBatchSize>			UnvalidatedSparseStructArrays;	// Drains to ValidatedStructArrays
+	alignas (PLATFORM_CACHE_LINE_SIZE)	TBatchQueue<FStructArrayWithoutStride, ArrayBatchSize>	UnvalidatedStructArrays;		// Drains to ValidatedStructArrays
+	alignas (PLATFORM_CACHE_LINE_SIZE)	FStructBlockifier										ValidatedStructArrays;			// Drained by ProcessStructs, which feed back into TReferenceBatcher
+
+public:
+	explicit FStructBatcher(int32 WorkerIdx) : ValidatedStructArrays(WorkerIdx) {}
+
+	FORCEINLINE_DEBUGGABLE void PushSparseStructArray(FSchemaView Schema, FScriptSparseArray& Array)
+	{
+		check(!Schema.IsEmpty());
+
+		UnvalidatedSparseStructArrays.Push({ Schema, &Array, Array.Num(), Schema.GetStructStride() });
+		if (UnvalidatedSparseStructArrays.IsFull())
+		{
+			DrainSparseStructArraysFull();
+		}
+	}
+	
+	FORCEINLINE_DEBUGGABLE void PushStructArray(FSchemaView Schema, uint8* Data, int32 Num)
+	{
+		check(!Schema.IsEmpty());
+
+		UnvalidatedStructArrays.Push({Schema, Data, Num});
+		if (UnvalidatedStructArrays.IsFull())
+		{
+			DrainStructArraysFull();
+		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void FlushBoundedQueues()
+	{
+		DrainSparseStructArrays(UnvalidatedSparseStructArrays.Num);
+		DrainStructArrays(UnvalidatedStructArrays.Num);
+	}
+
+	FStructBlockifier& GetUnboundedQueue() { return ValidatedStructArrays;	}
+private:
+	FORCEINLINE_DEBUGGABLE void DrainSparseStructArrays(uint32 Num)
+	{
+		check(Num <= ArrayBatchSize);
+
+		if (Num == 0)
+		{
+			return;
+		}
+
+		// This can likely be optimized further, e.g. prefetching, intermediate queues, FValidatedBitmask for IsCompact() etc
+		for (FSparseStructArray Entry : MakeArrayView(UnvalidatedSparseStructArrays.Entries, Num))
+		{
+			if (Entry.Num)
+			{
+				FScriptSparseArray& Array = *Entry.Array;
+				FStructArray Slice = { Entry.Schema, Private::GetSparseData(Array), Entry.Num, Entry.Stride };
+				if (Array.IsCompact())
+				{
+					ValidatedStructArrays.Push(Slice);
+				}
+				else
+				{
+					Slice.Num = 0;
+					for (uint32 Idx = 0, NumIndices = Array.GetMaxIndex(); Idx < NumIndices; ++Idx)
+					{
+						if (Array.IsAllocated(Idx))
+						{
+							++Slice.Num;
+						}
+						else
+						{
+							if (Slice.Num > 0)
+							{
+								ValidatedStructArrays.Push(Slice);
+								Slice.Data += Slice.Stride * Slice.Num;
+								Slice.Num = 0;
+							}
+
+							Slice.Data += Slice.Stride;
+						}
+					}
+
+					if (Slice.Num > 0)
+					{
+						ValidatedStructArrays.Push(Slice);
+					}
+				}
+			}
+		}
+
+		UnvalidatedSparseStructArrays.Num = 0;
+	}
+	
+	FORCEINLINE_DEBUGGABLE void DrainStructArrays(uint32 Num)
+	{
+		check(Num <= UnvalidatedStructArrays.Max());
+		
+		if (Num == 0)
+		{
+			return;
+		}
+		
+		uint32 ValidIndices[UnvalidatedStructArrays.Max()];
+		uint32* ValidIt = ValidIndices;
+		for (uint32 Idx = 0; Idx < Num; ++Idx)
+		{
+			bool bIsValid = UnvalidatedStructArrays.Entries[Idx].Num > 0;
+			*ValidIt = Idx;
+			ValidIt += bIsValid;
+		}
+
+		for (uint32* IdxIt = ValidIndices, *IdxEnd = ValidIt; IdxIt != IdxEnd; )
+		{
+			uint32* NextIdxEnd = FMath::Min(IdxIt + ValidatedStructArrays.GetSlack(), IdxEnd);
+			FStructArray* OutIt = ValidatedStructArrays.PushUninitialized(static_cast<int32>(NextIdxEnd - IdxIt));
+			do
+			{
+				*OutIt++ = CopyAndLoadStride(UnvalidatedStructArrays.Entries[*IdxIt++]);
+			}
+			while (IdxIt != NextIdxEnd);
+		}
+
+		UnvalidatedStructArrays.Num = 0;
+	}
+
+	// Helps generate vectorized code with static Num
+
+	FORCENOINLINE void DrainStructArraysFull()			{ DrainStructArrays(UnvalidatedStructArrays.Max());	}
+	FORCENOINLINE void DrainSparseStructArraysFull()	{ DrainSparseStructArrays(UnvalidatedSparseStructArrays.Max());	}
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1813,10 +1962,6 @@ FORCEINLINE_DEBUGGABLE void PadBlock(FWorkBlock& Block)
 }
 
 //////////////////////////////////////////////////////////////////////////
-
-// Work-stealing algorithms are O(N^2), everyone steals from everyone.
-// Might want to improve that before going much wider.
-static constexpr int32 MaxWorkers = 16;
 
 class FWorkerIndexAllocator
 {
@@ -1874,152 +2019,6 @@ void FWorkerContext::FreeWorkerIndex()
 		ObjectsToSerialize.SetWorkerIndex(INDEX_NONE);
 	}
 }
-
-//////////////////////////////////////////////////////////////////////////
-
-int32 GetNumSlowAROs();
-
-// Allocates and caches 4K pages used for temporary allocations during GC
-//
-// Currently doesn't free pages until shutdown
-class FPageAllocator
-{
-	struct alignas(PLATFORM_CACHE_LINE_SIZE) FWorkerCache
-	{
-		UE_NONCOPYABLE(FWorkerCache);
-		FWorkerCache() = default;
-		~FWorkerCache()
-		{
-			for (void* Page : MakeArrayView(Pages, Num))
-			{
-				FreePage(Page);
-			}
-		}
-
-		bool Push(void* Page)
-		{
-			check(Page);
-			if (Num < Capacity)
-			{
-				Pages[Num++] = Page;
-				return true;	
-			}
-			return false;
-		}
-
-		void* Pop()
-		{
-			return Num > 0 ? Pages[--Num] : nullptr;
-		}
-
-		static constexpr uint32 Capacity = 512 / MaxWorkers;
-		uint32 Num = 0;
-		void* Pages[Capacity] = {};
-	};	
-
-	struct FSharedCache
-	{
-		UE_NONCOPYABLE(FSharedCache);
-		FSharedCache() = default;
-		~FSharedCache()
-		{
-			for (void* Page : Pages)
-			{
-				FreePage(Page);
-			}
-		}
-
-		void Push(void* Page)
-		{
-			FScopeLock Scope(&Lock);
-			Pages.Add(Page);
-		}
-
-		void PushSurplus(FWorkerCache& Worker)
-		{
-			// Each worker context also owns a page via FWorkBlockifier::Wip
-			const uint32 NumWorkerInitialPages = 1 + GetNumSlowAROs();
-
-			if (Worker.Num > NumWorkerInitialPages)
-			{
-				FScopeLock Scope(&Lock);
-				Pages.Append(Worker.Pages + NumWorkerInitialPages, Worker.Num - NumWorkerInitialPages);
-				Worker.Num = NumWorkerInitialPages;
-			}
-		}
-
-		void* Pop()
-		{
-			FScopeLock Scope(&Lock);
-			return Pages.IsEmpty() ? nullptr : Pages.Pop(/* shrink */ false);
-		}
-
-		FCriticalSection Lock;
-		TArray<void*> Pages;
-	};	
-
-	FSharedCache SharedCache;
-	FWorkerCache WorkerCaches[MaxWorkers];
-
-public:
-	static constexpr uint64 PageSize = 4096;
-
-	void* AllocatePage(int32 WorkerIdx)
-	{
-		check(WorkerIdx >=0 && WorkerIdx < MaxWorkers);
-		if (void* WorkerPage = WorkerCaches[WorkerIdx].Pop())
-		{
-			check(IsValidPage(WorkerPage));
-			return WorkerPage;
-		}
-		else if (void* SharedPage = SharedCache.Pop())
-		{
-			check(IsValidPage(SharedPage));
-			return SharedPage;
-		}
-
-		void* NewPage = FMemory::Malloc(PageSize, PageSize);
-		return NewPage;
-	}
-	
-	void ReturnWorkerPage(int32 WorkerIdx, void* Page)
-	{
-		check(IsValidPage(Page));
-		if (!WorkerCaches[WorkerIdx].Push(Page))
-		{
-			FreePage(Page);
-		}
-	}
-
-	void ReturnSharedPage(void* Page)
-	{
-		check(IsValidPage(Page));
-		SharedCache.Push(Page);
-	}
-
-	static void FreePage(void* Page)
-	{
-		check(IsValidPage(Page));
-		FMemory::Free(Page);
-	}
-
-	uint64 CountBytes() const
-	{
-		uint64 NumPages = SharedCache.Pages.Num();
-		for (const FWorkerCache& WorkerCache : WorkerCaches)
-		{
-			NumPages += WorkerCache.Num;
-		}
-		return NumPages * PageSize;
-	}
-
-	static bool IsValidPage(void* Page)
-	{
-		return Page && UPTRINT(Page) % PageSize == 0;
-	}
-};
-
-static FPageAllocator GScratchPages;
 
 // Bounded SPMC work-stealing queue
 //
@@ -2490,7 +2489,7 @@ template<class Quantity> FORCEINLINE TArrayView<UObject*> FAROQueue::Steal()	{ r
 class FSlowAROManager
 {
 public:
-	void RegisterImplementation(AROFunc ARO, EAROFlags Flags)
+	void RegisterImplementation(ObjectAROFn ARO, EAROFlags Flags)
 	{
 		check(IsInGameThread());
 		check(AROs.Find(ARO) == INDEX_NONE);
@@ -2507,7 +2506,7 @@ public:
 		ExtraSlowAROs |= decltype(ExtraSlowAROs)(EnumHasAllFlags(Flags, EAROFlags::ExtraSlow)) << Idx;
 	}
 
-	int32 FindImplementation(AROFunc ARO) const
+	int32 FindImplementation(ObjectAROFn ARO) const
 	{
 		return AROs.Find(ARO);
 	}
@@ -2541,7 +2540,7 @@ public:
 		const int32 WorkerIdx = Context.GetWorkerIndex();
 		for (uint32 AROIdx : UnbalancedAROIndices)
 		{
-			AROFunc ARO = AROs[AROIdx];
+			ObjectAROFn ARO = AROs[AROIdx];
 			FAROQueue& Queue = GetQueue(AROIdx, WorkerIdx);
 			for (TArrayView<UObject*> Objects = Queue.Pop<FAROQueue::FMany>(); Objects.Num(); Objects = Queue.Pop<FAROQueue::FMany>())
 			{
@@ -2593,7 +2592,7 @@ private:
 	int32 NumWorkers = 0;
 	TArray<FAROQueue> AllQueues;
 	TArray<int32, TFixedAllocator<2>> UnbalancedAROIndices;
-	TArray<AROFunc, TFixedAllocator<Capacity>> AROs;
+	TArray<ObjectAROFn, TFixedAllocator<Capacity>> AROs;
 
 	FAROQueue& GetQueue(int32 AROIdx, int32 WorkerIdx)
 	{
@@ -2604,7 +2603,7 @@ private:
 
 	// @return if processing should stop since NumCalls reached CallLimit
 	template<class Quantity>
-	static bool ProcessQueues(FWorkerContext& Context, TArrayView<FAROQueue> WorkerQueues, AROFunc ARO, FReferenceCollector& Collector, uint32& NumCalls)
+	static bool ProcessQueues(FWorkerContext& Context, TArrayView<FAROQueue> WorkerQueues, ObjectAROFn ARO, FReferenceCollector& Collector, uint32& NumCalls)
 	{
 		static constexpr uint32 CallLimit = FAROQueue::NumPop<Quantity>;
 		const int32 WorkerIdx = Context.GetWorkerIndex();
@@ -2616,7 +2615,7 @@ private:
 
 	// @return if processing should stop since NumCalls reached or exceeded CallLimit
 	template<TArrayView<UObject*>(FAROQueue::*PopFunc)(), uint32 CallLimit>
-	FORCEINLINE_DEBUGGABLE static bool ProcessQueuesUsing(FWorkerContext& Context, TArrayView<FAROQueue> Queues, AROFunc ARO, FReferenceCollector& Collector, uint32& NumCalls)
+	FORCEINLINE_DEBUGGABLE static bool ProcessQueuesUsing(FWorkerContext& Context, TArrayView<FAROQueue> Queues, ObjectAROFn ARO, FReferenceCollector& Collector, uint32& NumCalls)
 	{
 		for (FAROQueue& Queue : Queues)
 		{
@@ -2707,12 +2706,12 @@ bool FSlowARO::ProcessAllCalls(FWorkerContext& Context, FReferenceCollector& Col
 	return GSlowARO.GetPostInit().ProcessAllQueues(Context, Collector);
 }
 
-void RegisterSlowImplementation(AROFunc ARO, EAROFlags Flags)
+void RegisterSlowImplementation(ObjectAROFn ARO, EAROFlags Flags)
 {
 	GSlowARO.Get().RegisterImplementation(ARO, Flags);
 }
 
-int32 FindSlowImplementation(AROFunc ARO)
+int32 FindSlowImplementation(ObjectAROFn ARO)
 {
 	return GSlowARO.GetPostInit().FindImplementation(ARO);
 }
@@ -2728,10 +2727,10 @@ int32 GetNumSlowAROs()
 FORCEINLINE_DEBUGGABLE void KillReference(UObject*& Object) { Object = nullptr; }
 
 template <EGCOptions Options>
-constexpr FORCEINLINE EKillable MayKill(EGCTokenType TokenType, bool bAllowKill)
+constexpr FORCEINLINE EKillable MayKill(EOrigin Origin, bool bAllowKill)
 {
 	// To avoid content changes, allow reference elimination inside of Blueprints
-	return (bAllowKill & (IsPendingKill(Options) || TokenType == EGCTokenType::NonNative)) ? EKillable::Yes : EKillable::No;
+	return (bAllowKill & (IsPendingKill(Options) || Origin == EOrigin::Blueprint)) ? EKillable::Yes : EKillable::No;
 }
 
 // Return whether flag was cleared. Only thread-safe for concurrent clear, not concurrent set+clear. Don't use during mark phase.
@@ -2777,12 +2776,12 @@ public:
 	static constexpr EInternalObjectFlags KillFlag = IsWithPendingKill() ? EInternalObjectFlags::PendingKill : EInternalObjectFlags::Garbage;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	constexpr static FORCEINLINE EKillable MayKill(EGCTokenType TokenType, bool bAllowKill) { return UE::GC::MayKill<Options>(TokenType, bAllowKill); }	
+	constexpr static FORCEINLINE EKillable MayKill(EOrigin Origin, bool bAllowKill) { return UE::GC::MayKill<Options>(Origin, bAllowKill); }	
 
-	static FORCEINLINE void ProcessReferenceDirectly(FWorkerContext& Context, FPermanentObjectPoolExtents PermanentPool, const UObject* ReferencingObject, UObject*& Object, FTokenId TokenId, EKillable Killable)
+	static FORCEINLINE void ProcessReferenceDirectly(FWorkerContext& Context, FPermanentObjectPoolExtents PermanentPool, const UObject* ReferencingObject, UObject*& Object, FMemberId MemberId, EKillable Killable)
 	{
-		return Killable == EKillable::No	? ProcessReferenceDirectly<EKillable::No >(Context, PermanentPool, ReferencingObject, Object, TokenId)
-											: ProcessReferenceDirectly<EKillable::Yes>(Context, PermanentPool, ReferencingObject, Object, TokenId);
+		return Killable == EKillable::No	? ProcessReferenceDirectly<EKillable::No >(Context, PermanentPool, ReferencingObject, Object, MemberId)
+											: ProcessReferenceDirectly<EKillable::Yes>(Context, PermanentPool, ReferencingObject, Object, MemberId);
 	}
 
 	static FORCEINLINE void DetectGarbageReference(FWorkerContext& Context, FReferenceMetadata Metadata)
@@ -2798,10 +2797,10 @@ public:
 	 * @param bAllowReferenceElimination	Whether to allow NULL'ing the reference if RF_PendingKill is set
 	*/
 	template<EKillable Killable>
-	static FORCEINLINE_DEBUGGABLE void ProcessReferenceDirectly(FWorkerContext& Context, FPermanentObjectPoolExtents PermanentPool, const UObject* ReferencingObject, UObject*& Object, FTokenId TokenId)
+	static FORCEINLINE_DEBUGGABLE void ProcessReferenceDirectly(FWorkerContext& Context, FPermanentObjectPoolExtents PermanentPool, const UObject* ReferencingObject, UObject*& Object, FMemberId MemberId)
 	{
 		UE::GC::Stats.IncreaseObjectRefStats(Object);
-		if (ValidateReference(Object, PermanentPool, ReferencingObject, TokenId))
+		if (ValidateReference(Object, PermanentPool, ReferencingObject, MemberId))
 		{
 			const int32 ObjectIndex = GUObjectArray.ObjectToIndex(Object);
 			FImmutableReference Reference = {Object};	
@@ -2908,50 +2907,63 @@ public:
 template <class ProcessorType>
 struct TBatchDispatcher
 {
-	UE_NONCOPYABLE(TBatchDispatcher);
+	static constexpr bool bBatching = true;
+	static constexpr bool bParallel = IsParallel(ProcessorType::Options);
 
 	FWorkerContext& Context;
 	const FPermanentObjectPoolExtents PermanentPool;
+	FReferenceCollector& Collector;
 	TReferenceBatcher<FMutableReference, FResolvedMutableReference, ProcessorType> KillableBatcher;
 	TReferenceBatcher<FImmutableReference, FImmutableReference, ProcessorType> ImmutableBatcher;
+	FStructBatcher StructBatcher;
 
-	explicit TBatchDispatcher(FWorkerContext& InContext)
+	UE_NONCOPYABLE(TBatchDispatcher);
+	explicit TBatchDispatcher(FWorkerContext& InContext, FReferenceCollector& InCollector)
 	: Context(InContext)
+	, Collector(InCollector)
 	, KillableBatcher(InContext)
 	, ImmutableBatcher(InContext)
+	, StructBatcher(InContext.GetWorkerIndex())
 	{}
 
 	// ProcessObjectArray API
 
-	FORCENOINLINE void HandleReferenceDirectly(const UObject* ReferencingObject, UObject*& Object, FTokenId TokenId, EKillable Killable)
+	FORCENOINLINE void HandleReferenceDirectly(const UObject* ReferencingObject, UObject*& Object, FMemberId MemberId, EKillable Killable)
 	{
-		ProcessorType::ProcessReferenceDirectly(Context, PermanentPool, ReferencingObject, Object, TokenId, Killable);
+		ProcessorType::ProcessReferenceDirectly(Context, PermanentPool, ReferencingObject, Object, MemberId, Killable);
 		Context.Stats.AddReferences(1);
 	}
 
-	FORCEINLINE void HandleReferenceDirectly(const UObject* ReferencingObject, UObject*& Object, FTokenId TokenId, EGCTokenType TokenType, bool bAllowReferenceElimination)
+	FORCEINLINE void HandleReferenceDirectly(const UObject* ReferencingObject, UObject*& Object, FMemberId MemberId, EOrigin Origin, bool bAllowReferenceElimination)
 	{
-		HandleReferenceDirectly(ReferencingObject, Object, TokenId, ProcessorType::MayKill(TokenType, bAllowReferenceElimination));
+		HandleReferenceDirectly(ReferencingObject, Object, MemberId, ProcessorType::MayKill(Origin, bAllowReferenceElimination));
 	}
 
-	FORCEINLINE void HandleKillableReference(UObject*& Object, FTokenId TokenId, EGCTokenType TokenType)
+	FORCEINLINE_DEBUGGABLE void HandleKillableReference(UObject*& Object, FMemberId MemberId, EOrigin Origin)
 	{
-		QueueReference(Context.GetReferencingObject(), Object, TokenId, ProcessorType::MayKill(TokenType, true));
+		QueueReference(Context.GetReferencingObject(), Object, MemberId, ProcessorType::MayKill(Origin, true));
 	}
 
-	FORCEINLINE void HandleImmutableReference(UObject* Object, FTokenId TokenId, EGCTokenType TokenType)
+	FORCEINLINE void HandleImmutableReference(UObject* Object, FMemberId MemberId, EOrigin Origin)
 	{
 		ImmutableBatcher.PushReference(FImmutableReference{Object});
 	}
 
-	FORCEINLINE void HandleKillableArray(TArray<UObject*>& Array, FTokenId TokenId, EGCTokenType TokenType)
+	template<class ArrayType>
+	FORCEINLINE void HandleKillableArray(ArrayType&& Array, FMemberId MemberId, EOrigin Origin)
 	{
-		QueueArray(Context.GetReferencingObject(), Array, TokenId, ProcessorType::MayKill(TokenType, true));
+		QueueArray(Context.GetReferencingObject(), (ArrayType&&)Array, MemberId, ProcessorType::MayKill(Origin, true));
 	}
 
-	FORCEINLINE void HandleKillableReferences(TArrayView<UObject*> Objects, FTokenId TokenId, EGCTokenType TokenType)
+	FORCEINLINE void HandleKillableReferences(TArrayView<UObject*> Objects, FMemberId MemberId, EOrigin Origin)
 	{
-		QueueReferences(Context.GetReferencingObject(), Objects, TokenId, ProcessorType::MayKill(TokenType, true));
+		QueueReferences(Context.GetReferencingObject(), Objects, MemberId, ProcessorType::MayKill(Origin, true));
+	}
+
+	FORCEINLINE void HandleWeakReference(FWeakObjectPtr& WeakPtr, const UObject* ReferencingObject, FMemberId MemberId, EMemberType)
+	{
+		UObject* WeakObject = WeakPtr.Get(true);
+		HandleReferenceDirectly(ReferencingObject, WeakObject, MemberId, EKillable::No);
 	}
 
 	FORCENOINLINE void FlushQueuedReferences()
@@ -2960,9 +2972,32 @@ struct TBatchDispatcher
 		ImmutableBatcher.FlushQueues();
 	}
 
+	static constexpr bool bSupportsStructQueueing = true;
+
+	FORCENOINLINE bool FlushToStructBlocks()
+	{
+		StructBatcher.FlushBoundedQueues();
+		return StructBatcher.GetUnboundedQueue().CanPop();
+	}
+
+	FORCEINLINE_DEBUGGABLE FStructBlockifier& GetStructBlocks()
+	{
+		return StructBatcher.GetUnboundedQueue();
+	}
+
+	FORCEINLINE_DEBUGGABLE void QueueStructArray(FSchemaView Schema, uint8* Data, int32 Num)
+	{
+		StructBatcher.PushStructArray(Schema, Data, Num);
+	}
+
+	FORCEINLINE_DEBUGGABLE void QueueSparseStructArray(FSchemaView Schema, FScriptSparseArray& Array)
+	{
+		StructBatcher.PushSparseStructArray(Schema, Array);
+	}
+
 	// Collector API
 
-	FORCEINLINE_DEBUGGABLE void QueueReference(const UObject* ReferencingObject,  UObject*& Object, FTokenId TokenId, EKillable Killable)
+	FORCEINLINE_DEBUGGABLE void QueueReference(const UObject* ReferencingObject,  UObject*& Object, FMemberId MemberId, EKillable Killable)
 	{
 		if (Killable == EKillable::Yes)
 		{
@@ -2975,44 +3010,45 @@ struct TBatchDispatcher
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void QueueReferences(const UObject* ReferencingObject, TArrayView<UObject*> References, FTokenId TokenId, EKillable Killable)
+	FORCEINLINE_DEBUGGABLE void QueueReferences(const UObject* ReferencingObject, TArrayView<UObject*> References, FMemberId MemberId, EKillable Killable)
 	{
 		if (Killable == EKillable::Yes)
 		{
-			KillableBatcher.PushReferences(References);
+			KillableBatcher.PushReferenceView(References);
 		}
 		else
 		{
-			ImmutableBatcher.PushReferences(References);
+			ImmutableBatcher.PushReferenceView(References);
 		}
 	}
 	
-	FORCEINLINE_DEBUGGABLE void QueueArray(const UObject* ReferencingObject, TArray<UObject*>& Array, FTokenId TokenId, EKillable Killable)
+	template<class ArrayType>
+	FORCEINLINE_DEBUGGABLE void QueueArray(const UObject* ReferencingObject, ArrayType&& Array, FMemberId MemberId, EKillable Killable)
 	{
 		if (Killable == EKillable::Yes)
 		{
-			KillableBatcher.PushArray(FReferenceArray{&Array});
+			KillableBatcher.PushArray((ArrayType&&)Array);
 		}
 		else
 		{
-			ImmutableBatcher.PushArray(FReferenceArray{&Array});
+			ImmutableBatcher.PushArray((ArrayType&&)Array);
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void QueueSet(const UObject* ReferencingObject, TSet<UObject*>& Objects, FTokenId TokenId, EKillable Killable)
+	FORCEINLINE_DEBUGGABLE void QueueSet(const UObject* ReferencingObject, TSet<UObject*>& Objects, FMemberId MemberId, EKillable Killable)
 	{
 		if (Killable == EKillable::Yes)
 		{
 			for (UObject*& Object : Objects)
 			{
-				QueueReference(ReferencingObject, Object, TokenId, EKillable::Yes);
+				QueueReference(ReferencingObject, Object, MemberId, EKillable::Yes);
 			}
 		}
 		else
 		{
 			for (UObject*& Object : Objects)
 			{
-				QueueReference(ReferencingObject, Object, TokenId, EKillable::No);
+				QueueReference(ReferencingObject, Object, MemberId, EKillable::No);
 			}
 		}
 	}
@@ -3025,9 +3061,9 @@ class TReachabilityCollectorBase : public FReferenceCollector
 {
 protected:
 	bool bAllowEliminatingReferences = true;
-	EGCTokenType CurrentTokenType = EGCTokenType::Native;
+	EOrigin CurrentOrigin = EOrigin::Other;
 
-	FORCEINLINE EKillable MayKill() const { return UE::GC::MayKill<Options>(CurrentTokenType, bAllowEliminatingReferences); }
+	FORCEINLINE EKillable MayKill() const { return UE::GC::MayKill<Options>(CurrentOrigin, bAllowEliminatingReferences); }
 
 public:
 	virtual bool IsIgnoringArchetypeRef() const override final { return false;}
@@ -3037,7 +3073,7 @@ public:
 
 	virtual void SetIsProcessingNativeReferences(bool bIsNative) override final
 	{
-		CurrentTokenType = bIsNative ? EGCTokenType::Native : EGCTokenType::NonNative;
+		CurrentOrigin = bIsNative ? EOrigin::Other : EOrigin::Blueprint;
 	}
 
 	virtual bool NeedsPropertyReferencer() const override final { return ENABLE_GC_OBJECT_CHECKS; }
@@ -3056,25 +3092,24 @@ class TReachabilityCollector final : public TReachabilityCollectorBase<Options>
 	friend DispatcherType& GetDispatcher(TReachabilityCollector<Options>& Collector, ProcessorType&, FWorkerContext&) { return Collector.Dispatcher; }
 
 public:
-	TReachabilityCollector(ProcessorType&, FWorkerContext& Context) : Dispatcher(Context) {}
+	TReachabilityCollector(ProcessorType&, FWorkerContext& Context) : Dispatcher(Context, *this) {}
 		
 	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override;
 	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override;
 	
 	virtual void AddStableReference(UObject** Object) override
 	{
-		Dispatcher.QueueReference(Dispatcher.Context.GetReferencingObject(), *Object, ETokenlessId::Collector, MayKill());
+		Dispatcher.QueueReference(Dispatcher.Context.GetReferencingObject(), *Object, EMemberlessId::Collector, MayKill());
 	}
 	
 	virtual void AddStableReferenceArray(TArray<UObject*>* Objects) override
 	{
-		Dispatcher.QueueArray(Dispatcher.Context.GetReferencingObject(), *Objects, ETokenlessId::Collector, MayKill());
+		Dispatcher.QueueArray(Dispatcher.Context.GetReferencingObject(), *Objects, EMemberlessId::Collector, MayKill());
 	}
 
 	virtual void AddStableReferenceSet(TSet<UObject*>* Objects) override
 	{
-
-		Dispatcher.QueueSet(Dispatcher.Context.GetReferencingObject(), *Objects, ETokenlessId::Collector, MayKill());
+		Dispatcher.QueueSet(Dispatcher.Context.GetReferencingObject(), *Objects, EMemberlessId::Collector, MayKill());
 	}
 	
 	virtual bool MarkWeakObjectReferenceForClearing(UObject** WeakReference) override
@@ -3119,15 +3154,15 @@ public:
 	bool TracksHistory() const { return bTrackHistory; }
 	bool TracksGarbage() const { return bTrackGarbage; }
 
-	FORCENOINLINE void HandleTokenStreamObjectReference(FWorkerContext& Context, const UObject* ReferencingObject, UObject*& Object, FTokenId TokenId, EGCTokenType TokenType, bool bAllowReferenceElimination)
+	FORCENOINLINE void HandleTokenStreamObjectReference(FWorkerContext& Context, const UObject* ReferencingObject, UObject*& Object, FMemberId MemberId, EOrigin Origin, bool bAllowReferenceElimination)
 	{
 		UE::GC::Stats.IncreaseObjectRefStats(Object);
-		if (ValidateReference(Object, PermanentPool, ReferencingObject, TokenId))
+		if (ValidateReference(Object, PermanentPool, ReferencingObject, MemberId))
 		{
 			FReferenceMetadata Metadata(GUObjectArray.ObjectToIndex(Object));
 			if (bAllowReferenceElimination & Metadata.Has(TReachabilityProcessor<Options>::KillFlag)) //-V792
 			{
-				if (MayKill<Options>(TokenType, bAllowReferenceElimination) == EKillable::Yes)
+				if (MayKill<Options>(Origin, bAllowReferenceElimination) == EKillable::Yes)
 				{
 					check(IsPendingKill(Options) || ReferencingObject);
 					checkSlow(Metadata.ObjectItem->GetOwnerIndex() <= 0);
@@ -3136,8 +3171,8 @@ public:
 				}
 				else if (!IsPendingKill(Options) && bTrackGarbage)
 				{
-					check(TokenType == EGCTokenType::Native);
-					HandleGarbageReference(Context, ReferencingObject, Object, TokenId);
+					check(Origin == EOrigin::Other);
+					HandleGarbageReference(Context, ReferencingObject, Object, MemberId);
 				}
 			}
 			
@@ -3145,7 +3180,7 @@ public:
 
 			if (bReachedFirst && bTrackHistory)
 			{
-				HandleHistoryReference(Context, ReferencingObject, Object, TokenId);
+				HandleHistoryReference(Context, ReferencingObject, Object, MemberId);
 			}
 		}
 	}
@@ -3155,14 +3190,14 @@ private:
 	const bool bTrackGarbage;
 	const bool bTrackHistory;
 
-	FORCENOINLINE static void HandleGarbageReference(FWorkerContext& Context, const UObject* ReferencingObject, UObject*& Object, FTokenId TokenId)
+	FORCENOINLINE static void HandleGarbageReference(FWorkerContext& Context, const UObject* ReferencingObject, UObject*& Object, FMemberId MemberId)
 	{
 		const UObject* Referencer = ReferencingObject ? ReferencingObject : Context.GetReferencingObject();
 		if (IsValid(Referencer))
 		{
 			if (Referencer != FGCObject::GGCObjectReferencer)
 			{
-				FName PropertyName = Referencer->GetClass()->ReferenceTokens.GetTokenInfo(TokenId).Name;
+				FName PropertyName = GetMemberDebugInfo(Referencer->GetClass()->ReferenceSchema.Get(), MemberId).Name;
 				Context.GarbageReferences.Add(FGarbageReferenceInfo(Referencer, Object, PropertyName));
 			}
 			else
@@ -3173,13 +3208,13 @@ private:
 		}
 	}
 
-	FORCENOINLINE static void HandleHistoryReference(FWorkerContext& Context, const UObject* ReferencingObject, UObject*& Object, FTokenId TokenId)
+	FORCENOINLINE static void HandleHistoryReference(FWorkerContext& Context, const UObject* ReferencingObject, UObject*& Object, FMemberId MemberId)
 	{
 		FGCDirectReference Ref(Object);
 		const UObject* Referencer = ReferencingObject ? ReferencingObject : Context.GetReferencingObject();	
 		if (Referencer != FGCObject::GGCObjectReferencer)
 		{
-			Ref.ReferencerName = Referencer->GetClass()->ReferenceTokens.GetTokenInfo(TokenId).Name;
+			Ref.ReferencerName = GetMemberDebugInfo(Referencer->GetClass()->ReferenceSchema.Get(), MemberId).Name;
 		}
 		else if (FGCObject::GGCObjectReferencer == Referencer)
 		{
@@ -3209,7 +3244,7 @@ class TDebugReachabilityCollector final : public TReachabilityCollectorBase<Opti
 {
 	using Super = TReachabilityCollectorBase<Options>;
 	using Super::bAllowEliminatingReferences;
-	using Super::CurrentTokenType;
+	using Super::CurrentOrigin;
 	using ProcessorType = TDebugReachabilityProcessor<Options>;
 	ProcessorType& Processor;
 	FWorkerContext& Context;
@@ -3229,7 +3264,7 @@ public:
 		}
 #endif // ENABLE_GC_OBJECT_CHECKS
 
-		Processor.HandleTokenStreamObjectReference(Context, ReferencingObject, Object, ETokenlessId::Collector, CurrentTokenType, bAllowEliminatingReferences);
+		Processor.HandleTokenStreamObjectReference(Context, ReferencingObject, Object, EMemberlessId::Collector, CurrentOrigin, bAllowEliminatingReferences);
 		Context.Stats.AddReferences(1);
 	}
 
@@ -3240,8 +3275,6 @@ public:
 			HandleObjectReference(Object, ReferencingObject, ReferencingProperty);
 		}
 	}
-
-
 
 	virtual void AddStableReference(UObject** Object) override
 	{
@@ -3290,7 +3323,7 @@ template <EGCOptions Options>
 void TReachabilityCollector<Options>::HandleObjectReference(UObject*& Object, const UObject* ReferencingObject, const FProperty* ReferencingProperty)
 {
 	CheckReference(Object, ReferencingObject, ReferencingProperty);
-	Dispatcher.HandleReferenceDirectly(ReferencingObject, Object, ETokenlessId::Collector, MayKill());
+	Dispatcher.HandleReferenceDirectly(ReferencingObject, Object, EMemberlessId::Collector, MayKill());
 }
 
 template <EGCOptions Options>
@@ -3311,9 +3344,56 @@ void TReachabilityCollector<Options>::HandleObjectReferences(UObject** InObjects
 
 	for (UObject*& Object : Objects)
 	{
-		Dispatcher.HandleReferenceDirectly(ReferencingObject, Object, ETokenlessId::Collector, Killable);
+		Dispatcher.HandleReferenceDirectly(ReferencingObject, Object, EMemberlessId::Collector, Killable);
 	}
+}
 
+//////////////////////////////////////////////////////////////////////////
+
+template <typename ProcessorType, typename CollectorType>
+void TFastReferenceCollector<ProcessorType, CollectorType>::ProcessStructs(DispatcherType& Dispatcher)
+{
+	if constexpr (DispatcherType::bBatching)
+	{
+		check(Dispatcher.GetStructBlocks().CanPop());
+		FStructBlockifier& Blocks = Dispatcher.GetStructBlocks();
+		Dispatcher.Context.ReferencingObject = nullptr;
+
+		do
+		{
+			int32 Num;
+			FStructArrayBlock* Block = Blocks.PopBlock(/* out */ Num);
+			ON_SCOPE_EXIT{ Blocks.FreeBlock(Block); };
+			FStructArray* ArrayIt = Block->Data;
+			FStructArray* ArrayEnd = ArrayIt + Num;
+		
+			for (int32 PrefetchIdx = 0; PrefetchIdx < FStructArrayBlock::Lookahead; ++PrefetchIdx)
+			{
+				FPlatformMisc::Prefetch(ArrayIt[PrefetchIdx].Data);
+			}
+			FPlatformMisc::Prefetch(ArrayIt[0].Schema.GetWords());
+
+			do
+			{
+				FPlatformMisc::Prefetch(ArrayIt[FStructArrayBlock::Lookahead].Data);
+				FPlatformMisc::Prefetch(ArrayIt[1].Schema.GetWords());
+
+				const FStructArray AoS = *ArrayIt;
+				check(AoS.Num > 0);
+				check(AoS.Stride % 8 == 0);
+				uint8* StructIt = AoS.Data;
+				uint8* StructEnd = AoS.Data + AoS.Num * AoS.Stride;
+				do
+				{
+					Private::VisitMembers(Dispatcher, AoS.Schema, StructIt); 
+					StructIt += AoS.Stride;
+				}
+				while (StructIt != StructEnd);
+			}
+			while (++ArrayIt != ArrayEnd);
+		}
+		while (Blocks.CanPop() || Dispatcher.FlushToStructBlocks());
+	}
 }
 
 } // namespace UE::GC
@@ -3396,17 +3476,6 @@ void FReferenceFinder::HandleObjectReference( UObject*& InObject, const UObject*
 namespace UE::GC
 {
 
-
-/**
- * Implementation of parallel realtime garbage collector using recursive subdivision
- *
- * The approach is to create an array of uint32 tokens for each class that describe object references. This is done for 
- * script exposed classes by traversing the properties and additionally via manual function calls to emit tokens for
- * native only classes in the construction singleton IMPLEMENT_INTRINSIC_CLASS. 
- * A third alternative is a AddReferencedObjects callback per object which 
- * is used to deal with object references from types that aren't supported by the reflectable type system.
- * interface doesn't make sense to implement for.
- */
 class FRealtimeGC : public FGarbageCollectionTracer
 {
 	typedef void(FRealtimeGC::*MarkObjectsFn)(EObjectFlags);
@@ -3924,10 +3993,7 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, double TimeLimit)
 	}
 }
 
-
-
 static bool GWarningTimeOutHasBeenDisplayedGC = false;
-
 static bool GEnableTimeoutOnPendingDestroyedObjectGC = true;
 #if UE_BUILD_SHIPPING || USING_ADDRESS_SANITISER
 static FAutoConsoleVariableRef CVarGCEnableTimeoutOnPendingDestroyedObjectInShipping(
@@ -4473,7 +4539,6 @@ static void UpdateGCHistory(TConstArrayView<TUniquePtr<FWorkerContext>> Contexts
 #endif // ENABLE_GC_HISTORY
 }
 
-
 template<bool bPerformFullPurge>
 FORCENOINLINE void CollectGarbageImpl(EObjectFlags KeepFlags);
 
@@ -4642,7 +4707,6 @@ void CollectGarbageImpl(EObjectFlags KeepFlags)
 					GC.PerformReachabilityAnalysis(KeepFlags, Options);
 					UE_LOG(LogGarbage, Log, TEXT("%.2f ms for GC rerun to track garbage references (gc.GarbageReferenceTrackingEnabled=%d)"), (FPlatformTime::Seconds() - StartTime) * 1000, GGarbageReferenceTrackingEnabled);
 				}
-
 			}
 
 
@@ -5034,204 +5098,96 @@ bool FMulticastDelegateProperty::ContainsObjectReference(TArray<const FStructPro
 	return !!(InReferenceType & EPropertyObjectReferenceType::Weak);
 }
 
-namespace UE::GC
-{
-/**
- * Scope helper structure to emit tokens for fixed arrays in the case of ArrayDim (passed in count) being > 1.
- */
-struct FFixedArrayTokenHelper
-{
-	/**
-	 * Constructor, emitting necessary tokens for fixed arrays if count > 1 and also keeping track of count so 
-	 * destructor can do the same.
-	 *
-	 * @param InReferenceTokenStream	Token stream to emit tokens to
-	 * @param InOffset					offset into object/ struct
-	 * @param InCount					array count
-	 * @param InStride					array type stride (e.g. sizeof(struct) or sizeof(UObject*))
-	 * @param InProperty                the property this array represents
-	 */
-	FFixedArrayTokenHelper(FTokenStreamBuilder& TokenStream,  int32 InOffset, int32 InCount, int32 InStride, const FProperty& InProperty, FGCStackSizeHelper& InStackSizeHelper)
-		: ReferenceTokenStream(TokenStream)
-		, StackSizeHelper(InStackSizeHelper)
-		, Count(InCount)
-	{
-		if( InCount > 1 )
-		{
-			ReferenceTokenStream.EmitObjectReference(InOffset, *StackSizeHelper.GetPropertyPath(), GCRT_FixedArray);
-
-			ReferenceTokenStream.EmitStride(InStride);
-			ReferenceTokenStream.EmitCount(InCount);
-			// GCRT_FixedArray pushes a new stack frame in TFastReferenceCollector
-			StackSizeHelper.Push(&InProperty);
-		}
-	}
-
-	/** Destructor, emitting return if ArrayDim > 1 */
-	~FFixedArrayTokenHelper()
-	{
-		if( Count > 1 )
-		{
-			ReferenceTokenStream.EmitReturn();
-			StackSizeHelper.Pop();
-		}
-	}
-
-private:
-	/** Reference token stream used to emit to */
-	FTokenStreamBuilder&	ReferenceTokenStream;
-	/** GC token stream stack size helper */
-	FGCStackSizeHelper&			StackSizeHelper;
-	/** Size of fixed array */
-	int32							Count;
-};
-
-} // namespace UE::GC
-
-
-/**
- * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
- * to the passed in BaseOffset which is used by e.g. arrays of structs.
- */
-void FProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
+void FProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
 {
 }
 
-/**
- * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
- * to the passed in BaseOffset which is used by e.g. arrays of structs.
- */
-void FObjectProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
+void FObjectProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
 {
-	UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(UObject*), *this, StackSizeHelper);
-	TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_Object);
+	for (int32 Idx = 0, Num = ArrayDim; Idx < Num; ++Idx)
+	{
+		Schema.Add(UE::GC::DeclareMember(DebugPath, BaseOffset + GetOffset_ForGC() + Idx * sizeof(FObjectPtr), UE::GC::EMemberType::Reference));
+	}
 }
 
-/**
- * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
- * to the passed in BaseOffset which is used by e.g. arrays of structs.
- */
-void FArrayProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
+void FArrayProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
 {
+	using namespace UE::GC;
 	if (Inner->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
 	{
 		bool bUsesFreezableAllocator = EnumHasAnyFlags(ArrayFlags, EArrayPropertyFlags::UsesMemoryImageAllocator);
+		EMemberType Type = bUsesFreezableAllocator ?  EMemberType::FreezableStructArray : EMemberType::StructArray;
+		FSchemaBuilder InnerSchema(Inner->ElementSize);
 
 		// Structs and nested arrays share the same implementation on the Garbage Collector side
 		// as arrays of structs already push the array memory into the GC stack and process its tokens
 		// which is exactly what is required for nested arrays to work
 		if( Inner->IsA(FObjectProperty::StaticClass()) || Inner->IsA(FObjectPtrProperty::StaticClass()) )
 		{
-			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), bUsesFreezableAllocator ? GCRT_ArrayObjectFreezable : GCRT_ArrayObject);
+			Type = bUsesFreezableAllocator ?  EMemberType::FreezableReferenceArray :  EMemberType::ReferenceArray;
 		}
 		else if( Inner->IsA(FInterfaceProperty::StaticClass()) )
 		{
-			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
-
-			// GCRT_ArrayStruct and GCRT_ArrayStructFreezable push a new stack frame in TFastReferenceCollector
-			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, Inner);
-
-			TokenStream.EmitStride(Inner->ElementSize);
-			const uint32 SkipIndexIndex = TokenStream.EmitSkipIndexPlaceholder();
-
-			TokenStream.EmitObjectReference(0, *StackSizeHelper.GetPropertyPath(), GCRT_Object);
-
-			const uint32 SkipIndex = TokenStream.EmitReturn();
-			TokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
+			FPropertyStackScope PropertyScope(DebugPath, Inner);
+			InnerSchema.Add(UE::GC::DeclareMember(DebugPath, /* offsetof(FScriptInterface, ObjectPointer) */ 0, EMemberType::Reference));
 		}
 		else if (Inner->IsA(FFieldPathProperty::StaticClass()))
 		{
-			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_ArrayAddFieldPathReferencedObject);
+			Type = EMemberType::FieldPathArray;
 		}
 		else
 		{
-			// In the general case, emit a GCRT_ArrayStruct that can handle any inner property type.
-			TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), bUsesFreezableAllocator ? GCRT_ArrayStructFreezable : GCRT_ArrayStruct);
-
-			// GCRT_ArrayStruct and GCRT_ArrayStructFreezable push a new stack frame in TFastReferenceCollector
-			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, Inner);
-
-			TokenStream.EmitStride(Inner->ElementSize);
-			const uint32 SkipIndexIndex = TokenStream.EmitSkipIndexPlaceholder();
-			Inner->EmitReferenceInfo(TokenStream, 0, EncounteredStructProps, StackSizeHelper);
-			const uint32 SkipIndex = TokenStream.EmitReturn();
-			TokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
+			FPropertyStackScope PropertyScope(DebugPath, Inner);
+			Inner->EmitReferenceInfo(InnerSchema, 0, EncounteredStructProps, DebugPath);
 		}
+
+		Schema.Add(UE::GC::DeclareMember(DebugPath, BaseOffset + GetOffset_ForGC(), Type, InnerSchema.Build()));
 	}
 }
 
-
-/**
- * Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
- * to the passed in BaseOffset which is used by e.g. arrays of structs.
- */
-void FMapProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
+void FMapProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
 {
+	using namespace UE::GC;
 	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
 	{
-		// TMap reference tokens are processed by GC in a similar way to an array of structs
-		TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddTMapReferencedObjects);
-		TokenStream.EmitPointer((const void*)this);
-		const uint32 SkipIndexIndex = TokenStream.EmitSkipIndexPlaceholder();
-
-		if (KeyProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
+		FSchemaBuilder PairSchema(GetPairStride());
+		for (FProperty* Prop : {KeyProp, ValueProp})
 		{
-			// GCRT_AddTMapReferencedObjects pushes a new stack frame in TFastReferenceCollector
-			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, KeyProp);
-			KeyProp->EmitReferenceInfo(TokenStream, 0, EncounteredStructProps, StackSizeHelper);
-		}
-		if (ValueProp->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
-		{
-			// GCRT_AddTMapReferencedObjects pushes a new stack frame in TFastReferenceCollector
-			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, ValueProp);
-			ValueProp->EmitReferenceInfo(TokenStream, 0, EncounteredStructProps, StackSizeHelper);
+			if (Prop->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
+			{
+				FPropertyStackScope PropertyScope(DebugPath, Prop);
+				Prop->EmitReferenceInfo(PairSchema, 0, EncounteredStructProps, DebugPath);
+			}
 		}
 
-		const uint32 SkipIndex = TokenStream.EmitReturn();
-		TokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
+		Schema.Add(UE::GC::DeclareMember(DebugPath, BaseOffset + GetOffset_ForGC(), EMemberType::SparseStructArray, PairSchema.Build()));
 	}
 }
 
-/**
-* Emits tokens used by realtime garbage collection code to passed in OwnerClass' ReferenceTokenStream. The offset emitted is relative
-* to the passed in BaseOffset which is used by e.g. arrays of structs.
-*/
-void FSetProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
+void FSetProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
 {
+	using namespace UE::GC;
 	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong))
 	{
-		// TSet reference tokens are processed by GC in a similar way to an array of structs
-		TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddTSetReferencedObjects);
-		TokenStream.EmitPointer((const void*)this);
-
-		// GCRT_AddTSetReferencedObjects pushes a new stack frame in TFastReferenceCollector
-		FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, ElementProp);
-
-		const uint32 SkipIndexIndex = TokenStream.EmitSkipIndexPlaceholder();
-		ElementProp->EmitReferenceInfo(TokenStream, 0, EncounteredStructProps, StackSizeHelper);
-		const uint32 SkipIndex = TokenStream.EmitReturn();
-		TokenStream.UpdateSkipIndexPlaceholder(SkipIndexIndex, SkipIndex);
+		FSchemaBuilder ElementSchema(GetStride());
+		FPropertyStackScope PropertyScope(DebugPath, ElementProp);
+		ElementProp->EmitReferenceInfo(ElementSchema, 0, EncounteredStructProps, DebugPath);
+		Schema.Add(UE::GC::DeclareMember(DebugPath, BaseOffset + GetOffset_ForGC(), EMemberType::SparseStructArray, ElementSchema.Build()));
 	}
 }
 
-
-/**
- * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
- * to the passed in BaseOffset which is used by e.g. arrays of structs.
- */
-void FStructProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
+void FStructProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
 {
-	check(Struct);
+	using namespace UE::GC;
+	
+	const int32 Offset = BaseOffset + GetOffset_ForGC();
 	if (Struct->StructFlags & STRUCT_AddStructReferencedObjects)
 	{
-		UScriptStruct::ICppStructOps* CppStructOps = Struct->GetCppStructOps();
-		check(CppStructOps); // else should not have STRUCT_AddStructReferencedObjects
-		UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, ElementSize, *this, StackSizeHelper);
-
-		TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddStructReferencedObjects);
-
-		void *FunctionPtr = (void*)CppStructOps->AddStructReferencedObjects();
-		TokenStream.EmitPointer(FunctionPtr);
+		StructAROFn StructARO = Struct->GetCppStructOps()->AddStructReferencedObjects();	
+		for (int32 Idx = 0, Num = ArrayDim; Idx < Num; ++Idx)
+		{	
+			Schema.Add(UE::GC::DeclareMember(DebugPath, Offset + Idx * ElementSize, EMemberType::MemberARO, StructARO) );
+		}
 	}
 
 	// Check if the struct has any properties that reference UObjects
@@ -5246,186 +5202,41 @@ void FStructProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream
 		}
 		EncounteredStructProps.RemoveSingleSwap(this, false /* bAllowShrinking */);
 	}
-	// If the struct has UObject properties (and only if) emit tokens for them
+
+	// Emit schema members
 	if (bHasPropertiesWithObjectReferences)
 	{
-		UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, ElementSize, *this, StackSizeHelper);
-
-		FProperty* Property = Struct->PropertyLink;
-		while (Property)
+		for (int32 Idx = 0, Num = ArrayDim; Idx < Num; ++Idx)
 		{
-			FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, Property);
-			Property->EmitReferenceInfo(TokenStream, BaseOffset + GetOffset_ForGC(), EncounteredStructProps, StackSizeHelper);
-			Property = Property->PropertyLinkNext;
+			for (FProperty* Property = Struct->PropertyLink; Property; Property = Property->PropertyLinkNext)
+			{
+				Property->EmitReferenceInfo(Schema, Offset + Idx * ElementSize, EncounteredStructProps, DebugPath);
+			}
 		}
 	}
 }
 
-/**
- * Emits tokens used by realtime garbage collection code to passed in ReferenceTokenStream. The offset emitted is relative
- * to the passed in BaseOffset which is used by e.g. arrays of structs.
- */
-void FInterfaceProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
+void FInterfaceProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
 {
-	UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FScriptInterface), *this, StackSizeHelper);
-
-	TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_Object);
+	const int32 Offset = BaseOffset + GetOffset_ForGC();
+	for (int32 Idx = 0, Num = ArrayDim; Idx < Num; ++Idx)
+	{
+		Schema.Add(UE::GC::DeclareMember(DebugPath, Offset + Idx * sizeof(FScriptInterface), UE::GC::EMemberType::Reference) );
+	}
 }
 
-void FFieldPathProperty::EmitReferenceInfo(UE::GC::FTokenStreamBuilder& TokenStream, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, FGCStackSizeHelper& StackSizeHelper)
+void FFieldPathProperty::EmitReferenceInfo(UE::GC::FSchemaBuilder& Schema, int32 BaseOffset, TArray<const FStructProperty*>& EncounteredStructProps, UE::GC::FPropertyStack& DebugPath)
 {
 	static_assert(sizeof(FFieldPath) == sizeof(TFieldPath<FProperty>), "TFieldPath should have the same size as the underlying FFieldPath");
-	UE::GC::FFixedArrayTokenHelper FixedArrayHelper(TokenStream, BaseOffset + GetOffset_ForGC(), ArrayDim, sizeof(FFieldPath), *this, StackSizeHelper);
-	TokenStream.EmitObjectReference(BaseOffset + GetOffset_ForGC(), *StackSizeHelper.GetPropertyPath(), GCRT_AddFieldPathReferencedObject);
-}
-
-namespace UE::GC
-{
-
-static int32 GNumTokens;
-static int32 GNumTokenStreams;
-static void UpdateGlobalTokenCount(int32 Delta)
-{
-#if !UE_BUILD_SHIPPING
-	GNumTokens += Delta;
-	GNumTokenStreams += FMath::Sign(Delta);
-#endif
-}
-
-struct FTokenStreamHeader
-{
-	std::atomic<int32> RefCount{1};
-};
-
-static FTokenStreamHeader* GetStreamHeader(FTokenStreamView View)
-{
-	check(View.GetTokenData());
-	return reinterpret_cast<FTokenStreamHeader*>(View.GetTokenData()) - 1;
-}
-
-static void DropStreamReference(FTokenStreamView View)
-{
-	if (View.GetTokenData())
+	const int32 Offset = BaseOffset + GetOffset_ForGC();
+	for (int32 Idx = 0, Num = ArrayDim; Idx < Num; ++Idx)
 	{
-		if (GetStreamHeader(View)->RefCount.fetch_sub(1) == 1)
-		{
-			UpdateGlobalTokenCount(-int32(View.NumTokens()));
-			FMemory::Free(GetStreamHeader(View));
-		}
+		Schema.Add(UE::GC::DeclareMember(DebugPath, Offset + Idx * sizeof(FFieldPath), UE::GC::EMemberType::FieldPath));
 	}
 }
 
-static void AddStreamReference(FTokenStreamView View)
-{
-	if (View.GetTokenData())
-	{
-		GetStreamHeader(View)->RefCount.fetch_add(1);
-	}
-}
-
-static void UpdateStreamReference(FTokenStreamView& Out, FTokenStreamView New)
-{
-	if (Out.GetTokenData() != New.GetTokenData())
-	{
-		DropStreamReference(Out);
-		AddStreamReference(New);
-		Out = New;
-	}
-}
-
-static FGCReferenceInfo GEndOfStreamToken{GCRT_EndOfStream, 0};
-
-uint32 UE::GC::FTokenStreamBuilder::MaxStackSize;
-
-
-void FTokenStreamBuilder::EmitObjectReference(int32 Offset, FName DebugName, EGCReferenceType Kind)
-{
-	FGCReferenceInfo ObjectReference(Kind, Offset);
-	int32 Index = EmitReferenceInfo(ObjectReference, DebugName);
-}
-
-void FTokenStreamBuilder::EmitObjectArrayReference(int32 Offset, FName DebugName)
-{
-	check(DebugOwner.HasAnyClassFlags(CLASS_Intrinsic));
-	EmitObjectReference(Offset, DebugName, GCRT_ArrayObject);
-}
-
-uint32 FTokenStreamBuilder::EmitStructArrayBegin(int32 Offset, FName DebugName, int32 Stride)
-{
-	check(DebugOwner.HasAnyClassFlags(CLASS_Intrinsic));
-	EmitObjectReference(Offset, DebugName, GCRT_ArrayStruct);
-	EmitStride(Stride);
-	return EmitSkipIndexPlaceholder();
-}
-
-/**
- * Realtime garbage collection helper function used to indicate the end of an array of structs. The
- * index following the current one will be written to the passed in SkipIndexIndex in order to be
- * able to skip tokens for empty dynamic arrays.
- *
- * @param SkipIndexIndex
- */
-void FTokenStreamBuilder::EmitStructArrayEnd(uint32 SkipIndexIndex)
-{
-	check(DebugOwner.HasAnyClassFlags(CLASS_Intrinsic));
-	uint32 SkipIndex = EmitReturn();
-	UpdateSkipIndexPlaceholder( SkipIndexIndex, SkipIndex );
-}
-
-void FTokenStreamBuilder::EmitFixedArrayBegin(int32 Offset, FName DebugName, int32 Stride, int32 Count)
-{
-	check(DebugOwner.HasAnyClassFlags(CLASS_Intrinsic));
-	EmitObjectReference(Offset, DebugName, GCRT_FixedArray);
-	EmitStride(Stride);
-	EmitCount(Count);
-}
-
-void FTokenStreamBuilder::EmitFixedArrayEnd()
-{
-	check(DebugOwner.HasAnyClassFlags(CLASS_Intrinsic));
-	EmitReturn();
-}
-
-// FTokenStreamBuilderIterator helper
-struct FNamedReferenceInfo
-{
-	FGCReferenceInfo ReferenceInfo;
-	FName DebugName;
-};
-
-static AROFunc GetAROFunc(UClass* Class)
-{
-	AROFunc ARO = Class->CppClassStaticFunctions.GetAddReferencedObjects();
-	check(ARO != nullptr);
-	return ARO != &UObject::AddReferencedObjects ? ARO : nullptr;
-}
-
-} // namespace UE::GC
-
-struct FScopeLockIfNotNative
-{
-	FCriticalSection& ScopeCritical;
-	const bool bNotNative;
-	FScopeLockIfNotNative(FCriticalSection& InScopeCritical, bool bIsNotNative)
-		: ScopeCritical(InScopeCritical)
-		, bNotNative(bIsNotNative)
-	{
-		if (bNotNative)
-		{
-			ScopeCritical.Lock();
-		}
-	}
-	~FScopeLockIfNotNative()
-	{
-		if (bNotNative)
-		{
-			ScopeCritical.Unlock();
-		}
-	}
-};
-
-/** Token stream can assemble code can sometimes be called from two threads throuh a web of async loading calls. */
-static FCriticalSection GReferenceTokenStreamCritical;
+/** Both game thread and async loading can assemble schemas */
+static FCriticalSection GAssembleSchemaLock;
 
 void UClass::AssembleReferenceTokenStream(bool bForce)
 {
@@ -5439,9 +5250,16 @@ void UClass::AssembleReferenceTokenStream(bool bForce)
 	}
 	else
 	{
-		FScopeLock NonNativeLock(&GReferenceTokenStreamCritical);
+		FScopeLock NonNativeLock(&GAssembleSchemaLock);
 		AssembleReferenceTokenStreamInternal(bForce);
 	}
+}
+
+static UE::GC::ObjectAROFn GetARO(UClass* Class)
+{
+	UE::GC::ObjectAROFn ARO = Class->CppClassStaticFunctions.GetAddReferencedObjects();
+	check(ARO != nullptr);
+	return ARO != &UObject::AddReferencedObjects ? ARO : nullptr;
 }
 
 void UClass::AssembleReferenceTokenStreamInternal(bool bForce)
@@ -5450,395 +5268,111 @@ void UClass::AssembleReferenceTokenStreamInternal(bool bForce)
 
 	if (!HasAnyClassFlags(CLASS_TokenStreamAssembled) || bForce)
 	{
-		FTokenStreamBuilder StackBuilder(*this);
-		TUniquePtr<FTokenStreamBuilder> IntrinsicBuilder;
-		if (ClassFlags & CLASS_Intrinsic)
-		{
-			IntrinsicBuilder = FIntrinsicClassTokens::ConsumeBuilder(this);
-		}
-		FTokenStreamBuilder& Builder = IntrinsicBuilder ? *IntrinsicBuilder : StackBuilder;
-
 		if (bForce)
 		{
 			ClassFlags &= ~CLASS_TokenStreamAssembled;
 		}
 
+		FSchemaBuilder Schema(/* don't store sizeof(class) to enable super class schema reuse */ 0);
+		FSchemaView SuperSchema;
+		if (UClass* SuperClass = GetSuperClass())
 		{
-			FGCStackSizeHelper StackSizeHelper;
+			SuperClass->AssembleReferenceTokenStreamInternal();	
+			SuperSchema = SuperClass->ReferenceSchema.Get();
+			Schema.Append(SuperSchema);
+		}
+		const int32 NumSuperMembers = Schema.NumMembers();
+
+		{
+			FPropertyStack DebugPath;
 			TArray<const FStructProperty*> EncounteredStructProps;
 
 			// Iterate over properties defined in this class
 			for (TFieldIterator<FProperty> It(this, EFieldIteratorFlags::ExcludeSuper); It; ++It)
 			{
 				FProperty* Property = *It;
-				FGCStackSizeHelperScope StackSizeScope(StackSizeHelper, Property);
-				Property->EmitReferenceInfo(Builder, 0, EncounteredStructProps, StackSizeHelper);
+				FPropertyStackScope PropertyScope(DebugPath, Property);
+				Property->EmitReferenceInfo(Schema, 0, EncounteredStructProps, DebugPath);
 			}
-
-			Builder.SetStackSize(StackSizeHelper.GetMaxStackSize());
 		}
-				
-		FTokenStreamView SuperTokens;
-		if (UClass* SuperClass = GetSuperClass())
-		{
-			// Make sure super class has valid token stream.
-			SuperClass->AssembleReferenceTokenStreamInternal();
-			SuperTokens = FTokenStreamBuilder::DropFinalTokens(SuperClass->ReferenceTokens.Strong, GetAROFunc(SuperClass));
-		}
-
-		// Make sure all Blueprint properties are marked as non-native
-		Builder.SetTokenType(GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading) ? EGCTokenType::NonNative : EGCTokenType::Native);
-		Builder.EmitFinalTokens(GetAROFunc(this));
-
-		// Allocate flat token stream with current and super class tokens
-		FTokenStreamBuilder::Merge(/* out */ ReferenceTokens.Strong, Builder, SuperTokens);
 		
-		checkf(!HasAnyClassFlags(CLASS_TokenStreamAssembled), TEXT("Token stream already assembled for class '%s'"), *GetPathName()); // recursion here is probably bad
+		if (ClassFlags & CLASS_Intrinsic)
+		{
+			Schema.Append(UE::GC::GetIntrinsicSchema(this));
+		}
+		
+		// Make sure all Blueprint properties are marked as non-native
+		// @todo Currently native super class properties of BP base classes are incorrectly marked as Blueprint
+		// @todo Investigate if CLASS_CompiledFromBlueprint is better to avoid reference eliminating non-native non-blueprint properties
+		EOrigin Origin = GetClass()->HasAnyClassFlags(CLASS_NeedsDeferredDependencyLoading) ? EOrigin::Blueprint : EOrigin::Other;
+
+		bool bReuseSuper = Schema.NumMembers() == NumSuperMembers && NumSuperMembers > 0 && GetARO(this) == GetARO(GetSuperClass());
+		FSchemaView View(bReuseSuper ? SuperSchema : Schema.Build(GetARO(this)), Origin);
+		ReferenceSchema.Set(View);
+		
+		checkf(!HasAnyClassFlags(CLASS_TokenStreamAssembled), TEXT("GC schema already assembled for class '%s'"), *GetPathName()); // recursion here is probably bad
 		ClassFlags |= CLASS_TokenStreamAssembled;
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////
 namespace UE::GC
 {
 
-//////////////////////////////////////////////////////////////////////////
-
-void FTokenStreamBuilder::EmitFinalTokens(AROFunc ARO)
+static FName ToName(EMemberlessId Id)
 {
-	if (ARO)
-	{
-		int32 SlowIndex = FindSlowImplementation(ARO);
-		if (SlowIndex == INDEX_NONE)
-		{
-			EmitReferenceInfo(FGCReferenceInfo(GCRT_AddReferencedObjects, 0), TokenDebugNames::ARO);
-			EmitPointer(reinterpret_cast<const void*>(ARO));
-		}
-		else
-		{
-			EmitReferenceInfo(FGCReferenceInfo(GCRT_SlowAddReferencedObjects, static_cast<uint32>(SlowIndex)), TokenDebugNames::ARO);
-		}
-	}
-
-	// Emit end of stream token.
-	EmitReferenceInfo(GEndOfStreamToken, TokenDebugNames::EndOfStream);
-}
-
- FTokenStreamView FTokenStreamBuilder::DropFinalTokens(FTokenStreamView Stream, AROFunc DropARO)
- {
-	check(Stream.DroppedNum == 0)
-	if (Stream.Num >= 5 &&
-		FGCReferenceInfo(Stream.Tokens[Stream.Num - 5]).Type == GCRT_AddReferencedObjects &&
-		FGCReferenceInfo(Stream.Tokens[Stream.Num - 2]).Type == GCRT_EndOfPointer &&
-		FGCReferenceInfo(Stream.Tokens[Stream.Num - 1]).Type == GCRT_EndOfStream)
-	{
-		checkf(DropARO, TEXT("Super class token stream assembled with ClassAddReferencedObjects set and now it has been reset."
-							" Super class token stream is outdated and should have been regenerated. "));
-		Stream.Num -= 5;
-		Stream.DroppedNum = 5;
-	}
-	else if (Stream.Num >= 2 &&
-		FGCReferenceInfo(Stream.Tokens[Stream.Num - 2]).Type == GCRT_SlowAddReferencedObjects &&
-		FGCReferenceInfo(Stream.Tokens[Stream.Num - 1]).Type == GCRT_EndOfStream)
-	{
-		checkf(DropARO, TEXT("Super class token stream assembled with ClassAddReferencedObjects set and now it has been reset."
-							" Super class token stream is outdated and should have been regenerated. "));
-		Stream.Num -= 2;
-		Stream.DroppedNum = 2;
-	}
-	else if (Stream.Num >= 1)
-	{
-		check(FGCReferenceInfo(Stream.Tokens[Stream.Num - 1]).Type == GCRT_EndOfStream);
-		Stream.Num -= 1;
-		Stream.DroppedNum = 1;
-	}
-
-	return Stream;
-}
-
-void FTokenStreamBuilder::Merge(FTokenStreamView& Out, const FTokenStreamBuilder& Class, FTokenStreamView Super) 
-{
-	check(Class.Tokens.Num() && FGCReferenceInfo(Class.Tokens.Last()).Type == GCRT_EndOfStream);
-
-	uint32 Num = Class.Num() + Super.Num;
-	if (Num == 1)
-	{
-		// Return empty stream if there's only an EndOfStream terminator	
-		check(Super.IsEmpty() && Class.Tokens[0] == GEndOfStreamToken);
-		UpdateStreamReference(Out, FTokenStreamView());
-	}
-	else if (Num == Out.Num &&
-		!FMemory::Memcmp(Out.Tokens,				Super.Tokens,			sizeof(uint32) * Super.Num) &&
-		!FMemory::Memcmp(Out.Tokens + Super.Num,	Class.Tokens.GetData(),	sizeof(uint32) * Class.Num()))
-	{
-		// Nothing changed, no need to update
-		check(Out.IsNonNative == (Class.TokenType == EGCTokenType::NonNative));
-	}
-	else if (Class.Tokens.Num() == Super.DroppedNum && 
-		!FMemory::Memcmp(Super.Tokens + Super.Num,	Class.Tokens.GetData(), sizeof(uint32) * Class.Num()))
-	{
-		// Reuse Super tokens since Class only contain Super's dropped final tokens
-		FTokenStreamView New = Super;
-		New.Num += New.DroppedNum;
-		New.DroppedNum = 0;
-		New.IsNonNative = Class.TokenType == EGCTokenType::NonNative;
-		UpdateStreamReference(Out, New);
-	}
-	else
-	{
-		// Allocate new flat stream
-		LLM_SCOPE(ELLMTag::GC);
-	
-		static_assert(alignof(FTokenStreamHeader) == alignof(uint32));
-		static_assert(alignof(FName) == alignof(uint32));
-		SIZE_T NumBytes = sizeof(FTokenStreamHeader) + Num * sizeof(uint32) + (ENABLE_GC_TOKEN_DEBUG_INFO ? Num * sizeof(FName) : 0);
-		FTokenStreamHeader* Header = new (FMemory::Malloc(NumBytes)) FTokenStreamHeader;
-		uint32* Tokens = reinterpret_cast<uint32*>(Header + 1);
-
-		if (Super.Num)
-		{
-			FMemory::Memcpy(Tokens,             Super.Tokens,           sizeof(uint32) * Super.Num  );
-		}
-		if (Class.Num())
-		{
-			FMemory::Memcpy(Tokens + Super.Num, Class.Tokens.GetData(), sizeof(uint32) * Class.Num());
-		}
-
-	#if ENABLE_GC_TOKEN_DEBUG_INFO
-		check(Class.DebugNames.Num() == Class.Tokens.Num());
-		FName* DebugNames = reinterpret_cast<FName*>(Tokens + Num);
-		if (Super.Num)   { FMemory::Memcpy(DebugNames,             Super.GetDebugNames(),      sizeof(FName) * Super.Num); }
-		if (Class.Num()) { FMemory::Memcpy(DebugNames + Super.Num, Class.DebugNames.GetData(), sizeof(FName) * Class.Num()); }
-	#endif
-
-		UpdateGlobalTokenCount(int32(Num));
-
-		// Update the global maximum stack size after assembling the token stream of each class
-		uint32 StackSize = FMath::Max(Class.StackSize, Super.StackSize);
-		MaxStackSize = FMath::Max(MaxStackSize, StackSize);
-		check(StackSize < (1u << FTokenStreamView::NumStackSizeBits));
-
-		FTokenStreamView New;
-		New.Tokens = Tokens;
-		New.Num = Num;
-		New.StackSize = StackSize;
-		New.IsNonNative = Class.TokenType == EGCTokenType::NonNative;
-
-		DropStreamReference(Out);
-		Out = New;
-	}
-}
-
-static uint32 PickReturnCount(uint32 OuterReturnCount, uint32 InnerReturnCount)
-{
-	if (InnerReturnCount > 1)
-	{
-		check(OuterReturnCount == 0);
-		return InnerReturnCount - 1;
-	}
-
-	return OuterReturnCount;
-}
-
-int32 FTokenStreamBuilder::EmitReferenceInfo(FGCReferenceInfo ReferenceInfo, FName DebugName)
-{
-	int32 TokenIndex = Tokens.Add(ReferenceInfo);
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-	check(DebugNames.Num() == TokenIndex);
-	check(!DebugName.IsNone());
-	DebugNames.Add(DebugName);
-#endif
-	return TokenIndex;
-}
-
-uint32 FTokenStreamBuilder::EmitSkipIndexPlaceholder()
-{
-	uint32 TokenIndex = Tokens.Add(SkipIndexPlaceholderMagic);
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-	check(DebugNames.Num() == TokenIndex);
-	DebugNames.Add(TokenDebugNames::SkipInfo);
-#endif
-	return TokenIndex;
-}
-
-void FTokenStreamBuilder::UpdateSkipIndexPlaceholder( uint32 SkipIndexIndex, uint32 SkipIndex )
-{
-	check( SkipIndex > 0 && SkipIndex <= (uint32)Tokens.Num() );
-	FGCReferenceInfo ReferenceInfo(Tokens[SkipIndex-1]);
-	check( ReferenceInfo.Type != GCRT_None );
-	check( Tokens[SkipIndexIndex] == SkipIndexPlaceholderMagic );
-	check( SkipIndexIndex < SkipIndex );
-	check( ReferenceInfo.ReturnCount >= 1 );
-	FGCSkipInfo SkipInfo;
-	SkipInfo.SkipIndex			= SkipIndex - SkipIndexIndex;
-	// We need to subtract 1 as ReturnCount includes return from this array.
-	SkipInfo.InnerReturnCount	= ReferenceInfo.ReturnCount - 1; 
-	Tokens[SkipIndexIndex]		= SkipInfo;
-}
-
-int32 FTokenStreamBuilder::EmitCount( uint32 Count )
-{
-	int32 TokenIndex = Tokens.Add( Count );
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-	check(DebugNames.Num() == TokenIndex);
-	DebugNames.Add(TokenDebugNames::Count);
-#endif
-	return TokenIndex;
-}
-
-int32 FTokenStreamBuilder::EmitPointer( void const* Ptr )
-{
-	static constexpr uint32 NumTokensPerPointer = sizeof(void*) / sizeof(uint32); //-V514
-
-	const int32 StoreIndex = Tokens.Num();
-	Tokens.AddUninitialized(NumTokensPerPointer);
-	StorePointer(&Tokens[StoreIndex], Ptr);
-
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-	check(DebugNames.Num() == StoreIndex);
-	for (int32 PointerTokenIndex = 0; PointerTokenIndex < NumTokensPerPointer; ++PointerTokenIndex)
-	{
-		DebugNames.Add(TokenDebugNames::Pointer);
-	}
-#endif
-
-	// Now inser the end of pointer marker, this will mostly be used for storing ReturnCount value
-	// if the pointer was stored at the end of struct array stream.
-	EmitReferenceInfo(FGCReferenceInfo(GCRT_EndOfPointer, 0), TokenDebugNames::EndOfPointer);
-
-	return StoreIndex;
-}
-
-int32 FTokenStreamBuilder::EmitStride( uint32 Stride )
-{
-	int32 TokenIndex = Tokens.Add( Stride );
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-	check(DebugNames.Num() == TokenIndex);
-	DebugNames.Add(TokenDebugNames::Stride);
-#endif
-	return TokenIndex;
-}
-
-uint32 FTokenStreamBuilder::EmitReturn()
-{
-	FGCReferenceInfo ReferenceInfo(Tokens.Last());
-	check(ReferenceInfo.Type != GCRT_None);
-	ReferenceInfo.ReturnCount++;
-	Tokens.Last() = ReferenceInfo;
-	return Tokens.Num();
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-static FName ToName(ETokenlessId Id)
-{
-	static_assert(ETokenlessId::Collector == static_cast<ETokenlessId>(1u));
-	static_assert(ETokenlessId::Max == ETokenlessId::InitialReference);
+	static_assert(EMemberlessId::Collector == static_cast<EMemberlessId>(1u));
+	static_assert(EMemberlessId::Max == EMemberlessId::InitialReference);
 
 	static FName Names[] =
 	{
 		FName("Invalid"),
-		FName("Collector"), // ETokenlessId::Collector
-		FName("Class"), // ETokenlessId::Class
-		FName("Outer"), // ETokenlessId::Outer
-		FName("ExternalPackage"), // ETokenlessId::ExternalPackage
-		FName("ClassOuter"), // ETokenlessId::ClassOuter
-		FName("InitialReference"), // ETokenlessId::InitialReference
+		FName("Collector"), // EMemberlessId::Collector
+		FName("Class"), // EMemberlessId::Class
+		FName("Outer"), // EMemberlessId::Outer
+		FName("ExternalPackage"), // EMemberlessId::ExternalPackage
+		FName("ClassOuter"), // EMemberlessId::ClassOuter
+		FName("InitialReference"), // EMemberlessId::InitialReference
 	};
 
 	check(static_cast<uint32>(Id) < UE_ARRAY_COUNT(Names));
 	return Names[static_cast<uint32>(Id)];
 }
 
-void FTokenId::StaticAssert()
+void FMemberId::StaticAssert()
 {
-	static_assert(1u << TokenlessIdBits >= static_cast<uint32>(ETokenlessId::Max), "Need to bump TokenlessIdBits");
+	static_assert((1u << MemberlessIdBits) >= static_cast<uint32>(EMemberlessId::Max), "Need to bump MemberlessIdBits");
 }
 
 //////////////////////////////////////////////////////////////////////////
+#if !UE_BUILD_SHIPPING
 
-FTokenInfo FTokenStreamOwner::GetTokenInfo(FTokenId Id) const
-{
-	if (Id.IsTokenless())
-	{
-		// Technically offsetof(UObjectBase, ClassPrivate/OuterPrivate) could be exposed via some new API or friend declaration
-		return {-1, ToName(Id.AsTokenless()) };
-	}
-
-	uint32 Idx = Id.GetIndex();
-
-	check(Idx < Strong.Num);
-	FTokenInfo DebugInfo;
-	DebugInfo.Offset = FGCReferenceInfo(Strong.Tokens[Idx]).Offset;
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-	DebugInfo.Name = Strong.GetDebugNames()[Idx];
-#else
-	static const FName DefaultTokenName("Token");	
-	DebugInfo.Name = DefaultTokenName; 
-#if !UE_FNAME_OUTLINE_NUMBER
-	DebugInfo.Name.SetNumber(Idx);
-#endif
-#endif
-	return DebugInfo;
-}
-
-void FTokenStreamOwner::Reset()
-{
-	UpdateStreamReference(/* out */ Strong, FTokenStreamView());
-}
-
-int64 FTokenStreamOwner::GetTokenAllocatedSize() const
-{
-	return Strong.Num * sizeof(uint32);
-}
-
-int64 FTokenStreamOwner::GetDebugInfoAllocatedSize() const
-{
-#if ENABLE_GC_TOKEN_DEBUG_INFO
-	return GetTokenAllocatedSize() * sizeof(FName) / sizeof(uint32);
-#else
-	return 0;
-#endif
-}
-
-TMap<UClass*, TUniquePtr<FTokenStreamBuilder>> GIntrinsicClassTokens;
-
-FTokenStreamBuilder& FIntrinsicClassTokens::AllocateBuilder(UClass* Class)
-{
-	TUniquePtr<FTokenStreamBuilder>& Builder = GIntrinsicClassTokens.FindOrAdd(Class);
-	checkf(!Builder, TEXT("Allocated multiple builders for same class"));
-	Builder.Reset(new FTokenStreamBuilder(*Class));
-	return *Builder;
-}
-
-TUniquePtr<FTokenStreamBuilder> FIntrinsicClassTokens::ConsumeBuilder(UClass* Class)
-{
-	TUniquePtr<FTokenStreamBuilder>* Builder = GIntrinsicClassTokens.Find(Class);
-	return Builder && *Builder ? MoveTemp(*Builder) : TUniquePtr<FTokenStreamBuilder>();
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-void DumpMemoryStats(FOutputDevice& OutputDevice)
+static void DumpMemoryStats(FOutputDevice& OutputDevice)
 {
 	FContextPoolScope Pool;
-	int32 TotalWeakCapacity = 0;
-	int32 NumContexts = Pool.PeekFree().Num();
+	uint32 TotalWeakCapacity = 0;
+	uint32 NumContexts = Pool.PeekFree().Num();
 	for (const TUniquePtr<FWorkerContext>& Context : Pool.PeekFree())
 	{
 		TotalWeakCapacity += Context->WeakReferences.Max();
 	}
 
-	int32 ContextsKB = (NumContexts * sizeof(FWorkerContext) + TotalWeakCapacity * sizeof(UObject**))/1024;
-	int32 ScratchKB = static_cast<int32>(GScratchPages.CountBytes() / 1024);
-	int32 GlobalsKB = (sizeof(GScratchPages) + sizeof(GAROBlocks) + sizeof(GWorkstealingManager) + sizeof(GSlowARO)) / 1024;
-	// Excluding debug names in non-shipping configs
-	int32 TokensKB = (GNumTokens * sizeof(uint32) + GNumTokenStreams * sizeof(FTokenStreamHeader)) / 1024; 
-	int32 TotalKB = ContextsKB + ScratchKB + GlobalsKB + TokensKB;
+	uint32 NumSchemaWords = 0;
+	uint32 NumSchemas = CountSchemas(NumSchemaWords);
+	uint32 SchemaKB = (NumSchemas * sizeof(FSchemaHeader) + NumSchemaWords * 8) / 1024;
+	uint32 ContextsKB = (NumContexts * sizeof(FWorkerContext) + TotalWeakCapacity * sizeof(UObject**))/1024;
+	uint32 ScratchKB = static_cast<int32>(GScratchPages.CountBytes() / 1024);
+	uint32 GlobalsKB = (sizeof(GScratchPages) + sizeof(GAROBlocks) + sizeof(GWorkstealingManager) + sizeof(GSlowARO)) / 1024;
+	
+	uint32 TotalKB = ContextsKB + ScratchKB + GlobalsKB + SchemaKB;
 
-	OutputDevice.Logf(TEXT("GC mem usage: %dKB total, %dKB scratch, %dKB for %d contexts, %dKB globals (code size) and %dKB for %d tokens in %d streams"),
-						TotalKB, ScratchKB, ContextsKB, NumContexts, GlobalsKB, TokensKB, GNumTokens, GNumTokenStreams);
+	OutputDevice.Logf(TEXT("GC mem usage: %dKB total, %dKB scratch, %dKB for %d contexts and %dKB globals (code size) and %dKB for %d schemas"),
+						TotalKB, ScratchKB, ContextsKB, NumContexts, GlobalsKB, SchemaKB, NumSchemas);
 }
 
+static FAutoConsoleCommandWithOutputDevice GDumpMemoryStats(TEXT("gc.DumpMemoryStats"), TEXT("Print GC memory usage"), FConsoleCommandWithOutputDeviceDelegate::CreateStatic(&DumpMemoryStats));
+
+#endif //!UE_BUILD_SHIPPING
 //////////////////////////////////////////////////////////////////////////
 
 // Coordinates worker starting, tail spinning and stopping

@@ -5107,7 +5107,6 @@ private:
 	 */
 	void AddToObjectList( const UObject* ReferencingObject, const FProperty* ReferencingProperty, UObject* Object )
 	{
-#if ENABLE_GC_DEBUG_OUTPUT
 		// this message is to help track down culprits behind "Object in PIE world still referenced" errors
 		if ( GIsEditor && !GIsPlayInEditorWorld && !CurrentObject->HasAnyFlags(RF_Transient) && Object->RootPackageHasAnyFlags(PKG_PlayInEditor) )
 		{
@@ -5119,7 +5118,6 @@ private:
 				UE_LOG(LogGarbage, Warning, TEXT("  NON-PIE object: %s"), *CurrentObject->GetFullName());
 			}
 		}
-#endif
 
 		// Mark it as reachable.
 		Object->ThisThreadAtomicallyClearedRFUnreachable();
@@ -6133,7 +6131,7 @@ namespace UECodeGen_Private
 		if ((NewClass->ClassFlags & CLASS_Intrinsic) != CLASS_Intrinsic)
 		{
 			check((NewClass->ClassFlags & CLASS_TokenStreamAssembled) != CLASS_TokenStreamAssembled);
-			NewClass->ReferenceTokens.Reset();
+			NewClass->ReferenceSchema.Reset();
 		}
 		NewClass->CreateLinkAndAddChildFunctionsToMap(Params.FunctionLinkArray, Params.NumFunctions);
 

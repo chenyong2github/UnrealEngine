@@ -9,6 +9,7 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
+#include "UObject/GarbageCollectionSchema.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
 
@@ -102,7 +103,6 @@ bool UObjectRedirector::GetNativePropertyValues( TMap<FString,FString>& out_Prop
 
 IMPLEMENT_CORE_INTRINSIC_CLASS(UObjectRedirector, UObject,
 	{
-		UE::GC::FTokenStreamBuilder& Builder = UE::GC::FIntrinsicClassTokens::AllocateBuilder(Class);
-		Builder.EmitObjectReference(STRUCT_OFFSET(UObjectRedirector, DestinationObject), TEXT("DestinationObject"));
+		UE::GC::DeclareIntrinsicMembers(Class, { UE_GC_MEMBER(UObjectRedirector, DestinationObject) });
 	}
 );

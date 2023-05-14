@@ -236,8 +236,8 @@ namespace UE::ReferenceChainSearch
 			void HandleTokenStreamObjectReference(UE::GC::FWorkerContext& Context,
 				UObject* ReferencingObject,
 				UObject*& Object,
-				UE::GC::FTokenId TokenIndex,
-				EGCTokenType TokenType,
+				UE::GC::FMemberId MemberId,
+				UE::GC::EOrigin Origin,
 				bool bAllowReferenceElimination)
 			{
 				if (Object)
@@ -251,13 +251,13 @@ namespace UE::ReferenceChainSearch
 
 					if (Object != ReferencingObject)
 					{
-						This->HandleObjectReference(ThreadIndex, Object, ReferencingObject, TokenIndex, TokenType);
+						This->HandleObjectReference(ThreadIndex, Object, ReferencingObject, MemberId, Origin);
 					}
 				}
 			}
 		};
 
-		struct FCollector : public FReferenceCollector
+		class FCollector final: public FReferenceCollector
 		{
 		protected:
 			FProcessor& Processor;
@@ -273,22 +273,15 @@ namespace UE::ReferenceChainSearch
 				Processor.HandleTokenStreamObjectReference(Context,
 					const_cast<UObject*>(ReferencingObject),
 					Object,
-					UE::GC::ETokenlessId::Collector,
-					EGCTokenType::Native,
+					UE::GC::EMemberlessId::Collector,
+					UE::GC::EOrigin::Other,
 					false);
 			}
-			virtual void HandleObjectReferences(
-				UObject** InObjects, const int32 ObjectNum, const UObject* ReferencingObject, const FProperty* InReferencingProperty) override
+			virtual void HandleObjectReferences(UObject** Objects, int32 Num, const UObject* ReferencingObject, const FProperty* ReferencingProperty) override
 			{
-				for (int32 ObjectIndex = 0; ObjectIndex < ObjectNum; ++ObjectIndex)
+				for (UObject*& Object : MakeArrayView(Objects, Num))
 				{
-					UObject*& Object = InObjects[ObjectIndex];
-					Processor.HandleTokenStreamObjectReference(Context,
-						const_cast<UObject*>(ReferencingObject),
-						Object,
-						UE::GC::ETokenlessId::Collector,
-						EGCTokenType::Native,
-						false);
+					HandleObjectReference(Object, ReferencingObject, ReferencingProperty);
 				}
 			}
 
@@ -467,7 +460,7 @@ namespace UE::ReferenceChainSearch
 		}
 
 		void HandleObjectReference(
-			int32 ThreadIndex, UObject* Object, UObject* ReferencingObject, UE::GC::FTokenId TokenIndex, EGCTokenType TokenType)
+			int32 ThreadIndex, UObject* Object, UObject* ReferencingObject, UE::GC::FTokenId TokenIndex, UE::GC::EOrigin TokenType)
 		{
 			FThreadData& ThreadData = AllThreadData[ThreadIndex];
 			if (ThreadData.PreviousReferencingObject != ReferencingObject)
@@ -537,7 +530,7 @@ namespace UE::ReferenceChainSearch
 			UObject* Object,
 			UObject* ReferencingObject,
 			UE::GC::FTokenId TokenIndex,
-			EGCTokenType TokenType)
+			UE::GC::EOrigin TokenType)
 		{
 			FThreadData& ThreadData = AllThreadData[ThreadIndex];
 			if (!TargetObjects.Contains(Object))
@@ -1026,7 +1019,7 @@ namespace UE::ReferenceChainSearch
 		}
 
 		void HandleObjectReference(
-			int32 ThreadIndex, UObject* Object, UObject* ReferencingObject, UE::GC::FTokenId TokenIndex, EGCTokenType TokenType)
+			int32 ThreadIndex, UObject* Object, UObject* ReferencingObject, UE::GC::FMemberId MemberId, UE::GC::EOrigin Origin)
 		{
 			if (!Object || Object == ReferencingObject) // Skip self-references just in case
 			{
@@ -1050,10 +1043,10 @@ namespace UE::ReferenceChainSearch
 
 			FGCObjectInfo* ObjectInfo = ObjectToInfoMap.FindRef(Object);
 			*RefInfo = FReferenceChainSearch::FObjectReferenceInfo(ObjectInfo);
-			if (TokenIndex != UE::GC::ETokenlessId::Collector)
+			if (MemberId != UE::GC::EMemberlessId::Collector)
 			{
-				FTokenInfo TokenInfo = ReferencingObject->GetClass()->ReferenceTokens.GetTokenInfo(TokenIndex);
-				RefInfo->ReferencerName = TokenInfo.Name;
+				FName MemberName = GetMemberDebugInfo(ReferencingObject->GetClass()->ReferenceSchema.Get(), MemberId).Name;
+				RefInfo->ReferencerName = MemberName;
 				RefInfo->Type = FReferenceChainSearch::EReferenceType::Property;
 			}
 			else
@@ -1369,7 +1362,7 @@ void FReferenceChainSearch::DumpChain(FReferenceChainSearch::FReferenceChain* Ch
 				UClass* ReferencerClass = Cast<UClass>(ReferencerObject->GetClass()->TryResolveObject());
 				TArray<FProperty*> ReferencingProperties;
 
-				if (ReferencerClass && FGCStackSizeHelper::ConvertPathToProperties(ReferencerClass, ReferenceInfo->ReferencerName, ReferencingProperties))
+				if (ReferencerClass && UE::GC::FPropertyStack::ConvertPathToProperties(ReferencerClass, ReferenceInfo->ReferencerName, ReferencingProperties))
 				{
 					FProperty* InnermostProperty = ReferencingProperties.Last();
 					FProperty* OutermostProperty = ReferencingProperties[0];
