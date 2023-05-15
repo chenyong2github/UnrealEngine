@@ -543,6 +543,7 @@ FString FPropertyStack::GetPropertyPath() const
 			}
 			Result += DelimiterChar;
 		}
+		CA_ASSUME(Property);
 		Result += Property->GetName();
 		PreviousProperty = Property;
 	}
