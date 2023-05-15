@@ -1242,6 +1242,16 @@ FRigVMExprAST* FRigVMParserAST::TraverseLink(int32 InLinkIndex, FRigVMExprAST* I
 		}
 	}
 
+	if (!bRequiresCopy)
+	{
+		// Due to the unpredictability of lazy branches, we need to make sure that non-lazy pins are not
+		// affected by the execution of lazy evaluation.
+		if (!TargetRootPin->IsLazy() && TargetRootPin->GetNode()->HasLazyPin(true))
+		{
+			bRequiresCopy = true;
+		}
+	}
+
 	FRigVMAssignExprAST* AssignExpr = nullptr;
 	if (bRequiresCopy)
 	{

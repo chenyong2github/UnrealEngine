@@ -1431,8 +1431,19 @@ void URigVMCompiler::TraverseBlock(const FRigVMBlockExprAST* InExpr, FRigVMCompi
 			}
 		}
 	}
-	
-	TraverseChildren(InExpr, WorkData);
+
+	if(!WorkData.bSetupMemory && !BranchInfo.Label.IsNone())
+	{
+		// We need to make sure lazy blocks are properly populated, with all the operations that need to run
+		// during the evaluation of the lazy branch, even if some of the expressions
+		// have already been visited in other parts of the traversal. See RigVM.Compiler.IfFromSameNode unit test. 
+		TGuardValue<TMap<const FRigVMExprAST*, bool>> ExprCompletedGuard(WorkData.ExprComplete, {});
+		TraverseChildren(InExpr, WorkData);
+	}
+	else
+	{
+		TraverseChildren(InExpr, WorkData);
+	}
 
 	if(!BranchInfo.Label.IsNone())
 	{
@@ -3351,6 +3362,12 @@ const FRigVMCompilerWorkData::FRigVMASTProxyArray& URigVMCompiler::FindProxiesWi
 				// due to LWC we may have two pins that don't
 				// actually share the same CPP type (float vs double)
 				if(Pin->GetCPPType() != CPPType)
+				{
+					continue;
+				}
+
+				// Non-lazy pins in node with lazy pins cannot share operands
+				if (Pin->GetDirection() == ERigVMPinDirection::Input && !Pin->IsLazy() && Pin->GetNode()->HasLazyPin())
 				{
 					continue;
 				}
