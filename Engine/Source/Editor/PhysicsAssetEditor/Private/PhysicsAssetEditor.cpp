@@ -642,9 +642,9 @@ void FPhysicsAssetEditor::ExtendToolbar()
 			Section.AddEntry(FToolMenuEntry::InitToolBarButton(Commands.DisableCollision));
 			Section.AddEntry(FToolMenuEntry::InitComboButton("ApplyPhysicalMaterial",
 				FUIAction(FExecuteAction(), FCanExecuteAction::CreateSP(PhysicsAssetEditor.Get(), &FPhysicsAssetEditor::IsNotSimulation)),
-				FOnGetContent::CreateLambda([PhysicsAssetEditor]()
+				FOnGetContent::CreateLambda([WeakPhysicsAssetEditor = PhysicsAssetEditor.ToWeakPtr()]()
 			{
-				return PhysicsAssetEditor->BuildPhysicalMaterialAssetPicker(true);
+				return WeakPhysicsAssetEditor.Pin()->BuildPhysicalMaterialAssetPicker(true);
 			}),
 				Commands.ApplyPhysicalMaterial->GetLabel(),
 				Commands.ApplyPhysicalMaterial->GetDescription(),
@@ -676,9 +676,9 @@ void FPhysicsAssetEditor::ExtendToolbar()
 			
 			Section.AddEntry(FToolMenuEntry::InitComboButton("SimulationMode",
 				FUIAction(FExecuteAction(), FCanExecuteAction::CreateSP(PhysicsAssetEditor.Get(), &FPhysicsAssetEditor::IsNotSimulation)),
-				FOnGetContent::CreateLambda([PhysicsAssetEditor]()
+				FOnGetContent::CreateLambda([WeakPhysicsAssetEditor = PhysicsAssetEditor.ToWeakPtr()]()
 			{
-				return Local::FillSimulateOptions(PhysicsAssetEditor->GetToolkitCommands());
+				return Local::FillSimulateOptions(WeakPhysicsAssetEditor.Pin()->GetToolkitCommands());
 			}),
 				LOCTEXT("SimulateCombo_Label", "Simulate Options"),
 				LOCTEXT("SimulateComboToolTip", "Options for Simulation"),
@@ -795,7 +795,7 @@ void FPhysicsAssetEditor::ExtendViewportMenus()
 			}));
 
 			Section.AddSubMenu(TEXT("CollisionRenderModeSubMenu"), LOCTEXT("CollisionRenderModeSubMenu", "Bodies"), FText::GetEmpty(),
-				FNewToolMenuDelegate::CreateLambda([PhysicsAssetEditor](UToolMenu* InSubMenu)
+				FNewToolMenuDelegate::CreateLambda([WeakPhysicsAssetEditor = PhysicsAssetEditor.ToWeakPtr()](UToolMenu* InSubMenu)
 			{
 				const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
 				{
@@ -803,7 +803,7 @@ void FPhysicsAssetEditor::ExtendViewportMenus()
 					Section.AddMenuEntry(Commands.RenderOnlySelectedSolid);
 					Section.AddMenuEntry(Commands.HideSimulatedBodies);
 					Section.AddMenuEntry(Commands.HideKinematicBodies);
-					Section.AddEntry(FToolMenuEntry::InitWidget(TEXT("CollisionOpacity"), PhysicsAssetEditor->MakeCollisionOpacityWidget(), LOCTEXT("CollisionOpacityLabel", "Collision Opacity")));
+					Section.AddEntry(FToolMenuEntry::InitWidget(TEXT("CollisionOpacity"), WeakPhysicsAssetEditor.Pin()->MakeCollisionOpacityWidget(), LOCTEXT("CollisionOpacityLabel", "Collision Opacity")));
 				}
 
 				{
@@ -824,14 +824,14 @@ void FPhysicsAssetEditor::ExtendViewportMenus()
 			}));
 
 			Section.AddSubMenu(TEXT("ConstraintConstraintModeSubMenu"), LOCTEXT("ConstraintConstraintModeSubMenu", "Constraints"), FText::GetEmpty(),
-				FNewToolMenuDelegate::CreateLambda([PhysicsAssetEditor](UToolMenu* InSubMenu)
+				FNewToolMenuDelegate::CreateLambda([WeakPhysicsAssetEditor = PhysicsAssetEditor.ToWeakPtr()](UToolMenu* InSubMenu)
 			{
 				const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
 				{
 					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorConstraints", LOCTEXT("ConstraintHeader", "Constraints"));
 					Section.AddMenuEntry(Commands.DrawConstraintsAsPoints);
 					Section.AddMenuEntry(Commands.RenderOnlySelectedConstraints);
-					Section.AddEntry(FToolMenuEntry::InitWidget(TEXT("ConstraintScale"), PhysicsAssetEditor->MakeConstraintScaleWidget(), LOCTEXT("ConstraintScaleLabel", "Constraint Scale")));
+					Section.AddEntry(FToolMenuEntry::InitWidget(TEXT("ConstraintScale"), WeakPhysicsAssetEditor.Pin()->MakeConstraintScaleWidget(), LOCTEXT("ConstraintScaleLabel", "Constraint Scale")));
 				}
 				{
 					FToolMenuSection& Section = InSubMenu->AddSection("PhysicsAssetEditorConstraintMode", LOCTEXT("ConstraintRenderModeHeader", "Constraint Drawing (Edit)"));
@@ -865,7 +865,7 @@ void FPhysicsAssetEditor::ExtendViewportMenus()
 			DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 			TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 			DetailsView->SetObject(PhysicsAssetEditor->GetSharedData()->EditorOptions);
-			DetailsView->OnFinishedChangingProperties().AddLambda([PhysicsAssetEditor](const FPropertyChangedEvent& InEvent) { PhysicsAssetEditor->GetSharedData()->EditorOptions->SaveConfig(); });
+			DetailsView->OnFinishedChangingProperties().AddLambda([WeakPhysicsAssetEditor = PhysicsAssetEditor.ToWeakPtr()](const FPropertyChangedEvent& InEvent) { WeakPhysicsAssetEditor.Pin()->GetSharedData()->EditorOptions->SaveConfig(); });
 	
 			Section.AddEntry(FToolMenuEntry::InitWidget("PhysicsEditorOptions", DetailsView.ToSharedRef(), FText()));
 		}
