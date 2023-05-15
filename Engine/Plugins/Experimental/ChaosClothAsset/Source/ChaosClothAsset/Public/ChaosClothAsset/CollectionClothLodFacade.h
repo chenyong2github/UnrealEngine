@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ChaosClothAsset/CollectionClothPatternFacade.h"
+#include "ChaosClothAsset/CollectionClothTetherBatchFacade.h"
 
 namespace UE::Geometry
 {
@@ -50,6 +51,9 @@ namespace UE::Chaos::ClothAsset
 
 		/** Return a pattern facade for the specified pattern index. */
 		FCollectionClothPatternConstFacade GetPattern(int32 PatternIndex) const;
+
+		/** Return a tether batch facade for the specified tether batch index. */
+		FCollectionClothTetherBatchConstFacade GetTetherBatch(int32 TetherBatchIndex) const;
 
 		/** Return the physics asset path names used for this LOD. */
 		const FString& GetPhysicsAssetPathName() const;
@@ -101,8 +105,9 @@ namespace UE::Chaos::ClothAsset
 		int32 GetLodIndex() const { return LodIndex; }
 
 		/** Return the welded simulation mesh for this LOD. */
-		void BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices, TArray<int32>& WeldingMap,
-			TArray<FVector2f>& PatternsPositions, TArray<uint32>& PatternsIndices, TArray<uint32>& PatternToWeldedIndices) const;
+		void BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices,
+			TArray<FVector2f>& PatternsPositions, TArray<uint32>& PatternsIndices, TArray<uint32>& PatternToWeldedIndices, 
+			TArray<TArray<int32>>* OptionalWeldedToPatternIndices = nullptr) const;
 
 	protected:
 		friend class FCollectionClothConstFacade;
@@ -169,6 +174,15 @@ namespace UE::Chaos::ClothAsset
 
 		/** Add a new pattern to this cloth LOD, and return the cloth pattern facade set to its index. */
 		FCollectionClothPatternFacade AddGetPattern() { return GetPattern(AddPattern()); }
+
+		/** Add a new tether batch to this cloth LOD and return its index in the LOD tether batch list. */
+		int32 AddTetherBatch();
+
+		/** Return a tether batch facade for the specified tether batch index. */
+		FCollectionClothTetherBatchFacade GetTetherBatch(int32 TetherBatchIndex);
+
+		/** Add a new tether batch to this cloth LOD, and return the tether batch facade set to its index. */
+		FCollectionClothTetherBatchFacade AddGetTetherBatch() { return GetTetherBatch(AddTetherBatch()); }
 
 		/** Set the physics asset path names used for this LOD. */
 		void SetPhysicsAssetPathName(const FString& PathName);

@@ -34,6 +34,9 @@ protected:
 	virtual void AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 	PURE_VIRTUAL(FChaosClothAssetSimulationBaseConfigNode::AddProperties, );
 
+	/* Override this to do additional node-specific evaluate on the cloth collection output. AddProperties has already been called when this is called. */
+	virtual void EvaluateClothCollection(Dataflow::FContext& Context, const TSharedRef<FManagedArrayCollection>& ClothCollection) const {}
+
 	void RegisterCollectionConnections();
 
 	int32 AddPropertyHelper(

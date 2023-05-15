@@ -29,7 +29,7 @@ struct FClothTetherData
 	 * Generate the tethers by following the triangle mesh network from the closest kinematic to each dynamic point.
 	 * Inside array items can be processed concurrently, but the outside array must be iterated on sequentially.
 	 */
-	void GenerateTethers(
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void GenerateTethers(
 		const TConstArrayView<FVector3f>& Points,  // Reference pose
 		const TConstArrayView<uint32>& Indices,  // Triangle mesh
 		const TConstArrayView<float>& MaxDistances,  // Mask for sorting the kinematic from the dynamic points

@@ -3,6 +3,8 @@
 #include "ChaosClothAsset/CollectionClothFacade.h"
 #include "ChaosClothAsset/CollectionClothLodFacade.h"
 #include "ChaosClothAsset/ClothCollection.h"
+#include "Chaos/ChaosArchive.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 namespace UE::Chaos::ClothAsset
 {
@@ -58,6 +60,30 @@ namespace UE::Chaos::ClothAsset
 		}
 
 		GetClothCollection()->SetNumElements(0, FClothCollection::LodsGroup);
+	}
+
+	void FCollectionClothFacade::PostSerialize(const ::Chaos::FChaosArchive& Ar)
+	{
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::ClothCollectionTetherInitialization)
+		{
+			const int32 NumLods = GetNumLods();
+			for (int32 LodIndex = 0; LodIndex < NumLods; ++LodIndex)
+			{
+				FCollectionClothLodFacade LodFacade = GetLod(LodIndex);
+				const int32 NumTetherBatches = LodFacade.GetNumTetherBatches();
+				for (int32 TetherBatchIndex = 0; TetherBatchIndex < NumTetherBatches; ++TetherBatchIndex)
+				{
+					// The tethers were never set to be empty, so do this manually.
+					const int32 TetherBatchElementIndex = (*ClothCollection->GetTetherBatchStart())[LodIndex] + TetherBatchIndex;
+
+					(*GetClothCollection()->GetTetherStart())[TetherBatchElementIndex] = INDEX_NONE;
+					(*GetClothCollection()->GetTetherEnd())[TetherBatchElementIndex] = INDEX_NONE;
+				}
+
+				// Clear any (now empty) tether batches
+				LodFacade.SetNumTetherBatches(0);
+			}
+		}
 	}
 
 	int32 FCollectionClothFacade::AddLod()

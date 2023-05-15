@@ -50,5 +50,14 @@ namespace UE::Chaos::ClothAsset
 			bool bBindSimMesh,
 			bool bBindRenderMesh,
 			const TArray<int32> Lods = {});
+
+		/**
+		* Generate a welded weight map.
+		*/
+		static TArray<float> BuildWeldedWeightMapForLod(
+			const TSharedPtr<const FManagedArrayCollection>& ClothCollection,
+			int32 LodIndex,
+			const FName& WeightMapName,
+			const TArray<TArray<int32>>& WeldedToUnweldedMap);
 	};
 }  // End namespace UE::Chaos::ClothAsset

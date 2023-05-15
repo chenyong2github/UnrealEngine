@@ -89,6 +89,8 @@ void UChaosClothAsset::Serialize(FArchive& Ar)
 
 	Chaos::FChaosArchive ChaosArchive(Ar);
 	ClothCollection->Serialize(ChaosArchive);
+	UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
+	ClothFacade.PostSerialize(ChaosArchive);
 
 	Ar << GetRefSkeleton();
 	if (Ar.IsLoading())

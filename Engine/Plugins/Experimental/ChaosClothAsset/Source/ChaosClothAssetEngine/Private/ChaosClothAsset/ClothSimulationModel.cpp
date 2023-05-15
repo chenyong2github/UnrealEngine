@@ -2,6 +2,7 @@
 
 #include "ChaosClothAsset/ClothSimulationModel.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "ChaosClothAsset/ClothGeometryTools.h"
 #include "ReferenceSkeleton.h"
 
 namespace UE::Chaos::ClothAsset
@@ -103,35 +104,6 @@ namespace UE::Chaos::ClothAsset
 		}
 		return ReferenceBoneIndex;
 	}
-
-	// TODO: Check which welding implementation is best and if we should use this one instead
-	// Welded weights are averaged. TODO: add other welding options such as Max and Min
-	static TArray<float> WeldWeightMap(const TConstArrayView<float>& UnweldedMap, const TArray<uint32>& PatternToWeldedIndices, const int32 NumWelded)
-	{
-		TArray<float> WeldedMap;
-		WeldedMap.SetNumZeroed(NumWelded);
-
-		TArray<float> NumInfluences;
-		NumInfluences.SetNumZeroed(NumWelded);
-		
-		check(UnweldedMap.Num() == PatternToWeldedIndices.Num());
-		for (int32 OrigIdx = 0; OrigIdx < UnweldedMap.Num(); ++OrigIdx)
-		{
-			const int32 WeldedIdx = PatternToWeldedIndices[OrigIdx];
-			NumInfluences[WeldedIdx] += 1.f;
-			WeldedMap[WeldedIdx] += UnweldedMap[OrigIdx];
-		}
-
-		for (int32 WeldedIdx = 0; WeldedIdx < NumWelded; ++WeldedIdx)
-		{
-			if (NumInfluences[WeldedIdx] > 0.f)
-			{
-				WeldedMap[WeldedIdx] /= NumInfluences[WeldedIdx];
-			}
-		}
-		return WeldedMap;
-	}
-
 }  // End namespace UE::Chaos::ClothAsset
 
 bool FChaosClothSimulationLodModel::Serialize(FArchive& Ar)
@@ -167,31 +139,12 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const FM
 	{
 		FChaosClothSimulationLodModel& LodModel = ClothSimulationLodModels[LodIndex];
 		const FCollectionClothLodConstFacade ClothLod = Cloth.GetLod(LodIndex);
-		TArray<int32> WeldingMap;
-		ClothLod.BuildSimulationMesh(LodModel.Positions, LodModel.Normals, LodModel.Indices, WeldingMap, LodModel.PatternPositions, LodModel.PatternIndices, LodModel.PatternToWeldedIndices);
 
-		// Build welding index lookup  // TODO: Could probably do this better in the BuildSimulationMesh function
+		TArray<TArray<int32>> WeldedToPatternIndices;
+		ClothLod.BuildSimulationMesh(LodModel.Positions, LodModel.Normals, LodModel.Indices, LodModel.PatternPositions, LodModel.PatternIndices, LodModel.PatternToWeldedIndices, &WeldedToPatternIndices);
+
 		const int32 LodModelNumSimVertices = LodModel.Positions.Num();
 		const int32 ClothLodNumSimVertices = ClothLod.GetNumSimVertices();
-
-		TArray<int32> ReverseWeldingMap;
-		ReverseWeldingMap.Reserve(LodModelNumSimVertices);
-		TMap<int32, TArray<int32>> SourceVertexIndicesMap;
-		SourceVertexIndicesMap.Reserve(ClothLodNumSimVertices);
-			
-		for (int32 VertexIndex = 0; VertexIndex < ClothLodNumSimVertices; ++VertexIndex)
-		{
-			if (WeldingMap[VertexIndex] == VertexIndex)
-			{
-				SourceVertexIndicesMap.Emplace(VertexIndex, { VertexIndex } );
-				ReverseWeldingMap.Emplace(VertexIndex);
-			}
-			else
-			{
-				TArray<int32>& SourceVertexIndices = SourceVertexIndicesMap.FindChecked(WeldingMap[VertexIndex]);
-				SourceVertexIndices.Emplace(VertexIndex);
-			}
-		}
 
 		// Copy and weld (average) weight maps
 		LodModel.WeightMaps.Reserve(WeightMapNames.Num());
@@ -201,21 +154,7 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const FM
 			const TConstArrayView<float> ClothLodWeightMap = ClothLod.GetWeightMap(WeightMapName);
 			TArray<float>& LodModelWeightMap = LodModel.WeightMaps.Add(WeightMapName);
 
-			LodModelWeightMap.SetNumZeroed(LodModelNumSimVertices);
-
-			for (int32 WeldedIndex = 0; WeldedIndex < LodModelNumSimVertices; ++WeldedIndex)
-			{
-				const int32 BaseSourceVertexIndex = ReverseWeldingMap[WeldedIndex];
-				const TArray<int32>& SourceVertexIndices = SourceVertexIndicesMap.FindChecked(BaseSourceVertexIndex);
-				check(SourceVertexIndices.Num());
-
-				for (const int32 VertexIndex : SourceVertexIndices)
-				{
-					LodModelWeightMap[WeldedIndex] += ClothLodWeightMap[VertexIndex];
-				}
-
-				LodModelWeightMap[WeldedIndex] /= (float)SourceVertexIndices.Num();
-			}
+			LodModelWeightMap = FClothGeometryTools::BuildWeldedWeightMapForLod(ClothCollection, LodIndex, WeightMapName, WeldedToPatternIndices);
 		}
 
 		// Weld bone influences
@@ -226,12 +165,31 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const FM
 
 		for (int32 WeldedIndex = 0; WeldedIndex < LodModelNumSimVertices; ++WeldedIndex)
 		{
-			const int32 SourceVertexIndex = ReverseWeldingMap[WeldedIndex];
+			const TArray<int32>& SourceVertices = WeldedToPatternIndices[WeldedIndex];
+			check(SourceVertices.Num());
+			const int32 SourceVertexIndex = SourceVertices[0]; // Just using first bone's data.
+
 			LodModel.BoneData[WeldedIndex].NumInfluences = NumBoneInfluences[SourceVertexIndex];
 			for (int32 BoneIndex = 0; BoneIndex < LodModel.BoneData[WeldedIndex].NumInfluences; ++BoneIndex)
 			{
 				LodModel.BoneData[WeldedIndex].BoneIndices[BoneIndex] = SimBoneIndices[SourceVertexIndex][BoneIndex];
 				LodModel.BoneData[WeldedIndex].BoneWeights[BoneIndex] = SimBoneWeights[SourceVertexIndex][BoneIndex];
+			}
+		}
+
+		// Weld tethers. This will not deduplicate any tethers that may be duplicated by welding. 
+		// This would currently only occur if seams were added after tethers were created in the dataflow graph.
+		const int32 NumTetherBatches = ClothLod.GetNumTetherBatches();
+		LodModel.TetherData.Tethers.Reserve(NumTetherBatches);
+		for (int32 TetherBatchIndex = 0; TetherBatchIndex < NumTetherBatches; ++TetherBatchIndex)
+		{
+			FCollectionClothTetherBatchConstFacade TetherBatchFacade = ClothLod.GetTetherBatch(TetherBatchIndex);
+			TArray<TTuple<int32, int32, float>>& Tethers = LodModel.TetherData.Tethers.Emplace_GetRef(TetherBatchFacade.GetZippedTetherData());
+
+			for (TTuple<int32, int32, float>& Tether : Tethers)
+			{
+				Tether.Get<0>() = LodModel.PatternToWeldedIndices[Tether.Get<0>()];
+				Tether.Get<1>() = LodModel.PatternToWeldedIndices[Tether.Get<1>()];
 			}
 		}
 	}
@@ -245,4 +203,21 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const FM
 
 	// Initialize Reference bone index
 	ReferenceBoneIndex = CalculateReferenceBoneIndex(ClothSimulationLodModels, ReferenceSkeleton, UsedBoneIndices);
+}
+
+TArray<TConstArrayView<TTuple<int32, int32, float>>> FChaosClothSimulationModel::GetTethers(int32 LODIndex) const
+{
+	TArray<TConstArrayView<TTuple<int32, int32, float>>> Tethers;
+	if (IsValidLodIndex(LODIndex))
+	{
+		const FClothTetherData& ClothTetherData = ClothSimulationLodModels[LODIndex].TetherData;
+
+		const int32 NumTetherBatches = ClothTetherData.Tethers.Num();
+		Tethers.Reserve(NumTetherBatches);
+		for (int32 Index = 0; Index < NumTetherBatches; ++Index)
+		{
+			Tethers.Emplace(TConstArrayView<TTuple<int32, int32, float>>(ClothTetherData.Tethers[Index]));
+		}
+	}
+	return Tethers;
 }

@@ -41,7 +41,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		virtual TArray<FName> GetWeightMapNames() const override;
 		virtual TMap<FString, int32> GetWeightMapIndices() const override;
 		virtual TArray<TConstArrayView<::Chaos::FRealSingle>> GetWeightMaps(int32 LODIndex) const override;
-		virtual TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const override;
+		// Note: there is only one set of tethers stored on ClothSimulationMesh assets
+		virtual TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool /*bUseGeodesicTethers*/) const override;
 		virtual int32 GetReferenceBoneIndex() const override;
 		virtual FTransform GetReferenceBoneTransform() const override;
 		virtual const TArray<FTransform>& GetBoneTransforms() const override;

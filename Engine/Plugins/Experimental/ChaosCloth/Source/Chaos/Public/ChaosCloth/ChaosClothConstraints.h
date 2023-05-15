@@ -16,7 +16,10 @@ namespace Chaos
 	class FClothConstraints final
 	{
 	public:
+		UE_DEPRECATED(5.3, "ETetherMode has been replaced with bUseGeodesicTethers.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		typedef Softs::FPBDLongRangeConstraints::EMode ETetherMode;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FClothConstraints();
 		~FClothConstraints();

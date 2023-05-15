@@ -20,7 +20,7 @@ public:
 	static constexpr FSolverReal MinTetherScale = (FSolverReal)0.01;
 	static constexpr FSolverReal MaxTetherScale = (FSolverReal)10.;
 
-	enum class EMode : uint8
+	enum class UE_DEPRECATED(5.3, "Tether EMode has been replaced with bUseGeodesicTethers.") EMode : uint8
 	{
 		Euclidean,
 		Geodesic,

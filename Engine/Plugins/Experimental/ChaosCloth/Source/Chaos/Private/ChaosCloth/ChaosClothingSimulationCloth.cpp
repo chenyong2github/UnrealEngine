@@ -20,7 +20,7 @@ namespace Chaos
 namespace ClothingSimulationClothDefault
 {
 	constexpr int32 MassMode = (int32)FClothingSimulationCloth::EMassMode::Density;
-	constexpr int32 TetherMode = (int32)FClothingSimulationCloth::ETetherMode::Geodesic;
+	constexpr bool bUseGeodesicTethers = true;
 	constexpr float MassValue = 0.35f;
 	constexpr float MinPerParticleMass = 0.0001f;
 	constexpr float CollisionThickness = 1.0f;
@@ -321,7 +321,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool /*bInUseThinShellVolumeConstraints*/,  // Deprecated
 	const TVec2<FRealSingle>& InTetherStiffness,
 	const TVec2<FRealSingle>& InTetherScale,
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ETetherMode InTetherMode,
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FRealSingle InMaxDistancesMultiplier,
 	const TVec2<FRealSingle>& InAnimDriveStiffness,
 	const TVec2<FRealSingle>& InAnimDriveDamping,
@@ -418,7 +420,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Long range attachment
 	if (InTetherStiffness[0] > 0.f || InTetherStiffness[1] > 0.f)
 	{
-		Properties.AddValue(TEXT("TetherMode"), (int32)InTetherMode);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const bool bUseGeodesicTethers = InTetherMode == ETetherMode::Geodesic;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		Properties.AddValue(TEXT("UseGeodesicTethers"), bUseGeodesicTethers);
 
 		const int32 TetherStiffnessIndex = Properties.AddProperty(TEXT("TetherStiffness"), bEnable , bAnimatable);
 		Properties.SetWeightedValue(TetherStiffnessIndex, InTetherStiffness[0], InTetherStiffness[1]);
@@ -539,8 +544,7 @@ void FClothingSimulationCloth::SetMesh(FClothingSimulationMesh* InMesh)
 	const int32 NumLODs = Mesh ? Mesh->GetNumLODs() : 0;
 	LODData.Reset(NumLODs);
 
-	const ETetherMode TetherMode = (ETetherMode)Config->GetProperties().GetValue<int32>(TEXT("TetherMode"), ClothingSimulationClothDefault::TetherMode);
-	const bool bUseGeodesicTethers = (TetherMode == ETetherMode::Geodesic);
+	const bool bUseGeodesicTethers = Config->GetProperties().GetValue<bool>(TEXT("UseGeodesicTethers"), ClothingSimulationClothDefault::bUseGeodesicTethers);
 	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 	{
 		// Regenerate LOD weight maps lookup map

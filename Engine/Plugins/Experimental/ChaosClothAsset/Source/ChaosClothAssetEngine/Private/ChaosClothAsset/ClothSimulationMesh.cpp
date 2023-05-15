@@ -123,9 +123,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return WeightMaps;
 	}
 
-	TArray<TConstArrayView<TTuple<int32, int32, float>>> FClothSimulationMesh::GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const
+	TArray<TConstArrayView<TTuple<int32, int32, float>>> FClothSimulationMesh::GetTethers(int32 LODIndex, bool /*bUseGeodesicTethers*/) const
 	{
-		return TArray<TConstArrayView<TTuple<int32, int32, float>>>();  // TODO: Tethers
+		return ClothSimulationModel.GetTethers(LODIndex);
 	}
 
 	int32 FClothSimulationMesh::GetReferenceBoneIndex() const

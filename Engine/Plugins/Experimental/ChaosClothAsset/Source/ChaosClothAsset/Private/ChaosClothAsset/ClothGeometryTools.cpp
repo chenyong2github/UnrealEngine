@@ -373,4 +373,34 @@ namespace UE::Chaos::ClothAsset
 			}
 		}
 	}
+
+	TArray<float> FClothGeometryTools::BuildWeldedWeightMapForLod(
+		const TSharedPtr<const FManagedArrayCollection>& ClothCollection,
+		int32 LodIndex,
+		const FName& WeightMapName,
+		const TArray<TArray<int32>>& WeldedToUnweldedMap)
+	{
+		FCollectionClothConstFacade ClothFacade(ClothCollection);
+		FCollectionClothLodConstFacade ClothLodFacade = ClothFacade.GetLod(LodIndex);
+
+		TConstArrayView<float> ClothLodWeightMap = ClothLodFacade.GetWeightMap(WeightMapName);
+
+		TArray<float> WeldedWeightMap;
+		WeldedWeightMap.SetNumZeroed(WeldedToUnweldedMap.Num());
+
+		for (int32 WeldedIndex = 0; WeldedIndex < WeldedToUnweldedMap.Num(); ++WeldedIndex)
+		{
+			const TArray<int32>& SourceVertices = WeldedToUnweldedMap[WeldedIndex];
+			check(SourceVertices.Num());
+			for (const int32 SourceVertex : SourceVertices)
+			{
+				WeldedWeightMap[WeldedIndex] += ClothLodWeightMap[SourceVertex];
+			}
+
+			WeldedWeightMap[WeldedIndex] /= (float)SourceVertices.Num();
+		}
+
+		return WeldedWeightMap;
+	}
+
 }  // End namespace UE::Chaos::ClothAsset

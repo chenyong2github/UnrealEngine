@@ -2,8 +2,10 @@
 
 #include "ChaosClothAsset/SimulationDefaultConfigNode.h"
 #include "ChaosClothAsset/DataflowNodes.h"
+#include "ChaosClothAsset/ClothEngineTools.h"
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "ChaosCloth/ChaosClothingSimulationConfig.h"
+#include "Chaos/PBDLongRangeConstraints.h"  // For Tether modes
 #include "Chaos/CollectionPropertyFacade.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SimulationDefaultConfigNode)
@@ -42,13 +44,23 @@ void FChaosClothAssetSimulationDefaultConfigNode::Evaluate(Dataflow::FContext& C
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
 		FClothingSimulationConfig ClothingSimulationConfig;
 		ClothingSimulationConfig.Initialize(SimulationConfig.Get(), SharedSimulationConfig.Get());
 
-		ClothingSimulationConfig.GetPropertyCollection()->CopyTo(&InCollection);
+		ClothingSimulationConfig.GetPropertyCollection()->CopyTo(&ClothCollection.Get());
 
-		SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+		// Generate tethers
+		const FCollectionPropertyConstFacade& Properties = ClothingSimulationConfig.GetProperties();		
+		constexpr bool bUseGeodesicTethersDefault = true;
+		const bool bUseGeodesicTethers = Properties.GetValue<bool>(TEXT("UseGeodesicTethers"), bUseGeodesicTethersDefault);
+		// Use the "MaxDistance" weight map to generate tethers. This follows legacy behavior.
+		static const FName MaxDistanceName(TEXT("MaxDistance"));
+
+		UE::Chaos::ClothAsset::FClothEngineTools::GenerateTethers(ClothCollection, MaxDistanceName, bUseGeodesicTethers);
+
+		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}
 }
 

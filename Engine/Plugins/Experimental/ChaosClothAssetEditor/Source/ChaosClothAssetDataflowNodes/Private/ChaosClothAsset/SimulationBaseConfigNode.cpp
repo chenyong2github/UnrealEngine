@@ -64,6 +64,8 @@ void FChaosClothAssetSimulationBaseConfigNode::Evaluate(Dataflow::FContext& Cont
 
 		AddProperties(Properties);
 
+		EvaluateClothCollection(Context, ClothCollection);
+
 		SetValue<FManagedArrayCollection>(Context, *ClothCollection, &Collection);
 	}
 }

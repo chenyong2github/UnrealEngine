@@ -360,6 +360,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 
 		// serialization inputs and outputs as two different sections
 		DataflowSeparateInputOutputSerialization,
+
+		// Cloth collection tether initialization
+		ClothCollectionTetherInitialization,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

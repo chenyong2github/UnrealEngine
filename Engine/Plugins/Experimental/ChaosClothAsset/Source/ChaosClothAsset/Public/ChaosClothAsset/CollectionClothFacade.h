@@ -5,6 +5,10 @@
 #include "ChaosClothAsset/CollectionClothLodFacade.h"
 
 class FClothCollection;
+namespace Chaos
+{
+class FChaosArchive;
+}
 
 namespace UE::Chaos::ClothAsset
 {
@@ -69,6 +73,9 @@ namespace UE::Chaos::ClothAsset
 
 		/** Remove all LODs from this cloth. */
 		void Reset();
+
+		/** Post serialize function. Use to upgrade between versions.*/
+		void PostSerialize(const ::Chaos::FChaosArchive& Ar);
 
 		/** Add a new LOD to this cloth. */
 		int32 AddLod();

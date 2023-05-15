@@ -6,6 +6,7 @@
 #include "Math/MathFwd.h"
 #include "Templates/SharedPointer.h"
 #include "ClothVertBoneData.h"
+#include "ClothTetherData.h"
 
 #include "ClothSimulationModel.generated.h"
 
@@ -51,6 +52,10 @@ struct FChaosClothSimulationLodModel
 
 	/** Weight maps for storing painted attributes modifiers on constraint properties. */
 	TMap<FName, TArray<float>> WeightMaps;
+
+	/** Tether data*/
+	UPROPERTY()
+	FClothTetherData TetherData;
 
 	// Custom serialize for weight maps
 	bool Serialize(FArchive& Ar);
@@ -106,4 +111,5 @@ struct FChaosClothSimulationModel
 	TConstArrayView<uint32> GetPatternIndices(int32 LodIndex) const { return IsValidLodIndex(LodIndex) ? ClothSimulationLodModels[LodIndex].PatternIndices : TConstArrayView<uint32>(); }
 	TConstArrayView<uint32> GetPatternToWeldedIndices(int32 LodIndex) const { return IsValidLodIndex(LodIndex) ? ClothSimulationLodModels[LodIndex].PatternToWeldedIndices : TConstArrayView<uint32>(); }
 	TConstArrayView<FClothVertBoneData> GetBoneData(int32 LodIndex) const { return IsValidLodIndex(LodIndex) ? ClothSimulationLodModels[LodIndex].BoneData : TConstArrayView<FClothVertBoneData>(); }
+	TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LodIndex) const;
 };

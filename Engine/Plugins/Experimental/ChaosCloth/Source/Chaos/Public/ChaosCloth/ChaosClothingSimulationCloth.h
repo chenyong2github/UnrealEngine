@@ -28,7 +28,10 @@ namespace Chaos
 			Density
 		};
 
+		UE_DEPRECATED(5.3, "ETetherMode has been replaced with bUseGeodesicTethers.")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		typedef FClothConstraints::ETetherMode ETetherMode;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FClothingSimulationCloth(
 			FClothingSimulationConfig* InConfig,
@@ -58,7 +61,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			bool bInUseThinShellVolumeConstraints,
 			const TVec2<FRealSingle>& InTetherStiffness,
 			const TVec2<FRealSingle>& InTetherScale,
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			ETetherMode InTetherMode,
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			FRealSingle InMaxDistancesMultiplier,
 			const TVec2<FRealSingle>& InAnimDriveStiffness,
 			const TVec2<FRealSingle>& InAnimDriveDamping,

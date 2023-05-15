@@ -109,10 +109,7 @@ namespace Chaos
 			// Long range attachment
 			if (ClothConfig->TetherStiffness.Low > 0.f || ClothConfig->TetherStiffness.High > 0.f)
 			{
-				const Softs::FPBDLongRangeConstraints::EMode TetherMode = ClothConfig->bUseGeodesicDistance ?
-					Softs::FPBDLongRangeConstraints::EMode::Geodesic :
-					Softs::FPBDLongRangeConstraints::EMode::Euclidean;
-				Properties->AddValue(TEXT("TetherMode"), (int32)TetherMode);
+				Properties->AddValue(TEXT("UseGeodesicTethers"), ClothConfig->bUseGeodesicDistance);
 
 				const int32 TetherStiffnessIndex = Properties->AddProperty(TEXT("TetherStiffness"), bEnable, bAnimatable);
 				Properties->SetWeightedValue(TetherStiffnessIndex, ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High);

@@ -532,6 +532,11 @@ namespace UE::Chaos::ClothAsset
 		return FCollectionClothPatternConstFacade(ClothCollection, LodIndex, PatternIndex);
 	}
 
+	FCollectionClothTetherBatchConstFacade FCollectionClothLodConstFacade::GetTetherBatch(int32 TetherBatchIndex) const
+	{
+		return FCollectionClothTetherBatchConstFacade(ClothCollection, LodIndex, TetherBatchIndex);
+	}
+
 	const FString& FCollectionClothLodConstFacade::GetPhysicsAssetPathName() const
 	{
 		static const FString EmptyString;
@@ -794,14 +799,14 @@ namespace UE::Chaos::ClothAsset
 			LodIndex);
 	}
 
-	void FCollectionClothLodConstFacade::BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices, TArray<int32>& WeldingMap, TArray<FVector2f>& PatternsPositions, TArray<uint32>& PatternsIndices, TArray<uint32>& PatternToWeldedIndices) const
+	void FCollectionClothLodConstFacade::BuildSimulationMesh(TArray<FVector3f>& Positions, TArray<FVector3f>& Normals, TArray<uint32>& Indices, TArray<FVector2f>& PatternsPositions, TArray<uint32>& PatternsIndices, TArray<uint32>& PatternToWeldedIndices, TArray<TArray<int32>>* OptionalWeldedToPatternIndices) const
 	{
 		const int32 NumSimVertices = GetNumSimVertices();
 
 		// Initialize welding map with same index
 		// The welding map redirects to an existing vertex index if these two are part of the same welding group.
 		// The redirected index must be the smallest index in the group.
-
+		TArray<int32> WeldingMap;
 		WeldingMap.SetNumUninitialized(NumSimVertices);
 		for (int32 SimVertexIndex = 0; SimVertexIndex < NumSimVertices; ++SimVertexIndex)
 		{
@@ -892,6 +897,11 @@ namespace UE::Chaos::ClothAsset
 		const TConstArrayView<FVector3f> SimRestNormal = GetSimRestNormal();
 
 		PatternToWeldedIndices.SetNumUninitialized(NumSimVertices);
+		if (OptionalWeldedToPatternIndices)
+		{
+			OptionalWeldedToPatternIndices->Reset(NumWeldedVertices);
+			OptionalWeldedToPatternIndices->SetNum(NumWeldedVertices);
+		}
 
 		uint32 WeldedIndex = 0;
 		for (int32 VertexIndex = 0; VertexIndex < NumSimVertices; ++VertexIndex)
@@ -900,11 +910,20 @@ namespace UE::Chaos::ClothAsset
 			{
 				Positions[WeldedIndex] = SimRestPosition[VertexIndex];
 				Normals[WeldedIndex] = SimRestNormal[VertexIndex];
-				PatternToWeldedIndices[VertexIndex] = WeldedIndex++;
+				PatternToWeldedIndices[VertexIndex] = WeldedIndex;
+				if (OptionalWeldedToPatternIndices)
+				{
+					(*OptionalWeldedToPatternIndices)[WeldedIndex].Add(VertexIndex);
+				}
+				++WeldedIndex;
 			}
 			else
 			{
 				PatternToWeldedIndices[VertexIndex] = PatternToWeldedIndices[WeldingMap[VertexIndex]];
+				if (OptionalWeldedToPatternIndices)
+				{
+					(*OptionalWeldedToPatternIndices)[PatternToWeldedIndices[VertexIndex]].Add(VertexIndex);
+				}
 			}
 		}
 
@@ -1039,11 +1058,11 @@ namespace UE::Chaos::ClothAsset
 		}
 
 		// Tether Batches Group
-		const int32 NumTetherBatches = Other.GetNumPatterns();
+		const int32 NumTetherBatches = Other.GetNumTetherBatches();
 		SetNumTetherBatches(NumTetherBatches);
 		for (int32 TetherBatchIndex = 0; TetherBatchIndex < NumTetherBatches; ++TetherBatchIndex)
 		{
-			// GetTetherBatch(TetherBatchIndex).Initialize(Other.GetTetherBatch(TetherBatchIndex));  // TODO: Tether Batches facade
+			GetTetherBatch(TetherBatchIndex).Initialize(Other.GetTetherBatch(TetherBatchIndex));
 		}
 
 		// Materials Group
@@ -1139,7 +1158,7 @@ namespace UE::Chaos::ClothAsset
 
 		for (int32 TetherBatchIndex = InNumTetherBatches; TetherBatchIndex < NumTetherBatches; ++TetherBatchIndex)
 		{
-			// GetTetherBatch(TetherBatchIndex).Reset();  // TODO: Tether reset
+			GetTetherBatch(TetherBatchIndex).Reset();
 		}
 
 		GetClothCollection()->SetNumElements(
@@ -1151,7 +1170,7 @@ namespace UE::Chaos::ClothAsset
 
 		for (int32 TetherBatchIndex = NumTetherBatches; TetherBatchIndex < InNumTetherBatches; ++TetherBatchIndex)
 		{
-			// GetTetherBatch(TetherBatchIndex).SetDefaults();  // TODO: Tether set default
+			GetTetherBatch(TetherBatchIndex).SetDefaults();
 		}
 	}
 
@@ -1213,6 +1232,18 @@ namespace UE::Chaos::ClothAsset
 	FCollectionClothPatternFacade FCollectionClothLodFacade::GetPattern(int32 PatternIndex)
 	{
 		return FCollectionClothPatternFacade(GetClothCollection(), LodIndex, PatternIndex);
+	}
+
+	int32 FCollectionClothLodFacade::AddTetherBatch()
+	{
+		const int32 TetherBatchIndex = GetNumTetherBatches();
+		SetNumTetherBatches(TetherBatchIndex + 1);
+		return TetherBatchIndex;
+	}
+
+	FCollectionClothTetherBatchFacade FCollectionClothLodFacade::GetTetherBatch(int32 TetherBatchIndex)
+	{
+		return FCollectionClothTetherBatchFacade(GetClothCollection(), LodIndex, TetherBatchIndex);
 	}
 
 	void FCollectionClothLodFacade::SetPhysicsAssetPathName(const FString& PhysicsAssetPathName)
