@@ -238,6 +238,12 @@ bool FParse::Value(
 	const TCHAR**	OptStreamGotTo
 )
 {
+	if (MaxLen == 0)
+	{
+		return false;
+	}
+	check(Value && MaxLen > 0);
+
 	bool bSuccess = false;
 	int32 MatchLen = FCString::Strlen(Match);
 
@@ -246,58 +252,56 @@ bool FParse::Value(
 		*OptStreamGotTo = nullptr;
 	}
 
-	for (const TCHAR* Found = FCString::Strifind(Stream, Match, true); Found != nullptr; Found = FCString::Strifind(Found + MatchLen, Match, true))
+	const TCHAR* FoundInStream = FCString::Strifind(Stream, Match, true);
+	if (FoundInStream == nullptr)
 	{
-		const TCHAR* Start = Found + MatchLen;
-
-		// Check for quoted arguments' string with spaces
-		// -Option="Value1 Value2"
-		//         ^~~~Start
-		bool bArgumentsQuoted = *Start == '"';
-
-		if (bArgumentsQuoted)
-		{
-			// Skip quote character if only params were quoted.
-			int32 QuoteCharactersToSkip = 1;
-			FCString::Strncpy(Value, Start + QuoteCharactersToSkip, MaxLen);
-
-			Value[MaxLen - 1] = TCHAR('\0');
-			TCHAR* Temp = FCString::Strstr( Value, TEXT("\x22") );
-			if (Temp != nullptr)
-			{
-				*Temp = TCHAR('\0');
-			}
-		}
-		else
-		{
-			// Skip initial whitespace
-			Start += FCString::Strspn(Start, TEXT(" \r\n\t"));
-
-			// Non-quoted string without spaces.
-			FCString::Strncpy( Value, Start, MaxLen );
-			Value[MaxLen - 1]= TCHAR('\0');
-			TCHAR* Temp;
-			Temp = FCString::Strstr( Value, TEXT(" ")  ); if( Temp ) *Temp = TCHAR('\0');
-			Temp = FCString::Strstr( Value, TEXT("\r") ); if( Temp ) *Temp = TCHAR('\0');
-			Temp = FCString::Strstr( Value, TEXT("\n") ); if( Temp ) *Temp = TCHAR('\0');
-			Temp = FCString::Strstr( Value, TEXT("\t") ); if( Temp ) *Temp = TCHAR('\0');
-			if (bShouldStopOnSeparator)
-			{
-				Temp = FCString::Strstr( Value, TEXT(",")  ); if( Temp ) *Temp = TCHAR('\0');
-				Temp = FCString::Strstr( Value, TEXT(")")  ); if( Temp ) *Temp = TCHAR('\0');
-			}
-		}
-
-		if (OptStreamGotTo) 
-		{
-			*OptStreamGotTo = Start + FCString::Strlen(Value);
-		}
-
-		bSuccess = true;
-		break;
+		Value[0] = TCHAR('\0');
+		return false;
 	}
 
-	return bSuccess;
+	const TCHAR* ValueStartInStream = FoundInStream + MatchLen;
+	const TCHAR* ValueEndInStream;
+
+	// Check for quoted arguments' string with spaces
+	// -Option="Value1 Value2"
+	//         ^~~~Start
+	const bool bArgumentsQuoted = *ValueStartInStream == '"';
+
+	if (bArgumentsQuoted)
+	{
+		// Skip quote character if only params were quoted.
+		ValueStartInStream += 1;
+		ValueEndInStream = FCString::Strstr(ValueStartInStream, TEXT("\x22"));
+
+		if (ValueEndInStream == nullptr)
+		{
+			// this should probably log a warning if bArgumentsQuoted is true, as we started with a '"' and didn't find the terminating one.
+			ValueEndInStream = FoundInStream + FCString::Strlen(FoundInStream);
+		}
+	}
+	else
+	{
+		// Skip initial whitespace
+		const TCHAR* WhiteSpaceChars = TEXT(" \r\n\t");
+		ValueStartInStream += FCString::Strspn(ValueStartInStream, WhiteSpaceChars);
+
+		// Non-quoted string without spaces.
+		const TCHAR* TerminatingChars = bShouldStopOnSeparator ? TEXT(",) \r\n\t") : WhiteSpaceChars;
+		ValueEndInStream = ValueStartInStream + FCString::Strcspn(ValueStartInStream, TerminatingChars);
+	}
+
+	int32 ValueLength = FMath::Min<int32>(MaxLen - 1, UE_PTRDIFF_TO_INT32(ValueEndInStream - ValueStartInStream));
+	// It is possible for ValueLength to be 0.
+	// FCString::Strncpy asserts that its copying at least 1 char, memcpy has no such constraint.
+	FMemory::Memcpy(Value, ValueStartInStream, sizeof(Value[0]) * ValueLength);
+	Value[ValueLength] = TCHAR('\0');
+
+	if (OptStreamGotTo)
+	{
+		*OptStreamGotTo = ValueEndInStream;
+	}
+
+	return true;
 }
 
 //
