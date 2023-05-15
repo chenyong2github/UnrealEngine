@@ -257,8 +257,7 @@ private:
 	UPROPERTY(config)
 	bool DisplayFavorites;
 
-	UPROPERTY(config)
-	bool DockCollections;
+	bool DockCollections = true;
 
 	UPROPERTY(config)
 	bool DisplayCppFolders;
