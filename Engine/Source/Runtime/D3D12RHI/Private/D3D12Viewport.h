@@ -196,7 +196,7 @@ private:
 	TRefCountPtr<IDXGISwapChain4> SwapChain4;
 #endif
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 	DXGI_COLOR_SPACE_TYPE ColorSpace;
 #endif
 #endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
@@ -262,7 +262,7 @@ private:
 	/** Disable HDR meta data transmission and set the necessary color space. */
 	void ShutdownHDR();
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 	/** Ensure the correct color space is set on the swap chain */
 	void EnsureColorSpace(EDisplayColorGamut DisplayGamut, EDisplayOutputFormat OutputDevice);
 #endif

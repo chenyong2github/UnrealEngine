@@ -185,7 +185,7 @@ ID3D12Device7* FD3D12Device::GetDevice7()
 }
 #endif // D3D12_RHI_RAYTRACING
 
-#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if D3D12_SUPPORTS_DXGI_DEBUG
 typedef HRESULT(WINAPI *FDXGIGetDebugInterface1)(UINT, REFIID, void **);
 #endif
 
@@ -277,7 +277,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	GRHISupportsArrayIndexFromAnyShader = true;
 	GRHISupportsStencilRefFromPixelShader = false; // TODO: Sort out DXC shader database SM6.0 usage. DX12 supports this feature, but need to improve DXC support.
 
-#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#if PLATFORM_WINDOWS
 	// Check if we're running under GPU capture
 	bool bUnderGPUCapture = false;
 
@@ -306,19 +306,13 @@ void FD3D12Device::SetupAfterDeviceCreation()
 		// Running on AMD with RGP profiling enabled, so enable capturing mode
 		bUnderGPUCapture = true;
 	}
-#if USE_PIX
 
-	// Only check windows version on PLATFORM_WINDOWS - Hololens can assume windows > 10.0 so the condition would always be true.
-#if PLATFORM_WINDOWS
+#if USE_PIX
 	// PIX (note that DXGIGetDebugInterface1 requires Windows 8.1 and up)
 	if (FPlatformMisc::VerifyWindowsVersion(6, 3))
-#endif
 	{
 		FDXGIGetDebugInterface1 DXGIGetDebugInterface1FnPtr = nullptr;
 
-#if PLATFORM_HOLOLENS
-		DXGIGetDebugInterface1FnPtr = DXGIGetDebugInterface1;
-#else
 		// CreateDXGIFactory2 is only available on Win8.1+, find it if it exists
 		HMODULE DxgiDLL = LoadLibraryA("dxgi.dll");
 		if (DxgiDLL)
@@ -329,7 +323,6 @@ void FD3D12Device::SetupAfterDeviceCreation()
 #pragma warning(pop)
 			FreeLibrary(DxgiDLL);
 		}
-#endif
 		
 		if (DXGIGetDebugInterface1FnPtr)
 		{
@@ -351,7 +344,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	{
 		GDynamicRHI->EnableIdealGPUCaptureOptions(true);
 	}
-#endif // (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#endif // PLATFORM_WINDOWS
 
 
 	const int32 MaximumResourceHeapSize = GetParentAdapter()->GetMaxDescriptorsForHeapType(ERHIDescriptorHeapType::Standard);

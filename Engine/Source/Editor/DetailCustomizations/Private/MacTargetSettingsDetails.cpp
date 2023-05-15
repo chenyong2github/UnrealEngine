@@ -154,9 +154,6 @@ static FText GetFriendlyNameFromRHINameMac(FName InRHIName)
 	case SP_VULKAN_ES3_1_ANDROID:
 		FriendlyRHIName = LOCTEXT("VulkanMobile", "Vulkan (Mobile)");
 		break;
-	case SP_D3D_ES3_1_HOLOLENS:
-		FriendlyRHIName = LOCTEXT("D3DMobileHL", "Direct3D (Mobile, Hololens)");
-		break;
 	default:
 		FriendlyRHIName = FText::FromString(InRHIName.ToString());
 		break;

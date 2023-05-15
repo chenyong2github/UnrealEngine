@@ -41,7 +41,7 @@ static FAutoConsoleVariableRef CTrackedReleasedAllocationFrameRetention(
 );
 #endif
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
 static int32 GD3D12EnableGPUBreadCrumbs = 0;
@@ -122,7 +122,7 @@ static FAutoConsoleVariableRef CVarD3D12EvictAllResidentResourcesInBackground(
 	TEXT("Force D3D12 resource residency manager to evict all tracked unused resources when the application is not focused\n"),
 	ECVF_Default);
 
-#endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif // PLATFORM_WINDOWS
 
 #if D3D12_SUPPORTS_INFO_QUEUE
 static bool CheckD3DStoredMessages()
@@ -375,7 +375,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	UE_LOG(LogD3D12RHI, Log, TEXT("InitD3DDevice: -D3DDebug = %s -D3D12GPUValidation = %s"), bWithDebug ? TEXT("on") : TEXT("off"), bWithGPUValidation ? TEXT("on") : TEXT("off"));
 #endif
 
-#if PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && WITH_PIX_EVENT_RUNTIME)
+#if PLATFORM_WINDOWS
 	
     SetupGPUCrashDebuggingModesCommon();
 
@@ -500,7 +500,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	FGenericCrashContext::SetEngineData(TEXT("RHI.DREDMarkersOnly"), bDREDMarkersOnly ? TEXT("true") : TEXT("false"));
 	FGenericCrashContext::SetEngineData(TEXT("RHI.DREDContext"), bDREDContext && bDRED ? TEXT("true") : TEXT("false"));
 
-#endif // PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && WITH_PIX_EVENT_RUNTIME)
+#endif // PLATFORM_WINDOWS
 
 #if USE_PIX
 	UE_LOG(LogD3D12RHI, Log, TEXT("Emitting draw events for PIX profiling."));
@@ -704,7 +704,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			}
 		}
 	}
-#endif //  (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
+#endif // D3D12_SUPPORTS_DXGI_DEBUG
 
 #if UE_BUILD_DEBUG	&& D3D12_SUPPORTS_INFO_QUEUE
 	//break on debug
@@ -1080,7 +1080,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 #if D3D12_RHI_RAYTRACING
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 			D3D12_FEATURE_DATA_D3D12_OPTIONS5 D3D12Caps5 = {};
 			if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &D3D12Caps5, sizeof(D3D12Caps5))))
 			{
@@ -1130,7 +1130,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					UE_LOG(LogD3D12RHI, Warning, TEXT("Ray Tracing is disabled because the RenderDoc plugin is currently not compatible with D3D12 ray tracing."));
 				}
 			}
-#endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif // PLATFORM_WINDOWS
 
 			GRHIRayTracingAccelerationStructureAlignment = uint32(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
 			GRHIRayTracingScratchBufferAlignment = uint32(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
@@ -1193,7 +1193,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // PLATFORM_WINDOWS
 		}
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 		D3D12_FEATURE_DATA_D3D12_OPTIONS2 D3D12Caps2 = {};
 		if (FAILED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS2, &D3D12Caps2, sizeof(D3D12Caps2))))
 		{
@@ -1529,37 +1529,32 @@ FD3D12Adapter::~FD3D12Adapter()
 
 void FD3D12Adapter::CreateDXGIFactory(TRefCountPtr<IDXGIFactory2>& DxgiFactory2, bool bWithDebug, HMODULE DxgiDllHandle)
 {
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 	typedef HRESULT(WINAPI FCreateDXGIFactory2)(UINT, REFIID, void**);
 
-#if PLATFORM_WINDOWS
 	FCreateDXGIFactory2* CreateDXGIFactory2FnPtr = (FCreateDXGIFactory2*)(void*)::GetProcAddress(DxgiDllHandle, "CreateDXGIFactory2");
-#else
-	FCreateDXGIFactory2* CreateDXGIFactory2FnPtr = &CreateDXGIFactory2;
-#endif
 
 	check(CreateDXGIFactory2FnPtr);
 
 	const uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
 	VERIFYD3D12RESULT(CreateDXGIFactory2FnPtr(Flags, IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
-#endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif // PLATFORM_WINDOWS
 }
 
 void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
 {
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	HMODULE UsedDxgiDllHandle = (HMODULE)0;
 #if PLATFORM_WINDOWS
+	HMODULE UsedDxgiDllHandle = (HMODULE)0;
+
 	// Dynamically load this otherwise Win7 fails to boot as it's missing on that DLL
 	DxgiDllHandle = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
 	check(DxgiDllHandle);
 	UsedDxgiDllHandle = DxgiDllHandle;
-#endif
 
 	CreateDXGIFactory(DxgiFactory2, bWithDebug, UsedDxgiDllHandle);
 
 	InitDXGIFactoryVariants(DxgiFactory2);
-#endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif // PLATFORM_WINDOWS
 }
 
 void FD3D12Adapter::InitDXGIFactoryVariants(IDXGIFactory2* InDxgiFactory2)
@@ -1648,7 +1643,7 @@ void FD3D12Adapter::ReleaseTransientUniformBufferAllocator(FTransientUniformBuff
 
 void FD3D12Adapter::UpdateMemoryInfo()
 {
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 	const uint64 UpdateFrame = FrameFence != nullptr ? FrameFence->GetNextFenceToSignal() : 0;
 
 	// Avoid spurious query calls if we have already captured this frame.

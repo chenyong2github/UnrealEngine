@@ -78,11 +78,7 @@ public:
 		FrameSyncEvent.IssueEvent();
 	}
 
-#if PLATFORM_HOLOLENS
-	IDXGISwapChain1* GetSwapChain() const { return SwapChain; } 
-#else
 	IDXGISwapChain* GetSwapChain() const { return SwapChain; }
-#endif
 
 	virtual void* GetNativeSwapChain() const override { return GetSwapChain(); }
 	virtual void* GetNativeBackBufferTexture() const override { return GetBackBuffer()->GetD3D11Texture2D(); }
@@ -150,11 +146,7 @@ protected:
 
 	static uint32 GSwapChainFlags;
 
-#if PLATFORM_HOLOLENS
-	TRefCountPtr<IDXGISwapChain1> SwapChain;
-#else
 	TRefCountPtr<IDXGISwapChain> SwapChain;
-#endif
 	TRefCountPtr<FD3D11Texture> BackBuffer;
 
 	// Support for selecting non-default output for display in fullscreen exclusive

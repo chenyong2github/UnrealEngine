@@ -277,12 +277,8 @@ static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1, bool bWithDebug)
 	__try
 	{
 		bool bQuadBufferStereoRequested = FParse::Param(FCommandLine::Get(), TEXT("quad_buffer_stereo"));
-
-#if PLATFORM_HOLOLENS
-		bool bIsWin8OrNewer = true;
-#else
 		bool bIsWin8OrNewer = FPlatformMisc::VerifyWindowsVersion(8, 0);
-#endif
+
 		if (bIsWin8OrNewer && (bQuadBufferStereoRequested || bWithDebug))
 		{
 			// CreateDXGIFactory2 is only available on Win8.1+, find it if it exists
@@ -427,11 +423,7 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Mi
 		// Log any reason for failure to create test device. Extra debug help.
 		VERIFYD3D11RESULT_NOEXIT(Result);
 
-#if PLATFORM_HOLOLENS
-		bool bIsWin10 = true;
-#else
 		bool bIsWin10 = FPlatformMisc::VerifyWindowsVersion(10, 0);
-#endif
 
 		// Fatal error on 0x887A002D
 		if (DXGI_ERROR_SDK_COMPONENT_MISSING == Result && bIsWin10)
@@ -1192,19 +1184,10 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
-#if PLATFORM_HOLOLENS
-	GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
-	GMaxRHIShaderPlatform = SP_D3D_ES3_1_HOLOLENS;
-#endif
-
 	IDXGIFactory1* DXGIFactory1;
 	VERIFYD3D11RESULT(ChosenAdapter.DXGIAdapter->GetParent(__uuidof(DXGIFactory1), reinterpret_cast<void**>(&DXGIFactory1)));
 
-#if PLATFORM_HOLOLENS
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_D3D_ES3_1_HOLOLENS;
-#else
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
-#endif
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
 
 	ERHIFeatureLevel::Type PreviewFeatureLevel;

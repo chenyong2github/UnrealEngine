@@ -1572,7 +1572,6 @@ void FD3D11DynamicRHI::EnableUAVOverlap()
 
 	bUAVOverlapEnabled = true;
 
-#if !PLATFORM_HOLOLENS
 	if (IsRHIDeviceNVIDIA())
 	{
 #if WITH_NVAPI
@@ -1594,7 +1593,6 @@ void FD3D11DynamicRHI::EnableUAVOverlap()
 		}
 #endif
 	}
-#endif
 }
 
 void FD3D11DynamicRHI::DisableUAVOverlap()
@@ -1606,7 +1604,6 @@ void FD3D11DynamicRHI::DisableUAVOverlap()
 		return;
 	}
 
-#if !PLATFORM_HOLOLENS
 	if (IsRHIDeviceNVIDIA())
 	{
 #if WITH_NVAPI
@@ -1628,7 +1625,6 @@ void FD3D11DynamicRHI::DisableUAVOverlap()
 		}
 #endif
 	}
-#endif
 
 	bUAVOverlapEnabled = false;
 }

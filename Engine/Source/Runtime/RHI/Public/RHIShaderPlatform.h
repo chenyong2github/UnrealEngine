@@ -42,9 +42,8 @@ enum EShaderPlatform : uint16
 	//  Add new platforms below this line, starting from (SP_StaticPlatform_Last + 1)
 	//---------------------------------------------------------------------------------
 	SP_VULKAN_SM5_ANDROID = SP_StaticPlatform_Last + 1,
-	SP_PCD3D_SM6,
-	SP_D3D_ES3_1_HOLOLENS,
-	SP_VULKAN_SM6,
+	SP_PCD3D_SM6          = SP_StaticPlatform_Last + 2,
+	SP_VULKAN_SM6         = SP_StaticPlatform_Last + 4,
 
 	SP_CUSTOM_PLATFORM_FIRST,
 	SP_CUSTOM_PLATFORM_LAST = (SP_CUSTOM_PLATFORM_FIRST + 100),

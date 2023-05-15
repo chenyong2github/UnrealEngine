@@ -66,7 +66,7 @@ static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 	}
 
 	bool IsValidHardwareExtension = true;
-#if !PLATFORM_HOLOLENS
+
 	for (const FShaderCodeVendorExtension& Extension : ShaderData->VendorExtensions)
 	{
 		if (Extension.VendorId == EGpuVendorId::Nvidia)
@@ -105,7 +105,7 @@ static bool ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency
 			// TODO: https://github.com/intel/intel-graphics-compiler/blob/master/inc/IntelExtensions.hlsl
 		}
 	}
-#endif
+
 	return IsValidHardwareExtension;
 }
 

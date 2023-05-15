@@ -209,12 +209,10 @@ FD3D11Viewport::~FD3D11Viewport()
 
 	// If the swap chain was in fullscreen mode, switch back to windowed before releasing the swap chain.
 	// DXGI throws an error otherwise.
-#if !PLATFORM_HOLOLENS
 	if (SwapChain)
 	{
 		VERIFYD3D11RESULT_EX(SwapChain->SetFullscreenState(false, NULL), D3DRHI->GetDevice());
 	}
-#endif
 
 	D3DRHI->Viewports.Remove(this);
 }
@@ -593,7 +591,6 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 {
 	bool bNativelyPresented = true;
 #if	D3D11_WITH_DWMAPI
-#if !PLATFORM_HOLOLENS
 	// We can't call Present if !bIsValid, as it waits a window message to be processed, but the main thread may not be pumping the message handler.
 	if(ValidState != 0 && SwapChain.IsValid())
 	{
@@ -607,7 +604,6 @@ bool FD3D11Viewport::Present(bool bLockToVsync)
 			ValidState = VIEWPORT_INVALID;
 		}
 	}
-#endif
 	if (MaximumFrameLatency != RHIConsoleVariables::MaximumFrameLatency)
 	{
 		MaximumFrameLatency = RHIConsoleVariables::MaximumFrameLatency;	

@@ -159,11 +159,7 @@ static void SafeCreateDXGIFactory(IDXGIFactory4** DXGIFactory)
 	{
 		bIsQuadBufferStereoEnabled = FParse::Param(FCommandLine::Get(), TEXT("quad_buffer_stereo"));
 
-#if PLATFORM_HOLOLENS
-		CreateDXGIFactory1(__uuidof(IDXGIFactory4), (void**)DXGIFactory);
-#else
 		CreateDXGIFactory(__uuidof(IDXGIFactory4), (void**)DXGIFactory);
-#endif
 	}
 	__except (IsDelayLoadException(GetExceptionInformation()))
 	{
@@ -673,7 +669,6 @@ static bool CheckIfAgilitySDKLoaded()
 
 bool FD3D12DynamicRHIModule::IsSupported(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
-#if !PLATFORM_HOLOLENS
 	// Windows version 15063 is Windows 1703 aka "Windows Creator Update"
 	// This is the first version that supports ID3D12Device2 which is our minimum runtime device version.
 	if (!FPlatformMisc::VerifyWindowsVersion(10, 0, 15063))
@@ -681,7 +676,6 @@ bool FD3D12DynamicRHIModule::IsSupported(ERHIFeatureLevel::Type RequestedFeature
 		UE_LOG(LogD3D12RHI, Warning, TEXT("Missing full support for Direct3D 12. Update to Windows 1703 or newer for D3D12 support."));
 		return false;
 	}
-#endif
 
 	// If not computed yet
 	if (ChosenAdapters.Num() == 0)
@@ -901,14 +895,12 @@ void FD3D12DynamicRHIModule::FindAdapter()
 
 				const bool bIsWARP = (RHIConvertToGpuVendorId(AdapterDesc.VendorId) == EGpuVendorId::Microsoft);
 
-#if !PLATFORM_HOLOLENS
 				if (!bIsWARP)
 				{
 					const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(AdapterDesc.Description, false);
 					UE_LOG(LogD3D12RHI, Log, TEXT("  Driver Version: %s (internal:%s, unified:%s)"), *GPUDriverInfo.UserDriverVersion, *GPUDriverInfo.InternalDriverVersion, *GPUDriverInfo.GetUnifiedDriverVersion());
 					UE_LOG(LogD3D12RHI, Log, TEXT("     Driver Date: %s"), *GPUDriverInfo.DriverDate);
 				}
-#endif // !PLATFORM_HOLOLENS
 
 				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, DeviceInfo);
 
@@ -1027,21 +1019,12 @@ static bool DoesAnyAdapterSupportSM6(const TArray<TSharedPtr<FD3D12Adapter>>& Ad
 
 FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
-#if PLATFORM_HOLOLENS
-	check(RequestedFeatureLevel == ERHIFeatureLevel::ES3_1);
-
-	GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
-	GMaxRHIShaderPlatform = SP_D3D_ES3_1_HOLOLENS;
-
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_D3D_ES3_1_HOLOLENS;
-#else
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
 	if (DoesAnyAdapterSupportSM6(ChosenAdapters))
 	{
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM6] = SP_PCD3D_SM6;
 	}
-#endif
 
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
 	if (!GIsEditor && RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
@@ -1277,7 +1260,6 @@ static void DisableRayTracingSupport()
 
 static void ClearPSODriverCache()
 {
-#if !PLATFORM_HOLOLENS
 	FString LocalAppDataFolder = FPlatformMisc::GetEnvironmentVariable(TEXT("LOCALAPPDATA"));
 	if (!LocalAppDataFolder.IsEmpty())
 	{
@@ -1316,7 +1298,6 @@ static void ClearPSODriverCache()
 	{
 		UE_LOG(LogD3D12RHI, Error, TEXT("clearPSODriverCache failed: please ensure that LOCALAPPDATA points to C:\\Users\\<username>\\AppData\\Local"));
 	}
-#endif
 }
 
 void FD3D12DynamicRHI::Init()
@@ -1437,9 +1418,7 @@ void FD3D12DynamicRHI::Init()
 	}
 #endif
 
-#if !PLATFORM_HOLOLENS
 	// Disable ray tracing for Windows build versions
-
 	if (GRHISupportsRayTracing
 		&& GMinimumWindowsBuildVersionForRayTracing > 0
 		&& !FPlatformMisc::VerifyWindowsVersion(10, 0, GMinimumWindowsBuildVersionForRayTracing))
@@ -1447,7 +1426,6 @@ void FD3D12DynamicRHI::Init()
 		DisableRayTracingSupport();
 		UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because it requires Windows 10 version %u"), (uint32)GMinimumWindowsBuildVersionForRayTracing);
 	}
-#endif
 
 #if WITH_NVAPI
 	if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)

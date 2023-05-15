@@ -16,7 +16,7 @@ D3D12Util.h: D3D RHI utility implementation.
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
 
 // GPU crashes are nonfatal on windows/nonshipping so as not to interfere with GPU crash dump processing
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || !UE_BUILD_SHIPPING
+#if PLATFORM_WINDOWS || !UE_BUILD_SHIPPING
   #define D3D12RHI_GPU_CRASH_LOG_VERBOSITY Error
 #else
   #define D3D12RHI_GPU_CRASH_LOG_VERBOSITY Fatal

@@ -11,7 +11,6 @@
 static FName NAME_PCD3D_SM6(TEXT("PCD3D_SM6"));
 static FName NAME_PCD3D_SM5(TEXT("PCD3D_SM5"));
 static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
-static FName NAME_D3D_ES3_1_HOLOLENS(TEXT("D3D_ES3_1_HOLOLENS"));
 
 class FShaderFormatD3D : public UE::ShaderCompilerCommon::FBaseShaderFormat 
 {
@@ -23,7 +22,6 @@ class FShaderFormatD3D : public UE::ShaderCompilerCommon::FBaseShaderFormat
 		UE_SHADER_PCD3D_SM6_VER = 7,
 		UE_SHADER_PCD3D_SM5_VER = 12,
 		UE_SHADER_PCD3D_ES3_1_VER = 8,
-		UE_SHADER_D3D_ES3_1_HOLOLENS_VER = UE_SHADER_PCD3D_ES3_1_VER,
 	};
 
 	uint32 DxcVersionHash = 0;
@@ -84,11 +82,6 @@ public:
 			// Shader DXC signature is intentionally not included, as ES3_1 target always uses legacy compiler.
 			return GetVersionHash(UE_SHADER_PCD3D_ES3_1_VER);
 		}
-		else if (Format == NAME_D3D_ES3_1_HOLOLENS)
-		{
-			// Shader DXC signature is intentionally not included, as ES3_1 target always uses legacy compiler.
-			return GetVersionHash(UE_SHADER_D3D_ES3_1_HOLOLENS_VER);
-		}
 		checkf(0, TEXT("Unknown Format %s"), *Format.ToString());
 		return 0;
 	}
@@ -98,7 +91,6 @@ public:
 		OutFormats.Add(NAME_PCD3D_SM6);
 		OutFormats.Add(NAME_PCD3D_SM5);
 		OutFormats.Add(NAME_PCD3D_ES3_1);
-		OutFormats.Add(NAME_D3D_ES3_1_HOLOLENS);
 	}
 
 	ELanguage FormatToLanguage(FName Format) const
@@ -111,7 +103,7 @@ public:
 		{
 			return ELanguage::SM5;
 		}
-		else if (Format == NAME_PCD3D_ES3_1 || Format == NAME_D3D_ES3_1_HOLOLENS)
+		else if (Format == NAME_PCD3D_ES3_1)
 		{
 			return ELanguage::ES3_1;
 		}
@@ -183,13 +175,6 @@ public:
 			}
 		}
 		else if (Input.ShaderFormat == NAME_PCD3D_ES3_1)
-		{
-			Input.Environment.SetDefine(TEXT("ES3_1_PROFILE"), 1);
-			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), 0);
-			Input.Environment.SetDefine(TEXT("__SHADER_TARGET_MAJOR"), 5);
-			Input.Environment.SetDefine(TEXT("__SHADER_TARGET_MINOR"), 0);
-		}
-		else if (Input.ShaderFormat == NAME_D3D_ES3_1_HOLOLENS)
 		{
 			Input.Environment.SetDefine(TEXT("ES3_1_PROFILE"), 1);
 			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), 0);
