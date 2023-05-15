@@ -33,7 +33,7 @@ namespace Horde.Commands.Bundles
 			}
 			else if (Ref != null)
 			{
-				store = CreateStorageClient(logger);
+				store = await CreateStorageClientAsync(logger);
 				handle = await store.ReadRefTargetAsync(new RefName(Ref));
 			}
 			else

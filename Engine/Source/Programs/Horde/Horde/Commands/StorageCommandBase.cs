@@ -14,48 +14,54 @@ namespace Horde.Commands
 	abstract class StorageCommandBase : Command
 	{
 		/// <summary>
-		/// Base URI to upload to
+		/// Namespace to use
 		/// </summary>
-		[CommandLine("-Server=", Description = "Base address of the server to upload to. Should include the base path of the endpoint to use (eg. https://foo/api/v1/storage/default-namespace). Not required if an output file is specified.")]
-		public string? Server { get; set; }
+		[CommandLine("-Namespace=", Description = "Namespace for data to manipulate")]
+		public string Namespace { get; set; } = "default";
 
 		/// <summary>
-		/// Auth token to use for the client
+		/// Base URI to upload to
 		/// </summary>
-		[CommandLine("-Token=", Description = "Bearer token for communication with the storage server")]
-		public string? Token { get; set; }
+		[CommandLine("-Path=", Description = "Relative path on the server for the store to write to/from (eg. api/v1/storage/default)")]
+		public string? Path { get; set; }
 
 		/// <summary>
 		/// Creates a new client instance
 		/// </summary>
 		/// <param name="logger">Logger for output messages</param>
-		public IStorageClient CreateStorageClient(ILogger logger)
+		/// <param name="cancellationToken"></param>
+		public async Task<IStorageClient> CreateStorageClientAsync(ILogger logger, CancellationToken cancellationToken = default)
 		{
-			if (Server == null)
+			Uri? server = await Settings.GetServerAsync(cancellationToken);
+			if (server == null)
 			{
-				throw new CommandLineArgumentException("Missing -Server=... argument for using a comm");
-			}
-			if (!Server.EndsWith("/", StringComparison.Ordinal))
-			{
-				Server += "/";
+				throw new Exception("No server is configured. Run 'horde login -server=...' to set up.");
 			}
 
-			return new HttpStorageClient(CreateDefaultHttpClient, () => new HttpClient(), logger);
+			string? token = await Settings.GetAccessTokenAsync(logger, cancellationToken);
+			if (token == null)
+			{
+				throw new Exception("Unable to log in to server.");
+			}
+
+			if (String.IsNullOrEmpty(Path))
+			{
+				Path = $"api/v1/storage/{Namespace}/";
+			}
+			else if(!Path.EndsWith("/", StringComparison.Ordinal))
+			{
+				Path += "/";
+			}
+
+			server = new Uri(server, Path);
+			return new HttpStorageClient(() => CreateDefaultHttpClient(server, token), () => new HttpClient(), logger);
 		}
 
-		/// <summary>
-		/// Test whether it's possible to create a storage client
-		/// </summary>
-		public bool CanCreateStorageClient() => Server != null;
-
-		HttpClient CreateDefaultHttpClient()
+		static HttpClient CreateDefaultHttpClient(Uri server, string token)
 		{
 			HttpClient client = new HttpClient();
-			client.BaseAddress = new Uri(Server!);
-			if (!String.IsNullOrEmpty(Token))
-			{
-				client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token);
-			}
+			client.BaseAddress = server;
+			client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 			return client;
 		}
 	}

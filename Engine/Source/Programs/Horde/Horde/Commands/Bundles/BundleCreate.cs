@@ -34,7 +34,7 @@ namespace Horde.Commands.Bundles
 			}
 			else if (!String.IsNullOrEmpty(Ref))
 			{
-				store = CreateStorageClient(logger);
+				store = await CreateStorageClientAsync(logger);
 			}
 			else
 			{
