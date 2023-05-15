@@ -7,6 +7,7 @@
 #include "MeshDescription.h"
 #include "DynamicMesh/DynamicVerticesOctree3.h"
 #include "BoneWeights.h"
+#include "GroupTopology.h"
 #include "Misc/Optional.h"
 #include "Containers/Map.h"
 #include "DynamicMesh/DynamicMeshOctree3.h"
@@ -18,9 +19,52 @@
 
 struct FMeshDescription;
 class USkinWeightsPaintTool;
+class UPolygonSelectionMechanic;
 
 using BoneIndex = int32;
 using VertexIndex = int32;
+
+// weight edit mode
+UENUM()
+enum class EWeightEditMode : uint8
+{
+	Brush,
+	Selection,
+};
+
+// weight color mode
+UENUM()
+enum class EWeightColorMode : uint8
+{
+	Greyscale,
+	ColorRamp,
+};
+
+// brush falloff mode
+UENUM()
+enum class EWeightBrushFalloffMode : uint8
+{
+	Surface,
+	Volume,
+};
+
+// operation type when editing weights
+UENUM()
+enum class EWeightEditOperation : uint8
+{
+	Add,
+	Replace,
+	Multiply,
+	Relax
+};
+
+// mirror direction mode
+UENUM()
+enum class EMirrorDirection : uint8
+{
+	PositiveToNegative,
+	NegativeToPositive,
+};
 
 namespace SkinPaintTool
 {
@@ -151,49 +195,32 @@ namespace SkinPaintTool
 		// update deformation when vertex weights are modified
 		FSkinToolDeformer Deformer;
 	};
+
+	struct FSkinMirrorData
+	{
+		void RegenerateMirrorData(
+			const TArray<FName>& BoneNames,
+			const TMap<FName, BoneIndex>& BoneNameToIndexMap,
+			const FReferenceSkeleton& RefSkeleton,
+			const TArray<FVector>& RefPoseVertices,
+			EAxis::Type InMirrorAxis,
+			EMirrorDirection InMirrorDirection,
+			const float MaxSearchRadius);
+
+		const TMap<int32, int32>& GetBoneMap() const { return BoneMap; };
+		const TMap<int32, int32>& GetVertexMap() const { return VertexMap; };
+		bool GetAllVerticesMirrored() const {return bAllVerticesMirrored; };
+		
+	private:
+		
+		bool bIsInitialized = false;
+		bool bAllVerticesMirrored = false;
+		TEnumAsByte<EAxis::Type> Axis;
+		EMirrorDirection Direction; 
+		TMap<int32, int32> BoneMap;
+		TMap<int32, int32> VertexMap; // <Target, Source>
+	};
 }
-
-// weight edit mode
-UENUM()
-enum class EWeightEditMode : uint8
-{
-	Brush,
-	Selection,
-};
-
-// weight color mode
-UENUM()
-enum class EWeightColorMode : uint8
-{
-	Greyscale,
-	ColorRamp,
-};
-
-// brush falloff mode
-UENUM()
-enum class EWeightBrushFalloffMode : uint8
-{
-	Surface,
-	Volume,
-};
-
-// operation type when editing weights
-UENUM()
-enum class EWeightEditOperation : uint8
-{
-	Add,
-	Replace,
-	Multiply,
-	Relax
-};
-
-// mirror direction mode
-UENUM()
-enum class EMirrorDirection : uint8
-{
-	PositiveToNegative,
-	NegativeToPositive,
-};
 
 UCLASS()
 class MESHMODELINGTOOLSEXP_API USkinWeightsPaintToolBuilder : public UMeshSurfacePointMeshEditingToolBuilder
@@ -257,20 +284,22 @@ class MESHMODELINGTOOLSEXP_API USkinWeightsPaintTool : public UDynamicMeshBrushT
 	GENERATED_BODY()
 
 public:
-	void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
-
-	void Setup() override;
-
-	bool HasCancel() const override { return true; }
-	bool HasAccept() const override { return true; }
-	bool CanAccept() const override { return true; }
 
 	// UBaseBrushTool overrides
-	bool HitTest(const FRay& Ray, FHitResult& OutHit) override;
-	void OnBeginDrag(const FRay& Ray) override;
-	void OnUpdateDrag(const FRay& Ray) override;
-	void OnEndDrag(const FRay& Ray) override;
-	bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual bool HasCancel() const override { return true; }
+	virtual bool HasAccept() const override { return true; }
+	virtual bool CanAccept() const override { return true; }
+	virtual bool HitTest(const FRay& Ray, FHitResult& OutHit) override;
+	virtual void OnBeginDrag(const FRay& Ray) override;
+	virtual void OnUpdateDrag(const FRay& Ray) override;
+	virtual void OnEndDrag(const FRay& Ray) override;
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	
+	// UInteractiveTool
+	virtual void Setup() override;
+	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	void ExternalUpdateWeights(const int32 BoneIndex, const TMap<int32, float>& IndexValues);
 
@@ -280,6 +309,9 @@ public:
 	void PruneWeights(const float Threshold);
 	void AverageWeights();
 	void NormalizeWeights();
+
+	// toggle brush / selection mode
+	void ToggleEditingMode();
 
 protected:
 
@@ -334,6 +366,9 @@ protected:
 	// storage of vertex weights per bone 
 	SkinPaintTool::FSkinToolWeights Weights;
 
+	// cached mirror data
+	SkinPaintTool::FSkinMirrorData MirrorData;
+
 	// vertex colors updated when switching current bone or editing weights
 	void UpdateCurrentBoneVertexColors();
 	FVector4f WeightToColor(float Value) const;
@@ -360,6 +395,13 @@ protected:
 
 	// ISkeletalMeshEditionInterface
 	virtual void HandleSkeletalMeshModified(const TArray<FName>& InBoneNames, const ESkeletalMeshNotifyType InNotifyType) override;
+
+	// polygon selection mechanic
+	UPROPERTY()
+	TObjectPtr<UPolygonSelectionMechanic> PolygonSelectionMechanic;
+	TUniquePtr<UE::Geometry::FDynamicMeshAABBTree3> MeshSpatial = nullptr;
+	TUniquePtr<UE::Geometry::FTriangleGroupTopology> SelectionTopology = nullptr;
+	void OnSelectionModified();
 
 	friend SkinPaintTool::FSkinToolDeformer;
 };

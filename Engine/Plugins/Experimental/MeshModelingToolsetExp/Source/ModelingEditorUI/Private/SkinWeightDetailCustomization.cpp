@@ -49,6 +49,7 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 			.OnValueChanged_Lambda([this](EWeightEditMode Mode)
 			{
 				SkinToolSettings->EditingMode = Mode;
+				SkinToolSettings->WeightTool->ToggleEditingMode();
 			})
 			+SSegmentedControl<EWeightEditMode>::Slot(EWeightEditMode::Brush)
 			.Text(LOCTEXT("BrushEditMode", "Brush"))
