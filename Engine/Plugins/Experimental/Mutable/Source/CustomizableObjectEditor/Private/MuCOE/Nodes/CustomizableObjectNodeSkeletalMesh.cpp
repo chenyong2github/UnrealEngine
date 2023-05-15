@@ -76,7 +76,7 @@ void UCustomizableObjectNodeSkeletalMesh::AllocateDefaultPins(UCustomizableObjec
 				{
 					FString MeshName = FString::Printf(TEXT("LOD %i - Section %i - Mesh"), LODIndex, SectionIndex);
 
-					UCustomizableObjectNodeSkeletalMeshPinDataMesh* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataMesh>();
+					UCustomizableObjectNodeSkeletalMeshPinDataMesh* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataMesh>(this);
 					PinData->Init(LODIndex, SectionIndex);
 					
 					UEdGraphPin* Pin = CustomCreatePin(EGPD_Output, Schema->PC_Mesh, FName(*MeshName), PinData);
@@ -93,7 +93,7 @@ void UCustomizableObjectNodeSkeletalMesh::AllocateDefaultPins(UCustomizableObjec
 						{
 							FString PinName = FString::Printf(TEXT("LOD %i - Section %i - UV %i"), LODIndex, SectionIndex, UVIndex);
 							
-							UCustomizableObjectNodeSkeletalMeshPinDataLayout* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataLayout>();
+							UCustomizableObjectNodeSkeletalMeshPinDataLayout* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataLayout>(this);
 							PinData->Init(LODIndex, SectionIndex, UVIndex);
 							
 							UEdGraphPin* Pin = CustomCreatePin(EGPD_Input, Schema->PC_Layout, FName(*PinName), PinData);
@@ -121,7 +121,7 @@ void UCustomizableObjectNodeSkeletalMesh::AllocateDefaultPins(UCustomizableObjec
 						FString ImageNameStr = *ImageInfo.Name.ToString();
 						FString PinName = FString::Printf(TEXT("LOD %i - Section %i - Texture Parameter %s"), LODIndex, SectionIndex, *ImageNameStr);
 						
-						UCustomizableObjectNodeSkeletalMeshPinDataImage* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataImage>();
+						UCustomizableObjectNodeSkeletalMeshPinDataImage* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataImage>(this);
 						PinData->Init(LODIndex, SectionIndex, ImageId);
 						
 						UEdGraphPin* Pin = CustomCreatePin(EGPD_Output, Schema->PC_Image, FName(*PinName), PinData);
@@ -139,6 +139,12 @@ void UCustomizableObjectNodeSkeletalMesh::AllocateDefaultPins(UCustomizableObjec
 UCustomizableObjectNodeRemapPins* UCustomizableObjectNodeSkeletalMesh::CreateRemapPinsDefault() const
 {
 	return NewObject<UCustomizableObjectNodeSkeletalMeshRemapPinsBySection>();
+}
+
+
+void UCustomizableObjectNodeSkeletalMesh::RemapPinsData(const TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap)
+{
+	// Do not copy pin data from old pins
 }
 
 
@@ -543,7 +549,7 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 				const FCustomizableObjectNodeSkeletalMeshMaterial& Section = LOD.Materials[SectionIndex];
 
 				{
-					UCustomizableObjectNodeSkeletalMeshPinDataMesh* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataMesh>();
+					UCustomizableObjectNodeSkeletalMeshPinDataMesh* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataMesh>(this);
 					PinData->Init(LODIndex, SectionIndex);
 				
 					AddPinData(*Section.MeshPinRef.Get(), *PinData);
@@ -572,7 +578,7 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 								}
 							}
 							
-							UCustomizableObjectNodeSkeletalMeshPinDataImage* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataImage>();
+							UCustomizableObjectNodeSkeletalMeshPinDataImage* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataImage>(this);
 							PinData->Init(LODIndex, SectionIndex, TextureParameterId);
 						
 							AddPinData(*ImagePin, *PinData);
@@ -582,7 +588,7 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 
 				for (int32 LayoutIndex = 0; LayoutIndex < Section.LayoutPinsRef.Num(); ++LayoutIndex)
 				{
-					UCustomizableObjectNodeSkeletalMeshPinDataLayout* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataLayout>();
+					UCustomizableObjectNodeSkeletalMeshPinDataLayout* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataLayout>(this);
 					PinData->Init(LODIndex, SectionIndex, LayoutIndex);
 				
 					AddPinData(*Section.LayoutPinsRef[LayoutIndex].Get(), *PinData);
@@ -590,6 +596,11 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 			}
 		}
 			
+		ReconstructNode();
+	}
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::AutomaticNodeSkeletalMeshPinDataOuter)
+	{
 		ReconstructNode();
 	}
 }
