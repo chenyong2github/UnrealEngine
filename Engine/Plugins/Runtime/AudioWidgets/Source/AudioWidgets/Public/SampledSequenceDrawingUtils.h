@@ -43,7 +43,8 @@ namespace SampledSequenceDrawingUtils
 
 			for (uint16 Channel = 0; Channel < NDimensions; ++Channel)
 			{
-				SamplesType MaxSampleValue = TNumericLimits<SamplesType>::Min();
+				
+				SamplesType MaxSampleValue = TNumericLimits<SamplesType>::Lowest();
 				SamplesType MinSampleValue = TNumericLimits<SamplesType>::Max();
 
 				for (uint32 Frame = FirstBinnedFrame; Frame < LastBinnedFrame; ++Frame)
@@ -98,7 +99,7 @@ namespace SampledSequenceDrawingUtils
 		* @param DimensionSlotMargin				Margin to keep from the dimension slot boundaries (pixels)
 		* @param MinSequenceHeightRatio				The minimum height (ratio) the drawn sequence can take in a channel slot
 		* @param MaxSequenceHeightRatio				The maximum height (ratio) the drawn sequence can take in a channel slot
-		* @param MinScaledBinValue					Minimum value a scaled bin can have
+		* @param MinScaledBinValue					Minimum value (in pixels) a bin can have
 		* @param VerticalZoomFactor					Sequence zoom factor
 	*/
 
@@ -116,7 +117,7 @@ namespace SampledSequenceDrawingUtils
 		float DimensionSlotMargin = 2.f;
 		float MaxSequenceHeightRatio = 0.95f;
 		float MinSequenceHeightRatio = 0.1f;
-		float MinScaledBinValue = 0.001f;
+		float MinScaledBinValue = 0.1f;
 		float VerticalZoomFactor = 1.f;
 		ESampledSequenceDrawOrientation Orientation = ESampledSequenceDrawOrientation::Horizontal;
 	};

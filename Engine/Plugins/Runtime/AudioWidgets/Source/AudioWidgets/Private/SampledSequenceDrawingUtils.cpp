@@ -83,11 +83,20 @@ void SampledSequenceDrawingUtils::GenerateSampleBinsCoordinatesForGeometry(TArra
 			uint32 PeakIndex = Pixel * NDimensions + Channel;
 			const TRange<float>& MinMaxBin = InSampleBins[PeakIndex];
 
-			const float SampleMaxScaled = MinMaxBin.GetUpperBoundValue() * HeightScale > Params.MinScaledBinValue ? MinMaxBin.GetUpperBoundValue() * HeightScale : Params.MinSequenceHeightRatio;
-			const float SampleMinScaled = MinMaxBin.GetLowerBoundValue() * HeightScale < -1 * Params.MinScaledBinValue ? MinMaxBin.GetLowerBoundValue() * HeightScale : -1.f * Params.MinSequenceHeightRatio;
+			const float SampleMaxScaled = MinMaxBin.GetUpperBoundValue() * HeightScale;
+			const float SampleMinScaled = MinMaxBin.GetLowerBoundValue() * HeightScale;
 
-			const float Top = FMath::Max(ChannelBoundaries.Center - SampleMaxScaled, ChannelBoundaries.Top);
-			const float Bottom = FMath::Min(ChannelBoundaries.Center - SampleMinScaled, ChannelBoundaries.Bottom);
+			float Top = FMath::Max(ChannelBoundaries.Center - SampleMaxScaled, ChannelBoundaries.Top);
+			float Bottom = FMath::Min(ChannelBoundaries.Center - SampleMinScaled, ChannelBoundaries.Bottom);
+
+			const bool bResizeBin = FMath::Abs(Top - Bottom) < Params.MinScaledBinValue;
+
+			if (bResizeBin)
+			{
+				const float MinHeightHalfSize = Params.MinScaledBinValue / 2.f;
+				Top = Top <= Bottom ? Top - MinHeightHalfSize : Top + MinHeightHalfSize;
+				Bottom = Top <= Bottom ? Bottom + MinHeightHalfSize : Top - MinHeightHalfSize;
+			}
 
 			OutCoordinatesData[PeakIndex].A = FVector2D(Pixel, Top);
 			OutCoordinatesData[PeakIndex].B = FVector2D(Pixel, Bottom);

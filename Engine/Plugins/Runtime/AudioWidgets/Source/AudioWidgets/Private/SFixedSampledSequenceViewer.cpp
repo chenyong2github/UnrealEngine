@@ -65,10 +65,10 @@ int32 SFixedSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeomet
 			TArray<FVector2D> BinDrawPoints;
 			BinDrawPoints.SetNumUninitialized(2);
 
-			for (const SampledSequenceDrawingUtils::F2DLineCoordinates& BinCoordinates : CachedBinsDrawCoordinates)
+			for (int32 i = 0; i < CachedBinsDrawCoordinates.Num(); ++i)
 			{
-				BinDrawPoints[0] = BinCoordinates.A;
-				BinDrawPoints[1] = BinCoordinates.B;
+				BinDrawPoints[0] = CachedBinsDrawCoordinates[i].A;
+				BinDrawPoints[1] = CachedBinsDrawCoordinates[i].B;
 
 				FSlateDrawElement::MakeLines(
 					OutDrawElements,
@@ -78,6 +78,24 @@ int32 SFixedSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeomet
 					ESlateDrawEffect::None,
 					SequenceColor.GetSpecifiedColor()
 				);
+
+				const int32 NextBinCoordinates = i + NumChannels;
+
+				if (NextBinCoordinates < CachedBinsDrawCoordinates.Num())
+				{
+					BinDrawPoints[0] = CachedBinsDrawCoordinates[i].B;
+					BinDrawPoints[1] = CachedBinsDrawCoordinates[NextBinCoordinates].A;
+
+					FSlateDrawElement::MakeLines(
+						OutDrawElements,
+						LayerId,
+						AllottedGeometry.ToPaintGeometry(),
+						BinDrawPoints,
+						ESlateDrawEffect::None,
+						SequenceColor.GetSpecifiedColor()
+					);
+
+				}
 			}
 
 		}
@@ -127,7 +145,7 @@ int32 SFixedSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeomet
 
 		++LayerId;
 	}
-
+	
 	return LayerId;
 }
 
