@@ -387,13 +387,13 @@ enum class ENiagaraDebugHUDOverviewMode
 	Overview,
 	Scalability,	
 	Performance,
+	PerformanceGraph,
 	GpuComputePerformance,
 }; 
 
 UENUM()
 enum class ENiagaraDebugHUDPerfGraphMode
 {
-	None,
 	GameThread,
 	RenderThread,
 	GPU,
