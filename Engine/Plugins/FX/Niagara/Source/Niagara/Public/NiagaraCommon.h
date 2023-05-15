@@ -1189,14 +1189,14 @@ struct FNiagaraVariableAttributeBinding
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API const FName& GetName() const { return CachedDisplayName; }
-	NIAGARA_API FString GetDefaultValueString() const;
+	NIAGARA_API [[nodiscard]] FString GetDefaultValueString() const;
 #endif
 	NIAGARA_API const FNiagaraVariableBase& GetParamMapBindableVariable() const { return ParamMapVariable; }
-	NIAGARA_API const FNiagaraVariableBase& GetDataSetBindableVariable() const { return DataSetVariable; }
-	NIAGARA_API const FNiagaraTypeDefinition& GetType() const { return DataSetVariable.GetType(); }
+	NIAGARA_API [[nodiscard]] FNiagaraVariableBase GetDataSetBindableVariable() const { return FNiagaraVariableBase(ParamMapVariable.GetType(), DataSetName); }
+	NIAGARA_API const FNiagaraTypeDefinition& GetType() const { return ParamMapVariable.GetType(); }
 	NIAGARA_API ENiagaraBindingSource GetBindingSourceMode() const { return BindingSourceMode; }
 
-	NIAGARA_API bool IsValid() const {	return DataSetVariable.IsValid();}
+	NIAGARA_API bool IsValid() const { return !DataSetName.IsNone() && ParamMapVariable.GetType().IsValid(); }
 	
 	template<typename T>
 	T GetDefaultValue() const
@@ -1211,18 +1211,19 @@ struct FNiagaraVariableAttributeBinding
 
 	void NIAGARA_API ResetToDefault(const FNiagaraVariableAttributeBinding& InOther, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	bool NIAGARA_API MatchesDefault(const FNiagaraVariableAttributeBinding& InOther, ENiagaraRendererSourceDataMode InSourceMode) const;
+
 protected:
+	/** The namespace and default value explicitly set by the user. If meant to be derived from the source mode, it will be without a namespace.*/
+	UPROPERTY()
+	FNiagaraVariable RootVariable;
+
 	/** The fully expressed namespace for the variable. If an emitter namespace, this will include the Emitter's unique name.*/
 	UPROPERTY()
 	FNiagaraVariableBase ParamMapVariable;
 
 	/** The version of the namespace to be found in an attribute table lookup. I.e. without Particles or Emitter.*/
 	UPROPERTY()
-	FNiagaraVariable DataSetVariable;
-
-	/** The namespace and default value explicitly set by the user. If meant to be derived from the source mode, it will be without a namespace.*/
-	UPROPERTY()
-	FNiagaraVariable RootVariable;
+	FName DataSetName;
 
 #if WITH_EDITORONLY_DATA
 	/** Old variable brought in from previous setup. Generally ignored other than postload work.*/
@@ -1239,11 +1240,17 @@ protected:
 	
 	/** Determine if this varible is accessible by the associated emitter passed into CacheValues.*/
 	UPROPERTY()
-	uint32 bBindingExistsOnSource : 1; 
+	uint8 bBindingExistsOnSource : 1; 
 
 	/** When CacheValues is called, was this a particle attribute?*/
 	UPROPERTY()
-	uint32 bIsCachedParticleValue : 1;
+	uint8 bIsCachedParticleValue : 1;
+
+#if WITH_EDITORONLY_DATA
+	/** The version of the namespace to be found in an attribute table lookup. I.e. without Particles or Emitter.*/
+	UPROPERTY()
+	FNiagaraVariable DataSetVariable_DEPRECATED;
+#endif
 };
 
 USTRUCT()
