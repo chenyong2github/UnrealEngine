@@ -37,9 +37,7 @@ void UChooserTable::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 			CachedPreviousOutputObjectType = OutputObjectType;
 		}
 	}
-	
-	static FName ContextPropertyName = "ContextData";
-	if (PropertyChangedEvent.Property->GetName() == ContextPropertyName)
+	else
 	{
 		OnContextClassChanged.Broadcast();
 	}
@@ -61,6 +59,7 @@ void UChooserTable::PostLoad()
 		Context.Class = ContextObjectType_DEPRECATED;
 		Context.Direction = EContextObjectDirection::ReadWrite;
 		ContextObjectType_DEPRECATED = nullptr;
+		OnContextClassChanged.Broadcast();
 	}
 
 	if (Results_DEPRECATED.Num() > 0 || Columns_DEPRECATED.Num() > 0)
@@ -119,11 +118,11 @@ void UChooserTable::IterateRecentContextObjects(TFunction<void(const UObject*)> 
 void UChooserTable::UpdateDebugging(FChooserEvaluationContext& Context) const
 {
 	FScopeLock Lock(&DebugLock);
-	for (const FContextEntry& Entry : Context.ContextData)
+	for (const FInstancedStruct& Param : Context.Params)
 	{
-		if (Entry.Data && Entry.Type && Entry.Type->IsA(UObject::StaticClass()))
+		if (const FChooserEvaluationInputObject* ObjectParam = Param.GetPtr<FChooserEvaluationInputObject>())
 		{
-			UObject* ContextObject = static_cast<UObject*>(Entry.Data);
+			UObject* ContextObject = ObjectParam->Object;
 			RecentContextObjects.Add(MakeWeakObjectPtr(ContextObject));
 			if (ContextObject == DebugTarget)
 			{
@@ -138,7 +137,7 @@ void UChooserTable::UpdateDebugging(FChooserEvaluationContext& Context) const
 
 #endif
 
-static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(FChooserEvaluationContext& Context, const UChooserTable* Chooser, FObjectChooserBase::FObjectChooserIteratorCallback Callback)
+FObjectChooserBase::EIteratorStatus UChooserTable::EvaluateChooser(FChooserEvaluationContext& Context, const UChooserTable* Chooser, FObjectChooserBase::FObjectChooserIteratorCallback Callback)
 {
 	if (Chooser == nullptr)
 	{
@@ -212,7 +211,7 @@ static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(FChooserEvaluat
 UObject* FEvaluateChooser::ChooseObject(FChooserEvaluationContext& Context) const
 {
 	UObject* Result = nullptr;
-	StaticEvaluateChooser(Context, Chooser, FObjectChooserIteratorCallback::CreateLambda([&Result](UObject* InResult)
+	UChooserTable::EvaluateChooser(Context, Chooser, FObjectChooserIteratorCallback::CreateLambda([&Result](UObject* InResult)
 	{
 		Result = InResult;
 		return FObjectChooserBase::EIteratorStatus::Stop;
@@ -223,58 +222,5 @@ UObject* FEvaluateChooser::ChooseObject(FChooserEvaluationContext& Context) cons
 
 FObjectChooserBase::EIteratorStatus FEvaluateChooser::ChooseMulti(FChooserEvaluationContext& Context, FObjectChooserIteratorCallback Callback) const
 {
-	return StaticEvaluateChooser(Context, Chooser, Callback);
-}
-
-UChooserFunctionLibrary::UChooserFunctionLibrary(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-static FObjectChooserBase::EIteratorStatus StaticEvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser, FObjectChooserBase::FObjectChooserIteratorCallback Callback)
-{
-	// Fallback single context object version
-	FChooserEvaluationContext Context;
-	Context.ContextData.Push(FContextEntry{ContextObject->GetClass(), const_cast<void*>(static_cast<const void*>(ContextObject))});
-	return StaticEvaluateChooser(Context, Chooser, Callback);
-}
-
-UObject* UChooserFunctionLibrary::EvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser, TSubclassOf<UObject> ObjectClass)
-{
-	UObject* Result = nullptr;
-	StaticEvaluateChooser(ContextObject, Chooser, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result, ObjectClass](UObject* InResult)
-	{
-		if (InResult && (ObjectClass == nullptr || InResult->IsA(ObjectClass)))
-		{
-			Result = InResult;
-			return FObjectChooserBase::EIteratorStatus::Stop;
-		}
-		return FObjectChooserBase::EIteratorStatus::Continue;
-	}));
-
-	return Result;
-}
-
-TArray<UObject*> UChooserFunctionLibrary::EvaluateChooserMulti(const UObject* ContextObject, const UChooserTable* Chooser, TSubclassOf<UObject> ObjectClass)
-{
-	TArray<UObject*> Result;
-	StaticEvaluateChooser(ContextObject, Chooser, FObjectChooserBase::FObjectChooserIteratorCallback::CreateLambda([&Result, ObjectClass](UObject* InResult)
-	{
-		if (InResult && (ObjectClass == nullptr || InResult->IsA(ObjectClass)))
-		{
-			Result.Add(InResult);
-		}
-		// trigger output columns only on the first result
-		return Result.Num() == 1 ? FObjectChooserBase::EIteratorStatus::ContinueWithOutputs : FObjectChooserBase::EIteratorStatus::Continue;
-	}));
-
-	for (int Index = 0; Index < Result.Num(); ++Index)
-	{
-		if (Result[Index] && !Result[Index]->IsA(ObjectClass))
-		{
-			Result[Index] = nullptr;
-		}
-	}
-
-	return Result;
+	return UChooserTable::EvaluateChooser(Context, Chooser, Callback);
 }

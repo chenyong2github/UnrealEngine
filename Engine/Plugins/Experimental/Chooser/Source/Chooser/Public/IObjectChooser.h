@@ -21,12 +21,6 @@ public:
 	virtual void ConvertToInstancedStruct(FInstancedStruct& OutInstancedStruct) const { }
 };
 
-struct FContextEntry
-{
-	const UStruct* Type = nullptr;
-	void* Data = nullptr;
-};
-
 #if WITH_EDITOR
 struct FChooserDebuggingInfo
 {
@@ -34,13 +28,23 @@ struct FChooserDebuggingInfo
 };
 #endif
 
+
+USTRUCT()
+struct FChooserEvaluationInputObject
+{
+	GENERATED_BODY()
+	TObjectPtr<UObject> Object;
+};
+
+USTRUCT(BlueprintType)
 struct FChooserEvaluationContext
 {
-#if WITH_EDITOR
-	FChooserDebuggingInfo DebuggingInfo;
-#endif
-
-	TArray<FContextEntry, TFixedAllocator<4>> ContextData;
+	#if WITH_EDITOR
+    	FChooserDebuggingInfo DebuggingInfo;
+    #endif
+	
+	GENERATED_BODY()
+	TArray<FInstancedStruct, TFixedAllocator<4>> Params;
 };
 
 USTRUCT()

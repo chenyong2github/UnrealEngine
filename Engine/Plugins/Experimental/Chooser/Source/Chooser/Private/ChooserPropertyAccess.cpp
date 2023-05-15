@@ -13,10 +13,18 @@ namespace UE::Chooser
 {
 	bool ResolvePropertyChain(FChooserEvaluationContext& Context, const FChooserPropertyBinding& PropertyBinding, const void*& OutContainer, const UStruct*& OutStructType)
 	{
-		if (PropertyBinding.ContextIndex < Context.ContextData.Num())
+		if (PropertyBinding.ContextIndex < Context.Params.Num())
 		{
-			OutContainer = Context.ContextData[PropertyBinding.ContextIndex].Data;
-			OutStructType = Context.ContextData[PropertyBinding.ContextIndex].Type;
+			if (FChooserEvaluationInputObject* ObjectParam = Context.Params[PropertyBinding.ContextIndex].GetMutablePtr<FChooserEvaluationInputObject>())
+			{
+				OutContainer = ObjectParam->Object;
+				OutStructType = ObjectParam->Object->GetClass();
+			}
+			else
+			{
+				OutContainer = Context.Params[PropertyBinding.ContextIndex].GetMutableMemory();
+				OutStructType = Context.Params[PropertyBinding.ContextIndex].GetScriptStruct();
+			}
 
 			return ResolvePropertyChain(OutContainer, OutStructType, PropertyBinding.PropertyBindingChain);
 		}

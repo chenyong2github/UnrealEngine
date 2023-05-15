@@ -80,10 +80,12 @@ public:
 	TObjectPtr<UClass> OutputObjectType;
 
 	virtual TConstArrayView<FInstancedStruct> GetContextData() const override { return ContextData; }
+	
+	static FObjectChooserBase::EIteratorStatus EvaluateChooser(FChooserEvaluationContext& Context, const UChooserTable* Chooser, FObjectChooserBase::FObjectChooserIteratorCallback Callback);
 };
 
 
-USTRUCT(DisplayName = "Evaluate Chooser")
+USTRUCT(BlueprintType, DisplayName = "Evaluate Chooser")
 struct CHOOSER_API FEvaluateChooser : public FObjectChooserBase
 {
 	GENERATED_BODY()
@@ -91,6 +93,9 @@ struct CHOOSER_API FEvaluateChooser : public FObjectChooserBase
 	virtual UObject* ChooseObject(FChooserEvaluationContext& Context) const final override;
 	virtual EIteratorStatus ChooseMulti(FChooserEvaluationContext &Context, FObjectChooserIteratorCallback Callback) const final override;
 	public:
+
+	FEvaluateChooser() : Chooser(nullptr) {}
+	FEvaluateChooser(TObjectPtr<UChooserTable> Table) : Chooser(Table) {}
 	
 	UPROPERTY(EditAnywhere, Category="Parameters")
 	TObjectPtr<UChooserTable> Chooser;
