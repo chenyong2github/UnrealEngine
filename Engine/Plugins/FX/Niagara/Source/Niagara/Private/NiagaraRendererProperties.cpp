@@ -834,10 +834,12 @@ void UNiagaraRendererProperties::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
 	if (bMotionBlurEnabled_DEPRECATED == false)
 	{
 		MotionVectorSetting = ENiagaraRendererMotionVectorSetting::Disable;
 	}
+#endif
 }
 
 #if WITH_EDITORONLY_DATA

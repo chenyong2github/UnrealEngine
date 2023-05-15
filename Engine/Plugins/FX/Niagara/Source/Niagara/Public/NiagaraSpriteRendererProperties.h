@@ -118,12 +118,12 @@ public:
 	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 #if WITH_EDITORONLY_DATA
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter) override;
 	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter) override;
 	virtual TArray<FNiagaraVariable> GetBoundAttributes() const override;
-
 #endif // WITH_EDITORONLY_DATA
 	//UObject Interface END
 
@@ -162,52 +162,56 @@ public:
 	TObjectPtr<UMaterialInstanceConstant> MICMaterial;
 #endif
 
-	/** Whether or not to draw a single element for the Emitter or to draw the particles.*/
-	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
-	ENiagaraRendererSourceDataMode SourceMode;
-
 	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and Material is also set, UserParamBinding wins.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
 	FNiagaraUserParameterBinding MaterialUserParamBinding;
 
+	/** Whether or not to draw a single element for the Emitter or to draw the particles.*/
+	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
+	ENiagaraRendererSourceDataMode SourceMode = ENiagaraRendererSourceDataMode::Particles;
+
 	/** Imagine the particle texture having an arrow pointing up, these modes define how the particle aligns that texture to other particle attributes.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
-	ENiagaraSpriteAlignment Alignment;
+	ENiagaraSpriteAlignment Alignment = ENiagaraSpriteAlignment::Automatic;
 
 	/** Determines how the particle billboard orients itself relative to the camera.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
-	ENiagaraSpriteFacingMode FacingMode;
+	ENiagaraSpriteFacingMode FacingMode = ENiagaraSpriteFacingMode::Automatic;
+
+	/** Determines how we sort the particles prior to rendering.*/
+	UPROPERTY(EditAnywhere, Category = "Sorting")
+	ENiagaraSortMode SortMode = ENiagaraSortMode::None;
+
+	/** World space radius that UVs generated with the ParticleMacroUV material node will tile based on. */
+	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
+	float MacroUVRadius = 0.0f;
 
 	/**
 	 * Determines the location of the pivot point of this particle. It follows Unreal's UV space, which has the upper left of the image at 0,0 and bottom right at 1,1. The middle is at 0.5, 0.5.
 	 * NOTE: This value is ignored if "Pivot Offset Binding" is bound to a valid attribute
 	 */
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (DisplayName = "Default Pivot in UV Space"))
-	FVector2D PivotInUVSpace;
-
-	/** World space radius that UVs generated with the ParticleMacroUV material node will tile based on. */
-	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
-	float MacroUVRadius = 0.0f;
-
-	/** Determines how we sort the particles prior to rendering.*/
-	UPROPERTY(EditAnywhere, Category = "Sorting")
-	ENiagaraSortMode SortMode;
+	FVector2D PivotInUVSpace = FVector2D(0.5f, 0.5f);
 
 	/** When using SubImage lookups for particles, this variable contains the number of columns in X and the number of rows in Y.*/
 	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (DisplayAfter = bSubImageBlend))
-	FVector2D SubImageSize;
+	FVector2D SubImageSize = FVector2D(1.0f, 1.0f);
 
 	/** If true, blends the sub-image UV lookup with its next adjacent member using the fractional part of the SubImageIndex float value as the linear interpolation factor.*/
 	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (DisplayName = "Sub UV Blending Enabled"))
-	uint32 bSubImageBlend : 1;
+	uint8 bSubImageBlend : 1;
 
 	/** If true, removes the HMD view roll (e.g. in VR) */
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (DisplayName = "Remove HMD Roll"))
-	uint32 bRemoveHMDRollInVR : 1;
+	uint8 bRemoveHMDRollInVR : 1;
 
 	/** If true, the particles are only sorted when using a translucent material. */
 	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides))
-	uint32 bSortOnlyWhenTranslucent : 1;
+	uint8 bSortOnlyWhenTranslucent : 1;
+
+	/** Enables frustum culling of individual sprites */
+	UPROPERTY(EditAnywhere, Category = "Visibility")
+	uint8 bEnableCameraDistanceCulling : 1;
 
 	/** Sort precision to use when sorting is active. */
 	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides))
@@ -241,15 +245,11 @@ public:
 
 	/** When FacingMode is FacingCameraDistanceBlend, the distance at which the sprite is fully facing the camera plane. */
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (UIMin = "0"))
-	float MinFacingCameraBlendDistance;
+	float MinFacingCameraBlendDistance = 0.0f;
 
 	/** When FacingMode is FacingCameraDistanceBlend, the distance at which the sprite is fully facing the camera position */
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (UIMin = "0"))
-	float MaxFacingCameraBlendDistance;
-
-	/** Enables frustum culling of individual sprites */
-	UPROPERTY(EditAnywhere, Category = "Visibility")
-	uint32 bEnableCameraDistanceCulling : 1;
+	float MaxFacingCameraBlendDistance = 0.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", UIMin = 0.0f, EditConditionHides))
 	float MinCameraDistance;

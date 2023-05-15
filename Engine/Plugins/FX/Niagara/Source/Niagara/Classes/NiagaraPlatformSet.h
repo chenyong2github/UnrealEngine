@@ -402,10 +402,6 @@ public:
 	FOnOverrideActiveDeviceProfile OnOverrideActiveDeviceProfileDelegate;
 #endif
 
-	/** Mask defining which effects qualities this set matches. */
-	UPROPERTY(EditAnywhere, Category = Platforms)
-	int32 QualityLevelMask;
-
 	/** States of specific device profiles we've set. */
 	UPROPERTY(EditAnywhere, Category = Platforms)
 	TArray<FNiagaraDeviceProfileStateEntry> DeviceProfileStates;
@@ -413,6 +409,10 @@ public:
 	/** Set of CVars values we require for this platform set to be enabled. If any of the linked CVars don't have the required values then this platform set will not be enabled. */
 	UPROPERTY(EditAnywhere, Category = Platforms)
 	TArray<FNiagaraPlatformSetCVarCondition> CVarConditions;
+
+	/** Mask defining which effects qualities this set matches. */
+	UPROPERTY(EditAnywhere, Category = Platforms)
+	int32 QualityLevelMask;
 
 #if WITH_EDITOR
 	//Data we pull from platform ini files.

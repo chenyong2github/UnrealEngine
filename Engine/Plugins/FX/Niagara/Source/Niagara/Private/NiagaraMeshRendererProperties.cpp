@@ -242,17 +242,11 @@ bool FNiagaraMeshRendererMeshProperties::HasValidRenderableMesh() const
 }
 
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
-	: SourceMode(ENiagaraRendererSourceDataMode::Particles)
-	, SortMode(ENiagaraSortMode::None)
-	, bOverrideMaterials(false)
+	: bOverrideMaterials(false)
 	, bUseHeterogeneousVolumes(false)
 	, bSortOnlyWhenTranslucent(true)
 	, bSubImageBlend(false)
-	, SubImageSize(1.0f, 1.0f)
-	, FacingMode(ENiagaraMeshFacingMode::Default)
 	, bLockedAxisEnable(false)
-	, LockedAxis(0.0f, 0.0f, 1.0f)
-	, LockedAxisSpace(ENiagaraMeshLockedAxisSpace::Simulation)
 {
 	// Initialize the array with a single, defaulted entry
 	Meshes.AddDefaulted();
@@ -401,6 +395,14 @@ void UNiagaraMeshRendererProperties::Serialize(FArchive& Ar)
 	}
 
 	Super::Serialize(Ar);
+}
+
+void UNiagaraMeshRendererProperties::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RendererLayoutWithCustomSorting.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RendererLayoutWithoutCustomSorting.GetAllocatedSize());
 }
 
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/
@@ -790,6 +792,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
 	if (Meshes.Num() == 1 && Meshes[0].Mesh == nullptr && ParticleMesh_DEPRECATED != nullptr)
 	{
 		// Likely predates the mesh array ... just add ParticleMesh to the list of Meshes
@@ -798,6 +801,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 		Mesh.PivotOffset = PivotOffset_DEPRECATED;
 		Mesh.PivotOffsetSpace = PivotOffsetSpace_DEPRECATED;
 	}
+#endif
 
 	for (FNiagaraMeshRendererMeshProperties& MeshProperties : Meshes)
 	{

@@ -53,18 +53,10 @@ FCookStatsManager::FAutoRegisterCallback NiagaraCutoutCookStats::RegisterCookSta
 
 UNiagaraSpriteRendererProperties::UNiagaraSpriteRendererProperties()
 	: Material(nullptr)
-	, SourceMode(ENiagaraRendererSourceDataMode::Particles)
 	, MaterialUserParamBinding(FNiagaraTypeDefinition(UMaterialInterface::StaticClass()))
-	, Alignment(ENiagaraSpriteAlignment::Automatic)
-	, FacingMode(ENiagaraSpriteFacingMode::Automatic)
-	, PivotInUVSpace(0.5f, 0.5f)
-	, SortMode(ENiagaraSortMode::None)
-	, SubImageSize(1.0f, 1.0f)
 	, bSubImageBlend(false)
 	, bRemoveHMDRollInVR(false)
 	, bSortOnlyWhenTranslucent(true)
-	, MinFacingCameraBlendDistance(0.0f)
-	, MaxFacingCameraBlendDistance(0.0f)
 #if WITH_EDITORONLY_DATA
 	, BoundingMode(BVC_EightVertices)
 	, AlphaThreshold(0.1f)
@@ -254,6 +246,14 @@ void UNiagaraSpriteRendererProperties::Serialize(FStructuredArchive::FRecord Rec
 	{
 		DerivedData.Serialize(Record.EnterField(TEXT("DerivedData")));
 	}
+}
+
+void UNiagaraSpriteRendererProperties::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RendererLayoutWithCustomSort.GetAllocatedSize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RendererLayoutWithoutCustomSort.GetAllocatedSize());
 }
 
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/

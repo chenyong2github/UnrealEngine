@@ -38,18 +38,17 @@ FNiagaraRibbonUVSettings::FNiagaraRibbonUVSettings()
 	: DistributionMode(ENiagaraRibbonUVDistributionMode::ScaledUsingRibbonSegmentLength)
 	, LeadingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
 	, TrailingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
+	, bEnablePerParticleUOverride(false)
+	, bEnablePerParticleVRangeOverride(false)
 	, TilingLength(100.0f)
 	, Offset(FVector2D(0.0f, 0.0f))
 	, Scale(FVector2D(1.0f, 1.0f))
-	, bEnablePerParticleUOverride(false)
-	, bEnablePerParticleVRangeOverride(false)
 {
 }
 
 UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	: Material(nullptr)
 	, MaterialUserParamBinding(FNiagaraTypeDefinition(UMaterialInterface::StaticClass()))
-	, FacingMode(ENiagaraRibbonFacingMode::Screen)
 #if WITH_EDITORONLY_DATA
 	, UV0TilingDistance_DEPRECATED(0.0f)
 	, UV0Scale_DEPRECATED(FVector2D(1.0f, 1.0f))
@@ -59,18 +58,18 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	, UV1AgeOffsetMode_DEPRECATED(ENiagaraRibbonAgeOffsetMode::Scale)
 #endif
 	, MaxNumRibbons(0)
-	, bUseGPUInit(false)
-	, Shape(ENiagaraRibbonShapeMode::Plane)
 	, bEnableAccurateGeometry(false)
+	, bUseGPUInit(false)
+	, bUseConstantFactor(false)
+	, bScreenSpaceTessellation(true)
+	, Shape(ENiagaraRibbonShapeMode::Plane)
 	, WidthSegmentationCount(1)
 	, MultiPlaneCount(2)
 	, TubeSubdivisions(3)
 	, TessellationMode(ENiagaraRibbonTessellationMode::Automatic)
 	, CurveTension(0.f)
 	, TessellationFactor(16)
-	, bUseConstantFactor(false)
 	, TessellationAngle(15)
-	, bScreenSpaceTessellation(true)
 {
 	AttributeBindings.Reserve(19);
 	AttributeBindings.Add(&PositionBinding);
@@ -298,6 +297,13 @@ void UNiagaraRibbonRendererProperties::Serialize(FStructuredArchive::FRecord Rec
 #endif
 		Super::Serialize(Record);
 	}
+}
+
+void UNiagaraRibbonRendererProperties::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RendererLayout.GetAllocatedSize());
 }
 
 /** The bindings depend on variables that are created during the NiagaraModule startup. However, the CDO's are build prior to this being initialized, so we defer setting these values until later.*/

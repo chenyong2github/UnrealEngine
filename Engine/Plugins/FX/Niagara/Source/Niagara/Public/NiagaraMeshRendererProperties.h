@@ -187,6 +187,7 @@ public:
 	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 #if WITH_EDITORONLY_DATA
 	virtual void BeginDestroy() override;
 	virtual void PreEditChange(class FProperty* PropertyThatWillChange) override;
@@ -242,11 +243,23 @@ public:
 
 	/** Whether or not to draw a single element for the Emitter or to draw the particles.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
-	ENiagaraRendererSourceDataMode SourceMode;
+	ENiagaraRendererSourceDataMode SourceMode = ENiagaraRendererSourceDataMode::Particles;
 
 	/** Determines how we sort the particles prior to rendering.*/
 	UPROPERTY(EditAnywhere, Category = "Sorting")
-	ENiagaraSortMode SortMode;
+	ENiagaraSortMode SortMode = ENiagaraSortMode::None;
+
+	/** Sort precision to use when sorting is active. */
+	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides, DisplayAfter="bSortOnlyWhenTranslucent"))
+	ENiagaraRendererSortPrecision SortPrecision = ENiagaraRendererSortPrecision::Default;
+
+	/**
+	Gpu simulations run at different points in the frame depending on what features are used, i.e. depth buffer, distance fields, etc.
+	Opaque materials will run latent when these features are used.
+	Translucent materials can choose if they want to use this frames or the previous frames data to match opaque draws.
+	*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Mesh Rendering")
+	ENiagaraRendererGpuTranslucentLatency GpuTranslucentLatency = ENiagaraRendererGpuTranslucentLatency::ProjectDefault;
 
 	/** Whether or not to use the OverrideMaterials array instead of the mesh's existing materials.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", DisplayName="Enable Material Overrides")
@@ -259,18 +272,6 @@ public:
 	/** If true, the particles are only sorted when using a translucent material. */
 	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides))
 	uint32 bSortOnlyWhenTranslucent : 1;
-
-	/** Sort precision to use when sorting is active. */
-	UPROPERTY(EditAnywhere, Category = "Sorting", meta = (EditCondition = "SortMode != ENiagaraSortMode::None", EditConditionHides))
-	ENiagaraRendererSortPrecision SortPrecision = ENiagaraRendererSortPrecision::Default;
-
-	/**
-	Gpu simulations run at different points in the frame depending on what features are used, i.e. depth buffer, distance fields, etc.
-	Opaque materials will run latent when these features are used.
-	Translucent materials can choose if they want to use this frames or the previous frames data to match opaque draws.
-	*/
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Mesh Rendering")
-	ENiagaraRendererGpuTranslucentLatency GpuTranslucentLatency = ENiagaraRendererGpuTranslucentLatency::ProjectDefault;
 
 	/** If true, blends the sub-image UV lookup with its next adjacent member using the fractional part of the SubImageIndex float value as the linear interpolation factor.*/
 	UPROPERTY(EditAnywhere, Category = "SubUV", meta = (DisplayName = "Sub UV Blending Enabled"))
@@ -288,6 +289,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (DisplayAfter = "MeshBoundsScale"))
 	uint32 bEnableMeshFlipbook : 1;
 
+	/** If true and in a non-default facing mode, will lock facing direction to an arbitrary plane of rotation */
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	uint32 bLockedAxisEnable : 1;
+
 	/** The materials to be used instead of the StaticMesh's materials. Note that each material must have the Niagara Mesh Particles flag checked. If the ParticleMesh
 	requires more materials than exist in this array or any entry in this array is set to None, we will use the ParticleMesh's existing Material instead.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bOverrideMaterials", EditConditionHides))
@@ -298,23 +303,11 @@ public:
 
 	/** When using SubImage lookups for particles, this variable contains the number of columns in X and the number of rows in Y.*/
 	UPROPERTY(EditAnywhere, Category = "SubUV")
-	FVector2D SubImageSize;
-
-	/** Determines how the mesh orients itself relative to the camera. */
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
-	ENiagaraMeshFacingMode FacingMode;
-
-	/** If true and in a non-default facing mode, will lock facing direction to an arbitrary plane of rotation */
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
-	uint32 bLockedAxisEnable : 1;
+	FVector2D SubImageSize = FVector2D(1.0f, 1.0f);
 
 	/** Arbitrary axis by which to lock facing rotations */
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable", EditConditionHides))
-	FVector LockedAxis;
-
-	/** Specifies what space the locked axis is in */
-	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable", EditConditionHides))
-	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable", EditConditionHides, DisplayAfter="bLockedAxisEnable"))
+	FVector LockedAxis = FVector(0.0f, 0.0f, 1.0f);
 
 	/**
 	Scale factor applied to all of the meshes bounds.
@@ -324,6 +317,14 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", AdvancedDisplay)
 	FVector MeshBoundsScale = FVector::OneVector;
+
+	/** Determines how the mesh orients itself relative to the camera. */
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering")
+	ENiagaraMeshFacingMode FacingMode = ENiagaraMeshFacingMode::Default;
+
+	/** Specifies what space the locked axis is in */
+	UPROPERTY(EditAnywhere, Category = "Mesh Rendering", meta = (EditCondition = "bLockedAxisEnable", EditConditionHides, DisplayAfter = "LockedAxis"))
+	ENiagaraMeshLockedAxisSpace LockedAxisSpace = ENiagaraMeshLockedAxisSpace::Simulation;
 
 	UPROPERTY(EditAnywhere, Category = "Visibility", meta = (EditCondition = "bEnableCameraDistanceCulling", EditConditionHides, ClampMin = 0.0f))
 	float MinCameraDistance;
@@ -472,6 +473,7 @@ protected:
 private:
 	static TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> MeshRendererPropertiesToDeferredInit;
 
+#if WITH_EDITORONLY_DATA
 	// These properties are deprecated and moved to FNiagaraMeshRendererMeshProperties
 	UPROPERTY()
 	TObjectPtr<UStaticMesh> ParticleMesh_DEPRECATED;
@@ -481,4 +483,5 @@ private:
 
 	UPROPERTY()
 	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace_DEPRECATED;
+#endif
 };

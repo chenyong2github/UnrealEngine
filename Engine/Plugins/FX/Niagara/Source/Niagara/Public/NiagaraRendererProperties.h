@@ -146,6 +146,8 @@ struct NIAGARA_API FNiagaraRendererLayout
 	int32 GetTotalFloatComponents_RenderThread() const { check(IsInRenderingThread()); return TotalFloatComponents_RT; }
 	int32 GetTotalHalfComponents_RenderThread() const { check(IsInRenderingThread()); return TotalHalfComponents_RT; }
 
+	SIZE_T GetAllocatedSize() const { return VFVariables_GT.GetAllocatedSize() + VFVariables_RT.GetAllocatedSize(); }
+
 private:
 	TArray<FNiagaraRendererVariableInfo> VFVariables_GT;
 	int32 TotalFloatComponents_GT;
@@ -282,7 +284,6 @@ public:
 	UNiagaraRendererProperties()		
 		: bIsEnabled(true)
 		, bAllowInCullProxies(true)
-		, bMotionBlurEnabled_DEPRECATED(true)
 	{
 	}
 
@@ -427,10 +428,12 @@ public:
 
 	UPROPERTY()
 	FGuid OuterEmitterVersion;
-	
+
 protected:
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	bool bMotionBlurEnabled_DEPRECATED; // This has been rolled into MotionVectorSetting
+	bool bMotionBlurEnabled_DEPRECATED = true; // This has been rolled into MotionVectorSetting
+#endif
 
 	TArray<const FNiagaraVariableAttributeBinding*> AttributeBindings;
 
