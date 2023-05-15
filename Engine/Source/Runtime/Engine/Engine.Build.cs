@@ -18,7 +18,6 @@ public class Engine : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"AnimationCore",
-				"ApplicationCore",
 				"AudioExtensions",
 				"AudioMixer", 
 				"AudioMixerCore",
