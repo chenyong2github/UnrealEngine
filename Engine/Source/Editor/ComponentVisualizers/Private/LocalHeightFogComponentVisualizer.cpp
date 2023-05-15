@@ -4,6 +4,8 @@
 
 #include "Components/ActorComponent.h"
 #include "Components/LocalHeightFogComponent.h"
+#include "SceneView.h"
+#include "SceneManagement.h"
 
 void FLocalHeightFogComponentVisualizer::DrawVisualization( const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI )
 {
