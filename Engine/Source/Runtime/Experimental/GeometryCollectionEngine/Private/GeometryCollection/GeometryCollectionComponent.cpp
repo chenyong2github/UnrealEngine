@@ -1008,6 +1008,11 @@ bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeo
 				{
 					if (const UNavCollisionBase* NavCollision = ProxyMesh->GetNavCollision())
 					{
+						if (NavCollision->IsDynamicObstacle())
+						{
+							continue;
+						}
+						
 						bHasData = NavCollision->ExportGeometry(CompToWorld, GeomExport) || bHasData;
 					}
 				}
