@@ -376,6 +376,15 @@ namespace UnrealBuildTool
 			Text.AppendLine("\t<key>UILaunchStoryboardName</key>");
 			Text.AppendLine("\t<string>LaunchScreen</string>");
 
+			// Support high refresh rates (iPhone only)
+			// https://developer.apple.com/documentation/quartzcore/optimizing_promotion_refresh_rates_for_iphone_13_pro_and_ipad_pro
+			bool bSupportHighRefreshRates = false;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportHighRefreshRates", out bSupportHighRefreshRates);
+			if (bSupportHighRefreshRates)
+			{
+				Text.AppendLine("\t<key>CADisableMinimumFrameDurationOnPhone</key><true/>");
+			}
+
 			// disable exempt encryption
 			Text.AppendLine("\t<key>ITSAppUsesNonExemptEncryption</key>");
 			Text.AppendLine("\t<false/>");
@@ -775,6 +784,15 @@ namespace UnrealBuildTool
 				{
 					Logger.LogWarning("Custom Launchscreen compilation storyboard only compatible on Mac for now");
 				}
+			}
+
+			// Support high refresh rates (iPhone only)
+			// https://developer.apple.com/documentation/quartzcore/optimizing_promotion_refresh_rates_for_iphone_13_pro_and_ipad_pro
+			bool bSupportHighRefreshRates = false;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bSupportHighRefreshRates", out bSupportHighRefreshRates);
+			if (bSupportHighRefreshRates)
+			{
+				Text.AppendLine("\t<key>CADisableMinimumFrameDurationOnPhone</key><true/>");
 			}
 
 			Text.AppendLine("\t<key>CFBundleSupportedPlatforms</key>");
