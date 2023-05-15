@@ -396,7 +396,7 @@ void UCustomizableObjectSystem::BeginDestroy()
 		Private->PendingTasks.Empty();
 
 		// Complete pending taskgraph tasks
-		Private->WaitForMutableTasks();
+		Private->MutableTaskGraph.WaitForMutableTasks();
 
 		// Clear the ongoing operation
 		Private->CurrentMutableOperation = nullptr;
@@ -737,6 +737,8 @@ FAutoConsoleVariableRef CVarMaxTextureSizeToGenerate(
 
 void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const FDescriptorRuntimeHash InUpdatedHash)
 {
+	check(IsInGameThread())
+	
 	// Callbacks. Must be done at the end.
 	if (Instance)
 	{
@@ -764,6 +766,8 @@ void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult Upd
 		
 		UpdateCallback->ExecuteIfBound(Context);
 	}
+
+	UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableTaskGraph.AllowLaunchingMutableTaskLowPriority(true, false);
 }
 
 
@@ -1742,6 +1746,7 @@ namespace impl
 		OperationData->MutableRuntimeCycles += EndCycles - StartCycles;
 #endif
 
+		UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableTaskGraph.AllowLaunchingMutableTaskLowPriority(true, true);
 	}
 
 
@@ -1955,10 +1960,9 @@ namespace impl
 		//-------------------------------------------------------------		
 		{
 			mu::SystemPtr MutableSystem = CustomizableObjectSystemPrivateData->MutableSystem;
-			CustomizableObjectSystemPrivateData->AddMutableThreadTask(
+			CustomizableObjectSystemPrivateData->MutableTaskGraph.AddMutableThreadTask(
 				TEXT("Task_Mutable_ReleaseInstance"),
-				[OperationData, MutableSystem]() {Task_Mutable_ReleaseInstance(OperationData, MutableSystem); },
-				UE::Tasks::ETaskPriority::BackgroundNormal);
+				[OperationData, MutableSystem]() {Task_Mutable_ReleaseInstance(OperationData, MutableSystem); });
 		}
 
 
@@ -1969,10 +1973,12 @@ namespace impl
 			TSharedPtr<FMutableReleasePlatformOperationData> ReleaseOperationData = MakeShared<FMutableReleasePlatformOperationData>();
 			check(ReleaseOperationData);
 			ReleaseOperationData->ImageToPlatformDataMap = MoveTemp(OperationData->ImageToPlatformDataMap);
-			CustomizableObjectSystemPrivateData->AddAnyThreadTask(
+			CustomizableObjectSystemPrivateData->MutableTaskGraph.AddAnyThreadTask(
 				TEXT("Mutable_ReleasePlatformData"),
-				[ReleaseOperationData]() { Task_Game_ReleasePlatformData(ReleaseOperationData); },
-				UE::Tasks::ETaskPriority::BackgroundNormal
+				[ReleaseOperationData]()
+				{
+					Task_Game_ReleasePlatformData(ReleaseOperationData);
+				}
 			);
 
 
@@ -2113,13 +2119,12 @@ namespace impl
 			TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetPrivate()->GetModel();
 			int32 State = ObjectInstance->GetState();
 
-			Mutable_GetImagesTask = SystemPrivateData->AddMutableThreadTask(
+			Mutable_GetImagesTask = SystemPrivateData->MutableTaskGraph.AddMutableThreadTask(
 					TEXT("Task_Mutable_GetImages"),
 					[OperationData, Parameters, Model, State]()
 					{
 						impl::Task_Mutable_Update_GetImages(OperationData, Model, Parameters, State);
-					},
-					UE::Tasks::ETaskPriority::BackgroundHigh);
+					});
 		}
 
 
@@ -2178,13 +2183,12 @@ namespace impl
 			TSharedPtr<FMutableOperation> CurrentMutableOperation = SystemPrivateData->CurrentMutableOperation;
 			check(CurrentMutableOperation);
 
-			Mutable_GetMeshTask = SystemPrivateData->AddMutableThreadTask(
+			Mutable_GetMeshTask = SystemPrivateData->MutableTaskGraph.AddMutableThreadTask(
 				TEXT("Task_Mutable_ReleaseInstanceID"),
 				[CurrentOperationData, MutableSystem]()
 				{
 					impl::Task_Mutable_ReleaseInstanceID(CurrentOperationData, MutableSystem);
-				},
-				UE::Tasks::ETaskPriority::BackgroundHigh);
+				});
 		}
 	}
 
@@ -2206,6 +2210,9 @@ namespace impl
 	{
 		MUTABLE_CPUPROFILER_SCOPE(Task_Game_StartUpdate)
 
+		UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableTaskGraph.AllowLaunchingMutableTaskLowPriority(false, false);
+
+		
 		check(Operation);
 		check(Operation->Type == FMutableOperation::EOperationType::Update);
 
@@ -2385,13 +2392,12 @@ namespace impl
 			TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = CustomizableObject->GetPrivate()->GetModel();
 			int32 State = CustomizableObjectInstancePtr->GetState();
 
-			Mutable_GetMeshTask = SystemPrivateData->AddMutableThreadTask(
+			Mutable_GetMeshTask = SystemPrivateData->MutableTaskGraph.AddMutableThreadTask(
 				TEXT("Task_Mutable_Update_GetMesh"),
 				[CurrentOperationData, bBuildParameterRelevancy, Parameters, Model, State]()
 				{
 					impl::Task_Mutable_Update_GetMesh(CurrentOperationData, Model, Parameters, bBuildParameterRelevancy, State);
-				},
-				UE::Tasks::ETaskPriority::BackgroundHigh);
+				});
 		}
 
 
@@ -2424,9 +2430,6 @@ void UCustomizableObjectSystem::AdvanceCurrentOperation()
 	MUTABLE_CPUPROFILER_SCOPE(AdvanceCurrentOperation);
 
 	check(Private != nullptr);
-
-	// See if we can clear the last reference to the mutable-thread task
-	Private->ClearMutableTaskIfDone();
 
 	// See if we have a game-thread task to process
 	FMutableTask* PendingTask = Private->PendingTasks.Peek();
@@ -2564,10 +2567,7 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 		return true; // Assets are still being loaded, so subobjects won't be found, compiled objects incomplete and thus updates wrong
 	}
 #endif
-
-
-	MUTABLE_CPUPROFILER_SCOPE(TickCustomizableObjectSystem)
-
+	
 	// Get a new operation if we aren't working on one
 	if (!Private->CurrentMutableOperation)
 	{
@@ -2631,9 +2631,7 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 	{
 		AdvanceCurrentOperation();
 	}
-
-
-
+	
 	// TODO: T2927
 	if (LogBenchmarkUtil::isLoggingActive())
 	{
@@ -2653,6 +2651,8 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 #if WITH_EDITOR
 	TickRecompileCustomizableObjects();
 #endif
+
+	Private->MutableTaskGraph.Tick();
 
 	return true;
 }

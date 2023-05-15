@@ -240,14 +240,12 @@ int32 FMutableTextureMipDataProvider::GetMips(const FTextureUpdateContext& Conte
 			OperationData->RescheduleCallback = SyncOptions.RescheduleCallback;
 
 			TSharedPtr<FMutableImageOperationData> LocalOperationData = OperationData;
-			UpdateImageMutableTaskEvent = CustomizableObjectSystem->AddMutableThreadTask(
+			MutableTaskId = CustomizableObjectSystem->MutableTaskGraph.AddMutableThreadTaskLowPriority(
 				TEXT("Mutable_MipUpdate"),
 				[LocalOperationData]()
 				{
 					impl::Task_Mutable_UpdateImage(LocalOperationData);
-				},
-				UE::Tasks::ETaskPriority::BackgroundHigh
-					);
+				});
 		}
 
 		AdvanceTo(ETickState::PollMips, ETickThread::Async);
@@ -323,6 +321,11 @@ void FMutableTextureMipDataProvider::Cancel(const FTextureUpdateSyncOptions& Syn
 	bRequestAborted = true;
 
 	CancelCounterSafely();
+
+	if (UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance())
+	{
+		System->GetPrivate()->MutableTaskGraph.CancelMutableThreadTaskLowPriority(MutableTaskId);	
+	}
 }
 
 
@@ -338,6 +341,11 @@ void FMutableTextureMipDataProvider::AbortPollMips()
 	bRequestAborted = true;
 
 	CancelCounterSafely();
+
+	if (UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance())
+	{
+		System->GetPrivate()->MutableTaskGraph.CancelMutableThreadTaskLowPriority(MutableTaskId);	
+	}
 }
 
 

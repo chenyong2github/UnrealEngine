@@ -2,14 +2,12 @@
 
 #pragma once
 
+#include "FMutableTaskGraph.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Engine/TextureMipDataProviderFactory.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuR/Image.h"
 #include "Streaming/TextureMipDataProvider.h"
-
- // For the MUTABLE_USE_NEW_TASKGRAPH define
-#include "MuR/System.h"
 
 #include "CustomizableObjectMipDataProvider.generated.h"
 
@@ -100,11 +98,8 @@ public:
 	bool bRequestAborted = false;
 
 	TSharedPtr<FMutableImageOperationData> OperationData;
-#ifdef MUTABLE_USE_NEW_TASKGRAPH
-	UE::Tasks::FTask UpdateImageMutableTaskEvent;
-#else
-	FGraphEventRef UpdateImageMutableTaskEvent;
-#endif
+
+	uint32 MutableTaskId = FMutableTaskGraph::INVALID_ID;
 };
 
 

@@ -15,6 +15,7 @@
 #include "MuR/Image.h"
 #include "UObject/GCObject.h"
 #include "WorldCollision.h"
+#include "MuCO/FMutableTaskGraph.h"
 
 // This define could come from MuR/System.h
 #ifdef MUTABLE_USE_NEW_TASKGRAPH
@@ -569,108 +570,9 @@ public:
 	/** */
 	inline void AddGameThreadTask(const FMutableTask& Task)
 	{
+		check(IsInGameThread())
 		PendingTasks.Enqueue(Task);
 	}
-
-	/** */
-#ifdef MUTABLE_USE_NEW_TASKGRAPH
-	template<typename TaskBodyType>
-	inline UE::Tasks::FTask AddMutableThreadTask(const TCHAR* DebugName, TaskBodyType&& TaskBody, UE::Tasks::ETaskPriority Priority)
-	{
-		// This could be called from the game thread or from a worker thread for the texture streaming system
-		//check(IsInGameThread());
-		FScopeLock Lock(&MutableTaskLock);
-
-		if (LastMutableTask.IsValid())
-		{
-			LastMutableTask = UE::Tasks::Launch(DebugName, MoveTemp(TaskBody), LastMutableTask, Priority);
-		}
-		else
-		{
-			LastMutableTask = UE::Tasks::Launch(DebugName, MoveTemp(TaskBody), Priority);
-		}
-		return LastMutableTask;
-	}
-#else
-	template<typename TaskBodyType>
-	inline FGraphEventRef AddMutableThreadTask(const TCHAR* DebugName, TaskBodyType&& TaskBody, UE::Tasks::ETaskPriority Priority)
-	{
-		// This could be called from the game thread or from a worker thread for the texture streaming system
-		//check(IsInGameThread());
-		FScopeLock Lock(&MutableTaskLock);
-
-		// Chain to pending tasks of the mutable thread if any. This ensures exclusive access to mutable.
-		FGraphEventArray Prerequisites;
-		if (LastMutableTask)
-		{
-			Prerequisites.Add(LastMutableTask);
-		}
-
-		LastMutableTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			MoveTemp(TaskBody),
-			TStatId{},
-			&Prerequisites, 
-			ENamedThreads::AnyBackgroundHiPriTask);
-		LastMutableTask->SetDebugName(DebugName);
-
-		return LastMutableTask;
-	}
-#endif
-
-	/** This should only be used when shutting down. */
-	inline void WaitForMutableTasks()
-	{
-		FScopeLock Lock(&MutableTaskLock);
-
-		if (LastMutableTask.IsValid())
-		{
-#ifdef MUTABLE_USE_NEW_TASKGRAPH
-			LastMutableTask.Wait();
-#else
-			LastMutableTask->Wait();
-#endif
-			LastMutableTask = {};
-		}
-	}
-
-	inline void ClearMutableTaskIfDone()
-	{
-		FScopeLock Lock(&MutableTaskLock);
-
-#ifdef MUTABLE_USE_NEW_TASKGRAPH
-		if (LastMutableTask.IsValid() && LastMutableTask.IsCompleted())
-		{
-			LastMutableTask = {};
-		}
-#else
-		if (LastMutableTask.IsValid() && LastMutableTask->IsComplete())
-		{
-			LastMutableTask = nullptr;
-		}
-#endif
-	}
-
-
-	template<typename TaskBodyType>
-	inline void AddAnyThreadTask(const TCHAR* DebugName, TaskBodyType&& TaskBody, UE::Tasks::ETaskPriority Priority)
-	{
-		check(IsInGameThread());
-
-#ifdef MUTABLE_USE_NEW_TASKGRAPH
-		UE::Tasks::Launch(DebugName, MoveTemp(TaskBody), Priority);
-#else
-		FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
-			MoveTemp(TaskBody),
-			TStatId{},
-			nullptr,
-			ENamedThreads::AnyThread);
-		Task->SetDebugName(TEXT("Mutable_Anythread"));
-#endif
-	}
-
-
-	//
-	//TSharedPtr<FMutableOperationData> CurrentOperationData;
 
 
 	/** FSerializableObject interface */
@@ -841,17 +743,7 @@ public:
 
 	bool IsMutableAnimInfoDebuggingEnabled() const;
 
-private:
-
-	/** Access to this must be protected with this. */
-	mutable FCriticalSection MutableTaskLock;
-
-#ifdef MUTABLE_USE_NEW_TASKGRAPH
-	UE::Tasks::FTask LastMutableTask;
-#else
-	FGraphEventRef LastMutableTask = nullptr;
-#endif
-
-
+	/** Mutable TaskGraph system (Mutable Thread). */
+	FMutableTaskGraph MutableTaskGraph;
 };
 
