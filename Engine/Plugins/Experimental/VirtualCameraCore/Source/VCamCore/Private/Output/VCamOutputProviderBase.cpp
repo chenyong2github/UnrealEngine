@@ -633,7 +633,10 @@ void UVCamOutputProviderBase::ModifyViewportPostProcessSettings(FEditorViewportV
 TOptional<bool> UVCamOutputProviderBase::GetRenderWidgetStateInContext(const ISceneViewExtension* SceneViewExtension, const FSceneViewExtensionContext& Context)
 {
 	const bool bWillRenderIntoTargetViewport = Context.Viewport && GetTargetLevelViewportClient() == Context.Viewport->GetClient();
+	const bool bIsGameWorld = GetWorld()->IsGameWorld();
 	return bWillRenderIntoTargetViewport
+		// Always allow rendering into game worlds
+		|| bIsGameWorld
 		// By contract we should only ever return false when it is not ok to render and return empty otherwise
 		? TOptional<bool>{}
 		: false;
