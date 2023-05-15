@@ -426,5 +426,8 @@ public:
 	static bool GenericMap_IsNotEmpty(const void* TargetMap, const FMapProperty* MapProperty);
 	static void GenericMap_Clear(const void* TargetMap, const FMapProperty* MapProperty);
 	static void GenericMap_SetMapPropertyByName(UObject* OwnerObject, FName MapPropertyName, const void* SrcMapAddr);
+
+private:
+	static constexpr int32 MaxSupportedMapSize = TNumericLimits<int32>::Max();
 };
 

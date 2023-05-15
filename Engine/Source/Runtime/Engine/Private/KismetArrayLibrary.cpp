@@ -22,6 +22,8 @@ const FName ResizeArrayNegativeWarning = FName("ResizeArrayNegativeWarning");
 const FName SwapElementsInArrayWarning = FName("SwapElementsInArrayWarning");
 const FName RandomAccessToEmptyArrayWarning = FName("RandomAccessToEmptyArrayWarning");
 
+const FName UKismetArrayLibrary::ReachedMaximumContainerSizeWarning = FName("ReachedMaximumContainerSizeWarning");
+
 UKismetArrayLibrary::UKismetArrayLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -67,6 +69,12 @@ UKismetArrayLibrary::UKismetArrayLibrary(const FObjectInitializer& ObjectInitial
 			LOCTEXT("RandomAccessToEmptyArrayWarning", "Random access to empty array")
 		)
 	);
+	FBlueprintSupport::RegisterBlueprintWarning(
+		FBlueprintWarningDeclaration(
+			ReachedMaximumContainerSizeWarning,
+			LOCTEXT("ReachedMaximumContainerSizeWarning", "Container has reached maximum size")
+		)
+	);
 }
 
 void UKismetArrayLibrary::FilterArray(const TArray<AActor*>& TargetArray, TSubclassOf<class AActor> FilterClass, TArray<AActor*>& FilteredArray)
@@ -88,10 +96,17 @@ int32 UKismetArrayLibrary::GenericArray_Add(void* TargetArray, const FArrayPrope
 	if( TargetArray )
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProp, TargetArray);
-		FProperty* InnerProp = ArrayProp->Inner;
+		if (ArrayHelper.Num() < MaxSupportedArraySize)
+		{
+			FProperty* InnerProp = ArrayProp->Inner;
 
-		NewIndex = ArrayHelper.AddValue();
-		InnerProp->CopySingleValueToScriptVM(ArrayHelper.GetRawPtr(NewIndex), NewItem);
+			NewIndex = ArrayHelper.AddValue();
+			InnerProp->CopySingleValueToScriptVM(ArrayHelper.GetRawPtr(NewIndex), NewItem);
+		}
+		else
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Attempted add to array '%s' beyond the maximum supported capacity!"), *ArrayProp->GetName()), ELogVerbosity::Warning, ReachedMaximumContainerSizeWarning);
+		}
 	}
 	return NewIndex;
 }
@@ -106,8 +121,15 @@ int32 UKismetArrayLibrary::GenericArray_AddUnique(void* TargetArray, const FArra
 
 		if (GenericArray_Find(TargetArray, ArrayProp, NewItem) == INDEX_NONE)
 		{
-			NewIndex = ArrayHelper.AddValue();
-			InnerProp->CopySingleValueToScriptVM(ArrayHelper.GetRawPtr(NewIndex), NewItem);
+			if (ArrayHelper.Num() < MaxSupportedArraySize)
+			{
+				NewIndex = ArrayHelper.AddValue();
+				InnerProp->CopySingleValueToScriptVM(ArrayHelper.GetRawPtr(NewIndex), NewItem);
+			}
+			else
+			{
+				FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Attempted add to array '%s' beyond the maximum supported capacity!"), *ArrayProp->GetName()), ELogVerbosity::Warning, ReachedMaximumContainerSizeWarning);
+			}
 		}
 	}
 	return NewIndex;
@@ -156,11 +178,24 @@ void UKismetArrayLibrary::GenericArray_Append(void* TargetArray, const FArrayPro
 		{
 			FProperty* InnerProp = TargetArrayProp->Inner;
 
-			const int32 EndIdx = SourceArrayHelper.Num();
-			int32 StartIdx = TargetArrayHelper.AddValues(SourceArrayHelper.Num());
-			for(int32 x = 0; x < EndIdx; ++x, ++StartIdx)
+			// Determine the maximum index value that we can store, and compute the difference between that and the index of the
+			// last element in the target array. If the difference is smaller than the size of the source array, then we'll only
+			// add that number of values (i.e. until we reach the maximum supported size). Otherwise, we append the full source array.
+			const int32 MaxIdx = MaxSupportedArraySize - 1;
+			const int32 AddNum = FMath::Min(SourceArrayHelper.Num(), MaxIdx - GetLastIndex(TargetArrayHelper));
+			if (AddNum > 0)
 			{
-				InnerProp->CopySingleValueToScriptVM(TargetArrayHelper.GetRawPtr(StartIdx), SourceArrayHelper.GetRawPtr(x));
+				int32 StartIdx = TargetArrayHelper.AddValues(AddNum);
+				for (int32 x = 0; x < AddNum; ++x, ++StartIdx)
+				{
+					InnerProp->CopySingleValueToScriptVM(TargetArrayHelper.GetRawPtr(StartIdx), SourceArrayHelper.GetRawPtr(x));
+				}
+			}
+
+			// Warn if we didn't add all the values from the source array (due to having reached our maximum supported size).
+			if (AddNum < SourceArrayHelper.Num())
+			{
+				FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Attempted append to array '%s' beyond the maximum supported capacity!"), *TargetArrayProp->GetName()), ELogVerbosity::Warning, ReachedMaximumContainerSizeWarning);
 			}
 		}
 	}
@@ -361,7 +396,7 @@ void UKismetArrayLibrary::GenericArray_Set(void* TargetArray, const FArrayProper
 		FProperty* InnerProp = ArrayProp->Inner;
 
 		// Expand the array, if desired
-		if (!ArrayHelper.IsValidIndex(Index) && bSizeToFit && (Index >= 0))
+		if (!ArrayHelper.IsValidIndex(Index) && bSizeToFit && (Index >= 0) && (Index < MaxSupportedArraySize))
 		{
 			ArrayHelper.ExpandForIndex(Index);
 		}
@@ -369,6 +404,10 @@ void UKismetArrayLibrary::GenericArray_Set(void* TargetArray, const FArrayProper
 		if (ArrayHelper.IsValidIndex(Index))
 		{
 			InnerProp->CopySingleValueToScriptVM(ArrayHelper.GetRawPtr(Index), NewItem);
+		}
+		else if (Index >= MaxSupportedArraySize)
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Attempted to set an index on array %s beyond its maximum supported capacity!"), *ArrayProp->GetName()), ELogVerbosity::Warning, ReachedMaximumContainerSizeWarning);
 		}
 		else
 		{

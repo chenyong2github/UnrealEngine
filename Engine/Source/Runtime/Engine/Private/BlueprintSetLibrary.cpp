@@ -10,7 +10,14 @@ void UBlueprintSetLibrary::GenericSet_Add(const void* TargetSet, const FSetPrope
 	if (TargetSet)
 	{
 		FScriptSetHelper SetHelper(SetProperty, TargetSet);
-		SetHelper.AddElement(ItemPtr);
+		if (SetHelper.Num() < MaxSupportedSetSize)
+		{
+			SetHelper.AddElement(ItemPtr);
+		}
+		else if (SetHelper.FindElementIndexFromHash(ItemPtr) == INDEX_NONE)
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Attempted add to set '%s' beyond the maximum supported capacity!"), *SetProperty->GetName()), ELogVerbosity::Warning, UKismetArrayLibrary::ReachedMaximumContainerSizeWarning);
+		}
 	}
 }
 
@@ -221,4 +228,3 @@ void UBlueprintSetLibrary::GenericSet_SetSetPropertyByName(UObject* OwnerObject,
 		}
 	}
 }
-

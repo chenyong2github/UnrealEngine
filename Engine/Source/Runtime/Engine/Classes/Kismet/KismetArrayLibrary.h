@@ -283,9 +283,14 @@ class ENGINE_API UKismetArrayLibrary : public UBlueprintFunctionLibrary
 	static bool GenericArray_IsValidIndex(const void* TargetArray, const FArrayProperty* ArrayProp, int32 IndexToTest);
 	
 private:
+	static constexpr int32 MaxSupportedArraySize = TNumericLimits<int32>::Max();
+
 	static void GenericArray_HandleBool(const FProperty* Property, void* ItemPtr);
 
 public:
+	// Shared warning IDs for use by other container libraries.
+	static const FName ReachedMaximumContainerSizeWarning;
+
 	// Helper function to get the last valid index of the array for error reporting, or 0 if the array is empty
 	static int32 GetLastIndex(const FScriptArrayHelper& ArrayHelper)
 	{

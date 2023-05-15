@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/BlueprintMapLibrary.h"
+#include "Kismet/KismetArrayLibrary.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintMapLibrary)
 
@@ -9,7 +10,14 @@ void UBlueprintMapLibrary::GenericMap_Add(const void* TargetMap, const FMapPrope
 	if (TargetMap)
 	{
 		FScriptMapHelper MapHelper(MapProperty, TargetMap);
-		MapHelper.AddPair(KeyPtr, ValuePtr);
+		if (MapHelper.Num() < MaxSupportedMapSize)
+		{
+			MapHelper.AddPair(KeyPtr, ValuePtr);
+		}
+		else if (!MapHelper.FindValueFromHash(KeyPtr))
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Attempted add to map '%s' beyond the maximum supported capacity!"), *MapProperty->GetName()), ELogVerbosity::Warning, UKismetArrayLibrary::ReachedMaximumContainerSizeWarning);
+		}
 	}
 }
 
@@ -141,4 +149,3 @@ void UBlueprintMapLibrary::GenericMap_SetMapPropertyByName(UObject* OwnerObject,
 		}
 	}
 }
-
