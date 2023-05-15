@@ -125,7 +125,6 @@ void UpdateD3D11TextureStats(FD3D11Texture& Texture, bool bAllocating)
 		INC_DWORD_STAT(STAT_D3D11TexturesReleased);
 	}
 
-#if PLATFORM_WINDOWS
 	// On Windows there is no way to hook into the low level d3d allocations and frees.
 	// This means that we must manually add the tracking here.
 	if (bAllocating)
@@ -143,7 +142,6 @@ void UpdateD3D11TextureStats(FD3D11Texture& Texture, bool bAllocating)
 		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Default , Texture.GetResource()));
 		MemoryTrace_Free((uint64)Texture.GetResource(), EMemoryTraceRootHeap::VideoMemory);
 	}
-#endif
 }
 
 FDynamicRHI::FRHICalcTextureSizeResult FD3D11DynamicRHI::RHICalcTexturePlatformSize(FRHITextureDesc const& Desc, uint32 FirstMipIndex)
@@ -210,7 +208,7 @@ void ApplyBC7SoftwareAdapterWorkaround(bool bSoftwareAdapter, D3D11_TEXTURE2D_DE
 }
 
 /** If true, guard texture creates with SEH to log more information about a driver crash we are seeing during texture streaming. */
-#define GUARDED_TEXTURE_CREATES (PLATFORM_WINDOWS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST || PLATFORM_COMPILER_CLANG))
+#define GUARDED_TEXTURE_CREATES (!(UE_BUILD_SHIPPING || UE_BUILD_TEST || PLATFORM_COMPILER_CLANG))
 
 /**
  * Creates a 2D texture optionally guarded by a structured exception handler.

@@ -313,9 +313,8 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 	}
 
 	RECT WindowRect = {};
-#if PLATFORM_WINDOWS
 	GetWindowRect(WindowHandle, &WindowRect);
-#endif
+
 	FVector2D WindowTopLeft((float)WindowRect.left, (float)WindowRect.top);
 	FVector2D WindowBottomRight((float)WindowRect.right, (float)WindowRect.bottom);
 	bool bHDREnabled;

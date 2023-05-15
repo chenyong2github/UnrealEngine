@@ -216,9 +216,8 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 				SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain.GetInitReference()));
 
 				RECT WindowRect = {};
-#if PLATFORM_WINDOWS
 				GetWindowRect(WindowHandle, &WindowRect);
-#endif
+
 				FVector2D WindowTopLeft((float)WindowRect.left, (float)WindowRect.top);
 				FVector2D WindowBottomRight((float)WindowRect.right, (float)WindowRect.bottom);
 				bool bHDREnabled = false;

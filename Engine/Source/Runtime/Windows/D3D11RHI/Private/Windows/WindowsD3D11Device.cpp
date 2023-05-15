@@ -2098,10 +2098,8 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			TRefCountPtr<ID3D11InfoQueue> d3dInfoQueue;
 			if (SUCCEEDED(GD3D11RHI->GetDevice()->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)d3dInfoQueue.GetInitReference())))
 			{
-#if PLATFORM_WINDOWS
 				/* install callback */
 				ExceptionHandlerHandle = AddVectoredExceptionHandler(1, D3D11VectoredExceptionHandler);
-#endif
 
 				/* filter messages */
 				const bool bLogWarnings = D3D11_ShouldBreakOnD3DDebugWarnings() || D3D11_ShouldLogD3DDebugWarnings();
@@ -2163,7 +2161,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 		StateCache.Init(Direct3DDeviceIMContext);
 
-#if (UE_BUILD_SHIPPING && WITH_EDITOR) && PLATFORM_WINDOWS && !PLATFORM_64BITS
+#if (UE_BUILD_SHIPPING && WITH_EDITOR) && !PLATFORM_64BITS
 		// Disable PIX for windows in the shipping editor builds
 		D3DPERF_SetOptions(1);
 #endif
@@ -2216,7 +2214,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 		CACHE_NV_AFTERMATH_ENABLED();
 
-#if PLATFORM_WINDOWS
 		IUnknown* RenderDoc;
 		IID RenderDocID;
 		if (SUCCEEDED(IIDFromString(L"{A7AA6116-9C8D-4BBA-9083-B4D816B71B78}", &RenderDocID)))
@@ -2238,7 +2235,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			// Running under Intel GPA, so enable capturing mode
 			GDynamicRHI->EnableIdealGPUCaptureOptions(true);
 		}
-#endif
 
 		if (IsRHIDeviceNVIDIA())
 		{
