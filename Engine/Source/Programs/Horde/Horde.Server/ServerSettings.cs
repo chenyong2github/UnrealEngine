@@ -488,6 +488,11 @@ namespace Horde.Server
 		public string? OidcSigninRedirect { get; set; }
 
 		/// <summary>
+		/// Optional redirect url provided to OIDC login for external tools (typically to a local server)
+		/// </summary>
+		public string[]? OidcLocalRedirectUrls { get; set; }
+
+		/// <summary>
 		/// OpenID Connect scopes to request when signing in
 		/// </summary>
 		public string[] OidcRequestedScopes { get; set; } = { "profile", "email", "openid" };

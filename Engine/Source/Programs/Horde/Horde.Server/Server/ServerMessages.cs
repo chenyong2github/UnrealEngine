@@ -59,5 +59,31 @@ namespace Horde.Server.Server
 		/// </summary>
 		public int? UnencryptedHttp2 { get; set; }
 	}
+
+	/// <summary>
+	/// Describes the auth config for this server
+	/// </summary>
+	public class GetAuthConfigResponse
+	{
+		/// <inheritdoc cref="ServerSettings.AuthMethod"/>
+		public AuthMethod Method { get; }
+
+		/// <inheritdoc cref="ServerSettings.OidcAuthority"/>
+		public string? ServerUrl { get; }
+
+		/// <inheritdoc cref="ServerSettings.OidcClientId"/>
+		public string? ClientId { get; }
+
+		/// <inheritdoc cref="ServerSettings.OidcLocalRedirectUrls"/>
+		public string[]? LocalRedirectUrls { get; }
+
+		internal GetAuthConfigResponse(ServerSettings settings)
+		{
+			Method = settings.AuthMethod;
+			ServerUrl = settings.OidcAuthority;
+			ClientId = settings.OidcClientId;
+			LocalRedirectUrls = settings.OidcLocalRedirectUrls;
+		}
+	}
 }
 

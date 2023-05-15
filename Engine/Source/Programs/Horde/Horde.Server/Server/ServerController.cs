@@ -88,5 +88,16 @@ namespace Horde.Server.Server
 			response.UnencryptedHttp2 = serverSettings.Http2Port;
 			return response;
 		}
+
+		/// <summary>
+		/// Returns settings for automating auth against this server
+		/// </summary>
+		[HttpGet]
+		[AllowAnonymous]
+		[Route("/api/v1/server/auth")]
+		public ActionResult<GetAuthConfigResponse> GetAuthConfig()
+		{
+			return new GetAuthConfigResponse(_globalConfig.Value.ServerSettings);
+		}
 	}
 }
