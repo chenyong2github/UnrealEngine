@@ -83,7 +83,7 @@ class INTERCHANGEPIPELINES_API UInterchangeMaterialXPipeline : public UInterchan
 	UInterchangeMaterialXPipeline();
 
 public:
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "MaterialX")
+	
 	TObjectPtr<UMaterialXPipelineSettings> MaterialXSettings;
 
 protected:

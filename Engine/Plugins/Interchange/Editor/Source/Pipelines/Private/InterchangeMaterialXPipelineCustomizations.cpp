@@ -9,14 +9,8 @@
 #include "DetailLayoutBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyCustomizationHelpers.h"
-//#include "DetailWidgetRow.h"
-//#include "IDetailGroup.h"
-//#include "InterchangePipelineBase.h"
-//#include "Nodes/InterchangeBaseNode.h"
-//#include "ScopedTransaction.h"
-//#include "Styling/StyleColors.h"
-//#include "Widgets/Input/SNumericEntryBox.h"
-//#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SEditableText.h"
 
 TSharedRef<IDetailCustomization> FInterchangeMaterialXPipelineCustomization::MakeInstance()
 {
@@ -53,13 +47,14 @@ void FInterchangeMaterialXPipelineCustomization::CustomizeDetails(IDetailLayoutB
 
 	DetailsView->SetObject(Pipeline->MaterialXSettings);
 
-	MaterialXCategory.AddCustomRow(NSLOCTEXT("InterchangeMaterialXPipelineCustomization", "MaterialXPredefined", "Predefined Material Functions"))
+	MaterialXCategory.AddCustomRow(NSLOCTEXT("InterchangeMaterialXPipelineMaterialSubstitution::Message::Row", "MaterialXPredefinedMaterialSubstitutionMessageRow", "MaterialX Pipeline Material Substitution Message"))
+	.NameContent()
+	.VAlign(VAlign_Center)
 	[
-		SNew( SVerticalBox )
-		+ SVerticalBox::Slot()
-		[
-			DetailsView.ToSharedRef()
-		]
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(NSLOCTEXT("InterchangeMaterialXPipelineCustomization::Message", "MaterialXPredefinedMaterialSubstitutionMessage", "See 'Project Settings > Engine > Interchange MaterialX' to edit settings."))
+		.AutoWrapText(true)
 	];
 }
 
@@ -88,7 +83,8 @@ void FInterchangeMaterialXPipelineSettingsCustomization::CustomizeDetails(IDetai
 
 	IDetailCategoryBuilder& MaterialXPredefinedCategory = DetailBuilder.EditCategory("MaterialXPredefined");
 
-	MaterialXPredefinedCategory.SetDisplayName(NSLOCTEXT("InterchangeMaterialXPipelineSettingsCustomization", "CategoryDisplayName", "MaterialX Predefined Surface Shaders"));
+	FText DisplayName{ NSLOCTEXT("InterchangeMaterialXPipelineSettingsCustomization", "CategoryDisplayName", "MaterialX Predefined Surface Shaders") };
+	MaterialXPredefinedCategory.SetDisplayName(DisplayName);
 
 	uint32 NumChildren = 0;
 	PairingsHandle->GetNumChildren(NumChildren);
@@ -98,38 +94,40 @@ void FInterchangeMaterialXPipelineSettingsCustomization::CustomizeDetails(IDetai
 		TSharedPtr<IPropertyHandle> ChildPropertyHandle = PairingsHandle->GetChildHandle(i);
 		TSharedPtr<IPropertyHandle> KeyPropertyHandle = ChildPropertyHandle->GetKeyHandle();
 
+		UEnum* Enum = CastField<FEnumProperty>(KeyPropertyHandle->GetProperty())->GetEnum();
+
+		FText EnumString;
+		KeyPropertyHandle->GetValueAsDisplayText(EnumString);
+
 		OnShouldFilterAssetFunc OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAsset;
 
-		if(KeyPropertyHandle.IsValid())
+		uint8 EnumValue = 0;
+		KeyPropertyHandle->GetValue(EnumValue);
+		if(EnumString.ToString() == TEXT("Standard Surface"))
 		{
-			FString Str;
-			KeyPropertyHandle->GetValueAsDisplayString(Str);
-			if(Str == TEXT("Standard Surface"))
-			{
-				OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStandardSurface;
-			}
-			else if(Str == TEXT("Standard Surface Transmission"))
-			{
-				OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStandardSurfaceTransmission;
-			}
-			else if(Str == TEXT("Surface Unlit"))
-			{
-				OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetSurfaceUnlit;
-			}
-			else if(Str == TEXT("Usd Preview Surface"))
-			{
-				OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetUsdPreviewSurface;
-			}
+			OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStandardSurface;
+		}
+		else if(EnumString.ToString() == TEXT("Standard Surface Transmission"))
+		{
+			OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetStandardSurfaceTransmission;
+		}
+		else if(EnumString.ToString() == TEXT("Surface Unlit"))
+		{
+			OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetSurfaceUnlit;
+		}
+		else if(EnumString.ToString() == TEXT("Usd Preview Surface"))
+		{
+			OnShouldFilterAsset = &FInterchangeMaterialXPipelineSettingsCustomization::OnShouldFilterAssetUsdPreviewSurface;
 		}
 
-		IDetailPropertyRow& SurfaceShaderTypeRow = DetailBuilder.AddPropertyToCategory(ChildPropertyHandle.ToSharedRef());
-		SurfaceShaderTypeRow.ShowPropertyButtons(false);
-
-		FDetailWidgetRow& DetailWidgetRow = SurfaceShaderTypeRow.CustomWidget();
+		FDetailWidgetRow& DetailWidgetRow = MaterialXPredefinedCategory.AddCustomRow(DisplayName);
 		DetailWidgetRow
 		.NameContent()
 		[
-			SNullWidget::NullWidget
+			SNew(SEditableText)
+			.Text(EnumString)
+			.IsReadOnly(true)
+			.ToolTipText(Enum->GetToolTipTextByIndex(EnumValue))
 		]
 		.ValueContent()
 		.MinDesiredWidth(1.0f)
