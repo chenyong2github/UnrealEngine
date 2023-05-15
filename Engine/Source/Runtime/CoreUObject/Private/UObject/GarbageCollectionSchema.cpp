@@ -812,18 +812,18 @@ static void DumpDistribution(FOutputDevice& Out, const TCHAR* Title, const FLog2
 		}
 	}
 }
-static void DumpSchemaStats(FOutputDevice& Out, const FSchemaStats& InStats)
+static void DumpSchemaStats(FOutputDevice& Out, const FSchemaStats& Stats)
 {
 	static constexpr TCHAR FormatStr[] = TEXT(" %18s %5.1f%% %5.1f%%  %d");
 
 	uint32 Sum = 0;
 	for (uint32 Idx = 0; Idx < MemberTypeCount; ++Idx)
 	{
-		if (uint32 Num = InStats.Counters[Idx])
+		if (uint32 Num = Stats.Counters[Idx])
 		{
 			Sum += Num;
-			float Percentage = (100.f * Num) / InStats.NumMembers;
-			float Cumulative = (100.f * Sum) / InStats.NumMembers;
+			float Percentage = (100.f * Num) / Stats.NumMembers;
+			float Cumulative = (100.f * Sum) / Stats.NumMembers;
 			Out.Logf(FormatStr, *ToName(EMemberType(Idx)).ToString(), Percentage, Cumulative, Num);
 		}
 	}
