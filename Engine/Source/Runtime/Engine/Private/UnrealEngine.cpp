@@ -12430,24 +12430,24 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 #endif // UE_BUILD_SHIPPING 
 
 	{
-		int32 X = ((CanvasObject) ? CanvasObject->SizeX : TextureSize.X) / Canvas->GetDPIScale() - FPSXOffset;
-		int32 Y = FMath::TruncToInt(TextureSize.Y * 0.20f) / Canvas->GetDPIScale();
+		int32 RightSideX = ((CanvasObject) ? CanvasObject->SizeX : TextureSize.X) / Canvas->GetDPIScale() - FPSXOffset;
+		int32 RightSideY = FMath::TruncToInt(TextureSize.Y * 0.20f) / Canvas->GetDPIScale();
 
 		// give the viewport first shot at drawing stats
-		Y = Viewport->DrawStatsHUD(Canvas, StatsXOffset, Y);
+		RightSideY = Viewport->DrawStatsHUD(Canvas, StatsXOffset, RightSideY);
 
 		// Named events are enabled through multiple paths, so draw them here
-		Y = GEngine->RenderNamedEventsEnabled(Canvas, X, Y);
+		RightSideY = GEngine->RenderNamedEventsEnabled(Canvas, RightSideX, RightSideY);
 
 		// Render all the simple stats
-		GEngine->RenderEngineStats(World, Viewport, Canvas, StatsXOffset, MessageY, X, Y, &ViewLocation, &ViewRotation);
+		GEngine->RenderEngineStats(World, Viewport, Canvas, StatsXOffset /*LHSX*/, MessageY /*InOutLHSY*/, RightSideX /*RHSX*/, RightSideY /*InOutRHSY*/, &ViewLocation, &ViewRotation);
 
 #if STATS
 		extern void RenderStats(FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, int32 SizeX);
 
 		int32 PixelSizeX = CanvasObject != nullptr ? CanvasObject->CachedDisplayWidth - CanvasObject->SafeZonePadX * 2 : TextureSize.X;
 
-		RenderStats( Viewport, Canvas, StatsXOffset, Y, FMath::FloorToInt(PixelSizeX / Canvas->GetDPIScale()));
+		RenderStats( Viewport, Canvas, StatsXOffset, MessageY, FMath::FloorToInt(PixelSizeX / Canvas->GetDPIScale()));
 #endif
 	}
 
