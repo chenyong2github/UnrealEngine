@@ -690,6 +690,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	void SetPerLevelCollisionProfileNames(const TArray<FName>& ProfileNames);
 
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void SetPerParticleCollisionProfileName(const TArray<int32>& BoneIds, FName ProfileName);
+
 	/** API for getting at geometry collection data */
 	int32 GetNumElements(FName Group) const;
 
@@ -1198,6 +1201,11 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetPerLevelCollisionProfileNames, Category=Physics)
 	TArray<FName> CollisionProfilePerLevel;
+
+	/**
+	 * A per-particle collision profile name. If the per-particle collision profile name exists, it will override the per-level profile name.
+	 */
+	TArray<FName> CollisionProfilePerParticle;
 
 	/**
 	 * If replicating - the cluster level to stop sending corrections for geometry collection chunks.

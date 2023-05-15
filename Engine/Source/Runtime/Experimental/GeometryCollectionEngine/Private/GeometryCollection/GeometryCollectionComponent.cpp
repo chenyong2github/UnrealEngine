@@ -3084,6 +3084,29 @@ void UGeometryCollectionComponent::SetPerLevelCollisionProfileNames(const TArray
 	LoadCollisionProfiles();
 }
 
+void UGeometryCollectionComponent::SetPerParticleCollisionProfileName(const TArray<int32>& BoneIds, FName ProfileName)
+{
+	if (!RestCollection)
+	{
+		return;
+	}
+
+	if (CollisionProfilePerParticle.IsEmpty())
+	{
+		CollisionProfilePerParticle.SetNumZeroed(RestCollection->GetGeometryCollection()->Transform.Num());
+	}
+
+	for (int32 Id : BoneIds)
+	{
+		if (CollisionProfilePerParticle.IsValidIndex(Id))
+		{
+			CollisionProfilePerParticle[Id] = ProfileName;
+		}
+	}
+
+	LoadCollisionProfiles();
+}
+
 void UGeometryCollectionComponent::LoadCollisionProfiles()
 {
 	if (!PhysicsProxy)
@@ -3147,7 +3170,11 @@ void UGeometryCollectionComponent::LoadCollisionProfiles()
 
 			TArrayView<Chaos::FPhysicsObjectHandle> ParticleView{ &PhysicsObjects[ParticleIndex], 1 };
 			const CollisionProfileDataCache* Data = nullptr;
-			if (AbandonedData && Level >= ReplicationAbandonAfterLevel + 1)
+			if (!CollisionProfilePerParticle.IsEmpty() && CollisionProfilePerParticle[ParticleIndex] != NAME_None)
+			{
+				Data = CreateOrGetCollisionProfileData(CollisionProfilePerParticle[ParticleIndex]);
+			}
+			else if (AbandonedData && Level >= ReplicationAbandonAfterLevel + 1)
 			{
 				Data = AbandonedData;
 			}
