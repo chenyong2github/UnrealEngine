@@ -27,12 +27,6 @@ UWorldPartitionRuntimeCellDataSpatialHash::UWorldPartitionRuntimeCellDataSpatial
 	, CachedMinSquareDistanceToSource(MAX_dbl)
 {}
 
-void UWorldPartitionRuntimeCellDataSpatialHash::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-	Ar << DebugName;
-}
-
 void UWorldPartitionRuntimeCellDataSpatialHash::ResetStreamingSourceInfo() const
 {
 	Super::ResetStreamingSourceInfo();
@@ -182,9 +176,4 @@ bool UWorldPartitionRuntimeCellDataSpatialHash::IsDebugShown() const
 	return Super::IsDebugShown() && 
 		   FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(GridName) &&
 		   FWorldPartitionDebugHelper::IsDebugCellNameShown(GetName());
-}
-
-FString UWorldPartitionRuntimeCellDataSpatialHash::GetDebugName() const
-{
-	return DebugName.GetString();
 }

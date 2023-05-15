@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "StringDev.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartitionRuntimeCellData.generated.h"
 
@@ -15,6 +16,10 @@ class ENGINE_API UWorldPartitionRuntimeCellData : public UObject
 
 	virtual ~UWorldPartitionRuntimeCellData() {}
 
+	//~Begin UObject Interface
+	void Serialize(FArchive& Ar);
+	//~End UObject Interface
+
 	inline bool ShouldResetStreamingSourceInfo() const { return CachedSourceInfoEpoch != StreamingSourceCacheEpoch; }
 
 	virtual void ResetStreamingSourceInfo() const;
@@ -26,7 +31,7 @@ class ENGINE_API UWorldPartitionRuntimeCellData : public UObject
 	virtual FBox GetCellBounds() const;
 
 	virtual bool IsDebugShown() const { return true; }
-	virtual FString GetDebugName() const { return GetName(); }
+	virtual FString GetDebugName() const;
 
 	static int32 StreamingSourceCacheEpoch;
 	static inline void DirtyStreamingSourceCacheEpoch() { ++StreamingSourceCacheEpoch; }
@@ -42,4 +47,6 @@ class ENGINE_API UWorldPartitionRuntimeCellData : public UObject
 
 	UPROPERTY()
 	FBox ContentBounds;
+
+	FStringTest DebugName;
 };

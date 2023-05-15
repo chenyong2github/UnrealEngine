@@ -11,6 +11,12 @@ UWorldPartitionRuntimeCellData::UWorldPartitionRuntimeCellData(const FObjectInit
 	, ContentBounds(ForceInit)
 {}
 
+void UWorldPartitionRuntimeCellData::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar << DebugName;
+}
+
 void UWorldPartitionRuntimeCellData::ResetStreamingSourceInfo() const
 {
 	check(ShouldResetStreamingSourceInfo());
@@ -43,4 +49,9 @@ const FBox& UWorldPartitionRuntimeCellData::GetContentBounds() const
 FBox UWorldPartitionRuntimeCellData::GetCellBounds() const
 {
 	return ContentBounds;
+}
+
+FString UWorldPartitionRuntimeCellData::GetDebugName() const
+{
+	return DebugName.GetString();
 }
