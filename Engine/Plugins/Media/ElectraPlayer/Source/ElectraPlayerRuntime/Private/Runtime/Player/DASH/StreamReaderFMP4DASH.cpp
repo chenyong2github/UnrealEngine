@@ -1180,7 +1180,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 									// Entirely past the time allowed?
 									if (bIsLastSegment || Request->Segment.bFrameAccuracyRequired)
 									{
-										if (AUPTS >= MediaLocalLastAUTime)
+										if (AUDTS >= MediaLocalLastAUTime && AUPTS >= MediaLocalLastAUTime)
 										{
 											AccessUnit->DropState |= FAccessUnit::EDropState::TooLate;
 										}
