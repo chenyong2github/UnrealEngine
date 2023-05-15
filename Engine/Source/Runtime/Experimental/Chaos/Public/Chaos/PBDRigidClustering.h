@@ -440,6 +440,7 @@ public:
 	void RemoveNodeConnections(FPBDRigidClusteredParticleHandle* Child);
 
 	void RemoveChildFromParent(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
+	void RemoveChildFromParentAndChildrenArray(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
 
 	// When a body has broken due to contact resolution, record an entry in a set
 	// for the collision and the particle who's momentum should be restored.
@@ -456,6 +457,11 @@ public:
 		FPBDRigidClusteredParticleHandle* ClusteredParticle, 
 		bool bForceRelease,
 		bool bCreateNewClusters);
+
+	/**
+	 * Handles leveraging the connectivity edges on the children of the clustered particle to produce the desired effects.
+	 */
+	TSet<FPBDRigidParticleHandle*> HandleConnectivityOnReleaseClusterParticle(FPBDRigidClusteredParticleHandle* ClusteredParticle, bool bCreateNewClusters);
 	
 	using FParticleIsland = TArray<FPBDRigidParticleHandle*>;
 	TArray<FParticleIsland> FindIslandsInChildren(const FPBDRigidClusteredParticleHandle* ClusteredParticle);

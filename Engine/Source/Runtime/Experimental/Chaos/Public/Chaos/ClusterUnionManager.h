@@ -51,6 +51,9 @@ namespace Chaos
 		// All the particles that belong to this cluster.
 		TArray<FPBDRigidParticleHandle*> ChildParticles;
 
+		// The internal index used to reference the cluster union.
+		FClusterUnionIndex InternalIndex;
+
 		// An explicit index set by the user if any.
 		FClusterUnionExplicitIndex ExplicitIndex;
 

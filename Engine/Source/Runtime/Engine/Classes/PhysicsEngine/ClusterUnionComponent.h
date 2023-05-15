@@ -107,6 +107,9 @@ struct FClusterUnionParticleCandidateData
 	int32 BoneId = INDEX_NONE;
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnClusterUnionAddedComponent, UPrimitiveComponent*, Component, const TSet<int32>&, BoneIds, bool, bIsNew);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnClusterUnionRemovedComponent, UPrimitiveComponent*, Component);
+
 /**
  * This does the bulk of the work exposing a physics cluster union to the game thread.
  * This component needs to be a primitive component primarily because of how physics
@@ -162,6 +165,12 @@ public:
 	// Multi-trace/sweep functions that only make sense in the context of a cluster union.
 	bool LineTraceComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
 	bool SweepComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams);
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnClusterUnionAddedComponent OnComponentAddedEvent;
+
+	UPROPERTY(BlueprintAssignable, Category = "Events")
+	FOnClusterUnionRemovedComponent OnComponentRemovedEvent;
 
 	friend class UClusterUnionReplicatedProxyComponent;
 protected:

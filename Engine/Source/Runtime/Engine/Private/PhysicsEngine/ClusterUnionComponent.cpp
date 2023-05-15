@@ -544,7 +544,6 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 		ComponentData.bWasReplicating = ChangedComponent->GetIsReplicated();
 		if (IsAuthority())
 		{
-			ChangedComponent->SetIsReplicated(false);
 			if (AActor* Owner = ChangedComponent->GetOwner())
 			{
 				// Create a replicated proxy component and add it to the actor being added to the cluster.
@@ -561,9 +560,11 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 				ComponentData.ReplicatedProxyComponent = ReplicatedProxy;
 			}
 		}
+
 	}
 
 	PerBoneChildToParent.GetKeys(ComponentData.BoneIds);
+	OnComponentAddedEvent.Broadcast(ChangedComponent, ComponentData.BoneIds, bIsNew);
 
 	if (IsAuthority() && ComponentData.ReplicatedProxyComponent.IsValid())
 	{
@@ -626,8 +627,6 @@ void UClusterUnionComponent::HandleRemovedClusteredComponent(UPrimitiveComponent
 
 		if (IsAuthority())
 		{
-			ChangedComponent->SetIsReplicated(ComponentData->bWasReplicating);
-
 			if (bDestroyReplicatedProxy && ensure(ComponentData->ReplicatedProxyComponent.IsValid()))
 			{
 				UClusterUnionReplicatedProxyComponent* ProxyComponent = ComponentData->ReplicatedProxyComponent.Get();
@@ -636,6 +635,7 @@ void UClusterUnionComponent::HandleRemovedClusteredComponent(UPrimitiveComponent
 		}
 
 		ComponentToPhysicsObjects.Remove(ChangedComponent);
+		OnComponentRemovedEvent.Broadcast(ChangedComponent);
 	}
 
 

@@ -24,6 +24,7 @@ namespace Chaos
 		check(NewIndex > 0);
 
 		FClusterUnion NewUnion;
+		NewUnion.InternalIndex = NewIndex;
 		NewUnion.ExplicitIndex = ClusterUnionParameters.ExplicitIndex;
 		NewUnion.SharedGeometry = ForceRecreateClusterUnionSharedGeometry(NewUnion);
 		NewUnion.InternalCluster = MClustering.CreateClusterParticle(-NewIndex, {}, Parameters, NewUnion.SharedGeometry, nullptr, ClusterUnionParameters.UniqueIndex);
@@ -268,7 +269,7 @@ namespace Chaos
 
 		for (FPBDRigidParticleHandle* Handle : Particles)
 		{
-			if (!Handle || Handle->Disabled())
+			if (!Handle)
 			{
 				continue;
 			}

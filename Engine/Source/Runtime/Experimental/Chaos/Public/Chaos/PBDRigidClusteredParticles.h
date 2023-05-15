@@ -71,6 +71,16 @@ struct TConnectivityEdge
 typedef TConnectivityEdge<FReal> FConnectivityEdge;
 typedef TArray<FConnectivityEdge> FConnectivityEdgeArray;
 
+template<typename T>
+bool IsInterclusterEdge(const TPBDRigidParticleHandle<T, 3>& Particle, const TConnectivityEdge<T>& Edge)
+{
+	if (!Edge.Sibling)
+	{
+		return false;
+	}
+	return Particle.PhysicsProxy() != Edge.Sibling->PhysicsProxy();
+}
+
 class FRigidClusteredFlags
 {
 public:
