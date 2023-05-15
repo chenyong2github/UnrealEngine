@@ -39,12 +39,12 @@ bool CanWriteToFile(const FString& FilePath);
  *
  * @param SourcePath	The absolute path of the package to copy
  * @param DstPath		The path where the copy should be created
- * @param Trailer		The trailer found in 'PackagePath' that is already loaded (used to know where we cut the trailer off)
+ * @param TrailerLength	The length of the trailer to be removed
  * @param Errors [out]	Errors created by the function will be added here
  *
  * @return Returns true if the package was copied correctly, false otherwise. Note even when returning false a file might have been created at 'CopyPath'
  */
-bool TryCopyPackageWithoutTrailer(const FString& SourcePath, const FString& DstPath, const FPackageTrailer& Trailer, TArray<FText>& OutErrors);
+bool TryCopyPackageWithoutTrailer(const FString& SourcePath, const FString& DstPath, int64 TrailerLength, TArray<FText>& OutErrors);
 
 /**
  * Create a copy of an existing package but replace the trailer with an updated version of the original trailer. The copy will be to a tmp file

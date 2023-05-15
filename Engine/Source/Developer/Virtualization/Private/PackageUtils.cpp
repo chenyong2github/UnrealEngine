@@ -53,7 +53,7 @@ bool CanWriteToFile(const FString& FilePath)
 	return FileHandle.IsValid();
 }
 
-bool TryCopyPackageWithoutTrailer(const FString& SourcePath, const FString& DstPath, const FPackageTrailer& Trailer, TArray<FText>& OutErrors)
+bool TryCopyPackageWithoutTrailer(const FString& SourcePath, const FString& DstPath, int64 TrailerLength, TArray<FText>& OutErrors)
 {
 	// TODO: Consider adding a custom copy routine to only copy the data we want, rather than copying the full file then truncating
 
@@ -66,7 +66,7 @@ bool TryCopyPackageWithoutTrailer(const FString& SourcePath, const FString& DstP
 		return false;
 	}
 
-	const int64 PackageSizeWithoutTrailer = IFileManager::Get().FileSize(*SourcePath) - Trailer.GetTrailerLength();
+	const int64 PackageSizeWithoutTrailer = IFileManager::Get().FileSize(*SourcePath) - TrailerLength;
 
 	{
 		TUniquePtr<IFileHandle> TempFileHandle(FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*DstPath, true));
@@ -109,7 +109,7 @@ FString DuplicatePackageWithUpdatedTrailer(const FString& AbsolutePackagePath, c
 	// TODO Optimization: Combine TryCopyPackageWithoutTrailer with the appending of the new trailer to avoid opening multiple handles
 
 	// Create copy of package minus the trailer the trailer
-	if (!TryCopyPackageWithoutTrailer(AbsolutePackagePath, TempFilePath, Trailer, OutErrors))
+	if (!TryCopyPackageWithoutTrailer(AbsolutePackagePath, TempFilePath, Trailer.GetTrailerLength(), OutErrors))
 	{
 		return FString();
 	}
@@ -157,7 +157,7 @@ FString DuplicatePackageWithNewTrailer(const FString& AbsolutePackagePath, const
 	// TODO Optimization: Combine TryCopyPackageWithoutTrailer with the appending of the new trailer to avoid opening multiple handles
 
 	// Create copy of package minus the trailer the trailer
-	if (!TryCopyPackageWithoutTrailer(AbsolutePackagePath, TempFilePath, OriginalTrailer, OutErrors))
+	if (!TryCopyPackageWithoutTrailer(AbsolutePackagePath, TempFilePath, OriginalTrailer.GetTrailerLength(), OutErrors))
 	{
 		return FString();
 	}
