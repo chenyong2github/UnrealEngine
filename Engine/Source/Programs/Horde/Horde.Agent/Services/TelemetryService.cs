@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
+using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
@@ -199,6 +204,33 @@ public sealed class WindowsSystemMetrics : ISystemMetrics
 #pragma warning restore CA1416
 
 /// <summary>
+/// Info for a Windows filter driver as reported by fltmc.exe
+/// </summary>
+public class WindowsFilterDriverInfo
+{
+	/// <summary>
+	/// Name
+	/// </summary>
+	public string Name { get; init; }
+	
+	/// <summary>
+	/// Altitude (unique identifier for driver)
+	/// </summary>
+	public int Altitude { get; init; }
+
+	/// <summary>
+	/// Constructor
+	/// </summary>
+	/// <param name="name"></param>
+	/// <param name="altitude"></param>
+	public WindowsFilterDriverInfo(string name, int altitude)
+	{
+		Name = name;
+		Altitude = altitude;
+	}
+}
+
+/// <summary>
 /// Send telemetry events back to server at regular intervals
 /// </summary>
 class TelemetryService : BackgroundService
@@ -311,6 +343,125 @@ class TelemetryService : BackgroundService
 			// Ignore
 			return (true, TimeSpan.Zero);
 		}
+	}
+
+	/// <summary>
+	/// Get list of any filter drivers known to be problematic for builds
+	/// </summary>
+	/// <param name="logger">Logger to use</param>
+	/// <param name="cancellationToken">Cancellation token for the call</param>
+	public static async Task<List<string>> GetProblematicFilterDrivers(ILogger logger, CancellationToken cancellationToken)
+	{
+		try
+		{
+			List<string> problematicDrivers = new()
+			{
+				// PlayStation SDK related filter drivers known to have negative effects on file system performance
+				"cbfilter",
+				"cbfsfilter",
+				"cbfsconnect",
+				"sie-filemon",
+				
+				"csagent", // CrowdStrike
+			};
+			
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			{
+				string output = await ReadFltMcOutputAsync(cancellationToken);
+				List<WindowsFilterDriverInfo>? drivers = ParseFltMcOutput(output);
+				if (drivers == null)
+				{
+					logger.LogWarning("Unable to get loaded filter drivers");
+					return new List<string>();
+				}
+
+				List<string> loadedDrivers = drivers
+					.Where(x =>
+					{
+						foreach (string probDriverName in problematicDrivers)
+						{
+							if (x.Name.Contains(probDriverName, StringComparison.OrdinalIgnoreCase))
+							{
+								return true;
+							}
+						}
+						return false;
+					})
+					.Select(x => $"{x.Name} (altitude={x.Altitude})")
+					.ToList();
+				
+
+				return loadedDrivers;
+			}
+		}
+		catch (Exception e)
+		{
+			logger.LogError(e, "Error logging filter drivers");
+		}
+		
+		return new List<string>();
+	}
+	
+	/// <summary>
+	/// Log any filter drivers known to be problematic for builds
+	/// </summary>
+	/// <param name="logger">Logger to use</param>
+	/// <param name="cancellationToken">Cancellation token for the call</param>
+	public static async Task LogProblematicFilterDrivers(ILogger logger, CancellationToken cancellationToken)
+	{
+		List<string> loadedDrivers = await GetProblematicFilterDrivers(logger, cancellationToken);
+		if (loadedDrivers.Count > 0)
+		{
+			logger.LogWarning("Agent has problematic filter drivers loaded: {FilterDrivers}", String.Join(',', loadedDrivers));
+		}
+	}
+	
+	internal static async Task<string> ReadFltMcOutputAsync(CancellationToken cancellationToken)
+	{
+		string fltmcExePath = Path.Combine(Environment.SystemDirectory, "fltmc.exe");
+		using CancellationTokenSource cancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+		cancellationSource.CancelAfter(10000);
+		using ManagedProcess process = new (null, fltmcExePath, "filters", null, null, null, ProcessPriorityClass.Normal);
+		StringBuilder sb = new(1000);
+		
+		while (!cancellationToken.IsCancellationRequested)
+		{
+			string? line = await process.ReadLineAsync(cancellationToken);
+			if (line == null)
+			{
+				break;
+			}
+
+			sb.AppendLine(line);
+		}
+
+		await process.WaitForExitAsync(cancellationToken);
+		return sb.ToString();
+	}
+
+	internal static List<WindowsFilterDriverInfo>? ParseFltMcOutput(string output)
+	{
+		if (output.Contains("access is denied", StringComparison.OrdinalIgnoreCase))
+		{
+			return null;
+		}
+		
+		List<WindowsFilterDriverInfo> filters = new ();
+		string[] lines = output.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+		
+		foreach (string line in lines)
+		{
+			if (line.Length < 5) continue;
+			if (line.StartsWith("---", StringComparison.Ordinal)) continue;
+			if (line.StartsWith("Filter", StringComparison.Ordinal)) continue;
+				
+			string[] parts = line.Split("   ", StringSplitOptions.RemoveEmptyEntries);
+			if (parts.Length < 3) continue;
+
+			filters.Add(new WindowsFilterDriverInfo(parts[0], Int32.Parse(parts[2])));
+		}
+
+		return filters;
 	}
 
 	/// <inheritdoc />
