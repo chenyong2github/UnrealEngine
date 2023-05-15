@@ -58,7 +58,10 @@ UEdGraphPin* UCustomizableObjectNode::CustomCreatePin(EEdGraphPinDirection Direc
 UEdGraphPin* UCustomizableObjectNode::CustomCreatePin(EEdGraphPinDirection Direction, const FName& Type, const FName& Name, UCustomizableObjectNodePinData* PinData)
 {
 	UEdGraphPin* Pin = CreatePin(Direction, Type, Name);
-	PinsDataId.Add(Pin->PinId, PinData);
+	if (Pin && PinData)
+	{
+		AddPinData(*Pin, *PinData);		
+	}
 	
 	return Pin;
 }
@@ -455,6 +458,7 @@ void UCustomizableObjectNode::RemapPinsData(const TMap<UEdGraphPin*, UEdGraphPin
 
 void UCustomizableObjectNode::AddPinData(const UEdGraphPin& Pin, UCustomizableObjectNodePinData& PinData)
 {
+	check(PinData.GetOuter())
 	PinsDataId.Add(Pin.PinId, &PinData);
 }
 
