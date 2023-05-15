@@ -34,6 +34,8 @@ public:
 	virtual bool IsEmpty() const override;
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;	
 	virtual bool SupportsMultipleRows() const override;
+	virtual void SetSectionToKey(UMovieSceneSection* Section) override;
+	virtual UMovieSceneSection* GetSectionToKey() const override;
 
 public:
 
@@ -46,18 +48,40 @@ public:
 	void AddScalarParameterKey(FName ParameterName, FFrameNumber Position, float Value);
 
 	/**
-	* Adds a color parameter key to the track.
-	* @param ParameterName The name of the parameter to add a key for.
-	* @param Time The time to add the new key.
-	* @param The value for the new key.
-	*/
+	 * Adds a scalar parameter key to the track. 
+	 * @param ParameterName The name of the parameter to add a key for.
+	 * @param Time The time to add the new key.
+	 * @param RowIndex The preferred row index on which to look for sections.
+	 * @param The value for the new key.
+	 */
+	void AddScalarParameterKey(FName ParameterName, FFrameNumber Position, int32 RowIndex, float Value);
+
+	/**
+	 * Adds a color parameter key to the track.
+	 * @param ParameterName The name of the parameter to add a key for.
+	 * @param Time The time to add the new key.
+	 * @param The value for the new key.
+	 */
 	void AddColorParameterKey(FName ParameterName, FFrameNumber Position, FLinearColor Value);
+
+	/**
+	 * Adds a color parameter key to the track.
+	 * @param ParameterName The name of the parameter to add a key for.
+	 * @param Time The time to add the new key.
+	 * @param RowIndex The preferred row index on which to look for sections.
+	 * @param The value for the new key.
+	 */
+	void AddColorParameterKey(FName ParameterName, FFrameNumber Position, int32 RowIndex, FLinearColor Value);
 
 private:
 
 	/** The sections owned by this track .*/
 	UPROPERTY()
 	TArray<TObjectPtr<UMovieSceneSection>> Sections;
+
+	/** Section we should Key */
+	UPROPERTY()
+	TObjectPtr<UMovieSceneSection> SectionToKey;
 };
 
 
@@ -74,15 +98,12 @@ class UMovieSceneComponentMaterialTrack
 
 public:
 
-	// UMovieSceneTrack interface
-	virtual void AddSection(UMovieSceneSection& Section) override;
-
 	/*~ IMovieSceneEntityProvider */
 	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 
 	/*~ IMovieSceneParameterSectionExtender */
-	virtual void ExtendEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
+	virtual void ExtendEntityImpl(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
 
 	virtual FName GetTrackName() const { return FName( *FString::FromInt(MaterialIndex) ); }
 

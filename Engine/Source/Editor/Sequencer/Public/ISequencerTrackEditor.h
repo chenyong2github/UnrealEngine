@@ -26,11 +26,15 @@ class UMovieSceneSequence;
 struct FBuildEditWidgetParams
 {
 	FBuildEditWidgetParams()
-		: TrackInsertRowIndex(0)
+		: RowIndex(0)
+		, TrackInsertRowIndex(0)
 	{}
 
 	/** Attribute that specifies when the node relating to this edit widget is hovered */
 	TAttribute<bool> NodeIsHovered;
+
+	/** Index of current track row */
+	int32 RowIndex;
 
 	/** Track row index for any newly created sections */
 	int32 TrackInsertRowIndex;

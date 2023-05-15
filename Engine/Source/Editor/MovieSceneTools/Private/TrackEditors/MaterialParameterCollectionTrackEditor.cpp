@@ -256,14 +256,25 @@ const FSlateBrush* FMaterialParameterCollectionTrackEditor::GetIconBrush() const
 TSharedPtr<SWidget> FMaterialParameterCollectionTrackEditor::BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params)
 {
 	UMovieSceneMaterialParameterCollectionTrack* MPCTrack = Cast<UMovieSceneMaterialParameterCollectionTrack>(Track);
-	FOnGetContent MenuContent = FOnGetContent::CreateSP(this, &FMaterialParameterCollectionTrackEditor::OnGetAddParameterMenuContent, MPCTrack);
+	FOnGetContent MenuContent = FOnGetContent::CreateSP(this, &FMaterialParameterCollectionTrackEditor::OnGetAddParameterMenuContent, MPCTrack, Params.RowIndex, Params.TrackInsertRowIndex);
 
 	return FSequencerUtilities::MakeAddButton(LOCTEXT("AddParameterButton", "Parameter"), MenuContent, Params.NodeIsHovered, GetSequencer());
 }
 
-TSharedRef<SWidget> FMaterialParameterCollectionTrackEditor::OnGetAddParameterMenuContent(UMovieSceneMaterialParameterCollectionTrack* MPCTrack)
+TSharedRef<SWidget> FMaterialParameterCollectionTrackEditor::OnGetAddParameterMenuContent(UMovieSceneMaterialParameterCollectionTrack* MPCTrack, int32 RowIndex, int32 TrackInsertRowIndex)
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
+
+	// If this is supported, allow creating other sections with different blend types, and put
+	// the material parameters after a separator. Otherwise, just show the parameters menu.
+	const FMovieSceneBlendTypeField SupportedBlendTypes = MPCTrack->GetSupportedBlendTypes();
+	if (SupportedBlendTypes.Num() > 1)
+	{
+		TWeakPtr<ISequencer> WeakSequencer = GetSequencer();
+		FSequencerUtilities::PopulateMenu_CreateNewSection(MenuBuilder, TrackInsertRowIndex, MPCTrack, WeakSequencer);
+
+		MenuBuilder.AddSeparator();
+	}
 
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ScalarParametersHeading", "Scalar"));
 	{
@@ -276,7 +287,7 @@ TSharedRef<SWidget> FMaterialParameterCollectionTrackEditor::OnGetAddParameterMe
 				FText::FromName(Scalar.ParameterName),
 				FText(),
 				FSlateIcon(),
-				FExecuteAction::CreateSP(this, &FMaterialParameterCollectionTrackEditor::AddScalarParameter, MPCTrack, Scalar)
+				FExecuteAction::CreateSP(this, &FMaterialParameterCollectionTrackEditor::AddScalarParameter, MPCTrack, RowIndex, Scalar)
 				);
 		}
 	}
@@ -293,7 +304,7 @@ TSharedRef<SWidget> FMaterialParameterCollectionTrackEditor::OnGetAddParameterMe
 				FText::FromName(Vector.ParameterName),
 				FText(),
 				FSlateIcon(),
-				FExecuteAction::CreateSP(this, &FMaterialParameterCollectionTrackEditor::AddVectorParameter, MPCTrack, Vector)
+				FExecuteAction::CreateSP(this, &FMaterialParameterCollectionTrackEditor::AddVectorParameter, MPCTrack, RowIndex, Vector)
 				);
 		}
 	}
@@ -303,7 +314,7 @@ TSharedRef<SWidget> FMaterialParameterCollectionTrackEditor::OnGetAddParameterMe
 }
 
 
-void FMaterialParameterCollectionTrackEditor::AddScalarParameter(UMovieSceneMaterialParameterCollectionTrack* Track, FCollectionScalarParameter Parameter)
+void FMaterialParameterCollectionTrackEditor::AddScalarParameter(UMovieSceneMaterialParameterCollectionTrack* Track, int32 RowIndex, FCollectionScalarParameter Parameter)
 {
 	if (!Track->MPC)
 	{
@@ -314,12 +325,12 @@ void FMaterialParameterCollectionTrackEditor::AddScalarParameter(UMovieSceneMate
 
 	const FScopedTransaction Transaction(LOCTEXT("AddScalarParameter", "Add scalar parameter"));
 	Track->Modify();
-	Track->AddScalarParameterKey(Parameter.ParameterName, KeyTime, Parameter.DefaultValue);
+	Track->AddScalarParameterKey(Parameter.ParameterName, KeyTime, RowIndex, Parameter.DefaultValue);
 	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
 
 
-void FMaterialParameterCollectionTrackEditor::AddVectorParameter(UMovieSceneMaterialParameterCollectionTrack* Track, FCollectionVectorParameter Parameter)
+void FMaterialParameterCollectionTrackEditor::AddVectorParameter(UMovieSceneMaterialParameterCollectionTrack* Track, int32 RowIndex, FCollectionVectorParameter Parameter)
 {
 	if (!Track->MPC)
 	{
@@ -330,7 +341,7 @@ void FMaterialParameterCollectionTrackEditor::AddVectorParameter(UMovieSceneMate
 
 	const FScopedTransaction Transaction(LOCTEXT("AddVectorParameter", "Add vector parameter"));
 	Track->Modify();
-	Track->AddColorParameterKey(Parameter.ParameterName, KeyTime, Parameter.DefaultValue);
+	Track->AddColorParameterKey(Parameter.ParameterName, KeyTime, RowIndex, Parameter.DefaultValue);
 	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
 

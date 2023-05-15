@@ -54,12 +54,12 @@ public:
 private:
 
 	/** Provides the contents of the add parameter menu. */
-	TSharedRef<SWidget> OnGetAddParameterMenuContent(UMovieSceneMaterialParameterCollectionTrack* MaterialTrack);
+	TSharedRef<SWidget> OnGetAddParameterMenuContent(UMovieSceneMaterialParameterCollectionTrack* MaterialTrack, int32 RowIndex, int32 TrackInsertRowIndex);
 
 	void OnSelectMPC(UMaterialParameterCollection* MPC);
 
-	void AddScalarParameter(UMovieSceneMaterialParameterCollectionTrack* Track, FCollectionScalarParameter Parameter);
-	void AddVectorParameter(UMovieSceneMaterialParameterCollectionTrack* Track, FCollectionVectorParameter Parameter);
+	void AddScalarParameter(UMovieSceneMaterialParameterCollectionTrack* Track, int32 RowIndex, FCollectionScalarParameter Parameter);
+	void AddVectorParameter(UMovieSceneMaterialParameterCollectionTrack* Track, int32 RowIndex, FCollectionVectorParameter Parameter);
 
 	void AddTrackToSequence(const FAssetData& InAssetData);
 	void AddTrackToSequenceEnterPressed(const TArray<FAssetData>& InAssetData);

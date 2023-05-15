@@ -14,10 +14,6 @@
 UMovieSceneMaterialParameterCollectionTrack::UMovieSceneMaterialParameterCollectionTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	BuiltInTreePopulationMode = ETreePopulationMode::Blended;
-
-	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
-
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(64,192,64,65);
 #endif
@@ -25,9 +21,8 @@ UMovieSceneMaterialParameterCollectionTrack::UMovieSceneMaterialParameterCollect
 
 UMovieSceneSection* UMovieSceneMaterialParameterCollectionTrack::CreateNewSection()
 {
-	UMovieSceneSection* NewSection = NewObject<UMovieSceneParameterSection>(this, NAME_None, RF_Transactional);
+	UMovieSceneSection* NewSection = Super::CreateNewSection();
 	NewSection->SetRange(TRange<FFrameNumber>::All());
-	NewSection->SetBlendType(EMovieSceneBlendType::Absolute);
 	return NewSection;
 }
 
@@ -37,7 +32,7 @@ void UMovieSceneMaterialParameterCollectionTrack::ImportEntityImpl(UMovieSceneEn
 	checkf(false, TEXT("This track should never have created entities for itself - this assertion indicates an error in the entity-component field"));
 }
 
-void UMovieSceneMaterialParameterCollectionTrack::ExtendEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+void UMovieSceneMaterialParameterCollectionTrack::ExtendEntityImpl(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
@@ -48,8 +43,10 @@ void UMovieSceneMaterialParameterCollectionTrack::ExtendEntityImpl(UMovieSceneEn
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
 		.Add(TracksComponents->MPC, MPC)
-		.AddTag(BuiltInComponents->Tags.AbsoluteBlend)
 		.AddTag(BuiltInComponents->Tags.Root)
+		// If the section has no valid blend type (legacy data), make it use absolute blending.
+		// Otherwise, the base section class will add the appropriate blend type tag in BuildDefaultComponents.
+		.AddTagConditional(BuiltInComponents->Tags.AbsoluteBlend, !Section->GetBlendType().IsValid())
 	);
 }
 

@@ -10,14 +10,6 @@
 UMovieSceneWidgetMaterialTrack::UMovieSceneWidgetMaterialTrack( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
-	BuiltInTreePopulationMode = ETreePopulationMode::Blended;
-}
-
-void UMovieSceneWidgetMaterialTrack::AddSection(UMovieSceneSection& Section)
-{
-	// Materials are always blendable now
-	Section.SetBlendType(EMovieSceneBlendType::Absolute);
-	Super::AddSection(Section);
 }
 
 void UMovieSceneWidgetMaterialTrack::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
@@ -26,18 +18,19 @@ void UMovieSceneWidgetMaterialTrack::ImportEntityImpl(UMovieSceneEntitySystemLin
 	checkf(false, TEXT("This track should never have created entities for itself - this assertion indicates an error in the entity-component field"));
 }
 
-void UMovieSceneWidgetMaterialTrack::ExtendEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+void UMovieSceneWidgetMaterialTrack::ExtendEntityImpl(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
 	FBuiltInComponentTypes*       BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneUMGComponentTypes* WidgetComponents  = FMovieSceneUMGComponentTypes::Get();
 
-	// Material parameters are always absolute blends for the time being
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
 		.Add(WidgetComponents->WidgetMaterialPath, FWidgetMaterialPath(BrushPropertyNamePath))
-		.AddTag(BuiltInComponents->Tags.AbsoluteBlend)
+		// If the section has no valid blend type (legacy data), make it use absolute blending.
+		// Otherwise, the base section class will add the appropriate blend type tag in BuildDefaultComponents.
+		.AddTagConditional(BuiltInComponents->Tags.AbsoluteBlend, !Section->GetBlendType().IsValid())
 	);
 }
 

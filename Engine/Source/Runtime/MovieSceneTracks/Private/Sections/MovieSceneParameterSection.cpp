@@ -30,9 +30,9 @@ void DecodeEntityID(uint32 InEntityID, int32& OutIndex, uint8& OutType)
 
 }// namespace UE::MovieScene
 
-void IMovieSceneParameterSectionExtender::ExtendEntity(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+void IMovieSceneParameterSectionExtender::ExtendEntity(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
 {
-	ExtendEntityImpl(EntityLinker, Params, OutImportedEntity);
+	ExtendEntityImpl(Section, EntityLinker, Params, OutImportedEntity);
 }
 
 FScalarParameterNameAndCurve::FScalarParameterNameAndCurve( FName InParameterName )
@@ -723,7 +723,7 @@ void UMovieSceneParameterSection::ImportEntityImpl(UMovieSceneEntitySystemLinker
 		}
 	}
 
-	Extender->ExtendEntity(EntityLinker, Params, OutImportedEntity);
+	Extender->ExtendEntity(this, EntityLinker, Params, OutImportedEntity);
 }
 
 bool UMovieSceneParameterSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)

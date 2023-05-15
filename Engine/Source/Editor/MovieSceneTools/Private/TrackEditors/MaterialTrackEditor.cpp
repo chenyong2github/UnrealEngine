@@ -37,9 +37,34 @@ TSharedRef<ISequencerSection> FMaterialTrackEditor::MakeSectionInterface( UMovie
 TSharedPtr<SWidget> FMaterialTrackEditor::BuildOutlinerEditWidget( const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params )
 {
 	UMovieSceneMaterialTrack* MaterialTrack = Cast<UMovieSceneMaterialTrack>(Track);
-	FOnGetContent MenuContent = FOnGetContent::CreateSP(this, &FMaterialTrackEditor::OnGetAddParameterMenuContent, ObjectBinding, MaterialTrack);
+	FOnGetContent MenuContent = FOnGetContent::CreateSP(this, &FMaterialTrackEditor::OnGetAddMenuContent, ObjectBinding, MaterialTrack, Params.TrackInsertRowIndex);
 
 	return FSequencerUtilities::MakeAddButton(LOCTEXT( "AddParameterButton", "Parameter" ), MenuContent, Params.NodeIsHovered, GetSequencer());
+}
+
+
+TSharedRef<SWidget> FMaterialTrackEditor::OnGetAddMenuContent( FGuid ObjectBinding, UMovieSceneMaterialTrack* MaterialTrack, int32 TrackInsertRowIndex )
+{
+	// IF this is supported, allow creating other sections with different blend types, and put
+	// the material parameters after a separator. Otherwise, just show the parameters menu.
+	const FMovieSceneBlendTypeField SupportedBlendTypes = MaterialTrack->GetSupportedBlendTypes();
+	if (SupportedBlendTypes.Num() > 1)
+	{
+		FMenuBuilder MenuBuilder(true, nullptr);
+
+		TWeakPtr<ISequencer> WeakSequencer = GetSequencer();
+		FSequencerUtilities::PopulateMenu_CreateNewSection(MenuBuilder, TrackInsertRowIndex, MaterialTrack, WeakSequencer);
+
+		MenuBuilder.AddSeparator();
+
+		OnBuildAddParameterMenu(MenuBuilder, ObjectBinding, MaterialTrack);
+
+		return MenuBuilder.MakeWidget();
+	}
+	else
+	{
+		return OnGetAddParameterMenuContent(ObjectBinding, MaterialTrack);
+	}
 }
 
 
@@ -64,7 +89,13 @@ struct FParameterNameAndAction
 TSharedRef<SWidget> FMaterialTrackEditor::OnGetAddParameterMenuContent( FGuid ObjectBinding, UMovieSceneMaterialTrack* MaterialTrack )
 {
 	FMenuBuilder AddParameterMenuBuilder( true, nullptr );
+	OnBuildAddParameterMenu(AddParameterMenuBuilder, ObjectBinding, MaterialTrack);
+	return AddParameterMenuBuilder.MakeWidget();
+}
 
+
+void FMaterialTrackEditor::OnBuildAddParameterMenu( FMenuBuilder& MenuBuilder, FGuid ObjectBinding, UMovieSceneMaterialTrack* MaterialTrack )
+{
 	UMaterial* Material = GetMaterialForTrack( ObjectBinding, MaterialTrack );
 	if ( Material != nullptr )
 	{
@@ -117,11 +148,9 @@ TSharedRef<SWidget> FMaterialTrackEditor::OnGetAddParameterMenuContent( FGuid Ob
 		ParameterNamesAndActions.Sort();
 		for ( FParameterNameAndAction NameAndAction : ParameterNamesAndActions )
 		{
-			AddParameterMenuBuilder.AddMenuEntry( FText::FromName( NameAndAction.ParameterName ), FText(), FSlateIcon(), NameAndAction.Action );
+			MenuBuilder.AddMenuEntry( FText::FromName( NameAndAction.ParameterName ), FText(), FSlateIcon(), NameAndAction.Action );
 		}
 	}
-
-	return AddParameterMenuBuilder.MakeWidget();
 }
 
 

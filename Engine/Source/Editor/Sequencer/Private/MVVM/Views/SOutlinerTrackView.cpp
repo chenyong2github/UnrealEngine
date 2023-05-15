@@ -69,13 +69,14 @@ void SOutlinerTrackView::Construct(
 
 	FBuildEditWidgetParams Params;
 	Params.NodeIsHovered = HoverState;
+	Params.RowIndex = RowIndex;
 	if (DataModel->FindAncestorOfType<ITrackExtension>())
 	{
-		Params.TrackInsertRowIndex = TrackExtension->GetRowIndex();
+		Params.TrackInsertRowIndex = RowIndex;
 	}
 	else if (Track && Track->SupportsMultipleRows())
 	{
-		Params.TrackInsertRowIndex = Track->GetMaxRowIndex()+1;
+		Params.TrackInsertRowIndex = Track->GetMaxRowIndex() + 1;
 	}
 
 	TSharedPtr<SWidget> CustomWidget = TrackEditor ? TrackEditor->BuildOutlinerEditWidget(ObjectBinding ? ObjectBinding->GetObjectGuid() : FGuid(), Track, Params) : nullptr;

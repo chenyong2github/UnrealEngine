@@ -17,7 +17,11 @@ UMovieSceneMaterialTrack::UMovieSceneMaterialTrack(const FObjectInitializer& Obj
 	TrackTint = FColor(64,192,64,65);
 #endif
 
+	BuiltInTreePopulationMode = ETreePopulationMode::Blended;
+
 	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
+	SupportedBlendTypes.Add(EMovieSceneBlendType::Additive);
+	SupportedBlendTypes.Add(EMovieSceneBlendType::AdditiveFromBase);
 }
 
 
@@ -26,15 +30,19 @@ bool UMovieSceneMaterialTrack::SupportsType(TSubclassOf<UMovieSceneSection> Sect
 	return SectionClass == UMovieSceneParameterSection::StaticClass();
 }
 
+
 UMovieSceneSection* UMovieSceneMaterialTrack::CreateNewSection()
 {
-	return NewObject<UMovieSceneParameterSection>(this, NAME_None, RF_Transactional);
+	UMovieSceneSection* NewSection = NewObject<UMovieSceneParameterSection>(this, NAME_None, RF_Transactional);
+	NewSection->SetBlendType(EMovieSceneBlendType::Absolute);
+	return NewSection;
 }
 
 
 void UMovieSceneMaterialTrack::RemoveAllAnimationData()
 {
 	Sections.Empty();
+	SectionToKey = nullptr;
 }
 
 
@@ -47,17 +55,40 @@ bool UMovieSceneMaterialTrack::HasSection(const UMovieSceneSection& Section) con
 void UMovieSceneMaterialTrack::AddSection(UMovieSceneSection& Section)
 {
 	Sections.Add(&Section);
+
+	if (Sections.Num() > 1)
+	{
+		SetSectionToKey(&Section);
+	}
 }
 
 
 void UMovieSceneMaterialTrack::RemoveSection(UMovieSceneSection& Section)
 {
 	Sections.Remove(&Section);
+	if (SectionToKey == &Section)
+	{
+		if (Sections.Num() > 0)
+		{
+			SectionToKey = Sections[0];
+		}
+		else
+		{
+			SectionToKey = nullptr;
+		}
+	}
 }
 
 void UMovieSceneMaterialTrack::RemoveSectionAt(int32 SectionIndex)
 {
+	bool bResetSectionToKey = (SectionToKey == Sections[SectionIndex]);
+
 	Sections.RemoveAt(SectionIndex);
+
+	if (bResetSectionToKey)
+	{
+		SectionToKey = Sections.Num() > 0 ? Sections[0] : nullptr;
+	}
 }
 
 
@@ -71,6 +102,16 @@ bool UMovieSceneMaterialTrack::SupportsMultipleRows() const
 	return true;
 }
 
+void UMovieSceneMaterialTrack::SetSectionToKey(UMovieSceneSection* InSection)
+{
+	SectionToKey = InSection;
+}
+
+UMovieSceneSection* UMovieSceneMaterialTrack::GetSectionToKey() const
+{
+	return SectionToKey;
+}
+
 const TArray<UMovieSceneSection*>& UMovieSceneMaterialTrack::GetAllSections() const
 {
 	return Sections;
@@ -79,7 +120,17 @@ const TArray<UMovieSceneSection*>& UMovieSceneMaterialTrack::GetAllSections() co
 
 void UMovieSceneMaterialTrack::AddScalarParameterKey(FName ParameterName, FFrameNumber Time, float Value)
 {
-	UMovieSceneParameterSection* NearestSection = Cast<UMovieSceneParameterSection>(MovieSceneHelpers::FindNearestSectionAtTime(Sections, Time));
+	AddScalarParameterKey(ParameterName, Time, INDEX_NONE, Value);
+}
+
+
+void UMovieSceneMaterialTrack::AddScalarParameterKey(FName ParameterName, FFrameNumber Time, int32 RowIndex, float Value)
+{
+	UMovieSceneParameterSection* NearestSection = Cast<UMovieSceneParameterSection>(SectionToKey);
+	if (NearestSection == nullptr || (RowIndex != INDEX_NONE && NearestSection->GetRowIndex() != RowIndex))
+	{
+		NearestSection = Cast<UMovieSceneParameterSection>(MovieSceneHelpers::FindNearestSectionAtTime(Sections, Time, RowIndex));
+	}
 	if (NearestSection == nullptr)
 	{
 		NearestSection = Cast<UMovieSceneParameterSection>(CreateNewSection());
@@ -99,7 +150,17 @@ void UMovieSceneMaterialTrack::AddScalarParameterKey(FName ParameterName, FFrame
 
 void UMovieSceneMaterialTrack::AddColorParameterKey(FName ParameterName, FFrameNumber Time, FLinearColor Value)
 {
-	UMovieSceneParameterSection* NearestSection = Cast<UMovieSceneParameterSection>(MovieSceneHelpers::FindNearestSectionAtTime(Sections, Time));
+	AddColorParameterKey(ParameterName, Time, INDEX_NONE, Value);
+}
+
+
+void UMovieSceneMaterialTrack::AddColorParameterKey(FName ParameterName, FFrameNumber Time, int32 RowIndex, FLinearColor Value)
+{
+	UMovieSceneParameterSection* NearestSection = Cast<UMovieSceneParameterSection>(SectionToKey);
+	if (NearestSection == nullptr || (RowIndex != INDEX_NONE && NearestSection->GetRowIndex() != RowIndex))
+	{
+		NearestSection = Cast<UMovieSceneParameterSection>(MovieSceneHelpers::FindNearestSectionAtTime(Sections, Time));
+	}
 	if (NearestSection == nullptr)
 	{
 		NearestSection = Cast<UMovieSceneParameterSection>(CreateNewSection());
@@ -124,20 +185,13 @@ UMovieSceneComponentMaterialTrack::UMovieSceneComponentMaterialTrack(const FObje
 	BuiltInTreePopulationMode = ETreePopulationMode::Blended;
 }
 
-void UMovieSceneComponentMaterialTrack::AddSection(UMovieSceneSection& Section)
-{
-	// Materials are always blendable now
-	Section.SetBlendType(EMovieSceneBlendType::Absolute);
-	Super::AddSection(Section);
-}
-
 void UMovieSceneComponentMaterialTrack::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	// These tracks don't define any entities for themselves
 	checkf(false, TEXT("This track should never have created entities for itself - this assertion indicates an error in the entity-component field"));
 }
 
-void UMovieSceneComponentMaterialTrack::ExtendEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+void UMovieSceneComponentMaterialTrack::ExtendEntityImpl(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
@@ -148,7 +202,9 @@ void UMovieSceneComponentMaterialTrack::ExtendEntityImpl(UMovieSceneEntitySystem
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
 		.Add(TracksComponents->ComponentMaterialIndex, MaterialIndex)
-		.AddTag(BuiltInComponents->Tags.AbsoluteBlend)
+		// If the section has no valid blend type (legacy data), make it use absolute blending.
+		// Otherwise, the base section class will add the appropriate blend type tag in BuildDefaultComponents.
+		.AddTagConditional(BuiltInComponents->Tags.AbsoluteBlend, !Section->GetBlendType().IsValid())
 	);
 }
 

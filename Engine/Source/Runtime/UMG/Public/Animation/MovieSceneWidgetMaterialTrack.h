@@ -37,7 +37,6 @@ class UMovieSceneWidgetMaterialTrack
 public:
 
 	// UMovieSceneTrack interface
-	virtual void AddSection(UMovieSceneSection& Section) override;
 	virtual FName GetTrackName() const override;
 
 	/*~ IMovieSceneEntityProvider */
@@ -45,7 +44,7 @@ public:
 	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 
 	/*~ IMovieSceneParameterSectionExtender */
-	virtual void ExtendEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
+	virtual void ExtendEntityImpl(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
 
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDefaultDisplayName() const override;

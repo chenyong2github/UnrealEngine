@@ -45,22 +45,28 @@ protected:
 
 private:
 
+	/** Provides the contents of the outliner edit widget */
+	TSharedRef<SWidget> OnGetAddMenuContent( FGuid ObjectBinding, UMovieSceneMaterialTrack* MaterialTrack, int32 TrackInsertRowIndex );
+
 	/** Provides the contents of the add parameter menu. */
 	TSharedRef<SWidget> OnGetAddParameterMenuContent( FGuid ObjectBinding, UMovieSceneMaterialTrack* MaterialTrack );
+
+	/** Provides the contents of the add parameter menu. */
+	void OnBuildAddParameterMenu( FMenuBuilder& MenuBuilder, FGuid ObjectBinding, UMovieSceneMaterialTrack* MaterialTrack );
 
 	/** Gets a material for a specific object binding and track */
 	UMaterial* GetMaterialForTrack( FGuid ObjectBinding, UMovieSceneMaterialTrack* MaterialTrack );
 
 	/** Adds a scalar parameter and initial key to a material track.
 	 * @param ObjectBinding The object binding which owns the material track.
-	 * @param MaterialTrack The track to Add the section to.
+	 * @param MaterialTrack The track in which to look for sections to add the parameter to.
 	 * @param ParameterName The name of the parameter to add an initial key for.
 	 */
 	void AddScalarParameter( FGuid ObjectBinding, UMovieSceneMaterialTrack* MaterialTrack, FName ParameterName );
 
 	/** Adds a color parameter and initial key to a material track.
 	* @param ObjectBinding The object binding which owns the material track.
-	* @param MaterialTrack The track to Add the section to.
+	 * @param MaterialTrack The track in which to look for sections to add the parameter to.
 	* @param ParameterName The name of the parameter to add an initial key for.
 	*/
 	void AddColorParameter( FGuid ObjectBinding, UMovieSceneMaterialTrack* MaterialTrack, FName ParameterName );
