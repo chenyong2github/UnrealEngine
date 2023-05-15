@@ -119,14 +119,14 @@ void SGameLayerManager::Construct(const SGameLayerManager::FArguments& InArgs)
 
 			+ SVerticalBox::Slot()
 			[
-				SNew(SOverlay)
+				SAssignNew(WindowOverlay, SOverlay)
 
-				+ SOverlay::Slot()
+				+ SOverlay::Slot(static_cast<int32>(EGameLayerOrder::Player))
 				[
 					SAssignNew(PlayerCanvas, SCanvas)
 				]
 
-				+ SOverlay::Slot()
+				+ SOverlay::Slot(static_cast<int32>(EGameLayerOrder::Viewport))
 				[
 					SAssignNew(ViewportSlotContainer, SBox)
 					[
@@ -134,7 +134,7 @@ void SGameLayerManager::Construct(const SGameLayerManager::FArguments& InArgs)
 					]
 				]
 
-				+ SOverlay::Slot()
+				+ SOverlay::Slot(static_cast<int32>(EGameLayerOrder::TitleBar))
 				[
 					SNew(SVerticalBox)
 
@@ -148,14 +148,14 @@ void SGameLayerManager::Construct(const SGameLayerManager::FArguments& InArgs)
 					]
 				]
 
-				+ SOverlay::Slot()
+				+ SOverlay::Slot(static_cast<int32>(EGameLayerOrder::Tooltip))
 				[
 					SNew(SPopup)
 					[
 						SAssignNew(TooltipPresenter, STooltipPresenter)
 					]
 				]
-				+ SOverlay::Slot()
+				+ SOverlay::Slot(static_cast<int32>(EGameLayerOrder::Debug))
 				[
 					SAssignNew(DebugCanvas, SDebugCanvas)
 					.SceneViewport(InArgs._SceneViewport)
@@ -279,7 +279,9 @@ void SGameLayerManager::NotifyPlayerRemoved(int32 PlayerIndex, ULocalPlayer* Rem
 void SGameLayerManager::AddWidgetForPlayer(ULocalPlayer* Player, TSharedRef<SWidget> ViewportContent, const int32 ZOrder)
 {
 	TSharedPtr<FPlayerLayer> PlayerLayer = FindOrCreatePlayerLayer(Player);
-	
+
+	ensure(!PlayerLayer->Widget->HasSlotWithZOrder(ZOrder));
+
 	PlayerLayer->Widget->AddSlot(ZOrder)
 	[
 		ViewportContent
@@ -370,6 +372,21 @@ void SGameLayerManager::ClearWidgets()
 	}
 
 	SetWindowTitleBarState(nullptr, EWindowTitleBarMode::Overlay, false, false, false);
+}
+
+void SGameLayerManager::AddGameLayer(TSharedRef<SWidget> ViewportContent, int32 ZOrder)
+{
+	ensure(!WindowOverlay->HasSlotWithZOrder(ZOrder));
+
+	WindowOverlay->AddSlot(ZOrder)
+	[
+		ViewportContent
+	];
+}
+
+void SGameLayerManager::RemoveGameLayer(TSharedRef<SWidget> ViewportContent)
+{
+	WindowOverlay->RemoveSlot(ViewportContent);
 }
 
 void SGameLayerManager::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)

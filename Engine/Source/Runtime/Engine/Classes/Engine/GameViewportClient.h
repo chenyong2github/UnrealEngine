@@ -293,6 +293,21 @@ public:
 	void RemoveAllViewportWidgets();
 
 	/**
+	 * Adds a widget to the Slate viewport's game overlay (i.e for top-level debug tools) at the specified Z-order.
+	 *
+	 * @param  ViewportContent	The widget to add.  Must be valid.
+	 * @param  ZOrder  The Z-order index for this widget.  Larger values will cause the widget to appear on top of widgets with lower values.
+	 */
+	virtual void AddGameLayerWidget(TSharedRef<SWidget> ViewportContent, const int32 ZOrder);
+
+	/**
+	 * Removes a previously-added widget from the Slate viewport's game overlay.
+	 *
+	 * @param	ViewportContent  The widget to remove.  Must be valid.
+	 */
+	virtual void RemoveGameLayerWidget(TSharedRef<SWidget> ViewportContent);
+
+	/**
 	 * Recreates cursor widgets from UISettings class.
 	 */
 	void RebuildCursors();
