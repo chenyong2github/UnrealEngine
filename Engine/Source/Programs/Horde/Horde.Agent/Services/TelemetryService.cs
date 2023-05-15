@@ -203,6 +203,9 @@ public sealed class WindowsSystemMetrics : ISystemMetrics
 /// </summary>
 class TelemetryService : BackgroundService
 {
+	private readonly TimeSpan _heartbeatInterval = TimeSpan.FromSeconds(60);
+	private readonly TimeSpan _heartbeatMaxAllowedDiff = TimeSpan.FromSeconds(5);
+	
 	private readonly GrpcService _grpcService;
 	private readonly AgentSettings _agentSettings;
 	private readonly ILogger<TelemetryService> _logger;
@@ -211,6 +214,9 @@ class TelemetryService : BackgroundService
 	private readonly TimeSpan _agentMetadataReportInterval = TimeSpan.FromMinutes(10);
 	private ISystemMetrics? _systemMetrics;
 	private DateTime _lastTimeAgentMetadataSent = DateTime.UnixEpoch;
+
+	private CancellationTokenSource? _eventLoopHeartbeatCts;
+	internal Func<DateTime> GetUtcNow { get; set; } = () => DateTime.UtcNow;
 
 	/// <summary>
 	/// Constructor
@@ -231,6 +237,7 @@ class TelemetryService : BackgroundService
 	{
 		base.Dispose();
 		_systemMetrics?.Dispose();
+		_eventLoopHeartbeatCts?.Dispose();
 	}
  
 	/// <inheritdoc />
@@ -251,8 +258,59 @@ class TelemetryService : BackgroundService
 		{
 			_logger.LogInformation("System metric collection only implemented on Windows");
 		}
+
+		_eventLoopHeartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+#pragma warning disable CS4014 // Call not awaited
+		EventLoopHeartbeatAsync(_eventLoopHeartbeatCts.Token);
+#pragma warning restore CS4014
 		
 		return base.StartAsync(cancellationToken);
+	}
+
+	public override Task StopAsync(CancellationToken cancellationToken)
+	{
+		_eventLoopHeartbeatCts?.Cancel();
+		return base.StopAsync(cancellationToken);
+	}
+
+	/// <summary>
+	/// Continuously run the heartbeat for the event loop
+	/// </summary>
+	/// <param name="cancellationToken">Cancellation token</param>
+	private async Task EventLoopHeartbeatAsync(CancellationToken cancellationToken)
+	{
+		while (!cancellationToken.IsCancellationRequested)
+		{
+			(bool onTime, TimeSpan diff) = await IsEventLoopOnTimeAsync(_heartbeatInterval, _heartbeatMaxAllowedDiff, cancellationToken);
+			if (!onTime)
+			{
+				_logger.LogWarning("Event loop heartbeat was not on time. Diff {Diff} ms", diff.TotalMilliseconds);
+			}
+		}
+	}
+	
+	/// <summary>
+	/// Checks if the async event loop is on time
+	/// </summary>
+	/// <param name="wait">Time to wait</param>
+	/// <param name="maxDiff">Max allowed diff</param>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>A tuple with the result</returns>
+	public async Task<(bool onTime, TimeSpan diff)> IsEventLoopOnTimeAsync(TimeSpan wait, TimeSpan maxDiff, CancellationToken cancellationToken)
+	{
+		try
+		{
+			DateTime before = GetUtcNow();
+			await Task.Delay(wait, cancellationToken);
+			DateTime after = GetUtcNow();
+			TimeSpan diff = after - before - wait;
+			return (diff.Duration() < maxDiff, diff);
+		}
+		catch (TaskCanceledException)
+		{
+			// Ignore
+			return (true, TimeSpan.Zero);
+		}
 	}
 
 	/// <inheritdoc />
