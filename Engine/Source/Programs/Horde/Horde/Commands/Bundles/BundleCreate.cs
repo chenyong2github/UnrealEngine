@@ -1,22 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
 using EpicGames.Horde.Storage.Nodes;
-using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 
 namespace Horde.Commands.Bundles
 {
 	[Command("bundle", "create", "Creates a bundle from a folder on the local hard drive")]
-	class BundleCreate : Command
+	class BundleCreate : StorageCommandBase
 	{
-		[CommandLine("-Output=", Required = true, Description = "Output file. Should have a .ref extension.")]
-		public FileReference OutputFile { get; set; } = null!;
+		[CommandLine("-File=", Description = "Output file for the bundle ref")]
+		public FileReference? File { get; set; }
+
+		[CommandLine("-Ref=")]
+		public string? Ref { get; set; }
 
 		[CommandLine("-Input=", Required = true, Description = "Input file or directory")]
 		public string Input { get; set; } = null!;
@@ -24,15 +24,28 @@ namespace Horde.Commands.Bundles
 		[CommandLine("-Filter=", Description = "Filter for files to include, in P4 syntax (eg. Foo/...).")]
 		public string Filter { get; set; } = "...";
 
-		[CommandLine("-Blobs=", Description = "Directory to store blobs")]
-		public DirectoryReference? BlobDir { get; set; }
-
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
+			// Create the storage client
+			IStorageClient store;
+			if (File != null)
+			{
+				store = new FileStorageClient(File.Directory, logger);
+			}
+			else if (!String.IsNullOrEmpty(Ref))
+			{
+				store = CreateStorageClient(logger);
+			}
+			else
+			{
+				throw new CommandLineArgumentException("Either -File=... or -Ref=... must be specified.");
+			}
+
+			// Gather the input files
 			DirectoryReference baseDir;
 			List<FileReference> files = new List<FileReference>();
 
-			if (File.Exists(Input))
+			if (System.IO.File.Exists(Input))
 			{
 				FileReference file = new FileReference(Input);
 				baseDir = file.Directory;
@@ -50,11 +63,7 @@ namespace Horde.Commands.Bundles
 				return 1;
 			}
 
-			DirectoryReference blobDir = BlobDir ?? OutputFile.Directory;
-			DirectoryReference.CreateDirectory(blobDir);
-
-			FileStorageClient store = new FileStorageClient(blobDir, logger);
-
+			// Create the bundle
 			Stopwatch timer = Stopwatch.StartNew();
 
 			using (TreeWriter writer = new TreeWriter(store))
@@ -65,9 +74,16 @@ namespace Horde.Commands.Bundles
 				await node.CopyFilesAsync(baseDir, files, options, writer, null, CancellationToken.None);
 
 				NodeHandle handle = await writer.FlushAsync(node);
-
-				logger.LogInformation("Writing {File}", OutputFile);
-				await FileReference.WriteAllTextAsync(OutputFile, handle.ToString());
+				if (File != null)
+				{
+					logger.LogInformation("Writing {File}", File);
+					await FileReference.WriteAllTextAsync(File, handle.ToString());
+				}
+				else
+				{
+					logger.LogInformation("Writing ref {Ref}", Ref);
+					await store.WriteRefTargetAsync(new RefName(Ref!), handle);
+				}
 			}
 
 			logger.LogInformation("Time: {Time}", timer.Elapsed.TotalSeconds);

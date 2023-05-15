@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
@@ -13,23 +11,35 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Commands.Bundles
 {
 	[Command("bundle", "extract", "Extracts data from a bundle to the local hard drive")]
-	internal class BundleExtract : Command
+	internal class BundleExtract : StorageCommandBase
 	{
-		[CommandLine("-Input=")]
-		public FileReference Input { get; set; } = null!;
+		[CommandLine("-File=")]
+		public FileReference? File { get; set; }
 
-		[CommandLine("-BlobDir=")]
-		public DirectoryReference? BlobDir { get; set; }
+		[CommandLine("-Ref=")]
+		public string? Ref { get; set; }
 
 		[CommandLine("-OutputDir=", Required = true)]
 		public DirectoryReference OutputDir { get; set; } = null!;
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			string Text = await FileReference.ReadAllTextAsync(Input);
-			NodeHandle handle = NodeHandle.Parse(Text);
-
-			FileStorageClient store = new FileStorageClient(BlobDir ?? Input.Directory, logger);
+			IStorageClient store;
+			NodeHandle handle;
+			if (File != null)
+			{
+				store = new FileStorageClient(File.Directory, logger);
+				handle = NodeHandle.Parse(await FileReference.ReadAllTextAsync(File));
+			}
+			else if (Ref != null)
+			{
+				store = CreateStorageClient(logger);
+				handle = await store.ReadRefTargetAsync(new RefName(Ref));
+			}
+			else
+			{
+				throw new CommandLineArgumentException("Either -File=... or -Ref=... must be specified");
+			}
 
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 			TreeReader reader = new TreeReader(store, cache, logger);
