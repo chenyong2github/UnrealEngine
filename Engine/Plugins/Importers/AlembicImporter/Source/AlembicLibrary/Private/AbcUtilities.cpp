@@ -18,6 +18,7 @@ void FAbcUtilities::GetFrameMeshData(FAbcFile& AbcFile, int32 FrameIndex, FGeome
 	const UAbcImportSettings* ImportSettings = AbcFile.GetImportSettings();
 	checkSlow(ImportSettings);
 
+	float FrameTime = 0.0f;
 	FGeometryCacheMeshData MeshData;
 	int32 PreviousNumVertices = 0;
 	bool bConstantTopology = false;
@@ -25,7 +26,7 @@ void FAbcUtilities::GetFrameMeshData(FAbcFile& AbcFile, int32 FrameIndex, FGeome
 	const bool bStoreImportedVertexNumbers = ImportSettings->GeometryCacheSettings.bStoreImportedVertexNumbers;
 
 	AbcImporterUtilities::MergePolyMeshesToMeshData(FrameIndex, 0, AbcFile.GetSecondsPerFrame(), bUseVelocitiesAsMotionVectors,
-		AbcFile.GetPolyMeshes(), AbcFile.GetUniqueFaceSetNames(), MeshData, PreviousNumVertices, bConstantTopology, bStoreImportedVertexNumbers);
+		AbcFile.GetPolyMeshes(), AbcFile.GetUniqueFaceSetNames(), FrameTime, MeshData, PreviousNumVertices, bConstantTopology, bStoreImportedVertexNumbers);
 
 	OutMeshData = MoveTemp(MeshData);
 

@@ -1628,7 +1628,7 @@ void AbcImporterUtilities::GeometryCacheDataForMeshSample(FGeometryCacheMeshData
 }
 
 void AbcImporterUtilities::MergePolyMeshesToMeshData(int32 FrameIndex, int32 FrameStart, float SecondsPerFrame, bool bUseVelocitiesAsMotionVectors,
-	const TArray<FAbcPolyMesh*>& PolyMeshes, const TArray<FString>& UniqueFaceSetNames,
+	const TArray<FAbcPolyMesh*>& PolyMeshes, const TArray<FString>& UniqueFaceSetNames, float& FrameTime,
 	FGeometryCacheMeshData& MeshData, int32& PreviousNumVertices, bool& bConstantTopology, bool bStoreImportedVertexNumbers)
 {
 	FAbcMeshSample MergedSample;
@@ -1643,6 +1643,7 @@ void AbcImporterUtilities::MergePolyMeshesToMeshData(int32 FrameIndex, int32 Fra
 			if (PolyMesh->GetVisibility(FrameIndex))
 			{
 				const FAbcMeshSample* Sample = PolyMesh->GetSample(FrameIndex);
+				FrameTime = PolyMesh->GetTimeForFrameIndex(FrameIndex);
 				AbcImporterUtilities::AppendMeshSample(&MergedSample, Sample);
 				if (PolyMesh->FaceSetNames.Num() == 0)
 				{
