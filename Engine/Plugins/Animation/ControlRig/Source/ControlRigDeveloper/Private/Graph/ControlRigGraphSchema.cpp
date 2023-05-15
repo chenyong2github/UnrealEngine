@@ -94,7 +94,8 @@ EValidatorResult FControlRigLocalVariableNameValidator::IsValid(const FString& N
 	EValidatorResult Result = FStringSetNameValidator::IsValid(Name, bOriginal);
 	if (Result == EValidatorResult::Ok)
 	{
-		if (URigVMController::GetSanitizedName(Name, false, true) == Name)
+		const URigVMSchema* RigSchema = Cast<URigVMSchema>(URigVMSchema::StaticClass()->GetDefaultObject(true));
+		if (RigSchema->GetSanitizedName(Name, false, true) == Name)
 		{
 			return Result;
 		}
@@ -133,7 +134,8 @@ EValidatorResult FControlRigNameValidator::IsValid(const FString& Name, bool bOr
 	EValidatorResult Result = FStringSetNameValidator::IsValid(Name, bOriginal);
 	if (Result == EValidatorResult::Ok)
 	{
-		if (URigVMController::GetSanitizedName(Name, false, true) == Name)
+		const URigVMSchema* RigSchema = Cast<URigVMSchema>(URigVMSchema::StaticClass()->GetDefaultObject(true));
+		if (RigSchema->GetSanitizedName(Name, false, true) == Name)
 		{
 			return Result;
 		}

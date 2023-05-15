@@ -18,6 +18,7 @@
 UAnimNextGraph_EditorData::UAnimNextGraph_EditorData(const FObjectInitializer& ObjectInitializer)
 {
 	RigVMClient.Reset();
+	RigVMClient.SetSchemaClass(UAnimNextGraph_Schema::StaticClass());
 	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(UAnimNextGraph_EditorData, RigVMClient));
 	{
 		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
@@ -267,23 +268,6 @@ void UAnimNextGraph_EditorData::HandleConfigureRigVMController(const FRigVMClien
                                                                     URigVMController* InControllerToConfigure)
 {
 	InControllerToConfigure->OnModified().AddUObject(this, &UAnimNextGraph_EditorData::HandleModifiedEvent);
-
-	InControllerToConfigure->UnfoldStructDelegate.BindLambda([](const UStruct* InStruct) -> bool
-	{
-		if (InStruct == TBaseStructure<FQuat>::Get())
-		{
-			return false;
-		}
-		if (InStruct == FRuntimeFloatCurve::StaticStruct())
-		{
-			return false;
-		}
-		if (InStruct == FRigPose::StaticStruct())
-		{
-			return false;
-		}
-		return true;
-	});
 
 	TWeakObjectPtr<UAnimNextGraph_EditorData> WeakThis(this);
 

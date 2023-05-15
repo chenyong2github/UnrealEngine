@@ -252,7 +252,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 						}
 					}
 
-					FName SafeEventName = URigVMController::GetUniqueName(EventName, [ExistingEventNames](const FName& NameToCheck) -> bool
+					FName SafeEventName = Controller->GetSchema()->GetUniqueName(EventName, [ExistingEventNames](const FName& NameToCheck) -> bool
 					{
 						return !ExistingEventNames.Contains(NameToCheck);
 					}, false, true);

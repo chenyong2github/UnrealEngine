@@ -34,6 +34,7 @@
 #include "Rigs/RigControlHierarchy.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "ControlRigSchema.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprint)
 
@@ -140,6 +141,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	VMRecompilationBracket = 0;
 
 	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, RigVMClient));
+	RigVMClient.SetSchemaClass(UControlRigSchema::StaticClass());
 	{
 		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
 		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer, false);
@@ -449,7 +451,7 @@ void UControlRigBlueprint::HandleRigVMGraphAdded(const FRigVMClient* InClient, c
 #if WITH_EDITOR
 		if(!bSuspendPythonMessagesForRigVMClient)
 		{
-			const FString BlueprintName = URigVMController::GetSanitizedName(GetName(), true, false);
+			const FString BlueprintName = InClient->GetSchema()->GetSanitizedName(GetName(), true, false);
 			RigVMPythonUtils::Print(BlueprintName, 
 				FString::Printf(TEXT("blueprint.add_model('%s')"),
 					*Model->GetName()));
@@ -468,7 +470,7 @@ void UControlRigBlueprint::HandleRigVMGraphRemoved(const FRigVMClient* InClient,
 #if WITH_EDITOR
 		if(!bSuspendPythonMessagesForRigVMClient)
 		{
-			const FString BlueprintName = URigVMController::GetSanitizedName(GetName(), true, false);
+			const FString BlueprintName = InClient->GetSchema()->GetSanitizedName(GetName(), true, false);
 			RigVMPythonUtils::Print(BlueprintName, 
 				FString::Printf(TEXT("blueprint.remove_model('%s')"),
 					*Model->GetName()));
@@ -500,23 +502,6 @@ void UControlRigBlueprint::HandleConfigureRigVMController(const FRigVMClient* In
 	URigVMController* InControllerToConfigure)
 {
 	InControllerToConfigure->OnModified().AddUObject(this, &UControlRigBlueprint::HandleModifiedEvent);
-
-	InControllerToConfigure->UnfoldStructDelegate.BindLambda([](const UStruct* InStruct) -> bool {
-
-		if (InStruct == TBaseStructure<FQuat>::Get())
-		{
-			return false;
-		}
-		if (InStruct == FRuntimeFloatCurve::StaticStruct())
-		{
-			return false;
-		}
-		if (InStruct == FRigPose::StaticStruct())
-		{
-			return false;
-		}
-		return true;
-		});
 
 	TWeakObjectPtr<UControlRigBlueprint> WeakThis(this);
 
@@ -2388,6 +2373,7 @@ URigVMController* UControlRigBlueprint::GetTemplateController(bool bIsFunctionLi
 		TemplateController->SetGraph(GetTemplateModel(bIsFunctionLibrary));
 		TemplateController->EnableReporting(false);
 		TemplateController->SetFlags(RF_Transient);
+		TemplateController->SetSchema(RigVMClient.GetOrCreateSchema());
 	}
 	return TemplateController;
 #else

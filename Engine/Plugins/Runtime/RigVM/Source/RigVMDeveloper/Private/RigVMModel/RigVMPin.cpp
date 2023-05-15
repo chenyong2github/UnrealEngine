@@ -1712,7 +1712,7 @@ URigVMGraph* URigVMPin::GetGraph() const
 	return nullptr;
 }
 
-bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection, bool bInAllowNonArgumentPins, bool bEnableTypeCasting)
+bool URigVMPin::CanLink(const URigVMPin* InSourcePin, const URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection, bool bInAllowNonArgumentPins, bool bEnableTypeCasting)
 {
 	if (InSourcePin == nullptr || InTargetPin == nullptr)
 	{
@@ -1819,7 +1819,7 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 
 			if(bCPPTypesDiffer)
 			{
-				auto TemplateNodeSupportsType = [](URigVMPin* InPin, const int32& InTypeIndex, FString* OutFailureReason) -> bool
+				auto TemplateNodeSupportsType = [](const URigVMPin* InPin, const int32& InTypeIndex, FString* OutFailureReason) -> bool
 				{
 					if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
 					{
@@ -1851,8 +1851,8 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 					// Find out if these pins have any type in common
 					uint8 SourceLevels = 0;
 					uint8 TargetLevels = 0;
-					URigVMPin* RootSourcePin = InSourcePin;
-					URigVMPin* RootTargetPin = InTargetPin;
+					const URigVMPin* RootSourcePin = InSourcePin;
+					const URigVMPin* RootTargetPin = InTargetPin;
 					while (RootSourcePin->IsArrayElement())
 					{
 						SourceLevels++;

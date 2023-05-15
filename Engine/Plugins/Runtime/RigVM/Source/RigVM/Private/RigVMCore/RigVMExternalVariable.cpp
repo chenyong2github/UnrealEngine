@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVMExternalVariable.h"
+#include "RigVMCore/RigVMRegistry.h"
 
 #if WITH_EDITOR
 
@@ -240,3 +241,12 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 }
 
 #endif
+
+TRigVMTypeIndex FRigVMExternalVariable::GetTypeIndex() const
+{
+	if(IsValid(true))
+	{
+		return FRigVMRegistry::Get().GetTypeIndexFromCPPType(GetExtendedCPPType().ToString());
+	}
+	return INDEX_NONE;
+}

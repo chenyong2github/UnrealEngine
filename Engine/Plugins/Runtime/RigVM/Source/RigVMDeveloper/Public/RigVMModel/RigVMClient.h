@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RigVMGraph.h"
+#include "RigVMSchema.h"
 #include "RigVMFunctionLibrary.h"
 #include "RigVMController.h"
 #include "RigVMClient.generated.h"
@@ -83,7 +84,8 @@ public:
 	GENERATED_BODY()
 
 	FRigVMClient()
-		: ExecuteContextStruct(nullptr)
+		: SchemaPtr(nullptr)
+		, SchemaClass(URigVMSchema::StaticClass())
 		, FunctionLibrary(nullptr)
 		, ActionStack(nullptr)
 		, bSuspendNotifications(false)
@@ -91,14 +93,16 @@ public:
 		, OuterClientHost(nullptr)
 		, OuterClientPropertyName(NAME_None)
 	{
-		ExecuteContextStruct = FRigVMExecuteContext::StaticStruct();
 	}
 
+	void SetSchemaClass(TSubclassOf<URigVMSchema> InSchemaClass);
 	void SetOuterClientHost(UObject* InOuterClientHost, const FName& InOuterClientHostPropertyName);
 	void SetFromDeprecatedData(URigVMGraph* InDefaultGraph, URigVMFunctionLibrary* InFunctionLibrary);
 
 	void Reset();
 	int32 Num() const { return Models.Num(); }
+	const URigVMSchema* GetSchema() const { return SchemaPtr; }
+	URigVMSchema* GetOrCreateSchema();
 	URigVMGraph* GetDefaultModel() const;
 	URigVMGraph* GetModel(int32 InIndex) const { return Models[InIndex]; }
 	URigVMGraph* GetModel(const FString& InNodePathOrName) const;
@@ -117,9 +121,9 @@ public:
 	URigVMFunctionLibrary* GetFunctionLibrary() const { return FunctionLibrary; }
 	URigVMFunctionLibrary* GetOrCreateFunctionLibrary(bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr, bool bCreateController = true);
 	TArray<FName> GetEntryNames() const;
-	UScriptStruct* GetExecuteContextStruct() const { return ExecuteContextStruct; }
-	void SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct) { ExecuteContextStruct = InExecuteContextStruct; }
-
+	UScriptStruct* GetExecuteContextStruct() const;
+	void SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct);
+	
 	URigVMGraph* AddModel(const FName& InName, bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr, bool bCreateController = true);
 	void AddModel(URigVMGraph* InModel, bool bCreateController);
 	bool RemoveModel(const FString& InNodePathOrName, bool bSetupUndoRedo);
@@ -191,8 +195,13 @@ private:
 	URigVMActionStack* GetOrCreateActionStack();
 	void ResetActionStack();
 
+	void SetSchema(URigVMSchema* InSchema);
+
 	UPROPERTY(transient)
-	TObjectPtr<UScriptStruct> ExecuteContextStruct;
+	TObjectPtr<URigVMSchema> SchemaPtr;
+
+	UPROPERTY(transient)
+	TSubclassOf<URigVMSchema> SchemaClass;
 
 	UPROPERTY()
 	TArray<TObjectPtr<URigVMGraph>> Models;
@@ -218,4 +227,6 @@ public:
 private:
 	TWeakObjectPtr<UObject> OuterClientHost;
 	FName OuterClientPropertyName;
+
+	friend class UEngineTestClientHost;
 };

@@ -273,7 +273,7 @@ public:
 	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const { return NAME_None; }
 
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
-	virtual URigVMLibraryNode* FindFunctionForNode();
+	virtual URigVMLibraryNode* FindFunctionForNode() const;
 
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const { return FRigVMStructUpgradeInfo(); }
 
@@ -341,5 +341,6 @@ private:
 	friend class URigVMPin;
 	friend class URigVMCompiler;
 	friend class FRigVMLexer;
+	friend class URigVMSchema;
 };
 

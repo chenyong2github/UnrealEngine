@@ -82,5 +82,6 @@ private:
 	friend class URigVMCompiler;
 	friend class FRigVMVarExprAST;
 	friend class FRigVMParserAST;
+	friend class URigVMSchema;
 };
 

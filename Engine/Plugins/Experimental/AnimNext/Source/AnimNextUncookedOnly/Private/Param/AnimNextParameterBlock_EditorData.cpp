@@ -56,13 +56,14 @@ static EntryClassType* CreateNewParameterBlockEntry(UAnimNextParameterBlock_Edit
 UAnimNextParameterBlock_EditorData::UAnimNextParameterBlock_EditorData(const FObjectInitializer& ObjectInitializer)
 {
 	RigVMClient.Reset();
+	RigVMClient.SetSchemaClass(UAnimNextParameterBlockLibrary_Schema::StaticClass());
+	RigVMClient.SetExecuteContextStruct(FAnimNextParametersExecuteContext::StaticStruct());
 	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(UAnimNextParameterBlock_EditorData, RigVMClient));
 	{
 		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
 		RigVMClient.AddModel(TEXT("RigVMGraph"), false, &ObjectInitializer);
 		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer);
 	}
-	RigVMClient.SetExecuteContextStruct(FAnimNextParametersExecuteContext::StaticStruct());
 }
 
 #if WITH_EDITORONLY_DATA
@@ -631,7 +632,7 @@ void UAnimNextParameterBlock_EditorData::HandleRigVMGraphAdded(const FRigVMClien
 #if WITH_EDITOR
 		if(!bSuspendPythonMessagesForRigVMClient)
 		{
-			const FString BlueprintName = URigVMController::GetSanitizedName(GetName(), true, false);
+			const FString BlueprintName = InClient->GetSchema()->GetSanitizedName(GetName(), true, false);
 			RigVMPythonUtils::Print(BlueprintName, FString::Printf(TEXT("block.add_binding('%s')"), *RigVMGraph->GetName()));
 		}
 #endif
@@ -648,7 +649,7 @@ void UAnimNextParameterBlock_EditorData::HandleRigVMGraphRemoved(const FRigVMCli
 #if WITH_EDITOR
 		if(!bSuspendPythonMessagesForRigVMClient)
 		{
-			const FString BlueprintName = URigVMController::GetSanitizedName(GetName(), true, false);
+			const FString BlueprintName = InClient->GetSchema()->GetSanitizedName(GetName(), true, false);
 			RigVMPythonUtils::Print(BlueprintName, FString::Printf(TEXT("block.remove_binding('%s')"), *RigVMGraph->GetName()));
 		}
 #endif
@@ -658,23 +659,6 @@ void UAnimNextParameterBlock_EditorData::HandleRigVMGraphRemoved(const FRigVMCli
 void UAnimNextParameterBlock_EditorData::HandleConfigureRigVMController(const FRigVMClient* InClient, URigVMController* InControllerToConfigure)
 {
 	InControllerToConfigure->OnModified().AddUObject(this, &UAnimNextParameterBlock_EditorData::HandleModifiedEvent);
-
-	InControllerToConfigure->UnfoldStructDelegate.BindLambda([](const UStruct* InStruct) -> bool
-	{
-		if (InStruct == TBaseStructure<FQuat>::Get())
-		{
-			return false;
-		}
-		if (InStruct == FRuntimeFloatCurve::StaticStruct())
-		{
-			return false;
-		}
-		if (InStruct == FRigPose::StaticStruct())
-		{
-			return false;
-		}
-		return true;
-	});
 
 	TWeakObjectPtr<UAnimNextParameterBlock_EditorData> WeakThis(this);
 

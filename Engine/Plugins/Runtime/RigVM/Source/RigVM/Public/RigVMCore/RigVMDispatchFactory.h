@@ -13,6 +13,7 @@
 #include "RigVMCore/RigVMStructUpgradeInfo.h"
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMCore/RigVMTypeIndex.h"
+#include "RigVMCore/RigVMExecuteContext.h"
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"

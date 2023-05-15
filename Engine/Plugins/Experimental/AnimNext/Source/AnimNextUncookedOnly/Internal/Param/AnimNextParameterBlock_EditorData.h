@@ -42,6 +42,12 @@ enum class EAnimNextParameterLoadType : uint8
 	CheckUserDefinedStructs
 };
 
+UCLASS()
+class UAnimNextParameterBlockLibrary_Schema : public URigVMSchema
+{
+	GENERATED_BODY()
+};
+
 // Script-callable editor API hoisted onto UAnimNextParameterBlock
 UCLASS()
 class ANIMNEXTUNCOOKEDONLY_API UAnimNextParameterBlockLibrary : public UBlueprintFunctionLibrary

@@ -208,5 +208,6 @@ private:
 	friend class FRigVMControllerCompileBracketScope;
 	friend class URigVMCompiler;
 	friend struct FRigVMControllerObjectFactory;
+	friend class URigVMSchema;
 };
 

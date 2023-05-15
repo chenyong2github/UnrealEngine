@@ -26,6 +26,12 @@ enum class EAnimNextGraphLoadType : uint8
 	CheckUserDefinedStructs
 };
 
+UCLASS()
+class UAnimNextGraph_Schema : public URigVMSchema
+{
+	GENERATED_BODY()
+};
+
 UCLASS(MinimalAPI)
 class UAnimNextGraph_EditorData : public UObject, public IRigVMClientHost, public IRigVMGraphFunctionHost
 {

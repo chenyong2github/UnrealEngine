@@ -396,9 +396,9 @@ uint32 URigVMNode::GetStructureHash() const
 	return Hash;
 }
 
-URigVMLibraryNode* URigVMNode::FindFunctionForNode() 
+URigVMLibraryNode* URigVMNode::FindFunctionForNode() const  
 {
-	UObject* Subject = this;
+	const UObject* Subject = this;
 	while (Subject->GetOuter() && !Subject->GetOuter()->IsA<URigVMFunctionLibrary>())
 	{
 		Subject = Subject->GetOuter();
@@ -408,7 +408,7 @@ URigVMLibraryNode* URigVMNode::FindFunctionForNode()
 		}
 	}
 
-	return Cast<URigVMLibraryNode>(Subject);
+	return const_cast<URigVMLibraryNode*>(Cast<URigVMLibraryNode>(Subject));
 }
 
 bool URigVMNode::IsLinkedToRecursive(URigVMPin* InPin, URigVMNode* InNode) const

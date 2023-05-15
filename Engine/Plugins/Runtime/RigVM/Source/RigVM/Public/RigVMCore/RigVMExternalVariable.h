@@ -7,6 +7,7 @@
 #include "RigVMDefines.h"
 #include "RigVMMemory.h"
 #include "RigVMModule.h"
+#include "RigVMTypeIndex.h"
 #include "RigVMTypeUtils.h"
 #include "UObject/UnrealType.h"
 #if WITH_EDITOR
@@ -593,6 +594,8 @@ struct RIGVM_API FRigVMExternalVariable
 		}
 		return TypeName;
 	}
+
+	TRigVMTypeIndex GetTypeIndex() const;
 
 	static void MergeExternalVariable(TArray<FRigVMExternalVariable>& OutVariables, const FRigVMExternalVariable& InVariable)
 	{

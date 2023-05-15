@@ -4,6 +4,7 @@
 
 #include "RigVMGraph.h"
 #include "RigVMFunctionLibrary.h"
+#include "RigVMSchema.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 #include "RigVMModel/Nodes/RigVMParameterNode.h"
@@ -203,6 +204,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController, meta=(DeprecatedFunction, DeprecationMessage="Function has been deprecated, please rely on GetControllerForGraph instead."))
 	void SetGraph(URigVMGraph* InGraph);
 
+	// Returns the schema used by this controller
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMSchema* GetSchema() const { return SchemaPtr; }
+
+	// Sets the schema on the controller
+	void SetSchema(URigVMSchema* InSchema);
+
 	// Pushes a new graph to the stack
 	// This causes a GraphChanged modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController, meta=(DeprecatedFunction, DeprecationMessage="Function has been deprecated, please rely on GetControllerForGraph instead."))
@@ -241,6 +249,10 @@ public:
 	// Returns true if reporting is enabled
 	UFUNCTION(BlueprintPure, Category = RigVMController)
 	bool IsReportingEnabled() const { return bReportWarningsAndErrors; }
+
+	// Returns true if the controller is currently transacting
+	UFUNCTION(BlueprintPure, Category = RigVMController)
+	bool IsTransacting() const { return bIsTransacting; }
 
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	TArray<FString> GeneratePythonCommands();
@@ -551,9 +563,6 @@ public:
 		bool bPrintPythonCommand = false);
 
 
-	// Returns a unique name
-	static FName GetUniqueName(const FName& InName, TFunction<bool(const FName&)> IsNameAvailableFunction, bool bAllowPeriod, bool bAllowSpace);
-
 	// Turns a series of nodes into a Collapse node
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMCollapseNode* CollapseNodes(const TArray<FName>& InNodeNames, const FString& InCollapseNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false, bool bIsAggregate = false);
@@ -828,7 +837,7 @@ public:
 	// Adds a function reference / invocation to the graph
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMFunctionReferenceNode* AddFunctionReferenceNodeFromDescription(const FRigVMGraphFunctionHeader& InFunctionDefinition, const FVector2D& InNodePosition = FVector2D::ZeroVector, const
-	                                                                     FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false, bool bAllowPrivateFunctions = false);
+	                                                                     FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMFunctionReferenceNode* AddExternalFunctionReferenceNode(const FString& InHostPath, const FName& InFunctionName, const FVector2D& InNodePosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 	
@@ -897,9 +906,6 @@ public:
 
 	// Determine affected assets for a potential bulk edit on a library node
 	TArray<FAssetData> GetAffectedAssets(ERigVMControllerBulkEditType InEditType, bool bForceLoad = false);
-
-	// A delegate that can be set to change the struct unfolding behaviour
-	FRigVMController_ShouldStructUnfoldDelegate UnfoldStructDelegate;
 
 	// A delegate to retrieve the list of external variables
 	FRigVMController_GetExternalVariablesDelegate GetExternalVariablesDelegate;
@@ -1083,24 +1089,18 @@ private:
 	FRigVMGraphModifiedEvent ModifiedEventStatic;
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
-	FString GetValidNodeName(const FString& InPrefix);
 	bool IsValidGraph() const;
+	bool IsValidSchema() const;
 	bool IsGraphEditable() const;
 	bool IsValidNodeForGraph(const URigVMNode* InNode);
 	bool IsValidPinForGraph(const URigVMPin* InPin);
 	bool IsValidLinkForGraph(const URigVMLink* InLink);
-	bool CanAddNode(URigVMNode* InNode, bool bReportErrors, bool bIgnoreFunctionEntryReturnNodes = false);
-	TObjectPtr<URigVMNode> FindEventNode(const UScriptStruct* InScriptStruct) const;
-	bool CanAddEventNode(UScriptStruct* InScriptStruct, const bool bReportErrors) const;
-	bool CanAddFunctionRefForDefinition(const FRigVMGraphFunctionHeader& InFunctionDefinition, bool bReportErrors, bool bAllowPrivateFunctions=false);
 	void AddPinsForStruct(UStruct* InStruct, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const FString& InDefaultValue, bool bAutoExpandArrays, const FPinInfoArray* PreviousPins = nullptr);
 	void AddPinsForArray(FArrayProperty* InArrayProperty, URigVMNode* InNode, URigVMPin* InParentPin, ERigVMPinDirection InPinDirection, const TArray<FString>& InDefaultValues, bool bAutoExpandArrays);
 	void AddPinsForTemplate(const FRigVMTemplate* InTemplate, const FRigVMTemplateTypeMap& InPinTypeMap, URigVMNode* InNode);
 	void ConfigurePinFromProperty(FProperty* InProperty, URigVMPin* InOutPin, ERigVMPinDirection InPinDirection = ERigVMPinDirection::Invalid);
 	void ConfigurePinFromPin(URigVMPin* InOutPin, URigVMPin* InPin, bool bCopyDisplayName = false);
 	void ConfigurePinFromArgument(URigVMPin* InOutPin, const FRigVMGraphFunctionArgument& InArgument, bool bCopyDisplayName = false);
-	virtual bool ShouldStructBeUnfolded(const UStruct* InStruct);
-	virtual bool ShouldPinBeUnfolded(URigVMPin* InPin);
 	bool SetPinDefaultValue(URigVMPin* InPin, const FString& InDefaultValue, bool bResizeArrays, bool bSetupUndoRedo, bool bMergeUndoAction);
 	bool ResetPinDefaultValue(URigVMPin* InPin, bool bSetupUndoRedo);
 	static FString GetPinInitialDefaultValue(const URigVMPin* InPin);
@@ -1186,6 +1186,7 @@ private:
 	void DestroyObject(UObject* InObjectToDestroy) const ;
 	static URigVMPin* MakeExecutePin(URigVMNode* InNode, const FName& InName);
 	static void MakeExecutePin(URigVMPin* InOutPin);
+	bool AddGraphNode(URigVMNode* InNode, bool bNotify);
 	static void AddNodePin(URigVMNode* InNode, URigVMPin* InPin);
 	static void AddSubPin(URigVMPin* InParentPin, URigVMPin* InPin);
 	static bool EnsurePinValidity(URigVMPin* InPin, bool bRecursive);
@@ -1195,22 +1196,12 @@ private:
 	// they can get out of sync when the variable references a user defined struct
 	void EnsureLocalVariableValidity();
 	
-	FRigVMExternalVariable GetVariableByName(const FName& InExternalVariableName, const bool bIncludeInputArguments = false);
-	TArray<FRigVMExternalVariable> GetAllVariables(const bool bIncludeInputArguments = false);
+	FRigVMExternalVariable GetVariableByName(const FName& InExternalVariableName, const bool bIncludeInputArguments = false) const;
+	TArray<FRigVMExternalVariable> GetAllVariables(const bool bIncludeInputArguments = false) const;
 
 	void RefreshFunctionReferences(URigVMLibraryNode* InFunctionDefinition, bool bSetupUndoRedo);
 
-	FString GetGraphOuterName() const;
-
 public:
-	static int32 GetMaxNameLength() { return 100; }
-	static FString GetSanitizedName(const FString& InName, bool bAllowPeriod, bool bAllowSpace);
-	static FString GetSanitizedGraphName(const FString& InName);
-	static FString GetSanitizedNodeName(const FString& InName);
-	static FString GetSanitizedVariableName(const FString& InName);
-	static FString GetSanitizedPinName(const FString& InName);
-	static FString GetSanitizedPinPath(const FString& InName);
-	static void SanitizeName(FString& InOutName, bool bAllowPeriod, bool bAllowSpace);
 
 	struct FLinkedPath
 	{
@@ -1364,6 +1355,9 @@ private:
 	UPROPERTY(transient)
 	TArray<TObjectPtr<URigVMGraph>> Graphs;
 
+	UPROPERTY(transient, DuplicateTransient)
+	TObjectPtr<URigVMSchema> SchemaPtr;
+
 	mutable TWeakObjectPtr<URigVMActionStack> WeakActionStack;
 	mutable FDelegateHandle ActionStackHandle;
 
@@ -1372,6 +1366,7 @@ private:
 	bool bIgnoreRerouteCompactnessChanges;
 	ERigVMPinDirection UserLinkDirection;
 	bool bEnableTypeCasting;
+	bool bAllowPrivateFunctions;
 
 	// temporary maps used for pin redirection
 	// only valid between Detach & ReattachLinksToPinObjects
@@ -1444,6 +1439,8 @@ private:
 	friend class FRigVMControllerNotifGuard;
 	friend struct FRigVMClient;
 	friend struct FRigVMActionWrapper;
+	friend class URigVMSchema;
+	friend class UControlRigFunctionRefNodeSpawner;
 };
 
 class FRigVMControllerNotifGuard
