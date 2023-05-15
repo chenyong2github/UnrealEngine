@@ -6,7 +6,7 @@
 #include "NvTriStrip.h"
 #include "forsythtriangleorderoptimizer.h"
 
-#ifdef __clang__
+#ifndef _SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS
 #define _SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS 1
 #endif
 
