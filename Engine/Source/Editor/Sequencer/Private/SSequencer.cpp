@@ -1749,14 +1749,12 @@ void SSequencer::SetTrackFilterEnabled(const FText& InTrackFilterName, bool bEna
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 
-	bool bFound = false;
 	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
 	{
 		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
 		{
 			if (InTrackFilterName.EqualToCaseIgnored(TrackFilter->GetDisplayName()))
 			{
-				bFound = true;
 				if (bEnabled && !IsTrackFilterActive(TrackFilter))
 				{
 					Sequencer->GetNodeTree()->AddFilter(TrackFilter);
@@ -1767,11 +1765,6 @@ void SSequencer::SetTrackFilterEnabled(const FText& InTrackFilterName, bool bEna
 				}
 			}
 		}
-	}
-
-	if (!bFound)
-	{
-		UE_LOG(LogSequencer, Warning, TEXT("'%s' track filter not found"), *InTrackFilterName.ToString());
 	}
 }
 
@@ -1789,8 +1782,6 @@ bool SSequencer::IsTrackFilterEnabled(const FText& InTrackFilterName) const
 			}
 		}
 	}
-
-	UE_LOG(LogSequencer, Warning, TEXT("'%s' track filter not found"), *InTrackFilterName.ToString());
 
 	return false;
 }
