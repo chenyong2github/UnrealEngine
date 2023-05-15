@@ -114,7 +114,7 @@ namespace ParallelForImpl
 	template<typename BodyType, typename PreWorkType, typename ContextType>
 	inline void ParallelForInternal(const TCHAR* DebugName, int32 Num, int32 MinBatchSize, BodyType Body, PreWorkType CurrentThreadWorkToDoBeforeHelping, EParallelForFlags Flags, const TArrayView<ContextType>& Contexts)
 	{
-		if (Num == 0) 
+		if (Num == 0)
 		{
 			return;
 		}
@@ -626,6 +626,30 @@ inline void ParallelForWithPreWorkWithTaskContext(
 }
 
 /** 
+ * General purpose parallel for that uses the taskgraph
+ * @param DebugName; ProfilingScope and DebugName
+ * @param Contexts; User-privided array of user-defined task-level context objects
+ * @param Num; number of calls of Body; Body(0), Body(1), ..., Body(Num - 1)
+ * @param MinBatchSize; Minimum Size of a Batch (will only launch DivUp(Num, MinBatchSize) Workers 
+ * @param Body; Function to call from multiple threads
+ * @param CurrentThreadWorkToDoBeforeHelping; The work is performed on the main thread before it starts helping with the ParallelFor proper
+ * @param Flags; Used to customize the behavior of the ParallelFor if needed.
+ * Notes: Please add stats around to calls to parallel for and within your lambda as appropriate. Do not clog the task graph with long running tasks or tasks that block.
+ */
+template <typename ContextType, typename BodyType, typename PreWorkType>
+inline void ParallelForWithPreWorkWithExistingTaskContext(
+	const TCHAR* DebugName,
+	TArrayView<ContextType> Contexts,
+	int32 Num,
+	int32 MinBatchSize,
+	BodyType&& Body,
+	PreWorkType&& CurrentThreadWorkToDoBeforeHelping,
+	EParallelForFlags Flags = EParallelForFlags::None)
+{
+	ParallelForImpl::ParallelForInternal(DebugName, Num, MinBatchSize, Forward<BodyType>(Body), Forward<PreWorkType>(CurrentThreadWorkToDoBeforeHelping), Flags, Contexts);
+}
+
+/** 
 	*	General purpose parallel for that uses the taskgraph. This variant constructs for the caller a user-defined context
 	* 	object for each task that may get spawned to do work, and passes it on to the loop body to give it a task-local
 	*   "workspace" that can be mutated without need for synchronization primitives. For this variant, the user provides a
@@ -743,10 +767,7 @@ inline void ParallelForWithTaskContext(const TCHAR* DebugName, TArray<ContextTyp
 template <typename ContextType, typename FunctionType>
 inline void ParallelForWithExistingTaskContext(TArrayView<ContextType> Contexts, int32 Num, int32 MinBatchSize, const FunctionType& Body, EParallelForFlags Flags = EParallelForFlags::None)
 {
-	if (Num > 0)
-	{
-		ParallelForImpl::ParallelForInternal(TEXT("ParallelFor Task"), Num, MinBatchSize, Body, [](){}, Flags, Contexts);
-	}
+	ParallelForImpl::ParallelForInternal(TEXT("ParallelFor Task"), Num, MinBatchSize, Body, [](){}, Flags, Contexts);
 }
 
 /**
@@ -764,8 +785,5 @@ inline void ParallelForWithExistingTaskContext(TArrayView<ContextType> Contexts,
 template <typename ContextType, typename FunctionType>
 inline void ParallelForWithExistingTaskContext(const TCHAR* DebugName, TArrayView<ContextType> Contexts, int32 Num, int32 MinBatchSize, const FunctionType& Body, EParallelForFlags Flags = EParallelForFlags::None)
 {
-	if (Num > 0)
-	{
-		ParallelForImpl::ParallelForInternal(DebugName, Num, MinBatchSize, Body, [](){}, Flags, Contexts);
-	}
+	ParallelForImpl::ParallelForInternal(DebugName, Num, MinBatchSize, Body, [](){}, Flags, Contexts);
 }
