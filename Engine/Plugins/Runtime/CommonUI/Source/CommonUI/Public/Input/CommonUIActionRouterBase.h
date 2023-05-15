@@ -139,6 +139,7 @@ protected:
 
 	virtual void ApplyUIInputConfig(const FUIInputConfig& NewConfig, bool bForceRefresh);
 	void UpdateLeafNodeAndConfig(FActivatableTreeRootPtr DesiredRoot, FActivatableTreeNodePtr DesiredLeafNode);
+	void FlushPressedKeys() const;
 
 	void RefreshActionDomainLeafNodeConfig();
 

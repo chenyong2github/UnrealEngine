@@ -21,6 +21,7 @@
 #include "Input/UIActionRouterTypes.h"
 #include "Slate/SGameLayerManager.h"
 #include "Slate/SObjectWidget.h"
+#include "TimerManager.h"
 #include "Widgets/SViewport.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CommonUIActionRouterBase)
@@ -41,6 +42,12 @@ static const FAutoConsoleVariableRef CVarRollbackResetInputConfigOnDormancy(
 		"root layout would become dormant before input mode could change to Menu. Also, when dormant we would automatically reset the mode to Game."
 		"The fix prevents dormant changes to input mode and resets input mode to default when layout is made dormant."
 		"Set to true to disable the fix. FORT-605617 is the task to remove this rollback if all is good."));
+
+bool bAutoFlushPressedKeys = true;
+static const FAutoConsoleVariableRef CVarAutoFlushInput(
+	TEXT("CommonUI.AutoFlushPressedKeys"),
+	bAutoFlushPressedKeys,
+	TEXT("Causes the pressed keys to be flushed when the Input Mode is switched to Menu."));
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1219,6 +1226,15 @@ void UCommonUIActionRouterBase::UpdateLeafNodeAndConfig(FActivatableTreeRootPtr 
 	}
 }
 
+void UCommonUIActionRouterBase::FlushPressedKeys() const
+{
+	ULocalPlayer& LocalPlayer = *GetLocalPlayerChecked();
+	if (APlayerController* PC = LocalPlayer.GetPlayerController(GetWorld()))
+	{
+		PC->FlushPressedKeys();
+	}
+}
+
 UCommonUIActionRouterBase::FPendingWidgetRegistration& UCommonUIActionRouterBase::GetOrCreatePendingRegistration(const UWidget& Widget)
 {
 	if (FPendingWidgetRegistration* ExistingEntry = PendingWidgetRegistrations.FindByKey(Widget))
@@ -1445,6 +1461,13 @@ void UCommonUIActionRouterBase::ApplyUIInputConfig(const FUIInputConfig& NewConf
 					if (!OldConfig.IsSet() || OldConfig.GetValue().bIgnoreLookInput != NewConfig.bIgnoreLookInput)
 					{
 						PC->SetIgnoreLookInput(NewConfig.bIgnoreLookInput);						
+					}
+
+					if (bAutoFlushPressedKeys && NewConfig.GetInputMode() == ECommonInputMode::Menu && PreviousInputMode != NewConfig.GetInputMode())
+					{
+						// Flushing pressed keys after switching to the Menu InputMode. This prevents the inputs from being artificially "held down".
+						// This needs to be delayed by one frame to successfully clear input captured at the end of this frame
+						GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ThisClass::FlushPressedKeys);
 					}
 
 					EMouseCaptureMode PrevCaptureMode = GameViewportClient->GetMouseCaptureMode();
