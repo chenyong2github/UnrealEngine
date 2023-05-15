@@ -3686,7 +3686,7 @@ bool UInstancedStaticMeshComponent::RemoveInstanceInternal(int32 InstanceIndex, 
 		if (bUseRemoveAtSwap)
 		{
 			PerInstanceSMData.RemoveAtSwap(InstanceIndex, 1, false);
-			PerInstanceSMCustomData.RemoveAt(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats, false);
+			PerInstanceSMCustomData.RemoveAtSwap(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats, false);
 		}
 		else
 		{
