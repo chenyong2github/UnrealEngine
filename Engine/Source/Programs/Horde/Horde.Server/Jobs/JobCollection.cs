@@ -1552,10 +1552,13 @@ namespace Horde.Server.Jobs
 			foreach (JobStepBatchDocument batch in job.Batches)
 			{
 				INodeGroup group = graph.Groups[batch.GroupIdx];
-				foreach (IJobStep step in batch.Steps)
+				foreach (JobStepDocument step in batch.Steps)
 				{
-					INode node = group.Nodes[step.NodeIdx];
-					existingNodesToExecute.Add(node);
+					if (!step.Retry)
+					{
+						INode node = group.Nodes[step.NodeIdx];
+						existingNodesToExecute.Add(node);
+					}
 				}
 			}
 
@@ -1584,7 +1587,7 @@ namespace Horde.Server.Jobs
 						if (batch != null)
 						{
 							IJobStep lastStep = batch.Steps[batch.Steps.Count - 1];
-							if (nodeIdx < lastStep.NodeIdx)
+							if (nodeIdx <= lastStep.NodeIdx)
 							{
 								appendToBatches[groupIdx] = null;
 							}
@@ -1618,15 +1621,20 @@ namespace Horde.Server.Jobs
 							appendToBatches[groupIdx] = batch;
 						}
 
-						SubResourceId stepId;
-						if (!recycleStepIds.Remove(new NodeRef(groupIdx, nodeIdx), out stepId))
+						// Don't re-add nodes that have already executed in this batch. If we were missing a dependency, we would have already nulled out the entry in appendToBatches above; anything else
+						// is already valid.
+						if (batch.Steps.Count == 0 || nodeIdx > batch.Steps[^1].NodeIdx)
 						{
-							job.NextSubResourceId = job.NextSubResourceId.Next();
-							stepId = job.NextSubResourceId;
-						}
+							SubResourceId stepId;
+							if (!recycleStepIds.Remove(new NodeRef(groupIdx, nodeIdx), out stepId))
+							{
+								job.NextSubResourceId = job.NextSubResourceId.Next();
+								stepId = job.NextSubResourceId;
+							}
 
-						JobStepDocument step = new JobStepDocument(stepId, nodeIdx);
-						batch.Steps.Add(step);
+							JobStepDocument step = new JobStepDocument(stepId, nodeIdx);
+							batch.Steps.Add(step);
+						}
 					}
 				}
 			}
