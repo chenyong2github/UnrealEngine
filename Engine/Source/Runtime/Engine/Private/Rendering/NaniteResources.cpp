@@ -855,7 +855,7 @@ FSceneProxy::FSceneProxy(const FMaterialAudit& MaterialAudit, UInstancedStaticMe
 	// Temporarily when removing instances from a HISM this can be sparse so that NumInstances < NumRenderInstances.
 	const int32 NumInstances = Component->GetInstanceCount();
 	const int32 NumRenderInstances = FMath::Max<int32>(Component->InstanceUpdateCmdBuffer.NumEditInstances, NumInstances);
-	InstanceSceneData.SetNum(NumRenderInstances);
+	InstanceSceneData.SetNumZeroed(NumRenderInstances);
 
 	bHasPerInstanceLocalBounds = false;
 	bHasPerInstanceHierarchyOffset = false;
