@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
-#include "Templates/UniquePtr.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 
 class IIoStoreWriter;
