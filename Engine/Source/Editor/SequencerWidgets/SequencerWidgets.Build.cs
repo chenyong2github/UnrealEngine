@@ -21,14 +21,9 @@ public class SequencerWidgets : ModuleRules
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject",
-				"Engine",
-                "InputCore",
+				"InputCore",
 				"Slate",
 				"SlateCore",
-				"EditorFramework",
-                "UnrealEd",
-				"TimeManagement"
 			}
 		);
 	}

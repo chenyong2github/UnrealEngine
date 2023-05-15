@@ -5,8 +5,7 @@ using UnrealBuildTool;
 public class WidgetRegistration : ModuleRules
 {
 	public WidgetRegistration(ReadOnlyTargetRules Target) : base(Target)
-	{
-		
+	{		
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"SlateCore",
@@ -16,8 +15,10 @@ public class WidgetRegistration : ModuleRules
 				"ToolMenus",
 				"CoreUObject"
 			});
-		
 
-			
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"ToolMenus",
+			});
 	}
 }

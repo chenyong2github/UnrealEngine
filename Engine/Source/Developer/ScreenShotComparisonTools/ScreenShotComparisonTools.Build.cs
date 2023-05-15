@@ -20,8 +20,6 @@ public class ScreenShotComparisonTools : ModuleRules
 				"ImageWrapper",
 				"Json",
 				"JsonUtilities",
-				"Slate",
-				"UnrealEdMessages",
 				"DesktopPlatform"
 			}
 		);

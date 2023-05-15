@@ -9,7 +9,6 @@ public class TextureFormat : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"ImageCore"
 			}
 		);
 

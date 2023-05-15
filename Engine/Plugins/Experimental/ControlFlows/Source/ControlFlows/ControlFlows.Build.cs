@@ -11,7 +11,6 @@ public class ControlFlows : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-				"Engine",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

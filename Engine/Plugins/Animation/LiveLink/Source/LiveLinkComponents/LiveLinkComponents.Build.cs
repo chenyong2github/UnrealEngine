@@ -15,20 +15,12 @@ namespace UnrealBuildTool.Rules
 				"LiveLinkInterface",
 			});
 
-			PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"CinematicCamera",
-			});
-
 			if (Target.Type == TargetType.Editor)
 			{
 				PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"Slate",
-					"SlateCore",
-					"EditorFramework",
 					"UnrealEd",
 				});
 			}

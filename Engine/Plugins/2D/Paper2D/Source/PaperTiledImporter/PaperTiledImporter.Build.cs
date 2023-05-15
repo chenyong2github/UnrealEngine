@@ -13,7 +13,6 @@ public class PaperTiledImporter : ModuleRules
 				"Engine",
 				"Json",
 				"Paper2D",
-				"EditorFramework",
 				"UnrealEd",
 				"Paper2DEditor"
 			});

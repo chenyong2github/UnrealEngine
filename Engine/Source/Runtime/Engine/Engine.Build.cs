@@ -18,11 +18,15 @@ public class Engine : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"AnimationCore",
+				"ApplicationCore",
+				"AudioExtensions",
 				"AudioMixer", 
 				"AudioMixerCore",
+				"InputCore",
 				"MovieSceneCapture", 
 				"PacketHandler", 
-				"Renderer"
+				"Renderer",
+				"RHI",
 			}
 		);
 
@@ -35,6 +39,7 @@ public class Engine : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"DerivedDataCache",
+				"DesktopPlatform",
 				"DistributedBuildInterface",
 				"TargetPlatform",
 				"ImageWrapper",
@@ -44,7 +49,6 @@ public class Engine : ModuleRules
 				"MRMesh",
 				"Advertising",
 				"AutomationWorker",
-				"DesktopPlatform"
 			}
 		);
 
@@ -124,6 +128,7 @@ public class Engine : ModuleRules
 				"ChaosCore",
 				"DeveloperSettings",
 				"NetCommon",
+				"Slate",
 				"Sockets",
 				"MeshDescription"
 			}
@@ -390,6 +395,8 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.Add("NaniteBuilder");
 
 			DynamicallyLoadedModuleNames.Add("LevelInstanceEditor");
+
+			PublicIncludePathModuleNames.Add("UnrealEd");
 		}
 
 		SetupModulePhysicsSupport(Target);

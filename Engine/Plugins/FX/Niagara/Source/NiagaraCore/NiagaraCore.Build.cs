@@ -9,10 +9,8 @@ public class NiagaraCore : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
-                "Engine",
             }
         );
-
 
         PublicDependencyModuleNames.AddRange(
             new string[] {
@@ -20,5 +18,11 @@ public class NiagaraCore : ModuleRules
                 "VectorVM",
             }
         );
-    }
+
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"RenderCore",
+			}
+		);
+	}
 }

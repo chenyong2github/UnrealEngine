@@ -9,14 +9,11 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-					"ApplicationCore",
 					"AssetTools",
 					"ComputeFramework",
 					"Core",
 					"CoreUObject",
-					"EditorFramework",
 					"Engine",
-					"MessageLog",
 					"UnrealEd",
 				}
 			);

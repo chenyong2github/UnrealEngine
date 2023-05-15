@@ -13,7 +13,6 @@ public class WebAuth : ModuleRules
 			new string[]
 			{
 				"Core",
-				"Engine"
 			}
 		);
 
@@ -26,6 +25,7 @@ public class WebAuth : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
+			PrivateDependencyModuleNames.Add("ApplicationCore");
 			PrivateDependencyModuleNames.Add("Launch");
 
 			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);

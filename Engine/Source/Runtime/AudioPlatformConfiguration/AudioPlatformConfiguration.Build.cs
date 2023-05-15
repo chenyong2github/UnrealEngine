@@ -6,17 +6,24 @@ namespace UnrealBuildTool.Rules
 	{
 		public AudioPlatformConfiguration(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PrivateDependencyModuleNames.AddRange(
+			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-                    "Core",
-                    "CoreUObject"
-                }
+					"Core",
+					"CoreUObject"
+				}
 			);
 
-            PrivateIncludePathModuleNames.Add("Engine");
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"CoreUObject"
+				}
+			);
 
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "UELibSampleRate");
+			PrivateIncludePathModuleNames.Add("Engine");
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "UELibSampleRate");
 			PrivateDefinitions.Add("WITH_LIBSAMPLERATE=1");
 		}
 	}

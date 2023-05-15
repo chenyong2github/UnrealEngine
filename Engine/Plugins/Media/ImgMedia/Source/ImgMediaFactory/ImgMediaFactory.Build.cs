@@ -11,11 +11,6 @@ namespace UnrealBuildTool.Rules
 					"Media",
 				});
 
-			PrivateDependencyModuleNames.AddRange(
-				new string[] {
-					"MediaAssets",
-				});
-
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
 					"Media",

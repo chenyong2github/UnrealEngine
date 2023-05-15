@@ -30,11 +30,12 @@ public class LevelEditor : ModuleRules
 
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
-				"Settings",
+				"CommonMenuExtensions",
 				"HeadMountedDisplay",
+				"Settings",
+				"ToolWidgets",
 				"UnrealEd",
 				"VREditor",
-				"CommonMenuExtensions"
 			}
 		);
 

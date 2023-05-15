@@ -21,7 +21,6 @@ public class PBIK : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"Engine",
 			}
 			);
 

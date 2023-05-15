@@ -13,7 +13,6 @@ public class AnimationSharing : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"EngineSettings",
 				"SignificanceManager"
             }
 		);

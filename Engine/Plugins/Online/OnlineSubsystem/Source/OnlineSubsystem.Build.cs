@@ -21,7 +21,13 @@ public class OnlineSubsystem : ModuleRules
 			}
 		);
 
-        PublicDefinitions.Add("ONLINESUBSYSTEM_PACKAGE=1");
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"CoreOnline",
+			}
+		);
+
+		PublicDefinitions.Add("ONLINESUBSYSTEM_PACKAGE=1");
 		PublicDefinitions.Add("DEBUG_LAN_BEACON=0");
 
 		// OnlineSubsystem cannot depend on Engine!

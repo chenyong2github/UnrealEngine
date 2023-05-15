@@ -10,8 +10,7 @@ namespace UnrealBuildTool.Rules
 			new string[]
 			{
 				"Core",
-                "TraceServices"
-            });
+			});
 
             PrivateIncludePathModuleNames.AddRange(
 			new string[]
@@ -26,16 +25,6 @@ namespace UnrealBuildTool.Rules
 				{
 					"Engine",
 					"CoreUObject",
-				});
-			}
-
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"EditorFramework",
-					"UnrealEd",
 				});
 			}
 		}

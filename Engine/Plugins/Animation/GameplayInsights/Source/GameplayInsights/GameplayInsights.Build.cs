@@ -24,6 +24,13 @@ namespace UnrealBuildTool.Rules
 				"ToolWidgets"
 			});
 
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"TraceServices"
+				}
+			);
+
 			if (Target.bCompileAgainstEngine)
 			{
 				PrivateDependencyModuleNames.AddRange(

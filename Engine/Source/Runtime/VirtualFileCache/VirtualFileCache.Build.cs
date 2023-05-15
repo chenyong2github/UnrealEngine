@@ -9,7 +9,6 @@ public class VirtualFileCache : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject",
 			}
 		);
 	}

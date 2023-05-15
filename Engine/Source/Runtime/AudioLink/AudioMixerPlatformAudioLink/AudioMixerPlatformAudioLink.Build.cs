@@ -11,13 +11,12 @@ public class AudioMixerPlatformAudioLink: ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Core",
-				"CoreUObject",
-				"Engine",
 				"AudioMixer",
 				"AudioMixerCore",
 				"AudioLinkEngine",
-				"SignalProcessing",
+				"Core",
+				"CoreUObject",
+				"Engine",
 		});
 					
 		if (Target.bCompileAgainstEngine) 

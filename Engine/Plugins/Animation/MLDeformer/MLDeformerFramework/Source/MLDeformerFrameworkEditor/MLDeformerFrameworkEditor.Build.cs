@@ -23,6 +23,13 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"GeometryCache",
+				}
+			);
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

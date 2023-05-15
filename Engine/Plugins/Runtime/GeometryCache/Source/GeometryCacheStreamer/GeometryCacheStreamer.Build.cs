@@ -14,7 +14,6 @@ namespace UnrealBuildTool.Rules
 					"DeveloperSettings",
 					"GeometryCache",
 					"Slate",
-					"SlateCore"
 				}
 			);
 		}

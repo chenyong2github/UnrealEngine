@@ -28,7 +28,6 @@ public class HotReload : ModuleRules
             PrivateDependencyModuleNames.AddRange(
 				new string[] 
 				{
-					"EditorFramework",
 					"Engine",
 					"UnrealEd", 
 				}

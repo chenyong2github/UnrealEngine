@@ -10,7 +10,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Core",
 					"CoreUObject",
-					"EditorFramework",
 					"MediaAssets",
 					"UnrealEd",
 				});

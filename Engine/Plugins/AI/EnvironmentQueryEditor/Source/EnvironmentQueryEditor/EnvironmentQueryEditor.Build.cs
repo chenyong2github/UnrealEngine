@@ -29,21 +29,16 @@ public class EnvironmentQueryEditor : ModuleRules
 				"CoreUObject", 
                 "InputCore",
 				"Engine", 
-                "RenderCore",
 				"Slate",
 				"SlateCore",
 				"EditorFramework",
 				"UnrealEd", 
-				"MessageLog", 
 				"GraphEditor",
 				"KismetWidgets",
                 "PropertyEditor",
-				"AnimGraph",
-				"BlueprintGraph",
                 "AIGraph",
                 "AIModule",
 				"ToolMenus",
-				"WorkspaceMenuStructure",
 			}
 		);
 	}

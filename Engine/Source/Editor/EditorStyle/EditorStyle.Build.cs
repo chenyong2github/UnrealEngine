@@ -22,7 +22,6 @@ public class EditorStyle : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"SlateCore",
-				"ToolWidgets",
 				"UnrealEd",
 			}
 		);

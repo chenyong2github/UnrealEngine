@@ -17,7 +17,6 @@ public class TextureFormatETC2 : ModuleRules
 		{
 			"Core",
 			"ImageCore",
-			"ImageWrapper",
 			"TextureBuild",
 		});
 

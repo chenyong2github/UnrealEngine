@@ -12,7 +12,6 @@ public class WidgetCarousel : ModuleRules
 				"ApplicationCore",
 				"Slate",
 				"SlateCore",
-				"InputCore",
 				"CoreUObject"
 			}
 		);

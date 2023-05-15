@@ -16,7 +16,6 @@ public class IoStoreUtilities : ModuleRules
             "AssetRegistry",
 			"Zen",
 			"RenderCore",
-			"libcurl",
         });
 
 		PublicIncludePathModuleNames.AddRange(new string[] {

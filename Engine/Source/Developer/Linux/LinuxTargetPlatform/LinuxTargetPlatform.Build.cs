@@ -26,6 +26,7 @@ public class LinuxTargetPlatform : ModuleRules
 
 		if (Target.bCompileAgainstEngine)
 		{
+			PublicIncludePathModuleNames.Add("Engine");
 			PrivateDependencyModuleNames.Add("Engine");
 			PrivateIncludePathModuleNames.Add("TextureCompressor");
 		}

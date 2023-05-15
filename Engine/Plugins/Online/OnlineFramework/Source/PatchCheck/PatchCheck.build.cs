@@ -12,10 +12,13 @@ public class PatchCheck : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"Engine",
-				"HTTP",
 				"OnlineSubsystem",
-				"OnlineSubsystemUtils"
+			}
+		);
+
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"OnlineSubsystem",
 			}
 		);
 

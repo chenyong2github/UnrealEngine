@@ -10,7 +10,6 @@ public class DeveloperSettings : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-                "SlateCore",
 				"Projects"
 			}
 		);

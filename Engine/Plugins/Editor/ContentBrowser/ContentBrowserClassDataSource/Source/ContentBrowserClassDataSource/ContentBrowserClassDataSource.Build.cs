@@ -19,19 +19,14 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"ApplicationCore",
 					"AssetTools",
 					"CollectionManager",
-					"Engine",
-					"EditorFramework",
 					"UnrealEd",
-					"EditorWidgets",
 					"Projects",
 					"GameProjectGeneration",
 					"ToolMenus",
 					"Slate",
 					"SlateCore",
-					"InputCore",
 				}
 			);
 		}

@@ -6,6 +6,6 @@ public class InputDevice : ModuleRules
 {
     public InputDevice(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.AddRange( new string[] { "Core", "CoreUObject", "Engine" } );
+		PrivateDependencyModuleNames.AddRange( new string[] { "Core", "Engine" } );
 	}
 }

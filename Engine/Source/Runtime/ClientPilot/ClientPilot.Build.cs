@@ -10,7 +10,6 @@ public class ClientPilot : ModuleRules
             new string[] {
                 "Core",
                 "CoreUObject",
-                "InputCore",
             }
         );
 

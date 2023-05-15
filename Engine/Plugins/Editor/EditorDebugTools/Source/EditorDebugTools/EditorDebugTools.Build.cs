@@ -20,9 +20,6 @@ public class EditorDebugTools : ModuleRules
 			{
 				"Projects",
 				"InputCore",
-				"EditorFramework",
-				"UnrealEd",
-				"ToolMenus",
 				"CoreUObject",
 				"Engine",
 				"Slate",

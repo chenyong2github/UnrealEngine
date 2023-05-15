@@ -16,7 +16,6 @@ namespace UnrealBuildTool.Rules
                     "Engine",
                     "RenderCore",
                     "RHI",
-					"PhysicsCore"
 				}
 			);
 

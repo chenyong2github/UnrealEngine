@@ -18,7 +18,6 @@ public class ActorLayerUtilitiesEditor : ModuleRules
 				"PropertyEditor",
 				"SlateCore",
 				"Slate",
-				"EditorFramework",
 				"UnrealEd",
 				"EditorStyle",
 			}

@@ -17,12 +17,9 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
-					"CoreUObject",
-					"RenderCore",
 					"MediaUtils",
+					"RenderCore",
 					"RHI",
-					"AnalyticsET",
-					"ElectraPlayerFactory",
 					"ElectraPlayerRuntime",
 					"ElectraSamples",
 					"ElectraBase"

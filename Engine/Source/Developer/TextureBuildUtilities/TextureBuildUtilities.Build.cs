@@ -17,9 +17,7 @@ public class TextureBuildUtilities : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",			
-				"DerivedDataCache",
 				"ImageCore",
-				"ImageWrapper",
 				"TextureFormat",
 			}
 			);

@@ -6,25 +6,24 @@ public class MaterialBaking : ModuleRules
 {
 	public MaterialBaking(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PrivateDependencyModuleNames.AddRange(
-			new string [] {
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
 				"Core",
 				"CoreUObject",
 				"Engine",
 				"RenderCore",
-                "RHI",        
-				"EditorFramework",        
-                "UnrealEd",
-                "MainFrame",
-                "SlateCore",
-                "Slate",
-                "InputCore",
-                "PropertyEditor",
-                
-                "Renderer",
-                "MeshDescription",
+				"RHI",
+				"UnrealEd",
+				"MainFrame",
+				"SlateCore",
+				"Slate",
+				"InputCore",
+				"PropertyEditor",
+
+				"Renderer",
+				"MeshDescription",
 				"StaticMeshDescription"
-            }
+			}
 		);
-    }
+	}
 }

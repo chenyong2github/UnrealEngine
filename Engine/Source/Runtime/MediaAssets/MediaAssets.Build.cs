@@ -28,10 +28,6 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bBuildEditor)
 			{
-				PrivateDependencyModuleNames.AddRange(
-					new string[] {
-						"UnrealEd",
-					});
 				PrivateIncludePathModuleNames.Add("TargetPlatform");
 			}
 		}

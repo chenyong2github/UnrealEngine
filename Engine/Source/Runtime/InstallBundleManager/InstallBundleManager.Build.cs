@@ -9,11 +9,13 @@ public class InstallBundleManager : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject",
-				"Engine",
-				"InputCore",
-				"Projects",
 				"ApplicationCore",
+				"Json"
+			}
+		);
+
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
 				"Json"
 			}
 		);

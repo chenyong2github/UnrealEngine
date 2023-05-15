@@ -311,7 +311,8 @@ public class UnrealEd : ModuleRules
 				"UncontrolledChangelists",
 				"PropertyEditor",
 				"ClassViewer",
-				"EditorSubsystem"
+				"EditorSubsystem",
+				"WidgetRegistration"
 			}
 		);
 

@@ -16,17 +16,13 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"AnimationCore",
-					"AnimGraphRuntime",
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"InputCore",
 					"KismetCompiler",
 					"LiveLink",
 					"LiveLinkAnimationCore",
 					"LiveLinkInterface",
-					"Persona",
 					"SlateCore",
 				}
 			);
@@ -43,9 +39,7 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.AddRange(
 					new string[]
 					{
-						"EditorFramework",
 						"UnrealEd",
-						"Kismet",
 						"BlueprintGraph",
 					}
 				);

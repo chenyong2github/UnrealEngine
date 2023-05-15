@@ -23,7 +23,6 @@ public class AudioGameplay : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"Projects",
 				"Engine",
 			}
 			);

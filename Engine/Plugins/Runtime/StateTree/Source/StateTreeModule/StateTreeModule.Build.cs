@@ -25,20 +25,9 @@ namespace UnrealBuildTool.Rules
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"RenderCore",
 					"PropertyPath",
 				}
 			);
-			
-			if (Target.Type == TargetType.Editor)
-			{
-				PrivateDependencyModuleNames.AddRange(
-					new string[]
-					{
-						"UnrealEd"	// Editor callbacks
-					}
-				);
-			}
 
 			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 

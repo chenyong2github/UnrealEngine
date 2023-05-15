@@ -9,15 +9,12 @@ public class OnlineBlueprintSupport : ModuleRules
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
         PrivateDependencyModuleNames.AddRange(
-			new string[] { 
-				"Core", 
-				"CoreUObject", 
-				"Engine",
+			new string[] {
 				"BlueprintGraph",
-				"OnlineSubsystem",
+				"Core",
+				"CoreUObject",
+				"Engine",
 				"OnlineSubsystemUtils",
-				"Sockets",
-				"Json"
 			}
 		);
 	}

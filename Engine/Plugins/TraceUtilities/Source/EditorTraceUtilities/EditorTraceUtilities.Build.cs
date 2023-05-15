@@ -25,17 +25,12 @@ public class EditorTraceUtilities : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
             new string[]
             {
-                "CoreUObject",
                 "Engine",
 				"InputCore",
 				"Slate",
                 "SlateCore",
                 "ToolMenus",
-                "ToolWidgets",
-                "EditorFramework",
-                "ApplicationCore",
                 "UATHelper",
-                "TraceInsights",
                 "TraceAnalysis",
 				"TraceLog",
 			}

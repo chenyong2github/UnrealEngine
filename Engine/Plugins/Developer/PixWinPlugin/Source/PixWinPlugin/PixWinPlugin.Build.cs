@@ -8,11 +8,9 @@ namespace UnrealBuildTool.Rules
         {
 			PrivateDependencyModuleNames.AddRange(new string[]
 			{
-				"ApplicationCore",
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"InputCore",
 				"RenderCore",
 				"InputDevice",
 				"RHI",

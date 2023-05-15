@@ -10,16 +10,13 @@ public class TextureAlignMode : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
-				"SlateCore",
-				"Slate",
 				"EditorFramework",
-				"UnrealEd",
-				"RenderCore",
-				"LevelEditor",
+				"Engine",
 				"GeometryMode",
-                "BspMode",
-            }
+				"SlateCore",
+				"UnrealEd",
+				"GeometryMode",
+			}
 		);
 	}
 }

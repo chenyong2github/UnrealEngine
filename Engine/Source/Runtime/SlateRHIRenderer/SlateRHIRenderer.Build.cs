@@ -10,7 +10,6 @@ public class SlateRHIRenderer : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-                "InputCore",
 				"Slate",
 				"SlateCore",
                 "Engine",

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 namespace UnrealBuildTool.Rules
 {
@@ -15,23 +15,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"KismetCompiler",
-					"PropertyEditor",
-					"StructUtils",
 					"StructUtilsEngine",
-					"UnrealEd"
-				}
-			);
-
-			PrivateIncludePaths.AddRange(
-				new string[]
-				{
-				}
-			);
-
-			PublicIncludePaths.AddRange(
-				new string[]
-				{
 				}
 			);
 		}

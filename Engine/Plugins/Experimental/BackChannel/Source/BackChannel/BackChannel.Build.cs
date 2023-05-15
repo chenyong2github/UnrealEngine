@@ -10,8 +10,6 @@ public class BackChannel : ModuleRules
 			(
 			new string[] {
 				"Core",
-				"CoreUObject",
-				"Engine",
 				"Sockets",
 				"Networking"
 			}

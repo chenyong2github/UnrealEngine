@@ -11,16 +11,15 @@ public class LinuxArm64TargetPlatform : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[] {
 				"Core",
-				"TargetPlatform",
 				"DesktopPlatform",
-				"Projects"
+				"TargetPlatform",
 			}
         );
 
         if (Target.bCompileAgainstEngine)
         {
             PrivateDependencyModuleNames.AddRange(new string[] {
-				"Engine"
+					"Engine"
 				}
             );
 

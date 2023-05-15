@@ -18,9 +18,6 @@ public class Localization : ModuleRules
 			new string[]
 			{
 				"DesktopPlatform",
-				"Slate",
-				"SlateCore",
-				"InputCore",
 				"SourceControl",
 				"Json",
 				"JsonUtilities",

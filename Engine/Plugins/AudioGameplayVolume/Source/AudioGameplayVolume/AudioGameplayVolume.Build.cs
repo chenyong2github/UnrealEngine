@@ -18,13 +18,9 @@ public class AudioGameplayVolume : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
-				"Projects",
-				"Engine",
-				"GameplayTags",
-				"Slate",
-				"SlateCore",
 				"AudioGameplay",
+				"CoreUObject",
+				"Engine",
 			}
 			);
 		

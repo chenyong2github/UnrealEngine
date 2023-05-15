@@ -9,7 +9,6 @@ public class PerfCounters : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[] {
 				"Core",
-				"CoreUObject",
 				"Json",
                 "HTTPServer"
             }

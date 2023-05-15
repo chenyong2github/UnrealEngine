@@ -35,9 +35,7 @@ public class LightGizmos : ModuleRules
 			new string[]
 			{
 				"Engine",
-				"InputCore",
 				"UnrealEd",
-				"SlateCore",
 				"CoreUObject",
 				"EditorInteractiveToolsFramework",
 				"InteractiveToolsFramework",

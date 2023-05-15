@@ -18,12 +18,8 @@ public class ProjectTargetPlatformEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
-				"InputCore",
-				"TargetPlatform",
 				"DesktopPlatform",
 				"Settings",
-				"EditorFramework",
 				"UnrealEd",
 				"Projects",
 			}

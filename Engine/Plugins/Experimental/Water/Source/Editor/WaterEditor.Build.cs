@@ -25,14 +25,11 @@ public class WaterEditor : ModuleRules
 				"PropertyEditor",
 				"Landscape",
 				"LandscapeEditorUtilities",
-				"Landmass",
 				"EditorFramework",
 				"EditorSubsystem",
 				"ComponentVisualizers",
 				"DeveloperSettings",
 				"AdvancedPreviewScene",
-				"RenderCore",
-				"RHI"
 			});
 
 		PublicDependencyModuleNames.AddRange(

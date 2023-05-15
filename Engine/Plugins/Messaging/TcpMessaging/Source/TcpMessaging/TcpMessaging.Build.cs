@@ -20,7 +20,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"CoreUObject",
-					"Json",
 					"Networking",
 					"Serialization",
 					"Sockets",

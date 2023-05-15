@@ -9,7 +9,6 @@ public class ProfileVisualizer : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject",
 				"Slate",
 				"SlateCore",
 				

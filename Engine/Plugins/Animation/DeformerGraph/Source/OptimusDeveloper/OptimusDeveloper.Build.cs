@@ -16,11 +16,7 @@ namespace UnrealBuildTool.Rules
                 new string[]
                 {
                     "Core",
-					"CoreUObject",
-					"Engine",
-					"ComputeFramework",
 					"OptimusCore",
-					"RenderCore",
 				}
 			);
         }

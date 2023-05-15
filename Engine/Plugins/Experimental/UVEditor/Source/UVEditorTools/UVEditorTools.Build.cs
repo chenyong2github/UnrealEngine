@@ -41,12 +41,10 @@ public class UVEditorTools : ModuleRules
 				// So, do not add editor dependencies here.
 				
 				"Engine",
-				"Slate",
 				"SlateCore",
 				"RenderCore",
 				"RHI",
 					
-				"MeshModelingToolsExp",
 				"DynamicMesh",
 				"GeometryCore",
 				"ModelingComponents",

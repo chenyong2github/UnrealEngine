@@ -15,11 +15,15 @@ public class AudioSettingsEditor : ModuleRules
 				"SlateCore",
 				
 				"PropertyEditor",
-				"SharedSettingsWidgets",
-				"EditorFramework",
 				"UnrealEd",
                 "CoreUObject"
             }
+		);
+
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"Engine",
+			}
 		);
 	}
 }

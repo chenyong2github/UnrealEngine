@@ -12,10 +12,8 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"SignalProcessing",
-					"CoreUObject",
 					"Engine",
 					"AudioExtensions",
-					"AudioMixerCore"
 				}
 			);
 

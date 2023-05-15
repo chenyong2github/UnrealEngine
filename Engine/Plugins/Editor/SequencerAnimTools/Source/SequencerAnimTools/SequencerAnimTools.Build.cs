@@ -26,12 +26,10 @@ public class SequencerAnimTools: ModuleRules
 				"InputCore",
 				"UnrealEd",
 				"LevelEditor",
-				"AppFramework",
 				
 				"EditorFramework",
                 "EditorInteractiveToolsFramework",
                 "InteractiveToolsFramework",
-                "ViewportInteraction",
 
                 "MovieScene",
                 "MovieSceneTracks",
@@ -39,7 +37,6 @@ public class SequencerAnimTools: ModuleRules
                 "Sequencer",
 				"LevelSequence",
 				"LevelSequenceEditor",
-				"SequencerScripting",
 
 				"ControlRig",
 				"ControlRigEditor"

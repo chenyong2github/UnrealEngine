@@ -17,7 +17,6 @@ public class TextureFormatIntelISPCTexComp : ModuleRules
 		{
 			"Core",
 			"ImageCore",
-			"ImageWrapper",
 			"TextureBuild",
 		});
 

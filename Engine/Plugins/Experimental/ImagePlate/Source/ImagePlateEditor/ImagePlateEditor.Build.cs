@@ -12,14 +12,9 @@ namespace UnrealBuildTool.Rules
 					"AssetDefinition",
 					"Core",
 					"CoreUObject",
-					"EditorFramework",
-					"Engine",
 					"ImagePlate",
-					"RHI",
 					"Settings",
-					"Slate",
 					"SlateCore",
-                    "TimeManagement",
 					"UnrealEd",
 				}
 			);

@@ -9,14 +9,13 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AutomationMessages",
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"ScreenShotComparisonTools",
-					"DesktopPlatform",
-					"AutomationMessages",
 					"Json",
-					"JsonUtilities"
+					"JsonUtilities",
+					"ScreenShotComparisonTools",
 				}
 			);
 		}

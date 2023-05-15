@@ -15,7 +15,6 @@ public class RealtimeProfiler : ModuleRules
 				"SlateCore",
                 
 				"ProfileVisualizer",
-				"Engine"
 			}
 		);
 

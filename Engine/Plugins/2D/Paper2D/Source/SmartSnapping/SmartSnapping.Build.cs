@@ -10,11 +10,8 @@ public class SmartSnapping : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
-				"EditorFramework",
-				"UnrealEd",
-				"SlateCore",
 				"Slate",
+				"SlateCore",
 				"LevelEditor",
 				"ViewportSnapping"
 			});

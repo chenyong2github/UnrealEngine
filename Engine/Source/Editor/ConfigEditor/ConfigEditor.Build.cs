@@ -22,13 +22,11 @@ public class ConfigEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"InputCore",
 				"PropertyEditor",
 				"Slate",
 				"SlateCore",
 				"SourceControl",
 				"TargetPlatform",
-				"WorkspaceMenuStructure",
 			}
 		);
 

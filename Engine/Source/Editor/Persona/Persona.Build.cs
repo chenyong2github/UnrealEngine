@@ -8,7 +8,8 @@ public class Persona : ModuleRules
     {
         PublicIncludePathModuleNames.AddRange(
             new string[] {
-                "SkeletonEditor",
+				"Engine",
+				"SkeletonEditor",
                 "AnimationEditor",
                 "AdvancedPreviewScene",
             }

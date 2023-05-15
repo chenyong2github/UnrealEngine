@@ -22,8 +22,6 @@ public class ClothingSystemRuntimeCommon : ModuleRules
 		new string[]
 		{
 			"Engine",
-			"RenderCore",
-			"SlateCore",
 			"Slate"
 		}
 		);

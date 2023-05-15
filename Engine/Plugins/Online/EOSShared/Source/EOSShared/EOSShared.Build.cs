@@ -32,7 +32,6 @@ public class EOSShared : ModuleRules
 			new string[]
 			{
 				"Core",
-				"CoreUObject",
 				"EOSSDK"
 			}
 		);

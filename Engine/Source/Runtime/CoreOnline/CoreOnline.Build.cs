@@ -14,6 +14,12 @@ public class CoreOnline : ModuleRules
 			}
 		);
 
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"CoreUObject"
+			}
+		);
+
 		PrivateDefinitions.Add("COREONLINE_PACKAGE=1");
 		PublicDefinitions.Add("PLATFORM_MAX_LOCAL_PLAYERS=" + GetPlatformMaxLocalPlayers(Target));
 	}

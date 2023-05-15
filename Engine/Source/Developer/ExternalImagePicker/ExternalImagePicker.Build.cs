@@ -13,10 +13,9 @@ public class ExternalImagePicker : ModuleRules
 				"Slate",
 				"SlateCore",
 				"DesktopPlatform",
-				"ImageWrapper",
 				"ImageCore",
+				"ImageWrapper",
 
-				"InputCore",
 				"PropertyEditor",	// for 'reset to default'
             }
         );

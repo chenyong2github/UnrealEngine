@@ -10,9 +10,7 @@ public class ExternalRpcRegistry : ModuleRules
             new string[] {
                 "Core",
                 "CoreUObject",
-                "InputCore",
 				"Json",
-				"JsonUtilities",
                 "HTTPServer"
             }
         );

@@ -17,14 +17,12 @@ public class DefaultInstallBundleManager : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-				"Core",
-				"PakFile",
-				"BuildPatchServices",
-				"Json",
-				"Engine",
-				"RenderCore",
 				"AnalyticsET",
-				"OnlineSubsystem",
+				"ApplicationCore",
+				"Core",
+				"Json",
+				"PakFile",
+				"RenderCore",
 			}
 		);
 	}

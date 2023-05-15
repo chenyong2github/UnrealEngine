@@ -11,12 +11,10 @@ public class BspMode : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-                "InputCore",
+				"InputCore",
 				"Slate",
 				"SlateCore",
-				"EditorFramework",
 				"UnrealEd",
-				"LevelEditor",
 			}
 		);
 

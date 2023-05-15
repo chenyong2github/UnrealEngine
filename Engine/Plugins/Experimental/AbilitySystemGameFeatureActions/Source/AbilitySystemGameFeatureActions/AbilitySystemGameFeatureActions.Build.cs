@@ -23,14 +23,8 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"AssetRegistry",
 					"GameFeatures",
 					"GameplayAbilities",
-					"GameplayTags",
-					"InstallBundleManager",
-					"Json",
-					"PakFile",
-					"Projects",
 				}
 			);
 		}

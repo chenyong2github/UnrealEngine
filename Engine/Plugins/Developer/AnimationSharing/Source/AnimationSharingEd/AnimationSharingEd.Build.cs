@@ -12,8 +12,6 @@ public class AnimationSharingEd : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"Engine",
-				"EditorFramework",
                 "UnrealEd",
                 "AssetTools",
                 "AnimationSharing",

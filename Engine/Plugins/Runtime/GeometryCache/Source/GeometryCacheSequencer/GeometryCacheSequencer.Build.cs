@@ -14,20 +14,15 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "AssetTools",
                     "Core",
                     "CoreUObject",
                     "Engine",
 					"LevelSequence",
                     "MovieScene",
-                    "MovieSceneTools",
                     "MovieSceneTracks",
-                    "RHI",
                     "Sequencer",
                     "Slate",
                     "SlateCore",
-                    "TimeManagement",
-					"EditorFramework",
                     "UnrealEd",
                     "GeometryCacheTracks",
                     "GeometryCache"

@@ -15,6 +15,13 @@ namespace UnrealBuildTool.Rules
 					"AudioMixerCore"
 				}
 			);
+
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"AudioMixer",
+				}
+			);
 		}
 	}
 }

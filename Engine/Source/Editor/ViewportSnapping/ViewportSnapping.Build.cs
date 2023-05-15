@@ -11,13 +11,8 @@ public class ViewportSnapping : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-				"CoreUObject",
-				"EditorFramework",
-				"Engine",
 // 				"RenderCore",
 // 				"RHI",
-				"Slate",
-				"UnrealEd"
 			}
 			);
 

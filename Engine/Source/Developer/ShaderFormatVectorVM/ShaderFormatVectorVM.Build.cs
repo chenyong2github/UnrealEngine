@@ -17,7 +17,6 @@ public class ShaderFormatVectorVM : ModuleRules
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-                "CoreUObject",                
                 "RenderCore",
 				"ShaderCompilerCommon",
 				"ShaderPreprocessor",

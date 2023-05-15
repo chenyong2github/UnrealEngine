@@ -15,22 +15,10 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"AssetTools",
-					"ClassViewer",
-                    "GameplayTags",
 					"GameplayTasks",
-                    "InputCore",
-                    "PropertyEditor",
-					"Slate",
-					"SlateCore",
 					"BlueprintGraph",
-                    "Kismet",
 					"KismetCompiler",
-					"GraphEditor",
-					"MainFrame",
-					"EditorFramework",
 					"UnrealEd",
-                    "EditorWidgets",
 				}
 			);
 		}

@@ -11,7 +11,6 @@ public class AnimationBudgetAllocator : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"EngineSettings"
 			}
 		);
     }

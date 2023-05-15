@@ -21,7 +21,6 @@ public class TextureEditor : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
-                "AppFramework",
 				"Core",
 				"CoreUObject",
                 "InputCore",
@@ -33,7 +32,6 @@ public class TextureEditor : ModuleRules
 				"EditorFramework",
 				"UnrealEd",
                 "PropertyEditor",
-				"MediaUtils",
 				"EditorWidgets",
 				"MediaAssets",
 				"DerivedDataCache",

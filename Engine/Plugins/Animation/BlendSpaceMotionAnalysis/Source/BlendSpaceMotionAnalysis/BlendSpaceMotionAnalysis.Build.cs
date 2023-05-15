@@ -10,12 +10,6 @@ namespace UnrealBuildTool.Rules
 		{
 			UnsafeTypeCastWarningLevel = WarningLevel.Error;
 
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-				}
-			);
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -25,13 +19,6 @@ namespace UnrealBuildTool.Rules
 					"Persona",
 				}
 			);
-
-			PrivateIncludePathModuleNames.AddRange(
-				new string[]
-				{
-				}
-			);
-
 		}
 	}
 }

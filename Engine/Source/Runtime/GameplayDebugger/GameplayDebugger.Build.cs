@@ -15,9 +15,8 @@ namespace UnrealBuildTool.Rules
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"RenderCore",
 					"InputCore",
-					"SlateCore",
+					"RenderCore",
 					"Slate",
 					"DeveloperSettings",
 				});
@@ -33,11 +32,8 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateDependencyModuleNames.AddRange(
 					new string[] {
-						
-						"EditorFramework",
-						"UnrealEd",
 						"LevelEditor",
-						"PropertyEditor",
+						"UnrealEd",
 					});
 			}
 

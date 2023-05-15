@@ -23,9 +23,6 @@ public class ClothingSystemRuntimeNv : ModuleRules
             new string[]
             {
                 "Engine",
-                "RenderCore",
-                "SlateCore",
-                "Slate"
             }
         );
     }

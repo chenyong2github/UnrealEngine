@@ -10,13 +10,10 @@ public class NewLevelDialog : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-                "InputCore",
-				"RenderCore",
-				"RHI",
+				"InputCore",
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"EditorFramework",
 				"UnrealEd",
 				"ToolWidgets",
 			}

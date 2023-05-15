@@ -9,7 +9,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
-                    "Projects",
 					"ElectraCodecFactory",
 					"ElectraDecoders",
 					"libOpus"

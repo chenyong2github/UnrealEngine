@@ -10,20 +10,8 @@ public class WindowsPlatformEditor : ModuleRules
 			new string[] {
 				"Core",
 				"CoreUObject",
-				"InputCore",
-				"DesktopPlatform",
-				"Engine",
-				"MainFrame",
-				"Slate",
-				"SlateCore",
 				
-				"PropertyEditor",
-				"SharedSettingsWidgets",
-				"SourceControl",
 				"WindowsTargetPlatform",
-				"TargetPlatform",
-				"MaterialShaderQualitySettings",
-				"RenderCore",
 			}
 		);
 

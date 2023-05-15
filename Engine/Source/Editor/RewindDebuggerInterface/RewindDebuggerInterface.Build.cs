@@ -11,7 +11,6 @@ public class RewindDebuggerInterface : ModuleRules
 				"Core",
 				"CoreUObject",
 				"SlateCore",
-				"ToolWidgets",
 				"TraceServices"
 			}
 		);
