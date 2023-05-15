@@ -902,10 +902,10 @@ protected:
 	bool bDiscardSharedConstants;
 
 	/** A list of all D3D constant buffers RHIs that have been created. */
-	TArray<TRefCountPtr<FD3D11ConstantBuffer> > VSConstantBuffers;
-	TArray<TRefCountPtr<FD3D11ConstantBuffer> > PSConstantBuffers;
-	TArray<TRefCountPtr<FD3D11ConstantBuffer> > GSConstantBuffers;
-	TArray<TRefCountPtr<FD3D11ConstantBuffer> > CSConstantBuffers;
+	TRefCountPtr<FD3D11ConstantBuffer> VSConstantBuffer;
+	TRefCountPtr<FD3D11ConstantBuffer> PSConstantBuffer;
+	TRefCountPtr<FD3D11ConstantBuffer> GSConstantBuffer;
+	TRefCountPtr<FD3D11ConstantBuffer> CSConstantBuffer;
 
 	/** A history of the most recently used bound shader states, used to keep transient bound shader states from being recreated for each use. */
 	TGlobalResource< TBoundShaderStateHistory<10000> > BoundShaderStateHistory;

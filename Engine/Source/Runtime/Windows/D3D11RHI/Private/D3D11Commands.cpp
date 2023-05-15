@@ -565,30 +565,32 @@ void FD3D11DynamicRHI::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeShade
 
 void FD3D11DynamicRHI::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI,uint32 BufferIndex,uint32 BaseIndex,uint32 NumBytes,const void* NewValue)
 {
+	check(BufferIndex == 0);
+
 	switch (ShaderRHI->GetFrequency())
 	{
 	case SF_Vertex:
 	{
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
-		checkSlow(VSConstantBuffers[BufferIndex]);
-		VSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+		checkSlow(VSConstantBuffer);
+		VSConstantBuffer->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
 	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShader);
-		checkSlow(GSConstantBuffers[BufferIndex]);
-		GSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+		checkSlow(GSConstantBuffer);
+		GSConstantBuffer->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
 	case SF_Pixel:
 	{
 		FD3D11PixelShader* PixelShader = static_cast<FD3D11PixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShader);
-		checkSlow(PSConstantBuffers[BufferIndex]);
-		PSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+		checkSlow(PSConstantBuffer);
+		PSConstantBuffer->UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
 	default:
@@ -599,8 +601,8 @@ void FD3D11DynamicRHI::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI,uint3
 void FD3D11DynamicRHI::RHISetShaderParameter(FRHIComputeShader* ComputeShaderRHI,uint32 BufferIndex,uint32 BaseIndex,uint32 NumBytes,const void* NewValue)
 {
 	//VALIDATE_BOUND_SHADER(ComputeShaderRHI);
-	checkSlow(CSConstantBuffers[BufferIndex]);
-	CSConstantBuffers[BufferIndex]->UpdateConstant((const uint8*)NewValue,BaseIndex,NumBytes);
+	checkSlow(CSConstantBuffer);
+	CSConstantBuffer->UpdateConstant((const uint8*)NewValue,BaseIndex,NumBytes);
 }
 
 void FD3D11DynamicRHI::RHISetShaderParameters(FRHIComputeShader* Shader, TConstArrayView<uint8> InParametersData, TConstArrayView<FRHIShaderParameter> InParameters, TConstArrayView<FRHIShaderParameterResource> InResourceParameters, TConstArrayView<FRHIShaderParameterResource> InBindlessParameters)
@@ -1044,6 +1046,20 @@ static D3D11_PRIMITIVE_TOPOLOGY GetD3D11PrimitiveType(EPrimitiveType PrimitiveTy
 	return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 }
 
+namespace FD3DRHIUtil
+{
+	template <EShaderFrequency ShaderFrequencyT>
+	inline void CommitConstants(FD3D11ConstantBuffer* InConstantBuffer, FD3D11StateCache& StateCache, bool bDiscardSharedConstants)
+	{
+		FWinD3D11ConstantBuffer* ConstantBuffer = static_cast<FWinD3D11ConstantBuffer*>(InConstantBuffer);
+		// Array may contain NULL entries to pad out to proper 
+		if (ConstantBuffer && ConstantBuffer->CommitConstantsToDevice(bDiscardSharedConstants))
+		{
+			ID3D11Buffer* DeviceBuffer = ConstantBuffer->GetConstantBuffer();
+			StateCache.SetConstantBuffer<ShaderFrequencyT>(DeviceBuffer, GLOBAL_CONSTANT_BUFFER_INDEX);
+		}
+	}
+};
 
 void FD3D11DynamicRHI::CommitNonComputeShaderConstants()
 {
@@ -1055,31 +1071,19 @@ void FD3D11DynamicRHI::CommitNonComputeShaderConstants()
 	if (CurrentBoundShaderState->bShaderNeedsGlobalConstantBuffer[SF_Vertex])
 	{
 		// Commit and bind vertex shader constants
-		for(uint32 i=0;i<MAX_CONSTANT_BUFFER_SLOTS; i++)
-		{
-			FD3D11ConstantBuffer* ConstantBuffer = VSConstantBuffers[i];
-			FD3DRHIUtil::CommitConstants<SF_Vertex>(ConstantBuffer, StateCache, i, bDiscardSharedConstants);
-		}
+		FD3DRHIUtil::CommitConstants<SF_Vertex>(VSConstantBuffer, StateCache, bDiscardSharedConstants);
 	}
 
 	if (CurrentBoundShaderState->bShaderNeedsGlobalConstantBuffer[SF_Geometry])
 	{
 		// Commit and bind geometry shader constants
-		for(uint32 i=0;i<MAX_CONSTANT_BUFFER_SLOTS; i++)
-		{
-			FD3D11ConstantBuffer* ConstantBuffer = GSConstantBuffers[i];
-			FD3DRHIUtil::CommitConstants<SF_Geometry>(ConstantBuffer, StateCache, i, bDiscardSharedConstants);
-		}
+		FD3DRHIUtil::CommitConstants<SF_Geometry>(GSConstantBuffer, StateCache, bDiscardSharedConstants);
 	}
 
 	if (CurrentBoundShaderState->bShaderNeedsGlobalConstantBuffer[SF_Pixel])
 	{
 		// Commit and bind pixel shader constants
-		for(uint32 i=0;i<MAX_CONSTANT_BUFFER_SLOTS; i++)
-		{
-			FD3D11ConstantBuffer* ConstantBuffer = PSConstantBuffers[i];
-			FD3DRHIUtil::CommitConstants<SF_Pixel>(ConstantBuffer, StateCache, i, bDiscardSharedConstants);
-		}
+		FD3DRHIUtil::CommitConstants<SF_Pixel>(PSConstantBuffer, StateCache, bDiscardSharedConstants);
 	}
 
 	bDiscardSharedConstants = false;
@@ -1087,14 +1091,8 @@ void FD3D11DynamicRHI::CommitNonComputeShaderConstants()
 
 void FD3D11DynamicRHI::CommitComputeShaderConstants()
 {
-	bool bLocalDiscardSharedConstants = true;
-
 	// Commit and bind compute shader constants
-	for(uint32 i=0;i<MAX_CONSTANT_BUFFER_SLOTS; i++)
-	{
-		FD3D11ConstantBuffer* ConstantBuffer = CSConstantBuffers[i];
-		FD3DRHIUtil::CommitConstants<SF_Compute>(ConstantBuffer, StateCache, i, bDiscardSharedConstants);
-	}
+	FD3DRHIUtil::CommitConstants<SF_Compute>(CSConstantBuffer, StateCache, bDiscardSharedConstants);
 }
 
 template <class ShaderType>
