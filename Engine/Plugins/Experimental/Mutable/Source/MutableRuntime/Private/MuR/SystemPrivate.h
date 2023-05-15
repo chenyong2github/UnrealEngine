@@ -23,7 +23,7 @@ namespace mu
 	{
 		// This code will only be compiled (and ran) if the global definition to enable LLM tracking is set to 1 for the host program
 		// Ex : 			GlobalDefinitions.Add("LLM_ENABLED_IN_CONFIG=1");
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
+#if ENABLE_LOW_LEVEL_MEM_TRACKER && 0
 		FLowLevelMemTracker& MemTracker = FLowLevelMemTracker::Get();
 		if (MemTracker.IsEnabled())
 		{

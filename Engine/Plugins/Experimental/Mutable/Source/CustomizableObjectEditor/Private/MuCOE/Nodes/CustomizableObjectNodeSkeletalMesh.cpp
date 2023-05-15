@@ -40,68 +40,6 @@ void UCustomizableObjectNodeSkeletalMesh::PostEditChangeProperty(FPropertyChange
 }
 
 
-void UCustomizableObjectNodeSkeletalMesh::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	Ar.UsingCustomVersion(FCustomizableObjectCustomVersion::GUID);
-
-	if (Ar.CustomVer(FCustomizableObjectCustomVersion::GUID) < FCustomizableObjectCustomVersion::PostLoadToCustomVersion)
-	{
-		for (FCustomizableObjectNodeSkeletalMeshLOD& LOD : LODs)
-		{
-			for(FCustomizableObjectNodeSkeletalMeshMaterial& Material : LOD.Materials)
-			{
-				if (Material.MeshPin && !Material.MeshPinRef.Get())
-				{
-					UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(Material.MeshPin);
-					Material.MeshPinRef.SetPin(AuxPin);
-				}
-
-				if (!Material.LayoutPinsRef.Num())
-				{
-					if (Material.LayoutPins.Num())
-					{
-						for (UEdGraphPin_Deprecated* LayoutPin : Material.LayoutPins)
-						{
-							UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(LayoutPin);
-							FEdGraphPinReference AuxEdGraphPinReference(AuxPin);
-							Material.LayoutPinsRef.Add(AuxEdGraphPinReference);
-						}
-					}
-					else
-					{
-						FString MaterialLayoutName = Material.Name + " Layout";
-						for (UEdGraphPin* Pin : GetAllNonOrphanPins())
-						{
-							if (Pin
-								&& Pin->Direction == EEdGraphPinDirection::EGPD_Input
-								&& (MaterialLayoutName == Helper_GetPinName(Pin)
-									|| MaterialLayoutName == Pin->PinFriendlyName.ToString()))
-							{
-								FEdGraphPinReference AuxEdGraphPinReference(Pin);
-								Material.LayoutPinsRef.Add(AuxEdGraphPinReference);
-								break;
-							}
-						}
-					}
-				}
-
-				if (!Material.ImagePinsRef.Num())
-				{
-					for (UEdGraphPin_Deprecated* ImagePin : Material.ImagePins)
-					{
-						UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(ImagePin);
-						FEdGraphPinReference AuxEdGraphPinReference(AuxPin);
-						Material.ImagePinsRef.Add(AuxEdGraphPinReference);
-					}
-				}
-			}
-		}
-	}
-}
-
-
 void UCustomizableObjectNodeSkeletalMesh::AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins)
 {
 	// Pass information to the remap pins action context
@@ -112,189 +50,95 @@ void UCustomizableObjectNodeSkeletalMesh::AllocateDefaultPins(UCustomizableObjec
 	
 	const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
-	TArray<FCustomizableObjectNodeSkeletalMeshLOD> OldLODs(LODs);
-	LODs.Empty();
-
-	if (SkeletalMesh)
+	if (!SkeletalMesh)
 	{
-		int NumLODs = SkeletalMesh->GetLODInfoArray().Num();
-		TMap<FString, TArray<int32>> MaterialNameUseCount; // Stores how many times the material name has been used per LOD
-		TMap<FString, TArray<int32>> ImageNameUseCount; // Stores how many times the image name has been used per LOD
-
-		if (const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel())
+		DefaultPin = CustomCreatePin(EGPD_Output, Schema->PC_Mesh, FName(SKELETAL_MESH_PIN_NAME));
+		return;
+	}
+	else
+	{
+		DefaultPin = {};
+	}
+	
+	if (const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel())
+	{
+		const int32 NumLODs = SkeletalMesh->GetLODInfoArray().Num();
+		for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 		{
-			for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
+			const int32 NumSections = ImportedModel->LODModels[LODIndex].Sections.Num();
+			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 			{
-				LODs.Add(FCustomizableObjectNodeSkeletalMeshLOD());
+				UMaterialInterface* MaterialInterface = GetMaterialInterfaceFor(LODIndex, SectionIndex, ImportedModel);
+				
+				FString SectionFriendlyName = MaterialInterface ? MaterialInterface->GetName() : FString::Printf(TEXT("Section %i"), SectionIndex);
 
-				// Reset the material array and handle the actual materials from the mesh
-				int32 NumMaterials = ImportedModel->LODModels[LODIndex].Sections.Num();
-
-				FString OldNameForMap;
-
-				for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
+				// Mesh
 				{
-					LODs[LODIndex].Materials.Add(FCustomizableObjectNodeSkeletalMeshMaterial());
+					FString MeshName = FString::Printf(TEXT("LOD %i - Section %i - Mesh"), LODIndex, SectionIndex);
 
-					UMaterialInterface* MaterialInterface = GetMaterialInterfaceFor(LODIndex, MaterialIndex, ImportedModel);
-
-					FString MaterialName = LOCTEXT("Unnamed Material", "Unnamed Material").ToString();
-					if (MaterialInterface)
+					UCustomizableObjectNodeSkeletalMeshPinDataMesh* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataMesh>();
+					PinData->Init(LODIndex, SectionIndex);
+					
+					UEdGraphPin* Pin = CustomCreatePin(EGPD_Output, Schema->PC_Mesh, FName(*MeshName), PinData);
+					Pin->PinFriendlyName = FText::FromString(FString::Printf(TEXT("LOD %i - %s - Mesh"), LODIndex, *SectionFriendlyName));
+					Pin->PinToolTip = MeshName;
+				}
+				
+				// Layout
+				{
+					if (ImportedModel->LODModels.Num() > LODIndex)
 					{
-						MaterialName = MaterialInterface->GetName();
-						LODs[LODIndex].Materials[MaterialIndex].Name = MaterialName;
-					}
-
-					FString PrefixId; // Prefix is empty if only 1 LOD and 1 material
-					FString FriendlyPrefixId; // For retrocompatibility, only friendly names have all indexes
-
-					if (NumLODs > 1) // Add LOD ids to prefix if more than one LOD
-					{
-						FString Aux = FString::Printf(TEXT("LOD%d-"), LODIndex);
-						if (LODIndex > 0)
+						const uint32 NumUVs = ImportedModel->LODModels[LODIndex].NumTexCoords;
+						for (uint32 UVIndex = 0; UVIndex < NumUVs; ++UVIndex)
 						{
-							PrefixId.Append(Aux);
-						}
-						FriendlyPrefixId.Append(Aux);
-					}
-
-					int32 MaterialCurrentCount = 0;
-					if (TArray<int32>* MUsageCountP = MaterialNameUseCount.Find(MaterialName))
-					{
-						if (MUsageCountP->Num() > LODIndex)
-						{
-							(*MUsageCountP)[LODIndex]++;
-							MaterialCurrentCount = (*MUsageCountP)[LODIndex];
-						}
-						else
-						{
-							MUsageCountP->AddZeroed(LODIndex - (MUsageCountP->Num() - 1));
-							(*MUsageCountP)[LODIndex] = MaterialCurrentCount;
-						}
-					}
-					else
-					{
-						TArray<int32> NewMaterialNameUseCount;
-						NewMaterialNameUseCount.Add(MaterialCurrentCount);
-						MaterialNameUseCount.Add(MaterialName, NewMaterialNameUseCount);
-					}
-
-					if (MaterialCurrentCount > 0) // Add section ids to prefix if a section/material name is used more than once
-					{
-						FString Aux = FString::Printf(TEXT("%d-"), MaterialCurrentCount);
-						PrefixId.Append(Aux);
-					}
-
-					UEdGraphPin* Pin = nullptr;
-
-					{
-						// Mesh
-						FString MeshName = PrefixId + MaterialName + FString(" Mesh");
-						Pin = CustomCreatePin(EGPD_Output, Schema->PC_Mesh, FName(*MeshName));
-						Pin->PinFriendlyName = FText::FromString(MeshName);
-						Pin->PinToolTip = MeshName;
-						LODs[LODIndex].Materials[MaterialIndex].MeshPinRef.SetPin(Pin);
-
-						// Layout
-						if (ImportedModel->LODModels.Num() > LODIndex)
-						{
-							const uint32 numberOfUVLayouts = ImportedModel->LODModels[LODIndex].NumTexCoords;
-							for (uint32 LayoutIndex = 0; LayoutIndex < numberOfUVLayouts; ++LayoutIndex)
-							{
-								FString LayoutPrefix = "";
-								FString FriendlyLayoutPrefix = "";
-								if (LayoutIndex > 0)
-								{
-									LayoutPrefix = FString::Printf(TEXT("UV%d-"), LayoutIndex);
-								}
-								if (numberOfUVLayouts > 1)
-								{
-									FriendlyLayoutPrefix.Append(FString::Printf(TEXT("UV%d-"), LayoutIndex));
-								}
-								FString LayoutName = PrefixId + LayoutPrefix + MaterialName + FString(" Layout");
-								FString PinFriendlyName = FriendlyPrefixId + FriendlyLayoutPrefix + MaterialName + FString(" Layout");
-								FString PinTooltip = FString::Printf(TEXT("Material %d "), MaterialIndex) + PinFriendlyName;
-								Pin = CustomCreatePin(EGPD_Input, Schema->PC_Layout, FName(*LayoutName));
-								Pin->PinFriendlyName = FText::FromString(PinFriendlyName);
-								Pin->PinToolTip = PinTooltip;
-								Pin->bDefaultValueIsIgnored = true;
-								LODs[LODIndex].Materials[MaterialIndex].LayoutPinsRef.Add(FEdGraphPinReference(Pin));
-							}
-						}
-					}
-
-					// Images
-					if (MaterialInterface)
-					{
-						UMaterial* Material = MaterialInterface->GetMaterial();
-
-						TArray<FMaterialParameterInfo> ImageInfos;
-						TArray<FGuid> ImageIds;
-						Material->GetAllTextureParameterInfo(ImageInfos, ImageIds);
-
-						for (int32 ImageIndex = 0; ImageIndex < ImageInfos.Num(); ++ImageIndex)
-						{
-							FString ImageName = ImageInfos[ImageIndex].Name.ToString();
-							FString Sufix = FString::Printf(TEXT("-mat-%s"), *MaterialName);
-
-
-							int32 ImageCurrentCount = 0;
-							if (TArray<int32>* IUsageCountP = ImageNameUseCount.Find(ImageName))
-							{
-								if (IUsageCountP->Num() > LODIndex)
-								{
-									(*IUsageCountP)[LODIndex]++;
-									ImageCurrentCount = (*IUsageCountP)[LODIndex];
-								}
-								else
-								{
-									IUsageCountP->AddZeroed(LODIndex - (IUsageCountP->Num() - 1));
-									(*IUsageCountP)[LODIndex] = ImageCurrentCount;
-								}
-							}
-							else
-							{
-								TArray<int32> NewImageNameUseCount;
-								NewImageNameUseCount.Add(ImageCurrentCount);
-								ImageNameUseCount.Add(ImageName, NewImageNameUseCount);
-							}
-
-							FString PinName = PrefixId + ImageName + FString::Printf(TEXT("-mat-%s"), *MaterialName);
-							FString PinFriendlyImageName = ImageName;
-
-							if (ImageCurrentCount > 0)
-							{
-								PinName.Append(FString::Printf(TEXT("-%d"), ImageCurrentCount));
-							}
-
-							Pin = CustomCreatePin(EGPD_Output, Schema->PC_Image, FName(*PinName)); // Store the sufix in the category to be able to remove the sufix from the pin name later to retrieve the textures
-							Pin->bDefaultValueIsIgnored = true;
-							Pin->bHidden = true;
-							Pin->PinFriendlyName = FText::FromString(PrefixId + PinFriendlyImageName);
+							FString PinName = FString::Printf(TEXT("LOD %i - Section %i - UV %i"), LODIndex, SectionIndex, UVIndex);
+							
+							UCustomizableObjectNodeSkeletalMeshPinDataLayout* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataLayout>();
+							PinData->Init(LODIndex, SectionIndex, UVIndex);
+							
+							UEdGraphPin* Pin = CustomCreatePin(EGPD_Input, Schema->PC_Layout, FName(*PinName), PinData);
+							Pin->PinFriendlyName = FText::FromString(FString::Printf(TEXT("LOD %i - %s - UV %i"), LODIndex, *SectionFriendlyName, UVIndex));
 							Pin->PinToolTip = PinName;
-							LODs[LODIndex].Materials[MaterialIndex].ImagePinsRef.Add(FEdGraphPinReference(Pin));
 						}
+					}
+				}
+
+				// Images
+				if (MaterialInterface)
+				{
+					const UMaterial* Material = MaterialInterface->GetMaterial();
+
+					TArray<FMaterialParameterInfo> ImageInfos;
+					TArray<FGuid> ImageIds;
+					Material->GetAllTextureParameterInfo(ImageInfos, ImageIds);
+
+					check(ImageInfos.Num() == ImageIds.Num())
+					for (int32 Index = 0; Index < ImageInfos.Num(); ++Index)
+					{
+						const FMaterialParameterInfo& ImageInfo = ImageInfos[Index];
+						FGuid& ImageId = ImageIds[Index];
+						
+						FString ImageNameStr = *ImageInfo.Name.ToString();
+						FString PinName = FString::Printf(TEXT("LOD %i - Section %i - Texture Parameter %s"), LODIndex, SectionIndex, *ImageNameStr);
+						
+						UCustomizableObjectNodeSkeletalMeshPinDataImage* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataImage>();
+						PinData->Init(LODIndex, SectionIndex, ImageId);
+						
+						UEdGraphPin* Pin = CustomCreatePin(EGPD_Output, Schema->PC_Image, FName(*PinName), PinData);
+						Pin->PinFriendlyName = FText::FromString(FString::Printf(TEXT("LOD %i - %s - %s"), LODIndex, *SectionFriendlyName, *ImageNameStr));
+						Pin->PinToolTip = PinName;
+						Pin->bHidden = true;
 					}
 				}
 			}
 		}
-
-		DefaultPin = FEdGraphPinReference();
-	}
-	else
-	{
-		UEdGraphPin* Pin = CustomCreatePin(EGPD_Output, Schema->PC_Mesh, FName(SKELETAL_MESH_PIN_NAME));
-		Pin->bDefaultValueIsIgnored = true;
-		Pin->PinFriendlyName = FText::FromString(SKELETAL_MESH_PIN_NAME);
-		
-		DefaultPin = FEdGraphPinReference(Pin);
 	}
 }
 
 
-UCustomizableObjectNodeRemapPinsByName* UCustomizableObjectNodeSkeletalMesh::CreateRemapPinsByName() const
+UCustomizableObjectNodeRemapPins* UCustomizableObjectNodeSkeletalMesh::CreateRemapPinsDefault() const
 {
-	return NewObject<UCustomizableObjectNodeRemapPinsByNameDefaultPin>();
+	return NewObject<UCustomizableObjectNodeSkeletalMeshRemapPinsBySection>();
 }
 
 
@@ -323,36 +167,46 @@ FLinearColor UCustomizableObjectNodeSkeletalMesh::GetNodeTitleColor() const
 
 UTexture2D* UCustomizableObjectNodeSkeletalMesh::FindTextureForPin(const UEdGraphPin* Pin) const
 {
+	if (!Pin)
+	{
+		return nullptr;
+	}
+	
 	if (!SkeletalMesh)
 	{
 		return nullptr;
 	}
 
-	if (const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel())
+	const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+	if (ImportedModel)
 	{
-		for (int LODIndex = 0; LODIndex < LODs.Num(); ++LODIndex)
+		return nullptr;
+	}	
+
+	if (const UCustomizableObjectNodeSkeletalMeshPinDataImage* PinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataImage>(GetPinData(*Pin)))
+	{
+		if (const UMaterialInterface* MaterialInterface = GetMaterialInterfaceFor(PinData->GetLODIndex(), PinData->GetSectionIndex(), ImportedModel))
 		{
-			for (int MaterialIndex = 0; MaterialIndex < LODs[LODIndex].Materials.Num(); ++MaterialIndex)
+			const UMaterialInterface* Material = GetMaterialFor(Pin);
+			
+			TArray<FGuid> ParameterIds;
+			TArray<FMaterialParameterInfo> ParameterInfo;
+			Material->GetAllParameterInfoOfType(EMaterialParameterType::Texture, ParameterInfo, ParameterIds);
+
+			check(ParameterIds.Num() == ParameterInfo.Num())
+			for (int32 Index = 0; Index < ParameterIds.Num(); ++Index)
 			{
-				if (UMaterialInterface* MaterialInterface = GetMaterialInterfaceFor(LODIndex, MaterialIndex, ImportedModel))
+				if (ParameterIds[Index] == PinData->GetTextureParameterId())
 				{
-					for (int ImageIndex = 0; ImageIndex < LODs[LODIndex].Materials[MaterialIndex].ImagePinsRef.Num(); ++ImageIndex)
-					{
-						const UEdGraphPin* OtherPin = LODs[LODIndex].Materials[MaterialIndex].ImagePinsRef[ImageIndex].Get();
-						if (OtherPin == Pin)
-						{
-							UTexture* Texture = nullptr;
-							FString TextureString = OtherPin->PinFriendlyName.IsEmptyOrWhitespace() ? Helper_GetPinName(OtherPin) : OtherPin->PinFriendlyName.ToString();
-							FName TextureName = FName(*TextureString);
-							MaterialInterface->GetTextureParameterValue(TextureName, Texture);
-							return Cast<UTexture2D>(Texture);
-						}
-					}
+					UTexture* Texture = nullptr;
+					MaterialInterface->GetTextureParameterValue(ParameterInfo[Index].Name, Texture);
+
+					return Cast<UTexture2D>(Texture);
 				}
 			}
 		}
 	}
-
+	
 	return nullptr;
 }
 
@@ -375,28 +229,26 @@ void UCustomizableObjectNodeSkeletalMesh::GetUVChannelForPin(const UEdGraphPin* 
 }
 
 
-TArray<UCustomizableObjectLayout*> UCustomizableObjectNodeSkeletalMesh::GetLayouts(const UEdGraphPin* OutPin) const
+TArray<UCustomizableObjectLayout*> UCustomizableObjectNodeSkeletalMesh::GetLayouts(const UEdGraphPin& MeshPin) const
 {
 	TArray<UCustomizableObjectLayout*> Result;
 
-	for (int LODIndex = 0; LODIndex < LODs.Num(); ++LODIndex)
+	const UCustomizableObjectNodeSkeletalMeshPinDataMesh* MeshPinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataMesh>(GetPinData(MeshPin));
+	check(MeshPinData); // Not a mesh pin
+
+	for (const UEdGraphPin* Pin : GetAllNonOrphanPins())
 	{
-		for (int MaterialIndex = 0; MaterialIndex < LODs[LODIndex].Materials.Num(); ++MaterialIndex)
+		if (const UCustomizableObjectNodeSkeletalMeshPinDataLayout* PinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataLayout>(GetPinData(*Pin)))
 		{
-			if (LODs[LODIndex].Materials[MaterialIndex].MeshPinRef.Get() == OutPin)
+			if (PinData->GetLODIndex() == MeshPinData->GetLODIndex() &&
+				PinData->GetSectionIndex() == MeshPinData->GetSectionIndex())
 			{
-				for (int LayoutIndex = 0; LayoutIndex < LODs[LODIndex].Materials[MaterialIndex].LayoutPinsRef.Num(); ++LayoutIndex)
+				if (const UEdGraphPin* ConnectedPin = FollowInputPin(*Pin))
 				{
-					if (UEdGraphPin* LayoutInPin = LODs[LODIndex].Materials[MaterialIndex].LayoutPinsRef[LayoutIndex].Get())
+					const UCustomizableObjectNodeLayoutBlocks* LayoutNode = Cast<UCustomizableObjectNodeLayoutBlocks>(ConnectedPin->GetOwningNode());
+					if (LayoutNode && LayoutNode->Layout)
 					{
-						if (const UEdGraphPin* ConnectedPin = FollowInputPin(*LayoutInPin))
-						{
-							const UCustomizableObjectNodeLayoutBlocks* LayoutNode = Cast<UCustomizableObjectNodeLayoutBlocks>(ConnectedPin->GetOwningNode());
-							if (LayoutNode && LayoutNode->Layout)
-							{
-								Result.Add(LayoutNode->Layout);
-							}
-						}
+						Result.Add(LayoutNode->Layout);
 					}
 				}
 			}
@@ -413,73 +265,73 @@ UObject* UCustomizableObjectNodeSkeletalMesh::GetMesh() const
 }
 
 
-UEdGraphPin* UCustomizableObjectNodeSkeletalMesh::GetMeshPin(const int32 LODIndex, const int MaterialIndex) const
+UEdGraphPin* UCustomizableObjectNodeSkeletalMesh::GetMeshPin(const int32 LODIndex, const int32 SectionIndex) const
 {
-	if (LODIndex < LODs.Num())
+	for (UEdGraphPin* Pin : GetAllNonOrphanPins())
 	{
-		if (const FCustomizableObjectNodeSkeletalMeshLOD& LOD = LODs[LODIndex];
-			MaterialIndex < LOD.Materials.Num())
+		if (const UCustomizableObjectNodeSkeletalMeshPinDataMesh* PinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataMesh>(GetPinData(*Pin)))
 		{
-			return LOD.Materials[MaterialIndex].MeshPinRef.Get();
+			if (PinData->GetLODIndex() == LODIndex &&
+				PinData->GetSectionIndex() == SectionIndex)
+			{
+				return Pin;
+			}
 		}
 	}
 
 	return nullptr;
 }
 
-void UCustomizableObjectNodeSkeletalMesh::GetPinSection(const UEdGraphPin& Pin, int32& OutLODIndex, int32& OutSectionIndex, int32& OutLayoutIndex) const
+
+UEdGraphPin* UCustomizableObjectNodeSkeletalMesh::GetLayoutPin(int32 LODIndex, int32 SectionIndex, int32 LayoutIndex) const
 {
-	if (LODs.IsEmpty())
+	for (UEdGraphPin* Pin : GetAllNonOrphanPins())
 	{
-		OutLODIndex = -1;
-		OutSectionIndex = -1;
-		OutLayoutIndex = -1;
-
-		return;
-	}
-
-	for (OutLODIndex = 0; OutLODIndex < LODs.Num(); ++OutLODIndex)
-	{
-		const FCustomizableObjectNodeSkeletalMeshLOD& LOD = LODs[OutLODIndex];
-		
-		for (OutSectionIndex = 0; OutSectionIndex < LOD.Materials.Num(); ++OutSectionIndex)
+		if (const UCustomizableObjectNodeSkeletalMeshPinDataLayout* PinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataLayout>(GetPinData(*Pin)))
 		{
-			const FCustomizableObjectNodeSkeletalMeshMaterial& Material = LOD.Materials[OutSectionIndex];
-			
-			for (OutLayoutIndex = 0; OutLayoutIndex < Material.LayoutPinsRef.Num(); ++OutLayoutIndex)
+			if (PinData->GetLODIndex() == LODIndex &&
+				PinData->GetSectionIndex() == SectionIndex &&
+				PinData->GetUVIndex() == LayoutIndex)
 			{
-				// Is a Layout pin?
-				if (Material.LayoutPinsRef[OutLayoutIndex].Get() == &Pin)
-				{
-					return;
-				}
-			
-				// Is a Mesh pin?
-				if (Material.MeshPinRef.Get() == &Pin)
-				{
-					return;
-				}
-
-				// Is an Image pin?
-				for (int ImageIndex = 0; ImageIndex < Material.ImagePinsRef.Num(); ++ImageIndex)
-				{
-					if (Material.ImagePinsRef[ImageIndex].Get() == &Pin)
-					{
-						return;
-					}
-				}
+				return Pin;
 			}
 		}
 	}
 
-	check(false); // Pin not found. Probably a new pin has been added which is not contemplated in this function.
+	return nullptr;
 }
+
+
+void UCustomizableObjectNodeSkeletalMesh::GetPinSection(const UEdGraphPin& Pin, int32& OutLODIndex, int32& OutSectionIndex, int32& OutLayoutIndex) const
+{
+	if (const UCustomizableObjectNodeSkeletalMeshPinDataSection* PinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataSection>(GetPinData(Pin)))
+	{
+		OutLODIndex = PinData->GetLODIndex();
+		OutSectionIndex = PinData->GetSectionIndex();
+
+		if (const UCustomizableObjectNodeSkeletalMeshPinDataLayout* LayoutPinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataLayout>(GetPinData(Pin)))
+		{
+			OutLayoutIndex = LayoutPinData->GetUVIndex();
+		}
+		else
+		{
+			OutLayoutIndex = -1;
+		}
+		
+		return;
+	}
+	
+	OutLODIndex = -1;
+	OutSectionIndex = -1;
+	OutLayoutIndex = -1;
+}
+
 
 UMaterialInterface* UCustomizableObjectNodeSkeletalMesh::GetMaterialFor(const UEdGraphPin* Pin) const
 {
 	if (SkeletalMesh)
 	{
-		if (FSkeletalMaterial* SkeletalMaterial = GetSkeletalMaterialFor(Pin))
+		if (FSkeletalMaterial* SkeletalMaterial = GetSkeletalMaterialFor(*Pin))
 		{
 			return SkeletalMaterial->MaterialInterface;
 		}
@@ -488,17 +340,17 @@ UMaterialInterface* UCustomizableObjectNodeSkeletalMesh::GetMaterialFor(const UE
 	return nullptr;
 }
 
-FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(const UEdGraphPin* Pin) const
+
+FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(const UEdGraphPin& Pin) const
 {
-	check(Pin);
-	
 	int32 LODIndex;
 	int32 SectionIndex;
 	int32 LayoutIndex;
-	GetPinSection(*Pin, LODIndex, SectionIndex, LayoutIndex);
+	GetPinSection(Pin, LODIndex, SectionIndex, LayoutIndex);
 
 	return GetSkeletalMaterialFor(LODIndex, SectionIndex);
 }
+
 
 bool UCustomizableObjectNodeSkeletalMesh::IsPinRelevant(const UEdGraphPin* Pin) const
 {
@@ -517,73 +369,87 @@ bool UCustomizableObjectNodeSkeletalMesh::IsPinRelevant(const UEdGraphPin* Pin) 
 	return false;
 }
 
+
 bool UCustomizableObjectNodeSkeletalMesh::IsNodeOutDatedAndNeedsRefresh()
 {
-	bool Result = false;
-
-	if (SkeletalMesh)
+	const bool bOutdated = [&]()
 	{
-		int32 numLods = SkeletalMesh->GetLODNum();
-		if (LODs.Num() != numLods)
+		if (!SkeletalMesh)
 		{
-			Result = true;
+			return false;
 		}
 
-		if (const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel())
+		const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+		if (!ImportedModel)
 		{
-			for (int LODIndex = 0; !Result && LODIndex < LODs.Num(); ++LODIndex)
+			return false;
+		}
+	
+		for (const UEdGraphPin* Pin : GetAllNonOrphanPins())
+		{
+			auto Connected = [](const UEdGraphPin& Pin)
 			{
-				int32 NumMaterials = ImportedModel->LODModels[LODIndex].Sections.Num();
-				if (LODs[LODIndex].Materials.Num() != NumMaterials)
+				return Pin.Direction == EGPD_Input ? FollowInputPin(Pin) != nullptr : !FollowOutputPinArray(Pin).IsEmpty();	
+			};
+			
+			auto OutdatedSectionPinData = [&](const UCustomizableObjectNodeSkeletalMeshPinDataSection& PinData) -> bool
+			{
+				return !ImportedModel->LODModels.IsValidIndex(PinData.GetLODIndex()) ||
+					!ImportedModel->LODModels[PinData.GetLODIndex()].Sections.IsValidIndex(PinData.GetSectionIndex());
+			};
+		
+			if (const UCustomizableObjectNodeSkeletalMeshPinDataLayout* LayoutPinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataLayout>(GetPinData(*Pin)))
+			{
+				if (Connected(*Pin) &&
+					(OutdatedSectionPinData(*LayoutPinData) ||
+					LayoutPinData->GetUVIndex() < 0 || LayoutPinData->GetUVIndex() >= static_cast<int32>(ImportedModel->LODModels[LayoutPinData->GetLODIndex()].NumTexCoords)))
 				{
-					Result = true;
+					return true;
+				}
+			}
+			else if (const UCustomizableObjectNodeSkeletalMeshPinDataMesh* MeshPinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataMesh>(GetPinData(*Pin)))
+			{
+				if (Connected(*Pin) &&
+					OutdatedSectionPinData(*MeshPinData))
+				{
+					return true;
+				}
+			}
+			else if (const UCustomizableObjectNodeSkeletalMeshPinDataImage* ImagePinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataImage>(GetPinData(*Pin)))
+			{				
+				const UMaterialInterface* MaterialInterface = GetMaterialInterfaceFor(ImagePinData->GetLODIndex(), ImagePinData->GetSectionIndex(), ImportedModel);
+				if (!MaterialInterface) // If we had an Image pin for sure we had a MaterialInstance.
+				{
+					return true;
 				}
 
-				for (int MaterialIndex = 0; !Result && MaterialIndex < NumMaterials; ++MaterialIndex)
+				TArray<FGuid> ParameterIds;
+				TArray<FMaterialParameterInfo> ParameterInfo;
+				MaterialInterface->GetAllParameterInfoOfType(EMaterialParameterType::Texture, ParameterInfo, ParameterIds);
+				
+				UTexture* Texture = nullptr;
+				if (Connected(*Pin) &&
+					(OutdatedSectionPinData(*ImagePinData) ||
+					!ParameterIds.Contains(ImagePinData->GetTextureParameterId()))) // Check that the Texture Parameter still exists.
 				{
-					if (UMaterialInterface* MaterialInterface = GetMaterialInterfaceFor(LODIndex, MaterialIndex, ImportedModel))
-					{
-						if (LODs[LODIndex].Materials[MaterialIndex].Name != MaterialInterface->GetName())
-						{
-							Result = true;
-							break;
-						}
-						UMaterial* Material = MaterialInterface->GetMaterial();
-
-						TArray<FMaterialParameterInfo> ImageInfos;
-						TArray<FGuid> ImageIds;
-						Material->GetAllTextureParameterInfo(ImageInfos, ImageIds);
-
-						if (LODs[LODIndex].Materials[MaterialIndex].ImagePinsRef.Num() != ImageInfos.Num())
-						{
-							Result = true;
-							break;
-						}
-
-						for (int ImageIndex = 0; ImageIndex < ImageInfos.Num(); ++ImageIndex)
-						{
-							const FString ImagePinName = LODs[LODIndex].Materials[MaterialIndex].ImagePinsRef[ImageIndex].Get()->GetName();
-							if (!ImagePinName.Contains(ImageInfos[ImageIndex].Name.ToString()))
-							{
-								Result = true;
-								break;
-							}
-						}
-					}
+					return true; 
 				}
 			}
 		}
-	}
 
+		return false;
+	}();
+	
 	// Remove previous compilation warnings
-	if (!Result && bHasCompilerMessage)
+	if (!bOutdated && bHasCompilerMessage)
 	{
 		RemoveWarnings();
 		GetGraph()->NotifyGraphChanged();
 	}
 
-    return Result;
+    return bOutdated;
 }
+
 
 FString UCustomizableObjectNodeSkeletalMesh::GetRefreshMessage() const
 {
@@ -602,10 +468,59 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 	Super::BackwardsCompatibleFixup();
 
 	const int32 CustomizableObjectCustomVersion = GetLinkerCustomVersion(FCustomizableObjectCustomVersion::GUID);
-
-	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::NodeSkeletalMeshCorruptedPinRef)
+	
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::PostLoadToCustomVersion)
 	{
-		ReconstructNode();
+		for (FCustomizableObjectNodeSkeletalMeshLOD& LOD : LODs_DEPRECATED)
+		{
+			for(FCustomizableObjectNodeSkeletalMeshMaterial& Material : LOD.Materials)
+			{
+				if (Material.MeshPin_DEPRECATED && !Material.MeshPinRef.Get())
+				{
+					UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(Material.MeshPin_DEPRECATED);
+					Material.MeshPinRef.SetPin(AuxPin);
+				}
+
+				if (!Material.LayoutPinsRef.Num())
+				{
+					if (Material.LayoutPins_DEPRECATED.Num())
+					{
+						for (UEdGraphPin_Deprecated* LayoutPin : Material.LayoutPins_DEPRECATED)
+						{
+							UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(LayoutPin);
+							FEdGraphPinReference AuxEdGraphPinReference(AuxPin);
+							Material.LayoutPinsRef.Add(AuxEdGraphPinReference);
+						}
+					}
+					else
+					{
+						FString MaterialLayoutName = Material.Name + " Layout";
+						for (UEdGraphPin* Pin : GetAllNonOrphanPins())
+						{
+							if (Pin
+								&& Pin->Direction == EEdGraphPinDirection::EGPD_Input
+								&& (MaterialLayoutName == Helper_GetPinName(Pin)
+									|| MaterialLayoutName == Pin->PinFriendlyName.ToString()))
+							{
+								FEdGraphPinReference AuxEdGraphPinReference(Pin);
+								Material.LayoutPinsRef.Add(AuxEdGraphPinReference);
+								break;
+							}
+						}
+					}
+				}
+
+				if (!Material.ImagePinsRef.Num())
+				{
+					for (UEdGraphPin_Deprecated* ImagePin : Material.ImagePins_DEPRECATED)
+					{
+						UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(ImagePin);
+						FEdGraphPinReference AuxEdGraphPinReference(AuxPin);
+						Material.ImagePinsRef.Add(AuxEdGraphPinReference);
+					}
+				}
+			}
+		}
 	}
 
 	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::ConvertAnimationSlotToFName)
@@ -615,6 +530,67 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 			AnimBlueprintSlotName = FName(FString::FromInt(AnimBlueprintSlot_DEPRECATED));
 			AnimBlueprintSlot_DEPRECATED = -1; // Unnecessary, just in case anyone tried to use it later in this method.
 		}
+	}
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::AutomaticNodeSkeletalMesh)
+	{
+		for (int32 LODIndex = 0; LODIndex < LODs_DEPRECATED.Num(); ++LODIndex)
+		{
+			const FCustomizableObjectNodeSkeletalMeshLOD& LOD = LODs_DEPRECATED[LODIndex];
+			
+			for (int32 SectionIndex = 0; SectionIndex < LOD.Materials.Num(); ++SectionIndex)
+			{
+				const FCustomizableObjectNodeSkeletalMeshMaterial& Section = LOD.Materials[SectionIndex];
+
+				{
+					UCustomizableObjectNodeSkeletalMeshPinDataMesh* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataMesh>();
+					PinData->Init(LODIndex, SectionIndex);
+				
+					AddPinData(*Section.MeshPinRef.Get(), *PinData);
+				}
+
+				if (SkeletalMesh)
+				{
+					if (const FSkeletalMaterial* SkeletalMaterial = GetSkeletalMaterialFor(LODIndex, SectionIndex))
+					{
+						for (int32 ImageIndex = 0; ImageIndex < Section.ImagePinsRef.Num(); ++ImageIndex)
+						{
+							const UEdGraphPin* ImagePin = Section.ImagePinsRef[ImageIndex].Get();
+
+							FGuid TextureParameterId;
+
+							TArray<FGuid> ParameterIds;
+							TArray<FMaterialParameterInfo> ParameterInfo;
+							SkeletalMaterial->MaterialInterface->GetAllParameterInfoOfType(EMaterialParameterType::Texture, ParameterInfo, ParameterIds);
+							check(ParameterIds.Num() == ParameterInfo.Num())
+							for (int32 Index = 0; Index < ParameterIds.Num(); ++Index)
+							{
+								if (ParameterInfo[Index].Name == ImagePin->PinFriendlyName.ToString())
+								{
+									TextureParameterId = ParameterIds[Index];
+									break;	
+								}
+							}
+							
+							UCustomizableObjectNodeSkeletalMeshPinDataImage* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataImage>();
+							PinData->Init(LODIndex, SectionIndex, TextureParameterId);
+						
+							AddPinData(*ImagePin, *PinData);
+						}
+					}
+				}
+
+				for (int32 LayoutIndex = 0; LayoutIndex < Section.LayoutPinsRef.Num(); ++LayoutIndex)
+				{
+					UCustomizableObjectNodeSkeletalMeshPinDataLayout* PinData = NewObject<UCustomizableObjectNodeSkeletalMeshPinDataLayout>();
+					PinData->Init(LODIndex, SectionIndex, LayoutIndex);
+				
+					AddPinData(*Section.LayoutPinsRef[LayoutIndex].Get(), *PinData);
+				}
+			}
+		}
+			
+		ReconstructNode();
 	}
 }
 
@@ -630,45 +606,46 @@ TSharedPtr<SGraphNode> UCustomizableObjectNodeSkeletalMesh::CreateVisualWidget()
 }
 
 
-bool UCustomizableObjectNodeSkeletalMesh::CheckIsValidLayout(const UEdGraphPin* Pin, int32& LayoutIndex, FString& MaterialName)
+bool UCustomizableObjectNodeSkeletalMesh::CheckIsValidLayout(const UEdGraphPin* InPin, int32& LayoutIndex, FString& MaterialName)
 {
-	if (const UEdGraphPin* ConnectedPin = FollowOutputPin(*Pin))
+	const UEdGraphPin* ConnectedPin = FollowOutputPin(*InPin);
+	if (!ConnectedPin)
 	{
-		int32 LODIndex;
-		int32 SectionIndex;
-		GetPinSection(*ConnectedPin, LODIndex, SectionIndex, LayoutIndex);
+		return true;
+	}
 
-		if (LayoutIndex == 0)
-		{
-			return true;
-		}
-		else
-		{
-			TArray<FEdGraphPinReference> LayoutPins = LODs[LODIndex].Materials[SectionIndex].LayoutPinsRef;
-			MaterialName = LODs[LODIndex].Materials[SectionIndex].Name;
+	int32 LODIndex;
+	int32 SectionIndex;
+	GetPinSection(*ConnectedPin, LODIndex, SectionIndex, LayoutIndex);
 
-			for (int32 i = 0; i < LayoutPins.Num(); ++i)
+	MaterialName = GetMaterialInterfaceFor(LODIndex, SectionIndex)->GetName();
+	
+	if (LayoutIndex == 0)
+	{
+		return true;
+	}
+	
+	TBitArray VisitedLayouts(false, LayoutIndex);
+	
+	for (const UEdGraphPin* Pin : GetAllNonOrphanPins())
+	{
+		if (const UCustomizableObjectNodeSkeletalMeshPinDataLayout* PinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataLayout>(GetPinData(*Pin)))
+		{
+			if (PinData->GetLODIndex() == LODIndex &&
+				PinData->GetSectionIndex() == SectionIndex &&
+				PinData->GetUVIndex() < LayoutIndex)
 			{
-				if (i == LayoutIndex)
-				{
-					break;
-				}
-
-				if (!FollowInputPin(*LayoutPins[i].Get()))
-				{
-					return false;
-				}
+				VisitedLayouts[PinData->GetUVIndex()] = true;
 			}
-
 		}
 	}
 
-	return true;
+	return !VisitedLayouts.Contains(false);
 }
 
-UMaterialInterface* UCustomizableObjectNodeSkeletalMesh::GetMaterialInterfaceFor(const int LODIndex, const int MaterialIndex, const FSkeletalMeshModel* ImportedModel) const
+UMaterialInterface* UCustomizableObjectNodeSkeletalMesh::GetMaterialInterfaceFor(const int32 LODIndex, const int32 SectionIndex, const FSkeletalMeshModel* ImportedModel) const
 {
-	if (FSkeletalMaterial* SkeletalMaterial = GetSkeletalMaterialFor(LODIndex, MaterialIndex, ImportedModel))
+	if (FSkeletalMaterial* SkeletalMaterial = GetSkeletalMaterialFor(LODIndex, SectionIndex, ImportedModel))
 	{
 		return SkeletalMaterial->MaterialInterface;
 	}
@@ -677,7 +654,7 @@ UMaterialInterface* UCustomizableObjectNodeSkeletalMesh::GetMaterialInterfaceFor
 }
 
 
-FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(const int LODIndex, const int MaterialIndex, const FSkeletalMeshModel* ImportedModel) const
+FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(const int32 LODIndex, const int32 SectionIndex, const FSkeletalMeshModel* ImportedModel) const
 {
 	if (!SkeletalMesh)
 	{
@@ -687,9 +664,9 @@ FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(c
 	// We assume that LODIndex and MaterialIndex are valid for the imported model
 	int32 SkeletalMeshMaterialIndex = -1;
 
-	if (ImportedModel && ImportedModel->LODModels.IsValidIndex(LODIndex) && ImportedModel->LODModels[LODIndex].Sections.IsValidIndex(MaterialIndex))
+	if (ImportedModel && ImportedModel->LODModels.IsValidIndex(LODIndex) && ImportedModel->LODModels[LODIndex].Sections.IsValidIndex(SectionIndex))
 	{
-		SkeletalMeshMaterialIndex = ImportedModel->LODModels[LODIndex].Sections[MaterialIndex].MaterialIndex;
+		SkeletalMeshMaterialIndex = ImportedModel->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
 	}
 	else
 	{
@@ -697,9 +674,9 @@ FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(c
 
 		if (AuxImportedModel)
 		{
-			if (AuxImportedModel->LODModels.IsValidIndex(LODIndex) && AuxImportedModel->LODModels[LODIndex].Sections.IsValidIndex(MaterialIndex))
+			if (AuxImportedModel->LODModels.IsValidIndex(LODIndex) && AuxImportedModel->LODModels[LODIndex].Sections.IsValidIndex(SectionIndex))
 			{
-				SkeletalMeshMaterialIndex = AuxImportedModel->LODModels[LODIndex].Sections[MaterialIndex].MaterialIndex;
+				SkeletalMeshMaterialIndex = AuxImportedModel->LODModels[LODIndex].Sections[SectionIndex].MaterialIndex;
 			}
 		}
 	}
@@ -707,9 +684,9 @@ FSkeletalMaterial* UCustomizableObjectNodeSkeletalMesh::GetSkeletalMaterialFor(c
 	// Check if we have lod info map to get the correct material index
 	if (const FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(LODIndex))
 	{
-		if (LodInfo->LODMaterialMap.IsValidIndex(MaterialIndex))
+		if (LodInfo->LODMaterialMap.IsValidIndex(SectionIndex))
 		{
-			SkeletalMeshMaterialIndex = LodInfo->LODMaterialMap[MaterialIndex];
+			SkeletalMeshMaterialIndex = LodInfo->LODMaterialMap[SectionIndex];
 		}
 	}
 	
@@ -845,6 +822,120 @@ const FSlateBrush* SGraphNodeSkeletalMesh::GetExpressionPreviewArrow() const
 EVisibility SGraphNodeSkeletalMesh::ExpressionPreviewVisibility() const
 {
 	return NodeSkeletalMesh->bCollapsed ? EVisibility::Collapsed : EVisibility::Visible;
+}
+
+
+bool UCustomizableObjectNodeSkeletalMeshRemapPinsBySection::Equal(const UCustomizableObjectNode& Node, const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const
+{
+	const UCustomizableObjectNodeSkeletalMeshPinDataSection* PinDataOldPin = Cast<UCustomizableObjectNodeSkeletalMeshPinDataSection>(Node.GetPinData(OldPin));
+	const UCustomizableObjectNodeSkeletalMeshPinDataSection* PinDataNewPin = Cast<UCustomizableObjectNodeSkeletalMeshPinDataSection>(Node.GetPinData(NewPin));
+	if (PinDataOldPin && PinDataNewPin)
+	{
+		return *PinDataOldPin == *PinDataNewPin;
+	}
+	else
+	{
+		return Super::Equal(Node, OldPin, NewPin);	
+	}
+}
+
+
+void UCustomizableObjectNodeSkeletalMeshPinDataSection::Init(int32 InLODIndex, int32 InSectionIndex)
+{
+	LODIndex = InLODIndex;
+	SectionIndex = InSectionIndex;
+}
+
+
+int32 UCustomizableObjectNodeSkeletalMeshPinDataSection::GetLODIndex() const
+{
+	return LODIndex;
+}
+
+
+int32 UCustomizableObjectNodeSkeletalMeshPinDataSection::GetSectionIndex() const
+{
+	return SectionIndex;
+}
+
+
+bool UCustomizableObjectNodeSkeletalMeshPinDataSection::Equals(const UCustomizableObjectNodePinData& Other) const
+{
+	if (GetClass() != Other.GetClass())
+	{
+		return false;	
+	}
+
+	const UCustomizableObjectNodeSkeletalMeshPinDataSection& OtherTyped = static_cast<const UCustomizableObjectNodeSkeletalMeshPinDataSection&>(Other);
+    if (LODIndex != OtherTyped.LODIndex ||
+    	SectionIndex != OtherTyped.SectionIndex)
+    {
+        return false;	            
+    }
+	
+    return Super::Equals(Other);	
+}
+
+
+void UCustomizableObjectNodeSkeletalMeshPinDataImage::Init(int32 InLODIndex, int32 InSectionIndex, FGuid InTextureParameterId)
+{
+	Super::Init(InLODIndex, InSectionIndex);
+
+	TextureParameterId = InTextureParameterId;
+}
+
+
+FGuid UCustomizableObjectNodeSkeletalMeshPinDataImage::GetTextureParameterId() const
+{
+	return TextureParameterId;
+}
+
+
+bool UCustomizableObjectNodeSkeletalMeshPinDataImage::Equals(const UCustomizableObjectNodePinData& Other) const
+{
+	if (GetClass() != Other.GetClass())
+	{
+		return false;	
+	}
+
+	const UCustomizableObjectNodeSkeletalMeshPinDataImage& OtherTyped = static_cast<const UCustomizableObjectNodeSkeletalMeshPinDataImage&>(Other);
+    if (TextureParameterId != OtherTyped.TextureParameterId)
+    {
+        return false;
+    }
+	
+    return Super::Equals(Other);	
+}
+
+
+void UCustomizableObjectNodeSkeletalMeshPinDataLayout::Init(int32 InLODIndex, int32 InSectionIndex, int32 InUVIndex)
+{
+	Super::Init(InLODIndex, InSectionIndex);
+
+	UVIndex = InUVIndex;
+}
+
+
+int32 UCustomizableObjectNodeSkeletalMeshPinDataLayout::GetUVIndex() const
+{
+	return UVIndex;
+}
+
+
+bool UCustomizableObjectNodeSkeletalMeshPinDataLayout::Equals(const UCustomizableObjectNodePinData& Other) const
+{
+	if (GetClass() != Other.GetClass())
+	{
+		return false;	
+	}
+
+	const UCustomizableObjectNodeSkeletalMeshPinDataLayout& OtherTyped = static_cast<const UCustomizableObjectNodeSkeletalMeshPinDataLayout&>(Other);
+    if (UVIndex != OtherTyped.UVIndex)
+    {
+        return false;	            
+    }
+	
+    return Super::Equals(Other);
 }
 
 

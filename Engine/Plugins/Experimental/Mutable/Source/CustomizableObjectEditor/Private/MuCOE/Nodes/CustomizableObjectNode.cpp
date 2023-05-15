@@ -498,6 +498,24 @@ UCustomizableObjectNodePinData::UCustomizableObjectNodePinData()
 }
 
 
+bool UCustomizableObjectNodePinData::operator==(const UCustomizableObjectNodePinData& Other) const
+{
+	return Equals(Other);
+}
+
+
+bool UCustomizableObjectNodePinData::operator!=(const UCustomizableObjectNodePinData& Other) const
+{
+	return !operator==(Other);
+}
+
+
+bool UCustomizableObjectNodePinData::Equals(const UCustomizableObjectNodePinData& Other) const
+{
+	return GetClass() == Other.GetClass();	
+}
+
+
 void UCustomizableObjectNode::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);

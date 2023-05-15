@@ -2767,11 +2767,12 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 		{
 			int32 LOD;
 			int32 SectionIndex;
-			int32 LayoutIndex;
-			TypedNodeSkel->GetPinSection(*Pin, LOD, SectionIndex, LayoutIndex);
 
-			check(SectionIndex < TypedNodeSkel->LODs[LOD].Materials.Num());
-
+			{
+				int32 LayoutIndex;
+				TypedNodeSkel->GetPinSection(*Pin, LOD, SectionIndex, LayoutIndex);
+			}
+				
 			// See if we need to select another LOD because of automatic LOD generation
 			if (GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh)
 			{
@@ -2916,28 +2917,22 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			// Layouts
 			// If we didn't find a layout, but we are generating LODs and this LOD is automatic, reuse the first valid LOD layout
 			bool LayoutFound = false;
-
-			int LayoutLOD = LOD;
-			while (!LayoutFound
-				&&
-				LayoutLOD >= 0
-				)
+			
+			int32 LayoutLOD = LOD;
+			while (!LayoutFound && LayoutLOD >= 0)
 			{
-				if (TypedNodeSkel->LODs.IsValidIndex(LayoutLOD)
-					&&
-					TypedNodeSkel->LODs[LayoutLOD].Materials.IsValidIndex(SectionIndex))
+				const int32 NumLayouts = TypedNodeSkel->SkeletalMesh->GetImportedModel()->LODModels[LayoutLOD].Sections.Num();
+				
+				MeshNode->SetLayoutCount(NumLayouts);
+				for (int32 LayoutIndex = 0; LayoutIndex < NumLayouts; ++LayoutIndex)
 				{
-					MeshNode->SetLayoutCount(TypedNodeSkel->LODs[LayoutLOD].Materials[SectionIndex].LayoutPinsRef.Num());
-					for (LayoutIndex = 0; LayoutIndex < TypedNodeSkel->LODs[LayoutLOD].Materials[SectionIndex].LayoutPinsRef.Num(); ++LayoutIndex)
+					if (UEdGraphPin* LayoutPin = TypedNodeSkel->GetLayoutPin(LayoutLOD, SectionIndex, LayoutIndex))
 					{
-						if (TypedNodeSkel->LODs[LayoutLOD].Materials[SectionIndex].LayoutPinsRef[LayoutIndex].Get())
+						if (const UEdGraphPin* ConnectedPin = FollowInputPin(*LayoutPin))
 						{
-							if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeSkel->LODs[LayoutLOD].Materials[SectionIndex].LayoutPinsRef[LayoutIndex].Get()))
-							{
-								mu::NodeLayoutPtr LayoutNode = GenerateMutableSourceLayout(ConnectedPin, GenerationContext, bLinkedToExtendMaterial);
-								MeshNode->SetLayout(LayoutIndex, LayoutNode);
-								LayoutFound = true;
-							}
+							mu::NodeLayoutPtr LayoutNode = GenerateMutableSourceLayout(ConnectedPin, GenerationContext, bLinkedToExtendMaterial);
+							MeshNode->SetLayout(LayoutIndex, LayoutNode);
+							LayoutFound = true;
 						}
 					}
 				}

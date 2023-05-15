@@ -185,7 +185,7 @@ TArray<UCustomizableObjectLayout*> UCustomizableObjectNodeExtendMaterial::GetLay
 			{
 				if (const UCustomizableObjectNodeSkeletalMesh* MeshNode = Cast<UCustomizableObjectNodeSkeletalMesh>(SourceMeshPin->GetOwningNode()))
 				{
-					Result = MeshNode->GetLayouts(SourceMeshPin);
+					Result = MeshNode->GetLayouts(*SourceMeshPin);
 				}
 				else if (const UCustomizableObjectNodeTable* TableNode = Cast<UCustomizableObjectNodeTable>(SourceMeshPin->GetOwningNode()))
 				{

@@ -2551,39 +2551,6 @@ void FCustomizableObjectEditor::OnEnterText(const FText & NewText, ETextCommit::
 							}
 						}
 					}
-					else if (ArrayType == "FCustomizableObjectNodeSkeletalMeshLOD")
-					{
-						TArray<FCustomizableObjectNodeSkeletalMeshLOD>  Array =
-							*ArrayProperty->ContainerPtrToValuePtr<TArray<FCustomizableObjectNodeSkeletalMeshLOD>>(Node);
-						
-						FString LODs = "LODs";
-
-						for (int a = 0; a < Array.Num(); ++a)
-						{
-							if (LODs.Contains(VariableName))
-							{
-								LogSearchResult(CustomizableObjectNode, "Variable", found, LODs);
-								found = true;
-							}
-
-							for (int s = 0; s < Array[a].Materials.Num(); ++s)
-							{
-								FString Name = "Name";
-
-								if (Name.Contains(VariableName))
-								{
-									LogSearchResult(CustomizableObjectNode, "Variable", found, Name);
-									found = true;
-								}
-
-								if (Array[a].Materials[s].Name.Contains(NewText.ToString()))
-								{
-									LogSearchResult(CustomizableObjectNode, "Value", found, Array[a].Materials[s].Name);
-									found = true;
-								}
-							}
-						}
-					}
 					else if (ArrayType == "FCustomizableObjectNodeStaticMeshLOD")
 					{
 						TArray<FCustomizableObjectNodeStaticMeshLOD>  Array =

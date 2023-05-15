@@ -84,13 +84,13 @@ struct CUSTOMIZABLEOBJECTEDITOR_API FCustomizableObjectNodeStaticMeshMaterial
 	FString Name;
 
 	UPROPERTY()
-	TObjectPtr<UEdGraphPin_Deprecated> MeshPin = nullptr;
+	TObjectPtr<UEdGraphPin_Deprecated> MeshPin_DEPRECATED;
 
 	UPROPERTY()
-	TObjectPtr<UEdGraphPin_Deprecated> LayoutPin = nullptr;
+	TObjectPtr<UEdGraphPin_Deprecated> LayoutPin_DEPRECATED;
 
 	UPROPERTY()
-	TArray< TObjectPtr<UEdGraphPin_Deprecated>> ImagePins;
+	TArray< TObjectPtr<UEdGraphPin_Deprecated>> ImagePins_DEPRECATED;
 
 	UPROPERTY()
 	FEdGraphPinReference MeshPinRef;
@@ -151,9 +151,10 @@ public:
 	// UCustomizableObjectNodeMesh interface
 	virtual UTexture2D* FindTextureForPin(const UEdGraphPin* Pin) const override;
 	virtual void GetUVChannelForPin(const UEdGraphPin* Pin, TArray<FVector2f>& OutSegments, int32 UVIndex) const override;
-	virtual TArray<UCustomizableObjectLayout*> GetLayouts(const UEdGraphPin* OutPin) const override;
+	virtual TArray<UCustomizableObjectLayout*> GetLayouts(const UEdGraphPin& OutPin) const override;
 	virtual UObject* GetMesh() const override;
-	virtual UEdGraphPin* GetMeshPin(int32 LOD, int MaterialIndex) const override;
+	virtual UEdGraphPin* GetMeshPin(int32 LOD, int32 SectionIndex) const override;
+	virtual UEdGraphPin* GetLayoutPin(int32 LODIndex, int32 SectionIndex, int32 LayoutIndex) const override;
 	virtual void GetPinSection(const UEdGraphPin& Pin, int32& OutLODIndex, int32& OutSectionIndex, int32& OutLayoutIndex) const override;
 
 	/** Returns the material assossiated to the given output pin. */

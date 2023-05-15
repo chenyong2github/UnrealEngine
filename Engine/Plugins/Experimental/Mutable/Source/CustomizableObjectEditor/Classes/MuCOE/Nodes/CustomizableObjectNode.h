@@ -24,6 +24,15 @@ class UCustomizableObjectNodePinData : public UObject
 
 public:
 	UCustomizableObjectNodePinData();
+
+	/** False if inherited types are different. */
+	bool operator==(const UCustomizableObjectNodePinData& Other) const;
+	
+	virtual bool operator!=(const UCustomizableObjectNodePinData& Other) const;
+
+protected:
+	/** Virtual function used to perform comparision between different UCustomizableObjectNodePinData inherited types. */
+	virtual bool Equals(const UCustomizableObjectNodePinData& Other) const;
 };
 
 /** Encapsulation of parameters for the FPostEditChangePropertyDelegate delegate function.

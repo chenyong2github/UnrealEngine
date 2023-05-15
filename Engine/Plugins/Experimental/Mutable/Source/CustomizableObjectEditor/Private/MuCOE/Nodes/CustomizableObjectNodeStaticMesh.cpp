@@ -53,21 +53,21 @@ void UCustomizableObjectNodeStaticMesh::Serialize(FArchive& Ar)
 		{
 			for (FCustomizableObjectNodeStaticMeshMaterial& Material : LOD.Materials)
 			{
-				if (Material.MeshPin && !Material.MeshPinRef.Get())
+				if (Material.MeshPin_DEPRECATED && !Material.MeshPinRef.Get())
 				{
-					UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(Material.MeshPin);
+					UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(Material.MeshPin_DEPRECATED);
 					Material.MeshPinRef.SetPin(AuxPin);
 				}
 
-				if (Material.LayoutPin && !Material.LayoutPinRef.Get())
+				if (Material.LayoutPin_DEPRECATED && !Material.LayoutPinRef.Get())
 				{
-					UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(Material.LayoutPin);
+					UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(Material.LayoutPin_DEPRECATED);
 					Material.LayoutPinRef.SetPin(AuxPin);
 				}
 
-				if (Material.ImagePins.Num() && !Material.ImagePinsRef.Num())
+				if (Material.ImagePins_DEPRECATED.Num() && !Material.ImagePinsRef.Num())
 				{
-					for (UEdGraphPin_Deprecated* DeprecatedPin : Material.ImagePins)
+					for (UEdGraphPin_Deprecated* DeprecatedPin : Material.ImagePins_DEPRECATED)
 					{
 						UEdGraphPin* AuxPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(DeprecatedPin);
 						FEdGraphPinReference AuxEdGraphPinReference(AuxPin);
@@ -251,7 +251,7 @@ void UCustomizableObjectNodeStaticMesh::GetUVChannelForPin(const UEdGraphPin* Pi
 }
 
 
-TArray<class UCustomizableObjectLayout*> UCustomizableObjectNodeStaticMesh::GetLayouts(const UEdGraphPin* OutPin) const
+TArray<class UCustomizableObjectLayout*> UCustomizableObjectNodeStaticMesh::GetLayouts(const UEdGraphPin& OutPin) const
 {
 	TArray<class UCustomizableObjectLayout*> Result;
 
@@ -259,7 +259,7 @@ TArray<class UCustomizableObjectLayout*> UCustomizableObjectNodeStaticMesh::GetL
 	{
 		for (int MaterialIndex = 0; MaterialIndex<LODs[LODIndex].Materials.Num(); ++MaterialIndex)
 		{
-			if (LODs[LODIndex].Materials[MaterialIndex].MeshPinRef.Get() == OutPin)
+			if (LODs[LODIndex].Materials[MaterialIndex].MeshPinRef.Get() == &OutPin)
 			{
 				if (UEdGraphPin* LayoutInPin = LODs[LODIndex].Materials[MaterialIndex].LayoutPinRef.Get())
 				{
@@ -286,14 +286,31 @@ UObject* UCustomizableObjectNodeStaticMesh::GetMesh() const
 }
 
 
-UEdGraphPin* UCustomizableObjectNodeStaticMesh::GetMeshPin(const int32 LODIndex, const int MaterialIndex) const
+UEdGraphPin* UCustomizableObjectNodeStaticMesh::GetMeshPin(const int32 LODIndex, const int32 SectionIndex) const
 {
 	if (LODIndex < LODs.Num())
 	{
 		if (const FCustomizableObjectNodeStaticMeshLOD& LOD = LODs[LODIndex];
-			MaterialIndex < LOD.Materials.Num())
+			SectionIndex < LOD.Materials.Num())
 		{
-			return LOD.Materials[MaterialIndex].MeshPinRef.Get();
+			return LOD.Materials[SectionIndex].MeshPinRef.Get();
+		}
+	}
+
+	return nullptr;
+}
+
+
+UEdGraphPin* UCustomizableObjectNodeStaticMesh::GetLayoutPin(int32 LODIndex, int32 SectionIndex, int32 LayoutIndex) const
+{
+	check(LayoutIndex == 1); // Multiple UVs not supported on Static Mesh Node.
+
+	if (LODIndex < LODs.Num())
+	{
+		if (const FCustomizableObjectNodeStaticMeshLOD& LOD = LODs[LODIndex];
+			SectionIndex < LOD.Materials.Num())
+		{
+			return LOD.Materials[SectionIndex].LayoutPinRef.Get();
 		}
 	}
 

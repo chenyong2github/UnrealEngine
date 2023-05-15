@@ -4,7 +4,9 @@
 
 #include "GameplayTagContainer.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeMesh.h"
+#include "MuCOE/CustomizableObjectEditor_Deprecated.h"
 #include "SGraphNode.h"
+#include "MuCOE/RemapPins/CustomizableObjectNodeRemapPinsByNameDefaultPin.h"
 
 #include "CustomizableObjectNodeSkeletalMesh.generated.h"
 
@@ -57,8 +59,6 @@ public:
 	const FSlateBrush* GetExpressionPreviewArrow() const;
 	EVisibility ExpressionPreviewVisibility() const;
 
-public:
-
 	// Single property that only draws the combo box widget of the skeletal mesh
 	TSharedPtr<ISinglePropertyView> SkeletalMeshSelector;
 
@@ -80,43 +80,83 @@ private:
 };
 
 
-
-USTRUCT()
-struct CUSTOMIZABLEOBJECTEDITOR_API FCustomizableObjectNodeSkeletalMeshMaterial
+/** Remap pins by pin PinData. */
+UCLASS()
+class UCustomizableObjectNodeSkeletalMeshRemapPinsBySection : public UCustomizableObjectNodeRemapPinsByNameDefaultPin
 {
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY()
-	FString Name;
-
-	UPROPERTY()
-	TObjectPtr<UEdGraphPin_Deprecated> MeshPin = nullptr;
-
-	UPROPERTY()
-	TArray< TObjectPtr<UEdGraphPin_Deprecated> > LayoutPins;
-
-	UPROPERTY()
-	TArray< TObjectPtr<UEdGraphPin_Deprecated> > ImagePins;
-
-	UPROPERTY()
-	FEdGraphPinReference MeshPinRef;
-
-	UPROPERTY()
-	TArray<FEdGraphPinReference> LayoutPinsRef;
-
-	UPROPERTY()
-	TArray<FEdGraphPinReference> ImagePinsRef;
+	GENERATED_BODY()
+public:
+	virtual bool Equal(const UCustomizableObjectNode& Node, const UEdGraphPin& OldPin, const UEdGraphPin& NewPin) const override;
 };
 
 
-USTRUCT()
-struct CUSTOMIZABLEOBJECTEDITOR_API FCustomizableObjectNodeSkeletalMeshLOD
+/** PinData of a pin that belongs to a Skeletal Mesh Section. */
+UCLASS()
+class UCustomizableObjectNodeSkeletalMeshPinDataSection : public UCustomizableObjectNodePinData
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
-	UPROPERTY()
-	TArray<FCustomizableObjectNodeSkeletalMeshMaterial> Materials;
+public:
+	void Init(int32 InLODIndex, int32 InSectionIndex);
+
+	int32 GetLODIndex() const;
+
+	int32 GetSectionIndex() const;
+
+protected:
+	virtual bool Equals(const UCustomizableObjectNodePinData& Other) const override;
+
+private:
+	int32 LODIndex = -1;
+	int32 SectionIndex = -1;
 };
+
+
+/** PinData of a Mesh pin. */
+UCLASS()
+class UCustomizableObjectNodeSkeletalMeshPinDataMesh : public UCustomizableObjectNodeSkeletalMeshPinDataSection
+{
+	GENERATED_BODY()
+};
+
+
+/** PinData of a Image pin. */
+UCLASS()
+class UCustomizableObjectNodeSkeletalMeshPinDataImage : public UCustomizableObjectNodeSkeletalMeshPinDataSection
+{
+	GENERATED_BODY()
+
+public:
+	void Init(int32 InLODIndex, int32 InSectionIndex, FGuid InTextureParameterId);
+
+	FGuid GetTextureParameterId() const;
+
+protected:
+	virtual bool Equals(const UCustomizableObjectNodePinData& Other) const override;
+
+private:
+	FGuid TextureParameterId;
+};
+
+
+/** PinData of a Layout pin. */
+UCLASS()
+class UCustomizableObjectNodeSkeletalMeshPinDataLayout : public UCustomizableObjectNodeSkeletalMeshPinDataSection
+{
+	GENERATED_BODY()
+
+public:
+	void Init(int32 InLODIndex, int32 InSectionIndex, int32 InUVIndex);
+
+	int32 GetUVIndex() const;
+
+protected:
+	virtual bool Equals(const UCustomizableObjectNodePinData& Other) const override;
+
+private:
+	int32 UVIndex = -1;
+};
+
 
 
 UCLASS()
@@ -127,10 +167,6 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = CustomizableObject)
 	TObjectPtr<USkeletalMesh> SkeletalMesh;
-
-	/** Images */
-	UPROPERTY()
-	TArray<FCustomizableObjectNodeSkeletalMeshLOD> LODs;
 
 	/** Default pin when there is no mesh. */
 	UPROPERTY()
@@ -162,8 +198,7 @@ public:
 
 	// UObject interface.
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void Serialize(FArchive& Ar) override;
-
+	
 	// UEdGraphNode interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
@@ -172,19 +207,22 @@ public:
 	// UCustomizableObjectNode interface
 	virtual void BackwardsCompatibleFixup() override;
 	virtual void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins) override;
-	virtual UCustomizableObjectNodeRemapPinsByName* CreateRemapPinsByName() const override;
+	virtual UCustomizableObjectNodeRemapPins* CreateRemapPinsDefault() const override;
 
 	// UCustomizableObjectNodeMesh interface
 	virtual UTexture2D* FindTextureForPin(const UEdGraphPin* Pin) const override;
 	virtual void GetUVChannelForPin(const UEdGraphPin* Pin, TArray<FVector2f>& OutSegments, int32 UVIndex) const override;
-	virtual TArray<UCustomizableObjectLayout*> GetLayouts(const UEdGraphPin* OutPin) const override;
+	virtual TArray<UCustomizableObjectLayout*> GetLayouts(const UEdGraphPin& MeshPin) const override;
 	virtual UObject* GetMesh() const override;
-	virtual UEdGraphPin* GetMeshPin(int32 LOD, int MaterialIndex) const override;
+	virtual UEdGraphPin* GetMeshPin(int32 LOD, int32 SectionIndex) const override;
+	virtual UEdGraphPin* GetLayoutPin(int32 LODIndex, int32 SectionIndex, int32 LayoutIndex) const override;
 	virtual void GetPinSection(const UEdGraphPin& Pin, int32& OutLODIndex, int32& OutSectionIndex, int32& OutLayoutIndex) const override;
+
+	// Own interface
 	
 	/** Returns the material associated to the given output pin. */
 	UMaterialInterface* GetMaterialFor(const UEdGraphPin* Pin) const;
-	FSkeletalMaterial* GetSkeletalMaterialFor(const UEdGraphPin* Pin) const;
+	FSkeletalMaterial* GetSkeletalMaterialFor(const UEdGraphPin& Pin) const;
 
 	virtual bool ProvidesCustomPinRelevancyTest() const override { return true; }
 	virtual bool IsPinRelevant(const UEdGraphPin* Pin) const override;
@@ -195,7 +233,7 @@ public:
 	// Creates the SGraph Node widget for the thumbnail
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 
-	// Check if previous UV channels pins of the same LOD and material are also linked to a layout node
+	/** Check if lower UV channels pins of the same LOD and Section are also linked to a Layout Node. */
 	bool CheckIsValidLayout(const UEdGraphPin* Pin, int32& LayoutIndex, FString& MaterialName);
 
 	// Determines if the Node is collapsed or not
@@ -203,7 +241,13 @@ public:
 
 	// Pointer to the SGraphNode Skeletal Mesh
 	TWeakPtr< SGraphNodeSkeletalMesh > GraphNodeSkeletalMesh;
+
 private:
-	UMaterialInterface* GetMaterialInterfaceFor(const int LODIndex, const int MaterialIndex, const FSkeletalMeshModel* ImportedModel = nullptr) const;
-	FSkeletalMaterial* GetSkeletalMaterialFor(const int LODIndex, const int MaterialIndex, const FSkeletalMeshModel* ImportedModel = nullptr) const;
+	UMaterialInterface* GetMaterialInterfaceFor(const int32 LODIndex, const int32 MaterialIndex, const FSkeletalMeshModel* ImportedModel = nullptr) const;
+	FSkeletalMaterial* GetSkeletalMaterialFor(const int32 LODIndex, const int32 MaterialIndex, const FSkeletalMeshModel* ImportedModel = nullptr) const;
+
+	// Deprecated
+	
+	UPROPERTY()
+	TArray<FCustomizableObjectNodeSkeletalMeshLOD> LODs_DEPRECATED;
 };
