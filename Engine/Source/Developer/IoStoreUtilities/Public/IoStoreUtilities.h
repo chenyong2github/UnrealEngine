@@ -11,6 +11,7 @@
 
 struct FGuid;
 struct FKeyChain;
+class FIoChunkId;
 
 IOSTOREUTILITIES_API int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine);
 
@@ -38,5 +39,16 @@ IOSTOREUTILITIES_API bool ExtractFilesFromIoStoreContainer(
 	TMap<FString, uint64>* OutOrderMap,
 	TArray<FGuid>* OutUsedEncryptionKeys,
 	bool* bOutIsSigned);
+
+IOSTOREUTILITIES_API bool ProcessFilesFromIoStoreContainer(
+	const TCHAR* InContainerFilename,
+	const TCHAR* InDestPath,
+	const FKeyChain& InKeyChain,
+	const FString* InFilter,
+	TFunction<bool (const FString&, const FString&, const FIoChunkId&, const uint8*, uint64)> FileProcessFunc,
+	TMap<FString, uint64>* OutOrderMap,
+	TArray<FGuid>* OutUsedEncryptionKeys,
+	bool* bOutIsSigned,
+	int32 MaxConcurrentReaders);
 
 IOSTOREUTILITIES_API bool SignIoStoreContainer(const TCHAR* InContainerFilename, const FRSAKeyHandle InSigningKey);

@@ -14,7 +14,7 @@
 	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
-	"SupportedPrograms": [ "UnrealPak" ],
+	"SupportedPrograms": [ "UnrealPak", "UnrealPakEx" ],
 	"Modules": [
 		{
 			"Name": "PlatformCrypto",
@@ -31,7 +31,7 @@
 			"PlatformDenyList": [
 				"TVOS"
 			],
-			"ProgramAllowList": [ "UnrealPak" ]
+			"ProgramAllowList": [ "UnrealPak", "UnrealPakEx" ]
 		},
 		{
 			"Name": "PlatformCryptoTypes",
