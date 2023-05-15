@@ -122,12 +122,6 @@ public:
 	/** Handle Java side query purchases completed notification */
 	void OnQueryExistingPurchasesComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FGoogleTransactionData>& InExistingPurchases);
 
-	/** Handle Java side acknowledge purchase completed notification */
-	void OnAcknowledgePurchaseComplete(EGooglePlayBillingResponseCode InResponseCode, const FString& InPurchaseToken);
-
-	/** Handle Java side consume purchase completed notification */
-	void OnConsumePurchaseComplete(EGooglePlayBillingResponseCode InResponseCode, const FString& InPurchaseToken);
-
 	static bool IsSubscriptionProductId(const FString& ProductId);
 private:
 	
