@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Engine/Engine.h"
+
 #include "Misc/AutomationTest.h"
 #include "HAL/Platform.h"
 

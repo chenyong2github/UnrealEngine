@@ -329,6 +329,32 @@ namespace CQTestTests
 		}
 	};
 
+
+	TEST_CLASS(LatentActionOnTearDown, "TestFramework.CQTest.Core")
+	{
+		FString ExpectedError = TEXT("ExpectedErrorShouldBeCleared");
+
+		TEST_METHOD(Teardown_Fires_AfterAll)
+		{
+			TestCommandBuilder.Do([&]() {
+				Assert.Fail(ExpectedError);
+			})
+			.OnTearDown([&]() {
+				ClearExpectedError(*TestRunner, ExpectedError);
+			});
+		}
+
+		TEST_METHOD(Teardown_Fires_InReverseOrder)
+		{
+			TestCommandBuilder.OnTearDown([&]() {
+				ClearExpectedError(*TestRunner, ExpectedError);
+			}).OnTearDown([&]() {
+				Assert.Fail(ExpectedError);
+			});
+		}
+	};
+
+
 	TEST_CLASS(LatentActionErrors, "TestFramework.CQTest.Core")
 	{
 		FString ExpectedError = TEXT("ExpectedError");

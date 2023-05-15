@@ -42,11 +42,12 @@ bool CQTEST_API FWaitUntil::Update()
 
 bool CQTEST_API FExecute::Update()
 {
+	bool bHasToRun = !TestRunner.HasAnyErrors() || FailureBehavior == ECQTestFailureBehavior::Run;
 	if (Description)
 	{
-		UE_LOG(LogCqTest, Log, TEXT("Running %s"), Description);
+		UE_LOG(LogCqTest, Log, TEXT("%s %s"), bHasToRun? TEXT("Running") : TEXT("Skipping"), Description);
 	}
-	if (!TestRunner.HasAnyErrors())
+	if (bHasToRun)
 	{
 		Func();
 	}

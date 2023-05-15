@@ -29,16 +29,8 @@ FBasePIENetworkComponent::FBasePIENetworkComponent(FAutomationTestBase* InTestRu
 	CommandBuilder
 		->Do(TEXT("Start PIE"), [this]() { StartPie(); })
 		.Until(TEXT("Collect PIE Worlds"), [this]() { return CollectPieWorlds(); })
-		.Until(TEXT("Await Connections"), [this]() { return AwaitConnections(); });
-}
-
-FBasePIENetworkComponent::~FBasePIENetworkComponent()
-{
-	if (ServerState != nullptr)
-	{
-		GUnrealEd->RequestEndPlayMap();
-		StateRestorer.Restore();
-	}
+		.Until(TEXT("Await Connections"), [this]() { return AwaitConnections(); })
+		.OnTearDown(TEXT("Restore Editor State"), [this]() { RestoreState(); });
 }
 
 FBasePIENetworkComponent& FBasePIENetworkComponent::Then(TFunction<void()> Action)
@@ -206,5 +198,14 @@ bool FBasePIENetworkComponent::AwaitConnections()
 	}
 
 	return true;
+}
+
+void FBasePIENetworkComponent::RestoreState()
+{
+	if (ServerState != nullptr)
+	{
+		GUnrealEd->RequestEndPlayMap();
+		StateRestorer.Restore();
+	}
 }
 #endif

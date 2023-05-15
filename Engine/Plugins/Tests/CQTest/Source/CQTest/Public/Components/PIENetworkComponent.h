@@ -26,7 +26,6 @@ class CQTEST_API FBasePIENetworkComponent
 {
 public:
 	FBasePIENetworkComponent(FAutomationTestBase* InTestRunner, FTestCommandBuilder& InCommandBuilder, bool IsInitializing);
-	~FBasePIENetworkComponent();
 
 	FBasePIENetworkComponent& Then(TFunction<void()> Action);
 	FBasePIENetworkComponent& Then(const TCHAR* Description, TFunction<void()> Action);
@@ -44,6 +43,7 @@ protected:
 	void StartPie();
 	bool CollectPieWorlds();
 	bool AwaitConnections();
+	void RestoreState();
 
 	TUniquePtr<FBasePIENetworkComponentState> ServerState = nullptr;
 	TArray<TUniquePtr<FBasePIENetworkComponentState>> ClientStates;

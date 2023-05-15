@@ -25,13 +25,20 @@ public:
 	bool bHasLoggedStart = false;
 };
 
+enum class ECQTestFailureBehavior
+{
+	Skip,
+	Run
+};
+
 class CQTEST_API FExecute : public IAutomationLatentCommand
 {
 public:
-	FExecute(FAutomationTestBase& InTestRunner, TFunction<void()> Func, const TCHAR* InDescription = nullptr)
+	FExecute(FAutomationTestBase& InTestRunner, TFunction<void()> Func, const TCHAR* InDescription = nullptr, ECQTestFailureBehavior InFailureBehavior = ECQTestFailureBehavior::Skip)
 		: TestRunner(InTestRunner)
 		, Func(MoveTemp(Func)) 
 		, Description(InDescription)
+		, FailureBehavior(InFailureBehavior)
 	{}
 
 	bool Update() override;
@@ -39,6 +46,7 @@ public:
 	FAutomationTestBase& TestRunner;
 	TFunction<void()> Func;
 	const TCHAR* Description = nullptr;
+	ECQTestFailureBehavior FailureBehavior;
 };
 
 class CQTEST_API FRunSequence : public IAutomationLatentCommand

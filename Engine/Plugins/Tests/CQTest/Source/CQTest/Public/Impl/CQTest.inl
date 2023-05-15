@@ -16,6 +16,12 @@ namespace
 		{
 			UE_LOG(LogCqTest, Log, TEXT("Before Test"));
 
+			if (GEngine != nullptr)
+			{
+				//Do not collect garbage during the test. We force GC at the end.
+				GEngine->DelayGarbageCollection();
+			}
+
 			CurrentTest.Setup();
 			if (auto LatentActions = CurrentTest.TestCommandBuilder.Build())
 			{
@@ -78,6 +84,10 @@ namespace
 			UE_LOG(LogCqTest, Log, TEXT("Running After Test"));
 
 			CurrentTest.TearDown();
+			if (auto LatentActions = CurrentTest.TestCommandBuilder.BuildTearDown())
+			{
+				Sequence->Prepend(LatentActions);
+			}
 			if (auto LatentActions = CurrentTest.TestCommandBuilder.Build())
 			{
 				Sequence->Prepend(LatentActions);
@@ -101,6 +111,13 @@ namespace
 			UE_LOG(LogCqTest, Log, TEXT("Tearing Down Test"));
 
 			TestRunner.CurrentTestPtr = nullptr;
+
+			if (GEngine != nullptr)
+			{
+				//Force GC at the end of every test.
+				GEngine->ForceGarbageCollection();
+			}
+
 			return true;
 		}
 

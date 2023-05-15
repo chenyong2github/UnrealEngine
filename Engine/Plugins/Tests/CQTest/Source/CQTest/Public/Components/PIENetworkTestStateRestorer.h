@@ -18,7 +18,6 @@ public:
 	void Restore();
 
 private:
-	UWorld* EditorWorld = nullptr;
 	bool SetWasLoadedFlag = false;
 	FSoftClassPath OriginalGameInstance = FSoftClassPath();
 	TSubclassOf<AGameModeBase> OriginalGameMode = nullptr;

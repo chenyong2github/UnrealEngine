@@ -10,7 +10,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogPieNetworkStateRestorer, Log, All);
 
 FPIENetworkTestStateRestorer::FPIENetworkTestStateRestorer(const FSoftClassPath InGameInstanceClass, const TSubclassOf<AGameModeBase> InGameMode)
 {
-	EditorWorld = GWorld;
+	check(GWorld);
 	if (InGameInstanceClass.IsValid())
 	{
 		UGameMapsSettings* GameMapSettings = GetMutableDefault<UGameMapsSettings>();
@@ -24,22 +24,22 @@ FPIENetworkTestStateRestorer::FPIENetworkTestStateRestorer(const FSoftClassPath 
 			UE_LOG(LogPieNetworkStateRestorer, Error, TEXT("Unable to get UGameMapsSettings in when creating FPIENetworkTestStateRestorer"));
 		}
 	}
-	if (EditorWorld->GetWorldSettings() != nullptr)
+	if (GWorld->GetWorldSettings() != nullptr)
 	{
-		OriginalGameMode = EditorWorld->GetWorldSettings()->DefaultGameMode;
-		EditorWorld->GetWorldSettings()->DefaultGameMode = InGameMode;
+		OriginalGameMode = GWorld->GetWorldSettings()->DefaultGameMode;
+		GWorld->GetWorldSettings()->DefaultGameMode = InGameMode;
 	}
-	if (!EditorWorld->HasAllFlags(RF_WasLoaded))
+	if (!GWorld->HasAllFlags(RF_WasLoaded))
 	{
-		EditorWorld->SetFlags(RF_WasLoaded);
+		GWorld->SetFlags(RF_WasLoaded);
 		SetWasLoadedFlag = true;
 	}
 }
 
 void FPIENetworkTestStateRestorer::Restore() {
-	if (SetWasLoadedFlag)
+	if (GWorld && SetWasLoadedFlag)
 	{
-		EditorWorld->ClearFlags(RF_WasLoaded);
+		GWorld->ClearFlags(RF_WasLoaded);
 	}
 
 	if (OriginalGameInstance.IsValid())
@@ -55,8 +55,8 @@ void FPIENetworkTestStateRestorer::Restore() {
 		}
 	}
 
-	if (OriginalGameMode != nullptr)
+	if (GWorld && OriginalGameMode != nullptr)
 	{
-		EditorWorld->GetWorldSettings()->DefaultGameMode = OriginalGameMode;
+		GWorld->GetWorldSettings()->DefaultGameMode = OriginalGameMode;
 	}
 }

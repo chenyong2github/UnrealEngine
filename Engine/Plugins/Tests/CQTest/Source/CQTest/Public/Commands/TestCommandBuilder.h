@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Algo/Reverse.h"
 #include "Misc/AutomationTest.h"
 #include "Commands/TestCommands.h"
 
@@ -64,28 +65,66 @@ public:
 		return Until(Description, Query, Timeout);
 	}
 
+	FTestCommandBuilder& OnTearDown(const TCHAR* Description, TFunction<void()> Action)
+	{
+		if (!TestRunner.HasAnyErrors())
+		{
+			TearDownQueue.Add(MakeShared<FExecute>(TestRunner, Action, Description, ECQTestFailureBehavior::Run));
+		}
+		return *this;
+	}
+
+	FTestCommandBuilder& OnTearDown(TFunction<void()> Action)
+	{
+		return OnTearDown(nullptr, Action);
+	}
+
+	FTestCommandBuilder& CleanUpWith(const TCHAR* Description, TFunction<void()> Action)
+	{
+		return OnTearDown(Description, Action);
+	}
+
+	FTestCommandBuilder& CleanUpWith(TFunction<void()> Action)
+	{
+		return OnTearDown(nullptr, Action);
+	}
+
 	TSharedPtr<IAutomationLatentCommand> Build()
 	{
+		return BuildQueue(CommandQueue);
+	}
+
+	TSharedPtr<IAutomationLatentCommand> BuildTearDown()
+	{
+		// Last in, first out
+		Algo::Reverse(TearDownQueue);
+		return BuildQueue(TearDownQueue);
+	}
+
+private:
+	TSharedPtr<IAutomationLatentCommand> BuildQueue(TArray<TSharedPtr<IAutomationLatentCommand>>& Queue)
+	{
 		TSharedPtr<IAutomationLatentCommand> Result = nullptr;
-		if (CommandQueue.Num() == 0)
+		if (Queue.Num() == 0)
 		{
 			return Result;
 		}
-		else if (CommandQueue.Num() == 1)
+		else if (Queue.Num() == 1)
 		{
-			Result = CommandQueue[0];
+			Result = Queue[0];
 		}
 		else
 		{
-			Result = MakeShared<FRunSequence>(CommandQueue);
+			Result = MakeShared<FRunSequence>(Queue);
 		}
 
-		CommandQueue.Empty();
+		Queue.Empty();
 		return Result;
 	}
 
 protected:
 	TArray<TSharedPtr<IAutomationLatentCommand>> CommandQueue{};
+	TArray<TSharedPtr<IAutomationLatentCommand>> TearDownQueue{};
 	FAutomationTestBase& TestRunner;
 
 	template<typename Asserter>
