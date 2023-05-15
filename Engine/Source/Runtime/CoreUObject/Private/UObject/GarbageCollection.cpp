@@ -5318,33 +5318,6 @@ void UClass::AssembleReferenceTokenStreamInternal(bool bForce)
 //////////////////////////////////////////////////////////////////////////
 namespace UE::GC
 {
-
-static FName ToName(EMemberlessId Id)
-{
-	static_assert(EMemberlessId::Collector == static_cast<EMemberlessId>(1u));
-	static_assert(EMemberlessId::Max == EMemberlessId::InitialReference);
-
-	static FName Names[] =
-	{
-		FName("Invalid"),
-		FName("Collector"), // EMemberlessId::Collector
-		FName("Class"), // EMemberlessId::Class
-		FName("Outer"), // EMemberlessId::Outer
-		FName("ExternalPackage"), // EMemberlessId::ExternalPackage
-		FName("ClassOuter"), // EMemberlessId::ClassOuter
-		FName("InitialReference"), // EMemberlessId::InitialReference
-	};
-
-	check(static_cast<uint32>(Id) < UE_ARRAY_COUNT(Names));
-	return Names[static_cast<uint32>(Id)];
-}
-
-void FMemberId::StaticAssert()
-{
-	static_assert((1u << MemberlessIdBits) >= static_cast<uint32>(EMemberlessId::Max), "Need to bump MemberlessIdBits");
-}
-
-//////////////////////////////////////////////////////////////////////////
 #if !UE_BUILD_SHIPPING
 
 static void DumpMemoryStats(FOutputDevice& OutputDevice)
