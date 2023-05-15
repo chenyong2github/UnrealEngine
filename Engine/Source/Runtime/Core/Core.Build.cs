@@ -33,12 +33,7 @@ public class Core : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
-				"Analytics",
 				"DerivedDataCache",
-				"Engine",
-				"InputDevice",
-				"RHI",
-				"SynthBenchmark",
 				"TargetPlatform",
 			}
 			);
