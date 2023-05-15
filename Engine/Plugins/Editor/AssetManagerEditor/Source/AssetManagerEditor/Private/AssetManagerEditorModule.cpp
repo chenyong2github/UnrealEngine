@@ -59,10 +59,8 @@
 #include "ContentBrowserMenuContexts.h"
 #include "IContentBrowserDataModule.h"
 #include "ContentBrowserDataSubsystem.h"
-#if ASSET_TABLE_TREE_VIEW_ENABLED
 #include "Insights/Common/InsightsStyle.h"
 #include "Insights/Filter/ViewModels/Filters.h"
-#endif //ASSET_TABLE_TREE_VIEW_ENABLED
 
 #define LOCTEXT_NAMESPACE "AssetManagerEditor"
 
@@ -326,6 +324,9 @@ public:
 	virtual bool IsPackageInCurrentRegistrySource(FName PackageName) override;
 	virtual bool FilterAssetIdentifiersForCurrentRegistrySource(TArray<FAssetIdentifier>& AssetIdentifiers, const FAssetManagerDependencyQuery& DependencyQuery = FAssetManagerDependencyQuery::None(), bool bForwardDependency = true) override;
 	virtual bool WriteCollection(FName CollectionName, ECollectionShareType::Type ShareType, const TArray<FName>& PackageNames, bool bShowFeedback) override;
+
+	virtual bool ShouldEnableTreeViewInAssetAudit() const override;
+
 private:
 
 	static bool GetDependencyTypeArg(const FString& Arg, UE::AssetRegistry::EDependencyQuery& OutRequiredFlags);
@@ -401,6 +402,8 @@ private:
 	TSharedRef<SDockTab> SpawnAssetAuditTab(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnReferenceViewerTab(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnSizeMapTab(const FSpawnTabArgs& Args);
+
+	IConsoleVariable* EnableTreeViewInAssetAuditCVar = nullptr;
 };
 
 const TCHAR* FAssetManagerEditorModule::FindDepChainHelpText = TEXT("Finds all dependency chains from assets in the given search path, to the target package.\n Usage: FindDepChain TargetPackagePath SearchRootPath (optional: -hardonly/-softonly)\n e.g. FindDepChain /game/characters/heroes/muriel/meshes/muriel /game/cards ");
@@ -430,10 +433,14 @@ void FAssetManagerEditorModule::StartupModule()
 
 	if (GIsEditor && !IsRunningCommandlet())
 	{
-#if ASSET_TABLE_TREE_VIEW_ENABLED
 		UE::Insights::FInsightsStyle::Initialize();
 		UE::Insights::FFilterService::Initialize();
-#endif //ASSET_TABLE_TREE_VIEW_ENABLED
+
+		EnableTreeViewInAssetAuditCVar = IConsoleManager::Get().RegisterConsoleVariable(
+			TEXT("AssetAudit.EnableTreeView"),
+			false,
+			TEXT("Enables the tree view in Asset Audit (next time the window is open)."),
+			ECVF_Default);
 
 		AuditCmds.Add(IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("AssetManager.AssetAudit"),
@@ -548,6 +555,12 @@ void FAssetManagerEditorModule::ShutdownModule()
 	}
 	AuditCmds.Empty();
 
+	if (EnableTreeViewInAssetAuditCVar)
+	{
+		IConsoleManager::Get().UnregisterConsoleObject(EnableTreeViewInAssetAuditCVar);
+		EnableTreeViewInAssetAuditCVar = nullptr;
+	}
+
 	if ((GIsEditor && !IsRunningCommandlet()) && UObjectInitialized() && FSlateApplication::IsInitialized())
 	{
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
@@ -610,10 +623,8 @@ void FAssetManagerEditorModule::ShutdownModule()
 		UToolMenus::UnRegisterStartupCallback(this);
 		UToolMenus::UnregisterOwner(this);
 
-#if ASSET_TABLE_TREE_VIEW_ENABLED
 		UE::Insights::FFilterService::Shutdown();
 		UE::Insights::FInsightsStyle::Shutdown();
-#endif //ASSET_TABLE_TREE_VIEW_ENABLED
 	}
 }
 
@@ -627,7 +638,6 @@ TSharedRef<SDockTab> FAssetManagerEditorModule::SpawnAssetAuditTab(const FSpawnT
 			SAssignNew(AssetAuditUI, SAssetAuditBrowser)
 		];
 
-#if ASSET_TABLE_TREE_VIEW_ENABLED
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateLambda([this](TSharedRef<SDockTab>)
 		{
 			if (AssetAuditUI.IsValid())
@@ -635,7 +645,6 @@ TSharedRef<SDockTab> FAssetManagerEditorModule::SpawnAssetAuditTab(const FSpawnT
 				AssetAuditUI.Pin()->OnClose();
 			}
 		}));
-#endif // ASSET_TABLE_TREE_VIEW_ENABLED
 
 	return DockTab;
 }
@@ -2453,6 +2462,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return bSuccess;
+}
+
+bool FAssetManagerEditorModule::ShouldEnableTreeViewInAssetAudit() const
+{
+	return EnableTreeViewInAssetAuditCVar && EnableTreeViewInAssetAuditCVar->GetBool();
 }
 
 #undef LOCTEXT_NAMESPACE

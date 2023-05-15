@@ -423,6 +423,9 @@ public:
 	virtual void OpenAssetAuditUI(TArray<FAssetIdentifier> SelectedIdentifiers) = 0;
 	virtual void OpenAssetAuditUI(TArray<FName> SelectedPackages) = 0;
 
+	/** Returns true if the tree view will be enabled in the Asset Audit UI, the next time the Asset Audit window is open. */
+	virtual bool ShouldEnableTreeViewInAssetAudit() const = 0;
+
 	/** Spawns reference viewer, showing selected packages or identifiers */
 	virtual void OpenReferenceViewerUI(const TArray<FAssetIdentifier> SelectedIdentifiers, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) = 0;
 	virtual void OpenReferenceViewerUI(const TArray<FName> SelectedPackages, const FReferenceViewerParams ReferenceViewerParams = FReferenceViewerParams()) = 0;
@@ -434,7 +437,6 @@ public:
 	/** Spawns size map with selected packages */
 	virtual void OpenSizeMapUI(TArray<FAssetIdentifier> SelectedIdentifiers) = 0;
 	virtual void OpenSizeMapUI(TArray<FName> SelectedPackages) = 0;
-
 
 	/** Open the Shader cook stats */
 	virtual void OpenShaderCookStatistics(TArray<FName> SelectedIdentifiers) = 0;

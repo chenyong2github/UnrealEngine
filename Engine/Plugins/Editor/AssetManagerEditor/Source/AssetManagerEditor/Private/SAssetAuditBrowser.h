@@ -5,8 +5,6 @@
 #include "ContentBrowserDelegates.h"
 #include "Widgets/SCompoundWidget.h"
 
-#define ASSET_TABLE_TREE_VIEW_ENABLED 0 // switch for work in progress / experimental code; to be removed once ready
-
 struct FAssetIdentifier;
 struct FAssetManagerEditorRegistrySource;
 
@@ -132,9 +130,9 @@ protected:
 	/** Refresh the asset view with a new filter */
 	void RefreshAssetView();
 
-#if ASSET_TABLE_TREE_VIEW_ENABLED
+	/** Populates an asset table row (view model for the asset tree view) with asset data. */
 	void PopulateAssetTableRow(class FAssetTableRow& OutRow, const FAssetData& AssetData, class FAssetTable& AssetTable) const;
-#endif
+
 	/** Commands handled by this widget */
 	TSharedPtr<FUICommandList> Commands;
 
@@ -175,7 +173,6 @@ protected:
 	class UAssetManager* AssetManager;
 	class IAssetManagerEditorModule* EditorModule;
 
-#if ASSET_TABLE_TREE_VIEW_ENABLED
+	/** The Tree View widget */
 	TSharedPtr<class SAssetTableTreeView> AssetTableTreeView;
-#endif
 };

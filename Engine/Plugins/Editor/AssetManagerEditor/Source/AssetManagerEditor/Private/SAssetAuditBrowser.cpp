@@ -1,35 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "SAssetAuditBrowser.h"
-#include "AssetManagerEditorModule.h"
+
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Blueprint/BlueprintSupport.h"
+#include "ClassViewerModule.h"
+#include "ContentBrowserDataSource.h"
+#include "ContentBrowserModule.h"
+#include "DragAndDrop/AssetDragDropOp.h"
+#include "Editor.h"
+#include "Engine/AssetManager.h"
+#include "Engine/BlueprintCore.h"
+#include "FileHelpers.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-
 #include "Framework/Views/TableViewMetadata.h"
-#include "Widgets/Input/SButton.h"
-#include "FileHelpers.h"
-#include "ClassViewerModule.h"
 #include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-#include "ContentBrowserDataSource.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Toolkits/GlobalEditorCommonCommands.h"
-#include "Engine/AssetManager.h"
-#include "AssetManagerEditorCommands.h"
-#include "Engine/BlueprintCore.h"
-#include "Widgets/Input/SComboBox.h"
-#include "DragAndDrop/AssetDragDropOp.h"
-#include "Blueprint/BlueprintSupport.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "Editor.h"
-
-#if ASSET_TABLE_TREE_VIEW_ENABLED
-#include "Insights/Common/Log.h"
 #include "Styling/StyleColors.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Toolkits/GlobalEditorCommonCommands.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboBox.h"
+
+#include "AssetManagerEditorModule.h"
+#include "AssetManagerEditorCommands.h"
+#include "Insights/Common/Log.h"
 #include "TreeView/AssetTable.h"
 #include "TreeView/SAssetTableTreeView.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "AssetManagementBrowser"
 
@@ -359,22 +356,7 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 			]
 		];
 
-#if ASSET_TABLE_TREE_VIEW_ENABLED
-	TSharedRef<FAssetTable> AssetTable = MakeShared<FAssetTable>();
-	AssetTable->Reset();
-	AssetTable->SetDisplayName(FText::FromString(TEXT("AssetTable")));
-#endif //ASSET_TABLE_TREE_VIEW_ENABLED
-
-	this->ChildSlot
-	[
-#if ASSET_TABLE_TREE_VIEW_ENABLED
-	SNew(SSplitter)
-	.Orientation(EOrientation::Orient_Vertical)
-	+ SSplitter::Slot()
-	.Value(0.5f)
-	.MinSize(100.0f)
-	[
-#endif // ASSET_TABLE_TREE_VIEW_ENABLED
+	TSharedRef<SWidget> DefaultContent =
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
 		.AutoHeight()
@@ -525,19 +507,39 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 			[
 				ContentBrowserModule.Get().CreateAssetPicker(Config)
 			]
-		]
-#if ASSET_TABLE_TREE_VIEW_ENABLED
-	]
-	+ SSplitter::Slot()
-	[
-		SAssignNew(AssetTableTreeView, SAssetTableTreeView, AssetTable)
-	]
-#endif //ASSET_TABLE_TREE_VIEW_ENABLED
-	];
+		];
 
-#if ASSET_TABLE_TREE_VIEW_ENABLED
-	AssetTableTreeView->RebuildTreeAsync(); // only needed for initial mock data
-#endif
+	if (ManagerEditorModule.ShouldEnableTreeViewInAssetAudit())
+	{
+		TSharedRef<FAssetTable> AssetTable = MakeShared<FAssetTable>();
+		AssetTable->Reset();
+		AssetTable->SetDisplayName(FText::FromString(TEXT("AssetTable")));
+
+		this->ChildSlot
+		[
+			SNew(SSplitter)
+			.Orientation(EOrientation::Orient_Vertical)
+			+ SSplitter::Slot()
+			.Value(0.5f)
+			.MinSize(100.0f)
+			[
+				DefaultContent
+			]
+			+ SSplitter::Slot()
+			[
+				SAssignNew(AssetTableTreeView, SAssetTableTreeView, AssetTable)
+			]
+		];
+
+		AssetTableTreeView->RebuildTreeAsync(); // only needed for initial mock data
+	}
+	else
+	{
+		this->ChildSlot
+		[
+			DefaultContent
+		];
+	}
 
 	// Refresh our data sources to make sure we are displaying up to date info otherwise the user will need to 
 	// hit "refresh" every time they open the dialog to be able to trust it
@@ -730,7 +732,6 @@ void SAssetAuditBrowser::GoToHistoryIndex(int32 InHistoryIdx)
 	}
 }
 
-#if ASSET_TABLE_TREE_VIEW_ENABLED
 void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAssetData& AssetData, FAssetTable& AssetTable) const
 {
 	// Asset Type
@@ -798,7 +799,6 @@ void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAs
 	// Sets the color based on asset type.
 	OutRow.Color = USlateThemeManager::Get().GetColor((EStyleColor)((uint32)EStyleColor::AccentBlue + AssetTypeHash % 8));
 }
-#endif // ASSET_TABLE_TREE_VIEW_ENABLED
 
 void SAssetAuditBrowser::RefreshAssetView()
 {
@@ -820,7 +820,6 @@ void SAssetAuditBrowser::RefreshAssetView()
 
 	SetFilterDelegate.Execute(Filter);
 
-#if ASSET_TABLE_TREE_VIEW_ENABLED
 	// Refresh list of assets for the tree view
 	if (AssetTableTreeView.IsValid())
 	{
@@ -938,7 +937,6 @@ void SAssetAuditBrowser::RefreshAssetView()
 			AssetTableTreeView->RebuildTreeAsync();
 		}
 	}
-#endif // ASSET_TABLE_TREE_VIEW_ENABLED
 }
 
 FReply SAssetAuditBrowser::ClearAssets()
@@ -1136,12 +1134,10 @@ void SAssetAuditBrowser::SetCurrentRegistrySource(const FAssetManagerEditorRegis
 
 void SAssetAuditBrowser::OnClose()
 {
-#if ASSET_TABLE_TREE_VIEW_ENABLED
 	if (AssetTableTreeView.IsValid())
 	{
 		AssetTableTreeView->OnClose();
 	}
-#endif // ASSET_TABLE_TREE_VIEW_ENABLED
 }
 
 #undef LOCTEXT_NAMESPACE
