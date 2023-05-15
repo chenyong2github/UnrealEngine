@@ -1,0 +1,224 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Common.ush"
+#include "SceneTexturesCommon.ush"
+#include "HeightFogCommon.ush"
+#include "ParticipatingMediaCommon.ush"
+
+
+struct FLocalHeightFogGPUInstanceData
+{
+	float4x4 Transform;
+	float4x4 InvTransform;
+
+	float Density;
+	float HeightFalloff;
+	float HeightOffset;
+	float RadialAttenuationPower;
+
+	float3 Albedo;
+	float  PhaseG;
+	float3 Emissive;
+	float RadialAttenuationDepth;
+};
+
+StructuredBuffer<FLocalHeightFogGPUInstanceData> LocalHeightFogInstances;
+
+
+struct FLocalHeightFogVertexOutput
+{
+	nointerpolation uint InstanceId : TEXCOORD0;
+};
+
+void LocalHeightFogSplatVS(
+	in float4 InPosition : ATTRIBUTE0,
+	uint InstanceIndex : SV_InstanceID,
+	out float4 OutPosition : SV_POSITION,
+	out FLocalHeightFogVertexOutput OtherVertexOutput
+)
+{
+	ResolvedView = ResolveView();
+
+	float4 LocalPosition = InPosition;
+
+	FLocalHeightFogGPUInstanceData FogInstance = LocalHeightFogInstances[InstanceIndex];
+
+	float4x4 FogTransform = FogInstance.Transform;
+
+	float4 WorldPosition = mul(float4(LocalPosition.xyz, 1.0f), FogTransform);
+
+	float4 TranslatedWorldPosition = float4(WorldPosition.xyz + LWCHackToFloat(PrimaryView.PreViewTranslation), 1);
+
+	OutPosition = mul(TranslatedWorldPosition, PrimaryView.TranslatedWorldToClip);
+	OtherVertexOutput.InstanceId = InstanceIndex;
+} 
+
+// This is an integral of height fog where density is defined as "DensityScale * Exp[-VerticalFallOff * z]"
+float HeightFogRayIntegral(FLocalHeightFogGPUInstanceData FogInstance, float3 CameraPos, float3 RayStart, float3 RayDir, float RayLength)
+{
+	float StartHeight = RayStart.z - FogInstance.HeightOffset;
+#if 0
+	float OpticalDepth = (FogInstance.Density / FogInstance.HeightFalloff) * exp(-StartHeight * FogInstance.HeightFalloff) * (1.0 - exp(-RayDir.z * RayLength * FogInstance.HeightFalloff)) / RayDir.z;
+#else
+	float OpticalDepth = (FogInstance.Density / FogInstance.HeightFalloff) *(exp(-StartHeight * FogInstance.HeightFalloff) - exp(-StartHeight * FogInstance.HeightFalloff -RayDir.z * RayLength * FogInstance.HeightFalloff)) / RayDir.z;
+#endif
+
+	return OpticalDepth;
+}
+
+// CameraPos can be behind of RayStart if the camera is out of the volume
+struct FFogData
+{
+	float Coverage;
+};
+FFogData ComputeFogCoverage(FLocalHeightFogGPUInstanceData FogInstance,  float3 CameraPos, float3 RayStart, float3 RayDir, float RayLength, float RadialAttenuation)
+{
+	FFogData FogData;
+	// Integral of density as extinction over a distance is optical depth.
+	float OpticalDepth	= HeightFogRayIntegral(FogInstance, CameraPos, RayStart, RayDir, RayLength);
+	float Transmittance	= exp(-OpticalDepth);
+	FogData.Coverage	= (1.0 - Transmittance) * RadialAttenuation;	// Only coverage is affected 
+	return FogData;
+}
+
+
+float3 ComputeFogInscattering(in FLocalHeightFogGPUInstanceData FogInstance, in FFogData FogData, in float3 RayDir)
+{
+	half3 InScattering = 0;// float3(0.1, 0.5, 0.5);// FogStruct.ExponentialFogColorParameter.xyz;
+
+#if PROJECT_SUPPORT_SKY_ATMOSPHERE_AFFECTS_HEIGHFOG
+	InScattering +=  Texture2DSampleLevel(View.DistantSkyLightLutTexture, View.DistantSkyLightLutTextureSampler, float2(0.5f, 0.5f), 0.0f).rgb;
+
+	// No need to test View.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].a because InscatteringLightDirection.w above is doing the same test already.
+	InScattering += View.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].rgb * SchlickPhase(-FogInstance.PhaseG, dot(RayDir, View.AtmosphereLightDirection[0].xyz));
+
+	if (View.AtmosphereLightIlluminanceOnGroundPostTransmittance[1].a > 0.0f) // Skip the second light when disabled.
+	{
+		InScattering += View.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].rgb * SchlickPhase(-FogInstance.PhaseG, dot(RayDir, View.AtmosphereLightDirection[1].xyz));
+	}
+#endif
+
+	InScattering *= FogInstance.Albedo * View.SkyAtmosphereHeightFogContribution.xxx;
+
+	// Now account for emissive luminance after albedo and heighfog contribution has been accounted for.
+	InScattering += FogInstance.Emissive;
+
+	return InScattering * FogData.Coverage;
+}
+
+/** . */
+void LocalHeightFogSplatPS(
+	in float4 SVPos : SV_POSITION,
+	in FLocalHeightFogVertexOutput OtherVertexOutput,
+	out float4 OutColor : SV_Target0)
+{
+	ResolvedView = ResolveView();
+	uint InstanceIndex = OtherVertexOutput.InstanceId;
+
+	float3 CamRayTranslatedWorldOrigin	= PrimaryView.TranslatedWorldCameraOrigin;
+	float3 CamRayTranslatedWorldDir = normalize(SvPositionToTranslatedWorld(float4(SVPos.xy, 0.5, 1.0)));
+	float3 CamRayWorldDir = CamRayTranslatedWorldDir;
+
+	FLocalHeightFogGPUInstanceData FogInstance = LocalHeightFogInstances[InstanceIndex];
+	float4x4 Transform = FogInstance.Transform;
+	float4x4 InvTransform = FogInstance.InvTransform;
+
+	OutColor = float4(0, 0, 0, 1);
+
+	float3 CamRayWorldOrigin = CamRayTranslatedWorldOrigin - LWCHackToFloat(PrimaryView.PreViewTranslation);
+	float4 RayPosU = mul(float4(CamRayWorldOrigin, 1.0), InvTransform);
+	float4 RayDirU = mul(float4(CamRayTranslatedWorldDir, 0.0), InvTransform);
+	RayDirU.xyz = normalize(RayDirU.xyz);
+
+	float2 Ts = RayIntersectSphere(RayPosU.xyz, RayDirU.xyz, float4(0.0, 0.0, 0.0, 1.0));
+	if (any(Ts > 0.0))
+	{
+#if 1
+		// World space computations
+		float3 P0 = mul(float4(RayPosU.xyz + max(0.0, Ts.x) * RayDirU.xyz, 1.0), Transform).xyz;
+		float3 P1 = mul(float4(RayPosU.xyz + max(0.0, Ts.y) * RayDirU.xyz, 1.0), Transform).xyz;
+
+		float RadialAttenuation = 1.0f;
+#if 0	// attenuation with normalised sphere. But has artefact or vanishes to early
+		float USphereRayThickness = max(0.0, max(Ts.x,Ts.y)) - max(0.0, min(Ts.x, Ts.y));
+		float USphereLinearAttenuation = asinFast(USphereRayThickness * 0.5) * (1.0f / (PI * 0.5));
+		RadialAttenuation = pow(USphereLinearAttenuation, FogInstance.RadialAttenuationPower);
+#endif
+
+		float Length0 = length(P0 - CamRayWorldOrigin);
+		float Length1 = length(P1 - CamRayWorldOrigin);
+
+		const float DeviceZ = LookupDeviceZ(uint2(SVPos.xy));
+		float3 DepthBufferTranslatedWorldPos = SvPositionToTranslatedWorld(float4(SVPos.xy, DeviceZ, 1.0));
+		float LengthD = length(DepthBufferTranslatedWorldPos - CamRayTranslatedWorldOrigin);
+
+#if 1
+		// Attenuation based on world distance travelled in sphere, ignoring depth intersection
+		float RayLengthInSphere = max(0.0, max(Length0, Length1)) - max(0.0, min(Length0, Length1));
+		RadialAttenuation = saturate(RayLengthInSphere / FogInstance.RadialAttenuationDepth);
+		RadialAttenuation = pow(RadialAttenuation, FogInstance.RadialAttenuationPower);
+		//RadialAttenuation = 1.0 - RadialAttenuation;
+		//RadialAttenuation = 1.0 / (1.0 + exp(-RadialAttenuation * FogInstance.RadialAttenuationPower));	// Sigmoid: do better with range over -x/+x
+		//RadialAttenuation = 1.0 - RadialAttenuation;
+#endif
+
+		Length0 = min(LengthD, Length0);
+		Length1 = min(LengthD, Length1);
+		if (Length1 < Length0)
+		{
+			float LengthX = Length1;
+			Length1 = Length0;
+			Length0 = LengthX;
+		}
+		float WorldLength = max(0.0, Length1 - Length0);
+
+		if (WorldLength > 0.0)
+		{
+			FFogData FogData = ComputeFogCoverage(FogInstance, CamRayWorldOrigin, CamRayWorldOrigin + CamRayWorldDir * Length0, CamRayWorldDir, WorldLength, RadialAttenuation);
+
+			OutColor.xyz = ComputeFogInscattering(FogInstance, FogData, CamRayWorldDir);	// = Luminance
+			OutColor.a		 = 1.0 - FogData.Coverage;										// = Transmittance
+		}
+		else
+		{
+			clip(-1.0);
+		}
+
+		OutColor.xyz *= PrimaryView.PreExposure;
+#else
+		// Local space compuatations
+		const float DeviceZ = LookupDeviceZ(uint2(SVPos.xy));
+		float3 DepthBufferTranslatedWorldPos = SvPositionToTranslatedWorld(float4(SVPos.xy, DeviceZ, 1.0));
+		float3 DepthBufferWorldPos = DepthBufferTranslatedWorldPos - LWCHackToFloat(PrimaryView.PreViewTranslation).xyz;
+		float3 DepthBufferPosU = mul(float4(DepthBufferWorldPos, 1.0), InvTransform);
+		float3 LengthD = length(DepthBufferPosU - RayPosU);								// TODO account for scale!
+
+		float3 CamPosU = mul(float4(CamRayWorldOrigin, 1.0), InvTransform).xyz;
+
+		float Length0 = length((RayPosU.xyz + max(0.0, Ts.x) * RayDirU.xyz) - CamPosU);
+		float Length1 = length((RayPosU.xyz + max(0.0, Ts.y) * RayDirU.xyz) - CamPosU);
+
+		float UnitVolumeLength = max(0.0, abs(Length1 - Length0));
+
+		if (UnitVolumeLength > 0.0)
+		{
+			OutColor = ComputeFog(FogInstance, 10.0*CamPosU, 10.0*(CamPosU + RayDirU * Length0), RayDirU, 10.0*UnitVolumeLength);
+		}
+		else
+		{
+			clip(-1.0);
+		}
+
+		OutColor.xyz *= PrimaryView.PreExposure;
+
+#endif
+
+	}
+	else
+	{
+		clip(-1.0);
+	}
+}
+
+
+ 

@@ -19,6 +19,7 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/VolumetricCloudComponent.h"
+#include "Engine/LocalHeightFog.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Brush.h"
 #include "Engine/ExponentialHeightFog.h"
@@ -276,6 +277,7 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 		FindOrAddClassFilter(AExponentialHeightFog::StaticClass(), *EnvironmentFilterCategory);
 		FindOrAddClassFilter(AInstancedFoliageActor::StaticClass(), *EnvironmentFilterCategory);
 		FindOrAddClassFilter(ASkyAtmosphere::StaticClass(), *EnvironmentFilterCategory);
+		FindOrAddClassFilter(ALocalHeightFog::StaticClass(), *EnvironmentFilterCategory);
 		FindOrAddClassFilter(AVolumetricCloud::StaticClass(), *EnvironmentFilterCategory);
 	}
 	

@@ -31,6 +31,7 @@ ActorFactory.cpp:
 #include "ActorFactories/ActorFactoryEmptyActor.h"
 #include "ActorFactories/ActorFactoryPawn.h"
 #include "ActorFactories/ActorFactoryExponentialHeightFog.h"
+#include "ActorFactories/ActorFactoryLocalHeightFog.h"
 #include "ActorFactories/ActorFactoryNote.h"
 #include "ActorFactories/ActorFactoryPhysicsAsset.h"
 #include "ActorFactories/ActorFactoryPlaneReflectionCapture.h"
@@ -79,6 +80,7 @@ ActorFactory.cpp:
 #include "Engine/DecalActor.h"
 #include "Atmosphere/AtmosphericFog.h"
 #include "Engine/ExponentialHeightFog.h"
+#include "Engine/LocalHeightFog.h"
 #include "Engine/SkyLight.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/PointLight.h"
@@ -1872,6 +1874,16 @@ UActorFactoryExponentialHeightFog::UActorFactoryExponentialHeightFog(const FObje
 {
 	DisplayName = LOCTEXT("ExponentialHeightFogDisplayName", "Exponential Height Fog");
 	NewActorClass = AExponentialHeightFog::StaticClass();
+}
+
+/*-----------------------------------------------------------------------------
+UActorFactoryLocalHeightFog
+-----------------------------------------------------------------------------*/
+UActorFactoryLocalHeightFog::UActorFactoryLocalHeightFog(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DisplayName = LOCTEXT("LocalHeightFogDisplayName", "Local Height Fog");
+	NewActorClass = ALocalHeightFog::StaticClass();
 }
 
 /*-----------------------------------------------------------------------------

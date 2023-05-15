@@ -3015,6 +3015,8 @@ public:
 	/** Used to track the order that skylights were enabled in. */
 	TArray<FVolumetricCloudSceneProxy*> VolumetricCloudStack;
 
+	TArray<FLocalHeightFogSceneProxy*> LocalHeightFogs;
+
 	TArray<FSparseVolumeTextureViewerSceneProxy*> SparseVolumeTextureViewers;
 
 	/** Global Field Manager */
@@ -3185,6 +3187,10 @@ public:
 
 	virtual void GetLightIESAtlasSlot(const FLightSceneProxy* Proxy, FLightRenderParameters* Out) override;
 	virtual void GetRectLightAtlasSlot(const FRectLightSceneProxy* Proxy, FLightRenderParameters* Out) override;
+
+	virtual void AddLocalHeightFog(class FLocalHeightFogSceneProxy* FogProxy) override;
+	virtual void RemoveLocalHeightFog(class FLocalHeightFogSceneProxy* FogProxy) override;
+	virtual bool HasAnyLocalHeightFog() const override;
 
 	virtual void AddSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, bool bStaticLightingBuilt) override;
 	virtual void RemoveSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy) override;

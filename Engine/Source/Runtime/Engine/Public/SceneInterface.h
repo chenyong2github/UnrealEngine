@@ -347,6 +347,23 @@ public:
 	virtual bool HasAnyExponentialHeightFog() const = 0;
 
 	/**
+	 * Adds a new local height fog component to the scene
+	 *
+	 * @param FogProxy - fog proxy to add
+	 */
+	virtual void AddLocalHeightFog(class FLocalHeightFogSceneProxy* FogProxy) = 0;
+	/**
+	 * Removes a local height fog component from the scene
+	 *
+	 * @param FogProxy - fog proxy to remove
+	 */
+	virtual void RemoveLocalHeightFog(class FLocalHeightFogSceneProxy* FogProxy) = 0;
+	/**
+	 * @return True if there are any local height fog potentially enabled in the scene
+	 */
+	virtual bool HasAnyLocalHeightFog() const = 0;
+
+	/**
 	 * Adds the unique volumetric cloud component to the scene
 	 *
 	 * @param SkyAtmosphereSceneProxy - the sky atmosphere proxy

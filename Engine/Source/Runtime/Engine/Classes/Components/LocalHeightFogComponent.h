@@ -1,0 +1,75 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Components/SceneComponent.h"
+#include "Math/Color.h"
+#include "LocalHeightFogComponent.generated.h"
+
+class FLocalHeightFogSceneProxy;
+
+UCLASS(ClassGroup = Rendering, collapsecategories, hidecategories = (Object, Mobility, Activation, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class ULocalHeightFogComponent : public USceneComponent
+{
+	GENERATED_UCLASS_BODY()
+
+	~ULocalHeightFogComponent();
+
+	/** Global density factor for this fog. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0", UIMax = ".05", SliderExponent = 4.0, ClampMin = 0.0))
+	float FogDensity = 0.02f;
+
+	/** Controls how the density decreases as height increases. Smaller values make the visible transition larger. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.001", UIMax = "10.0", SliderExponent = 4.0, ClampMin = 0.001))
+	float FogHeightFalloff = 3.0f;
+
+	/** Height offset, relative to the actor Z position. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "-5000.0", UIMax = "5000.0"))
+	float FogHeightOffset = 0.0f;
+
+	/** Controls the radial attenuation of this fog volume. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.01", UIMax = "5.0", ClampMin = 0.01))
+	float FogRadialAttenuationPower = 1.0f;
+
+	/** Controls the radial attenuation of this fog volume. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.01", UIMax = "5000.0", SliderExponent = 4.0, ClampMin = 0.01))
+	float FogRadialAttenuationDepth = 1000.0f;
+
+	/** Controls the directionality of the scattering within this fog volume. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Shading", meta = (UIMin = "0.0", UIMax = "0.999", ClampMin = 0.0, ClampMax = 0.999))
+	float FogPhaseG = 0.8f;
+
+	/** Controls the albedo of this fog volume. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Shading", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	FLinearColor FogAlbedo = FLinearColor::White;
+
+	/** Controls the emissive color of this fog volume. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Shading", meta = (ClampMin = 0.0, ClampMax = 1.0))
+	FLinearColor FogEmissive = FLinearColor::Black;
+
+public:
+
+	//~ Begin UObject Interface
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
+	//~ End UObject Interface
+
+	/** Callback to create the rendering thread mirror. */
+	ENGINE_API FLocalHeightFogSceneProxy* CreateSceneProxy();
+
+protected:
+	//~ Begin UActorComponent Interface.
+	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	virtual void SendRenderTransform_Concurrent() override;
+	virtual void DestroyRenderState_Concurrent() override;
+	//~ End UActorComponent Interface.
+
+	void SendRenderTransformCommand();
+
+private:
+
+	FLocalHeightFogSceneProxy* LocalHeightFogSceneProxy;
+};
+
