@@ -11,8 +11,12 @@ namespace AutoRTFM
 	class FWriteLogBumpAllocator final
 	{
 	public:
+		constexpr static size_t MaxSize = 128;
+
 		FWriteLogBumpAllocator()
 		{
+			// The max we can support in our tagged pointers is 16 bits of data.
+			static_assert(MaxSize <= UINT16_MAX);
 			Reset();
 		}
 
@@ -25,7 +29,7 @@ namespace AutoRTFM
 
 		void* Allocate(size_t Bytes)
 		{
-			ASSERT(Bytes <= FPage::MaxSize);
+			ASSERT(Bytes <= MaxSize);
 
 			if (nullptr == Start)
 			{
@@ -33,7 +37,7 @@ namespace AutoRTFM
 				Current = Start;
 			}
 
-			if (Bytes <= (FPage::MaxSize - Current->Size))
+			if (Bytes <= (MaxSize - Current->Size))
 			{
 				void* Result = &Current->Bytes[Current->Size];
 				Current->Size += Bytes;
@@ -80,13 +84,10 @@ namespace AutoRTFM
 
 		struct FPage final
 		{
-			// TODO: This is because we used tagged pointers elsewhere and so
-			// the max size of an allocation we will track in the bump allocator
-			// is 16 bits.
-			constexpr static size_t MaxSize = UINT16_MAX;
+			// Specify a constructor so that `Bytes` below will be left uninitialized.
+			explicit FPage() {}
 
-			uint8_t Bytes[MaxSize];
-
+			uint8_t Bytes[FWriteLogBumpAllocator::MaxSize];
 			FPage* Next = nullptr;
 			size_t Size = 0;
 		};

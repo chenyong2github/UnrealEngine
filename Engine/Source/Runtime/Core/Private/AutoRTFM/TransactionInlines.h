@@ -10,8 +10,6 @@ namespace AutoRTFM
 
 inline void FTransaction::RecordWriteMaxPageSized(void* LogicalAddress, size_t Size)
 {
-    ASSERT(Size <= UINT16_MAX);
-
     FMemoryLocation Key(LogicalAddress);
     Key.SetTopTag(static_cast<uint16_t>(Size));
 
@@ -59,9 +57,9 @@ inline void FTransaction::RecordWrite(void* LogicalAddress, size_t Size, bool bI
 
     size_t I = 0;
 
-    for (; (I + UINT16_MAX) < Size; I += UINT16_MAX)
+    for (; (I + FWriteLogBumpAllocator::MaxSize) < Size; I += FWriteLogBumpAllocator::MaxSize)
     {
-        RecordWriteMaxPageSized(Address + I, UINT16_MAX);
+        RecordWriteMaxPageSized(Address + I, FWriteLogBumpAllocator::MaxSize);
     }
 
     // Remainder at the end of the memcpy.
@@ -70,7 +68,7 @@ inline void FTransaction::RecordWrite(void* LogicalAddress, size_t Size, bool bI
 
 inline void FTransaction::DidAllocate(void* LogicalAddress, size_t Size)
 {
-    if (Size <= UINT16_MAX)
+    if (Size <= FWriteLogBumpAllocator::MaxSize)
     {
         FMemoryLocation Key(LogicalAddress);
         Key.SetTopTag(static_cast<uint16_t>(Size));
