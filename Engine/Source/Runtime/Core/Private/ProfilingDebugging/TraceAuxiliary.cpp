@@ -1735,6 +1735,11 @@ void FTraceAuxiliary::GetActiveChannelsString(FStringBuilderBase& String)
 #endif
 }
 
+void FTraceAuxiliary::Panic()
+{
+	UE::Trace::Panic();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 void FTraceAuxiliary::TryAutoConnect()
 {

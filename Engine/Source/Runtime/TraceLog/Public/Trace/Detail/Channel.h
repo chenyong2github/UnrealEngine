@@ -60,6 +60,7 @@ public:
 	void				Announce() const;
 	static bool			Toggle(const ANSICHAR* ChannelName, bool bEnabled);
 	static void			ToggleAll(bool bEnabled);
+	static void			PanicDisableAll(); // Disabled channels wont be logged with UE_TRACE_LOG
 	static FChannel*	FindChannel(const ANSICHAR* ChannelName);
 	UE_DEPRECATED(5.2, "Please use the ChannelIterCallback overload for enumerating channels.")
 	static void			EnumerateChannels(ChannelIterFunc Func, void* User);

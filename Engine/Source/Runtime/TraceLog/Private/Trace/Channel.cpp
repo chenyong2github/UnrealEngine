@@ -203,6 +203,25 @@ void FChannel::ToggleAll(bool bEnabled)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+void FChannel::PanicDisableAll()
+{
+	using namespace Private;
+
+	FChannel* ChannelLists[] =
+	{
+		AtomicLoadAcquire(&GNewChannelList),
+		AtomicLoadAcquire(&GHeadChannel),
+	};
+	for (FChannel* Channel : ChannelLists)
+	{
+		for (; Channel != nullptr; Channel = (FChannel*)(Channel->Next))
+		{
+			AtomicStoreRelaxed(&Channel->Enabled, -1);
+		}
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
 FChannel* FChannel::FindChannel(const ANSICHAR* ChannelName)
 {
 	using namespace Private;

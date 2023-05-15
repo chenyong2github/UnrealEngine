@@ -176,6 +176,11 @@ public:
 	 */
 	static void	GetActiveChannelsString(FStringBuilderBase& String);
 
+	/**
+	 * Used when process is panicking. Stops all tracing immediately to avoid further allocations. Process is not
+	 * expected to continue after this call.
+	 */
+	 static void Panic();
 
 	/**
 	 * Delegate that triggers when a connection is established. Gives subscribers a chance to trace events that appear
