@@ -5,6 +5,7 @@
 #include "PixelFormat.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "HAL/ThreadSafeBool.h"
 #include "Camera/CameraTypes.h"
 #include "Tasks/Task.h"
 #include "MovieGraphDefaultRenderer.generated.h"
