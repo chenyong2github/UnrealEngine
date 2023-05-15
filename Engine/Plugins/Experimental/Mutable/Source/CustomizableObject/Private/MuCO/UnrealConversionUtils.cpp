@@ -213,16 +213,6 @@ namespace UnrealConversionUtils
 				nullptr, nullptr, &BoneWeightFormat, nullptr, nullptr);
 		}
 
-		// Init skin weight buffer
-		FSkinWeightVertexBuffer_InitWithMutableData(
-			LODModel.SkinWeightVertexBuffer,
-			NumVertices,
-			NumBoneInfluences * NumVertices,
-			NumBoneInfluences,
-			bNeedsCPUAccess,
-			MutableMeshVertexBuffers.GetBufferData(BoneIndexBuffer)
-		);
-
 		if (BoneIndexFormat == mu::MBF_UINT16)
 		{
 			LODModel.SkinWeightVertexBuffer.SetUse16BitBoneIndex(true);
@@ -233,6 +223,16 @@ namespace UnrealConversionUtils
 			// TODO: 
 			unimplemented()
 		}
+
+		// Init skin weight buffer
+		FSkinWeightVertexBuffer_InitWithMutableData(
+			LODModel.SkinWeightVertexBuffer,
+			NumVertices,
+			NumBoneInfluences * NumVertices,
+			NumBoneInfluences,
+			bNeedsCPUAccess,
+			MutableMeshVertexBuffers.GetBufferData(BoneIndexBuffer)
+		);
 
 		// Optional buffers
 		for (int Buffer = MUTABLE_VERTEXBUFFER_TEXCOORDS + 1; Buffer < MutableMeshVertexBuffers.GetBufferCount(); ++Buffer)
