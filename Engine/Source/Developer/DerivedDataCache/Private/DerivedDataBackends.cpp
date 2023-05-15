@@ -65,7 +65,7 @@ ILegacyCacheStore* CreateCacheStoreAsync(ILegacyCacheStore* InnerBackend, ECache
 ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, IMemoryCacheStore* MemoryCache);
 ILegacyCacheStore* CreateCacheStoreThrottle(ILegacyCacheStore* InnerCache, uint32 LatencyMS, uint32 MaxBytesPerSecond);
 ILegacyCacheStore* CreateCacheStoreVerify(ILegacyCacheStore* InnerCache, bool bPutOnError);
-ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* CacheDirectory, const TCHAR* Params, const TCHAR* AccessLogFileName, ECacheStoreFlags& OutFlags);
+ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* NodeName, const TCHAR* Config, ECacheStoreFlags& OutFlags, FString& OutPath);
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateHttpCacheStore(const TCHAR* NodeName, const TCHAR* Config);
 IMemoryCacheStore* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Filename, bool bWriting, bool bCompressed);
@@ -576,6 +576,16 @@ public:
 	 */
 	FParsedNode ParseHierarchyNode(const TCHAR* NodeName, const TCHAR* Entry, const FString& IniFilename, const TCHAR* IniSection, FParsedNodeMap& InParsedNodes)
 	{
+		if (Hierarchy)
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s is disabled because there may be only one hierarchy node. "
+				"Confirm there is only one hierarchy in the cache graph and that it is inside of any async node."), NodeName);
+			return MakeTuple(nullptr, ECacheStoreFlags::None);
+		}
+
+		ILegacyCacheStore* HierarchyStore = CreateCacheStoreHierarchy(Hierarchy, GetMemoryCache());
+		CreatedNodes.AddUnique(HierarchyStore);
+
 		const TCHAR* InnerMatch = TEXT("Inner=");
 		const int32 InnerMatchLength = FCString::Strlen(InnerMatch);
 
@@ -603,15 +613,6 @@ public:
 			UE_LOG(LogDerivedDataCache, Warning, TEXT("Hierarchical cache %s has no inner backends and will not be created."), NodeName);
 			return MakeTuple(nullptr, ECacheStoreFlags::None);
 		}
-
-		if (Hierarchy)
-		{
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s is disabled because there may be only one hierarchy node. "
-				"Confirm there is only one hierarchy in the cache graph and that it is inside of any async node."), NodeName);
-			return MakeTuple(nullptr, ECacheStoreFlags::None);
-		}
-
-		ILegacyCacheStore* HierarchyStore = CreateCacheStoreHierarchy(Hierarchy, GetMemoryCache());
 		ECacheStoreFlags Flags = ECacheStoreFlags::None;
 		for (const FParsedNode& Node : InnerNodes)
 		{
@@ -628,137 +629,17 @@ public:
 	 * @param Entry Node definition.
 	 * @return Filesystem data cache backend interface instance or nullptr if unsuccessful
 	 */
-	FParsedNode ParseDataCache( const TCHAR* NodeName, const TCHAR* Entry )
+	FParsedNode ParseDataCache(const TCHAR* NodeName, const TCHAR* Config)
 	{
-		FParsedNode DataCache(nullptr, ECacheStoreFlags::None);
-
-		// Parse Path by default, it may be overwritten by EnvPathOverride
 		FString Path;
-		FParse::Value( Entry, TEXT("Path="), Path );
-
-		// Check the EnvPathOverride environment variable to allow persistent overriding of data cache path, eg for offsite workers.
-		FString EnvPathOverride;
-		if( FParse::Value( Entry, TEXT("EnvPathOverride="), EnvPathOverride ) )
+		ECacheStoreFlags Flags;
+		if (ILegacyCacheStore* Store = CreateFileSystemCacheStore(NodeName, Config, Flags, Path))
 		{
-			FString FilesystemCachePathEnv = FPlatformMisc::GetEnvironmentVariable( *EnvPathOverride );
-			if( FilesystemCachePathEnv.Len() > 0 )
-			{
-				Path = FilesystemCachePathEnv;
-				UE_LOG( LogDerivedDataCache, Log, TEXT("Found environment variable %s=%s"), *EnvPathOverride, *Path );
-			}
+			bUsingSharedDDC |= NodeName == TEXTVIEW("Shared");
+			Directories.AddUnique(Path);
+			return MakeTuple(Store, Flags);
 		}
-
-		if (!EnvPathOverride.IsEmpty())
-		{
-			FString DDCPath;
-			if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), *EnvPathOverride, DDCPath))
-			{
-				if (DDCPath.Len() > 0)
-				{
-					Path = DDCPath;
-					UE_LOG( LogDerivedDataCache, Log, TEXT("Found registry key GlobalDataCachePath %s=%s"), *EnvPathOverride, *Path );
-				}
-			}
-		}
-
-		// Check the CommandLineOverride argument to allow redirecting in build scripts
-		FString CommandLineOverride;
-		if( FParse::Value( Entry, TEXT("CommandLineOverride="), CommandLineOverride ) )
-		{
-			FString Value;
-			if (FParse::Value(FCommandLine::Get(), *(CommandLineOverride + TEXT("=")), Value))
-			{
-				Path = Value;
-				UE_LOG(LogDerivedDataCache, Log, TEXT("Found command line override %s=%s"), *CommandLineOverride, *Path);
-			}
-		}
-
-		// Paths starting with a '?' are looked up from config
-		if (Path.StartsWith(TEXT("?")) && !GConfig->GetString(TEXT("DerivedDataCacheSettings"), *Path + 1, Path, GEngineIni))
-		{
-			Path.Empty();
-		}
-
-		// Allow the user to override it from the editor
-		FString EditorOverrideSetting;
-		if(FParse::Value(Entry, TEXT("EditorOverrideSetting="), EditorOverrideSetting))
-		{
-			FString Setting = GConfig->GetStr(TEXT("/Script/UnrealEd.EditorSettings"), *EditorOverrideSetting, GEditorSettingsIni);
-			if(Setting.Len() > 0)
-			{
-				FString SettingPath;
-				if(FParse::Value(*Setting, TEXT("Path="), SettingPath))
-				{
-					SettingPath.TrimQuotesInline();
-					SettingPath.ReplaceEscapedCharWithCharInline();
-					if(SettingPath.Len() > 0)
-					{
-						Path = SettingPath;
-					}
-				}
-			}
-		}
-
-		if( !Path.Len() )
-		{
-			UE_LOG( LogDerivedDataCache, Log, TEXT("%s data cache path not found in *engine.ini, will not use an %s cache."), NodeName, NodeName );
-		}
-		else if( Path == TEXT("None") )
-		{
-			UE_LOG( LogDerivedDataCache, Log, TEXT("Disabling %s data cache - path set to 'None'."), NodeName );
-		}
-		else
-		{
-			// Try to set up the shared drive, allow user to correct any issues that may exist.
-			bool RetryOnFailure = false;
-			do
-			{
-				RetryOnFailure = false;
-
-				// Don't create the file system if shared data cache directory is not mounted
-				bool bShared = FCString::Stricmp(NodeName, TEXT("Shared")) == 0;
-				
-				// parameters we read here from the ini file
-				FString WriteAccessLog;
-				bool bPromptIfMissing = false;
-
-				FParse::Value(Entry, TEXT("WriteAccessLog="), WriteAccessLog);
-				FParse::Bool(Entry, TEXT("PromptIfMissing="), bPromptIfMissing);
-
-				ILegacyCacheStore* InnerFileSystem = nullptr;
-				ECacheStoreFlags Flags;
-				if (!bShared || IFileManager::Get().DirectoryExists(*Path))
-				{
-					InnerFileSystem = CreateFileSystemCacheStore(*Path, Entry, *WriteAccessLog, Flags);
-				}
-
-				if (InnerFileSystem)
-				{
-					bUsingSharedDDC |= bShared;
-					DataCache = MakeTuple(InnerFileSystem, Flags);
-					UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s data cache path %s: %s"), NodeName, *Path,
-						EnumHasAnyFlags(Flags, ECacheStoreFlags::Store) ? TEXT("Writable") :
-						EnumHasAnyFlags(Flags, ECacheStoreFlags::Query) ? TEXT("ReadOnly") : TEXT("DeleteOnly"));
-					Directories.AddUnique(Path);
-				}
-				else
-				{
-					FString Message = FString::Printf(TEXT("%s data cache path (%s) is unavailable so cache will be disabled."), NodeName, *Path);
-					
-					UE_LOG(LogDerivedDataCache, Warning, TEXT("%s"), *Message);
-
-					// Give the user a chance to retry incase they need to connect a network drive or something.
-					if (bPromptIfMissing && !FApp::IsUnattended() && !IS_PROGRAM)
-					{
-						Message += FString::Printf(TEXT("\n\nRetry connection to %s?"), *Path);
-						EAppReturnType::Type MessageReturn = FPlatformMisc::MessageBoxExt(EAppMsgType::YesNo, *Message, TEXT("Could not access DDC"));
-						RetryOnFailure = MessageReturn == EAppReturnType::Yes;
-					}
-				}
-			} while (RetryOnFailure);
-		}
-
-		return DataCache;
+		return MakeTuple(nullptr, ECacheStoreFlags::None);
 	}
 
 	/**
