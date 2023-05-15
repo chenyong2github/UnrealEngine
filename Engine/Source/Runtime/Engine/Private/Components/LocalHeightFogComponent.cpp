@@ -6,6 +6,11 @@
 #include "Components/ArrowComponent.h"
 #include "Components/DrawSphereComponent.h"
 #include "Components/BillboardComponent.h"
+#include "SceneInterface.h"
+#include "SceneManagement.h"
+#include "Engine/World.h"
+#include "UObject/ConstructorHelpers.h"
+#include "Engine/Texture2D.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LocalHeightFogComponent)
 
