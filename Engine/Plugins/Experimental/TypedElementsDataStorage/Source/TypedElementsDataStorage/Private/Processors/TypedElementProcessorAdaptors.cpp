@@ -5,6 +5,7 @@
 #include <utility>
 #include "MassCommonTypes.h"
 #include "MassExecutionContext.h"
+#include "Queries/TypedElementExtendedQueryStore.h"
 #include "TypedElementDatabase.h"
 
 struct FMassContextForwarderShared
@@ -64,8 +65,9 @@ struct FMassContextForwarderShared
 
 struct FMassContextForwarder final : public ITypedElementDataStorageInterface::IQueryContext
 {
-	explicit FMassContextForwarder(FMassExecutionContext& Context)
-		: Context(Context)
+	FMassContextForwarder(FMassExecutionContext& InContext, FTypedElementExtendedQueryStore& InQueryStore)
+		: Context(InContext)
+		, QueryStore(InQueryStore)
 	{}
 
 	~FMassContextForwarder() override = default;
@@ -222,7 +224,16 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::I
 		}
 	}
 
+	ITypedElementDataStorageInterface::FQueryResult RunQuery(TypedElementQueryHandle Query) override
+	{
+		FTypedElementExtendedQueryStore::Handle Handle;
+		Handle.Handle = Query;
+		// This can be safely called because there's not callback, which means no columns are accessed, even for select queries.
+		return QueryStore.RunQuery(Context.GetEntityManagerChecked(), Handle);
+	}
+
 	FMassExecutionContext& Context;
+	FTypedElementExtendedQueryStore& QueryStore;
 };
 
 struct FMassDirectContextForwarder final : public ITypedElementDataStorageInterface::IDirectQueryContext
@@ -284,15 +295,18 @@ FPhasePreOrPostAmbleExecutor::~FPhasePreOrPostAmbleExecutor()
 	Context.FlushDeferred();
 }
 
-void FPhasePreOrPostAmbleExecutor::ExecuteQuery(ITypedElementDataStorageInterface::FQueryDescription& Description, FMassEntityQuery& NativeQuery,
+void FPhasePreOrPostAmbleExecutor::ExecuteQuery(
+	ITypedElementDataStorageInterface::FQueryDescription& Description, 
+	FTypedElementExtendedQueryStore& QueryStore, 
+	FMassEntityQuery& NativeQuery,
 	ITypedElementDataStorageInterface::QueryCallbackRef Callback)
 {
 	NativeQuery.ForEachEntityChunk(Context.GetEntityManagerChecked(), Context,
-		[&Callback, &Description](FMassExecutionContext& ExecutionContext)
+		[&Callback, &QueryStore, &Description](FMassExecutionContext& ExecutionContext)
 		{
 			if (FTypedElementQueryProcessorData::PrepareCachedDependenciesOnQuery(Description, ExecutionContext))
 			{
-				FMassContextForwarder QueryContext(ExecutionContext);
+				FMassContextForwarder QueryContext(ExecutionContext, QueryStore);
 				Callback(Description, QueryContext);
 			}
 		}
@@ -398,11 +412,11 @@ void FTypedElementQueryProcessorData::Execute(FMassEntityManager& EntityManager,
 	
 	ITypedElementDataStorageInterface::FQueryDescription& Description = ParentQuery->Description;
 	Query.ForEachEntityChunk(EntityManager, Context,
-		[&Description](FMassExecutionContext& Context)
+		[this, &Description](FMassExecutionContext& Context)
 		{
 			if (PrepareCachedDependenciesOnQuery(Description, Context))
 			{
-				FMassContextForwarder QueryContext(Context);
+				FMassContextForwarder QueryContext(Context, *QueryStore);
 				Description.Callback.Function(Description, QueryContext);
 			}
 		}
@@ -427,9 +441,11 @@ FMassEntityQuery& UTypedElementQueryProcessorCallbackAdapterProcessor::GetQuery(
 	return Data.Query;
 }
 
-void UTypedElementQueryProcessorCallbackAdapterProcessor::ConfigureQueryCallback(FTypedElementExtendedQuery& TargetParentQuery)
+void UTypedElementQueryProcessorCallbackAdapterProcessor::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& TargetParentQuery, FTypedElementExtendedQueryStore& QueryStore)
 {
 	Data.ParentQuery = &TargetParentQuery;
+	Data.QueryStore = &QueryStore;
 
 	bRequiresGameThreadExecution = TargetParentQuery.Description.Callback.bForceToGameThread;
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor); 
@@ -491,9 +507,11 @@ EMassObservedOperation UTypedElementQueryObserverCallbackAdapterProcessor::GetOb
 	return Operation;
 }
 
-void UTypedElementQueryObserverCallbackAdapterProcessor::ConfigureQueryCallback(FTypedElementExtendedQuery& TargetParentQuery)
+void UTypedElementQueryObserverCallbackAdapterProcessor::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& TargetParentQuery, FTypedElementExtendedQueryStore& QueryStore)
 {
 	Data.ParentQuery = &TargetParentQuery;
+	Data.QueryStore = &QueryStore;
 
 	bRequiresGameThreadExecution = TargetParentQuery.Description.Callback.bForceToGameThread;
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);

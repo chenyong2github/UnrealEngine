@@ -188,6 +188,11 @@ namespace TypedElementQueryBuilder
 		ParentContext.RemoveColumns(Rows, ColumnTypes);
 	}
 
+	ITypedElementDataStorageInterface::FQueryResult FQueryContextForwarder::RunQuery(TypedElementQueryHandle Query)
+	{
+		return ParentContext.RunQuery(Query);
+	}
+
 	//
 	// FCachedQueryContext
 	//

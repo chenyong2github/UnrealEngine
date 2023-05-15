@@ -12,13 +12,17 @@
 #include "TypedElementProcessorAdaptors.generated.h"
 
 struct FTypedElementExtendedQuery;
+class FTypedElementExtendedQueryStore;
 
 struct FPhasePreOrPostAmbleExecutor
 {
 	FPhasePreOrPostAmbleExecutor(FMassEntityManager& EntityManager, float DeltaTime);
 	~FPhasePreOrPostAmbleExecutor();
 
-	void ExecuteQuery(ITypedElementDataStorageInterface::FQueryDescription& Description, FMassEntityQuery& NativeQuery,
+	void ExecuteQuery(
+		ITypedElementDataStorageInterface::FQueryDescription& Description,
+		FTypedElementExtendedQueryStore& QueryStore,
+		FMassEntityQuery& NativeQuery,
 		ITypedElementDataStorageInterface::QueryCallbackRef Callback);
 
 	FMassExecutionContext Context;
@@ -46,6 +50,7 @@ struct FTypedElementQueryProcessorData
 		ITypedElementDataStorageInterface::FQueryDescription& Description, FMassExecutionContext& Context);
 
 	FTypedElementExtendedQuery* ParentQuery{ nullptr };
+	FTypedElementExtendedQueryStore* QueryStore{ nullptr };
 	FMassEntityQuery Query;
 };
 
@@ -61,7 +66,7 @@ public:
 	UTypedElementQueryProcessorCallbackAdapterProcessor();
 
 	FMassEntityQuery& GetQuery();
-	void ConfigureQueryCallback(FTypedElementExtendedQuery& Query);
+	void ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore);
 
 protected:
 	void ConfigureQueries() override;
@@ -89,7 +94,7 @@ public:
 	FMassEntityQuery& GetQuery();
 	const UScriptStruct* GetObservedType() const;
 	EMassObservedOperation GetObservedOperation() const;
-	void ConfigureQueryCallback(FTypedElementExtendedQuery& Query);
+	void ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore);
 
 protected:
 	void ConfigureQueries() override;

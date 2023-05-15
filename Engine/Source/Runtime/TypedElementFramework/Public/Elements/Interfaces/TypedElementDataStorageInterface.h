@@ -387,6 +387,12 @@ public:
 		 */
 		virtual void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes) = 0;
 
+		/**
+		 * Runs a previously created query. This version takes an arbitrary query, but is limited to running queries that do not directly 
+		 * access data from rows such as count queries.
+		 */
+		virtual FQueryResult RunQuery(TypedElementQueryHandle Query) = 0;
+
 		// Utility functions
 
 		template<typename... Columns>

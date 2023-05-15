@@ -499,14 +499,14 @@ bool FTypedElementExtendedQueryStore::SetupProcessors(Handle Query, FTypedElemen
 		if (StoredQuery.Processor->IsA<UTypedElementQueryProcessorCallbackAdapterProcessor>())
 		{
 			static_cast<UTypedElementQueryProcessorCallbackAdapterProcessor*>(StoredQuery.Processor.Get())->
-				ConfigureQueryCallback(StoredQuery);
+				ConfigureQueryCallback(StoredQuery, *this);
 			PhaseManager.RegisterDynamicProcessor(*StoredQuery.Processor);
 		}
 		else if (StoredQuery.Processor->IsA<UTypedElementQueryObserverCallbackAdapterProcessor>())
 		{
 			UTypedElementQueryObserverCallbackAdapterProcessor* Observer =
 				static_cast<UTypedElementQueryObserverCallbackAdapterProcessor*>(StoredQuery.Processor.Get());
-			Observer->ConfigureQueryCallback(StoredQuery);
+			Observer->ConfigureQueryCallback(StoredQuery, *this);
 			EntityManager.GetObserverManager().AddObserverInstance(*Observer->GetObservedType(), Observer->GetObservedOperation(), *Observer);
 		}
 		else
@@ -570,7 +570,7 @@ void FTypedElementExtendedQueryStore::RunPhasePreOrPostAmbleQueries(FMassEntityM
 		for (Handle Query : QueryHandles)
 		{
 			FTypedElementExtendedQuery& QueryData = Queries.Get(Query);
-			Executor.ExecuteQuery(QueryData.Description, QueryData.NativeQuery, QueryData.Description.Callback.Function);
+			Executor.ExecuteQuery(QueryData.Description, *this, QueryData.NativeQuery, QueryData.Description.Callback.Function);
 		}
 	}
 }

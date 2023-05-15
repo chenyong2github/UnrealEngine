@@ -12,7 +12,6 @@
 #include "Misc/CoreDelegates.h"
 #include "ToolMenu.h"
 #include "ToolMenus.h"
-#include "TypedElementSubsystems.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Text/STextBlock.h"
@@ -40,18 +39,13 @@ void UTypedElementCounterWidgetFactory::RegisterQueries(ITypedElementDataStorage
 		FProcessor(DSI::EQueryTickPhase::FrameEnd, DataStorage.GetQueryTickGroupName(DSI::EQueryTickGroups::SyncWidgets))
 			.ForceToGameThread(true),
 		[](
-			FCachedQueryContext<UTypedElementDataStorageSubsystem>& Context, 
+			DSI::IQueryContext& Context,
 			FTypedElementSlateWidgetReferenceColumn& Widget,
 			FTypedElementU32IntValueCacheColumn& Comparison, 
 			const FTypedElementCounterWidgetColumn& Counter
 		)
 		{
-			UTypedElementDataStorageSubsystem& Subsystem = Context.GetCachedMutableDependency<UTypedElementDataStorageSubsystem>();
-			DSI* DataInterface = Subsystem.Get();
-			checkf(DataInterface, TEXT("FTypedElementsDataStorageUiModule tried to process widgets before the "
-				"Typed Elements Data Storage interface is available."));
-
-			DSI::FQueryResult Result = DataInterface->RunQuery(Counter.Query);
+			DSI::FQueryResult Result = Context.RunQuery(Counter.Query);
 			if (Result.Completed == DSI::FQueryResult::ECompletion::Fully && Result.Count != Comparison.Value)
 			{
 				TSharedPtr<SWidget> WidgetPointer = Widget.Widget.Pin();
