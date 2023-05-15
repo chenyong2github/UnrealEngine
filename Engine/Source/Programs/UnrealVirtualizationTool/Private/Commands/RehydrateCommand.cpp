@@ -96,6 +96,11 @@ bool FRehydrateCommand::ProcessProject(const FProject& Project, TUniquePtr<FComm
 
 	Project.RegisterMountPoints();
 
+	ON_SCOPE_EXIT
+	{
+		Project.UnRegisterMountPoints();
+	};
+
 	UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
 	UE::Virtualization::Initialize(InitParams, UE::Virtualization::EInitializationFlags::ForceInitialize);
 
@@ -133,8 +138,7 @@ bool FRehydrateCommand::ProcessProject(const FProject& Project, TUniquePtr<FComm
 		UE_LOG(LogVirtualizationTool, Display, TEXT("\t\t%d packages were checked out of revision control"), Result.CheckedOutPackages.Num());
 	}
 
-	Project.UnRegisterMountPoints();
-
+	UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tTime taken %.2f(s)"), Result.TimeTaken);
 	UE_LOG(LogVirtualizationTool, Display, TEXT("\t\tRehyration of project packages complete!"), ProjectName.ToString());
 
 	return true;
