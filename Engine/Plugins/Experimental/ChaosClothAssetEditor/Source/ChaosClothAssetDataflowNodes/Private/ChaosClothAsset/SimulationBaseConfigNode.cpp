@@ -28,7 +28,7 @@ namespace UE::Chaos::ClothAsset::Private
 
 		const FText Message = FText::Format(
 			LOCTEXT(
-				"DuplicateProperty",
+				"SimilarProperty",
 				"Cloth collection property '{1}' set in node and '{0}' is similar to the property '{2}' already set in an upstream node, "
 				"which might result in an undefined simulation behavior."),
 			FText::FromName(NodeName),
