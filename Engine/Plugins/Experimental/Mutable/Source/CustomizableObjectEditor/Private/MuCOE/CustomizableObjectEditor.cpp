@@ -620,10 +620,6 @@ TSharedRef<SGraphEditor> FCustomizableObjectEditor::CreateGraphEditorWidget(UEdG
 			FCanExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CanDuplicateSelectedNodes)
 			);
 
-		GraphEditorCommands->MapAction(FCustomizableObjectEditorNodeContextCommands::Get().RefreshMaterialNodesInAllChildren,
-			FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::RefreshMaterialNodesInAllChildrenCallback)
-			);
-
 		GraphEditorCommands->MapAction(FCustomizableObjectEditorNodeContextCommands::Get().CreateComment,
 			FExecuteAction::CreateSP(this, &FCustomizableObjectEditor::CreateCommentBoxFromKey)
 		);
@@ -872,177 +868,47 @@ bool FCustomizableObjectEditor::GroupNodeIsLinkedToParentByName(UCustomizableObj
 }
 
 
-// Deprecated! Remove on MTBL-283
-void StoreNodeLinkedPins(UCustomizableObjectNode* Node, TMap<FString, int32>& MapLinkedPin)
+// TODO GMT Future, use graph traversal abstraction instead of a hardcoded implementation.
+void FCustomizableObjectEditor::ReconstructAllChildNodes(UCustomizableObjectNode& StartNode, const UClass& NodeType)
 {
-	TArray<UEdGraphPin*> ArrayPins = Node->GetAllNonOrphanPins();
-	const int32 MaxIndex = ArrayPins.Num();
-
-	for (int32 i = 0; i < MaxIndex; ++i)
+	UCustomizableObject* Object = CastChecked<UCustomizableObject>(StartNode.GetCustomizableObjectGraph()->GetOuter());
+	const TMultiMap<FGuid, UCustomizableObjectNodeObject*> Mapping = GetNodeGroupObjectNodeMapping(Object);
+	
+	TArray<UCustomizableObjectNode*> NodesToVisit;
+	NodesToVisit.Add(&StartNode);
+	
+	while (!NodesToVisit.IsEmpty())
 	{
-		if (ArrayPins[i]->LinkedTo.Num() > 0)
+		UCustomizableObjectNode* Node = NodesToVisit.Pop();
+
+		if (&NodeType == Node->GetClass())
 		{
-			MapLinkedPin.Emplace(ArrayPins[i]->GetDisplayName().ToString(), ArrayPins[i]->LinkedTo.Num());
-		}
-	}
-}
-
-
-// Deprecated! Remove on MTBL-283
-bool CompareLinkedPinMaps(const TMap<FString, int32>& Map0, const TMap<FString, int32>& Map1, const UEdGraphNode* Node)
-{
-	// Compare if there are connected pins in Map0 not present in Map1, viceversa, and also if the number of connections is different for Map0 and Map1
-	bool PinIn0NotIn1 = false;
-	bool PinIn1NotIn0 = false;
-	bool DifferentLinkNumber = false;
-
-	for (const TPair<FString, int32>& Element : Map0)
-	{
-		const int32* NumElement1 = Map1.Find(Element.Key);
-		if (NumElement1 == nullptr)
-		{
-			PinIn0NotIn1 = true;
-			continue;
+			Node->UCustomizableObjectNode::ReconstructNode();							
 		}
 
-		int32 NumElement0 = Element.Value;
-		if (NumElement0 != (*NumElement1))
+		if (const UCustomizableObjectNodeObjectGroup* GroupNode = Cast<UCustomizableObjectNodeObjectGroup>(Node))
 		{
-			DifferentLinkNumber = true;
-		}
-	}
-
-	for (const TPair<FString, int32>& Element : Map1)
-	{
-		const int32* NumElement0 = Map0.Find(Element.Key);
-		if (NumElement0 == nullptr)
-		{
-			PinIn1NotIn0 = true;
-		}
-	}
-
-	if (PinIn0NotIn1 || PinIn1NotIn0 || DifferentLinkNumber)
-	{
-		FString ErrorLog = "ERROR: Updated UCustomizableObjectNodeMaterial";
-
-		if (PinIn0NotIn1)
-		{
-			ErrorLog += ", has lost at least one connected pin ";
-		}
-
-		if (PinIn1NotIn0)
-		{
-			ErrorLog += ", has at least one connected pin with name not present before update";
-		}
-
-		if (DifferentLinkNumber)
-		{
-			ErrorLog += ", has at least one pin with different number connection after update";
-		}
-
-		ErrorLog += ". Please verify the node works correctly";
-
-		FCustomizableObjectEditorLogger::CreateLog(FText::FromString(ErrorLog))
-		.Severity(EMessageSeverity::Warning)
-		.Node(*CastChecked<UCustomizableObjectNode>(Node))
-		.Log();
-	}
-
-	return (!PinIn0NotIn1 && !PinIn1NotIn0 && !DifferentLinkNumber);
-}
-
-
-void FCustomizableObjectEditor::RefreshMaterialNodesInAllChildrenCallback()
-{
-	FNotificationInfo Info(NSLOCTEXT("CustomizableObject", "RefreshingMaterialNodesInAllChildren", "Refreshing material nodes in all children"));
-	Info.bFireAndForget = true;
-	Info.bUseThrobber = true;
-	Info.FadeOutDuration = 1.0f;
-	Info.ExpireDuration = 1.0f;
-	FSlateNotificationManager::Get().AddNotification(Info);
-
-	LaunchRefreshMaterialInAllChildren = true;
-}
-
-
-// Deprecated! Remove on MTBL-283
-void FCustomizableObjectEditor::RefreshMaterialNodesInAllChildren()
-{
-	// Verify only one UCustomizableObjectNodeObjectGroup node is selected
-	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
-
-	if (SelectedNodes.Num() != 1)
-	{
-		return;
-	}
-
-	FString ParentGroupName = "";
-	for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
-	{
-		if (UCustomizableObjectNodeObjectGroup* Node = Cast<UCustomizableObjectNodeObjectGroup>(*SelectedIter))
-		{
-			ParentGroupName = Node->GroupName;
-		}
-	}
-
-	// Loop through all COs and find if a CO has a UCustomizableObjectNodeObject node linked to the CO being analyzed,
-	// and adding the group name for filtering only for those COs of the selected group
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	TArray<FAssetData> OutAssetData;
-	AssetRegistryModule.Get().GetAssetsByClass(UE_MUTABLE_TOPLEVELASSETPATH(TEXT("/Script/CustomizableObject"), TEXT("CustomizableObject")), OutAssetData);
-
-	for (auto Itr = OutAssetData.CreateIterator(); Itr; ++Itr)
-	{
-		UCustomizableObject* CustomizableObjectTemp = Cast<UCustomizableObject>(Itr->GetAsset());
-
-		if (CustomizableObjectTemp == nullptr)
-		{
-			continue;
+			TArray<UCustomizableObjectNodeObject*> ObjectNodes;
+			Mapping.MultiFind(GroupNode->NodeGuid, ObjectNodes);
+			
+			for (UCustomizableObjectNodeObject* ObjectNode : ObjectNodes)
+			{
+				NodesToVisit.Add(ObjectNode);	
+			}
 		}
 		
-		bool MultipleBaseObjectsFound;
-		UCustomizableObjectNodeObject* TempParentNodeObject = GetRootNode(CustomizableObjectTemp, MultipleBaseObjectsFound);
-
-		if (MultipleBaseObjectsFound)
+		for (const UEdGraphPin* Pin : Node->GetAllPins()) // Not using GetAllNonOrphanPins on purpose since we want want to be able to reconstruct nodes that have non-orphan pins.
 		{
-			continue;
-		}
-
-		bool IsChild = HasCandidateAsParent(TempParentNodeObject, CustomizableObject);
-
-		if (IsChild)
-		{
-			bool IsLinkedTo = GroupNodeIsLinkedToParentByName(TempParentNodeObject, CustomizableObject, ParentGroupName);
-
-			if (IsLinkedTo)
+			if (Pin->Direction != EGPD_Input)
 			{
-				UEdGraph* Graph = CustomizableObjectTemp->Source;
+				continue;
+			}
 
-				if (Graph != nullptr)
+			for (const UEdGraphPin* ConnectedPin : FollowInputPinArray(*Pin))
+			{
+				if (UCustomizableObjectNode* TypedNode = Cast<UCustomizableObjectNode>(ConnectedPin->GetOwningNode()))
 				{
-					TArray<UCustomizableObjectNodeMaterial*> ArrayNode;
-					Graph->GetNodesOfClass<UCustomizableObjectNodeMaterial>(ArrayNode);
-
-					int32 MaxIndex = ArrayNode.Num();
-					int32 NumNodeReconstructed = 0;
-					TMap<FString, int32> MapLinkedPinsBeforeUpdate;
-					TMap<FString, int32> MapLinkedPinsAfterUpdate;
-
-					for (int32 i = 0; i < MaxIndex; ++i)
-					{
-						StoreNodeLinkedPins(ArrayNode[i], MapLinkedPinsBeforeUpdate);
-						ArrayNode[i]->UCustomizableObjectNode::ReconstructNode();
-						StoreNodeLinkedPins(ArrayNode[i], MapLinkedPinsAfterUpdate);
-						NumNodeReconstructed++;
-							
-						CompareLinkedPinMaps(MapLinkedPinsBeforeUpdate, MapLinkedPinsAfterUpdate, ArrayNode[i]);
-					}
-
-					if (NumNodeReconstructed > 0)
-					{
-						Graph->NotifyGraphChanged();
-						Graph->MarkPackageDirty();
-					}
+					NodesToVisit.Add(TypedNode);						
 				}
 			}
 		}
@@ -1669,7 +1535,7 @@ void FCustomizableObjectEditor::NotifyPostChange( const FPropertyChangedEvent& P
 }
 
 
-bool FCustomizableObjectEditor::IsTickable(void) const
+bool FCustomizableObjectEditor::IsTickable() const
 {
 	return true;
 }
@@ -1824,18 +1690,6 @@ void FCustomizableObjectEditor::Tick( float InDeltaTime )
 			PreviewInstance->SetProjectorState(PreviewInstance->TempProjectorParameterName, PreviewInstance->TempProjectorParameterRangeIndex, EProjectorState::Selected);
             FCoreUObjectDelegates::BroadcastOnObjectModified(PreviewInstance);
         }
-	}
-
-	if (LaunchRefreshMaterialInAllChildren)
-	{
-		PendingTimeRefreshMaterialInAllChildren -= InDeltaTime;
-
-		if (PendingTimeRefreshMaterialInAllChildren < 0.0f)
-		{
-			PendingTimeRefreshMaterialInAllChildren = 2.0f;
-			LaunchRefreshMaterialInAllChildren = false;
-			RefreshMaterialNodesInAllChildren();
-		}
 	}
 
 	// Reconstruct marked nodes 

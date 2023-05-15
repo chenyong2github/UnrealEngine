@@ -8,6 +8,9 @@ class UEdGraphNode;
 
 class UCustomizableObject;
 class UCustomizableObjectInstance;
+class UClass;
+class UCustomizableObjectNode;
+
 
 // Public interface to Customizable Object Editor
 class ICustomizableObjectEditor : public ICustomizableObjectInstanceEditor
@@ -20,18 +23,23 @@ public:
 	virtual bool CanPasteNodes() const {return false;}
 
 	// Paste nodes at a specific location
-	virtual void PasteNodesHere(const FVector2D& Location) {};
+	virtual void PasteNodesHere(const FVector2D& Location) {}
 
-	virtual class UEdGraphNode* CreateCommentBox(const FVector2D& NodePos) { return nullptr; };
+	virtual UEdGraphNode* CreateCommentBox(const FVector2D& NodePos) { return nullptr; }
 
-	virtual void UpdateGraphNodeProperties() {};
+	virtual void UpdateGraphNodeProperties() {}
 
-	virtual void UpdateObjectProperties() {};
+	virtual void UpdateObjectProperties() {}
 
 	// Make sure the graph editor selects a specific node
-	virtual void SelectNode(const class UCustomizableObjectNode* Node) {}
+	virtual void SelectNode(const UCustomizableObjectNode* Node) {}
 
-	virtual void ReconstructNode(UEdGraphNode* Node) {};
+	virtual void ReconstructNode(UEdGraphNode* Node) {}
+
+	/** Reconstructs all child the nodes that match the given type.
+	 * @param StartNode Root node to start the graph traversal. This one also will be reconstructed.
+	 * @param NodeType Node types to reconstruct. */
+	virtual void ReconstructAllChildNodes(UCustomizableObjectNode& StartNode, const UClass& NodeType) {}
 };
 
 

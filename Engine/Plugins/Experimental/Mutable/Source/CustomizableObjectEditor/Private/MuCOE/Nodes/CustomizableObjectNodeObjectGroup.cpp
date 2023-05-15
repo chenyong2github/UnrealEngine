@@ -85,10 +85,18 @@ void UCustomizableObjectNodeObjectGroup::PostEditChangeProperty(FPropertyChanged
 
 FText UCustomizableObjectNodeObjectGroup::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("GroupName"), FText::FromString(GroupName));
+	if (TitleType == ENodeTitleType::ListView ||
+		GroupName.IsEmpty())
+	{
+		return LOCTEXT("Object_Group", "Object Group");;
+	}
+	else
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("GroupName"), FText::FromString(GroupName));
 
-	return FText::Format(LOCTEXT("Group_Object_Title", "{GroupName}\nGroup"), Args);			
+		return FText::Format(LOCTEXT("Group_Object_Title", "{GroupName}\nObject Group"), Args);
+	}
 }
 
 

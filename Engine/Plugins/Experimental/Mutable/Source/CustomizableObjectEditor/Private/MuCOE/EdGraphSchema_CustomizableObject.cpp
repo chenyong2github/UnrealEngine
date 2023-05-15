@@ -227,8 +227,69 @@ const FName UEdGraphSchema_CustomizableObject::PC_MaterialAsset("materialAsset")
 
 
 UEdGraphSchema_CustomizableObject::UEdGraphSchema_CustomizableObject()
-	: Super()
 {
+	NodeTypes.Add(UCustomizableObjectNodeAnimationPose::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeColorArithmeticOp::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeColorConstant::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeColorFromFloats::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeColorParameter::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeColorSwitch::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeColorVariation::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeCopyMaterial::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeCurve::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeEditMaterial::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeEnumParameter::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeExtendMaterial::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeFloatConstant::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeFloatParameter::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeFloatSwitch::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeFloatVariation::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeGroupProjectorParameter::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMaterial::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMaterialVariation::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshClipDeform::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshClipMorph::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshClipWithMesh::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshGeometryOperation::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshMorph::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshMorphStackApplication::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshMorphStackDefinition::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshReshape::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshSwitch::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMeshVariation::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeMorphMaterial::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeObject::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeObjectGroup::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeProjectorConstant::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeProjectorParameter::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeRemoveMesh::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeRemoveMeshBlocks::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeSkeletalMesh::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeStaticMesh::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTable::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTexture::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureBinarise::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureColourMap::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureFromChannels::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureInterpolate::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureInvert::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureLayer::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureParameter::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureProject::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureSample::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureSaturate::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureSwitch::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureToChannels::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureTransform::StaticClass());
+	NodeTypes.Add(UCustomizableObjectNodeTextureVariation::StaticClass());
+
+	NodeTypes.Sort([](UClass& A, UClass& B) -> bool
+	{
+		const UCustomizableObjectNode* NodeA = CastChecked<UCustomizableObjectNode>(A.GetDefaultObject());
+		const UCustomizableObjectNode* NodeB = CastChecked<UCustomizableObjectNode>(B.GetDefaultObject());
+		
+		return NodeA->GetNodeTitle(ENodeTitleType::ListView).CompareTo(NodeB->GetNodeTitle(ENodeTitleType::ListView)) < 0;
+	});
 }
 
 
@@ -717,7 +778,49 @@ bool UEdGraphSchema_CustomizableObject::ShouldHidePinDefaultValue(UEdGraphPin* P
 }
 
 
-void UEdGraphSchema_CustomizableObject::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
+void UEdGraphSchema_CustomizableObject::GetContextMenuActionsReconstructAllChildNodes(UToolMenu* Menu, TWeakObjectPtr<UGraphNodeContextMenuContext> WeakContext) const
+{
+	FToolMenuSection& SubSection = Menu->AddSection("Section");
+	
+	for (UClass* NodeType : NodeTypes)
+	{
+		const UCustomizableObjectNode* Node = Cast<UCustomizableObjectNode>(NodeType->GetDefaultObject());
+
+		auto Call = [](TWeakObjectPtr<UGraphNodeContextMenuContext> WeakContext, const TWeakObjectPtr<UClass>& WeakNodeType)
+		{
+			const UGraphNodeContextMenuContext* Context = WeakContext.Get();
+			if (!Context)
+			{
+				return;
+			}
+
+			UCustomizableObjectNode* Node = Cast<UCustomizableObjectNode>(Context->Node);
+			if (!Node)
+			{
+				return;
+			}
+
+			const UClass* NodeType = WeakNodeType.Get();
+			if (!NodeType)
+			{
+				return;
+			}
+
+			const TSharedRef<ICustomizableObjectEditor> Editor = GetCustomizableObjectEditor(Context->Graph).ToSharedRef();
+			Editor->ReconstructAllChildNodes(*Node, *NodeType);			
+		};
+
+		SubSection.AddMenuEntry(
+			Node->GetFName(),
+			Node->GetNodeTitle(ENodeTitleType::ListView),
+			FText(),
+			FSlateIcon(),
+			FExecuteAction::CreateLambda(Call, WeakContext, MakeWeakObjectPtr(NodeType)));
+	}
+}
+
+
+void UEdGraphSchema_CustomizableObject::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
 	if (Context && Context->Node)
 	{
@@ -733,13 +836,12 @@ void UEdGraphSchema_CustomizableObject::GetContextMenuActions(class UToolMenu* M
 				Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
 				Section.AddMenuEntry(FGraphEditorCommands::Get().ReconstructNodes);
 				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
-
-				// In the case of a UCustomizableObjectNodeObjectGroup, add the option to refresh all Customizable Object Material Node nodes of all the children of this node
-				const UCustomizableObjectNodeObjectGroup* TypedNode = Cast<UCustomizableObjectNodeObjectGroup>(Context->Node);
-				if (TypedNode != nullptr)
-				{
-					Section.AddMenuEntry(FCustomizableObjectEditorNodeContextCommands::Get().RefreshMaterialNodesInAllChildren);
-				}
+				
+				Section.AddSubMenu(
+					"ReconstructAllNodes",
+					LOCTEXT("ReconstructChildAllNodes", "Refresh All Child Nodes"),
+					LOCTEXT("ReconstructAllChildNodes_Tooltip", "Refresh all child nodes from the selected ones (inclusive)."),
+					FNewToolMenuDelegate::CreateUObject(this, &UEdGraphSchema_CustomizableObject::GetContextMenuActionsReconstructAllChildNodes, MakeWeakObjectPtr(Context)));
 			}
 
 			struct SCommentUtility

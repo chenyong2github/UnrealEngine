@@ -7,8 +7,6 @@
 
 void FCustomizableObjectEditorNodeContextCommands::RegisterCommands()
 {
-	UI_COMMAND(RefreshMaterialNodesInAllChildren, "Refresh all material nodes in all children", "Refresh all material nodes in all children.", EUserInterfaceActionType::Button, FInputChord());
-	
 	FKey CommentSpawnKey = FKey(TEXT("C"));
 	UI_COMMAND(CreateComment, "Create a Comment node", "Create a Comment node", EUserInterfaceActionType::Button, FInputChord(CommentSpawnKey));
 }

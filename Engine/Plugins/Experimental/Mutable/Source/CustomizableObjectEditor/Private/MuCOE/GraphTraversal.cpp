@@ -2,6 +2,7 @@
 
 #include "MuCOE/GraphTraversal.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "MuCOE/CustomizableObjectPin.h"
 #include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeEnumParameter.h"
@@ -22,6 +23,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeStaticMesh.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeAnimationPose.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeObjectGroup.h"
 #include "UObject/UObjectIterator.h"
 
 
@@ -500,4 +502,68 @@ const UEdGraphPin* FindMeshBaseSource(const UEdGraphPin& Pin, const bool bOnlyLo
 	}
 	
 	return nullptr;
+}
+
+
+void GetNodeGroupObjectNodeMappingImmersive(UCustomizableObject* Object, FAssetRegistryModule& AssetRegistryModule, TSet<UCustomizableObject*>& Visited, TMultiMap<FGuid, UCustomizableObjectNodeObject*>& Mapping)
+{
+	Visited.Add(Object);
+
+	TArray<FName> ArrayReferenceNames;
+	AssetRegistryModule.Get().GetReferencers(*Object->GetOuter()->GetPathName(), ArrayReferenceNames, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
+
+	FARFilter Filter;
+	for (const FName& ReferenceName : ArrayReferenceNames)
+	{
+		if (!ReferenceName.ToString().StartsWith(TEXT("/TempAutosave")))
+		{
+			Filter.PackageNames.Add(ReferenceName);
+		}
+	}
+
+	Filter.bIncludeOnlyOnDiskAssets = false;
+	
+	TArray<FAssetData> ArrayAssetData;
+	AssetRegistryModule.Get().GetAssets(Filter, ArrayAssetData);
+
+	for (FAssetData& AssetData : ArrayAssetData)
+	{
+		UCustomizableObject* ChildObject = Cast<UCustomizableObject>(AssetData.GetAsset());
+		if (!ChildObject)
+		{
+			continue;			
+		}
+
+		if (ChildObject != Object && !ChildObject->HasAnyFlags(RF_Transient))
+		{
+			bool bMultipleBaseObjectsFound = false;
+			UCustomizableObjectNodeObject* ChildRoot = GetRootNode(ChildObject, bMultipleBaseObjectsFound);
+
+			if (ChildRoot && !bMultipleBaseObjectsFound)
+			{
+				if (ChildRoot->ParentObject == Object)
+				{
+					Mapping.Add(ChildRoot->ParentObjectGroupId, ChildRoot);
+				}
+			}
+		}
+
+		if (!Visited.Contains(ChildObject))
+		{
+			GetNodeGroupObjectNodeMappingImmersive(ChildObject, AssetRegistryModule, Visited, Mapping);
+		}
+	}
+}
+
+
+TMultiMap<FGuid, UCustomizableObjectNodeObject*> GetNodeGroupObjectNodeMapping(UCustomizableObject* Object)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
+	TSet<UCustomizableObject*> Visited;
+	TMultiMap<FGuid, UCustomizableObjectNodeObject*> Mapping;
+
+	GetNodeGroupObjectNodeMappingImmersive(Object, AssetRegistryModule, Visited, Mapping);
+	
+	return Mapping;
 }

@@ -41,7 +41,7 @@ UEdGraphPin* FollowOutputPin(const UEdGraphPin& Pin, bool* CycleDetected = nullp
 UCustomizableObjectNodeObject* GetRootNode(UCustomizableObject* Object, bool& bOutMultipleBaseObjectsFound);
 
 /** Return in ArrayNodeObject the roots nodes in each Customizable Object graph until the whole root node is found (i.e. the one with parent = nullptr)
-		return false if a cycle is found between Customizable Objects */
+		* return false if a cycle is found between Customizable Objects */
 bool GetParentsUntilRoot(UCustomizableObject* Object, TArray<UCustomizableObjectNodeObject*>& ArrayNodeObject, TArray<UCustomizableObject*>& ArrayCustomizableObject);
 
 /** Returns true if the Candidate is parent of the current Customizable Object */
@@ -55,3 +55,7 @@ UCustomizableObjectNodeObject* GetFullGraphRootNodeObject(UCustomizableObjectNod
 
 /** Given an output pin, return the output pin where the mesh is located. */
 const UEdGraphPin* FindMeshBaseSource(const UEdGraphPin& Pin, const bool bOnlyLookForStaticMesh);
+
+/** Return the mapping of Group Object Nodes to Child Object Nodes of the given hierarchy.
+ * @param Object Child or root Object to start the search from. */
+TMultiMap<FGuid, UCustomizableObjectNodeObject*> GetNodeGroupObjectNodeMapping(UCustomizableObject* Object);

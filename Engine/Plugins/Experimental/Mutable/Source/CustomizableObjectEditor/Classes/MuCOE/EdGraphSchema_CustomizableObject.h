@@ -14,6 +14,7 @@ class UEdGraphPin;
 class UObject;
 struct FAssetData;
 struct FEdGraphPinType;
+class ICustomizableObjectEditor;
 
 /** Action to add a node to the graph */
 USTRUCT()
@@ -103,29 +104,37 @@ public:
 	static const FName PC_Enum;
 	static const FName PC_Stack;
 	static const FName PC_MaterialAsset;
+
+private:
+	/** List of all node types. */
+	TArray<UClass*> NodeTypes;
 	
-	// Begin EdGraphSchema interface
+public:
+
+	// EdGraphSchema interface
 	virtual void GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* HoverGraph, FString& OutTooltipText, bool& OutOkIcon) const override;
-	void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;
-	const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const override;
-	FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
-	bool ShouldHidePinDefaultValue(UEdGraphPin* Pin) const override;
+	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;
+	virtual const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const override;
+	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
+	virtual bool ShouldHidePinDefaultValue(UEdGraphPin* Pin) const override;
 	virtual void DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const override;
 
 	FLinearColor GetPinTypeColor(const FName& PinType) const;
 
-	void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	void GetContextMenuActionsReconstructAllChildNodes(UToolMenu* Menu, TWeakObjectPtr<UGraphNodeContextMenuContext> Context) const;
+	virtual void GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
 
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotification) const override;
 	virtual void BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const override;
-	// End EdGraphSchema interface
+
+	//  Own interface
 
 	/** Utility to create a node creating action */
 	static TSharedPtr<FCustomizableObjectSchemaAction_NewNode> AddNewNodeAction(FGraphActionListBuilderBase& ContextMenuBuilder, const FString& Category, const FText& MenuDesc, const FText& Tooltip, const int32 Grouping = 0, const FString& Keywords = FString());
 
 	/** */
 	void GetBreakLinkToSubMenuActions( class FMenuBuilder& MenuBuilder, UEdGraphPin* InGraphPin ) const;
-
+	
 private: 
 /** Enum containing all the object types that we are able to convert onto a node when dragging
  * and dropping and asset of that type onto the CO graph.

@@ -142,30 +142,30 @@ void UCustomizableObjectNodeObject::AllocateDefaultPins(UCustomizableObjectNodeR
 
 FText UCustomizableObjectNodeObject::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	FFormatNamedArguments Args;	
-	Args.Add(TEXT("ObjectName"), FText::FromString(ObjectName) );
-
-
-	if (TitleType == ENodeTitleType::ListView)
+	if (TitleType == ENodeTitleType::ListView ||
+		ObjectName.IsEmpty())
 	{
-		if (!bIsBase)
-		{						
-			return FText::Format(LOCTEXT("Child_Object_Title_List_Deprecated", "{ObjectName} - Child Object (Deprecated)"), Args);
+		if (bIsBase)
+		{
+			return LOCTEXT("Base_Object", "Base Object");
 		}
 		else
 		{
-			return FText::Format(LOCTEXT("Base_Object_Title_List", "{ObjectName} - Base Object"), Args);
+			return LOCTEXT("Base_Object_Deprecated", "Base Object (Deprecated)");
 		}
 	}
 	else
 	{
-		if (!bIsBase)
+		FFormatNamedArguments Args;	
+		Args.Add(TEXT("ObjectName"), FText::FromString(ObjectName) );
+
+		if (bIsBase)
 		{
-			return FText::Format(LOCTEXT("Child_Object_Title_Deprecated", "{ObjectName}\nChild Object (Deprecated)"), Args);
+			return FText::Format(LOCTEXT("Base_Object_Title", "{ObjectName}\nBase Object"), Args);
 		}
 		else
 		{
-			return FText::Format(LOCTEXT("Base_Object_Title", "{ObjectName}\nBase Object"), Args);
+			return FText::Format(LOCTEXT("Child_Object_Title_Deprecated", "{ObjectName}\nChild Object (Deprecated)"), Args);
 		}
 	}
 }

@@ -24,9 +24,6 @@ public:
 	{
 	}
 
-	/** Refresh material nodes in all children */
-	TSharedPtr<FUICommandInfo> RefreshMaterialNodesInAllChildren;
-
 	/** Create comment*/
 	TSharedPtr<FUICommandInfo> CreateComment;
 
