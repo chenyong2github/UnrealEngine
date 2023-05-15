@@ -194,9 +194,11 @@ public:
 	/**
 	 * Reorder the destination mesh description polygon groups in the same order has the source mesh description polygon groups.
 	 * This function use the imported material name to reorder the section.
+	 * 
+	 * Note: The material count MUST be the same for both the source and the destination. It will not reorder anything if the count is different.
 	 */
 	static void ReorderMeshDescriptionPolygonGroups(const FMeshDescription& SourceMeshDescription
 		, FMeshDescription& DestinationMeshDescription
 		, TOptional<const FString> UnmatchMaterialNameWarning
-		, TOptional<const FString> MoreDestinationPolygonGroupWarning);
+		, TOptional<const FString> DestinationPolygonGroupCountDifferFromSource_Msg);
 };

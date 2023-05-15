@@ -2779,110 +2779,103 @@ int32 FStaticMeshOperations::GetUniqueVertexCount(const FMeshDescription& MeshDe
 void FStaticMeshOperations::ReorderMeshDescriptionPolygonGroups(const FMeshDescription& SourceMeshDescription
 	, FMeshDescription& DestinationMeshDescription
 	, TOptional<const FString> DestinationUnmatchMaterialName_Msg
-	, TOptional<const FString> DestinationHaveMorePolygonGroup_Msg)
+	, TOptional<const FString> DestinationPolygonGroupCountDifferFromSource_Msg)
 {
 	if (SourceMeshDescription.IsEmpty() || DestinationMeshDescription.IsEmpty() || DestinationMeshDescription.PolygonGroups().Num() <= 1)
 	{
 		//Nothing to re-order
 		return;
 	}
+
+	//Do not allow reorder if the material count is different between the destination and the source
+	if (DestinationMeshDescription.PolygonGroups().Num() != SourceMeshDescription.PolygonGroups().Num())
+	{
+		if(DestinationPolygonGroupCountDifferFromSource_Msg.IsSet())
+		{
+			UE_LOG(LogStaticMeshOperations, Warning, TEXT("%s"), *DestinationPolygonGroupCountDifferFromSource_Msg.GetValue());
+		}
+		return;
+	}
+
 	FStaticMeshConstAttributes SourceAttribute(SourceMeshDescription);
 	TPolygonGroupAttributesConstRef<FName> SourceMaterialSlotNameAttribute = SourceAttribute.GetPolygonGroupMaterialSlotNames();
 	FStaticMeshAttributes DestinationAttribute(DestinationMeshDescription);
 	TPolygonGroupAttributesConstRef<FName> DestinationMaterialSlotNameAttribute = DestinationAttribute.GetPolygonGroupMaterialSlotNames();
 	TMap<FPolygonGroupID, FPolygonGroupID> MatchPolygonGroupsDestSource;
-	TMap<FPolygonGroupID, bool> MaterialMatched;
-	MaterialMatched.Reserve(SourceMaterialSlotNameAttribute.GetNumElements());
+	TMap<FPolygonGroupID, bool> SourceMaterialMatched;
+	SourceMaterialMatched.Reserve(SourceMaterialSlotNameAttribute.GetNumElements());
 	for (FPolygonGroupID SourcePolygonGroupID : SourceMeshDescription.PolygonGroups().GetElementIDs())
 	{
-		MaterialMatched.Add(SourcePolygonGroupID, false);
+		SourceMaterialMatched.Add(SourcePolygonGroupID, false);
 	}
+	TMap<FPolygonGroupID, bool> DestinationMaterialMatched;
+	DestinationMaterialMatched.Reserve(DestinationMaterialSlotNameAttribute.GetNumElements());
 	for (FPolygonGroupID DestinationPolygonGroupID : DestinationMeshDescription.PolygonGroups().GetElementIDs())
 	{
-		const FName MaterialNameToMatch = DestinationMaterialSlotNameAttribute[DestinationPolygonGroupID];
+		DestinationMaterialMatched.Add(DestinationPolygonGroupID, false);
+	}
+
+	//Find the material name match
+	for (TPair<FPolygonGroupID, bool>& DestinationMatched : DestinationMaterialMatched)
+	{
+		const FName MaterialNameToMatch = DestinationMaterialSlotNameAttribute[DestinationMatched.Key];
 		FPolygonGroupID MatchPolygonGroupID = INDEX_NONE;
-		for (FPolygonGroupID SourcePolygonGroupID : SourceMeshDescription.PolygonGroups().GetElementIDs())
+		for (TPair<FPolygonGroupID, bool>& SourceMatched : SourceMaterialMatched)
 		{
-			bool& bMaterialMatched = MaterialMatched.FindChecked(SourcePolygonGroupID);
-			if (!bMaterialMatched)
+			if (SourceMatched.Value)
 			{
-				if (SourceMaterialSlotNameAttribute[SourcePolygonGroupID] == MaterialNameToMatch)
-				{
-					MatchPolygonGroupID = SourcePolygonGroupID;
-					bMaterialMatched = true;
-					break;
-				}
+				continue;
+			}
+			if (SourceMaterialSlotNameAttribute[SourceMatched.Key] == MaterialNameToMatch)
+			{
+					
+				MatchPolygonGroupID = SourceMatched.Key;
+				SourceMatched.Value = true;
+				DestinationMatched.Value = true;
+				break;
 			}
 		}
 		if (MatchPolygonGroupID != INDEX_NONE)
 		{
-			MatchPolygonGroupsDestSource.FindOrAdd(DestinationPolygonGroupID) = MatchPolygonGroupID;
+			MatchPolygonGroupsDestSource.FindOrAdd(DestinationMatched.Key) = MatchPolygonGroupID;
 		}
 	}
 
-	bool bHaveLogUnmatchMaterial = false;
-	//Assign any unmatch polygon group to first available source polygon group
-	for (FPolygonGroupID SourcePolygonGroupID : SourceMeshDescription.PolygonGroups().GetElementIDs())
+	if (MatchPolygonGroupsDestSource.Num() < DestinationMaterialMatched.Num() && DestinationUnmatchMaterialName_Msg.IsSet())
 	{
-		bool& bMaterialMatched = MaterialMatched.FindChecked(SourcePolygonGroupID);
-		if (!bMaterialMatched)
+		UE_LOG(LogStaticMeshOperations, Warning, TEXT("%s"), *DestinationUnmatchMaterialName_Msg.GetValue());
+	}
+
+	//Iterate the unmatched destination and use the first unmatched source
+	for (TPair<FPolygonGroupID, bool>& DestinationMatched : DestinationMaterialMatched)
+	{
+		if (DestinationMatched.Value)
 		{
-			for (TPair<FPolygonGroupID, FPolygonGroupID>& MatchPolygonGroup : MatchPolygonGroupsDestSource)
+			//Skip this destination because its already matched
+			continue;
+		}
+
+		//Match the first unmatched source we found
+		for (TPair<FPolygonGroupID, bool>& SourceMatched : SourceMaterialMatched)
+		{
+			if (SourceMatched.Value)
 			{
-				if (MatchPolygonGroup.Value == INDEX_NONE)
-				{
-					if (!bHaveLogUnmatchMaterial && DestinationUnmatchMaterialName_Msg.IsSet())
-					{
-						UE_LOG(LogStaticMeshOperations, Warning, TEXT("%s"), *DestinationUnmatchMaterialName_Msg.GetValue());
-						bHaveLogUnmatchMaterial = true;
-					}
-					MatchPolygonGroup.Value = SourcePolygonGroupID;
-					bMaterialMatched = true;
-					break;
-				}
+				//Skip this source because its already matched
+				continue;
 			}
-			if (!bMaterialMatched)
-			{
-				//Insert a mesh description PolygonGroup that have no polygon (empty section)
-				//This allow to fill hole in case the hires have less section then the LOD 0
-				FPolygonGroupID NewDestinationPolygonGroupID = DestinationMeshDescription.CreatePolygonGroup();
-				MatchPolygonGroupsDestSource.FindOrAdd(NewDestinationPolygonGroupID) = SourcePolygonGroupID;
-				bMaterialMatched = true;
-			}
+			//Force match
+			MatchPolygonGroupsDestSource.FindOrAdd(DestinationMatched.Key) = SourceMatched.Key;
+			DestinationMatched.Value = true;
+			SourceMatched.Value = true;
+			break;
 		}
 	}
 
-	TMap<FPolygonGroupID, FPolygonGroupID> RemapGroup;
-	for (TPair<FPolygonGroupID, FPolygonGroupID>& MatchPolygonGroup : MatchPolygonGroupsDestSource)
+	//Since both source and destination have the same amount of material, the MatchPolygonGroupsDestSource should have the same count.
+	if(ensure(MatchPolygonGroupsDestSource.Num() == DestinationMaterialMatched.Num()))
 	{
-		check(MatchPolygonGroup.Value != INDEX_NONE);
-		RemapGroup.Add(MatchPolygonGroup.Key, MatchPolygonGroup.Value);
-	}
-	//Remap the polygon group with the correct ID
-	DestinationMeshDescription.RemapPolygonGroups(RemapGroup);
-
-	//Transfer any non match polygon group to the first valid polygon group (Hi res mesh use more section then LOD 0 mesh)
-	FPolygonGroupID ToDestinationID = DestinationMeshDescription.PolygonGroups().GetFirstValidID();
-	if (ToDestinationID != INDEX_NONE)
-	{
-		TArray< FPolygonGroupID > ToTransferPolygonGroups;
-		for (FPolygonGroupID DestinationPolygonGroupID : DestinationMeshDescription.PolygonGroups().GetElementIDs())
-		{
-			if (!MatchPolygonGroupsDestSource.Contains(DestinationPolygonGroupID))
-			{
-				ToTransferPolygonGroups.Add(DestinationPolygonGroupID);
-			}
-		}
-		if (ToTransferPolygonGroups.Num() > 0 && DestinationHaveMorePolygonGroup_Msg.IsSet())
-		{
-			UE_LOG(LogStaticMeshOperations, Warning, TEXT("%s"), *DestinationHaveMorePolygonGroup_Msg.GetValue());
-		}
-
-		for (FPolygonGroupID DestinationPolygonID : ToTransferPolygonGroups)
-		{
-			//TransferPolygonGroup take care of validating polygon group IDs and check they are not the same.
-			DestinationMeshDescription.TransferPolygonGroup(DestinationPolygonID, ToDestinationID);
-		}
+		//Remap the polygon group with the correct ID
+		DestinationMeshDescription.RemapPolygonGroups(MatchPolygonGroupsDestSource);
 	}
 }
 
