@@ -67,6 +67,9 @@ private:
 	FText GetSectionTitle(int32 InSectionID);
 	TSharedRef<SWidget> GetSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID);
 
+	/** Returns true if the action matches the specified name, else false. */
+	bool ActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const;
+
 	/** Handler which deals with populating the context menu. */
 	TSharedPtr<SWidget> OnContextMenuOpening();
 
