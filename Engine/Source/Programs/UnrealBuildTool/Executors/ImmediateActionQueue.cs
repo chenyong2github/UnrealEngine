@@ -570,6 +570,7 @@ namespace UnrealBuildTool
 
 					case ActionReadyState.Error:
 						Actions[actionIndex].Status = ActionStatus.Error;
+						Actions[actionIndex].Phase = ActionPhase.Compile;
 						completedActions++;
 						break;
 
