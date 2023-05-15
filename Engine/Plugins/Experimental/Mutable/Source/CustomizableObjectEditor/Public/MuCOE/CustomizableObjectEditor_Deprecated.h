@@ -3,14 +3,12 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "UObject/SoftObjectPtr.h"
+#include "UObject/ObjectPtr.h"
+#include "EdGraph/EdGraphPin.h"
 
 #include "CustomizableObjectEditor_Deprecated.generated.h"
 
 class UTexture2D;
-class UEdGraphPin_Deprecated;
-struct FEdGraphPinReference;
-
 
 // Place to hide all deprecated data structures. They are still needed for deserialization backwards compatibility.
 
