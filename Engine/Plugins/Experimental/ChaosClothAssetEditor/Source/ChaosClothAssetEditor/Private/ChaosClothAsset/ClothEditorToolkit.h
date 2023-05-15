@@ -84,6 +84,7 @@ private:
 	virtual bool OnRequestClose(EAssetEditorCloseReason InCloseReason) override;
 	virtual void PostInitAssetEditor() override;
 	virtual void InitToolMenuContext(FToolMenuContext& MenuContext) override;
+	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const override;
 
 	// IAssetEditorInstance
 	// TODO: If this returns true then the editor cannot re-open after it's closed. Figure out why.

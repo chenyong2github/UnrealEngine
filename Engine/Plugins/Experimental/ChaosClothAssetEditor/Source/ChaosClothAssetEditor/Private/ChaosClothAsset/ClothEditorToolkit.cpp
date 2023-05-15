@@ -481,6 +481,19 @@ void FChaosClothAssetEditorToolkit::InitToolMenuContext(FToolMenuContext& MenuCo
 	MenuContext.AddObject(ClothEditorContext);
 }
 
+void FChaosClothAssetEditorToolkit::GetSaveableObjects(TArray<UObject*>& OutObjects) const
+{
+	FBaseCharacterFXEditorToolkit::GetSaveableObjects(OutObjects);
+
+	const UChaosClothAsset* const ClothAsset = GetAsset();
+	UDataflow* const DataflowAsset = Private::GetDataflowFrom(ClothAsset);
+	if (DataflowAsset)
+	{
+		check(DataflowAsset->IsAsset());
+		OutObjects.Add(DataflowAsset);
+	}
+}
+
 //~ End FAssetEditorToolkit overrides
 
 
