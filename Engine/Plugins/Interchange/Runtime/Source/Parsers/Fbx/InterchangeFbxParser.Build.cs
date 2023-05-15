@@ -34,7 +34,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Engine",
 					"InterchangeCommonParser",
 					"InterchangeMessages",
 					"InterchangeNodes",
