@@ -3,6 +3,8 @@
 #include "NiagaraGeometryCacheRendererProperties.h"
 #include "GeometryCache.h"
 #include "NiagaraConstants.h"
+#include "NiagaraEmitter.h"
+#include "NiagaraEmitterInstance.h"
 #include "NiagaraModule.h"
 #include "NiagaraRendererGeometryCache.h"
 #include "Modules/ModuleManager.h"
@@ -98,6 +100,10 @@ void UNiagaraGeometryCacheRendererProperties::InitDefaultAttributes()
 	}
 }
 
+//void UNiagaraGeometryCacheRendererProperties::Serialize(FArchive& Ar)
+//{
+//}
+
 void UNiagaraGeometryCacheRendererProperties::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -144,6 +150,29 @@ void UNiagaraGeometryCacheRendererProperties::PostInitProperties()
 		}
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+void UNiagaraGeometryCacheRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	const FName MemberPropertyName = PropertyChangedEvent.GetMemberPropertyName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraGeometryCacheRendererProperties, SourceMode))
+	{
+		UpdateSourceModeDerivates(SourceMode, true);
+	}
+
+	// Update our MICs if we change material / material bindings
+	//-OPT: Could narrow down further to only static materials
+	//if ((PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraGeometryCacheRendererProperties, Material)) ||
+	//	(MemberPropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraGeometryCacheRendererProperties, MaterialParameters)))
+	//{
+	//	UpdateMICs();
+	//}
+}
+#endif// WITH_EDITORONLY_DATA
 
 void UNiagaraGeometryCacheRendererProperties::InitCDOPropertiesAfterModuleStartup()
 {
@@ -201,24 +230,40 @@ FNiagaraRenderer* UNiagaraGeometryCacheRendererProperties::CreateEmitterRenderer
 	return NewRenderer;
 }
 
-void UNiagaraGeometryCacheRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& MaterialInterfaces) const
+void UNiagaraGeometryCacheRendererProperties::GetUsedMaterials(const FNiagaraEmitterInstance* EmitterInstance, TArray<UMaterialInterface*>& MaterialInterfaces) const
 {
 	for (const FNiagaraGeometryCacheReference& Entry : GeometryCaches)
 	{
-		if (Entry.GeometryCache)
+		UGeometryCache* GeometryCache = ResolveGeometryCache(Entry, EmitterInstance);;
+		if (GeometryCache == nullptr)
 		{
-			int32 MaxIndex = FMath::Max(Entry.GeometryCache->Materials.Num(), Entry.OverrideMaterials.Num());
-			for (int i = 0; i < MaxIndex; i++)
+			continue;
+		}
+
+		const int32 MaxIndex = FMath::Max(GeometryCache->Materials.Num(), Entry.OverrideMaterials.Num());
+		for (int i = 0; i < MaxIndex; i++)
+		{
+			if (Entry.OverrideMaterials.IsValidIndex(i) && Entry.OverrideMaterials[i])
 			{
-				if (Entry.OverrideMaterials.IsValidIndex(i) && Entry.OverrideMaterials[i])
-				{
-					MaterialInterfaces.Add(Entry.OverrideMaterials[i]);
-				}
-				else if (Entry.GeometryCache->Materials.IsValidIndex(i))
-				{
-					MaterialInterfaces.Add(Entry.GeometryCache->Materials[i]);
-				}
+				MaterialInterfaces.AddUnique(Entry.OverrideMaterials[i]);
 			}
+			else if (GeometryCache->Materials.IsValidIndex(i))
+			{
+				MaterialInterfaces.AddUnique(GeometryCache->Materials[i]);
+			}
+		}
+	}
+}
+
+void UNiagaraGeometryCacheRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
+{
+	Super::UpdateSourceModeDerivates(InSourceMode, bFromPropertyEdit);
+
+	if (UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>())
+	{
+		for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameters.AttributeBindings)
+		{
+			MaterialParamBinding.CacheValues(SrcEmitter);
 		}
 	}
 }
@@ -246,12 +291,21 @@ bool UNiagaraGeometryCacheRendererProperties::PopulateRequiredBindings(FNiagaraP
 		}
 	}
 
+	for (const FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameters.AttributeBindings)
+	{
+		InParameterStore.AddParameter(MaterialParamBinding.GetParamMapBindableVariable(), false);
+		bAnyAdded = true;
+	}
+
 	return bAnyAdded;
 }
 
 void UNiagaraGeometryCacheRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
 	Super::CacheFromCompiledData(CompiledData);
+
+	UpdateSourceModeDerivates(SourceMode);
+	UpdateMICs();
 
 	InitParticleDataSetAccessor(PositionAccessor, CompiledData, PositionBinding);
 	InitParticleDataSetAccessor(RotationAccessor, CompiledData, RotationBinding);
@@ -264,7 +318,6 @@ void UNiagaraGeometryCacheRendererProperties::CacheFromCompiledData(const FNiaga
 }
 
 #if WITH_EDITORONLY_DATA
-
 const FSlateBrush* UNiagaraGeometryCacheRendererProperties::GetStackIcon() const
 {
 	return FSlateIconFinder::FindIconBrushForClass(GetClass());
@@ -350,11 +403,74 @@ const TArray<FNiagaraVariable>& UNiagaraGeometryCacheRendererProperties::GetOpti
 	return Attrs;
 }
 
-void UNiagaraGeometryCacheRendererProperties::GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const
+void UNiagaraGeometryCacheRendererProperties::GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const
 {
 	OutInfo.Add(FText::FromString(TEXT("The geometry cache renderer is still an experimental feature.")));
+
+	if (MaterialParameters.HasAnyBindings())
+	{
+		TArray<UMaterialInterface*> Materials;
+		GetUsedMaterials(nullptr, Materials);
+		MaterialParameters.GetFeedback(Materials, OutWarnings);
+	}
 }
 
+TArray<FNiagaraVariable> UNiagaraGeometryCacheRendererProperties::GetBoundAttributes() const
+{
+	TArray<FNiagaraVariable> BoundAttributes = Super::GetBoundAttributes();
+	BoundAttributes.Reserve(BoundAttributes.Num() + MaterialParameters.AttributeBindings.Num());
+
+	for (const FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameters.AttributeBindings)
+	{
+		BoundAttributes.AddUnique(MaterialParamBinding.GetParamMapBindableVariable());
+	}
+	return BoundAttributes;
+}
+
+void UNiagaraGeometryCacheRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter)
+{
+	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RenameVariable(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
 #endif
+}
+
+void UNiagaraGeometryCacheRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter)
+{
+	Super::RemoveVariable(OldVariable, InEmitter);
+#if WITH_EDITORONLY_DATA
+	MaterialParameters.RemoveVariable(OldVariable, InEmitter, GetCurrentSourceMode());
+#endif
+}
+#endif
+
+void UNiagaraGeometryCacheRendererProperties::UpdateMICs()
+{
+#if WITH_EDITORONLY_DATA
+	//UpdateMaterialParametersMIC(MaterialParameters, Material, MICMaterial);
+#endif
+}
+
+UGeometryCache* UNiagaraGeometryCacheRendererProperties::ResolveGeometryCache(const FNiagaraGeometryCacheReference& Entry, const FNiagaraEmitterInstance* Emitter)
+{
+	UGeometryCache* FoundCache = nullptr;
+
+	FNiagaraVariable Variable = Entry.GeometryCacheUserParamBinding.Parameter;
+	if (Variable.IsValid() && Emitter)
+	{
+		UGeometryCache* GeometryCache = Cast<UGeometryCache>(Emitter->GetRendererBoundVariables().GetUObject(Variable));
+		if (GeometryCache)
+		{
+			FoundCache = GeometryCache;
+		}
+	}
+
+	if (!FoundCache)
+	{
+		FoundCache = Entry.GeometryCache;
+	}
+
+	return FoundCache;
+}
 
 #undef LOCTEXT_NAMESPACE
