@@ -65,12 +65,13 @@ Filter listing failed with error: 0x80070005
 Access is denied.
 ";
 		
-		List<WindowsFilterDriverInfo>? noFilters = TelemetryService.ParseFltMcOutput(emptyOutput);
+		List<string>? noFilters = TelemetryService.ParseFltMcOutput(emptyOutput);
 		Assert.IsNull(noFilters);
 		
 		string output = @"
 Filter Name                     Num Instances    Altitude    Frame
 ------------------------------  -------------  ------------  -----
+cbfsconnect2017                                             <Legacy>
 bindflt                                 1       409800         0
 CSAgent                                 9       321410         0
 storqosflt                              0       244000         0
@@ -85,11 +86,10 @@ FileInfo                                7        40500         0
 
 ";
 
-		List<WindowsFilterDriverInfo>? filters = TelemetryService.ParseFltMcOutput(output);
-		Assert.AreEqual("bindflt", filters![0].Name);
-		Assert.AreEqual(409800, filters![0].Altitude);
-		Assert.AreEqual("FileInfo", filters![10].Name);
-		Assert.AreEqual(40500, filters![10].Altitude);
+		List<string>? filters = TelemetryService.ParseFltMcOutput(output);
+		Assert.AreEqual("cbfsconnect2017", filters![0]);
+		Assert.AreEqual("bindflt", filters![1]);
+		Assert.AreEqual("FileInfo", filters![11]);
 	}
 
 	public void Dispose()
