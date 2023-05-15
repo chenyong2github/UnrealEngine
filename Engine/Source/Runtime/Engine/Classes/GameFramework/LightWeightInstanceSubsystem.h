@@ -41,14 +41,12 @@ struct ENGINE_API FLightWeightInstanceSubsystem
 
 	// Returns the instance manager that handles instances of type Class that live in Level
 	UE_DEPRECATED(5.3, "Use the version that takes in a position.")
-	UFUNCTION(Server, Unreliable)
 	ALightWeightInstanceManager* FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* DataLayer, UWorld* World);
 
 	// Returns the instance manager that handles actors of type ActorClass in level Level
 	ALightWeightInstanceManager* FindLightWeightInstanceManager(UClass& ActorClass, UWorld& World, const FVector& InPos, const UDataLayerInstance* DataLayer = nullptr) const;
 
 	// Returns the instance manager that handles instances of type Class that live in Level
-	UFUNCTION(Server, Unreliable)
 	ALightWeightInstanceManager* FindOrAddLightWeightInstanceManager(UClass& ActorClass, UWorld& World, const FVector& InPos, const UDataLayerInstance* DataLayer = nullptr);
 
 	// Returns the actor specified by Handle. This may require loading and creating the actor object.
@@ -124,7 +122,6 @@ private:
 	static TSharedPtr<FLightWeightInstanceSubsystem, ESPMode::ThreadSafe> LWISubsystem;
 
 	// TODO: preallocate the size of this based on a config variable
-	UPROPERTY()
 	TArray<ALightWeightInstanceManager*> LWInstanceManagers;
 
 	// Mutex to make sure we don't change the LWInstanceManagers array while reading/writing it.

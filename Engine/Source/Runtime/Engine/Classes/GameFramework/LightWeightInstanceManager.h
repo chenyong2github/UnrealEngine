@@ -27,7 +27,7 @@ struct ENGINE_API FLWIData
 
 
 // Base class for interfaces for each handle
-UCLASS()
+UCLASS(Experimental)
 class ENGINE_API UActorInstanceHandleInterface : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -49,7 +49,7 @@ protected:
 
 
 
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(BlueprintType, Blueprintable, Experimental)
 class ENGINE_API ALightWeightInstanceManager : public AActor
 {
 	GENERATED_UCLASS_BODY()
