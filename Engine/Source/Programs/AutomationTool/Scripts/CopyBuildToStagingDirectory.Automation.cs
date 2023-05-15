@@ -283,6 +283,7 @@ namespace AutomationScripts
 			DirectoryReference OptionalOutputLocation,
 			DirectoryReference OnDemandOutputLocation,
 			bool bCompressed,
+			DirectoryReference OptionalStageLooseFileRootPath,
 			EncryptionAndSigning.CryptoSettings CryptoSettings,
 			string EncryptionKeyGuid,
 			string PatchSourceContentPath,
@@ -313,6 +314,11 @@ namespace AutomationScripts
 			if (bGenerateDiffPatch)
 			{
 				CmdLine.Append(" -GenerateDiffPatch");
+			}
+
+			if (OptionalStageLooseFileRootPath != null)
+			{
+				CmdLine.AppendFormat(" -StageLooseFileRootPath=\"{0}\"", OptionalStageLooseFileRootPath);
 			}
 
 			// Force encryption of ALL files if we're using specific encryption key. This should be made an option per encryption key in the settings, but for our initial
@@ -2699,6 +2705,11 @@ namespace AutomationScripts
 			public bool bOnDemand;
 
 			/// <summary>
+			// Whether this pak file is to copy the source files as loose files
+			/// </summary>
+			public bool bStageLoose;
+
+			/// <summary>
 			/// GUID of the encryption key for this pak file
 			/// </summary>
 			public string EncryptionKeyGuid;
@@ -2709,7 +2720,7 @@ namespace AutomationScripts
 			/// <param name="PakName">Path to the base output file for this pak file</param>
 			/// <param name="UnrealPakResponseFile">Map of files within the pak file to their source file on disk</param>
 			/// <param name="bCompressed">Whether to enable compression</param>
-			public CreatePakParams(string PakName, Dictionary<string, string> UnrealPakResponseFile, bool bCompressed, bool RehydrateAssets, string EncryptionKeyGuid, bool bOnDemand = false)
+			public CreatePakParams(string PakName, Dictionary<string, string> UnrealPakResponseFile, bool bCompressed, bool RehydrateAssets, string EncryptionKeyGuid, bool bOnDemand = false, bool bStageLoose = false)
 			{
 				this.PakName = PakName;
 				this.UnrealPakResponseFile = UnrealPakResponseFile;
@@ -2717,6 +2728,7 @@ namespace AutomationScripts
 				this.bRehydrateAssets = RehydrateAssets;
 				this.EncryptionKeyGuid = EncryptionKeyGuid;
 				this.bOnDemand = bOnDemand;
+				this.bStageLoose = bStageLoose;
 			}
 		}
 
@@ -3287,7 +3299,7 @@ namespace AutomationScripts
 
 				bool bCopiedExistingPak = false;
 
-				if (!PakParams.bOnDemand && SC.StageTargetPlatform != SC.CookSourcePlatform && !Params.IgnorePaksFromDifferentCookSource)
+				if (!PakParams.bOnDemand && !PakParams.bStageLoose && SC.StageTargetPlatform != SC.CookSourcePlatform && !Params.IgnorePaksFromDifferentCookSource)
 				{
 					// Check to see if we have an existing pak file we can use
 
@@ -3418,6 +3430,7 @@ namespace AutomationScripts
 							}
 							bool bGenerateDiffPatch = bShouldGeneratePatch && !ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName);
 							bool bCompressContainers = PakParams.bCompressed;
+							DirectoryReference StageLooseFileRootPath = PakParams.bStageLoose ? DirectoryReference.Combine(SC.RuntimeRootDir, "Engine", "Binaries", SC.PlatformDir) : null;
 
 							IoStoreCommands.Add(GetIoStoreCommandArguments(
 								IoStoreResponseFile,
@@ -3426,6 +3439,7 @@ namespace AutomationScripts
 								SC.OptionalFileStageDirectory,
 								PakParams.bOnDemand ? OnDemandOutputLocation : null,
 								bCompressContainers,
+								StageLooseFileRootPath,
 								CryptoSettings,
 								PakParams.EncryptionKeyGuid,
 								ContainerPatchSourcePath,
@@ -3433,6 +3447,8 @@ namespace AutomationScripts
 								Params.HasDLCName));
 						}
 
+						if (!PakParams.bStageLoose)
+						{
 						string PakFileSpecificAdditionalArgs = "";
 						if (bShouldGeneratePatch && ShouldSkipGeneratingPatch(PlatformGameConfig, PakParams.PakName))
 						{
@@ -3448,7 +3464,7 @@ namespace AutomationScripts
 							Params.SkipEncryption ? null : CryptoSettings,
 							PatchSourceContentPath,
 							Params.SkipEncryption ? "" : PakParams.EncryptionKeyGuid));
-
+						}
 						LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
 					}
 				}
@@ -3956,6 +3972,7 @@ namespace AutomationScripts
 				Manifest = null;
 				bCompressed = false;
 				bOnDemand = false;
+				bStageLoose = false;
 			}
 
 			// Name of pak file without extension, ie pakchunk0
@@ -3974,6 +3991,9 @@ namespace AutomationScripts
 
 			// Whether the chunk is used for content-on-demand content delivery or not
 			public bool bOnDemand;
+
+			// Whether the chunk is used for content-on-demand content delivery or not
+			public bool bStageLoose;
 		}
 
 		private static void AddChunkDefinition(ConcurrentDictionary<string, ChunkDefinition> ChunkSet, ChunkDefinition OriginalChunk, string ModifiedChunkName)
@@ -4133,7 +4153,8 @@ namespace AutomationScripts
 
 						ChunkDefinition Chunk = new ChunkDefinition(ChunkName);
 						Chunk.bOnDemand = Rule.bOnDemand;
-						Chunk.bCompressed = true;
+						Chunk.bStageLoose = Rule.bStageLoose;
+						Chunk.bCompressed = !Rule.bStageLoose;
 						Chunk.EncryptionKeyGuid = bIsEncryptionKeyValid ? Rule.EncryptionKeyGuid : null;
 						ChunkDefinitions.Add(Chunk);
 					}
@@ -4144,8 +4165,6 @@ namespace AutomationScripts
 				{
 					ChunkNameToDefinition.TryAdd(Chunk.ChunkName, Chunk);
 				}
-
-				ConcurrentDictionary<StagedFileReference, FileReference> LooseFiles = new ConcurrentDictionary<StagedFileReference, FileReference>();
 
 				Parallel.ForEach(StagingManifestResponseFile, StagingFile =>
 				{
@@ -4189,12 +4208,15 @@ namespace AutomationScripts
 
 					if (bStageLoose)
 					{
-						string StagingFileValue = StagingFile.Value;
-						if (StagingFileValue.StartsWith(SC.PakFileInternalRoot))
+						string StageLooseChunkName = "_stage_loose_files";
+						if (!AdditionalChunks.ContainsKey(StageLooseChunkName))
 						{
-							StagingFileValue = StagingFileValue.Substring(SC.PakFileInternalRoot.Length);
+							ChunkDefinition NewChunk = new ChunkDefinition(StageLooseChunkName);
+							NewChunk.bStageLoose = true;
+							AdditionalChunks.TryAdd(StageLooseChunkName, NewChunk);
 						}
-						LooseFiles.TryAdd(new StagedFileReference(StagingFileValue), new FileReference(StagingFile.Key));
+						ChunkDefinition TargetChunk = AdditionalChunks[StageLooseChunkName];
+						TargetChunk.ResponseFile.TryAdd(StagingFile.Key, StagingFile.Value);
 
 						// Loose files get uploaded through BPT as well as copied to "ondemand" pak files
 						//return;
@@ -4215,10 +4237,10 @@ namespace AutomationScripts
 							string OrigExt = Path.GetExtension(OriginalFilename);
 							if (bStageLoose)
 							{
-								// make a streaming pak
-								string ChunkName = Chunk.ChunkName + (OrigExt.Equals(OptionalBulkDataFileExtension) ? "ondemandoptional" : "ondemand");
-								AddChunkDefinition(AdditionalChunks, Chunk, ChunkName);
-								TargetChunk = AdditionalChunks[ChunkName];
+								// make a streaming pak as well
+								string StreamingChunkName = Chunk.ChunkName + (OrigExt.Equals(OptionalBulkDataFileExtension) ? "ondemandoptional" : "ondemand");
+								AddChunkDefinition(AdditionalChunks, Chunk, StreamingChunkName);
+								TargetChunk = AdditionalChunks[StreamingChunkName];
 							}
 							else if (OrigExt.Equals(OptionalBulkDataFileExtension))
 							{
@@ -4256,11 +4278,6 @@ namespace AutomationScripts
 				foreach (var OptionalChunkIt in AdditionalChunks)
 				{
 					ChunkDefinitions.Add(OptionalChunkIt.Value);
-				}
-
-				foreach (var LooseFile in LooseFiles)
-				{
-					SC.FilesToStage.LooseFiles.Add(LooseFile.Key, LooseFile.Value);
 				}
 			}
 
@@ -4339,7 +4356,7 @@ namespace AutomationScripts
 					string EncryptionKeyToUse = Params.SkipEncryption ? "" : Chunk.EncryptionKeyGuid;
 					PakInputs.Add(new CreatePakParams(Chunk.ChunkName,
 						Chunk.ResponseFile.ToDictionary(entry => entry.Key, entry => entry.Value),
-						Params.Compressed || Chunk.bCompressed, Params.RehydrateAssets, EncryptionKeyToUse, Chunk.bOnDemand));
+						Params.Compressed || Chunk.bCompressed, Params.RehydrateAssets, EncryptionKeyToUse, Chunk.bOnDemand, Chunk.bStageLoose));
 				}
 			}
 
@@ -4603,14 +4620,8 @@ namespace AutomationScripts
 				}
 			}
 
-		string BaseManifestFileName = CombinePaths(CmdEnv.LogFolder, "FinalCopy" + (SC.DedicatedServer ? "_Server" : "") + SC.StageTargetPlatform.PlatformType.ToString());
+			string BaseManifestFileName = CombinePaths(CmdEnv.LogFolder, "FinalCopy" + (SC.DedicatedServer ? "_Server" : "") + SC.StageTargetPlatform.PlatformType.ToString());
 			DumpManifest(SC.FilesToStage.UFSFiles, BaseManifestFileName + "_UFSFiles.txt");
-
-			if (!SC.Stage || Params.SkipStage)
-			{
-				CopyManifestFilesToStageDir(SC, SC.FilesToStage.LooseFiles, "LooseFiles");
-				return;
-			}
 
 			DumpManifest(SC.FilesToStage.NonUFSFiles, BaseManifestFileName + "_NonUFSFiles.txt");
 			DumpManifest(SC.FilesToStage.NonUFSDebugFiles, BaseManifestFileName + "_NonUFSFilesDebug.txt");
