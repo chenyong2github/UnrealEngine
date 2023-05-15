@@ -141,6 +141,14 @@ void SRCPanelExposedEntity::EnterRenameMode()
 	}
 }
 
+void SRCPanelExposedEntity::Refresh()
+{
+	if (EntityId.IsValid() && Preset.IsValid())
+	{
+		Initialize(EntityId, Preset.Get(), bLiveMode);
+	}
+}
+
 void SRCPanelExposedEntity::Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbLiveMode)
 {
 	EntityId = InEntityId;

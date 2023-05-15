@@ -30,6 +30,8 @@ struct SRCPanelExposedEntity : public SRCPanelTreeNode
 	/** Updates the highlight text to active search term. */
 	virtual void SetHighlightText(const FText& InHightlightText = FText::GetEmpty()) override { HighlightText = InHightlightText; }
 
+	virtual void Refresh() override;
+	
 protected:
 	void Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbLiveMode);
 	

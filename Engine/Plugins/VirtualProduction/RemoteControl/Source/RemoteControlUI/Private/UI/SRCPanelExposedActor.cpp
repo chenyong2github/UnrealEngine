@@ -53,6 +53,8 @@ SRCPanelTreeNode::ENodeType SRCPanelExposedActor::GetRCType() const
 
 void SRCPanelExposedActor::Refresh()
 {
+	SRCPanelExposedEntity::Refresh();
+	
 	if (TSharedPtr<FRemoteControlActor> RCActor = WeakActor.Pin())
 	{
 		CachedLabel = RCActor->GetLabel();

@@ -276,6 +276,8 @@ const bool SRCPanelExposedField::SupportsProtocol(const FName& InProtocolName) c
 
 void SRCPanelExposedField::Refresh()
 {
+	SRCPanelExposedEntity::Refresh();
+	
 	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 	{
 		CachedLabel = Field->GetLabel();
