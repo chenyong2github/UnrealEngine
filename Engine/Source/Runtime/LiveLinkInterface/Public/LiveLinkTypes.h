@@ -36,7 +36,7 @@
 
 
 USTRUCT(BlueprintType)
-struct FLiveLinkSubjectName
+struct LIVELINKINTERFACE_API FLiveLinkSubjectName
 {
 public:
 	GENERATED_BODY()
