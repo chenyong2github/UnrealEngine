@@ -390,7 +390,7 @@ private:
 private:
 
 	/** The Texture asset being inspected */
-	UTexture* Texture;
+	TObjectPtr<UTexture> Texture;
 
 	/** Viewport */
 	TSharedPtr<STextureEditorViewport> TextureViewport;

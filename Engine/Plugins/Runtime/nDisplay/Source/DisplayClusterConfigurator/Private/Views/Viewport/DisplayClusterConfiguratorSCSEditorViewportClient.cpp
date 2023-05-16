@@ -470,7 +470,7 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::ProcessClick(class FSce
 
 				if (ActorProxy->Actor == PreviewActor)
 				{
-					UPrimitiveComponent* TestComponent = const_cast<UPrimitiveComponent*>(ActorProxy->PrimComponent);
+					UPrimitiveComponent* TestComponent = ConstCast(ActorProxy->PrimComponent);
 					if (ActorProxy->Actor->GetComponents().Contains(TestComponent))
 					{
 						SelectedCompInstance = TestComponent;

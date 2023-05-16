@@ -724,7 +724,7 @@ public:
 	TMap<uint32, uint32> TextureReferenceCount; // Keeps a count of texture usage to decide if they have to be blocked from GC during an update
 
 	// This is protected from GC by AddReferencedObjects
-	UCustomizableObjectInstance* CurrentInstanceBeingUpdated = nullptr;
+	TObjectPtr<UCustomizableObjectInstance> CurrentInstanceBeingUpdated = nullptr;
 
 	TSharedPtr<FMutableOperation> CurrentMutableOperation = nullptr;
 

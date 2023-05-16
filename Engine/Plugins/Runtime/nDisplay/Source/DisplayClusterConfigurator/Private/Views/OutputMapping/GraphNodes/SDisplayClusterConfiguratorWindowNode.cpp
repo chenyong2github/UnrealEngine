@@ -374,7 +374,7 @@ int32 SDisplayClusterConfiguratorWindowNode::GetNodeLogicalLayer() const
 	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
 	if (bLayerAboveViewports)
 	{
-		return WindowEdNode->GetAuxiliaryLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+		return WindowEdNode->GetAuxiliaryLayer(ObjectPtrDecay(GetOwnerPanel()->SelectionManager.SelectedNodes));
 	}
 
 	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
@@ -387,7 +387,7 @@ int32 SDisplayClusterConfiguratorWindowNode::GetNodeLogicalLayer() const
 	// users to select and drag it even if a viewport is in the way.
 	if (FSlateApplication::Get().GetModifierKeys().IsAltDown() || bAreViewportsLocked)
 	{
-		return WindowEdNode->GetAuxiliaryLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+		return WindowEdNode->GetAuxiliaryLayer(ObjectPtrDecay(GetOwnerPanel()->SelectionManager.SelectedNodes));
 	}
 
 	return SDisplayClusterConfiguratorBaseNode::GetNodeLogicalLayer();
@@ -448,8 +448,8 @@ int32 SDisplayClusterConfiguratorWindowNode::GetBorderLayerOffset() const
 		// The offset needs to factor out the window's base layer offset, as the border is part of the node's widget hierarchy, which is already offset to be in the correct 
 		// layer; we need to compute the offset needed to bump the border into the auxiliary layer.
 		UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
-		int32 NodeLayerIndex = WindowEdNode->GetNodeLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
-		int32 AuxLayerIndex = WindowEdNode->GetAuxiliaryLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+		int32 NodeLayerIndex = WindowEdNode->GetNodeLayer(ObjectPtrDecay(GetOwnerPanel()->SelectionManager.SelectedNodes));
+		int32 AuxLayerIndex = WindowEdNode->GetAuxiliaryLayer(ObjectPtrDecay(GetOwnerPanel()->SelectionManager.SelectedNodes));
 
 		// Subtract an extra buffer of 100 here to make sure the border doesn't bleed into another layer.
 		return AuxLayerIndex - NodeLayerIndex - 100;
@@ -505,7 +505,7 @@ EVisibility SDisplayClusterConfiguratorWindowNode::GetPreviewImageVisibility() c
 int32 SDisplayClusterConfiguratorWindowNode::GetNodeTitleLayerOffset() const
 {
 	UDisplayClusterConfiguratorWindowNode* WindowEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorWindowNode>();
-	return WindowEdNode->GetAuxiliaryLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+	return WindowEdNode->GetAuxiliaryLayer(ObjectPtrDecay(GetOwnerPanel()->SelectionManager.SelectedNodes));
 }
 
 EVisibility SDisplayClusterConfiguratorWindowNode::GetNodeInfoVisibility() const

@@ -80,8 +80,7 @@ void FNiagaraPlaceholderDataInterfaceManager::AddReferencedObjects(FReferenceCol
 {
 	for (FPlaceholderDataInterfaceInfo& PlaceholderDataInterfaceInfo : PlaceholderDataInterfaceInfos)
 	{
-		UNiagaraDataInterface* PlaceholderDataInterface = PlaceholderDataInterfaceInfo.PlaceholderDataInterface.Get();
-		Collector.AddReferencedObject(PlaceholderDataInterface);
+		Collector.AddReferencedObject(PlaceholderDataInterfaceInfo.PlaceholderDataInterface);
 	}
 }
 

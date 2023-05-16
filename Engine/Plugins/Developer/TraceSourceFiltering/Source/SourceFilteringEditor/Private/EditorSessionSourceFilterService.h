@@ -87,7 +87,7 @@ protected:
 	void OnAssetsPendingDelete(TArray<UObject*> const& ObjectsForDelete);
 protected:
 	/** Blueprints on which a OnCompiled calllback has been registered, used to refresh data and repopulate the UI */
-	TArray<UBlueprint*> DelegateRegisteredBlueprints;
+	TArray<TObjectPtr<UBlueprint>> DelegateRegisteredBlueprints;
 
 	/** Filter collection this session represents, retrieved from FTraceSourceFiltering */
 	USourceFilterCollection* FilterCollection;

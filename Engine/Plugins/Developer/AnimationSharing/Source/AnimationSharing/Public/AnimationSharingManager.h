@@ -567,7 +567,7 @@ protected:
 	FTickAnimationSharingFunction TickFunction;
 public:
 #if DEBUG_MATERIALS 	
-	static TArray<UMaterialInterface*> DebugMaterials;	
+	static TArray<TObjectPtr<UMaterialInterface>> DebugMaterials;	
 #endif
 	static void SetDebugMaterial(USkeletalMeshComponent* Component, uint8 State);
 	static void SetDebugMaterialForActor(UAnimSharingInstance* Data, uint32 ActorIndex, uint8 State);

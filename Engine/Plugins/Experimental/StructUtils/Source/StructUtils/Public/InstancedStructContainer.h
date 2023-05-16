@@ -53,7 +53,7 @@ private:
 			return Offset + GetStructureSize();
 		}
 
-		const UScriptStruct* ScriptStruct = nullptr;
+		TObjectPtr<const UScriptStruct> ScriptStruct = nullptr;
 		int32 Offset = 0;
 	};
 

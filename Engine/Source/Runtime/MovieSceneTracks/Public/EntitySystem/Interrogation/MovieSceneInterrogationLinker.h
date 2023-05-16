@@ -604,7 +604,7 @@ protected:
 	TUniquePtr<FSystemInterrogatorEntityTracker> EntityTracker;
 
 	/** The linker we own */
-	UMovieSceneEntitySystemLinker* Linker;
+	TObjectPtr<UMovieSceneEntitySystemLinker> Linker;
 
 	/** Initial value cache */
 	TSharedPtr<FInitialValueCache> InitialValueCache;

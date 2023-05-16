@@ -34,7 +34,7 @@ private:
 
 	static void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 
-	static TMap<const UWorld*, UContextualAnimManager*> WorldToManagerMap;
+	static TMap<const UWorld*, TObjectPtr<UContextualAnimManager>> WorldToManagerMap;
 
 	FDelegateHandle OnPreWorldInitDelegateHandle;
 	FDelegateHandle OnPostWorldCleanupDelegateHandle;

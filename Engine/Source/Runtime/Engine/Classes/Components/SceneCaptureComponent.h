@@ -233,7 +233,7 @@ protected:
 	TObjectPtr<class UStaticMesh> CaptureMesh;
 
 	/** The mesh to show visually where the camera is placed */
-	class UStaticMeshComponent* ProxyMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> ProxyMeshComponent;
 
 public:
 	/** Thread safe storage for memory statistics for a scene capture */

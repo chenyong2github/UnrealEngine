@@ -465,7 +465,7 @@ private:
 		FTypedHandleTypeId TypeId = 0;
 		FName TypeName;
 
-		TSortedMap<FName, UObject*, FDefaultAllocator, FNameFastLess> Interfaces;
+		TSortedMap<FName, TObjectPtr<UObject>, FDefaultAllocator, FNameFastLess> Interfaces;
 	};
 
 	template <typename ElementDataType, bool bSupportScriptHandles>

@@ -1629,7 +1629,7 @@ void FCascade::Tick(float DeltaTime)
 	// If a vector field module is selected, update the preview visualization.
 	if (SelectedModule && SelectedModule->IsA(UParticleModuleVectorFieldLocal::StaticClass()))
 	{
-		UParticleModuleVectorFieldLocal* VectorFieldModule = (UParticleModuleVectorFieldLocal*)SelectedModule;
+		UParticleModuleVectorFieldLocal* VectorFieldModule = (UParticleModuleVectorFieldLocal*)SelectedModule.Get();
 		LocalVectorFieldPreviewComponent->VectorField = VectorFieldModule->VectorField;
 		LocalVectorFieldPreviewComponent->SetRelativeLocation_Direct(VectorFieldModule->RelativeTranslation);
 		LocalVectorFieldPreviewComponent->SetRelativeRotation_Direct(VectorFieldModule->RelativeRotation);

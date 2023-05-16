@@ -73,7 +73,7 @@ private:
 	TSet<TWeakObjectPtr<UNaniteDisplacedMesh>> RegisteredNaniteDisplacedMesh;
 
 	// Refer the transient displaced meshes to the GC so that they are not GCed while compiling. Without this a pie session can hitches a lot when the ddc is not primed.
-	TSet<UNaniteDisplacedMesh*> GCReferedNaniteDisplacedMesh;
+	TSet<TObjectPtr<UNaniteDisplacedMesh>> GCReferedNaniteDisplacedMesh;
 
 	FAsyncCompilationNotification Notification;
 

@@ -337,7 +337,7 @@ bool ABrush::IsLevelBoundsRelevant() const
 {
 	// exclude default brush
 	ULevel* Level = GetLevel();
-	return (Level && this != Level->Actors[1]);
+	return (Level && this != Level->Actors[1].Get());
 }
 
 void ABrush::RebuildNavigationData()

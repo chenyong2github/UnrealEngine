@@ -117,7 +117,7 @@ protected:
 	{
 		if (BoundObjects.Contains(Object))
 		{
-			auto& Binding = BoundObjects[Object];
+			ObjectBinding& Binding = BoundObjects[Object];
 			if(!Binding.bIsPermanent)
 			{
 				Binding.Refcount--;
@@ -139,7 +139,7 @@ protected:
 	FGuid BaseGuid;
 
 	/** UObjects currently visible on the renderer side. */
-	TMap<UObject*, ObjectBinding> BoundObjects;
+	TMap<TObjectPtr<UObject>, ObjectBinding> BoundObjects;
 
 	/** Reverse lookup for permanent bindings */
 	TMap<FString, UObject*> PermanentUObjectsByName;

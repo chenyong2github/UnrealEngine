@@ -31,7 +31,7 @@ private:
 	virtual FString GetReferencerName() const override;
 
 private:
-	UUsdAssetCache2* AssetCache;
+	TObjectPtr<UUsdAssetCache2> AssetCache;
 
 	TSharedPtr<class IDetailsView> AssetCacheEditorWidget;
 

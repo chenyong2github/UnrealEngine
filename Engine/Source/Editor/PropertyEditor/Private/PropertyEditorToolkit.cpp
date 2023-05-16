@@ -536,7 +536,7 @@ FText FPropertyEditorToolkit::GetBaseToolkitName() const
 
 FText FPropertyEditorToolkit::GetToolkitName() const
 {
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 
 	int32 NumEditingObjects = EditingObjs.Num();
 
@@ -590,7 +590,7 @@ FText FPropertyEditorToolkit::GetToolkitName() const
 
 FText FPropertyEditorToolkit::GetToolkitToolTipText() const
 {
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 
 	int32 NumEditingObjects = EditingObjs.Num();
 

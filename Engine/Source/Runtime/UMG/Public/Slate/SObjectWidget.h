@@ -102,7 +102,7 @@ class UMG_API SObjectWidget : public SCompoundWidget, public FGCObject
 protected:
 
 	/** The UWidget that created this SObjectWidget who needs to be kept alive. */
-	UUserWidget* WidgetObject;
+	TObjectPtr<UUserWidget> WidgetObject;
 
 private:
 	FORCEINLINE bool CanRouteEvent() const

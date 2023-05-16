@@ -841,7 +841,7 @@ TArray<UARTrackedGeometry*> FAppleARKitSystem::OnGetAllTrackedGeometries() const
 
 TArray<UARPin*> FAppleARKitSystem::OnGetAllPins() const
 {
-	return Pins;
+	return ObjectPtrDecay(Pins);
 }
 
 UARTexture* FAppleARKitSystem::OnGetARTexture(EARTextureType TextureType) const
@@ -879,14 +879,14 @@ UARLightEstimate* FAppleARKitSystem::OnGetCurrentLightEstimate() const
 
 UARPin* FAppleARKitSystem::FindARPinByComponent(const USceneComponent* Component) const
 {
-	return ARKitUtil::PinFromComponent(Component, Pins);
+	return ARKitUtil::PinFromComponent(Component, ObjectPtrDecay(Pins));
 }
 
 UARPin* FAppleARKitSystem::OnPinComponent( USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry, const FName DebugName )
 {
 	if ( ensureMsgf(ComponentToPin != nullptr, TEXT("Cannot pin component.")) )
 	{
-		if (UARPin* FindResult = ARKitUtil::PinFromComponent(ComponentToPin, Pins))
+		if (UARPin* FindResult = ARKitUtil::PinFromComponent(ComponentToPin, ObjectPtrDecay(Pins)))
 		{
 			UE_LOG(LogAppleARKit, Warning, TEXT("Component %s is already pinned. Unpin it first."), *ComponentToPin->GetReadableName());
 			OnRemovePin(FindResult);

@@ -770,7 +770,7 @@ void FCustomizableObjectPopulationClassEditor::TestPopulationClass()
 			if (Population->IsValidPopulation())
 			{
 				// Creating population instances
-				Population->GeneratePopulation(ViewportInstances, TestPopulationInstancesNum);
+				Population->GeneratePopulation(MutableView(ViewportInstances), TestPopulationInstancesNum);
 	
 				if (ViewportInstances.Num() > 0)
 				{

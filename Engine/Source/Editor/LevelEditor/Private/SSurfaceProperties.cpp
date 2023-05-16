@@ -624,7 +624,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructLighting()
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyView = PropertyModule.CreateDetailView(Args);
-	PropertyView->SetObjects( SelectedLightmassSettingsObjects );
+	PropertyView->SetObjects( ObjectPtrDecay(SelectedLightmassSettingsObjects) );
 
 	Parent->AddSlot()
 	.AutoHeight()

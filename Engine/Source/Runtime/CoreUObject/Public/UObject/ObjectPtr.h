@@ -4,6 +4,7 @@
 
 #include "HAL/Platform.h"
 #include "Serialization/StructuredArchive.h"
+#include "Templates/IsTObjectPtr.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectHandle.h"
 
@@ -220,12 +221,6 @@ private:
 template <typename T>
 struct TPrivateObjectPtr;
 
-template <typename T>
-struct TIsTObjectPtr
-{
-	enum { Value = false };
-};
-
 namespace ObjectPtr_Private
 {
 	/** Coerce to pointer through implicit conversion to const T* (overload through less specific "const T*" parameter to avoid ambiguity with other coercion options that may also exist. */
@@ -383,6 +378,11 @@ public:
 	>
 	FORCEINLINE TObjectPtr(U&& Object)
 		: ObjectPtr(const_cast<std::remove_const_t<T>*>(ImplicitConv<T*>(Object)))
+	{
+	}
+
+	FORCEINLINE TObjectPtr(T& Object)
+		: ObjectPtr(const_cast<std::remove_const_t<T>*>(&Object))
 	{
 	}
 
@@ -558,11 +558,6 @@ private:
 
 // Equals against nullptr to optimize comparing against nullptr as it avoids resolving
 
-template <typename T> struct TIsTObjectPtr<               TObjectPtr<T>> { enum { Value = true }; };
-template <typename T> struct TIsTObjectPtr<const          TObjectPtr<T>> { enum { Value = true }; };
-template <typename T> struct TIsTObjectPtr<      volatile TObjectPtr<T>> { enum { Value = true }; };
-template <typename T> struct TIsTObjectPtr<const volatile TObjectPtr<T>> { enum { Value = true }; };
-
 template <typename T>
 struct TRemoveObjectPointer
 {
@@ -713,6 +708,18 @@ ToRawPtrArrayUnsafe(TObjectPtr<T>(&ArrayOfPtr)[Size])
 	#else
 	return reinterpret_cast<T**>(ArrayOfPtr);
 	#endif
+}
+
+template <typename T, SIZE_T Size>
+FORCEINLINE const T* const *
+ToRawPtrArray(const TObjectPtr<T>(&ArrayOfPtr)[Size])
+{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
+	using TypeCompat = TContainerElementTypeCompatibility<const TObjectPtr<T>>;
+	TypeCompat::ReinterpretRangeContiguous(&ArrayOfPtr[0], &ArrayOfPtr[Size], Size);
+#endif
+
+	return reinterpret_cast<const T* const *>(ArrayOfPtr);
 }
 
 template <typename T>
@@ -1012,54 +1019,160 @@ using TPointedToType = typename TPointedToTypeImpl<T>::Type;
 
 namespace UE::Core::Private // private facilities; not for direct use
 {
+	template <typename T>
+	struct TObjectPtrDecayTypeOf
+	{
+		using Type = T;
+		static void PerformDecayActions(const T&) { /* nb: intentionally empty */ }
+	};
+
+	template <typename T>
+	struct TObjectPtrDecayTypeOf<TObjectPtr<T>>
+	{
+		using Type = T*;
+
+		static void PerformDecayActions(const TObjectPtr<T>& Value)
+		{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
+			Value.Get();
+#endif
+		}
+	};
+	
+	template <typename T>
+	struct TObjectPtrDecayTypeOf<TSet<T>>
+	{
+		using Type = TSet<typename TObjectPtrDecayTypeOf<T>::Type>;
+
+		static void PerformDecayActions(const TSet<T>& Value)
+		{
+			for (const auto& V : Value)
+			{
+				TObjectPtrDecayTypeOf<T>::PerformDecayActions(V);
+			}
+		}
+	};
+
+	template <typename K, typename V>
+	struct TObjectPtrDecayTypeOf<TMap<K, V>>
+	{
+		using Type = TMap<typename TObjectPtrDecayTypeOf<K>::Type, typename TObjectPtrDecayTypeOf<V>::Type>;
+			
+		static void PerformDecayActions(const TMap<K, V>& Value)
+		{
+			for (const auto& KV : Value)
+			{
+				TObjectPtrDecayTypeOf<K>::PerformDecayActions(KV.Key);
+				TObjectPtrDecayTypeOf<V>::PerformDecayActions(KV.Value);
+			}
+		}
+	};
+
+	template <typename T>
+	struct TObjectPtrDecayTypeOf<TArray<T>>
+	{
+		using Type = TArray<typename TObjectPtrDecayTypeOf<T>::Type>;
+			
+		static void PerformDecayActions(const TArray<T>& Value)
+		{
+			for (const auto& V : Value)
+			{
+				TObjectPtrDecayTypeOf<T>::PerformDecayActions(V);
+			}
+		}
+	};
+
+	template <typename T>
+	struct TObjectPtrWrapTypeOf
+	{
+		using Type = T;
+	};
+	
+	template <typename T>
+	struct TObjectPtrWrapTypeOf<T*>
+	{
+		using Type = TObjectPtr<T>;
+	};
+
+	template <typename T>
+	struct TObjectPtrWrapTypeOf<TArrayView<T>>
+	{
+		using Type = TArrayView<typename TObjectPtrWrapTypeOf<T>::Type>;
+	};
+	
+	template <typename T>
+	struct TObjectPtrWrapTypeOf<TArray<T>>
+	{
+		using Type = TArray<typename TObjectPtrWrapTypeOf<T>::Type>;
+	};
+
+	template <typename T>
+	struct TObjectPtrWrapTypeOf<TSet<T>>
+	{
+		using Type = TSet<typename TObjectPtrWrapTypeOf<T>::Type>;
+	};
+
+	template <typename K, typename V>
+	struct TObjectPtrWrapTypeOf<TMap<K, V>>
+	{
+		using Type = TMap<typename TObjectPtrWrapTypeOf<K>::Type, typename TObjectPtrWrapTypeOf<V>::Type>;
+	};	
+
 	namespace Unsafe
 	{
-		template <typename T, typename AllocatorType>
-		TArray<T*, AllocatorType>& Decay(TArray<TObjectPtr<T>, AllocatorType>& A)
+		template <typename T,
+							typename DecayTraits = UE::Core::Private::TObjectPtrDecayTypeOf<T>,
+							typename U = typename DecayTraits::Type>
+		[[nodiscard]] U& Decay(T& A)
 		{
-			return *reinterpret_cast<TArray<T*, AllocatorType>*>(&A);
+			DecayTraits::PerformDecayActions(A);
+			return reinterpret_cast<U&>(A);
 		}
 	}
 
-	template <typename T>
+	template <typename T, typename ViewType>
 	struct TMutableViewTraits
 	{
 		static_assert(sizeof(T) == 0, "TMutableView not supported for this type. (Should it be?)");
 	};
 
-	template <typename T, typename AllocatorType>
-	struct TMutableViewTraits<TArray<TObjectPtr<T>, AllocatorType>>
+	template <typename T, typename ViewType>
+	struct TMutableViewTraits<TObjectPtr<T>, ViewType>
 	{
-		using ViewType = TArray<T*, AllocatorType>;
-
-		static ViewType& Open(TArray<TObjectPtr<T>, AllocatorType>& Array)
-		{
-#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE || UE_WITH_OBJECT_HANDLE_TRACKING
-			for (TObjectPtr<T>& Obj : Array)
-			{
-				Obj.Get();
-			}
-#endif
-			return Unsafe::Decay(Array);
-		}
-
 		static void Close(ViewType& View)
 		{
- 			// TODO: reenable this once GC Barriers merge
+			// TODO: Run GC barrier here
+		}
+	};
+	
+	template <typename T, typename ViewType>
+	struct TMutableViewTraits<TArray<TObjectPtr<T>>, ViewType>
+	{
+		static void Close(ViewType& View)
+		{
+			// TODO: reenable this once GC Barriers merge
 			//RunGCBarriers(reinterpret_cast<const UObject* const*>(View.GetData()), View.Num());
 		}
 	};
 
+	template <typename K, typename V, typename ViewType>
+	struct TMutableViewTraits<TMap<K, V>, ViewType>
+	{
+		static void Close(ViewType& View)
+		{
+			// TODO: Run GC Barriers
+		}
+	};
+	
 	template <typename T>
 	class TMutableView
 	{
-		using TraitType = UE::Core::Private::TMutableViewTraits<T>;
-
 	public:
-		using ViewType = typename TraitType::ViewType;
+		using ViewType = typename TObjectPtrDecayTypeOf<T>::Type;
+		using TraitType = UE::Core::Private::TMutableViewTraits<T, ViewType>;
 
 		explicit TMutableView(T& Value)
-			: View{&TraitType::Open(Value)}
+			: View{&Unsafe::Decay(Value)}
 		{
 		}
 
@@ -1072,8 +1185,8 @@ namespace UE::Core::Private // private facilities; not for direct use
 		TMutableView(TMutableView&&) = delete;
 		TMutableView& operator=(const TMutableView&) = delete;
 		TMutableView& operator=(TMutableView&&) = delete;
-
-		operator ViewType&()
+		
+		operator ViewType&() const
 		{
 			return *View;
 		}
@@ -1087,35 +1200,100 @@ namespace UE::Core::Private // private facilities; not for direct use
 	MutableView: safely obtain temporary mutable access to a TObjectPtr's
 							 underlying storage.
 
-	Eg:
+	// Basic Usage:
 
-	void MutatingFunc(TArray<UObject*>& MutableArray);
+		void MutatingFunc(TArray<UObject*>& MutableArray);
 
-	TArray<TObjectPtr<UObject>> Array;
-	MutatingFunc(Array);							 // unsafe; compile error
+		TArray<TObjectPtr<UObject>> Array;
+		MutatingFunc(Array);							 // unsafe; compile error
 
-	MutatingFunc(MutableView(Array));			 // ok; Array will safely "catch up" on TObjectPtr
-																				 // semantics when MutatingFunc returns.
+		MutatingFunc(MutableView(Array));			 // ok; Array will safely "catch up" on TObjectPtr
+																					 // semantics when MutatingFunc returns.
 
-	// it's generally preferable to pass references around (to avoid nullptr),
-	// but for compat with existing functions that take a pointer:
+		// it's generally preferable to pass references around (to avoid nullptr),
+		// but for compat with existing functions that take a pointer:
 
-	void NeedsAPointer(TArray<UObject*>* MutableArrayPtr);
+		void NeedsAPointer(TArray<UObject*>* MutableArrayPtr);
+		NeedsAPointer(ToRawPtr(MutableView(Array)));
 
-	NeedsAPointer(ToRawPtr(MutableView(Array)));
+	// Scoped Usage:
+
+		TObjectPtr<UObject> MyPtr;
+		{
+			auto MyScopedView = MutableView(MyPtr);
+			UObject*& MyRawPtrRef = MyScopedView;									 // ok
+
+			UObject*& MyHardToFindBug = MutableView(MyPtr);				 // not ok
+		}
 */
 
 template <typename T>
-[[nodiscard]] UE::Core::Private::TMutableView<T> MutableView(T& A)
+[[nodiscard]] decltype(auto) MutableView(T& A)
 {
 	return UE::Core::Private::TMutableView<T>{A};
 }
 
 template <typename T>
-[[nodiscard]] decltype(auto) ToRawPtr(UE::Core::Private::TMutableView<T>&& X)
+[[nodiscard]] decltype(auto) ToRawPtr(const UE::Core::Private::TMutableView<T>& X)
 {
-	typename UE::Core::Private::TMutableView<T>::ViewType& Ref = X;
+	typename std::remove_reference_t<decltype(X)>::ViewType& Ref = X;
 	return &Ref;
+}
+
+/*
+	whenever const access to the underlying storage of a TObjectPtr<...> (or a container of them)
+	is needed, use Decay, eg:
+
+		TMap<int, TArray<TObjectPtr<UObject>>> MyContainer;
+
+		void MyFunc(const TMap<int, TArray<UObject*>>&);
+
+		MyFunc(MyContainer);							// compile error
+		MyFunc(ObjectPtrDecay(MyContainer));				// ok
+*/
+template <typename T,
+					typename DecayTraits = typename UE::Core::Private::TObjectPtrDecayTypeOf<T>,
+					typename U = typename DecayTraits::Type>
+[[nodiscard]] const U& ObjectPtrDecay(const T& Value)
+{
+	DecayTraits::PerformDecayActions(Value);
+	return reinterpret_cast<const U&>(Value);
+}
+
+/*
+	"Wrap" is the opposite of "Decay"
+*/
+template <typename T,
+					typename U = typename UE::Core::Private::TObjectPtrWrapTypeOf<T>::Type>
+[[nodiscard]] U& ObjectPtrWrap(T& Value)
+{
+	return reinterpret_cast<U&>(Value);
+}
+
+template <typename T,
+					typename U = typename UE::Core::Private::TObjectPtrWrapTypeOf<T>::Type>
+[[nodiscard]] const U& ObjectPtrWrap(const T& Value)
+{
+	return reinterpret_cast<const U&>(Value);
+}
+
+/* cast utilities; best avoided, use mostly for compatibility with existing code */
+template <typename To, typename From>
+FORCEINLINE To* StaticCastPtr(const TObjectPtr<From>& P)
+{
+	return static_cast<To*>(P.Get());
+}
+
+template <typename T>
+FORCEINLINE TObjectPtr<T>& ConstCast(const TObjectPtr<T>& P)
+{
+	return reinterpret_cast<TObjectPtr<T>&>(const_cast<TObjectPtr<T>&>(P));
+}
+
+template <typename T>
+FORCEINLINE TObjectPtr<T>& ConstCast(const TObjectPtr<const T>& P)
+{
+	return reinterpret_cast<TObjectPtr<T>&>(const_cast<TObjectPtr<const T>&>(P));
 }
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3

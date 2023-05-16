@@ -22,9 +22,11 @@ class UReimportSpeedTreeFactory : public USpeedTreeImportFactory, public FReimpo
 	virtual void SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths) override;
 	virtual EReimportResult::Type Reimport(UObject* Obj) override;
 	virtual int32 GetPriority() const override;
-	virtual const UObject* GetFactoryObject() const { return this; }
+	virtual TObjectPtr<UObject>* GetFactoryObject() const override
+	{
+		return &GCMark;
+	}
+
+	mutable TObjectPtr<UObject> GCMark{this};
 	//~ End FReimportHandler interface
 };
-
-
-

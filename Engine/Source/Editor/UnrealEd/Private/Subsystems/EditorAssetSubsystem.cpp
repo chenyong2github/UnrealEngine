@@ -667,7 +667,7 @@ bool UEditorAssetSubsystem::ConsolidateAssets(UObject* AssetToConsolidateTo, con
 	if (ConsResults.DirtiedPackages.Num() > 0 && ConsResults.FailedConsolidationObjs.Num() == 0)
 	{
 		const bool bOnlyIfIsDirty = false;
-		UEditorLoadingAndSavingUtils::SavePackages(ConsResults.DirtiedPackages, bOnlyIfIsDirty);
+		UEditorLoadingAndSavingUtils::SavePackages(ObjectPtrDecay(ConsResults.DirtiedPackages), bOnlyIfIsDirty);
 	}
 	// If the consolidation resulted in failed (partially consolidated) objects, do not save, and inform the user no save attempt was made
 	else if (ConsResults.FailedConsolidationObjs.Num() > 0)

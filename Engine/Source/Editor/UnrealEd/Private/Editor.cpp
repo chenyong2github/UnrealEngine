@@ -676,10 +676,10 @@ void FReimportManager::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	for(FReimportHandler* Handler : Handlers)
 	{
-		const UObject* Obj = Handler->GetFactoryObject();
-		if(Obj)
+		TObjectPtr<UObject>* Obj = Handler->GetFactoryObject();
+		if(Obj && *Obj)
 		{
-			Collector.AddReferencedObject(Obj);
+			Collector.AddReferencedObject(*Obj);
 		}
 	}
 }

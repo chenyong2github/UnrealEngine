@@ -74,7 +74,7 @@ bool FNDisplayLiveLinkSubjectReplicator::DeserializeFromString(const FString& St
 
 void FNDisplayLiveLinkSubjectReplicator::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (const UNDisplayAgentVirtualSubject* Subject : TrackedSubjects)
+	for (auto& Subject : TrackedSubjects)
 	{
 		Collector.AddReferencedObject(Subject);
 	}
@@ -246,7 +246,7 @@ void FNDisplayLiveLinkSubjectReplicator::OnDataSynchronization(FArchive& Ar)
 					FLiveLinkSubjectFrameData SubjectFrameData;
 					if (LiveLinkClient->EvaluateFrame_AnyThread(SubjectName, SubjectRole, SubjectFrameData))
 					{
-						if (UNDisplayAgentVirtualSubject** FoundSujectDataPtr = TrackedSubjects.FindByPredicate(
+						if (auto* FoundSujectDataPtr = TrackedSubjects.FindByPredicate(
 							[SubjectKey](const UNDisplayAgentVirtualSubject* Other) { return Other->GetAssociatedSubjectKey().SubjectName == SubjectKey.SubjectName; }))
 						{
 							UNDisplayAgentVirtualSubject* FoundSubjectData = *FoundSujectDataPtr;
@@ -375,7 +375,7 @@ void FNDisplayLiveLinkSubjectReplicator::HandleNewSubject(FArchive& Ar, FLiveLin
 
 	//Verify if we're already tracking that subject
 	UNDisplayAgentVirtualSubject* TrackedSubject = nullptr;
-	if (UNDisplayAgentVirtualSubject** FoundSujectDataPtr = TrackedSubjects.FindByPredicate(
+	if (auto* FoundSujectDataPtr = TrackedSubjects.FindByPredicate(
 		[SubjectKey](const UNDisplayAgentVirtualSubject* Other) { return Other->GetAssociatedSubjectKey().SubjectName == SubjectKey.SubjectName; }))
 	{
 		TrackedSubject = *FoundSujectDataPtr;
@@ -471,7 +471,7 @@ void FNDisplayLiveLinkSubjectReplicator::HandleNewSubject(FArchive& Ar, FLiveLin
 void FNDisplayLiveLinkSubjectReplicator::ProcessLiveLinkData_Agent(EFrameType FrameType, const FLiveLinkSubjectKey& SubjectKey, FLiveLinkFrameDataStruct& FrameData)
 {
 	//Find associated tracked subject data to broadcast role and static data. Should always be found
-	UNDisplayAgentVirtualSubject** FoundTrackedSubjectPtr = TrackedSubjects.FindByPredicate([SubjectKey](const UNDisplayAgentVirtualSubject* Other) { return Other->GetAssociatedSubjectKey() == SubjectKey; });
+	auto* FoundTrackedSubjectPtr = TrackedSubjects.FindByPredicate([SubjectKey](const UNDisplayAgentVirtualSubject* Other) { return Other->GetAssociatedSubjectKey() == SubjectKey; });
 	check(FoundTrackedSubjectPtr);
 	UNDisplayAgentVirtualSubject* FoundTrackedSubject = *FoundTrackedSubjectPtr;
 	

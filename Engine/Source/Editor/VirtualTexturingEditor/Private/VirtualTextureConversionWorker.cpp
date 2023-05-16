@@ -100,15 +100,16 @@ void FVirtualTextureConversionWorker::AddReferencedObjects( FReferenceCollector&
 	Collector.AddReferencedObjects( SizeRejectedTextures );
 	Collector.AddReferencedObjects( MaterialRejectedTextures );
 
-	TArray<UObject*> AuditTrailKeys;
-	AuditTrail.GetKeys(AuditTrailKeys);
-	Collector.AddReferencedObjects( AuditTrailKeys );
+	for (auto& KV : AuditTrail)
+	{
+		Collector.AddReferencedObject(KV.Key);
+	}
 }
 
 void FVirtualTextureConversionWorker::FindAllTexturesAndMaterials_Iteration(TSet<UMaterial*>& InAffectedMaterials,
 	TSet<UMaterialFunctionInterface*>& InAffectedFunctions,
 	TSet<UTexture2D*>& InAffectedTextures,
-	TSet<UTexture2D*>& InInvalidTextures,
+																																						TSet<TObjectPtr<UTexture2D>>& InInvalidTextures,
 	FScopedSlowTask& Task)
 {
 	TArray<UMaterialInterface *>MaterialInferfaces; // All parents and instances
@@ -439,15 +440,15 @@ void FVirtualTextureConversionWorker::FindAllTexturesAndMaterials_Iteration(TSet
 	}
 }
 
-void FVirtualTextureConversionWorker::FindAllTexturesAndMaterials(TArray<UMaterial *> &OutAffectedMaterials, TArray<UMaterialFunctionInterface *> &OutAffectedFunctions, TArray<UTexture2D *> &OutAffectedTextures)
+void FVirtualTextureConversionWorker::FindAllTexturesAndMaterials(TArray<TObjectPtr<UMaterial >> &OutAffectedMaterials, TArray<TObjectPtr<UMaterialFunctionInterface >> &OutAffectedFunctions, TArray<TObjectPtr<UTexture2D >> &OutAffectedTextures)
 {
 	FScopedSlowTask SlowTask(1000.0f, LOCTEXT("ConvertToVT_Progress_FindAllTexturesAndMaterials", "Finding Textures and Materials..."));
 	TSet<UMaterial*> AffectedMaterials;
 	TSet<UMaterialFunctionInterface*> AffectedFunctions;
 	TSet<UTexture2D*> AffectedTextures;
-	AffectedMaterials.Append(OutAffectedMaterials);
-	AffectedFunctions.Append(OutAffectedFunctions);
-	AffectedTextures.Append(OutAffectedTextures);
+	AffectedMaterials.Append(ObjectPtrDecay(OutAffectedMaterials));
+	AffectedFunctions.Append(ObjectPtrDecay(OutAffectedFunctions));
+	AffectedTextures.Append(ObjectPtrDecay(OutAffectedTextures));
 	int LastNumMaterials = AffectedMaterials.Num();
 	int LastNumTextures = AffectedTextures.Num();
 	int LastNumFunctions = AffectedFunctions.Num();
@@ -464,9 +465,9 @@ void FVirtualTextureConversionWorker::FindAllTexturesAndMaterials(TArray<UMateri
 		LastNumTextures = AffectedTextures.Num();
 		LastNumFunctions = AffectedFunctions.Num();
 	}
-	OutAffectedMaterials = AffectedMaterials.Array();
-	OutAffectedFunctions = AffectedFunctions.Array();
-	OutAffectedTextures = AffectedTextures.Array();
+	OutAffectedMaterials = ObjectPtrWrap(AffectedMaterials.Array());
+	OutAffectedFunctions = ObjectPtrWrap(AffectedFunctions.Array());
+	OutAffectedTextures = ObjectPtrWrap(AffectedTextures.Array());
 }
 
 void FVirtualTextureConversionWorker::FilterList(int32 SizeThreshold)

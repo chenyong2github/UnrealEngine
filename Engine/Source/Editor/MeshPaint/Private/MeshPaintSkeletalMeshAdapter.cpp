@@ -198,7 +198,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::InitializeAdapterGlobals()
 
 void FMeshPaintGeometryAdapterForSkeletalMeshes::CleanupGlobals()
 {
-	for (TPair<USkeletalMesh*, FSkeletalMeshReferencers>& Pair : MeshToComponentMap)
+	for (auto& Pair : MeshToComponentMap)
 	{
 		if (Pair.Key && Pair.Value.RestoreBodySetup)
 		{
@@ -408,7 +408,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::ApplyOrRemoveTextureOverride(UT
 
 void FMeshPaintGeometryAdapterForSkeletalMeshes::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
 {
-	for (TPair<USkeletalMesh*, FSkeletalMeshReferencers>& Pair : MeshToComponentMap)
+	for (auto& Pair : MeshToComponentMap)
 	{
 		Collector.AddReferencedObject(Pair.Key);
 		Collector.AddReferencedObject(Pair.Value.RestoreBodySetup);

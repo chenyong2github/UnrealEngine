@@ -55,7 +55,7 @@ private:
 	static const FName ViewportTabId;
 	static const FName PropertiesTabId;
 
-	UWaterWavesAssetReference* WaterWavesAssetRef = nullptr;
+	TObjectPtr<UWaterWavesAssetReference> WaterWavesAssetRef = nullptr;
 
 	// Tracking the active viewports in this editor.
 	TSharedPtr<FEditorViewportTabContent> ViewportTabContent;

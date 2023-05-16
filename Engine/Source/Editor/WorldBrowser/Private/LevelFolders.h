@@ -146,7 +146,7 @@ private:
 private:
 
 	/** Transient map of folders, keyed off level path name  */
-	TMap<FLevelModelKey /*Level Path Name*/, UEditorLevelFolders*> TemporaryLevelFolders;
+	TMap<FLevelModelKey /*Level Path Name*/, TObjectPtr<UEditorLevelFolders>> TemporaryLevelFolders;
 
 	/** Maps level paths to level model objects, to clear out unloaded level model information when necessary */
 	TMap<FLevelModelKey, TWeakPtr<FLevelModel>> TemporaryModelObjects;

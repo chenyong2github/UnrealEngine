@@ -287,8 +287,8 @@ private:
 	TWeakObjectPtr<UWorld> World;
 	uint32 WorldID;
 
-	USoundBase* Sound;
-	USoundEffectSourcePresetChain* SourceEffectChain;
+	TObjectPtr<USoundBase> Sound;
+	TObjectPtr<USoundEffectSourcePresetChain> SourceEffectChain;
 
 	uint64 AudioComponentID;
 	FName AudioComponentUserID;
@@ -337,7 +337,8 @@ public:
 	USoundBase* GetSound() const { return Sound; }
 	void SetSound(USoundBase* InSound);
 
-	USoundEffectSourcePresetChain* GetSourceEffectChain() const { return SourceEffectChain ? SourceEffectChain : ToRawPtr(Sound->SourceEffectChain); }
+	USoundEffectSourcePresetChain* GetSourceEffectChain() const { return SourceEffectChain ? ToRawPtr(SourceEffectChain) : ToRawPtr(Sound->SourceEffectChain); }
+	
 	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
 
 	void SetSoundClass(USoundClass* SoundClass);
@@ -380,7 +381,7 @@ public:
 
 private:
 	/** Optional SoundClass to override for the sound. */
-	USoundClass* SoundClassOverride;
+	TObjectPtr<USoundClass> SoundClassOverride;
 
 	/** Optional override the submix sends for the sound. */
 	TArray<FSoundSubmixSendInfo> SoundSubmixSendsOverride;

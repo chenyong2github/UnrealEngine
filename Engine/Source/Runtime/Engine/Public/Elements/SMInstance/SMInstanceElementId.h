@@ -90,7 +90,7 @@ struct FSMInstanceElementIdMapEntry
 	UInstancedStaticMeshComponent* Component = nullptr;
 
 #if WITH_EDITORONLY_DATA
-	USMInstanceElementIdMapTransactor* Transactor = nullptr;
+	TObjectPtr<USMInstanceElementIdMapTransactor> Transactor = nullptr;
 #endif	// WITH_EDITORONLY_DATA
 
 	TMap<int32, uint64> InstanceIndexToIdMap;

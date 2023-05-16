@@ -1184,7 +1184,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 
 		if (Connection == nullptr)
 		{
-			UNetConnection** Result = MappedClientConnections.Find(FromAddr);
+			auto* Result = MappedClientConnections.Find(FromAddr);
 
 			if (Result != nullptr)
 			{
@@ -1367,11 +1367,10 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 
 					if (FoundConn != nullptr)
 					{
-						UNetConnection* RemovedConn = nullptr;
+						TObjectPtr<UNetConnection> RemovedConn = nullptr;
 						TSharedRef<FInternetAddr> RemoteAddrRef = FoundConn->RemoteAddr.ToSharedRef();
 
 						verify(MappedClientConnections.RemoveAndCopyValue(RemoteAddrRef, RemovedConn) && RemovedConn == FoundConn);
-
 
 						// @todo: There needs to be a proper/standardized copy API for this. Also in IpConnection.cpp
 						bool bIsValid = false;

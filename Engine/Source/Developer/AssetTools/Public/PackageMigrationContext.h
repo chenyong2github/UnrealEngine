@@ -129,7 +129,7 @@ struct ASSETTOOLS_API FPackageMigrationContext : public FGCObject
 		FString OriginalPackageName;
 
 		FString DestinationFilename;
-		UPackage* InstancedPackage = nullptr;
+		TObjectPtr<UPackage> InstancedPackage = nullptr;
 	};
 
 	FPackageMigrationContext(const FPackageMigrationContext&) = delete;
@@ -162,7 +162,7 @@ private:
 
 		~FScopedTemporalyMovedPackage();
 
-		UPackage* PackageToMove = nullptr;
+		TObjectPtr<UPackage> PackageToMove = nullptr;
 		FString OriginalName;
 	};
 
@@ -183,7 +183,7 @@ private:
 	TArray<FScopedTemporalyMovedPackage> TemporalyMovedPackages;
 
 	// The package that have been moved during the migration
-	TArray<UPackage*> PackagesThatWhereMoved;
+	TArray<TObjectPtr<UPackage>> PackagesThatWhereMoved;
 
 	// The data associated to the packages that take part of the migration process.
 	TArray<FMigrationPackageData> MigrationPackagesData;

@@ -46,8 +46,8 @@ public:
 	FVector3f				TextureV;				// Texture V vector.
 	VerticesArrayType	Vertices;
 	uint32				PolyFlags;				// FPoly & Bsp poly bit flags (PF_).
-	ABrush*				Actor;					// Brush where this originated, or NULL.
-	UMaterialInterface*	Material;				// Material.
+	TObjectPtr<ABrush>				Actor;					// Brush where this originated, or NULL.
+	TObjectPtr<UMaterialInterface>	Material;				// Material.
 	FName				RulesetVariation;		// Name of variation within a ProcBuilding Ruleset for this face
 	FName				ItemName;				// Item name.
 	int32					iLink;					// iBspSurf, or brush fpoly index of first identical polygon, or MAX_uint16.

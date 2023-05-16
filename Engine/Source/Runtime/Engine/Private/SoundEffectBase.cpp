@@ -31,6 +31,11 @@ USoundEffectPreset* FSoundEffectBase::GetPreset()
 	return nullptr;
 }
 
+TWeakObjectPtr<USoundEffectPreset>& FSoundEffectBase::GetPresetPtr()
+{
+	return Preset;
+}
+
 void FSoundEffectBase::ClearPreset()
 {
 	Preset.Reset();

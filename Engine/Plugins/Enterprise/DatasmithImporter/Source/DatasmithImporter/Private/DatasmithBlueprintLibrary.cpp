@@ -1132,7 +1132,7 @@ void FDatasmithImportFactoryCreateFileResult::FillFromImportContext(const FDatas
 	ImportedActors.Append(ImportContext.GetImportedActors());
 
 	ImportedMeshes.Reserve(ImportContext.ImportedStaticMeshes.Num());
-	for ( const TPair< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >& MeshPair : ImportContext.ImportedStaticMeshes )
+	for ( const auto& MeshPair : ImportContext.ImportedStaticMeshes )
 	{
 		ImportedMeshes.Add( MeshPair.Value );
 	}

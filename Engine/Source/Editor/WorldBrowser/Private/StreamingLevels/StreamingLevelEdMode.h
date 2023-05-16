@@ -68,7 +68,7 @@ private:
 private:
 	TWeakObjectPtr<ULevelStreaming> SelectedLevel;
 	FTransform LevelTransform;
-	UMaterialInstanceDynamic* BoxMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> BoxMaterial;
 	FBox LevelBounds;
 	bool bIsTracking;
 	bool bIsDirty;

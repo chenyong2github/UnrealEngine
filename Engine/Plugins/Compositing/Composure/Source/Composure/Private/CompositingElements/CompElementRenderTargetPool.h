@@ -101,7 +101,7 @@ private:
 #if WITH_EDITOR
 		int32 StaleFrameCount = 0;
 #endif 
-		UTextureRenderTarget2D* TextureTarget = nullptr;
+		TObjectPtr<UTextureRenderTarget2D> TextureTarget = nullptr;
 	};
 	TMultiMap<FRenderTargetDesc, FPooledTarget>  RenderTargetPool;
 
@@ -113,5 +113,5 @@ private:
 		TWeakObjectPtr<UObject> Assignee;
 		int32 UsageTags = 0x00;
 	};
-	TMap<UTextureRenderTarget2D*, FTargetAssignee> AssignedTargets;
+	TMap<TObjectPtr<UTextureRenderTarget2D>, FTargetAssignee> AssignedTargets;
 };

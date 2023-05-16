@@ -154,18 +154,18 @@ struct FBlueprintCompilationManagerImpl : public FGCObject
 	// Extension data, could be organized in many ways, but this provides an easy way
 	// to extend blueprint compilation after the graph has been pruned and functions
 	// have been generated (but before code is generated):
-	TMap<UClass*, TArray<UBlueprintCompilerExtension*> > CompilerExtensions;
+	TMap<TObjectPtr<UClass>, TArray<TObjectPtr<UBlueprintCompilerExtension>> > CompilerExtensions;
 
 	// Queued requests to be processed in the next FlushCompilationQueueImpl call:
 	TArray<FBPCompileRequestInternal> QueuedRequests;
 	
 	// Data stored for reinstancing, which finishes much later than compilation,
 	// populated by FlushCompilationQueueImpl, cleared by FlushReinstancingQueueImpl:
-	TMap<UClass*, UClass*> ClassesToReinstance;
+	TMap<TObjectPtr<UClass>, TObjectPtr<UClass>> ClassesToReinstance;
 	
 	// Map to old default values, useful for providing access to this data throughout
 	// the compilation process:
-	TMap<UBlueprint*, UObject*> OldCDOs;
+	TMap<TObjectPtr<UBlueprint>, TObjectPtr<UObject>> OldCDOs;
 	
 	// Blueprints that should be saved after the compilation pass is complete:
 	TArray<UBlueprint*> CompiledBlueprintsToSave;
@@ -202,7 +202,7 @@ FBlueprintCompilationManagerImpl::~FBlueprintCompilationManagerImpl()
 
 void FBlueprintCompilationManagerImpl::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for(TPair<UClass*, TArray<UBlueprintCompilerExtension*>>& Extensions : CompilerExtensions)
+	for(auto& Extensions : CompilerExtensions)
 	{
 		Collector.AddReferencedObject(Extensions.Key);
 		Collector.AddReferencedObjects(Extensions.Value);
@@ -423,7 +423,7 @@ struct FSkeletonFixupData
 		int32 Index = Owner->ScriptAndPropertyObjectReferences.Find(OldFunction);
 		if (Index != INDEX_NONE)
 		{
-			Owner->ScriptAndPropertyObjectReferences[Index] = DelegateProperty->SignatureFunction;
+			Owner->ScriptAndPropertyObjectReferences[Index] = DelegateProperty->SignatureFunction.Get();
 		}
 	}
 };
@@ -1563,7 +1563,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 			}
 
 			FScopedDurationTimer ReinstTimer(GTimeReinstancing);
-			ReinstanceBatch(Reinstancers, ClassesToReinstance, InLoadContext);
+			ReinstanceBatch(Reinstancers, MutableView(ClassesToReinstance), InLoadContext);
 
 			// We purposefully do not remove the OldCDOs yet, need to keep them in memory past first GC
 		}
@@ -1587,7 +1587,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 					{
 						if (const FProperty* MatchingProperty = GenClass->FindPropertyByName(NewInheritedVar.VarName))
 						{
-							FBlueprintEditorUtils::PropertyValueFromString(MatchingProperty, NewInheritedVar.DefaultValue, reinterpret_cast<uint8*>(GenClass->ClassDefaultObject));
+							FBlueprintEditorUtils::PropertyValueFromString(MatchingProperty, NewInheritedVar.DefaultValue, reinterpret_cast<uint8*>(GenClass->ClassDefaultObject.Get()));
 						}
 					}
 				}
@@ -1817,7 +1817,7 @@ void FBlueprintCompilationManagerImpl::FixupDelegateProperties(const TArray<FCom
 	auto FixupDelegateProperty = [&AllFieldMappings](FDelegateProperty* DelegateProperty)
 	{
 		// See if the current signature references a stale function (i.e. one that has been regenerated).
-		UFunction** PossiblyStaleFunctionPtr = &DelegateProperty->SignatureFunction;
+		auto* PossiblyStaleFunctionPtr = &DelegateProperty->SignatureFunction;
 		if (FFieldVariant* GeneratedFunctionMapping = AllFieldMappings.Find(*PossiblyStaleFunctionPtr))
 		{
 			// Update the stale reference to point to the regenerated function instead.
@@ -1863,7 +1863,7 @@ void FBlueprintCompilationManagerImpl::ProcessExtensions(const TArray<FCompilerD
 			UClass* Iter = BP->GetClass();
 			while(Iter != UBlueprint::StaticClass()->GetSuperClass())
 			{
-				TArray<UBlueprintCompilerExtension*>* Extensions = CompilerExtensions.Find(Iter);
+				auto* Extensions = CompilerExtensions.Find(Iter);
 				if(Extensions)
 				{
 					// extension found, store off data from compiler that we want to expose to extensions:
@@ -1921,8 +1921,8 @@ void FBlueprintCompilationManagerImpl::FlushReinstancingQueueImpl(bool bFindAndR
 		
 		TGuardValue<bool> ReinstancingGuard(GIsReinstancing, true);
 		
-		TMap<UClass*, UClass*> ClassesToReinstanceOwned = MoveTemp(ClassesToReinstance);
-		ClassesToReinstance = TMap<UClass*, UClass*>();
+		TMap<UClass*, UClass*> ClassesToReinstanceOwned = ObjectPtrDecay(MoveTemp(ClassesToReinstance));
+		ClassesToReinstance = {};
 
 		FReplaceInstancesOfClassParameters Options;
 		Options.bArchetypesAreUpToDate = true;
@@ -1948,12 +1948,12 @@ void FBlueprintCompilationManagerImpl::FlushReinstancingQueueImpl(bool bFindAndR
 				}
 			}
 			// preserve any pairs that are currently loading:
-			ClassesToReinstance = MoveTemp(ClassesToReinstanceOwned);
+			ClassesToReinstance = ObjectPtrWrap(MoveTemp(ClassesToReinstanceOwned));
 		}
 		else
 		{
 			// Make sure to cleanup all properties that couldn't be destroyed in PurgeClass
-			for (TMap<UClass*, UClass*>::TIterator It(ClassesToReinstanceOwned); It; ++It)
+			for (decltype(ClassesToReinstanceOwned)::TIterator It(ClassesToReinstanceOwned); It; ++It)
 			{
 				It->Key->DestroyPropertiesPendingDestruction();
 				It->Value->DestroyPropertiesPendingDestruction();
@@ -1991,21 +1991,21 @@ void FBlueprintCompilationManagerImpl::GetDefaultValue(const UClass* ForClass, c
 
 	if (ForClass->ClassDefaultObject)
 	{
-		FBlueprintEditorUtils::PropertyValueToString(Property, (uint8*)ForClass->ClassDefaultObject, OutDefaultValueAsString);
+		FBlueprintEditorUtils::PropertyValueToString(Property, (uint8*)ForClass->ClassDefaultObject.Get(), OutDefaultValueAsString);
 	}
 	else
 	{
 		UBlueprint* BP = Cast<UBlueprint>(ForClass->ClassGeneratedBy);
 		if(ensure(BP))
 		{
-			const UObject* const* OldCDO = OldCDOs.Find(BP);
+			const auto* OldCDO = OldCDOs.Find(BP);
 			if(OldCDO && *OldCDO)
 			{
 				const UClass* OldClass = (*OldCDO)->GetClass();
 				const FProperty* OldProperty = OldClass->FindPropertyByName(Property->GetFName());
 				if(OldProperty)
 				{
-					FBlueprintEditorUtils::PropertyValueToString(OldProperty, (uint8*)*OldCDO, OutDefaultValueAsString);
+					FBlueprintEditorUtils::PropertyValueToString(OldProperty, (uint8*)OldCDO->Get(), OutDefaultValueAsString);
 				}
 			}
 		}
@@ -2738,7 +2738,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 			CompilerContext.ValidateVariableNames();
 		}
 
-		CompilerContext.CleanAndSanitizeClass(Ret, Ret->ClassDefaultObject);
+		CompilerContext.CleanAndSanitizeClass(Ret, MutableView(Ret->ClassDefaultObject));
 	}
 	
 	Ret->ClassGeneratedBy = BP;
@@ -3019,7 +3019,9 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 		}
 	};
 
-	UField** CurrentFieldStorageLocation = &Ret->Children;
+
+	auto RetChildrenScope = MutableView(Ret->Children);
+	UField** CurrentFieldStorageLocation = ToRawPtr(RetChildrenScope);
 	
 	// Helper function for making UFunctions generated for 'event' nodes, e.g. custom event and timelines
 	const auto MakeEventFunction = [&CurrentFieldStorageLocation, MakeFunction, Schema]( FName InName, EFunctionFlags ExtraFnFlags, const TArray<UEdGraphPin*>& InputPins, const TArray< TSharedPtr<FUserPinInfo> >& UserPins, UFunction* InSourceFN, bool bInCallInEditor, bool bIsDeprecated, const FString& DeprecationMessage, FKismetUserDeclaredFunctionMetadata* UserDefinedMetaData = nullptr)

@@ -1042,7 +1042,7 @@ public:
 	TMap<FName, TArray<UMaterialExpression*> > EditorParameters;
 
 	/** EdGraph based representation of the Material */
-	class UMaterialGraph*	MaterialGraph;
+	TObjectPtr<class UMaterialGraph>	MaterialGraph;
 #endif //WITH_EDITORONLY_DATA
 
 private:

@@ -705,7 +705,7 @@ bool FNiagaraBakerRenderer::ExportImage(FStringView FilePath, FIntPoint ImageSiz
 	return FFileHelper::SaveArrayToFile(TempData, FilePath.GetData());
 }
 
-void FNiagaraBakerRenderer::CreatePreviewScene(UNiagaraSystem* NiagaraSystem, UNiagaraComponent*& OutComponent, TSharedPtr<FAdvancedPreviewScene>& OutPreviewScene)
+void FNiagaraBakerRenderer::CreatePreviewScene(UNiagaraSystem* NiagaraSystem, TObjectPtr<UNiagaraComponent>& OutComponent, TSharedPtr<FAdvancedPreviewScene>& OutPreviewScene)
 {
 	check(NiagaraSystem);
 	OutComponent = NewObject<UNiagaraComponent>(GetTransientPackage(), NAME_None, RF_Transient);
@@ -724,7 +724,7 @@ void FNiagaraBakerRenderer::CreatePreviewScene(UNiagaraSystem* NiagaraSystem, UN
 	OutPreviewScene->AddComponent(OutComponent, OutComponent->GetRelativeTransform());
 }
 
-void FNiagaraBakerRenderer::DestroyPreviewScene(UNiagaraComponent*& InOutComponent, TSharedPtr<FAdvancedPreviewScene>& InOutPreviewScene)
+void FNiagaraBakerRenderer::DestroyPreviewScene(TObjectPtr<UNiagaraComponent>& InOutComponent, TSharedPtr<FAdvancedPreviewScene>& InOutPreviewScene)
 {
 	if ( InOutPreviewScene && InOutComponent )
 	{

@@ -62,7 +62,7 @@ private:
 	FFrameNumber MaxFrame;
 	FFrameNumber LastFrame;
 	double TimePassed;
-	UAnimSequence* AnimationObject;
+	TObjectPtr<UAnimSequence> AnimationObject;
 	TArray<FTransform> PreviousSpacesBases;
 	FBlendedHeapCurve PreviousAnimCurves;
 	FTransform PreviousComponentToWorld;

@@ -34,7 +34,7 @@ struct FToolMenuSection;
 
 struct FGeneratedToolMenuWidget
 {
-	UToolMenu* GeneratedMenu;
+	TObjectPtr<UToolMenu> GeneratedMenu;
 	TWeakPtr<SWidget> Widget;
 };
 
@@ -392,7 +392,7 @@ private:
 
 	TMap<FName, FGeneratedToolMenuWidgets> GeneratedMenuWidgets;
 
-	TMap<TWeakPtr<FMultiBox>, TArray<const UObject*>> WidgetObjectReferences;
+	TMap<TWeakPtr<FMultiBox>, TArray<TObjectPtr<const UObject>>> WidgetObjectReferences;
 
 	TArray<FToolMenuOwner> OwnerStack;
 

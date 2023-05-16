@@ -1186,7 +1186,7 @@ protected:
 	static bool bIsPIEActive;
 
 	static TMap<INavLinkCustomInterface*, FWeakObjectPtr> PendingCustomLinkRegistration;
-	TSet<const UClass*> NavAreaClasses;
+	TSet<TObjectPtr<const UClass>> NavAreaClasses;
 
 	FNavRegenTimeSliceManager NavRegenTimeSliceManager;
 

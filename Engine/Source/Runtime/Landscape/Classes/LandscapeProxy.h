@@ -819,7 +819,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Map of material instance constants used to for the components. Key is generated with ULandscapeComponent::GetLayerAllocationKey() */
-	TMap<FString, UMaterialInstanceConstant*> MaterialInstanceConstantMap;
+	TMap<FString, TObjectPtr<UMaterialInstanceConstant>> MaterialInstanceConstantMap;
 #endif // WITH_EDITORONLY_DATA
 
 	// Blueprint functions

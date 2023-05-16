@@ -39,7 +39,7 @@ public:
 	static bool CreateAnimationSharingManager(UWorld* InWorld, const UAnimationSharingSetup* Setup);
 private:	
 	static void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
-	static TMap<const UWorld*, UAnimationSharingManager*> WorldAnimSharingManagers;
+	static TMap<const UWorld*, TObjectPtr<UAnimationSharingManager>> WorldAnimSharingManagers;
 	static FOnAnimationSharingManagerCreated OnAnimationSharingManagerCreated;
 };
 

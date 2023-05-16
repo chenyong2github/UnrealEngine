@@ -511,13 +511,13 @@ TOptional<EMouseCursor::Type> SDisplayClusterConfiguratorBaseNode::GetCursor() c
 int32 SDisplayClusterConfiguratorBaseNode::GetNodeLogicalLayer() const
 {
 	UDisplayClusterConfiguratorBaseNode* EdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorBaseNode>();
-	return EdNode->GetNodeLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+	return EdNode->GetNodeLayer(ObjectPtrDecay(GetOwnerPanel()->SelectionManager.SelectedNodes));
 }
 
 int32 SDisplayClusterConfiguratorBaseNode::GetNodeVisualLayer() const
 {
 	UDisplayClusterConfiguratorBaseNode* EdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorBaseNode>();
-	return EdNode->GetNodeLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+	return EdNode->GetNodeLayer(ObjectPtrDecay(GetOwnerPanel()->SelectionManager.SelectedNodes));
 }
 
 FVector2D SDisplayClusterConfiguratorBaseNode::GetReizeHandleOffset() const

@@ -103,24 +103,24 @@ struct FPaintableTexture
 struct FPaintTexture2DData
 {
 	/** The original texture that we're painting */
-	UTexture2D* PaintingTexture2D;
+	TObjectPtr<UTexture2D> PaintingTexture2D;
 	bool bIsPaintingTexture2DModified;
 
 	/** A copy of the original texture we're painting, used for restoration. */
 	UTexture2D* PaintingTexture2DDuplicate;
 
 	/** Render target texture for painting */
-	UTextureRenderTarget2D* PaintRenderTargetTexture;
+	TObjectPtr<UTextureRenderTarget2D> PaintRenderTargetTexture;
 
 	/** Render target texture used as an input while painting that contains a clone of the original image */
-	UTextureRenderTarget2D* CloneRenderTargetTexture;
+	TObjectPtr<UTextureRenderTarget2D> CloneRenderTargetTexture;
 
 	/** List of materials we are painting on */
-	TArray< UMaterialInterface* > PaintingMaterials;
+	TArray< TObjectPtr<UMaterialInterface> > PaintingMaterials;
 
 	/** Default ctor */
 	FPaintTexture2DData() :
-		PaintingTexture2D(NULL),
+		PaintingTexture2D(nullptr),
 		bIsPaintingTexture2DModified(false),
 		PaintingTexture2DDuplicate(nullptr),
 		PaintRenderTargetTexture(nullptr),

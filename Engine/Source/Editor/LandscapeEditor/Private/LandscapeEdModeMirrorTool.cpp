@@ -27,7 +27,7 @@ class FLandscapeToolMirror : public FLandscapeTool
 {
 protected:
 	FEdModeLandscape* EdMode;
-	UMaterialInstanceDynamic* MirrorPlaneMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> MirrorPlaneMaterial;
 
 	ECoordSystem SavedCoordSystem;
 

@@ -48,7 +48,7 @@ public:
 	virtual bool UsesTransformWidget() const override	{ return true; };
 
 private:
-	class UPhysicsHandleComponent* HandleComp;
+	TObjectPtr<class UPhysicsHandleComponent> HandleComp;
 
 	FVector HandleTargetLocation;
 	FRotator HandleTargetRotation;

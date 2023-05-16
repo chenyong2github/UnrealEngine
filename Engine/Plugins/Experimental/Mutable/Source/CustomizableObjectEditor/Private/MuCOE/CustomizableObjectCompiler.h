@@ -216,7 +216,7 @@ private:
 	TArray<FAssetData> ArrayAssetData;
 
 	/** Array used to protect from garbage collection those COs loaded asynchronously */
-	TArray<UCustomizableObject*> ArrayGCProtect;
+	TArray<TObjectPtr<UCustomizableObject>> ArrayGCProtect;
 
 	/** Flag to know when asynchronous asset loading is being performed */
 	bool PreloadingReferencerAssets;
@@ -243,4 +243,3 @@ private:
 	TSharedPtr<struct FStreamableHandle> AsynchronousStreamableHandlePtr;
 	
 };
-

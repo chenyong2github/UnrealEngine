@@ -66,6 +66,6 @@ private:
 	void HandleEditorEndPIE(bool bIsSimulating);
 
 	TSharedRef<SDockTab> HandleTabManagerSpawnTab( const FSpawnTabArgs& Args, FName TabIdentifier );
-	UBinkMediaPlayer* MediaPlayer;
+	TObjectPtr<UBinkMediaPlayer> MediaPlayer;
 	TSharedRef<ISlateStyle> Style;
 };

@@ -167,7 +167,7 @@ class ENGINE_API USoundSubmixBase : public UObject
 public:
 #if WITH_EDITORONLY_DATA
 	/** EdGraph based representation of the SoundSubmix */
-	UEdGraph* SoundSubmixGraph;
+	TObjectPtr<UEdGraph> SoundSubmixGraph;
 #endif
 
 	// Auto-manage enabling and disabling the submix as a CPU optimization. It will be disabled if the submix and all child submixes are silent. It will re-enable if a sound is sent to the submix or a child submix is audible.
@@ -215,7 +215,7 @@ protected:
 	//~ End UObject Interface.
 
 private:
-	static TArray<USoundSubmixBase*> BackupChildSubmixes;
+	static TArray<TObjectPtr<USoundSubmixBase>> BackupChildSubmixes;
 #endif // WITH_EDITOR
 };
 

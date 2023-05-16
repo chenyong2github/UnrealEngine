@@ -320,20 +320,20 @@ private:
 protected:
 	TSharedPtr<class IDatasmithScene> SceneElement;
 
-	TMap<TWeakPtr<IDatasmithBaseMaterialElement>, UDatasmithBaseMaterialElement*> Materials;
-	TMap<TWeakPtr<IDatasmithMaterialIDElement>, UDatasmithMaterialIDElement*> MaterialIDs;
-	TMap<TWeakPtr<IDatasmithMeshElement>, UDatasmithMeshElement*> Meshes;
-	TMap<TWeakPtr<IDatasmithMeshActorElement>, UDatasmithMeshActorElement*> MeshActors;
-	TMap<TWeakPtr<IDatasmithLightActorElement>, UDatasmithLightActorElement*> LightActors;
-	TMap<TWeakPtr<IDatasmithCameraActorElement>, UDatasmithCameraActorElement*> CameraActors;
-	TMap<TWeakPtr<IDatasmithPostProcessElement>, UDatasmithPostProcessElement*> PostProcesses;
-	TMap<TWeakPtr<IDatasmithTextureElement>, UDatasmithTextureElement*> Textures;
+	TMap<TWeakPtr<IDatasmithBaseMaterialElement>, TObjectPtr<UDatasmithBaseMaterialElement>> Materials;
+	TMap<TWeakPtr<IDatasmithMaterialIDElement>, TObjectPtr<UDatasmithMaterialIDElement>> MaterialIDs;
+	TMap<TWeakPtr<IDatasmithMeshElement>, TObjectPtr<UDatasmithMeshElement>> Meshes;
+	TMap<TWeakPtr<IDatasmithMeshActorElement>, TObjectPtr<UDatasmithMeshActorElement>> MeshActors;
+	TMap<TWeakPtr<IDatasmithLightActorElement>, TObjectPtr<UDatasmithLightActorElement>> LightActors;
+	TMap<TWeakPtr<IDatasmithCameraActorElement>, TObjectPtr<UDatasmithCameraActorElement>> CameraActors;
+	TMap<TWeakPtr<IDatasmithPostProcessElement>, TObjectPtr<UDatasmithPostProcessElement>> PostProcesses;
+	TMap<TWeakPtr<IDatasmithTextureElement>, TObjectPtr<UDatasmithTextureElement>> Textures;
 	TMap<TWeakPtr<IDatasmithMetaDataElement>, UDatasmithMetaDataElement*> MetaData;
 	TMap<TWeakPtr<IDatasmithCustomActorElement>, UDatasmithCustomActorElement*> CustomActors;
-	TMap<TWeakPtr<IDatasmithPropertyCaptureElement>, UDatasmithPropertyCaptureElement*> PropertyCaptures;
-	TMap<TWeakPtr<IDatasmithObjectPropertyCaptureElement>, UDatasmithObjectPropertyCaptureElement*> ObjectPropertyCaptures;
-	TMap<TWeakPtr<IDatasmithActorBindingElement>, UDatasmithActorBindingElement*> ActorBindings;
-	TMap<TWeakPtr<IDatasmithVariantElement>, UDatasmithVariantElement*> Variants;
-	TMap<TWeakPtr<IDatasmithVariantSetElement>, UDatasmithVariantSetElement*> VariantSets;
-	TMap<TWeakPtr<IDatasmithLevelVariantSetsElement>, UDatasmithLevelVariantSetsElement*> LevelVariantSets;
+	TMap<TWeakPtr<IDatasmithPropertyCaptureElement>, TObjectPtr<UDatasmithPropertyCaptureElement>> PropertyCaptures;
+	TMap<TWeakPtr<IDatasmithObjectPropertyCaptureElement>, TObjectPtr<UDatasmithObjectPropertyCaptureElement>> ObjectPropertyCaptures;
+	TMap<TWeakPtr<IDatasmithActorBindingElement>, TObjectPtr<UDatasmithActorBindingElement>> ActorBindings;
+	TMap<TWeakPtr<IDatasmithVariantElement>, TObjectPtr<UDatasmithVariantElement>> Variants;
+	TMap<TWeakPtr<IDatasmithVariantSetElement>, TObjectPtr<UDatasmithVariantSetElement>> VariantSets;
+	TMap<TWeakPtr<IDatasmithLevelVariantSetsElement>, TObjectPtr<UDatasmithLevelVariantSetsElement>> LevelVariantSets;
 };

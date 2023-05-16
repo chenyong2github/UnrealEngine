@@ -119,7 +119,7 @@ UBlueprintNodeSpawner const* FBlueprintDragDropMenuItem::GetSampleAction() const
 //------------------------------------------------------------------------------
 TSet<UBlueprintNodeSpawner const*> const& FBlueprintDragDropMenuItem::GetActionSet() const
 {
-	return ActionSet;
+	return ObjectPtrDecay(ActionSet);
 }
 
 //------------------------------------------------------------------------------

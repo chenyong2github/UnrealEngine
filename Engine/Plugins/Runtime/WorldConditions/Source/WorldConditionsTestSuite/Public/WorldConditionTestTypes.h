@@ -78,7 +78,7 @@ struct FWorldConditionTest : public FWorldConditionBase
 	FWorldConditionTest() = default;
 	explicit FWorldConditionTest(const int32 InTestValue, const bool bInActivateResult = true) : TestValue(InTestValue), bActivateResult(bInActivateResult) {}
 	
-	virtual const UStruct* GetRuntimeStateType() const override { return nullptr; }
+	virtual TObjectPtr<const UStruct>* GetRuntimeStateType() const override { return nullptr; }
 	
 	virtual bool Initialize(const UWorldConditionSchema& Schema) override
 	{
@@ -146,7 +146,11 @@ struct FWorldConditionTestCached : public FWorldConditionBase
 	
 	using FStateType = FWorldConditionTestState;
 	
-	virtual const UStruct* GetRuntimeStateType() const override { return FStateType::StaticStruct(); }
+	virtual TObjectPtr<const UStruct>* GetRuntimeStateType() const override
+	{
+		static TObjectPtr<const UStruct> Ptr{FStateType::StaticStruct()};
+		return &Ptr;
+	}
 	
 	virtual bool Initialize(const UWorldConditionSchema& Schema) override
 	{

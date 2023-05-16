@@ -49,7 +49,7 @@ public:
 	void SetSequencer(TSharedRef<FSequencer> InSequencer);
 	void OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID);
 
-	USequencerTimeChangeUndoRedoProxy* UndoRedoProxy;
+	TObjectPtr<USequencerTimeChangeUndoRedoProxy> UndoRedoProxy;
 	UE::MovieScene::TNonIntrusiveEventHandler<UE::MovieScene::ISignedObjectEventHandler> MovieSceneModified;
 	TWeakPtr<FSequencer> WeakSequencer;
 	FDelegateHandle OnActivateSequenceChangedHandle;

@@ -3723,7 +3723,7 @@ public:
 	 */
 	const TSet<UActorComponent*>& GetComponents() const
 	{
-		return OwnedComponents;
+		return ObjectPtrDecay(OwnedComponents);
 	}
 
 	/**
@@ -3962,7 +3962,7 @@ private:
 	 * All ActorComponents owned by this Actor. Stored as a Set as actors may have a large number of components
 	 * @see GetComponents()
 	 */
-	TSet<UActorComponent*> OwnedComponents;
+	TSet<TObjectPtr<UActorComponent>> OwnedComponents;
 
 #if WITH_EDITOR
 	/** Maps natively-constructed components to properties that reference them. */

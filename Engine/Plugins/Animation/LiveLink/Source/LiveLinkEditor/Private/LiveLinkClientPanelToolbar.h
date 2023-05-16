@@ -63,5 +63,5 @@ private:
 	TWeakPtr<SEditableTextBox> VirtualSubjectSourceName;
 
 	TWeakObjectPtr<ULiveLinkPreset> LiveLinkPreset;
-	TArray<ULiveLinkSourceFactory*> Factories;
+	TArray<TObjectPtr<ULiveLinkSourceFactory>> Factories;
 };

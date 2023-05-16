@@ -125,7 +125,7 @@ struct WORLDCONDITIONS_API FWorldConditionBase
 	virtual ~FWorldConditionBase();
 
 	/** @return The Instance data type of the condition. */
-	virtual const UStruct* GetRuntimeStateType() const { return nullptr; }
+	virtual TObjectPtr<const UStruct>* GetRuntimeStateType() const { return nullptr; }
 
 #if WITH_EDITOR
 	/** @retrun Description to be shown in the UI. */

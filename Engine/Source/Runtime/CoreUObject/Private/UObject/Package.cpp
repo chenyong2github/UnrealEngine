@@ -146,16 +146,16 @@ void UPackage::Serialize( FArchive& Ar )
 
 #if WITH_EDITOR
 bool UPackage::bSupportCookerSoftGC = false;
-TMap<UPackage*, TArrayView<UObject*>> UPackage::SoftGCPackageToObjectList;
+TMap<UPackage*, TArrayView<TObjectPtr<UObject>>> UPackage::SoftGCPackageToObjectList;
 void UPackage::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	if (bSupportCookerSoftGC)
 	{
 		UPackage* ThisPackage = static_cast<UPackage*>(InThis);
-		TArrayView<UObject*>* ObjectList = SoftGCPackageToObjectList.Find(ThisPackage);
+		auto* ObjectList = SoftGCPackageToObjectList.Find(ThisPackage);
 		if (ObjectList)
 		{
-			for (UObject* Object : *ObjectList)
+			for (auto& Object : *ObjectList)
 			{
 				Collector.AddReferencedObject(Object);
 			}

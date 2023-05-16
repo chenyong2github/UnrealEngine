@@ -29,7 +29,7 @@ struct STRUCTUTILS_API FStructSharedMemory
 {
 	~FStructSharedMemory()
 	{
-		ScriptStruct.DestroyStruct(GetMutableMemory());
+		ScriptStruct->DestroyStruct(GetMutableMemory());
 	}
 
 	FStructSharedMemory(const FStructSharedMemory& Other) = delete;
@@ -66,17 +66,22 @@ struct STRUCTUTILS_API FStructSharedMemory
 	/** Returns pointer to aligned struct memory. */
 	const uint8* GetMemory() const
 	{
-		return Align((uint8*)StructMemory, ScriptStruct.GetMinAlignment());
+		return Align((uint8*)StructMemory, ScriptStruct->GetMinAlignment());
 	}
 
 	/** Returns mutable pointer to aligned struct memory. */
 	uint8* GetMutableMemory()
 	{
-		return Align((uint8*)StructMemory, ScriptStruct.GetMinAlignment());
+		return Align((uint8*)StructMemory, ScriptStruct->GetMinAlignment());
 	}
 
 	/** Returns struct type. */
 	const UScriptStruct& GetScriptStruct() const
+	{
+		return *ObjectPtrDecay(ScriptStruct);
+	}
+
+	TObjectPtr<const UScriptStruct>& GetScriptStructPtr() 
 	{
 		return ScriptStruct;
 	}
@@ -85,11 +90,11 @@ private:
 	FStructSharedMemory(const UScriptStruct& InScriptStruct, const uint8* InStructMemory = nullptr)
 		: ScriptStruct(InScriptStruct)
 	{
-		ScriptStruct.InitializeStruct(GetMutableMemory());
+		ScriptStruct->InitializeStruct(GetMutableMemory());
 		
 		if (InStructMemory)
 		{
-			ScriptStruct.CopyScriptStruct(GetMutableMemory(), InStructMemory);
+			ScriptStruct->CopyScriptStruct(GetMutableMemory(), InStructMemory);
 		}
 	}
 
@@ -104,7 +109,7 @@ private:
 		return StructMemory;
 	}
 
-	const UScriptStruct& ScriptStruct;
+	TObjectPtr<const UScriptStruct> ScriptStruct;
 
 	/**
 	 * Memory for the struct described by ScriptStruct will be allocated here using the 'Flexible array member' pattern.
@@ -162,6 +167,11 @@ struct STRUCTUTILS_API FSharedStruct
 	const UScriptStruct* GetScriptStruct() const
 	{
 		return StructMemoryPtr ? &(StructMemoryPtr.Get()->GetScriptStruct()) : nullptr;
+	}
+
+	TObjectPtr<const UScriptStruct>* const GetScriptStructPtr() const
+	{
+		return StructMemoryPtr ? &StructMemoryPtr.Get()->GetScriptStructPtr() : nullptr;
 	}
 
 	/** Returns a mutable pointer to struct memory. */
@@ -374,6 +384,12 @@ struct STRUCTUTILS_API FConstSharedStruct
 	const UScriptStruct* GetScriptStruct() const
 	{
 		return StructMemoryPtr ? &(StructMemoryPtr.Get()->GetScriptStruct()) : nullptr;
+	}
+
+	TObjectPtr<const UScriptStruct>* GetScriptStructPtr()
+	{
+		return StructMemoryPtr ?
+			&const_cast<FStructSharedMemory*>(StructMemoryPtr.Get())->GetScriptStructPtr() : nullptr;
 	}
 
 	/** Returns const pointer to struct memory. */

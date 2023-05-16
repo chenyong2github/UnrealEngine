@@ -51,11 +51,11 @@ void FTestingCustomizableObject::AddReferencedObjects(FReferenceCollector& Colle
 	Collector.AddReferencedObject(Instance);
 	Collector.AddReferencedObject(HelperCallback);
 
-	for (UCustomizableSkeletalComponent* Elem : CustomizableSkeletalComponents)
+	for (auto& Elem : CustomizableSkeletalComponents)
 	{
 		Collector.AddReferencedObject(Elem);
 	}
-	for (USkeletalMeshComponent* Elem : SkeletalMeshComponents)
+	for (auto& Elem : SkeletalMeshComponents)
 	{
 		Collector.AddReferencedObject(Elem);
 	}

@@ -89,15 +89,15 @@ struct TPyWrapperDelegateMetaData : public FPyWrapperBaseMetaData
 	}
 
 	/** Get the delegate signature from the given type */
-	static const PyGenUtil::FGeneratedWrappedFunction& GetDelegateSignature(PyTypeObject* PyType)
+	static PyGenUtil::FGeneratedWrappedFunction& GetDelegateSignature(PyTypeObject* PyType)
 	{
 		TPyWrapperDelegateMetaData* PyWrapperMetaData = TPyWrapperDelegateMetaData::GetMetaData(PyType);
-		static const PyGenUtil::FGeneratedWrappedFunction NullDelegateSignature = PyGenUtil::FGeneratedWrappedFunction();
+		static PyGenUtil::FGeneratedWrappedFunction NullDelegateSignature = PyGenUtil::FGeneratedWrappedFunction();
 		return PyWrapperMetaData ? PyWrapperMetaData->DelegateSignature : NullDelegateSignature;
 	}
 
 	/** Get the delegate signature from the type of the given instance */
-	static const PyGenUtil::FGeneratedWrappedFunction& GetDelegateSignature(WrapperType* Instance)
+	static PyGenUtil::FGeneratedWrappedFunction& GetDelegateSignature(WrapperType* Instance)
 	{
 		return GetDelegateSignature(Py_TYPE(Instance));
 	}
@@ -132,7 +132,7 @@ struct TPyWrapperDelegateMetaData : public FPyWrapperBaseMetaData
 	PyGenUtil::FGeneratedWrappedFunction DelegateSignature;
 
 	/** Generated class type used to wrap Python callables for this delegate type */
-	const UClass* PythonCallableForDelegateClass;
+	TObjectPtr<const UClass> PythonCallableForDelegateClass;
 };
 
 /** Type for all Unreal exposed delegate instances */

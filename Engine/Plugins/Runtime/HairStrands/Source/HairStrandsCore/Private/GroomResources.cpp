@@ -12,6 +12,7 @@
 #include "HairStrandsVertexFactory.h"
 #include "Misc/Paths.h"
 #include "RHIStaticStates.h"
+#include "RHIUtilities.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryReader.h"

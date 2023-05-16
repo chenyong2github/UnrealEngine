@@ -145,7 +145,7 @@ private:
 	FDelegateHandle SequenceEditorHandle;
 	FDelegateHandle TemplateSequenceTrackCreateEditorHandle;
 
-	USequencerSettings* Settings;
+	TObjectPtr<USequencerSettings> Settings;
 };
 
 IMPLEMENT_MODULE(FTemplateSequenceEditorModule, TemplateSequenceEditor);

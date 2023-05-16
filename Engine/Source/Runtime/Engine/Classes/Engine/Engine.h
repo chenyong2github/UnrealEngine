@@ -435,10 +435,15 @@ struct FWorldContext
 	/**************************************************************/
 
 	/** Outside pointers to CurrentWorld that should be kept in sync if current world changes  */
-	TArray<UWorld**> ExternalReferences;
+	TArray<TObjectPtr<UWorld>*> ExternalReferences;
 
 	/** Adds an external reference */
 	void AddRef(UWorld*& WorldPtr)
+	{
+		AddRef(ObjectPtrWrap(WorldPtr));
+	}
+
+	void AddRef(TObjectPtr<UWorld>& WorldPtr)
 	{
 		WorldPtr = ThisCurrentWorld;
 		ExternalReferences.AddUnique(&WorldPtr);
@@ -447,7 +452,7 @@ struct FWorldContext
 	/** Removes an external reference */
 	void RemoveRef(UWorld*& WorldPtr)
 	{
-		ExternalReferences.Remove(&WorldPtr);
+		ExternalReferences.Remove(&ObjectPtrWrap(WorldPtr));
 		WorldPtr = nullptr;
 	}
 
@@ -482,7 +487,7 @@ struct FWorldContext
 
 private:
 
-	UWorld*	ThisCurrentWorld;
+	TObjectPtr<UWorld>	ThisCurrentWorld;
 };
 
 

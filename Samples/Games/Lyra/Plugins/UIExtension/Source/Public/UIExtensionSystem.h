@@ -50,7 +50,7 @@ public:
 	int32 Priority = INDEX_NONE;
 	TWeakObjectPtr<UObject> ContextObject;
 	//Kept alive by UUIExtensionSubsystem::AddReferencedObjects
-	UObject* Data = nullptr;
+	TObjectPtr<UObject> Data = nullptr;
 };
 
 /**
@@ -62,7 +62,7 @@ public:
 	FGameplayTag ExtensionPointTag;
 	TWeakObjectPtr<UObject> ContextObject;
 	EUIExtensionPointMatch ExtensionPointTagMatchType = EUIExtensionPointMatch::ExactMatch;
-	TArray<UClass*> AllowedDataClasses;
+	TArray<TObjectPtr<UClass>> AllowedDataClasses;
 	FExtendExtensionPointDelegate Callback;
 
 	// Tests if the extension and the extension point match up, if they do then this extension point should learn

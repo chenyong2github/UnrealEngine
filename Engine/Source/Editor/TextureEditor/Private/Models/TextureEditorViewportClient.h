@@ -68,5 +68,5 @@ private:
 	TWeakPtr<STextureEditorViewport> TextureEditorViewportPtr;
 
 	/** Checkerboard texture */
-	UTexture2D* CheckerboardTexture;
+	TObjectPtr<UTexture2D> CheckerboardTexture;
 };

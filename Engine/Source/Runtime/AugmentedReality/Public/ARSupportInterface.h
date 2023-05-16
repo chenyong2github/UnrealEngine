@@ -173,6 +173,6 @@ private:
 
 	/** Alignment transform between AR System's tracking space and Unreal's World Space. Useful in static lighting/geometry scenarios. */
 	FTransform AlignmentTransform;
-	UARSessionConfig* ARSettings;
+	TObjectPtr<UARSessionConfig> ARSettings;
 };
 

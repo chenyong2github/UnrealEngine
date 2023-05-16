@@ -18,7 +18,7 @@ struct ANIMGRAPH_API FEdGraphSchemaAction_NewStateNode : public FEdGraphSchemaAc
 {
 	GENERATED_USTRUCT_BODY()
 
-	UEdGraphNode* NodeTemplate;
+	TObjectPtr<UEdGraphNode> NodeTemplate;
 
 	FEdGraphSchemaAction_NewStateNode() 
 		: FEdGraphSchemaAction()

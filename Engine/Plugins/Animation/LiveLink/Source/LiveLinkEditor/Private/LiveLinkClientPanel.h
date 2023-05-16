@@ -148,7 +148,7 @@ private:
 	FDelegateHandle OnSubjectsChangedHandle;
 
 	// Map to cover 
-	TMap<UClass*, UObject*> DetailsPanelEditorObjects;
+	TMap<TObjectPtr<UClass>, TObjectPtr<UObject>> DetailsPanelEditorObjects;
 
 	// Details index
 	int32 DetailWidgetIndex;

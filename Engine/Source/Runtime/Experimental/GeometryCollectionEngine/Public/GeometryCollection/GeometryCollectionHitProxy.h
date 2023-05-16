@@ -12,7 +12,7 @@ struct HGeometryCollection : public HHitProxy
 {
 	DECLARE_HIT_PROXY(GEOMETRYCOLLECTIONENGINE_API)
 
-	UGeometryCollectionComponent* Component;
+	TObjectPtr<UGeometryCollectionComponent> Component;
 	int32 BoneIndex;
 
 	HGeometryCollection(UGeometryCollectionComponent* InGeometryCollectionComponent, int32 InBoneIndex)

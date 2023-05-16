@@ -862,7 +862,7 @@ public:
 			else if (FLiteralTypeHelper::IsStruct(&Term->Type, CoerceProperty))
 			{
 				const FStructProperty* StructProperty = CastField<FStructProperty>(CoerceProperty);
-				UScriptStruct* Struct = StructProperty ? StructProperty->Struct : Cast<UScriptStruct>(Term->Type.PinSubCategoryObject.Get());
+				UScriptStruct* Struct = StructProperty ? ToRawPtr(StructProperty->Struct) : ToRawPtr(Cast<UScriptStruct>(Term->Type.PinSubCategoryObject.Get()));
 				check(Struct);
 
 				if (Struct == VectorStruct)

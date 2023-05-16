@@ -423,7 +423,7 @@ TSharedRef<SDockTab> FUserDefinedEnumEditor::SpawnEnumeratorsTab(const FSpawnTab
 	check( Args.GetTabId() == EnumeratorsTabId );
 
 	UUserDefinedEnum* EditedEnum = NULL;
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 	if (EditingObjs.Num())
 	{
 		EditedEnum = Cast<UUserDefinedEnum>(EditingObjs[ 0 ]);

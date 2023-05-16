@@ -67,7 +67,7 @@ private:
 	virtual void Serialize(FArchive& Ar) override;
 
 	TSparseArray<FMovieSceneTrackInstanceEntry> TrackInstances;
-	TMultiMap<UObject*, int32> BoundObjectToInstances;
+	TMultiMap<TObjectPtr<UObject>, int32> BoundObjectToInstances;
 
 	TBitArray<> InvalidatedOutputs;
 

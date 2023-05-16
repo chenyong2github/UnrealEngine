@@ -1407,7 +1407,7 @@ public:
 	FVersionedNiagaraScriptData* GetScriptData() const;
 
 public:
-	UNiagaraScript* Script = nullptr;
+	TObjectPtr<UNiagaraScript> Script = nullptr;
 
 	FGuid Version;
 #endif

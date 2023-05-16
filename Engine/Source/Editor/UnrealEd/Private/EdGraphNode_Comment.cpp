@@ -164,7 +164,7 @@ void UEdGraphNode_Comment::AddNodeUnderComment(UObject* Object)
 	{
 		CommentDepth = FMath::Min( CommentDepth, ChildComment->CommentDepth - 1 );
 	}
-	NodesUnderComment.Add(Object);
+	NodesUnderComment.Add(ObjectPtrWrap(Object));
 }
 
 void UEdGraphNode_Comment::ClearNodesUnderComment()
@@ -184,7 +184,7 @@ void UEdGraphNode_Comment::SetBounds(const class FSlateRect& Rect)
 
 const FCommentNodeSet& UEdGraphNode_Comment::GetNodesUnderComment() const
 {
-	return NodesUnderComment;
+	return ObjectPtrDecay(NodesUnderComment);
 }
 
 void UEdGraphNode_Comment::OnRenameNode(const FString& NewName)

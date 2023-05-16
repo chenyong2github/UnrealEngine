@@ -112,7 +112,7 @@ FText FSimpleAssetEditor::GetBaseToolkitName() const
 
 FText FSimpleAssetEditor::GetToolkitName() const
 {
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 
 	check( EditingObjs.Num() > 0 );
 
@@ -163,7 +163,7 @@ FText FSimpleAssetEditor::GetToolkitName() const
 
 FText FSimpleAssetEditor::GetToolkitToolTipText() const
 {
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 
 	check( EditingObjs.Num() > 0 );
 

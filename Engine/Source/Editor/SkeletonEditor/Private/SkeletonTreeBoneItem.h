@@ -116,7 +116,7 @@ private:
 
 private:
 	/** Bone proxy object */
-	UBoneProxy* BoneProxy;
+	TObjectPtr<UBoneProxy> BoneProxy;
 
 	/** The actual bone data that we create Slate widgets to display */
 	FName BoneName;

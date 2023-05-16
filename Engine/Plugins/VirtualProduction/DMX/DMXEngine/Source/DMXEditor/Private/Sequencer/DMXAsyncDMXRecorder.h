@@ -137,10 +137,10 @@ private:
 	TMap<FDMXSignalSharedRef, int32 /** LocalUniverseID */> SignalToLocalUniverseMap;
 
 	/** The library of the patches, gc'ed */
-	UDMXLibrary* DMXLibrary;
+	TObjectPtr<UDMXLibrary> DMXLibrary;
 
 	/** The library section to record, gc'ed */
-	UMovieSceneDMXLibrarySection* MovieSceneDMXLibrarySection;
+	TObjectPtr<UMovieSceneDMXLibrarySection> MovieSceneDMXLibrarySection;
 
 	/** If true, records normalized values */
 	bool bRecordNormalizedValues;

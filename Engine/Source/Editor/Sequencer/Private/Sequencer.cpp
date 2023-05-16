@@ -4229,9 +4229,9 @@ void FSequencer::AddReferencedObjects( FReferenceCollector& Collector )
 	{
 		Collector.AddReferencedObject(TimeUndoRedoHandler.UndoRedoProxy);
 	}
-	if (UMovieSceneSequence* RootSequencePtr = RootSequence.Get())
+	if (RootSequence.Get())
 	{
-		Collector.AddReferencedObject( RootSequencePtr );
+		Collector.AddReferencedObject( RootSequence );
 	}
 
 	Collector.AddPropertyReferences(FMovieSceneRootEvaluationTemplateInstance::StaticStruct(), &RootTemplateInstance, nullptr);

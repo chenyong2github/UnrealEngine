@@ -403,7 +403,7 @@ void FDataprepPreviewSystem::EnsureValidityOfTheObservedObjects()
 		ObjectOrdering.Reserve( ObservedSteps.Num() );
 
 		TSet<UDataprepParameterizableObject*> ObservedStepsSet;
-		ObservedStepsSet.Append( ObservedSteps );
+		ObservedStepsSet.Append(ObjectPtrDecay(ObservedSteps));
 
 		bool bShouldUpdateStepsOrder = false;
 
@@ -560,5 +560,3 @@ TStatId FDataprepPreviewSystem::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FDataprepPreviewSystem, STATGROUP_Tickables);
 }
-
-

@@ -144,7 +144,7 @@ private:
 	TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel;
 
 	/** The stack view model which represents the emitter pointed to by this handle. */
-	UNiagaraStackViewModel* EmitterStackViewModel;
+	TObjectPtr<UNiagaraStackViewModel> EmitterStackViewModel;
 
 	/** A multicast delegate which is called any time a property on the handle changes. */
 	FOnPropertyChanged OnPropertyChangedDelegate;

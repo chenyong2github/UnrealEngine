@@ -26,7 +26,7 @@ struct FPyWrapperStruct : public FPyWrapperBase
 	FPyWrapperOwnerContext OwnerContext;
 
 	/** Struct type of this instance */
-	UScriptStruct* ScriptStruct;
+	TObjectPtr<UScriptStruct> ScriptStruct;
 
 	/** Wrapped struct instance */
 	void* StructInstance;
@@ -339,7 +339,7 @@ struct FPyWrapperStructMetaData : public FPyWrapperBaseMetaData
 	}
 
 	/** Unreal struct */
-	UScriptStruct* Struct;
+	TObjectPtr<UScriptStruct> Struct;
 
 	/** Map of properties that were exposed to Python mapped to their original name */
 	TMap<FName, FName> PythonProperties;

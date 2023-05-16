@@ -4504,8 +4504,8 @@ void FRecastTileGenerator::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	for (auto& RelevantData : NavigationRelevantData)
 	{
-		UObject* Owner = RelevantData->GetOwner();
-		if (Owner)
+		auto& Owner = RelevantData->GetOwnerPtr();
+		if (Owner.Get())
 		{
 			Collector.AddReferencedObject(Owner);
 		}

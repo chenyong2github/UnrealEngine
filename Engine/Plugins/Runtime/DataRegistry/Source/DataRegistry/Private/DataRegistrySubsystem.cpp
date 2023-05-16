@@ -168,7 +168,7 @@ DEFINE_FUNCTION(UDataRegistrySubsystem::execGetCachedItemFromLookupBP)
 
 UDataRegistry* UDataRegistrySubsystem::GetRegistryForType(FName RegistryType) const
 {
-	UDataRegistry* const * FoundRegistry = RegistryMap.Find(RegistryType);
+	auto* FoundRegistry = RegistryMap.Find(RegistryType);
 
 	if (FoundRegistry && *FoundRegistry)
 	{

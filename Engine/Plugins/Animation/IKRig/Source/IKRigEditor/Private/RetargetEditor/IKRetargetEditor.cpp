@@ -417,8 +417,7 @@ FString FIKRetargetEditor::GetWorldCentricTabPrefix() const
 void FIKRetargetEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	// hold the asset we are working on
-	const UIKRetargeter* Retargeter = EditorController->AssetController->GetAsset();
-	Collector.AddReferencedObject(Retargeter);
+	Collector.AddReferencedObject(EditorController->AssetController->GetAssetPtr());
 }
 
 void FIKRetargetEditor::Tick(float DeltaTime)

@@ -136,7 +136,7 @@ public:
 
 private:
 	/** The Fixture types being edited */
-	UDMXFixtureTypeSharedDataSelection* Selection;
+	TObjectPtr<UDMXFixtureTypeSharedDataSelection> Selection;
 
 	/** Cache for multi mode copy/paste*/
 	TArray<FString> ModesClipboard;

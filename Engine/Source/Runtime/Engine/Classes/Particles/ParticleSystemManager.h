@@ -30,7 +30,7 @@ struct FPSCTickData
 	FPSCTickData();
 		
 	/** In most cases, PSCs can just consider a single prerequisite if any. i.e. their attach parent. */
-	UActorComponent* PrereqComponent;
+	TObjectPtr<UActorComponent> PrereqComponent;
 
 #if PSC_MAN_USE_STATIC_TICK_LISTS
 	/** Handle into a static tick list, if we're using static lists. */
@@ -169,7 +169,7 @@ private:
 
 	TArray<FParticleSystemWorldManagerTickFunction> TickFunctions;
 	   
-	TArray<UParticleSystemComponent*> ManagedPSCs;
+	TArray<TObjectPtr<UParticleSystemComponent>> ManagedPSCs;
 	TArray<FPSCTickData> PSCTickData;
 	
 	/** Array of PSCs to tick per tick group. These can have their concurrent ticks done in parallel */
@@ -182,7 +182,7 @@ private:
 	PSCs that have been registered with the manager but have not yet been processed into the appropriate buffers.
 	This is done at the beginning of each tick group.
 	*/
-	TArray<UParticleSystemComponent*> PendingRegisterPSCs;
+	TArray<TObjectPtr<UParticleSystemComponent>> PendingRegisterPSCs;
 
 	/** Cached value of r.EnablePSCWorldManager. Allows us to reset all systems when this changes. */
 	int32 bCachedParticleWorldManagerEnabled;

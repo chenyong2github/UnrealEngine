@@ -1791,9 +1791,9 @@ namespace ObjectTools
 
 		GWarn->EndSlowTask();
 
-		ConsolidationResults.DirtiedPackages = DirtiedPackages;
-		ConsolidationResults.FailedConsolidationObjs = CriticalFailureObjects;
-		ConsolidationResults.InvalidConsolidationObjs = UnconsolidatableObjects;
+		ConsolidationResults.DirtiedPackages = ObjectPtrWrap(DirtiedPackages);
+		ConsolidationResults.FailedConsolidationObjs = ObjectPtrWrap(CriticalFailureObjects);
+		ConsolidationResults.InvalidConsolidationObjs = ObjectPtrWrap(UnconsolidatableObjects);
 
 		// If some objects failed to consolidate, notify the user of the failed objects
 		if ( UnconsolidatableObjects.Num() > 0 )

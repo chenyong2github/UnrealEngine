@@ -118,7 +118,7 @@ private:
 
 private:
 	/* For Anim Sequence UI Option with be gc'd*/
-	UAnimSeqExportOption* AnimSeqExportOption;
+	TObjectPtr<UAnimSeqExportOption> AnimSeqExportOption;
 
 
 private:

@@ -54,7 +54,7 @@ private:
 #endif // ALLOW_CONSOLE
 
 	// Map of worlds to their significance manager
-	static TMap<const UWorld*, USignificanceManager*> WorldSignificanceManagers;
+	static TMap<const UWorld*, TObjectPtr<USignificanceManager>> WorldSignificanceManagers;
 
 	// Cached class for instantiating significance manager
 	static TSubclassOf<USignificanceManager>  SignificanceManagerClass;
@@ -91,7 +91,7 @@ CompareFunctionType& PickCompareBySignificance(const bool bAscending)
 	return (bAscending ? CompareBySignificanceAscending : CompareBySignificanceDescending);
 }
 
-TMap<const UWorld*, USignificanceManager*> FSignificanceManagerModule::WorldSignificanceManagers;
+TMap<const UWorld*, TObjectPtr<USignificanceManager>> FSignificanceManagerModule::WorldSignificanceManagers;
 TSubclassOf<USignificanceManager> FSignificanceManagerModule::SignificanceManagerClass;
 
 void FSignificanceManagerModule::StartupModule()
@@ -110,12 +110,12 @@ void FSignificanceManagerModule::StartupModule()
 
 void FSignificanceManagerModule::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	for (TPair<const UWorld*, USignificanceManager*>& WorldSignificanceManagerPair : WorldSignificanceManagers)
+	for (auto& WorldSignificanceManagerPair : WorldSignificanceManagers)
 	{
 		Collector.AddReferencedObject(WorldSignificanceManagerPair.Value, WorldSignificanceManagerPair.Key);
 	}
 	UClass* SignificanceManagerClassPtr = *SignificanceManagerClass;
-	Collector.AddReferencedObject(SignificanceManagerClassPtr);
+	Collector.AddReferencedObject(SignificanceManagerClass.GetGCPtr());
 	SignificanceManagerClass = SignificanceManagerClassPtr; // Since pointer can be modified by AddReferencedObject
 }
 
@@ -184,7 +184,7 @@ void USignificanceManager::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	for (const TPair<UObject*, FManagedObjectInfo*>& ObjectToObjectInfoPair : ManagedObjects)
+	for (const auto& ObjectToObjectInfoPair : ManagedObjects)
 	{
 		delete ObjectToObjectInfoPair.Value;
 	}
@@ -370,7 +370,7 @@ const TArray<USignificanceManager::FManagedObjectInfo*>& USignificanceManager::G
 
 USignificanceManager::FManagedObjectInfo* USignificanceManager::GetManagedObject(UObject* Object) const
 {
-	if (FManagedObjectInfo* const* Info = ManagedObjects.Find(Object))
+	if (const auto* Info = ManagedObjects.Find(Object))
 	{
 		return (*Info);
 	}
@@ -380,7 +380,7 @@ USignificanceManager::FManagedObjectInfo* USignificanceManager::GetManagedObject
 
 const USignificanceManager::USignificanceManager::FManagedObjectInfo* USignificanceManager::GetManagedObject(const UObject* Object) const
 {
-	if (FManagedObjectInfo* const* Info = ManagedObjects.Find(Object))
+	if (const auto* Info = ManagedObjects.Find(Object))
 	{
 		return (*Info);
 	}
@@ -405,7 +405,7 @@ float USignificanceManager::GetSignificance(const UObject* Object) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_SignificanceManager_SignificanceCheck);
 	float Significance = 0.f;
-	if (FManagedObjectInfo* const* Info = ManagedObjects.Find(Object))
+	if (const auto* Info = ManagedObjects.Find(Object))
 	{
 		Significance = (*Info)->GetSignificance();
 	}
@@ -415,7 +415,7 @@ float USignificanceManager::GetSignificance(const UObject* Object) const
 bool USignificanceManager::QuerySignificance(const UObject* Object, float& OutSignificance) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_SignificanceManager_SignificanceCheck);
-	if (FManagedObjectInfo* const* Info = ManagedObjects.Find(Object))
+	if (const auto* Info = ManagedObjects.Find(Object))
 	{
 		OutSignificance = (*Info)->GetSignificance();
 		return true;
@@ -574,4 +574,3 @@ void USignificanceManager::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDe
 		}
 	}
 }
-

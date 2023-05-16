@@ -867,7 +867,7 @@ private:
 
 	TSharedPtr<FSlateMaterialBrush> PreviewBrush;
 	TSharedPtr<FSlateImageBrush> CheckerboardBrush;
-	UTexture2D* CheckerboardTexture;
+	TObjectPtr<UTexture2D> CheckerboardTexture;
 	TSharedPtr<SImage> ImageWidget;
 	FPreviewBackgroundSettings BackgroundSettings;
 };

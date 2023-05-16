@@ -127,7 +127,7 @@ void FConcertClientPresenceManager::AddReferencedObjects(FReferenceCollector& Co
 	}
 
 	// Ensure that Avatar classes used to represent remote clients are referenced.
-	for (TPair<FString, UClass*>& Pair : OthersAvatarClasses)
+	for (auto& Pair : OthersAvatarClasses)
 	{
 		Collector.AddReferencedObject(Pair.Value);
 	}
@@ -428,7 +428,7 @@ AConcertClientPresenceActor* FConcertClientPresenceManager::SpawnPresenceActor(c
 	UClass* PresenceActorClass = nullptr;
 	if (!VRDevice.IsNone())
 	{
-		UClass*& AvatarClass = OthersAvatarClasses.FindOrAdd(InClientInfo.VRAvatarActorClass, nullptr);
+		auto& AvatarClass = OthersAvatarClasses.FindOrAdd(InClientInfo.VRAvatarActorClass, nullptr);
 		if (!AvatarClass && !InClientInfo.VRAvatarActorClass.IsEmpty())
 		{
 			AvatarClass = LoadObject<UClass>(nullptr, *InClientInfo.VRAvatarActorClass);
@@ -437,7 +437,7 @@ AConcertClientPresenceActor* FConcertClientPresenceManager::SpawnPresenceActor(c
 	}
 	else
 	{
-		UClass*& AvatarClass = OthersAvatarClasses.FindOrAdd(InClientInfo.DesktopAvatarActorClass, nullptr);
+		auto& AvatarClass = OthersAvatarClasses.FindOrAdd(InClientInfo.DesktopAvatarActorClass, nullptr);
 		if (!AvatarClass && !InClientInfo.DesktopAvatarActorClass.IsEmpty())
 		{
 			AvatarClass = LoadObject<UClass>(nullptr, *InClientInfo.DesktopAvatarActorClass);

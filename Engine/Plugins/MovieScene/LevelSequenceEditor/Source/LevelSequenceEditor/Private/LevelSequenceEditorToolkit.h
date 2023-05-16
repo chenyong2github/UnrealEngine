@@ -150,7 +150,7 @@ private:
 private:
 
 	/** Level sequence for our edit operation. */
-	ULevelSequence* LevelSequence;
+	TObjectPtr<ULevelSequence> LevelSequence;
 
 	/** Event that is cast when this toolkit is closed */
 	FLevelSequenceEditorToolkitClosed OnClosedEvent;

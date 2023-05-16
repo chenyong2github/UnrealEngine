@@ -85,10 +85,10 @@ private:
 	FBufferRHIRef OverlayIndexBufferRHI;
 	FBufferRHIRef OverlayVertexBufferRHI;
 	
-	UMaterialInstanceDynamic* RegularOverlayMaterial = nullptr;
-	UMaterialInstanceDynamic* DebugOverlayMaterial = nullptr;
-	UMaterialInstanceDynamic* DepthColorationMaterial = nullptr;
-	UMaterialInstanceDynamic* DepthOcclusionMaterial = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> RegularOverlayMaterial = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> DebugOverlayMaterial = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> DepthColorationMaterial = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> DepthOcclusionMaterial = nullptr;
 	
 	bool bEnableOcclusionRendering = false;
 };

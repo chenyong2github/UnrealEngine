@@ -80,7 +80,7 @@ public:
 	template<class T>
 	struct FObjectFinder : public FGCObject
 	{
-		T* Object;
+		TObjectPtr<T> Object;
 		FObjectFinder(const TCHAR* ObjectToFind, uint32 InLoadFlags = LOAD_None)
 		{
 			CheckIfIsInConstructor(ObjectToFind);
@@ -110,7 +110,7 @@ public:
 	struct FObjectFinderOptional : public FGCObject
 	{
 	private:
-		T* Object;
+		TObjectPtr<T> Object;
 		const TCHAR* ObjectToFind;
 		uint32 LoadFlags;
 	public:
@@ -176,9 +176,7 @@ public:
 		
 		virtual void AddReferencedObjects( FReferenceCollector& Collector ) override
 		{
-			UClass* ReferencedClass = Class.Get();
-			Collector.AddReferencedObject(ReferencedClass);
-			Class = ReferencedClass;
+			Collector.AddReferencedObject(Class.GetGCPtr());
 		}
 
 		virtual FString GetReferencerName() const override

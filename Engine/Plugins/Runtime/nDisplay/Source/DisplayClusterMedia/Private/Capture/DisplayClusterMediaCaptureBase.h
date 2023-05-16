@@ -70,9 +70,9 @@ private:
 
 private:
 	//~ Begin GC by AddReferencedObjects
-	UMediaOutput*  MediaOutput  = nullptr;
-	UMediaCapture* MediaCapture = nullptr;
-	UDisplayClusterMediaOutputSynchronizationPolicy* SyncPolicy = nullptr;
+	TObjectPtr<UMediaOutput>  MediaOutput  = nullptr;
+	TObjectPtr<UMediaCapture> MediaCapture = nullptr;
+	TObjectPtr<UDisplayClusterMediaOutputSynchronizationPolicy> SyncPolicy = nullptr;
 	//~ End GC by AddReferencedObjects
 
 	// Used to restart media capture in the case it falls in error

@@ -59,7 +59,7 @@ protected:
 	/** Skeletal mesh component represented by this adapter */
 	TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
 	/** Skeletal mesh currently set to the Skeletal Mesh Component */
-	USkeletalMesh* ReferencedSkeletalMesh;
+	TObjectPtr<USkeletalMesh> ReferencedSkeletalMesh;
 	/** Skeletal Mesh resource retrieved from the Skeletal Mesh */
 	FSkeletalMeshRenderData* MeshResource;
 

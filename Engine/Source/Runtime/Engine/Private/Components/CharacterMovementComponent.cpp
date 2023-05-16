@@ -12556,11 +12556,7 @@ uint8 FSavedMove_Character::GetCompressedFlags() const
 
 void FSavedMove_Character::AddStructReferencedObjects(FReferenceCollector& Collector) const
 {
-	if (const UAnimMontage* RootMotionMontageRawPtr = RootMotionMontage.Get())
-	{
-		Collector.AddReferencedObject(RootMotionMontageRawPtr);
-	}
-
+	Collector.AddReferencedObject(RootMotionMontage);
 	SavedRootMotion.AddStructReferencedObjects(Collector);
 }
 

@@ -482,7 +482,7 @@ bool FInstancedStructContainer::Serialize(FArchive& Ar)
 			for (int32 Index = 0; Index < NumItemsSerialized; Index++)
 			{
 				const FItem& Item = GetItem(Index);
-				UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(Item.ScriptStruct);
+				auto& NonConstStruct = ConstCast(Item.ScriptStruct);
 
 				check(NonConstStruct == Item.ScriptStruct);
 				
@@ -512,15 +512,14 @@ bool FInstancedStructContainer::Serialize(FArchive& Ar)
 			for (int32 Index = 0; Index < NumItems; Index++)
 			{
 				const FItem& Item = GetItem(Index);
-				UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(Item.ScriptStruct);
-				Ar << NonConstStruct;
+				Ar << ConstCast(Item.ScriptStruct);
 			}
 
 			// Save item values
 			for (int32 Index = 0; Index < NumItemsSerialized; Index++)
 			{
 				const FItem& Item = GetItem(Index);
-				UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(Item.ScriptStruct);
+				auto& NonConstStruct = ConstCast(Item.ScriptStruct);
 
 				// Size of the serialized memory (reserve location)
 				const int64 SizeOffset = Ar.Tell(); // Position to write the actual size after struct serialization
@@ -548,15 +547,14 @@ bool FInstancedStructContainer::Serialize(FArchive& Ar)
 			for (int32 Index = 0; Index < NumItems; Index++)
 			{
 				const FItem& Item = GetItem(Index);
-				UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(Item.ScriptStruct);
-				Ar << NonConstStruct;
+				Ar << ConstCast(Item.ScriptStruct);
 			}
 
 			// Report item values
 			for (int32 Index = 0; Index < NumItemsSerialized; Index++)
 			{
 				const FItem& Item = GetItem(Index);
-				UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(Item.ScriptStruct);
+				auto& NonConstStruct = ConstCast(Item.ScriptStruct);
 				if (NonConstStruct != nullptr)
 				{
 					NonConstStruct->SerializeItem(Ar, Memory + Item.Offset, /* Defaults */ nullptr);
@@ -573,7 +571,7 @@ void FInstancedStructContainer::GetPreloadDependencies(TArray<UObject*>& OutDeps
 	for (int32 Index = 0; Index < NumItems; Index++)
 	{
 		FItem& Item = GetItem(Index);
-		if (UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(Item.ScriptStruct))
+		if (auto& NonConstStruct = ConstCast(Item.ScriptStruct))
 		{
 			OutDeps.Add(NonConstStruct);
 
@@ -597,4 +595,3 @@ void FInstancedStructContainer::GetPreloadDependencies(TArray<UObject*>& OutDeps
 		}
 	}
 }
-

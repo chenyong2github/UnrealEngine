@@ -45,7 +45,7 @@ public:
 private:
 
 	// 
-	class UCustomizableObjectNodeEditLayoutBlocks* CurrentNode = nullptr;
+	TObjectPtr<class UCustomizableObjectNodeEditLayoutBlocks> CurrentNode = nullptr;
 
 	/** */
 	TSharedPtr<class SCustomizableObjectLayoutGrid> LayoutGridWidget;

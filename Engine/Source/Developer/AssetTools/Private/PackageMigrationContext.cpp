@@ -47,7 +47,7 @@ const TArray<FPackageMigrationContext::FMigrationPackageData>& FPackageMigration
 
 const TArray<UPackage*>& FPackageMigrationContext::GetMovedOutOfTheWayPackages() const
 {
-	return PackagesThatWhereMoved;
+	return ObjectPtrDecay(PackagesThatWhereMoved);
 }
 
 const TArray<FString>& FPackageMigrationContext::GetExcludedDependencies() const

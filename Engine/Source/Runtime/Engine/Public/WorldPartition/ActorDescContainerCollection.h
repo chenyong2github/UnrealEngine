@@ -59,7 +59,7 @@ protected:
 	void RegisterDelegates(UActorDescContainer* Container);
 	void UnregisterDelegates(UActorDescContainer* Container);
 
-	TArray<UActorDescContainer*> ActorDescContainerCollection;
+	TArray<TObjectPtr<UActorDescContainer>> ActorDescContainerCollection;
 
 public:
 	void OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc);
@@ -73,7 +73,7 @@ public:
 
 	protected:
 		typedef UActorDescContainer ContainerType;
-		typedef TArray<ContainerType*> ContainerCollectionType;
+		typedef TArray<TObjectPtr<ContainerType>> ContainerCollectionType;
 		typedef typename TChooseClass<bConst, ContainerCollectionType::TConstIterator, ContainerCollectionType::TIterator>::Result ContainerIteratorType;
 		typedef typename TChooseClass<bConst, typename ContainerType::TConstIterator<ActorType>, typename ContainerType::TIterator<ActorType>>::Result ActDescIteratorType;
 

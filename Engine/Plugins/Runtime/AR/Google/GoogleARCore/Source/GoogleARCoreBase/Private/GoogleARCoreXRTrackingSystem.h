@@ -119,8 +119,8 @@ private:
 
 	TSharedPtr<class ISceneViewExtension, ESPMode::ThreadSafe> ViewExtension;
 
-	UARBasicLightEstimate* LightEstimate;
-	UGoogleARCoreEventManager* EventManager;
+	TObjectPtr<UARBasicLightEstimate> LightEstimate;
+	TObjectPtr<UGoogleARCoreEventManager> EventManager;
 };
 
 DEFINE_LOG_CATEGORY_STATIC(LogGoogleARCoreTrackingSystem, Log, All);

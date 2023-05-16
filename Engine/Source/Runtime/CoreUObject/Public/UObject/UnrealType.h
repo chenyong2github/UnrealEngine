@@ -1901,7 +1901,7 @@ class COREUOBJECT_API FByteProperty : public TProperty_Numeric<uint8>
 	DECLARE_FIELD(FByteProperty, TProperty_Numeric<uint8>, CASTCLASS_FByteProperty)
 
 	// Variables.
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 
 	FByteProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
 		: TProperty_Numeric(InOwner, InName, InObjectFlags)
@@ -2482,7 +2482,7 @@ class COREUOBJECT_API FObjectPropertyBase : public FProperty
 public:
 
 	// Variables.
-	class UClass* PropertyClass;
+	TObjectPtr<class UClass> PropertyClass;
 
 	FObjectPropertyBase(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
 		: FProperty(InOwner, InName, InObjectFlags)
@@ -3192,7 +3192,7 @@ class COREUOBJECT_API FClassProperty : public FObjectProperty
 	DECLARE_FIELD(FClassProperty, FObjectProperty, CASTCLASS_FClassProperty)
 
 	// Variables.
-	class UClass* MetaClass;
+	TObjectPtr<class UClass> MetaClass;
 public:
 
 	FClassProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
@@ -3319,7 +3319,7 @@ class COREUOBJECT_API FSoftClassProperty : public FSoftObjectProperty
 	DECLARE_FIELD(FSoftClassProperty, FSoftObjectProperty, CASTCLASS_FSoftClassProperty)
 
 	// Variables.
-	class UClass* MetaClass;
+	TObjectPtr<class UClass> MetaClass;
 public:
 
 	FSoftClassProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags)
@@ -3400,7 +3400,8 @@ class COREUOBJECT_API FInterfaceProperty : public FInterfaceProperty_Super
 	DECLARE_FIELD(FInterfaceProperty, FInterfaceProperty_Super, CASTCLASS_FInterfaceProperty)
 
 	/** The native interface class that this interface property refers to */
-	class	UClass*		InterfaceClass;
+	TObjectPtr<class	UClass>		InterfaceClass;
+	
 public:
 	typedef FInterfaceProperty_Super::TTypeFundamentals TTypeFundamentals;
 	typedef TTypeFundamentals::TCppType TCppType;
@@ -5791,7 +5792,7 @@ class COREUOBJECT_API FStructProperty : public FProperty
 	DECLARE_FIELD(FStructProperty, FProperty, CASTCLASS_FStructProperty)
 
 	// Variables.
-	class UScriptStruct* Struct;
+	TObjectPtr<class UScriptStruct> Struct;
 public:
 	FStructProperty(FFieldVariant InOwner, const FName& InName, EObjectFlags InObjectFlags);
 
@@ -5867,7 +5868,7 @@ class COREUOBJECT_API FDelegateProperty : public FDelegateProperty_Super
 	DECLARE_FIELD(FDelegateProperty, FDelegateProperty_Super, CASTCLASS_FDelegateProperty)
 
 	/** Points to the source delegate function (the function declared with the delegate keyword) used in the declaration of this delegate property. */
-	UFunction* SignatureFunction;
+	TObjectPtr<UFunction> SignatureFunction;
 public:
 
 	typedef FDelegateProperty_Super::TTypeFundamentals TTypeFundamentals;
@@ -5940,7 +5941,7 @@ class COREUOBJECT_API FMulticastDelegateProperty : public FProperty
 	DECLARE_FIELD(FMulticastDelegateProperty, FProperty, CASTCLASS_FMulticastDelegateProperty)
 
 	/** Points to the source delegate function (the function declared with the delegate keyword) used in the declaration of this delegate property. */
-	UFunction* SignatureFunction;
+	TObjectPtr<UFunction> SignatureFunction;
 
 public:
 

@@ -284,7 +284,7 @@ private:
 
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 
-	UPCGGraph* PCGGraphBeingEdited = nullptr;
+	TObjectPtr<UPCGGraph> PCGGraphBeingEdited = nullptr;
 	UPCGEditorGraph* PCGEditorGraph = nullptr;
 
 	TWeakObjectPtr<UPCGComponent> PCGComponentBeingDebugged;

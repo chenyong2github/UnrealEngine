@@ -25,8 +25,8 @@ FMediaProfileManager::FMediaProfileManager()
 	{
 		if (FApp::CanEverRender() && GEngine && GEngine->IsInitialized())
 		{
-			MediaSourceProxies = GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies();
-			MediaOutputProxies = GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies();
+			MediaSourceProxies = ObjectPtrWrap(GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies());
+			MediaOutputProxies = ObjectPtrWrap(GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies());
 		}
 
 #if WITH_EDITOR
@@ -63,20 +63,20 @@ UMediaProfile* FMediaProfileManager::GetCurrentMediaProfile() const
 
 TArray<UProxyMediaSource*> FMediaProfileManager::GetAllMediaSourceProxy() const
 {
-	return MediaSourceProxies;
+	return ObjectPtrDecay(MediaSourceProxies);
 }
 
 
 TArray<UProxyMediaOutput*> FMediaProfileManager::GetAllMediaOutputProxy() const
 {
-	return MediaOutputProxies;
+	return ObjectPtrDecay(MediaOutputProxies);
 }
 
 
 void FMediaProfileManager::SetCurrentMediaProfile(UMediaProfile* InMediaProfile)
 {
-	MediaSourceProxies = GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies();
-	MediaOutputProxies = GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies();
+	MediaSourceProxies = ObjectPtrWrap(GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies());
+	MediaOutputProxies = ObjectPtrWrap(GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies());
 
 	bool bRemoveDelegate = false;
 	bool bAddDelegate = false;
@@ -110,8 +110,8 @@ FMediaProfileManager::FOnMediaProfileChanged& FMediaProfileManager::OnMediaProfi
 #if WITH_EDITOR
 void FMediaProfileManager::OnMediaProxiesChanged()
 {
-	MediaSourceProxies = GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies();
-	MediaOutputProxies = GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies();
+	MediaSourceProxies = ObjectPtrWrap(GetDefault<UMediaProfileSettings>()->LoadMediaSourceProxies());
+	MediaOutputProxies = ObjectPtrWrap(GetDefault<UMediaProfileSettings>()->LoadMediaOutputProxies());
 
 	if (CurrentMediaProfile)
 	{

@@ -113,7 +113,7 @@ private:
 
 private:
 	/** The SoundClass asset being inspected */
-	USoundClass* SoundClass;
+	TObjectPtr<USoundClass> SoundClass;
 
 	/** Graph Editor */
 	TSharedPtr<SGraphEditor> GraphEditor;

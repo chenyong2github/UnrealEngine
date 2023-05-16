@@ -291,7 +291,7 @@ private:
 
 public:
 	/** The world this is attached to */
-	UWorld* AttachedWorld;
+	TObjectPtr<UWorld> AttachedWorld;
 
 private:
 	/** Handle for Tick dispatch delegate */
@@ -423,4 +423,3 @@ struct NUTNet
 	 */
 	static bool IsUnitTestWorld(UWorld* InWorld);
 };
-

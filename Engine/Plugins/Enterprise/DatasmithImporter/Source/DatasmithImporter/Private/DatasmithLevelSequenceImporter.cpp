@@ -472,7 +472,7 @@ namespace DatasmithLevelSequenceImporterImpl
 			ImportContext.LogError( FText::Format( LOCTEXT("InvalidTargetSequence", "Could not parse subsequence animation {0} as its target IDatasmithLevelSequenceElement is invalid!"), FText::FromString( SubsequenceAnimation->GetName() ) ) );
 			return;
 		}
-		ULevelSequence** FoundTargetSequenceAsset = ImportContext.ImportedLevelSequences.Find(PinnedTargetSequence.ToSharedRef());
+		auto* FoundTargetSequenceAsset = ImportContext.ImportedLevelSequences.Find(PinnedTargetSequence.ToSharedRef());
 		if (!FoundTargetSequenceAsset)
 		{
 			ImportContext.LogError( FText::Format( LOCTEXT("ULevelSequenceNotParsedYet", "Could not parse subsequence animation {0} as its target ULevelSequence has not been imported!"), FText::FromString( SubsequenceAnimation->GetName() ) ) );

@@ -283,8 +283,8 @@ private:
 
 	TSharedPtr<FPartyPlatformSessionManager> PartySessionManager;
 
-	TMap<FOnlinePartyTypeId, USocialParty*> JoinedPartiesByTypeId;
-	TMap<FOnlinePartyTypeId, USocialParty*> LeavingPartiesByTypeId;
+	TMap<FOnlinePartyTypeId, TObjectPtr<USocialParty>> JoinedPartiesByTypeId;
+	TMap<FOnlinePartyTypeId, TObjectPtr<USocialParty>> LeavingPartiesByTypeId;
 
 	FDelegateHandle OnFillJoinRequestInfoHandle;
 

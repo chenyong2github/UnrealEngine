@@ -188,7 +188,7 @@ void FActorFolders::OnWorldSaved(UWorld* World, FObjectPostSaveContext ObjectSav
 
 void FActorFolders::SaveWorldFoldersState(UWorld* World)
 {
-	if (UWorldFolders** Folders = WorldFolders.Find(World))
+	if (auto* Folders = WorldFolders.Find(World))
 	{
 		(*Folders)->SaveState();
 	}
@@ -201,7 +201,7 @@ bool FActorFolders::IsInitializedForWorld(UWorld& InWorld) const
 
 UWorldFolders& FActorFolders::GetOrCreateWorldFolders(UWorld& InWorld)
 {
-	if (UWorldFolders** Folders = WorldFolders.Find(&InWorld))
+	if (auto* Folders = WorldFolders.Find(&InWorld))
 	{
 		return **Folders;
 	}
@@ -226,7 +226,7 @@ void FActorFolders::OnActorFolderChanged(const AActor* InActor, FName OldPath)
 
 void FActorFolders::RebuildFolderListForWorld(UWorld& InWorld)
 {
-	if (UWorldFolders** Folders = WorldFolders.Find(&InWorld))
+	if (auto* Folders = WorldFolders.Find(&InWorld))
 	{
 		// For world folders, we don't empty the existing folders so that we keep empty ones.
 		// Explicitly deleted folders will already be removed from the list.

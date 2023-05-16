@@ -180,8 +180,8 @@ FUObjectAnnotationSparseBool GMaterialsThatNeedFeatureLevelSM6Fix;
 
 FMaterialResource::FMaterialResource()
 	: FMaterial()
-	, Material(NULL)
-	, MaterialInstance(NULL)
+	, Material(nullptr)
+	, MaterialInstance(nullptr)
 {
 }
 

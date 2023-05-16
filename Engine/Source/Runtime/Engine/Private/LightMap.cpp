@@ -3005,9 +3005,9 @@ void FLightMap2D::Serialize(FArchive& Ar)
 			bool bStripLQLightmaps = !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::LowQualityLightmaps) || bUsingVTLightmaps;
 			bool bStripHQLightmaps = !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HighQualityLightmaps) || bUsingVTLightmaps;
 
-			ULightMapTexture2D* Dummy = NULL;
-			ULightMapTexture2D*& Texture1 = bStripHQLightmaps ? Dummy : Textures[0];
-			ULightMapTexture2D*& Texture2 = bStripLQLightmaps ? Dummy : Textures[1];
+			TObjectPtr<ULightMapTexture2D> Dummy;
+			auto& Texture1 = bStripHQLightmaps ? Dummy : Textures[0];
+			auto& Texture2 = bStripLQLightmaps ? Dummy : Textures[1];
 			Ar << Texture1;
 			Ar << Texture2;
 		}
@@ -3023,13 +3023,13 @@ void FLightMap2D::Serialize(FArchive& Ar)
 			{
 				bool bStripHQLightmaps = !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HighQualityLightmaps) || bUsingVTLightmaps;
 
-				ULightMapTexture2D* Dummy = NULL;
-				ULightMapTexture2D*& SkyTexture = bStripHQLightmaps ? Dummy : SkyOcclusionTexture;
+				TObjectPtr<ULightMapTexture2D> Dummy;
+				auto& SkyTexture = bStripHQLightmaps ? Dummy : SkyOcclusionTexture;
 				Ar << SkyTexture;
 
 				if (Ar.UEVer() >= VER_UE4_AO_MATERIAL_MASK)
 				{
-					ULightMapTexture2D*& MaskTexture = bStripHQLightmaps ? Dummy : AOMaterialMaskTexture;
+					auto& MaskTexture = bStripHQLightmaps ? Dummy : AOMaterialMaskTexture;
 					Ar << MaskTexture;
 				}
 			}
@@ -3077,9 +3077,9 @@ void FLightMap2D::Serialize(FArchive& Ar)
 						bool bStripLQLightmaps = !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::LowQualityLightmaps);
 						bool bStripHQLightmaps = !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::HighQualityLightmaps);
 
-						ULightMapVirtualTexture2D* Dummy = NULL;
-						ULightMapVirtualTexture2D*& Texture1 = bStripHQLightmaps ? Dummy : VirtualTextures[0];
-						ULightMapVirtualTexture2D*& Texture2 = bStripLQLightmaps ? Dummy : VirtualTextures[1];
+						TObjectPtr<ULightMapVirtualTexture2D> Dummy;
+						auto& Texture1 = bStripHQLightmaps ? Dummy : VirtualTextures[0];
+						auto& Texture2 = bStripLQLightmaps ? Dummy : VirtualTextures[1];
 						Ar << Texture1;
 						Ar << Texture2;
 					}
@@ -3194,7 +3194,7 @@ FLightMapInteraction FLightMap2D::GetInteraction(ERHIFeatureLevel::Type InFeatur
 		// When the FLightMap2D is first created, the textures aren't set, so that case needs to be handled.
 		if (bValidTextures)
 		{
-			return FLightMapInteraction::Texture(Textures, SkyOcclusionTexture, AOMaterialMaskTexture, ScaleVectors, AddVectors, CoordinateScale, CoordinateBias, bHighQuality);
+			return FLightMapInteraction::Texture(ToRawPtrArray(Textures), SkyOcclusionTexture, AOMaterialMaskTexture, ScaleVectors, AddVectors, CoordinateScale, CoordinateBias, bHighQuality);
 		}
 	}
 	else

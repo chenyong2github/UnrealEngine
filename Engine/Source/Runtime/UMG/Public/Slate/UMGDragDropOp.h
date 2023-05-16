@@ -44,7 +44,7 @@ protected:
 private:
 
 	// Raw pointer to the drag operation, kept alive by AddReferencedObjects.
-	UDragDropOperation* DragOperation;
+	TObjectPtr<UDragDropOperation> DragOperation;
 
 	/** Source User Widget */
 	TWeakPtr<SObjectWidget> SourceUserWidget;

@@ -439,7 +439,7 @@ private:
 	/** The maximum height of any glyph in the font we're using */
 	uint16 MaxTextHeight;
 	/** The material to use when rendering these glyphs */
-	const UObject* FontMaterial;
+	TObjectPtr<const UObject> FontMaterial;
 	/** Outline settings to use when rendering these glyphs */
 	FFontOutlineSettings OutlineSettings;
 	/** The cached width of the entire sequence */

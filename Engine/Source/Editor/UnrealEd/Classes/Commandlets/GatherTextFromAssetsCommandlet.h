@@ -84,7 +84,7 @@ private:
 	uint64 MaxUsedMemoryBytes;
 
 	/** Array of objects that should be kept alive during the next call to CollectGarbage (used by PurgeGarbage and AddReferencedObjects) */
-	TSet<UObject*> ObjectsToKeepAlive;
+	TSet<TObjectPtr<UObject>> ObjectsToKeepAlive;
 
 	bool bSkipGatherCache;
 	bool bReportStaleGatherCache;

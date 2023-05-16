@@ -194,7 +194,7 @@ void OnLandscapeEditLayersLocalMergeChanged(IConsoleVariable* CVar)
 		if (!CurrentWorld->IsGameWorld())
 		{
 			ULandscapeInfoMap& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(CurrentWorld);
-			for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+			for (auto& Pair : LandscapeInfoMap.Map)
 			{
 				if (ULandscapeInfo* LandscapeInfo = Pair.Value)
 				{
@@ -249,7 +249,7 @@ private:
 			if (!CurrentWorld->IsGameWorld())
 			{
 				ULandscapeInfoMap& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(CurrentWorld);
-				for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+				for (auto& Pair : LandscapeInfoMap.Map)
 				{
 					if (Pair.Value && Pair.Value->SupportsLandscapeEditing())
 					{

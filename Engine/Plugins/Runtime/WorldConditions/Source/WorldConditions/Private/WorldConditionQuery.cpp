@@ -150,12 +150,12 @@ void FWorldConditionQueryState::InitializeInternal(const UObject* InOwner, const
 		{
 			new (StateMemory) FWorldConditionStateObject();
 			FWorldConditionStateObject& StateObject = *reinterpret_cast<FWorldConditionStateObject*>(StateMemory);
-			const UClass* StateClass = Cast<UClass>(Condition.GetRuntimeStateType());
+			const UClass* StateClass = Cast<UClass>(Condition.GetRuntimeStateType()->Get());
 			StateObject.Object = NewObject<UObject>(const_cast<UObject*>(Owner.Get()), StateClass);  
 		}
 		else
 		{
-			const UScriptStruct* StateScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType());
+			const UScriptStruct* StateScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType()->Get());
 			StateScriptStruct->InitializeStruct(StateMemory);
 		}
 	}
@@ -194,7 +194,7 @@ void FWorldConditionQueryState::Free()
 		}
 		else
 		{
-			const UScriptStruct* StateScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType());
+			const UScriptStruct* StateScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType()->Get());
 			StateScriptStruct->DestroyStruct(StateMemory);
 		}
 	}
@@ -239,10 +239,13 @@ void FWorldConditionQueryState::AddStructReferencedObjects(class FReferenceColle
 		}
 		else
 		{
-			if (const UScriptStruct* StateScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType()))
+			if (auto* StateScriptStructPtr = Condition.GetRuntimeStateType(); StateScriptStructPtr && *StateScriptStructPtr)
 			{
-				Collector.AddReferencedObject(StateScriptStruct, Owner);
-				Collector.AddPropertyReferencesWithStructARO(StateScriptStruct, StateMemory, Owner);
+				if (const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(*StateScriptStructPtr))
+				{
+					Collector.AddReferencedObject(*StateScriptStructPtr, Owner);
+					Collector.AddPropertyReferencesWithStructARO(ScriptStruct, StateMemory, Owner);
+				}
 			}
 		}
 	}
@@ -345,18 +348,18 @@ bool FWorldConditionQuerySharedDefinition::Link(const UObject* Outer)
 			return false;
 		}
 		
-		if (const UStruct* StateStruct = Condition->GetRuntimeStateType())
+		if (auto* StateStruct = Condition->GetRuntimeStateType(); StateStruct && *StateStruct)
 		{
 			int32 StructMinAlignment = 0;
 			int32 StructSize = 0;
 
-			if (const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(StateStruct))
+			if (const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(*StateStruct))
 			{
 				StructMinAlignment = ScriptStruct->GetMinAlignment();
 				StructSize = ScriptStruct->GetStructureSize();
 				Condition->bIsStateObject = false;
 			}
-			else if (const UClass* Class = Cast<const UClass>(StateStruct))
+			else if (const UClass* Class = Cast<const UClass>(*StateStruct))
 			{
 				StructMinAlignment = FWorldConditionStateObject::StaticStruct()->GetMinAlignment();
 				StructSize = FWorldConditionStateObject::StaticStruct()->GetStructureSize();

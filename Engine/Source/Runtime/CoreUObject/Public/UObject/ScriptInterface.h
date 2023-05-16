@@ -23,7 +23,7 @@ private:
 	/**
 	 * A pointer to a UObject that implements a native interface.
 	 */
-	UObject*	ObjectPointer = nullptr;
+	TObjectPtr<UObject>	ObjectPointer = nullptr;
 
 	/**
 	 * Pointer to the location of the interface object within the UObject referenced by ObjectPointer.
@@ -65,7 +65,7 @@ public:
 	/**
 	 * Returns the ObjectPointer contained by this FScriptInterface
 	 */
-	FORCEINLINE UObject*& GetObjectRef()
+	FORCEINLINE TObjectPtr<UObject>& GetObjectRef()
 	{
 		return ObjectPointer;
 	}

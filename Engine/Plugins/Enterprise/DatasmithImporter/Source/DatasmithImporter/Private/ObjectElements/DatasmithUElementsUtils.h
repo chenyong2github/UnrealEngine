@@ -10,9 +10,28 @@ class IDatasmithLevelVariantSetsElement;
 
 class FDatasmithUElementsUtils
 {
+
+	template <typename T>
+	struct TFindOrAddTraits;
+
+	template <typename T>
+	struct TFindOrAddTraits<T*>
+	{
+		using TElement = T;
+	};
+
+	template <typename T>
+	struct TFindOrAddTraits<TObjectPtr<T>>
+	{
+		using TElement = T;
+	};
+
 public:
-	template<typename IElement, typename UElement, typename SetOp>
-	static UElement* FindOrAddElement(UObject* Outer, TMap<TWeakPtr<IElement>, UElement*>& Map, const TSharedPtr<IElement>& InElement, SetOp Assign)
+	template<typename IElement,
+					 typename TMapValue,
+					 typename UElement = typename TFindOrAddTraits<TMapValue>::TElement,
+					 typename SetOp>
+	static UElement* FindOrAddElement(UObject* Outer, TMap<TWeakPtr<IElement>, TMapValue>& Map, const TSharedPtr<IElement>& InElement, SetOp Assign)
 	{
 		if (InElement.IsValid())
 		{

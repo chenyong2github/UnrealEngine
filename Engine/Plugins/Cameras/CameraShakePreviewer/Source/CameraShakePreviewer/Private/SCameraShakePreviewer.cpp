@@ -42,7 +42,7 @@ struct FCameraShakeData
 	, public FGCObject
 {
 	TSubclassOf<UCameraShakeBase> ShakeClass;
-	UCameraShakeBase* ShakeInstance = nullptr;
+	TObjectPtr<UCameraShakeBase> ShakeInstance = nullptr;
 	bool bIsPlaying = false;
 	bool bIsHidden = false;
 
@@ -797,4 +797,3 @@ void SCameraShakePreviewer::OnModifyView(FEditorViewportViewModifierParams& Para
 }
 
 #undef LOCTEXT_NAMESPACE
-

@@ -49,7 +49,7 @@ struct FNewLevelTemplateItem
 	FText Name;
 	FString Category;
 	TUniquePtr<FSlateBrush> ThumbnailBrush;
-	UTexture2D* ThumbnailAsset = nullptr;
+	TObjectPtr<UTexture2D> ThumbnailAsset = nullptr;
 	int32 OriginalIndex = INDEX_NONE;
 
 	enum NewLevelType

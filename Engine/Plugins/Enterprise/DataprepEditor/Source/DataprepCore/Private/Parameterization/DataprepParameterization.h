@@ -15,7 +15,7 @@ class UDataprepActionAsset;
 
 struct FValueTypeValidationData
 {
-	TArray<UObject*> ObjectData;
+	TArray<TObjectPtr<UObject>> ObjectData;
 	TArray<TFieldPath<FProperty>> PropertyData;
 	TArray<FFieldClass*> PropertyTypeData;
 	
@@ -219,7 +219,7 @@ private:
 	TMap<FName, FSetOfBinding> NameToBindings;
 
 	/** Track which binding a object has */
-	TMap<UDataprepParameterizableObject*, FSetOfBinding> ObjectToBindings;
+	TMap<TObjectPtr<UDataprepParameterizableObject>, FSetOfBinding> ObjectToBindings;
 };
 
 
@@ -343,7 +343,7 @@ private:
 	* Mapping of the observed object to their delegate handle
 	* The name are relative to the dataprep asset
 	*/
-	TMap<UDataprepParameterizableObject*, FDelegateHandle> ObservedObjects;
+	TMap<TObjectPtr<UDataprepParameterizableObject>, FDelegateHandle> ObservedObjects;
 
 	//TMap<UDataprepActionAsset*, TPair<FDelegateHandle, uint32> ObservedAction;
 
@@ -443,4 +443,3 @@ private:
 
 	FDelegateHandle OnObjectModifiedHandle;
 };
-

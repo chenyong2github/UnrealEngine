@@ -380,7 +380,7 @@ void UE::Interchange::FImportAsyncHelper::CleanUp()
 	}
 	Pipelines.Empty();
 
-	for (const TPair<FString, UInterchangeFactoryBase*>& FactoryKeyAndValue : CreatedFactories)
+	for (const auto& FactoryKeyAndValue : CreatedFactories)
 	{
 		if (FactoryKeyAndValue.Value)
 		{
@@ -479,7 +479,7 @@ void UE::Interchange::FImportResult::WaitUntilDone()
 const TArray< UObject* >& UE::Interchange::FImportResult::GetImportedObjects() const
 {
 	FReadScopeLock ReadScopeLock(ImportedObjectsRWLock);
-	return ImportedObjects;
+	return ObjectPtrDecay(ImportedObjects);
 }
 
 UObject* UE::Interchange::FImportResult::GetFirstAssetOfClass(UClass* InClass) const

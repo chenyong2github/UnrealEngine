@@ -63,12 +63,12 @@ void FForceFeedbackManager::OnWorldCleanup(UWorld* World, bool bSessionEnded, bo
 
 void FForceFeedbackManager::AddActiveComponent(UForceFeedbackComponent* ForceFeedbackComponent)
 {
-	ActiveForceFeedbackComponents.AddUnique(ForceFeedbackComponent);
+	ActiveForceFeedbackComponents.AddUnique(ObjectPtrWrap(ForceFeedbackComponent));
 }
 
 void FForceFeedbackManager::RemoveActiveComponent(UForceFeedbackComponent* ForceFeedbackComponent)
 {
-	ActiveForceFeedbackComponents.RemoveSwap(ForceFeedbackComponent);
+	ActiveForceFeedbackComponents.RemoveSwap(ObjectPtrWrap(ForceFeedbackComponent));
 }
 
 void FForceFeedbackManager::AddReferencedObjects(FReferenceCollector& Collector)

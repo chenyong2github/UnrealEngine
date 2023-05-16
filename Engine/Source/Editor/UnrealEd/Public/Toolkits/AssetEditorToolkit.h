@@ -305,6 +305,7 @@ protected:
 
 	/**	Returns an array of all the objects currently being edited. Asserts if editing no objects */
 	const TArray< UObject* >& GetEditingObjects() const;
+	TArray<TObjectPtr<UObject>>& GetEditingObjectPtrs();
 
 	/** Generate the toolbar for common asset actions like Save*/
 	UToolMenu* GenerateCommonActionsToolbar(FToolMenuContext& MenuContext);
@@ -451,7 +452,7 @@ private:
 
 	/** The object we're currently editing */
 	// @todo toolkit minor: Currently we don't need to serialize this object reference because the AssetEditorSubsystem is kept in sync (and will always serialize it.)
-	TArray<UObject*> EditingObjects;
+	TArray<TObjectPtr<UObject>> EditingObjects;
 	
 	/** Asset Editor Default Toolbar */
 	TSharedPtr<SWidget> Toolbar;

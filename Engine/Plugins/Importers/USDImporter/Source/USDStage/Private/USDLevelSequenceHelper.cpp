@@ -546,7 +546,7 @@ public:
 	TArray< ULevelSequence* > GetSubSequences() const
 	{
 		TArray< ULevelSequence* > SubSequences;
-		LevelSequencesByIdentifier.GenerateValueArray(SubSequences);
+		ObjectPtrDecay(LevelSequencesByIdentifier).GenerateValueArray(SubSequences);
 		SubSequences.Remove(MainLevelSequence);
 
 		return SubSequences;
@@ -568,8 +568,8 @@ private:
 	void RemoveSequenceForPrim(ULevelSequence& Sequence, const UUsdPrimTwin& PrimTwin);
 
 private:
-	ULevelSequence* MainLevelSequence;
-	TMap<FString, ULevelSequence*> LevelSequencesByIdentifier;
+	TObjectPtr<ULevelSequence> MainLevelSequence;
+	TMap<FString, TObjectPtr<ULevelSequence>> LevelSequencesByIdentifier;
 	TMap<ULevelSequence*, FString> IdentifierByLevelSequence;
 
 	TSet< FName > LocalLayersSequences; // List of sequences associated with sublayers
@@ -960,7 +960,7 @@ void FUsdLevelSequenceHelperImpl::OnStageActorRenamed()
 	FGuid NewId = NewPossessable.GetGuid();
 
 	bool bDidSomething = false;
-	for (const TPair<FString, ULevelSequence*>& Pair : LevelSequencesByIdentifier)
+	for (const auto& Pair : LevelSequencesByIdentifier)
 	{
 		ULevelSequence* Sequence = Pair.Value;
 		if (!Sequence)
@@ -2169,7 +2169,7 @@ void FUsdLevelSequenceHelperImpl::RemovePrim(const UUsdPrimTwin& PrimTwin)
 
 	for (const FName& PrimSequenceName : PrimSequences)
 	{
-		for (const TPair< FString, ULevelSequence* >& IdentifierSequencePair : LevelSequencesByIdentifier)
+		for (const auto& IdentifierSequencePair : LevelSequencesByIdentifier)
 		{
 			if (IdentifierSequencePair.Value && IdentifierSequencePair.Value->GetFName() == PrimSequenceName)
 			{
@@ -2904,7 +2904,7 @@ void FUsdLevelSequenceHelperImpl::HandleMovieSceneChange(UMovieScene& MovieScene
 		UsdStage.SetTimeCodesPerSecond(StageTimeCodesPerSecond);
 
 		// Propagate to all movie scenes, as USD only uses the stage FramesPerSecond so the sequences should have a unified DisplayRate to reflect that
-		for (TPair< FString, ULevelSequence* >& SequenceByIdentifier : LevelSequencesByIdentifier)
+		for (auto& SequenceByIdentifier : LevelSequencesByIdentifier)
 		{
 			if (ULevelSequence* OtherSequence = SequenceByIdentifier.Value)
 			{
@@ -3549,7 +3549,7 @@ void FUsdLevelSequenceHelperImpl::UpdateLayerTimeInfoFromLayer(FLayerTimeInfo& L
 ULevelSequence* FUsdLevelSequenceHelperImpl::FindSequenceForIdentifier(const FString& SequenceIdentitifer)
 {
 	ULevelSequence* Sequence = nullptr;
-	if (ULevelSequence** FoundSequence = LevelSequencesByIdentifier.Find(SequenceIdentitifer))
+	if (auto* FoundSequence = LevelSequencesByIdentifier.Find(SequenceIdentitifer))
 	{
 		Sequence = *FoundSequence;
 	}

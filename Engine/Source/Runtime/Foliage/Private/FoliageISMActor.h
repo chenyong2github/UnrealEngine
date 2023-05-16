@@ -30,7 +30,7 @@ struct FFoliageISMActor : public FFoliageImpl, public IISMPartitionInstanceManag
 	FGuid Guid;
 	FISMClientHandle ClientHandle;
 	TSortedMap<int32, TArray<FTransform>> ISMDefinition;
-	UClass* ActorClass;
+	TObjectPtr<UClass> ActorClass;
 #endif
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostSerialize(FArchive& Ar) override;

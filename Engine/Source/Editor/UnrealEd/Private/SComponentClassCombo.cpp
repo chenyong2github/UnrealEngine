@@ -39,8 +39,8 @@ FString FComponentClassComboEntry::GetClassName() const
 
 void FComponentClassComboEntry::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	Collector.AddReferencedObject(ComponentClass.GetGCPtr());
 	UClass* RawClass = ComponentClass;
-	Collector.AddReferencedObject(RawClass);
 	if(RawClass && RawClass->IsChildOf(UActorComponent::StaticClass()))
 	{
 		ComponentClass = RawClass;

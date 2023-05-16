@@ -130,7 +130,7 @@ public:
 			void AddReferencedObjects(FReferenceCollector& Collector);
 			void UpdateBounds();
 
-			UActorDescContainer* Container;
+			TObjectPtr<UActorDescContainer> Container;
 			uint32 RefCount;
 			FBox Bounds;
 		};

@@ -4825,7 +4825,7 @@ void ULandscapeInfo::UpdateRegistrationForSplineActor(UWorld* InWorld, TScriptIn
 	FGuid SplineLandscapeGUID = InSplineActor->GetLandscapeGuid();
 
 	// first let's unregister from any landscapes that have it (incorrectly) registered
-	for (const TPair<FGuid, ULandscapeInfo*>& pair : LandscapeInfoMap.Map)
+	for (const auto& pair : LandscapeInfoMap.Map)
 	{
 		ULandscapeInfo* LandscapeInfo = pair.Value;
 

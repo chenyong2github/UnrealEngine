@@ -35,8 +35,8 @@ class UPrimitiveComponent;
 struct HActor : public HHitProxy
 {
 	DECLARE_HIT_PROXY( ENGINE_API )
-	AActor* Actor;
-	const UPrimitiveComponent* PrimComponent;
+	TObjectPtr<AActor> Actor;
+	TObjectPtr<const UPrimitiveComponent> PrimComponent;
 	int32 SectionIndex;
 	int32 MaterialIndex;
 
@@ -106,7 +106,7 @@ struct HBSPBrushVert : public HHitProxy
 struct HStaticMeshVert : public HHitProxy
 {
 	DECLARE_HIT_PROXY( ENGINE_API );
-	AActor*	Actor;
+	TObjectPtr<AActor>	Actor;
 	FVector Vertex;
 	HStaticMeshVert(AActor* InActor,FVector InVertex):
 		HHitProxy(HPP_UI),

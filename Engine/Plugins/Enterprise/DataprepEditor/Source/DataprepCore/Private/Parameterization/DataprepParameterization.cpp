@@ -725,7 +725,7 @@ const UDataprepParameterizationBindings::FBindingToParameterNameMap& UDataprepPa
 TArray<UDataprepParameterizableObject*> UDataprepParameterizationBindings::GetParameterizedObjects() const
 {
 	TArray<UDataprepParameterizableObject*> Objects;
-	ObjectToBindings.GenerateKeyArray( Objects );
+	ObjectPtrDecay(ObjectToBindings).GenerateKeyArray( Objects );
 	return Objects;
 }
 
@@ -747,7 +747,7 @@ void UDataprepParameterizationBindings::AddReferencedObjects(UObject* InThis, FR
 {
 	UDataprepParameterizationBindings* Bindings = CastChecked<UDataprepParameterizationBindings>( InThis );
 
-	for ( TPair<UDataprepParameterizableObject*, FSetOfBinding>& Pair : Bindings->ObjectToBindings )
+	for ( auto& Pair : Bindings->ObjectToBindings )
 	{
 		Collector.AddReferencedObject( Pair.Key );
 
@@ -781,7 +781,7 @@ void UDataprepParameterizationBindings::Save(FArchive& Ar)
 	{
 		int32 NumberOfObjectBinded = ObjectToBindings.Num();
 		Ar << NumberOfObjectBinded;
-		for ( const TPair<UDataprepParameterizableObject*, FSetOfBinding>& PairObjectAndBindings : ObjectToBindings )
+		for ( const auto& PairObjectAndBindings : ObjectToBindings )
 		{
 			UDataprepParameterizableObject* Object = PairObjectAndBindings.Key;
 			Ar << Object;
@@ -1724,7 +1724,7 @@ void UDataprepParameterization::AddReferencedObjects(UObject* InThis, FReference
 		}
 	}
 
-	for ( TPair<UDataprepParameterizableObject*, FDelegateHandle>& Pair : This->ObservedObjects)
+	for ( auto& Pair : This->ObservedObjects)
 	{
 		if ( Pair.Key )
 		{

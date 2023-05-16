@@ -21,7 +21,7 @@ class UCustomizableObjectEmptyClassForSettings : public UObject
 	GENERATED_BODY()
 public:
 	TWeakPtr<class SCustomizableObjectEditorViewportTabBody> Viewport;
-	class UDebugSkelMeshComponent** PreviewSkeletalMeshComp = nullptr;
+	TObjectPtr<class UDebugSkelMeshComponent>* PreviewSkeletalMeshComp = nullptr;
 };
 
 class SCustomizableObjectCustomSettings : public SVerticalBox

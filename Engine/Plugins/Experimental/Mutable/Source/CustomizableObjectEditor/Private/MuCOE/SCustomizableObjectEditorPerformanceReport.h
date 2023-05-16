@@ -134,7 +134,7 @@ public:
 private:
 
 	// Customizable object whose performance is being analyzed
-	UCustomizableObject* ReportSubject;
+	TObjectPtr<UCustomizableObject> ReportSubject;
 
 	// Number of LODs that the Customizable Object has
 	uint32 NumLOD;
@@ -143,8 +143,8 @@ private:
 	uint32 NumStates;
 
 	// Currently focused report case and instance
-	UWorstCasePerformanceReportInstance* CurrentReportWorstCase = nullptr;
-	class UCustomizableObjectInstance* CurrentReportInstance = nullptr;
+	TObjectPtr<UWorstCasePerformanceReportInstance> CurrentReportWorstCase = nullptr;
+	TObjectPtr<class UCustomizableObjectInstance> CurrentReportInstance = nullptr;
 
 	// Stress tester ================================================================================================================================================================
 	TSharedPtr<FRunningStressTest> StressTest;
@@ -191,11 +191,11 @@ private:
 	TSharedPtr<class SCustomizableObjecEditorTextureAnalyzer> PerformanceReportTextureAnalyzer;
 
 	// Worst cases ==================================================================================================================================================================
-	TArray<UWorstCasePerformanceReportInstance*> WorstTextureInstances;	// By LOD
-	TArray<UWorstCasePerformanceReportInstance*> WorstGeometryInstances;	// By LOD
-	const UWorstCasePerformanceReportInstance* WorstTimeInstance;	// Slowest instance in any test that checks for time for this report
-	TArray<TArray<UWorstCasePerformanceReportInstance*>> WorstTimeStateInstances;	// By LOD then by state index
-	TArray<TArray<TArray<UWorstCasePerformanceReportInstance*>>> WorstTimeParameterInstances;	// By LOD then by state index then all parameters relevant for that state (not ordered)
+	TArray<TObjectPtr<UWorstCasePerformanceReportInstance>> WorstTextureInstances;	// By LOD
+	TArray<TObjectPtr<UWorstCasePerformanceReportInstance>> WorstGeometryInstances;	// By LOD
+	TObjectPtr<const UWorstCasePerformanceReportInstance> WorstTimeInstance;	// Slowest instance in any test that checks for time for this report
+	TArray<TArray<TObjectPtr<UWorstCasePerformanceReportInstance>>> WorstTimeStateInstances;	// By LOD then by state index
+	TArray<TArray<TArray<TObjectPtr<UWorstCasePerformanceReportInstance>>>> WorstTimeParameterInstances;	// By LOD then by state index then all parameters relevant for that state (not ordered)
 	void ResetSavedData();
 	void WorstFacesFound(uint32 CurrentLODNumFaces, uint32 LOD, class UCustomizableObjectInstance* Instance, MeasuredData* data);
 	void WorstTextureFound(MaterialInfoMap MapMaterialParam, uint32 CurrentLODTextureSize, uint32 LOD, class UCustomizableObjectInstance* Instance, MeasuredData* data);
@@ -238,7 +238,7 @@ private:
 
 	/** UObject class to be able to use the UCustomizableObjectInstance::UpdatedDelegate update callback */
 	UPROPERTY()
-	UPerformanceReportHelper* HelperCallback;
+	TObjectPtr<UPerformanceReportHelper> HelperCallback;
 
 	friend class UPerformanceReportHelper;
 	friend class SPerformanceReportWorstCaseRow;
@@ -265,13 +265,13 @@ public:
 
 private:
 	// Report instance we represent
-	UWorstCasePerformanceReportInstance* ReportInstance;
+	TObjectPtr<UWorstCasePerformanceReportInstance> ReportInstance;
 
 	// Performance report we are from. Necessary to generate the parameter worst time case widgets when the row is a state worst case
 	SCustomizableObjecEditorPerformanceReport* PerformanceReport;
 
 	// Local copy of additional widget data
-	TArray<UWorstCasePerformanceReportInstance*> SubWidgetData;
+	TArray<TObjectPtr<UWorstCasePerformanceReportInstance>> SubWidgetData;
 
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 	virtual TSharedPtr<SWidget> GenerateAdditionalWidgetForRow() override;

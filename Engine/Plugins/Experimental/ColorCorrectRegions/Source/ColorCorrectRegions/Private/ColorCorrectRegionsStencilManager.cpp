@@ -285,7 +285,7 @@ void FColorCorrectRegionsStencilManager::RemoveStencilNumberForSelectedRegion(UW
 	}
 
 	ULevel* CurrentLevel = CurrentWorld->GetCurrentLevel();
-	TArray<AActor*> AllCCRsInCurrentLevel = CurrentLevel->Actors.FilterByPredicate([](const AActor* Actor) { return Cast<AColorCorrectRegion>(Actor) != nullptr; });
+	TArray<AActor*> AllCCRsInCurrentLevel = ObjectPtrDecay(CurrentLevel->Actors).FilterByPredicate([](const AActor* Actor) { return Cast<AColorCorrectRegion>(Actor) != nullptr; });
 
 	// For each actor that was removed, remove Ids if it is unused by any other CCR, or otherwise assign a new id.
 	for (TSoftObjectPtr<AActor> ActorToRemove : ActorsToCleanup)
@@ -317,7 +317,7 @@ void FColorCorrectRegionsStencilManager::RemoveStencilNumberForSelectedRegion(UW
 void FColorCorrectRegionsStencilManager::OnCCRRemoved(UWorld* CurrentWorld, AColorCorrectRegion* Region)
 {
 	ULevel* CurrentLevel = CurrentWorld->GetCurrentLevel();
-	TArray<AActor*> AllCCRsInCurrentLevel = CurrentLevel->Actors.FilterByPredicate([](const AActor* Actor) { return Cast<AColorCorrectRegion>(Actor) != nullptr; });
+	TArray<AActor*> AllCCRsInCurrentLevel = ObjectPtrDecay(CurrentLevel->Actors).FilterByPredicate([](const AActor* Actor) { return Cast<AColorCorrectRegion>(Actor) != nullptr; });
 
 	// For each actor that was removed, remove Ids if it is unused by any other CCR, or otherwise assign a new id.
 	for (const TPair<TSoftObjectPtr<AActor>, TSharedPtr<FStencilData>>& ActorDataPair : Region->PerAffectedActorStencilData)

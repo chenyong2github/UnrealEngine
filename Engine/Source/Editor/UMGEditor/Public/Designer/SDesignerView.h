@@ -310,7 +310,7 @@ private:
 	FScopedTransaction* ScopedTransaction;
 
 	/** The current preview widget */
-	UUserWidget* PreviewWidget;
+	TObjectPtr<UUserWidget> PreviewWidget;
 
 	/** The current preview widget's slate widget */
 	TWeakPtr<SWidget> PreviewSlateWidget;
@@ -320,8 +320,8 @@ private:
 	
 	struct FDropPreview
 	{
-		UWidget* Widget;
-		UPanelWidget* Parent;
+		TObjectPtr<UWidget> Widget;
+		TObjectPtr<UPanelWidget> Parent;
 		TWeakPtr<FDragDropOperation> DragOperation;
 	};
 

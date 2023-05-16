@@ -112,7 +112,7 @@ private:
 	virtual uint32 GetValueTypeHashInternal(const void* Src) const override;
 
 	FNumericProperty* UnderlyingProp; // The property which represents the underlying type of the enum
-	UEnum* Enum; // The enum represented by this property
+	TObjectPtr<UEnum> Enum; // The enum represented by this property
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

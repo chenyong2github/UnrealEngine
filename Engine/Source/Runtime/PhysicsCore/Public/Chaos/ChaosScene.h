@@ -164,7 +164,7 @@ protected:
 
 #if WITH_EDITOR
 	// List of objects that we modified during a PIE run for physics simulation caching.
-	TArray<UObject*> PieModifiedObjects;
+	TArray<TObjectPtr<UObject>> PieModifiedObjects;
 #endif
 
 	// Allow other code to obtain read-locks when needed

@@ -127,7 +127,7 @@ const TCHAR* XSymbol=TEXT("\xD7");
 
 const FGraphPanelSelectionSet& FGraphSelectionManager::GetSelectedNodes() const
 {
-	return SelectedNodes;
+	return ObjectPtrDecay(SelectedNodes);
 }
 
 void FGraphSelectionManager::SelectSingleNode(SelectedItemType Node)
@@ -142,15 +142,15 @@ void FGraphSelectionManager::ClearSelectionSet()
 	if (SelectedNodes.Num())
 	{
 		SelectedNodes.Empty();
-		OnSelectionChanged.ExecuteIfBound(SelectedNodes);
+		OnSelectionChanged.ExecuteIfBound(ObjectPtrDecay(SelectedNodes));
 	}
 }
 
 // Changes the selection set to contain exactly all of the passed in nodes
 void FGraphSelectionManager::SetSelectionSet(FGraphPanelSelectionSet& NewSet)
 {
-	SelectedNodes = NewSet;
-	OnSelectionChanged.ExecuteIfBound(SelectedNodes);
+	SelectedNodes = ObjectPtrWrap(NewSet);
+	OnSelectionChanged.ExecuteIfBound(ObjectPtrDecay(SelectedNodes));
 }
 
 void FGraphSelectionManager::SetNodeSelection(SelectedItemType Node, bool bSelect)
@@ -159,12 +159,12 @@ void FGraphSelectionManager::SetNodeSelection(SelectedItemType Node, bool bSelec
 	if (bSelect)
 	{
 		SelectedNodes.Add(Node);
-		OnSelectionChanged.ExecuteIfBound(SelectedNodes);
+		OnSelectionChanged.ExecuteIfBound(ObjectPtrDecay(SelectedNodes));
 	}
 	else
 	{
 		SelectedNodes.Remove(Node);
-		OnSelectionChanged.ExecuteIfBound(SelectedNodes);
+		OnSelectionChanged.ExecuteIfBound(ObjectPtrDecay(SelectedNodes));
 	}
 }
 
@@ -659,10 +659,10 @@ FReply SNodePanel::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointe
 				if ( Marquee.IsValid() )
 				{
 					auto PreviouslySelectedNodes = SelectionManager.SelectedNodes;
-					ApplyMarqueeSelection(Marquee, PreviouslySelectedNodes, SelectionManager.SelectedNodes);
+					ApplyMarqueeSelection(Marquee, ObjectPtrDecay(PreviouslySelectedNodes), SelectionManager.SelectedNodes);
 					if (SelectionManager.SelectedNodes.Num() > 0 || PreviouslySelectedNodes.Num() > 0)
 					{
-						SelectionManager.OnSelectionChanged.ExecuteIfBound(SelectionManager.SelectedNodes);
+						SelectionManager.OnSelectionChanged.ExecuteIfBound(ObjectPtrDecay(SelectionManager.SelectedNodes));
 					}
 				}
 
@@ -874,7 +874,7 @@ FReply SNodePanel::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent&
 
 							// 2. Deffer actual move transactions to mouse release or focus lost
 							bool bStoreOriginalNodePositions = OriginalNodePositions.Num() == 0;
-							for (FGraphPanelSelectionSet::TIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
+							for (decltype(SelectionManager.SelectedNodes)::TIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
 							{
 								if (TSharedRef<SNode>* pWidget = NodeToWidgetLookup.Find(*NodeIt))
 								{
@@ -1026,10 +1026,10 @@ FReply SNodePanel::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerE
 		else if ( Marquee.IsValid() )
 		{
 			auto PreviouslySelectedNodes = SelectionManager.SelectedNodes;
-			ApplyMarqueeSelection(Marquee, PreviouslySelectedNodes, SelectionManager.SelectedNodes);
+			ApplyMarqueeSelection(Marquee, ObjectPtrDecay(PreviouslySelectedNodes), SelectionManager.SelectedNodes);
 			if (SelectionManager.SelectedNodes.Num() > 0 || PreviouslySelectedNodes.Num() > 0)
 			{
-				SelectionManager.OnSelectionChanged.ExecuteIfBound(SelectionManager.SelectedNodes);
+				SelectionManager.OnSelectionChanged.ExecuteIfBound(ObjectPtrDecay(SelectionManager.SelectedNodes));
 			}
 		}
 
@@ -1192,26 +1192,26 @@ void SNodePanel::FindNodesAffectedByMarquee( FGraphPanelSelectionSet& OutAffecte
 	}	
 }
 
-void SNodePanel::ApplyMarqueeSelection( const FMarqueeOperation& InMarquee, const FGraphPanelSelectionSet& CurrentSelection, FGraphPanelSelectionSet& OutNewSelection )
+void SNodePanel::ApplyMarqueeSelection( const FMarqueeOperation& InMarquee, const FGraphPanelSelectionSet& CurrentSelection, TSet<TObjectPtr<UObject>>& OutNewSelection )
 {
 	switch (InMarquee.Operation )
 	{
 	default:
 	case FMarqueeOperation::Replace:
 		{
-			OutNewSelection = InMarquee.AffectedNodes;
+			OutNewSelection = ObjectPtrWrap(InMarquee.AffectedNodes);
 		}
 		break;
 
 	case FMarqueeOperation::Remove:
 		{
-			OutNewSelection = CurrentSelection.Difference(InMarquee.AffectedNodes);
+			OutNewSelection = ObjectPtrWrap(CurrentSelection.Difference(InMarquee.AffectedNodes));
 		}
 		break;
 
 	case FMarqueeOperation::Add:
 		{
-			OutNewSelection = CurrentSelection.Union(InMarquee.AffectedNodes);
+			OutNewSelection = ObjectPtrWrap(CurrentSelection.Union(InMarquee.AffectedNodes));
 		}
 		break; 
 
@@ -1220,8 +1220,8 @@ void SNodePanel::ApplyMarqueeSelection( const FMarqueeOperation& InMarquee, cons
 			// ToAdd = items in AffectedNodes that aren't in CurrentSelection (new selections)
 			FGraphPanelSelectionSet ToAdd = InMarquee.AffectedNodes.Difference(CurrentSelection);
 			// remove AffectedNodes that were already selected
-			OutNewSelection = CurrentSelection.Difference(InMarquee.AffectedNodes);
-			OutNewSelection.Append(ToAdd);
+			OutNewSelection = ObjectPtrWrap(CurrentSelection.Difference(InMarquee.AffectedNodes));
+			OutNewSelection.Append(ObjectPtrWrap(ToAdd));
 		}
 		break;
 	}
@@ -1815,7 +1815,7 @@ void SNodePanel::FinalizeNodeMovements()
 		// Build up all the current positions
 		TMap<SNode*, FVector2D> CurrentNodePositions;
 
-		for (FGraphPanelSelectionSet::TIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
+		for (decltype(SelectionManager.SelectedNodes)::TIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
 		{
 			TSharedRef<SNode>* pWidget = NodeToWidgetLookup.Find(*NodeIt);
 			if (pWidget != nullptr)

@@ -36,5 +36,5 @@ protected:
 
 private:
 	/** Array of actors that implement the MVR Actor Interface */
-	TArray<AActor*> MVRActors;
+	TArray<TObjectPtr<AActor>> MVRActors;
 };

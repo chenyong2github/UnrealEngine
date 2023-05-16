@@ -1154,7 +1154,7 @@ public:
 
 	struct FComponentInfo
 	{
-		ULandscapeComponent* Component;
+		TObjectPtr<ULandscapeComponent> Component;
 		FVector2D ViewOffset;
 		int32 PixelOffsetX;
 		FLandscapeComponentSceneProxy* SceneProxy;
@@ -1244,12 +1244,12 @@ public:
 
 class FLandscapeGrassWeightExporter : public FLandscapeGrassWeightExporter_RenderThread
 {
-	ALandscapeProxy* LandscapeProxy;
+	TObjectPtr<ALandscapeProxy> LandscapeProxy;
 	int32 ComponentSizeVerts;
 	int32 SubsectionSizeQuads;
 	int32 NumSubsections;
-	TArray<ULandscapeGrassType*> GrassTypes;
-	UTextureRenderTarget2D* RenderTargetTexture;
+	TArray<TObjectPtr<ULandscapeGrassType>> GrassTypes;
+	TObjectPtr<UTextureRenderTarget2D> RenderTargetTexture;
 
 public:
 	FLandscapeGrassWeightExporter(ALandscapeProxy* InLandscapeProxy, const TArray<ULandscapeComponent*>& InLandscapeComponents, TArray<ULandscapeGrassType*> InGrassTypes, bool InbNeedsHeightmap = true, TArray<int32> InHeightMips = {})
@@ -2291,7 +2291,7 @@ void FLandscapeComponentGrassData::ConditionalDiscardDataOnLoad()
 		}
 		else if (bRemoved) 
 		{
-			TMap<ULandscapeGrassType*, int32> PreviousOffsets(MoveTemp(WeightOffsets));
+			TMap<ULandscapeGrassType*, int32> PreviousOffsets(ObjectPtrDecay(MoveTemp(WeightOffsets)));
 			TArray<uint8> PreviousHeightWeightData(MoveTemp(HeightWeightData));
 			HeightWeightData.SetNumUninitialized(NumElements * sizeof(uint16) + NumElements * PreviousOffsets.Num() * sizeof(uint8), /*bAllowShrinking*/ true);
 

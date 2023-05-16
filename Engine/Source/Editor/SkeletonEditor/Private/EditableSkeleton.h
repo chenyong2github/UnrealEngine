@@ -157,7 +157,7 @@ private:
 
 private:
 	/** The skeleton we are editing */
-	class USkeleton* Skeleton;
+	TObjectPtr<class USkeleton> Skeleton;
 
 	/** All skeleton tree widgets that are editing this skeleton */
 	TArray<TWeakPtr<class SSkeletonTree>> SkeletonTrees;

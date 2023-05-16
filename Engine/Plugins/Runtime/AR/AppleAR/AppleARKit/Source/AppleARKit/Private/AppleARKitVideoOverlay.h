@@ -121,17 +121,17 @@ private:
 	
 	bool bOcclusionDepthTextureRecentlyUpdated = false;
 	
-	UMaterialInstanceDynamic* MID_CameraOverlay = nullptr;
-	UMaterialInstanceDynamic* MID_DepthOcclusionOverlay = nullptr;
-	UMaterialInstanceDynamic* MID_MatteOcclusionOverlay = nullptr;
-	UMaterialInstanceDynamic* MID_SceneDepthOcclusion = nullptr;
-	UMaterialInstanceDynamic* MID_SceneDepthColoration = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> MID_CameraOverlay = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> MID_DepthOcclusionOverlay = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> MID_MatteOcclusionOverlay = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> MID_SceneDepthOcclusion = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> MID_SceneDepthColoration = nullptr;
 	
-	UAppleARKitOcclusionTexture* OcclusionMatteTexture = nullptr;
-	UAppleARKitOcclusionTexture* OcclusionDepthTexture = nullptr;
-	UARTextureCameraImage* CameraTexture = nullptr;
-	UTexture* SceneDepthTexture = nullptr;
-	UTexture* SceneDepthConfidenceTexture = nullptr;
+	TObjectPtr<UAppleARKitOcclusionTexture> OcclusionMatteTexture = nullptr;
+	TObjectPtr<UAppleARKitOcclusionTexture> OcclusionDepthTexture = nullptr;
+	TObjectPtr<UARTextureCameraImage> CameraTexture = nullptr;
+	TObjectPtr<UTexture> SceneDepthTexture = nullptr;
+	TObjectPtr<UTexture> SceneDepthConfidenceTexture = nullptr;
 	
 	// 0: landscape, 1: portrait
 	FVector2D UVOffsets[2] = { FVector2D::ZeroVector, FVector2D::ZeroVector };

@@ -230,7 +230,7 @@ protected:
 
 	bool bActorPoolingEnabled = true;
 
-	TMap<TSubclassOf<AActor>, TArray<AActor*>> PooledActors;
+	TMap<TSubclassOf<AActor>, TArray<TObjectPtr<AActor>>> PooledActors;
 
 	FMassEntityHandleManager_ActorSpawnRequest SpawnRequestHandleManager;
 

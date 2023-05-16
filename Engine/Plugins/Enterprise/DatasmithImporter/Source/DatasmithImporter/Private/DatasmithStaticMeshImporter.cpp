@@ -410,7 +410,7 @@ void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked< IMeshUtilities >( "MeshUtilities" );
 
 	TArray<UStaticMesh*> SortedMesh;
-	for (const TPair<TSharedRef<IDatasmithMeshElement>, UStaticMesh*>& Kvp : ImportContext.ImportedStaticMeshes)
+	for (const auto& Kvp : ImportContext.ImportedStaticMeshes)
 	{
 		if (Kvp.Value)
 		{
@@ -467,7 +467,7 @@ void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext
 		else
 		{
 			// Log invalid meshes and remove mesh reference from imported meshes and mesh actors
-			for (const TPair<TSharedRef<IDatasmithMeshElement>, UStaticMesh*>& Kvp : ImportContext.ImportedStaticMeshes)
+			for (const auto& Kvp : ImportContext.ImportedStaticMeshes)
 			{
 				if (Kvp.Value == StaticMesh)
 				{

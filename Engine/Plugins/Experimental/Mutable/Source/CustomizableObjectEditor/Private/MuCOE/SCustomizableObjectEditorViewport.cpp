@@ -161,7 +161,7 @@ SCustomizableObjectEditorViewportTabBody::~SCustomizableObjectEditorViewportTabB
 
 void SCustomizableObjectEditorViewportTabBody::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	for (UDebugSkelMeshComponent* PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
+	for (auto& PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
 	{
 		Collector.AddReferencedObject(PreviewSkeletalMeshComponent);
 	}
@@ -358,7 +358,7 @@ void SCustomizableObjectEditorViewportTabBody::Tick(const FGeometry& AllottedGeo
 }
 
 
-void SCustomizableObjectEditorViewportTabBody::SetPreviewComponents(TArray<UDebugSkelMeshComponent*>& InSkeletalMeshComponents)
+void SCustomizableObjectEditorViewportTabBody::SetPreviewComponents(const TArray<UDebugSkelMeshComponent*>& InSkeletalMeshComponents)
 {
 	FTransform Transform = FTransform::Identity;
 
@@ -372,7 +372,7 @@ void SCustomizableObjectEditorViewportTabBody::SetPreviewComponents(TArray<UDebu
 		}
 	}
 
-	PreviewSkeletalMeshComponents = InSkeletalMeshComponents;
+	PreviewSkeletalMeshComponents = ObjectPtrWrap(InSkeletalMeshComponents);
 
 	for (UDebugSkelMeshComponent* PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
 	{
@@ -387,7 +387,7 @@ void SCustomizableObjectEditorViewportTabBody::SetPreviewComponents(TArray<UDebu
 		}
 	}
 
-	LevelViewportClient->SetPreviewComponents(PreviewSkeletalMeshComponents);
+	LevelViewportClient->SetPreviewComponents(ObjectPtrDecay(PreviewSkeletalMeshComponents));
 }
 
 
@@ -399,7 +399,7 @@ bool SCustomizableObjectEditorViewportTabBody::IsVisible() const
 
 const TArray<UDebugSkelMeshComponent*>& SCustomizableObjectEditorViewportTabBody::GetSkeletalMeshComponents() const
 {
-	return PreviewSkeletalMeshComponents;
+	return ObjectPtrDecay(PreviewSkeletalMeshComponents);
 }
 
 

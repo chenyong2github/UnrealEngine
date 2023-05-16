@@ -336,10 +336,10 @@ public:
 
 private:
 	/** Pending pairs of classes that to be re-instanced */
-	TArray<TPair<UPythonGeneratedClass*, UPythonGeneratedClass*>> ClassesToReinstance;
+	TArray<TPair<TObjectPtr<UPythonGeneratedClass>, TObjectPtr<UPythonGeneratedClass>>> ClassesToReinstance;
 
 	/** Pending pairs of structs that to be re-instanced */
-	TArray<TPair<UPythonGeneratedStruct*, UPythonGeneratedStruct*>> StructsToReinstance;
+	TArray<TPair<TObjectPtr<UPythonGeneratedStruct>, TObjectPtr<UPythonGeneratedStruct>>> StructsToReinstance;
 };
 
 /** Singleton instance that maps Unreal types to Python types */

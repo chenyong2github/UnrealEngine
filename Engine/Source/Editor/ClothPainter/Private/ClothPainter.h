@@ -123,13 +123,13 @@ protected:
 	/** Current adapter used to paint the clothing properties */
 	TSharedPtr<IMeshPaintGeometryAdapter> Adapter;	
 	/** Debug skeletal mesh to which painting should be applied */
-	UDebugSkelMeshComponent* SkeletalMeshComponent;
+	TObjectPtr<UDebugSkelMeshComponent> SkeletalMeshComponent;
 	/** Widget used to represent the state/functionality of the painter */
 	TSharedPtr<SClothPaintWidget> Widget;
 	/** Cloth paint settings instance */
-	UClothPainterSettings* PaintSettings;
+	TObjectPtr<UClothPainterSettings> PaintSettings;
 	/** Cloth brush settings instance */
-	UPaintBrushSettings* BrushSettings;
+	TObjectPtr<UPaintBrushSettings> BrushSettings;
 
 	/** Flag whether or not the simulation should run */
 	bool bShouldSimulate;

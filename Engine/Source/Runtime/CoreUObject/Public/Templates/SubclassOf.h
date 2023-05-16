@@ -157,6 +157,11 @@ public:
 		return GetTypeHash(SubclassOf.Class);
 	}
 
+	TObjectPtr<UClass>& GetGCPtr()
+	{
+		return Class;
+	}
+
 #if DO_CHECK
 	// This is a DEVELOPMENT ONLY debugging function and should not be relied upon. Client
 	// systems should never require unsafe access to the referenced UClass
@@ -167,7 +172,7 @@ public:
 #endif
 
 private:
-	UClass* Class = nullptr;
+	TObjectPtr<UClass> Class = nullptr;
 };
 
 template <typename T>

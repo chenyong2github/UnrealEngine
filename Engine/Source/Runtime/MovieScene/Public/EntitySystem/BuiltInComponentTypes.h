@@ -320,7 +320,7 @@ private:
 	bool IsStrongReference() const;
 
 	/** Raw pointer to the object. This is explicitly assigned for both strong and weak ptrs, but is only added to the reference graph when FObjectKey() is default constructed.  */
-	UObject* ObjectPtr;
+	TObjectPtr<UObject> ObjectPtr;
 
 	/** Default constructed for strong pointers. Assigned on construction for weak ptrs. */
 	FObjectKey ObjectKey;

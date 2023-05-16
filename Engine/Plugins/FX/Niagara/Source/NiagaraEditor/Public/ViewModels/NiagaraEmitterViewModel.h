@@ -177,7 +177,7 @@ private:
 	/** The view model for the update/spawn/event script. */
 	TSharedPtr<FNiagaraScriptViewModel> SharedScriptViewModel;
 
-	UNiagaraSummaryViewViewModel* SummaryViewHierarchyViewModel;
+	TObjectPtr<UNiagaraSummaryViewViewModel> SummaryViewHierarchyViewModel;
 
 	/** A flag to prevent reentrancy when updating selection sets. */
 	bool bUpdatingSelectionInternally;

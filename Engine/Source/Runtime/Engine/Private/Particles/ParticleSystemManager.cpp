@@ -349,7 +349,7 @@ bool FParticleSystemWorldManager::RegisterComponent(UParticleSystemComponent* PS
 	{
 		if (!PSC->IsPendingManagerAdd())
 		{
-			Handle = PendingRegisterPSCs.Add(PSC);
+			Handle = PendingRegisterPSCs.Add(ObjectPtrWrap(PSC));
 			PSC->SetManagerHandle(Handle);
 			PSC->SetPendingManagerAdd(true);
 
@@ -436,7 +436,7 @@ void FParticleSystemWorldManager::AddPSC(UParticleSystemComponent* PSC)
 {
 	if (IsValid(PSC))  // Don't add PSC if it has been marked for deletion
 	{
-		int32 Handle = ManagedPSCs.Add(PSC);
+		int32 Handle = ManagedPSCs.Add(ObjectPtrWrap(PSC));
 		PSCTickData.AddDefaulted();
 		FPSCTickData& TickData = PSCTickData[Handle];
 

@@ -145,12 +145,12 @@ private:
 	FSlateBrush RenderTargetBrush;
 
 	//~ Begin GC by AddReferencedObjects
-	URemoteSessionStreamWidgetUserData* WidgetUserData;
-	UTextureRenderTarget2D* RenderTarget2D;
-	UUserWidget* UserWidget;
-	UWorld* WidgetWorld;
-	URemoteSessionMediaOutput* MediaOutput;
-	URemoteSessionMediaCapture* MediaCapture;
+	TObjectPtr<URemoteSessionStreamWidgetUserData> WidgetUserData;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget2D;
+	TObjectPtr<UUserWidget> UserWidget;
+	TObjectPtr<UWorld> WidgetWorld;
+	TObjectPtr<URemoteSessionMediaOutput> MediaOutput;
+	TObjectPtr<URemoteSessionMediaCapture> MediaCapture;
 	//~ End GC by AddReferencedObjects
 
 	TSharedPtr<IRemoteSessionUnmanagedRole> RemoteSessionHost;

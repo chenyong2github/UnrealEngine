@@ -30,10 +30,10 @@ struct FTypedElementHandle;
 struct FViewportHoverTarget
 {
 	/** The actor we're drawing the hover effect for, or NULL */
-	AActor* HoveredActor;
+	TObjectPtr<AActor> HoveredActor;
 
 	/** The BSP model we're drawing the hover effect for, or NULL */
-	UModel* HoveredModel;
+	TObjectPtr<UModel> HoveredModel;
 
 	/** Surface index on the BSP model that currently has a hover effect */
 	uint32 ModelSurfaceIndex;
@@ -42,14 +42,14 @@ struct FViewportHoverTarget
 	/** Construct from an actor */
 	FViewportHoverTarget( AActor* InActor )
 		: HoveredActor( InActor ),
-			HoveredModel( NULL ),
+			HoveredModel( nullptr ),
 			ModelSurfaceIndex( INDEX_NONE )
 	{
 	}
 
 	/** Construct from an BSP model and surface index */
 	FViewportHoverTarget( UModel* InModel, int32 InSurfaceIndex )
-		: HoveredActor( NULL ),
+		: HoveredActor( nullptr ),
 			HoveredModel( InModel ),
 			ModelSurfaceIndex( InSurfaceIndex )
 	{

@@ -53,5 +53,5 @@ private:
 
 	TSharedPtr<class FNiagaraSimCacheViewportClient> SimCacheViewportClient;
 
-	UNiagaraComponent* PreviewComponent = nullptr;
+	TObjectPtr<UNiagaraComponent> PreviewComponent = nullptr;
 };

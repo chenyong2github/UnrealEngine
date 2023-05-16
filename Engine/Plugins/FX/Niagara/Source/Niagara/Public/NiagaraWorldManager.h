@@ -297,7 +297,7 @@ private:
 
 	FNiagaraWorldManagerTickFunction TickFunctions[NiagaraNumTickGroups];
 
-	TMap<UNiagaraParameterCollection*, UNiagaraParameterCollectionInstance*> ParameterCollections;
+	TMap<TObjectPtr<UNiagaraParameterCollection>, TObjectPtr<UNiagaraParameterCollectionInstance>> ParameterCollections;
 
 	TMap<UNiagaraSystem*, FNiagaraSystemSimulationRef> SystemSimulations[NiagaraNumTickGroups];
 
@@ -307,7 +307,7 @@ private:
 
 	TArray<FNiagaraCachedViewInfo, TInlineAllocator<8> > CachedViewInfo;
 
-	UNiagaraComponentPool* ComponentPool;
+	TObjectPtr<UNiagaraComponentPool> ComponentPool;
 	bool bPoolIsPrimed = false;
 
 	TMap<FNDI_GeneratedData::TypeHash, TUniquePtr<FNDI_GeneratedData>> DIGeneratedData;
@@ -316,7 +316,7 @@ private:
 	TArray<FNiagaraSystemInstancePtr> DeferredDeletionQueue;
 
 	UPROPERTY(transient)
-	TMap<UNiagaraEffectType*, FNiagaraScalabilityManager> ScalabilityManagers;
+	TMap<TObjectPtr<UNiagaraEffectType>, FNiagaraScalabilityManager> ScalabilityManagers;
 
 	FNiagaraDeferredMethodQueue DeferredMethods;
 
@@ -335,7 +335,7 @@ private:
 	TUniquePtr<class FNiagaraDebugHud> NiagaraDebugHud;
 #endif
 
-	TMap<UNiagaraSystem*, UNiagaraCullProxyComponent*> CullProxyMap;
+	TMap<TObjectPtr<UNiagaraSystem>, TObjectPtr<UNiagaraCullProxyComponent>> CullProxyMap;
 
 	/** A global flag for all scalability culling */
 	static ENiagaraScalabilityCullingMode ScalabilityCullingMode;

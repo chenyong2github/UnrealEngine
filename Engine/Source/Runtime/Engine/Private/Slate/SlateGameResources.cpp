@@ -53,7 +53,7 @@ const FSlateBrush* FSlateGameResources::GetBrush( const FName PropertyName, cons
 {
 	ensureMsgf(Specifier == NULL, TEXT("Attempting to look up resource (%s, %s). \n Specifiers not supported by Slate Resource Sets loaded from content browser."), *PropertyName.ToString(), Specifier);
 	FName CleanName = GetCleanName(PropertyName);
-	UObject* const * Resource = UIResources.Find(CleanName);
+	auto* Resource = UIResources.Find(CleanName);
 	if(Resource)
 	{
 		const USlateBrushAsset* BrushAsset = Cast<USlateBrushAsset>(*Resource);
@@ -67,7 +67,7 @@ const FSlateBrush* FSlateGameResources::GetOptionalBrush(const FName PropertyNam
 {
 	ensureMsgf(Specifier == NULL, TEXT("Attempting to look up resource (%s, %s). \n Specifiers not supported by Slate Resource Sets loaded from content browser."), *PropertyName.ToString(), Specifier);
 	FName CleanName = GetCleanName(PropertyName);
-	UObject* const * Resource = UIResources.Find(CleanName);
+	auto* Resource = UIResources.Find(CleanName);
 	if(Resource)
 	{
 		const USlateBrushAsset* BrushAsset = Cast<USlateBrushAsset>(*Resource);
@@ -80,7 +80,7 @@ const FSlateBrush* FSlateGameResources::GetOptionalBrush(const FName PropertyNam
 UCurveFloat* FSlateGameResources::GetCurveFloat( const FName AssetName ) const
 {
 	FName CleanName = GetCleanName(AssetName);
-	UObject* const* Resource = UIResources.Find(CleanName);
+	auto* Resource = UIResources.Find(CleanName);
 	UCurveFloat* Curve = Resource ? Cast<UCurveFloat>(*Resource) : NULL;
 	ensureMsgf(Curve, TEXT("Could not find resource '%s'"), *CleanName.ToString());
 	return Curve;
@@ -89,7 +89,7 @@ UCurveFloat* FSlateGameResources::GetCurveFloat( const FName AssetName ) const
 UCurveVector* FSlateGameResources::GetCurveVector( const FName AssetName ) const
 {
 	FName CleanName = GetCleanName(AssetName);
-	UObject* const* Resource = UIResources.Find(CleanName);
+	auto* Resource = UIResources.Find(CleanName);
 	UCurveVector* Curve = Resource ? Cast<UCurveVector>(*Resource) : NULL;
 	ensureMsgf(Curve, TEXT("Could not find resource '%s'"), *CleanName.ToString());
 	return Curve;
@@ -98,7 +98,7 @@ UCurveVector* FSlateGameResources::GetCurveVector( const FName AssetName ) const
 UCurveLinearColor* FSlateGameResources::GetCurveLinearColor( const FName AssetName ) const
 {
 	FName CleanName = GetCleanName(AssetName);
-	UObject* const* Resource = UIResources.Find(CleanName);
+	auto* Resource = UIResources.Find(CleanName);
 	UCurveLinearColor* Curve = Resource ? Cast<UCurveLinearColor>(*Resource) : NULL;
 	ensureMsgf(Curve, TEXT("Could not find resource '%s'"), *CleanName.ToString());
 	return Curve;
@@ -129,7 +129,7 @@ void FSlateGameResources::GetResources( TArray< const FSlateBrush* >& OutResourc
 
 const FSlateWidgetStyle* FSlateGameResources::GetWidgetStyleInternal(const FName DesiredTypeName, const FName StyleName, const FSlateWidgetStyle* DefaultStyle, bool bWarnIfNotFound) const
 {
-	UObject* const* UIResourcePtr = UIResources.Find( StyleName );
+	auto* UIResourcePtr = UIResources.Find( StyleName );
 	USlateWidgetStyleAsset* StyleAsset = UIResourcePtr ? Cast<USlateWidgetStyleAsset>(*UIResourcePtr) : NULL;
 
 	if ( StyleAsset == NULL )
@@ -245,7 +245,7 @@ void FSlateGameResources::AddAssetToCache( UObject* InStyleObject, bool bEnsureU
 	if ( bSupportedAssetType )
 	{
 		const FName StyleName = GenerateMapName( InStyleObject );
-		UObject* const * ExistingAsset = NULL;
+		TObjectPtr<UObject>* ExistingAsset = NULL;
 		if ( bEnsureUniqueness )
 		{
 			ExistingAsset = UIResources.Find( StyleName );

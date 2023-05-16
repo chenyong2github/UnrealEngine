@@ -315,7 +315,7 @@ void FPropertyEditor::MakeNewBlueprint()
 {
 	FProperty* NodeProperty = PropertyNode->GetProperty();
 	FClassProperty* ClassProp = CastField<FClassProperty>(NodeProperty);
-	UClass* Class = (ClassProp ? ClassProp->MetaClass : FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MetaClass")));
+	UClass* Class = (ClassProp ? ToRawPtr(ClassProp->MetaClass) : ToRawPtr(FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MetaClass"))));
 
 	UClass* RequiredInterface = FEditorClassUtils::GetClassFromString(NodeProperty->GetMetaData("MustImplement"));
 
@@ -532,7 +532,7 @@ void FPropertyEditor::OnGetClassesForAssetPicker( TArray<const UClass*>& OutClas
 	FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>( NodeProperty );
 
 	// This class and its children are the classes that we can show objects for
-	UClass* AllowedClass = ObjProp ? ObjProp->PropertyClass : UObject::StaticClass();
+	UClass* AllowedClass = ObjProp ? ToRawPtr(ObjProp->PropertyClass) : ToRawPtr(UObject::StaticClass());
 
 	OutClasses.Add( AllowedClass );
 }
@@ -561,7 +561,7 @@ void FPropertyEditor::OnGetActorFiltersForSceneOutliner( TSharedPtr<FSceneOutlin
 			FObjectPropertyBase* ObjProp = CastField<FObjectPropertyBase>( NodeProperty );
 
 			// This class and its children are the classes that we can show objects for
-			UClass* AllowedClass = ObjProp ? ObjProp->PropertyClass : AActor::StaticClass();
+			UClass* AllowedClass = ObjProp ? ToRawPtr(ObjProp->PropertyClass) : ToRawPtr(AActor::StaticClass());
 
 			return Actor->IsA( AllowedClass );
 		}

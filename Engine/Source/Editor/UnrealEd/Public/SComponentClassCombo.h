@@ -172,7 +172,7 @@ public:
 
 private:
 	TSubclassOf<UActorComponent> ComponentClass;
-	const UClass* IconClass;
+	TObjectPtr<const UClass> IconClass;
 	// For components that are not loaded we just keep the name of the component,
 	// loading occurs when the blueprint is spawned, which should also trigger a refresh
 	// of the component list:

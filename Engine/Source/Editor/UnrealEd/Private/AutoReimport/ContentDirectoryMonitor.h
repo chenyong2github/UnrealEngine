@@ -30,10 +30,10 @@ public:
 	int32 StartProcessing();
 
 	/** Extract the files we need to import from our outstanding changes (happens first)*/ 
-	void ProcessAdditions(const DirectoryWatcher::FTimeLimit& TimeLimit, TArray<UPackage*>& OutPackagesToSave, const TMap<FString, TArray<UFactory*>>& InFactoriesByExtension, FReimportFeedbackContext& Context);
+	void ProcessAdditions(const DirectoryWatcher::FTimeLimit& TimeLimit, TArray<TObjectPtr<UPackage>>& OutPackagesToSave, const TMap<FString, TArray<UFactory*>>& InFactoriesByExtension, FReimportFeedbackContext& Context);
 
 	/** Process the outstanding changes that we have cached */
-	void ProcessModifications(const DirectoryWatcher::FTimeLimit& TimeLimit, TArray<UPackage*>& OutPackagesToSave, FReimportFeedbackContext& Context);
+	void ProcessModifications(const DirectoryWatcher::FTimeLimit& TimeLimit, TArray<TObjectPtr<UPackage>>& OutPackagesToSave, FReimportFeedbackContext& Context);
 
 	/** Returns the number of source files deleted in outstanding changes. */
 	int32 GetDeletedFilesNum() const { return DeletedFiles.Num(); }
@@ -73,10 +73,10 @@ private:
 	void ImportAsset(const FString& PackagePath, const FString& Filename, TArray<UPackage*>& OutPackagesToSave, const TMap<FString, TArray<UFactory*>>& InFactoriesByExtension, FReimportFeedbackContext& Context);
 
 	/** Reimport a specific asset */
-	void ReimportAsset(UObject* InAsset, const FString& FullFilename, TArray<UPackage*>& OutPackagesToSave, FReimportFeedbackContext& Context);
+	void ReimportAsset(UObject* InAsset, const FString& FullFilename, TArray<TObjectPtr<UPackage>>& OutPackagesToSave, FReimportFeedbackContext& Context);
 
 	/** Set the specified asset to import from the specified file, then attempt to reimport it */
-	void ReimportAssetWithNewSource(UObject* InAsset, const FString& FullFilename, TArray<UPackage*>& OutPackagesToSave, FReimportFeedbackContext& Context);
+	void ReimportAssetWithNewSource(UObject* InAsset, const FString& FullFilename, TArray<TObjectPtr<UPackage>>& OutPackagesToSave, FReimportFeedbackContext& Context);
 
 	/** Check whether we should consider a change for the specified transaction */
 	bool ShouldConsiderChange(const DirectoryWatcher::FUpdateCacheTransaction& Transaction) const;

@@ -69,6 +69,6 @@ private:
 	TSharedPtr< STextBlock > TotalSizeTextures;
 
 	/** Array of Objects used in the Texture Analyzer Table */
-	TArray<UObject*> TabTextures;
+	TArray<TObjectPtr<UObject>> TabTextures;
 
 };

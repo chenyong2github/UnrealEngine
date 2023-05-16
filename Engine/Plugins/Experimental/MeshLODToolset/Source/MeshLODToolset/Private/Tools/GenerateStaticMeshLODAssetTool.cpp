@@ -60,7 +60,7 @@ namespace GenerateStaticMeshLODAssetLocals
 	public:
 
 		// Inputs
-		UGenerateStaticMeshLODProcess* GenerateProcess;
+		TObjectPtr<UGenerateStaticMeshLODProcess> GenerateProcess;
 		FGenerateStaticMeshLODProcess_PreprocessSettings GeneratorSettings_Preprocess;
 		FGenerateStaticMeshLODProcessSettings GeneratorSettings_MeshGeneration;
 		FGenerateStaticMeshLODProcess_SimplifySettings GeneratorSettings_Simplify;
@@ -728,4 +728,3 @@ void UGenerateStaticMeshLODAssetTool::OnPresetSelectionChanged()
 
 
 #undef LOCTEXT_NAMESPACE
-

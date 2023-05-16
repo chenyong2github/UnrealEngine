@@ -436,7 +436,7 @@ namespace Metasound
 			TSharedPtr<FUICommandList> GraphEditorCommands;
 
 			/** The Metasound asset being edited */
-			UObject* Metasound = nullptr;
+			TObjectPtr<UObject> Metasound = nullptr;
 
 			/** Whether or not metasound being edited is valid */
 			bool bPassedValidation = true;

@@ -36,6 +36,6 @@ private:
 	void InitializeForPIE();
 #endif
 
-	UPackage* ExternalStreamingObjectPackage;
-	URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject;
+	TObjectPtr<UPackage> ExternalStreamingObjectPackage;
+	TObjectPtr<URuntimeHashExternalStreamingObjectBase> ExternalStreamingObject;
 };

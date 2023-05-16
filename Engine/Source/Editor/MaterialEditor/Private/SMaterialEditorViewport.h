@@ -63,10 +63,10 @@ public:
 	void SetPreviewMaterial(UMaterialInterface* InMaterialInterface);
 
 	/** Component for the preview mesh. */
-	UMeshComponent* PreviewMeshComponent;
+	TObjectPtr<UMeshComponent> PreviewMeshComponent;
 
 	/** Material for the preview mesh */
-	UMaterialInterface* PreviewMaterial;
+	TObjectPtr<UMaterialInterface> PreviewMaterial;
 	
 	/** The preview primitive we are using. */
 	EThumbnailPrimType PreviewPrimType;
@@ -120,7 +120,7 @@ private:
 	TSharedPtr<class FAdvancedPreviewScene> AdvancedPreviewScene;
 
 	/** Post process volume actor. */
-	class APostProcessVolume* PostProcessVolumeActor;
+	TObjectPtr<class APostProcessVolume> PostProcessVolumeActor;
 
 	/** Property changed delegate. */
 	FCoreUObjectDelegates::FOnObjectPropertyChanged::FDelegate OnPropertyChangedHandle;

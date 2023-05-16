@@ -146,7 +146,7 @@ protected:
 private:
 
 	/** Reference to the evaluator for making datacenter determinations */
-	UQosRegionManager* RegionManager;
+	TObjectPtr<UQosRegionManager> RegionManager;
 };
 
 

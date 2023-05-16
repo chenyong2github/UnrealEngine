@@ -409,11 +409,11 @@ void FSCSEditorViewportClient::ProcessClick(class FSceneView& View, class HHitPr
 			AActor* PreviewActor = GetPreviewActor();
 			if (ActorProxy && ActorProxy->Actor && ActorProxy->PrimComponent)
 			{
-				USceneComponent* SelectedCompInstance = nullptr;
+				const USceneComponent* SelectedCompInstance = nullptr;
 
 				if (ActorProxy->Actor == PreviewActor)
 				{
-					UPrimitiveComponent* TestComponent = const_cast<UPrimitiveComponent*>(ActorProxy->PrimComponent);
+					const UPrimitiveComponent* TestComponent = ActorProxy->PrimComponent;
 					if (ActorProxy->Actor->GetComponents().Contains(TestComponent))
 					{
 						SelectedCompInstance = TestComponent;

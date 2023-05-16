@@ -509,7 +509,7 @@ public:
 	TWeakPtr<ITutorialListEntry> ParentCategory;
 
 	/** Tutorial that we will launch */
-	UEditorTutorial* Tutorial;
+	TObjectPtr<UEditorTutorial> Tutorial;
 
 	/** Selection delegate */
 	FOnTutorialSelected OnTutorialSelected;

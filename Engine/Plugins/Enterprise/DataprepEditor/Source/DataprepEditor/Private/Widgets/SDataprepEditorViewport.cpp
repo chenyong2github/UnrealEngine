@@ -1378,7 +1378,7 @@ void FDataprepEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* Hi
 			if( HitProxy->IsA( HActor::StaticGetType() ) )
 			{
 				// A static mesh component has been selected
-				if( UStaticMeshComponent* Component = Cast<UStaticMeshComponent>( const_cast<UPrimitiveComponent*>(((HActor*)HitProxy)->PrimComponent )) )
+				if( UStaticMeshComponent* Component = Cast<UStaticMeshComponent>( ((HActor*)HitProxy)->PrimComponent ))
 				{
 					// A static mesh component part of the ones to preview has been selected
 					if( DataprepEditorViewport->IsAPreviewComponent(Component) )

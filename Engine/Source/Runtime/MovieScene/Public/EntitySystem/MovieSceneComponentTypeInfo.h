@@ -27,7 +27,7 @@ using FComponentReferenceCollectionPtr = void (*)(FReferenceCollector&, void*, i
 inline FNotImplemented* AddReferencedObjectForComponent(...) { return nullptr; }
 
 template<typename T>
-typename TEnableIf<TPointerIsConvertibleFromTo<T, UObject>::Value>::Type AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, T** Component)
+typename TEnableIf<TPointerIsConvertibleFromTo<T, UObject>::Value>::Type AddReferencedObjectForComponent(FReferenceCollector* ReferenceCollector, TObjectPtr<T>* Component)
 {
 	ReferenceCollector->AddReferencedObject(*Component);
 }

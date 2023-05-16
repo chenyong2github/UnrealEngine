@@ -210,8 +210,8 @@ private:
 	TSharedPtr<IDetailsView> Details2View;
 	TSharedPtr<SEditableTextBox> SequenceWithShotsPathText;
 	TSharedPtr<STextBlock> ErrorText;
-	ULevelSequenceWithShotsSettings* LevelSequenceWithShotsSettings;
-	UMovieSceneToolsProjectSettings* ToolsProjectSettings;
+	TObjectPtr<ULevelSequenceWithShotsSettings> LevelSequenceWithShotsSettings;
+	TObjectPtr<UMovieSceneToolsProjectSettings> ToolsProjectSettings;
 };
 	
 

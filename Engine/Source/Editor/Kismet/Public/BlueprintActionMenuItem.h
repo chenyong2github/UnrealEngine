@@ -78,7 +78,7 @@ public:
 
 private:
 	/** Specialized node-spawner, that comprises the action portion of this menu entry. */
-	UBlueprintNodeSpawner const* Action;
+	TObjectPtr<const UBlueprintNodeSpawner> Action;
 	/** Tint to return along with the icon brush. */
 	FSlateColor IconTint;
 	/** Brush that should be used for the icon on this menu item. */

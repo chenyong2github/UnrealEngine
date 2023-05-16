@@ -164,13 +164,13 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	// The frustum component used to show visually where the camera field of view is
-	class UDrawFrustumComponent* DrawFrustum;
+	TObjectPtr<class UDrawFrustumComponent> DrawFrustum;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Camera)
 	TObjectPtr<class UStaticMesh> CameraMesh;
 
 	// The camera mesh to show visually where the camera is placed
-	class UStaticMeshComponent* ProxyMeshComponent;
+	TObjectPtr<class UStaticMeshComponent> ProxyMeshComponent;
 
 	virtual void ResetProxyMeshTransform();
 

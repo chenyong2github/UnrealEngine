@@ -50,7 +50,7 @@ private:
 private:
 
 	/**  */
-	UTakePreset* TakePreset;
+	TObjectPtr<UTakePreset> TakePreset;
 
 	static const FName TabId;
 };

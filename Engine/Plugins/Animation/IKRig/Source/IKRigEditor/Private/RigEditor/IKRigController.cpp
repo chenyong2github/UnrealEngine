@@ -36,6 +36,11 @@ UIKRigDefinition* UIKRigController::GetAsset() const
 	return Asset;
 }
 
+TObjectPtr<UIKRigDefinition>& UIKRigController::GetAssetPtr()
+{
+	return Asset;
+}
+
 bool UIKRigController::AddBoneSetting(const FName BoneName, int32 SolverIndex) const
 {
 	check(Asset->Solvers.IsValidIndex(SolverIndex))
@@ -542,7 +547,7 @@ FName UIKRigController::GetRetargetChainFromGoal(const FName GoalName) const
 	if (GoalName == NAME_None)
 	{
 		return NAME_None;
-	}
+	}
 	
 	const TArray<FBoneChain>& Chains = GetRetargetChains();
 	for (const FBoneChain& Chain : Chains)

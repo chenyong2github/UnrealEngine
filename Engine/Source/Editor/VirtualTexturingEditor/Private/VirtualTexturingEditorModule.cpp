@@ -107,7 +107,7 @@ bool FVirtualTexturingEditorModule::BuildStreamedMips(EShadingPath ShadingPath, 
 void FVirtualTexturingEditorModule::ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const
 {
 	FVirtualTextureConversionWorker VirtualTextureConversionWorker(bConvertBackToNonVirtual);
-	VirtualTextureConversionWorker.UserTextures = Textures;
+	VirtualTextureConversionWorker.UserTextures = ObjectPtrWrap(Textures);
 	//We want all given texture to be added, so we put a minimum texture size of 0
 	VirtualTextureConversionWorker.FilterList(0);
 	if (RelatedMaterials)

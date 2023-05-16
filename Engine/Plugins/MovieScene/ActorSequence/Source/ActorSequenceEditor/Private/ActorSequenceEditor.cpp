@@ -211,7 +211,7 @@ public:
 	FDelegateHandle OnInitializeSequenceHandle;
 	TSharedPtr<FActorSequenceEditorTabBinding> BlueprintEditorTabBinding;
 	FName ActorSequenceComponentName;
-	USequencerSettings* Settings;
+	TObjectPtr<USequencerSettings> Settings;
 };
 
 IMPLEMENT_MODULE(FActorSequenceEditorModule, ActorSequenceEditor);

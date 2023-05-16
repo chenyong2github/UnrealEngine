@@ -87,7 +87,7 @@ private:
 	void OnActorDescAdded(FWorldPartitionActorDesc* ActorDesc);
 	void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
 
-	class UContentBundleUnsavedActorMonitor* UnsavedActorMonitor;
+	TObjectPtr<class UContentBundleUnsavedActorMonitor> UnsavedActorMonitor;
 
 	TWeakObjectPtr<UActorDescContainer> ActorDescContainer;
 	FWorldDataLayersReference WorldDataLayersActorReference;
@@ -95,7 +95,7 @@ private:
 	TArray<FWorldPartitionReference> ForceLoadedActors;
 
 	TMap<uint32, const UWorldPartitionRuntimeCell*> CookPackageIdsToCell;
-	URuntimeHashExternalStreamingObjectBase* ExternalStreamingObject;
+	TObjectPtr<URuntimeHashExternalStreamingObjectBase> ExternalStreamingObject;
 
 	// Used by Content Bundle Outliner to link tree item to FContentBundle instance.
 	FGuid TreeItemID;

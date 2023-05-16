@@ -35,7 +35,7 @@ void FScriptObjectReferencer::RemoveObjectReference(UObject* Object)
 void FScriptObjectReferencer::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AllowEliminatingReferences(false);
-	for (auto Object : ScriptCreatedObjects)
+	for (auto& Object : ScriptCreatedObjects)
 	{
 		Collector.AddReferencedObject(Object);
 	}

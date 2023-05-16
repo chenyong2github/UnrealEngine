@@ -263,13 +263,13 @@ private:
 	static const TCHAR* AssetContainerPath;
 
 	/** Container of assets */
-	class UConcertAssetContainer* AssetContainer;
+	TObjectPtr<class UConcertAssetContainer> AssetContainer;
 
 	/** True if presence is currently enabled and should be shown (unless hidden by other settings) */
 	bool bIsPresenceEnabled;
 
 	/** The list of loaded classes representing remote clients avatar. */
-	TMap<FString, UClass*> OthersAvatarClasses;
+	TMap<FString, TObjectPtr<UClass>> OthersAvatarClasses;
 
 	/** Presence state associated with remote client id */
 	TMap<FGuid, FConcertClientPresenceState> PresenceStateMap;
@@ -325,4 +325,3 @@ namespace FConcertClientPresenceManager
 }
 
 #endif
-

@@ -191,7 +191,7 @@ bool FOpenXRARSystem::OnIsTrackingTypeSupported(EARSessionType SessionType) cons
 /** @return a TArray of all the pins that attach components to TrackedGeometries */
 TArray<UARPin*> FOpenXRARSystem::OnGetAllPins() const
 {
-	return Pins;
+	return ObjectPtrDecay(Pins);
 }
 
 /**

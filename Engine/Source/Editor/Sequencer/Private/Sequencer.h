@@ -1148,7 +1148,7 @@ private:
 	void ModifyViewportClientView(FEditorViewportViewModifierParams& Params);
 
 	/** User-supplied settings object for this sequencer */
-	USequencerSettings* Settings;
+	TObjectPtr<USequencerSettings> Settings;
 
 	/** Command list for sequencer commands (Sequencer widgets only). */
 	TSharedRef<FUICommandList> SequencerCommandBindings;
@@ -1418,7 +1418,7 @@ private:
 	/** The range of the currently displayed sub sequence in relation to its parent section, in the resolution of the current sub sequence */
 	TRange<FFrameNumber> SubSequenceRange;
 
-	UMovieSceneCompiledDataManager* CompiledDataManager;
+	TObjectPtr<UMovieSceneCompiledDataManager> CompiledDataManager;
 	TSharedPtr<FMovieSceneEntitySystemRunner> Runner;
 
 	TSharedPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler> DeferredSignedObjectChangeHandler;

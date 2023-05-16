@@ -248,7 +248,7 @@ private:
 	TArray<FOnScreenMessage> OnScreenMessages;
 
 	/** Object that stores all of the possible parameters we can edit. */
-	UMaterialEditorInstanceConstant* MaterialEditorInstance;
+	TObjectPtr<UMaterialEditorInstanceConstant> MaterialEditorInstance;
 
 	/** Whether or not we should be displaying all the material parameters */
 	bool bShowAllMaterialParameters;

@@ -72,7 +72,7 @@ private:
 	TSharedPtr<STextBlock> SelectedLibraryTextBlock;
 
 	/** Source for the library combo box */
-	TArray<UDMXLibrary*> LibrarySource;
+	TArray<TObjectPtr<UDMXLibrary>> LibrarySource;
 
 private:
 	/** Generates an entry in the library combo box */
@@ -88,7 +88,7 @@ private:
 	TSharedPtr<STextBlock> SelectedFixturePatchTextBlock;
 
 	/** Source for the fixture patch combo box */
-	TArray<UDMXEntityFixturePatch*> FixturePatchSource;
+	TArray<TObjectPtr<UDMXEntityFixturePatch>> FixturePatchSource;
 
 private:
 	/** Called when the library was edited */

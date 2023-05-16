@@ -104,7 +104,7 @@ private:
 private:
 
 	/** Pointer to the Population Class open in this editor */
-	UCustomizableObjectPopulation* Population;
+	TObjectPtr<UCustomizableObjectPopulation> Population;
 
 	/** Tabs IDs */
 	static const FName PopulationPropertiesTabId;

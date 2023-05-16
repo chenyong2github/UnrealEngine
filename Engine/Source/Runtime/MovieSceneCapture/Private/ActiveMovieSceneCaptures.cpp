@@ -26,8 +26,8 @@ void FActiveMovieSceneCaptures::Remove(UMovieSceneCapture* Capture)
 
 void FActiveMovieSceneCaptures::Tick(float DeltaSeconds)
 {
-	TArray<UMovieSceneCapture*> Captures = ActiveCaptures;
-	for (UMovieSceneCapture* Capture : Captures)
+	TArray<TObjectPtr<UMovieSceneCapture>> Captures = ActiveCaptures;
+	for (auto& Capture : Captures)
 	{
 		if (Capture->ShouldFinalize())
 		{
@@ -42,10 +42,10 @@ void FActiveMovieSceneCaptures::Tick(float DeltaSeconds)
 
 void FActiveMovieSceneCaptures::Shutdown()
 {
-	TArray<UMovieSceneCapture*> ActiveCapturesCopy;
+	TArray<TObjectPtr<UMovieSceneCapture>> ActiveCapturesCopy;
 	Swap(ActiveCaptures, ActiveCapturesCopy);
 
-	for (auto* Obj : ActiveCapturesCopy)
+	for (auto& Obj : ActiveCapturesCopy)
 	{
 		Obj->Finalize();
 	}

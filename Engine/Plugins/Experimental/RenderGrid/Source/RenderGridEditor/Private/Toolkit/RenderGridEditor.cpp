@@ -463,9 +463,9 @@ void UE::RenderGrid::Private::FRenderGridEditor::AddReferencedObjects(FReference
 {
 	FBlueprintEditor::AddReferencedObjects(Collector);
 
-	if (URenderGrid* Instance = GetInstance(); IsValid(Instance))
+	if (URenderGrid* Instance = RenderGridWeakPtr.Get(); IsValid(Instance))
 	{
-		Collector.AddReferencedObject(Instance);
+		Collector.AddReferencedObject(RenderGridWeakPtr);
 	}
 }
 

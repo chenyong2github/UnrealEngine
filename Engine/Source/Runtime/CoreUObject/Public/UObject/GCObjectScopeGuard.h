@@ -44,7 +44,7 @@ public:
 	}
 
 private:
-	ObjectType* Object;
+	TObjectPtr<ObjectType> Object;
 };
 
 using FGCObjectScopeGuard = TGCObjectScopeGuard<const UObject>;
@@ -88,5 +88,5 @@ public:
 	}
 
 private:
-	TArray<ObjectType*> Objects;
+	TArray<TObjectPtr<ObjectType>> Objects;
 };

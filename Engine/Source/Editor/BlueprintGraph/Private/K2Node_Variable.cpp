@@ -106,7 +106,7 @@ bool UK2Node_Variable::CreatePinForVariable(EEdGraphPinDirection Direction, FNam
 			// class (the blueprint has not be compiled with it yet), so let's 
 			// check the skeleton class as well, see if we can pull pin data 
 			// from there...
-			UBlueprint* VariableBlueprint = CastChecked<UBlueprint>(BpClassOwner->ClassGeneratedBy, ECastCheckedType::NullAllowed);
+			UBlueprint* VariableBlueprint = CastChecked<UBlueprint>(BpClassOwner->ClassGeneratedBy.Get(), ECastCheckedType::NullAllowed);
 			if (VariableBlueprint)
 			{
 				if (FProperty* SkelProperty = GetPropertyForVariableFromSkeleton())

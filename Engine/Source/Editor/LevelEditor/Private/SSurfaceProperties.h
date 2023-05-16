@@ -253,13 +253,13 @@ private:
 	void OnToggleRotationDirection( ECheckBoxState NewState );
 
 	/** typedef to make it easier to handle the lightmass objects */
-	typedef TArray<ULightmassPrimitiveSettingsObject*> TLightmassSettingsObjectArray;
+	typedef TArray<TObjectPtr<ULightmassPrimitiveSettingsObject>> TLightmassSettingsObjectArray;
 
 	/** Stores the lightmass settings objects, regardless of their selection status. Must be serialized. */
 	TArray<TLightmassSettingsObjectArray> LevelLightmassSettingsObjects;
 
 	/** Stores the selected lightmass settings objects, must be serialized. Used to create property tree. */
-	TArray<UObject*> SelectedLightmassSettingsObjects;
+	TArray<TObjectPtr<UObject>> SelectedLightmassSettingsObjects;
 
 	/** Holds reference to the lightmass property tree view */
 	TSharedPtr<class IDetailsView> PropertyView;

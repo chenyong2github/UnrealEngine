@@ -566,16 +566,16 @@ protected:
 	TArray<FEditorModeID> DefaultModeIDs;
 
 	/** A list of active editor modes. */
-	TArray< UEdMode* > ActiveScriptableModes;
+	TArray< TObjectPtr<UEdMode> > ActiveScriptableModes;
 
 	/** The host of the toolkits created by these modes */
 	TWeakPtr<IToolkitHost> ToolkitHost;
 
 	/** A list of previously active editor modes that we will potentially recycle */
-	TMap< FEditorModeID, UEdMode* > RecycledScriptableModes;
+	TMap< FEditorModeID, TObjectPtr<UEdMode> > RecycledScriptableModes;
 
 	/** A list of previously active editor modes that we will potentially recycle */
-	TMap< FEditorModeID, UEdMode* > PendingDeactivateModes;
+	TMap< FEditorModeID, TObjectPtr<UEdMode> > PendingDeactivateModes;
 
 	/** The mode that the editor viewport widget is in. */
 	UE::Widget::EWidgetMode WidgetMode;
@@ -595,7 +595,7 @@ protected:
 	/** Scale Factor for Widget*/
 	float WidgetScale;
 
-	UModeManagerInteractiveToolsContext* InteractiveToolsContext;
+	TObjectPtr<UModeManagerInteractiveToolsContext> InteractiveToolsContext;
 
 private:
 

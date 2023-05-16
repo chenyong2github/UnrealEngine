@@ -329,7 +329,7 @@ protected:
 
 	/** Used by interpolator pre-translation to hold potential errors until actually confirmed. */
 	TArray<FString>* CompileErrorsSink;
-	TArray<UMaterialExpression*>* CompileErrorExpressionsSink;
+	TArray<TObjectPtr<UMaterialExpression>>* CompileErrorExpressionsSink;
 
 	/** Keeps track of which variations of analytic derivative functions are used, and generates the code during translation. **/
 	FMaterialDerivativeAutogen DerivativeAutogen;

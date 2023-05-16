@@ -178,7 +178,8 @@ public:
 
 	void SelectConnected()
 	{
-		TArray<ULandscapeSplineControlPoint*> ControlPointsToProcess = SelectedSplineControlPoints.Array();
+		TArray<ULandscapeSplineControlPoint*> ControlPointsToProcess =
+			ObjectPtrDecay(SelectedSplineControlPoints.Array());
 
 		while (ControlPointsToProcess.Num() > 0)
 		{
@@ -196,7 +197,7 @@ public:
 			}
 		}
 
-		TArray<ULandscapeSplineSegment*> SegmentsToProcess = SelectedSplineSegments.Array();
+		TArray<ULandscapeSplineSegment*> SegmentsToProcess = ObjectPtrDecay(SelectedSplineSegments.Array());
 
 		while (SegmentsToProcess.Num() > 0)
 		{
@@ -2312,12 +2313,12 @@ protected:
 
 protected:
 	FEdModeLandscape* EdMode;
-	ULandscapeInfo* LandscapeInfo;
+	TObjectPtr<ULandscapeInfo> LandscapeInfo;
 
-	TSet<ULandscapeSplineControlPoint*> SelectedSplineControlPoints;
-	TSet<ULandscapeSplineSegment*> SelectedSplineSegments;
+	TSet<TObjectPtr<ULandscapeSplineControlPoint>> SelectedSplineControlPoints;
+	TSet<TObjectPtr<ULandscapeSplineSegment>> SelectedSplineSegments;
 
-	ULandscapeSplineSegment* DraggingTangent_Segment;
+	TObjectPtr<ULandscapeSplineSegment> DraggingTangent_Segment;
 	float DraggingTangent_Length;
 	ECoordSystem DraggingTangent_CacheCoordSpace;
 	uint32 DraggingTangent_End : 1;

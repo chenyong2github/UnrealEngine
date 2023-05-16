@@ -182,7 +182,7 @@ public:
 
 	/** */
 	void SetPreviewComponent(UStaticMeshComponent* InPreviewStaticMeshComponent);
-	void SetPreviewComponents(TArray<UDebugSkelMeshComponent*>& InPreviewSkeletalMeshComponents);
+	void SetPreviewComponents(const TArray<UDebugSkelMeshComponent*>& InPreviewSkeletalMeshComponents);
 
 	/** Sets an informative message in the viewport warning the user that the CustomizableObject has no reference mesh */
 	void SetReferenceMeshMissingWarningMessage(bool bVisible);
@@ -448,7 +448,7 @@ private:
 	bool bReferenceMeshMissingWarningMessageVisible;
 
 	UCustomizableObjectNodeMeshClipMorph* ClipMorphNode;
-	UMaterial* ClipMorphMaterial;
+	TObjectPtr<UMaterial> ClipMorphMaterial;
 	bool bClipMorphVisible;
 	bool bClipMorphLocalStartOffset;
 	FVector ClipMorphOrigin;
@@ -484,7 +484,7 @@ private:
 	bool IsPlayingAnimation;
 
 	/** Animation being played by the Customizable Object, if any */
-	UAnimationAsset* AnimationBeingPlayed;
+	TObjectPtr<UAnimationAsset> AnimationBeingPlayed;
 
 	/** Customizable object being used */
 	UCustomizableObject* CustomizableObject;
@@ -502,7 +502,7 @@ private:
 	bool bActivateOrbitalCamera;
 
 	/** Material for cylinder arc solid render */
-	UMaterialInterface* TransparentPlaneMaterialXY;
+	TObjectPtr<UMaterialInterface> TransparentPlaneMaterialXY;
 
 	/** bool to return the Camera mode to Orbital when changing the Camera view to Perspective */
 	bool bSetOrbitalOnPerspectiveMode;
@@ -512,7 +512,7 @@ private:
 
 	// Temp Instance used in the bake process if a new instance is needed because mutable texture streaming is enabled so the viewport 
 	// instance does not have the high quality mips in the texture's platform data
-	UCustomizableObjectInstance* BakeTempInstance = nullptr;
+	TObjectPtr<UCustomizableObjectInstance> BakeTempInstance = nullptr;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

@@ -188,13 +188,13 @@ namespace ObjectTools
 		}
 
 		/** Packages dirtied by a consolidation operation */
-		TArray<UPackage*>	DirtiedPackages;
+		TArray<TObjectPtr<UPackage>>	DirtiedPackages;
 
 		/** Objects which were not valid for consolidation */
-		TArray<UObject*>	InvalidConsolidationObjs;
+		TArray<TObjectPtr<UObject>>	InvalidConsolidationObjs;
 
 		/** Objects which failed consolidation (partially consolidated) */
-		TArray<UObject*>	FailedConsolidationObjs;
+		TArray<TObjectPtr<UObject>>	FailedConsolidationObjs;
 	};
 
 	/** Helper struct for batch replacements where Old references get replaced with New */

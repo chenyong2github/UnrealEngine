@@ -52,7 +52,7 @@ namespace UE::Reload::Private
 		UClass* NewClass;
 
 		/** Necessary for delta serialization */
-		UObject* CopyOfPreviousCDO;
+		TObjectPtr<UObject> CopyOfPreviousCDO;
 
 		/**
 		 * Sets the re-instancer up for new class re-instancing

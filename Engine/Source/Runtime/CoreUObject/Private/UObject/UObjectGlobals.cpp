@@ -4540,7 +4540,7 @@ public:
 			FReferenceCollector& CurrentCollector = GetCollector();
 			FProperty* OldCollectorSerializedProperty = CurrentCollector.GetSerializedProperty();
 			CurrentCollector.SetSerializedProperty(GetSerializedProperty());
-			CurrentCollector.AddReferencedObject(Object, GetSerializingObject(), GetSerializedProperty());
+			FReferenceCollector::AROPrivate::AddReferencedObject(CurrentCollector, Object, GetSerializingObject(), GetSerializedProperty());
 			CurrentCollector.SetSerializedProperty(OldCollectorSerializedProperty);
 		}
 		return *this;
@@ -4560,35 +4560,81 @@ public:
 
 };
 
+#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
 void FReferenceCollector::AddStableReference(UObject** Object)
 {
-	AddReferencedObject(*Object);
+	AROPrivate::AddReferencedObject(*this, *Object);
 }
 
 void FReferenceCollector::AddStableReferenceArray(TArray<UObject*>* Array)
 {
-	AddReferencedObjects(*Array); 
+	AROPrivate::AddReferencedObjects(*this, *Array); 
 }
 
 void FReferenceCollector::AddStableReferenceSet(TSet<UObject*>* Objects)
 {
+	AROPrivate::AddReferencedObjects(*this, *Objects);
+}
+#endif
+
+void FReferenceCollector::AddStableReference(TObjectPtr<UObject>* Object)
+{
+	AddReferencedObject(*Object);
+}
+
+void FReferenceCollector::AddStableReferenceArray(TArray<TObjectPtr<UObject>>* Array)
+{
+	AddReferencedObjects(*Array); 
+}
+
+void FReferenceCollector::AddStableReferenceSet(TSet<TObjectPtr<UObject>>* Objects)
+{
 	AddReferencedObjects(*Objects);
 }
 
+#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
 void FReferenceCollector::AddReferencedObjects(const UScriptStruct*& ScriptStruct, void* StructMemory, const UObject* ReferencingObject /*= nullptr*/, const FProperty* ReferencingProperty /*= nullptr*/)
+{
+	AROPrivate::AddReferencedObjects(*this, ScriptStruct, StructMemory, ReferencingObject, ReferencingProperty);
+}
+#endif
+
+void FReferenceCollector::AddReferencedObjects(TWeakObjectPtr<const UScriptStruct>& ScriptStruct, void* Instance, const UObject* ReferencingObject, const FProperty* ReferencingProperty)
+{
+	const UScriptStruct* Ptr = ScriptStruct.Get();
+	AROPrivate::AddReferencedObjects(*this, Ptr, Instance, ReferencingObject, ReferencingProperty);	 
+	ScriptStruct = Ptr;
+}
+
+void FReferenceCollector::AddReferencedObjects(TObjectPtr<const UScriptStruct>& ScriptStruct, void* Instance, const UObject* ReferencingObject, const FProperty* ReferencingProperty)
+{
+	AROPrivate::AddReferencedObjects(*this, UE::Core::Private::Unsafe::Decay(ScriptStruct), Instance, ReferencingObject, ReferencingProperty);
+}
+
+void FReferenceCollector::AddReferencedObject(FWeakObjectPtr& P, const UObject* ReferencingObject, const FProperty* ReferencingProperty)
+{
+	UObject* Ptr = P.Get();
+	AROPrivate::AddReferencedObject(*this, Ptr, ReferencingObject, ReferencingProperty);
+	P = Ptr;
+}
+
+void FReferenceCollector::AROPrivate::AddReferencedObjects(FReferenceCollector& Coll,
+																													 const UScriptStruct*& ScriptStruct,
+																													 void* StructMemory,
+																													 const UObject* ReferencingObject /*= nullptr*/, const FProperty* ReferencingProperty /*= nullptr*/)
 {
 	check(ScriptStruct != nullptr);
 	check(StructMemory != nullptr);
 
-	AddReferencedObject(ScriptStruct, ReferencingObject, ReferencingProperty);
+	AROPrivate::AddReferencedObject(Coll, ScriptStruct, ReferencingObject, ReferencingProperty);
 
 	// If the script struct explicitly provided an implementation of AddReferencedObjects, make sure to capture its referenced objects
 	if (ScriptStruct->StructFlags & STRUCT_AddStructReferencedObjects)
 	{
-		ScriptStruct->GetCppStructOps()->AddStructReferencedObjects()(StructMemory, *this);
+		ScriptStruct->GetCppStructOps()->AddStructReferencedObjects()(StructMemory, Coll);
 	}
 
-	AddPropertyReferences(ScriptStruct, StructMemory, ReferencingObject);
+	Coll.AddPropertyReferences(ScriptStruct, StructMemory, ReferencingObject);
 }
 
 void FReferenceCollector::HandleObjectReferences(FObjectPtr* InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty)
@@ -4717,7 +4763,7 @@ void CollectArrayReferences(FReferenceCollector& Collector, FArrayProperty& Prop
 								!EnumHasAnyFlags(Property.ArrayFlags, EArrayPropertyFlags::UsesMemoryImageAllocator);
 		if (bIsReferenceArray && !EnumHasAnyFlags(CollectFlags, EPropertyCollectFlags::NeedsReferencer))
 		{
-			Collector.AddStableReferenceArray(reinterpret_cast<TArray<UObject*>*>(Instance));
+			Collector.AddStableReferenceArray(reinterpret_cast<TArray<TObjectPtr<UObject>>*>(Instance));
 		}
 		else if (FScriptArrayHelper Helper(&Property, Instance); int32 Num = Helper.Num())
 		{
@@ -4729,14 +4775,14 @@ void CollectArrayReferences(FReferenceCollector& Collector, FArrayProperty& Prop
 				}
 				else
 				{
-					Collector.AddReferencedObjects(*reinterpret_cast<TArray<UObject*>*>(Instance), Referencer, &Property);
+					FReferenceCollector::AROPrivate::AddReferencedObjects(Collector, *reinterpret_cast<TArray<UObject*>*>(Instance), Referencer, &Property);
 				}
 			}
 			else if (EnumHasAnyFlags(InnerCastFlags, CASTCLASS_FStructProperty))
 			{
 				for (int32 Idx = 0; Idx < Num; ++Idx)
 				{
-					CollectStructReferences<CollectFlags>(Collector, static_cast<FStructProperty&>(InnerProperty).Struct, Helper.GetRawPtr(Idx), Referencer);
+					CollectStructReferences<CollectFlags>(Collector, static_cast<FStructProperty&>(InnerProperty).Struct.Get(), Helper.GetRawPtr(Idx), Referencer);
 				}
 			}
 			else
@@ -4813,13 +4859,13 @@ FORCEINLINE_DEBUGGABLE void CollectObjectReference(FReferenceCollector& Collecto
 		// Sync reference processors will inspect Reference immediately so might as well avoid virtual call
 		if ((!!Reference) & IsObjectHandleResolved(*reinterpret_cast<FObjectHandle*>(Value))) //-V792
 		{
-			Collector.AddReferencedObject(Reference, Referencer, &Property);
+			FReferenceCollector::AROPrivate::AddReferencedObject(Collector, Reference, Referencer, &Property);
 		}
 	}
 	else
 	{
 		// Allows batch reference processor to queue up Reference and prefetch before accessing it
-		Collector.AddStableReference(&Reference);
+		Collector.AddStableReference(&ObjectPtrWrap(Reference));
 	}
 }
 
@@ -4828,7 +4874,7 @@ FORCEINLINE_DEBUGGABLE bool CollectStackReference(FReferenceCollector& Collector
 {
 	if (Reference)
 	{
-		Collector.AddReferencedObject(Reference, Referencer, &Property);
+		FReferenceCollector::AROPrivate::AddReferencedObject(Collector, Reference, Referencer, &Property);
 		return !Reference;
 	}
 	return false;
@@ -4837,7 +4883,7 @@ FORCEINLINE_DEBUGGABLE bool CollectStackReference(FReferenceCollector& Collector
 FORCENOINLINE static void CollectInterfaceReference(FReferenceCollector& Collector, FInterfaceProperty& Property, FScriptInterface& Interface, const UObject* Referencer)
 {
 	// Handle reference synchronously and update interface if reference was nulled out
-	UObject*& Ref = Interface.GetObjectRef();
+	UObject*& Ref = UE::Core::Private::Unsafe::Decay(Interface.GetObjectRef());
 	if (CollectStackReference(Collector, Property, Ref, Referencer))
 	{
 		Interface.SetInterface(nullptr);
@@ -4886,7 +4932,7 @@ void CollectPropertyReferences(FReferenceCollector& Collector, FProperty& Proper
 		}
 		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FStructProperty))
 		{
-			CollectStructReferences<CollectFlags>(Collector, static_cast<FStructProperty&>(Property).Struct, Value, Referencer);
+			CollectStructReferences<CollectFlags>(Collector, static_cast<FStructProperty&>(Property).Struct.Get(), Value, Referencer);
 		}
 		else if (EnumHasAnyFlags(CastFlags, CASTCLASS_FMapProperty))
 		{	
@@ -4982,7 +5028,7 @@ void FReferenceCollector::CreateVerySlowReferenceCollectorArchive()
 
 FArchive& FReferenceCollectorArchive::operator<<(UObject*& Object)
 {
-	Collector.AddStableReference(&Object);
+	Collector.AddStableReference(&ObjectPtrWrap(Object));
 	return *this;
 }
 
@@ -4990,7 +5036,7 @@ FArchive& FReferenceCollectorArchive::operator<<(FObjectPtr& Object)
 {
 	if (Object.IsResolved())
 	{
-		Collector.AddStableReference(reinterpret_cast<UObject**>(&Object));
+		Collector.AddStableReference(reinterpret_cast<TObjectPtr<UObject>*>(&Object));
 	}
 	return *this;
 }
@@ -6193,3 +6239,19 @@ EDataValidationResult CombineDataValidationResults(EDataValidationResult Result1
 
 	return EDataValidationResult::NotValidated;
 }
+
+void FReferenceCollector::AddStableReferenceSetFwd(TSet<FObjectPtr>* Objects)
+{
+	AddStableReferenceSet(reinterpret_cast<TSet<TObjectPtr<UObject>>*>(Objects));
+}
+
+void FReferenceCollector::AddStableReferenceArrayFwd(TArray<FObjectPtr>* Objects)
+{
+	AddStableReferenceArray(reinterpret_cast<TArray<TObjectPtr<UObject>>*>(Objects));
+}
+
+void FReferenceCollector::AddStableReferenceFwd(FObjectPtr* Object)
+{
+	AddStableReference(reinterpret_cast<TObjectPtr<UObject>*>(Object));
+}
+

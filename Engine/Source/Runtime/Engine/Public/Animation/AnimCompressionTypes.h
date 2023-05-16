@@ -213,9 +213,9 @@ public:
 	FCompressibleAnimData(const FCompressibleAnimData&);
 	FCompressibleAnimData& operator=(const FCompressibleAnimData&);
 
-	UAnimCurveCompressionSettings* CurveCompressionSettings;
+	TObjectPtr<UAnimCurveCompressionSettings> CurveCompressionSettings;
 
-	UAnimBoneCompressionSettings* BoneCompressionSettings;
+	TObjectPtr<UAnimBoneCompressionSettings> BoneCompressionSettings;
 
 	// Data from USkeleton
 	TArray<FTransform> RefLocalPoses;
@@ -806,10 +806,10 @@ public:
 	TUniquePtr<ICompressedAnimData> CompressedDataStructure;
 
 	/** The codec used by the compressed data as determined by the bone compression settings. */
-	class UAnimBoneCompressionCodec* BoneCompressionCodec;
+	TObjectPtr<class UAnimBoneCompressionCodec> BoneCompressionCodec;
 
 	/** The codec used by the compressed data as determined by the curve compression settings. */
-	class UAnimCurveCompressionCodec* CurveCompressionCodec;
+	TObjectPtr<class UAnimCurveCompressionCodec> CurveCompressionCodec;
 
 	// The size of the raw data used to create the compressed data
 	int32 CompressedRawDataSize;

@@ -33,7 +33,7 @@ public:
 	{
 		if (USMInstanceElementDetailsProxyObject* InstanceProxyObjectPtr = InstanceProxyObject.Get())
 		{
-			Collector.AddReferencedObject(InstanceProxyObjectPtr);
+			Collector.AddReferencedObject(InstanceProxyObject);
 			InstanceProxyObject = InstanceProxyObjectPtr;
 		}
 	}

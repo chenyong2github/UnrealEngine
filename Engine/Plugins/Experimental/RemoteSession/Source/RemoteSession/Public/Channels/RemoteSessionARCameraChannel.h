@@ -85,11 +85,11 @@ private:
 	FCriticalSection DecompressionQueueLock;
 
 	/** The post process material that the overlay will render with */
-	UMaterialInterface* PPMaterial;
+	TObjectPtr<UMaterialInterface> PPMaterial;
 	/** To set the current texture for rendering */
-	UMaterialInstanceDynamic* MaterialInstanceDynamic;
+	TObjectPtr<UMaterialInstanceDynamic> MaterialInstanceDynamic;
 	/** Textures to use when rendering */
-	UTexture2D* RenderingTextures[2];
+	TObjectPtr<UTexture2D> RenderingTextures[2];
 	UTexture2D* LastSetTexture;
 	FThreadSafeCounter RenderingTextureIndex;
 	FThreadSafeCounter RenderingTexturesUpdateCount[2];

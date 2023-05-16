@@ -292,7 +292,7 @@ bool FIKRetargetDefaultMode::HandleClick(FEditorViewportClient* InViewportClient
 	if (bLeftButtonClicked && bHitActor)
 	{
 		const HActor* ActorProxy = static_cast<HActor*>(HitProxy);
-		Controller->SetSelectedMesh(const_cast<UPrimitiveComponent*>(ActorProxy->PrimComponent));
+		Controller->SetSelectedMesh(ConstCast(ActorProxy->PrimComponent));
 		return true;
 	}
 

@@ -36,8 +36,8 @@ private:
 	void OnMediaProxiesChanged();
 #endif
 
-	TArray<UProxyMediaSource*> MediaSourceProxies;
-	TArray<UProxyMediaOutput*> MediaOutputProxies;
-	UMediaProfile* CurrentMediaProfile;
+	TArray<TObjectPtr<UProxyMediaSource>> MediaSourceProxies;
+	TArray<TObjectPtr<UProxyMediaOutput>> MediaOutputProxies;
+	TObjectPtr<UMediaProfile> CurrentMediaProfile;
 	FOnMediaProfileChanged MediaProfileChangedDelegate;
 };

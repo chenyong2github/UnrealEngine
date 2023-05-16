@@ -1006,7 +1006,7 @@ void ULevelStreamingPersistentPropertiesInfo::Initialize()
 {
 	auto FillClassesProperties = [this](const FString& InPropertyPath, bool bIsPublic)
 	{
-		TMap<const UClass*, TSet<FProperty*>>& OutClassesProperties = ClassesProperties[bIsPublic ? PropertyType_Public : PropertyType_Private];
+		auto& OutClassesProperties = ClassesProperties[bIsPublic ? PropertyType_Public : PropertyType_Private];
 		FSoftObjectPath(InPropertyPath).TryLoad();
 		if (FProperty* Property = TFieldPath<FProperty>(*InPropertyPath).Get())
 		{

@@ -1153,7 +1153,7 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 
 bool FControlRigEditMode::UsesTransformWidget() const
 {
-	for (const TPair<UControlRig*, TArray<AControlRigShapeActor*>>& Pairs : ControlRigShapeActors)
+	for (const auto& Pairs : ControlRigShapeActors)
 	{
 		for (const AControlRigShapeActor* ShapeActor : Pairs.Value)
 		{
@@ -1172,7 +1172,7 @@ bool FControlRigEditMode::UsesTransformWidget() const
 
 bool FControlRigEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
 {
-	for (const TPair<UControlRig*, TArray<AControlRigShapeActor*>>& Pairs : ControlRigShapeActors)
+	for (const auto& Pairs : ControlRigShapeActors)
 	{
 		for (const AControlRigShapeActor* ShapeActor : Pairs.Value)
 		{
@@ -1193,7 +1193,7 @@ FVector FControlRigEditMode::GetWidgetLocation() const
 {
 	FVector PivotLocation(0.0, 0.0, 0.0);
 	int NumSelected = 0;
-	for (const TPair<UControlRig*, TArray<AControlRigShapeActor*>>& Pairs : ControlRigShapeActors)
+	for (const auto& Pairs : ControlRigShapeActors)
 	{
 		if (AreRigElementSelectedAndMovable(Pairs.Key))
 		{
@@ -1231,7 +1231,7 @@ bool FControlRigEditMode::GetPivotForOrbit(FVector& OutPivot) const
 bool FControlRigEditMode::GetCustomDrawingCoordinateSystem(FMatrix& OutMatrix, void* InData)
 {
 	//since we strip translation just want the first one
-	for (const TPair<UControlRig*, TArray<AControlRigShapeActor*>>& Pairs : ControlRigShapeActors)
+	for (const auto& Pairs : ControlRigShapeActors)
 	{
 		if (AreRigElementSelectedAndMovable(Pairs.Key))
 		{
@@ -1553,7 +1553,7 @@ bool FControlRigEditMode::IntersectSelect(bool InSelect, const TFunctionRef<bool
 {
 	bool bSelected = false;
 
-	for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& Pairs : ControlRigShapeActors)
+	for (auto& Pairs : ControlRigShapeActors)
 	{
 		FTransform ComponentTransform = GetHostingSceneComponentTransform(Pairs.Key);
 		for (AControlRigShapeActor* ShapeActor : Pairs.Value)
@@ -1718,7 +1718,7 @@ bool FControlRigEditMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 		ClearRigElementSelection(ValidControlTypeMask());
 	}
 
-	for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& Pairs : ControlRigShapeActors)
+	for (auto& Pairs : ControlRigShapeActors)
 	{
 		for (AControlRigShapeActor* ShapeActor : Pairs.Value)
 		{
@@ -1804,7 +1804,7 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 	if (InteractionScopes.Num() > 0 && bMouseButtonDown && CurrentAxis != EAxisList::None
 		&& (bDoRotation || bDoTranslation || bDoScale))
 	{
-		for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& Pairs : ControlRigShapeActors)
+		for (auto& Pairs : ControlRigShapeActors)
 		{
 			if (AreRigElementsSelected(ValidControlTypeMask(), Pairs.Key))
 			{
@@ -1954,9 +1954,9 @@ bool FControlRigEditMode::IsCompatibleWith(FEditorModeID OtherModeID) const
 
 void FControlRigEditMode::AddReferencedObjects( FReferenceCollector& Collector )
 {
-	for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& ShapeActors : ControlRigShapeActors)
+	for (auto& ShapeActors : ControlRigShapeActors)
 	{
-		for (AControlRigShapeActor* ShapeActor : ShapeActors.Value)
+		for (auto& ShapeActor : ShapeActors.Value)
 		{		
 			Collector.AddReferencedObject(ShapeActor);
 		}
@@ -2118,9 +2118,9 @@ void FControlRigEditMode::RefreshObjects()
 
 bool FControlRigEditMode::CanRemoveFromPreviewScene(const USceneComponent* InComponent)
 {
-	for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& ShapeActors : ControlRigShapeActors)
+	for (auto& ShapeActors : ControlRigShapeActors)
 	{
-		for (AControlRigShapeActor* ShapeActor : ShapeActors.Value)
+		for (auto& ShapeActor : ShapeActors.Value)
 		{
 			TInlineComponentArray<USceneComponent*> SceneComponents;
 			ShapeActor->GetComponents(SceneComponents, true);
@@ -2166,7 +2166,7 @@ void FControlRigEditMode::RecalcPivotTransform()
 
 				if (bIsChangingControlShapeTransform)
 				{
-					if (TArray<AControlRigShapeActor* >* ShapeActors = ControlRigShapeActors.Find(ControlRig))
+					if (auto* ShapeActors = ControlRigShapeActors.Find(ControlRig))
 					{
 						for (const AControlRigShapeActor* ShapeActor : *ShapeActors)
 						{
@@ -2187,7 +2187,7 @@ void FControlRigEditMode::RecalcPivotTransform()
 				{
 					const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 
-					if (TArray<AControlRigShapeActor* >* ShapeActors = ControlRigShapeActors.Find(ControlRig))
+					if (auto* ShapeActors = ControlRigShapeActors.Find(ControlRig))
 					{
 						for (const AControlRigShapeActor* ShapeActor : *ShapeActors)
 						{
@@ -2305,7 +2305,7 @@ bool FControlRigEditMode::HasPivotTransformsChanged() const
 
 void FControlRigEditMode::HandleSelectionChanged()
 {
-	for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& ShapeActors : ControlRigShapeActors)
+	for (auto& ShapeActors : ControlRigShapeActors)
 	{
 		for (AControlRigShapeActor* ShapeActor : ShapeActors.Value)
 		{
@@ -3002,7 +3002,7 @@ bool FControlRigEditMode::MouseMove(FEditorViewportClient* ViewportClient, FView
 	{
 		if (ActorHitProxy->Actor->IsA<AControlRigShapeActor>())
 		{
-			for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& ShapeActors : ControlRigShapeActors)
+			for (auto& ShapeActors : ControlRigShapeActors)
 			{
 				for (AControlRigShapeActor* ShapeActor : ShapeActors.Value)
 				{
@@ -3017,7 +3017,7 @@ bool FControlRigEditMode::MouseMove(FEditorViewportClient* ViewportClient, FView
 
 bool FControlRigEditMode::MouseLeave(FEditorViewportClient* ViewportClient, FViewport* Viewport)
 {
-	for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& ShapeActors : ControlRigShapeActors)
+	for (auto& ShapeActors : ControlRigShapeActors)
 	{
 		for (AControlRigShapeActor* ShapeActor : ShapeActors.Value)
 		{
@@ -3225,7 +3225,7 @@ void FControlRigEditMode::RecreateControlShapeActors(const TArray<FRigElementKey
 		{
 			//check to see if actors have really changed, if not don't do it
 			bool bRecreateThem = true;
-			if (TArray<AControlRigShapeActor*>* ShapeActors = ControlRigShapeActors.Find(ControlRig))
+			if (auto* ShapeActors = ControlRigShapeActors.Find(ControlRig))
 			{
 				TArray<FRigControlElement*> Controls = ControlRig->AvailableControls();
 				for (int32 Index = Controls.Num() - 1; Index >= 0; --Index)
@@ -3331,7 +3331,7 @@ void FControlRigEditMode::CreateShapeActors(UControlRig* ControlRig)
 			{
 				//not drawn in game or in game view.
 				ShapeActor->SetActorHiddenInGame(true);
-				TArray<AControlRigShapeActor*>* ShapeActors = ControlRigShapeActors.Find(ControlRig);
+				auto* ShapeActors = ControlRigShapeActors.Find(ControlRig);
 				if (ShapeActors)
 				{
 					ShapeActors->Add(ShapeActor);
@@ -3340,7 +3340,7 @@ void FControlRigEditMode::CreateShapeActors(UControlRig* ControlRig)
 				{
 					TArray<AControlRigShapeActor*> NewShapeActors;
 					NewShapeActors.Add(ShapeActor);
-					ControlRigShapeActors.Add(ControlRig, NewShapeActors);
+					ControlRigShapeActors.Add(ControlRig, ObjectPtrWrap(NewShapeActors));
 				}
 			}
 		}
@@ -3352,7 +3352,7 @@ void FControlRigEditMode::CreateShapeActors(UControlRig* ControlRig)
 	{
 		AActor* PreviewActor = Component->GetOwner();
 
-		const TArray<AControlRigShapeActor*>* ShapeActors = ControlRigShapeActors.Find(ControlRig);
+		const auto* ShapeActors = ControlRigShapeActors.Find(ControlRig);
 		if (ShapeActors)
 		{
 			for (AControlRigShapeActor* ShapeActor : *ShapeActors)
@@ -4327,7 +4327,7 @@ void FControlRigEditMode::TickControlShape(AControlRigShapeActor* ShapeActor, co
 
 AControlRigShapeActor* FControlRigEditMode::GetControlShapeFromControlName(UControlRig* InControlRig,const FName& ControlName) const
 {
-	const TArray<AControlRigShapeActor*>* ShapeActors = ControlRigShapeActors.Find(InControlRig);
+	const auto* ShapeActors = ControlRigShapeActors.Find(InControlRig);
 	if (ShapeActors)
 	{
 		for (AControlRigShapeActor* ShapeActor : *ShapeActors)
@@ -4506,7 +4506,7 @@ void FControlRigEditMode::DestroyShapesActors(UControlRig* ControlRig)
 {
 	if (ControlRig == nullptr)
 	{
-		for(TPair<UControlRig*, TArray<AControlRigShapeActor*>>& ShapeActors: ControlRigShapeActors)
+		for(auto& ShapeActors: ControlRigShapeActors)
 		{
 			for (AControlRigShapeActor* ShapeActor : ShapeActors.Value)
 			{
@@ -4527,7 +4527,7 @@ void FControlRigEditMode::DestroyShapesActors(UControlRig* ControlRig)
 	else
 	{
 		ControlRigsToRecreate.Remove(ControlRig);
-		const TArray<AControlRigShapeActor*>* ShapeActors = ControlRigShapeActors.Find(ControlRig);
+		const auto* ShapeActors = ControlRigShapeActors.Find(ControlRig);
 		if (ShapeActors)
 		{
 			for (AControlRigShapeActor* ShapeActor : *ShapeActors)
@@ -4579,7 +4579,7 @@ void FControlRigEditMode::OnPoseInitialized()
 
 void FControlRigEditMode::PostPoseUpdate()
 {
-	for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& ShapeActors : ControlRigShapeActors)
+	for (auto& ShapeActors : ControlRigShapeActors)
 	{
 		FTransform ComponentTransform = FTransform::Identity;
 		if (IsInLevelEditor())
@@ -4653,4 +4653,3 @@ bool FControlRigEditMode::GetOnlySelectRigControls()const
 
 
 #undef LOCTEXT_NAMESPACE
-

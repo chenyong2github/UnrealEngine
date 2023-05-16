@@ -553,7 +553,7 @@ void SSubobjectInstanceEditor::OnApplyChangesToBlueprint() const
 	AActor* Actor = Cast<AActor>(GetObjectContext());
 	const UBlueprint* const Blueprint = (Actor != nullptr) ? Cast<UBlueprint>(Actor->GetClass()->ClassGeneratedBy) : nullptr;
 
-	if (Actor != nullptr && Blueprint != nullptr && Actor->GetClass()->ClassGeneratedBy == Blueprint)
+	if (Actor != nullptr && Blueprint != nullptr && Actor->GetClass()->ClassGeneratedBy.Get() == Blueprint)
 	{
 		const FString ActorLabel = Actor->GetActorLabel();
 		int32 NumChangedProperties = FKismetEditorUtilities::ApplyInstanceChangesToBlueprint(Actor);

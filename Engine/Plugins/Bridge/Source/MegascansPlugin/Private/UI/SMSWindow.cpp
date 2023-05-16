@@ -151,9 +151,9 @@ private:
 	TSharedPtr<IDetailsView> MatBlendDetails;
 	TSharedPtr<IDetailsView> MatOverrideDetails;
 
-	UMegascansSettings* MegascansSettings;
-	UMaterialBlendSettings* MaterialBlendSettings;
-	UMaterialPresetsSettings* MaterialOverrideSettings;
+	TObjectPtr<UMegascansSettings> MegascansSettings;
+	TObjectPtr<UMaterialBlendSettings> MaterialBlendSettings;
+	TObjectPtr<UMaterialPresetsSettings> MaterialOverrideSettings;
 
 	virtual FString GetReferencerName() const override { return "MegascanSettings"; }
 };

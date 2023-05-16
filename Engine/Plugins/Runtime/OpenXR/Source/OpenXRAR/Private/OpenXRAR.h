@@ -222,8 +222,8 @@ private:
 	//
 	// PROPERTIES REPORTED TO FGCObject
 	// ...
-	UARSessionConfig* SessionConfig = nullptr;
-	TArray<UARPin*> Pins;
+	TObjectPtr<UARSessionConfig> SessionConfig = nullptr;
+	TArray<TObjectPtr<UARPin>> Pins;
 	TMap<FGuid, FTrackedGeometryGroup> TrackedGeometryGroups;
 	// ...
 	// PROPERTIES REPORTED TO FGCObject

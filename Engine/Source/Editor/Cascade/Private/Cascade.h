@@ -68,7 +68,7 @@ struct FParticleEmitterThumbnail
 
 	TWeakObjectPtr<UMaterialInterface> Material;
 	/** Texture holding the material thumbnail for canvas.  Note it is the only thing we hold onto */
-	UTextureRenderTarget2D* Texture;
+	TObjectPtr<UTextureRenderTarget2D> Texture;
 };
 
 typedef TMap<TWeakObjectPtr<UParticleEmitter>, FParticleEmitterThumbnail> FParticleEmitterThumbnailMap;
@@ -435,7 +435,7 @@ private:
 
 private:
 	/** The ParticleSystem asset being inspected */
-	UParticleSystem* ParticleSystem;
+	TObjectPtr<UParticleSystem> ParticleSystem;
 
 	/** Preview Viewport */
 	TSharedPtr<SCascadePreviewViewport> PreviewViewport;
@@ -453,15 +453,15 @@ private:
 	TWeakPtr<class IMenu> EntryMenu;
 
 	/** Components used for drawing the particle system in the preview viewport */
-	UCascadeParticleSystemComponent* ParticleSystemComponent;
-	UVectorFieldComponent* LocalVectorFieldPreviewComponent;
+	TObjectPtr<UCascadeParticleSystemComponent> ParticleSystemComponent;
+	TObjectPtr<UVectorFieldComponent> LocalVectorFieldPreviewComponent;
 
 	/** Currently selected LOD index */
 	int32 CurrentLODIdx;
 
 	/** Config options */
-	UCascadeOptions* EditorOptions;
-	UCascadeConfiguration* EditorConfig;
+	TObjectPtr<UCascadeOptions> EditorOptions;
+	TObjectPtr<UCascadeConfiguration> EditorConfig;
 
 	/** Undo/redo support */
 	bool bTransactionInProgress;
@@ -469,15 +469,15 @@ private:
 
 	/** Selection info */
 	int32 SelectedModuleIndex;
-	UParticleModule* SelectedModule;
-	UParticleEmitter* SelectedEmitter;
+	TObjectPtr<UParticleModule> SelectedModule;
+	TObjectPtr<UParticleEmitter> SelectedEmitter;
 	
 	/** True if an emitter is "soloing" */
 	bool bIsSoloing;
 
 	/** Cached copy info */
-	UParticleModule* CopyModule;
-	UParticleEmitter* CopyEmitter;
+	TObjectPtr<UParticleModule> CopyModule;
+	TObjectPtr<UParticleEmitter> CopyEmitter;
 
 	/** View/draw info  */
 	bool bIsToggleMotion;
@@ -512,7 +512,7 @@ private:
 	EParticleSubUVInterpMethod PreviousInterpolationMethod;
 
 	/** For handling curves/distribution data */
-	UObject* CurveToReplace;
+	TObjectPtr<UObject> CurveToReplace;
 	TArray<FParticleCurvePair> DynParamCurves;
 
 	/** The geometry properties window, if it exists */

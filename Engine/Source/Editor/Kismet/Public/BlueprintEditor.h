@@ -1405,7 +1405,7 @@ protected:
 	TSet<TWeakObjectPtr<UUserDefinedStruct>> UserDefinedStructures;
 	
 	/** Macro/function libraries to keep loaded */
-	TArray<UBlueprint*> StandardLibraries;
+	TArray<TObjectPtr<UBlueprint>> StandardLibraries;
 
 	/** Subobject Editor */
 	TSharedPtr<SSubobjectEditor> SubobjectEditor;

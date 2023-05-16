@@ -135,7 +135,7 @@ private:
 	FMovieSceneEvaluationMetaData ThisFrameMetaData;
 
 	/** Instance responsible for supplying and generating compiled data for a given sequence */
-	UMovieSceneCompiledDataManager* CompiledDataManager;
+	TObjectPtr<UMovieSceneCompiledDataManager> CompiledDataManager;
 
 	/** Override path that is used to remap inner sequence IDs to the root space when evaluating with a root override */
 	UE::MovieScene::FSubSequencePath RootOverridePath;

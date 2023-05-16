@@ -90,7 +90,7 @@ struct FLandscapeFixSplines
 			if (!CurrentWorld->IsGameWorld())
 			{
 				auto& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(CurrentWorld);
-				for (TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+				for (auto& Pair : LandscapeInfoMap.Map)
 				{
 					if (Pair.Value && Pair.Value->SupportsLandscapeEditing())
 					{

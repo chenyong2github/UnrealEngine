@@ -33,7 +33,7 @@ void FAnimationBudgetAllocatorModule::ShutdownModule()
 
 void FAnimationBudgetAllocatorModule::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (TPair<UWorld*, FAnimationBudgetAllocator*>& WorldAnimationBudgetAllocatorPair : WorldAnimationBudgetAllocators)
+	for (auto& WorldAnimationBudgetAllocatorPair : WorldAnimationBudgetAllocators)
 	{
 		Collector.AddReferencedObject(WorldAnimationBudgetAllocatorPair.Key);
 	}

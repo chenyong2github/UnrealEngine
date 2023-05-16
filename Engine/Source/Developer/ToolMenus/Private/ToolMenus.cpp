@@ -1757,7 +1757,7 @@ void UToolMenus::AddReferencedContextObjects(const TSharedRef<FMultiBox>& InMult
 {
 	if (InMenu)
 	{
-		TArray<const UObject*>& References = WidgetObjectReferences.FindOrAdd(InMultiBox);
+		auto& References = WidgetObjectReferences.FindOrAdd(InMultiBox);
 		References.AddUnique(InMenu);
 		for (const TWeakObjectPtr<UObject> WeakObject : InMenu->Context.ContextObjects)
 		{

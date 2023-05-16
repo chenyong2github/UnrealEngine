@@ -4952,7 +4952,7 @@ static void ConstructSoftGCPackageToObjectList(TArray<UObject*>& PackageToObject
 			if (Index > PreviousPackageStartIndex)
 			{
 				UPackage::SoftGCPackageToObjectList.Add(PreviousPackage,
-					TArrayView<UObject*>(PackageToObjectListBufferPtr + PreviousPackageStartIndex, Index - PreviousPackageStartIndex));
+																								ObjectPtrWrap(TArrayView<UObject*>(PackageToObjectListBufferPtr + PreviousPackageStartIndex, Index - PreviousPackageStartIndex)));
 			}
 			PreviousPackage = Pair.Package;
 			PreviousPackageStartIndex = Index;
@@ -4962,7 +4962,7 @@ static void ConstructSoftGCPackageToObjectList(TArray<UObject*>& PackageToObject
 	if (PackageObjectPairsNum > PreviousPackageStartIndex)
 	{
 		UPackage::SoftGCPackageToObjectList.Add(PreviousPackage,
-			TArrayView<UObject*>(PackageToObjectListBufferPtr + PreviousPackageStartIndex, PackageObjectPairsNum - PreviousPackageStartIndex));
+																						ObjectPtrWrap(TArrayView<UObject*>(PackageToObjectListBufferPtr + PreviousPackageStartIndex, PackageObjectPairsNum - PreviousPackageStartIndex)));
 	}
 }
 

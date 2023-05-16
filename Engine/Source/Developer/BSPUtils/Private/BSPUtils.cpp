@@ -1185,7 +1185,7 @@ int FBSPUtils::bspBrushCSG
 		// Set texture the first time.
 		if ( bReplaceNULLMaterialRefs )
 		{
-			UMaterialInterface*& PolyMat = CurrentPoly.Material;
+			auto& PolyMat = CurrentPoly.Material;
 			if ( !PolyMat || PolyMat == UMaterial::GetDefaultMaterial(MD_Surface) )
 			{
 				PolyMat = SelectedMaterialInstance;

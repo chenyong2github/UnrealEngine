@@ -154,7 +154,7 @@ class ONLINESUBSYSTEMUTILS_API FVoiceEngineImpl : public IVoiceEngine, public FS
 			for (FRemoteTalkerData::TIterator It(VoiceEngine->RemoteTalkerBuffers); It; ++It)
 			{
 				FRemoteTalkerDataImpl& RemoteData = It.Value();
-				if (UVoipListenerSynthComponent* VoipSynthComponent = RemoteData.VoipSynthComponent.GetEvenIfUnreachable())
+				if (auto& VoipSynthComponent = RemoteData.VoipSynthComponent; VoipSynthComponent.GetEvenIfUnreachable())
 				{
 					Collector.AddReferencedObject(VoipSynthComponent);
 				}

@@ -77,7 +77,7 @@ private:
 private:
 	TSharedPtr<FSlateBrush> PreviewBrush;
 	FSoftObjectPath PreviewMaterialPath;
-	UMaterialInstanceDynamic* PreviewMID;
+	TObjectPtr<UMaterialInstanceDynamic> PreviewMID;
 	TSharedPtr<SImage> ImageWidget;
 
 	TSharedPtr<SMenuAnchor> MenuAnchor;

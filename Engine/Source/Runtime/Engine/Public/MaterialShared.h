@@ -2052,7 +2052,7 @@ public:
 #if WITH_EDITOR
 	const TArray<FString>& GetCompileErrors() const { return CompileErrors; }
 	void SetCompileErrors(const TArray<FString>& InCompileErrors) { CompileErrors = InCompileErrors; }
-	const TArray<UMaterialExpression*>& GetErrorExpressions() const { return ErrorExpressions; }
+	const TArray<UMaterialExpression*>& GetErrorExpressions() const { return ObjectPtrDecay(ErrorExpressions); }
 	const FGuid& GetLegacyId() const { return Id_DEPRECATED; }
 #endif // WITH_EDITOR
 
@@ -2368,7 +2368,7 @@ private:
 	TArray<FString> CompileErrors;
 
 	/** List of material expressions which generated a compiler error during the last compile. */
-	TArray<UMaterialExpression*> ErrorExpressions;
+	TArray<TObjectPtr<UMaterialExpression>> ErrorExpressions;
 
 	TSharedPtr<FMaterialShaderMap::FAsyncLoadContext> CacheShadersPending;
 	TUniqueFunction<bool ()> CacheShadersCompletion;
@@ -2703,8 +2703,8 @@ public:
 	inline void SetMaterialInstance(UMaterialInstance* InMaterialInstance) { MaterialInstance = InMaterialInstance; }
 
 protected:
-	UMaterial* Material;
-	UMaterialInstance* MaterialInstance;
+	TObjectPtr<UMaterial> Material;
+	TObjectPtr<UMaterialInstance> MaterialInstance;
 
 	/** Entry point for compiling a specific material property.  This must call SetMaterialProperty. */
 	ENGINE_API virtual int32 CompilePropertyAndSetMaterialProperty(EMaterialProperty Property, class FMaterialCompiler* Compiler, EShaderFrequency OverrideShaderFrequency, bool bUsePreviousFrameTime) const override;

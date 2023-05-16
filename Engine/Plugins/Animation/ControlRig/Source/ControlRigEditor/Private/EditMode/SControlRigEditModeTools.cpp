@@ -376,7 +376,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, TSharedPtr<FC
 						.IsEnabled_Lambda([InWorld]()
 						{
 							const ULevel* CurrentLevel = InWorld->GetCurrentLevel();
-							const TArray<AActor*> SelectedActors = CurrentLevel->Actors.FilterByPredicate( [](const AActor* Actor)
+							const TArray<AActor*> SelectedActors = ObjectPtrDecay(CurrentLevel->Actors).FilterByPredicate( [](const AActor* Actor)
 							{
 								return Actor && Actor->IsSelected();
 							});

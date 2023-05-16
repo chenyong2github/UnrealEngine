@@ -70,7 +70,7 @@ public:
 	ESpriteEditorMode::Type GetCurrentMode() const;
 
 protected:
-	UPaperSprite* SpriteBeingEdited;
+	TObjectPtr<UPaperSprite> SpriteBeingEdited;
 	TSharedPtr<SSpriteEditorViewport> ViewportPtr;
 	TSharedPtr<SSpriteList> SpriteListPtr;
 

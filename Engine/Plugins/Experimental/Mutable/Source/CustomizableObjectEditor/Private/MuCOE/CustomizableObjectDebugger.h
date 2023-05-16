@@ -57,7 +57,7 @@ public:
 private:
 
 	/** The currently viewed object. */
-	UCustomizableObject* CustomizableObject = nullptr;
+	TObjectPtr<UCustomizableObject> CustomizableObject = nullptr;
 
 	/**	The tab ids for all the tabs used */
 	static const FName MutableNewTabId;

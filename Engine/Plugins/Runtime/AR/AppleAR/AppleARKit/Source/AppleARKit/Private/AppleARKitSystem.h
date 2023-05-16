@@ -193,14 +193,14 @@ private:
 	// PROPERTIES REPORTED TO FGCObject
 	// ...
 	TMap< FGuid, FTrackedGeometryGroup > TrackedGeometryGroups;
-	TArray<UARPin*> Pins;
-	UARLightEstimate* LightEstimate = nullptr;
-	UAppleARKitCameraVideoTexture* CameraImage = nullptr;
-	UAppleARKitTextureCameraDepth* CameraDepth = nullptr;
-	TMap< FString, UARCandidateImage* > CandidateImages;
-	TMap< FString, UARCandidateObject* > CandidateObjects;
-	UAppleARKitTextureCameraImage* SceneDepthMap = nullptr;
-	UAppleARKitTextureCameraImage* SceneDepthConfidenceMap = nullptr;
+	TArray<TObjectPtr<UARPin>> Pins;
+	TObjectPtr<UARLightEstimate> LightEstimate = nullptr;
+	TObjectPtr<UAppleARKitCameraVideoTexture> CameraImage = nullptr;
+	TObjectPtr<UAppleARKitTextureCameraDepth> CameraDepth = nullptr;
+	TMap< FString, TObjectPtr<UARCandidateImage> > CandidateImages;
+	TMap< FString, TObjectPtr<UARCandidateObject> > CandidateObjects;
+	TObjectPtr<UAppleARKitTextureCameraImage> SceneDepthMap = nullptr;
+	TObjectPtr<UAppleARKitTextureCameraImage> SceneDepthConfidenceMap = nullptr;
 	// ...
 	// PROPERTIES REPORTED TO FGCObject
 	//
@@ -224,7 +224,7 @@ private:
 	IAppleARKitPoseTrackingLiveLink* PoseTrackingARLiveLink;
 
 	/** The time code provider to use when tagging time stamps */
-	UTimecodeProvider* TimecodeProvider = nullptr;
+	TObjectPtr<UTimecodeProvider> TimecodeProvider = nullptr;
 
 	//for networked callbacks
 	FDelegateHandle SpawnARActorDelegateHandle;
@@ -235,4 +235,3 @@ namespace AppleARKitSupport
 {
 	APPLEARKIT_API TSharedPtr<class FAppleARKitSystem, ESPMode::ThreadSafe> CreateAppleARKitSystem();
 }
-

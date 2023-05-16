@@ -65,7 +65,7 @@ public:
 
 private:
 	/** The current selection */
-	UDMXFixturePatchSharedDataSelection* Selection;
+	TObjectPtr<UDMXFixturePatchSharedDataSelection> Selection;
 
 	/** Weak reference to the DMX editor */
 	TWeakPtr<FDMXEditor> DMXEditorPtr;

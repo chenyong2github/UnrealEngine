@@ -273,7 +273,7 @@ class FEdModeLandscape : public FEdMode, public ILandscapeEdModeInterface
 {
 public:
 
-	ULandscapeEditorObject* UISettings;
+	TObjectPtr<ULandscapeEditorObject> UISettings;
 
 	FText ErrorReasonOnMouseUp;
 

@@ -390,7 +390,7 @@ private:
 	TArray<FWidgetEditorToolbarExtender> WidgetEditorToolbarExtenders;
 	TArray<TSharedRef<IBlueprintWidgetCustomizationExtender>> WidgetCustomizationExtenders;
 
-	USequencerSettings* Settings;
+	TObjectPtr<USequencerSettings> Settings;
 
 	/** Compiler customization for Widgets */
 	FWidgetBlueprintCompiler WidgetBlueprintCompiler;

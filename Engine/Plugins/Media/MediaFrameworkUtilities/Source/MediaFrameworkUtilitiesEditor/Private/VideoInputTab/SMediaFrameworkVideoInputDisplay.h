@@ -86,10 +86,10 @@ private:
 	FInternalReferenceCollector Collector;
 
 	/** The material that wraps the video texture for display in an SImage. */
-	UMaterial* Material;
+	TObjectPtr<	UMaterial> Material;
 
 	/** Callback object for the MediaPlayer. */
-	UMediaFrameworkVideoInputDisplayCallback* MediaPlayerCallback;
+	TObjectPtr<UMediaFrameworkVideoInputDisplayCallback> MediaPlayerCallback;
 
 	/** Timer handle when an error occurred. */
 	FTimerHandle RestartPlayerTimerHandle;
@@ -122,7 +122,7 @@ private:
 	virtual UMediaTexture* GetMediaTexture() const override;
 	virtual void RestartPlayer() override;
 
-	UMediaBundle* MediaBundle;
+	TObjectPtr<UMediaBundle> MediaBundle;
 	bool bDidMediaBundleOpen;
 };
 
@@ -151,7 +151,7 @@ private:
 	virtual UMediaTexture* GetMediaTexture() const override;
 	virtual void RestartPlayer() override;
 
-	UMediaSource* MediaSource;
-	UMediaPlayer* MediaPlayer;
-	UMediaTexture* MediaTexture;
+	TObjectPtr<UMediaSource> MediaSource;
+	TObjectPtr<UMediaPlayer> MediaPlayer;
+	TObjectPtr<UMediaTexture> MediaTexture;
 };

@@ -63,6 +63,6 @@ public:
 	void UpdateDrawFrustum();
 
 	/** The frustum component used to show visually where the camera field of view is */
-	class UDrawFrustumComponent* DrawFrustum;
+	TObjectPtr<class UDrawFrustumComponent> DrawFrustum;
 #endif
 };

@@ -302,9 +302,9 @@ private:
 	}
 
 	EGoogleARCoreAPIStatus SessionCreateStatus;
-	const UARSessionConfig* SessionConfig;
+	TObjectPtr<const UARSessionConfig> SessionConfig;
 	FGoogleARCoreFrame* LatestFrame;
-	UGoogleARCoreUObjectManager* UObjectManager;
+	TObjectPtr<UGoogleARCoreUObjectManager> UObjectManager;
 	float CachedWorldToMeterScale;
 	uint32 FrameNumber;
 

@@ -280,12 +280,12 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 	}
 
 	// Give a chance to customize tab manager and other UI before widgets are created
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyEditorOpeningPreWidgets(EditingObjects, this);
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyEditorOpeningPreWidgets(ObjectPtrDecay(EditingObjects), this);
 
 	// Create menus
 	if (ToolkitMode == EToolkitMode::Standalone)
 	{
-		AddMenuExtender(GetSharedMenuExtensibilityManager()->GetAllExtenders(ToolkitCommands, EditingObjects));
+		AddMenuExtender(GetSharedMenuExtensibilityManager()->GetAllExtenders(ToolkitCommands, ObjectPtrDecay(EditingObjects)));
 
 		TSharedRef<FTabManager::FLayout> LayoutToUse = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, StandaloneDefaultLayout);
 
@@ -294,7 +294,7 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 	}
 	
 	// Create toolbars
-	AddToolbarExtender(GetSharedToolBarExtensibilityManager()->GetAllExtenders(ToolkitCommands, EditingObjects));
+	AddToolbarExtender(GetSharedToolBarExtensibilityManager()->GetAllExtenders(ToolkitCommands, ObjectPtrDecay(EditingObjects)));
 
 	if (bCreateDefaultToolbar)
 	{
@@ -324,7 +324,7 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 	PostInitAssetEditor();
 
 	// NOTE: Currently, the AssetEditorSubsystem will keep a hard reference to our object as we're editing it
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetsOpened( EditingObjects, this );
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyAssetsOpened( ObjectPtrDecay(EditingObjects), this );
 }
 
 
@@ -472,7 +472,7 @@ FEditorModeTools& FAssetEditorToolkit::GetEditorModeManager() const
 
 const TArray< UObject* >* FAssetEditorToolkit::GetObjectsCurrentlyBeingEdited() const
 {
-	return &EditingObjects;
+	return &ObjectPtrDecay(EditingObjects);
 }
 
 FName FAssetEditorToolkit::GetEditorName() const
@@ -564,9 +564,14 @@ UObject* FAssetEditorToolkit::GetEditingObject() const
 const TArray< UObject* >& FAssetEditorToolkit::GetEditingObjects() const
 {
 	check( EditingObjects.Num() > 0 );
-	return EditingObjects;
+	return ObjectPtrDecay(EditingObjects);
 }
 
+TArray<TObjectPtr<UObject>>& FAssetEditorToolkit::GetEditingObjectPtrs() 
+{
+	check(EditingObjects.Num() > 0);
+	return EditingObjects;
+}
 
 void FAssetEditorToolkit::GetSaveableObjects(TArray<UObject*>& OutObjects) const
 {
@@ -1041,7 +1046,7 @@ void FAssetEditorToolkit::FillDefaultAssetMenuCommands(FToolMenuSection& InSecti
 					const FText ToolTipText = FText::Format( LOCTEXT("Reimport_ToolTip", "Reimports this {Type}"), ToolTipArguments );
 					const FName IconName = TEXT( "AssetEditor.ReimportAsset" );
 					FUIAction UIAction;
-					UIAction.ExecuteAction.BindRaw( this, &FAssetEditorToolkit::Reimport_Execute, EditingObject );
+					UIAction.ExecuteAction.BindRaw( this, &FAssetEditorToolkit::Reimport_Execute, EditingObject.Get() );
 					ReimportEntryName.SetNumber(MenuEntryCount++);
 					InSection.AddMenuEntry( ReimportEntryName, LabelText, ToolTipText, FSlateIcon(FAppStyle::GetAppStyleSetName(), IconName), UIAction );
 				}

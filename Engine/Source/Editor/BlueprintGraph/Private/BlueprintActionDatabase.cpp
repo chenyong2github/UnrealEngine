@@ -1294,17 +1294,17 @@ FBlueprintActionDatabase::~FBlueprintActionDatabase()
 void FBlueprintActionDatabase::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	TSet<UBlueprintNodeSpawner*> AllActions;
-	for (const TPair<FObjectKey, FActionList>& ActionListIt : ActionRegistry)
+	for (TPair<FObjectKey, FActionList>& ActionListIt : ActionRegistry)
 	{
-		const FActionList& ActionList = ActionListIt.Value;
+		FActionList& ActionList = ActionListIt.Value;
 		AllActions.Reserve(AllActions.Num() + ActionList.Num());
-		for (UBlueprintNodeSpawner* Action : ActionList)
+		for (auto& Action : ActionList)
 		{
 			// We have some reports of invalid action ptrs during GC - try to catch that case here without crashing the editor while reference gathering.
 			if (!Action || (GIsGarbageCollecting && !Action->IsValidLowLevel()))
 			{
 				const UObject* Key = ActionListIt.Key.ResolveObjectPtr();
-				ensureMsgf(false, TEXT("Invalid action (0x%016llx) registered for object: %s"), (int64)(PTRINT)Action, Key ? *Key->GetName() : TEXT("NULL"));
+				ensureMsgf(false, TEXT("Invalid action (0x%016llx) registered for object: %s"), (int64)(PTRINT)Action.Get(), Key ? *Key->GetName() : TEXT("NULL"));
 				continue;
 			}
 
@@ -1320,16 +1320,16 @@ void FBlueprintActionDatabase::AddReferencedObjects(FReferenceCollector& Collect
 	if (UnloadedActionRegistry.Num() > 0)
 	{
 		TSet<UBlueprintNodeSpawner*> UnloadedActions;
-		for (const TPair<FSoftObjectPath, FActionList>& UnloadedActionListIt : UnloadedActionRegistry)
+		for (TPair<FSoftObjectPath, FActionList>& UnloadedActionListIt : UnloadedActionRegistry)
 		{
-			const FActionList& ActionList = UnloadedActionListIt.Value;
+			FActionList& ActionList = UnloadedActionListIt.Value;
 			UnloadedActions.Reserve(UnloadedActions.Num() + ActionList.Num());
-			for (UBlueprintNodeSpawner* Action : ActionList)
+			for (auto& Action : ActionList)
 			{
 				// Similar to above; however, we don't have any reports of failure here during GC. Nonetheless, we'll try and catch an invalid ptr value just in case.
 				if (!Action || (GIsGarbageCollecting && !Action->IsValidLowLevel()))
 				{
-					ensureMsgf(false, TEXT("Invalid action (0x%016llx) registered for unloaded object path: %s"), (int64)(PTRINT)Action, *UnloadedActionListIt.Key.ToString());
+					ensureMsgf(false, TEXT("Invalid action (0x%016llx) registered for unloaded object path: %s"), (int64)(PTRINT)Action.Get(), *UnloadedActionListIt.Key.ToString());
 					continue;
 				}
 
@@ -1916,7 +1916,7 @@ bool FBlueprintActionDatabase::ClearAssetActions(const FObjectKey& AssetObjectKe
 void FBlueprintActionDatabase::ClearUnloadedAssetActions(const FSoftObjectPath& ObjectPath)
 {
 	// Check if the asset can be found in the unloaded action registry, if it can, we need to remove it
-	if(TArray<UBlueprintNodeSpawner*>* UnloadedActionList = UnloadedActionRegistry.Find(ObjectPath))
+	if(auto* UnloadedActionList = UnloadedActionRegistry.Find(ObjectPath))
 	{
 		for(UBlueprintNodeSpawner* NodeSpawner : *UnloadedActionList)
 		{
@@ -1935,7 +1935,7 @@ void FBlueprintActionDatabase::ClearUnloadedAssetActions(const FSoftObjectPath& 
 void FBlueprintActionDatabase::MoveUnloadedAssetActions(const FSoftObjectPath& SourceObjectPath, const FSoftObjectPath& TargetObjectPath)
 {
 	// Check if the asset can be found in the unloaded action registry, if it can, we need to remove it and re-add under the new name
-	if(TArray<UBlueprintNodeSpawner*>* UnloadedActionList = UnloadedActionRegistry.Find(SourceObjectPath))
+	if(auto* UnloadedActionList = UnloadedActionRegistry.Find(SourceObjectPath))
 	{
 		check(!UnloadedActionRegistry.Find(TargetObjectPath));
 

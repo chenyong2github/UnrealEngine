@@ -451,7 +451,7 @@ struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_K2Enum : public FEdGraphSchemaAct
 	static FName StaticGetTypeId() {static FName Type("FEdGraphSchemaAction_K2Enum"); return Type;}
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
 
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 
 	void AddReferencedObjects( FReferenceCollector& Collector ) override
 	{

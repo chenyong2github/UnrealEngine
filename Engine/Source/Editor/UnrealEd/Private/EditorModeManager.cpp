@@ -608,7 +608,7 @@ void FEditorModeTools::DrawBrackets(FEditorViewportClient* ViewportClient, FView
 void FEditorModeTools::ForEachEdMode(TFunctionRef<bool(UEdMode*)> InCalllback) const
 {
 	// Copy Array in case callback deactivates a mode
-	TArray<UEdMode*> ActiveModes(ActiveScriptableModes);
+	auto ActiveModes = ActiveScriptableModes;
 	for (UEdMode* Mode : ActiveModes)
 	{
 		if (Mode)
@@ -642,7 +642,7 @@ void FEditorModeTools::ExitAllModesPendingDeactivate()
 	bIsExitingModesDuringTick = true;
 
 	// Make a copy so we can modify the pending deactivate modes map during ExitMode
-	TMap<FEditorModeID, UEdMode*> PendingDeactivateModesCopy(PendingDeactivateModes);
+	TMap<FEditorModeID, UEdMode*> PendingDeactivateModesCopy(ObjectPtrDecay(PendingDeactivateModes));
 	for (auto& Pair : PendingDeactivateModesCopy)
 	{
 		ExitMode(Pair.Value);
@@ -955,9 +955,9 @@ bool FEditorModeTools::EnsureNotInMode(FEditorModeID ModeID, const FText& ErrorM
 
 UEdMode* FEditorModeTools::GetActiveScriptableMode(FEditorModeID InID) const
 {
-	if (UEdMode* const* FoundMode = ActiveScriptableModes.FindByPredicate([InID](UEdMode* Mode) { return (Mode->GetID() == InID); }))
+	if (auto* FoundMode = ActiveScriptableModes.FindByPredicate([InID](UEdMode* Mode) { return (Mode->GetID() == InID); }))
 	{
-		return const_cast<UEdMode*>(*FoundMode);
+		return *FoundMode;
 	}
 
 	return nullptr;

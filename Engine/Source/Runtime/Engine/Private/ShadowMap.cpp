@@ -506,7 +506,7 @@ TRefCountPtr<FShadowMap2D> FShadowMap2D::AllocateShadowMap(
 }
 
 FShadowMap2D::FShadowMap2D() :
-	Texture(NULL),
+	Texture(nullptr),
 	CoordinateScale(FVector2D(0, 0)),
 	CoordinateBias(FVector2D(0, 0))
 {
@@ -517,7 +517,7 @@ FShadowMap2D::FShadowMap2D() :
 }
 
 FShadowMap2D::FShadowMap2D(const TMap<ULightComponent*,FShadowMapData2D*>& ShadowMapData) :
-	Texture(NULL),
+	Texture(nullptr),
 	CoordinateScale(FVector2D(0, 0)),
 	CoordinateBias(FVector2D(0, 0))
 {

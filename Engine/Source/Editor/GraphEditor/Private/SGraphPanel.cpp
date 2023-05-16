@@ -239,12 +239,12 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 	// Draw the child nodes
 	{
 		// When drawing a marquee, need a preview of what the selection will be.
-		const FGraphPanelSelectionSet* SelectionToVisualize = &(SelectionManager.SelectedNodes);
-		FGraphPanelSelectionSet SelectionPreview;
+		const FGraphPanelSelectionSet* SelectionToVisualize = &ObjectPtrDecay(SelectionManager.SelectedNodes);
+		decltype(SelectionManager.SelectedNodes) SelectionPreview;
 		if ( Marquee.IsValid() )
 		{			
-			ApplyMarqueeSelection(Marquee, SelectionManager.SelectedNodes, SelectionPreview);
-			SelectionToVisualize = &SelectionPreview;
+			ApplyMarqueeSelection(Marquee, ObjectPtrDecay(SelectionManager.SelectedNodes), SelectionPreview);
+			SelectionToVisualize = &ObjectPtrDecay(SelectionPreview);
 		}
 
 		// Context for rendering node infos
@@ -752,9 +752,9 @@ TSharedPtr<IToolTip> SGraphPanel::GetToolTip()
 void SGraphPanel::UpdateSelectedNodesPositions(FVector2D PositionIncrement)
 {
 	FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "NudgeNodeAction", "Nudge Node"));
-	for (FGraphPanelSelectionSet::TIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
+	for (auto& NodeIt : SelectionManager.SelectedNodes)
 	{
-		TSharedRef<SNode>* pWidget = NodeToWidgetLookup.Find(*NodeIt);
+		TSharedRef<SNode>* pWidget = NodeToWidgetLookup.Find(NodeIt);
 		if (pWidget != nullptr)
 		{
 			SNode& Widget = pWidget->Get();
@@ -862,7 +862,7 @@ TArray<UEdGraphNode*> SGraphPanel::GetSelectedGraphNodes() const
 	TArray<UEdGraphNode*> SelectedGraphNodes;
 	SelectedGraphNodes.Reserve(SelectionManager.SelectedNodes.Num());
 
-	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
+	for (auto NodeIt = SelectionManager.SelectedNodes.CreateConstIterator(); NodeIt; ++NodeIt)
 	{
 		const TSharedRef<SNode>* SelectedNode = NodeToWidgetLookup.Find(*NodeIt);
 		if (SelectedNode)
@@ -1635,7 +1635,7 @@ private:
 void SGraphPanel::StraightenConnections()
 {
 	FConnectionAligner Aligner;
-	for (auto* It : SelectionManager.SelectedNodes)
+	for (auto& It : SelectionManager.SelectedNodes)
 	{
 		UEdGraphNode* SourceNode = Cast<UEdGraphNode>(It);
 		if (!SourceNode)

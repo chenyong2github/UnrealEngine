@@ -284,7 +284,7 @@ TOptional<const UStruct*> FFieldExpander_Bindable::GetExpandedFunction(const UFu
 	{
 		if (GetDefault<UBlueprintEditorSettings>()->IsClassAllowedOnPin(ObjectProperty->PropertyClass))
 		{
-			return ObjectProperty->PropertyClass;
+			return ObjectProperty->PropertyClass.Get();
 		}
 	}
 	return TOptional<const UStruct*>();

@@ -407,7 +407,7 @@ void SDataprepDetailsView::OnObjectReplaced(const TMap<UObject*, UObject*>& Repl
 		DetailedObject = *ObjectPtr;
 		if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
 		{
-			DetailedObjectAsParameterizable = static_cast<UDataprepParameterizableObject*>( DetailedObject );
+			DetailedObjectAsParameterizable = StaticCastPtr<UDataprepParameterizableObject>(DetailedObject);
 		}
 
 		ForceRefresh();
@@ -655,7 +655,7 @@ void SDataprepDetailsView::Construct()
 
 		if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
 		{
-			DetailedObjectAsParameterizable = static_cast<UDataprepParameterizableObject*>(DetailedObject);
+			DetailedObjectAsParameterizable = StaticCastPtr<UDataprepParameterizableObject>(DetailedObject);
 		}
 
 		FDataprepParameterizationContext ParameterizationContext;
@@ -726,7 +726,7 @@ void SDataprepDetailsView::SetObjectToDisplay(UObject& Object)
 		DetailedObject = NewObjectToDisplay;
 		if ( DetailedObject->IsA<UDataprepParameterizableObject>() )
 		{
-			DetailedObjectAsParameterizable = static_cast<UDataprepParameterizableObject*>( DetailedObject );
+			DetailedObjectAsParameterizable = StaticCastPtr<UDataprepParameterizableObject>(DetailedObject);
 		}
 		ForceRefresh();
 	}

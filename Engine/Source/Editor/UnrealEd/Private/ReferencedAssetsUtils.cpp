@@ -71,7 +71,7 @@ void FFindReferencedAssets::OnEditorMapChange( uint32 Flag )
 void FFindReferencedAssets::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	// serialize all of our object references
-	for( TPair< UObject*, TSet<UObject*> >& Node : ReferenceGraph )
+	for( auto& Node : ReferenceGraph )
 	{
 		Collector.AddReferencedObject( Node.Key );
 		Collector.AddReferencedObjects( Node.Value );
@@ -247,7 +247,7 @@ FArchive& FFindAssetsArchive::operator<<(UObject*& Obj)
 					UObject* Key = bUseReverseReferenceGraph? CurrentObject: PreviousObject;
 					UObject* Value = bUseReverseReferenceGraph? PreviousObject: CurrentObject;
 
-					TSet<UObject*>* CurrentObjectAssets = GetAssetList(Key);
+					auto* CurrentObjectAssets = GetAssetList(Key);
 					check(CurrentObjectAssets);
 
 					// add this object to the list of objects referenced by the object currently being serialized
@@ -310,7 +310,7 @@ void FFindAssetsArchive::HandleReferencedObject(UObject* Obj )
 				UObject* ObjectArc = Obj->GetArchetype();
 				UObject* Key = bUseReverseReferenceGraph? ObjectArc: Obj;
 				UObject* Value = bUseReverseReferenceGraph? Obj: ObjectArc;
-				TSet<UObject*>* ReferencedAssets = GetAssetList(Key);
+				auto* ReferencedAssets = GetAssetList(Key);
 
 				// @see the comment for the bIncludeScriptRefs block
 				ReferencedAssets->Add(Value);
@@ -338,7 +338,7 @@ void FFindAssetsArchive::HandleReferencedObject(UObject* Obj )
 				UClass* ObjectClass = Obj->GetClass();
 				UObject* Key = bUseReverseReferenceGraph? ObjectClass: Obj;
 				UObject* Value = bUseReverseReferenceGraph? Obj: ObjectClass;
-				TSet<UObject*>* ReferencedAssets = GetAssetList(Key);
+				auto* ReferencedAssets = GetAssetList(Key);
 
 				// we want to see assets referenced by this object's class, but classes don't have associated thumbnail rendering info
 				// so we'll need to serialize the class manually in order to get the object references encountered through the class to fal
@@ -366,15 +366,15 @@ void FFindAssetsArchive::HandleReferencedObject(UObject* Obj )
 /**
  * Retrieves the referenced assets list for the specified object.
  */
-TSet<UObject*>* FFindAssetsArchive::GetAssetList( UObject* Referencer )
+TSet<TObjectPtr<UObject>>* FFindAssetsArchive::GetAssetList( UObject* Referencer )
 {
 	check(Referencer);
 
-	TSet<UObject*>* ReferencedAssetList = CurrentReferenceGraph->Find(Referencer);
+	auto* ReferencedAssetList = CurrentReferenceGraph->Find(Referencer);
 	if ( ReferencedAssetList == NULL )
 	{
 		// add a new entry for the specified object
-		ReferencedAssetList = &CurrentReferenceGraph->Add(Referencer, TSet<UObject*>());
+		ReferencedAssetList = &CurrentReferenceGraph->Add(Referencer, TSet<TObjectPtr<UObject>>{});
 	}
 
 	return ReferencedAssetList;

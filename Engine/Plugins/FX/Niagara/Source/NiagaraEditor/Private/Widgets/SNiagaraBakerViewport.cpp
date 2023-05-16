@@ -623,8 +623,8 @@ public:
 	UFont* GetFont() const { return GetStatsFont(); }
 
 public:
-	UTextureRenderTarget2D*						PreviewRenderTarget = nullptr;
-	UTextureRenderTarget2D*						GeneratedRenderTarget = nullptr;
+	TObjectPtr<UTextureRenderTarget2D>						PreviewRenderTarget = nullptr;
+	TObjectPtr<UTextureRenderTarget2D>						GeneratedRenderTarget = nullptr;
 
 	FVector										LocalMovement = FVector::ZeroVector;
 	float										LocalZoom = 0.0f;
@@ -636,7 +636,7 @@ public:
 	FIntRect									PreviewViewRect;
 	FIntRect									GeneratedViewRect;
 
-	UTexture2D*									CheckerboardTexture = nullptr;
+	TObjectPtr<UTexture2D>									CheckerboardTexture = nullptr;
 	FColor										CheckerboardColorOne = FColor(128, 128, 128);
 	FColor										CheckerboardColorTwo = FColor(64, 64, 64);
 	int32										CheckerSize = 32;

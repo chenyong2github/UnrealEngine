@@ -53,7 +53,7 @@ void USoundEffectPreset::AddReferencedEffects(FReferenceCollector& InCollector)
 	FReferenceCollector* Collector = &InCollector;
 	IterateEffects<FSoundEffectBase>([Collector](FSoundEffectBase& Instance)
 	{
-		if (const USoundEffectPreset* EffectPreset = Instance.GetPreset())
+		if (auto& EffectPreset = Instance.GetPresetPtr(); EffectPreset.Get())
 		{
 			Collector->AddReferencedObject(EffectPreset);
 		}

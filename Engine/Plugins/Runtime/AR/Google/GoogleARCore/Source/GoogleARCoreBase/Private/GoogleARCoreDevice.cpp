@@ -364,7 +364,7 @@ void FGoogleARCoreDevice::UpdateGameFrame(UWorld* World)
 				LastCameraTextureId = Frame->GetCameraTextureId();
 				if (ARCoreSession->IsSceneDepthEnabled())
 				{
-					Frame->UpdateDepthTexture(DepthTexture);
+					Frame->UpdateDepthTexture(MutableView(DepthTexture));
 				}
 			}
 		}

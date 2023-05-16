@@ -965,7 +965,8 @@ void UClusterUnionComponent::AddReferencedObjects(UObject* InThis, FReferenceCol
 		const UScriptStruct* ScriptStruct = FClusteredComponentData::StaticStruct();
 		for (TPair<TObjectKey<UPrimitiveComponent>, FClusteredComponentData>& Kvp : This->ComponentToPhysicsObjects)
 		{
-			Collector.AddReferencedObjects(ScriptStruct, reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
+			TWeakObjectPtr<const UScriptStruct> ScriptStructPtr{ScriptStruct};
+			Collector.AddReferencedObjects(ScriptStructPtr, reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
 		}
 	}
 
@@ -973,7 +974,8 @@ void UClusterUnionComponent::AddReferencedObjects(UObject* InThis, FReferenceCol
 		const UScriptStruct* ScriptStruct = FClusteredActorData::StaticStruct();
 		for (TPair<TObjectKey<AActor>, FClusteredActorData>& Kvp : This->ActorToComponents)
 		{
-			Collector.AddReferencedObjects(ScriptStruct, reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
+			TWeakObjectPtr<const UScriptStruct> ScriptStructPtr{ScriptStruct};
+			Collector.AddReferencedObjects(ScriptStructPtr, reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
 		}
 	}
 
@@ -981,7 +983,8 @@ void UClusterUnionComponent::AddReferencedObjects(UObject* InThis, FReferenceCol
 		const UScriptStruct* ScriptStruct = FClusterUnionPendingAddData::StaticStruct();
 		for (TPair<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData>& Kvp : This->PendingComponentsToAdd)
 		{
-			Collector.AddReferencedObjects(ScriptStruct, reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
+			TWeakObjectPtr<const UScriptStruct> ScriptStructPtr{ScriptStruct};			
+			Collector.AddReferencedObjects(ScriptStructPtr, reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
 		}
 	}
 
@@ -989,7 +992,7 @@ void UClusterUnionComponent::AddReferencedObjects(UObject* InThis, FReferenceCol
 		const UScriptStruct* ScriptStruct = FClusterUnionPendingAddData::StaticStruct();
 		for (TPair<TObjectKey<UPrimitiveComponent>, FClusterUnionPendingAddData>& Kvp : This->PendingComponentSync)
 		{
-			Collector.AddReferencedObjects(ScriptStruct, reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
+			Collector.AddReferencedObjects(ObjectPtrWrap(ScriptStruct), reinterpret_cast<void*>(&Kvp.Value), This, nullptr);
 		}
 	}
 }

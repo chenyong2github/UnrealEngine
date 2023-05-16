@@ -217,7 +217,7 @@ bool UK2Node_BaseMCDelegate::HasExternalDependencies(TArray<class UStruct*>* Opt
 
 	FProperty* MCProperty = GetProperty();
 	UClass* PropertySourceClass = MCProperty ? MCProperty->GetOwnerClass() : nullptr;
-	const bool bPropertyResult = (PropertySourceClass != NULL) && (PropertySourceClass->ClassGeneratedBy != SourceBlueprint);
+	const bool bPropertyResult = (PropertySourceClass != NULL) && (PropertySourceClass->ClassGeneratedBy.Get() != SourceBlueprint);
 	if (bPropertyResult && OptionalOutput)
 	{
 		OptionalOutput->AddUnique(PropertySourceClass);
@@ -232,7 +232,7 @@ bool UK2Node_BaseMCDelegate::HasExternalDependencies(TArray<class UStruct*>* Opt
 	);
 	
 	UClass* SignatureSourceClass = Signature ? Signature->GetOwnerClass() : nullptr;
-	const bool bSignatureResult = (SignatureSourceClass != NULL) && (SignatureSourceClass->ClassGeneratedBy != SourceBlueprint);
+	const bool bSignatureResult = (SignatureSourceClass != NULL) && (SignatureSourceClass->ClassGeneratedBy.Get() != SourceBlueprint);
 	if (bSignatureResult && OptionalOutput)
 	{
 		OptionalOutput->AddUnique(Signature);

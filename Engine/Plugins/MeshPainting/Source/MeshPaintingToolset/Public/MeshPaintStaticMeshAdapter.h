@@ -54,7 +54,7 @@ protected:
 	/** Static mesh component represented by this adapter */
 	TWeakObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 	/** Static mesh currently set to the Static Mesh Component */
-	UStaticMesh* ReferencedStaticMesh;
+	TObjectPtr<UStaticMesh> ReferencedStaticMesh;
 	/** LOD model (at Mesh LOD Index) containing data to change */
 	FStaticMeshLODResources* LODModel;
 	/** LOD Index for which data has to be retrieved / altered*/

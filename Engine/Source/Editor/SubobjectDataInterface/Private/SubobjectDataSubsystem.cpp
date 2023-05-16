@@ -1538,8 +1538,8 @@ bool USubobjectDataSubsystem::ChangeSubobjectClass(const FSubobjectDataHandle& H
 
 					FGuid OperationGuid;
 					FName TemplateName;
-					const UClass* ApplyClass;
-					const UClass* RevertClass;
+					TObjectPtr<const UClass> ApplyClass;
+					TObjectPtr<const UClass> RevertClass;
 				};
 
 				// To avoid all of the subobjects we are manipulating getting serialized in to the transaction buffer unnecessarily

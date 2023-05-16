@@ -1482,7 +1482,7 @@ private:
 	 * Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported
 	 * as referenced in CookerAddReferencedObjects.
 	 */
-	TArray<UObject*> GCKeepObjects;
+	TArray<TObjectPtr<UObject>> GCKeepObjects;
 	/** Used during garbagecolletion: a flat array of all the elements in UPackage::SoftGCPackageToObjectList arrayviews. */
 	TArray<UObject*> SoftGCPackageToObjectListBuffer;
 	/** Packages that were expected to be freed by the last Soft GC and we expect not to load again. */

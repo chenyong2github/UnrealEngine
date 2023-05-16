@@ -148,15 +148,15 @@ private:
 	void SetLastLevelSequence(ULevelSequence* InLastLevelSequence);
 
 	/** The transient preset that we use to - kept alive by AddReferencedObjects */
-	UTakePreset* TransientPreset;
+	TObjectPtr<UTakePreset> TransientPreset;
 
-	ULevelSequence* SuppliedLevelSequence;
+	TObjectPtr<ULevelSequence> SuppliedLevelSequence;
 
-	ULevelSequence* RecordIntoLevelSequence;
+	TObjectPtr<ULevelSequence> RecordIntoLevelSequence;
 
-	ULevelSequence* RecordingLevelSequence;
+	TObjectPtr<ULevelSequence> RecordingLevelSequence;
 
-	ULevelSequence* LastRecordedLevelSequence;
+	TObjectPtr<ULevelSequence> LastRecordedLevelSequence;
 
 	/** The main level sequence take editor widget */
 	TSharedPtr<SLevelSequenceTakeEditor> LevelSequenceTakeWidget;

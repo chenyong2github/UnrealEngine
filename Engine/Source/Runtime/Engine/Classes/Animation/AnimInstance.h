@@ -190,13 +190,12 @@ private:
 /** Helper struct to store a Queued Montage BlendingOut event. */
 struct FQueuedMontageBlendingOutEvent
 {
-	class UAnimMontage* Montage;
+	TObjectPtr<class UAnimMontage> Montage;
 	bool bInterrupted;
 	FOnMontageBlendingOutStarted Delegate;
 
 	FQueuedMontageBlendingOutEvent()
-		: Montage(NULL)
-		, bInterrupted(false)
+		: bInterrupted(false)
 	{}
 
 	FQueuedMontageBlendingOutEvent(class UAnimMontage* InMontage, bool InbInterrupted, FOnMontageBlendingOutStarted InDelegate)
@@ -209,14 +208,13 @@ struct FQueuedMontageBlendingOutEvent
 /** Helper struct to store a Queued Montage Ended event. */
 struct FQueuedMontageEndedEvent
 {
-	class UAnimMontage* Montage;
+	TObjectPtr<class UAnimMontage> Montage;
 	int32 MontageInstanceID;
 	bool bInterrupted;
 	FOnMontageEnded Delegate;
 
 	FQueuedMontageEndedEvent()
-		: Montage(NULL)
-		, MontageInstanceID(INDEX_NONE)
+		: MontageInstanceID(INDEX_NONE)
 		, bInterrupted(false)
 	{}
 

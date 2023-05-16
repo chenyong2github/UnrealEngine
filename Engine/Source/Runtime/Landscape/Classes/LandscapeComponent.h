@@ -211,7 +211,7 @@ struct FLandscapeComponentGrassData
 	//  therefore empty) or not known yet (== UnknownNumElements)
 	int32 NumElements = UnknownNumElements;
 	// Serialized in one block to prevent Slack waste
-	TMap<ULandscapeGrassType*, int32> WeightOffsets;
+	TMap<TObjectPtr<ULandscapeGrassType>, int32> WeightOffsets;
 	TArray<uint8> HeightWeightData;
 
 	FLandscapeComponentGrassData() = default;

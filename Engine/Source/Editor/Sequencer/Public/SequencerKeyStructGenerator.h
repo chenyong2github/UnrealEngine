@@ -153,7 +153,7 @@ public:
 private:
 
 	/** Mapping of instance name -> generated struct type for reference collection */
-	TMap<FName, UMovieSceneKeyStructType*> InstanceNameToGeneratedStruct;
+	TMap<FName, TObjectPtr<UMovieSceneKeyStructType>> InstanceNameToGeneratedStruct;
 
 	FSequencerKeyStructGenerator(){}
 	~FSequencerKeyStructGenerator(){}

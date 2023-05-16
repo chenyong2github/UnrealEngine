@@ -60,8 +60,8 @@ private:
 /** Stores the transform track and associated mesh trail for each drawn track */
 struct FMeshTrailData
 {
-	class UMovieScene3DTransformTrack* Track;
-	class ASequencerMeshTrail* Trail;
+	TObjectPtr<class UMovieScene3DTransformTrack> Track;
+	TObjectPtr<class ASequencerMeshTrail> Trail;
 
 	FMeshTrailData(class UMovieScene3DTransformTrack* InTrack, class ASequencerMeshTrail* InTrail) :
 		Track(InTrack),

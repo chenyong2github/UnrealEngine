@@ -139,7 +139,7 @@ void FMassProcessingPhase::Initialize(FMassProcessingPhaseManager& InPhaseManage
 //----------------------------------------------------------------------//
 // FPhaseProcessorConfigurator
 //----------------------------------------------------------------------//
-void FMassPhaseProcessorConfigurationHelper::Configure(TArrayView<UMassProcessor*> DynamicProcessors,
+void FMassPhaseProcessorConfigurationHelper::Configure(TArrayView<UMassProcessor* const> DynamicProcessors,
 	const TSharedPtr<FMassEntityManager>& EntityManager, FMassProcessorDependencySolver::FResult* OutOptionalResult)
 {
 	FMassRuntimePipeline TmpPipeline;
@@ -295,7 +295,7 @@ void FMassProcessingPhaseManager::AddReferencedObjects(FReferenceCollector& Coll
 		}
 	}
 
-	for (UMassProcessor* DynamicProcessor : DynamicProcessors)
+	for (auto& DynamicProcessor : DynamicProcessors)
 	{
 		if (DynamicProcessor)
 		{

@@ -47,7 +47,7 @@ bool FAzureSpatialAnchorsBase::GetCloudAnchor(UARPin*& InARPin, UAzureCloudSpati
 
 void FAzureSpatialAnchorsBase::GetCloudAnchors(TArray<UAzureCloudSpatialAnchor*>& OutCloudAnchors)
 {
-	OutCloudAnchors = CloudAnchors;
+	OutCloudAnchors = ObjectPtrDecay(CloudAnchors);
 }
 
 bool FAzureSpatialAnchorsBase::ConstructCloudAnchor(UARPin*& InARPin, UAzureCloudSpatialAnchor*& OutCloudAnchor)

@@ -255,7 +255,7 @@ private:
 	TArray<TStructOnScope<FActorComponentInstanceData>> ComponentsInstanceData;
 
 	/** Map of the actor instanced scene component to their transform relative to the root. */
-	TMap< USceneComponent*, FTransform > InstanceComponentTransformToRootMap;
+	TMap< TObjectPtr<USceneComponent>, FTransform > InstanceComponentTransformToRootMap;
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2

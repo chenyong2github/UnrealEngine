@@ -405,10 +405,10 @@ struct WORLDCONDITIONS_API FWorldConditionQueryState
 		check(bIsInitialized);
 		check(Condition.GetStateDataOffset() > 0);
 		check (!Condition.IsStateObject());
-		const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType());
+		const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Condition.GetRuntimeStateType()->Get());
 		check(ScriptStruct);
 		check(Memory.IsValid());
-		return FStructView(Cast<UScriptStruct>(Condition.GetRuntimeStateType()), Memory.Get() + Condition.GetStateDataOffset());
+		return FStructView(Cast<UScriptStruct>(Condition.GetRuntimeStateType()->Get()), Memory.Get() + Condition.GetStateDataOffset());
 	}
 
 	/** @return The number of conditions in the state data. */

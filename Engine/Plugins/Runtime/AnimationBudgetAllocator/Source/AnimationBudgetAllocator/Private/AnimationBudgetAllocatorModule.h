@@ -37,5 +37,5 @@ private:
 	FDelegateHandle PostWorldCleanupHandle;
 
 	/** Map of world->budgeter */
-	TMap<UWorld*, FAnimationBudgetAllocator*> WorldAnimationBudgetAllocators;
+	TMap<TObjectPtr<UWorld>, FAnimationBudgetAllocator*> WorldAnimationBudgetAllocators;
 };

@@ -63,7 +63,7 @@ public:
 
 private:
 	/** The library that the entites were dragged out from */
-	UDMXLibrary* DraggedFromLibrary;
+	TObjectPtr<UDMXLibrary> DraggedFromLibrary;
 
 	/** The entities being draged with this drag drop op */
 	TArray<TWeakObjectPtr<UDMXEntity>> DraggedEntities;

@@ -37,8 +37,8 @@ FModelElement::FModelElement(UModelComponent* InComponent,UMaterialInterface* In
 }
 
 FModelElement::FModelElement():
-	Component(NULL), 
-	Material(NULL), 
+	Component(nullptr), 
+	Material(nullptr), 
 	LegacyMapBuildData(NULL),
 	IndexBuffer(NULL), 
 	FirstIndex(0), 

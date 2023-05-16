@@ -757,7 +757,7 @@ void FPhysScene_Chaos::AddReferencedObjects(FReferenceCollector& Collector)
 	Super::AddReferencedObjects(Collector);
 #if WITH_EDITOR
 
-	for (TPair<IPhysicsProxyBase*, UPrimitiveComponent*>& Pair : PhysicsProxyToComponentMap)
+	for (auto& Pair : PhysicsProxyToComponentMap)
 	{
 		Collector.AddReferencedObject(Pair.Get<1>());
 	}
@@ -1040,7 +1040,7 @@ void FPhysScene_Chaos::AddToComponentMaps(UPrimitiveComponent* Component, IPhysi
 {
 	if (Component != nullptr && InObject != nullptr)
 	{
-		PhysicsProxyToComponentMap.Add(InObject, Component);
+		PhysicsProxyToComponentMap.Add(InObject, ObjectPtrWrap(Component));
 
 		TArray<IPhysicsProxyBase*>* ProxyArray = ComponentToPhysicsProxyMap.Find(Component);
 		if (ProxyArray == nullptr)
@@ -1058,7 +1058,7 @@ void FPhysScene_Chaos::AddToComponentMaps(UPrimitiveComponent* Component, IPhysi
 
 void FPhysScene_Chaos::RemoveFromComponentMaps(IPhysicsProxyBase* InObject)
 {
-	UPrimitiveComponent** const Component = PhysicsProxyToComponentMap.Find(InObject);
+	auto* const Component = PhysicsProxyToComponentMap.Find(InObject);
 	if (Component)
 	{
 		TArray<IPhysicsProxyBase*>* ProxyArray = ComponentToPhysicsProxyMap.Find(*Component);

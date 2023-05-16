@@ -43,10 +43,8 @@ UFactory::UFactory(const FObjectInitializer& ObjectInitializer)
 void UFactory::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {	
 	UFactory* This = CastChecked<UFactory>(InThis);
-	UClass* SupportedClass = *This->SupportedClass;
-	UClass* ContextClass = *This->ContextClass;
-	Collector.AddReferencedObject(SupportedClass, This);
-	Collector.AddReferencedObject(ContextClass, This);
+	Collector.AddReferencedObject(This->SupportedClass.GetGCPtr(), This);
+	Collector.AddReferencedObject(This->ContextClass.GetGCPtr(), This);
 
 	Super::AddReferencedObjects(This, Collector);
 }

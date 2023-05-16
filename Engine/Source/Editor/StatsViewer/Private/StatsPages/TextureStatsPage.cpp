@@ -139,7 +139,7 @@ struct TextureStatsGenerator : public FFindReferencedAssets
 
 				// Now copy the array
 				Referencer->AssetList = BspMats;
-				ReferenceGraph.Add(World->GetModel(), BspMats);
+				ReferenceGraph.Add(World->GetModel(), ObjectPtrWrap(BspMats));
 			}
 		}
 
@@ -156,7 +156,7 @@ struct TextureStatsGenerator : public FFindReferencedAssets
 		for (FThreadSafeObjectIterator It; It; ++It)
 		{
 			// Skip the level, world, and any packages that should be ignored
-			if ( ShouldSearchForAssets(*It,IgnoreClasses,IgnorePackages,false) )
+			if ( ShouldSearchForAssets(*It,ObjectPtrDecay(IgnoreClasses), ObjectPtrDecay(IgnorePackages),false) )
 			{
 				It->Mark(OBJECTMARK_TagExp);
 			}

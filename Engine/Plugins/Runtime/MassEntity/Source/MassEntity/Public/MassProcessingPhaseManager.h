@@ -79,7 +79,7 @@ protected:
 	friend FMassProcessingPhaseManager;
 
 	// composite processor representing work to be performed. GC-referenced via AddReferencedObjects
-	UMassCompositeProcessor* PhaseProcessor = nullptr;
+	TObjectPtr<UMassCompositeProcessor> PhaseProcessor = nullptr;
 
 	EMassProcessingPhase Phase = EMassProcessingPhase::MAX;
 	FOnPhaseEvent OnPhaseStart;
@@ -100,7 +100,7 @@ struct MASSENTITY_API FMassPhaseProcessorConfigurationHelper
 	{
 	}
 
-	void Configure(TArrayView<UMassProcessor*> DynamicProcessors, const TSharedPtr<FMassEntityManager>& EntityManager = TSharedPtr<FMassEntityManager>(), 
+	void Configure(TArrayView<UMassProcessor* const> DynamicProcessors, const TSharedPtr<FMassEntityManager>& EntityManager = TSharedPtr<FMassEntityManager>(), 
 		FMassProcessorDependencySolver::FResult* OutOptionalResult = nullptr);
 
 	UMassCompositeProcessor& PhaseProcessor;
@@ -212,7 +212,7 @@ protected:
 	FMassProcessingPhase ProcessingPhases[(uint8)EMassProcessingPhase::MAX];
 	FPhaseGraphBuildState ProcessingGraphBuildStates[(uint8)EMassProcessingPhase::MAX];
 	TArray<FMassProcessingPhaseConfig> ProcessingPhasesConfig;
-	TArray<UMassProcessor*> DynamicProcessors;
+	TArray<TObjectPtr<UMassProcessor>> DynamicProcessors;
 
 	TSharedPtr<FMassEntityManager> EntityManager;
 

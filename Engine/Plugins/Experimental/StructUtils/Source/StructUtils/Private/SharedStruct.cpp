@@ -14,9 +14,9 @@ bool FConstSharedStruct::Identical(const FConstSharedStruct* Other, uint32 PortF
 
 void FConstSharedStruct::AddStructReferencedObjects(class FReferenceCollector& Collector)
 {
-	if (const UScriptStruct* Struct = GetScriptStruct())
+	if (auto* Struct = GetScriptStructPtr(); Struct && *Struct)
 	{
-		Collector.AddReferencedObjects(Struct, const_cast<uint8*>(GetMemory()));
+		Collector.AddReferencedObjects(*Struct, const_cast<uint8*>(GetMemory()));
 	}
 }
 
@@ -44,9 +44,8 @@ bool FSharedStruct::Identical(const FSharedStruct* Other, uint32 PortFlags) cons
 
 void FSharedStruct::AddStructReferencedObjects(class FReferenceCollector& Collector)
 {
-	if (const UScriptStruct* Struct = GetScriptStruct())
+	if (auto* Struct = GetScriptStructPtr(); Struct && *Struct)
 	{
-		Collector.AddReferencedObjects(Struct, const_cast<uint8*>(GetMemory()));
+		Collector.AddReferencedObjects(*Struct, const_cast<uint8*>(GetMemory()));
 	}
 }
-

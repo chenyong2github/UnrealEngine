@@ -63,9 +63,9 @@ private:
 
 private:
 	//~ Begin GC by AddReferencedObjects
-	UMediaSource*  MediaSource = nullptr;
-	UMediaPlayer*  MediaPlayer = nullptr;
-	UMediaTexture* MediaTexture = nullptr;
+	TObjectPtr<UMediaSource>  MediaSource = nullptr;
+	TObjectPtr<UMediaPlayer>  MediaPlayer = nullptr;
+	TObjectPtr<UMediaTexture> MediaTexture = nullptr;
 	//~ End GC by AddReferencedObjects
 
 	// Used to restart media player in the case it falls in error

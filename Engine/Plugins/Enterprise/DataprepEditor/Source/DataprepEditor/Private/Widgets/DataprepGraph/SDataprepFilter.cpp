@@ -119,23 +119,23 @@ TSharedRef<SWidget> SDataprepFilter::GetContentWidget()
 		// This down casting implementation is faster then using Cast<UDataprepStringFilter>( Filter ) 
 		if ( Class ==  UDataprepStringFilter::StaticClass() )
 		{
-			SAssignNew( FilterWidget, SDataprepStringFilter< UDataprepStringFilter >, *static_cast< UDataprepStringFilter* >( Filter ) );
+			SAssignNew( FilterWidget, SDataprepStringFilter< UDataprepStringFilter >, *StaticCastPtr< UDataprepStringFilter>( Filter ) );
 		}
 		else if (Class == UDataprepStringsArrayFilter::StaticClass())
 		{
-			SAssignNew(FilterWidget, SDataprepStringFilter< UDataprepStringsArrayFilter >, *static_cast<UDataprepStringsArrayFilter*>(Filter));
+			SAssignNew(FilterWidget, SDataprepStringFilter< UDataprepStringsArrayFilter >, *StaticCastPtr<UDataprepStringsArrayFilter>(Filter));
 		}
 		else if ( Class == UDataprepBoolFilter::StaticClass() )
 		{
-			SAssignNew( FilterWidget, SDataprepBoolFilter, *static_cast< UDataprepBoolFilter* >( Filter ) );
+			SAssignNew( FilterWidget, SDataprepBoolFilter, *StaticCastPtr< UDataprepBoolFilter >( Filter ) );
 		}
 		else if (Class == UDataprepFloatFilter::StaticClass())
 		{
-			SAssignNew( FilterWidget, SDataprepFloatFilter, *static_cast< UDataprepFloatFilter* >( Filter ) );
+			SAssignNew( FilterWidget, SDataprepFloatFilter, *StaticCastPtr< UDataprepFloatFilter >( Filter ) );
 		}
 		else if (Class == UDataprepIntegerFilter::StaticClass())
 		{
-			SAssignNew(FilterWidget, SDataprepIntegerFilter, *static_cast<UDataprepIntegerFilter*>(Filter));
+			SAssignNew(FilterWidget, SDataprepIntegerFilter, *StaticCastPtr<UDataprepIntegerFilter>(Filter));
 		}
 	}
 
@@ -287,7 +287,7 @@ TSharedRef<SWidget> SDataprepFilterNoFetcher::GetContentWidget()
 		UClass* Class = Filter->GetClass();
 		if ( Class == UDataprepObjectSelectionFilter::StaticClass() )
 		{
-			SAssignNew(FilterWidget, SDataprepObjectSelectionFilter, *static_cast< UDataprepObjectSelectionFilter* >( Filter ) );
+			SAssignNew(FilterWidget, SDataprepObjectSelectionFilter, *StaticCastPtr< UDataprepObjectSelectionFilter>( Filter ) );
 		}
 	}
 
@@ -346,4 +346,3 @@ void SDataprepFilterNoFetcher::AddReferencedObjects(FReferenceCollector& Collect
 }
 
 #undef LOCTEXT_NAMESPACE
-

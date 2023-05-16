@@ -408,7 +408,7 @@ protected:
 	TSharedPtr<SWidget> PreviewEditor;
 
 	/** Our currently running control rig instance */
-	UControlRig* ControlRig;
+	TObjectPtr<UControlRig> ControlRig;
 
 	/** preview scene */
 	TSharedPtr<IPersonaPreviewScene> PreviewScene;

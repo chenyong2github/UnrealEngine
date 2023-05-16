@@ -68,13 +68,13 @@ protected:
 	void DrawUDIMLabels(FViewport& InViewport, FSceneView& View, UCanvas& Canvas);
 
 	// These get added in AddReferencedObjects for memory management
-	UInputBehaviorSet* BehaviorSet;
-	UUVToolViewportButtonsAPI* ViewportButtonsAPI;
-	UUVTool2DViewportAPI* UVTool2DViewportAPI;
+	TObjectPtr<UInputBehaviorSet> BehaviorSet;
+	TObjectPtr<UUVToolViewportButtonsAPI> ViewportButtonsAPI;
+	TObjectPtr<UUVTool2DViewportAPI> UVTool2DViewportAPI;
 
 	bool bDrawGridRulers = true;
 	bool bDrawGrid = true;
-	UCanvas* CanvasObject;
+	TObjectPtr<UCanvas> CanvasObject;
 
 	// Note that it's generally less hassle if the unique ptr types are complete here,
 	// not forward declared, else we get compile errors if their destruction shows up

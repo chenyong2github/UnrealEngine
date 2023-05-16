@@ -914,7 +914,7 @@ void UBlueprintGeneratedClass::UpdateCustomPropertyListForPostConstruction()
 
 		// Recursively gather native class-owned property values that differ from defaults.
 		FCustomPropertyListNode* PropertyList = nullptr;
-		BuildCustomPropertyListForPostConstruction(PropertyList, SuperClass, (uint8*)ClassDefaultObject, (uint8*)SuperClass->GetDefaultObject(false));
+		BuildCustomPropertyListForPostConstruction(PropertyList, SuperClass, (uint8*)ClassDefaultObject.Get(), (uint8*)SuperClass->GetDefaultObject(false));
 	}
 
 	bCustomPropertyListForPostConstructionInitialized = true;
@@ -2047,7 +2047,7 @@ public:
 			}
 
 			// This is a hard reference or we don't know what's serializing it, so serialize it normally
-			InnerCollector.AddReferencedObject(Object, Referencer, ReferencingProperty);
+			InnerCollector.AddReferencedObject(ObjectPtrWrap(Object), Referencer, ReferencingProperty);
 		}
 	}
 

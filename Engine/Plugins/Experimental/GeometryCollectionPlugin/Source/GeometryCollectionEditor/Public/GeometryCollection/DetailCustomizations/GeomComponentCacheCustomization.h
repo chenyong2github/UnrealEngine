@@ -29,6 +29,7 @@ private:
 
 	// Get the collection attached to the parameter struct.
 	const UGeometryCollection* GetCollection() const;
+	TObjectPtr<const UGeometryCollection>* GetCollectionRef() const;
 
 	// Whether we filter out caches. Condition is that the Id guids match.
 	bool ShouldFilterAsset(const FAssetData& InData) const;

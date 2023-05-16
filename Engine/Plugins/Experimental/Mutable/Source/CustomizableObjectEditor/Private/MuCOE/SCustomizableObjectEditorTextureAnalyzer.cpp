@@ -69,7 +69,7 @@ void SCustomizableObjecEditorTextureAnalyzer::Construct(const FArguments& InArgs
 
 void SCustomizableObjecEditorTextureAnalyzer::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (UObject* i : TabTextures)
+	for (auto& i : TabTextures)
 	{
 		Collector.AddReferencedObject(i);
 	}
@@ -185,7 +185,7 @@ void SCustomizableObjecEditorTextureAnalyzer::FillTextureAnalyzerTable(UCustomiz
 			}
 		}
 
-		TextureAnalyzerTable->SetObjects(TabTextures);
+		TextureAnalyzerTable->SetObjects(ObjectPtrDecay(TabTextures));
 	}
 
 	// Updating Texture Size Text

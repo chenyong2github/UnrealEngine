@@ -26,7 +26,7 @@ class FNiagaraSystemRenderData
 public:
 	struct FMaterialOverride
 	{
-		UMaterialInterface* Material = nullptr;
+		TObjectPtr<UMaterialInterface> Material = nullptr;
 		const UNiagaraRendererProperties* EmitterRendererProperty = nullptr; // Pointer only used for lookups, don't actually dereference
 		uint32 MaterialSubIndex = 0;
 	};

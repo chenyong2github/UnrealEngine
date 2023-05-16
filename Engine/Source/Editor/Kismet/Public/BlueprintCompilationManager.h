@@ -28,7 +28,7 @@ struct FBPCompileRequest
 	}
 
 	// BP that needs to be compiled:
-	UBlueprint* BPToCompile;
+	TObjectPtr<UBlueprint> BPToCompile;
 
 	// Legacy options for blueprint compilation:
 	EBlueprintCompileOptions CompileOptions;

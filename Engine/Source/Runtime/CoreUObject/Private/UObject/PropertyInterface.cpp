@@ -164,7 +164,7 @@ bool FInterfaceProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void*
 	if (Ar.EngineNetVer() >= FEngineNetworkCustomVersion::InterfacePropertySerialization)
 	{ 
 		FScriptInterface* InterfaceValue = (FScriptInterface*)Data;
-		bool Result = Map->SerializeObject(Ar, InterfaceClass, InterfaceValue->GetObjectRef());
+		bool Result = Map->SerializeObject(Ar, InterfaceClass, MutableView(InterfaceValue->GetObjectRef()));
 		if (Ar.IsLoading())
 		{
 			if (InterfaceValue->GetObject() != nullptr)

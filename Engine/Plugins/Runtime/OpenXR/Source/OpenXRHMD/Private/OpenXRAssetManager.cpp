@@ -69,7 +69,7 @@ namespace OpenXRAssetManager_Impl
 };
 
 #if WITH_EDITORONLY_DATA
-class FOpenXRAssetRepo : public FGCObject, public TArray<UObject*>
+class FOpenXRAssetRepo : public FGCObject, public TArray<TObjectPtr<UObject>>
 {
 public:
 	// made an on-demand singleton rather than a static global, to avoid issues with FGCObject initialization

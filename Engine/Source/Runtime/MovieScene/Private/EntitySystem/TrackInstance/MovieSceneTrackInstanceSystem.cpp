@@ -108,7 +108,7 @@ void UMovieSceneTrackInstanceInstantiator::AddReferencedObjects(UObject* InThis,
 		Collector.AddReferencedObject(Entry.TrackInstance, This);
 	}
 
-	for (TTuple<UObject*, int32>& Pair : This->BoundObjectToInstances)
+	for (auto& Pair : This->BoundObjectToInstances)
 	{
 		Collector.AddReferencedObject(Pair.Key, This);
 	}

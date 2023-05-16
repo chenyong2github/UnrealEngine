@@ -1064,7 +1064,7 @@ void UEditorLevelUtils::SetLevelVisibilityTemporarily(ULevel* Level, bool bShoul
 	}
 
 	// Set the visibility of each actor in the p-level
-	for (TArray<AActor*>::TIterator ActorIter(Level->Actors); ActorIter; ++ActorIter)
+	for (decltype(Level->Actors)::TIterator ActorIter(Level->Actors); ActorIter; ++ActorIter)
 	{
 		AActor* CurActor = *ActorIter;
 		if (CurActor && !FActorEditorUtils::IsABuilderBrush(CurActor) && CurActor->bHiddenEdLevel == bShouldBeVisible)
@@ -1125,7 +1125,7 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 			Level->Modify();
 		}
 		// Set the visibility of each actor in the p-level
-		for (TArray<AActor*>::TIterator PLevelActorIter(Level->Actors); PLevelActorIter; ++PLevelActorIter)
+		for (decltype(Level->Actors)::TIterator PLevelActorIter(Level->Actors); PLevelActorIter; ++PLevelActorIter)
 		{
 			AActor* CurActor = *PLevelActorIter;
 			if (CurActor && !FActorEditorUtils::IsABuilderBrush(CurActor) && CurActor->bHiddenEdLevel == bShouldBeVisible)
@@ -1255,7 +1255,7 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 
 		// Iterate over the level's actors, making a list of their layers and unhiding the layers.
-		TArray<AActor*>& Actors = Level->Actors;
+		auto& Actors = Level->Actors;
 		for (int32 ActorIndex = 0; ActorIndex < Actors.Num(); ++ActorIndex)
 		{
 			AActor* Actor = Actors[ActorIndex];

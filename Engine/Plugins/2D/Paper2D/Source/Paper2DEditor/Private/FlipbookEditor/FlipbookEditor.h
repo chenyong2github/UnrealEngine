@@ -49,7 +49,7 @@ public:
 
 	UPaperFlipbookComponent* GetPreviewComponent() const;
 protected:
-	UPaperFlipbook* FlipbookBeingEdited;
+	TObjectPtr<UPaperFlipbook> FlipbookBeingEdited;
 
 	TSharedPtr<SFlipbookEditorViewport> ViewportPtr;
 

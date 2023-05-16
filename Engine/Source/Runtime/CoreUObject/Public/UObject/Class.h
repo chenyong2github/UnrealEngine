@@ -392,10 +392,10 @@ protected:
 	friend struct Z_Construct_UClass_UStruct_Statics;
 private:
 	/** Struct this inherits from, may be null */
-	UStruct* SuperStruct;
+	TObjectPtr<UStruct> SuperStruct;
 public:
 	/** Pointer to start of linked list of child fields */
-	UField* Children;
+	TObjectPtr<UField> Children;
 	
 	/** Pointer to start of linked list of child fields */
 	FField* ChildProperties;
@@ -418,7 +418,7 @@ public:
 	FProperty* PostConstructLink;
 
 	/** Array of object references embedded in script code and referenced by FProperties. Mirrored for easy access by realtime garbage collection code */
-	TArray<UObject*> ScriptAndPropertyObjectReferences;
+	TArray<TObjectPtr<UObject>> ScriptAndPropertyObjectReferences;
 
 	typedef TArray<TPair<TFieldPath<FField>, int32>> FUnresolvedScriptPropertiesArray;
 	/** Contains a list of script properties that couldn't be resolved at load time */
@@ -426,7 +426,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** List of wrapper UObjects for FProperties */
-	TArray<UPropertyWrapper*> PropertyWrappers;
+	TArray<TObjectPtr<UPropertyWrapper>> PropertyWrappers;
 	/** Unique id incremented each time this class properties get destroyed */
 	int32 FieldPathSerialNumber;
 #endif
@@ -2628,7 +2628,7 @@ private:
 struct COREUOBJECT_API FImplementedInterface
 {
 	/** the interface class */
-	UClass* Class;
+	TObjectPtr<UClass> Class;
 	/** the pointer offset of the interface's vtable */
 	int32 PointerOffset;
 	/** whether or not this interface has been implemented via K2 */
@@ -2728,11 +2728,11 @@ public:
 	EClassCastFlags ClassCastFlags;
 
 	/** The required type for the outer of instances of this class */
-	UClass* ClassWithin;
+	TObjectPtr<UClass> ClassWithin;
 
 #if WITH_EDITORONLY_DATA
 	/** This is the blueprint that caused the generation of this class, or null if it is a native compiled-in class */
-	UObject* ClassGeneratedBy;
+	TObjectPtr<UObject> ClassGeneratedBy;
 
 	/** Linked list of properties to be destroyed when this class is destroyed that couldn't be destroyed in PurgeClass **/
 	FField* PropertiesPendingDestruction;
@@ -2811,14 +2811,14 @@ public:
 #endif
 
 	/** The class default object; used for delta serialization and object initialization */
-	UObject* ClassDefaultObject;
+	TObjectPtr<UObject> ClassDefaultObject;
 
 protected:
 	/** This is where we store the data that is only changed per class instead of per instance */
 	void* SparseClassData;
 
 	/** The struct used to store sparse class data. */
-	UScriptStruct* SparseClassDataStruct;
+	TObjectPtr<UScriptStruct> SparseClassDataStruct;
 
 public:
 	/**
@@ -2868,7 +2868,7 @@ private:
 #endif
 
 	/** Map of all functions by name contained in this class */
-	TMap<FName, UFunction*> FuncMap;
+	TMap<FName, TObjectPtr<UFunction>> FuncMap;
 
 	/** Scope lock to avoid the FuncMap being read and written to simultaneously on multiple threads. */
 	mutable FUClassFuncLock FuncMapLock;

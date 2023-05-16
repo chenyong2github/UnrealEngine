@@ -558,7 +558,7 @@ bool UAnimGraphNode_LinkedInputPose::HasExternalDependencies(TArray<UStruct*>* O
 	const UBlueprint* SourceBlueprint = GetBlueprint();
 
 	UClass* SourceClass = FunctionReference.GetMemberParentClass(GetBlueprintClassFromNode());
-	bool bResult = (SourceClass != nullptr) && (SourceClass->ClassGeneratedBy != SourceBlueprint);
+	bool bResult = (SourceClass != nullptr) && (SourceClass->ClassGeneratedBy.Get() != SourceBlueprint);
 	if (bResult && OptionalOutput)
 	{
 		OptionalOutput->AddUnique(SourceClass);

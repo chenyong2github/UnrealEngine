@@ -68,6 +68,11 @@ public:
 	{
 		return OwningSynthComponent.Get();
 	}
+	
+	TWeakObjectPtr<USynthComponent>& GetOwningSynthComponentPtr()
+	{
+		return OwningSynthComponent;
+	}
 };
 
 UCLASS(abstract, ClassGroup = Synth, hidecategories = (Object, ActorComponent, Physics, Rendering, Mobility, LOD))

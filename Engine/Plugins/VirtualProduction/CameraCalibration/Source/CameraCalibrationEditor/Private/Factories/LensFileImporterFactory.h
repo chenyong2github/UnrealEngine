@@ -30,9 +30,11 @@ protected:
 	virtual void SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths) override;
 	virtual EReimportResult::Type Reimport(UObject* Obj) override;
 
-	virtual const UObject* GetFactoryObject() const 
+	virtual TObjectPtr<UObject>* GetFactoryObject() const override
 	{
-		return this;
+		return &GCMark;
 	}
+
+	mutable TObjectPtr<UObject> GCMark{this};
 	//~ End FReimiporterHandler Interface
 };

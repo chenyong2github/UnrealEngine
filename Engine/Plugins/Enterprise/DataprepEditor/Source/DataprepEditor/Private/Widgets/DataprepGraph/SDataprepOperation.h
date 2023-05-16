@@ -35,5 +35,5 @@ private:
 		return TEXT("SDataprepOperation");
 	}
 
-	UDataprepOperation* Operation;
+	TObjectPtr<UDataprepOperation> Operation;
 };

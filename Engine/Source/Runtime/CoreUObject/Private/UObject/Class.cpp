@@ -734,8 +734,8 @@ void UStruct::CollectPropertyReferencedObjects(TArray<UObject*>& OutReferencedOb
 void UStruct::CollectBytecodeAndPropertyReferencedObjects()
 {
 	ScriptAndPropertyObjectReferences.Empty();
-	CollectBytecodeReferencedObjects(ScriptAndPropertyObjectReferences);
-	CollectPropertyReferencedObjects(ScriptAndPropertyObjectReferences);
+	CollectBytecodeReferencedObjects(MutableView(ScriptAndPropertyObjectReferences));
+	CollectPropertyReferencedObjects(MutableView(ScriptAndPropertyObjectReferences));
 }
 
 void UStruct::CollectBytecodeAndPropertyReferencedObjectsRecursively()
@@ -986,7 +986,7 @@ void UStruct::Link(FArchive& Ar, bool bRelinkExistingProperties)
 
 	{
 		// Now collect all references from FProperties to UObjects and store them in GC-exposed array for fast access
-		CollectPropertyReferencedObjects(ScriptAndPropertyObjectReferences);
+		CollectPropertyReferencedObjects(MutableView(ScriptAndPropertyObjectReferences));
 
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 		// The old (non-EDL) FLinkerLoad code paths create placeholder objects
@@ -2011,8 +2011,11 @@ void UStruct::PostLoad()
 				*TargetScriptPropertyPtr = ResolvedProperty;
 
 				// Collect UObjects referenced by this property so that its owner doesn't get GC'd leaving a stale FProperty reference in bytecode
-				FPropertyReferenceCollector Collector(this, ScriptAndPropertyObjectReferences);
-				ResolvedProperty->AddReferencedObjects(Collector);
+				{
+					auto ScriptAndPropertyObjectReferencesView = MutableView(ScriptAndPropertyObjectReferences);
+					FPropertyReferenceCollector Collector(this, ScriptAndPropertyObjectReferencesView);
+					ResolvedProperty->AddReferencedObjects(Collector);
+				}
 			}
 			else if (!MissingProperty.Key.IsPathToFieldEmpty())
 			{
@@ -4159,7 +4162,7 @@ void UClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 		Collector.AddStableReference( &Inter.Class );
 	}
 
-	for (TPair<FName, UFunction*>& Pair : This->FuncMap)
+	for (auto& Pair : This->FuncMap)
 	{
 		Collector.AddStableReference( &Pair.Value );
 	}
@@ -4342,7 +4345,7 @@ UObject* UClass::CreateDefaultObject()
 				{
 					const FSparseDelegate& SparseDelegate = SparseDelegateIt->GetPropertyValue_InContainer(ClassDefaultObject);
 					USparseDelegateFunction* SparseDelegateFunction = CastChecked<USparseDelegateFunction>(SparseDelegateIt->SignatureFunction);
-					FSparseDelegateStorage::RegisterDelegateOffset(ClassDefaultObject, SparseDelegateFunction->DelegateName, (size_t)&SparseDelegate - (size_t)ClassDefaultObject);
+					FSparseDelegateStorage::RegisterDelegateOffset(ClassDefaultObject, SparseDelegateFunction->DelegateName, (size_t)&SparseDelegate - (size_t)ClassDefaultObject.Get());
 				}
 				EObjectInitializerOptions InitOptions = EObjectInitializerOptions::None;
 				if (!HasAnyClassFlags(CLASS_Native | CLASS_Intrinsic))

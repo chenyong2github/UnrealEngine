@@ -235,7 +235,7 @@ public:
 	virtual FVector GetMidPoint() const override;
 
 	/** Index to the ABrush actor this object represents. */
-	ABrush* ActualBrush;
+	TObjectPtr<ABrush> ActualBrush;
 	ABrush* GetActualBrush()				{ return ActualBrush; }
 	const ABrush* GetActualBrush() const	{ return ActualBrush; }
 

@@ -108,5 +108,5 @@ private:
 
 	TArray<TWeakObjectPtr<>> ExternalObjects;
 
-	USequencerSettings* SequencerSettings;
+	TObjectPtr<USequencerSettings> SequencerSettings;
 };

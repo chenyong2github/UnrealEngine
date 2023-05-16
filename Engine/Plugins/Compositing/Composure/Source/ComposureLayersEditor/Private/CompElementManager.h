@@ -100,7 +100,7 @@ private:
 	TWeakObjectPtr<UEditorEngine> Editor;
 
 	/** UObject in charge of tracking all editor element actors. Separated as a UObject to more easily facilitate undo/redo actions. */
-	UEditorCompElementContainer* ElementsContainer;
+	TObjectPtr<UEditorCompElementContainer> ElementsContainer;
 	/** Hidden editor viewport, in charge on enqueuing compositing render commands. */
 	TSharedPtr<FCompositingViewportClient> EditorCompositingViewport;
 	

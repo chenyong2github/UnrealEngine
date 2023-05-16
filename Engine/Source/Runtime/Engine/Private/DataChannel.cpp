@@ -2423,7 +2423,7 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 		
 		if (ActorNetGUID.IsValid())
 		{
-			TArray<UActorChannel*>& ChannelsStillProcessing = Connection->KeepProcessingActorChannelBunchesMap.FindOrAdd(ActorNetGUID);
+			auto& ChannelsStillProcessing = Connection->KeepProcessingActorChannelBunchesMap.FindOrAdd(ActorNetGUID);
 
 #if DO_CHECK
 			if (ensureMsgf(!ChannelsStillProcessing.Contains(this), TEXT("UActorChannel::CleanUp encountered a channel already within the KeepProcessingActorChannelBunchMap. Channel: %i"), ChIndex))
@@ -2444,7 +2444,7 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 				QueuedCloseReason = CloseReason;
 
 				// Add this channel to the KeepProcessingActorChannelBunchesMap list
-				ChannelsStillProcessing.Add(this);
+				ChannelsStillProcessing.Add(ObjectPtrWrap(this));
 
 				// We set ChIndex to -1 to signify that we've already been "closed" but we aren't done processing bunches
 				ChIndex = -1;

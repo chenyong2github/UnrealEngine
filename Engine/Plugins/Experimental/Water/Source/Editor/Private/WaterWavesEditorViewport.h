@@ -54,7 +54,7 @@ private:
 
 	TWeakPtr<FWaterWavesEditorToolkit> WaterWavesEditorToolkitPtr;
 
-	AWaterBodyCustom* CustomWaterBody = nullptr;
+	TObjectPtr<AWaterBodyCustom> CustomWaterBody = nullptr;
 };
 
 

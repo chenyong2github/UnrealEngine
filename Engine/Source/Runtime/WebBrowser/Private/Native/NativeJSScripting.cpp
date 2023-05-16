@@ -616,7 +616,7 @@ FString FNativeJSScripting::GetInitializeScript()
 void FNativeJSScripting::PageLoaded()
 {
 	// Expunge temporary objects.
-	for (TMap<UObject*, ObjectBinding>::TIterator It(BoundObjects); It; ++It)
+	for (decltype(BoundObjects)::TIterator It(BoundObjects); It; ++It)
 	{
 		if (!It->Value.bIsPermanent)
 		{

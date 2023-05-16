@@ -53,7 +53,7 @@ private:
 	static TSharedRef<SDockTab> HandleTabManagerSpawnTab(const FSpawnTabArgs& Args);
 
 	/** Level sequence for our edit operation. */
-	ULevelVariantSets* LevelVariantSets;
+	TObjectPtr<ULevelVariantSets> LevelVariantSets;
 
 	/** The VariantManager used by this editor. */
 	TSharedPtr<FVariantManager> VariantManager;

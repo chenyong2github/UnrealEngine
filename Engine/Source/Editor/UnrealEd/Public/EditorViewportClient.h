@@ -1911,7 +1911,7 @@ protected:
 	TWeakPtr<SEditorViewport> EditorViewportWidget;
 
 	/** The viewport interaction instance for this viewport */
-	UTypedElementViewportInteraction* ViewportInteraction;
+	TObjectPtr<UTypedElementViewportInteraction> ViewportInteraction;
 
 	/** The scene used for the viewport. Owned externally */
 	FPreviewScene* PreviewScene;

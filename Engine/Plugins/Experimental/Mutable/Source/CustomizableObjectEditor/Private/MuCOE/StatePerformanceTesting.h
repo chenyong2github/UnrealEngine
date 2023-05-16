@@ -358,17 +358,17 @@ public:
 	bool RunStateTestTick(float DeltaTime);
 
 	/** Instance to build to perform the test */
-	UCustomizableObjectInstance* Instance;
+	TObjectPtr<UCustomizableObjectInstance> Instance;
 
 	/** Instance skeletal component */
-	TArray<UCustomizableSkeletalComponent*> CustomizableSkeletalComponents;
+	TArray<TObjectPtr<UCustomizableSkeletalComponent>> CustomizableSkeletalComponents;
 
 	/** Instance skeletal mesh component */
-	TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+	TArray<TObjectPtr<USkeletalMeshComponent>> SkeletalMeshComponents;
 
 	/** UObject class to be able to use the update callback */
 	UPROPERTY()
-	UUpdateClassHelper* HelperCallback;
+	TObjectPtr<UUpdateClassHelper> HelperCallback;
 
 	/** Getter of TestResourcesPresent */
 	bool GetTestResourcesPresent();

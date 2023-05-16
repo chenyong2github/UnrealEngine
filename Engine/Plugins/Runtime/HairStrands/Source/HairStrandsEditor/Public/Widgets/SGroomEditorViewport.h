@@ -86,8 +86,8 @@ private:
 	/** Preview Scene - uses advanced preview settings */
 	TSharedPtr<class FAdvancedPreviewScene> AdvancedPreviewScene;
 
-	class UGroomComponent			*GroomComponent;	
-	class UStaticMeshComponent		*StaticGroomTarget; 
+	TObjectPtr<class UGroomComponent> GroomComponent;
+	TObjectPtr<class UStaticMeshComponent> StaticGroomTarget;
 	class USkeletalMeshComponent	*SkeletalGroomTarget;
 
 	/** If true, render grid the preview scene. */

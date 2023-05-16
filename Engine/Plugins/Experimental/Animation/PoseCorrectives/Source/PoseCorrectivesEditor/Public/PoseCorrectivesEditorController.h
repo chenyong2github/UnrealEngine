@@ -39,7 +39,7 @@ public:
 	TWeakPtr<FPoseCorrectivesEditorToolkit> EditorToolkit;
 
 	/** The asset */
-	UPoseCorrectivesAsset* Asset = nullptr;	
+	TObjectPtr<UPoseCorrectivesAsset> Asset = nullptr;	
 
 	/** viewport skeletal mesh */
 	UDebugSkelMeshComponent* SourceSkelMeshComponent;
@@ -102,5 +102,5 @@ private:
 	TSharedPtr<SCorrectivesViewer> CorrectivesViewer;
 	
 	/* Editor Control rig*/
-	UControlRig* ControlRig = nullptr;
+	TObjectPtr<UControlRig> ControlRig = nullptr;
 };

@@ -217,5 +217,5 @@ protected:
 	UWorld* CurrentWorld;
 
 	TArray<TWeakObjectPtr<const AActor>> ActorArray;
-	TArray<const UClass*> AllFilteredClasses;
+	TArray<TObjectPtr<const UClass>> AllFilteredClasses;
 };

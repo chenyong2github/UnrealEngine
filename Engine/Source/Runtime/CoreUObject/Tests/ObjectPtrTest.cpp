@@ -1191,4 +1191,42 @@ TEST_CASE("CoreUObject::TObjectPtr::TestEquals")
 	CHECK(BasePtr == ObjPtr);
 }
 
+TEST_CASE("CoreUObject::TObjectPtr::DecayAndWrap")
+{
+	const FName TestPackageName(TEXT("/Engine/Test/TestName/Transient"));
+	UPackage* TestPackage = NewObject<UPackage>(nullptr, TestPackageName, RF_Transient);
+	TestPackage->AddToRoot();
+	
+
+	UObject* RawPtr1 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("RawPtr1"));
+	UObject* RawPtr2 = NewObject<UObjectPtrTestClass>(TestPackage, TEXT("RawPtr2"));	
+	{
+		TObjectPtr<UObject> ObjPtr{RawPtr1};
+		CHECK(RawPtr1 == ObjectPtrDecay(ObjPtr));
+		CHECK(ObjPtr == ObjectPtrWrap(RawPtr1));
+		CHECK(ObjectPtrDecay(ObjectPtrWrap(RawPtr1)) == RawPtr1);
+		CHECK(ObjectPtrWrap(ObjectPtrDecay(ObjPtr)) == ObjPtr);
+	}
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	{
+		FObjectPtr Unresolved{MakeUnresolvedHandle(RawPtr1)};
+		TObjectPtr<UObject> Ptr = reinterpret_cast<TObjectPtr<UObject>&>(Unresolved);
+		REQUIRE(!Unresolved.IsResolved());
+		CHECK(ObjectPtrDecay(Ptr) == RawPtr1);
+		CHECK(Ptr.IsResolved());
+		
+		TArray<UObject*> RawArray = {RawPtr1, RawPtr2};
+		TArray<FObjectPtr> UnresolvedArray = {FObjectPtr(MakeUnresolvedHandle(RawPtr1)),
+																					FObjectPtr(RawPtr2)};
+		REQUIRE(!UnresolvedArray[0].IsResolved());
+		REQUIRE(UnresolvedArray[1].IsResolved());		 
+		TArray<TObjectPtr<UObject>> ObjArray = reinterpret_cast<TArray<TObjectPtr<UObject>>&>(UnresolvedArray);
+		CHECK(ObjectPtrDecay(ObjArray) == RawArray);
+		CHECK(ObjArray[0].IsResolved());
+		CHECK(ObjArray[1].IsResolved());		
+	}
+#endif
+};
+
 #endif

@@ -10,7 +10,7 @@ class FScriptObjectReferencer : FGCObject
 	static FScriptObjectReferencer* Singleton;
 
 	/** List of all objects currently existing in one of the script contexts */
-	TArray<UObject*> ScriptCreatedObjects;
+	TArray<TObjectPtr<UObject>> ScriptCreatedObjects;
 
 public:
 

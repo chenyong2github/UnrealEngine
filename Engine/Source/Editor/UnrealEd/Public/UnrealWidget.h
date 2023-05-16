@@ -416,14 +416,14 @@ private:
 	};
 
 	/** Materials and colors to be used when drawing the items for each axis */
-	UMaterialInterface* TransparentPlaneMaterialXY;
-	UMaterialInterface* GridMaterial;
+	TObjectPtr<UMaterialInterface> TransparentPlaneMaterialXY;
+	TObjectPtr<UMaterialInterface> GridMaterial;
 
-	UMaterialInstanceDynamic* AxisMaterialX;
-	UMaterialInstanceDynamic* AxisMaterialY;
-	UMaterialInstanceDynamic* AxisMaterialZ;
-	UMaterialInstanceDynamic* CurrentAxisMaterial;
-	UMaterialInstanceDynamic* OpaquePlaneMaterialXY;
+	TObjectPtr<UMaterialInstanceDynamic> AxisMaterialX;
+	TObjectPtr<UMaterialInstanceDynamic> AxisMaterialY;
+	TObjectPtr<UMaterialInstanceDynamic> AxisMaterialZ;
+	TObjectPtr<UMaterialInstanceDynamic> CurrentAxisMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> OpaquePlaneMaterialXY;
 
 	FLinearColor AxisColorX, AxisColorY, AxisColorZ;
 	FLinearColor ScreenAxisColor;

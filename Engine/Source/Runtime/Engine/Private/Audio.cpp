@@ -965,10 +965,7 @@ void FWaveInstance::AddReferencedObjects( FReferenceCollector& Collector )
 
 	if (USynthSound* SynthSound = Cast<USynthSound>(WaveData))
 	{
-		if (USynthComponent* SynthComponent = SynthSound->GetOwningSynthComponent())
-		{
-			Collector.AddReferencedObject(SynthComponent);
-		}
+		Collector.AddReferencedObject(SynthSound->GetOwningSynthComponentPtr());
 	}
 
 	for (FAttenuationSubmixSendSettings& SubmixSend : SubmixSendSettings)

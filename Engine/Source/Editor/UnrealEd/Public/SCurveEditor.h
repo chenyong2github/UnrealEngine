@@ -676,7 +676,7 @@ protected:
 private:
 
 	/** User-supplied object for this curve editor */
-	UCurveEditorSettings* Settings;
+	TObjectPtr<UCurveEditorSettings> Settings;
 
 	/** Curve selection*/
 	TWeakPtr<SBox>		CurveSelectionWidget;
@@ -740,7 +740,7 @@ private:
 	bool bIsGradientEditorVisible;
 
 	/** Reference to curve factor instance*/
-	UCurveFactory* CurveFactory;
+	TObjectPtr<UCurveFactory> CurveFactory;
 
 	/** Gradient editor */
 	TSharedPtr<class SColorGradientEditor> GradientViewer;

@@ -65,7 +65,7 @@ public:
 			}
 		}
 
-		ImportedMaterials = InImportContext.ImportedMaterials;
+		ImportedMaterials = ObjectPtrDecay(InImportContext.ImportedMaterials);
 	}
 
 	void Import()

@@ -218,7 +218,7 @@ private:
 	void RemoveFoldersFromWorld(UWorld& InWorld, const TArray<FFolder>& InFolders, bool bBroadcastDelete);
 
 	/** Transient map of folders, keyed on world pointer */
-	TMap<TWeakObjectPtr<UWorld>, UWorldFolders*> WorldFolders;
+	TMap<TWeakObjectPtr<UWorld>, TObjectPtr<UWorldFolders>> WorldFolders;
 
 	/** Called when ActorEditorContextClient changed. */
 	void BroadcastOnActorEditorContextClientChanged();

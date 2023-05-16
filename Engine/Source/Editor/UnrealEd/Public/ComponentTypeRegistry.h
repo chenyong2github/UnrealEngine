@@ -21,7 +21,7 @@ struct FComponentTypeEntry
 	FString ComponentAssetName;
 
 	/** Optional pointer to the UClass, will be nullptr for blueprint components that aren't loaded */
-	class UClass* ComponentClass;
+	TObjectPtr<class UClass> ComponentClass;
 };
 
 struct UNREALED_API FComponentTypeRegistry

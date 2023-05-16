@@ -599,7 +599,7 @@ private:
 	UNiagaraSystem* System;
 
 	/** The component used for previewing the System in a viewport. */
-	UNiagaraComponent* PreviewComponent;
+	TObjectPtr<UNiagaraComponent> PreviewComponent;
 
 	/** The system instance currently simulating this system if available. */
 	FNiagaraSystemInstance* SystemInstance;
@@ -611,7 +611,7 @@ private:
 	TSharedPtr<FNiagaraSystemScriptViewModel> SystemScriptViewModel;
 
 	/** A niagara sequence for displaying this System in the sequencer timeline. */
-	UNiagaraSequence *NiagaraSequence;
+	TObjectPtr<UNiagaraSequence >NiagaraSequence;
 
 	/** The sequencer instance viewing and editing the niagara sequence. */
 	TSharedPtr<ISequencer> Sequencer;
@@ -730,19 +730,19 @@ private:
 	/** ViewModel for the system overview graph */
 	TSharedPtr<FNiagaraOverviewGraphViewModel> OverviewGraphViewModel;
 
-	UNiagaraStackViewModel* SystemStackViewModel;
+	TObjectPtr<UNiagaraStackViewModel> SystemStackViewModel;
 	
-	UNiagaraSystemEditorDocumentsViewModel* EditorDocumentsViewModel;
+	TObjectPtr<UNiagaraSystemEditorDocumentsViewModel> EditorDocumentsViewModel;
 
-	UNiagaraSystemSelectionViewModel* SelectionViewModel;
+	TObjectPtr<UNiagaraSystemSelectionViewModel> SelectionViewModel;
 
-	UNiagaraScratchPadViewModel* ScriptScratchPadViewModel;
+	TObjectPtr<UNiagaraScratchPadViewModel> ScriptScratchPadViewModel;
 
-	UNiagaraCurveSelectionViewModel* CurveSelectionViewModel;
+	TObjectPtr<UNiagaraCurveSelectionViewModel> CurveSelectionViewModel;
 
-	UNiagaraSystemScalabilityViewModel* ScalabilityViewModel;
+	TObjectPtr<UNiagaraSystemScalabilityViewModel> ScalabilityViewModel;
 
-	UNiagaraUserParametersHierarchyViewModel* UserParametersHierarchyViewModel;
+	TObjectPtr<UNiagaraUserParametersHierarchyViewModel> UserParametersHierarchyViewModel;
 	
 	TWeakPtr<INiagaraParameterPanelViewModel> ParameterPanelViewModel;
 

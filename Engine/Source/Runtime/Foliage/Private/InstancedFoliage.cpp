@@ -122,7 +122,7 @@ struct FFoliageStaticMesh : public FFoliageImpl, public ISMInstanceManager
 
 	virtual ~FFoliageStaticMesh();
 
-	UHierarchicalInstancedStaticMeshComponent* Component;
+	TObjectPtr<UHierarchicalInstancedStaticMeshComponent> Component;
 #if WITH_EDITOR
 	int32 UpdateDepth;
 	bool bPreviousValue;
@@ -328,7 +328,7 @@ FArchive& operator<<(FArchive& Ar, FFoliageInstance& Instance)
 static void ConvertDeprecatedFoliageMeshes(
 	AInstancedFoliageActor* IFA,
 	const TMap<UFoliageType*, TUniqueObj<FFoliageMeshInfo_Deprecated>>& FoliageMeshesDeprecated,
-	TMap<UFoliageType*, TUniqueObj<FFoliageInfo>>& FoliageInfos)
+	const TMap<UFoliageType*, TUniqueObj<FFoliageInfo>>& FoliageInfos)
 {
 #if WITH_EDITORONLY_DATA	
 	for (auto Pair : FoliageMeshesDeprecated)
@@ -369,7 +369,7 @@ static void ConvertDeprecatedFoliageMeshes(
 static void ConvertDeprecated2FoliageMeshes(
 	AInstancedFoliageActor* IFA,
 	const TMap<UFoliageType*, TUniqueObj<FFoliageMeshInfo_Deprecated2>>& FoliageMeshesDeprecated,
-	TMap<UFoliageType*, TUniqueObj<FFoliageInfo>>& FoliageInfos)
+	const TMap<UFoliageType*, TUniqueObj<FFoliageInfo>>& FoliageInfos)
 {
 #if WITH_EDITORONLY_DATA	
 	for (auto Pair : FoliageMeshesDeprecated)
@@ -4503,12 +4503,12 @@ void AInstancedFoliageActor::PostLoad()
 	{
 		if (GetLinkerCustomVersion(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::CrossLevelBase)
 		{
-			ConvertDeprecatedFoliageMeshes(this, FoliageMeshes_Deprecated, FoliageInfos);
+			ConvertDeprecatedFoliageMeshes(this, FoliageMeshes_Deprecated, ObjectPtrDecay(FoliageInfos));
 			FoliageMeshes_Deprecated.Empty();
 		}
 		else if (GetLinkerCustomVersion(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::FoliageActorSupport)
 		{
-			ConvertDeprecated2FoliageMeshes(this, FoliageMeshes_Deprecated2, FoliageInfos);
+			ConvertDeprecated2FoliageMeshes(this, FoliageMeshes_Deprecated2, ObjectPtrDecay(FoliageInfos));
 			FoliageMeshes_Deprecated2.Empty();
 		}
 			   

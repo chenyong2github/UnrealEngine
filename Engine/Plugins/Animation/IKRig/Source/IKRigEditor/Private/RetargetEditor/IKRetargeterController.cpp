@@ -36,6 +36,11 @@ UIKRetargeter* UIKRetargeterController::GetAsset() const
 	return Asset;
 }
 
+TObjectPtr<UIKRetargeter>& UIKRetargeterController::GetAssetPtr()
+{
+	return Asset;
+}
+
 void UIKRetargeterController::CleanAsset() const
 {
 	FScopeLock Lock(&ControllerLock);

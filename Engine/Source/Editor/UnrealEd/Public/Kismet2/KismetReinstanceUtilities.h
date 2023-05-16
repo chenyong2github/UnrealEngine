@@ -123,17 +123,17 @@ protected:
 	UClass* ClassToReinstance;
 
 	/** Reference to the duplicate of ClassToReinstance, which all previous instances are now instances of */
-	UClass* DuplicatedClass;
+	TObjectPtr<UClass> DuplicatedClass;
 
 	/** The original CDO object for the class being actively reinstanced */
-	UObject*	OriginalCDO;
+	TObjectPtr<UObject>	OriginalCDO;
 
 	/** Children of this blueprint, which will need to be recompiled and relinked temporarily to maintain the class layout */
 	TArray<UBlueprint*> Children;
 
 	/** Mappings from old fields before recompilation to their new equivalents */
 	TMap<FName, FProperty*> PropertyMap;
-	TMap<FName, UFunction*> FunctionMap;
+	TMap<FName, TObjectPtr<UFunction>> FunctionMap;
 
 	/** Whether or not this resinstancer has already reinstanced  */
 	bool bHasReinstanced;
@@ -262,8 +262,8 @@ protected:
 	/** Default constructor, can only be used by derived classes */
 	FBlueprintCompileReinstancer()
 		: ClassToReinstance(NULL)
-		, DuplicatedClass(NULL)
-		, OriginalCDO(NULL)
+		, DuplicatedClass(nullptr)
+		, OriginalCDO(nullptr)
 		, bHasReinstanced(false)
 		, ReinstClassType(RCT_Unknown)
 		, ClassToReinstanceDefaultValuesCRC(0)

@@ -36,6 +36,7 @@
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
+#include "Templates/IsTObjectPtr.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
@@ -2175,7 +2176,45 @@ class COREUOBJECT_API FReferenceCollector
 {
 public:
 	virtual ~FReferenceCollector() {}
+	
+	/** Preferred way to add a reference that allows batching. Object must outlive GC tracing, can't be used for temporary/stack references. */
+	virtual void AddStableReference(TObjectPtr<UObject>* Object);
+	
+	/** Preferred way to add a reference array that allows batching. Can't be used for temporary/stack array. */
+	virtual void AddStableReferenceArray(TArray<TObjectPtr<UObject>>* Objects);
 
+	/** Preferred way to add a reference set that allows batching. Can't be used for temporary/stack set. */
+	virtual void AddStableReferenceSet(TSet<TObjectPtr<UObject>>* Objects);
+
+	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
+	FORCEINLINE_DEBUGGABLE void AddStableReferenceMap(TMapBase<KeyType, ValueType, Allocator, KeyFuncs>& Map)
+	{
+#if UE_DEPRECATE_RAW_UOBJECTPTR_ARO
+		static constexpr bool bKeyReference = TIsTObjectPtr<KeyType>::Value;
+		static constexpr bool bValueReference = TIsTObjectPtr<ValueType>::Value;
+		static_assert(bKeyReference || bValueReference);
+		static_assert(!(std::is_pointer_v<KeyType> && std::is_convertible_v<KeyType, const UObjectBase*>));
+		static_assert(!(std::is_pointer_v<ValueType> && std::is_convertible_v<ValueType, const UObjectBase*>));
+#else		 
+		static constexpr bool bKeyReference =	std::is_convertible_v<KeyType, const UObjectBase*>;
+		static constexpr bool bValueReference =	std::is_convertible_v<ValueType, const UObjectBase*>;
+		static_assert(bKeyReference || bValueReference, "Key or value must be pointer to fully-defined UObject type");
+#endif
+		
+		for (TPair<KeyType, ValueType>& Pair : Map)
+		{
+			if constexpr (bKeyReference)
+			{
+				AddStableReference(&Pair.Key);
+			}
+			if constexpr (bValueReference)
+			{
+				AddStableReference(&Pair.Value);
+			}
+		}
+	}
+
+#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
 	/** Preferred way to add a reference that allows batching. Object must outlive GC tracing, can't be used for temporary/stack references. */
 	virtual void AddStableReference(UObject** Object);
 	
@@ -2208,45 +2247,27 @@ public:
 		static_assert(std::is_convertible_v<UObjectType*, const UObjectBase*>, "Element must be a pointer to a type derived from UObject");
 		AddStableReferenceSet(reinterpret_cast<TSet<UObject*>*>(Objects)); 
 	}
+#endif
 
 	template<class UObjectType>
 	FORCEINLINE void AddStableReference(TObjectPtr<UObjectType>* Object)
 	{
-		AddStableReference(reinterpret_cast<UObjectType**>(Object));
+		AddStableReferenceFwd(reinterpret_cast<FObjectPtr*>(Object));
 	}
 
 	template<class UObjectType>
 	FORCEINLINE void AddStableReferenceArray(TArray<TObjectPtr<UObjectType>>* Objects)
 	{
-		AddStableReferenceArray(reinterpret_cast<TArray<UObjectType*>*>(Objects)); 
+		AddStableReferenceArrayFwd(reinterpret_cast<TArray<FObjectPtr>*>(Objects));
 	}
 
 	template<class UObjectType>
 	FORCEINLINE void AddStableReferenceSet(TSet<TObjectPtr<UObjectType>>* Objects)
 	{
-		AddStableReferenceSet(reinterpret_cast<TSet<UObjectType*>*>(Objects)); 
+		AddStableReferenceSetFwd(reinterpret_cast<TSet<FObjectPtr>*>(Objects));
 	}
 
-	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
-	FORCEINLINE_DEBUGGABLE void AddStableReferenceMap(TMapBase<KeyType, ValueType, Allocator, KeyFuncs>& Map)
-	{
-		static constexpr bool bKeyReference =	std::is_convertible_v<KeyType, const UObjectBase*>;
-		static constexpr bool bValueReference =	std::is_convertible_v<ValueType, const UObjectBase*>;
-		static_assert(bKeyReference || bValueReference, "Key or value must be pointer to fully-defined UObject type");
-
-		for (TPair<KeyType, ValueType>& Pair : Map)
-		{
-			if constexpr (bKeyReference)
-			{
-				AddStableReference(&Pair.Key);
-			}
-			if constexpr (bValueReference)
-			{
-				AddStableReference(&Pair.Value);
-			}
-		}
-	}
-
+#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO	
 	/**
 	 * Adds object reference.
 	 *
@@ -2257,10 +2278,7 @@ public:
 	template<class UObjectType>
 	void AddReferencedObject(UObjectType*& Object, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
-		// @todo: should be uncommented when proper usage is fixed everywhere
-		// static_assert(sizeof(UObjectType) > 0, "AddReferencedObject: Element must be a pointer to a fully-defined type");
-		// static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObject: Element must be a pointer to a type derived from UObject");
-		HandleObjectReference(*(UObject**)&Object, ReferencingObject, ReferencingProperty);
+		AROPrivate::AddReferencedObject<UObjectType>(*this, Object, ReferencingObject, ReferencingProperty);
 	}
 
 	/**
@@ -2273,10 +2291,7 @@ public:
 	template<class UObjectType>
 	void AddReferencedObject(const UObjectType*& Object, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
-		// @todo: should be uncommented when proper usage is fixed everywhere
-		// static_assert(sizeof(UObjectType) > 0, "AddReferencedObject: Element must be a pointer to a fully-defined type");
-		// static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObject: Element must be a pointer to a type derived from UObject");
-		HandleObjectReference(*(UObject**)const_cast<UObjectType**>(&Object), ReferencingObject, ReferencingProperty);
+		AROPrivate::AddReferencedObject<UObjectType>(*this, Object, ReferencingObject, ReferencingProperty);
 	}
 
 	/**
@@ -2289,9 +2304,7 @@ public:
 	template<class UObjectType>
 	void AddReferencedObjects(TArray<UObjectType*>& ObjectArray, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
-		static_assert(sizeof(UObjectType) > 0, "AddReferencedObjects: Elements must be pointers to a fully-defined type");
-		static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
-		HandleObjectReferences(reinterpret_cast<UObject**>(ObjectArray.GetData()), ObjectArray.Num(), ReferencingObject, ReferencingProperty);
+		AROPrivate::AddReferencedObjects<UObjectType>(*this, ObjectArray, ReferencingObject, ReferencingProperty);
 	}
 
 	/**
@@ -2304,9 +2317,7 @@ public:
 	template<class UObjectType>
 	void AddReferencedObjects(TArray<const UObjectType*>& ObjectArray, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
-		static_assert(sizeof(UObjectType) > 0, "AddReferencedObjects: Elements must be pointers to a fully-defined type");
-		static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
-		HandleObjectReferences(reinterpret_cast<UObject**>(const_cast<UObjectType**>(ObjectArray.GetData())), ObjectArray.Num(), ReferencingObject, ReferencingProperty);
+		AROPrivate::AddReferencedObjects<UObjectType>(*this, ObjectArray, ReferencingObject, ReferencingProperty);
 	}
 
 	/**
@@ -2319,12 +2330,7 @@ public:
 	template<class UObjectType>
 	void AddReferencedObjects(TSet<UObjectType*>& ObjectSet, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
-		static_assert(sizeof(UObjectType) > 0, "AddReferencedObjects: Elements must be pointers to a fully-defined type");
-		static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
-		for (auto& Object : ObjectSet)
-		{
-			HandleObjectReference(*(UObject**)&Object, ReferencingObject, ReferencingProperty);
-		}
+		AROPrivate::AddReferencedObjects<UObjectType>(*this, ObjectSet, ReferencingObject, ReferencingProperty);
 	}
 
 	/**
@@ -2337,36 +2343,21 @@ public:
 	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
 	void AddReferencedObjects(TMapBase<KeyType*, ValueType, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
-		static_assert(sizeof(KeyType) > 0, "AddReferencedObjects: Keys must be pointers to a fully-defined type");
-		static_assert(TPointerIsConvertibleFromTo<KeyType, const UObjectBase>::Value, "AddReferencedObjects: Keys must be pointers to a type derived from UObject");
-		for (auto& It : Map)
-		{
-			HandleObjectReference(*(UObject**)&It.Key, ReferencingObject, ReferencingProperty);
-		}
+		AROPrivate::AddReferencedObjects<KeyType, ValueType, Allocator, KeyFuncs>(*this, Map, ReferencingObject, ReferencingProperty);
 	}
+
 	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
 	void AddReferencedObjects(TMapBase<KeyType, ValueType*, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
-		static_assert(sizeof(ValueType) > 0, "AddReferencedObjects: Values must be pointers to a fully-defined type");
-		static_assert(TPointerIsConvertibleFromTo<ValueType, const UObjectBase>::Value, "AddReferencedObjects: Values must be pointers to a type derived from UObject");
-		for (auto& It : Map)
-		{
-			HandleObjectReference(*(UObject**)&It.Value, ReferencingObject, ReferencingProperty);
-		}
+		AROPrivate::AddReferencedObjects<KeyType, ValueType, Allocator, KeyFuncs>(*this, Map, ReferencingObject, ReferencingProperty);
 	}
+
 	template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
 	void AddReferencedObjects(TMapBase<KeyType*, ValueType*, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
 	{
-		static_assert(sizeof(KeyType) > 0, "AddReferencedObjects: Keys must be pointers to a fully-defined type");
-		static_assert(sizeof(ValueType) > 0, "AddReferencedObjects: Values must be pointers to a fully-defined type");
-		static_assert(TPointerIsConvertibleFromTo<KeyType, const UObjectBase>::Value, "AddReferencedObjects: Keys must be pointers to a type derived from UObject");
-		static_assert(TPointerIsConvertibleFromTo<ValueType, const UObjectBase>::Value, "AddReferencedObjects: Values must be pointers to a type derived from UObject");
-		for (auto& It : Map)
-		{
-			HandleObjectReference(*(UObject**)&It.Key, ReferencingObject, ReferencingProperty);
-			HandleObjectReference(*(UObject**)&It.Value, ReferencingObject, ReferencingProperty);
-		}
+		AROPrivate::AddReferencedObjects<KeyType, ValueType, Allocator, KeyFuncs>(*this, Map, ReferencingObject, ReferencingProperty);
 	}
+#endif
 
 	/**
 	 * Adds object reference.
@@ -2469,6 +2460,8 @@ public:
 	{
 		static_assert(sizeof(KeyType) > 0, "AddReferencedObjects: Keys must be pointers to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<KeyType, const UObjectBase>::Value, "AddReferencedObjects: Keys must be pointers to a type derived from UObject");
+		static_assert(!UE_DEPRECATE_RAW_UOBJECTPTR_ARO ||
+									!(std::is_pointer_v<ValueType> && std::is_convertible_v<ValueType, const UObjectBase*>));
 		for (auto& It : Map)
 		{
 			if (It.Key.IsResolved())
@@ -2482,6 +2475,8 @@ public:
 	{
 		static_assert(sizeof(ValueType) > 0, "AddReferencedObjects: Values must be pointers to a fully-defined type");
 		static_assert(TPointerIsConvertibleFromTo<ValueType, const UObjectBase>::Value, "AddReferencedObjects: Values must be pointers to a type derived from UObject");
+		static_assert(!UE_DEPRECATE_RAW_UOBJECTPTR_ARO ||
+									!(std::is_pointer_v<KeyType> && std::is_convertible_v<KeyType, const UObjectBase*>));
 		for (auto& It : Map)
 		{
 			if (It.Value.IsResolved())
@@ -2509,6 +2504,20 @@ public:
 			}
 		}
 	}
+	
+	template <typename T>
+	void AddReferencedObject(TWeakObjectPtr<T>& P,
+													 const UObject* ReferencingObject = nullptr,
+													 const FProperty* ReferencingProperty = nullptr)
+	{
+		AddReferencedObject(reinterpret_cast<FWeakObjectPtr&>(P),
+												ReferencingObject,
+												ReferencingProperty);
+	}
+
+	void AddReferencedObject(FWeakObjectPtr& P,
+													 const UObject* ReferencingObject = nullptr,
+													 const FProperty* ReferencingProperty = nullptr);
 
 	/**
 	 * Adds all strong property references from a UScriptStruct instance including the struct itself
@@ -2521,8 +2530,13 @@ public:
 	 * They're kept separate initially to maintain exact semantics while replacing the much slower
 	 * SerializeBin/TPropertyValueIterator/GetVerySlowReferenceCollectorArchive paths.
 	 */
+#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
 	void AddReferencedObjects(const UScriptStruct*& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
+#endif
 
+	void AddReferencedObjects(TObjectPtr<const UScriptStruct>& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
+	void AddReferencedObjects(TWeakObjectPtr<const UScriptStruct>& ScriptStruct, void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
+	
 	/** Adds all strong property references from a struct instance, but not the struct itself. Skips AddStructReferencedObjects. */
 	void AddPropertyReferences(const UStruct* Struct, void* Instance, const UObject* ReferencingObject = nullptr);
 	
@@ -2593,6 +2607,121 @@ public:
 		return *DefaultReferenceCollectorArchive;
 	}
 
+
+	struct AROPrivate final // nb: internal use only
+	{
+		template<class UObjectType>
+		static void AddReferencedObject(FReferenceCollector& Coll,
+																		UObjectType*& Object, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
+		{
+			// @todo: should be uncommented when proper usage is fixed everywhere
+			// static_assert(sizeof(UObjectType) > 0, "AddReferencedObject: Element must be a pointer to a fully-defined type");
+			// static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObject: Element must be a pointer to a type derived from UObject");
+			Coll.HandleObjectReference(*(UObject**)&Object, ReferencingObject, ReferencingProperty);
+		}
+
+		template<class UObjectType>
+		static void AddReferencedObject(FReferenceCollector& Coll,
+																		const UObjectType*& Object,
+																		const UObject* ReferencingObject = nullptr,
+																		const FProperty* ReferencingProperty = nullptr)
+		{
+			// @todo: should be uncommented when proper usage is fixed everywhere
+			// static_assert(sizeof(UObjectType) > 0, "AddReferencedObject: Element must be a pointer to a fully-defined type");
+			// static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObject: Element must be a pointer to a type derived from UObject");
+			Coll.HandleObjectReference(*(UObject**)const_cast<UObjectType**>(&Object), ReferencingObject, ReferencingProperty);
+		}
+
+		template<class UObjectType>
+		static void AddReferencedObjects(FReferenceCollector& Coll,
+																		 TArray<UObjectType*>& ObjectArray,
+																		 const UObject* ReferencingObject = nullptr,
+																		 const FProperty* ReferencingProperty = nullptr)
+		{
+			static_assert(sizeof(UObjectType) > 0, "AddReferencedObjects: Elements must be pointers to a fully-defined type");
+			static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
+			Coll.HandleObjectReferences(reinterpret_cast<UObject**>(ObjectArray.GetData()), ObjectArray.Num(), ReferencingObject, ReferencingProperty);
+		}
+		
+		/**
+		 * Adds references to an array of const objects, these objects can still be nulled out if forcefully collected.
+		 *
+		 * @param ObjectArray Referenced objects array.
+		 * @param ReferencingObject Referencing object (if available).
+		 * @param ReferencingProperty Referencing property (if available).
+		 */
+		template<class UObjectType>
+		static void AddReferencedObjects(FReferenceCollector& Coll,
+																		 TArray<const UObjectType*>& ObjectArray,
+																		 const UObject* ReferencingObject = nullptr,
+																		 const FProperty* ReferencingProperty = nullptr)
+		{
+			static_assert(sizeof(UObjectType) > 0, "AddReferencedObjects: Elements must be pointers to a fully-defined type");
+			static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
+			Coll.HandleObjectReferences(reinterpret_cast<UObject**>(const_cast<UObjectType**>(ObjectArray.GetData())), ObjectArray.Num(), ReferencingObject, ReferencingProperty);
+		}
+
+		template<class UObjectType>
+		static void AddReferencedObjects(FReferenceCollector& Coll,
+																		 TSet<UObjectType*>& ObjectSet,
+																		 const UObject* ReferencingObject = nullptr,
+																		 const FProperty* ReferencingProperty = nullptr)
+		{
+			static_assert(sizeof(UObjectType) > 0, "AddReferencedObjects: Elements must be pointers to a fully-defined type");
+			static_assert(TPointerIsConvertibleFromTo<UObjectType, const UObjectBase>::Value, "AddReferencedObjects: Elements must be pointers to a type derived from UObject");
+			for (auto& Object : ObjectSet)
+			{
+				Coll.HandleObjectReference(*(UObject**)&Object, ReferencingObject, ReferencingProperty);
+			}
+		}
+	
+		template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
+		static void AddReferencedObjects(FReferenceCollector& Coll,
+																		 TMapBase<KeyType*, ValueType, Allocator, KeyFuncs>& Map,
+																		 const UObject* ReferencingObject = nullptr,
+																		 const FProperty* ReferencingProperty = nullptr)
+		{
+			static_assert(sizeof(KeyType) > 0, "AddReferencedObjects: Keys must be pointers to a fully-defined type");
+			static_assert(TPointerIsConvertibleFromTo<KeyType, const UObjectBase>::Value, "AddReferencedObjects: Keys must be pointers to a type derived from UObject");
+			for (auto& It : Map)
+			{
+				Coll.HandleObjectReference(*(UObject**)&It.Key, ReferencingObject, ReferencingProperty);
+			}
+		}
+
+		template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
+		static void AddReferencedObjects(FReferenceCollector& Coll,
+																		 TMapBase<KeyType, ValueType*, Allocator, KeyFuncs>& Map,
+																		 const UObject* ReferencingObject = nullptr,
+																		 const FProperty* ReferencingProperty = nullptr)
+		{
+			static_assert(sizeof(ValueType) > 0, "AddReferencedObjects: Values must be pointers to a fully-defined type");
+			static_assert(TPointerIsConvertibleFromTo<ValueType, const UObjectBase>::Value, "AddReferencedObjects: Values must be pointers to a type derived from UObject");
+			for (auto& It : Map)
+			{
+				Coll.HandleObjectReference(*(UObject**)&It.Value, ReferencingObject, ReferencingProperty);
+			}
+		}
+
+		template <typename KeyType, typename ValueType, typename Allocator, typename KeyFuncs>
+		static void AddReferencedObjects(FReferenceCollector& Coll, TMapBase<KeyType*, ValueType*, Allocator, KeyFuncs>& Map, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr)
+		{
+			static_assert(sizeof(KeyType) > 0, "AddReferencedObjects: Keys must be pointers to a fully-defined type");
+			static_assert(sizeof(ValueType) > 0, "AddReferencedObjects: Values must be pointers to a fully-defined type");
+			static_assert(TPointerIsConvertibleFromTo<KeyType, const UObjectBase>::Value, "AddReferencedObjects: Keys must be pointers to a type derived from UObject");
+			static_assert(TPointerIsConvertibleFromTo<ValueType, const UObjectBase>::Value, "AddReferencedObjects: Values must be pointers to a type derived from UObject");
+			for (auto& It : Map)
+			{
+				Coll.HandleObjectReference(*(UObject**)&It.Key, ReferencingObject, ReferencingProperty);
+				Coll.HandleObjectReference(*(UObject**)&It.Value, ReferencingObject, ReferencingProperty);
+			}
+		}
+
+		static void AddReferencedObjects(FReferenceCollector& Coll,
+																		 const UScriptStruct*& ScriptStruct,
+																		 void* Instance, const UObject* ReferencingObject = nullptr, const FProperty* ReferencingProperty = nullptr);
+	};  
+
 protected:
 	/**
 	 * Handle object reference. Called by AddReferencedObject.
@@ -2636,6 +2765,10 @@ private:
 
 	/** Default proxy archive that uses serialization to add objects to this collector */
 	TUniquePtr<FReferenceCollectorArchive> DefaultReferenceCollectorArchive;
+
+	void AddStableReferenceSetFwd(TSet<FObjectPtr>* Objects);	 
+	void AddStableReferenceArrayFwd(TArray<FObjectPtr>* Objects);		
+	void AddStableReferenceFwd(FObjectPtr* Object);	 
 };
 
 /**

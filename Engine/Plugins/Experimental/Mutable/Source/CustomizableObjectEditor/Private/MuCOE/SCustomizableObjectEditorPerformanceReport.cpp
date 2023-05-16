@@ -329,13 +329,13 @@ void SCustomizableObjecEditorPerformanceReport::AddReferencedObjects(FReferenceC
 	Collector.AddReferencedObject(CurrentReportInstance);
 	Collector.AddReferencedObjects(WorstTextureInstances);
 	Collector.AddReferencedObjects(WorstGeometryInstances);
-	for (TArray<UWorstCasePerformanceReportInstance*>& Arr : WorstTimeStateInstances)
+	for (auto& Arr : WorstTimeStateInstances)
 	{
 		Collector.AddReferencedObjects(Arr);
 	}
-	for (TArray<TArray<UWorstCasePerformanceReportInstance*>>& ArrArr : WorstTimeParameterInstances)
+	for (auto& ArrArr : WorstTimeParameterInstances)
 	{
-		for (TArray<UWorstCasePerformanceReportInstance*>& Arr : ArrArr)
+		for (auto& Arr : ArrArr)
 		{
 			Collector.AddReferencedObjects(Arr);
 		}
@@ -686,7 +686,7 @@ void SCustomizableObjecEditorPerformanceReport::WorstTimeFound(float CurrentInst
 		check(WorstTimeParameterInstances[LOD].Num() > LongesTimeStateIndex);
 		UWorstCasePerformanceReportInstance* WorstCaseParameterTime = nullptr;
 
-		for (UWorstCasePerformanceReportInstance*& WCP : WorstTimeParameterInstances[LOD][LongesTimeStateIndex])
+		for (auto& WCP : WorstTimeParameterInstances[LOD][LongesTimeStateIndex])
 		{
 			if (LongesTimeParameterIndexInCO == WCP->LongestUpdateTimeParameterIndexInCO)
 			{
@@ -987,7 +987,7 @@ void SCustomizableObjecEditorPerformanceReport::BuildTextureWorstCasesView()
 	.AutoHeight()
 	[
 		SNew(SListView<UWorstCasePerformanceReportInstance*>)
-		.ListItemsSource(&WorstTextureInstances)
+		.ListItemsSource(&ObjectPtrDecay(WorstTextureInstances))
 		.OnGenerateRow(this, &SCustomizableObjecEditorPerformanceReport::GenerateRow)
 		.OnMouseButtonClick(this, &SCustomizableObjecEditorPerformanceReport::SelectInstance)
 		.SelectionMode(ESelectionMode::Single)
@@ -1023,7 +1023,7 @@ void SCustomizableObjecEditorPerformanceReport::BuildGeometryWorstCasesView()
 	.AutoHeight()
 	[
 		SNew(SListView<UWorstCasePerformanceReportInstance*>)
-		.ListItemsSource(&WorstGeometryInstances)
+		.ListItemsSource(&ObjectPtrDecay(WorstGeometryInstances))
 		.OnGenerateRow(this, &SCustomizableObjecEditorPerformanceReport::GenerateRow)
 		.OnMouseButtonClick(this, &SCustomizableObjecEditorPerformanceReport::SelectInstance)
 		.SelectionMode(ESelectionMode::Single)
@@ -1078,7 +1078,7 @@ void SCustomizableObjecEditorPerformanceReport::BuildTimeWorstCasesDetailedView(
 		.HAlign(HAlign_Fill)
 		[
 			SNew(SListView<UWorstCasePerformanceReportInstance*>)
-			.ListItemsSource(&WorstTimeStateInstances[LOD])
+			.ListItemsSource(&ObjectPtrDecay(WorstTimeStateInstances[LOD]))
 			.OnGenerateRow(this, &SCustomizableObjecEditorPerformanceReport::GenerateRow)
 			.OnMouseButtonClick(this, &SCustomizableObjecEditorPerformanceReport::SelectInstance)
 			.SelectionMode(ESelectionMode::Single)
@@ -1193,7 +1193,7 @@ const TArray<UWorstCasePerformanceReportInstance*>* SCustomizableObjecEditorPerf
 
 	if ((uint32)WorstTimeParameterInstances.Num() > LOD && (uint32)WorstTimeParameterInstances[LOD].Num() > StateIdx)
 	{
-		return &WorstTimeParameterInstances[LOD][StateIdx];
+		return &ObjectPtrDecay(WorstTimeParameterInstances[LOD][StateIdx]);
 	}
 
 	return nullptr;
@@ -1417,7 +1417,7 @@ TSharedPtr<SWidget> SPerformanceReportWorstCaseRow::GenerateAdditionalWidgetForR
 				SubWidgetData.Push(elem);
 			}
 			return SNew(SListView<UWorstCasePerformanceReportInstance*>)
-				.ListItemsSource(&SubWidgetData)
+				.ListItemsSource(&ObjectPtrDecay(SubWidgetData))
 				.OnGenerateRow(this, &SPerformanceReportWorstCaseRow::GenerateStyledRow)
 				.OnMouseButtonClick(PerformanceReport, &SCustomizableObjecEditorPerformanceReport::SelectInstance)
 				.SelectionMode(ESelectionMode::Single)

@@ -36,7 +36,7 @@ class UModelComponent : public UPrimitiveComponent, public IInterface_CollisionD
 
 private:
 	/** The BSP tree. */
-	class UModel* Model;
+	TObjectPtr<class UModel> Model;
 
 	/** The index of this component in the ULevel's ModelComponents array. */
 	int32 ComponentIndex;

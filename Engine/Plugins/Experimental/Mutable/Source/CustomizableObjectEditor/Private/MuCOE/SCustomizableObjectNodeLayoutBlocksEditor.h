@@ -53,7 +53,7 @@ public:
 private:
 
 	/** */
-	class UCustomizableObjectLayout* CurrentLayout;
+	TObjectPtr<class UCustomizableObjectLayout> CurrentLayout;
 
 	/** */
 	TSharedPtr<SCustomizableObjectLayoutGrid> LayoutGridWidget;

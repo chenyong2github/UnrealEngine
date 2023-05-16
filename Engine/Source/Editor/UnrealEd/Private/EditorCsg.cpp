@@ -1211,7 +1211,7 @@ void UEditorEngine::mapSendToSwap(UWorld* InWorld)
 {
 	int32			Count	= 0;
 	ULevel*		Level	= InWorld->GetCurrentLevel();
-	AActor**	Actors[2];
+	TObjectPtr<AActor>*	Actors[2];
 
 	// Fire ULevel::LevelDirtiedEvent when falling out of scope.
 	FScopedLevelDirtied		LevelDirtyCallback;
@@ -1219,7 +1219,7 @@ void UEditorEngine::mapSendToSwap(UWorld* InWorld)
 	//@todo locked levels - skip for locked levels?
 	for( int32 i=2; i<Level->Actors.Num() && Count < 2; i++ )
 	{
-		AActor*& Actor = Level->Actors[i];
+		auto& Actor = Level->Actors[i];
 		if( Actor && Actor->IsSelected() )
 		{
 			Actors[Count] = &Actor;

@@ -688,12 +688,11 @@ public:
 	{
 		Super::AddReferencedObjects(Collector);
 
-		UClass* WidgetUClass = *WidgetClass;
-		Collector.AddReferencedObject(WidgetUClass);
+		Collector.AddReferencedObject(WidgetClass.GetGCPtr());
 		Collector.AddReferencedObject(RenderTarget);
 	}
 
 public:
 	TSubclassOf<UUserWidget> WidgetClass;
-	UTextureRenderTarget2D* RenderTarget;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
 };

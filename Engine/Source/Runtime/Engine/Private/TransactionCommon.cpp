@@ -131,9 +131,7 @@ void FPersistentObjectRef::AddReferencedObjects(FReferenceCollector& Collector)
 		// object may have been removed (eg, a component on an actor will no longer be referenced by the actor after a delete operation)
 		for (TWeakObjectPtr<UObject>& CachedSubObject : CachedSubObjectHierarchy)
 		{
-			UObject* CachedSubObjectPtr = CachedSubObject.GetEvenIfUnreachable();
-			Collector.AddReferencedObject(CachedSubObjectPtr);
-			CachedSubObject = CachedSubObjectPtr;
+			Collector.AddReferencedObject(CachedSubObject);
 		}
 	}
 }

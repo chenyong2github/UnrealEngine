@@ -1114,8 +1114,8 @@ class FLandscapeToolFlatten : public FLandscapeToolPaintBase<ToolTarget, FLandsc
 	using Super = FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>;
 
 protected:
-	UStaticMesh* HeightmapFlattenPlaneMesh;
-	UStaticMeshComponent* HeightmapFlattenPreviewComponent;
+	TObjectPtr<UStaticMesh> HeightmapFlattenPlaneMesh;
+	TObjectPtr<UStaticMeshComponent> HeightmapFlattenPreviewComponent;
 	bool CanToolBeActivatedNextTick;
 	bool CanToolBeActivatedValue;
 	float EyeDropperFlattenTargetValue;

@@ -117,7 +117,7 @@ private:
 private:
 
 	/** Pointer to the Population Class open in this editor */
-	UCustomizableObjectPopulationClass* PopulationClass;
+	TObjectPtr<UCustomizableObjectPopulationClass> PopulationClass;
 
 	/** Tabs IDs */
 	static const FName PopulationClassPropertiesTabId;
@@ -137,7 +137,7 @@ private:
 	class FCustomizableObjectPopulationClassDetails* PopulationClassDetailsPtr;
 
 	/** Current curve shown in editor */
-	UCurveBase* CurrentEditorCurve;
+	TObjectPtr<UCurveBase> CurrentEditorCurve;
 
 	/** Indicates when the Details View needs to be refreshed */
 	bool bRefreshDetailsView;
@@ -164,10 +164,10 @@ private:
 	TSharedPtr< SNumericEntryBox<int32> > InstanceSeparationEntry;
 	
 	// Components to preview instances on the viewport
-	TArray<class UCustomizableSkeletalComponent*> PreviewCustomizableSkeletalComponents;
-	TArray<class USkeletalMeshComponent*> PreviewSkeletalMeshComponents;
+	TArray<TObjectPtr<class UCustomizableSkeletalComponent>> PreviewCustomizableSkeletalComponents;
+	TArray<TObjectPtr<class USkeletalMeshComponent>> PreviewSkeletalMeshComponents;
 	TArray<class UCapsuleComponent*> ColliderComponents;
-	TArray<UCustomizableObjectInstance*> ViewportInstances;
+	TArray<TObjectPtr<UCustomizableObjectInstance>> ViewportInstances;
 	//
 
 };

@@ -55,9 +55,9 @@ protected:
 	void OnStaticMeshChanged(UStaticMeshComponent* StaticMeshComponent);
 
 	/** Static mesh component represented by this adapter */
-	UStaticMeshComponent* StaticMeshComponent;
+	TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 	/** Static mesh currently set to the Static Mesh Component */
-	UStaticMesh* ReferencedStaticMesh;
+	TObjectPtr<UStaticMesh> ReferencedStaticMesh;
 	/** LOD model (at Mesh LOD Index) containing data to change */
 	FStaticMeshLODResources* LODModel;
 	/** LOD Index for which data has to be retrieved / altered*/
@@ -77,15 +77,15 @@ protected:
 				, CachedCollisionType(InCachedCollisionType)
 			{}
 
-			UStaticMeshComponent* StaticMeshComponent;
+			TObjectPtr<UStaticMeshComponent> StaticMeshComponent;
 			ECollisionEnabled::Type CachedCollisionType;
 		};
 
 		TArray<FReferencersInfo> Referencers;
-		UBodySetup* RestoreBodySetup;
+		TObjectPtr<UBodySetup> RestoreBodySetup;
 	};
 
-	typedef TMap<UStaticMesh*, FStaticMeshReferencers> FMeshToComponentMap;
+	typedef TMap<TObjectPtr<UStaticMesh>, FStaticMeshReferencers> FMeshToComponentMap;
 	static FMeshToComponentMap MeshToComponentMap;
 };
 

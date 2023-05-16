@@ -5,7 +5,7 @@
 
 IMPLEMENT_MODULE( FAnimSharingModule, AnimationSharing);
 
-TMap<const UWorld*, UAnimationSharingManager*> FAnimSharingModule::WorldAnimSharingManagers;
+TMap<const UWorld*, TObjectPtr<UAnimationSharingManager>> FAnimSharingModule::WorldAnimSharingManagers;
 
 FOnAnimationSharingManagerCreated FAnimSharingModule::OnAnimationSharingManagerCreated;
 
@@ -16,13 +16,13 @@ void FAnimSharingModule::StartupModule()
 
 void FAnimSharingModule::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (TPair<const UWorld*, UAnimationSharingManager*>& WorldAnimSharingManagerPair : WorldAnimSharingManagers)
+	for (auto& WorldAnimSharingManagerPair : WorldAnimSharingManagers)
 	{
 		Collector.AddReferencedObject(WorldAnimSharingManagerPair.Value, WorldAnimSharingManagerPair.Key);
 	}
 
 #if DEBUG_MATERIALS 
-	for (UMaterialInterface* Material : UAnimationSharingManager::DebugMaterials)
+	for (auto& Material : UAnimationSharingManager::DebugMaterials)
 	{
 		Collector.AddReferencedObject(Material);
 	}
@@ -50,4 +50,3 @@ void FAnimSharingModule::OnWorldCleanup(UWorld* World, bool bSessionEnded, bool 
 {	
 	WorldAnimSharingManagers.Remove(World);
 }
-

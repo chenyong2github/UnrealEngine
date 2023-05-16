@@ -49,10 +49,10 @@ public:
 	void RefreshViewport();
 	
 	/** Component for the preview static mesh. */
-	UStaticMeshComponent* PreviewMeshComponent;
+	TObjectPtr<UStaticMeshComponent> PreviewMeshComponent;
 
 	/** Component for the preview static mesh. */
-	TArray<UStaticMeshComponent*> SocketPreviewMeshComponents;
+	TArray<TObjectPtr<UStaticMeshComponent>> SocketPreviewMeshComponents;
 
 	/** 
 	 *	Forces a specific LOD level onto the static mesh component.
@@ -202,7 +202,7 @@ private:
 	TSharedPtr<class FStaticMeshEditorViewportClient> EditorViewportClient;
 
 	/** Static mesh being edited */
-	UStaticMesh* StaticMesh;
+	TObjectPtr<UStaticMesh> StaticMesh;
 
 	/** The currently selected view mode. */
 	EViewModeIndex CurrentViewMode;

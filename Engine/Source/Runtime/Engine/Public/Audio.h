@@ -118,11 +118,11 @@ private:
 
 	struct FNotifyBufferDetails
 	{
-		USoundNode* NotifyNode;
+		TObjectPtr<USoundNode> NotifyNode;
 		UPTRINT NotifyNodeWaveInstanceHash;
 
 		FNotifyBufferDetails()
-			: NotifyNode(NULL)
+			: NotifyNode(nullptr)
 			, NotifyNodeWaveInstanceHash(0)
 		{
 		}
@@ -186,10 +186,10 @@ private:
 
 public:
 	/** Wave data */
-	USoundWave* WaveData;
+	TObjectPtr<USoundWave> WaveData;
 
 	/** Sound class */
-	USoundClass* SoundClass;
+	TObjectPtr<USoundClass> SoundClass;
 
 	/** Sound submix object to send audio to for mixing in audio mixer.  */
 	USoundSubmixBase* SoundSubmix;

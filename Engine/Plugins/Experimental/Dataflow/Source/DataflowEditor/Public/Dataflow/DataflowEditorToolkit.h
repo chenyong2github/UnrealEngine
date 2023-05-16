@@ -108,8 +108,8 @@ protected:
 
 private:
 
-	UObject* Asset = nullptr;
-	UDataflow* Dataflow = nullptr;
+	TObjectPtr<UObject> Asset = nullptr;
+	TObjectPtr<UDataflow> Dataflow = nullptr;
 	FString TerminalPath = "";
 
 	static const FName ViewportTabId;

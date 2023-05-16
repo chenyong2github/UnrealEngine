@@ -1525,7 +1525,7 @@ void FCustomizableObjectEditorViewportClient::SetPreviewComponent(UStaticMeshCom
 }
 
 
-void FCustomizableObjectEditorViewportClient::SetPreviewComponents(TArray<UDebugSkelMeshComponent*>& InSkeletalMeshComponents)
+void FCustomizableObjectEditorViewportClient::SetPreviewComponents(const TArray<UDebugSkelMeshComponent*>& InSkeletalMeshComponents)
 {
 	SkeletalMeshComponents.Reset(InSkeletalMeshComponents.Num());
 	

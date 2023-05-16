@@ -219,7 +219,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** EdGraph based representation of the SoundClass */
-	class UEdGraph* SoundClassGraph;
+	TObjectPtr<class UEdGraph> SoundClassGraph;
 #endif // WITH_EDITORONLY_DATA
 
 protected:

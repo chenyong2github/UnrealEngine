@@ -9979,7 +9979,7 @@ bool FHlslNiagaraTranslator::AddStructToDefinitionSet(const FNiagaraTypeDefiniti
 			const FStructProperty* StructProp = CastField<const FStructProperty>(Property);
 			if (StructProp)
 			{
-				if (!AddStructToDefinitionSet(StructProp->Struct))
+				if (!AddStructToDefinitionSet(StructProp->Struct.Get()))
 				{
 					return false;
 				}

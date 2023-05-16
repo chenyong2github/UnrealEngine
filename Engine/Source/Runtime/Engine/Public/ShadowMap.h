@@ -353,7 +353,7 @@ public:
 protected:
 
 	/** The texture which contains the shadow-map data. */
-	UShadowMapTexture2D* Texture;
+	TObjectPtr<UShadowMapTexture2D> Texture;
 
 	/** The scale which is applied to the shadow-map coordinates before sampling the shadow-map textures. */
 	FVector2D CoordinateScale;

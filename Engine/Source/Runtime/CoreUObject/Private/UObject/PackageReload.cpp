@@ -28,7 +28,7 @@ struct FExistingPackageReference
 	}
 
 	UPackage* RawRef;
-	UPackage* StrongRef;
+	TObjectPtr<UPackage> StrongRef;
 	TWeakObjectPtr<UPackage> WeakRef;
 };
 
@@ -66,7 +66,7 @@ struct FNewPackageReference
 	{
 	}
 
-	UPackage* Package;
+	TObjectPtr<UPackage> Package;
 	TSharedPtr<FPackageReloadedEvent> EventData;
 };
 

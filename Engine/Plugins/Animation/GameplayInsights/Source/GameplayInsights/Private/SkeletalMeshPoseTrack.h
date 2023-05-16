@@ -104,10 +104,10 @@ private:
 		UWorld* World;
 
 		/** Cached actor used to hang the component off of */
-		AActor* Actor;
+		TObjectPtr<AActor> Actor;
 
 		/** Cached component used to visualize in this world */
-		UInsightsSkeletalMeshComponent* Component;
+		TObjectPtr<UInsightsSkeletalMeshComponent> Component;
 
 		/** The time we last cached on this component */
 		double Time;

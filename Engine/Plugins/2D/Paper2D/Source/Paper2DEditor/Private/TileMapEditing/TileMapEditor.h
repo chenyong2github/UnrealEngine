@@ -47,7 +47,7 @@ public:
 	UPaperTileMap* GetTileMapBeingEdited() const { return TileMapBeingEdited; }
 	void SetTileMapBeingEdited(UPaperTileMap* NewTileMap);
 protected:
-	UPaperTileMap* TileMapBeingEdited;
+	TObjectPtr<UPaperTileMap> TileMapBeingEdited;
 	TSharedPtr<class STileMapEditorViewport> ViewportPtr;
 	TSharedPtr<class SBorder> ToolboxPtr;
 

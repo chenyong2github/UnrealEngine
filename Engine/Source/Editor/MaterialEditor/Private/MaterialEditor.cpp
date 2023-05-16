@@ -5326,7 +5326,7 @@ UMaterialExpression* FMaterialEditor::CreateNewMaterialExpression(UClass* NewExp
 {
 	check( NewExpressionClass->IsChildOf(UMaterialExpression::StaticClass()) );
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-	UMaterialGraph* ExpressionGraph = Graph ? CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph)) : Material->MaterialGraph; 
+	UMaterialGraph* ExpressionGraph = Graph ? ToRawPtr(CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph))) : ToRawPtr(Material->MaterialGraph); 
 	ExpressionGraph->Modify();
 
 	if (!IsAllowedExpressionType(NewExpressionClass, MaterialFunction != NULL))
@@ -5387,7 +5387,7 @@ UMaterialExpression* FMaterialEditor::CreateNewMaterialExpression(UClass* NewExp
 UMaterialExpressionComposite* FMaterialEditor::CreateNewMaterialExpressionComposite(const FVector2D& NodePos, const UEdGraph* Graph)
 {
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-	UMaterialGraph* ExpressionGraph = Graph ? CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph)) : Material->MaterialGraph;
+	UMaterialGraph* ExpressionGraph = Graph ? ToRawPtr(CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph))) : ToRawPtr(Material->MaterialGraph);
 	ExpressionGraph->Modify();
 
 	UMaterialExpressionComposite* NewComposite = nullptr;
@@ -5448,7 +5448,7 @@ UMaterialExpressionComposite* FMaterialEditor::CreateNewMaterialExpressionCompos
 UMaterialExpressionComment* FMaterialEditor::CreateNewMaterialExpressionComment(const FVector2D& NodePos, const UEdGraph* Graph)
 {
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-	UMaterialGraph* ExpressionGraph = Graph ? CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph)) : Material->MaterialGraph;
+	UMaterialGraph* ExpressionGraph = Graph ? ToRawPtr(CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph))) : ToRawPtr(Material->MaterialGraph);
 	ExpressionGraph->Modify();
 
 	UMaterialExpressionComment* NewComment = NULL;
@@ -5889,7 +5889,7 @@ void FMaterialEditor::PasteNodesHere(const FVector2D& Location, const class UEdG
 	Material->MaterialGraph->Modify();
 	Material->Modify();
 
-	UMaterialGraph* ExpressionGraph = Graph ? CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph)) : Material->MaterialGraph;
+	UMaterialGraph* ExpressionGraph = Graph ? ToRawPtr(CastChecked<UMaterialGraph>(const_cast<UEdGraph*>(Graph))) : ToRawPtr(Material->MaterialGraph);
 	ExpressionGraph->Modify();
 
 	// Clear the selection set (newly pasted stuff will be selected)

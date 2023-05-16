@@ -45,7 +45,7 @@ static UObject const* BlueprintActionDatabaseRegistrarImpl::ResolveClassKey(UCla
 	UObject const* ResolvedKey = ClassKey;
 	if (UBlueprintGeneratedClass const* BlueprintClass = Cast<UBlueprintGeneratedClass>(ClassKey))
 	{
-		ResolvedKey = CastChecked<UBlueprint>(BlueprintClass->ClassGeneratedBy, ECastCheckedType::NullAllowed);
+		ResolvedKey = CastChecked<UBlueprint>(BlueprintClass->ClassGeneratedBy.Get(), ECastCheckedType::NullAllowed);
 	}
 	return ResolvedKey;
 }
@@ -221,7 +221,7 @@ bool FBlueprintActionDatabaseRegistrar::AddBlueprintAction(FAssetData const& Ass
 		bReturnResult = AddBlueprintAction(NodeSpawner->NodeClass, NodeSpawner);
 		if(bReturnResult)
 		{
-			TArray<UBlueprintNodeSpawner*>& ActionList = UnloadedActionDatabase.FindOrAdd(AssetDataOwner.GetSoftObjectPath());
+			auto& ActionList = UnloadedActionDatabase.FindOrAdd(AssetDataOwner.GetSoftObjectPath());
 			ActionList.Add(NodeSpawner);
 		}
 	}

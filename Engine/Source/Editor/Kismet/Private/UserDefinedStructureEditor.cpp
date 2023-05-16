@@ -440,7 +440,7 @@ TSharedRef<SDockTab> FUserDefinedStructureEditor::SpawnStructureTab(const FSpawn
 	check( Args.GetTabId() == MemberVariablesTabId );
 
 	UUserDefinedStruct* EditedStruct = NULL;
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 	if (EditingObjs.Num())
 	{
 		EditedStruct = Cast<UUserDefinedStruct>(EditingObjs[ 0 ]);
@@ -472,7 +472,7 @@ TSharedRef<SDockTab> FUserDefinedStructureEditor::SpawnStructureDefaultValuesTab
 	check(Args.GetTabId() == DefaultValuesTabId);
 
 	UUserDefinedStruct* EditedStruct = NULL;
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 	if (EditingObjs.Num())
 	{
 		EditedStruct = Cast<UUserDefinedStruct>(EditingObjs[0]);

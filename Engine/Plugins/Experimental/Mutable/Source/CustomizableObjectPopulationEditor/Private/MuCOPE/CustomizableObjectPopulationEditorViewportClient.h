@@ -34,10 +34,10 @@ public:
 private:
 
 	// All the Skeletal Mesh components of the scene
-	TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+	TArray<TObjectPtr<USkeletalMeshComponent>> SkeletalMeshComponents;
 
 	// All the Collider components of the scene
-	TArray<class UCapsuleComponent*> ColliderComponents;
+	TArray<TObjectPtr<class UCapsuleComponent>> ColliderComponents;
 
 	// index of the selected instance
 	int32 SelectedInstance;

@@ -42,7 +42,7 @@ public:
 private:
 
 	/** The Mutable Graph to show, represented by its root. */
-	UCustomizableObject* CustomizableObject;
+	TObjectPtr<UCustomizableObject> CustomizableObject;
 
 	/** Compilation options to use in the debugger operations. */
 	FCompilationOptions CompileOptions;

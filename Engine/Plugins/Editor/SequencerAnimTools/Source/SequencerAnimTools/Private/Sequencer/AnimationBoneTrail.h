@@ -55,7 +55,7 @@ private:
 
 	TWeakPtr<ISequencer> WeakSequencer;
 	TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
-	UAnimSequence* CachedAnimSequence;
+	TObjectPtr<UAnimSequence> CachedAnimSequence;
 	TArray<TArray<FTransform>> GlobalBoneTransforms;
 	TArray<TArray<FTransform>> ComponentBoneTransforms;
 	TArray<FName> SkelToBoneName;

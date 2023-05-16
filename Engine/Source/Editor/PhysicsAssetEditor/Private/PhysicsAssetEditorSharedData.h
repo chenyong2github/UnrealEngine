@@ -301,25 +301,25 @@ public:
 	FPreviewChanged PreviewChangedEvent;
 
 	/** The PhysicsAsset asset being inspected */
-	UPhysicsAsset* PhysicsAsset;
+	TObjectPtr<UPhysicsAsset> PhysicsAsset;
 
 	/** PhysicsAssetEditor specific skeletal mesh component */
-	UPhysicsAssetEditorSkeletalMeshComponent* EditorSkelComp;
+	TObjectPtr<UPhysicsAssetEditorSkeletalMeshComponent> EditorSkelComp;
 
 	/** PhysicsAssetEditor specific physical animation component */
-	class UPhysicalAnimationComponent* PhysicalAnimationComponent;
+	TObjectPtr<class UPhysicalAnimationComponent> PhysicalAnimationComponent;
 
 	/** Preview scene */
 	TWeakPtr<IPersonaPreviewScene> PreviewScene;
 
 	/** Editor options */
-	UPhysicsAssetEditorOptions* EditorOptions;
+	TObjectPtr<UPhysicsAssetEditorOptions> EditorOptions;
 
 	/** Results from the new body dialog */
 	EAppReturnType::Type NewBodyResponse;
 
 	/** Helps define how the asset behaves given user interaction in simulation mode*/
-	UPhysicsAssetEditorPhysicsHandleComponent* MouseHandle;
+	TObjectPtr<UPhysicsAssetEditorPhysicsHandleComponent> MouseHandle;
 
 	/** Draw color for center of mass debug strings */
 	const FColor COMRenderColor;

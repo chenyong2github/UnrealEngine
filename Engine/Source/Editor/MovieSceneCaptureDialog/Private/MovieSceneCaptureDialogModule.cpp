@@ -209,7 +209,7 @@ private:
 	TSharedPtr<IDetailsView> DetailView;
 	TSharedPtr<STextBlock> ErrorText;
 	FOnStartCapture OnStartCapture;
-	UMovieSceneCapture* MovieSceneCapture;
+	TObjectPtr<UMovieSceneCapture> MovieSceneCapture;
 };
 
 DECLARE_DELEGATE_OneParam(FOnCaptureFinished, bool /*bCancelled*/);

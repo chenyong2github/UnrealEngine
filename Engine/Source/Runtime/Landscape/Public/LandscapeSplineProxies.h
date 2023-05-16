@@ -31,7 +31,7 @@ struct HLandscapeSplineProxy_Segment : public HLandscapeSplineProxy
 {
 	DECLARE_HIT_PROXY( LANDSCAPE_API );
 
-	ULandscapeSplineSegment* SplineSegment;
+	TObjectPtr<ULandscapeSplineSegment> SplineSegment;
 
 	HLandscapeSplineProxy_Segment(ULandscapeSplineSegment* InSplineSegment);
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -41,7 +41,7 @@ struct HLandscapeSplineProxy_ControlPoint : public HLandscapeSplineProxy
 {
 	DECLARE_HIT_PROXY( LANDSCAPE_API );
 
-	ULandscapeSplineControlPoint* ControlPoint;
+	TObjectPtr<ULandscapeSplineControlPoint> ControlPoint;
 
 	HLandscapeSplineProxy_ControlPoint(ULandscapeSplineControlPoint* InControlPoint);
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -51,7 +51,7 @@ struct HLandscapeSplineProxy_Tangent : public HLandscapeSplineProxy
 {
 	DECLARE_HIT_PROXY( LANDSCAPE_API );
 
-	ULandscapeSplineSegment* SplineSegment;
+	TObjectPtr<ULandscapeSplineSegment> SplineSegment;
 	uint32 End:1;
 
 	LANDSCAPE_API HLandscapeSplineProxy_Tangent(ULandscapeSplineSegment* InSplineSegment, bool InEnd);

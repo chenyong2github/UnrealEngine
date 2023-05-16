@@ -3925,7 +3925,7 @@ void FStreamingLevelsToConsider::Add_Internal(ULevelStreaming* StreamingLevel, b
 		{
 			// Add is a more significant reason than reevaluate, so either we are adding it to the map 
 			// if not already there, or upgrading the reason if not
-			EProcessReason& ProcessReason = LevelsToProcess.FindOrAdd(StreamingLevel);
+			EProcessReason& ProcessReason = LevelsToProcess.FindOrAdd(ObjectPtrWrap(StreamingLevel));
 			ProcessReason = EProcessReason::Add;
 		}
 		else
@@ -3971,11 +3971,11 @@ bool FStreamingLevelsToConsider::Remove(ULevelStreaming* StreamingLevel)
 				StreamingLevels[Index] = nullptr;
 				bRemoved = true;
 			}
-			bRemoved |= (LevelsToProcess.Remove(StreamingLevel) > 0);
+			bRemoved |= (LevelsToProcess.Remove(ObjectPtrWrap(StreamingLevel)) > 0);
 		}
 		else
 		{
-			bRemoved = (StreamingLevels.Remove(StreamingLevel) > 0);
+			bRemoved = (StreamingLevels.Remove(ObjectPtrWrap(StreamingLevel)) > 0);
 		}
 	}
 	return bRemoved;
@@ -3987,7 +3987,7 @@ void FStreamingLevelsToConsider::RemoveAt(const int32 Index)
 	{
 		if (ULevelStreaming* StreamingLevel = StreamingLevels[Index])
 		{
-			LevelsToProcess.Remove(StreamingLevel);
+			LevelsToProcess.Remove(ObjectPtrWrap(StreamingLevel));
 
 			// While we are considering we must null here because we are iterating the array and changing the size would be undesirable
 			StreamingLevels[Index] = nullptr;
@@ -4007,9 +4007,9 @@ void FStreamingLevelsToConsider::Reevaluate(ULevelStreaming* StreamingLevel)
 		{
 			// If the streaming level is already in the map then it doesn't need to be updated as it is either
 			// already Reevaluate or the more significant Add
-			if (!LevelsToProcess.Contains(StreamingLevel))
+			if (!LevelsToProcess.Contains(ObjectPtrWrap(StreamingLevel)))
 			{
-				LevelsToProcess.Add(StreamingLevel, EProcessReason::Reevaluate);
+				LevelsToProcess.Add(ObjectPtrWrap(StreamingLevel), EProcessReason::Reevaluate);
 			}
 		}
 		else
@@ -4026,7 +4026,7 @@ void FStreamingLevelsToConsider::Reevaluate(ULevelStreaming* StreamingLevel)
 
 bool FStreamingLevelsToConsider::Contains(ULevelStreaming* StreamingLevel) const
 {
-	return (StreamingLevel && (StreamingLevels.Contains(StreamingLevel) || LevelsToProcess.Contains(StreamingLevel)));
+	return (StreamingLevel && (StreamingLevels.Contains(ObjectPtrWrap(StreamingLevel)) || LevelsToProcess.Contains(ObjectPtrWrap(StreamingLevel))));
 }
 
 void FStreamingLevelsToConsider::Reset()
@@ -4058,8 +4058,8 @@ void FStreamingLevelsToConsider::EndConsideration()
 		{
 			// For any streaming level that was added or had its priority changed while we were considering the
 			// streaming levels go through and ensure they are correctly in the map and sorted to the correct location
-			TSortedMap<ULevelStreaming*, EProcessReason> LevelsToProcessCopy = MoveTemp(LevelsToProcess);
-			for (const TPair<ULevelStreaming*,EProcessReason>& LevelToProcessPair : LevelsToProcessCopy)
+			auto LevelsToProcessCopy = MoveTemp(LevelsToProcess);
+			for (const auto& LevelToProcessPair : LevelsToProcessCopy)
 			{
 				if (ULevelStreaming* StreamingLevel = LevelToProcessPair.Key)
 				{
@@ -4082,9 +4082,9 @@ void FStreamingLevelsToConsider::EndConsideration()
 
 void FStreamingLevelsToConsider::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
-	for (TPair<ULevelStreaming*, EProcessReason>& LevelToProcessPair : LevelsToProcess)
+	for (auto& LevelToProcessPair : LevelsToProcess)
 	{
-		if (ULevelStreaming*& StreamingLevel = LevelToProcessPair.Key)
+		if (auto& StreamingLevel = LevelToProcessPair.Key)
 		{
 			Collector.AddReferencedObject(StreamingLevel, InThis);
 		}

@@ -42,7 +42,7 @@ private:
 	// texture based
 	TSoftObjectPtr<UMaterial> TextureBasedLevelGridMaterial;
 
-	UMaterialInstanceDynamic* LevelGridMaterialInst;
+	TObjectPtr<UMaterialInstanceDynamic> LevelGridMaterialInst;
 };
 
 /**

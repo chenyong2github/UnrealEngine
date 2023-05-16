@@ -127,7 +127,7 @@ FChaosScene::~FChaosScene()
 void FChaosScene::AddReferencedObjects(FReferenceCollector& Collector)
 {
 #if WITH_EDITOR
-	for(UObject* Obj : PieModifiedObjects)
+	for(auto& Obj : PieModifiedObjects)
 	{
 		Collector.AddReferencedObject(Obj);
 	}
@@ -140,7 +140,7 @@ void FChaosScene::AddPieModifiedObject(UObject* InObj)
 {
 	if(GIsPlayInEditorWorld)
 	{
-		PieModifiedObjects.AddUnique(InObj);
+		PieModifiedObjects.AddUnique(ObjectPtrWrap(InObj));
 	}
 }
 #endif

@@ -203,7 +203,7 @@ private:
 
 	TSharedPtr<class SNiagaraScriptGraph> NiagaraScriptGraphWidget;
 	TSharedPtr<class IDetailsView> DetailsView;
-	UNiagaraVersionMetaData* VersionMetadata = nullptr;
+	TObjectPtr<UNiagaraVersionMetaData> VersionMetadata = nullptr;
 	FText GetGraphEditorDisplayName() const;
 
 private:

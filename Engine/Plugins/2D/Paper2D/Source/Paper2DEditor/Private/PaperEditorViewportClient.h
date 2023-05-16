@@ -66,7 +66,7 @@ protected:
 
 protected:
 	/** Checkerboard texture */
-	UTexture2D* CheckerboardTexture;
+	TObjectPtr<UTexture2D> CheckerboardTexture;
 	FVector2D ZoomPos;
 	float ZoomAmount;
 

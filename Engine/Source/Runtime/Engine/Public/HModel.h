@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/ObjectPtr.h"
 #include "HitProxies.h"
 
 class FSceneView;
@@ -44,7 +45,7 @@ public:
 
 private:
 	
-	UModelComponent* Component;
-	UModel* Model;
+	TObjectPtr<UModelComponent> Component;
+	TObjectPtr<UModel> Model;
 };
 

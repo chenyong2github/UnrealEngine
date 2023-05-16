@@ -6,7 +6,7 @@
 
 #define LOCTEXT_NAMESPACE "ContextualAnimationModule"
 
-TMap<const UWorld*, UContextualAnimManager*> FContextualAnimationModule::WorldToManagerMap;
+TMap<const UWorld*, TObjectPtr<UContextualAnimManager>> FContextualAnimationModule::WorldToManagerMap;
 
 void FContextualAnimationModule::StartupModule()
 {
@@ -24,7 +24,7 @@ void FContextualAnimationModule::ShutdownModule()
 
 void FContextualAnimationModule::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (TPair<const UWorld*, UContextualAnimManager*>& Pair : WorldToManagerMap)
+	for (auto& Pair : WorldToManagerMap)
 	{
 		Collector.AddReferencedObject(Pair.Value, Pair.Key);
 	}

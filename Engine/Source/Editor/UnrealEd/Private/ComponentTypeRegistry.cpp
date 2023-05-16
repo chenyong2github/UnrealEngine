@@ -553,7 +553,7 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 					}
 				}
 
-				FComponentTypeEntry Entry = { Class->GetName(), FString(), Class };
+				FComponentTypeEntry Entry = { Class->GetName(), FString(), ObjectPtrWrap(Class) };
 				ComponentTypeList.Add(MoveTemp(Entry));
 			}
 		}

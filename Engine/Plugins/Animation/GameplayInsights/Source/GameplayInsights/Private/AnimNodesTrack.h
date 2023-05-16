@@ -70,7 +70,7 @@ private:
 	TSoftObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
 
 	/** Data used for anim BP debugging */
-	UAnimInstance* AnimInstance;
+	TObjectPtr<UAnimInstance> AnimInstance;
 #endif
 
 #if WITH_ENGINE

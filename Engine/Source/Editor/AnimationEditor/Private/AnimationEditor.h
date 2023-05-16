@@ -186,7 +186,7 @@ public:
 
 private:
 	/** The animation asset we are editing */
-	UAnimationAsset* AnimationAsset;
+	TObjectPtr<UAnimationAsset> AnimationAsset;
 
 	/** Toolbar extender */
 	TSharedPtr<FExtender> ToolbarExtender;

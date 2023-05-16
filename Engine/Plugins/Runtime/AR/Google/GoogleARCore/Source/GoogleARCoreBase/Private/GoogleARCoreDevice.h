@@ -183,9 +183,9 @@ private:
 	TSharedPtr<FGoogleARCoreSession> FrontCameraARCoreSession;
 	TSharedPtr<FGoogleARCoreSession> BackCameraARCoreSession;
 	
-	TMap<uint32, UARCoreCameraTexture*> PassthroughCameraTextures;
+	TMap<uint32, TObjectPtr<UARCoreCameraTexture>> PassthroughCameraTextures;
 	
-	UARCoreDepthTexture* DepthTexture;
+	TObjectPtr<UARCoreDepthTexture> DepthTexture;
 	
 	FTextureRHIRef LastCameraTexture;
 	
@@ -202,7 +202,7 @@ private:
 	bool bARCoreInstallRequested;
 	bool bARCoreInstalled;
 	float WorldToMeterScale;
-	class UARCoreAndroidPermissionHandler* PermissionHandler;
+	TObjectPtr<class UARCoreAndroidPermissionHandler> PermissionHandler;
 	FThreadSafeBool bDisplayOrientationChanged;
 
 	FARSessionStatus CurrentSessionStatus;

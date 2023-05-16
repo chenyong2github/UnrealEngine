@@ -41,7 +41,7 @@ static TAutoConsoleVariable<int32> CVarEnableVTFeedback(
 FTextureEditorViewportClient::FTextureEditorViewportClient( TWeakPtr<ITextureEditorToolkit> InTextureEditor, TWeakPtr<STextureEditorViewport> InTextureEditorViewport )
 	: TextureEditorPtr(InTextureEditor)
 	, TextureEditorViewportPtr(InTextureEditorViewport)
-	, CheckerboardTexture(NULL)
+	, CheckerboardTexture(nullptr)
 {
 	check(TextureEditorPtr.IsValid() && TextureEditorViewportPtr.IsValid());
 

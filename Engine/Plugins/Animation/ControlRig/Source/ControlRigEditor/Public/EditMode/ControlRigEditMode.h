@@ -330,8 +330,8 @@ protected:
 	bool bSuspendHierarchyNotifs;
 
 	/** Shape actors */
-	TMap<UControlRig*,TArray<AControlRigShapeActor*>> ControlRigShapeActors;
-	UControlRigDetailPanelControlProxies* ControlProxy;
+	TMap<UControlRig*,TArray<TObjectPtr<AControlRigShapeActor>>> ControlRigShapeActors;
+	TObjectPtr<UControlRigDetailPanelControlProxies> ControlProxy;
 
 	/** Utility functions for UI/Some other viewport manipulation*/
 	bool IsControlSelected() const;

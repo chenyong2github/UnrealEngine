@@ -79,7 +79,7 @@ private:
 	float OldFromValue;
 	float OldToValue;
 
-	UDataprepIntegerFilter* Filter;
+	TObjectPtr<UDataprepIntegerFilter> Filter;
 
 	TArray<TSharedPtr<FListEntry>> IntMatchingOptions;
 

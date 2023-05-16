@@ -1425,8 +1425,7 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 void UNavigationSystemV1::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	UNavigationSystemV1* This = CastChecked<UNavigationSystemV1>(InThis);
-	UCrowdManagerBase* CrowdManager = This->GetCrowdManager();
-	Collector.AddReferencedObject(CrowdManager, InThis);
+	Collector.AddReferencedObject(This->CrowdManager, InThis);
 
 	// don't reference NavAreaClasses in editor (unless PIE is active)
 	if (!FNavigationSystem::IsEditorRunMode(This->OperationMode))
@@ -2278,7 +2277,7 @@ FBox UNavigationSystemV1::GetLevelBounds(ULevel* InLevel) const
 
 	if (InLevel)
 	{
-		AActor** Actor = InLevel->Actors.GetData();
+		auto Actor = InLevel->Actors.CreateConstIterator();
 		const int32 ActorCount = InLevel->Actors.Num();
 		for (int32 ActorIndex = 0; ActorIndex < ActorCount; ++ActorIndex, ++Actor)
 		{
@@ -2466,7 +2465,7 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 		NavConfig = SupportedAgents[0];
 		NavData->SetConfig(SupportedAgents[0]);
 		NavData->SetSupportsDefaultAgent(true);	
-		NavData->ProcessNavAreas(NavAreaClasses, 0);
+		NavData->ProcessNavAreas(ObjectPtrDecay(NavAreaClasses), 0);
 	}
 
 	if (NavConfig.IsValid() == true)
@@ -2512,7 +2511,7 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 						NavData->SetConfig(SupportedAgents[AgentIndex]);
 						AgentToNavDataMap.Add(SupportedAgents[AgentIndex], NavData);
 						NavData->SetSupportsDefaultAgent(SupportedAgents[AgentIndex].Name == DefaultAgentName);
-						NavData->ProcessNavAreas(NavAreaClasses, AgentIndex);
+						NavData->ProcessNavAreas(ObjectPtrDecay(NavAreaClasses), AgentIndex);
 
 						OnNavDataRegisteredEvent.Broadcast(NavData);
 

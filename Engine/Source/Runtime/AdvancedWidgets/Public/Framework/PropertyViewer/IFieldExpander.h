@@ -67,7 +67,7 @@ public:
 		{
 			return Instance->GetClass();
 		}
-		return Property->PropertyClass;
+		return Property->PropertyClass.Get();
 	}
 
 	virtual bool CanExpandScriptStruct(const FStructProperty*) const override
@@ -85,7 +85,7 @@ public:
 		{
 			if (const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>(Function->GetReturnProperty()))
 			{
-				return ObjectProperty->PropertyClass;
+				return ObjectProperty->PropertyClass.Get();
 			}
 		}
 		return TOptional<const UStruct*>();

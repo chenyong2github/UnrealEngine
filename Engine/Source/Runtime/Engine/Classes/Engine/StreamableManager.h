@@ -609,7 +609,7 @@ private:
 		FSoftObjectPath NewPath;
 
 		/** The redirector that was loaded off disk, need to keep this around for path resolves until this redirect is freed */
-		UObjectRedirector* LoadedRedirector;
+		TObjectPtr<UObjectRedirector> LoadedRedirector;
 
 		FRedirectedPath() : LoadedRedirector(nullptr) {}
 		FRedirectedPath(const FSoftObjectPath& InNewPath, UObjectRedirector* InLoadedRedirector) : NewPath(InNewPath),LoadedRedirector(InLoadedRedirector) {}

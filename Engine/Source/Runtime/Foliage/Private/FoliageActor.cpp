@@ -11,7 +11,7 @@
 // FFoliageActor
 void FFoliageActor::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
-	for (AActor*& Actor : ActorInstances)
+	for (auto& Actor : ActorInstances)
 	{
 		if (Actor != nullptr)
 		{
@@ -340,7 +340,7 @@ void FFoliageActor::Reapply(const UFoliageType* FoliageType)
 
 void FFoliageActor::SelectAllInstances(bool bSelect)
 {
-	AInstancedFoliageActor::SelectionChanged.Broadcast(bSelect, ActorInstances);
+	AInstancedFoliageActor::SelectionChanged.Broadcast(bSelect, ObjectPtrDecay(ActorInstances));
 }
 
 void FFoliageActor::SelectInstance(bool bSelect, int32 Index)

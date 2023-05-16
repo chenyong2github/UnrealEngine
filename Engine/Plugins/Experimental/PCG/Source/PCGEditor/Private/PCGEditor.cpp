@@ -682,7 +682,7 @@ void FPCGEditor::OnEditGraphSettings() const
 bool FPCGEditor::IsEditGraphSettingsToggled() const
 {
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyDetailsWidget->GetSelectedObjects();
-	return SelectedObjects.Num() == 1 && SelectedObjects[0] == PCGGraphBeingEdited;
+	return SelectedObjects.Num() == 1 && SelectedObjects[0] == PCGGraphBeingEdited.Get();
 }
 
 bool FPCGEditor::CanCollapseNodesInSubgraph() const

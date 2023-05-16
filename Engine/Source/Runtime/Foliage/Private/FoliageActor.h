@@ -9,7 +9,7 @@ struct FFoliageActor : public FFoliageImpl
 	TArray<TWeakObjectPtr<AActor>> ActorInstances_Deprecated;
 #endif
 
-	TArray<AActor*> ActorInstances;
+	TArray<TObjectPtr<AActor>> ActorInstances;
 	UClass* ActorClass;
 	bool bShouldAttachToBaseComponent;
 	

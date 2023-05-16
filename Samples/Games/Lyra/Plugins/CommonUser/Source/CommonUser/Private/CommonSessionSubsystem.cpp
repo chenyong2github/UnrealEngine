@@ -159,7 +159,7 @@ public:
 	}
 
 public:
-	UCommonSession_SearchSessionRequest* SearchRequest = nullptr;
+	TObjectPtr<UCommonSession_SearchSessionRequest> SearchRequest = nullptr;
 };
 
 #if COMMONUSER_OSSV1
@@ -1425,4 +1425,3 @@ void UCommonSessionSubsystem::HandlePostLoadMap(UWorld* World)
 }
 
 #undef LOCTEXT_NAMESPACE
-

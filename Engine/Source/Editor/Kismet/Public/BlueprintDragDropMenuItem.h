@@ -96,5 +96,5 @@ public:
 
 private:
 	/** An arbitrary member of the node-spawner subset that this menu entry represents. */
-	TSet<UBlueprintNodeSpawner const*> ActionSet;
+	TSet<TObjectPtr<const UBlueprintNodeSpawner>> ActionSet;
 };

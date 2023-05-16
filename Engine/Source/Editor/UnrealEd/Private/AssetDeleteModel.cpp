@@ -415,7 +415,7 @@ bool FAssetDeleteModel::DoReplaceReferences(const FAssetData& ReplaceReferencesW
 		SaveParams.bPromptToSave = true;
 		SaveParams.bIsExplicitSave = true;
 
-		FEditorFileUtils::PromptForCheckoutAndSave( ConsResults.DirtiedPackages, SaveParams);
+		FEditorFileUtils::PromptForCheckoutAndSave( ObjectPtrDecay(ConsResults.DirtiedPackages), SaveParams);
 	}
 	// If the consolidation resulted in failed (partially consolidated) objects, do not save, and inform the user no save attempt was made
 	else if ( ConsResults.FailedConsolidationObjs.Num() > 0)

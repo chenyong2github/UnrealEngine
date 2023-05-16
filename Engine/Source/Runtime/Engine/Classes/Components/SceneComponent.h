@@ -303,7 +303,7 @@ public:
 #if WITH_EDITORONLY_DATA
 protected:
 	/** Editor only component used to display the sprite so as to be able to see the location of the Component  */
-	class UBillboardComponent* SpriteComponent;
+	TObjectPtr<class UBillboardComponent> SpriteComponent;
 	/** Creates the editor only component used to display the sprite */
 	void CreateSpriteComponent(class UTexture2D* SpriteTexture = nullptr);
 	void CreateSpriteComponent(class UTexture2D* SpriteTexture, bool bRegister);

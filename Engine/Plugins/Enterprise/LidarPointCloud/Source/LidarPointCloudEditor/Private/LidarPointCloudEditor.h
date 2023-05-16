@@ -19,7 +19,7 @@ class SLidarPointCloudEditorViewport;
 class FLidarPointCloudEditor : public FAssetEditorToolkit, public FGCObject
 {
 private:
-	ULidarPointCloud* PointCloudBeingEdited;
+	TObjectPtr<ULidarPointCloud> PointCloudBeingEdited;
 
 	TArray64<FLidarPointCloudPoint*> SelectedPoints;
 	

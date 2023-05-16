@@ -72,15 +72,14 @@ private:
 	FInternalReferenceCollector Collector;
 
 	/** The material that wraps the video texture for display in an SImage. */
-	UMaterial* Material;
+	TObjectPtr<UMaterial> Material;
 
 	/** The Slate brush that renders the material. */
 	TSharedPtr<FSlateBrush> MaterialBrush;
 
 	/** The video texture sampler in the wrapper material. */
-	UMaterialExpressionTextureSample* TextureSampler;
+	TObjectPtr<UMaterialExpressionTextureSample> TextureSampler;
 
 	/** Brush image size attribute. */
 	TAttribute<FVector2D> BrushImageSize;
 };
-

@@ -146,7 +146,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::InitializeAdapterGlobals()
 
 void FMeshPaintGeometryAdapterForStaticMeshes::CleanupGlobals()
 {
-	for (TPair<UStaticMesh*, FStaticMeshReferencers>& Pair : MeshToComponentMap)
+	for (auto& Pair : MeshToComponentMap)
 	{
 		if (Pair.Key && Pair.Value.RestoreBodySetup)
 		{
@@ -282,7 +282,7 @@ void FMeshPaintGeometryAdapterForStaticMeshes::ApplyOrRemoveTextureOverride(UTex
 
 void FMeshPaintGeometryAdapterForStaticMeshes::AddReferencedObjectsGlobals(FReferenceCollector& Collector)
 {
-	for (TPair<UStaticMesh*, FStaticMeshReferencers>& Pair : MeshToComponentMap)
+	for (auto& Pair : MeshToComponentMap)
 	{
 		Collector.AddReferencedObject(Pair.Key);
 		Collector.AddReferencedObject(Pair.Value.RestoreBodySetup);

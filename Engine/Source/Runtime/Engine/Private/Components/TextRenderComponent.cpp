@@ -336,7 +336,7 @@ public:
 						{
 							MID->SetFontParameterValue(FontParameterInfo, InFont, 0);
 						}
-						MIDs.Add(MID);
+						MIDs.Add(ObjectPtrWrap(MID));
 					}
 					else
 					{
@@ -348,7 +348,7 @@ public:
 							{
 								MID->SetFontParameterValue(FontParameterInfo, InFont, FontPageIndex);
 							}
-							MIDs.Add(MID);
+							MIDs.Add(ObjectPtrWrap(MID));
 						}
 					}
 				}
@@ -383,7 +383,7 @@ public:
 		}
 
 
-		TArray<UMaterialInstanceDynamic*> MIDs;
+		TArray<TObjectPtr<UMaterialInstanceDynamic>> MIDs;
 		TArray<FMaterialParameterInfo> FontParameters;
 		bool bIsCustomMID;
 	};
@@ -442,12 +442,12 @@ public:
 
 		for (auto& MIDDataPair : CachedMIDs)
 		{
-			const FMIDDataPtr& MIDData = MIDDataPair.Value;
+			FMIDDataPtr& MIDData = MIDDataPair.Value;
 			if (!MIDData->bIsCustomMID)
 			{
-				for (UMaterialInstanceDynamic*& MID : const_cast<FMIDData*>(MIDData.Get())->MIDs)
+				for (auto& MID : MIDData.Get()->MIDs)
 				{
-					Collector.AddReferencedObject(MID);
+					Collector.AddReferencedObject(ConstCast(MID));
 				}
 			}
 		}
@@ -457,9 +457,9 @@ public:
 			FMIDDataPtr PinnedMID = StaleMID.Pin();
 			if (PinnedMID.IsValid() && !PinnedMID->bIsCustomMID)
 			{
-				for (UMaterialInstanceDynamic*& MID : const_cast<FMIDData*>(PinnedMID.Get())->MIDs)
+				for (auto& MID : PinnedMID.Get()->MIDs)
 				{
-					Collector.AddReferencedObject(MID);
+					Collector.AddReferencedObject(ConstCast(MID));
 				}
 			}
 		}

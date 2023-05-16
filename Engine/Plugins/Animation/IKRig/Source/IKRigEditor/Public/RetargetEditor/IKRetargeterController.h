@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -37,11 +37,12 @@ public:
 	// Get access to the retargeter asset.
 	// Warning: Do not make modifications to the asset directly. Use this API instead. 
 	UIKRetargeter* GetAsset() const;
-	
+	TObjectPtr<UIKRetargeter>& GetAssetPtr();
+  
 private:
 	
 	// The actual asset that this Controller modifies. This is the only field this class should have.
-	UIKRetargeter* Asset = nullptr;
+	TObjectPtr<UIKRetargeter> Asset = nullptr;
 
 	//
 	// GENERAL PUBLIC/SCRIPTING API

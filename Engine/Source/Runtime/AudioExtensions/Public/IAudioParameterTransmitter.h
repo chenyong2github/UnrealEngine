@@ -43,7 +43,7 @@ namespace Audio
 		public:
 			virtual ~ILegacyParameterTransmitter() = default;
 
-			virtual TArray<UObject*> GetReferencedObjects() const;
+			virtual TArray<const TObjectPtr<UObject>*> GetReferencedObjects() const;
 	};
 
 	/** Interface for a audio instance transmitter.

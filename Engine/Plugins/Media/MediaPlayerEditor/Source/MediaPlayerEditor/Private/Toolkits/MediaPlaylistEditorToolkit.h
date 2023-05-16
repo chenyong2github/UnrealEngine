@@ -84,7 +84,7 @@ private:
 private:
 
 	/** The media play list asset being edited. */
-	UMediaPlaylist* MediaPlaylist;
+	TObjectPtr<UMediaPlaylist> MediaPlaylist;
 
 	/** Pointer to the style set to use for toolkits. */
 	TSharedRef<ISlateStyle> Style;

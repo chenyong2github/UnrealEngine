@@ -31,7 +31,11 @@ protected:
 #if WITH_EDITOR
 	virtual FText GetDescription() const override;
 #endif
-	virtual const UStruct* GetRuntimeStateType() const override { return FStateType::StaticStruct(); }
+	virtual TObjectPtr<const UStruct>* GetRuntimeStateType() const override
+	{
+		static TObjectPtr<const UStruct> Ptr{FStateType::StaticStruct()};
+		return &Ptr;
+	}
 	virtual bool Initialize(const UWorldConditionSchema& Schema) override;
 	virtual bool Activate(const FWorldConditionContext& Context) const override;
 	virtual FWorldConditionResult IsTrue(const FWorldConditionContext& Context) const override;

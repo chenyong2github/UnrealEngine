@@ -225,7 +225,7 @@ private:
 	void UpdateActiveTimer();
 
 private:
-	TArray<UIndicatorDescriptor*> AllIndicators;
+	TArray<TObjectPtr<UIndicatorDescriptor>> AllIndicators;
 	TArray<UIndicatorDescriptor*> InactiveIndicators;
 	
 	FLocalPlayerContext LocalPlayerContext;

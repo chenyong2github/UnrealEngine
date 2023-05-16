@@ -1032,7 +1032,7 @@ TSharedPtr<FStreamableHandle> FStreamableHandle::GetOutermostHandle()
 struct FStreamable
 {
 	/** Hard GC pointer to object */
-	UObject* Target = nullptr;
+	TObjectPtr<UObject> Target = nullptr;
 
 	/** Live handles keeping this alive. Handles may be duplicated. */
 	TArray<FStreamableHandle*> ActiveHandles;
@@ -1194,7 +1194,7 @@ void FStreamableManager::OnPreGarbageCollect()
 void FStreamableManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	// If there are active streamable handles in the editor, this will cause the user to Force Delete, which is irritating but necessary because weak pointers cannot be used here
-	for (TPair<FSoftObjectPath, FStreamable*>& Pair : StreamableItems)
+	for (auto& Pair : StreamableItems)
 	{
 		Collector.AddStableReference(&Pair.Value->Target);
 	}

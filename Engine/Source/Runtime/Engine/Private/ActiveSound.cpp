@@ -225,7 +225,7 @@ void FActiveSound::AddReferencedObjects(FReferenceCollector& Collector)
 		Sound->SourceEffectChain->AddReferencedEffects(Collector);
 	}
 
-	for (USoundConcurrency* Concurrency : ConcurrencySet)
+	for (auto& Concurrency : ConcurrencySet)
 	{
 		if (Concurrency)
 		{
@@ -235,10 +235,9 @@ void FActiveSound::AddReferencedObjects(FReferenceCollector& Collector)
 
 	if (InstanceTransmitter.IsValid())
 	{
-		TArray<UObject*> InstanceReferences = InstanceTransmitter->GetReferencedObjects();
-		for (UObject* Object : InstanceReferences)
+		for (auto* Object : InstanceTransmitter->GetReferencedObjects())
 		{
-			Collector.AddReferencedObject(Object);
+			Collector.AddReferencedObject(const_cast<TObjectPtr<UObject>&>(*Object));
 		}
 	}
 }

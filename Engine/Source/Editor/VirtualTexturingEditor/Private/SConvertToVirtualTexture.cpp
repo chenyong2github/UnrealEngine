@@ -191,7 +191,7 @@ void SConvertToVirtualTexture::SetBackwards(bool bSetBackwards)
 
 void SConvertToVirtualTexture::SetUserTextures(const TArray<UTexture2D *> &Textures)
 {
-	Worker.UserTextures = Textures;
+	Worker.UserTextures = ObjectPtrWrap(Textures);
 	UpdateList();
 }
 

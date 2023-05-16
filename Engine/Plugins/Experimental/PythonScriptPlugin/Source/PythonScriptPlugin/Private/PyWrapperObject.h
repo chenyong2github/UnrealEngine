@@ -20,7 +20,7 @@ void InitializePyWrapperObject(PyGenUtil::FNativePythonModule& ModuleInfo);
 struct FPyWrapperObject : public FPyWrapperBase
 {
 	/** Wrapped object instance */
-	UObject* ObjectInstance;
+	TObjectPtr<UObject> ObjectInstance;
 
 	/** New this wrapper instance (called via tp_new for Python, or directly in C++) */
 	static FPyWrapperObject* New(PyTypeObject* InType);
@@ -157,7 +157,7 @@ struct FPyWrapperObjectMetaData : public FPyWrapperBaseMetaData
 	}
 
 	/** Unreal class */
-	UClass* Class;
+	TObjectPtr<UClass> Class;
 
 	/** Map of properties that were exposed to Python mapped to their original name */
 	TMap<FName, FName> PythonProperties;

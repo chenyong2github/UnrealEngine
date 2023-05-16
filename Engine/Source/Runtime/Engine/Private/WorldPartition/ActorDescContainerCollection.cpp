@@ -10,13 +10,13 @@ FActorDescContainerCollection::~FActorDescContainerCollection()
 
 void FActorDescContainerCollection::AddContainer(UActorDescContainer* Container)
 {
-	ActorDescContainerCollection.Add(Container);
+	ActorDescContainerCollection.Add(ObjectPtrWrap(Container));
 	RegisterDelegates(Container);
 }
 
 bool FActorDescContainerCollection::RemoveContainer(UActorDescContainer* Container)
 {
-	if (ActorDescContainerCollection.RemoveSwap(Container) > 0)
+	if (ActorDescContainerCollection.RemoveSwap(ObjectPtrWrap(Container)) > 0)
 	{
 		UnregisterDelegates(Container);
 		return true;

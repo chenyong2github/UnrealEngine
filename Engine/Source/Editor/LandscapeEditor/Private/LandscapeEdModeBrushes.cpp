@@ -48,13 +48,13 @@ class FLandscapeBrushCircle : public FLandscapeBrush
 {
 	using Super = FLandscapeBrush;
 
-	TSet<ULandscapeComponent*> BrushMaterialComponents;
+	TSet<TObjectPtr<ULandscapeComponent>> BrushMaterialComponents;
 	TArray<UMaterialInstanceDynamic*> BrushMaterialFreeInstances;
 
 protected:
 	FVector2f LastMousePosition;
-	UMaterialInterface* BrushMaterial;
-	TMap<ULandscapeComponent*, UMaterialInstanceDynamic*> BrushMaterialInstanceMap;
+	TObjectPtr<UMaterialInterface> BrushMaterial;
+	TMap<TObjectPtr<ULandscapeComponent>, TObjectPtr<UMaterialInstanceDynamic>> BrushMaterialInstanceMap;
 	bool bCanPaint;
 
 	virtual float CalculateFalloff(float Distance, float Radius, float Falloff) = 0;
@@ -112,7 +112,7 @@ public:
 		}
 
 		TArray<UMaterialInstanceDynamic*> BrushMaterialInstances;
-		BrushMaterialInstanceMap.GenerateValueArray(BrushMaterialInstances);
+		ObjectPtrDecay(BrushMaterialInstanceMap).GenerateValueArray(BrushMaterialInstances);
 		BrushMaterialFreeInstances += BrushMaterialInstances;
 		BrushMaterialInstanceMap.Empty();
 		BrushMaterialComponents.Empty();
@@ -203,7 +203,7 @@ public:
 		}
 
 		// Remove the material from any old components that are no longer in the region
-		TSet<ULandscapeComponent*> RemovedComponents = BrushMaterialComponents.Difference(NewComponents);
+		TSet<ULandscapeComponent*> RemovedComponents = ObjectPtrDecay(BrushMaterialComponents).Difference(NewComponents);
 		for (ULandscapeComponent* RemovedComponent : RemovedComponents)
 		{
 			BrushMaterialFreeInstances.Push(BrushMaterialInstanceMap.FindAndRemoveChecked(RemovedComponent));
@@ -213,7 +213,7 @@ public:
 		}
 
 		// Set brush material for components in new region
-		TSet<ULandscapeComponent*> AddedComponents = NewComponents.Difference(BrushMaterialComponents);
+		TSet<ULandscapeComponent*> AddedComponents = NewComponents.Difference(ObjectPtrDecay(BrushMaterialComponents));
 		for (ULandscapeComponent* AddedComponent : AddedComponents)
 		{
 			UMaterialInstanceDynamic* BrushMaterialInstance = nullptr;
@@ -230,7 +230,7 @@ public:
 			AddedComponent->UpdateEditToolRenderData();
 		}
 
-		BrushMaterialComponents = MoveTemp(NewComponents);
+		BrushMaterialComponents = ObjectPtrWrap(MoveTemp(NewComponents));
 
 		// Set params for brush material.
 		FVector WorldLocation = Proxy->LandscapeActorToWorld().TransformPosition(FVector(LastMousePosition.X, LastMousePosition.Y, 0));
@@ -382,14 +382,14 @@ class FLandscapeBrushComponent : public FLandscapeBrush
 {
 	using Super = FLandscapeBrush;
 
-	TSet<ULandscapeComponent*> BrushMaterialComponents;
+	TSet<TObjectPtr<ULandscapeComponent>> BrushMaterialComponents;
 
 	virtual const TCHAR* GetBrushName() override { return TEXT("Component"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Brush_Component", "Component"); };
 
 protected:
 	FVector2D LastMousePosition;
-	UMaterialInterface* BrushMaterial;
+	TObjectPtr<UMaterialInterface> BrushMaterial;
 	FIntRect BrushExtentsInclusive; // True extents of the brush (in landscape coordinates)
 
 public:
@@ -414,7 +414,7 @@ public:
 
 	virtual void LeaveBrush() override
 	{
-		for (TSet<ULandscapeComponent*>::TIterator It(BrushMaterialComponents); It; ++It)
+		for (decltype(BrushMaterialComponents)::TIterator It(BrushMaterialComponents); It; ++It)
 		{
 			if ((*It) != nullptr)
 			{
@@ -483,7 +483,7 @@ public:
 		}
 
 		// Remove the material from any old components that are no longer in the region
-		TSet<ULandscapeComponent*> RemovedComponents = BrushMaterialComponents.Difference(NewComponents);
+		TSet<ULandscapeComponent*> RemovedComponents = ObjectPtrDecay(BrushMaterialComponents).Difference(NewComponents);
 		for (ULandscapeComponent* RemovedComponent : RemovedComponents)
 		{
 			if (RemovedComponent != nullptr)
@@ -493,7 +493,7 @@ public:
 			}
 		}
 
-		BrushMaterialComponents = MoveTemp(NewComponents);
+		BrushMaterialComponents = ObjectPtrWrap(MoveTemp(NewComponents));
 	}
 
 	virtual void MouseMove(float LandscapeX, float LandscapeY) override
@@ -600,13 +600,13 @@ class FLandscapeBrushGizmo : public FLandscapeBrush
 {
 	using Super = FLandscapeBrush;
 
-	TSet<ULandscapeComponent*> BrushMaterialComponents;
+	TSet<TObjectPtr<ULandscapeComponent>> BrushMaterialComponents;
 
 	const TCHAR* GetBrushName() override { return TEXT("Gizmo"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_Brush_Gizmo", "Gizmo"); };
 
 protected:
-	UMaterialInstanceDynamic* BrushMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> BrushMaterial;
 public:
 	FEdModeLandscape* EdMode;
 
@@ -640,7 +640,7 @@ public:
 
 	virtual void LeaveBrush() override
 	{
-		for (TSet<ULandscapeComponent*>::TIterator It(BrushMaterialComponents); It; ++It)
+		for (decltype(BrushMaterialComponents)::TIterator It(BrushMaterialComponents); It; ++It)
 		{
 			if ((*It) != nullptr)
 			{
@@ -707,7 +707,7 @@ public:
 					}
 
 					// Remove the material from any old components that are no longer in the region
-					TSet<ULandscapeComponent*> RemovedComponents = BrushMaterialComponents.Difference(NewComponents);
+					TSet<ULandscapeComponent*> RemovedComponents = ObjectPtrDecay(BrushMaterialComponents).Difference(NewComponents);
 					for (ULandscapeComponent* RemovedComponent : RemovedComponents)
 					{
 						if (RemovedComponent != nullptr)
@@ -717,7 +717,7 @@ public:
 						}
 					}
 
-					BrushMaterialComponents = MoveTemp(NewComponents);
+					BrushMaterialComponents = ObjectPtrWrap(MoveTemp(NewComponents));
 				}
 			}
 		}

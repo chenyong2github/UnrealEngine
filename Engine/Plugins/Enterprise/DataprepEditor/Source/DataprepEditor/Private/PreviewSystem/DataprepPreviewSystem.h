@@ -141,19 +141,19 @@ public:
 
 private:
 	// The action from which the step object are previewed
-	UDataprepActionAsset* ObservedActionAsset;
+	TObjectPtr<UDataprepActionAsset> ObservedActionAsset;
 	FDelegateHandle OnActionStepOrderChangedHandle;
 
 	// The filters previewed
-	TArray<UDataprepParameterizableObject*> ObservedSteps;
+	TArray<TObjectPtr<UDataprepParameterizableObject>> ObservedSteps;
 
 	// The handle for the PostEditEvents of the observed objects
-	TMap<UDataprepParameterizableObject*,FDelegateHandle> ObservedOnPostEdit;
+	TMap<TObjectPtr<UDataprepParameterizableObject>,FDelegateHandle> ObservedOnPostEdit;
 
 	// The inprogress or done result
-	TMap<UObject*, TSharedRef<FDataprepPreviewProcessingResult>> PreviewResult;
+	TMap<TObjectPtr<UObject>, TSharedRef<FDataprepPreviewProcessingResult>> PreviewResult;
 
-	using FResultIterator = TMap<UObject*, TSharedRef<FDataprepPreviewProcessingResult>>::TIterator;
+	using FResultIterator = decltype(PreviewResult)::TIterator;
 
 	// The current progress of processing for the preview
 	struct

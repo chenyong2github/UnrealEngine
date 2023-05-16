@@ -4219,7 +4219,7 @@ private:
 	/** Store the check box state for each bone */
 	TMap<int32, FFKBoneCheckInfo> CheckBoxInfoMap;
 
-	UFKControlRig* AutoRig;
+	TObjectPtr<UFKControlRig> AutoRig;
 	UMovieSceneControlRigParameterTrack* Track;
 	ISequencer* Sequencer;
 };
@@ -5173,5 +5173,3 @@ FControlRigEditMode* FControlRigParameterTrackEditor::GetEditMode(bool bForceAct
 
 
 #undef LOCTEXT_NAMESPACE
-
-

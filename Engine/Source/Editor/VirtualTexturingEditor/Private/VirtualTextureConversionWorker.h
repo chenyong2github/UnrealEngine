@@ -22,14 +22,14 @@ public:
 	bool bConvertBackward;
 
 	// Fill this array intially with some textures you want to see converted to vt
-	TArray<UTexture2D*> UserTextures;
+	TArray<TObjectPtr<UTexture2D>> UserTextures;
 
 	// These will be filled by calling FilterList
-	TArray<UTexture2D*> Textures;
-	TArray<UMaterial *>Materials;
-	TArray<UMaterialFunctionInterface *> Functions;
-	TArray<UTexture2D*> SizeRejectedTextures;// The original selection of the user filtered by textures that match the threshold size
-	TSet<UTexture2D*> MaterialRejectedTextures; // Textures that could not be converted due to their usage in materials (connected to unsupported property)
+	TArray<TObjectPtr<UTexture2D>> Textures;
+	TArray<TObjectPtr<UMaterial >>Materials;
+	TArray<TObjectPtr<UMaterialFunctionInterface >> Functions;
+	TArray<TObjectPtr<UTexture2D>> SizeRejectedTextures;// The original selection of the user filtered by textures that match the threshold size
+	TSet<TObjectPtr<UTexture2D>> MaterialRejectedTextures; // Textures that could not be converted due to their usage in materials (connected to unsupported property)
 
 	struct FAuditTrail
 	{
@@ -38,7 +38,7 @@ public:
 		FString PathDescription; //Description on how we go there
 	};
 
-	TMap<UObject*, FAuditTrail> AuditTrail;
+	TMap<TObjectPtr<UObject>, FAuditTrail> AuditTrail;
 
 	void SetConversionDirection(bool bInConvertBackward) { bConvertBackward = bInConvertBackward; }
 
@@ -57,9 +57,9 @@ private:
 	void FindAllTexturesAndMaterials_Iteration(TSet<UMaterial*>& InAffectedMaterials,
 		TSet<UMaterialFunctionInterface*>& InAffectedFunctions,
 		TSet<UTexture2D*>& InAffectedTextures,
-		TSet<UTexture2D*>& InInvalidTextures,
+		TSet<TObjectPtr<UTexture2D>>& InInvalidTextures,
 		FScopedSlowTask& Task);
 
-	void FindAllTexturesAndMaterials(TArray<UMaterial *> &OutAffectedMaterials, TArray<UMaterialFunctionInterface *> &OutAffectedFunctions, TArray<UTexture2D *> &OutAffectedTextures);
+	void FindAllTexturesAndMaterials(TArray<TObjectPtr<UMaterial >> &OutAffectedMaterials, TArray<TObjectPtr<UMaterialFunctionInterface >> &OutAffectedFunctions, TArray<TObjectPtr<UTexture2D >> &OutAffectedTextures);
 
 };

@@ -65,7 +65,7 @@ private:
 
 	FString OldUserString;
 
-	FilterType* Filter;
+	TObjectPtr<FilterType> Filter;
 
 	TArray<TSharedPtr<FListEntry>> StringMatchingOptions;
 

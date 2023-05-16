@@ -216,7 +216,7 @@ protected:
 	FAudioDevice*			AudioDevice;
 	bool					bEffectsInitialised;
 
-	UReverbEffect*			CurrentReverbAsset;
+	TObjectPtr<UReverbEffect>			CurrentReverbAsset;
 
 	FAudioReverbEffect	SourceReverbEffect;
 	FAudioReverbEffect	CurrentReverbEffect;

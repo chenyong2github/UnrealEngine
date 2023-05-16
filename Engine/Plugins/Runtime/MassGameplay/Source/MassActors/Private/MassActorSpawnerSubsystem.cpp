@@ -100,7 +100,7 @@ bool UMassActorSpawnerSubsystem::ReleaseActorToPool(AActor* Actor)
 				AgentComp->UnregisterWithAgentSubsystem();
 			}
 
-			TArray<AActor*>& Pool = PooledActors.FindOrAdd(Actor->GetClass());
+			auto& Pool = PooledActors.FindOrAdd(Actor->GetClass());
 			checkf(Pool.Find(Actor) == INDEX_NONE, TEXT("Actor%s is already in the pool"), *AActor::GetDebugName(Actor));
 			Pool.Add(Actor);
 			++NumActorPooled;
@@ -183,7 +183,7 @@ AActor* UMassActorSpawnerSubsystem::SpawnOrRetrieveFromPool(FConstStructView Spa
 	if (UE::MassActors::bUseActorPooling != 0 && bActorPoolingEnabled)
 	{
 		const FMassActorSpawnRequest& SpawnRequest = SpawnRequestView.Get<const FMassActorSpawnRequest>();
-		TArray<AActor*>* Pool = PooledActors.Find(SpawnRequest.Template);
+		auto* Pool = PooledActors.Find(SpawnRequest.Template);
 
 		if (Pool && Pool->Num() > 0)
 		{
@@ -393,9 +393,7 @@ void UMassActorSpawnerSubsystem::AddReferencedObjects(UObject* InThis, FReferenc
 	{
 		for (auto It = MASS->PooledActors.CreateIterator(); It; ++It)
 		{
-			TArray<AActor*>& Value = It.Value();
-
-			Collector.AddReferencedObjects<AActor>(Value);
+			Collector.AddReferencedObjects<AActor>(It.Value());
 		}
 	}
 
@@ -421,7 +419,7 @@ void UMassActorSpawnerSubsystem::ReleaseAllResources()
 	{
 		for (auto It = PooledActors.CreateIterator(); It; ++It)
 		{
-			TArray<AActor*>& ActorArray = It.Value();
+			auto& ActorArray = It.Value();
 			for (int i = 0; i < ActorArray.Num(); i++)
 			{
 				World->DestroyActor(ActorArray[i]);

@@ -412,7 +412,7 @@ private:
 	FEdGraphPinType LastGraphPinType;
 
     /** Configuration class used to store editor settings across sessions. */
-	UAnimationBlueprintEditorOptions* EditorOptions;
+	TObjectPtr<UAnimationBlueprintEditorOptions> EditorOptions;
 
 	/** Cached mesh component held during compilation, used to reconnect debugger */
 	USkeletalMeshComponent* DebuggedMeshComponent;

@@ -35,5 +35,5 @@ private:
 		return TEXT("SDataprepSelectionTransform");
 	}
 
-	UDataprepSelectionTransform* SelectionTransform;
+	TObjectPtr<UDataprepSelectionTransform> SelectionTransform;
 };

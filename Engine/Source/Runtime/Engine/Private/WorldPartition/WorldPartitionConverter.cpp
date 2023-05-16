@@ -73,7 +73,7 @@ bool FWorldPartitionConverter::Convert()
 	ULevel* MainLevel = MainWorld->PersistentLevel;
 	UPackage* MainPackage = MainLevel->GetPackage();
 
-	TArray<AActor*> Actors = MainLevel->Actors;
+	TArray<AActor*> Actors = ObjectPtrDecay(MainLevel->Actors);
 	for (AActor* Actor : Actors)
 	{
 		if (IsValid(Actor) && ShouldDeleteActor(Actor, /*bIsMainLevel*/ true))
@@ -112,7 +112,7 @@ bool FWorldPartitionConverter::Convert()
 			DuplicatedLevel->ConvertAllActorsToPackaging(true);
 			DuplicatedLevel->bUseExternalActors = true;
 
-			TArray<AActor*> ActorsToConvert = DuplicatedLevel->Actors;
+			TArray<AActor*> ActorsToConvert = ObjectPtrDecay(DuplicatedLevel->Actors);
 			for (AActor* Actor : ActorsToConvert)
 			{
 				if (IsValid(Actor) && !ShouldDeleteActor(Actor, /*bIsMainLevel*/ false))

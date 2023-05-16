@@ -162,12 +162,12 @@ private:
 	TSharedPtr< class IPropertyRowGenerator > Generator;
 
 	/** Object to be detailed */
-	UObject* DetailedObject;
+	TObjectPtr<UObject> DetailedObject;
 
 	UDataprepStringFilterMatchingArray* StringArrayDetailedObject;
 
 	/** Not null if the detailed object is parameterizable */
-	UDataprepParameterizableObject* DetailedObjectAsParameterizable;
+	TObjectPtr<UDataprepParameterizableObject> DetailedObjectAsParameterizable;
 
 	/** Array properties tracked for changes */
 	TSet< TSharedPtr< IPropertyHandle > > TrackedProperties;

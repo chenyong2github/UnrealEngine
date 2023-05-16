@@ -491,7 +491,7 @@ UObject* FDatasmithImporterImpl::FinalizeAsset( UObject* SourceAsset, const TCHA
 
 void FDatasmithImporterImpl::DeleteImportSceneActorIfNeeded(FDatasmithActorImportContext& ActorContext, bool bForce)
 {
-	ADatasmithSceneActor*& ImportSceneActor = ActorContext.ImportSceneActor;
+	auto& ImportSceneActor = ActorContext.ImportSceneActor;
 	if ( !ActorContext.FinalSceneActors.Contains(ImportSceneActor) || bForce )
 	{
 		if ( ImportSceneActor )
@@ -807,7 +807,7 @@ void FDatasmithImporterImpl::GatherUnsupportedVirtualTexturesAndMaterials(const 
 void FDatasmithImporterImpl::ConvertUnsupportedVirtualTexture(FDatasmithImportContext& ImportContext, TSet<UTexture2D*>& VirtualTexturesToConvert, const TMap<UObject*, UObject*>& ReferencesToRemap)
 {
 	TArray<UMaterial*> MaterialsToRefreshAfterVirtualTextureConversion;
-	GatherUnsupportedVirtualTexturesAndMaterials(ImportContext.ImportedMaterials, ImportContext.AssetsContext.VirtualTexturesToConvert, MaterialsToRefreshAfterVirtualTextureConversion);
+	GatherUnsupportedVirtualTexturesAndMaterials(ObjectPtrDecay(ImportContext.ImportedMaterials), ImportContext.AssetsContext.VirtualTexturesToConvert, MaterialsToRefreshAfterVirtualTextureConversion);
 
 	if (VirtualTexturesToConvert.Num() != 0)
 	{

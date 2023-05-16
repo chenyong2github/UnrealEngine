@@ -142,7 +142,7 @@ void UTypedElementRegistry::AddReferencedObjects(UObject* InThis, FReferenceColl
 	{
 		if (RegisteredElementType)
 		{
-			for (TPair<FName, UObject*>& InterfacesPair : RegisteredElementType->Interfaces)
+			for (auto& InterfacesPair : RegisteredElementType->Interfaces)
 			{
 				Collector.AddReferencedObject(InterfacesPair.Value);
 			}
@@ -183,7 +183,7 @@ void UTypedElementRegistry::RegisterElementInterfaceImpl(const FName InElementTy
 	checkf(RegisteredElementType, TEXT("Element type '%s' has not been registered!"), *InElementTypeName.ToString());
 
 	checkf(InAllowOverride || !RegisteredElementType->Interfaces.Contains(InBaseInterfaceType->GetFName()), TEXT("Element type '%s' has already registered an interface for '%s'!"), *InElementTypeName.ToString(), *InBaseInterfaceType->GetName());
-	RegisteredElementType->Interfaces.Add(InBaseInterfaceType->GetFName(), InElementInterface);
+	RegisteredElementType->Interfaces.Add(InBaseInterfaceType->GetFName(), ObjectPtrWrap(InElementInterface));
 }
 
 UObject* UTypedElementRegistry::GetElementInterfaceImpl(const FTypedHandleTypeId InElementTypeId, const TSubclassOf<UInterface>& InBaseInterfaceType) const
@@ -293,7 +293,7 @@ FString UTypedElementRegistry::RegistredElementTypesAndInterfacesToString() cons
 					FormatArguments.Add(TypePair.Key.ToString());
 					Lines.Add(FString::Format(TEXT("	Type: {0}"), FormatArguments));
 				}
-				for (const TPair<FName, UObject*>& InterfacePair : RegistredElementType->Interfaces)
+				for (auto& InterfacePair : RegistredElementType->Interfaces)
 				{
 					FStringFormatOrderedArguments FormatArguments;
 					FormatArguments.Reserve(2);

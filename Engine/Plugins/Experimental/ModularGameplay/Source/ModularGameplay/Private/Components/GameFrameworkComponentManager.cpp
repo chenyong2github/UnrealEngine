@@ -49,7 +49,7 @@ void UGameFrameworkComponentManager::AddReferencedObjects(UObject* InThis, FRefe
 	{
 		for (auto MapIt = GFCM->ReceiverClassToComponentClassMap.CreateIterator(); MapIt; ++MapIt)
 		{
-			for (UClass* ValueElement : MapIt.Value())
+			for (auto& ValueElement : MapIt.Value())
 			{
 				Collector.AddReferencedObject(ValueElement);
 			}
@@ -177,7 +177,7 @@ void UGameFrameworkComponentManager::AddReceiverInternal(AActor* Receiver)
 	for (UClass* Class = Receiver->GetClass(); Class && Class != AActor::StaticClass(); Class = Class->GetSuperClass())
 	{
 		FComponentRequestReceiverClassPath ReceiverClassPath(Class);
-		if (TSet<UClass*>* ComponentClasses = ReceiverClassToComponentClassMap.Find(ReceiverClassPath))
+		if (auto* ComponentClasses = ReceiverClassToComponentClassMap.Find(ReceiverClassPath))
 		{
 			for (UClass* ComponentClass : *ComponentClasses)
 			{
@@ -258,7 +258,7 @@ TSharedPtr<FComponentRequestHandle> UGameFrameworkComponentManager::AddComponent
 
 	if (RequestCount == 1)
 	{
-		TSet<UClass*>& ComponentClasses = ReceiverClassToComponentClassMap.FindOrAdd(ReceiverClassPath);
+		auto& ComponentClasses = ReceiverClassToComponentClassMap.FindOrAdd(ReceiverClassPath);
 		ComponentClasses.Add(ComponentClassPtr);
 
 		if (UClass* ReceiverClassPtr = ReceiverClass.Get())
@@ -310,7 +310,7 @@ void UGameFrameworkComponentManager::RemoveComponentRequest(const TSoftClassPtr<
 
 	if (RequestCount == 0)
 	{
-		if (TSet<UClass*>* ComponentClasses = ReceiverClassToComponentClassMap.Find(ReceiverClassPath))
+		if (auto* ComponentClasses = ReceiverClassToComponentClassMap.Find(ReceiverClassPath))
 		{
 			ComponentClasses->Remove(ComponentClassPtr);
 			if (ComponentClasses->Num() == 0)
@@ -1191,4 +1191,3 @@ int32 UGameFrameworkComponentManager::GetIndexForRegisteredDelegate(TArray<FActo
 
 	return INDEX_NONE;
 }
-

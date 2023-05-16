@@ -1245,7 +1245,7 @@ void UNetConnection::CleanUp()
 	}
 
 	// Cleanup any straggler KeepProcessingActorChannelBunchesMap channels
-	for (const TPair<FNetworkGUID, TArray<UActorChannel*>>& MapKeyValuePair : KeepProcessingActorChannelBunchesMap)
+	for (const auto& MapKeyValuePair : KeepProcessingActorChannelBunchesMap)
 	{
 		for (UActorChannel* CurChannel : MapKeyValuePair.Value)
 		{
@@ -1371,7 +1371,7 @@ void UNetConnection::AddReferencedObjects(UObject* InThis, FReferenceCollector& 
 	UNetConnection* This = CastChecked<UNetConnection>(InThis);
 
 	// Let GC know that we're referencing some UChannel objects
-	for (UChannel* Channel : This->Channels)
+	for (auto& Channel : This->Channels)
 	{
 		Collector.AddReferencedObject( Channel, This );
 	}
@@ -1379,8 +1379,8 @@ void UNetConnection::AddReferencedObjects(UObject* InThis, FReferenceCollector& 
 	// Let GC know that we're referencing some UActorChannel objects
 	for ( auto It = This->KeepProcessingActorChannelBunchesMap.CreateIterator(); It; ++It )
 	{
-		const TArray<UActorChannel*>& ChannelArray = It.Value();
-		for ( UActorChannel* CurChannel : ChannelArray )
+		auto& ChannelArray = It.Value();
+		for ( auto& CurChannel : ChannelArray )
 		{
 			Collector.AddReferencedObject( CurChannel, This );
 		}
@@ -4437,7 +4437,7 @@ void UNetConnection::Tick(float DeltaSeconds)
 
 		for ( auto ProcessingActorMapIter = KeepProcessingActorChannelBunchesMap.CreateIterator(); ProcessingActorMapIter; ++ProcessingActorMapIter )
 		{
-			TArray<UActorChannel*>& ActorChannelArray = ProcessingActorMapIter.Value();
+			auto& ActorChannelArray = ProcessingActorMapIter.Value();
 			for ( int32 ActorChannelIdx = 0; ActorChannelIdx < ActorChannelArray.Num(); ++ActorChannelIdx )
 			{
 				UActorChannel* CurChannel = ActorChannelArray[ActorChannelIdx];

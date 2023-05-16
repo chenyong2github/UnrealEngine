@@ -205,7 +205,7 @@ public:
 	
 	// all modifications to the data model should go through this controller
 	UPROPERTY(transient)
-	UIKRigController* AssetController;
+	TObjectPtr<UIKRigController> AssetController;
 
 	// viewport skeletal mesh 
 	UDebugSkelMeshComponent* SkelMeshComponent;

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectPtr.h"
 
 class IPersonaPreviewScene;
 class UPhysicsControlProfileAsset;
@@ -24,7 +25,7 @@ public:
 
 public:
 	/** The asset being inspected */
-	UPhysicsControlProfileAsset* PhysicsControlProfileAsset;
+	TObjectPtr<UPhysicsControlProfileAsset> PhysicsControlProfileAsset;
 
 	/** Skeletal mesh component specialized for this asset editor */
 	UPhysicsControlProfileAssetEditorSkeletalMeshComponent* EditorSkelComp;

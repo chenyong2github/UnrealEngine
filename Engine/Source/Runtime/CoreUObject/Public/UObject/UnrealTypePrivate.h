@@ -199,7 +199,7 @@ class COREUOBJECT_API UByteProperty : public UNumericProperty
 public:
 
 	// Variables.
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 
 	UByteProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UEnum* InEnum = nullptr)
 	: UNumericProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
@@ -423,7 +423,7 @@ class COREUOBJECT_API UObjectPropertyBase : public UProperty
 public:
 
 	// Variables.
-	class UClass* PropertyClass;
+	TObjectPtr<class UClass> PropertyClass;
 
 	UObjectPropertyBase(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InClass = NULL)
 		: UProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
@@ -513,7 +513,7 @@ class COREUOBJECT_API UClassProperty : public UObjectProperty
 public:
 
 	// Variables.
-	class UClass* MetaClass;
+	TObjectPtr<class UClass> MetaClass;
 
 	UClassProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass, UClass* InClassType)
 		: UObjectProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, InClassType ? InClassType : UClass::StaticClass())
@@ -556,7 +556,7 @@ class COREUOBJECT_API USoftClassProperty : public USoftObjectProperty
 public:
 
 	// Variables.
-	class UClass* MetaClass;
+	TObjectPtr<class UClass> MetaClass;
 
 	USoftClassProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InMetaClass)
 		: Super(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags, UClass::StaticClass())
@@ -597,7 +597,7 @@ class COREUOBJECT_API UInterfaceProperty : public UProperty
 public:
 
 	/** The native interface class that this interface property refers to */
-	class	UClass*		InterfaceClass;
+	TObjectPtr<class	UClass>		InterfaceClass;
 
 	UInterfaceProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UClass* InInterfaceClass)
 	: UProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, (InFlags & ~CPF_InterfaceClearMask))
@@ -672,7 +672,7 @@ class COREUOBJECT_API UArrayProperty : public UProperty
 public:
 
 	// Variables.
-	UProperty* Inner;
+	TObjectPtr<UProperty> Inner;
 
 	UArrayProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags)
 	: UProperty(FObjectInitializer::Get(), EC_CppProperty, InOffset, InFlags)
@@ -697,8 +697,8 @@ class COREUOBJECT_API UMapProperty : public UProperty
 public:
 
 	// Properties representing the key type and value type of the contained pairs
-	UProperty*       KeyProp;
-	UProperty*       ValueProp;
+	TObjectPtr<UProperty>       KeyProp;
+	TObjectPtr<UProperty>       ValueProp;
 	FScriptMapLayout MapLayout;
 
 	UMapProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags);
@@ -716,7 +716,7 @@ class COREUOBJECT_API USetProperty : public UProperty
 public:
 
 	// Properties representing the key type and value type of the contained pairs
-	UProperty*       ElementProp;
+	TObjectPtr<UProperty>       ElementProp;
 	FScriptSetLayout SetLayout;
 
 	USetProperty(const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags);
@@ -734,7 +734,7 @@ class COREUOBJECT_API UStructProperty : public UProperty
 public:
 
 	// Variables.
-	class UScriptStruct* Struct;
+	TObjectPtr<class UScriptStruct> Struct;
 
 	UStructProperty(ECppProperty, int32 InOffset, EPropertyFlags InFlags, UScriptStruct* InStruct);
 	UStructProperty( const FObjectInitializer& ObjectInitializer, ECppProperty, int32 InOffset, EPropertyFlags InFlags, UScriptStruct* InStruct );
@@ -840,8 +840,8 @@ public:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// End of UObject interface
 
-	UNumericProperty* UnderlyingProp; // The property which represents the underlying type of the enum
-	UEnum* Enum; // The enum represented by this property
+	TObjectPtr<UNumericProperty> UnderlyingProp; // The property which represents the underlying type of the enum
+	TObjectPtr<UEnum> Enum; // The enum represented by this property
 };
 
 class COREUOBJECT_API UTextProperty : public UProperty

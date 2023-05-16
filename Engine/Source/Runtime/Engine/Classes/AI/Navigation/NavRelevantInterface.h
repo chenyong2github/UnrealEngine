@@ -69,7 +69,7 @@ struct ENGINE_API FNavigationRelevantData : public TSharedFromThis<FNavigationRe
 	FCompositeNavModifier Modifiers;
 
 	/** UObject these data represents */
-	const TWeakObjectPtr<UObject> SourceObject;
+	TWeakObjectPtr<UObject> SourceObject;
 
 	/** get set to true when lazy navigation exporting is enabled and this navigation data has "potential" of
 	*	containing geometry data. First access will result in gathering the data and setting this flag back to false.
@@ -135,6 +135,7 @@ struct ENGINE_API FNavigationRelevantData : public TSharedFromThis<FNavigationRe
 	}
 
 	FORCEINLINE UObject* GetOwner() const { return SourceObject.Get(); }
+	FORCEINLINE decltype(SourceObject)& GetOwnerPtr() { return SourceObject; }
 };
 
 UINTERFACE(MinimalAPI, meta=(CannotImplementInterfaceInBlueprint))

@@ -7,7 +7,7 @@ namespace Audio
 {
 	const FName IParameterTransmitter::RouterName = "ParameterTransmitter";
 
-	TArray<UObject*> ILegacyParameterTransmitter::GetReferencedObjects() const
+	TArray<const TObjectPtr<UObject>*> ILegacyParameterTransmitter::GetReferencedObjects() const
 	{
 		return { };
 	}

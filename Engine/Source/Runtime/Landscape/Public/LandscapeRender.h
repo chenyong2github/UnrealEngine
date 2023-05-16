@@ -83,14 +83,14 @@ namespace ELandscapeEditRenderMode
 
 LANDSCAPE_API extern bool GLandscapeEditModeActive;
 LANDSCAPE_API extern int32 GLandscapeEditRenderMode;
-LANDSCAPE_API extern UMaterialInterface* GLayerDebugColorMaterial;
-LANDSCAPE_API extern UMaterialInterface* GSelectionColorMaterial;
-LANDSCAPE_API extern UMaterialInterface* GSelectionRegionMaterial;
-LANDSCAPE_API extern UMaterialInterface* GMaskRegionMaterial;
-LANDSCAPE_API extern UMaterialInterface* GColorMaskRegionMaterial;
-LANDSCAPE_API extern UTexture2D* GLandscapeBlackTexture;
-LANDSCAPE_API extern UMaterialInterface* GLandscapeLayerUsageMaterial;
-LANDSCAPE_API extern UMaterialInterface* GLandscapeDirtyMaterial;
+LANDSCAPE_API extern TObjectPtr<UMaterialInterface> GLayerDebugColorMaterial;
+LANDSCAPE_API extern TObjectPtr<UMaterialInterface> GSelectionColorMaterial;
+LANDSCAPE_API extern TObjectPtr<UMaterialInterface> GSelectionRegionMaterial;
+LANDSCAPE_API extern TObjectPtr<UMaterialInterface> GMaskRegionMaterial;
+LANDSCAPE_API extern TObjectPtr<UMaterialInterface> GColorMaskRegionMaterial;
+LANDSCAPE_API extern TObjectPtr<UTexture2D> GLandscapeBlackTexture;
+LANDSCAPE_API extern TObjectPtr<UMaterialInterface> GLandscapeLayerUsageMaterial;
+LANDSCAPE_API extern TObjectPtr<UMaterialInterface> GLandscapeDirtyMaterial;
 #endif
 
 

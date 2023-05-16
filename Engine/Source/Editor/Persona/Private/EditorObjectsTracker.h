@@ -44,8 +44,8 @@ private:
 	bool bAllowOnePerClass;
 
 	/** Tracks editor objects created for details panel */
-	TMap< UClass*, UObject* >	EditorObjMap;
+	TMap< TObjectPtr<UClass>, TObjectPtr<UObject> >	EditorObjMap;
 
 	/** Tracks editor objects created for detail panel */
-	TArray<UObject*> EditorObjectArray;
+	TArray<TObjectPtr<UObject>> EditorObjectArray;
 };

@@ -455,7 +455,7 @@ void FField::BeginDestroy()
 
 void FField::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	UObject* OwnerUObject = Owner.ToUObject();
+	TObjectPtr<UObject> OwnerUObject = ObjectPtrWrap(Owner.ToUObject());
 	if (OwnerUObject)
 	{
 		Collector.AddReferencedObject(OwnerUObject);

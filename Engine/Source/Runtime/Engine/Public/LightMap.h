@@ -325,16 +325,16 @@ public:
 	}
 	
 	/** The textures containing the light-map data. */
-	ULightMapTexture2D* Textures[2];
+	TObjectPtr<ULightMapTexture2D> Textures[2];
 
-	ULightMapTexture2D* SkyOcclusionTexture;
+	TObjectPtr<ULightMapTexture2D> SkyOcclusionTexture;
 
-	ULightMapTexture2D* AOMaterialMaskTexture;
+	TObjectPtr<ULightMapTexture2D> AOMaterialMaskTexture;
 
-	UShadowMapTexture2D* ShadowMapTexture;
+	TObjectPtr<UShadowMapTexture2D> ShadowMapTexture;
 
 	/** The virtual textures containing the light-map data. */
-	ULightMapVirtualTexture2D *VirtualTextures[2];
+	TObjectPtr<ULightMapVirtualTexture2D >VirtualTextures[2];
 
 	/** A scale to apply to the coefficients. */
 	FVector4f ScaleVectors[NUM_STORED_LIGHTMAP_COEF];

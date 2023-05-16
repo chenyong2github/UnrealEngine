@@ -82,7 +82,7 @@ private:
 	const FString ConnectScriptText;
 	const FString DisconnectScriptText;
 
-	UObject* JSBridge;
+	TObjectPtr<UObject> JSBridge;
 
 	const bool bIsPermanent;
 

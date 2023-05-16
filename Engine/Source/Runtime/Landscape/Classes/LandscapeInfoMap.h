@@ -24,7 +24,7 @@ public:
 
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
-	TMap<FGuid, ULandscapeInfo*> Map;
+	TMap<FGuid, TObjectPtr<ULandscapeInfo>> Map;
 	TWeakObjectPtr<UWorld> World;
 
 	/**

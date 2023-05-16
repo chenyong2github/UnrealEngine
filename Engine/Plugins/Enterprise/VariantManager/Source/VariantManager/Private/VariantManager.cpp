@@ -1099,10 +1099,7 @@ TSharedPtr<SVariantManager> FVariantManager::GetVariantManagerWidget()
 
 void FVariantManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	if (ULevelVariantSets* LevelVariantSets = CurrentLevelVariantSets.Get())
-	{
-		Collector.AddReferencedObject(LevelVariantSets);
-	}
+	Collector.AddReferencedObject(CurrentLevelVariantSets);
 }
 
 #undef LOCTEXT_NAMESPACE

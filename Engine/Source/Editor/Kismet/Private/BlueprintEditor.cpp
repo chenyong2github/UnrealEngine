@@ -2185,7 +2185,7 @@ void FBlueprintEditor::ImportNamespaceEx(const FImportNamespaceExParameters& InP
 
 	// Update the imported set for all edited objects.
 	bool bWasAddedAsImport = false;
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 	for (UObject* EditingObj : EditingObjs)
 	{
 		if (UBlueprint* BlueprintObj = Cast<UBlueprint>(EditingObj))
@@ -2270,7 +2270,7 @@ void FBlueprintEditor::RemoveNamespace(const FString& InNamespace)
 	}
 
 	// Update the imported set for all edited objects.
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 	for (UObject* EditingObj : EditingObjs)
 	{
 		if (UBlueprint* BlueprintObj = Cast<UBlueprint>(EditingObj))
@@ -4476,29 +4476,21 @@ void FBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	if (GetObjectsCurrentlyBeingEdited()->Num() > 0)
 	{
-		TArray<UObject*>& LocalEditingObjects = const_cast<TArray<UObject*>&>(GetEditingObjects());
-
-		Collector.AddReferencedObjects(LocalEditingObjects);
+		Collector.AddReferencedObjects(GetEditingObjectPtrs());
 	}
 
 	Collector.AddReferencedObjects(StandardLibraries);
 
 	UserDefinedEnumerators.Remove(TWeakObjectPtr<UUserDefinedEnum>()); // Remove NULLs
-	for (const TWeakObjectPtr<UUserDefinedEnum>& ObjectPtr : UserDefinedEnumerators)
+	for (TWeakObjectPtr<UUserDefinedEnum>& ObjectPtr : UserDefinedEnumerators)
 	{
-		if (UObject* Obj = ObjectPtr.Get())
-		{
-			Collector.AddReferencedObject(Obj);
-		}
+			Collector.AddReferencedObject(ObjectPtr);
 	}
 
 	UserDefinedStructures.Remove(TWeakObjectPtr<UUserDefinedStruct>()); // Remove NULLs
-	for (const TWeakObjectPtr<UUserDefinedStruct>& ObjectPtr : UserDefinedStructures)
+	for (TWeakObjectPtr<UUserDefinedStruct>& ObjectPtr : UserDefinedStructures)
 	{
-		if (UObject* Obj = ObjectPtr.Get())
-		{
-			Collector.AddReferencedObject(Obj);
-		}
+			Collector.AddReferencedObject(ObjectPtr);
 	}
 }
 
@@ -9693,7 +9685,7 @@ FText FBlueprintEditor::GetBaseToolkitName() const
 
 FText FBlueprintEditor::GetToolkitName() const
 {
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 
 	if( IsEditingSingleBlueprint() )
 	{
@@ -9737,7 +9729,7 @@ FText FBlueprintEditor::GetToolkitName() const
 
 FText FBlueprintEditor::GetToolkitToolTipText() const
 {
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 
 	if( IsEditingSingleBlueprint() )
 	{

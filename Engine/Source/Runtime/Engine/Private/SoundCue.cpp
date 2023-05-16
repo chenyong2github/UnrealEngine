@@ -802,21 +802,21 @@ TSharedPtr<ISoundCueAudioEditor> USoundCue::GetSoundCueAudioEditor()
 }
 #endif // WITH_EDITOR
 
-TArray<UObject*> FSoundCueParameterTransmitter::GetReferencedObjects() const
+TArray<const TObjectPtr<UObject>*> FSoundCueParameterTransmitter::GetReferencedObjects() const
 {
-	TArray<UObject*> Objects;
+	TArray<const TObjectPtr<UObject>*> Objects;
 	for (const FAudioParameter& Param : AudioParameters)
 	{
 		if (Param.ObjectParam)
 		{
-			Objects.Add(Param.ObjectParam);
+			Objects.Add(&Param.ObjectParam);
 		}
 
-		for (UObject* Object : Param.ArrayObjectParam)
+		for (const auto& Object : Param.ArrayObjectParam)
 		{
 			if (Object)
 			{
-				Objects.Add(Object);
+				Objects.Add(&Object);
 			}
 		}
 	}

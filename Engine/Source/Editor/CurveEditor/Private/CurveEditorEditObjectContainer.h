@@ -29,5 +29,5 @@ struct FCurveEditorEditObjectContainer : FGCObject
 	}
 
 	/**  */
-	TMap<FCurveModelID, TMap<FKeyHandle, UObject*> > CurveIDToKeyProxies;
+	TMap<FCurveModelID, TMap<FKeyHandle, TObjectPtr<UObject>> > CurveIDToKeyProxies;
 };

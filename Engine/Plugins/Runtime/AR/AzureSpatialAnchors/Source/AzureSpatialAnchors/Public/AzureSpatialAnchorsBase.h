@@ -25,14 +25,14 @@ public:
 
 protected:
 	UAzureCloudSpatialAnchor* GetCloudAnchor(CloudAnchorID CloudAnchorID) const;
-	TArray<UAzureCloudSpatialAnchor*> CloudAnchors;
+	TArray<TObjectPtr<UAzureCloudSpatialAnchor>> CloudAnchors;
 	FAzureSpatialAnchorsSessionStatus CachedSessionStatus;
 	FDelegateHandle CacheSessionHandle;
 
 	// FGCObject Implementation
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
-		for (auto anchor : CloudAnchors)
+		for (auto& anchor : CloudAnchors)
 		{
 			Collector.AddReferencedObject(anchor);
 		}

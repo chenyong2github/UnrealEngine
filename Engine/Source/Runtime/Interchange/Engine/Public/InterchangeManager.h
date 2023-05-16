@@ -156,9 +156,9 @@ namespace UE
 		private:
 			std::atomic< EStatus > ImportStatus;
 
-			TArray< UObject* > ImportedObjects;
+			TArray< TObjectPtr<UObject> > ImportedObjects;
 			mutable FRWLock ImportedObjectsRWLock;
-			UInterchangeResultsContainer* Results;
+			TObjectPtr<UInterchangeResultsContainer> Results;
 
 			FGraphEventRef GraphEvent; // WaitUntilDone waits for this event to be triggered.
 
@@ -192,11 +192,11 @@ namespace UE
 
 			//The following Arrays are per source data
 			TArray<TStrongObjectPtr<UInterchangeBaseNodeContainer>> BaseNodeContainers;
-			TArray<UInterchangeSourceData*> SourceDatas;
-			TArray<UInterchangeTranslatorBase*> Translators;
+			TArray<TObjectPtr<UInterchangeSourceData>> SourceDatas;
+			TArray<TObjectPtr<UInterchangeTranslatorBase>> Translators;
 
 			//Pipelines array is not per source data
-			TArray<UInterchangePipelineBase*> Pipelines;
+			TArray<TObjectPtr<UInterchangePipelineBase>> Pipelines;
 			//The original pipelines asset to save in the asset reimport data. The original pipeline can restore python class member value.
 			//Python class instanced assets cannot be saved, so we have to serialize in json the data to restore it when we do a re-import.
 			TArray<UObject*> OriginalPipelines;
@@ -220,7 +220,7 @@ namespace UE
 
 			// Created factories map, Key is factory node UID
 			FCriticalSection CreatedFactoriesLock;
-			TMap<FString, UInterchangeFactoryBase*> CreatedFactories;
+			TMap<FString, TObjectPtr<UInterchangeFactoryBase>> CreatedFactories;
 
 			// Set of classes which creation has been denied
 			TSet<UClass*> DeniedClasses;

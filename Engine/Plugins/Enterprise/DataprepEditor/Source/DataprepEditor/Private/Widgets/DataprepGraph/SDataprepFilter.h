@@ -50,7 +50,7 @@ private:
 
 	TSharedPtr<class SDataprepDetailsView> DetailsView;
 
-	UDataprepFilter* Filter = nullptr;
+	TObjectPtr<UDataprepFilter> Filter = nullptr;
 
 	bool bIsPreviewed;
 };
@@ -93,7 +93,7 @@ private:
 
 	TSharedPtr<class SDataprepDetailsView> DetailsView;
 
-	UDataprepFilterNoFetcher* Filter = nullptr;
+	TObjectPtr<UDataprepFilterNoFetcher> Filter = nullptr;
 
 	bool bIsPreviewed;
 };

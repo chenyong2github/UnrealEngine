@@ -224,7 +224,7 @@ private:
 	TArray<TUniquePtr<FContentDirectoryMonitor>> DirectoryMonitors;
 
 	/** A list of packages to save when we've added a bunch of assets */
-	TArray<UPackage*> PackagesToSave;
+	TArray<TObjectPtr<UPackage>> PackagesToSave;
 
 	/** Reentracy guard for when we are making changes to assets */
 	bool bGuardAssetChanges;
@@ -785,7 +785,7 @@ TOptional<ECurrentState> FAutoReimportManager::SavePackages()
 		const bool bAlreadyCheckedOut = false;
 		const bool bCheckDirty = false;
 		const bool bPromptToSave = false;
-		FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptToSave, nullptr, bAlreadyCheckedOut);
+		FEditorFileUtils::PromptForCheckoutAndSave(ObjectPtrDecay(PackagesToSave), bCheckDirty, bPromptToSave, nullptr, bAlreadyCheckedOut);
 
 		PackagesToSave.Empty();
 	}

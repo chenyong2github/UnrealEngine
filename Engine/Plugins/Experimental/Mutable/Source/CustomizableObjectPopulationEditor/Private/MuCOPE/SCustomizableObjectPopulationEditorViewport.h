@@ -28,7 +28,10 @@ public:
 	// SEditorViewport interface
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
 
-	void SetPreviewComponents(TArray<USkeletalMeshComponent*> SkeletalMeshes, TArray<class UCapsuleComponent*> ColliderComponents, int32 Columns, int32 Separation);
+	void SetPreviewComponents(const TArray<USkeletalMeshComponent*>& SkeletalMeshes,
+														const TArray<class UCapsuleComponent*>& ColliderComponents,
+														int32 Columns,
+														int32 Separation);
 
 	void RefreshViewport();
 
@@ -51,7 +54,7 @@ private:
 	TSharedPtr< FAdvancedPreviewScene > PreviewScene;
 
 	/** Current skeletal meshes */
-	TArray<USkeletalMeshComponent*> PreviewSkeletalMeshes;
+	TArray<TObjectPtr<USkeletalMeshComponent>> PreviewSkeletalMeshes;
 
 	/** Current Collider Components */
 	TArray<UCapsuleComponent*> PreviewCollisionComponents;

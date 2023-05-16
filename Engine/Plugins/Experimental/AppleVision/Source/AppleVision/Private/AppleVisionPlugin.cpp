@@ -70,7 +70,7 @@ public:
 	void MarkDone() { bIsDone = true; }
 
 	/** The UTexture that wraps the Apple image data underneath */
-	UTexture* SourceImage;
+	TObjectPtr<UTexture> SourceImage;
 };
 
 #if SUPPORTS_APPLE_VISION_1_0

@@ -179,7 +179,7 @@ private:
 	TMap<FName, TArray<FManagedObjectInfo*>> ManagedObjectsByTag;
 
 	// Reverse lookup map to find the tag for a given object
-	TMap<UObject*, FManagedObjectInfo*> ManagedObjects;
+	TMap<TObjectPtr<UObject>, FManagedObjectInfo*> ManagedObjects;
 
 	// Array of all managed objects that we use for iteration during update. This is kept in sync with the ManagedObjects map.
 	TArray<FManagedObjectInfo*> ObjArray;

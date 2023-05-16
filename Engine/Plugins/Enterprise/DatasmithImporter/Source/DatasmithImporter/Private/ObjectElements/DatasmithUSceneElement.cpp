@@ -159,7 +159,7 @@ void UDatasmithSceneElementBase::FDatasmithSceneCollector::AddReferencedObjects(
 namespace DatasmithSceneImpl
 {
 	template<typename IElement, typename UElement>
-	void ExternalAddReferencedObjects(FReferenceCollector& Collector, TMap<TWeakPtr<IElement>, UElement*>& Map)
+	void ExternalAddReferencedObjects(FReferenceCollector& Collector, TMap<TWeakPtr<IElement>, TObjectPtr<UElement>>& Map)
 	{
 		// Remove all nullptr from the maps
 		Map.Remove(TWeakPtr<IElement>());
@@ -972,7 +972,7 @@ namespace DatasmithSceneImpl
 	{
 		for (auto& Itt : Elements)
 		{
-			auto* Element = Itt.Value;
+			auto& Element = Itt.Value;
 			if (Element)
 			{
 				Element->MarkAsGarbage();

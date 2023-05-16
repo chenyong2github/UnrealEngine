@@ -77,7 +77,7 @@ private:
 
 	void UpdateSubsystemArrayInternal(UClass* SubsystemClass, TArray<USubsystem*>& SubsystemArray) const;
 
-	TMap<UClass*, USubsystem*> SubsystemMap;
+	TMap<TObjectPtr<UClass>, TObjectPtr<USubsystem>> SubsystemMap;
 
 	mutable TMap<UClass*, TArray<USubsystem*>> SubsystemArrayMap;
 

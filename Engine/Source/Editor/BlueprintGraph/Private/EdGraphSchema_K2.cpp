@@ -5959,7 +5959,7 @@ void UEdGraphSchema_K2::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, c
 			{
 				const FScopedTransaction Transaction(LOCTEXT("CreateAddComponentFromAsset", "Add Component From Asset"), UEdGraphSchemaImpl::ShouldActuallyTransact());
 
-				FComponentTypeEntry ComponentType = { FString(), FString(), DestinationComponentType };
+				FComponentTypeEntry ComponentType = { FString(), FString(), DestinationComponentType.GetGCPtr() };
 
 				IBlueprintNodeBinder::FBindingSet Bindings;
 				Bindings.Add(Asset);

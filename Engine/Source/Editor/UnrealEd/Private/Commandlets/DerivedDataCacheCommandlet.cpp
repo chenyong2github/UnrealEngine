@@ -43,7 +43,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDerivedDataCacheCommandlet, Log, All);
 class UDerivedDataCacheCommandlet::FObjectReferencer : public FGCObject
 {
 public:
-	FObjectReferencer(TMap<UObject*, FCachingData>& InReferencedObjects)
+	FObjectReferencer(TMap<TObjectPtr<UObject>, FCachingData>& InReferencedObjects)
 		: ReferencedObjects(InReferencedObjects)
 	{
 	}
@@ -62,7 +62,7 @@ private:
 	}
 
 	FString ReferencerName;
-	TMap<UObject*, FCachingData>& ReferencedObjects;
+	TMap<TObjectPtr<UObject>, FCachingData>& ReferencedObjects;
 };
 
 class UDerivedDataCacheCommandlet::FPackageListener : public FUObjectArray::FUObjectCreateListener, public FUObjectArray::FUObjectDeleteListener

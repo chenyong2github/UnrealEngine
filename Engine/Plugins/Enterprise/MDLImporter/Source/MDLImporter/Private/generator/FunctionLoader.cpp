@@ -343,7 +343,7 @@ namespace Generator
 		}
 
 		UMaterialFunction*  Function    = nullptr;
-		UMaterialFunction** FunctionPtr = LoadedFunctions.Find(FunctionName);
+		auto* FunctionPtr = LoadedFunctions.Find(FunctionName);
 		if (FunctionPtr && (*FunctionPtr)->IsValidLowLevel())
 		{
 			Function = *FunctionPtr;

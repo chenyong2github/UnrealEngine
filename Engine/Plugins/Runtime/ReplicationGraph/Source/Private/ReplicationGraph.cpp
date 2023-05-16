@@ -2917,7 +2917,7 @@ void UNetReplicationGraphConnection::NotifyClientVisibleLevelNamesAdd(FName Leve
 	// Undormant every actor in this world for this connection.
 	if (StreamingWorld && StreamingWorld->PersistentLevel)
 	{
-		TArray<AActor*>& Actors = StreamingWorld->PersistentLevel->Actors;
+		auto& Actors = StreamingWorld->PersistentLevel->Actors;
 		for (AActor* Actor : Actors)
 		{
 			if (Actor && (Actor->NetDormancy == DORM_DormantAll || (Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor() == false)))

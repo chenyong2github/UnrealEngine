@@ -383,8 +383,7 @@ void UK2Node_EditablePinBase::AddReferencedObjects(UObject* InThis, FReferenceCo
 	for (int32 Index = 0; Index < This->UserDefinedPins.Num(); ++Index)
 	{
 		FUserPinInfo PinInfo = *This->UserDefinedPins[Index].Get();
-		UObject* PinSubCategoryObject = PinInfo.PinType.PinSubCategoryObject.Get();
-		Collector.AddReferencedObject(PinSubCategoryObject, This);
+		Collector.AddReferencedObject(PinInfo.PinType.PinSubCategoryObject, This);
 	}
 	Super::AddReferencedObjects( This, Collector );
 }

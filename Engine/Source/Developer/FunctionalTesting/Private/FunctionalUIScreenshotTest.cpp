@@ -14,6 +14,7 @@
 #include "Widgets/SViewport.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Slate/SceneViewport.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Slate/WidgetRenderer.h"
 #include "TextureResource.h"
 #include "RenderingThread.h"

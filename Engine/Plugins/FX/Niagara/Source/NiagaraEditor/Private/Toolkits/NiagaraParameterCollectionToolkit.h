@@ -53,10 +53,10 @@ private:
 	void SetupCommands();
 
 	/** The Collection being edited. */
-	UNiagaraParameterCollection* Collection;
+	TObjectPtr<UNiagaraParameterCollection> Collection;
 
 	/** The Instance being edited. */
-	UNiagaraParameterCollectionInstance* Instance;
+	TObjectPtr<UNiagaraParameterCollectionInstance> Instance;
 
 	/** Widget for editing parameter collection. */
 	TSharedPtr<SNiagaraParameterCollection>	ParameterCollection;
@@ -70,5 +70,3 @@ private:
 	/**	Main tab */
 	static const FName MainTabID;
 };
-
-

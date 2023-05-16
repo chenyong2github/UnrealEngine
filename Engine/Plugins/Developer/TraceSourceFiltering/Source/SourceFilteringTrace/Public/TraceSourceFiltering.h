@@ -35,8 +35,8 @@ protected:
 	void PopulateRemoteTraceCommands();
 
 protected:
-	UTraceSourceFilteringSettings* Settings;
-	USourceFilterCollection* FilterCollection;
+	TObjectPtr<UTraceSourceFilteringSettings> Settings;
+	TObjectPtr<USourceFilterCollection> FilterCollection;
 
 	/** Structure representing a remotely 'callable' filter command */
 	struct FFilterCommand

@@ -112,7 +112,7 @@ private:
 
 private:
 	/** The transient preset that we use - kept alive by AddReferencedObjects */
-	UMoviePipelineConfigBase* TransientPreset = nullptr;
+	TObjectPtr<UMoviePipelineConfigBase> TransientPreset = nullptr;
 
 	/** The preset that is in use, if any. Will be null if the preset was never saved and is only transient. */
 	TSoftObjectPtr<UMoviePipelineConfigBase> OriginPreset;

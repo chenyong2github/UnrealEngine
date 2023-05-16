@@ -151,10 +151,10 @@ private:
 private:
 
 	/** The currently viewed object. */
-	class UCustomizableObjectInstance* CustomizableObjectInstance;
-	TArray<class UCustomizableSkeletalComponent*> PreviewCustomizableSkeletalComponents;
-	class UStaticMeshComponent* PreviewStaticMeshComponent;
-	TArray<class UDebugSkelMeshComponent*> PreviewSkeletalMeshComponents;
+	TObjectPtr<class UCustomizableObjectInstance> CustomizableObjectInstance;
+	TArray<TObjectPtr<class UCustomizableSkeletalComponent>> PreviewCustomizableSkeletalComponents;
+	TObjectPtr<class UStaticMeshComponent> PreviewStaticMeshComponent;
+	TArray<TObjectPtr<class UDebugSkelMeshComponent>> PreviewSkeletalMeshComponents;
 
 	/** List of open tool panels; used to ensure only one exists at any one time */
 	TMap< FName, TWeakPtr<class SDockableTab> > SpawnedToolPanels;
@@ -197,7 +197,7 @@ private:
 	UCustomizableObjectInstance* ObjectToEditCopy;
 
 	/** UObject class to be able to use the update callback */
-	UUpdateClassWrapperClass* HelperCallback;
+	TObjectPtr<UUpdateClassWrapperClass> HelperCallback;
 
 	/** Scene preview settings widget */
 	TSharedPtr<SWidget> AdvancedPreviewSettingsWidget;

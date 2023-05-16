@@ -2821,7 +2821,7 @@ void FAudioDevice::UpdatePassiveSoundMixModifiers(TArray<FWaveInstance*>& WaveIn
 		}
 	}
 
-	PrevPassiveSoundMixModifiers = CurrPassiveSoundMixModifiers;
+	PrevPassiveSoundMixModifiers = ObjectPtrWrap(CurrPassiveSoundMixModifiers);
 }
 
 bool FAudioDevice::TryClearingSoundMix(USoundMix* SoundMix, FSoundMixState* SoundMixState)
@@ -2900,7 +2900,7 @@ USoundMix* FAudioDevice::FindNextHighestEQPrioritySoundMix(USoundMix* IgnoredSou
 	USoundMix* NextEQMix = NULL;
 	FSoundMixState* NextState = NULL;
 
-	for (TMap< USoundMix*, FSoundMixState >::TIterator It(SoundMixModifiers); It; ++It)
+	for (decltype(SoundMixModifiers)::TIterator It(SoundMixModifiers); It; ++It)
 	{
 		if (It.Key() != IgnoredSoundMix && It.Value().CurrentState < ESoundMixState::FadingOut
 			&& (NextEQMix == NULL
@@ -3180,7 +3180,7 @@ void FAudioDevice::UpdateSoundClassProperties(float DeltaTime)
 	// Remove SoundMix modifications and propagate the properties down the hierarchy
 	ParseSoundClasses(DeltaTime);
 
-	for (TMap< USoundMix*, FSoundMixState >::TIterator It(SoundMixModifiers); It; ++It)
+	for (decltype(SoundMixModifiers)::TIterator It(SoundMixModifiers); It; ++It)
 	{
 		FSoundMixState* SoundMixState = &(It.Value());
 
@@ -3978,7 +3978,7 @@ void FAudioDevice::ClearSoundMixModifiers()
 	}
 
 	// Clear all sound mix modifiers
-	for (TMap< USoundMix*, FSoundMixState >::TIterator It(SoundMixModifiers); It; ++It)
+	for (decltype(SoundMixModifiers)::TIterator It(SoundMixModifiers); It; ++It)
 	{
 		ClearSoundMixModifier(It.Key());
 	}

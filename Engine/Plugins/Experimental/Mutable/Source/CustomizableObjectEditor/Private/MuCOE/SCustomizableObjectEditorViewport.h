@@ -160,7 +160,7 @@ public:
 	/** Retrieves the skeletal mesh component. */
 	const TArray<UDebugSkelMeshComponent*>& GetSkeletalMeshComponents() const;
 	
-	void SetPreviewComponents(TArray<UDebugSkelMeshComponent*>& InSkeletalMeshComponents);
+	void SetPreviewComponents(const TArray<UDebugSkelMeshComponent*>& InSkeletalMeshComponents);
 	
 	/** Function to get viewport's current background color */
 	FLinearColor GetViewportBackgroundColor() const;
@@ -275,7 +275,7 @@ private:
 
 	
 	// Components for the preview mesh.
-	TArray<UDebugSkelMeshComponent*> PreviewSkeletalMeshComponents;
+	TArray<TObjectPtr<UDebugSkelMeshComponent>> PreviewSkeletalMeshComponents;
 
 	// The scene for this viewport.
 	TSharedPtr<class FCustomizableObjectPreviewScene> PreviewScenePtr;

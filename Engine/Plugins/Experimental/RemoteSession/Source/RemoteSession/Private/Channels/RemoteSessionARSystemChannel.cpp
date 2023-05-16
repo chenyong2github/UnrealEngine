@@ -90,7 +90,7 @@ TArray<UARTrackedGeometry*> FARSystemProxy::OnGetAllTrackedGeometries() const
 	check(IsInGameThread());
 
 	TArray<UARTrackedGeometry*> Geometries;
-	TrackedGeometries.GenerateValueArray(Geometries);
+	ObjectPtrDecay(TrackedGeometries).GenerateValueArray(Geometries);
 	return Geometries;
 }
 
@@ -142,7 +142,7 @@ UARTrackedGeometry* FARSystemProxy::GetTrackable(FGuid UniqueId)
 {
 	check(IsInGameThread());
 
-	UARTrackedGeometry** GeometrySearchResult = TrackedGeometries.Find(UniqueId);
+	auto* GeometrySearchResult = TrackedGeometries.Find(UniqueId);
 	return *GeometrySearchResult;
 }
 

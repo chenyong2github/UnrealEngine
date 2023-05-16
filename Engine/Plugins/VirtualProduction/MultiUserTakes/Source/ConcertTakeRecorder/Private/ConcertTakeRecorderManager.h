@@ -150,8 +150,8 @@ private:
 		FString LastStoppedTake;
 	} TakeRecorderState;
 
-	UTakePreset* Preset = nullptr;
-	ULevelSequence* LastLevelSequence = nullptr;
+	TObjectPtr<UTakePreset> Preset = nullptr;
+	TObjectPtr<ULevelSequence> LastLevelSequence = nullptr;
 
 	TSharedPtr<FConcertTakeRecorderClientSessionCustomization> Customization;
 

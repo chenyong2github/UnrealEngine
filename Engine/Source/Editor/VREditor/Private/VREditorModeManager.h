@@ -111,7 +111,7 @@ private:
 	
 	/** The current mode, nullptr if none */
 	UPROPERTY()
-	UVREditorModeBase* CurrentVREditorMode;
+	TObjectPtr<UVREditorModeBase> CurrentVREditorMode;
 
 	/** If the VR Editor mode needs to be enabled next tick */
 	bool bEnableVRRequest;

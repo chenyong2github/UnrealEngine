@@ -418,16 +418,13 @@ void UDatasmithFileProducer::SceneElementToWorld()
 		}
 	}
 
-	TArray<UStaticMesh*> StaticMeshes;
-	ImportContextPtr->ImportedStaticMeshes.GenerateValueArray(StaticMeshes);
-
 	// Note: Some of the assets might be null (incomplete or failed import), only add non-null ones to Assets
 
-	for(UStaticMesh* StaticMesh : StaticMeshes)
+	for(const auto& KV : ImportContextPtr->ImportedStaticMeshes)
 	{
-		if(StaticMesh)
+		if (KV.Value)
 		{
-			Assets.Emplace( StaticMesh );
+			Assets.Emplace(KV.Value);
 		}
 	}
 
@@ -441,7 +438,7 @@ void UDatasmithFileProducer::SceneElementToWorld()
 		}
 	}
 
-	for ( TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& AssetPair : ImportContextPtr->ImportedMaterials )
+	for ( auto& AssetPair : ImportContextPtr->ImportedMaterials )
 	{
 		if(AssetPair.Value)
 		{
@@ -462,7 +459,7 @@ void UDatasmithFileProducer::SceneElementToWorld()
 		}
 	}
 
-	for ( TPair< uint32, UMaterialInterface* >& AssetPair : ImportContextPtr->ImportedParentMaterials )
+	for ( auto& AssetPair : ImportContextPtr->ImportedParentMaterials )
 	{
 		if(AssetPair.Value)
 		{
@@ -478,7 +475,7 @@ void UDatasmithFileProducer::SceneElementToWorld()
 		}
 	}
 
-	for ( TPair< TSharedRef< IDatasmithLevelSequenceElement >, ULevelSequence* >& AssetPair : ImportContextPtr->ImportedLevelSequences )
+	for ( auto& AssetPair : ImportContextPtr->ImportedLevelSequences )
 	{
 		if(AssetPair.Value)
 		{
@@ -486,7 +483,7 @@ void UDatasmithFileProducer::SceneElementToWorld()
 		}
 	}
 
-	for ( TPair< TSharedRef< IDatasmithLevelVariantSetsElement >, ULevelVariantSets* >& AssetPair : ImportContextPtr->ImportedLevelVariantSets )
+	for ( auto& AssetPair : ImportContextPtr->ImportedLevelVariantSets )
 	{
 		if(AssetPair.Value)
 		{

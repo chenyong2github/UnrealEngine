@@ -550,9 +550,9 @@ void FDatasmithImportContext::FInternalReferenceCollector::AddReferencedObjects(
 
 	Collector.AddReferencedObject(ImportContext->SceneAsset);
 
-	for ( TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >::TIterator It = ImportContext->ImportedStaticMeshes.CreateIterator(); It; ++It )
+	for (auto& It : ImportContext->ImportedStaticMeshes)
 	{
-		Collector.AddReferencedObject( It->Value );
+		Collector.AddReferencedObject( It.Value );
 	}
 
 	for (auto& Pair : ImportContext->ImportedClothes)
@@ -563,19 +563,19 @@ void FDatasmithImportContext::FInternalReferenceCollector::AddReferencedObjects(
 	Collector.AddReferencedObjects(ImportContext->ImportedMaterials);
 	Collector.AddReferencedObjects(ImportContext->ImportedParentMaterials);
 
-	for ( TMap< TSharedRef< IDatasmithLevelSequenceElement >, ULevelSequence* >::TIterator It = ImportContext->ImportedLevelSequences.CreateIterator(); It; ++It )
+	for (auto& It : ImportContext->ImportedLevelSequences)
 	{
-		if ( It->Value )
+		if ( It.Value )
 		{
-			Collector.AddReferencedObject(It->Value);
+			Collector.AddReferencedObject(It.Value);
 		}
 	}
 
-	for ( TMap< TSharedRef< IDatasmithLevelVariantSetsElement >, ULevelVariantSets* >::TIterator It = ImportContext->ImportedLevelVariantSets.CreateIterator(); It; ++It )
+	for (auto& It : ImportContext->ImportedLevelVariantSets)
 	{
-		if ( It->Value )
+		if ( It.Value )
 		{
-			Collector.AddReferencedObject(It->Value);
+			Collector.AddReferencedObject(It.Value);
 		}
 	}
 

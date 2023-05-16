@@ -193,7 +193,7 @@ public:
 
 private:
 	/** The skeleton we are editing */
-	USkeletalMesh* SkeletalMesh;
+	TObjectPtr<USkeletalMesh> SkeletalMesh;
 
 	/** Toolbar extender */
 	TSharedPtr<FExtender> ToolbarExtender;

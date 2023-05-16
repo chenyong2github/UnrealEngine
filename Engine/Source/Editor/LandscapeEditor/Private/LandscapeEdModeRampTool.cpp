@@ -97,7 +97,7 @@ class FLandscapeToolRamp : public FLandscapeTool
 {
 protected:
 	FEdModeLandscape* EdMode;
-	UTexture2D* SpriteTexture;
+	TObjectPtr<UTexture2D> SpriteTexture;
 	FVector Points[2];
 	int8 NumPoints;
 	int8 SelectedPoint;

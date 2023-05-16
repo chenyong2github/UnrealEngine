@@ -233,7 +233,7 @@ void USocialManager::ShutdownSocialManager()
 
 	// Mark all parties and members pending kill to prevent any callbacks from being triggered on them during shutdown
 	const auto ShutdownPartiesFunc =
-		[this] (TMap<FOnlinePartyTypeId, USocialParty*>& PartiesByTypeId)
+		[this] (TMap<FOnlinePartyTypeId, TObjectPtr<USocialParty>>& PartiesByTypeId)
 		{
 			for (auto& TypeIdPartyPair : PartiesByTypeId)
 			{
@@ -860,7 +860,7 @@ void USocialManager::FinishJoinPartyAttempt(FJoinPartyAttempt& JoinAttemptToDest
 
 USocialParty* USocialManager::GetPersistentPartyInternal(bool bEvenIfLeaving /*= false*/) const
 {
-	USocialParty* const* PersistentParty = JoinedPartiesByTypeId.Find(IOnlinePartySystem::GetPrimaryPartyTypeId());
+	auto* PersistentParty = JoinedPartiesByTypeId.Find(IOnlinePartySystem::GetPrimaryPartyTypeId());
 	if (PersistentParty && ensure(*PersistentParty) && (bEvenIfLeaving || !(*PersistentParty)->IsLeavingParty()))
 	{
 		return *PersistentParty;
@@ -909,7 +909,7 @@ USocialParty* USocialManager::EstablishNewParty(const FUniqueNetId& LocalUserId,
 
 USocialParty* USocialManager::GetPartyInternal(const FOnlinePartyTypeId& PartyTypeId, bool bIncludeLeavingParties) const
 {
-	USocialParty* const* Party = JoinedPartiesByTypeId.Find(PartyTypeId);
+	auto* Party = JoinedPartiesByTypeId.Find(PartyTypeId);
 	if (!Party && bIncludeLeavingParties)
 	{
 		Party = LeavingPartiesByTypeId.Find(PartyTypeId);
@@ -1420,4 +1420,3 @@ USocialDebugTools* USocialManager::GetDebugTools() const
 {
 	return SocialDebugTools;
 }
-

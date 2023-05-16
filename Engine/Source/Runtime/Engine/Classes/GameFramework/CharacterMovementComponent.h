@@ -2917,7 +2917,7 @@ public:
 	FVector AccelNormal;
 	float AccelMag;
 
-	TWeakObjectPtr<class UAnimMontage> RootMotionMontage;
+	mutable TWeakObjectPtr<class UAnimMontage> RootMotionMontage;
 	float RootMotionTrackPosition;
 	float RootMotionPreviousTrackPosition;
 	float RootMotionPlayRateWithScale;

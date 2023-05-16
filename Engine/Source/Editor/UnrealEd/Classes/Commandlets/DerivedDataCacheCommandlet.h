@@ -51,7 +51,7 @@ class UDerivedDataCacheCommandlet : public UCommandlet
 		 */
 		bool bFirstPlatformIsSolo = false;
 	};
-	TMap<UObject*, FCachingData> CachingObjects;
+	TMap<TObjectPtr<UObject>, FCachingData> CachingObjects;
 	TSet<FName>    ProcessedPackages;
 	TSet<FName>    PackagesToProcess;
 	TArray<const ITargetPlatform*> Platforms;

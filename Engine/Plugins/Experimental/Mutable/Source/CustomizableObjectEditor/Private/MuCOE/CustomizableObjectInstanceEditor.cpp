@@ -416,14 +416,14 @@ void FCustomizableObjectInstanceEditor::AddReferencedObjects( FReferenceCollecto
 {
 	Collector.AddReferencedObject( CustomizableObjectInstance );
 	
-	for (UCustomizableSkeletalComponent* PreviewCustomizableSkeletalComponent : PreviewCustomizableSkeletalComponents)
+	for (auto& PreviewCustomizableSkeletalComponent : PreviewCustomizableSkeletalComponents)
 	{
 		Collector.AddReferencedObject(PreviewCustomizableSkeletalComponent);
 	}
 
 	Collector.AddReferencedObject( PreviewStaticMeshComponent );
 
-	for (UDebugSkelMeshComponent* PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
+	for (auto& PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
 	{
 		Collector.AddReferencedObject(PreviewSkeletalMeshComponent);
 	}
@@ -744,7 +744,7 @@ void FCustomizableObjectInstanceEditor::OnUpdatePreviewInstance()
 
 	if(bNeedsToResetPreviewComponents)
 	{
-		Viewport->SetPreviewComponents(PreviewSkeletalMeshComponents);
+		Viewport->SetPreviewComponents(ObjectPtrDecay(PreviewSkeletalMeshComponents));
 	}
 
 	if (!CustomizableObjectInstance) return;

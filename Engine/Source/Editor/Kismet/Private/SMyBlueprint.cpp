@@ -2478,7 +2478,7 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 					MenuBuilder.AddSubMenu(	LOCTEXT("AddEventSubMenu", "Add Event"), 
 											LOCTEXT("AddEventSubMenu_ToolTip", "Add Event"), 
 											FNewMenuDelegate::CreateStatic(	&SSubobjectBlueprintEditor::BuildMenuEventsSection,
-												BlueprintEditor->GetBlueprintObj(), ComponentProperty->PropertyClass, 
+																											BlueprintEditor->GetBlueprintObj(), ComponentProperty->PropertyClass.Get(), 
 												FCanExecuteAction::CreateRaw(this, &SMyBlueprint::IsEditingMode),
 												FGetSelectedObjectsDelegate::CreateSP(this, &SMyBlueprint::GetSelectedItemsForContextMenu)));
 				}

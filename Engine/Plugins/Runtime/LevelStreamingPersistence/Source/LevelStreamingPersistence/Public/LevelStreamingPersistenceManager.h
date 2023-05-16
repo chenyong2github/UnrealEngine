@@ -96,7 +96,7 @@ public:
 
 private:
 	/* Acceleration maps to find properties for a given class */
-	TStaticArray<TMap<const UClass*, TSet<FProperty*>>, PropertyType_Count> ClassesProperties;
+	TStaticArray<TMap<TObjectPtr<const UClass>, TSet<FProperty*>>, PropertyType_Count> ClassesProperties;
 	TStaticArray<TMap<const UClass*, FInstancedPropertyBag>, PropertyType_Count> ObjectClassToPropertyBag;
 };
 

@@ -539,7 +539,7 @@ public:
 		// Also, we cannot AddReferencedObject to the Keys of the ItemToWidgetMap or we end up with keys being set to 0 when the UObject is destroyed which generate an invalid id in the map.
 		for (auto& It : WidgetToItemMap)
 		{
-			Collector.AddReferencedObject(*(UObject**)&It.Value);
+			Collector.AddReferencedObject(It.Value);
 		}
 
 		// Serialize the selected items

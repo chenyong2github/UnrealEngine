@@ -1202,8 +1202,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	// Prepare levels for conversion
 	DetachDependantLevelPackages(MainLevel);
-	
-	if (!PrepareLevelActors(MainLevel, MainLevel->Actors, true))
+
+	if (PrepareLevelActors(MainLevel, MutableView(MainLevel->Actors), true)) 
 	{
 		return 1;
 	}
@@ -1364,7 +1364,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 			DetachDependantLevelPackages(SubLevel);
 
-			ActorsToConvert = SubLevel->Actors;
+			ActorsToConvert = ObjectPtrDecay(SubLevel->Actors);
 		}
 
 		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s"), *SubWorld->GetName());

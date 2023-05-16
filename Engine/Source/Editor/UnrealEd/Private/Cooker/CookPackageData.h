@@ -864,7 +864,7 @@ public:
 	int32& GetNextPopulateIndex() { check(IsInitialized()); return NextPopulateIndex; }
 
 	/** Callbacks during garbage collection */
-	void PreGarbageCollect(FCookGenerationInfo& Info, TArray<UObject*>& GCKeepObjects,
+	void PreGarbageCollect(FCookGenerationInfo& Info, TArray<TObjectPtr<UObject>>& GCKeepObjects,
 		TArray<UPackage*>& GCKeepPackages, TArray<FPackageData*>& GCKeepPackageDatas, bool& bOutShouldDemote);
 	void PostGarbageCollect();
 

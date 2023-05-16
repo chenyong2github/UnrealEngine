@@ -61,6 +61,7 @@ public:
 	// Warning: Do not use for general editing of the data model.
 	// If you need to make modifications to the asset, do so through the API provided by this controller. 
 	UIKRigDefinition* GetAsset() const;
+	TObjectPtr<UIKRigDefinition>& GetAssetPtr();  
 	
 	// force all currently connected processors to reinitialize using latest asset state 
 	void BroadcastNeedsReinitialized() const;

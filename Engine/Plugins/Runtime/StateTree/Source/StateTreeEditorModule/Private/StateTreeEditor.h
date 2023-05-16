@@ -91,7 +91,7 @@ private:
 	FText GetStatisticsText() const;
 
 	/** State Tree being edited */
-	UStateTree* StateTree = nullptr;
+	TObjectPtr<UStateTree> StateTree = nullptr;
 
 	uint32 EditorDataHash = 0;
 	bool bLastCompileSucceeded = true;

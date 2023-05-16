@@ -7228,8 +7228,8 @@ bool UEngine::HandleListSpawnedActorsCommand( const TCHAR* Cmd, FOutputDevice& A
 		const float	TimeSeconds		    = InWorld->GetTimeSeconds();
 
 		// Create alphanumerically sorted list of actors in persistent level.
-		TArray<AActor*> SortedActorList = InWorld->PersistentLevel->Actors;
-		SortedActorList.Remove(NULL);
+		TArray<AActor*> SortedActorList = ObjectPtrDecay(InWorld->PersistentLevel->Actors);
+		SortedActorList.Remove(nullptr);
 		SortedActorList.Sort();
 
 		Ar.Logf(TEXT("Listing spawned actors in persistent level:"));
@@ -16400,7 +16400,7 @@ void UEngine::ConditionalCommitMapChange(FWorldContext &Context)
 struct FPendingStreamingLevelHolder : public FGCObject
 {
 public:
-	TArray<ULevel*> Levels;
+	TArray<TObjectPtr<ULevel>> Levels;
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override
 	{
@@ -17078,7 +17078,7 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 								ReferenceReplacementMap.Add(CDOInst, NewInstance);
 							}
 #if WITH_EDITOR
-							UBlueprint* BPGeneratedBy = CastChecked<UBlueprint>(Class->ClassGeneratedBy, ECastCheckedType::NullAllowed);
+							UBlueprint* BPGeneratedBy = CastChecked<UBlueprint>(Class->ClassGeneratedBy.Get(), ECastCheckedType::NullAllowed);
 							if (BPGeneratedBy && BPGeneratedBy->SkeletonGeneratedClass)
 							{
 								UObject* CDOInstS = BPGeneratedBy->SkeletonGeneratedClass->GetDefaultSubobjectByName(NewInstance->GetFName());

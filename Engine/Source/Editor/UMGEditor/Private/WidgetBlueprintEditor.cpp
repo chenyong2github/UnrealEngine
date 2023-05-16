@@ -1035,9 +1035,7 @@ static bool MigratePropertyValue(UObject* SourceObject, UObject* DestinationObje
 void FWidgetBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	Super::AddReferencedObjects( Collector );
-
-	UUserWidget* Preview = GetPreview();
-	Collector.AddReferencedObject( Preview );
+	Collector.AddReferencedObject(PreviewWidgetPtr);
 }
 
 void FWidgetBlueprintEditor::MigrateFromChain(FEditPropertyChain* PropertyThatChanged, bool bIsModify)

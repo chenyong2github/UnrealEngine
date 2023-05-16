@@ -286,7 +286,10 @@ public:
 	UNREALED_API virtual int32 GetPriority() const;
 
 	/** Returns the UFactory object associated with this reimport handler */
-	virtual const UObject* GetFactoryObject() const { return nullptr; }
+	virtual TObjectPtr<UObject>* GetFactoryObject() const
+	{
+		return nullptr;
+	}
 
 	/** Call after multiple import happen */
 	virtual void PostImportCleanUp() {}

@@ -33,7 +33,7 @@ void SDMXPatchTool::Construct(const FArguments& InArgs)
 	UDMXSubsystem* Subsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 	check(Subsystem);
 
-	LibrarySource = Subsystem->GetAllDMXLibraries();
+	LibrarySource = ObjectPtrWrap(Subsystem->GetAllDMXLibraries());
 
 	ChildSlot
 	[
@@ -78,7 +78,7 @@ void SDMXPatchTool::Construct(const FArguments& InArgs)
 					SAssignNew(LibraryComboBox, SComboBox<UDMXLibrary*>)
 					.OnGenerateWidget(this, &SDMXPatchTool::GenerateLibraryComboBoxEntry)
 					.OnSelectionChanged(this, &SDMXPatchTool::OnLibrarySelected)
-					.OptionsSource(&LibrarySource)
+					.OptionsSource(&ObjectPtrDecay(LibrarySource))
 					[
 						SAssignNew(SelectedLibraryTextBlock, STextBlock)
 					]
@@ -118,7 +118,7 @@ void SDMXPatchTool::Construct(const FArguments& InArgs)
 					SAssignNew(FixturePatchComboBox, SComboBox<UDMXEntityFixturePatch*>)
 					.OnGenerateWidget(this, &SDMXPatchTool::GenerateFixturePatchComboBoxEntry)
 					.OnSelectionChanged(this, &SDMXPatchTool::OnFixturePatchSelected)
-					.OptionsSource(&FixturePatchSource)
+					.OptionsSource(&ObjectPtrDecay(FixturePatchSource))
 					[
 						SAssignNew(SelectedFixturePatchTextBlock, STextBlock)
 					]
@@ -216,7 +216,7 @@ void SDMXPatchTool::UpdateFixturePatchSelection()
 	UDMXLibrary* SelectedLibrary = LibraryComboBox->GetSelectedItem();
 	if (IsValid(SelectedLibrary))
 	{
-		FixturePatchSource = SelectedLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+		FixturePatchSource = ObjectPtrWrap(SelectedLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>());
 
 		if (FixturePatchSource.Num() > 0)
 		{
@@ -393,7 +393,7 @@ void SDMXPatchTool::OnEntitiesAddedOrRemoved(UDMXLibrary* Library, TArray<UDMXEn
 
 		if (IsValid(Library))
 		{
-			FixturePatchSource = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+			FixturePatchSource = ObjectPtrWrap(Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>());
 
 			FixturePatchComboBox->RefreshOptions();
 
@@ -418,7 +418,7 @@ void SDMXPatchTool::OnAllDMXLibraryAssetsLoaded()
 	UDMXSubsystem* Subsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 	check(Subsystem);
 
-	LibrarySource = Subsystem->GetAllDMXLibraries();
+	LibrarySource = ObjectPtrWrap(Subsystem->GetAllDMXLibraries());
 
 	UpdateLibrarySelection();
 	UpdateFixturePatchSelection();
@@ -431,7 +431,7 @@ void SDMXPatchTool::OnDMXLibraryAssetAdded(UDMXLibrary* DMXLibrary)
 	UDMXSubsystem* Subsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 	check(Subsystem);
 
-	LibrarySource = Subsystem->GetAllDMXLibraries();
+	LibrarySource = ObjectPtrWrap(Subsystem->GetAllDMXLibraries());
 
 	UpdateLibrarySelection();
 	UpdateFixturePatchSelection();
@@ -444,7 +444,7 @@ void SDMXPatchTool::OnDMXLibraryAssetRemoved(UDMXLibrary* DMXLibrary)
 	UDMXSubsystem* Subsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 	check(Subsystem);
 
-	LibrarySource = Subsystem->GetAllDMXLibraries();
+	LibrarySource = ObjectPtrWrap(Subsystem->GetAllDMXLibraries());
 
 	UpdateLibrarySelection();
 	UpdateFixturePatchSelection();

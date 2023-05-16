@@ -89,7 +89,7 @@ private:
 private:
 
 	/** Template sequence for our edit operation. */
-	UTemplateSequence* TemplateSequence;
+	TObjectPtr<UTemplateSequence> TemplateSequence;
 
 	/** The sequencer used by this editor. */
 	TSharedPtr<ISequencer> Sequencer;

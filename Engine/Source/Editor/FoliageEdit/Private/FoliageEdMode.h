@@ -221,7 +221,7 @@ public:
 
 struct FFoliageMeshUIInfo
 {
-	UFoliageType*	Settings;
+	TObjectPtr<UFoliageType>	Settings;
 	int32			InstanceCountCurrentLevel;
 	int32			InstanceCountTotal;
 
@@ -698,7 +698,7 @@ private:
 	FVector BrushLocation;
 	FVector BrushNormal;
 	FVector BrushTraceDirection;
-	UStaticMeshComponent* SphereBrushComponent;
+	TObjectPtr<UStaticMeshComponent> SphereBrushComponent;
 
 	/** The dynamic material of the sphere brush. */
 	class UMaterialInstanceDynamic* BrushMID;

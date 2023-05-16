@@ -1045,7 +1045,7 @@ void ULevel::SortActorList()
 	NewActors.Append(MoveTemp(NewNetActors));
 
 	// Replace with sorted list.
-	Actors = MoveTemp(NewActors);
+	Actors = ObjectPtrWrap(MoveTemp(NewActors));
 }
 
 void ULevel::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -1170,7 +1170,7 @@ void ULevel::PostLoad()
 				}
 			}
 
-			TSet<AActor*> ActorsSet(Actors);
+			TSet<AActor*> ActorsSet(ObjectPtrDecay(Actors));
 			for (int32 i=0; i < ActorPackageNames.Num(); i++)
 			{
 				const FString& ActorPackageName = ActorPackageNames[i];
@@ -1466,7 +1466,7 @@ void ULevel::UpdateLevelComponents(bool bRerunConstructionScripts, FRegisterComp
  *	Sorts actors such that parent actors will appear before children actors in the list
  *	Stable sort
  */
-static void SortActorsHierarchy(TArray<AActor*>& Actors, ULevel* Level)
+static void SortActorsHierarchy(TArray<TObjectPtr<AActor>>& Actors, ULevel* Level)
 {
 	const double StartTime = FPlatformTime::Seconds();
 
@@ -2320,7 +2320,7 @@ void ULevel::PostEditUndo()
 
 	// Non-transactional actors may disappear from the actors list but still exist, so we need to re-add them
 	// Likewise they won't get recreated if we undo to before they were deleted, so we'll have nulls in the actors list to remove
-	TSet<AActor*> ActorsSet(Actors);
+	TSet<AActor*> ActorsSet(ObjectPtrDecay(Actors));
 	ForEachObjectWithOuter(this, [&ActorsSet, this](UObject* InnerObject)
 	{
 		AActor* InnerActor = Cast<AActor>(InnerObject);
@@ -3945,7 +3945,7 @@ void ULevel::ConvertAllActorsToPackaging(bool bExternal)
 	}
 
 	// Make a copy of the current actor lists since packaging conversion may modify the actor list as a side effect
-	TArray<AActor*> CurrentActors = Actors;
+	TArray<AActor*> CurrentActors = ObjectPtrDecay(Actors);
 	for (AActor* Actor : CurrentActors)
 	{
 		if (Actor && Actor->SupportsExternalPackaging())

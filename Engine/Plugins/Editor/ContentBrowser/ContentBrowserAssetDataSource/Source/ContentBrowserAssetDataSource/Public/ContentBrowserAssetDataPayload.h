@@ -111,10 +111,10 @@ public:
 
 private:
 	/** The class to use when creating the asset */
-	UClass* AssetClass = nullptr;
+	TObjectPtr<UClass> AssetClass = nullptr;
 
 	/** The factory to use when creating the asset. */
-	UFactory* Factory = nullptr;
+	TObjectPtr<UFactory> Factory = nullptr;
 };
 
 class CONTENTBROWSERASSETDATASOURCE_API FContentBrowserAssetFileItemDataPayload_Duplication : public FContentBrowserAssetFileItemDataPayload

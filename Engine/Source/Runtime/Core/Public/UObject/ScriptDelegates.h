@@ -60,7 +60,6 @@ namespace UE::Core::Private
 template <typename Dummy>
 class TScriptDelegate : public FDelegateAccessHandlerBaseChecked
 {
-	using WeakPtrType = typename UE::Core::Private::TScriptDelegateTraits<Dummy>::WeakPtrType;
 
 	template <typename>
 	friend class TScriptDelegate;
@@ -75,6 +74,7 @@ class TScriptDelegate : public FDelegateAccessHandlerBaseChecked
 	using Super::GetWriteAccessScope;
 
 public:
+	using WeakPtrType = typename UE::Core::Private::TScriptDelegateTraits<Dummy>::WeakPtrType;
 
 	/** Default constructor. */
 	TScriptDelegate() 
@@ -387,6 +387,11 @@ public:
 
 		// Downcast UObjectBase to UObject
 		return static_cast< const UObject* >( Object.GetEvenIfUnreachable() );
+	}
+
+	WeakPtrType& GetUObjectRefEvenIfUnreachable()
+	{
+		return Object;
 	}
 
 	/**
@@ -928,15 +933,26 @@ public:
 	 */
 	TArray< UObject* > GetAllObjectsEvenIfUnreachable() const
 	{
-		FReadAccessScope ReadScope = GetReadAccessScope();
-
-		TArray< UObject* > OutputList;
+		FReadAccessScope ReadScope = GetReadAccessScope();    
+		TArray<UObject*> Result;
+		for (auto* Ref : GetAllObjectRefsEvenIfUnreachable())
+		{
+			Result.Add(*Ref);
+		}
+		return Result;
+	}
+	
+	TArray< typename UnicastDelegateType::WeakPtrType* > GetAllObjectRefsEvenIfUnreachable() const
+	{
+		FReadAccessScope ReadScope = GetReadAccessScope();        
+		using WeakPtrType = typename UnicastDelegateType::WeakPtrType;
+		TArray< WeakPtrType* > OutputList;
 		for( typename InvocationListType::TIterator CurDelegate( InvocationList ); CurDelegate; ++CurDelegate )
 		{
-			UObject* CurObject = CurDelegate->GetUObjectEvenIfUnreachable();
+			WeakPtrType& CurObject = CurDelegate->GetUObjectRefEvenIfUnreachable();
 			if( CurObject != nullptr )
 			{
-				OutputList.Add( CurObject );
+				OutputList.Add( &CurObject );
 			}
 		}
 		return OutputList;

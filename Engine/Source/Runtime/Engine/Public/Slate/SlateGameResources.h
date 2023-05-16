@@ -90,7 +90,7 @@ protected:
 
 private:
 
-	TMap< FName, UObject* > UIResources;
+	TMap< FName, TObjectPtr<UObject> > UIResources;
 	FString BasePath;
 	bool HasBeenInitialized;
 };

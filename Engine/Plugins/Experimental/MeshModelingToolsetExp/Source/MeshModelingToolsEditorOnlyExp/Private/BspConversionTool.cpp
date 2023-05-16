@@ -274,7 +274,7 @@ bool UBspConversionTool::CompareAndUpdateConversionTargets()
 
 	// The order of brush composition is determined by their order in the ULevel, and may be different from 
 	// their order of selection. We make BrushesToConvert contain selected brushes in the proper order.
-	TArray<AActor*>& LevelActorsInCompositionOrder = TargetWorld->GetCurrentLevel()->Actors;
+	auto& LevelActorsInCompositionOrder = TargetWorld->GetCurrentLevel()->Actors;
 	for (int i = 0; i < LevelActorsInCompositionOrder.Num(); ++i)
 	{
 		ABrush* Brush = Cast<ABrush>(LevelActorsInCompositionOrder[i]);
@@ -872,4 +872,3 @@ void UBspConversionTool::OnPropertyModified(UObject* PropertySet, FProperty* Pro
 }
 
 #undef LOCTEXT_NAMESPACE
-

@@ -188,9 +188,9 @@ void FPyReferenceCollector::AddReferencedObjectsFromDelegate(FReferenceCollector
 {
 	// Keep the delegate object alive if it's using a Python proxy instance
 	// We have to use the EvenIfUnreachable variant here as the objects are speculatively marked as unreachable during GC
-	if (UPythonCallableForDelegate* PythonCallableForDelegate = Cast<UPythonCallableForDelegate>(InDelegate.GetUObjectEvenIfUnreachable()))
+	if (auto& Ptr = InDelegate.GetUObjectRefEvenIfUnreachable(); Cast<UPythonCallableForDelegate>(Ptr.GetEvenIfUnreachable()))
 	{
-		InCollector.AddReferencedObject(PythonCallableForDelegate);
+		InCollector.AddReferencedObject(Ptr);
 	}
 }
 
@@ -198,11 +198,11 @@ void FPyReferenceCollector::AddReferencedObjectsFromMulticastDelegate(FReference
 {
 	// Keep the delegate objects alive if they're using a Python proxy instance
 	// We have to use the EvenIfUnreachable variant here as the objects are speculatively marked as unreachable during GC
-	for (UObject* DelegateObj : InDelegate.GetAllObjectsEvenIfUnreachable())
+	for (auto* DelegateObj : InDelegate.GetAllObjectRefsEvenIfUnreachable())
 	{
-		if (UPythonCallableForDelegate* PythonCallableForDelegate = Cast<UPythonCallableForDelegate>(DelegateObj))
+		if (Cast<UPythonCallableForDelegate>(DelegateObj->Get()))
 		{
-			InCollector.AddReferencedObject(PythonCallableForDelegate);
+			InCollector.AddReferencedObject(*DelegateObj);
 		}
 	}
 }
@@ -239,7 +239,7 @@ void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceC
 				UObject* CurObjVal = CastProp->GetObjectPropertyValue(ObjValuePtr);
 				if (CurObjVal)
 				{
-					UObject* NewObjVal = CurObjVal;
+					TObjectPtr<UObject> NewObjVal = CurObjVal;
 					InCollector.AddReferencedObject(NewObjVal);
 
 					if (NewObjVal != CurObjVal)
@@ -263,8 +263,8 @@ void FPyReferenceCollector::AddReferencedObjectsFromPropertyInternal(FReferenceC
 			  UObject* CurObjVal = CastProp->GetPropertyValue(ValuePtr).GetObject();
 			  if (CurObjVal)
 			  {
-				  UObject* NewObjVal = CurObjVal;
-				  InCollector.AddReferencedObject(NewObjVal);
+				  TObjectPtr<UObject> NewObjVal = CurObjVal;
+          InCollector.AddReferencedObject(NewObjVal);
   
 				  if (NewObjVal != CurObjVal)
 				  {

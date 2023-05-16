@@ -119,7 +119,7 @@ public:
 
 private:
 	/** Nodes currently within the region of the comment */
-	FCommentNodeSet	NodesUnderComment;
+	TArray<TObjectPtr<class UObject>>	NodesUnderComment;
 
 	/** Constructing FText strings can be costly, so we cache the node's tooltip */
 	FNodeTextCache CachedTooltip;

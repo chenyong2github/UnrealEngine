@@ -86,6 +86,7 @@ public:
 	bool Update();
 
 	USoundEffectPreset* GetPreset();
+	TWeakObjectPtr<USoundEffectPreset>& GetPresetPtr();
 
 	/** Queries if the given preset object is the uobject preset for this preset instance, i.e. the preset which spawned this effect instance. */
 	bool IsPreset(USoundEffectPreset* InPreset) const;

@@ -585,7 +585,7 @@ void FEditorSessionSourceFilterService::PopulateTreeView(FTreeViewDataBuilder& I
 
 void FEditorSessionSourceFilterService::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (UBlueprint* Blueprint : DelegateRegisteredBlueprints)
+	for (auto& Blueprint : DelegateRegisteredBlueprints)
 	{
 		Collector.AddReferencedObject(Blueprint);
 	}

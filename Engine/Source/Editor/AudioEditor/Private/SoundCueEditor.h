@@ -202,7 +202,7 @@ private:
 
 private:
 	/** The SoundCue asset being inspected */
-	USoundCue* SoundCue;
+	TObjectPtr<USoundCue> SoundCue;
 
 	/** New Graph Editor */
 	TSharedPtr<SGraphEditor> SoundCueGraphEditor;

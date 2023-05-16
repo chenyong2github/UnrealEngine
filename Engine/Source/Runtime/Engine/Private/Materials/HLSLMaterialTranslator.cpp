@@ -4086,7 +4086,7 @@ int32 FHLSLMaterialTranslator::Error(const TCHAR* Text)
 	// Optionally append errors into proxy arrays which allow pre-translation stages to selectively include errors later
 	bool bUsingErrorProxy = (CompileErrorsSink && CompileErrorExpressionsSink);	
 	TArray<FString>& CompileErrors = bUsingErrorProxy ? *CompileErrorsSink : Material->CompileErrors;
-	TArray<UMaterialExpression*>& ErrorExpressions = bUsingErrorProxy ? *CompileErrorExpressionsSink : Material->ErrorExpressions;
+	TArray<TObjectPtr<UMaterialExpression>>& ErrorExpressions = bUsingErrorProxy ? *CompileErrorExpressionsSink : Material->ErrorExpressions;
 
 	FString ErrorString;
 	UMaterialExpression* ExpressionToError = nullptr;

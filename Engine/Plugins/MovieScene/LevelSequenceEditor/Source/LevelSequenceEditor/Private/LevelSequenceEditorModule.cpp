@@ -371,7 +371,7 @@ private:
 
 	FDelegateHandle EditorActorSpawnerDelegateHandle;
 
-	USequencerSettings* Settings;
+	TObjectPtr<USequencerSettings> Settings;
 
 	FDelegateHandle SequenceEditorHandle;
 };

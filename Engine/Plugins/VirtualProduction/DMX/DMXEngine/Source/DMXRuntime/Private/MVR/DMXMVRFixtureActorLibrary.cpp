@@ -342,7 +342,7 @@ UClass* FDMXMVRFixtureActorLibrary::FindMostAppropriateActorClassForPatch(const 
 	TArray<FName> SupportedMatrixAttributes;
 	TArray<FName> MatchingAttributes;
 	TArray<FName> MatchingMatrixAttributes;
-	for (AActor* MVRActor : MVRActors)
+	for (auto& MVRActor : MVRActors)
 	{
 		// Look up attributes
 		SupportedAttributes.Reset();

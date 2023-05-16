@@ -458,7 +458,7 @@ FMargin SDisplayClusterConfiguratorHostNode::GetNodeOriginPosition() const
 int32 SDisplayClusterConfiguratorHostNode::GetNodeOriginLayerOffset() const
 {
 	UDisplayClusterConfiguratorHostNode* HostEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorHostNode>();
-	int32 NodeLayerIndex = HostEdNode->GetNodeLayer(GetOwnerPanel()->SelectionManager.SelectedNodes);
+	int32 NodeLayerIndex = HostEdNode->GetNodeLayer(ObjectPtrDecay(GetOwnerPanel()->SelectionManager.SelectedNodes));
 	int32 OrnamentLayerIndex = DisplayClusterConfiguratorGraphLayers::OrnamentLayerIndex;
 
 	return OrnamentLayerIndex - NodeLayerIndex;

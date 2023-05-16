@@ -40,8 +40,8 @@ private:
 	virtual bool IsTickable() const override;
 	virtual TStatId GetStatId() const override;
 
-	UWorld* World;
-	TArray<UForceFeedbackComponent*> ActiveForceFeedbackComponents;
+	TObjectPtr<UWorld> World;
+	TArray<TObjectPtr<UForceFeedbackComponent>> ActiveForceFeedbackComponents;
 
 	static void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources);
 

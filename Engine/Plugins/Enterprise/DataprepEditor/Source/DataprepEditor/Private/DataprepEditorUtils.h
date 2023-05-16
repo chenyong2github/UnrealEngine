@@ -25,8 +25,8 @@ struct FDataprepParametrizationActionData : public FGCObject
 		, PropertyChain(InPropertyChain)
 	{}
 
-	UDataprepAsset* DataprepAsset;
-	UDataprepParameterizableObject* Object;
+	TObjectPtr<UDataprepAsset> DataprepAsset;
+	TObjectPtr<UDataprepParameterizableObject> Object;
 	TArray<FDataprepPropertyLink> PropertyChain;
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

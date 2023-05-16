@@ -179,7 +179,7 @@ public:
 	TOptional<EPlaySessionPreviewType> SessionPreviewTypeOverride;
 
 	/** A ULevelEditorPlaySettings instance that the session should be started with. nullptr means use the CDO. */
-	ULevelEditorPlaySettings* EditorPlaySettings;
+	TObjectPtr<ULevelEditorPlaySettings> EditorPlaySettings;
 
 	/** If this is set the Play session will start from this location instead of using the GameMode to find a Player Spawn. */
 	TOptional<FVector> StartLocation;

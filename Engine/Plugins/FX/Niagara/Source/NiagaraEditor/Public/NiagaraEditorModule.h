@@ -372,7 +372,7 @@ private:
 
 	FDelegateHandle AssetRegistryOnLoadCompleteHandle;
 	
-	USequencerSettings* SequencerSettings;
+	TObjectPtr<USequencerSettings> SequencerSettings;
 
 	TSharedPtr<INiagaraEditorWidgetProvider> WidgetProvider;
 

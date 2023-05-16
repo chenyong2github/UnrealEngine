@@ -321,7 +321,7 @@ static TArray<uint8> SerializeToBinary(UObject* Object, UObject* Default = nullp
 	TArray<uint8> Result;
 	FObjectWriter ObjectWriter(Result);
 	ObjectWriter.SetIsPersistent(true);
-	Default = Default ? Default : Object->GetClass()->ClassDefaultObject;
+	Default = Default ? ToRawPtr(Default) : ToRawPtr(Object->GetClass()->ClassDefaultObject);
 	Object->GetClass()->SerializeTaggedProperties( ObjectWriter, reinterpret_cast<uint8*>(Object), Default->GetClass(), reinterpret_cast<uint8*>(Default));
 	return Result;
 };
@@ -330,7 +330,7 @@ static void DeserializeFromBinary(UObject* Object, const TArray<uint8>& Data, UO
 {
 	FObjectReader ObjectReader(Data);
 	ObjectReader.SetIsPersistent(true);
-	Default = Default ? Default : Object->GetClass()->ClassDefaultObject;
+	Default = Default ? ToRawPtr(Default) : ToRawPtr(Object->GetClass()->ClassDefaultObject);
 	Object->GetClass()->SerializeTaggedProperties(ObjectReader, reinterpret_cast<uint8*>(Object), Default->GetClass(), reinterpret_cast<uint8*>(Default));
 };
 

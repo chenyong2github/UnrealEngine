@@ -48,7 +48,7 @@ private:
 		: CopyMatPath(TEXT("/Composure/Materials/Output/M_TextureCopy.M_TextureCopy"))
 	{}
 
-	UMaterialInstanceDynamic* CopyMID = nullptr;
+	TObjectPtr<UMaterialInstanceDynamic> CopyMID = nullptr;
 };
 
 template<typename T>

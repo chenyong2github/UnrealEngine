@@ -267,8 +267,8 @@ private:
 	/** Whether or not to export vertices unwelded */
 	static bool bStaticMeshExportUnWeldedVerts;
 
-	UFbxExportOption *ExportOptionsUI;
-	UFbxExportOption *ExportOptionsOverride;
+	TObjectPtr<UFbxExportOption> ExportOptionsUI;
+	TObjectPtr<UFbxExportOption> ExportOptionsOverride;
 
 	/**
 	* Export Anim Track of the given SkeletalMeshComponent

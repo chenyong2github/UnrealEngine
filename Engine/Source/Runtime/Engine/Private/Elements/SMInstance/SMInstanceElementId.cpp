@@ -366,7 +366,7 @@ void FSMInstanceElementIdMap::AddReferencedObjects(FReferenceCollector& Collecto
 	FScopeLock Lock(&ISMComponentsCS);
 
 	Collector.AllowEliminatingReferences(false);
-	for (const TTuple<UInstancedStaticMeshComponent*, TSharedPtr<FSMInstanceElementIdMapEntry>>& ISMEntryPair : ISMComponents)
+	for (const auto& ISMEntryPair : ISMComponents)
 	{
 		Collector.AddReferencedObject(ISMEntryPair.Value->Transactor);
 	}

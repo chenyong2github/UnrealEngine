@@ -437,7 +437,7 @@ void FNiagaraWorldManager::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(ComponentPool);
 	for (auto& Pair : ScalabilityManagers)
 	{
-		UNiagaraEffectType* EffectType = Pair.Key;
+		auto& EffectType = Pair.Key;
 		FNiagaraScalabilityManager& ScalabilityMan = Pair.Value;
 
 		Collector.AddReferencedObject(EffectType);
@@ -459,7 +459,7 @@ UNiagaraCullProxyComponent* FNiagaraWorldManager::GetCullProxy(UNiagaraComponent
 	UNiagaraSystem* System = Component->GetAsset();
 	if (ensure(System) && GNiagaraAllowCullProxies)
 	{
-		UNiagaraCullProxyComponent*& CullProxy = CullProxyMap.FindOrAdd(System);
+		auto& CullProxy = CullProxyMap.FindOrAdd(System);
 
 		if (CullProxy == nullptr)
 		{
@@ -499,7 +499,7 @@ UNiagaraParameterCollectionInstance* FNiagaraWorldManager::GetParameterCollectio
 		return nullptr;
 	}
 
-	UNiagaraParameterCollectionInstance** OverrideInst = ParameterCollections.Find(Collection);
+	auto* OverrideInst = ParameterCollections.Find(Collection);
 	if (!OverrideInst)
 	{
 		UNiagaraParameterCollectionInstance* DefaultInstance = Collection->GetDefaultInstance();
@@ -1798,7 +1798,7 @@ bool FNiagaraWorldManager::GetScalabilityState(UNiagaraComponent* Component, FNi
 			{
 				if (UNiagaraEffectType* EffectType = System->GetEffectType())
 				{
-					if (const FNiagaraScalabilityManager* ScalabilityManager = ScalabilityManagers.Find(EffectType))
+					if (const auto* ScalabilityManager = ScalabilityManagers.Find(EffectType))
 					{
 						OutState = ScalabilityManager->State[ScalabilityHandle];
 						return true;
@@ -1964,4 +1964,3 @@ void FNiagaraCachedViewInfo::Init(const FWorldCachedViewInfo& WorldViewInfo)
 		FrutumPlanes[5] = FPlane(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 }
-

@@ -122,7 +122,7 @@ struct FCustomSection : public ISequencerSection, public FGCObject
 		return TEXT("FCustomSection");
 	}
 
-	UMovieSceneSection* Section;
+	TObjectPtr<UMovieSceneSection> Section;
 };
 
 
@@ -396,5 +396,3 @@ void FSequencerTrackBPEditor::AddNewObjectBindingTrack(FAssetData AssetData, TAr
 }
 
 #undef LOCTEXT_NAMESPACE
-
-

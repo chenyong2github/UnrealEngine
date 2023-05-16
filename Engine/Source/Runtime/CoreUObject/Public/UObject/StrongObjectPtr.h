@@ -21,7 +21,7 @@ namespace UEStrongObjectPtr_Private
 	class TInternalReferenceCollector : public FGCObject
 	{
 	public:
-		explicit TInternalReferenceCollector(const volatile UObject* InObject)
+		explicit TInternalReferenceCollector(const UObject* InObject)
 			: Object(InObject)
 		{
 			checkf(IsInGameThread(), TEXT("TStrongObjectPtr can only be created on the game thread otherwise it may introduce threading issues with Grbage Collector"));
@@ -43,7 +43,7 @@ namespace UEStrongObjectPtr_Private
 			return (UObjectType*)Object;
 		}
 
-		FORCEINLINE void Set(const volatile UObject* InObject)
+		FORCEINLINE void Set(const UObject* InObject)
 		{
 			Object = InObject;
 		}
@@ -60,7 +60,7 @@ namespace UEStrongObjectPtr_Private
 		}
 
 	private:
-		const volatile UObject* Object;
+		TObjectPtr<const UObject> Object;
 	};
 }
 

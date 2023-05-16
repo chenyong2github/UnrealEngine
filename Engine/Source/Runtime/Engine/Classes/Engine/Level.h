@@ -407,10 +407,10 @@ public:
 	FURL					URL;
 
 	/** Array of all actors in this level, used by FActorIteratorBase and derived classes */
-	TArray<AActor*> Actors;
+	TArray<TObjectPtr<AActor>> Actors;
 
 	/** Array of actors to be exposed to GC in this level. All other actors will be referenced through ULevelActorContainer */
-	TArray<AActor*> ActorsForGC;
+	TArray<TObjectPtr<AActor>> ActorsForGC;
 
 #if WITH_EDITORONLY_DATA
 	AActor* PlayFromHereActor;

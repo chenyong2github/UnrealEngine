@@ -27,7 +27,7 @@ struct FLiveLinkCollectionSourceItem
 	FLiveLinkCollectionSourceItem& operator=(const FLiveLinkCollectionSourceItem&) = delete;
 
 	FGuid Guid;
-	ULiveLinkSourceSettings* Setting; // GC by FLiveLinkSourceCollection::AddReferencedObjects
+	TObjectPtr<ULiveLinkSourceSettings> Setting; // GC by FLiveLinkSourceCollection::AddReferencedObjects
 	TSharedPtr<ILiveLinkSource> Source;
 	TSharedPtr<FLiveLinkTimedDataInput> TimedData;
 	bool bPendingKill = false;
@@ -58,9 +58,9 @@ public:
 	ULiveLinkSubjectSettings* GetLinkSettings() const { return Setting; }
 
 private:
-	ULiveLinkSubjectSettings* Setting; // GC by FLiveLinkSourceCollection::AddReferencedObjects
+	TObjectPtr<ULiveLinkSubjectSettings> Setting; // GC by FLiveLinkSourceCollection::AddReferencedObjects
 	TUniquePtr<FLiveLinkSubject> LiveSubject;
-	ULiveLinkVirtualSubject* VirtualSubject; // GC by FLiveLinkSourceCollection::AddReferencedObjects
+	TObjectPtr<ULiveLinkVirtualSubject> VirtualSubject; // GC by FLiveLinkSourceCollection::AddReferencedObjects
 
 public:
 	FLiveLinkCollectionSubjectItem(const FLiveLinkCollectionSubjectItem&) = delete;

@@ -263,7 +263,7 @@ private:
 	TArray<FConnectionDrawingPolicy::FRelinkConnection> RelinkConnections;
 
 protected:
-	UEdGraph* GraphObj;
+	TObjectPtr<UEdGraph> GraphObj;
 	
 	// if this graph is displaying the results of a diff, this will provide info
 	// on how to display the nodes

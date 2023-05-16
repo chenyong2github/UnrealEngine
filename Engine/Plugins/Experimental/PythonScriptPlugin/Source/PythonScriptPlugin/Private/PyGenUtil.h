@@ -162,7 +162,7 @@ namespace PyGenUtil
 		void SetFunction(const UFunction* InFunc, const uint32 InSetFuncFlags = SFF_All);
 
 		/** The Unreal function to call (static dispatch) */
-		const UFunction* Func;
+		TObjectPtr<const UFunction> Func;
 
 		/** Array of input parameters associated with the function */
 		TArray<FGeneratedWrappedMethodParameter> InputParams;

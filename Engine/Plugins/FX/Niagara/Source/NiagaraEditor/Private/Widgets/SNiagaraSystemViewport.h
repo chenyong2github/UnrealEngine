@@ -129,7 +129,7 @@ private:
 	/** Pointer back to the material editor tool that owns us */
 	//TWeakPtr<INiagaraSystemEditor> SystemEditorPtr;
 	
-	class UNiagaraComponent* PreviewComponent;
+	TObjectPtr<class UNiagaraComponent> PreviewComponent;
 	
 	/** Level viewport client */
 	TSharedPtr<class FNiagaraSystemViewportClient> SystemViewportClient;

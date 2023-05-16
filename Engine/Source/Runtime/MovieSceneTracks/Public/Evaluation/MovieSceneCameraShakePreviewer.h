@@ -68,7 +68,7 @@ private:
 
 private:
 	APreviewPlayerCameraManager* PreviewCamera;
-	UCameraModifier_CameraShake* PreviewCameraShake;
+	TObjectPtr<UCameraModifier_CameraShake> PreviewCameraShake;
 	TArray<FLevelEditorViewportClient*> RegisteredViewportClients;
 
 	TOptional<float> LastDeltaTime;

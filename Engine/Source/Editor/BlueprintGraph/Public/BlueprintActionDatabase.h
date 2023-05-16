@@ -48,9 +48,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDatabaseEntryUpdated, UObject*);
 
 	typedef TMap<FObjectKey, int32>									FPrimingQueue;
-	typedef TArray<UBlueprintNodeSpawner*>							FActionList;
+	typedef TArray<TObjectPtr<UBlueprintNodeSpawner>>							FActionList;
 	typedef TMap<FObjectKey, FActionList>							FActionRegistry;
-	typedef TMap<FSoftObjectPath, TArray<UBlueprintNodeSpawner*>>	FUnloadedActionRegistry;
+	typedef TMap<FSoftObjectPath, FActionList>	FUnloadedActionRegistry;
 
 public:
 	/** Destructor */

@@ -298,7 +298,7 @@ TSet<AActor*> UUsdConversionBlueprintLibrary::GetActorsToConvert( UWorld* World 
 			return;
 		}
 
-		Result.Append( Level->Actors );
+		Result.Append( ObjectPtrDecay(Level->Actors) );
 	};
 
 	CollectActors( World->PersistentLevel );

@@ -3096,7 +3096,8 @@ public:
 		
 	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override;
 	virtual void HandleObjectReferences(UObject** InObjects, const int32 ObjectNum, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override;
-	
+
+#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
 	virtual void AddStableReference(UObject** Object) override
 	{
 		Dispatcher.QueueReference(Dispatcher.Context.GetReferencingObject(), *Object, EMemberlessId::Collector, MayKill());
@@ -3110,6 +3111,23 @@ public:
 	virtual void AddStableReferenceSet(TSet<UObject*>* Objects) override
 	{
 		Dispatcher.QueueSet(Dispatcher.Context.GetReferencingObject(), *Objects, EMemberlessId::Collector, MayKill());
+	}
+#endif
+
+	virtual void AddStableReference(TObjectPtr<UObject>* Object) override
+	{
+		Dispatcher.QueueReference(Dispatcher.Context.GetReferencingObject(), UE::Core::Private::Unsafe::Decay(*Object), ETokenlessId::Collector, MayKill());
+	}
+	
+	virtual void AddStableReferenceArray(TArray<TObjectPtr<UObject>>* Objects) override
+	{
+		Dispatcher.QueueArray(Dispatcher.Context.GetReferencingObject(), UE::Core::Private::Unsafe::Decay(*Objects), ETokenlessId::Collector, MayKill());
+	}
+
+	virtual void AddStableReferenceSet(TSet<TObjectPtr<UObject>>* Objects) override
+	{
+
+		Dispatcher.QueueSet(Dispatcher.Context.GetReferencingObject(), UE::Core::Private::Unsafe::Decay(*Objects), ETokenlessId::Collector, MayKill());
 	}
 	
 	virtual bool MarkWeakObjectReferenceForClearing(UObject** WeakReference) override
@@ -3276,6 +3294,7 @@ public:
 		}
 	}
 
+#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
 	virtual void AddStableReference(UObject** Object) override
 	{
 		HandleObjectReference(*Object, Context.GetReferencingObject(), nullptr);
@@ -3294,6 +3313,28 @@ public:
 		for (UObject*& Object : *Objects)
 		{
 			HandleObjectReference(Object, Context.GetReferencingObject(), nullptr);
+		}
+	}
+#endif
+
+	virtual void AddStableReference(TObjectPtr<UObject>* Object) override
+	{
+		HandleObjectReference(UE::Core::Private::Unsafe::Decay(*Object), Context.GetReferencingObject(), nullptr);
+	}
+	
+	virtual void AddStableReferenceArray(TArray<TObjectPtr<UObject>>* Objects) override
+	{
+		for (TObjectPtr<UObject>& Object : *Objects)
+		{
+			HandleObjectReference(UE::Core::Private::Unsafe::Decay(Object), Context.GetReferencingObject(), nullptr);
+		}
+	}
+
+	virtual void AddStableReferenceSet(TSet<TObjectPtr<UObject>>* Objects) override
+	{
+		for (TObjectPtr<UObject>& Object : *Objects)
+		{
+			HandleObjectReference(UE::Core::Private::Unsafe::Decay(Object), Context.GetReferencingObject(), nullptr);
 		}
 	}
 
@@ -4969,7 +5010,7 @@ void UObject::CallAddReferencedObjects(FReferenceCollector& Collector)
 	GetClass()->CallAddReferencedObjects(this, Collector);
 }
 
-void UObject::AddReferencedObjects(UObject* This, FReferenceCollector& Collector)
+void UObject::AddReferencedObjects(UObject*, FReferenceCollector&)
 {
 	// This function exists to compare against in GetAROFunc()
 }

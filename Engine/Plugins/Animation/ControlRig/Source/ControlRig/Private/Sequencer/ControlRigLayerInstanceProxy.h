@@ -124,7 +124,7 @@ protected:
 	TMap<int32, FAnimNode_ControlRig_ExternalSource*> SequencerToControlRigNodeMap;
 
 	/** Source Anim Instance */
-	UAnimInstance* CurrentSourceAnimInstance;
+	TObjectPtr<UAnimInstance> CurrentSourceAnimInstance;
 
 	/** getter for Sequencer AnimInstance. It will return null if it's using AnimBP */
 	UAnimSequencerInstance* GetSequencerAnimInstance();

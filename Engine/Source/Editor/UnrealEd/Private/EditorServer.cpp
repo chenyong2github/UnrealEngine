@@ -268,7 +268,7 @@ static int32 CleanBSPMaterials(UWorld* InWorld, bool bPreviewOnly, bool bLogBrus
 			else
 			{
 				// This poly wasn't marked, so clear its material reference if one exists.
-				UMaterialInterface*& ReferencedMaterial = Actor->Brush->Polys->Element[PolyIndex].Material;
+				auto& ReferencedMaterial = Actor->Brush->Polys->Element[PolyIndex].Material;
 				if ( ReferencedMaterial && ReferencedMaterial != UMaterial::GetDefaultMaterial(MD_Surface) )
 				{
 					NumRefrencesCleared++;

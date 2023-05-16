@@ -384,11 +384,11 @@ public:
 
 private:
 	/** The currently viewed object. */
-	UCustomizableObject* CustomizableObject;
-	UCustomizableObjectInstance* PreviewInstance = nullptr;
-	TArray<UCustomizableSkeletalComponent*> PreviewCustomizableSkeletalComponents;
-	UStaticMeshComponent* PreviewStaticMeshComponent = nullptr;
-	TArray<UDebugSkelMeshComponent*> PreviewSkeletalMeshComponents;
+	TObjectPtr<UCustomizableObject> CustomizableObject;
+	TObjectPtr<UCustomizableObjectInstance> PreviewInstance = nullptr;
+	TArray<TObjectPtr<UCustomizableSkeletalComponent>> PreviewCustomizableSkeletalComponents;
+	TObjectPtr<UStaticMeshComponent> PreviewStaticMeshComponent = nullptr;
+	TArray<TObjectPtr<UDebugSkelMeshComponent>> PreviewSkeletalMeshComponents;
 
 	/** Object compiler */
 	FCustomizableObjectCompiler Compiler;
@@ -454,7 +454,7 @@ private:
 	bool UpdateSkeletalMeshAfterAssetLoaded = false;
 	
 	/** UObject class to be able to use the update callback */
-	UUpdateClassWrapper* HelperCallback;
+	TObjectPtr<UUpdateClassWrapper> HelperCallback;
 	
 	/** Scene preview settings widget, upcast of CustomizableObjectEditorAdvancedPreviewSettings */
 	TSharedPtr<SWidget> AdvancedPreviewSettingsWidget;
@@ -463,7 +463,7 @@ private:
 	TSharedPtr<class SCustomizableObjectEditorAdvancedPreviewSettings> CustomizableObjectEditorAdvancedPreviewSettings;
 
 	/** Advanced scene preview settings */
-	class UCustomizableObjectEmptyClassForSettings* AdditionalSettings;
+	TObjectPtr<class UCustomizableObjectEmptyClassForSettings> AdditionalSettings;
 	
 	/** Texture Analyzer table widget which shows the information of the transient textures used in the customizable object instance */
 	TSharedPtr<class SCustomizableObjecEditorTextureAnalyzer> TextureAnalyzer;

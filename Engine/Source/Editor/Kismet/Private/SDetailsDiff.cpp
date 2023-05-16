@@ -299,7 +299,7 @@ void SDetailsDiff::RequestModifications(FArchive& Archive) const
 {
 	OutputObjectModified->GetClass()->SerializeTaggedProperties(
 		Archive, reinterpret_cast<uint8*>(OutputObjectModified),
-		OutputObjectModified->GetClass(), reinterpret_cast<uint8*>(OutputObjectModified->GetClass()->ClassDefaultObject)
+		OutputObjectModified->GetClass(), reinterpret_cast<uint8*>(OutputObjectModified->GetClass()->ClassDefaultObject.Get())
 	);
 }
 

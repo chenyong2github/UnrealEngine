@@ -290,7 +290,7 @@ void FCompElementRenderTargetPool::ForceRePoolAllTargets()
 	for (auto& Target : AssignedTargets)
 	{
 		FRenderTargetDesc TargetDesc = { FIntPoint(Target.Key->SizeX, Target.Key->SizeY), Target.Key->RenderTargetFormat };
-		RenderTargetPool.Add(TargetDesc, Target.Key);
+		RenderTargetPool.Add(TargetDesc, Target.Key.Get());
 	}
 	AssignedTargets.Empty();
 }

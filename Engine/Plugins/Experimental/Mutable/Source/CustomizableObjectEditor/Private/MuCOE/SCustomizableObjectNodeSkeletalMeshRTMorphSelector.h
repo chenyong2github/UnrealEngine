@@ -90,7 +90,7 @@ public:
 	}
 
 private:
-    UCustomizableObjectNodeSkeletalMesh* Node = nullptr;
+		TObjectPtr<UCustomizableObjectNodeSkeletalMesh> Node = nullptr;
 
     TArray< TSharedPtr<ItemType> > Items;
     TSharedPtr< ListViewType > ListWidget;

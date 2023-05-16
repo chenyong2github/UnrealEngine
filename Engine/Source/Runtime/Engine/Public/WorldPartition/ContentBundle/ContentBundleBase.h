@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "WorldPartition/ContentBundle/ContentBundleStatus.h"
+#include "UObject/ObjectPtr.h"
 
 class UContentBundleDescriptor;
 class FContentBundleClient;
@@ -45,6 +46,6 @@ protected:
 private:
 	TWeakPtr<FContentBundleClient> Client;
 	UWorld* InjectedWorld;
-	const UContentBundleDescriptor* Descriptor;
+	TObjectPtr<const UContentBundleDescriptor> Descriptor;
 	EContentBundleStatus Status;
 };

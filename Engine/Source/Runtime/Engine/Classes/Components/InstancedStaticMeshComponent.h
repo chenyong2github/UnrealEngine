@@ -539,7 +539,7 @@ protected:
 /** InstancedStaticMeshInstance hit proxy */
 struct HInstancedStaticMeshInstance : public HHitProxy
 {
-	UInstancedStaticMeshComponent* Component;
+	TObjectPtr<UInstancedStaticMeshComponent> Component;
 	int32 InstanceIndex;
 
 	DECLARE_HIT_PROXY(ENGINE_API);

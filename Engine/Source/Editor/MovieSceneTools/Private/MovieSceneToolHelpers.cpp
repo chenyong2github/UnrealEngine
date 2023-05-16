@@ -3593,7 +3593,7 @@ private:
 
 	TSharedPtr<IDetailsView> DetailView;
 	FString ImportFilename;
-	UMovieSceneSequence* Sequence;
+	TObjectPtr<UMovieSceneSequence> Sequence;
 	ISequencer* Sequencer;
 	TMap<FGuid, FString> ObjectBindingMap;
 	TOptional<bool> bCreateCameras;

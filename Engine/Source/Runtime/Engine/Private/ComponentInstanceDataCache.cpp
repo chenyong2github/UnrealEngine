@@ -785,7 +785,7 @@ void FComponentInstanceDataCache::ApplyToActor(AActor* Actor, const ECacheApplyP
 		}
 
 		// Once we're done attaching, if we have any unattached instance components move them to the root
-		for (const TPair<USceneComponent*, FTransform>& InstanceTransformPair : InstanceComponentTransformToRootMap)
+		for (const auto& InstanceTransformPair : InstanceComponentTransformToRootMap)
 		{
 			check(Actor->GetRootComponent());
 
@@ -809,7 +809,7 @@ void FComponentInstanceDataCache::FindAndReplaceInstances(const TMap<UObject*, U
 		}
 	}
 	TArray<USceneComponent*> SceneComponents;
-	InstanceComponentTransformToRootMap.GenerateKeyArray(SceneComponents);
+	ObjectPtrDecay(InstanceComponentTransformToRootMap).GenerateKeyArray(SceneComponents);
 
 	for (USceneComponent* SceneComponent : SceneComponents)
 	{

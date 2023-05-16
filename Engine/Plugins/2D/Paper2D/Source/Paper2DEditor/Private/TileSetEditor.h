@@ -68,7 +68,7 @@ protected:
 
 	TSharedRef<FTabManager::FLayout> GetDesiredLayout() const;
 protected:
-	UPaperTileSet* TileSetBeingEdited;
+	TObjectPtr<UPaperTileSet> TileSetBeingEdited;
 
 	TSharedPtr<STileSetSelectorViewport> TileSetViewport;
 	TSharedPtr<SSingleTileEditorViewport> TileEditorViewport;

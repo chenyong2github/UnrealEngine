@@ -1742,12 +1742,12 @@ public:
 
 	const TMap<USoundMix*, FSoundMixState>& GetSoundMixModifiers() const
 	{
-		return SoundMixModifiers;
+		return ObjectPtrDecay(SoundMixModifiers);
 	}
 
 	const TArray<USoundMix*>& GetPrevPassiveSoundMixModifiers() const
 	{
-		return PrevPassiveSoundMixModifiers;
+		return ObjectPtrDecay(PrevPassiveSoundMixModifiers);
 	}
 
 	USoundMix* GetDefaultBaseSoundMixModifier()
@@ -1757,8 +1757,8 @@ public:
 
 	void SetSoundMixModifiers(const TMap<USoundMix*, FSoundMixState>& InSoundMixModifiers, const TArray<USoundMix*>& InPrevPassiveSoundMixModifiers, USoundMix* InDefaultBaseSoundMix)
 	{
-		SoundMixModifiers = InSoundMixModifiers;
-		PrevPassiveSoundMixModifiers = InPrevPassiveSoundMixModifiers;
+		SoundMixModifiers = ObjectPtrWrap(InSoundMixModifiers);
+		PrevPassiveSoundMixModifiers = ObjectPtrWrap(InPrevPassiveSoundMixModifiers);
 		DefaultBaseSoundMix = InDefaultBaseSoundMix;
 	}
 
@@ -2117,16 +2117,16 @@ private:
 	USoundMix* BaseSoundMix;
 
 	/** The Base SoundMix that should be applied by default */
-	USoundMix* DefaultBaseSoundMix;
+	TObjectPtr<USoundMix> DefaultBaseSoundMix;
 
 	/** Map of sound mixes currently affecting audio properties */
-	TMap<USoundMix*, FSoundMixState> SoundMixModifiers;
+	TMap<TObjectPtr<USoundMix>, FSoundMixState> SoundMixModifiers;
 
 	/** Map of sound mix sound class overrides. Will override any sound class effects for any sound mixes */
 	TMap<USoundMix*, FSoundMixClassOverrideMap> SoundMixClassEffectOverrides;
 
 	/** Cached array of plugin settings objects currently loaded. This is stored so we can add it in AddReferencedObjects. */
-	TArray<UObject*> PluginSettingsObjects;
+	TArray<TObjectPtr<UObject>> PluginSettingsObjects;
 
 protected:
 	/** Interface to audio effects processing */
@@ -2243,7 +2243,7 @@ private:
 
 	TArray<FActiveSound*> ActiveSounds;
 	/** Array of sound waves to add references to avoid GC until guaranteed to be done with precache or decodes. */
-	TArray<USoundWave*> ReferencedSoundWaves;
+	TArray<TObjectPtr<USoundWave>> ReferencedSoundWaves;
 
 	void UpdateReferencedSoundWaves();
 	TArray<USoundWave*> ReferencedSoundWaves_AudioThread;
@@ -2283,7 +2283,7 @@ private:
 	TMap<uint32, TPair<FReverbSettings,FInteriorSettings>> WorldIDToDefaultAudioVolumeSettingsMap;
 
 	/** List of passive SoundMixes active last frame */
-	TArray<USoundMix*> PrevPassiveSoundMixModifiers;
+	TArray<TObjectPtr<USoundMix>> PrevPassiveSoundMixModifiers;
 
 	/** A generic mapping of FNames, used to store and retrieve tokens across the engine boundary. */
 	TMap<FName, FName> AudioStateProperties;

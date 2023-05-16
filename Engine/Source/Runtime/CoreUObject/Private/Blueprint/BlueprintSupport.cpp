@@ -1831,7 +1831,7 @@ void FLinkerLoad::FinalizeBlueprint(UClass* LoadClass)
 		if ((SuperLinker != nullptr) && SuperLinker->IsBlueprintFinalizationPending())
 		{
 			DEFERRED_DEPENDENCY_CHECK(SuperLinker->DeferredCDOIndex != INDEX_NONE || SuperLinker->bForceBlueprintFinalization);
-			UObject* SuperCDO = SuperLinker->DeferredCDOIndex != INDEX_NONE ? SuperLinker->ExportMap[SuperLinker->DeferredCDOIndex].Object : SuperClass->ClassDefaultObject;
+			UObject* SuperCDO = SuperLinker->DeferredCDOIndex != INDEX_NONE ? ToRawPtr(SuperLinker->ExportMap[SuperLinker->DeferredCDOIndex].Object) : ToRawPtr(SuperClass->ClassDefaultObject);
 			// we MUST have the super fully serialized before we can finalize  
 			// this (class and CDO); if the SuperCDO is already in the midst of 
 			// serializing somewhere up the stack (and a cyclic dependency has  
@@ -1918,7 +1918,7 @@ void FLinkerLoad::FinalizeBlueprint(UClass* LoadClass)
 	if (IsBlueprintFinalizationPending())
 	{
 		int32 DeferredCDOIndexCopy = DeferredCDOIndex;
-		UObject* CDO = DeferredCDOIndex != INDEX_NONE ? ExportMap[DeferredCDOIndexCopy].Object : LoadClass->ClassDefaultObject;
+		UObject* CDO = DeferredCDOIndex != INDEX_NONE ? ToRawPtr(ExportMap[DeferredCDOIndexCopy].Object) : ToRawPtr(LoadClass->ClassDefaultObject);
 		// clear this so IsBlueprintFinalizationPending() doesn't report true:
 		FLinkerLoad::bForceBlueprintFinalization = false;
 		// clear this because we're processing this CDO now:
@@ -2012,7 +2012,7 @@ void FLinkerLoad::ResolveDeferredExports(UClass* LoadClass)
 		}
 	}
 
-	UObject* BlueprintCDO = DeferredCDOIndex != INDEX_NONE ? ExportMap[DeferredCDOIndex].Object : LoadClass->ClassDefaultObject;
+	UObject* BlueprintCDO = DeferredCDOIndex != INDEX_NONE ? ToRawPtr(ExportMap[DeferredCDOIndex].Object) : ToRawPtr(LoadClass->ClassDefaultObject);
 	DEFERRED_DEPENDENCY_CHECK(BlueprintCDO != nullptr);
 	
 	TArray<int32> DeferredTemplateObjects;

@@ -348,7 +348,7 @@ public:
 
 	virtual ~FSoundCueParameterTransmitter() = default;
 
-	TArray<UObject*> GetReferencedObjects() const override;
+	TArray<const TObjectPtr<UObject>*> GetReferencedObjects() const override;
 
 	virtual bool SetParameters(TArray<FAudioParameter>&& InParameters) override;
 

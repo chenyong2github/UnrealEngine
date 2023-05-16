@@ -68,7 +68,7 @@ private:
 	TSharedPtr<IDetailsView> LayoutScriptDetailsView;
 
 	/** Model for this view */
-	UDMXPixelMappingLayoutViewModel* Model;
+	TObjectPtr<UDMXPixelMappingLayoutViewModel> Model;
 
 	/** Toolkit for this view */
 	TWeakPtr<FDMXPixelMappingToolkit> WeakToolkit;

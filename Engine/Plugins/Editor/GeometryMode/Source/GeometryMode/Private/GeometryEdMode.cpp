@@ -179,7 +179,7 @@ void FEdModeGeometry::AddReferencedObjects( FReferenceCollector& Collector )
 	FEdMode::AddReferencedObjects( Collector );
 
 	FModeTool_GeometryModify* mtgm = (FModeTool_GeometryModify*)FindTool( MT_GeometryModify );
-	for( FModeTool_GeometryModify::TModifierIterator Itor( mtgm->ModifierIterator() ) ; Itor ; ++Itor )
+	for (auto Itor = mtgm->ModifierIterator(); Itor; ++Itor)
 	{
 		Collector.AddReferencedObject( *Itor );
 	}
@@ -1361,4 +1361,3 @@ void FModeTool_GeometryModify::StoreAllCurrentGeomSelections()
 		CurrentModifier->StoreAllCurrentGeomSelections();
 	}
 }
-

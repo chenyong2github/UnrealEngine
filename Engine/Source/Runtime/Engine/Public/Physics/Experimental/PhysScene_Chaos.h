@@ -154,7 +154,7 @@ public:
 	template<class OwnerType>
 	OwnerType* GetOwningComponent(const IPhysicsProxyBase* PhysicsProxy) const
 	{ 
-		UPrimitiveComponent* const* CompPtr = PhysicsProxyToComponentMap.Find(PhysicsProxy);
+		auto* CompPtr = PhysicsProxyToComponentMap.Find(PhysicsProxy);
 		return CompPtr ? Cast<OwnerType>(*CompPtr) : nullptr;
 	}
 
@@ -353,7 +353,7 @@ private:
 	TArray<FCollisionNotifyInfo> MNotifies;
 
 	// Maps PhysicsProxy to Component that created the PhysicsProxy
-	TMap<IPhysicsProxyBase*, UPrimitiveComponent*> PhysicsProxyToComponentMap;
+	TMap<IPhysicsProxyBase*, TObjectPtr<UPrimitiveComponent>> PhysicsProxyToComponentMap;
 
 	// Maps Component to PhysicsProxy that is created
 	TMap<UPrimitiveComponent*, TArray<IPhysicsProxyBase*>> ComponentToPhysicsProxyMap;

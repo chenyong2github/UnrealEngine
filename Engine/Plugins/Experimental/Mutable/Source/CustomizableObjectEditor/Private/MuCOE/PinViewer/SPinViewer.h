@@ -72,7 +72,7 @@ private:
 	void PinsRemapped(const TMap<UEdGraphPin*, UEdGraphPin*>& PinsToRemap);
 
 	/** Pointer to the Node Material */
-	UCustomizableObjectNode* Node = nullptr;
+	TObjectPtr<UCustomizableObjectNode> Node = nullptr;
 
 	/** ListView elements. */
 	TArray<TSharedPtr<FEdGraphPinReference>> PinReferences;
@@ -98,4 +98,3 @@ private:
 /** Create and attach a PinViewer Widget to the given custom details DetailBuilder.
  * The pin viewer will be shown as a new category with the lowest priority. */
 void PinViewerAttachToDetailCustomization(IDetailLayoutBuilder& DetailBuilder);
-

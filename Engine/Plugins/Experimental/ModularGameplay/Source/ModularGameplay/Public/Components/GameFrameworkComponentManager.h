@@ -247,7 +247,7 @@ private:
 	TMap<UClass*, TSet<FObjectKey>> ComponentClassToComponentInstanceMap;
 
 	/** A map of actor classes to component classes that should be made for that class. */
-	TMap<FComponentRequestReceiverClassPath, TSet<UClass*>> ReceiverClassToComponentClassMap;
+	TMap<FComponentRequestReceiverClassPath, TSet<TObjectPtr<UClass>>> ReceiverClassToComponentClassMap;
 
 	/** A map of actor classes to delegate handlers that should be executed for actors of that class. */
 	TMap<FComponentRequestReceiverClassPath, FExtensionHandlerEvent> ReceiverClassToEventMap;

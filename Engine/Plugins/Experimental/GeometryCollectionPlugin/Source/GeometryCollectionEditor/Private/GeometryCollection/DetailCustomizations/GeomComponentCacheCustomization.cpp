@@ -212,14 +212,20 @@ void FGeomComponentCacheParametersCustomization::CustomizeChildren(TSharedRef<IP
 
 void FGeomComponentCacheParametersCustomization::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	const UGeometryCollection* Collection = GetCollection();
-	if(Collection)
+	auto* Collection = GetCollectionRef();
+	if(Collection && *Collection)
 	{
-		Collector.AddReferencedObject(Collection);
+		Collector.AddReferencedObject(*Collection);
 	}
 }
 
 const UGeometryCollection* FGeomComponentCacheParametersCustomization::GetCollection() const
+{
+	auto Ref = GetCollectionRef();
+	return Ref ? *Ref : nullptr;
+}
+
+TObjectPtr<const UGeometryCollection>* FGeomComponentCacheParametersCustomization::GetCollectionRef() const
 {
 	if(!TargetCacheHandle.IsValid())
 	{
@@ -236,7 +242,7 @@ const UGeometryCollection* FGeomComponentCacheParametersCustomization::GetCollec
 		{
 			if(UGeometryCollectionComponent* AsTyped = Cast<UGeometryCollectionComponent>(PotentialComponent))
 			{
-				return AsTyped->RestCollection;
+				return &AsTyped->RestCollection;
 			}
 		}
 	}

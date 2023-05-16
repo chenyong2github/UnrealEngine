@@ -194,7 +194,7 @@ void FProxyTableEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyCh
 	
 FText FProxyTableEditor::GetToolkitName() const
 {
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 
 	check( EditingObjs.Num() > 0 );
 
@@ -245,7 +245,7 @@ FText FProxyTableEditor::GetToolkitName() const
 
 FText FProxyTableEditor::GetToolkitToolTipText() const
 {
-	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	const auto& EditingObjs = GetEditingObjects();
 
 	check( EditingObjs.Num() > 0 );
 

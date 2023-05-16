@@ -72,6 +72,11 @@ public:
 		return ScriptStruct.Get();
 	}
 
+	TWeakObjectPtr<const UStruct>& GetStructPtr() 
+	{
+		return ScriptStruct;
+	}
+	
 	COREUOBJECT_API virtual UPackage* GetPackage() const;
 	COREUOBJECT_API virtual void SetPackage(UPackage* InPackage);
 

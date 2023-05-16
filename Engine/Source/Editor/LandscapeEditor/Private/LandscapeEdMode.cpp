@@ -764,7 +764,7 @@ void FEdModeLandscape::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext Obj
 	if (!InWorld->IsGameWorld() && !ObjectSaveContext.IsProceduralSave())
 	{
 		ULandscapeInfoMap& LandscapeInfoMap = ULandscapeInfoMap::GetLandscapeInfoMap(InWorld);
-		for (const TPair<FGuid, ULandscapeInfo*>& Pair : LandscapeInfoMap.Map)
+		for (const auto& Pair : LandscapeInfoMap.Map)
 		{
 			if (const ULandscapeInfo* LandscapeInfo = Pair.Value)
 			{

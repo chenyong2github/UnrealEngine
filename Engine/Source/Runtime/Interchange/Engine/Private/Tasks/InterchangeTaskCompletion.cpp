@@ -82,7 +82,7 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 					// Should we assert if there is no factory node?
 					Arguments.NodeUniqueID = ObjectInfo.FactoryNode ? ObjectInfo.FactoryNode->GetUniqueID() : FString();
 					Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
-					Arguments.Pipelines = AsyncHelper->Pipelines;
+					Arguments.Pipelines = ObjectPtrDecay(AsyncHelper->Pipelines);
 					Arguments.OriginalPipelines = AsyncHelper->OriginalPipelines;
 					Arguments.bIsReimport = ObjectInfo.bIsReimport;
 					ObjectInfo.Factory->SetupObject_GameThread(Arguments);
@@ -181,7 +181,7 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 					Arguments.FactoryNode = ObjectInfo.FactoryNode;
 					Arguments.NodeUniqueID = ObjectInfo.FactoryNode ? ObjectInfo.FactoryNode->GetUniqueID() : FString();
 					Arguments.NodeContainer = AsyncHelper->BaseNodeContainers[SourceIndex].Get();
-					Arguments.Pipelines = AsyncHelper->Pipelines;
+					Arguments.Pipelines = ObjectPtrDecay(AsyncHelper->Pipelines);
 					Arguments.OriginalPipelines = AsyncHelper->OriginalPipelines;
 					Arguments.bIsReimport = ObjectInfo.bIsReimport;
 					ObjectInfo.Factory->FinalizeObject_GameThread(Arguments);

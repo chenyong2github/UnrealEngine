@@ -294,7 +294,7 @@ public:
 	TUniquePtr<FRepState>  RepState;
 	TUniquePtr<FRepState> CheckpointRepState;
 
-	UClass* ObjectClass;
+	TObjectPtr<UClass> ObjectClass;
 
 	UObject* ObjectPtr;
 

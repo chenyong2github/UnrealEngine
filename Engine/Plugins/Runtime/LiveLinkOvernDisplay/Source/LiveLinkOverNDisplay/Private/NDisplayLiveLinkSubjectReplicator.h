@@ -112,7 +112,7 @@ private:
 	FString LiveLinkPayload;
 
 	/** List of Subjects that we are replicating across cluster. On Agents, it will actually be added to the LiveLink subject's list */
-	TArray<UNDisplayAgentVirtualSubject*> TrackedSubjects;
+	TArray<TObjectPtr<UNDisplayAgentVirtualSubject>> TrackedSubjects;
 
 	/** Guid associated to our Virtual Subject Source */
 	FGuid LiveLinkSourceGuid;

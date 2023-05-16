@@ -283,8 +283,7 @@ FLinearColor FCodeProjectEditor::GetWorldCentricTabColorScale() const
 
 void FCodeProjectEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	UCodeProject* CodeProject = CodeProjectBeingEdited.Get();
-	Collector.AddReferencedObject(CodeProject);
+	Collector.AddReferencedObject(CodeProjectBeingEdited);
 }
 
 TSharedRef<SWidget> FCodeProjectEditor::CreateCodeEditorWidget(TSharedRef<FTabInfo> TabInfo, UCodeProjectItem* Item)

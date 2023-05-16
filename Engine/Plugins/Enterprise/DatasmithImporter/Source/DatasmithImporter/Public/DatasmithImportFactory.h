@@ -60,7 +60,10 @@ public:
 	virtual void SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths) override;
 	virtual EReimportResult::Type Reimport(UObject* Obj) override;
 	virtual int32 GetPriority() const override;
-	virtual const UObject* GetFactoryObject() const override { return this; }
+	virtual TObjectPtr<UObject>* GetFactoryObject() const override
+	{
+		return &GCMark;
+	}
 	//~ End FReimportHandler Interface
 
 private:
@@ -93,5 +96,6 @@ private:
 	 * Useful when multiple files have been selected.
 	 */
 	bool bOperationCanceled;
-};
 
+	mutable TObjectPtr<UObject> GCMark{this};
+};

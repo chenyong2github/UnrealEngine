@@ -170,8 +170,7 @@ FString FIKRigEditorToolkit::GetWorldCentricTabPrefix() const
 void FIKRigEditorToolkit::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	// hold the asset we are working on
-	const UIKRigDefinition* Asset = EditorController->AssetController->GetAsset();
-	Collector.AddReferencedObject(Asset);
+	Collector.AddReferencedObject(EditorController->AssetController->GetAssetPtr());
 }
 
 TStatId FIKRigEditorToolkit::GetStatId() const

@@ -364,7 +364,7 @@ public:
 	 * marked as referenced if the package is referenced.
 	 */
 	static bool bSupportCookerSoftGC;
-	static TMap<UPackage*, TArrayView<UObject*>> SoftGCPackageToObjectList;
+	static TMap<UPackage*, TArrayView<TObjectPtr<UObject>>> SoftGCPackageToObjectList;
 	/** Static class override of UObject::AddReferencedObjects */
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 #endif

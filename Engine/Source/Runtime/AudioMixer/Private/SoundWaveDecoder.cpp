@@ -457,16 +457,14 @@ namespace Audio
 		for (auto& Entry : InitializingDecodingSources)
 		{
 			FDecodingSoundSourcePtr DecodingSoundSourcePtr = Entry.Value;
-			USoundWave* SoundWave = DecodingSoundSourcePtr->GetSoundWave();
-			Collector.AddReferencedObject(SoundWave);
+			Collector.AddReferencedObject(DecodingSoundSourcePtr->GetSoundWavePtr());
 		}
 
 		FScopeLock Lock(&DecodingSourcesCritSec);
 		for (auto& Entry : DecodingSources)
 		{
 			FDecodingSoundSourcePtr DecodingSoundSourcePtr = Entry.Value;
-			USoundWave* SoundWave = DecodingSoundSourcePtr->GetSoundWave();
-			Collector.AddReferencedObject(SoundWave);
+			Collector.AddReferencedObject(DecodingSoundSourcePtr->GetSoundWavePtr());
 		}
 	}
 

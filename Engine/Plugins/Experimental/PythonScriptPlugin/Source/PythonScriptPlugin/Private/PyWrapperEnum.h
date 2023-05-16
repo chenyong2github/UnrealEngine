@@ -95,7 +95,7 @@ struct FPyWrapperEnumMetaData : public FPyWrapperBaseMetaData
 	}
 
 	/** Unreal enum */
-	UEnum* Enum;
+	TObjectPtr<UEnum> Enum;
 
 	/** True if this enum type has been finalized after having all of its entries added to it */
 	bool bFinalized;

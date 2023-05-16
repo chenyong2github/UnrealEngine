@@ -51,5 +51,5 @@ private:
 	TSharedPtr<FDataflowEditorViewportClient> ViewportClient;
 
 	TWeakPtr<FDataflowEditorToolkit> DataflowEditorToolkitPtr;
-	ADataflowActor* CustomDataflowActor = nullptr;
+	TObjectPtr<ADataflowActor> CustomDataflowActor = nullptr;
 };

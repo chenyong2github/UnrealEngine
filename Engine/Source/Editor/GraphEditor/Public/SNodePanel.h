@@ -218,7 +218,7 @@ struct FZoomLevelsContainer
 
 struct GRAPHEDITOR_API FGraphSelectionManager : public FGCObject
 {
-	FGraphPanelSelectionSet SelectedNodes;
+	TSet<TObjectPtr<class UObject>> SelectedNodes;
 
 	/** Invoked when the selected graph nodes have changed. */
 	SGraphEditor::FOnSelectionChanged OnSelectionChanged;
@@ -867,7 +867,7 @@ protected:
 	 * @param CurrentSelection     The selection before the marquee operation.
 	 * @param OutNewSelection      The selection resulting from Marquee being applied to CurrentSelection.
 	 */
-	static void ApplyMarqueeSelection(const FMarqueeOperation& InMarquee, const FGraphPanelSelectionSet& CurrentSelection, FGraphPanelSelectionSet& OutNewSelection);
+	static void ApplyMarqueeSelection(const FMarqueeOperation& InMarquee, const FGraphPanelSelectionSet& CurrentSelection, TSet<TObjectPtr<UObject>>& OutNewSelection);
 
 	/**
 	 * On the next tick, centers and selects the widget associated with the object if it exists

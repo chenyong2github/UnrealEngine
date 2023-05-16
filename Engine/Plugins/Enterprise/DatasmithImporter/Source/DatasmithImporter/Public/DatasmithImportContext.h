@@ -106,7 +106,7 @@ struct FDatasmithActorImportContext
 	FDatasmithActorUniqueLabelProvider UniqueNameProvider;
 
 	/** The Scene actor on which the actors will be imported */
-	ADatasmithSceneActor* ImportSceneActor;
+	TObjectPtr<ADatasmithSceneActor> ImportSceneActor;
 
 	/** The targeted scene actors for the finalize */
 	TSet< ADatasmithSceneActor* > FinalSceneActors;
@@ -114,8 +114,8 @@ struct FDatasmithActorImportContext
 	/** The targeted scene that the importer is currently finalizing */
 	ADatasmithSceneActor* CurrentTargetedScene;
 
-	UWorld* ImportWorld;
-	UWorld* FinalWorld;
+	TObjectPtr<UWorld> ImportWorld;
+	TObjectPtr<UWorld> FinalWorld;
 
 	/** List of the datasmith actor element id that aren't imported because of the imports settings */
 	TSet< FName > NonImportedDatasmithActors;
@@ -237,7 +237,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	TArray< USceneComponent* > Hierarchy;
 
 	/** Scene asset */
-	UDatasmithScene* SceneAsset;
+	TObjectPtr<UDatasmithScene> SceneAsset;
 
 	/** List of previously parsed IES files */
 	TSet<FString> ParsedIesFiles;
@@ -255,9 +255,9 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	TSharedPtr< IDatasmithScene > FilteredScene;
 
 	/** Map of imported mesh for each mesh element */
-	TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* > ImportedStaticMeshes;
+	TMap< TSharedRef< IDatasmithMeshElement >, TObjectPtr<UStaticMesh> > ImportedStaticMeshes;
 
-	TMap< TSharedRef< IDatasmithClothElement >, UObject* > ImportedClothes;
+	TMap< TSharedRef< IDatasmithClothElement >, TObjectPtr<UObject> > ImportedClothes;
 
 	TArray< UObject* > ImportedClothPresets;
 
@@ -268,7 +268,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	TMap< TSharedRef< IDatasmithTextureElement >, UE::Interchange::FAssetImportResultRef > ImportedTextures;
 
 	/** Map of imported material for each material element */
-	TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* > ImportedMaterials;
+	TMap< TSharedRef< IDatasmithBaseMaterialElement >, TObjectPtr<UMaterialInterface> > ImportedMaterials;
 
 	/** Map of imported material function for each material element, they are only imported as a per-required basis */
 	TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialFunction* > ImportedMaterialFunctions;
@@ -277,13 +277,13 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	TMap< FString, TSharedRef < IDatasmithBaseMaterialElement > > ImportedMaterialFunctionsByName;
 
 	/** List of potential parent materials with their hash. Used to create material instances from. */
-	TMap< uint32, UMaterialInterface* > ImportedParentMaterials;
+	TMap< uint32, TObjectPtr<UMaterialInterface> > ImportedParentMaterials;
 
 	/** Map of imported level sequences for each level sequence element */
-	TMap< TSharedRef< IDatasmithLevelSequenceElement >, ULevelSequence* > ImportedLevelSequences;
+	TMap< TSharedRef< IDatasmithLevelSequenceElement >, TObjectPtr<ULevelSequence> > ImportedLevelSequences;
 
 	/** Map of imported level variant sets for each level variant set element */
-	TMap< TSharedRef< IDatasmithLevelVariantSetsElement >, ULevelVariantSets* > ImportedLevelVariantSets;
+	TMap< TSharedRef< IDatasmithLevelVariantSetsElement >, TObjectPtr<ULevelVariantSets> > ImportedLevelVariantSets;
 
 	/** Feedback context provided by ImportFactory. Used to display import progress */
 	FFeedbackContext* FeedbackContext;
@@ -396,10 +396,10 @@ private:
 	FScopedLogger Logger;
 
 	/** Map of StaticMeshActor objects added to the World at import */
-	TMap<FString, AActor*> ImportedActorMap;
+	TMap<FString, TObjectPtr<AActor>> ImportedActorMap;
 
 	/** Map of SceneComponent objects added to the World at import */
-	TMap<FString, USceneComponent*> ImportedSceneComponentMap;
+	TMap<FString, TObjectPtr<USceneComponent>> ImportedSceneComponentMap;
 
 	int32 CurrentSceneActorIndex;
 

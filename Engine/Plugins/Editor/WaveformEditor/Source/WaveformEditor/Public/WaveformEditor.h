@@ -125,8 +125,8 @@ private:
 	static const FName WaveformDisplayTabId;
 	static const FName EditorName;
 	static const FName ToolkitFName;
-	USoundWave* SoundWave = nullptr;
-	UAudioComponent* AudioComponent = nullptr;
+	TObjectPtr<USoundWave> SoundWave = nullptr;
+	TObjectPtr<UAudioComponent> AudioComponent = nullptr;
 	bool bWasPlayingBeforeScrubbing = false;
 	bool bIsInteractingWithTransformations = false;
 	float LastReceivedPlaybackPercent = 0.f;

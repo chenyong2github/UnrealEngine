@@ -240,12 +240,12 @@ public:
 		// Draw the child nodes
 
 		// When drawing a marquee, need a preview of what the selection will be.
-		const auto* SelectionToVisualize = &(SelectionManager.SelectedNodes);
-		FGraphPanelSelectionSet SelectionPreview;
+		const auto* SelectionToVisualize = &ObjectPtrDecay(SelectionManager.SelectedNodes);
+		decltype(SelectionManager.SelectedNodes) SelectionPreview;
 		if (Marquee.IsValid())
 		{			
-			ApplyMarqueeSelection(Marquee, SelectionManager.SelectedNodes, SelectionPreview);
-			SelectionToVisualize = &SelectionPreview;
+			ApplyMarqueeSelection(Marquee, ObjectPtrDecay(SelectionManager.SelectedNodes), SelectionPreview);
+			SelectionToVisualize = &ObjectPtrDecay(SelectionPreview);
 		}
 	
 		int32 NodesLayerId = LayerId;

@@ -1429,7 +1429,7 @@ public:
 protected:
 	FEdModeLandscape* EdMode = nullptr;
 	const FLandscapeToolTarget& Target;
-	ULandscapeInfo* LandscapeInfo = nullptr;
+	TObjectPtr<ULandscapeInfo> LandscapeInfo = nullptr;
 };
 
 

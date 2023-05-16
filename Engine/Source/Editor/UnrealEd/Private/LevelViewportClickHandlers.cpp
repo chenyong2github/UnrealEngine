@@ -397,7 +397,7 @@ namespace LevelViewportClickHandlers
 		}
 		else
 		{
-			UPrimitiveComponent* TestComponent = const_cast<UPrimitiveComponent*>(ActorHitProxy->PrimComponent);
+			UPrimitiveComponent* TestComponent = ConstCast(ActorHitProxy->PrimComponent);
 			if (ActorHitProxy->Actor->GetComponents().Contains(TestComponent))
 			{
 				Component = TestComponent;

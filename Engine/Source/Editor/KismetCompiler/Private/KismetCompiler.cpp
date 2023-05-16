@@ -732,7 +732,7 @@ void FKismetCompilerContext::CleanAndSanitizeClass(UBlueprintGeneratedClass* Cla
 	// Set properties we need to regenerate the class with
 	ClassToClean->PropertyLink = ParentClass->PropertyLink;
 	ClassToClean->SetSuperStruct(ParentClass);
-	ClassToClean->ClassWithin = ParentClass->ClassWithin ? ParentClass->ClassWithin : UObject::StaticClass();
+	ClassToClean->ClassWithin = ParentClass->ClassWithin ? ToRawPtr(ParentClass->ClassWithin) : ToRawPtr(UObject::StaticClass());
 	ClassToClean->ClassConfigName = ClassToClean->IsNative() ? FName(ClassToClean->StaticConfigName()) : ParentClass->ClassConfigName;
 	ClassToClean->DebugData = FBlueprintDebugData();
 
@@ -5037,8 +5037,9 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 			{
 				if (FunctionContext.IsValid())
 				{
-					UFunction* Function = FunctionContext.Function; 
-					FArchiveScriptReferenceCollector ObjRefCollector(Function->ScriptAndPropertyObjectReferences, Function);
+					UFunction* Function = FunctionContext.Function;
+					auto FunctionScriptAndPropertyObjectReferencesView = MutableView(Function->ScriptAndPropertyObjectReferences);
+					FArchiveScriptReferenceCollector ObjRefCollector(FunctionScriptAndPropertyObjectReferencesView, Function);
 					for (int32 iCode = 0; iCode < Function->Script.Num();)
 					{
 						Function->SerializeExpr(iCode, ObjRefCollector);

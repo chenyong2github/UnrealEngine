@@ -393,7 +393,7 @@ class UModel : public UObject
 
 #if WITH_EDITOR
 	// Arrays and subobjects.
-	UPolys*						Polys;
+	TObjectPtr<UPolys>						Polys;
 #endif // WITH_EDITOR
 
 	TArray<FBspNode>		Nodes;
@@ -611,10 +611,10 @@ class FModelElement
 public:
 
 	/** The model component containing this element. */
-	class UModelComponent* Component;
+	TObjectPtr<class UModelComponent> Component;
 
 	/** The material used by the nodes in this element. */
-	class UMaterialInterface* Material;
+	TObjectPtr<class UMaterialInterface> Material;
 
 	/** The nodes in the element. */
 	TArray<uint16> Nodes;

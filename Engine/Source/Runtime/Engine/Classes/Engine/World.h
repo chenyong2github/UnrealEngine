@@ -810,7 +810,7 @@ private:
 	};
 
 	/** Streaming levels that had their priority changed or were added to the container while consideration was underway. */
-	TSortedMap<ULevelStreaming*, EProcessReason> LevelsToProcess;
+	TSortedMap<TObjectPtr<ULevelStreaming>, EProcessReason> LevelsToProcess;
 
 	/** Whether the streaming levels are under active consideration */
 	int32 StreamingLevelsBeingConsidered;

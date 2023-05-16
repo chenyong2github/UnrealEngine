@@ -527,7 +527,7 @@ private:
 	TWeakPtr<class FStaticMeshDetails> StaticMeshDetails;
 
 	/** The currently viewed Static Mesh. */
-	UStaticMesh* StaticMesh;
+	TObjectPtr<UStaticMesh> StaticMesh;
 
 	/** The number of triangles associated with the static mesh LOD. */
 	TArray<int32> NumTriangles;

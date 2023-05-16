@@ -94,7 +94,7 @@ private:
 	bool bIsEvenGroup = false;
 
 	/** Cached MVR Fixture to speed up getters. */
-	UDMXMVRFixtureNode* MVRFixtureNode = nullptr;
+	TObjectPtr<UDMXMVRFixtureNode> MVRFixtureNode = nullptr;
 
 	/** The fixture patch the MVR Fixture UUID is assigned to */
 	TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch;

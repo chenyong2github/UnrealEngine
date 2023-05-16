@@ -88,7 +88,8 @@ void FMassEntityManager::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 
 	const class UScriptStruct* ScriptStruct = FMassObserverManager::StaticStruct();
-	Collector.AddReferencedObjects(ScriptStruct, &ObserverManager);
+	TWeakObjectPtr<const UScriptStruct> ScriptStructPtr{ScriptStruct};
+	Collector.AddReferencedObjects(ScriptStructPtr, &ObserverManager);
 }
 
 void FMassEntityManager::Initialize()

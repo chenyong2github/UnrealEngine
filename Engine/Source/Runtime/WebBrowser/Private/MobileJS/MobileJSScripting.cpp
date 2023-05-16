@@ -606,7 +606,7 @@ void FMobileJSScripting::PageLoaded(TSharedRef<class IWebBrowserWindow> InWindow
 	WindowPtr = InWindow;
 
 	// Expunge temporary objects.
-	for (TMap<UObject*, ObjectBinding>::TIterator It(BoundObjects); It; ++It)
+	for (TMap<TObjectPtr<UObject>, ObjectBinding>::TIterator It(BoundObjects); It; ++It)
 	{
 		if (!It->Value.bIsPermanent)
 		{

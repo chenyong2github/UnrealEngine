@@ -450,31 +450,31 @@ public:
 	bool bStatsFromPreviewMaterial;
 
 	/** The material applied to the preview mesh. */
-	UMaterial* Material;
+	TObjectPtr<UMaterial> Material;
 	
 	/** The source material being edited by this material editor. Only will be updated when Material's settings are copied over this material */
-	UMaterial* OriginalMaterial;
+	TObjectPtr<UMaterial> OriginalMaterial;
 	
 	/** The material applied to the preview mesh when previewing an expression. */
-	UMaterial* ExpressionPreviewMaterial;
+	TObjectPtr<UMaterial> ExpressionPreviewMaterial;
 
 	/** An empty copy of the preview material. Allows displaying of stats about the built in cost of the current material. */
-	UMaterial* EmptyMaterial;
+	TObjectPtr<UMaterial> EmptyMaterial;
 
 	/** The expression currently being previewed.  This is NULL when not in expression preview mode. */
-	UMaterialExpression* PreviewExpression;
+	TObjectPtr<UMaterialExpression> PreviewExpression;
 
 	/** 
 	 * Material function being edited.  
 	 * If this is non-NULL, a function is being edited and Material is being used to preview it.
 	 */
-	UMaterialFunction* MaterialFunction;
+	TObjectPtr<UMaterialFunction> MaterialFunction;
 	
 	/** The original material or material function being edited by this material editor.. */
 	UObject* OriginalMaterialObject;
 
 	/** Configuration class used to store editor settings across sessions. */
-	UMaterialEditorOptions* EditorOptions;
+	TObjectPtr<UMaterialEditorOptions> EditorOptions;
 	
 	/** Document manager for workflow tabs */
 	TSharedPtr<FDocumentTracker> DocumentManager;
@@ -1003,7 +1003,7 @@ private:
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
 
 	/** Object that stores all of the possible parameters we can edit. */
-	class UMaterialEditorPreviewParameters* MaterialEditorInstance;
+	TObjectPtr<class UMaterialEditorPreviewParameters> MaterialEditorInstance;
 
 	/** Object used as material statistics manager */
 	TSharedPtr<class FMaterialStats> MaterialStatsManager;

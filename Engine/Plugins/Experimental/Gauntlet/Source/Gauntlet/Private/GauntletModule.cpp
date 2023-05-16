@@ -75,7 +75,7 @@ private:
 	FTSTicker::FDelegateHandle					TickHandle;
 
 	/** Currently active controllers */
-	TArray<UGauntletTestController*>	Controllers;
+	TArray<TObjectPtr<UGauntletTestController>>	Controllers;
 
 	/** True if a state has been set */
 	bool							StateSet;
@@ -251,7 +251,7 @@ void FGauntletModuleImpl::SetWorldToTestStateMapping(const TMap<FString, FName>&
 
 void FGauntletModuleImpl::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (auto Controller : Controllers)
+	for (auto& Controller : Controllers)
 	{
 		Collector.AddReferencedObject(Controller);
 	}

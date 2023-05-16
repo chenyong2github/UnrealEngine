@@ -41,7 +41,7 @@ namespace Audio
 			, bForceSyncDecode(false)
 		{}
 
-		USoundWave* SoundWave;
+		TObjectPtr<USoundWave> SoundWave;
 		float SeekTime;
 		float PitchScale;
 		float VolumeScale;
@@ -84,6 +84,8 @@ namespace Audio
 
 		// Return the underlying sound wave
 		USoundWave* GetSoundWave() { return SoundWave; }
+    
+		TObjectPtr<USoundWave>& GetSoundWavePtr() { return SoundWave; }
 
 	private:
 
@@ -96,7 +98,7 @@ namespace Audio
 		FDeviceId AudioDeviceID;
 
 		// The sound wave object with which this sound is generating
-		USoundWave* SoundWave;
+		TObjectPtr<USoundWave> SoundWave;
 
 		// Mixer buffer object which is a convenience wrapper around some buffer initialization and management
 		FMixerBuffer* MixerBuffer;

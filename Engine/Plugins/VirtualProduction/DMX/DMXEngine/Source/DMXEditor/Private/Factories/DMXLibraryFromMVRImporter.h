@@ -82,7 +82,7 @@ private:
 	void InitializeDMXLibrary(UDMXLibrary* DMXLibrary, const TArray<UDMXImportGDTF*>& GDTFs);
 
 	/** Temporary General Scene Description of the MVR File, or nullptr if not a valid MVR */
-	UDMXMVRGeneralSceneDescription* GeneralSceneDescription = nullptr;
+	TObjectPtr<UDMXMVRGeneralSceneDescription> GeneralSceneDescription = nullptr;
 
 	/** Zip that holds the data */
 	TSharedPtr<FDMXZipper> Zip;

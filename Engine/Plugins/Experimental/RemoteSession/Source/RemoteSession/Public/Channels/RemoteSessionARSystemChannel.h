@@ -96,9 +96,9 @@ private:
 	static TSharedPtr<FARSystemProxy, ESPMode::ThreadSafe> FactoryInstance;
 
 	/** Used to return the session config object the remote is using */
-	UARSessionConfig* SessionConfig;
+	TObjectPtr<UARSessionConfig> SessionConfig;
 	/** Map of unique ids to tracked geometries */
-	TMap<FGuid, UARTrackedGeometry*> TrackedGeometries;
+	TMap<FGuid, TObjectPtr<UARTrackedGeometry>> TrackedGeometries;
 	/** The video formats that are supported */
 	TArray<FARVideoFormat> SupportedFormats;
 };

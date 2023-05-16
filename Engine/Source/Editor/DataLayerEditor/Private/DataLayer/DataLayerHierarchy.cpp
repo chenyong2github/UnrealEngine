@@ -496,7 +496,7 @@ void FDataLayerHierarchy::OnLevelAdded(ULevel* InLevel, UWorld* InWorld)
 {
 	if (!InWorld->IsGameWorld() && InLevel && (GetOwningWorld() == InWorld))
 	{
-		OnLevelActorsAdded(InLevel->Actors);
+		OnLevelActorsAdded(ObjectPtrDecay(InLevel->Actors));
 	}
 }
 
@@ -504,7 +504,7 @@ void FDataLayerHierarchy::OnLevelRemoved(ULevel* InLevel, UWorld* InWorld)
 {
 	if (!InWorld->IsGameWorld() && InLevel && (GetOwningWorld() == InWorld))
 	{
-		OnLevelActorsRemoved(InLevel->Actors);
+		OnLevelActorsRemoved(ObjectPtrDecay(InLevel->Actors));
 	}
 }
 

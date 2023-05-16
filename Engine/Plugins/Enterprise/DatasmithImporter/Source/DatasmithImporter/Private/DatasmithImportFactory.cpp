@@ -1056,4 +1056,3 @@ int32 UDatasmithImportFactory::GetPriority() const
 }
 
 #undef LOCTEXT_NAMESPACE
-

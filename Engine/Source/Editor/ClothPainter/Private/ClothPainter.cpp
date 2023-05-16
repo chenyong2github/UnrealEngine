@@ -429,7 +429,7 @@ void FClothPainter::Render(const FSceneView* View, FViewport* Viewport, FPrimiti
 		{
 			const FHitResult& HitResult = GetHitResult(PaintRay.RayStart, PaintRay.RayDirection);
 
-			if(HitResult.Component == SkeletalMeshComponent)
+			if(HitResult.Component == SkeletalMeshComponent.Get())
 			{
 				const FMatrix ComponentToWorldMatrix = SkeletalMeshComponent->GetComponentTransform().ToMatrixWithScale();
 				const FVector ComponentSpaceCameraPosition(ComponentToWorldMatrix.InverseTransformPosition(PaintRay.CameraLocation));

@@ -239,7 +239,7 @@ private:
 	void UpdateOutlinerHeader();
 	
 private:
-	UFractureModalTool* ActiveTool;
+	TObjectPtr<UFractureModalTool> ActiveTool;
 
 	// called when PIE is about to start, shuts down active tools
 	FDelegateHandle BeginPIEDelegateHandle;

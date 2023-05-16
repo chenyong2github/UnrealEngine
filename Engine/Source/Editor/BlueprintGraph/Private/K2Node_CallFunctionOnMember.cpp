@@ -144,7 +144,7 @@ bool UK2Node_CallFunctionOnMember::HasExternalDependencies(TArray<class UStruct*
 
 	auto VarProperty = MemberVariableToCallOn.ResolveMember<FProperty>(GetBlueprintClassFromNode());
 	UClass* SourceClass = VarProperty ? VarProperty->GetOwnerClass() : nullptr;
-	const bool bResult = (SourceClass != NULL) && (SourceClass->ClassGeneratedBy != SourceBlueprint);
+	const bool bResult = (SourceClass != NULL) && (SourceClass->ClassGeneratedBy.Get() != SourceBlueprint);
 	if (bResult && OptionalOutput)
 	{
 		OptionalOutput->AddUnique(SourceClass);

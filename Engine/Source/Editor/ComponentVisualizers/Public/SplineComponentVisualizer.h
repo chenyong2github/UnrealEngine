@@ -423,7 +423,7 @@ protected:
 	TSharedPtr<FUICommandList> SplineComponentVisualizerActions;
 
 	/** Current selection state */
-	USplineComponentVisualizerSelectionState* SelectionState;
+	TObjectPtr<USplineComponentVisualizerSelectionState> SelectionState;
 
 	/** Whether we currently allow duplication when dragging */
 	bool bAllowDuplication;

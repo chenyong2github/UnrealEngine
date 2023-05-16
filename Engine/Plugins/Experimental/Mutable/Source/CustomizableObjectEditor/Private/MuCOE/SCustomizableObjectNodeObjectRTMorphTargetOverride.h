@@ -181,7 +181,7 @@ public:
 
 private:
     /** Pointer to the Current selected Node SkeletalMesh */
-    UCustomizableObjectNodeObject* Node = nullptr;
+		TObjectPtr<UCustomizableObjectNodeObject> Node = nullptr;
 
     /** Widget List of the SkeletalMesh MorphTargets */
     TArray< TSharedPtr<ItemType> > Items;
@@ -194,4 +194,3 @@ private:
     FString SearchBoxFilter;
 
 };
-

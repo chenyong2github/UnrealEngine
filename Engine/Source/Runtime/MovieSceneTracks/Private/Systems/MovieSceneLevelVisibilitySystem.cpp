@@ -50,7 +50,7 @@ void SetLevelVisibility(ULevelStreaming& Level, bool bVisible, EFlushLevelStream
 		ULevel* LoadedLevel = Level.GetLoadedLevel();
 		if (LoadedLevel != nullptr)
 		{
-			TArray<AActor*>& Actors = LoadedLevel->Actors;
+			auto& Actors = LoadedLevel->Actors;
 			for ( int32 ActorIndex = 0; ActorIndex < Actors.Num(); ++ActorIndex )
 			{
 				AActor* Actor = Actors[ActorIndex];

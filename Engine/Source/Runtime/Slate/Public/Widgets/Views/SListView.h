@@ -2040,7 +2040,9 @@ public:
 	 */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector )
 	{
+#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
 		TListTypeTraits<ItemType>::AddReferencedObjects( Collector, WidgetGenerator.ItemsWithGeneratedWidgets, SelectedItems, WidgetGenerator.WidgetMapToItem );
+#endif
 	}
 	virtual FString GetReferencerName() const
 	{

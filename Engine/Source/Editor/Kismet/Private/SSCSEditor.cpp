@@ -7148,7 +7148,7 @@ void SSCSEditor::OnApplyChangesToBlueprint() const
 	AActor* Actor = GetActorContext();
 	const UBlueprint* const Blueprint = (Actor != nullptr) ? Cast<UBlueprint>(Actor->GetClass()->ClassGeneratedBy) : nullptr;
 
-	if (Actor != NULL && Blueprint != NULL && Actor->GetClass()->ClassGeneratedBy == Blueprint)
+	if (Actor != NULL && Blueprint != NULL && Actor->GetClass()->ClassGeneratedBy.Get() == Blueprint)
 	{
 		const FString ActorLabel = Actor->GetActorLabel();
 		int32 NumChangedProperties = FKismetEditorUtilities::ApplyInstanceChangesToBlueprint(Actor);

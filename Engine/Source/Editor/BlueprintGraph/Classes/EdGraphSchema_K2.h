@@ -58,7 +58,7 @@ struct BLUEPRINTGRAPH_API FEdGraphSchemaAction_K2Struct : public FEdGraphSchemaA
 	static FName StaticGetTypeId() {static FName Type("FEdGraphSchemaAction_K2Struct"); return Type;}
 	virtual FName GetTypeId() const override { return StaticGetTypeId(); } 
 
-	UStruct* Struct;
+	TObjectPtr<UStruct> Struct;
 
 	void AddReferencedObjects( FReferenceCollector& Collector ) override
 	{

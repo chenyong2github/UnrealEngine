@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
 #include "HitProxies.h"
+#include "UObject/ObjectPtr.h"
 
 class AActor;
 class ABrush;
@@ -25,8 +26,8 @@ struct HLevelSocketProxy : public HHitProxy
 {
 	DECLARE_HIT_PROXY();
 
-	AActor* Actor;
-	USceneComponent* SceneComponent;
+	TObjectPtr<AActor> Actor;
+	TObjectPtr<USceneComponent> SceneComponent;
 	FName SocketName;
 
 	HLevelSocketProxy(AActor* InActor, USceneComponent* InSceneComponent, FName InSocketName)

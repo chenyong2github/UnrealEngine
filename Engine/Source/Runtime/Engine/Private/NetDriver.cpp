@@ -3857,7 +3857,7 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 		Collector.AddStableReference(&Replicator->ObjectClass);
 	}
 
-	for (TPair<TSharedRef<const FInternetAddr>, UNetConnection*>& Pair : This->MappedClientConnections)
+	for (auto& Pair : This->MappedClientConnections)
 	{
 		Collector.AddStableReference(&Pair.Value);
 	}
@@ -5925,7 +5925,7 @@ void UNetDriver::RemoveClientConnection(UNetConnection* ClientConnectionToRemove
 
 		if (RecentlyDisconnectedTrackingTime > 0)
 		{
-			UNetConnection** FoundVal = MappedClientConnections.Find(ConstAddrRef);
+			auto* FoundVal = MappedClientConnections.Find(ConstAddrRef);
 
 			// Mark recently disconnected clients as nullptr (don't wait for GC), and keep the MappedClientConections entry for a while.
 			// Required for identifying/ignoring packets from recently disconnected clients, with the same performance as for NetConnection's (important for DDoS detection)

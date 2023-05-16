@@ -171,7 +171,7 @@ private:
 private:
 	class ISpriteSelectionContext* EditorContext;
 
-	UMaterial* WidgetVertexColorMaterial;
+	TObjectPtr<UMaterial> WidgetVertexColorMaterial;
 
 	// Set of selected vertices/shapes
 	TSet<FShapeVertexPair> SelectedIDSet;

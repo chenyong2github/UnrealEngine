@@ -110,7 +110,7 @@ static TAutoConsoleVariable<FString> CVarAnimSharing_PreviewScalabilityPlatform(
 #define DETAIL_STATS 0
 
 #if DEBUG_MATERIALS
-TArray<UMaterialInterface*> UAnimationSharingManager::DebugMaterials;
+TArray<TObjectPtr<UMaterialInterface>> UAnimationSharingManager::DebugMaterials;
 #endif
 
 void UAnimationSharingManager::BeginDestroy()
@@ -2182,4 +2182,3 @@ void UAnimSharingInstance::RemoveAdditiveInstance(int32 InstanceIndex)
 
 	AdditiveInstances.RemoveAtSwap(InstanceIndex, 1, false);
 }
-

@@ -143,7 +143,7 @@ private:
 	}
 
 	/** Reflection data for child USTRUCT */
-	const UScriptStruct* RepDataType = nullptr;
+	TObjectPtr<const UScriptStruct> RepDataType = nullptr;
 
 	/**
 	 * Pointer to child UStruct that holds the current state of the party. Only modifiable by party leader.

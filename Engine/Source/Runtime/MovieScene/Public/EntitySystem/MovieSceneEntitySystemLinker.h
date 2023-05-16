@@ -355,7 +355,7 @@ private:
 	TUniquePtr<FInstanceRegistry> InstanceRegistry;
 
 	TSparseArray<UMovieSceneEntitySystem*> EntitySystemsByGlobalGraphID;
-	TMap<UClass*, UMovieSceneEntitySystem*> EntitySystemsRecyclingPool;
+	TMap<TObjectPtr<UClass>, TObjectPtr<UMovieSceneEntitySystem>> EntitySystemsRecyclingPool;
 
 	TArray<FMovieSceneEntitySystemRunner*> ActiveRunners;
 	TBitArray<> ActiveRunnerReentrancyFlags;

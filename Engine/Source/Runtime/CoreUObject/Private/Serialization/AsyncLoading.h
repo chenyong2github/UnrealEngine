@@ -618,9 +618,9 @@ private:
 	/** Objects to be post loaded on the game thread */
 	TArray<UObject*> DeferredPostLoadObjects;
 	/** Objects to be finalized on the game thread */
-	TArray<UObject*> DeferredFinalizeObjects;
+	TArray<TObjectPtr<UObject>> DeferredFinalizeObjects;
 	/** Objects loaded while loading this package */
-	TArray<UObject*> PackageObjLoaded;
+	TArray<TObjectPtr<UObject>> PackageObjLoaded;
 	/** Packages that were loaded synchronously while async loading this package or packages added by verify import */
 	TArray<FLinkerLoad*> DelayedLinkerClosePackages;
 	/** Objects to create GC clusters from */
@@ -640,14 +640,14 @@ private:
 	/** Number of times we recursed to load or post load this package. could be split into 2 counters not to use atomics. */
 	std::atomic<int32> ReentryCount;
 	/** List of objects referenced by this package */
-	TSet<UObject*> ReferencedObjects;
+	TSet<TObjectPtr<UObject>> ReferencedObjects;
 	/** Critical section for referenced objects list */
 	FCriticalSection ReferencedObjectsCritical;
 	/** Cached async loading thread object this package was created by */
 	FAsyncLoadingThread& AsyncLoadingThread;
 	FEDLBootNotificationManager& EDLBootNotificationManager;
 	/** Packages that have been imported by this async package */
-	TSet<UPackage*> ImportedPackages;
+	TSet<TObjectPtr<UPackage>> ImportedPackages;
 
 public:
 	

@@ -514,7 +514,7 @@ UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystemImpl(TSubclass
 	// This means we can do our own recycling within the scope of this linker, to save on the cost of re-creating
 	// systems when the first instantiation phase kicks in after a period without any sequence playing.
 	UMovieSceneEntitySystem* NewSystem = nullptr;
-	UMovieSceneEntitySystem** Recycled = EntitySystemsRecyclingPool.Find(InClassType);
+	auto* Recycled = EntitySystemsRecyclingPool.Find(InClassType);
 	if (Recycled)
 	{
 		// Revive a recycled system.

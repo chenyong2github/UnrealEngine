@@ -125,10 +125,10 @@ private:
 	 * template-nodes. Ideally we only need a small handful that are compatible 
 	 * with all nodes.
 	 */
-	TArray<UBlueprint*> TemplateOuters;
+	TArray<TObjectPtr<UBlueprint>> TemplateOuters;
 
 	/** */
-	TMap<UBlueprintNodeSpawner const*, UEdGraphNode*> NodeTemplateCache;
+	TMap<UBlueprintNodeSpawner const*, TObjectPtr<UEdGraphNode>> NodeTemplateCache;
 
 
 	/** 

@@ -896,7 +896,7 @@ private:
 
 
 	// used by the Postprocess Material Blending system to avoid recreation and garbage collection of MIDs
-	TArray<UMaterialInstanceDynamic*> MIDPool;
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> MIDPool;
 	uint32 MIDUsedCount;
 
 	// counts up by one each frame, warped in 0..3 range, ResetViewState() puts it back to 0
@@ -957,7 +957,7 @@ public:
 		TRefCountPtr<FRDGPooledBuffer> ConstantsBuffer;
 
 		// The physical space source texture
-		UTexture2D* Physical = nullptr;
+		TObjectPtr<UTexture2D> Physical = nullptr;
 		FRHITexture* PhysicalRHI = nullptr;
 
 		// The Scale * 100 = percentage of the image space that the physical kernel represents.
@@ -984,7 +984,7 @@ public:
 		}
 		/// @endcond
 
-		UTexture2D* Texture = nullptr;
+		TObjectPtr<UTexture2D> Texture = nullptr;
 		FRHITexture* TextureRHI = nullptr;
 		TRefCountPtr<FRDGPooledBuffer> ConstantsBuffer;
 	} FilmGrainCache;

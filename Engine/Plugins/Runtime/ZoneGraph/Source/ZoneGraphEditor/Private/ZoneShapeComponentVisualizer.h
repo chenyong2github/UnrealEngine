@@ -255,7 +255,7 @@ protected:
 	FProperty* ShapePointsProperty;
 
 	/** Current selection state */
-	UZoneShapeComponentVisualizerSelectionState* SelectionState;
+	TObjectPtr<UZoneShapeComponentVisualizerSelectionState> SelectionState;
 
 	/** Whether we currently allow duplication when dragging */
 	bool bAllowDuplication;

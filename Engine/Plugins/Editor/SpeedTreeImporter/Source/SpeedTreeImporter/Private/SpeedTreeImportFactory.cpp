@@ -320,18 +320,19 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
  */
 struct FSpeedTreeImportContext : public FGCObject
 {
-	TMap<FString, UMaterialInterface*> ImportedMaterials;
-	TMap<FString, UTexture*> ImportedTextures;
+	TMap<FString, TObjectPtr<UMaterialInterface>> ImportedMaterials;
+	TMap<FString, TObjectPtr<UTexture>> ImportedTextures;
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
-		TArray<UMaterialInterface*> Materials;
-		ImportedMaterials.GenerateValueArray(Materials);
-		Collector.AddReferencedObjects(Materials);
-
-		TArray<UTexture*> Textures;
-		ImportedTextures.GenerateValueArray(Textures);
-		Collector.AddReferencedObjects(ImportedTextures);
+		for (auto& KV : ImportedMaterials)
+		{
+			Collector.AddReferencedObject(KV.Value);
+		}
+		for (auto& KV : ImportedTextures)
+		{
+			Collector.AddReferencedObject(KV.Value);
+		}
 	}
 	virtual FString GetReferencerName() const override
 	{
@@ -465,7 +466,7 @@ UTexture* CreateSpeedTreeMaterialTexture(UObject* Parent,const FString& Filename
 		return nullptr;
 	}
 
-	if (UTexture** Texture = ImportContext.ImportedTextures.Find(Filename))
+	if (auto* Texture = ImportContext.ImportedTextures.Find(Filename))
 	{
 		// The texture was already processed
 		return *Texture;
@@ -673,7 +674,7 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 		return UMaterial::GetDefaultMaterial(MD_Surface);
 	}
 	
-	if (UMaterialInterface** Material = ImportContext.ImportedMaterials.Find(MaterialFullName))
+	if (auto* Material = ImportContext.ImportedMaterials.Find(MaterialFullName))
 	{
 		// The material was already imported
 		return *Material;
@@ -1004,7 +1005,7 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 		return UMaterial::GetDefaultMaterial(MD_Surface);
 	}
 
-	if (UMaterialInterface** Material = ImportContext.ImportedMaterials.Find(MaterialFullName))
+	if (auto* Material = ImportContext.ImportedMaterials.Find(MaterialFullName))
 	{
 		// The material was already imported
 		return *Material;
@@ -1302,7 +1303,7 @@ UMaterialInterface* CreateSpeedTreeMaterial9(UObject* Parent, FString MaterialFu
 		return UMaterial::GetDefaultMaterial(MD_Surface);
 	}
 
-	if (UMaterialInterface** Material = ImportContext.ImportedMaterials.Find(MaterialFullName))
+	if (auto* Material = ImportContext.ImportedMaterials.Find(MaterialFullName))
 	{
 		// The material was already imported
 		return *Material;

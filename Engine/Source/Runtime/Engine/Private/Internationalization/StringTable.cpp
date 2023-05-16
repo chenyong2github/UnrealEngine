@@ -333,7 +333,7 @@ private:
 	mutable FCriticalSection AsyncLoadingStringTablesCS;
 
 	/** Array of string table assets that have been loaded and should be kept alive */
-	TArray<UStringTable*> KeepAliveStringTables;
+	TArray<TObjectPtr<UStringTable>> KeepAliveStringTables;
 	/** Critical section preventing concurrent modification of KeepAliveStringTables */
 	mutable FCriticalSection KeepAliveStringTablesCS;
 };

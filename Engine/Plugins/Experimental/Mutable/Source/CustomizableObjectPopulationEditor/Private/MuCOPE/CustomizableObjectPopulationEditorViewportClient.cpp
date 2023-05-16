@@ -48,8 +48,8 @@ void FCustomizableObjectPopulationEditorViewportClient::SetPreviewComponent(TArr
 		ColliderComponents.Empty();
 
 		// Cloning the new instances array
-		SkeletalMeshComponents = InSkeletalMeshComponent;
-		ColliderComponents = InColliderComponents;
+		SkeletalMeshComponents = ObjectPtrWrap(InSkeletalMeshComponent);
+		ColliderComponents = ObjectPtrWrap(InColliderComponents);
 
 		SelectedInstance = -1;
 

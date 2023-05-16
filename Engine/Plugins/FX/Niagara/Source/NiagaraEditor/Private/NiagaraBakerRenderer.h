@@ -128,15 +128,15 @@ public:
 	static bool ExportImage(FStringView FilePath, FIntPoint ImageSize, TArrayView<FFloat16Color> ImageData);
 	static bool ExportVolume(FStringView FilePath, FIntVector ImageSize, TArrayView<FFloat16Color> ImageData);
 private:
-	static void CreatePreviewScene(UNiagaraSystem* NiagaraSystem, UNiagaraComponent*& OutComponent, TSharedPtr<FAdvancedPreviewScene>& OutPreviewScene);
-	static void DestroyPreviewScene(UNiagaraComponent*& InOutComponent, TSharedPtr<FAdvancedPreviewScene>& InOutPreviewScene);
+	static void CreatePreviewScene(UNiagaraSystem* NiagaraSystem, TObjectPtr<UNiagaraComponent>& OutComponent, TSharedPtr<FAdvancedPreviewScene>& OutPreviewScene);
+	static void DestroyPreviewScene(TObjectPtr<UNiagaraComponent>& InOutComponent, TSharedPtr<FAdvancedPreviewScene>& InOutPreviewScene);
 
 private:
-	UNiagaraSystem* NiagaraSystem = nullptr;
-	UNiagaraComponent* PreviewComponent = nullptr;
+	TObjectPtr<UNiagaraSystem> NiagaraSystem = nullptr;
+	TObjectPtr<UNiagaraComponent> PreviewComponent = nullptr;
 	TSharedPtr<FAdvancedPreviewScene> AdvancedPreviewScene;
-	USceneCaptureComponent2D* SceneCaptureComponent = nullptr;
+	TObjectPtr<USceneCaptureComponent2D> SceneCaptureComponent = nullptr;
 
-	mutable UNiagaraComponent* SimCachePreviewComponent = nullptr;
+	mutable TObjectPtr<UNiagaraComponent> SimCachePreviewComponent = nullptr;
 	mutable TSharedPtr<FAdvancedPreviewScene> SimCacheAdvancedPreviewScene;
 };

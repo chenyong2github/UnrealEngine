@@ -673,7 +673,7 @@ void USoundSubmixBase::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-TArray<USoundSubmixBase*> USoundSubmixBase::BackupChildSubmixes;
+TArray<TObjectPtr<USoundSubmixBase>> USoundSubmixBase::BackupChildSubmixes;
 
 bool USoundSubmixBase::RecurseCheckChild(const USoundSubmixBase* ChildSoundSubmix) const
 {
@@ -780,7 +780,7 @@ void USoundSubmixBase::AddReferencedObjects(UObject* InThis, FReferenceCollector
 
 	Collector.AddReferencedObject(This->SoundSubmixGraph, This);
 
-	for (USoundSubmixBase* Backup : This->BackupChildSubmixes)
+	for (auto& Backup : This->BackupChildSubmixes)
 	{
 		Collector.AddReferencedObject(Backup);
 	}

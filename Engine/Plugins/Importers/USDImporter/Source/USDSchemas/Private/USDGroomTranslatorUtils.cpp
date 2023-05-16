@@ -47,9 +47,9 @@ namespace UE::UsdGroomTranslatorUtils::Private
 		}
 
 		EGroomBindingMeshType GroomBindingType = EGroomBindingMeshType::SkeletalMesh;
-		UGroomAsset* Groom = nullptr;
-		UObject* SourceMesh = nullptr;
-		UObject* TargetMesh = nullptr;
+		TObjectPtr<UGroomAsset> Groom = nullptr;
+		TObjectPtr<UObject> SourceMesh = nullptr;
+		TObjectPtr<UObject> TargetMesh = nullptr;
 		int32 NumInterpolationPoints = 100;
 		int32 MatchingSection = 0;
 	};

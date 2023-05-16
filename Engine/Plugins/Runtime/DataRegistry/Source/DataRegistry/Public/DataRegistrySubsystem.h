@@ -218,8 +218,8 @@ public:
 	static void DumpCachedItems(const TArray<FString>& Args);
 
 protected:
-	typedef TPair<FName, UDataRegistry*> FRegistryMapPair;
-	TSortedMap<FName, UDataRegistry*, FDefaultAllocator, FNameFastLess> RegistryMap;
+	typedef TPair<FName, TObjectPtr<UDataRegistry>> FRegistryMapPair;
+	TSortedMap<FName, TObjectPtr<UDataRegistry>, FDefaultAllocator, FNameFastLess> RegistryMap;
 
 	// Initialization order, need to wait for other early-load systems to initialize
 	virtual void PostEngineInit();

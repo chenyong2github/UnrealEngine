@@ -114,7 +114,7 @@ private:
 	FOnRenameRequested OnRenameRequested;
 
 	/** Bone proxy used for debug display */
-	UBoneProxy* BoneProxy;
+	TObjectPtr<UBoneProxy> BoneProxy;
 
 	/** True if the user is in a transaction when moving the blend profile slider */
 	bool bBlendSliderStartedTransaction;

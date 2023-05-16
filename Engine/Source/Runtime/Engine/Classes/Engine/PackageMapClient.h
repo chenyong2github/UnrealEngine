@@ -143,7 +143,7 @@ private:
 	}
 
 	FNetworkGUID NetGUID;
-	UObject* Object;
+	TObjectPtr<UObject> Object;
 };
 
 class ENGINE_API FNetGUIDCache

@@ -93,7 +93,7 @@ private:
 	TMap<TWeakPtr<SWindow>, TWeakPtr<SEditorTutorials>> TutorialWidgets;
 
 	/** Tutorial we are currently viewing */
-	UEditorTutorial* CurrentTutorial;
+	TObjectPtr<UEditorTutorial> CurrentTutorial;
 
 	/** Current stage of tutorial */
 	int32 CurrentTutorialStage;

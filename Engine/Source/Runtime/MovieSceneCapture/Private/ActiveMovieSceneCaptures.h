@@ -24,7 +24,7 @@ public:
 	void Shutdown();
 
 	/** We use the pending array here, as it's the most up to date */
-	const TArray<UMovieSceneCapture*>& GetActiveCaptures() const { return ActiveCaptures; }
+	const TArray<UMovieSceneCapture*>& GetActiveCaptures() const { return ObjectPtrDecay(ActiveCaptures); }
 
 private:
 
@@ -46,7 +46,7 @@ private:
 	FActiveMovieSceneCaptures() {}
 
 	/** Array of active captures */
-	TArray<UMovieSceneCapture*> ActiveCaptures;
+	TArray<TObjectPtr<UMovieSceneCapture>> ActiveCaptures;
 
 	/** Class singleton */
 	static TUniquePtr<FActiveMovieSceneCaptures> Singleton;

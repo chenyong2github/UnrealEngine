@@ -447,10 +447,8 @@ bool FInstancedStruct::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 		}
 		else if (Ar.IsSaving())
 		{
-			UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(ScriptStruct);
-			check(::IsValid(NonConstStruct));
-			
-			Ar << NonConstStruct;
+			check(::IsValid(ScriptStruct));
+			Ar << ScriptStruct;
 		}
 
 		// Check ScriptStruct here, as loading might have failed. 
@@ -469,7 +467,7 @@ bool FInstancedStruct::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 				check(::IsValid(NetConnection));
 				check(::IsValid(NetConnection->GetDriver()));
 
-				UScriptStruct* NonConstStruct = const_cast<UScriptStruct*>(ScriptStruct);
+				auto& NonConstStruct = ConstCast(ScriptStruct);
 				const TSharedPtr<FRepLayout> RepLayout = NetConnection->GetDriver()->GetStructRepLayout(NonConstStruct);
 				check(RepLayout.IsValid());
 

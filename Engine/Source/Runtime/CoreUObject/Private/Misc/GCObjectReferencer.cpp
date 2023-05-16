@@ -163,6 +163,7 @@ class FInitialReferenceCollector final : public FReferenceCollector
 {
 	TArray<UObject**>& Result;
 
+#if !UE_DEPRECATE_RAW_UOBJECTPTR_ARO
 	virtual void AddStableReference(UObject** Object) override
 	{
 		Result.Add(Object);
@@ -183,7 +184,29 @@ class FInitialReferenceCollector final : public FReferenceCollector
 			Result.Add(&Object);
 		}
 	}
+#endif
+	
+	virtual void AddStableReference(TObjectPtr<UObject>* Object) override
+	{
+		Result.Add(&UE::Core::Private::Unsafe::Decay(*Object));
+	}
 
+	virtual void AddStableReferenceArray(TArray<TObjectPtr<UObject>>* Objects) override
+	{
+		for (TObjectPtr<UObject>& Object : *Objects)
+		{
+			Result.Add(&UE::Core::Private::Unsafe::Decay(Object));
+		}
+	}
+
+	virtual void AddStableReferenceSet(TSet<TObjectPtr<UObject>>* Objects) override
+	{
+		for (TObjectPtr<UObject>& Object : *Objects)
+		{
+			Result.Add(&UE::Core::Private::Unsafe::Decay(Object));
+		}
+	}
+  
 	virtual void HandleObjectReference(UObject*& InObject, const UObject* InReferencingObject, const FProperty* InReferencingProperty) override
 	{
 		checkf(false, TEXT("FGCObject constructed with AddStableNativeReferencesOnly should only call AddStableReference, not HandleObjectReference"));

@@ -207,7 +207,7 @@ private:
 	FSlateBrush LightBackgroundBrush;
 	FSlateBrush RecessedBackgroundBrush;
 private:
-	UNiagaraHierarchyRoot* SourceRoot = nullptr;
+	TObjectPtr<UNiagaraHierarchyRoot> SourceRoot = nullptr;
 	TSharedPtr<FNiagaraHierarchyRootViewModel> SourceRootViewModel;
 	TSharedPtr<STreeView<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>> SourceTreeView;
 	TSharedPtr<STreeView<TSharedPtr<FNiagaraHierarchyItemViewModelBase>>> HierarchyTreeView;

@@ -7,6 +7,7 @@
 #include "UObject/GCObject.h"
 #include "Interface_CollisionDataProviderCore.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/ObjectPtr.h"
 
 struct FBodySetupUVInfo;
 struct FCookBodySetupInfo;
@@ -60,7 +61,7 @@ public:
 
 private:
 	friend class FChaosDerivedDataCookerRefHolder;
-	UBodySetup* Setup;
+	TObjectPtr<UBodySetup> Setup;
 	FName RequestedFormat;
 	TUniquePtr<FGCObject> RefHolder;
 };

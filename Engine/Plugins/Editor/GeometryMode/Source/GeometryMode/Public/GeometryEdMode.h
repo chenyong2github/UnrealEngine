@@ -237,8 +237,8 @@ public:
 
 	/** @name Modifier iterators */
 	//@{
-	typedef TArray<UGeomModifier*>::TIterator TModifierIterator;
-	typedef TArray<UGeomModifier*>::TConstIterator TModifierConstIterator;
+	typedef TArray<TObjectPtr<UGeomModifier>>::TIterator TModifierIterator;
+	typedef TArray<TObjectPtr<UGeomModifier>>::TConstIterator TModifierConstIterator;
 
 	TModifierIterator		ModifierIterator()				{ return TModifierIterator( Modifiers ); }
 	TModifierConstIterator	ModifierConstIterator() const	{ return TModifierConstIterator( Modifiers ); }
@@ -266,7 +266,7 @@ public:
 
 protected:
 	/** All available modifiers. */
-	TArray<UGeomModifier*> Modifiers;
+	TArray<TObjectPtr<UGeomModifier>> Modifiers;
 
 	/** The current modifier. */
 	UGeomModifier* CurrentModifier;	

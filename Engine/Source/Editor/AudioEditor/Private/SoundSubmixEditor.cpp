@@ -225,10 +225,7 @@ FSoundSubmixEditor::~FSoundSubmixEditor()
 
 void FSoundSubmixEditor::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (UObject* Obj : GetEditingObjects())
-	{
-		Collector.AddReferencedObject(Obj);
-	}
+	Collector.AddReferencedObjects(GetEditingObjectPtrs());
 }
 
 TSharedRef<SDockTab> FSoundSubmixEditor::SpawnTab_GraphCanvas(const FSpawnTabArgs& Args)

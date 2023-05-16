@@ -249,7 +249,7 @@ struct FDatasmithFindAssetTypeHelper< UStaticMesh >
 {
 	static const TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >& GetImportedAssetsMap( const FDatasmithAssetsImportContext& AssetsContext )
 	{
-		return AssetsContext.GetParentContext().ImportedStaticMeshes;
+		return ObjectPtrDecay(AssetsContext.GetParentContext().ImportedStaticMeshes);
 	}
 
 	static UPackage* GetFinalPackage( const FDatasmithAssetsImportContext& AssetsContext )
@@ -321,7 +321,7 @@ struct FDatasmithFindAssetTypeHelper< UMaterialInterface >
 {
 	static const TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& GetImportedAssetsMap( const FDatasmithAssetsImportContext& AssetsContext )
 	{
-		return AssetsContext.GetParentContext().ImportedMaterials;
+		return ObjectPtrDecay(AssetsContext.GetParentContext().ImportedMaterials);
 	}
 
 	static UPackage* GetFinalPackage( const FDatasmithAssetsImportContext& AssetsContext )

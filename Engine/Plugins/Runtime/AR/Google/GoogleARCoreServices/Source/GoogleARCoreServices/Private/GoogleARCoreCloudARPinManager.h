@@ -30,7 +30,7 @@ public:
 	// Return all the CloudARPin in the current session.
 	TArray<UCloudARPin*> GetAllCloudARPin()
 	{
-		return AllCloudARPins;
+		return ObjectPtrDecay(AllCloudARPins);
 	}
 
 	// Tick the CloudARPinManager.
@@ -52,7 +52,7 @@ protected:
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
 	{
-		for (UCloudARPin* ARPin : AllCloudARPins)
+		for (auto& ARPin : AllCloudARPins)
 		{
 			Collector.AddReferencedObject(ARPin);
 		}
@@ -73,7 +73,7 @@ protected:
 
 	// protected properties:
 	TSharedRef<FARSupportInterface, ESPMode::ThreadSafe> ARSystem;
-	TArray<UCloudARPin*> AllCloudARPins;
+	TArray<TObjectPtr<UCloudARPin>> AllCloudARPins;
 	
 #if	ARCORE_SERVICE_SUPPORTED_PLATFORM
 	virtual ArSession* GetSessionHandle() = 0;
@@ -83,4 +83,3 @@ protected:
 	TMap<ArAnchor*, UCloudARPin*> HandleToCloudPinMap;
 #endif
 };
-

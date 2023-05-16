@@ -71,7 +71,7 @@ private:
 	float OldEqualValue;
 	float OldTolerance;
 
-	UDataprepFloatFilter* Filter;
+	TObjectPtr<UDataprepFloatFilter> Filter;
 
 	TArray<TSharedPtr<FListEntry>> FloatMatchingOptions;
 

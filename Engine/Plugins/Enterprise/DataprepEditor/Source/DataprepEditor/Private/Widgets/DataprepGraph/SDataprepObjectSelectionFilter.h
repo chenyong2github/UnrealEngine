@@ -23,7 +23,7 @@ class SDataprepObjectSelectionFilter : public SCompoundWidget, public FGCObject
 
 private:
 
-	UDataprepObjectSelectionFilter* Filter;
+	TObjectPtr<UDataprepObjectSelectionFilter> Filter;
 
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

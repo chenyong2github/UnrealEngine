@@ -75,9 +75,9 @@ public:
 
 
 	/** Customizable Object Instance for UI purposes */
-	class UCustomizableObjectInstance* CustomizableObjectInstance = nullptr;
+	TObjectPtr<class UCustomizableObjectInstance> CustomizableObjectInstance = nullptr;
 
 	/** UCurve for UI purposes */
-	class UCurveBase* EditorCurve;
+	TObjectPtr<class UCurveBase> EditorCurve;
 
 };

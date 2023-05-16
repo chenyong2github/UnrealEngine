@@ -44,7 +44,7 @@ public:
 	void ResetCamera();
 
 	/** Component for the preview point cloud. */
-	ULidarPointCloudComponent* PreviewCloudComponent;
+	TObjectPtr<ULidarPointCloudComponent> PreviewCloudComponent;
 	
 	/**
 	 *	Sets up the point cloud that the Point Cloud editor is viewing.
@@ -104,7 +104,7 @@ private:
 	TSharedPtr<FLidarPointCloudEditorViewportClient> EditorViewportClient;
 
 	/** Point Cloud being edited */
-	ULidarPointCloud* PointCloud;
+	TObjectPtr<ULidarPointCloud> PointCloud;
 
 	/** The currently selected view mode. */
 	EViewModeIndex CurrentViewMode;

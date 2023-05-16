@@ -125,7 +125,7 @@ private:
 	FText PickedText;
 
 	/** The translation we're editing represented in a UTranslationUnit object */
-	UTranslationUnit* TranslationUnit;
+	TObjectPtr<UTranslationUnit> TranslationUnit;
 
 	/** The text box for entering/modifying a translation */
 	TSharedPtr<SMultiLineEditableTextBox> TextBox;

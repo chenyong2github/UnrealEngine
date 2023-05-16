@@ -828,12 +828,12 @@ void SCurveEditorPanel::UpdateTime()
 void SCurveEditorPanel::UpdateEditBox()
 {
 	const FCurveEditorSelection& Selection = CurveEditor->Selection;
-	for (TTuple<FCurveModelID, TMap<FKeyHandle, UObject*>>& OuterPair : EditObjects->CurveIDToKeyProxies)
+	for (auto& OuterPair : EditObjects->CurveIDToKeyProxies)
 	{
 		const FKeyHandleSet* SelectedKeys = Selection.FindForCurve(OuterPair.Key);
 		if(SelectedKeys)
 		{
-			for (TTuple<FKeyHandle, UObject*>& InnerPair : OuterPair.Value)
+			for (auto& InnerPair : OuterPair.Value)
 			{
 				if (ICurveEditorKeyProxy* Proxy = Cast<ICurveEditorKeyProxy>(InnerPair.Value))
 				{
@@ -863,7 +863,7 @@ void SCurveEditorPanel::UpdateEditBox()
 		KeyHandleScratch.Reset();
 		NewProxiesScratch.Reset();
 
-		TMap<FKeyHandle, UObject*>& KeyHandleToEditObject = EditObjects->CurveIDToKeyProxies.FindOrAdd(Pair.Key);
+		auto& KeyHandleToEditObject = EditObjects->CurveIDToKeyProxies.FindOrAdd(Pair.Key);
 		for (FKeyHandle Handle : Pair.Value.AsArray())
 		{
 			if (UObject* Existing = KeyHandleToEditObject.FindRef(Handle))

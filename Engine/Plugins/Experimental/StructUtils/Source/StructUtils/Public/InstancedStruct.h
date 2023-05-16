@@ -245,7 +245,7 @@ protected:
 		StructMemory = InStructMemory;
 	}
 
-	const UScriptStruct* ScriptStruct = nullptr;
+	TObjectPtr<const UScriptStruct> ScriptStruct = nullptr;
 	uint8* StructMemory = nullptr;
 };
 

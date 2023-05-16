@@ -45,7 +45,7 @@ TSharedRef<FEditorViewportClient> SCustomizableObjectPopulationEditorViewport::M
 }
 
 
-void SCustomizableObjectPopulationEditorViewport::SetPreviewComponents(TArray<USkeletalMeshComponent*> SkeletalMeshes, TArray<UCapsuleComponent*> ColliderComponents,
+void SCustomizableObjectPopulationEditorViewport::SetPreviewComponents(const TArray<USkeletalMeshComponent*>& SkeletalMeshes, const TArray<UCapsuleComponent*>& ColliderComponents,
 	 int32 Columns, int32 Separation)
 {
 	int32 Rows = 0;
@@ -63,7 +63,7 @@ void SCustomizableObjectPopulationEditorViewport::SetPreviewComponents(TArray<US
 	if (SkeletalMeshes.Num() > 0)
 	{
 		// Clonning the input array
-		PreviewSkeletalMeshes = SkeletalMeshes;
+		PreviewSkeletalMeshes = ObjectPtrWrap(SkeletalMeshes);
 		PreviewCollisionComponents = ColliderComponents;
 
 		for (int32 i = 0; i < PreviewSkeletalMeshes.Num(); ++i)

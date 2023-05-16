@@ -207,13 +207,13 @@ private:
 private:
 
 	/** The System being edited in system mode, or the placeholder system being edited in emitter mode. */
-	UNiagaraSystem* System = nullptr;
+	TObjectPtr<UNiagaraSystem> System = nullptr;
 
 	/** The emitter being edited in emitter mode, or null when editing in system mode. Note that we are NOT using the FVersionedEmitter here, because this is the full asset. The version being edited is defined by the emitter view model. */
 	UNiagaraEmitter* Emitter = nullptr;
 
 	/** Temp object to hold version data being edited in the versioning widget's property editor. */
-	UNiagaraVersionMetaData* VersionMetadata = nullptr;
+	TObjectPtr<UNiagaraVersionMetaData> VersionMetadata = nullptr;
 
 	/** The value of the emitter change id from the last time it was in sync with the original emitter. */
 	FGuid LastSyncedEmitterChangeId;

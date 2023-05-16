@@ -135,7 +135,7 @@ bool UEditorBrushBuilder::EndBrush( UWorld* InWorld, ABrush* InBrush )
 		Poly.PolyFlags = It->PolyFlags;
 
 		// Try and maintain the polygons material where possible
-		Poly.Material = ( bUseCachedPolysMaterial ) ? CachedPolys[CachedPolyIdx++].Material : CachedMaterial;
+		Poly.Material = ( bUseCachedPolysMaterial ) ? ToRawPtr(CachedPolys[CachedPolyIdx++].Material) : ToRawPtr(CachedMaterial);
 
 		for( int32 j=0; j<It->VertexIndices.Num(); j++ )
 		{

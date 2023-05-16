@@ -64,10 +64,10 @@ struct FAnimBudgetAllocatorComponentData
 
 public:
 	/** The component that we are tracking */
-	USkeletalMeshComponentBudgeted* Component;
+	TObjectPtr<USkeletalMeshComponentBudgeted> Component;
 
 	/** The root skeletal mesh component of this component's prerequisite graph, used for synchronizing ticks */
-	USkeletalMeshComponentBudgeted* RootPrerequisite;
+	TObjectPtr<USkeletalMeshComponentBudgeted> RootPrerequisite;
 
 	/** Significance of this component */
 	float Significance;
@@ -193,7 +193,7 @@ protected:
 	FAnimationBudgetAllocatorParameters Parameters;
 
 	// World we are linked to
-	UWorld* World;
+	TObjectPtr<UWorld> World;
 
 	// All component data
 	TArray<FAnimBudgetAllocatorComponentData> AllComponentData;

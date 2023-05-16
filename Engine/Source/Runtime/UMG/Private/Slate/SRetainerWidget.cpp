@@ -100,8 +100,8 @@ public:
 	
 public:
 	FWidgetRenderer* WidgetRenderer;
-	UTextureRenderTarget2D* RenderTarget;
-	UMaterialInstanceDynamic* DynamicEffect;
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
+	TObjectPtr<UMaterialInstanceDynamic> DynamicEffect;
 };
 
 TArray<SRetainerWidget*, TInlineAllocator<3>> SRetainerWidget::Shared_WaitingToRender;
