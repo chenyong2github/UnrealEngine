@@ -86,12 +86,6 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 			}
 
 			const TCHAR* TagValue = &CommandLine[TagPos + Tag.Len()];
-
-			if (*TagValue == TEXT('"'))
-			{
-				return FParse::QuotedString(TagValue, OutArgVal);
-			}
-
 			return FParse::Token(TagValue, OutArgVal, false);
 		};
 
