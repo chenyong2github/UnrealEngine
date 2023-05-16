@@ -15,21 +15,21 @@ namespace UE::PoseSearch
 #if ENABLE_DRAW_DEBUG
 //////////////////////////////////////////////////////////////////////////
 // FDebugDrawParams
-FDebugDrawParams::FDebugDrawParams(FAnimInstanceProxy* InAnimInstanceProxy, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags)
+FDebugDrawParams::FDebugDrawParams(FAnimInstanceProxy* InAnimInstanceProxy, const FTransform& InRootMotionTransform, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags)
 : AnimInstanceProxy(InAnimInstanceProxy)
 , World(nullptr)
 , Mesh(nullptr)
-, RootMotionTransform(nullptr)
+, RootMotionTransform(&InRootMotionTransform)
 , Database(InDatabase)
 , Flags(InFlags)
 {
 }
 
-FDebugDrawParams::FDebugDrawParams(const UWorld* InWorld, const USkinnedMeshComponent* InMesh, const FTransform* InRootMotionTransform, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags)
+FDebugDrawParams::FDebugDrawParams(const UWorld* InWorld, const USkinnedMeshComponent* InMesh, const FTransform& InRootMotionTransform, const UPoseSearchDatabase* InDatabase, EDebugDrawFlags InFlags)
 : AnimInstanceProxy(nullptr)
 , World(InWorld)
 , Mesh(InMesh)
-, RootMotionTransform(InRootMotionTransform)
+, RootMotionTransform(&InRootMotionTransform)
 , Database(InDatabase)
 , Flags(InFlags)
 {
@@ -95,22 +95,8 @@ FVector FDebugDrawParams::ExtractPosition(TConstArrayView<float> PoseVector, flo
 
 const FTransform& FDebugDrawParams::GetRootTransform() const
 {
-	if (RootMotionTransform)
-	{
-		return *RootMotionTransform;
-	}
-
-	if (AnimInstanceProxy)
-	{
-		return AnimInstanceProxy->GetComponentTransform();
-	}
-	
-	if (Mesh)
-	{
-		return Mesh->GetComponentTransform();
-	}
-
-	return FTransform::Identity;
+	check(RootMotionTransform);
+	return *RootMotionTransform;
 }
 
 void FDebugDrawParams::DrawLine(const FVector& LineStart, const FVector& LineEnd, const FColor& Color, float Thickness) const

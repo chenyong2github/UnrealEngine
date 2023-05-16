@@ -44,6 +44,10 @@ struct POSESEARCH_API FMotionMatchingState
 
 	void UpdateWantedPlayRate(const UE::PoseSearch::FSearchContext& SearchContext, const FFloatInterval& PlayRate, float TrajectorySpeedMultiplier);
 
+	void UpdateRootBoneControl(const FAnimInstanceProxy* AnimInstanceProxy, float RootBoneYawFromAnimation);
+
+	float GetRootBoneDeltaYaw() const { return RootBoneDeltaYaw; }
+
 	UE::PoseSearch::FSearchResult CurrentSearchResult;
 
 	// Time since the last pose jump
@@ -55,23 +59,19 @@ struct POSESEARCH_API FMotionMatchingState
 	float WantedPlayRate = 1.f;
 
 	// true if a new animation has been selected
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=State)
+	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadOnly, Category=State)
 	bool bJumpedToPose = false;
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-	// Root motion delta for currently playing animation.
+	// Root motion delta for currently playing animation (or animation tree if from the blend stack)
 	FTransform RootMotionTransformDelta = FTransform::Identity;
 #endif //UE_POSE_SEARCH_TRACE_ENABLED
 
-	// @todo: add ContinuingPoseCost / BruteForcePoseCost / PoseCost graphs to rewind debugger 
-//#if WITH_EDITORONLY_DATA
-//	enum { SearchCostHistoryNumSamples = 200 };
-//	FDebugFloatHistory SearchCostHistoryContinuing = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
-//	FDebugFloatHistory SearchCostHistoryBruteForce = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
-//	FDebugFloatHistory SearchCostHistoryKDTree = FDebugFloatHistory(SearchCostHistoryNumSamples, 0, 0, true);
-//#endif
-
 	UE::PoseSearch::FPoseIndicesHistory PoseIndicesHistory;
+
+private:
+	float RootBoneDeltaYaw = 0.f;
+	float RootBoneWorldYaw = 0.f;
 };
 
 UCLASS()
@@ -82,6 +82,7 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	static void TraceMotionMatchingState(
 		const UPoseSearchDatabase* Database,
+		const FPoseSearchQueryTrajectory& Trajectory,
 		UE::PoseSearch::FSearchContext& SearchContext,
 		const UE::PoseSearch::FSearchResult& CurrentResult,
 		const UE::PoseSearch::FSearchResult& LastResult,
@@ -98,8 +99,9 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 
 	static FPoseSearchQueryTrajectory ProcessTrajectory(
 		const FPoseSearchQueryTrajectory& Trajectory,
-		const FTransform& OwnerTransformWS,
-		const FTransform& ComponentTransformWS,
+		const FTransform& ComponentWorldTransform,
+		float RootBoneDeltaYaw,
+		float RootBoneDeltaYawBlendTime,
 		float TrajectorySpeedMultiplier);
 
 public:
@@ -133,6 +135,8 @@ public:
 		float SearchThrottleTime,
 		const FFloatInterval& PlayRate,
 		FMotionMatchingState& InOutMotionMatchingState,
+		float RootBoneYawFromAnimation,
+		float RootBoneDeltaYawBlendTime,
 		bool bForceInterrupt = false,
 		bool bShouldSearch = true,
 		bool bDebugDrawQuery = false,

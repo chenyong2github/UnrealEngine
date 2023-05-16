@@ -38,6 +38,8 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	Source.SetLinkNode(&BlendStackNode);
 	Source.Initialize(Context);
+
+	MotionMatchingState.UpdateRootBoneControl(Context.AnimInstanceProxy, 0.f);
 }
 
 void FAnimNode_MotionMatching::Evaluate_AnyThread(FPoseContext& Output)
@@ -46,6 +48,15 @@ void FAnimNode_MotionMatching::Evaluate_AnyThread(FPoseContext& Output)
 
 	Source.Evaluate(Output);
 
+	// applying MotionMatchingState.RootBoneDeltaYaw
+	if (!FMath::IsNearlyZero(MotionMatchingState.GetRootBoneDeltaYaw()))
+	{
+		const FQuat RootBoneDelta(FRotator(0.f, MotionMatchingState.GetRootBoneDeltaYaw(), 0.f));
+		FCompactPoseBoneIndex RootBoneIndex(RootBoneIndexType);
+		Output.Pose[RootBoneIndex].SetRotation(Output.Pose[RootBoneIndex].GetRotation() * RootBoneDelta);
+		Output.Pose[RootBoneIndex].NormalizeRotation();
+	}
+	
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	MotionMatchingState.RootMotionTransformDelta = FTransform::Identity;
 
@@ -138,6 +149,8 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		SearchThrottleTime,
 		PlayRate,
 		MotionMatchingState,
+		YawFromAnimation,
+		YawFromAnimationTrajectoryBlendTime,
 		bForceInterruptNextUpdate,
 		bShouldSearch
 		#if ENABLE_ANIM_DEBUG

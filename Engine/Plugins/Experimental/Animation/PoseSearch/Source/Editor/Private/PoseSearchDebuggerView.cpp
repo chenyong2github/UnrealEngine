@@ -315,14 +315,12 @@ void SDebuggerView::UpdateViews() const
 
 void SDebuggerView::DrawVisualization() const
 {
-	const UWorld* DebuggerWorld = FDebugger::GetWorld();
-	check(DebuggerWorld);
-
-	const FTraceMotionMatchingStateMessage* State = ViewModel.Get()->GetMotionMatchingState();
-	const FTransform* Transform = ViewModel.Get()->GetRootTransform();
-	if (State && Transform)
+	if (const FTraceMotionMatchingStateMessage* State = ViewModel.Get()->GetMotionMatchingState())
 	{
-		DrawFeatures(*DebuggerWorld, *State, *Transform, ViewModel.Get()->GetMeshComponent());
+		const UWorld* DebuggerWorld = FDebugger::GetWorld();
+		check(DebuggerWorld);
+
+		DrawFeatures(*DebuggerWorld, *State, ViewModel.Get()->GetRootBoneTransform(), ViewModel.Get()->GetMeshComponent());
 	}
 }
 
@@ -334,10 +332,16 @@ TArray<TSharedRef<FDebuggerDatabaseRowData>> SDebuggerView::GetSelectedDatabaseR
 void SDebuggerView::DrawFeatures(
 	const UWorld& DebuggerWorld,
 	const FTraceMotionMatchingStateMessage& State,
-	const FTransform& Transform,
+	const FTransform& RootBoneWorldTransform,
 	const USkinnedMeshComponent* Mesh
 ) const
 {
+	// Draw world space trajectory
+	if (ViewModel.Get()->GetDrawTrajectory())
+	{
+		State.Trajectory.DebugDrawTrajectory(&DebuggerWorld);
+	}
+
 	// Draw query vector
 	if (ViewModel.Get()->GetDrawQuery())
 	{
@@ -350,7 +354,7 @@ void SDebuggerView::DrawFeatures(
 					FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest) &&
 					DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality)
 				{
-					FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, CurrentDatabase, EDebugDrawFlags::DrawQuery);
+					FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, RootBoneWorldTransform, CurrentDatabase, EDebugDrawFlags::DrawQuery);
 					DrawParams.DrawFeatureVector(DbEntry.QueryVector);
 					break;
 				}
@@ -368,7 +372,7 @@ void SDebuggerView::DrawFeatures(
 		const UPoseSearchDatabase* RowDatabase = Row->SharedData->SourceDatabase.Get();
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(RowDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, RowDatabase);
+			FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, RootBoneWorldTransform, RowDatabase);
 			DrawParams.DrawFeatureVector(Row->PoseIdx);
 		}
 	}
@@ -386,7 +390,7 @@ void SDebuggerView::DrawFeatures(
 			if (Database && FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
 				// Use the motion-matching state's pose idx, as the active row may be update-throttled at this point
-				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, Database);
+				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, RootBoneWorldTransform, Database);
 				DrawParams.DrawFeatureVector(ActiveRows[0]->PoseIdx);
 			}
 		}
@@ -405,12 +409,11 @@ void SDebuggerView::DrawFeatures(
 			const UPoseSearchDatabase* Database = ContinuingRows[0]->SharedData->SourceDatabase.Get();
 			if (Database && FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
-				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, nullptr, Database);
+				FDebugDrawParams DrawParams(&DebuggerWorld, Mesh, RootBoneWorldTransform, Database);
 				DrawParams.DrawFeatureVector(ContinuingRows[0]->PoseIdx);
 			}
 		}
 	}
-
 }
 
 int32 SDebuggerView::SelectView() const
@@ -564,6 +567,33 @@ TSharedRef<SHorizontalBox> SDebuggerView::GenerateReturnButtonView()
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("PoseSearchDebuggerDrawQuery", "Draw Query"))
+				]
+			]
+		]
+		+SHorizontalBox::Slot()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Left)
+		.Padding(64, 5, 0, 0)
+		.AutoWidth()
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 5, 0, 0)
+			[
+				SNew(SCheckBox)
+				.IsChecked_Lambda([this]
+				{
+					return ViewModel.Get()->GetDrawTrajectory() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; 
+				})
+				.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+				{
+					ViewModel.Get()->SetDrawTrajectory(State == ECheckBoxState::Checked);
+				})
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("PoseSearchDebuggerDrawTrajectory", "Draw Trajectory"))
 				]
 			]
 		]

@@ -16,7 +16,38 @@ struct POSESEARCH_API FAnimNode_MotionMatching : public FAnimNode_AssetPlayerBas
 {
 	GENERATED_BODY()
 
+public:
+	// Search InDatabase instead of the Database property on this node. Use bForceInterruptIfNew to ignore the continuing pose if InDatabase is new.
+	void SetDatabaseToSearch(UPoseSearchDatabase* InDatabase, bool bForceInterruptIfNew);
+
+	// Search InDatabases instead of the Database property on the node. Use bForceInterruptIfNew to ignore the continuing pose if InDatabases is new.
+	void SetDatabasesToSearch(const TArray<UPoseSearchDatabase*>& InDatabases, bool bForceInterruptIfNew);
+
+	// Reset the effects of SetDatabaseToSearch/SetDatabasesToSearch and use the Database property on this node.
+	void ResetDatabasesToSearch(bool bInForceInterrupt);
+
+	// Ignore the continuing pose on the next update and force a search.
+	void ForceInterruptNextUpdate();
+
 private:
+	// FAnimNode_Base interface
+	// @todo: implement CacheBones_AnyThread to rebind the schema bones
+	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	// End of FAnimNode_Base interface
+
+	// FAnimNode_AssetPlayerBase interface
+	virtual float GetAccumulatedTime() const override;
+	virtual UAnimationAsset* GetAnimAsset() const override;
+	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	virtual float GetCurrentAssetLength() const override;
+	virtual float GetCurrentAssetTime() const override;
+	virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
+	virtual bool GetIgnoreForRelevancyTest() const override;
+	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
+	// End of FAnimNode_AssetPlayerBase interface
+
 	UPROPERTY()
 	FPoseLink Source;
 
@@ -72,28 +103,13 @@ private:
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	bool bShouldSearch = true;
 
-public:
+	// blend time over which the YawFromAnimation is distributed across the trajectory samples (negative values implies YawFromAnimation is constant over the entire trajectory, so the trajectory will not try to recover towards the capsule orientation)
+	UPROPERTY(EditAnywhere, Category = RootMotion, meta = (PinHiddenByDefault))
+	float YawFromAnimationTrajectoryBlendTime = 0.1f;
 
-	// FAnimNode_Base interface
-	// @todo: implement CacheBones_AnyThread to rebind the schema bones
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
-	// End of FAnimNode_Base interface
-
-	// Search InDatabase instead of the Database property on this node. Use bForceInterruptIfNew to ignore the continuing pose if InDatabase is new.
-	void SetDatabaseToSearch(UPoseSearchDatabase* InDatabase, bool bForceInterruptIfNew);
-
-	// Search InDatabases instead of the Database property on the node. Use bForceInterruptIfNew to ignore the continuing pose if InDatabases is new.
-	void SetDatabasesToSearch(const TArray<UPoseSearchDatabase*>& InDatabases, bool bForceInterruptIfNew);
-
-	// Reset the effects of SetDatabaseToSearch/SetDatabasesToSearch and use the Database property on this node.
-	void ResetDatabasesToSearch(bool bInForceInterrupt);
-
-	// Ignore the continuing pose on the next update and force a search.
-	void ForceInterruptNextUpdate();
-
-private:
+	// percentage of delta yaw from the animation controlling the root bone (0% the capsule is authoritative over the root bone orientation, 100% the orientation will be fully controlled by animation)
+	UPROPERTY(EditAnywhere, Category = RootMotion, meta = (PinHiddenByDefault))
+	float YawFromAnimation = 0.f;
 
 	FAnimNode_BlendStack_Standalone BlendStackNode;
 
@@ -112,21 +128,6 @@ private:
 
 	// True if the Database property on this node has been overridden by SetDatabaseToSearch/SetDatabasesToSearch.
 	bool bOverrideDatabaseInput = false;
-
-	// FAnimNode_AssetPlayerBase
-protected:
-	// FAnimNode_AssetPlayerBase interface
-	virtual float GetAccumulatedTime() const override;
-	virtual UAnimationAsset* GetAnimAsset() const override;
-	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
-	virtual float GetCurrentAssetLength() const override;
-	virtual float GetCurrentAssetTime() const override;
-	virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
-	virtual bool GetIgnoreForRelevancyTest() const override;
-	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
-	// End of FAnimNode_AssetPlayerBase interface
-
-private:
 
 #if WITH_EDITORONLY_DATA
 	// If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore this node

@@ -80,3 +80,17 @@ void FPoseSearchQueryTrajectory::DebugDrawTrajectory(const UWorld* World) const
 	}
 }
 #endif // ENABLE_ANIM_DEBUG
+
+FArchive& operator<<(FArchive& Ar, FPoseSearchQueryTrajectorySample& TrajectorySample)
+{
+	Ar << TrajectorySample.Facing;
+	Ar << TrajectorySample.Position;
+	Ar << TrajectorySample.AccumulatedSeconds;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FPoseSearchQueryTrajectory& Trajectory)
+{
+	Ar << Trajectory.Samples;
+	return Ar;
+}

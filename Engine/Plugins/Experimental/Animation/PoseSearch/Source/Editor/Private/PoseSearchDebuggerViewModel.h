@@ -28,7 +28,7 @@ public:
 	const UPoseSearchDatabase* GetCurrentDatabase() const;
 	const TArray<int32>* GetNodeIds() const;
 	int32 GetNodesNum() const;
-	const FTransform* GetRootTransform() const;
+	const FTransform& GetRootBoneTransform() const;
 
 	/** Checks if Update must be called */
 	bool HasSearchableAssetChanged() const;
@@ -53,6 +53,9 @@ public:
 
 	bool GetDrawQuery() const { return bDrawQuery; }
 
+	void SetDrawTrajectory(bool bInDrawTrajectory) { bDrawTrajectory = bInDrawTrajectory; }
+
+	bool GetDrawTrajectory() const { return bDrawTrajectory; }
 
 
 	/** Callback to reset debug skeletons for the active world */
@@ -111,8 +114,8 @@ private:
 	/** Current Skeletal Mesh Component Id for the AnimInstance */
 	uint64 SkeletalMeshComponentId = 0;
 
-	/** Currently active root transform on the skeletal mesh */
-	const FTransform* RootTransform = nullptr;
+	/** Currently active root bone transform */
+	FTransform RootBoneWorldTransform = FTransform::Identity;
 
 	/** Pointer to the active rewind debugger in the scene */
 	TAttribute<const IRewindDebugger*> RewindDebugger;
@@ -150,6 +153,8 @@ private:
 
 	bool bDrawQuery = true;	
 
+	bool bDrawTrajectory = false;
+	
 	/** Limits some public API */
 	friend class FDebugger;
 };

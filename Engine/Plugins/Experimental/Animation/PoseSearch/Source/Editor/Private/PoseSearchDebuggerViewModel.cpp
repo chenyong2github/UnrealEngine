@@ -87,9 +87,9 @@ int32 FDebuggerViewModel::GetNodesNum() const
 	return MotionMatchingStates.Num();
 }
 
-const FTransform* FDebuggerViewModel::GetRootTransform() const
+const FTransform& FDebuggerViewModel::GetRootBoneTransform() const
 {
-	return RootTransform;
+	return RootBoneWorldTransform;
 }
 
 bool FDebuggerViewModel::HasSearchableAssetChanged() const
@@ -245,15 +245,13 @@ void FDebuggerViewModel::UpdateFromTimeline()
 	{
 		TimelineData.EnumerateEvents(Frame.StartTime, Frame.EndTime, [&](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& PoseMessage) -> TraceServices::EEventEnumerate
 		{
-			// Update root transform
-			RootTransform = &PoseMessage.ComponentToWorld;
 			const FSkeletalMeshInfo* SkeletalMeshInfo = AnimationProvider->FindSkeletalMeshInfo(PoseMessage.MeshId);
 			const FObjectInfo* SkeletalMeshObjectInfo = GameplayProvider->FindObjectInfo(PoseMessage.MeshId);
 			if (!SkeletalMeshInfo || !SkeletalMeshObjectInfo)
 			{
-
 				return TraceServices::EEventEnumerate::Stop;
 			}
+
 			UPoseSearchMeshComponent* ActiveComponent = Skeletons[ActivePose].Component.Get();
 			UPoseSearchMeshComponent* SelectedComponent = Skeletons[SelectedPose].Component.Get();
 			UPoseSearchMeshComponent* AssetComponent = Skeletons[Asset].Component.Get();
@@ -266,7 +264,20 @@ void FDebuggerViewModel::UpdateFromTimeline()
 			}
 			FTransform ComponentWorldTransform;
 			// Active skeleton is simply the traced bone transforms
-			AnimationProvider->GetSkeletalMeshComponentSpacePose(PoseMessage, *SkeletalMeshInfo, ComponentWorldTransform, ActiveComponent->GetEditableComponentSpaceTransforms());
+			TArray<FTransform>& ComponentSpaceTransforms = ActiveComponent->GetEditableComponentSpaceTransforms();
+			AnimationProvider->GetSkeletalMeshComponentSpacePose(PoseMessage, *SkeletalMeshInfo, ComponentWorldTransform, ComponentSpaceTransforms);
+
+			check(ComponentWorldTransform.Equals(PoseMessage.ComponentToWorld));
+
+			if (!ComponentSpaceTransforms.IsEmpty())
+			{
+				RootBoneWorldTransform = ComponentSpaceTransforms[RootBoneIndexType] * ComponentWorldTransform;
+			}
+			else
+			{
+				RootBoneWorldTransform = ComponentWorldTransform;
+			}
+
 			ActiveComponent->Initialize(ComponentWorldTransform);
 			ActiveComponent->SetDebugDrawColor(FLinearColor::Green);
 			SelectedComponent->SetDebugDrawColor(FLinearColor::Blue);

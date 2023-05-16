@@ -25,6 +25,7 @@ struct POSESEARCH_API FPoseSearchQueryTrajectorySample
 	void SetTransform(const FTransform& Transform);
 	FTransform GetTransform() const { return FTransform(Facing, Position); }
 };
+POSESEARCH_API FArchive& operator<<(FArchive& Ar, FPoseSearchQueryTrajectorySample& TrajectorySample);
 
 USTRUCT(BlueprintType, Category = "Motion Trajectory")
 struct POSESEARCH_API FPoseSearchQueryTrajectory
@@ -41,3 +42,4 @@ struct POSESEARCH_API FPoseSearchQueryTrajectory
 	void DebugDrawTrajectory(const UWorld* World) const;
 #endif // ENABLE_ANIM_DEBUG
 };
+POSESEARCH_API FArchive& operator<<(FArchive& Ar, FPoseSearchQueryTrajectory& Trajectory);

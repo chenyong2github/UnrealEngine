@@ -3,6 +3,7 @@
 #pragma once
 
 #include "PoseSearch/PoseSearchContext.h"
+#include "PoseSearch/PoseSearchTrajectoryTypes.h"
 
 UE_TRACE_CHANNEL_EXTERN(PoseSearchChannel, POSESEARCH_API);
 
@@ -82,6 +83,8 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	float SearchBruteForceCost = 0.f;
 
 	TArray<FTraceMotionMatchingStateDatabaseEntry> DatabaseEntries;
+
+	FPoseSearchQueryTrajectory Trajectory;
 
 	/** Index of the current database in DatabaseEntries */
 	int32 CurrentDbEntryIdx = INDEX_NONE;

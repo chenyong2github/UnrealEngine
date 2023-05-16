@@ -66,8 +66,12 @@ FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueTy
 // FPoseHistoryEntry
 void FPoseHistoryEntry::Update(float InTime, FCSPose<FCompactPose>& ComponentSpacePose, const FTransform& ComponentTransform, const FBoneToTransformMap& BoneToTransformMap)
 {
+	// @todo: optimize this math by initializing FCSPose<FCompactPose> root to identity
+	const FTransform ComponentToRootTransform = ComponentSpacePose.GetComponentSpaceTransform(FCompactPoseBoneIndex(RootBoneIndexType));
+	const FTransform ComponentToRootTransformInv = ComponentToRootTransform.Inverse();
+
 	Time = InTime;
-	RootTransform = ComponentTransform;
+	RootTransform = ComponentToRootTransform * ComponentTransform;
 
 	const FBoneContainer& BoneContainer = ComponentSpacePose.GetPose().GetBoneContainer();
 	const USkeleton* SkeletonAsset = BoneContainer.GetSkeletonAsset();
@@ -83,7 +87,8 @@ void FPoseHistoryEntry::Update(float InTime, FCSPose<FCompactPose>& ComponentSpa
 		for (FSkeletonPoseBoneIndex SkeletonBoneIdx(0); SkeletonBoneIdx != NumSkeletonBones; ++SkeletonBoneIdx)
 		{
 			const FCompactPoseBoneIndex CompactBoneIdx = BoneContainer.GetCompactPoseIndexFromSkeletonPoseIndex(SkeletonBoneIdx);
-			ComponentSpaceTransforms[SkeletonBoneIdx.GetInt()] = CompactBoneIdx.IsValid() ? ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIdx) : RefBonePose[SkeletonBoneIdx.GetInt()];
+			ComponentSpaceTransforms[SkeletonBoneIdx.GetInt()] = 
+				(CompactBoneIdx.IsValid() ? ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIdx) : RefBonePose[SkeletonBoneIdx.GetInt()]) * ComponentToRootTransformInv;
 		}
 	}
 	else
@@ -93,7 +98,8 @@ void FPoseHistoryEntry::Update(float InTime, FCSPose<FCompactPose>& ComponentSpa
 		{
 			const FSkeletonPoseBoneIndex SkeletonBoneIdx(BoneToTransformPair.Key);
 			const FCompactPoseBoneIndex CompactBoneIdx = BoneContainer.GetCompactPoseIndexFromSkeletonPoseIndex(SkeletonBoneIdx);
-			ComponentSpaceTransforms[BoneToTransformPair.Value] = CompactBoneIdx.IsValid() ? ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIdx) : RefBonePose[SkeletonBoneIdx.GetInt()];
+			ComponentSpaceTransforms[BoneToTransformPair.Value] = 
+				(CompactBoneIdx.IsValid() ? ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIdx) : RefBonePose[SkeletonBoneIdx.GetInt()]) * ComponentToRootTransformInv;
 		}
 	}
 }
