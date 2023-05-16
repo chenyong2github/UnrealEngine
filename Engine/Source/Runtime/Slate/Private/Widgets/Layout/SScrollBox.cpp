@@ -1126,6 +1126,8 @@ int32 SScrollBox::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 void SScrollBox::ScrollBar_OnUserScrolled( float InScrollOffsetFraction )
 {
+	bAnimateScroll = false;
+
 	const float ContentSize = GetScrollComponentFromVector(ScrollPanel->GetDesiredSize());
 	const FGeometry ScrollPanelGeometry = FindChildGeometry(CachedGeometry, ScrollPanel.ToSharedRef());
 
