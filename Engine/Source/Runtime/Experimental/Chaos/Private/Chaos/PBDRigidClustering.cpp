@@ -2104,6 +2104,11 @@ namespace Chaos
 		ConnectClusteredNodes(ClusteredChild1, ClusteredChild2, FromParticles, ToParticles);
 	}
 
+	void FRigidClustering::CreateNodeConnection(FPBDRigidClusteredParticleHandle* A, FPBDRigidClusteredParticleHandle* B)
+	{
+		ConnectClusteredNodes(A, B, nullptr, nullptr);
+	}
+
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingPointImplicit"), STAT_UpdateConnectivityGraphUsingPointImplicit, STATGROUP_Chaos);
 	void 
 	FRigidClustering::UpdateConnectivityGraphUsingPointImplicit(

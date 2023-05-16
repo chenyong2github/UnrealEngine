@@ -5,6 +5,7 @@
 #include "Chaos/ParticleHandleFwd.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Misc/EnumClassFlags.h"
 
 namespace Chaos
 {
@@ -31,6 +32,15 @@ namespace Chaos
 		Defer,
 		Immediate
 	};
+
+	enum class EUpdateClusterUnionPropertiesFlags : int32
+	{
+		None = 0,
+		RecomputeMassOrientation = 1 << 0,
+		ForceGenerateConnectionGraph = 1 << 1,
+		All = RecomputeMassOrientation | ForceGenerateConnectionGraph
+	};
+	ENUM_CLASS_FLAGS(EUpdateClusterUnionPropertiesFlags);
 
 	struct CHAOS_API FClusterUnionCreationParameters
 	{
@@ -140,7 +150,7 @@ namespace Chaos
 		void UpdateClusterUnionParticlesChildToParent(FClusterUnionIndex Index, const TArray<FPBDRigidParticleHandle*>& Particles, const TArray<FTransform>& ChildToParent, bool bLock);
 
 		// Update the cluster union's properties after its set of particle changes.
-		void UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, bool bRecomputeMassOrientation);
+		void UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, EUpdateClusterUnionPropertiesFlags Flags = EUpdateClusterUnionPropertiesFlags::All);
 
 		// Returns all cluster unions. Really meant only to be used for debugging.
 		const TMap<FClusterUnionIndex, FClusterUnion>& GetAllClusterUnions() const { return ClusterUnions; }

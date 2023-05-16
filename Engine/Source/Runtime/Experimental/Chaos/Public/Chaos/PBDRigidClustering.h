@@ -387,8 +387,26 @@ public:
 	FClusterUnionManager& GetClusterUnionManager() { return ClusterUnionManager; }
 	const FClusterUnionManager& GetClusterUnionManager() const { return ClusterUnionManager; }
 
-
 	const TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParentsStrained() const { return TopLevelClusterParentsStrained; }
+
+	// Remove connectivity edges for specified particles
+	void RemoveNodeConnections(FPBDRigidParticleHandle* Child);
+	void RemoveNodeConnections(FPBDRigidClusteredParticleHandle* Child);
+
+	template<typename ParticleHandleTypeA, typename ParticleHandleTypeB>
+	void CreateNodeConnection(ParticleHandleTypeA* A, ParticleHandleTypeB* B)
+	{
+		if(A && B)
+		{
+			CreateNodeConnection(A->CastToClustered(), B->CastToClustered());
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("CreateNodeConnection asked to connect a null particle, ignoring connection."));
+		}
+	}
+
+	void CreateNodeConnection(FPBDRigidClusteredParticleHandle* A, FPBDRigidClusteredParticleHandle* B);
 
  protected:
 
@@ -436,9 +454,6 @@ public:
 		const Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
 	
-	void RemoveNodeConnections(FPBDRigidParticleHandle* Child);
-	void RemoveNodeConnections(FPBDRigidClusteredParticleHandle* Child);
-
 	void RemoveChildFromParent(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
 	void RemoveChildFromParentAndChildrenArray(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
 

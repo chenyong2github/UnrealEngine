@@ -333,7 +333,7 @@ namespace Chaos
 			// The anchored flag is taken care of in UpdateKinematicProperties so it must be set before that is called.
 			Cluster->InternalCluster->SetIsAnchored(true);
 		}
-		UpdateAllClusterUnionProperties(*Cluster, bIsNewCluster);
+		UpdateAllClusterUnionProperties(*Cluster, bIsNewCluster ? EUpdateClusterUnionPropertiesFlags::All : EUpdateClusterUnionPropertiesFlags::ForceGenerateConnectionGraph);
 
 		if (OldProxy)
 		{
@@ -364,7 +364,16 @@ namespace Chaos
 	void FClusterUnionManager::PostRemovalClusterUnionUpdate(FClusterUnion& Union)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_PostRemovalClusterUnionUpdate);
-		UpdateAllClusterUnionProperties(Union, false);
+
+		if(TArray<FPBDRigidParticleHandle*>* Children = MClustering.GetChildrenMap().Find(Union.InternalCluster))
+		{
+			for(FPBDRigidParticleHandle* Child : *Children)
+			{
+				MClustering.RemoveNodeConnections(Child);
+			}
+		}
+
+		UpdateAllClusterUnionProperties(Union, EUpdateClusterUnionPropertiesFlags::None);
 
 		if (!Union.ChildParticles.IsEmpty())
 		{
@@ -486,11 +495,13 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::UpdateClusterUnionProperties"), STAT_UpdateClusterUnionProperties, STATGROUP_Chaos);
-	void FClusterUnionManager::UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, bool bRecomputeMassOrientation)
+	void FClusterUnionManager::UpdateAllClusterUnionProperties(FClusterUnion& ClusterUnion, EUpdateClusterUnionPropertiesFlags Flags)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateClusterUnionProperties);
 		// Update cluster properties.
 		FMatrix33 ClusterInertia(0);
+
+		const bool bRecomputeMassOrientation = EnumHasAnyFlags(Flags, EUpdateClusterUnionPropertiesFlags::RecomputeMassOrientation);
 
 		// TODO: These functions are generally just re-building the cluster from scratch. Need to figure out a way
 		// to get these functions to update the already existing cluster instead.
@@ -541,8 +552,11 @@ namespace Chaos
 			}
 		}
 
-		MClustering.ClearConnectionGraph(ClusterUnion.InternalCluster);
-		MClustering.GenerateConnectionGraph(ClusterUnion.InternalCluster, ClusterUnion.Parameters);
+		if(EnumHasAnyFlags(Flags, EUpdateClusterUnionPropertiesFlags::ForceGenerateConnectionGraph))
+		{
+			MClustering.ClearConnectionGraph(ClusterUnion.InternalCluster);
+			MClustering.GenerateConnectionGraph(ClusterUnion.InternalCluster, ClusterUnion.Parameters);
+		}
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("FClusterUnionManager::GetOrCreateClusterUnionIndexFromExplicitIndex"), STAT_GetOrCreateClusterUnionIndexFromExplicitIndex, STATGROUP_Chaos);
@@ -666,7 +680,7 @@ namespace Chaos
 			}
 		}
 
-		UpdateAllClusterUnionProperties(*ClusterUnion, false);
+		UpdateAllClusterUnionProperties(*ClusterUnion, EUpdateClusterUnionPropertiesFlags::ForceGenerateConnectionGraph);
 
 		for (TPair<FPBDRigidClusteredParticleHandle*, bool>& Pair : DirtyParticleLockStates)
 		{
