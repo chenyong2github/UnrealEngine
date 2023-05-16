@@ -9,44 +9,33 @@
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
-#include "USDErrorUtils.h"
 #include "USDLayerUtils.h"
 #include "USDProjectSettings.h"
 #include "USDSchemasModule.h"
 #include "USDSchemaTranslator.h"
 #include "USDStageActor.h"
 #include "USDStageEditorSettings.h"
-#include "USDStageImportContext.h"
-#include "USDStageImporter.h"
-#include "USDStageImporterModule.h"
 #include "USDStageImportOptions.h"
 #include "USDStageModule.h"
 #include "USDTypesConversion.h"
 #include "UsdWrappers/SdfLayer.h"
-#include "UsdWrappers/UsdAttribute.h"
 #include "UsdWrappers/UsdStage.h"
 #include "Widgets/SUSDObjectFieldList.h"
 
 #include "ActorTreeItem.h"
-#include "Async/Async.h"
 #include "DesktopPlatformModule.h"
-#include "Dialogs/DlgPickPath.h"
 #include "Editor.h"
 #include "Editor/Transactor.h"
-#include "Engine/Selection.h"
 #include "Engine/World.h"
 #include "EngineAnalytics.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISceneOutliner.h"
 #include "ISceneOutlinerColumn.h"
-#include "ISinglePropertyView.h"
-#include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
-#include "PropertyEditorModule.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
+#include "Selection.h"
 #include "Styling/AppStyle.h"
-#include "UObject/StrongObjectPtr.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
@@ -248,7 +237,7 @@ namespace SUSDStageImpl
 		{
 			return true;
 		}
-		virtual void SortItems( TArray<FSceneOutlinerTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode ) const
+		virtual void SortItems( TArray<FSceneOutlinerTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode ) const override
 		{
 			if ( SortMode == EColumnSortMode::Ascending )
 			{
@@ -298,6 +287,13 @@ void SUsdStage::Construct( const FArguments& InArgs )
 	bUpdatingPrimSelection = false;
 
 	UE::FUsdStage UsdStage;
+
+	OnEditorCloseHandle = GEditor->OnEditorClose().AddLambda(
+		[this]()
+		{
+			bEditorIsShuttingDown = true;
+		}
+	);
 
 	const AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
 	if ( StageActor )
@@ -531,9 +527,14 @@ void SUsdStage::SetupStageActorDelegates()
 				// The USD notices may come from a background USD TBB thread, but we should only update slate from the main/slate threads.
 				// We can't retrieve the FSlateApplication singleton here (because that can also only be used from the main/slate threads),
 				// so we must use core tickers here
-				FTSTicker::GetCoreTicker().AddTicker(
-					FTickerDelegate::CreateLambda( [this, PrimPath, bResync]( float Time )
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+					[this, PrimPath, bResync](float Time)
 					{
+						if (bEditorIsShuttingDown)
+						{
+							return false;
+						}
+
 						if ( this->UsdStageTreeView )
 						{
 							this->UsdStageTreeView->RefreshPrim( PrimPath, bResync );
@@ -560,31 +561,36 @@ void SUsdStage::SetupStageActorDelegates()
 
 						// Returning false means this is a one-off, and won't repeat
 						return false;
-					})
-				);
+					}
+				));
 			}
 		);
 
 		// Fired when we switch which is the currently opened stage
 		OnStageChangedHandle = ViewModel.UsdStageActor->OnStageChanged.AddLambda(
-			[ this ]()
+			[this]()
 			{
-				FTSTicker::GetCoreTicker().AddTicker(
-					FTickerDelegate::CreateLambda( [this]( float Time )
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+					[this](float Time)
 					{
+						if (bEditorIsShuttingDown)
+						{
+							return false;
+						}
+
 						// So we can reset even if our actor is being destroyed right now
 						const bool bEvenIfPendingKill = true;
-						if ( ViewModel.UsdStageActor.IsValid( bEvenIfPendingKill ) )
+						if (ViewModel.UsdStageActor.IsValid(bEvenIfPendingKill))
 						{
 							// Reset our selection to the stage root
-							SelectedPrimPath = TEXT( "/" );
+							SelectedPrimPath = TEXT("/");
 
-							if ( this->UsdPrimInfoWidget )
+							if (this->UsdPrimInfoWidget)
 							{
-								this->UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), TEXT( "/" ) );
+								this->UsdPrimInfoWidget->SetPrimPath(GetCurrentStage(), TEXT("/"));
 							}
 
-							if ( this->UsdStageTreeView )
+							if (this->UsdStageTreeView)
 							{
 								this->UsdStageTreeView->ClearSelection();
 								this->UsdStageTreeView->RequestTreeRefresh();
@@ -595,8 +601,8 @@ void SUsdStage::SetupStageActorDelegates()
 
 						// Returning false means this is a one-off, and won't repeat
 						return false;
-					})
-				);
+					}
+				));
 			}
 		);
 
@@ -611,15 +617,20 @@ void SUsdStage::SetupStageActorDelegates()
 				ClearStageActorDelegates();
 				this->ViewModel.CloseStage();
 
-				FTSTicker::GetCoreTicker().AddTicker(
-					FTickerDelegate::CreateLambda( [this]( float Time )
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+					[this](float Time)
 					{
+						if (bEditorIsShuttingDown)
+						{
+							return false;
+						}
+
 						this->Refresh();
 
 						// Returning false means this is a one-off, and won't repeat
 						return false;
-					})
-				);
+					}
+				));
 			}
 		);
 
@@ -629,8 +640,13 @@ void SUsdStage::SetupStageActorDelegates()
 				FTSTicker::GetCoreTicker().AddTicker(
 					FTickerDelegate::CreateLambda( [this]( float Time )
 					{
+						if (bEditorIsShuttingDown)
+						{
+							return false;
+						}
+
 						AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
-						if ( this->UsdLayersTreeView && StageActor )
+						if (this->UsdLayersTreeView && StageActor)
 						{
 							constexpr bool bResync = false;
 							UsdLayersTreeView->Refresh(
@@ -648,13 +664,18 @@ void SUsdStage::SetupStageActorDelegates()
 		);
 
 		OnLayersChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnLayersChanged().AddLambda(
-			[ this ]( const TArray< FString >& LayersNames )
+			[this](const TArray<FString>& LayersNames)
 			{
-				FTSTicker::GetCoreTicker().AddTicker(
-					FTickerDelegate::CreateLambda( [this]( float Time )
+				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+					[this](float Time)
 					{
+						if (bEditorIsShuttingDown)
+						{
+							return false;
+						}
+
 						AUsdStageActor* StageActor = ViewModel.UsdStageActor.Get();
-						if ( this->UsdLayersTreeView && StageActor )
+						if (this->UsdLayersTreeView && StageActor)
 						{
 							constexpr bool bResync = false;
 							UsdLayersTreeView->Refresh(
@@ -666,8 +687,8 @@ void SUsdStage::SetupStageActorDelegates()
 
 						// Returning false means this is a one-off, and won't repeat
 						return false;
-					})
-				);
+					}
+				));
 			}
 		);
 	}
@@ -691,6 +712,8 @@ SUsdStage::~SUsdStage()
 {
 	FEditorDelegates::PostPIEStarted.Remove( PostPIEStartedHandle );
 	FEditorDelegates::EndPIE.Remove( EndPIEHandle );
+
+	GEditor->OnEditorClose().Remove(OnEditorCloseHandle);
 
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove( OnStageActorPropertyChangedHandle );
 	AUsdStageActor::OnActorLoaded.Remove( OnActorLoadedHandle );
@@ -1864,7 +1887,7 @@ void SUsdStage::FillSelectionSubMenu( FMenuBuilder& MenuBuilder )
 			{
 				return true;
 			}),
-			FIsActionChecked::CreateLambda([this]()
+			FIsActionChecked::CreateLambda([]()
 			{
 				const UUsdStageEditorSettings* Settings = GetDefault<UUsdStageEditorSettings>();
 				return Settings && Settings->bSelectionSynced;

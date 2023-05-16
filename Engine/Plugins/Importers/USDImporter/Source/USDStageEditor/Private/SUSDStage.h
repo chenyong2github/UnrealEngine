@@ -6,10 +6,6 @@
 #include "UsdWrappers/ForwardDeclarations.h"
 
 #include "Animation/CurveSequence.h"
-#include "CoreMinimal.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Misc/Optional.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -153,6 +149,16 @@ protected:
 	int32 CurrentNaniteThreshold = INT32_MAX;
 
 	TArray<TSharedPtr<FString>> MaterialPurposes;
+
+	// We use our own bool to track engine exit because we use some tickers to delay work onto the next frame,
+	// and during engine shutdown its possible for this delayed work to run *before* IsEngineExitRequested() actually
+	// turns true, so we can't check it.
+	// If that work continues (and triggers its slate updates and so on), we can run into crashes as we're
+	// trying to render slate as the engine shuts down.
+	// This bool is set on GEditor->OnEditorClose(), which happens earlier in the shutdown process, and can be used
+	// to let our ticker lambdas gracefully early out during those shutdown scenarios.
+	bool bEditorIsShuttingDown = false;
+	FDelegateHandle OnEditorCloseHandle;
 };
 
 #endif // #if USE_USD_SDK
