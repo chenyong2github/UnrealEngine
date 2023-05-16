@@ -4521,6 +4521,7 @@ void UGeometryCollectionComponent::RefreshCustomRenderer()
 						(DynamicCollection && DynamicCollection->Transform.IsValidIndex(RootIndex))
 						? DynamicCollection->Transform[RootIndex]
 						: FTransform::Identity;
+					ComponentSpaceTransforms[RootIndex] = RootTransform;
 					RendererInterface->UpdateRootTransform(*RestCollection, RootTransform);
 				}
 			}
