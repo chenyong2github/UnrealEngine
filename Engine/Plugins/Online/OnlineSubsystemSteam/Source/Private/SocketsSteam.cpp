@@ -2,6 +2,7 @@
 
 #include "SocketsSteam.h"
 #include "SocketSubsystemSteam.h"
+#include "OnlineSubsystemSteamPackage.h"
 
 bool FSocketSteam::Shutdown(ESocketShutdownMode Mode)
 {
