@@ -421,9 +421,15 @@ namespace UnrealBuildTool
 						if (TargetProjectFile == null)
 						{
 							// find one with a matching name
-							TargetProjectFile = NativeProjects.EnumerateProjectFiles(Log.Logger)
+							TargetProjectFile = NativeProjects.EnumerateProjectFiles(Logger)
 								.Where(x => x.GetFileNameWithoutAnyExtensions().Equals(TargetName, StringComparison.InvariantCultureIgnoreCase))
 								.FirstOrDefault();
+						}
+
+						// make a temp target for hybrid content-as-code projects
+						if (TargetProjectFile != null)
+						{
+							NativeProjects.ConditionalMakeTempTargetForHybridProject(TargetProjectFile, Logger);
 						}
 
 						if (ParamArchitectures == null)

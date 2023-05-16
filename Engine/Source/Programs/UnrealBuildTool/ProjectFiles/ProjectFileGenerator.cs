@@ -954,6 +954,18 @@ namespace UnrealBuildTool
 			// Build the list of games to generate projects for
 			List<FileReference> AllGameProjects = FindGameProjects(Logger);
 
+			// before we detect targets, if we allow hybrid content only projects, look for hybrid projects and create .Target.cs files as needed
+			if (bAllowContentOnlyProjects)
+			{
+				foreach (FileReference GameUProjectFile in AllGameProjects)
+				{
+					NativeProjects.ConditionalMakeTempTargetForHybridProject(GameUProjectFile, Logger);
+				}
+
+				// they are created in a temp location, which we need to scan
+				bIncludeTempTargets = true;
+			}
+
 			// Find all of the target files.  This will filter out any modules or targets that don't
 			// belong to platforms we're generating project files for.
 			List<FileReference> AllTargetFiles = DiscoverTargets(AllGameProjects, Logger, OnlyGameProject, SupportedPlatforms, bIncludeEngineSource, bIncludeTempTargets);
@@ -962,20 +974,21 @@ namespace UnrealBuildTool
 			AllTargetFiles = AllTargetFiles.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase).ToList();
 
 			// Remove any game projects that don't have a target (or are under a directory "Programs" since they don't have Targets under the .uproject)
-			AllGameProjects.RemoveAll(x => 
+			List<FileReference> CodeBasedGameProjects = new(AllGameProjects);
+			CodeBasedGameProjects.RemoveAll(x => 
 			{
 				// anything with a target is valid
 				bool bHasTarget = AllTargetFiles.Any(y => y.IsUnderDirectory(x.Directory));
 				// anything under Programs directory, since they don't have Targets under the .uproject
 				bool bIsUnderPrograms = x.ContainsName("Programs", 0);
-				// so we allow projects with a target, or anything if bAllowContentOnlyProjects is true, or programs
-				bool bIsValidProject = bHasTarget || bAllowContentOnlyProjects || bIsUnderPrograms;
+				// so we allow projects with a target or are programs
+				bool bIsValidProject = bHasTarget || bIsUnderPrograms;
 				return bIsValidProject == false;
 			});
 
 			Dictionary<FileReference, List<DirectoryReference>> AdditionalSearchPaths = new Dictionary<FileReference, List<DirectoryReference>>();
 
-			foreach (FileReference GameProject in AllGameProjects)
+			foreach (FileReference GameProject in CodeBasedGameProjects)
 			{
 				ProjectDescriptor Project = ProjectDescriptor.FromFile(GameProject);
 				if (Project.AdditionalPluginDirectories.Count > 0)
@@ -986,7 +999,7 @@ namespace UnrealBuildTool
 
 			// Find all of the module files.  This will filter out any modules or targets that don't belong to platforms
 			// we're generating project files for.
-			List<FileReference> AllModuleFiles = DiscoverModules(AllGameProjects, AdditionalSearchPaths.Values.SelectMany(x => x).ToList());
+			List<FileReference> AllModuleFiles = DiscoverModules(CodeBasedGameProjects, AdditionalSearchPaths.Values.SelectMany(x => x).ToList());
 
 			List<ProjectFile> EngineProjects = new List<ProjectFile>();
 			List<ProjectFile> GameProjects = new List<ProjectFile>();
@@ -1544,14 +1557,18 @@ namespace UnrealBuildTool
 			foreach (ProjectFile GameProject in GameProjects)
 			{
 				DirectoryReference GameProjectDirectory = GameProject.BaseDir;
+
+				// add the uproject to all projects using this game project - some project generators requires at least one source file to exist, but if
+				//this is a codeonly project, then there is not the usual Target.cs file to be that one file
+				foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(GameProjectDirectory))
+				{
+					GameProject.AddFilesToProject(SourceFileSearch.FindFiles(ExtensionDir, SearchSubdirectories: false), GameProjectDirectory);
+				}
+
 				if (UniqueGameProjectDirectories.Add(GameProjectDirectory))
 				{
 					// @todo projectfiles: We have engine localization files, but should we also add GAME localization files?
 
-					foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(GameProjectDirectory))
-					{
-						GameProject.AddFilesToProject(SourceFileSearch.FindFiles(ExtensionDir, SearchSubdirectories: false), GameProjectDirectory);
-					}
 
 					// Game restricted source files, since they won't be added via a module FileReference
 					foreach (DirectoryReference GameRestrictedSourceDirectory in Unreal.GetExtensionDirs(GameProjectDirectory, "Source", bIncludePlatformDirectories: false, bIncludeBaseDirectory: false))
@@ -2762,6 +2779,7 @@ namespace UnrealBuildTool
 					ProjectFile.IsForeignProject = CheckProjectFile != null && !NativeProjects.IsNativeProject(CheckProjectFile, Logger);
 					ProjectFile.IsGeneratedProject = true;
 					ProjectFile.IsStubProject = UnrealBuildTool.IsProjectInstalled();
+					ProjectFile.IsHybridContentOnlyProject = CheckProjectFile != null && NativeProjects.IsHybridContentOnlyProject(CheckProjectFile, Logger);
 					if (TargetRulesObject.bBuildInSolutionByDefault.HasValue)
 					{
 						ProjectFile.ShouldBuildByDefaultForSolutionTargets = TargetRulesObject.bBuildInSolutionByDefault.Value;

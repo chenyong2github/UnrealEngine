@@ -109,7 +109,20 @@ namespace UnrealBuildTool
 		}
 
 		/// Returns true if this is a content only project, and will be re-using the engine targets
-		public bool IsContentOnlyProject = false;
+		public bool IsContentOnlyProject
+		{
+			get;
+			set;
+		}
+
+		/// Returns true if this is a project without source code, but some build setting requires it to be compiled as code, which will make
+		/// a unique executable, instead of using UnrealGame, etc
+		/// @note: Currently unused by any generator, but a future generator may make use of it
+		public bool IsHybridContentOnlyProject
+		{
+			get;
+			set;
+		}
 
 		/// Whether this project should be built for all solution targets
 		public bool ShouldBuildForAllSolutionTargets
