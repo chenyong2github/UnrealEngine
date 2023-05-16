@@ -338,7 +338,11 @@ TArray<FRigVMGraphVariableDescription> URigVMGraph::GetInputArguments() const
 	if (URigVMFunctionEntryNode* EntryNode = GetEntryNode())
 	{
 		for (URigVMPin* Pin : EntryNode->GetPins())
-		{			
+		{
+			if(Pin->IsExecuteContext())
+			{
+				continue;
+			}
 			FRigVMGraphVariableDescription Description;
 			Description.Name = Pin->GetFName();
 			Description.CPPType = Pin->GetCPPType();
@@ -355,7 +359,11 @@ TArray<FRigVMGraphVariableDescription> URigVMGraph::GetOutputArguments() const
 	if (URigVMFunctionReturnNode* ReturnNode = GetReturnNode())
 	{
 		for (URigVMPin* Pin : ReturnNode->GetPins())
-		{			
+		{
+			if(Pin->IsExecuteContext())
+			{
+				continue;
+			}
 			FRigVMGraphVariableDescription Description;
 			Description.Name = Pin->GetFName();
 			Description.CPPType = Pin->GetCPPType();

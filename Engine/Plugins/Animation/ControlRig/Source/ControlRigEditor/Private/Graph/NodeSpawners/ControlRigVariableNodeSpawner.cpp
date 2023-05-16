@@ -151,12 +151,28 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 	FString NodeName;
 	if(bIsTemplateNode)
 	{
-		// since we are removing the node at the end of this function
-		// we need to create a unique here.
+		// for template controllers let's rely on locally defined nodes
+		// without a backing model node. access to local variables or
+		// input arguments doesn't work on the template controller.
+		
 		static constexpr TCHAR VariableNodeNameFormat[] = TEXT("VariableNode_%s_%s");
 		static const FString GetterPrefix = TEXT("Getter");
 		static const FString SetterPrefix = TEXT("Setter");
 		NodeName = FString::Printf(VariableNodeNameFormat, bIsGetter ? *GetterPrefix : *SetterPrefix, *ExternalVariable.Name.ToString());
+
+		NewNode = NewObject<UControlRigGraphNode>(ParentGraph, *NodeName);
+		ParentGraph->AddNode(NewNode, false);
+
+		NewNode->CreateNewGuid();
+		NewNode->PostPlacedNewNode();
+
+		UEdGraphPin* ValuePin = UEdGraphPin::CreatePin(NewNode);
+		NewNode->Pins.Add(ValuePin);
+
+		ValuePin->PinType = RigVMTypeUtils::PinTypeFromExternalVariable(ExternalVariable);
+		ValuePin->Direction = bIsGetter ? EGPD_Output : EGPD_Input;
+		NewNode->SetFlags(RF_Transactional);
+		return NewNode;
 	}
 
 	if (URigVMNode* ModelNode = Controller->AddVariableNodeFromObjectPath(ExternalVariable.Name, TypeName, ObjectPath, bIsGetter, FString(), Location, NodeName, !bIsTemplateNode, !bIsTemplateNode))

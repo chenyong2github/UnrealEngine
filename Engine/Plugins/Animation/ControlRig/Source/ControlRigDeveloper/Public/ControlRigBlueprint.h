@@ -814,6 +814,7 @@ private:
 	bool bDirtyDuringLoad;
 	bool bErrorsDuringCompilation;
 	bool bSuspendPythonMessagesForRigVMClient;
+	bool bMarkBlueprintAsStructurallyModifiedPending;
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;

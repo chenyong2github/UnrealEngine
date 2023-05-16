@@ -127,6 +127,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	bSuspendModelNotificationsForOthers = false;
 	bSuspendAllNotifications = false;
 	bSuspendPythonMessagesForRigVMClient = true;
+	bMarkBlueprintAsStructurallyModifiedPending = false;
 
 #if WITH_EDITORONLY_DATA
 	ReferencedObjectPathsStored = false;
@@ -3531,6 +3532,22 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 	// the notify for still pending (or already sent)
 	bool bNotifForOthersPending = true;
 
+	auto MarkBlueprintAsStructurallyModified = [this]()
+	{
+		if(VMRecompilationBracket == 0)
+		{
+			if(bMarkBlueprintAsStructurallyModifiedPending)
+			{
+				bMarkBlueprintAsStructurallyModifiedPending = false;
+				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+			}
+		}
+		else
+		{
+			bMarkBlueprintAsStructurallyModifiedPending = true;
+		}
+	};
+
 	if (!bSuspendModelNotificationsForSelf)
 	{
 		switch (InNotifType)
@@ -3544,6 +3561,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			case ERigVMGraphNotifType::InteractionBracketCanceled:
 			{
 				DecrementVMRecompileBracket();
+				MarkBlueprintAsStructurallyModified();
 				break;
 			}
 			case ERigVMGraphNotifType::PinDefaultValueChanged:
@@ -3719,7 +3737,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 					RequestAutoVMRecompilation();
 
 					MarkPackageDirty();
-					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+					MarkBlueprintAsStructurallyModified();
 					break;
 				}
 
@@ -3756,7 +3774,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 				// need to recompile the VM here - unless we don't auto recompile.
 				if(!bAutoRecompileVM)
 				{
-					FBlueprintEditorUtils::MarkBlueprintAsModified(this);
+					MarkBlueprintAsStructurallyModified();
 				}
 				break;
 			}
@@ -3834,6 +3852,25 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 						}
 					}
 				}
+				// fall through another time
+			}
+			case ERigVMGraphNotifType::PinAdded:
+			case ERigVMGraphNotifType::PinRemoved:
+			case ERigVMGraphNotifType::PinRenamed:
+			{
+				// exposed pin changes like this (as well as type change etc)
+				// require to mark the blueprint as structurally modified,
+				// so that the instance actions work out.
+				if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
+				{
+					if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(ModelPin->GetNode()))
+					{
+						if(Cast<URigVMFunctionLibrary>(CollapseNode->GetOuter()))
+						{
+							MarkBlueprintAsStructurallyModified();
+						}
+					}
+				}
 				break;
 			}
 			case ERigVMGraphNotifType::PinBoundVariableChanged:
@@ -3863,7 +3900,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 						ContainedEdGraph->Rename(*CollapseNode->GetEditorSubGraphName(), nullptr);
 					}
 
-					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+					MarkBlueprintAsStructurallyModified();
 				}
 				break;
 			}
@@ -3871,7 +3908,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			case ERigVMGraphNotifType::NodeKeywordsChanged:
 			case ERigVMGraphNotifType::NodeDescriptionChanged:
 			{
-				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
+				MarkBlueprintAsStructurallyModified();
 				break;
 			}
 			default:
