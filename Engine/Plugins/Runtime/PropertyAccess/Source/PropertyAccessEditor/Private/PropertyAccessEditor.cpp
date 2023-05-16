@@ -4,6 +4,9 @@
 #include "PropertyAccess.h"
 #include "PropertyPathHelpers.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "BlueprintActionDatabase.h"
+#include "Settings/AnimBlueprintSettings.h"
+#include "Preferences/PersonaOptions.h"
 
 #define LOCTEXT_NAMESPACE "PropertyAccessEditor"
 
@@ -44,6 +47,9 @@ struct FPropertyAccessEditorSystem
 
 		// Whether this path was determined to be thread safe
 		bool bWasThreadSafe = true;
+
+		// Whether to apply allow-list to functions and properties along the path
+		bool bPerformValidation = false;
 	};
 
 	// The result of a segment resolve operation
@@ -58,6 +64,13 @@ struct FPropertyAccessEditorSystem
 	{
 		InSegment.Property = InProperty;
 
+		// Validate the property is accessible according to permissions. Allow return properties as the owning function will have been validated.
+		if (InContext.bPerformValidation && InProperty && !InProperty->HasAnyPropertyFlags(CPF_ReturnParm) && !GetDefault<UPersonaOptions>()->IsAllowedProperty(InProperty))
+		{
+            InContext.ErrorMessage = FText::Format(LOCTEXT("PropertyIsDisallowedByPermissions", "Property '{0}' is not allowed for property access for @@"), FText::FromName(InProperty->GetFName()));
+            return ESegmentResolveResult::Failed;
+		}
+		
 		// Check to see if it is an array first, as arrays get handled the same for 'leaf' and 'branch' nodes
 		FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty);
 		if(ArrayProperty != nullptr && InSegment.ArrayIndex != INDEX_NONE)
@@ -139,6 +152,12 @@ struct FPropertyAccessEditorSystem
 		InSegment.Function = InFunction;
 		InSegment.Flags |= (uint16)EPropertyAccessSegmentFlags::Function;
 
+		if (InContext.bPerformValidation && InFunction && !FBlueprintActionDatabase::IsFunctionAllowed(InFunction, FBlueprintActionDatabase::EPermissionsContext::Property))
+		{
+			InContext.ErrorMessage = FText::Format(LOCTEXT("FunctionIsDisallowedByPermissions", "Function '{0}' is not allowed for property access for @@"), FText::FromName(InFunction->GetFName()));
+			return ESegmentResolveResult::Failed;
+		}
+		
 		// Functions are always 'getters', so we need to verify their form
 		if(InFunction->NumParms != 1)
 		{
@@ -505,12 +524,15 @@ struct FPropertyAccessEditorSystem
 		FPropertyAccessPath DestAccessPath;
 
 		FResolveSegmentsContext SrcContext(InStruct, OutCopy.SourcePath, SrcAccessPath);
+		SrcContext.bPerformValidation = GetDefault<UAnimBlueprintSettings>()->bPerformValidation;
+
 		FResolveSegmentsContext DestContext(InStruct, OutCopy.DestPath, DestAccessPath);
+		DestContext.bPerformValidation = false;
 
 		OutCopy.SourceResult = ResolveSegments(SrcContext);
 		OutCopy.SourceErrorText = SrcContext.ErrorMessage;
 		OutCopy.DestResult = ResolveSegments(DestContext);
-		OutCopy.DestErrorText = SrcContext.ErrorMessage;
+		OutCopy.DestErrorText = DestContext.ErrorMessage;
 
 		if(OutCopy.SourceResult != EPropertyAccessResolveResult::Failed && OutCopy.DestResult != EPropertyAccessResolveResult::Failed)
 		{

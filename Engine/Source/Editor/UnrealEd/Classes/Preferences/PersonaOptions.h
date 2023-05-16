@@ -304,6 +304,20 @@ public:
 		return OnIsClassAllowedDelegate.IsBound() == false || OnIsClassAllowedDelegate.Execute(InClass);
 	}
 
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnIsPropertyAllowed, const FProperty* /*InProperty*/);
+
+	/** Sets a delegate that allows external code to restrict which features can be used within the Persona editor by filtering which properties are allowed. */
+	void SetOnIsPropertyAllowed(const FOnIsPropertyAllowed& InOnIsPropertyAllowed)
+	{
+		OnIsPropertyAllowedDelegate = InOnIsPropertyAllowed;
+	}
+
+	/** Returns whether or not the supplied properties can be used in the current editor context. */
+	bool IsAllowedProperty(const FProperty* InProperty) const
+	{
+		return OnIsPropertyAllowedDelegate.IsBound() == false || OnIsPropertyAllowedDelegate.Execute(InProperty);
+	}
+
 protected:
 	// UObject interface
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -312,4 +326,6 @@ private:
 	FNamePermissionList AllowedAnimationEditorTracks;
 
 	FOnIsClassAllowed OnIsClassAllowedDelegate;
+
+	FOnIsPropertyAllowed OnIsPropertyAllowedDelegate;
 };

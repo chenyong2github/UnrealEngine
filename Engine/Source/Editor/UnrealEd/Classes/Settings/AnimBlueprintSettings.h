@@ -51,6 +51,10 @@ public:
 	UPROPERTY(Config)
 	bool bSupportInputEventsForBackwardsCompatibility = false;
 
+	/** Whether or not anim blueprint should perform allow-list validation */
+	UPROPERTY()
+	bool bPerformValidation = false;
+
 	/** The set of allowed base functions if restricted */
 	UPROPERTY()
 	TArray<FName> BaseFunctionOverrideAllowList;

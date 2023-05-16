@@ -17,6 +17,8 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "UObject/UObjectIterator.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "BlueprintActionDatabase.h"
+#include "Preferences/PersonaOptions.h"
 
 #define LOCTEXT_NAMESPACE "PropertyBinding"
 
@@ -111,6 +113,12 @@ void SPropertyBinding::ForEachBindableFunction(UClass* FromClass, Predicate Pred
 	{
 		auto CheckBindableClass = [this, &Pred](UClass* InBindableClass)
 		{
+			// Early exit if this class is excluded by permissions
+			if ( !FBlueprintActionDatabase::IsClassAllowed(InBindableClass, FBlueprintActionDatabase::EPermissionsContext::Property) )
+			{
+				return;
+			}
+		
 			// Walk up class hierarchy for native functions and properties
 			for ( TFieldIterator<UFunction> FuncIt(InBindableClass, EFieldIteratorFlags::IncludeSuper); FuncIt; ++FuncIt )
 			{
@@ -130,6 +138,12 @@ void SPropertyBinding::ForEachBindableFunction(UClass* FromClass, Predicate Pred
 
 				// Only bind to functions that are callable from blueprints
 				if ( !UEdGraphSchema_K2::CanUserKismetCallFunction(Function) )
+				{
+					continue;
+				}
+
+				// Only bind to functions that are allowed by permissions
+				if ( !FBlueprintActionDatabase::IsFunctionAllowed(Function, FBlueprintActionDatabase::EPermissionsContext::Property) )
 				{
 					continue;
 				}
@@ -216,6 +230,12 @@ void SPropertyBinding::ForEachBindableProperty(UStruct* InStruct, Predicate Pred
 
 			// Also ignore advanced properties
 			if (Property->HasAnyPropertyFlags(CPF_AdvancedDisplay | CPF_EditorOnly))
+			{
+				continue;
+			}
+
+			// Exit if this property is excluded by permissions
+			if (!GetMutableDefault<UPersonaOptions>()->IsAllowedProperty(Property))
 			{
 				continue;
 			}
