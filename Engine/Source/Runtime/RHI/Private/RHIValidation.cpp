@@ -453,7 +453,7 @@ void FValidationRHI::RHISubmitCommandLists(TArrayView<IRHIPlatformCommandList*> 
 		delete OuterCommandList;
 	}
 
-	if (InnerCommandLists.Num())
+	if (InnerCommandLists.Num() || bFlushResources)
 	{
 		RHI->RHISubmitCommandLists(InnerCommandLists, bFlushResources);
 	}
