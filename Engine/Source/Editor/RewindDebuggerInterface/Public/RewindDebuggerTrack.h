@@ -59,6 +59,12 @@ public:
 	{
 		return GetNameInternal();
 	}
+	
+	// unique name for track (must match creator name if track is created by an IRewindDebuggerViewCreator) 
+	int GetSortOrderPriority() const
+	{
+		return GetSortOrderPriorityInternal();
+	}
 
 	// icon to display in the tree view
 	FSlateIcon GetIcon()
@@ -109,6 +115,7 @@ private:
 	virtual TSharedPtr<SWidget> GetDetailsViewInternal() { return TSharedPtr<SWidget>(); }
 	virtual FSlateIcon GetIconInternal() { return FSlateIcon(); }
 	virtual FName GetNameInternal() const { return ""; }
+	virtual int GetSortOrderPriorityInternal() const { return 0; }
 	virtual FText GetDisplayNameInternal() const { return FText(); }
 	virtual uint64 GetObjectIdInternal() const { return 0; }
 	virtual bool HasDebugDataInternal() const { return true; }

@@ -77,6 +77,7 @@ private:
 	virtual FName GetNameInternal() const override;
 	virtual FText GetDisplayNameInternal() const override;
 	virtual uint64 GetObjectIdInternal() const override { return ObjectId; }
+	virtual int GetSortOrderPriorityInternal() const override { return 10; };
 	virtual bool UpdateInternal() override;
 
 	TSharedPtr<SCostTimelineView> CostTimelineView;

@@ -96,7 +96,7 @@ void FRewindDebuggerObjectTrack::IterateSubTracksInternal(TFunction<void(TShared
 		IteratorFunction(Track);
 	}
 };
-
+	
 FText FRewindDebuggerObjectTrack::GetDisplayNameInternal() const
 {
 	if (!bDisplayNameValid)
@@ -277,6 +277,15 @@ bool FRewindDebuggerObjectTrack::UpdateInternal()
 			bChanged = true;
 			Children.RemoveAt(Index);
 		}
+	}
+
+	if (bChanged)
+	{
+		Children.Sort([](const TSharedPtr<FRewindDebuggerTrack>& A, const TSharedPtr<FRewindDebuggerTrack>& B)
+		{
+			return A->GetSortOrderPriority() > B->GetSortOrderPriority() ||
+					A->GetDisplayName().ToString() < B->GetDisplayName().ToString();
+		});
 	}
 
 	for (auto& Child : Children)

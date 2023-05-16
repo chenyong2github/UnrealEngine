@@ -14,6 +14,7 @@ namespace RewindDebugger
 
 FAnimCurvesTrack::FAnimCurvesTrack(uint64 InObjectId) : ObjectId(InObjectId)
 {
+	SetIsExpanded(false);
 	Icon = FSlateIcon("EditorStyle", "AnimGraph.Attribute.Curves.Icon", "AnimGraph.Attribute.Curves.Icon");
 }
 
