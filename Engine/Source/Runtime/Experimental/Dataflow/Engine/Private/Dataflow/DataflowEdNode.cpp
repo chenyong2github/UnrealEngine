@@ -406,6 +406,47 @@ void UDataflowEdNode::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverText
 	}
 }
 
+void UDataflowEdNode::AutowireNewNode(UEdGraphPin* FromPin)
+{
+	if (DataflowGraph && FromPin)
+	{
+		if (UEdGraphNode* FromGraphNode = FromPin->GetOwningNode())
+		{
+			if (UDataflowEdNode* FromDataflowGraphNode = Cast<UDataflowEdNode>(FromPin->GetOwningNode()))
+			{
+				const TSharedPtr<FDataflowNode> FromDataFlowNode = FromDataflowGraphNode->GetDataflowNode();
+				if (FromDataFlowNode)
+				{
+					if (FDataflowOutput* FromOutput = FromDataFlowNode->FindOutput(FromPin->PinName))
+					{
+						const FName OutputType = FromOutput->GetType();
+
+						const TSharedPtr<FDataflowNode> ToDataFlowNode = this->GetDataflowNode();
+						for (UEdGraphPin* InputPin : this->GetAllPins())
+						{
+							if (FDataflowInput* ToInput = ToDataFlowNode->FindInput(InputPin->PinName))
+							{
+								if (ToInput->GetType() == OutputType)
+								{
+									if (const UEdGraph* EdGraph = this->GetGraph())
+									{
+										if (EdGraph->GetSchema()->TryCreateConnection(FromPin, InputPin))
+										{
+											FromGraphNode->NodeConnectionListChanged();
+											this->NodeConnectionListChanged();
+											break;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 #endif
 
 

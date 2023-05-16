@@ -45,6 +45,7 @@ public:
 	virtual FText GetTooltipText() const override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	virtual FText GetPinDisplayName(const UEdGraphPin* Pin) const override;
+	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 #endif // WITH_EDITOR
 	// End of UEdGraphNode interface
 
