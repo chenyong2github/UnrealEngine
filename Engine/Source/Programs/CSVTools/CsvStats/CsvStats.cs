@@ -566,6 +566,7 @@ namespace CSVStats
 			}
 			if (bIsUnicode)
 			{
+				reader.Close();
 				reader = new StreamReader(filename, Encoding.Unicode, true);
 			}
 			else
@@ -582,6 +583,7 @@ namespace CSVStats
 				}
 			}
 
+			reader.Close();
 			return lines.ToArray();
 		}
 
