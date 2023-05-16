@@ -132,6 +132,12 @@ void FNiagaraEditorUtilities::InitializeParameterInputNode(UNiagaraNodeInput& In
 	InputName = UNiagaraNodeInput::GenerateUniqueName(InGraph, InputName, ENiagaraInputNodeUsage::Parameter);
 	InputNode.Input.SetName(InputName);
 	InputNode.Input.SetType(Type);
+	if (Type != FNiagaraTypeDefinition::GetParameterMapDef())
+	{
+		// when adding things like data interfaces as module inputs, making them required will just generate weird compile errors
+		// because "bRequired" prevents using the default value, but their pins are not exposed to the stack (as they are not part of the parameter map)
+		InputNode.ExposureOptions.bRequired = false;
+	}
 	if (InGraph) // Only compute sort priority if a graph was passed in, similar to the way that GenrateUniqueName works above.
 	{
 		InputNode.CallSortPriority = UNiagaraNodeInput::GenerateNewSortPriority(InGraph, InputName, ENiagaraInputNodeUsage::Parameter);

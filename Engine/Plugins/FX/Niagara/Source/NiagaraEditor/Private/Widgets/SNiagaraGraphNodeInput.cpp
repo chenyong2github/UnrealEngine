@@ -30,10 +30,10 @@ public:
 
 	virtual void RegisterCommands() override
 	{
-		UI_COMMAND(ToggleExposed, "Exposed", "Toggles whether or not this parameter is exposed.", EUserInterfaceActionType::ToggleButton, FInputChord());
-		UI_COMMAND(ToggleRequired, "Required", "Toggles whether or not this parameter is required.", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(ToggleExposed, "Expose Input", "If true then this is exposed as an input to it's caller - turning this off makes sense when the input is defined in a function script and should not be visible to the caller.", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(ToggleRequired, "Suppress Default Value", "If true then this input is required to be set by the caller. For optional values (e.g. values behind an edit condition) this can be set to false, so the translator uses the default value instead.", EUserInterfaceActionType::ToggleButton, FInputChord());
 		UI_COMMAND(ToggleCanAutoBind, "CanAutoBind", "Toggles whether or not this parameter can auto-bind to system parameters and emitter attributes. Will never auto bind to custom parameters.", EUserInterfaceActionType::ToggleButton, FInputChord());
-		UI_COMMAND(ToggleHidden, "Hidden", "Toggles whether or not this parameter is hidden.", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(ToggleHidden, "Advanced Display", "If this input should be hidden in the advanced pin section of it's caller.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	}
 
 public:
@@ -284,7 +284,6 @@ TSharedRef<SWidget> SNiagaraGraphNodeInput::GenerateExposureOptionsMenu() const
 		{
 			OptionsMenuBuilder.AddMenuEntry(FNiagaraGraphNodeInputCommands::Get().ToggleExposed);
 			OptionsMenuBuilder.AddMenuEntry(FNiagaraGraphNodeInputCommands::Get().ToggleRequired);
-			OptionsMenuBuilder.AddMenuEntry(FNiagaraGraphNodeInputCommands::Get().ToggleCanAutoBind);
 			OptionsMenuBuilder.AddMenuEntry(FNiagaraGraphNodeInputCommands::Get().ToggleHidden);
 		}
 
@@ -305,7 +304,8 @@ void SNiagaraGraphNodeInput::ExposureOptionsMenuOpenChanged(bool bOpened)
 
 EVisibility SNiagaraGraphNodeInput::GetExposureOptionsVisibility() const
 {
-	return EVisibility::Visible;
+	UNiagaraNodeInput* InputNode = CastChecked<UNiagaraNodeInput>(GraphNode);
+	return InputNode->Usage == ENiagaraInputNodeUsage::Parameter ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply SNiagaraGraphNodeInput::HandleExposureOptionsMenuButtonClicked()
