@@ -28,6 +28,7 @@ NNE_THIRD_PARTY_INCLUDES_START
 NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
 #undef CreateDirectory
 #undef GetEnvironmentVariable
+#include <bitset>
 #include <string>
 #include <fcntl.h>
 #include <io.h>
@@ -168,9 +169,24 @@ private:
       uint32 IntStackSize = ParamSet.thread_options.stack_size;
       EThreadPriority InThreadPri = ParamSet.thread_options.ThreadPri;
 
-      uint64 AffinityMask = (!ParamSet.thread_options.affinity.empty()) ?
-        ParamSet.thread_options.affinity[ThreadIdx] :
-        FGenericPlatformAffinity::GetNoAffinityMask();
+      auto affinitiesToAffinityMask = [] (const LogicalProcessors affinities) -> uint64 {
+        if (affinities.empty()) {
+          return FGenericPlatformAffinity::GetNoAffinityMask();
+        }
+
+        std::bitset<64> bitSet;
+        for (int logicalProcessorId : affinities) {
+          if (logicalProcessorId < 64) {
+            bitSet.set(logicalProcessorId);
+          }
+        }
+
+        return bitSet.to_ullong();
+      };
+
+      uint64 AffinityMask = !ParamSet.thread_options.affinities.empty() ?
+          affinitiesToAffinityMask(ParamSet.thread_options.affinities[ThreadIdx]) :
+          FGenericPlatformAffinity::GetNoAffinityMask();
 
       std::string ThreadName("FORTUERunnable ");
       ThreadName.append(std::to_string(ThreadIdx));
@@ -255,7 +271,7 @@ class UnrealEngineEnv : public Env {
 #endif //WITH_UE
   }
 
-  int GetNumCpuCores() const override {
+  int GetNumPhysicalCpuCores() const override {
 #ifdef PLATFORM_NNE_MICROSOFT
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer[256];
     DWORD returnLength = sizeof(buffer);
@@ -292,34 +308,44 @@ class UnrealEngineEnv : public Env {
 #endif //PLATFORM_NNE_MICROSOFT
   }
 
-  std::vector<size_t> GetThreadAffinityMasks() const override {
-#ifdef PLATFORM_NNE_MICROSOFT
-    auto generate_vector_of_n = [](int n) {
-      std::vector<size_t> ret(n);
-      std::iota(ret.begin(), ret.end(), 0);
-      return ret;
+  std::vector<LogicalProcessors> GetDefaultThreadAffinities() const override {
+    auto generateDefaultAffinities = [] (int numThreads) {
+      std::vector<LogicalProcessors> result;
+      for (int i = 0; i < numThreads; i++) {
+        result.push_back({ i });
+      }
+      return result;
     };
+
+#ifdef PLATFORM_NNE_MICROSOFT
     // Indeed 64 should be enough. However, it's harmless to have a little more.
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer[256];
     DWORD returnLength = sizeof(buffer);
     if (GetLogicalProcessorInformation(buffer, &returnLength) == FALSE) {
-      return generate_vector_of_n(std::thread::hardware_concurrency());
+      return generateDefaultAffinities(std::thread::hardware_concurrency());
     }
-    std::vector<size_t> ret;
+
+    std::vector<LogicalProcessors> result;
     int count = (int)(returnLength / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
-    for (int i = 0; i != count; ++i) {
+    for (int i = 0; i < count; i++) {
       if (buffer[i].Relationship == RelationProcessorCore) {
-        ret.push_back(buffer[i].ProcessorMask);
+        std::bitset<64> bitset(buffer[i].ProcessorMask);
+        for (int k = 0; k < bitset.size(); k++) {
+          if (bitset[k]) {
+            result.push_back({ k });
+          }
+        }
       }
     }
-    if (ret.empty())
-      return generate_vector_of_n(std::thread::hardware_concurrency());
-    return ret;
+    
+    if (result.empty()) {
+      return generateDefaultAffinities(std::thread::hardware_concurrency());
+    }
+    
+    return result;
 #else //PLATFORM_NNE_MICROSOFT
   // Reusing POSIX code
-  std::vector<size_t> ret(std::thread::hardware_concurrency() / 2);
-  std::iota(ret.begin(), ret.end(), 0);
-  return ret;
+  return generateDefaultAffinities(std::thread::hardware_concurrency() / 2);
 #endif //PLATFORM_NNE_MICROSOFT
   }
 
@@ -757,22 +783,22 @@ class UnrealEngineEnv : public Env {
 #ifdef PLATFORM_NNE_MICROSOFT
   // Return the path of the executable/shared library for the current running code. This is to make it
   // possible to load other shared libraries installed next to our core runtime code.
-  std::string GetRuntimePath() const override {
+  PathString GetRuntimePath() const override {
     char buffer[MAX_PATH];
     if (!GetModuleFileNameA(reinterpret_cast<HINSTANCE>(&__ImageBase), buffer, _countof(buffer)))
-      return "";
+      return PathString();
 
     // Remove the filename at the end, but keep the trailing slash
     std::string path(buffer);
     auto slash_index = path.find_last_of('\\');
     if (slash_index == std::string::npos)
-      return "";
+      return PathString();
 
-    return path.substr(0, slash_index + 1);
+    return ToPathString(path.substr(0, slash_index + 1));
   }
 #endif
 
-  virtual Status LoadDynamicLibrary(const std::string& library_filename, bool global_symbols, void** handle) const override {
+  virtual Status LoadDynamicLibrary(const PathString& library_filename, bool global_symbols, void** handle) const override {
 #ifndef WITH_UE
 #if WINAPI_FAMILY == WINAPI_FAMILY_PC_APP
     *handle = ::LoadPackagedLibrary(ToWideString(library_filename).c_str(), 0);

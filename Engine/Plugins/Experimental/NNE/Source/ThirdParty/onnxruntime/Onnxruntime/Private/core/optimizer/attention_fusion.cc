@@ -9,6 +9,8 @@
 #include "core/graph/graph_utils.h"
 #include <cmath>
 
+using namespace gsl; // WITH_UE
+
 namespace onnxruntime {
 
 static bool ValidateMatMulInitializer(const Graph& graph, const Node& matmul, int64_t hidden_size) {
@@ -120,25 +122,25 @@ static NodeArg& MergeQkvWeights(Graph& graph, int64_t hidden_size,
     const float* k_weight = k_initializer.data<float>();
     const float* v_weight = v_initializer.data<float>();
     std::vector<float> result;
-    result.reserve(gsl::narrow<size_t>(element_count));
+    result.reserve(narrow<size_t>(element_count)); // WITH_UE
     if (is_matmul) {
       MergeMatMulWeights<float>(q_weight, k_weight, v_weight, result, hidden_size);
     } else {
       MergeWeights<float>(q_weight, k_weight, v_weight, result, hidden_size);
     }
-    initializer.set_raw_data(result.data(), gsl::narrow<size_t>(element_count) * sizeof(float));
+    initializer.set_raw_data(result.data(), narrow<size_t>(element_count) * sizeof(float)); // WITH_UE
   } else {  // data_type == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16
     const MLFloat16* q_weight = q_initializer.data<MLFloat16>();
     const MLFloat16* k_weight = k_initializer.data<MLFloat16>();
     const MLFloat16* v_weight = v_initializer.data<MLFloat16>();
     std::vector<MLFloat16> result;
-    result.reserve(gsl::narrow<size_t>(element_count));
+    result.reserve(narrow<size_t>(element_count)); // WITH_UE
     if (is_matmul) {
       MergeMatMulWeights<MLFloat16>(q_weight, k_weight, v_weight, result, hidden_size);
     } else {
       MergeWeights<MLFloat16>(q_weight, k_weight, v_weight, result, hidden_size);
     }
-    initializer.set_raw_data(result.data(), gsl::narrow<size_t>(element_count) * sizeof(MLFloat16));
+    initializer.set_raw_data(result.data(), narrow<size_t>(element_count) * sizeof(MLFloat16)); // WITH_UE
   }
 
   return graph_utils::AddInitializer(graph, initializer);

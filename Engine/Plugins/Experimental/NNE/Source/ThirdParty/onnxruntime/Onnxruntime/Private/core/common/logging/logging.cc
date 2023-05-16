@@ -19,7 +19,7 @@ NNE_THIRD_PARTY_INCLUDES_START
 NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
 #else
 #include <unistd.h>
-#if defined(__MACH__) || defined(__wasm__) || defined(__PROSPERO__) || defined(_AIX) // WITH_UE: Added __PROSPERO__
+#if defined(__MACH__) || defined(__wasm__) || defined(_AIX) || defined(__PROSPERO__) // WITH_UE: Added __PROSPERO__
 #include <pthread.h>
 #else
 #include <sys/syscall.h>
@@ -252,7 +252,7 @@ unsigned int GetThreadId() {
 unsigned int GetProcessId() {
 #ifdef _WIN32
   return static_cast<unsigned int>(GetCurrentProcessId());
-#elif defined(__MACH__) || defined(__wasm__) || defined(__PROSPERO__) || defined(_AIX) // WITH_UE: Added __PROSPERO__
+#elif defined(__MACH__) || defined(__wasm__) || defined(_AIX) || defined(__PROSPERO__) // WITH_UE: Added __PROSPERO__
   return static_cast<unsigned int>(getpid());
 #else
   return static_cast<unsigned int>(syscall(SYS_getpid));

@@ -1,13 +1,17 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
-#include "core/optimizer/initializer.h"
 #include "core/optimizer/embed_layer_norm_fusion.h"
+
+#include "core/common/span_utils.h"
+#include "core/optimizer/initializer.h"
 #include "core/graph/contrib_ops/contrib_defs.h"
 #include "core/graph/graph_utils.h"
 #include "core/optimizer/utils.h"
 #include "core/framework/tensorprotoutils.h"
 #include "float.h"
 #include "core/common/safeint.h"
+
+using namespace gsl; // WITH_UE
 
 #define DEBUG_LOG(x) LOGS(logger, VERBOSE) << x
 
@@ -73,7 +77,7 @@ static bool IsNeighborNodeExpectedTypes(Node::NodeConstIterator start, const Nod
 }
 
 static inline bool IsNeighborNodeExpectedTypes(Node::NodeConstIterator start, const Node::NodeConstIterator end, std::initializer_list<std::string> expected_types) {
-  return IsNeighborNodeExpectedTypes(start, end, gsl::make_span(expected_types));
+  return IsNeighborNodeExpectedTypes(start, end, AsSpan(expected_types));
 }
 
 /** Match subgraph like the following:
@@ -429,7 +433,7 @@ template <typename T>
 bool CheckEmbeddingData(const T* data, int64_t batch_size, int64_t element_count) {
   // check that all batches has same data.
   size_t data_length = SafeInt<size_t>(batch_size) * element_count;
-  for (size_t i = gsl::narrow<size_t>(element_count); i < data_length; i++) {
+  for (size_t i = narrow<size_t>(element_count); i < data_length; i++) { // WITH_UE
     if (data[i] != data[i % element_count]) {
       return false;
     }
@@ -464,14 +468,14 @@ static NodeArg* ExtractEmbedding(Graph& graph,
       return nullptr;
     }
 
-    initializer.set_raw_data(data, gsl::narrow<size_t>(element_count) * sizeof(float));
+    initializer.set_raw_data(data, narrow<size_t>(element_count) * sizeof(float)); // WITH_UE
   } else {  // data_type == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16
     const MLFloat16* data = old_initializer.data<MLFloat16>();
     if (!CheckEmbeddingData(data, batch_size, element_count)) {
       return nullptr;
     }
 
-    initializer.set_raw_data(data, gsl::narrow<size_t>(element_count) * sizeof(MLFloat16));
+    initializer.set_raw_data(data, narrow<size_t>(element_count) * sizeof(MLFloat16)); // WITH_UE
   }
 
   NodeArg& node_arg = graph_utils::AddInitializer(graph, initializer);

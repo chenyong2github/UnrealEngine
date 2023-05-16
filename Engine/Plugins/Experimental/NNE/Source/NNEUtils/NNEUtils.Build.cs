@@ -44,7 +44,7 @@ public class NNEUtils : ModuleRules
 			PrivateDependencyModuleNames.AddRange
 				(
 				new string[] {
-					"Protobuf",
+					"NNEProtobuf",
 					"Re2" // ONNXRuntimeRE2
 				}
 			);

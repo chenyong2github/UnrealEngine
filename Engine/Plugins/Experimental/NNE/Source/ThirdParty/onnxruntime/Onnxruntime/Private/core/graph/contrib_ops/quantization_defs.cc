@@ -9,10 +9,17 @@
 #include "core/graph/constants.h"
 #include "core/graph/contrib_ops/contrib_defs.h"
 #include "core/graph/contrib_ops/shape_inference_functions.h"
+#include "onnx/onnx-ml.pb.h" // ?
+
+// Suppress a warning: global initializer calls a non-constexpr function 'symbol' which is from
+// ONNX_OPERATOR_SET_SCHEMA_EX macro and only happens in debug build
+#if defined(_WIN32) && !defined(NDEBUG)
+#pragma warning(disable : 26426)
+#endif
 
 namespace ONNX_NAMESPACE {
 void RNNShapeInference(InferenceContext& ctx);
-
+void convTransposeShapeInference(InferenceContext& ctx);
 void convPoolShapeInference(ONNX_NAMESPACE::InferenceContext& ctx, bool use_dilation, bool require_kernel_shape,
                             int input1Idx, int input2Idx);
 void matmulShapeInference(ONNX_NAMESPACE::InferenceContext& ctx, int input1Idx, int input2Idx);
@@ -30,7 +37,8 @@ using ONNX_NAMESPACE::DbgOperatorSetTracker;
 #endif
 
 void ValidateTypeAndShapeForScaleAndZP(ONNX_NAMESPACE::InferenceContext& ctx, int index,
-                                       ::google::protobuf::int32 expectedType, bool isScalar, int expectedTensorSize) {
+                                       ::google::protobuf::int32 expectedType,
+                                       QuantParamTensorType expectedScalar, int expectedTensorSize) {
   if (ctx.getNumInputs() > static_cast<size_t>(index)) {
     auto data_type = ctx.getInputType(index);
     if (nullptr == data_type) {
@@ -45,11 +53,14 @@ void ValidateTypeAndShapeForScaleAndZP(ONNX_NAMESPACE::InferenceContext& ctx, in
 
   if (hasInputShape(ctx, index)) {
     ONNX_NAMESPACE::TensorShapeProto shape = ctx.getInputType(index)->tensor_type().shape();
-    if (isScalar) {
+    if (expectedScalar == QuantParamTensorType::Scalar) {
       if (shape.dim_size() != 0) {
         fail_type_inference("Scale and Zero-point must be a scalar");
       }
     } else {
+      if (expectedScalar == QuantParamTensorType::Both && shape.dim_size() == 0) {
+        return;
+      }
       if (shape.dim_size() != 1) {
         fail_type_inference("Scale and Zero-point must be of rank 1");
       }
@@ -108,12 +119,12 @@ Performs element-wise binary {name} on 8 bit data types (with Numpy-style broadc
       }
 
       // validate scale and zero points
-      ValidateTypeAndShapeForScaleAndZP(ctx, 1, ONNX_NAMESPACE::TensorProto::FLOAT, true);
-      ValidateTypeAndShapeForScaleAndZP(ctx, 2, a_type->tensor_type().elem_type(), true);
-      ValidateTypeAndShapeForScaleAndZP(ctx, 4, ONNX_NAMESPACE::TensorProto::FLOAT, true);
-      ValidateTypeAndShapeForScaleAndZP(ctx, 5, b_type->tensor_type().elem_type(), true);
-      ValidateTypeAndShapeForScaleAndZP(ctx, 6, ONNX_NAMESPACE::TensorProto::FLOAT, true);
-      ValidateTypeAndShapeForScaleAndZP(ctx, 7, a_type->tensor_type().elem_type(), true);
+      ValidateTypeAndShapeForScaleAndZP(ctx, 1, ONNX_NAMESPACE::TensorProto::FLOAT, QuantParamTensorType::Scalar);
+      ValidateTypeAndShapeForScaleAndZP(ctx, 2, a_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
+      ValidateTypeAndShapeForScaleAndZP(ctx, 4, ONNX_NAMESPACE::TensorProto::FLOAT, QuantParamTensorType::Scalar);
+      ValidateTypeAndShapeForScaleAndZP(ctx, 5, b_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
+      ValidateTypeAndShapeForScaleAndZP(ctx, 6, ONNX_NAMESPACE::TensorProto::FLOAT, QuantParamTensorType::Scalar);
+      ValidateTypeAndShapeForScaleAndZP(ctx, 7, a_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
 
       if (hasInputShape(ctx, 0) && hasInputShape(ctx, 3))
         bidirectionalBroadcastShapeInference(ctx.getInputType(0)->tensor_type().shape(),
@@ -211,19 +222,21 @@ ONNX_MS_OPERATOR_SET_SCHEMA(DequantizeLinear, 1,
                                 }));
 
 static const char* QuantizeBFP_ver1_doc = R"DOC(
-The BFP quantization operator. It consumes a full precision tensor and computes an BFP tensor.)DOC";
+The BFP quantization operator. It consumes a full precision tensor and computes an BFP tensor.
+More documentation on the BFP format can be found in this paper: https://www.microsoft.com/en-us/research/publication/pushing-the-limits-of-narrow-precision-inferencing-at-cloud-scale-with-microsoft-floating-point/)DOC";
 
 ONNX_MS_OPERATOR_SET_SCHEMA(
     QuantizeBFP, 1,
     OpSchema()
         .Attr("bfp_type", "The type of BFP - must match with the BFPType enum", AttributeProto::INT)
-        .Attr("block_dims",
-              "Numbers within a bounding box will span across these dimensions."
-              "Any dimension not in this list is the same for all numbers within a bounding box."
-              "As an example, consider a 2D tensor with shape [d0, d1] and block_dims equal to [1]."
-              "Within a bounding box, all elements will be within the same row but will be from different columnns."
+        .Attr("block_dim",
+              "Each bounding box spans this dimension."
+              "Typically, the block dimension corresponds to the reduction dimension of the matrix multipication that "
+              "consumes the output of this operator."
+              "For example, for a 2D matrix multiplication A@W, QuantizeBFP(A) would use block_dim 1 and "
+              "QuantizeBFP(W) would use block_dim 0."
               "The default is the last dimension.",
-              AttributeProto::INTS, std::vector<int64_t>{-1})
+              AttributeProto::INT, static_cast<int64_t>(-1))
         .Input(0, "x", "N-D full precision input tensor to be quantized.", "T1")
         .Output(0, "y", "1-D, contiguous BFP data", "T2")
         .Output(1, "shape", "Shape of x", "T3")
@@ -254,19 +267,22 @@ ONNX_MS_OPERATOR_SET_SCHEMA(
         }));
 
 static const char* DequantizeBFP_ver1_doc = R"DOC(
-The BFP dequantization operator. It consumes the raw BFP data and some metadata such as the shape and strides of the original tensor and computes the dequantized tensor.)DOC";
+The BFP dequantization operator.
+It consumes the raw BFP data and some metadata such as the shape and strides of the original tensor and computes the dequantized tensor.
+More documentation on the BFP format can be found in this paper: https://www.microsoft.com/en-us/research/publication/pushing-the-limits-of-narrow-precision-inferencing-at-cloud-scale-with-microsoft-floating-point/)DOC";
 
 ONNX_MS_OPERATOR_SET_SCHEMA(
     DequantizeBFP, 1,
     OpSchema()
         .Attr("bfp_type", "The type of BFP - must match with the BFPType enum", AttributeProto::INT)
-        .Attr("block_dims",
-              "Numbers within a bounding box will span across these dimensions."
-              "Any dimension not in this list is the same for all numbers within a bounding box."
-              "As an example, consider a 2D tensor with shape [d0, d1] and block_dims equal to [1]."
-              "Within a bounding box, all elements will be within the same row but will be from different columnns."
+        .Attr("block_dim",
+              "Each bounding box spans this dimension."
+              "Typically, the block dimension corresponds to the reduction dimension of the matrix multipication that "
+              "consumes the output of this operator."
+              "For example, for a 2D matrix multiplication A@W, QuantizeBFP(A) would use block_dim 1 and "
+              "QuantizeBFP(W) would use block_dim 0."
               "The default is the last dimension.",
-              AttributeProto::INTS, std::vector<int64_t>{-1})
+              AttributeProto::INT, static_cast<int64_t>(-1))
         .Attr("dtype", "The datatype to dequantize to.", AttributeProto::INT,
               static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT))  // default
         .Input(0, "x", "1-D, contiguous, raw, BFP data to be de-quantized.", "T1")
@@ -352,8 +368,8 @@ C (int32) = (A - A_zero_point) * (B - B_zero_point)
             fail_type_inference("inputs are expected to have tensor type.");
           }
 
-          ValidateTypeAndShapeForScaleAndZP(ctx, 1, a_type->tensor_type().elem_type(), true);
-          ValidateTypeAndShapeForScaleAndZP(ctx, 3, b_type->tensor_type().elem_type(), true);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 1, a_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 3, b_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
 
           if (hasInputShape(ctx, 0) && hasInputShape(ctx, 2)) {
             bidirectionalBroadcastShapeInference(ctx.getInputType(0)->tensor_type().shape(),
@@ -487,10 +503,10 @@ This helps to improve accuracy as after ReduceMean operation the range of the ou
           }
 
           // validate scale and zero points
-          ValidateTypeAndShapeForScaleAndZP(ctx, 1, ONNX_NAMESPACE::TensorProto::FLOAT, true);
-          ValidateTypeAndShapeForScaleAndZP(ctx, 2, data_type->tensor_type().elem_type(), true);
-          ValidateTypeAndShapeForScaleAndZP(ctx, 3, ONNX_NAMESPACE::TensorProto::FLOAT, true);
-          ValidateTypeAndShapeForScaleAndZP(ctx, 4, data_type->tensor_type().elem_type(), true);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 1, ONNX_NAMESPACE::TensorProto::FLOAT, QuantParamTensorType::Scalar);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 2, data_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 3, ONNX_NAMESPACE::TensorProto::FLOAT, QuantParamTensorType::Scalar);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 4, data_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
 
           int64_t keep_dims = 1;
           auto attr_proto = ctx.getAttribute("keepdims");
@@ -612,7 +628,7 @@ The output tensor has the same shape.
                 "tensor. The output tensor has the same rank as the input. ",
                 "T")
         .TypeConstraint("T", {"tensor(uint8)", "tensor(int8)"},
-                        "Constrain input and output types to singed/unsigned int8 tensors.")
+                        "Constrain input and output types to signed/unsigned int8 tensors.")
         .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
           // Type inference
           propagateElemTypeFromInputToOutput(ctx, 0, 0);
@@ -802,10 +818,46 @@ ONNX_MS_OPERATOR_SET_SCHEMA(
             }
           }
 
-          if (all_lengths_known) {
-            output_shape->mutable_dim(axis)->set_dim_value(total_length);
-          }
-        }));
+        if (all_lengths_known) {
+          output_shape->mutable_dim(axis)->set_dim_value(total_length);
+        }
+      }));
+
+  ONNX_MS_OPERATOR_SET_SCHEMA(QLinearWhere, 1, OpSchema()
+    .SetDoc("Return elements, either from X or Y, depending on condition.")
+      .Input(0, "condition", " When True (nonzero), yield x, otherwise yield y", "B")
+      .Input(1, "X", "Y's zero point.", "T")
+      .Input(2, "x_scale", "X's scale.", "TF")
+      .Input(3, "x_zero_point", "X's zero point.", "T")
+      .Input(4, "Y", "Y's zero point.", "T")
+      .Input(5, "y_scale", "Y's scale.", "TF")
+      .Input(6, "y_zero_point", "Y's zero point.", "T")
+      .Input(7, "z_scale", "Z's scale.", "TF")
+      .Input(8, "z_zero_point", "Z's zero point.", "T")
+      .Output(0, "Z", "Tensor of shape equal to the broadcasted shape of condition, X, and Y", "T")
+      .TypeConstraint(
+        "B",
+        {"tensor(bool)"},
+        "Constrain input and output types to 8 bit signed and unsigned tensors.")
+      .TypeConstraint(
+        "TF",
+        {"tensor(float)"},
+        "Constrain scale types to any float tensor type.")
+      .TypeConstraint(
+        "T",
+        {"tensor(uint8)", "tensor(int8)"},
+        "Constrain input and output types to 8 bit signed and unsigned tensors.")
+      .TypeAndShapeInferenceFunction([](InferenceContext& ctx) {
+        propagateElemTypeFromInputToOutput(ctx, 1, 0);
+        if (hasNInputShapes(ctx, 9)) {
+          std::vector<const onnx::TensorShapeProto*> shapes;
+          shapes.push_back(&ctx.getInputType(0)->tensor_type().shape());
+          shapes.push_back(&ctx.getInputType(1)->tensor_type().shape());
+          shapes.push_back(&ctx.getInputType(4)->tensor_type().shape());
+          multidirectionalBroadcastShapeInference(
+              shapes, *ctx.getOutputType(0)->mutable_tensor_type()->mutable_shape());
+        }
+      }));
 
 ONNX_MS_OPERATOR_SET_SCHEMA(
     QGemm, 1,
@@ -897,6 +949,17 @@ ONNX_MS_OPERATOR_SET_SCHEMA(
         .Attr("num_heads", "Number of attention heads", AttributeProto::INT)
         .Attr("unidirectional", "Whether every token can only attend to previous tokens. Default value is 0.",
               AttributeProto::INT, static_cast<int64_t>(0))
+        .Attr("past_present_share_buffer", "Corresponding past and present are same tensor, its shape is "
+              "(2, batch_size, num_heads, max_sequence_length, head_size)",
+              AttributeProto::INT, OPTIONAL_VALUE)
+        .Attr("mask_filter_value",
+              "The value to be filled in the attention mask. Default value is -10000.0f",
+              AttributeProto::FLOAT,
+              OPTIONAL_VALUE)
+        .Attr("scale",
+              "Custom scale will be used if specified. Default value is 1/sqrt(head_size)",
+              AttributeProto::FLOAT,
+              OPTIONAL_VALUE)
         .Input(0, "input", "3D input tensor with shape (batch_size, sequence_length, input_hidden_size)", "T1")
         .Input(1, "weight",
                "2D input tensor with shape (input_hidden_size, 3 * hidden_size), hidden_size = num_heads * head_size",
@@ -975,51 +1038,61 @@ ONNX_MS_OPERATOR_SET_SCHEMA(
         .TypeConstraint("T", {"tensor(float)"}, "Constrain input and output types to float32 tensors.")
         .TypeAndShapeInferenceFunction(EmbedLayerNormalizationShapeInference));
 
-  ONNX_MS_OPERATOR_SET_SCHEMA(
-      QuantizeWithOrder,
-      1,
-      OpSchema()
-          .SetDoc(R"DOC(Quantize input matrix to specific layout used in cublaslt.)DOC")
-          .Attr("order_input",
-                "cublasLt order of input matrix. ORDER_COL = 0, ORDER_ROW = 1, ORDER_COL32 = 2, ORDER_COL4_4R2_8C = 3, ORDER_COL32_2R_4R4 = 4. "
-                "Please refer https://docs.nvidia.com/cuda/cublas/index.html#cublasLtOrder_t for their meaning.",
-                AttributeProto::INT)
-          .Attr("order_output", "cublasLt order of output matrix.", AttributeProto::INT)
-          .Input(0, "input", "TODO: input tensor of (ROWS, COLS). if less than 2d, will broadcast to (1, X). If 3d, it is treated as (B, ROWS, COS)", "F")
-          .Input(1, "scale_input", "scale of the input", "S")
-          .Output(0, "output", "output tensor", "Q")
-          .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
-          .TypeConstraint("F", {"tensor(float16)", "tensor(float)"}, "Constrain to float types")
-          .TypeConstraint("S", {"tensor(float)"}, "Constrain Scale to float32 types")
-          .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
-            propagateElemTypeFromDtypeToOutput(ctx, ONNX_NAMESPACE::TensorProto::INT8, 0);
-            if (!hasInputShape(ctx, 0)) return;
-            auto& input_shape = getInputShape(ctx, 0);
-            updateOutputShape(ctx, 0, input_shape);
-          }));
+ONNX_MS_OPERATOR_SET_SCHEMA(
+    QuantizeWithOrder, 1,
+    OpSchema()
+        .SetDoc(R"DOC(Quantize input matrix to specific layout used in cublaslt.)DOC")
+        .Attr("order_input",
+              "cublasLt order of input matrix. ORDER_COL = 0, ORDER_ROW = 1, ORDER_COL32 = 2, ORDER_COL4_4R2_8C = 3, "
+              "ORDER_COL32_2R_4R4 = 4. "
+              "Please refer https://docs.nvidia.com/cuda/cublas/index.html#cublasLtOrder_t for their meaning.",
+              AttributeProto::INT)
+        .Attr("order_output", "cublasLt order of output matrix.", AttributeProto::INT)
+        .Input(0, "input",
+               "TODO: input tensor of (ROWS, COLS). if less than 2d, will broadcast to (1, X). If 3d, it is treated as "
+               "(B, ROWS, COS)",
+               "F")
+        .Input(1, "scale_input", "scale of the input", "S")
+        .Output(0, "output", "output tensor", "Q")
+        .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
+        .TypeConstraint("F", {"tensor(float16)", "tensor(float)"}, "Constrain to float types")
+        .TypeConstraint("S", {"tensor(float)"}, "Constrain Scale to float32 types")
+        .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
+          propagateElemTypeFromDtypeToOutput(ctx, ONNX_NAMESPACE::TensorProto::INT8, 0);
+          if (!hasInputShape(ctx, 0)) return;
+          auto& input_shape = getInputShape(ctx, 0);
+          updateOutputShape(ctx, 0, input_shape);
+        }));
 
-  ONNX_MS_OPERATOR_SET_SCHEMA(
-      DequantizeWithOrder,
-      1,
-      OpSchema()
-          .SetDoc(R"DOC(Dequantize input matrix to specific layout used in cublaslt. attr to specify output type, float16 or float32)DOC")
-          .Attr("order_input", "cublasLt order of input matrix. See the schema of QuantizeWithOrder for order definition.", AttributeProto::INT)
-          .Attr("order_output", "cublasLt order of output matrix", AttributeProto::INT)
-          .Attr("to", "The output data type, only support TensorProto_DataType_FLOAT (1) and TensorProto_DataType_FLOAT16 (10)", AttributeProto::INT)
-          .Input(0, "input", "TODO: input tensor of (ROWS, COLS). if less than 2d, will broadcast to (1, X). If 3d, it is treated as (B, ROWS, COS)", "Q")
-          .Input(1, "scale_input", "scale of the input", "S")
-          .Output(0, "output", "output tensor", "F")
-          .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
-          .TypeConstraint("F", {"tensor(float16)", "tensor(float)"}, "Constrain to float types")
-          .TypeConstraint("S", {"tensor(float)"}, "Constrain Scale to float32 types")
-          .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
-            propagateElemTypeFromAttributeToOutput(ctx, "to", 0);
-            if (!hasInputShape(ctx, 0)) return;
-            auto& input_shape = getInputShape(ctx, 0);
-            updateOutputShape(ctx, 0, input_shape);
-          }));
+ONNX_MS_OPERATOR_SET_SCHEMA(
+    DequantizeWithOrder, 1,
+    OpSchema()
+        .SetDoc(
+            R"DOC(Dequantize input matrix to specific layout used in cublaslt. attr to specify output type, float16 or float32)DOC")
+        .Attr("order_input",
+              "cublasLt order of input matrix. See the schema of QuantizeWithOrder for order definition.",
+              AttributeProto::INT)
+        .Attr("order_output", "cublasLt order of output matrix", AttributeProto::INT)
+        .Attr("to",
+              "The output data type, only support TensorProto_DataType_FLOAT (1) and TensorProto_DataType_FLOAT16 (10)",
+              AttributeProto::INT)
+        .Input(0, "input",
+               "TODO: input tensor of (ROWS, COLS). if less than 2d, will broadcast to (1, X). If 3d, it is treated as "
+               "(B, ROWS, COS)",
+               "Q")
+        .Input(1, "scale_input", "scale of the input", "S")
+        .Output(0, "output", "output tensor", "F")
+        .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
+        .TypeConstraint("F", {"tensor(float16)", "tensor(float)"}, "Constrain to float types")
+        .TypeConstraint("S", {"tensor(float)"}, "Constrain Scale to float32 types")
+        .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
+          propagateElemTypeFromAttributeToOutput(ctx, "to", 0);
+          if (!hasInputShape(ctx, 0)) return;
+          auto& input_shape = getInputShape(ctx, 0);
+          updateOutputShape(ctx, 0, input_shape);
+        }));
 
-  constexpr const char* QOrderedMatMul_ver1_doc = R"DOC(
+constexpr const char* QOrderedMatMul_ver1_doc = R"DOC(
 Quantize (Int8) MatMul with order. Implement Y = alpha * A * B + bias + beta * C. Matrix A, B, C, Y are all int8 matrix.
 Two type of order combination supported:
   *) When order_B is ORDER_COL, order_A must be ORDER_ROW.
@@ -1032,31 +1105,32 @@ order_Y and order_C will be same as order_A.
 Support per column quantized weight, ie, scale_B is 1-D vector of size [#cols of matrix B].
 )DOC";
 
-  ONNX_MS_OPERATOR_SET_SCHEMA(
-      QOrderedMatMul,
-      1,
-      OpSchema()
-          .SetDoc(QOrderedMatMul_ver1_doc)
-          .Attr("order_A", "cublasLt order of matrix A. See the schema of QuantizeWithOrder for order definition.", AttributeProto::INT)
-          .Attr("order_B", "cublasLt order of matrix B", AttributeProto::INT)
-          .Attr("order_Y", "cublasLt order of matrix Y and optional matrix C", AttributeProto::INT)
-          .Input(0, "A", "3-dimensional matrix A", "Q")
-          .Input(1, "scale_A", "scale of the input A.", "S")
-          .Input(2, "B", "2-dimensional matrix B. Transposed if order_B is ORDER_COL.", "Q")
-          .Input(3, "scale_B", "scale of the input B. Scalar or 1-D float32.", "S")
-          .Input(4, "scale_Y", "scale of the output Y.", "S")
-          .Input(5, "bias", "1d bias, not scaled with scale_Y.", "S", OpSchema::Optional)
-          .Input(6, "C", "3d or 2d matrix C. if 2d expand to 3d first. Shape[0] should be 1 or same as A.shape[0] ", "Q", OpSchema::Optional)
-          .Input(7, "scale_C", "scale of the input A.", "S", OpSchema::Optional)
-          .Output(0, "Y", "Matrix multiply results from A * B", "Q")
-          .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
-          .TypeConstraint("S", {"tensor(float)"}, "Constrain bias and scales to float32")
-          .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
-            propagateElemTypeFromInputToOutput(ctx, 0, 0);
-            ONNX_NAMESPACE::matmulShapeInference(ctx, 0, 2);
-          }));
+ONNX_MS_OPERATOR_SET_SCHEMA(
+    QOrderedMatMul, 1,
+    OpSchema()
+        .SetDoc(QOrderedMatMul_ver1_doc)
+        .Attr("order_A", "cublasLt order of matrix A. See the schema of QuantizeWithOrder for order definition.",
+              AttributeProto::INT)
+        .Attr("order_B", "cublasLt order of matrix B", AttributeProto::INT)
+        .Attr("order_Y", "cublasLt order of matrix Y and optional matrix C", AttributeProto::INT)
+        .Input(0, "A", "3-dimensional matrix A", "Q")
+        .Input(1, "scale_A", "scale of the input A.", "S")
+        .Input(2, "B", "2-dimensional matrix B. Transposed if order_B is ORDER_COL.", "Q")
+        .Input(3, "scale_B", "scale of the input B. Scalar or 1-D float32.", "S")
+        .Input(4, "scale_Y", "scale of the output Y.", "S")
+        .Input(5, "bias", "1d bias, not scaled with scale_Y.", "S", OpSchema::Optional)
+        .Input(6, "C", "3d or 2d matrix C. if 2d expand to 3d first. Shape[0] should be 1 or same as A.shape[0] ", "Q",
+               OpSchema::Optional)
+        .Input(7, "scale_C", "scale of the input A.", "S", OpSchema::Optional)
+        .Output(0, "Y", "Matrix multiply results from A * B", "Q")
+        .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
+        .TypeConstraint("S", {"tensor(float)"}, "Constrain bias and scales to float32")
+        .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
+          propagateElemTypeFromInputToOutput(ctx, 0, 0);
+          ONNX_NAMESPACE::matmulShapeInference(ctx, 0, 2);
+        }));
 
-  static const char* Attention_QOrdered_doc = R"DOC(
+static const char* Attention_QOrdered_doc = R"DOC(
 Quantized version of simplified Multi-Head Self Attention(using int8 with specific matrix Layout).
 Multi-Head Self Attention that can be either unidirectional (like GPT-2) or bidirectional (like BERT).
 The mask_index input is optional. Besides raw attention mask with shape (batch_size, past_sequence_length + sequence_length)
@@ -1066,132 +1140,388 @@ where value of each element is the end position, or valid length of actual seque
 left-side padding, mask_index has shape (2 * batch_size), where the values are the exclusive end positions followed by
 the inclusive start positions. When unidirectional is 1, and each token only attend to previous tokens. For GPT-2, both past
 and present state are optional. Present state could appear in output even when past state is not in input.
-Current version does not support past/present, extra_add and qkv_hidden_sizes.
+Current version does not support past/present, relative_position_bias and qkv_hidden_sizes.
 TODO: Support them if needed in the future.
 )DOC";
 
-  ONNX_MS_OPERATOR_SET_SCHEMA(
-      QOrderedAttention,
-      1,
-      OpSchema()
-          .SetDoc(Attention_QOrdered_doc)
-          .Attr("num_heads", "Number of attention heads", AttributeProto::INT)
-          .Attr("unidirectional", "Whether every token can only attend to previous tokens. Default value is 0.", AttributeProto::INT, static_cast<int64_t>(0))
-          .Attr("qkv_hidden_sizes", "Hidden layer sizes of Q, K, V paths in Attention", AttributeProto::INTS, OPTIONAL_VALUE)
-          .Attr("order_input", "cublasLt order of input matrix. See the schema of QuantizeWithOrder for order definition.", AttributeProto::INT)
-          .Attr("order_weight", "cublasLt order of weight matrix", AttributeProto::INT)
-          .Attr("order_output", "cublasLt order of global bias", AttributeProto::INT)
-          .Input(0, "input", "3D input tensor with shape (batch_size, sequence_length, input_hidden_size)", "Q")
-          .Input(1, "scale_input", "scale of the input, scalar value (per tensor) currently.", "S")
-          .Input(2, "scale_Q_gemm", "scale of the gemm - scalar (per-tensor quantization)", "S")
-          .Input(3, "scale_K_gemm", "scale of the gemm - scalar (per-tensor quantization)", "S")
-          .Input(4, "scale_V_gemm", "scale of the gemm - scalar (per-tensor quantization)", "S")
-          .Input(5, "Q_weight", "2D input tensor with shape (input_hidden_size, hidden_size), where hidden_size = num_heads * head_size", "Q")
-          .Input(6, "K_weight", "2D input tensor with shape (input_hidden_size, hidden_size), where hidden_size = num_heads * head_size", "Q")
-          .Input(7, "V_weight", "2D input tensor with shape (input_hidden_size, hidden_size), where hidden_size = num_heads * head_size", "Q")
-          .Input(8, "scale_Q_weight", "scale of the weight (scalar for per-tensor quantization or 1-D of dims [hidden_size] for per-channel quantization)", "S")
-          .Input(9, "scale_K_weight", "scale of the weight (scalar for per-tensor quantization or 1-D of dims [hidden_size] for per-channel quantization)", "S")
-          .Input(10, "scale_V_weight", "scale of the weight (scalar for per-tensor quantization or 1-D of dims [hidden_size] for per-channel quantization)", "S")
-          .Input(11, "Q_bias", "1D input tensor with shape (hidden_size)", "S")
-          .Input(12, "K_bias", "1D input tensor with shape (hidden_size)", "S")
-          .Input(13, "V_bias", "1D input tensor with shape (hidden_size)", "S")
-          .Input(14, "scale_QKT_gemm", "scale of the gemm - scalar (per-tensor quantization)", "S", OpSchema::Optional)
-          .Input(15, "scale_QKT_softmax", "scale of the softmax result - scalar (per-tensor quantization)", "S", OpSchema::Optional)
-          .Input(16, "scale_values_gemm", "scale of the gemm - scalar (per-tensor quantization). Also this is the output scale for the operator.", "S")
-          .Input(17, "mask_index",
-                 "Attention mask with shape (batch_size, 1, max_sequence_length, max_sequence_length), (batch_size, past_sequence_length + sequence_length)"
-                 "or (batch_size, sequence_length, past_sequence_length + sequence_length), or index with shape (batch_size) or (2 * batch_size).",
-                 "G", OpSchema::Optional)
-          .Input(18, "past", "past state for key and value with shape (2, batch_size, num_heads, past_sequence_length, head_size).", "Q", OpSchema::Optional)
-          .Input(19, "extra_add", "additional add to QxK' with shape (batch_size, num_heads, sequence_length, sequence_length).", "S", OpSchema::Optional)
-          .Output(0, "output", "3D output tensor with shape (batch_size, sequence_length, hidden_size)", "Q")
-          .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
-          .TypeConstraint("S", {"tensor(float)"}, "Constrain scales to float32 tensors.")
-          .TypeConstraint("G", {"tensor(int32)"}, "Constrain to integer types")
-          .TypeAndShapeInferenceFunction(ONNX_NAMESPACE::propagateShapeAndTypeFromFirstInput));
+ONNX_MS_OPERATOR_SET_SCHEMA(
+    QOrderedAttention, 1,
+    OpSchema()
+        .SetDoc(Attention_QOrdered_doc)
+        .Attr("num_heads", "Number of attention heads", AttributeProto::INT)
+        .Attr("unidirectional", "Whether every token can only attend to previous tokens. Default value is 0.",
+              AttributeProto::INT, static_cast<int64_t>(0))
+        .Attr("qkv_hidden_sizes", "Hidden layer sizes of Q, K, V paths in Attention", AttributeProto::INTS,
+              OPTIONAL_VALUE)
+        .Attr("order_input",
+              "cublasLt order of input matrix. See the schema of QuantizeWithOrder for order definition.",
+              AttributeProto::INT)
+        .Attr("order_weight", "cublasLt order of weight matrix", AttributeProto::INT)
+        .Attr("order_output", "cublasLt order of global bias", AttributeProto::INT)
+        .Input(0, "input", "3D input tensor with shape (batch_size, sequence_length, input_hidden_size)", "Q")
+        .Input(1, "scale_input", "scale of the input, scalar value (per tensor) currently.", "S")
+        .Input(2, "scale_Q_gemm", "scale of the gemm - scalar (per-tensor quantization)", "S")
+        .Input(3, "scale_K_gemm", "scale of the gemm - scalar (per-tensor quantization)", "S")
+        .Input(4, "scale_V_gemm", "scale of the gemm - scalar (per-tensor quantization)", "S")
+        .Input(5, "Q_weight",
+               "2D input tensor with shape (input_hidden_size, hidden_size), where hidden_size = num_heads * head_size",
+               "Q")
+        .Input(6, "K_weight",
+               "2D input tensor with shape (input_hidden_size, hidden_size), where hidden_size = num_heads * head_size",
+               "Q")
+        .Input(7, "V_weight",
+               "2D input tensor with shape (input_hidden_size, hidden_size), where hidden_size = num_heads * head_size",
+               "Q")
+        .Input(8, "scale_Q_weight",
+               "scale of the weight (scalar for per-tensor quantization or 1-D of dims [hidden_size] for per-channel "
+               "quantization)",
+               "S")
+        .Input(9, "scale_K_weight",
+               "scale of the weight (scalar for per-tensor quantization or 1-D of dims [hidden_size] for per-channel "
+               "quantization)",
+               "S")
+        .Input(10, "scale_V_weight",
+               "scale of the weight (scalar for per-tensor quantization or 1-D of dims [hidden_size] for per-channel "
+               "quantization)",
+               "S")
+        .Input(11, "Q_bias", "1D input tensor with shape (hidden_size)", "S")
+        .Input(12, "K_bias", "1D input tensor with shape (hidden_size)", "S")
+        .Input(13, "V_bias", "1D input tensor with shape (hidden_size)", "S")
+        .Input(14, "scale_QKT_gemm", "scale of the gemm - scalar (per-tensor quantization)", "S", OpSchema::Optional)
+        .Input(15, "scale_QKT_softmax", "scale of the softmax result - scalar (per-tensor quantization)", "S",
+               OpSchema::Optional)
+        .Input(16, "scale_values_gemm",
+               "scale of the gemm - scalar (per-tensor quantization). Also this is the output scale for the operator.",
+               "S")
+        .Input(17, "mask_index",
+               "Attention mask with shape (batch_size, 1, max_sequence_length, max_sequence_length), (batch_size, "
+               "past_sequence_length + sequence_length)"
+               "or (batch_size, sequence_length, past_sequence_length + sequence_length), or index with shape "
+               "(batch_size) or (2 * batch_size).",
+               "G", OpSchema::Optional)
+        .Input(18, "past",
+               "past state for key and value with shape (2, batch_size, num_heads, past_sequence_length, head_size).",
+               "Q", OpSchema::Optional)
+        .Input(19, "relative_position_bias",
+               "additional add to QxK' with shape (batch_size, num_heads, sequence_length, sequence_length).", "S",
+               OpSchema::Optional)
+        .Output(0, "output", "3D output tensor with shape (batch_size, sequence_length, hidden_size)", "Q")
+        .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
+        .TypeConstraint("S", {"tensor(float)"}, "Constrain scales to float32 tensors.")
+        .TypeConstraint("G", {"tensor(int32)"}, "Constrain to integer types")
+        .TypeAndShapeInferenceFunction(ONNX_NAMESPACE::propagateShapeAndTypeFromFirstInput));
 
-  ONNX_MS_OPERATOR_SET_SCHEMA(
-      QOrderedLayerNormalization,
-      1,
-      OpSchema()
-          .SetDoc("QOrderedLayerNormalization")
-          .Attr("axis",
-                "The first normalization dimension: normalization "
-                "will be performed along dimensions axis "
-                ": rank(inputs).",
-                AttributeProto::INT,
-                static_cast<int64_t>(-1))
-          .Attr("epsilon", "The epsilon value to use to avoid division by zero.",
-                AttributeProto::FLOAT, 1e-5f)
-          .Attr("order_X", "cublasLt order of input X. Default is ROW MAJOR. See the schema of QuantizeWithOrder for order definition.",
-                AttributeProto::INT, static_cast<int64_t>(1))
-          .Attr("order_Y", "cublasLt order of matrix Y, must be same as order_X. Default is ROW MAJOR.",
-                AttributeProto::INT, static_cast<int64_t>(1))
-          .AllowUncheckedAttributes()
-          .Input(0, "X", "Input data tensor from the previous layer.", "Q")
-          .Input(1, "scale_X", "scale of the quantized X", "S")
-          .Input(2, "scale", "Scale tensor, i.e., gamma vector.", "F")
-          .Input(3, "B", "Bias tensor.", "F", OpSchema::Optional)
-          .Input(4, "scale_Y", "scale of the quantized X", "S")
-          .Output(0, "Y", "Output data tensor.", "Q")
-          .TypeConstraint("F", {"tensor(float16)", "tensor(float)"},
-                          "Constrain input gamma and bias could be float16/float tensors. "
-                          "float may get better precision, float16 runs faster.")
-          .TypeConstraint("S", {"tensor(float)"}, "quantization scale must be float tensors.")
-          .TypeConstraint("Q", {"tensor(int8)"}, "quantization tensor must be int8 tensors.")
-          .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
-            propagateShapeAndTypeFromFirstInput(ctx);
-            propagateElemTypeFromInputToOutput(ctx, 0, 0);
-          }));
+ONNX_MS_OPERATOR_SET_SCHEMA(QOrderedLayerNormalization, 1,
+                            OpSchema()
+                                .SetDoc("QOrderedLayerNormalization")
+                                .Attr("axis",
+                                      "The first normalization dimension: normalization "
+                                      "will be performed along dimensions axis "
+                                      ": rank(inputs).",
+                                      AttributeProto::INT, static_cast<int64_t>(-1))
+                                .Attr("epsilon", "The epsilon value to use to avoid division by zero.",
+                                      AttributeProto::FLOAT, 1e-5f)
+                                .Attr("order_X",
+                                      "cublasLt order of input X. Default is ROW MAJOR. See the schema of "
+                                      "QuantizeWithOrder for order definition.",
+                                      AttributeProto::INT, static_cast<int64_t>(1))
+                                .Attr("order_Y",
+                                      "cublasLt order of matrix Y, must be same as order_X. Default is ROW MAJOR.",
+                                      AttributeProto::INT, static_cast<int64_t>(1))
+                                .AllowUncheckedAttributes()
+                                .Input(0, "X", "Input data tensor from the previous layer.", "Q")
+                                .Input(1, "scale_X", "scale of the quantized X", "S")
+                                .Input(2, "scale", "Scale tensor, i.e., gamma vector.", "F")
+                                .Input(3, "B", "Bias tensor.", "F", OpSchema::Optional)
+                                .Input(4, "scale_Y", "scale of the quantized X", "S")
+                                .Output(0, "Y", "Output data tensor.", "Q")
+                                .TypeConstraint("F", {"tensor(float16)", "tensor(float)"},
+                                                "Constrain input gamma and bias could be float16/float tensors. "
+                                                "float may get better precision, float16 runs faster.")
+                                .TypeConstraint("S", {"tensor(float)"}, "quantization scale must be float tensors.")
+                                .TypeConstraint("Q", {"tensor(int8)"}, "quantization tensor must be int8 tensors.")
+                                .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
+                                  propagateShapeAndTypeFromFirstInput(ctx);
+                                  propagateElemTypeFromInputToOutput(ctx, 0, 0);
+                                }));
 
-  ONNX_MS_OPERATOR_SET_SCHEMA(
-      QOrderedGelu,
-      1,
-      OpSchema()
-          .SetDoc(R"DOC(Ordered Quantize Gelu.)DOC")
-          .Attr("order_X", "cublasLt order of input X. Optional. See the schema of QuantizeWithOrder for order definition.",
-                AttributeProto::INT, OPTIONAL_VALUE)
-          .Attr("order_Y", "cublasLt order of matrix Y, must be same as order_X if specified together. Optional.",
-                AttributeProto::INT, OPTIONAL_VALUE)
-          .Input(0, "X", "N-dimensional input A", "Q")
-          .Input(1, "scale_X", "scale of the input A", "S")
-          .Input(2, "scale_Y", "scale of the output Y", "S")
-          .Output(0, "Y", "Output of the Gelu", "Q")
-          .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
-          .TypeConstraint("S", {"tensor(float)"}, "Constrain scales to float32")
-          .TypeAndShapeInferenceFunction(ONNX_NAMESPACE::propagateShapeAndTypeFromFirstInput));
+ONNX_MS_OPERATOR_SET_SCHEMA(
+    QOrderedGelu, 1,
+    OpSchema()
+        .SetDoc(R"DOC(Ordered Quantize Gelu.)DOC")
+        .Attr("order_X",
+              "cublasLt order of input X. Optional. See the schema of QuantizeWithOrder for order definition.",
+              AttributeProto::INT, OPTIONAL_VALUE)
+        .Attr("order_Y", "cublasLt order of matrix Y, must be same as order_X if specified together. Optional.",
+              AttributeProto::INT, OPTIONAL_VALUE)
+        .Input(0, "X", "N-dimensional input A", "Q")
+        .Input(1, "scale_X", "scale of the input A", "S")
+        .Input(2, "scale_Y", "scale of the output Y", "S")
+        .Output(0, "Y", "Output of the Gelu", "Q")
+        .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
+        .TypeConstraint("S", {"tensor(float)"}, "Constrain scales to float32")
+        .TypeAndShapeInferenceFunction(ONNX_NAMESPACE::propagateShapeAndTypeFromFirstInput));
 
-  ONNX_MS_OPERATOR_SET_SCHEMA(
-      QOrderedLongformerAttention,
-      1,
-      OpSchema()
-          .SetDoc(R"DOC(Quantized version of Longformer Self Attention (using int8 with specific matrix Layout).)DOC")
-          .Attr("num_heads", "Number of attention heads", AttributeProto::INT)
-          .Attr("window", "One sided attention windows length W, or half of total window length", AttributeProto::INT)
-          .Attr("order_input", "cublasLt order of input matrix. See the schema of QuantizeWithOrder for order definition.", AttributeProto::INT)
-          .Attr("order_weight", "cublasLt order of weight matrix", AttributeProto::INT)
-          .Attr("order_global_weight", "cublasLt order of weight matrix", AttributeProto::INT)
-          .Attr("order_output", "cublasLt order of global bias", AttributeProto::INT)
-          .Input(0, "input", "3D input tensor with shape (batch_size, sequence_length, hidden_size), hidden_size = num_heads * head_size", "Q")
-          .Input(1, "scale_input", "scale of the input", "S")
-          .Input(2, "weight", "2D input tensor with shape (hidden_size, 3 * hidden_size)", "Q")
-          .Input(3, "scale_weight", "scale of the weight", "S")
-          .Input(4, "bias", "1D input tensor with shape (3 * hidden_size), fp32 only currently.", "S")
-          .Input(5, "scale_bias", "reserved. (not used as add bias need float value in cublasLt for normal order.)", "S")
-          .Input(6, "scale_qkv_gemm", "scale of the output for fused kqv gemm", "S")
-          .Input(7, "mask", "Attention mask with shape (batch_size, sequence_length)", "F")
-          .Input(8, "global_weight", "2D input tensor with shape (hidden_size, 3 * hidden_size)", "Q")
-          .Input(9, "scale_global_weight", "scale of the global_weight", "S")
-          .Input(10, "global_bias", "1D input tensor with shape (3 * hidden_size)", "S")
-          .Input(11, "scale_global_gemm", "scale of the global_qkv_gemm", "S")
-          .Input(12, "global", "Global attention flags with shape (batch_size, sequence_length)", "G")
-          .Input(13, "scale_output", "scale of the output", "S")
-          .Output(0, "output", "3D output tensor with shape (batch_size, sequence_length, hidden_size)", "Q")
-          .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
-          .TypeConstraint("S", {"tensor(float)"}, "Constrain scales to float32 tensors.")
-          .TypeConstraint("G", {"tensor(int32)"}, "Constrain to integer types")
-          .TypeConstraint("F", {"tensor(float16)"}, "Be compatible with float version.")
-          .TypeAndShapeInferenceFunction(ONNX_NAMESPACE::propagateShapeAndTypeFromFirstInput));
+ONNX_MS_OPERATOR_SET_SCHEMA(
+    QOrderedLongformerAttention, 1,
+    OpSchema()
+        .SetDoc(R"DOC(Quantized version of Longformer Self Attention (using int8 with specific matrix Layout).)DOC")
+        .Attr("num_heads", "Number of attention heads", AttributeProto::INT)
+        .Attr("window", "One sided attention windows length W, or half of total window length", AttributeProto::INT)
+        .Attr("order_input",
+              "cublasLt order of input matrix. See the schema of QuantizeWithOrder for order definition.",
+              AttributeProto::INT)
+        .Attr("order_weight", "cublasLt order of weight matrix", AttributeProto::INT)
+        .Attr("order_global_weight", "cublasLt order of weight matrix", AttributeProto::INT)
+        .Attr("order_output", "cublasLt order of global bias", AttributeProto::INT)
+        .Input(0, "input",
+               "3D input tensor with shape (batch_size, sequence_length, hidden_size), hidden_size = num_heads * "
+               "head_size",
+               "Q")
+        .Input(1, "scale_input", "scale of the input", "S")
+        .Input(2, "weight", "2D input tensor with shape (hidden_size, 3 * hidden_size)", "Q")
+        .Input(3, "scale_weight", "scale of the weight", "S")
+        .Input(4, "bias", "1D input tensor with shape (3 * hidden_size), fp32 only currently.", "S")
+        .Input(5, "scale_bias", "reserved. (not used as add bias need float value in cublasLt for normal order.)", "S")
+        .Input(6, "scale_qkv_gemm", "scale of the output for fused kqv gemm", "S")
+        .Input(7, "mask", "Attention mask with shape (batch_size, sequence_length)", "F")
+        .Input(8, "global_weight", "2D input tensor with shape (hidden_size, 3 * hidden_size)", "Q")
+        .Input(9, "scale_global_weight", "scale of the global_weight", "S")
+        .Input(10, "global_bias", "1D input tensor with shape (3 * hidden_size)", "S")
+        .Input(11, "scale_global_gemm", "scale of the global_qkv_gemm", "S")
+        .Input(12, "global", "Global attention flags with shape (batch_size, sequence_length)", "G")
+        .Input(13, "scale_output", "scale of the output", "S")
+        .Output(0, "output", "3D output tensor with shape (batch_size, sequence_length, hidden_size)", "Q")
+        .TypeConstraint("Q", {"tensor(int8)"}, "Constrain input and output types to int8 tensors.")
+        .TypeConstraint("S", {"tensor(float)"}, "Constrain scales to float32 tensors.")
+        .TypeConstraint("G", {"tensor(int32)"}, "Constrain to integer types")
+        .TypeConstraint("F", {"tensor(float16)"}, "Be compatible with float version.")
+        .TypeAndShapeInferenceFunction(ONNX_NAMESPACE::propagateShapeAndTypeFromFirstInput));
+
+/*
+static void convTransposeShapeInference(InferenceContext& ctx,
+                                        std::array<int, 3>& input_remap) {
+  // Sometimes, the onnx shapeInfer function does supply the QlinearVersion of
+  // relavant Op. But there is not too much difference except input_idx.
+  // For example, ConvTranspose has 3 inputs (input,weight,bias),
+  // while QlinearConvTranspose has 7 inputs (input,scale_input,Zp,weight,
+  // scale_weight,Zp,output_scale,Zp,bias).
+  //That's why we need to remap the input index.
+  class InputIdxReMappingInferContext : public InferenceContext {
+   private:
+    InferenceContext& ctx_pa_;
+    std::array<int, 3>& input_map_;
+
+   public:
+    InputIdxReMappingInferContext(InferenceContext& ctx, std::array<int, 3>& input_map) : ctx_pa_(ctx),
+                                                                                       input_map_(input_map) {}
+    const onnx::TypeProto* getInputType(size_t index) const override {
+      return ctx_pa_.getInputType(input_map_[index]);
+    }
+    const AttributeProto* getAttribute(const std::string& name) const override {
+      return ctx_pa_.getAttribute(name);
+    }
+    size_t getNumInputs() const override {
+      return ctx_pa_.getNumInputs();
+    }
+    const onnx::TensorProto* getInputData(size_t index) const override {
+      return ctx_pa_.getInputData(input_map_[index]);
+    }
+    size_t getNumOutputs() const override {
+      return ctx_pa_.getNumOutputs();
+    }
+    onnx::TypeProto* getOutputType(size_t index) override {
+      return ctx_pa_.getOutputType(input_map_[index]);
+    }
+    onnx::GraphInferencer* getGraphAttributeInferencer(const std::string& attribute_name) override {
+      return ctx_pa_.getGraphAttributeInferencer(attribute_name);
+    }
+    const onnx::SparseTensorProto* getInputSparseData(size_t index) const override {
+      return ctx_pa_.getInputSparseData(input_map_[index]);
+    }
+    // Gets the shape inputs computed by partial data propagation.
+    const onnx::TensorShapeProto* getSymbolicInput(size_t index) const override {
+      return ctx_pa_.getSymbolicInput(input_map_[index]);
+    }
+  };
+
+  InputReMappingInferContext remapped_ctx(ctx, input_remap);
+  ONNX_NAMESPACE::convTransposeShapeInference(remapped_ctx);
+}
+*/
+
+ONNX_MS_OPERATOR_SET_SCHEMA(
+    QLinearConvTranspose,
+    1,
+    OpSchema()
+        .SetDoc(R"DOC( Similar to ConvTranspose in onnx, but with quantization.
+The convolution transpose operator consumes an input tensor and a filter,
+and computes the output.
+
+If the pads parameter is provided the shape of the output is calculated via the following equation:
+
+  output_shape[i] = stride[i] * (input_size[i] - 1) + output_padding[i] + ((kernel_shape[i] - 1) * dilations[i] + 1) - pads[start_i] - pads[end_i]
+
+output_shape can also be explicitly specified in which case pads values are auto generated using these equations:
+
+  total_padding[i] = stride[i] * (input_size[i] - 1) + output_padding[i] + ((kernel_shape[i] - 1) * dilations[i] + 1) - output_shape[i]
+  If (auto_pads == SAME_UPPER): pads[start_i] = total_padding[i]/2; pads[end_i] = total_padding[i] - (total_padding[i]/2)
+  Else: pads[start_i] = total_padding[i] - (total_padding[i]/2); pads[end_i] = (total_padding[i]/2).
+
+    )DOC")
+        .Input(
+            0,
+            "x",
+            "Input data tensor from previous layer; has size (N x C x H x W)"
+            ", where N is the batch size, C is the number of channels, and"
+            " H and W are the height and width. Note that this is for the 2D image. "
+            "Otherwise the size is (N x C x D1 x D2 ... x Dn)",
+            "T1")
+        .Input(
+            1,
+            "x_scale",
+            "Scale tensor for input 'x'. It's a scalar, which means a per-tensor/layer quantization.",
+            "tensor(float)")
+        .Input(
+            2,
+            "x_zero_point",
+            "Zero point tensor for input 'x'. It's a scalar, which means a per-tensor/layer quantization.",
+            "T1")
+        .Input(
+            3,
+            "w",
+            "The weight tensor that will be used in the "
+            "convolutions; has size (C x M/group x kH x kW), where C "
+            "is the number of channels, and kH and kW are the "
+            "height and width of the kernel, and M is the number "
+            "of feature maps. ",
+            "T2")
+        .Input(
+            4,
+            "w_scale",
+            "Scale tensor for input 'w'. It could be a scalar or a 1-D tensor, which means a per-tensor/layer or per output channel quantization. If it's a 1-D tensor, its number of elements should be equal to the number of output channels (M).",
+            "tensor(float)")
+        .Input(
+            5,
+            "w_zero_point",
+            "Zero point tensor for input 'w'. It could be a scalar or a 1-D tensor, which means a per-tensor/layer or per output channel quantization. If it's a 1-D tensor, its number of elements should be equal to the number of output channels (M).",
+            "T2")
+        .Input(
+            6,
+            "y_scale",
+            "Scale tensor for output 'y'. It's a scalar, which means a per-tensor/layer quantization.",
+            "tensor(float)")
+        .Input(
+            7,
+            "y_zero_point",
+            "Zero point tensor for output 'y'. It's a scalar, which means a per-tensor/layer quantization.",
+            "T3")
+        .Input(
+            8,
+            "B",
+            "Optional 1D bias to be added to the convolution, has size of M. "
+            "Bias must be quantized using scale = x_scale * w_scale and zero_point = 0",
+            "T4",
+            OpSchema::Optional)
+        .Output(
+            0,
+            "y",
+            "Output data tensor that contains the result of the "
+            "convolution. The output dimensions are functions "
+            "of the kernel size, stride size, and pad lengths.",
+            "T3")
+        .TypeConstraint("T1", {"tensor(int8)", "tensor(uint8)"}, "Constrain input type to 8-bit integer tensor.")
+        .TypeConstraint("T2", {"tensor(int8)", "tensor(uint8)"}, "Constrain filter type to 8-bit integer tensor.")
+        .TypeConstraint("T3", {"tensor(int8)", "tensor(uint8)"}, "Constrain output type to 8-bit integer tensor.")
+        .TypeConstraint("T4", {"tensor(int32)"}, "Constrain bias type to 32-bit integer tensor.")
+        .Attr(
+            "kernel_shape",
+            "The shape of the convolution kernel. If not present, should be inferred from input W.",
+            AttributeProto::INTS,
+            OPTIONAL_VALUE)
+        .Attr(
+            "output_shape",
+            "The shape of the output can be explicitly set which will cause pads values to be auto generated. If output_shape is specified "
+            "pads values are ignored. See doc for details for equations to generate pads",
+            AttributeProto::INTS,
+            OPTIONAL_VALUE)
+        .Attr(
+            "output_padding",
+            "Additional elements added to the side with higher coordinate indices in the output. "
+            "Each padding value in \"output_padding\" must be less than the corresponding stride/dilation dimension. "
+            "By default, this attribute is a zero vector. "
+            "Note that this attribute doesn't directly affect the computed output values. "
+            "It only controls the selection of the computed values, "
+            "so changing this attribute only adds or removes output elements. "
+            "If \"output_shape\" is explicitly provided, "
+            "\"output_padding\" does not contribute additional size to \"output_shape\" but "
+            "participates in the computation of the needed padding amount. "
+            "This is also called adjs or adjustment in some frameworks.",
+            AttributeProto::INTS,
+            OPTIONAL_VALUE)
+        .Attr(
+            "dilations",
+            "dilation value along each spatial axis of the filter. If not present, the dilation defaults to 1 along each spatial axis.",
+            AttributeProto::INTS,
+            OPTIONAL_VALUE)
+        .Attr(
+            "strides",
+            "Stride along each spatial axis. If not present, the stride defaults to 1 along each spatial axis.",
+            AttributeProto::INTS,
+            OPTIONAL_VALUE)
+        .Attr("auto_pad",
+              "auto_pad must be either NOTSET, SAME_UPPER, SAME_LOWER or VALID. Where "
+              "default value is NOTSET",
+              AttributeProto::STRING, std::string("NOTSET"))
+        .Attr("pads", "Padding for the beginning and ending along each spatial axis", AttributeProto::INTS, OPTIONAL_VALUE)
+        .Attr(
+            "group",
+            "number of groups input channels and output channels are divided into.",
+            AttributeProto::INT,
+            static_cast<int64_t>(1))
+        .TypeAndShapeInferenceFunction([](ONNX_NAMESPACE::InferenceContext& ctx) {
+          auto x_type = ctx.getInputType(0);
+          auto w_type = ctx.getInputType(3);
+          if (nullptr == x_type || nullptr == w_type || x_type->value_case() != ONNX_NAMESPACE::TypeProto::kTensorType ||
+              w_type->value_case() != ONNX_NAMESPACE::TypeProto::kTensorType) {
+            fail_type_inference("inputs are expected to have tensor type.");
+          }
+
+          auto x_zero_point_type = ctx.getInputType(2);
+          if (nullptr == x_zero_point_type ||
+              x_zero_point_type->tensor_type().elem_type() != x_type->tensor_type().elem_type()) {
+            fail_type_inference("input and zero_point pair is expected to have be same type.");
+          }
+
+          auto w_zero_point_type = ctx.getInputType(5);
+          if (nullptr == w_zero_point_type ||
+              w_zero_point_type->tensor_type().elem_type() != w_type->tensor_type().elem_type()) {
+            fail_type_inference("weight and zero_point pair is expected to have same type.");
+          }
+
+          if (nullptr == x_type || nullptr == w_type || x_type->value_case() != ONNX_NAMESPACE::TypeProto::kTensorType ||
+              w_type->value_case() != ONNX_NAMESPACE::TypeProto::kTensorType) {
+            fail_type_inference("inputs are expected to have tensor type.");
+          }
+
+          // validate scale and zero points
+          // scale and zero points could be scalar or 1-D tensor which depends on quanization per-channel or per-tensor
+          ValidateTypeAndShapeForScaleAndZP(ctx, 1, ONNX_NAMESPACE::TensorProto::FLOAT, QuantParamTensorType::Scalar);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 2, x_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 4, ONNX_NAMESPACE::TensorProto::FLOAT, QuantParamTensorType::Both);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 5, w_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 6, ONNX_NAMESPACE::TensorProto::FLOAT, QuantParamTensorType::Scalar);
+          ValidateTypeAndShapeForScaleAndZP(ctx, 7, x_type->tensor_type().elem_type(), QuantParamTensorType::Scalar);
+
+          propagateElemTypeFromInputToOutput(ctx, 7, 0);
+
+          // TODO: uncomment this after we really need to infer the output shape.
+          // Since we haven't implemented QLinearConvTranspose in CPU EP yet,
+          // we just leverage ConvTranspose's shape inference.
+          // input, weight, bias
+          // std::array<int, 3> input_remap = {0, 3, 8};
+          // convTransposeShapeInference(ctx, input_remap);
+        }));
 
 }  // namespace contrib
 }  // namespace onnxruntime

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <string>
 #include <cstring>
-#include <gsl/gsl>
+#include "core/common/gsl.h"
 #include "onnxruntime_config.h"
 
 #ifndef DISABLE_ABSEIL
@@ -33,6 +33,8 @@ NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
 #pragma warning(pop)
 #endif
 #endif  // DISABLE_ABSEIL
+
+#include "core/common/span_utils.h"
 
 namespace onnxruntime {
 #ifdef __GNUC__
@@ -101,7 +103,7 @@ class TensorShape {
   int64_t operator[](size_t idx) const { return values_[idx]; }
   int64_t& operator[](size_t idx) { return values_[idx]; }
 
-  bool operator==(const TensorShape& other) const noexcept { return GetDims() == other.GetDims(); }
+  bool operator==(const TensorShape& other) const noexcept { return SpanEq(GetDims(), other.GetDims()); }
   bool operator!=(const TensorShape& other) const noexcept { return !(*this == other); }
 
   size_t NumDimensions() const noexcept {

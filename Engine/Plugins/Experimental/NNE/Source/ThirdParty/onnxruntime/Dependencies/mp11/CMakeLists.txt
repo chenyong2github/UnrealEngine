@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.5...3.16)
 
-project(boost_mp11 VERSION 1.75.0 LANGUAGES CXX)
+project(boost_mp11 VERSION 1.79.0 LANGUAGES CXX)
 
 add_library(boost_mp11 INTERFACE)
 add_library(Boost::mp11 ALIAS boost_mp11)
@@ -31,10 +31,10 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
   list(APPEND CMAKE_MODULE_PATH ${boostorg_cmake_SOURCE_DIR}/include)
 
-  # Enable testing
+  # Testing (off by default)
 
+  option(BUILD_TESTING "Build the tests." OFF)
   include(CTest)
-  add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -C $<CONFIG>)
 
   if(BUILD_TESTING)
 
@@ -43,6 +43,8 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     boost_fetch(boostorg/assert TAG develop EXCLUDE_FROM_ALL)
     boost_fetch(boostorg/config TAG develop EXCLUDE_FROM_ALL)
     boost_fetch(boostorg/core TAG develop EXCLUDE_FROM_ALL)
+    boost_fetch(boostorg/static_assert TAG develop EXCLUDE_FROM_ALL)
+    boost_fetch(boostorg/throw_exception TAG develop EXCLUDE_FROM_ALL)
 
     unset(BUILD_TESTING)
 
@@ -51,11 +53,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   # Do not use the default BoostInstall versioned layout on Windows when standalone
   set(BOOST_INSTALL_LAYOUT "system" CACHE STRING "Installation layout (versioned, tagged, or system)")
 
-endif()
-
-include(BoostInstall OPTIONAL RESULT_VARIABLE HAVE_BOOST_INSTALL)
-
-if(HAVE_BOOST_INSTALL)
+  include(BoostInstall)
 
   boost_install(TARGETS boost_mp11 HEADER_DIRECTORY include/)
 

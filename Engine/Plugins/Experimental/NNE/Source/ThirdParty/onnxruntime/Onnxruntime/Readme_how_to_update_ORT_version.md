@@ -24,46 +24,8 @@ All changes in ORT have been (and should be!) labeled in the code with `WITH_UE`
 ### Configuration
 # https://github.com/microsoft/onnxruntime/archive/refs/heads/rel-1.13.1.zip
 #
-$ORT_RELEASE_BRANCH = "rel-1.13.1"
-$FINAL_COMMIT_HASH = "861125ccbc0853b2761bbc268841342550a4ff58" # The one NNI's ORT will be using after this merge
-
-
-### Step 0: Compiling Third Parties
-- MLAS: The following script will compile the latest ORT and copy it into NNI (manually repeat the process for every platform).
-```
-################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
-$ORT_MLAS_PARENT_PATH = "D:/UpdatingORT" # D:/Users/francisco.vicente/Downloads or D:/UpdatingMLAS
-$NNI_ORT_MLAS_LOCATION = "D:/P4/francisco.vicente_ue5_nni_6149/Engine/Plugins/Experimental/NeuralNetworkInference/Source/ThirdParty/Deps"
-$NNI_ORT_MLAS_FINAL_NAME = "MLAS_2022_7_11"
-$NNI_ORT_MLAS_OLD_NAME = "MLAS_2022_4_1"
-# $FINAL_COMMIT_HASH = "861125ccbc0853b2761bbc268841342550a4ff58" # The one NNI's ORT will be using after this merge
-
-################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
-# Compile latest MLAS
-cd "$ORT_MLAS_PARENT_PATH"
-mkdir ORT_MLAS; cd ORT_MLAS
-git clone --recursive https://github.com/Microsoft/onnxruntime
-cd onnxruntime
-# Checkout ORT master. E.g., the latest commit from today
-git reset --hard $FINAL_COMMIT_HASH
-.\build.bat --config Release --parallel --use_dml --use_full_protobuf 
-
-# Copy the new MLAS into `{NNI}/Source/ThirdParty/Deps/MLAS_YYYY_MM_DD/`:
-$NNI_ORT_MLAS_FINAL_PATH = "$NNI_ORT_MLAS_LOCATION/$NNI_ORT_MLAS_FINAL_NAME"
-$NNI_ORT_MLAS_OLD_PATH = "$NNI_ORT_MLAS_LOCATION/$NNI_ORT_MLAS_OLD_NAME"
-mkdir $NNI_ORT_MLAS_FINAL_PATH
-mkdir $NNI_ORT_MLAS_FINAL_PATH/include/core/mlas
-mkdir $NNI_ORT_MLAS_FINAL_PATH/lib/Win64/
-ni $NNI_ORT_MLAS_FINAL_PATH/$FINAL_COMMIT_HASH
-cp -r -fo $ORT_MLAS_PARENT_PATH/ORT_MLAS/onnxruntime/onnxruntime/core/mlas/ $NNI_ORT_MLAS_FINAL_PATH/include/core/
-cp -r -fo $ORT_MLAS_PARENT_PATH/ORT_MLAS/onnxruntime/build/Windows/Release/Release/onnxruntime_mlas.lib $NNI_ORT_MLAS_FINAL_PATH/lib/Win64/onnxruntime_mlas.lib
-cp -r -fo $NNI_ORT_MLAS_OLD_PATH/MLAS_TPS_README.txt $NNI_ORT_MLAS_FINAL_PATH/MLAS_TPS_README.txt
-cp -r -fo $NNI_ORT_MLAS_OLD_PATH/ONNXRuntime.tps $NNI_ORT_MLAS_FINAL_PATH/ONNXRuntime.tps
-cp -r -fo $NNI_ORT_MLAS_OLD_PATH/ONNXRuntime${NNI_ORT_MLAS_OLD_NAME}.Build.cs $NNI_ORT_MLAS_FINAL_PATH/ONNXRuntime${NNI_ORT_MLAS_FINAL_NAME}.Build.cs
-```
-Finally, manually go into `$NNI_ORT_MLAS_FINAL_PATH/ONNXRuntime${NNI_ORT_MLAS_FINAL_NAME}.Build.cs` and rename `ONNXRuntime_MLAS_YYYY_MM_DD` with the new date.
-
-- ONNX: Compile desired ORT version to see ONNX flags + https://github.ol.epicgames.net/francisco-vicente/onnx_nni
+$ORT_RELEASE_BRANCH = "rel-1.14.1"
+$FINAL_COMMIT_HASH = "c57cf374b67f72575546d7b4c69a1af4972e2b54" # The one NNI's ORT will be using after this merge
 
 
 
@@ -82,7 +44,7 @@ Do this before starting with the scripts:
 (First time only, not needed if you already have your fork of ORT locally) Clone your fork of ORT locally:
 ```
 ################################################## PARAMETERS (CHANGE TO MATCH YOUR COMPUTER) ##################################################
-$ORT_PARENT_PATH = "D:/Libs/onnxruntime_updated_christian" 
+$ORT_PARENT_PATH = "E:\Libs\ORT_1_14_1\upgrade" 
 $GITHUB_URL = "https://github.com/christian-regg/onnxruntime" 
 
 ################################################## AUTOMATIC SCRIPT (DO NOT CHANGE LINES HERE) ##################################################
@@ -240,7 +202,7 @@ git clean -f -d   # https://koukia.ca/how-to-remove-local-untracked-files-from-t
 # $ORT_PARENT_PATH = "D:/UpdatingORT/ONNXRuntime" # D:/Users/francisco.vicente/Desktop/ONNXRuntime or D:/UpdatingORT/ONNXRuntime
 
 $COMMIT_MESSAGE_NNI = "NNI ORT_7_12"
-$COMMIT_MESSAGE_MERGED = "Release 1.13.1 merged"
+$COMMIT_MESSAGE_MERGED = "Release 1.14.1 merged"
 $FINAL_ZIP_FILE_PATH = "${ORT_PARENT_PATH}/ort_compressed.zip"
 ```
 

@@ -32,7 +32,7 @@ public class NNEOnnxruntime : ModuleRules
 				System.IO.Path.Combine(ModuleDirectory, "../Dependencies"),
 				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/dlpack/include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/date/include"),
-				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/gsl"),
+				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/gsl/include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/json/single_include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/mp11/include"),
 				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/SafeInt"),
@@ -47,7 +47,7 @@ public class NNEOnnxruntime : ModuleRules
 			PrivateDependencyModuleNames.AddRange
 				(
 				new string[] {
-					"Protobuf",
+					"NNEProtobuf",
 					"Re2" // ONNXRuntimeRE2
 				}
 			);
