@@ -1976,7 +1976,7 @@ namespace EpicGames.Perforce.Managed
 							// Update metadata for the complete batch
 							(int beginIdx, int endIdx) = batches[batchIdx];
 
-							int[] indexesToUpdate = Enumerable.Range(beginIdx, endIdx).ToArray();
+							int[] indexesToUpdate = Enumerable.Range(beginIdx, endIdx - beginIdx).ToArray();
 							ParallelOptions options = new() { MaxDegreeOfParallelism = MaxFileConcurrency, CancellationToken = cancellationToken };
 							await Parallel.ForEachAsync(indexesToUpdate, options, (idx, ct) =>
 							{
