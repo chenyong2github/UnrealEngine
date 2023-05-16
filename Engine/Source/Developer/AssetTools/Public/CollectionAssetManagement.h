@@ -23,6 +23,9 @@ public:
 	/** Set the asset paths that we are currently observing and managing the collection state of */
 	void SetCurrentAssetPaths(const TArray<FSoftObjectPath>& CurrentAssets);
 
+	/** Get the number of assets in the current set */
+	int32 GetCurrentAssetCount() const;
+
 	/** Add the current assets to the given collection */
 	void AddCurrentAssetsToCollection(FCollectionNameType InCollectionKey);
 

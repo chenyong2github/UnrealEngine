@@ -48,6 +48,59 @@ private:
 	friend class FContentBrowserModule;
 };
 
+struct FCollectionTelemetryEventBase {};
+// Workflow event when a collection is created
+struct FCollectionCreatedTelemetryEvent : FCollectionTelemetryEventBase
+{
+	double DurationSec = 0.0;
+	ECollectionShareType::Type CollectionShareType = ECollectionShareType::CST_All;
+};
+
+// Workflow event when a set of collections are deleted
+struct FCollectionsDeletedTelemetryEvent : FCollectionTelemetryEventBase
+{
+	double DurationSec = 0.0;
+	int32 CollectionsDeleted = 0;
+};
+
+enum class ECollectionTelemetryAssetAddedWorkflow : int32
+{
+	ContextMenu = 0,
+	DragAndDrop = 1
+};
+
+// Workflow event when assets are added to a collection
+struct FAssetAddedTelemetryEvent : FCollectionTelemetryEventBase
+{
+	double DurationSec;
+	ECollectionShareType::Type CollectionShareType;
+	uint32 NumAdded;
+	ECollectionTelemetryAssetAddedWorkflow Workflow;
+};
+
+enum class ECollectionTelemetryAssetRemovedWorkflow : int32
+{
+	ContextMenu = 0
+};
+
+// Workflow event when assets are removed from a collection
+struct FAssetRemovedTelemetryEvent : FCollectionTelemetryEventBase
+{
+	double DurationSec;
+	ECollectionShareType::Type CollectionShareType;
+	uint32 NumRemoved;
+	ECollectionTelemetryAssetRemovedWorkflow Workflow;
+};
+
+typedef TVariant<FCollectionCreatedTelemetryEvent, FCollectionsDeletedTelemetryEvent, FAssetAddedTelemetryEvent, FAssetRemovedTelemetryEvent> FCollectionTelemetryEvent;
+
+// Helper to simplify creation of FTelemetryEventTaggedUnion
+template<typename T>
+FCollectionTelemetryEvent MakeTelemetryEvent(const T& Event)
+{
+	return FCollectionTelemetryEvent(TInPlaceType<T>(), Event);
+}
+
 /**
  * Content browser module
  */
@@ -74,7 +127,9 @@ public:
 	DECLARE_DELEGATE_OneParam( FDefaultSelectedPathsDelegate, TArray<FName>& /*VirtualPaths*/ );
 	/** */
 	DECLARE_DELEGATE_OneParam( FDefaultPathsToExpandDelegate, TArray<FName>& /*VirtualPaths*/ );
-
+	/** */
+	DECLARE_DELEGATE_OneParam( FAssetCollectionTelemetryDelegate, const FCollectionTelemetryEvent&);
+	
 	/**
 	 * Called right after the plugin DLL has been loaded and the plugin object has been created
 	 */
@@ -134,6 +189,8 @@ public:
 
 	/** Override list of paths to expand by default */
 	FDefaultPathsToExpandDelegate& GetDefaultPathsToExpandDelegate() { return DefaultPathsToExpandDelegate; }
+
+	FAssetCollectionTelemetryDelegate& GetAssetCollectionTelemetryDelegate() { return AssetCollectionTelemetryDelegate; }
 
 	FMainMRUFavoritesList* GetRecentlyOpenedAssets() const;
 
@@ -195,4 +252,6 @@ private:
 
 	FDefaultSelectedPathsDelegate DefaultSelectedPathsDelegate;
 	FDefaultPathsToExpandDelegate DefaultPathsToExpandDelegate;
+	
+	FAssetCollectionTelemetryDelegate AssetCollectionTelemetryDelegate;
 };

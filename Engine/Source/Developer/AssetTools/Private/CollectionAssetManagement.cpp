@@ -154,6 +154,11 @@ ECheckBoxState FCollectionAssetManagement::GetCollectionCheckState(FCollectionNa
 	return ECheckBoxState::Unchecked;
 }
 
+int32 FCollectionAssetManagement::GetCurrentAssetCount() const
+{
+	return CurrentAssetPaths.Num();
+}
+
 void FCollectionAssetManagement::UpdateAssetManagementState()
 {
 	FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();

@@ -451,7 +451,21 @@ void FCollectionContextMenu::ExecuteNewCollection(ECollectionShareType::Type Col
 		return;
 	}
 
+	const double BeginTimeSec = FPlatformTime::Seconds();
+	
 	CollectionView.Pin()->CreateCollectionItem(CollectionType, StorageMode, InCreationPayload);
+
+	// Telemetry Event
+	{
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
+		if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
+		{
+			FCollectionCreatedTelemetryEvent AssetAdded;
+			AssetAdded.DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
+			AssetAdded.CollectionShareType = CollectionType;
+			ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(MakeTelemetryEvent(AssetAdded));
+		}
+	}
 }
 
 void FCollectionContextMenu::ExecuteSetCollectionShareType(ECollectionShareType::Type CollectionType)
@@ -588,7 +602,19 @@ void FCollectionContextMenu::ExecuteDestroyCollection()
 
 FReply FCollectionContextMenu::ExecuteDestroyCollectionConfirmed(TArray<TSharedPtr<FCollectionItem>> CollectionList)
 {
+	const double BeginEventSec = FPlatformTime::Seconds();
+	
 	CollectionView.Pin()->DeleteCollectionItems(CollectionList);
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
+	if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
+	{
+		FCollectionsDeletedTelemetryEvent CollectionDeleted;
+		CollectionDeleted.DurationSec = FPlatformTime::Seconds() - BeginEventSec;
+		CollectionDeleted.CollectionsDeleted = CollectionList.Num();
+		ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(MakeTelemetryEvent(CollectionDeleted));
+	}
+	
 	return FReply::Handled();
 }
 

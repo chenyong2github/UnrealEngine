@@ -1333,6 +1333,7 @@ FReply SCollectionView::HandleDragDropOnCollectionItem(TSharedRef<FCollectionIte
 	}
 	else if (Operation->IsOfType<FAssetDragDropOp>())
 	{
+			
 		TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
 		const TArray<FAssetData>& DroppedAssets = DragDropOp->GetAssets();
 
@@ -1343,6 +1344,7 @@ FReply SCollectionView::HandleDragDropOnCollectionItem(TSharedRef<FCollectionIte
 			ObjectPaths.Add(AssetData.GetSoftObjectPath());
 		}
 
+		const double BeginTimeSec = FPlatformTime::Seconds();
 		int32 NumAdded = 0;
 		FText Message;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1362,6 +1364,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				Args.Add(TEXT("Number"), NumAdded);
 				Args.Add(TEXT("CollectionName"), FText::FromName(CollectionItem->CollectionName));
 				Message = FText::Format(LOCTEXT("CollectionAssetsAdded", "Added {Number} asset(s) to {CollectionName}"), Args);
+			}
+
+			const double DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
+
+			FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
+			if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
+			{
+				FAssetAddedTelemetryEvent AssetAdded;
+				AssetAdded.DurationSec = DurationSec;
+				AssetAdded.NumAdded = NumAdded;
+				AssetAdded.CollectionShareType = CollectionItem->CollectionType;
+				AssetAdded.Workflow = ECollectionTelemetryAssetAddedWorkflow::DragAndDrop;
+				ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(MakeTelemetryEvent(AssetAdded));
 			}
 		}
 		else
@@ -1491,6 +1506,8 @@ bool SCollectionView::CollectionNameChangeCommit( const TSharedPtr< FCollectionI
 			NewCollectionParentKey = FCollectionNameType(ParentCollectionItem->CollectionName, ParentCollectionItem->CollectionType);
 		}
 
+		double BeginTimeSec = FPlatformTime::Seconds();
+
 		// If we canceled the name change when creating a new asset, we want to silently remove it
 		if ( !bChangeConfirmed )
 		{
@@ -1527,6 +1544,15 @@ bool SCollectionView::CollectionNameChangeCommit( const TSharedPtr< FCollectionI
 		{
 			CollectionItem->OnCollectionCreatedEvent.Execute(FCollectionNameType(NewNameFinal, CollectionItem->CollectionType));
 			CollectionItem->OnCollectionCreatedEvent.Unbind();
+		}
+
+		FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
+		if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
+		{
+			FCollectionCreatedTelemetryEvent CollectionCreatedEvent;
+			CollectionCreatedEvent.DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
+			CollectionCreatedEvent.CollectionShareType = CollectionItem->CollectionType;
+			ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(MakeTelemetryEvent(CollectionCreatedEvent));
 		}
 	}
 	else

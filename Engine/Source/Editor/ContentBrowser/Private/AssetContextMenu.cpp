@@ -794,15 +794,46 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 
 		static void OnCollectionClicked(TSharedRef<FCollectionAssetManagement> QuickAssetManagement, FCollectionNameType InCollectionKey)
 		{
+			const double BeginTimeSec = FPlatformTime::Seconds();
+			const int32 ObjectCount = QuickAssetManagement->GetCurrentAssetCount();
+			
 			// The UI actions don't give you the new check state, so we need to emulate the behavior of SCheckBox
 			// Basically, checked will transition to unchecked (removing items), and anything else will transition to checked (adding items)
-			if (GetCollectionCheckState(QuickAssetManagement, InCollectionKey) == ECheckBoxState::Checked)
+			const bool RemoveFromCollection = GetCollectionCheckState(QuickAssetManagement, InCollectionKey) == ECheckBoxState::Checked;
+			if (RemoveFromCollection)
 			{
 				QuickAssetManagement->RemoveCurrentAssetsFromCollection(InCollectionKey);
 			}
 			else
 			{
 				QuickAssetManagement->AddCurrentAssetsToCollection(InCollectionKey);
+			}
+
+			const double DurationSec = FPlatformTime::Seconds() - BeginTimeSec;
+
+			FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
+			if (ContentBrowserModule.GetAssetCollectionTelemetryDelegate().IsBound())
+			{
+				FCollectionTelemetryEvent Event;
+				if (RemoveFromCollection)
+				{
+					FAssetRemovedTelemetryEvent AssetRemoved;
+					AssetRemoved.DurationSec = DurationSec;
+					AssetRemoved.NumRemoved = ObjectCount;
+					AssetRemoved.CollectionShareType = InCollectionKey.Type;
+					AssetRemoved.Workflow = ECollectionTelemetryAssetRemovedWorkflow::ContextMenu;
+					Event = MakeTelemetryEvent(AssetRemoved);
+				}
+				else
+				{
+					FAssetAddedTelemetryEvent AssetAdded;
+					AssetAdded.DurationSec = DurationSec;
+					AssetAdded.NumAdded = ObjectCount;
+					AssetAdded.CollectionShareType = InCollectionKey.Type;
+					AssetAdded.Workflow = ECollectionTelemetryAssetAddedWorkflow::ContextMenu;
+					Event = MakeTelemetryEvent(AssetAdded);
+				}
+				ContentBrowserModule.GetAssetCollectionTelemetryDelegate().Execute(Event);
 			}
 		}
 	};

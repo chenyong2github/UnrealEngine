@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CollectionManager.h"
-#include "CollectionManagerTelemetry.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Containers/Ticker.h"
@@ -1030,10 +1029,7 @@ bool FCollectionManager::AddToCollection(FName CollectionName, ECollectionShareT
 		LastError = LOCTEXT("Error_AddNeedsStaticCollection", "Objects can only be added to static collections.");
 		return false;
 	}
-
-	using namespace UE;
-	auto TelemetryEvent = UE::Analytics::MakeScopedTimedTelemetryEvent<UE::CollectionManager::Analytics::FAddObjects>(FCollectionManagerModule::GetModule().OnAnalyticsEventEmitted);
-
+	
 	int32 NumAdded = 0;
 	for (const FSoftObjectPath& ObjectPath : ObjectPaths)
 	{
@@ -1041,11 +1037,6 @@ bool FCollectionManager::AddToCollection(FName CollectionName, ECollectionShareT
 		{
 			NumAdded++;
 		}
-	}
-
-	if ((*CollectionRefPtr)->IsUsingSourceControl())
-	{
-		TelemetryEvent.SetStatusCode(TelemetryEvent.GetStatusCode() | CollectionManager::Analytics::StatusCodeFields::UsesSCC);
 	}
 
 	if (NumAdded > 0)
@@ -1068,7 +1059,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				AssetsAddedEvent.Broadcast(CollectionKey, UE::SoftObjectPath::Private::ConvertSoftObjectPaths(ObjectPaths));
 			}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			TelemetryEvent.SetStatusCode(TelemetryEvent.GetStatusCode() | CollectionManager::Analytics::StatusCodeFields::Success);
 			return true;
 		}
 		else
@@ -1124,10 +1114,7 @@ bool FCollectionManager::RemoveFromCollection(FName CollectionName, ECollectionS
 		LastError = LOCTEXT("Error_RemoveNeedsStaticCollection", "Objects can only be removed from static collections.");
 		return false;
 	}
-
-	using namespace UE;
-	auto TelemetryEvent = Analytics::MakeScopedTimedTelemetryEvent<CollectionManager::Analytics::FRemoveObjects>(FCollectionManagerModule::GetModule().OnAnalyticsEventEmitted);
-
+	
 	TArray<FSoftObjectPath> RemovedAssets;
 	for (const FSoftObjectPath& ObjectPath : ObjectPaths)
 	{
@@ -1135,11 +1122,6 @@ bool FCollectionManager::RemoveFromCollection(FName CollectionName, ECollectionS
 		{
 			RemovedAssets.Add(ObjectPath);
 		}
-	}
-
-	if ((*CollectionRefPtr)->IsUsingSourceControl())
-	{
-		TelemetryEvent.SetStatusCode(TelemetryEvent.GetStatusCode() | CollectionManager::Analytics::StatusCodeFields::UsesSCC);
 	}
 
 	if (RemovedAssets.Num() == 0)
@@ -1167,10 +1149,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			AssetsRemovedEvent.Broadcast(CollectionKey, UE::SoftObjectPath::Private::ConvertSoftObjectPaths(ObjectPaths));
 		}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		if ((*CollectionRefPtr)->IsUsingSourceControl())
-		{
-			TelemetryEvent.SetStatusCode(TelemetryEvent.GetStatusCode() | CollectionManager::Analytics::StatusCodeFields::Success);
-		}
 		return true;
 	}
 	else
