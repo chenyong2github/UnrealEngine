@@ -794,9 +794,11 @@ void PackStrataOut(
 							#if STRATA_GLINTS
 							if (BSDF_GETHASGLINT(BSDF))
 							{
-								uint2 GlintData = PackR16G16B16A16F(float4(SLAB_GLINT_UV(BSDF), SLAB_GLINT_VALUE(BSDF), 0.0f));
-								STRATA_STORE_UINT1(GlintData.x);
-								STRATA_STORE_UINT1(GlintData.y);
+								const uint Packed16 = f32tof16(SLAB_GLINT_VALUE(BSDF));
+								const uint Packed8L = (Packed16 & 0xFF) << 24;
+								const uint Packed8H = (Packed16 >> 8  ) << 24;
+								STRATA_STORE_UINT1(PackR24F(SLAB_GLINT_UV(BSDF).x) | Packed8L);
+								STRATA_STORE_UINT1(PackR24F(SLAB_GLINT_UV(BSDF).y) | Packed8H);
 							}
 							#endif // STRATA_GLINTS
 

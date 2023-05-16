@@ -211,6 +211,19 @@ float4 UnpackR16G16B16A16F(uint2 In)
 	return float4(UnpackFloat2FromUInt(In.x), UnpackFloat2FromUInt(In.y));
 }
 
+//
+//	float <-> 24bit float (8bit exp, 15 bit mantissa)
+//
+
+uint PackR24F(float In)
+{
+	return asuint(In) >> 8;
+}
+
+float UnpackR24F(uint In)
+{
+	return asfloat(In<<8);
+}
 
 //
 // Common tile coord encoding

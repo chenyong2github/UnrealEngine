@@ -4278,9 +4278,10 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 			uint2 GlintPackedData;
 			GlintPackedData.x = StrataLoadUint1(StrataBuffer, StrataAddressing);
 			GlintPackedData.y = StrataLoadUint1(StrataBuffer, StrataAddressing);
-			float4 GlintUnpackedData	= UnpackR16G16B16A16F(GlintPackedData);
-			SLAB_GLINT_UV(OutBSDF)		= GlintUnpackedData.xy;
-			SLAB_GLINT_VALUE(OutBSDF)	= GlintUnpackedData.z;
+
+			SLAB_GLINT_UV(OutBSDF).x	= UnpackR24F(GlintPackedData.x);
+			SLAB_GLINT_UV(OutBSDF).y	= UnpackR24F(GlintPackedData.y);
+			SLAB_GLINT_VALUE(OutBSDF)	= f16tof32((GlintPackedData.x>>24) | ((GlintPackedData.y>>16) & 0xFF00));
 		}
 	#endif
 	}
