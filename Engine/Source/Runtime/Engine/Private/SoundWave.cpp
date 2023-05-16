@@ -28,8 +28,6 @@
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "Async/Async.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
-#include "Algo/BinarySearch.h"
-#include "Templates/UnrealTemplate.h"
 
 #if WITH_EDITOR
 #endif // WITH_EDITOR
@@ -434,43 +432,6 @@ const TArrayView<uint8> FSoundWaveData::GetZerothChunkDataView() const
 	return TArrayView<uint8>(View.GetData(), static_cast<int32>(View.Num()));
 }
 
-bool FSoundWaveData::HasChunkSeekTable(int32 InChunkIndex) const
-{
-	const TIndirectArray<FStreamedAudioChunk>& Chunks = RunningPlatformData.Chunks;
-	if (Chunks.IsValidIndex(InChunkIndex))
-	{
-		return Chunks[InChunkIndex].SeekOffsetInAudioFrames != INDEX_NONE;
-	}
-	return false;
-}
-
-int32 FSoundWaveData::FindChunkIndexForSeeking(uint32 InTimeInAudioFrames) const
-{	
-	const TIndirectArray<FStreamedAudioChunk>& Chunks = RunningPlatformData.Chunks;
-	int32 NumChunks = Chunks.Num();
-
-	// Find most in range chunk.
-	int32 InRangeChunk = INDEX_NONE;
-	for (int32 i=0; i < NumChunks; ++i)
-	{
-		// Ignore chunks without tables. (should only be chunk0).
-		if (Chunks[i].SeekOffsetInAudioFrames == INDEX_NONE)
-		{
-			continue;
-		}
-
-		// If its out of bound, use the last valid one.
-		if (Chunks[i].SeekOffsetInAudioFrames > InTimeInAudioFrames)
-		{
-			return InRangeChunk;
-		}
-
-		// In bounds and valid... 
-		InRangeChunk = i;
-	}
-	return INDEX_NONE;
-}
-
 bool FSoundWaveData::LoadZerothChunk()
 {
 #if WITH_EDITOR
@@ -692,8 +653,7 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 	BulkData.Serialize(Ar, Owner, ChunkIndex, false);
 	Ar << DataSize;
 	Ar << AudioDataSize;
-	Ar << SeekOffsetInAudioFrames;
-	
+
 #if WITH_EDITORONLY_DATA
 	if (!bCooked)
 	{

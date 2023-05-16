@@ -76,11 +76,8 @@ struct FStreamedAudioChunk
 	/** Size of the chunk of data in bytes including zero padding */
 	int32 DataSize = 0;
 
-	/** Size of the audio data. (NOTE: This includes a seek-table if its present.) */
+	/** Size of the audio data. */
 	int32 AudioDataSize = 0;
-
-	/** Chunk position in samples frames in the stream. (NOTE: != INDEX_NONE will assume the presence of a seektable). */
-	uint32 SeekOffsetInAudioFrames = INDEX_NONE;
 
 	/** Bulk data if stored in the package. */
 	FByteBulkData BulkData;
@@ -1329,9 +1326,6 @@ public:
  
  	bool IsZerothChunkDataLoaded() const;
  	const TArrayView<uint8> GetZerothChunkDataView() const;
-
-	bool HasChunkSeekTable(int32 InChunkIndex) const;
-	int32 FindChunkIndexForSeeking(uint32 InTimeInAudioFrames) const;
 
 	// Returns true if the zeroth chunk is loaded, or attempts to load it if not already loaded,
 	// returning true if the load was successful. Can return false if either an error was encountered
