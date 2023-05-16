@@ -104,11 +104,6 @@ public:
 
 	// IClickDragBehaviorTarget implementation
 	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
-	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
-	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
-	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
-	virtual void OnTerminateDragSequence() override;
-	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 	
 	// UMeshSurfacePointTool implementation
 	virtual void OnBeginDrag(const FRay& Ray) override;

@@ -80,31 +80,6 @@ FInputRayHit UBaseBrushTool::CanBeginClickDragSequence(const FInputDeviceRay& Pr
 	return FInputRayHit();
 }
 
-void UBaseBrushTool::OnClickPress(const FInputDeviceRay& PressPos)
-{
-	Super::OnClickPress(PressPos);
-}
-
-void UBaseBrushTool::OnClickDrag(const FInputDeviceRay& DragPos)
-{
-	Super::OnClickDrag(DragPos);
-}
-
-void UBaseBrushTool::OnClickRelease(const FInputDeviceRay& ReleasePos)
-{
-	Super::OnClickRelease(ReleasePos);
-}
-
-void UBaseBrushTool::OnTerminateDragSequence()
-{
-	Super::OnTerminateDragSequence();
-}
-
-void UBaseBrushTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
-{
-	Super::OnUpdateModifierState(ModifierID, bIsOn);
-}
-
 void UBaseBrushTool::IncreaseBrushSizeAction()
 {
 	if (BrushProperties->bSpecifyRadius)
