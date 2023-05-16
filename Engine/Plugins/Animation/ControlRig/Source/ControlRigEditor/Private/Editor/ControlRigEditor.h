@@ -328,9 +328,6 @@ private:
 	/** Rebind our anim instance to the preview's skeletal mesh component */
 	void RebindToSkeletalMeshComponent();
 
-	/** Update the skeletal mesh componens so that the anim instance has the correct skeletal mesh */
-	void UpdateMeshInAnimInstance(USkeletalMesh* InNewSkeletalMesh);
-
 	/** Update stale watch pins */
 	void UpdateStaleWatchedPins();
 

@@ -199,6 +199,7 @@ private:
 	void CreateRefreshMenu(FMenuBuilder& MenuBuilder);
 	bool ShouldFilterOnImport(const FAssetData& AssetData) const;
 	void RefreshHierarchy(const FAssetData& InAssetData);
+	void UpdateMesh(USkeletalMesh* InMesh, const bool bImport) const;
 
 	void HandleResetTransform(bool bSelectionOnly);
 	void HandleResetInitialTransform();
