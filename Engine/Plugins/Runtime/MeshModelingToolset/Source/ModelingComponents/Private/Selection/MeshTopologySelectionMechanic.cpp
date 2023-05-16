@@ -166,19 +166,22 @@ void UMeshTopologySelectionMechanic::Render(IToolsContextRenderAPI* RenderAPI)
 	FViewCameraState RenderCameraState = RenderAPI->GetCameraState();
 
 	const FDynamicMesh3* TargetMesh = this->Mesh;
-	FTransform Transform = (FTransform)TargetTransform;
-
+	const FTransform Transform = static_cast<FTransform>(TargetTransform);
+	
 	const FTopologyProvider* TopologyProvider = TopoSelector->GetTopologyProvider();
 
 	PolyEdgesRenderer.BeginFrame(RenderAPI, RenderCameraState);
 	PolyEdgesRenderer.SetTransform(Transform);
-	for (int EdgeID = 0; EdgeID < TopologyProvider->GetNumEdges(); ++EdgeID)
+	if (bShowEdges)
 	{
-		FVector3d A, B;
-		for (int eid : TopologyProvider->GetGroupEdgeEdges(EdgeID))
+		for (int EdgeID = 0; EdgeID < TopologyProvider->GetNumEdges(); ++EdgeID)
 		{
-			TargetMesh->GetEdgeV(eid, A, B);
-			PolyEdgesRenderer.DrawLine(A, B);
+			FVector3d A, B;
+			for (int eid : TopologyProvider->GetGroupEdgeEdges(EdgeID))
+			{
+				TargetMesh->GetEdgeV(eid, A, B);
+				PolyEdgesRenderer.DrawLine(A, B);
+			}
 		}
 	}
 	if (bShowSelectableCorners)

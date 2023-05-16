@@ -343,6 +343,11 @@ public:
 	* Render only the MarqueeMechanic, without rendering the current selection
 	*/
 	void RenderMarquee(IToolsContextRenderAPI* RenderAPI);
+
+	/**
+	* Toggle rendering of edges
+	*/
+	void SetShowEdges(const bool bRenderEdges) { bShowEdges = bRenderEdges; };
 	
 
 	// TODO: Is it worth issuing separate callbacks in normal selection changes and in FChange ones, to
@@ -433,6 +438,7 @@ protected:
 	static const int32 CtrlModifierID = 2;
 
 	bool bShowSelectableCorners = true;
+	bool bShowEdges = true;
 public:
 	FToolDataVisualizer PolyEdgesRenderer;
 	FToolDataVisualizer HilightRenderer;
