@@ -59,14 +59,14 @@ private:
 	void HandleMakeBinaryConfigCheckStateChanged(ECheckBoxState NewState);
 	ECheckBoxState HandleMakeBinaryConfigCheckBoxIsChecked() const;
 
-	// Reference block database handlers.
-	bool IsReferenceBlockDbEditable() const;
-	void OnRefBlockDbFileNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
-	void OnRefBlockDbFileNameTextChanged(const FText& InText);
-	FReply HandleRefBlockDbBrowseButtonClicked();
-	void OnRefBlockCryptoFileNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
-	void OnRefBlockCryptoFileNameTextChanged(const FText& InText);
-	FReply HandleRefBlockCryptoBrowseButtonClicked();
+	// Reference chunk database handlers.
+	bool IsReferenceChunkDbEditable() const;
+	void OnRefChunkDbFileNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
+	void OnRefChunkDbFileNameTextChanged(const FText& InText);
+	FReply HandleRefChunkDbBrowseButtonClicked();
+	void OnRefChunkCryptoFileNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo);
+	void OnRefChunkCryptoFileNameTextChanged(const FText& InText);
+	FReply HandleRefChunkCryptoBrowseButtonClicked();
 
 
 	// Callback for getting the content text of the 'Directory' label.

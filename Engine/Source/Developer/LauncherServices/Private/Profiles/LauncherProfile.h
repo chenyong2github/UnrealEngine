@@ -1574,7 +1574,7 @@ public:
 		if (bIsStaging &&
 			GetReferenceContainerGlobalFileName().Len())
 		{
-			// (only iostore uses this) - pass reference block database
+			// (only iostore uses this) - pass reference chunk database
 			Writer.WriteValue("ReferenceContainerGlobalFileName", GetReferenceContainerGlobalFileName());
 			if (GetReferenceContainerCryptoKeysFileName().Len())
 			{
