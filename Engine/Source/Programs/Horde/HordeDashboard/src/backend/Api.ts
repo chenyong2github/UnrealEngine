@@ -1315,6 +1315,8 @@ export interface GetJobStepRefResponse {
 	/**Time at which the step finished. */
 	finishTime?: Date | string;
 
+	/** Issue ids affecting this step ref */
+	issueIds?: number[];
 }
 
 export interface GetJobStepTraceResponse {
@@ -1758,6 +1760,15 @@ export type GetSchedulePatternResponse = {
 
 }
 
+/**Gate allowing a schedule to trigger.*/
+export type ScheduleGateConfig = {
+	/**The template containing the dependency*/
+	templateId: string;
+
+	/**Target to wait for*/
+	target: string;
+}
+
 /**Response describing a schedule */
 export type GetScheduleResponse = {
 
@@ -1769,6 +1780,9 @@ export type GetScheduleResponse = {
 
 	/**Maximum number of changes the schedule can fall behind head revision. If greater than zero, builds will be triggered for every submitted changelist until the backlog is this size. */
 	maxChanges: number;
+
+	/** Gate for this schedule to trigger */
+	gate?: ScheduleGateConfig;
 
 	/**The template job to execute */
 	templateId: string;
@@ -1790,6 +1804,8 @@ export type GetScheduleResponse = {
 
 	/** List of active jobs */
 	activeJobs: string[];
+
+
 
 }
 
@@ -2912,6 +2928,9 @@ export type GetIssueResponse = {
 
 	/**Time at which the issue was retrieved */
 	retrievedAt: Date | string;
+
+	/**Time at which the issue was retrieved */
+	lastSeenAt: Date | string;
 
 	/**The associated project for the issue */
 	project?: string;

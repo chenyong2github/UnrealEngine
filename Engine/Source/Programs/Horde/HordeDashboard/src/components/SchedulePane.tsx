@@ -8,6 +8,7 @@ import backend from '../backend';
 import { GetJobResponse, GetTemplateRefResponse, JobState } from '../backend/Api';
 import dashboard from '../backend/Dashboard';
 import { displayTimeZone } from "../base/utilities/timeUtils";
+import { projectStore } from '../backend/ProjectStore';
 
 const classes = mergeStyleSets({
    detailsRow: {
@@ -95,7 +96,26 @@ export const SchedulePane: React.FC<{ templates: GetTemplateRefResponse[] }> = (
 
       if (name === "job_name") {
 
-         return <Stack horizontalAlign="center" verticalFill verticalAlign="center">{item.template.name}</Stack>;
+         let name = item.template.name;
+         let target = schedule.gate?.target;
+         let templateId = schedule.gate?.templateId;
+         let gateTemplate = templates.find(t => t.id === templateId);
+
+
+         return <Stack horizontalAlign="start" verticalFill verticalAlign="center" tokens={{ childrenGap: 4 }}>
+            <Stack style={{ fontWeight: 600 }}>{name}</Stack>
+            {!!gateTemplate && <Stack tokens={{ childrenGap: 4 }}>
+               <Stack horizontal tokens={{ childrenGap: 8 }}>
+                  <Stack style={{ fontWeight: 600, fontSize: 10 }}>Gate:</Stack>
+                  <Stack style={{ fontSize: 10, paddingLeft: 8 }}>{gateTemplate?.name}</Stack>
+               </Stack>
+               <Stack horizontal tokens={{ childrenGap: 8 }}>
+                  <Stack style={{ fontWeight: 600, fontSize: 10 }}>Target:</Stack>
+                  <Stack style={{ fontSize: 10 }}>{target}</Stack>
+               </Stack>
+            </Stack>
+            }
+         </Stack>;
       }
 
       if (name.startsWith("time_")) {
