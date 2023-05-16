@@ -456,6 +456,8 @@ void UMetasoundGeneratorHandle::OnSourceDestroyedAGenerator(uint64 InAudioCompon
 			OnGeneratorHandleDetached.Broadcast();
 		}
 		CachedGeneratorPtr = nullptr;
+
+		OutputChangedDelegateHandle.Reset();
 	}
 }
 
