@@ -27,7 +27,6 @@
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableObjectMipDataProvider.h"
 #include "MuCO/UnrealBakeHelpers.h"
-#include "MuCOE/CustomizableObjectBakeHelpers.h"
 #include "MuCOE/CustomizableObjectPreviewScene.h"
 #include "MuCOE/CustomizableObjectWidget.h"
 #include "MuCOE/ICustomizableObjectInstanceEditor.h"
@@ -2431,7 +2430,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance(UCustomizableObjectIn
 
 										PackageName = FolderDlg->GetAssetPath() + FString("/") + ResourceName;
 										TMap<UObject*, UObject*> FakeReplacementMap;
-										UTexture2D* DupTex = BakeHelper_CreateAssetTexture(SrcTex, ResourceName, PackageName, OriginalTexture, true, FakeReplacementMap, BakingOverwritePermission);
+										UTexture2D* DupTex = FUnrealBakeHelpers::BakeHelper_CreateAssetTexture(SrcTex, ResourceName, PackageName, OriginalTexture, true, FakeReplacementMap, BakingOverwritePermission);
 										ArrayCachedElement.Add(ResourceName);
 										ArrayCachedObject.Add(DupTex);
 										PackagesToSave.Add(DupTex->GetPackage());
@@ -2478,7 +2477,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance(UCustomizableObjectIn
 
 										PackageName = FolderDlg->GetAssetPath() + FString("/") + ResourceName;
 										TMap<UObject*, UObject*> FakeReplacementMap;
-										DuplicatedObject = BakeHelper_DuplicateAsset(Texture, ResourceName, PackageName, true, FakeReplacementMap, BakingOverwritePermission);
+										DuplicatedObject = FUnrealBakeHelpers::BakeHelper_DuplicateAsset(Texture, ResourceName, PackageName, true, FakeReplacementMap, BakingOverwritePermission);
 										ArrayCachedElement.Add(ResourceName);
 										ArrayCachedObject.Add(DuplicatedObject);
 										PackagesToSave.Add(DuplicatedObject->GetPackage());
@@ -2515,7 +2514,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance(UCustomizableObjectIn
 
 							PackageName = FolderDlg->GetAssetPath() + FString("/") + ResourceName;
 							TMap<UObject*, UObject*> FakeReplacementMap;
-							DuplicatedObject = BakeHelper_DuplicateAsset(Material, ResourceName, PackageName, false, FakeReplacementMap, BakingOverwritePermission);
+							DuplicatedObject = FUnrealBakeHelpers::BakeHelper_DuplicateAsset(Material, ResourceName, PackageName, false, FakeReplacementMap, BakingOverwritePermission);
 							ArrayCachedElement.Add(ResourceName);
 							ArrayCachedObject.Add(DuplicatedObject);
 							ReplacementMap.Add(Interface, DuplicatedObject);
@@ -2611,7 +2610,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance(UCustomizableObjectIn
 						}
 
 						FString MatPkgName = FolderDlg->GetAssetPath() + FString("/") + MatObjName;
-						UObject* DupMat = BakeHelper_DuplicateAsset(Interface, MatObjName, MatPkgName, false, ReplacementMap, BakingOverwritePermission);
+						UObject* DupMat = FUnrealBakeHelpers::BakeHelper_DuplicateAsset(Interface, MatObjName, MatPkgName, false, ReplacementMap, BakingOverwritePermission);
 						ArrayCachedObject.Add(DupMat);
 						ArrayCachedElement.Add(MatObjName);
 						PackagesToSave.Add(DupMat->GetPackage());
@@ -2649,7 +2648,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance(UCustomizableObjectIn
 
 										FString TexPkgName = FolderDlg->GetAssetPath() + FString("/") + TexObjName;
 										TMap<UObject*, UObject*> FakeReplacementMap;
-										UTexture2D* DupTex = BakeHelper_CreateAssetTexture(SrcTex, TexObjName, TexPkgName, nullptr, false, FakeReplacementMap, BakingOverwritePermission);
+										UTexture2D* DupTex = FUnrealBakeHelpers::BakeHelper_CreateAssetTexture(SrcTex, TexObjName, TexPkgName, nullptr, false, FakeReplacementMap, BakingOverwritePermission);
 										ArrayCachedObject.Add(DupTex);
 										ArrayCachedElement.Add(TexObjName);
 										PackagesToSave.Add(DupTex->GetPackage());
@@ -2677,7 +2676,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance(UCustomizableObjectIn
 						}
 
 						FString SkeletonPkgName = FolderDlg->GetAssetPath() + FString("/") + SkeletonName;
-						UObject* DuplicatedSkeleton = BakeHelper_DuplicateAsset(Mesh->GetSkeleton(), SkeletonName, SkeletonPkgName, false, ReplacementMap, BakingOverwritePermission);
+						UObject* DuplicatedSkeleton = FUnrealBakeHelpers::BakeHelper_DuplicateAsset(Mesh->GetSkeleton(), SkeletonName, SkeletonPkgName, false, ReplacementMap, BakingOverwritePermission);
 
 						ArrayCachedObject.Add(DuplicatedSkeleton);
 						PackagesToSave.Add(DuplicatedSkeleton->GetPackage());
@@ -2695,7 +2694,7 @@ void FCustomizableObjectEditorViewportClient::BakeInstance(UCustomizableObjectIn
 				}
 
 				FString PkgName = FolderDlg->GetAssetPath() + FString("/") + ObjectName;
-				UObject* DupObject = BakeHelper_DuplicateAsset(Mesh, ObjectName, PkgName, false, ReplacementMap, BakingOverwritePermission);
+				UObject* DupObject = FUnrealBakeHelpers::BakeHelper_DuplicateAsset(Mesh, ObjectName, PkgName, false, ReplacementMap, BakingOverwritePermission);
 				ArrayCachedObject.Add(DupObject);
 				PackagesToSave.Add(DupObject->GetPackage());
 

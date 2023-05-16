@@ -20,7 +20,6 @@
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
-#include "MuCOE/CustomizableObjectBakeHelpers.h"
 #include "MuCOE/CustomizableObjectCustomSettings.h"
 #include "MuCOE/CustomizableObjectEditorActions.h"
 #include "MuCOE/CustomizableObjectEditorLogger.h"
@@ -2539,11 +2538,6 @@ void FCustomizableObjectEditor::OnUpdatePreviewInstance()
 	if (TextureAnalyzer.IsValid())
 	{
 		TextureAnalyzer->RefreshTextureAnalyzerTable(PreviewInstance);
-	}
-
-	for (int32 ComponentIndex = 0; ComponentIndex < PreviewInstance->SkeletalMeshes.Num(); ++ComponentIndex)
-	{
-		BakeHelper_RegenerateImportedModel(PreviewInstance->SkeletalMeshes[ComponentIndex]);
 	}
 
 	// Do postponed work.

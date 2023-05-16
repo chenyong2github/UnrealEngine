@@ -3,6 +3,12 @@
 #pragma once
 
 #include "HAL/Platform.h"
+#include "Containers/Map.h"
+
+class UObject;
+class USkeletalMesh;
+class UTexture2D;
+class UTexture;
 
 //-------------------------------------------------------------------------------------------------
 
@@ -10,7 +16,17 @@ class CUSTOMIZABLEOBJECT_API FUnrealBakeHelpers
 {
 public:
 
-	static void BakeHelper_RegenerateImportedModel(class USkeletalMesh* SkeletalMesh);
+	static UObject* BakeHelper_DuplicateAsset(UObject* Object, const FString& ObjName, const FString& PkgName, bool ResetDuplicatedFlags, TMap<UObject*, UObject*>& ReplacementMap, bool OverwritePackage);
+
+	/**
+	 * Duplicates a texture asset. Duplicates Mutable and non Mutable textures.
+	 *
+	 * @param OrgTex Original source texture from which a Mutable texture has been generated. Only required when SrcTex is a Mutable texture.
+	 */
+	static UTexture2D* BakeHelper_CreateAssetTexture(UTexture2D* SrcTex, const FString& TexObjName, const FString& TexPkgName, const UTexture* OrgTex, bool ResetDuplicatedFlags, TMap<UObject*, UObject*>& ReplacementMap, bool OverwritePackage);
+
+
+	static void BakeHelper_RegenerateImportedModel(USkeletalMesh* SkeletalMesh);
 };
 
 //-------------------------------------------------------------------------------------------------

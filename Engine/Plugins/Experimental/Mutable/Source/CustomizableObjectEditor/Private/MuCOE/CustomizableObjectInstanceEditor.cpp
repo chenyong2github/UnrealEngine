@@ -17,7 +17,6 @@
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
-#include "MuCOE/CustomizableObjectBakeHelpers.h"
 #include "MuCOE/CustomizableObjectCompiler.h"
 #include "MuCOE/CustomizableObjectEditorActions.h"
 #include "MuCOE/CustomizableObjectEditorModule.h"
@@ -775,11 +774,6 @@ void FCustomizableObjectInstanceEditor::OnUpdatePreviewInstance()
 	if (TextureAnalyzer.IsValid())
 	{
 		TextureAnalyzer.Get()->RefreshTextureAnalyzerTable(CustomizableObjectInstance);
-	}
-	
-	for (int32 ComponentIndex = 0; ComponentIndex < CustomizableObjectInstance->SkeletalMeshes.Num(); ++ComponentIndex)
-	{
-		BakeHelper_RegenerateImportedModel(CustomizableObjectInstance->GetSkeletalMesh(ComponentIndex));
 	}
 }
 
