@@ -489,7 +489,6 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 			{
 				FGuid ClassDescGuid;
 				Ar << ClassDescGuid;
-				check(Guid == ClassDescGuid);
 			}
 		}
 	}
