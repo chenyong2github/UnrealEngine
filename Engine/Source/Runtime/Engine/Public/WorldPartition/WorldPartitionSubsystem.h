@@ -169,6 +169,9 @@ private:
 
 	static void UpdateStreamingStateInternal(const UWorld* InWorld, const TArray<TObjectPtr<UWorldPartition>>& InWorldPartitions);
 
+	bool IsServer() const;
+	bool HasAnyWorldPartitionServerStreamingEnabled() const;
+
 	UWorldPartition* GetWorldPartition();
 	const UWorldPartition* GetWorldPartition() const;
 	bool CanDebugDraw() const;
@@ -187,6 +190,7 @@ private:
 	TArray<FWorldPartitionStreamingSource> StreamingSources;
 	TMap<FName, FStreamingSourceVelocity> StreamingSourcesVelocity;
 	uint32 StreamingSourcesHash;
+	int32 NumWorldPartitionServerStreamingEnabled;
 
 	TArray<FWorldPartitionDraw2DContext> WorldPartitionsDraw2DContext;
 	FDelegateHandle	DrawHandle;
