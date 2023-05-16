@@ -29,6 +29,15 @@
 			]
 		},
 		{
+			"Name": "DisplayClusterPreloadDerivedDataCache",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			]
+		},
+		{
 			"Name": "DisplayClusterEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
