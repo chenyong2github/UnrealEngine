@@ -11,10 +11,13 @@
 #include "RenderGraphUtils.h"
 #include "RaytracingOptions.h"
 #include "PrimitiveSceneProxy.h"
+#include "SceneUniformBuffer.h"
+#include "SceneRendering.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FBuildInstanceBufferPassParams, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, InstanceBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, DebugInstanceGPUSceneIndexBuffer)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 END_SHADER_PARAMETER_STRUCT()
 
 FRayTracingScene::FRayTracingScene()
@@ -38,9 +41,9 @@ FRayTracingSceneWithGeometryInstances FRayTracingScene::BuildInitializationData(
 		NumCallableShaderSlots);
 }
 
-void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene* GPUScene, const FViewMatrices& ViewMatrices)
+void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FGPUScene* GPUScene)
 {
-	CreateWithInitializationData(GraphBuilder, GPUScene, ViewMatrices, BuildInitializationData());
+	CreateWithInitializationData(GraphBuilder, View, GPUScene, BuildInitializationData());
 }
 
 void FRayTracingScene::InitPreViewTranslation(const FViewMatrices& ViewMatrices)
@@ -52,7 +55,7 @@ void FRayTracingScene::InitPreViewTranslation(const FViewMatrices& ViewMatrices)
 	ViewTilePosition = AbsoluteViewOrigin.GetTile();
 }
 
-void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, const FGPUScene* GPUScene, const FViewMatrices& ViewMatrices, FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances)
+void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FGPUScene* GPUScene, FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FRayTracingScene_BeginCreate);
 
@@ -177,7 +180,7 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 			InstanceGeometryIndices = MoveTemp(SceneWithGeometryInstances.InstanceGeometryIndices),
 			BaseUploadBufferOffsets = MoveTemp(SceneWithGeometryInstances.BaseUploadBufferOffsets),
 			RayTracingSceneRHI = RayTracingSceneRHI,
-			PreViewTranslation = ViewMatrices.GetPreViewTranslation()]()
+			PreViewTranslation = View.ViewMatrices.GetPreViewTranslation()]()
 		{
 			FTaskTagScope TaskTagScope(ETaskTag::EParallelRenderingThread);
 			FillRayTracingInstanceUploadBuffer(
@@ -201,6 +204,7 @@ void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, c
 		FBuildInstanceBufferPassParams* PassParams = GraphBuilder.AllocParameters<FBuildInstanceBufferPassParams>();
 		PassParams->InstanceBuffer = GraphBuilder.CreateUAV(InstanceBuffer);
 		PassParams->DebugInstanceGPUSceneIndexBuffer = nullptr;
+		PassParams->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 
 		if (bNeedsDebugInstanceGPUSceneIndexBuffer)
 		{

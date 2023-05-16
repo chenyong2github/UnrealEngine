@@ -237,8 +237,7 @@ void GenerateRayTracingScene(
 
 	// Create RayTracingScene
 	const FGPUScene* EmptyGPUScene = nullptr;
-	FViewMatrices EmptyViewMatrices;
-	RayTracingScene.Create(GraphBuilder, EmptyGPUScene, EmptyViewMatrices);
+	RayTracingScene.Create(GraphBuilder, View, EmptyGPUScene);
 
 	// Build TLAS
 	FBuildTLASPassParams* PassParamsTLAS = GraphBuilder.AllocParameters<FBuildTLASPassParams>();
