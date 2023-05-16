@@ -391,7 +391,7 @@ namespace Metasound
 		}
 
 		template<typename BindingType>
-		void CompareVertexInterfaceDataToPriorState(const TArray<BindingType>& InBindings, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates)
+		void CompareVertexInterfaceDataToPriorState(const TArray<BindingType>& InBindings, const TArray<FVertexDataState>& InPriorState, TSortedVertexNameMap<FAnyDataReference>& OutUpdates)
 		{
 			for (const BindingType& Binding : InBindings)
 			{
@@ -413,7 +413,7 @@ namespace Metasound
 					{
 						if (OtherState->ID != Binding.GetDataReferenceID())
 						{
-							OutUpdates.Add(OtherState->ID, *CurrentReference);
+							OutUpdates.Add(OtherState->VertexName, *CurrentReference);
 						}
 					}
 				}
@@ -745,12 +745,12 @@ namespace Metasound
 		MetasoundVertexDataPrivate::GetVertexInterfaceDataState(InVertexInterface.Bindings, OutState);
 	}
 
-	void CompareVertexInterfaceDataToPriorState(const FInputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates)
+	void CompareVertexInterfaceDataToPriorState(const FInputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedVertexNameMap<FAnyDataReference>& OutUpdates)
 	{
 		MetasoundVertexDataPrivate::CompareVertexInterfaceDataToPriorState(InCurrentInterface.Bindings, InPriorState, OutUpdates);
 	}
 
-	void CompareVertexInterfaceDataToPriorState(const FOutputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates)
+	void CompareVertexInterfaceDataToPriorState(const FOutputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedVertexNameMap<FAnyDataReference>& OutUpdates)
 	{
 		MetasoundVertexDataPrivate::CompareVertexInterfaceDataToPriorState(InCurrentInterface.Bindings, InPriorState, OutUpdates);
 	}

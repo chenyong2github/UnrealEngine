@@ -191,11 +191,12 @@ namespace Metasound
 
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("GeneratorBuilder::BuildGeneratorData"));
 
-			checkf(InGraphOperatorAndInputs.Operator.IsValid(), TEXT("Graph operator must be a valid object"));
+			checkf(InGraphOperatorAndInputs.Operator.IsValid(), TEXT("Graph operator must be a valid object"))
 
 			// Gather relevant input and output references
 			FVertexInterfaceData VertexData(InInitParams.Graph->GetVertexInterface());
-			InGraphOperatorAndInputs.Operator->Bind(VertexData);
+			InGraphOperatorAndInputs.Operator->BindInputs(VertexData.GetInputs());
+			InGraphOperatorAndInputs.Operator->BindOutputs(VertexData.GetOutputs());
 
 			// Replace input data with writable inputs
 			VertexData.GetInputs() = InGraphOperatorAndInputs.Inputs;

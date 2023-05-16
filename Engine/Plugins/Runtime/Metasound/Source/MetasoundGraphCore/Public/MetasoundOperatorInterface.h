@@ -64,6 +64,7 @@ namespace Metasound
 			FVertexInterfaceData Data;
 			Data.GetInputs() = InVertexData;
 			Bind(Data);
+			InVertexData = Data.GetInputs();
 		}
 
 		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) 
@@ -71,6 +72,7 @@ namespace Metasound
 			FVertexInterfaceData Data;
 			Data.GetOutputs() = InVertexData;
 			Bind(Data);
+			InVertexData = Data.GetOutputs();
 		}
 
 		/** Pointer to initialize function for an operator.

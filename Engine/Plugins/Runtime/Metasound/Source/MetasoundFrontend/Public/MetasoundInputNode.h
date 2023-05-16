@@ -28,7 +28,8 @@ namespace Metasound
 		class METASOUNDFRONTEND_API FNonExecutableInputOperatorBase : public FInputOperatorBase
 		{	
 		public:
-			virtual void Bind(FVertexInterfaceData& InOutVertexData) const override;
+			virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+			virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 
 			virtual IOperator::FExecuteFunction GetExecuteFunction() override;
 			virtual IOperator::FPostExecuteFunction GetPostExecuteFunction() override;
@@ -36,12 +37,6 @@ namespace Metasound
 
 		protected:
 			FNonExecutableInputOperatorBase(const FVertexName& InVertexName, FAnyDataReference&& InDataRef);
-
-		private:
-			void BindInputsInternal(FInputVertexInterfaceData& InOutVertexData) const;
-		protected:
-			void BindOutputsInternal(FOutputVertexInterfaceData& InOutVertexData) const;
-
 
 			FVertexName VertexName;
 			FAnyDataReference DataRef;
@@ -99,10 +94,14 @@ namespace Metasound
 			{
 			}
 
-			virtual void Bind(FVertexInterfaceData& InOutVertexData) const override
+			virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 			{
-				BindInputsInternal(InOutVertexData.GetInputs());
-				BindOutputsInternal(InOutVertexData.GetOutputs());
+				InOutVertexData.BindWriteVertex(DataReferenceName, InputValue);
+			}
+
+			virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+			{
+				InOutVertexData.BindReadVertex(DataReferenceName, OutputValue);
 			}
 
 			virtual FExecuteFunction GetExecuteFunction() override
@@ -115,18 +114,8 @@ namespace Metasound
 				return nullptr;
 			}
 
-		private:
-			void BindInputsInternal(FInputVertexInterfaceData& InOutVertexData) const
-			{
-				InOutVertexData.BindWriteVertex(DataReferenceName, InputValue);
-			}
 
 		protected:
-
-			void BindOutputsInternal(FOutputVertexInterfaceData& InOutVertexData) const
-			{
-				InOutVertexData.BindReadVertex(DataReferenceName, OutputValue);
-			}
 
 			static void Execute(IOperator* InOperator)
 			{
@@ -195,10 +184,14 @@ namespace Metasound
 			{
 			}
 
-			virtual void Bind(FVertexInterfaceData& InOutVertexData) const override
+			virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 			{
-				BindInputsInternal(InOutVertexData.GetInputs());
-				BindOutputsInternal(InOutVertexData.GetOutputs());
+				InOutVertexData.BindWriteVertex(DataReferenceName, Value);
+			}
+
+			virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+			{
+				InOutVertexData.BindReadVertex(DataReferenceName, Value);
 			}
 
 			virtual FExecuteFunction GetExecuteFunction() override
@@ -216,18 +209,7 @@ namespace Metasound
 				return nullptr;
 			}
 
-		private:
-			void BindInputsInternal(FInputVertexInterfaceData& InOutVertexData) const
-			{
-				InOutVertexData.BindWriteVertex(DataReferenceName, Value);
-			}
-
 		protected:
-
-			void BindOutputsInternal(FOutputVertexInterfaceData& InOutVertexData) const
-			{
-				InOutVertexData.BindReadVertex(DataReferenceName, Value);
-			}
 
 			static void PostExecute(IOperator* InOperator)
 			{
@@ -241,7 +223,6 @@ namespace Metasound
 
 			FVertexName DataReferenceName;
 			FDataWriteReference Value;
-
 		};
 
 		template<typename DataType>

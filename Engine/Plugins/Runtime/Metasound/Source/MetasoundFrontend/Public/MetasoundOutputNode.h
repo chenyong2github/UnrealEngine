@@ -55,7 +55,8 @@ namespace Metasound
 
 				virtual FDataReferenceCollection GetInputs() const override;
 				virtual FDataReferenceCollection GetOutputs() const override;
-				virtual void Bind(FVertexInterfaceData& InVertexData) const;
+				virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override;
+				virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) override;
 
 			private:
 				FVertexName VertexName;

@@ -33,10 +33,14 @@ namespace Metasound
 
 		virtual ~TLiteralOperator() = default;
 
-		virtual void Bind(FVertexInterfaceData& InVertexData) const
+		virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
+		{
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) override
 		{
 			using namespace LiteralNodeNames;
-			InVertexData.GetOutputs().BindValueVertex(METASOUND_GET_PARAM_NAME(OutputValue), Value);
+			InVertexData.BindValueVertex(METASOUND_GET_PARAM_NAME(OutputValue), Value);
 		}
 
 	private:
@@ -67,10 +71,14 @@ namespace Metasound
 
 		virtual ~TExecutableLiteralOperator() = default;
 
-		virtual void Bind(FVertexInterfaceData& InVertexData) const
+		virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
+		{
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) override
 		{
 			using namespace LiteralNodeNames;
-			InVertexData.GetOutputs().BindReadVertex(METASOUND_GET_PARAM_NAME(OutputValue), OutputValue);
+			InVertexData.BindValueVertex(METASOUND_GET_PARAM_NAME(OutputValue), OutputValue);
 		}
 
 		virtual FDataReferenceCollection GetInputs() const override
@@ -125,10 +133,11 @@ namespace Metasound
 		{
 		public:
 			using TInputOperator<DataType>::TInputOperator;
-			virtual void Bind(FVertexInterfaceData& InVertexData) const override
+
+			virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
 			{
 				// Do not bind inputs as there are no inputs exposed from the literal node. 
-				TInputOperator<DataType>::BindOutputsInternal(InVertexData.GetOutputs());
+				// This overrides the implementation already in the TInputOperator<>
 			}
 		};
 

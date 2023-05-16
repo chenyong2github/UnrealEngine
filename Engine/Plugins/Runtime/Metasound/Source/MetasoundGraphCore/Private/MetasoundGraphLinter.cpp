@@ -199,7 +199,7 @@ namespace Metasound
 
 	bool FGraphLinter::ValidateNoCyclesInGraph(const IGraph& InGraph, TArray<FBuildErrorPtr>& OutErrors) 
 	{
-		TPimplPtr<FDirectedGraphAlgoAdapter> Adapter = FDirectedGraphAlgo::CreateDirectedGraphAlgoAdapter(InGraph);
+		TPimplPtr<FDirectedGraphAlgoAdapter> Adapter = DirectedGraphAlgo::CreateDirectedGraphAlgoAdapter(InGraph);
 
 		check(Adapter.IsValid());
 
@@ -212,18 +212,18 @@ namespace Metasound
 
 		bool bIsValid = true;
 
-		TArray<FStronglyConnectedComponent> Cycles;
+		TArray<DirectedGraphAlgo::FStronglyConnectedComponent> Cycles;
 
 		// In graph theory, a single vertex is technically a strongly connected
 		// component. The graph linter is only interested in strongly connected
 		// components of more than one vertex since this denotes a cycle.
 		bool bExcludeSingleVertex = true;
 
-		if(FDirectedGraphAlgo::TarjanStronglyConnectedComponents(InAdapter, Cycles, bExcludeSingleVertex))
+		if(DirectedGraphAlgo::TarjanStronglyConnectedComponents(InAdapter, Cycles, bExcludeSingleVertex))
 		{
 			bIsValid = false;
 
-			for (const FStronglyConnectedComponent& Cycle : Cycles)
+			for (const DirectedGraphAlgo::FStronglyConnectedComponent& Cycle : Cycles)
 			{
 				AddBuildError<FGraphCycleError>(OutErrors, Cycle.Nodes, Cycle.Edges);
 			}

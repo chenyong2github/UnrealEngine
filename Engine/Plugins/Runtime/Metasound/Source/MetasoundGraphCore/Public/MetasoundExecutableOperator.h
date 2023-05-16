@@ -292,6 +292,22 @@ namespace Metasound
 				return EmptyCollection;
 			}
 
+			virtual void BindInputs(FInputVertexInterfaceData& InVertexData) override
+			{
+				if (Operator.IsValid())
+				{
+					Operator->BindInputs(InVertexData);
+				}
+			}
+
+			virtual void BindOutputs(FOutputVertexInterfaceData& InVertexData) override
+			{
+				if (Operator.IsValid())
+				{
+					Operator->BindOutputs(InVertexData);
+				}
+			}
+
 			virtual IOperator::FExecuteFunction GetExecuteFunction() override
 			{
 				return ExecuteFunction;

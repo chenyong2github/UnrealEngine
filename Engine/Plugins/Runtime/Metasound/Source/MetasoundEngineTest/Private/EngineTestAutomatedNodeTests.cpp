@@ -916,7 +916,8 @@ bool FMetasoundAutomatedNodeTest::RunTest(const FString& InRegistryKey)
 		// Bind to inputs and output data of operator.
 		FVertexInterface VertexInterface = Node->GetVertexInterface();
 		FVertexInterfaceData VertexInterfaceData{VertexInterface};
-		Operator->Bind(VertexInterfaceData);
+		Operator->BindInputs(VertexInterfaceData.GetInputs());
+		Operator->BindOutputs(VertexInterfaceData.GetOutputs());
 
 		// Create output tester which will analyzer outputs of operator.
 		FOutputVertexDataTestController OutputTester{VertexInterface.GetOutputInterface(), VertexInterfaceData.GetOutputs()};

@@ -77,6 +77,14 @@ namespace Metasound
 		  * for analyzing internal graph state by managing sound generator). */
 		bool bPopulateInternalDataReferences = false;
 
+		/** If true, the operator created by the builder will be able to update
+		 * the underlying data of it's input and output data references through 
+		 * the IOperator::BindInputs(...) and IOperator BindOutputs(...) methods.
+		 * This requires that the created operator maintain additional data and
+		 * results in a modest increase in memory usage.
+		 */
+		bool bEnableOperatorRebind = false;
+
 		/** Return the default settings for the current build environment. */
 		static const FOperatorBuilderSettings& GetDefaultSettings();
 

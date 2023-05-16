@@ -30,10 +30,14 @@ namespace Metasound
 			return {};
 		}
 
-		void FOutputOperator::Bind(FVertexInterfaceData& InVertexData) const
+		void FOutputOperator::BindInputs(FInputVertexInterfaceData& InVertexData) 
 		{
-			InVertexData.GetInputs().BindVertex(VertexName, DataReference);
-			InVertexData.GetOutputs().BindVertex(VertexName, DataReference);
+			InVertexData.BindVertex(VertexName, DataReference);
+		}
+
+		void FOutputOperator::BindOutputs(FOutputVertexInterfaceData& InVertexData) 
+		{
+			InVertexData.BindVertex(VertexName, DataReference);
 		}
 
 		FOutputNode::FOutputOperatorFactory::FOutputOperatorFactory(const FVertexName& InVertexName, const FName& InDataTypeName, EVertexAccessType InVertexAccessType)

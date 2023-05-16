@@ -2,14 +2,22 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceCollection.h"
-#include "MetasoundOperatorInterface.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundOperatorInterface.h"
+#include "MetasoundVertexData.h"
+#include "Templates/UniquePtr.h"
 
 namespace Metasound
 {
+	// Forward declare
+	namespace DirectedGraphAlgo
+	{
+		struct FGraphOperatorData;
+	}
+
 	class METASOUNDGRAPHCORE_API FGraphOperator : public TExecutableOperator<FGraphOperator>
 	{
 		public:
@@ -19,6 +27,7 @@ namespace Metasound
 			using FResetParams = IOperator::FResetParams;
 
 			FGraphOperator() = default;
+			FGraphOperator(TUniquePtr<DirectedGraphAlgo::FGraphOperatorData>&& InOperatorData);
 
 			virtual ~FGraphOperator() = default;
 

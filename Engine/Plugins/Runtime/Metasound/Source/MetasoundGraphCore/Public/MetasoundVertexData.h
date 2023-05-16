@@ -404,6 +404,22 @@ namespace Metasound
 		};
 	}
 
+	/** Convenience for using a TSortedMap with FVertexName Key type.
+	 *
+	 * This template makes it convenient to create a TSortedMap with an FVertexName 
+	 * while also avoiding compilation errors incurred from using the FName default
+	 * "less than" operator in the TSortedMap implementation. 
+	 *
+	 * - FVertexName is an alias to FName. 
+	 * - TSortedMap<FName, ValueType> fails to compile since the "less than" operator
+	 *   specific implementation needs to be chosen (FastLess vs LexicalLess)
+	 * - Due to the template argument order of TSortedMap this also forces you to
+	 *   choose the allocator. 
+	 * - This is all a bit of an annoyance to do every time we use a TSortedMap 
+	 *   with an FVertexName as the key.
+	 */
+	template<typename ValueType>
+	using TSortedVertexNameMap = TSortedMap<FVertexName, ValueType, FDefaultAllocator, FNameFastLess>;
 
 	/** MetaSound Binding 
 	 *
@@ -730,7 +746,7 @@ namespace Metasound
 	
 	private:
 		friend METASOUNDGRAPHCORE_API void GetVertexInterfaceDataState(const FInputVertexInterfaceData& InVertexInterface, TArray<FVertexDataState>& OutState);
-		friend METASOUNDGRAPHCORE_API void CompareVertexInterfaceDataToPriorState(const FInputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates);
+		friend METASOUNDGRAPHCORE_API void CompareVertexInterfaceDataToPriorState(const FInputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedVertexNameMap<FAnyDataReference>& OutUpdates);
 
 		void Apply(const FVertexName& InVertexName, TFunctionRef<FInputBinding ()> InCreateFunc, TFunctionRef<void (FInputBinding&)> InApplyFunc);
 
@@ -990,7 +1006,7 @@ namespace Metasound
 	
 	private:
 		friend METASOUNDGRAPHCORE_API void GetVertexInterfaceDataState(const FOutputVertexInterfaceData& InVertexInterface, TArray<FVertexDataState>& OutState);
-		friend METASOUNDGRAPHCORE_API void CompareVertexInterfaceDataToPriorState(const FOutputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates);
+		friend METASOUNDGRAPHCORE_API void CompareVertexInterfaceDataToPriorState(const FOutputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedVertexNameMap<FAnyDataReference>& OutUpdates);
 
 		void Apply(const FVertexName& InVertexName, TFunctionRef<FOutputBinding ()> InCreateFunc, TFunctionRef<void (FOutputBinding&)> InBindFunc);
 
@@ -1066,7 +1082,7 @@ namespace Metasound
 	METASOUNDGRAPHCORE_API void GetVertexInterfaceDataState(const FOutputVertexInterfaceData& InVertexInterface, TArray<FVertexDataState>& OutState);
 
 	/** Compares the current data bound to the vertex interface with a prior cached state. */
-	METASOUNDGRAPHCORE_API void CompareVertexInterfaceDataToPriorState(const FInputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates);
+	METASOUNDGRAPHCORE_API void CompareVertexInterfaceDataToPriorState(const FInputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedVertexNameMap<FAnyDataReference>& OutUpdates);
 	/** Compares the current data bound to the vertex interface with a prior cached state. */
-	METASOUNDGRAPHCORE_API void CompareVertexInterfaceDataToPriorState(const FOutputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedMap<FDataReferenceID, FAnyDataReference>& OutUpdates);
+	METASOUNDGRAPHCORE_API void CompareVertexInterfaceDataToPriorState(const FOutputVertexInterfaceData& InCurrentInterface, const TArray<FVertexDataState>& InPriorState, TSortedVertexNameMap<FAnyDataReference>& OutUpdates);
 }

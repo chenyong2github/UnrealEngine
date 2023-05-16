@@ -7,6 +7,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceCollection.h"
 #include "MetasoundExecutableOperator.h"
+#include "MetasoundGraphAlgoPrivate.h"
 #include "MetasoundOperatorInterface.h"
 
 namespace Metasound
@@ -64,7 +65,7 @@ namespace Metasound
 				}
 			}
 
-			if (!NewIter)
+			if (NewIter)
 			{
 				UE_LOG(LogMetaSound, Warning, TEXT("Cannot bind to FGraphOperator because vertex %s does not exist in current vertex data"), *(NewIter->VertexName.ToString()));
 				return false;
@@ -75,6 +76,20 @@ namespace Metasound
 			return true;
 #endif // DO_CHECK
 		}
+	}
+
+	FGraphOperator::FGraphOperator(TUniquePtr<DirectedGraphAlgo::FGraphOperatorData>&& InOperatorState)
+	{
+		using namespace DirectedGraphAlgo;
+
+		// Append operators in order.
+		for (const FOperatorID OperatorID : InOperatorState->OperatorOrder)
+		{
+			AppendOperator(MoveTemp(InOperatorState->OperatorMap[OperatorID].Operator));
+		}
+
+		// Copy over vertex data
+		SetVertexInterfaceData(MoveTemp(InOperatorState->VertexData));
 	}
 
 	void FGraphOperator::AppendOperator(FOperatorPtr InOperator)
