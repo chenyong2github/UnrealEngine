@@ -65,6 +65,7 @@ class IMappedFileRegion;
 struct FFileRegion;
 struct IIoDispatcherBackend;
 template <typename CharType> class TStringBuilderBase;
+template <typename OptionalType> struct TOptional;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoDispatcher, Log, All);
 
@@ -562,10 +563,16 @@ class IIoStoreWriteRequest
 {
 public:
 	virtual ~IIoStoreWriteRequest() = default;
+
+	// Launches any async operations necessary in order to access the buffer. CompletionEvent is set once it's ready, which may be immediate.
 	virtual void PrepareSourceBufferAsync(FGraphEventRef CompletionEvent) = 0;
 	virtual uint64 GetOrderHint() = 0;
 	virtual TArrayView<const FFileRegion> GetRegions() = 0;
+
+	// Only valid after the completion event passed to PrepareSourceBufferAsync has fired.
 	virtual const FIoBuffer* GetSourceBuffer() = 0;
+
+	// Can't be called between PrepareSourceBufferAsync and its completion!
 	virtual void FreeSourceBuffer() = 0;
 };
 
@@ -632,12 +639,12 @@ public:
 	* Used by IIoStoreWriter to check and see if there's a reference chunk that matches the data that
 	* IoStoreWriter wants to compress and write. Validity checks must be synchronous - if a chunk can't be
 	* used for some reason (no matching chunk exists or otherwise), this function must return false and not 
-	* call InCompletionCallback. The input parameters are all for match finding and validating.
+	* call InCompletionCallback.
 	* 
 	* Once a matching chunk is found, it is read from the source iostore container asynchronously, and upon
 	* completion InCompletionCallback is called with the raw output from FIoStoreReader::ReadCompressed (i.e.
-	* FIoStoreCompressedReadResult). Failures once the async read process has started are currently fatal due to needing
-	* to rekick the BeginCompress for the chunk.
+	* FIoStoreCompressedReadResult). Failures once the async read process has started are currently fatal due to
+	* difficulties in rekicking a read.
 	* 
 	* For the moment, changes in compression method are allowed.
 	* 
@@ -646,7 +653,19 @@ public:
 	* Chunks provided *MUST* decompress to bits that hash to the exact value provided in InChunkKey (i.e. be exactly the same bits),
 	* and also be the same number of blocks (i.e. same CompressionBlockSize)
 	*/
-	CORE_API virtual bool RetrieveChunk(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, const FName& InCompressionMethod, uint64 InUncompressedSize, uint64 InNumChunkBlocks, TUniqueFunction<void(TIoStatusOr<FIoStoreCompressedReadResult>)> InCompletionCallback) = 0;
+	CORE_API virtual bool RetrieveChunk(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, TUniqueFunction<void(TIoStatusOr<FIoStoreCompressedReadResult>)> InCompletionCallback) = 0;
+
+	/* 
+	* Quick synchronous existence check that returns the number of blocks for the chunk. This is used to set up
+	* the necessary structures without needing to read the source data for the chunk.
+	*/
+	CORE_API virtual bool ChunkExists(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, uint32& OutNumChunkBlocks) = 0;
+
+	/*
+	* Returns the compression block size that was used to break up the IoChunks in the source containers. If this is different than what we want, 
+	* then none of the chunks will ever match. Knowing this up front allows us to only match on hash
+	*/
+	CORE_API virtual uint32 GetCompressionBlockSize() const = 0;
 };
 
 /**
@@ -713,7 +732,7 @@ public:
 	CORE_API void GetFilenamesByBlockIndex(const TArray<int32>& InBlockIndexList, TArray<FString>& OutFileList) const;
 	CORE_API void GetFilenames(TArray<FString>& OutFileList) const;
 
-	CORE_API uint64 GetCompressionBlockSize() const;
+	CORE_API uint32 GetCompressionBlockSize() const;
 	CORE_API const TArray<FName>& GetCompressionMethods() const;
 	CORE_API void EnumerateCompressedBlocks(TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback) const;
 	CORE_API void EnumerateCompressedBlocksForChunk(const FIoChunkId& Chunk, TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback) const;

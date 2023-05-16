@@ -107,7 +107,7 @@ public:
 	int32 ContainerNotFound = 0;
 	int64 FulfillBytes = 0;
 	int64 FulfillBytesPerChunk[(int8)EIoChunkType::MAX] = {};
-	
+	uint32 CompressionBlockSize = 0;
 
 	bool Init(const FString& InGlobalContainerFileName, const FKeyChain& InDecryptionKeychain)
 	{
@@ -131,6 +131,7 @@ public:
 			ContainerFilePaths.Emplace(Directory / Filename);
 		}
 
+		CompressionBlockSize = 0;
 		int64 IoChunkCount = 0;		
 		for (const FString& ContainerFilePath : ContainerFilePaths)
 		{
@@ -148,6 +149,16 @@ public:
 				return true;
 			});
 
+			if (Readers.Num() == 0)
+			{
+				CompressionBlockSize = Reader->GetCompressionBlockSize();
+			}
+			else if (Reader->GetCompressionBlockSize() != CompressionBlockSize)
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Reference chunk containers had different compression block sizes, failing to init reference db (%u and %u)"), CompressionBlockSize, Reader->GetCompressionBlockSize());
+				return false;
+			}
+
 			IoChunkCount += ReaderChunks.Chunks.Num();
 			ReaderChunks.ReaderIndex = Readers.Num();
 			Readers.Add(MoveTemp(Reader));
@@ -157,8 +168,36 @@ public:
 		return true;
 	}
 
+	virtual uint32 GetCompressionBlockSize() const override
+	{
+		return CompressionBlockSize;
+	}
+
+	virtual bool ChunkExists(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, uint32& OutNumChunkBlocks)
+	{
+		FReaderChunks* ReaderChunks = ChunkDatabase.Find(InChunkKey.Key);
+		if (ReaderChunks == nullptr)
+		{
+			// Container doesn't exist - likely provided the path to a different project. Mark this
+			// error as happening once so we can log at the end.
+			ContainerNotFound++;
+			return false;
+		}
+
+		FIoChunkId* ChunkId = ReaderChunks->Chunks.Find(InChunkKey.Value);
+		if (ChunkId == nullptr)
+		{
+			// No exact chunk data match - this is a normal exit condition for a changed block.
+			return false;
+		}
+
+		OutNumChunkBlocks = Readers[ReaderChunks->ReaderIndex]->GetChunkInfo(*ChunkId).ValueOrDie().NumCompressedBlocks;
+		return true;
+	}
+
+
 	// Not thread safe, called from the BeginCompress dispatch thread.
-	virtual bool RetrieveChunk(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, const FName& InCompressionMethod, uint64 InUncompressedSize, uint64 InNumChunkBlocks, TUniqueFunction<void(TIoStatusOr<FIoStoreCompressedReadResult>)> InCompleteCallback)
+	virtual bool RetrieveChunk(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, TUniqueFunction<void(TIoStatusOr<FIoStoreCompressedReadResult>)> InCompleteCallback)
 	{
 		RequestCount++;
 
@@ -188,18 +227,6 @@ public:
 			CompressedBlockCount ++;
 			return true;
 		});
-
-		if (TotalUncompressedSize != InUncompressedSize)
-		{
-			// Shocked if this happens - hash match with different data!
-			return false;
-		}
-
-		if (CompressedBlockCount != InNumChunkBlocks)
-		{
-			// Different CompressionBlockSize between the builds
-			return false;
-		}
 
 		FulfillBytesPerChunk[(int8)ChunkId->GetChunkType()] += TotalCompressedSize;
 		FulfillBytes += TotalCompressedSize;
@@ -2121,6 +2148,8 @@ static void ProcessShaderLibraries(const FIoStoreArguments& Arguments, TArray<FC
 					}
 					TargetFile.ChunkId = LibraryChunk.Key;
 					TargetFile.SourceBuffer.Emplace(LibraryChunk.Value);
+					TargetFile.SourceSize = LibraryChunk.Value.GetSize();
+
 					const bool bIsGlobalShaderLibrary = FPaths::GetCleanFilename(TargetFile.NormalizedSourcePath).StartsWith(TEXT("ShaderArchive-Global-"));
 					const FShaderInfo::EShaderType ShaderType = bIsGlobalShaderLibrary ? FShaderInfo::Global : FShaderInfo::Normal;
 					for (const TTuple<FIoChunkId, FIoBuffer, uint32>& CodeChunk : CodeChunks)
@@ -2822,6 +2851,10 @@ private:
 		FIoStoreWriteRequestManager& Manager;
 		const FContainerTargetFile& TargetFile;
 		TArray<FFileRegion> FileRegions;
+
+		// Note -- this is filled with the TargetFile.SourceSize value which is the size of the buffer 
+		// used for IO, however it's not necessarily the size of the resulting input to iostore as
+		// the buffer can be post-processed after i/o (e.g. CreateOptimizedPackage).
 		uint64 SourceBufferSize;
 		FGraphEventRef CompletionEvent;
 		FIoBuffer SourceBuffer;
