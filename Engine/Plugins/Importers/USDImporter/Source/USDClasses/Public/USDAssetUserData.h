@@ -98,3 +98,28 @@ public:
 	UPROPERTY()
 	TMap<FString, int32> PrimvarToUVIndex;
 };
+
+/**
+ * We assign these to persistent LevelSequences that bind to one of the actors/components that the stage actor spawns.
+ * We need this as part of a mechanism to automatically repair those bindings when they break if we close/reload the stage.
+ */
+UCLASS()
+class USDCLASSES_API UUsdLevelSequenceAssetUserData : public UAssetUserData
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * The LevelSequence has a Guid that is changed every time its state is modified.
+	 * We pay attention to that so that we can avoid reprocessing a LevelSequence that hasn't changed
+	 */
+	UPROPERTY()
+	FGuid LastCheckedSignature;
+
+	/**
+	 * Set of binding GUIDs that we already handled in the past.
+	 * We use this so that we won't try and overwrite the changes in case the user manually clears/modifies a binding we previously setup.
+	 */
+	UPROPERTY()
+	TSet<FGuid> HandledBindingGuids;
+};

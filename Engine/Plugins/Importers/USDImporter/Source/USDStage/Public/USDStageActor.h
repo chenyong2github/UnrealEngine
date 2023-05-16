@@ -20,6 +20,7 @@ class UUsdAssetCache;
 class UUsdAssetCache2;
 class UUsdPrimTwin;
 class UUsdTransactor;
+enum class EMovieSceneDataChangeType;
 struct FUsdSchemaTranslationContext;
 namespace UE
 {
@@ -293,6 +294,7 @@ protected:
 	void UpdateSpawnedObjectsTransientFlag(bool bTransient);
 
 	void OnActorAddedToSequencer(AActor* NewActor, const FGuid Guid, TWeakPtr<ISequencer> WeakSequencer);
+	void OnMovieSceneDataChanged(EMovieSceneDataChangeType ChangeType, TWeakPtr<ISequencer> WeakSequencer);
 
 #if WITH_EDITOR
 	void OnBeginPIE(bool bIsSimulating);
