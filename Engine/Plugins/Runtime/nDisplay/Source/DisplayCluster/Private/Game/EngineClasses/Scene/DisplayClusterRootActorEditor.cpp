@@ -643,7 +643,7 @@ void ADisplayClusterRootActor::ImplRenderPreviewFrustums_Editor()
 		bool bIsValidViewportContext = false;
 
 		// Preview rendered only in mono
-		if (Contexts.Num() == 1 && Contexts[0].bIsValidProjectionMatrix && Contexts[0].bIsValidViewLocation && Contexts[0].bIsValidViewRotation)
+		if (Contexts.Num() == 1 && EnumHasAllFlags(Contexts[0].ContextState, EDisplayClusterViewportContextState::HasCalculatedProjectionMatrix | EDisplayClusterViewportContextState::HasCalculatedViewPoint))
 		{
 			FrustumPreviewViewportContext.ProjectionMatrix = Contexts[0].ProjectionMatrix;
 			FrustumPreviewViewportContext.ViewLocation = Contexts[0].ViewLocation;
