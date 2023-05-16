@@ -716,7 +716,8 @@ void SInteractiveCurveEditorView::UpdateCurveProximities(FVector2D MousePixel)
 
 	Algo::SortBy(CurveProximities, [](TTuple<FCurveModelID, float> In) { return In.Get<1>(); });
 
-	if (CurveProximities.Num() > 0 && CurveProximities[0].Get<1>() < CurveViewConstants::HoverProximityThresholdPx)
+	// Also, set the cached tooltips if dragging because the curve proximity might not be updated during the drag
+	if (CurveProximities.Num() > 0 && (CurveProximities[0].Get<1>() < CurveViewConstants::HoverProximityThresholdPx || DragOperation.IsSet()))
 	{
 		const FCurveModel* HoveredCurve = CurveEditor->FindCurve(CurveProximities[0].Get<0>());
 		if (HoveredCurve)
