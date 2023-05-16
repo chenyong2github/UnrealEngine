@@ -75,7 +75,10 @@ void FCommonAnalogCursor::Tick(const float DeltaTime, FSlateApplication& SlateAp
 #endif
 		if (bIsAnalogMovementEnabled)
 		{
-			FAnalogCursor::Tick(DeltaTime, SlateApp, Cursor);
+			const FVector2D NewPosition = CalculateTickedCursorPosition(DeltaTime, SlateApp, SlateUser);
+
+			UCommonInputSubsystem& InputSubsystem = ActionRouter.GetInputSubsystem();
+			InputSubsystem.SetCursorPosition(NewPosition, false);
 		}
 		else
 		{

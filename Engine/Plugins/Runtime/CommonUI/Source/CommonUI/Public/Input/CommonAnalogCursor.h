@@ -111,7 +111,7 @@ private:
 		RightShoulder = 1 << 1,
 		LeftTrigger = 1 << 2,
 		RightTrigger = 1 << 3,
-		All = 0x1111
+		All = LeftShoulder | RightShoulder | LeftTrigger | RightTrigger
 	};
 	int32 ShoulderButtonStatus = EShoulderButtonFlags::None;
 #endif

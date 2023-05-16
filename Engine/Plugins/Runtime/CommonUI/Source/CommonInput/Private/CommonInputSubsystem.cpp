@@ -414,15 +414,15 @@ bool UCommonInputSubsystem::PlatformSupportsHardwareCursor() const
 
 void UCommonInputSubsystem::SetCursorPosition(FVector2D NewPosition, bool bForce)
 {
+	if (CommonInputPreprocessor)
+	{
+		CommonInputPreprocessor->bIgnoreNextMove = true;
+	}
+
 	ULocalPlayer* LocalPlayer = GetLocalPlayerChecked();
 	if (TSharedPtr<FSlateUser> SlateUser = LocalPlayer ? LocalPlayer->GetSlateUser() : nullptr)
 	{
 		UpdateCursorPosition(SlateUser.ToSharedRef(), NewPosition, bForce);
-	}
-
-	if (CommonInputPreprocessor)
-	{
-		CommonInputPreprocessor->bIgnoreNextMove = true;
 	}
 }
 

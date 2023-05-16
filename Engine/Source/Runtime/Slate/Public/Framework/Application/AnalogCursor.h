@@ -80,6 +80,8 @@ protected:
 
 	virtual void UpdateCursorPosition(FSlateApplication& SlateApp, TSharedRef<FSlateUser> SlateUser, const FVector2D& NewPosition, bool bForce = false);
 
+	virtual FVector2D CalculateTickedCursorPosition(const float DeltaTime, FSlateApplication& SlateApp, TSharedPtr<FSlateUser> SlateUser);
+
 	/** Current speed of the cursor */
 	FVector2D CurrentSpeed;
 
