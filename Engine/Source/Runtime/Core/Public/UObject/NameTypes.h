@@ -44,6 +44,7 @@ enum {NAME_SIZE	= 1024};
 
 struct FMinimalName;
 struct FScriptName;
+struct FNumberedEntry;
 class FName;
 
 /** Opaque id to a deduplicated name */
@@ -212,16 +213,7 @@ private:
 	{
 		ANSICHAR	AnsiName[NAME_SIZE];
 		WIDECHAR	WideName[NAME_SIZE];
-#if UE_FNAME_OUTLINE_NUMBER
-		// These fields are valid when Header.Len == 0.
-		// Stores a (string, number) fname pair to construct the string "string_(number-1)" on demand.
-		// Id is a reference to another entry with Header.Len != 0 (no recursion).
-		struct 
-		{
-			FNameEntryId	Id;
-			uint32			Number;
-		} NumberedName;
-#endif // UE_FNAME_OUTLINE_NUMBER
+		uint8		NumberedName[8 * UE_FNAME_OUTLINE_NUMBER];
 	};
 
 	FNameEntry(struct FClangKeepDebugInfo);
@@ -232,24 +224,11 @@ private:
 
 public:
 	/** Returns whether this name entry is represented via WIDECHAR or ANSICHAR. */
-	FORCEINLINE bool IsWide() const
-	{
-		return Header.bIsWide;
-	}
-
-	FORCEINLINE int32 GetNameLength() const
-	{
-		return Header.Len;
-	}
-
-	FORCEINLINE bool IsNumbered() const 
-	{
-#if UE_FNAME_OUTLINE_NUMBER
-		return Header.Len == 0;
-#else
-		return false;
-#endif
-	}
+	FORCEINLINE bool IsWide() const								{ return Header.bIsWide; }
+	FORCEINLINE int32 GetNameLength() const 					{ return Header.Len; }
+	FORCEINLINE bool IsNumbered() const 						{ return !!UE_FNAME_OUTLINE_NUMBER && Header.Len == 0; }
+	// @pre IsNumbered()
+	FORCEINLINE const FNumberedEntry& GetNumberedName() const	{ return reinterpret_cast<const FNumberedEntry&>(NumberedName[0]); }
 
 	/**
 	 * Copy unterminated name to TCHAR buffer without allocating.
