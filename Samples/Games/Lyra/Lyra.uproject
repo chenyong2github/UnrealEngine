@@ -315,11 +315,19 @@
 			"Enabled": true
 		},
 		{
+			"Name": "ContextualAnimation",
+			"Enabled": true
+		},
+		{
+			"Name": "GameplayBehaviorSmartObjects",
+			"Enabled": true
+		},
+		{
 			"Name": "GameplayStateTree",
 			"Enabled": true
 		},
 		{
-			"Name": "ContextualAnimation",
+			"Name": "GameplayBehaviors",
 			"Enabled": true
 		}
 	]
