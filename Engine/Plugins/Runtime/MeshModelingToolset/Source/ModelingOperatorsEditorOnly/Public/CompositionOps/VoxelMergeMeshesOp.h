@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "TransformTypes.h"
 
 struct FMeshDescription;
 
@@ -19,14 +21,10 @@ class MODELINGOPERATORSEDITORONLY_API FVoxelMergeMeshesOp : public FDynamicMeshO
 public:
 	virtual ~FVoxelMergeMeshesOp() {}
 
-	struct FInputMesh
-	{
-		const FMeshDescription* Mesh;
-		FTransform Transform;
-	};
-
 	// inputs
-	TArray<FInputMesh> InputMeshArray;
+	TArray<TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>> Meshes;
+	TArray<FTransformSRT3d> Transforms; // 1:1 with Meshes
+
 	int32 VoxelCount = 128;
 	double VoxelSizeD = 1.0;
 	double AdaptivityD = 0;

@@ -3,27 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "InteractiveToolBuilder.h"
-#include "MeshOpPreviewHelpers.h"
-#include "BaseTools/MultiSelectionMeshEditingTool.h"
-#include "Properties/MeshStatisticsProperties.h"
-#include "PropertySets/OnAcceptProperties.h"
-#include "CompositionOps/VoxelBooleanMeshesOp.h"
+#include "UObject/NoExportTypes.h"
+#include "BaseTools/BaseVoxelTool.h"
+
 
 #include "VoxelCSGMeshesTool.generated.h"
 
-/**
- *
- */
-UCLASS()
-class MESHMODELINGTOOLSEDITORONLYEXP_API UVoxelCSGMeshesToolBuilder : public UMultiSelectionMeshEditingToolBuilder
-{
-	GENERATED_BODY()
-
-public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
-};
 
 
 /**  */
@@ -54,76 +39,69 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API UVoxelCSGMeshesToolProperties : public 
 	GENERATED_BODY()
 public:
 	/** The type of operation  */
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = BooleanOptions)
 	EVoxelCSGOperation Operation = EVoxelCSGOperation::DifferenceAB;
 
 	/** The size of the geometry bounding box major axis measured in voxels.*/
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "8", UIMax = "1024", ClampMin = "8", ClampMax = "1024"))
+	UPROPERTY(EditAnywhere, Category = VoxelSettings, meta = (UIMin = "8", UIMax = "1024", ClampMin = "8", ClampMax = "1024"))
 	int32 VoxelCount = 128;
 
 	/** Remeshing adaptivity, prior to optional simplification */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	UPROPERTY(EditAnywhere, Category = VoxelSettings, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float MeshAdaptivity = 0.01f;
 
-	/** Offset when remeshing, note large offsets with high voxels counts will be slow */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "-10", UIMax = "10", ClampMin = "-10", ClampMax = "10"))
+	/** Offset when remeshing, note large offsets with high voxels counts will be slow.  Hidden because this duplicates functionality of the voxel offset tool */
+	UPROPERTY()
 	float OffsetDistance = 0.0f;
 
 	/** Automatically simplify the result of voxel-based merge.*/
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = VoxelSettings)
 	bool bAutoSimplify = false;
 };
 
-
-
-
-/**
- *
- */
-UCLASS()
-class MESHMODELINGTOOLSEDITORONLYEXP_API UVoxelCSGMeshesTool : public UMultiSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
+UCLASS()  
+class MESHMODELINGTOOLSEDITORONLYEXP_API UVoxelCSGMeshesTool : public UBaseVoxelTool
 {
 	GENERATED_BODY()
 
 public:
-	UVoxelCSGMeshesTool();
 
-	virtual void Setup() override;
-	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
+	UVoxelCSGMeshesTool() {}
 
-	virtual void OnTick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+protected:
 
-	virtual bool HasCancel() const override { return true; }
-	virtual bool HasAccept() const override { return true; }
-	virtual bool CanAccept() const override;
+	virtual void SetupProperties() override;
+	virtual void SaveProperties() override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	virtual FString GetCreatedAssetName() const override;
+	virtual FText GetActionName() const override;
+
+	virtual void ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh) override;
 
 	// IDynamicMeshOperatorFactory API
 	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
-
-protected:
 	UPROPERTY()
 	TObjectPtr<UVoxelCSGMeshesToolProperties> CSGProps;
 
-	UPROPERTY()
-	TObjectPtr<UMeshStatisticsProperties> MeshStatisticsProperties;
-
-	UPROPERTY()
-	TObjectPtr<UOnAcceptHandleSourcesProperties> HandleSourcesProperties;
-
-	UPROPERTY()
-	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview;
-
-protected:
-	TArray<UE::Geometry::FVoxelBooleanMeshesOp::FInputMesh> InputMeshes;
-	/** stash copies of the transforms and pointers to the meshes for consumption by the CSG Op*/
-	void CacheInputMeshes();
-
-	/** quickly generate a low-quality result for display while the actual result is being computed. */
-	void CreateLowQualityPreview();
-
-	void GenerateAsset(const FDynamicMeshOpResult& Result);
 };
+
+
+
+
+UCLASS()
+class MESHMODELINGTOOLSEDITORONLYEXP_API UVoxelCSGMeshesToolBuilder : public UBaseCreateFromSelectedToolBuilder
+{
+	GENERATED_BODY()
+
+public:
+
+	virtual UMultiSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override
+	{
+		return NewObject<UVoxelCSGMeshesTool>(SceneState.ToolManager);
+	}
+
+	virtual TOptional<int32> MaxComponentsSupported() const override { return 2; }
+	virtual int32 MinComponentsSupported() const override { return 2; }
+};
+

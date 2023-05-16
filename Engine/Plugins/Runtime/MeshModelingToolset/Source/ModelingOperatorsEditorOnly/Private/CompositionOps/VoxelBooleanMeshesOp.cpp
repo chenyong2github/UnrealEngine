@@ -5,9 +5,11 @@
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "DynamicMeshToMeshDescription.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
 #include "CleaningOps/EditNormalsOp.h"
+
 
 // The ProxyLOD plugin is currently only available on Windows. On other platforms we will make this a no-op.
 #if WITH_PROXYLOD
@@ -19,6 +21,21 @@ using namespace UE::Geometry;
 void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 {
 #if WITH_PROXYLOD
+	
+	struct FVoxelBoolInterrupter : IVoxelBasedCSG::FInterrupter
+	{
+		FVoxelBoolInterrupter(FProgressCancel* ProgressCancel) : Progress(ProgressCancel) {}
+		FProgressCancel* Progress;
+		virtual ~FVoxelBoolInterrupter(){}
+		virtual bool wasInterrupted(int percent = -1) override final
+		{
+			bool Cancelled = Progress && Progress->Cancelled();
+			return Cancelled;
+		}
+
+	} Interrupter(Progress);
+
+
 	FMeshDescription ResultMeshDescription;
 	FStaticMeshAttributes Attributes(ResultMeshDescription);
 	Attributes.Register();
@@ -49,35 +66,41 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	TUniquePtr<IVoxelBasedCSG> VoxelCSGTool = IVoxelBasedCSG::CreateCSGTool(VoxelSizeD);
 	FVector MergedOrigin;
 
-	TArray<IVoxelBasedCSG::FPlacedMesh> PlacedMeshes;
-	for (const FInputMesh& InputMesh : InputMeshArray)
+	// VoxelCSGTool needs MeshDescription
+	FMeshDescription MeshDescriptions[2];
+	for (int i = 0; i < 2; ++i)
 	{
-		IVoxelBasedCSG::FPlacedMesh PlacedMesh;
-		PlacedMesh.Mesh = InputMesh.Mesh;
-		PlacedMesh.Transform = InputMesh.Transform;
-		PlacedMeshes.Add(PlacedMesh);
+
+		FStaticMeshAttributes AddAttributes(MeshDescriptions[i]);
+		AddAttributes.Register();
+		
+		FConversionToMeshDescriptionOptions ToMeshDescriptionOptions;
+		ToMeshDescriptionOptions.bSetPolyGroups = false;
+		FDynamicMeshToMeshDescription DynamicMeshToMeshDescription(ToMeshDescriptionOptions);
+
+		DynamicMeshToMeshDescription.Convert(Meshes[i].Get(), MeshDescriptions[i]);
 	}
 
-	IVoxelBasedCSG::FPlacedMesh& A = PlacedMeshes[0];
-	IVoxelBasedCSG::FPlacedMesh& B = PlacedMeshes[1];
+	IVoxelBasedCSG::FPlacedMesh A(&MeshDescriptions[0], Transforms[0]);
+	IVoxelBasedCSG::FPlacedMesh B(&MeshDescriptions[1], Transforms[1]);
 
 	switch (Operation)
 	{
 	case EBooleanOperation::DifferenceAB:
 		CSGIsoSurface = 0.;
-		MergedOrigin = VoxelCSGTool->ComputeDifference(A, B, ResultMeshDescription, AdaptivityD, CSGIsoSurface);
+		VoxelCSGTool->ComputeDifference(Interrupter, A, B, ResultMeshDescription, MergedOrigin, AdaptivityD, CSGIsoSurface);
 		break;
 	case EBooleanOperation::DifferenceBA:
 		CSGIsoSurface = 0.;
-		MergedOrigin = VoxelCSGTool->ComputeDifference(B, A, ResultMeshDescription, AdaptivityD, CSGIsoSurface);
+		VoxelCSGTool->ComputeDifference(Interrupter, B, A, ResultMeshDescription, MergedOrigin, AdaptivityD, CSGIsoSurface);
 		break;
 	case EBooleanOperation::Intersect:
 		CSGIsoSurface = FMath::Clamp(IsoSurfaceD, -MaxIsoOffset, MaxIsoOffset);
-		MergedOrigin = VoxelCSGTool->ComputeIntersection(A, B, ResultMeshDescription, AdaptivityD, CSGIsoSurface);
+		VoxelCSGTool->ComputeIntersection(Interrupter, A, B, ResultMeshDescription, MergedOrigin, AdaptivityD, CSGIsoSurface);
 		break;
 	case EBooleanOperation::Union:
 		CSGIsoSurface = FMath::Clamp(IsoSurfaceD, 0., MaxIsoOffset);
-		MergedOrigin = VoxelCSGTool->ComputeUnion(A, B, ResultMeshDescription, AdaptivityD, CSGIsoSurface);
+		VoxelCSGTool->ComputeUnion(Interrupter, A, B, ResultMeshDescription, MergedOrigin, AdaptivityD, CSGIsoSurface);
 		break;
 	default:
 		check(0);
@@ -85,7 +108,7 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 	ResultTransform = FTransform3d(MergedOrigin);
 
-	if (Progress && Progress->Cancelled())
+	if (Interrupter.wasInterrupted())
 	{
 		return;
 	}
@@ -102,7 +125,7 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 		for (int32 i = 0; i < NumRemeshes; ++i)
 		{
-			if (Progress && Progress->Cancelled())
+			if (Interrupter.wasInterrupted())
 			{
 				return;
 			}
@@ -115,17 +138,19 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 			SourceMeshes.Add(PlacedMesh);
 
 			// union of only one mesh. we are using this to voxelize and remesh with and offset.
-			MergedOrigin = VoxelCSGTool->ComputeUnion(SourceMeshes, ResultMeshDescription, AdaptivityD, DeltaIsoSurface);
+			VoxelCSGTool->ComputeUnion(Interrupter, SourceMeshes, ResultMeshDescription, MergedOrigin, AdaptivityD, DeltaIsoSurface);
 
 			ResultTransform = FTransform3d(MergedOrigin);
 		}
 	}
-
-	// Convert to dynamic mesh
-	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(&ResultMeshDescription, *ResultMesh);
-
-	if (Progress && Progress->Cancelled())
+	
+	if(!Interrupter.wasInterrupted())
+	{
+		// Convert to dynamic mesh
+		FMeshDescriptionToDynamicMesh Converter;
+		Converter.Convert(&ResultMeshDescription, *ResultMesh);
+	}
+	else
 	{
 		return;
 	}
@@ -148,7 +173,7 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 
-	if (bFixNormals)
+	if (bFixNormals && !Interrupter.wasInterrupted())
 	{
 		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OpResultMesh(ExtractResult().Release()); // moved the unique pointer
 
@@ -169,13 +194,11 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 		ResultMesh = EditNormalsOp.ExtractResult(); // return the edit normals operator copy to this tool.
 	}
-
+	
 #else	// WITH_PROXYLOD
-
-	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(InputMeshArray[0].Mesh, *ResultMesh);
-	ResultTransform = FTransform3d(InputMeshArray[0].Transform);
-
+		// just copy the first input
+		*ResultMesh = *Meshes[0];
+		ResultTransform = Transforms[0];
 #endif	// WITH_PROXYLOD
 
 }
@@ -183,45 +206,23 @@ void FVoxelBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 float FVoxelBooleanMeshesOp::ComputeVoxelSize() const 
 { 
 	float Size = 0.f;
-	for (int32 i = 0; i < InputMeshArray.Num(); ++i)
+	auto GrowSize = [&Size, this](const FDynamicMesh3& DynamicMesh, const FTransformSRT3d& Xform)
 	{
-		//Bounding box
-		FVector BBoxMin(FLT_MAX, FLT_MAX, FLT_MAX);
-		FVector BBoxMax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
-
-		// Use the scale define by the transform.  We don't care about actual placement
-		// in the world for this.
-		FVector Scale = InputMeshArray[i].Transform.GetScale3D();
-		const FMeshDescription&  MeshDescription = *InputMeshArray[i].Mesh;
-
-		TArrayView<const FVector3f> VertexPositions = MeshDescription.GetVertexPositions().GetRawArray();
-		for (const FVertexID VertexID : MeshDescription.Vertices().GetElementIDs())
-		{
-			const FVector3f& Pos = VertexPositions[VertexID];
-            
-			BBoxMin.X = FMath::Min(BBoxMin.X, Pos.X);
-			BBoxMin.Y = FMath::Min(BBoxMin.Y, Pos.Y);
-			BBoxMin.Z = FMath::Min(BBoxMin.Z, Pos.Z);
-
-			BBoxMax.X = FMath::Max(BBoxMax.X, Pos.X);
-			BBoxMax.Y = FMath::Max(BBoxMax.Y, Pos.Y);
-			BBoxMax.Z = FMath::Max(BBoxMax.Z, Pos.Z);
-		}
-
-		// The size of the BBox in each direction
-		FVector Extents(BBoxMax.X - BBoxMin.X, BBoxMax.Y - BBoxMin.Y, BBoxMax.Z - BBoxMin.Z);
-		
+		FAxisAlignedBox3d AABB = DynamicMesh.GetBounds(true);
+		FVector Scale = Xform.GetScale3D();
+		FVector Extents = 2. * AABB.Extents();
 		// Scale with the local space scale.
 		Extents.X = Extents.X * FMath::Abs(Scale.X);
 		Extents.Y = Extents.Y * FMath::Abs(Scale.Y);
 		Extents.Z = Extents.Z * FMath::Abs(Scale.Z);
 
 		float MajorAxisSize = FMath::Max3(Extents.X, Extents.Y, Extents.Z);
-
-
 		Size = FMath::Max(MajorAxisSize / VoxelCount, Size);
+	};
 
-	}
+	GrowSize(*Meshes[0], Transforms[0]);
+	GrowSize(*Meshes[1], Transforms[1]);
+	
 	
 	return Size;
 

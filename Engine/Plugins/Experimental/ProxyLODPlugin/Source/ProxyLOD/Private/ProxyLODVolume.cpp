@@ -21,7 +21,7 @@ THIRD_PARTY_INCLUDES_END
 
 #include "MeshDescription.h"
 
-typedef openvdb::math::Transform	OpenVDBTransform;
+typedef openvdb::math::Transform OpenVDBTransform;
 
 class FProxyLODVolumeImpl : public IProxyLODVolume
 {
@@ -286,7 +286,16 @@ public:
 
 	// Note this will become very slow if the isosurface is more than 3 voxel widths from 0.
 	// the tool that calls this should clamp the isosurface.
-	FVector ComputeUnion(const TArray<IVoxelBasedCSG::FPlacedMesh>& PlacedMeshArray, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface ) const override
+	virtual FVector ComputeUnion(const TArray<IVoxelBasedCSG::FPlacedMesh>& PlacedMeshArray, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface) const override
+	{
+		FInterrupter NullInterrupter;
+		FVector AverageTranslation;
+		ComputeUnion(NullInterrupter, PlacedMeshArray, ResultMesh, AverageTranslation, Adaptivity, IsoSurface);
+		return AverageTranslation;
+	}
+
+
+	virtual bool  ComputeUnion(IVoxelBasedCSG::FInterrupter& Interrupter,  const TArray<IVoxelBasedCSG::FPlacedMesh>& PlacedMeshArray, FMeshDescription& ResultMesh, FVector& AverageTranslation, double Adaptivity, double IsoSurface) const override
 	{
 
 		
@@ -299,16 +308,16 @@ public:
 		const double ExteriorVoxelWidth = FMath::Max( 2., IsoSurfaceInVoxels + 1.);
 		const double InteriorVoxelWidth = -FMath::Min(-2., IsoSurfaceInVoxels - 1);
 
-	
+		AverageTranslation = FVector(0.f, 0.f, 0.f);
+
 		const int32 NumMeshes = PlacedMeshArray.Num();
 		if (NumMeshes == 0)
 		{
-			return FVector(0.f, 0.f, 0.f);
+			return false;
 		}
 
 		// Find the average translation of all the meshes.
 		
-		FVector AverageTranslation(0.f, 0.f, 0.f);
 		for (int32 i = 0; i < NumMeshes; ++i)
 		{
 			AverageTranslation += PlacedMeshArray[i].Transform.GetTranslation();
@@ -361,71 +370,124 @@ public:
 		}
 
 		FPolygonSoup PolySoup(Adapters, VoxelSize);
-		openvdb::FloatGrid::Ptr SDFUnionVolume = openvdb::tools::meshToVolume<openvdb::FloatGrid>(PolySoup, PolySoup.Transform(), ExteriorVoxelWidth, InteriorVoxelWidth);
+		openvdb::FloatGrid::Ptr SDFUnionVolume = openvdb::tools::meshToVolume<openvdb::FloatGrid>(Interrupter, PolySoup, PolySoup.Transform(), ExteriorVoxelWidth, InteriorVoxelWidth);
 
-
-		// Convert the SDFUnionVolume to a mesh
+		const bool bSuccess = !Interrupter.wasInterrupted();
+		if (bSuccess)
+		{ 
+			// Convert the SDFUnionVolume to a mesh
 		
-		ConvertSDFToMesh(SDFUnionVolume, Adaptivity, IsoSurface, ResultMesh);
+			ConvertSDFToMesh(SDFUnionVolume, Adaptivity, IsoSurface, ResultMesh);
+		}
 
+		return bSuccess;
+		
+	}
+
+	
+	virtual FVector ComputeDifference(const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface) const override
+	{
+		IVoxelBasedCSG::FInterrupter NullInterrupter;
+		FVector AverageTranslation;
+		ComputeDifference(NullInterrupter, PlacedMeshA, PlacedMeshB, ResultMesh, AverageTranslation, Adaptivity, IsoSurface);
 		return AverageTranslation;
 	}
 
-	FVector ComputeDifference(const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh,  double Adaptivity, double IsoSurface) const override
+	virtual bool ComputeDifference(IVoxelBasedCSG::FInterrupter& Interrupter, const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, FVector& AverageTranslation, double Adaptivity, double IsoSurface) const override
 	{
 
 		// make SDFs
 		openvdb::FloatGrid::Ptr SDFVolumeA;
 		openvdb::FloatGrid::Ptr SDFVolumeB;
 
-		FVector AverageTranslation = GenerateVolumes(IsoSurface, PlacedMeshA, PlacedMeshB, SDFVolumeA, SDFVolumeB);
+		bool bSuccess = GenerateVolumes(Interrupter, IsoSurface, PlacedMeshA, PlacedMeshB, SDFVolumeA, SDFVolumeB, AverageTranslation);
 
-		// create the difference - result stored in volume A
-		openvdb::tools::csgDifference(*SDFVolumeA, *SDFVolumeB);
+		bSuccess = bSuccess && !Interrupter.wasInterrupted();
+		if (bSuccess)
+		{ 
+			// create the difference - result stored in volume A
+			openvdb::tools::csgDifference(*SDFVolumeA, *SDFVolumeB);
+		}
 
 		// convert the result
-		ConvertSDFToMesh(SDFVolumeA, Adaptivity, IsoSurface, ResultMesh);
+		bSuccess = bSuccess && !Interrupter.wasInterrupted();
+		if (bSuccess)
+		{ 
+			ConvertSDFToMesh(SDFVolumeA, Adaptivity, IsoSurface, ResultMesh);
+		}
+		return bSuccess;
+	}
 
+	
+	virtual FVector ComputeIntersection(const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface) const override
+	{
+		IVoxelBasedCSG::FInterrupter NullInterrupter;
+		FVector AverageTranslation;
+		ComputeIntersection(NullInterrupter, PlacedMeshA, PlacedMeshB, ResultMesh, AverageTranslation, Adaptivity, IsoSurface);
 		return AverageTranslation;
 	}
 
-	FVector ComputeIntersection(const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface) const override
+	virtual bool ComputeIntersection(IVoxelBasedCSG::FInterrupter& Interrupter,  const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, FVector& AverageTranslation, double Adaptivity, double IsoSurface) const override
 	{
 
 		// make SDFs
 		openvdb::FloatGrid::Ptr SDFVolumeA;
 		openvdb::FloatGrid::Ptr SDFVolumeB;
 
-		FVector AverageTranslation = GenerateVolumes(IsoSurface, PlacedMeshA, PlacedMeshB, SDFVolumeA, SDFVolumeB);
-
-
-		// create the difference - result stored in volume A
-		openvdb::tools::csgIntersection(*SDFVolumeA, *SDFVolumeB);
+		bool bSuccess = GenerateVolumes(Interrupter, IsoSurface, PlacedMeshA, PlacedMeshB, SDFVolumeA, SDFVolumeB, AverageTranslation);
+		bSuccess = bSuccess && !Interrupter.wasInterrupted();
+		if (bSuccess)
+		{ 
+			// create the difference - result stored in volume A
+			openvdb::tools::csgIntersection(*SDFVolumeA, *SDFVolumeB);
+		}
 
 		// convert the result
-		ConvertSDFToMesh(SDFVolumeA, Adaptivity, IsoSurface, ResultMesh);
-
-		return AverageTranslation;
+		bSuccess = bSuccess && !Interrupter.wasInterrupted();
+		if (bSuccess)
+		{
+			// convert the result
+			ConvertSDFToMesh(SDFVolumeA, Adaptivity, IsoSurface, ResultMesh);
+		}
+		
+		return bSuccess;
 	}
 
-	FVector ComputeUnion(const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface) const override
+	
+	
+	virtual FVector ComputeUnion(const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface) const override
+	{
+		FInterrupter NullInterrupter;
+		FVector AverageTranslation;
+		ComputeUnion(NullInterrupter, PlacedMeshA, PlacedMeshB, ResultMesh, AverageTranslation, Adaptivity, IsoSurface);
+		return AverageTranslation;
+	}
+	
+	virtual bool ComputeUnion(IVoxelBasedCSG::FInterrupter& Interrupter, const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, FVector& AverageTranslation, double Adaptivity, double IsoSurface) const override
 	{
 
 		// make SDFs
 		openvdb::FloatGrid::Ptr SDFVolumeA;
 		openvdb::FloatGrid::Ptr SDFVolumeB;
 
-		FVector AverageTranslation = GenerateVolumes(IsoSurface, PlacedMeshA, PlacedMeshB, SDFVolumeA, SDFVolumeB);
-
-
-		// create the difference - result stored in volume A
-		openvdb::tools::csgUnion(*SDFVolumeA, *SDFVolumeB);
+		bool bSuccess = GenerateVolumes(Interrupter, IsoSurface, PlacedMeshA, PlacedMeshB, SDFVolumeA, SDFVolumeB, AverageTranslation);
+		bSuccess = bSuccess && !Interrupter.wasInterrupted();
+		if (bSuccess)
+		{ 
+			// create the difference - result stored in volume A
+			openvdb::tools::csgUnion(*SDFVolumeA, *SDFVolumeB);
+		}
 
 		// convert the result
-		ConvertSDFToMesh(SDFVolumeA, Adaptivity, IsoSurface, ResultMesh);
-
-		return AverageTranslation;
+		bSuccess = bSuccess && !Interrupter.wasInterrupted();
+		if (bSuccess)
+		{	
+			ConvertSDFToMesh(SDFVolumeA, Adaptivity, IsoSurface, ResultMesh);
+		}
+		return bSuccess;
 	}
+
+	
 
 private:
 
@@ -441,7 +503,7 @@ private:
 		ProxyLOD::ConvertMesh(AOSMeshedVolume, ResultMesh);
 	}
 
-	FVector GenerateVolumes(const double IsoSurface, const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, openvdb::FloatGrid::Ptr& VolumeA, openvdb::FloatGrid::Ptr& VolumeB) const 
+	bool  GenerateVolumes(IVoxelBasedCSG::FInterrupter& Interrupter, const double IsoSurface, const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, openvdb::FloatGrid::Ptr& VolumeA, openvdb::FloatGrid::Ptr& VolumeB, FVector& AverageTranslation) const	
 	{
 		const FMeshDescription& MeshA = *PlacedMeshA.Mesh;
 		const FMeshDescription& MeshB = *PlacedMeshB.Mesh;
@@ -455,7 +517,7 @@ private:
 		const double InteriorVoxelWidth = -FMath::Min(-2., IsoSurfaceInVoxels - 1);
 
 		// The average translation of the two meshes.
-		FVector AverageTranslation = PlacedMeshA.Transform.GetTranslation() + PlacedMeshB.Transform.GetTranslation();
+		AverageTranslation = PlacedMeshA.Transform.GetTranslation() + PlacedMeshB.Transform.GetTranslation();
 		AverageTranslation *= 0.5f;
 
 		// Fill the SDFUnionVolume
@@ -493,14 +555,24 @@ private:
 		OpenVDBTransform::Ptr TargetXForm = OpenVDBTransform::createLinearTransform(VoxelSize);
 
 		// make SDFs
-		openvdb::FloatGrid::Ptr SDFVolumeA = openvdb::tools::meshToVolume<openvdb::FloatGrid>(AdapterA, *TargetXForm, ExteriorVoxelWidth, InteriorVoxelWidth);
-		openvdb::FloatGrid::Ptr SDFVolumeB = openvdb::tools::meshToVolume<openvdb::FloatGrid>(AdapterB, *TargetXForm, ExteriorVoxelWidth, InteriorVoxelWidth);
+		openvdb::FloatGrid::Ptr SDFVolumeA = openvdb::tools::meshToVolume<openvdb::FloatGrid>(Interrupter, AdapterA, *TargetXForm, ExteriorVoxelWidth, InteriorVoxelWidth);
+		openvdb::FloatGrid::Ptr SDFVolumeB = openvdb::tools::meshToVolume<openvdb::FloatGrid>(Interrupter, AdapterB, *TargetXForm, ExteriorVoxelWidth, InteriorVoxelWidth);
 
 		VolumeA = SDFVolumeA;
 		VolumeB = SDFVolumeB;
 
-		return AverageTranslation;
+		const bool bSuccess = !Interrupter.wasInterrupted();
+		return bSuccess;
 
+	}
+
+
+	FVector GenerateVolumes(const double IsoSurface, const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, openvdb::FloatGrid::Ptr& VolumeA, openvdb::FloatGrid::Ptr& VolumeB) const
+	{
+		FVector AverageTranslation;
+		IVoxelBasedCSG::FInterrupter NullInterrupter;
+		GenerateVolumes(NullInterrupter, IsoSurface, PlacedMeshA, PlacedMeshB, VolumeA, VolumeB, AverageTranslation);
+		return AverageTranslation;
 	}
 
 	OpenVDBTransform::Ptr XForm;

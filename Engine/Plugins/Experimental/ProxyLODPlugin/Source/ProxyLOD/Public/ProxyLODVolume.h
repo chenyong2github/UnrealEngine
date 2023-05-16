@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/Vector.h"
 
 struct FMeshMergeData;
 struct FInstancedMeshMergeData;
@@ -96,14 +97,33 @@ public :
 		FTransform       Transform;
 	};
 
+	// the interrupter interface. 
+	struct FInterrupter
+	{
+	
+		FInterrupter() = default;
+		virtual ~FInterrupter() = default;
+		// templated openvdb code requires these functions.
+		virtual void start(const char* name = nullptr) { (void)name; }
+		virtual void end() {};
+		virtual bool wasInterrupted(int percent = -1) { (void)percent; return false; }
+	};
+
 	virtual double GetVoxelSize() const = 0;
 	virtual void SetVoxelSize(double VolexSize) = 0;
 
 	// Will destroy UVs and other attributes  Returns the average location of the input meshes 
 	virtual FVector ComputeUnion(const TArray<IVoxelBasedCSG::FPlacedMesh>& MeshArray, FMeshDescription& ResultMesh, double Adaptivity = 0.1, double IsoSurfcae = 0.) const = 0;
 	
-	// We could make this keep the UVs and other attributes from the AMesh..
 	virtual FVector ComputeDifference(const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface) const = 0;
 	virtual FVector ComputeIntersection(const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface) const = 0;
 	virtual FVector ComputeUnion(const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, double Adaptivity, double IsoSurface) const = 0;
+	
+	
+	// interruptible versions. return true on success.  
+	virtual bool ComputeUnion(IVoxelBasedCSG::FInterrupter& Interrupter, const TArray<IVoxelBasedCSG::FPlacedMesh>& MeshArray, FMeshDescription& ResultMesh, FVector& AverageTranslation, double Adaptivity, double IsoSurfcae) const = 0;
+	
+	virtual bool ComputeDifference(IVoxelBasedCSG::FInterrupter& Interrupter, const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, FVector& AverageTranslation, double Adaptivity, double IsoSurface) const = 0;
+	virtual bool ComputeIntersection(IVoxelBasedCSG::FInterrupter& Interrupter, const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, FVector& AverageTranslation, double Adaptivity, double IsoSurface) const = 0;
+	virtual bool ComputeUnion(IVoxelBasedCSG::FInterrupter& Interrupter, const FPlacedMesh& PlacedMeshA, const FPlacedMesh& PlacedMeshB, FMeshDescription& ResultMesh, FVector& AverageTranslation, double Adaptivity, double IsoSurface) const = 0;
 };
