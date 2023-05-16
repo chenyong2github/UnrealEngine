@@ -294,7 +294,6 @@ bool UText3DComponent::AllocateGlyphs(int32 Num)
 			StaticMeshComponent->SetCastShadow(bCastShadow);
 			CharacterMeshes.Add(StaticMeshComponent);
 
-			GetOwner()->AddInstanceComponent(StaticMeshComponent);
 			StaticMeshComponent->AttachToComponent(CharacterKerningComponent, FAttachmentTransformRules::KeepRelativeTransform);
 		}
 	}
@@ -312,9 +311,7 @@ bool UText3DComponent::AllocateGlyphs(int32 Num)
 				CharacterKerningComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 				CharacterKerningComponent->UnregisterComponent();
 				CharacterKerningComponent->DestroyComponent();
-				OwnerActor->RemoveInstanceComponent(CharacterKerningComponent);
 			}
-
 			
 			UStaticMeshComponent* StaticMeshComponent = CharacterMeshes[CharacterIndex];
 			if (IsValid(StaticMeshComponent))
@@ -322,7 +319,6 @@ bool UText3DComponent::AllocateGlyphs(int32 Num)
 				StaticMeshComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 				StaticMeshComponent->UnregisterComponent();
 				StaticMeshComponent->DestroyComponent();
-				OwnerActor->RemoveInstanceComponent(StaticMeshComponent);
 			}
 		}
 		
@@ -738,12 +734,6 @@ void UText3DComponent::ClearTextMesh()
 			ChildComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 			ChildComponent->DestroyComponent();	
 		}
-	}
-
-	if (AActor* OwnerActor = GetOwner())
-	{
-		constexpr bool bAlsoDestroyComponents = false; // already destroyed!
-		OwnerActor->ClearInstanceComponents(bAlsoDestroyComponents);
 	}
 }
 
