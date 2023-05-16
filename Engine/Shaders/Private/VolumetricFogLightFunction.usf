@@ -22,8 +22,11 @@ void Main(
 	float4 TranslatedWorldPosition = float4(0,0,0,0);
 	float3 LightVector = float3(0,0,0);
 
-#if LIGHT_TYPE == 0 
-	// Point and rect light
+	float Depth = 0.000001f;
+	float2 ScreenPosition = 0.0f;
+
+#if LIGHT_TYPE == 0			// Point light
+	
 	float Theta = (UV.x * (2*PI)) - PI;
 	float Phi = UV.y * PI;
 	float X = cos(Theta) * sin(Phi);
@@ -32,13 +35,8 @@ void Main(
 	LightVector = float3(Z, Y, X);
 	TranslatedWorldPosition = float4(LightTranslatedWorldPosition + LightVector.zyx, 1);
 
-#else
-
-	float Depth = 0.000001f;
-	float2 ScreenPosition;
-
-#if LIGHT_TYPE == 1
-	// Spot light
+#elif LIGHT_TYPE == 1		// Spot light
+	
 	ScreenPosition = (SvPosition.xy * LightFunctionTexelSize);
 	ScreenPosition.x = 1 - ScreenPosition.x;
 	ScreenPosition.y = 1 - ScreenPosition.y;
@@ -46,17 +44,31 @@ void Main(
 	// Wrap ScreenPosition to within the atlas tile
 	ScreenPosition = frac(ScreenPosition);
 
-#else // LIGHT_TYPE == 2
-	// Directional light
-	ScreenPosition = (SvPosition.xy * LightFunctionTexelSize - float2(0.5f, 0.5f)) * float2(2, -2);
-#endif
-
+	// Compute translated world position (inverse shadow projection) from the screen position
 	// make SvPosition appear to be rasterized with the depth from the depth buffer
 	TranslatedWorldPosition = mul(float4(ScreenPosition, Depth, 1), ShadowToTranslatedWorld);
 	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
 
+	// Compute the light vector containing UV from the translated world position
 	float4 Hom = mul(float4(TranslatedWorldPosition.xyz, 1), LightFunctionTranslatedWorldToLight);
 	LightVector = Hom.xyz / Hom.w;
+
+#else //LIGHT_TYPE == 2	// Directional and Rect light
+
+	ScreenPosition = (SvPosition.xy * LightFunctionTexelSize - float2(0.5f, 0.5f)) * float2(2, 2);
+	ScreenPosition.xy = frac(ScreenPosition.xy);
+
+	// Compute translated world position (inverse shadow projection) from the screen position
+	// make SvPosition appear to be rasterized with the depth from the depth buffer
+	TranslatedWorldPosition = mul(float4(ScreenPosition, Depth, 1), ShadowToTranslatedWorld);
+	TranslatedWorldPosition.xyz /= TranslatedWorldPosition.w;
+
+	// Compute the light vector containing UV from the translated world position
+	float4 Hom = mul(float4(TranslatedWorldPosition.xyz, 1), LightFunctionTranslatedWorldToLight);
+	LightVector = Hom.xyz / Hom.w;
+
+	LightVector.xyz = LightVector.zyx;	// Swap to match UV convention
+
 #endif
 	
 	float3 LightFunction = GetLightFunctionColor(LightVector, TranslatedWorldPosition.xyz);

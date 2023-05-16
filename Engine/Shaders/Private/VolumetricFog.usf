@@ -234,25 +234,35 @@ float4 LightFunctionAtlasTileMinMaxUvBound;
 Texture2D LightFunctionAtlasTexture;
 SamplerState LightFunctionAtlasSampler;
 
-float GetLocalLightFunction(float3 TranslatedWorldPosition, bool IsPointLight)
+float GetLocalLightFunction(float3 TranslatedWorldPosition, bool bSpotLight, bool bRectLight)
 {
 	float2 LightFunctionUV;
-	if (IsPointLight)
-	{
-		// Get vector from light to cell world pos.
-		float3 LightVec = normalize(TranslatedWorldPosition - DeferredLightUniforms.TranslatedWorldPosition);
-		// Transform and swizzle
-		LightVec = mul(float4(LightVec.xyz, 0), LocalLightFunctionMatrix).zyx; 
-		// Map to spherical coordinate
-		LightFunctionUV = float2((atan2Fast(LightVec.y, LightVec.x) + PI) / (2 * PI), acosFast(LightVec.z) / PI);
-	}
-	else
+
+	if(bSpotLight)
 	{
 		float4 HomogeneousShadowPosition = mul(float4(TranslatedWorldPosition, 1), LocalLightFunctionMatrix);
 		HomogeneousShadowPosition.xyz /= HomogeneousShadowPosition.w;
 		LightFunctionUV = HomogeneousShadowPosition.xy;
 		LightFunctionUV.x = 1 - LightFunctionUV.x;
 		LightFunctionUV.y = 1 - LightFunctionUV.y;
+	}
+	else if (bRectLight)
+	{
+		float4 HomogeneousShadowPosition = mul(float4(TranslatedWorldPosition, 1), LocalLightFunctionMatrix).zyxw;
+		HomogeneousShadowPosition.xyz /= HomogeneousShadowPosition.w;
+		LightFunctionUV = HomogeneousShadowPosition.xy;
+
+		LightFunctionUV = LightFunctionUV * 0.5 + 0.5;
+		LightFunctionUV = frac(LightFunctionUV);
+	}
+	else // Point light
+	{
+		// Get vector from light to cell world pos.
+		float3 LightVec = normalize(TranslatedWorldPosition - DeferredLightUniforms.TranslatedWorldPosition);
+		// Transform and swizzle
+		LightVec = mul(float4(LightVec.xyz, 0), LocalLightFunctionMatrix).zyx;
+		// Map to spherical coordinate
+		LightFunctionUV = float2((atan2Fast(LightVec.y, LightVec.x) + PI) / (2 * PI), acosFast(LightVec.z) / PI);
 	}
 	
 	return Texture2DSampleLevel(LightFunctionAtlasTexture, LightFunctionAtlasSampler, LightFunctionAtlasTileMinMaxUvBound.xy + LightFunctionUV * (LightFunctionAtlasTileMinMaxUvBound.zw - LightFunctionAtlasTileMinMaxUvBound.xy), 0).x;
@@ -362,7 +372,7 @@ void InjectShadowedLocalLightPS(
 #endif
 	
 #if	USE_LIGHT_FUNCTION
-			ShadowFactor *= GetLocalLightFunction(TranslatedWorldPosition, IsPointLight);
+			ShadowFactor *= GetLocalLightFunction(TranslatedWorldPosition, LightData.bSpotLight, LightData.bRectLight);
 #endif
 
 			OutScattering.rgb += LightColor * (PhaseFunction(PhaseG, dot(L, -CameraVector)) * CombinedAttenuation * ShadowFactor * VolumetricScatteringIntensity);
@@ -479,7 +489,7 @@ float4x4 DirectionalLightFunctionTranslatedWorldToShadow;
 Texture2D LightFunctionTexture;
 SamplerState LightFunctionSampler;
 
-float GetLightFunction(float3 TranslatedWorldPosition)
+float GetDirectionalLightFunction(float3 TranslatedWorldPosition) // directional light
 {
 	float4 HomogeneousShadowPosition = mul(float4(TranslatedWorldPosition, 1), DirectionalLightFunctionTranslatedWorldToShadow);
 	float2 LightFunctionUV = HomogeneousShadowPosition.xy * .5f + .5f;
@@ -584,7 +594,7 @@ void LightScatteringCS(
 #endif
 			}
 
-			ShadowFactor *= GetLightFunction(TranslatedWorldPosition);
+			ShadowFactor *= GetDirectionalLightFunction(TranslatedWorldPosition);
 
 			float3 DirectionalLightColor = ForwardLightData.DirectionalLightColor;
 
