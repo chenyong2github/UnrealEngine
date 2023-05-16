@@ -97,7 +97,9 @@ void PopulateTabSpawnerToolMenu_Helper(UToolMenu* InMenu, TSharedPtr<FTabManager
 					Child->GetTooltipText(),
 					FNewToolMenuDelegate::CreateStatic(&PopulateTabSpawnerToolMenu_Helper, TabManager, Child, AllSpawners, RecursionLevel+1, false),
 					FToolUIActionChoice(),
-					EUserInterfaceActionType::Button
+					EUserInterfaceActionType::Button,
+					false,
+					Child->GetIcon()
 				);
 			}
 		}
