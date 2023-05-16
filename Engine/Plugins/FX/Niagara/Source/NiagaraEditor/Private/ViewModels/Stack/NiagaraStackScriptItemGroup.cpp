@@ -348,13 +348,6 @@ private:
 		{
 			Vars.Add(ParameterVariable);
 			DefaultVals.Add(FNiagaraConstants::GetAttributeDefaultValue(ParameterVariable));
-
-			FNiagaraTypeDefinition Type = ParameterVariable.GetType();
-			if (Type.IsUObject() && Type.IsDataInterface() == false)
-			{
-				// we currently don't support setting uobjects in the stack (except for data interfaces)
-				return nullptr;
-			}
 		}
 
 		UNiagaraNodeAssignment* NewAssignmentModule = FNiagaraStackGraphUtilities::AddParameterModuleToStack(Vars, *OutputNode, TargetIndex,DefaultVals );
