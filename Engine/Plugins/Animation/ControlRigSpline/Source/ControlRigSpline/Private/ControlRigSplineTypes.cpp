@@ -467,8 +467,21 @@ void FControlRigSpline::SetControlTransforms(const TArrayView<const FTransform>&
 		U = 0.f;
 		for (int32 i=0; i<NumSamples; ++i, U+=DeltaU)
 		{
+			// This tangent will always be the X axis of the sample transform
 			FVector Tangent = TangentAtParam(U);
 			Tangent.Normalize();
+
+			FVector UpVector = FVector::UnitY();
+			FVector Binormal = Tangent.Cross(UpVector);
+			Binormal.Normalize();
+			UpVector = Binormal.Cross(Tangent);
+			UpVector.Normalize();
+			
+			FMatrix Matrix(Tangent, UpVector, Binormal, FVector::ZeroVector);
+			SplineData->SamplesArray[i].SetRotation(Matrix.ToQuat());
+			SplineData->SamplesArray[i].SetScale3D(FVector(1.f,1.f,1.f));
+
+			FTransform& ParallelTransform = SplineData->SamplesArray[i];
 			
 			int32 PrevIndex = U*(ControlPointsCount-1);
 			int32 NextIndex = PrevIndex+1;
@@ -477,16 +490,24 @@ void FControlRigSpline::SetControlTransforms(const TArrayView<const FTransform>&
 				PrevIndex--;
 				NextIndex--;
 			}
-			
+
 			// Interpolate inside segment
 			const float UPrev = PrevIndex / (float)(ControlPointsCount-1);
 			const float UNext = NextIndex / (float)(ControlPointsCount-1);
 			const float Interp = (U - UPrev) / (UNext - UPrev);
-			const FQuat InterpRotation = FQuat::Slerp(InTransforms[PrevIndex].GetRotation(), InTransforms[NextIndex].GetRotation(), Interp);
-			FQuat CurveRotation = FQuat::FindBetween(FVector::UnitX(), Tangent);
-			SplineData->SamplesArray[i].SetRotation(InterpRotation * CurveRotation);
 
-			SplineData->SamplesArray[i].SetScale3D(FMath::Lerp(InTransforms[PrevIndex].GetScale3D(), InTransforms[NextIndex].GetScale3D(), Interp));
+			const FTransform TransportedTransformPrev = ParallelTransform * InTransforms[PrevIndex];
+			const FTransform TransportedTransformNext = ParallelTransform * InTransforms[NextIndex];
+			const FQuat DiffRotation = FQuat::Slerp(InTransforms[PrevIndex].GetRotation(), InTransforms[NextIndex].GetRotation(), Interp);
+
+			FVector UpVectorRotated = DiffRotation.RotateVector(FVector::UnitY());
+			FVector BinormalRotated = Tangent.Cross(UpVectorRotated);
+			BinormalRotated.Normalize();
+			UpVectorRotated = BinormalRotated.Cross(Tangent);
+			UpVectorRotated.Normalize();
+			FMatrix MatrixRotated(Tangent, UpVectorRotated, BinormalRotated, FVector::ZeroVector);
+			SplineData->SamplesArray[i].SetRotation(MatrixRotated.ToQuat());
+			SplineData->SamplesArray[i].SetScale3D(FVector(1.f,1.f,1.f));
 		}
 
 		// Correct length of samples
