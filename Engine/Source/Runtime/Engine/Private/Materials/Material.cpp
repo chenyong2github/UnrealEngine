@@ -6656,6 +6656,11 @@ bool UMaterial::IsPropertySupported(EMaterialProperty InProperty) const
 			bSupported = true;
 			break;
 		}
+
+		if (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7)
+		{
+			bSupported = (InProperty - MP_CustomizedUVs0) < NumCustomizedUVs;
+		}
 	}
 	return bSupported;
 }
@@ -6848,6 +6853,11 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 			case MP_FrontMaterial:
 				Active = true;
 				break;
+			}
+
+			if (InProperty >= MP_CustomizedUVs0 && InProperty <= MP_CustomizedUVs7)
+			{
+				Active = true;
 			}
 		}
 	}
