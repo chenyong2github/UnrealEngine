@@ -1543,6 +1543,21 @@ public:
 	 * @return					A unique name that will not conflict in the Blueprint
 	 */
 	static FName FindUniqueKismetName(const UBlueprint* InBlueprint, const FString& InBaseName, UStruct* InScope = NULL);
+	
+	/**
+	 * Cleanses a name of invalid characters and replaces them with '_'.
+	 * See UE_BLUEPRINT_INVALID_NAME_CHARACTERS for invalid characters.
+	 *
+	 * @param InBaseName The base name to assign
+	 */
+	static void ReplaceInvalidBlueprintNameCharacters(FString& InBaseName);
+	
+	/** Util version of ReplaceInvalidBlueprintNameCharacters that performs the operation inline. */
+	static FString ReplaceInvalidBlueprintNameCharactersInline(FString InBaseName)
+	{
+		ReplaceInvalidBlueprintNameCharacters(InBaseName);
+		return InBaseName;
+	}
 
 	/** Finds a unique and valid name for a custom event */
 	static FName FindUniqueCustomEventName(const UBlueprint* Blueprint);

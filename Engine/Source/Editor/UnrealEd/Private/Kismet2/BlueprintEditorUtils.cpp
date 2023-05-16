@@ -7979,6 +7979,21 @@ FBlueprintMacroCosmeticInfo FBlueprintEditorUtils::GetCosmeticInfoForMacro(UEdGr
 	return FBlueprintMacroCosmeticInfo();
 }
 
+void FBlueprintEditorUtils::ReplaceInvalidBlueprintNameCharacters(FString& InBaseName)
+{
+	for (TCHAR& TestChar : InBaseName)
+	{
+		for (TCHAR BadChar : UE_BLUEPRINT_INVALID_NAME_CHARACTERS)
+		{
+			if (TestChar == BadChar)
+			{
+				TestChar = TEXT('_');
+				break;
+			}
+		}
+	}
+}
+
 FName FBlueprintEditorUtils::FindUniqueKismetName(const UBlueprint* InBlueprint, const FString& InBaseName, UStruct* InScope/* = nullptr*/)
 {
 	int32 Count = 0;
@@ -7993,17 +8008,7 @@ FName FBlueprintEditorUtils::FindUniqueKismetName(const UBlueprint* InBlueprint,
 	// Clean up BaseName to not contain any invalid characters, which will mean we can never find a legal name no matter how many numbers we add
 	if (Result == EValidatorResult::ContainsInvalidCharacters)
 	{
-		for (TCHAR& TestChar : BaseName)
-		{
-			for (TCHAR BadChar : UE_BLUEPRINT_INVALID_NAME_CHARACTERS)
-			{
-				if (TestChar == BadChar)
-				{
-					TestChar = TEXT('_');
-					break;
-				}
-			}
-		}
+		ReplaceInvalidBlueprintNameCharacters(BaseName);
 		KismetName = BaseName;
 		Result = NameValidator->IsValid(KismetName);
 	}

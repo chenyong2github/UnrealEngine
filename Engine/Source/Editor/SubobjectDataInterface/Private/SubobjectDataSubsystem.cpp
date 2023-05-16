@@ -1308,41 +1308,51 @@ bool USubobjectDataSubsystem::RenameSubobject(const FSubobjectDataHandle& Handle
 		}
 	}
 	
-	// For instanced components
+	// For components: either instanced or simple construction script ("Add Component" in Blueprint editor)
 	if (UActorComponent* ComponentInstance = Data->GetMutableComponentTemplate())
 	{
-		UBlueprint* const BP = Data->GetBlueprint();
-		if (!BP)
-		{
-			return false;
-		}
-		
+		UBlueprint* BP = Data->GetBlueprint();
 		const FString DesiredName = InNewName.ToString();
-		const FName ValidatedNewName = FKismetNameValidator(BP).IsValid(DesiredName) == EValidatorResult::Ok
-			? FName(DesiredName)
-			: FBlueprintEditorUtils::FindUniqueKismetName(BP, DesiredName);
+		auto ValidateNameInBP = [BP](const FString& DesiredName) 
+		{
+			return FKismetNameValidator(BP).IsValid(DesiredName) == EValidatorResult::Ok
+				? FName(DesiredName)
+				: FBlueprintEditorUtils::FindUniqueKismetName(BP, DesiredName);
+		};
 		
+		// When placed in level, just the component needs to be renamed.
 		if (Data->IsInstancedComponent())
 		{
-			// name collision could occur due to e.g. our archetype being updated and causing a conflict with our ComponentInstance:
-			const FString NewNameAsString = ValidatedNewName.ToString();
+			// UBlueprint instance required may not always be available, e.g. if we added a non-Blueprint C++ class into the level like AStaticMeshActor.
+			// If they are available, use FKismetNameValidator and otherwise we'll just do our best here and replace invalid characters.
+			const FString NewNameAsString = BP
+				? ValidateNameInBP(DesiredName).ToString()
+				: FBlueprintEditorUtils::ReplaceInvalidBlueprintNameCharactersInline(DesiredName);
+			
+			// Name collision could occur due to e.g. our archetype being updated and causing a conflict with our ComponentInstance:
 			if (StaticFindObject(UObject::StaticClass(), ComponentInstance->GetOuter(), *NewNameAsString) == nullptr)
 			{
-				constexpr ERenameFlags RenameFlags = REN_DontCreateRedirectors;
+				const ERenameFlags RenameFlags = REN_DontCreateRedirectors;
 				ComponentInstance->Rename(*NewNameAsString, nullptr, RenameFlags);
 			}
-			return true;
-		}
-		
-		// Is this desired name the same as what is already there? If so then don't bother
-		USCS_Node* const SCSNode = Data->GetSCSNode();
-		if(SCSNode && SCSNode->GetVariableName().ToString().Equals(DesiredName))
-		{
-			return true;
-		}
 			
-		FBlueprintEditorUtils::RenameComponentMemberVariable(BP, SCSNode, ValidatedNewName);
-		return true;
+			return true;
+		}
+
+		// In Blueprint editor, the component variable name must be updated.
+		if (BP)
+		{
+			// Is this desired name the same as what is already there? If so then don't bother.
+			USCS_Node* SCSNode = Data->GetSCSNode();
+			if(SCSNode && SCSNode->GetVariableName().ToString().Equals(DesiredName))
+			{
+				return true;
+			}
+			
+			const FName ValidatedNewName = ValidateNameInBP(DesiredName);
+			FBlueprintEditorUtils::RenameComponentMemberVariable(BP, SCSNode, ValidatedNewName);
+			return true;
+		}
 	}
 	
 	return false;
