@@ -257,24 +257,23 @@ FParticleRenderData FNiagaraRenderer::TransferDataToGPU(FGlobalDynamicReadBuffer
 
 	for (const FNiagaraRendererVariableInfo& VarInfo : RendererLayout->GetVFVariables_RenderThread())
 	{
-		int32 GpuOffset = VarInfo.GetGPUOffset();
-		if (GpuOffset != INDEX_NONE && VarInfo.bUpload)
+		const int32 GpuOffset = VarInfo.GetRawGPUOffset();
+		if (GpuOffset != INDEX_NONE && VarInfo.ShouldUpload())
 		{
-			if (VarInfo.bHalfType)
+			if (VarInfo.IsHalfType())
 			{
-				GpuOffset &= ~(1 << 31);
-				for (int32 CompIdx = 0; CompIdx < VarInfo.NumComponents; ++CompIdx)
+				for (int32 CompIdx = 0; CompIdx < VarInfo.GetNumComponents(); ++CompIdx)
 				{
-					const uint8* SrcComponent = SrcData->GetComponentPtrHalf(VarInfo.DatasetOffset + CompIdx);
+					const uint8* SrcComponent = SrcData->GetComponentPtrHalf(VarInfo.GetRawDatasetOffset() + CompIdx);
 					void* Dest = Allocation.HalfData.Buffer + Allocation.HalfStride * (GpuOffset + CompIdx);
 					FMemory::Memcpy(Dest, SrcComponent, Allocation.HalfStride);
 				}
 			}
 			else
 			{
-				for (int32 CompIdx = 0; CompIdx < VarInfo.NumComponents; ++CompIdx)
+				for (int32 CompIdx = 0; CompIdx < VarInfo.GetNumComponents(); ++CompIdx)
 				{
-					const uint8* SrcComponent = SrcData->GetComponentPtrFloat(VarInfo.DatasetOffset + CompIdx);
+					const uint8* SrcComponent = SrcData->GetComponentPtrFloat(VarInfo.GetRawDatasetOffset() + CompIdx);
 					void* Dest = Allocation.FloatData.Buffer + Allocation.FloatStride * (GpuOffset + CompIdx);
 					FMemory::Memcpy(Dest, SrcComponent, Allocation.FloatStride);
 				}
@@ -651,7 +650,7 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 	check(SortInfo.SortAttributeOffset != INDEX_NONE);
 
 	const bool bUseRadixSort = GNiagaraRadixSortThreshold != -1 && (int32)NumInstances  > GNiagaraRadixSortThreshold;
-	const bool bSortVarIsHalf = SortVariable.bHalfType;
+	const bool bSortVarIsHalf = SortVariable.IsHalfType();
 
 	int32* RESTRICT IndexBuffer = (int32*)(OutIndices.Buffer);
 
@@ -662,7 +661,7 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 	{
 		if (bSortVarIsHalf)
 		{
-			const int32 BaseCompOffset = SortVariable.DatasetOffset;
+			const int32 BaseCompOffset = SortVariable.GetRawDatasetOffset();
 			FFloat16* RESTRICT PositionX = (FFloat16*)Buffer.GetComponentPtrHalf(BaseCompOffset);
 			FFloat16* RESTRICT PositionY = (FFloat16*)Buffer.GetComponentPtrHalf(BaseCompOffset + 1);
 			FFloat16* RESTRICT PositionZ = (FFloat16*)Buffer.GetComponentPtrHalf(BaseCompOffset + 2);
@@ -688,7 +687,7 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 		}
 		else
 		{
-			const int32 BaseCompOffset = SortVariable.DatasetOffset;
+			const int32 BaseCompOffset = SortVariable.GetRawDatasetOffset();
 			float* RESTRICT PositionX = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset);
 			float* RESTRICT PositionY = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset + 1);
 			float* RESTRICT PositionZ = (float*)Buffer.GetComponentPtrFloat(BaseCompOffset + 2);
@@ -717,7 +716,7 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 	{
 		if (bSortVarIsHalf)
 		{
-			FFloat16* RESTRICT CustomSorting = (FFloat16*)Buffer.GetComponentPtrHalf(SortVariable.DatasetOffset);
+			FFloat16* RESTRICT CustomSorting = (FFloat16*)Buffer.GetComponentPtrHalf(SortVariable.GetRawDatasetOffset());
 			if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending)
 			{
 				for (uint32 i = 0; i < NumInstances; ++i)
@@ -735,7 +734,7 @@ void FNiagaraRenderer::SortIndices(const FNiagaraGPUSortInfo& SortInfo, const FN
 		}
 		else
 		{
-			float* RESTRICT CustomSorting = (float*)Buffer.GetComponentPtrFloat(SortVariable.DatasetOffset);
+			float* RESTRICT CustomSorting = (float*)Buffer.GetComponentPtrFloat(SortVariable.GetRawDatasetOffset());
 			if (SortInfo.SortMode == ENiagaraSortMode::CustomAscending)
 			{
 				for (uint32 i = 0; i < NumInstances; ++i)

@@ -127,7 +127,7 @@ bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* Comp
 	const int32 VarSize = bHalfVariable ? sizeof(FFloat16) : sizeof(float);
 	const int32 NumComponents = DataSetVariable.GetSizeInBytes() / VarSize;
 	const int32 Offset = bHalfVariable ? DataSetVariableLayout.HalfComponentStart : DataSetVariableLayout.FloatComponentStart;
-	int32& TotalVFComponents = bHalfVariable ? TotalHalfComponents_GT : TotalFloatComponents_GT;
+	uint16& TotalVFComponents = bHalfVariable ? TotalHalfComponents_GT : TotalFloatComponents_GT;
 
 	int32 GPULocation = INDEX_NONE;
 	bool bUpload = true;
@@ -144,6 +144,7 @@ bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* Comp
 		{
 			//For CPU Sims we pack just the required data tightly in a GPU buffer we upload. For GPU sims the data is there already so we just provide the real data location.
 			GPULocation = CompiledData->SimTarget == ENiagaraSimTarget::CPUSim ? TotalVFComponents : Offset;
+			check(int32(TotalVFComponents ) + NumComponents <= TNumericLimits<uint16>::Max());
 			TotalVFComponents += NumComponents;
 		}
 	}

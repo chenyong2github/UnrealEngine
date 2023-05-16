@@ -101,6 +101,10 @@ private:
 /** Mapping between a variable in the source dataset and the location we place it in the GPU buffer passed to the VF. */
 struct FNiagaraRendererVariableInfo
 {
+	friend struct FNiagaraRendererLayout;
+
+	static constexpr uint16 kInvalidOffset = 0xffff;
+
 	FNiagaraRendererVariableInfo() {}
 	FNiagaraRendererVariableInfo(int32 InDataOffset, int32 InGPUBufferOffset, int32 InNumComponents, bool bInUpload, bool bInHalfType)
 		: DatasetOffset(InDataOffset)
@@ -109,26 +113,26 @@ struct FNiagaraRendererVariableInfo
 		, bUpload(bInUpload)
 		, bHalfType(bInHalfType)
 	{
+		check(int32(InDataOffset) < TNumericLimits<uint16>::Max());
+		check(int32(InGPUBufferOffset) < TNumericLimits<uint16>::Max());
+		check(int32(InNumComponents) <= TNumericLimits<uint16>::Max());
 	}
 
-	FORCEINLINE int32 GetGPUOffset() const
-	{
-		int32 Offset = GPUBufferOffset;
-		if (bHalfType)
-		{
-			Offset |= 1 << 31;
-		}
-		return Offset;
-	}
+	FORCEINLINE int32 GetNumComponents() const { return NumComponents; }
 
-	FORCEINLINE int32 GetEncodedDatasetOffset() const
-	{
-		return DatasetOffset | (bHalfType ? (1<<31) : 0);
-	}
+	FORCEINLINE int32 GetRawGPUOffset() const { return GPUBufferOffset == kInvalidOffset ? INDEX_NONE : GPUBufferOffset; }
+	FORCEINLINE int32 GetGPUOffset() const { return GetRawGPUOffset() | (bHalfType ? (1 << 31) : 0); }
 
-	int32 DatasetOffset = INDEX_NONE;
-	int32 GPUBufferOffset = INDEX_NONE;
-	int32 NumComponents = 0;
+	FORCEINLINE int32 GetRawDatasetOffset() const { return DatasetOffset == kInvalidOffset ? INDEX_NONE : DatasetOffset; }
+	FORCEINLINE int32 GetEncodedDatasetOffset() const { return GetRawDatasetOffset() | (bHalfType ? (1 << 31) : 0); }
+
+	FORCEINLINE bool ShouldUpload() const { return bUpload; }
+	FORCEINLINE bool IsHalfType() const { return bHalfType; }
+
+protected:
+	uint16 DatasetOffset = kInvalidOffset;
+	uint16 GPUBufferOffset = kInvalidOffset;
+	uint16 NumComponents = 0;
 	bool bUpload = false;
 	bool bHalfType = false;
 };
@@ -150,12 +154,13 @@ struct NIAGARA_API FNiagaraRendererLayout
 
 private:
 	TArray<FNiagaraRendererVariableInfo> VFVariables_GT;
-	int32 TotalFloatComponents_GT;
-	int32 TotalHalfComponents_GT;
-
 	TArray<FNiagaraRendererVariableInfo> VFVariables_RT;
-	int32 TotalFloatComponents_RT;
-	int32 TotalHalfComponents_RT;
+
+	uint16 TotalFloatComponents_GT = 0;
+	uint16 TotalHalfComponents_GT = 0;
+
+	uint16 TotalFloatComponents_RT = 0;
+	uint16 TotalHalfComponents_RT = 0;
 };
 
 UENUM()

@@ -1605,9 +1605,9 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 				const FNiagaraRendererVariableInfo& VarScaleInfo = VFVariables[ENiagaraMeshVFLayout::Scale];
 				const FNiagaraRendererVariableInfo& VarTransformInfo = VFVariables[ENiagaraMeshVFLayout::Rotation];
 
-				const int32 PositionBaseCompOffset = VarPositionInfo.DatasetOffset;
-				const int32 ScaleBaseCompOffset = VarScaleInfo.DatasetOffset;
-				const int32 TransformBaseCompOffset = VarTransformInfo.DatasetOffset;
+				const int32 PositionBaseCompOffset = VarPositionInfo.GetRawDatasetOffset();
+				const int32 ScaleBaseCompOffset = VarScaleInfo.GetRawDatasetOffset();
+				const int32 TransformBaseCompOffset = VarTransformInfo.GetRawDatasetOffset();
 
 				const float* RESTRICT PositionX = reinterpret_cast<const float*>(ParticleMeshRenderData.SourceParticleData->GetComponentPtrFloat(PositionBaseCompOffset));
 				const float* RESTRICT PositionY = reinterpret_cast<const float*>(ParticleMeshRenderData.SourceParticleData->GetComponentPtrFloat(PositionBaseCompOffset + 1));
