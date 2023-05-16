@@ -1212,9 +1212,15 @@ private:
 
 	/** Used to prevent per-frame re-conversion of the cached numeric value to a string. */
 	FString CachedValueString;
+
+	/** Reset the cached string when the value is the same but the display format changed (through the callback). */
 	void ResetCachedValueString() 
 	{ 
-		CachedValueString = Interface->ToString(ValueAttribute.Get()); 
+		const NumericType CurrentValue = ValueAttribute.Get();
+		if (CachedExternalValue == CurrentValue)
+		{
+			CachedValueString = Interface->ToString(CurrentValue);
+		}
 	}
 
 	/** Whetever the interfaced setting changed and the CachedValueString needs to be recomputed. */
