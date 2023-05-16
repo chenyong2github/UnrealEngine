@@ -30,10 +30,6 @@ public:
 
 	bool bIsServerObject = false;
 
-	//$IRIS TODO: Temp until SetUpRuntimeReplicationData is fixed
-	UPROPERTY()
-	bool bTest;
-
 	// RPC test functions
 	UFUNCTION(Reliable, Client)
 	void ClientRPC();

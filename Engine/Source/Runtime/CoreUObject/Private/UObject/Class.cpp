@@ -4682,7 +4682,7 @@ static FAutoConsoleVariable CVarValidateReplicatedPropertyRegistration(TEXT("net
 
 void UClass::SetUpRuntimeReplicationData()
 {
-	if (!HasAnyClassFlags(CLASS_ReplicationDataIsSetUp) && PropertyLink != NULL)
+	if (!HasAnyClassFlags(CLASS_ReplicationDataIsSetUp))
 	{
 		NetFields.Empty();
 
