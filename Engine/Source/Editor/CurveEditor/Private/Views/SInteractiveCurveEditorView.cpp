@@ -665,11 +665,6 @@ bool SInteractiveCurveEditorView::GetCurveWithinWidgetRange(const FSlateRect& Wi
 
 void SInteractiveCurveEditorView::UpdateCurveProximities(FVector2D MousePixel)
 {
-	if (DragOperation.IsSet())
-	{
-		return;
-	}
-
 	CurveProximities.Reset();
 	CachedToolTipData.Reset();
 
