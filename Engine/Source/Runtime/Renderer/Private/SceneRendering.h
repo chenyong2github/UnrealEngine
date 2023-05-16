@@ -2080,6 +2080,7 @@ public:
 
 	/** Views across all view families (may contain additional views if rendering multiple families together). */
 	TArray<const FSceneView*> AllFamilyViews;
+	TArray<const FSceneViewFamily*> AllFamilies;
 
 	/** All the dynamic scaling informations */
 	DynamicRenderScaling::TMap<float> DynamicResolutionFractions;
@@ -2329,11 +2330,12 @@ protected:
 	/**
 	 * Fences for cross GPU render target transfers.  We defer the wait on cross GPU fences until the last scene renderer,
 	 * to avoid needless stalls in the middle of the frame, improving performance.  The "Defer" array holds fences issued
-	 * by each prior scene renderer, while the "Wait" array holds fences to be waited on in the last scene renderer.
-	 * The function "PreallocateCrossGPUFences" initializes these arrays.
+	 * by each prior scene renderer, while the "Wait" array holds fences to be waited on in the last scene renderer
+	 * (a collection of all the fences from prior scene renderers).  The function "PreallocateCrossGPUFences" initializes
+	 * these arrays.
 	 */
-	TArray<FTransferResourceFenceData*> CrossGPUTransferFencesDefer;
-	TArray<FTransferResourceFenceData*> CrossGPUTransferFencesWait;
+	TArray<FCrossGPUTransferFence*> CrossGPUTransferFencesDefer;
+	TArray<FCrossGPUTransferFence*> CrossGPUTransferFencesWait;
 
 	FRHIGPUMask AllViewsGPUMask;
 	bool IsShadowCached(FProjectedShadowInfo* ProjectedShadowInfo) const;

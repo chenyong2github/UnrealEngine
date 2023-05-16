@@ -1119,6 +1119,44 @@ FRHICOMMAND_MACRO(FRHICommandTransferResourceWait)
 	RHI_API void Execute(FRHICommandListBase & CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandCrossGPUTransfer)
+{
+	TArray<FTransferResourceParams, TInlineAllocator<4>> Params;
+	TArray<FCrossGPUTransferFence*, TInlineAllocator<1>> PreTransfer;
+	TArray<FCrossGPUTransferFence*, TInlineAllocator<1>> PostTransfer;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandCrossGPUTransfer(TArrayView<const FTransferResourceParams> InParams, const TArrayView<FCrossGPUTransferFence* const> InPreTransfer, const TArrayView<FCrossGPUTransferFence* const> InPostTransfer)
+		: Params(InParams), PreTransfer(InPreTransfer), PostTransfer(InPostTransfer)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
+
+FRHICOMMAND_MACRO(FRHICommandCrossGPUTransferSignal)
+{
+	TArray<FTransferResourceParams, TInlineAllocator<4>> Params;
+	TArray<FCrossGPUTransferFence*, TInlineAllocator<1>> PreTransfer;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandCrossGPUTransferSignal(TArrayView<const FTransferResourceParams> InParams, TArrayView<FCrossGPUTransferFence* const> InPreTransfer)
+		: Params(InParams), PreTransfer(InPreTransfer)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
+
+FRHICOMMAND_MACRO(FRHICommandCrossGPUTransferWait)
+{
+	TArray<FCrossGPUTransferFence*, TInlineAllocator<4>> SyncPoints;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandCrossGPUTransferWait(TArrayView<FCrossGPUTransferFence* const> InSyncPoints)
+		: SyncPoints(InSyncPoints)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
 #endif // WITH_MGPU
 
 FRHICOMMAND_MACRO(FRHICommandSetStencilRef)
@@ -2591,6 +2629,48 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		else
 		{
 			ALLOC_COMMAND(FRHICommandTransferResourceWait)(FenceDatas);
+		}
+#endif // WITH_MGPU
+	}
+
+	FORCEINLINE_DEBUGGABLE void CrossGPUTransfer(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer, const TArrayView<FCrossGPUTransferFence* const> PostTransfer)
+	{
+#if WITH_MGPU
+		if (Bypass())
+		{
+			GetComputeContext().RHICrossGPUTransfer(Params, PreTransfer, PostTransfer);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandCrossGPUTransfer)(Params, PreTransfer, PostTransfer);
+		}
+#endif // WITH_MGPU
+	}
+
+	FORCEINLINE_DEBUGGABLE void CrossGPUTransferSignal(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer)
+	{
+#if WITH_MGPU
+		if (Bypass())
+		{
+			GetComputeContext().RHICrossGPUTransferSignal(Params, PreTransfer);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandCrossGPUTransferSignal)(Params, PreTransfer);
+		}
+#endif // WITH_MGPU
+	}
+
+	FORCEINLINE_DEBUGGABLE void CrossGPUTransferWait(const TArrayView<FCrossGPUTransferFence* const> SyncPoints)
+	{
+#if WITH_MGPU
+		if (Bypass())
+		{
+			GetComputeContext().RHICrossGPUTransferWait(SyncPoints);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandCrossGPUTransferWait)(SyncPoints);
 		}
 #endif // WITH_MGPU
 	}

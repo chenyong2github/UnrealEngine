@@ -4469,7 +4469,8 @@ void FFXSystem::SimulateGPUParticles(
 		// On some platforms, the textures are filled with garbage after creation, so we need to clear them to black the first time we use them
 		if ( !CurrentStateTextures.bTexturesCleared )
 		{
-			
+			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 			FRHIRenderPassInfo RenderPassInfo(2, CurrentStateRenderTargets, ERenderTargetActions::Clear_Store);
 			RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("GPUParticlesClearStateTextures"));
 			RHICmdList.EndRenderPass();
@@ -4479,6 +4480,8 @@ void FFXSystem::SimulateGPUParticles(
 		
 		if ( !PrevStateTextures.bTexturesCleared )
 		{
+			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 			RHICmdList.Transition({
 				FRHITransitionInfo(PreviousStateRenderTargets[0], ERHIAccess::SRVMask, ERHIAccess::RTV),
 				FRHITransitionInfo(PreviousStateRenderTargets[1], ERHIAccess::SRVMask, ERHIAccess::RTV)});
@@ -4792,20 +4795,20 @@ void FFXSystem::SimulateGPUParticles(
 			FRHITransitionInfo(VisualizeStateTextures.PositionTextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask),
 			FRHITransitionInfo(VisualizeStateTextures.VelocityTextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask)
 		});
-	}
 
 #if WITH_MGPU
-	// TODO:  This transfer was done here due to AFR considerations, but AFR support has been removed.
-	// Should investigate whether it still needs to be done here, or would be more optimal to move
-	// somewhere else?
-	if (Phase == PhaseToBroadcastResourceTransfer)
-	{
-		if (CrossGPUTransferResources.Num() > 0)
+		// TODO:  This transfer was done here due to AFR considerations, but AFR support has been removed.
+		// Should investigate whether it still needs to be done here, or would be more optimal to move
+		// somewhere else?
+		if (Phase == PhaseToBroadcastResourceTransfer)
 		{
-			RHICmdList.TransferResources(CrossGPUTransferResources);
+			if (CrossGPUTransferResources.Num() > 0)
+			{
+				RHICmdList.TransferResources(CrossGPUTransferResources);
+			}
 		}
-	}
 #endif
+	}
 
 	// Stats.
 	if (Phase == GetLastParticleSimulationPhase(GetShaderPlatform()))

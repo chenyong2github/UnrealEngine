@@ -82,6 +82,16 @@ static FAutoConsoleVariableRef CVarNiagaraBatcherFreeBufferEarly(
 	ECVF_Default
 );
 
+#if WITH_MGPU
+int32 GNiagaraOptimizedCrossGPUTransferEnabled = 1;
+static FAutoConsoleVariableRef CVarNiagaraOptimizedCrossGPUTransferEnabled(
+	TEXT("fx.NiagaraOptimizeCrossGPUTransfer"),
+	GNiagaraOptimizedCrossGPUTransferEnabled,
+	TEXT("Optimizes fence waits for cross GPU transfers when rendering views on multiple GPUs via nDisplay.  (Default = 1)"),
+	ECVF_Default
+);
+#endif
+
 const FName FNiagaraGpuComputeDispatch::Name(TEXT("FNiagaraGpuComputeDispatch"));
 
 namespace FNiagaraGpuComputeDispatchLocal
@@ -193,9 +203,6 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 				[this](FRHICommandListImmediate& RHICmdList)
 				{
 					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, ENiagaraGPUCountUpdatePhase::PreOpaque);
-				#if WITH_MGPU
-					TransferMultiGPUBufers(RHICmdList, ENiagaraGpuComputeTickStage::PreInitViews);
-				#endif // WITH_MGPU
 				}
 			);
 
@@ -205,7 +212,7 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 				{
 					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(this, RHICmdList, ENiagaraGPUCountUpdatePhase::PostOpaque);
 				#if WITH_MGPU
-					TransferMultiGPUBufers(RHICmdList, ENiagaraGpuComputeTickStage::PostOpaqueRender);
+					TransferMultiGPUBuffers(RHICmdList);
 				#endif // WITH_MGPU
 				}
 			);
@@ -431,7 +438,7 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			{
 				FRDGBuilder GraphBuilder(RHICmdList);
 				CreateSystemTextures(GraphBuilder);
-				PreInitViews(GraphBuilder, bAllowGPUParticleUpdate);
+				PreInitViews(GraphBuilder, bAllowGPUParticleUpdate, TArrayView<const FSceneViewFamily*>(), nullptr);
 				AddPass(GraphBuilder, RDG_EVENT_NAME("UpdateDrawIndirectBuffers - PreOpaque"),
 					[this](FRHICommandListImmediate& RHICmdList)
 					{
@@ -478,7 +485,7 @@ void FNiagaraGpuComputeDispatch::FinishDispatches()
 	{
 		for (FNiagaraSystemGpuComputeProxy* ComputeProxy : ProxiesPerStage[iTickStage])
 		{
-			ComputeProxy->ReleaseTicks(GPUInstanceCounterManager, MaxTicksToFlush);
+			ComputeProxy->ReleaseTicks(GPUInstanceCounterManager, MaxTicksToFlush, bIsLastViewFamily);
 		}
 	}
 
@@ -1015,16 +1022,53 @@ void FNiagaraGpuComputeDispatch::PrepareAllTicks(FRHICommandListImmediate& RHICm
 void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, ENiagaraGpuComputeTickStage::Type TickStage)
 {
 #if WITH_MGPU
-	if (StageToWaitForGPUTransfers == TickStage)
+	if (TickStage == ENiagaraGpuComputeTickStage::PostOpaqueRender)
 	{
- 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Niagara::ExecuteTicksPre"),
-			ERDGPassFlags::None,
-			[this, TickStage, NumDispatchGroups=DispatchListPerStage[TickStage].DispatchGroups.Num()](FRHICommandListImmediate& RHICmdList)
-			{
-				WaitForMultiGPUBuffers(RHICmdList, TickStage);
-			}
-		);
+		// See if this view is rendering on a GPU that needs to wait on its cross GPU transfers
+		uint32 GPUIndex = Views[0].GPUMask.GetFirstIndex();
+		if (OptimizedCrossGPUTransferMask & (1u << GPUIndex))
+		{
+			// Track that we've waited on the buffers for this GPU
+			OptimizedCrossGPUTransferMask &= ~(1u << GPUIndex);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("Niagara::ExecuteTicksPre"),
+				ERDGPassFlags::None,
+				[this, TickStage, NumDispatchGroups = DispatchListPerStage[TickStage].DispatchGroups.Num(), GPUIndex](FRHICommandListImmediate& RHICmdList)
+				{
+					WaitForMultiGPUBuffers(RHICmdList, GPUIndex);
+				}
+			);
+		}
+
+		// Last view family when rendering multiple view families?
+		if (bIsLastViewFamily && !bIsFirstViewFamily)
+		{
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("Niagara::MultiViewPreviousDataClear"),
+				ERDGPassFlags::None,
+				[this](FRHICommandListImmediate& RHICmdList)
+				{
+					// Handle bookkeeping for multi-view, clearing MultiViewPreviousDataToRender pointer and running a couple bits of cleanup logic,
+					// which we had to skip earlier to keep necessary values valid when generating render data for additional view families.
+					for (FNiagaraComputeExecutionContext* ComputeContext : NeedsMultiViewPreviousDataClear)
+					{
+						ComputeContext->SetMultiViewPreviousDataToRender(nullptr);
+
+						// Mark data as ready for anyone who picks up the buffer on the next frame (see FNiagaraGpuComputeDispatch::ExecuteTicks)
+						ComputeContext->GetDataToRender(false)->SetGPUDataReadyStage(ENiagaraGpuComputeTickStage::First);
+
+						// Clear instance count offsets (see FNiagaraSystemGpuComputeProxy::ReleaseTicks)
+						for (int i = 0; i < UE_ARRAY_COUNT(ComputeContext->DataBuffers_RT); ++i)
+						{
+							ComputeContext->DataBuffers_RT[i]->ClearGPUInstanceCount();
+						}
+					}
+
+					NeedsMultiViewPreviousDataClear.Reset();
+				}
+			);
+		}
 	}
 #endif
 
@@ -1221,9 +1265,6 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstS
 				ComputeContext->MainDataSet->CurrentData = CurrentData;
 				CurrentData->SwapGPU(FinalSimStageDataBuffer);
 
-				// Mark data as ready for anyone who picks up the buffer on the next frame
-				CurrentData->SetGPUDataReadyStage(ENiagaraGpuComputeTickStage::First);
-                    
 				ComputeContext->SetTranslucentDataToRender(nullptr);
 				ComputeContext->SetDataToRender(CurrentData);
 
@@ -1235,6 +1276,24 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstS
 					AddCrossGPUTransfer(GraphBuilder.RHICmdList, CurrentData->GetGPUBufferInt().Buffer);
 				}
 #endif // WITH_MGPU
+
+				if (bIsLastViewFamily)
+				{
+					// Mark data as ready for anyone who picks up the buffer on the next frame
+					CurrentData->SetGPUDataReadyStage(ENiagaraGpuComputeTickStage::First);
+				}
+				else
+				{
+					// Track the previous data to render for multi-view, so additional view families can render using consistent data with
+					// the first view family, and add it to array marking that we need to clean it up on the last view family.
+					ComputeContext->SetMultiViewPreviousDataToRender(FinalSimStageDataBuffer);
+					NeedsMultiViewPreviousDataClear.Emplace(ComputeContext);
+
+					// Mark CurrentData as not to be used until PostOpaqueRender.  Render data generated before PostOpaqueRender should use
+					// previous frame data (MultiViewPreviousDataToRender, set above), instead of CurrentData.  Setting the ready stage back to
+					// ENiagaraGpuComputeTickStage::First for the next frame happens later in the Niagara::MultiViewPreviousDataClear Pass.
+					CurrentData->SetGPUDataReadyStage(ENiagaraGpuComputeTickStage::PostOpaqueRender);
+				}
 			}
 			// If this is not the final tick of the final stage we need set our temporary buffer for data interfaces, etc, that may snoop from CurrentData
 			else
@@ -1761,20 +1820,75 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 	//}
 }
 
-void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate)
+void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate, const TArrayView<const FSceneViewFamily*>& ViewFamilies, const FSceneViewFamily* CurrentFamily)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUDispatchSetup_RT);
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, Niagara);
 
+	bIsFirstViewFamily = CurrentFamily ? CurrentFamily == ViewFamilies[0] : true;
+	bIsLastViewFamily = CurrentFamily ? CurrentFamily == ViewFamilies.Last() : true;
 	bRequiresReadback = false;
 #if WITH_EDITOR
 	bRaisedWarningThisFrame = false;
 #endif
 #if WITH_MGPU
 	bCrossGPUTransferEnabled = GNumExplicitGPUsForRendering > 1;
-	StageToTransferGPUBuffers = ENiagaraGpuComputeTickStage::Last;
-	StageToWaitForGPUTransfers = ENiagaraGpuComputeTickStage::First;
+
+	// We want to optimize GPU transfers from the simulating GPU to other view rendering GPUs, meaning we want to defer fence waits on
+	// the other GPUs until the data is needed.  To keep things simple, we only do this optimization if all the families are single GPU,
+	// which will be true in practice for multiple families rendered via nDisplay.  Here we compute a mask defining which other GPUs we
+	// want to optimize transfers for (ones that render other views).  GPUs which don't do any view rendering in the current frame don't
+	// incur any performance cost waiting on the fences immediately (the default behavior of cross GPU transfers), so we don't need to
+	// delay the fence wait for those.
+	if (bIsFirstViewFamily)
+	{
+		OptimizedCrossGPUTransferMask = 0;
+	}
+
+	if ((ViewFamilies.Num() > 1) && bIsFirstViewFamily && GNiagaraOptimizedCrossGPUTransferEnabled)
+	{
+		bool bOptimizeTransfers = true;
+		FRHIGPUMask SimGPUMask = ViewFamilies[0]->Views[0]->GPUMask;
+		FRHIGPUMask AllViewGPUMask = SimGPUMask;
+
+		for (const FSceneViewFamily* Family : ViewFamilies)
+		{
+			FRHIGPUMask FamilyFirstViewMask = Family->Views[0]->GPUMask;
+			AllViewGPUMask |= FamilyFirstViewMask;
+
+			if (!FamilyFirstViewMask.HasSingleIndex())
+			{
+				bOptimizeTransfers = false;
+				break;
+			}
+			for (const FSceneView* View : Family->Views)
+			{
+				if (View->GPUMask != FamilyFirstViewMask)
+				{
+					bOptimizeTransfers = false;
+					break;
+				}
+			}
+			if (!bOptimizeTransfers)
+			{
+				break;
+			}
+		}
+
+		if (bOptimizeTransfers)
+		{
+			// Figure out what destination GPUs we should optimize transfers to
+			OptimizedCrossGPUTransferMask = AllViewGPUMask.GetNative() & ~SimGPUMask.GetNative();
+		}
+	}
 #endif
+	if ((ViewFamilies.Num() > 1) && bIsFirstViewFamily)
+	{
+		AddPass(GraphBuilder, RDG_EVENT_NAME("Niagara::CopyToMultiViewCountBuffer"), [this](FRHICommandListImmediate& RHICmdList)
+		{
+			GPUInstanceCounterManager.CopyToMultiViewCountBuffer(RHICmdList);
+		});
+	}
 
 	GpuReadbackManagerPtr->Tick();
 #if NIAGARA_COMPUTEDEBUG_ENABLED
@@ -1808,10 +1922,6 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 
 			UpdateInstanceCountManager(GraphBuilder.RHICmdList);
 			PrepareAllTicks(GraphBuilder.RHICmdList);
-		
-		#if WITH_MGPU
-			CalculateCrossGPUTransferLocation();
-		#endif
 
 			AsyncGpuTraceHelper->BeginFrame(GraphBuilder.RHICmdList, this);
 
@@ -1845,7 +1955,7 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 			return false;
 		};
 
-	if (GPUInstanceCounterManager.HasEntriesPendingFree() || HasAnyWork())
+	if (bAllowGPUParticleUpdate && ((IsFirstViewFamily() && GPUInstanceCounterManager.HasEntriesPendingFree()) || HasAnyWork()))
 	{
 		MultiGPUResourceModified(GraphBuilder, GPUInstanceCounterManager.GetInstanceCountBuffer().Buffer, true, true);
 	}
@@ -1863,21 +1973,6 @@ void FNiagaraGpuComputeDispatch::PostInitViews(FRDGBuilder& GraphBuilder, TConst
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, Niagara);
 
 		ExecuteTicks(GraphBuilder, Views, ENiagaraGpuComputeTickStage::PostInitViews);
-
-	#if WITH_MGPU
-		// Queue a transfer request
-		if (StageToTransferGPUBuffers == ENiagaraGpuComputeTickStage::PostInitViews)
-		{
-			AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("Niagara::TransferMultiGPUBufers"),
-				[this](FRHICommandListImmediate& RHICmdList)
-				{
-					TransferMultiGPUBufers(RHICmdList, ENiagaraGpuComputeTickStage::PostInitViews);
-				}
-			);
-		}
-	#endif // WITH_MGPU
 	}
 }
 
@@ -2377,7 +2472,19 @@ void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRHICommandList& RHICm
 		{
 			if (!GPUMask.Contains(GPUIndex))
 			{
-				const_cast<FNiagaraGpuComputeDispatch*>(this)->CrossGPUTransferBuffers.Emplace(Texture, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
+				if (OptimizedCrossGPUTransferMask & (1u << GPUIndex))
+				{
+					// Add a sync point for this destination GPU when we're adding the first transfer
+					if (OptimizedCrossGPUTransferBuffers[GPUIndex].Num() == 0)
+					{
+						OptimizedCrossGPUFences[GPUIndex] = RHICreateCrossGPUTransferFence();
+					}
+					OptimizedCrossGPUTransferBuffers[GPUIndex].Emplace(Texture, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
+				}
+				else
+				{
+					CrossGPUTransferBuffers.Emplace(Texture, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
+				}
 			}
 		}
 	}
@@ -2396,53 +2503,56 @@ void FNiagaraGpuComputeDispatch::AddCrossGPUTransfer(FRHICommandList& RHICmdList
 		{
 			if (!GPUMask.Contains(GPUIndex))
 			{
-				CrossGPUTransferBuffers.Emplace(Buffer, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
+				if (OptimizedCrossGPUTransferMask & (1u << GPUIndex))
+				{
+					// Add a sync point for this destination GPU when we're adding the first transfer
+					if (OptimizedCrossGPUTransferBuffers[GPUIndex].Num() == 0)
+					{
+						OptimizedCrossGPUFences[GPUIndex] = RHICreateCrossGPUTransferFence();
+					}
+					OptimizedCrossGPUTransferBuffers[GPUIndex].Emplace(Buffer, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
+				}
+				else
+				{
+					CrossGPUTransferBuffers.Emplace(Buffer, GPUMask.GetFirstIndex(), GPUIndex, bPullData, bLockStep);
+				}
 			}
 		}
 	}
 }
 
-void FNiagaraGpuComputeDispatch::CalculateCrossGPUTransferLocation()
+void FNiagaraGpuComputeDispatch::TransferMultiGPUBuffers(FRHICommandList& RHICmdList)
 {
-	StageToTransferGPUBuffers = ENiagaraGpuComputeTickStage::Last;
-	while (StageToTransferGPUBuffers > ENiagaraGpuComputeTickStage::First && !DispatchListPerStage[static_cast<int32>(StageToTransferGPUBuffers)].HasWork())
-	{
-		StageToTransferGPUBuffers = static_cast<ENiagaraGpuComputeTickStage::Type>(static_cast<int32>(StageToTransferGPUBuffers) - 1);
-	}
-
-	StageToWaitForGPUTransfers = ENiagaraGpuComputeTickStage::First;
-	// If we're going to write to the instance count buffer after PreInitViews then
-	// that needs to be the wait stage, regardless of whether or not we're ticking
-	// anything in that stage.
-	if (!GPUInstanceCounterManager.HasEntriesPendingFree())
-	{
-		while (StageToWaitForGPUTransfers < StageToTransferGPUBuffers && !DispatchListPerStage[static_cast<int32>(StageToWaitForGPUTransfers)].HasWork())
-		{
-			StageToWaitForGPUTransfers = static_cast<ENiagaraGpuComputeTickStage::Type>(static_cast<int32>(StageToWaitForGPUTransfers) + 1);
-		}
-	}
-}
-
-void FNiagaraGpuComputeDispatch::TransferMultiGPUBufers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage)
-{
-	if (StageToTransferGPUBuffers != TickStage)
-	{
-		return;
-	}
-
 	// Transfer buffers for cross GPU rendering
 	if (CrossGPUTransferBuffers.Num())
 	{
 		RHICmdList.TransferResources(CrossGPUTransferBuffers);
 		CrossGPUTransferBuffers.Reset();
 	}
+
+	// Optimized transfer of buffers for cross GPU rendering (deferred fence wait)
+	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
+	{
+		// Each destination GPU has a separate list of transfers, so we can wait for them on the GPU when it needs them
+		if (OptimizedCrossGPUTransferBuffers[GPUIndex].Num())
+		{
+			// Signal function transitions resources on destination GPU and signals when transition has finished
+			TArray<FCrossGPUTransferFence*> PreTransferSyncPoints;
+			RHIGenerateCrossGPUPreTransferFences(OptimizedCrossGPUTransferBuffers[GPUIndex], PreTransferSyncPoints);
+			RHICmdList.CrossGPUTransferSignal(OptimizedCrossGPUTransferBuffers[GPUIndex], PreTransferSyncPoints);
+
+			RHICmdList.CrossGPUTransfer(OptimizedCrossGPUTransferBuffers[GPUIndex], PreTransferSyncPoints, TArrayView<FCrossGPUTransferFence*>(&OptimizedCrossGPUFences[GPUIndex], 1));
+			OptimizedCrossGPUTransferBuffers[GPUIndex].Reset();
+		}
+	}
 }
 
-void FNiagaraGpuComputeDispatch::WaitForMultiGPUBuffers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage)
+void FNiagaraGpuComputeDispatch::WaitForMultiGPUBuffers(FRHICommandList& RHICmdList, uint32 GPUIndex)
 {
-	if (StageToWaitForGPUTransfers == TickStage)
+	if (OptimizedCrossGPUFences[GPUIndex])
 	{
-		// TODO:  implement delayed fence wait here for cross GPU transfers issued above
+		RHICmdList.CrossGPUTransferWait(TArrayView<FCrossGPUTransferFence*>(&OptimizedCrossGPUFences[GPUIndex], 1));
+		OptimizedCrossGPUFences[GPUIndex] = nullptr;
 	}
 }
 #endif // WITH_MGPU

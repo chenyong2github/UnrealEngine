@@ -95,6 +95,24 @@ void FRHICommandTransferResourceWait::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR_COMPUTE(RHITransferResourceWait)(FenceDatas);
 }
 
+void FRHICommandCrossGPUTransfer::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(CrossGPUTransfer);
+	INTERNAL_DECORATOR_COMPUTE(RHICrossGPUTransfer)(Params, PreTransfer, PostTransfer);
+}
+
+void FRHICommandCrossGPUTransferSignal::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(CrossGPUTransferSignal);
+	INTERNAL_DECORATOR_COMPUTE(RHICrossGPUTransferSignal)(Params, PreTransfer);
+}
+
+void FRHICommandCrossGPUTransferWait::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(CrossGPUTransferWait);
+	INTERNAL_DECORATOR_COMPUTE(RHICrossGPUTransferWait)(SyncPoints);
+}
+
 #endif // WITH_MGPU
 
 void FRHICommandSetStencilRef::Execute(FRHICommandListBase& CmdList)

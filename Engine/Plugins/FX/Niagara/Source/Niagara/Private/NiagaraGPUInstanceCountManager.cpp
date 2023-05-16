@@ -133,6 +133,7 @@ void FNiagaraGPUInstanceCountManager::ReleaseCounts()
 {
 	CountBuffer.Release();
 	CulledCountBuffer.Release();
+	MultiViewCountBuffer.Release();
 
 	AllocatedInstanceCounts = 0;
 	AllocatedCulledCounts = 0;
@@ -396,7 +397,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuCompu
 {
 	// Anything to process?
 	TArray<FNiagaraDrawIndirectArgGenTaskInfo>& ArgTasks = DrawIndirectArgGenTasks[CountPhase];
-	const bool bClearCounts = (CountPhase == ENiagaraGPUCountUpdatePhase::PreOpaque) && (InstanceCountClearTasks.Num() > 0);
+	const bool bClearCounts = (CountPhase == ENiagaraGPUCountUpdatePhase::PreOpaque) && (InstanceCountClearTasks.Num() > 0) && ComputeDispatchInterface->IsFirstViewFamily();
 	if ( (ArgTasks.Num() > 0 || bClearCounts) && FNiagaraUtilities::AllowComputeShaders(GShaderPlatformForFeatureLevel[FeatureLevel]) )
 	{
 		INC_DWORD_STAT_BY(STAT_NiagaraIndirectDraws, ArgTasks.Num());
@@ -407,7 +408,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuCompu
 		FReadBuffer TaskInfosBuffer;
 		{
 			const uint32 ArgGenSize = ArgTasks.Num() * sizeof(FNiagaraDrawIndirectArgGenTaskInfo);
-			const uint32 InstanceCountClearSize = InstanceCountClearTasks.Num() * sizeof(uint32);
+			const uint32 InstanceCountClearSize = ComputeDispatchInterface->IsFirstViewFamily() ? InstanceCountClearTasks.Num() * sizeof(uint32) : 0;
 			const uint32 TaskBufferSize = ArgGenSize + InstanceCountClearSize;
 			TaskInfosBuffer.Initialize(TEXT("NiagaraTaskInfosBuffer"), sizeof(uint32), TaskBufferSize / sizeof(uint32), EPixelFormat::PF_R32_UINT, BUF_Volatile);
 
@@ -421,15 +422,17 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuCompu
 		TArray<FRHITransitionInfo, TInlineAllocator<10>> Transitions;
 		Transitions.Reserve(DrawIndirectPool.Num() + 2);
 
+		FRWBuffer& CurrentCountBuffer = ComputeDispatchInterface->IsFirstViewFamily() || CountPhase == ENiagaraGPUCountUpdatePhase::PostOpaque ? CountBuffer : MultiViewCountBuffer;
+
 		// Get counts buffer
 		FUnorderedAccessViewRHIRef CountsUAV = nullptr;
-		const bool bCountBufferIsValid = CountBuffer.UAV.IsValid();
+		const bool bCountBufferIsValid = CurrentCountBuffer.UAV.IsValid();
 		if (bCountBufferIsValid)
 		{
 			// treat the incoming UAV as being unknown to be sure a barrier is inserted in the case
 			// where the preceding dispatch wrote to the counts buffer
-			Transitions.Emplace(CountBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
-			CountsUAV = CountBuffer.UAV;
+			Transitions.Emplace(CurrentCountBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute);
+			CountsUAV = CurrentCountBuffer.UAV;
 		}
 		else
 		{
@@ -490,7 +493,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuCompu
 			}
 
 			const bool bIsLastDispatch = DispatchIdx == (NumDispatches - 1);
-			const int32 NumInstanceCountClearTasks = bIsLastDispatch ? InstanceCountClearTasks.Num() : 0;
+			const int32 NumInstanceCountClearTasks = bIsLastDispatch && ComputeDispatchInterface->IsFirstViewFamily() ? InstanceCountClearTasks.Num() : 0;
 
 			// Do we have anything to do for this pool?
 			if (NumArgGenTasks + NumInstanceCountClearTasks == 0)
@@ -548,7 +551,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffers(FNiagaraGpuCompu
 		{
 			Transitions.Emplace(PoolEntry->Buffer.UAV, ERHIAccess::UAVCompute, kIndirectArgsDefaultState);
 		}
-		Transitions.Emplace(CountBuffer.UAV, ERHIAccess::UAVCompute, kCountBufferDefaultState);
+		Transitions.Emplace(CurrentCountBuffer.UAV, ERHIAccess::UAVCompute, kCountBufferDefaultState);
 		RHICmdList.Transition(Transitions);
 	}
 
@@ -647,5 +650,28 @@ void FNiagaraGPUInstanceCountManager::EnqueueGPUReadback(FRHICommandListImmediat
 bool FNiagaraGPUInstanceCountManager::HasPendingGPUReadback() const
 {
 	return CountReadback && CountReadbackSize;
+}
+
+void FNiagaraGPUInstanceCountManager::CopyToMultiViewCountBuffer(FRHICommandListImmediate& RHICmdList)
+{
+	// Need to copy on all GPUs
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
+	// Set AllocatedInstanceCounts and copy CountBuffer
+	if (MultiViewAllocatedInstanceCounts != AllocatedInstanceCounts)
+	{
+		MultiViewAllocatedInstanceCounts = AllocatedInstanceCounts;
+		MultiViewCountBuffer.Initialize(TEXT("NiagaraGPUInstanceCounts"), sizeof(uint32), MultiViewAllocatedInstanceCounts, EPixelFormat::PF_R32_UINT, ERHIAccess::UAVCompute, BUF_Static | BUF_SourceCopy);
+	}
+	else
+	{
+		RHICmdList.Transition(FRHITransitionInfo(MultiViewCountBuffer.UAV, kCountBufferDefaultState, ERHIAccess::UAVCompute));
+	}
+
+	FRHIUnorderedAccessView* UAVs[] = { MultiViewCountBuffer.UAV };
+	int32 UsedIndexCounts[] = { MultiViewAllocatedInstanceCounts };
+	CopyUIntBufferToTargets(RHICmdList, FeatureLevel, CountBuffer.SRV, UAVs, UsedIndexCounts, 0, UE_ARRAY_COUNT(UAVs));
+
+	RHICmdList.Transition(FRHITransitionInfo(MultiViewCountBuffer.UAV, ERHIAccess::UAVCompute, kCountBufferDefaultState));
 }
 

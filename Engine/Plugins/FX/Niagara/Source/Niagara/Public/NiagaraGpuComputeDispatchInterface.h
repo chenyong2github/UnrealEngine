@@ -145,6 +145,9 @@ public:
 
 	FORCEINLINE bool IsOutsideSceneRenderer() const { return bIsOutsideSceneRenderer; }
 
+	FORCEINLINE bool IsFirstViewFamily() const { return bIsFirstViewFamily; }
+	FORCEINLINE bool IsLastViewFamily() const { return bIsLastViewFamily; }
+
 #if WITH_MGPU
 	/**
 	Notify that a GPU resource was modified that will impact MultiGPU rendering.
@@ -185,4 +188,6 @@ protected:
 	TConstStridedView<FSceneView>			SimulationSceneViews;
 
 	bool									bIsOutsideSceneRenderer = false;
+	bool									bIsFirstViewFamily = true;
+	bool									bIsLastViewFamily = true;
 };

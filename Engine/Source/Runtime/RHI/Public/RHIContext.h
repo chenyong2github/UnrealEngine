@@ -133,10 +133,28 @@ struct FTransferResourceFenceData
 	{}
 };
 
+struct FCrossGPUTransferFence
+{
+	uint32 SignalGPUIndex = 0;
+	uint32 WaitGPUIndex = 0;
+	void* SyncPoint = nullptr;
+
+	FCrossGPUTransferFence() = default;
+};
+
 FORCEINLINE FTransferResourceFenceData* RHICreateTransferResourceFenceData()
 {
 #if WITH_MGPU
 	return new FTransferResourceFenceData;
+#else
+	return nullptr;
+#endif
+}
+
+FORCEINLINE FCrossGPUTransferFence* RHICreateCrossGPUTransferFence()
+{
+#if WITH_MGPU
+	return new FCrossGPUTransferFence;
 #else
 	return nullptr;
 #endif
@@ -408,6 +426,39 @@ public:
 #endif
 	}
 
+	/**
+	 * Synchronizes the content of a resource between two or more GPUs using a copy operation -- variation of above that includes separate arrays of fences.
+	 * @param Params - the parameters for each resource or texture region copied between GPUs.
+	 * @param PreTransfer - Fences to wait on before copying the relevant data (initialized with RHITransferResourceSignal before this function)
+	 * @param PostTransfer - Fences that can be waited on after copy (waited on by RHITransferResourceWait after this function)
+	 */
+	virtual void RHICrossGPUTransfer(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer, const TArrayView<FCrossGPUTransferFence* const> PostTransfer)
+	{
+		/** empty default implementation. */
+	}
+
+	virtual void RHICrossGPUTransferSignal(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer)
+	{
+		/* default noop implementation */
+#if WITH_MGPU
+		for (FCrossGPUTransferFence* SyncPoint : PreTransfer)
+		{
+			delete SyncPoint;
+		}
+#endif
+	}
+
+	virtual void RHICrossGPUTransferWait(const TArrayView<FCrossGPUTransferFence* const> SyncPoints)
+	{
+		/* default noop implementation */
+#if WITH_MGPU
+		for (FCrossGPUTransferFence* SyncPoint : SyncPoints)
+		{
+			delete SyncPoint;
+		}
+#endif
+	}
+
 	virtual void RHIBuildAccelerationStructures(const TArrayView<const FRayTracingGeometryBuildParams> Params, const FRHIBufferRange& ScratchBufferRange)
 	{
 		checkNoEntry();
@@ -478,6 +529,9 @@ public:
 		StatsSetCategory(InStats, InCategoryID, 0);
 	}
 };
+
+// Utility function to generate pre-transfer sync points to pass to CrossGPUTransferSignal and CrossGPUTransfer
+RHI_API void RHIGenerateCrossGPUPreTransferFences(const TArrayView<const FTransferResourceParams> Params, TArray<FCrossGPUTransferFence*>& OutPreTransfer);
 
 enum class EAccelerationStructureBuildMode
 {

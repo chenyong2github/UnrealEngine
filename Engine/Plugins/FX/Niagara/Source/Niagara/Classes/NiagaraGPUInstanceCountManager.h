@@ -113,6 +113,8 @@ public:
 
 	bool HasEntriesPendingFree() const { return InstanceCountClearTasks.Num() > 0; }
 
+	void CopyToMultiViewCountBuffer(FRHICommandListImmediate& RHICmdList);
+
 protected:
 	struct FIndirectArgsPoolEntry
 	{
@@ -149,6 +151,10 @@ protected:
 	TArray<uint32> FreeEntries;
 	FRHIGPUMemoryReadback* CountReadback = nullptr;
 	int32 CountReadbackSize = 0;
+
+	/** Mirrored copy of CountBuffer for multi-view rendering. */
+	int32 MultiViewAllocatedInstanceCounts = 0;
+	FRWBuffer MultiViewCountBuffer;
 
 	/** The list of all draw indirected tasks that are to be run in UpdateDrawIndirectBuffers() */
 	TArray<FNiagaraDrawIndirectArgGenTaskInfo> DrawIndirectArgGenTasks[ENiagaraGPUCountUpdatePhase::Max];

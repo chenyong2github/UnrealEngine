@@ -1210,3 +1210,158 @@ void FD3D12CommandContextRedirector::RHITransferResourceWait(const TArrayView<FT
 
 #endif // WITH_MGPU
 }
+
+void FD3D12CommandContextRedirector::RHICrossGPUTransfer(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer, const TArrayView<FCrossGPUTransferFence* const> PostTransfer)
+{
+#if WITH_MGPU
+	if (Params.Num() == 0)
+		return;
+
+	for (const FTransferResourceParams& Param : Params)
+	{
+		FD3D12CommandContext* SrcContext = PhysicalContexts[Param.SrcGPUIndex];
+		check(SrcContext);
+
+		FD3D12Resource* SrcResource;
+
+		if (Param.Texture)
+		{
+			check(Param.Buffer == nullptr);
+
+			SrcResource = FD3D12CommandContext::RetrieveTexture(Param.Texture, Param.SrcGPUIndex )->GetResource();
+		}
+		else
+		{
+			check(Param.Buffer != nullptr);
+
+			SrcResource = FD3D12DynamicRHI::ResourceCast(Param.Buffer.GetReference(), Param.SrcGPUIndex )->GetResource();
+		}
+
+		// Destination GPU resources are transitioned in RHICrossGPUTransferSignal, potentially allowing them to be transitioned earlier
+		// in the timeline, reducing the likelihood of the source GPU needing to wait to start the transfer.
+		SrcContext->TransitionResource(SrcResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
+	}
+
+	// Wait on any pre-transfer fences first
+	for (FCrossGPUTransferFence* PreTransferSyncPoint : PreTransfer)
+	{
+		FD3D12SyncPoint* SyncPoint = static_cast<FD3D12SyncPoint*>(PreTransferSyncPoint->SyncPoint);
+
+		PhysicalContexts[PreTransferSyncPoint->WaitGPUIndex]->WaitSyncPoint(SyncPoint);
+
+		SyncPoint->Release();
+
+		delete PreTransferSyncPoint;
+	}
+	
+	// Enqueue the copy work
+	for (const FTransferResourceParams& Param : Params)
+	{
+		FD3D12CommandContext* SrcContext = PhysicalContexts[Param.SrcGPUIndex];
+
+		if (Param.Texture)
+		{
+			FD3D12Texture* SrcTexture = FD3D12CommandContext::RetrieveTexture(Param.Texture, Param.SrcGPUIndex);
+			FD3D12Texture* DstTexture = FD3D12CommandContext::RetrieveTexture(Param.Texture, Param.DestGPUIndex);
+
+			// If the texture size is zero (Max.Z == 0, set in the constructor), copy the whole resource
+			if (Param.Max.Z == 0)
+			{
+				SrcContext->GraphicsCommandList()->CopyResource(DstTexture->GetResource()->GetResource(), SrcTexture->GetResource()->GetResource());
+			}
+			else
+			{
+				// Must be a 2D texture for this code path
+				check(Param.Texture->GetTexture2D() != nullptr);
+
+				ensureMsgf(
+					Param.Min.X >= 0 && Param.Min.Y >= 0 && Param.Min.Z >= 0 &&
+					Param.Max.X >= 0 && Param.Max.Y >= 0 && Param.Max.Z >= 0,
+					TEXT("Invalid rect for texture transfer: %i, %i, %i, %i"), Param.Min.X, Param.Min.Y, Param.Min.Z, Param.Max.X, Param.Max.Y, Param.Max.Z);
+
+				D3D12_BOX Box = { (UINT)Param.Min.X, (UINT)Param.Min.Y, (UINT)Param.Min.Z, (UINT)Param.Max.X, (UINT)Param.Max.Y, (UINT)Param.Max.Z };
+
+				CD3DX12_TEXTURE_COPY_LOCATION SrcLocation(SrcTexture->GetResource()->GetResource(), 0);
+				CD3DX12_TEXTURE_COPY_LOCATION DstLocation(DstTexture->GetResource()->GetResource(), 0);
+
+				SrcContext->GraphicsCommandList()->CopyTextureRegion(&DstLocation, Box.left, Box.top, Box.front, &SrcLocation, &Box);
+			}
+		}
+		else
+		{
+			FD3D12Resource* SrcResource = FD3D12DynamicRHI::ResourceCast(Param.Buffer.GetReference(), Param.SrcGPUIndex)->GetResource();
+			FD3D12Resource* DstResource = FD3D12DynamicRHI::ResourceCast(Param.Buffer.GetReference(), Param.DestGPUIndex)->GetResource();
+
+			SrcContext->GraphicsCommandList()->CopyResource(DstResource->GetResource(), SrcResource->GetResource());
+		}
+	}
+
+	// Post-copy synchronization
+	FD3D12SyncPointRef SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUOnly);
+	PhysicalContexts[Params[0].SrcGPUIndex]->SignalSyncPoint(SyncPoint);
+
+	for (FCrossGPUTransferFence* PostTransferSyncPoint : PostTransfer)
+	{
+		// Copy the sync points into the delayed fence struct. These will be awaited later in RHITransferResourceWait().
+		SyncPoint->AddRef();
+		PostTransferSyncPoint->SyncPoint = SyncPoint.GetReference();
+	}
+#endif // WITH_MGPU
+}
+
+void FD3D12CommandContextRedirector::RHICrossGPUTransferSignal(const TArrayView<const FTransferResourceParams> Params, const TArrayView<FCrossGPUTransferFence* const> PreTransfer)
+{
+#if WITH_MGPU
+	for (const FTransferResourceParams& Param : Params)
+	{
+		FD3D12CommandContext* DstContext = PhysicalContexts[Param.DestGPUIndex];
+		check(DstContext);
+
+		FD3D12Resource* DstResource;
+
+		if (Param.Texture)
+		{
+			check(Param.Buffer == nullptr);
+
+			DstResource = FD3D12CommandContext::RetrieveTexture(Param.Texture, Param.DestGPUIndex)->GetResource();
+		}
+		else
+		{
+			check(Param.Buffer != nullptr);
+
+			DstResource = FD3D12DynamicRHI::ResourceCast(Param.Buffer.GetReference(), Param.DestGPUIndex)->GetResource();
+		}
+
+		DstContext->TransitionResource(DstResource, D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_COPY_DEST, 0);
+	}
+
+	for (FCrossGPUTransferFence* TransferSyncPoint : PreTransfer)
+	{
+		FD3D12SyncPointRef SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUOnly);
+		SyncPoint->AddRef();
+
+		PhysicalContexts[TransferSyncPoint->SignalGPUIndex]->SignalSyncPoint(SyncPoint);
+
+		TransferSyncPoint->SyncPoint = SyncPoint;
+	}
+#endif
+}
+
+void FD3D12CommandContextRedirector::RHICrossGPUTransferWait(const TArrayView<FCrossGPUTransferFence* const> PostTransfer)
+{
+#if WITH_MGPU
+	for (FCrossGPUTransferFence* TransferSyncPoint : PostTransfer)
+	{
+		if (TransferSyncPoint->SyncPoint)
+		{
+			FD3D12SyncPoint* SyncPoint = static_cast<FD3D12SyncPoint*>(TransferSyncPoint->SyncPoint);
+			PhysicalContexts[TransferSyncPoint->WaitGPUIndex]->WaitSyncPoint(SyncPoint);
+
+			SyncPoint->Release();
+		}
+
+		delete TransferSyncPoint;
+	}
+
+#endif // WITH_MGPU
+}

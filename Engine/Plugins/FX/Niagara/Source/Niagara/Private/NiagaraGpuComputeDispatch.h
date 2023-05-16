@@ -109,7 +109,7 @@ public:
 	virtual void AddVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void RemoveVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
 	virtual void UpdateVectorField(UVectorFieldComponent* VectorFieldComponent) override {}
-	virtual void PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate) override;
+	virtual void PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate, const TArrayView<const FSceneViewFamily*> &ViewFamilies, const FSceneViewFamily* CurrentFamily) override;
 	virtual void PostInitViews(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, bool bAllowGPUParticleUpdate) override;
 	virtual bool UsesGlobalDistanceField() const override;
 	virtual bool UsesDepthBuffer() const override;
@@ -246,18 +246,22 @@ private:
 	};
 	TArray<FDebugReadbackInfo> GpuDebugReadbackInfos;
 
-#if WITH_MGPU
-	ENiagaraGpuComputeTickStage::Type StageToTransferGPUBuffers = ENiagaraGpuComputeTickStage::First;
-	ENiagaraGpuComputeTickStage::Type StageToWaitForGPUTransfers = ENiagaraGpuComputeTickStage::First;
+	// List of items that need MultiViewPreviousDataToRender to be cleaned up on the last view family
+	TArray<FNiagaraComputeExecutionContext*> NeedsMultiViewPreviousDataClear;
 
+#if WITH_MGPU
+	// Cross GPU transfer arrays need to be mutable, so they can be written from const MultiGPUResourceModified utility functions
 	bool bCrossGPUTransferEnabled = false;
-	TArray<FTransferResourceParams> CrossGPUTransferBuffers;
+	mutable TArray<FTransferResourceParams> CrossGPUTransferBuffers;
+
+	uint32 OptimizedCrossGPUTransferMask = 0;
+	mutable TArray<FTransferResourceParams> OptimizedCrossGPUTransferBuffers[MAX_NUM_GPUS];
+	mutable FCrossGPUTransferFence* OptimizedCrossGPUFences[MAX_NUM_GPUS] = { 0 };
 
 	void AddCrossGPUTransfer(FRHICommandList& RHICmdList, FRHIBuffer* Buffer);
 
-	void CalculateCrossGPUTransferLocation();
-	void TransferMultiGPUBufers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage);
-	void WaitForMultiGPUBuffers(FRHICommandList& RHICmdList, ENiagaraGpuComputeTickStage::Type TickStage);
+	void TransferMultiGPUBuffers(FRHICommandList& RHICmdList);
+	void WaitForMultiGPUBuffers(FRHICommandList& RHICmdList, uint32 GPUIndex);
 #endif // WITH_MGPU
 
 	// Cached information to build a dummy view info if necessary

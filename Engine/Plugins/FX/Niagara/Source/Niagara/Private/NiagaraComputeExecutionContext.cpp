@@ -251,6 +251,11 @@ void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuf
 	TranslucentDataToRender = InTranslucentDataToRender;
 }
 
+void FNiagaraComputeExecutionContext::SetMultiViewPreviousDataToRender(FNiagaraDataBuffer* InMultiViewPreviousDataToRender)
+{
+	MultiViewPreviousDataToRender = InMultiViewPreviousDataToRender;
+}
+
 bool FNiagaraComputeInstanceData::IsOutputStage(FNiagaraDataInterfaceProxy* DIProxy, uint32 SimulationStageIndex) const
 {
 	return Context->IsOutputStage(DIProxy, SimulationStageIndex);

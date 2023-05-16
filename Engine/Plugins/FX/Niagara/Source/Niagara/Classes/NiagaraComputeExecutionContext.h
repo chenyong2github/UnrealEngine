@@ -72,8 +72,21 @@ struct FNiagaraComputeExecutionContext
 
 	void SetDataToRender(FNiagaraDataBuffer* InDataToRender);
 	void SetTranslucentDataToRender(FNiagaraDataBuffer* InTranslucentDataToRender);
+	void SetMultiViewPreviousDataToRender(FNiagaraDataBuffer* InMultiViewPreviousDataToRender);
 	bool HasTranslucentDataToRender() const { return TranslucentDataToRender != nullptr; }	
-	FNiagaraDataBuffer* GetDataToRender(bool bIsLowLatencyTranslucent) const { return bIsLowLatencyTranslucent && HasTranslucentDataToRender() ? TranslucentDataToRender : DataToRender; }
+	FNiagaraDataBuffer* GetDataToRender(bool bIsLowLatencyTranslucent) const
+	{
+		if (bIsLowLatencyTranslucent)
+		{
+			// Translucent rendering uses current frame (newest) data, which is TranslucentDataToRender if present
+			return TranslucentDataToRender ? TranslucentDataToRender : DataToRender;
+		}
+		else
+		{
+			// Non-translucent rendering uses previous frame (older) data, which is MultiViewPreviousDataToRender if present
+			return MultiViewPreviousDataToRender ? MultiViewPreviousDataToRender : DataToRender;
+		}
+	}
 
 	struct 
 	{
@@ -139,6 +152,9 @@ public:
 
 	// Optional buffer which can be used to render translucent data with no latency (i.e. this frames data)
 	FNiagaraDataBufferRef TranslucentDataToRender = nullptr;
+
+	// For MultiView, we need to track the previous frame's data for rendering systems on other view families
+	FNiagaraDataBufferRef MultiViewPreviousDataToRender = nullptr;
 
 	// Game thread spawn info will be sent to the render thread inside FNiagaraComputeInstanceData
 	FNiagaraGpuSpawnInfo GpuSpawnInfo_GT;
