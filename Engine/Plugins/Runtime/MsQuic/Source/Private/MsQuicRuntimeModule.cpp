@@ -58,7 +58,7 @@ bool FMsQuicRuntimeModule::LoadMsQuicDll()
 #elif PLATFORM_LINUX
 
 	MsQuicLib = FPaths::Combine(*MsQuicBinariesDir,
-		TEXT("linux/libmsquic.so"));
+		TEXT("linux/libmsquic.so.2"));
 
 #elif PLATFORM_MAC
 
