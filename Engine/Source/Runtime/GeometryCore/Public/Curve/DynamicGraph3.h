@@ -83,6 +83,25 @@ public:
 		return vid;
 	}
 
+	/**
+	 * @return false If insertion failed (because a vertex with that ID already exists).
+	 */
+	bool InsertVertex(int32 Vid, TVector<T> V)
+	{
+		// For now we desided not to add the "bUnsafe" optimization machinery like the similar method in
+		// FDynamicMesh3. It is not needed if InsertVertex is used just for creating a graph with non compact 
+		// Vids, where we would presumably still iterate through the source indices in increasing order, and 
+		// so never have to worry about the performance cost of removing from the free list.
+
+		if (!insert_vertex_internal(Vid))
+		{
+			return false;
+		}
+		Vertices.InsertAt({ {V.X, V.Y, V.Z} }, Vid);
+
+		return true;
+	}
+
 	FRefCountVector::IndexEnumerable VertexIndicesItr() const
 	{
 		return vertices_refcount.Indices();

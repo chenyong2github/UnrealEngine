@@ -679,6 +679,13 @@ public:
 		return vid;
 	}
 
+	void InsertVertex(int32 Vid, const FVector3d& Centroid, const FVector3d& Normal, double Area)
+	{
+		FDynamicGraph3d::InsertVertex(Vid, Centroid);
+		Normals.InsertAt({ {Normal.X, Normal.Y, Normal.Z} }, Vid);
+		Areas.InsertAt(Area, Vid);
+	}
+
 	FVector3d GetNormal(int32 vid) const
 	{
 		return Normals.AsVector3(vid);
@@ -690,17 +697,22 @@ public:
 		FMeshFaceDualGraph& FaceGraph,
 		TFunctionRef<bool(int,int)> TrisConnectedPredicate )
 	{
-		// if not true, code below needs updating
-		check(Mesh->IsCompactT());
-
+		bool bIsCompact = Mesh->IsCompactT();
 		for (int32 tid : Mesh->TriangleIndicesItr())
 		{
 			FVector3d Normal, Centroid;
 			double Area;
 			Mesh->GetTriInfo(tid, Normal, Area, Centroid);
 
-			int32 newid = FaceGraph.AppendVertex(Centroid, Normal, Area);
-			check(newid == tid);
+			if (bIsCompact)
+			{
+				int32 newid = FaceGraph.AppendVertex(Centroid, Normal, Area);
+				checkSlow(newid == tid);
+			}
+			else
+			{
+				FaceGraph.InsertVertex(tid, Centroid, Normal, Area);
+			}
 		}
 
 		for (int32 tid : Mesh->TriangleIndicesItr())
