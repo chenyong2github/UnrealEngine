@@ -447,10 +447,6 @@ void FVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPerm
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_UNIFORM_BUFFER"), Parameters.ShaderType->GetFrequency() != SF_RayHitGroup);
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_RAYTRACING_UNIFORM_BUFFER"), Parameters.ShaderType->GetFrequency() == SF_RayHitGroup);
 	OutEnvironment.SetDefine(TEXT("NANITE_USE_VIEW_UNIFORM_BUFFER"), 1);
-
-	// Get data from GPUSceneParameters rather than View.
-	// TODO: Profile this vs view uniform buffer path
-	//OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 }
 
 void FVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements)

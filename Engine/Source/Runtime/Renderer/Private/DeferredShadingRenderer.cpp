@@ -2075,7 +2075,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	}
 
 	{
-		Nanite::GRayTracingManager.ProcessUpdateRequests(GraphBuilder, Scene->GPUScene.PrimitiveBuffer->GetSRV());
+		Nanite::GRayTracingManager.ProcessUpdateRequests(GraphBuilder, GetSceneUniforms());
 		const bool bAnyBlasRebuilt = Nanite::GRayTracingManager.ProcessBuildRequests(GraphBuilder);
 		if (bAnyBlasRebuilt)
 		{
@@ -3236,6 +3236,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 							GraphBuilder,
 							*Scene,
 							View,
+							GetSceneUniforms(),
 							SharedContext,
 							RasterContext,
 							CullingConfig,
@@ -4321,7 +4322,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 				PostProcessingInputs.TranslucencyViewResourcesMap = FTranslucencyViewResourcesMap(TranslucencyResourceMap, ViewIndex);
-				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
+				AddDebugViewPostProcessingPasses(GraphBuilder, View, GetSceneUniforms(), PostProcessingInputs, NaniteResults);
 			}
 		}
 		else
@@ -4367,6 +4368,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					AddPostProcessingPasses(
 						GraphBuilder,
 						View, ViewIndex,
+						GetSceneUniforms(),
 						bAnyLumenActive,
 						bLumenGIEnabled,
 						ViewPipelineState.ReflectionsMethod,

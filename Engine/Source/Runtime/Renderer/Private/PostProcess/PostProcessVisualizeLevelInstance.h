@@ -30,6 +30,7 @@ struct FVisualizeLevelInstanceInputs
 FScreenPassTexture AddVisualizeLevelInstancePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	const FVisualizeLevelInstanceInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults
 );

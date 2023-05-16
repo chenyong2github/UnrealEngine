@@ -1100,7 +1100,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
 					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-					AddMobilePostProcessingPasses(GraphBuilder, Scene, Views[ViewIndex], PostProcessingInputs, InstanceCullingManager);
+					AddMobilePostProcessingPasses(GraphBuilder, Scene, Views[ViewIndex], GetSceneUniforms(), PostProcessingInputs, InstanceCullingManager);
 				}
 			}
 		}

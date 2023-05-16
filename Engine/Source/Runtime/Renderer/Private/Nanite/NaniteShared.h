@@ -454,9 +454,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_MATERIAL_SHADER"), 1);
 
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-
 		OutEnvironment.SetDefine(TEXT("IS_NANITE_RASTER_PASS"), 1);
 		OutEnvironment.SetDefine(TEXT("IS_NANITE_PASS"), 1);
 

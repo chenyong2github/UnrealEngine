@@ -371,13 +371,6 @@ BEGIN_SHADER_PARAMETER_STRUCT( FCullingParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, CompactedViewsAllocation)
 END_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT( FGPUSceneParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>,	GPUSceneInstanceSceneData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>,	GPUSceneInstancePayloadData)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>,	GPUScenePrimitiveSceneData)
-	SHADER_PARAMETER( uint32,						GPUSceneFrameNumber)
-END_SHADER_PARAMETER_STRUCT()
-
 BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FVirtualShadowMapUniformParameters, VirtualShadowMap )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	HZBPageTable )
@@ -426,21 +419,13 @@ class FPrimitiveFilter_CS : public FNaniteGlobalShader
 
 	using FPermutationDomain = TShaderPermutationDomain<FHiddenPrimitivesListDim, FShowOnlyPrimitivesListDim>;
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-	}
-
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, NumPrimitives)
 		SHADER_PARAMETER(uint32, HiddenFilterFlags)
 		SHADER_PARAMETER(uint32, NumHiddenPrimitives)
 		SHADER_PARAMETER(uint32, NumShowOnlyPrimitives)
 
-		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, PrimitiveFilterBuffer)
 
@@ -472,8 +457,6 @@ class FInstanceHierarchyCull_CS : public FNaniteGlobalShader
 
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );
 
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine( TEXT( "USE_GLOBAL_GPU_SCENE_DATA" ), 1 );
 		OutEnvironment.SetDefine( TEXT( "NANITE_MULTI_VIEW" ), 1 );
 		OutEnvironment.SetDefine( TEXT("DEPTH_ONLY" ), 1 );
 	}
@@ -481,7 +464,7 @@ class FInstanceHierarchyCull_CS : public FNaniteGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FInstanceHierarchyParameters, InstanceHierarchyParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
-		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FSceneUniformParameters, Scene)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FViewDrawGroup >, InViewDrawRanges)
 		SHADER_PARAMETER(uint32, NumCellDraws)
@@ -522,8 +505,6 @@ class FInstanceHierarchyAppendUncullable_CS : public FNaniteGlobalShader
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );
 
 		// These defines might be needed to make sure it compiles.
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine( TEXT( "USE_GLOBAL_GPU_SCENE_DATA" ), 1 );
 		OutEnvironment.SetDefine( TEXT( "NANITE_MULTI_VIEW" ), 1 );
 		OutEnvironment.SetDefine( TEXT( "DEPTH_ONLY" ), 1 );
 	}
@@ -618,9 +599,6 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );	// Still needed for shader to compile
-
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
@@ -629,7 +607,7 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER( int32,  ImposterMaxPixels )
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
-		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FSceneUniformParameters, Scene )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FRasterParameters, RasterParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FInstanceWorkGroupParameters, InstanceWorkGroupParameters )
 
@@ -670,8 +648,6 @@ class FCompactViewsVSM_CS : public FNaniteGlobalShader
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
 		OutEnvironment.SetDefine(TEXT("CULLING_PASS"), CULLING_PASS_NO_OCCLUSION);
 		OutEnvironment.SetDefine(TEXT("DEPTH_ONLY"), 1);
@@ -679,7 +655,7 @@ class FCompactViewsVSM_CS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCullingParameters, CullingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FSceneUniformParameters, Scene )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FPackedNaniteView >, CompactedViewsOut)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FCompactedViewInfo >, CompactedViewInfoOut)
@@ -711,8 +687,6 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );
 
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine( TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1 );
 		OutEnvironment.SetDefine( TEXT("NANITE_MULTI_VIEW"), 1 );
 		OutEnvironment.SetDefine( TEXT("DEPTH_ONLY"), 1 );
 		OutEnvironment.SetDefine( TEXT("VIRTUAL_TEXTURE_TARGET"), 1 );
@@ -723,7 +697,7 @@ class FInstanceCullVSM_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER( uint32, MaxNodes )
 		
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
-		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FSceneUniformParameters, Scene )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWByteAddressBuffer, OutMainAndPostNodesAndClusterBatches )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FInstanceDraw >, OutOccludedInstances)
@@ -758,7 +732,7 @@ class FNodeAndClusterCull_CS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
-		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FSceneUniformParameters, Scene )
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,				ClusterPageData )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,				HierarchyBuffer )
@@ -805,9 +779,6 @@ class FNodeAndClusterCull_CS : public FNaniteGlobalShader
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("NANITE_HIERARCHY_TRAVERSAL"), 1);
-
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
 		// The routing requires access to page table data structures, only for 'VIRTUAL_TEXTURE_TARGET' really...
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
@@ -927,7 +898,7 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FIsPostPass, FPatches, FVirtualTextureTargetDim, FBuildPassDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FSceneUniformParameters, Scene )
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteRasterBinMeta>,	OutRasterBinMeta)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>,								OutRasterBinArgsSWHW)
@@ -953,14 +924,6 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER(uint32, bUsePrimOrMeshShader)
 		SHADER_PARAMETER(uint32, FixedFunctionBin)
 	END_SHADER_PARAMETER_STRUCT()
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-	}
 };
 IMPLEMENT_GLOBAL_SHADER(FRasterBinBuild_CS, "/Engine/Private/Nanite/NaniteRasterBinning.usf", "RasterBinBuild", SF_Compute);
 
@@ -1005,7 +968,7 @@ class FPatchSplitCS : public FNaniteGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain< FCullingPassDim, FMultiViewDim, FVirtualTextureTargetDim >;
 
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FSceneUniformParameters, Scene )
 		SHADER_PARAMETER_STRUCT( FGlobalWorkQueueParameters, SplitWorkQueue )
 		SHADER_PARAMETER_STRUCT( FGlobalWorkQueueParameters, OccludedPatches )
 
@@ -1054,16 +1017,13 @@ class FPatchSplitCS : public FNaniteGlobalShader
 
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FPatchSplitCS, "/Engine/Private/Nanite/NaniteSplit.usf", "PatchSplit", SF_Compute);
 
 BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER( FSceneUniformParameters, Scene )
 	SHADER_PARAMETER_STRUCT_INCLUDE( FRasterParameters, RasterParameters )
 
 	SHADER_PARAMETER( FIntVector4,	PageConstants )
@@ -1196,9 +1156,6 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_MULTI_VIEW"), 1);
-
-		// Get data from GPUSceneParameters rather than View.
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
 		if (PermutationVector.Get<FPixelProgrammableDim>() || (NaniteTessellationSupported() && Parameters.MaterialParameters.bHasDisplacementConnected))
 		{
@@ -1946,6 +1903,7 @@ public:
 		FRDGBuilder&			InGraphBuilder,
 		const FScene&			InScene,
 		const FViewInfo&		InSceneView,
+		const TRDGUniformBufferRef<FSceneUniformParameters>& InSceneUniformBuffer,
 		const FSharedContext&	InSharedContext,
 		const FRasterContext&	InRasterContext,
 		const FConfiguration&	InConfiguration,
@@ -1958,12 +1916,13 @@ public:
 private:
 	using FRasterBinMetaArray = TArray<FNaniteRasterBinMeta, SceneRenderingAllocator>;
 
-	FRDGBuilder&			GraphBuilder;
-	const FScene&			Scene;
-	const FViewInfo&		SceneView;
-	const FSharedContext&	SharedContext;
-	const FRasterContext&	RasterContext;
-	FVirtualShadowMapArray*	VirtualShadowMapArray;
+	FRDGBuilder&									GraphBuilder;
+	const FScene&									Scene;
+	const FViewInfo&								SceneView;
+	TRDGUniformBufferRef<FSceneUniformParameters>	SceneUniformBuffer;
+	const FSharedContext&							SharedContext;
+	const FRasterContext&							RasterContext;
+	FVirtualShadowMapArray*							VirtualShadowMapArray;
 
 	FConfiguration	Configuration;
 	uint32			DrawPassIndex		= 0;
@@ -2002,7 +1961,6 @@ private:
 	FRDGBufferRef	MainAndPostNodesAndClusterBatchesBuffer	= nullptr;
 	FRDGBufferRef	MainAndPostCandididateClustersBuffer	= nullptr;
 
-	FGPUSceneParameters			GPUSceneParameters;
 	FCullingParameters			CullingParameters;
 	FVirtualTargetParameters	VirtualTargetParameters;
 	FInstanceHierarchyDriver	InstanceHierarchyDriver;
@@ -2074,6 +2032,7 @@ TUniquePtr< IRenderer > IRenderer::Create(
 	FRDGBuilder&			GraphBuilder,
 	const FScene&			Scene,
 	const FViewInfo&		SceneView,
+	FSceneUniformBuffer&	SceneUniformBuffer,
 	const FSharedContext&	SharedContext,
 	const FRasterContext&	RasterContext,
 	const FConfiguration&	Configuration,
@@ -2085,6 +2044,7 @@ TUniquePtr< IRenderer > IRenderer::Create(
 		GraphBuilder,
 		Scene,
 		SceneView,
+		SceneUniformBuffer.GetBuffer(GraphBuilder),
 		SharedContext,
 		RasterContext,
 		Configuration,
@@ -2097,6 +2057,7 @@ FRenderer::FRenderer(
 	FRDGBuilder&			InGraphBuilder,
 	const FScene&			InScene,
 	const FViewInfo&		InSceneView,
+	const TRDGUniformBufferRef<FSceneUniformParameters>& InSceneUniformBuffer,
 	const FSharedContext&	InSharedContext,
 	const FRasterContext&	InRasterContext,
 	const FConfiguration&	InConfiguration,
@@ -2107,6 +2068,7 @@ FRenderer::FRenderer(
 	: GraphBuilder( InGraphBuilder )
 	, Scene( InScene )
 	, SceneView( InSceneView )
+	, SceneUniformBuffer( InSceneUniformBuffer )
 	, SharedContext( InSharedContext )
 	, RasterContext( InRasterContext )
 	, VirtualShadowMapArray( InVirtualShadowMapArray )
@@ -2346,7 +2308,7 @@ void FRenderer::AddPass_PrimitiveFilter()
 		PassParameters->HiddenFilterFlags = uint32(HiddenFilterFlags);
 		PassParameters->NumHiddenPrimitives = FMath::RoundUpToPowerOfTwo(HiddenPrimitiveCount);
 		PassParameters->NumShowOnlyPrimitives = FMath::RoundUpToPowerOfTwo(ShowOnlyPrimitiveCount);
-		PassParameters->GPUSceneParameters = GPUSceneParameters;
+		PassParameters->Scene = SceneUniformBuffer;
 		PassParameters->PrimitiveFilterBuffer = GraphBuilder.CreateUAV(PrimitiveFilterBuffer);
 
 		if (HiddenPrimitivesBuffer != nullptr)
@@ -2413,7 +2375,7 @@ void FRenderer::AddPass_NodeAndClusterCull(
 {
 	FNodeAndClusterCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FNodeAndClusterCull_CS::FParameters >();
 
-	PassParameters->GPUSceneParameters		= GPUSceneParameters;
+	PassParameters->Scene					= SceneUniformBuffer;
 	PassParameters->CullingParameters		= CullingParameters;
 	PassParameters->MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
 	PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
@@ -2563,7 +2525,7 @@ void FRenderer::AddPass_InstanceHierarchyAndClusterCull( const FPackedViewArray&
 		PassParameters->NumInstances						= NumInstancesPreCull;
 		PassParameters->MaxNodes							= Nanite::FGlobalResources::GetMaxNodes();
 		
-		PassParameters->GPUSceneParameters = GPUSceneParameters;
+		PassParameters->Scene = SceneUniformBuffer;
 		PassParameters->CullingParameters = CullingParameters;
 
 		PassParameters->VirtualShadowMap = VirtualTargetParameters;		
@@ -2616,7 +2578,7 @@ void FRenderer::AddPass_InstanceHierarchyAndClusterCull( const FPackedViewArray&
 			PassParameters->MaxNodes							= Nanite::FGlobalResources::GetMaxNodes();
 			PassParameters->ImposterMaxPixels					= CVarNaniteImposterMaxPixels.GetValueOnRenderThread();
 
-			PassParameters->GPUSceneParameters = GPUSceneParameters;
+			PassParameters->Scene = SceneUniformBuffer;
 			PassParameters->RasterParameters = RasterContext.Parameters;
 			PassParameters->CullingParameters = CullingParameters;
 
@@ -2797,7 +2759,7 @@ FBinningData FRenderer::AddPass_Binning(
 
 		FRasterBinBuild_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterBinBuild_CS::FParameters>();
 
-		PassParameters->GPUSceneParameters		= GPUSceneParameters;
+		PassParameters->Scene					= SceneUniformBuffer;
 		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 		PassParameters->ClusterPageData			= GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 		PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
@@ -3460,7 +3422,7 @@ FBinningData FRenderer::AddPass_Rasterize(
 	RasterPassParameters->RenderFlags				= RenderFlags;
 	RasterPassParameters->View						= SceneView.ViewUniformBuffer;
 	RasterPassParameters->ClusterPageData			= GStreamingManager.GetClusterPageDataSRV( GraphBuilder );
-	RasterPassParameters->GPUSceneParameters		= GPUSceneParameters;
+	RasterPassParameters->Scene						= SceneUniformBuffer;
 	RasterPassParameters->RasterParameters			= RasterParameters;
 	RasterPassParameters->VisualizeModeOverdraw		= RasterContext.VisualizeModeOverdraw ? 1u : 0u;
 	RasterPassParameters->PageConstants				= PageConstants;
@@ -3685,7 +3647,7 @@ void FRenderer::AddPass_PatchSplit(
 
 		PassParameters->View				= SceneView.ViewUniformBuffer;
 		PassParameters->ClusterPageData		= GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
-		PassParameters->GPUSceneParameters	= GPUSceneParameters;
+		PassParameters->Scene				= SceneUniformBuffer;
 		PassParameters->CullingParameters	= CullingParameters;
 		PassParameters->SplitWorkQueue		= SplitWorkQueue;
 		PassParameters->OccludedPatches		= OccludedPatches;
@@ -4122,14 +4084,6 @@ void FRenderer::DrawGeometry(
 		VirtualTargetParameters.OutStaticInvalidatingPrimitives	= GraphBuilder.CreateUAV(VirtualShadowMapArray->StaticInvalidatingPrimitivesRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	}
 
-	{
-		const FGPUSceneResourceParameters ShaderParameters = Scene.GPUScene.GetShaderParameters();
-		GPUSceneParameters.GPUSceneInstanceSceneData	= ShaderParameters.GPUSceneInstanceSceneData;
-		GPUSceneParameters.GPUSceneInstancePayloadData	= ShaderParameters.GPUSceneInstancePayloadData;
-		GPUSceneParameters.GPUScenePrimitiveSceneData	= ShaderParameters.GPUScenePrimitiveSceneData;
-		GPUSceneParameters.GPUSceneFrameNumber			= ShaderParameters.GPUSceneFrameNumber;
-	}
-	
 	InstanceHierarchyDriver.Init(GraphBuilder, CVarNaniteCullInstanceHierarchy.GetValueOnRenderThread() != 0, Configuration.bTwoPassOcclusion, SharedContext.ShaderMap, SceneInstanceCullingQuery);
 
 	if (DebugFlags != 0)
@@ -4160,9 +4114,9 @@ void FRenderer::DrawGeometry(
 		{
 			FCompactViewsVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FCompactViewsVSM_CS::FParameters >();
 
-			PassParameters->GPUSceneParameters = GPUSceneParameters;
-			PassParameters->CullingParameters = CullingParameters;
-			PassParameters->VirtualShadowMap = VirtualTargetParameters;
+			PassParameters->Scene				= SceneUniformBuffer;
+			PassParameters->CullingParameters	= CullingParameters;
+			PassParameters->VirtualShadowMap	= VirtualTargetParameters;
 
 			PassParameters->CompactedViewsOut			= GraphBuilder.CreateUAV(CompactedViews);
 			PassParameters->CompactedViewInfoOut		= GraphBuilder.CreateUAV(CompactedViewInfo);
@@ -4794,7 +4748,7 @@ FInstanceWorkGroupParameters FInstanceHierarchyDriver::DispatchCullingPass(FRDGB
 	{
 		FInstanceHierarchyCull_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceHierarchyCull_CS::FParameters >();
 
-		PassParameters->GPUSceneParameters = Renderer.GPUSceneParameters;
+		PassParameters->Scene = Renderer.SceneUniformBuffer;
 		PassParameters->CullingParameters = Renderer.CullingParameters;
 		PassParameters->VirtualShadowMap = Renderer.VirtualTargetParameters;
 

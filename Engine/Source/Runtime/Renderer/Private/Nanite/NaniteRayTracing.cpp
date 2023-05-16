@@ -351,7 +351,7 @@ namespace Nanite
 		RDG_BUFFER_ACCESS(ScratchBuffer, ERHIAccess::UAVCompute)
 	END_SHADER_PARAMETER_STRUCT()
 
-	void FRayTracingManager::ProcessUpdateRequests(FRDGBuilder& GraphBuilder, FShaderResourceViewRHIRef GPUScenePrimitiveBufferSRV)
+	void FRayTracingManager::ProcessUpdateRequests(FRDGBuilder& GraphBuilder, FSceneUniformBuffer &SceneUniformBuffer)
 	{
 		// D3D12 limits resources to 2048MB.
 		GNaniteRayTracingMaxStagingBufferSizeMB = FMath::Min(GNaniteRayTracingMaxStagingBufferSizeMB, 2048);
@@ -499,7 +499,7 @@ namespace Nanite
 		StreamOutData(
 			GraphBuilder,
 			GetGlobalShaderMap(GetFeatureLevel()),
-			GPUScenePrimitiveBufferSRV,
+			SceneUniformBuffer,
 			NodesAndClusterBatchesBuffer,
 			GetCutError(),
 			ToUpdate.Num(),

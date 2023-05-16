@@ -151,6 +151,7 @@ public:
 		FRDGBuilder&			GraphBuilder,
 		const FScene&			Scene,
 		const FViewInfo&		SceneView,
+		FSceneUniformBuffer&	SceneUniformBuffer,
 		const FSharedContext&	SharedContext,
 		const FRasterContext&	RasterContext,
 		const FConfiguration&	Configuration,

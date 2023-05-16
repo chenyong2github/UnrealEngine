@@ -76,6 +76,7 @@ END_SHADER_PARAMETER_STRUCT()
 FScreenPassTexture AddSelectionOutlinePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	const FSelectionOutlineInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults)
 {
@@ -143,7 +144,7 @@ FScreenPassTexture AddSelectionOutlinePass(
 		// Render Nanite mesh outlines after regular mesh outline, but before borders
 		if (bNaniteEnabled)
 		{
-			Nanite::DrawEditorSelection(GraphBuilder, DepthStencilTexture, *Scene, View, *EditorView, NaniteRasterResults);
+			Nanite::DrawEditorSelection(GraphBuilder, DepthStencilTexture, *Scene, View, *EditorView, SceneUniformBuffer, NaniteRasterResults);
 		}
 
 		// Render HairStrands outlines

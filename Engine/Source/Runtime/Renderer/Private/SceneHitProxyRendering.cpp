@@ -706,6 +706,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 				GraphBuilder,
 				*Scene,
 				View,
+				GetSceneUniforms(),
 				SharedContext,
 				RasterContext,
 				CullingConfig,

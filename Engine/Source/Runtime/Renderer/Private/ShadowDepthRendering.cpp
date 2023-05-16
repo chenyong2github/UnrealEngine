@@ -1353,6 +1353,7 @@ static void RenderShadowDepthAtlasNanite(
 	FScene& Scene,
 	const FViewFamilyInfo& ViewFamily,
 	const FViewInfo& SceneView,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	const FSortedShadowMapAtlas& ShadowMapAtlas,
 	const int32 AtlasIndex)
 {
@@ -1452,6 +1453,7 @@ static void RenderShadowDepthAtlasNanite(
 			GraphBuilder,
 			Scene,
 			SceneView,
+			SceneUniformBuffer,
 			SharedContext,
 			RasterContext,
 			CullingConfig,
@@ -1631,7 +1633,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 		if (bNaniteEnabled)
 		{
 			const FViewInfo& SceneView = Views[0];
-			RenderShadowDepthAtlasNanite(GraphBuilder, FeatureLevel, *Scene, ViewFamily, SceneView, ShadowMapAtlas, AtlasIndex);
+			RenderShadowDepthAtlasNanite(GraphBuilder, FeatureLevel, *Scene, ViewFamily, SceneView, GetSceneUniforms(), ShadowMapAtlas, AtlasIndex);
 		}
 
 		// Make readable because AtlasDepthTexture is not tracked via RDG yet
@@ -1781,6 +1783,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 						GraphBuilder,
 						*Scene,
 						SceneView,
+						GetSceneUniforms(),
 						SharedContext,
 						RasterContext,
 						CullingConfig,

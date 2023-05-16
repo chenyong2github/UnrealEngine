@@ -39,7 +39,7 @@ namespace Nanite
 		void Update();
 
 		// Dispatch compute shader to stream out mesh data for resources with update requests.
-		void ProcessUpdateRequests(FRDGBuilder& GraphBuilder, FShaderResourceViewRHIRef GPUScenePrimitiveBufferSRV);
+		void ProcessUpdateRequests(FRDGBuilder& GraphBuilder, FSceneUniformBuffer &SceneUniformBuffer);
 
 		// Commit pending BLAS builds. This allocates a transient scratch buffer internally.
 		bool ProcessBuildRequests(FRDGBuilder& GraphBuilder);

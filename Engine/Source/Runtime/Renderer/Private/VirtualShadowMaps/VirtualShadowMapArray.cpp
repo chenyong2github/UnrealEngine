@@ -2549,6 +2549,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBui
 			GraphBuilder,
 			Scene,
 			SceneView,
+			SceneRenderer.GetSceneUniforms(),
 			SharedContext,
 			RasterContext,
 			CullingConfig,

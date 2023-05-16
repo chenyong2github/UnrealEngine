@@ -135,6 +135,7 @@ static void GetEditorSelectionVisBuffer(
 	FScene& Scene,
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	const FRasterResults& NaniteRasterResults,
 	const FInstanceDrawList& DrawList,
 	FNaniteSelectionOutlineParameters& OutParameters
@@ -179,6 +180,7 @@ static void GetEditorSelectionVisBuffer(
 			GraphBuilder,
 			Scene,
 			EditorView,
+			SceneUniformBuffer,
 			SharedContext,
 			RasterContext,
 			CullingConfig,
@@ -212,6 +214,7 @@ static void AddEditorSelectionDepthPass(
 	FScene& Scene,
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	const FRasterResults& NaniteRasterResults,
 	const FInstanceDrawList& DrawList,
 	int32 StencilRefValue
@@ -228,6 +231,7 @@ static void AddEditorSelectionDepthPass(
 		Scene,
 		SceneView,
 		EditorView,
+		SceneUniformBuffer,
 		NaniteRasterResults,
 		DrawList,
 		*PassParameters);
@@ -266,6 +270,7 @@ void DrawEditorSelection(
 	FScene& Scene,
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	const FRasterResults* NaniteRasterResults
 )
 {
@@ -281,6 +286,7 @@ void DrawEditorSelection(
 		Scene,
 		SceneView,
 		EditorView,
+		SceneUniformBuffer,
 		*NaniteRasterResults,
 		SceneView.EditorSelectedInstancesNanite,
 		3
@@ -293,6 +299,7 @@ void DrawEditorVisualizeLevelInstance(
 	FScene& Scene,
 	const FViewInfo& SceneView,
 	const FViewInfo& EditorView,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	const FRasterResults* NaniteRasterResults
 )
 {
@@ -308,6 +315,7 @@ void DrawEditorVisualizeLevelInstance(
 		Scene,
 		SceneView,
 		EditorView,
+		SceneUniformBuffer,
 		*NaniteRasterResults,
 		SceneView.EditorVisualizeLevelInstancesNanite,
 		2

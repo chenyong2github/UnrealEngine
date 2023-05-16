@@ -53,6 +53,7 @@ struct FPostProcessingInputs
 void AddPostProcessingPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, int32 ViewIndex,
+	FSceneUniformBuffer& SceneUniformBuffer,
 	bool bAnyLumenActive,
 	bool bLumenGIEnabled,
 	EReflectionsMethod ReflectionsMethod,
@@ -64,7 +65,7 @@ void AddPostProcessingPasses(
 	const FSceneWithoutWaterTextures& SceneWithoutWaterTextures,
 	FScreenPassTexture TSRMoireInput);
 
-void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults);
+void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FSceneUniformBuffer &SceneUniformBuffer, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults);
 
 void AddVisualizeCalibrationMaterialPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const UMaterialInterface* InMaterialInterface);
 
@@ -81,7 +82,7 @@ struct FMobilePostProcessingInputs
 	}
 };
 
-void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FMobilePostProcessingInputs& Inputs, FInstanceCullingManager& InstanceCullingManager);
+void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, FSceneUniformBuffer &SceneUniformBuffer, const FMobilePostProcessingInputs& Inputs, FInstanceCullingManager& InstanceCullingManager);
 
 void AddBasicPostProcessPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 

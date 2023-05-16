@@ -309,7 +309,7 @@ FVisibleCluster GetVisibleCluster( uint ClusterIndex )
 
 FInstanceSceneData GetInstanceSceneData( inout FVisibleCluster VisibleCluster, bool bCheckValid = true )
 {
-	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, PageConstants.x, bCheckValid );
+	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, Scene.GPUScene.InstanceDataSOAStride, bCheckValid );
 
 #if NANITE_IMPOSTERS_SUPPORTED
 	// Couldn't have been stored so signals this is an imposter
@@ -338,7 +338,7 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 
 FInstanceSceneData GetInstanceSceneData( uint InstanceId, bool bCheckValid = true )
 {
-	return GetInstanceSceneData( InstanceId, PageConstants.x, bCheckValid );
+	return GetInstanceSceneData( InstanceId, Scene.GPUScene.InstanceDataSOAStride, bCheckValid );
 }
 
 FCluster UnpackCluster(uint4 ClusterData[NANITE_NUM_PACKED_CLUSTER_FLOAT4S])

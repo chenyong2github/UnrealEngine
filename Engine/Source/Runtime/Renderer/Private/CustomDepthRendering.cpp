@@ -322,6 +322,7 @@ bool FSceneRenderer::RenderCustomDepthPass(
 				GraphBuilder,
 				*Scene,
 				View,
+				GetSceneUniforms(),
 				SharedContext,
 				RasterContext,
 				CullingConfig,

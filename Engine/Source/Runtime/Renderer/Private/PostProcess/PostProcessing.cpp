@@ -208,6 +208,7 @@ void AddPostProcessingPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	int32 ViewIndex,
+	FSceneUniformBuffer& SceneUniformBuffer,
 	bool bAnyLumenActive,
 	bool bLumenGIEnabled,
 	EReflectionsMethod ReflectionsMethod,
@@ -1239,7 +1240,7 @@ void AddPostProcessingPasses(
 		PassInputs.SceneDepth = SceneDepth;
 		PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
 
-		SceneColor = AddVisualizeLevelInstancePass(GraphBuilder, View, PassInputs, NaniteRasterResults);
+		SceneColor = AddVisualizeLevelInstancePass(GraphBuilder, View, SceneUniformBuffer, PassInputs, NaniteRasterResults);
 	}
 
 	if (PassSequence.IsEnabled(EPass::SelectionOutline))
@@ -1250,7 +1251,7 @@ void AddPostProcessingPasses(
 		PassInputs.SceneDepth = SceneDepth;
 		PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
 
-		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, PassInputs, NaniteRasterResults);
+		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, SceneUniformBuffer, PassInputs, NaniteRasterResults);
 	}
 
 	if (PassSequence.IsEnabled(EPass::EditorPrimitive))
@@ -1539,7 +1540,7 @@ void AddPostProcessingPasses(
 	#endif
 }
 
-void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
+void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FSceneUniformBuffer &SceneUniformBuffer, const FPostProcessingInputs& Inputs, const Nanite::FRasterResults* NaniteRasterResults)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -1709,7 +1710,7 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 		PassInputs.SceneDepth = SceneDepth;
 		PassInputs.SceneTextures.SceneTextures = Inputs.SceneTextures;
 
-		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, PassInputs, NaniteRasterResults);
+		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, SceneUniformBuffer, PassInputs, NaniteRasterResults);
 	}
 #endif
 
@@ -1839,7 +1840,7 @@ static bool IsGaussianActive(const FViewInfo& View)
 	return true;
 }
 
-void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FMobilePostProcessingInputs& Inputs, FInstanceCullingManager& InstanceCullingManager)
+void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, FSceneUniformBuffer &SceneUniformBuffer, const FMobilePostProcessingInputs& Inputs, FInstanceCullingManager& InstanceCullingManager)
 {
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -2513,7 +2514,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		PassInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
 		// TODO: Nanite - pipe through results
-		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, PassInputs, nullptr);
+		SceneColor = AddSelectionOutlinePass(GraphBuilder, View, SceneUniformBuffer, PassInputs, nullptr);
 	}
 
 	if (PassSequence.IsEnabled(EPass::EditorPrimitive))

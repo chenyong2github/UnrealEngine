@@ -47,6 +47,7 @@ END_SHADER_PARAMETER_STRUCT()
 FScreenPassTexture AddVisualizeLevelInstancePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	const FVisualizeLevelInstanceInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults
 )
@@ -113,7 +114,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(
 
 		if (bNaniteEnabled)
 		{
-			Nanite::DrawEditorVisualizeLevelInstance(GraphBuilder, DepthStencilTexture, *Scene, View, *EditorView, NaniteRasterResults);
+			Nanite::DrawEditorVisualizeLevelInstance(GraphBuilder, DepthStencilTexture, *Scene, View, *EditorView, SceneUniformBuffer, NaniteRasterResults);
 		}
 	}
 

@@ -31,7 +31,7 @@ namespace Nanite
 	void StreamOutData(
 		FRDGBuilder& GraphBuilder,
 		FGlobalShaderMap* ShaderMap,
-		FShaderResourceViewRHIRef GPUScenePrimitiveBufferSRV,
+		FSceneUniformBuffer &SceneUniformBuffer,
 		TRefCountPtr<FRDGPooledBuffer>& NodesAndClusterBatchesBuffer,
 		float CutError,
 		uint32 NumRequests,

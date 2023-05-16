@@ -329,7 +329,7 @@ void InstanceCull(
 
 		uint PrimitiveId;
 		uint InstanceFlags;
-		LoadInstancePrimitiveIdAndFlags(InstanceId, PageConstants.x, PrimitiveId, InstanceFlags);
+		LoadInstancePrimitiveIdAndFlags(InstanceId, Scene.GPUScene.InstanceDataSOAStride, PrimitiveId, InstanceFlags);
 
 		if (PrimitiveId == INVALID_PRIMITIVE_ID)
 		{
@@ -729,7 +729,7 @@ void InstanceCullVSM(uint3 GroupId : SV_GroupID, uint GroupIndex : SV_GroupIndex
 
 	uint PrimitiveId;
 	uint InstanceFlags;
-	LoadInstancePrimitiveIdAndFlags(InstanceId, PageConstants.x, PrimitiveId, InstanceFlags);
+	LoadInstancePrimitiveIdAndFlags(InstanceId, Scene.GPUScene.InstanceDataSOAStride, PrimitiveId, InstanceFlags);
 
 	if (PrimitiveId == INVALID_PRIMITIVE_ID)
 	{

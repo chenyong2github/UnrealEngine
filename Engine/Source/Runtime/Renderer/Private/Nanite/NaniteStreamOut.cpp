@@ -94,7 +94,7 @@ namespace Nanite
 		SHADER_USE_PARAMETER_STRUCT(FNaniteStreamOutTraversalCS, FNaniteGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+			SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 
 			SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, HierarchyBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
@@ -132,7 +132,6 @@ namespace Nanite
 			OutEnvironment.SetDefine(TEXT("NANITE_HIERARCHY_TRAVERSAL"), 1);
 
 			OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
-			OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 		}
 	};
 	IMPLEMENT_GLOBAL_SHADER(FNaniteStreamOutTraversalCS, "/Engine/Private/Nanite/NaniteStreamOut.usf", "NaniteStreamOutTraversalCS", SF_Compute);
@@ -320,7 +319,7 @@ namespace Nanite
 	void StreamOutData(
 		FRDGBuilder& GraphBuilder,
 		FGlobalShaderMap* ShaderMap,
-		FShaderResourceViewRHIRef GPUScenePrimitiveBufferSRV,
+		FSceneUniformBuffer &SceneUniformBuffer,
 		TRefCountPtr<FRDGPooledBuffer>& NodesAndClusterBatchesBuffer,
 		float CutError,
 		uint32 NumRequests,
@@ -372,7 +371,7 @@ namespace Nanite
 		// count pass
 		{
 			auto* PassParameters = GraphBuilder.AllocParameters<FNaniteStreamOutTraversalCS::FParameters>();
-			PassParameters->GPUScenePrimitiveSceneData = GPUScenePrimitiveBufferSRV;
+			PassParameters->Scene = SceneUniformBuffer.GetBuffer(GraphBuilder);
 
 			PassParameters->QueueParameters = QueueParameters;
 
@@ -428,7 +427,7 @@ namespace Nanite
 
 			auto* PassParameters = GraphBuilder.AllocParameters<FNaniteStreamOutTraversalCS::FParameters>();
 
-			PassParameters->GPUScenePrimitiveSceneData = GPUScenePrimitiveBufferSRV;
+			PassParameters->Scene = SceneUniformBuffer.GetBuffer(GraphBuilder);
 
 			PassParameters->QueueParameters = QueueParameters;
 
