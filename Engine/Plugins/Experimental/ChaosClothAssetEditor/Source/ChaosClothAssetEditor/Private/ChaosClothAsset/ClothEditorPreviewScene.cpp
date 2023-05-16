@@ -253,13 +253,17 @@ void FChaosClothPreviewScene::SetClothAsset(UChaosClothAsset* Asset)
 	check(Asset);
 	check(SceneActor);
 
-	bool bShouldClothBeRootComponent = false;
+	bool bShouldClothBeRootComponent = true;
 	if (ClothComponent)
 	{
 		if (SceneActor->GetRootComponent() == ClothComponent)
 		{
-			bShouldClothBeRootComponent = true;
 			SceneActor->SetRootComponent(nullptr);
+		}
+		else
+		{
+			// SkeletalMesh is the RootComponent, so don't change it
+			bShouldClothBeRootComponent = false;
 		}
 
 		ClothComponent->SelectionOverrideDelegate.Unbind();

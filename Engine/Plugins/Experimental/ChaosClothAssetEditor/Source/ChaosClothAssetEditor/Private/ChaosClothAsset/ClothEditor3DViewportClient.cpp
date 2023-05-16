@@ -304,10 +304,7 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 	SelectedComponents->Modify();
 	SelectedComponents->BeginBatchSelectOperation();
 
-	if (!bIsShiftKeyDown && !bIsCtrlKeyDown)
-	{
-		SelectedComponents->DeselectAll();
-	}
+	SelectedComponents->DeselectAll();
 
 	if (HitProxy && HitProxy->IsA(HActor::StaticGetType()))
 	{
@@ -315,39 +312,12 @@ void FChaosClothAssetEditor3DViewportClient::ProcessClick(FSceneView& View, HHit
 		if (ActorProxy && ActorProxy->Actor)
 		{
 			const AActor* const Actor = ActorProxy->Actor;
-			USceneComponent* RootComponent = Actor->GetRootComponent();
-			if (RootComponent)
+			
+			Actor->ForEachComponent<UPrimitiveComponent>(true, [&](UPrimitiveComponent* Component)
 			{
-				if (bIsShiftKeyDown)
-				{
-					SelectedComponents->Select(RootComponent);
-				}
-				else if (bIsCtrlKeyDown)
-				{
-					// Don't use USelection::ToggleSelect here because that checks membership in GObjectSelection, not the given USelection...
-					TArray<USceneComponent*> Components;
-					SelectedComponents->GetSelectedObjects(Components);
-					const bool bIsSelected = Components.Contains(RootComponent);
-
-					if (bIsSelected)
-					{
-						SelectedComponents->Deselect(RootComponent);
-					}
-					else
-					{
-						SelectedComponents->Select(RootComponent);
-					}
-				}
-				else
-				{
-					SelectedComponents->Select(RootComponent);
-				}
-
-				if (UPrimitiveComponent* const PrimitiveComponent = Cast<UPrimitiveComponent>(RootComponent))
-				{
-					PrimitiveComponent->PushSelectionToProxy();
-				}
-			}
+				SelectedComponents->Select(Component);
+				Component->PushSelectionToProxy();
+			});
 		}
 	}
 
