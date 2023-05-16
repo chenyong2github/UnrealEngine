@@ -25,6 +25,7 @@
 #include "ImageCore.h"
 #if WITH_EDITORONLY_DATA
 #include "Misc/TVariant.h"
+#include "ObjectCacheEventSink.h"
 #include "DerivedDataCacheKeyProxy.h"
 #endif
 
@@ -1231,14 +1232,48 @@ public:
 	/** Per asset specific setting to define the mip-map generation properties like sharpening and kernel size. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LevelOfDetail)
 	TEnumAsByte<enum TextureMipGenSettings> MipGenSettings;
-	
+
 	/**
 	 * Can be defined to modify the roughness based on the normal map variation (mostly from mip maps).
 	 * MaxAlpha comes in handy to define a base roughness if no source alpha was there.
 	 * Make sure the normal map has at least as many mips as this texture.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compositing)
+	UE_DEPRECATED(5.3, "Use GetCompositeTexture() and SetCompositeTexture() instead.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compositing, meta = (AllowPrivateAccess), Setter = SetCompositeTexture, Getter = GetCompositeTexture)
 	TObjectPtr<class UTexture> CompositeTexture;
+
+private:
+	/** Used to track down when CompositeTexture has been modified for notification purpose.
+	*	NOTE: Do not make a TObjectPtr or UPROPERTY as it would defeat the purpose.
+	*/
+	class UTexture* KnownCompositeTexture = nullptr;
+
+	/** Called when the CompositeTexture property gets overwritten without us knowing about it */
+	ENGINE_API void OutdatedKnownCompositeTextureDetected() const;
+	ENGINE_API void NotifyIfCompositeTextureChanged();
+
+public:
+	void SetCompositeTexture(UTexture* InCompositeTexture)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		CompositeTexture = InCompositeTexture;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		NotifyIfCompositeTextureChanged();
+	}
+
+	UTexture* GetCompositeTexture() const
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// This should never happen and is a last resort, we should have caught the property overwrite well before we reach this code
+		// but this can happen from legacy code that use reflection to set the property without using the new _InContainer functions
+		// which will bypass the setter we put in place.
+		if (KnownCompositeTexture != CompositeTexture)
+		{
+			OutdatedKnownCompositeTextureDetected();
+		}
+		return CompositeTexture;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/* defines how the CompositeTexture is applied, e.g. CTM_RoughnessFromNormalAlpha */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compositing, AdvancedDisplay)

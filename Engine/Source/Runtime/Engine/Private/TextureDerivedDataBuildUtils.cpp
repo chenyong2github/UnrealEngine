@@ -327,12 +327,12 @@ FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildS
 	Writer.SetName("Source");
 	WriteSource(Writer, Texture, LayerIndex, BuildSettings);
 
-	if (bUseCompositeTexture && Texture.CompositeTexture)
+	if (bUseCompositeTexture && Texture.GetCompositeTexture())
 	{
-		check( Texture.CompositeTexture->Source.IsValid() ); // should have been checked to set bUseCompositeTexture
+		check( Texture.GetCompositeTexture()->Source.IsValid() ); // should have been checked to set bUseCompositeTexture
 
 		Writer.SetName("CompositeSource");
-		WriteSource(Writer, *Texture.CompositeTexture, LayerIndex, BuildSettings);
+		WriteSource(Writer, *Texture.GetCompositeTexture(), LayerIndex, BuildSettings);
 	}
 
 	Writer.EndObject();

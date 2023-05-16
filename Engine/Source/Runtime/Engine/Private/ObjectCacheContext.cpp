@@ -43,6 +43,19 @@ static TAutoConsoleVariable<int32> CVarObjectReverseLookupMode(
 	ECVF_ReadOnly /* Can only be enabled from the command-line */
 );
 
+static TAutoConsoleVariable<int32> CVarObjectReverseLookupMask(
+	TEXT("Editor.ObjectReverseLookupMask"),
+	-1,
+	TEXT("-1 - Does validation on all objects type (slowest) \n")
+	TEXT("0  - Skip validation on all objects type \n")
+	TEXT("1  - Perform validation on Texture to Textures lookups \n")
+	TEXT("2  - Perform validation on Texture to Materials lookups \n")
+	TEXT("4  - Perform validation on Material to Primitives lookups \n")
+	TEXT("8  - Perform validation on StaticMesh To Components lookups \n")
+	TEXT("16 - Perform validation on Material to Materials lookups \n"),
+	ECVF_Default /* Can only be enabled from the command-line */
+);
+
 namespace ObjectCacheContextImpl { void Validate(); }
 
 static FAutoConsoleCommand CVarObjectReverseLookupValidate(
@@ -58,6 +71,19 @@ static FAutoConsoleCommand CVarObjectReverseLookupValidate(
 
 namespace ObjectCacheContextImpl {
 
+enum class EObjectReverseLookupMask : int32
+{
+	None = 0,
+	TextureToTextureLookupCache = 1,
+	TextureToMaterialLookupCache = 2,
+	MaterialToPrimitiveLookupCache = 4,
+	StaticMeshToComponentLookupCache = 8,
+	MaterialToMaterialsLookupCache = 16,
+	All = -1
+};
+
+ENUM_CLASS_FLAGS(EObjectReverseLookupMask);
+
 enum class EObjectReverseLookupMode
 {
 	Temporary = 0,
@@ -65,10 +91,10 @@ enum class EObjectReverseLookupMode
 	Comparison = 2
 };
 
+static bool GIsGetObjectReverseLookupModeInitialized = false;
 EObjectReverseLookupMode GetObjectReverseLookupMode()
 {
-	static bool bInitialized = false;
-	if (!bInitialized)
+	if (!GIsGetObjectReverseLookupModeInitialized)
 	{
 		check(IsInGameThread());
 		int32 Mode = 0;
@@ -76,10 +102,46 @@ EObjectReverseLookupMode GetObjectReverseLookupMode()
 		{
 			CVarObjectReverseLookupMode->Set(Mode, ECVF_SetByCommandline);
 		}
-		bInitialized = true;
+		GIsGetObjectReverseLookupModeInitialized = true;
 	}
 
 	return (EObjectReverseLookupMode)CVarObjectReverseLookupMode.GetValueOnAnyThread();
+}
+
+static bool GIsGetObjectReverseLookupMaskInitialized = false;
+EObjectReverseLookupMask GetObjectReverseLookupMask()
+{
+	if (!GIsGetObjectReverseLookupMaskInitialized)
+	{
+		check(IsInGameThread());
+		int32 Mask = 0;
+		if (FParse::Value(FCommandLine::Get(), TEXT("-ObjectReverseLookupMask="), Mask))
+		{
+			CVarObjectReverseLookupMask->Set(Mask, ECVF_SetByCommandline);
+		}
+		GIsGetObjectReverseLookupMaskInitialized = true;
+	}
+
+	return (EObjectReverseLookupMask)CVarObjectReverseLookupMask.GetValueOnAnyThread();
+}
+
+bool IsReverseLookupComparisonActive(EObjectReverseLookupMask Mask)
+{
+	return GetObjectReverseLookupMode() == EObjectReverseLookupMode::Comparison && (GetObjectReverseLookupMask() & Mask) != EObjectReverseLookupMask::None;
+}
+
+bool ShouldUseLookupTable(EObjectReverseLookupMask Mask)
+{
+	const EObjectReverseLookupMode Mode = GetObjectReverseLookupMode();
+	switch (Mode)
+	{
+		case EObjectReverseLookupMode::Comparison:
+			return !IsReverseLookupComparisonActive(Mask);
+		case EObjectReverseLookupMode::Permanent:
+			return true;
+		default:
+			return false;
+	}
 }
 
 struct FDefaultObjectSearchPredicate
@@ -283,6 +345,7 @@ private:
 
 FObjectReverseLookupCache<UMaterialInterface, UMaterialInstance>   GMaterialToMaterialInstanceLookupCache; // Parent -> Children
 FObjectReverseLookupCache<UTexture, UMaterialInterface>            GTextureToMaterialLookupCache;
+FObjectReverseLookupCache<UTexture, UTexture>                      GTextureToTextureLookupCache; // CompositeTexture -> Texture
 FObjectReverseLookupCache<UStaticMesh, UStaticMeshComponent>       GStaticMeshToComponentLookupCache;
 FObjectReverseLookupCache<UMaterialInterface, UPrimitiveComponent> GMaterialToPrimitiveLookupCache;
 
@@ -313,6 +376,20 @@ void Validate()
 			TempLookup.Update(*It, ReferencedTextures.Array());
 		}
 		ErrorCount += TempLookup.Compare(GTextureToMaterialLookupCache);
+	}
+
+	// Scan and compare UTexture -> UTexture
+	{
+		FObjectReverseLookupCache<UTexture, UTexture> TempLookup;
+		for (TObjectIterator<UTexture> It(RF_ClassDefaultObject, true /*bIncludeDerivedClasses*/, GetObjectCacheInternalFlagsExclusion()); It; ++It)
+		{
+			UTexture* Texture = *It;
+			if (Texture->GetCompositeTexture() != nullptr && Texture->GetCompositeTexture() != Texture)
+			{
+				TempLookup.Update(*It, { It->GetCompositeTexture() });
+			}
+		}
+		ErrorCount += TempLookup.Compare(GTextureToTextureLookupCache);
 	}
 
 	// Scan and compare UMaterialInterface -> UPrimitiveComponent
@@ -502,6 +579,22 @@ namespace ObjectCacheContextImpl {
 			}
 		}
 	}
+
+	void GetTexturesAffectedByTexture_Iteration(UTexture* InTexture, TSet<UTexture*>& OutAffectedTextures)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GetTextureAffectedByTexture_Iteration);
+
+		for (TObjectIterator<UTexture> It(RF_ClassDefaultObject, true /*bIncludeDerivedClasses*/, GetObjectCacheInternalFlagsExclusion()); It; ++It)
+		{
+			UTexture* Texture = *It;
+
+			if (Texture != InTexture && Texture->GetCompositeTexture() == InTexture && Texture->CompositeTextureMode != CTM_Disabled)
+			{
+				OutAffectedTextures.Add(Texture);
+			}
+		}
+	}
+
 #endif // #if WITH_EDITOR
 
 } // namespace ObjectCacheContextImpl
@@ -549,8 +642,7 @@ TObjectCacheIterator<UTexture> FObjectCacheContext::GetUsedTextures(UMaterialInt
 {
 	using namespace ObjectCacheContextImpl;
 #if WITH_EDITOR
-	const EObjectReverseLookupMode ObjectCacheContextMode = GetObjectReverseLookupMode();
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Permanent)
+	if (ShouldUseLookupTable(EObjectReverseLookupMask::TextureToMaterialLookupCache))
 	{
 		return GTextureToMaterialLookupCache.GetTo(MaterialInterface);
 	}
@@ -564,13 +656,13 @@ TObjectCacheIterator<UTexture> FObjectCacheContext::GetUsedTextures(UMaterialInt
 	}
 
 #if WITH_EDITOR
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Comparison)
+	if (IsReverseLookupComparisonActive(EObjectReverseLookupMask::TextureToMaterialLookupCache))
 	{
 		TSet<UTexture*> LookupResult;
 		for (UTexture* Texture : GTextureToMaterialLookupCache.GetTo(MaterialInterface))
 		{
 			LookupResult.FindOrAdd(Texture);
-			checkf(Textures->Contains(Texture), TEXT("Permanent Object Cache has an additionnal texture %s on material %s"), *Texture->GetFullName(), *MaterialInterface->GetFullName());
+			checkf(Textures->Contains(Texture), TEXT("Permanent Object Cache has an additional texture %s on material %s"), *Texture->GetFullName(), *MaterialInterface->GetFullName());
 		}
 
 		for (UTexture* Texture : *Textures)
@@ -607,8 +699,7 @@ TObjectCacheIterator<UMaterialInterface> FObjectCacheContext::GetUsedMaterials(U
 {
 	using namespace ObjectCacheContextImpl;
 #if WITH_EDITOR
-	const EObjectReverseLookupMode ObjectCacheContextMode = GetObjectReverseLookupMode();
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Permanent)
+	if (ShouldUseLookupTable(EObjectReverseLookupMask::MaterialToPrimitiveLookupCache))
 	{
 		return GMaterialToPrimitiveLookupCache.GetTo(Component);
 	}
@@ -634,13 +725,13 @@ TObjectCacheIterator<UMaterialInterface> FObjectCacheContext::GetUsedMaterials(U
 	// The only case where reverse lookup is allowed to diverge is when the render state is dirty meaning
 	// UsedMaterials might have been modified but the SceneProxy hasn't been recreated yet.
 	// This is not a problem as we're using the reverse proxy to know which component needs to be dirtied anyway.
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Comparison && Component->IsRenderStateCreated() && Component->SceneProxy && !Component->IsRenderStateDirty())
+	if (IsReverseLookupComparisonActive(EObjectReverseLookupMask::MaterialToPrimitiveLookupCache) && Component->IsRenderStateCreated() && Component->SceneProxy && !Component->IsRenderStateDirty())
 	{
 		TSet<UMaterialInterface*> LookupResult;
 		for (UMaterialInterface* Material : GMaterialToPrimitiveLookupCache.GetTo(Component))
 		{
 			LookupResult.FindOrAdd(Material);
-			checkf(Materials->Contains(Material), TEXT("Permanent Object Cache has an additionnal material %s for component %"), *Material->GetFullName(), *Component->GetFullName());
+			checkf(Materials->Contains(Material), TEXT("Permanent Object Cache has an additional material %s for component %s"), *Material->GetFullName(), *Component->GetFullName());
 		}
 
 		for (UMaterialInterface* Material : *Materials)
@@ -657,8 +748,7 @@ TObjectCacheIterator<UStaticMeshComponent> FObjectCacheContext::GetStaticMeshCom
 {
 	using namespace ObjectCacheContextImpl;
 #if WITH_EDITOR
-	const EObjectReverseLookupMode ObjectCacheContextMode = GetObjectReverseLookupMode();
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Permanent)
+	if (ShouldUseLookupTable(EObjectReverseLookupMask::StaticMeshToComponentLookupCache))
 	{
 		return GStaticMeshToComponentLookupCache.GetFrom(InStaticMesh);
 	}
@@ -682,13 +772,13 @@ TObjectCacheIterator<UStaticMeshComponent> FObjectCacheContext::GetStaticMeshCom
 	const TSet<UStaticMeshComponent*>& ComputeResult = Set ? *Set : EmptySet;
 
 #if WITH_EDITOR
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Comparison)
+	if (IsReverseLookupComparisonActive(EObjectReverseLookupMask::StaticMeshToComponentLookupCache))
 	{
 		TSet<UStaticMeshComponent*> LookupResult;
 		for (UStaticMeshComponent* Component : GStaticMeshToComponentLookupCache.GetFrom(InStaticMesh))
 		{
 			LookupResult.FindOrAdd(Component);
-			checkf(ComputeResult.Contains(Component), TEXT("Permanent Object Cache has an additionnal component %s for staticmesh %s"), *Component->GetFullName(), *InStaticMesh->GetFullName());
+			checkf(ComputeResult.Contains(Component), TEXT("Permanent Object Cache has an additional component %s for staticmesh %s"), *Component->GetFullName(), *InStaticMesh->GetFullName());
 		}
 
 		for (UStaticMeshComponent* Component : ComputeResult)
@@ -705,8 +795,7 @@ TObjectCacheIterator<UMaterialInterface> FObjectCacheContext::GetMaterialsAffect
 {
 	using namespace ObjectCacheContextImpl;
 #if WITH_EDITOR
-	const EObjectReverseLookupMode ObjectCacheContextMode = GetObjectReverseLookupMode();
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Permanent)
+	if (ShouldUseLookupTable(EObjectReverseLookupMask::TextureToMaterialLookupCache))
 	{
 		return GTextureToMaterialLookupCache.GetFrom(InTexture);
 	}
@@ -734,13 +823,13 @@ TObjectCacheIterator<UMaterialInterface> FObjectCacheContext::GetMaterialsAffect
 	const TSet<UMaterialInterface*>& ComputeResult = Set ? *Set : EmptySet;
 
 #if WITH_EDITOR
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Comparison)
+	if (IsReverseLookupComparisonActive(EObjectReverseLookupMask::TextureToMaterialLookupCache))
 	{
 		TSet<UMaterialInterface*> LookupResult;
 		for (UMaterialInterface* Material : GTextureToMaterialLookupCache.GetFrom(InTexture))
 		{
 			LookupResult.FindOrAdd(Material);
-			checkf(ComputeResult.Contains(Material), TEXT("Permanent Object Cache has an additionnal material %s for texture %s"), *Material->GetFullName(), *InTexture->GetFullName());
+			checkf(ComputeResult.Contains(Material), TEXT("Permanent Object Cache has an additional material %s for texture %s"), *Material->GetFullName(), *InTexture->GetFullName());
 		}
 
 		for (UMaterialInterface* Material : ComputeResult)
@@ -752,6 +841,44 @@ TObjectCacheIterator<UMaterialInterface> FObjectCacheContext::GetMaterialsAffect
 
 	return TObjectCacheIterator<UMaterialInterface>(ComputeResult.Array());
 }
+
+#if WITH_EDITOR
+
+TObjectCacheIterator<UTexture> FObjectCacheContext::GetTexturesAffectedByTexture(UTexture* InTexture)
+{
+	using namespace ObjectCacheContextImpl;
+	TRACE_CPUPROFILER_EVENT_SCOPE(FObjectCacheContext::GetTexturesAffectedByTexture);
+
+	// Filter out if CompositeTextureMode is not active
+	auto Predicate = [](UTexture* Texture) { return Texture->CompositeTextureMode != CTM_Disabled; };
+
+	if (ShouldUseLookupTable(EObjectReverseLookupMask::TextureToTextureLookupCache))
+	{
+		return GTextureToTextureLookupCache.GetFrom(InTexture, Predicate);
+	}
+
+	TSet<UTexture*> IterationResults;
+	ObjectCacheContextImpl::GetTexturesAffectedByTexture_Iteration(InTexture, IterationResults);
+
+	if (IsReverseLookupComparisonActive(EObjectReverseLookupMask::TextureToTextureLookupCache))
+	{
+		TSet<UTexture*> LookupResults;
+		for (UTexture* Texture : GTextureToTextureLookupCache.GetFrom(InTexture, Predicate))
+		{
+			LookupResults.Add(Texture);
+			checkf(IterationResults.Contains(Texture), TEXT("Permanent Object Cache has an additional element %s"), *Texture->GetFullName());
+		}
+
+		for (UTexture* Texture : IterationResults)
+		{
+			checkf(LookupResults.Contains(Texture), TEXT("Permanent Object Cache is missing element %s"), *Texture->GetFullName());
+		}
+	}
+
+	return TObjectCacheIterator<UTexture>(IterationResults.Array());
+}
+
+#endif
 
 TObjectCacheIterator<USkinnedMeshComponent> FObjectCacheContext::GetSkinnedMeshComponents(USkinnedAsset* InSkinnedAsset)
 {
@@ -781,8 +908,7 @@ TObjectCacheIterator<UMaterialInterface> FObjectCacheContext::GetMaterialsAffect
 	TRACE_CPUPROFILER_EVENT_SCOPE(FObjectCacheContext::GetMaterialsAffectedByMaterials);
 
 #if WITH_EDITOR
-	const EObjectReverseLookupMode ObjectCacheContextMode = GetObjectReverseLookupMode();
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Permanent)
+	if (ShouldUseLookupTable(EObjectReverseLookupMask::MaterialToMaterialsLookupCache))
 	{
 		TSet<UMaterialInterface*> LookupResults;
 		ObjectCacheContextImpl::GetMaterialsAffectedByMaterials_Lookup(InMaterials, LookupResults);
@@ -794,19 +920,19 @@ TObjectCacheIterator<UMaterialInterface> FObjectCacheContext::GetMaterialsAffect
 	ObjectCacheContextImpl::GetMaterialsAffectedByMaterials_Iteration(InMaterials, IterationResults);
 
 #if WITH_EDITOR
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Comparison)
+	if (IsReverseLookupComparisonActive(EObjectReverseLookupMask::MaterialToMaterialsLookupCache))
 	{
 		TSet<UMaterialInterface*> LookupResults;
 		ObjectCacheContextImpl::GetMaterialsAffectedByMaterials_Lookup(InMaterials, LookupResults);
 		
 		for (UMaterialInterface* MaterialInterface : LookupResults)
 		{
-			checkf(IterationResults.Contains(MaterialInterface), TEXT("Permanent Object Cache has an additionnal %s"), *MaterialInterface->GetFullName());
+			checkf(IterationResults.Contains(MaterialInterface), TEXT("Permanent Object Cache has an additional element %s"), *MaterialInterface->GetFullName());
 		}
 
 		for (UMaterialInterface* MaterialInterface : IterationResults)
 		{
-			checkf(LookupResults.Contains(MaterialInterface), TEXT("Permanent Object Cache is missing a %s"), *MaterialInterface->GetFullName());
+			checkf(LookupResults.Contains(MaterialInterface), TEXT("Permanent Object Cache is missing element %s"), *MaterialInterface->GetFullName());
 		}
 	}
 #endif
@@ -820,8 +946,7 @@ TObjectCacheIterator<UPrimitiveComponent> FObjectCacheContext::GetPrimitivesAffe
 	TRACE_CPUPROFILER_EVENT_SCOPE(FObjectCacheContext::GetPrimitivesAffectedByMaterials);
 
 #if WITH_EDITOR
-	const EObjectReverseLookupMode ObjectCacheContextMode = GetObjectReverseLookupMode();
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Permanent)
+	if (ShouldUseLookupTable(EObjectReverseLookupMask::MaterialToPrimitiveLookupCache))
 	{
 		TSet<UPrimitiveComponent*> AffectedPrimitives;
 		ObjectCacheContextImpl::GetPrimitivesAffectedByMaterials_Lookup(InMaterials, AffectedPrimitives);
@@ -833,7 +958,7 @@ TObjectCacheIterator<UPrimitiveComponent> FObjectCacheContext::GetPrimitivesAffe
 	ObjectCacheContextImpl::GetPrimitivesAffectedByMaterials_Iteration(*this, InMaterials, IterationResults);
 
 #if WITH_EDITOR
-	if (ObjectCacheContextMode == EObjectReverseLookupMode::Comparison)
+	if (IsReverseLookupComparisonActive(EObjectReverseLookupMask::MaterialToPrimitiveLookupCache))
 	{
 		TSet<UPrimitiveComponent*> LookupResults;
 		ObjectCacheContextImpl::GetPrimitivesAffectedByMaterials_Lookup(InMaterials, LookupResults);
@@ -845,7 +970,7 @@ TObjectCacheIterator<UPrimitiveComponent> FObjectCacheContext::GetPrimitivesAffe
 		{
 			if (Component->IsRenderStateCreated() && Component->SceneProxy && !Component->IsRenderStateDirty())
 			{
-				checkf(IterationResults.Contains(Component), TEXT("Permanent Object Cache has an additionnal %s"), *Component->GetFullName());
+				checkf(IterationResults.Contains(Component), TEXT("Permanent Object Cache has an additional element %s"), *Component->GetFullName());
 			}
 		}
 
@@ -853,7 +978,7 @@ TObjectCacheIterator<UPrimitiveComponent> FObjectCacheContext::GetPrimitivesAffe
 		{
 			if (Component->IsRenderStateCreated() && Component->SceneProxy && !Component->IsRenderStateDirty())
 			{
-				checkf(LookupResults.Contains(Component), TEXT("Permanent Object Cache is missing a %s"), *Component->GetFullName());
+				checkf(LookupResults.Contains(Component), TEXT("Permanent Object Cache is missing element %s"), *Component->GetFullName());
 			}
 		}
 	}
@@ -913,6 +1038,7 @@ struct FObjectCacheEventSinkPrivate
 	static void NotifyReferencedTextureChanged_Concurrent(UMaterialInterface*);
 	static void NotifyStaticMeshChanged_Concurrent(UStaticMeshComponent*);
 	static void NotifyMaterialDestroyed_Concurrent(UMaterialInterface*);
+	static void NotifyCompositeTextureChanged_Concurrent(UTexture*);
 
 	enum ECacheEventType
 	{
@@ -920,7 +1046,8 @@ struct FObjectCacheEventSinkPrivate
 		EMaterialsChanged,
 		ERenderStateChanged,
 		EReferencedTextureChanged,
-		EStaticMeshChanged
+		EStaticMeshChanged,
+		ECompositeTextureChanged,
 	};
 
 	struct FNotifyEvent
@@ -930,6 +1057,7 @@ struct FObjectCacheEventSinkPrivate
 		const UPrimitiveComponent* PrimitiveComponent;
 		UStaticMeshComponent* StaticMeshComponent;
 		TArray<UMaterialInterface*> UsedMaterials;
+		UTexture* Texture;
 	};
 
 	static std::atomic<bool> bShouldQueueSinkEvents;
@@ -938,7 +1066,7 @@ struct FObjectCacheEventSinkPrivate
 	using TEventList = TLockFreePointerListFIFO<FNotifyEvent, PLATFORM_CACHE_LINE_SIZE>;
 	static TEventAllocator& GetAllocator();
 	static TEventList& GetNotifyEvents();
-	static void AddNotifyEvent(FObjectCacheEventSinkPrivate::ECacheEventType EventType, UMaterialInterface* MaterialInterface, const UPrimitiveComponent* PrimitiveComponent, UStaticMeshComponent* StaticMeshComponent, const TArray<UMaterialInterface*>* UsedMaterials);
+	static void AddNotifyEvent(FObjectCacheEventSinkPrivate::ECacheEventType EventType, UMaterialInterface* MaterialInterface, const UPrimitiveComponent* PrimitiveComponent, UStaticMeshComponent* StaticMeshComponent, const TArray<UMaterialInterface*>* UsedMaterials, UTexture* Texture);
 };
 
 } // namespace ObjectCacheContextImpl
@@ -964,6 +1092,22 @@ void FObjectCacheEventSink::EndQueueNotifyEvents()
 	FObjectCacheEventSinkPrivate::EndQueueNotifyEvents();
 }
 
+void FObjectCacheEventSink::NotifyCompositeTextureChanged_Concurrent(UTexture* InTexture)
+{
+	using namespace ObjectCacheContextImpl;
+
+	if (GetObjectReverseLookupMode() != EObjectReverseLookupMode::Temporary)
+	{
+		if (FObjectCacheEventSinkPrivate::bShouldQueueSinkEvents)
+		{
+			FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::ECompositeTextureChanged, nullptr, nullptr, nullptr, nullptr, InTexture);
+		}
+		else
+		{
+			FObjectCacheEventSinkPrivate::NotifyCompositeTextureChanged_Concurrent(InTexture);
+		}
+	}
+}
 void FObjectCacheEventSink::NotifyMaterialDestroyed_Concurrent(UMaterialInterface* MaterialInterface)
 {
 	using namespace ObjectCacheContextImpl;
@@ -972,7 +1116,7 @@ void FObjectCacheEventSink::NotifyMaterialDestroyed_Concurrent(UMaterialInterfac
 	{
 		if (FObjectCacheEventSinkPrivate::bShouldQueueSinkEvents)
 		{
-			FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::EMaterialDestroyed, MaterialInterface, nullptr, nullptr, nullptr);
+			FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::EMaterialDestroyed, MaterialInterface, nullptr, nullptr, nullptr, nullptr);
 		}
 		else
 		{
@@ -989,7 +1133,7 @@ void FObjectCacheEventSink::NotifyUsedMaterialsChanged_Concurrent(const UPrimiti
 	{
 		if (FObjectCacheEventSinkPrivate::bShouldQueueSinkEvents)
 		{
-			FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::EMaterialsChanged, nullptr, PrimitiveComponent, nullptr, &UsedMaterials);
+			FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::EMaterialsChanged, nullptr, PrimitiveComponent, nullptr, &UsedMaterials, nullptr);
 		}
 		else
 		{
@@ -1008,7 +1152,7 @@ void FObjectCacheEventSink::NotifyRenderStateChanged_Concurrent(UActorComponent*
 		{
 			if (FObjectCacheEventSinkPrivate::bShouldQueueSinkEvents)
 			{
-				FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::ERenderStateChanged, nullptr, Primitive, nullptr, nullptr);
+				FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::ERenderStateChanged, nullptr, Primitive, nullptr, nullptr, nullptr);
 			}
 			else
 			{
@@ -1026,7 +1170,7 @@ void FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(UMaterialI
 	{
 		if (FObjectCacheEventSinkPrivate::bShouldQueueSinkEvents)
 		{
-			FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::EReferencedTextureChanged, MaterialInterface, nullptr, nullptr, nullptr);
+			FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::EReferencedTextureChanged, MaterialInterface, nullptr, nullptr, nullptr, nullptr);
 		}
 		else
 		{
@@ -1043,7 +1187,7 @@ void FObjectCacheEventSink::NotifyStaticMeshChanged_Concurrent(UStaticMeshCompon
 	{
 		if (FObjectCacheEventSinkPrivate::bShouldQueueSinkEvents)
 		{
-			FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::EStaticMeshChanged, nullptr, nullptr, StaticMeshComponent, nullptr);
+			FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::EStaticMeshChanged, nullptr, nullptr, StaticMeshComponent, nullptr, nullptr);
 		}
 		else
 		{
@@ -1068,7 +1212,7 @@ FObjectCacheEventSinkPrivate::TEventList& FObjectCacheEventSinkPrivate::GetNotif
 	return NotifyEvents;
 }
 
-void FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::ECacheEventType EventType, UMaterialInterface* MaterialInterface, const UPrimitiveComponent* PrimitiveComponent, UStaticMeshComponent* StaticMeshComponent, const TArray<UMaterialInterface*>* UsedMaterials)
+void FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::ECacheEventType EventType, UMaterialInterface* MaterialInterface, const UPrimitiveComponent* PrimitiveComponent, UStaticMeshComponent* StaticMeshComponent, const TArray<UMaterialInterface*>* UsedMaterials, UTexture* Texture)
 {
 
 	FNotifyEvent* Event = GetAllocator().New();
@@ -1076,6 +1220,7 @@ void FObjectCacheEventSinkPrivate::AddNotifyEvent(FObjectCacheEventSinkPrivate::
 	Event->MaterialInterface = MaterialInterface;
 	Event->PrimitiveComponent = PrimitiveComponent;
 	Event->StaticMeshComponent = StaticMeshComponent;
+	Event->Texture = Texture;
 
 	if (EventType == EMaterialsChanged)
 	{
@@ -1118,6 +1263,9 @@ void FObjectCacheEventSinkPrivate::ProcessQueuedNotifyEvents()
 		case EStaticMeshChanged:
 			NotifyStaticMeshChanged_Concurrent(Event->StaticMeshComponent);
 			break;
+		case ECompositeTextureChanged:
+			NotifyCompositeTextureChanged_Concurrent(Event->Texture);
+			break;
 		}
 
 		Allocator.Free(Event);
@@ -1129,6 +1277,24 @@ void FObjectCacheEventSinkPrivate::EndQueueNotifyEvents()
 	check(bShouldQueueSinkEvents);
 	ProcessQueuedNotifyEvents();
 	bShouldQueueSinkEvents = false;
+}
+
+
+void FObjectCacheEventSinkPrivate::NotifyCompositeTextureChanged_Concurrent(UTexture* Texture)
+{
+	using namespace ObjectCacheContextImpl;
+
+#if WITH_EDITOR
+	// Stop tracking textures that are being destroyed
+	if (Texture->HasAnyFlags(RF_BeginDestroyed) || Texture->GetCompositeTexture() == nullptr || Texture->GetCompositeTexture() == Texture)
+	{
+		GTextureToTextureLookupCache.Update(Texture, {});
+	}
+	else
+	{
+		GTextureToTextureLookupCache.Update(Texture, { Texture->GetCompositeTexture() });
+	}
+#endif
 }
 
 void FObjectCacheEventSinkPrivate::NotifyMaterialDestroyed_Concurrent(UMaterialInterface* MaterialInterface)

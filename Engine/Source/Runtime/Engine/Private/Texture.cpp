@@ -21,6 +21,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Engine/TextureLODSettings.h"
 #include "RenderUtils.h"
+#include "ObjectCacheContext.h"
 #include "Rendering/StreamableTextureResource.h"
 #include "RenderingThread.h"
 #include "Interfaces/ITextureFormat.h"
@@ -785,24 +786,21 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateDependentMaterials);
 
 		// Update any material that uses this texture and must force a recompile of cache resource
+		FObjectCacheContextScope ObjectCache;
+
 		TArray<UMaterial*> MaterialsToUpdate;
 		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
-		// this walks all Materials in the world
-		for (TObjectIterator<UMaterialInterface> It; It; ++It)
+		for (UMaterialInterface* MaterialInterface : ObjectCache.GetContext().GetMaterialsAffectedByTexture(this))
 		{
-			UMaterialInterface* MaterialInterface = *It;
-			if (DoesMaterialUseTexture(MaterialInterface, this))
+			UMaterial* Material = MaterialInterface->GetMaterial();
+			bool MaterialAlreadyCompute = false;
+			BaseMaterialsThatUseThisTexture.Add(Material, &MaterialAlreadyCompute);
+			if (!MaterialAlreadyCompute)
 			{
-				UMaterial* Material = MaterialInterface->GetMaterial();
-				bool MaterialAlreadyCompute = false;
-				BaseMaterialsThatUseThisTexture.Add(Material, &MaterialAlreadyCompute);
-				if (!MaterialAlreadyCompute)
+				if (Material->IsTextureForceRecompileCacheRessource(this))
 				{
-					if (Material->IsTextureForceRecompileCacheRessource(this))
-					{
-						MaterialsToUpdate.Add(Material);
-						Material->UpdateMaterialShaderCacheAndTextureReferences();
-					}
+					MaterialsToUpdate.Add(Material);
+					Material->UpdateMaterialShaderCacheAndTextureReferences();
 				}
 			}
 		}
@@ -834,25 +832,14 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	}
 		
 #if WITH_EDITORONLY_DATA
-	// any texture that is referencing this texture as AssociatedNormalMap needs to be informed
+	// any texture that is referencing this texture as CompositeTexture needs to be informed
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateDependentTextures);
 
-		TArray<UTexture*> TexturesThatUseThisTexture;
-
-		for (TObjectIterator<UTexture> It; It; ++It) // walk all textures in the world
+		FObjectCacheContextScope ObjectCache;
+		for (UTexture* Texture : ObjectCache.GetContext().GetTexturesAffectedByTexture(this))
 		{
-			UTexture* Tex = *It;
-			
-			if(Tex != this && Tex->CompositeTexture == this && Tex->CompositeTextureMode != CTM_Disabled)
-			{
-				TexturesThatUseThisTexture.Add(Tex);
-			}
-		}
-		// there is a potential infinite loop here if two textures depend on each other (or in a ring)
-		for (int32 i = 0; i < TexturesThatUseThisTexture.Num(); ++i)
-		{
-			TexturesThatUseThisTexture[i]->PostEditChange();
+			Texture->PostEditChange();
 		}
 	}
 #endif
@@ -879,6 +866,10 @@ static bool IsEnableLegacyAlphaCoverageThresholdScaling()
 void UTexture::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+#if WITH_EDITORONLY_DATA
+	NotifyIfCompositeTextureChanged();
+#endif
 
 	Super::Serialize(Ar);
 	
@@ -1046,6 +1037,8 @@ void UTexture::Serialize(FArchive& Ar)
 			CompositeTextureMode = CTM_Disabled;
 		}
 	}
+
+	NotifyIfCompositeTextureChanged();
 #endif // #if WITH_EDITORONLY_DATA
 }
 
@@ -1058,8 +1051,37 @@ void UTexture::AppendToClassSchema(FAppendToClassSchemaContext& Context)
 	uint8 LegacyScalingBool = IsEnableLegacyAlphaCoverageThresholdScaling();
 	Context.Update(&LegacyScalingBool, sizeof(LegacyScalingBool));
 }
-#endif
 
+void UTexture::OutdatedKnownCompositeTextureDetected() const
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	ensureMsgf(
+		KnownCompositeTexture == CompositeTexture,
+		TEXT("CompositeTexture property overwritten for texture %s without a call to NotifyIfCompositeTextureChanged(). KnownCompositeTexture (%p) != CompositeTexture (%p - %s)"),
+		*GetFullName(),
+		KnownCompositeTexture,
+		CompositeTexture,
+		CompositeTexture ? *CompositeTexture->GetFullName() : TEXT("nullptr")
+	);
+
+	// This is a last resort, call the notification now
+	UTexture* MutableThis = const_cast<UTexture*>(this);
+	MutableThis->NotifyIfCompositeTextureChanged();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void UTexture::NotifyIfCompositeTextureChanged()
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (KnownCompositeTexture != CompositeTexture)
+	{
+		KnownCompositeTexture = CompositeTexture;
+		FObjectCacheEventSink::NotifyCompositeTextureChanged_Concurrent(this);
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+#endif // #if WITH_EDITORONLY_DATA
 
 void UTexture::PostInitProperties()
 {
@@ -1146,6 +1168,11 @@ void UTexture::BeginDestroy()
 	{
 		BeginFinalReleaseResource();
 	}
+
+#if WITH_EDITOR
+	// The object cache needs to be notified when we're getting destroyed
+	FObjectCacheEventSink::NotifyCompositeTextureChanged_Concurrent(this);
+#endif
 }
 
 bool UTexture::IsReadyForFinishDestroy()
@@ -3778,22 +3805,19 @@ void UTexture::NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnSha
 	// Create a material update context to safely update materials.
 	{
 		FMaterialUpdateContext UpdateContext;
+		FObjectCacheContextScope ObjectCache;
 
 		// Notify any material that uses this texture
 		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
-		for (TObjectIterator<UMaterialInterface> It; It; ++It)
+		for (UMaterialInterface* MaterialInterface : ObjectCache.GetContext().GetMaterialsAffectedByTexture(this))
 		{
-			UMaterialInterface* MaterialInterface = *It;
-			if (DoesMaterialUseTexture(MaterialInterface, this))
-			{
-				UpdateContext.AddMaterialInterface(MaterialInterface);
-				// This is a bit tricky. We want to make sure all materials using this texture are
-				// updated. Materials are always updated. Material instances may also have to be
-				// updated and if they have static permutations their children must be updated
-				// whether they use the texture or not! The safe thing to do is to add the instance's
-				// base material to the update context causing all materials in the tree to update.
-				BaseMaterialsThatUseThisTexture.Add(MaterialInterface->GetMaterial());
-			}
+			UpdateContext.AddMaterialInterface(MaterialInterface);
+			// This is a bit tricky. We want to make sure all materials using this texture are
+			// updated. Materials are always updated. Material instances may also have to be
+			// updated and if they have static permutations their children must be updated
+			// whether they use the texture or not! The safe thing to do is to add the instance's
+			// base material to the update context causing all materials in the tree to update.
+			BaseMaterialsThatUseThisTexture.Add(MaterialInterface->GetMaterial());
 		}
 
 		// Go ahead and update any base materials that need to be.

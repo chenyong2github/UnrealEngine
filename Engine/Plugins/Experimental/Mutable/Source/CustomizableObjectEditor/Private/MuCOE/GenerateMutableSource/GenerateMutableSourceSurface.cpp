@@ -670,7 +670,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 							LastImage = MipmapImage;
 
 							// Apply composite image. This needs to be computed after mipmaps generation. 	
-							if (ReferenceTexture && ReferenceTexture->CompositeTexture && ReferenceTexture->CompositeTextureMode != CTM_Disabled)
+							if (ReferenceTexture && ReferenceTexture->GetCompositeTexture() && ReferenceTexture->CompositeTextureMode != CTM_Disabled)
 							{
 								mu::NodeImageNormalCompositePtr CompositedImage = new mu::NodeImageNormalComposite();
 								CompositedImage->SetBase(LastImage.get());
@@ -693,7 +693,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 
 								mu::NodeImageConstantPtr CompositeNormalImage = new mu::NodeImageConstant();
 
-								UTexture2D* ReferenceCompositeNormalTexture = Cast<UTexture2D>(ReferenceTexture->CompositeTexture);
+								UTexture2D* ReferenceCompositeNormalTexture = Cast<UTexture2D>(ReferenceTexture->GetCompositeTexture());
 								if (ReferenceCompositeNormalTexture)
 								{
 									GenerationContext.ArrayTextureUnrealToMutableTask.Add(FTextureUnrealToMutableTask(CompositeNormalImage, ReferenceCompositeNormalTexture, Node, true));

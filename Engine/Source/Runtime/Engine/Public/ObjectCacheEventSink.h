@@ -24,6 +24,7 @@ struct ENGINE_API FObjectCacheEventSink
 	static void NotifyReferencedTextureChanged_Concurrent(UMaterialInterface*);
 	static void NotifyStaticMeshChanged_Concurrent(UStaticMeshComponent*);
 	static void NotifyMaterialDestroyed_Concurrent(UMaterialInterface*);
+	static void NotifyCompositeTextureChanged_Concurrent(UTexture*);
 };
 
 #endif // #if WITH_EDITOR

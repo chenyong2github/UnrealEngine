@@ -77,6 +77,9 @@ public:
 	TObjectCacheIterator<UTexture>              GetUsedTextures(UMaterialInterface* InMaterial);
 	TObjectCacheIterator<UMaterialInterface>    GetUsedMaterials(UPrimitiveComponent* InComponent);
 	TObjectCacheIterator<UMaterialInterface>    GetMaterialsAffectedByMaterials(TArrayView<UMaterialInterface*> InMaterials);
+#if WITH_EDITOR
+	TObjectCacheIterator<UTexture>              GetTexturesAffectedByTexture(UTexture* InTexture);
+#endif
 
 private:
 	friend class FObjectCacheContextScope;
@@ -84,6 +87,9 @@ private:
 	TMap<TObjectKey<UPrimitiveComponent>, TSet<UMaterialInterface*>> PrimitiveComponentToMaterial;
 	TMap<TObjectKey<UMaterialInterface>, TSet<UTexture*>> MaterialUsedTextures;
 	TOptional<TMap<TObjectKey<UTexture>, TSet<UMaterialInterface*>>> TextureToMaterials;
+#if WITH_EDITOR
+	TOptional<TMap<TObjectKey<UTexture>, TSet<UTexture*>>> TextureToTextures;
+#endif
 	TOptional<TMap<TObjectKey<UMaterialInterface>, TSet<UPrimitiveComponent*>>> MaterialToPrimitives;
 	TOptional<TMap<TObjectKey<UStaticMesh>, TSet<UStaticMeshComponent*>>> StaticMeshToComponents;
 	TOptional<TMap<TObjectKey<USkinnedAsset>, TSet<USkinnedMeshComponent*>>> SkinnedAssetToComponents;

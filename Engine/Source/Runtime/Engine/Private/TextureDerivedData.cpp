@@ -367,11 +367,11 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 	
 	FString CompositeTextureStr;
 
-	if(IsValid(Texture.CompositeTexture) && Texture.CompositeTextureMode != CTM_Disabled && Texture.CompositeTexture->Source.IsValid())
+	if(IsValid(Texture.GetCompositeTexture()) && Texture.CompositeTextureMode != CTM_Disabled && Texture.GetCompositeTexture()->Source.IsValid())
 	{
 		// CompositeTextureMode output changed so force a new DDC key value :
 		CompositeTextureStr += TEXT("_Composite090802022_");
-		CompositeTextureStr += Texture.CompositeTexture->Source.GetIdString();
+		CompositeTextureStr += Texture.GetCompositeTexture()->Source.GetIdString();
 	}
 
 	// child texture formats may need to know the mip dimensions in order to generate the ddc
@@ -943,7 +943,7 @@ static void GetTextureBuildSettings(
 	OutBuildSettings.CompositeTextureMode = Texture.CompositeTextureMode;
 	OutBuildSettings.CompositePower = Texture.CompositePower;
 
-	if ( Texture.CompositeTexture && ! Texture.CompositeTexture->Source.IsValid() )
+	if ( Texture.GetCompositeTexture() && !Texture.GetCompositeTexture()->Source.IsValid() )
 	{
 		// have a CompositeTexture but it has no source, don't use it :
 		OutBuildSettings.CompositeTextureMode = CTM_Disabled;
