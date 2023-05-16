@@ -223,6 +223,7 @@ namespace AutomationTool
 		void StdOut(object sender, DataReceivedEventArgs e);
 		void StdErr(object sender, DataReceivedEventArgs e);
 		int ExitCode { get; set; }
+		bool bExitCodeSuccess { get; }
 		string Output { get; }
 		Process ProcessObject { get; }
 		string ToString();
@@ -391,6 +392,8 @@ namespace AutomationTool
 			get { return ProcessExitCode; }
 			set { ProcessExitCode = value; }
 		}
+
+		public bool bExitCodeSuccess => ExitCode == 0;
 
 		/// <summary>
 		/// Gets all std output the process generated.

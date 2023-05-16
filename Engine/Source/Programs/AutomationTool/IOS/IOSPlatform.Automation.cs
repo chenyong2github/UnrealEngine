@@ -92,6 +92,8 @@ class IOSClientProcess : IProcessResult
 		set { childProcess.ExitCode = value; }
 	}
 
+	public bool bExitCodeSuccess => ExitCode == 0;
+
 	public string Output
 	{
 		get { return childProcess.Output; }

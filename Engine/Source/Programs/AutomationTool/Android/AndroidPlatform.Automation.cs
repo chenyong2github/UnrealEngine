@@ -118,6 +118,8 @@ public class AndroidPlatform : Platform
 			set { LogFileProcessExitCode = value; }
 		}
 
+		public bool bExitCodeSuccess => ExitCode == 0;
+
 		public string Output
 		{
 			get { return AdbLogProcess.Output; }

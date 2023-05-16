@@ -537,7 +537,7 @@ namespace AutomationScripts
 			{
 				// Any non-zero exit code should propagate an exception. The PostRunClient function above may have
 				// already thrown a more specific exception or given a more specific ErrorCode, but this catches the rest.
-				if (ClientProcess != null && ClientProcess.ExitCode != 0)
+				if (ClientProcess != null && !ClientProcess.bExitCodeSuccess)
 				{
 					throw new AutomationException("Client exited with error code: {0} (see {1} for more info)", ClientProcess.ExitCode, ClientLogFile);
 				}
