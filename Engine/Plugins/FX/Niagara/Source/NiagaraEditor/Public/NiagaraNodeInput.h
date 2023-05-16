@@ -107,9 +107,14 @@ public:
 	/** Given an array of nodes, sort them in place by their sort order, then lexicographically if the same.*/
 	static void SortNodes(TArray<UNiagaraNodeInput*>& InOutNodes);
 
-	UNiagaraDataInterface* GetDataInterface() const;
+	bool IsDataInterface() const;
+	bool IsObjectAsset() const;
 
+	UNiagaraDataInterface* GetDataInterface() const;
 	void SetDataInterface(UNiagaraDataInterface* InDataInterface);
+	
+	UObject* GetObjectAsset() const;
+	void SetObjectAsset(UObject* Object);
 
 private:
 	void DataInterfaceChanged();
@@ -118,5 +123,7 @@ private:
 private:
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	TObjectPtr<class UNiagaraDataInterface> DataInterface;
-};
 
+	UPROPERTY(meta = (CompileHashObjectPath = "true"))
+	TObjectPtr<UObject> ObjectAsset;
+};

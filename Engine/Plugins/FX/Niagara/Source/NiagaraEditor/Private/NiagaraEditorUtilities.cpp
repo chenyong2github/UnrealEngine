@@ -149,11 +149,20 @@ void FNiagaraEditorUtilities::InitializeParameterInputNode(UNiagaraNodeInput& In
 		{
 			InputNode.SetDataInterface(nullptr);
 		}
+		if (InputNode.GetObjectAsset() != nullptr)
+		{
+			InputNode.SetObjectAsset(nullptr);
+		}
 	}
 	else if(Type.IsDataInterface())
 	{
 		InputNode.Input.AllocateData(); // Frees previously used memory if we're switching from a struct to a class type.
 		InputNode.SetDataInterface(NewObject<UNiagaraDataInterface>(&InputNode, Type.GetClass(), NAME_None, RF_Transactional | RF_Public));
+	}
+	else if (Type.IsUObject())
+	{
+		InputNode.Input.AllocateData(); // Frees previously used memory if we're switching from a struct to a class type.
+		InputNode.SetObjectAsset(nullptr);
 	}
 }
 
@@ -517,16 +526,26 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 		{
 			FObjectProperty* CastProp = CastFieldChecked<FObjectProperty>(Property);
 			UObject* Obj = CastProp->GetObjectPropertyValue_InContainer(Container);
-			if (Obj != nullptr)
+
+			static FName HashObjectPathMeta = TEXT("CompileHashObjectPath");
+			if (Property->HasMetaData(HashObjectPathMeta))
 			{
-				// We just do name here as sometimes things will be in a transient package or something tricky.
-				// Because we do nested id's for each called graph, it should work out in the end to have a different
-				// value in the compile array if the scripts are the same name but different locations.
-				InVisitor->UpdateString(*PropertyName, Obj->GetName());
+				FSoftObjectPath SoftPath(Obj);
+				InVisitor->UpdateString(*PropertyName, SoftPath.GetAssetPath().ToString());
 			}
 			else
 			{
-				InVisitor->UpdateString(*PropertyName, TEXT("nullptr"));
+				if (Obj != nullptr)
+				{
+					// We just do name here as sometimes things will be in a transient package or something tricky.
+					// Because we do nested id's for each called graph, it should work out in the end to have a different
+					// value in the compile array if the scripts are the same name but different locations.
+					InVisitor->UpdateString(*PropertyName, Obj->GetName());
+				}
+				else
+				{
+					InVisitor->UpdateString(*PropertyName, TEXT("nullptr"));
+				}
 			}
 			continue;
 		}

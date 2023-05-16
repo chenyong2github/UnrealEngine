@@ -77,6 +77,13 @@ const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateData
 	return NewInput;
 }
 
+const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateObjectAssetValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, UObject* InObject)
+{
+	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, bInEditConditionValue, ENiagaraClipboardFunctionInputValueMode::ObjectAsset);
+	NewInput->ObjectAsset = InObject;
+	return NewInput;
+}
+
 const UNiagaraClipboardFunctionInput* UNiagaraClipboardFunctionInput::CreateExpressionValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, const FString& InExpressionValue)
 {
 	UNiagaraClipboardFunctionInput* NewInput = MakeNewInput(InOuter, InInputName, InInputType, bInEditConditionValue, ENiagaraClipboardFunctionInputValueMode::Expression);

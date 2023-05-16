@@ -26,6 +26,7 @@ UNiagaraNodeInput::UNiagaraNodeInput(const FObjectInitializer& ObjectInitializer
 	, Usage(ENiagaraInputNodeUsage::Parameter)
 	, CallSortPriority(0)
 	, DataInterface(nullptr)
+	, ObjectAsset(nullptr)
 {
 	bCanRenameNode = true;
 }
@@ -34,30 +35,32 @@ void UNiagaraNodeInput::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 {
 	if (PropertyChangedEvent.Property != nullptr)
 	{
-		if (UClass* Class = const_cast<UClass*>(Input.GetType().GetClass()))
+		UClass* Class = Input.GetType().GetClass();
+
+		if (DataInterface)
 		{
-			check(Class->IsChildOf(UNiagaraDataInterface::StaticClass()));
-			if (DataInterface)
+			if (!IsDataInterface() || DataInterface->GetClass() != Class)
 			{
-				if (DataInterface->GetClass() != Class)
+				//Class has changed so clear this out and allocate pins will create a new instance of the correct type.
+				//Should we preserve old objects somewhere so settings aren't lost when switching around types?
+				DataInterface = nullptr;
+			}
+			else
+			{
+				//Keep it with the same name as the input 
+				if (PropertyChangedEvent.Property->GetName() == GET_MEMBER_NAME_CHECKED(UNiagaraNodeInput, Input))
 				{
-					//Class has changed so clear this out and allocate pins will create a new instance of the correct type.
-					//Should we preserve old objects somewhere so settings aren't lost when switching around types?
-					DataInterface = nullptr;
-				}
-				else
-				{
-					//Keep it with the same name as the input 
-					if (PropertyChangedEvent.Property->GetName() == TEXT("Input"))
-					{
-						DataInterface->Rename(*Input.GetName().ToString());
-					}
+					DataInterface->Rename(*Input.GetName().ToString());
 				}
 			}
 		}
-		else
+
+		if (ObjectAsset)
 		{
-			DataInterface = nullptr;
+			if (!IsObjectAsset() || ObjectAsset->GetClass() != Class)
+			{
+				ObjectAsset = nullptr;
+			}
 		}
 
 		ReallocatePins();
@@ -69,10 +72,15 @@ void UNiagaraNodeInput::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 void UNiagaraNodeInput::PostLoad()
 {
 	Super::PostLoad();
+
 	if (DataInterface != nullptr)
 	{
 		DataInterface->ConditionalPostLoad();
 		DataInterface->OnChanged().AddUObject(this, &UNiagaraNodeInput::DataInterfaceChanged);
+	}
+	if (ObjectAsset != nullptr)
+	{
+		ObjectAsset->ConditionalPostLoad();
 	}
 
 	ValidateDataInterface();
@@ -133,18 +141,12 @@ void UNiagaraNodeInput::AppendFunctionAliasForContext(const FNiagaraGraphFunctio
 void UNiagaraNodeInput::AllocateDefaultPins()
 {
 	const FNiagaraTypeDefinition& InputType = Input.GetType();
-	if (InputType.IsUObject() && InputType.IsDataInterface() == false)
-	{
-		this->ErrorMsg = TEXT("Invalid Input Type");
-		return;
-	}
 
-	if (UClass* Class = const_cast<UClass*>(Input.GetType().GetClass()))
+	if (InputType.IsDataInterface())
 	{
-		check(Class->IsChildOf(UNiagaraDataInterface::StaticClass()));
-		if (!DataInterface)
+		if (DataInterface == nullptr)
 		{
-			DataInterface = NewObject<UNiagaraDataInterface>(this, Class, NAME_None, RF_Transactional | RF_Public);
+			DataInterface = NewObject<UNiagaraDataInterface>(this, InputType.GetClass(), NAME_None, RF_Transactional | RF_Public);
 		}
 	}
 
@@ -154,7 +156,7 @@ void UNiagaraNodeInput::AllocateDefaultPins()
 	UNiagaraScript* OwnerScript = GetTypedOuter<UNiagaraScript>();
 	if (OwnerScript)
 	{
-		if ((!IsRequired() && IsExposed()) && DataInterface == nullptr && Usage == ENiagaraInputNodeUsage::Parameter && (OwnerScript->IsStandaloneScript()))
+		if ((!IsRequired() && IsExposed()) && !IsDataInterface() && !IsObjectAsset() && Usage == ENiagaraInputNodeUsage::Parameter && (OwnerScript->IsStandaloneScript()))
 		{
 			UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Input.GetType()), TEXT("Default"));
 			NewPin->bDefaultValueIsIgnored = true;
@@ -246,9 +248,9 @@ void UNiagaraNodeInput::OnRenameNode(const FString& NewName)
 	{
 		Node->Modify();
 		Node->Input.SetName(FName(*NewName));
-		if (DataInterface != nullptr)
+		if ( DataInterface )
 		{
-			Node->GetDataInterface()->Rename(*NewName);
+			DataInterface->Rename(*NewName);
 		}
 		Node->ReallocatePins(false);
 		Node->MarkNodeRequiresSynchronization("Input renamed", true);
@@ -337,6 +339,7 @@ void UNiagaraNodeInput::AutowireNewNode(UEdGraphPin* FromPin)
 						check(InputNode->ExposureOptions.bHidden == this->ExposureOptions.bHidden);
 						check(InputNode->ExposureOptions.bRequired == this->ExposureOptions.bRequired);
 						check(InputNode->DataInterface == this->DataInterface);
+						check(InputNode->ObjectAsset == this->ObjectAsset);
 					}
 
 					if (InputNode->CallSortPriority > HighestSortPriority)
@@ -408,16 +411,23 @@ void UNiagaraNodeInput::Compile(class FHlslNiagaraTranslator* Translator, TArray
 			if (Default == INDEX_NONE)
 			{
 				//We failed to compile the default pin so just use the value of the input.
-				if (Usage == ENiagaraInputNodeUsage::Parameter && DataInterface != nullptr)
+				if (Usage == ENiagaraInputNodeUsage::Parameter)
 				{
-					check(Input.GetType().GetClass());
-					Outputs.Add(Translator->RegisterDataInterface(Input, DataInterface, false, false));
-					return;
+					if ( IsDataInterface() )
+					{
+						if (ensure(DataInterface != nullptr))
+						{
+							Outputs.Add(Translator->RegisterDataInterface(Input, DataInterface, false, false));
+							return;
+						}
+					}
+					else if ( IsObjectAsset() )
+					{
+						Outputs.Add(Translator->RegisterUObject(Input, ObjectAsset, false));
+						return;
+					}
 				}
-				else
-				{
-					Default = Translator->GetConstant(Input);
-				}
+				Default = Translator->GetConstant(Input);
 			}
 			Outputs.Add(Default);
 			return;
@@ -427,14 +437,20 @@ void UNiagaraNodeInput::Compile(class FHlslNiagaraTranslator* Translator, TArray
 	switch (Usage)
 	{
 	case ENiagaraInputNodeUsage::Parameter:
-		if (DataInterface)
+		if (IsDataInterface())
 		{
-			check(Input.GetType().GetClass());
-			Outputs.Add(Translator->RegisterDataInterface(Input, DataInterface, false, false)); break;
+			Outputs.Add(Translator->RegisterDataInterface(Input, DataInterface, false, false));
+			break;
+		}
+		else if ( IsObjectAsset() )
+		{
+			Outputs.Add(Translator->RegisterUObject(Input, ObjectAsset, false));
+			break;
 		}
 		else
 		{
-			Outputs.Add(Translator->GetParameter(Input)); break;
+			Outputs.Add(Translator->GetParameter(Input));
+			break;
 		}
 	case ENiagaraInputNodeUsage::SystemConstant:
 		Outputs.Add(Translator->GetParameter(Input)); break;
@@ -470,25 +486,46 @@ void UNiagaraNodeInput::SortNodes(TArray<UNiagaraNodeInput*>& InOutNodes)
 	InOutNodes.Sort(SortVars);
 }
 
+bool UNiagaraNodeInput::IsDataInterface() const
+{
+	return Input.IsDataInterface();
+}
+
+bool UNiagaraNodeInput::IsObjectAsset() const
+{
+	return Input.IsUObject();
+}
+
 UNiagaraDataInterface* UNiagaraNodeInput::GetDataInterface() const
 {
-	return DataInterface;
+	return Cast<UNiagaraDataInterface>(DataInterface);
 }
 
 void UNiagaraNodeInput::SetDataInterface(UNiagaraDataInterface* InDataInterface)
 {
-	if (DataInterface != nullptr)
+	UNiagaraDataInterface* OldDataInterface = GetDataInterface();
+	if (OldDataInterface != nullptr)
 	{
-		DataInterface->OnChanged().RemoveAll(this);
+		OldDataInterface->OnChanged().RemoveAll(this);
 	}
 	DataInterface = InDataInterface;
-	if (DataInterface != nullptr)
+	if (InDataInterface != nullptr)
 	{
-		DataInterface->OnChanged().AddUObject(this, &UNiagaraNodeInput::DataInterfaceChanged);
+		InDataInterface->OnChanged().AddUObject(this, &UNiagaraNodeInput::DataInterfaceChanged);
 	}
 
 	ValidateDataInterface();
 	DataInterfaceChanged();
+}
+
+UObject* UNiagaraNodeInput::GetObjectAsset() const
+{
+	return ObjectAsset;
+}
+
+void UNiagaraNodeInput::SetObjectAsset(UObject* InObject)
+{
+	ObjectAsset = InObject;
 }
 
 void UNiagaraNodeInput::DataInterfaceChanged()

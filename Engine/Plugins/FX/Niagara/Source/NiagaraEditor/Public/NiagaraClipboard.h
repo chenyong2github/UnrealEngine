@@ -22,6 +22,7 @@ enum class ENiagaraClipboardFunctionInputValueMode
 	Local,
 	Linked,
 	Data,
+	ObjectAsset,
 	Expression,
 	Dynamic
 };
@@ -39,6 +40,8 @@ public:
 	static const UNiagaraClipboardFunctionInput* CreateLinkedValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, FName InLinkedValue);
 
 	static const UNiagaraClipboardFunctionInput* CreateDataValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, UNiagaraDataInterface* InDataValue);
+
+	static const UNiagaraClipboardFunctionInput* CreateObjectAssetValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, UObject* InObject);
 
 	static const UNiagaraClipboardFunctionInput* CreateExpressionValue(UObject* InOuter, FName InInputName, FNiagaraTypeDefinition InInputType, TOptional<bool> bInEditConditionValue, const FString& InExpressionValue);
 
@@ -67,6 +70,9 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraDataInterface> Data;
+
+	UPROPERTY()
+	TObjectPtr<UObject> ObjectAsset;
 
 	UPROPERTY()
 	FString Expression;

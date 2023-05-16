@@ -213,6 +213,10 @@ void UNiagaraParameterCollectionInstance::SyncWithCollection()
 			{
 				ParameterStorage.SetDataInterface(OldStore.GetDataInterface(Offset), Param);
 			}
+			else if (Param.IsUObject())
+			{
+				ParameterStorage.SetUObject(OldStore.GetUObject(Offset), Param);
+			}
 			else
 			{
 				ParameterStorage.SetParameterData(OldStore.GetParameterData(Offset), ParameterStorageOffset, Param.GetSizeInBytes());
@@ -230,6 +234,10 @@ void UNiagaraParameterCollectionInstance::SyncWithCollection()
 			if (Param.IsDataInterface())
 			{
 				ParameterStorage.SetDataInterface(CastChecked<UNiagaraDataInterface>(StaticDuplicateObject(DefaultStore.GetDataInterface(Offset), this)), Param);
+			}
+			else if (Param.IsUObject())
+			{
+				ParameterStorage.SetUObject(DefaultStore.GetUObject(Offset), Param);
 			}
 			else
 			{

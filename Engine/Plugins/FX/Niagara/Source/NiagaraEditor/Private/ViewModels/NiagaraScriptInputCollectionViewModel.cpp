@@ -275,7 +275,7 @@ void FNiagaraScriptInputCollectionViewModel::RefreshParameterViewModels()
 				ParameterViewModel = MakeShareable(new FNiagaraScriptParameterViewModel(GraphVariable, *InputNode, EmitterVariable, Script, ParameterEditMode));
 				
 			}
-			else
+			else if (InputNode->Input.IsDataInterface())
 			{
 				UNiagaraDataInterface* EmitterDataInterface = InputNode->GetDataInterface();
 				for (FVersionedNiagaraScriptWeakPtr& ScriptWeakPtr : Scripts)
@@ -296,6 +296,11 @@ void FNiagaraScriptInputCollectionViewModel::RefreshParameterViewModels()
 				}
 				ParameterViewModel = MakeShareable(new FNiagaraScriptParameterViewModel(GraphVariable, *InputNode, EmitterDataInterface, ParameterEditMode));
 			}
+			else if (InputNode->Input.IsUObject())
+			{
+				UObject* ObjectAsset = InputNode->GetObjectAsset();
+				ParameterViewModel = MakeShareable(new FNiagaraScriptParameterViewModel(GraphVariable, *InputNode, ObjectAsset, ParameterEditMode));
+			}
 
 			ParameterViewModel->OnNameChanged().AddSP(this, &FNiagaraScriptInputCollectionViewModel::OnParameterNameChanged, TWeakObjectPtr<UNiagaraNodeInput>(InputNode));
 			ParameterViewModel->OnTypeChanged().AddSP(this, &FNiagaraScriptInputCollectionViewModel::OnParameterTypeChanged, &GraphVariable);
@@ -310,11 +315,11 @@ void FNiagaraScriptInputCollectionViewModel::RefreshParameterViewModels()
 
 bool FNiagaraScriptInputCollectionViewModel::SupportsType(const FNiagaraTypeDefinition& Type) const
 {
-	if (Type.IsUObject() && Type.IsDataInterface() == false)
-	{
-		// Don't allow generic objects as script inputs.
-		return false;
-	}
+	//if (Type.IsUObject() && Type.IsDataInterface() == false)
+	//{
+	//	// Don't allow generic objects as script inputs.
+	//	return false;
+	//}
 
 	if (Type.IsStatic())
 	{
@@ -331,7 +336,7 @@ bool FNiagaraScriptInputCollectionViewModel::SupportsType(const FNiagaraTypeDefi
 		// We only support parameter map inputs for dynamic inputs and modules, with the ability to create data interfaces as needed for defaults.
 		if (Scripts[0].Script->GetUsage() == ENiagaraScriptUsage::DynamicInput || Scripts[0].Script->GetUsage() == ENiagaraScriptUsage::Module)
 		{
-			if (Type != FNiagaraTypeDefinition::GetParameterMapDef() && !Type.IsDataInterface())
+			if (Type != FNiagaraTypeDefinition::GetParameterMapDef() && !Type.IsDataInterface() && !Type.IsUObject())
 			{
 				return false;
 			}
@@ -419,6 +424,7 @@ void FNiagaraScriptInputCollectionViewModel::OnParameterTypeChanged(FNiagaraVari
 			InputNodeToUpdate->Modify();
 			InputNodeToUpdate->Input = FirstNodeToUpdate->Input;
 			InputNodeToUpdate->SetDataInterface(FirstNodeToUpdate->GetDataInterface());
+			InputNodeToUpdate->SetObjectAsset(FirstNodeToUpdate->GetObjectAsset());
 			InputNodeToUpdate->NotifyInputTypeChanged();
 		}
 	}
@@ -447,7 +453,8 @@ void FNiagaraScriptInputCollectionViewModel::OnParameterValueChangedInternal(TSh
 	// Since we potentially have multiple input nodes that point to the exact same underlying input variable, we need to make sure that 
 	// all of them are synchronized in their values or else we might end up with confusion when we finally compile. 
 	if (ChangedParameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::Struct || 
-		ChangedParameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::Object)
+		ChangedParameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::DataInterface ||
+		ChangedParameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::ObjectAsset)
 	{
 		TArray<UNiagaraNodeInput*> InputNodes;
 		TArray<UNiagaraNodeInput*> InputNodesToUpdate;
@@ -497,9 +504,9 @@ void FNiagaraScriptInputCollectionViewModel::OnParameterValueChangedInternal(TSh
 				}
 			}
 		}
-		else if (ChangedParameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::Object)
+		else if (ChangedParameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::DataInterface)
 		{
-			UNiagaraDataInterface* DataInterface = Cast<UNiagaraDataInterface>(ChangedParameter->GetDefaultValueObject());
+			UNiagaraDataInterface* DataInterface = ChangedParameter->GetDefaultValueDataInterface();
 			if (DataInterface != nullptr)
 			{
 				TSet<UNiagaraDataInterface*> DataInterfacesToUpdate;
@@ -534,6 +541,20 @@ void FNiagaraScriptInputCollectionViewModel::OnParameterValueChangedInternal(TSh
 					}
 				}
 			}
+		}
+		else if (ChangedParameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::ObjectAsset)
+		{
+			UObject* NewObject = ChangedParameter->GetDefaultValueObjectAsset();
+
+			for (UNiagaraNodeInput* InputNodeToUpdate : InputNodesToUpdate)
+			{
+				InputNodeToUpdate->Modify();
+				InputNodeToUpdate->SetObjectAsset(NewObject);
+			}
+		}
+		else
+		{
+			checkNoEntry();
 		}
 	}
 

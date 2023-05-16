@@ -308,6 +308,9 @@ public:
 	/** Called to notify the system view model that one of the data objects in the system was modified. */
 	void NotifyDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 
+	/** Called to notify the system view model that one of the object references in the system was modified. */
+	NIAGARAEDITOR_API void NotifyObjectAssetChanged(UNiagaraNode& OwningNode, FName VariableReadName, UObject* NewValue);
+
 	/** Updates all selected emitter's fixed bounds with their current dynamic bounds. */
 	void UpdateEmitterFixedBounds();
 

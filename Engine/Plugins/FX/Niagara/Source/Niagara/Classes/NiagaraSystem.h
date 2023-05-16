@@ -758,6 +758,9 @@ public:
 	/** Updates any post compile data based upon data interfaces. */
 	void OnCompiledDataInterfaceChanged();
 
+	/** Updates the system post UObject change. */
+	void OnCompiledUObjectChanged();
+
 	/** Updates the rapid iteration parameters for all scripts referenced by the system. */
 	void PrepareRapidIterationParametersForCompilation();
 #endif
@@ -789,7 +792,7 @@ private:
 	/** Helper for filling in attribute datasets per emitter. */
 	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
 
-	void ResolveDIBindings();
+	void ResolveParameterStoreBindings();
 #endif
 
 	void ResolveScalabilitySettings();

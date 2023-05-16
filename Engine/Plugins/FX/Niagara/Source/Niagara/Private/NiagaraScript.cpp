@@ -1784,6 +1784,23 @@ void UNiagaraScript::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		return;
 	}
 
+	if (CachedScriptVM.UObjectInfos.Num() != CachedDefaultUObjects.Num())
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("UObject count mismatch during script presave. Invaliding compile results (see full log for details).  Script: %s"), *GetPathName());
+		UE_LOG(LogNiagara, Log, TEXT("Compiled UObjects:"));
+		for (const FNiagaraScriptUObjectCompileInfo& Info : CachedScriptVM.UObjectInfos)
+		{
+			UE_LOG(LogNiagara, Log, TEXT("Name:%s, Type: %s"), *Info.Variable.GetName().ToString(), *Info.Variable.GetType().GetName());
+		}
+		UE_LOG(LogNiagara, Log, TEXT("Cached UObjects:"));
+		for (const FNiagaraScriptUObjectCompileInfo& Info : CachedDefaultUObjects)
+		{
+			UE_LOG(LogNiagara, Log, TEXT("Name:%s, Type: %s"), *Info.Variable.GetName().ToString(), *Info.Variable.GetType().GetName());
+		}
+		InvalidateCompileResults(TEXT("UObject count mismatch during script presave."));
+		return;
+	}
+
 	const ITargetPlatform* TargetPlatform = ObjectSaveContext.GetTargetPlatform();
 	if (TargetPlatform && TargetPlatform->RequiresCookedData())
 	{
@@ -2147,6 +2164,14 @@ void UNiagaraScript::PostLoad()
 		}
 	}
 
+	for (FNiagaraResolvedUObjectInfo& ResolvedUObject : ResolvedUObjectInfos)
+	{
+		if (ResolvedUObject.Object != nullptr)
+		{
+			ResolvedUObject.Object->ConditionalPostLoad();
+		}
+	}
+
 #if WITH_EDITORONLY_DATA
 	// Because we might be using these cached data interfaces, we need to make sure that they are properly postloaded.
 	for (FNiagaraScriptDataInterfaceInfo& Info : CachedDefaultDataInterfaces)
@@ -2154,6 +2179,14 @@ void UNiagaraScript::PostLoad()
 		if (Info.DataInterface)
 		{
 			Info.DataInterface->ConditionalPostLoad();
+		}
+	}
+
+	for (FNiagaraScriptUObjectCompileInfo& DefaultUObject : CachedDefaultUObjects)
+	{
+		if (DefaultUObject.Object)
+		{
+			DefaultUObject.Object->ConditionalPostLoad();
 		}
 	}
 
@@ -2872,6 +2905,8 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		}
 		check(CachedDefaultDataInterfaces[Idx].DataInterface != nullptr);
 	}
+
+	CachedDefaultUObjects = CachedScriptVM.UObjectInfos;
 
 	if (bApplyRapidIterationParameters)
 	{
@@ -3654,6 +3689,30 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 		UpdateName(DataInterfaceInfo.RegisteredParameterMapRead);
 		UpdateName(DataInterfaceInfo.RegisteredParameterMapWrite);
 	}
+
+	// and UObjects
+	for (FNiagaraScriptUObjectCompileInfo& Info : CachedDefaultUObjects)
+	{
+		const FNiagaraVariableBase TempNamedVariable(FNiagaraTypeDefinition::GetFloatDef(), Info.Variable.GetName());
+		const FNiagaraVariableBase ResolvedVariable = FNiagaraUtilities::ResolveAliases(TempNamedVariable, ResolveAliasesContext);
+		Info.Variable.SetName(ResolvedVariable.GetName());
+
+		auto UpdateName =
+			[&](FName& NameVariable)
+			{
+				if (NameVariable == TempNamedVariable.GetName())
+				{
+					NameVariable = ResolvedVariable.GetName();
+				}
+			};
+
+		// also update the MapRead/MapWrite member variables, they seem to typically match the Name parameter, but may be None
+		UpdateName(Info.RegisteredParameterMapRead);
+		for (FName& VariableName : Info.RegisteredParameterMapWrites)
+		{
+			UpdateName(VariableName);
+		}
+	}
 }
 
 bool UNiagaraScript::SynchronizeExecutablesWithCompilation(const UNiagaraScript* Script, const TMap<FString, FString>& RenameMap)
@@ -3679,6 +3738,7 @@ bool UNiagaraScript::SynchronizeExecutablesWithCompilation(const UNiagaraScript*
 		CachedScriptVMId = Script->CachedScriptVMId;
 		CachedScriptVM.OptimizationTask.State = nullptr;
 		CachedParameterCollectionReferences = Script->CachedParameterCollectionReferences;
+		CachedDefaultUObjects = Script->CachedDefaultUObjects;
 		CachedDefaultDataInterfaces.Empty();
 		ResolvedDataInterfaces.Empty();
 		for (const FNiagaraScriptDataInterfaceInfo& Info : Script->CachedDefaultDataInterfaces)
@@ -3717,6 +3777,7 @@ void UNiagaraScript::InvalidateCompileResults(const FString& Reason)
 	{
 		GetLastGeneratedVMId().Invalidate();
 	}
+	CachedDefaultUObjects.Reset();
 	CachedDefaultDataInterfaces.Reset();
 	ResolvedDataInterfaces.Reset();
 	CachedScriptVM.OptimizationTask.State = nullptr;

@@ -127,7 +127,7 @@ void FNiagaraParameterCollectionAssetViewModel::AddParameter(TSharedPtr<FNiagara
 	int32 ParamIdx = Collection->AddParameter(NewName, Type);
 
 	//TODO: It'd be nice to be able to get a default value for types in runtime code and do this inside the parameter store itself.
-	if (!Type.IsDataInterface())
+	if (!Type.IsDataInterface() && !Type.IsUObject())
 	{
 		TArray<uint8> DefaultData;
 		FNiagaraEditorUtilities::GetTypeDefaultValue(Type, DefaultData);
@@ -391,7 +391,7 @@ void FNiagaraParameterCollectionAssetViewModel::OnParameterTypeChanged(FNiagaraV
 	Collection->GetDefaultInstance()->AddParameter(Collection->GetParameters()[Index]);
 	
 	//TODO: It'd be nice to be able to get a default value for types in runtime code and do this inside the parameter store itself.
-	if (!Type.IsDataInterface())
+	if (!Type.IsDataInterface() && !Type.IsUObject())
 	{
 		TArray<uint8> DefaultData;
 		FNiagaraEditorUtilities::GetTypeDefaultValue(Type, DefaultData);

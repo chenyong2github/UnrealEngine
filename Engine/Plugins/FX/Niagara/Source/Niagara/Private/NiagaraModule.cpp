@@ -1070,9 +1070,9 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 
 	FNiagaraTypeRegistry::ClearUserDefinedRegistry();
 
-	ENiagaraTypeRegistryFlags VarFlags = ENiagaraTypeRegistryFlags::AllowAnyVariable;
-	ENiagaraTypeRegistryFlags ParamFlags = VarFlags | ENiagaraTypeRegistryFlags::AllowParameter;
-	ENiagaraTypeRegistryFlags PayloadFlags = VarFlags | ENiagaraTypeRegistryFlags::AllowPayload;
+	const ENiagaraTypeRegistryFlags VarFlags = ENiagaraTypeRegistryFlags::AllowAnyVariable;
+	const ENiagaraTypeRegistryFlags ParamFlags = VarFlags | ENiagaraTypeRegistryFlags::AllowParameter;
+	const ENiagaraTypeRegistryFlags PayloadFlags = VarFlags | ENiagaraTypeRegistryFlags::AllowPayload;
 
 	FNiagaraTypeRegistry::Register(CollisionEventDef, PayloadFlags);
 
@@ -1108,12 +1108,12 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	UScriptStruct* SpawnInfoStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraSpawnInfo"));
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(SpawnInfoStruct), ParamFlags);
 
-	FNiagaraTypeRegistry::Register(UObjectDef, VarFlags);
-	FNiagaraTypeRegistry::Register(UMaterialDef, VarFlags);
-	FNiagaraTypeRegistry::Register(UTextureDef, VarFlags);
-	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, VarFlags);
-	FNiagaraTypeRegistry::Register(UStaticMeshDef, VarFlags);
-	FNiagaraTypeRegistry::Register(USimCacheClassDef, VarFlags);
+	FNiagaraTypeRegistry::Register(UObjectDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(UMaterialDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(UTextureDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(UStaticMeshDef, ParamFlags);
+	FNiagaraTypeRegistry::Register(USimCacheClassDef, ParamFlags);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), ParamFlags);
 
 

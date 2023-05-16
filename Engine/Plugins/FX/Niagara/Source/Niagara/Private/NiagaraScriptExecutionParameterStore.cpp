@@ -318,6 +318,14 @@ void FNiagaraScriptExecutionParameterStore::AddScriptParams(UNiagaraScript* Scri
 		SetDataInterface(ResolvedDataInterface.ResolvedDataInterface, VarOffset);
 	}
 
+	check(Script->GetVMExecutableData().UObjectInfos.Num() == Script->GetCachedDefaultUObjects().Num());
+	for (const FNiagaraResolvedUObjectInfo& Info : Script->GetResolvedUObjects())
+	{
+		int32 VarOffset = INDEX_NONE;
+		bAdded |= AddParameter(Info.ResolvedVariable, false, false, &VarOffset);
+		SetUObject(Info.Object, VarOffset);
+	}
+
 	if (bAdded && bTriggerRebind)
 	{
 		OnLayoutChange();

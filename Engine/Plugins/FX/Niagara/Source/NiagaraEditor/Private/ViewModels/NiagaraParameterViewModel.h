@@ -11,6 +11,7 @@
 
 struct FNiagaraTypeDefinition;
 struct FNiagaraVariable;
+class UNiagaraDataInterface;
 
 /** Defines the view model for a parameter in the parameter collection editor. */
 class INiagaraParameterViewModel
@@ -26,7 +27,8 @@ public:
 	{
 		None,
 		Struct,
-		Object
+		DataInterface,
+		ObjectAsset,
 	};
 
 public:
@@ -65,8 +67,13 @@ public:
 	/** Gets the struct representing the default value for the parameter. */
 	virtual TSharedRef<FStructOnScope> GetDefaultValueStruct() = 0;
 
-	/** Gets the object representing the default value for the parameter. */
-	virtual UObject* GetDefaultValueObject() = 0;
+	/** Gets the data interface representing the default value for the parameter. */
+	virtual UNiagaraDataInterface* GetDefaultValueDataInterface() = 0;
+
+	/** Gets the object reference representing the default value for the parameter. */
+	virtual UObject* GetDefaultValueObjectAsset() = 0;
+	/** Sets the object reference representing the default value for the parameter. */
+	virtual void SetDefaultValueObjectAsset(UObject*) = 0;
 
 	/** Called to notify the parameter view model that a property on the default value has been changed by the UI. */
 	virtual void NotifyDefaultValuePropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent) = 0;

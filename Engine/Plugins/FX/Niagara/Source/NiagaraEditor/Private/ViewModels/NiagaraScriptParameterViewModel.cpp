@@ -15,7 +15,6 @@ FNiagaraScriptParameterViewModel::FNiagaraScriptParameterViewModel(FNiagaraVaria
 	, GraphVariable(&InGraphVariable)
 	, CompiledVariable(InCompiledVariable)
 	, CompiledVariableOwner(InCompiledVariableOwner)
-	, ValueObject(nullptr)
 {
 	GraphVariableOwner = &InGraphVariableOwner;
 	bool bUsingCompiledVariable = InCompiledVariable != nullptr;
@@ -29,15 +28,20 @@ FNiagaraScriptParameterViewModel::FNiagaraScriptParameterViewModel(FNiagaraVaria
 FNiagaraScriptParameterViewModel::FNiagaraScriptParameterViewModel(FNiagaraVariable& InGraphVariable, UObject& InGraphVariableOwner, UObject* InValueObject, ENiagaraParameterEditMode ParameterEditMode)
 	: FNiagaraParameterViewModel(ParameterEditMode)
 	, GraphVariable(&InGraphVariable)
-	, CompiledVariable(nullptr)
-	, CompiledVariableOwner(nullptr)
-	, ValueVariable(nullptr)
-	, ValueVariableOwner(nullptr)
-	, ValueObject(InValueObject)
 {
 	GraphVariableOwner = &InGraphVariableOwner;
-	DefaultValueType = INiagaraParameterViewModel::EDefaultValueType::Object;
 	DebugName = GraphVariable->GetName().ToString();
+	if (InGraphVariable.IsDataInterface())
+	{
+		ValueDataInterface = Cast<UNiagaraDataInterface>(InValueObject);
+		DefaultValueType = INiagaraParameterViewModel::EDefaultValueType::DataInterface;
+	}
+	else
+	{
+		ValueObjectAsset = InValueObject;
+		DefaultValueType = INiagaraParameterViewModel::EDefaultValueType::ObjectAsset;
+	}
+
 	//UE_LOG(LogNiagaraEditor, Log, TEXT("Create %p Var %s"), this, *DebugName);
 }
 
@@ -54,7 +58,8 @@ void FNiagaraScriptParameterViewModel::Reset()
 	CompiledVariableOwner = nullptr;
 	ValueVariable = nullptr;
 	ValueVariableOwner = nullptr;
-	ValueObject = nullptr;
+	ValueDataInterface = nullptr;
+	ValueObjectAsset = nullptr;
 }
 
 
@@ -150,9 +155,20 @@ TSharedRef<FStructOnScope> FNiagaraScriptParameterViewModel::GetDefaultValueStru
 	return ParameterValue.ToSharedRef();
 }
 
-UObject* FNiagaraScriptParameterViewModel::GetDefaultValueObject()
+UNiagaraDataInterface* FNiagaraScriptParameterViewModel::GetDefaultValueDataInterface()
 {
-	return ValueObject;
+	return ValueDataInterface;
+}
+
+UObject* FNiagaraScriptParameterViewModel::GetDefaultValueObjectAsset()
+{
+	return ValueObjectAsset;
+}
+
+void FNiagaraScriptParameterViewModel::SetDefaultValueObjectAsset(UObject* Object)
+{
+	ValueObjectAsset = Object;
+	OnDefaultValueChangedDelegate.Broadcast();
 }
 
 void FNiagaraScriptParameterViewModel::NotifyDefaultValuePropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent)

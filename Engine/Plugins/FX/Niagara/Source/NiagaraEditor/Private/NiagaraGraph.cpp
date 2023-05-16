@@ -352,7 +352,7 @@ void UNiagaraGraph::PostLoad_LWCFixup(int32 NiagaraVersion)
 				TArray<UEdGraphPin*> Pins = FindParameterMapDefaultValuePins(Variable.GetName());
 				for (UEdGraphPin* Pin : Pins)
 				{
-					check(ChangedScriptVariable->DefaultMode == ENiagaraDefaultMode::Value && !Variable.GetType().IsDataInterface());
+					check(ChangedScriptVariable->DefaultMode == ENiagaraDefaultMode::Value && !Variable.GetType().IsDataInterface() && !Variable.GetType().IsUObject());
 
 					Variable.AllocateData();
 					FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable);
@@ -2885,7 +2885,7 @@ void UNiagaraGraph::ScriptVariableChanged(FNiagaraVariable Variable)
 			MapGetNodes.Add(MapGetNode);
 		}
 		
-		if (ScriptVariable->DefaultMode == ENiagaraDefaultMode::Value && !Variable.GetType().IsDataInterface())
+		if (ScriptVariable->DefaultMode == ENiagaraDefaultMode::Value && !Variable.GetType().IsDataInterface() && !Variable.GetType().IsUObject())
 		{
 			FNiagaraEditorModule& EditorModule = FNiagaraEditorModule::Get();
 			auto TypeUtilityValue = EditorModule.GetTypeUtilities(Variable.GetType());

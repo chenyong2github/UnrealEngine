@@ -23,6 +23,7 @@
 #include "NiagaraScriptVariable.h"
 #include "NiagaraSettings.h"
 #include "NiagaraSystem.h"
+#include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "SDropTarget.h"
 #include "SNiagaraGraphActionWidget.h"
@@ -308,6 +309,28 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::ConstructValueWidgets()
 		return SNew(STextBlock)
 			.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 			.Text(this, &SNiagaraStackFunctionInputValue::GetDataValueText);
+	}
+	case UNiagaraStackFunctionInput::EValueMode::ObjectAsset:
+	{
+		return SNew(SObjectPropertyEntryBox)
+			.AllowedClass(FunctionInput->GetInputType().GetClass())
+			.ObjectPath_Lambda(
+				[this]() -> FString
+				{
+					UObject* ObjectAsset = FunctionInput->GetObjectAssetValue();
+					return ObjectAsset ? ObjectAsset->GetPathName() : FString();
+				}
+			)
+			.DisplayBrowse(true)
+			.DisplayUseSelected(true)
+			.DisplayThumbnail(true)
+			.EnableContentPicker(true)
+			.OnObjectChanged_Lambda(
+				[this](const FAssetData& AssetData)
+				{
+					FunctionInput->SetObjectAssetValue(AssetData.GetAsset());
+				}
+			);
 	}
 	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
 	{
@@ -620,11 +643,22 @@ FText SNiagaraStackFunctionInputValue::GetDataValueText() const
 		return FText::Format(LOCTEXT("InvalidDataObjectFormat", "{0} (Invalid)"), FunctionInput->GetInputType().GetClass()->GetDisplayNameText());
 	}
 }
-
 UEnum* GetDisplayUnitEnum()
 {
 	static UEnum* UnitEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/CoreUObject.EUnit"));
 	return UnitEnum;
+}
+
+FText SNiagaraStackFunctionInputValue::GetObjectAssetValueText() const
+{
+	if (FunctionInput->GetObjectAssetValue() != nullptr)
+	{
+		return FunctionInput->GetInputType().GetClass()->GetDisplayNameText();
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("InvalidDataObjectFormat", "{0} (null)"), FunctionInput->GetInputType().GetClass()->GetDisplayNameText());
+	}
 }
 
 FText SNiagaraStackFunctionInputValue::GetDynamicValueText() const

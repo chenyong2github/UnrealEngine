@@ -11,6 +11,7 @@
 class UNiagaraNodeFunctionCall;
 class UNiagaraNodeCustomHlsl;
 class UNiagaraNodeAssignment;
+class UNiagaraNodeInput;
 class UNiagaraNodeParameterMapSet;
 class FStructOnScope;
 class UNiagaraStackFunctionInputCollection;
@@ -42,6 +43,8 @@ public:
 		Dynamic,
 		/** The value is provided by a data interface object. */
 		Data,
+		/** The value is provided is an object asset. */
+		ObjectAsset,
 		/** The value is provided by an expression object. */
 		Expression,
 		/** The value is a default value provided by a function call. */
@@ -165,6 +168,12 @@ public:
 
 	/** Gets the current data object value of this input is there is one. */
 	UNiagaraDataInterface* GetDataValueObject();
+
+	/** Gets the current object Asset value of this input is there is one. */
+	UObject* GetObjectAssetValue();
+
+	/** Sets the current object Asset value of this input is there is one. */
+	void SetObjectAssetValue(UObject* NewValue);
 
 	/** Called to notify the input that an ongoing change to it's value has begun. */
 	void NotifyBeginLocalValueChange();
@@ -318,6 +327,7 @@ private:
 		TWeakObjectPtr<UNiagaraNodeFunctionCall> DynamicNode;
 		TWeakObjectPtr<UNiagaraNodeCustomHlsl> ExpressionNode;
 		TWeakObjectPtr<UNiagaraDataInterface> DataObject;
+		TWeakObjectPtr<UNiagaraNodeInput> ObjectAssetInputNode;
 		TWeakObjectPtr<UNiagaraNodeFunctionCall> DefaultFunctionNode;
 	};
 
@@ -352,6 +362,8 @@ private:
 	UEdGraphPin& GetOrCreateOverridePin();
 
 	void GetDefaultDataInterfaceValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
+
+	void GetDefaultObjectAssetValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
 
 	void GetDefaultLocalValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
 

@@ -64,14 +64,6 @@ namespace NiagaraScriptCookStats
 int32 GEnableNiagaraRuntimeCycleCounts = 0;
 static FAutoConsoleVariableRef CVarEnableNiagaraRuntimeCycleCounts(TEXT("fx.EnableNiagaraRuntimeCycleCounts"), GEnableNiagaraRuntimeCycleCounts, TEXT("Toggle for runtime cylce counts tracking Niagara's frame time. \n"), ECVF_ReadOnly);
 
-static int GNiagaraLogDDCStatusForSystems = 0;
-static FAutoConsoleVariableRef CVarLogDDCStatusForSystems(
-	TEXT("fx.NiagaraLogDDCStatusForSystems"),
-	GNiagaraLogDDCStatusForSystems,
-	TEXT("When enabled UNiagaraSystems will log out when their subscripts are pulled from the DDC or not."),
-	ECVF_Default
-);
-
 static float GNiagaraScalabiltiyMinumumMaxDistance = 1.0f;
 static FAutoConsoleVariableRef CVarNiagaraScalabiltiyMinumumMaxDistance(
 	TEXT("fx.Niagara.Scalability.MinMaxDistance"),
@@ -1990,7 +1982,7 @@ FBox UNiagaraSystem::GetFixedBounds() const
 
 const FGuid UNiagaraSystem::ResolveDIsMessageId(0xB6ACDD97, 0xA2C04B02, 0xAB9FA4E4, 0xDBC73E51);
 
-void UNiagaraSystem::ResolveDIBindings()
+void UNiagaraSystem::ResolveParameterStoreBindings()
 {
 	TArray<FText> ErrorMessages;
 	FNiagaraResolveDIHelpers::ResolveDIs(this, ErrorMessages);
@@ -2017,6 +2009,60 @@ void UNiagaraSystem::ResolveDIBindings()
 	else
 	{
 		MessageStore.RemoveMessage(ResolveDIsMessageId);
+	}
+
+
+	// Resolve Object bindings
+	{
+		TMap<FNiagaraVariableBase, UObject*> WroteUObjects;
+		ForEachScript(
+			[&](UNiagaraScript* Script)
+			{
+				for (const FNiagaraScriptUObjectCompileInfo& DefaultInfo : Script->GetCachedDefaultUObjects())
+				{
+					for (FName WriteName : DefaultInfo.RegisteredParameterMapWrites)
+					{
+						const FNiagaraVariableBase WriteVariable(DefaultInfo.Variable.GetType(), WriteName);
+						check(WroteUObjects.Contains(WriteVariable) == false);
+						WroteUObjects.Emplace(WriteVariable, DefaultInfo.Object);
+					}
+				}
+			}
+		);
+
+		// Create resolved data per script
+		ForEachScript(
+			[&](UNiagaraScript* Script)
+			{
+				if (Script->GetCachedDefaultUObjects().Num() == 0)
+				{
+					return;
+				}
+
+				TArray<FNiagaraResolvedUObjectInfo> ResolvedUObjects;
+				ResolvedUObjects.Reserve(Script->GetCachedDefaultUObjects().Num());
+
+				for (const FNiagaraScriptUObjectCompileInfo& DefaultInfo : Script->GetCachedDefaultUObjects())
+				{
+					const FNiagaraVariableBase ReadVariable(DefaultInfo.Variable.GetType(), DefaultInfo.RegisteredParameterMapRead);
+
+					//-TODO:UObject will need to handle User / NPC bindings here.  I.e. Variable=User.Variable in the stack set
+					//const bool bIsUserVariable = ReadVariable.IsInNameSpace(FNiagaraConstants::UserNamespaceString);
+
+					for (FName WriteName : DefaultInfo.RegisteredParameterMapWrites)
+					{
+						FNiagaraResolvedUObjectInfo& ResolvedInfo = ResolvedUObjects.AddDefaulted_GetRef();
+						const FNiagaraVariableBase WriteVariable(DefaultInfo.Variable.GetType(), WriteName);
+						ResolvedInfo.ReadVariableName = ReadVariable.GetName();
+						ResolvedInfo.ResolvedVariable = WriteVariable;
+						ResolvedInfo.Object = WroteUObjects.FindRef(WriteVariable);
+					}
+				}
+
+				ResolvedUObjects.Shrink();
+				Script->SetResolvedUObjects(ResolvedUObjects);
+			}
+		);
 	}
 }
 
@@ -2121,6 +2167,11 @@ void UNiagaraSystem::OnCompiledDataInterfaceChanged()
 	ForEachScript([&](UNiagaraScript* Script) { Script->InvalidateExecutionReadyParameterStores(); });
 	UpdatePostCompileDIInfo();
 	UpdateDITickFlags();
+}
+
+void UNiagaraSystem::OnCompiledUObjectChanged()
+{
+	ForEachScript([&](UNiagaraScript* Script) { Script->InvalidateExecutionReadyParameterStores(); });
 }
 
 #endif
@@ -2735,7 +2786,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait)
 	InitEmitterCompiledData();
 	InitSystemCompiledData();
 
-	ResolveDIBindings();
+	ResolveParameterStoreBindings();
 	UpdatePostCompileDIInfo();
 	ComputeEmittersExecutionOrder();
 	ComputeRenderersDrawOrder();

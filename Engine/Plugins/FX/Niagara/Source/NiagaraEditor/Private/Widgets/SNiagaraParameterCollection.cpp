@@ -21,12 +21,12 @@
 #include "IDetailsView.h"
 #include "IStructureDetailsView.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/SNullWidget.h"
-
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterCollectionEditor"
 
@@ -519,13 +519,13 @@ TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSh
 		DetailsWidget = StructureDetailsView->GetWidget();
 		DetailsWidget->SetEnabled(Item->IsEditingEnabled());
 	}
-	else if (Item->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::Object)
+	else if (Item->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::DataInterface)
 	{
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 		TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(*Item->GetType().Get());
 		if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanCreateDataInterfaceEditor())
 		{
-			CustomValueEditor = TypeEditorUtilities->CreateDataInterfaceEditor(Item->GetDefaultValueObject(),
+			CustomValueEditor = TypeEditorUtilities->CreateDataInterfaceEditor(Item->GetDefaultValueDataInterface(),
 				INiagaraEditorTypeUtilities::FNotifyValueChanged::CreateSP(Item, &INiagaraParameterViewModel::NotifyDefaultValueChanged));
 		}
 
@@ -538,8 +538,33 @@ TSharedRef<ITableRow> SNiagaraParameterCollection::OnGenerateRowForParameter(TSh
 		DetailsViewArgs.NotifyHook = this;
 
 		TSharedRef<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-		DetailsView->SetObject(Item->GetDefaultValueObject());
+		DetailsView->SetObject(Item->GetDefaultValueDataInterface());
 		DetailsWidget = DetailsView;
+	}
+	else if (Item->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::ObjectAsset)
+	{
+		const FNiagaraTypeDefinition ParameterType = *Item->GetType().Get();
+
+		CustomValueEditor = SNew(SObjectPropertyEntryBox)
+			.AllowedClass(ParameterType.GetClass())
+			.ObjectPath_Lambda(
+				[Item]() -> FString
+				{
+					UObject* DefaultValue = Item->GetDefaultValueObjectAsset();
+					return DefaultValue ? DefaultValue->GetPathName() : FString();
+				}
+			)
+			.DisplayBrowse(true)
+			.DisplayUseSelected(true)
+			.DisplayThumbnail(true)
+			.EnableContentPicker(true)
+			.OnObjectChanged_Lambda(
+				[Item](const FAssetData& AssetData)
+				{
+					Item->SetDefaultValueObjectAsset(AssetData.GetAsset());
+				}
+			);
+		DetailsWidget = SNullWidget::NullWidget;
 	}
 	else
 	{
@@ -873,9 +898,9 @@ void SNiagaraParameterCollection::NotifyPostChange(const FPropertyChangedEvent& 
 
 	for (TSharedRef<INiagaraParameterViewModel> Parameter : Collection->GetParameters())
 	{
-		if (Parameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::Object)
+		if (Parameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::DataInterface)
 		{
-			UObject* ParameterObject = Parameter->GetDefaultValueObject();
+			UObject* ParameterObject = Parameter->GetDefaultValueDataInterface();
 			const UObject* ChangedObject = PropertyChangedEvent.GetObjectBeingEdited(0);
 			const UObject* CurrentObject = ChangedObject;
 			bool ParameterIsInObjectChain = false;

@@ -71,8 +71,10 @@ public:
 	TOptional<FString> GetLocalValueString() const;
 	TOptional<FNiagaraVariable> GetLocalValueRapidIterationParameter() const;
 	TOptional<FNiagaraStackLinkedValueData> GetLinkedValueData() const;
-	TOptional<FName> GetDataValueInputName() const;
-	UNiagaraDataInterface* GetDataValueObject() const;
+	TOptional<FName> GetDataInterfaceValueInputName() const;
+	UNiagaraDataInterface* GetDataInterfaceValue() const;
+	TOptional<FNiagaraVariableBase> GetObjectAssetInputVariable() const;
+	UObject* GetObjectAssetValue() const;
 	TSharedPtr<FNiagaraStackFunctionMergeAdapter> GetDynamicValueFunction() const;
 	TOptional<FString> GetStaticSwitchValue() const;
 
@@ -83,13 +85,15 @@ private:
 	FNiagaraTypeDefinition Type;
 
 	TWeakObjectPtr<UNiagaraNodeParameterMapSet> OverrideNode;
-	UEdGraphPin* OverridePin;
+	UEdGraphPin* OverridePin = nullptr;
 
 	TOptional<FString> LocalValueString;
 	TOptional<FNiagaraVariable> LocalValueRapidIterationParameter;
 	TOptional<FNiagaraStackLinkedValueData> LinkedValueData;
-	TOptional<FName> DataValueInputName;
-	UNiagaraDataInterface* DataValueObject;
+	TOptional<FName> DataInterfaceValueInputName;
+	UNiagaraDataInterface* DataInterfaceValue = nullptr;
+	TOptional<FNiagaraVariableBase> ObjectAssetInputVariable;
+	UObject* ObjectAssetValue = nullptr;
 	TSharedPtr<FNiagaraStackFunctionMergeAdapter> DynamicValueFunction;
 	TOptional<FString> StaticSwitchValue;
 

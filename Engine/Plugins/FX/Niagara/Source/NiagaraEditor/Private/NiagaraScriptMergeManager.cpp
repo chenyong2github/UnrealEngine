@@ -64,7 +64,6 @@ FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverri
 	: OwningScript(&InOwningScript)
 	, OwningFunctionCallNode(&InOwningFunctionCallNode)
 	, OverridePin(&InOverridePin)
-	, DataValueObject(nullptr)
 {
 	
 	InputName = FNiagaraParameterHandle(OverridePin->PinName).GetName().ToString();
@@ -107,8 +106,16 @@ FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverri
 		else if (OverridePin->LinkedTo[0]->GetOwningNode()->IsA<UNiagaraNodeInput>())
 		{
 			UNiagaraNodeInput* DataInputNode = CastChecked<UNiagaraNodeInput>(OverridePin->LinkedTo[0]->GetOwningNode());
-			DataValueInputName = DataInputNode->Input.GetName();
-			DataValueObject = DataInputNode->GetDataInterface();
+			if ( DataInputNode->IsDataInterface() )
+			{
+				DataInterfaceValueInputName = DataInputNode->Input.GetName();
+				DataInterfaceValue = DataInputNode->GetDataInterface();
+			}
+			else
+			{
+				ObjectAssetInputVariable = DataInputNode->Input;
+				ObjectAssetValue = DataInputNode->GetObjectAsset();
+			}
 		}
 		else if (OverridePin->LinkedTo[0]->GetOwningNode()->IsA<UNiagaraNodeFunctionCall>())
 		{
@@ -135,18 +142,13 @@ FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverri
 	, OwningFunctionCallNode(&InOwningFunctionCallNode)
 	, InputName(InInputName)
 	, Type(InRapidIterationParameter.GetType())
-	, OverridePin(nullptr)
 	, LocalValueRapidIterationParameter(InRapidIterationParameter)
-	, DataValueObject(nullptr)
 {
 }
 
 FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverrideMergeAdapter(UEdGraphPin* InStaticSwitchPin)
-	: OwningScript(nullptr)
-	, OwningFunctionCallNode(CastChecked<UNiagaraNodeFunctionCall>(InStaticSwitchPin->GetOwningNode()))
+	: OwningFunctionCallNode(CastChecked<UNiagaraNodeFunctionCall>(InStaticSwitchPin->GetOwningNode()))
 	, InputName(InStaticSwitchPin->PinName.ToString())
-	, OverridePin(nullptr)
-	, DataValueObject(nullptr)
 	, StaticSwitchValue(InStaticSwitchPin->DefaultValue)
 {
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
@@ -203,14 +205,24 @@ TOptional<FNiagaraStackLinkedValueData> FNiagaraStackFunctionInputOverrideMergeA
 	return LinkedValueData;
 }
 
-TOptional<FName> FNiagaraStackFunctionInputOverrideMergeAdapter::GetDataValueInputName() const
+TOptional<FName> FNiagaraStackFunctionInputOverrideMergeAdapter::GetDataInterfaceValueInputName() const
 {
-	return DataValueInputName;
+	return DataInterfaceValueInputName;
 }
 
-UNiagaraDataInterface* FNiagaraStackFunctionInputOverrideMergeAdapter::GetDataValueObject() const
+TOptional<FNiagaraVariableBase> FNiagaraStackFunctionInputOverrideMergeAdapter::GetObjectAssetInputVariable() const
 {
-	return DataValueObject;
+	return ObjectAssetInputVariable;
+}
+
+UObject* FNiagaraStackFunctionInputOverrideMergeAdapter::GetObjectAssetValue() const
+{
+	return ObjectAssetValue;
+}
+
+UNiagaraDataInterface* FNiagaraStackFunctionInputOverrideMergeAdapter::GetDataInterfaceValue() const
+{
+	return DataInterfaceValue;
 }
 
 TSharedPtr<FNiagaraStackFunctionMergeAdapter> FNiagaraStackFunctionInputOverrideMergeAdapter::GetDynamicValueFunction() const
@@ -2728,20 +2740,33 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 	}
 
 	// Data value
-	if ((BaseFunctionInputAdapter->GetDataValueInputName().IsSet() && OtherFunctionInputAdapter->GetDataValueInputName().IsSet() == false) ||
-		(BaseFunctionInputAdapter->GetDataValueInputName().IsSet() == false && OtherFunctionInputAdapter->GetDataValueInputName().IsSet()) ||
-		(BaseFunctionInputAdapter->GetDataValueObject() != nullptr && OtherFunctionInputAdapter->GetDataValueObject() == nullptr) ||
-		(BaseFunctionInputAdapter->GetDataValueObject() == nullptr && OtherFunctionInputAdapter->GetDataValueObject() != nullptr))
+	if ((BaseFunctionInputAdapter->GetDataInterfaceValueInputName().IsSet() && OtherFunctionInputAdapter->GetDataInterfaceValueInputName().IsSet() == false) ||
+		(BaseFunctionInputAdapter->GetDataInterfaceValueInputName().IsSet() == false && OtherFunctionInputAdapter->GetDataInterfaceValueInputName().IsSet()) ||
+		(BaseFunctionInputAdapter->GetDataInterfaceValue() != nullptr && OtherFunctionInputAdapter->GetDataInterfaceValue() == nullptr) ||
+		(BaseFunctionInputAdapter->GetDataInterfaceValue() == nullptr && OtherFunctionInputAdapter->GetDataInterfaceValue() != nullptr))
 	{
 		return false;
 	}
 
-	if (BaseFunctionInputAdapter->GetDataValueInputName().IsSet() && OtherFunctionInputAdapter->GetDataValueInputName().IsSet() &&
-		BaseFunctionInputAdapter->GetDataValueObject() != nullptr && OtherFunctionInputAdapter->GetDataValueObject() != nullptr)
+	if (BaseFunctionInputAdapter->GetDataInterfaceValueInputName().IsSet() && OtherFunctionInputAdapter->GetDataInterfaceValueInputName().IsSet() &&
+		BaseFunctionInputAdapter->GetDataInterfaceValue() != nullptr && OtherFunctionInputAdapter->GetDataInterfaceValue() != nullptr)
 	{
 		return 
-			BaseFunctionInputAdapter->GetDataValueInputName().GetValue() == OtherFunctionInputAdapter->GetDataValueInputName().GetValue() &&
-			BaseFunctionInputAdapter->GetDataValueObject()->Equals(OtherFunctionInputAdapter->GetDataValueObject());
+			BaseFunctionInputAdapter->GetDataInterfaceValueInputName().GetValue() == OtherFunctionInputAdapter->GetDataInterfaceValueInputName().GetValue() &&
+			BaseFunctionInputAdapter->GetDataInterfaceValue()->Equals(OtherFunctionInputAdapter->GetDataInterfaceValue());
+	}
+
+	// Object Reference
+	if (BaseFunctionInputAdapter->GetObjectAssetInputVariable().IsSet() != OtherFunctionInputAdapter->GetObjectAssetInputVariable().IsSet())
+	{
+		return false;
+	}
+
+	if (BaseFunctionInputAdapter->GetObjectAssetInputVariable().IsSet() && OtherFunctionInputAdapter->GetObjectAssetInputVariable().IsSet())
+	{
+		return
+			BaseFunctionInputAdapter->GetObjectAssetInputVariable().GetValue() == OtherFunctionInputAdapter->GetObjectAssetInputVariable().GetValue() &&
+			BaseFunctionInputAdapter->GetObjectAssetValue() == OtherFunctionInputAdapter->GetObjectAssetValue();
 	}
 
 	// Dynamic value
@@ -3054,13 +3079,20 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 				}
 				Results.bSucceeded = true;
 			}
-			else if (OverrideToAdd->GetDataValueInputName().IsSet() && OverrideToAdd->GetDataValueObject() != nullptr)
+			else if (OverrideToAdd->GetDataInterfaceValueInputName().IsSet() && OverrideToAdd->GetDataInterfaceValue() != nullptr)
 			{
-				FName OverrideValueInputName = OverrideToAdd->GetDataValueInputName().GetValue();
-				UNiagaraDataInterface* OverrideValueObject = OverrideToAdd->GetDataValueObject();
+				FName OverrideValueInputName = OverrideToAdd->GetDataInterfaceValueInputName().GetValue();
+				UNiagaraDataInterface* OverrideValueObject = OverrideToAdd->GetDataInterfaceValue();
 				UNiagaraDataInterface* NewOverrideValueObject;
-				FNiagaraStackGraphUtilities::SetDataValueObjectForFunctionInput(InputOverridePin, OverrideToAdd->GetDataValueObject()->GetClass(), OverrideValueInputName.ToString(), NewOverrideValueObject, OverrideToAdd->GetOverrideNodeId());
+				FNiagaraStackGraphUtilities::SetDataInterfaceValueForFunctionInput(InputOverridePin, OverrideToAdd->GetDataInterfaceValue()->GetClass(), OverrideValueInputName.ToString(), NewOverrideValueObject, OverrideToAdd->GetOverrideNodeId());
 				OverrideValueObject->CopyTo(NewOverrideValueObject);
+				Results.bSucceeded = true;
+			}
+			else if (OverrideToAdd->GetObjectAssetInputVariable().IsSet())
+			{
+				FNiagaraVariableBase OverrideVariable = OverrideToAdd->GetObjectAssetInputVariable().GetValue();
+				UObject* OverrideObjectValue = OverrideToAdd->GetObjectAssetValue();
+				FNiagaraStackGraphUtilities::SetObjectAssetValueForFunctionInput(InputOverridePin, OverrideVariable.GetType().GetClass(), OverrideVariable.GetName().ToString(), OverrideObjectValue);
 				Results.bSucceeded = true;
 			}
 			else if (OverrideToAdd->GetDynamicValueFunction().IsValid())

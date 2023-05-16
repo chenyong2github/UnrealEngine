@@ -2115,7 +2115,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 bool FNiagaraEmitterInstance::GetBoundRendererValue_GT(const FNiagaraVariableBase& InBaseVar, const FNiagaraVariableBase& InSubVar, void* OutValueData) const
 {
-	
 	if (InBaseVar.IsDataInterface())
 	{
 		UNiagaraDataInterface* UObj = RendererBindings.GetDataInterface(InBaseVar);

@@ -26,7 +26,9 @@ public:
 	virtual void SelectedTypeChanged(TSharedPtr<FNiagaraTypeDefinition> Item, ESelectInfo::Type SelectionType) override;
 	virtual EDefaultValueType GetDefaultValueType() override;
 	virtual TSharedRef<FStructOnScope> GetDefaultValueStruct() override;
-	virtual UObject* GetDefaultValueObject() override;
+	virtual UNiagaraDataInterface* GetDefaultValueDataInterface() override;
+	virtual UObject* GetDefaultValueObjectAsset() override;
+	virtual void SetDefaultValueObjectAsset(UObject*) override;
 	virtual void NotifyDefaultValuePropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void NotifyBeginDefaultValueChange() override;
 	virtual void NotifyEndDefaultValueChange() override;
@@ -62,7 +64,6 @@ private:
 	FOnNameChanged OnNameChangedDelegate;
 
 	UNiagaraParameterCollectionInstance* CollectionInst;
-	//FNiagaraParameterDirectBinding ParameterBinding;
 	FNiagaraVariable Parameter;
 };
 

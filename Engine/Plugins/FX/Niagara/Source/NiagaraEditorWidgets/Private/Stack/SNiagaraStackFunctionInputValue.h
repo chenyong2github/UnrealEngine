@@ -54,6 +54,8 @@ private:
 
 	FText GetDataValueText() const;
 
+	FText GetObjectAssetValueText() const;
+
 	FText GetDynamicValueText() const;
 
 	FText GetDefaultFunctionText() const;

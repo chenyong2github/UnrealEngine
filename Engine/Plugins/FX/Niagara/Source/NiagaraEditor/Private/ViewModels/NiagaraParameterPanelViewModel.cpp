@@ -267,13 +267,10 @@ void INiagaraParameterPanelViewModel::RefreshFull(bool bDoCategoryExpansion) con
 
 bool INiagaraParameterPanelViewModel::CanAddType(const FNiagaraTypeDefinition& InType, TOptional<FNiagaraParameterPanelCategory> Category)
 {
-	bool bCanAddObjects = Category.IsSet() && Category.GetValue().NamespaceMetaData.GetGuid() == FNiagaraEditorGuids::UserNamespaceMetaDataGuid;
-	
 	return !(
 		InType == FNiagaraTypeDefinition::GetParameterMapDef()
 		|| InType == FNiagaraTypeDefinition::GetGenericNumericDef()
 		|| InType.IsInternalType()
-		|| ((!bCanAddObjects && InType.IsUObject()) && !InType.IsDataInterface())
 		);
 }
 

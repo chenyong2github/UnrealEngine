@@ -171,6 +171,8 @@ FText FNiagaraStackEditorWidgetsUtilities::GetIconTextForInputMode(UNiagaraStack
 		return FEditorFontGlyphs::Link;
 	case UNiagaraStackFunctionInput::EValueMode::Data:
 		return FEditorFontGlyphs::Database;
+	case UNiagaraStackFunctionInput::EValueMode::ObjectAsset:
+		return FEditorFontGlyphs::Database;
 	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
 		return FEditorFontGlyphs::Line_Chart;
 	case UNiagaraStackFunctionInput::EValueMode::Expression:
@@ -195,6 +197,8 @@ FText FNiagaraStackEditorWidgetsUtilities::GetIconToolTipForInputMode(UNiagaraSt
 		return LOCTEXT("LinkInputIconToolTip", "Linked Value");
 	case UNiagaraStackFunctionInput::EValueMode::Data:
 		return LOCTEXT("DataInterfaceInputIconToolTip", "Data Value");
+	case UNiagaraStackFunctionInput::EValueMode::ObjectAsset:
+		return LOCTEXT("ObjectReferenceIconToolTip", "Object Asset");
 	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
 		return LOCTEXT("DynamicInputIconToolTip", "Dynamic Value");
 	case UNiagaraStackFunctionInput::EValueMode::Expression:
@@ -218,6 +222,8 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForInputMode(UNiagara
 		return "NiagaraEditor.Stack.InputValueIconColor.Linked";
 	case UNiagaraStackFunctionInput::EValueMode::Data:
 		return "NiagaraEditor.Stack.InputValueIconColor.Data";
+	case UNiagaraStackFunctionInput::EValueMode::ObjectAsset:
+		return "NiagaraEditor.Stack.InputValueIconColor.ObjectAsset";
 	case UNiagaraStackFunctionInput::EValueMode::Dynamic:
 		return "NiagaraEditor.Stack.InputValueIconColor.Dynamic";
 	case UNiagaraStackFunctionInput::EValueMode::Expression:

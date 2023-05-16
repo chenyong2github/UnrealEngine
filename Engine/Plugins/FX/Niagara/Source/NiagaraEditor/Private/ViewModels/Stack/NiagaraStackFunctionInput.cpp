@@ -47,6 +47,7 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
+
 #include "Widgets/Notifications/SNotificationList.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 
@@ -452,8 +453,14 @@ FText UNiagaraStackFunctionInput::GetCollapsedStateText() const
 			}
 			break;
 		case EValueMode::Data:
-				CollapsedTextCache = FText::Format(FText::FromString("[{0}]"), InputValues.DataObject.IsValid() ? InputValues.DataObject->GetClass()->GetDisplayNameText() : FText::FromString("?"));
-				break;
+			CollapsedTextCache = FText::Format(FText::FromString("[{0}]"), InputValues.DataObject.IsValid() ? InputValues.DataObject->GetClass()->GetDisplayNameText() : FText::FromString("?"));
+			break;
+		case EValueMode::ObjectAsset:
+			{
+				UNiagaraNodeInput* InputNode = InputValues.ObjectAssetInputNode.Get();
+				CollapsedTextCache = FText::Format(FText::FromString("[{0}]"), InputNode ? InputNode->Input.GetType().GetClass()->GetDisplayNameText() : FText::FromString("?"));
+			}
+			break;
 		case EValueMode::Dynamic:
 			if (InputValues.DynamicNode->FunctionScript != nullptr)
 			{
@@ -518,6 +525,18 @@ FText UNiagaraStackFunctionInput::GetValueToolTip() const
 				if (DataInterfaceDescription.Len() > 0)
 				{
 					ValueToolTipCache = FText::FromString(DataInterfaceDescription);
+				}
+			}
+			break;
+		}
+		case EValueMode::ObjectAsset:
+		{
+			if ( UNiagaraNodeInput* InputNode = InputValues.ObjectAssetInputNode.Get() )
+			{
+				const FString ObjectDescription = InputNode->Input.GetType().GetClass()->GetDescription();
+				if (ObjectDescription.Len() > 0)
+				{
+					ValueToolTipCache = FText::FromString(ObjectDescription);
 				}
 			}
 			break;
@@ -1119,6 +1138,10 @@ void UNiagaraStackFunctionInput::RefreshValues()
 				InputValues.DataObject = PlaceholderDataInterfaceHandle->GetDataInterface();
 			}
 		}
+		else if (InputValues.Mode == EValueMode::ObjectAsset)
+		{
+			InputValues.ObjectAssetInputNode = DefaultInputValues.ObjectAssetInputNode;
+		}
 	}
 	else
 	{
@@ -1135,6 +1158,11 @@ void UNiagaraStackFunctionInput::RefreshValues()
 			{
 				DefaultInputValues.DataObject->CopyTo(InputValues.DataObject.Get());
 			}
+		}
+		else if (InputType.IsUObject())
+		{
+			InputValues.Mode = EValueMode::ObjectAsset;
+			InputValues.ObjectAssetInputNode = DefaultInputValues.ObjectAssetInputNode;
 		}
 		else if (IsRapidIterationCandidate())
 		{
@@ -1345,6 +1373,19 @@ void UNiagaraStackFunctionInput::SetLinkedValueHandle(const FNiagaraParameterHan
 					{
 						InputValues.DataObject->CopyTo(UserParameters.GetDataInterface(DataInterfaceOffset));
 						UserParameters.OnInterfaceChange();
+					}
+				}
+				else if (InputType.IsUObject())
+				{
+					const bool bInitialize = true;
+					const bool bTriggerRebind = true;
+					int32 ParameterOffset = INDEX_NONE;
+					UserParameters.AddParameter(LinkedParameterVariable, bInitialize, bTriggerRebind, &ParameterOffset);
+					if (InputValues.Mode == EValueMode::ObjectAsset)
+					{
+						UNiagaraNodeInput* InputNode = InputValues.ObjectAssetInputNode.Get();
+						UserParameters.SetUObject(InputNode ? InputNode->GetObjectAsset() : nullptr, ParameterOffset);
+						UserParameters.OnUObjectChange();
 					}
 				}
 				else
@@ -1780,6 +1821,24 @@ UNiagaraDataInterface* UNiagaraStackFunctionInput::GetDataValueObject()
 	return InputValues.DataObject.Get();
 }
 
+UObject* UNiagaraStackFunctionInput::GetObjectAssetValue()
+{
+	UNiagaraNodeInput* InputNode = InputValues.ObjectAssetInputNode.Get();
+	return InputNode ? InputNode->GetObjectAsset() : nullptr;
+}
+
+void UNiagaraStackFunctionInput::SetObjectAssetValue(UObject* NewValue)
+{
+	if (UNiagaraNodeInput* InputNode = InputValues.ObjectAssetInputNode.Get())
+	{
+		const FScopedTransaction Transaction(NSLOCTEXT("Niagara", "SetObject", "Set Object"));
+		InputNode->Modify();
+		InputNode->SetObjectAsset(NewValue);
+
+		GetSystemViewModel()->NotifyObjectAssetChanged(*InputNode, InputNode->Input.GetName(), InputNode->GetObjectAsset());
+	}
+}
+
 void UNiagaraStackFunctionInput::NotifyBeginLocalValueChange()
 {
 	GEditor->BeginTransaction(LOCTEXT("BeginEditModuleInputLocalValue", "Edit input local value."));
@@ -1921,6 +1980,9 @@ bool UNiagaraStackFunctionInput::CanReset() const
 					bNewCanReset = InputValues.DataObject->Equals(DefaultInputValues.DataObject.Get()) == false;
 				}
 				break;
+			case EValueMode::ObjectAsset:
+				bNewCanReset = InputValues.ObjectAssetInputNode == DefaultInputValues.ObjectAssetInputNode;
+				break;
 			case EValueMode::Dynamic:
 				// For now assume that default dynamic inputs can always be reset to default since they're not currently supported properly.
 				// TODO: Fix when default dynamic inputs are properly supported.
@@ -1986,12 +2048,19 @@ void UNiagaraStackFunctionInput::Reset()
 	if (CanReset())
 	{
 		bool bBroadcastDataObjectChanged = false;
+		bool bBroadcastUObjectChanged = false;
 		if (DefaultInputValues.Mode == EValueMode::Data)
 		{
 			FScopedTransaction ScopedTransaction(LOCTEXT("ResetInputObjectTransaction", "Reset the inputs data interface object to default."));
 			RemoveOverridePin();
 			PlaceholderDataInterfaceHandle.Reset();
 			bBroadcastDataObjectChanged = true;
+		}
+		else if (DefaultInputValues.Mode == EValueMode::ObjectAsset)
+		{
+			FScopedTransaction ScopedTransaction(LOCTEXT("ResetInputObjectAssetTransaction", "Reset the inputs object to default."));
+			RemoveOverridePin();
+			bBroadcastUObjectChanged = true;
 		}
 		else if (DefaultInputValues.Mode == EValueMode::Linked)
 		{
@@ -2024,6 +2093,13 @@ void UNiagaraStackFunctionInput::Reset()
 			TArray<UObject*> ChangedObjects;
 			ChangedObjects.Add(InputValues.DataObject.Get());
 			OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Unknown);
+		}
+		if (bBroadcastUObjectChanged)
+		{
+			if (UNiagaraNodeInput* InputNode = InputValues.ObjectAssetInputNode.Get())
+			{
+				CachedSysViewModel->NotifyObjectAssetChanged(*InputNode, InputNode->Input.GetName(), InputNode->GetObjectAsset());
+			}
 		}
 	}
 }
@@ -2628,6 +2704,13 @@ const UNiagaraClipboardFunctionInput* UNiagaraStackFunctionInput::ToClipboardFun
 	case EValueMode::Data:
 		ClipboardInput = UNiagaraClipboardFunctionInput::CreateDataValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.DataObject.Get());
 		break;
+	case EValueMode::ObjectAsset:
+	{
+		UNiagaraNodeInput* InputNode = InputValues.ObjectAssetInputNode.Get();
+		UObject* ObjectAsset = InputNode ? InputNode->GetObjectAsset() : nullptr;
+		ClipboardInput = UNiagaraClipboardFunctionInput::CreateObjectAssetValue(InOuter, InputName, InputType, bEditConditionValue, ObjectAsset);
+		break;
+	}
 	case EValueMode::Expression:
 		ClipboardInput = UNiagaraClipboardFunctionInput::CreateExpressionValue(InOuter, InputName, InputType, bEditConditionValue, InputValues.ExpressionNode->GetHlslText().ToString());
 		break;
@@ -2686,6 +2769,25 @@ void UNiagaraStackFunctionInput::SetValueFromClipboardFunctionInput(const UNiaga
 			}
 			break;
 		}
+		case ENiagaraClipboardFunctionInputValueMode::ObjectAsset:
+		{
+			if (InputValues.Mode != EValueMode::ObjectAsset)
+			{
+				Reset();
+			}
+
+			if (UNiagaraNodeInput* InputNode = InputValues.ObjectAssetInputNode.Get())
+			{
+				InputNode->SetObjectAsset(ClipboardFunctionInput.ObjectAsset);
+				RefreshChildren();
+				RefreshValues();
+
+				TSharedRef<FNiagaraSystemViewModel> SystemViewModelPtr = GetSystemViewModel();
+				SystemViewModelPtr->NotifyObjectAssetChanged(*InputNode, InputNode->Input.GetName(), InputNode->GetObjectAsset());
+			}
+			break;
+		}
+
 		case ENiagaraClipboardFunctionInputValueMode::Expression:
 			SetCustomExpression(ClipboardFunctionInput.Expression);
 			break;
@@ -2805,6 +2907,12 @@ void UNiagaraStackFunctionInput::GetSearchItems(TArray<FStackSearchItem>& Search
 		else if (InputValues.Mode == EValueMode::Data && InputValues.DataObject.IsValid())
 		{
 			SearchItems.Add({ FName("LinkedDataInterfaceName"), FText::FromString(InputValues.DataObject->GetName()) });
+		}
+		else if (InputValues.Mode == EValueMode::ObjectAsset && InputValues.ObjectAssetInputNode.IsValid())
+		{
+			const UNiagaraNodeInput* InputNode = InputValues.ObjectAssetInputNode.Get();
+			const FName ObjectName = InputNode ? InputNode->Input.GetName() : NAME_None;
+			SearchItems.Add({ FName("LinkedObjectName"), FText::FromString(ObjectName.ToString()) });
 		}
 		else if (InputValues.Mode == EValueMode::Expression && InputValues.ExpressionNode.Get() != nullptr)
 		{
@@ -2935,6 +3043,31 @@ void UNiagaraStackFunctionInput::GetDefaultDataInterfaceValueFromDefaultPin(UEdG
 	{
 		InInputValues.DataObject = Cast<UNiagaraDataInterface>(InputType.GetClass()->GetDefaultObject());
 	}
+}
+
+void UNiagaraStackFunctionInput::GetDefaultObjectAssetValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const
+{
+	InInputValues.Mode = EValueMode::ObjectAsset;
+
+	FNiagaraVariable ParameterVariable(FNiagaraTypeDefinition(InputType.GetClass()), InputParameterHandle.GetParameterHandleString());
+	FGuid ParameterVariableGuid = FGuid();
+	UEdGraphPin& OverridePin = FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(*OwningFunctionCallNode.Get(), AliasedInputParameterHandle, ParameterVariable.GetType(), ParameterVariableGuid, FGuid());
+
+	if (OverridePin.LinkedTo.Num() != 1)
+	{
+		FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(OverridePin);
+		FNiagaraStackGraphUtilities::SetObjectAssetValueForFunctionInput(OverridePin, InputType.GetClass(), AliasedInputParameterHandle.GetParameterHandleString().ToString(), nullptr);
+		FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode.Get()->GetNiagaraGraph());
+
+		UNiagaraNodeInput* DefaultInput = DefaultPin->LinkedTo.Num() == 1 ? Cast<UNiagaraNodeInput>(DefaultPin->LinkedTo[0]->GetOwningNode()) : nullptr;
+		UNiagaraNodeInput* NewInput = OverridePin.LinkedTo.Num() == 1 ? Cast<UNiagaraNodeInput>(OverridePin.LinkedTo[0]->GetOwningNode()) : nullptr;
+		if ( NewInput && DefaultInput )
+		{
+			NewInput->SetObjectAsset(DefaultInput->GetObjectAsset());
+		}
+	}
+
+	InInputValues.ObjectAssetInputNode = Cast<UNiagaraNodeInput>(OverridePin.LinkedTo[0]->GetOwningNode());
 }
 
 void UNiagaraStackFunctionInput::GetDefaultLocalValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const
@@ -3095,7 +3228,11 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 					// Data interfaces are handled differently than other values types so collect them here.
 					GetDefaultDataInterfaceValueFromDefaultPin(DefaultPin, InInputValues);
 				}
-				else if (InputType.IsUObject() == false)
+				else if (InputType.IsUObject())
+				{
+					GetDefaultObjectAssetValueFromDefaultPin(DefaultPin, InInputValues);
+				}
+				else
 				{
 					// Otherwise check for local and linked values.
 					if (DefaultPin->LinkedTo.Num() == 0)
@@ -3159,6 +3296,11 @@ void UNiagaraStackFunctionInput::UpdateValuesFromOverridePin(const FInputValues&
 			{
 				NewInputValues.Mode = EValueMode::Data;
 				NewInputValues.DataObject = InputNode->GetDataInterface();
+			}
+			else
+			{
+				NewInputValues.Mode = EValueMode::ObjectAsset;
+				NewInputValues.ObjectAssetInputNode = InputNode;
 			}
 		}
 		else if (LinkedNode->IsA<UNiagaraNodeParameterMapGet>())

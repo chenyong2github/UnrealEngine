@@ -365,6 +365,10 @@ void AddParametersForGraph(TArray<TSharedPtr<FNiagaraAction_NewNode>>& NewAction
 				{
 					InputNodeTemplate->SetDataInterface(Cast<UNiagaraDataInterface>(StaticDuplicateObject(InputNode->GetDataInterface(), InputNodeTemplate, NAME_None, ~RF_Transient)));
 				}
+				if (InputNode->GetObjectAsset())
+				{
+					InputNodeTemplate->SetObjectAsset(InputNode->GetObjectAsset());
+				}
 			}
 		}
 	}

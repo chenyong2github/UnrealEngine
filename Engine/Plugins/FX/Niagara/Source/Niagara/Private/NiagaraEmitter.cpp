@@ -1804,32 +1804,60 @@ void FVersionedNiagaraEmitterData::RebuildRendererBindings(const UNiagaraEmitter
 			TargetScripts.Add(SystemOwner->GetSystemSpawnScript());
 			TargetScripts.Add(SystemOwner->GetSystemUpdateScript());
 		}
+		const int32 EmitterScriptIndex = TargetScripts.Num();
 		GetScripts(TargetScripts, false, true);
 
 		RendererBindings.Empty();
 		TArrayView<const FNiagaraVariableWithOffset> Vars = TempStore.ReadParameterVariables();
 		for (const FNiagaraVariableWithOffset& Var : Vars)
 		{
-			bool bFound = false;
-			for (UNiagaraScript* Script : TargetScripts)
+			for (int iScript=0; iScript < TargetScripts.Num(); ++iScript)
 			{
-				if (Script)
+				UNiagaraScript* Script = TargetScripts[iScript];
+				if (Script == nullptr)
+				{
+					continue;
+				}
+				bool bVariableFound = false;
+
+				// Find static variables
+				if (Var.GetType().IsStatic())
 				{
 					for (const FNiagaraVariable& StaticVar : Script->GetVMExecutableData().StaticVariablesWritten)
 					{
 						if (StaticVar.GetType().IsSameBaseDefinition(Var.GetType()) && StaticVar.GetName() == Var.GetName())
 						{
-							RendererBindings.AddParameter(StaticVar);
-							bFound = true;
+							RendererBindings.AddParameter(StaticVar, true, false);
+							bVariableFound = true;
 							break;
 						}
 					}
 				}
+				// Find Resolved UObjects
+				// Note: Most parameters are pushed in as part of the DataSet -> Parameters process
+				else if (Var.GetType().IsUObject())
+				{
+					const ENiagaraSimTarget ScriptSimTarget = iScript < EmitterScriptIndex ? ENiagaraSimTarget::CPUSim : SimTarget;
+					if (const FNiagaraScriptExecutionParameterStore* ScriptParameterStore = Script->GetExecutionReadyParameterStore(ScriptSimTarget))
+					{
+						if (UObject* FoundObject = ScriptParameterStore->GetUObject(Var))
+						{
+							int32 ParameterOffset = INDEX_NONE;
+							RendererBindings.AddParameter(Var, true, false, &ParameterOffset);
+							RendererBindings.SetUObject(FoundObject, ParameterOffset);
+							bVariableFound = true;
+						}
+					}
+				}
 
-				if (bFound)
+				if (bVariableFound)
+				{
 					break;
+				}
 			}
 		}
+
+		RendererBindings.TriggerOnLayoutChanged();
 	}
 #endif
 }

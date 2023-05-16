@@ -422,6 +422,7 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 
 	Set("NiagaraEditor.Stack.InputValueIconColor.Linked", FLinearColor(FColor::Purple));
 	Set("NiagaraEditor.Stack.InputValueIconColor.Data", FLinearColor(FColor::Yellow));
+	Set("NiagaraEditor.Stack.InputValueIconColor.ObjectAsset", FLinearColor(FColor::Yellow));
 	Set("NiagaraEditor.Stack.InputValueIconColor.Dynamic", FLinearColor(FColor::Cyan));
 	Set("NiagaraEditor.Stack.InputValueIconColor.Expression", FLinearColor(FColor::Green));
 	Set("NiagaraEditor.Stack.InputValueIconColor.Default", FLinearColor(FColor::White));

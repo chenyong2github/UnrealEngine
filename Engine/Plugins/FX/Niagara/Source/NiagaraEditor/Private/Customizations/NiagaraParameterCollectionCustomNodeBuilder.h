@@ -5,6 +5,7 @@
 #include "DetailCategoryBuilder.h"
 #include "IDetailPropertyRow.h"
 #include "DetailWidgetRow.h"
+#include "PropertyCustomizationHelpers.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "ViewModels/NiagaraParameterCollectionViewModel.h"
 #include "ViewModels/NiagaraScriptInputCollectionViewModel.h"
@@ -85,32 +86,49 @@ public:
 			TSharedPtr<SWidget> CustomValueWidget;
 			bool bCustomize = true;
 
-			if (Parameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::Struct)
+			switch (Parameter->GetDefaultValueType())
 			{
-				Row = ChildrenBuilder.AddExternalStructureProperty(Parameter->GetDefaultValueStruct(), NAME_None, FAddPropertyParams().UniqueId(Parameter->GetName()));
+				case INiagaraParameterViewModel::EDefaultValueType::Struct:
+					Row = ChildrenBuilder.AddExternalStructureProperty(Parameter->GetDefaultValueStruct(), NAME_None, FAddPropertyParams().UniqueId(Parameter->GetName()));
+					break;
 
-			}
-			else if (Parameter->GetDefaultValueType() == INiagaraParameterViewModel::EDefaultValueType::Object)
-			{
-				UObject* DefaultValueObject = Parameter->GetDefaultValueObject();
-
-				if (DefaultValueObject != nullptr)
+				case INiagaraParameterViewModel::EDefaultValueType::DataInterface:
 				{
-					TArray<UObject*> Objects;
-					Objects.Add(DefaultValueObject);
+					UNiagaraDataInterface* DefaultValueObject = Parameter->GetDefaultValueDataInterface();
 
-					FAddPropertyParams Params = FAddPropertyParams()
-						.UniqueId(Parameter->GetName())
-						.AllowChildren(true)
-						.CreateCategoryNodes(false);
+					if (DefaultValueObject != nullptr)
+					{
+						TArray<UObject*> Objects;
+						Objects.Add(DefaultValueObject);
 
-					Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
-					CustomValueWidget =
-						SNew(STextBlock)
-						.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-						.Text(FText::FromString(FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false)));
+						FAddPropertyParams Params = FAddPropertyParams()
+							.UniqueId(Parameter->GetName())
+							.AllowChildren(true)
+							.CreateCategoryNodes(false);
+
+						Row = ChildrenBuilder.AddExternalObjectProperty(Objects, NAME_None, Params);
+						CustomValueWidget =
+							SNew(STextBlock)
+							.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+							.Text(FText::FromString(FName::NameToDisplayString(DefaultValueObject->GetClass()->GetName(), false)));
+					}
+					else
+					{
+						ChildrenBuilder.AddCustomRow(FText())
+							.NameContent()
+							[
+								NameWidget.ToSharedRef()
+							]
+							.ValueContent()
+							[
+								SNew(STextBlock)
+								.Text(NSLOCTEXT("NiagaraParameterCollectionCustomNodeBuilder", "NullObjectValue", "(null)"))
+							];
+					}
+					break;
 				}
-				else
+
+				case INiagaraParameterViewModel::EDefaultValueType::ObjectAsset:
 				{
 					ChildrenBuilder.AddCustomRow(FText())
 						.NameContent()
@@ -119,10 +137,32 @@ public:
 						]
 						.ValueContent()
 						[
-							SNew(STextBlock)
-							.Text(NSLOCTEXT("NiagaraParameterCollectionCustomNodeBuilder", "NullObjectValue", "(null)"))
+							SNew(SObjectPropertyEntryBox)
+								.AllowedClass(Parameter->GetType()->GetClass())
+								.ObjectPath_Lambda(
+									[Parameter]() -> FString
+									{
+										UObject* DefaultValueObject = Parameter->GetDefaultValueObjectAsset();
+										return DefaultValueObject ? DefaultValueObject->GetPathName() : FString();
+									}
+								)
+								.DisplayBrowse(true)
+								.DisplayUseSelected(true)
+								.DisplayThumbnail(true)
+								.EnableContentPicker(true)
+								.OnObjectChanged_Lambda(
+									[Parameter](const FAssetData& AssetData)
+									{
+										Parameter->SetDefaultValueObjectAsset(AssetData.GetAsset());
+									}
+								)
 						];
+					break;
 				}
+
+				default:
+					checkNoEntry();
+					break;
 			}
 
 			if (Row)
@@ -159,12 +199,8 @@ public:
 					}
 
 				}
-
 			}
-
 		}
-
-
 	}
 
 private:

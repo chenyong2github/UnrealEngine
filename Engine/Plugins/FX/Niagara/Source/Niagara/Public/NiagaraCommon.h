@@ -670,6 +670,42 @@ struct NIAGARA_API FNiagaraFunctionSignature
 };
 
 USTRUCT()
+struct NIAGARA_API FNiagaraScriptUObjectCompileInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FNiagaraVariableBase Variable;
+
+	UPROPERTY()
+	TObjectPtr<class UObject> Object;
+
+	UPROPERTY()
+	FName RegisteredParameterMapRead;
+
+	UPROPERTY()
+	TArray<FName> RegisteredParameterMapWrites;
+};
+
+USTRUCT()
+struct NIAGARA_API FNiagaraResolvedUObjectInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName ReadVariableName;
+
+	UPROPERTY()
+	FNiagaraVariableBase ResolvedVariable;
+
+	UPROPERTY()
+	TObjectPtr<class UObject> Object;
+
+	//UPROPERTY()
+	//int32 UserPtrIdx = INDEX_NONE;
+};
+
+USTRUCT()
 struct NIAGARA_API FNiagaraScriptDataInterfaceInfo
 {
 	GENERATED_USTRUCT_BODY()

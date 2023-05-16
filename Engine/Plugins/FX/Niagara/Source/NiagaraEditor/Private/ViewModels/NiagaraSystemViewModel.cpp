@@ -1872,6 +1872,69 @@ void FNiagaraSystemViewModel::NotifyDataObjectChanged(TArray<UObject*> ChangedOb
 	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
 }
 
+void FNiagaraSystemViewModel::NotifyObjectAssetChanged(UNiagaraNode& OwningNode, FName VariableReadName, UObject* NewValue)
+{
+	UNiagaraSystem& NiagaraSystem = GetSystem();
+	const FNiagaraEmitterHandle* EmitterHandle;
+	TArray<const UNiagaraScript*> CompiledScripts;
+	FNiagaraStackGraphUtilities::GetEmitterHandleAndCompiledScriptsForStackNode(NiagaraSystem, OwningNode, EmitterHandle, CompiledScripts);
+	if (ensureMsgf(CompiledScripts.Num() > 0, TEXT("Could not find compiled scripts for UObject input node.")))
+	{
+		FNameBuilder EmitterNamespace;
+		if ( EmitterHandle != nullptr )
+		{
+			EmitterHandle->GetName().ToString(EmitterNamespace);
+			EmitterNamespace.AppendChar('.');
+		}
+
+		for (const UNiagaraScript* CompiledScript : CompiledScripts)
+		{
+			for (const FNiagaraScriptUObjectCompileInfo& CompileInfo : CompiledScript->GetCachedDefaultUObjects())
+			{
+				if (CompileInfo.Variable.GetName() != VariableReadName)
+				{
+					continue;
+				}
+
+				// If we have writes validate that the writes are for this compile info
+				// For example if we had a system which used the same two emitters from a parent we can have a node which has the same Set name
+				// so here we just validate that the compile info is for this emitter as we will have two infos with the same Set name
+				if (EmitterHandle != nullptr)
+				{
+					bool bIsThisEmitter = false;
+					for (FName WriteName : CompileInfo.RegisteredParameterMapWrites)
+					{
+						FNameBuilder TempName;
+						WriteName.ToString(TempName);
+						if (TempName.ToView().StartsWith(EmitterNamespace.ToView()))
+						{
+							bIsThisEmitter = true;
+						}
+					}
+					if (!bIsThisEmitter)
+					{
+						continue;
+					}
+				}
+
+				const_cast<FNiagaraScriptUObjectCompileInfo&>(CompileInfo).Object = NewValue;
+
+				for (const FNiagaraResolvedUObjectInfo& ResolvedInfo : CompiledScript->GetResolvedUObjects())
+				{
+					if (CompileInfo.RegisteredParameterMapWrites.Contains(ResolvedInfo.ResolvedVariable.GetName()))
+					{
+						const_cast<FNiagaraResolvedUObjectInfo&>(ResolvedInfo).Object = NewValue;
+					}
+				}
+			}
+		}
+	}
+
+	System->OnCompiledUObjectChanged();
+
+	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::AllowResetAllInstances, EReinitMode::ReinitializeSystem);
+}
+
 void FNiagaraSystemViewModel::IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate)
 {
 	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandle : EmitterHandleViewModels)

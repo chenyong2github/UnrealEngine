@@ -567,6 +567,7 @@ public:
 
 	virtual int32 CompilePin(const UEdGraphPin* Pin);
 
+	virtual int32 RegisterUObject(FNiagaraVariable Variable, UObject* Object, bool bAddParameterMapRead);
 	virtual int32 RegisterDataInterface(FNiagaraVariable& Var, UNiagaraDataInterface* DataInterface, bool bPlaceholder, bool bAddParameterMapRead);
 
 	virtual void Operation(class UNiagaraNodeOp* Operation, TArray<int32>& Inputs, TArray<int32>& Outputs);

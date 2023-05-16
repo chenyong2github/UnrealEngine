@@ -145,7 +145,7 @@ void FNiagaraPlaceholderDataInterfaceManager::PlaceholderDataInterfaceChanged(TW
 				{
 					FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(OverridePin);
 				}
-				FNiagaraStackGraphUtilities::SetDataValueObjectForFunctionInput(OverridePin, PlaceholderDataInterface->GetClass(), AliasedInputParameterHandle.GetParameterHandleString().ToString(), OverrideDataInterface);
+				FNiagaraStackGraphUtilities::SetDataInterfaceValueForFunctionInput(OverridePin, PlaceholderDataInterface->GetClass(), AliasedInputParameterHandle.GetParameterHandleString().ToString(), OverrideDataInterface);
 				FNiagaraStackGraphUtilities::RelayoutGraph(*PlaceholderDataInterfaceInfo->OwningFunctionCall->GetNiagaraGraph());
 			}
 

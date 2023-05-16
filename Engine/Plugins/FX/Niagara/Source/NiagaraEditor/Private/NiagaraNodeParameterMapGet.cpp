@@ -112,9 +112,9 @@ UEdGraphPin* UNiagaraNodeParameterMapGet::CreateDefaultPin(UEdGraphPin* OutputPi
 	DefaultPin->bDefaultValueIsReadOnly = true;
 
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-	FNiagaraTypeDefinition NiagaraType = Schema->PinToTypeDefinition(OutputPin);
-	bool bNeedsValue = NiagaraType.IsDataInterface() == false;
-	FNiagaraVariable Var = Schema->PinToNiagaraVariable(OutputPin, bNeedsValue);
+	const FNiagaraTypeDefinition NiagaraType = Schema->PinToTypeDefinition(OutputPin);
+	const bool bNeedsValue = NiagaraType.IsDataInterface() == false && NiagaraType.IsUObject() == false;
+	const FNiagaraVariable Var = Schema->PinToNiagaraVariable(OutputPin, bNeedsValue);
 
 	FString PinDefaultValue;
 	if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Var, PinDefaultValue))

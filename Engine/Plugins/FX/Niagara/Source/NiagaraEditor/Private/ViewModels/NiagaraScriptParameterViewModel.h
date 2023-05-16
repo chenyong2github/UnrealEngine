@@ -44,7 +44,9 @@ public:
 	virtual void SelectedTypeChanged(TSharedPtr<FNiagaraTypeDefinition> Item, ESelectInfo::Type SelectionType) override;
 	virtual EDefaultValueType GetDefaultValueType() override;
 	virtual TSharedRef<FStructOnScope> GetDefaultValueStruct() override;
-	virtual UObject* GetDefaultValueObject() override;
+	virtual UNiagaraDataInterface* GetDefaultValueDataInterface() override;
+	virtual UObject* GetDefaultValueObjectAsset() override;
+	virtual void SetDefaultValueObjectAsset(UObject*) override;
 	virtual void NotifyDefaultValuePropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void NotifyBeginDefaultValueChange() override;
 	virtual void NotifyEndDefaultValueChange() override;
@@ -64,25 +66,28 @@ private:
 
 private:
 	/** The graph variable which is being displayed and edited by this view model. */
-	FNiagaraVariable* GraphVariable;
+	FNiagaraVariable* GraphVariable = nullptr;
 
 	/** The owning UObject of the graph variable. */
 	TWeakObjectPtr<UObject> GraphVariableOwner;
 
 	/** An optional compiled version of the graph variable. */
-	FNiagaraVariable* CompiledVariable;
+	FNiagaraVariable* CompiledVariable = nullptr;
 
 	/** The owner of the optional compiled version of the graph variable. */
-	UObject* CompiledVariableOwner;
+	UObject* CompiledVariableOwner = nullptr;
 
 	/** The variable currently being used to display and edit the value of the parameter. */
-	FNiagaraVariable* ValueVariable;
+	FNiagaraVariable* ValueVariable = nullptr;
 
 	/** The owner of the value variable. */
-	UObject* ValueVariableOwner;
+	UObject* ValueVariableOwner = nullptr;
 
-	/** The object which is providing the parameter value. */
-	UObject* ValueObject;
+	/** The data interface which is providing the parameter value. */
+	UNiagaraDataInterface* ValueDataInterface = nullptr;
+
+	/** The object asset which is providing the parameter value. */
+	UObject* ValueObjectAsset = nullptr;
 
 	/** The type of default value this parameter is providing. */
 	EDefaultValueType DefaultValueType;

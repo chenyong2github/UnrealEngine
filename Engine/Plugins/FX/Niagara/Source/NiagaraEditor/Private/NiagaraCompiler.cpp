@@ -399,7 +399,7 @@ void FNiagaraCompileRequestData::GatherPreCompiledVariables(const FString& InNam
 			if (FNiagaraParameterMapHistory::IsInNamespace(EncounteredVariable, InNamespaceFilter))
 			{
 				FNiagaraVariable NewVar = EncounteredVariable;
-				if (NewVar.IsDataAllocated() == false && !NewVar.IsDataInterface())
+				if (NewVar.IsDataAllocated() == false && !NewVar.IsDataInterface() && !NewVar.IsUObject())
 				{
 					FNiagaraEditorUtilities::ResetVariableToDefaultValue(NewVar);
 				}
@@ -1890,6 +1890,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FStringView GroupName, const FNi
 		CompileResults.Data->Parameters.Empty();
 		CompileResults.Data->InternalParameters.Empty();
 		CompileResults.Data->DataInterfaceInfo.Empty();
+		CompileResults.Data->UObjectInfos.Empty();
 
 	}
 	CompilationJob->CompileResults = CompileResults;
@@ -2024,6 +2025,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		Results.Data->Parameters.Empty();
 		Results.Data->InternalParameters.Empty();
 		Results.Data->DataInterfaceInfo.Empty();
+		Results.Data->UObjectInfos.Empty();
 		//Eventually Niagara will have all the shader plumbing and do things like materials.
 	}
 	else

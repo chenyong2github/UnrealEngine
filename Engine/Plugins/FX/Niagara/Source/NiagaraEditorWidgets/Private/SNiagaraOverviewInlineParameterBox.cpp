@@ -142,14 +142,21 @@ TArray<TSharedRef<SWidget>> SNiagaraOverviewInlineParameterBox::GenerateParamete
 		BoundFunctionInputs.Add(FunctionInput);
 		
 		TSharedPtr<SWidget> Widget;
-		if(FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Local)
+		switch (FunctionInput->GetValueMode())
 		{
-			Widget = GenerateParameterWidgetFromLocalValue(FunctionInput);
-		}
-		// @todo currently data mode inputs won't be retrieved by GetInlineParameterInputs
-		else if(FunctionInput->GetValueMode() == UNiagaraStackFunctionInput::EValueMode::Data)
-		{
-			Widget = GenerateParameterWidgetFromDataInterface(FunctionInput);
+			case UNiagaraStackFunctionInput::EValueMode::Local:
+				Widget = GenerateParameterWidgetFromLocalValue(FunctionInput);
+				break;
+			case UNiagaraStackFunctionInput::EValueMode::Data:
+				// @todo currently data mode inputs won't be retrieved by GetInlineParameterInputs
+				Widget = GenerateParameterWidgetFromDataInterface(FunctionInput);
+				break;
+			case UNiagaraStackFunctionInput::EValueMode::ObjectAsset:
+				// @todo currently object asset inputs won't be retrieved by GetInlineParameterInputs
+				Widget = SNullWidget::NullWidget;
+				break;
+			default:
+				break;
 		}
 
 		if(Widget == SNullWidget::NullWidget)

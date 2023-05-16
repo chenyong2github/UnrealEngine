@@ -482,6 +482,10 @@ public:
 	TArray<FNiagaraFunctionSignature> AdditionalExternalFunctions;
 #endif
 
+	/** Information about all the UObjects used by this script. */
+	UPROPERTY()
+	TArray<FNiagaraScriptUObjectCompileInfo> UObjectInfos;
+
 	/** Information about all data interfaces used by this script. */
 	UPROPERTY()
 	TArray<FNiagaraScriptDataInterfaceCompileInfo> DataInterfaceInfo;
@@ -1217,9 +1221,15 @@ public:
 	void SetResolvedDataInterfaces(const TArray<FNiagaraScriptResolvedDataInterfaceInfo>& InResolvedDataInterfaces) { ResolvedDataInterfaces = InResolvedDataInterfaces; }
 	void SetResolvedUserDataInterfaceBindings(const TArray<FNiagaraResolvedUserDataInterfaceBinding>& InResolvedUserDataInterfaceBindings) { ResolvedUserDataInterfaceBindings = InResolvedUserDataInterfaceBindings; }
 #endif
-
 	TConstArrayView<FNiagaraScriptResolvedDataInterfaceInfo> GetResolvedDataInterfaces() const { return MakeArrayView(ResolvedDataInterfaces); }
 	TConstArrayView<FNiagaraResolvedUserDataInterfaceBinding> GetResolvedUserDataInterfaceBindings() const { return MakeArrayView(ResolvedUserDataInterfaceBindings); }
+
+#if WITH_EDITORONLY_DATA
+	TArrayView<FNiagaraScriptUObjectCompileInfo> GetCachedDefaultUObjects() { return CachedDefaultUObjects; }
+	TConstArrayView<FNiagaraScriptUObjectCompileInfo> GetCachedDefaultUObjects() const { return CachedDefaultUObjects; }
+	void SetResolvedUObjects(TConstArrayView<FNiagaraResolvedUObjectInfo> InResolvedUObjectInfos) { ResolvedUObjectInfos = InResolvedUObjectInfos; }
+#endif
+	TConstArrayView<FNiagaraResolvedUObjectInfo> GetResolvedUObjects() const { return MakeArrayView(ResolvedUObjectInfos); }
 
 #if STATS
 	TArrayView<const TStatId> GetStatScopeIDs() const { return MakeArrayView(StatScopesIDs); }
@@ -1354,6 +1364,16 @@ private:
 
 	UPROPERTY()
 	TArray<FNiagaraResolvedUserDataInterfaceBinding> ResolvedUserDataInterfaceBindings;
+
+#if WITH_EDITORONLY_DATA
+	// Populated from compilation process, used to generate resolved list
+	UPROPERTY()
+	TArray<FNiagaraScriptUObjectCompileInfo> CachedDefaultUObjects;
+#endif
+
+	// Resolved objects are used to populate the script parameter stores, they are 1:1 mapping from variable -> object
+	UPROPERTY()
+	TArray<FNiagaraResolvedUObjectInfo> ResolvedUObjectInfos;
 
 	static UNiagaraDataInterface* CopyDataInterface(UNiagaraDataInterface* Src, UObject* Owner);
 

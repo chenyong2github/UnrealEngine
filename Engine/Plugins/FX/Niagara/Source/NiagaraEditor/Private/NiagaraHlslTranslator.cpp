@@ -4595,7 +4595,7 @@ int32 FHlslNiagaraTranslator::GetRapidIterationParameter(const FNiagaraVariable&
 	bool bIsCandidateForRapidIteration = false;
 	if (ActiveHistoryForFunctionCalls.InTopLevelFunctionCall(CompileOptions.TargetUsage))
 	{
-		if (Parameter.GetType() != FNiagaraTypeDefinition::GetBoolDef() && !Parameter.GetType().IsEnum() && !Parameter.GetType().IsDataInterface())
+		if (Parameter.GetType() != FNiagaraTypeDefinition::GetBoolDef() && !Parameter.GetType().IsEnum() && !Parameter.IsDataInterface() && !Parameter.IsUObject())
 		{
 			bIsCandidateForRapidIteration = true;
 		}
@@ -4778,7 +4778,7 @@ int32 FHlslNiagaraTranslator::GetParameter(const FNiagaraVariable& Parameter)
 
 int32 FHlslNiagaraTranslator::GetConstant(const FNiagaraVariable& Constant, FString* DebugOutputValue)
 {
-	if (Constant.IsDataInterface())
+	if (Constant.IsDataInterface() || Constant.IsUObject())
 	{
 		return INDEX_NONE;
 	}
@@ -5462,9 +5462,6 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 				}
 			}
 
-
-			
-
 			if (Var.IsDataInterface())
 			{
 				if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated && TranslationStages[ActiveStageIdx].ScriptUsage == ENiagaraScriptUsage::ParticleUpdateScript)
@@ -5514,6 +5511,53 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 							CompilationOutput.ScriptData.DataInterfaceInfo[PlaceholderIndex].RegisteredParameterMapRead = CompilationOutput.ScriptData.DataInterfaceInfo[Input].RegisteredParameterMapWrite;
 							CompilationOutput.ScriptData.DataInterfaceInfo[PlaceholderIndex].RegisteredParameterMapWrite = UsageName;
 						}
+					}
+				}
+			}
+			else if ( Var.IsUObject() )
+			{
+				if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated && TranslationStages[ActiveStageIdx].ScriptUsage == ENiagaraScriptUsage::ParticleUpdateScript)
+				{
+					// We don't want to add writes for particle update data interface parameters in both interpolated spawn and update, so skip them when processing the update stage of the 
+					// interpolated spawn script.  We don't skip the writes when compiling the particle update script because it's not recompiled when the interpolated spawn flag is changed
+					// and this would result in missing data interfaces if interpolated spawn was turned off.
+					continue;
+				}
+
+				const bool bAllowDataInterfaces = true;	// Also allows UObjects
+				if (ParamMapHistoryIdx < ParamMapHistories.Num() && ParamMapHistories[ParamMapHistoryIdx].IsPrimaryDataSetOutput(Var, CompileOptions.TargetUsage, bAllowDataInterfaces))
+				{
+					if (Input < 0 || Input >= CompilationOutput.ScriptData.UObjectInfos.Num())
+					{
+						Error(FText::Format(LOCTEXT("ParameterMapUObjectNotFoundErrorFormat", "UObject could not be found for parameter map set.  Paramter: {0}"), FText::FromName(Var.GetName())), SetNode, Inputs[i].Pin);
+						continue;
+					}
+
+					FName ResolvedName;
+					if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Var))
+					{
+						ResolvedName = ActiveHistoryForFunctionCalls.ResolveAliases(Var).GetName();
+					}
+					else
+					{
+						ResolvedName = Var.GetName();
+					}
+
+					FNiagaraScriptUObjectCompileInfo& Info = CompilationOutput.ScriptData.UObjectInfos[Input];
+					Info.RegisteredParameterMapWrites.AddUnique(ResolvedName);
+
+					//-TODO: We don't support Var=User.Var or Var=NPC.Var currently this requires some runtime remapping of the parameter stores
+					if (Info.Variable.IsInNameSpace(FNiagaraConstants::UserNamespaceString) || Info.Variable.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespaceString))
+					{
+						Error(
+							FText::Format(
+								LOCTEXT("UObjectParameterInvalidNamespaceFormat", "Variable Write '{0}' can not read User / NPC variable '{1}'. This is not supported currently."),
+								FText::FromName(ResolvedName),
+								FText::FromName(Info.Variable.GetName())
+							),
+							nullptr, nullptr
+						);
+						continue;
 					}
 				}
 			}
@@ -5693,14 +5737,18 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 			}
 		}
 
-		bool bIsDataInterface = InVariable.GetType().IsDataInterface();
+		const bool bIsDataInterface = InVariable.IsDataInterface();
+		const bool bIsUObject = InVariable.IsUObject();
 		const FString* EmitterAlias = ActiveHistoryForFunctionCalls.GetEmitterAlias();
-		bool bIsPerInstanceBulkSystemParam = IsBulkSystemScript() && !bIsDataInterface && (FNiagaraParameterMapHistory::IsUserParameter(InVariable) || FNiagaraParameterMapHistory::IsPerInstanceEngineParameter(InVariable, EmitterAlias != nullptr ? *EmitterAlias : TEXT("Emitter")));
+		
+		bool bIsPerInstanceBulkSystemParam = IsBulkSystemScript() && !bIsDataInterface && !bIsUObject && (FNiagaraParameterMapHistory::IsUserParameter(InVariable) || FNiagaraParameterMapHistory::IsPerInstanceEngineParameter(InVariable, EmitterAlias != nullptr ? *EmitterAlias : TEXT("Emitter")));
 		const bool bIsExternalConstantParameter = FNiagaraParameterMapHistory::IsRapidIterationParameter(InVariable) && !InVariable.GetType().IsStatic();
 
 		if (InVariable.GetType().IsStatic())
+		{
 			return false;
-		
+		}
+
 		if (!bIsPerInstanceBulkSystemParam)
 		{
 			int32 UniformChunk = 0;
@@ -5709,7 +5757,7 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 			{
 				FString SymbolNameDefined = FlattenedName;
 
-				if (InVariable.GetType().IsDataInterface())
+				if (bIsDataInterface)
 				{
 					UNiagaraDataInterface* DataInterface = nullptr;
 					if (Collection)
@@ -5736,6 +5784,16 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 						Output = RegisterDataInterface(InVariable, DataInterface, true, true);
 						return true;
 					}
+				}
+				if (bIsUObject)
+				{
+					UObject* Object = nullptr;
+					if (Collection)
+					{
+						Object = Collection->GetDefaultInstance()->GetParameterStore().GetUObject(InVariable);
+					}
+					Output = RegisterUObject(InVariable, Object, true);
+					return true;
 				}
 				if (!InVariable.IsDataAllocated() && !InDefaultPin)
 				{
@@ -6265,9 +6323,10 @@ void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNod
 		else // These are the pins that we are getting off the parameter map.
 		{
 			FNiagaraTypeDefinition OutputTypeDefinition = Schema->PinToTypeDefinition(OutputPins[i]);
-			bool bNeedsValue =
+			const bool bNeedsValue =
 				OutputTypeDefinition != FNiagaraTypeDefinition::GetParameterMapDef() &&
-				OutputTypeDefinition.IsDataInterface() == false;
+				OutputTypeDefinition.IsDataInterface() == false &&
+				OutputTypeDefinition.IsUObject() == false;
 			FNiagaraVariable Var = Schema->PinToNiagaraVariable(OutputPins[i], bNeedsValue, ENiagaraStructConversion::Simulation);
 
 			FNiagaraScriptVariableBinding DefaultBinding;
@@ -6419,7 +6478,7 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 			// Skip the case where the below condition is met, but it's overridden by a binding.
 			bIsCandidateForRapidIteration = false;
 		}
-		else if (InputPin != nullptr && InputPin->LinkedTo.Num() == 0 && Var.GetType() != FNiagaraTypeDefinition::GetBoolDef() && !Var.GetType().IsEnum() && !Var.GetType().IsDataInterface())
+		else if (InputPin != nullptr && InputPin->LinkedTo.Num() == 0 && Var.GetType() != FNiagaraTypeDefinition::GetBoolDef() && !Var.GetType().IsEnum() && !Var.IsDataInterface() && !Var.IsUObject())
 		{
 			bIsCandidateForRapidIteration = true;
 		}
@@ -6736,7 +6795,7 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 				LastSetChunkIdx = GetConstant(Var);
 			}
 
-			if (!Var.IsDataInterface() && LastSetChunkIdx != INDEX_NONE)
+			if (!Var.IsDataInterface() && !Var.IsUObject() && LastSetChunkIdx != INDEX_NONE)
 			{
 				if (bTreatAsUnknownParameterMap == false)
 				{
@@ -6766,12 +6825,15 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 				}
 			}
 
-			if (LastSetChunkIdx == INDEX_NONE && VarIdx != INDEX_NONE && Var.IsDataInterface())
+			if (LastSetChunkIdx == INDEX_NONE && VarIdx != INDEX_NONE)
 			{
-				// If this variable is a data interface and it's in the parameter map, but hasn't been set yet, then is is an external data interface so try to register it.
-				if (ParameterMapRegisterExternalConstantNamespaceVariable(Var, ErrorNode, ParamMapHistoryIdx, OutputChunkId, DefaultPin))
+				if (Var.IsDataInterface() || Var.IsUObject())
 				{
-					return;
+					// If this variable is a data interface and it's in the parameter map, but hasn't been set yet, then is is an external data interface so try to register it.
+					if (ParameterMapRegisterExternalConstantNamespaceVariable(Var, ErrorNode, ParamMapHistoryIdx, OutputChunkId, DefaultPin))
+					{
+						return;
+					}
 				}
 			}
 		}
@@ -6791,6 +6853,17 @@ void FHlslNiagaraTranslator::HandleParameterRead(int32 ParamMapHistoryIdx, const
 			{
 				LastSetChunkIdx = RegisterDataInterface(Var, DataInterface, true, false);
 			}
+		}
+
+		OutputChunkId = LastSetChunkIdx;
+	}
+	else if (Var.IsUObject())
+	{
+		// In order for a module to compile successfully, we potentially need to generate default values
+		// for variables encountered without ever being set. We do this by creating an instance of the CDO.
+		if (UNiagaraScript::IsStandaloneScript(CompileOptions.TargetUsage) && LastSetChunkIdx == INDEX_NONE)
+		{
+			LastSetChunkIdx = RegisterUObject(Var, nullptr, true);
 		}
 
 		OutputChunkId = LastSetChunkIdx;
@@ -6934,6 +7007,51 @@ void FHlslNiagaraTranslator::WriteDataSet(const FNiagaraDataSetID DataSet, const
 		DataSetWriteForInput->CodeChunks.Add(AddBodyChunk(DataSetAccessName + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString()), TEXT("{0}"), Var.GetType(), Input, false));
 	}
 
+}
+
+int32 FHlslNiagaraTranslator::RegisterUObject(FNiagaraVariable Variable, UObject* Object, bool bAddParameterMapRead)
+{
+	int32 ObjectIndex = INDEX_NONE;
+	if (bAddParameterMapRead)
+	{
+		// If we are registering a read then look for an existing one by name
+		ObjectIndex = CompilationOutput.ScriptData.UObjectInfos.IndexOfByPredicate([&](const FNiagaraScriptUObjectCompileInfo& ExistingInfo) { return ExistingInfo.Variable == Variable; });
+	}
+	// Assume all writes are unique
+	//else if ( Object != nullptr )
+	//{
+	//	// If we are registering a write then look for an existing one by value
+	//	ObjectIndex = CompilationOutput.ScriptData.UObjectInfos.IndexOfByPredicate([&](const FNiagaraScriptUObjectCompileInfo& ExistingInfo) { return ExistingInfo.Object == Object; });
+	//}
+
+	FNiagaraScriptUObjectCompileInfo* CompileInfo = nullptr;
+	if (ObjectIndex == INDEX_NONE)
+	{
+		ObjectIndex = CompilationOutput.ScriptData.UObjectInfos.AddDefaulted();
+		CompileInfo = &CompilationOutput.ScriptData.UObjectInfos[ObjectIndex];
+		CompileInfo->Variable = Variable;
+		CompileInfo->Object = Object;
+	}
+	else
+	{
+		CompileInfo = &CompilationOutput.ScriptData.UObjectInfos[ObjectIndex];
+	}
+
+	if (bAddParameterMapRead)
+	{
+		FName ResolvedName;
+		if (FNiagaraParameterMapHistory::IsAliasedEmitterParameter(Variable.GetName().ToString()))
+		{
+			ResolvedName = ActiveHistoryForFunctionCalls.ResolveAliases(Variable).GetName();
+		}
+		else
+		{
+			ResolvedName = Variable.GetName();
+		}
+		CompileInfo->RegisteredParameterMapRead = ResolvedName;
+	}
+
+	return ObjectIndex;
 }
 
 int32 FHlslNiagaraTranslator::RegisterDataInterface(FNiagaraVariable& Var, UNiagaraDataInterface* DataInterface, bool bPlaceholder, bool bAddParameterMapRead)
