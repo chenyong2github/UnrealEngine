@@ -60,11 +60,11 @@ namespace EpicGames.Horde.Compute
 
 		void AttachBuffer(IpcMessage message, int channelId, SharedMemoryBuffer buffer)
 		{
-			MemoryWriter writer = new MemoryWriter(_commandBuffer.Writer.GetMemory());
+			MemoryWriter writer = new MemoryWriter(_commandBuffer.Writer.GetWriteBuffer());
 			writer.WriteUnsignedVarInt((int)message);
 			writer.WriteUnsignedVarInt(channelId);
 			writer.WriteString(buffer.Name);
-			_commandBuffer.Writer.Advance(writer.Length);
+			_commandBuffer.Writer.AdvanceWritePosition(writer.Length);
 		}
 	}
 

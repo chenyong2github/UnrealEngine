@@ -85,16 +85,16 @@ namespace EpicGames.Horde.Compute
 
 			public void Send()
 			{
-				Span<byte> header = _sendBufferWriter.GetMemory().Span;
+				Span<byte> header = _sendBufferWriter.GetWriteBuffer().Span;
 				header[0] = (byte)_type;
 				BinaryPrimitives.WriteInt32LittleEndian(header.Slice(1, 4), _length);
 
 				if (_channel._logger.IsEnabled(LogLevel.Trace))
 				{
-					_channel.LogMessageInfo("SEND", _type, _sendBufferWriter.GetMemory().Slice(HeaderLength, _length).Span);
+					_channel.LogMessageInfo("SEND", _type, _sendBufferWriter.GetWriteBuffer().Slice(HeaderLength, _length).Span);
 				}
 
-				_sendBufferWriter.Advance(HeaderLength + _length);
+				_sendBufferWriter.AdvanceWritePosition(HeaderLength + _length);
 				_length = 0;
 			}
 
@@ -102,7 +102,7 @@ namespace EpicGames.Horde.Compute
 			public void Advance(int count) => _length += count;
 
 			/// <inheritdoc/>
-			public Memory<byte> GetMemory(int sizeHint = 0) => _sendBufferWriter.GetMemory().Slice(HeaderLength + _length);
+			public Memory<byte> GetMemory(int sizeHint = 0) => _sendBufferWriter.GetWriteBuffer().Slice(HeaderLength + _length);
 
 			/// <inheritdoc/>
 			public Span<byte> GetSpan(int sizeHint = 0) => GetMemory(sizeHint).Span;
@@ -183,23 +183,28 @@ namespace EpicGames.Horde.Compute
 			IComputeBufferReader recvBufferReader = _recvBuffer.Reader;
 			while (!recvBufferReader.IsComplete)
 			{
-				ReadOnlyMemory<byte> memory = recvBufferReader.GetMemory();
-				if (memory.Length >= HeaderLength)
+				ReadOnlyMemory<byte> memory = recvBufferReader.GetReadBuffer();
+				if (memory.Length < HeaderLength)
 				{
-					int length = BinaryPrimitives.ReadInt32LittleEndian(memory.Span.Slice(1, 4));
-					if (memory.Length >= HeaderLength + length)
-					{
-						ComputeMessageType type = (ComputeMessageType)memory.Span[0];
-						Message message = new Message(type, memory.Slice(HeaderLength, length));
-						if (_logger.IsEnabled(LogLevel.Trace))
-						{
-							LogMessageInfo("RECV", message.Type, message.Data.Span);
-						}
-						recvBufferReader.Advance(HeaderLength + length);
-						return message;
-					}
+					await recvBufferReader.WaitToReadAsync(HeaderLength, cancellationToken);
+					continue;
 				}
-				await recvBufferReader.WaitToReadAsync(memory.Length, cancellationToken);
+
+				int messageLength = BinaryPrimitives.ReadInt32LittleEndian(memory.Span.Slice(1, 4));
+				if (memory.Length < HeaderLength + messageLength)
+				{
+					await recvBufferReader.WaitToReadAsync(HeaderLength + messageLength, cancellationToken);
+					continue;
+				}
+
+				ComputeMessageType type = (ComputeMessageType)memory.Span[0];
+				Message message = new Message(type, memory.Slice(HeaderLength, messageLength));
+				if (_logger.IsEnabled(LogLevel.Trace))
+				{
+					LogMessageInfo("RECV", message.Type, message.Data.Span);
+				}
+				recvBufferReader.AdvanceReadPosition(HeaderLength + messageLength);
+				return message;
 			}
 			return new Message(ComputeMessageType.None, ReadOnlyMemory<byte>.Empty);
 		}
@@ -227,16 +232,10 @@ namespace EpicGames.Horde.Compute
 			}
 
 			IComputeBufferWriter sendBufferWriter = _sendBuffer.Writer;
-			for(; ;)
-			{
-				Memory<byte> memory = sendBufferWriter.GetMemory();
-				if (memory.Length >= maxSize)
-				{
-					_currentBuilder = new MessageBuilder(this, sendBufferWriter, type);
-					return _currentBuilder;
-				}
-				await sendBufferWriter.WaitToWriteAsync(memory.Length, cancellationToken);
-			}
+			await sendBufferWriter.WaitToWriteAsync(maxSize, cancellationToken);
+
+			_currentBuilder = new MessageBuilder(this, sendBufferWriter, type);
+			return _currentBuilder;
 		}
 	}
 }

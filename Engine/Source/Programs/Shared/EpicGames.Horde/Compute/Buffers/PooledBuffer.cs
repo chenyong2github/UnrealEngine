@@ -103,7 +103,7 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// Constructor
 		/// </summary>
 		private PooledBufferCore(Chunk[] chunks, int readerIdx)
-			: base(chunks, readerIdx)
+			: base(chunks, readerIdx, true)
 		{
 			_chunks = chunks;
 		}

@@ -88,7 +88,7 @@ namespace EpicGames.Horde.Compute.Buffers
 			Native.EventHandle writerEvent = Native.EventHandle.CreateNew($"{name}_W", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
 			Native.EventHandle readerEvent = Native.EventHandle.CreateNew($"{name}_R", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
 
-			SharedMemoryBufferCore core = new SharedMemoryBufferCore(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, numChunks, chunkLength, readerEvent, writerEvent);
+			SharedMemoryBufferCore core = new SharedMemoryBufferCore(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, numChunks, chunkLength, readerEvent, writerEvent, true);
 			return new SharedMemoryBuffer(core);
 		}
 
@@ -114,7 +114,7 @@ namespace EpicGames.Horde.Compute.Buffers
 			Native.EventHandle readerEvent = Native.EventHandle.OpenExisting($"{name}_R");
 			Native.EventHandle writerEvent = Native.EventHandle.OpenExisting($"{name}_W");
 
-			SharedMemoryBufferCore core = new SharedMemoryBufferCore(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, numChunks, chunkLength, readerEvent, writerEvent);
+			SharedMemoryBufferCore core = new SharedMemoryBufferCore(name, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, numChunks, chunkLength, readerEvent, writerEvent, false);
 			return new SharedMemoryBuffer(core);
 		}
 	}
@@ -152,8 +152,8 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public unsafe SharedMemoryBufferCore(string name, MemoryMappedFile memoryMappedFile, MemoryMappedViewAccessor memoryMappedViewAccessor, MemoryMappedView memoryMappedView, int numChunks, int chunkLength, Native.EventHandle readerEvent, Native.EventHandle writerEvent)
-			: base(CreateChunks(numChunks, chunkLength, memoryMappedView), 1)
+		public unsafe SharedMemoryBufferCore(string name, MemoryMappedFile memoryMappedFile, MemoryMappedViewAccessor memoryMappedViewAccessor, MemoryMappedView memoryMappedView, int numChunks, int chunkLength, Native.EventHandle readerEvent, Native.EventHandle writerEvent, bool isNew)
+			: base(CreateChunks(numChunks, chunkLength, memoryMappedView), 1, isNew)
 		{
 			Name = name;
 

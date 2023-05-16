@@ -192,9 +192,9 @@ namespace EpicGames.Horde.Compute
 
 		static async Task ProcessIpcMessagesAsync(IComputeSocket socket, IComputeBufferReader ipcReader, CancellationToken cancellationToken)
 		{
-			while(await ipcReader.WaitToReadAsync(0, cancellationToken))
+			while(await ipcReader.WaitToReadAsync(1, cancellationToken))
 			{
-				ReadOnlyMemory<byte> memory = ipcReader.GetMemory();
+				ReadOnlyMemory<byte> memory = ipcReader.GetReadBuffer();
 				MemoryReader reader = new MemoryReader(memory);
 
 				IpcMessage message = (IpcMessage)reader.ReadUnsignedVarInt();
@@ -222,7 +222,7 @@ namespace EpicGames.Horde.Compute
 						throw new InvalidOperationException($"Invalid IPC message: {message}");
 				}
 
-				ipcReader.Advance(memory.Length - reader.RemainingMemory.Length);
+				ipcReader.AdvanceReadPosition(memory.Length - reader.RemainingMemory.Length);
 			}
 		}
 

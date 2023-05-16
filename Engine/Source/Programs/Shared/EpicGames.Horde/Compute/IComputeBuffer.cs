@@ -41,21 +41,21 @@ namespace EpicGames.Horde.Compute
 		/// Updates the read position
 		/// </summary>
 		/// <param name="size">Size of data that was read</param>
-		void Advance(int size);
+		void AdvanceReadPosition(int size);
 
 		/// <summary>
 		/// Gets the next data to read
 		/// </summary>
 		/// <returns>Memory to read from</returns>
-		ReadOnlyMemory<byte> GetMemory();
+		ReadOnlyMemory<byte> GetReadBuffer();
 
 		/// <summary>
 		/// Wait for data to be available, or for the buffer to be marked as complete
 		/// </summary>
-		/// <param name="currentLength">Current length of the buffer</param>
+		/// <param name="minLength">Minimum amount of data to read</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>True if new data is available, false if the buffer is complete</returns>
-		ValueTask<bool> WaitToReadAsync(int currentLength, CancellationToken cancellationToken = default);
+		ValueTask<bool> WaitToReadAsync(int minLength, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -72,19 +72,21 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Updates the current write position within the buffer
 		/// </summary>
-		void Advance(int size);
+		void AdvanceWritePosition(int size);
 
 		/// <summary>
 		/// Gets memory to write to
 		/// </summary>
 		/// <returns>Memory to be written to</returns>
-		Memory<byte> GetMemory();
+		Memory<byte> GetWriteBuffer();
 
 		/// <summary>
 		/// Gets memory to write to
 		/// </summary>
+		/// <param name="minLength">Minimum size of the desired write buffer</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Memory to be written to</returns>
-		ValueTask WaitToWriteAsync(int currentLength, CancellationToken cancellationToken = default);
+		ValueTask WaitToWriteAsync(int minLength, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -103,15 +105,15 @@ namespace EpicGames.Horde.Compute
 		{
 			for (; ; )
 			{
-				ReadOnlyMemory<byte> readMemory = reader.GetMemory();
+				ReadOnlyMemory<byte> readMemory = reader.GetReadBuffer();
 				if (reader.IsComplete || readMemory.Length > 0)
 				{
 					int length = Math.Min(readMemory.Length, buffer.Length);
 					readMemory.Slice(0, length).CopyTo(buffer);
-					reader.Advance(length);
+					reader.AdvanceReadPosition(length);
 					return length;
 				}
-				await reader.WaitToReadAsync(0, cancellationToken);
+				await reader.WaitToReadAsync(1, cancellationToken);
 			}
 		}
 
@@ -125,11 +127,11 @@ namespace EpicGames.Horde.Compute
 		{
 			while (buffer.Length > 0)
 			{
-				Memory<byte> writeMemory = writer.GetMemory();
+				Memory<byte> writeMemory = writer.GetWriteBuffer();
 				if (writeMemory.Length >= buffer.Length)
 				{
 					buffer.CopyTo(writeMemory);
-					writer.Advance(buffer.Length);
+					writer.AdvanceWritePosition(buffer.Length);
 					break;
 				}
 				await writer.WaitToWriteAsync(writeMemory.Length, cancellationToken);

@@ -149,10 +149,10 @@ namespace EpicGames.Horde.Compute
 			}
 
 			/// <inheritdoc/>
-			public void Advance(int length) => _offset += length;
+			public void AdvanceReadPosition(int length) => _offset += length;
 
 			/// <inheritdoc/>
-			public ReadOnlyMemory<byte> GetMemory()
+			public ReadOnlyMemory<byte> GetReadBuffer()
 			{
 				ChunkBase chunk = _chunks[_chunkIdx];
 				ChunkState state = chunk.State;
@@ -160,7 +160,7 @@ namespace EpicGames.Horde.Compute
 			}
 
 			/// <inheritdoc/>
-			public async ValueTask<bool> WaitToReadAsync(int currentLength, CancellationToken cancellationToken = default)
+			public async ValueTask<bool> WaitToReadAsync(int minLength, CancellationToken cancellationToken = default)
 			{
 				for (; ; )
 				{
@@ -176,15 +176,10 @@ namespace EpicGames.Horde.Compute
 							await _buffer.WaitForReadEvent(_readerIdx, cancellationToken);
 						}
 					}
-					else if (_offset + currentLength < state.Length)
+					else if (_offset + minLength <= state.Length)
 					{
-						// Still have more data to read from the current buffer
+						// We have enough data in the chunk to be able to read a message
 						return true;
-					}
-					else if (state.WriteState == WriteState.Complete)
-					{
-						// Buffer is complete
-						return false;
 					}
 					else if (state.WriteState == WriteState.Writing)
 					{
@@ -194,6 +189,11 @@ namespace EpicGames.Horde.Compute
 						{
 							await _buffer.WaitForReadEvent(_readerIdx, cancellationToken);
 						}
+					}
+					else if (_offset < state.Length || state.WriteState == WriteState.Complete)
+					{
+						// Cannot read the requested amount of data from this chunk.
+						return false;
 					}
 					else if (state.WriteState == WriteState.MovedToNext)
 					{
@@ -229,14 +229,14 @@ namespace EpicGames.Horde.Compute
 				_chunks = chunks;
 			}
 
-			public void Advance(int size)
+			public void AdvanceWritePosition(int size)
 			{
 				ChunkBase chunk = _chunks[_chunkIdx];
 				chunk.Append(size);
 				_buffer.SetAllReadEvents();
 			}
 
-			public Memory<byte> GetMemory()
+			public Memory<byte> GetWriteBuffer()
 			{
 				ChunkBase chunk = _chunks[_chunkIdx];
 
@@ -261,44 +261,46 @@ namespace EpicGames.Horde.Compute
 				return false;
 			}
 
-			public async ValueTask WaitToWriteAsync(int currentLength, CancellationToken cancellationToken)
+			public async ValueTask WaitToWriteAsync(int minSize, CancellationToken cancellationToken)
 			{
-				if (currentLength >= _chunks[_chunkIdx].Memory.Length)
+				if (minSize > _chunks[_chunkIdx].Memory.Length)
 				{
-					throw new ArgumentException("Current length is already complete buffer size; cannot allocate more.", nameof(currentLength));
+					throw new ArgumentException("Requested read size is larger than chunk size.", nameof(minSize));
 				}
 
 				for (; ; )
 				{
-					Memory<byte> memory = GetMemory();
-					if (memory.Length != currentLength)
+					ChunkBase chunk = _chunks[_chunkIdx];
+
+					ChunkState chunkState = chunk.State;
+					if (chunkState.WriteState == WriteState.Writing)
 					{
-						break;
+						int length = chunkState.Length;
+						if (length + minSize <= chunk.Memory.Length)
+						{
+							return;
+						}
+
+						chunk.MoveToNext();
+						_buffer.SetAllReadEvents();
 					}
-					await MoveNextWriteChunk(cancellationToken);
+
+					int nextWriteChunkIdx = _chunkIdx + 1;
+					if (nextWriteChunkIdx == _chunks.Length)
+					{
+						nextWriteChunkIdx = 0;
+					}
+
+					ChunkBase nextChunk = _chunks[nextWriteChunkIdx];
+					while (nextChunk.State.ReaderFlags != 0)
+					{
+						await _buffer.WaitForWriteEvent(cancellationToken);
+						_buffer.ResetWriteEvent();
+					}
+
+					_chunkIdx = nextWriteChunkIdx;
+					nextChunk.StartWriting(_buffer._numReaders);
 				}
-			}
-
-			async ValueTask MoveNextWriteChunk(CancellationToken cancellationToken)
-			{
-				ChunkBase chunk = _chunks[_chunkIdx];
-				chunk.MoveToNext();
-
-				int nextWriteChunkIdx = _chunkIdx + 1;
-				if (nextWriteChunkIdx == _chunks.Length)
-				{
-					nextWriteChunkIdx = 0;
-				}
-
-				ChunkBase nextChunk = _chunks[nextWriteChunkIdx];
-				while (nextChunk.State.ReaderFlags != 0)
-				{
-					await _buffer.WaitForWriteEvent(cancellationToken);
-					_buffer.ResetWriteEvent();
-				}
-
-				nextChunk.StartWriting(_buffer._numReaders);
-				_chunkIdx = nextWriteChunkIdx;
 			}
 		}
 
@@ -320,10 +322,14 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="chunks">Data for the buffer</param>
 		/// <param name="numReaders">Number of readers for this buffer</param>
-		protected ComputeBufferBase(ChunkBase[] chunks, int numReaders)
+		/// <param name="isNew"></param>
+		protected ComputeBufferBase(ChunkBase[] chunks, int numReaders, bool isNew)
 		{
 			_chunks = chunks;
-			_chunks[0].StartWriting(numReaders);
+			if (isNew)
+			{
+				_chunks[0].StartWriting(numReaders);
+			}
 
 			_numReaders = numReaders;
 

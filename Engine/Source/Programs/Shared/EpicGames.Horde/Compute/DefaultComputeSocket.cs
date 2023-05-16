@@ -176,12 +176,12 @@ namespace EpicGames.Horde.Compute
 
 		async Task ReadPacketAsync(IComputeTransport transport, int id, int size, IComputeBufferWriter writer, CancellationToken cancellationToken)
 		{
-			Memory<byte> memory = writer.GetMemory();
+			Memory<byte> memory = writer.GetWriteBuffer();
 			while (memory.Length < size)
 			{
 				_logger.LogTrace("No space in buffer {Id}, flushing", id);
-				await writer.WaitToWriteAsync(memory.Length, cancellationToken);
-				memory = writer.GetMemory();
+				await writer.WaitToWriteAsync(size, cancellationToken);
+				memory = writer.GetWriteBuffer();
 			}
 
 			for (int offset = 0; offset < size;)
@@ -190,7 +190,7 @@ namespace EpicGames.Horde.Compute
 				offset += read;
 			}
 
-			writer.Advance(size);
+			writer.AdvanceWritePosition(size);
 		}
 
 		IComputeBufferWriter GetReceiveBuffer(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
@@ -361,18 +361,18 @@ namespace EpicGames.Horde.Compute
 			IComputeBufferReader reader = buffer.Reader;
 			while (!cancellationToken.IsCancellationRequested)
 			{
-				ReadOnlyMemory<byte> memory = reader.GetMemory();
+				ReadOnlyMemory<byte> memory = reader.GetReadBuffer();
 				if (memory.Length > 0)
 				{
 					await SendAsync(channelId, memory, cancellationToken);
-					reader.Advance(memory.Length);
+					reader.AdvanceReadPosition(memory.Length);
 				}
 				if (reader.IsComplete)
 				{
 					await MarkCompleteAsync(channelId, cancellationToken);
 					break;
 				}
-				await reader.WaitToReadAsync(0, cancellationToken);
+				await reader.WaitToReadAsync(1, cancellationToken);
 			}
 
 			lock (_lockObject)
