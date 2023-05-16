@@ -2086,7 +2086,9 @@ static void ConvertToEmulatedUBs(std::string& GlslSource, const ReflectionData& 
 
 						for (std::string const& SearchString : ReflectData.PackedUBArrays[PackedUBNamePair.Key])
 						{
-							if (!GlslSource.compare(UBVarPos, SearchString.length(), SearchString))
+							// This is done in case the current SearchString is a substring of another
+							std::string SearchStringWithBraces = SearchString + "[";
+							if (!GlslSource.compare(UBVarPos, SearchStringWithBraces.length(), SearchStringWithBraces))
 							{
 								GlslSource.replace(UBVarPos + SearchString.length(), 1, "(");
 
@@ -2409,7 +2411,9 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 						OutString.replace(GlobalVarPos, GlobalVarString.length(), "_Globals_");
 						for (std::string const& SearchString : ReflectData.GlobalArrays)
 						{
-							if (!OutString.compare(GlobalVarPos, SearchString.length(), SearchString))
+							// This is done in case the current SearchString is a substring of another
+							std::string SearchStringWithBraces = SearchString + "[";
+							if (!OutString.compare(GlobalVarPos, SearchStringWithBraces.length(), SearchStringWithBraces))
 							{
 								OutString.replace(GlobalVarPos + SearchString.length(), 1, "(");
 
