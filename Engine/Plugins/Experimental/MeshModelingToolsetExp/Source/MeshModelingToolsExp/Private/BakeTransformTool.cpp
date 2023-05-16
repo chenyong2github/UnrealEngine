@@ -136,7 +136,8 @@ void UBakeTransformTool::UpdateAssets()
 		const FMeshDescription* MeshDescription = UE::ToolTarget::GetMeshDescription(Targets[ComponentIdx], FGetMeshParameters(bTargetSupportsLODs, LODs[0]));
 		if (MapToFirstOccurrences[ComponentIdx] < ComponentIdx)
 		{
-			BoundsOfScaledRotatedMesh.Add(BoundsOfScaledRotatedMesh[MapToFirstOccurrences[ComponentIdx]]);
+			FBox Bounds = BoundsOfScaledRotatedMesh[MapToFirstOccurrences[ComponentIdx]];
+			BoundsOfScaledRotatedMesh.Add(Bounds);
 		}
 		else
 		{
