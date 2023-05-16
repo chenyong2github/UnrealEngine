@@ -134,7 +134,7 @@ namespace Audio
 		TUniquePtr<IFFTAlgorithm> FFT = FFFTFactory::NewFFTAlgorithm(FFTSettings);
 		if (!FFT.IsValid())
 		{
-			UE_LOG(LogAudio, Error, TEXT("Failed to create an FFT Algorithm with log2size %n"), FFTSettings.Log2Size);
+			UE_LOG(LogAudio, Error, TEXT("Failed to create an FFT Algorithm with log2size %d"), FFTSettings.Log2Size);
 			return;
 		}
 
