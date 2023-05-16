@@ -386,7 +386,10 @@ void FWebRemoteControlModule::ShutdownModule()
 	}
 
 	EditorRoutes.UnregisterRoutes(this);
-	WebSocketHandler->UnregisterRoutes(this);
+	if (WebSocketHandler)
+	{
+		WebSocketHandler->UnregisterRoutes(this);
+	}
 	StopHttpServer();
 	StopWebSocketServer();
 	UnregisterConsoleCommands();
