@@ -870,38 +870,34 @@ namespace UnrealBuildTool
 			}
 
 			bool bHasLocalizationData = BuildLocalizationData();
-			if (bHasLocalizationData)
-			{			
-				// generate the list of AppX cultures to stage
-				SelectedAppXCultureIds = new();
-				foreach (string UEStageId in SelectedUECultureIds)
+
+			// generate the list of AppX cultures to stage
+			SelectedAppXCultureIds = new();
+			foreach (string UEStageId in SelectedUECultureIds)
+			{
+				if (!UEStageIdToAppXCultureId.TryGetValue(UEStageId, out string? AppXCultureId) || string.IsNullOrEmpty(AppXCultureId) )
 				{
-					if (UEStageIdToAppXCultureId.TryGetValue(UEStageId, out string? AppXCultureId) && !string.IsNullOrEmpty(AppXCultureId) )
-					{
-						SelectedAppXCultureIds.Add(AppXCultureId);
-					}
-					else
-					{
-						// use the culture directly - no remapping required
-						UEStageIdToAppXCultureId[UEStageId] = UEStageId;
-						SelectedAppXCultureIds.Add(UEStageId);
-					}
+					// use the culture directly - no remapping required
+					AppXCultureId = UEStageId;
+					UEStageIdToAppXCultureId[UEStageId] = AppXCultureId;
 				}
 
-				// look up the default AppX culture
-				if (UEStageIdToAppXCultureId.TryGetValue(DefaultUECultureId, out string? NewDefaultCultureId))
-				{
-					DefaultAppXCultureId = NewDefaultCultureId;
-				}
-				if (string.IsNullOrEmpty(DefaultAppXCultureId))
-				{
-					throw new Exception($"unable to find default culture {DefaultUECultureId} in the staged culture list");
-				}
+				SelectedAppXCultureIds.Add(AppXCultureId);
 			}
-			else if (InExecutablePairs.ContainsKey(UnrealTargetConfiguration.Shipping))
+
+			// look up the default AppX culture
+			if (!UEStageIdToAppXCultureId.TryGetValue(DefaultUECultureId, out DefaultAppXCultureId) || string.IsNullOrEmpty(DefaultAppXCultureId))
 			{
-				// Warn in shipping, we can run without translated cultures they're just needed for cert
-				Logger.LogInformation("Staged culture mappings not setup in the editor. See Per Culture Resources in the {Platform} Target Settings.", Platform.ToString() );
+				// use the default culture directly - no remapping required
+				DefaultAppXCultureId = DefaultUECultureId;
+				UEStageIdToAppXCultureId[DefaultUECultureId] = DefaultAppXCultureId;
+			}
+
+
+			// Warn in shipping, we can run without translated cultures they're just needed for cert
+			if (!bHasLocalizationData && InExecutablePairs.ContainsKey(UnrealTargetConfiguration.Shipping))
+			{
+				Logger.LogInformation("Staged culture mappings not setup in the editor. See Per Culture Resources in the {Platform} Target Settings.", Platform.ToString());
 			}
 
 			// Clean out the resources intermediate path so that we know there are no stale binary files.
