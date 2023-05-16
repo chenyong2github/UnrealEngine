@@ -9,6 +9,7 @@
 #include "MLDeformerGeomCacheHelpers.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimSingleNodeInstance.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
@@ -136,6 +137,27 @@ namespace UE::MLDeformer
 
 	float FMLDeformerGeomCacheSampler::GetTimeAtFrame(int32 InAnimFrameIndex) const
 	{
-		return GeometryCacheComponent.Get() ? GeometryCacheComponent->GetTimeAtFrame(InAnimFrameIndex) : 0.0f;
+		// the animation instance must drive the time update
+		if (SkeletalMeshComponent)
+		{
+			UAnimSingleNodeInstance* SingleNodeInstance = Cast<UAnimSingleNodeInstance>(SkeletalMeshComponent->GetAnimInstance());
+			if (SingleNodeInstance)
+			{
+				const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(SingleNodeInstance->CurrentAsset);
+				if (SequenceBase)
+				{
+					const FFrameRate FrameRate = SequenceBase->GetSamplingFrameRate();
+					const float UncorrectedTime = SequenceBase->GetTimeAtFrame(InAnimFrameIndex);
+					const FFrameTime PlayOffsetCurrentTime(FrameRate.AsFrameTime(UncorrectedTime));
+					return FMLDeformerEditorModel::CorrectedFrameTime(InAnimFrameIndex, UncorrectedTime, FrameRate);
+				}
+			}
+		}
+
+		if (GeometryCacheComponent.Get())
+		{
+			return  GeometryCacheComponent->GetTimeAtFrame(InAnimFrameIndex);
+		}
+		return 0.0f;
 	}
 }	// namespace UE::MLDeformer

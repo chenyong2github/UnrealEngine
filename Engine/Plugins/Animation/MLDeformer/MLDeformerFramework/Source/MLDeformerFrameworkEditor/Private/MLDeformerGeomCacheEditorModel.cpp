@@ -54,29 +54,6 @@ namespace UE::MLDeformer
 		return static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ID));
 	}
 
-	double FMLDeformerGeomCacheEditorModel::GetTrainingTimeAtFrame(int32 FrameNumber) const
-	{
-		// Try to get the frame from the geometry cache.
-		const FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Train_GroundTruth));
-		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
-		{
-			return EditorActor->GetGeometryCacheComponent()->GetTimeAtFrame(FrameNumber);
-		}
-
-		return FMLDeformerEditorModel::GetTrainingTimeAtFrame(FrameNumber);
-	}
-
-	int32 FMLDeformerGeomCacheEditorModel::GetTrainingFrameAtTime(double TimeInSeconds) const
-	{
-		const FMLDeformerGeomCacheActor* EditorActor = static_cast<FMLDeformerGeomCacheActor*>(FindEditorActor(ActorID_Train_GroundTruth));
-		if (EditorActor && EditorActor->GetGeometryCacheComponent() && EditorActor->GetGeometryCacheComponent()->GeometryCache.Get())
-		{
-			return EditorActor->GetGeometryCacheComponent()->GetFrameAtTime(TimeInSeconds);
-		}
-
-		return FMLDeformerEditorModel::GetTrainingFrameAtTime(TimeInSeconds);
-	}
-
 	double FMLDeformerGeomCacheEditorModel::GetTestTimeAtFrame(int32 FrameNumber) const
 	{
 		// Try to get the frame from the geometry cache.

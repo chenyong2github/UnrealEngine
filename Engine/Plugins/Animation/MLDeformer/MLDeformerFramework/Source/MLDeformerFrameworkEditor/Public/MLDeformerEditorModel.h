@@ -777,6 +777,15 @@ namespace UE::MLDeformer
 		 */
 		UMLDeformerComponent* FindMLDeformerComponent(int32 ActorID = ActorID_Test_MLDeformed) const;
 
+
+		/**
+		 * Correct floating point errors that can cause issues when sampling animation using step timing.
+		 * @param FrameNumber The desired frame number
+		 * @param FrameTimeForFrameNumber The frame time computed for the frame number, which may have conversion errors
+		 * @Param FrameRate The frame rate for conversion
+		 * @return A corrected frame time, which is equal to FrameTimeForFrameNumber unless a floating point error means the floor is not equal to the FrameNumber
+		 */
+		static float CorrectedFrameTime(int32 FrameNumber, float FrameTimeForFrameNumber, FFrameRate FrameRate);
 	protected:
 		/**
 		 * Executed when a property changes by a change in the UI.

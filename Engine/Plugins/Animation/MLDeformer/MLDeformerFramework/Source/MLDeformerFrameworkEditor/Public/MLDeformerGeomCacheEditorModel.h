@@ -32,8 +32,6 @@ namespace UE::MLDeformer
 		virtual void CreateTrainingGroundTruthActor(UWorld* World) override;
 		virtual void CreateTestGroundTruthActor(UWorld* World) override;
 		virtual int32 GetNumTrainingFrames() const override;
-		virtual double GetTrainingTimeAtFrame(int32 FrameNumber) const override;
-		virtual int32 GetTrainingFrameAtTime(double TimeInSeconds) const override;
 		virtual double GetTestTimeAtFrame(int32 FrameNumber) const override;
 		virtual int32 GetTestFrameAtTime(double TimeInSeconds) const override;
 		virtual void UpdateIsReadyForTrainingState() override;

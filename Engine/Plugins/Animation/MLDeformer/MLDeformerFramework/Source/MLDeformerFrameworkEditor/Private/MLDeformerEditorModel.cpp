@@ -36,6 +36,7 @@
 #include "GeometryCacheTrack.h"
 #include "BoneContainer.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Animation/AnimData/IAnimationDataModel.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerEditorModel"
 
@@ -600,10 +601,7 @@ namespace UE::MLDeformer
 			{
 				if (EditorActor && EditorActor->IsTrainingActor())
 				{
-					if (Model->HasTrainingGroundTruth())
-					{
-						PlayOffset = GetTrainingTimeAtFrame(TargetFrame);
-					}
+					PlayOffset = GetTrainingTimeAtFrame(TargetFrame);
 					EditorActor->SetPlayPosition(PlayOffset);
 				}
 			}
@@ -627,9 +625,32 @@ namespace UE::MLDeformer
 		}
 	}
 
+	float FMLDeformerEditorModel::CorrectedFrameTime(int32 FrameNumber, float FrameTimeForFrameNumber, FFrameRate FrameRate)
+	{
+		const FFrameTime PlayOffsetCurrentTime(FrameRate.AsFrameTime(FrameTimeForFrameNumber));
+
+		if (PlayOffsetCurrentTime.FloorToFrame() != FrameNumber)
+		{
+			// correct the float for error
+			const double CorrectedPlayOffset = FrameRate.AsInterval() * (double)(FrameNumber);
+			float FloatPlayOffset = CorrectedPlayOffset;
+			FloatPlayOffset = nextafterf(FloatPlayOffset, FloatPlayOffset + 1.0f);
+			return FloatPlayOffset;
+		}
+		return FrameTimeForFrameNumber;
+	}
+
 	double FMLDeformerEditorModel::GetTrainingTimeAtFrame(int32 FrameNumber) const
 	{
-		return Model->GetAnimSequence() ? Model->GetAnimSequence()->GetTimeAtFrame(FrameNumber) : 0.0;
+		UAnimSequence* AnimSequence = Model->GetAnimSequence();
+		if (AnimSequence)
+		{
+			const FFrameRate FrameRate = AnimSequence->GetSamplingFrameRate();
+			const float UncorrectedTime = AnimSequence->GetTimeAtFrame(FrameNumber);
+			// due to floating point errors, return a double that when converted to a float cleanly maps to the value
+			return CorrectedFrameTime(FrameNumber, UncorrectedTime, FrameRate);
+		}
+		return 0.0; 
 	}
 
 	int32 FMLDeformerEditorModel::GetTrainingFrameAtTime(double TimeInSeconds) const
