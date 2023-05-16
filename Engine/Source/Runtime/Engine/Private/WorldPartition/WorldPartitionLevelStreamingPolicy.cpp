@@ -19,20 +19,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionLevelStreamingPolicy)
 
-int32 UWorldPartitionLevelStreamingPolicy::GetCellLoadingCount() const
-{
-	int32 CellLoadingCount = 0;
-
-	ForEachActiveRuntimeCell([&CellLoadingCount](const UWorldPartitionRuntimeCell* Cell)
-	{
-		if (Cell->IsLoading())
-		{
-			++CellLoadingCount;
-		}
-	});
-	return CellLoadingCount;
-}
-
 void UWorldPartitionLevelStreamingPolicy::ForEachActiveRuntimeCell(TFunctionRef<void(const UWorldPartitionRuntimeCell*)> Func) const
 {
 	UWorld* World = WorldPartition->GetWorld();
