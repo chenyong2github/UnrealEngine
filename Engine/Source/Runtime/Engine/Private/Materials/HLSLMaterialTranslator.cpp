@@ -11720,6 +11720,8 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 						{
 							StrataMaterialRequestedSizeByte += UintByteSize;
 							StrataMaterialRequestedSizeByte += UintByteSize;
+							StrataMaterialRequestedSizeByte += UintByteSize;
+							StrataMaterialRequestedSizeByte += UintByteSize;
 						}
 						break;
 					}

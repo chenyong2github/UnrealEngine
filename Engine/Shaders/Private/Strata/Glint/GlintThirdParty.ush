@@ -364,7 +364,7 @@ float P22__glint_discrete_LOD(
 //=============================================================================
 //======== Evaluation of the procedural physically based glinty BRDF ==========
 //=============================================================================
-float3 f_P(float3 wo, float3 wi, float3 sigmas_rho, float LogMicrofacetDensity, float2 TexCoord)
+float3 f_P(float3 wo, float3 wi, float3 sigmas_rho, float LogMicrofacetDensity, float2 TexCoord, float2 TexCoordDDX, float2 TexCoordDDY)
 {
 	if (wo.z <= 0.)
 		return float3(0., 0., 0.);
@@ -385,9 +385,8 @@ float3 f_P(float3 wo, float3 wi, float3 sigmas_rho, float LogMicrofacetDensity, 
 	GlintLutParams.NLevels	= asint(View.GlintLUTParameters.z);
 
 	// Compute texture derivatives
-	float2 texCoord = TexCoord;
-	float2 dst0 = ddx(texCoord);
-	float2 dst1 = ddy(texCoord);
+	float2 dst0 = TexCoordDDX;
+	float2 dst1 = TexCoordDDY;
 
 	// Normal to slope
 	float2 slope_h = float2(-wh.x / wh.z, -wh.y / wh.z);
@@ -469,12 +468,12 @@ float3 f_P(float3 wo, float3 wi, float3 sigmas_rho, float LogMicrofacetDensity, 
 
 		if (int(round(LOD_dist_il)) < GlintLutParams.NLevels)
 		{
-			P22_P_il = P22__glint_discrete_LOD(GlintLutParams, il, slope_h, texCoord, dst0, dst1, slope_dx, slope_dy, sigmas_rho, LOD_dist_il);
+			P22_P_il = P22__glint_discrete_LOD(GlintLutParams, il, slope_h, TexCoord, dst0, dst1, slope_dx, slope_dy, sigmas_rho, LOD_dist_il);
 		}
 
 		if (int(round(LOD_dist_ilp1)) < GlintLutParams.NLevels)
 		{
-			P22_P_ilp1 = P22__glint_discrete_LOD(GlintLutParams, il + 1, slope_h, texCoord, dst0, dst1, slope_dx, slope_dy, sigmas_rho, LOD_dist_ilp1);
+			P22_P_ilp1 = P22__glint_discrete_LOD(GlintLutParams, il + 1, slope_h, TexCoord, dst0, dst1, slope_dx, slope_dy, sigmas_rho, LOD_dist_ilp1);
 		}
 
 		P22_P = lerp(P22_P_il, P22_P_ilp1, w);

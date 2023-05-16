@@ -799,6 +799,11 @@ void PackStrataOut(
 								const uint Packed8H = (Packed16 >> 8  ) << 24;
 								STRATA_STORE_UINT1(PackR24F(SLAB_GLINT_UV(BSDF).x) | Packed8L);
 								STRATA_STORE_UINT1(PackR24F(SLAB_GLINT_UV(BSDF).y) | Packed8H);
+
+								// We have to store derivative when rasterizing the mesh. 
+								// That cannot be reconstructed in a deferred fashion (e.g. edge of a mesh overlaping with backgroud would look wrongly aliased)
+								STRATA_STORE_UINT1(PackFloat2ToUInt(SLAB_GLINT_UVDDX(BSDF)));
+								STRATA_STORE_UINT1(PackFloat2ToUInt(SLAB_GLINT_UVDDY(BSDF)));
 							}
 							#endif // STRATA_GLINTS
 
