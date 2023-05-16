@@ -171,7 +171,10 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 	[
 		SNew(SSpinBox<float>)
 		.MinValue(0.f)
-		.MaxValue(1.f)
+		.MaxValue(2.0f)
+		.MaxSliderValue(1.f)
+		.Value(1.0f)
+		.SupportDynamicSliderMaxValue(true)
 		.IsEnabled_Lambda([this]()
 		{
 			return SkinToolSettings->EditingMode == EWeightEditMode::Brush;
@@ -401,7 +404,10 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 			[
 				SNew(SSpinBox<float>)
 				.MinValue(0.f)
-				.MaxValue(1.f)
+				.MaxValue(2.0f)
+				.MaxSliderValue(1.f)
+				.Value(1.0f)
+				.SupportDynamicSliderMaxValue(true)
 				.IsEnabled_Lambda([this]()
 				{
 					return SkinToolSettings->EditingMode == EWeightEditMode::Selection;

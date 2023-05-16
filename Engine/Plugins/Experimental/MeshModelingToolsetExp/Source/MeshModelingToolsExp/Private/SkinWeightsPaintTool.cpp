@@ -283,10 +283,10 @@ void FSkinToolWeights::EditVertexWeightAndNormalize(
 	// are there no OTHER influences on this vertex?
 	const bool bVertexHasNoOtherInfluences = Total <= MinimumWeightThreshold;
 	
-	// if user applied FULL weight to this vertex AND there's no other weights of any significance,
+	// if user applied any weight to this vertex AND there's no other weights of any significance,
 	// then simply apply full weight to this vertex, set all other influences to zero and return
-	const bool bApplyFullWeightToThisVertex = NewWeightValue >= (1.0f - MinimumWeightThreshold);
-	if (bApplyFullWeightToThisVertex && bVertexHasNoOtherInfluences)
+	const bool bApplyWeightToThisVertex = NewWeightValue >= MinimumWeightThreshold;
+	if (bApplyWeightToThisVertex && bVertexHasNoOtherInfluences)
 	{
 		// set all other influences to 0.0f
 		for (int32 i=0; i<ValuesToNormalize.Num(); ++i)
