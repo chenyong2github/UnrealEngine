@@ -221,7 +221,8 @@ struct FMaterialShader
 		FPixelMaterialInputs PixelMaterialInputs;
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
 
-		#if WANT_PIXEL_DEPTH_OFFSET
+		// NOTE: Disable PDO in shadow passes (it does undesirable things and has always been disabled in these passes in Unreal)
+		#if WANT_PIXEL_DEPTH_OFFSET && DEPTH_ONLY == 0
 		ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, Pixel.Depth);
 		#endif
 
