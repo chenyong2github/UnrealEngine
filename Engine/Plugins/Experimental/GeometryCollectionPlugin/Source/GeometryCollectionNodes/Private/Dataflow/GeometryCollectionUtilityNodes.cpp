@@ -6,6 +6,8 @@
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
+#include "GeometryCollection/Facades/CollectionTransformSelectionFacade.h"
 
 #include "FractureEngineConvex.h"
 
@@ -27,6 +29,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateClusterConvexHullsFromLeafHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGenerateClusterConvexHullsFromChildrenHullsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FUpdateVolumeAttributesDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetConvexHullVolumeDataflowNode);
 	}
 }
 
@@ -308,5 +311,68 @@ void FUpdateVolumeAttributesDataflowNode::Evaluate(Dataflow::FContext& Context, 
 			FGeometryCollectionConvexUtility::SetVolumeAttributes(&InCollection);
 		}
 		SetValue(Context, MoveTemp(InCollection), &Collection);
+	}
+}
+
+
+FGetConvexHullVolumeDataflowNode::FGetConvexHullVolumeDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
+	: FDataflowNode(InParam, InGuid)
+{
+	RegisterInputConnection(&Collection);
+	RegisterInputConnection(&TransformSelection);
+	RegisterOutputConnection(&Volume);
+}
+
+void FGetConvexHullVolumeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&Volume))
+	{
+		float VolumeSum = 0;
+
+		if (!IsConnected(&Collection) || !IsConnected(&TransformSelection))
+		{
+			SetValue(Context, VolumeSum, &Volume);
+			return;
+		}
+
+		const FManagedArrayCollection& InCollection = GetValue(Context, &Collection);
+		const FDataflowTransformSelection& InSelection = GetValue(Context, &TransformSelection);
+
+		if (!FGeometryCollectionConvexUtility::HasConvexHullData(&InCollection))
+		{
+			SetValue(Context, VolumeSum, &Volume);
+			return;
+		}
+
+		const int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
+		TArray<int32> SelectionToSum = InSelection.AsArray();
+		GeometryCollection::Facades::FCollectionTransformSelectionFacade SelectionFacade(InCollection);
+		SelectionFacade.Sanitize(SelectionToSum);
+		if (NumTransforms == 0 || SelectionToSum.Num() == 0)
+		{
+			SetValue(Context, VolumeSum, &Volume);
+			return;
+		}
+
+		const TManagedArray<TSet<int32>>& TransformToConvexIndices = InCollection.GetAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
+		const TManagedArray<TUniquePtr<Chaos::FConvex>>& ConvexHulls = InCollection.GetAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
+
+		Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(InCollection);
+		while (!SelectionToSum.IsEmpty())
+		{
+			int32 TransformIdx = SelectionToSum.Pop(false);
+			if (!bSumChildrenForClustersWithoutHulls || !TransformToConvexIndices[TransformIdx].IsEmpty())
+			{
+				for (int32 ConvexIdx : TransformToConvexIndices[TransformIdx])
+				{
+					VolumeSum += ConvexHulls[ConvexIdx]->GetVolume();
+				}
+			}
+			else if (const TSet<int32>* Children = HierarchyFacade.FindChildren(TransformIdx))
+			{
+				SelectionToSum.Append(Children->Array());
+			}
+		}
+		SetValue(Context, VolumeSum, &Volume);
 	}
 }

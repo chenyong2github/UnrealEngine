@@ -277,6 +277,36 @@ public:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
+/**
+ * Get the sum of volumes of the convex hulls on the selected nodes
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FGetConvexHullVolumeDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetConvexHullVolumeDataflowNode, "GetConvexHullVolume", "GeometryCollection|Utilities", "")
+
+public:
+	UPROPERTY(meta = (DataflowInput))
+	FManagedArrayCollection Collection;
+
+	/** The transforms to consider */
+	UPROPERTY(meta = (DataflowInput, DataflowIntrinsic))
+	FDataflowTransformSelection TransformSelection;
+
+	/** Sum of convex hull volumes */
+	UPROPERTY(meta = (DataflowOutput));
+	float Volume;
+
+	/** For any cluster transform that has no convex hulls, whether to fall back to the convex hulls of the cluster's children. Otherwise, the cluster will not add to the total volume sum. */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bSumChildrenForClustersWithoutHulls = true;
+
+	FGetConvexHullVolumeDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+};
+
 
 namespace Dataflow
 {
