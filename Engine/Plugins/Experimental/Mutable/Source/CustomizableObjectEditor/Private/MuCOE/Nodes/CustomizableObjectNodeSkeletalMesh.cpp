@@ -184,7 +184,7 @@ UTexture2D* UCustomizableObjectNodeSkeletalMesh::FindTextureForPin(const UEdGrap
 	}
 
 	const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
-	if (ImportedModel)
+	if (!ImportedModel)
 	{
 		return nullptr;
 	}	
@@ -601,7 +601,12 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 
 	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::AutomaticNodeSkeletalMeshPinDataOuter)
 	{
-		ReconstructNode();
+		ReconstructNode(); // Pins did not have Pin Data. Reconstruct them.
+	}
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::AutomaticNodeSkeletalMeshPinDataUProperty)
+	{
+		ReconstructNode(CreateRemapPinsByName()); // Correct pins but incorrect Pin Data. Reconstruct and remap pins only by name, no Pin Data.
 	}
 }
 

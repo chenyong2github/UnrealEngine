@@ -107,7 +107,10 @@ protected:
 	virtual bool Equals(const UCustomizableObjectNodePinData& Other) const override;
 
 private:
+	UPROPERTY()
 	int32 LODIndex = -1;
+
+	UPROPERTY()
 	int32 SectionIndex = -1;
 };
 
@@ -135,6 +138,7 @@ protected:
 	virtual bool Equals(const UCustomizableObjectNodePinData& Other) const override;
 
 private:
+	UPROPERTY()
 	FGuid TextureParameterId;
 };
 
@@ -154,6 +158,7 @@ protected:
 	virtual bool Equals(const UCustomizableObjectNodePinData& Other) const override;
 
 private:
+	UPROPERTY()
 	int32 UVIndex = -1;
 };
 

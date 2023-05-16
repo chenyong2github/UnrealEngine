@@ -2917,11 +2917,13 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 			// Layouts
 			// If we didn't find a layout, but we are generating LODs and this LOD is automatic, reuse the first valid LOD layout
 			bool LayoutFound = false;
-			
+
+			FSkeletalMeshModel* ImportedModel = TypedNodeSkel->SkeletalMesh->GetImportedModel();
+
 			int32 LayoutLOD = LOD;
 			while (!LayoutFound && LayoutLOD >= 0)
 			{
-				const int32 NumLayouts = TypedNodeSkel->SkeletalMesh->GetImportedModel()->LODModels[LayoutLOD].Sections.Num();
+				const int32 NumLayouts = ImportedModel->LODModels[LayoutLOD].NumTexCoords;
 				
 				MeshNode->SetLayoutCount(NumLayouts);
 				for (int32 LayoutIndex = 0; LayoutIndex < NumLayouts; ++LayoutIndex)
