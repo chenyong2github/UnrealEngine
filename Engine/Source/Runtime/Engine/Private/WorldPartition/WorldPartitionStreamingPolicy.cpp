@@ -353,6 +353,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 
 			// Server will activate all non data layer cells at first and then load/activate/unload data layer cells only when the data layer states change
 			if (!bIsServerStreamingEnabled && 
+				bLastUpdateCompletedLoadingAndActivation && 
 				(ServerStreamingEnabledEpoch == NewServerStreamingEnabledEpoch) &&
 				(ServerStreamingStateEpoch == WorldPartition->GetStreamingStateEpoch()) &&
 				(ServerDataLayersStatesEpoch == AWorldDataLayers::GetDataLayersStateEpoch()))

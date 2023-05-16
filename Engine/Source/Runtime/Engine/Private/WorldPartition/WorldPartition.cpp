@@ -1594,6 +1594,10 @@ EWorldPartitionStreamingPerformance UWorldPartition::GetStreamingPerformance() c
 
 bool UWorldPartition::IsStreamingInEnabled() const
 {
+	if (IsServer() && !IsServerStreamingEnabled())
+	{
+		return true;
+	}
 	return bStreamingInEnabled;
 }
 
