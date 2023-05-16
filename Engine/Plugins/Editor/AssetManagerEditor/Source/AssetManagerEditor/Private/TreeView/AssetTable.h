@@ -88,8 +88,7 @@ public:
 	{
 		return Chunks.Num() * ChunkBufferLen * sizeof(TCHAR)
 			+ Chunks.GetAllocatedSize()
-			+ Cache.GetAllocatedSize()
-			+ sizeof(this);
+			+ Cache.GetAllocatedSize();
 	}
 
 	void EnumerateStrings(TFunction<void(const FStringView Str)> Callback) const;
