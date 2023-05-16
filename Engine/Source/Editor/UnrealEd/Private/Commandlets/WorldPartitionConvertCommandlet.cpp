@@ -816,30 +816,33 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		// Append DataLayer assets folder
 		CleanupPaths.Add(DataLayerAssetFolder);
 
+		TArray<FString> FilesToDelete;
+
 		for (const FString& CleanupPath : CleanupPaths)
 		{
 			FString Directory = FPackageName::LongPackageNameToFilename(CleanupPath);
 			if (IFileManager::Get().DirectoryExists(*Directory))
 			{
-				bool bResult = IFileManager::Get().IterateDirectoryRecursively(*Directory, [this, &PackageHelper](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+				IFileManager::Get().IterateDirectoryRecursively(*Directory, [this, &FilesToDelete](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
 				{
 					if (!bIsDirectory)
 					{
 						FString Filename(FilenameOrDirectory);
 						if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
 						{
-							return PackageHelper.Delete(Filename);
+							FilesToDelete.Emplace(MoveTemp(Filename));
 						}
 					}
 					return true;
 				});
-
-				if (!bResult)
-				{
-					UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to delete previous conversion package(s)"));
-					return 1;
-				}
 			}
+		}
+
+		bool bResult = PackageHelper.Delete(FilesToDelete);
+		if (!bResult)
+		{
+			UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to delete previous conversion package(s)"));
+			return 1;
 		}
 
 		if (FPackageName::SearchForPackageOnDisk(OldLevelName, &OldLevelName))
@@ -1581,12 +1584,10 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(DeleteSourceLevels);
 
-			for (UPackage* Package : PackagesToDelete)
+			if (!PackageHelper.Delete(PackagesToDelete))
 			{
-				if (!PackageHelper.Delete(Package))
-				{
-					return 1;
-				}
+				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to delete source level package(s)"));
+				return 1;
 			}
 		}
 
@@ -1595,16 +1596,23 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			TRACE_CPUPROFILER_EVENT_SCOPE(CheckoutPackages);
 
 			UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Checking out %d packages."), PackagesToSave.Num());
+
+			TArray<FString> FilesToCheckout;
+			FilesToCheckout.Reserve(PackagesToSave.Num());
+
 			for(UPackage* Package: PackagesToSave)
 			{
 				FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
 				if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*PackageFileName))
 				{
-					if (!PackageHelper.Checkout(Package))
-					{
-						return 1;
-					}
+					FilesToCheckout.Emplace(MoveTemp(PackageFileName));
 				}
+			}
+
+			if (!PackageHelper.Checkout(FilesToCheckout))
+			{
+				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Failed to checkout package(s)"));
+				return 1;
 			}
 		}
 
@@ -1675,12 +1683,9 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 			TRACE_CPUPROFILER_EVENT_SCOPE(AddPackagesToSourceControl);
 
 			// Add new packages to source control
-			for(UPackage* PackageToSave: PackagesToSave)
+			if(!PackageHelper.AddToSourceControl(PackagesToSave))
 			{
-				if(!PackageHelper.AddToSourceControl(PackageToSave))
-				{
-					return 1;
-				}
+				return 1;
 			}
 		}
 

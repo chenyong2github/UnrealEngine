@@ -53,6 +53,11 @@ bool FPackageSourceControlHelper::Delete(const FString& PackageName) const
 
 bool FPackageSourceControlHelper::Delete(const TArray<FString>& PackageNames, bool bErrorsAsWarnings) const
 {
+	if (PackageNames.IsEmpty())
+	{
+		return true;
+	}
+
 	bool bSuccess = true;
 	
 	// Early out when not using source control
@@ -233,7 +238,7 @@ bool FPackageSourceControlHelper::AddToSourceControl(UPackage* Package) const
 
 bool FPackageSourceControlHelper::AddToSourceControl(const TArray<UPackage*>& Packages, bool bErrorsAsWarnings) const
 {
-	if (!UseSourceControl())
+	if (!UseSourceControl() || PackageNames.IsEmpty())
 	{
 		return true;
 	}
@@ -244,14 +249,14 @@ bool FPackageSourceControlHelper::AddToSourceControl(const TArray<UPackage*>& Pa
 	for (const UPackage* Package : Packages)
 	{
 		FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
-		PackageFilenames.Add(MoveTemp(PackageFilename));
+		PackageFilenames.Emplace(MoveTemp(PackageFilename));
 	}
 	return AddToSourceControl(PackageFilenames, bErrorsAsWarnings);
 }
 
 bool FPackageSourceControlHelper::AddToSourceControl(const TArray<FString>& PackageNames, bool bErrorsAsWarnings) const
 {
-	if (!UseSourceControl())
+	if (!UseSourceControl() || PackageNames.IsEmpty())
 	{
 		return true;
 	}
@@ -322,6 +327,11 @@ bool FPackageSourceControlHelper::Checkout(UPackage* Package) const
 
 bool FPackageSourceControlHelper::Checkout(const TArray<FString>& PackageNames, bool bErrorsAsWarnings) const
 {
+	if (PackageNames.IsEmpty())
+	{
+		return true;
+	}
+
 	const bool bUseSourceControl = UseSourceControl();
 
 	// Convert package names to package filenames
