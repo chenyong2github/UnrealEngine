@@ -94,7 +94,7 @@ public:
 	static FGeometryCollectionConvexData GetValidConvexHullData(FGeometryCollection* GeometryCollection);
 
 	/** Get convex hull data for the Geometry Collection if it is present */
-	static TOptional<FGeometryCollectionConvexData> GetConvexHullDataIfPresent(FGeometryCollection* GeometryCollection);
+	static TOptional<FGeometryCollectionConvexData> GetConvexHullDataIfPresent(FManagedArrayCollection* GeometryCollection);
 
 	/** @return true if convex hull data is present */
 	static bool HasConvexHullData(const FManagedArrayCollection* GeometryCollection);
