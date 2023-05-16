@@ -394,7 +394,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			Properties.AddValue(TEXT("BucklingRatio"), InBucklingRatio);
 
-			if (InBucklingStiffness[0] > 0.f && InBucklingStiffness[1] > 0.f)
+			if (InBucklingStiffness[0] > 0.f || InBucklingStiffness[1] > 0.f)
 			{
 				const int32 BucklingStiffnessIndex = Properties.AddProperty(TEXT("BucklingStiffness"), bEnable, bAnimatable);
 				Properties.SetWeightedValue(BucklingStiffnessIndex, InBucklingStiffness[0], InBucklingStiffness[1]);

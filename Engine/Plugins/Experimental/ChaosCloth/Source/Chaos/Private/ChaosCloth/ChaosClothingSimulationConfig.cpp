@@ -83,7 +83,7 @@ namespace Chaos
 
 					Properties->AddValue(TEXT("BucklingRatio"), ClothConfig->BucklingRatio);
 
-					if (ClothConfig->BucklingStiffnessWeighted.Low > 0.f && ClothConfig->BucklingStiffnessWeighted.High > 0.f)
+					if (ClothConfig->BucklingStiffnessWeighted.Low > 0.f || ClothConfig->BucklingStiffnessWeighted.High > 0.f)
 					{
 						const int32 BucklingStiffnessIndex = Properties->AddProperty(TEXT("BucklingStiffness"), bEnable, bAnimatable);
 						Properties->SetWeightedValue(BucklingStiffnessIndex, ClothConfig->BucklingStiffnessWeighted.Low, ClothConfig->BucklingStiffnessWeighted.High);
