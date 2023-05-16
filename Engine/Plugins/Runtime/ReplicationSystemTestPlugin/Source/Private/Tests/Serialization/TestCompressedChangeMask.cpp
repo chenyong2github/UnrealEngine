@@ -24,6 +24,14 @@ public:
 	typedef void (*ReadSparseBitArrayDeltaFunc)(FNetBitStreamReader* Reader, uint32* OutData, const uint32* BaseData, uint32 BitCount);
 	
 protected:
+	struct FChangeMaskStats
+	{
+		uint32 TotalChangeMaskBits = 0U;
+		uint32 TotalSetBits = 0U;
+		uint32 TotalWrittenBits = 0U;
+		uint32 Count = 0U;
+	};
+
 	class FChangeMaskBuffer
 	{
 	public:
@@ -201,14 +209,6 @@ UE_NET_TEST_FIXTURE(FCompressedChangeMaskTest, WriteEmptyChangeMask)
 
 UE_NET_TEST_FIXTURE(FCompressedChangeMaskTest, WriteChangeMasks)
 {
-	struct FChangeMaskStats
-	{
-		uint32 TotalChangeMaskBits = 0U;
-		uint32 TotalSetBits = 0U;
-		uint32 TotalWrittenBits = 0U;
-		uint32 Count = 0U;
-	};
-
 	FChangeMaskStats ChangeMaskStats;
 	
 	auto&& TestWriteFunc = [this, &ChangeMaskStats](FWordType BitCount, FWordType Invert, const FWordType* Data)
