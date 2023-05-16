@@ -634,7 +634,10 @@ bool UCustomizableObjectNodeSkeletalMesh::CheckIsValidLayout(const UEdGraphPin* 
 	int32 SectionIndex;
 	GetPinSection(*ConnectedPin, LODIndex, SectionIndex, LayoutIndex);
 
-	MaterialName = GetMaterialInterfaceFor(LODIndex, SectionIndex)->GetName();
+	if (const UMaterialInterface* MaterialInterface = GetMaterialInterfaceFor(LODIndex, SectionIndex))
+	{
+		MaterialName = MaterialInterface->GetName();
+	}
 	
 	if (LayoutIndex == 0)
 	{
