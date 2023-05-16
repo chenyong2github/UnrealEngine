@@ -1598,6 +1598,12 @@ static TAutoConsoleVariable<int32> CVarSubstrateGlints(
 	TEXT("Enable Glint support for Strata slabs."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarSubstrateGlintsLUT(
+	TEXT("r.Substrate.GlintsLUT"),
+	1,
+	TEXT("Select one of the glint rendering LUT for testing."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarSubstrateDebugAdvancedVisualizationShaders(
 	TEXT("r.Substrate.Debug.AdvancedVisualizationShaders"),
 	0,
@@ -1700,6 +1706,11 @@ namespace Strata
 	bool IsGlintEnabled()
 	{
 		return IsStrataEnabled() && CVarSubstrateGlints.GetValueOnAnyThread() > 0;
+	}
+
+	uint32 GlintLUTIndex()
+	{
+		return CVarSubstrateGlintsLUT.GetValueOnAnyThread()<= 0 ? 0u : 1u;
 	}
 
 	bool Is8bitTileCoordEnabled()

@@ -3316,11 +3316,15 @@ void UEngine::ConditionallyLoadPreIntegratedSkinBRDFTexture()
 	}
 }
 
-void UEngine::LoadGlintTexture()
+void UEngine::LoadGlintTextures()
 {
 	if (GlintTexture == nullptr && GlintTextureName.IsValid())
 	{
 		LoadEngineTexture(GlintTexture, *GlintTextureName.ToString());
+	}
+	if (GlintTexture2 == nullptr && GlintTexture2Name.IsValid())
+	{
+		LoadEngineTexture(GlintTexture2, *GlintTexture2Name.ToString());
 	}
 }
 

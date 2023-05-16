@@ -1373,10 +1373,18 @@ public:
 	/** Stable glint BSDF texture */
 	UPROPERTY()
 	TObjectPtr<class UTexture2DArray> GlintTexture;
+	
+	/** Stable glint BSDF texture with more variety to cover slope space and avoid circular artifact */
+	UPROPERTY()
+	TObjectPtr<class UTexture2DArray> GlintTexture2;
 
 	/** Path of the glint BSDF texture */
 	UPROPERTY(globalconfig)
 	FSoftObjectPath GlintTextureName;
+
+	/** Path of the glint BSDF texture 2 */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath GlintTexture2Name;
 
 	/** Texture used to do font rendering in shaders */
 	UPROPERTY()
@@ -1921,7 +1929,7 @@ public:
 	/** Delay loading the glint texture until it is needed by the renderer.
 	* This texture is not going to be streamed to be available right away.
 	*/
-	void LoadGlintTexture();
+	void LoadGlintTextures();
 
 private:
 	#if WITH_DYNAMIC_RESOLUTION

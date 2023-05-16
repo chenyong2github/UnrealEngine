@@ -118,9 +118,16 @@ void FGlintShadingLUTsStateData::Init(FRDGBuilder& GraphBuilder, FViewInfo& View
 		GlintShadingLUTsStateData.RHIGlintShadingLUTs = nullptr;
 		if (GEngine->GlintTexture)
 		{
-			GlintShadingLUTsStateData.RHIGlintShadingLUTs = GEngine->GlintTexture->GetResource()->TextureRHI->GetTexture2DArray();
-
-			GlintShadingLUTsStateData.SetDictionaryParameter(16, 64, 0.5);	// Match the embedded LUT
+			if (Strata::GlintLUTIndex() == 0)
+			{
+				GlintShadingLUTsStateData.RHIGlintShadingLUTs = GEngine->GlintTexture->GetResource()->TextureRHI->GetTexture2DArray();
+				GlintShadingLUTsStateData.SetDictionaryParameter(16, 64, 0.5);	// Match the embedded LUT
+			}
+			else
+			{
+				GlintShadingLUTsStateData.RHIGlintShadingLUTs = GEngine->GlintTexture2->GetResource()->TextureRHI->GetTexture2DArray();
+				GlintShadingLUTsStateData.SetDictionaryParameter(8, 256, 0.5);	// Match the embedded LUT
+			}
 		}
 	}
 

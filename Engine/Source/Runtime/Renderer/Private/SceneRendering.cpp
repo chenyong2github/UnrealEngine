@@ -2517,7 +2517,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyCo
 
 		if (Strata::IsGlintEnabled())
 		{
-			GEngine->LoadGlintTexture();
+			GEngine->LoadGlintTextures();
 		}
 
 		// Handle the FFT bloom kernel textire
