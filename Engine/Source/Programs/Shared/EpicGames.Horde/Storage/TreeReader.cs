@@ -388,7 +388,7 @@ namespace EpicGames.Horde.Storage
 			}
 			catch (Exception ex)
 			{
-				queuedHeader.CompletionSource.SetException(ex);
+				queuedHeader.CompletionSource.TrySetException(ex);
 			}
 		}
 
