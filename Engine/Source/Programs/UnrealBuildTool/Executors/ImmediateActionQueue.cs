@@ -240,6 +240,11 @@ namespace UnrealBuildTool
 		public bool IsDone => _doneTaskSource.Task.IsCompleted;
 
 		/// <summary>
+		///  Action that can be to notify when artifacts have been read for an action
+		/// </summary>
+		public Action<LinkedAction>? OnArtifactsRead = null;
+
+		/// <summary>
 		/// Collection of available runners
 		/// </summary>
 		private readonly List<ImmediateActionQueueRunner> _runners = new();
@@ -333,6 +338,7 @@ namespace UnrealBuildTool
 						bool success = await _actionArtifactCache!.CompleteActionFromCacheAsync(action, CancellationToken);
 						if (success)
 						{
+							OnArtifactsRead?.Invoke(action);
 							OnActionCompleted(action, success, s_copiedFromCacheResults);
 						}
 						else
