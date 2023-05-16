@@ -47,7 +47,6 @@ public:
 		{ }
 
 		SLATE_SLOT_BEGIN_ARGS(FOverlaySlot, TBasicLayoutWidgetSlot<FOverlaySlot>)
-			SLATE_ARGUMENT(TOptional<int32>, ZOrder)
 		SLATE_SLOT_END_ARGS()
 
 		void Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs);
@@ -99,20 +98,14 @@ public:
 	/** Adds a slot at the specified location (ignores Z-order) */
 	FScopedWidgetSlotArguments AddSlot(int32 ZOrder=INDEX_NONE);
 
-	/** Returns true if there is a child slot with the specified z-order */
-	bool HasSlotWithZOrder(int32 ZOrder) const;
-
 	/** Removes a slot at the specified location */
 	void RemoveSlot(int32 ZOrder=INDEX_NONE);
 
 	/** Removes all children from the overlay */
 	void ClearChildren();
 
-	/**
-	 * @param ZOrder Default z-order of the slot
-	 * @return a new slot. Slots contain children for SOverlay
-	 */
-	static FOverlaySlot::FSlotArguments Slot(int32 ZOrder = 0);
+	/** @return a new slot. Slots contain children for SOverlay */
+	static FOverlaySlot::FSlotArguments Slot();
 
 	//~ Begin of SWidget interface
 	virtual void OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const override;
@@ -124,9 +117,6 @@ protected:
 	//~ Begin SWidget overrides.
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	//~ End SWidget overrides.
-
-	/** Returns the index of the child slot at the specified z-order */
-	int32 GetChildIndexByZOrder(int32 ZOrder) const;
 
 protected:
 	/** The SOverlay's slots; each slot contains a child widget. */
