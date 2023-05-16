@@ -22,10 +22,12 @@ void FGlintShadingLUTsStateData::Init(FRDGBuilder& GraphBuilder, FViewInfo& View
 	{
 		if (View.ViewState && View.ViewState->GlintShadingLUTsData.GlintShadingLUTs == nullptr)
 		{
+			FGlintShadingLUTsStateData& GlintShadingLUTsStateData = View.ViewState->GlintShadingLUTsData;
+
 			const uint32 MipCount = 7;
 			const EPixelFormat PixelFormat = PF_FloatR11G11B10;
 
-			View.ViewState->GlintShadingLUTsData.GlintShadingLUTs = GRenderTargetPool.FindFreeElement(
+			GlintShadingLUTsStateData.GlintShadingLUTs = GRenderTargetPool.FindFreeElement(
 				FRDGTextureDesc::Create2DArray(FIntPoint(GlintLut1DArrayMip0Width, 1), PixelFormat, FClearValueBinding::None, TexCreate_ShaderResource, GlintLut1DArrayMip0Height, MipCount), TEXT("Material.Glints"));
 
 			auto UploadGlintTextureArrayMipData = [&](uint32 LutArrayIndex, uint32 LutMipLevel, uint32 LutMipWidth, uint8* SrcData)
@@ -48,13 +50,13 @@ void FGlintShadingLUTsStateData::Init(FRDGBuilder& GraphBuilder, FViewInfo& View
 				uint32 SrcStride = SrcBytesPerPixel * LutMipWidth;
 
 				uint32 DstStride;
-				uint8* Dst = (uint8*)GraphBuilder.RHICmdList.LockTexture2DArray(View.ViewState->GlintShadingLUTsData.GlintShadingLUTs->GetRHI()->GetTexture2DArray(), LutArrayIndex, LutMipLevel, RLM_WriteOnly, DstStride, false);
+				uint8* Dst = (uint8*)GraphBuilder.RHICmdList.LockTexture2DArray(GlintShadingLUTsStateData.GlintShadingLUTs->GetRHI()->GetTexture2DArray(), LutArrayIndex, LutMipLevel, RLM_WriteOnly, DstStride, false);
 
 				const uint8* Src = SrcData +LutArrayIndex * SrcStride;
 
 				FMemory::Memcpy(Dst, Src, SrcStride);
 
-				GraphBuilder.RHICmdList.UnlockTexture2DArray(View.ViewState->GlintShadingLUTsData.GlintShadingLUTs->GetRHI()->GetTexture2DArray(), LutArrayIndex, LutMipLevel, false);
+				GraphBuilder.RHICmdList.UnlockTexture2DArray(GlintShadingLUTsStateData.GlintShadingLUTs->GetRHI()->GetTexture2DArray(), LutArrayIndex, LutMipLevel, false);
 			};
 
 			const uint32 GlintLut1DArraySize = GlintLut1DArrayMip0Height;
@@ -86,6 +88,8 @@ void FGlintShadingLUTsStateData::Init(FRDGBuilder& GraphBuilder, FViewInfo& View
 			{
 				UploadGlintTextureArrayMipData(LutArrayIndex, 6, GlintLut1DArrayMip6Width, (uint8*)GlintLut1DArrayMip6RGBA);
 			}
+
+			GlintShadingLUTsStateData.SetDictionaryParameter(16, 64, 0.5);	// Match the embedded LUT
 		}
 	}
 	else
@@ -108,14 +112,27 @@ void FGlintShadingLUTsStateData::Init(FRDGBuilder& GraphBuilder, FViewInfo& View
 	// Use the conditionally loaded asset
 	if (View.ViewState)
 	{
-		View.ViewState->GlintShadingLUTsData.GlintShadingLUTs = nullptr;
-		View.ViewState->GlintShadingLUTsData.RHIGlintShadingLUTs = nullptr;
+		FGlintShadingLUTsStateData& GlintShadingLUTsStateData = View.ViewState->GlintShadingLUTsData;
+
+		GlintShadingLUTsStateData.GlintShadingLUTs = nullptr;
+		GlintShadingLUTsStateData.RHIGlintShadingLUTs = nullptr;
 		if (GEngine->GlintTexture)
 		{
-			View.ViewState->GlintShadingLUTsData.RHIGlintShadingLUTs = GEngine->GlintTexture->GetResource()->TextureRHI->GetTexture2DArray();
+			GlintShadingLUTsStateData.RHIGlintShadingLUTs = GEngine->GlintTexture->GetResource()->TextureRHI->GetTexture2DArray();
+
+			GlintShadingLUTsStateData.SetDictionaryParameter(16, 64, 0.5);	// Match the embedded LUT
 		}
 	}
 
 #endif
-
 }
+
+void FGlintShadingLUTsStateData::SetDictionaryParameter(int32 InNumberOfLevels, int32 InNumberOfDistributionsPerChannel, float InDictionaryAlpha)
+{
+	Dictionary_Alpha					= InDictionaryAlpha;
+	Dictionary_NLevels					= InNumberOfLevels;
+	Dictionary_NDistributionsPerChannel = InNumberOfDistributionsPerChannel;
+	Dictionary_N						= Dictionary_NDistributionsPerChannel * 3;
+	Dictionary_Pyramid0Size				= 1u << (Dictionary_NLevels - 1u);
+}
+
