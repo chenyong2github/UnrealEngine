@@ -68,7 +68,7 @@ namespace Horde.Server.Streams
 		{
 			ProjectId[] projectIdValues = Array.ConvertAll(projectIds, x => new ProjectId(x));
 
-			List<GetStreamResponse> responses = new List<GetStreamResponse>();
+			List<StreamConfig> streamConfigs = new List<StreamConfig>();
 			foreach (ProjectConfig projectConfig in _globalConfig.Value.Projects)
 			{
 				if (projectIdValues.Length == 0 || projectIdValues.Contains(projectConfig.Id))
@@ -77,12 +77,19 @@ namespace Horde.Server.Streams
 					{
 						if (streamConfig.Authorize(StreamAclAction.ViewStream, User))
 						{
-							IStream stream = await _streamCollection.GetAsync(streamConfig);
-							GetStreamResponse response = await CreateGetStreamResponseAsync(stream);
-							responses.Add(response);
+							streamConfigs.Add(streamConfig);
 						}
 					}
 				}
+			}
+
+			List<IStream> streams = await _streamCollection.GetAsync(streamConfigs);
+
+			List<GetStreamResponse> responses = new List<GetStreamResponse>();
+			foreach(IStream stream in streams)
+			{
+				GetStreamResponse response = await CreateGetStreamResponseAsync(stream);
+				responses.Add(response);
 			}
 
 			return responses.OrderBy(x => x.Id).Select(x => PropertyFilter.Apply(x, filter)).ToList();
