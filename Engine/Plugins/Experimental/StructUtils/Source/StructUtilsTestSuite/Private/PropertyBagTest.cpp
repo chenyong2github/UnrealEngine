@@ -469,6 +469,33 @@ struct FTest_Arrays : FAITestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FTest_Arrays, "System.StructUtils.PropertyBag.Arrays");
 
+struct FTest_SameBag : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		static const FName TemperatureName(TEXT("Temperature"));
+		static const FName CountName(TEXT("Count"));
+
+		FInstancedPropertyBag BagA;
+		BagA.AddProperties({
+			{ TemperatureName, EPropertyBagPropertyType::Float },
+			{ CountName, EPropertyBagPropertyType::Int32 }
+		});
+
+
+		FInstancedPropertyBag BagB;
+		BagB.AddProperties({
+			{ TemperatureName, EPropertyBagPropertyType::Float },
+			{ CountName, EPropertyBagPropertyType::Int32 }
+		});
+
+		// Same descriptors should result in same bag struct
+		AITEST_TRUE(TEXT("Property bags should match"), BagA.GetPropertyBagStruct() == BagB.GetPropertyBagStruct());
+
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FTest_SameBag, "System.StructUtils.PropertyBag.SameBag");
 
 } // FPropertyBagTest
 

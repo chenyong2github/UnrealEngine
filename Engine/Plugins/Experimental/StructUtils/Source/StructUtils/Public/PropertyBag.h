@@ -5,6 +5,7 @@
 #include "Misc/TVariantMeta.h"
 #include "StructView.h"
 #include "Templates/ValueOrError.h"
+#include "Containers/StaticArray.h"
 #include "PropertyBag.generated.h"
 
 /** Property bag property type, loosely based on BluePrint pin types. */
@@ -47,14 +48,9 @@ struct STRUCTUTILS_API FPropertyBagContainerTypes
 {
 	GENERATED_BODY()
 
-	FPropertyBagContainerTypes()
-		: Types{ EPropertyBagContainerType::None, EPropertyBagContainerType::None }
-		, NumContainers(0)
-	{}
+	FPropertyBagContainerTypes() = default;
 
 	explicit FPropertyBagContainerTypes(EPropertyBagContainerType ContainerType)
-		: Types{ EPropertyBagContainerType::None, EPropertyBagContainerType::None }
-		, NumContainers(0)
 	{
 		if (ContainerType != EPropertyBagContainerType::None)
 		{
@@ -63,10 +59,8 @@ struct STRUCTUTILS_API FPropertyBagContainerTypes
 	}
 
 	FPropertyBagContainerTypes(const std::initializer_list<EPropertyBagContainerType>& InTypes)
-		: Types{ EPropertyBagContainerType::None, EPropertyBagContainerType::None }
-		, NumContainers(0)
 	{
-		for (EPropertyBagContainerType ContainerType : InTypes)
+		for (const EPropertyBagContainerType ContainerType : InTypes)
 		{
 			if (ContainerType != EPropertyBagContainerType::None)
 			{
@@ -75,7 +69,7 @@ struct STRUCTUTILS_API FPropertyBagContainerTypes
 		}
 	}
 
-	bool Add(EPropertyBagContainerType PropertyBagContainerType)
+	bool Add(const EPropertyBagContainerType PropertyBagContainerType)
 	{
 		if (ensure(NumContainers < MaxNestedTypes))
 		{
@@ -93,7 +87,7 @@ struct STRUCTUTILS_API FPropertyBagContainerTypes
 
 	void Reset()
 	{
-		for (auto& Type : Types)
+		for (EPropertyBagContainerType& Type : Types)
 		{
 			Type = EPropertyBagContainerType::None;
 		}
@@ -144,7 +138,12 @@ struct STRUCTUTILS_API FPropertyBagContainerTypes
 
 	friend FORCEINLINE uint32 GetTypeHash(const FPropertyBagContainerTypes& PropertyBagContainerTypes)
 	{
-		return HashCombine(GetTypeHash(PropertyBagContainerTypes.Types), GetTypeHash(PropertyBagContainerTypes.NumContainers));
+		uint32 Hash = GetTypeHash(PropertyBagContainerTypes.NumContainers);
+		for (const EPropertyBagContainerType Type : PropertyBagContainerTypes.Types)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Type));
+		}
+		return Hash;
 	}
 
 	EPropertyBagContainerType* begin() { return &Types[0]; }
@@ -155,7 +154,7 @@ struct STRUCTUTILS_API FPropertyBagContainerTypes
 protected:
 	static constexpr uint8 MaxNestedTypes = 2;
 
-	EPropertyBagContainerType Types[MaxNestedTypes];
+	TStaticArray<EPropertyBagContainerType, MaxNestedTypes> Types = TStaticArray<EPropertyBagContainerType, MaxNestedTypes>(InPlace, EPropertyBagContainerType::None);
 	uint8 NumContainers = 0;
 };
 
