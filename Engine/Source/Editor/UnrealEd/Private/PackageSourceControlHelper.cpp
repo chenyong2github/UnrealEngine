@@ -238,7 +238,7 @@ bool FPackageSourceControlHelper::AddToSourceControl(UPackage* Package) const
 
 bool FPackageSourceControlHelper::AddToSourceControl(const TArray<UPackage*>& Packages, bool bErrorsAsWarnings) const
 {
-	if (!UseSourceControl() || PackageNames.IsEmpty())
+	if (!UseSourceControl() || Packages.IsEmpty())
 	{
 		return true;
 	}
