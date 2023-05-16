@@ -1380,7 +1380,6 @@ UNiagaraDataInterface* FNiagaraParameterStore::GetDataInterface(const FNiagaraVa
 {
 	int32 Offset = IndexOf(Parameter);
 	UNiagaraDataInterface* Interface = GetDataInterface(Offset);
-	checkSlow(!Interface || Parameter.GetType().GetClass() == Interface->GetClass());
 	return Interface;
 }
 
