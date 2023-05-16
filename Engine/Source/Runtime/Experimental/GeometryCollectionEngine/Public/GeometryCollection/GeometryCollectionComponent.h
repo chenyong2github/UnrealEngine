@@ -386,7 +386,7 @@ struct FGeometryCollectionRepData
 	GENERATED_BODY()
 
 	FGeometryCollectionRepData()
-		: Version(0), ServerFrame(0)
+		: Version(0), ServerFrame(0), bIsRootAnchored(false)
 	{
 
 	}
@@ -406,6 +406,9 @@ struct FGeometryCollectionRepData
 
 	// The sim-time that this rep data was received
 	TOptional<float> RepDataReceivedTime;
+
+	// Is the root particle of the GC currently anchored
+	bool bIsRootAnchored;
 
 	// Just test version to skip having to traverse the whole pose array for replication
 	bool Identical(const FGeometryCollectionRepData* Other, uint32 PortFlags) const;
