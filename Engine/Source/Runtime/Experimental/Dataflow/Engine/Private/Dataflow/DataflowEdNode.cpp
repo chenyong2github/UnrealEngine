@@ -13,6 +13,7 @@
 
 #if WITH_EDITOR
 #include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphSchema.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "DataflowEdNode"
