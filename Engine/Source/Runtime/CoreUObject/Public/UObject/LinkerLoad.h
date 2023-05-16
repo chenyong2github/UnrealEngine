@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/Mutex.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
@@ -288,8 +289,12 @@ public:
 
 	/** The async package associated with this linker */
 	void* AsyncRoot;
+
 #if WITH_EDITOR
-	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
+	/** Used when accessing BulkDataLoaders/EditorBulkDataLoaders to ensure thread safety */
+	UE::FMutex BulkDataMutex;
+
+	/** Bulk data that use the FLinkerLoad to track the state of the file on disk */
 	TSet<FBulkData*> BulkDataLoaders;
 	TSet<UE::Serialization::FEditorBulkData*> EditorBulkDataLoaders;
 #endif // WITH_EDITOR

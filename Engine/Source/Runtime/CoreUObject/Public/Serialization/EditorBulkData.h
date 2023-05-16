@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Async/Mutex.h"
+#include "Async/RecursiveMutex.h"
 #include "Async/Future.h"
 #include "Compression/CompressedBuffer.h"
 #include "Containers/Array.h"
@@ -110,20 +112,33 @@ enum class ECompressionOptions : uint8
  * 
  * For examples see the "System.CoreUObject.Serialization.EditorBulkData.UpdatePayload" test found in
  * Engine\Source\Runtime\CoreUObject\Private\Tests\Serialization\EditorBulkDataTests.cpp.
+ * 
+ * Thread Safety:
+ * 
+ * The class should be thread safe in that you can call the public methods on multiple threads at once and expect
+ * things to work. However if you were to call ::GetPayloadSize() before calling ::GetPayload() on one thread
+ * it would be possible for a call to ::UpdatePayload() to occur on another thread in between those two calls, 
+ * meaning that the size you got might not be the correct size as the payload returned. If you need that level
+ * of thread safety it would be up to you to manage it at a higher level. 
+ * It would however be safe to pass a copy of your FEditorBulkData to a background task rather than a reference.
+ * The copy would either be able to load the payload from disk, pull it from virtualized storage or if the 
+ * source bulkdata is holding the payload in memory it will just take a reference to that payload rather than 
+ * making a copy. In this way you can be sure of the state of the FEditorBulkData on the background task as 
+ * future edits to the original bulkdata will not affect it.
  */
 
 /** The base class with no type */
-class COREUOBJECT_API FEditorBulkData
+class COREUOBJECT_API FEditorBulkData final
 {
 public:
 	FEditorBulkData() = default;
+	~FEditorBulkData();
+
 	FEditorBulkData(FEditorBulkData&& Other);
 	FEditorBulkData& operator=(FEditorBulkData&& Other);
 
 	FEditorBulkData(const FEditorBulkData& Other);
 	FEditorBulkData& operator=(const FEditorBulkData& Other);
-
-	~FEditorBulkData();
 
 	/** 
 	 * Convenience method to make it easier to convert from FBulkData to FEditorBulkData and sets the Guid 
@@ -133,7 +148,11 @@ public:
 	 *					This MUST remain the same between sessions so that the payloads key remains consistent!
 	 */
 	void CreateFromBulkData(FBulkData& BulkData, const FGuid& Guid, UObject* Owner);
-	/** Fix legacy content that created the Id from non-unique Guids. */
+	
+	/** 
+	 * Fix legacy content that created the Id from non-unique Guids.
+	 * Run on objects created before FUE5MainStreamObjectVersion::VirtualizedBulkDataHaveUniqueGuids
+	 */
 	void CreateLegacyUniqueIdentifier(UObject* Owner);
 
 	/** 
@@ -151,8 +170,9 @@ public:
 	/** Reset to a truly empty state */
 	void Reset();
 
-	// TODO: Probably can just remove this as there probably isn't a good use case for unloading updated payloads as there is no
-	// way for us to restore it. In that case ::Reset might as well be used.
+	// TODO: Not sure if there is a scenario where we can reload the payload off disk but it is also
+	// in memory.and so this might not really do anything anymore.
+
 	/** Unloads the data (if possible) but leaves it in a state where the data can be reloaded */
 	void UnloadData();
 
@@ -170,28 +190,22 @@ public:
 	FGuid GetIdentifier() const;
 
 	/** Returns an unique identifier for the content of the payload. */
-	const FIoHash& GetPayloadId() const
-	{ 
-		return PayloadContentId; 
-	}
+	const FIoHash& GetPayloadId() const;
 
 	/** Returns the size of the payload in bytes. */
-	int64 GetPayloadSize() const 
+	int64 GetPayloadSize() const
 	{ 
 		return PayloadSize; 
 	}
 
 	/** Returns true if the bulkdata object contains a valid payload greater than zero bytes in size. */
-	bool HasPayloadData() const 
+	bool HasPayloadData() const
 	{ 
 		return PayloadSize > 0; 
 	}
 
 	/** Returns if the payload would require loading in order to be accessed. Returns false if the payload is already in memory or of zero length */
-	bool DoesPayloadNeedLoading() const
-	{
-		return Payload.IsNull() && PayloadSize > 0; 
-	}
+	bool DoesPayloadNeedLoading() const;
 
 	/** Returns an immutable FCompressedBuffer reference to the payload data. */
 	TFuture<FSharedBuffer> GetPayload() const;
@@ -319,14 +333,22 @@ public:
 
 	/** Used to serialize the bulkdata to/from a limited cache system used by the BulkDataRegistry. */
 	void SerializeForRegistry(FArchive& Ar);
+	
 	/** Return true if the bulkdata has a source location that persists between editor processes (package file or virtualization). */
 	bool CanSaveForRegistry() const;
+	
 	/** Return whether the BulkData has legacy payload id that needs to be updated from loaded payload before it can be used in DDC. */
-	bool HasPlaceholderPayloadId() const { return EnumHasAnyFlags(Flags, EFlags::LegacyKeyWasGuidDerived); }
+	bool HasPlaceholderPayloadId() const
+	{
+		return EnumHasAnyFlags(Flags, EFlags::LegacyKeyWasGuidDerived);
+	}
+	
 	/** Return whether the BulkData is an in-memory payload without a persistent source location. */
 	bool IsMemoryOnlyPayload() const;
+	
 	/** Load the payload and set the correct payload id, if the bulkdata has a PlaceholderPayloadId. */
 	void UpdatePayloadId();
+	
 	/** Return whether *this has the same source for the bulkdata (e.g. identical file locations if from file) as Other */
 	bool LocationMatches(const FEditorBulkData& Other) const;
 
@@ -555,6 +577,9 @@ private:
 
 	/** A 32bit bitfield of flags */
 	EFlags Flags = EFlags::None;
+
+	// Use of IBulkDataRegistry requires a recursive mutex
+	mutable FRecursiveMutex Mutex;
 
 #if UE_ENABLE_VIRTUALIZATION_TOGGLE
 	bool bSkipVirtualization = false;

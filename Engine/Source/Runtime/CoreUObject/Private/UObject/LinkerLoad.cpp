@@ -62,6 +62,7 @@
 #include "Misc/EngineBuildSettings.h"
 #include "Internationalization/GatherableTextData.h"
 #include "Async/MappedFileHandle.h"
+#include "Async/UniqueLock.h"
 class FTexture2DResourceMem;
 
 #define LOCTEXT_NAMESPACE "LinkerLoad"
@@ -5790,14 +5791,11 @@ void FLinkerLoad::Detach()
 }
 
 #if WITH_EDITOR
-/**
- * Attaches/ associates the passed in bulk data object with the linker.
- *
- * @param	Owner		UObject owning the bulk data
- * @param	BulkData	Bulk data object to associate
- */
+
 void FLinkerLoad::AttachBulkData( UObject* Owner, FBulkData* BulkData )
 {
+	UE::TUniqueLock _(BulkDataMutex);
+
 	bool bAlreadyInSet = false;
 	BulkDataLoaders.Add(BulkData, &bAlreadyInSet);
 	check(!bAlreadyInSet);
@@ -5805,63 +5803,56 @@ void FLinkerLoad::AttachBulkData( UObject* Owner, FBulkData* BulkData )
 
 void FLinkerLoad::AttachBulkData(UE::Serialization::FEditorBulkData* BulkData)
 {
+	UE::TUniqueLock _(BulkDataMutex);
+
 	bool bAlreadyInSet = false;
 	EditorBulkDataLoaders.Add(BulkData, &bAlreadyInSet);
 	check(!bAlreadyInSet);
 }
 
-/**
- * Detaches the passed in bulk data object from the linker.
- *
- * @param	BulkData	Bulk data object to detach
- * @param	bEnsureBulkDataIsLoaded	Whether to ensure that the bulk data is loaded before detaching
- */
 void FLinkerLoad::DetachBulkData( FBulkData* BulkData, bool bEnsureBulkDataIsLoaded )
 {
-	int32 RemovedCount = BulkDataLoaders.Remove( BulkData );
-	if( RemovedCount!=1 )
+	UE::TUniqueLock _(BulkDataMutex);
+
+	const int32 RemovedCount = BulkDataLoaders.Remove( BulkData );
+	if (RemovedCount!= 1)
 	{	
 		UE_ASSET_LOG(LogLinker, Fatal, PackagePath, TEXT("Detachment inconsistency: %i"), RemovedCount);
 	}
+
 	BulkData->DetachFromArchive( this, bEnsureBulkDataIsLoaded );
 }
 
 void FLinkerLoad::DetachBulkData(UE::Serialization::FEditorBulkData* BulkData, bool bEnsureBulkDataIsLoaded)
 {
-	int32 RemovedCount = EditorBulkDataLoaders.Remove(BulkData);
+	UE::TUniqueLock _(BulkDataMutex);
+
+	const int32 RemovedCount = EditorBulkDataLoaders.Remove(BulkData);
 	if (RemovedCount != 1)
 	{
 		UE_ASSET_LOG(LogLinker, Fatal, PackagePath, TEXT("Detachment inconsistency: %i"), RemovedCount);
 	}
+
 	BulkData->DetachFromDisk(this, bEnsureBulkDataIsLoaded);
 }
 
-/**
- * Detaches all attached bulk  data objects.
- *
- * @param	bEnsureBulkDataIsLoaded	Whether to ensure that the bulk data is loaded before detaching
- */
 void FLinkerLoad::DetachAllBulkData(bool bEnsureAllBulkDataIsLoaded)
 {
-	// Old style bulkdata first
+	UE::TUniqueLock _(BulkDataMutex);
+
+	for (FBulkData* BulkData : BulkDataLoaders)
 	{
-		for (FBulkData* BulkData : BulkDataLoaders)
-		{
-			check(BulkData != nullptr);
-			BulkData->DetachFromArchive(this, bEnsureAllBulkDataIsLoaded);
-		}
-		BulkDataLoaders.Empty();
+		BulkData->DetachFromArchive(this, bEnsureAllBulkDataIsLoaded);
 	}
 
-	// Then virtualized bulkdata
+	BulkDataLoaders.Empty();
+
+	for (UE::Serialization::FEditorBulkData* BulkData : EditorBulkDataLoaders)
 	{
-		for (UE::Serialization::FEditorBulkData* BulkData : EditorBulkDataLoaders)
-		{
-			check(BulkData != nullptr);
-			BulkData->DetachFromDisk(this, bEnsureAllBulkDataIsLoaded);
-		}
-		EditorBulkDataLoaders.Empty();
+		BulkData->DetachFromDisk(this, bEnsureAllBulkDataIsLoaded);
 	}
+
+	EditorBulkDataLoaders.Empty();
 }
 
 #endif // WITH_EDITOR
