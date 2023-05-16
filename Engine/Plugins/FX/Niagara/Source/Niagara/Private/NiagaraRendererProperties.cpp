@@ -545,12 +545,23 @@ void UNiagaraRendererProperties::UpdateMaterialParametersMIC(const FNiagaraRende
 		NameBuilder.Append(TEXT("_MIC"));
 
 		UMaterialInstanceConstant* MIC = nullptr;
+		bool bNeedsRename = false;
 		if (MICPool.Num() > 0)
 		{
-			MIC = MICPool.Pop();
+			FName MICName(NameBuilder);
+			const int32 ExistingIndex = MICPool.IndexOfByPredicate([&MICName](UMaterialInstanceConstant* MIC) { return MIC->GetFName() == MICName; });
+			if (ExistingIndex != INDEX_NONE)
+			{
+				MIC = MICPool[ExistingIndex];
+				MICPool.RemoveAtSwap(ExistingIndex, 1, false);
+			}
+			else
+			{
+				bNeedsRename = true;
+				MIC = MICPool.Pop();
+			}
 			if (MIC->Parent != Material)
 			{
-				MIC->Rename(NameBuilder.ToString());
 				MIC->SetParentEditorOnly(Material);
 			}
 		}
@@ -568,7 +579,20 @@ void UNiagaraRendererProperties::UpdateMaterialParametersMIC(const FNiagaraRende
 		{
 			InOutMICs.SetNum(i + 1);
 			InOutMICs[i] = MIC;
+			if (bNeedsRename)
+			{
+				if (MIC->Rename(NameBuilder.ToString(), nullptr, REN_Test))
+				{
+					MIC->Rename(NameBuilder.ToString());
+				}
+			}
 		}
+	}
+
+	// Garabge the MICs we are no longer going to use
+	for (int i=0; i < MICPool.Num(); ++i)
+	{
+		MICPool[i]->MarkAsGarbage();
 	}
 }
 
