@@ -271,7 +271,7 @@ void SOverlay::RemoveSlot( int32 ZOrder )
 			}
 		}
 
-		ensureMsgf(false, TEXT("Could not remove slot. There are no children with ZOrder %d."));
+		ensureMsgf(false, TEXT("Could not remove slot. There are no children with ZOrder %d."), ZOrder);
 	}
 	else if (Children.Num() > 0)
 	{
