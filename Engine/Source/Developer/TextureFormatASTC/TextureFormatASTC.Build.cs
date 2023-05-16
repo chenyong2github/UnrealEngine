@@ -19,6 +19,7 @@ public class TextureFormatASTC : ModuleRules
 			"ImageCore",
 			"ImageWrapper",
 			"TextureBuild",
+			"TextureFormatIntelISPCTexComp",
 			"astcenc",
 		});
 	}
