@@ -88,10 +88,13 @@ void FIKRetargetEditor::InitAssetEditor(
 
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
-	
+
+	// DISABLED: MAY 2023 - These modal dialogs cause an editor crash when closing the main UE editor. Not clear why this happens,
+	// and it's not clear that we want to keep this creation flow. It was a compromise for UEFN, but we will likely do
+	// something better once we revisit UEFN integration.
 	// initial setup, ignored if IK Rig is already assigned
-	EditorController->PromptUserToAssignIKRig(ERetargetSourceOrTarget::Source);
-	EditorController->PromptUserToAssignIKRig(ERetargetSourceOrTarget::Target);
+	//EditorController->PromptUserToAssignIKRig(ERetargetSourceOrTarget::Source);
+	//EditorController->PromptUserToAssignIKRig(ERetargetSourceOrTarget::Target);
 
 	// run retarget by default
 	EditorController->SetRetargeterMode(ERetargeterOutputMode::RunRetarget);
