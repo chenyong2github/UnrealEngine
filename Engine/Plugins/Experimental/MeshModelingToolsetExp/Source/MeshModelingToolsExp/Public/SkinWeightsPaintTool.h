@@ -297,7 +297,6 @@ public:
 	
 	// UInteractiveTool
 	virtual void Setup() override;
-	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 

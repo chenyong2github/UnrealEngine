@@ -102,10 +102,15 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
-
-	//
+	// IClickDragBehaviorTarget implementation
+	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
+	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
+	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
+	virtual void OnTerminateDragSequence() override;
+	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
+	
 	// UMeshSurfacePointTool implementation
-	//
 	virtual void OnBeginDrag(const FRay& Ray) override;
 	virtual void OnUpdateDrag(const FRay& Ray) override;
 	virtual void OnEndDrag(const FRay& Ray) override;
@@ -143,6 +148,8 @@ public:
 	virtual double GetCurrentBrushRadius() const { return CurrentBrushRadius; }
 	virtual double GetCurrentBrushRadiusLocal() const { return CurrentBrushRadius * WorldToLocalScale; }
 
+	void SetBrushEnabled(bool bIsEnabled);
+
 protected:
 
 	/**
@@ -169,4 +176,8 @@ protected:
 	virtual void SetupBrushStampIndicator();
 	virtual void UpdateBrushStampIndicator();
 	virtual void ShutdownBrushStampIndicator();
+
+private:
+	bool bEnabled = true;
+	bool bAdjustingBrushSize = false;
 };

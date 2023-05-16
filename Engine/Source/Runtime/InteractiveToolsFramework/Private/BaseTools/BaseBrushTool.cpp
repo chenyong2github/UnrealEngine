@@ -5,6 +5,7 @@
 #include "InteractiveGizmoManager.h"
 #include "ToolBuilderUtil.h"
 #include "InteractiveTool.h"
+#include "BaseBehaviors/ClickDragBehavior.h"
 #include "BaseGizmos/BrushStampIndicator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BaseBrushTool)
@@ -28,6 +29,7 @@ UBaseBrushTool::UBaseBrushTool()
 	PropertyClass = UBrushBaseProperties::StaticClass();
 }
 
+static const int UBaseBrushTool_BrushSizeModifier = 0;
 
 void UBaseBrushTool::Setup()
 {
@@ -42,6 +44,15 @@ void UBaseBrushTool::Setup()
 	AddToolPropertySource(BrushProperties);
 
 	SetupBrushStampIndicator();
+
+	// add input behavior to click-drag while holding hotkey to adjust brush size
+	UClickDragInputBehavior* DragBehavior = NewObject<UClickDragInputBehavior>();
+	DragBehavior->Modifiers.RegisterModifier(UBaseBrushTool_BrushSizeModifier, [](const FInputDeviceState& Input)
+	{
+		return (Input.Keyboard.ActiveKey.Button == EKeys::B) && Input.Keyboard.ActiveKey.bDown;
+	});
+	DragBehavior->Initialize(this);
+	AddInputBehavior(DragBehavior);
 }
 
 
@@ -59,7 +70,40 @@ void UBaseBrushTool::OnPropertyModified(UObject* PropertySet, FProperty* Propert
 	}
 }
 
+FInputRayHit UBaseBrushTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+{
+	if (bEnabled)
+	{
+		return Super::CanBeginClickDragSequence(PressPos);	
+	}
 
+	return FInputRayHit();
+}
+
+void UBaseBrushTool::OnClickPress(const FInputDeviceRay& PressPos)
+{
+	Super::OnClickPress(PressPos);
+}
+
+void UBaseBrushTool::OnClickDrag(const FInputDeviceRay& DragPos)
+{
+	Super::OnClickDrag(DragPos);
+}
+
+void UBaseBrushTool::OnClickRelease(const FInputDeviceRay& ReleasePos)
+{
+	Super::OnClickRelease(ReleasePos);
+}
+
+void UBaseBrushTool::OnTerminateDragSequence()
+{
+	Super::OnTerminateDragSequence();
+}
+
+void UBaseBrushTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
+{
+	Super::OnUpdateModifierState(ModifierID, bIsOn);
+}
 
 void UBaseBrushTool::IncreaseBrushSizeAction()
 {
@@ -130,6 +174,12 @@ void UBaseBrushTool::DecreaseBrushFalloffAction()
 	float NewValue = OldValue - ChangeAmount;
 	BrushProperties->BrushFalloffAmount = FMath::Clamp(NewValue, 0.f, 1.f);
 	NotifyOfPropertyChangeByTool(BrushProperties);
+}
+
+void UBaseBrushTool::SetBrushEnabled(bool bIsEnabled)
+{
+	bEnabled = bIsEnabled;
+	BrushStampIndicator->bVisible = bIsEnabled;
 }
 
 void UBaseBrushTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
@@ -229,7 +279,6 @@ void UBaseBrushTool::OnEndDrag(const FRay& Ray)
 	bInBrushStroke = false;
 }
 
-
 bool UBaseBrushTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	FHitResult OutHit;
@@ -244,13 +293,13 @@ bool UBaseBrushTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	return true;
 }
 
-
-
 void UBaseBrushTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	UMeshSurfacePointTool::Render(RenderAPI);
-
-	UpdateBrushStampIndicator();
+	if (bEnabled)
+	{
+		UMeshSurfacePointTool::Render(RenderAPI);
+		UpdateBrushStampIndicator();
+	}
 }
 
 const FString BaseBrushIndicatorGizmoType = TEXT("BrushIndicatorGizmoType");

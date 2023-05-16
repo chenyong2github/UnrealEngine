@@ -18,6 +18,7 @@
 #include "Parameterization/MeshLocalParam.h"
 #include "Spatial/FastWinding.h"
 #include "Async/Async.h"
+#include "BaseGizmos/BrushStampIndicator.h"
 #include "DynamicMesh/MeshAdapterUtil.h"
 #include "Selection/PolygonSelectionMechanic.h"
 #include "Spatial/PointSetHashTable.h"
@@ -656,11 +657,6 @@ void USkinWeightsPaintTool::Setup()
 		EToolMessageLevel::UserNotification);
 }
 
-void USkinWeightsPaintTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
-{
-	UDynamicMeshBrushTool::RegisterActions(ActionSet);
-}
-
 void USkinWeightsPaintTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
 	Super::DrawHUD(Canvas, RenderAPI);
@@ -677,11 +673,11 @@ void USkinWeightsPaintTool::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		Super::Render(RenderAPI);	
 	}
-	
-	if (PolygonSelectionMechanic && WeightToolProperties->EditingMode == EWeightEditMode::Selection)
+	else if (PolygonSelectionMechanic && WeightToolProperties->EditingMode == EWeightEditMode::Selection)
 	{
 		PolygonSelectionMechanic->Render(RenderAPI);
 	}
+	
 }
 
 void USkinWeightsPaintTool::OnTick(float DeltaTime)
@@ -1784,7 +1780,9 @@ void USkinWeightsPaintTool::OnSelectionModified()
 
 void USkinWeightsPaintTool::ToggleEditingMode()
 {
+	SetBrushEnabled(WeightToolProperties->EditingMode == EWeightEditMode::Brush);
 	PolygonSelectionMechanic->SetIsEnabled(WeightToolProperties->EditingMode == EWeightEditMode::Selection);
+	
 }
 
 void USkinWeightsPaintTool::OnPropertyModified(UObject* ModifiedObject, FProperty* ModifiedProperty)
