@@ -550,7 +550,6 @@ public:
 #endif
 
 		Entry.Header = Header;
-		check(reinterpret_cast<int64>(Entry.NumberedName) % alignof(FNumberedEntry) == 0);
 		*reinterpret_cast<FNumberedEntry*>(Entry.NumberedName) = {StringPart, NumberPart};
 
 		return Handle;
