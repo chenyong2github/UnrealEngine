@@ -20,6 +20,7 @@ public class WebAuth : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
+			PrivateDependencyModuleNames.Add("ApplicationCore");
 			PublicFrameworks.Add("AuthenticationServices");
 		}
 
