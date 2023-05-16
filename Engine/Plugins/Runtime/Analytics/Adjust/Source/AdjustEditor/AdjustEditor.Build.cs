@@ -17,12 +17,5 @@ public class AdjustEditor : ModuleRules
 				"Projects"
 			}
 			);
-
-		PrivateIncludePathModuleNames.AddRange(
-			new string[]
-            {
-				"Settings"
-			}
-		);
 	}
 }

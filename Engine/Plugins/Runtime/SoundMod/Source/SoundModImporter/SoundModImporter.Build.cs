@@ -22,7 +22,6 @@ public class SoundModImporter : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetTools",
-				"AssetRegistry"
 			});
 
 		DynamicallyLoadedModuleNames.AddRange(

@@ -8,13 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public OculusAudio(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PrivateIncludePathModuleNames.AddRange(
-				new string[]
-				{
-					"TargetPlatform"
-				}
-				);
-
 			PrivateIncludePaths.AddRange(
 				new string[] {
 					System.IO.Path.Combine(GetModuleDirectory("AudioMixer"), "Private"),

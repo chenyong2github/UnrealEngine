@@ -17,12 +17,5 @@ public class FlurryEditor : ModuleRules
 				"DeveloperSettings"
 			}
 			);
-
-		PrivateIncludePathModuleNames.AddRange(
-			new string[]
-            {
-				"Settings"
-			}
-		);
 	}
 }

@@ -8,7 +8,6 @@ public class TextureCompressor : ModuleRules
 	{
 		PrivateIncludePathModuleNames.AddRange(new string[]
 		{
-			"CoreUObject",
 			"Engine",
 		});
 

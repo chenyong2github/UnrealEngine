@@ -25,13 +25,6 @@ public class AnalyticsMulticastEditor : ModuleRules
 			}
 			);
 
-		PrivateIncludePathModuleNames.AddRange(
-			new string[] {
-				"Settings",
-                "AssetTools"
-			}
-		);
-
         DynamicallyLoadedModuleNames.AddRange(
             new string[] {
                 "AssetTools"
