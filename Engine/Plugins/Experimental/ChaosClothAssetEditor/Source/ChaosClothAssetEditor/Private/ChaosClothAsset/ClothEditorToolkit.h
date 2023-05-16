@@ -87,8 +87,7 @@ private:
 	virtual void GetSaveableObjects(TArray<UObject*>& OutObjects) const override;
 
 	// IAssetEditorInstance
-	// TODO: If this returns true then the editor cannot re-open after it's closed. Figure out why.
-	virtual bool IsPrimaryEditor() const override { return false; };
+	virtual bool IsPrimaryEditor() const override { return true; };
 
 	// IToolkit
 	virtual FText GetToolkitName() const override;
