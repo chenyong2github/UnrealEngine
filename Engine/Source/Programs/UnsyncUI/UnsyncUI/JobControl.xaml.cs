@@ -181,11 +181,11 @@ namespace UnsyncUI
 			Action<JobModel> onProgress)
 		{
             Build = build;
-            DstPath = dstPath;
-			ScavengePath = scavengePath;
+            DstPath = dstPath?.TrimEnd('\\');
+			ScavengePath = scavengePath?.TrimEnd('\\');
             DryRun = dryRun;
-            Proxy = proxy;
-			DFS = dfs;
+            Proxy = proxy?.TrimEnd('\\');
+			DFS = dfs?.TrimEnd('\\');
 			AdditionalArgs = additionalArgs;
 			IncludeFilter = build.Include?.Split(',', StringSplitOptions.RemoveEmptyEntries)
 				.Select(Entry => Entry.Trim())
