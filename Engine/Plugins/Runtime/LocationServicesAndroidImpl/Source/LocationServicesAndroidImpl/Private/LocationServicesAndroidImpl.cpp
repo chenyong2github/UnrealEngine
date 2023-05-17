@@ -4,6 +4,7 @@
 #include "Android/AndroidJNI.h"
 #include "Android/AndroidApplication.h"
 #include "AndroidPermissionFunctionLibrary.h"
+#include "Async/TaskGraphInterfaces.h"
 
 DEFINE_LOG_CATEGORY(LogLocationServicesAndroid);
 
