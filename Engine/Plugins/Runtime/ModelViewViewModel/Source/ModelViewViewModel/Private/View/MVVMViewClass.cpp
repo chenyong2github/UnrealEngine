@@ -492,6 +492,7 @@ void UMVVMViewClass::Initialize(UUserWidget* UserWidget)
 	UMVVMView* View = UserWidget->AddExtension<UMVVMView>();
 	if (ensure(View))
 	{
+		View->SetFlags(RF_Transient);
 		View->ConstructView(this);
 	}
 }
