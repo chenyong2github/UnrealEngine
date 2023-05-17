@@ -396,7 +396,8 @@ EMediaTextureSampleFormat FElectraTextureSample::GetFormat() const
             break;
         }
         case    EPixelFormat::PF_BC4:   return EMediaTextureSampleFormat::BC4;
-        default:
+		case    EPixelFormat::PF_NV12:  return EMediaTextureSampleFormat::CharNV21;
+		default:
         {
             check(!"Unsupported pixel format");
         }
