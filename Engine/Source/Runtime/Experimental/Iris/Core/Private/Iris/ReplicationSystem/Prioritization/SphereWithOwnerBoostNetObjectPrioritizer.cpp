@@ -58,7 +58,7 @@ void USphereWithOwnerBoostNetObjectPrioritizer::UpdateObjects(FNetObjectPrioriti
 	{
 		FObjectLocationInfo& ObjectInfo = static_cast<FObjectLocationInfo&>(Params.PrioritizationInfos[ObjectIndex]);
 		const uint32 OwningConnection = ReplicationFiltering.GetOwningConnection(ObjectIndex);
-		OwningConnections[ObjectInfo.GetLocationIndex()] = OwningConnection;
+		OwningConnections[ObjectInfo.GetLocationIndex()] = static_cast<uint16>(OwningConnection);
 	}
 }
 

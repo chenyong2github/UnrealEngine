@@ -193,7 +193,7 @@ bool FNetObjectAttachmentSendQueue::Enqueue(TArrayView<const TRefCountPtr<FNetBl
 	}
 	else
 	{
-		const uint32 TotalCountNeeded = UnreliableQueue.Count() + Attachments.Num();
+		const SIZE_T TotalCountNeeded = UnreliableQueue.Count() + Attachments.Num();
 		if (TotalCountNeeded > MaxUnreliableCount)
 		{
 			UE_LOG(LogIris, Verbose, TEXT("Dropping old RPC due to too many unreliable Attachments: %d max: %u"), UnreliableQueue.Count(), MaxUnreliableCount);
@@ -240,13 +240,13 @@ void FNetObjectAttachmentSendQueue::SetUnreliableQueueCapacity(uint32 QueueCapac
 	// MaxUnreliableCount is what prevents the queue from growing too large.
 	MaxUnreliableCount = QueueCapacity;
 	
-	const uint32 UnreliableCount = UnreliableQueue.Count();
+	const SIZE_T UnreliableCount = UnreliableQueue.Count();
 	if (QueueCapacity >= UnreliableCount)
 	{
 		return;
 	}
 
-	const uint32 DropCount = UnreliableCount - QueueCapacity;
+	const SIZE_T DropCount = UnreliableCount - QueueCapacity;
 	UE_LOG(LogIris, Warning, TEXT("Dropping %u attachments due to change in unreliable queue capacity to %u"), DropCount, QueueCapacity);
 	UnreliableQueue.PopNoCheck(DropCount);
 }
@@ -359,7 +359,7 @@ uint32 FNetObjectAttachmentSendQueue::SerializeUnreliable(FNetSerializationConte
 	uint32 SerializedUnreliableCount = 0;
 	uint32 PrevHasMoreAttachmentsWritePos = 0;
 	const bool bSerializeWithObject = RefHandle.IsValid();
-	for (uint32 AttachmentIt = 0, AttachmentEndIt = UnreliableQueue.Count(); AttachmentIt != AttachmentEndIt; ++AttachmentIt)
+	for (SIZE_T AttachmentIt = 0, AttachmentEndIt = UnreliableQueue.Count(); AttachmentIt != AttachmentEndIt; ++AttachmentIt)
 	{
 		FNetBitStreamRollbackScope RollbackScope(*Writer);
 		FNetExportRollbackScope ExportScope(Context);
@@ -745,13 +745,13 @@ void FNetObjectAttachmentReceiveQueue::SetUnreliableQueueCapacity(uint32 QueueCa
 {
 	MaxUnreliableCount = QueueCapacity;
 	
-	const uint32 UnreliableCount = UnreliableQueue.Count();
+	const SIZE_T UnreliableCount = UnreliableQueue.Count();
 	if (QueueCapacity >= UnreliableCount)
 	{
 		return;
 	}
 
-	const uint32 DropCount = UnreliableCount - QueueCapacity;
+	const SIZE_T DropCount = UnreliableCount - QueueCapacity;
 	UE_LOG(LogIris, Warning, TEXT("Dropping %u attachments to due to change in unreliable queue capacity to %u"), DropCount, QueueCapacity);
 	UnreliableQueue.Pop(DropCount);
 }

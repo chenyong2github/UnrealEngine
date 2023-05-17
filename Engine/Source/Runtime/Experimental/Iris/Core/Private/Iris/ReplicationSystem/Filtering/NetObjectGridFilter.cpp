@@ -114,7 +114,7 @@ void UNetObjectGridFilter::Filter(FNetObjectFilteringParams& Params)
 		{
 			if ((PrevCell.Cell.X == CellAndTimestamp.Cell.X) & (PrevCell.Cell.Y == CellAndTimestamp.Cell.Y))
 			{
-				PrevCells.RemoveAtSwap(&PrevCell - PrevCells.GetData());
+				PrevCells.RemoveAtSwap(static_cast<int32>(&PrevCell - PrevCells.GetData()));
 				break;
 			}
 		}
@@ -368,11 +368,19 @@ void UNetObjectGridFilter::CalculateCellBox(const UNetObjectGridFilter::FPerObje
 	MinPosition = MinPosition.ComponentMax(Config->MinPos);
 	MaxPosition = MaxPosition.ComponentMin(Config->MaxPos);
 
+	const int64 MinX = FPlatformMath::FloorToInt(MinPosition.X/Config->CellSizeX);
+	const int64 MinY = FPlatformMath::FloorToInt(MinPosition.Y/Config->CellSizeY);
+	const int64 MaxX = FPlatformMath::FloorToInt(MaxPosition.X/Config->CellSizeX);
+	const int64 MaxY = FPlatformMath::FloorToInt(MaxPosition.Y/Config->CellSizeY);
+
 	FCellBox CellBox;
-	CellBox.MinX = FPlatformMath::FloorToInt(MinPosition.X/Config->CellSizeX);
-	CellBox.MinY = FPlatformMath::FloorToInt(MinPosition.Y/Config->CellSizeY);
-	CellBox.MaxX = FPlatformMath::FloorToInt(MaxPosition.X/Config->CellSizeX);
-	CellBox.MaxY = FPlatformMath::FloorToInt(MaxPosition.Y/Config->CellSizeY);
+	CellBox.MinX = static_cast<int32>(MinX);
+	CellBox.MinY = static_cast<int32>(MinY);
+	CellBox.MaxX = static_cast<int32>(MaxX);
+	CellBox.MaxY = static_cast<int32>(MaxY);
+
+	// Current large world max of 8796093022208.0 requires a cell size of at least around 4500 to not overflow an int32. 
+	checkSlow(MinX == CellBox.MinX && MinY == CellBox.MinY && MaxX == CellBox.MaxX && MaxY == CellBox.MaxY);
 
 	OutCellBox = CellBox;
 }
@@ -380,8 +388,8 @@ void UNetObjectGridFilter::CalculateCellBox(const UNetObjectGridFilter::FPerObje
 void UNetObjectGridFilter::CalculateCellCoord(UNetObjectGridFilter::FCellCoord& OutCoord, const FVector& Pos)
 {
 	FCellCoord Coord;
-	Coord.X = FPlatformMath::FloorToInt(Pos.X/Config->CellSizeX);
-	Coord.Y = FPlatformMath::FloorToInt(Pos.Y/Config->CellSizeY);
+	Coord.X = static_cast<int32>(FPlatformMath::FloorToInt(Pos.X/Config->CellSizeX));
+	Coord.Y = static_cast<int32>(FPlatformMath::FloorToInt(Pos.Y/Config->CellSizeY));
 
 	OutCoord = Coord;
 }
@@ -445,13 +453,17 @@ void UNetObjectGridFragmentLocFilter::OnInit(FNetObjectFilterInitParams& InitPar
 bool UNetObjectGridFragmentLocFilter::BuildObjectInfo(uint32 ObjectIndex, FNetObjectFilterAddObjectParams& Params)
 {
 	UE::Net::FRepTagFindInfo WorldLocationTagInfo;
-
 	if (UE::Net::FindRepTag(Params.Protocol, UE::Net::RepTag_WorldLocation, WorldLocationTagInfo))
 	{
-		FObjectLocationInfo& ObjectLocationInfo = static_cast<FObjectLocationInfo&>(Params.OutInfo);
-		ObjectLocationInfo.SetLocationStateOffset(WorldLocationTagInfo.ExternalStateOffset);
-		ObjectLocationInfo.SetLocationStateIndex(WorldLocationTagInfo.StateIndex);
+		// Want to keep the memory footprint minimal so don't allow adding objects whose values would not fit.
+		if (WorldLocationTagInfo.ExternalStateOffset >= MAX_uint16 || WorldLocationTagInfo.StateIndex >= MAX_uint16)
+		{
+			return false;
+		}
 
+		FObjectLocationInfo& ObjectLocationInfo = static_cast<FObjectLocationInfo&>(Params.OutInfo);
+		ObjectLocationInfo.SetLocationStateOffset(static_cast<uint16>(WorldLocationTagInfo.ExternalStateOffset));
+		ObjectLocationInfo.SetLocationStateIndex(static_cast<uint16>(WorldLocationTagInfo.StateIndex));
 
 		// NetCullDistanceSqr is optional. 
 		UE::Net::FRepTagFindInfo NetCullDistanceSqrTagInfo;
@@ -460,8 +472,8 @@ bool UNetObjectGridFragmentLocFilter::BuildObjectInfo(uint32 ObjectIndex, FNetOb
 			if ((NetCullDistanceSqrTagInfo.ExternalStateOffset < MAX_uint16) && (NetCullDistanceSqrTagInfo.StateIndex < MAX_uint16))
 			{
 				FCullDistanceFragmentInfo FragmentInfo;
-				FragmentInfo.CullDistanceSqrStateIndex = NetCullDistanceSqrTagInfo.StateIndex;
-				FragmentInfo.CullDistanceSqrStateOffset = NetCullDistanceSqrTagInfo.ExternalStateOffset;
+				FragmentInfo.CullDistanceSqrStateIndex = static_cast<uint16>(NetCullDistanceSqrTagInfo.StateIndex);
+				FragmentInfo.CullDistanceSqrStateOffset = static_cast<uint16>(NetCullDistanceSqrTagInfo.ExternalStateOffset);
 
 				CullDistanceFragments.Add(ObjectIndex, MoveTemp(FragmentInfo));
 			}

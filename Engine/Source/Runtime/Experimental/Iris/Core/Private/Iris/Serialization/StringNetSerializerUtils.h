@@ -412,16 +412,15 @@ public:
 
 		constexpr SIZE_T ElementSize = sizeof(ElementType);
 		constexpr SIZE_T ElementAlignment = Align(alignof(ElementType), 4U);
-		const uint32 ElementCount = Source.ElementCount;
 
 		void* ElementStorage = nullptr;
-		if (ElementCount > 0)
+		if (Source.ElementCount > 0)
 		{
-			ElementStorage = Context.GetInternalContext()->Alloc(Align(ElementSize*ElementCount, 4U), ElementAlignment);
-			FMemory::Memcpy(ElementStorage, Source.ElementStorage, ElementSize*ElementCount);
+			ElementStorage = Context.GetInternalContext()->Alloc(Align(ElementSize*Source.ElementCount, 4U), ElementAlignment);
+			FMemory::Memcpy(ElementStorage, Source.ElementStorage, ElementSize*Source.ElementCount);
 		}
-		Target.ElementCapacityCount = ElementCount;
-		Target.ElementCount = ElementCount;
+		Target.ElementCapacityCount = Source.ElementCount;
+		Target.ElementCount = Source.ElementCount;
 		Target.ElementStorage = ElementStorage;
 	}
 

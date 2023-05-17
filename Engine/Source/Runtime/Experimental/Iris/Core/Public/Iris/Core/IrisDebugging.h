@@ -91,7 +91,7 @@ extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetObjectById(UObject
 extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetRefHandle(FNetRefHandle Handle);
 
 /** Look up replicated handle specified by handle id and replicationsystem id and return debug information */
-extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetRefHandleById(uint32 NetRefHandleId, uint32 ReplicationSystemId);
+extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetRefHandleById(uint64 NetRefHandleId, uint32 ReplicationSystemId);
 
 /** Look up replicated handle specified by an internal index and replicationsystem id and return debug information */
 extern "C" IRISCORE_API FNetReplicatedObjectDebugInfo DebugNetInternalIndex(UE::Net::Private::FInternalNetRefIndex InternalIndex, uint32 ReplicationSystemId);
@@ -105,7 +105,7 @@ extern "C" IRISCORE_API const TCHAR* DebugNetObjectProtocolReferencesToString(ui
 extern "C" IRISCORE_API void SetIrisDebugObjectName(const ANSICHAR* NameBuffer);
 
 /** Set the NetHandle to break on */
-extern "C" IRISCORE_API void SetIrisDebugNetRefHandle(uint32 NetHandleId);
+extern "C" IRISCORE_API void SetIrisDebugNetRefHandle(uint64 NetHandleId);
 
 /** Set the InternalIndex to break on */
 extern "C" IRISCORE_API void SetIrisDebugInternalIndex(UE::Net::Private::FInternalNetRefIndex InternalIndex);

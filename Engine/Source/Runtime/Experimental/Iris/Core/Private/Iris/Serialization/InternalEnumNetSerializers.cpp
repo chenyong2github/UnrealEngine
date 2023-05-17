@@ -24,7 +24,7 @@ public:
 			ensure(EnumValueCount > 0);
 			OutConfig.LowerBound = 0;
 			OutConfig.UpperBound = 0;
-			OutConfig.BitCount = GetBitsNeededForRange(OutConfig.LowerBound, OutConfig.UpperBound);
+			OutConfig.BitCount = static_cast<uint8>(GetBitsNeededForRange(OutConfig.LowerBound, OutConfig.UpperBound));
 			OutConfig.Enum = Enum;
 		}
 		else
@@ -41,7 +41,7 @@ public:
 
 			OutConfig.LowerBound = static_cast<SourceType>(SmallestValue);
 			OutConfig.UpperBound = static_cast<SourceType>(LargestValue);
-			OutConfig.BitCount = GetBitsNeededForRange(OutConfig.LowerBound, OutConfig.UpperBound);
+			OutConfig.BitCount = static_cast<uint8>(GetBitsNeededForRange(OutConfig.LowerBound, OutConfig.UpperBound));
 			OutConfig.Enum = Enum;
 		}
 

@@ -43,8 +43,8 @@ bool ULocationBasedNetObjectPrioritizer::AddObject(uint32 ObjectIndex, FNetObjec
 	}
 
 	FObjectLocationInfo& ObjectInfo = static_cast<FObjectLocationInfo&>(Params.OutInfo);
-	ObjectInfo.SetLocationStateOffset(TagInfo.ExternalStateOffset);
-	ObjectInfo.SetLocationStateIndex(TagInfo.StateIndex);
+	ObjectInfo.SetLocationStateOffset(static_cast<uint16>(TagInfo.ExternalStateOffset));
+	ObjectInfo.SetLocationStateIndex(static_cast<uint16>(TagInfo.StateIndex));
 	const uint32 LocationIndex = AllocLocation();
 	ObjectInfo.SetLocationIndex(LocationIndex);
 

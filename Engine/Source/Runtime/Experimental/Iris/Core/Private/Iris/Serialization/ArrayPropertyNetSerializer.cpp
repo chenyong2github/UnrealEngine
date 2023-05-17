@@ -170,8 +170,8 @@ void FArrayPropertyNetSerializer::CollectNetReferences(FNetSerializationContext&
 		// We currently use a simple modulo scheme for bits in the changemask, if we have more elements in the array then is covered by the changemask
 		// several entries in the array will be considered dirty and be serialized
 		// As the first bit is used by the owning property we need to offset by one and deduct one from the usable bits
-		const uint16 ChangeMaskBitOffset = Args.ChangeMaskInfo.BitOffset + 1U;
-		const uint16 ChangeMaskBitCount = Args.ChangeMaskInfo.BitCount - 1U;
+		const uint32 ChangeMaskBitOffset = Args.ChangeMaskInfo.BitOffset + 1U;
+		const uint32 ChangeMaskBitCount = Args.ChangeMaskInfo.BitCount - 1U;
 
 		// This is the info that will be stored in the entries
 		for (uint32 ElementIt = 0, ElementEndIt = Array.ElementCount; ElementIt < ElementEndIt; ++ElementIt)
@@ -219,7 +219,7 @@ void FArrayPropertyNetSerializer::Deserialize(FNetSerializationContext& Context,
 	const FReplicationStateMemberSerializerDescriptor& ElementSerializerDescriptor = ElementStateDescriptor->MemberSerializerDescriptors[0];
 
 	// Memory management
-	AdjustArraySize(Context, Array, Config, NewElementCount);
+	AdjustArraySize(Context, Array, Config, static_cast<uint16>(NewElementCount));
 
 	// Deserialize
 	FNetDeserializeArgs ElementArgs;
@@ -395,7 +395,7 @@ void FArrayPropertyNetSerializer::DeserializeDelta(FNetSerializationContext& Con
 	const FNetSerializer* ElementSerializer = ElementSerializerDescriptor.Serializer;
 	const uint32 ElementSize = ElementStateDescriptor->InternalSize;
 
-	AdjustArraySize(Context, Array, Config, ElementCount);
+	AdjustArraySize(Context, Array, Config, static_cast<uint16>(ElementCount));
 
 	// Elements in the current array up to the previous size can use delta serialization.
 	if (PrevElementCount)
@@ -469,9 +469,15 @@ void FArrayPropertyNetSerializer::Quantize(FNetSerializationContext& Context, co
 
 	FScriptArrayHelper ScriptArrayHelper(Config->Property.Get(), reinterpret_cast<const void*>(Args.Source));
 	const uint32 ElementCount = static_cast<uint32>(ScriptArrayHelper.Num());
-	QuantizedType& TargetArray = *reinterpret_cast<QuantizedType*>(Args.Target);
 
-	AdjustArraySize(Context, TargetArray, Config, ElementCount);
+	if (ElementCount > Config->MaxElementCount)
+	{
+		Context.SetError(GNetError_ArraySizeTooLarge);
+		return;
+	}
+
+	QuantizedType& TargetArray = *reinterpret_cast<QuantizedType*>(Args.Target);
+	AdjustArraySize(Context, TargetArray, Config, static_cast<uint16>(ElementCount));
 
 	const FReplicationStateDescriptor* ElementStateDescriptor = Config->StateDescriptor;
 	const FReplicationStateMemberSerializerDescriptor& ElementSerializerDescriptor = ElementStateDescriptor->MemberSerializerDescriptors[0];
@@ -663,21 +669,20 @@ void FArrayPropertyNetSerializer::CloneDynamicState(FNetSerializationContext& Co
 
 	const SIZE_T ElementSize = ElementStateDescriptor->InternalSize;
 	const SIZE_T ElementAlignment = ElementStateDescriptor->InternalAlignment;
-	const uint32 ElementCount = SourceArray.ElementCount;
 
 	// Clone storage
 	void* ElementStorage = nullptr;
-	if (ElementCount > 0)
+	if (SourceArray.ElementCount > 0)
 	{
-		ElementStorage = Context.GetInternalContext()->Alloc(ElementSize*ElementCount, ElementAlignment);
-		FMemory::Memcpy(ElementStorage, SourceArray.ElementStorage, ElementSize*ElementCount);
+		ElementStorage = Context.GetInternalContext()->Alloc(ElementSize*SourceArray.ElementCount, ElementAlignment);
+		FMemory::Memcpy(ElementStorage, SourceArray.ElementStorage, ElementSize*SourceArray.ElementCount);
 	}
-	TargetArray.ElementCapacityCount = ElementCount;
-	TargetArray.ElementCount = ElementCount;
+	TargetArray.ElementCapacityCount = SourceArray.ElementCount;
+	TargetArray.ElementCount = SourceArray.ElementCount;
 	TargetArray.ElementStorage = ElementStorage;
 
 	// If no member has dynamic state then there's nothing more to do.
-	if (!EnumHasAnyFlags(ElementStateDescriptor->Traits, EReplicationStateTraits::HasDynamicState) || ElementCount == 0)
+	if (!EnumHasAnyFlags(ElementStateDescriptor->Traits, EReplicationStateTraits::HasDynamicState) || SourceArray.ElementCount == 0)
 	{
 		return;
 	}
@@ -691,7 +696,7 @@ void FArrayPropertyNetSerializer::CloneDynamicState(FNetSerializationContext& Co
 	ElementArgs.Target = NetSerializerValuePointer(TargetArray.ElementStorage);
 
 	const FNetSerializer* ElementSerializer = ElementSerializerDescriptor.Serializer;
-	for (uint32 ElementIt = 0, ElementEndIt = ElementCount; ElementIt < ElementEndIt; ++ElementIt)
+	for (uint32 ElementIt = 0, ElementEndIt = SourceArray.ElementCount; ElementIt < ElementEndIt; ++ElementIt)
 	{
 		ElementSerializer->CloneDynamicState(Context, ElementArgs);
 		ElementArgs.Source += ElementSize;

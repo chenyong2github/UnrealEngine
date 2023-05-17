@@ -110,15 +110,15 @@ bool PartialInitNetRoleSerializerConfig(FNetRoleNetSerializerConfig& OutConfig, 
 		check(EnumConfig.LowerBound == 0);
 
 		const int64 AutonomousProxyValue = Enum->GetValueByNameString(TEXT("ROLE_AutonomousProxy"), EGetByNameFlags::CaseSensitive);
-		check(AutonomousProxyValue != INDEX_NONE);
+		check(AutonomousProxyValue > 0 && AutonomousProxyValue < 256);
 		const int64 SimulatedProxyValue = Enum->GetValueByNameString(TEXT("ROLE_SimulatedProxy"), EGetByNameFlags::CaseSensitive);
-		check(SimulatedProxyValue != INDEX_NONE);
+		check(SimulatedProxyValue > 0 && SimulatedProxyValue < 256);
 		
 		FNetRoleNetSerializer::CachedConfig.LowerBound = EnumConfig.LowerBound;
 		FNetRoleNetSerializer::CachedConfig.UpperBound = EnumConfig.UpperBound;
 		FNetRoleNetSerializer::CachedConfig.BitCount = EnumConfig.BitCount;
-		FNetRoleNetSerializer::CachedConfig.AutonomousProxyValue = AutonomousProxyValue;
-		FNetRoleNetSerializer::CachedConfig.SimulatedProxyValue = SimulatedProxyValue;
+		FNetRoleNetSerializer::CachedConfig.AutonomousProxyValue = static_cast<uint8>(AutonomousProxyValue);
+		FNetRoleNetSerializer::CachedConfig.SimulatedProxyValue = static_cast<uint8>(SimulatedProxyValue);
 		FNetRoleNetSerializer::CachedConfig.Enum = Enum;
 	}
 

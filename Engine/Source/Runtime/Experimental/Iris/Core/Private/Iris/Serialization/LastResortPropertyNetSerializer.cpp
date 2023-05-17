@@ -46,6 +46,8 @@ struct FLastResortPropertyNetSerializer
 	static void FreeDynamicState(FNetSerializationContext&, const FNetFreeDynamicStateArgs&);
 
 private:
+	static constexpr uint32 AllocationAlignment = 4U;
+
 	static void FreeDynamicStateInternal(FNetSerializationContext&, QuantizedType& Value);
 	static void GrowDynamicStateInternal(FNetSerializationContext&, QuantizedType& Value, uint16 NewBitCount);
 	static void ShrinkDynamicStateInternal(FNetSerializationContext&, QuantizedType& Value, uint16 NewBitCount);
@@ -74,11 +76,11 @@ void FLastResortPropertyNetSerializer::Deserialize(FNetSerializationContext& Con
 	const uint32 NewBitCount = ReadPackedUint32(Reader);
 	if (NewBitCount > 65535U)
 	{
-		Reader->DoOverflow();
+		Context.SetError(GNetError_ArraySizeTooLarge);
 		return;
 	}
 
-	AdjustStorageSize(Context, Value, NewBitCount);
+	AdjustStorageSize(Context, Value, static_cast<uint16>(NewBitCount));
 
 	Reader->ReadBitStream(static_cast<uint32*>(Value.Storage), NewBitCount);
 }
@@ -91,15 +93,15 @@ void FLastResortPropertyNetSerializer::Quantize(FNetSerializationContext& Contex
 	FNetBitWriter Archive(8192);
 	Property->NetSerializeItem(Archive, static_cast<UPackageMap*>(nullptr), reinterpret_cast<void*>(Args.Source));
 
-	const uint32 BitCount = Archive.GetNumBits();
-	if (BitCount > 65535)
+	const uint64 BitCount = Archive.GetNumBits();
+	if (BitCount > 65535U)
 	{
-		Context.SetError(GNetError_BitStreamOverflow);
+		Context.SetError(GNetError_ArraySizeTooLarge);
 		return;
 	}
 
 	QuantizedType& Value = *reinterpret_cast<QuantizedType*>(Args.Target);
-	AdjustStorageSize(Context, Value, BitCount);
+	AdjustStorageSize(Context, Value, static_cast<uint16>(BitCount));
 	if (BitCount > 0)
 	{
 		FMemory::Memcpy(Value.Storage, Archive.GetData(), (BitCount + 7U)/8U);
@@ -126,7 +128,7 @@ bool FLastResortPropertyNetSerializer::IsEqual(FNetSerializationContext& Context
 		{
 			return false;
 		}
-		const bool bIsEqual = FMemory::Memcmp(Value0.Storage, Value1.Storage, Align((Value0.BitCount + 7U)/8U, 4U)) == 0;
+		const bool bIsEqual = FMemory::Memcmp(Value0.Storage, Value1.Storage, Align((Value0.BitCount + 7U)/8U, AllocationAlignment)) == 0;
 		return bIsEqual;
 	}
 	else
@@ -146,13 +148,12 @@ void FLastResortPropertyNetSerializer::CloneDynamicState(FNetSerializationContex
 	QuantizedType& Target = *reinterpret_cast<QuantizedType*>(Args.Target);
 	const QuantizedType& Source = *reinterpret_cast<const QuantizedType*>(Args.Source);
 
-	constexpr SIZE_T Alignment = 4U;
-	const uint32 ByteCount = Align((Source.BitCount + 7U)/8U, 4U);
+	const uint16 ByteCount = static_cast<uint16>(Align((Source.BitCount + 7U)/8U, AllocationAlignment));
 
 	void* Storage = nullptr;
 	if (ByteCount > 0)
 	{
-		Storage = Context.GetInternalContext()->Alloc(ByteCount, Alignment);
+		Storage = Context.GetInternalContext()->Alloc(ByteCount, AllocationAlignment);
 		FMemory::Memcpy(Storage, Source.Storage, ByteCount);
 	}
 	Target.ByteCapacity = ByteCount;
@@ -177,13 +178,12 @@ void FLastResortPropertyNetSerializer::GrowDynamicStateInternal(FNetSerializatio
 {
 	checkSlow(NewBitCount > Value.BitCount);
 
-	constexpr SIZE_T Alignment = 4U;
-	const uint32 ByteCount = Align((NewBitCount + 7U)/8U, 4U);
+	const uint16 ByteCount = static_cast<uint16>(Align((NewBitCount + 7U)/8U, AllocationAlignment));
 
 	// We don't support delta compression for the unknown contents of the bits so we don't need to copy the old data.
 	Context.GetInternalContext()->Free(Value.Storage);
 
-	void* Storage = Context.GetInternalContext()->Alloc(ByteCount, Alignment);
+	void* Storage = Context.GetInternalContext()->Alloc(ByteCount, AllocationAlignment);
 
 	// Clear the last word to support IsEqual Memcmp optimization.
 	const uint32 LastWordIndex = ByteCount/4U - 1U;
@@ -196,7 +196,7 @@ void FLastResortPropertyNetSerializer::GrowDynamicStateInternal(FNetSerializatio
 
 void FLastResortPropertyNetSerializer::AdjustStorageSize(FNetSerializationContext& Context, QuantizedType& Value, uint16 NewBitCount)
 {
-	const uint32 NewByteCapacity = Align((NewBitCount + 7U)/8U, 4U);
+	const uint32 NewByteCapacity = Align((NewBitCount + 7U)/8U, AllocationAlignment);
 	if (NewByteCapacity == 0)
 	{
 		// Free everything

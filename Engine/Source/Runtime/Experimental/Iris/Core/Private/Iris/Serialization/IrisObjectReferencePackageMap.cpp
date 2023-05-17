@@ -16,9 +16,10 @@ bool UIrisObjectReferencePackageMap::SerializeObject(FArchive& Ar, UClass* InCla
 		{
 			Index = References->Add(Obj);
 		}
-		uint8 IndexByte = Index;
-		if (ensureAlwaysMsgf(IndexByte < References->Num(), TEXT("UIrisObjectReferencePackageMap::SerializeObject, failed to serialize object reference. A Maximum of 256 references are currently supported by this PackageMap")))
+		constexpr int32 MaxNumReferences = 256;
+		if (ensureAlwaysMsgf(Index > 0 && Index < MaxNumReferences, TEXT("UIrisObjectReferencePackageMap::SerializeObject, failed to serialize object reference. A Maximum of 256 references are currently supported by this PackageMap")))
 		{
+			uint8 IndexByte = static_cast<uint8>(Index);
 			Ar << IndexByte;
 		}
 		else

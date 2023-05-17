@@ -84,7 +84,7 @@ void FDeltaCompressionBaselineManager::Init(FDeltaCompressionBaselineManagerInit
 		const uint32 BytesPerConnection = sizeof(FObjectBaselineInfo);
 		// The PerObjectInfo already contains the connection specific data for one connection,
 		// but we need to accommodate for MaxConnectionCount.
-		BytesPerObjectInfo = Align(sizeof(FPerObjectInfo) + BytesPerConnection*(FPlatformMath::Max(MaxConnectionCount, 1U) - 1U), alignof(FPerObjectInfo));
+		BytesPerObjectInfo = static_cast<uint32>(Align(sizeof(FPerObjectInfo) + BytesPerConnection*(FPlatformMath::Max(MaxConnectionCount, 1U) - 1U), alignof(FPerObjectInfo)));
 	}
 
 	BaselineCounts.SetNumZeroed(MaxDeltaCompressedObjectCount + 1U);
@@ -257,7 +257,7 @@ void FDeltaCompressionBaselineManager::UpdateDirtyStateMasks(const FChangeMaskCa
 
 		ChangeMaskStorageType*const ConnectionChangeMaskStoragePtr = ObjectInfo->ChangeMasksForConnections;
 		ChangeMaskStorageType const*const UpdatedChanges = DirtyChangeMaskStoragePtr + Entry.StorageOffset;
-		const SIZE_T ChangeMaskStridePerConnection = ObjectInfo->ChangeMaskStride;
+		const uint32 ChangeMaskStridePerConnection = ObjectInfo->ChangeMaskStride;
 		for (uint32 ConnectionId : ValidConnections)
 		{
 			const SIZE_T ChangeMaskOffset = ChangeMaskStridePerConnection*ConnectionId;
@@ -284,13 +284,14 @@ FDeltaCompressionBaselineManager::FPerObjectInfo* FDeltaCompressionBaselineManag
 		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(ObjectIndex);
 		const FReplicationProtocol* Protocol = ObjectData.Protocol;
 		const uint32 ChangeMaskStride = Align(Protocol->ChangeMaskBitCount, sizeof(ChangeMaskStorageType)*8U)/(sizeof(ChangeMaskStorageType)*8U);
+		check(ChangeMaskStride < 65536U);
 		if (ChangeMaskStride > 0)
 		{
 			const uint32 AllocSize = ChangeMaskStride*3*MaxConnectionCount*sizeof(ChangeMaskStorageType);
 			ChangeMaskStorageType* ChangeMasksForConnections = static_cast<ChangeMaskStorageType*>(ChangeMaskAllocator.Alloc(AllocSize, alignof(ChangeMaskStorageType)));
 			FPlatformMemory::Memzero(ChangeMasksForConnections, AllocSize);
 
-			ObjectInfo->ChangeMaskStride = ChangeMaskStride;
+			ObjectInfo->ChangeMaskStride = static_cast<uint16>(ChangeMaskStride);
 			ObjectInfo->ChangeMasksForConnections = ChangeMasksForConnections;
 		}
 
@@ -372,7 +373,7 @@ void FDeltaCompressionBaselineManager::FreeAllPerObjectInfos()
 {
 	auto DestructObjectInfo = [this](uint32 ObjectInfoIndex)
 	{
-		FPerObjectInfo* ObjectInfo = GetPerObjectInfo(ObjectInfoIndex);
+		FPerObjectInfo* ObjectInfo = GetPerObjectInfo(static_cast<ObjectInfoIndexType>(ObjectInfoIndex));
 		DestructPerObjectInfo(ObjectInfo);
 	};
 
@@ -512,7 +513,8 @@ void FDeltaCompressionBaselineManager::AdjustBaselineCount(const FPerObjectInfo*
 		return;
 	}
 
-	const uint32 NewBaselineCount = BaselineCounts[ObjectInfoIndex] + Adjustment;
+	const uint16 NewBaselineCount = static_cast<uint16>(BaselineCounts[ObjectInfoIndex] + Adjustment);
+	UE_NET_DC_BASELINE_CHECK(NewBaselineCount <= BaselineCounts[ObjectInfoIndex]);
 	BaselineCounts[ObjectInfoIndex] = NewBaselineCount;
 
 	if (NewBaselineCount == 0)
@@ -529,8 +531,9 @@ void FDeltaCompressionBaselineManager::AdjustBaselineCount(const FPerObjectInfo*
 
 void FDeltaCompressionBaselineManager::ReleaseBaselinesForConnection(uint32 ConnId)
 {
-	auto ReleaseObjectBaselines = [this, ConnId](uint32 ObjectInfoIndex)
+	auto ReleaseObjectBaselines = [this, ConnId](uint32 InObjectInfoIndex)
 	{
+		const uint16 ObjectInfoIndex = static_cast<uint16>(InObjectInfoIndex);
 		FPerObjectInfo* ObjectInfo = GetPerObjectInfo(ObjectInfoIndex);
 		FObjectBaselineInfo& BaselineInfo = ObjectInfo->BaselinesForConnections[ConnId];
 

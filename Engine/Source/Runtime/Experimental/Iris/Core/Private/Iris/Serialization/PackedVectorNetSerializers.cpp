@@ -392,15 +392,15 @@ void FPackedVectorNetSerializerBase::SerializeDelta(uint32 ScaleBitCount, FNetSe
 				{
 					if (XDiffers)
 					{
-						Writer->WriteBits(Value.X, 32U);
+						Writer->WriteBits(static_cast<uint32>(Value.X), 32U);
 					}
 					if (YDiffers)
 					{
-						Writer->WriteBits(Value.Y, 32U);
+						Writer->WriteBits(static_cast<uint32>(Value.Y), 32U);
 					}
 					if (ZDiffers)
 					{
-						Writer->WriteBits(Value.Z, 32U);
+						Writer->WriteBits(static_cast<uint32>(Value.Z), 32U);
 					}
 				}
 			}
@@ -822,9 +822,9 @@ void FVectorNetQuantizeNormalNetSerializer::Quantize(FNetSerializationContext&, 
 	QuantizedType& Target = *reinterpret_cast<QuantizedType*>(Args.Target);
 
 	QuantizedType TempValue = {};
-	TempValue.X = QuantizeSignedUnitFloat(Source.X, PrecisionBitCount);
-	TempValue.Y = QuantizeSignedUnitFloat(Source.Y, PrecisionBitCount);
-	TempValue.Z = QuantizeSignedUnitFloat(Source.Z, PrecisionBitCount);
+	TempValue.X = QuantizeSignedUnitFloat(static_cast<float>(Source.X), PrecisionBitCount);
+	TempValue.Y = QuantizeSignedUnitFloat(static_cast<float>(Source.Y), PrecisionBitCount);
+	TempValue.Z = QuantizeSignedUnitFloat(static_cast<float>(Source.Z), PrecisionBitCount);
 
 	Target = TempValue;
 }
@@ -857,17 +857,17 @@ bool FVectorNetQuantizeNormalNetSerializer::IsEqual(FNetSerializationContext& Co
 		const SourceType& SourceValue0 = *reinterpret_cast<const SourceType*>(Args.Source0);
 		const SourceType& SourceValue1 = *reinterpret_cast<const SourceType*>(Args.Source1);
 
-		if (QuantizeSignedUnitFloat(SourceValue0.X, PrecisionBitCount) != QuantizeSignedUnitFloat(SourceValue1.X, PrecisionBitCount))
+		if (QuantizeSignedUnitFloat(static_cast<float>(SourceValue0.X), PrecisionBitCount) != QuantizeSignedUnitFloat(static_cast<float>(SourceValue1.X), PrecisionBitCount))
 		{
 			return false;
 		}
 
-		if (QuantizeSignedUnitFloat(SourceValue0.Y, PrecisionBitCount) != QuantizeSignedUnitFloat(SourceValue1.Y, PrecisionBitCount))
+		if (QuantizeSignedUnitFloat(static_cast<float>(SourceValue0.Y), PrecisionBitCount) != QuantizeSignedUnitFloat(static_cast<float>(SourceValue1.Y), PrecisionBitCount))
 		{
 			return false;
 		}
 
-		if (QuantizeSignedUnitFloat(SourceValue0.Z, PrecisionBitCount) != QuantizeSignedUnitFloat(SourceValue1.Z, PrecisionBitCount))
+		if (QuantizeSignedUnitFloat(static_cast<float>(SourceValue0.Z), PrecisionBitCount) != QuantizeSignedUnitFloat(static_cast<float>(SourceValue1.Z), PrecisionBitCount))
 		{
 			return false;
 		}

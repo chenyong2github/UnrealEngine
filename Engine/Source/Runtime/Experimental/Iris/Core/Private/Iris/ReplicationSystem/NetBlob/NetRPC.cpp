@@ -274,8 +274,8 @@ void FNetRPC::DeserializeFunctionLocator(FNetSerializationContext& Context)
 	UE_NET_TRACE_SCOPE(FunctionLocator, *Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 
 	const uint32 NibbleCount = Reader->ReadBits(2U) + 1U;
-	FunctionLocator.DescriptorIndex = Reader->ReadBits(NibbleCount*4U);
-	FunctionLocator.FunctionIndex = Reader->ReadBits(NibbleCount*4U);
+	FunctionLocator.DescriptorIndex = static_cast<uint16>(Reader->ReadBits(NibbleCount*4U));
+	FunctionLocator.FunctionIndex = static_cast<uint16>(Reader->ReadBits(NibbleCount*4U));
 }
 
 void FNetRPC::InternalSerializeObjectReference(FNetSerializationContext& Context) const
@@ -557,8 +557,8 @@ bool FNetRPC::IsServerAllowedToExecuteRPC(FNetSerializationContext& Context) con
 			{
 				if (FunctionDescriptor.Function == Function)
 				{
-					OutFunctionLocator.DescriptorIndex = &Descriptor - Protocol->ReplicationStateDescriptors;
-					OutFunctionLocator.FunctionIndex = &FunctionDescriptor - Descriptor->MemberFunctionDescriptors;
+					OutFunctionLocator.DescriptorIndex = static_cast<uint16>(&Descriptor - Protocol->ReplicationStateDescriptors);
+					OutFunctionLocator.FunctionIndex = static_cast<uint16>(&FunctionDescriptor - Descriptor->MemberFunctionDescriptors);
 					OutFunctionDescriptor = &FunctionDescriptor;
 					return true;
 				}

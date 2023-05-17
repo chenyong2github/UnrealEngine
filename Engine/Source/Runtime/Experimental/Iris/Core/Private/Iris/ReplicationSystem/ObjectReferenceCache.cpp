@@ -1191,7 +1191,7 @@ void FObjectReferenceCache::ReadFullReferenceInternal(FNetSerializationContext& 
 	if (bIsExported)
 	{
 		// Can we load this object?
-		bNoLoad = Reader->ReadBits(1U);
+		bNoLoad = Reader->ReadBits(1U) & 1;
 		if (Reader->IsOverflown())
 		{
 			check(false);

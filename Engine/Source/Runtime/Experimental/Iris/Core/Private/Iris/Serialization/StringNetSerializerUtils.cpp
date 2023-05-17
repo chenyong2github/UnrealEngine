@@ -46,7 +46,7 @@ void FStringNetSerializerBase::Deserialize(FNetSerializationContext& Context, co
 	}
 
 	Target.bIsEncoded = bIsEncoded;
-	FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, Target, (NewElementCount > 0 ? NewElementCount + 1 : 0));
+	FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, Target, static_cast<uint16>(NewElementCount > 0 ? NewElementCount + 1 : 0));
 	if (NewElementCount > 0)
 	{
 		Reader->ReadBitStream(static_cast<uint32*>(Target.ElementStorage), NewElementCount*8U);
@@ -81,17 +81,28 @@ void FStringNetSerializerBase::Quantize(FNetSerializationContext& Context, const
 	if (Target.bIsEncoded)
 	{
 		const uint32 StringLength = Source.Len() + 1U;
-		FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, Target, 3U*StringLength);
+		constexpr uint32 MaxStringLength = 65535U/3U;
+		if (StringLength > MaxStringLength)
+		{
+			Context.SetError(GNetError_ArraySizeTooLarge);
+			return;
+		}
+		FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, Target, static_cast<uint16>(3U*StringLength));
 
 		uint32 OutDestLen = 0;
 		uint8* EncodingBuffer = static_cast<uint8*>(Target.ElementStorage);
 		const bool bEncodingSuccess = FStringNetSerializerUtils::TStringCodec<FString::ElementType>::Encode(EncodingBuffer, 3U*StringLength, GetData(Source), StringLength, OutDestLen);
-		Target.ElementCount = OutDestLen;
+		Target.ElementCount = static_cast<uint16>(OutDestLen);
 	}
 	else
 	{
 		const uint32 StringLength = Source.Len();
-		FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, Target, StringLength > 0 ? StringLength + 1 : 0);
+		if (StringLength + 1U > 65535U)
+		{
+			Context.SetError(GNetError_ArraySizeTooLarge);
+			return;
+		}
+		FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, Target, static_cast<uint16>(StringLength > 0 ? StringLength + 1 : 0));
 		if (StringLength > 0)
 		{
 			const TCHAR* SourceString = GetData(Source);

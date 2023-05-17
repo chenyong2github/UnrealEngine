@@ -244,8 +244,8 @@ UDataStreamManager::EWriteResult UDataStreamManager::FImpl::WriteData(UE::Net::F
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
 
-	const SIZE_T StreamCount = Streams.Num();
-	if (StreamCount == 0)
+	const int32 StreamCount = Streams.Num();
+	if (StreamCount <= 0)
 	{
 		return EWriteResult::NoData;
 	}

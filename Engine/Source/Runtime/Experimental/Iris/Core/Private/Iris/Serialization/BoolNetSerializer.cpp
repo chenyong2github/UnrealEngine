@@ -41,7 +41,7 @@ void FBoolNetSerializer::Serialize(FNetSerializationContext& Context, const FNet
 void FBoolNetSerializer::Deserialize(FNetSerializationContext& Context, const FNetDeserializeArgs& Args)
 {
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
-	const SourceType Value = Reader->ReadBits(1U);
+	const SourceType Value = static_cast<SourceType>(Reader->ReadBits(1U));
 
 	SourceType* Target = reinterpret_cast<SourceType*>(Args.Target);
 	*Target = Value;

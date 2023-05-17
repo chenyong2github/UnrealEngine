@@ -92,7 +92,7 @@ bool FindRepTag(const FReplicationProtocol* Protocol, FRepTag RepTag, FRepTagFin
 		
 		if (FindRepTag(StateDescriptor, RepTag, OutRepTagFindInfo))
 		{
-			OutRepTagFindInfo.StateIndex = &StateDescriptor - Protocol->ReplicationStateDescriptors;
+			OutRepTagFindInfo.StateIndex = static_cast<uint32>(&StateDescriptor - Protocol->ReplicationStateDescriptors);
 			OutRepTagFindInfo.InternalStateAbsoluteOffset += InternalOffset;
 			return true;
 		}

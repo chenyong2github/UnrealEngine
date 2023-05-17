@@ -75,7 +75,7 @@ public:
 	// PeekInfo . If the info indicates there's an attachment record one should call DequeueAttachmentRecord() as well.
 	inline const FRecordInfo& PeekInfo() const { return RecordInfos.Peek(); }
 	inline const FRecordInfo& PeekInfoAtOffset(uint32 Offset) const { return RecordInfos.PeekAtOffset(Offset); }
-	inline const uint16 GetInfoCount() const { return RecordInfos.Count(); }
+	inline const uint32 GetInfoCount() const { return static_cast<uint32>(RecordInfos.Count()); }
 
 	// If the info from PeekInfo() indicates there's an attachment record one need to call this function as well.
 	uint64 DequeueAttachmentRecord();
@@ -92,7 +92,7 @@ public:
 	inline const uint32 PeekRecordAtOffset(uint32 Offset) const { return Record.PeekAtOffset(Offset); }
 
 	// Num Records
-	inline const uint32 GetRecordCount() const { return Record.Count(); }
+	inline const uint32 GetRecordCount() const { return static_cast<uint32>(Record.Count()); }
 	
 private:
 

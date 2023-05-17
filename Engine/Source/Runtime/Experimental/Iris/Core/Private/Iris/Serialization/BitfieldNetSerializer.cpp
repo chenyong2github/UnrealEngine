@@ -38,7 +38,7 @@ void FBitfieldNetSerializer::Serialize(FNetSerializationContext& Context, const 
 void FBitfieldNetSerializer::Deserialize(FNetSerializationContext& Context, const FNetDeserializeArgs& Args)
 {
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
-	const QuantizedType Value = Reader->ReadBits(1U);
+	const QuantizedType Value = static_cast<QuantizedType>(Reader->ReadBits(1U));
 
 	QuantizedType* Target = reinterpret_cast<QuantizedType*>(Args.Target);
 	*Target = Value;

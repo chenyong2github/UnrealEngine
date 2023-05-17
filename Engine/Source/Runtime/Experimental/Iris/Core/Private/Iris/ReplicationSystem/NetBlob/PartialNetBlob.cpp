@@ -262,8 +262,8 @@ void FPartialNetBlob::SplitPayload(const FPartialNetBlob::FPayloadSplitParams& S
 		FPartialNetBlob* PartialBlob = new FPartialNetBlob(SplitParams.CreationInfo);
 		PartialBlob->SetDebugName(SplitParams.DebugName);
 		PartialBlob->OriginalCreationInfo = SplitParams.OriginalCreationInfo;
-		PartialBlob->PartIndex = PartIt;
-		PartialBlob->PartCount = PartialBlobCount;
+		PartialBlob->PartIndex = static_cast<uint16>(PartIt);
+		PartialBlob->PartCount = static_cast<uint16>(PartialBlobCount);
 		if (bIsFirstPart && EnumHasAnyFlags(SplitParams.OriginalCreationInfo.Flags, ENetBlobFlags::HasExports))
 		{
 			PartialBlob->OriginalBlob = SplitParams.OriginalBlob;
@@ -274,7 +274,7 @@ void FPartialNetBlob::SplitPayload(const FPartialNetBlob::FPayloadSplitParams& S
 		const uint32 PartialBlobBitCount = FPlatformMath::Min(SplitParams.PayloadBitCount - PayloadBitOffset, SplitParams.PartBitCount);
 		const uint32 PartialBlobWordCount = (PartialBlobBitCount + 31U)/32U;
 		const uint32 PayloadWordOffset = PayloadBitOffset/32U;
-		PartialBlob->PayloadBitCount = PartialBlobBitCount;
+		PartialBlob->PayloadBitCount = static_cast<uint16>(PartialBlobBitCount);
 		PartialBlob->Payload.SetNumUninitialized(PartialBlobWordCount);
 		FPlatformMemory::Memcpy(PartialBlob->Payload.GetData(), SplitParams.Payload + PayloadWordOffset, PartialBlobWordCount*4U);
 

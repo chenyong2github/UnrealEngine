@@ -390,7 +390,7 @@ bool FReplicationPrioritization::SetPrioritizer(uint32 ObjectIndex, FNetObjectPr
 		FPrioritizerInfo& PrioritizerInfo = PrioritizerInfos[NewPrioritizer];
 		if (PrioritizerInfo.Prioritizer->AddObject(ObjectIndex, AddParams))
 		{
-			Prioritizer = NewPrioritizer;
+			Prioritizer = static_cast<uint8>(NewPrioritizer);
 			++PrioritizerInfo.ObjectCount;
 			return true;
 		}
@@ -699,7 +699,7 @@ void FReplicationPrioritization::PrioritizeForConnection(uint32 ConnId, FPriorit
 					PrioParameters.ObjectIndices = PerPrioritizerInfo.ObjectIndices.GetFirstChunkData();
 					PrioParameters.ObjectCount = PerPrioritizerInfo.ObjectIndices.GetFirstChunkNum();
 
-					const SIZE_T PrioritizerIndex = &PerPrioritizerInfo - BatchHelper.PerPrioritizerInfos.GetData();
+					const int32 PrioritizerIndex = static_cast<int32>(&PerPrioritizerInfo - BatchHelper.PerPrioritizerInfos.GetData());
 					UNetObjectPrioritizer* Prioritizer = PrioritizerInfos[PrioritizerIndex].Prioritizer.Get();
 					Prioritizer->Prioritize(PrioParameters);
 
@@ -720,7 +720,7 @@ void FReplicationPrioritization::PrioritizeForConnection(uint32 ConnId, FPriorit
 				PrioParameters.ObjectIndices = PerPrioritizerInfo.ObjectIndices.GetFirstChunkData();
 				PrioParameters.ObjectCount = PerPrioritizerInfo.ObjectIndices.GetFirstChunkNum();
 
-				const SIZE_T PrioritizerIndex = &PerPrioritizerInfo - BatchHelper.PerPrioritizerInfos.GetData();
+				const int32 PrioritizerIndex = static_cast<int32>(&PerPrioritizerInfo - BatchHelper.PerPrioritizerInfos.GetData());
 				UNetObjectPrioritizer* Prioritizer = PrioritizerInfos[PrioritizerIndex].Prioritizer.Get();
 				Prioritizer->Prioritize(PrioParameters);
 
@@ -778,7 +778,7 @@ void FReplicationPrioritization::BatchNotifyPrioritizersOfDirtyObjects(FUpdateDi
 		UpdateParameters.ObjectCount = PerPrioritizerInfo.ObjectCount;
 		UpdateParameters.InstanceProtocols = PerPrioritizerInfo.InstanceProtocols;
 
-		const SIZE_T PrioritizerIndex = &PerPrioritizerInfo - BatchHelper.PerPrioritizerInfos.GetData();
+		const int32 PrioritizerIndex = static_cast<int32>(&PerPrioritizerInfo - BatchHelper.PerPrioritizerInfos.GetData());
 		UNetObjectPrioritizer* Prioritizer = PrioritizerInfos[PrioritizerIndex].Prioritizer.Get();
 		Prioritizer->UpdateObjects(UpdateParameters);
 	}
@@ -798,6 +798,9 @@ void FReplicationPrioritization::InitPrioritizers()
 	PrioritizerDefinitions = TStrongObjectPtr<UNetObjectPrioritizerDefinitions>(NewObject<UNetObjectPrioritizerDefinitions>());
 	TArray<FNetObjectPrioritizerDefinition> Definitions;
 	PrioritizerDefinitions->GetValidDefinitions(Definitions);
+
+	// We store a uint8 per object to prioritizer.
+	check(Definitions.Num() <= 256);
 
 	PrioritizerInfos.Reserve(Definitions.Num());
 	for (FNetObjectPrioritizerDefinition& Definition : Definitions)

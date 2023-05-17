@@ -141,7 +141,7 @@ void FNameNetSerializer::Deserialize(FNetSerializationContext& Context, const FN
 		Target.bEncodeNumberFromIntMax = bEncodeNumberFromIntMax;
 		Target.bIsEncoded = bIsEncoded;
 		Target.ENameOrNumber = Number;
-		FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, Target, NewElementCount);
+		FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, Target, static_cast<uint16>(NewElementCount));
 		Reader->ReadBitStream(static_cast<uint32*>(Target.ElementStorage), (NewElementCount - 1U)*8U);
 		static_cast<uint8*>(Target.ElementStorage)[NewElementCount - 1] = 0;
 		if (bIsEncoded && !FStringNetSerializerUtils::TStringCodec<WIDECHAR>::IsValidEncoding(static_cast<uint8*>(Target.ElementStorage), NewElementCount - 1U))
@@ -199,14 +199,20 @@ void FNameNetSerializer::Quantize(FNetSerializationContext& Context, const FNetQ
 
 			// Our codec uses up to 3 bytes per codepoint
 			const uint32 NameLength = DisplayNameEntry->GetNameLength() + 1U;
-			FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, TargetName, 3U*NameLength);
+			constexpr uint32 MaxArrayCount = 65536U/3U;
+			if (NameLength > MaxArrayCount)
+			{
+				Context.SetError(GNetError_ArraySizeTooLarge);
+				return;
+			}
+			FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, TargetName, static_cast<uint16>(3U*NameLength));
 
 			uint32 OutDestLen = 0;
 			uint8* EncodingBuffer = static_cast<uint8*>(TargetName.ElementStorage);
 			const bool bEncodingSuccess = FStringNetSerializerUtils::TStringCodec<WIDECHAR>::Encode(EncodingBuffer, 3U*NameLength, TempWideBuffer, NameLength, OutDestLen);
 			if (bEncodingSuccess)
 			{
-				TargetName.ElementCount = OutDestLen;
+				TargetName.ElementCount = static_cast<uint16>(OutDestLen);
 			}
 			else
 			{
@@ -219,7 +225,13 @@ void FNameNetSerializer::Quantize(FNetSerializationContext& Context, const FNetQ
 		{
 			// For debugging purposes we store null terminated strings.
 			const uint32 NewElementCount = DisplayNameEntry->GetNameLength() + 1U;
-			FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, TargetName, NewElementCount);
+			constexpr uint32 MaxArrayCount = 65536U;
+			if (NewElementCount > MaxArrayCount)
+			{
+				Context.SetError(GNetError_ArraySizeTooLarge);
+				return;
+			}
+			FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, TargetName, static_cast<uint16>(NewElementCount));
 
 			// At this time it's impossible to avoid the double copy unless we use a fixed excessive storage
 			ANSICHAR TempAnsiBuffer[NAME_SIZE];
@@ -234,7 +246,7 @@ void FNameNetSerializer::Quantize(FNetSerializationContext& Context, const FNetQ
 	}
 	else
 	{
-		constexpr uint32 NewElementCount = 0U;
+		constexpr uint16 NewElementCount = 0U;
 		FStringNetSerializerUtils::AdjustArraySize<QuantizedType, uint8>(Context, TargetName, NewElementCount);
 
 		TargetName.bIsString = 0;

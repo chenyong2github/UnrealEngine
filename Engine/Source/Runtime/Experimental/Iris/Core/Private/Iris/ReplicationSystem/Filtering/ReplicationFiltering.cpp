@@ -225,7 +225,7 @@ FReplicationFiltering::FReplicationFiltering()
 
 void FReplicationFiltering::StaticChecks()
 {
-	static_assert(TNumericLimits<PerObjectInfoIndexType>::Max() % (UsedPerObjectInfoStorageGrowSize*32U) == UsedPerObjectInfoStorageGrowSize*32U - 1, "Bit array grow code expects not to be able to return an out of bound index.");
+	static_assert(std::numeric_limits<PerObjectInfoIndexType>::max() % (UsedPerObjectInfoStorageGrowSize*32U) == UsedPerObjectInfoStorageGrowSize*32U - 1, "Bit array grow code expects not to be able to return an out of bound index.");
 	static_assert(sizeof(FNetBitArrayBase::StorageWordType) == sizeof(uint32), "Expected FNetBitArrayBase::StorageWordType to be four bytes in size."); 
 }
 
@@ -391,7 +391,7 @@ void FReplicationFiltering::SetOwningConnection(FInternalNetRefIndex ObjectIndex
 	}
 
 	const uint16 OldConnectionId = ObjectIndexToOwningConnection[ObjectIndex];
-	ObjectIndexToOwningConnection[ObjectIndex] = ConnectionId;
+	ObjectIndexToOwningConnection[ObjectIndex] = static_cast<uint16>(ConnectionId);
 	if (ConnectionId != OldConnectionId)
 	{
 		bHasDirtyOwner = 1;
@@ -459,7 +459,7 @@ bool FReplicationFiltering::SetFilter(FInternalNetRefIndex ObjectIndex, FNetObje
 		{
 			++FilterInfo.ObjectCount;
 			FilterInfo.FilteredObjects.SetBit(ObjIndex);
-			this->ObjectIndexToDynamicFilterIndex[ObjIndex] = FilterIndex;
+			this->ObjectIndexToDynamicFilterIndex[ObjIndex] = static_cast<uint8>(FilterIndex);
 			this->DynamicFilterEnabledObjects.SetBit(ObjIndex);
 			return true;
 		}
@@ -568,7 +568,7 @@ FNetObjectFilterHandle FReplicationFiltering::GetFilterHandle(const FName Filter
 	{
 		if (Info.Name == FilterName)
 		{
-			return FNetObjectFilterHandleUtil::MakeDynamicFilterHandle(&Info - DynamicFilterInfos.GetData());
+			return FNetObjectFilterHandleUtil::MakeDynamicFilterHandle(static_cast<uint32>(&Info - DynamicFilterInfos.GetData()));
 		}
 	}
 
@@ -640,7 +640,7 @@ void FReplicationFiltering::RemoveConnection(uint32 ConnectionId)
 	// Reset SubObject filter for removed connection
 	SubObjectFilterGroups.ForAllSetBits([this, ConnectionId](uint32 GroupIndex)
 	{
-		FNetObjectGroupHandle GroupHandle(GroupIndex);
+		FNetObjectGroupHandle GroupHandle(static_cast<uint16>(GroupIndex));
 		if (!IsReservedNetObjectGroupHandle(GroupHandle))
 		{
 			SetConnectionFilterStatus(*GetPerObjectInfo(GroupInfos[GroupHandle].ConnectionStateIndex), ConnectionId, ENetFilterStatus::Disallow);
@@ -689,7 +689,7 @@ void FReplicationFiltering::InitNewConnections()
 		{
 			auto InitGroupFilterForConnection = [this, &ConnectionInfo, ConnectionId](uint32 GroupIndex)
 			{
-				const FNetObjectGroupHandle GroupHandle = GroupIndex;
+				const FNetObjectGroupHandle GroupHandle = static_cast<uint16>(GroupIndex);
 				const FPerObjectInfo* ConnectionState = GetPerObjectInfo(this->GroupInfos[GroupIndex].ConnectionStateIndex);
 
 				// Setup filter for connection
@@ -988,7 +988,7 @@ void FReplicationFiltering::UpdateOwnerAndConnectionFiltering()
 				const FNetRefHandleManager::FReplicatedObjectData& ObjectData = NetRefHandleManager->GetReplicatedObjectDataNoCheck(SubObjectIndex);
 				if (ObjectData.IsSubObject())
 				{
-					ObjectIndexToOwningConnectionStorage[SubObjectIndex] = OwningConnectionId;
+					ObjectIndexToOwningConnectionStorage[SubObjectIndex] = static_cast<uint16>(OwningConnectionId);
 				}
 			}
 		};
@@ -1075,7 +1075,7 @@ void FReplicationFiltering::UpdateGroupFiltering()
 			IRIS_PROFILER_SCOPE(FReplicationFiltering_UpdateGroupFiltering);
 
 			const FPerObjectInfo* ConnectionStateInfo = GetPerObjectInfo(this->GroupInfos[GroupIndex].ConnectionStateIndex);
-			const FNetObjectGroup* Group = this->Groups->GetGroup(GroupIndex);
+			const FNetObjectGroup* Group = this->Groups->GetGroup(FNetObjectGroupHandle(GroupIndex));
 			FPerConnectionInfo* LocalConnectionInfos = this->ConnectionInfos.GetData();
 
 			auto UpdateGroupFilterForConnection = [this, ConnectionStateInfo, Group, LocalConnectionInfos](uint32 ConnectionId)
@@ -1225,7 +1225,7 @@ void FReplicationFiltering::UpdateDynamicFiltering(ENetFilterType FilterType)
 			const uint32* DynamicFilterEnabledObjectsData = DynamicFilterEnabledObjects.GetData();
 			FNetBitArrayView DynamicFilteredOutObjects = MakeNetBitArrayView(ConnectionInfo.DynamicFilteredOutObjects);
 			uint32* DynamicFilteredOutObjectsData = ConnectionInfo.DynamicFilteredOutObjects.GetData();
-			for (SIZE_T WordIt = 0, WordEndIt = WordCountForObjectBitArrays; WordIt != WordEndIt; ++WordIt)
+			for (uint32 WordIt = 0, WordEndIt = WordCountForObjectBitArrays; WordIt != WordEndIt; ++WordIt)
 			{
 				const uint32 SubObjects = SubObjectsData[WordIt];
 				const uint32 DependentObjects = DependentObjectsData[WordIt];
@@ -1385,7 +1385,7 @@ void FReplicationFiltering::BatchNotifyFiltersOfDirtyObjects(FUpdateDirtyObjects
 		UpdateParameters.ObjectCount = PerFilterInfo.ObjectCount;
 		UpdateParameters.InstanceProtocols = PerFilterInfo.InstanceProtocols;
 
-		const SIZE_T FilterIndex = &PerFilterInfo - BatchHelper.PerFilterInfos.GetData();
+		const int32 FilterIndex = static_cast<int32>(&PerFilterInfo - BatchHelper.PerFilterInfos.GetData());
 		UNetObjectFilter* Filter = DynamicFilterInfos[FilterIndex].Filter.Get();
 		Filter->UpdateObjects(UpdateParameters);
 	}
@@ -1413,7 +1413,7 @@ FReplicationFiltering::PerObjectInfoIndexType FReplicationFiltering::AllocPerObj
 	// Grow used indices bit array if needed
 	if (FreeIndex == FNetBitArrayView::InvalidIndex)
 	{
-		checkf(UsedPerObjectInfos.GetNumBits() < TNumericLimits<PerObjectInfoIndexType>::Max(), TEXT("Filtering per object info storage exhausted. Contact the UE Network team."));
+		checkf(UsedPerObjectInfos.GetNumBits() < std::numeric_limits<PerObjectInfoIndexType>::max(), TEXT("Filtering per object info storage exhausted. Contact the UE Network team."));
 		FreeIndex = UsedPerObjectInfos.GetNumBits();
 		UsedPerObjectInfoStorage.AddZeroed(UsedPerObjectInfoStorageGrowSize/UsedPerObjectInfoBitsPerWord);
 		FNetBitArrayView NewUsedPerObjectInfos = MakeNetBitArrayView(UsedPerObjectInfoStorage.GetData(), UsedPerObjectInfoStorage.Num()*UsedPerObjectInfoBitsPerWord);
@@ -1431,7 +1431,7 @@ FReplicationFiltering::PerObjectInfoIndexType FReplicationFiltering::AllocPerObj
 		UsedPerObjectInfos.SetBit(FreeIndex);
 	}
 	
-	return FreeIndex;
+	return static_cast<PerObjectInfoIndexType>(FreeIndex);
 }
 
 void FReplicationFiltering::FreePerObjectInfo(PerObjectInfoIndexType Index)
@@ -1527,7 +1527,7 @@ void FReplicationFiltering::UpdateSubObjectFilters()
 	// We want to remove all groups that have no members and no enabled connections
 	auto UpdateSubObjectFilterGroup = [this](uint32 GroupIndex)
 	{
-		FNetObjectGroupHandle GroupHandle(GroupIndex);
+		FNetObjectGroupHandle GroupHandle(static_cast<uint16>(GroupIndex));
 		if (const FNetObjectGroup* Group = Groups->GetGroup(FNetObjectGroupHandle(GroupIndex)))
 		{
 			if (Group->Members.Num() == 0U && !IsConnectionFilterStatusAllowedForAnyConnection(*GetPerObjectInfo(GroupInfos[GroupHandle].ConnectionStateIndex)))
@@ -2008,6 +2008,10 @@ void FReplicationFiltering::SetPerObjectInfoFilterStatus(FPerObjectInfo& ObjectI
 void FReplicationFiltering::InitFilters()
 {
 	const UNetObjectFilterDefinitions* FilterDefinitions = GetDefault<UNetObjectFilterDefinitions>();
+
+	// We store a uint8 per object to filter.
+	check(FilterDefinitions->GetFilterDefinitions().Num() <= 256);
+
 	for (const FNetObjectFilterDefinition& FilterDefinition : FilterDefinitions->GetFilterDefinitions())
 	{
 		constexpr UObject* ClassOuter = nullptr;

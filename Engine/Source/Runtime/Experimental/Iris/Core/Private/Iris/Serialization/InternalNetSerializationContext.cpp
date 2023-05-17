@@ -18,7 +18,7 @@ FInternalNetSerializationContext::FInternalNetSerializationContext(UReplicationS
 
 void* FInternalNetSerializationContext::Alloc(SIZE_T Size, SIZE_T Alignment)
 {
-	return GMalloc->Malloc(Size, Alignment);
+	return GMalloc->Malloc(Size, static_cast<uint32>(Alignment));
 }
 
 void FInternalNetSerializationContext::Free(void* Ptr)

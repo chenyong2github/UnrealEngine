@@ -142,11 +142,11 @@ void FRotatorAsShortNetSerializer::Deserialize(FNetSerializationContext& Context
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
 
 	QuantizedType Value;
-	const uint32 XYZIsNotZero = Reader->ReadBits(3U);
+	const uint16 XYZIsNotZero = static_cast<uint16>(Reader->ReadBits(3U));
 	Value.XYZIsNotZero = XYZIsNotZero;
-	Value.X = XYZIsNotZero & XDiffersMask ? Reader->ReadBits(16U) : 0U;
-	Value.Y = XYZIsNotZero & YDiffersMask ? Reader->ReadBits(16U) : 0U;
-	Value.Z = XYZIsNotZero & ZDiffersMask ? Reader->ReadBits(16U) : 0U;
+	Value.X = static_cast<uint16>(XYZIsNotZero & XDiffersMask ? Reader->ReadBits(16U) : 0U);
+	Value.Y = static_cast<uint16>(XYZIsNotZero & YDiffersMask ? Reader->ReadBits(16U) : 0U);
+	Value.Z = static_cast<uint16>(XYZIsNotZero & ZDiffersMask ? Reader->ReadBits(16U) : 0U);
 
 	QuantizedType& Target = *reinterpret_cast<QuantizedType*>(Args.Target);
 	Target = Value;
@@ -196,22 +196,22 @@ void FRotatorAsShortNetSerializer::DeserializeDelta(FNetSerializationContext& Co
 	const uint32 XYZDiffers = Reader->ReadBits(3U);
 	if (XYZDiffers & XDiffersMask)
 	{
-		const uint16 DX = Reader->ReadBits(16U);
+		const uint16 DX = static_cast<uint16>(Reader->ReadBits(16U));
 		TempValue.X += DX;
 	}
 	if (XYZDiffers & YDiffersMask)
 	{
-		const uint16 DY = Reader->ReadBits(16U);
+		const uint16 DY = static_cast<uint16>(Reader->ReadBits(16U));
 		TempValue.Y += DY;
 	}
 	if (XYZDiffers & ZDiffersMask)
 	{
-		const uint16 DZ = Reader->ReadBits(16U);
+		const uint16 DZ = static_cast<uint16>(Reader->ReadBits(16U));
 		TempValue.Z += DZ;
 	}
 
 	// Reconstruct flags
-	uint32 XYZIsNotZero = 0U;
+	uint16 XYZIsNotZero = 0U;
 	XYZIsNotZero |= (TempValue.X != 0 ? XDiffersMask : 0U);
 	XYZIsNotZero |= (TempValue.Y != 0 ? YDiffersMask : 0U);
 	XYZIsNotZero |= (TempValue.Z != 0 ? ZDiffersMask : 0U);
@@ -308,11 +308,11 @@ void FRotatorAsByteNetSerializer::Deserialize(FNetSerializationContext& Context,
 	FNetBitStreamReader* Reader = Context.GetBitStreamReader();
 
 	QuantizedType Value;
-	const uint32 XYZIsNotZero = Reader->ReadBits(3U);
+	const uint8 XYZIsNotZero = static_cast<uint8>(Reader->ReadBits(3U));
 	Value.XYZIsNotZero = XYZIsNotZero;
-	Value.X = XYZIsNotZero & XDiffersMask ? Reader->ReadBits(8U) : 0U;
-	Value.Y = XYZIsNotZero & YDiffersMask ? Reader->ReadBits(8U) : 0U;
-	Value.Z = XYZIsNotZero & ZDiffersMask ? Reader->ReadBits(8U) : 0U;
+	Value.X = static_cast<uint8>(XYZIsNotZero & XDiffersMask ? Reader->ReadBits(8U) : 0U);
+	Value.Y = static_cast<uint8>(XYZIsNotZero & YDiffersMask ? Reader->ReadBits(8U) : 0U);
+	Value.Z = static_cast<uint8>(XYZIsNotZero & ZDiffersMask ? Reader->ReadBits(8U) : 0U);
 
 	QuantizedType& Target = *reinterpret_cast<QuantizedType*>(Args.Target);
 	Target = Value;
@@ -354,22 +354,22 @@ void FRotatorAsByteNetSerializer::DeserializeDelta(FNetSerializationContext& Con
 	const uint32 XYZDiffers = Reader->ReadBits(3U);
 	if (XYZDiffers & XDiffersMask)
 	{
-		TempValue.X = Reader->ReadBits(8U);
+		TempValue.X = static_cast<uint8>(Reader->ReadBits(8U));
 	}
 	if (XYZDiffers & YDiffersMask)
 	{
-		TempValue.Y = Reader->ReadBits(8U);
+		TempValue.Y = static_cast<uint8>(Reader->ReadBits(8U));
 	}
 	if (XYZDiffers & ZDiffersMask)
 	{
-		TempValue.Z = Reader->ReadBits(8U);
+		TempValue.Z = static_cast<uint8>(Reader->ReadBits(8U));
 	}
 
 	// Reconstruct flags
-	uint32 XYZIsNotZero = 0U;
-	XYZIsNotZero |= (TempValue.X != 0 ? XDiffersMask : 0U);
-	XYZIsNotZero |= (TempValue.Y != 0 ? YDiffersMask : 0U);
-	XYZIsNotZero |= (TempValue.Z != 0 ? ZDiffersMask : 0U);
+	uint8 XYZIsNotZero = 0U;
+	XYZIsNotZero |= static_cast<uint8>(TempValue.X != 0 ? XDiffersMask : 0U);
+	XYZIsNotZero |= static_cast<uint8>(TempValue.Y != 0 ? YDiffersMask : 0U);
+	XYZIsNotZero |= static_cast<uint8>(TempValue.Z != 0 ? ZDiffersMask : 0U);
 	TempValue.XYZIsNotZero = XYZIsNotZero;
 
 	QuantizedType& Target = *reinterpret_cast<QuantizedType*>(Args.Target);

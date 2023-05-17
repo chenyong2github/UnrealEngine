@@ -35,6 +35,10 @@ static FAutoConsoleVariableRef CVarIrisLogReplicationProtocols(
 FReplicationInstanceProtocol* FReplicationProtocolManager::CreateInstanceProtocol(const FReplicationFragments& Fragments)
 {
 	const uint32 FragmentCount = Fragments.Num();
+	if (!ensure(FragmentCount < 65536))
+	{
+		return nullptr;
+	}
 
 	// We want to keep this as a single allocation so we first build a layout and allocate enough space for the InstanceProtocol and its data
 	struct FReplicationInstanceProtocolLayoutData
@@ -51,14 +55,13 @@ FReplicationInstanceProtocol* FReplicationProtocolManager::CreateInstanceProtoco
 	FMemoryLayoutUtil::AddToLayout<FReplicationFragment*>(Layout, LayoutData.FragmentsSizeAndOffset, FragmentCount);
 
 	// Allocate memory for the instance protocol
-	uint8* Buffer = (uint8*)FMemory::Malloc(Layout.CurrentOffset, Layout.MaxAlignment);
-	FMemory::Memset(Buffer, 0, Layout.CurrentOffset);
+	uint8* Buffer = static_cast<uint8*>(FMemory::MallocZeroed(Layout.CurrentOffset, static_cast<uint32>(Layout.MaxAlignment)));
 
 	// Init FReplicationInstanceProtocol
 	FReplicationInstanceProtocol* InstanceProtocol = new (Buffer) FReplicationInstanceProtocol;
 	InstanceProtocol->FragmentData = reinterpret_cast<FReplicationInstanceProtocol::FFragmentData*>(Buffer + LayoutData.FragmentDataSizeAndOffset.Offset);
 	InstanceProtocol->Fragments = reinterpret_cast<FReplicationFragment* const *>(Buffer + LayoutData.FragmentsSizeAndOffset.Offset);
-	InstanceProtocol->FragmentCount = FragmentCount;
+	InstanceProtocol->FragmentCount = static_cast<uint16>(FragmentCount);
 
 	// Fill in fragment data and fragment pointer
 	uint32 FragmentIt = 0u;
@@ -230,6 +233,10 @@ const FReplicationProtocol* FReplicationProtocolManager::CreateReplicationProtoc
 
 	// Create the protocol
 	const uint32 FragmentCount = Fragments.Num();
+	if (!ensure(FragmentCount <= 65536))
+	{
+		return nullptr;
+	}
 
 	// We want to keep this as a single allocation so we first build a layout and allocate enough space for the InstanceProtocol and its data
 	struct FReplicationProtocolLayoutData
@@ -245,8 +252,7 @@ const FReplicationProtocol* FReplicationProtocolManager::CreateReplicationProtoc
 
 	// Allocate memory for the protocol, the replication protocol must be refcounted by all NetObjects
 	// We could also choose to explicitly control the lifetime 
-	uint8* Buffer = (uint8*)FMemory::Malloc(Layout.CurrentOffset, Layout.MaxAlignment);
-	FMemory::Memset(Buffer, 0, Layout.CurrentOffset);
+	uint8* Buffer = static_cast<uint8*>(FMemory::MallocZeroed(Layout.CurrentOffset, static_cast<uint32>(Layout.MaxAlignment)));
 
 	// Init FReplicationInstanceProtocol
 	FReplicationProtocol* Protocol = new (Buffer) FReplicationProtocol;
@@ -335,8 +341,8 @@ const FReplicationProtocol* FReplicationProtocolManager::CreateReplicationProtoc
 
 		Protocol->InternalChangeMasksOffset = InternalSize;
 
-		Protocol->FirstLifetimeConditionalsStateIndex = FirstLifetimeConditionalsStateIndex;
-		Protocol->LifetimeConditionalsStateCount = LifetimeConditionalsStateCount;
+		Protocol->FirstLifetimeConditionalsStateIndex = static_cast<uint16>(FirstLifetimeConditionalsStateIndex);
+		Protocol->LifetimeConditionalsStateCount = static_cast<uint16>(LifetimeConditionalsStateCount);
 		Protocol->FirstLifetimeConditionalsChangeMaskOffset = FirstLifetimeConditionalsChangeMaskOffset;
 
 		InternalSize += FNetBitArrayView::CalculateRequiredWordCount(ChangeMaskBitCount)*sizeof(FNetBitArrayView::StorageWordType);

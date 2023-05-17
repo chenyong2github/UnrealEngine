@@ -148,7 +148,7 @@ uint16 ReadPackedUint16(FNetBitStreamReader* Reader)
 	const uint32 ByteCountToRead = Reader->ReadBits(1U) + 1U;
 	const uint32 BitCountToRead = ByteCountToRead * 8U;
 
-	const uint16 Value = Reader->ReadBits(BitCountToRead);
+	const uint16 Value = static_cast<uint16>(Reader->ReadBits(BitCountToRead));
 	return Value;
 }
 

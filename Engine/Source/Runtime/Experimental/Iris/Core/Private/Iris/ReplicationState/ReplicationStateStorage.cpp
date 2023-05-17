@@ -390,7 +390,7 @@ FReplicationStateStorage::ObjectInfoIndexType FReplicationStateStorage::AllocPer
 		FPerObjectInfo& ObjectInfo = ObjectInfos[InfoIndex];
 		ObjectInfo = FPerObjectInfo();
 
-		return InfoIndex;
+		return static_cast<ObjectInfoIndexType>(InfoIndex);
 	}
 
 	return InvalidObjectInfoIndex;

@@ -8,8 +8,8 @@ namespace UE::Net::Private
 
 void FNetExports::InitExportRecordForPacket()
 {
-	CurrentExportInfo.NetHandleExportCount = NetHandleExports.Count();
-	CurrentExportInfo.NetTokenExportCount = NetTokenExports.Count();
+	CurrentExportInfo.NetHandleExportCount = static_cast<uint32>(NetHandleExports.Count());
+	CurrentExportInfo.NetTokenExportCount = static_cast<uint32>(NetTokenExports.Count());
 }
 
 void FNetExports::CommitExportsToRecord(FExportScope& ExportScope)
@@ -28,8 +28,8 @@ void FNetExports::CommitExportsToRecord(FExportScope& ExportScope)
 void FNetExports::PushExportRecordForPacket()
 {
 	FExportInfo Info;
-	Info.NetHandleExportCount = NetHandleExports.Count() - CurrentExportInfo.NetHandleExportCount;
-	Info.NetTokenExportCount = NetTokenExports.Count() - CurrentExportInfo.NetTokenExportCount;
+	Info.NetHandleExportCount = static_cast<uint32>(NetHandleExports.Count()) - CurrentExportInfo.NetHandleExportCount;
+	Info.NetTokenExportCount = static_cast<uint32>(NetTokenExports.Count()) - CurrentExportInfo.NetTokenExportCount;
 	ExportRecord.Enqueue(Info);
 }
 

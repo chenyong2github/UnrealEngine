@@ -153,7 +153,7 @@ void SetIrisDebugObjectName(const ANSICHAR* NameBuffer)
 	}
 }
 
-void SetIrisDebugNetRefHandle(uint32 NetRefHandleId)
+void SetIrisDebugNetRefHandle(uint64 NetRefHandleId)
 {
 	IrisDebugHelperInternal::GIrisDebugNetRefHandle = Private::FNetRefHandleManager::MakeNetRefHandleFromId(NetRefHandleId);
 }
@@ -391,7 +391,7 @@ FNetReplicatedObjectDebugInfo DebugNetRefHandle(FNetRefHandle Handle)
 	return DebugNetRefHandleById(Handle.GetId(), Handle.GetReplicationSystemId());
 }
 
-FNetReplicatedObjectDebugInfo DebugNetRefHandleById(uint32 NetRefHandleId, uint32 ReplicationSystemId)
+FNetReplicatedObjectDebugInfo DebugNetRefHandleById(uint64 NetRefHandleId, uint32 ReplicationSystemId)
 {
 	using namespace UE::Net::Private;
 	FNetReplicatedObjectDebugInfo Info = {};

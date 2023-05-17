@@ -122,7 +122,7 @@ uint16 UNetObjectCountLimiter::AllocInternalIndex()
 	}
 
 	InternalObjectIndices.SetBit(Index);
-	return Index;
+	return static_cast<uint16>(Index);
 }
 
 void UNetObjectCountLimiter::FreeInternalIndex(uint16 Index)
@@ -158,7 +158,7 @@ void UNetObjectCountLimiter::PrePrioritizeForRoundRobin()
 
 	if (ObjectCount)
 	{
-		RoundRobinState.NextIndexToConsider = Indices[ObjectCount - 1U] + 1U;
+		RoundRobinState.NextIndexToConsider = static_cast<uint16>(Indices[ObjectCount - 1U] + 1U);
 		for (uint32 Index : MakeArrayView(Indices, ObjectCount))
 		{
 			RoundRobinState.InternalObjectIndices.SetBit(Index);

@@ -39,7 +39,7 @@ bool FNetBlobHandlerManager::RegisterHandler(UNetBlobHandler* Handler)
 	{
 		if (Definition.ClassName.ToString() == ClassName)
 		{
-			const uint32 Index = &Definition - BlobHandlerDefinitions->NetBlobHandlerDefinitions.GetData();
+			const uint32 Index = static_cast<uint32>(&Definition - BlobHandlerDefinitions->NetBlobHandlerDefinitions.GetData());
 			Handler->NetBlobType = Index;
 			Handlers[Index] = Handler;
 			return true;

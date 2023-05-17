@@ -171,7 +171,7 @@ private:
 	uint32 ReadObjectsInBatch(FNetSerializationContext& Context, FNetRefHandle InCompleteHandle, bool bHasBatchOwnerData, uint32 BatchEndBitPosition);
 
 	// Read all objects pending destroy
-	uint16 ReadObjectsPendingDestroy(FNetSerializationContext& Context);
+	uint32 ReadObjectsPendingDestroy(FNetSerializationContext& Context);
 
 	// Read state data for all incoming objects
 	void ReadObjects(FNetSerializationContext& Context, uint32 ObjectCountToRead);

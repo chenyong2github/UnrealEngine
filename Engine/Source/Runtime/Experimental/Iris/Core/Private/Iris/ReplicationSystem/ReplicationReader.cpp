@@ -261,14 +261,14 @@ FNetRefHandle FReplicationReader::ReadNetRefHandleId(FNetSerializationContext& C
 	return RefHandle;
 }
 	
-uint16 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& Context)
+uint32 FReplicationReader::ReadObjectsPendingDestroy(FNetSerializationContext& Context)
 {
 	FNetBitStreamReader& Reader = *Context.GetBitStreamReader();
 
 	UE_NET_TRACE_SCOPE(ObjectsPendingDestroy, Reader, Context.GetTraceCollector(), ENetTraceVerbosity::Trace);
 
 	// Read how many destroyed objects we have
-	const uint16 ObjectsToRead = Reader.ReadBits(16);
+	const uint32 ObjectsToRead = Reader.ReadBits(16);
 	
 	if (!Context.HasErrorOrOverflow())
 	{
@@ -710,8 +710,8 @@ void FReplicationReader::ReadObjectInBatch(FNetSerializationContext& Context, FN
 		IncompleteHandle = ReadNetRefHandleId(Context, Reader);
 	}
 	
-	// Read replicated destroy header if necessary
-	const bool bReadReplicatedDestroyHeader = !IsObjectIndexForOOBAttachment(IncompleteHandle.GetId());
+	// Read replicated destroy header if necessary. We don't know the internal index yet so can't do the more appropriate check IsObjectIndexForOOBAttachment.
+	const bool bReadReplicatedDestroyHeader = IncompleteHandle.IsValid();
 	const uint32 ReplicatedDestroyHeaderFlags = bReadReplicatedDestroyHeader ? Reader.ReadBits(ReplicatedDestroyHeaderFlags_BitCount) : ReplicatedDestroyHeaderFlags_None;
 
 	const bool bHasState = Reader.ReadBool();
@@ -766,7 +766,7 @@ void FReplicationReader::ReadObjectInBatch(FNetSerializationContext& Context, FN
 		}
 		
 		// We got a read error
-		if (Reader.IsOverflown() || IsObjectIndexForOOBAttachment(IncompleteHandle.GetId()))
+		if (Reader.IsOverflown() || !IncompleteHandle.IsValid())
 		{
 			UE_LOG_REPLICATIONREADER_ERROR(TEXT("FReplicationReader::ReadObject Bitstream corrupted."));
 			const FName& NetError = (Reader.IsOverflown() ? GNetError_BitStreamOverflow : GNetError_BitStreamError);
@@ -798,7 +798,7 @@ void FReplicationReader::ReadObjectInBatch(FNetSerializationContext& Context, FN
 	else
 	{
 		bHasErrors = bHasErrors || Context.HasErrorOrOverflow();
-		if (bHasErrors || IsObjectIndexForOOBAttachment(IncompleteHandle.GetId()))
+		if (bHasErrors || !IncompleteHandle.IsValid())
 		{
 			InternalIndex = ObjectIndexForOOBAttachment;
 		}

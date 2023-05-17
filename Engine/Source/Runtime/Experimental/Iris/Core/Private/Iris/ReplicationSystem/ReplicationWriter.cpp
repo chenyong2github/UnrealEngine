@@ -263,7 +263,7 @@ static bool s_ValidateReplicationRecord(const FReplicationRecord* ReplicationRec
 	}
 	
 	// Verify last / first record
-	const uint16 RecordInfoCount = bVerifyFirstRecord ? ReplicationRecord->PeekRecordAtOffset(0) : (ReplicationRecord->PeekRecordAtOffset(ReplicationRecord->GetRecordCount() - 1));
+	const uint32 RecordInfoCount = bVerifyFirstRecord ? ReplicationRecord->PeekRecordAtOffset(0) : ReplicationRecord->PeekRecordAtOffset(ReplicationRecord->GetRecordCount() - 1);
 
 	// check for duplicates
 	{
@@ -1209,7 +1209,7 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 		bool bNeedToResendAttachments = RecordInfo.HasAttachments;
 		bool bNeedToResendState = false;
 
-		FNetBitArrayView LostChangeMask = FChangeMaskUtil::MakeChangeMask(RecordInfo.ChangeMaskOrPtr, (RecordInfo.HasChangeMask ? Info.ChangeMaskBitCount : 1U));
+		FNetBitArrayView LostChangeMask = FChangeMaskUtil::MakeChangeMask(RecordInfo.ChangeMaskOrPtr, static_cast<uint32>(RecordInfo.HasChangeMask ? Info.ChangeMaskBitCount : 1U));
 		if (RecordInfo.HasChangeMask)
 		{
 			// Iterate over all data in flight for this object and mask away any already re-transmitted changes
@@ -2305,7 +2305,7 @@ int FReplicationWriter::PrepareAndSendHugeObjectPayload(FNetSerializationContext
 	const uint32 BitsPerStorageWord = sizeof(HugeObjectStorageType) * 8;
 
 	TArray<HugeObjectStorageType> HugeObjectPayload;
-	HugeObjectPayload.AddUninitialized((PartialNetObjectAttachmentHandler->GetConfig()->GetTotalMaxPayloadBitCount() + (BitsPerStorageWord - 1U))/BitsPerStorageWord);
+	HugeObjectPayload.AddUninitialized(static_cast<int32>(PartialNetObjectAttachmentHandler->GetConfig()->GetTotalMaxPayloadBitCount() + (BitsPerStorageWord - 1U))/BitsPerStorageWord);
 
 	// Setup a special context for the huge object serialization.
 	FNetBitStreamWriter HugeObjectWriter;
@@ -3063,7 +3063,7 @@ UDataStream::EWriteResult FReplicationWriter::Write(FNetSerializationContext& Co
 	FNetBitStreamRollbackScope Rollback(Writer);
 	const uint32 HeaderPos = Writer.GetPosBits();
 
-	uint16 WrittenObjectCount = 0;
+	uint32 WrittenObjectCount = 0;
 	const uint32 OldReplicationInfoCount = ReplicationRecord.GetInfoCount();
 
 	// Written batch count
@@ -3072,7 +3072,7 @@ UDataStream::EWriteResult FReplicationWriter::Write(FNetSerializationContext& Co
 	// Write timestamps etc? Or do we do this in header.
 	// WriteReplicationFrameData();
 
-	const uint16 WrittenObjectsPendingDestroyCount = WriteObjectsPendingDestroy(Context);
+	const uint32 WrittenObjectsPendingDestroyCount = WriteObjectsPendingDestroy(Context);
 	WrittenObjectCount += WrittenObjectsPendingDestroyCount;
 
 	// Only reason for overflow here is if we did not fit header
@@ -3107,14 +3107,14 @@ UDataStream::EWriteResult FReplicationWriter::Write(FNetSerializationContext& Co
 		{
 			// Seek back to HeaderPos and update the header
 			FNetBitStreamWriteScope WriteScope(Writer, HeaderPos);
-			const uint16 TotalWrittenBatchCount = WriteContext.WrittenBatchCount + WrittenObjectsPendingDestroyCount;
+			const uint32 TotalWrittenBatchCount = WriteContext.WrittenBatchCount + WrittenObjectsPendingDestroyCount;
 			Writer.WriteBits(TotalWrittenBatchCount, 16);
 		}
 
 		//UE_LOG_REPLICATIONWRITER(TEXT("FReplicationWriter::Write() Wrote %u Objects for ConnectionId:%u, ReplicationSystemId: %u."), WrittenObjectCount, Parameters.ConnectionId, Parameters.ReplicationSystem->GetId());	
 	
 		// Push record
-		const uint32 ReplicationInfoCount = ReplicationRecord.GetInfoCount() - OldReplicationInfoCount;
+		const uint16 ReplicationInfoCount = static_cast<uint16>(ReplicationRecord.GetInfoCount() - OldReplicationInfoCount);
 		ReplicationRecord.PushRecord(ReplicationInfoCount);
 
 #if UE_NET_VALIDATE_REPLICATION_RECORD
@@ -3339,7 +3339,7 @@ void FReplicationWriter::StopAllReplication()
 		FChangeMaskStorageOrPointer::Free(Info.ChangeMaskOrPtr, Info.ChangeMaskBitCount, s_DefaultChangeMaskAllocator);
 
 		// Release object reference
-		const uint32 InternalIndex = &Info - FirstInfo;
+		const FInternalNetRefIndex InternalIndex = static_cast<FInternalNetRefIndex>(&Info - FirstInfo);
 		NetRefHandleManager->ReleaseNetObjectRef(InternalIndex);
 	}
 }

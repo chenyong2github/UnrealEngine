@@ -5,7 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Serialization/NetSerializerConfig.h"
-
+#include <limits>
 
 /**
  * A FNetSerializer is needed for replication support of a certain type. Most types that can be 
@@ -139,9 +139,9 @@ typedef const FNetSerializerConfig* NetSerializerConfigParam;
 struct FNetSerializerChangeMaskParam
 {
 	/** Offset in the change mask where we store the bits for the member. */
-	uint16 BitOffset = 0;
+	uint32 BitOffset = 0;
 	/** Number of bits used for the member. This is typically 1, except for special cases like arrays. */
-	uint16 BitCount = 0;
+	uint32 BitCount = 0;
 };
 
 /**
@@ -416,11 +416,15 @@ public:
 
 		Serializer.DefaultConfig = Builder.GetDefaultConfig();
 
-		Serializer.QuantizedTypeSize = Builder.GetQuantizedTypeSize();
-		Serializer.QuantizedTypeAlignment = Builder.GetQuantizedTypeAlignment();
+		static_assert(Builder.GetQuantizedTypeSize() <= std::numeric_limits<uint16>::max(), "");
+		Serializer.QuantizedTypeSize = static_cast<uint16>(Builder.GetQuantizedTypeSize());
+		static_assert(Builder.GetQuantizedTypeAlignment() <= std::numeric_limits<uint16>::max(), "");
+		Serializer.QuantizedTypeAlignment = static_cast<uint16>(Builder.GetQuantizedTypeAlignment());
 
-		Serializer.ConfigTypeSize = Builder.GetConfigTypeSize();
-		Serializer.ConfigTypeAlignment = Builder.GetConfigTypeAlignment();
+		static_assert(Builder.GetConfigTypeSize() <= std::numeric_limits<uint16>::max(), "");
+		Serializer.ConfigTypeSize = static_cast<uint16>(Builder.GetConfigTypeSize());
+		static_assert(Builder.GetConfigTypeAlignment() <= std::numeric_limits<uint16>::max(), "");
+		Serializer.ConfigTypeAlignment = static_cast<uint16>(Builder.GetConfigTypeAlignment());
 
 		Serializer.Name = Name;
 		return Serializer;
