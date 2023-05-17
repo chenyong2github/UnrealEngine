@@ -611,7 +611,8 @@ void SNiagaraParameterPanel::RequestRenameSelectedItem() const
 bool SNiagaraParameterPanel::CanRequestRenameSelectedItem() const
 {
 	const TArray<FNiagaraParameterPanelItem>& SelectedItems = ItemSelector->GetSelectedItems();
-	if (SelectedItems.Num() == 1)
+	// it's possible the request rename delegate has not been bound yet as the widget for it might not have been created at this point
+	if (SelectedItems.Num() == 1 && SelectedItems[0].GetOnRequestRename().IsBound())
 	{
 		FText Unused;
 		bool bCheckEmptyNameText = false;
