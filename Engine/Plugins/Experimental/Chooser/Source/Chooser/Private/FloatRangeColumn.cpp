@@ -3,7 +3,31 @@
 
 #include "ChooserPropertyAccess.h"
 
-bool FFloatContextProperty::GetValue(FChooserEvaluationContext& Context, float& OutResult) const
+bool FFloatContextProperty::SetValue(FChooserEvaluationContext& Context, double InValue) const
+{
+	const UStruct* StructType = nullptr;
+	const void* Container = nullptr;
+	
+	if (UE::Chooser::ResolvePropertyChain(Context, Binding, Container, StructType))
+	{
+		if (FDoubleProperty* DoubleProperty = FindFProperty<FDoubleProperty>(StructType, Binding.PropertyBindingChain.Last()))
+		{
+			// const cast is here just because ResolvePropertyChain expects a const void*&
+			*DoubleProperty->ContainerPtrToValuePtr<double>(const_cast<void*>(Container)) = InValue;
+			return true;
+		}
+		if (FFloatProperty* FloatProperty = FindFProperty<FFloatProperty>(StructType, Binding.PropertyBindingChain.Last()))
+        {
+			// const cast is here just because ResolvePropertyChain expects a const void*&
+        	*FloatProperty->ContainerPtrToValuePtr<float>(const_cast<void*>(Container)) = InValue;
+        	return true;
+        }
+	}
+
+	return false;
+}
+
+bool FFloatContextProperty::GetValue(FChooserEvaluationContext& Context, double& OutResult) const
 {
 	const UStruct* StructType = nullptr;
 	const void* Container = nullptr;
@@ -26,7 +50,7 @@ bool FFloatContextProperty::GetValue(FChooserEvaluationContext& Context, float& 
 	    {
 			if (UFunction* Function = ClassType->FindFunctionByName(Binding.PropertyBindingChain.Last()))
 			{
-				bool bReturnsDouble = CastField<FDoubleProperty>(Function->GetReturnProperty()) != nullptr;
+				const bool bReturnsDouble = CastField<FDoubleProperty>(Function->GetReturnProperty()) != nullptr;
 					
 				UObject* Object = reinterpret_cast<UObject*>(const_cast<void*>(Container));
 				if (Function->IsNative())
@@ -34,26 +58,26 @@ bool FFloatContextProperty::GetValue(FChooserEvaluationContext& Context, float& 
 					FFrame Stack(Object, Function, nullptr, nullptr, Function->ChildProperties);
 					if (bReturnsDouble)
 					{
-						double result;
-						Function->Invoke(Object, Stack, &result);
-						OutResult = result;
+						Function->Invoke(Object, Stack, &OutResult);
 					}
 					else
 					{
-						Function->Invoke(Object, Stack, &OutResult);
+						float result = 0;
+						Function->Invoke(Object, Stack, &result);
+						OutResult = result;
 					}
 				}
 				else
 				{
 					if (bReturnsDouble)
 					{
-						double result = 0;
-						Object->ProcessEvent(Function, &result);
-						OutResult = result;
+						Object->ProcessEvent(Function, &OutResult);
 					}
 					else
 					{
-						Object->ProcessEvent(Function, &OutResult);
+						float result = 0;
+						Object->ProcessEvent(Function, &result);
+						OutResult = result;
 					}
 				}
 				return true;
@@ -73,7 +97,7 @@ void FFloatRangeColumn::Filter(FChooserEvaluationContext& Context, const TArray<
 {
 	if (InputValue.IsValid())
 	{
-		float Result = 0.0f;
+		double Result = 0.0f;
 		InputValue.Get<FChooserParameterFloatBase>().GetValue(Context, Result);
 
 #if WITH_EDITOR

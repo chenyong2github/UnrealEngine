@@ -13,7 +13,8 @@ struct CHOOSER_API FFloatContextProperty :  public FChooserParameterFloatBase
 {
 	GENERATED_BODY()
 	
-	virtual bool GetValue(FChooserEvaluationContext& Context, float& OutResult) const override;
+	virtual bool GetValue(FChooserEvaluationContext& Context, double& OutResult) const override;
+	virtual bool SetValue(FChooserEvaluationContext& Context, double Value) const override;
 
 	UPROPERTY()
 	TArray<FName> PropertyBindingChain_DEPRECATED;
@@ -58,7 +59,7 @@ USTRUCT()
 struct FChooserFloatRangeRowData
 {
 	GENERATED_BODY()
-	
+
 	UPROPERTY(EditAnywhere, Category=Runtime)
 	float Min=0;
 	

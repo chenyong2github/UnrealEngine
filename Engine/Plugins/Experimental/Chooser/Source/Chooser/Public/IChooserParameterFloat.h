@@ -28,5 +28,6 @@ struct FChooserParameterFloatBase : public FChooserParameterBase
 	GENERATED_BODY()
     
 public:
-	virtual bool GetValue(FChooserEvaluationContext& Context, float& OutResult) const { return false; }
+	virtual bool GetValue(FChooserEvaluationContext& Context, double& OutResult) const { return false; }
+    virtual bool SetValue(FChooserEvaluationContext& Context, double InValue) const { return false; }
 };
