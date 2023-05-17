@@ -3438,7 +3438,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 			const bool bWasFullyLoaded = Package && Package->IsFullyLoaded() && FPlatformProperties::RequiresCookedData();
 			if (!bWasFullyLoaded)
 			{
-				Import.SourceLinker = GetPackageLinker(Package, FPackagePath::FromPackageNameChecked(Package->GetName()), InternalLoadFlags, nullptr, nullptr, &SerializeContext);
+				Import.SourceLinker = GetPackageLinker(Package, FPackagePath::FromPackageNameChecked(PackageToLoad), InternalLoadFlags, nullptr, nullptr, &SerializeContext, nullptr, &InstancingContext);
 			}
 			else
 			{
