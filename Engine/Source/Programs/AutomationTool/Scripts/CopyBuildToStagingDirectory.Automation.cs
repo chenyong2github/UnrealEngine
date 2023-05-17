@@ -1126,6 +1126,8 @@ namespace AutomationScripts
 						}
 					}
 				}
+				
+				ThisPlatform.GetFilesToStageForDLC(Params, SC);
 
 				bCreatePluginManifest = true;
 			}

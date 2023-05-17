@@ -468,6 +468,14 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Get additional platform specific files to stage when staging DLC
+		/// </summary>
+		/// <param name="SC">Deployment Context</param>
+		public virtual void GetFilesToStageForDLC(ProjectParams Params, DeploymentContext SC)
+		{
+		}
+
+		/// <summary>
 		/// Called after CopyUsingStagingManifest.  Does anything platform specific that requires a final list of staged files.
 		/// </summary>
 		/// <param name="Params"></param>
