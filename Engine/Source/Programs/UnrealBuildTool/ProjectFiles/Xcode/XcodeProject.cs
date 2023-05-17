@@ -651,7 +651,13 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 									{
 										// Figure out if this is a monolithic build
 										bool bShouldCompileMonolithic = BuildPlatform.ShouldCompileMonolithicBinary(Platform);
-										bShouldCompileMonolithic |= (ProjectTarget.CreateRulesDelegate(Platform, Configuration).LinkType == TargetLinkType.Monolithic);
+										try
+										{
+											bShouldCompileMonolithic |= (ProjectTarget.CreateRulesDelegate(Platform, Configuration).LinkType == TargetLinkType.Monolithic);
+										}
+										catch (BuildException)
+										{
+										}
 
 										string ConfigName = Configuration.ToString();
 										if (!bMakeProjectPerTarget)

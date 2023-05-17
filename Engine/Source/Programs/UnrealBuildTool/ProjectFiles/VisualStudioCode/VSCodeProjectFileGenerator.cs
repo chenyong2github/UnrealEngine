@@ -1097,7 +1097,13 @@ namespace UnrealBuildTool
 
 			if (TargetRulesObject != null)
 			{
-				bShouldCompileMonolithic |= (Target.CreateRulesDelegate(Platform, Configuration).LinkType == TargetLinkType.Monolithic);
+				try
+				{
+					bShouldCompileMonolithic |= (Target.CreateRulesDelegate(Platform, Configuration).LinkType == TargetLinkType.Monolithic);
+				}
+				catch (BuildException)
+				{
+				}
 			}
 
 			TargetType TargetRulesType = Target.TargetRules == null ? TargetType.Program : Target.TargetRules.Type;
