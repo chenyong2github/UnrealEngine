@@ -2295,6 +2295,26 @@ void UControlRig::SetInteractionRigClass(TSubclassOf<UControlRig> InInteractionR
 
 void UControlRig::PreEditChange(FProperty* PropertyAboutToChange)
 {
+	// for BP user authored properties let's ignore changes since they
+	// will be distributed from the BP anyway to all archetype instances.
+	if(!PropertyAboutToChange->IsNative())
+	{
+		if(const UBlueprint* Blueprint = Cast<UBlueprint>(GetClass()->ClassGeneratedBy))
+		{
+			const struct FBPVariableDescription* FoundVariable = Blueprint->NewVariables.FindByPredicate(
+				[PropertyAboutToChange](const struct FBPVariableDescription& NewVariable)
+				{
+					return NewVariable.VarName == PropertyAboutToChange->GetFName();
+				}
+			);
+
+			if(FoundVariable)
+			{
+				return;
+			}
+		}
+	}
+	
 	Super::PreEditChange(PropertyAboutToChange);
 
 	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRig, InteractionRig))
