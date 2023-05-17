@@ -12,6 +12,13 @@ class UPhysicalMaterial;
 
 namespace Chaos
 {
+
+	struct FBaseEventFlag
+	{
+		FBaseEventFlag() : bIsGlobal(false) {}
+		bool bIsGlobal;
+	};
+
 	/**
 	 * Collision event data stored for use by other systems (e.g. Niagara, gameplay events)
 	 */
@@ -171,10 +178,11 @@ namespace Chaos
 	/*
 	BreakingData passed from the physics solver to subsystems
 	*/
-	struct FBreakingData
+	struct FBreakingData : public FBaseEventFlag
 	{
 		FBreakingData()
-			: Proxy(nullptr)
+			: FBaseEventFlag()
+			, Proxy(nullptr)
 			, Location(FVec3((FReal)0.0))
 			, Velocity(FVec3((FReal)0.0))
 			, AngularVelocity(FVec3((FReal)0.0))

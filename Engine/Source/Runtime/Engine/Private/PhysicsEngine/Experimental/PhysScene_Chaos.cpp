@@ -15,6 +15,7 @@
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/PhysicsCollisionHandler.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
+#include "Physics/Experimental/ChaosEventRelay.h"
 
 #include "ChaosSolversModule.h"
 
@@ -480,6 +481,7 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	, PhysicsReplication(nullptr)
 	, SolverActor(InSolverActor)
 	, LastEventDispatchTime(Chaos::FReal(-1))
+	, LastBreakEventDispatchTime(Chaos::FReal(-1))
 #if WITH_EDITOR
 	, SingleStepCounter(0)
 #endif
@@ -501,6 +503,8 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 
 	Chaos::FEventManager* EventManager = SceneSolver->GetEventManager();
 	EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &FPhysScene_Chaos::HandleCollisionEvents);
+	EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &FPhysScene_Chaos::HandleBreakingEvents);
+
 
 	//Initialize unique ptrs that are just here to allow forward declare. This should be reworked todo(ocohen)
 #if TODO_FIX_REFERENCES_TO_ADDARRAY
@@ -512,6 +516,8 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	PhysicsReplication = PhysicsReplicationFactory.IsValid() ? PhysicsReplicationFactory->Create(this) : new FPhysicsReplication(this);
 
 	FPhysicsDelegates::OnPhysSceneInit.Broadcast(this);
+
+	ChaosEventRelay = NewObject<UChaosEventRelay>();
 }
 
 FPhysScene_Chaos::~FPhysScene_Chaos()
@@ -755,6 +761,7 @@ void FPhysScene_Chaos::SetPhysicsReplication(FPhysicsReplication* InPhysicsRepli
 void FPhysScene_Chaos::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Super::AddReferencedObjects(Collector);
+	Collector.AddReferencedObject(ChaosEventRelay);
 #if WITH_EDITOR
 
 	for (auto& Pair : PhysicsProxyToComponentMap)
@@ -892,12 +899,14 @@ FORCEINLINE void FPhysScene_Chaos::HandleEachCollisionEvent(const TArray<int32>&
 			if (NotifyInfo.Info0.Component == nullptr)
 			{
 				NotifyInfo.Info0.Component = Comp0;
-				NotifyInfo.Info0.Actor = (NotifyInfo.Info0.Component != nullptr) ? NotifyInfo.Info0.Component->GetOwner() : nullptr;
+				check(Comp0);
+				NotifyInfo.Info0.Actor = Comp0->GetOwner();
 			}
 			if (NotifyInfo.Info1.Component == nullptr)
 			{
 				NotifyInfo.Info1.Component = Comp1;
-				NotifyInfo.Info1.Actor = (NotifyInfo.Info1.Component != nullptr) ? NotifyInfo.Info1.Component->GetOwner() : nullptr;
+				check(Comp1);
+				NotifyInfo.Info1.Actor = Comp1->GetOwner();
 			}
 		}
 	}
@@ -923,7 +932,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 			for (TPair<IPhysicsProxyBase*, TArray<int32>> Pair : PhysicsProxyToCollisionIndicesMap)
 			{
 				IPhysicsProxyBase*  PhysicsProxy0 = Pair.Key;
-				TArray<int32> CollisionIndices = Pair.Value;
+				const TArray<int32>& CollisionIndices = Pair.Value;
 
 				UPrimitiveComponent* Comp0 = GetOwningComponent<UPrimitiveComponent>(PhysicsProxy0);
 
@@ -992,6 +1001,33 @@ void FPhysScene_Chaos::DispatchPendingCollisionNotifies()
 			}
 		}
 		PendingCollisionNotifies.Reset();
+	}
+}
+
+void FPhysScene_Chaos::HandleBreakingEvents(const Chaos::FBreakingEventData& Event)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_HandleBreakingEvents);
+
+	TArray<FBreakChaosEvent> PendingBreakEvents;
+	Chaos::FBreakingDataArray const& BreakingDataArray = Event.BreakingData.AllBreakingsArray;
+
+	if (Event.BreakingData.bHasGlobalEvent && LastBreakEventDispatchTime < Event.BreakingData.TimeCreated)
+	{
+		LastBreakEventDispatchTime = Event.BreakingData.TimeCreated;
+		for (const Chaos::FBreakingData& BreakingData: BreakingDataArray)
+		{
+			if (BreakingData.bIsGlobal && BreakingData.Proxy)
+			{
+				UPrimitiveComponent* Comp = GetOwningComponent<UPrimitiveComponent>(BreakingData.Proxy);
+				FBreakChaosEvent& BreakEvent = PendingBreakEvents.Emplace_GetRef(BreakingData);
+				BreakEvent.Component = Comp;
+			}
+		}
+	}
+
+	if (PendingBreakEvents.Num() > 0)
+	{
+		ChaosEventRelay->DispatchPhysicsBreakEvents(PendingBreakEvents);
 	}
 }
 

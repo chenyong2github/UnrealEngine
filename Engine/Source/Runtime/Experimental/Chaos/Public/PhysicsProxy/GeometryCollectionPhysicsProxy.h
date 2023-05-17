@@ -423,8 +423,9 @@ public:
 	void SetNotifyRemovals_External(bool bNotify);
 	void SetNotifyCrumblings_External(bool bNotify, bool bIncludeChildren);
 
-	float ComputeMaterialBasedDamageThreshold_Internal(Chaos::FPBDRigidClusteredParticleHandle& ClusteredParticle) const;
+	void SetNotifyGlobalBreakings_External(bool bNotify);
 
+	float ComputeMaterialBasedDamageThreshold_Internal(Chaos::FPBDRigidClusteredParticleHandle& ClusteredParticle) const;
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
 

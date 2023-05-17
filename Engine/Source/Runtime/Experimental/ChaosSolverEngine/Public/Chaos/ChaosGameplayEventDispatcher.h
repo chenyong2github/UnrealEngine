@@ -4,6 +4,7 @@
 
 #include "ChaosEventListenerComponent.h"
 #include "PhysicsPublic.h"
+#include "Physics/Experimental/ChaosEventType.h"
 #include "ChaosNotifyHandlerInterface.h"
 #include "ChaosGameplayEventDispatcher.generated.h"
 
@@ -19,47 +20,13 @@ namespace Chaos
 	struct FBreakingData;
 }
 
+// FChaosBreakEvent has been moved from ChaosSolverEngine to Engine, this structure need to be kept for backward compatibility.
 USTRUCT(BlueprintType)
-struct CHAOSSOLVERENGINE_API FChaosBreakEvent
+struct CHAOSSOLVERENGINE_API FChaosBreakEvent : public FBreakChaosEvent
 {
 	GENERATED_BODY()
-
-public:
-
-	FChaosBreakEvent();
-	FChaosBreakEvent(const Chaos::FBreakingData& BreakingData);
-
-	/** primitive component involved in the break event */
-	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
-	TObjectPtr<UPrimitiveComponent> Component = nullptr;
-
-	/** World location of the break */
-	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
-	FVector Location;
-
-	/** Linear Velocity of the breaking particle  */
-	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
-	FVector Velocity;
-
-	/** Angular Velocity of the breaking particle  */
-	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
-	FVector AngularVelocity;
-
-	/** Extents of the bounding box */
-	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
-	FVector Extents;
-
-	/** Mass of the breaking particle  */
-	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
-	float Mass;
-
-	/** Index of the geometry collection bone if positive */
-	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
-	int32 Index;
-
-	/** Whether the break event originated from a crumble event */
-	UPROPERTY(BlueprintReadOnly, Category = "Break Event")
-	bool bFromCrumble;
+	FChaosBreakEvent() : FBreakChaosEvent() {}
+	FChaosBreakEvent(const Chaos::FBreakingData& BreakingData) : FBreakChaosEvent(BreakingData) {}
 };
 
 USTRUCT(BlueprintType)

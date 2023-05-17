@@ -2463,6 +2463,13 @@ void FGeometryCollectionPhysicsProxy::SetNotifyBreakings_External(bool bNotify)
 	SetProxyDirty_External();
 }
 
+void FGeometryCollectionPhysicsProxy::SetNotifyGlobalBreakings_External(bool bNotify)
+{
+	check(IsInGameThread());
+	GameThreadPerFrameData.SetNotifyGlobalBreakings(bNotify);
+	SetProxyDirty_External();
+}
+
 void FGeometryCollectionPhysicsProxy::SetNotifyRemovals_External(bool bNotify)
 {
 	check(IsInGameThread());
@@ -2689,7 +2696,8 @@ void FGeometryCollectionPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSol
 
 	if (GameThreadPerFrameData.GetIsNotificationDataDirty())
 	{
-		Parameters.bGenerateBreakingData = GameThreadPerFrameData.GetNotifyBreakings();
+		Parameters.bGenerateBreakingData = GameThreadPerFrameData.GetNotifyBreakings() || GameThreadPerFrameData.GetNotifyGlobalBreakings();
+		Parameters.bDispatchGlobalBreakingData = GameThreadPerFrameData.GetNotifyGlobalBreakings();
 		Parameters.bGenerateRemovalsData = GameThreadPerFrameData.GetNotifyRemovals();
 		Parameters.bGenerateCrumblingData = GameThreadPerFrameData.GetNotifyCrumblings();
 		Parameters.bGenerateCrumblingChildrenData = GameThreadPerFrameData.GetCrumblingEventIncludesChildren();

@@ -988,6 +988,10 @@ public:
 	/** Changes whether or not this component will get future break notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
 	void SetNotifyCrumblings(bool bNewNotifyCrumblings, bool bNewCrumblingEventIncludesChildren = false);
+
+	/** Changes whether or not this component will get future global break notifications. */
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	void SetNotifyGlobalBreaks(bool bNewNotifyGlobalBreaks);
 	
 	/** Overrideable native notification */
 	virtual void NotifyBreak(const FChaosBreakEvent& Event) {};
@@ -1098,6 +1102,10 @@ public:
 	/** If true, this component will generate crumbling events that other systems may subscribe to. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events")
 	bool bNotifyCrumblings;
+
+	/** If true, this component will generate breaking events that will be listened by the global event relay. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events|Global")
+	bool bNotifyGlobalBreaks;
 
 	/** If this and bNotifyCrumblings are true, the crumbling events will contain released children indices. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events", meta = (EditCondition = "bNotifyCrumblings"))

@@ -75,7 +75,7 @@ namespace Chaos
 	 */
 	struct FAllBreakingData : public FTimeResource
 	{
-		FAllBreakingData() : AllBreakingsArray(FBreakingDataArray()) {}
+		FAllBreakingData() : AllBreakingsArray(FBreakingDataArray()), bHasGlobalEvent(false) {}
 
 		void Reset()
 		{
@@ -83,6 +83,7 @@ namespace Chaos
 		}
 
 		FBreakingDataArray AllBreakingsArray;
+		bool bHasGlobalEvent;
 	};
 
 	struct FBreakingEventData

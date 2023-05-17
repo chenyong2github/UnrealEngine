@@ -6,6 +6,7 @@
 #include "Tickable.h"
 #include "EventsData.h"
 #include "Physics/PhysScene.h"
+#include "Physics/Experimental/ChaosEventType.h"
 #include "GameFramework/Actor.h"
 #include "PhysicsPublic.h"
 #include "PhysInterface_Chaos.h"
@@ -38,6 +39,7 @@ class FPerSolverFieldSystem;
 class IPhysicsProxyBase;
 
 class UWorld;
+class UChaosEventRelay;
 class AWorldSettings;
 class FPhysicsReplicationFactory;
 class FContactModifyCallbackFactory;
@@ -234,6 +236,7 @@ public:
 	void RemoveDeferredPhysicsStateCreation(UPrimitiveComponent* Component);
 	void ProcessDeferredCreatePhysicsState();
 
+	UChaosEventRelay* GetChaosEventRelay() const { return ChaosEventRelay.Get(); }
 
 	// Storage structure for replication data
 	// probably should just expose read/write API not the structure directly itself like this.
@@ -277,8 +280,9 @@ private:
 	// Chaos Event Handlers
 	void HandleEachCollisionEvent(const TArray<int32>& CollisionIndices, IPhysicsProxyBase* PhysicsProxy0, UPrimitiveComponent* const Comp0, Chaos::FCollisionDataArray const& CollisionData, Chaos::FReal MinDeltaVelocityThreshold);
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
-
 	void DispatchPendingCollisionNotifies();
+
+	void HandleBreakingEvents(const Chaos::FBreakingEventData& Event);
 
 	/** Replication manager that updates physics bodies towards replicated physics state */
 	FPhysicsReplication* PhysicsReplication;
@@ -364,7 +368,10 @@ private:
 	/** The SolverActor that spawned and owns this scene */
 	TWeakObjectPtr<AActor> SolverActor;
 
+	TObjectPtr<UChaosEventRelay> ChaosEventRelay;
+
 	Chaos::FReal LastEventDispatchTime;
+	Chaos::FReal LastBreakEventDispatchTime;
 	class FAsyncPhysicsTickCallback* AsyncPhysicsTickCallback = nullptr;
 
 #if WITH_EDITOR

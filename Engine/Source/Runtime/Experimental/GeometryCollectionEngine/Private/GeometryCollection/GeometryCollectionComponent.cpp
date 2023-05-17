@@ -344,6 +344,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, bNotifyCollisions(false)
 	, bNotifyRemovals(false)
 	, bNotifyCrumblings(false)
+	, bNotifyGlobalBreaks(false)
 	, bStoreVelocities(false)
 	, bShowBoneColors(false)
 	, bUseRootProxyForNavigation(false)
@@ -824,6 +825,18 @@ void UGeometryCollectionComponent::SetNotifyCrumblings(bool bNewNotifyCrumblings
 		bNotifyCrumblings = bNewNotifyCrumblings;
 		bCrumblingEventIncludesChildren = bNewCrumblingEventIncludesChildren;
 		UpdateCrumblingEventRegistration();
+	}
+}
+
+void UGeometryCollectionComponent::SetNotifyGlobalBreaks(bool bNewNotifyGlobalBreaks)
+{
+	if (bNotifyGlobalBreaks != bNewNotifyGlobalBreaks)
+	{
+		if (PhysicsProxy)
+		{
+			PhysicsProxy->SetNotifyGlobalBreakings_External(bNewNotifyGlobalBreaks);
+		}
+		bNotifyGlobalBreaks = bNewNotifyGlobalBreaks;
 	}
 }
 
@@ -1463,19 +1476,19 @@ void UGeometryCollectionComponent::DispatchChaosPhysicsCollisionBlueprintEvents(
 // call when first registering
 void UGeometryCollectionComponent::RegisterForEvents()
 {
-	if (EventDispatcher)
+	Chaos::FPhysicsSolver* Solver = GetWorld()->GetPhysicsScene()->GetSolver();
+	if (Solver)
 	{
-		// The new interested proxy system relies on us having having a proxy registered with the scene at the time we register Chaos events.
-		// Hence we need to do a double-take here to force the re-registration of chaos events. This is guaranteed to happen every time we
-		// re-create the physics proxy (e.g. in the case of the construction script in PIE). In that case, UChaosGameplayEventDispatcher::OnRegister
-		// will run *before* the new physics proxy is created.
-		EventDispatcher->UnregisterChaosEvents();
-		EventDispatcher->RegisterChaosEvents();
-
-		if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions || bNotifyRemovals || bNotifyCrumblings)
+		if (EventDispatcher)
 		{
-			Chaos::FPhysicsSolver* Solver = GetWorld()->GetPhysicsScene()->GetSolver();
-			if (Solver)
+			// The new interested proxy system relies on us having having a proxy registered with the scene at the time we register Chaos events.
+			// Hence we need to do a double-take here to force the re-registration of chaos events. This is guaranteed to happen every time we
+			// re-create the physics proxy (e.g. in the case of the construction script in PIE). In that case, UChaosGameplayEventDispatcher::OnRegister
+			// will run *before* the new physics proxy is created.
+			EventDispatcher->UnregisterChaosEvents();
+			EventDispatcher->RegisterChaosEvents();
+
+			if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions || bNotifyRemovals || bNotifyCrumblings)
 			{
 				if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
 				{
@@ -1490,12 +1503,10 @@ void UGeometryCollectionComponent::RegisterForEvents()
 				if (bNotifyBreaks)
 				{
 					EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
-
 					Solver->EnqueueCommandImmediate([Solver]()
 						{
 							Solver->SetGenerateBreakingData(true);
 						});
-
 				}
 
 				if (bNotifyRemovals)
@@ -1519,6 +1530,13 @@ void UGeometryCollectionComponent::RegisterForEvents()
 						});
 				}
 			}
+		}
+		if (bNotifyGlobalBreaks)
+		{
+			Solver->EnqueueCommandImmediate([Solver]()
+				{
+					Solver->SetGenerateBreakingData(true);
+				});
 		}
 	}
 }
@@ -2832,7 +2850,8 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.StartAwake = BodyInstance.bStartAwake;
 		SimulationParameters.CacheType = CacheParameters.CacheMode;
 		SimulationParameters.ReverseCacheBeginTime = CacheParameters.ReverseCacheBeginTime;
-		SimulationParameters.bGenerateBreakingData = bNotifyBreaks;
+		SimulationParameters.bGenerateBreakingData = bNotifyBreaks || bNotifyGlobalBreaks;
+		SimulationParameters.bDispatchGlobalBreakingData = bNotifyGlobalBreaks;
 		SimulationParameters.bGenerateCollisionData = bNotifyCollisions;
 		SimulationParameters.bGenerateTrailingData = bNotifyTrailing;
 		SimulationParameters.bGenerateRemovalsData = bNotifyRemovals;

@@ -66,6 +66,7 @@
 #include "Engine/NetworkObjectList.h"
 #include "GameFramework/GameStateBase.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "Physics/Experimental/ChaosEventRelay.h"
 #include "Components/BrushComponent.h"
 #include "Engine/Polys.h"
 #include "Components/ModelComponent.h"
@@ -1775,6 +1776,15 @@ void UWorld::RepairChaosActors()
 
 	// make the current scene the default scene
 	DefaultPhysicsScene_Chaos = PhysicsScene_Chaos;
+}
+
+UChaosEventRelay* UWorld::GetChaosEventRelay()
+{
+	if (PhysicsScene)
+	{
+		return PhysicsScene->GetChaosEventRelay();
+	}
+	return nullptr;
 }
 
 void UWorld::RepairStreamingLevels()

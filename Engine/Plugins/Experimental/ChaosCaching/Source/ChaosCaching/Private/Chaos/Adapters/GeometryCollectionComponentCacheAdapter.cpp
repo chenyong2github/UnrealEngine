@@ -375,6 +375,7 @@ namespace Chaos
 							CachedBreak.Mass = Event->Mass;
 							CachedBreak.BoundingBox = TAABB<FReal, 3>(Event->BoundingBoxMin, Event->BoundingBoxMax);
 							CachedBreak.BoundingBox = CachedBreak.BoundingBox.TransformedAABB(ComponentToWorld);
+							CachedBreak.bIsGlobal = Proxy->GetSimParameters().bDispatchGlobalBreakingData;
 
 							if (!SolverBreakingEventFilter->Enabled() || SolverBreakingEventFilter->Pass(CachedBreak))
 							{

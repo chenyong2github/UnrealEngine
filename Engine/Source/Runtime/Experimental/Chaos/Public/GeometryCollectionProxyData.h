@@ -204,6 +204,13 @@ public:
 	}
 	bool GetNotifyBreakings() const { return bNotifyBreakings; }
 
+	void SetNotifyGlobalBreakings(bool bNotify)
+	{
+		bNotifyGlobalBreakings = bNotify;
+		bIsNotificationDataDirty = true;
+	}
+	bool GetNotifyGlobalBreakings() const { return bNotifyGlobalBreakings; }
+
 	void SetNotifyRemovals(bool bNotify)
 	{
 		bNotifyRemovals = bNotify;
@@ -247,6 +254,7 @@ private:
 	uint16 bNotifyRemovals : 1;
 	uint16 bNotifyCrumblings : 1;
 	uint16 bCrumblingEventIncludesChildren : 1;
+	uint16 bNotifyGlobalBreakings : 1;
 
 	/** updated when bDamageSettingsDataDirty is set */
 	uint16 bEnableStrainOnCollision : 1;

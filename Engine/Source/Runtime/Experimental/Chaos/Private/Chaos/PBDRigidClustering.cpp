@@ -569,6 +569,7 @@ namespace Chaos
 				}
 				ClusterBreak.TransformGroupIndex = ConcreteProxy->GetTransformGroupIndexFromHandle(ClusteredParticle);
 				ClusterBreak.bFromCrumble = bFromCrumble;
+				ClusterBreak.bIsGlobal = SimParams.bDispatchGlobalBreakingData;
 			}
 		}
 	}

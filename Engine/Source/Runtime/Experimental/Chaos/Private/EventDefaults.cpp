@@ -327,6 +327,7 @@ namespace Chaos
 			{
 				FilteredBreakingDataArray.Reset();
 				FilteredBreakingIndicesByPhysicsProxy.Reset();
+				BreakingEventData.BreakingData.bHasGlobalEvent = false;
 			}
 			BreakingEventData.BreakingData.TimeCreated = Solver->MTime;
 
@@ -344,6 +345,7 @@ namespace Chaos
 					{
 						const int32 NewIndex = FilteredBreakingDataArray.Emplace(ClusterBreaking);
 						FilteredBreakingIndicesByPhysicsProxy.FindOrAdd(ClusterBreaking.Proxy).Add(FEventManager::EncodeCollisionIndex(NewIndex, false));
+						BreakingEventData.BreakingData.bHasGlobalEvent |= ClusterBreaking.bIsGlobal;
 					}
 				}
 			}

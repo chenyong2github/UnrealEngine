@@ -60,6 +60,7 @@ class FTimerManager;
 class FWorldInGamePerformanceTrackers;
 class IInterface_PostProcessVolume;
 class UAISystemBase;
+class UChaosEventRelay;
 class UCanvas;
 class UDemoNetDriver;
 class UGameViewportClient;
@@ -1507,6 +1508,9 @@ public:
 
 	/** Default global physics scene. */
 	TSharedPtr<FPhysScene_Chaos> DefaultPhysicsScene_Chaos;
+
+	/** Access to the ChaosEventRelay to access all registered events. */
+	UChaosEventRelay* GetChaosEventRelay();
 
 	/** Physics Field component. */
 	UPROPERTY(Transient)
