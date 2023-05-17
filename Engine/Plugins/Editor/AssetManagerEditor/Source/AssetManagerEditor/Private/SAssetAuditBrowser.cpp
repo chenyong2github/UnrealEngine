@@ -30,8 +30,6 @@
 
 #define LOCTEXT_NAMESPACE "AssetManagementBrowser"
 
-//#pragma optimize("", off)
-
 const FString SAssetAuditBrowser::SettingsIniSection = TEXT("AssetManagementBrowser");
 const int32 SAssetAuditBrowser::MaxAssetsHistory = 10;
 
@@ -736,18 +734,18 @@ void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAs
 {
 	// Asset Type
 	FString AssetType;
-	if (!EditorModule->GetStringValueForCustomColumn(AssetData, FName(TEXT("Type")), AssetType)) // TODO: verify @Matt.Breindel
+	if (!EditorModule->GetStringValueForCustomColumn(AssetData, FName(TEXT("Type")), AssetType)) 
 	{
-		AssetType = AssetData.AssetClassPath.ToString(); // TODO: verify @Matt.Breindel
+		AssetType = AssetData.AssetClassPath.ToString(); 
 	}
 	const uint32 AssetTypeHash = GetTypeHash(AssetType);
 	OutRow.Type = AssetTable.StoreStr(AssetType);
 
 	// Asset Name
-	OutRow.Name = AssetTable.StoreStr(AssetData.AssetName.ToString()); // TODO: verify @Matt.Breindel; see also AssetData.AssetClassPath.GetAssetName().ToString()
+	OutRow.Name = AssetTable.StoreStr(AssetData.AssetName.ToString());
 
 	// Path (without package or asset name)
-	FString ObjectPathString = AssetData.GetObjectPathString(); // TODO: verify @Matt.Breindel; see also *AssetClassPath.ToString()
+	FString ObjectPathString = AssetData.GetObjectPathString();
 	int Index;
 	ObjectPathString.FindLastChar(TEXT('/'), Index);
 	if (Index != INDEX_NONE)
@@ -755,9 +753,6 @@ void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAs
 		ObjectPathString = ObjectPathString.Left(Index + 1);
 	}
 	OutRow.Path = AssetTable.StoreStr(ObjectPathString);
-
-	//OutRow.PackageName = AssetTable.StoreStr(AssetTable.PackageName.ToString()); // TODO: @Matt.Breindel, verify if this is needed/useful
-	//OutRow.PackagePath = AssetTable.StoreStr(AssetTable.PackagePath.ToString()); // TODO: @Matt.Breindel, verify if this is needed/useful
 
 	FString Str;
 
@@ -770,24 +765,13 @@ void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAs
 		OutRow.PrimaryName = AssetTable.StoreStr(Str);
 	}
 
-	// TODO: @Matt.Breindel, verify if these columns are still needed
-	//EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::ManagedDiskSizeName, OutRow.ManagedDiskSize);
-	//EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::DiskSizeName, OutRow.DiskSize);
-
 	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::StageChunkCompressedSizeName, OutRow.StagedCompressedSize);
 	EditorModule->GetIntegerValueForCustomColumn(AssetData, IAssetManagerEditorModule::TotalUsageName, OutRow.TotalUsageCount);
 
-	// TODO: @Matt.Breindel, verify if this column is still needed
-	//if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::CookRuleName, Str))
-	//{
-	//	OutRow.CookRule = AssetTable.StoreStr(Str);
-	//}
-
-	// TODO: @Matt.Breindel, verify if this column is still needed
-	//if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::ChunksName, Str))
-	//{
-	//	OutRow.Chunks = AssetTable.StoreStr(Str);
-	//}
+	if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::ChunksName, Str))
+	{
+		OutRow.Chunks = AssetTable.StoreStr(Str);
+	}
 
 	if (EditorModule->GetStringValueForCustomColumn(AssetData, IAssetManagerEditorModule::GameFeaturePluginsName, Str))
 	{
@@ -820,6 +804,7 @@ void SAssetAuditBrowser::RefreshAssetView()
 
 	SetFilterDelegate.Execute(Filter);
 
+
 	// Refresh list of assets for the tree view
 	if (AssetTableTreeView.IsValid())
 	{
@@ -841,19 +826,38 @@ void SAssetAuditBrowser::RefreshAssetView()
 			TMap<FAssetData, int32> AssetToIndexMap;
 
 			TArray<FAssetData> SourceAssets;
-			AssetRegistry->GetAssets(Filter, SourceAssets);
-			for (int32 Index = 0; Index < SourceAssets.Num(); Index++)
+			const FAssetManagerEditorRegistrySource* RegistrySource = EditorModule->GetCurrentRegistrySource();
+
+			if (RegistrySource->GetOwnedRegistryState())
 			{
-				const FAssetData& SourceAsset = SourceAssets[Index];
-				FAssetTableRow AssetRow;
-				PopulateAssetTableRow(AssetRow, SourceAsset, *AssetTable);
-				AssetTable->AddAsset(AssetRow);
-				AssetToIndexMap.Add(SourceAsset, Index);
+				FARCompiledFilter CompiledFilter;
+				AssetRegistry->CompileFilter(Filter, CompiledFilter);
+				RegistrySource->GetOwnedRegistryState()->GetAssets(CompiledFilter, TSet<FName>(), SourceAssets);
+			}
+			else
+			{
+				AssetRegistry->GetAssets(Filter, SourceAssets);
+			}
+
+			for (int32 SourceAssetIndex = 0; SourceAssetIndex < SourceAssets.Num(); SourceAssetIndex++)
+			{
+				TArray<FAssetData> AssetsInSourcePackage;
+				AssetRegistry->GetAssetsByPackageName(SourceAssets[SourceAssetIndex].PackageName, AssetsInSourcePackage, /*bIncludeOnlyOnDiskAssets*/ true); // Only use on disk assets to avoid creating FAssetData for everything in memory
+
+				for (FAssetData& SourceAsset : AssetsInSourcePackage)
+				{
+					if (AssetToIndexMap.Find(SourceAsset) == nullptr)
+					{
+						FAssetTableRow AssetRow;
+						PopulateAssetTableRow(AssetRow, SourceAsset, *AssetTable);
+						AssetTable->AddAsset(AssetRow);
+						AssetToIndexMap.Add(SourceAsset, AssetTable->GetTotalAssetCount() - 1);
+					}
+				}
 			}
 			AssetTable->SetVisibleAssetCount(AssetTable->GetAssets().Num());
 
 			int32 EntryIndex = AssetTable->GetAssets().Num();
-			const FAssetManagerEditorRegistrySource* RegistrySource = EditorModule->GetCurrentRegistrySource();
 
 			TSet<FName> AlreadyProcessedPackages;
 			// Go over all SourceAssets. We will add more to the end as we find we need to add them.
@@ -878,33 +882,46 @@ void SAssetAuditBrowser::RefreshAssetView()
 
 				// Get the dependencies
 				TArray<FAssetIdentifier> DependencyList;
-//				RegistrySource->GetDependencies(CurrentIdentifier, DependencyList, UE::AssetRegistry::EDependencyCategory::Package);
-				AssetRegistry->GetDependencies(CurrentIdentifier, DependencyList, UE::AssetRegistry::EDependencyCategory::Package);
-
+				RegistrySource->GetDependencies(CurrentIdentifier, DependencyList, UE::AssetRegistry::EDependencyCategory::Package);
+				
 				TArray<int32> IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow;
 
 				for (const FAssetIdentifier& Dependency : DependencyList)
 				{
-					TArray<FAssetData> AssetsInDependencyPackage;
-					if (AssetRegistry->GetAssetsByPackageName(Dependency.PackageName, AssetsInDependencyPackage, /*bIncludeOnlyOnDiskAssets*/ true))
+					auto GatherIndices = [&](FAssetData const* DependencyAsset)
 					{
-						for (const FAssetData& DependencyAsset : AssetsInDependencyPackage)
+						if (int32* DependencyIndex = AssetToIndexMap.Find(*DependencyAsset))
 						{
-							if (int32* DependencyIndex = AssetToIndexMap.Find(DependencyAsset))
-							{
-								// Do we already know about the asset? If so, great.
-								IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(*DependencyIndex);
-							}
-							else
-							{
-								// We don't know about this asset yet. Create a new row for it and add it to the source list for further dependency analysis
-								FAssetTableRow NewRow;
-								PopulateAssetTableRow(NewRow, DependencyAsset, *AssetTable);
-								AssetTable->AddAsset(NewRow);
-								IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(SourceAssets.Num());
-								AssetToIndexMap.Add(DependencyAsset, SourceAssets.Num());
-								SourceAssets.Add(DependencyAsset);
-							}
+							// Do we already know about the asset? If so, great.
+							IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(*DependencyIndex);
+						}
+						else
+						{
+							// We don't know about this asset yet. Create a new row for it and add it to the source list for further dependency analysis
+							FAssetTableRow NewRow;
+							PopulateAssetTableRow(NewRow, *DependencyAsset, *AssetTable);
+							AssetTable->AddAsset(NewRow);
+							IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(AssetTable->GetTotalAssetCount() - 1);
+							AssetToIndexMap.Add(*DependencyAsset, AssetTable->GetTotalAssetCount() - 1);
+							SourceAssets.Add(*DependencyAsset);
+						}
+					};
+					
+					if (RegistrySource->GetOwnedRegistryState())
+					{
+						TArrayView<FAssetData const* const> AssetsInDependencyPackage = RegistrySource->GetOwnedRegistryState()->GetAssetsByPackageName(Dependency.PackageName);
+						for (FAssetData const* const DependencyAsset : AssetsInDependencyPackage)
+						{
+							GatherIndices(DependencyAsset);
+						}
+					}
+					else
+					{
+						TArray<FAssetData> AssetsInDependencyPackage;
+						AssetRegistry->GetAssetsByPackageName(Dependency.PackageName, AssetsInDependencyPackage, /*only on disk assets*/true);
+						for (FAssetData& DependencyAsset : AssetsInDependencyPackage)
+						{
+							GatherIndices(&DependencyAsset);
 						}
 					}
 				}
@@ -917,7 +934,26 @@ void SAssetAuditBrowser::RefreshAssetView()
 						int32* RowIndex = AssetToIndexMap.Find(SourceAssetData);
 						if (ensure(RowIndex != nullptr))
 						{
-							AssetTable->GetAsset(*RowIndex)->Dependencies.Append(IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow);
+							for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
+							{
+								AssetTable->GetAsset(*RowIndex)->Dependencies.AddUnique(Index);
+							}
+						}
+					}
+
+					for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
+					{
+						// Now for each of those dependencies, add this source asset row as a referencer
+						if (FAssetTableRow* DependentRow = AssetTable->GetAsset(Index))
+						{
+							for (const FAssetData& SourceAssetData : AssetsInSourcePackage)
+							{
+								int32* RowIndex = AssetToIndexMap.Find(SourceAssetData);
+								if (ensure(RowIndex != nullptr))
+								{
+									DependentRow->Referencers.AddUnique(*RowIndex);
+								}
+							}
 						}
 					}
 				}

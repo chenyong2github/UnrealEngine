@@ -112,16 +112,13 @@ struct FAssetTableColumns
 	static const FName TypeColumnId;
 	static const FName NameColumnId;
 	static const FName PathColumnId;
-	//static const FName PackageNameColumnId;
-	//static const FName PackageTypeColumnId;
 	static const FName PrimaryTypeColumnId;
 	static const FName PrimaryNameColumnId;
-	//static const FName ManagedDiskSizeColumnId;
-	//static const FName DiskSizeColumnId;
 	static const FName StagedCompressedSizeColumnId;
+	static const FName TotalSizeUniqueDependenciesColumnId;
+	static const FName TotalSizeOtherDependenciesColumnId;
 	static const FName TotalUsageCountColumnId;
-	//static const FName CookRuleColumnId;
-	//static const FName ChunksColumnId;
+	static const FName ChunksColumnId;
 	static const FName NativeClassColumnId;
 	static const FName GameFeaturePluginColumnId;
 };
@@ -142,16 +139,13 @@ public:
 	const TCHAR* GetType() const { return Type; }
 	const TCHAR* GetName() const { return Name; }
 	const TCHAR* GetPath() const { return Path; }
-	//const TCHAR* GetPackageName() const { return PackageName; }
-	//const TCHAR* GetPackagePath() const { return PackagePath; }
 	const TCHAR* GetPrimaryType() const { return PrimaryType; }
 	const TCHAR* GetPrimaryName() const { return PrimaryName; }
-	//int64 GetManagedDiskSize() const { return ManagedDiskSize; }
-	//int64 GetDiskSize() const { return DiskSize; }
 	int64 GetStagedCompressedSize() const { return StagedCompressedSize; }
+	int64 GetOrComputeTotalSizeUniqueDependencies(FAssetTable* OwningTable, int32 ThisIndex) const;
+	int64 GetOrComputeTotalSizeOtherDependencies(FAssetTable* OwningTable, int32 ThisIndex) const; 
 	int64 GetTotalUsageCount() const { return TotalUsageCount; }
-	//const TCHAR* GetCookRule() const { return CookRule; }
-	//const TCHAR* GetChunks() const { return Chunks; }
+	const TCHAR* GetChunks() const { return Chunks; }
 	const TCHAR* GetNativeClass() const { return NativeClass; }
 	const TCHAR* GetGameFeaturePlugin() const { return GameFeaturePlugin; }
 	int32 GetNumDependencies() const { return Dependencies.Num(); }
@@ -160,22 +154,24 @@ public:
 	FLinearColor GetColor() const { return Color; }
 
 private:
+	static bool RefineDependencies(TSet<int32> PreviouslyVisitedIndices, FAssetTable* OwningTable, int32 ThisIndex, TSet<int32>* OutIncrementallyRefinedUniqueIndices, TSet<int32>* OutExcludedIndices);
+	// Providing OutUniqueDependencies and OutSharedDependencies will force a full recomputation. It's intended for use in unit testing/validation.
+	void ComputeDependencySizes(FAssetTable* OwningTable, int32 ThisIndex, TSet<int32>* OutUniqueDependencies = nullptr, TSet<int32>* OutSharedDependencies = nullptr) const;
+
 	const TCHAR* Type = nullptr;
 	const TCHAR* Name = nullptr;
 	const TCHAR* Path = nullptr;
-	//const TCHAR* PackageName = nullptr;
-	//const TCHAR* PackagePath = nullptr;
 	const TCHAR* PrimaryType = nullptr;
 	const TCHAR* PrimaryName = nullptr;
-	//int64 ManagedDiskSize = 0;
-	//int64 DiskSize = 0;
 	int64 StagedCompressedSize = 0;
+	mutable int64 TotalSizeUniqueDependencies = -1; // Lazily calculated
+	mutable int64 TotalSizeOtherDependencies = -1; // Lazily calculated
 	int64 TotalUsageCount = 0;
-	//const TCHAR* CookRule = nullptr;
-	//const TCHAR* Chunks = nullptr;
+	const TCHAR* Chunks = nullptr;
 	const TCHAR* NativeClass = nullptr;
 	const TCHAR* GameFeaturePlugin = nullptr;
 	TArray<int32> Dependencies;
+	TArray<int32> Referencers;
 	FLinearColor Color;
 };
 

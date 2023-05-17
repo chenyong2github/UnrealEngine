@@ -258,17 +258,93 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                 true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,          true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,          true, 200.0f });
-			//InOutConfigSet.Add({ FAssetTableColumns::ManagedDiskSizeColumnId,      true, 100.0f });
-			//InOutConfigSet.Add({ FAssetTableColumns::DiskSizeColumnId,             true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId, true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,      true, 100.0f });
-			//InOutConfigSet.Add({ FAssetTableColumns::CookRuleColumnId,             true, 200.0f });
 			//InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,               true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,          true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::GameFeaturePluginColumnId,    true, 200.0f });
 		}
 	};
 	AvailableViewPresets.Add(MakeShared<FDefaultViewPreset>());
+
+	//////////////////////////////////////////////////
+	// GameFeaturePlugin, PrimaryType, Dependency View
+	
+	class FGameFeaturePluginPrimaryTypeDependencyView : public UE::Insights::ITableTreeViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("GFPTypeDepView_PresetName", "DependencyAnalysis");
+		}
+
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("GFPTypeDepView_PresentName", "Dependency Analysis View\nconfigure the tree view to show a breakdown of assets by Game Feature Plugin, Primary Asset Type, and Dependencies.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return UE::Insights::FTable::GetHierarchyColumnId();
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Ascending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* GameFeaturePluginGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
+						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::GameFeaturePluginColumnId;
+				});
+			if (GameFeaturePluginGrouping)
+			{
+				InOutCurrentGroupings.Add(*GameFeaturePluginGrouping);
+			}
+
+			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PrimaryTypeGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
+						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::PrimaryTypeColumnId;
+				});
+			if (PrimaryTypeGrouping)
+			{
+				InOutCurrentGroupings.Add(*PrimaryTypeGrouping);
+			}
+
+			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* DependencyGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<FAssetDependencyGrouping>();
+				});
+			if (DependencyGrouping)
+			{
+				InOutCurrentGroupings.Add(*DependencyGrouping);
+			}
+		}
+		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),     true, 400.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                 true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,          true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId, true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId, true, 180.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeOtherDependenciesColumnId, true, 180.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,          true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::GameFeaturePluginColumnId,    true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,          true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                 true, 200.0f });
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FGameFeaturePluginPrimaryTypeDependencyView>());
 
 	//////////////////////////////////////////////////
 	// Path Breakdown View
@@ -394,6 +470,7 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			//InOutConfigSet.Add({ FAssetTableColumns::ManagedDiskSizeColumnId,      true, 100.0f });
 			//InOutConfigSet.Add({ FAssetTableColumns::DiskSizeColumnId,             true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId, true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId, true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,      true, 100.0f });
 			//InOutConfigSet.Add({ FAssetTableColumns::CookRuleColumnId,             true, 200.0f });
 			//InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,               true, 200.0f });
