@@ -585,26 +585,42 @@ FProperty* FKismetCompilerUtilities::FindNamedPropertyInScope(UStruct* Scope, FN
 		return nullptr;
 	};
 
+	auto FindSparseClassDataProperty = [&FindProperty](UStruct* CurrentScope) -> FProperty*
+	{
+		if (UClass* Class = Cast<UClass>(CurrentScope))
+		{
+			if (UStruct* SparseData = Class->GetSparseClassDataStruct())
+			{
+				return FindProperty(SparseData);
+			}
+		}
+		return nullptr;
+	};
+
 	bIsSparseProperty = false;
 	while (Scope)
 	{
 		// Check the given scope first
 		if (FProperty* Property = FindProperty(Scope))
 		{
+			if (Property->HasAllPropertyFlags(CPF_Deprecated))
+			{
+				// If this property is deprecated, check to see if the sparse data has a property that 
+				// we should use instead (eg, when migrating data from an object into the sparse data)
+				if (FProperty* SparseProperty = FindSparseClassDataProperty(Scope))
+				{
+					bIsSparseProperty = true;
+					return SparseProperty;
+				}
+			}
 			return Property;
 		}
 
-		// If this is a class, check the sparse data for the property
-		if (UClass* Class = Cast<UClass>(Scope))
+		// Check the sparse data for the property
+		if (FProperty* SparseProperty = FindSparseClassDataProperty(Scope))
 		{
-			if (UStruct* SparseData = Class->GetSparseClassDataStruct())
-			{
-				if (FProperty* Property = FindProperty(SparseData))
-				{
-					bIsSparseProperty = true;
-					return Property;
-				}
-			}
+			bIsSparseProperty = true;
+			return SparseProperty;
 		}
 
 		// Functions don't automatically check their class when using a field iterator

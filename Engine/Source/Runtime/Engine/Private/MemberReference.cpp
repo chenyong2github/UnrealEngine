@@ -416,14 +416,35 @@ TFieldType* FMemberReference::ResolveMemberImpl(UClass* SelfScope, TFieldTypeCla
 			if (TargetScope)
 #endif
 			{
-				// Find in target scope or in the sparse class data
-				ReturnField = FindUFieldOrFProperty<TFieldType>(TargetScope, MemberName, EFieldIterationFlags::IncludeAll);
-				if (!ReturnField)
+				auto FindSparseClassDataField = [this, TargetScope]() -> TFieldType*
 				{
 					if (UScriptStruct* SparseClassDataStruct = TargetScope->GetSparseClassDataStruct())
 					{
-						ReturnField = FindUFieldOrFProperty<TFieldType>(SparseClassDataStruct, MemberName, EFieldIterationFlags::IncludeAll);
+						return FindUFieldOrFProperty<TFieldType>(SparseClassDataStruct, MemberName, EFieldIterationFlags::IncludeAll);
 					}
+					return nullptr;
+				};
+
+				// Check the target scope first
+				if (TFieldType* TargetField = FindUFieldOrFProperty<TFieldType>(TargetScope, MemberName, EFieldIterationFlags::IncludeAll))
+				{
+					if (FProperty* TargetProperty = FFieldVariant(TargetField).Get<FProperty>();
+						TargetProperty && TargetProperty->HasAllPropertyFlags(CPF_Deprecated))
+					{
+						// If this property is deprecated, check to see if the sparse data has a property that 
+						// we should use instead (eg, when migrating data from an object into the sparse data)
+						ReturnField = FindSparseClassDataField();
+					}
+					if (!ReturnField)
+					{
+						ReturnField = TargetField;
+					}
+				}
+
+				// Check the sparse data for the field
+				if (!ReturnField)
+				{
+					ReturnField = FindSparseClassDataField();
 				}
 			}
 
