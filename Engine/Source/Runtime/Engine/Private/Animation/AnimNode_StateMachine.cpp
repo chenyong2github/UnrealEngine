@@ -1187,7 +1187,7 @@ void FAnimNode_StateMachine::TransitionToState(const FAnimationUpdateContext& Co
 
 			NewTransition->SourceTransitionIndices = SourceTransitionIndices;
 
-			if (!bFirstUpdate)
+			if (!bFirstUpdate || (bFirstUpdate && !bSkipFirstUpdateTransition))
 			{
 				Context.AnimInstanceProxy->AddAnimNotifyFromGeneratedClass(NewTransition->StartNotify);
 			}
