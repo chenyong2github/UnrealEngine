@@ -3,7 +3,6 @@
 #include "Trace/StoreClient.h"
 #include "Algo/Transform.h"
 #include "Asio/Asio.h"
-#include "AsioStore.h"
 #include "CborPayload.h"
 #include "Templates/UnrealTemplate.h"
 
@@ -116,6 +115,7 @@ public:
 	bool					GetSessionInfo(uint32 Index);
 	bool					GetSessionInfoById(uint32 Id);
 	bool					GetSessionInfoByTraceId(uint32 TraceId);
+	bool					GetSessionInfoByTraceGuid(const FGuid& TraceGuid);
 							bool SetStoreDirectories(const TCHAR* StoreDir, const TArray<FString>& AddWatchDirs,
 													const TArray<FString>& RemoveWatchDirs);
 
@@ -376,6 +376,15 @@ bool FStoreCborClient::GetSessionInfoByTraceId(uint32 TraceId)
 {
 	TPayloadBuilder<> Builder("v1/session/info");
 	Builder.AddInteger("trace_id", int32(TraceId));
+	FPayload Payload = Builder.Done();
+	return Communicate(Payload);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FStoreCborClient::GetSessionInfoByTraceGuid(const FGuid& TraceGuid)
+{
+	TPayloadBuilder<> Builder("v1/session/info");
+	Builder.AddString("trace_guid", TCHAR_TO_ANSI(*TraceGuid.ToString()));
 	FPayload Payload = Builder.Done();
 	return Communicate(Payload);
 }
@@ -679,5 +688,18 @@ const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfoByTraceId(uint32 T
 	return (FSessionInfo*)(&Response);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+const FStoreClient::FSessionInfo* FStoreClient::GetSessionInfoByGuid(const FGuid& TraceGuid)
+{
+	auto* Self = (FStoreCborClient*)this;
+	if (!Self->GetSessionInfoByTraceGuid(TraceGuid))
+	{
+		return nullptr;
+	}
+
+	const FResponse& Response = Self->GetResponse();
+	return (FSessionInfo*)(&Response);
+}
+	
 } // namespace Trace
 } // namespace UE

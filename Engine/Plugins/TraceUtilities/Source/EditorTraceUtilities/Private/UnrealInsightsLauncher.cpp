@@ -244,35 +244,55 @@ bool FUnrealInsightsLauncher::OpenRemoteTrace(const FString& TraceHostAddress, c
 bool FUnrealInsightsLauncher::OpenActiveTraceFromStore(const FString& TraceHostAddress)
 {
 	UE::Trace::FStoreClient* StoreClient = UE::Trace::FStoreClient::Connect(*TraceHostAddress);
-	
+
 	if (!StoreClient)
 	{
-		const FText	MessageBoxTextFmt = LOCTEXT("StoreClientConnectFailed_TextFmt", "Could not connect to StoreClient at {0}");
-     	const FText MessageBoxText = FText::Format(MessageBoxTextFmt, FText::FromString(TraceHostAddress));
-     	LogMessage(MessageBoxText);
+		const FText MessageBoxTextFmt = LOCTEXT("StoreClientConnectFailed_TextFmt",
+												"Could not connect to StoreClient at {0}");
+		const FText MessageBoxText = FText::Format(MessageBoxTextFmt, FText::FromString(TraceHostAddress));
+		LogMessage(MessageBoxText);
 		//No active connection to store client
 		return false;
 	}
-	 
+
 	int SessionCount = StoreClient->GetSessionCount();
 	if (!SessionCount)
 	{
-		const FText	MessageBoxTextFmt = LOCTEXT("StoreClientNoSession_TextFmt", "No active session found in StoreClient at {0}");
-     	const FText MessageBoxText = FText::Format(MessageBoxTextFmt, FText::FromString(TraceHostAddress));
-     	LogMessage(MessageBoxText);
+		const FText MessageBoxTextFmt = LOCTEXT("StoreClientNoSession_TextFmt",
+												"No active session found in StoreClient at {0}");
+		const FText MessageBoxText = FText::Format(MessageBoxTextFmt, FText::FromString(TraceHostAddress));
+		LogMessage(MessageBoxText);
 		return false;
 	}
 	// Get first active session
-	const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(0);
+	FGuid SessionGuid, TraceGuid;
+	if (!FTraceAuxiliary::IsConnected(SessionGuid, TraceGuid))
+	{
+		return false;
+	}
 
+	// TraceGuid is enough to identify the session
+	const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByGuid(TraceGuid);
+
+	// Fallback to old method of using last active session, in case running with old server
+	if (!SessionInfo)
+	{
+		UE_LOG(LogTraceUtilities, Warning, TEXT("Unable to find session using guid. Possibly running with older server version. Falling back to last active session."));
+		SessionInfo = StoreClient->GetSessionInfo(0);
+	}
+	
 	if (!SessionInfo)
 	{
 		// Failed to retrieve SessionInfo for active Session with Index 0
+		const FText MessageBoxTextFmt = LOCTEXT("StoreClientFailedToRetrieve_TextFmt",
+												"Failed to retrieve active session in StoreClient at {0}");
+		const FText MessageBoxText = FText::Format(MessageBoxTextFmt, FText::FromString(TraceHostAddress));
+		LogMessage(MessageBoxText);
 		return false;
 	}
-	
+
 	uint32 TraceId = SessionInfo->GetTraceId();
-	
+
 	if (!OpenRemoteTrace(TraceHostAddress, (uint16)StoreClient->GetStorePort(), TraceId))
 	{
 		//Failed to open Trace File %s

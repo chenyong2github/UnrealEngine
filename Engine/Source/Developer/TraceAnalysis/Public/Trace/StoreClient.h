@@ -72,6 +72,7 @@ public:
 	const FSessionInfo* GetSessionInfo(uint32 Index) const;
 	const FSessionInfo* GetSessionInfoById(uint32 Id) const;
 	const FSessionInfo* GetSessionInfoByTraceId(uint32 TraceId) const;
+	const FSessionInfo* GetSessionInfoByGuid(const FGuid& TraceGuid);
 #if 0
 	template <typename Lambda> uint32	GetSessionInfos(uint32 StartIndex, uint32 Count, Lambda&& Callback) const;
 #endif // 0

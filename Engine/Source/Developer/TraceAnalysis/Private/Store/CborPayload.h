@@ -74,6 +74,8 @@ public:
 	template <int N> void		AddInteger(const char (&Name)[N], int64 Value);
 	template <int N> void		AddString(const char (&Name)[N], const char* Value, int32 Length=-1);
 	template <int N> void		AddStringArray(const char(&Name)[N], const TArray<FString>& Values);
+	template <int N, typename T>
+					void		AddArray(const char(&Name)[N], const TArrayView<T>& Values);
 	FPayload					Done();
 
 private:
@@ -133,7 +135,20 @@ inline void TPayloadBuilder<Size>::AddStringArray(const char(&Name)[N], const TA
 		CborWriter.WriteValue(Elem);
 	}
 }
-	
+
+////////////////////////////////////////////////////////////////////////////////
+template <int Size>
+template <int N, typename T>
+void TPayloadBuilder<Size>::AddArray(const char(& Name)[N], const TArrayView<T>& Values)
+{
+	CborWriter.WriteValue(Name, N - 1);
+	CborWriter.WriteContainerStart(ECborCode::Array, Values.Num());
+	for (const T& Elem : Values)
+	{
+		CborWriter.WriteValue(Elem);
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 template <int Size>
 inline FPayload TPayloadBuilder<Size>::Done()
