@@ -629,6 +629,8 @@ UFoliageType::UFoliageType(const FObjectInitializer& ObjectInitializer)
 	bEvaluateWorldPositionOffset = true;
 	WorldPositionOffsetDisableDistance = 0;
 
+	ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Auto;
+
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 
 	/** Ecosystem settings*/

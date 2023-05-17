@@ -300,6 +300,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bAffectDynamicIndirectLighting = true;
 	bAffectDistanceFieldLighting = true;
 	bCastStaticShadow = true;
+	ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Auto;
 	bCastVolumetricTranslucentShadow = false;
 	bCastContactShadow = true;
 	IndirectLightingCacheQuality = ILCQ_Point;

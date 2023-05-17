@@ -1373,6 +1373,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	LOD0DistributionSetting = 1.25f;
 	LODDistributionSetting = 3.0f;
 	bCastStaticShadow = true;
+	ShadowCacheInvalidationBehavior = EShadowCacheInvalidationBehavior::Auto;
 	bUsedForNavigation = true;
 	bFillCollisionUnderLandscapeForNavmesh = false;
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);

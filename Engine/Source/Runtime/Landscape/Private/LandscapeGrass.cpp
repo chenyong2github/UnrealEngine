@@ -1948,6 +1948,7 @@ FGrassVariety::FGrassVariety()
 	, bCastContactShadow(true)
 	, bKeepInstanceBufferCPUCopy(false)
 	, InstanceWorldPositionOffsetDisableDistance(0)
+	, ShadowCacheInvalidationBehavior(EShadowCacheInvalidationBehavior::Auto)
 {
 	GrassDensityQuality.Init(GGrassQualityLevelCVarName, GGrassQualityLevelScalabilitySection);
 	StartCullDistanceQuality.Init(GGrassQualityLevelCVarName, GGrassQualityLevelScalabilitySection);
