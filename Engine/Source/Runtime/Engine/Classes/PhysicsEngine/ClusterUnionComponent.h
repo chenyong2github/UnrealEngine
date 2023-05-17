@@ -24,6 +24,9 @@ DECLARE_LOG_CATEGORY_EXTERN(LogClusterUnion, Log, All);
 namespace Chaos
 {
 	class FPBDRigidsSolver;
+
+	template <typename TPayload, typename T, int d>
+	class ISpatialAccelerationCollection;
 }
 
 USTRUCT()
@@ -235,11 +238,18 @@ private:
 	// User data to be able to tie the cluster particle back to this component.
 	FChaosUserData PhysicsUserData;
 
+	// An acceleration structure of all children components managed by the cluster union itself.
+	TUniquePtr<Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>> AccelerationStructure;
+
 	// Need to handle the fact that this component may or may not be initialized prior to the components referenced in
 	// ClusteredComponentsReferences. This function lets us listen to OnComponentPhysicsStateChanged on the incoming
 	// primitive component so that once the physics state is properly created we can begin the process of adding it.
 	UFUNCTION()
 	void HandleComponentPhysicsStateChange(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange);
+
+	// Once in the cluster union, if the component's physics state is destroyed, we should remove it from the cluster union.
+	UFUNCTION()
+	void HandleComponentPhysicsStateChangePostAddIntoClusterUnion(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange);
 
 	// These functions only get called when the physics thread syncs to the game thread thereby enforcing a physics thread authoritative view of
 	// what particles are currently contained within the cluster union.

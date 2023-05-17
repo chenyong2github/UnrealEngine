@@ -105,6 +105,11 @@ FPhysicsGeometryCollection_Chaos::FPhysicsGeometryCollection_Chaos(const FPhysic
 {
 }
 
+FPhysicsGeometryCollection_Chaos::FPhysicsGeometryCollection_Chaos(const FPhysicsGeometry& InGeom)
+	: Geom(InGeom)
+{
+}
+
 FPhysicsShapeAdapter_Chaos::FPhysicsShapeAdapter_Chaos(const FQuat& Rot,const FCollisionShape& CollisionShape)
 	: GeometryRotation(Rot)
 {
@@ -1839,6 +1844,11 @@ FPhysicsGeometryCollection_Chaos FChaosEngineInterface::GetGeometryCollection(co
 {
 	FPhysicsGeometryCollection_Chaos NewCollection(InShape);
 	return NewCollection;
+}
+
+FPhysicsGeometryCollection_Chaos FChaosEngineInterface::GetGeometryCollection(const FPhysicsGeometry& InShape)
+{
+	return FPhysicsGeometryCollection_Chaos{ InShape };
 }
 
 void FChaosEngineInterface::SetMaskFilter(const FPhysicsShapeHandle& InShape, FMaskFilter InFilter)

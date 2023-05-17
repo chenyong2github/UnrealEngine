@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "PhysicsEngine/ClusterUnionComponent.h"
 
+#include "Chaos/ImplicitObject.h"
+#include "Chaos/Serializable.h"
+#include "Chaos/ShapeInstance.h"
 #include "Engine/World.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Net/UnrealNetwork.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
+#include "Physics/GenericPhysicsInterface.h"
 #include "PhysicsEngine/ClusterUnionReplicatedProxyComponent.h"
 #include "PhysicsEngine/PhysicsObjectExternalInterface.h"
 #include "PhysicsProxy/ClusterUnionPhysicsProxy.h"
@@ -14,10 +18,31 @@
 
 DEFINE_LOG_CATEGORY(LogClusterUnion);
 
-// todo : remove when proven to be the right fix 
-bool bClusterUnionClientTransformFix = true;
-FAutoConsoleVariableRef CVarClusterUnionClientTransformFix(TEXT("clusterunion.clienttransformfix"), bClusterUnionClientTransformFix, TEXT("fix transform not always being properly set for cluster union"));
+namespace
+{
+	bool bUseClusterUnionAccelerationStructure = false;
+	FAutoConsoleVariableRef CVarUseClusterUnionAccelerationStructure(TEXT("ClusterUnion.UseAccelerationStructure"), bUseClusterUnionAccelerationStructure, TEXT("Whether component level sweeps and overlaps against cluster unions should use an acceleration structure instead."));
 
+	// TODO: Should this be exposed in Chaos instead?
+	using FAccelerationStructure = Chaos::TAABBTree<Chaos::FAccelerationStructureHandle, Chaos::TAABBTreeLeafArray<Chaos::FAccelerationStructureHandle>>;
+
+	TUniquePtr<Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>> CreateEmptyAccelerationStructure()
+	{
+		const Chaos::TConstParticleView<Chaos::FSpatialAccelerationCache> Empty;
+		FAccelerationStructure* Structure = new FAccelerationStructure(
+			Empty,
+			FAccelerationStructure::DefaultMaxChildrenInLeaf,
+			FAccelerationStructure::DefaultMaxTreeDepth,
+			FAccelerationStructure::DefaultMaxPayloadBounds,
+			FAccelerationStructure::DefaultMaxNumToProcess,
+			true,
+			false
+		);
+
+		check(Structure != nullptr);
+		return TUniquePtr<Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>>(Structure);
+	}
+}
 
 UClusterUnionComponent::UClusterUnionComponent(const FObjectInitializer& ObjectInitializer)
 	: UPrimitiveComponent(ObjectInitializer)
@@ -114,12 +139,24 @@ void UClusterUnionComponent::AddComponentToCluster(UPrimitiveComponent* InCompon
 	}
 
 	PendingData.BoneIds.Empty(Objects.Num());
+
 	for (Chaos::FPhysicsObjectHandle Object : Objects)
 	{
 		PendingData.BoneIds.Add(Chaos::FPhysicsObjectInterface::GetId(Object));
+
+		if (AccelerationStructure && Object)
+		{
+			Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(Object);
+			const FBox HandleBounds = Interface->GetWorldBounds({ &Object, 1 });
+			AccelerationStructure->UpdateElement(Handle, Chaos::TAABB<Chaos::FReal, 3>{HandleBounds.Min, HandleBounds.Max}, HandleBounds.IsValid != 0);
+		}
 	}
 
 	PendingComponentSync.Add(InComponent, PendingData);
+
+	// Need to listen to changes in the component's physics state. If it gets destroyed it should be removed from the cluster union as well.
+	InComponent->OnComponentPhysicsStateChanged.AddDynamic(this, &UClusterUnionComponent::HandleComponentPhysicsStateChangePostAddIntoClusterUnion);
+
 	PhysicsProxy->AddPhysicsObjects_External(Objects);
 	ForceRebuildGTParticleGeometry();
 }
@@ -139,6 +176,7 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 	}
 
 	TSet<Chaos::FPhysicsObjectHandle> PhysicsObjectsToRemove;
+	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(GetWorld()->GetPhysicsScene());
 
 	if (FClusteredComponentData* ComponentData = ComponentToPhysicsObjects.Find(InComponent))
 	{
@@ -163,6 +201,18 @@ void UClusterUnionComponent::RemoveComponentFromCluster(UPrimitiveComponent* InC
 		else
 		{
 			PhysicsObjectsToRemove = ComponentData->PhysicsObjects;
+		}
+
+		if (AccelerationStructure)
+		{
+			for (Chaos::FPhysicsObjectHandle PhysicsObject : PhysicsObjectsToRemove)
+			{
+				if (PhysicsObject)
+				{
+					Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(PhysicsObject);
+					AccelerationStructure->RemoveElement(Handle);
+				}
+			}
 		}
 	}
 
@@ -290,6 +340,12 @@ void UClusterUnionComponent::OnCreatePhysicsState()
 	{
 		Scene->AddObject(this, PhysicsProxy);
 	}
+	
+	if (bUseClusterUnionAccelerationStructure)
+	{
+		AccelerationStructure = CreateEmptyAccelerationStructure();
+		check(AccelerationStructure != nullptr);
+	}
 
 	// It's just logically easier to be consistent on the client to go through the replication route.
 	if (IsAuthority())
@@ -306,13 +362,10 @@ void UClusterUnionComponent::OnCreatePhysicsState()
 	}
 	else
 	{
-		if (bClusterUnionClientTransformFix)
-		{
-			// we should not rely on the OnTransformUpdated callback to set the initial position of the external particle
-			// if it is not set and the callback does not get called then the cluster union component will be moved to the origin of the world
-			const FTransform Transform = GetComponentTransform();
-			PhysicsProxy->SetXR_External(Transform.GetLocation(), Transform.GetRotation());
-		}
+		// we should not rely on the OnTransformUpdated callback to set the initial position of the external particle
+		// if it is not set and the callback does not get called then the cluster union component will be moved to the origin of the world
+		const FTransform Transform = GetComponentTransform();
+		PhysicsProxy->SetXR_External(Transform.GetLocation(), Transform.GetRotation());
 	}
 }
 
@@ -347,6 +400,7 @@ void UClusterUnionComponent::OnDestroyPhysicsState()
 	}
 
 	PhysicsProxy = nullptr;
+	AccelerationStructure.Reset();
 }
 
 void UClusterUnionComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
@@ -420,7 +474,6 @@ Chaos::FPhysicsObjectId UClusterUnionComponent::GetIdFromGTParticle(Chaos::FGeom
 
 void UClusterUnionComponent::HandleComponentPhysicsStateChange(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange)
 {
-	// TODO: Maybe we should handle the destroyed state change too?
 	if (!ChangedComponent || StateChange != EComponentPhysicsStateChange::Created)
 	{
 		return;
@@ -432,6 +485,17 @@ void UClusterUnionComponent::HandleComponentPhysicsStateChange(UPrimitiveCompone
 	{
 		AddComponentToCluster(ChangedComponent, PendingData->BoneIds);
 	}
+}
+
+void UClusterUnionComponent::HandleComponentPhysicsStateChangePostAddIntoClusterUnion(UPrimitiveComponent* ChangedComponent, EComponentPhysicsStateChange StateChange)
+{
+	if (!ChangedComponent || StateChange != EComponentPhysicsStateChange::Destroyed)
+	{
+		return;
+	}
+
+	ChangedComponent->OnComponentPhysicsStateChanged.RemoveDynamic(this, &UClusterUnionComponent::HandleComponentPhysicsStateChangePostAddIntoClusterUnion);
+	RemoveComponentFromCluster(ChangedComponent);
 }
 
 void UClusterUnionComponent::SyncVelocitiesFromPhysics(const FVector& LinearVelocity, const FVector& AngularVelocity)
@@ -563,6 +627,7 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 
 	}
 
+	const TSet<int32> OldBoneIds{ ComponentData.BoneIds };
 	PerBoneChildToParent.GetKeys(ComponentData.BoneIds);
 	OnComponentAddedEvent.Broadcast(ChangedComponent, ComponentData.BoneIds, bIsNew);
 
@@ -582,16 +647,43 @@ void UClusterUnionComponent::HandleAddOrModifiedClusteredComponent(UPrimitiveCom
 		}
 	}
 
+	TArray<Chaos::FPhysicsObjectHandle> AllPhysicsObjects = ChangedComponent->GetAllPhysicsObjects();
+	FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(AllPhysicsObjects);
+
 	// One more loop to ensure that our sets of physics objects are valid and up to date.
 	// This needs to happen on both the client and the server.
 	for (const TPair<int32, FTransform>& Kvp : PerBoneChildToParent)
 	{
 		Chaos::FPhysicsObjectHandle PhysicsObject = ChangedComponent->GetPhysicsObjectById(Kvp.Key);
+
+		if (AccelerationStructure)
+		{
+			if (PhysicsObject)
+			{
+				Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(PhysicsObject);
+				const FBox HandleBounds = Interface->GetWorldBounds({ &PhysicsObject, 1 });
+				AccelerationStructure->UpdateElement(Handle, Chaos::TAABB<Chaos::FReal, 3>{HandleBounds.Min, HandleBounds.Max}, HandleBounds.IsValid != 0);
+			}
+		}
+
 		ComponentData.PhysicsObjects.Add(PhysicsObject);
 	}
 
-	ComponentData.AllPhysicsObjects.Empty();
-	ComponentData.AllPhysicsObjects.Append(ChangedComponent->GetAllPhysicsObjects());
+	// In the case where we need to keep the acceleration structure up to date, we need to make sure old bone ids are properly
+	// removed from the acceleration structure.
+	if (AccelerationStructure)
+	{
+		for (int32 BoneId : OldBoneIds.Difference(ComponentData.BoneIds))
+		{
+			if (Chaos::FPhysicsObjectHandle PhysicsObject = ChangedComponent->GetPhysicsObjectById(BoneId))
+			{
+				Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(PhysicsObject);
+				AccelerationStructure->RemoveElement(Handle);
+			}
+		}
+	}
+
+	ComponentData.AllPhysicsObjects = MoveTemp(AllPhysicsObjects);
 }
 
 void UClusterUnionComponent::HandleRemovedClusteredComponent(UPrimitiveComponent* ChangedComponent, bool bDestroyReplicatedProxy)
@@ -614,14 +706,18 @@ void UClusterUnionComponent::HandleRemovedClusteredComponent(UPrimitiveComponent
 		if (ChangedComponent->HasValidPhysicsState())
 		{
 			FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(ComponentData->AllPhysicsObjects);
-			for (Chaos::FGeometryParticle* Particle : Interface->GetAllParticles(ComponentData->AllPhysicsObjects))
+			for (Chaos::FPhysicsObjectHandle PhysicsObject : ComponentData->AllPhysicsObjects)
 			{
-				if (!Particle)
+				if (Chaos::FGeometryParticle* Particle = Interface->GetParticle(PhysicsObject))
 				{
-					continue;
+					UniqueIdxToComponent.Remove(Particle->UniqueIdx().Idx);
 				}
 
-				UniqueIdxToComponent.Remove(Particle->UniqueIdx().Idx);
+				if (AccelerationStructure && PhysicsObject)
+				{
+					Chaos::FAccelerationStructureHandle Handle = Interface->CreateAccelerationStructureHandle(PhysicsObject);
+					AccelerationStructure->RemoveElement(Handle);
+				}
 			}
 		}
 
@@ -709,8 +805,14 @@ void UClusterUnionComponent::SetSimulatePhysics(bool bSimulate)
 	PhysicsProxy->SetObjectState_External(bSimulate ? Chaos::EObjectStateType::Dynamic : Chaos::EObjectStateType::Kinematic);
 }
 
+DECLARE_CYCLE_STAT(TEXT("UClusterUnionComponent::LineTraceComponentMulti"), STAT_ClusterUnionComponentLineTraceComponentMulti, STATGROUP_Chaos);
 bool UClusterUnionComponent::LineTraceComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentLineTraceComponentMulti);
+	if (AccelerationStructure)
+	{
+		return FGenericPhysicsInterface::RaycastMultiUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
+	}
 	OutHit.Reset();
 
 	VisitAllCurrentChildComponentsForCollision(TraceChannel, Params, ResponseParams, ObjectParams,
@@ -729,8 +831,15 @@ bool UClusterUnionComponent::LineTraceComponent(TArray<FHitResult>& OutHit, cons
 	return !OutHit.IsEmpty();
 }
 
+DECLARE_CYCLE_STAT(TEXT("UClusterUnionComponent::SweepComponentMulti"), STAT_ClusterUnionComponentSweepComponentMulti, STATGROUP_Chaos);
 bool UClusterUnionComponent::SweepComponent(TArray<FHitResult>& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentSweepComponentMulti);
+	if (AccelerationStructure)
+	{
+		return FGenericPhysicsInterface::GeomSweepMultiUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), Geometry, ShapeWorldRotation, OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
+	}
+
 	OutHit.Reset();
 
 	VisitAllCurrentChildComponentsForCollision(TraceChannel, Params, ResponseParams, ObjectParams,
@@ -749,8 +858,15 @@ bool UClusterUnionComponent::SweepComponent(TArray<FHitResult>& OutHit, const FV
 	return !OutHit.IsEmpty();
 }
 
+DECLARE_CYCLE_STAT(TEXT("UClusterUnionComponent::LineTraceComponentSingle"), STAT_ClusterUnionComponentLineTraceComponentSingle, STATGROUP_Chaos);
 bool UClusterUnionComponent::LineTraceComponent(FHitResult& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentLineTraceComponentSingle);
+	if (AccelerationStructure)
+	{
+		return FGenericPhysicsInterface::RaycastSingleUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
+	}
+
 	bool bHasHit = false;
 	OutHit.Distance = TNumericLimits<float>::Max();
 
@@ -771,8 +887,15 @@ bool UClusterUnionComponent::LineTraceComponent(FHitResult& OutHit, const FVecto
 	return bHasHit;
 }
 
+DECLARE_CYCLE_STAT(TEXT("UClusterUnionComponent::SweepComponentSingle"), STAT_ClusterUnionComponentSweepComponentSingle, STATGROUP_Chaos);
 bool UClusterUnionComponent::SweepComponent(FHitResult& OutHit, const FVector Start, const FVector End, const FQuat& ShapeWorldRotation, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentSweepComponentSingle);
+	if (AccelerationStructure)
+	{
+		return FGenericPhysicsInterface::GeomSweepSingleUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), Geometry, ShapeWorldRotation, OutHit, Start, End, TraceChannel, Params, ResponseParams, ObjectParams);
+	}
+
 	bool bHasHit = false;
 	OutHit.Distance = TNumericLimits<float>::Max();
 
@@ -793,8 +916,15 @@ bool UClusterUnionComponent::SweepComponent(FHitResult& OutHit, const FVector St
 	return bHasHit;
 }
 
+DECLARE_CYCLE_STAT(TEXT("UClusterUnionComponent::OverlapComponentWithResult"), STAT_ClusterUnionComponentOverlapComponentWithResult, STATGROUP_Chaos);
 bool UClusterUnionComponent::OverlapComponentWithResult(const FVector& Pos, const FQuat& Rot, const FPhysicsGeometry& Geometry, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& OutOverlap) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentOverlapComponentWithResult);
+	if (AccelerationStructure)
+	{
+		return FGenericPhysicsInterface::GeomOverlapMultiUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), Geometry, Pos, Rot, OutOverlap, TraceChannel, Params, ResponseParams, ObjectParams);
+	}
+
 	bool bHasOverlap = false;
 
 	FVector QueryHalfExtent = Geometry.BoundingBox().Extents();
@@ -821,14 +951,43 @@ bool UClusterUnionComponent::OverlapComponentWithResult(const FVector& Pos, cons
 	return bHasOverlap;
 }
 
+DECLARE_CYCLE_STAT(TEXT("UClusterUnionComponent::ComponentOverlapComponentWithResultImpl"), STAT_ClusterUnionComponentComponentOverlapComponentWithResultImpl, STATGROUP_Chaos);
 bool UClusterUnionComponent::ComponentOverlapComponentWithResultImpl(const class UPrimitiveComponent* const PrimComp, const FVector& Pos, const FQuat& Rot, const FCollisionQueryParams& Params, TArray<FOverlapResult>& OutOverlap) const
 {
+	SCOPE_CYCLE_COUNTER(STAT_ClusterUnionComponentComponentOverlapComponentWithResultImpl);
 	if(!PrimComp)
 	{
 		return false;
 	}
 
 	bool bHasOverlap = false;
+	if (AccelerationStructure)
+	{
+		TArray<Chaos::FPhysicsObjectHandle> InObjects = PrimComp->GetAllPhysicsObjects();
+		FLockedReadPhysicsObjectExternalInterface Interface = FPhysicsObjectExternalInterface::LockRead(InObjects);
+		InObjects = InObjects.FilterByPredicate(
+			[&Interface](Chaos::FPhysicsObjectHandle Handle)
+			{
+				return !Interface->AreAllDisabled({ &Handle, 1 });
+			}
+		);
+
+		Interface->VisitEveryShape(InObjects,
+			[this, &bHasOverlap, &Pos, &Rot, &OutOverlap, &Params](const Chaos::FConstPhysicsObjectHandle Handle, Chaos::FShapeInstanceProxy* Shape)
+			{
+				if (Shape)
+				{
+					if (Chaos::TSerializablePtr<Chaos::FImplicitObject> Geometry = Shape->GetGeometry())
+					{
+						bHasOverlap |= FGenericPhysicsInterface::GeomOverlapMultiUsingSpatialAcceleration(*AccelerationStructure, GetWorld(), *Geometry, Pos, Rot, OutOverlap, DefaultCollisionChannel, Params, FCollisionResponseParams::DefaultResponseParam, FCollisionObjectQueryParams::DefaultObjectQueryParam);
+					}
+				}
+
+				return true;
+			});
+
+		return bHasOverlap;
+	}
 
 	FBoxSphereBounds QueryBounds = PrimComp->Bounds.TransformBy(FTransform(Rot, Pos));
 

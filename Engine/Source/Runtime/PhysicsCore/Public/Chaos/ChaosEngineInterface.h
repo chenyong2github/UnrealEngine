@@ -316,6 +316,7 @@ struct PHYSICSCORE_API FPhysicsGeometryCollection_Chaos
 private:
 	friend class FChaosEngineInterface;
 	explicit FPhysicsGeometryCollection_Chaos(const FPhysicsShapeReference_Chaos& InShape);
+	explicit FPhysicsGeometryCollection_Chaos(const FPhysicsGeometry& InGeom);
 
 	const Chaos::FImplicitObject& Geom;
 };
@@ -538,7 +539,7 @@ public:
 	static void SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData);
 	static FPhysicsShapeHandle CloneShape(const FPhysicsShapeHandle& InShape);
 	static FPhysicsGeometryCollection_Chaos GetGeometryCollection(const FPhysicsShapeHandle& InShape);
-
+	static FPhysicsGeometryCollection_Chaos GetGeometryCollection(const FPhysicsGeometry& InShape);
 
 	// @todo(mlentine): Which of these do we need to support?
 	// Set the mask filter of a shape, which is an extra level of filtering during collision detection / query for extra channels like "Blue Team" and "Red Team"
