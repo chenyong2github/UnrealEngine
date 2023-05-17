@@ -1217,10 +1217,8 @@ private:
 	void ResetCachedValueString() 
 	{ 
 		const NumericType CurrentValue = ValueAttribute.Get();
-		if (CachedExternalValue == CurrentValue)
-		{
-			CachedValueString = Interface->ToString(CurrentValue);
-		}
+		CachedExternalValue = CurrentValue;
+		CachedValueString = Interface->ToString(CachedExternalValue);
 	}
 
 	/** Whetever the interfaced setting changed and the CachedValueString needs to be recomputed. */
