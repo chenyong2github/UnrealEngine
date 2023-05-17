@@ -422,6 +422,7 @@ FPropertyViewerImpl::FPropertyViewerImpl(const SPropertyViewer::FArguments& InAr
 	if (GEditor)
 	{
 		GEditor->OnBlueprintCompiled().AddRaw(this, &FPropertyViewerImpl::HandleBlueprintCompiled);
+		FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FPropertyViewerImpl::HandleReplaceViewedObjects);
 	}
 #endif
 }
@@ -441,6 +442,7 @@ FPropertyViewerImpl::~FPropertyViewerImpl()
 	if (GEditor)
 	{
 		GEditor->OnBlueprintCompiled().RemoveAll(this);
+		FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 	}
 #endif
 }
@@ -1216,14 +1218,37 @@ void FPropertyViewerImpl::HandleBlueprintCompiled()
 
 	if (bRemoved)
 	{
+		TreeWidget->RebuildList();
 		if (FilterHandler)
 		{
 			FilterHandler->RefreshAndFilterTree();
 		}
-		else
+	}
+}
+
+void FPropertyViewerImpl::HandleReplaceViewedObjects(const TMap<UObject*, UObject*>& OldToNewObjectMap)
+{
+	TArray<UObject*> ValueArray;
+	OldToNewObjectMap.GenerateValueArray(ValueArray);
+
+	TArray<TSharedPtr<FContainer>> ItemsToReplace;
+
+	for (TSharedPtr<FContainer> Container : Containers)
+	{
+		if (Container->GetStruct())
 		{
-			TreeWidget->RequestTreeRefresh();
+			if (ValueArray.Contains(Container->GetStruct()))
+			{
+				ItemsToReplace.Add(Container);
+			}
 		}
+	}
+
+	for (TSharedPtr<FContainer> Container : ItemsToReplace)
+	{
+		Remove(Container->GetIdentifier());
+		Containers.Add(Container);
+		AddContainerInternal(Container->GetIdentifier(), Container);
 	}
 }
 #endif //WITH_EDITOR

@@ -269,6 +269,7 @@ private:
 
 #if WITH_EDITOR
 	void HandleBlueprintCompiled();
+	void HandleReplaceViewedObjects(const TMap<UObject*, UObject*>& OldToNewObjectMap);
 #endif //WITH_EDITOR
 };
 
