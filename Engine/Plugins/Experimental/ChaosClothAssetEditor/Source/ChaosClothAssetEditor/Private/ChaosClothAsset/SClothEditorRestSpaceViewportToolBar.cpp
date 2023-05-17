@@ -10,6 +10,9 @@
 #include "Widgets/SBoxPanel.h"
 #include "Editor/UnrealEd/Public/SEditorViewportToolBarMenu.h"
 #include "SEditorViewportViewMenu.h"
+#include "EditorModeManager.h"
+#include "ChaosClothAsset/ClothEditorMode.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SChaosClothAssetEditorRestSpaceViewportToolBar"
 
@@ -19,6 +22,8 @@ void SChaosClothAssetEditorRestSpaceViewportToolBar::Construct(const FArguments&
 
 	ChaosClothAssetEditorRestSpaceViewportPtr = InChaosClothAssetEditorViewport;
 	CommandList = InArgs._CommandList;
+
+	RegisterViewModeMenuContent();
 
 	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
 	TSharedPtr<SHorizontalBox> MainBoxPtr;
@@ -90,19 +95,82 @@ TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::MakeToolBar(
 	ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
-	ToolbarBuilder.BeginSection("SimControls");
+	ToolbarBuilder.BeginSection("View Controls");
+	ToolbarBuilder.BeginBlockGroup();
 	{
-		ToolbarBuilder.BeginBlockGroup();
-	    
-		static FName TogglePatternModeName = FName(TEXT("PatternMode"));
-		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().TogglePatternMode);
-
-		ToolbarBuilder.EndBlockGroup();
+		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().ToggleConstructionViewWireframe);
 	}
+	ToolbarBuilder.EndBlockGroup();
 
-	ToolbarBuilder.EndSection();
+	ToolbarBuilder.BeginBlockGroup();
+	{
+		// View mode selector (2D/3D/Render)
+		ToolbarBuilder.AddWidget(
+			SNew(SEditorViewportToolbarMenu)
+			.ParentToolBar(SharedThis(this))
+			.Cursor(EMouseCursor::Default)
+			.Label(this, &SChaosClothAssetEditorRestSpaceViewportToolBar::GetViewModeMenuLabel)
+			.LabelIcon(this, &SChaosClothAssetEditorRestSpaceViewportToolBar::GetViewModeMenuLabelIcon)
+			.OnGetMenuContent(this, &SChaosClothAssetEditorRestSpaceViewportToolBar::GenerateViewModeMenuContent)
+		);
+	}
+	ToolbarBuilder.EndBlockGroup();
+	ToolbarBuilder.EndSection(); // View Controls
 
 	return ToolbarBuilder.MakeWidget();
 }
+
+
+FText SChaosClothAssetEditorRestSpaceViewportToolBar::GetViewModeMenuLabel() const
+{
+	FText Label = LOCTEXT("ConstructionViewMenuTitle_Default", "View");
+
+	TSharedPtr< SChaosClothAssetEditorRestSpaceViewport > PinnedViewport = ChaosClothAssetEditorRestSpaceViewportPtr.Pin();
+	if (PinnedViewport.IsValid())
+	{
+		const TSharedPtr<FEditorViewportClient> ViewportClient = PinnedViewport->GetViewportClient();
+		check(ViewportClient.IsValid());
+		const FEditorModeTools* const EditorModeTools = ViewportClient->GetModeTools();
+		UChaosClothAssetEditorMode* const ClothEdMode = Cast<UChaosClothAssetEditorMode>(EditorModeTools->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
+		if (ClothEdMode)
+		{
+			switch (ClothEdMode->GetConstructionViewMode())
+			{
+			case UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D:
+				Label = LOCTEXT("ConstructionViewMenuTitle_Sim2D", "2D Sim");
+				break;
+			case UE::Chaos::ClothAsset::EClothPatternVertexType::Sim3D:
+				Label = LOCTEXT("ConstructionViewMenuTitle_Sim3D", "3D Sim");
+				break;
+			case UE::Chaos::ClothAsset::EClothPatternVertexType::Render:
+				Label = LOCTEXT("ConstructionViewMenuTitle_Render", "Render");
+				break;
+			}
+		}
+	}
+
+	return Label;
+}
+
+const FSlateBrush* SChaosClothAssetEditorRestSpaceViewportToolBar::GetViewModeMenuLabelIcon() const
+{
+	return FStyleDefaults::GetNoBrush();
+}
+
+TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::GenerateViewModeMenuContent() const
+{
+	return UToolMenus::Get()->GenerateWidget("ChaosClothAssetEditor.ConstructionViewModeMenu", FToolMenuContext(CommandList));
+}
+
+void SChaosClothAssetEditorRestSpaceViewportToolBar::RegisterViewModeMenuContent()
+{
+	UToolMenu* const Menu = UToolMenus::Get()->RegisterMenu("ChaosClothAssetEditor.ConstructionViewModeMenu");
+
+	FToolMenuSection& Section = Menu->FindOrAddSection("ConstructionViewModeMenuSection");
+	Section.AddMenuEntry(UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::Get().SetConstructionMode2D);
+	Section.AddMenuEntry(UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::Get().SetConstructionMode3D);
+	Section.AddMenuEntry(UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::Get().SetConstructionModeRender);
+}
+
 
 #undef LOCTEXT_NAMESPACE

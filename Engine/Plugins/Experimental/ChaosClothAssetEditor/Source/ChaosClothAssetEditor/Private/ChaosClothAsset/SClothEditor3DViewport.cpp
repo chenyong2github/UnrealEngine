@@ -66,17 +66,7 @@ void SChaosClothAssetEditor3DViewport::BindCommands()
 	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
 
 	CommandList->MapAction(
-		CommandInfos.ToggleSimMeshWireframe,
-		FExecuteAction::CreateLambda([this]() 
-		{
-			TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
-			ClothViewportClient->EnableSimMeshWireframe(!ClothViewportClient->SimMeshWireframeEnabled());
-		}),
-		FCanExecuteAction::CreateLambda([this]() { return true; }),
-		FIsActionChecked::CreateLambda([this]() { return StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client)->SimMeshWireframeEnabled(); }));
-
-	CommandList->MapAction(
-		CommandInfos.ToggleRenderMeshWireframe,
+		CommandInfos.TogglePreviewWireframe,
 		FExecuteAction::CreateLambda([this]()
 		{
 			TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);

@@ -1021,7 +1021,6 @@ void FChaosClothAssetEditorToolkit::OnNodeDeleted(const TSet<UObject*>& DeletedN
 	if (ClothMode)
 	{
 		ClothMode->SetSelectedClothCollection(nullptr);
-		ClothMode->RefocusRestSpaceViewportClient();
 	}
 
 }
@@ -1050,7 +1049,6 @@ void FChaosClothAssetEditorToolkit::OnClothAssetChanged()
 		SetEditingObject(ClothAsset);
 
 		ClothPreviewViewportClient->FocusViewportOnBox(ClothMode->PreviewBoundingBox());
-		ClothMode->RefocusRestSpaceViewportClient();
 
 		PopulateOutliner();
 	}

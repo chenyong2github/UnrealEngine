@@ -6,6 +6,8 @@
 #include "EditorViewportClient.h"
 #include "Behaviors/2DViewportBehaviorTargets.h" // FEditor2DScrollBehaviorTarget, FEditor2DMouseWheelZoomBehaviorTarget
 #include "InputBehaviorSet.h"
+#include "ChaosClothAsset/ClothEditorMode.h"
+#include "ChaosClothAsset/ClothPatternVertexType.h"
 
 class UInputBehaviorSet;
 
@@ -26,19 +28,18 @@ public:
 	// FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	virtual void ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY) override;
 	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override;
 
 	virtual bool ShouldOrbitCamera() const override;
 
-	void Set2DMode(bool In2DMode);
+	void SetConstructionViewMode(EClothPatternVertexType InViewMode);
 
 	void SetEditorViewportWidget(TWeakPtr<SEditorViewport> InEditorViewportWidget);
 	void SetToolCommandList(TWeakPtr<FUICommandList> ToolCommandList);
 
 private:
 
-	bool b2DMode = false;
+	EClothPatternVertexType ConstructionViewMode = EClothPatternVertexType::Sim2D;
 
 	TObjectPtr<UInputBehaviorSet> BehaviorSet;
 

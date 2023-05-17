@@ -147,10 +147,6 @@ void FChaosClothAssetEditorModeToolkit::BuildToolPalette(FName PaletteIndex, cla
 	// TODO: make separate palettes to split up the tools tab
 	if (PaletteIndex == FBaseCharacterFXEditorModeToolkit::ToolsTabName)
 	{
-		// TODO: Re-add the remesh tool when we have a way to remesh both 2d and 3d rest space meshes at the same time
-		//ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshTool);
-
-		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeightMapPaintTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginClothTrainingTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginTransferSkinWeightsTool);

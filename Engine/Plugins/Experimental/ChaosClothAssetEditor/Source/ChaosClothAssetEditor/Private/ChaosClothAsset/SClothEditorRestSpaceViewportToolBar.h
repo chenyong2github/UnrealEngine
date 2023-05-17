@@ -26,6 +26,12 @@ private:
 	TSharedRef<SWidget> MakeDisplayToolBar(const TSharedPtr<FExtender> InExtenders);
 	TSharedRef<SWidget> MakeToolBar(const TSharedPtr<FExtender> InExtenders);
 
+	FText GetViewModeMenuLabel() const;
+	const FSlateBrush* GetViewModeMenuLabelIcon() const;
+	TSharedRef<SWidget> GenerateViewModeMenuContent() const;
+
+	void RegisterViewModeMenuContent();
+
 	/** The viewport that we are in */
 	TWeakPtr<class SChaosClothAssetEditorRestSpaceViewport> ChaosClothAssetEditorRestSpaceViewportPtr;
 

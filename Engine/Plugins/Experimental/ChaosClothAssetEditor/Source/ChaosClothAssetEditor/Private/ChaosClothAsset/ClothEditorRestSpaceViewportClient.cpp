@@ -55,20 +55,18 @@ FChaosClothEditorRestSpaceViewportClient::FChaosClothEditorRestSpaceViewportClie
 	ModeTools->GetInteractiveToolsContext()->InputRouter->RegisterSource(this);
 }
 
-void FChaosClothEditorRestSpaceViewportClient::Set2DMode(bool In2DMode)
+void FChaosClothEditorRestSpaceViewportClient::SetConstructionViewMode(EClothPatternVertexType InViewMode)
 {
-	b2DMode = In2DMode;
+	ConstructionViewMode = InViewMode;
 
 	BehaviorSet->RemoveAll();
-	ModeTools->GetInteractiveToolsContext()->InputRouter->DeregisterSource(this);
 
-	if (b2DMode)
+	if (ConstructionViewMode == EClothPatternVertexType::Sim2D)
 	{
 		for (UInputBehavior* const Behavior : BehaviorsFor2DMode)
 		{
 			BehaviorSet->Add(Behavior);
 		}
-		ModeTools->GetInteractiveToolsContext()->InputRouter->RegisterSource(this);
 
 		const double AbsZ = FMath::Abs(ViewTransformPerspective.GetLocation().Z);
 		constexpr double CameraFarPlaneWorldZ = -10.0;
@@ -82,6 +80,8 @@ void FChaosClothEditorRestSpaceViewportClient::Set2DMode(bool In2DMode)
 		OverrideNearClipPlane(UE_KINDA_SMALL_NUMBER);
 	}
 
+	ModeTools->GetInteractiveToolsContext()->InputRouter->DeregisterSource(this);
+	ModeTools->GetInteractiveToolsContext()->InputRouter->RegisterSource(this);
 }
 
 const UInputBehaviorSet* FChaosClothEditorRestSpaceViewportClient::GetInputBehaviors() const
@@ -99,7 +99,7 @@ void FChaosClothEditorRestSpaceViewportClient::AddReferencedObjects(FReferenceCo
 
 bool FChaosClothEditorRestSpaceViewportClient::ShouldOrbitCamera() const
 {
-	if (b2DMode)
+	if (ConstructionViewMode == EClothPatternVertexType::Sim2D)
 	{
 		return false;
 	}
@@ -122,7 +122,7 @@ bool FChaosClothEditorRestSpaceViewportClient::InputKey(const FInputKeyEventArgs
 		}
 	}
 
-	if (!b2DMode)
+	if (ConstructionViewMode != EClothPatternVertexType::Sim2D)
 	{
 		return FEditorViewportClient::InputKey(EventArgs);
 	}
@@ -195,47 +195,6 @@ bool FChaosClothEditorRestSpaceViewportClient::InputKey(const FInputKeyEventArgs
 	ApplyRequiredCursorVisibility(true);
 
 	return bHandled;
-}
-
-
-void FChaosClothEditorRestSpaceViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
-{
-	FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
-
-	// TODO: Add/modify selection if modifier keys are pressed
-	USelection* SelectedComponents = ModeTools->GetSelectedComponents();
-	SelectedComponents->Modify();
-	SelectedComponents->BeginBatchSelectOperation();
-
-	TArray<UDynamicMeshComponent*> PreviouslySelectedComponents;
-	SelectedComponents->GetSelectedObjects<UDynamicMeshComponent>(PreviouslySelectedComponents);
-	SelectedComponents->DeselectAll(UDynamicMeshComponent::StaticClass());
-
-	if (HitProxy && HitProxy->IsA(HActor::StaticGetType()))
-	{
-		const HActor* ActorProxy = static_cast<HActor*>(HitProxy);
-		if (ActorProxy && ActorProxy->Actor)
-		{
-			const AActor* Actor = ActorProxy->Actor;
-			const TSet<UActorComponent*>& OwnedComponents = Actor->GetComponents();
-			for (UActorComponent* Component : OwnedComponents)
-			{
-				if (UDynamicMeshComponent* DynamicMeshComp = Cast<UDynamicMeshComponent>(Component))
-				{
-					SelectedComponents->Select(DynamicMeshComp);
-					DynamicMeshComp->PushSelectionToProxy();
-				}
-			}
-		}
-	}
-
-	SelectedComponents->EndBatchSelectOperation();
-
-	for (UDynamicMeshComponent* Component : PreviouslySelectedComponents)
-	{
-		Component->PushSelectionToProxy();
-	}
-
 }
 
 void FChaosClothEditorRestSpaceViewportClient::SetEditorViewportWidget(TWeakPtr<SEditorViewport> InEditorViewportWidget)

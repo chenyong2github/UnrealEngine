@@ -11,10 +11,13 @@
 #include "SkeletalMeshAttributes.h"
 #include "Animation/Skeleton.h"
 
+namespace UE::Chaos::ClothAsset
+{
+
 //
 // Wrapper for accessing a Cloth Pattern. Implements the interface expected by TToDynamicMesh<>.
 //
-class FClothSimPatternWrapper
+class FClothPatternWrapper
 {
 public:
 
@@ -26,20 +29,20 @@ public:
 	typedef int32 NormalIDType;
 	typedef int32 ColorIDType;
 
-	FClothSimPatternWrapper(const UE::Chaos::ClothAsset::FCollectionClothConstFacade& ClothFacade, int32 LodIndex, int32 PatternIndex, bool bGet2DPatternVertices) :
-		bGet2DPatternVertices(bGet2DPatternVertices),
+	FClothPatternWrapper(const FCollectionClothConstFacade& ClothFacade, int32 LodIndex, int32 PatternIndex, EClothPatternVertexType VertexDataType) :
+		VertexDataType(VertexDataType),
 		Pattern(ClothFacade.GetLod(LodIndex).GetPattern(PatternIndex))
 	{
-		const int32 NumSimVertices = Pattern.GetNumSimVertices();
-		VertIDs.SetNum(NumSimVertices);
-		for (int32 VtxIndex = 0; VtxIndex < NumSimVertices; ++VtxIndex)
+		const int32 NumVertices = (VertexDataType == EClothPatternVertexType::Render) ? Pattern.GetNumRenderVertices() : Pattern.GetNumSimVertices();
+		VertIDs.SetNum(NumVertices);
+		for (int32 VtxIndex = 0; VtxIndex < NumVertices; ++VtxIndex)
 		{
 			VertIDs[VtxIndex] = VtxIndex;
 		}
 
-		const int32 NumSimFaces = Pattern.GetNumSimFaces();
-		TriIDs.SetNum(NumSimFaces);
-		for (int32 TriIndex = 0; TriIndex < NumSimFaces; ++TriIndex)
+		const int32 NumFaces = (VertexDataType == EClothPatternVertexType::Render) ? Pattern.GetNumRenderFaces() : Pattern.GetNumSimFaces();
+		TriIDs.SetNum(NumFaces);
+		for (int32 TriIndex = 0; TriIndex < NumFaces; ++TriIndex)
 		{
 			TriIDs[TriIndex] = TriIndex;
 		}
@@ -70,7 +73,7 @@ public:
 
 	int32 NumUVLayers() const
 	{
-		return 0;	// No UVs for Sim mesh
+		return (VertexDataType == EClothPatternVertexType::Render) ? 1 : 0;		// No UVs for Sim mesh
 	}
 
 	int32 NumWeightMapLayers() const
@@ -96,18 +99,29 @@ public:
 
 	FVector3d GetPosition(VertIDType VtxID) const
 	{
-		if (bGet2DPatternVertices)
+		switch (VertexDataType)
 		{
-			const TConstArrayView<FVector2f> SimPositions = Pattern.GetSimPosition();
-			const FVector2f& Pos = SimPositions[VtxID];
-			return FVector3d(Pos[0], Pos[1], 0.0);
-		} 
-		else
-		{
-			const TConstArrayView<FVector3f> RestPositions = Pattern.GetSimRestPosition();
-			const FVector3f& Pos = RestPositions[VtxID];
-			return FVector3d(Pos[0], Pos[1], Pos[2]);
-		}
+			case EClothPatternVertexType::Render:
+			{
+				const TConstArrayView<FVector3f> RenderPositions = Pattern.GetRenderPosition();
+				return FVector3d(RenderPositions[VtxID]);
+			}
+			case EClothPatternVertexType::Sim2D:
+			{
+				const TConstArrayView<FVector2f> SimPositions = Pattern.GetSimPosition();
+				const FVector2f& Pos = SimPositions[VtxID];
+				return FVector3d(Pos[0], Pos[1], 0.0);
+			}
+			case EClothPatternVertexType::Sim3D:
+			{
+				const TConstArrayView<FVector3f> RestPositions = Pattern.GetSimRestPosition();
+				const FVector3f& Pos = RestPositions[VtxID];
+				return FVector3d(Pos[0], Pos[1], Pos[2]);
+			}
+			default:
+				checkNoEntry();
+				return FVector3d();
+		};
 	}
 
 	// --"Index Buffer" info
@@ -118,11 +132,23 @@ public:
 
 	bool GetTri(TriIDType TriID, VertIDType& VID0, VertIDType& VID1, VertIDType& VID2) const
 	{
-		const FIntVector Face = Pattern.GetSimIndices()[TriID];          // Indices are using an LOD based indexation
-		const int32 SimVerticesOffset = Pattern.GetSimVerticesOffset();  // and need to have the pattern offset removed
-		VID0 = Face[0] - SimVerticesOffset;
-		VID1 = Face[1] - SimVerticesOffset;
-		VID2 = Face[2] - SimVerticesOffset;
+		FIntVector Face;		// Indices are using an LOD based indexation
+		int32 VerticesOffset;	// and need to have the pattern offset removed
+
+		if (VertexDataType == EClothPatternVertexType::Render)
+		{
+			Face = Pattern.GetRenderIndices()[TriID];
+			VerticesOffset = Pattern.GetRenderVerticesOffset();
+		}
+		else
+		{
+			Face = Pattern.GetSimIndices()[TriID];
+			VerticesOffset = Pattern.GetSimVerticesOffset();
+		}
+
+		VID0 = Face[0] - VerticesOffset;
+		VID1 = Face[1] - VerticesOffset;
+		VID2 = Face[2] - VerticesOffset;
 
 		return true;
 	}
@@ -134,7 +160,7 @@ public:
 
 	bool HasTangents() const
 	{
-		return false;
+		return VertexDataType == EClothPatternVertexType::Render;
 	}
 
 	bool HasBiTangents() const
@@ -144,7 +170,7 @@ public:
 
 	bool HasColors() const
 	{
-		return false;
+		return VertexDataType == EClothPatternVertexType::Render;
 	}
 
 	// -- Access to per-wedge attributes -- //
@@ -159,8 +185,9 @@ public:
 
 	FVector2f GetWedgeUV(int32 UVLayerIndex, WedgeIDType WID) const
 	{
-		ensure(false);
-		return FVector2f(0.0f, 0.0f); 
+		checkf(VertexDataType == EClothPatternVertexType::Render, TEXT("Requested Wedge UVs from a Sim mesh"));
+		const TConstArrayView<FVector2f> VertexUVs = Pattern.GetRenderUVs()[WID];
+		return VertexUVs[UVLayerIndex];
 	}
 
 	FVector3f GetWedgeNormal(WedgeIDType WID) const
@@ -203,14 +230,15 @@ public:
 		
 		checkfSlow(SkinWeightAttributeIndex == 0, TEXT("Cloth assets should only have one skin weight profile")); 
 
-		const TConstArrayView<int32> SimNumBoneInfluences = Pattern.GetSimNumBoneInfluences();
-		const TConstArrayView<TArray<int32>> SimBoneIndices = Pattern.GetSimBoneIndices();
-		const TConstArrayView<TArray<float>> BoneWeights = Pattern.GetSimBoneWeights();
+		const bool bGetRenderMeshData = (VertexDataType == EClothPatternVertexType::Render);
+		const TConstArrayView<int32> NumBoneInfluences = bGetRenderMeshData ? Pattern.GetRenderNumBoneInfluences() : Pattern.GetSimNumBoneInfluences();
+		const TConstArrayView<TArray<int32>> BoneIndices = bGetRenderMeshData ? Pattern.GetRenderBoneIndices() : Pattern.GetSimBoneIndices();
+		const TConstArrayView<TArray<float>> BoneWeights = bGetRenderMeshData ? Pattern.GetRenderBoneWeights() : Pattern.GetSimBoneWeights();
 
-		if (ensure(VertexID >= 0 && VertexID < SimNumBoneInfluences.Num()))
+		if (ensure(VertexID >= 0 && VertexID < NumBoneInfluences.Num()))
 		{
-			const int32 NumInfluences = SimNumBoneInfluences[VertexID];
-			const TArray<int32> Indices = SimBoneIndices[VertexID];
+			const int32 NumInfluences = NumBoneInfluences[VertexID];
+			const TArray<int32> Indices = BoneIndices[VertexID];
 			const TArray<float> Weights = BoneWeights[VertexID];
 			
 			TArray<FBoneWeight> BoneWeightArray;
@@ -276,36 +304,96 @@ public:
 		return FVector4f::One();
 	}
 
-	const TArray<int32>& GetNormalIDs() const { return VertIDs; }
-	FVector3f GetNormal(NormalIDType ID) const { return Pattern.GetSimRestNormal()[ID]; }
-	bool GetNormalTri(const TriIDType& TriID, NormalIDType& ID0, NormalIDType& ID1, NormalIDType& ID2) const { return GetTri(TriID, ID0, ID1, ID2); }
-	
-	const TArray<int32>& GetUVIDs(int32 LayerID) const { return EmptyArray; }
-	FVector2f GetUV(int32 LayerID, UVIDType UVID) const { check(0); return FVector2f(); }
-	bool GetUVTri(int32 LayerID, const TriIDType&, UVIDType& ID0, UVIDType& ID1, UVIDType& ID2) const { ID0 = ID1 = ID2 = UVIDType(-1); return false;}
-	
-	const TArray<int32>& GetTangentIDs() const { return EmptyArray; }
-	FVector3f GetTangent(NormalIDType ID) const { check(0); return FVector3f(); }
-	bool GetTangentTri(const TriIDType&, NormalIDType& ID0, NormalIDType& ID1, NormalIDType& ID2) const { ID0 = ID1 = ID2 = NormalIDType(-1); return false; }
+	const TArray<int32>& GetNormalIDs() const 
+	{ 
+		return VertIDs; 
+	}
 
-	const TArray<int32>& GetBiTangentIDs() const { return EmptyArray; }
-	FVector3f GetBiTangent(NormalIDType ID) const {check(0); return FVector3f(); }
-	bool GetBiTangentTri(const TriIDType&, NormalIDType& ID0, NormalIDType& ID1, NormalIDType& ID2) const { ID0 = ID1 = ID2 = NormalIDType(-1); return false; }
+	FVector3f GetNormal(NormalIDType ID) const 
+	{ 
+		return (VertexDataType == EClothPatternVertexType::Render) ? Pattern.GetRenderNormal()[ID] : Pattern.GetSimRestNormal()[ID];
+	}
 
-	const TArray<int32>& GetColorIDs() const { return EmptyArray; }
-	FVector4f GetColor(ColorIDType ID) const { check(0); return FVector4f(); }
-	bool GetColorTri(const TriIDType&, ColorIDType& ID0, ColorIDType& ID1, ColorIDType& ID2) const { ID0 = ID1 = ID2 = ColorIDType(-1); return false; }
+	bool GetNormalTri(const TriIDType& TriID, NormalIDType& ID0, NormalIDType& ID1, NormalIDType& ID2) const 
+	{ 
+		return GetTri(TriID, ID0, ID1, ID2); 
+	}
+	
+	const TArray<int32>& GetUVIDs(int32 LayerID) const 
+	{ 
+		return (VertexDataType == EClothPatternVertexType::Render) ? VertIDs : EmptyArray;
+	}
+
+	FVector2f GetUV(int32 LayerID, UVIDType UVID) const 
+	{ 
+		checkf(VertexDataType == EClothPatternVertexType::Render, TEXT("Requested UVs from a Sim mesh"));
+		const TConstArrayView<FVector2f> VertexUVs = Pattern.GetRenderUVs()[UVID];
+		return VertexUVs[LayerID];
+	}
+
+	bool GetUVTri(int32 LayerID, const TriIDType& TriID, UVIDType& ID0, UVIDType& ID1, UVIDType& ID2) const 
+	{ 
+		return GetTri(TriID, ID0, ID1, ID2); 
+	}
+	
+	const TArray<int32>& GetTangentIDs() const 
+	{ 
+		return (VertexDataType == EClothPatternVertexType::Render) ? VertIDs : EmptyArray;
+	}
+
+	FVector3f GetTangent(NormalIDType ID) const 
+	{ 
+		checkf(VertexDataType == EClothPatternVertexType::Render, TEXT("Requested Tangent from a Sim mesh"));
+		return Pattern.GetRenderTangentU()[ID];
+	}
+
+	bool GetTangentTri(const TriIDType& TriID, NormalIDType& ID0, NormalIDType& ID1, NormalIDType& ID2) const 
+	{ 
+		return GetTri(TriID, ID0, ID1, ID2);
+	}
+
+	const TArray<int32>& GetBiTangentIDs() const 
+	{ 
+		return (VertexDataType == EClothPatternVertexType::Render) ? VertIDs : EmptyArray;
+	}
+
+	FVector3f GetBiTangent(NormalIDType ID) const 
+	{
+		checkf(VertexDataType == EClothPatternVertexType::Render, TEXT("Requested Bitangent from a Sim mesh"));
+		return Pattern.GetRenderTangentV()[ID];
+	}
+
+	bool GetBiTangentTri(const TriIDType& TriID, NormalIDType& ID0, NormalIDType& ID1, NormalIDType& ID2) const
+	{
+		return GetTri(TriID, ID0, ID1, ID2);
+	}
+
+	const TArray<int32>& GetColorIDs() const 
+	{ 
+		return (VertexDataType == EClothPatternVertexType::Render) ? VertIDs : EmptyArray;
+	}
+
+	FVector4f GetColor(ColorIDType VID) const 
+	{
+		checkf(VertexDataType == EClothPatternVertexType::Render, TEXT("Requested color from a Sim mesh"));
+		return Pattern.GetRenderColor()[VID];
+	}
+
+	bool GetColorTri(const TriIDType& TriID, ColorIDType& ID0, ColorIDType& ID1, ColorIDType& ID2) const 
+	{
+		return GetTri(TriID, ID0, ID1, ID2);
+	}
 
 private:
 
-	bool bGet2DPatternVertices = false;
+	const EClothPatternVertexType VertexDataType;
 
 	TArray<TriIDType> TriIDs;		// indices into Pattern.GetSimFaces()
 	TArray<VertIDType> VertIDs;		// indices into Pattern.GetSimVertices()
 	
 	TArray<FName> WeightMapNames;
 
-	const UE::Chaos::ClothAsset::FCollectionClothPatternConstFacade Pattern;
+	const FCollectionClothPatternConstFacade Pattern;
 
 	TArray<int32> EmptyArray;
 
@@ -313,18 +401,16 @@ private:
 };
 
 
-void FClothPatternToDynamicMesh::Convert(const TSharedPtr<const FManagedArrayCollection> ClothCollection, int32 LODIndex, int32 PatternIndex, bool bGet2DPattern, UE::Geometry::FDynamicMesh3& MeshOut)
+void FClothPatternToDynamicMesh::Convert(const TSharedPtr<const FManagedArrayCollection> ClothCollection, int32 LODIndex, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut)
 {
-	using namespace UE::Chaos::ClothAsset;
-
 	const FCollectionClothConstFacade ClothFacade(ClothCollection);
 
 	// Actual conversion
-	UE::Geometry::TToDynamicMesh<FClothSimPatternWrapper> PatternToDynamicMesh; 
-	FClothSimPatternWrapper PatternWrapper(ClothFacade, LODIndex, PatternIndex, bGet2DPattern);
+	UE::Geometry::TToDynamicMesh<FClothPatternWrapper> PatternToDynamicMesh; 
+	FClothPatternWrapper PatternWrapper(ClothFacade, LODIndex, PatternIndex, VertexDataType);
 
 	const bool bDisableAttributes = false;
-	auto TriangleToGroupFunction = [](FClothSimPatternWrapper::TriIDType) { return 0; };
+	auto TriangleToGroupFunction = [](FClothPatternWrapper::TriIDType) { return 0; };
 
 	if (bDisableAttributes)
 	{
@@ -335,21 +421,38 @@ void FClothPatternToDynamicMesh::Convert(const TSharedPtr<const FManagedArrayCol
 	{
 		MeshOut.EnableAttributes();
 
-		auto TriangleToMaterialFunction = [](FClothSimPatternWrapper::TriIDType) { return 0; };
+		const FCollectionClothLodConstFacade LodFacade(ClothFacade.GetLod(LODIndex));
+		const TArrayView<const int32> RenderMaterialIndex = LodFacade.GetRenderMaterialIndex();
+
+		auto TriangleToMaterialFunction = [&RenderMaterialIndex](FClothPatternWrapper::TriIDType TriID)
+		{
+			if (ensure(RenderMaterialIndex.IsValidIndex(TriID)))
+			{
+				return RenderMaterialIndex[TriID];
+			}
+			return 0;
+		};
+
 		constexpr bool bCopyTangents = false;
 		PatternToDynamicMesh.Convert(MeshOut, PatternWrapper, TriangleToGroupFunction, TriangleToMaterialFunction, bCopyTangents);
 	}
+
 }
 
-void FClothPatternToDynamicMesh::Convert(const UChaosClothAsset* ClothAssetMeshIn, int32 LODIndex, int32 PatternIndex, bool bGet2DPattern, UE::Geometry::FDynamicMesh3& MeshOut)
+void FClothPatternToDynamicMesh::Convert(const UChaosClothAsset* ClothAssetMeshIn, int32 LODIndex, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut)
 {
 	const TSharedPtr<const FManagedArrayCollection> ClothCollection = ClothAssetMeshIn->GetClothCollection();
 	check(ClothCollection.IsValid());
 
-	Convert(ClothCollection, LODIndex, PatternIndex, bGet2DPattern, MeshOut);
+	Convert(ClothCollection, LODIndex, PatternIndex, VertexDataType, MeshOut);
 }
 
+}	// namespace UE::Chaos::ClothAsset
+
 #else
+
+namespace UE::Chaos::ClothAsset
+{
 
 void FClothAssetToDynamicMesh::Convert(const UChaosClothAsset* ClothAssetMeshIn, FDynamicMesh3& MeshOut, int32 LODIndex, int32 PatternIndex)
 {
@@ -357,4 +460,7 @@ void FClothAssetToDynamicMesh::Convert(const UChaosClothAsset* ClothAssetMeshIn,
 	check(0);
 }
 
+}	// namespace UE::Chaos::ClothAsset
+
 #endif  // end with editor
+

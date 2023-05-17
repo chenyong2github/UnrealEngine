@@ -44,17 +44,17 @@ public:
 	const static FString BeginTransferSkinWeightsToolIdentifier;
 	TSharedPtr<FUICommandInfo> BeginTransferSkinWeightsTool;
 
-	// Rest space viewport commands
-	const static FString TogglePatternModeIdentifier;
-	TSharedPtr<FUICommandInfo> TogglePatternMode;
+	// Construction viewport commands
+	const static FString ToggleConstructionViewWireframeIdentifier;
+	TSharedPtr<FUICommandInfo> ToggleConstructionViewWireframe;
 
-	// Sim viewport commands
-	const static FString ToggleSimMeshWireframeIdentifier;
-	TSharedPtr<FUICommandInfo> ToggleSimMeshWireframe;
+	TSharedPtr<FUICommandInfo> SetConstructionMode2D;
+	TSharedPtr<FUICommandInfo> SetConstructionMode3D;
+	TSharedPtr<FUICommandInfo> SetConstructionModeRender;
 
-	const static FString ToggleRenderMeshWireframeIdentifier;
-	TSharedPtr<FUICommandInfo> ToggleRenderMeshWireframe;
-
+	// Preview viewport commands
+	const static FString TogglePreviewWireframeIdentifier;
+	TSharedPtr<FUICommandInfo> TogglePreviewWireframe;
 
 	const static FString SoftResetSimulationIdentifier;
 	TSharedPtr<FUICommandInfo> SoftResetSimulation;

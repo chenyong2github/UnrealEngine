@@ -56,6 +56,7 @@
 #include "Dataflow/DataflowGraphEditor.h"
 #include "ContextObjectStore.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
+#include "Materials/Material.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothEditorMode)
 
@@ -116,34 +117,6 @@ const FToolTargetTypeRequirements& UChaosClothAssetEditorMode::GetToolTargetRequ
 void UChaosClothAssetEditorMode::Enter()
 {
 	UBaseCharacterFXEditorMode::Enter();
-
-	SelectionModifiedEventHandle = USelection::SelectionChangedEvent.AddLambda([this](UObject*)
-	{
-		if (!GetModeManager() || !GetModeManager()->GetSelectedComponents())
-		{
-			return;
-		}
-
-		constexpr FColor UnselectedColor = FColor(128, 128, 128);
-		const FColor SelectedColor = GetDefault<UEditorStyleSettings>()->SelectionColor.ToFColor(true);
-
-		const USelection* const SelectedComponents = GetModeManager()->GetSelectedComponents();
-
-		check(DynamicMeshComponents.Num() == WireframesToTick.Num());
-
-		for (int MeshIndex = 0; MeshIndex < WireframesToTick.Num(); ++MeshIndex)
-		{
-			const TObjectPtr<UMeshElementsVisualizer> WireframeDisplay = WireframesToTick[MeshIndex];
-			if (SelectedComponents->IsSelected(DynamicMeshComponents[MeshIndex]))
-			{
-				WireframeDisplay->Settings->WireframeColor = SelectedColor;
-			}
-			else
-			{
-				WireframeDisplay->Settings->WireframeColor = UnselectedColor;
-			}
-		}
-	});
 
 	// Register gizmo ContextObject for use inside interactive tools
 	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
@@ -254,7 +227,7 @@ void UChaosClothAssetEditorMode::OnToolStarted(UInteractiveToolManager* Manager,
 
 	FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, false);
 
-	bCanTogglePattern2DMode = false;
+	bCanChangeConstructionViewMode = false;
 
 	// Don't let the Graph change during tool execution (or even which nodes are selected)
 	if (TSharedPtr<SDataflowGraphEditor> GraphEditor = DataflowGraphEditor.Pin())
@@ -267,7 +240,8 @@ void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, U
 {
 	UE::Chaos::ClothAsset::FChaosClothAssetEditorCommands::UpdateToolCommandBinding(Tool, ToolCommandList, true);
 
-	bCanTogglePattern2DMode = true;
+	bCanChangeConstructionViewMode = true;
+
 	ActiveToolsContext = nullptr;
 
 	ReinitializeDynamicMeshComponents();
@@ -314,7 +288,6 @@ void UChaosClothAssetEditorMode::BindCommands()
 
 void UChaosClothAssetEditorMode::Exit()
 {
-	USelection::SelectionChangedEvent.Remove(SelectionModifiedEventHandle);
 	UActorComponent::MarkRenderStateDirtyEvent.RemoveAll(this);
 
 	for (TObjectPtr<UDynamicMeshComponent> DynamicMeshComp : DynamicMeshComponents)
@@ -417,16 +390,36 @@ TSharedPtr<FManagedArrayCollection> UChaosClothAssetEditorMode::GetClothCollecti
 
 void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 {
-	auto SetUpDynamicMeshComponent = [this](UDynamicMeshComponent& MeshComponent)
+	using namespace UE::Chaos::ClothAsset;
+
+	auto SetUpDynamicMeshComponentMaterial = [this](const UE::Chaos::ClothAsset::FCollectionClothLodConstFacade& ClothLodFacade, UDynamicMeshComponent& MeshComponent)
 	{
-		MeshComponent.SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateUObject(this, &UChaosClothAssetEditorMode::IsComponentSelected);
-
-		UMaterialInterface* const Material = bPattern2DMode ?
-			ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetToolManager(), FLinearColor{0.6, 0.6, 0.6}, 0.0) :
-			ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
-
-		MeshComponent.SetMaterial(0, Material);
-		MeshComponent.RegisterComponentWithWorld(this->GetWorld());
+		switch (ConstructionViewMode)
+		{
+			case EClothPatternVertexType::Sim2D:
+			{
+				UMaterialInterface* const Material = ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(GetToolManager(), FLinearColor{ 0.6, 0.6, 0.6 }, 0.0);
+				MeshComponent.SetMaterial(0, Material);
+			}
+			break;
+			case EClothPatternVertexType::Sim3D:
+			{
+				UMaterialInterface* const Material = ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
+				MeshComponent.SetMaterial(0, Material);
+			}
+			break;
+			case EClothPatternVertexType::Render:
+			{
+				const TArrayView<const FString> MaterialPaths = ClothLodFacade.GetRenderMaterialPathName();
+				for (int32 MaterialIndex = 0; MaterialIndex < MaterialPaths.Num(); ++MaterialIndex)
+				{
+					const FString& Path = MaterialPaths[MaterialIndex];
+					UMaterialInterface* const Material = LoadObject<UMaterial>(nullptr, *Path);
+					MeshComponent.SetMaterial(MaterialIndex, Material);
+				}
+			}
+			break;
+		}
 	};
 	
 	// Clean up any existing DynamicMeshComponents
@@ -478,15 +471,16 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 			DynamicMeshComponentParentActors.SetNum(1);
 
 			UE::Geometry::FDynamicMesh3 LodMesh;
+			LodMesh.EnableAttributes();
 			UE::Geometry::FDynamicMeshEditor MeshEditor(&LodMesh);
 
 			for (int32 PatternIndex = 0; PatternIndex < ClothLodFacade.GetNumPatterns(); ++PatternIndex)
 			{
 				UE::Geometry::FDynamicMesh3 PatternMesh;
 				FClothPatternToDynamicMesh Converter;
-				Converter.Convert(Collection, LodIndex, PatternIndex, bPattern2DMode, PatternMesh);
+				Converter.Convert(Collection, LodIndex, PatternIndex, ConstructionViewMode, PatternMesh);
 
-				if (bPattern2DMode)
+				if (ConstructionViewMode == EClothPatternVertexType::Sim2D)
 				{
 					// Use per-triangle normals for the 2D view
 					UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&PatternMesh);
@@ -503,9 +497,12 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 			DynamicMeshComponentParentActors[0] = ParentActor;
 
 			DynamicMeshComponents[0] = NewObject<UDynamicMeshComponent>(ParentActor);
-			DynamicMeshComponents[0]->SetMesh(MoveTemp(LodMesh));
-			
-			SetUpDynamicMeshComponent(*DynamicMeshComponents[0]);
+			DynamicMeshComponents[0]->SetMesh(MoveTemp(LodMesh));		
+
+			SetUpDynamicMeshComponentMaterial(ClothLodFacade, *DynamicMeshComponents[0]);
+
+			DynamicMeshComponents[0]->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateUObject(this, &UChaosClothAssetEditorMode::IsComponentSelected);
+			DynamicMeshComponents[0]->RegisterComponentWithWorld(this->GetWorld());
 
 			DynamicMeshSourceInfos.Add(FDynamicMeshSourceInfo{ LodIndex, -1 });
 		}
@@ -519,9 +516,9 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 			{
 				UE::Geometry::FDynamicMesh3 PatternMesh;
 				FClothPatternToDynamicMesh Converter;
-				Converter.Convert(Collection, LodIndex, PatternIndex, bPattern2DMode, PatternMesh);
+				Converter.Convert(Collection, LodIndex, PatternIndex, ConstructionViewMode, PatternMesh);
 
-				if (bPattern2DMode)
+				if (ConstructionViewMode == EClothPatternVertexType::Sim2D)
 				{
 					// Use per-triangle normals for the 2D view
 					UE::Geometry::FMeshNormals::InitializeMeshToPerTriangleNormals(&PatternMesh);
@@ -536,7 +533,10 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 				TObjectPtr<UDynamicMeshComponent> PatternMeshComponent = NewObject<UDynamicMeshComponent>(ParentActor);
 				PatternMeshComponent->SetMesh(MoveTemp(PatternMesh));
 
-				SetUpDynamicMeshComponent(*PatternMeshComponent);
+				SetUpDynamicMeshComponentMaterial(ClothLodFacade, *PatternMeshComponent);
+
+				DynamicMeshComponents[PatternIndex]->SelectionOverrideDelegate = UPrimitiveComponent::FSelectionOverride::CreateUObject(this, &UChaosClothAssetEditorMode::IsComponentSelected);
+				DynamicMeshComponents[PatternIndex]->RegisterComponentWithWorld(this->GetWorld());
 
 				DynamicMeshComponents[PatternIndex] = PatternMeshComponent;
 				DynamicMeshSourceInfos.Add(FDynamicMeshSourceInfo{ LodIndex, PatternIndex });
@@ -601,21 +601,25 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 				return;
 			}
 
-			bool bRestSpaceMeshVisible = RestSpaceMesh->GetVisibleFlag();
-			WireframeDisplay->SetAllVisible(bRestSpaceMeshVisible);
-			WireframeDisplay->Settings->bVisible = bRestSpaceMeshVisible;
+			const bool bRestSpaceMeshVisible = RestSpaceMesh->GetVisibleFlag();
+			WireframeDisplay->Settings->bVisible = bRestSpaceMeshVisible && bConstructionViewWireframe;
 		});
 
+		const bool bRestSpaceMeshVisible = RestSpaceMeshComponent->GetVisibleFlag();
+		WireframeDisplay->Settings->bVisible = bRestSpaceMeshVisible && bConstructionViewWireframe;
 	}
 
 	SelectedComponents->DeselectAll();
-	SelectedComponents->BeginBatchSelectOperation();
-	for (TObjectPtr<UDynamicMeshComponent> RestSpaceMeshComponent : DynamicMeshComponents)
+	if (ConstructionViewMode != EClothPatternVertexType::Render)
 	{
-		SelectedComponents->Select(RestSpaceMeshComponent);
-		RestSpaceMeshComponent->PushSelectionToProxy();
+		SelectedComponents->BeginBatchSelectOperation();
+		for (TObjectPtr<UDynamicMeshComponent> RestSpaceMeshComponent : DynamicMeshComponents)
+		{
+			SelectedComponents->Select(RestSpaceMeshComponent);
+			RestSpaceMeshComponent->PushSelectionToProxy();
+		}
+		SelectedComponents->EndBatchSelectOperation();
 	}
-	SelectedComponents->EndBatchSelectOperation();
 }
 
 void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
@@ -627,6 +631,7 @@ void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
 		PinnedVC->ToggleOrbitCamera(false);
 
 		const FBox SceneBounds = SceneBoundingBox();
+		const bool bPattern2DMode = (ConstructionViewMode == UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D);
 		if (bPattern2DMode)
 		{
 			// 2D pattern
@@ -642,7 +647,7 @@ void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
 		PinnedVC->FocusViewportOnBox(SceneBounds, bInstant);
 
 		// Recompute near/far clip planes
-		PinnedVC->Set2DMode(bPattern2DMode);
+		PinnedVC->SetConstructionViewMode(ConstructionViewMode);
 	}
 }
 
@@ -651,15 +656,7 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 	// InitializeContexts needs to have been called first so that we have the 3d preview world ready.
 	check(PreviewScene);
 
-	OriginalObjectsToEdit = AssetsIn;
-
-	CreateToolTargets(AssetsIn);
-
-	// NOTE: This ensure will fire until we are able to build a tool target associated with ClothComponent
-	//if (!ensure(AssetsIn.Num() == ToolTargets.Num()))
-	//{
-	//	return;
-	//}
+	UBaseCharacterFXEditorMode::InitializeTargets(AssetsIn);
 
 	for (TObjectPtr<UObject> Asset : AssetsIn)
 	{
@@ -674,8 +671,6 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 
 	DataflowComponent = NewObject<UDataflowComponent>();
 	DataflowComponent->RegisterComponentWithWorld(PreviewScene->GetWorld());
-
-	bShouldFocusRestSpaceView = true;
 }
 
 void UChaosClothAssetEditorMode::SoftResetSimulation()
@@ -880,25 +875,40 @@ FBox UChaosClothAssetEditorMode::PreviewBoundingBox() const
 	return FBox(ForceInitToZero);
 }
 
-void UChaosClothAssetEditorMode::TogglePatternMode()
+void UChaosClothAssetEditorMode::SetConstructionViewMode(UE::Chaos::ClothAsset::EClothPatternVertexType InMode)
 {
-	bPattern2DMode = !bPattern2DMode;
+	const bool bSwitching2D3D = (ConstructionViewMode == UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D) != (InMode == UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D);
+
+	ConstructionViewMode = InMode;
 	ReinitializeDynamicMeshComponents();
 
 	TSharedPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient> VC = RestSpaceViewportClient.Pin();
 	if (VC.IsValid())
 	{
-		VC->Set2DMode(bPattern2DMode);
+		VC->SetConstructionViewMode(ConstructionViewMode);
 	}
 
-	RefocusRestSpaceViewportClient();
+	if (bSwitching2D3D)
+	{
+		RefocusRestSpaceViewportClient();
+	}
 }
 
-bool UChaosClothAssetEditorMode::CanTogglePatternMode() const
+UE::Chaos::ClothAsset::EClothPatternVertexType UChaosClothAssetEditorMode::GetConstructionViewMode() const
 {
-	return bCanTogglePattern2DMode;
+	return ConstructionViewMode;
 }
 
+bool UChaosClothAssetEditorMode::CanChangeConstructionViewMode() const
+{
+	return bCanChangeConstructionViewMode;
+}
+
+void UChaosClothAssetEditorMode::ToggleConstructionViewWireframe()
+{
+	bConstructionViewWireframe = !bConstructionViewWireframe;
+	ReinitializeDynamicMeshComponents();
+}
 
 void UChaosClothAssetEditorMode::SetRestSpaceViewportClient(TWeakPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> InViewportClient)
 {
@@ -907,7 +917,7 @@ void UChaosClothAssetEditorMode::SetRestSpaceViewportClient(TWeakPtr<UE::Chaos::
 	TSharedPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient> VC = RestSpaceViewportClient.Pin();
 	if (VC.IsValid())
 	{
-		VC->Set2DMode(bPattern2DMode);
+		VC->SetConstructionViewMode(ConstructionViewMode);
 		VC->SetToolCommandList(ToolCommandList);
 
 		if (VC->Viewport)

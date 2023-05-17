@@ -5,6 +5,7 @@
 #include "BaseCharacterFXEditorMode.h"
 #include "GeometryBase.h"
 #include "Delegates/IDelegateInstance.h"
+#include "ChaosClothAsset/ClothPatternVertexType.h"
 #include "ClothEditorMode.generated.h"
 
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
@@ -59,9 +60,15 @@ public:
 	// Bounding box for sim space meshes
 	FBox PreviewBoundingBox() const;
 
-	// Toggle between 2D pattern and 3D rest space mesh view
-	void TogglePatternMode();
-	bool CanTogglePatternMode() const;
+	void SetConstructionViewMode(UE::Chaos::ClothAsset::EClothPatternVertexType InMode);
+	UE::Chaos::ClothAsset::EClothPatternVertexType GetConstructionViewMode() const;
+	bool CanChangeConstructionViewMode() const;
+
+	void ToggleConstructionViewWireframe();
+	bool IsConstructionViewWireframeActive() const
+	{
+		return bConstructionViewWireframe;
+	}
 
 	// Simulation controls
 	void SoftResetSimulation();
@@ -137,6 +144,8 @@ private:
 	void InitializeContextObject();
 	void DeleteContextObject();
 
+	bool IsComponentSelected(const UPrimitiveComponent* InComponent);
+
 	// Rest space wireframes. They have to get ticked to be able to respond to setting changes. 
 	UPROPERTY()
 	TArray<TObjectPtr<UMeshElementsVisualizer>> WireframesToTick;
@@ -166,15 +175,6 @@ private:
 
 	TWeakPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> RestSpaceViewportClient;
 
-	// Handle to a callback triggered when the current selection changes
-	FDelegateHandle SelectionModifiedEventHandle;
-
-	// Whether to display the 2D pattern or 3D assembly in the rest space viewport
-	bool bPattern2DMode = true;
-
-	// Whether we can switch between 2D and 3D rest configuration
-	bool bCanTogglePattern2DMode = true;
-
 	// Whether a cloth collection has ever been set on this Mode object
 	bool bFirstClothCollection = true;
 
@@ -187,7 +187,10 @@ private:
 	// TODO: Expose this to the user
 	bool bCombineAllPatterns = true;
 
-	bool IsComponentSelected(const UPrimitiveComponent* InComponent);
+	UE::Chaos::ClothAsset::EClothPatternVertexType ConstructionViewMode;
+	bool bCanChangeConstructionViewMode = true;
+
+	bool bConstructionViewWireframe = false;
 
 	// Create dynamic mesh components from the cloth component's rest space info
 	void ReinitializeDynamicMeshComponents();

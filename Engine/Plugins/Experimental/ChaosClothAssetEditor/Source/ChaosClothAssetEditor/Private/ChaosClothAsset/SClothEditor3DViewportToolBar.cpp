@@ -94,15 +94,12 @@ TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeToolBar(const T
 	ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
-	FString PropertyNameString;
-
 	ToolbarBuilder.BeginSection("Visualization");
 	ToolbarBuilder.BeginBlockGroup();
 	{
 		// TODO: Add button to toggle between sim and render meshes
 
-		PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::ToggleRenderMeshWireframeIdentifier;
-		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().ToggleRenderMeshWireframe,
+		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().TogglePreviewWireframe,
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
@@ -115,7 +112,6 @@ TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeToolBar(const T
 	ToolbarBuilder.BeginSection("Sim Controls");
 	ToolbarBuilder.BeginBlockGroup();
 	{
-		PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::HardResetSimulationIdentifier;
 		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().HardResetSimulation,
 			NAME_None,
 			TAttribute<FText>(),
@@ -123,7 +119,6 @@ TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeToolBar(const T
 			TAttribute<FSlateIcon>(),
 			FName(*FChaosClothAssetEditorCommands::HardResetSimulationIdentifier));
 
-		PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::SoftResetSimulationIdentifier;
 		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().SoftResetSimulation,
 			NAME_None,
 			TAttribute<FText>(),
@@ -131,7 +126,6 @@ TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeToolBar(const T
 			TAttribute<FSlateIcon>(),
 			FName(FChaosClothAssetEditorCommands::SoftResetSimulationIdentifier));
 
-		PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::ToggleSimulationSuspendedIdentifier;
 		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().ToggleSimulationSuspended,
 			NAME_None,
 			TAttribute<FText>(),
