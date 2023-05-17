@@ -282,6 +282,7 @@ namespace Chaos
 
 		void AddDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
 		{
+			check(ProxyBaseIn->GetMarkedDeleted() == false);
 			MarshallingManager.GetProducerData_External()->DirtyProxiesDataBuffer.Add(ProxyBaseIn);
 		}
 		void RemoveDirtyProxy(IPhysicsProxyBase * ProxyBaseIn)
