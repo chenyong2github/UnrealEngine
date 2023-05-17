@@ -298,7 +298,7 @@ public:
 		TBitArray<SceneRenderingAllocator> RemovedPrimitives;
 	};
 
-	void ProcessInvalidations(FRDGBuilder& GraphBuilder, const FInvalidatingPrimitiveCollector& InvalidatingPrimitiveCollector);
+	void ProcessInvalidations(FRDGBuilder& GraphBuilder, FSceneUniformBuffer &SceneUniformBuffer, const FInvalidatingPrimitiveCollector& InvalidatingPrimitiveCollector);
 
 	/**
 	 * Allow the cache manager to track scene changes, in particular track resizing of primitive tracking data.
@@ -328,7 +328,7 @@ public:
 #endif
 
 private:
-	void ProcessInvalidations(FRDGBuilder& GraphBuilder, const FInstanceGPULoadBalancer& Instances) const;
+	void ProcessInvalidations(FRDGBuilder& GraphBuilder, FSceneUniformBuffer &SceneUniformBuffer, const FInstanceGPULoadBalancer& Instances) const;
 
 	void ExtractStats(FRDGBuilder& GraphBuilder, FVirtualShadowMapArray &VirtualShadowMapArray);
 

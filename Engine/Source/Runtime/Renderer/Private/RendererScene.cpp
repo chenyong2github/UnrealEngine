@@ -5427,6 +5427,10 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 
 	TArray<FVirtualShadowMapArrayCacheManager*, SceneRenderingAllocator> VirtualShadowCacheManagers;
 
+	// Create a SceneUB that permits access to the scene for invalidation processing.
+	FSceneUniformBuffer SceneUB;
+	GPUScene.FillSceneUniformBuffer(GraphBuilder, SceneUB);
+
 	{
 		SCOPED_NAMED_EVENT(FScene_VirtualShadowCacheUpdate, FColor::Orange);
 		GetAllVirtualShadowMapCacheManagers(VirtualShadowCacheManagers);
@@ -5460,7 +5464,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, EUpdateAllP
 
 			InvalidatingPrimitiveCollector.Finalize();
 
-			CacheManager->ProcessInvalidations(GraphBuilder, InvalidatingPrimitiveCollector);
+			CacheManager->ProcessInvalidations(GraphBuilder, SceneUB, InvalidatingPrimitiveCollector);
 		}
 	}
 

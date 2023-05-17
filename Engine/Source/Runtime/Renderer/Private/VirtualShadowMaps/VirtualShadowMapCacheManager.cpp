@@ -1132,7 +1132,7 @@ static uint32 GetPrimFlagsBufferSizeInDwords(int32 MaxPersistentPrimitiveIndex)
 	return FMath::RoundUpToPowerOfTwo(FMath::DivideAndRoundUp(MaxPersistentPrimitiveIndex, 32));
 }
 
-void FVirtualShadowMapArrayCacheManager::ProcessInvalidations(FRDGBuilder& GraphBuilder, const FInvalidatingPrimitiveCollector& InvalidatingPrimitiveCollector)
+void FVirtualShadowMapArrayCacheManager::ProcessInvalidations(FRDGBuilder& GraphBuilder, FSceneUniformBuffer &SceneUniformBuffer, const FInvalidatingPrimitiveCollector& InvalidatingPrimitiveCollector)
 {
 	// Always incorporate any scene removals into the "recently removed" list
 	UpdateRecentlyRemoved(InvalidatingPrimitiveCollector.GetRemovedPrimitives());
@@ -1143,7 +1143,7 @@ void FVirtualShadowMapArrayCacheManager::ProcessInvalidations(FRDGBuilder& Graph
 
 		if (!InvalidatingPrimitiveCollector.Instances.IsEmpty())
 		{
-			ProcessInvalidations(GraphBuilder, InvalidatingPrimitiveCollector.Instances);
+			ProcessInvalidations(GraphBuilder, SceneUniformBuffer, InvalidatingPrimitiveCollector.Instances);
 		}
 	}
 }
@@ -1186,13 +1186,7 @@ public:
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< FPhysicalPageMetaData >, PhysicalPageMetaDataOut)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
-		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
-		SHADER_PARAMETER(uint32, GPUSceneNumAllocatedInstances)
-		SHADER_PARAMETER(uint32, GPUSceneNumAllocatedPrimitives)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HZBPageTable)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, HZBPageRectBounds)
@@ -1223,7 +1217,6 @@ public:
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("CS_1D_GROUP_SIZE_X"), Cs1dGroupSizeX);
-		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
 		FGPUScene::FInstanceGPULoadBalancer::SetShaderDefines(OutEnvironment);
 	}
@@ -1252,6 +1245,7 @@ void FVirtualShadowMapArrayCacheManager::UpdateGPUMask(FRHIGPUMask GPUMask)
 
 void FVirtualShadowMapArrayCacheManager::ProcessInvalidations(
 	FRDGBuilder& GraphBuilder,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	const FInstanceGPULoadBalancer& Instances) const
 {
 	if (Instances.IsEmpty())
@@ -1282,16 +1276,7 @@ void FVirtualShadowMapArrayCacheManager::ProcessInvalidations(
 		}
 		PassParameters->VirtualShadowMap = GraphBuilder.CreateUniformBuffer(UniformParameters);
 
-		{
-			const FGPUScene& GPUScene = Scene->GPUScene;
-			PassParameters->GPUSceneInstanceSceneData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GPUScene.InstanceSceneDataBuffer));
-			PassParameters->GPUScenePrimitiveSceneData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GPUScene.PrimitiveBuffer));
-			PassParameters->GPUSceneInstancePayloadData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(GPUScene.InstancePayloadDataBuffer));
-			PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
-			PassParameters->GPUSceneNumAllocatedInstances = GPUScene.GetNumInstances();
-			PassParameters->GPUSceneNumAllocatedPrimitives = GPUScene.GetNumPrimitives();
-			PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
-		}
+		PassParameters->Scene = SceneUniformBuffer.GetBuffer(GraphBuilder);
 
 		PassParameters->PhysicalPageMetaDataOut = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(PhysicalPageMetaData));
 		PassParameters->bDrawBounds = CVarDrawInvalidatingBounds.GetValueOnRenderThread() != 0;

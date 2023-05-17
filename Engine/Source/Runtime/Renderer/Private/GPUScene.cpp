@@ -594,6 +594,7 @@ void FGPUScene::EndRender()
 	bInBeginEndBlock = false;
 	CurrentDynamicContext = nullptr;
 	BufferState = {};
+	ShaderParameters = {};
 }
 
 void FGPUScene::UpdateGPULights(FRDGBuilder& GraphBuilder, FScene& Scene)
@@ -1601,7 +1602,31 @@ bool FGPUScene::FillSceneUniformBuffer(FRDGBuilder& GraphBuilder, FSceneUniformB
 	{
 		return false;
 	}
-	return SceneUB.Set(SceneUB::GPUScene, ShaderParameters);
+
+	if (ShaderParameters.GPUScenePrimitiveSceneData != nullptr)
+	{
+		return SceneUB.Set(SceneUB::GPUScene, ShaderParameters);
+	}
+	else if (PrimitiveBuffer != nullptr)
+	{
+		FGPUSceneResourceParameters TmpParameters;
+		// Not in an active rendering context, must register the buffers and fill in the data structure.
+		TmpParameters.GPUSceneInstanceSceneData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(InstanceSceneDataBuffer));
+		TmpParameters.GPUSceneInstancePayloadData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(InstancePayloadDataBuffer));
+		TmpParameters.GPUScenePrimitiveSceneData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(PrimitiveBuffer));
+		TmpParameters.GPUSceneLightmapData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(LightmapDataBuffer));
+		TmpParameters.GPUSceneLightData = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FLightSceneData)));
+		TmpParameters.InstanceDataSOAStride = InstanceSceneDataSOAStride;
+		TmpParameters.NumScenePrimitives = NumScenePrimitives;
+		TmpParameters.NumInstances = InstanceSceneDataAllocator.GetMaxSize();
+		TmpParameters.GPUSceneFrameNumber = GetSceneFrameNumber();
+		return SceneUB.Set(SceneUB::GPUScene, TmpParameters);
+	}
+	else
+	{
+		// leave the dummy data in place - the gpu scene is not yet populated
+		return false;
+	}
 }
 
 void FGPUScene::AddPrimitiveToUpdate(int32 PrimitiveId, EPrimitiveDirtyState DirtyState)

@@ -19,10 +19,6 @@
 
 RWStructuredBuffer<FPhysicalPageMetaData> PhysicalPageMetaDataOut;
 
-uint InstanceSceneDataSOAStride;
-uint GPUSceneNumAllocatedInstances;
-uint GPUSceneNumAllocatedPrimitives;
-
 #if ENABLE_DEBUG_MODE
 uint bDrawBounds;
 #endif
@@ -86,10 +82,10 @@ void VirtualSmInvalidateInstancePagesCS(
 	uint InstanceId = WorkSetup.Item.InstanceDataOffset + uint(WorkSetup.LocalItemIndex);
 
 	{
-		checkSlow(InstanceId >= 0 && InstanceId < InstanceSceneDataSOAStride);
-		checkSlow(InstanceId >= 0 && InstanceId < GPUSceneNumAllocatedInstances);
+		checkSlow(InstanceId >= 0 && InstanceId < Scene.GPUScene.InstanceDataSOAStride);
+		checkSlow(InstanceId >= 0 && InstanceId < Scene.GPUScene.NumInstances);
 
-		FInstanceSceneData InstanceSceneData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
+		FInstanceSceneData InstanceSceneData = GetInstanceSceneData(InstanceId, Scene.GPUScene.InstanceDataSOAStride);
 
 		if (!InstanceSceneData.ValidInstance)
 		{
