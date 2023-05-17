@@ -656,6 +656,9 @@ public:
 #if WITH_EDITOR
 	/** Flag to detect cycles in the material instance graph, this is only used at content creation time where the hierarchy can be changed. */
 	bool ReentrantFlag[2];
+
+	/** Whether static parameter permutations should be disabled (e.g. due to having a restricted parent material) */
+	bool bDisallowStaticParameterPermutations;
 #endif
 
 	/** 
@@ -855,14 +858,14 @@ public:
 	ENGINE_API void RemoveLayerParameterIndex(int32 Index);
 	
 	/**
-	 * Returns whether specified MaterialInterface is a valid parent for this MaterialInstance.
+	 * Returns this material instance is allowed to override static parameters and introduce a new shader permutation when it derives from `CandidateParent`.
 	 */
-	ENGINE_API bool IsSpecificMaterialValidParent(UMaterialInterface* CandidateParent) const;
+	ENGINE_API bool IsStaticPermutationAllowedForCandidateParent(UMaterialInterface* CandidateParent) const;
 
 	/**
 	 * Ensures that current parent is a valid for this material instance and if not, it resets the parent to null.
 	 */
-	ENGINE_API void ValidateParent();
+	ENGINE_API void ValidateStaticPermutationAllowed();
 
 #endif // WITH_EDITOR
 

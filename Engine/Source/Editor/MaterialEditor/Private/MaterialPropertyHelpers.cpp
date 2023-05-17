@@ -544,6 +544,17 @@ ECheckBoxState FMaterialPropertyHelpers::IsOverriddenExpressionCheckbox(UDEditor
 
 void FMaterialPropertyHelpers::OnOverrideParameter(bool NewValue, class UDEditorParameterValue* Parameter, UMaterialEditorInstanceConstant* MaterialEditorInstance)
 {
+	// Whether this parameter is static (i.e. overriding and changing its value requires a new shader permutation)
+	bool bParameterIsStatic =
+		   Parameter->GetParameterType() == EMaterialParameterType::StaticSwitch
+		|| Parameter->GetParameterType() == EMaterialParameterType::StaticComponentMask;
+
+	// If the material instance disallows the creation of new shader permutations, prevent overriding the static parameter.
+	if (NewValue && bParameterIsStatic && MaterialEditorInstance->SourceInstance->bDisallowStaticParameterPermutations)
+	{
+		return;
+	}
+
 	const FScopedTransaction Transaction( LOCTEXT( "OverrideParameter", "Override Parameter" ) );
 	Parameter->Modify();
 	Parameter->bOverride = NewValue;

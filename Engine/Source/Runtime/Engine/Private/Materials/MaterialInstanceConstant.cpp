@@ -91,7 +91,7 @@ void UMaterialInstanceConstant::SetParentEditorOnly(UMaterialInterface* NewParen
 
 	if (SetParentInternal(NewParent, RecacheShader))
 	{
-		ValidateParent();
+		ValidateStaticPermutationAllowed();
 		UpdateCachedData();
 	}
 }

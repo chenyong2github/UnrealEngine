@@ -2063,8 +2063,8 @@ void UMaterialInstance::InitStaticPermutation(EMaterialShaderPrecompileMode Prec
 #if WITH_EDITORONLY_DATA
 	if (!GetPackage()->HasAnyPackageFlags(PKG_FilterEditorOnly))
 	{
-		// Update bHasStaticPermutationResource in case the parent was not found
-		bHasStaticPermutationResource = (HasStaticParameters() || HasOverridenBaseProperties()) && Parent;
+		bHasStaticPermutationResource = Parent && (HasStaticParameters() || HasOverridenBaseProperties());
+		ValidateStaticPermutationAllowed();
 	}
 #endif // WITH_EDITORONLY_DATA
 
@@ -3029,7 +3029,7 @@ void UMaterialInstance::PostLoad()
 	}
 
 #if WITH_EDITOR
-	ValidateParent();
+	ValidateStaticPermutationAllowed();
 #endif
 
 	// Add references to the expression object if we do not have one already, and fix up any names that were changed.
@@ -3170,7 +3170,7 @@ void UMaterialInstance::PostLoad()
 
 #if WITH_EDITOR
 
-bool UMaterialInstance::IsSpecificMaterialValidParent(UMaterialInterface* CandidateParent) const
+bool UMaterialInstance::IsStaticPermutationAllowedForCandidateParent(UMaterialInterface* CandidateParent) const
 {
 	// Nothing to do if specified parent is null or if restrictive mode is disabled
 	if (!CandidateParent || !bEnableRestrictiveMaterialInstanceParents)
@@ -3193,7 +3193,7 @@ bool UMaterialInstance::IsSpecificMaterialValidParent(UMaterialInterface* Candid
 
 	// Cache this material package
 	UPackage* Package = GetPackage();
-	
+
 	if (Package->HasAnyPackageFlags(PKG_Cooked)								// If this material instance package is cooked
 		|| Package == GetTransientPackage()									// Or if this material instance is transient
 		|| !CandidateParent->GetPackage()->HasAnyPackageFlags(PKG_Cooked))	// Or if the candidate material is uncooked
@@ -3205,14 +3205,21 @@ bool UMaterialInstance::IsSpecificMaterialValidParent(UMaterialInterface* Candid
 	return false;
 }
 
-void UMaterialInstance::ValidateParent()
+void UMaterialInstance::ValidateStaticPermutationAllowed()
 {
 	const UMaterialInterface* PrevParent = Parent;
-	if (!IsSpecificMaterialValidParent(Parent))
+
+	// Update the flag that controls whether a static permutation is allowed for this material instance
+	bDisallowStaticParameterPermutations = !IsStaticPermutationAllowedForCandidateParent(Parent);
+	
+	// Check that that either this material instance has no permutation or that it is allowed
+	if (bHasStaticPermutationResource && bDisallowStaticParameterPermutations)
 	{
 		// We don't allow Material Instances to parent to cooked materials.
-		UE_LOG(LogMaterial, Warning, TEXT("Can't set material instance '%s' to cooked non-user non-base parent material '%s'. Setting parent to null."), *GetName(), *PrevParent->GetName());
+		UE_LOG(LogMaterial, Warning, TEXT("Material instance '%s' with cooked non-user non-base parent material '%s' is not allowed to create new shader permutations. Setting parent to null."), *GetName(), *PrevParent->GetName());
+
 		SetParentInternal(nullptr, true);
+		bDisallowStaticParameterPermutations = false;
 	}
 }
 
@@ -3940,6 +3947,8 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 			FMaterialUpdateContext LocalMaterialUpdateContext(FMaterialUpdateContext::EOptions::RecreateRenderStates);
 			LocalMaterialUpdateContext.AddMaterialInstance(this);
 		}
+
+		ValidateStaticPermutationAllowed();
 	}
 }
 
@@ -4023,7 +4032,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	if (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UMaterialInstance, Parent))
 	{
-		ValidateParent();
+		ValidateStaticPermutationAllowed();
 	}
 
 	// If BLEND_TranslucentColoredTransmittance is selected while Strata is not enabled, force BLEND_Translucent blend mode

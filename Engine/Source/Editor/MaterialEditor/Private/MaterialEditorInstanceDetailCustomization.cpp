@@ -963,12 +963,6 @@ bool FMaterialInstanceParameterDetails::OnShouldSetAsset(const FAssetData& Asset
 		}
 	}
 
-	if (!MaterialEditorInstance->SourceInstance->IsSpecificMaterialValidParent(MaterialInstance))
-	{
-		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_MaterialEditor_InvalidMaterialInstanceParent", "Only uncooked, user-defined, engine or game Materials/MaterialInstances can be selected as a MaterialInstance parent."));
-		return false;
-	}
-
 	return true;
 }
 
@@ -1512,8 +1506,24 @@ bool FMaterialInstanceParameterDetails::OverrideMaxWorldPositionOffsetDisplaceme
 	return MaterialEditorInstance->BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDisplacement;
 }
 
+/** Helper function used by some parameters to verify that they are allowed to be overridden. This
+  * must be prevented if the source material instance disallows the creation of new static parameter
+  * permutations as that would trigger a new shader creation. */
+static bool DoesSourceMaterialInstanceDisallowStaticParameterPermutation(const UMaterialEditorInstanceConstant* mi, bool NewValue)
+{
+	if (NewValue && mi->SourceInstance->bDisallowStaticParameterPermutations)
+	{
+		return true;
+	}
+	return false;
+}
+
 void FMaterialInstanceParameterDetails::OnOverrideOpacityClipMaskValueChanged(bool NewValue)
 {
+	if (DoesSourceMaterialInstanceDisallowStaticParameterPermutation(MaterialEditorInstance, NewValue))
+	{
+		return;
+	}
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_OpacityMaskClipValue = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
@@ -1521,6 +1531,10 @@ void FMaterialInstanceParameterDetails::OnOverrideOpacityClipMaskValueChanged(bo
 
 void FMaterialInstanceParameterDetails::OnOverrideBlendModeChanged(bool NewValue)
 {
+	if (DoesSourceMaterialInstanceDisallowStaticParameterPermutation(MaterialEditorInstance, NewValue))
+	{
+		return;
+	}
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_BlendMode = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
@@ -1528,6 +1542,10 @@ void FMaterialInstanceParameterDetails::OnOverrideBlendModeChanged(bool NewValue
 
 void FMaterialInstanceParameterDetails::OnOverrideShadingModelChanged(bool NewValue)
 {
+	if (DoesSourceMaterialInstanceDisallowStaticParameterPermutation(MaterialEditorInstance, NewValue))
+	{
+		return;
+	}
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_ShadingModel = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
@@ -1535,6 +1553,10 @@ void FMaterialInstanceParameterDetails::OnOverrideShadingModelChanged(bool NewVa
 
 void FMaterialInstanceParameterDetails::OnOverrideTwoSidedChanged(bool NewValue)
 {
+	if (DoesSourceMaterialInstanceDisallowStaticParameterPermutation(MaterialEditorInstance, NewValue))
+	{
+		return;
+	}
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_TwoSided = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
@@ -1542,6 +1564,10 @@ void FMaterialInstanceParameterDetails::OnOverrideTwoSidedChanged(bool NewValue)
 
 void FMaterialInstanceParameterDetails::OnOverrideIsThinSurfaceChanged(bool NewValue)
 {
+	if (DoesSourceMaterialInstanceDisallowStaticParameterPermutation(MaterialEditorInstance, NewValue))
+	{
+		return;
+	}
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_bIsThinSurface = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
@@ -1549,6 +1575,10 @@ void FMaterialInstanceParameterDetails::OnOverrideIsThinSurfaceChanged(bool NewV
 
 void FMaterialInstanceParameterDetails::OnOverrideDitheredLODTransitionChanged(bool NewValue)
 {
+	if (DoesSourceMaterialInstanceDisallowStaticParameterPermutation(MaterialEditorInstance, NewValue))
+	{
+		return;
+	}
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_DitheredLODTransition = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
@@ -1556,6 +1586,10 @@ void FMaterialInstanceParameterDetails::OnOverrideDitheredLODTransitionChanged(b
 
 void FMaterialInstanceParameterDetails::OnOverrideOutputTranslucentVelocityChanged(bool NewValue)
 {
+	if (DoesSourceMaterialInstanceDisallowStaticParameterPermutation(MaterialEditorInstance, NewValue))
+	{
+		return;
+	}
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_OutputTranslucentVelocity = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
@@ -1570,6 +1604,10 @@ void FMaterialInstanceParameterDetails::OnOverrideDisplacementScalingChanged(boo
 
 void FMaterialInstanceParameterDetails::OnOverrideMaxWorldPositionOffsetDisplacementChanged(bool NewValue)
 {
+	if (DoesSourceMaterialInstanceDisallowStaticParameterPermutation(MaterialEditorInstance, NewValue))
+	{
+		return;
+	}
 	MaterialEditorInstance->BasePropertyOverrides.bOverride_MaxWorldPositionOffsetDisplacement = NewValue;
 	MaterialEditorInstance->PostEditChange();
 	FEditorSupportDelegates::RedrawAllViewports.Broadcast();
