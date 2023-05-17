@@ -456,11 +456,6 @@ FString FDataflowNode::GetToolTip()
 						{
 							OutputsStr.Appendf(TEXT("    %s - %s\n"), *Property->GetName(), *MainTooltipText);
 						}
-						
-						if (!Property->HasMetaData(FDataflowNode::DataflowInput) && !Property->HasMetaData(FDataflowNode::DataflowOutput))
-						{
-							InputsStr.Appendf(TEXT("    %s - %s\n"), *Property->GetName(), *MainTooltipText);
-						}
 					}
 				}
 			}
