@@ -3,6 +3,7 @@
 #include "Widgets/SMVVMViewModelPanel.h"
 
 #include "DetailsViewArgs.h"
+#include "Dialogs/Dialogs.h"
 #include "IStructureDetailsView.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMEditorSubsystem.h"
@@ -13,7 +14,6 @@
 
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-
 
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -378,6 +378,26 @@ void SMVVMViewModelPanel::CreateCommandList()
 }
 
 
+namespace Private
+{
+static bool DisplayInUseWarningAndEarlyExit(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewModelContext* ViewModelContext, const FMVVMBlueprintViewBinding* Binding)
+{
+	const FText DeleteConfirmationPrompt = FText::Format(LOCTEXT("DeleteConfirmationPrompt", "The viewmodel {0} is in use by binding {1}! Do you really want to delete it?")
+		, ViewModelContext->GetDisplayName()
+		, Binding ? FText::FromString(Binding->GetDisplayNameString(WidgetBlueprint)) : LOCTEXT("DeleteConfirmation_Unknowed", "Unknowed"));
+	const FText DeleteConfirmationTitle = LOCTEXT("DeleteConfirmationTitle", "Delete viewmodel");
+
+	// Warn the user that this may result in data loss
+	FSuppressableWarningDialog::FSetupInfo Info(DeleteConfirmationPrompt, DeleteConfirmationTitle, TEXT("Viewmodel_Warning"));
+	Info.ConfirmText = LOCTEXT("DeleteConfirmation_Yes", "Yes");
+	Info.CancelText = LOCTEXT("DeleteConfirmation_No", "No");
+
+	FSuppressableWarningDialog DeleteFunctionInUse(Info);
+	return DeleteFunctionInUse.ShowModal() == FSuppressableWarningDialog::Cancel;
+}
+}
+
+
 void SMVVMViewModelPanel::HandleDeleteViewModel()
 {
 	TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin();
@@ -407,8 +427,17 @@ void SMVVMViewModelPanel::HandleDeleteViewModel()
 			{
 				if (const FMVVMBlueprintViewModelContext* ViewModelContext = BlueprintView->FindViewModel(*VMGuidPtr))
 				{
-					GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->RemoveViewModel(WidgetBP, ViewModelContext->GetViewModelName());
+					FGuid BindingId = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->GetFirstBindingThatUsesViewModel(WidgetBP, *VMGuidPtr);
+					if (BindingId.IsValid())
+					{
+						if (UE::MVVM::Private::DisplayInUseWarningAndEarlyExit(WidgetBP, ViewModelContext, BlueprintView->GetBinding(BindingId)))
+						{
+							return;
+						}
+					}
 				}
+
+				BlueprintView->RemoveViewModel(*VMGuidPtr);
 			}
 		}
 	}

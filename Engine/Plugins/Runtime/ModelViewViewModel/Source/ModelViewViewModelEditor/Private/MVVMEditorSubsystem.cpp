@@ -1136,5 +1136,66 @@ TArray<FMVVMAvailableBinding> UMVVMEditorSubsystem::GetChildViewModels(TSubclass
 	return ViewModelAvailableBindingsList;
 }
 
+FGuid UMVVMEditorSubsystem::GetFirstBindingThatUsesViewModel(const UWidgetBlueprint* WidgetBlueprint, FGuid ViewModelId) const
+{
+	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
+	{
+		for (const FMVVMBlueprintViewBinding& Binding : View->GetBindings())
+		{
+			if (Binding.SourcePath.GetViewModelId() == ViewModelId)
+			{
+				return Binding.BindingId;
+			}
+			if (Binding.DestinationPath.GetViewModelId() == ViewModelId)
+			{
+				return Binding.BindingId;
+			}
+
+			auto TestConversionFunction = [&](bool bForward)
+			{
+				if (UE::MVVM::IsForwardBinding(Binding.BindingType))
+				{
+					const UFunction* Function = GetConversionFunction(WidgetBlueprint, Binding, bForward);
+					if (Function != nullptr)
+					{
+						TValueOrError<TArray<const FProperty*>, FText> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Function);
+						if (ArgumentsResult.HasValue())
+						{
+							for (const FProperty* Property : ArgumentsResult.GetValue())
+							{
+								FMVVMBlueprintPropertyPath Path = GetPathForConversionFunctionArgument(WidgetBlueprint, Binding, Property->GetFName(), bForward);
+								if (Path.GetViewModelId() == ViewModelId)
+								{
+									return Binding.BindingId;
+								}
+							}
+						}
+					}
+				}
+				return FGuid();
+			};
+
+			if (UE::MVVM::IsForwardBinding(Binding.BindingType))
+			{
+				FGuid Forward = TestConversionFunction(true);
+				if (Forward.IsValid())
+				{
+					return Forward;
+				}
+			}
+
+			if (UE::MVVM::IsBackwardBinding(Binding.BindingType))
+			{
+				FGuid Backward = TestConversionFunction(false);
+				if (Backward.IsValid())
+				{
+					return Backward;
+				}
+			}
+		}
+	}
+	return FGuid();
+}
+
 #undef LOCTEXT_NAMESPACE
 
