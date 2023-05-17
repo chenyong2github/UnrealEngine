@@ -394,8 +394,6 @@ void FCompressibleAnimData::ResampleAnimationTrackData(const FFrameRate& SampleR
 	
 	if (AnimSequence->ShouldDataModelBeValid())
 	{
-		FAnimationUtils::EnsureAnimSequenceLoaded(*AnimSequence);
-
 		TScriptInterface<IAnimationDataModel> DataModelInterface = AnimSequence->GetDataModelInterface();
 
 		// Make a copy, deals with bone name and index
