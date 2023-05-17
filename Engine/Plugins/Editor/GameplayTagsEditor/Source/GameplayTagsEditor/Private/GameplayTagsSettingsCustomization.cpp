@@ -95,17 +95,18 @@ void FGameplayTagsSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& 
 					.HAlign(HAlign_Center)
 					.OnClicked_Lambda([this]()
 					{
-						const FVector2D WindowSize(320, 110);
 						const TSharedRef<SWindow> Window = SNew(SWindow)
 							.Title(LOCTEXT("AddNewGameplayTagSourceTitle", "Add new Gameplay Tag Source"))
-							.ClientSize(WindowSize)
 							.SizingRule(ESizingRule::Autosized)
-							.AutoCenter(EAutoCenter::PreferredWorkArea)
 							.SupportsMaximize(false)
 							.SupportsMinimize(false)
 							.Content()
 							[
-								SNew(SAddNewGameplayTagSourceWidget)
+								SNew(SBox)
+								.MinDesiredWidth(320.0f)
+								[
+									SNew(SAddNewGameplayTagSourceWidget)
+								]
 							];
 
 						GEditor->EditorAddModalWindow(Window);

@@ -16,9 +16,11 @@ public:
 
 	SLATE_BEGIN_ARGS(SAddNewGameplayTagSourceWidget)
 		: _NewSourceName(TEXT(""))
+		, _Padding(FMargin(15))
 		{}
 		SLATE_EVENT(FOnGameplayTagSourceAdded, OnGameplayTagSourceAdded )	// Callback for when a new source is added	
 		SLATE_ARGUMENT( FString, NewSourceName ) // String that will initially populate the New Source Name field
+		SLATE_ARGUMENT(FMargin, Padding)
 	SLATE_END_ARGS();
 
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;

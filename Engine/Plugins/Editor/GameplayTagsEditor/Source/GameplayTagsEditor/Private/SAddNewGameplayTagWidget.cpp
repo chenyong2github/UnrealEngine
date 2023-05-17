@@ -44,42 +44,36 @@ void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SBorder)
-		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+		SNew(SBox)
+		.Padding(InArgs._Padding)
 		[
 			SNew(SGridPanel)
+			.FillColumn(1, 1.0)
 			
 			// Tag Name
 			+ SGridPanel::Slot(0, 0)
-			.Padding(5)
+			.Padding(2)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
-				SNew(SBox)
-				.MinDesiredWidth(150.0f)
-				[
-					SNew(STextBlock)
-					.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
-					.Text(LOCTEXT("NewTagName", "Name:"))
-				]
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+				.Text(LOCTEXT("NewTagName", "Name:"))
 			]
 			+ SGridPanel::Slot(1, 0)
-			.Padding(5)
+			.Padding(2)
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
+			.HAlign(HAlign_Fill)
 			[
-				SNew(SBox)
-				.MinDesiredWidth(300.0f)
-				[
-					SAssignNew(TagNameTextBox, SEditableTextBox)
-					.HintText(HintText)
-					.OnTextCommitted(this, &SAddNewGameplayTagWidget::OnCommitNewTagName)
-				]
+				SAssignNew(TagNameTextBox, SEditableTextBox)
+				.HintText(HintText)
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+				.OnTextCommitted(this, &SAddNewGameplayTagWidget::OnCommitNewTagName)
 			]
 			
 			// Tag Comment
 			+ SGridPanel::Slot(0, 1)
-			.Padding(5)
+			.Padding(2)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
@@ -88,78 +82,72 @@ void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 				.Text(LOCTEXT("TagComment", "Comment:"))
 			]
 			+ SGridPanel::Slot(1, 1)
-			.Padding(5)
+			.Padding(2)
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
+			.HAlign(HAlign_Fill)
 			[
-				SNew(SBox)
-				.MinDesiredWidth(300.0f)
-				[
-					SAssignNew(TagCommentTextBox, SEditableTextBox)
-					.HintText(LOCTEXT("TagCommentHint", "Comment"))
-					.OnTextCommitted(this, &SAddNewGameplayTagWidget::OnCommitNewTagName)
-				]
+				SAssignNew(TagCommentTextBox, SEditableTextBox)
+				.HintText(LOCTEXT("TagCommentHint", "Comment"))
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+				.OnTextCommitted(this, &SAddNewGameplayTagWidget::OnCommitNewTagName)
 			]
 
 			// Tag Location
 			+ SGridPanel::Slot(0, 2)
-			.Padding(5)
+			.Padding(2)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("CreateTagSource", "Source:"))
-				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
 			]
 			+ SGridPanel::Slot(1, 2)
-			.Padding(5)
+			.Padding(2)
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
+			.HAlign(HAlign_Fill)
 			[
-				SNew(SBox)
-				.MinDesiredWidth(300.0f)
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.Padding(2.0f, 2.0f)
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
+					SAssignNew(TagSourcesComboBox, SComboBox<TSharedPtr<FName> >)
+					.OptionsSource(&TagSources)
+					.OnGenerateWidget(this, &SAddNewGameplayTagWidget::OnGenerateTagSourcesComboBox)
+					.ToolTipText(this, &SAddNewGameplayTagWidget::CreateTagSourcesComboBoxToolTip)
+					.Content()
 					[
-						SAssignNew(TagSourcesComboBox, SComboBox<TSharedPtr<FName> >)
-						.OptionsSource(&TagSources)
-						.OnGenerateWidget(this, &SAddNewGameplayTagWidget::OnGenerateTagSourcesComboBox)
-						.ToolTipText(this, &SAddNewGameplayTagWidget::CreateTagSourcesComboBoxToolTip)
-						.Content()
-						[
-							SNew(STextBlock)
-							.Text(this, &SAddNewGameplayTagWidget::CreateTagSourcesComboBoxContent)
-							.Font(IDetailLayoutBuilder::GetDetailFont())
-						]
+						SNew(STextBlock)
+						.Text(this, &SAddNewGameplayTagWidget::CreateTagSourcesComboBoxContent)
+						.Font(IDetailLayoutBuilder::GetDetailFont())
 					]
+				]
 
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2.0f, 0, 0, 0)
+				.VAlign(VAlign_Center)
+				[
+					SNew( SButton )
+					.ButtonStyle( FAppStyle::Get(), "NoBorder" )
+					.Visibility(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoritesVisibility)
+					.OnClicked(this, &SAddNewGameplayTagWidget::OnToggleTagSourceFavoriteClicked)
+					.ToolTipText(LOCTEXT("ToggleFavoriteTooltip", "Toggle whether or not this tag source is your favorite source (new tags will go into your favorite source by default)"))
+					.ContentPadding(0)
 					[
-						SNew( SButton )
-						.ButtonStyle( FAppStyle::Get(), "NoBorder" )
-						.Visibility(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoritesVisibility)
-						.OnClicked(this, &SAddNewGameplayTagWidget::OnToggleTagSourceFavoriteClicked)
-						.ToolTipText(LOCTEXT("ToggleFavoriteTooltip", "Toggle whether or not this tag source is your favorite source (new tags will go into your favorite source by default)"))
-						.ContentPadding(0)
-						[
-							SNew(SImage)
-							.Image(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoriteImage)
-						]
+						SNew(SImage)
+						.Image(this, &SAddNewGameplayTagWidget::OnGetTagSourceFavoriteImage)
 					]
 				]
 			]
 
 			// Add Tag Button
-			+ SGridPanel::Slot(1, 3)
-			.Padding(5)
-			.HAlign(HAlign_Left)
+			+ SGridPanel::Slot(0, 3)
+			.ColumnSpan(2)
+			.Padding(InArgs._AddButtonPadding)
+			.HAlign(HAlign_Right)
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("AddNew", "Add New Tag"))
@@ -202,6 +190,7 @@ void SAddNewGameplayTagWidget::Tick( const FGeometry& AllottedGeometry, const do
 	{
 		bShouldGetKeyboardFocus = false;
 		FSlateApplication::Get().SetKeyboardFocus(TagNameTextBox.ToSharedRef(), EFocusCause::SetDirectly);
+		FSlateApplication::Get().SetUserFocus(0, TagNameTextBox.ToSharedRef());
 	}
 }
 

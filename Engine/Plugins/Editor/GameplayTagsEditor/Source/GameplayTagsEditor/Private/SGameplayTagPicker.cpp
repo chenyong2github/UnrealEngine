@@ -4,6 +4,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/SWindow.h"
@@ -147,6 +148,9 @@ void SGameplayTagPicker::Construct(const FArguments& InArgs)
 		];
 	SettingsCombo->SetOnGetMenuContent(FOnGetContent::CreateSP(this, &SGameplayTagPicker::MakeSettingsMenu, SettingsCombo));
 
+
+	TWeakPtr<SGameplayTagPicker> WeakSelf = StaticCastWeakPtr<SGameplayTagPicker>(AsWeak());
+	
 	TSharedRef<SWidget> Picker = 
 		SNew(SBorder)
 		.Padding(InArgs._Padding)
@@ -161,7 +165,7 @@ void SGameplayTagPicker::Construct(const FArguments& InArgs)
 			[
 				SNew(SHorizontalBox)
 
-				// Add button
+				// Add button for management mode
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				[
@@ -177,6 +181,42 @@ void SGameplayTagPicker::Construct(const FArguments& InArgs)
 						.IsEnabled(this, &SGameplayTagPicker::CanAddNewTag)
 						.Visibility(InArgs._GameplayTagPickerMode == EGameplayTagPickerMode::ManagementMode ? EVisibility::Visible : EVisibility::Collapsed)
 						.OnGetMenuContent(this, &SGameplayTagPicker::MakeAddMenu)
+					]
+				]
+
+				// Smaller add button for selection and hybrid modes.
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SHorizontalBox)
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(FMargin(0,0,4,0))
+					[
+						SNew(SButton)
+						.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+						.Visibility(InArgs._GameplayTagPickerMode != EGameplayTagPickerMode::ManagementMode ? EVisibility::Visible : EVisibility::Collapsed)
+						.OnClicked_Lambda([WeakSelf]()
+						{
+							if (const TSharedPtr<SGameplayTagPicker> Self = WeakSelf.Pin())
+							{
+								if (!Self->bNewTagWidgetVisible)
+								{
+									Self->ShowInlineAddTagWidget(EGameplayTagAdd::Root);
+								}
+								else
+								{
+									Self->bNewTagWidgetVisible = false;
+								}
+							}
+							return FReply::Handled();
+						})
+						[
+							SNew(SImage)
+                        	.Image(FAppStyle::GetBrush("Icons.Plus"))
+                        	.ColorAndOpacity(FStyleColors::AccentGreen)
+						]
 					]
 				]
 
@@ -197,6 +237,30 @@ void SGameplayTagPicker::Construct(const FArguments& InArgs)
 				[
 					SettingsCombo.ToSharedRef()
 				]
+			]
+
+			// Inline add new tag window for selection and hybrid modes.
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Top)
+			.Padding(FMargin(4,2))
+			[
+				SAssignNew(AddNewTagWidget, SAddNewGameplayTagWidget )
+				.Padding(FMargin(0, 2))
+				.AddButtonPadding(FMargin(0, 4, 0, 0))
+				.Visibility_Lambda([WeakSelf]()
+				{
+					const TSharedPtr<SGameplayTagPicker> Self = WeakSelf.Pin();
+					return (Self.IsValid() && Self->bNewTagWidgetVisible) ? EVisibility::Visible : EVisibility::Collapsed;
+					
+				})
+				.OnGameplayTagAdded_Lambda([WeakSelf](const FString& TagName, const FString& TagComment, const FName& TagSource)
+				{
+				   if (const TSharedPtr<SGameplayTagPicker> Self = WeakSelf.Pin())
+				   {
+					   Self->OnGameplayTagAdded(TagName, TagComment, TagSource);
+				   }
+				})
 			]
 
 			// Gameplay Tags tree
@@ -240,7 +304,7 @@ void SGameplayTagPicker::Construct(const FArguments& InArgs)
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("GameplayTagPicker_ManageTags", "Manage Gameplay Tags..."), FText::GetEmpty(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings"),
-			FUIAction(FExecuteAction::CreateRaw(this, &SGameplayTagPicker::OnManageTagsClicked, TSharedPtr<SComboButton>()))
+			FUIAction(FExecuteAction::CreateRaw(this, &SGameplayTagPicker::OnManageTagsClicked, TSharedPtr<FGameplayTagNode>(), TSharedPtr<SComboButton>()))
 		);
 
 		MenuBuilder.AddSeparator();
@@ -354,7 +418,7 @@ TSharedRef<SWidget> SGameplayTagPicker::MakeAddMenu()
 	// Add root tag
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("GameplayTagPicker_AddNewRootTag", "Add new root level tag"), FText::GetEmpty(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus"),
-		FUIAction(FExecuteAction::CreateRaw(this, &SGameplayTagPicker::AddTagDialog, EGameplayTagAdd::Root, TSharedPtr<FGameplayTagNode>()))
+		FUIAction(FExecuteAction::CreateRaw(this, &SGameplayTagPicker::OpenAddTagDialog, EGameplayTagAdd::Root, TSharedPtr<FGameplayTagNode>()))
 	);
 
 	// Add child tag
@@ -368,25 +432,6 @@ TSharedRef<SWidget> SGameplayTagPicker::MakeAddMenu()
 		LOCTEXT("GameplayTagPicker_DuplicateTagTooltip", "Duplicate selected tag to create a new tag."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate"),
 		FUIAction(FExecuteAction::CreateSP(this, &SGameplayTagPicker::OnDuplicateTag, SelectedTagNode, TSharedPtr<SComboButton>()), FCanExecuteAction::CreateSP(this, &SGameplayTagPicker::CanAddNewSubTag, SelectedTagNode)));
-	
-	return MenuBuilder.MakeWidget();
-}
-
-TSharedRef<SWidget> SGameplayTagPicker::MakeActionsMenu(TSharedPtr<SComboButton> OwnerCombo)
-{
-	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection*/false, nullptr);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("GameplayTagPicker_CreateAndManageTags", "Create and Manage Gameplay Tags..."), FText::GetEmpty(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings"),
-		FUIAction(FExecuteAction::CreateRaw(this, &SGameplayTagPicker::OnManageTagsClicked, OwnerCombo))
-	);
-	
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("GameplayTagPicker_ClearSelection", "Clear Selection"), FText::GetEmpty(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.X"),
-		FUIAction(FExecuteAction::CreateRaw(this, &SGameplayTagPicker::OnClearAllClicked, OwnerCombo))
-	);
-
-	MenuBuilder.AddSeparator();
 	
 	return MenuBuilder.MakeWidget();
 }
@@ -430,7 +475,21 @@ void SGameplayTagPicker::Tick(const FGeometry& AllottedGeometry, const double In
 		// Scroll specified item into view.
 		UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 		TSharedPtr<FGameplayTagNode> Node = Manager.FindTagNode(RequestedScrollToTag);
-		TagTreeWidget->RequestScrollIntoView(Node);
+
+		if (Node.IsValid())
+		{
+			// Expand all the parent nodes to make sure the target node is visible.
+			TSharedPtr<FGameplayTagNode> ParentNode = Node.IsValid() ? Node->ParentNode : nullptr;
+			while (ParentNode.IsValid())
+			{
+				TagTreeWidget->SetItemExpansion(ParentNode, /*bExpand*/true);
+				ParentNode = ParentNode->ParentNode;
+			}
+
+			TagTreeWidget->SetItemSelection(Node, true);
+			TagTreeWidget->RequestScrollIntoView(Node);
+		}
+		
 		RequestedScrollToTag = FGameplayTag();
 	}
 }
@@ -942,11 +1001,16 @@ EVisibility SGameplayTagPicker::DetermineAllowChildrenVisible(TSharedPtr<FGamepl
 	return EVisibility::Collapsed;
 }
 
-void SGameplayTagPicker::OnManageTagsClicked(TSharedPtr<SComboButton> OwnerCombo)
+void SGameplayTagPicker::OnManageTagsClicked(TSharedPtr<FGameplayTagNode> Node, TSharedPtr<SComboButton> OwnerCombo)
 {
 	FGameplayTagManagerWindowArgs Args;
 	Args.bRestrictedTags = bRestrictedTags;
 	Args.Filter = RootFilterString;
+	if (Node.IsValid())
+	{
+		Args.HighlightedTag = Node->GetCompleteTag();
+	}
+	
 	UE::GameplayTags::Editor::OpenGameplayTagManager(Args);
 
 	if (OwnerCombo.IsValid())
@@ -1015,26 +1079,11 @@ void SGameplayTagPicker::OnCollapseAllClicked(TSharedPtr<SComboButton> OwnerComb
 	}
 }
 
-FReply SGameplayTagPicker::OnAddSubtagClicked(TSharedPtr<FGameplayTagNode> InTagNode)
+void SGameplayTagPicker::OpenAddTagDialog(const EGameplayTagAdd Mode, TSharedPtr<FGameplayTagNode> InTagNode)
 {
-	if (!bReadOnly)
-	{
-		AddTagDialog(EGameplayTagAdd::Child, InTagNode);
-	}
-	return FReply::Handled();
-}
-
-void SGameplayTagPicker::AddTagDialog(const EGameplayTagAdd Mode, TSharedPtr<FGameplayTagNode> InTagNode)
-{
-	const FVector2D WindowSize(320, 110);
-	const FVector2D WindowPosition = FSlateApplication::Get().GetCursorPos() - WindowSize * 0.5f;
-	
 	TSharedPtr<SWindow> NewTagWindow = SNew(SWindow)
 		.Title(LOCTEXT("EditTagWindowTitle", "Edit Gameplay Tag"))
-		.ClientSize(WindowSize)
-		.ScreenPosition(WindowPosition)
 		.SizingRule(ESizingRule::Autosized)
-		.AutoCenter(EAutoCenter::None)
 		.SupportsMaximize(false)
 		.SupportsMinimize(false);
 
@@ -1060,7 +1109,7 @@ void SGameplayTagPicker::AddTagDialog(const EGameplayTagAdd Mode, TSharedPtr<FGa
 	
 	if (!bRestrictedTags)
     {
-		TSharedRef<SAddNewGameplayTagWidget> AddNewTagDialog = SNew(SAddNewGameplayTagWidget )
+		TSharedRef<SAddNewGameplayTagWidget> AddNewTagDialog = SNew(SAddNewGameplayTagWidget)
 			.OnGameplayTagAdded_Lambda([WeakSelf, NewTagWindow](const FString& TagName, const FString& TagComment, const FName& TagSource)
 			{
 				if (const TSharedPtr<SGameplayTagPicker> Self = WeakSelf.Pin())
@@ -1082,8 +1131,11 @@ void SGameplayTagPicker::AddTagDialog(const EGameplayTagAdd Mode, TSharedPtr<FGa
 			AddNewTagDialog->AddDuplicate(TagName, TagSource);
 		}
 
-		NewTagWindow->SetContent(AddNewTagDialog);
-
+		NewTagWindow->SetContent(SNew(SBox)
+			.MinDesiredWidth(320.0f)
+			[
+				AddNewTagDialog
+			]);
     }
     else if (bRestrictedTags)
     {
@@ -1109,16 +1161,54 @@ void SGameplayTagPicker::AddTagDialog(const EGameplayTagAdd Mode, TSharedPtr<FGa
     		AddNewTagDialog->AddDuplicate(TagName, TagSource, bTagAllowsNonRestrictedChildren);
     	}
         
-		NewTagWindow->SetContent(AddNewTagDialog);
+    	NewTagWindow->SetContent(SNew(SBox)
+			.MinDesiredWidth(320.0f)
+			[
+				AddNewTagDialog
+			]);
     }
 
 	TSharedPtr<SWindow> CurrentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
 	FSlateApplication::Get().AddModalWindow(NewTagWindow.ToSharedRef(), CurrentWindow);
 }
 
+void SGameplayTagPicker::ShowInlineAddTagWidget(const EGameplayTagAdd Mode, TSharedPtr<FGameplayTagNode> InTagNode)
+{
+	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+	
+	FString TagName;
+	FName TagFName;
+	FString TagComment;
+	FName TagSource;
+	bool bTagIsExplicit;
+	bool bTagIsRestricted;
+	bool bTagAllowsNonRestrictedChildren;
+
+	if (InTagNode.IsValid())
+	{
+		TagName = InTagNode->GetCompleteTagString();
+		TagFName = InTagNode->GetCompleteTagName();
+	}
+
+	Manager.GetTagEditorData(TagFName, TagComment, TagSource, bTagIsExplicit, bTagIsRestricted, bTagAllowsNonRestrictedChildren);
+
+	if (AddNewTagWidget.IsValid())
+	{
+		if (Mode == EGameplayTagAdd::Child || Mode == EGameplayTagAdd::Root)
+		{
+			AddNewTagWidget->AddSubtagFromParent(TagName, TagSource);
+		}
+		else if (Mode == EGameplayTagAdd::Duplicate)
+		{
+			AddNewTagWidget->AddDuplicate(TagName, TagSource);
+		}
+		bNewTagWidgetVisible = true;
+	}
+}
+
 FReply SGameplayTagPicker::OnAddRootTagClicked()
 {
-	AddTagDialog(EGameplayTagAdd::Root);
+	OpenAddTagDialog(EGameplayTagAdd::Root);
 	
 	return FReply::Handled();
 }
@@ -1148,22 +1238,22 @@ TSharedRef<SWidget> SGameplayTagPicker::MakeTagActionsMenu(TSharedPtr<FGameplayT
 	// Occurs when SGameplayTagPicker is being used as a menu item itself (Details panel of blueprint editor for example).
 	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, nullptr);
 
+	// Add child tag
+	MenuBuilder.AddMenuEntry(LOCTEXT("GameplayTagPicker_AddSubTag", "Add Sub Tag"),
+		LOCTEXT("GameplayTagPicker_AddSubTagTagTooltip", "Add sub tag under selected tag."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus"),
+		FUIAction(FExecuteAction::CreateSP(this, &SGameplayTagPicker::OnAddSubTag, InTagNode, ActionsCombo), FCanExecuteAction::CreateSP(this, &SGameplayTagPicker::CanAddNewSubTag, InTagNode)));
+
+	// Duplicate
+	MenuBuilder.AddMenuEntry(LOCTEXT("GameplayTagPicker_DuplicateTag", "Duplicate Tag"),
+		LOCTEXT("GameplayTagPicker_DuplicateTagTooltip", "Duplicate selected tag to create a new tag."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate"),
+		FUIAction(FExecuteAction::CreateSP(this, &SGameplayTagPicker::OnDuplicateTag, InTagNode, ActionsCombo), FCanExecuteAction::CreateSP(this, &SGameplayTagPicker::CanAddNewSubTag, InTagNode)));
+
+	MenuBuilder.AddSeparator();
+
 	if (bShowManagement)
 	{
-		// Add child tag
-		MenuBuilder.AddMenuEntry(LOCTEXT("GameplayTagPicker_AddSubTag", "Add Sub Tag"),
-			LOCTEXT("GameplayTagPicker_AddSubTagTagTooltip", "Add sub tag under selected tag."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus"),
-			FUIAction(FExecuteAction::CreateSP(this, &SGameplayTagPicker::OnAddSubTag, InTagNode, ActionsCombo), FCanExecuteAction::CreateSP(this, &SGameplayTagPicker::CanAddNewSubTag, InTagNode)));
-	
-		// Duplicate
-		MenuBuilder.AddMenuEntry(LOCTEXT("GameplayTagPicker_DuplicateTag", "Duplicate Tag"),
-			LOCTEXT("GameplayTagPicker_DuplicateTagTooltip", "Duplicate selected tag to create a new tag."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Duplicate"),
-			FUIAction(FExecuteAction::CreateSP(this, &SGameplayTagPicker::OnDuplicateTag, InTagNode, ActionsCombo), FCanExecuteAction::CreateSP(this, &SGameplayTagPicker::CanAddNewSubTag, InTagNode)));
-
-		MenuBuilder.AddSeparator();
-
 		// Rename
 		MenuBuilder.AddMenuEntry(LOCTEXT("GameplayTagPicker_RenameTag", "Rename Tag"),
 			LOCTEXT("GameplayTagPicker_RenameTagTooltip", "Rename this tag"),
@@ -1182,7 +1272,7 @@ TSharedRef<SWidget> SGameplayTagPicker::MakeTagActionsMenu(TSharedPtr<FGameplayT
 	// Only include these menu items if we have tag containers to modify
 	if (bMultiSelect)
 	{
-		// Either Selecto or Unselect Exact Tag depending on if we have the exact tag or not
+		// Either Selector or Unselect Exact Tag depending on if we have the exact tag or not
 		if (IsExactTagInCollection(InTagNode))
 		{
 			MenuBuilder.AddMenuEntry(LOCTEXT("GameplayTagPicker_UnselectTag", "Unselect Exact Tag"),
@@ -1199,6 +1289,15 @@ TSharedRef<SWidget> SGameplayTagPicker::MakeTagActionsMenu(TSharedPtr<FGameplayT
 		}
 
 		MenuBuilder.AddSeparator();
+	}
+
+	if (!bShowManagement)
+	{
+		// Open tag in manager
+		MenuBuilder.AddMenuEntry(LOCTEXT("GameplayTagPicker_OpenTagInManager", "Open Tag in Manager..."),
+			LOCTEXT("GameplayTagPicker_OpenTagInManagerTooltip", "Opens the Gameplay Tag manage and hilights the selected tag."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Settings"),
+			FUIAction(FExecuteAction::CreateRaw(this, &SGameplayTagPicker::OnManageTagsClicked, InTagNode, TSharedPtr<SComboButton>())));
 	}
 
 	// Search for References
@@ -1234,26 +1333,50 @@ bool SGameplayTagPicker::CanModifyTag(TSharedPtr<FGameplayTagNode> Node) const
 
 void SGameplayTagPicker::OnAddSubTag(TSharedPtr<FGameplayTagNode> InTagNode, TSharedPtr<SComboButton> OwnerCombo)
 {
-	if (InTagNode.IsValid())
+	const bool bShowInline = ((GameplayTagPickerMode == EGameplayTagPickerMode::SelectionMode || GameplayTagPickerMode == EGameplayTagPickerMode::HybridMode) && !bReadOnly);
+
+	if (bShowInline)
 	{
-		AddTagDialog(EGameplayTagAdd::Child, InTagNode);
+		if (InTagNode.IsValid())
+		{
+			ShowInlineAddTagWidget(EGameplayTagAdd::Child, InTagNode);
+		}
 	}
-	if (OwnerCombo.IsValid())
+	else
 	{
-		OwnerCombo->SetIsOpen(false);
+		if (InTagNode.IsValid())
+		{
+			OpenAddTagDialog(EGameplayTagAdd::Child, InTagNode);
+		}
+		if (OwnerCombo.IsValid())
+		{
+			OwnerCombo->SetIsOpen(false);
+		}
 	}
 }
 
 void SGameplayTagPicker::OnDuplicateTag(TSharedPtr<FGameplayTagNode> InTagNode, TSharedPtr<SComboButton> OwnerCombo)
 {
-	if (InTagNode.IsValid())
+	const bool bShowInline = ((GameplayTagPickerMode == EGameplayTagPickerMode::SelectionMode || GameplayTagPickerMode == EGameplayTagPickerMode::HybridMode) && !bReadOnly);
+
+	if (bShowInline)
 	{
-		AddTagDialog(EGameplayTagAdd::Duplicate, InTagNode);
+		if (InTagNode.IsValid())
+		{
+			ShowInlineAddTagWidget(EGameplayTagAdd::Duplicate, InTagNode);
+		}
 	}
-	
-	if (OwnerCombo.IsValid())
+	else
 	{
-		OwnerCombo->SetIsOpen(false);
+		if (InTagNode.IsValid())
+		{
+			OpenAddTagDialog(EGameplayTagAdd::Duplicate, InTagNode);
+		}
+		
+		if (OwnerCombo.IsValid())
+		{
+			OwnerCombo->SetIsOpen(false);
+		}
 	}
 }
 
@@ -1677,8 +1800,7 @@ void SGameplayTagPicker::OpenRenameGameplayTagDialog(TSharedPtr<FGameplayTagNode
 	TSharedRef<SWindow> RenameTagWindow =
 		SNew(SWindow)
 		.Title(LOCTEXT("RenameTagWindowTitle", "Rename Gameplay Tag"))
-		.ClientSize(FVector2D(320.0f, 110.0f))
-		.SizingRule(ESizingRule::FixedSize)
+		.SizingRule(ESizingRule::Autosized)
 		.SupportsMaximize(false)
 		.SupportsMinimize(false);
 
@@ -1687,7 +1809,11 @@ void SGameplayTagPicker::OpenRenameGameplayTagDialog(TSharedPtr<FGameplayTagNode
 		.GameplayTagNode(GameplayTagNode)
 		.OnGameplayTagRenamed(const_cast<SGameplayTagPicker*>(this), &SGameplayTagPicker::OnGameplayTagRenamed);
 
-	RenameTagWindow->SetContent(RenameTagDialog);
+	RenameTagWindow->SetContent(SNew(SBox)
+		.MinDesiredWidth(320.0f)
+		[
+			RenameTagDialog
+		]);
 
 	TSharedPtr<SWindow> CurrentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared() );
 
@@ -1805,67 +1931,80 @@ void CloseGameplayTagWindow(TWeakPtr<SGameplayTagPicker> TagWidget)
 
 TWeakPtr<SGameplayTagPicker> OpenGameplayTagManager(const FGameplayTagManagerWindowArgs& Args)
 {
-	// Close all other GameplayTag windows.
-	CloseGameplayTagWindow(nullptr);
-
-	const FVector2D WindowSize(800, 800);
+	TSharedPtr<SWindow> GameplayTagPickerWindow = GlobalTagWidgetWindow.Pin();
+	TSharedPtr<SGameplayTagPicker> TagWidget = GlobalTagWidget.Pin();
 	
-	TSharedRef<SGameplayTagPicker> TagWidget = SNew(SGameplayTagPicker)
-		.Filter(Args.Filter)
-		.ReadOnly(false)
-		.MaxHeight(0.0f) // unbounded
-		.MultiSelect(false)
-		.SettingsName(TEXT("Manager"))
-		.GameplayTagPickerMode(EGameplayTagPickerMode::ManagementMode)
-		.RestrictedTags(Args.bRestrictedTags)
-	;
-
-	FText Title = Args.Title;
-	if (Title.IsEmpty())
+	if (!GlobalTagWidgetWindow.IsValid()
+		|| !GlobalTagWidget.IsValid())
 	{
-		Title = LOCTEXT("GameplayTagPicker_ManagerTitle", "Gameplay Tag Manager");
-	}
-	
-	TSharedRef<SWindow> GameplayTagPickerWindow = SNew(SWindow)
-		.Title(Title)
-		.HasCloseButton(true)
-		.SupportsMaximize(false)
-		.SupportsMinimize(false)
-		.AutoCenter(EAutoCenter::PreferredWorkArea)
-		.ClientSize(WindowSize)
-		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+		// Close all other GameplayTag windows.
+		CloseGameplayTagWindow(nullptr);
+
+		const FVector2D WindowSize(800, 800);
+		
+		TagWidget = SNew(SGameplayTagPicker)
+			.Filter(Args.Filter)
+			.ReadOnly(false)
+			.MaxHeight(0.0f) // unbounded
+			.MultiSelect(false)
+			.SettingsName(TEXT("Manager"))
+			.GameplayTagPickerMode(EGameplayTagPickerMode::ManagementMode)
+			.RestrictedTags(Args.bRestrictedTags)
+		;
+
+		FText Title = Args.Title;
+		if (Title.IsEmpty())
+		{
+			Title = LOCTEXT("GameplayTagPicker_ManagerTitle", "Gameplay Tag Manager");
+		}
+		
+		GameplayTagPickerWindow = SNew(SWindow)
+			.Title(Title)
+			.HasCloseButton(true)
+			.SupportsMaximize(false)
+			.SupportsMinimize(false)
+			.AutoCenter(EAutoCenter::PreferredWorkArea)
+			.ClientSize(WindowSize)
 			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.FillHeight(1)
+				SNew(SBorder)
+				.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 				[
-					TagWidget
+					SNew(SVerticalBox)
+
+					+ SVerticalBox::Slot()
+					.FillHeight(1)
+					[
+						TagWidget.ToSharedRef()
+					]
 				]
-			]
-		];
+			];
 
-	TWeakPtr<SGameplayTagPicker> WeakTagWidget = TagWidget;
-	
-	// NOTE: FGlobalTabmanager::Get()-> is actually dereferencing a SharedReference, not a SharedPtr, so it cannot be null.
-	if (FGlobalTabmanager::Get()->GetRootWindow().IsValid())
-	{
-		FSlateApplication::Get().AddWindowAsNativeChild(GameplayTagPickerWindow, FGlobalTabmanager::Get()->GetRootWindow().ToSharedRef());
-	}
-	else
-	{
-		FSlateApplication::Get().AddWindow(GameplayTagPickerWindow);
+		TWeakPtr<SGameplayTagPicker> WeakTagWidget = TagWidget;
+		
+		// NOTE: FGlobalTabmanager::Get()-> is actually dereferencing a SharedReference, not a SharedPtr, so it cannot be null.
+		if (FGlobalTabmanager::Get()->GetRootWindow().IsValid())
+		{
+			FSlateApplication::Get().AddWindowAsNativeChild(GameplayTagPickerWindow.ToSharedRef(), FGlobalTabmanager::Get()->GetRootWindow().ToSharedRef());
+		}
+		else
+		{
+			FSlateApplication::Get().AddWindow(GameplayTagPickerWindow.ToSharedRef());
+		}
+
+		GlobalTagWidget = TagWidget;
+		GlobalTagWidgetWindow = GameplayTagPickerWindow;
 	}
 
-	
+	check (TagWidget.IsValid());
+
 	// Set focus to the search box on creation
 	FSlateApplication::Get().SetKeyboardFocus(TagWidget->GetWidgetToFocusOnOpen());
 	FSlateApplication::Get().SetUserFocus(0, TagWidget->GetWidgetToFocusOnOpen());
-	
-	GlobalTagWidget = TagWidget;
-	GlobalTagWidgetWindow = GameplayTagPickerWindow;
+
+	if (Args.HighlightedTag.IsValid())
+	{
+		TagWidget->RequestScrollToView(Args.HighlightedTag);
+	}
 
 	return TagWidget;
 }

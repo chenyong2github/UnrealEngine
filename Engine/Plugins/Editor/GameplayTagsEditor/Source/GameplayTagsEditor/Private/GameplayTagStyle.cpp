@@ -32,11 +32,11 @@ public:
 		// Tag Chip
 		const FLinearColor ChipColor = FStyleColors::Hover.GetSpecifiedColor();
 		const FLinearColor ChipColorHover = FStyleColors::Hover2.GetSpecifiedColor();
-		const FLinearColor ChipColorDisable = ChipColor.CopyWithNewOpacity(0.5);
+		const FLinearColor ChipColorDisable = ChipColor.CopyWithNewOpacity(0.35);
 		
 		const FLinearColor HollowChipColor = ChipColor.CopyWithNewOpacity(0.0);
 		const FLinearColor HollowChipColorHover = ChipColorHover.CopyWithNewOpacity(0.15);
-		const FLinearColor HollowChipColorDisable = HollowChipColor.CopyWithNewOpacity(0.3);
+		const FLinearColor HollowChipColorDisable = HollowChipColor.CopyWithNewOpacity(0.0);
 
 		FButtonStyle ChipButtonSelected = FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button");
 		ChipButtonSelected
@@ -44,10 +44,10 @@ public:
 			.SetHovered(FSlateRoundedBoxBrush(ChipColorHover, 3.0f))
 			.SetPressed(FSlateRoundedBoxBrush(ChipColorHover, 3.0f))
 			.SetDisabled(FSlateRoundedBoxBrush(ChipColorDisable, 3.0f))
-			.SetNormalForeground(FStyleColors::ForegroundHeader)
-			.SetHoveredForeground(FStyleColors::ForegroundHover)
-			.SetPressedForeground(FStyleColors::ForegroundHover)
-			.SetDisabledForeground(FStyleColors::Foreground)
+			.SetNormalForeground(FStyleColors::ForegroundHover)
+			.SetHoveredForeground(FStyleColors::White)
+			.SetPressedForeground(FStyleColors::White)
+			.SetDisabledForeground(FStyleColors::ForegroundHover)
 			.SetNormalPadding(FMargin(5,2,2,2))
 			.SetPressedPadding(FMargin(5,3,2,1));
 		Set("GameplayTags.ChipButton.Selected", ChipButtonSelected);
@@ -58,10 +58,10 @@ public:
 			.SetHovered(FSlateRoundedBoxBrush(HollowChipColorHover, 3.0f, ChipColorHover, 1.0f))
 			.SetPressed(FSlateRoundedBoxBrush(HollowChipColorHover, 3.0f, ChipColorHover, 1.0f))
 			.SetDisabled(FSlateRoundedBoxBrush(HollowChipColorDisable, 3.0f, ChipColorDisable, 1.0f))
-			.SetNormalForeground(FStyleColors::ForegroundHeader)
-			.SetHoveredForeground(FStyleColors::ForegroundHover)
-			.SetPressedForeground(FStyleColors::ForegroundHover)
-			.SetDisabledForeground(FStyleColors::Foreground)
+			.SetNormalForeground(FStyleColors::ForegroundHover)
+			.SetHoveredForeground(FStyleColors::White)
+			.SetPressedForeground(FStyleColors::White)
+			.SetDisabledForeground(FStyleColors::ForegroundHover)
 			.SetNormalPadding(FMargin(5,2,5,2))
 			.SetPressedPadding(FMargin(5,3,5,1));
 		Set("GameplayTags.ChipButton.Unselected", ChipButtonUnselected);

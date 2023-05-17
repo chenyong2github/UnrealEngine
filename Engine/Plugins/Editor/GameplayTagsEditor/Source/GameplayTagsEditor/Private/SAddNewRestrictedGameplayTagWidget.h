@@ -19,9 +19,11 @@ public:
 
 	SLATE_BEGIN_ARGS(SAddNewRestrictedGameplayTagWidget)
 		: _NewRestrictedTagName(TEXT(""))
+		, _Padding(FMargin(15))
 		{}
 		SLATE_EVENT( FOnRestrictedGameplayTagAdded, OnRestrictedGameplayTagAdded )	// Callback for when a new tag is added	
 		SLATE_ARGUMENT( FString, NewRestrictedTagName ) // String that will initially populate the New Tag Name field
+		SLATE_ARGUMENT(FMargin, Padding)
 	SLATE_END_ARGS();
 
 	virtual ~SAddNewRestrictedGameplayTagWidget() override;

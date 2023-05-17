@@ -9,6 +9,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SGridPanel.h"
 
 #define LOCTEXT_NAMESPACE "RenameGameplayTag"
 
@@ -21,101 +22,88 @@ void SRenameGameplayTagDialog::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew( SBox )
-		.Padding(FMargin(15))
+		SNew(SBox)
+		.Padding(InArgs._Padding)
 		[
-			SNew( SVerticalBox )
+			SNew(SGridPanel)
+			.FillColumn(1, 1.0)
 
 			// Current name display
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.VAlign(VAlign_Top)
-			.Padding(4.0f)
+			+ SGridPanel::Slot(0, 0)
+			.Padding(2)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SNew( SHorizontalBox )
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew( STextBlock )
-					.Text( LOCTEXT("CurrentTag", "Current Tag:"))
-				]
-
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(HAlign_Right)
-				.Padding(8.0f, 0.0f)
-				[
-					SNew( STextBlock )
-					.MinDesiredWidth(184.0f)
-					.Text( FText::FromName(GameplayTagNode->GetCompleteTag().GetTagName() ) )
-				]
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+				.Text(LOCTEXT("CurrentTag", "Current Tag:"))
 			]
 
+			+ SGridPanel::Slot(1, 0)
+			.Padding(2)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(STextBlock)
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+				.Text(FText::FromName(GameplayTagNode->GetCompleteTag().GetTagName()))
+			]
 			
 			// New name controls
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(4.0f)
-			.VAlign(VAlign_Top)
+			+ SGridPanel::Slot(0, 1)
+			.Padding(2)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Left)
 			[
-				SNew( SHorizontalBox )
+				SNew(STextBlock )
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+				.Text(LOCTEXT("NewTag", "New Tag:"))
+			]
 
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(0.0f, 4.0f)
-				[
-					SNew( STextBlock )
-					.Text( LOCTEXT("NewTag", "New Tag:" ))
-				]
-
-				+SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(HAlign_Right)
-				.Padding(8.0f, 0.0f)
-				[
-					SAssignNew( NewTagNameTextBox, SEditableTextBox )
-					.Text( FText::FromName(GameplayTagNode->GetCompleteTag().GetTagName() ))
-					.Padding(4.0f)
-					.MinDesiredWidth(180.0f)
-					.OnTextCommitted( this, &SRenameGameplayTagDialog::OnRenameTextCommitted )
-				]
+			+ SGridPanel::Slot(1, 1)
+			.Padding(2)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Fill)
+			[
+				SAssignNew(NewTagNameTextBox, SEditableTextBox)
+				.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
+				.Text(FText::FromName(GameplayTagNode->GetCompleteTag().GetTagName()))
+				.OnTextCommitted(this, &SRenameGameplayTagDialog::OnRenameTextCommitted)
 			]
 
 			// Dialog controls
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.VAlign(VAlign_Top)
-			.HAlign(HAlign_Center)
+			+ SGridPanel::Slot(0, 2)
+			.ColumnSpan(2)
+			.HAlign(HAlign_Right)
+			.Padding(FMargin(0, 16))
 			[
-				SNew( SHorizontalBox )
+				SNew(SHorizontalBox)
 
 				// Rename
 				+SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(8.0f, 8.0f)
+				.Padding(0, 0, 8.0f, 0)
 				[
-					SNew( SButton )
-					.IsFocusable( false )
-					.IsEnabled( this, &SRenameGameplayTagDialog::IsRenameEnabled )
-					.OnClicked( this, &SRenameGameplayTagDialog::OnRenameClicked )
+					SNew(SButton)
+					.IsFocusable(false)
+					.IsEnabled(this, &SRenameGameplayTagDialog::IsRenameEnabled)
+					.OnClicked(this, &SRenameGameplayTagDialog::OnRenameClicked)
 					[
-						SNew( STextBlock )
-						.Text( LOCTEXT("RenameTagButtonText", "Rename" ) )
+						SNew(STextBlock)
+						.Text(LOCTEXT("RenameTagButtonText", "Rename"))
 					]
 				]
 
 				// Cancel
 				+SHorizontalBox::Slot()
 				.AutoWidth()
-				.Padding(8.0f, 8.0f)
 				[
-					SNew( SButton )
-					.IsFocusable( false )
-					.OnClicked( this, & SRenameGameplayTagDialog::OnCancelClicked )
+					SNew(SButton)
+					.IsFocusable(false)
+					.OnClicked(this, & SRenameGameplayTagDialog::OnCancelClicked)
 					[
-						SNew( STextBlock )
-						.Text( LOCTEXT("CancelRenameButtonText", "Cancel"))
+						SNew(STextBlock)
+						.Text(LOCTEXT("CancelRenameButtonText", "Cancel"))
 					]
 				]
 			]

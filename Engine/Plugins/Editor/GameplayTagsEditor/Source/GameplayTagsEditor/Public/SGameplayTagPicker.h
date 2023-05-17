@@ -17,6 +17,7 @@
 
 class IPropertyHandle;
 class SComboButton;
+class SAddNewGameplayTagWidget;
 
 /** Determines the behavior of the gameplay tag UI depending on where it's used */
 enum class EGameplayTagPickerMode : uint8
@@ -260,7 +261,7 @@ private:
 	FSlateColor GetTagTextColour(TSharedPtr<FGameplayTagNode> Node) const;
 
 	/** Called when the user clicks the "Create and Manage Gameplay Tags" button; Opens Gameplay Tag manager window. */
-	void OnManageTagsClicked(TSharedPtr<SComboButton> OwnerCombo);
+	void OnManageTagsClicked(TSharedPtr<FGameplayTagNode> Node, TSharedPtr<SComboButton> OwnerCombo);
 
 	/** Called when the user clicks the "Clear All" button; Clears all tags */
 	void OnClearAllClicked(TSharedPtr<SComboButton> OwnerCombo);
@@ -318,10 +319,11 @@ private:
 	/** Callback for when a new tag is added */
 	void OnGameplayTagAdded(const FString& TagName, const FString& TagComment, const FName& TagSource);
 
-	/** Callback when the user wants to add a subtag to an existing tag */
-	FReply OnAddSubtagClicked(TSharedPtr<FGameplayTagNode> InTagNode);
+	/** Opens add tag modal dialog. */
+	void OpenAddTagDialog(const EGameplayTagAdd Mode, TSharedPtr<FGameplayTagNode> InTagNode = TSharedPtr<FGameplayTagNode>());
 
-	void AddTagDialog(const EGameplayTagAdd Mode, TSharedPtr<FGameplayTagNode> InTagNode = TSharedPtr<FGameplayTagNode>());
+	/** Initializes the inline add tag widget and makes in visible. */
+	void ShowInlineAddTagWidget(const EGameplayTagAdd Mode, TSharedPtr<FGameplayTagNode> InTagNode = TSharedPtr<FGameplayTagNode>());
 
 	FReply OnAddRootTagClicked();
 
@@ -332,9 +334,6 @@ private:
 
 	/** Creates add menu content. */
 	TSharedRef<SWidget> MakeAddMenu();
-
-	/** Creates actions menu content. */
-	TSharedRef<SWidget> MakeActionsMenu(TSharedPtr<SComboButton> OwnerCombo);
 
 	/** Creates settings menu content. */
 	TSharedRef<SWidget> MakeSettingsMenu(TSharedPtr<SComboButton> OwnerCombo);
@@ -358,11 +357,13 @@ private:
 	/** Searches for all references for the selected tag */
 	void OnSearchForReferences(TSharedPtr<FGameplayTagNode> InTagNode, TSharedPtr<SComboButton> OwnerCombo);
 
+	/** Copies individual tag's name to clipboard. */
 	void OnCopyTagNameToClipboard(TSharedPtr<FGameplayTagNode> InTagNode, TSharedPtr<SComboButton> OwnerCombo);
 	
 	/** Returns true if the user can select tags from the widget */
 	bool CanSelectTags() const;
 
+	/** Called when tags are selected. */
 	void OnContainersChanged();
 
 	/** Opens a dialog window to rename the selected tag */
@@ -451,6 +452,9 @@ private:
 
 	/** Expanded items cached from settings */
 	TSet<TSharedPtr<FGameplayTagNode>> CachedExpandedItems;
+
+	TSharedPtr<SAddNewGameplayTagWidget> AddNewTagWidget;
+	bool bNewTagWidgetVisible = false;
 };
 
 
@@ -458,6 +462,7 @@ struct FGameplayTagManagerWindowArgs
 {
 	FText Title;
 	FString Filter; // Comma delimited string of tag root names to filter by
+	FGameplayTag HighlightedTag; // Tag to highlight when window is opened. 
 	bool bRestrictedTags;
 };
 

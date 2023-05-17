@@ -29,18 +29,20 @@ void SAddNewGameplayTagSourceWidget::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SBorder)
-		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+		SNew(SBox)
+		.Padding(InArgs._Padding)
 		[
 			SNew(SGridPanel)
+			.FillColumn(1, 1.0)
+
 			// Tag Name
 			+ SGridPanel::Slot(0, 0)
-			.Padding(5)
+			.Padding(2)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
 				SNew(SBox)
-				.MinDesiredWidth(150.0f)
+				.MinDesiredWidth(50.0f)
 				[
 					SNew(STextBlock)
 					.Font(FAppStyle::GetFontStyle( TEXT("PropertyWindow.NormalFont")))
@@ -48,12 +50,12 @@ void SAddNewGameplayTagSourceWidget::Construct(const FArguments& InArgs)
 				]
 			]
 			+ SGridPanel::Slot(1, 0)
-			.Padding(5)
+			.Padding(2)
 			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
+			.HAlign(HAlign_Fill)
 			[
 				SNew(SBox)
-				.MinDesiredWidth(300.0f)
+				.MinDesiredWidth(250.0f)
 				[
 					SAssignNew(SourceNameTextBox, SEditableTextBox)
 					.HintText(HintText)
@@ -62,7 +64,7 @@ void SAddNewGameplayTagSourceWidget::Construct(const FArguments& InArgs)
 
 			// Tag source root
 			+ SGridPanel::Slot(0, 1)
-			.Padding(5)
+			.Padding(2)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
@@ -72,28 +74,26 @@ void SAddNewGameplayTagSourceWidget::Construct(const FArguments& InArgs)
 				.ToolTipText(LOCTEXT("RootPathTooltip", "Set the base config path for added source, this includes paths from plugins and other places that call AddTagIniSearchPath"))
 			]
 			+ SGridPanel::Slot(1, 1)
-			.Padding(5)
-			.HAlign(HAlign_Left)
+			.Padding(2)
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Fill)
 			[
-				SNew(SBox)
-				.MinDesiredWidth(300.0f)
+				SAssignNew(TagRootsComboBox, SComboBox<TSharedPtr<FString> >)
+				.OptionsSource(&TagRoots)
+				.OnGenerateWidget(this, &SAddNewGameplayTagSourceWidget::OnGenerateTagRootsComboBox)
+				.Content()
 				[
-					SAssignNew(TagRootsComboBox, SComboBox<TSharedPtr<FString> >)
-					.OptionsSource(&TagRoots)
-					.OnGenerateWidget(this, &SAddNewGameplayTagSourceWidget::OnGenerateTagRootsComboBox)
-					.Content()
-					[
-						SNew(STextBlock)
-						.Text(this, &SAddNewGameplayTagSourceWidget::CreateTagRootsComboBoxContent)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-					]
+					SNew(STextBlock)
+					.Text(this, &SAddNewGameplayTagSourceWidget::CreateTagRootsComboBoxContent)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
 				]
 			]
 			
 			// Add Source Button
-			+ SGridPanel::Slot(1, 2)
-			.Padding(5)
-			.HAlign(HAlign_Left)
+			+ SGridPanel::Slot(0, 2)
+			.ColumnSpan(2)
+			.Padding(FMargin(0, 16))
+			.HAlign(HAlign_Right)
 			[
 				SNew(SButton)
 				.Text(LOCTEXT("AddNew", "Add New Source"))

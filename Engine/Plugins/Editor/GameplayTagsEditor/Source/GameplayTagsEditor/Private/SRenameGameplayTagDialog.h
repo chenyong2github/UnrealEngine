@@ -16,9 +16,11 @@ public:
 
 	SLATE_BEGIN_ARGS( SRenameGameplayTagDialog )
 		: _GameplayTagNode()
+		, _Padding(FMargin(15))
 		{}
 		SLATE_ARGUMENT( TSharedPtr<FGameplayTagNode>, GameplayTagNode )		// The gameplay tag we want to rename
 		SLATE_EVENT( FOnGameplayTagRenamed, OnGameplayTagRenamed )	// Called when the tag is renamed
+		SLATE_ARGUMENT(FMargin, Padding)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);

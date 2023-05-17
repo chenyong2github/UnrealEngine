@@ -26,10 +26,14 @@ public:
 
 	SLATE_BEGIN_ARGS(SAddNewGameplayTagWidget)
 		: _NewTagName(TEXT(""))
+		, _Padding(FMargin(15))
+		, _AddButtonPadding(FMargin(0, 16, 0, 0))
 	{}
 		SLATE_EVENT(FOnGameplayTagAdded, OnGameplayTagAdded)	// Callback for when a new tag is added	
 		SLATE_EVENT(FIsValidTag, IsValidTag)
 		SLATE_ARGUMENT(FString, NewTagName) // String that will initially populate the New Tag Name field
+		SLATE_ARGUMENT(FMargin, Padding) // Padding around the widget
+		SLATE_ARGUMENT(FMargin, AddButtonPadding) // padding around the Add button
 	SLATE_END_ARGS();
 
 	GAMEPLAYTAGSEDITOR_API virtual ~SAddNewGameplayTagWidget() override;
