@@ -202,7 +202,7 @@ void FNiagaraEditorColorTypeUtilities::UpdateVariableWithDefaultValue(FNiagaraVa
 	Variable.SetValue<FLinearColor>(FLinearColor(1, 1, 1, 1));
 }
 
-TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorColorTypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit) const
+TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorColorTypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit, const FNiagaraInputParameterCustomization& WidgetCustomization) const
 {
 	return SNew(SNiagaraColorParameterEditor);
 }

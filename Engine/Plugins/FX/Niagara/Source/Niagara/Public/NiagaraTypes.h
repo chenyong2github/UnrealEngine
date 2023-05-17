@@ -658,6 +658,75 @@ struct NIAGARA_API FNiagaraEnumParameterMetaData
 };
 
 UENUM()
+enum class ENiagaraInputWidgetType : uint8
+{
+	// Default input widget
+	Default,
+
+	// slider widget, for float and int type
+	Slider,
+
+	// audio volume slider with mute control, for float input only
+	Volume,
+
+	// a numeric input, but also has a dropdown with named values
+	NumericDropdown
+};
+
+USTRUCT()
+struct NIAGARA_API FWidgetNamedInputValue
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category="Customization")
+	float Value = 0;
+	
+	UPROPERTY(EditAnywhere, Category="Customization")
+	FText DisplayName;
+
+	UPROPERTY(EditAnywhere, Category="Customization")
+	FText Tooltip;
+};
+
+USTRUCT()
+struct NIAGARA_API FNiagaraInputParameterCustomization
+{
+	GENERATED_BODY()
+
+	// Changes the widget implementation used for the input
+	UPROPERTY(EditAnywhere, Category="Customization")
+	ENiagaraInputWidgetType WidgetType = ENiagaraInputWidgetType::Default;
+	
+	UPROPERTY(EditAnywhere, Category="Customization", meta=(InlineEditConditionToggle))
+	bool bHasMinValue = false;
+	
+	/** min ui value (float and int types only) */
+	UPROPERTY(EditAnywhere, Category="Customization", meta=(EditCondition="bHasMinValue"))
+	float MinValue = 0;
+
+	UPROPERTY(EditAnywhere, Category="Customization", meta=(InlineEditConditionToggle))
+	bool bHasMaxValue = false;
+	
+	/** max ui value (float and int types only) */
+	UPROPERTY(EditAnywhere, Category="Customization", meta=(EditCondition="bHasMaxValue"))
+	float MaxValue = 1;
+	
+	UPROPERTY(EditAnywhere, Category="Customization", meta=(InlineEditConditionToggle))
+	bool bHasStepWidth = false;
+	
+	/** Step width used by the input when dragging */
+	UPROPERTY(EditAnywhere, Category="Customization", meta=(EditCondition="bHasStepWidth"))
+	float StepWidth = 1;
+
+	UPROPERTY(EditAnywhere, Category="Customization", meta=(EditCondition="WidgetType == ENiagaraInputWidgetType::NumericDropdown", EditConditionHides))
+	TArray<FWidgetNamedInputValue> InputDropdownValues;
+	
+	/** If true then the input is also displayed and editable as a 3d widget in the viewport (vector and transform types only). */
+	//UPROPERTY(EditAnywhere, Category="Customization")
+	//bool bCreateViewPortEditWidget = false;
+};
+
+UENUM()
 enum class ENiagaraBoolDisplayMode : uint8
 {
 	DisplayAlways,
@@ -773,6 +842,10 @@ struct NIAGARA_API FNiagaraVariableMetaData
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Alternate Aliases For Variable", AdvancedDisplay, meta = (ToolTip = "List of alternate/previous names for this variable. Note that this is not normally needed if you rename through the UX. However, if you delete and then add a different variable, intending for it to match, you will likely want to add the prior name here.\n\nYou may need to restart and reload assets after making this change to have it take effect on already loaded assets."))
 	TArray<FName> AlternateAliases;
 
+	/** Changes how the input is displayed. */
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
+	FNiagaraInputParameterCustomization WidgetCustomization;
+
 	bool GetIsStaticSwitch_DEPRECATED() const { return bIsStaticSwitch_DEPRECATED; };
 
 	int32 GetStaticSwitchDefaultValue_DEPRECATED() const { return StaticSwitchDefaultValue_DEPRECATED; };
@@ -802,7 +875,6 @@ private:
 	 */
 	UPROPERTY()
 	int32 StaticSwitchDefaultValue_DEPRECATED;  // TODO: This should be moved to the UNiagaraScriptVariable in the future
-
 };
 
 USTRUCT()

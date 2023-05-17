@@ -41,6 +41,7 @@ private:
 	void InitThumbnails();
 	void InitClassIcon();
 	void InitStackIcons();
+	void InitStackWidgets();
 	void InitNiagaraSequence();
 	void InitPlatformSet();
 	void InitDropTarget();

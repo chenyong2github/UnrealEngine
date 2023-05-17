@@ -2,16 +2,12 @@
 
 #include "NiagaraEditorStyle.h"
 
-#include "ClassIconFinder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/AppStyle.h"
-#include "Slate/SlateGameResources.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-#include "Interfaces/IPluginManager.h"
-#include "Settings/EditorStyleSettings.h"
 #include "Styling/StarshipCoreStyle.h"
 #include "Styling/StyleColors.h"
 
@@ -490,6 +486,21 @@ void FNiagaraEditorStyle::InitStackIcons()
 	Set("NiagaraEditor.Stack.CPUIcon", new IMAGE_BRUSH("Icons/Simulate_CPU_x40", Icon16x16));
 }
 
+void FNiagaraEditorStyle::InitStackWidgets()
+{
+	FTextBlockStyle NormalText = FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+	FEditableTextBoxStyle DefaultTextBoxStyle = FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
+	const FEditableTextBoxStyle EditableTextBoxStyle = DefaultTextBoxStyle
+			.SetTextStyle(NormalText.SetFont(FAppStyle::Get().GetFontStyle("PropertyWindow.NormalFont")))
+			.SetPadding(0)
+			.SetBackgroundImageNormal( FSlateNoResource() )
+			.SetBackgroundImageHovered( FSlateNoResource() )
+			.SetBackgroundImageFocused( FSlateNoResource() )
+			.SetBackgroundImageReadOnly( FSlateNoResource() );
+	
+	Set("NiagaraEditor.Stack.NumericDropdownInput", EditableTextBoxStyle);
+}
+
 void FNiagaraEditorStyle::InitNiagaraSequence()
 {
 	// Niagara sequence
@@ -841,6 +852,7 @@ FNiagaraEditorStyle::FNiagaraEditorStyle() : FSlateStyleSet("NiagaraEditorStyle"
 	InitThumbnails();
 	InitClassIcon();
 	InitStackIcons();
+	InitStackWidgets();
 	InitNiagaraSequence();
 	InitPlatformSet();
 	InitDropTarget();

@@ -5,12 +5,14 @@
 #include "Delegates/Delegate.h"
 #include "Internationalization/Text.h"
 #include "Math/UnitConversion.h"
+#include "NiagaraTypes.h"
 
 class FStructOnScope;
 class SNiagaraParameterEditor;
 class SWidget;
 struct FNiagaraTypeDefinition;
 struct FNiagaraVariable;
+struct FNiagaraInputParameterCustomization;
 
 class INiagaraEditorTypeUtilities
 {
@@ -25,7 +27,7 @@ public:
 
 	virtual bool CanCreateParameterEditor() const = 0;
 
-	virtual TSharedPtr<SNiagaraParameterEditor> CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit = EUnit::Unspecified) const = 0;
+	virtual TSharedPtr<SNiagaraParameterEditor> CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit = EUnit::Unspecified, const FNiagaraInputParameterCustomization& WidgetCustomization = FNiagaraInputParameterCustomization()) const = 0;
 
 	virtual bool CanCreateDataInterfaceEditor() const = 0;
 
@@ -55,7 +57,7 @@ public:
 	virtual bool CanProvideDefaultValue() const override { return false; }
 	virtual void UpdateVariableWithDefaultValue(FNiagaraVariable& Variable) const override { }
 	virtual bool CanCreateParameterEditor() const override { return false; }
-	virtual TSharedPtr<SNiagaraParameterEditor> CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit) const override { return TSharedPtr<SNiagaraParameterEditor>(); }
+	virtual TSharedPtr<SNiagaraParameterEditor> CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType, EUnit DisplayUnit, const FNiagaraInputParameterCustomization& WidgetCustomization) const override { return TSharedPtr<SNiagaraParameterEditor>(); }
 	virtual bool CanCreateDataInterfaceEditor() const override { return false; };
 	virtual TSharedPtr<SWidget> CreateDataInterfaceEditor(UObject* DataInterface, FNotifyValueChanged DataInterfaceChangedHandler) const override { return TSharedPtr<SWidget>(); }
 	virtual bool CanHandlePinDefaults() const override { return false; }

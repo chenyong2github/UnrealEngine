@@ -235,6 +235,11 @@ EUnit UNiagaraStackFunctionInput::GetInputDisplayUnit() const
 	return InputMetaData.IsSet() ? InputMetaData->DisplayUnit : EUnit::Unspecified;
 }
 
+FNiagaraInputParameterCustomization UNiagaraStackFunctionInput::GetInputWidgetCustomization() const
+{
+	return InputMetaData.IsSet() ? InputMetaData->WidgetCustomization : FNiagaraInputParameterCustomization();
+}
+
 FText UNiagaraStackFunctionInput::GetTooltipText() const
 {
 	FText Description = SummaryViewTooltipOverride.IsSet() && !SummaryViewTooltipOverride->Get().IsEmptyOrWhitespace() ? SummaryViewTooltipOverride->Get() : InputMetaData.IsSet() ? InputMetaData->Description : FText::GetEmpty();
