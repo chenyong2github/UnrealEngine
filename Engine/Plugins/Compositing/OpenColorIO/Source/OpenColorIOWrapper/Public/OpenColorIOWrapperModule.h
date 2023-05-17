@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Logging/LogMacros.h"
 
-class FOpenColorIOConfigWrapper;
+class FOpenColorIOEngineBuiltInConfigWrapper;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogOpenColorIOWrapper, Log, All);
 
@@ -39,21 +39,10 @@ public:
 	}
 
 	/**
-	 * Returns a minimal dynamically-created native config for conversions between interchange and working color spaces.
+	 * Returns a minimal dynamically-created native config for engine (working color spaces) conversions.
 	 */
-	virtual const FOpenColorIOConfigWrapper* GetWorkingColorSpaceToInterchangeConfig() const = 0;
-
-	/**
-	* Load a globally-shared config in the module.
-	*
-	* @param InFilePath Config absolute file path.
-	*/
-	virtual void LoadGlobalConfig(FStringView InFilePath) = 0;
-
-	/**
-	* Returns the globally-shared module config if loaded, nullptr otherwise.
-	*/
-	virtual const FOpenColorIOConfigWrapper* GetGlobalConfig() const = 0;
+	virtual FOpenColorIOEngineBuiltInConfigWrapper* GetEngineBuiltInConfig() = 0;
+	virtual const FOpenColorIOEngineBuiltInConfigWrapper* GetEngineBuiltInConfig() const = 0;
 
 	/** Virtual destructor */
 	virtual ~IOpenColorIOWrapperModule() = default;

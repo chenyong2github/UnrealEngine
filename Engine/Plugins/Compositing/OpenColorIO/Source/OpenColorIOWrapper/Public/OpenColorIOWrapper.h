@@ -13,7 +13,16 @@
 #include "OpenColorIOWrapperDefines.h"
 
 struct FImageView;
+struct FTextureSourceColorSettings;
 enum TextureFilter : int;
+
+namespace UE {
+	namespace Color {
+		enum class EEncoding: uint8;
+		enum class EColorSpace : uint8;
+		class FColorSpace;
+	}
+}
 
 namespace OpenColorIOWrapper
 {
@@ -36,7 +45,7 @@ namespace OpenColorIOWrapper
 	OPENCOLORIOWRAPPER_API const TCHAR* GetVersion();
 }
 
-class OPENCOLORIOWRAPPER_API FOpenColorIOConfigWrapper final
+class OPENCOLORIOWRAPPER_API FOpenColorIOConfigWrapper
 {
 public:
 
@@ -57,7 +66,9 @@ public:
 	* @param InFilePath Config absolute file path.
 	* @param InOptions Initialization options.
 	*/
-	FOpenColorIOConfigWrapper(FStringView InFilePath, FInitializationOptions InOptions);
+	explicit FOpenColorIOConfigWrapper(FStringView InFilePath, FInitializationOptions InOptions);
+
+	virtual ~FOpenColorIOConfigWrapper() = default;
 
 	/** Valid when the native config has been successfully created and isn't null. */
 	bool IsValid() const;
@@ -95,17 +106,37 @@ public:
 	/** Returns a config debug string. */
 	FString GetDebugString() const;
 
-private:
-
-	/** Convenience to create a config between the working color space and the default interchange one. */
-	static TUniquePtr<FOpenColorIOConfigWrapper> CreateWorkingColorSpaceToInterchangeConfig();
+protected:
 
 	TPimplPtr<struct FOpenColorIOConfigPimpl, EPimplPtrMode::DeepCopy> Pimpl;
 
-	friend class FOpenColorIOWrapperModule;
 	friend class FOpenColorIOProcessorWrapper;
 	friend class FOpenColorIOCPUProcessorWrapper;
 	friend class FOpenColorIOGPUProcessorWrapper;
+};
+
+class OPENCOLORIOWRAPPER_API FOpenColorIOEngineBuiltInConfigWrapper : public FOpenColorIOConfigWrapper
+{
+public:
+	/**
+	* Constructor.
+	*/
+	FOpenColorIOEngineBuiltInConfigWrapper();
+	FOpenColorIOEngineBuiltInConfigWrapper(FStringView InFilePath, FInitializationOptions InOptions) = delete;
+
+	/**
+	 * Get the processor to working color space from source texture settings.
+	 * @param InTextureColorSettings Source encoding and colorspace.
+	*/
+	class FOpenColorIOProcessorWrapper GetProcessorFromTextureColorSettings(const FTextureSourceColorSettings& InTextureColorSettings);
+
+	/**
+	 * Get the processor to target color space from source texture settings.
+	 * @param InTextureColorSettings Source encoding and colorspace.
+	 * @param InTargetColorSpace Target scene-linear color space.
+	*/
+	class FOpenColorIOProcessorWrapper GetProcessorFromTextureColorSettings(const FTextureSourceColorSettings& InTextureColorSettings, const UE::Color::FColorSpace& InTargetColorSpace);
+
 };
 
 class OPENCOLORIOWRAPPER_API FOpenColorIOProcessorWrapper final
@@ -119,7 +150,7 @@ public:
 	* @param InDestinationColorSpace Destination color space name.
 	* @param InContextKeyValues (Optional) Additional context modifiers.
 	*/
-	FOpenColorIOProcessorWrapper(
+	explicit FOpenColorIOProcessorWrapper(
 		const FOpenColorIOConfigWrapper* InConfig,
 		FStringView InSourceColorSpace,
 		FStringView InDestinationColorSpace,
@@ -135,11 +166,25 @@ public:
 	* @param bInverseDirection Flag for inverse transform direction.
 	* @param InContextKeyValues (Optional) Additional context modifiers.
 	*/
-	FOpenColorIOProcessorWrapper(
+	explicit FOpenColorIOProcessorWrapper(
 		const FOpenColorIOConfigWrapper* InConfig,
 		FStringView InSourceColorSpace,
 		FStringView InDisplay,
 		FStringView InView,
+		bool bInverseDirection = false,
+		const TMap<FString, FString>& InContextKeyValues = {});
+
+	/**
+	* Constructor.
+	*
+	* @param InConfig Owner config.
+	* @param InNamedTransform Transform name.
+	* @param bInverseDirection Flag for inverse transform direction.
+	* @param InContextKeyValues (Optional) Additional context modifiers.
+	*/
+	explicit FOpenColorIOProcessorWrapper(
+		const FOpenColorIOConfigWrapper* InConfig,
+		FStringView InNamedTransform,
 		bool bInverseDirection = false,
 		const TMap<FString, FString>& InContextKeyValues = {});
 
@@ -167,10 +212,13 @@ public:
 	*
 	* @param InProcessor Parent processor.
 	*/
-	FOpenColorIOCPUProcessorWrapper(FOpenColorIOProcessorWrapper InProcessor);
+	explicit FOpenColorIOCPUProcessorWrapper(FOpenColorIOProcessorWrapper InProcessor);
 
 	/** Valid when the processor has been successfully created and isn't null. */
 	bool IsValid() const;
+
+	/** Apply the color transform in-place to the specified color. */
+	bool TransformColor(FLinearColor& InOutColor) const;
 
 	/** Apply the color transform in-place to the specified image. */
 	bool TransformImage(const FImageView& InOutImage) const;
@@ -200,7 +248,7 @@ public:
 	* @param InProcessor Parent processor.
 	* @param InOptions Initialization options.
 	*/
-	FOpenColorIOGPUProcessorWrapper(
+	explicit FOpenColorIOGPUProcessorWrapper(
 		FOpenColorIOProcessorWrapper InProcessor,
 		FInitializationOptions InOptions = FInitializationOptions()
 	);
