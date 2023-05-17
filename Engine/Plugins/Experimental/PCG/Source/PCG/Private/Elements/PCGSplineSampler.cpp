@@ -978,7 +978,7 @@ namespace PCGSplineSampler
 
 						// if bTreatAsPolyline, then we shouldnt use this, we should use nearest point on the polygon line segments
 						float Dummy;
-						const float NearestSplineKey = bFindNearestSplineKey ? Spline->SplineCurves.Position.FindNearest(SurfaceLocation, Dummy) : 0.f;
+						const float NearestSplineKey = bFindNearestSplineKey ? Spline->SplineCurves.Position.InaccurateFindNearest(SurfaceLocation, Dummy) : 0.f;
 
 						const FVector PointLocationLS = (Params.bProjectOntoSurface ? FVector(SurfaceLocation) : FVector(SampleLocation, MinPoint.Z));
 
