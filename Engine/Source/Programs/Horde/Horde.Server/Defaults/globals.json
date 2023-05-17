@@ -78,25 +78,5 @@
 			"name": "Linux",
 			"condition": "Platform == 'Linux'"
 		}
-	],
-	"tools": [
-		{
-			"id": "horde-agent",
-			"name": "Horde Agent",
-			"description": "Horde agent software",
-			"acl": {
-				"entries": [
-					{
-						"claim": {
-							"type": "http://epicgames.com/ue/horde/role",
-							"value": "agent"
-						},
-						"actions": [
-							"DownloadTool"
-						]
-					}
-				]
-			}
-		}
 	]
 }
