@@ -21,8 +21,11 @@ enum class EOnDemandEndpointType
 struct FOnDemandEndpoint
 {
 	EOnDemandEndpointType EndpointType;
-	FString Url;
+	FString DistributionUrl;
+	FString ServiceUrl;
 	FString TocPath;
+
+	bool IsValid() const { return (DistributionUrl.Len() > 0 || ServiceUrl.Len() > 0) && TocPath.Len() > 0; }
 };
 
 class IOnDemandIoDispatcherBackend

@@ -267,25 +267,26 @@ uint64 FIoStoreOnDemandModule::ParseSizeParam(const TCHAR* Param)
 void FIoStoreOnDemandModule::StartupModule()
 {
 #if !WITH_EDITOR
-	FString Url, Toc;
+	UE::FOnDemandEndpoint Endpoint;
 	
 	FString UrlParam;
 	if (FParse::Value(FCommandLine::Get(), TEXT("IoStoreOnDemand="), UrlParam))
 	{
 		FStringView UrlView(UrlParam);
-		if (UrlView.StartsWith(TEXTVIEW("http")) && UrlView.EndsWith(TEXTVIEW(".iochunktoc")))
+		if (UrlView.StartsWith(TEXTVIEW("http://")) && UrlView.EndsWith(TEXTVIEW(".iochunktoc")))
 		{
 			int32 Delim = INDEX_NONE;
-			if (UrlView.FindLastChar(TEXT('/'), Delim))
+			if (UrlView.RightChop(7).FindChar(TEXT('/'), Delim))
 			{
-				Url = UrlView.Left(Delim);
-				Toc = UrlView.RightChop(Delim + 1);
+				Endpoint.ServiceUrl = UrlView.Left(7 +  Delim);
+				Endpoint.TocPath = UrlView.RightChop(Endpoint.ServiceUrl.Len() + 1);
 			}
 		}
 	}
 	
-	if (Url.IsEmpty() || Toc.IsEmpty())
+	if (!Endpoint.IsValid())
 	{
+		Endpoint = UE::FOnDemandEndpoint();
 		FString ConfigFileName = TEXT("IoStoreOnDemand.ini");
 		FString ConfigPath = FPaths::Combine(TEXT("Cloud"), ConfigFileName);
 		FString ConfigContent = FPlatformMisc::LoadTextFileFromPlatformPackage(ConfigPath);
@@ -295,12 +296,28 @@ void FIoStoreOnDemandModule::StartupModule()
 			FConfigFile Config;
 			Config.ProcessInputFileContents(ConfigContent, ConfigFileName);
 
-			Config.GetString(TEXT("Endpoint"), TEXT("Url"), Url);
-			Config.GetString(TEXT("Endpoint"), TEXT("Toc"), Toc);
+			Config.GetString(TEXT("Endpoint"), TEXT("DistributionUrl"), Endpoint.DistributionUrl);
+			Config.GetString(TEXT("Endpoint"), TEXT("ServiceUrl"), Endpoint.ServiceUrl);
+			Config.GetString(TEXT("Endpoint"), TEXT("TocPath"), Endpoint.TocPath);
+			
+			if (Endpoint.DistributionUrl.EndsWith(TEXT("/")))
+			{
+				Endpoint.DistributionUrl = Endpoint.DistributionUrl.Left(Endpoint.DistributionUrl.Len() - 1);
+			}
+			
+			if (Endpoint.ServiceUrl.EndsWith(TEXT("/")))
+			{
+				Endpoint.ServiceUrl = Endpoint.DistributionUrl.Left(Endpoint.ServiceUrl.Len() - 1);
+			}
+
+			if (Endpoint.TocPath.StartsWith(TEXT("/")))
+			{
+				Endpoint.TocPath.RightChopInline(1);
+			}
 		}
 	}
 
-	if (!Url.IsEmpty() && !Toc.IsEmpty())
+	if (Endpoint.IsValid())
 	{
 		TSharedPtr<IIoCache> Cache;
 
@@ -323,12 +340,8 @@ void FIoStoreOnDemandModule::StartupModule()
 		}
 		TSharedPtr<UE::IOnDemandIoDispatcherBackend> Backend = UE::MakeOnDemandIoDispatcherBackend(Cache);
 
-		UE::FOnDemandEndpoint Endpoint;
 		Endpoint.EndpointType = UE::EOnDemandEndpointType::CDN;
-		Endpoint.Url = MoveTemp(Url); 
-		Endpoint.TocPath = MoveTemp(Toc); 
 		Backend->Mount(Endpoint);
-
 		FIoDispatcher::Get().Mount(Backend.ToSharedRef(), -10);
 	}
 #endif // !WITH_EDITOR
@@ -337,4 +350,3 @@ void FIoStoreOnDemandModule::StartupModule()
 void FIoStoreOnDemandModule::ShutdownModule()
 {
 }
-

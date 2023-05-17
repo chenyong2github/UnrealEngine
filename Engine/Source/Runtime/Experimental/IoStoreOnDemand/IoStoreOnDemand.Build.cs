@@ -7,6 +7,7 @@ public class IoStoreOnDemand : ModuleRules
 	public IoStoreOnDemand(ReadOnlyTargetRules Target) : base(Target)
 	{
         PublicDependencyModuleNames.Add("Core");
+        PrivateDependencyModuleNames.AddRange(new string[] { "HTTP", "Json" });
 		bAllowConfidentialPlatformDefines = true;
     }
 }
