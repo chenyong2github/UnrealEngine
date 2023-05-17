@@ -2,9 +2,12 @@
 
 using System;
 using System.Buffers;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace EpicGames.Horde.Compute.Buffers
 {
@@ -30,7 +33,7 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <param name="numChunks">Number of chunks in the buffer</param>
 		/// <param name="chunkLength">Length of each chunk</param>
 		public PooledBuffer(int numChunks, int chunkLength)
-			: this(new PooledBufferCore(numChunks, chunkLength))
+			: this(PooledBufferCore.Create(numChunks, chunkLength, 1))
 		{
 		}
 
@@ -68,55 +71,51 @@ namespace EpicGames.Horde.Compute.Buffers
 	/// </summary>
 	sealed class PooledBufferCore : ComputeBufferBase
 	{
-		class Chunk : ChunkBase, IDisposable
+		unsafe class PinnedBuffer : IDisposable
 		{
-			readonly IMemoryOwner<byte> _memoryOwner;
-			ulong _stateValue;
+			readonly byte[] _data;
+			readonly GCHandle _handle;
 
-			/// <inheritdoc/>
-			protected override ref ulong StateValue => ref _stateValue;
+			public Memory<byte> Data => _data;
+			public void* Ptr => _handle.AddrOfPinnedObject().ToPointer();
 
-			public Chunk(IMemoryOwner<byte> memoryOwner)
-				: base(memoryOwner.Memory)
+			public PinnedBuffer(int length)
 			{
-				_memoryOwner = memoryOwner;
+				_data = new byte[length];
+				_handle = GCHandle.Alloc(_data, GCHandleType.Pinned);
 			}
 
-			public void Dispose() => _memoryOwner.Dispose();
+			public void Dispose()
+			{
+				_handle.Free();
+			}
 		}
 
-		readonly Chunk[] _chunks;
+		readonly PinnedBuffer[] _buffers;
 		readonly AsyncEvent _writerEvent = new AsyncEvent();
 		readonly AsyncEvent _readerEvent = new AsyncEvent();
 
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="numChunks">Number of chunks in the buffer</param>
-		/// <param name="chunkLength">Length of each chunk</param>
-		public PooledBufferCore(int numChunks, int chunkLength)
-			: this(CreateChunks(numChunks, chunkLength), 1)
+		private PooledBufferCore(HeaderPtr headerPtr, Memory<byte>[] chunks, PinnedBuffer[] buffers)
+			: base(headerPtr, chunks)
 		{
+			_buffers = buffers;
 		}
 
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		private PooledBufferCore(Chunk[] chunks, int readerIdx)
-			: base(chunks, readerIdx, true)
+		public static unsafe PooledBufferCore Create(int numChunks, int chunkLength, int numReaders)
 		{
-			_chunks = chunks;
-		}
+			Memory<byte>[] chunks = new Memory<byte>[numChunks];
 
-		static Chunk[] CreateChunks(int numChunks, int chunkLength)
-		{
-			Chunk[] chunks = new Chunk[numChunks];
-			for (int chunkIdx = 0; chunkIdx < numChunks; chunkIdx++)
+			PinnedBuffer[] buffers = new PinnedBuffer[numChunks + 1];
+			for (int idx = 0; idx < numChunks; idx++)
 			{
-				Chunk chunk = new Chunk(MemoryPool<byte>.Shared.Rent(chunkLength));
-				chunks[chunkIdx] = chunk;
+				buffers[idx] = new PinnedBuffer(chunkLength);
+				chunks[idx] = buffers[idx].Data;
 			}
-			return chunks;
+
+			buffers[numChunks] = new PinnedBuffer(HeaderSize);
+
+			HeaderPtr headerPtr = new HeaderPtr((ulong*)buffers[numChunks].Ptr, numReaders, numChunks, chunkLength);
+			return new PooledBufferCore(headerPtr, chunks, buffers);
 		}
 
 		/// <inheritdoc/>
@@ -126,9 +125,9 @@ namespace EpicGames.Horde.Compute.Buffers
 
 			if (disposing)
 			{
-				for (int idx = 0; idx < _chunks.Length; idx++)
+				for (int idx = 0; idx < _buffers.Length; idx++)
 				{
-					_chunks[idx].Dispose();
+					_buffers[idx].Dispose();
 				}
 			}
 		}

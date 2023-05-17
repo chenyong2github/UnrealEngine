@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Diagnostics;
 using System.IO.Pipelines;
-using System.IO.Pipes;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -21,6 +19,61 @@ namespace EpicGames.Horde.Tests
 	public class BufferTests
 	{
 		const int ChannelId = 0;
+
+		[TestMethod]
+		public async Task TestSimpleBuffer()
+		{
+			using PooledBuffer buffer = new PooledBuffer(2, 1024);
+			buffer.Writer.AdvanceWritePosition(10);
+			await buffer.Reader.WaitToReadAsync(9);
+			buffer.Reader.AdvanceReadPosition(9);
+			await buffer.Reader.WaitToReadAsync(1);
+		}
+
+		[TestMethod]
+		public void TestOverflow()
+		{
+			using PooledBuffer buffer = new PooledBuffer(2, 20);
+
+			// Fill up the first chunk
+			Assert.AreEqual(20, buffer.Writer.GetWriteBuffer().Length);
+			buffer.Writer.AdvanceWritePosition(10);
+			Assert.AreEqual(10, buffer.Writer.GetWriteBuffer().Length);
+			buffer.Writer.AdvanceWritePosition(10);
+			Assert.AreEqual(0, buffer.Writer.GetWriteBuffer().Length);
+
+			Task waitToWriteTask = buffer.Writer.WaitToWriteAsync(1).AsTask();
+			Assert.IsTrue(waitToWriteTask.IsCompleted);
+
+			// Fill up the second chunk
+			Assert.AreEqual(20, buffer.Writer.GetWriteBuffer().Length);
+			buffer.Writer.AdvanceWritePosition(10);
+			Assert.AreEqual(10, buffer.Writer.GetWriteBuffer().Length);
+			buffer.Writer.AdvanceWritePosition(10);
+			Assert.AreEqual(0, buffer.Writer.GetWriteBuffer().Length);
+
+			waitToWriteTask = buffer.Writer.WaitToWriteAsync(1).AsTask();
+			Assert.IsFalse(waitToWriteTask.IsCompleted);
+
+			// Wait for data to be read
+			Assert.AreEqual(20, buffer.Reader.GetReadBuffer().Length);
+			buffer.Reader.AdvanceReadPosition(10);
+			Assert.IsFalse(waitToWriteTask.IsCompleted);
+
+			Assert.AreEqual(10, buffer.Reader.GetReadBuffer().Length);
+			buffer.Reader.AdvanceReadPosition(10);
+			Assert.AreEqual(0, buffer.Reader.GetReadBuffer().Length);
+
+			Task waitToReadTask = buffer.Reader.WaitToReadAsync(1).AsTask();
+			Assert.IsTrue(waitToReadTask.IsCompleted);
+
+			Assert.AreEqual(20, buffer.Reader.GetReadBuffer().Length);
+			Assert.IsTrue(waitToWriteTask.IsCompleted);
+
+			// Make sure both reader and writer have something to work with
+			Assert.AreEqual(20, buffer.Reader.GetReadBuffer().Length);
+			Assert.AreEqual(20, buffer.Writer.GetWriteBuffer().Length);
+		}
 
 		[TestMethod]
 		public async Task TestPooledBuffer()
