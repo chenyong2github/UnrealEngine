@@ -3061,14 +3061,17 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 
 void FControlRigParameterTrackEditor::HandleOnInitialized(URigVMHost* Subject, const FName& InEventName)
 {
-	UControlRig* ControlRig = CastChecked<UControlRig>(Subject);
-	
-	if (GetSequencer().IsValid())
+	if (IsInGameThread())
 	{
-		//If FK control rig on next tick we refresh the tree
-		if (ControlRig->IsA<UFKControlRig>())
+		UControlRig* ControlRig = CastChecked<UControlRig>(Subject);
+
+		if (GetSequencer().IsValid())
 		{
-			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshTree);
+			//If FK control rig on next tick we refresh the tree
+			if (ControlRig->IsA<UFKControlRig>())
+			{
+				GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshTree);
+			}
 		}
 	}
 }

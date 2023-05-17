@@ -458,17 +458,20 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 
 void UMovieSceneControlRigParameterTrack::HandleOnInitialized(URigVMHost* Subject, const FName& InEventName)
 {
-	if (IsValid(ControlRig))
+	if (IsInGameThread())
 	{
-		TArray<FRigControlElement*> SortedControls;
-		ControlRig->GetControlsInOrder(SortedControls);
-		for (UMovieSceneSection* BaseSection : GetAllSections())
+		if (IsValid(ControlRig))
 		{
-			if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(BaseSection))
+			TArray<FRigControlElement*> SortedControls;
+			ControlRig->GetControlsInOrder(SortedControls);
+			for (UMovieSceneSection* BaseSection : GetAllSections())
 			{
-				if (Section->IsDifferentThanLastControlsUsedToReconstruct(SortedControls))
+				if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(BaseSection))
 				{
-					Section->RecreateWithThisControlRig(ControlRig, Section->GetBlendType() == EMovieSceneBlendType::Absolute);
+					if (Section->IsDifferentThanLastControlsUsedToReconstruct(SortedControls))
+					{
+						Section->RecreateWithThisControlRig(ControlRig, Section->GetBlendType() == EMovieSceneBlendType::Absolute);
+					}
 				}
 			}
 		}
