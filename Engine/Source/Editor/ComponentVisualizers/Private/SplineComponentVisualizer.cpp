@@ -455,6 +455,16 @@ void FSplineComponentVisualizer::OnRegister()
 		);
 }
 
+bool FSplineComponentVisualizer::ShouldShowForSelectedSubcomponents(const UActorComponent* Component)
+{
+	if (const USplineComponent* SplineComp = Cast<const USplineComponent>(Component))
+	{
+		return SplineComp->bDrawDebug;
+	}
+
+	return false;
+}
+
 FSplineComponentVisualizer::~FSplineComponentVisualizer()
 {
 	FSplineComponentVisualizerCommands::Unregister();

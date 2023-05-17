@@ -1493,7 +1493,7 @@ void UUnrealEdEngine::OnEditorSelectionChanged(UObject* SelectionThatChanged)
 			{
 				// Try and find a visualizer
 				TSharedPtr<FComponentVisualizer> Visualizer = FindComponentVisualizer(Comp->GetClass());
-				if (Visualizer.IsValid())
+				if (Visualizer.IsValid() && (Comp == SelectedComponent || Visualizer->ShouldShowForSelectedSubcomponents(Comp)))
 				{
 					FCachedComponentVisualizer CachedComponentVisualizer(Comp, Visualizer);
 					FComponentVisualizerForSelection Temp{CachedComponentVisualizer};
