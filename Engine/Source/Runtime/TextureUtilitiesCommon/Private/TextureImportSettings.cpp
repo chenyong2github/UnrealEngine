@@ -29,8 +29,6 @@ void UTextureImportSettings::PostInitProperties()
 #endif // #if WITH_EDITOR
 }
 
-#if WITH_EDITOR
-
 // Get the PNGInfill setting, with Default mapped to a concrete choice
 ETextureImportPNGInfill UTextureImportSettings::GetPNGInfillMapDefault() const
 {
@@ -53,6 +51,7 @@ ETextureImportPNGInfill UTextureImportSettings::GetPNGInfillMapDefault() const
 	}
 }
 
+#if WITH_EDITOR
 void UTextureImportSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

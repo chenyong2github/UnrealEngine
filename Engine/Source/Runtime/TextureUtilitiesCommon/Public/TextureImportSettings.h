@@ -81,11 +81,11 @@ public:
 	//~ Begin UObject Interface
 
 	virtual void PostInitProperties() override;
-
-#if WITH_EDITOR
+	
 	// Get the PNGInfill setting, with Default mapped to a concrete choice
 	ETextureImportPNGInfill GetPNGInfillMapDefault() const;
 
+#if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
