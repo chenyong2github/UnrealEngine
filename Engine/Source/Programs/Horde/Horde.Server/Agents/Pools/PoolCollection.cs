@@ -61,6 +61,9 @@ namespace Horde.Server.Agents.Pools
 
 			[BsonIgnoreIfNull]
 			public TimeSpan? ScaleInCooldown { get; set; }
+			
+			[BsonIgnoreIfNull]
+			public TimeSpan? ShutdownIfDisabledGracePeriod { get; set;  }
 
 			[BsonIgnoreIfNull]
 			public ScaleResult? LastScaleResult { get; set; }
@@ -289,6 +292,7 @@ namespace Horde.Server.Agents.Pools
 			DateTime? lastScaleDownTime,
 			TimeSpan? scaleOutCooldown,
 			TimeSpan? scaleInCooldown, 
+			TimeSpan? shutdownIfDisabledGracePeriod, 
 			ScaleResult? lastScaleResult, 
 			int? lastAgentCount, 
 			int? lastDesiredAgentCount, 
@@ -387,6 +391,10 @@ namespace Horde.Server.Agents.Pools
 			if (scaleInCooldown != null)
 			{
 				transaction.Set(x => x.ScaleInCooldown, scaleInCooldown);
+			}
+			if (shutdownIfDisabledGracePeriod != null)
+			{
+				transaction.Set(x => x.ShutdownIfDisabledGracePeriod, shutdownIfDisabledGracePeriod);
 			}
 			if (lastScaleResult != null)
 			{

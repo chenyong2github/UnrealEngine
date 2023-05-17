@@ -162,6 +162,12 @@ namespace Horde.Server.Server
 		/// Maximum number of conforms to run at once
 		/// </summary>
 		public int MaxConformCount { get; set; }
+		
+		/// <summary>
+		/// Time to wait before shutting down an agent that has been disabled
+		/// Used if no value is set on the actual pool.
+		/// </summary>
+		public TimeSpan AgentShutdownIfDisabledGracePeriod { get; set; } = TimeSpan.FromHours(8);
 
 		/// <summary>
 		/// Storage configuration

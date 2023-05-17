@@ -128,6 +128,7 @@ namespace Horde.Server.Agents.Pools
 		/// <param name="lastScaleDownTime">New time for last (auto) scale down</param>
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
+		/// <param name="shutdownIfDisabledGracePeriod">Time to wait before shutting down a disabled agent</param>
 		/// <param name="lastScaleResult">Result from last scaling in/out attempt</param>
 		/// <param name="lastAgentCount">Last calculated agent count</param>
 		/// <param name="lastDesiredAgentCount">Last calculated desired agent count</param>
@@ -154,6 +155,7 @@ namespace Horde.Server.Agents.Pools
 			DateTime? lastScaleDownTime = null,
 			TimeSpan? scaleOutCooldown = null,
 			TimeSpan? scaleInCooldown = null,
+			TimeSpan? shutdownIfDisabledGracePeriod = null,
 			ScaleResult? lastScaleResult = null,
 			int? lastAgentCount = null,
 			int? lastDesiredAgentCount = null,

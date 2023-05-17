@@ -79,6 +79,11 @@ namespace Horde.Server.Agents.Pools
 		public TimeSpan? ScaleInCooldown { get; }
 		
 		/// <summary>
+		/// Time to wait before shutting down an agent that has been disabled
+		/// </summary>
+		public TimeSpan? ShutdownIfDisabledGracePeriod { get; }
+		
+		/// <summary>
 		/// Last result from scaling the pool
 		/// </summary>
 		public ScaleResult? LastScaleResult { get; }
@@ -171,6 +176,9 @@ namespace Horde.Server.Agents.Pools
 
 		/// <inheritdoc/>
 		public TimeSpan? ScaleInCooldown { get; set; }
+		
+		/// <inheritdoc/>
+		public TimeSpan? ShutdownIfDisabledGracePeriod { get; set;  }
 		
 		/// <inheritdoc/>
 		public ScaleResult? LastScaleResult { get; set; }

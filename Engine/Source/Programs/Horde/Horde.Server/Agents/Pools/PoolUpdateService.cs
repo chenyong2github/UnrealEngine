@@ -5,14 +5,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Horde.Server.Projects;
 using Horde.Server.Server;
 using Horde.Server.Streams;
-using Horde.Server.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Trace;
 
 namespace Horde.Server.Agents.Pools
 {
@@ -21,33 +20,103 @@ namespace Horde.Server.Agents.Pools
 	/// </summary>
 	public sealed class PoolUpdateService : IHostedService, IDisposable
 	{
+		readonly IAgentCollection _agents;
 		readonly IPoolCollection _pools;
-		readonly IStreamCollection _streams;
+		readonly IClock _clock;
 		readonly IOptionsMonitor<GlobalConfig> _globalConfig;
-		readonly ILogger<PoolService> _logger;
-		readonly ITicker _ticker;
+		readonly ILogger<PoolUpdateService> _logger;
+		readonly Tracer _tracer;
+		readonly ITicker _updatePoolsTicker;
+		readonly ITicker _shutdownDisabledAgentsTicker;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PoolUpdateService(IPoolCollection pools, IStreamCollection streams, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, ILogger<PoolService> logger)
+		public PoolUpdateService(IAgentCollection agents, IPoolCollection pools, IClock clock, IOptionsMonitor<GlobalConfig> globalConfig, Tracer tracer, ILogger<PoolUpdateService> logger)
 		{
+			_agents = agents;
 			_pools = pools;
-			_streams = streams;
+			_clock = clock;
 			_globalConfig = globalConfig;
+			_tracer = tracer;
 			_logger = logger;
-			_ticker = clock.AddTicker($"{nameof(PoolUpdateService)}.{nameof(UpdatePoolsAsync)}", TimeSpan.FromSeconds(30.0), UpdatePoolsAsync, logger);
+			_updatePoolsTicker = clock.AddTicker($"{nameof(PoolUpdateService)}.{nameof(UpdatePoolsAsync)}", TimeSpan.FromSeconds(30.0), UpdatePoolsAsync, logger);
+			_shutdownDisabledAgentsTicker = clock.AddSharedTicker($"{nameof(PoolUpdateService)}.{nameof(ShutdownDisabledAgentsAsync)}", TimeSpan.FromHours(1), ShutdownDisabledAgentsAsync, logger);
 		}
 
 		/// <inheritdoc/>
-		public Task StartAsync(CancellationToken cancellationToken) => _ticker.StartAsync();
+		public async Task StartAsync(CancellationToken cancellationToken)
+		{
+			await _updatePoolsTicker.StartAsync();
+			await _shutdownDisabledAgentsTicker.StartAsync();
+		}
 
 		/// <inheritdoc/>
-		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
+		public async Task StopAsync(CancellationToken cancellationToken)
+		{
+			await _updatePoolsTicker.StopAsync();
+			await _shutdownDisabledAgentsTicker.StopAsync();
+		} 
 
 		/// <inheritdoc/>
-		public void Dispose() => _ticker.Dispose();
+		public void Dispose()
+		{
+			_updatePoolsTicker.Dispose();
+			_shutdownDisabledAgentsTicker.Dispose();
+		}
 
+		/// <summary>
+		/// Shutdown agents that have been disabled for longer than the configured grace period
+		/// </summary>
+		/// <param name="stoppingToken">Cancellation token for the async task</param>
+		/// <returns>Async task</returns>
+		internal async ValueTask ShutdownDisabledAgentsAsync(CancellationToken stoppingToken)
+		{
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PoolUpdateService)}.{nameof(ShutdownDisabledAgentsAsync)}");
+
+			List<IPool> pools = await _pools.GetAsync();
+			IEnumerable<IAgent> disabledAgents = await _agents.FindAsync(enabled: false);
+			disabledAgents = disabledAgents.Where(x => IsAgentAutoScaled(x, pools));
+
+			int c = 0;
+			foreach (IAgent agent in disabledAgents)
+			{
+				if (HasGracePeriodExpired(agent, pools, _globalConfig.CurrentValue.AgentShutdownIfDisabledGracePeriod))
+				{
+					await _agents.TryUpdateSettingsAsync(agent, requestShutdown: true);
+					_logger.LogInformation("Shutting down agent {AgentId} as it has been disabled for longer than grace period", agent.Id.ToString());
+					c++;
+				}
+			}
+
+			span.SetAttribute("numShutdown", c);
+		}
+		
+		private bool HasGracePeriodExpired(IAgent agent, List<IPool> pools, TimeSpan globalGracePeriod)
+		{
+			if (agent.LastStatusChange == null)
+			{
+				return false;
+			}
+
+			TimeSpan gracePeriod = GetGracePeriod(agent, pools) ?? globalGracePeriod;
+			DateTime expirationTime = agent.LastStatusChange.Value + gracePeriod;
+			return _clock.UtcNow > expirationTime;
+		}
+
+		private static TimeSpan? GetGracePeriod(IAgent agent, List<IPool> pools)
+		{
+			IEnumerable<PoolId> poolIds = agent.ExplicitPools.Concat(agent.DynamicPools);
+			IPool? pool = pools.FirstOrDefault(x => poolIds.Contains(x.Id) && x.ShutdownIfDisabledGracePeriod != null);
+			return pool?.ShutdownIfDisabledGracePeriod;
+		}
+		
+		private static bool IsAgentAutoScaled(IAgent agent, List<IPool> pools)
+		{
+			IEnumerable<PoolId> poolIds = agent.ExplicitPools.Concat(agent.DynamicPools);
+			return pools.Find(x => poolIds.Contains(x.Id) && x.EnableAutoscaling) != null;
+		}
+		
 		/// <summary>
 		/// Execute the background task
 		/// </summary>
@@ -55,6 +124,8 @@ namespace Horde.Server.Agents.Pools
 		/// <returns>Async task</returns>
 		async ValueTask UpdatePoolsAsync(CancellationToken stoppingToken)
 		{
+			using TelemetrySpan span = _tracer.StartActiveSpan($"{nameof(PoolUpdateService)}.{nameof(UpdatePoolsAsync)}");
+			
 			// Capture the start time for this operation. We use this to attempt to sequence updates to agents, and prevent overriding another server's updates.
 			DateTime startTime = DateTime.UtcNow;
 
