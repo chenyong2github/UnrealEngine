@@ -458,7 +458,7 @@ namespace Nanite
 			auto ComputeShader = ShaderMap->GetShader<FNaniteStreamOutTraversalCS>(PermutationVector);
 
 			const FIntVector GroupCount = FIntVector(GRHIPersistentThreadGroupCount, 1, 1);
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("NaniteStreamOut::StreamOut"), ComputeShader, PassParameters, GroupCount);
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("NaniteStreamOut::StreamOutWithTraversal"), ComputeShader, PassParameters, GroupCount);
 		}
 		else
 		{
@@ -518,10 +518,6 @@ namespace Nanite
 				auto ComputeShader = ShaderMap->GetShader<FNaniteStreamOutCS>();
 
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("NaniteStreamOut::StreamOut"), ComputeShader, PassParameters, StreamOutDispatchIndirectArgsBuffer, 0);
-			}
-
-			{
-				// again with different method
 			}
 		}
 	}

@@ -468,7 +468,9 @@ namespace Nanite
 			SegmentMappingBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("NaniteRayTracing.SegmentMappingBuffer"), SegmentMappingUploadData);
 		}
 
-		FRDGBufferRef MeshDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), FMath::Max(NumMeshDataEntries, 32U)), TEXT("NaniteStreamOut.MeshDataBuffer"));
+		FRDGBufferDesc MeshDataBufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), FMath::Max(NumMeshDataEntries, 32U));
+		MeshDataBufferDesc.Usage |= BUF_SourceCopy;
+		FRDGBufferRef MeshDataBuffer = GraphBuilder.CreateBuffer(MeshDataBufferDesc, TEXT("NaniteRayTracing.MeshDataBuffer"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MeshDataBuffer), 0);
 
 		FRDGBufferRef StagingAuxiliaryDataBufferRDG;
