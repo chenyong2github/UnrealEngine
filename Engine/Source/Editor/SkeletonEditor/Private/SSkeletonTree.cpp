@@ -94,7 +94,7 @@ public:
 			return;
 		}
 
-		const TArrayView<const ItemType> ItemsSourceRef = this->GetItems();
+		const TArrayView<const ItemType> ItemsSourceRef = this->SListView<ItemType>::GetItems();
 
 		int32 RangeStartIndex = 0;
 		if( TListTypeTraits<ItemType>::IsPtrValid(this->RangeSelectionStart) )

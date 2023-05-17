@@ -898,12 +898,38 @@ public:
 		return Private_IsItemExpanded( InItem );
 	}
 
-protected:
-	//~ Hide the base SetItemsSource
-	using SListView<ItemType>::SetItemsSource;
-	using SListView<ItemType>::ClearItemsSource;
-	using SListView<ItemType>::HasValidItemsSource;
-	using SListView<ItemType>::GetItems;
+public:
+	//~ Hide the base function from SListView 
+	UE_DEPRECATED(5.3, "SetItemsSource is deprecated. You probably want to use SetTreeItemsSource.")
+	void SetItemsSource(const TArray<ItemType>* InListItemsSource)
+	{
+		SListView<ItemType>::SetItemsSource(InListItemsSource);
+	}
+	UE_DEPRECATED(5.3, "SetItemsSource is deprecated. You probably want to use SetTreeItemsSource.")
+	void SetItemsSource(TSharedRef<::UE::Slate::Containers::TObservableArray<ItemType>> InListItemsSource)
+	{
+		SListView<ItemType>::SetItemsSource(InListItemsSource);
+	}
+	UE_DEPRECATED(5.3, "SetItemsSource is deprecated. You probably want to use SetTreeItemsSource.")
+	void SetItemsSource(TUniquePtr<UE::Slate::ItemsSource::IItemsSource<ItemType>> Provider)
+	{
+		SListView<ItemType>::SetItemsSource(MoveTemp(Provider));
+	}
+	UE_DEPRECATED(5.3, "ClearItemsSource is deprecated. You probably want to use ClearRootItemsSource.")
+	void ClearItemsSource()
+	{
+		SListView<ItemType>::ClearItemsSource();
+	}
+	UE_DEPRECATED(5.3, "HasValidItemsSource is deprecated. You probably want to use HasValidRootItemsSource.")
+	bool HasValidItemsSource() const
+	{
+		return SListView<ItemType>::HasValidItemsSource();
+	}
+	UE_DEPRECATED(5.3, "GetItems is deprecated. You probably want to use GetRootItems.")
+	TArrayView<const ItemType> GetItems() const
+	{
+		return SListView<ItemType>::GetItems();
+	}
 
 public:
 

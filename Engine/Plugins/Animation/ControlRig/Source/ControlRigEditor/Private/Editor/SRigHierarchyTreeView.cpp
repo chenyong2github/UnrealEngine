@@ -751,7 +751,7 @@ TArray<FRigElementKey> SRigHierarchyTreeView::GetSelectedKeys() const
 
 const TSharedPtr<FRigTreeElement>* SRigHierarchyTreeView::FindItemAtPosition(FVector2D InScreenSpacePosition) const
 {
-	if (ItemsPanel.IsValid() && HasValidItemsSource())
+	if (ItemsPanel.IsValid() && SListView<TSharedPtr<FRigTreeElement>>::HasValidItemsSource())
 	{
 		FArrangedChildren ArrangedChildren(EVisibility::Visible);
 		const int32 Index = FindChildUnderPosition(ArrangedChildren, InScreenSpacePosition);
@@ -761,7 +761,7 @@ const TSharedPtr<FRigTreeElement>* SRigHierarchyTreeView::FindItemAtPosition(FVe
 			if (ItemWidget->WeakRigTreeElement.IsValid())
 			{
 				const FRigElementKey Key = ItemWidget->WeakRigTreeElement.Pin()->Key;
-				const TSharedPtr<FRigTreeElement>* ResultPtr = GetItems().FindByPredicate([Key](const TSharedPtr<FRigTreeElement>& Item) -> bool
+				const TSharedPtr<FRigTreeElement>* ResultPtr = SListView<TSharedPtr<FRigTreeElement>>::GetItems().FindByPredicate([Key](const TSharedPtr<FRigTreeElement>& Item) -> bool
 					{
 						return Item->Key == Key;
 					});
