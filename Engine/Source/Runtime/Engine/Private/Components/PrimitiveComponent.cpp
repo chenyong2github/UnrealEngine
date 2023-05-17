@@ -4510,8 +4510,6 @@ void UPrimitiveComponent::PrecachePSOs()
 	FGraphEventArray GraphEvents;
 	for (FComponentPSOPrecacheParams& ComponentPSOPrecacheData : PSOPrecacheDataArray)
 	{
-		// Material has to be fully loaded for a static permutations to work
-		ComponentPSOPrecacheData.MaterialInterface->ConditionalPostLoad();
 		GraphEvents.Append(ComponentPSOPrecacheData.MaterialInterface->PrecachePSOs(ComponentPSOPrecacheData.VertexFactoryDataList, ComponentPSOPrecacheData.PSOPrecacheParams, ComponentPSOPrecacheData.Priority, MaterialPSOPrecacheRequestIDs));
 	}	
 

@@ -2479,12 +2479,12 @@ void UMaterialInstance::CacheShaders(EMaterialShaderPrecompileMode CompileMode)
 
 FGraphEventArray UMaterialInstance::PrecachePSOs(const FPSOPrecacheVertexFactoryDataList& VertexFactoryDataList, const FPSOPrecacheParams& InPreCacheParams, EPSOPrecachePriority Priority, TArray<FMaterialPSOPrecacheRequestID>& OutMaterialPSORequestIDs)
 {
-	// make sure material is initialized
-	ensure(!HasAnyFlags(RF_NeedPostLoad));
-	
 	FGraphEventArray GraphEvents;
 	if (FApp::CanEverRender() && PipelineStateCache::IsPSOPrecachingEnabled() && Parent)
 	{
+		// make sure material is initialized
+		ConditionalPostLoad();
+
 		if (bHasStaticPermutationResource)
 		{			
 			EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
