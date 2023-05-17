@@ -17,6 +17,7 @@
 #include "PlatformInfo.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "ScreenShotComparisonSettings.h"
+#include "ILauncherServicesModule.h"
 
 
 DEFINE_LOG_CATEGORY(LogScreenShotManager);
@@ -95,6 +96,15 @@ FString FScreenShotManager::GetApprovedFolderForImageWithOptions(const FAutomati
 	FString TestFolder = GetPathComponentForTestImages(MetaData);
 
 	FString OutPath = FPaths::ProjectDir();
+
+	// Project path would be different if project is started from Unreal Frontend (uses LauncherServices)
+	if (FModuleManager::Get().IsModuleLoaded("LauncherServices"))
+	{
+		ILauncherServicesModule& LauncherServicesModule = FModuleManager::LoadModuleChecked<ILauncherServicesModule>("LauncherServices");
+		FString ProjectPath = FPaths::GetPath(LauncherServicesModule.GetProfileManager()->GetProjectPath());
+		FPaths::MakePathRelativeTo(ProjectPath, *FPaths::ProjectDir());
+		OutPath = FPaths::DirectoryExists(ProjectPath) ? ProjectPath : OutPath;
+	}
 
 	if (bUsePlatformPath)
 	{

@@ -27,6 +27,7 @@ public class ScreenShotComparisonTools : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"MessagingCommon",
+				"LauncherServices"
 			}
 		);
 
