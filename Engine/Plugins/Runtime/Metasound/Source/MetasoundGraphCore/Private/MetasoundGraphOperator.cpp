@@ -140,7 +140,7 @@ namespace Metasound
 
 	void FGraphOperator::BindInputs(FInputVertexInterfaceData& InInputVertexData)
 	{
-		checkf(MetasoundGraphPrivate::IsSupportedVertexData(VertexData.GetInputs(), InInputVertexData), TEXT("FGraphOperator does not support rebinding with new data"));
+		UE_CLOG(MetasoundGraphPrivate::IsSupportedVertexData(VertexData.GetInputs(), InInputVertexData), LogMetaSound, Error, TEXT("FGraphOperator does not support rebinding with new data"));
 
 		InInputVertexData = VertexData.GetInputs();
 	}
