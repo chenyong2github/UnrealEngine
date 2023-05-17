@@ -995,7 +995,10 @@ void FTextLayout::TransformLineText(FLineModel& LineModel) const
 {
 	auto ApplyTransformedText = [&LineModel](FString&& InNewText)
 	{
-		*LineModel.Text = MoveTemp(InNewText);
+		if (ensure(LineModel.Text->Len() == InNewText.Len()))
+		{
+			*LineModel.Text = MoveTemp(InNewText);
+		}
 	};
 
 	switch (TransformPolicy)
