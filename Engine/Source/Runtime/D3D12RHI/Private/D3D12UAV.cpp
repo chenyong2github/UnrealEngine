@@ -316,8 +316,8 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 				FD3D12UnorderedAccessView UAV(ParentDevice);
 				UAV.CreateView(UnorderedAccessView->GetResourceLocation(), R32UAVDesc, FD3D12UnorderedAccessView::EFlags::None);
 
-				D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle;
-				if (!Context.StateCache.GetDescriptorCache()->IsViewHeapOverridden())
+				D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle{};
+				if (!Context.StateCache.GetDescriptorCache()->IsUsingBindlessResources())
 				{
 					// Check if the view heap is full and needs to rollover.
 					if (!Context.StateCache.GetDescriptorCache()->GetCurrentViewHeap()->CanReserveSlots(1))
@@ -331,10 +331,12 @@ void FD3D12CommandContext::ClearUAV(TRHICommandList_RecursiveHazardous<FD3D12Com
 
 					Device->CopyDescriptorsSimple(1, DestSlot, UAV.GetOfflineCpuHandle(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 				}
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 				else
 				{
 					GPUHandle = ParentDevice->GetBindlessDescriptorManager().GetGpuHandle(UAV.GetBindlessHandle());
 				}
+#endif
 
 				Context.TransitionResource(UnorderedAccessView, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 

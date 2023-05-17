@@ -520,16 +520,21 @@ void FD3D12DynamicRHI::ProcessDeferredDeletionQueue()
 					check(ObjectToDelete.RHIObject->GetRefCount() == 1);
 					ObjectToDelete.RHIObject->Release();
 					break;
-				case FD3D12DeferredDeleteObject::EType::D3DHeap:
+				case FD3D12DeferredDeleteObject::EType::Heap:
 					// Heaps can have additional references active.
-					ObjectToDelete.D3DHeap->Release();
+					ObjectToDelete.Heap->Release();
+					break;
+				case FD3D12DeferredDeleteObject::EType::DescriptorHeap:
+					ObjectToDelete.DescriptorHeap->GetParentDevice()->GetDescriptorHeapManager().ImmediateFreeHeap(ObjectToDelete.DescriptorHeap);
 					break;
 				case FD3D12DeferredDeleteObject::EType::D3DObject:
 					ObjectToDelete.D3DObject->Release();
 					break;
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 				case FD3D12DeferredDeleteObject::EType::BindlessDescriptor:
 					ObjectToDelete.BindlessDescriptor.Device->GetBindlessDescriptorManager().ImmediateFree(ObjectToDelete.BindlessDescriptor.Handle);
 					break;
+#endif
 				case FD3D12DeferredDeleteObject::EType::CPUAllocation:
 					FMemory::Free(ObjectToDelete.CPUAllocation);
 					break;

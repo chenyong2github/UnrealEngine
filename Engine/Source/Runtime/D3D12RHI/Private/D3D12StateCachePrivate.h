@@ -32,9 +32,6 @@ static const bool GD3D12SkipStateCaching = false;
 extern int32 GGlobalResourceDescriptorHeapSize;
 extern int32 GGlobalSamplerDescriptorHeapSize;
 
-extern int32 GBindlessResourceDescriptorHeapSize;
-extern int32 GBindlessSamplerDescriptorHeapSize;
-
 extern int32 GGlobalSamplerHeapSize;
 extern int32 GOnlineDescriptorHeapSize;
 extern int32 GOnlineDescriptorHeapBlockSize;

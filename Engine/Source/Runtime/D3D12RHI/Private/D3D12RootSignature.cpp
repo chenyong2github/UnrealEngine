@@ -485,6 +485,7 @@ void FD3D12RootSignature::InternalAnalyzeSignature(const RootSignatureDescType& 
 		bHasUAVs = false;
 		bHasSRVs = false;
 		bHasCBVs = false;
+		bHasRootCBs = false;
 		bHasSamplers = false;
 
 		FMemory::Memset(BindSlotOffsetsInDWORDs, 0, sizeof(BindSlotOffsetsInDWORDs));

@@ -178,7 +178,8 @@ public:
 	inline bool HasUAVs() const { return bHasUAVs; }
 	inline bool HasSRVs() const { return bHasSRVs; }
 	inline bool HasCBVs() const { return bHasCBVs; }
-	inline bool HasResources() const { return bHasUAVs || bHasSRVs || bHasCBVs; }
+	inline bool HasRootCBs() const { return bHasRootCBs; }
+	inline bool HasTableResources() const { return bHasUAVs || bHasSRVs || bHasCBVs; }
 	inline bool HasSamplers() const { return bHasSamplers; }
 	inline bool UsesDynamicResources() const { return bUsesDynamicResources; }
 	inline bool UsesDynamicSamplers() const { return bUsesDynamicSamplers; }
@@ -305,7 +306,7 @@ private:
 		check(*pBindSlot == 0xFF);
 		*pBindSlot = RootParameterIndex;
 
-		bHasCBVs = true;
+		bHasRootCBs = true;
 	}
 
 	inline void SetUAVRDTBindSlot(EShaderFrequency SF, uint8 RootParameterIndex)
@@ -446,11 +447,11 @@ private:
 	uint8 bHasUAVs : 1;
 	uint8 bHasSRVs : 1;
 	uint8 bHasCBVs : 1;
+	uint8 bHasRootCBs : 1;
 	uint8 bHasSamplers : 1;
 	uint8 bHasVendorExtensionSpace : 1;
 	uint8 bUsesDynamicResources : 1;
 	uint8 bUsesDynamicSamplers : 1;
-	uint8 bUnused : 1;
 };
 
 class FD3D12RootSignatureManager : public FD3D12AdapterChild

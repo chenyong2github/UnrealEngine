@@ -315,11 +315,16 @@ public:
 
 	~FD3D12DescriptorCache();
 
-	inline bool IsViewHeapOverridden() const { return OverrideViewHeap != nullptr; }
-	inline bool IsSamplerHeapOverridden() const { return OverrideSamplerHeap != nullptr; }
-
 	inline FD3D12OnlineHeap* GetCurrentViewHeap() const { return CurrentViewHeap; }
 	inline FD3D12OnlineHeap* GetCurrentSamplerHeap() const { return CurrentSamplerHeap; }
+
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	bool IsUsingBindlessResources() const { return bBindlessResources; }
+	bool IsUsingBindlessSamplers()  const { return bBindlessSamplers;  }
+#else
+	constexpr bool IsUsingBindlessResources() const { return false; }
+	constexpr bool IsUsingBindlessSamplers()  const { return false; }
+#endif
 
 	// Checks if the specified descriptor heap has been set on the current command list.
 	bool IsHeapSet(ID3D12DescriptorHeap* const pHeap) const
@@ -356,9 +361,7 @@ public:
 
 	bool SwitchToContextLocalViewHeap();
 	bool SwitchToContextLocalSamplerHeap();
-	bool SwitchToGlobalSamplerHeap();
-
-	bool SetHeapOverrides(FD3D12DescriptorHeap* InOverrideViewHeap, FD3D12DescriptorHeap* InOverrideSamplerHeap);
+	void SwitchToGlobalSamplerHeap();
 
 	void OverrideLastSetHeaps(ID3D12DescriptorHeap* ViewHeap, ID3D12DescriptorHeap* SamplerHeap);
 	void RestoreAfterExternalHeapsSet();
@@ -382,9 +385,6 @@ private:
 	FD3D12OnlineHeap* CurrentViewHeap = nullptr;
 	FD3D12OnlineHeap* CurrentSamplerHeap = nullptr;
 
-	FD3D12DescriptorHeap* OverrideViewHeap = nullptr;
-	FD3D12DescriptorHeap* OverrideSamplerHeap = nullptr;
-
 	FD3D12LocalOnlineHeap* LocalViewHeap = nullptr;
 	FD3D12LocalOnlineHeap LocalSamplerHeap;
 	FD3D12SubAllocatedOnlineHeap SubAllocatedViewHeap;
@@ -397,4 +397,12 @@ private:
 	bool bHeapsOverridden = false;
 
 	uint32 NumLocalViewDescriptors = 0;
+
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	bool bBindlessResources = false;
+	bool bBindlessSamplers = false;
+
+	FD3D12DescriptorHeap* BindlessResourcesHeap = nullptr;
+	FD3D12DescriptorHeap* BindlessSamplersHeap = nullptr;
+#endif
 };

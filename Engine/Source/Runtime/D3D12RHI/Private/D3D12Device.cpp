@@ -111,7 +111,9 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter)
 	, GPUProfilingData         (this)
 	, ResidencyManager         (*this)
 	, DescriptorHeapManager    (this)
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	, BindlessDescriptorManager(this)
+#endif
 	, GlobalSamplerHeap        (this)
 	, OnlineDescriptorManager  (this)
 	, DefaultBufferAllocator   (this, FRHIGPUMask::All()) //Note: Cross node buffers are possible 
@@ -358,23 +360,28 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	check(GGlobalSamplerHeapSize <= MaximumSamplerHeapSize);
 
 	check(GOnlineDescriptorHeapSize <= GGlobalResourceDescriptorHeapSize);
-	check(GBindlessResourceDescriptorHeapSize <= GGlobalResourceDescriptorHeapSize);
-	check(GBindlessSamplerDescriptorHeapSize <= GGlobalSamplerDescriptorHeapSize);
 
-	DescriptorHeapManager.Init(GGlobalResourceDescriptorHeapSize, GGlobalSamplerDescriptorHeapSize);
+	bool bFullyBindlessResources = false;
+	bool bFullyBindlessSamplers = false;
 
 #if PLATFORM_SUPPORTS_BINDLESS_RENDERING
-	const bool bBindlessResources = RHIGetRuntimeBindlessResourcesConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;
-	const bool bBindlessSamplers = RHIGetRuntimeBindlessSamplersConfiguration(GMaxRHIShaderPlatform) != ERHIBindlessConfiguration::Disabled;
-	if (bBindlessResources || bBindlessSamplers)
-	{
-		BindlessDescriptorManager.Init(bBindlessResources ? GBindlessResourceDescriptorHeapSize : 0, bBindlessSamplers ? GBindlessSamplerDescriptorHeapSize : 0);
-	}
+	BindlessDescriptorManager.Init();
+
+	bFullyBindlessResources = BindlessDescriptorManager.AreResourcesFullyBindless();
+	bFullyBindlessSamplers = BindlessDescriptorManager.AreSamplersFullyBindless();
 #endif
 
-	GlobalSamplerHeap.Init(GGlobalSamplerHeapSize);
+	DescriptorHeapManager.Init(bFullyBindlessResources ? 0 : GGlobalResourceDescriptorHeapSize, bFullyBindlessSamplers ? 0 : GGlobalSamplerDescriptorHeapSize);
 
-	OnlineDescriptorManager.Init(GOnlineDescriptorHeapSize, GOnlineDescriptorHeapBlockSize);
+	if (!bFullyBindlessSamplers)
+	{
+		GlobalSamplerHeap.Init(GGlobalSamplerHeapSize);
+	}
+
+	if (!bFullyBindlessResources)
+	{
+		OnlineDescriptorManager.Init(GOnlineDescriptorHeapSize, GOnlineDescriptorHeapBlockSize);
+	}
 
 	// Make sure we create the default views before the first command context
 	CreateDefaultViews();

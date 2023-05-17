@@ -640,6 +640,7 @@ FD3D12SamplerState::FD3D12SamplerState(FD3D12Device* InParent, const D3D12_SAMPL
 
 	GetParentDevice()->CreateSamplerInternal(Desc, OfflineDescriptor);
 
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	FD3D12BindlessDescriptorManager& BindlessDescriptorManager = GetParentDevice()->GetBindlessDescriptorManager();
 	BindlessHandle = BindlessDescriptorManager.Allocate(ERHIDescriptorHeapType::Sampler);
 
@@ -647,6 +648,7 @@ FD3D12SamplerState::FD3D12SamplerState(FD3D12Device* InParent, const D3D12_SAMPL
 	{
 		GetParentDevice()->GetBindlessDescriptorManager().UpdateImmediately(BindlessHandle, OfflineDescriptor);
 	}
+#endif
 }
 
 FD3D12SamplerState::~FD3D12SamplerState()
@@ -656,9 +658,11 @@ FD3D12SamplerState::~FD3D12SamplerState()
 		FD3D12OfflineDescriptorManager& OfflineAllocator = GetParentDevice()->GetOfflineDescriptorManager(ERHIDescriptorHeapType::Sampler);
 		OfflineAllocator.FreeHeapSlot(OfflineDescriptor);
 
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 		if (BindlessHandle.IsValid())
 		{
 			GetParentDevice()->GetBindlessDescriptorManager().DeferredFreeFromDestructor(BindlessHandle);
 		}
+#endif
 	}
 }

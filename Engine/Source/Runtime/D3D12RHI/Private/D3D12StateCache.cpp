@@ -23,22 +23,6 @@ static FAutoConsoleVariableRef CVarGlobalSamplerDescriptorHeapSize(
 	ECVF_ReadOnly
 );
 
-int32 GBindlessResourceDescriptorHeapSize = 1000 * 1000;
-static FAutoConsoleVariableRef CVarBindlessResourceDescriptorHeapSize(
-	TEXT("D3D12.Bindless.ResourceDescriptorHeapSize"),
-	GBindlessResourceDescriptorHeapSize,
-	TEXT("Bindless resource descriptor heap size"),
-	ECVF_ReadOnly
-);
-
-int32 GBindlessSamplerDescriptorHeapSize = 2048;
-static FAutoConsoleVariableRef CVarBindlessSamplerDescriptorHeapSize(
-	TEXT("D3D12.Bindless.SamplerDescriptorHeapSize"),
-	GBindlessSamplerDescriptorHeapSize,
-	TEXT("Bindless sampler descriptor heap size"),
-	ECVF_ReadOnly
-);
-
 // This value defines how many descriptors will be in the device local view heap which
 // This should be tweaked for each title as heaps require VRAM. The default value of 512k takes up ~16MB
 int32 GLocalViewHeapSize = 500 * 1000;
@@ -426,27 +410,26 @@ void FD3D12StateCache::ApplyState(ED3D12PipelineType PipelineType)
 	bool bBindlessResources = PSOCommonData->RootSignature->UsesDynamicResources();
 	bool bBindlessSamplers = PSOCommonData->RootSignature->UsesDynamicSamplers();
 
-	const bool bApplyResources = !bBindlessResources && PSOCommonData->RootSignature->HasResources();
-	const bool bApplySamplers = !bBindlessSamplers && PSOCommonData->RootSignature->HasSamplers();
+	const bool bHasTableResources = PSOCommonData->RootSignature->HasTableResources();
+	const bool bHasSamplers = PSOCommonData->RootSignature->HasSamplers();
 
-	const bool bBindlessResourcesAlreadyEnabled = DescriptorCache.IsViewHeapOverridden();
-	const bool bBindlessSamplersAlreadyEnabled = DescriptorCache.IsSamplerHeapOverridden();
+	const bool bApplyResources = !bBindlessResources && bHasTableResources;
+	const bool bApplySamplers = !bBindlessSamplers && bHasSamplers;
 
-	if (bRootSignatureChanged || bBindlessResources != bBindlessResourcesAlreadyEnabled || bBindlessSamplers != bBindlessSamplersAlreadyEnabled)
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	{
 		FD3D12BindlessDescriptorManager& BindlessManager = GetParentDevice()->GetBindlessDescriptorManager();
 
-		FD3D12DescriptorHeap* ResourceHeap = BindlessManager.GetHeapForType(ERHIDescriptorHeapType::Standard);
-		FD3D12DescriptorHeap* SamplerHeap = BindlessManager.GetHeapForType(ERHIDescriptorHeapType::Sampler);
+		FD3D12DescriptorHeap* ResourceHeap = BindlessManager.GetHeap(ERHIDescriptorHeapType::Standard, ERHIBindlessConfiguration::AllShaders);
+		FD3D12DescriptorHeap* SamplerHeap = BindlessManager.GetHeap(ERHIDescriptorHeapType::Sampler, ERHIBindlessConfiguration::AllShaders);
 
 		checkf(!bBindlessResources || ResourceHeap != nullptr, TEXT("Using dynamic samplers without the bindless sampler heap configured. Please check your configuration."));
 		checkf(!bBindlessSamplers || SamplerHeap != nullptr, TEXT("Using dynamic samplers without the bindless sampler heap configured. Please check your configuration."));
-		
-		DescriptorCache.SetHeapOverrides(
-			bBindlessResources ? BindlessManager.GetHeapForType(ERHIDescriptorHeapType::Standard) : nullptr,
-			bBindlessSamplers ? BindlessManager.GetHeapForType(ERHIDescriptorHeapType::Sampler) : nullptr
-		);
+
+		check(!(ResourceHeap != nullptr && bHasTableResources));
+		check(!(SamplerHeap  != nullptr && bHasSamplers      ));
 	}
+#endif
 
 	if (bRootSignatureChanged)
 	{

@@ -217,10 +217,12 @@ FD3D12View::FD3D12View(FD3D12Device* InDevice, ERHIDescriptorHeapType InHeapType
 	, OfflineCpuHandle(InDevice->GetOfflineDescriptorManager(InHeapType).AllocateHeapSlot())
 	, HeapType(InHeapType)
 {
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	if (HeapType == ERHIDescriptorHeapType::Standard)
 	{
 		BindlessHandle = InDevice->GetBindlessDescriptorManager().Allocate(ERHIDescriptorHeapType::Standard);
 	}
+#endif
 }
 
 FD3D12View::~FD3D12View()
@@ -232,15 +234,18 @@ FD3D12View::~FD3D12View()
 	// Free the descriptor heap slot and bindless handle
 	GetParentDevice()->GetOfflineDescriptorManager(HeapType).FreeHeapSlot(OfflineCpuHandle);
 
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	if (BindlessHandle.IsValid())
 	{
 		GetParentDevice()->GetBindlessDescriptorManager().DeferredFreeFromDestructor(BindlessHandle);
 		BindlessHandle = {};
 	}
+#endif
 }
 
 void FD3D12View::UpdateBindlessSlot(EReason Reason)
 {
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	if (BindlessHandle.IsValid())
 	{
 		FD3D12BindlessDescriptorManager& BindlessManager = GetParentDevice()->GetBindlessDescriptorManager();
@@ -253,6 +258,7 @@ void FD3D12View::UpdateBindlessSlot(EReason Reason)
 			BindlessManager.UpdateDeferred(BindlessHandle, OfflineCpuHandle);
 		}
 	}
+#endif
 }
 
 void FD3D12View::CreateView(FResourceInfo const& InResource, FNullDescPtr NullDescriptor)

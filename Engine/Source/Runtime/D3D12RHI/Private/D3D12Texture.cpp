@@ -1018,15 +1018,17 @@ void FD3D12DynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRe
 {
 	FRHITexture* NewTexture = InNewTexture ? InNewTexture : FRHITextureReference::GetDefaultTexture();
 
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	if (FRHIShaderResourceView* TextureRefSRV = TextureRef ? TextureRef->GetBindlessView() : nullptr)
 	{
 		FD3D12ShaderResourceView* TextureRefSRVD3D12 = ResourceCast(TextureRefSRV);
-		if (TextureRefSRVD3D12->GetBindlessHandle().IsValid())
+		if (TextureRefSRVD3D12->IsBindless())
 		{
 			FD3D12BindlessDescriptorManager& BindlessDescriptorManager = TextureRefSRVD3D12->GetParentDevice()->GetBindlessDescriptorManager();
 			BindlessDescriptorManager.UpdateDeferred(TextureRefSRVD3D12->GetBindlessHandle(), ResourceCast(NewTexture)->GetShaderResourceView()->GetOfflineCpuHandle());
 		}
 	}
+#endif // PLATFORM_SUPPORTS_BINDLESS_RENDERING
 
 	FDynamicRHI::RHIUpdateTextureReference(TextureRef, NewTexture);
 }

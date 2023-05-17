@@ -210,9 +210,14 @@ public:
 	FD3D12ResidencyHandle&      GetResidencyHandle () const { check(IsInitialized()); return *ResourceInfo.ResidencyHandle; }
 	FD3D12ViewSubset const&     GetViewSubset      () const { check(IsInitialized()); return ViewSubset;                    }
 	FD3D12OfflineDescriptor     GetOfflineCpuHandle() const { check(IsInitialized()); return OfflineCpuHandle;              }
-	FRHIDescriptorHandle        GetBindlessHandle  () const { /* no check */          return BindlessHandle;                }
 
-	bool IsBindless() const { return BindlessHandle.IsValid(); }
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
+	FRHIDescriptorHandle        GetBindlessHandle() const { return BindlessHandle;           }
+	bool                        IsBindless       () const { return BindlessHandle.IsValid(); }
+#else
+	FRHIDescriptorHandle        GetBindlessHandle() const { return FRHIDescriptorHandle();   }
+	constexpr bool              IsBindless       () const { return false;                    }
+#endif
 
 protected:
 	FD3D12View(FD3D12Device* InDevice, ERHIDescriptorHeapType InHeapType);
@@ -231,7 +236,9 @@ protected:
 
 	FD3D12OfflineDescriptor OfflineCpuHandle;
 
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	FRHIDescriptorHandle BindlessHandle;
+#endif
 	ERHIDescriptorHeapType const HeapType;
 };
 

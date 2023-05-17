@@ -10,6 +10,8 @@
 #include "Containers/Queue.h"
 #include "Containers/List.h"
 
+struct FD3D12DescriptorHeap;
+
 inline D3D12_DESCRIPTOR_HEAP_TYPE Translate(ERHIDescriptorHeapType InHeapType)
 {
 	switch (InHeapType)
@@ -20,6 +22,13 @@ inline D3D12_DESCRIPTOR_HEAP_TYPE Translate(ERHIDescriptorHeapType InHeapType)
 	case ERHIDescriptorHeapType::DepthStencil: return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 	case ERHIDescriptorHeapType::Sampler:      return FD3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 	}
+}
+
+namespace UE::D3D12Descriptors
+{
+	FD3D12DescriptorHeap* CreateDescriptorHeap(FD3D12Device* Device, const TCHAR* DebugName, ERHIDescriptorHeapType HeapType, uint32 NumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS Flags, bool bGlobal = false);
+	void CopyDescriptor(FD3D12Device* Device, FD3D12DescriptorHeap* TargetHeap, FRHIDescriptorHandle Handle, D3D12_CPU_DESCRIPTOR_HANDLE SourceCpuHandle);
+	void CopyDescriptors(FD3D12Device* Device, FD3D12DescriptorHeap* TargetHeap, FD3D12DescriptorHeap* SourceHeap, uint32 NumDescriptors);
 }
 
 struct FD3D12DescriptorHeap : public FD3D12DeviceChild, public FThreadSafeRefCountedObject
@@ -101,31 +110,6 @@ public:
 
 private:
 	FD3D12DescriptorHeapPtr Heap;
-};
-
-/** Manager for resource descriptors used in bindless rendering. */
-class FD3D12BindlessDescriptorManager : public FD3D12DeviceChild
-{
-public:
-	FD3D12BindlessDescriptorManager(FD3D12Device* Device);
-	~FD3D12BindlessDescriptorManager();
-
-	void Init(uint32 InNumResourceDescriptors, uint32 InNumSamplerDescriptors);
-
-	FRHIDescriptorHandle Allocate(ERHIDescriptorHeapType InType);
-	void ImmediateFree(FRHIDescriptorHandle InHandle);
-	void DeferredFreeFromDestructor(FRHIDescriptorHandle InHandle);
-
-	void UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
-	void UpdateDeferred(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
-
-	FD3D12DescriptorHeap* GetHeapForType(ERHIDescriptorHeapType InType);
-	bool HasHeapForType(ERHIDescriptorHeapType InType) const;
-
-	D3D12_GPU_DESCRIPTOR_HANDLE GetGpuHandle(FRHIDescriptorHandle InHandle) const;
-
-private:
-	TArray<FD3D12DescriptorManager> Managers;
 };
 
 /** Heap sub block of an online heap */
@@ -246,8 +230,10 @@ public:
 	void Init(uint32 InNumGlobalResourceDescriptors, uint32 InNumGlobalSamplerDescriptors);
 	void Destroy();
 
-	FD3D12DescriptorHeap* AllocateHeap(const TCHAR* DebugName, ERHIDescriptorHeapType InHeapType, uint32 InNumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS InFlags);
-	void FreeHeap(FD3D12DescriptorHeap* InHeap);
+	FD3D12DescriptorHeap* AllocateIndependentHeap(const TCHAR* InDebugName, ERHIDescriptorHeapType InHeapType, uint32 InNumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS InHeapFlags);
+	FD3D12DescriptorHeap* AllocateHeap(const TCHAR* InDebugName, ERHIDescriptorHeapType InHeapType, uint32 InNumDescriptors, D3D12_DESCRIPTOR_HEAP_FLAGS InHeapFlags);
+	void DeferredFreeHeap(FD3D12DescriptorHeap* InHeap);
+	void ImmediateFreeHeap(FD3D12DescriptorHeap* InHeap);
 
 	//inline FD3D12DescriptorHeap* GetGlobalHeap() const { return GlobalHeap; }
 

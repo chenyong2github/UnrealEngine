@@ -10,7 +10,6 @@ D3D12CommandContext.h: D3D12 Command Context Interfaces
 #include "D3D12Queue.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-
 THIRD_PARTY_INCLUDES_START
 #if USE_PIX
 	#include "pix3.h"
@@ -21,6 +20,7 @@ THIRD_PARTY_INCLUDES_END
 #include "RHICoreShader.h"
 #include "RHICore.h"
 
+struct FD3D12DescriptorHeap;
 struct FRayTracingShaderBindings;
 class FD3D12Device;
 
@@ -30,8 +30,11 @@ struct FD3D12DeferredDeleteObject
 	{
 		RHIObject,
 		D3DObject,
-		D3DHeap,
+		Heap,
+		DescriptorHeap,
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 		BindlessDescriptor,
+#endif
 		CPUAllocation,
 		DescriptorBlock,
 		VirtualAllocation
@@ -40,7 +43,8 @@ struct FD3D12DeferredDeleteObject
 	union
 	{
 		FD3D12Resource* RHIObject;
-		FD3D12Heap* D3DHeap;
+		FD3D12Heap* Heap;
+		FD3D12DescriptorHeap* DescriptorHeap;
 		ID3D12Object* D3DObject;
 
 		struct
@@ -71,9 +75,14 @@ struct FD3D12DeferredDeleteObject
 		, RHIObject(RHIObject)
 	{}
 
-	explicit FD3D12DeferredDeleteObject(FD3D12Heap* D3DHeap)
-		: Type(EType::D3DHeap)
-		, D3DHeap(D3DHeap)
+	explicit FD3D12DeferredDeleteObject(FD3D12Heap* InHeap)
+		: Type(EType::Heap)
+		, Heap(InHeap)
+	{}
+
+	explicit FD3D12DeferredDeleteObject(FD3D12DescriptorHeap* InDescriptorHeap)
+		: Type(EType::DescriptorHeap)
+		, DescriptorHeap(InDescriptorHeap)
 	{}
 
 	explicit FD3D12DeferredDeleteObject(ID3D12Object* D3DObject)
@@ -81,10 +90,12 @@ struct FD3D12DeferredDeleteObject
 		, D3DObject(D3DObject)
 	{}
 
+#if PLATFORM_SUPPORTS_BINDLESS_RENDERING
 	explicit FD3D12DeferredDeleteObject(FRHIDescriptorHandle Handle, FD3D12Device* Device)
 		: Type(EType::BindlessDescriptor)
 		, BindlessDescriptor({ Handle, Device })
 	{}
+#endif
 
 	explicit FD3D12DeferredDeleteObject(void* Ptr, EType Type)
 		: Type(Type)
