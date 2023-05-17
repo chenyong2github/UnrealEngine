@@ -596,6 +596,8 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
       showServer = false;
    }
 
+   const logoSrc = dashboard.development ? "/images/horde_black.svg" : "/images/horde.svg";
+
    return (
       <div style={{ backgroundColor: modeColors.header }}>
          {showVersion && <VersionModal show={true} onClose={() => { setShowVersion(false) }} />}
@@ -605,7 +607,7 @@ export const TopNav: React.FC<{ suppressServer?: boolean }> = observer(({ suppre
 
                <Link to="/index"><Stack horizontal styles={{ root: { paddingLeft: 8, cursor: 'pointer' } }}>
                   <Stack styles={{ root: { paddingTop: 2, paddingRight: 6 } }}>
-                     <img style={{ width: 32 }} src="/images/horde.svg" alt="" />
+                     <img style={{ width: 32 }} src={logoSrc} alt="" />
                   </Stack>
                   <Stack styles={{ root: { paddingTop: 11 } }}>
                      <Text styles={{ root: { fontFamily: "Horde Raleway Bold", color: dashboard.darktheme ? "#FFFFFFFF" : modeColors.text } }}>HORDE{dashboard.preview ? " PREVIEW" : ""}</Text>

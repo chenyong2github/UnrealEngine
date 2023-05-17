@@ -123,6 +123,16 @@ export class Dashboard {
         return false;        
     }
 
+    get development(): boolean {
+
+        try {            
+            return window?.location?.hostname?.indexOf("devtools-dev") !== -1;
+        } catch (reason) {
+            console.error(reason);
+        }
+        return false;        
+    }
+
     get browser(): WebBrowser {
 
         const agent = window.navigator.userAgent.toLowerCase();

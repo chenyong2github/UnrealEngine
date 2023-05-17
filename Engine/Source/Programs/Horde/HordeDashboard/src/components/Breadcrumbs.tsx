@@ -111,6 +111,11 @@ export const Breadcrumbs: React.FC<{ items: BreadcrumbItem[], title?: string, su
                <Text variant="large" style={{ fontFamily: "Horde Open Sans Light", opacity: 0.33 }}>Horde Preview</Text>
             </Stack>
          </Stack>}
+         {!alert && !!dashboard.development && <Stack horizontalAlign="center" disableShrink={true} style={{ position: "absolute", width: "100%", pointerEvents: "none" }} >
+            <Stack style={{ paddingTop: 22 }}>
+               <Text variant="large" style={{ fontFamily: "Horde Open Sans Light", opacity: 0.33 }}>Horde Development</Text>
+            </Stack>
+         </Stack>}
 
          {!!alert && dashboard.alertSquelch !== alert && <Stack horizontalAlign="center" disableShrink={true} style={{ position: "absolute", width: "100%" }} >
             <Stack horizontal>
