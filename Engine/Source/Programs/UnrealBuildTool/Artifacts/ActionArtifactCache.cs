@@ -26,6 +26,9 @@ namespace UnrealBuildTool.Artifacts
 		public bool EnableWrites { get; set; } = true;
 
 		/// <inheritdoc/>
+		public bool LogCacheMisses { get; set; } = false;
+
+		/// <inheritdoc/>
 		public IArtifactCache ArtifactCache { get; init; }
 
 		/// <summary>
@@ -94,8 +97,18 @@ namespace UnrealBuildTool.Artifacts
 
 			ArtifactMapping[] mappings = await ArtifactCache.QueryArtifactMappingsAsync(new IoHash[] { key }, cancellationToken);
 
+			string actionDescription = string.Empty;
+			if (LogCacheMisses)
+			{
+				actionDescription = $"{(action.CommandDescription ?? action.CommandPath.GetFileNameWithoutExtension())} {action.StatusDescription}".Trim();
+			}
+
 			if (mappings.Length == 0)
 			{
+				if (LogCacheMisses)
+				{
+					_logger.LogInformation("Artifact Cache Miss: No artifact mappings found for {ActionDescription}", actionDescription);
+				}
 				return false;
 			}
 
@@ -109,11 +122,19 @@ namespace UnrealBuildTool.Artifacts
 					FileItem item = FileItem.GetItemByPath(name);
 					if (!item.Exists)
 					{
+						if (LogCacheMisses)
+						{
+							_logger.LogInformation("Artifact Cache Miss: Input file missing {ActionDescription}/{File}", actionDescription, item.FullName);
+						}
 						match = false;
 						break;
 					}
 					if (input.ContentHash != await _fileHasher.GetDigestAsync(item, cancellationToken))
 					{
+						if (LogCacheMisses)
+						{
+							_logger.LogInformation("Artifact Cache Miss: Content hash different {actionDescription}/{File}", actionDescription, item.FullName);
+						}
 						match = false;
 						break;
 					}

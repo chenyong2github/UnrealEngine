@@ -220,6 +220,13 @@ namespace UnrealBuildTool
 		public bool bArtifactWrites = true;
 
 		/// <summary>
+		/// If true, log all artifact cache misses as informational messages
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		[CommandLine("-LogArtifactCacheMisses", Value = "True")]
+		public bool bLogArtifactCacheMisses = false;
+
+		/// <summary>
 		/// Location to store the artifacts.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]

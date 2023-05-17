@@ -321,6 +321,11 @@ namespace UnrealBuildTool.Artifacts
 		public bool EnableWrites { get; set; }
 
 		/// <summary>
+		/// If true, log all cache misses.  Defaults to false.
+		/// </summary>
+		public bool LogCacheMisses { get; set; }
+
+		/// <summary>
 		/// Complete an action from existing cached data
 		/// </summary>
 		/// <param name="action">Action to be completed</param>

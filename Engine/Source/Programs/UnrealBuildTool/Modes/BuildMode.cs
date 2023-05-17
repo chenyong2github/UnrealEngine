@@ -552,6 +552,7 @@ namespace UnrealBuildTool
 					actionArtifactCache = ActionArtifactCache.CreateHordeFileCache(artifactDirectory, CppDependencies, Logger);
 					actionArtifactCache.EnableReads = BuildConfiguration.bArtifactRead;
 					actionArtifactCache.EnableWrites = BuildConfiguration.bArtifactWrites;
+					actionArtifactCache.LogCacheMisses = BuildConfiguration.bLogArtifactCacheMisses;
 				}
 
 				// Pre-process module interfaces to generate dependency files
