@@ -221,6 +221,7 @@ public:
 
 		if (!DmlOutputTensorDesc
 				.SetTensorRank(2, 4)
+				.SetFromTensor(OutTensor)
 				.SetShape(DmlShapeOut)
 				.Validate())
 		{

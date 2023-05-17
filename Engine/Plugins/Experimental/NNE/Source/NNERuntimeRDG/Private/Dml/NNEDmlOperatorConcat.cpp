@@ -64,6 +64,8 @@ public:
 					UE_LOG(LogNNE, Error, TEXT("Failed to initialize Concat input for DML inference"));
 					return false;
 				}
+
+				DmlInputDescs[Idx] = *InputDescs[Idx].GetDmlDesc();
 			}
 		}
 		
