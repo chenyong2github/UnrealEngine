@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,6 +43,10 @@ class UIKRetargeterThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 	IKRIGEDITOR_API virtual EThumbnailRenderFrequency GetThumbnailRenderFrequency(UObject* Object) const override;
 	// End UThumbnailRenderer Object
 	
+	// UObject implementation
+	virtual void BeginDestroy() override;
+	// End UObject implementation
+
 	USkeletalMesh* GetPreviewMeshFromAsset(UObject* Object, ERetargetSourceOrTarget SourceOrTarget) const;
 	bool HasSourceOrTargetMesh(UObject* Object) const;
 

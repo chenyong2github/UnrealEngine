@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RetargetEditor/IKRetargeterThumbnailRenderer.h"
 
@@ -111,6 +111,13 @@ void FIKRetargeterThumbnailScene::GetViewMatrixParameters(
 	OutOrbitPitch = ThumbnailInfo->OrbitPitch;
 	OutOrbitYaw = ThumbnailInfo->OrbitYaw;
 	OutOrbitZoom = TargetDistance + ThumbnailInfo->OrbitZoom;
+}
+
+void UIKRetargeterThumbnailRenderer::BeginDestroy()
+{
+	ThumbnailSceneCache.Clear();
+
+	Super::BeginDestroy();
 }
 
 bool UIKRetargeterThumbnailRenderer::CanVisualizeAsset(UObject* Object)
