@@ -26,6 +26,26 @@ enum class ETextureImportFloatingPointFormat : uint8
 	PreviousDefault = HDR_F16  UMETA(Hidden) // legacy behavior
 };
 
+
+/* When should RGB colors be spread into neighboring fully transparent white pixels, replacing their RGB.
+   By default, this is done OnlyOnBinaryTransparency, not on PNG's with non-binary-transparency alpha channels.
+   The PNG format has two different ways of storing alpha, either as 1-bit binary transparency, or as full 8/16 bit alpha channels.
+
+   Used to be set from the TextureImporter/FillPNGZeroAlpha config value.  Setting this option will supercede that.
+ */
+UENUM()
+enum class ETextureImportPNGInfill : uint8
+{
+	/* Use the legacy default behavior, set from the TextureImporter/FillPNGZeroAlpha config value; default was OnlyOnBinaryTransparency. */
+	Default = 0,
+	/* Never infill RGB, import the PNG exactly as it is stored in the file. */
+	Never,
+	/* Only infill RGB on binary transparency; this is the default behavior. */
+	OnlyOnBinaryTransparency,
+	/* Always infill RGB to fully transparent white pixels, even for non-binary alpha channels. */
+	Always
+};
+
 UCLASS(config=Editor, defaultconfig, meta=(DisplayName="Texture Import"))
 class TEXTUREUTILITIESCOMMON_API UTextureImportSettings : public UDeveloperSettings
 {
@@ -52,12 +72,20 @@ public:
 		DisplayName = "CompressionFormat to use for new float textures",
 		ToolTip = "Optionally use HDRCompressed (BC6H), or 32-bit adaptively, instead of HDR (RGBA16F) for floating point textures.  This setting is applied to newly imported textures, it does not affect existing textures in the project."))
 	ETextureImportFloatingPointFormat CompressedFormatForFloatTextures = ETextureImportFloatingPointFormat::PreviousDefault;
+	
+	UPROPERTY(config, EditAnywhere, Category=ImportSettings, meta = (
+		DisplayName = "When to infill RGB in transparent white PNG",
+		ToolTip = "Default behavior is to infill only for binary transparency; this setting may change that to always or never.  Will check TextureImporter/FillPNGZeroAlpha if this is not changed from Default.  This setting is applied to newly imported textures, it does not affect existing textures in the project."))
+	ETextureImportPNGInfill PNGInfill = ETextureImportPNGInfill::Default;
 
 	//~ Begin UObject Interface
 
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
+	// Get the PNGInfill setting, with Default mapped to a concrete choice
+	ETextureImportPNGInfill GetPNGInfillMapDefault() const;
+
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 

@@ -50,7 +50,7 @@ namespace UE
 		   libpng decodes those pels are {RGB=white, A=0}
 		   we replace them by filling in the RGB from neighbors
 
-		   note that this does NOT fill in the RGB of PNGs with a full alpha channel.
+		   note that this does NOT fill in the RGB of PNGs with a full alpha channel. -> it does now, if PNGInfill == Always
 		 */
 		template<typename PixelDataType, typename ColorDataType, int32 RIdx, int32 GIdx, int32 BIdx, int32 AIdx>
 		class TPNGDataFill
@@ -86,7 +86,7 @@ namespace UE
 						int rsqr = r1*r1 + r2*r2;
 						if( rsqr == 0 )
 						{
-							NearNeighborWeights[0][0] = 0.f;
+							NearNeighborWeights[0][0] = 0.f; // center self-weight = zero
 							continue;
 						}
 						float W = expf( - 1.1f * sqrtf((float)rsqr) );
@@ -95,10 +95,11 @@ namespace UE
 				}
 			}
 
-			void ProcessData()
+			void ProcessData(bool bDoOnComplexAlphaNotJustBinaryTransparency)
 			{
 				// first identify alpha type :
-				bool HasBinaryTransparency=false;
+				bool HasWhiteWithZeroAlpha=false;
+				bool HasComplexAlpha=false;
 				for (int64 Y = 0; Y < TextureHeight; ++Y)
 				{
 					const ColorDataType* RowData = (const ColorDataType *)SourceData + Y * TextureWidth;
@@ -110,25 +111,36 @@ namespace UE
 						}
 						else if ( RowData[X] == WhiteWithZeroAlpha )
 						{
-							HasBinaryTransparency = true;
+							HasWhiteWithZeroAlpha = true;
 						}
 						else
 						{
-							//HasComplexAlphaChannel = true;
-							UE_LOG(LogCore, Log,  TEXT("PNG has complex alpha channel, will not fill RGB in transparent background"));
-							// do not modify png's with full alpha channels :
-							return;
+							HasComplexAlpha = true;
+
+							if ( ! bDoOnComplexAlphaNotJustBinaryTransparency )
+							{
+								UE_LOG(LogCore, Log,  TEXT("PNG has complex alpha channel, will not fill RGB in transparent background, due to setting PNGInfill == OnlyOnBinaryTransparency"));
+								// do not modify png's with full alpha channels :
+								return;
+							}
 						}
 					}
 				}
 
-				if ( ! HasBinaryTransparency )
+				if ( ! HasWhiteWithZeroAlpha )
 				{
 					// all opaque
 					return;
 				}
 
-				UE_LOG(LogCore, Log,  TEXT("PNG has binary transparency, doing fill of RGB in transparent background"));
+				if ( HasComplexAlpha )
+				{
+					UE_LOG(LogCore, Log,  TEXT("PNG has alpha channel, doing fill of RGB in transparent background, due to setting PNGInfill == Always"));
+				}
+				else
+				{
+					UE_LOG(LogCore, Log,  TEXT("PNG has binary transparency, doing fill of RGB in transparent background, due to setting PNGInfill != Never"));
+				}
 
 				// first do good fill with limited distance :
 				// this ensures near pels within NearNeighborRadius get a good neighbor fill for interpolation
@@ -168,23 +180,6 @@ namespace UE
 					{
 						// fill row at Y from row at NumZeroedTopRowsToProcess
 						FillRowColorPixels(NumZeroedTopRowsToProcess, Y);
-					}
-				}
-
-				// change all pixels we made in FillFromNearNeighbors and change to A=0 :
-				
-				for (int64 Y = 0; Y < TextureHeight; ++Y)
-				{
-					ColorDataType * ImageRow = (ColorDataType *)SourceData + Y * TextureWidth;
-					for (int64 X = 0; X < TextureWidth; ++X)
-					{
-						const ColorDataType Color = ImageRow[X];
-						if ( Color == WhiteWithZeroAlpha || IsOpaque(Color) )
-						{
-							continue;
-						}
-
-						ImageRow[X] = MakeColorWithZeroAlpha(Color);
 					}
 				}
 			}
@@ -252,10 +247,15 @@ namespace UE
 				ColorDataType* RowData = (ColorDataType *)SourceData + Y * TextureWidth;
 				int64 X = 0;
 
+				// note this is done after the NN fill
+				// the NN fill will have RGB != white but A = 0
+				//	so we will fill out using those
+
 				if ( RowData[0] == WhiteWithZeroAlpha )
 				{
 					// transparent run at start of row
 					// find X which is the first opaque pel
+					//	( "opaque" is a misnomer; actually transparent but not WhiteWithZeroAlpha )
 
 					for(;;)
 					{
@@ -438,7 +438,8 @@ namespace UE
 					{
 						const ColorDataType Color = ImageColors[ X + Y * TextureWidth ];
 
-						// check IsOpaque rather than == WhiteWithZeroAlpha so that we can work in-place
+						#if 0
+						// only fill from opaque colors
 						if ( IsOpaque(Color) )
 						{
 							float W = RowNearNeighborWeights[ FMath::Abs(X-CenterX) ];
@@ -446,6 +447,23 @@ namespace UE
 							TotalWeight += W;
 							TotalColor += W * MakeLinearColor(Color);
 						}
+						#else
+						// fill from any non-transparent colors
+						// weight by alpha
+						FLinearColor CurColor = MakeLinearColor(Color);
+						if ( CurColor.A != 0.f )
+						{
+							float W = RowNearNeighborWeights[ FMath::Abs(X-CenterX) ];
+
+							// weighted by alpha :
+							W *= CurColor.A;
+
+							// accumulate weighted color
+							TotalWeight += W;
+							TotalColor += W * CurColor;
+						}
+						#endif
+
 					}
 				}
 
@@ -456,10 +474,10 @@ namespace UE
 				}
 
 				TotalColor *= 1.f / TotalWeight;
-				TotalColor.A = 0.5f; // anything other than opaque or zero
+				TotalColor.A = 0.f;
 
-				// we return an A that's not opaque so we won't be read from in this pass
-				// later we will change this A to zero
+				// returned Color has A = 0 so it will not be read from in this pass
+				//	if it has RGB != white it will not be filled again
 
 				return MakeColorFromLinear(TotalColor);
 			}
@@ -498,6 +516,8 @@ namespace UE
 							{
 								// could write to ImageRow[X] immediately, but using ScratchRow reduces cache sharing across cores
 								ScratchRow[X] = GetFilledFromNearNeighbors(X,Y);
+
+								// ScratchRow[X] still has zero alpha, but no longer white
 							}
 							else
 							{
@@ -519,21 +539,21 @@ namespace UE
 			float NearNeighborWeights[NearNeighborRadius+1][NearNeighborRadius+1];
 		};
 
-		void FillZeroAlphaPNGData(int32 SizeX, int32 SizeY, ETextureSourceFormat SourceFormat, uint8* SourceData)
+		void FillZeroAlphaPNGData(int32 SizeX, int32 SizeY, ETextureSourceFormat SourceFormat, uint8* SourceData, bool bDoOnComplexAlphaNotJustBinaryTransparency)
 		{
 			switch (SourceFormat)
 			{
 				case TSF_BGRA8:
 				{
 					TPNGDataFill<uint8, uint32, 2, 1, 0, 3> PNGFill(SizeX, SizeY, SourceData);
-					PNGFill.ProcessData();
+					PNGFill.ProcessData(bDoOnComplexAlphaNotJustBinaryTransparency);
 					break;
 				}
 
 				case TSF_RGBA16:
 				{
 					TPNGDataFill<uint16, uint64, 0, 1, 2, 3> PNGFill(SizeX, SizeY, SourceData);
-					PNGFill.ProcessData();
+					PNGFill.ProcessData(bDoOnComplexAlphaNotJustBinaryTransparency);
 					break;
 				}
 

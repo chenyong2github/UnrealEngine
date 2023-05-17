@@ -7,6 +7,7 @@
 
 #if WITH_EDITOR
 #include "Engine/Texture.h"
+#include "Misc/ConfigCacheIni.h"
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureImportSettings)
@@ -29,6 +30,29 @@ void UTextureImportSettings::PostInitProperties()
 }
 
 #if WITH_EDITOR
+
+// Get the PNGInfill setting, with Default mapped to a concrete choice
+ETextureImportPNGInfill UTextureImportSettings::GetPNGInfillMapDefault() const
+{
+	if ( PNGInfill == ETextureImportPNGInfill::Default )
+	{
+		// Default is OnlyOnBinaryTransparency unless changed by legacy config
+
+		// get legacy config :
+		bool bFillPNGZeroAlpha = true;
+		if ( GConfig )
+		{
+			GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha, GEditorIni);		
+		}
+		
+		return bFillPNGZeroAlpha ? ETextureImportPNGInfill::OnlyOnBinaryTransparency : ETextureImportPNGInfill::Never;
+	}
+	else
+	{
+		return PNGInfill;
+	}
+}
+
 void UTextureImportSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);

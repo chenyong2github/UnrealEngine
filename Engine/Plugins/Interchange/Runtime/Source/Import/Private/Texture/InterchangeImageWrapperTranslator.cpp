@@ -68,12 +68,12 @@ static FAutoConsoleVariableRef CCvarInterchangeEnableTGAImport(
 
 UInterchangeImageWrapperTranslator::UInterchangeImageWrapperTranslator()
 {
-	if (IsTemplate() && GConfig)
-	{
-		ensure(IsInGameThread()); // Reading config values isn't threadsafe
-		bFillPNGZeroAlpha = true;
-		GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha.GetValue(), GEditorIni);
-	}
+	// construction of CDO is not thread safe,
+	//  so ensure it is done on game thread before using it from threads
+	// that is guaranteed because the module loader inits all CDOs
+
+	PNGInfill = GetDefault<UTextureImportSettings>()->GetPNGInfillMapDefault();
+	check( PNGInfill != ETextureImportPNGInfill::Default );
 }
 
 TArray<FString> UInterchangeImageWrapperTranslator::GetSupportedFormats() const
@@ -193,10 +193,12 @@ TOptional<UE::Interchange::FImportImage> UInterchangeImageWrapperTranslator::Get
 
 			if (ImageFormat == EImageFormat::PNG)
 			{
-				if (GetDefault<UInterchangeImageWrapperTranslator>()->bFillPNGZeroAlpha.GetValue())
+				if (PNGInfill != ETextureImportPNGInfill::Never)
 				{
+					bool bDoOnComplexAlphaNotJustBinaryTransparency = ( PNGInfill == ETextureImportPNGInfill::Always );
+
 					// Replace the pixels with 0.0 alpha with a color value from the nearest neighboring color which has a non-zero alpha
-					UE::TextureUtilitiesCommon::FillZeroAlphaPNGData(PayloadData.SizeX, PayloadData.SizeY, PayloadData.Format, reinterpret_cast<uint8*>(PayloadData.RawData.GetData()));
+					UE::TextureUtilitiesCommon::FillZeroAlphaPNGData(PayloadData.SizeX, PayloadData.SizeY, PayloadData.Format, reinterpret_cast<uint8*>(PayloadData.RawData.GetData()), bDoOnComplexAlphaNotJustBinaryTransparency);
 				}
 			}
 			else if (ImageFormat == EImageFormat::TGA)

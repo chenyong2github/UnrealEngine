@@ -9,6 +9,7 @@
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
+#include "TextureImportSettings.h"
 
 #include "InterchangeImageWrapperTranslator.generated.h"
 
@@ -51,5 +52,5 @@ public:
 	TOptional<UE::Interchange::FImportImage> GetTexturePayloadDataFromBuffer(const TArray64<uint8>& SourceDataBuffer) const;
 
 private:
-	TOptional<bool> bFillPNGZeroAlpha; // Set on the CDO only
+	ETextureImportPNGInfill PNGInfill;
 };

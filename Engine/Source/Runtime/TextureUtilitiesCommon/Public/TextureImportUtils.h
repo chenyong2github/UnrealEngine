@@ -25,5 +25,5 @@ namespace UE::TextureUtilitiesCommon
 	 * @param TextureSource - The source texture
 	 * @param SourceData - The source texture data
 	 */
-	TEXTUREUTILITIESCOMMON_API void FillZeroAlphaPNGData(int32 SizeX, int32 SizeY, ETextureSourceFormat SourceFormat, uint8* SourceData);
+	TEXTUREUTILITIESCOMMON_API void FillZeroAlphaPNGData(int32 SizeX, int32 SizeY, ETextureSourceFormat SourceFormat, uint8* SourceData, bool bDoOnComplexAlphaNotJustBinaryTransparency);
 }
