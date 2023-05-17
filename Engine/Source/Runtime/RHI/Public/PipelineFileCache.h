@@ -23,7 +23,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Total RayTracing Pipeline State Coun
  */
 #define PSO_COOKONLY_DATA (WITH_EDITOR || IS_PROGRAM)
 
-struct RHI_API FPipelineFileCacheRasterizerState
+struct FPipelineFileCacheRasterizerState
 {
 	FPipelineFileCacheRasterizerState() { FMemory::Memzero(*this); }
 	FPipelineFileCacheRasterizerState(FRasterizerStateInitializerRHI const& Other) { operator=(Other); }
@@ -54,7 +54,7 @@ struct RHI_API FPipelineFileCacheRasterizerState
 		return Initializer;
 	}
 	
-	friend RHI_API FArchive& operator<<(FArchive& Ar,FPipelineFileCacheRasterizerState& RasterizerStateInitializer)
+	friend FArchive& operator<<(FArchive& Ar,FPipelineFileCacheRasterizerState& RasterizerStateInitializer)
 	{
 		Ar << RasterizerStateInitializer.DepthBias;
 		Ar << RasterizerStateInitializer.SlopeScaleDepthBias;
@@ -66,7 +66,7 @@ struct RHI_API FPipelineFileCacheRasterizerState
 		return Ar;
 	}
 
-	friend RHI_API uint32 GetTypeHash(const FPipelineFileCacheRasterizerState &Key)
+	friend uint32 GetTypeHash(const FPipelineFileCacheRasterizerState &Key)
 	{
 		uint32 KeyHash = (*((uint32*)&Key.DepthBias) ^ *((uint32*)&Key.SlopeScaleDepthBias));
 		KeyHash ^= (Key.FillMode << 8);
@@ -76,8 +76,8 @@ struct RHI_API FPipelineFileCacheRasterizerState
 		KeyHash ^= Key.bEnableLineAA ? 0x48271d01 : 0; // crc32 "bEnableLineAA"
 		return KeyHash;
 	}
-	FString ToString() const;
-	void FromString(const FStringView& Src);
+	RHI_API FString ToString() const;
+	RHI_API void FromString(const FStringView& Src);
 };
 
 class FRayTracingPipelineStateInitializer;
@@ -87,7 +87,7 @@ enum class ERayTracingPipelineCacheFlags : uint8;
 /**
  * Tracks stats for the current session between opening & closing the file-cache.
  */
-struct RHI_API FPipelineStateStats
+struct FPipelineStateStats
 {
 	FPipelineStateStats()
 	: FirstFrameUsed(-1)
@@ -102,9 +102,9 @@ struct RHI_API FPipelineStateStats
 	{
 	}
 
-	static void UpdateStats(FPipelineStateStats* Stats);
+	RHI_API static void UpdateStats(FPipelineStateStats* Stats);
 	
-	friend RHI_API FArchive& operator<<( FArchive& Ar, FPipelineStateStats& Info );
+	friend FArchive& operator<<( FArchive& Ar, FPipelineStateStats& Info );
 
 	int64 FirstFrameUsed;
 	int64 LastFrameUsed;
@@ -113,20 +113,20 @@ struct RHI_API FPipelineStateStats
 	uint32 PSOHash;
 };
 
-struct RHI_API FPipelineCacheFileFormatPSO
+struct FPipelineCacheFileFormatPSO
 {
 	using TReadableStringBuilder = TStringBuilder<1024>;
 
-	struct RHI_API ComputeDescriptor
+	struct ComputeDescriptor
 	{
 		FSHAHash ComputeShader;
 
-		FString ToString() const;
+		RHI_API FString ToString() const;
 		void AddToReadableString(TReadableStringBuilder& OutBuilder) const;
 		static FString HeaderLine();
-		void FromString(const FStringView& Src);
+		RHI_API void FromString(const FStringView& Src);
 	};
-	struct RHI_API GraphicsDescriptor
+	struct GraphicsDescriptor
 	{
 		FSHAHash VertexShader;
 		FSHAHash FragmentShader;
@@ -159,21 +159,21 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		uint8	MultiViewCount;
 		bool	bHasFragmentDensityAttachment;
 		
-		FString ToString() const;
-		void AddToReadableString(TReadableStringBuilder& OutBuilder) const;
-		static FString HeaderLine();
-		bool FromString(const FStringView& Src);
+		RHI_API FString ToString() const;
+		RHI_API void AddToReadableString(TReadableStringBuilder& OutBuilder) const;
+		RHI_API static FString HeaderLine();
+		RHI_API bool FromString(const FStringView& Src);
 
-		FString ShadersToString() const;
-		void AddShadersToReadableString(TReadableStringBuilder& OutBuilder) const;
+		RHI_API FString ShadersToString() const;
+		RHI_API void AddShadersToReadableString(TReadableStringBuilder& OutBuilder) const;
 
-		static FString ShaderHeaderLine();
-		void ShadersFromString(const FStringView& Src);
+		RHI_API static FString ShaderHeaderLine();
+		RHI_API void ShadersFromString(const FStringView& Src);
 
-		FString StateToString() const;
-		void AddStateToReadableString(TReadableStringBuilder& OutBuilder) const;
-		static FString StateHeaderLine();
-		bool StateFromString(const FStringView& Src);
+		RHI_API FString StateToString() const;
+		RHI_API void AddStateToReadableString(TReadableStringBuilder& OutBuilder) const;
+		RHI_API static FString StateHeaderLine();
+		RHI_API bool StateFromString(const FStringView& Src);
 
 		/** Not all RT flags make sense for the replayed PSO, only those that can influence the RT formats */
 		static ETextureCreateFlags ReduceRTFlags(ETextureCreateFlags InFlags);
@@ -181,7 +181,7 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		/** Not all DepthStencil flags make sense for the replayed PSO, only those that can influence the actual format */
 		static ETextureCreateFlags ReduceDSFlags(ETextureCreateFlags InFlags);
 	};
-	struct RHI_API FPipelineFileCacheRayTracingDesc
+	struct FPipelineFileCacheRayTracingDesc
 	{
 		FSHAHash ShaderHash;
 		uint32 DeprecatedMaxPayloadSizeInBytes = 0;
@@ -191,10 +191,10 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		FPipelineFileCacheRayTracingDesc() = default;
 		FPipelineFileCacheRayTracingDesc(const FRayTracingPipelineStateInitializer& Initializer, const FRHIRayTracingShader* ShaderRHI);
 
-		FString ToString() const;
+		RHI_API FString ToString() const;
 		void AddToReadableString(TReadableStringBuilder& OutBuilder) const;
 		FString HeaderLine() const;
-		void FromString(const FString& Src);
+		RHI_API void FromString(const FString& Src);
 
 		friend uint32 GetTypeHash(const FPipelineFileCacheRayTracingDesc& Desc)
 		{
@@ -227,13 +227,13 @@ struct RHI_API FPipelineCacheFileFormatPSO
 	int64 BindCount;
 #endif
 	
-	FPipelineCacheFileFormatPSO();
-	~FPipelineCacheFileFormatPSO();
+	RHI_API FPipelineCacheFileFormatPSO();
+	RHI_API ~FPipelineCacheFileFormatPSO();
 	
-	FPipelineCacheFileFormatPSO& operator=(const FPipelineCacheFileFormatPSO& Other);
-	FPipelineCacheFileFormatPSO(const FPipelineCacheFileFormatPSO& Other);
+	RHI_API FPipelineCacheFileFormatPSO& operator=(const FPipelineCacheFileFormatPSO& Other);
+	RHI_API FPipelineCacheFileFormatPSO(const FPipelineCacheFileFormatPSO& Other);
 	
-	bool operator==(const FPipelineCacheFileFormatPSO& Other) const;
+	RHI_API bool operator==(const FPipelineCacheFileFormatPSO& Other) const;
 
 	friend RHI_API uint32 GetTypeHash(const FPipelineCacheFileFormatPSO &Key);
 	friend RHI_API FArchive& operator<<( FArchive& Ar, FPipelineCacheFileFormatPSO& Info );
@@ -242,18 +242,18 @@ struct RHI_API FPipelineCacheFileFormatPSO
 	static bool Init(FPipelineCacheFileFormatPSO& PSO, FGraphicsPipelineStateInitializer const& Init);
 	static bool Init(FPipelineCacheFileFormatPSO & PSO, FPipelineFileCacheRayTracingDesc const& Desc);
 
-	FString CommonToString() const;
-	static FString CommonHeaderLine();
-	void CommonFromString(const FStringView& Src);
+	RHI_API FString CommonToString() const;
+	RHI_API static FString CommonHeaderLine();
+	RHI_API void CommonFromString(const FStringView& Src);
 
 	/** Prints out human-readable representation of the PSO, for any type */
-	FString ToStringReadable() const;
+	RHI_API FString ToStringReadable() const;
 	
 	// Potential cases for seperating verify logic if requiired: RunTime-Logging, RunTime-UserCaching, RunTime-PreCompile, CommandLet-Cooking
-	bool Verify() const;
+	RHI_API bool Verify() const;
 };
 
-struct RHI_API FPipelineCacheFileFormatPSORead
+struct FPipelineCacheFileFormatPSORead
 {	
 	FPipelineCacheFileFormatPSORead()
 	: Ar(nullptr)
@@ -284,7 +284,7 @@ struct RHI_API FPipelineCacheFileFormatPSORead
 	TSharedPtr<class IAsyncReadRequest, ESPMode::ThreadSafe> ReadRequest;
 };
 
-struct RHI_API FPipelineCachePSOHeader
+struct FPipelineCachePSOHeader
 {
 	TSet<FSHAHash> Shaders;
 	uint32 Hash;

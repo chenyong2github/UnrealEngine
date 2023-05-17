@@ -67,10 +67,10 @@ extern RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
 
 #if HAS_GPU_STATS
 
-struct RHI_API FDrawCallCategoryName
+struct FDrawCallCategoryName
 {
-	FDrawCallCategoryName();
-	FDrawCallCategoryName(FName InName);
+	RHI_API FDrawCallCategoryName();
+	RHI_API FDrawCallCategoryName(FName InName);
 
 	bool ShouldCountDraws() const { return Index != -1; }
 
@@ -88,10 +88,10 @@ struct RHI_API FDrawCallCategoryName
 
 		int32 NumCategory;
 
-		FManager();
+		RHI_API FManager();
 	};
 
-	static FManager& GetManager();
+	RHI_API static FManager& GetManager();
 };
 
 // RHI counter stats.

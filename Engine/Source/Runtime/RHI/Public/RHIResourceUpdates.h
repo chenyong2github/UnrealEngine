@@ -40,21 +40,21 @@ struct FRHIResourceUpdateInfo
 	void ReleaseRefs();
 };
 
-struct RHI_API FRHIResourceUpdateBatcher
+struct FRHIResourceUpdateBatcher
 {
 	TArrayView<FRHIResourceUpdateInfo> UpdateInfos;
 	int32 NumBatched = 0;
 
-	~FRHIResourceUpdateBatcher();
+	RHI_API ~FRHIResourceUpdateBatcher();
 
-	void Flush();
+	RHI_API void Flush();
 
-	void QueueUpdateRequest(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer);
-	void QueueUpdateRequest(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry);
+	RHI_API void QueueUpdateRequest(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer);
+	RHI_API void QueueUpdateRequest(FRHIRayTracingGeometry* DestGeometry, FRHIRayTracingGeometry* SrcGeometry);
 
 protected:
 	FRHIResourceUpdateBatcher() = delete;
-	FRHIResourceUpdateBatcher(TArrayView<FRHIResourceUpdateInfo> InUpdateInfos);
+	RHI_API FRHIResourceUpdateBatcher(TArrayView<FRHIResourceUpdateInfo> InUpdateInfos);
 
 private:
 	FRHIResourceUpdateInfo& GetNextUpdateInfo();
