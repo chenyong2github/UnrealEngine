@@ -5,6 +5,7 @@
 
 #include <mutex>  // for std::lock_guard
 
+#include "core/common/narrow.h"
 #include "core/flatbuffers/schema/ort.fbs.h"
 #include "core/flatbuffers/flatbuffers_utils.h"
 #include "core/graph/op_identifier_utils.h"
