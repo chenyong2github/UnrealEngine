@@ -14,6 +14,8 @@ struct CQTEST_API FActorTestSpawner : public FSpawnHelper
 
 	void InitializeGameSubsystems();
 
+	UTestGameInstance* GetGameInstance();
+
 protected:
 	virtual UWorld* CreateWorld() override;
 

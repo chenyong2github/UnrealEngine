@@ -96,3 +96,8 @@ void FActorTestSpawner::InitializeGameSubsystems()
 	GameInstance->AddToRoot();
 	GameInstance->InitializeForTest(GetWorld());
 }
+
+UTestGameInstance* FActorTestSpawner::GetGameInstance()
+{
+	return GameInstance;
+}
