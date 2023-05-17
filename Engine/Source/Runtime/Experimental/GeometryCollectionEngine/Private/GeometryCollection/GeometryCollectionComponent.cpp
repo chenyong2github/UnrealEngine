@@ -3241,9 +3241,10 @@ void UGeometryCollectionComponent::SetPerParticleCollisionProfileName(const TArr
 		return;
 	}
 
-	if (CollisionProfilePerParticle.IsEmpty())
+	const int32 NumTransforms = RestCollection->GetGeometryCollection()->Transform.Num();
+	if (CollisionProfilePerParticle.Num() != NumTransforms)
 	{
-		CollisionProfilePerParticle.SetNumZeroed(RestCollection->GetGeometryCollection()->Transform.Num());
+		CollisionProfilePerParticle.SetNumZeroed(NumTransforms);
 	}
 
 	for (int32 Id : BoneIds)
