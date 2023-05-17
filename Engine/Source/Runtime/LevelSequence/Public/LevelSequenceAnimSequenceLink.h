@@ -58,6 +58,8 @@ class LEVELSEQUENCE_API ULevelSequenceAnimSequenceLink : public UAssetUserData
 	GENERATED_UCLASS_BODY()
 
 public:
+	virtual bool IsEditorOnly() const override { return true; }
+
 	UPROPERTY(BlueprintReadWrite, Category = Links)
 	TArray< FLevelSequenceAnimSequenceLinkItem> AnimSequenceLinks;
 };
