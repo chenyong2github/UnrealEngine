@@ -362,9 +362,9 @@ FFieldMulticastDelegate::FRemoveAllResult FFieldMulticastDelegate::RemoveAll(con
 	{
 		for (FInvocationElement& Element : Delegates)
 		{
-			if (Element.Key.Id == InFieldId && Element.Key.Object == InObject)
+			if (Element.Key.Object == InObject)
 			{
-				if (Element.Delegate.IsBoundToObject(InUserObject))
+				if (Element.Key.Id == InFieldId && Element.Delegate.IsBoundToObject(InUserObject))
 				{
 					Element.Delegate.Unbind();
 					++CompactionCount;
