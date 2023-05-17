@@ -518,7 +518,7 @@ namespace UE
 					else
 					{
 						UE_LOG(
-							LogTemp,
+							LogUsd,
 							Warning,
 							TEXT("Unexpected shader node id '%s' when traversing texture node '%s' for primvars!"),
 							*UsdToUnreal::ConvertToken(ConnectedNodeId),
