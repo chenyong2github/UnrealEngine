@@ -17,7 +17,7 @@ public:
 	UMovieGraphVariableNode();
 
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
-	virtual FString GetResolvedValueForOutputPin(const FName& InPinName) const override;
+	virtual FString GetResolvedValueForOutputPin(const FName& InPinName, const FMovieGraphTraversalContext* InContext) const override;
 
 	/** Gets the variable that this node represents. */
 	UMovieGraphVariable* GetVariable() const { return GraphVariable; }

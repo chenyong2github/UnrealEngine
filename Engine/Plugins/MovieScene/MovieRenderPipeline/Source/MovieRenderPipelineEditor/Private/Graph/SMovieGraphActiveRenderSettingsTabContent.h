@@ -7,6 +7,8 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
+class UMoviePipelineExecutorJob;
+class UMoviePipelineQueue;
 class UMovieGraphEvaluatedConfig;
 class UMovieGraphNode;
 
@@ -128,6 +130,9 @@ private:
 	/** Handles the button click for evaluating the graph. */
 	FReply OnEvaluateGraphClicked();
 
+	/** Generates the menu for the Evaluation Context button. */
+	TSharedRef<SWidget> GenerateEvaluationContextMenu();
+
 	/** Handles the expansion state change of an element in the tree. */
 	void OnExpansionChanged(TSharedPtr<FActiveRenderSettingsTreeElement> InElement, bool bInExpanded);
 
@@ -139,6 +144,15 @@ private:
 
 	/** Gets the child elements in the tree for the provided element. */
 	void GetChildrenForTree(TSharedPtr<FActiveRenderSettingsTreeElement> InItem, TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& OutChildren);
+
+	/** Gets the text that is displayed on the queue picker button (in the evaluation context menu). */
+	FText GetQueueButtonText() const;
+
+	/** Generates the menu contents for the queue picker button. Populates the QueuePickerWidget member. */
+	TSharedRef<SWidget> MakeQueueButtonMenuContents();
+
+	/** Handles a new job selection in the evaluation context menu. */
+	void HandleJobSelected(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo);
 
 private:
 	/** The runtime graph that this UI gets data from. */
@@ -155,4 +169,16 @@ private:
 
 	/** The root-most elements in the tree, which are always present. */
 	TArray<TSharedPtr<FActiveRenderSettingsTreeElement>> RootElements;
+
+	/** The widget that houses the queue asset picker. */
+	TSharedPtr<SWidget> QueuePickerWidget = nullptr;
+
+	/** The queue that is selected in the evaluation context settings. */
+	TWeakObjectPtr<UMoviePipelineQueue> TraversalQueue = nullptr;
+
+	/** The job that is selected in the evaluation context settings. */
+	TWeakObjectPtr<UMoviePipelineExecutorJob> TraversalJob = nullptr;
+
+	/** The jobs that are available to be selected in the evaluation context settings. */
+	TArray<TSharedPtr<FString>> AvailableJobsInQueue;
 };

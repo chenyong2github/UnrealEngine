@@ -2,10 +2,17 @@
 
 #include "SMovieGraphActiveRenderSettingsTabContent.h"
 
+#include "ContentBrowserModule.h"
+#include "Editor.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Graph/MovieGraphConfig.h"
 #include "Graph/MovieGraphNode.h"
 #include "Graph/Nodes/MovieGraphRenderPassNode.h"
+#include "IContentBrowserSingleton.h"
+#include "MoviePipelineQueue.h"
+#include "MoviePipelineQueueSubsystem.h"
 #include "SPositiveActionButton.h"
+#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "SMoviePipelineActiveRenderSettingsTabContent"
 
@@ -274,6 +281,22 @@ void SMovieGraphActiveRenderSettingsTabContent::Construct(const FArguments& InAr
 {
 	CurrentGraph = InArgs._Graph;
 
+	const UMoviePipelineQueueSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>();
+	check(Subsystem);
+
+	// Initialize with the current queue (if there is one), and pick the first job by default (if a job exists)
+	if (UMoviePipelineQueue* Queue = Subsystem->GetQueue())
+	{
+		// Note: The queue from the queue subsystem is probably transient
+		TraversalQueue = Queue;
+
+		const TArray<UMoviePipelineExecutorJob*>& Jobs = TraversalQueue->GetJobs();
+		if (!Jobs.IsEmpty())
+		{
+			TraversalJob = Jobs[0];
+		}
+	}
+
 	// Add the two default root elements, "Globals" and "Branches", which are always visible. These elements will
 	// generate the children which should be displayed under them in the tree.
 	RootElements.Add(MakeShared<FActiveRenderSettingsTreeElement>(
@@ -293,9 +316,19 @@ void SMovieGraphActiveRenderSettingsTabContent::Construct(const FArguments& InAr
 			.AutoWidth()
 			[
 				SNew(SPositiveActionButton)
-				.Text(FText::FromString("Evaluate Graph"))
+				.Text(LOCTEXT("Button_EvaluateGraph", "Evaluate Graph"))
 				.Icon(FAppStyle::GetBrush("Icons.Refresh"))
 				.OnClicked(this, &SMovieGraphActiveRenderSettingsTabContent::OnEvaluateGraphClicked)
+			]
+
+			+SHorizontalBox::Slot()
+			.Padding(5, 0, 0, 0)
+			.AutoWidth()
+			[
+				SNew(SPositiveActionButton)
+				.Text(LOCTEXT("Button_EvaluationContext", "Evaluation Context..."))
+				.Icon(FAppStyle::GetBrush("EditorPreferences.TabIcon"))
+				.OnGetMenuContent(this, &SMovieGraphActiveRenderSettingsTabContent::GenerateEvaluationContextMenu)
 			]
 		]
 
@@ -355,8 +388,8 @@ void SMovieGraphActiveRenderSettingsTabContent::TraverseGraph()
 		RootElement->ClearCachedChildren();
 	}
 
-	// TODO: Fill in the context via the UI (there are no widgets to provide this info yet)
 	FMovieGraphTraversalContext Context;
+	Context.Job = TraversalJob.Get();
 
 	// Traverse the graph, and update the root elements
 	FlattenedGraph = TStrongObjectPtr(CurrentGraph->CreateFlattenedGraph(Context));
@@ -378,6 +411,83 @@ FReply SMovieGraphActiveRenderSettingsTabContent::OnEvaluateGraphClicked()
 {
 	TraverseGraph();
 	return FReply::Handled();
+}
+
+TSharedRef<SWidget> SMovieGraphActiveRenderSettingsTabContent::GenerateEvaluationContextMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	MenuBuilder.BeginSection(NAME_None, LOCTEXT("JobContext_MenuSection", "Job Context"));
+	{
+		const TSharedRef<SWidget> JobPicker = SNew(SBox)
+		.WidthOverride(400)
+		.Padding(10)
+		[
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.FillWidth(0.3f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("JobContext_QueueLabel", "Queue"))
+				]
+
+				+SHorizontalBox::Slot()
+				.FillWidth(0.7f)
+				[
+					SNew(SPositiveActionButton)
+					.Text(this, &SMovieGraphActiveRenderSettingsTabContent::GetQueueButtonText)
+					.OnGetMenuContent(this, &SMovieGraphActiveRenderSettingsTabContent::MakeQueueButtonMenuContents)
+				]
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.FillWidth(0.3f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("JobContext_JobLabel", "Job"))
+				]
+
+				+SHorizontalBox::Slot()
+				.FillWidth(0.7f)
+				[
+					SNew(SComboBox<TSharedPtr<FString>>)
+					.IsEnabled_Lambda([this]() { return TraversalQueue != nullptr; })
+					.OptionsSource(&AvailableJobsInQueue)
+					.OnGenerateWidget_Lambda([](TSharedPtr<FString> Item)
+					{
+						return SNew(STextBlock)
+							.Text(FText::FromString(*Item));
+					})
+					.OnSelectionChanged(this, &SMovieGraphActiveRenderSettingsTabContent::HandleJobSelected)
+					[
+						SNew(STextBlock)
+						.MinDesiredWidth(50.f)
+						.Text_Lambda([this]()
+						{
+							if (TraversalJob.IsValid())
+							{
+								return FText::FromString(TraversalJob->JobName);
+							}
+
+							return LOCTEXT("JobContext_NoJobSelected", "No job selected");
+						})
+					]
+				]
+			]
+		];
+
+		MenuBuilder.AddWidget(JobPicker, FText(), true, false);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 void SMovieGraphActiveRenderSettingsTabContent::OnExpansionChanged(TSharedPtr<FActiveRenderSettingsTreeElement> InElement, bool bInExpanded)
@@ -425,6 +535,118 @@ void SMovieGraphActiveRenderSettingsTabContent::GetChildrenForTree(
 	TSharedPtr<FActiveRenderSettingsTreeElement> InItem, TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& OutChildren)
 {
 	OutChildren.Append(InItem->GetChildren());
+}
+
+FText SMovieGraphActiveRenderSettingsTabContent::GetQueueButtonText() const
+{
+	if (!TraversalQueue.IsValid())
+	{
+		return LOCTEXT("JobContext_PickAQueue", "Pick a queue...");
+	}
+	
+	// If the queue has an origin queue, use the origin's name. A queue will have a defined origin
+	// if the queue is coming from the queue subsystem (since the subsystem usually points to a transient
+	// queue which is being displayed in the queue UI).
+	if (const UMoviePipelineQueue* QueueOrigin = TraversalQueue->GetQueueOrigin())
+	{
+		return FText::FromString(QueueOrigin->GetName());
+	}
+
+	// If the queue doesn't have an origin, this queue was probably picked here in the graph. If it has a
+	// non-transient package, it has been saved at some point, so we can use the queue name.
+	const UPackage* Package = TraversalQueue->GetPackage();
+	if (Package && !Package->HasAnyPackageFlags(PKG_TransientFlags))
+	{
+		return FText::FromString(TraversalQueue->GetName());
+	}
+
+	// This is most likely an unsaved transient queue from the queue UI
+	return LOCTEXT("JobContext_UnnamedQueue", "Unnamed queue");
+}
+
+TSharedRef<SWidget> SMovieGraphActiveRenderSettingsTabContent::MakeQueueButtonMenuContents()
+{
+	FMenuBuilder MenuBuilder(true, nullptr);
+    IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
+
+    FAssetPickerConfig AssetPickerConfig;
+    {
+		// If a transient queue (with a queue origin) is active, select the origin queue. The origin queue will be saved
+		// so it will properly show up as selected in the asset picker (whereas a transient queue will not).
+		AssetPickerConfig.InitialAssetSelection = (TraversalQueue.IsValid() && TraversalQueue->GetQueueOrigin())
+			? FAssetData(TraversalQueue->GetQueueOrigin())
+			: FAssetData(TraversalQueue.Get());
+		
+    	AssetPickerConfig.SelectionMode = ESelectionMode::Single;
+    	AssetPickerConfig.InitialAssetViewType = EAssetViewType::Column;
+    	AssetPickerConfig.bFocusSearchBoxWhenOpened = true;
+    	AssetPickerConfig.bAllowNullSelection = false;
+    	AssetPickerConfig.bShowBottomToolbar = true;
+    	AssetPickerConfig.bAutohideSearchBar = false;
+    	AssetPickerConfig.bAllowDragging = false;
+    	AssetPickerConfig.bCanShowClasses = false;
+    	AssetPickerConfig.bShowPathInColumnView = false;
+    	AssetPickerConfig.bShowTypeInColumnView = false;
+    	AssetPickerConfig.bSortByPathInColumnView = false;
+    	AssetPickerConfig.SaveSettingsName = TEXT("MovieRenderGraphTraversalContextQueue");
+    	AssetPickerConfig.AssetShowWarningText = LOCTEXT("JobContext_NoQueuesWarning", "No Queues Found");
+    	AssetPickerConfig.Filter.ClassPaths.Add(UMoviePipelineQueue::StaticClass()->GetClassPathName());
+    	AssetPickerConfig.OnAssetSelected.BindLambda([this](const FAssetData& InAsset)
+    	{
+    		TraversalQueue = Cast<UMoviePipelineQueue>(InAsset.GetAsset());
+    		if (TraversalQueue.IsValid())
+    		{
+    			const UMoviePipelineQueueSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMoviePipelineQueueSubsystem>();
+    			check(Subsystem);
+
+    			// If the selected queue matches the current queue being edited in the queue UI,
+    			// use the transient queue from the queue UI. This will let the user edit the queue
+    			// without saving, and have those updates reflected in the traversal.
+    			UMoviePipelineQueue* CurrentQueue = Subsystem->GetQueue();
+    			if (CurrentQueue && (CurrentQueue->GetQueueOrigin() == TraversalQueue))
+    			{
+    				TraversalQueue = CurrentQueue;
+    			}
+
+    			// Reset job selection state
+    			AvailableJobsInQueue.Empty();
+    			TraversalJob = nullptr;
+    			Algo::Transform(TraversalQueue->GetJobs(), AvailableJobsInQueue, [](const UMoviePipelineExecutorJob* Job)
+    			{
+    				return MakeShared<FString>(Job->JobName);
+    			});
+    		}
+
+    		if (QueuePickerWidget.IsValid())
+    		{
+    			FSlateApplication::Get().DismissMenuByWidget(QueuePickerWidget.ToSharedRef());
+    		}
+    	});
+    }
+
+    SAssignNew(QueuePickerWidget, SBox)
+    	.WidthOverride(300.f)
+    	.HeightOverride(300.f)
+    	[
+    		ContentBrowser.CreateAssetPicker(AssetPickerConfig)
+    	];
+
+    MenuBuilder.AddWidget(QueuePickerWidget.ToSharedRef(), FText(), true, false);
+
+    return MenuBuilder.MakeWidget();
+}
+
+void SMovieGraphActiveRenderSettingsTabContent::HandleJobSelected(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
+{
+	// Find the associated job object
+	for (UMoviePipelineExecutorJob* Job : TraversalQueue->GetJobs())
+	{
+		if (Job && (Job->JobName == *Item))
+		{
+			TraversalJob = Job;
+			break;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -23,6 +23,7 @@ class UMovieGraphOutput;
 class UMovieGraphPin;
 class UMovieGraphVariable;
 struct FMovieGraphEvaluationContext;
+struct FMovieGraphTraversalContext;
 
 #if WITH_EDITOR
 class UEdGraphNode;
@@ -106,7 +107,7 @@ public:
 	 * Gets the resolved value of a named output pin (one that is returned in GetOutputPinProperties()). If the resolved
 	 * value could not be determined, an empty string is returned.
 	 */
-	virtual FString GetResolvedValueForOutputPin(const FName& InPinName) const
+	virtual FString GetResolvedValueForOutputPin(const FName& InPinName, const FMovieGraphTraversalContext* InContext) const
 	{
 		return FString();
 	}

@@ -223,15 +223,20 @@ bool UMovieJobVariableAssignmentContainer::FindOrGenerateVariableOverride(
 {
 	if (InGraphVariable)
 	{
-		const FString EditCondPropName = FString::Format(TEXT("{0}{1}"), {EditConditionPrefix, InGraphVariable->Name});
-		
 		if (const FPropertyBagPropertyDesc* Desc = Value.FindPropertyDescByName(FName(InGraphVariable->Name)))
 		{
-			*OutPropDesc = *Desc;
-
-			if (const FPropertyBagPropertyDesc* EditCondPropDesc = Value.FindPropertyDescByName(FName(EditCondPropName)))
+			if (OutPropDesc)
 			{
-				*OutEditConditionPropDesc = *EditCondPropDesc;
+				*OutPropDesc = *Desc;
+			}
+
+			if (OutEditConditionPropDesc)
+			{
+				const FString EditCondPropName = FString::Format(TEXT("{0}{1}"), {EditConditionPrefix, Desc->ID.ToString()});
+				if (const FPropertyBagPropertyDesc* EditCondPropDesc = Value.FindPropertyDescByName(FName(EditCondPropName)))
+				{
+					*OutEditConditionPropDesc = *EditCondPropDesc;
+				}
 			}
 			
 			return true;
@@ -450,15 +455,17 @@ bool UMovieJobVariableAssignmentContainer::SetVariableAssignmentEnableState(cons
 bool UMovieJobVariableAssignmentContainer::GetVariableAssignmentEnableState(const UMovieGraphVariable* InGraphVariable, bool& bOutIsEnabled)
 {
 	FPropertyBagPropertyDesc* PropDesc = nullptr;
-	FPropertyBagPropertyDesc* EditConditionPropDesc = nullptr;
+	FPropertyBagPropertyDesc EditConditionPropDesc;
 	const bool bAddIfNotExists = false;
-	if (FindOrGenerateVariableOverride(InGraphVariable, PropDesc, EditConditionPropDesc, bAddIfNotExists))
+	if (FindOrGenerateVariableOverride(InGraphVariable, PropDesc, &EditConditionPropDesc, bAddIfNotExists))
 	{
-		const FString EditCondPropName = FString::Format(TEXT("{0}{1}"), {EditConditionPrefix, InGraphVariable->Name});
-		TValueOrError<bool, EPropertyBagResult> Result = Value.GetValueBool(FName(EditCondPropName));
-		bOutIsEnabled = Result.GetValue();
+		TValueOrError<bool, EPropertyBagResult> Result = Value.GetValueBool(EditConditionPropDesc.Name);
+		if (Result.HasValue())
+		{
+			bOutIsEnabled = Result.GetValue();
+		}
 		
-		return !Result.HasError();
+		return Result.HasValue();
 	}
 
 	return false;

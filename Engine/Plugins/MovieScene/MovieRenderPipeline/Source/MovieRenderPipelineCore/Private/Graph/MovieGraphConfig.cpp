@@ -668,7 +668,7 @@ void UMovieGraphConfig::InitializeFlattenedNode(UMovieGraphNode* InNode)
 	InNode->UpdateDynamicProperties();
 }
 
-void UMovieGraphConfig::CopyOverriddenProperties(UMovieGraphNode* FromNode, UMovieGraphNode* ToNode)
+void UMovieGraphConfig::CopyOverriddenProperties(UMovieGraphNode* FromNode, UMovieGraphNode* ToNode, const FMovieGraphTraversalContext* InContext)
 {
 	if (!ensure(FromNode && ToNode))
 	{
@@ -736,7 +736,7 @@ void UMovieGraphConfig::CopyOverriddenProperties(UMovieGraphNode* FromNode, UMov
 				{
 					// There was a valid connection to the input pin; resolve the value from the connected output and set the
 					// value on this property
-					const FString ResolvedValue = ConnectedPin->Node->GetResolvedValueForOutputPin(ConnectedPin->Properties.Label);
+					const FString ResolvedValue = ConnectedPin->Node->GetResolvedValueForOutputPin(ConnectedPin->Properties.Label, InContext);
 					if (bIsDynamic)
 					{
 						ToNode->SetDynamicPropertyValue(PropertyName, ResolvedValue);
@@ -837,7 +837,7 @@ void UMovieGraphConfig::CreateFlattenedGraph_Recursive(UMovieGraphEvaluatedConfi
 
 		// ToDo: Handle "Disable" ndoes that can disable upstream types of nodes, etc. Push disable types into
 		// the currently evaluating context
-		CopyOverriddenProperties(Node, ExistingNode);
+		CopyOverriddenProperties(Node, ExistingNode, &InEvaluationContext.UserContext);
 	}
 	
 	// Now that we've potentially resolved the values on this node, continue to travel up-stream along any execution pins,

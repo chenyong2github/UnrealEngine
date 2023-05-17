@@ -3,6 +3,7 @@
 #include "Graph/Nodes/MovieGraphVariableNode.h"
 
 #include "Graph/MovieGraphConfig.h"
+#include "MoviePipelineQueue.h"
 #include "Styling/AppStyle.h"
 
 UMovieGraphVariableNode::UMovieGraphVariableNode()
@@ -29,10 +30,25 @@ TArray<FMovieGraphPinProperties> UMovieGraphVariableNode::GetOutputPinProperties
 	return Properties;
 }
 
-FString UMovieGraphVariableNode::GetResolvedValueForOutputPin(const FName& InPinName) const
+FString UMovieGraphVariableNode::GetResolvedValueForOutputPin(const FName& InPinName, const FMovieGraphTraversalContext* InContext) const
 {
 	if (GraphVariable && (GraphVariable->Name == InPinName))
 	{
+		// If there's a valid job in the traversal context, and the job has an enabled variable assignment, use that
+		// instead of the variable value set in the graph
+		if (InContext && InContext->Job)
+		{
+			bool bIsEnabled = false;
+			if (InContext->Job->VariableAssignments->GetVariableAssignmentEnableState(GraphVariable, bIsEnabled))
+			{
+				if (bIsEnabled)
+				{
+					return InContext->Job->VariableAssignments->GetValueSerializedString(FName(GraphVariable->Name));
+				}
+			}
+		}
+
+		// No valid job context: just get the value from the variable
 		return GraphVariable->GetValueSerializedString();
 	}
 	
