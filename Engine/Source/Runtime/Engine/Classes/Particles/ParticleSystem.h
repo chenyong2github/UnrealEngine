@@ -122,6 +122,8 @@ public:
 
 	ENGINE_API virtual void PostInitProperties() override;
 
+	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
+
 	/** Max number of components of this system to keep resident in the world component pool. */
 	UPROPERTY(EditAnywhere, Category = Performance)
 	uint32 MaxPoolSize;
@@ -154,7 +156,7 @@ public:
 #endif
 #endif
 
-	const FGraphEventArray& GetPrecachePSOsEvents() const { return PrecachePSOsEvents; }
+	const FGraphEventRef& GetPrecachePSOsEvent() const { return PrecachePSOsEvent; }
 	const TArray<FMaterialPSOPrecacheRequestID>& GetMaterialPSOPrecacheRequestIDs() const { return MaterialPSOPrecacheRequestIDs; }
 
 protected:
@@ -168,7 +170,7 @@ protected:
 
 	ENGINE_API void LaunchPSOPrecaching(TArrayView<VFsPerMaterialData> VFsPerMaterials);
 
-	FGraphEventArray PrecachePSOsEvents;
+	FGraphEventRef PrecachePSOsEvent;
 	TArray<FMaterialPSOPrecacheRequestID> MaterialPSOPrecacheRequestIDs;
 };
 

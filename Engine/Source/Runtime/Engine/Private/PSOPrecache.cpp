@@ -238,6 +238,15 @@ public:
 				{
 					CollectionGraphEvent = FGraphEvent::CreateGraphEvent();
 					PrecacheData.CollectionGraphEvent = CollectionGraphEvent;
+
+					// Create task the clear mark fully complete in the cache when done
+					FFunctionGraphTask::CreateAndDispatchWhenReady(
+						[this, Params]
+						{
+							MarkCompilationComplete(Params);
+						},
+						TStatId{}, CollectionGraphEvent
+						);
 				}
 				MaterialPSORequestData.Add(Params, PrecacheData);
 			}
@@ -283,6 +292,12 @@ public:
 
 		// update the state
 		FindResult->State = FindResult->ActivePSOPrecacheRequests.IsEmpty() ? EState::Completed : EState::Compiling;
+
+		// Release the graph event when done
+		if (FindResult->State == EState::Completed)
+		{
+			FindResult->CollectionGraphEvent = nullptr;
+		}
 
 		// Boost priority if requested already
 		if (FindResult->Priority == EPSOPrecachePriority::High)
@@ -374,11 +389,22 @@ private:
 			if (PrecacheData.ActivePSOPrecacheRequests.IsEmpty())
 			{
 				PrecacheData.State = EState::Completed;
+				PrecacheData.CollectionGraphEvent = nullptr;
 			}
 		}
 
 		// Not done yet?
 		return (PrecacheData.State != EState::Completed);
+	}	
+
+	void MarkCompilationComplete(const FMaterialPSOPrecacheParams& Params)
+	{
+		FRWScopeLock WriteLock(RWLock, SLT_Write);
+		FPrecacheData* FindResult = MaterialPSORequestData.Find(Params);
+		if (FindResult)
+		{
+			verify(!CheckCompilingPSOs(*FindResult, false /*bBoostPriority*/));
+		}
 	}
 
 	FRWLock RWLock;

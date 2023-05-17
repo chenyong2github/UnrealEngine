@@ -145,11 +145,23 @@ void UFXSystemAsset::PostInitProperties()
 #endif
 }
 
+bool UFXSystemAsset::IsReadyForFinishDestroy()
+{
+	// Don't touch PrecachePSOsEvent directly because the cleanup task could set to a nullptr
+	if (PrecachePSOsEvent)
+	{
+		return false;
+	}
+
+	return Super::IsReadyForFinishDestroy();
+}
+
 void UFXSystemAsset::LaunchPSOPrecaching(TArrayView<VFsPerMaterialData> VFsPerMaterials)
 {
 	FPSOPrecacheParams PreCachePSOParams;
 	PreCachePSOParams.SetMobility(EComponentMobility::Movable);
 
+	FGraphEventArray PrecachePSOsEvents;
 	for (VFsPerMaterialData& VFsPerMaterial : VFsPerMaterials)
 	{
 		if (VFsPerMaterial.MaterialInterface)
@@ -158,6 +170,34 @@ void UFXSystemAsset::LaunchPSOPrecaching(TArrayView<VFsPerMaterialData> VFsPerMa
 			PreCachePSOParams.bDisableBackFaceCulling = VFsPerMaterial.bDisableBackfaceCulling;
 			PrecachePSOsEvents.Append(VFsPerMaterial.MaterialInterface->PrecachePSOs(VFsPerMaterial.VertexFactoryData, PreCachePSOParams,EPSOPrecachePriority::Medium, MaterialPSOPrecacheRequestIDs));
 		}
+	}
+
+	// Create task the clear cached events when done
+	if (PrecachePSOsEvents.Num() > 0)
+	{
+		struct FReleasePrecachePSOsEventTask
+		{
+			explicit FReleasePrecachePSOsEventTask(FGraphEventRef& InPrecachePSOsEvent)
+				: PrecachePSOsEvent(&InPrecachePSOsEvent)
+			{
+			}
+
+			static TStatId GetStatId() { return TStatId(); }
+			static ENamedThreads::Type GetDesiredThread() { return ENamedThreads::AnyThread; }
+			static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+			void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+			{
+				*PrecachePSOsEvent = nullptr;
+			}
+
+			FGraphEventRef* PrecachePSOsEvent;
+		};
+
+		// need to set `PrecachePSOsEvent` before the task is launched to not race with its execution
+		TGraphTask<FReleasePrecachePSOsEventTask>* ReleasePrecachePSOsEventTask = TGraphTask<FReleasePrecachePSOsEventTask>::CreateTask().ConstructAndHold(PrecachePSOsEvent);
+		PrecachePSOsEvent = ReleasePrecachePSOsEventTask->GetCompletionEvent();
+		ReleasePrecachePSOsEventTask->Unlock();
 	}
 }
 
@@ -3508,7 +3548,7 @@ void UFXSystemComponent::PrecacheAssetPSOs(UFXSystemAsset* FXSystemAsset)
 		return;
 	}
 
-	const FGraphEventArray& GraphEvents = FXSystemAsset->GetPrecachePSOsEvents();
+	FGraphEventRef GraphEvent = FXSystemAsset->GetPrecachePSOsEvent();
 
 	check(IsInGameThread() || IsInParallelGameThread());
 
@@ -3517,20 +3557,14 @@ void UFXSystemComponent::PrecacheAssetPSOs(UFXSystemAsset* FXSystemAsset)
 	bPSOPrecacheRequestBoosted = false;
 
 	// The asset will keep the Precache events alive, but these might be over. Avoid delaying scene proxy creation if everything is finished
-	bool bAllEventsDone = true;
-	for (FGraphEventRef GraphEvent : GraphEvents)
-	{
-		if (!GraphEvent->IsComplete())
-		{
-			bAllEventsDone = false;
-			break;
-		}
-	}
-
+	bool bAllEventsDone = GraphEvent == nullptr || GraphEvent->IsComplete();
 	if (!bAllEventsDone)
 	{
 		MaterialPSOPrecacheRequestIDs.Append(FXSystemAsset->GetMaterialPSOPrecacheRequestIDs());
-		RequestRecreateRenderStateWhenPSOPrecacheFinished(GraphEvents);
+
+		FGraphEventArray Events;
+		Events.Add(GraphEvent);
+		RequestRecreateRenderStateWhenPSOPrecacheFinished(Events);
 	}
 
 	bPSOPrecacheCalled = true;
