@@ -4,10 +4,10 @@
 #include "HAL/IConsoleManager.h"
 #include "UObject/UnrealType.h"
 #include "UObject/PropertyPortFlags.h"
+#include "Misc/ConfigCacheIni.h"
 
 #if WITH_EDITOR
 #include "Engine/Texture.h"
-#include "Misc/ConfigCacheIni.h"
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureImportSettings)
