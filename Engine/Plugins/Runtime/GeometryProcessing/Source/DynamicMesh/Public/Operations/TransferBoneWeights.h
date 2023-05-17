@@ -4,7 +4,6 @@
 
 #include "GeometryTypes.h"
 #include "UObject/NameTypes.h"
-#include "Containers/BitArray.h"
 #include "TransformTypes.h"
 
 // Forward declarations
@@ -196,8 +195,8 @@ public:
 	/**
 	 * Compute the bone weights for a given point using the ETransferBoneWeightsMethod::ClosestPointOnSurface algorithm.
 	 *
-	 * @param OutWeights 		Bone weight computed for the input transformed point
-	 * @param InPoint 		    Point for which we are computing the bone weight
+	 * @param OutWeights 		Bone weight computed for the input transformed point.
+	 * @param InPoint			Point for which we are computing the bone weight.
 	 * @param TargetBoneToIndex Optional map from the bone names to the bone indices of the target skeleton. 
 	 * 							If null, the bone indices of the skinning weights will not be re-indexed after the transfer.
 	 * @param InNormal			Normal at the input point. Should be set if NormalThreshold >= 0.
@@ -208,6 +207,28 @@ public:
 										const FVector3d& InPoint, 
 										const TMap<FName, uint16>* TargetBoneToIndex = nullptr,
 										const FVector3f& InNormal = FVector3f::Zero());
+	
+	/**
+	 * Compute the bone weights for a given point using the ETransferBoneWeightsMethod::ClosestPointOnSurface algorithm.
+	 *
+	 * @param OutBones			Array of bone indices. Array size is equal to the number of bone influences.
+	 * @param OutWeights		Array of bone weights. Array size is equal to the number of bone influences.
+	 * @param InPoint			Point for which we are computing the bone weight.
+	 * @param TargetBoneToIndex Optional map from the bone names to the bone indices of the target skeleton. 
+	 * 							If null, the bone indices of the skinning weights will not be re-indexed after the transfer.
+	 * @param InNormal			Normal at the input point. Should be set if NormalThreshold >= 0.
+	 * 
+	 * @return true if the algorithm succeeds, false if it failed to find the matching point or was canceled by the user.
+	 * 
+	 * @note Add specialization in the source file for template types you want to use. 
+	 * 		 Currently supporting int for BoneIndexType and float for BoneFloatWeightType, PosVectorType, NormalVectorType
+	 */
+	template<typename BoneIndexType, typename BoneFloatWeightType, typename PosVectorType,  typename NormalVectorType = float>
+	bool TransferWeightsToPoint(TArray<BoneIndexType>& OutBones,
+								TArray<BoneFloatWeightType>& OutWeights,
+								const UE::Math::TVector<PosVectorType>& InPoint,
+								const TMap<FName, uint16>* TargetBoneToIndex = nullptr,
+								const UE::Math::TVector<NormalVectorType>& InNormal = UE::Math::TVector<NormalVectorType>::Zero());
 protected:
 	
     /** @return if true, abort the computation. */

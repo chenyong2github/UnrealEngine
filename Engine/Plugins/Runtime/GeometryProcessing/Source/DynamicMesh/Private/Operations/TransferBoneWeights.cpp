@@ -493,6 +493,33 @@ bool FTransferBoneWeights::TransferWeightsToPoint(UE::AnimationCore::FBoneWeight
 	return true;
 }
 
+template<typename BoneIndexType, typename BoneFloatWeightType, typename PosVectorType, typename NormalVectorType>
+bool FTransferBoneWeights::TransferWeightsToPoint(TArray<BoneIndexType>& OutBones, 
+												  TArray<BoneFloatWeightType>& OutWeights,
+												  const UE::Math::TVector<PosVectorType>& InPoint,
+												  const TMap<FName, uint16>* TargetBoneToIndex,
+												  const UE::Math::TVector<NormalVectorType>& InNormal)
+{
+	FBoneWeights BoneWeights;
+	if (!this->TransferWeightsToPoint(BoneWeights, FVector3d(InPoint), TargetBoneToIndex, FVector3f(InNormal)))
+	{
+		return false;
+	}
+
+	const int32 NumEntries = BoneWeights.Num();
+
+	OutBones.SetNum(NumEntries);
+	OutWeights.SetNum(NumEntries);
+
+	for (int32 BoneIdx = 0; BoneIdx < NumEntries; ++BoneIdx)
+	{
+		OutBones[BoneIdx] = static_cast<BoneIndexType>(BoneWeights[BoneIdx].GetBoneIndex());
+		OutWeights[BoneIdx] = static_cast<BoneFloatWeightType>(BoneWeights[BoneIdx].GetWeight());
+	}
+
+	return true;
+}
+
 bool FTransferBoneWeights::FindClosestPointOnSourceSurface(const FVector3d& InPoint, const FTransformSRT3d& InToWorld, int32& NearTriID, FVector3d& Bary)
 {
 	IMeshSpatial::FQueryOptions Options;
@@ -523,3 +550,6 @@ bool FTransferBoneWeights::FindClosestPointOnSourceSurface(const FVector3d& InPo
 
 	return true;
 }
+
+// template instantiation
+template DYNAMICMESH_API bool UE::Geometry::FTransferBoneWeights::TransferWeightsToPoint<int,float,float,float>(class TArray<int,class TSizedDefaultAllocator<32> > &,class TArray<float,class TSizedDefaultAllocator<32> > &,struct UE::Math::TVector<float> const &,class TMap<class FName,unsigned short,class FDefaultSetAllocator,struct TDefaultMapHashableKeyFuncs<class FName,unsigned short,0> > const *,struct UE::Math::TVector<float> const &);
