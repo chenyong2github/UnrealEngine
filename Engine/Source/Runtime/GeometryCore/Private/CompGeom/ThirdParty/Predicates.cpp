@@ -138,8 +138,13 @@ using namespace std;
 		#pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
 	#endif
 	#if __has_warning("-Wimplicit-float-conversion")
-	#pragma clang diagnostic ignored "-Wimplicit-float-conversion"
+		#pragma clang diagnostic ignored "-Wimplicit-float-conversion"
 	#endif
+	// float_control pragma is currently only supported on some architectures for clang
+	#if __has_warning("-Wignored-pragmas")
+		#pragma clang diagnostic ignored "-Wignored-pragmas"
+	#endif
+#pragma float_control(precise, on, push)
 #endif
 
 // float version
@@ -162,6 +167,7 @@ namespace ShewchukExactPredicates
 
 
 #if defined(__clang__)
+#pragma float_control(pop)
 #pragma clang diagnostic pop
 #endif
 
