@@ -2353,13 +2353,6 @@ public:
 	/** Allocate a new FSkeletalMeshRenderData and assign to SkeletalMeshRenderData member.  */
 	void AllocateResourceForRendering();
 
-	/** 
-	 * Update the material UV channel data used by the texture streamer. 
-	 *
-	 * @param bResetOverrides		True if overridden values should be reset.
-	 */
-	void UpdateUVChannelData(bool bResetOverrides);
-
 	/**
 	 * Returns the UV channel data for a given material index. Used by the texture streamer.
 	 * This data applies to all lod-section using the same material. USkinnedAsset interface.

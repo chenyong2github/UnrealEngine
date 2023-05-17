@@ -276,6 +276,13 @@ public:
 	PURE_VIRTUAL(USkinnedAsset::GetImportedModel, return nullptr;);
 #endif // WITH_EDITORONLY_DATA
 
+	/**
+	 * Update the material UV channel data used by the texture streamer.
+	 *
+	 * @param bResetOverrides True if overridden values should be reset.
+	 */
+	void UpdateUVChannelData(bool bResetOverrides);
+
 protected:	
 	/** Lock properties that should not be modified/accessed during async build. */
 	void AcquireAsyncProperty(uint64 AsyncProperties = MAX_uint64, ESkinnedAssetAsyncPropertyLockType LockType = ESkinnedAssetAsyncPropertyLockType::ReadWrite);
