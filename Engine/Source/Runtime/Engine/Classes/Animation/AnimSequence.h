@@ -22,6 +22,7 @@
 #include "Animation/AttributeCurve.h"
 #include "PerPlatformProperties.h"
 #include "IO/IoHash.h"
+#include "Animation/VariableFrameStrippingSettings.h"
 
 #if WITH_EDITOR
 #include "AnimData/IAnimationDataModel.h"
@@ -286,6 +287,9 @@ public:
 	TObjectPtr<class UAnimCurveCompressionSettings> CurveCompressionSettings;
 
 	FCompressedAnimSequence CompressedData;
+
+	UPROPERTY(Category = Compression, EditAnywhere, meta = (ForceShowEngineContent))
+	TObjectPtr<class UVariableFrameStrippingSettings> VariableFrameStrippingSettings;
 
 	/** Additive animation type. **/
 	UPROPERTY(EditAnywhere, Category=AdditiveSettings, AssetRegistrySearchable)

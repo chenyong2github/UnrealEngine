@@ -187,6 +187,10 @@ public:
 	UPROPERTY(Category = Compression, EditAnywhere)
 	TObjectPtr<class UAnimCurveCompressionSettings> CurveCompressionSettings;
 
+	/** The settings used to control whether or not to use variable frame stripping and its amount*/
+	UPROPERTY(Category = Compression, EditAnywhere)
+	TObjectPtr<class UVariableFrameStrippingSettings> VariableFrameStrippingSettings;
+
 	/** If this is on, it will allow extracting of root motion **/
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = RootMotion, meta = (DisplayName = "EnableRootMotion"))
 	bool bEnableRootMotion;
