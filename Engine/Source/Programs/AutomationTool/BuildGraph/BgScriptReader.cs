@@ -773,6 +773,13 @@ namespace AutomationTool
 					string value = ReadAttribute(element, "Value");
 					if (element.HasChildNodes)
 					{
+						// Get the separator character
+						string separator = ";";
+						if (element.HasAttribute("Separator"))
+						{
+							separator = ReadAttribute(element, "Separator");
+						}
+
 						// Read the element content, and append each line to the value as a semicolon delimited list
 						StringBuilder builder = new StringBuilder(value);
 						foreach (string line in element.InnerText.Split('\n'))
@@ -782,7 +789,7 @@ namespace AutomationTool
 							{
 								if (builder.Length > 0)
 								{
-									builder.Append(";");
+									builder.Append(separator);
 								}
 								builder.Append(trimLine);
 							}
