@@ -1663,7 +1663,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 	// Construct an active cluster particle, disable children, derive M and I from children:
 	Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Parent =
 		static_cast<Chaos::FPBDRigidsSolver*>(Solver)->GetEvolution()->GetRigidClustering().CreateClusterParticle(
-			Parameters.ClusterGroupIndex, 
+			(ParentIndex[CollectionClusterIndex] == INDEX_NONE) ? Parameters.ClusterGroupIndex : 0, 
 			MoveTemp(ChildHandlesCopy),
 			ClusterCreationParameters,
 			Implicits[CollectionClusterIndex], // union from children if null
