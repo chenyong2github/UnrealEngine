@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using UnrealBuildBase;
 using UnrealBuildTool.Artifacts;
 
 namespace UnrealBuildTool
@@ -681,6 +682,16 @@ namespace UnrealBuildTool
 		{
 			int actionIndex = action.SortIndex;
 			int completedActions = 0;
+
+			// If we are finished, then invalidate the file info for all the produced items.  This needs to be
+			// done so the artifact system sees any compiled files.
+			if (status == ActionStatus.Finished)
+			{
+				foreach (FileItem output in action.ProducedItems)
+				{
+					output.ResetCachedInfo();
+				}
+			}
 
 			// Update the actions data
 			lock (Actions)
