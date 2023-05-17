@@ -3,8 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 #include "InterchangeTranslatorBase.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Mesh/InterchangeMeshPayload.h"
@@ -32,6 +30,7 @@ public:
 
 	virtual TArray<FString> GetSupportedFormats() const override;
 	virtual EInterchangeTranslatorAssetType GetSupportedAssetTypes() const override;
+
 	/**
 	 * Translate the associated source data into a node hold by the specified nodes container.
 	 *
@@ -66,11 +65,8 @@ public:
 	 * @return a PayloadData containing the imported data. The TOptional will not be set if there is an error.
 	 */
 	virtual TOptional<UE::Interchange::FImportImage> GetTexturePayloadData(const FString& PayloadKey, TOptional<FString>& AlternateTexturePath) const override;
-
 	/* IInterchangeTexturePayloadInterface End */
 
 private:
-	void AddMaterialNodes(UInterchangeBaseNodeContainer& BaseNodeContainer, UInterchangeShaderGraphNode* ShaderGraphNode, const FString& InputType, const FVector3f& Color, const FString& TexturePath) const;
-
 	TPimplPtr<FObjData> ObjDataPtr;
 };
