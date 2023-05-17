@@ -34,6 +34,7 @@
 #include "Misc/HierarchicalLogArchive.h"
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Misc/HashBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeSpatialHash)
 
@@ -1547,6 +1548,16 @@ void UWorldPartitionRuntimeSpatialHash::ForEachStreamingCellsQuery(const FWorldP
 			}
 		}
 	});
+}
+
+uint32 UWorldPartitionRuntimeSpatialHash::ComputeUpdateStreamingHash() const
+{
+	FHashBuilder HashBuilder;
+	ForEachStreamingGrid([&](const FSpatialHashStreamingGrid& StreamingGrid)
+	{
+		HashBuilder << StreamingGrid.GetLoadingRange();
+	});
+	return HashBuilder.GetHash();
 }
 
 void UWorldPartitionRuntimeSpatialHash::ForEachStreamingCellsSources(const TArray<FWorldPartitionStreamingSource>& Sources, TFunctionRef<bool(const UWorldPartitionRuntimeCell*, EStreamingSourceTargetState)> Func) const

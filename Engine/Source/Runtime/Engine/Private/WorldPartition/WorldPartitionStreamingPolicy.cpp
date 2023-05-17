@@ -158,6 +158,10 @@ uint32 UWorldPartitionStreamingPolicy::ComputeUpdateStreamingHash(bool bCanOptim
 
 		// Build hash that will be used to detect relevant changes
 		FHashBuilder HashBuilder;
+		if (WorldPartition->RuntimeHash)
+		{
+			HashBuilder << WorldPartition->RuntimeHash->ComputeUpdateStreamingHash();
+		}
 		HashBuilder << ComputeServerStreamingEnabledEpoch();
 		HashBuilder << GetOuterUWorldPartition()->GetStreamingStateEpoch();
 		HashBuilder << AWorldDataLayers::GetDataLayersStateEpoch();
