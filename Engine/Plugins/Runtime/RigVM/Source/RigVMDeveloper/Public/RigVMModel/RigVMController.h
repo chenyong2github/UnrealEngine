@@ -209,6 +209,7 @@ public:
 	URigVMSchema* GetSchema() const { return SchemaPtr; }
 
 	// Sets the schema on the controller
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	void SetSchema(URigVMSchema* InSchema);
 
 	// Pushes a new graph to the stack

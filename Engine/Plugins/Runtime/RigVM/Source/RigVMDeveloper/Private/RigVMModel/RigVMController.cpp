@@ -2780,7 +2780,7 @@ URigVMCommentNode* URigVMController::AddCommentNode(const FString& InCommentText
 	Node->NodeColor = InColor;
 	Node->CommentText = InCommentText;
 
-	if(!AddGraphNode(Node, true))
+	if(!AddGraphNode(Node, false))
 	{
 		return nullptr;
 	}
@@ -2798,6 +2798,8 @@ URigVMCommentNode* URigVMController::AddCommentNode(const FString& InCommentText
 		GetActionStack()->BeginAction(Action);
 		GetActionStack()->AddAction(FRigVMImportFromTextAction(this, Node));
 	}
+
+	Notify(ERigVMGraphNotifType::NodeAdded, Node);
 
 	if (bSetupUndoRedo)
 	{
