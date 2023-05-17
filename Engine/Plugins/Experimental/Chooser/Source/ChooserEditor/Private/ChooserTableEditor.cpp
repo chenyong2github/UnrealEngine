@@ -796,7 +796,7 @@ void FChooserTableEditor::UpdateTableColumns()
 
 				FMenuBuilder MenuBuilder(true,nullptr);
 
-				MenuBuilder.AddMenuEntry(LOCTEXT("Column Properties","Properties"),LOCTEXT("Delete Column ToolTip", "Remove this column and all its data from the table"),FSlateIcon(),
+				MenuBuilder.AddMenuEntry(LOCTEXT("Column Properties","Properties"),LOCTEXT("Select Column ToolTip", "Select this Column, and show its properties in the Details panel"),FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([this,Chooser,ColumnIndex, ColumnId, &Column]()
 						{
@@ -840,6 +840,7 @@ void FChooserTableEditor::UpdateTableColumns()
 							const FScopedTransaction Transaction(LOCTEXT("Delete Column Transaction", "Delete Column"));
 							Chooser->Modify(true);
 							Chooser->ColumnsStructs.RemoveAt(ColumnIndex);
+							ClearSelectedColumn();
 							UpdateTableColumns();
 						})
 						));
@@ -1057,11 +1058,8 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 				)
 				.OnSelectionChanged_Lambda([this](TSharedPtr<FChooserTableRow> SelectedItem,  ESelectInfo::Type SelectInfo)
 				{
-					if (SelectedColumn)
-					{
-						// deselect any selected column
-						SelectedColumn->Column = -1;
-					}
+					// deselect any selected column
+					ClearSelectedColumn();
 					
 					if (SelectedItem)
 					{
@@ -1196,6 +1194,19 @@ void FChooserTableEditor::SelectColumn(int Index)
 
 		SelectedColumn->Column = Index;
 		DetailsView->SetObject(SelectedColumn, true);
+	}
+}
+	
+void FChooserTableEditor::ClearSelectedColumn()
+{
+	UChooserTable* Chooser = GetChooser();
+	if (SelectedColumn != nullptr)
+	{
+		SelectedColumn->Column = -1;
+		if (DetailsView->GetSelectedObjects().Contains(SelectedColumn))
+		{
+			SelectRootProperties();
+		}
 	}
 }
 	
@@ -1400,7 +1411,7 @@ void FChooserColumnDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder
 	UChooserColumnDetails* Column = Cast<UChooserColumnDetails>(Objects[0]);
 	UChooserTable* Chooser = Column->Chooser;
 	
-	if (Chooser->ColumnsStructs.Num() > Column->Column)
+	if (Chooser->ColumnsStructs.IsValidIndex(Column->Column))
 	{
 		IDetailCategoryBuilder& PropertiesCategory = DetailBuilder.EditCategory("Column Properties");
 

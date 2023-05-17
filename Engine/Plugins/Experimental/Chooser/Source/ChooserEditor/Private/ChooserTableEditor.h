@@ -36,7 +36,7 @@ class UChooserColumnDetails : public UObject
 public:
 	UPROPERTY(EditAnywhere, Instanced, Category="Hidden")
 	TObjectPtr<UChooserTable> Chooser;
-	int Column;
+	int Column = -1;
 };
 
 
@@ -100,6 +100,7 @@ namespace UE::ChooserEditor
 
 		void UpdateTableRows();
 		void SelectColumn(int Index);
+		void ClearSelectedColumn();
 		void DeleteColumn(int Index);
 		void AddColumn(const UScriptStruct* ColumnType);
 		void MoveRow(int SourceRowIndex, int TargetIndex);
