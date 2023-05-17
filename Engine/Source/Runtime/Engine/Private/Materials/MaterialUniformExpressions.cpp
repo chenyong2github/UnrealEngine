@@ -811,6 +811,10 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 					{
 						AllocatedVT->GetPackedUniform(VTPackedUniform, Parameter.VirtualTextureLayerIndex);
 					}
+					else
+					{
+						*VTPackedUniform = FUintVector4(0, 0, 0, 0);
+					}
 				}
 			}
 		}
