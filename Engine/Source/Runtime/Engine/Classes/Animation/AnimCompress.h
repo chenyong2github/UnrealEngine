@@ -272,7 +272,7 @@ namespace UE
 			// This is a version string that mimics the old versioning scheme. If you
 			// want to bump this version, generate a new guid using VS->Tools->Create GUID and
 			// return it here. Ex.
-			static FString AnimationCompressionVersionString = TEXT("E64909A2AA124539905EBA5557DDEE58");
+			static FString AnimationCompressionVersionString = TEXT("75162A70E2074707ACF3DB9CC1B19597");
 			
 			struct ENGINE_API FAnimationCompressionMemorySummaryScope
 			{

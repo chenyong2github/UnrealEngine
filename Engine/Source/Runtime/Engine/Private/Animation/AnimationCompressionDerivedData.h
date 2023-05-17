@@ -16,7 +16,14 @@
 
 struct FCompressedAnimSequence;
 class UAnimSequence;
-namespace UE::DerivedData { struct FCacheGetValueResponse; }
+namespace UE::DerivedData
+{
+	struct FCacheGetValueResponse;
+	struct FCacheKey;
+
+	template <typename CharType> class TSharedString;
+	using FSharedString = TSharedString<TCHAR>;
+}
 
 namespace UE::Anim
 {
@@ -80,6 +87,7 @@ namespace UE::Anim
 		void BeginCache(const FIoHash& KeyHash);
 		void EndCache(UE::DerivedData::FCacheGetValueResponse&& Response);
 		bool BuildData() const;
+		void LaunchCompressionTask(const UE::DerivedData::FSharedString& Name, const UE::DerivedData::FCacheKey& Key);
 
 	private:
 		friend class FAnimationSequenceAsyncBuildWorker;
