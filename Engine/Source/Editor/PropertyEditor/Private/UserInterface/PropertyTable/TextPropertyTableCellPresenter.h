@@ -19,6 +19,8 @@ public:
 	virtual TSharedRef< class SWidget > ConstructDisplayWidget() override;
 
 	virtual bool RequiresDropDown() override;
+	
+	virtual const FSlateBrush* GetEditModeCellBrush() override { return FAppStyle::GetBrush("NoBrush"); }
 
 	virtual TSharedRef< class SWidget > ConstructEditModeCellWidget() override;
 

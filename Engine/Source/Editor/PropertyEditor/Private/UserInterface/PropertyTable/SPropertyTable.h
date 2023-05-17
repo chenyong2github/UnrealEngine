@@ -83,14 +83,15 @@ public:
 			[
 				SNew( SVerticalBox )
 				+SVerticalBox::Slot()
-				.Padding(0.0f, 0.0f, 0.0f, 4.0f)
+				.Padding(0.0f, 0.0f, 0.0f, 1.0f)
 				.AutoHeight()
 				[
 					SNew(SBorder)
-					.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
+					.BorderImage( FAppStyle::GetBrush( "Brushes.Header" ) )
 					[
 						SAssignNew( BreadcrumbTrail, SBreadcrumbTrail< int32 > )
 						.PersistentBreadcrumbs( true )
+						.DelimiterImage(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
 						.OnCrumbClicked( this, &SPropertyTable::OnCrumbClicked )
 						.GetCrumbMenuContent( this, &SPropertyTable::GetCrumbMenuContent )
 					]
@@ -695,6 +696,8 @@ private:
 		{
 			Table->SetRootPath( RootPath->TrimPath( AmountToTrimRoot ) );
 		}
+
+		ClearSelection();
 	}
 
 	TSharedRef< SWidget > GetCrumbMenuContent( const int32& Item )

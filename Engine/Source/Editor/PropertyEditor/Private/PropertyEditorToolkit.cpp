@@ -11,6 +11,7 @@
 #include "IPropertyTableColumn.h"
 #include "IPropertyTreeRow.h"
 #include "IPropertyTableRow.h"
+#include "SSimpleButton.h"
 
 #include "Widgets/Docking/SDockTab.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -35,12 +36,12 @@ void FPropertyEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabMana
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
 
 	InTabManager->RegisterTabSpawner( TreeTabId, FOnSpawnTab::CreateSP(this, &FPropertyEditorToolkit::SpawnTab_PropertyTree) )
-		.SetDisplayName( LOCTEXT("PropertiesTab", "Display") )
+		.SetDisplayName( LOCTEXT("PropertiesTab", "Pinned Columns") )
 		.SetGroup( WorkspaceMenuCategory.ToSharedRef() )
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "PropertyEditor.Grid.TabIcon"));
 
 	InTabManager->RegisterTabSpawner(DetailsTabId, FOnSpawnTab::CreateSP(this, &FPropertyEditorToolkit::SpawnTab_DetailsPanel))
-		.SetDisplayName(LOCTEXT("DetailsTab", "Property Editor"))
+		.SetDisplayName(LOCTEXT("DetailsTab", "Details"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 }
@@ -150,20 +151,21 @@ void FPropertyEditorToolkit::Initialize( const EToolkitMode::Type Mode, const TS
 		PropertyTable->SetObjects(AdjustedObjectsToEdit);
 		TableColumnsChanged();
 
-		TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PropertyEditorToolkit_Layout_v1")
+		TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PropertyEditorToolkit_Layout_v1.1")
 			->AddArea
 			(
 				FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.8f)
+					->SetSizeCoefficient(0.65f)
+					->SetHideTabWell(true)
 					->AddTab(GridTabId, ETabState::OpenedTab)
 				)
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.2f)
+					->SetSizeCoefficient(0.35f)
 					->AddTab(TreeTabId, ETabState::OpenedTab)
 					->AddTab(DetailsTabId, ETabState::OpenedTab)
 					->SetForegroundTab(TreeTabId)
@@ -171,7 +173,7 @@ void FPropertyEditorToolkit::Initialize( const EToolkitMode::Type Mode, const TS
 			);
 
 		const bool bCreateDefaultStandaloneMenu = true;
-		const bool bCreateDefaultToolbar = false;
+		const bool bCreateDefaultToolbar = true;
 		FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, ApplicationId, StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, AdjustedObjectsToEdit);
 
 		TArray<UObject*> AdjustedObjectsToEditWeak;
@@ -192,7 +194,7 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_PropertyTree( const FSpawn
 	check( Args.GetTabId() == TreeTabId );
 
 	TSharedRef<SDockTab> TreeToolkitTab = SNew(SDockTab)
-		.Label( LOCTEXT("GenericDetailsTitle", "Display") )
+		.Label( LOCTEXT("GenericDetailsTitle", "Pinned Columns") )
 		.TabColorScale( GetTabColorScale() )
 		.Content()
 		[
@@ -219,50 +221,7 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_PropertyTable( const FSpaw
 		.TabColorScale( GetTabColorScale() )
 		.Content()
 		[
-			SNew( SOverlay )
-			+SOverlay::Slot()
-			[
-				PropertyEditorModule.CreatePropertyTableWidget( PropertyTable.ToSharedRef() )
-			]
-			+SOverlay::Slot()
-			.HAlign( HAlign_Right )
-			.VAlign( VAlign_Top )
-			.Padding( FMargin( 0, 3, 0, 0 ) )
-			[
-				SNew( SHorizontalBox )
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign( HAlign_Center )
-				.VAlign( VAlign_Center )
-				[
-					SNew( SImage )
-					.Image( FAppStyle::GetBrush( "PropertyEditor.AddColumnOverlay" ) )
-					.Visibility( this, &FPropertyEditorToolkit::GetAddColumnInstructionsOverlayVisibility )
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign( HAlign_Center )
-				.VAlign( VAlign_Center )
-				[
-					SNew( SImage )
-					.Image( FAppStyle::GetBrush( "Icons.Unpinned" ) )
-					.Visibility( this, &FPropertyEditorToolkit::GetAddColumnInstructionsOverlayVisibility )
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign( HAlign_Center )
-				.VAlign( VAlign_Center )
-				.Padding( FMargin( 0, 0, 3, 0 ) )
-				[
-					SNew( STextBlock )
-					.Font( FAppStyle::GetFontStyle( "PropertyEditor.AddColumnMessage.Font" ) )
-					.Text( LOCTEXT("GenericPropertiesTitle", "Pin Properties to Add Columns") )
-					.Visibility( this, &FPropertyEditorToolkit::GetAddColumnInstructionsOverlayVisibility )
-					.ColorAndOpacity( FAppStyle::GetColor( "PropertyEditor.AddColumnMessage.ColorAndOpacity" ) )
-				]
-			]
+			PropertyEditorModule.CreatePropertyTableWidget( PropertyTable.ToSharedRef() )
 		];	
 
 	return GridToolkitTab;
@@ -273,7 +232,7 @@ TSharedRef<SDockTab> FPropertyEditorToolkit::SpawnTab_DetailsPanel(const FSpawnT
 	check(Args.GetTabId() == DetailsTabId);
 
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
-		.Label(LOCTEXT("GenericDetailsPanel", "Property Editor"))
+		.Label(LOCTEXT("GenericDetailsPanel", "Details"))
 		[
 			DetailsView.ToSharedRef()
 		];
@@ -342,34 +301,16 @@ TSharedRef< SWidget > FPropertyEditorToolkit::ConstructTreeCell( const FName& Co
 		const TWeakPtr<IPropertyTreeRow> RowPtr = Row;
 		PinRows.Add( Row );
 
-		return SNew( SBorder )
-			.Padding( 0 )
-			.BorderImage( &FAppStyle::GetWidgetStyle<FHeaderRowStyle>("PropertyTable.HeaderRow").ColumnStyle.NormalBrush )
-			[
-				SNew(SButton)
-				.ToolTipText(NSLOCTEXT("PropertyEditor", "ToggleColumnButtonToolTip", "Toggle Column"))
-				.ButtonStyle( FAppStyle::Get(), "HoverOnlyButton" )
-				.ContentPadding(0) 
-				.OnClicked( this, &FPropertyEditorToolkit::OnToggleColumnClicked, RowPtr )
-				.HAlign( HAlign_Center )
-				.VAlign( VAlign_Center )
-				[
-					SNew(SImage)
-					.Image( this, &FPropertyEditorToolkit::GetToggleColumnButtonImageBrush, RowPtr )
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
-			];
+		return
+			SNew(SSimpleButton)
+			.ToolTipText(NSLOCTEXT("PropertyEditor", "ToggleColumnButtonToolTip", "Toggle Column"))
+			.OnClicked( this, &FPropertyEditorToolkit::OnToggleColumnClicked, RowPtr )
+			.Icon(this, &FPropertyEditorToolkit::GetToggleColumnButtonImageBrush, RowPtr);
+
 	}
 
 	return SNullWidget::NullWidget;
 }
-
-
-EVisibility FPropertyEditorToolkit::GetAddColumnInstructionsOverlayVisibility() const
-{
-	return TableHasCustomColumns() ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
-}
-
 
 void FPropertyEditorToolkit::ToggleColumnForProperty( const TSharedPtr< FPropertyPath >& PropertyPath )
 {

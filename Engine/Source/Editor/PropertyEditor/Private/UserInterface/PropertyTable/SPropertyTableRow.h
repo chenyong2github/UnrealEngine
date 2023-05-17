@@ -44,7 +44,11 @@ public:
 		Row->OnRefresh()->AddSP( this, &SPropertyTableRow::Refresh );
 		Style = InArgs._Style;
 
-		SMultiColumnTableRow< TSharedRef< class IPropertyTableRow > >::Construct( FSuperRowType::FArguments().Style( FAppStyle::Get(), "PropertyTable.TableRow" ), InOwnerTableView );
+		SMultiColumnTableRow< TSharedRef< class IPropertyTableRow > >::Construct(
+			FSuperRowType::FArguments()
+			.Style( FAppStyle::Get(), "TableView.AlternatingRow" )
+			.ShowSelection(false) // We don't show row selection on the property table - each selected cell is invidually shown
+			, InOwnerTableView );
 	}
 
 	FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override

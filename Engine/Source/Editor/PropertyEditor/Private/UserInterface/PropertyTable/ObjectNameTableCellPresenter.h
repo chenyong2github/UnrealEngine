@@ -35,7 +35,7 @@ public:
 	{
 		return SNew( SBox )
 			.VAlign( VAlign_Center)
-			.Padding( FMargin( 2, 0, 2, 0 ) )
+			.Padding( FMargin( 4, 0, 2, 0 ) )
 			[
 				ConstructNameWidget( PropertyTableConstants::NormalFontStyle )
 			]

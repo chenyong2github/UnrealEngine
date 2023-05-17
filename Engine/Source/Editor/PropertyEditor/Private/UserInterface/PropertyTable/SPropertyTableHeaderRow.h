@@ -83,6 +83,7 @@ public:
 				AddColumn( 
 					SHeaderRow::Column( ColumnId )
 					.SortMode( TableRef, &IPropertyTable::GetColumnSortMode, Column )
+					.HeaderComboVisibility(EHeaderComboVisibility::Never)
 					.SortPriority( TableRef, &IPropertyTable::GetColumnSortPriority, Column)
 					.OnSort( TableRef, &IPropertyTable::SortByColumnWithId )
 					.MenuContent()
@@ -111,6 +112,7 @@ public:
 				AddColumn(
 					SHeaderRow::Column( ColumnId )
 					.SortMode( SortMode )
+					.HeaderComboVisibility(EHeaderComboVisibility::Never)
 					.SortPriority( SortPriority )
 					.OnSort( OnSort )
 					.MenuContent()

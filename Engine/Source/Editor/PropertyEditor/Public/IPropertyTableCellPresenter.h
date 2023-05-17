@@ -10,6 +10,8 @@ public:
 
 	virtual TSharedRef< class SWidget > ConstructDisplayWidget() = 0;
 
+	virtual const FSlateBrush* GetEditModeCellBrush() { return nullptr; }
+
 	virtual bool RequiresDropDown() = 0;
 
 	virtual TSharedRef< class SWidget > ConstructEditModeCellWidget() = 0;

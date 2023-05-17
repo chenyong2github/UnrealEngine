@@ -35,7 +35,7 @@ void SPropertyEditorTableRow::Construct( const FArguments& InArgs, const TShared
 
 	this->SetToolTipText(PropertyEditor->GetToolTipText());
 	this->SetVisibility(TAttribute<EVisibility>::CreateSP(this, &SPropertyEditorTableRow::OnGetRowVisibility));
-	SMultiColumnTableRow< TSharedPtr<FPropertyNode*> >::Construct( FSuperRowType::FArguments(), InOwnerTable );
+	SMultiColumnTableRow< TSharedPtr<FPropertyNode*> >::Construct( FSuperRowType::FArguments().Style(&FAppStyle::GetWidgetStyle<FTableRowStyle>("PropertyWindow.PropertyRow")), InOwnerTable );
 }
 
 TSharedRef<SWidget> SPropertyEditorTableRow::GenerateWidgetForColumn( const FName& ColumnName )
@@ -108,9 +108,16 @@ TSharedRef< SWidget > SPropertyEditorTableRow::ConstructValueColumnWidget()
 
 	HorizontalBox->AddSlot()
 		.FillWidth(1) // Fill the entire width if possible
-		.VAlign(VAlign_Center)	
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(20, 0, 0, 0)
 		[
-			ValueEditorWidget.ToSharedRef()
+			SNew(SBox)
+			.MinDesiredWidth( MinWidth )
+			.MaxDesiredWidth( MaxWidth )
+			[
+				ValueEditorWidget.ToSharedRef()
+			]
 		];
 
 	// The favorites star for this property
@@ -236,77 +243,104 @@ TSharedRef<SWidget> SPropertyEditorTableRow::ConstructPropertyEditorWidget()
 	const TSharedRef< FPropertyEditor > PropertyEditorRef = PropertyEditor.ToSharedRef();
 	const TSharedRef< IPropertyUtilities > PropertyUtilitiesRef = PropertyUtilities.ToSharedRef();
 
+	float MinDesiredWidth = 0.0f;
+	float MaxDesiredWidth = 0.0f;
+
 	if( Property )
 	{
 		// ORDER MATTERS: first widget type to support the property node wins!
 		if ( SPropertyEditorNumeric<float>::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorNumeric<float>, PropertyEditorRef );
+			TSharedRef<SPropertyEditorNumeric<float>> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorNumeric<float>, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if (SPropertyEditorNumeric<int8>::Supports(PropertyEditorRef))
 		{
-			PropertyWidget = SNew(SPropertyEditorNumeric<int8>, PropertyEditorRef);
+			TSharedRef<SPropertyEditorNumeric<int8>> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorNumeric<int8>, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if (SPropertyEditorNumeric<int16>::Supports(PropertyEditorRef))
 		{
-			PropertyWidget = SNew(SPropertyEditorNumeric<int16>, PropertyEditorRef);
+			TSharedRef<SPropertyEditorNumeric<int16>> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorNumeric<int16>, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if (SPropertyEditorNumeric<int32>::Supports(PropertyEditorRef))
 		{
-			PropertyWidget = SNew(SPropertyEditorNumeric<int32>, PropertyEditorRef);
+			TSharedRef<SPropertyEditorNumeric<int32>> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorNumeric<int32>, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if ( SPropertyEditorNumeric<int64>::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorNumeric<int64>, PropertyEditorRef );
+			TSharedRef<SPropertyEditorNumeric<int64>> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorNumeric<int64>, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if ( SPropertyEditorNumeric<uint8>::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorNumeric<uint8>, PropertyEditorRef );
+			TSharedRef<SPropertyEditorNumeric<uint8>> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorNumeric<uint8>, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if (SPropertyEditorNumeric<uint16>::Supports(PropertyEditorRef))
 		{
-			PropertyWidget = SNew(SPropertyEditorNumeric<uint16>, PropertyEditorRef);
+			TSharedRef<SPropertyEditorNumeric<uint16>> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorNumeric<uint16>, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if (SPropertyEditorNumeric<uint32>::Supports(PropertyEditorRef))
 		{
-			PropertyWidget = SNew(SPropertyEditorNumeric<uint32>, PropertyEditorRef);
+			TSharedRef<SPropertyEditorNumeric<uint32>> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorNumeric<uint32>, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if (SPropertyEditorNumeric<uint64>::Supports(PropertyEditorRef))
 		{
-			PropertyWidget = SNew(SPropertyEditorNumeric<uint64>, PropertyEditorRef);
+			TSharedRef<SPropertyEditorNumeric<uint64>> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorNumeric<uint64>, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if ( SPropertyEditorArray::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorArray, PropertyEditorRef );
+			TSharedRef<SPropertyEditorArray> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorArray, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if ( SPropertyEditorCombo::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorCombo, PropertyEditorRef );
+			TSharedRef<SPropertyEditorCombo> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorCombo, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if ( SPropertyEditorEditInline::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorEditInline, PropertyEditorRef );
+			TSharedRef<SPropertyEditorEditInline> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorEditInline, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if ( SPropertyEditorText::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorText, PropertyEditorRef );
+			TSharedRef<SPropertyEditorText> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorText, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if ( SPropertyEditorBool::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorBool, PropertyEditorRef );
+			TSharedRef<SPropertyEditorBool> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorBool, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if ( SPropertyEditorColor::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorColor, PropertyEditorRef, PropertyUtilitiesRef );
+			TSharedRef<SPropertyEditorColor> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorColor, PropertyEditorRef, PropertyUtilitiesRef );
 		}
 		else if ( SPropertyEditorArrayItem::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorArrayItem, PropertyEditorRef );
+			TSharedRef<SPropertyEditorArrayItem> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorArrayItem, PropertyEditorRef );
+			TempWidget->GetDesiredWidth(MinDesiredWidth, MaxDesiredWidth);
 		}
 		else if ( SPropertyEditorDateTime::Supports(PropertyEditorRef) )
 		{
-			PropertyWidget = SNew( SPropertyEditorDateTime, PropertyEditorRef );
+			TSharedRef<SPropertyEditorDateTime> TempWidget = SAssignNew(PropertyWidget, SPropertyEditorDateTime, PropertyEditorRef );
 		}
+	}
+
+	if(MinDesiredWidth != 0.0f)
+	{
+		MinWidth = MinDesiredWidth;
+	}
+	if(MaxDesiredWidth != 0.0f)
+	{
+		MaxWidth = MaxDesiredWidth;
 	}
 
 	if( !PropertyWidget.IsValid() )

@@ -322,6 +322,13 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 				}
 			}
 
+			Section.AddMenuEntry(
+				FLevelEditorCommands::Get().OpenSelectionInPropertyMatrix,
+				TAttribute<FText>(), // use command's label
+				TAttribute<FText>(), // use command's tooltip
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "DetailsView.EditRawProperties")
+				);
+
 			if (LevelEditorContext->ContextType == ELevelEditorMenuContext::MainMenu)
 			{
 				Section.AddSubMenu(

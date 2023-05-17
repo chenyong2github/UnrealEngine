@@ -42,7 +42,10 @@ class SRowHeaderColumnHeader : public SColumnHeader
 
 		ChildSlot
 		[
-			SNew( SSpacer )
+			SNew( SImage )
+			.DesiredSizeOverride(FVector2D{16.0f})
+			.ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::GetBrush("Icons.Save"))
 		];
 	}
 

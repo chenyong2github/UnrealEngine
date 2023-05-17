@@ -127,6 +127,9 @@ public:
 	/** Edits associated asset(s) */
 	TSharedPtr< FUICommandInfo > EditAssetNoConfirmMultiple;
 
+	/** Opens the associated asset(s) in the property matrix */
+	TSharedPtr< FUICommandInfo > OpenSelectionInPropertyMatrix;
+
 	/** Moves the camera to the current mouse position */
 	TSharedPtr< FUICommandInfo > GoHere;
 
@@ -912,6 +915,11 @@ public:
 	/** Called to when "Edit Asset" is clicked */
 	static void EditAsset_Clicked( const EToolkitMode::Type ToolkitMode, TWeakPtr< class SLevelEditor > LevelEditor, bool bAskMultiple );
 	static bool EditAsset_CanExecute();
+
+	/** Called to when "Open Selection in Property Matrix" is clicked */
+	static void OpenSelectionInPropertyMatrix_Clicked();
+	static bool OpenSelectionInPropertyMatrix_IsVisible();
+
 
 	/** Called when 'detach' is clicked */
 	static void DetachActor_Clicked();

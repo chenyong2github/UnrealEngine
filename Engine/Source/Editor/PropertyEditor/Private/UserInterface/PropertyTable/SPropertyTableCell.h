@@ -62,9 +62,7 @@ private:
 
 	TSharedRef< class SWidget > ConstructEditModeDropDownWidget();
 
-	TSharedRef< class SBorder > ConstructInvalidPropertyWidget();
-
-	const FSlateBrush* GetCurrentCellBorder() const;
+	TSharedRef< class SWidget > ConstructInvalidPropertyWidget();
 
 	void OnAnchorWindowClosed( const TSharedRef< SWindow >& WindowClosing );
 

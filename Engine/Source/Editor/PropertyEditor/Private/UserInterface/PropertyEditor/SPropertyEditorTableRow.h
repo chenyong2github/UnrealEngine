@@ -80,4 +80,7 @@ private:
 
 	/** Called to construct any the cell contents for columns created by external code*/
 	FConstructExternalColumnCell ConstructExternalColumnCell;
+
+	FOptionalSize MinWidth;
+	FOptionalSize MaxWidth;
 };

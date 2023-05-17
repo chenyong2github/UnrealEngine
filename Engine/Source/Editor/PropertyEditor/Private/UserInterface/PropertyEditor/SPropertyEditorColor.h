@@ -22,7 +22,6 @@ public:
 
 	void Construct( const FArguments& InArgs, const TSharedRef< class FPropertyEditor >& InPropertyEditor, const TSharedRef< class IPropertyUtilities >& InPropertyUtilities );
 
-
 protected:
 
 	/**	@return A newly constructed SColorBlock */

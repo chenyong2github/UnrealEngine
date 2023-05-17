@@ -235,6 +235,7 @@ void SPropertyTreeViewImpl::ConstructPropertyTree()
 				[
 					SNew( SImage )
 					.Image( this, &SPropertyTreeViewImpl::OnGetLockButtonImageResource )
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
 		]

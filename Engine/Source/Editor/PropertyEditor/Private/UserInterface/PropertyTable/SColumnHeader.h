@@ -18,6 +18,9 @@
 #include "PropertyEditorHelpers.h"
 #include "IDocumentation.h"
 
+#define LOCTEXT_NAMESPACE "SColumnHeader"
+
+
 class SColumnHeader : public SCompoundWidget
 {
 public:
@@ -70,10 +73,10 @@ protected:
 		else if ( PropertyPath.IsValid() && PropertyPath->GetNumProperties() > 0 )
 		{
 			FProperty* Property = PropertyPath->GetLeafMostProperty().Property.Get();
-			const FText ToolTipText = PropertyEditorHelpers::GetToolTipText( Property );
+			const FText& DisplayNameText = Column->GetDisplayName();
 			const FString DocumentationLink = PropertyEditorHelpers::GetDocumentationLink( Property );
 			const FString DocumentationExcerptName = PropertyEditorHelpers::GetDocumentationExcerptName( Property );
-			ColumnHeaderToolTip = IDocumentation::Get()->CreateToolTip( ToolTipText, NULL, DocumentationLink, DocumentationExcerptName );
+			ColumnHeaderToolTip = IDocumentation::Get()->CreateToolTip( DisplayNameText, NULL, DocumentationLink, DocumentationExcerptName );
 		}
 
 		this->SetToolTip( ColumnHeaderToolTip );
@@ -101,29 +104,18 @@ protected:
 		TArray< FString > DisplayNamePieces;
 		DisplayNameText.ToString().ParseIntoArray(DisplayNamePieces, TEXT("->"), true);
 
-		for (int Index = 0; Index < DisplayNamePieces.Num(); Index++)
+		if(!DisplayNamePieces.IsEmpty())
 		{
+			// We only show the property name in the column header, the full path in the tooltip
 			NameBox->AddSlot()
 			.AutoWidth()
 			[
 				SNew( STextBlock )
 				.Font( FAppStyle::GetFontStyle( TextFontStyle ) )
-				.Text( FText::FromString(DisplayNamePieces[ Index ]) )
+				.Text( FText::FromString(DisplayNamePieces[ DisplayNamePieces.Num() - 1 ]) )
 			];
-
-			if ( Index < DisplayNamePieces.Num() - 1 )
-			{
-				NameBox->AddSlot()
-				.AutoWidth()
-				.HAlign( HAlign_Center )
-				.VAlign( VAlign_Center )
-				[
-					SNew( SImage )
-					.Image( FAppStyle::GetBrush( Style, ".HeaderRow.Column.PathDelimiter" ) )
-				];
-			}
 		}
-
+		
 		return NameBox;
 	}
 
@@ -136,3 +128,6 @@ protected:
 
 	TSharedPtr< IPropertyTableCustomColumn > Customization;
 };
+
+#undef LOCTEXT_NAMESPACE
+

@@ -111,10 +111,17 @@ void SLevelEditor::BindCommands()
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::EditAsset_Clicked, EToolkitMode::Standalone, TWeakPtr< SLevelEditor >( SharedThis( this ) ), false ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::EditAsset_CanExecute ) );
 
+	LevelEditorCommands->MapAction( 
+		Actions.EditAssetNoConfirmMultiple, 
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::EditAsset_Clicked, EToolkitMode::Standalone, TWeakPtr< SLevelEditor >( SharedThis( this ) ), false ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::EditAsset_CanExecute ) );
+	
 	LevelEditorCommands->MapAction(
-		Actions.EditAsset,
-		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::EditAsset_Clicked, EToolkitMode::Standalone, TWeakPtr< SLevelEditor >( SharedThis( this ) ), true ),
-		FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::EditAsset_CanExecute));
+		Actions.OpenSelectionInPropertyMatrix,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::OpenSelectionInPropertyMatrix_Clicked ),
+		FCanExecuteAction(),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateStatic(&FLevelEditorActionCallbacks::OpenSelectionInPropertyMatrix_IsVisible));
 
 	LevelEditorCommands->MapAction(
 		Actions.CheckOutProjectSettingsConfig,

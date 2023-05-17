@@ -473,7 +473,7 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 
 			Section.AddMenuEntry(
 				"PropertyMatrix",
-				LOCTEXT("PropertyMatrix", "Bulk Edit via Property Matrix..."),
+				LOCTEXT("PropertyMatrix", "Open Selection in Property Matrix"),
 				DynamicTooltipAttribute,
 				FSlateIcon(),
 				FUIAction(
@@ -1934,7 +1934,7 @@ FText FAssetFileContextMenu::GetExecutePropertyMatrixTooltip() const
 	FText ResultTooltip;
 	if (CanExecutePropertyMatrix(ResultTooltip))
 	{
-		ResultTooltip = LOCTEXT("PropertyMatrixTooltip", "Opens the property matrix editor for the selected assets.");
+		ResultTooltip = LOCTEXT("PropertyMatrixTooltip", "Bulk edit the selected assets in the Property Matrix");
 	}
 	return ResultTooltip;
 }

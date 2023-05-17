@@ -60,7 +60,7 @@ public:
 
 	virtual void SetSizeMode(EPropertyTableColumnSizeMode::Type InSizeMode) override {}
 
-	virtual float GetWidth() const override { return 20.0f; } 
+	virtual float GetWidth() const override { return 24.0f; } 
 
 	virtual void SetWidth( float InWidth ) override {  }
 

@@ -37,6 +37,9 @@ class SRowHeaderCell : public SCompoundWidget
 		Style = InArgs._Style;
 		Cell = InCell;
 
+		// This draws a box around the cell which looks like gridlines on the table
+		CellBackground = FAppStyle::GetBrush( Style, ".CellBorder" );
+		
 		TArray< EPropertyButton::Type > RequiredButtons;
 		if ( PropertyEditor.IsValid() )
 		{
@@ -45,7 +48,9 @@ class SRowHeaderCell : public SCompoundWidget
 
 		TSharedRef< SWidget > Content = 
 			SNew(SImage)
-			.Image( FAppStyle::GetBrush("ContentBrowser.ContentDirty") )
+			.Image( FAppStyle::GetBrush("Icons.DirtyBadge") )
+			.DesiredSizeOverride(FVector2D{ 16.0f })
+			.ColorAndOpacity(FSlateColor::UseForeground())
 			.Visibility( this, &SRowHeaderCell::GetDirtyImageVisibility );
 
 		if ( RequiredButtons.Contains( EPropertyButton::Insert_Delete_Duplicate ) )
@@ -68,15 +73,10 @@ class SRowHeaderCell : public SCompoundWidget
 		[
 			SNew( SBox )
 			.HeightOverride( 20.0f )
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
 			[
-				SNew( SBorder )
-				.BorderImage( this, &SRowHeaderCell::GetBorder )
-				.HAlign( HAlign_Center )
-				.VAlign( VAlign_Center )
-				.Content()
-				[
-					Content
-				]
+				Content
 			]
 		];
 	}
@@ -96,6 +96,24 @@ class SRowHeaderCell : public SCompoundWidget
 
 		return FReply::Unhandled();
 	}
+
+	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override
+	{
+		if ( CellBackground && CellBackground->DrawAs != ESlateBrushDrawType::NoDrawType )
+		{
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				LayerId,
+				AllottedGeometry.ToPaintGeometry(),
+				CellBackground,
+				ESlateDrawEffect::None,
+				CellBackground->GetTint( InWidgetStyle ) * InWidgetStyle.GetColorAndOpacityTint() 
+				);
+		}
+
+		return SCompoundWidget::OnPaint( Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled );
+	}
+
 
 
 private:
@@ -124,4 +142,5 @@ private:
 	TSharedPtr< IPropertyTableCell > Cell;
 	TSharedPtr< FPropertyEditor > Editor;
 	FName Style;
+	const FSlateBrush* CellBackground = nullptr;
 };
