@@ -39,4 +39,10 @@ void UAnimationStateGraphSchema::GetGraphDisplayInformation(const UEdGraph& Grap
 	DisplayInfo.DisplayName = DisplayInfo.PlainName;
 }
 
+bool UAnimationStateGraphSchema::CanDuplicateGraph(UEdGraph* InSourceGraph) const
+{
+	return false;
+}
+
+
 #undef LOCTEXT_NAMESPACE

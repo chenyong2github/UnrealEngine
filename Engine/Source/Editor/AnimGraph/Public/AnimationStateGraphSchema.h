@@ -15,5 +15,6 @@ class UAnimationStateGraphSchema : public UAnimationGraphSchema
 	//~ Begin UEdGraphSchema Interface.
 	virtual void CreateDefaultNodesForGraph(UEdGraph& Graph) const override;
 	virtual void GetGraphDisplayInformation(const UEdGraph& Graph, /*out*/ FGraphDisplayInfo& DisplayInfo) const override;
+	virtual bool CanDuplicateGraph(UEdGraph* InSourceGraph) const override;;
 	//~ End UEdGraphSchema Interface.
 };
