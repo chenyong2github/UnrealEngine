@@ -133,7 +133,6 @@ using namespace std;
 
 
 #if defined(__clang__)
-#pragma float_control(precise, on, push)
 #pragma clang diagnostic push
 	#if __has_warning("-Wimplicit-int-float-conversion")
 		#pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
@@ -163,7 +162,6 @@ namespace ShewchukExactPredicates
 
 
 #if defined(__clang__)
-#pragma float_control(pop)
 #pragma clang diagnostic pop
 #endif
 
