@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeIf.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeIf)
 
@@ -121,12 +121,12 @@ void UNiagaraNodeIf::AllocateDefaultPins()
 	CreateAddPin(EGPD_Output);
 }
 
-void UNiagaraNodeIf::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeIf::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	checkSlow(PathAssociatedPinGuids.Num() == OutputVars.Num());
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
-	int32 Condition = Translator->CompilePin(GetPinByGuid(ConditionPinGuid));
+	int32 Condition = Translator->CompileInputPin(GetPinByGuid(ConditionPinGuid));
 
 	TArray<int32> PathTrue;
 	PathTrue.Reserve(PathAssociatedPinGuids.Num());
@@ -137,7 +137,7 @@ void UNiagaraNodeIf::Compile(class FHlslNiagaraTranslator* Translator, TArray<in
 		{
 			Translator->Error(LOCTEXT("UnsupportedParamMapInIf", "Parameter maps are not supported in if nodes."), this, InputTruePin);
 		}
-		PathTrue.Add(Translator->CompilePin(InputTruePin));
+		PathTrue.Add(Translator->CompileInputPin(InputTruePin));
 	}
 	TArray<int32> PathFalse;
 	PathFalse.Reserve(PathAssociatedPinGuids.Num());
@@ -148,7 +148,7 @@ void UNiagaraNodeIf::Compile(class FHlslNiagaraTranslator* Translator, TArray<in
 		{
 			Translator->Error(LOCTEXT("UnsupportedParamMapInIf", "Parameter maps are not supported in if nodes."), this, InputFalsePin);
 		}
-		PathFalse.Add(Translator->CompilePin(InputFalsePin));
+		PathFalse.Add(Translator->CompileInputPin(InputFalsePin));
 	}
 
 	Translator->If(this, OutputVars, Condition, PathTrue, PathFalse, Outputs);

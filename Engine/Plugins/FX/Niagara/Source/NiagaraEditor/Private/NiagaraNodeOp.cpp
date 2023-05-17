@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeOp.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "GraphEditorSettings.h"
 
 #include "EdGraphSchema_Niagara.h"
@@ -161,7 +161,7 @@ FNiagaraTypeDefinition UNiagaraNodeOp::ResolveCustomNumericType(const TArray<FNi
 }
 
 
-void UNiagaraNodeOp::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeOp::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
 	if (!OpInfo)
@@ -185,7 +185,7 @@ void UNiagaraNodeOp::Compile(class FHlslNiagaraTranslator* Translator, TArray<in
 		{
 			continue;
 		}
-		int32 CompiledInput = Translator->CompilePin(Pin);
+		int32 CompiledInput = Translator->CompileInputPin(Pin);
 		if (CompiledInput == INDEX_NONE)
 		{
 			bError = true;

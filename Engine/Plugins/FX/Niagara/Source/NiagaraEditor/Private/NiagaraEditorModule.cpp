@@ -964,7 +964,6 @@ void FNiagaraEditorModule::StartupModule()
 {
 	bThumbnailRenderersRegistered = false;
 
-	FHlslNiagaraTranslator::Init();
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 

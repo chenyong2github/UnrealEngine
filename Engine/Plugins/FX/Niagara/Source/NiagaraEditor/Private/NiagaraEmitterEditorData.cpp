@@ -3,6 +3,7 @@
 #include "NiagaraEmitterEditorData.h"
 
 #include "NiagaraNodeFunctionCall.h"
+#include "NiagaraScriptSource.h"
 #include "NiagaraScriptVariable.h"
 #include "EdGraph/EdGraph.h"
 #include "NiagaraStackEditorData.h"

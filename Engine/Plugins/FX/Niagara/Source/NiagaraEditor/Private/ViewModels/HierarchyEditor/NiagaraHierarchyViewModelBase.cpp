@@ -17,6 +17,7 @@
 #include "IPropertyRowGenerator.h"
 #include "ScopedTransaction.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "ToolMenus.h"
 #include "Widgets/Notifications/SNotificationList.h"
 

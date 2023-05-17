@@ -422,7 +422,7 @@ FName FNiagaraParameterMapHistory::ResolveEmitterAlias(const FName& InName, cons
 
 FString FNiagaraParameterMapHistory::MakeSafeNamespaceString(const FString& InStr)
 {
-	FString  Sanitized = FHlslNiagaraTranslator::GetSanitizedSymbolName(InStr);
+	FString  Sanitized = FNiagaraHlslTranslator::GetSanitizedSymbolName(InStr);
 	return Sanitized;
 }
 
@@ -1457,39 +1457,33 @@ bool FNiagaraParameterMapHistoryBuilder::InTopLevelFunctionCall(ENiagaraScriptUs
 }
 
 
-void FNiagaraParameterMapHistoryBuilder::EnterFunction(const FString& InNodeName, const UNiagaraScript* InScript, const UNiagaraGraph* InGraph, const UNiagaraNode* Node)
+void FNiagaraParameterMapHistoryBuilder::EnterFunction(const FString& InNodeName, const UNiagaraGraph* InGraph, const UNiagaraNode* Node)
 {
-	if (InScript != nullptr )
+	RegisterNodeVisitation(Node);
+	CallingContext.Push(Node);
+	ActivePath.PushNode(Node);
+	CallingGraphContext.Push(InGraph);
+	PinToParameterMapIndices.Emplace();
+	PinToConstantIndices.Emplace();
+	FunctionNameContextStack.Emplace(*InNodeName);
+	BuildCurrentAliases();
+	if (EncounteredFunctionNames.Num() != 0)
 	{
-		RegisterNodeVisitation(Node);
-		CallingContext.Push(Node);
-		ActivePath.PushNode(Node);
-		CallingGraphContext.Push(InGraph);
-		PinToParameterMapIndices.Emplace();
-		PinToConstantIndices.Emplace();
-		FunctionNameContextStack.Emplace(*InNodeName);
-		BuildCurrentAliases();
-		if (EncounteredFunctionNames.Num() != 0)
-		{
-			EncounteredFunctionNames.Last().AddUnique(InNodeName);
-		}
-		ContextuallyVisitedNodes.Emplace();
+		EncounteredFunctionNames.Last().AddUnique(InNodeName);
 	}
+	ContextuallyVisitedNodes.Emplace();
 }
 
-void FNiagaraParameterMapHistoryBuilder::ExitFunction(const FString& InNodeName, const UNiagaraScript* InScript, const UNiagaraNode* Node)
+void FNiagaraParameterMapHistoryBuilder::ExitFunction(const FString& InNodeName, const UNiagaraNode* Node)
 {
-	if (InScript != nullptr)
-	{
-		CallingContext.Pop();
-		CallingGraphContext.Pop();
-		ActivePath.PopNode();
-		PinToParameterMapIndices.Pop();
-		FunctionNameContextStack.Pop();
-		PinToConstantIndices.Pop();
-		BuildCurrentAliases();
-		ContextuallyVisitedNodes.Pop();
-	}
+	CallingContext.Pop();
+	CallingGraphContext.Pop();
+	ActivePath.PopNode();
+	PinToParameterMapIndices.Pop();
+	FunctionNameContextStack.Pop();
+	PinToConstantIndices.Pop();
+	BuildCurrentAliases();
+	ContextuallyVisitedNodes.Pop();
 }
 
 void FNiagaraParameterMapHistoryBuilder::EnterEmitter(const FString& InEmitterName, const UNiagaraGraph* InGraph, const UNiagaraNode* Node)

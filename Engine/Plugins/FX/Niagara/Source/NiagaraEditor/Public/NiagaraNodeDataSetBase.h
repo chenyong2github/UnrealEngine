@@ -47,9 +47,9 @@ protected:
 	void AddParameterMapPins();
 	bool InitializeFromStructInternal(const UStruct* PayloadStruct);
 
-	bool IsSynchronizedWithStruct(bool bIgnoreConditionVar, FString* Issues, bool bLogIssues = true);
+	bool IsSynchronizedWithStruct(bool bIgnoreConditionVar, FString* Issues, bool bLogIssues = true) const;
 	virtual bool SynchronizeWithStruct();
-	bool GetSupportedNiagaraTypeDef(const FProperty* Property, FNiagaraTypeDefinition& TypeDef);
+	bool GetSupportedNiagaraTypeDef(const FProperty* Property, FNiagaraTypeDefinition& TypeDef) const;
 
 	static const FName ConditionVarName;
 	static const FName ParamMapInVarName;

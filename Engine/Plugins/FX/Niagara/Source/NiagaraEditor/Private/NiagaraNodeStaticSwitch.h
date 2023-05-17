@@ -74,9 +74,9 @@ public:
 	UEdGraphPin* GetSelectorPin() const;
 
 	/** This is a hack used in the translator to check for inconsistencies with old static switches before auto refresh was a thing */
-	void CheckForOutdatedEnum(FHlslNiagaraTranslator* Translator);
+	void CheckForOutdatedEnum(FTranslator* Translator);
 
-	void UpdateCompilerConstantValue(class FHlslNiagaraTranslator* Translator);
+	void UpdateCompilerConstantValue(FTranslator* Translator);
 
 	//~ Begin EdGraphNode Interface
 	virtual void AllocateDefaultPins() override;
@@ -88,8 +88,8 @@ public:
 	//~ End EdGraphNode Interface
 	
 	//~ Begin UNiagaraNode Interface
-	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
-	virtual bool SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin) override;
+	virtual void Compile(FTranslator* Translator, TArray<int32>& Outputs) const override;
+	virtual bool SubstituteCompiledPin(FTranslator* Translator, UEdGraphPin** LocallyOwnedPin) override;
 	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace = nullptr) const override;
 	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive, bool bFilterForCompilation, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace = nullptr) const;
 	virtual UEdGraphPin* GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin, ENiagaraScriptUsage InUsage) const override;
@@ -119,9 +119,9 @@ private:
 	virtual void PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType) override;
 	
 	/** This finds the first valid input pin index for the current switch value, returns false if no value can be found */
-	bool GetVarIndex(class FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32& VarIndexOut) const;
+	bool GetVarIndex(FTranslator* Translator, int32 InputPinCount, int32& VarIndexOut) const;
 
-	bool GetVarIndex(class FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const;
+	bool GetVarIndex(FTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const;
 
 	void RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter);
 	

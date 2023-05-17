@@ -59,7 +59,7 @@ public:
 	UNiagaraScriptSource* GetScriptSource() const;
 	UNiagaraGraph* GetCalledGraph() const;
 	
-	virtual void Compile(FHlslNiagaraTranslator *Translator, TArray<int32>& Outputs) override;
+	virtual void Compile(FTranslator* Translator, TArray<int32>& Outputs) const override;
 	virtual void GatherExternalDependencyData(ENiagaraScriptUsage InUsage, const FGuid& InUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const override;
 
 	void SetCachedVariablesForCompilation(const FName& InUniqueName, UNiagaraGraph* InGraph, UNiagaraScriptSourceBase* InSource);

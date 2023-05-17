@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeSimTargetSelector.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeSimTargetSelector)
 
@@ -47,12 +47,12 @@ FString UNiagaraNodeSimTargetSelector::GetInputCaseName(int32 Case) const
 	return Case == 0 ? TEXT("CPU VM") : TEXT("GPU Shader");
 }
 
-void UNiagaraNodeSimTargetSelector::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeSimTargetSelector::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;
-	GetInputPins(InputPins);
+	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
 	FPinCollectorArray OutputPins;
-	GetOutputPins(OutputPins);
+	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
 
 	//ENiagaraSimTarget SimulationTarget = Translator->GetSimulationTarget();
 	bool bCPUSim = Translator->IsCompileOptionDefined(*FNiagaraCompileOptions::CpuScriptDefine);
@@ -82,11 +82,9 @@ void UNiagaraNodeSimTargetSelector::Compile(class FHlslNiagaraTranslator* Transl
 	Outputs.SetNumUninitialized(OutputPins.Num());
 	for (int32 i = 0; i < OutputVars.Num(); i++)
 	{
-		int32 InputIdx = Translator->CompilePin(InputPins[VarIdx + i]);
+		int32 InputIdx = Translator->CompileInputPin(InputPins[VarIdx + i]);
 		Outputs[i] = InputIdx;
 	}
-	check(this->IsAddPin(OutputPins[OutputPins.Num() - 1]));
-	Outputs[OutputPins.Num() - 1] = INDEX_NONE;
 }
 
 UEdGraphPin* UNiagaraNodeSimTargetSelector::GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin, ENiagaraScriptUsage InUsage) const

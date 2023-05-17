@@ -4,7 +4,50 @@
 
 #include "NiagaraCommon.h"
 
+#include "NiagaraScript.h"
+#include "NiagaraTypes.h"
+
+#include "NiagaraCompilationTypes.generated.h"
+
 class UNiagaraSystem;
+
+using FNiagaraCompilationTaskHandle = int32;
+
+USTRUCT()
+struct FNiagaraScriptAsyncCompileData
+{
+	GENERATED_USTRUCT_BODY()
+
+	FNiagaraVMExecutableDataId CompileId;
+	TSharedPtr<struct FNiagaraVMExecutableData> ExeData;
+	FString UniqueEmitterName;
+	bool bFromDerivedDataCache = false;
+
+	UPROPERTY()
+	TMap<FName, TObjectPtr<UNiagaraDataInterface>> NamedDataInterfaces;
+};
+
+USTRUCT()
+struct FNiagaraSystemAsyncCompileResults
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	TArray<TObjectPtr<UObject>> RootObjects;
+
+	FNiagaraCompilationTaskHandle CompilationTask;
+
+	using FCompileResultMap = TMap<UNiagaraScript*, FNiagaraScriptAsyncCompileData>;
+	FCompileResultMap CompileResultMap;
+
+	UPROPERTY()
+	TArray<FNiagaraVariable> ExposedVariables;
+
+	bool bForced = false;
+
+	float CombinedCompileTime = 0.0f;
+	float StartTime = 0.0f;
+};
 
 struct FNiagaraCompilationOptions
 {
@@ -52,4 +95,3 @@ protected:
 private:
 	bool bShouldApply = true;
 };
-

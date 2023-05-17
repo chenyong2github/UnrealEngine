@@ -2,6 +2,7 @@
 
 #include "NiagaraNodeOutputTag.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "Widgets/SNiagaraGraphNodeCustomHlsl.h"
 #include "EdGraphSchema_Niagara.h"
 #include "ScopedTransaction.h"
@@ -32,7 +33,7 @@ void UNiagaraNodeOutputTag::AllocateDefaultPins()
 	CreateAddPin(EGPD_Input);
 }
 
-void UNiagaraNodeOutputTag::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeOutputTag::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
@@ -49,7 +50,7 @@ void UNiagaraNodeOutputTag::Compile(class FHlslNiagaraTranslator* Translator, TA
 		{
 			continue;
 		}
-		int32 CompiledInput = Translator->CompilePin(InputPin);
+		int32 CompiledInput = Translator->CompileInputPin(InputPin);
 
 		if (Schema->PinToTypeDefinition(InputPin) == FNiagaraTypeDefinition::GetParameterMapDef())
 		{

@@ -3,7 +3,7 @@
 #include "NiagaraNodeParameterMapFor.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "EdGraph/EdGraphNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeParameterMapFor)
@@ -57,7 +57,7 @@ bool UNiagaraNodeParameterMapFor::CanModifyPin(const UEdGraphPin* Pin) const
 	return true;
 }
 
-void UNiagaraNodeParameterMapFor::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeParameterMapFor::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
@@ -65,7 +65,7 @@ void UNiagaraNodeParameterMapFor::Compile(FHlslNiagaraTranslator* Translator, TA
 	{
 		if (Translator->GetSimulationTarget() == ENiagaraSimTarget::GPUComputeSim)
 		{
-			const int32 IterationCount = Translator->CompilePin(InputPins[1]);
+			const int32 IterationCount = Translator->CompileInputPin(InputPins[1]);
 			Translator->ParameterMapForBegin(this, IterationCount);
 
 			UNiagaraNodeParameterMapSet::Compile(Translator, Outputs);
@@ -97,7 +97,7 @@ UNiagaraNodeParameterMapForWithContinue::UNiagaraNodeParameterMapForWithContinue
 	UEdGraphNode::NodeUpgradeMessage = LOCTEXT("NodeExperimental", "This node is marked as experimental, use with care!");
 }
 
-void UNiagaraNodeParameterMapForWithContinue::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeParameterMapForWithContinue::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
@@ -105,11 +105,11 @@ void UNiagaraNodeParameterMapForWithContinue::Compile(FHlslNiagaraTranslator* Tr
 	{
 		if (Translator->GetSimulationTarget() == ENiagaraSimTarget::GPUComputeSim)
 		{
-			const int32 IterationCount = Translator->CompilePin(InputPins[1]);
+			const int32 IterationCount = Translator->CompileInputPin(InputPins[1]);
 
 			Translator->ParameterMapForBegin(this, IterationCount);
 			
-			const int32 IterationEnabledChunk = Translator->CompilePin(InputPins[2]);
+			const int32 IterationEnabledChunk = Translator->CompileInputPin(InputPins[2]);
 			Translator->ParameterMapForContinue(this, IterationEnabledChunk);
 
 			UNiagaraNodeParameterMapSet::Compile(Translator, Outputs);
@@ -194,7 +194,7 @@ FText UNiagaraNodeParameterMapForIndex::GetNodeTitle(ENodeTitleType::Type TitleT
 	return LOCTEXT("UNiagaraNodeParameterMapForIndex", "Map For Index");
 }
 
-void UNiagaraNodeParameterMapForIndex::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeParameterMapForIndex::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	if (Translator)
 	{

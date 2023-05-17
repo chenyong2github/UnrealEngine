@@ -2,7 +2,8 @@
 
 #include "NiagaraNodeUsageSelector.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
+#include "NiagaraScriptSource.h"
 #include "Widgets/Layout/SSeparator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraNodeUsageSelector)
@@ -294,12 +295,12 @@ void UNiagaraNodeUsageSelector::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> In
 }
 
 
-void UNiagaraNodeUsageSelector::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeUsageSelector::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;
-	GetInputPins(InputPins);
+	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
 	FPinCollectorArray OutputPins;
-	GetOutputPins(OutputPins);
+	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
 
 	ENiagaraScriptUsage CurrentUsage = Translator->GetCurrentUsage();
 	ENiagaraScriptGroup UsageGroup = ENiagaraScriptGroup::Max;
@@ -319,11 +320,9 @@ void UNiagaraNodeUsageSelector::Compile(class FHlslNiagaraTranslator* Translator
 		Outputs.SetNumUninitialized(OutputPins.Num());
 		for (int32 i = 0; i < OutputVars.Num(); i++)
 		{
-			int32 InputIdx = Translator->CompilePin(InputPins[VarIdx + i]);
+			int32 InputIdx = Translator->CompileInputPin(InputPins[VarIdx + i]);
 			Outputs[i] = InputIdx;
 		}
-		check(this->IsAddPin(OutputPins[OutputPins.Num() - 1]));
-		Outputs[OutputPins.Num() - 1] = INDEX_NONE;
 	}
 	else
 	{
@@ -366,7 +365,7 @@ UEdGraphPin* UNiagaraNodeUsageSelector::GetPassThroughPin(const UEdGraphPin* Loc
 	return nullptr;
 }
 
-void UNiagaraNodeUsageSelector::AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType)
+void UNiagaraNodeUsageSelector::AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType) const
 {
 	OutOnlyOncePerNodeType = true;
 	

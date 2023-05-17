@@ -50,7 +50,7 @@ public:
 	/** Notifies the node that it's output variables have been modified externally. */
 	void NotifyOutputVariablesChanged();
 
-	virtual void Compile(class FHlslNiagaraTranslator *Translator, TArray<int32>& OutputExpressions) override;
+	virtual void Compile(FTranslator* Translator, TArray<int32>& OutputExpressions) const override;
 	const TArray<FNiagaraVariable>& GetOutputs() const {return Outputs;}
 	
 	/** Gets the usage of this graph root. */
@@ -67,7 +67,7 @@ public:
 	TArray<FName> GetAllStackContextOverrides() const;
 
 protected:
-	virtual int32 CompileInputPin(class FHlslNiagaraTranslator *Translator, UEdGraphPin* Pin) override;
+	virtual int32 CompileInputPin(FTranslator* Translator, UEdGraphPin* Pin) const override;
 
 	/** Removes a pin from this node with a transaction. */
 	virtual void RemoveOutputPin(UEdGraphPin* Pin);

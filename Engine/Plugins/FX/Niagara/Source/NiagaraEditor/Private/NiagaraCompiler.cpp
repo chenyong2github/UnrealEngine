@@ -7,6 +7,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/PathViews.h"
 #include "Modules/ModuleManager.h"
+#include "NiagaraCompilationPrivate.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraEditorModule.h"
@@ -172,7 +173,7 @@ void FNiagaraCompileRequestDuplicateData::DuplicateReferencedGraphsRecursive(UNi
 				{
 					UNiagaraDataInterface* DataInterface = InputNode->GetDataInterface();
 					bool bIsParameterMapDataInterface = false;
-					FName DIName = FHlslNiagaraTranslator::GetDataInterfaceName(InputNode->Input.GetName(), EmitterUniqueName, bIsParameterMapDataInterface);
+					FName DIName = FNiagaraHlslTranslator::GetDataInterfaceName(InputNode->Input.GetName(), EmitterUniqueName, bIsParameterMapDataInterface);
 					UNiagaraDataInterface* Dupe = PrecompileDuplicateObject<UNiagaraDataInterface>(DataInterface, GetTransientPackage());
 					SharedNameToDuplicatedDataInterfaceMap->Add(DIName, Dupe);
 				}
@@ -1430,7 +1431,7 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 	FNiagaraCompileResults Results;
 	TSharedPtr<FHlslNiagaraCompiler> Compiler = MakeShared<FHlslNiagaraCompiler>();
 	FNiagaraTranslateResults TranslateResults;
-	FHlslNiagaraTranslator Translator;
+	TUniquePtr<INiagaraHlslTranslator> Translator = INiagaraHlslTranslator::CreateTranslator(CompileRequest, CompileRequestDuplicate);
 
 	FHlslNiagaraTranslatorOptions TranslateOptions;
 
@@ -1451,17 +1452,17 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 	if (GbForceNiagaraTranslatorSingleThreaded > 0)
 	{
 		FScopeLock Lock(&TranslationCritSec);
-		TranslateResults = Translator.Translate(CompileRequest, CompileRequestDuplicate, InCompileOptions, TranslateOptions);
+		TranslateResults = Translator->Translate(InCompileOptions, TranslateOptions);
 	}
 	else
 	{
-		TranslateResults = Translator.Translate(CompileRequest, CompileRequestDuplicate, InCompileOptions, TranslateOptions);
+		TranslateResults = Translator->Translate(InCompileOptions, TranslateOptions);
 	}
 	UE_LOG(LogNiagaraEditor, Verbose, TEXT("Translating System %s took %f sec."), *InCompileOptions.FullName, (float)(FPlatformTime::Seconds() - TranslationStartTime));
 
 	if (GbForceNiagaraTranslatorDump != 0)
 	{
-		DumpHLSLText(Translator.GetTranslatedHLSL(), InCompileOptions.FullName);
+		DumpHLSLText(Translator->GetTranslatedHLSL(), InCompileOptions.FullName);
 		if (GbForceNiagaraVMBinaryDump != 0 && Results.Data.IsValid())
 		{
 			DumpHLSLText(Results.Data->LastAssemblyTranslation, InCompileOptions.FullName);
@@ -1471,10 +1472,9 @@ int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* 
 	NiagaraCompileRequestHelper::FDebugGroupNameBuilder DebugGroupName;
 	NiagaraCompileRequestHelper::BuildScriptDebugGroupName(CompileRequest, InCompileOptions, DebugGroupName);
 
-	int32 JobID = Compiler->CompileScript(DebugGroupName, InCompileOptions, TranslateResults, &Translator.GetTranslateOutput(), Translator.GetTranslatedHLSL());
+	int32 JobID = Compiler->CompileScript(DebugGroupName, InCompileOptions, TranslateResults, Translator->GetTranslateOutput(), Translator->GetTranslatedHLSL());
 	ActiveCompilations.Add(JobID, Compiler);
 	return JobID;
-	
 }
 
 TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> FNiagaraEditorModule::CacheGraphTraversal(const UObject* Obj, FGuid Version)
@@ -1764,10 +1764,10 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	NiagaraCompileRequestHelper::FDebugGroupNameBuilder DebugGroupName;
 	NiagaraCompileRequestHelper::BuildScriptDebugGroupName(InCompileRequest, InOptions, DebugGroupName);
 
-	return CompileScript(DebugGroupName, InOptions, InTranslateResults, TranslatorOutput, TranslatedHLSL);
+	return CompileScript(DebugGroupName, InOptions, InTranslateResults, TranslatorOutput ? *TranslatorOutput : FNiagaraTranslatorOutput(), TranslatedHLSL);
 }
 
-int32 FHlslNiagaraCompiler::CompileScript(const FStringView GroupName, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, FNiagaraTranslatorOutput *TranslatorOutput, FString &TranslatedHLSL)
+int32 FHlslNiagaraCompiler::CompileScript(const FStringView GroupName, const FNiagaraCompileOptions& InOptions, const FNiagaraTranslateResults& InTranslateResults, const FNiagaraTranslatorOutput& TranslatorOutput, const FString& TranslatedHLSL)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslCompiler_CompileScript);
 
@@ -1807,7 +1807,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FStringView GroupName, const FNi
 
 	uint32 JobID = FShaderCommonCompileJob::GetNextJobId();
 	CompilationJob = MakeUnique<FNiagaraCompilerJob>();
-	CompilationJob->TranslatorOutput = TranslatorOutput ? *TranslatorOutput : FNiagaraTranslatorOutput();
+	CompilationJob->TranslatorOutput = TranslatorOutput;
 
 	CompileResults.bVMSucceeded = (CompilationJob->TranslatorOutput.Errors.Len() == 0) && (TranslatedHLSL.Len() > 0) && !InTranslateResults.NumErrors;
 
@@ -2083,7 +2083,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			{
 				Sig = NDIInfo.RegisteredFunctions.FindByPredicate([&](const FNiagaraFunctionSignature& CheckSig)
 				{
-					FString SigSymbol = FHlslNiagaraTranslator::GetFunctionSignatureSymbol(CheckSig);
+					FString SigSymbol = FNiagaraHlslTranslator::GetFunctionSignatureSymbol(CheckSig);
 					return SigSymbol == FuncInfo.Name;
 				});
 				if (Sig)
@@ -2098,7 +2098,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 				Sig = UNiagaraFunctionLibrary::GetVectorVMFastPathOps(true).FindByPredicate(
 					[&](const FNiagaraFunctionSignature& CheckSig)
 				{
-					FString SigSymbol = FHlslNiagaraTranslator::GetFunctionSignatureSymbol(CheckSig);
+					FString SigSymbol = FNiagaraHlslTranslator::GetFunctionSignatureSymbol(CheckSig);
 					return SigSymbol == FuncInfo.Name;
 				}
 				);

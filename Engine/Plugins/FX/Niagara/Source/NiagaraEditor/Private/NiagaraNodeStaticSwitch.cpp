@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraScriptVariable.h"
@@ -316,7 +316,7 @@ bool UNiagaraNodeStaticSwitch::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefin
 	return InType.GetScriptStruct() != nullptr && !InType.IsInternalType();
 }
 
-bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32& VarIndexOut) const
+bool UNiagaraNodeStaticSwitch::GetVarIndex(FTranslator* Translator, int32 InputPinCount, int32& VarIndexOut) const
 {	
 	return GetVarIndex(Translator, InputPinCount, SwitchValue, VarIndexOut);
 }
@@ -338,7 +338,7 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetSelectorPin() const
 }
 
 
-void UNiagaraNodeStaticSwitch::UpdateCompilerConstantValue(FHlslNiagaraTranslator* Translator)
+void UNiagaraNodeStaticSwitch::UpdateCompilerConstantValue(FTranslator* Translator)
 {
 	if (IsSetByPin() && Translator)
 	{
@@ -409,7 +409,7 @@ void UNiagaraNodeStaticSwitch::UpdateCompilerConstantValue(FHlslNiagaraTranslato
 	}
 }
 
-bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const
+bool UNiagaraNodeStaticSwitch::GetVarIndex(FTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const
 {
 	bool Success = false;
 	if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Bool)
@@ -486,7 +486,7 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 	return Success;
 }
 
-void UNiagaraNodeStaticSwitch::CheckForOutdatedEnum(FHlslNiagaraTranslator* Translator)
+void UNiagaraNodeStaticSwitch::CheckForOutdatedEnum(FTranslator* Translator)
 {
 	// we check during compilation if the node is using outdated enum information and log it
 	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
@@ -552,7 +552,7 @@ void UNiagaraNodeStaticSwitch::CheckForOutdatedEnum(FHlslNiagaraTranslator* Tran
 	}
 }
 
-void UNiagaraNodeStaticSwitch::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeStaticSwitch::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {	
 	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
@@ -563,27 +563,19 @@ void UNiagaraNodeStaticSwitch::Compile(FHlslNiagaraTranslator* Translator, TArra
 		UEdGraphPin* SelectorPin = GetSelectorPin();	
 		if (SelectorPin)
 		{
-			Translator->CompilePin(SelectorPin);
+			Translator->CompileInputPin(SelectorPin);
 		}
 	}
 	FPinCollectorArray OutputPins;
-	GetOutputPins(OutputPins);
+	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
 
 	// Initialize the outputs to invalid values.
 	check(Outputs.Num() == 0);
-	Outputs.Reserve(OutputPins.Num());
-	for (int32 i = 0; i < OutputPins.Num(); i++)
-	{
-		Outputs.Add(INDEX_NONE);
-	}
+	Outputs.Init(INDEX_NONE, OutputPins.Num());
 
 	for (int i = 0; i < OutputPins.Num(); i++)
 	{
 		UEdGraphPin* OutPin = OutputPins[i];
-		if (IsAddPin(OutPin))
-		{
-			continue;
-		}
 		int32 VarIdx;
 		int NumChoices = IsSetByPin() ? InputPins.Num() - 1 : InputPins.Num();
 		if (GetVarIndex(nullptr, NumChoices, SelectorValue, VarIdx))
@@ -591,7 +583,7 @@ void UNiagaraNodeStaticSwitch::Compile(FHlslNiagaraTranslator* Translator, TArra
 			UEdGraphPin* InputPin = InputPins[VarIdx + i];
 			if (InputPin)
 			{
-				int32 CompiledInput = Translator->CompilePin(InputPin);
+				int32 CompiledInput = Translator->CompileInputPin(InputPin);
 				Outputs[i] = CompiledInput;
 			}
 		}		
@@ -644,7 +636,7 @@ void UNiagaraNodeStaticSwitch::ResolveNumerics(const UEdGraphSchema_Niagara* Sch
 		VarIdx++;
 	}
 }
-bool UNiagaraNodeStaticSwitch::SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin)
+bool UNiagaraNodeStaticSwitch::SubstituteCompiledPin(FTranslator* Translator, UEdGraphPin** LocallyOwnedPin)
 {
 	// if we compile the standalone module or function we don't have any valid input yet, so we just take the first option to satisfy the compiler
 	ENiagaraScriptUsage TargetUsage = Translator->GetTargetUsage();

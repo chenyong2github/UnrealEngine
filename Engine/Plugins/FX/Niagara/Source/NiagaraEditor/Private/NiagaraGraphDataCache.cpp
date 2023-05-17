@@ -40,7 +40,7 @@ void FNiagaraGraphDataCache::GetStackFunctionInputsInternal(
 	// we don't currently support hashing the internal details of the translator within FStackFunctionInputPinKey so in the case
 	// we've been supplied a translator we'll just fall back to not using the cache
 	TArray<const UEdGraphPin*> InputPins;
-	if (const FHlslNiagaraTranslator* Translator = ConstantResolver.GetTranslator())
+	if (const FNiagaraHlslTranslator* Translator = ConstantResolver.GetTranslator())
 	{
 		FNiagaraStackGraphUtilities::GetStackFunctionInputPinsWithoutCache(
 			FunctionCallNode,

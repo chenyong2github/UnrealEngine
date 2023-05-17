@@ -137,7 +137,7 @@ struct FNiagaraGraphFunctionAliasContext
 
 	// the usage as defined in the current translation stage
 	ENiagaraScriptUsage ScriptUsage;
-	TArray<UEdGraphPin*> StaticSwitchValues;
+	TArray<const UEdGraphPin*> StaticSwitchValues;
 };
 
 UCLASS(MinimalAPI)
@@ -369,7 +369,7 @@ class UNiagaraGraph : public UEdGraph
 	  * function calls to the same graph. For example, if the graph contains static switches and two functions call it with
 	  * different switch parameters, the final function names in the hlsl must be different.
 	  */
-	FString GetFunctionAliasByContext(const FNiagaraGraphFunctionAliasContext& FunctionAliasContext);
+	FString GetFunctionAliasByContext(const FNiagaraGraphFunctionAliasContext& FunctionAliasContext) const;
 
 	/** In order to support reducing the number of times we need to fully generate the CompileId this function is introduced
 	  * to work with LastBuiltScriptVersionId & bHasValidLastBuiltScriptVersionId.

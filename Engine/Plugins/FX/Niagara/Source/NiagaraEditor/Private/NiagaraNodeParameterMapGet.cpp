@@ -4,7 +4,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraGraph.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "ScopedTransaction.h"
 #include "Widgets/SNiagaraGraphParameterMapGetNode.h"
 #include "NiagaraEditorModule.h"
@@ -517,25 +517,18 @@ void UNiagaraNodeParameterMapGet::BuildParameterMapHistory(FNiagaraParameterMapH
 	}
 }
 
-void UNiagaraNodeParameterMapGet::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeParameterMapGet::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
 	FPinCollectorArray InputPins;
-	GetInputPins(InputPins);
+	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
 	FPinCollectorArray OutputPins;
-	GetOutputPins(OutputPins);
+	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
 
 	// Initialize the outputs to invalid values.
 	check(Outputs.Num() == 0);
-	for (int32 i = 0; i < OutputPins.Num(); i++)
-	{
-		if (IsAddPin(OutputPins[i]))
-		{
-			continue;
-		}
-		Outputs.Add(INDEX_NONE);
-	}
+	Outputs.Init(INDEX_NONE, OutputPins.Num());
 
 	// First compile fully down the hierarchy for our predecessors..
 	TArray<int32, TInlineAllocator<16>> CompileInputs;
@@ -553,7 +546,7 @@ void UNiagaraNodeParameterMapGet::Compile(class FHlslNiagaraTranslator* Translat
 			int32 CompiledInput = INDEX_NONE;
 			if (i == 0) // Only the zeroth item is not an default value pin.
 			{
-				CompiledInput = Translator->CompilePin(InputPin);
+				CompiledInput = Translator->CompileInputPin(InputPin);
 				if (CompiledInput == INDEX_NONE)
 				{
 					Translator->Error(LOCTEXT("InputError", "Error compiling input for param map get node."), this, InputPin);

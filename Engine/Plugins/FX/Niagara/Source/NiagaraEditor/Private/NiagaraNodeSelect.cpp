@@ -6,7 +6,7 @@
 #include "FindInBlueprintManager.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Widgets/SNiagaraPinTypeSelector.h"
 #include "ScopedTransaction.h"
@@ -306,7 +306,7 @@ void UNiagaraNodeSelect::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 	}
 }
 
-void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeSelect::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {	
 	const UEdGraphPin* SelectorPin = GetSelectorPin();
 
@@ -315,7 +315,7 @@ void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int3
 		Translator->Warning(LOCTEXT("SelectNodePinSelectorTypeInvalid", "Select node selector pin should have a valid type."), this, nullptr);
 	}
 	
-	for(FNiagaraVariable& Variable : OutputVars)
+	for(const FNiagaraVariable& Variable : OutputVars)
 	{
 		if(!Variable.GetType().IsValid())
 		{
@@ -323,7 +323,7 @@ void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int3
 		}
 	}
 	
-	int32 Selection = Translator->CompilePin(SelectorPin);
+	int32 Selection = Translator->CompileInputPin(SelectorPin);
 
 	// a map from selector value to compiled option pins (i.e.: for selector value 0 all pins that should be case "if 0" get their compiled index added under key 0)
 	TMap<int32, TArray<int32>> OptionValues;
@@ -359,7 +359,7 @@ void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int3
 		for (int32 OutputIndex = 0; OutputIndex < OutputVars.Num(); OutputIndex++)
 		{
 			TArray<UEdGraphPin*> OptionPins = GetOptionPins(OutputIndex);
-			int32 CodeChunkIndex = Translator->CompilePin(OptionPins[SelectorValueIndex]);
+			int32 CodeChunkIndex = Translator->CompileInputPin(OptionPins[SelectorValueIndex]);
 			OptionValues[SelectorValues[SelectorValueIndex]].Add(CodeChunkIndex);
 		}
 	}	

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "../Private/NiagaraHlslTranslator.h"
 #include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphNode.h"
 #include "NiagaraEditorCommon.h"
@@ -15,10 +14,13 @@
 #include "Widgets/SBoxPanel.h"
 #include "NiagaraNode.generated.h"
 
+struct FNiagaraCompilationGraphBridge;
 class UEdGraphPin;
+class UEdGraphSchema_Niagara;
 class INiagaraCompiler;
 struct FNiagaraGraphFunctionAliasContext;
 class FSHA1;
+template<typename T> class TNiagaraHlslTranslator;
 
 typedef TArray<UEdGraphPin*, TInlineAllocator<16>> FPinCollectorArray;
 
@@ -28,9 +30,11 @@ class NIAGARAEDITOR_API UNiagaraNode : public UEdGraphNode
 	GENERATED_UCLASS_BODY()
 protected:
 
+	using FTranslator = TNiagaraHlslTranslator<FNiagaraCompilationGraphBridge>;
+
 	bool ReallocatePins(bool bMarkNeedsResynchronizeOnChange = true);
 
-	bool CompileInputPins(class FHlslNiagaraTranslator *Translator, TArray<int32>& OutCompiledInputs);
+	bool CompileInputPins(FTranslator* Translator, TArray<int32>& OutCompiledInputs) const;
 
 	virtual void OnPostSynchronizationInReallocatePins() {}
 	
@@ -75,7 +79,7 @@ public:
 	/** Refreshes the node due to external changes, e.g. the underlying function changed for a function call node. Return true if the graph changed.*/
 	virtual bool RefreshFromExternalChanges() { return false; }
 
-	virtual void Compile(class FHlslNiagaraTranslator *Translator, TArray<int32>& Outputs);
+	virtual void Compile(FTranslator* Translator, TArray<int32>& Outputs) const;
 
 	UEdGraphPin* GetInputPin(int32 InputIndex) const;
 	UEdGraphPin* GetOutputPin(int32 OutputIndex) const;
@@ -92,7 +96,7 @@ public:
 	}
 
 	UEdGraphPin* GetPinByPersistentGuid(const FGuid& InGuid) const;
-	virtual void ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool bSetInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache);
+	virtual void ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool bSetInline, TMap<TPair<FGuid, class UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache);
 
 	/** Apply any node-specific logic to determine if it is safe to add this node to the graph. This is meant to be called only in the Editor before placing the node.*/
 	virtual bool CanAddToGraph(UNiagaraGraph* TargetGraph, FString& OutErrorMsg) const;
@@ -161,7 +165,7 @@ public:
 	static UEdGraphPin* TraceOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation = true, TArray<const UNiagaraNode*>* OutNodesVisitedDuringTrace = nullptr);
 
 	/** Allows a node to replace a pin that is about to be compiled with another pin. This can be used for either optimizations or features such as the static switch. Returns true if the pin was successfully replaced, false otherwise. */
-	virtual bool SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin);
+	virtual bool SubstituteCompiledPin(FTranslator* Translator, UEdGraphPin** LocallyOwnedPin);
 
 	virtual UEdGraphPin* GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin) const override { return nullptr; }
 	virtual UEdGraphPin* GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin, ENiagaraScriptUsage InUsage) const { return nullptr; }
@@ -177,7 +181,7 @@ public:
 
 	FOnNodeVisualsChanged& OnVisualsChanged();
 
-	virtual void AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType) { };
+	virtual void AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType) const { };
 
 	/** Old style compile hash code. To be removed in the future.*/
 	virtual void UpdateCompileHashForNode(FSHA1& HashState) const;
@@ -206,7 +210,7 @@ protected:
 	/** For a simple Plain old data type UProperty, hash the data.*/
 	virtual bool PODPropertyAppendCompileHash(const void* Container, FProperty* Property, const FString& PropertyName, FNiagaraCompileHashVisitor* InVisitor) const;
 
-	virtual int32 CompileInputPin(class FHlslNiagaraTranslator *Translator, UEdGraphPin* Pin);
+	virtual int32 CompileInputPin(FTranslator* Translator, UEdGraphPin* Pin) const;
 	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const;
 
 	void NumericResolutionByPins(const UEdGraphSchema_Niagara* Schema, TArrayView<UEdGraphPin* const> InputPins, TArrayView<UEdGraphPin* const> OutputPins,

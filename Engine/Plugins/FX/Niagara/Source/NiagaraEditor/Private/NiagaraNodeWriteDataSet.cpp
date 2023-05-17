@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeWriteDataSet.h"
 #include "UObject/UnrealType.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "NiagaraEvents.h"
 #include "Widgets/SNiagaraGraphNodeWriteDataSet.h"
 #include "EdGraphSchema_Niagara.h"
@@ -75,8 +75,11 @@ FText UNiagaraNodeWriteDataSet::GetNodeTitle(ENodeTitleType::Type TitleType) con
 	return FText::Format(LOCTEXT("NiagaraDataSetWriteFormat", "{0} Write"), FText::FromName(DataSet.Name));
 }
 
-void UNiagaraNodeWriteDataSet::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeWriteDataSet::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
+	// this is dirty, but we'll continue doing this for now because it's all going to go away with Digested graphs
+	UNiagaraNodeWriteDataSet* MutableThis = const_cast<UNiagaraNodeWriteDataSet*>(this);
+
 	bool bError = false;
 
 	//TODO implement writing to data sets in hlsl compiler and vm.
@@ -105,8 +108,8 @@ void UNiagaraNodeWriteDataSet::Compile(class FHlslNiagaraTranslator* Translator,
 	
 	if (EventName.IsNone())
 	{
-		EventName = DataSet.Name;
-		VisualsChangedDelegate.Broadcast(this);
+		MutableThis->EventName = DataSet.Name;
+		VisualsChangedDelegate.Broadcast(MutableThis);
 	}
 
 	FNiagaraDataSetID AlteredDataSet = DataSet;

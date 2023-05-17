@@ -9,6 +9,7 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeReroute.h"
+#include "NiagaraScriptSource.h"
 
 #include "GraphEditor.h"
 #include "Styling/AppStyle.h"

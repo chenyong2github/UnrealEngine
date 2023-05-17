@@ -103,7 +103,7 @@ void UNiagaraNodeDataSetBase::PostLoad()
 	}
 }
 
-bool UNiagaraNodeDataSetBase::IsSynchronizedWithStruct(bool bIgnoreConditionVariable, FString* Issues, bool bLogIssues)
+bool UNiagaraNodeDataSetBase::IsSynchronizedWithStruct(bool bIgnoreConditionVariable, FString* Issues, bool bLogIssues) const
 {
 	if (ExternalStructAsset != nullptr)
 	{
@@ -224,7 +224,7 @@ bool UNiagaraNodeDataSetBase::RefreshFromExternalChanges()
 	return false;
 }
 
-bool UNiagaraNodeDataSetBase::GetSupportedNiagaraTypeDef(const FProperty* Property, FNiagaraTypeDefinition& TypeDef)
+bool UNiagaraNodeDataSetBase::GetSupportedNiagaraTypeDef(const FProperty* Property, FNiagaraTypeDefinition& TypeDef) const
 {
 	const FStructProperty* StructProp = CastField<FStructProperty>(Property);
 	if (Property->IsA(FFloatProperty::StaticClass()))

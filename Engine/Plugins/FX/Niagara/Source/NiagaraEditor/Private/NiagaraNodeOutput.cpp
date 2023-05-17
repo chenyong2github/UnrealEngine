@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeOutput.h"
 #include "UObject/UnrealType.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
 #include "NiagaraGraph.h"
@@ -267,7 +267,7 @@ void UNiagaraNodeOutput::NotifyOutputVariablesChanged()
 	ReallocatePins();
 }
 
-int32 UNiagaraNodeOutput::CompileInputPin(FHlslNiagaraTranslator *Translator, UEdGraphPin* Pin)
+int32 UNiagaraNodeOutput::CompileInputPin(FTranslator* Translator, UEdGraphPin* Pin) const
 {
 	// If we are an update script, automatically fill in any unwired values with the previous frame's value...
 	if (GetUsage() == ENiagaraScriptUsage::ParticleUpdateScript && Pin->LinkedTo.Num() == 0)
@@ -283,10 +283,10 @@ int32 UNiagaraNodeOutput::CompileInputPin(FHlslNiagaraTranslator *Translator, UE
 		}
 	}
 
-	return Translator->CompilePin(Pin);
+	return Translator->CompileInputPin(Pin);
 }
 
-void UNiagaraNodeOutput::Compile(FHlslNiagaraTranslator *Translator, TArray<int32>& OutputExpressions)
+void UNiagaraNodeOutput::Compile(FTranslator* Translator, TArray<int32>& OutputExpressions) const
 {
 	TArray<int32> Results;
 	bool bError = CompileInputPins(Translator, Results);

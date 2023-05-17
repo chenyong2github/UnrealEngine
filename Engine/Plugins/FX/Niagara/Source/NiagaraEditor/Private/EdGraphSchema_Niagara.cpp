@@ -803,7 +803,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			FNiagaraTypeDefinition PinType = PinToTypeDefinition(FromPin);
 
 			//Add all swizzles for this type if it's a vector.
-			if (FHlslNiagaraTranslator::IsHlslBuiltinVector(PinType))
+			if (FNiagaraHlslTranslator::IsHlslBuiltinVector(PinType))
 			{
 				TArray<FString> Components;
 				for (TFieldIterator<FProperty> PropertyIt(PinType.GetStruct(), EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
@@ -2190,7 +2190,7 @@ TArray<TTuple<FString, FString, FText>> UEdGraphSchema_Niagara::GetDataInterface
 				{
 					DataInterfaceName.RightChopInline(LastPinNameDot + 1);
 				}
-				DataInterfaceName = FHlslNiagaraTranslator::GetSanitizedSymbolName(DataInterfaceName);
+				DataInterfaceName = FNiagaraHlslTranslator::GetSanitizedSymbolName(DataInterfaceName);
 			}
 
 			// Generate all prototypes
@@ -2202,7 +2202,7 @@ TArray<TTuple<FString, FString, FText>> UEdGraphSchema_Niagara::GetDataInterface
 					continue;
 				}
 
-				FString Prototype = FHlslNiagaraTranslator::GenerateFunctionHlslPrototype(DataInterfaceName, FunctionSignature);
+				FString Prototype = FNiagaraHlslTranslator::GenerateFunctionHlslPrototype(DataInterfaceName, FunctionSignature);
 				if ( Prototype.Len() > 0 )
 				{
 					Prototype.Append(TEXT("\r\n"));

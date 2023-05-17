@@ -9,6 +9,7 @@
 #include "EditorSupportDelegates.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UICommandList.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "ISequencerModule.h"
 #include "Math/NumericLimits.h"
 #include "Modules/ModuleManager.h"

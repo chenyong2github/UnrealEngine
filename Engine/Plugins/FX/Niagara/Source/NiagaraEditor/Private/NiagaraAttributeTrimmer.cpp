@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraAttributeTrimmer.h"
 
 #include "Algo/ForEach.h"
 #include "Algo/RemoveIf.h"
 #include "EdGraphSchema_Niagara.h"
+#include "NiagaraCompilationGraphBridge.h"
 #include "NiagaraConstants.h"
 #include "NiagaraModule.h"
 #include "NiagaraNodeCustomHlsl.h"
@@ -15,566 +16,228 @@
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraScriptVariable.h"
 
-namespace NiagaraAttributeTrimming
+template<typename GraphBridge>
+class FNiagaraAttributeTrimmerHelper<GraphBridge>::FFunctionInputResolver
 {
-	using FDependencySet = TSet<FModuleScopedPin>;
-	struct FCustomHlslNodeInfo
+public:
+	FFunctionInputResolver(const FGraph* Graph, ENiagaraScriptUsage Usage)
 	{
-		bool bHasDataInterfaceInputs = false;
-		bool bHasImpureFunctionText = false;
-	};
+		TMap<FName, FScopedPin> UnresolvedInputs;
 
-	using FCustomHlslNodeMap = TMap<const UNiagaraNodeCustomHlsl*, FCustomHlslNodeInfo>;
+		Traverse(TEXT(""), Graph, Usage, UnresolvedInputs);
+	}
 
-	struct FDependencyChain
+	FScopedPin ResolveInput(const FScopedPin& Input) const
 	{
-		FDependencySet Pins;
-		FCustomHlslNodeMap CustomNodes;
-	};
-
-	using FDependencyMap = TMap<FModuleScopedPin, FDependencyChain>;
-
-	class FFunctionInputResolver
-	{
-	public:
-		FFunctionInputResolver(UNiagaraGraph* Graph, ENiagaraScriptUsage Usage)
+		if (const FScopedPin* FunctionInput = FunctionInputMap.Find(Input))
 		{
-			TMap<FName, FModuleScopedPin> UnresolvedInputs;
-
-			Traverse(TEXT(""), Graph, Usage, UnresolvedInputs);
+			return *FunctionInput;
 		}
 
-		FModuleScopedPin ResolveInput(const FModuleScopedPin& Input) const
+		return FScopedPin();
+	}
+
+private:
+	void Traverse(FString Namespace, const FGraph* Graph, ENiagaraScriptUsage Usage, TMap<FName, FScopedPin>& UnresolvedInputs)
+	{
+		const FString NamespacePrefix = (Namespace.Len() > 0) ? (Namespace + TEXT(".")) : TEXT("");
+
+		TArray<const FOutputNode*> OutputNodes;
+		GraphBridge::FindOutputNodes(Graph, Usage, OutputNodes);
+
+		for (const FOutputNode* OutputNode : OutputNodes)
 		{
-			if (const FModuleScopedPin* FunctionInput = FunctionInputMap.Find(Input))
+			TArray<const FNode*> TraversedNodes;
+			GraphBridge::BuildTraversal(Graph, OutputNode, TraversedNodes);
+
+			for (const FNode* Node : TraversedNodes)
 			{
-				return *FunctionInput;
-			}
-
-			return FModuleScopedPin();
-		}
-
-	private:
-		void Traverse(FString Namespace, UNiagaraGraph* Graph, ENiagaraScriptUsage Usage, TMap<FName, FModuleScopedPin>& UnresolvedInputs)
-		{
-			const FString NamespacePrefix = (Namespace.Len() > 0) ? (Namespace + TEXT(".")) : TEXT("");
-
-			TArray<UNiagaraNodeOutput*> OutputNodes;
-			Graph->FindOutputNodes(Usage, OutputNodes);
-
-			for (UNiagaraNodeOutput* OutputNode : OutputNodes)
-			{
-				TArray<UNiagaraNode*> TraversedNodes;
-				Graph->BuildTraversal(TraversedNodes, OutputNode, true);
-
-				for (UNiagaraNode* Node : TraversedNodes)
+				if (const FFunctionCallNode* FunctionNode = GraphBridge::template AsNodeType<FFunctionCallNode>(Node))
 				{
-					if (UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node))
+					if (const FGraph* FunctionGraph = GraphBridge::GetFunctionNodeGraph(FunctionNode))
 					{
-						if (UNiagaraGraph* FunctionGraph = FunctionNode->GetCalledGraph())
-						{
-							TMap<FName, FModuleScopedPin> FunctionInputs;
-							Traverse(NamespacePrefix + FunctionNode->GetFunctionName(), FunctionGraph, FunctionNode->GetCalledUsage(), FunctionInputs);
+						TMap<FName, FScopedPin> FunctionInputs;
+						Traverse(NamespacePrefix + GraphBridge::GetFunctionName(FunctionNode), FunctionGraph, GraphBridge::GetFunctionUsage(FunctionNode), FunctionInputs);
 
-							// resolve any of the UnresolvedInputs that we've accumulated
-							for (UEdGraphPin* NodePin : FunctionNode->GetAllPins())
+						// resolve any of the UnresolvedInputs that we've accumulated
+						for (const FInputPin* NodePin : GraphBridge::GetInputPins(FunctionNode))
+						{
+							if (FScopedPin* InnerPin = FunctionInputs.Find(NodePin->PinName))
 							{
-								if (NodePin->Direction == EEdGraphPinDirection::EGPD_Input)
-								{
-									if (FModuleScopedPin* InnerPin = FunctionInputs.Find(NodePin->PinName))
-									{
-										FunctionInputMap.Add(*InnerPin, FModuleScopedPin(NodePin, *Namespace));
-										FunctionInputs.Remove(NodePin->PinName);
-									}
-								}
+								FunctionInputMap.Add(*InnerPin, FScopedPin(NodePin, *Namespace));
+								FunctionInputs.Remove(NodePin->PinName);
 							}
 						}
 					}
-					if (UNiagaraNodeInput* InputNode = Cast<UNiagaraNodeInput>(Node))
+				}
+				if (const FInputNode* InputNode = GraphBridge::template AsNodeType<FInputNode>(Node))
+				{
+					int32 OutputPinCount = 0;
+					for (const FOutputPin* InputNodePin : GraphBridge::GetOutputPins(InputNode))
 					{
-						int32 OutputPinCount = 0;
-						for (UEdGraphPin* InputNodePin : InputNode->GetAllPins())
-						{
-							if (InputNodePin->Direction == EEdGraphPinDirection::EGPD_Output)
-							{
-								check(OutputPinCount == 0);
-								++OutputPinCount;
+						check(OutputPinCount == 0);
+						++OutputPinCount;
 
-								UnresolvedInputs.Add(InputNode->Input.GetName(), FModuleScopedPin(InputNodePin, *Namespace));
+						UnresolvedInputs.Add(GraphBridge::GetInputVariable(InputNode).GetName(), FScopedPin(InputNodePin, *Namespace));
+					}
+				}
+			}
+		}
+	}
+
+	TMap<FScopedPin, FScopedPin> FunctionInputMap;
+};
+
+template<typename GraphBridge>
+class FNiagaraAttributeTrimmerHelper<GraphBridge>::FImpureFunctionParser
+{
+public:
+	FImpureFunctionParser(const FGraph* Graph, ENiagaraScriptUsage Usage)
+	{
+		Traverse(TEXT(""), Graph, Usage);
+	}
+
+	const TArray<FScopedPin>& ReadFunctionInputs() const
+	{
+		return ImpureFunctionInputs;
+	}
+
+private:
+	void Traverse(FString Namespace, const FGraph* Graph, ENiagaraScriptUsage Usage)
+	{
+		const FString NamespacePrefix = (Namespace.Len() > 0) ? (Namespace + TEXT(".")) : TEXT("");
+
+		TArray<const FOutputNode*> OutputNodes;
+		GraphBridge::FindOutputNodes(Graph, Usage, OutputNodes);
+
+		for (const FOutputNode* OutputNode : OutputNodes)
+		{
+			TArray<const FNode*> TraversedNodes;
+			GraphBridge::BuildTraversal(Graph, OutputNode, TraversedNodes);
+
+			for (const FNode* Node : TraversedNodes)
+			{
+				if (const FFunctionCallNode* FunctionNode = GraphBridge::template AsNodeType<FFunctionCallNode>(Node))
+				{
+					if (const FGraph* FunctionGraph = GraphBridge::GetFunctionNodeGraph(FunctionNode))
+					{
+						Traverse(NamespacePrefix + GraphBridge::GetFunctionName(FunctionNode), FunctionGraph, GraphBridge::GetFunctionUsage(FunctionNode));
+					}
+
+					if (FunctionNode->Signature.bRequiresExecPin)
+					{
+						for (const FInputPin* Pin : GraphBridge::GetInputPins(FunctionNode))
+						{
+							// setting the following to false will allow the trimmer to remove additional attributes.  A value of false
+							// will limit our dependency search to the function inputs rather than the execution path.
+							constexpr bool bBackCompat_IncludeExecPinsForImpureFunctions = true;
+
+							if (!bBackCompat_IncludeExecPinsForImpureFunctions)
+							{
+								if (GraphBridge::GetPinType(Pin, ENiagaraStructConversion::Simulation) == FNiagaraTypeDefinition::GetParameterMapDef())
+								{
+									continue;
+								}
 							}
+
+							ImpureFunctionInputs.Emplace(Pin, *Namespace);
 						}
 					}
 				}
 			}
 		}
+	}
 
-		TMap<FModuleScopedPin, FModuleScopedPin> FunctionInputMap;
-	};
+	TArray<FScopedPin> ImpureFunctionInputs;
+};
 
-	class FImpureFunctionParser
-	{
-	public:
-		FImpureFunctionParser(UNiagaraGraph* Graph, ENiagaraScriptUsage Usage)
-		{
-			Traverse(TEXT(""), Graph, Usage);
-		}
+template<typename GraphBridge>
+class FNiagaraAttributeTrimmerHelper<GraphBridge>::FExpressionBuilder
+{
+public:
 
-		const TArray<FModuleScopedPin>& ReadFunctionInputs() const
-		{
-			return ImpureFunctionInputs;
-		}
-
-	private:
-		void Traverse(FString Namespace, UNiagaraGraph* Graph, ENiagaraScriptUsage Usage)
-		{
-			const FString NamespacePrefix = (Namespace.Len() > 0) ? (Namespace + TEXT(".")) : TEXT("");
-
-			TArray<UNiagaraNodeOutput*> OutputNodes;
-			Graph->FindOutputNodes(Usage, OutputNodes);
-
-			for (UNiagaraNodeOutput* OutputNode : OutputNodes)
-			{
-				TArray<UNiagaraNode*> TraversedNodes;
-				Graph->BuildTraversal(TraversedNodes, OutputNode, true);
-
-				for (UNiagaraNode* Node : TraversedNodes)
-				{
-					if (UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node))
-					{
-						if (UNiagaraGraph* FunctionGraph = FunctionNode->GetCalledGraph())
-						{
-							Traverse(NamespacePrefix + FunctionNode->GetFunctionName(), FunctionGraph, FunctionNode->GetCalledUsage());
-						}
-
-						if (FunctionNode->Signature.bRequiresExecPin)
-						{
-							for (const UEdGraphPin* Pin : FunctionNode->GetAllPins())
-							{
-								if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
-								{
-									// setting the following to false will allow the trimmer to remove additional attributes.  A value of false
-									// will limit our dependency search to the function inputs rather than the execution path.
-									constexpr bool bBackCompat_IncludeExecPinsForImpureFunctions = true;
-
-									if (!bBackCompat_IncludeExecPinsForImpureFunctions)
-									{
-										if (UEdGraphSchema_Niagara::PinToTypeDefinition(Pin) == FNiagaraTypeDefinition::GetParameterMapDef())
-										{
-											continue;
-										}
-									}
-
-									ImpureFunctionInputs.Emplace(Pin, *Namespace);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		TArray<FModuleScopedPin> ImpureFunctionInputs;
-	};
-
-	class FExpressionBuilder
-	{
-	public:
-
-		FExpressionBuilder(const FNiagaraParameterMapHistory& InParamMap, const FFunctionInputResolver& InInputResolver, const UEdGraphSchema_Niagara* InNiagaraSchema)
+	FExpressionBuilder(const FParamMapHistory& InParamMap, const FFunctionInputResolver& InInputResolver)
 		: ParamMap(InParamMap)
 		, InputResolver(InInputResolver)
-		, NiagaraSchema(InNiagaraSchema)
-		{}
+	{}
 
-		// generates a set of dependencies for a specific pin
-		//	-generates the set of input pins to nodes that contribute to the 'expression' of the supplied output pin (EndPin)
-		//		An expression is the set of nodes that define what is being set in a MapSet.  It does not traverse through
-		//		Exec pins as those nodes would be part of another expression
-		//	-generates the list of custom HLSL nodes that are encountered in the traversal
-		void FindDependencies(const FModuleScopedPin& EndPin, FDependencyChain& Dependencies)
+	// generates a set of dependencies for a specific pin
+	//	-generates the set of input pins to nodes that contribute to the 'expression' of the supplied output pin (EndPin)
+	//		An expression is the set of nodes that define what is being set in a MapSet.  It does not traverse through
+	//		Exec pins as those nodes would be part of another expression
+	//	-generates the list of custom HLSL nodes that are encountered in the traversal
+	void FindDependencies(const FScopedPin& EndPin, FDependencyChain& Dependencies)
+	{
+		FindDependenciesInternal(EndPin, Dependencies, nullptr);
+	}
+
+private:
+	// generates a set of dependencies for a specific pin
+	//	-generates the set of input pins to nodes that contribute to the 'expression' of the supplied output pin (EndPin)
+	//		An expression is the set of nodes that define what is being set in a MapSet.  It does not traverse through
+	//		Exec pins as those nodes would be part of another expression
+	//	-generates the list of custom HLSL nodes that are encountered in the traversal
+	void FindDependenciesInternal(const FScopedPin& EndPin, FDependencyChain& Dependencies, TArray<const FInputNode*>* InputNodes)
+	{
+		TStringBuilder<1024> NamespaceBuilder;
+
+		TArray<FScopedPin> PinsToEvaluate;
+		TSet<const FNode*> EvaluatedNodes;
+
+		FScopedPin CurrentPin = EndPin;
+		while (CurrentPin.Pin)
 		{
-			FindDependenciesInternal(EndPin, Dependencies, nullptr);
-		}
-
-	private:
-		// generates a set of dependencies for a specific pin
-		//	-generates the set of input pins to nodes that contribute to the 'expression' of the supplied output pin (EndPin)
-		//		An expression is the set of nodes that define what is being set in a MapSet.  It does not traverse through
-		//		Exec pins as those nodes would be part of another expression
-		//	-generates the list of custom HLSL nodes that are encountered in the traversal
-		void FindDependenciesInternal(const FModuleScopedPin& EndPin, FDependencyChain& Dependencies, TArray<UNiagaraNodeInput*>* InputNodes)
-		{
-			TStringBuilder<1024> NamespaceBuilder;
-
-			TArray<FModuleScopedPin> PinsToEvaluate;
-			TSet<UNiagaraNode*> EvaluatedNodes;
-
-			FModuleScopedPin CurrentPin = EndPin;
-			while (CurrentPin.Pin)
+			if (CurrentPin.Pin->Direction == EEdGraphPinDirection::EGPD_Output)
 			{
-				for (UEdGraphPin* LinkedPin : CurrentPin.Pin->LinkedTo)
+				continue;
+			}
+
+			const FInputPin* CurrentInputPin = static_cast<const FInputPin*>(CurrentPin.Pin);
+			if (const FOutputPin* TracedPin = GraphBridge::GetLinkedOutputPin(CurrentInputPin))
+			{
+				const FNode* CurrentNode = GraphBridge::GetOwningNode(TracedPin);
+				bool AlreadyEvaluated = false;
+
+				// record any output pins to a parameter get node
+				if (const FParamMapGetNode* ParamGetNode = GraphBridge::template AsNodeType<FParamMapGetNode>(CurrentNode))
 				{
-					if (LinkedPin->Direction == EEdGraphPinDirection::EGPD_Input)
+					Dependencies.Pins.Emplace(FScopedPin(TracedPin, CurrentPin.ModuleName));
+				}
+				else if (const FFunctionCallNode* FunctionCallNode = GraphBridge::template AsNodeType<FFunctionCallNode>(CurrentNode))
+				{
+					if (const FGraph* NodeGraph = GraphBridge::GetFunctionNodeGraph(FunctionCallNode))
 					{
-						continue;
-					}
+						TArray<const FOutputNode*> InnerOutputNodes;
+						GraphBridge::FindOutputNodes(NodeGraph, InnerOutputNodes);
 
-					if (UEdGraphPin* TracedPin = EvaluateStaticSwitches ? UNiagaraNode::TraceOutputPin(LinkedPin) : LinkedPin)
-					{
-						UNiagaraNode* CurrentNode = CastChecked<UNiagaraNode>(TracedPin->GetOwningNode());
-
-						bool AlreadyEvaluated = false;
-
-						// record any output pins to a parameter get node
-						if (UNiagaraNodeParameterMapGet* ParamGetNode = Cast<UNiagaraNodeParameterMapGet>(CurrentNode))
+						NamespaceBuilder.Reset();
+						if (CurrentPin.ModuleName != NAME_None)
 						{
-							Dependencies.Pins.Emplace(FModuleScopedPin(TracedPin, CurrentPin.ModuleName));
+							CurrentPin.ModuleName.AppendString(NamespaceBuilder);
+							NamespaceBuilder << TEXT(".");
 						}
-						else if (UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(CurrentNode))
+						NamespaceBuilder << GraphBridge::GetFunctionName(FunctionCallNode);
+
+						const FName AggregateModuleName = *NamespaceBuilder;
+
+						for (const FOutputNode* InnerOutputNode : InnerOutputNodes)
 						{
-							TArray<UNiagaraNodeOutput*> InnerOutputNodes;
-
-							if (const UNiagaraGraph* NodeGraph = FunctionCallNode->GetCalledGraph())
+							for (const FInputPin* InnerOutputNodePin : GraphBridge::GetInputPins(InnerOutputNode))
 							{
-								NodeGraph->FindOutputNodes(InnerOutputNodes);
-
-								NamespaceBuilder.Reset();
-								if (CurrentPin.ModuleName != NAME_None)
+								if (InnerOutputNodePin->PinName == TracedPin->PinName)
 								{
-									CurrentPin.ModuleName.AppendString(NamespaceBuilder);
-									NamespaceBuilder << TEXT(".");
-								}
-								NamespaceBuilder << FunctionCallNode->GetFunctionName();
+									TArray<const FInputNode*> InnerInputNodes;
+									FindDependenciesInternal(FScopedPin(InnerOutputNodePin, AggregateModuleName), Dependencies, &InnerInputNodes);
 
-								const FName AggregateModuleName = *NamespaceBuilder;
-
-								for (const UNiagaraNodeOutput* InnerOutputNode : InnerOutputNodes)
-								{
-									for (const UEdGraphPin* InnerOutputNodePin : InnerOutputNode->GetAllPins())
+									// map the InputNodes we found to the input pins on the FunctionCallNode
+									for (const FInputNode* InnerInputNode : InnerInputNodes)
 									{
-										if (InnerOutputNodePin->Direction == EEdGraphPinDirection::EGPD_Input
-											&& InnerOutputNodePin->PinName == TracedPin->PinName)
+										for (const FInputPin* NodePin : GraphBridge::GetInputPins(FunctionCallNode))
 										{
-											TArray<UNiagaraNodeInput*> InnerInputNodes;
-											FindDependenciesInternal(FModuleScopedPin(InnerOutputNodePin, AggregateModuleName), Dependencies, &InnerInputNodes);
-
-											// map the InputNodes we found to the input pins on the FunctionCallNode
-											for (const UNiagaraNodeInput* InnerInputNode : InnerInputNodes)
+											if (NodePin->PinName == GraphBridge::GetInputVariable(InnerInputNode).GetName())
 											{
-												for (UEdGraphPin* NodePin : FunctionCallNode->GetAllPins())
-												{
-													if (NodePin->Direction == EEdGraphPinDirection::EGPD_Input
-														&& NodePin->PinName == InnerInputNode->Input.GetName())
-													{
-														PinsToEvaluate.Emplace(NodePin, CurrentPin.ModuleName);
-														break;
-													}
-												}
-											}
-										}
-									}
-								}
-
-								// skip adding the inputs to the list of pins we need to evaluate because we've already search through the internal graph
-								// to figure out the minimal set of items we care about
-								AlreadyEvaluated = true;
-							}
-						}
-						else if (UNiagaraNodeInput* InputNode = Cast<UNiagaraNodeInput>(CurrentNode))
-						{
-							if (InputNodes)
-							{
-								InputNodes->AddUnique(InputNode);
-							}
-							else
-							{
-								const FModuleScopedPin ResolvedPin = InputResolver.ResolveInput(FModuleScopedPin(TracedPin, CurrentPin.ModuleName));
-								if (ResolvedPin.Pin)
-								{
-									PinsToEvaluate.Add(ResolvedPin);
-									EvaluatedNodes.Add(InputNode);
-									AlreadyEvaluated = true;
-								}
-							}
-						}
-
-						if (!AlreadyEvaluated)
-						{
-							EvaluatedNodes.Add(CurrentNode, &AlreadyEvaluated);
-						}
-
-						if (!AlreadyEvaluated)
-						{
-							for (UEdGraphPin* NodePin : CurrentNode->GetAllPins())
-							{
-								if (NodePin->Direction == EEdGraphPinDirection::EGPD_Output)
-								{
-									continue;
-								}
-
-								// we want to exclude execution & parameter map pins because they terminate the subexpression
-								const bool IsParamMapPin = UEdGraphSchema_Niagara::PinToTypeDefinition(NodePin) == FNiagaraTypeDefinition::GetParameterMapDef();
-								const bool IsExecPin = NodePin->PinName == UNiagaraNodeParameterMapBase::SourcePinName;
-								if (IsParamMapPin || IsExecPin)
-								{
-									continue;
-								}
-
-								PinsToEvaluate.Emplace(NodePin, CurrentPin.ModuleName);
-							}
-
-							if (const UNiagaraNodeCustomHlsl* CustomHlslNode = Cast<const UNiagaraNodeCustomHlsl>(CurrentNode))
-							{
-								if (!Dependencies.CustomNodes.Contains(CustomHlslNode))
-								{
-									FCustomHlslNodeInfo& NodeInfo = Dependencies.CustomNodes.Add(CustomHlslNode);
-									BuildCustomHlslNodeInfo(CustomHlslNode, NodeInfo);
-								}
-							}
-						}
-					}
-				}
-
-				if (PinsToEvaluate.Num())
-				{
-					CurrentPin = PinsToEvaluate.Pop(false);
-				}
-				else
-				{
-					break;
-				}
-			}
-		}
-
-		void BuildCustomHlslNodeInfo(const UNiagaraNodeCustomHlsl* CustomNode, FCustomHlslNodeInfo& NodeInfo)
-		{
-			check(CustomNode);
-
-			NodeInfo.bHasDataInterfaceInputs = false;
-			NodeInfo.bHasImpureFunctionText = false;
-
-			TArray<FString> ImpureFunctionNames;
-
-			FPinCollectorArray InputPins;
-			CustomNode->GetInputPins(InputPins);
-			for (const UEdGraphPin* InputPin : InputPins)
-			{
-				FNiagaraTypeDefinition NiagaraType = NiagaraSchema->PinToTypeDefinition(InputPin);
-				if (NiagaraType.IsDataInterface())
-				{
-					NodeInfo.bHasDataInterfaceInputs = true;
-
-					if (UNiagaraDataInterface* DataInterfaceClass = CastChecked<UNiagaraDataInterface>(NiagaraType.GetClass()->ClassDefaultObject))
-					{
-						TArray<FNiagaraFunctionSignature> FunctionSignatures;
-						DataInterfaceClass->GetFunctions(FunctionSignatures);
-
-						for (const FNiagaraFunctionSignature& FunctionSignature : FunctionSignatures)
-						{
-							if (FunctionSignature.bRequiresExecPin)
-							{
-								TStringBuilder<256> Builder;
-								InputPin->GetFName().AppendString(Builder);
-								Builder.AppendChar(TCHAR('.'));
-								FunctionSignature.Name.AppendString(Builder);
-
-								ImpureFunctionNames.AddUnique(Builder.ToString());
-							}
-						}
-					}
-				}
-			}
-
-			if (!ImpureFunctionNames.IsEmpty())
-			{
-				TArray<FString> StringTokens;
-				UNiagaraNodeCustomHlsl::GetTokensFromString(CustomNode->GetCustomHlsl(), StringTokens, false, false);
-
-				for (const FString& FunctionCall : ImpureFunctionNames)
-				{
-					for (const FString& Token : StringTokens)
-					{
-						if (Token.Equals(FunctionCall))
-						{
-							NodeInfo.bHasImpureFunctionText = true;
-							return;
-						}
-					}
-				}
-			}
-		}
-
-		const FNiagaraParameterMapHistory& ParamMap;
-		const FFunctionInputResolver& InputResolver;
-		const UEdGraphSchema_Niagara* NiagaraSchema = nullptr;
-
-		const bool EvaluateStaticSwitches = false;
-	};
-
-	// For a specific read of a variable finds the corresponding PreviousWritePin if one exists (only considers actual writes
-	// rather than default pins on a MapGet)
-	static FModuleScopedPin FindWriteForRead(const FNiagaraParameterMapHistory& ParamMap, const FModuleScopedPin& ReadPin, int32* OutVariableIndex)
-	{
-		if (ReadPin.Pin == nullptr)
-		{
-			return FModuleScopedPin();
-		}
-
-		int32 VariableCount = ParamMap.Variables.Num();
-
-		// without more context we need to do a full linear search through the ReadHistory
-		for (int32 VariableIt = 0; VariableIt < VariableCount; ++VariableIt)
-		{
-			const TArray<FNiagaraParameterMapHistory::FReadHistory>& ReadHistoryEntries = ParamMap.PerVariableReadHistory[VariableIt];
-
-			for (const FNiagaraParameterMapHistory::FReadHistory& ReadHistoryEntry : ReadHistoryEntries)
-			{
-				if (ReadHistoryEntry.ReadPin == ReadPin)
-				{
-					if (OutVariableIndex)
-					{
-						*OutVariableIndex = VariableIt;
-					}
-
-					if (ReadHistoryEntry.PreviousWritePin.Pin)
-					{
-						// we only care about writes (MapSets).  This will exclude default variables that are set as the input to the MapGet
-						if (const UNiagaraNodeParameterMapSet* WriteNode = Cast<const UNiagaraNodeParameterMapSet>(ReadHistoryEntry.PreviousWritePin.Pin->GetOwningNode()))
-						{
-							return ReadHistoryEntry.PreviousWritePin;
-						}
-					}
-
-					return FModuleScopedPin();
-				}
-			}
-		}
-
-		return FModuleScopedPin();
-	}
-
-	static int32 FindDefaultBinding(const FNiagaraParameterMapHistory& ParamMap, int32 VariableIndex, const FModuleScopedPin& ReadPin)
-	{
-		if (const UNiagaraGraph* OwnerGraph = Cast<const UNiagaraGraph>(ReadPin.Pin->GetOwningNode()->GetGraph()))
-		{
-			FNiagaraVariable ParamVariable = ParamMap.Variables[VariableIndex];
-			FString ParamName = ParamVariable.GetName().ToString();
-
-			// now we need to replace the module name with 'module'
-			ParamName.ReplaceInline(*ReadPin.ModuleName.ToString(), *FNiagaraConstants::ModuleNamespace.ToString());
-
-			ParamVariable.SetName(*ParamName);
-
-			FNiagaraScriptVariableBinding DefaultBinding;
-			TOptional<ENiagaraDefaultMode> DefaultMode = OwnerGraph->GetDefaultMode(ParamVariable, &DefaultBinding);
-			if (DefaultMode.IsSet() && *DefaultMode == ENiagaraDefaultMode::Binding && DefaultBinding.IsValid())
-			{
-				return ParamMap.FindVariableByName(DefaultBinding.GetName());
-			}
-		}
-
-		return INDEX_NONE;
-	}
-
-	// for a specific read of a variable finds the actual name of the attribute being read
-	static FName FindAttributeForRead(const FNiagaraParameterMapHistory& ParamMap, const FModuleScopedPin& ReadPin)
-	{
-		const int32 VariableCount = ParamMap.Variables.Num();
-
-		// wihtout more context we need to do a full linear search through the ReadHistory
-		for (int32 VariableIt = 0; VariableIt < VariableCount; ++VariableIt)
-		{
-			const TArray<FNiagaraParameterMapHistory::FReadHistory>& ReadHistoryEntries = ParamMap.PerVariableReadHistory[VariableIt];
-
-			for (const FNiagaraParameterMapHistory::FReadHistory& ReadHistoryEntry : ReadHistoryEntries)
-			{
-				if (ReadHistoryEntry.ReadPin == ReadPin)
-				{
-					return ParamMap.Variables[VariableIt].GetName();
-				}
-			}
-		}
-
-		return NAME_None;
-	}
-
-	// given the set of expressions (as defined in FindDependencies above) we resolve the named attribute aggregating the dependent reads and custom nodes
-	static void ResolveDependencyChain(const FNiagaraParameterMapHistory& ParamMap, const FDependencyMap& DependencyData, const FName& AttributeName, FDependencyChain& ResolvedDependencies)
-	{
-		const int32 VariableIndex = ParamMap.FindVariableByName(AttributeName);
-		if (VariableIndex != INDEX_NONE)
-		{
-			if (ParamMap.PerVariableWriteHistory[VariableIndex].Num())
-			{
-				const FModuleScopedPin& LastWritePin = ParamMap.PerVariableWriteHistory[VariableIndex].Last();
-
-				TArray<FModuleScopedPin> PinsToResolve;
-				PinsToResolve.Add(LastWritePin);
-
-				while (PinsToResolve.Num() > 0)
-				{
-					const FModuleScopedPin PinToResolve = PinsToResolve.Pop(false);
-
-					if (const FDependencyChain* Dependencies = DependencyData.Find(PinToResolve))
-					{
-						for (const FModuleScopedPin& ReadPin : Dependencies->Pins)
-						{
-							bool AlreadyAdded = false;
-							ResolvedDependencies.Pins.Add(ReadPin, &AlreadyAdded);
-
-							if (!AlreadyAdded)
-							{
-								int32 SourceVariableIndex = INDEX_NONE;
-								const FModuleScopedPin WritePin = FindWriteForRead(ParamMap, ReadPin, &SourceVariableIndex);
-
-								if (WritePin.Pin)
-								{
-									PinsToResolve.Add(WritePin);
-								}
-								else if (SourceVariableIndex != INDEX_NONE)
-								{
-									const int32 DefaultBoundVariable = FindDefaultBinding(ParamMap, SourceVariableIndex, ReadPin);
-
-									// if we are bound to a variable we need to grab the last relevant write to that variable and continue our resolution
-									if (DefaultBoundVariable != INDEX_NONE)
-									{
-										bool bValidDefaultWriteFound = false;
-
-										const UNiagaraNode* ReadPinOwningNode = Cast<const UNiagaraNode>(ReadPin.Pin->GetOwningNode());
-										const int32 ReadNodeVisitationIndex = ParamMap.MapNodeVisitations.IndexOfByKey(ReadPinOwningNode);
-										if (ReadNodeVisitationIndex != INDEX_NONE)
-										{
-											const int32 VariableWriteCount = ParamMap.PerVariableWriteHistory[DefaultBoundVariable].Num();
-											for (int32 VariableWriteIt = VariableWriteCount - 1; VariableWriteIt >= 0; --VariableWriteIt)
-											{
-												const FModuleScopedPin& DefaultWritePin = ParamMap.PerVariableWriteHistory[DefaultBoundVariable][VariableWriteIt];
-												const UNiagaraNode* DefaultWritePinOwningNode = Cast<const UNiagaraNode>(DefaultWritePin.Pin->GetOwningNode());
-												const int32 DefaultWriteNodeVisitationIndex = ParamMap.MapNodeVisitations.IndexOfByKey(DefaultWritePinOwningNode);
-												if (DefaultWriteNodeVisitationIndex != INDEX_NONE && DefaultWriteNodeVisitationIndex < ReadNodeVisitationIndex)
-												{
-													PinsToResolve.Add(DefaultWritePin);
-													bValidDefaultWriteFound = true;
-													break;
-												}
-											}
-										}
-
-										// if no valid pin was found that writes into the default bound variable within this parameter map, then we assume
-										// that it will be present in a previous parameter map, and so we just record the earliest read from this parameter
-										// map as a dependency
-
-										if (!ParamMap.PerVariableReadHistory[DefaultBoundVariable].IsEmpty())
-										{
-											// setting the following to false will allow the trimmer to remove additional attributes.  In the cases
-											// where an attribute is written to and used only in a single stage the value could be considered local and not
-											// need to be an attribute.  If bBackCompat_AlwaysIncludeFirstReadPin is true then any time we read from that
-											// variable we'll treat it as a dependent.  If it's false then the writes that contribute to that variable will 
-											// be resolved as part of the dependency resolution.
-											constexpr bool bBackCompat_AlwaysIncludeFirstReadPin = true;
-
-											if (!bValidDefaultWriteFound || bBackCompat_AlwaysIncludeFirstReadPin)
-											{
-												ResolvedDependencies.Pins.Add(ParamMap.PerVariableReadHistory[DefaultBoundVariable][0].ReadPin);
+												PinsToEvaluate.Emplace(NodePin, CurrentPin.ModuleName);
+												break;
 											}
 										}
 									}
@@ -582,24 +245,323 @@ namespace NiagaraAttributeTrimming
 							}
 						}
 
-						ResolvedDependencies.CustomNodes.Append(Dependencies->CustomNodes);
+						// skip adding the inputs to the list of pins we need to evaluate because we've already search through the internal graph
+						// to figure out the minimal set of items we care about
+						AlreadyEvaluated = true;
 					}
+				}
+				else if (const FInputNode* InputNode = GraphBridge::template AsNodeType<FInputNode>(CurrentNode))
+				{
+					if (InputNodes)
+					{
+						InputNodes->AddUnique(InputNode);
+					}
+					else
+					{
+						const FScopedPin ResolvedPin = InputResolver.ResolveInput(FScopedPin(TracedPin, CurrentPin.ModuleName));
+						if (ResolvedPin.Pin)
+						{
+							PinsToEvaluate.Add(ResolvedPin);
+							EvaluatedNodes.Add(InputNode);
+							AlreadyEvaluated = true;
+						}
+					}
+				}
+
+				if (!AlreadyEvaluated)
+				{
+					EvaluatedNodes.Add(CurrentNode, &AlreadyEvaluated);
+				}
+
+				if (!AlreadyEvaluated)
+				{
+					for (const FInputPin* NodePin : GraphBridge::GetInputPins(CurrentNode))
+					{
+						// we want to exclude execution pins
+						const bool IsParamMapPin = GraphBridge::GetPinType(NodePin, ENiagaraStructConversion::Simulation) == FNiagaraTypeDefinition::GetParameterMapDef();
+						const bool IsExecPin = NodePin->PinName == UNiagaraNodeParameterMapBase::SourcePinName;
+						if (IsParamMapPin || IsExecPin)
+						{
+							continue;
+						}
+
+						PinsToEvaluate.Emplace(NodePin, CurrentPin.ModuleName);
+					}
+
+					if (const FCustomHlslNode* CustomHlslNode = GraphBridge::template AsNodeType<FCustomHlslNode>(CurrentNode))
+					{
+						if (!Dependencies.CustomNodes.Contains(CustomHlslNode))
+						{
+							FCustomHlslNodeInfo& NodeInfo = Dependencies.CustomNodes.Add(CustomHlslNode);
+							BuildCustomHlslNodeInfo(CustomHlslNode, NodeInfo);
+						}
+					}
+				}
+			}
+
+			if (PinsToEvaluate.Num())
+			{
+				CurrentPin = PinsToEvaluate.Pop(false);
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+
+	void BuildCustomHlslNodeInfo(const FCustomHlslNode* CustomNode, FCustomHlslNodeInfo& NodeInfo)
+	{
+		check(CustomNode);
+
+		NodeInfo.bHasDataInterfaceInputs = false;
+		NodeInfo.bHasImpureFunctionText = false;
+
+		TArray<FString> ImpureFunctionNames;
+
+		for (const FInputPin* InputPin : GraphBridge::GetInputPins(CustomNode))
+		{
+			FNiagaraTypeDefinition NiagaraType = GraphBridge::GetPinType(InputPin, ENiagaraStructConversion::Simulation);
+			if (NiagaraType.IsDataInterface())
+			{
+				NodeInfo.bHasDataInterfaceInputs = true;
+
+				if (UNiagaraDataInterface* DataInterfaceClass = CastChecked<UNiagaraDataInterface>(NiagaraType.GetClass()->ClassDefaultObject))
+				{
+					TArray<FNiagaraFunctionSignature> FunctionSignatures;
+					DataInterfaceClass->GetFunctions(FunctionSignatures);
+
+					for (const FNiagaraFunctionSignature& FunctionSignature : FunctionSignatures)
+					{
+						if (FunctionSignature.bRequiresExecPin)
+						{
+							TStringBuilder<256> Builder;
+							InputPin->PinName.AppendString(Builder);
+							Builder.AppendChar(TCHAR('.'));
+							FunctionSignature.Name.AppendString(Builder);
+
+							ImpureFunctionNames.AddUnique(Builder.ToString());
+						}
+					}
+				}
+			}
+		}
+
+		if (!ImpureFunctionNames.IsEmpty())
+		{
+			TArray<FStringView> ImpureFunctionNameViews;
+			ImpureFunctionNameViews.Reserve(ImpureFunctionNames.Num());
+			Algo::Transform(ImpureFunctionNames, ImpureFunctionNameViews, [](const FString& FunctionName) -> FStringView
+				{
+					return FunctionName;
+				});
+
+			if (GraphBridge::CustomHlslReferencesTokens(CustomNode, ImpureFunctionNameViews))
+			{
+				return;
+			}
+		}
+	}
+
+	const FParamMapHistory& ParamMap;
+	const FFunctionInputResolver& InputResolver;
+
+	const bool EvaluateStaticSwitches = false;
+};
+
+// For a specific read of a variable finds the corresponding PreviousWritePin if one exists (only considers actual writes
+// rather than default pins on a MapGet)
+template<typename GraphBridge>
+typename FNiagaraAttributeTrimmerHelper<GraphBridge>::FScopedPin FNiagaraAttributeTrimmerHelper<GraphBridge>::FindWriteForRead(const FParamMapHistory& ParamMap, const FScopedPin& ReadPin, int32* OutVariableIndex)
+{
+	if (ReadPin.Pin == nullptr)
+	{
+		return FScopedPin();
+	}
+
+	int32 VariableCount = ParamMap.Variables.Num();
+
+	// without more context we need to do a full linear search through the ReadHistory
+	for (int32 VariableIt = 0; VariableIt < VariableCount; ++VariableIt)
+	{
+		const TArray<typename FParamMapHistory::FReadHistory>& ReadHistoryEntries = ParamMap.PerVariableReadHistory[VariableIt];
+
+		for (const typename FParamMapHistory::FReadHistory& ReadHistoryEntry : ReadHistoryEntries)
+		{
+			if (ReadHistoryEntry.ReadPin == ReadPin)
+			{
+				if (OutVariableIndex)
+				{
+					*OutVariableIndex = VariableIt;
+				}
+
+				if (ReadHistoryEntry.PreviousWritePin.Pin)
+				{
+					// we only care about writes (MapSets).  This will exclude default variables that are set as the input to the MapGet
+					if (const FParamMapSetNode* WriteNode = GraphBridge::template AsNodeType<FParamMapSetNode>(GraphBridge::GetOwningNode(ReadHistoryEntry.PreviousWritePin.Pin)))
+					{
+						return ReadHistoryEntry.PreviousWritePin;
+					}
+				}
+
+				return FScopedPin();
+			}
+		}
+	}
+
+	return FScopedPin();
+}
+
+template<typename GraphBridge>
+int32 FNiagaraAttributeTrimmerHelper<GraphBridge>::FindDefaultBinding(const FParamMapHistory& ParamMap, int32 VariableIndex, const FScopedPin& ReadPin)
+{
+	if (const FGraph* OwnerGraph = GraphBridge::GetOwningGraph(GraphBridge::GetOwningNode(ReadPin.Pin)))
+	{
+		FNiagaraVariable ParamVariable = ParamMap.Variables[VariableIndex];
+		FString ParamName = ParamVariable.GetName().ToString();
+
+		// now we need to replace the module name with 'module'
+		ParamName.ReplaceInline(*ReadPin.ModuleName.ToString(), *FNiagaraConstants::ModuleNamespace.ToString());
+
+		ParamVariable.SetName(*ParamName);
+
+		FNiagaraScriptVariableBinding DefaultBinding;
+		TOptional<ENiagaraDefaultMode> DefaultMode = GraphBridge::GetGraphDefaultMode(OwnerGraph, ParamVariable, DefaultBinding);
+		if (DefaultMode.IsSet() && *DefaultMode == ENiagaraDefaultMode::Binding && DefaultBinding.IsValid())
+		{
+			return ParamMap.FindVariableByName(DefaultBinding.GetName());
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+// for a specific read of a variable finds the actual name of the attribute being read
+template<typename GraphBridge>
+FName FNiagaraAttributeTrimmerHelper<GraphBridge>::FindAttributeForRead(const FParamMapHistory& ParamMap, const FScopedPin& ReadPin)
+{
+	const int32 VariableCount = ParamMap.Variables.Num();
+
+	// wihtout more context we need to do a full linear search through the ReadHistory
+	for (int32 VariableIt = 0; VariableIt < VariableCount; ++VariableIt)
+	{
+		const TArray<typename FParamMapHistory::FReadHistory>& ReadHistoryEntries = ParamMap.PerVariableReadHistory[VariableIt];
+
+		for (const typename FParamMapHistory::FReadHistory& ReadHistoryEntry : ReadHistoryEntries)
+		{
+			if (ReadHistoryEntry.ReadPin == ReadPin)
+			{
+				return ParamMap.Variables[VariableIt].GetName();
+			}
+		}
+	}
+
+	return NAME_None;
+}
+
+// given the set of expressions (as defined in FindDependencies above) we resolve the named attribute aggregating the dependent reads and custom nodes
+template<typename GraphBridge>
+void FNiagaraAttributeTrimmerHelper<GraphBridge>::ResolveDependencyChain(const FParamMapHistory& ParamMap, const FDependencyMap& DependencyData, const FName& AttributeName, FDependencyChain& ResolvedDependencies)
+{
+	const int32 VariableIndex = ParamMap.FindVariableByName(AttributeName);
+	if (VariableIndex != INDEX_NONE)
+	{
+		if (ParamMap.PerVariableWriteHistory[VariableIndex].Num())
+		{
+			const FScopedPin& LastWritePin = ParamMap.PerVariableWriteHistory[VariableIndex].Last();
+
+			TArray<FScopedPin> PinsToResolve;
+			PinsToResolve.Add(LastWritePin);
+
+			while (PinsToResolve.Num() > 0)
+			{
+				const FScopedPin PinToResolve = PinsToResolve.Pop(false);
+
+				if (const FDependencyChain* Dependencies = DependencyData.Find(PinToResolve))
+				{
+					for (const FScopedPin& ReadPin : Dependencies->Pins)
+					{
+						bool AlreadyAdded = false;
+						ResolvedDependencies.Pins.Add(ReadPin, &AlreadyAdded);
+
+						if (!AlreadyAdded)
+						{
+							int32 SourceVariableIndex = INDEX_NONE;
+							const FScopedPin WritePin = FindWriteForRead(ParamMap, ReadPin, &SourceVariableIndex);
+
+							if (WritePin.Pin)
+							{
+								PinsToResolve.Add(WritePin);
+							}
+							else if (SourceVariableIndex != INDEX_NONE)
+							{
+								const int32 DefaultBoundVariable = FindDefaultBinding(ParamMap, SourceVariableIndex, ReadPin);
+
+								// if we are bound to a variable we need to grab the last relevant write to that variable and continue our resolution
+								if (DefaultBoundVariable != INDEX_NONE)
+								{
+									bool bValidDefaultWriteFound = false;
+
+									const FNode* ReadPinOwningNode = GraphBridge::GetOwningNode(ReadPin.Pin);
+									const int32 ReadNodeVisitationIndex = ParamMap.MapNodeVisitations.IndexOfByKey(ReadPinOwningNode);
+									if (ReadNodeVisitationIndex != INDEX_NONE)
+									{
+										const int32 VariableWriteCount = ParamMap.PerVariableWriteHistory[DefaultBoundVariable].Num();
+										for (int32 VariableWriteIt = VariableWriteCount - 1; VariableWriteIt >= 0; --VariableWriteIt)
+										{
+											const FScopedPin& DefaultWritePin = ParamMap.PerVariableWriteHistory[DefaultBoundVariable][VariableWriteIt];
+											const FNode* DefaultWritePinOwningNode = GraphBridge::GetOwningNode(DefaultWritePin.Pin);
+											const int32 DefaultWriteNodeVisitationIndex = ParamMap.MapNodeVisitations.IndexOfByKey(DefaultWritePinOwningNode);
+											if (DefaultWriteNodeVisitationIndex != INDEX_NONE && DefaultWriteNodeVisitationIndex < ReadNodeVisitationIndex)
+											{
+												PinsToResolve.Add(DefaultWritePin);
+												bValidDefaultWriteFound = true;
+												break;
+											}
+										}
+									}
+
+									// if no valid pin was found that writes into the default bound variable within this parameter map, then we assume
+									// that it will be present in a previous parameter map, and so we just record the earliest read from this parameter
+									// map as a dependency
+
+									if (!ParamMap.PerVariableReadHistory[DefaultBoundVariable].IsEmpty())
+									{
+										// setting the following to false will allow the trimmer to remove additional attributes.  In the cases
+										// where an attribute is written to and used only in a single stage the value could be considered local and not
+										// need to be an attribute.  If bBackCompat_AlwaysIncludeFirstReadPin is true then any time we read from that
+										// variable we'll treat it as a dependent.  If it's false then the writes that contribute to that variable will 
+										// be resolved as part of the dependency resolution.
+										constexpr bool bBackCompat_AlwaysIncludeFirstReadPin = true;
+
+										if (!bValidDefaultWriteFound || bBackCompat_AlwaysIncludeFirstReadPin)
+										{
+											ResolvedDependencies.Pins.Add(ParamMap.PerVariableReadHistory[DefaultBoundVariable][0].ReadPin);
+										}
+									}
+								}
+							}
+						}
+					}
+
+					ResolvedDependencies.CustomNodes.Append(Dependencies->CustomNodes);
 				}
 			}
 		}
 	}
 }
 
-static void TrimAttributes_Safe(TConstArrayView<const FNiagaraParameterMapHistory*> LocalParamHistories, TSet<FName>& AttributesToPreserve, TArray<FNiagaraVariable>& Attributes)
+template<typename GraphBridge>
+void FNiagaraAttributeTrimmerHelper<GraphBridge>::TrimAttributes_Safe(TConstArrayView<const FParamMapHistory*> LocalParamHistories, TSet<FName>& AttributesToPreserve, TArray<FNiagaraVariable>& Attributes)
 {
 	// go through the ParamMapHistories and collect any CustomHlsl nodes so that we can give a best effort to
 	// find references to our variable.  If a reference is found we'll assume that we can't trim the attribute
-	TArray<const UNiagaraNodeCustomHlsl*, TInlineAllocator<8>> CustomHlslNodes;
-	for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
+	TArray<const FCustomHlslNode*, TInlineAllocator<8>> CustomHlslNodes;
+	for (const FParamMapHistory* ParamMap : LocalParamHistories)
 	{
-		for (const UEdGraphPin* Pin : ParamMap->MapPinHistory)
+		for (const FPin* Pin : ParamMap->MapPinHistory)
 		{
-			if (const UNiagaraNodeCustomHlsl* CustomHlslNode = Cast<const UNiagaraNodeCustomHlsl>(Pin->GetOwningNode()))
+			if (const FCustomHlslNode* CustomHlslNode = GraphBridge::template AsNodeType<FCustomHlslNode>(GraphBridge::GetOwningNode(Pin)))
 			{
 				CustomHlslNodes.AddUnique(CustomHlslNode);
 			}
@@ -609,7 +571,7 @@ static void TrimAttributes_Safe(TConstArrayView<const FNiagaraParameterMapHistor
 	Attributes.SetNum(Algo::StableRemoveIf(Attributes, [=](const FNiagaraVariable& Var)
 	{
 		// preserve attributes which have a record of being read
-		for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
+		for (const FParamMapHistory* ParamMap : LocalParamHistories)
 		{
 			const int32 VarIdx = ParamMap->FindVariable(Var.GetName(), Var.GetType());
 			if (VarIdx != INDEX_NONE)
@@ -627,9 +589,11 @@ static void TrimAttributes_Safe(TConstArrayView<const FNiagaraParameterMapHistor
 			return false;
 		}
 
-		for (const UNiagaraNodeCustomHlsl* CustomHlslNode : CustomHlslNodes)
+		FNameBuilder VariableName(Var.GetName());
+
+		for (const FCustomHlslNode* CustomHlslNode : CustomHlslNodes)
 		{
-			if (CustomHlslNode->ReferencesVariable(Var))
+			if (GraphBridge::CustomHlslReferencesTokens(CustomHlslNode, { VariableName.ToView() }))
 			{
 				return false;
 			}
@@ -639,13 +603,14 @@ static void TrimAttributes_Safe(TConstArrayView<const FNiagaraParameterMapHistor
 	}));
 }
 
-static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData* CompileDuplicateData, TConstArrayView<const FNiagaraParameterMapHistory*> LocalParamHistories, TSet<FName>& AttributesToPreserve, TArray<FNiagaraVariable>& Attributes)
+template<typename GraphBridge>
+void FNiagaraAttributeTrimmerHelper<GraphBridge>::TrimAttributes_Aggressive(const FCompilationCopy* CompileDuplicateData, TConstArrayView<const FParamMapHistory*> LocalParamHistories, TSet<FName>& AttributesToPreserve, TArray<FNiagaraVariable>& Attributes)
 {
 	// variable references hidden in custom hlsl nodes may not be present in a specific stages parameter map
 	// so we consolidate all the variables into one list to use when going through custom hlsl nodes
 	TSet<FNiagaraVariableBase> UnifiedVariables;
 
-	for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
+	for (const FParamMapHistory* ParamMap : LocalParamHistories)
 	{
 		for (const FNiagaraVariableBase& Variable : ParamMap->Variables)
 		{
@@ -653,15 +618,11 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 		}
 	}
 
-	using namespace NiagaraAttributeTrimming;
-
 	FDependencyMap PerVariableDependencySets;
 
-	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
-
-	for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
+	for (const FParamMapHistory* ParamMap : LocalParamHistories)
 	{
-		FFunctionInputResolver InputResolver(CompileDuplicateData->NodeGraphDeepCopy.Get(), ParamMap->OriginatingScriptUsage);
+		FFunctionInputResolver InputResolver(GraphBridge::GetGraph(CompileDuplicateData), ParamMap->OriginatingScriptUsage);
 
 		const int32 VariableCount = ParamMap->Variables.Num();
 
@@ -669,14 +630,14 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 		{
 			const FNiagaraVariableBase& Var = ParamMap->Variables[VariableIt];
 
-			for (const FModuleScopedPin& WritePin : ParamMap->PerVariableWriteHistory[VariableIt])
+			for (const FScopedPin& WritePin : ParamMap->PerVariableWriteHistory[VariableIt])
 			{
 				FDependencyChain& Dependencies = PerVariableDependencySets.Add(WritePin);
 
-				FExpressionBuilder Builder(*ParamMap, InputResolver, NiagaraSchema);
+				FExpressionBuilder Builder(*ParamMap, InputResolver);
 				Builder.FindDependencies(WritePin, Dependencies);
 
-				for (FCustomHlslNodeMap::TConstIterator CustomNodeIt = Dependencies.CustomNodes.CreateConstIterator(); CustomNodeIt; ++CustomNodeIt)
+				for (typename FCustomHlslNodeMap::TConstIterator CustomNodeIt = Dependencies.CustomNodes.CreateConstIterator(); CustomNodeIt; ++CustomNodeIt)
 				{
 					if (CustomNodeIt.Value().bHasImpureFunctionText)
 					{
@@ -686,21 +647,21 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 			}
 		}
 
-		FImpureFunctionParser ImpureFunctionParser(CompileDuplicateData->NodeGraphDeepCopy.Get(), ParamMap->OriginatingScriptUsage);
-		for (const FModuleScopedPin& RequiredFunctionInput : ImpureFunctionParser.ReadFunctionInputs())
+		FImpureFunctionParser ImpureFunctionParser(GraphBridge::GetGraph(CompileDuplicateData), ParamMap->OriginatingScriptUsage);
+		for (const FScopedPin& RequiredFunctionInput : ImpureFunctionParser.ReadFunctionInputs())
 		{
 			FDependencyChain Dependencies;
 
-			FExpressionBuilder Builder(*ParamMap, InputResolver, NiagaraSchema);
+			FExpressionBuilder Builder(*ParamMap, InputResolver);
 			Builder.FindDependencies(RequiredFunctionInput, Dependencies);
 
-			for (const FModuleScopedPin& DependentPin : Dependencies.Pins)
+			for (const FScopedPin& DependentPin : Dependencies.Pins)
 			{
 				// see if this variable corresponds to something in our parameter map's list of variables
 				// if it does then we need to mark it as something that needs to be preserved
 				// Note that we need to resolve the Pin name's module namespace before we actually search for it
 				// as a variable
-				FString VariableNameString = DependentPin.Pin->GetName();
+				FString VariableNameString = DependentPin.Pin->PinName.ToString();
 				VariableNameString.ReplaceInline(*DependentPin.ModuleName.ToString(), *FNiagaraConstants::ModuleNamespace.ToString());
 
 				const FName VariableName = *VariableNameString;
@@ -714,9 +675,9 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 					// we also need to check to see if the attribute has resolved namespaces (i.e. Particles.Module.MyAttribute or StackContext.MyAttribute)
 					// for which we'll just search through the parameter maps variables directly
 					const int32 AliasedIndex = ParamMap->VariablesWithOriginalAliasesIntact.IndexOfByPredicate([&](const FNiagaraVariable& Variable)
-					{
-						return Variable.GetName() == VariableName;
-					});
+						{
+							return Variable.GetName() == VariableName;
+						});
 
 					if (ParamMap->Variables.IsValidIndex(AliasedIndex))
 					{
@@ -743,12 +704,12 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 	{
 		const FName AttributeName = SearchList.Pop(false);
 
-		for (const FNiagaraParameterMapHistory* ParamMap : LocalParamHistories)
+		for (const FParamMapHistory* ParamMap : LocalParamHistories)
 		{
 			FDependencyChain ResolvedChain;
 			ResolveDependencyChain(*ParamMap, PerVariableDependencySets, AttributeName, ResolvedChain);
 
-			for (const FModuleScopedPin ParameterRead : ResolvedChain.Pins)
+			for (const FScopedPin& ParameterRead : ResolvedChain.Pins)
 			{
 				const FName DependentAttributeName = FindAttributeForRead(*ParamMap, ParameterRead);
 
@@ -763,15 +724,15 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 					}
 
 					// if we're dependent on a Previous value, then make sure we add the attribute to the list of things to be preserved as well
-					if (FNiagaraParameterMapHistory::IsPreviousName(DependentAttributeName))
+					if (FParamMapHistory::IsPreviousName(DependentAttributeName))
 					{
-						ConditionalAddAttribute(FNiagaraParameterMapHistory::GetSourceForPreviousValue(DependentAttributeName));
+						ConditionalAddAttribute(FParamMapHistory::GetSourceForPreviousValue(DependentAttributeName));
 					}
 
 					// likewise for Initial value
-					if (FNiagaraParameterMapHistory::IsInitialName(DependentAttributeName))
+					if (FParamMapHistory::IsInitialName(DependentAttributeName))
 					{
-						ConditionalAddAttribute(FNiagaraParameterMapHistory::GetSourceForInitialValue(DependentAttributeName));
+						ConditionalAddAttribute(FParamMapHistory::GetSourceForInitialValue(DependentAttributeName));
 					}
 				}
 			}
@@ -787,7 +748,8 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 						continue;
 					}
 
-					if (CustomHlslInfo.Key->ReferencesVariable(Variable))
+					FNameBuilder VariableName(Variable.GetName());
+					if (GraphBridge::CustomHlslReferencesTokens(CustomHlslInfo.Key, { VariableName.ToView() }))
 					{
 						ConditionalAddAttribute(Variable.GetName());
 					}
@@ -819,100 +781,5 @@ static void TrimAttributes_Aggressive(const FNiagaraCompileRequestDuplicateData*
 	}
 }
 
-void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InCompileOptions, TArray<FNiagaraVariable>& Attributes)
-{
-	if (!UNiagaraScript::IsParticleScript(InCompileOptions.TargetUsage))
-	{
-		return;
-	}
+template class FNiagaraAttributeTrimmerHelper<FNiagaraCompilationGraphBridge>;
 
-	const bool SafeTrimAttributesEnabled = InCompileOptions.AdditionalDefines.Contains(TEXT("TrimAttributesSafe"));
-	const bool AggressiveTrimAttributesEnabled = InCompileOptions.AdditionalDefines.Contains(TEXT("TrimAttributes"));
-
-	if (SafeTrimAttributesEnabled || AggressiveTrimAttributesEnabled)
-	{
-		// validate that the attributes have unique sanitized names
-		{
-			bool HasOverlappingNames = false;
-
-			TMap<FString, FNiagaraVariableBase> SanitizedNames;
-			for (const FNiagaraVariableBase& Attribute : Attributes)
-			{
-				const FString SanitizedName = GetSanitizedSymbolName(Attribute.GetName().ToString());
-				if (const FNiagaraVariableBase* ExistingVariable = SanitizedNames.Find(SanitizedName))
-				{
-					HasOverlappingNames = true;
-				}
-				else
-				{
-					SanitizedNames.Add(SanitizedName, Attribute);
-				}
-			}
-
-			// the trimming algorithm doesn't work when names are overlapping, so just early out of the function
-			if (HasOverlappingNames)
-			{
-				return;
-			}
-		}
-
-		const bool bRequiresPersistentIDs = InCompileOptions.AdditionalDefines.Contains(TEXT("RequiresPersistentIDs"));
-
-		// we want to use the ParamMapHistories of both the particle update and spawn scripts because they need to
-		// agree to define a unified attribute set
-		TArray<const FNiagaraParameterMapHistory*, TInlineAllocator<2>> LocalParamHistories;
-		for (const FNiagaraParameterMapHistory& History : OtherOutputParamMapHistories)
-		{
-			if (UNiagaraScript::IsParticleScript(History.OriginatingScriptUsage))
-			{
-				// for now we'll be disabling attribute trimming if a family of particle scripts contain generation of
-				// additional dataset writes (events) as we don't have access to the connectivity of it's variables as
-				// we do for the rest of the script
-				if (History.AdditionalDataSetWrites.Num())
-				{
-					return;
-				}
-
-				LocalParamHistories.Add(&History);
-			}
-		}
-
-		// check through the AdditionalDefines to see if any variables have been explicitly preserved
-		TSet<FName> AttributesToPreserve;
-
-		for (const FString& AdditionalDefine : InCompileOptions.AdditionalDefines)
-		{
-			const FString PreserveTag = TEXT("PreserveAttribute=");
-			if (AdditionalDefine.StartsWith(PreserveTag))
-			{
-				AttributesToPreserve.Add(*AdditionalDefine.RightChop(PreserveTag.Len()));
-			}
-		}
-
-		AttributesToPreserve.Add(SYS_PARAM_INSTANCE_ALIVE.GetName());
-		AttributesToPreserve.Add(SYS_PARAM_PARTICLES_UNIQUE_ID.GetName());
-		if (bRequiresPersistentIDs)
-		{
-			AttributesToPreserve.Add(SYS_PARAM_PARTICLES_ID.GetName());
-		}
-
-		const TArray<FNiagaraVariable> PreTrimmedAttributes = Attributes;
-
-		if (SafeTrimAttributesEnabled)
-		{
-			TrimAttributes_Safe(LocalParamHistories, AttributesToPreserve, Attributes);
-		}
-		else if (AggressiveTrimAttributesEnabled)
-		{
-			TrimAttributes_Aggressive(CompileDuplicateData, LocalParamHistories, AttributesToPreserve, Attributes);
-		}
-
-		for (const FNiagaraVariable& Attribute : PreTrimmedAttributes)
-		{
-			if (!Attributes.Contains(Attribute))
-			{
-				TranslateResults.CompileTags.Emplace(Attribute, TEXT("Trimmed"));
-			}
-		}
-	}
-}

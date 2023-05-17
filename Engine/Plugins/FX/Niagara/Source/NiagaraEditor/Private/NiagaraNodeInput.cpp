@@ -2,7 +2,7 @@
 
 #include "NiagaraNodeInput.h"
 #include "UObject/UnrealType.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "NiagaraGraph.h"
 
 #include "NiagaraNodeOutput.h"
@@ -126,7 +126,7 @@ void UNiagaraNodeInput::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuil
 	}
 }
 
-void UNiagaraNodeInput::AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType)
+void UNiagaraNodeInput::AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType) const
 {
 	if (Usage == ENiagaraInputNodeUsage::TranslatorConstant && Input == TRANSLATOR_PARAM_CALL_ID)
 	{
@@ -383,7 +383,7 @@ void UNiagaraNodeInput::NotifyExposureOptionsChanged()
 	ReallocatePins();
 }
 
-void UNiagaraNodeInput::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeInput::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	if (!IsNodeEnabled())
 	{
@@ -391,7 +391,6 @@ void UNiagaraNodeInput::Compile(class FHlslNiagaraTranslator* Translator, TArray
 		return;
 	}
 
-	UNiagaraGraph* Graph = GetNiagaraGraph();
 	if (Input.GetType() == FNiagaraTypeDefinition::GetGenericNumericDef())
 	{
 		Outputs.Add(INDEX_NONE);
@@ -407,7 +406,7 @@ void UNiagaraNodeInput::Compile(class FHlslNiagaraTranslator* Translator, TArray
 		{
 			FPinCollectorArray InputPins;
 			GetInputPins(InputPins);
-			int32 Default = InputPins.Num() > 0 ? Translator->CompilePin(InputPins[0]) : INDEX_NONE;
+			int32 Default = InputPins.Num() > 0 ? Translator->CompileInputPin(InputPins[0]) : INDEX_NONE;
 			if (Default == INDEX_NONE)
 			{
 				//We failed to compile the default pin so just use the value of the input.

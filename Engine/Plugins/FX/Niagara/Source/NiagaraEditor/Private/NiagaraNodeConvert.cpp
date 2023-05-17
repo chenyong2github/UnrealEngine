@@ -4,7 +4,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraEditorUtilities.h"
 #include "Widgets/SNiagaraGraphNodeConvert.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "UObject/UnrealType.h"
 #include "Kismet2/StructureEditorUtils.h"
 
@@ -149,10 +149,10 @@ TSharedPtr<SGraphNode> UNiagaraNodeConvert::CreateVisualWidget()
 	return SNew(SNiagaraGraphNodeConvert, this);
 }
 
-void UNiagaraNodeConvert::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& CompileOutputs)
+void UNiagaraNodeConvert::Compile(FTranslator* Translator, TArray<int32>& CompileOutputs) const
 {
 	FPinCollectorArray InputPins;
-	GetInputPins(InputPins);
+	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
 
 	TArray<int32, TInlineAllocator<16>> CompileInputs;
 	CompileInputs.Reserve(InputPins.Num());
@@ -163,7 +163,7 @@ void UNiagaraNodeConvert::Compile(class FHlslNiagaraTranslator* Translator, TArr
 			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticType ||
 			InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryStaticEnum)
 		{
-			int32 CompiledInput = Translator->CompilePin(InputPin);
+			int32 CompiledInput = Translator->CompileInputPin(InputPin);
 			if (CompiledInput == INDEX_NONE)
 			{
 				Translator->Error(LOCTEXT("InputError", "Error compiling input for convert node."), this, InputPin);
@@ -176,7 +176,7 @@ void UNiagaraNodeConvert::Compile(class FHlslNiagaraTranslator* Translator, TArr
 	check(Schema);
 
 	FPinCollectorArray OutputPins;
-	GetOutputPins(OutputPins);
+	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
 
 	// Go through all the output nodes and cross-reference them with the connections list. Output errors if any connections are incomplete.
 	{

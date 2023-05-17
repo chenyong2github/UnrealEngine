@@ -821,7 +821,7 @@ void SNiagaraStackFunctionInputValue::DynamicInputScriptSelected(UNiagaraScript*
 void SNiagaraStackFunctionInputValue::CustomExpressionSelected()
 {
 	FText CustomHLSLComment = LOCTEXT("NewCustomExpressionComment", "Custom HLSL!");
-	FunctionInput->SetCustomExpression(FHlslNiagaraTranslator::GetHlslDefaultForType(FunctionInput->GetInputType()) + TEXT(" /* ") + CustomHLSLComment.ToString() + TEXT(" */"));
+	FunctionInput->SetCustomExpression(INiagaraHlslTranslator::GetHlslDefaultForType(FunctionInput->GetInputType()) + TEXT(" /* ") + CustomHLSLComment.ToString() + TEXT(" */"));
 }
 
 void SNiagaraStackFunctionInputValue::CreateScratchSelected()

@@ -8,6 +8,7 @@
 #include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeWithDynamicPins.h"
 #include "NiagaraScript.h"
+#include "NiagaraScriptSource.h"
 #include "ViewModels/NiagaraScriptViewModel.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
 #include "Widgets/SNiagaraParameterMenu.h"

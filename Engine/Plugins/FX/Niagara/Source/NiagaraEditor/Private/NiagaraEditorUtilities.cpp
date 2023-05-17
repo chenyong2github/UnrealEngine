@@ -19,6 +19,7 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraGraph.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraHlslTranslator.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
@@ -4568,7 +4569,7 @@ UNiagaraDataInterface* FNiagaraEditorUtilities::GetResolvedRuntimeInstanceForEdi
 			{
 				FString EmitterName = EmitterHandle != nullptr ? EmitterHandle->GetUniqueInstanceName() : FString();
 				bool bIsParameterMapDataInterface = false;
-				FName DataInterfaceName = FHlslNiagaraTranslator::GetDataInterfaceName(OuterInputNode->Input.GetName(), EmitterName, bIsParameterMapDataInterface);
+				FName DataInterfaceName = FNiagaraHlslTranslator::GetDataInterfaceName(OuterInputNode->Input.GetName(), EmitterName, bIsParameterMapDataInterface);
 				for (const FNiagaraScriptResolvedDataInterfaceInfo& ResolvedDI : CompiledScript->GetResolvedDataInterfaces())
 				{
 					if (ResolvedDI.Name == DataInterfaceName)

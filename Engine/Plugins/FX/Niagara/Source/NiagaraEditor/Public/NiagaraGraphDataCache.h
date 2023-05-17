@@ -9,7 +9,6 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
-class FHlslNiagaraTranslator;
 class UEdGraphPin;
 class UNiagaraGraph;
 class UNiagaraNodeFunctionCall;

@@ -83,7 +83,7 @@ public:
 	/** Notifies the node that the exposure options have changed externally.*/
 	void NotifyExposureOptionsChanged();
 
-	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)override;
+	virtual void Compile(FTranslator* Translator, TArray<int32>& Outputs) const override;
 	
 	bool IsExposed()const { return ExposureOptions.bExposed && Usage == ENiagaraInputNodeUsage::Parameter; }
 	bool IsRequired()const { return IsExposed() && ExposureOptions.bRequired; }
@@ -93,7 +93,7 @@ public:
 	bool ReferencesSameInput(UNiagaraNodeInput* Other) const;
 
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
-	virtual void AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType) override;
+	virtual void AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType) const override;
 
 	static const FLinearColor TitleColor_Attribute;
 	static const FLinearColor TitleColor_Constant;

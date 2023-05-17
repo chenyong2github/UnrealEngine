@@ -5,7 +5,7 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraMessageUtilities.h"
-#include "NiagaraScriptSourceBase.h"
+#include "NiagaraScriptSource.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeEmitter.h"
 

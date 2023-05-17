@@ -3,7 +3,7 @@
 #include "NiagaraNode.h"
 #include "NiagaraGraph.h"
 #include "EdGraphSchema_Niagara.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "GraphEditAction.h"
 #include "Widgets/SNiagaraGraphNode.h"
 #include "Misc/SecureHash.h"
@@ -355,9 +355,9 @@ bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 	return bAllSame;
 }
 
-int32 UNiagaraNode::CompileInputPin(FHlslNiagaraTranslator *Translator, UEdGraphPin* Pin)
+int32 UNiagaraNode::CompileInputPin(FTranslator* Translator, UEdGraphPin* Pin) const
 {
-	return Translator->CompilePin(Pin);
+	return Translator->CompileInputPin(Pin);
 }
 
 bool UNiagaraNode::IsValidPinToCompile(UEdGraphPin* Pin) const 
@@ -365,7 +365,7 @@ bool UNiagaraNode::IsValidPinToCompile(UEdGraphPin* Pin) const
 	return Pin->bOrphanedPin == false;
 }
 
-bool UNiagaraNode::CompileInputPins(FHlslNiagaraTranslator *Translator, TArray<int32>& OutCompiledInputs)
+bool UNiagaraNode::CompileInputPins(FTranslator* Translator, TArray<int32>& OutCompiledInputs) const
 {
 	bool bError = false;
 	
@@ -681,7 +681,7 @@ UNiagaraScriptSource* UNiagaraNode::GetSource()const
 	return GetNiagaraGraph()->GetSource();
 }
 
-void UNiagaraNode::Compile(FHlslNiagaraTranslator *Translator, TArray<int32>& Outputs)
+void UNiagaraNode::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	Translator->Error(FText::FromString("Unimplemented Node!"), this, nullptr);
 }
@@ -901,7 +901,7 @@ UEdGraphPin* UNiagaraNode::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin
 }
 
 
-bool UNiagaraNode::SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin)
+bool UNiagaraNode::SubstituteCompiledPin(FTranslator* Translator, UEdGraphPin** LocallyOwnedPin)
 {
 	return false;
 }

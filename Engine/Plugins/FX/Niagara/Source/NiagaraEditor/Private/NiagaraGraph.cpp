@@ -3670,13 +3670,13 @@ void UNiagaraGraph::InvalidateNumericCache()
 	CachedNumericConversions.Empty();
 }
 
-FString UNiagaraGraph::GetFunctionAliasByContext(const FNiagaraGraphFunctionAliasContext& FunctionAliasContext)
+FString UNiagaraGraph::GetFunctionAliasByContext(const FNiagaraGraphFunctionAliasContext& FunctionAliasContext) const
 {
 	FString FunctionAlias;
 	TSet<UClass*> SkipNodeTypes;
-	for (UEdGraphNode* Node : Nodes)
+	for (const UEdGraphNode* Node : Nodes)
 	{
-		UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(Node);
+		const UNiagaraNode* NiagaraNode = Cast<const UNiagaraNode>(Node);
 		if (NiagaraNode != nullptr)
 		{
 			if (SkipNodeTypes.Contains(NiagaraNode->GetClass()))
@@ -3692,10 +3692,10 @@ FString UNiagaraGraph::GetFunctionAliasByContext(const FNiagaraGraphFunctionAlia
 		}
 	}
 
-	for (UEdGraphPin* Pin : FunctionAliasContext.StaticSwitchValues)
+	for (const UEdGraphPin* Pin : FunctionAliasContext.StaticSwitchValues)
 	{
-		FunctionAlias += TEXT("_") + FHlslNiagaraTranslator::GetSanitizedFunctionNameSuffix(Pin->GetName()) 
-			+ TEXT("_") + FHlslNiagaraTranslator::GetSanitizedFunctionNameSuffix(Pin->DefaultValue);
+		FunctionAlias += TEXT("_") + FNiagaraHlslTranslator::GetSanitizedFunctionNameSuffix(Pin->GetName())
+			+ TEXT("_") + FNiagaraHlslTranslator::GetSanitizedFunctionNameSuffix(Pin->DefaultValue);
 	}
 	return FunctionAlias;
 }

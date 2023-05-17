@@ -7,7 +7,7 @@
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "NiagaraGraph.h"
 #include "NiagaraScriptVariable.h"
 #include "ScopedTransaction.h"
@@ -192,30 +192,21 @@ bool UNiagaraNodeParameterMapSet::CommitEditablePinName(const FText& InName, UEd
 	return false;
 }
 
-void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
+void UNiagaraNodeParameterMapSet::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	FPinCollectorArray InputPins;
-	GetInputPins(InputPins);
+	FTranslator::FBridge::GetCompilationInputPins(this, InputPins);
 
 	FPinCollectorArray OutputPins;
-	GetOutputPins(OutputPins);
+	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
 
 	// Initialize the outputs to invalid values.
 	check(Outputs.Num() == 0);
-	Outputs.Reserve(OutputPins.Num());
-	for (int32 i = 0; i < OutputPins.Num(); i++)
-	{
-		Outputs.Add(INDEX_NONE);
-	}
+	Outputs.Init(INDEX_NONE, OutputPins.Num());
 
 	// update the translator with the culled function calls before compiling any further
 	for (UEdGraphPin* InputPin : InputPins)
 	{
-		if (IsAddPin(InputPin))
-		{
-			continue;
-		}
-
 		if (Translator->IsFunctionVariableCulledFromCompilation(InputPin->PinName))
 		{
 			Translator->CullMapSetInputPin(InputPin);
@@ -225,11 +216,11 @@ void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translat
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
 	// First compile fully down the hierarchy for our predecessors..
-	TArray<FCompiledPin, TInlineAllocator<16>> CompileInputs;
+	TArray<FTranslator::FCompiledPin, TInlineAllocator<16>> CompileInputs;
 	CompileInputs.Reserve(InputPins.Num());
 	for (UEdGraphPin* InputPin : InputPins)
 	{
-		if (IsAddPin(InputPin) || SkipPinCompilation(InputPin) || Translator->IsFunctionVariableCulledFromCompilation(InputPin->PinName))
+		if (SkipPinCompilation(InputPin) || Translator->IsFunctionVariableCulledFromCompilation(InputPin->PinName))
 		{
 			continue;
 		}
@@ -239,12 +230,12 @@ void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translat
 			continue;
 		}
 
-		int32 CompiledInput = Translator->CompilePin(InputPin);
+		int32 CompiledInput = Translator->CompileInputPin(InputPin);
 		if (CompiledInput == INDEX_NONE)
 		{
 			Translator->Error(LOCTEXT("InputError", "Error compiling input for set node."), this, InputPin);
 		}
-		CompileInputs.Add(FCompiledPin(CompiledInput, InputPin));
+		CompileInputs.Emplace(CompiledInput, InputPin);
 	}
 
 	if (GetInputPin(0) != nullptr && GetInputPin(0)->LinkedTo.Num() > 0)

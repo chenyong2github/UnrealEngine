@@ -14,7 +14,7 @@ class UEdGraphPin;
 class UEdGraphNode;
 class UNiagaraGraph;
 class UNiagaraParameterCollection;
-class FHlslNiagaraTranslator;
+class FNiagaraHlslTranslator;
 class UNiagaraGraph;
 
 class FCompileConstantResolver
@@ -23,11 +23,11 @@ public:
 	FCompileConstantResolver() : Emitter(FVersionedNiagaraEmitter()), System(nullptr), Translator(nullptr), Usage(ENiagaraScriptUsage::Function), DebugState(ENiagaraFunctionDebugState::NoDebug) {}
 	FCompileConstantResolver(const FVersionedNiagaraEmitter& Emitter, ENiagaraScriptUsage Usage, ENiagaraFunctionDebugState DebugState = ENiagaraFunctionDebugState::NoDebug) : Emitter(Emitter), System(nullptr), Translator(nullptr), Usage(Usage), DebugState(DebugState) {}
 	FCompileConstantResolver(const UNiagaraSystem* System, ENiagaraScriptUsage Usage, ENiagaraFunctionDebugState DebugState = ENiagaraFunctionDebugState::NoDebug) : Emitter(FVersionedNiagaraEmitter()), System(System), Translator(nullptr), Usage(Usage), DebugState(DebugState) {}
-	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator, ENiagaraFunctionDebugState DebugState = ENiagaraFunctionDebugState::NoDebug) : Emitter(FVersionedNiagaraEmitter()), System(nullptr), Translator(Translator), Usage(ENiagaraScriptUsage::Function), DebugState(DebugState) {}
+	FCompileConstantResolver(const FNiagaraHlslTranslator* Translator, ENiagaraFunctionDebugState DebugState = ENiagaraFunctionDebugState::NoDebug) : Emitter(FVersionedNiagaraEmitter()), System(nullptr), Translator(Translator), Usage(ENiagaraScriptUsage::Function), DebugState(DebugState) {}
 
 	const UNiagaraEmitter* GetEmitter() const { return Emitter.Emitter; }
 	const UNiagaraSystem* GetSystem() const { return System; }
-	const FHlslNiagaraTranslator* GetTranslator() const { return Translator; }
+	const FNiagaraHlslTranslator* GetTranslator() const { return Translator; }
 	ENiagaraScriptUsage GetUsage() const { return Usage; }
 	ENiagaraFunctionDebugState GetDebugState() const { return DebugState; }
 
@@ -45,7 +45,7 @@ public:
 private:
 	FVersionedNiagaraEmitter Emitter;
 	const UNiagaraSystem* System;
-	const FHlslNiagaraTranslator* Translator;
+	const FNiagaraHlslTranslator* Translator;
 	ENiagaraScriptUsage Usage;
 	ENiagaraFunctionDebugState DebugState;
 };
@@ -430,12 +430,12 @@ public:
 	/**
 	* Record that we have entered a new function scope.
 	*/
-	void EnterFunction(const FString& InNodeName, const class UNiagaraScript* InScript, const class UNiagaraGraph* InGraph, const class UNiagaraNode* Node);
+	void EnterFunction(const FString& InNodeName, const class UNiagaraGraph* InGraph, const class UNiagaraNode* Node);
 
 	/**
 	* Record that we have exited a function scope.
 	*/
-	void ExitFunction(const FString& InNodeName, const class UNiagaraScript* InScript, const class UNiagaraNode* Node);
+	void ExitFunction(const FString& InNodeName, const class UNiagaraNode* Node);
 
 	/**
 	* Record that we have entered an emitter scope.

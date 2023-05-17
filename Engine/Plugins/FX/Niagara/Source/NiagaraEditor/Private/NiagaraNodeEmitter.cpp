@@ -10,7 +10,7 @@
 #include "NiagaraGraph.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
-#include "NiagaraHlslTranslator.h"
+#include "NiagaraGraphHlslTranslator.h"
 #include "Stats/Stats.h"
 #include "NiagaraEditorModule.h"
 
@@ -440,7 +440,7 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 	}
 }
 
-void UNiagaraNodeEmitter::Compile(FHlslNiagaraTranslator *Translator, TArray<int32>& Outputs)
+void UNiagaraNodeEmitter::Compile(FTranslator* Translator, TArray<int32>& Outputs) const
 {
 	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraNodeEmitter_Compile);
 	FPinCollectorArray InputPins;
@@ -448,7 +448,7 @@ void UNiagaraNodeEmitter::Compile(FHlslNiagaraTranslator *Translator, TArray<int
 	InputPins.RemoveAll([](UEdGraphPin* InputPin) { return (InputPin->PinType.PinCategory != UEdGraphSchema_Niagara::PinCategoryType) && (InputPin->PinType.PinCategory != UEdGraphSchema_Niagara::PinCategoryEnum); });
 
 	FPinCollectorArray OutputPins;
-	GetOutputPins(OutputPins);
+	FTranslator::FBridge::GetCompilationOutputPins(this, OutputPins);
 
 	check(Outputs.Num() == 0);
 
@@ -474,7 +474,7 @@ void UNiagaraNodeEmitter::Compile(FHlslNiagaraTranslator *Translator, TArray<int
 		return;
 	}
 
-	int32 InputPinCompiled = Translator->CompilePin(InputPins[0]);
+	int32 InputPinCompiled = Translator->CompileInputPin(InputPins[0]);
 	if (!IsNodeEnabled())
 	{
 		// Do the minimal amount of work necessary if we are disabled.
