@@ -1517,6 +1517,7 @@ public:
 
 	// Do Nothing 
 	DECLARE_FUNCTION(execNothing);
+	DECLARE_FUNCTION(execNothingInt32);
 	DECLARE_FUNCTION(execNothingOp4a);
 
 	/** Breakpoint; only observed in the editor; executing it at any other time is a NOP */
@@ -1678,6 +1679,10 @@ public:
 	DECLARE_FUNCTION(execSwitchValue);
 
 	DECLARE_FUNCTION(execArrayGetByRef);
+
+	DECLARE_FUNCTION(execAutoRtfmTransact);
+	DECLARE_FUNCTION(execAutoRtfmStopTransact);
+	DECLARE_FUNCTION(execAutoRtfmAbortIfNot);
 
 	/** Wrapper struct to hold the entrypoint in the right memory address */
 	struct Object_eventExecuteUbergraph_Parms

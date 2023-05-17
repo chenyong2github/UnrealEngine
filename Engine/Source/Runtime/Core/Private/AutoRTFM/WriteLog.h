@@ -165,6 +165,8 @@ namespace AutoRTFM
             return 0 == TotalSize;
         }
 
+		size_t Num() const { return TotalSize; }
+
     private:
 
         FWriteLogEntryBucket* Start = nullptr;

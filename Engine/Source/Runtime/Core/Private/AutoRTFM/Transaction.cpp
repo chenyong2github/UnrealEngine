@@ -72,7 +72,7 @@ void FTransaction::Undo()
 	UE_LOG(LogAutoRTFM, Verbose, TEXT("Undoing a transaction..."));
 
 	int VerboseCounter = 0;
-
+	int Num = WriteLog.Num();
 	for(auto Iter = WriteLog.rbegin(); Iter != WriteLog.rend(); ++Iter)
     {
 		FWriteLogEntry& Entry = *Iter;
@@ -92,7 +92,7 @@ void FTransaction::Undo()
 		{
 			TStringBuilder<1024> Builder;
 
-			Builder.Appendf(TEXT("%4d [UNDO] %p %4llu : [ "), VerboseCounter, Original, Size);
+			Builder.Appendf(TEXT("%4d [UNDO] %p %4llu : [ "), Num - VerboseCounter - 1, Original, Size);
 
 			unsigned char* Current = (unsigned char*)Original;
 			unsigned char* Old = (unsigned char*)Copy;

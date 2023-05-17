@@ -2419,6 +2419,12 @@ DEFINE_FUNCTION(UObject::execNothing)
 }
 IMPLEMENT_VM_FUNCTION( EX_Nothing, execNothing );
 
+DEFINE_FUNCTION(UObject::execNothingInt32)
+{
+	int32 Value = Stack.ReadInt<int32>();
+}
+IMPLEMENT_VM_FUNCTION( EX_NothingInt32, execNothingInt32 );
+
 DEFINE_FUNCTION(UObject::execNothingOp4a)
 {
 	// Do nothing.
@@ -4031,5 +4037,98 @@ DEFINE_FUNCTION(UObject::execInterfaceToObject)
 	}
 }
 IMPLEMENT_VM_FUNCTION( EX_InterfaceToObjCast, execInterfaceToObject );
+
+DEFINE_FUNCTION(UObject::execAutoRtfmTransact)
+{
+	int32 TransactionId = Stack.ReadInt<int32>();
+	CodeSkipSizeType JumpOffset = Stack.ReadCodeSkipCount();
+
+	uint8* JumpTarget = &Stack.Node->Script[JumpOffset];
+
+	// sometimes if this inner transaction commits, we want to
+	// abort the parent transaction afterwards (logical not does this)
+	bool bAbortParentOnCommit = false;
+
+	// now wrap the next step around a transaction
+	AutoRTFM::ETransactionResult Result = AutoRTFM::Transact([&]()
+	{
+		bool bKeepRunning = true;
+		for (int i = 0; bKeepRunning; i++)
+		{
+			if(*Stack.Code == EX_AutoRtfmStopTransact)
+			{
+				Stack.Code++;
+				int32 Value = Stack.ReadInt<int32>();
+				EAutoRtfmStopTransactMode Mode = Stack.Read<EAutoRtfmStopTransactMode>();
+
+				if (TransactionId == Value)
+				{
+					switch(Mode)
+					{
+					case EAutoRtfmStopTransactMode::GracefulExit:
+						// gracefully terminate this transaction
+						bKeepRunning = false;
+						break;
+
+					case EAutoRtfmStopTransactMode::AbortingExit:
+						// abort this transaction
+						AutoRTFM::AbortTransaction();
+						break;
+
+					case EAutoRtfmStopTransactMode::AbortingExitAndAbortParent:
+						// abort this transaction and also abort the parent
+						UE_AUTORTFM_OPEN({ bAbortParentOnCommit = true; });
+						AutoRTFM::AbortTransaction();
+						break;
+					}
+				}
+			}
+			else
+			{
+				Stack.Step(Stack.Object, RESULT_PARAM);
+			}
+		}
+	});
+
+	P_NATIVE_BEGIN;
+
+	if (Result != AutoRTFM::ETransactionResult::Committed)
+	{
+		// if this transaction didn't commit, move our code pointer to the target
+		Stack.Code = JumpTarget;
+	}
+
+	if (bAbortParentOnCommit)
+	{
+		AutoRTFM::AbortTransaction();
+	}
+
+	P_NATIVE_END;
+}
+IMPLEMENT_VM_FUNCTION( EX_AutoRtfmTransact, execAutoRtfmTransact );
+
+DEFINE_FUNCTION(UObject::execAutoRtfmStopTransact)
+{
+	Stack.ReadInt<int32>();
+	Stack.Read<EAutoRtfmStopTransactMode>();
+
+	// if we were in a transaction, the processing loop inside execAutoRtfmTransact
+	// would handle this opcode specially. if we are handling it here then we
+	// are not in a transaction, so this opcode is a no-op
+}
+IMPLEMENT_VM_FUNCTION( EX_AutoRtfmStopTransact, execAutoRtfmStopTransact );
+
+DEFINE_FUNCTION(UObject::execAutoRtfmAbortIfNot)
+{
+	// evaluate a boolean expression
+	bool Result = false;
+	Stack.Step(Stack.Object, &Result);
+	// if the expression returned false, abort the current transaction
+	if (!Result)
+	{
+		AutoRTFM::AbortTransaction();
+	}
+}
+IMPLEMENT_VM_FUNCTION( EX_AutoRtfmAbortIfNot, execAutoRtfmAbortIfNot );
 
 #undef LOCTEXT_NAMESPACE

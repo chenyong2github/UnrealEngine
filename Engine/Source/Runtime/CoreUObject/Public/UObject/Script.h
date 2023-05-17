@@ -196,7 +196,7 @@ enum EExprToken : uint8
 	EX_Assert				= 0x09,	// Assertion.
 	//						= 0x0A,
 	EX_Nothing				= 0x0B,	// No operation.
-	//						= 0x0C,
+	EX_NothingInt32			= 0x0C, // No operation with an int32 argument (useful for debugging script disassembly)
 	//						= 0x0D,
 	//						= 0x0E,
 	EX_Let					= 0x0F,	// Assign an arbitrary size value to a variable.
@@ -294,7 +294,19 @@ enum EExprToken : uint8
 	EX_ArrayGetByRef		= 0x6B,
 	EX_ClassSparseDataVariable = 0x6C, // Sparse data variable
 	EX_FieldPathConst		= 0x6D,
+	//						= 0x6E,
+	//						= 0x6F,
+	EX_AutoRtfmTransact     = 0x70, // AutoRTFM: run following code in a transaction
+	EX_AutoRtfmStopTransact = 0x71, // AutoRTFM: if in a transaction, abort or break, otherwise no operation
+	EX_AutoRtfmAbortIfNot   = 0x72, // AutoRTFM: evaluate bool condition, abort transaction on false
 	EX_Max					= 0xFF,
+};
+
+enum EAutoRtfmStopTransactMode : uint8
+{
+	GracefulExit,
+	AbortingExit,
+	AbortingExitAndAbortParent,
 };
 
 enum ECastToken : uint8

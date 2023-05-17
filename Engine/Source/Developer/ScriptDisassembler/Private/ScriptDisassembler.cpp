@@ -632,6 +632,12 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			Ar.Logf(TEXT("%s $%X: EX_Nothing"), *Indents, (int32)Opcode);
 			break;
 		}
+	case EX_NothingInt32:
+		{
+			int32 Value = ReadINT(ScriptIndex);
+			Ar.Logf(TEXT("%s $%X: EX_NothingInt32 %d"), *Indents, (int32)Opcode, Value);
+			break;
+		}
 	case EX_EndOfScript:
 		{
 			Ar.Logf(TEXT("%s $%X: EX_EndOfScript"), *Indents, (int32)Opcode);
@@ -1188,6 +1194,42 @@ void FKismetBytecodeDisassembler::ProcessCommon(int32& ScriptIndex, EExprToken O
 			SerializeExpr(ScriptIndex);
 			SerializeExpr(ScriptIndex);
 			DropIndent();
+			break;
+		}
+	case EX_AutoRtfmTransact:
+		{
+			// Code offset.
+			int32 Value = ReadINT(ScriptIndex);				
+			CodeSkipSizeType SkipCount = ReadSkipCount(ScriptIndex);
+
+			Ar.Logf(TEXT("%s $%X: AutoRtfmTransact %d to offset 0x%X"), *Indents, (int32)Opcode, Value, SkipCount);
+
+			while (SerializeExpr(ScriptIndex) != EX_AutoRtfmStopTransact)
+			{
+				// Params
+			}
+			break;
+		}
+	case EX_AutoRtfmStopTransact:
+		{
+			int32 Value = ReadINT(ScriptIndex);
+			EAutoRtfmStopTransactMode Mode = EAutoRtfmStopTransactMode(ReadBYTE(ScriptIndex));
+
+			const TCHAR* ModeText = TEXT("");
+			switch(Mode)
+			{
+			case EAutoRtfmStopTransactMode::GracefulExit: ModeText = TEXT("GracefulExit"); break;
+			case EAutoRtfmStopTransactMode::AbortingExit: ModeText = TEXT("AbortingExit"); break;
+			case EAutoRtfmStopTransactMode::AbortingExitAndAbortParent: ModeText = TEXT("AbortingExitAndAbortParent"); break;
+			}
+
+			Ar.Logf(TEXT("%s $%X: EX_AutoRtfmStopTransact (%s) %d"), *Indents, (int32)Opcode, ModeText, Value);
+			break;
+		}
+	case EX_AutoRtfmAbortIfNot:
+		{
+			Ar.Logf(TEXT("%s $%X: EX_AutoRtfmAbortIfNot"), *Indents, (int32)Opcode);
+			SerializeExpr(ScriptIndex);
 			break;
 		}
 	default:

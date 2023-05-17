@@ -249,10 +249,15 @@
 			break;
 		}
 		case EX_PushExecutionFlow:
-			{
-				XFER(CodeSkipSizeType);		// location to push
-				break;
-			}
+		{
+			XFER(CodeSkipSizeType);		// location to push
+			break;
+		}
+		case EX_NothingInt32:
+		{
+			XFER(int32);
+			break;
+		}
 		case EX_Nothing:
 		case EX_EndOfScript:
 		case EX_EndFunctionParms:
@@ -608,6 +613,24 @@
 		{
 			SerializeExpr( iCode, Ar );
 			SerializeExpr( iCode, Ar );
+			break;
+		}
+		case EX_AutoRtfmTransact:
+		{
+			XFER(int32); // Transaction id
+			XFER(CodeSkipSizeType); // Code offset.
+			while( SerializeExpr( iCode, Ar ) != EX_AutoRtfmStopTransact ); // Parms.
+			break;
+		}
+		case EX_AutoRtfmStopTransact:
+		{
+			XFER(int32); // transaction id
+			XFER(int8); // stop mode
+			break;
+		}
+		case EX_AutoRtfmAbortIfNot:
+		{
+			SerializeExpr(iCode,Ar);
 			break;
 		}
 		default:
