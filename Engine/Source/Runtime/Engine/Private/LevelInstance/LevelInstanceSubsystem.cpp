@@ -176,6 +176,11 @@ void ULevelInstanceSubsystem::RequestLoadLevelInstance(ILevelInstanceInterface* 
 		{
 			LevelInstancesToUnload.Remove(LevelInstance->GetLevelInstanceID());
 
+			if (IsLoading(LevelInstance))
+			{
+				return;
+			}
+
 			bool* bForcePtr = LevelInstancesToLoadOrUpdate.Find(LevelInstance);
 
 			// Avoid loading if already loaded. Can happen if actor requests unload/load in same frame. Without the force it means its not necessary.
@@ -211,6 +216,11 @@ void ULevelInstanceSubsystem::RequestUnloadLevelInstance(ILevelInstanceInterface
 bool ULevelInstanceSubsystem::IsLoaded(const ILevelInstanceInterface* LevelInstance) const
 {
 	return LevelInstance->HasValidLevelInstanceID() && LoadedLevelInstances.Contains(LevelInstance->GetLevelInstanceID());
+}
+
+bool ULevelInstanceSubsystem::IsLoading(const ILevelInstanceInterface* LevelInstance) const
+{
+	return LevelInstance->HasValidLevelInstanceID() && LoadingLevelInstances.Contains(LevelInstance->GetLevelInstanceID());
 }
 
 void ULevelInstanceSubsystem::UpdateStreamingState()

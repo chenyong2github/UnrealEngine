@@ -55,6 +55,7 @@ public:
 	void RequestLoadLevelInstance(ILevelInstanceInterface* LevelInstance, bool bUpdate);
 	void RequestUnloadLevelInstance(ILevelInstanceInterface* LevelInstance);
 	bool IsLoaded(const ILevelInstanceInterface* LevelInstance) const;
+	bool IsLoading(const ILevelInstanceInterface* LevelInstance) const;
 	void ForEachLevelInstanceAncestorsAndSelf(AActor* Actor, TFunctionRef<bool(ILevelInstanceInterface*)> Operation) const;
 	ULevelStreamingLevelInstance* GetLevelInstanceLevelStreaming(const ILevelInstanceInterface* LevelInstance) const;
 	void ForEachActorInLevelInstance(const ILevelInstanceInterface* LevelInstance, TFunctionRef<bool(AActor* LevelActor)> Operation) const;
