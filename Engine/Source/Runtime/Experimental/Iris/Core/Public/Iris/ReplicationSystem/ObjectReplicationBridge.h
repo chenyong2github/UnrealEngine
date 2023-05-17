@@ -22,6 +22,7 @@ namespace UE::Net
 	{
 		typedef uint32 FInternalNetRefIndex;
 		class FObjectPollFrequencyLimiter;
+		class FObjectPoller;
 	}
 }
 
@@ -258,6 +259,8 @@ private:
 	void InitConditionalPropertyDelegates();
 
 private:
+
+	friend UE::Net::Private::FObjectPoller;
 
 	TMap<const UClass*, FName> ConfigClassPathNameCache;
 

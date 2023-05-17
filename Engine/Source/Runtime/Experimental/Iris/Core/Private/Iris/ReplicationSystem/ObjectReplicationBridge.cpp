@@ -29,6 +29,7 @@
 #include "Iris/ReplicationSystem/ReplicationOperations.h"
 #include "Iris/ReplicationSystem/ReplicationOperationsInternal.h"
 #include "Iris/ReplicationSystem/RepTag.h"
+#include "Iris/ReplicationSystem/Polling/ObjectPoller.h"
 #include "Iris/Serialization/NetSerializationContext.h"
 #include "Iris/Serialization/InternalNetSerializationContext.h"
 #include "Iris/Serialization/NetBitStreamUtil.h"
@@ -702,172 +703,22 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 	using namespace UE::Net;
 	using namespace UE::Net::Private;
 
-	FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
-	const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
-	const TArray<UObject*>& ReplicatedInstances = LocalNetRefHandleManager.GetReplicatedInstances();
-	const bool bIsUsingPushModel = IsIrisPushModelEnabled();
-
-	FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystemInternal->GetDirtyNetObjectTracker());
-
-	FNetBitArrayView DirtyObjectsThisFrame = DirtyObjectsAccessor.GetDirtyNetObjects();
-
-	struct FPreUpdateAndPollStats
-	{
-		uint32 PreUpdatedObjectCount = 0;
-		uint32 PolledObjectCount = 0;
-		uint32 PolledReferencesObjectCount = 0;
-	};
-
-	FPreUpdateAndPollStats Stats;
-
-	auto UpdateAndPollFunction = [&ReplicatedInstances, this, &LocalNetRefHandleManager, &DirtyObjectsThisFrame, &Stats](uint32 InternalObjectIndex)
-	{
-		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
-		if (ObjectData.InstanceProtocol)
-		{
-			IRIS_PROFILER_PROTOCOL_NAME(ObjectData.Protocol->DebugName->Name);
-
-			// Call per-instance PreUpdate function
-			if (PreUpdateInstanceFunction && EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
-			{
-				IRIS_PROFILER_SCOPE_VERBOSE(PreReplicationUpdate);
-				(*PreUpdateInstanceFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], this);
-				++Stats.PreUpdatedObjectCount;
-			}
-
-			// Poll properties if the instance protocol requires it
-			if (EnumHasAnyFlags(ObjectData.InstanceProtocol->InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll))
-			{
-				IRIS_PROFILER_SCOPE_VERBOSE(Poll);
-
-				const bool bIsGCAffectedObject = GarbageCollectionAffectedObjects.GetBit(InternalObjectIndex);
-				GarbageCollectionAffectedObjects.ClearBit(InternalObjectIndex);
-
-				// If this object has been around for a garbage collect and it has object references we must make sure that we update all cached object references
-				EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState;
-				PollOptions |= bIsGCAffectedObject ? EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC : EReplicationFragmentPollFlags::None;
-
-				const bool bWasMarkedDirty = FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(ObjectData.InstanceProtocol, PollOptions);
-				if (bWasMarkedDirty)
-				{
-					DirtyObjectsThisFrame.SetBit(InternalObjectIndex);
-				}
-				++Stats.PolledObjectCount;
-			}
-		}
-	};
-
-	const FNetBitArray& PrevScopableObjects = LocalNetRefHandleManager.GetPrevFrameScopableInternalIndices();
-
-	auto PushModelUpdateAndPollFunction = [&ReplicatedInstances, this, &LocalNetRefHandleManager, &DirtyObjectsThisFrame, &PrevScopableObjects, &Stats](uint32 InternalObjectIndex)
-	{
-		const FNetRefHandleManager::FReplicatedObjectData& ObjectData = LocalNetRefHandleManager.GetReplicatedObjectDataNoCheck(InternalObjectIndex);
-		if (const FReplicationInstanceProtocol* InstanceProtocol = ObjectData.InstanceProtocol)
-		{
-			IRIS_PROFILER_PROTOCOL_NAME(ObjectData.Protocol->DebugName->Name);
-
-			const EReplicationInstanceProtocolTraits InstanceTraits = InstanceProtocol->InstanceTraits;
-			const bool bNeedsPoll = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPoll);
-			bool bIsDirtyObject = DirtyObjectsThisFrame.GetBit(InternalObjectIndex);
-
-			// Call per-instance PreUpdate function
-			if (PreUpdateInstanceFunction && EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::NeedsPreSendUpdate))
-			{
-				IRIS_PROFILER_SCOPE_VERBOSE(PreReplicationUpdate);
-
-				(*PreUpdateInstanceFunction)(ObjectData.RefHandle, ReplicatedInstances[InternalObjectIndex], this);
-				++Stats.PreUpdatedObjectCount;
-
-				// Pre update may dirty push based properties. Detect it.
-				if ((bNeedsPoll & !bIsDirtyObject))
-				{
-					bIsDirtyObject = FGlobalDirtyNetObjectTracker::IsNetObjectStateDirty(ObjectData.NetHandle);
-					if (bIsDirtyObject)
-					{
-						DirtyObjectsThisFrame.SetBit(bIsDirtyObject);
-					}
-				}
-			}
-
-			const bool bIsNewInScope = !PrevScopableObjects.GetBit(InternalObjectIndex);
-			const bool bIsGCAffectedObject = GarbageCollectionAffectedObjects.GetBit(InternalObjectIndex);			
-			GarbageCollectionAffectedObjects.ClearBit(InternalObjectIndex);
-
-			// Early out if the instance does not require polling
-			if (!bNeedsPoll)
-			{
-				return;
-			}
-
-			IRIS_PROFILER_SCOPE_VERBOSE(PollPushBased);
-
-			// If the object is fully push model we only need to poll it if it's dirty, unless it's a new object or was garbage collected.
-			bool bWasMarkedDirty = false;
-			if (EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness))
-			{
-				if (bIsDirtyObject | bIsNewInScope)
-				{
-					// We need to do a poll if object is marked as dirty
-					EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState;
-					PollOptions |= bIsGCAffectedObject ? EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC : EReplicationFragmentPollFlags::None;
-					bWasMarkedDirty = FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(InstanceProtocol, EReplicationFragmentTraits::None, PollOptions);
-					++Stats.PolledObjectCount;
-				}
-				else if (bIsGCAffectedObject)
-				{
-					// If this object might have been affected by GC, only refresh cached references
-					const EReplicationFragmentTraits RequiredTraits = EReplicationFragmentTraits::HasPushBasedDirtiness;
-					bWasMarkedDirty = FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(InstanceProtocol, RequiredTraits);
-					++Stats.PolledReferencesObjectCount;
-				}
-			}
-			else
-			{
-				// If the object has pushed based fragments, and not is marked dirty and object is affected by GC we need to make sure that we refresh cached references for all push based fragments
-				const bool bIsPushBasedObject = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasPartialPushBasedDirtiness | EReplicationInstanceProtocolTraits::HasFullPushBasedDirtiness);
-				const bool bHasObjectReferences = EnumHasAnyFlags(InstanceTraits, EReplicationInstanceProtocolTraits::HasObjectReference);
-				const bool bNeedsRefreshOfCachedObjectReferences = ((!(bIsNewInScope | bIsDirtyObject)) & bIsGCAffectedObject & bIsPushBasedObject & bHasObjectReferences);
-				if (bNeedsRefreshOfCachedObjectReferences)
-				{
-					// Only states which has push based dirtiness need to be updated as the other states will be polled in full anyway.
-					const EReplicationFragmentTraits RequiredTraits = EReplicationFragmentTraits::HasPushBasedDirtiness;
-					bWasMarkedDirty = FReplicationInstanceOperations::PollAndRefreshCachedObjectReferences(InstanceProtocol, RequiredTraits);
-					++Stats.PolledReferencesObjectCount;
-				}
-
-				// If this object has been around for a garbage collect and it has object references we must make sure that we update all cached object references 
-				EReplicationFragmentPollFlags PollOptions = EReplicationFragmentPollFlags::PollAllState;
-				PollOptions |= bIsGCAffectedObject ? EReplicationFragmentPollFlags::ForceRefreshCachedObjectReferencesAfterGC : EReplicationFragmentPollFlags::None;
-
-				// If the object is not new or dirty at this point we only need to poll non-push based fragments as we know that pushed based states have not been modified
-				const EReplicationFragmentTraits ExcludeTraits = (bIsDirtyObject | bIsNewInScope) ? EReplicationFragmentTraits::None : EReplicationFragmentTraits::HasPushBasedDirtiness;
-				bWasMarkedDirty |= FReplicationInstanceOperations::PollAndRefreshCachedPropertyData(InstanceProtocol, ExcludeTraits, PollOptions);
-				++Stats.PolledObjectCount;
-			}
-
-			if (bWasMarkedDirty)
-			{
-				DirtyObjectsThisFrame.SetBit(InternalObjectIndex);
-			}
-		}
-	};
-
 	// If we are asked to poll a single object
 	if (Handle.IsValid())
 	{
-		if (uint32 InternalObjectIndex = LocalNetRefHandleManager.GetInternalIndex(Handle))
-		{
-			// From here we call into user code via PreUpdateInstanceFunction, so allow external code to set dirty flags since DirtyObjects is not read anymore.
-			ReplicationSystemInternal->GetDirtyNetObjectTracker().AllowExternalAccess();
+		FObjectPoller::FInitParams PollerInitParams;
+		PollerInitParams.ObjectReplicationBridge = this;
+		PollerInitParams.ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
+		FObjectPoller Poller(PollerInitParams);
 
-			UpdateAndPollFunction(InternalObjectIndex);
-		}
+		Poller.PollSingleObject(Handle);
 
 		return;
 	}
 	
 	// Update every relevant objects from here
-
+	FReplicationSystemInternal* ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
+	const FNetRefHandleManager& LocalNetRefHandleManager = ReplicationSystemInternal->GetNetRefHandleManager();
 	const FNetBitArrayView RelevantObjects = LocalNetRefHandleManager.GetRelevantObjectsInternalIndices();
 	const FNetBitArrayView WantToBeDormantObjects = MakeNetBitArrayView(LocalNetRefHandleManager.GetWantToBeDormantInternalIndices());
 
@@ -944,7 +795,12 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		FNetBitArray DirtyAndRelevantObjects(RelevantObjects.GetNumBits());
 		FNetBitArrayView DirtyAndRelevantObjectsView = MakeNetBitArrayView(DirtyAndRelevantObjects);
 
-		DirtyAndRelevantObjectsView.Set(RelevantObjects, FNetBitArray::AndOp, DirtyObjectsThisFrame);
+		{
+			FDirtyObjectsAccessor DirtyObjectsAccessor(ReplicationSystemInternal->GetDirtyNetObjectTracker());	
+			FNetBitArrayView DirtyObjectsThisFrame = DirtyObjectsAccessor.GetDirtyNetObjects();
+
+			DirtyAndRelevantObjectsView.Set(RelevantObjects, FNetBitArray::AndOp, DirtyObjectsThisFrame);
+		}
 
 		// Update subobjects' owner first and owners' subobjects second. It's the only way to properly mark all groups of objects in two passes.
 		const FNetBitArrayView SubObjects = MakeNetBitArrayView(LocalNetRefHandleManager.GetSubObjectInternalIndices());
@@ -968,21 +824,17 @@ void UObjectReplicationBridge::PreUpdateAndPollImpl(FNetRefHandle Handle)
 		}
 	}
 
-	{
-		IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Poll);
+	
+	IRIS_PROFILER_SCOPE(PreUpdateAndPollImpl_Poll);
 
-		// From here we call into user code via PreUpdateInstanceFunction, so allow external code to set dirty flags since DirtyObjects is not read anymore.
-		ReplicationSystemInternal->GetDirtyNetObjectTracker().AllowExternalAccess();
+	FObjectPoller::FInitParams PollerInitParams;
+	PollerInitParams.ObjectReplicationBridge = this;
+	PollerInitParams.ReplicationSystemInternal = GetReplicationSystem()->GetReplicationSystemInternal();
 
-		if (IsIrisPushModelEnabled())
-		{
-			ObjectsConsideredForPolling.ForAllSetBits(PushModelUpdateAndPollFunction);
-		}
-		else
-		{
-			ObjectsConsideredForPolling.ForAllSetBits(UpdateAndPollFunction);
-		}
-	}
+	FObjectPoller Poller(PollerInitParams);
+	Poller.PollObjects(ObjectsConsideredForPollingView);
+	
+	FObjectPoller::FPreUpdateAndPollStats Stats = Poller.GetPollStats();
 
 	// Report stats
 	UE_NET_TRACE_FRAME_STATSCOUNTER(ReplicationSystem->GetId(), ReplicationSystem.PreUpdatedObjectCount, Stats.PreUpdatedObjectCount, ENetTraceVerbosity::Trace);
