@@ -166,6 +166,18 @@ public:
 	/** Check whether the static mesh has the expected Nanite settings */
 	UFUNCTION(Exec)
 	static FInterchangeTestFunctionResult CheckNaniteSettings(UStaticMesh* Mesh, const FMeshNaniteSettings& ExpectedNaniteSettings);
+
+	/** Check whether the bounding box size is greater than given value */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckBoundingBoxSizeGreaterThan(UStaticMesh* Mesh, FVector3f GreaterThanSize);
+
+	/** Check whether the bounding box size is less than given value */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckBoundingBoxSizeLessThan(UStaticMesh* Mesh, FVector3f LessThanSize);
+
+	/** Check whether the bounding box size is equal to given value */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckBoundingBoxSize(UStaticMesh* Mesh, FVector3f ExpectedSize);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
