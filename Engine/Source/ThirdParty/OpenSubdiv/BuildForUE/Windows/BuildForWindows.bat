@@ -1,14 +1,21 @@
 @echo off
 setlocal
 
-set OPENSUBDIV_VERSION=3.4.4
+rem Copyright Epic Games, Inc. All Rights Reserved.
 
-rem Set as VS2015 for backwards compatibility even though VS2019 is used
+if [%1]==[] goto usage
+if [%2]==[] goto usage
+
+set OPENSUBDIV_VERSION=%1
+
+rem Set as VS2015 for backwards compatibility even though VS2022 is used
 rem when building.
 set COMPILER_VERSION_NAME=VS2015
-set ARCH_NAME=x64
+set ARCH_NAME=%2
 
-set UE_MODULE_LOCATION=%cd%
+set BUILD_SCRIPT_LOCATION=%~dp0
+
+set UE_MODULE_LOCATION=%BUILD_SCRIPT_LOCATION%..\..
 
 set SOURCE_LOCATION=%UE_MODULE_LOCATION%\OpenSubdiv-%OPENSUBDIV_VERSION%
 
@@ -22,8 +29,7 @@ set INSTALL_LIB_DIR=%COMPILER_VERSION_NAME%\%ARCH_NAME%\lib
 
 set INSTALL_LOCATION=%UE_MODULE_LOCATION%\Deploy\OpenSubdiv-%OPENSUBDIV_VERSION%
 set INSTALL_INCLUDE_LOCATION=%INSTALL_LOCATION%\%INSTALL_INCLUDEDIR%
-set INSTALL_INCLUDE_OPENSUBDIV_LOCATION=%INSTALL_INCLUDE_LOCATION%\opensubdiv
-set INSTALL_WIN_LOCATION=%INSTALL_LOCATION%\%COMPILER_VERSION_NAME%
+set INSTALL_WIN_LOCATION=%INSTALL_LOCATION%\%COMPILER_VERSION_NAME%\%ARCH_NAME%
 
 if exist %BUILD_LOCATION% (
     rmdir %BUILD_LOCATION% /S /Q)
@@ -36,9 +42,9 @@ mkdir %BUILD_LOCATION%
 pushd %BUILD_LOCATION%
 
 echo Configuring build for OpenSubdiv version %OPENSUBDIV_VERSION%...
-cmake -G "Visual Studio 16 2019" %SOURCE_LOCATION%^
+cmake -G "Visual Studio 17 2022" %SOURCE_LOCATION%^
+    -A %ARCH_NAME%^
     -DCMAKE_INSTALL_PREFIX="%INSTALL_LOCATION%"^
-    -DCMAKE_INCDIR_BASE="%INSTALL_INCLUDE_OPENSUBDIV_LOCATION%"^
     -DCMAKE_BINDIR_BASE="%INSTALL_BIN_DIR%"^
     -DCMAKE_LIBDIR_BASE="%INSTALL_LIB_DIR%"^
     -DCMAKE_DEBUG_POSTFIX=_d^
@@ -82,5 +88,11 @@ if exist "%INSTALL_LOCATION%\%INSTALL_BIN_DIR%" (
     rmdir "%INSTALL_LOCATION%\%INSTALL_BIN_DIR%" /S /Q)
 
 echo Done.
+
+goto :eof
+
+:usage
+echo Usage: BuildForWindows ^<version^> ^<architecture: x64 or ARM64^>
+exit /B 1
 
 endlocal
