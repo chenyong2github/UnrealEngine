@@ -248,6 +248,10 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 		// We require validation if our parent also needs validation (if an array parent was resized all the addresses of children are invalid)
 		bRequiresValidation |= (GetParentNode() && GetParentNode()->HasNodeFlags(EPropertyNodeFlags::RequiresValidation));
 
+		// We require validation is we are on a structure node (the value of the structure may change externally, which invalidates the addresses).
+		const FComplexPropertyNode* ComplexParent = GetParentNode() ? GetParentNode()->AsComplexNode() : nullptr;
+		bRequiresValidation |= ComplexParent && ComplexParent->GetPropertyType() == FComplexPropertyNode::EPT_StandaloneStructure; 
+		
 		SetNodeFlags( EPropertyNodeFlags::RequiresValidation, bRequiresValidation );
 	}
 
