@@ -4,6 +4,7 @@
 
 #include "HitSet.h"
 #include "LongJump.h"
+#include "Stats.h"
 #include "TaggedPtr.h"
 #include "TaskArray.h"
 #include "WriteLog.h"
@@ -20,7 +21,20 @@ public:
     
     bool IsNested() const { return !!Parent; }
     FTransaction* GetParent() const { return Parent; }
-	void SetParent(FTransaction* NewParent) { Parent = NewParent; }
+
+	void SetParent(FTransaction* NewParent)
+    {
+        Parent = NewParent;
+
+        // For stats, record the nested depth of the transaction.
+		if (NewParent)
+		{
+			StatDepth = NewParent->StatDepth + 1;
+		}
+
+		Stats.Collect<EStatsKind::AverageTransactionDepth>(StatDepth);
+		Stats.Collect<EStatsKind::MaximumTransactionDepth>(StatDepth);
+    }
 
     // This should just use type displays or ranges. Maybe ranges could even work out great.
     bool IsNestedWithin(const FTransaction* Other) const
@@ -67,6 +81,8 @@ private:
     bool AttemptToCommitOuterNest();
 
     void Reset(); // Frees memory and sets us up for possible retry.
+
+    void CollectStats() const;
     
     FContext* Context;
     
@@ -83,6 +99,7 @@ private:
     FHitSet HitSet;
     FWriteLog WriteLog;
     FWriteLogBumpAllocator WriteLogBumpAllocator;
+    TStatStorage<uint64_t> StatDepth = 1;
 };
 
 } // namespace AutoRTFM

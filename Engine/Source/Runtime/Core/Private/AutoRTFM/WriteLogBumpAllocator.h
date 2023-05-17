@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include <stdint.h>
-
+#include "Stats.h"
 #include "Utils.h"
 
 namespace AutoRTFM
@@ -30,6 +29,7 @@ namespace AutoRTFM
 		void* Allocate(size_t Bytes)
 		{
 			ASSERT(Bytes <= MaxSize);
+			StatTotalSize += Bytes;
 
 			if (nullptr == Start)
 			{
@@ -80,6 +80,8 @@ namespace AutoRTFM
 			Other.Start = nullptr;
 			Other.Current = nullptr;
 		}
+		
+		TStatStorage<size_t> StatTotalSize = 0;
 	private:
 
 		struct FPage final

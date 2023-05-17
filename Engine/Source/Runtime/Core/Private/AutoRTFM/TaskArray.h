@@ -20,6 +20,7 @@ public:
     {
         Latest.Push(MoveTemp(value));
     }
+
     void Add(const T& value)
     {
         Latest.Push(value);
@@ -82,6 +83,7 @@ public:
                 return false;
             }
         }
+
         for (size_t IndexInStash = Stash.Num(); IndexInStash--;)
         {
             const TArray<T>& StashedVector = *Stash[IndexInStash];
@@ -100,6 +102,19 @@ public:
     {
         Latest.Empty();
         Stash.Empty();
+    }
+
+    size_t Num() const
+    {
+        size_t Result = Latest.Num();
+
+        for (size_t Index = 0; Index < Stash.Num(); Index++)
+        {
+            const TArray<T>& StashedVector = *Stash[Index];
+            Result += StashedVector.Num();
+        }
+
+        return Result;
     }
 
 private:

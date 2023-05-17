@@ -32,6 +32,9 @@ void FTransaction::AbortWithoutThrowing()
            || Context->GetStatus() == EContextStatus::AbortedByRequest);
     ASSERT(Context->GetCurrentTransaction() == this);
 
+    Stats.Collect<EStatsKind::Abort>();
+    CollectStats();
+
     if (IsNested())
     {
         AbortNested();
@@ -53,6 +56,10 @@ bool FTransaction::AttemptToCommit()
 {
     ASSERT(Context->GetStatus() == EContextStatus::OnTrack);
     ASSERT(Context->GetCurrentTransaction() == this);
+
+    Stats.Collect<EStatsKind::Commit>();
+    CollectStats();
+
     bool bResult;
     if (IsNested())
     {

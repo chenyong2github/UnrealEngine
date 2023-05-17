@@ -11,7 +11,7 @@
 #include "Containers/UnrealString.h"
 #include "Logging/LogMacros.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogAutoRTFM, NoLogging, All)
+DECLARE_LOG_CATEGORY_EXTERN(LogAutoRTFM, Display, All)
 
 #define ASSERT(exp) UE_CLOG(!(exp), LogAutoRTFM, Fatal, TEXT("%s:%d:%s: assertion %s failed."), __FILE__, __LINE__, __PRETTY_FUNCTION__, #exp)
 

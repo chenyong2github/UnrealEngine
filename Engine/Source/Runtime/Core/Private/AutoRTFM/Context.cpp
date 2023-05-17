@@ -7,6 +7,7 @@
 #include "FunctionMap.h"
 #include "GlobalData.h"
 #include "ScopedGuard.h"
+#include "Stats.h"
 #include "TransactionInlines.h"
 
 #include "Templates/UniquePtr.h"
@@ -189,6 +190,9 @@ void FContext::PushTransaction(FTransaction* NewTransaction)
 	
 	NewTransaction->SetParent(CurrentTransaction);
 	CurrentTransaction = NewTransaction;
+
+	// Collect stats that we've got a new transaction.
+	Stats.Collect<EStatsKind::Transaction>();
 }
 
 void FContext::PopTransaction()

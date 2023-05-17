@@ -160,13 +160,8 @@ namespace AutoRTFM
             TotalSize = 0;
         }
 
-        bool IsEmpty() const
-        {
-            return 0 == TotalSize;
-        }
-
-		size_t Num() const { return TotalSize; }
-
+        UE_AUTORTFM_FORCEINLINE bool IsEmpty() const { return 0 == TotalSize; }
+		UE_AUTORTFM_FORCEINLINE size_t Num() const { return TotalSize; }
     private:
 
         FWriteLogEntryBucket* Start = nullptr;
