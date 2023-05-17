@@ -22,5 +22,6 @@ public:
 	virtual TConstArrayView<FAssetCategoryPath> GetAssetCategories() const override;
 	virtual bool CanImport() const override { return false; }
 	virtual FAssetSupportResponse CanLocalize(const FAssetData& InAsset) const override;
+	virtual FAssetOpenSupport GetAssetOpenSupport(const FAssetOpenSupportArgs& OpenSupportArgs) const override;
 	// UAssetDefinition End
 };
