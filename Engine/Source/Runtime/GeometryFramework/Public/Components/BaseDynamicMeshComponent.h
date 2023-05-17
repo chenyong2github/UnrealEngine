@@ -72,6 +72,23 @@ enum class EDynamicMeshComponentColorOverrideMode : uint8
 };
 
 
+/**
+ * Color Transform to apply to Vertex Colors when converting from internal DynamicMesh
+ * Color attributes (eg Color Overlay stored in FVector4f) to RHI Render Buffers (FColor).
+ * 
+ * Note that UStaticMesh assumes the Source Mesh colors are Linear and always converts to SRGB.
+ */
+UENUM()
+enum class EDynamicMeshVertexColorTransformMode : uint8
+{
+	/** Do not apply any color-space transform to Vertex Colors */
+	NoTransform,
+	/** Assume Vertex Colors are in Linear space and transform to SRGB */
+	LinearToSRGB,
+	/** Assume Vertex Colors are in SRGB space and convert to Linear */
+	SRGBToLinear
+};
+
 
 /**
  * UBaseDynamicMeshComponent is a base interface for a UMeshComponent based on a UDynamicMesh.
@@ -268,6 +285,30 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
 	virtual FColor GetConstantOverrideColor() const { return ConstantColor; }
+
+	/**
+	 * Color Space Transform that will be applied to the colors stored in the DynamicMesh Attribute Color Overlay when
+	 * constructing render buffers. 
+	 * Default is "No Transform", ie color R/G/B/A will be independently converted from 32-bit float to 8-bit by direct mapping.
+	 * LinearToSRGB mode will apply SRGB conversion, ie assumes colors in the Mesh are in Linear space. This will produce the same behavior as UStaticMesh.
+	 * SRGBToLinear mode will invert SRGB conversion, ie assumes colors in the Mesh are in SRGB space. 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Rendering", meta = (DisplayName = "Vertex Color Space"))
+	EDynamicMeshVertexColorTransformMode ColorSpaceMode = EDynamicMeshVertexColorTransformMode::NoTransform;
+	
+	/**
+	 * Configure the active Color Space Transform Mode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
+	virtual void SetVertexColorSpaceTransformMode(EDynamicMeshVertexColorTransformMode NewMode);
+
+	/**
+	 * @return active Color Override mode
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
+	virtual EDynamicMeshVertexColorTransformMode GetVertexColorSpaceTransformMode() const { return ColorSpaceMode; }
+
+
 
 
 	//===============================================================================================================

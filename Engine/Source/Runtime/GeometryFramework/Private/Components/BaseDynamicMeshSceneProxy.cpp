@@ -13,6 +13,7 @@
 FBaseDynamicMeshSceneProxy::FBaseDynamicMeshSceneProxy(UBaseDynamicMeshComponent* Component)
 	: FPrimitiveSceneProxy(Component),
 	ParentBaseComponent(Component),
+	ColorSpaceTransformMode(Component->GetVertexColorSpaceTransformMode()),
 	bEnableRaytracing(Component->GetEnableRaytracing()),
 	bEnableViewModeOverrides(Component->GetViewModeOverridesEnabled())
 {

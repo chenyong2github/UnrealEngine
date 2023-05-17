@@ -278,7 +278,7 @@ protected:
 	// minimal vertex buffer updates necessary in the RenderProxy
 	//
 public:
-	/** Clear an active triangle color function if one exists, and update the mesh */
+	/** Set an active triangle color function if one exists, and update the mesh */
 	virtual void SetTriangleColorFunction(TUniqueFunction<FColor(const FDynamicMesh3*, int)> TriangleColorFuncIn,
 										  EDynamicMeshComponentRenderUpdateMode UpdateMode = EDynamicMeshComponentRenderUpdateMode::FastUpdate);
 
@@ -298,6 +298,30 @@ protected:
 	/** This function is passed via lambda to the RenderProxy when BaseDynamicMeshComponent::ColorMode == Polygroups */
 	FColor GetGroupColor(const FDynamicMesh3* Mesh, int TriangleID) const;
 
+
+	//===============================================================================================================
+	// Support for Vertex Color remapping/filtering. This allows external code to modulate the existing 
+	// Vertex Colors on the rendered mesh. The remapping is only applied to FVector4f Color Overlay attribute buffers.
+	// The lambda that is passed is held for the lifetime of the Component and
+	// must remain valid. If the Vertex Colors are modified, FastNotifyColorsUpdated() can be used to do the 
+	// minimal vertex buffer updates necessary in the RenderProxy
+public:
+	/** Set an active VertexColor Remapping function if one exists, and update the mesh */
+	virtual void SetVertexColorRemappingFunction(TUniqueFunction<void(FVector4f&)> ColorMapFuncIn,
+		EDynamicMeshComponentRenderUpdateMode UpdateMode = EDynamicMeshComponentRenderUpdateMode::FastUpdate);
+
+	/** Clear an active VertexColor Remapping function if one exists, and update the mesh */
+	virtual void ClearVertexColorRemappingFunction(EDynamicMeshComponentRenderUpdateMode UpdateMode = EDynamicMeshComponentRenderUpdateMode::FastUpdate);
+
+	/** @return true if a VertexColor Remapping function is configured */
+	virtual bool HasVertexColorRemappingFunction();
+
+protected:
+	/** If this function is set, DynamicMesh Attribute Color Overlay colors will be passed through this function before sending to render buffers */
+	TUniqueFunction<void(FVector4f&)> VertexColorMappingFunc = nullptr;
+
+	/** This function is passed via lambda to the RenderProxy to be able to access VertexColorMappingFunc */
+	void RemapVertexColor(FVector4f& VertexColorInOut);
 
 
 

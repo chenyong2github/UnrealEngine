@@ -384,6 +384,17 @@ void UDynamicMeshComponent::FastNotifyColorsUpdated()
 			Proxy->PerTriangleColorFunc = nullptr;
 		}
 
+		if (HasVertexColorRemappingFunction() && Proxy->bApplyVertexColorRemapping == false)
+		{
+			Proxy->bApplyVertexColorRemapping = true;
+			Proxy->VertexColorRemappingFunc = [this](FVector4f& Color) { RemapVertexColor(Color); };
+		}
+		else if (!HasVertexColorRemappingFunction() && Proxy->bApplyVertexColorRemapping == true)
+		{
+			Proxy->bApplyVertexColorRemapping = false;
+			Proxy->VertexColorRemappingFunc = nullptr;
+		}
+
 		Proxy->FastUpdateVertices(false, false, true, false);
 		//MarkRenderDynamicDataDirty();
 	}
@@ -865,6 +876,12 @@ FPrimitiveSceneProxy* UDynamicMeshComponent::CreateSceneProxy()
 			NewProxy->PerTriangleColorFunc = [this](const FDynamicMesh3* MeshIn, int TriangleID) { return GetGroupColor(MeshIn, TriangleID); };
 		}
 
+		if (HasVertexColorRemappingFunction())
+		{
+			NewProxy->bApplyVertexColorRemapping = true;
+			NewProxy->VertexColorRemappingFunc = [this](FVector4f& Color) { RemapVertexColor(Color); };
+		}
+
 		if (SecondaryTriFilterFunc)
 		{
 			NewProxy->bUseSecondaryTriBuffers = true;
@@ -939,6 +956,54 @@ bool UDynamicMeshComponent::HasTriangleColorFunction()
 	return !!TriangleColorFunc;
 }
 
+
+
+void UDynamicMeshComponent::SetVertexColorRemappingFunction(
+	TUniqueFunction<void(FVector4f&)> ColorMapFuncIn,
+	EDynamicMeshComponentRenderUpdateMode UpdateMode)
+{
+	VertexColorMappingFunc = MoveTemp(ColorMapFuncIn);
+
+	if (UpdateMode == EDynamicMeshComponentRenderUpdateMode::FastUpdate)
+	{
+		FastNotifyColorsUpdated();
+	}
+	else if (UpdateMode == EDynamicMeshComponentRenderUpdateMode::FullUpdate)
+	{
+		NotifyMeshUpdated();
+	}
+}
+
+void UDynamicMeshComponent::ClearVertexColorRemappingFunction(EDynamicMeshComponentRenderUpdateMode UpdateMode)
+{
+	if (VertexColorMappingFunc)
+	{
+		VertexColorMappingFunc = nullptr;
+
+		if (UpdateMode == EDynamicMeshComponentRenderUpdateMode::FastUpdate)
+		{
+			FastNotifyColorsUpdated();
+		}
+		else if (UpdateMode == EDynamicMeshComponentRenderUpdateMode::FullUpdate)
+		{
+			NotifyMeshUpdated();
+		}
+	}
+}
+
+bool UDynamicMeshComponent::HasVertexColorRemappingFunction()
+{
+	return !!VertexColorMappingFunc;
+}
+
+
+void UDynamicMeshComponent::RemapVertexColor(FVector4f& VertexColorInOut)
+{
+	if (VertexColorMappingFunc)
+	{
+		VertexColorMappingFunc(VertexColorInOut);
+	}
+}
 
 
 

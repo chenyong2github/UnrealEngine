@@ -141,6 +141,19 @@ void UBaseDynamicMeshComponent::SetConstantOverrideColor(FColor NewColor)
 }
 
 
+void UBaseDynamicMeshComponent::SetVertexColorSpaceTransformMode(EDynamicMeshVertexColorTransformMode NewMode)
+{
+	if (ColorSpaceMode != NewMode)
+	{
+		ColorSpaceMode = NewMode;
+		OnRenderingStateChanged(false);
+	}
+}
+
+
+
+
+
 void UBaseDynamicMeshComponent::SetEnableFlatShading(bool bEnable)
 {
 	if (bEnableFlatShading != bEnable)

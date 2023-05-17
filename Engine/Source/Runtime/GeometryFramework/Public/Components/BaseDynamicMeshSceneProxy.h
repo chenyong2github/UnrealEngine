@@ -435,6 +435,23 @@ public:
 	 */
 	TFunction<FColor(const FDynamicMesh3*, int)> PerTriangleColorFunc = nullptr;
 
+
+	/**
+	 * If true, VertexColorRemappingFunc is called on Vertex Colors provided from Mesh to remap them to a different color
+	 */
+	bool bApplyVertexColorRemapping = false;
+
+	/**
+	 * Vertex color remapping function. Only called if bApplyVertexColorRemapping == true, for mesh vertex colors
+	 */
+	TUniqueFunction<void(FVector4f&)> VertexColorRemappingFunc = nullptr;
+
+	/**
+	 * Color Space Transform/Conversion applied to Vertex Colors provided from Mesh Color Overlay Attribute
+	 * Color Space Conversion is applied after any Vertex Color Remapping.
+	 */
+	EDynamicMeshVertexColorTransformMode ColorSpaceTransformMode = EDynamicMeshVertexColorTransformMode::NoTransform;
+
 	/**
 	* If true, a facet normals are used instead of mesh normals
 	*/
@@ -613,7 +630,7 @@ public:
 				}
 
 				FColor VertexFColor = (bHaveColors && TriColor[j] != FDynamicMesh3::InvalidID) ?
-					UE::Geometry::ToFColor(ColorOverlay->GetElement(TriColor[j])) : UniformTriColor;
+					GetOverlayColorAsFColor(ColorOverlay, TriColor[j]) : UniformTriColor;
 
 				RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = VertexFColor;
 
@@ -636,6 +653,30 @@ public:
 	}
 
 
+	FColor GetOverlayColorAsFColor(
+		const FDynamicMeshColorOverlay* ColorOverlay,
+		int32 ElementID)
+	{
+		checkSlow(ColorOverlay);
+		FVector4f UseColor = ColorOverlay->GetElement(ElementID);
+
+		if (bApplyVertexColorRemapping)
+		{
+			VertexColorRemappingFunc(UseColor);
+		}
+
+		if (ColorSpaceTransformMode == EDynamicMeshVertexColorTransformMode::SRGBToLinear)
+		{
+			// is there a better way to do this? 
+			FColor QuantizedSRGBColor = ((FLinearColor)UseColor).ToFColor(false);
+			return FLinearColor(QuantizedSRGBColor).ToFColor(false);
+		}
+		else
+		{
+			bool bConvertToSRGB = (ColorSpaceTransformMode == EDynamicMeshVertexColorTransformMode::LinearToSRGB);
+			return ((FLinearColor)UseColor).ToFColor(bConvertToSRGB);
+		}
+	}
 
 
 	/**
@@ -807,7 +848,7 @@ public:
 				if (bUpdateColors)
 				{
 					FColor VertexFColor = (bHaveColors  && TriColor[j] != FDynamicMesh3::InvalidID) ?
-						UE::Geometry::ToFColor(ColorOverlay->GetElement(TriColor[j])) : UniformTriColor;
+						GetOverlayColorAsFColor(ColorOverlay, TriColor[j]) : UniformTriColor;
 					RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = VertexFColor;
 				}
 
