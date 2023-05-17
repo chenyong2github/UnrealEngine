@@ -16,6 +16,8 @@ namespace UE
 	}
 }
 
+class FAssetTable;
+
 // Simple string store.
 class FAssetTableStringStore
 {
