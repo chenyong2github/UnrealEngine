@@ -28,7 +28,7 @@ void FGetFloatOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Contex
 {
 	if (Out->IsA(&Float) || Out->IsA(&FloatDefault) || Out->IsA(&IsOverriden))
 	{
-		const float DefaultValue = FCString::Atof(*GetDefaultValue(Context));
+		const float DefaultValue = GetDefaultValue<float>(Context);
 		float NewValue = DefaultValue;
 		bool bIsOverriden = false;
 
@@ -53,7 +53,7 @@ void FGetIntOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context,
 {
 	if (Out->IsA(&Int) || Out->IsA(&IntDefault) || Out->IsA(&IsOverriden))
 	{
-		const int32 DefaultValue = FCString::Atoi(*GetDefaultValue(Context));
+		const int32 DefaultValue = GetDefaultValue<int32>(Context);
 		int32 NewValue = DefaultValue;
 		bool bIsOverriden = false;
 
@@ -97,7 +97,7 @@ void FGetBoolOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Context
 {
 	if (Out->IsA(&Bool) || Out->IsA(&BoolDefault) || Out->IsA(&IsOverriden))
 	{
-		const bool DefaultValue = StringToBool(GetDefaultValue(Context), false);
+		const bool DefaultValue = StringToBool(GetDefaultValue<FString>(Context), false);
 		bool NewValue = DefaultValue;
 		bool bIsOverriden = false;
 
@@ -122,7 +122,7 @@ void FGetStringOverrideFromAssetDataflowNode::Evaluate(Dataflow::FContext& Conte
 {
 	if (Out->IsA(&String) || Out->IsA(&StringDefault) || Out->IsA(&IsOverriden))
 	{
-		const FString DefaultValue = GetDefaultValue(Context);
+		const FString DefaultValue = GetDefaultValue<FString>(Context);
 		FString NewValue = DefaultValue;
 		bool bIsOverriden = false;
 

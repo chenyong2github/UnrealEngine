@@ -40,7 +40,17 @@ public:
 
 	bool ShouldInvalidate(FName InKey) const;
 
-	FString GetDefaultValue(Dataflow::FContext& Context) const;
+	template <class T>
+	T GetDefaultValue(Dataflow::FContext& Context) const
+	{
+		return GetValue<T>(Context, &Default, Default);
+	}
+
+	template <>
+	int32 GetDefaultValue(Dataflow::FContext& Context) const;
+
+	template <>
+	float GetDefaultValue(Dataflow::FContext& Context) const;
 
 	FString GetValueFromAsset(Dataflow::FContext& Context, const UObject* InOwner) const;
 
