@@ -4077,6 +4077,7 @@ private:
 
 	friend struct FSetActorHiddenInSceneOutliner;
 	friend struct FSetActorGuid;
+	friend struct FSetActorReplicates;
 	friend struct FSetActorInstanceGuid;
 	friend struct FSetActorContentBundleGuid;
 	friend struct FAssignActorDataLayer;
@@ -4336,6 +4337,23 @@ private:
 	friend class UExternalActorsCommandlet;
 	friend class UWorldPartitionConvertCommandlet;
 };
+
+#if WITH_EDITOR
+struct FSetActorReplicates
+{
+private:
+	FSetActorReplicates(AActor* InActor, bool bInReplicates)
+	{
+		if (InActor->bReplicates != bInReplicates)
+		{
+			check(!InActor->bActorInitialized);
+			InActor->bReplicates = bInReplicates;
+			InActor->RemoteRole = (bInReplicates ? ROLE_SimulatedProxy : ROLE_None);
+		}
+	}
+	friend class FWorldPartitionLevelHelper;
+};
+#endif
 
 struct FSetActorInstanceGuid
 {

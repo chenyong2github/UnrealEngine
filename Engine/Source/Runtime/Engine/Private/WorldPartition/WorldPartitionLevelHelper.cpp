@@ -22,6 +22,7 @@
 #include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionPackageHelper.h"
 #include "WorldPartition/ContentBundle/ContentBundleEditor.h"
+#include "GameFramework/WorldSettings.h"
 #include "LevelUtils.h"
 #include "ActorFolder.h"
 
@@ -334,6 +335,8 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorldP
 	check(NewWorld->GetWorldSettings());
 	check(UWorld::FindWorldInPackage(CellPackage) == NewWorld);
 	check(InPackage || (NewWorld->GetPathName() == InWorldAssetName));
+	// We don't need the cell level's world setting to replicate
+	FSetActorReplicates SetActorReplicates(NewWorld->GetWorldSettings(), false);
 	
 	// Setup of streaming cell Runtime Level
 	ULevel* NewLevel = NewWorld->PersistentLevel;
