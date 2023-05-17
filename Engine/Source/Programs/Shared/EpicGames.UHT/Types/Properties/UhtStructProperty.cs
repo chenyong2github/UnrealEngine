@@ -457,5 +457,66 @@ namespace EpicGames.UHT.Types
 			return true;
 		}
 		#endregion
+
+		#region Parsing support methods
+		/// <summary>
+		/// Parse a template type
+		/// </summary>
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="matchedToken">Token matched for type</param>
+		/// <returns>Referenced class</returns>
+		public static UhtScriptStruct? ParseTemplateScriptStruct(UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
+		{
+			UhtSession session = propertySettings.Outer.Session;
+			UhtToken identifier = new();
+
+			if (tokenReader.TryOptional("const"))
+			{
+				propertySettings.MetaData.Add(UhtNames.NativeConst, "");
+			}
+
+			tokenReader.Optional("struct");
+
+			if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
+			{
+				return null;
+			}
+
+			tokenReader
+				.Require('<')
+				.Optional("struct")
+				.RequireIdentifier((ref UhtToken token) => { identifier = token; })
+				.Require('>');
+
+			session.Config!.RedirectTypeIdentifier(ref identifier);
+			return propertySettings.Outer.FindType(UhtFindOptions.SourceName | UhtFindOptions.ScriptStruct, ref identifier, tokenReader) as UhtScriptStruct;
+		}
+		#endregion
+
+		#region Keyword
+		[UhtPropertyType(Keyword = "TInstancedStruct")]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
+		private static UhtProperty? InstancedStructProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
+		{
+			UhtScriptStruct? baseScriptStruct = UhtStructProperty.ParseTemplateScriptStruct(propertySettings, tokenReader, matchedToken);
+			if (baseScriptStruct == null || baseScriptStruct.Session.FInstancedStruct == null)
+			{
+				return null;
+			}
+
+			if (propertySettings.MetaData.ContainsKey("BaseStruct"))
+			{
+				tokenReader.LogError("BaseStruct metadata is implicitly set from the TInstancedStruct template argument and should not be explicitly specified.");
+				return null;
+			}
+
+			// With TInstancedStruct, BaseStruct is used as a type limiter.
+			UhtStructProperty instancedStructProperty = new UhtStructProperty(propertySettings, baseScriptStruct.Session.FInstancedStruct);
+			instancedStructProperty.MetaData.Add("BaseStruct", baseScriptStruct.PathName);
+			return instancedStructProperty;
+		}
+		#endregion
 	}
 }
