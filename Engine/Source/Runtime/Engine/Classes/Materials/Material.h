@@ -1324,9 +1324,10 @@ public:
 	 * Set the given usage flag.
 	 * @param bNeedsRecompile - true if the material was recompiled for the usage change
 	 * @param Usage - The usage flag to set
+	 * @param MaterialInstance - MI requesting the usage (as of now usage flags are only stored in the parent)
 	 * @return bool - true if the material can be used for rendering with the given type.
 	 */
-	ENGINE_API bool SetMaterialUsage(bool &bNeedsRecompile, const EMaterialUsage Usage);
+	ENGINE_API bool SetMaterialUsage(bool &bNeedsRecompile, const EMaterialUsage Usage, UMaterialInterface* MaterialInstance = nullptr);
 
 	/**
 	 * Tests to see if this material needs a usage flag update

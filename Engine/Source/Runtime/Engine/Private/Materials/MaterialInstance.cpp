@@ -1472,7 +1472,7 @@ bool UMaterialInstance::CheckMaterialUsage(const EMaterialUsage Usage)
 	if(Material)
 	{
 		bool bNeedsRecompile = false;
-		bool bUsageSetSuccessfully = Material->SetMaterialUsage(bNeedsRecompile, Usage);
+		bool bUsageSetSuccessfully = Material->SetMaterialUsage(bNeedsRecompile, Usage, this);
 		if (bNeedsRecompile)
 		{
 			CacheResourceShadersForRendering(EMaterialShaderPrecompileMode::None);

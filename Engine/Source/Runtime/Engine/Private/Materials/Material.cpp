@@ -1762,7 +1762,7 @@ bool UMaterial::NeedsSetMaterialUsage_Concurrent(bool &bOutHasUsage, EMaterialUs
 	return false;
 }
 
-bool UMaterial::SetMaterialUsage(bool &bNeedsRecompile, EMaterialUsage Usage)
+bool UMaterial::SetMaterialUsage(bool &bNeedsRecompile, EMaterialUsage Usage, UMaterialInterface* MaterialInstance)
 {
 	bNeedsRecompile = false;
 
@@ -1771,6 +1771,11 @@ bool UMaterial::SetMaterialUsage(bool &bNeedsRecompile, EMaterialUsage Usage)
 	{
 		return false;
 	}
+
+	auto GetPathNameOfAssetNeedingUsage = [MaterialInstance, this]() -> FString
+	{
+		return MaterialInstance ? MaterialInstance->GetPathName() : GetPathName();
+	};
 
 	// Check that the material has been flagged for use with the given usage flag.
 	if(!GetUsageByFlag(Usage) && !bUsedAsSpecialEngineMaterial)
@@ -1783,7 +1788,7 @@ bool UMaterial::SetMaterialUsage(bool &bNeedsRecompile, EMaterialUsage Usage)
 			//Do not warn the user during automation testing
 			if (!GIsAutomationTesting)
 			{
-				UE_LOG(LogMaterial, Display, TEXT("Material %s needed to have new flag set %s !"), *GetPathName(), *GetUsageName(Usage));
+				UE_LOG(LogMaterial, Display, TEXT("Material %s needed to have new flag set %s !"), *GetPathNameOfAssetNeedingUsage(), *GetUsageName(Usage));
 			}
 
 			// Open a material update context so this material can be modified safely.
@@ -1808,7 +1813,7 @@ bool UMaterial::SetMaterialUsage(bool &bNeedsRecompile, EMaterialUsage Usage)
 #if WITH_EDITOR
 				// The package could not be marked as dirty as we're loading content in the editor. Add a Map Check error to notify the user.
 				FFormatNamedArguments Arguments;
-				Arguments.Add(TEXT("Material"), FText::FromString(*GetPathName()));
+				Arguments.Add(TEXT("Material"), FText::FromString(GetPathNameOfAssetNeedingUsage()));
 				Arguments.Add(TEXT("Usage"), FText::FromString(*GetUsageName(Usage)));
 				FMessageLog("MapCheck").Warning()
 					->AddToken(FUObjectToken::Create(this))
@@ -1823,7 +1828,7 @@ bool UMaterial::SetMaterialUsage(bool &bNeedsRecompile, EMaterialUsage Usage)
 			uint32 UsageFlagBit = (1 << (uint32)Usage);
 			if ((UsageFlagWarnings & UsageFlagBit) == 0)
 			{
-				UE_LOG(LogMaterial, Warning, TEXT("Material %s missing %s=True! Default Material will be used in game."), *GetPathName(), *GetUsageName(Usage));
+				UE_LOG(LogMaterial, Warning, TEXT("Material %s missing %s=True! Default Material will be used in game."), *GetPathNameOfAssetNeedingUsage(), *GetUsageName(Usage));
 				
 				if (bAutomaticallySetUsageInEditor)
 				{
