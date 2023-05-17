@@ -98,6 +98,8 @@ public:
 
 	virtual void MarkComponentGeometryDirty(const FName InComponentName = NAME_None) override;
 
+	virtual class FSceneView* CalcSceneView(class ULocalPlayer* LocalPlayer, class FSceneViewFamily* ViewFamily, FVector& OutViewLocation, FRotator& OutViewRotation, class FViewport* Viewport, class FViewElementDrawer* ViewDrawer, int32 StereoViewIndex) override;
+
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	// internal use only
@@ -197,4 +199,7 @@ private:
 
 	// Handle special features
 	TSharedPtr<class FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe> ViewportManagerViewExtension;
+
+	// This VE is used for LocalPlayer::GetViewPoint(). It calls the ISceneViewExtension::SetupViewPoint() function of this VE.
+	TSharedPtr<class FDisplayClusterViewportManagerViewPointExtension, ESPMode::ThreadSafe> ViewportManagerViewPointExtension;
 };

@@ -3,6 +3,7 @@
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/DisplayClusterViewportManagerViewExtension.h"
+#include "Render/Viewport/DisplayClusterViewportManagerViewPointExtension.h"
 
 #include "IDisplayCluster.h"
 #include "Render/IDisplayClusterRenderManager.h"
@@ -31,6 +32,7 @@
 #include "Misc/DisplayClusterLog.h"
 #include "LegacyScreenPercentageDriver.h"
 
+#include "Engine/LocalPlayer.h"
 #include "Engine/Console.h"
 
 int32 GDisplayClusterLightcardsAllowNanite = 0;
@@ -99,6 +101,12 @@ FDisplayClusterViewportManager::~FDisplayClusterViewportManager()
 		// So Reset() doesn't actually release it right away in some situations.
 		ViewportManagerViewExtension->Release();
 		ViewportManagerViewExtension.Reset();
+	}
+
+	if (ViewportManagerViewPointExtension.IsValid())
+	{
+		ViewportManagerViewPointExtension->Release();
+		ViewportManagerViewPointExtension.Reset();
 	}
 
 	Configuration.Reset();
@@ -508,6 +516,12 @@ bool FDisplayClusterViewportManager::BeginNewFrame(FViewport* InViewport, UWorld
 	if (!ViewportManagerViewExtension.IsValid())
 	{
 		ViewportManagerViewExtension = FSceneViewExtensions::NewExtension<FDisplayClusterViewportManagerViewExtension>(this);
+	}
+
+	// Create DC ViewPointExtension to handle special features
+	if (!ViewportManagerViewPointExtension.IsValid())
+	{
+		ViewportManagerViewPointExtension = FSceneViewExtensions::NewExtension<FDisplayClusterViewportManagerViewPointExtension>(this);
 	}
 
 	// Before new frame
@@ -986,6 +1000,14 @@ IDisplayClusterViewport* FDisplayClusterViewportManager::FindViewport(const int3
 {
 	check(IsInGameThread());
 
+	// ViewIndex == eSSE_MONOSCOPIC(-1) is a special case called for ISR culling math.
+	// Since nDisplay is not ISR compatible, we ignore this request. This won't be neccessary once
+	// we stop using nDisplay as a stereoscopic rendering device (IStereoRendering).
+	if (ViewIndex < 0)
+	{
+		return nullptr;
+	}
+
 	for (FDisplayClusterViewport* Viewport : Viewports)
 	{
 		if (Viewport && Viewport->FindContext(ViewIndex, OutContextNum))
@@ -1072,4 +1094,23 @@ void FDisplayClusterViewportManager::AddReferencedObjects(FReferenceCollector& C
 			ViewportIt->AddReferencedObjects(Collector);
 		}
 	}
+}
+
+FSceneView* FDisplayClusterViewportManager::CalcSceneView(ULocalPlayer* LocalPlayer, FSceneViewFamily* ViewFamily, FVector& OutViewLocation, FRotator& OutViewRotation, FViewport* InViewport, FViewElementDrawer* InViewDrawer, int32 InStereoViewIndex)
+{
+	check(ViewportManagerViewPointExtension.IsValid());
+	check(LocalPlayer);
+
+	// Set current view index for this VE:
+	// This function must be used because LocalPlayer::GetViewPoint() calls the ISceneViewExtension::SetupViewPoint() function from this VE.
+	// And at this point the VE must know the current StereoViewIndex value in order to understand which viewport will be used for this SetupViewPoint() call.
+	ViewportManagerViewPointExtension->SetCurrentStereoViewIndex(InStereoViewIndex);
+
+	// Calculate view inside LocalPlayer: VE used to override view point for this StereoViewIndex
+	FSceneView* View = LocalPlayer->CalcSceneView(ViewFamily, OutViewLocation, OutViewRotation, InViewport, InViewDrawer, InStereoViewIndex);
+
+	// Set INDEX_NONE when this VE no longer needs to be used.
+	ViewportManagerViewPointExtension->SetCurrentStereoViewIndex(INDEX_NONE);
+
+	return View;
 }

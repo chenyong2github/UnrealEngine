@@ -88,6 +88,9 @@ public:
 	virtual bool    CalculateView(const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
 	virtual bool    GetProjectionMatrix(const uint32 InContextNum, FMatrix& OutPrjMatrix)  override;
 
+	virtual bool SetupViewPoint(FMinimalViewInfo& InOutViewInfo) override;
+	virtual float GetStereoEyeOffsetDistance(const uint32 InContextNum) override;
+
 	virtual const FDisplayClusterViewport_RenderSettingsICVFX& GetRenderSettingsICVFX() const override
 	{
 		check(IsInGameThread());
@@ -170,6 +173,8 @@ public:
 
 	bool HandleStartScene();
 	void HandleEndScene();
+
+	class UDisplayClusterCameraComponent* GetViewPointCamera() const;
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 

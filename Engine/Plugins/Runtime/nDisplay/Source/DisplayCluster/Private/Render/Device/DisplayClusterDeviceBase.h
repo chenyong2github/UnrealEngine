@@ -83,18 +83,6 @@ protected:
 	virtual bool NeedReAllocateViewportRenderTarget(const class FViewport& Viewport) override;
 
 protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// FDisplayClusterDeviceBase
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	enum EDisplayClusterEyeType
-	{
-		StereoLeft  = 0,
-		Mono        = 1,
-		StereoRight = 2,
-		COUNT
-	};
-
-protected:
 	// Factory method to instantiate an output presentation class implementation
 	virtual FDisplayClusterPresentationBase* CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy) = 0;
 

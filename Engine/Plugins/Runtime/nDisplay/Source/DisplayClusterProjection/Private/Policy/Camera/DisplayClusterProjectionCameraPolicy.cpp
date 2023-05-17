@@ -82,42 +82,11 @@ bool FDisplayClusterProjectionCameraPolicy::CalculateView(IDisplayClusterViewpor
 {
 	check(IsInGameThread());
 
-	InOutViewLocation = FVector::ZeroVector;
-	InOutViewRotation = FRotator::ZeroRotator;
-	
+	// The camera position has already been determined from the GetViewPoint() function
+
 	// Save Z values
 	ZNear = NCP;
 	ZFar  = FCP;
-
-	// Use assigned camera
-	if (UCameraComponent* CameraComponent = GetCameraComponent())
-	{
-		if (UCineCameraComponent* CineCameraComponent = Cast<UCineCameraComponent>(CameraComponent))
-		{
-			if (CineCameraComponent->bOverride_CustomNearClippingPlane)
-			{
-				ZNear = CineCameraComponent->CustomNearClippingPlane;
-				ZFar = ZNear;
-			}
-		}
-
-		InOutViewLocation = CameraComponent->GetComponentLocation();
-		InOutViewRotation = CameraComponent->GetComponentRotation();
-	}
-	// Otherwise default UE camera is used
-	else
-	{
-		APlayerCameraManager* const CurPlayerCameraManager = GetCurPlayerCameraManager(InViewport);
-		if (CurPlayerCameraManager)
-		{
-			InOutViewLocation = CurPlayerCameraManager->GetCameraLocation();
-			InOutViewRotation = CurPlayerCameraManager->GetCameraRotation();
-		}
-	}
-
-	// Fix camera lens deffects (prototype)
-	InOutViewLocation += CameraSettings.FrustumOffset;
-	InOutViewRotation += CameraSettings.FrustumRotation;
 
 	return true;
 }
@@ -172,6 +141,51 @@ bool FDisplayClusterProjectionCameraPolicy::GetProjectionMatrix(IDisplayClusterV
 	return false;
 }
 
+bool FDisplayClusterProjectionCameraPolicy::GetViewPoint(IDisplayClusterViewport* InViewport, FRotator& InOutViewRotation, FVector& InOutViewLocation)
+{
+	InOutViewLocation = FVector::ZeroVector;
+	InOutViewRotation = FRotator::ZeroRotator;
+
+	// Use assigned camera
+	if (UCameraComponent* CameraComponent = GetCameraComponent())
+	{
+		if (UCineCameraComponent* CineCameraComponent = Cast<UCineCameraComponent>(CameraComponent))
+		{
+			if (CineCameraComponent->bOverride_CustomNearClippingPlane)
+			{
+				ZNear = CineCameraComponent->CustomNearClippingPlane;
+				ZFar = ZNear;
+			}
+		}
+
+		InOutViewLocation = CameraComponent->GetComponentLocation();
+		InOutViewRotation = CameraComponent->GetComponentRotation();
+	}
+	// Otherwise default UE camera is used
+	else
+	{
+		APlayerCameraManager* const CurPlayerCameraManager = GetCurPlayerCameraManager(InViewport);
+		if (CurPlayerCameraManager)
+		{
+			InOutViewLocation = CurPlayerCameraManager->GetCameraLocation();
+			InOutViewRotation = CurPlayerCameraManager->GetCameraRotation();
+		}
+	}
+
+	// Fix camera lens deffects (prototype)
+	InOutViewLocation += CameraSettings.FrustumOffset;
+	InOutViewRotation += CameraSettings.FrustumRotation;
+
+	return true;
+}
+
+bool FDisplayClusterProjectionCameraPolicy::GetStereoEyeOffsetDistance(IDisplayClusterViewport* InViewport, const uint32 InContextNum, float& InOutStereoEyeOffsetDistance)
+{
+	// Stereo is not supported by this policy
+	InOutStereoEyeOffsetDistance = 0.f;
+
+	return true;
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionCameraPolicy

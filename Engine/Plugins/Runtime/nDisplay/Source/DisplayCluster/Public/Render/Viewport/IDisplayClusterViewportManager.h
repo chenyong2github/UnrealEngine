@@ -176,5 +176,19 @@ public:
 	* @param InComponentName - (optional) Unique component name
 	*/
 	virtual void MarkComponentGeometryDirty(const FName InComponentName = NAME_None) = 0;
+
+	/**
+	* Call LocalPlayer->CalcSceneView()
+	* [Game thread func]
+	*
+	* @param LocalPlayer - local player
+	* @param ViewFamily - output view struct
+	* @param OutViewLocation - output actor location
+	* @param OutViewRotation - output actor rotation
+	* @param Viewport - current client viewport
+	* @param ViewDrawer - optional drawing in the view
+	* @param StereoViewIndex - index of the view when using stereoscopy
+	*/
+	virtual class FSceneView* CalcSceneView(class ULocalPlayer* LocalPlayer, class FSceneViewFamily* ViewFamily, FVector& OutViewLocation, FRotator& OutViewRotation, class FViewport* Viewport, class FViewElementDrawer* ViewDrawer, int32 StereoViewIndex) = 0;
 };
 

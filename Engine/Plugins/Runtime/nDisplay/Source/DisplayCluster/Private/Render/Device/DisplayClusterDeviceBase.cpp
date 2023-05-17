@@ -239,116 +239,19 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const int32 ViewIndex,
 	check(IsInGameThread());
 	check(WorldToMeters > 0.f);
 
-	if (ViewportManager == nullptr || ViewportManager->IsSceneOpened() == false)
-	{
-		return;
-	}
-	// ViewIndex == eSSE_MONOSCOPIC(-1) is a special case called for ISR culling math.
-	// Since nDisplay is not ISR compatible, we ignore this request. This won't be neccessary once
-	// we stop using nDisplay as a stereoscopic rendering device (IStereoRendering).
-	else if (ViewIndex < 0)
-	{
-		return;
-	}
-
 	uint32 ViewportContextNum = 0;
-	IDisplayClusterViewport* ViewportPtr = ViewportManager->FindViewport(ViewIndex, &ViewportContextNum);
+	IDisplayClusterViewport* ViewportPtr = ViewportManager ? ViewportManager->FindViewport(ViewIndex, &ViewportContextNum) : nullptr;
 	if (ViewportPtr == nullptr)
 	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Viewport StereoViewIndex='%i' not found"), ViewIndex);
 		return;
 	}
 
-	if (!ViewportPtr->GetProjectionPolicy().IsValid())
-	{
-		// ignore viewports with uninitialized prj policy
-		return;
-	}
-
-	// Get root actor from viewport
-	ADisplayClusterRootActor* const RootActor = ViewportPtr->GetOwner().GetRootActor();
-	if (!RootActor)
-	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("No root actor found in game manager"));
-		return;
-	}
-
-	const TArray<FDisplayClusterViewport_Context>& ViewportContexts = ViewportPtr->GetContexts();
-	const FDisplayClusterViewport_Context& ViewportContext = ViewportContexts[ViewportContextNum];
-
-	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("OLD ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
-	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("WorldToMeters: %f"), WorldToMeters);
-
-
-	// Get camera ID assigned to the viewport
-	const FString& CameraId = ViewportPtr->GetRenderSettings().CameraId;
-
-	// Get camera component assigned to the viewport (or default camera if nothing assigned)
-	UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ?
-		RootActor->GetDefaultCamera() :
-		RootActor->GetComponentByName<UDisplayClusterCameraComponent>(CameraId));
-
-	if (!ViewCamera)
-	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("No camera found for viewport '%s'"), *ViewportPtr->GetId());
-		return;
-	}
-
-	if (CameraId.Len() > 0)
-	{
-		UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Viewport '%s' has assigned camera '%s'"), *ViewportPtr->GetId(), *CameraId);
-	}
-
-	// Get the actual camera settings
-	const float CfgEyeDist = ViewCamera->GetInterpupillaryDistance();
-	const bool  CfgEyeSwap = ViewCamera->GetSwapEyes();
-	const float CfgNCP     = GNearClippingPlane;
-	const EDisplayClusterEyeStereoOffset CfgEyeOffset = ViewCamera->GetStereoOffset();
-
-	// Calculate eye offset considering the world scale
-	const float EyeOffset = CfgEyeDist / 2.f;
-	const float EyeOffsetValues[] = { -EyeOffset, 0.f, EyeOffset };
-
-	// Decode current eye type
-	EDisplayClusterEyeType EyeType = EDisplayClusterEyeType::Mono;
-	if(ViewportContexts.Num() > 1)
-	{
-		// Support stereo:
-		EyeType = (ViewportContextNum == 0)? EDisplayClusterEyeType::StereoLeft : EDisplayClusterEyeType::StereoRight;
-	}
-
-	const int32 EyeIndex = (int32)EyeType;
-
-	float PassOffset = 0.f;
-	float PassOffsetSwap = 0.f;
-
-	if (EyeType == EDisplayClusterEyeType::Mono)
-	{
-		// For monoscopic camera let's check if the "force offset" feature is used
-		// * Force left (-1) ==> 0 left eye
-		// * Force right (1) ==> 2 right eye
-		// * Default (0) ==> 1 mono
-		const int32 EyeOffsetIdx = 
-			(CfgEyeOffset == EDisplayClusterEyeStereoOffset::None ? 0 :
-			(CfgEyeOffset == EDisplayClusterEyeStereoOffset::Left ? -1 : 1));
-
-		PassOffset = EyeOffsetValues[EyeOffsetIdx + 1];
-		// Eye swap is not available for monoscopic so just save the value
-		PassOffsetSwap = PassOffset;
-	}
-	else
-	{
-		// For stereo camera we can only swap eyes if required (no "force offset" allowed)
-		PassOffset = EyeOffsetValues[EyeIndex];
-		PassOffsetSwap = (CfgEyeSwap ? -PassOffset : PassOffset);
-	}
+	// The camera position has already been determined from the SetupViewPoint() function
+	// Obtaining the stereo eye offset for a given viewport
+	const float PassOffsetSwap = ViewportPtr->GetStereoEyeOffsetDistance(ViewportContextNum);
 
 	FVector ViewOffset = FVector::ZeroVector;
-	if (ViewCamera)
 	{
-		// View base location
-		ViewLocation = ViewCamera->GetComponentLocation();
-		ViewRotation = ViewCamera->GetComponentRotation();
 		// Apply computed offset to the view location
 		const FQuat EyeQuat = ViewRotation.Quaternion();
 		ViewOffset = EyeQuat.RotateVector(FVector(0.0f, PassOffsetSwap, 0.0f));
@@ -356,6 +259,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const int32 ViewIndex,
 	}
 
 	// Perform view calculations on a policy side
+	const float CfgNCP = GNearClippingPlane;
 	if (ViewportPtr->CalculateView(ViewportContextNum, ViewLocation, ViewRotation, ViewOffset, WorldToMeters, CfgNCP, CfgNCP) == false)
 	{
 #if WITH_EDITOR

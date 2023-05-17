@@ -35,6 +35,20 @@ public:
 	virtual bool CalculateView(const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) = 0;
 	virtual bool GetProjectionMatrix(const uint32 InContextNum, FMatrix& OutPrjMatrix) = 0;
 
+	/** Setup viewpoint for this viewport
+	 *
+	 * @param InOutViewInfo - [in\out] viewinfo
+	 * 
+	 * @return - true if there is an internal viewpoint for the given viewport.
+	 */
+	virtual bool SetupViewPoint(struct FMinimalViewInfo& InOutViewInfo) = 0;
+
+	/** Get the distance from the eye to the viewpoint location.
+	 *
+	 * @param InContextNum - eye context of this viewport
+	 */
+	virtual float GetStereoEyeOffsetDistance(const uint32 InContextNum) = 0;
+
 	virtual const TSharedPtr<class IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& GetProjectionPolicy() const = 0;
 
 	virtual const TArray<FDisplayClusterViewport_Context>& GetContexts() const = 0;

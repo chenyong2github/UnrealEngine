@@ -109,6 +109,30 @@ public:
 	*/
 	virtual bool IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const = 0;
 
+	/** Get viewpoint for this projection policy
+	 *
+	 * @param OutViewRotation - viewpoint rotation
+	 * @param OutViewLocation - viewpoint location
+	 *
+	 * @return - true, if the viewpoint values have changed
+	 */
+	virtual bool GetViewPoint(IDisplayClusterViewport* InViewport, FRotator& InOutViewRotation, FVector& InOutViewLocation)
+	{
+		return false;
+	}
+
+	 /** Get the distance from the eye to the viewpoint location
+	 *
+	 * @param InContextNum - eye context of this viewport
+	 * @param OutStereoEyeOffsetDistance - new eye distance
+	 *
+	 * @return - true, if the offset distance of the stereo eye has changed
+	 */
+	virtual bool GetStereoEyeOffsetDistance(IDisplayClusterViewport* InViewport, const uint32 InContextNum, float& InOutStereoEyeOffsetDistance)
+	{
+		return false;
+	}
+
 	/**
 	* @param ViewIdx           - Index of view that is being processed for this viewport
 	* @param InOutViewLocation - (in/out) View location with ViewOffset (i.e. left eye pre-computed location)
