@@ -21,7 +21,17 @@ void UOpenColorIOEditorBlueprintLibrary::SetActiveViewportConfiguration(const FO
 }
 
 bool UOpenColorIOEditorBlueprintLibrary::ApplyColorSpaceTransformToTexture(const FOpenColorIOColorConversionSettings& ConversionSettings, UTexture* InOutTexture, bool bSynchronous)
-{	
+{
+	if (IsValid(InOutTexture))
+	{
+		return ApplyColorSpaceCompressionTransformToTexture(ConversionSettings, InOutTexture->CompressionSettings, InOutTexture, bSynchronous);
+	}
+
+	return false;
+}
+
+bool UOpenColorIOEditorBlueprintLibrary::ApplyColorSpaceCompressionTransformToTexture(const FOpenColorIOColorConversionSettings& ConversionSettings, TextureCompressionSettings TargetCompression, UTexture* InOutTexture, bool bSynchronous)
+{
 	if (IsValid(InOutTexture) && IsValid(ConversionSettings.ConfigurationSource))
 	{
 		FImage ImageMip0;
@@ -30,17 +40,18 @@ bool UOpenColorIOEditorBlueprintLibrary::ApplyColorSpaceTransformToTexture(const
 			bool bTransformSucceeded = ConversionSettings.ConfigurationSource->EditorTransformImage(ConversionSettings, ImageMip0);
 			if (bTransformSucceeded)
 			{
+				InOutTexture->PreEditChange(nullptr);
 				void* TargetData = InOutTexture->Source.LockMip(0);
 				FMemory::Memcpy(TargetData, ImageMip0.RawData.GetData(), ImageMip0.GetImageSizeBytes());
 				InOutTexture->Source.UnlockMip(0);
-				InOutTexture->Modify();
-				InOutTexture->UpdateResource();
+				InOutTexture->CompressionSettings = TargetCompression;
+				InOutTexture->PostEditChange();
 
 				if (bSynchronous)
 				{
 					FTextureCompilingManager::Get().FinishCompilation({ InOutTexture });
 				}
-				
+
 				return true;
 			}
 		}
