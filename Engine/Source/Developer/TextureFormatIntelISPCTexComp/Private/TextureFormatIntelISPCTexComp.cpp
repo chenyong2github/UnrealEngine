@@ -425,7 +425,7 @@ static uint16 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverr
 		checkf(FieldView.HasValue(), TEXT("Missing DefaultASTCQualityBySize key from FormatConfigOverride"));
 		int32 CompressionModeValue = FieldView.AsInt32();
 		checkf(!FieldView.HasError(), TEXT("Failed to parse DefaultASTCQualityBySize value from FormatConfigOverride"));
-		return CompressionModeValue;
+		return IntCastChecked<uint16>(CompressionModeValue);
 	}
 	else
 	{
@@ -442,7 +442,7 @@ static uint16 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverr
 			return FMath::Min<uint32>(CompressionModeValue, MAX_QUALITY_BY_SIZE);
 		};
 
-		static int32 CompressionModeValue = GetCompressionModeValue();
+		static uint16 CompressionModeValue = IntCastChecked<uint16>(GetCompressionModeValue());
 
 		return CompressionModeValue;
 	}
@@ -576,9 +576,9 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 					FVector Normal = FVector(pInTexelsSwap[2] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[1] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[0] / 255.0f * 2.0f - 1.0f);
 					Normal = Normal.GetSafeNormal();
 					pInTexelsSwap[0] = 0;
-					pInTexelsSwap[1] = FMath::RoundToInt((Normal.Y * 0.5f + 0.5f) * 255.f);
+					pInTexelsSwap[1] = static_cast<uint8>(FMath::RoundToInt((Normal.Y * 0.5f + 0.5f) * 255.f));
 					pInTexelsSwap[2] = 0;
-					pInTexelsSwap[3] = FMath::RoundToInt((Normal.X * 0.5f + 0.5f) * 255.f);
+					pInTexelsSwap[3] = static_cast<uint8>(FMath::RoundToInt((Normal.X * 0.5f + 0.5f) * 255.f));
 
 					pInTexelsSwap += 4;
 				}
@@ -618,8 +618,8 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 				{
 					FVector Normal = FVector(pInTexelsSwap[2] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[1] / 255.0f * 2.0f - 1.0f, pInTexelsSwap[0] / 255.0f * 2.0f - 1.0f);
 					Normal = Normal.GetSafeNormal();
-					pInTexelsSwap[0] = FMath::RoundToInt((Normal.X * 0.5f + 0.5f) * 255.f);
-					pInTexelsSwap[1] = FMath::RoundToInt((Normal.Y * 0.5f + 0.5f) * 255.f);
+					pInTexelsSwap[0] = static_cast<uint8>(FMath::RoundToInt((Normal.X * 0.5f + 0.5f) * 255.f));
+					pInTexelsSwap[1] = static_cast<uint8>(FMath::RoundToInt((Normal.Y * 0.5f + 0.5f) * 255.f));
 					pInTexelsSwap[2] = 0;
 					pInTexelsSwap[3] = 255;
 

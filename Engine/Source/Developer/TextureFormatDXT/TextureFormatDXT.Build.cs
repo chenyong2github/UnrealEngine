@@ -6,6 +6,8 @@ public class TextureFormatDXT : ModuleRules
 {
 	public TextureFormatDXT(ReadOnlyTargetRules Target) : base(Target)
 	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+
 		PrivateIncludePathModuleNames.AddRange(new string[]
 		{
 			"DerivedDataCache",

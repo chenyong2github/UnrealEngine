@@ -6,6 +6,8 @@ public class TextureBuild : ModuleRules
 {
 	public TextureBuild(ReadOnlyTargetRules Target) : base(Target)
 	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+
 		PrivateIncludePathModuleNames.AddRange(new string[]
 		{
 			"Engine",

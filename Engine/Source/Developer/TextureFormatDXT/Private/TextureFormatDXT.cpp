@@ -71,7 +71,7 @@ static FName GSupportedTextureFormatNames[] =
  */
 struct FNVOutputHandler : public nvtt::OutputHandler
 {
-	explicit FNVOutputHandler( uint8* InBuffer, int32 InBufferSize )
+	explicit FNVOutputHandler( uint8* InBuffer, int64 InBufferSize )
 		: Buffer(InBuffer)
 		, BufferEnd(InBuffer + InBufferSize)
 	{
@@ -142,7 +142,7 @@ public:
 		bool bSRGB,
 		bool bIsNormalMap,
 		uint8* OutBuffer,
-		int32 BufferSize, 
+		int64 BufferSize, 
 		bool bPreview = false)
 		: OutputHandler(OutBuffer, BufferSize)
 	{

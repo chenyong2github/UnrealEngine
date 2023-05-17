@@ -234,7 +234,7 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 	}
 
 	FCbArrayView MipsCbArrayView = Source["Mips"].AsArrayView();
-	OutMips.Reserve(MipsCbArrayView.Num());
+	OutMips.Reserve(IntCastChecked<int32>(MipsCbArrayView.Num()));
 	for (FCbFieldView MipsCbArrayIt : MipsCbArrayView)
 	{
 		FCbObjectView MipCbObjectView = MipsCbArrayIt.AsObjectView();

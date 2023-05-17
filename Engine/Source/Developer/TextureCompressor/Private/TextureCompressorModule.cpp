@@ -689,7 +689,7 @@ static void GenerateMip2x2(const FImageView2D& SourceImageData, FImageView2D& De
 }
 
 static void AllocateTempForMips(
-	TArray<FLinearColor>& TempData,
+	TArray64<FLinearColor>& TempData,
 	int32 SourceSizeX,
 	int32 SourceSizeY,
 	int32 DestSizeX,
@@ -838,7 +838,7 @@ static void GenerateMipSharpened(
 template <EMipGenAddressMode AddressMode, int KernelSize = 0>
 static void GenerateMipSharpenedSeparable(
 	const FImageView2D& SourceImageData,
-	TArray<FLinearColor>& TempData,
+	TArray64<FLinearColor>& TempData,
 	FImageView2D& DestImageData,
 	const FImageKernel2D& Kernel,
 	FVector4f AlphaScale,
@@ -921,7 +921,7 @@ static void GenerateMipSharpenedSeparable(
 template <EMipGenAddressMode AddressMode>
 static void GenerateSharpenedMipB8G8R8A8Templ(
 	const FImageView2D& SourceImageData, 
-	TArray<FLinearColor>& TempData,
+	TArray64<FLinearColor>& TempData,
 	FImageView2D& DestImageData, 
 	bool bDoScaleMipsForAlphaCoverage,
 	const FVector4f AlphaCoverages,
@@ -1024,7 +1024,7 @@ static void GenerateMipBorder(
 static void GenerateSharpenedMipB8G8R8A8(
 	const FImageView2D& SourceImageData, 
 	const FImageView2D& SourceImageData2, // Only used with volume texture.
-	TArray<FLinearColor>& TempData,
+	TArray64<FLinearColor>& TempData,
 	FImageView2D& DestImageData, 
 	EMipGenAddressMode AddressMode, 
 	bool bDoScaleMipsForAlphaCoverage,
@@ -1260,7 +1260,7 @@ static void GenerateTopMip(const FImage& SrcImage, FImage& DestImage, const FTex
 	const bool bUnfiltered = Settings.MipGenSettings == TMGS_Unfiltered;
 	const bool bUseNewMipFilter = Settings.bUseNewMipFilter;
 
-	TArray<FLinearColor> TempData;
+	TArray64<FLinearColor> TempData;
 	AllocateTempForMips(TempData, SrcImage.SizeX, SrcImage.SizeY, DestImage.SizeX, DestImage.SizeY, false, KernelDownsample, 1, bSharpenWithoutColorShift, bUnfiltered, bUseNewMipFilter);
 
 	for (int32 SliceIndex = 0; SliceIndex < SrcImage.NumSlices; ++SliceIndex)
@@ -1483,7 +1483,7 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 	FImageKernel2D AvgKernel;
 	AvgKernel.BuildSeparatableGaussWithSharpen(2);
 
-	TArray<FLinearColor> TempData;
+	TArray64<FLinearColor> TempData;
 	AllocateTempForMips(TempData, SrcImage.SizeX, SrcImage.SizeY, FMath::Max(1, SrcImage.SizeX / 2), FMath::Max(1, SrcImage.SizeY / 2), false, AvgKernel, 2, false, bUnfiltered, bUseNewMipFilter);
 
 	int32 NumIterations = 0;
@@ -1712,8 +1712,8 @@ void ITextureCompressorModule::GenerateMipChain(
 	int32 FirstMipSizeX = FMath::Max(BaseMip.SizeX>>1,1);
 	int32 FirstMipSizeY = FMath::Max(BaseMip.SizeY>>1,1);
 
-	TArray<FLinearColor> DownsampleTempData;
-	TArray<FLinearColor> AverageTempData;
+	TArray64<FLinearColor> DownsampleTempData;
+	TArray64<FLinearColor> AverageTempData;
 	const bool bDoScaleMipsForAlphaCoverage = Settings.bDoScaleMipsForAlphaCoverage;
 	const bool bSharpenWithoutColorShift = Settings.bSharpenWithoutColorShift;
 	const bool bUnfiltered = Settings.MipGenSettings == TMGS_Unfiltered;
@@ -1775,7 +1775,7 @@ void ITextureCompressorModule::GenerateMipChain(
 			FImageView2D DestView(DestImage, SliceIndex);
 
 			// lambda to generate one step :
-			auto MakeDestImageMip = [&](FImageView2D & ArgDestView,TArray<FLinearColor> & ArgTempData,FImageKernel2D & ArgKernel) {
+			auto MakeDestImageMip = [&](FImageView2D & ArgDestView,TArray64<FLinearColor> & ArgTempData,FImageKernel2D & ArgKernel) {
 				// DestView is the output mip
 				GenerateSharpenedMipB8G8R8A8(
 					IntermediateSrcView, 
@@ -1973,8 +1973,8 @@ struct FImageViewLongLat
 		// acos returns in [0,PI]
 
 		const float invPI = 1.f/PI;
-		float X = (1.f + atan2f(NormalizedDirection.X, - NormalizedDirection.Z) * invPI) * 0.5f * SizeX;
-		float Y = acosf(NormalizedDirection.Y)*invPI * SizeY;
+		float X = (1.f + atan2f(static_cast<float>(NormalizedDirection.X), static_cast<float>(-NormalizedDirection.Z)) * invPI) * 0.5f * SizeX;
+		float Y = acosf(static_cast<float>(NormalizedDirection.Y))*invPI * SizeY;
 
 		return LookupFiltered(X, Y);
 	}
@@ -1983,8 +1983,8 @@ struct FImageViewLongLat
 	{
 		// this does the math in doubles then stores to floats :
 		//	that was probably a mistake, but leave it to avoid patches
-		float X = (1 + atan2(NormalizedDirection.X, - NormalizedDirection.Z) / PI) / 2 * SizeX;
-		float Y = acos(NormalizedDirection.Y) / PI * SizeY;
+		float X = (1 + atan2(static_cast<float>(NormalizedDirection.X), static_cast<float>(-NormalizedDirection.Z)) / PI) / 2 * SizeX;
+		float Y = acos(static_cast<float>(NormalizedDirection.Y)) / PI * SizeY;
 
 		return LookupFiltered(X, Y);
 	}
@@ -1993,7 +1993,7 @@ struct FImageViewLongLat
 // transform world space vector to a space relative to the face
 static inline FVector TransformSideToWorldSpace(uint32 CubemapFace, const FVector & InDirection)
 {
-	float x = InDirection.X, y = InDirection.Y, z = InDirection.Z;
+	double x = InDirection.X, y = InDirection.Y, z = InDirection.Z;
 
 	FVector Ret;
 
@@ -2017,7 +2017,7 @@ static inline FVector TransformSideToWorldSpace(uint32 CubemapFace, const FVecto
 static inline FVector TransformWorldToSideSpace(uint32 CubemapFace, const FVector & InDirection)
 {
 	// undo Unreal way (z and y are flipped)
-	float x = InDirection.X, y = InDirection.Z, z = InDirection.Y;
+	double x = InDirection.X, y = InDirection.Z, z = InDirection.Y;
 
 	FVector Ret;
 
@@ -2138,7 +2138,7 @@ public:
 		
 		FVector DirectionSS = ComputeSSCubeDirectionAtTexelCenter(x, y, InvFullExtent);
 
-		float DotValue = ConeAxisSS | DirectionSS;
+		float DotValue = static_cast<float>(ConeAxisSS | DirectionSS);
 
 		if(DotValue > DirDot)
 		{
@@ -2243,7 +2243,7 @@ static FLinearColor IntegrateAngularArea(FImage& Image, FVector FilterDirectionW
 // @return 2 * computed triangle area 
 static inline float TriangleArea2_3D(FVector A, FVector B, FVector C)
 {
-	return ((A-B) ^ (C-B)).Size();
+	return static_cast<float>(((A-B) ^ (C-B)).Size());
 }
 
 static inline float ComputeTexelArea(uint32 x, uint32 y, float InvSideExtentMul2)
@@ -3087,7 +3087,7 @@ static bool ApplyCompositeTexture(FImage& DestRoughness, const FImage& SourceNor
 			return false;
 		}
 
-		TArray<float> SourceNormalLengths;
+		TArray64<float> SourceNormalLengths;
 
 		{
 			int64 SourceNormalCount = (int64) SourceNormals.SizeX * SourceNormals.SizeY;
@@ -3144,7 +3144,7 @@ void FTextureBuildSettings::GetEncodedTextureDescriptionWithPixelFormat(FEncoded
 	TextureDescription.bCubeMap = bCubemap;
 	TextureDescription.bTextureArray = bTextureArray;
 	TextureDescription.bVolumeTexture = bVolume;
-	TextureDescription.NumMips = InMipCount;
+	TextureDescription.NumMips = IntCastChecked<uint8>(InMipCount);
 	TextureDescription.PixelFormat = InEncodedPixelFormat;
 
 	TextureDescription.TopMipSizeX = InEncodedMip0SizeX;
@@ -3360,7 +3360,11 @@ static void NormalizeMip(FImage& InOutMip)
 			// GetSafeNormal returns Vec(0,0,0) by default for tiny input, instead return flat/up
 			Normal = Normal.GetSafeNormal(UE_SMALL_NUMBER,NormalIfZero);
 
-			Color = FLinearColor(Normal.X * 0.5f + 0.5f, Normal.Y * 0.5f + 0.5f, Normal.Z * 0.5f + 0.5f, Color.A);
+			Color = FLinearColor(
+				static_cast<float>(Normal.X * 0.5f + 0.5f), 
+				static_cast<float>(Normal.Y * 0.5f + 0.5f), 
+				static_cast<float>(Normal.Z * 0.5f + 0.5f), 
+				Color.A);
 		}
 	}, EParallelForFlags::Unbalanced);
 }
