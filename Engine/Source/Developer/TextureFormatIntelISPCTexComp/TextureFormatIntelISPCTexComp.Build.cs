@@ -6,8 +6,6 @@ public class TextureFormatIntelISPCTexComp : ModuleRules
 {
 	public TextureFormatIntelISPCTexComp(ReadOnlyTargetRules Target) : base(Target)
 	{
-		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
-
 		PrivateIncludePathModuleNames.AddRange(new string[]
 		{
 			"DerivedDataCache",
