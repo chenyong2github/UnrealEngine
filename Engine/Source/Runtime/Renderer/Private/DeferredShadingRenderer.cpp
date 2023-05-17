@@ -4003,13 +4003,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderFog);
 		RenderFog(GraphBuilder, SceneTextures, LightShaftOcclusionTexture);
 	}
-	if (!bHasRayTracedOverlay && ShouldRenderLocalHeightFog(Scene, ViewFamily))
-	{
-		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderLocalHeightFog);
-		SCOPED_NAMED_EVENT(RenderLocalHeightFog, FColor::Emerald);
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderLocalHeightFog);
-		RenderLocalHeightFog(Scene, Views, GraphBuilder, SceneTextures, LightShaftOcclusionTexture);
-	}
 
 	// After the height fog, Draw volumetric clouds (having fog applied on them already) when using per pixel tracing,
 	if (!bHasRayTracedOverlay && bShouldRenderVolumetricCloud)
@@ -4024,6 +4017,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bVolumetricRenderTargetRequired)
 	{
 		ComposeVolumetricRenderTargetOverScene(GraphBuilder, Views, SceneTextures.Color.Target, SceneTextures.Depth.Target, bShouldRenderSingleLayerWater, SceneWithoutWaterTextures, SceneTextures);
+	}
+
+	if (!bHasRayTracedOverlay && ShouldRenderLocalHeightFog(Scene, ViewFamily))
+	{
+		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderLocalHeightFog);
+		SCOPED_NAMED_EVENT(RenderLocalHeightFog, FColor::Emerald);
+		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderLocalHeightFog);
+		RenderLocalHeightFog(Scene, Views, GraphBuilder, SceneTextures, LightShaftOcclusionTexture);
 	}
 
 	FRDGTextureRef ExposureIlluminance = AddCalculateExposureIlluminancePass(GraphBuilder, Views, SceneTextures, TranslucencyLightingVolumeTextures, ExposureIlluminanceSetup);
