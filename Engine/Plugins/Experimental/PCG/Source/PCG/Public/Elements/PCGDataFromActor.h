@@ -39,10 +39,10 @@ public:
 
 	virtual FName AdditionalTaskName() const override;
 
+protected:
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return TArray<FPCGPinProperties>(); }
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 
-protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings
 
@@ -57,6 +57,9 @@ public:
 public:
 	/** Override this to filter what kinds of data should be retrieved from the actor(s). */
 	virtual bool DataFilter(EPCGDataType InDataType) const { return true; }
+
+	/** Override this to change the default value the selector will revert to when changing the actor selection type */
+	virtual TSubclassOf<AActor> GetDefaultActorSelectorClass() const;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties))
 	FPCGActorSelectorSettings ActorSelector;
@@ -98,5 +101,6 @@ public:
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const;
 	void GatherWaitTasks(AActor* FoundActor, FPCGContext* Context, TArray<FPCGTaskId>& OutWaitTasks) const;
-	void ProcessActor(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, AActor* FoundActor) const;
+	virtual void ProcessActors(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, const TArray<AActor*>& FoundActors) const;
+	virtual void ProcessActor(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, AActor* FoundActor) const;
 };

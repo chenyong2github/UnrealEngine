@@ -8,6 +8,7 @@
 #include "Grid/PCGLandscapeCache.h"
 #include "Helpers/PCGHelpers.h"
 
+#include "Landscape.h"
 #include "LandscapeInfo.h"
 #include "LandscapeProxy.h"
 #include "Engine/World.h"
@@ -16,15 +17,32 @@
 
 void UPCGLandscapeData::Initialize(const TArray<TWeakObjectPtr<ALandscapeProxy>>& InLandscapes, const FBox& InBounds, bool bInHeightOnly, bool bInUseMetadata)
 {
+	TSet<ALandscapeProxy*> LandscapesToIgnore;
+
 	for (TWeakObjectPtr<ALandscapeProxy> InLandscape : InLandscapes)
 	{
-		if (InLandscape.IsValid())
+		if (InLandscape.IsValid() && InLandscape->GetLandscapeActor() != InLandscape.Get())
 		{
-			Landscapes.Emplace(InLandscape.Get());
-
-			// Build landscape info list
-			LandscapeInfos.Emplace(PCGHelpers::GetLandscapeBounds(InLandscape.Get()), InLandscape->GetLandscapeInfo());
+			LandscapesToIgnore.Add(InLandscape->GetLandscapeActor());
 		}
+	}
+
+	TArray<TWeakObjectPtr<ALandscapeProxy>> FilteredLandscapes;
+	for (TWeakObjectPtr<ALandscapeProxy> InLandscape : InLandscapes)
+	{
+		if (InLandscape.IsValid() && !LandscapesToIgnore.Contains(InLandscape.Get()))
+		{
+			FilteredLandscapes.Add(InLandscape);
+		}
+	}
+
+	for (TWeakObjectPtr<ALandscapeProxy> Landscape : FilteredLandscapes)
+	{
+		check(Landscape.IsValid());
+		Landscapes.Emplace(Landscape.Get());
+
+		// Build landscape info list
+		LandscapeInfos.Emplace(PCGHelpers::GetLandscapeBounds(Landscape.Get()), Landscape->GetLandscapeInfo());
 	}
 
 	check(!Landscapes.IsEmpty());
@@ -46,7 +64,7 @@ void UPCGLandscapeData::Initialize(const TArray<TWeakObjectPtr<ALandscapeProxy>>
 	// TODO: find a better way to do this - maybe there should be a prototype metadata in the landscape cache
 	if (LandscapeCache)
 	{
-		if (!bHeightOnly && bUseMetadata)
+		if (bUseMetadata)
 		{
 			for (TSoftObjectPtr<ALandscapeProxy> Landscape : Landscapes)
 			{
@@ -163,7 +181,7 @@ bool UPCGLandscapeData::ProjectPoint(const FTransform& InTransform, const FBox& 
 
 	if (bHeightOnly)
 	{
-		LandscapeCacheEntry->GetInterpolatedPointHeightOnly(ComponentLocalPoint, OutPoint);
+		LandscapeCacheEntry->GetInterpolatedPointHeightOnly(ComponentLocalPoint, OutPoint, bUseMetadata ? OutMetadata : nullptr);
 	}
 	else
 	{
@@ -224,10 +242,16 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context, co
 
 	UPCGMetadata* OutMetadata = bUseMetadata ? Data->Metadata : nullptr;
 
+	// Most proxies we gathered will have the same landscape info, we shouldn't loop multiple times
+	// on them, unless we add the box filtering - but even then, depending on the transform we could have overlaps
+	TSet<ULandscapeInfo*> AllLandscapeInfos;
 	for (const TPair<FBox, ULandscapeInfo*>& LandscapeInfoPair : LandscapeInfos)
 	{
-		ULandscapeInfo* LandscapeInfo = LandscapeInfoPair.Value;
+		AllLandscapeInfos.Add(LandscapeInfoPair.Value);
+	}
 
+	for(ULandscapeInfo* LandscapeInfo : AllLandscapeInfos)
+	{
 		if (!LandscapeInfo || !LandscapeInfo->GetLandscapeProxy())
 		{
 			continue;

@@ -30,7 +30,13 @@ void UPCGPropertyToParamDataSettings::PostEditChangeProperty(FPropertyChangedEve
 
 	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UPCGPropertyToParamDataSettings, ActorSelector))
 	{
-		ActorSelector.PostEditChangeProperty(PropertyChangedEvent);
+		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPCGActorSelectorSettings, ActorSelection))
+		{
+			if (ActorSelector.ActorSelection != EPCGActorSelection::ByClass)
+			{
+				ActorSelector.ActorSelectionClass = TSubclassOf<AActor>();
+			}
+		}
 	}
 }
 #endif // WITH_EDITOR
@@ -43,7 +49,7 @@ void UPCGPropertyToParamDataSettings::PostLoad()
 	if (ActorSelection_DEPRECATED != EPCGActorSelection::ByTag ||
 		ActorSelectionTag_DEPRECATED != NAME_None ||
 		ActorSelectionName_DEPRECATED != NAME_None ||
-		ActorSelectionClass_DEPRECATED != TSubclassOf<AActor>{} ||
+		ActorSelectionClass_DEPRECATED != TSubclassOf<AActor>() ||
 		ActorFilter_DEPRECATED != EPCGActorFilter::Self ||
 		bIncludeChildren_DEPRECATED != false)
 	{
@@ -56,12 +62,15 @@ void UPCGPropertyToParamDataSettings::PostLoad()
 		ActorSelection_DEPRECATED = EPCGActorSelection::ByTag;
 		ActorSelectionTag_DEPRECATED = NAME_None;
 		ActorSelectionName_DEPRECATED = NAME_None;
-		ActorSelectionClass_DEPRECATED = TSubclassOf<AActor>{};
+		ActorSelectionClass_DEPRECATED = TSubclassOf<AActor>();
 		ActorFilter_DEPRECATED = EPCGActorFilter::Self;
 		bIncludeChildren_DEPRECATED = false;
 	}
 
-	ActorSelector.PostLoad();
+	if (ActorSelector.ActorSelection != EPCGActorSelection::ByClass)
+	{
+		ActorSelector.ActorSelectionClass = TSubclassOf<AActor>();
+	}
 }
 
 FName UPCGPropertyToParamDataSettings::AdditionalTaskName() const

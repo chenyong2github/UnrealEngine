@@ -22,14 +22,32 @@ public:
 	virtual FText GetNodeTooltipText() const override;
 #endif
 
+	virtual FName AdditionalTaskName() const override;
+
 protected:
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+
+	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings
 
 public:
 	//~Begin UPCGDataFromActorSettings interface
 	virtual bool DataFilter(EPCGDataType InDataType) const override { return !!(InDataType & EPCGDataType::Landscape); }
+	virtual TSubclassOf<AActor> GetDefaultActorSelectorClass() const override;
 	//~End UPCGDataFromActorSettings
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	bool bGetHeightOnly = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	bool bGetLayerWeights = true;
+};
+
+class FPCGGetLandscapeDataElement : public FPCGDataFromActorElement
+{
+protected:
+	virtual void ProcessActors(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, const TArray<AActor*>& FoundActors) const override;
+	virtual void ProcessActor(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, AActor* FoundActor) const override;
 };
 
 /** Builds a collection of spline data from the selected actors. */

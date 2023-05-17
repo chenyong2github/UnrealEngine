@@ -35,15 +35,32 @@ void UPCGDataFromActorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 	if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(UPCGDataFromActorSettings, ActorSelector))
 	{
-		ActorSelector.PostEditChangeProperty(PropertyChangedEvent);
+		if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FPCGActorSelectorSettings, ActorSelection))
+		{
+			// Make sure that when switching away from the 'by class' selection, we actually break that data dependency
+			if (ActorSelector.ActorSelection != EPCGActorSelection::ByClass)
+			{
+				ActorSelector.ActorSelectionClass = GetDefaultActorSelectorClass();
+			}
+		}
 	}
 }
+
 #endif
+
+TSubclassOf<AActor> UPCGDataFromActorSettings::GetDefaultActorSelectorClass() const
+{
+	return TSubclassOf<AActor>();
+}
 
 void UPCGDataFromActorSettings::PostLoad()
 {
 	Super::PostLoad();
-	ActorSelector.PostLoad();
+
+	if (ActorSelector.ActorSelection != EPCGActorSelection::ByClass)
+	{
+		ActorSelector.ActorSelectionClass = GetDefaultActorSelectorClass();
+	}
 }
 
 FName UPCGDataFromActorSettings::AdditionalTaskName() const
@@ -175,10 +192,7 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* InContext) const
 
 	if (Context->bPerformedQuery)
 	{
-		for (AActor* Actor : Context->FoundActors)
-		{
-			ProcessActor(Context, Settings, Actor);
-		}
+		ProcessActors(Context, Settings, Context->FoundActors);
 	}
 
 	return true;
@@ -203,6 +217,14 @@ void FPCGDataFromActorElement::GatherWaitTasks(AActor* FoundActor, FPCGContext* 
 		{
 			OutWaitTasks.Add(Component->GetGenerationTaskId());
 		}
+	}
+}
+
+void FPCGDataFromActorElement::ProcessActors(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, const TArray<AActor*>& FoundActors) const
+{
+	for (AActor* Actor : FoundActors)
+	{
+		ProcessActor(Context, Settings, Actor);
 	}
 }
 

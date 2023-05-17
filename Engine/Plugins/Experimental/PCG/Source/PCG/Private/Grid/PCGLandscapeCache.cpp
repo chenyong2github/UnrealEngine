@@ -298,11 +298,12 @@ void FPCGLandscapeCacheEntry::GetInterpolatedPointMetadataOnly(const FVector2D& 
 	GetInterpolatedPointMetadataInternal(Indices, OutPoint, OutMetadata);
 }
 
-void FPCGLandscapeCacheEntry::GetInterpolatedPointHeightOnly(const FVector2D& LocalPoint, FPCGPoint& OutPoint) const
+void FPCGLandscapeCacheEntry::GetInterpolatedPointHeightOnly(const FVector2D& LocalPoint, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	check(bDataLoaded);
 	const PCGLandscapeCache::FSafeIndices Indices = PCGLandscapeCache::CalcSafeIndices(LocalPoint, Stride);
 	GetInterpolatedPointInternal(Indices, OutPoint, /*bHeightOnly=*/true);
+	GetInterpolatedPointMetadataInternal(Indices, OutPoint, OutMetadata);
 }
 
 bool FPCGLandscapeCacheEntry::TouchAndLoad(int32 InTouch) const
