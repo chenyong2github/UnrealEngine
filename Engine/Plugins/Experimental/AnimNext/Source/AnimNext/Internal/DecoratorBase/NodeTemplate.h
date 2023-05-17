@@ -7,6 +7,8 @@
 
 #include <type_traits>
 
+class FArchive;
+
 namespace UE::AnimNext
 {
 	/**
@@ -23,6 +25,11 @@ namespace UE::AnimNext
 	 */
 	struct FNodeTemplate
 	{
+		// The largest size allowed for a node template
+		// Node templates are just a lightweight descriptor, in theory they can have any size
+		// We artificially specify a conservative upper bound
+		static constexpr uint32 MAXIMUM_SIZE = 64 * 1024;
+
 		FNodeTemplate(uint32 UID_, uint32 InstanceSize_, uint32 NumDecorators_)
 			: UID(UID_)
 			, InstanceSize(InstanceSize_)
@@ -42,7 +49,13 @@ namespace UE::AnimNext
 		uint32 GetNumDecorators() const { return NumDecorators; }
 
 		// Returns a pointer to the list of decorator template descriptions
+		FDecoratorTemplate* GetDecorators() { return reinterpret_cast<FDecoratorTemplate*>(reinterpret_cast<uint8*>(this) + sizeof(FNodeTemplate)); }
+
+		// Returns a pointer to the list of decorator template descriptions
 		const FDecoratorTemplate* GetDecorators() const { return reinterpret_cast<const FDecoratorTemplate*>(reinterpret_cast<const uint8*>(this) + sizeof(FNodeTemplate)); }
+
+		// Serializes this node template instance and each decorator template that follows
+		ANIMNEXT_API void Serialize(FArchive& Ar);
 
 	private:
 		uint32	UID;				// globally unique template identifier or hash

@@ -35,6 +35,12 @@ namespace UE::AnimNext
 		}
 	}
 
+	FNodeTemplateRegistryHandle FNodeTemplateRegistry::Find(uint32 NodeTemplateUID) const
+	{
+		const FNodeTemplateRegistryHandle* TemplateHandle = TemplateUIDToHandleMap.Find(NodeTemplateUID);
+		return TemplateHandle != nullptr ? *TemplateHandle : FNodeTemplateRegistryHandle();
+	}
+
 	FNodeTemplateRegistryHandle FNodeTemplateRegistry::FindOrAdd(const FNodeTemplate* NodeTemplate)
 	{
 		if (NodeTemplate == nullptr)
@@ -75,6 +81,16 @@ namespace UE::AnimNext
 		TemplateUIDToHandleMap.Remove(TemplateUID);
 	}
 
+	FNodeTemplate* FNodeTemplateRegistry::Find(FNodeTemplateRegistryHandle TemplateHandle)
+	{
+		if (!TemplateHandle.IsValid())
+		{
+			return nullptr;
+		}
+
+		return reinterpret_cast<FNodeTemplate*>(&TemplateBuffer[TemplateHandle.GetTemplateOffset()]);
+	}
+
 	const FNodeTemplate* FNodeTemplateRegistry::Find(FNodeTemplateRegistryHandle TemplateHandle) const
 	{
 		if (!TemplateHandle.IsValid())
@@ -88,5 +104,11 @@ namespace UE::AnimNext
 	uint32 FNodeTemplateRegistry::GetNum() const
 	{
 		return TemplateUIDToHandleMap.Num();
+	}
+
+	void FNodeTemplateRegistry::Clear()
+	{
+		TemplateBuffer.Empty(0);
+		TemplateUIDToHandleMap.Empty(0);
 	}
 }

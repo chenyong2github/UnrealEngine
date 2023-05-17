@@ -13,14 +13,14 @@ namespace UE::AnimNext
 	 * Decorator Pointer
 	 * A decorator pointer represents a shared pointer to allocated instance data.
 	 * It manages reference counting.
-	 * It points to a FDecoratorInstance or FNodeInstance when resolved.
+	 * It points to a FDecoratorInstanceData or FNodeInstance when resolved.
 	 *
 	 * A node pointer can also be weak, meaning that it does not update reference counting.
 	 * Note that weak pointers will point to garbage if the decorator instance is destroyed.
 	 *
 	 * Weak decorator pointers should be used carefully!
 	 * 
-	 * @see FNodeInstance, FDecoratorInstance
+	 * @see FNodeInstance, FDecoratorInstanceData
 	 */
 	struct ANIMNEXT_API FDecoratorPtr
 	{

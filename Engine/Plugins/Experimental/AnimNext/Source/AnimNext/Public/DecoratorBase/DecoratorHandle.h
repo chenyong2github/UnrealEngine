@@ -3,50 +3,52 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "DecoratorBase/NodeHandle.h"
 
-namespace UE::AnimNext
+#include "DecoratorHandle.generated.h"
+
+/**
+ * Decorator Handle
+ * A decorator handle represents a reference to a specific decorator instance in the shared/read-only portion
+ * of a sub-graph. It points to a FNodeDescription when resolved.
+ * @see FNodeDescription
+ */
+USTRUCT()
+struct FAnimNextDecoratorHandle
 {
-	/**
-	 * Decorator Handle
-	 * A decorator handle represents a reference to a specific decorator instance in the shared/read-only portion
-	 * of a sub-graph. It points to a FNodeDescription when resolved.
-	 * @see FNodeDescription
-	 */
-	struct FDecoratorHandle
-	{
-		// Creates an invalid decorator handle
-		FDecoratorHandle()
-			: DecoratorIndex(0)
-			, SharedOffset(INVALID_SHARED_OFFSET_VALUE)
-		{}
+	GENERATED_BODY()
 
-		// Creates a decorator handle pointing to the first decorator of the specified node
-		explicit FDecoratorHandle(FNodeHandle NodeHandle)
-			: DecoratorIndex(0)
-			, SharedOffset(NodeHandle.GetSharedOffset())
-		{}
+	// Creates an invalid decorator handle
+	FAnimNextDecoratorHandle()
+		: PackedDecoratorIndexAndNodeSharedOffset(INVALID_SHARED_OFFSET_VALUE)
+	{}
 
-		// Creates a decorator handle pointing to the specified decorator on the specified node
-		FDecoratorHandle(FNodeHandle NodeHandle, uint32 DecoratorIndex_)
-			: DecoratorIndex(DecoratorIndex_)
-			, SharedOffset(NodeHandle.GetSharedOffset())
-		{}
+	// Creates a decorator handle pointing to the first decorator of the specified node
+	explicit FAnimNextDecoratorHandle(UE::AnimNext::FNodeHandle NodeHandle)
+		: PackedDecoratorIndexAndNodeSharedOffset(NodeHandle.GetSharedOffset())
+	{}
 
-		// Returns true if this decorator handle is valid, false otherwise
-		bool IsValid() const { return SharedOffset != INVALID_SHARED_OFFSET_VALUE; }
+	// Creates a decorator handle pointing to the specified decorator on the specified node
+	FAnimNextDecoratorHandle(UE::AnimNext::FNodeHandle NodeHandle, uint32 DecoratorIndex_)
+		: PackedDecoratorIndexAndNodeSharedOffset(NodeHandle.GetSharedOffset() | (DecoratorIndex_ << 24))
+	{}
 
-		// Returns the decorator index
-		uint32 GetDecoratorIndex() const { return DecoratorIndex; }
+	// Returns true if this decorator handle is valid, false otherwise
+	bool IsValid() const { return (PackedDecoratorIndexAndNodeSharedOffset & SHARED_OFFSET_MASK) != INVALID_SHARED_OFFSET_VALUE; }
 
-		// Returns a handle to the node in the shared data segment
-		FNodeHandle GetNodeHandle() const { return FNodeHandle(SharedOffset); }
+	// Returns the decorator index
+	uint32 GetDecoratorIndex() const { return PackedDecoratorIndexAndNodeSharedOffset >> DECORATOR_SHIFT; }
 
-	private:
-		// We pack the shared offset on 24 bits, the top 8 bits are truncated
-		static constexpr uint32 INVALID_SHARED_OFFSET_VALUE = ~0u >> (32 - 24);
+	// Returns a handle to the node in the shared data segment
+	UE::AnimNext::FNodeHandle GetNodeHandle() const { return UE::AnimNext::FNodeHandle(PackedDecoratorIndexAndNodeSharedOffset & SHARED_OFFSET_MASK); }
 
-		uint32	DecoratorIndex : 8;
-		uint32	SharedOffset : 24;		// relative to root of sub-graph
-	};
-}
+private:
+	// Bottom 24 bits are used by the node shared offset while the top 8 bits by the decorator index
+	static constexpr uint32 DECORATOR_SHIFT = 24;
+	static constexpr uint32 SHARED_OFFSET_MASK = ~0u >> (32 - DECORATOR_SHIFT);
+	static constexpr uint32 INVALID_SHARED_OFFSET_VALUE = SHARED_OFFSET_MASK;
+
+	UPROPERTY()
+	uint32		PackedDecoratorIndexAndNodeSharedOffset;
+};

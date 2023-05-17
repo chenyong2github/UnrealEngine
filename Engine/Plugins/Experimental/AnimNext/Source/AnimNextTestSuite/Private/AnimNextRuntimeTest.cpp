@@ -9,8 +9,8 @@
 
 #include "DecoratorBase/Decorator.h"
 #include "DecoratorBase/DecoratorRegistry.h"
+#include "DecoratorBase/NodeDescription.h"
 #include "DecoratorBase/NodeInstance.h"
-#include "DecoratorBase/NodeTemplateRegistry.h"
 
 namespace UE::AnimNext
 {
@@ -49,7 +49,7 @@ namespace UE::AnimNext
 		const FDecoratorUID DecoratorUID = NodeTemplateDecoratorList[DecoratorIndex];
 		const FDecoratorRegistryHandle DecoratorHandle = Registry.FindHandle(DecoratorUID);
 		const FDecorator* Decorator = Registry.Find(DecoratorHandle);
-		const EDecoratorMode DecoratorMode = Decorator->GetMode();
+		const EDecoratorMode DecoratorMode = Decorator->GetDecoratorMode();
 
 		uint32 AdditiveIndexOrNumAdditive;
 		if (DecoratorMode == EDecoratorMode::Base)
@@ -59,7 +59,7 @@ namespace UE::AnimNext
 			for (int32 Index = DecoratorIndex + 1; Index < NodeTemplateDecoratorList.Num(); ++Index)	// Skip ourself
 			{
 				const FDecorator* ChildDecorator = Registry.Find(NodeTemplateDecoratorList[Index]);
-				if (ChildDecorator->GetMode() == EDecoratorMode::Base)
+				if (ChildDecorator->GetDecoratorMode() == EDecoratorMode::Base)
 				{
 					break;	// Found another base decorator, we are done
 				}
@@ -75,7 +75,7 @@ namespace UE::AnimNext
 			for (int32 Index = DecoratorIndex - 1; Index >= 0; --Index)
 			{
 				const FDecorator* ParentDecorator = Registry.Find(NodeTemplateDecoratorList[Index]);
-				if (ParentDecorator->GetMode() == EDecoratorMode::Base)
+				if (ParentDecorator->GetDecoratorMode() == EDecoratorMode::Base)
 				{
 					break;	// Found our base decorator, we are done
 				}
@@ -85,14 +85,17 @@ namespace UE::AnimNext
 			}
 		}
 
+		const FDecoratorMemoryLayout MemoryLayout = Decorator->GetDecoratorMemoryDescription();
+
+		// Align our data
+		SharedDataOffset = Align(SharedDataOffset, MemoryLayout.SharedDataAlignment);
+		InstanceDataOffset = Align(InstanceDataOffset, MemoryLayout.InstanceDataAlignment);
+
 		// Append and update our offsets
 		const int32 BufferIndex = NodeTemplateBuffer.AddUninitialized(sizeof(FDecoratorTemplate));
 		new(&NodeTemplateBuffer[BufferIndex]) FDecoratorTemplate(DecoratorUID, DecoratorHandle, DecoratorMode, AdditiveIndexOrNumAdditive, SharedDataOffset, InstanceDataOffset);
 
-		const FDecoratorMemoryLayout MemoryLayout = Decorator->GetDecoratorMemoryDescription();
-		SharedDataOffset = Align(SharedDataOffset, MemoryLayout.SharedDataAlignment);
 		SharedDataOffset += MemoryLayout.SharedDataSize;
-		InstanceDataOffset = Align(InstanceDataOffset, MemoryLayout.InstanceDataAlignment);
 		InstanceDataOffset += MemoryLayout.InstanceDataSize;
 	}
 
@@ -110,38 +113,6 @@ namespace UE::AnimNext
 		}
 
 		return reinterpret_cast<const FNodeTemplate*>(&NodeTemplateBuffer[0]);
-	}
-
-	uint32 GetNodeSharedSize(const FNodeTemplate& NodeTemplate)
-	{
-		const FDecoratorRegistry& Registry = FDecoratorRegistry::Get();
-
-		const uint32 NumDecorators = NodeTemplate.GetNumDecorators();
-		const FDecoratorTemplate* DecoratorTemplates = NodeTemplate.GetDecorators();
-
-		uint32 NodeSharedSize = sizeof(FNodeDescription);
-		for (uint32_t DecoratorIndex = 0; DecoratorIndex < NumDecorators; ++DecoratorIndex)
-		{
-			const FDecorator* Decorator = Registry.Find(DecoratorTemplates[DecoratorIndex].GetRegistryHandle());
-
-			const FDecoratorMemoryLayout MemoryLayout = Decorator->GetDecoratorMemoryDescription();
-			NodeSharedSize = Align(NodeSharedSize, MemoryLayout.SharedDataAlignment);
-			NodeSharedSize += MemoryLayout.SharedDataSize;
-		}
-
-		return NodeSharedSize;
-	}
-
-	// Adds a node template to a shared data graph and returns a handle to it
-	FNodeHandle AppendNodeToGraph(const FNodeTemplate& NodeTemplate, uint16& NodeUID, TArray<uint8>& GraphSharedDataBuffer)
-	{
-		FNodeTemplateRegistry& Registry = FNodeTemplateRegistry::Get();
-
-		const uint32 NodeSharedDataSize = GetNodeSharedSize(NodeTemplate);
-		const uint32 BufferIndex = GraphSharedDataBuffer.AddZeroed(NodeSharedDataSize);
-		new(&GraphSharedDataBuffer[BufferIndex]) FNodeDescription(NodeUID++, Registry.FindOrAdd(&NodeTemplate));
-
-		return FNodeHandle(BufferIndex);
 	}
 }
 #endif

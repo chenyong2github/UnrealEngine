@@ -6,10 +6,11 @@
 #include "DecoratorBase/DecoratorPtr.h"
 #include "DecoratorBase/DecoratorInterfaceUID.h"
 
+struct FAnimNextDecoratorSharedData;
+
 namespace UE::AnimNext
 {
-	struct FDecoratorDescription;
-	struct FDecoratorInstance;
+	struct FDecoratorInstanceData;
 	struct IDecoratorInterface;
 
 	/**
@@ -48,7 +49,7 @@ namespace UE::AnimNext
 
 	protected:
 		// Creates a valid binding
-		FDecoratorBinding(const IDecoratorInterface* Interface_, const FDecoratorDescription* SharedData_, FDecoratorInstance* InstanceData_, FWeakDecoratorPtr DecoratorPtr_)
+		FDecoratorBinding(const IDecoratorInterface* Interface_, const FAnimNextDecoratorSharedData* SharedData_, FDecoratorInstanceData* InstanceData_, FWeakDecoratorPtr DecoratorPtr_)
 			: Interface(Interface_)
 			, SharedData(SharedData_)
 			, InstanceData(InstanceData_)
@@ -61,8 +62,8 @@ namespace UE::AnimNext
 
 		const IDecoratorInterface*		Interface = nullptr;
 
-		const FDecoratorDescription*	SharedData = nullptr;
-		FDecoratorInstance*				InstanceData = nullptr;
+		const FAnimNextDecoratorSharedData*		SharedData = nullptr;
+		FDecoratorInstanceData*			InstanceData = nullptr;
 
 		FWeakDecoratorPtr				DecoratorPtr;
 

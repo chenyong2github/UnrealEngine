@@ -32,7 +32,7 @@ namespace UE::AnimNext
 		Private::GThreadLocalExecutionContext = nullptr;
 	}
 
-	FDecoratorPtr FExecutionContext::AllocateNodeInstance(FWeakDecoratorPtr ParentBinding, FDecoratorHandle ChildDecoratorHandle)
+	FDecoratorPtr FExecutionContext::AllocateNodeInstance(FWeakDecoratorPtr ParentBinding, FAnimNextDecoratorHandle ChildDecoratorHandle)
 	{
 		ensure(ChildDecoratorHandle.IsValid());
 		if (!ChildDecoratorHandle.IsValid())
@@ -96,10 +96,10 @@ namespace UE::AnimNext
 
 			FWeakDecoratorPtr DecoratorPtr(NodeInstance, DecoratorIndex);
 
-			const FDecoratorDescription* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
-			FDecoratorInstance* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
+			const FAnimNextDecoratorSharedData* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
+			FDecoratorInstanceData* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
 
-			Decorator->ConstructInstance(*this, DecoratorPtr, *SharedData, *InstanceData);
+			Decorator->ConstructDecoratorInstance(*this, DecoratorPtr, *SharedData, *InstanceData);
 		}
 
 		if (FailedDecoratorDesc != nullptr)
@@ -115,10 +115,10 @@ namespace UE::AnimNext
 
 				FWeakDecoratorPtr DecoratorPtr(NodeInstance, DecoratorIndex);
 
-				const FDecoratorDescription* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
-				FDecoratorInstance* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
+				const FAnimNextDecoratorSharedData* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
+				FDecoratorInstanceData* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
 
-				Decorator->DestructInstance(*this, DecoratorPtr, *SharedData, *InstanceData);
+				Decorator->DestructDecoratorInstance(*this, DecoratorPtr, *SharedData, *InstanceData);
 			}
 
 			FMemory::Free(NodeInstance);
@@ -166,10 +166,10 @@ namespace UE::AnimNext
 
 				FWeakDecoratorPtr DecoratorPtr(NodeInstance, DecoratorIndex);
 
-				const FDecoratorDescription* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
-				FDecoratorInstance* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
+				const FAnimNextDecoratorSharedData* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
+				FDecoratorInstanceData* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
 
-				Decorator->DestructInstance(*this, DecoratorPtr, *SharedData, *InstanceData);
+				Decorator->DestructDecoratorInstance(*this, DecoratorPtr, *SharedData, *InstanceData);
 			}
 		}
 
@@ -213,10 +213,10 @@ namespace UE::AnimNext
 				return false;	// Failed to find the matching decorator, did it get unregistered or is the decorator descriptor corrupted?
 			}
 
-			if (const IDecoratorInterface* Interface = Decorator->GetInterface(InterfaceUID))
+			if (const IDecoratorInterface* Interface = Decorator->GetDecoratorInterface(InterfaceUID))
 			{
-				const FDecoratorDescription* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
-				FDecoratorInstance* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
+				const FAnimNextDecoratorSharedData* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
+				FDecoratorInstanceData* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
 
 				const uint32 DecoratorIndex = DecoratorDesc - DecoratorDescs;
 				FWeakDecoratorPtr InterfaceDecoratorPtr(NodeInstance, DecoratorIndex);
@@ -271,10 +271,10 @@ namespace UE::AnimNext
 				return false;	// Failed to find the matching decorator, did it get unregistered or is the decorator descriptor corrupted?
 			}
 
-			if (const IDecoratorInterface* Interface = Decorator->GetInterface(InterfaceUID))
+			if (const IDecoratorInterface* Interface = Decorator->GetDecoratorInterface(InterfaceUID))
 			{
-				const FDecoratorDescription* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
-				FDecoratorInstance* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
+				const FAnimNextDecoratorSharedData* SharedData = DecoratorDesc->GetDecoratorDescription(NodeDesc);
+				FDecoratorInstanceData* InstanceData = DecoratorDesc->GetDecoratorInstance(*NodeInstance);
 
 				const uint32 DecoratorIndex = DecoratorDesc - DecoratorDescs;
 				FWeakDecoratorPtr SuperPtr(NodeInstance, DecoratorIndex);

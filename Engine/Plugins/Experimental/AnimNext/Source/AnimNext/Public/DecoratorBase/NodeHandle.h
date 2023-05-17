@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+struct FAnimNextDecoratorHandle;
+
 namespace UE::AnimNext
 {
 	/**
@@ -42,6 +44,6 @@ namespace UE::AnimNext
 		uint32	Padding : 8;			// unused padding
 		uint32	SharedOffset : 24;		// relative to root of sub-graph
 
-		friend struct FDecoratorHandle;
+		friend FAnimNextDecoratorHandle;
 	};
 }

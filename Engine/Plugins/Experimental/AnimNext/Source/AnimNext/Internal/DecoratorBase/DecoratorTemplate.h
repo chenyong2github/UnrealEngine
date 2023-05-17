@@ -9,10 +9,12 @@
 
 #include <type_traits>
 
+class FArchive;
+struct FAnimNextDecoratorSharedData;
+
 namespace UE::AnimNext
 {
-	struct FDecoratorDescription;
-	struct FDecoratorInstance;
+	struct FDecoratorInstanceData;
 	struct FNodeDescription;
 	struct FNodeInstance;
 
@@ -63,28 +65,31 @@ namespace UE::AnimNext
 		uint32 GetNodeInstanceOffset() const { return NodeInstanceOffset; }
 
 		// Returns a pointer to the specified decorator description on the current node
-		FDecoratorDescription* GetDecoratorDescription(FNodeDescription& NodeDescription) const
+		FAnimNextDecoratorSharedData* GetDecoratorDescription(FNodeDescription& NodeDescription) const
 		{
-			return reinterpret_cast<FDecoratorDescription*>(reinterpret_cast<uint8*>(&NodeDescription) + GetNodeSharedOffset());
+			return reinterpret_cast<FAnimNextDecoratorSharedData*>(reinterpret_cast<uint8*>(&NodeDescription) + GetNodeSharedOffset());
 		}
 
 		// Returns a pointer to the specified decorator description on the current node
-		const FDecoratorDescription* GetDecoratorDescription(const FNodeDescription& NodeDescription) const
+		const FAnimNextDecoratorSharedData* GetDecoratorDescription(const FNodeDescription& NodeDescription) const
 		{
-			return reinterpret_cast<const FDecoratorDescription*>(reinterpret_cast<const uint8*>(&NodeDescription) + GetNodeSharedOffset());
+			return reinterpret_cast<const FAnimNextDecoratorSharedData*>(reinterpret_cast<const uint8*>(&NodeDescription) + GetNodeSharedOffset());
 		}
 
 		// Returns a pointer to the specified decorator instance on the current node
-		FDecoratorInstance* GetDecoratorInstance(FNodeInstance& NodeInstance) const
+		FDecoratorInstanceData* GetDecoratorInstance(FNodeInstance& NodeInstance) const
 		{
-			return reinterpret_cast<FDecoratorInstance*>(reinterpret_cast<uint8*>(&NodeInstance) + GetNodeInstanceOffset());
+			return reinterpret_cast<FDecoratorInstanceData*>(reinterpret_cast<uint8*>(&NodeInstance) + GetNodeInstanceOffset());
 		}
 
 		// Returns a pointer to the specified decorator instance on the current node
-		const FDecoratorInstance* GetDecoratorInstance(const FNodeInstance& NodeInstance) const
+		const FDecoratorInstanceData* GetDecoratorInstance(const FNodeInstance& NodeInstance) const
 		{
-			return reinterpret_cast<const FDecoratorInstance*>(reinterpret_cast<const uint8*>(&NodeInstance) + GetNodeInstanceOffset());
+			return reinterpret_cast<const FDecoratorInstanceData*>(reinterpret_cast<const uint8*>(&NodeInstance) + GetNodeInstanceOffset());
 		}
+
+		// Serializes this decorator template instance
+		ANIMNEXT_API void Serialize(FArchive& Ar);
 
 	private:
 		uint32	UID;							// decorator globally unique identifier

@@ -9,7 +9,21 @@
 #include "DecoratorInterfaces/ITimeline.h"
 #include "DecoratorInterfaces/IUpdate.h"
 
+#include "SequencePlayer.generated.h"
+
 class UAnimSequence;
+
+USTRUCT()
+struct FAnimNextSequencePlayerDecoratorSharedData : public FAnimNextDecoratorSharedData
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TObjectPtr<UAnimSequence> AnimSeq;
+
+	UPROPERTY()
+	double PlayRate = 1.0;
+};
 
 namespace UE::AnimNext
 {
@@ -18,24 +32,16 @@ namespace UE::AnimNext
 	 * 
 	 * A decorator that can play an animation sequence.
 	 */
-	struct FSequencePlayerDecorator : FDecorator, IEvaluate, ITimeline, IUpdate
+	struct FSequencePlayerDecorator : FBaseDecorator, IEvaluate, ITimeline, IUpdate
 	{
-		DECLARE_ANIM_DECORATOR(FSequencePlayerDecorator, 0xa628ad12, FDecorator)
+		DECLARE_ANIM_DECORATOR(FSequencePlayerDecorator, 0xa628ad12, FBaseDecorator)
 
-		struct FSharedData : FDecorator::FSharedData
-		{
-			TObjectPtr<UAnimSequence> AnimSeq;
-
-			double PlayRate = 1.0;
-		};
+		using FSharedData = FAnimNextSequencePlayerDecoratorSharedData;
 
 		struct FInstanceData : FDecorator::FInstanceData
 		{
 			double CurrentTime = 0.0;
 		};
-
-		// FDecorator impl
-		virtual EDecoratorMode GetMode() const override { return EDecoratorMode::Base; }
 
 		// IEvaluate impl
 		virtual void PreEvaluate(FExecutionContext& Context, const TDecoratorBinding<IEvaluate>& Binding) const override;

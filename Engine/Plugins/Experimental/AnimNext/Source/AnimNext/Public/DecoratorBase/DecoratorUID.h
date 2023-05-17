@@ -45,10 +45,6 @@ namespace UE::AnimNext
 		// Returns whether this UID is valid or not
 		constexpr bool IsValid() const { return UID != 0; }
 
-		// Compares for equality and inequality
-		constexpr bool operator==(FDecoratorUID RHS) const { return UID == RHS.UID; }
-		constexpr bool operator!=(FDecoratorUID RHS) const { return UID != RHS.UID; }
-
 	private:
 		uint32	UID;
 
@@ -56,4 +52,12 @@ namespace UE::AnimNext
 		const TCHAR* DecoratorName;
 #endif
 	};
+
+	// Compares for equality and inequality
+	constexpr bool operator==(FDecoratorUID LHS, FDecoratorUID RHS) { return LHS.GetUID() == RHS.GetUID(); }
+	constexpr bool operator!=(FDecoratorUID LHS, FDecoratorUID RHS) { return LHS.GetUID() != RHS.GetUID(); }
+	constexpr bool operator==(FDecoratorUID LHS, uint32 RHS) { return LHS.GetUID() == RHS; }
+	constexpr bool operator!=(FDecoratorUID LHS, uint32 RHS) { return LHS.GetUID() != RHS; }
+	constexpr bool operator==(uint32 LHS, FDecoratorUID RHS) { return LHS == RHS.GetUID(); }
+	constexpr bool operator!=(uint32 LHS, FDecoratorUID RHS) { return LHS != RHS.GetUID(); }
 }

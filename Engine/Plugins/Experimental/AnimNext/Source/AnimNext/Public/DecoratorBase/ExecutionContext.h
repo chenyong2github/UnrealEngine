@@ -53,11 +53,11 @@ namespace UE::AnimNext
 
 		// Allocates a new node instance from a decorator handle
 		// If the desired decorator lives in the current parent, a weak handle to it will be returned
-		FDecoratorPtr AllocateNodeInstance(const FDecoratorBinding& ParentBinding, FDecoratorHandle ChildDecoratorHandle);
+		FDecoratorPtr AllocateNodeInstance(const FDecoratorBinding& ParentBinding, FAnimNextDecoratorHandle ChildDecoratorHandle);
 
 		// Allocates a new node instance from a decorator handle
 		// If the desired decorator lives in the current parent, a weak handle to it will be returned
-		FDecoratorPtr AllocateNodeInstance(FWeakDecoratorPtr ParentBinding, FDecoratorHandle ChildDecoratorHandle);
+		FDecoratorPtr AllocateNodeInstance(FWeakDecoratorPtr ParentBinding, FAnimNextDecoratorHandle ChildDecoratorHandle);
 
 		// Releases a node instance that is no longer referenced
 		void ReleaseNodeInstance(FNodeInstance* Node);
@@ -115,7 +115,7 @@ namespace UE::AnimNext
 		return GetInterfaceSuper<DecoratorInterface>(Binding.GetDecoratorPtr(), SuperBinding);
 	}
 
-	inline FDecoratorPtr FExecutionContext::AllocateNodeInstance(const FDecoratorBinding& ParentBinding, FDecoratorHandle ChildDecoratorHandle)
+	inline FDecoratorPtr FExecutionContext::AllocateNodeInstance(const FDecoratorBinding& ParentBinding, FAnimNextDecoratorHandle ChildDecoratorHandle)
 	{
 		return AllocateNodeInstance(ParentBinding.GetDecoratorPtr(), ChildDecoratorHandle);
 	}

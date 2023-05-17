@@ -8,8 +8,6 @@
 
 namespace UE::AnimNext
 {
-	struct FDecoratorInstance;
-
 	/**
 	 * Node Instance
 	 * A node instance represents allocated data for specific node.
@@ -42,7 +40,7 @@ namespace UE::AnimNext
 		uint32		ReferenceCount;		// how many non-weak FNodePtr and FDecoratorPtr handles point to us, not thread safe
 		FNodeHandle	NodeHandle;			// relative to root of sub-graph, should this be a pointer?
 
-		// Followed by a list of [FDecoratorInstance] instances and optional padding
+		// Followed by a list of [FDecoratorInstanceData] instances and optional padding
 
 		friend struct FDecoratorPtr;
 		friend struct FExecutionContext;

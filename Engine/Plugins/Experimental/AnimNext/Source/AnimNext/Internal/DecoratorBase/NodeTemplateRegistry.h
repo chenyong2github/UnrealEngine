@@ -21,17 +21,26 @@ namespace UE::AnimNext
 		// Access the global registry
 		static FNodeTemplateRegistry& Get();
 
+		// Finds the specified node template from its UID and returns its offset
+		FNodeTemplateRegistryHandle Find(uint32 NodeTemplateUID) const;
+
 		// Finds or adds the specified node template and returns its offset
 		FNodeTemplateRegistryHandle FindOrAdd(const FNodeTemplate* NodeTemplate);
 
-		// Removes the specified node template from the registry
-		void Unregister(const FNodeTemplate* NodeTemplate);
+		// Finds and returns a node template based on its handle or nullptr if the handle is invalid
+		FNodeTemplate* Find(FNodeTemplateRegistryHandle TemplateHandle);
 
 		// Finds and returns a node template based on its handle or nullptr if the handle is invalid
 		const FNodeTemplate* Find(FNodeTemplateRegistryHandle TemplateHandle) const;
 
 		// Returns the number of registered node templates
 		uint32 GetNum() const;
+
+		// Removes the specified node template from the registry
+		void Unregister(const FNodeTemplate* NodeTemplate);
+
+		// Clears the registry by removing every node template
+		void Clear();
 
 	private:
 		FNodeTemplateRegistry() = default;
