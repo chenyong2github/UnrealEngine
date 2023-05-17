@@ -65,7 +65,7 @@ void FDisplayClusterViewport::CleanupViewState()
 
 FSceneViewStateInterface* FDisplayClusterViewport::GetViewState(uint32 ViewIndex)
 {
-	if (GDisplayClusterPreviewEnableViewState == 0 || (GDisplayClusterPreviewEnableConfiguratorViewState == 0 && Owner.IsEditorPreviewWorld()))
+	if (GDisplayClusterPreviewEnableViewState == 0 || (GDisplayClusterPreviewEnableConfiguratorViewState == 0 && IsCurrentWorldHasAnyType(EWorldType::EditorPreview)))
 	{
 		// Disable ViewState
 		ViewStates.Empty();
@@ -86,7 +86,7 @@ FSceneViewStateInterface* FDisplayClusterViewport::GetViewState(uint32 ViewIndex
 
 	if (ViewStates[ViewIndex]->GetReference() == NULL)
 	{
-		const UWorld* CurrentWorld = Owner.GetCurrentWorld();
+		const UWorld* CurrentWorld = GetCurrentWorld();
 		const ERHIFeatureLevel::Type FeatureLevel = CurrentWorld ? CurrentWorld->GetFeatureLevel() : GMaxRHIFeatureLevel;
 
 		ViewStates[ViewIndex]->Allocate(FeatureLevel);
@@ -147,9 +147,12 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
 
-		if (Owner.GetRenderFrameSettings().bPreviewEnablePostProcess == false)
+		if (const FDisplayClusterRenderFrameSettings* RenderFrameSettings = GetRenderFrameSettings())
 		{
-			ViewInitOptions.OverlayColor = FLinearColor::Black;
+			if (RenderFrameSettings->bPreviewEnablePostProcess == false)
+			{
+				ViewInitOptions.OverlayColor = FLinearColor::Black;
+			}
 		}
 
 		ViewInitOptions.bSceneCaptureUsesRayTracing = false;
@@ -253,7 +256,7 @@ FMatrix FDisplayClusterViewport::ImplPreview_GetStereoProjectionMatrix(const uin
 
 	FMatrix PrjMatrix = FMatrix::Identity;
 
-	if (GetOwner().IsSceneOpened())
+	if (IsSceneOpened())
 	{
 		if (GetProjectionMatrix(InContextNum, PrjMatrix) == false)
 		{

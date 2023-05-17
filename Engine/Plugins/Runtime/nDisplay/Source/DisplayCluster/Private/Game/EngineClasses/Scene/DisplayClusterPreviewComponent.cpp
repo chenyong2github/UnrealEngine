@@ -14,6 +14,7 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 
 #include "Render/Viewport/DisplayClusterViewport.h"
+#include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/Containers/DisplayClusterViewportReadPixels.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 #include "Render/Viewport/DisplayClusterViewportHelpers.h"
@@ -410,17 +411,16 @@ void UDisplayClusterPreviewComponent::UpdateRenderTargetImpl(T* InOutRenderTarge
 
 bool UDisplayClusterPreviewComponent::GetPreviewTextureSettings(FIntPoint& OutSize, EPixelFormat& OutTextureFormat, float& OutGamma, bool& bOutSRGB) const
 {
-	if (IDisplayClusterViewport* PublicViewport = GetCurrentViewport())
+	if (FDisplayClusterViewport* Viewport = static_cast<FDisplayClusterViewport*>(GetCurrentViewport()))
 	{
-		if (FDisplayClusterViewport* Viewport = static_cast<FDisplayClusterViewport*>(PublicViewport))
+		if (FDisplayClusterViewportManager* ViewportManager = Viewport->GetViewportManagerImpl())
 		{
 			// The viewport size is already capped for RenderSettings
-			const TArray<FDisplayClusterViewport_Context>& Contexts = PublicViewport->GetContexts();
-			if (Contexts.Num() > 0)
+			if (!Viewport->GetContexts().IsEmpty())
 			{
-				DisplayClusterViewportHelpers::GetPreviewRenderTargetDesc_Editor(Viewport->GetRenderFrameSettings(), OutTextureFormat, OutGamma, bOutSRGB);
+				DisplayClusterViewportHelpers::GetPreviewRenderTargetDesc_Editor(ViewportManager->GetRenderFrameSettings(), OutTextureFormat, OutGamma, bOutSRGB);
 
-				OutSize = Contexts[0].FrameTargetRect.Size();
+				OutSize = Viewport->GetContexts()[0].FrameTargetRect.Size();
 
 				check(OutSize.X > 0);
 				check(OutSize.Y > 0);

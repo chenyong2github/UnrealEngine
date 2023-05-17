@@ -53,7 +53,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateViewportStereoMode(FDisp
 
 void FDisplayClusterViewportConfigurationHelpers::UpdateViewportSetting_OverlayRenderSettings(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_OverlayAdvancedRenderSettings& InOverlaySettings)
 {
-	DstViewport.Owner.SetViewportBufferRatio(DstViewport, InOverlaySettings.BufferRatio);
+	DstViewport.SetViewportBufferRatio(InOverlaySettings.BufferRatio);
 	DstViewport.RenderSettings.RenderTargetRatio = InOverlaySettings.RenderTargetRatio;
 
 	DstViewport.RenderSettings.GPUIndex = InOverlaySettings.GPUIndex;
@@ -196,7 +196,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 	FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdatePerViewportPostProcessSettings(DstViewport, RootActor);
 
 	{
-		DstViewport.Owner.SetViewportBufferRatio(DstViewport, InRenderSettings.BufferRatio);
+		DstViewport.SetViewportBufferRatio(InRenderSettings.BufferRatio);
 
 		UpdateViewportSetting_Overscan(DstViewport, InRenderSettings.Overscan);
 
@@ -335,7 +335,7 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(FDispla
 	{
 		if (!DstViewport.ProjectionPolicy.IsValid())
 		{
-			if (DstViewport.Owner.IsSceneOpened())
+			if (DstViewport.IsSceneOpened())
 			{
 				// Try initialize proj policy every tick (mesh deferred load, etc)
 				DstViewport.HandleStartScene();

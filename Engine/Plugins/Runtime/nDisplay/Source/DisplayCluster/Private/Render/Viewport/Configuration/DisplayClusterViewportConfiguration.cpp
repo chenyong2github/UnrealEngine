@@ -119,6 +119,13 @@ static FAutoConsoleVariableRef CVarDisplayClusterAlphaChannelCaptureMode(
 ///////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfiguration
 ///////////////////////////////////////////////////////////////////
+FDisplayClusterViewportConfiguration::FDisplayClusterViewportConfiguration(FDisplayClusterViewportManager& InViewportManager)
+	: ViewportManager(InViewportManager.AsShared())
+{ }
+
+FDisplayClusterViewportConfiguration::~FDisplayClusterViewportConfiguration()
+{ }
+
 EDisplayClusterRenderFrameAlphaChannelCaptureMode FDisplayClusterViewportConfiguration::GetAlphaChannelCaptureMode() const
 {
 	ECVarDisplayClusterAlphaChannelCaptureMode AlphaChannelCaptureMode = (ECVarDisplayClusterAlphaChannelCaptureMode)FMath::Clamp(GDisplayClusterAlphaChannelCaptureMode, 0, (int32)ECVarDisplayClusterAlphaChannelCaptureMode::COUNT - 1);
@@ -195,9 +202,9 @@ bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClust
 		const UDisplayClusterConfigurationData* ConfigurationData = RootActor->GetConfigData();
 		if (ConfigurationData)
 		{
-			FDisplayClusterViewportConfigurationBase ConfigurationBase(ViewportManager, *RootActor, *ConfigurationData);
+			FDisplayClusterViewportConfigurationBase ConfigurationBase(*ViewportManager, *RootActor, *ConfigurationData);
 			FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(*RootActor);
-			FDisplayClusterViewportConfigurationProjectionPolicy ConfigurationProjectionPolicy(ViewportManager, *RootActor, *ConfigurationData);
+			FDisplayClusterViewportConfigurationProjectionPolicy ConfigurationProjectionPolicy(*ViewportManager, *RootActor, *ConfigurationData);
 
 			ImplUpdateRenderFrameConfiguration(RootActor->GetRenderFrameSettings());
 
@@ -329,9 +336,12 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADi
 	TSet<FPrimitiveComponentId> RootActorHidePrimitivesList;
 	if (RootActor.GetHiddenInGamePrimitives(RootActorHidePrimitivesList))
 	{
-		for (FDisplayClusterViewport* ViewportIt : ViewportManager.ImplGetViewports())
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager->ImplGetViewports())
 		{
-			ViewportIt->VisibilitySettings.SetRootActorHideList(RootActorHidePrimitivesList);
+			if (ViewportIt.IsValid())
+			{
+				ViewportIt->VisibilitySettings.SetRootActorHideList(RootActorHidePrimitivesList);
+			}
 		}
 	}
 }
@@ -339,8 +349,8 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADi
 void FDisplayClusterViewportConfiguration::ImplPostUpdateRenderFrameConfiguration()
 {
 	// Some frame postprocess require additional render targetable resources
-	RenderFrameSettings.bShouldUseAdditionalFrameTargetableResource = ViewportManager.ShouldUseAdditionalFrameTargetableResource();
-	RenderFrameSettings.bShouldUseFullSizeFrameTargetableResource = ViewportManager.ShouldUseFullSizeFrameTargetableResource();
+	RenderFrameSettings.bShouldUseAdditionalFrameTargetableResource = ViewportManager->ShouldUseAdditionalFrameTargetableResource();
+	RenderFrameSettings.bShouldUseFullSizeFrameTargetableResource = ViewportManager->ShouldUseFullSizeFrameTargetableResource();
 }
 
 void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(const FDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration)

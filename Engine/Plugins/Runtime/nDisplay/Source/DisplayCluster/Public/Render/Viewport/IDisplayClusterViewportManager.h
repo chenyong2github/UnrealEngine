@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
-#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
 #include "Render/Viewport/Containers/DisplayClusterPreviewSettings.h"
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameEnums.h"
+
 #include "SceneView.h"
 
 class UWorld;
@@ -16,13 +17,23 @@ class ADisplayClusterRootActor;
 class UDisplayClusterConfigurationViewport;
 class IDisplayClusterViewportManagerProxy;
 class FReferenceCollector;
+class FDisplayClusterRenderFrame;
+struct FDisplayClusterRenderFrameTarget;
+struct FDisplayClusterRenderFrameTargetViewFamily;
 
+/**
+ * nDisplay ViewportManager (interface for GameThread)
+ */
 class DISPLAYCLUSTER_API IDisplayClusterViewportManager
 {
 public:
 	virtual ~IDisplayClusterViewportManager() = default;
 
 public:
+	/** Get TSharedPtr from self. */
+	virtual TSharedPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe> ToSharedPtr() = 0;
+	virtual TSharedPtr<const IDisplayClusterViewportManager, ESPMode::ThreadSafe> ToSharedPtr() const = 0;
+
 	virtual const IDisplayClusterViewportManagerProxy* GetProxy() const = 0;
 	virtual       IDisplayClusterViewportManagerProxy* GetProxy() = 0;
 
@@ -31,7 +42,7 @@ public:
 	virtual ADisplayClusterRootActor* GetRootActor() const = 0;
 
 	/**
-	* Return current scene status
+	* Returns true if the scene is open now (The current world is assigned and DCRA has already initialized for it).
 	* [Game thread func]
 	*/
 	virtual bool IsSceneOpened() const = 0;
@@ -101,7 +112,7 @@ public:
 	* @return - The ConstructionValues object that was created, meant to initialize a view family context.
 	*/
 	virtual FSceneViewFamily::ConstructionValues CreateViewFamilyConstructionValues(
-		const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget,
+		const FDisplayClusterRenderFrameTarget& InFrameTarget,
 		FSceneInterface* InScene,
 		FEngineShowFlags InEngineShowFlags,
 		const bool bInAdditionalViewFamily
@@ -115,11 +126,15 @@ public:
 	* @param OutRenderOutViewFamily - output family
 	*
 	*/
-	virtual void ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& InOutViewFamily) = 0;
+	virtual void ConfigureViewFamily(const FDisplayClusterRenderFrameTarget& InFrameTarget, const FDisplayClusterRenderFrameTargetViewFamily& InFrameViewFamily, FSceneViewFamilyContext& InOutViewFamily) = 0;
 
-	// Send to render thread
+	/** Send to render thread. */
 	virtual void RenderFrame(FViewport* InViewport) = 0;
 
+	/** Return current render mode. */
+	virtual EDisplayClusterRenderFrameMode GetRenderMode() const = 0;
+
+	/** Add internal DCVM objects to the reference collector. */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) = 0;
 
 #if WITH_EDITOR
@@ -136,7 +151,7 @@ public:
 	*
 	* @return - true, if render success
 	*/
-	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmount, int32& OutViewportsAmount, bool& bOutFrameRendered) = 0;
+	virtual bool RenderInEditor(FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmount, int32& OutViewportsAmount, bool& bOutFrameRendered) = 0;
 #endif
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -167,7 +182,7 @@ public:
 	*
 	* @return - arrays with viewport objects refs
 	*/
-	virtual const TArrayView<IDisplayClusterViewport*> GetViewports() const = 0;
+	virtual const TArrayView<TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>> GetViewports() const = 0;
 
 	/**
 	* Mark the geometry of the referenced component(s) as dirty (ProceduralMesh, etc)

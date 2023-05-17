@@ -49,11 +49,9 @@ APlayerCameraManager* const GetCurPlayerCameraManager(IDisplayClusterViewport* I
 {
 	if (InViewport)
 	{
-		UWorld* World = InViewport->GetOwner().GetCurrentWorld();
-		if (World)
+		if (UWorld* World = InViewport->GetCurrentWorld())
 		{
-			APlayerController* const CurPlayerController = World->GetFirstPlayerController();
-			if (CurPlayerController)
+			if (APlayerController* const CurPlayerController = World->GetFirstPlayerController())
 			{
 				return CurPlayerController->PlayerCameraManager;
 			}

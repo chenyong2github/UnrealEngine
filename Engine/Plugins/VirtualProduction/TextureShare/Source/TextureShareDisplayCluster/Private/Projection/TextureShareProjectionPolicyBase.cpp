@@ -47,26 +47,7 @@ bool FTextureShareProjectionPolicyBase::IsEditorOperationMode(class IDisplayClus
 	}
 
 	// Get state from viewport world (UE-114493)
-	if (InViewport)
-	{
-		if (UWorld* CurrentWorld = InViewport->GetOwner().GetCurrentWorld())
-		{
-			if (CurrentWorld)
-			{
-				switch (CurrentWorld->WorldType)
-				{
-				case EWorldType::Editor:
-				case EWorldType::EditorPreview:
-					return true;
-
-				default:
-					break;
-				}
-			}
-		}
-	}
-
-	return false;
+	return InViewport && InViewport->IsCurrentWorldHasAnyType(EWorldType::Editor, EWorldType::EditorPreview);
 }
 
 bool FTextureShareProjectionPolicyBase::IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const

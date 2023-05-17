@@ -48,6 +48,7 @@
 
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
 
 #include "Config/DisplayClusterConfigManager.h"
 #include "UObject/Package.h"
@@ -475,9 +476,9 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 	// Handle special viewports game-thread logic at frame begin
 	DCRenderDevice->InitializeNewFrame();
 
-	for (FDisplayClusterRenderFrame::FFrameRenderTarget& DCRenderTarget : RenderFrame.RenderTargets)
+	for (FDisplayClusterRenderFrameTarget& DCRenderTarget : RenderFrame.RenderTargets)
 	{
-		for (FDisplayClusterRenderFrame::FFrameViewFamily& DCViewFamily : DCRenderTarget.ViewFamilies)
+		for (FDisplayClusterRenderFrameTargetViewFamily& DCViewFamily : DCRenderTarget.ViewFamilies)
 		{
 			// Create the view family for rendering the world scene to the viewport's render target
 			ViewFamilies.Add(new FSceneViewFamilyContext(RenderFrame.ViewportManager->CreateViewFamilyConstructionValues(
@@ -544,7 +545,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			FAudioDeviceHandle RetrievedAudioDevice = MyWorld->GetAudioDevice();
 			TArray<FSceneView*> Views;
 
-			for (FDisplayClusterRenderFrame::FFrameView& DCView : DCViewFamily.Views)
+			for (FDisplayClusterRenderFrameTargetView& DCView : DCViewFamily.Views)
 			{
 				const FDisplayClusterViewport_Context ViewportContext = DCView.Viewport->GetContexts()[DCView.ContextNum];
 
@@ -553,7 +554,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				FRotator	ViewRotation;
 				FSceneView* View = RenderFrame.ViewportManager->CalcSceneView(LocalPlayer, &ViewFamily, ViewLocation, ViewRotation, InViewport, nullptr, ViewportContext.StereoViewIndex);
 
-				if (View && !DCView.ShouldRenderSceneView())
+				if (View && !DCView.IsViewportContextCanBeRendered())
 				{
 					ViewFamily.Views.Remove(View);
 
@@ -1014,19 +1015,6 @@ bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* Sce
 		return false;
 	}
 
-	//@todo add render mode select
-	EDisplayClusterRenderFrameMode RenderFrameMode = EDisplayClusterRenderFrameMode::Mono;
-	switch (RootActor->RenderMode)
-	{
-	case EDisplayClusterConfigurationRenderMode::SideBySide:
-		RenderFrameMode = EDisplayClusterRenderFrameMode::SideBySide;
-		break;
-	case EDisplayClusterConfigurationRenderMode::TopBottom:
-		RenderFrameMode = EDisplayClusterRenderFrameMode::TopBottom;
-		break;
-	default:
-		break;
-	}
 
 	//Get world for render
 	UWorld* const MyWorld = GetWorld();
@@ -1042,7 +1030,8 @@ bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* Sce
 	PreviewSettings.bIsPIE = true;
 
 	// Update local node viewports (update\create\delete) and build new render frame
-	if (ViewportManager->UpdateConfiguration(RenderFrameMode, LocalNodeId, RootActor, &PreviewSettings) == false)
+	const EDisplayClusterRenderFrameMode PreviewRenderMode = RootActor->GetPreviewRenderMode();
+	if (ViewportManager->UpdateConfiguration(PreviewRenderMode, LocalNodeId, RootActor, &PreviewSettings) == false)
 	{
 		return false;
 	}

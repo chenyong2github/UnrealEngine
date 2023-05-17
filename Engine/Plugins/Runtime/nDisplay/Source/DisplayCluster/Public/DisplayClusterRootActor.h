@@ -100,6 +100,14 @@ public:
 	const FDisplayClusterConfigurationICVFX_StageSettings& GetStageSettings() const;
 	const FDisplayClusterConfigurationRenderFrame& GetRenderFrameSettings() const;
 
+	/** Returns the current rendering mode of this DCRA (not a value from configuration).
+	 * This value can be overridden from DCRenderDevice or other rendering subsystems (e.g. Preview).
+	 */
+	EDisplayClusterRenderFrameMode GetRenderMode() const;
+
+	/** Returns the preview rendering mode of this DCRA. */
+	EDisplayClusterRenderFrameMode GetPreviewRenderMode() const;
+
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// AActor
@@ -188,19 +196,21 @@ public:
 	void SetPreviewEnablePostProcess(const bool bNewPreviewEnablePostProcess);
 
 public:
-	IDisplayClusterViewportManager* GetViewportManager() const
-	{
-		return ViewportManager.IsValid() ? ViewportManager.Get() : nullptr;
-	}
+	/** Get ViewportManager API. */
+	IDisplayClusterViewportManager* GetViewportManager() const;
 	
 	static FName GetCurrentConfigDataMemberName()
 	{
 		return GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, CurrentConfigData);
 	}
 
-protected:
-	// Unique viewport manager for this configuration
-	TUniquePtr<IDisplayClusterViewportManager> ViewportManager;
+private:
+	/** Create new viewport manager instance if not exists. */
+	void CreateViewportManagerImpl();
+
+private:
+	// Viewport manager for this configuration
+	TSharedPtr<class FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Details Panel Property Referencers

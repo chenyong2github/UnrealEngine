@@ -26,7 +26,7 @@ static TAutoConsoleVariable<int32> CVarUVLightCardTextureSize(
 // FDisplayClusterViewportLightCardManager
 ///////////////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterViewportLightCardManager::FDisplayClusterViewportLightCardManager(FDisplayClusterViewportManager& InViewportManager)
-	: ViewportManager(InViewportManager)
+	: ViewportManager(InViewportManager.AsShared())
 {
 	LightCardManagerProxy = MakeShared<FDisplayClusterViewportLightCardManagerProxy, ESPMode::ThreadSafe>();
 }
@@ -92,7 +92,7 @@ void FDisplayClusterViewportLightCardManager::UpdateUVLightCardData()
 	/** The list of UV light card actors that are referenced by the root actor */
 	TArray<ADisplayClusterLightCardActor*> UVLightCardActors;
 
-	if (ADisplayClusterRootActor* RootActorPtr = ViewportManager.GetRootActor())
+	if (ADisplayClusterRootActor* RootActorPtr = ViewportManager->GetRootActor())
 	{
 		TSet<ADisplayClusterLightCardActor*> LightCards;
 		UDisplayClusterBlueprintLib::FindLightCardsForRootActor(RootActorPtr, LightCards);
@@ -165,7 +165,7 @@ void FDisplayClusterViewportLightCardManager::UpdateUVLightCardResource()
 void FDisplayClusterViewportLightCardManager::RenderUVLightCard()
 {
 	// Render UV LightCard:
-	UWorld* World = ViewportManager.GetCurrentWorld();
+	UWorld* World = ViewportManager->GetCurrentWorld();
 	if (IsUVLightCardEnabled() && World && LightCardManagerProxy.IsValid())
 	{
 		UpdateUVLightCardResource();
@@ -174,7 +174,7 @@ void FDisplayClusterViewportLightCardManager::RenderUVLightCard()
 		{
 			FDisplayClusterShaderParameters_UVLightCards UVLightCardParameters;
 			UVLightCardParameters.ProjectionPlaneSize = ADisplayClusterLightCardActor::UVPlaneDefaultSize;
-			UVLightCardParameters.bRenderFinalColor = ViewportManager.ShouldRenderFinalColor();
+			UVLightCardParameters.bRenderFinalColor = ViewportManager->ShouldRenderFinalColor();
 
 			// Store any components that were invisible but forced to be visible so they can be set back to invisible after the render
 			TArray<UPrimitiveComponent*> ComponentsToUnload;

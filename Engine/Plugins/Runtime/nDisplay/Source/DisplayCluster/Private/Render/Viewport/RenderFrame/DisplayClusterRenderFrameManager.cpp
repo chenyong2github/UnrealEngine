@@ -13,7 +13,7 @@
 ///////////////////////////////////////////////////////////////
 // FDisplayClusterRenderTargetFrame
 ///////////////////////////////////////////////////////////////
-bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<FDisplayClusterViewport*>& InViewports, FDisplayClusterRenderFrame& OutRenderFrame)
+bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& InViewports, FDisplayClusterRenderFrame& OutRenderFrame)
 {
 
 	switch (InRenderFrameSettings.RenderMode)
@@ -21,6 +21,7 @@ bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, 
 	case EDisplayClusterRenderFrameMode::PreviewInScene:
 		// Dont use render frame for preview
 		break;
+
 	default:
 		if (!FindFrameTargetRect(InViewport, InViewports, InRenderFrameSettings, OutRenderFrame.FrameRect))
 		{
@@ -34,19 +35,22 @@ bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, 
 
 	// Sort viewports, childs after parents
 	//@todo save this order inside logic
-	TArray<FDisplayClusterViewport*> SortedViewports;
-	TArray<FDisplayClusterViewport*> ChildsViewports;
+	TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> SortedViewports;
+	TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> ChildsViewports;
 
 	// First add root viewports
-	for (FDisplayClusterViewport* Viewport : InViewports)
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& Viewport : InViewports)
 	{
-		if (Viewport->RenderSettings.GetParentViewportId().IsEmpty())
+		if (Viewport.IsValid())
 		{
-			SortedViewports.Add(Viewport);
-		}
-		else
-		{
-			ChildsViewports.Add(Viewport);
+			if (Viewport->RenderSettings.GetParentViewportId().IsEmpty())
+			{
+				SortedViewports.Add(Viewport);
+			}
+			else
+			{
+				ChildsViewports.Add(Viewport);
+			}
 		}
 	}
 
@@ -59,16 +63,16 @@ bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, 
 	// have media capture assigned, so there won't be any problems.
 	{
 		// Find all viewports being captured
-		TArray<FDisplayClusterViewport*> ViewportsBeingCaptured = SortedViewports.FilterByPredicate([](const FDisplayClusterViewport* Viewport)
+		TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> ViewportsBeingCaptured = SortedViewports.FilterByPredicate([](const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& Viewport)
 		{
-			return Viewport->GetRenderSettings().bIsBeingCaptured;
+			return Viewport.IsValid() && Viewport->GetRenderSettings().bIsBeingCaptured;
 		});
 
 		// Put them all in the beginning of the list
 		const int32 CapturingViewportsAmount = ViewportsBeingCaptured.Num();
 		if (CapturingViewportsAmount > 0 && CapturingViewportsAmount != SortedViewports.Num())
 		{
-			for (FDisplayClusterViewport* ViewportBeingCaptured : ViewportsBeingCaptured)
+			for (TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportBeingCaptured : ViewportsBeingCaptured)
 			{
 				SortedViewports.Remove(ViewportBeingCaptured);
 				SortedViewports.Insert(ViewportBeingCaptured, 0);
@@ -112,30 +116,30 @@ bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, 
 	return bResult;
 }
 
-bool FDisplayClusterRenderFrameManager::BuildSimpleFrame(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<FDisplayClusterViewport*>& InViewports, FDisplayClusterRenderFrame& OutRenderFrame)
+bool FDisplayClusterRenderFrameManager::BuildSimpleFrame(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& InViewports, FDisplayClusterRenderFrame& OutRenderFrame)
 {
-	for (FDisplayClusterViewport* ViewportIt : InViewports)
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : InViewports)
 	{
-		if (ViewportIt)
+		if (ViewportIt.IsValid())
 		{
 			for (const FDisplayClusterViewport_Context& ContextIt : ViewportIt->GetContexts())
 			{
-				FDisplayClusterRenderFrame::FFrameView FrameView;
+				FDisplayClusterRenderFrameTargetView FrameView;
 				{
 					FrameView.ContextNum = ContextIt.ContextNum;
-					FrameView.Viewport = ViewportIt;
+					FrameView.Viewport = ViewportIt.ToSharedRef();
 					FrameView.bDisableRender = ContextIt.bDisableRender || ViewportIt->RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable;
 					FrameView.bFreezeRendering = ViewportIt->RenderSettings.bFreezeRendering;
 				}
 
-				FDisplayClusterRenderFrame::FFrameViewFamily FrameViewFamily;
+				FDisplayClusterRenderFrameTargetViewFamily FrameViewFamily;
 				{
 					FrameViewFamily.Views.Add(FrameView);
 					FrameViewFamily.CustomBufferRatio = ContextIt.CustomBufferRatio;
 					FrameViewFamily.ViewExtensions = ViewportIt->GatherActiveExtensions(InViewport);
 				}
 
-				FDisplayClusterRenderFrame::FFrameRenderTarget FrameRenderTarget;
+				FDisplayClusterRenderFrameTarget FrameRenderTarget;
 				{
 					// Simple frame use unique RTT  for each viewport, so disable RTT when viewport rendering disabled
 					FrameRenderTarget.bShouldUseRenderTarget = ViewportIt->RenderTargets.Num() > 0;
@@ -154,7 +158,7 @@ bool FDisplayClusterRenderFrameManager::BuildSimpleFrame(FViewport* InViewport, 
 	return true;
 }
 
-bool FDisplayClusterRenderFrameManager::FindFrameTargetRect(FViewport* InViewport, const TArray<FDisplayClusterViewport*>& InOutViewports, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, FIntRect& OutFrameTargetRect) const
+bool FDisplayClusterRenderFrameManager::FindFrameTargetRect(FViewport* InViewport, const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& InOutViewports, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, FIntRect& OutFrameTargetRect) const
 {
 	// Calculate Backbuffer frame
 	bool bIsUsed = false;
@@ -167,9 +171,9 @@ bool FDisplayClusterRenderFrameManager::FindFrameTargetRect(FViewport* InViewpor
 	}
 
 	// Optimize frame target RTT
-	for (const FDisplayClusterViewport* ViewportIt : InOutViewports)
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : InOutViewports)
 	{
-		if (ViewportIt && ViewportIt->RenderSettings.bEnable && ViewportIt->RenderSettings.bVisible)
+		if (ViewportIt.IsValid() && ViewportIt->RenderSettings.bEnable && ViewportIt->RenderSettings.bVisible)
 		{
 			for (const auto& ContextIt : ViewportIt->GetContexts())
 			{

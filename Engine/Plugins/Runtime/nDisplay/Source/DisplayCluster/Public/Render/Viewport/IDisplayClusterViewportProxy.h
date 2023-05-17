@@ -15,12 +15,24 @@
 #include "Render/Viewport/Containers/DisplayClusterViewport_PostRenderSettings.h"
 #include "Render/Viewport/Containers/DisplayClusterViewportProxy_Context.h"
 
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameEnums.h"
+
+/**
+ * nDisplay: ViewportProxy (interface for RenderThread)
+ */
 class DISPLAYCLUSTER_API IDisplayClusterViewportProxy
 {
 public:
 	virtual ~IDisplayClusterViewportProxy() = default;
 
 public:
+	/** Get TSharedPtr from self. */
+	virtual TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe> ToSharedPtr() = 0;
+	virtual TSharedPtr<const IDisplayClusterViewportProxy, ESPMode::ThreadSafe> ToSharedPtr() const = 0;
+
+	/** Return current render mode. */
+	virtual EDisplayClusterRenderFrameMode GetRenderMode() const = 0;
+
 	virtual FString GetId() const = 0;
 	virtual FString GetClusterNodeId() const = 0;
 
@@ -66,7 +78,11 @@ public:
 	/** Return output resource type (support preview, remap, etc). */
 	virtual EDisplayClusterViewportResourceType   GetOutputResourceType_RenderThread() const = 0;
 
-	virtual const class IDisplayClusterViewportManagerProxy& GetOwner_RenderThread() const = 0;
+	/** Returns ptr to ViewportManagerProxy (the owner of this viewport proxy) if it still exists. */
+	virtual const class IDisplayClusterViewportManagerProxy* GetViewportManagerProxy_RenderThread() const = 0;
+
+	/** Get render frame settings from viewport proxy owner, if it still exists. */
+	virtual const struct FDisplayClusterRenderFrameSettings* GetRenderFrameSettings_RenderThread() const = 0;
 
 	virtual void SetRenderSettings_RenderThread(const FDisplayClusterViewport_RenderSettings& InRenderSettings) const = 0;
 	virtual void SetContexts_RenderThread(const TArray<FDisplayClusterViewport_Context>& InContexts) const = 0;

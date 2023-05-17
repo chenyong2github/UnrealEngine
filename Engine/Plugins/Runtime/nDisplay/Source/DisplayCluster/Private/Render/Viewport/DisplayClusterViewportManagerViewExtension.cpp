@@ -24,40 +24,36 @@ using namespace DisplayClusterViewportManagerViewExtensionHelpers;
 ///////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterViewportManagerViewExtension::FDisplayClusterViewportManagerViewExtension(const FAutoRegister& AutoRegister, const FDisplayClusterViewportManager* InViewportManager)
 	: FSceneViewExtensionBase(AutoRegister)
-	, ViewportManager(InViewportManager)
-	, ViewportManagerProxy(InViewportManager->GetViewportManagerProxy())
+	, ViewportManagerWeakPtr(InViewportManager->AsWeak())
+	, ViewportManagerProxyWeakPtr(InViewportManager->GetViewportManagerProxy()->AsWeak())
 {
 	RegisterCallbacks();
 }
 
 FDisplayClusterViewportManagerViewExtension::~FDisplayClusterViewportManagerViewExtension()
 {
-	ViewportManagerProxy.Reset();
+	ViewportManagerWeakPtr.Reset();
+	ViewportManagerProxyWeakPtr.Reset();
+
 	UnregisterCallbacks();
 }
 
 bool FDisplayClusterViewportManagerViewExtension::IsActive() const
 {
-	return ViewportManagerProxy.IsValid();
-}
-
-void FDisplayClusterViewportManagerViewExtension::Release()
-{
-	check(IsInGameThread());
-
-	ViewportManagerProxy.Reset();
+	return ViewportManagerProxyWeakPtr.IsValid() && ViewportManagerProxyWeakPtr.Pin().IsValid();
 }
 
 void FDisplayClusterViewportManagerViewExtension::Release_RenderThread()
 {
 	check(IsInRenderingThread());
 
-	ViewportManagerProxy.Reset();
+	ViewportManagerWeakPtr.Reset();
+	ViewportManagerProxyWeakPtr.Reset();
+
 	ViewportProxies.Empty();
 
 	UnregisterCallbacks();
 }
-
 
 void FDisplayClusterViewportManagerViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 {
@@ -80,10 +76,13 @@ void FDisplayClusterViewportManagerViewExtension::SubscribeToPostProcessingPass(
 	case EPostProcessingPass::SSRInput:
 		for (const FViewportProxy& ViewportIt : ViewportProxies)
 		{
-			if (ViewportIt.ViewportProxy.IsValid() && ViewportIt.ViewportProxy.Pin()->ShouldUsePostProcessPassAfterSSRInput())
+			if (FDisplayClusterViewportProxy* ViewportProxy = ViewportIt.GetViewportProxy())
 			{
-				InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterSSRInput_RenderThread));
-				break;
+				if (ViewportProxy->ShouldUsePostProcessPassAfterSSRInput())
+				{
+					InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterSSRInput_RenderThread));
+					break;
+				}
 			}
 		}
 		break;
@@ -91,10 +90,13 @@ void FDisplayClusterViewportManagerViewExtension::SubscribeToPostProcessingPass(
 	case EPostProcessingPass::FXAA:
 		for (const FViewportProxy& ViewportIt : ViewportProxies)
 		{
-			if (ViewportIt.ViewportProxy.IsValid() && ViewportIt.ViewportProxy.Pin()->ShouldUsePostProcessPassAfterFXAA())
+			if (FDisplayClusterViewportProxy* ViewportProxy = ViewportIt.GetViewportProxy())
 			{
-				InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterFXAA_RenderThread));
-				break;
+				if (ViewportProxy->ShouldUsePostProcessPassAfterFXAA())
+				{
+					InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterFXAA_RenderThread));
+					break;
+				}
 			}
 		}
 		break;
@@ -102,10 +104,13 @@ void FDisplayClusterViewportManagerViewExtension::SubscribeToPostProcessingPass(
 	case EPostProcessingPass::Tonemap:
 		for (const FViewportProxy& ViewportIt : ViewportProxies)
 		{
-			if (ViewportIt.ViewportProxy.IsValid() && ViewportIt.ViewportProxy.Pin()->ShouldUsePostProcessPassTonemap())
+			if (FDisplayClusterViewportProxy* ViewportProxy = ViewportIt.GetViewportProxy())
 			{
-				InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterTonemap_RenderThread));
-				break;
+				if (ViewportProxy->ShouldUsePostProcessPassTonemap())
+				{
+					InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FDisplayClusterViewportManagerViewExtension::PostProcessPassAfterTonemap_RenderThread));
+					break;
+				}
 			}
 		}
 		break;
@@ -122,12 +127,15 @@ FScreenPassTexture FDisplayClusterViewportManagerViewExtension::PostProcessPassA
 		return ReturnUntouchedSceneColorForPostProcessing(Inputs);
 	}
 
-	uint32 ContextNum = 0;
-	if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy.Pin()->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
+	if (const FDisplayClusterViewportManagerProxy* ViewportManagerProxy = GetViewportManagerProxy())
 	{
-		if (ViewportProxyPtr->ShouldUsePostProcessPassAfterFXAA())
+		uint32 ContextNum = 0;
+		if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
 		{
-			return ViewportProxyPtr->OnPostProcessPassAfterFXAA_RenderThread(GraphBuilder, View, Inputs, ContextNum);
+			if (ViewportProxyPtr->ShouldUsePostProcessPassAfterFXAA())
+			{
+				return ViewportProxyPtr->OnPostProcessPassAfterFXAA_RenderThread(GraphBuilder, View, Inputs, ContextNum);
+			}
 		}
 	}
 
@@ -141,12 +149,15 @@ FScreenPassTexture FDisplayClusterViewportManagerViewExtension::PostProcessPassA
 		return ReturnUntouchedSceneColorForPostProcessing(Inputs);
 	}
 
-	uint32 ContextNum = 0;
-	if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy.Pin()->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
+	if (const FDisplayClusterViewportManagerProxy* ViewportManagerProxy = GetViewportManagerProxy())
 	{
-		if (ViewportProxyPtr->ShouldUsePostProcessPassAfterSSRInput())
+		uint32 ContextNum = 0;
+		if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
 		{
-			return ViewportProxyPtr->OnPostProcessPassAfterSSRInput_RenderThread(GraphBuilder, View, Inputs, ContextNum);
+			if (ViewportProxyPtr->ShouldUsePostProcessPassAfterSSRInput())
+			{
+				return ViewportProxyPtr->OnPostProcessPassAfterSSRInput_RenderThread(GraphBuilder, View, Inputs, ContextNum);
+			}
 		}
 	}
 
@@ -160,12 +171,15 @@ FScreenPassTexture FDisplayClusterViewportManagerViewExtension::PostProcessPassA
 		return ReturnUntouchedSceneColorForPostProcessing(Inputs);
 	}
 
-	uint32 ContextNum = 0;
-	if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy.Pin()->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
+	if (const FDisplayClusterViewportManagerProxy* ViewportManagerProxy = GetViewportManagerProxy())
 	{
-		if (ViewportProxyPtr->ShouldUsePostProcessPassTonemap())
+		uint32 ContextNum = 0;
+		if (FDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy->ImplFindViewport_RenderThread(View.StereoViewIndex, &ContextNum))
 		{
-			return ViewportProxyPtr->OnPostProcessPassAfterTonemap_RenderThread(GraphBuilder, View, Inputs, ContextNum);
+			if (ViewportProxyPtr->ShouldUsePostProcessPassTonemap())
+			{
+				return ViewportProxyPtr->OnPostProcessPassAfterTonemap_RenderThread(GraphBuilder, View, Inputs, ContextNum);
+			}
 		}
 	}
 
@@ -200,7 +214,7 @@ bool FDisplayClusterViewportManagerViewExtension::IsActiveThisFrame_Internal(con
 	if (Context.IsA(MoveTempIfPossible(DCViewExtensionContext)))
 	{
 		const FDisplayClusterSceneViewExtensionContext& DisplayContext = static_cast<const FDisplayClusterSceneViewExtensionContext&>(Context);
-		if (DisplayContext.ViewportManager == ViewportManager)
+		if (DisplayContext.ViewportManager.Get() == GetViewportManager())
 		{
 			// Apply only for DC viewports
 			return true;
@@ -226,14 +240,17 @@ void FDisplayClusterViewportManagerViewExtension::PreRenderViewFamily_RenderThre
 		{
 			FViewportProxy NewViewportProxy;
 
-			if (IDisplayClusterViewportProxy* ViewportProxyPtr = ViewportManagerProxy.Pin()->FindViewport_RenderThread(SceneView->StereoViewIndex, &NewViewportProxy.ViewportProxyContext.ContextNum))
+			if (const FDisplayClusterViewportManagerProxy* ViewportManagerProxy = GetViewportManagerProxy())
 			{
-				NewViewportProxy.ViewportProxyContext.ViewFamilyProfileDescription = InViewFamily.ProfileDescription;
+				if (FDisplayClusterViewportProxy* ViewportProxyPtr = static_cast<FDisplayClusterViewportProxy*>(ViewportManagerProxy->FindViewport_RenderThread(SceneView->StereoViewIndex, &NewViewportProxy.ViewportProxyContext.ContextNum)))
+				{
+					NewViewportProxy.ViewportProxyContext.ViewFamilyProfileDescription = InViewFamily.ProfileDescription;
 
-				NewViewportProxy.ViewportProxy = (static_cast<FDisplayClusterViewportProxy*>(ViewportProxyPtr))->AsShared();
-				NewViewportProxy.ViewIndex = ViewIndex;
+					NewViewportProxy.ViewportProxyWeakPtr = ViewportProxyPtr->AsWeak();
+					NewViewportProxy.ViewIndex = ViewIndex;
 
-				ViewportProxies.Add(NewViewportProxy);
+					ViewportProxies.Add(NewViewportProxy);
+				}
 			}
 		}
 	}
@@ -250,9 +267,9 @@ void FDisplayClusterViewportManagerViewExtension::PostRenderViewFamily_RenderThr
 	{
 		if (const FSceneView* SceneView = InViewFamily.Views[ViewportIt.ViewIndex])
 		{
-			if (ViewportIt.ViewportProxy.IsValid())
+			if (FDisplayClusterViewportProxy* ViewportProxy = ViewportIt.GetViewportProxy())
 			{
-				ViewportIt.ViewportProxy.Pin()->OnPostRenderViewFamily_RenderThread(GraphBuilder, InViewFamily, *SceneView, ViewportIt.ViewportProxyContext);
+				ViewportProxy->OnPostRenderViewFamily_RenderThread(GraphBuilder, InViewFamily, *SceneView, ViewportIt.ViewportProxyContext);
 			}
 		}
 	}
@@ -270,9 +287,9 @@ void FDisplayClusterViewportManagerViewExtension::OnResolvedSceneColor_RenderThr
 
 	for (FViewportProxy& ViewportIt : ViewportProxies)
 	{
-		if (ViewportIt.ViewportProxy.IsValid())
+		if (FDisplayClusterViewportProxy* ViewportProxy = ViewportIt.GetViewportProxy())
 		{
-			ViewportIt.ViewportProxy.Pin()->OnResolvedSceneColor_RenderThread(GraphBuilder, SceneTextures, ViewportIt.ViewportProxyContext);
+			ViewportProxy->OnResolvedSceneColor_RenderThread(GraphBuilder, SceneTextures, ViewportIt.ViewportProxyContext);
 		}
 	}
 }

@@ -75,9 +75,8 @@ private:
 
 private:
 	/** A reference to the owning viewport manager */
-	FDisplayClusterViewportManager& ViewportManager;
+	const TSharedRef<FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
 
-private:
 	/** A list of primitive components that have been added to the preview scene for rendering in the current frame */
 	TArray<UPrimitiveComponent*> UVLightCardPrimitiveComponents;
 

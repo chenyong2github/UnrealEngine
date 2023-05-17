@@ -129,10 +129,7 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 	if (IsPreviewEnabled())
 	{
 		// Restore ViewportManager
-		if (ViewportManager.IsValid() == false)
-		{
-			ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
-		}
+		CreateViewportManagerImpl();
 
 		if (bDeferPreviewGeneration)
 		{
@@ -162,17 +159,10 @@ void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 		ResetPreviewInternals_Editor();
 		if (ViewportManager.IsValid())
 		{
-			if (FDisplayClusterViewportManager* ViewportManagerPrivate = static_cast<FDisplayClusterViewportManager*>(ViewportManager.Get()))
+			if(ViewportManager->GetRenderMode() == EDisplayClusterRenderFrameMode::PreviewInScene)
 			{
-				switch (ViewportManagerPrivate->GetRenderFrameSettings().RenderMode)
-				{
-				case EDisplayClusterRenderFrameMode::PreviewInScene:
-					// Release viewport manager with resources immediatelly for preview in scene
-					ViewportManager.Reset();
-					break;
-				default:
-					break;
-				}
+				// Release viewport manager with resources immediatelly for preview in scene
+				ViewportManager.Reset();
 			}
 		}
 	}
@@ -624,9 +614,12 @@ void ADisplayClusterRootActor::ImplRenderPreviewFrustums_Editor()
 				if (CineCameraComponent && CineCameraComponent->IsICVFXEnabled())
 				{
 					// Iterate over rendered incamera viewports (whole cluster)
-					for (FDisplayClusterViewport* InCameraViewportIt : FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewGetRenderedInCameraViewports(*this, *CineCameraComponent))
+					for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& InCameraViewportIt : FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewGetRenderedInCameraViewports(*this, *CineCameraComponent))
 					{
-						FrustumPreviewViewports.Add(InCameraViewportIt);
+						if (InCameraViewportIt.IsValid())
+						{
+							FrustumPreviewViewports.Add(InCameraViewportIt.Get());
+						}
 					}
 				}
 			}

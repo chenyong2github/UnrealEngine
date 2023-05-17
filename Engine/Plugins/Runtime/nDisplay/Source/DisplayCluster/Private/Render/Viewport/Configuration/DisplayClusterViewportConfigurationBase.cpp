@@ -59,49 +59,58 @@ void FDisplayClusterViewportConfigurationBase::Update(const FString& ClusterNode
 		TArray<FString> ExistClusterNodesIDs;
 		ConfigurationData.Cluster->GetNodeIds(ExistClusterNodesIDs);
 
-		TArray<FDisplayClusterViewport*> UnusedViewports;
-		for (FDisplayClusterViewport* It : ViewportManager.ImplGetViewports())
+		TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> UnusedViewports;
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager.ImplGetViewports())
 		{
-			// ignore ICVFX internal resources
-			if (!EnumHasAllFlags(It->GetRenderSettingsICVFX().RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))
+			if (ViewportIt.IsValid())
 			{
-				// Only viewports from cluster node in render
-				if (ClusterNodeId.IsEmpty() || It->GetClusterNodeId() == ClusterNodeId)
+				// ignore ICVFX internal resources
+				if (!EnumHasAllFlags(ViewportIt->GetRenderSettingsICVFX().RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))
 				{
-					if (!DesiredViewports.Contains(It->GetId()))
+					// Only viewports from cluster node in render
+					if (ClusterNodeId.IsEmpty() || ViewportIt->GetClusterNodeId() == ClusterNodeId)
 					{
-						UnusedViewports.Add(It);
+						if (!DesiredViewports.Contains(ViewportIt->GetId()))
+						{
+							UnusedViewports.Add(ViewportIt);
+						}
 					}
-				}
-				else
-				{
-					if(ExistClusterNodesIDs.Find(It->GetClusterNodeId()) == INDEX_NONE)
+					else
 					{
-						// also remove viewports for deleted cluster nodes
-						UnusedViewports.Add(It);
+						if (ExistClusterNodesIDs.Find(ViewportIt->GetClusterNodeId()) == INDEX_NONE)
+						{
+							// also remove viewports for deleted cluster nodes
+							UnusedViewports.Add(ViewportIt);
+						}
 					}
 				}
 			}
 		}
 
 		// Delete unused viewports
-		for (FDisplayClusterViewport* DeleteIt : UnusedViewports)
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& UnusedViewportIt : UnusedViewports)
 		{
-			ViewportManager.ImplDeleteViewport(DeleteIt);
+			if (UnusedViewportIt.IsValid())
+			{
+				ViewportManager.ImplDeleteViewport(UnusedViewportIt);
+			}
 		}
 	}
 
 	// Update and Create new viewports
 	for (TPair<FString, UDisplayClusterConfigurationViewport*>& CfgIt : DesiredViewports)
 	{
-		FDisplayClusterViewport* ExistViewport = ViewportManager.ImplFindViewport(CfgIt.Key);
-		if (ExistViewport)
+		if (const UDisplayClusterConfigurationViewport* ConfigurationViewport = CfgIt.Value)
 		{
-			FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(ViewportManager, RootActor, ExistViewport, CfgIt.Value);
-		}
-		else
-		{
-			ViewportManager.CreateViewport(CfgIt.Key, CfgIt.Value);
+			const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe> ExistViewport = ViewportManager.ImplFindViewport(CfgIt.Key);
+			if (ExistViewport.IsValid())
+			{
+				FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(*ExistViewport, ViewportManager, RootActor, *ConfigurationViewport);
+			}
+			else
+			{
+				ViewportManager.CreateViewport(CfgIt.Key, *ConfigurationViewport);
+			}
 		}
 	}
 }
@@ -110,21 +119,24 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InV
 {
 	// Collect unused viewports and delete
 	{
-		TArray<FDisplayClusterViewport*> UnusedViewports;
-		for (FDisplayClusterViewport* It : ViewportManager.ImplGetViewports())
+		TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> UnusedViewports;
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager.ImplGetViewports())
 		{
-			// ignore ICVFX internal resources
-			if (!EnumHasAllFlags(It->GetRenderSettingsICVFX().RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))
+			if (ViewportIt.IsValid())
 			{
-				if (InViewportNames.Find(It->GetId()) == INDEX_NONE)
+				// ignore ICVFX internal resources
+				if (!EnumHasAllFlags(ViewportIt->GetRenderSettingsICVFX().RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource))
 				{
-					UnusedViewports.Add(It);
+					if (InViewportNames.Find(ViewportIt->GetId()) == INDEX_NONE)
+					{
+						UnusedViewports.Add(ViewportIt);
+					}
 				}
 			}
 		}
 
 		// Delete unused viewports
-		for (FDisplayClusterViewport* DeleteIt : UnusedViewports)
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& DeleteIt : UnusedViewports)
 		{
 			ViewportManager.ImplDeleteViewport(DeleteIt);
 		}
@@ -140,16 +152,19 @@ void FDisplayClusterViewportConfigurationBase::Update(const TArray<FString>& InV
 
 			for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& ViewportIt : ClusterNodeConfiguration->Viewports)
 			{
-				if (ViewportIt.Key.Len() && ViewportIt.Value && InViewportNames.Find(ViewportIt.Key) != INDEX_NONE)
+				if (const UDisplayClusterConfigurationViewport* ConfigurationViewport = ViewportIt.Value)
 				{
-					FDisplayClusterViewport* ExistViewport = ViewportManager.ImplFindViewport(ViewportIt.Key);
-					if (ExistViewport)
+					if (ViewportIt.Key.Len() && ViewportIt.Value && InViewportNames.Find(ViewportIt.Key) != INDEX_NONE)
 					{
-						FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(ViewportManager, RootActor, ExistViewport, ViewportIt.Value);
-					}
-					else
-					{
-						ViewportManager.CreateViewport(ViewportIt.Key, ViewportIt.Value);
+						const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe> ExistViewport = ViewportManager.ImplFindViewport(ViewportIt.Key);
+						if (ExistViewport.IsValid())
+						{
+							FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(*ExistViewport, ViewportManager, RootActor, *ConfigurationViewport);
+						}
+						else
+						{
+							ViewportManager.CreateViewport(ViewportIt.Key, *ConfigurationViewport);
+						}
 					}
 				}
 			}
@@ -299,14 +314,12 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 }
 
 // Assign new configuration to this viewport <Runtime>
-bool FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(FDisplayClusterViewportManager& ViewportManager, ADisplayClusterRootActor& RootActor, FDisplayClusterViewport* DesiredViewport, const UDisplayClusterConfigurationViewport* ConfigurationViewport)
+bool FDisplayClusterViewportConfigurationBase::UpdateViewportConfiguration(FDisplayClusterViewport& DstViewport, FDisplayClusterViewportManager& ViewportManager, ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationViewport& ConfigurationViewport)
 {
 	check(IsInGameThread());
-	check(DesiredViewport);
-	check(ConfigurationViewport);
 
-	FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(*DesiredViewport, RootActor, *ConfigurationViewport);
-	FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(*DesiredViewport, &(ConfigurationViewport->ProjectionPolicy));
+	FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(DstViewport, RootActor, ConfigurationViewport);
+	FDisplayClusterViewportConfigurationHelpers::UpdateProjectionPolicy(DstViewport, &(ConfigurationViewport.ProjectionPolicy));
 
 	return true;
 }

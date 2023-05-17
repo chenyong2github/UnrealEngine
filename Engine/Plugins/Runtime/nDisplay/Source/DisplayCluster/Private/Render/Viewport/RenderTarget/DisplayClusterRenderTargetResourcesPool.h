@@ -23,6 +23,12 @@ public:
 	FDisplayClusterViewportRenderTargetResource* AllocateRenderTargetResource(const FIntPoint& InSize, EPixelFormat CustomPixelFormat);
 	FDisplayClusterViewportTextureResource*      AllocateTextureResource(const FIntPoint& InSize, bool bIsRenderTargetable, EPixelFormat CustomPixelFormat, int32 NumMips = 1);
 
+protected:
+	inline FDisplayClusterViewportManagerProxy* GetViewportManagerProxy() const
+	{
+		return ViewportManagerProxyWeakPtr.IsValid() ? ViewportManagerProxyWeakPtr.Pin().Get() : nullptr;
+	}
+
 private:
 	template <typename TViewportResourceType>
 	void ImplBeginReallocateResources(TArray<TViewportResourceType*>& InOutViewportResources);
@@ -44,5 +50,5 @@ private:
 	TArray<FDisplayClusterViewportRenderTargetResource*> RenderTargetResources;
 	TArray<FDisplayClusterViewportTextureResource*>      TextureResources;
 
-	FDisplayClusterViewportManagerProxy* ViewportManagerProxy = nullptr;
+	TWeakPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxyWeakPtr;
 };

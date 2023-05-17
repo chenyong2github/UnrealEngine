@@ -32,33 +32,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportManager
 ///////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterViewportManager::IsEditorPreviewWorld() const
-{
-	if (UWorld* CurrentWorld = GetCurrentWorld())
-	{
-		switch (CurrentWorld->WorldType)
-		{
-		case EWorldType::EditorPreview:
-			return true;
-
-		default:
-			break;
-		}
-	}
-
-	return false;
-}
-
 void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 {
 	check(IsInGameThread());
 
-	switch (GetRenderFrameSettings().RenderMode)
+	// Only for preview modes:
+	if(GetRenderMode() != EDisplayClusterRenderFrameMode::PreviewInScene)
 	{
-	case EDisplayClusterRenderFrameMode::PreviewInScene:
-		// Only for preview modes:
-		break;
-	default:
 		return;
 	}
 
@@ -78,10 +58,10 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	PreviewRenderTargetableTextures.Reserve(Viewports.Num());
 
 	// Collect visible and enabled viewports for preview rendering:
-	for (FDisplayClusterViewport* const ViewportIt : Viewports)
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : Viewports)
 	{
 		// update only current cluster node
-		if ((ClusterNodeId.IsEmpty() || ViewportIt->GetClusterNodeId() == ClusterNodeId))
+		if (ViewportIt.IsValid() && (ClusterNodeId.IsEmpty() || ViewportIt->GetClusterNodeId() == ClusterNodeId))
 		{
 			if (ViewportIt->RenderSettings.bEnable && ViewportIt->RenderSettings.bVisible)
 			{
@@ -97,8 +77,8 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	// Configure preview RTT to viwports:
 	for (int32 ViewportIndex = 0; ViewportIndex < PreviewViewportNames.Num(); ViewportIndex++)
 	{
-		FDisplayClusterViewport* DesiredViewport = ImplFindViewport(PreviewViewportNames[ViewportIndex]);
-		if (DesiredViewport != nullptr)
+		TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe> DesiredViewport = ImplFindViewport(PreviewViewportNames[ViewportIndex]);
+		if (DesiredViewport.IsValid())
 		{
 			FTextureRHIRef& PreviewRTT = PreviewRenderTargetableTextures[ViewportIndex];
 			if (PreviewRTT.IsValid())
@@ -115,7 +95,7 @@ void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 	}
 }
 
-bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmount, int32& OutViewportsAmount, bool& bOutFrameRendered)
+bool FDisplayClusterViewportManager::RenderInEditor(FDisplayClusterRenderFrame& InRenderFrame, FViewport* InViewport, const uint32 InFirstViewportNum, const int32 InViewportsAmount, int32& OutViewportsAmount, bool& bOutFrameRendered)
 {
 	bOutFrameRendered = false;
 	OutViewportsAmount = 0;
@@ -142,7 +122,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 	int32 ViewportIndex = 0;
 	bool bViewportsRenderPassDone = false;
 
-	for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InRenderFrame.RenderTargets)
+	for (FDisplayClusterRenderFrameTarget& RenderTargetIt : InRenderFrame.RenderTargets)
 	{
 		if (bViewportsRenderPassDone)
 		{
@@ -152,7 +132,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 		// Special flag, allow clear RTT surface only for first family
 		bool bAdditionalViewFamily = false;
 
-		for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamiliesIt : RenderTargetIt.ViewFamilies)
+		for (FDisplayClusterRenderFrameTargetViewFamily& ViewFamiliesIt : RenderTargetIt.ViewFamilies)
 		{
 			if (bViewportsRenderPassDone)
 			{
@@ -188,23 +168,27 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 					}
 				}
 				
-				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamiliesIt.Views)
+				for (FDisplayClusterRenderFrameTargetView& ViewIt : ViewFamiliesIt.Views)
 				{
 					bool bViewportAlreadyRendered = ViewportIndex < (int32)InFirstViewportNum;
 					ViewportIndex++;
 
 					if (!bViewportAlreadyRendered)
 					{
-						FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
-						check(ViewportPtr != nullptr);
-						check(ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num());
+						FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport.Get());
+						if(!ViewportPtr)
+						{
+							continue;
+						}
+
+						check(ViewportPtr->GetContexts().IsValidIndex(ViewIt.ContextNum));
 
 						// Calculate the player's view information.
 						FVector  ViewLocation;
 						FRotator ViewRotation;
 						FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
 
-						if (View != nullptr && ViewIt.ShouldRenderSceneView() == false)
+						if (View != nullptr && !ViewIt.IsViewportContextCanBeRendered())
 						{
 							ViewFamily.Views.Remove(View);
 
@@ -218,7 +202,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 							OutViewportsAmount++;
 
 							// Apply viewport context settings to view (crossGPU, visibility, etc)
-							ViewIt.Viewport->SetupSceneView(ViewIt.ContextNum, PreviewScene->GetWorld(), ViewFamily, *View);
+							ViewportPtr->SetupSceneView(ViewIt.ContextNum, PreviewScene->GetWorld(), ViewFamily, *View);
 
 							// The allowed number of viewports is limited by the "InViewportAmount" value.
 							if (InViewportsAmount > 0 && OutViewportsAmount >= InViewportsAmount)

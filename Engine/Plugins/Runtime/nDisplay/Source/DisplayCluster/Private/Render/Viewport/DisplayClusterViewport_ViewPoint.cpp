@@ -29,23 +29,23 @@ using namespace UE::DisplayClusterViewport;
 ///////////////////////////////////////////////////////////////////////////////////////
 UDisplayClusterCameraComponent* FDisplayClusterViewport::GetViewPointCamera() const
 {
+	ADisplayClusterRootActor* RootActor = GetRootActor();
+	if (!RootActor)
+	{
+		UE_LOG(LogDisplayClusterViewport, Warning, TEXT("Viewport '%s' has no root actor found in game manager"), *GetId());
+
+		return nullptr;
+	}
+
 	if (!ProjectionPolicy.IsValid())
 	{
 		// ignore viewports with uninitialized prj policy
 		return nullptr;
 	}
 
-	if (!GetOwner().IsSceneOpened())
+	FDisplayClusterViewportManager* ViewportManager = GetViewportManagerImpl();
+	if (!ViewportManager || !ViewportManager->IsSceneOpened())
 	{
-		return nullptr;
-	}
-
-	// Get root actor from viewport
-	ADisplayClusterRootActor* const RootActor = GetOwner().GetRootActor();
-	if (!RootActor)
-	{
-		UE_LOG(LogDisplayClusterViewport, Warning, TEXT("Viewport '%s' has no root actor found in game manager"), *GetId());
-
 		return nullptr;
 	}
 
@@ -57,16 +57,16 @@ UDisplayClusterCameraComponent* FDisplayClusterViewport::GetViewPointCamera() co
 	}
 
 	// Get camera component assigned to the viewport (or default camera if nothing assigned)
-	UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ?
+	if (UDisplayClusterCameraComponent* const ViewCamera = (CameraId.IsEmpty() ?
 		RootActor->GetDefaultCamera() :
-		RootActor->GetComponentByName<UDisplayClusterCameraComponent>(CameraId));
-
-	if (!ViewCamera)
+		RootActor->GetComponentByName<UDisplayClusterCameraComponent>(CameraId)))
 	{
-		UE_LOG(LogDisplayClusterViewport, Warning, TEXT("No camera found for viewport '%s'"), *GetId());
+		return ViewCamera;
 	}
 
-	return ViewCamera;
+	UE_LOG(LogDisplayClusterViewport, Warning, TEXT("No camera found for viewport '%s'"), *GetId());
+
+	return nullptr;
 }
 
 bool FDisplayClusterViewport::SetupViewPoint(FMinimalViewInfo& InOutViewInfo)

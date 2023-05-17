@@ -33,6 +33,18 @@ public:
 
 public:
 	//~IDisplayClusterViewportManagerProxy
+	virtual TSharedPtr<IDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ToSharedPtr() override
+	{
+		return AsShared();
+	}
+
+	virtual TSharedPtr<const IDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ToSharedPtr() const override
+	{
+		return AsShared();
+	}
+
+	virtual EDisplayClusterRenderFrameMode GetRenderMode() const override;
+
 	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const FString& InViewportId) const override
 	{
 		return ImplFindViewport_RenderThread(InViewportId);
@@ -99,7 +111,7 @@ public:
 		const TSharedPtr<FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe>& InViewportManagerViewExtension);
 
 	/** Copy Viewports data to Proxies from game to render thread. */
-	void ImplUpdateViewports(const TArray<FDisplayClusterViewport*>& InViewports);
+	void ImplUpdateViewports(const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& InViewports);
 
 	/** Rendering the final frame of nDisplay. Called after all viewports have been rendered in RTT. */
 	void ImplRenderFrame(FViewport* InViewport);

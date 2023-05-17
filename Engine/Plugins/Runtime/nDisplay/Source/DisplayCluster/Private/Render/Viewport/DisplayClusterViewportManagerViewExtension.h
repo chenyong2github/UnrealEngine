@@ -53,9 +53,6 @@ public:
 	 */
 	static FScreenPassTexture ReturnUntouchedSceneColorForPostProcessing(const FPostProcessMaterialInputs& InOutInputs);
 
-	/** Release from game thread.*/
-	void Release();
-
 	/** Release from render thread.*/
 	void Release_RenderThread();
 
@@ -108,17 +105,33 @@ private:
 	/** Return true if the VE is safe to use. */
 	bool IsActive() const;
 
+protected:
+	inline const FDisplayClusterViewportManager* GetViewportManager() const
+	{
+		return ViewportManagerWeakPtr.IsValid() ? ViewportManagerWeakPtr.Pin().Get() : nullptr;
+	}
+
+	inline const FDisplayClusterViewportManagerProxy* GetViewportManagerProxy() const
+	{
+		return ViewportManagerProxyWeakPtr.IsValid() ? ViewportManagerProxyWeakPtr.Pin().Get() : nullptr;
+	}
+
 private:
 	FDelegateHandle ResolvedSceneColorCallbackHandle;
 
 private:
-	const FDisplayClusterViewportManager* ViewportManager;
-	TWeakPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxy;
+	TWeakPtr<const FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManagerWeakPtr;
+	TWeakPtr<const FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxyWeakPtr;
 
 	struct FViewportProxy
 	{
+		inline FDisplayClusterViewportProxy* GetViewportProxy() const
+		{
+			return ViewportProxyWeakPtr.IsValid() ? ViewportProxyWeakPtr.Pin().Get() : nullptr;
+		}
+
 		// The ViewportProxy must exist until this object is removed.
-		TWeakPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe> ViewportProxy;
+		TWeakPtr<FDisplayClusterViewportProxy, ESPMode::ThreadSafe> ViewportProxyWeakPtr;
 
 		// The index of view in viewfamily collection
 		int32 ViewIndex = 0;

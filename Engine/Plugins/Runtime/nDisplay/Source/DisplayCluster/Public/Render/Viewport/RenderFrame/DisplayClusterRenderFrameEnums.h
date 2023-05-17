@@ -6,6 +6,8 @@
 
 enum class EDisplayClusterRenderFrameMode: uint8
 {
+	Unknown = 0,
+
 	// Render to single backbuffer texture
 	Mono,
 

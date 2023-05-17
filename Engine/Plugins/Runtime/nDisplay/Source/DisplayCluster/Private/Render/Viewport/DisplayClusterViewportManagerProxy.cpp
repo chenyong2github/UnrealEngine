@@ -78,6 +78,11 @@ FDisplayClusterViewportManagerProxy::FDisplayClusterViewportManagerProxy()
 FDisplayClusterViewportManagerProxy::~FDisplayClusterViewportManagerProxy()
 { }
 
+EDisplayClusterRenderFrameMode FDisplayClusterViewportManagerProxy::GetRenderMode() const
+{
+	return RenderFrameSettings.RenderMode;
+}
+
 void FDisplayClusterViewportManagerProxy::Release_RenderThread()
 {
 	check(IsInRenderingThread());
@@ -201,14 +206,17 @@ void FDisplayClusterViewportManagerProxy::ImplUpdateRenderFrameSettings(const FD
 
 DECLARE_GPU_STAT_NAMED(nDisplay_ViewportManager_UpdateViewports, TEXT("nDisplay ViewportManager::UpdateViewports"));
 
-void FDisplayClusterViewportManagerProxy::ImplUpdateViewports(const TArray<FDisplayClusterViewport*>& InViewports)
+void FDisplayClusterViewportManagerProxy::ImplUpdateViewports(const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& InViewports)
 {
 	check(IsInGameThread());
 
 	TArray<FDisplayClusterViewportProxyData*> ViewportProxiesData;
-	for (FDisplayClusterViewport* ViewportIt : InViewports)
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : InViewports)
 	{
-		ViewportProxiesData.Add(new FDisplayClusterViewportProxyData(ViewportIt));
+		if (ViewportIt.IsValid())
+		{
+			ViewportProxiesData.Add(new FDisplayClusterViewportProxyData(ViewportIt));
+		}
 	}
 
 	// Send viewports settings to renderthread
@@ -314,7 +322,7 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 				// For quadbuf stereo copy only left eye, right copy from OutputFrameTarget
 				//@todo Copy QuadBuf_LeftEye/(mono,sbs,tp) to separate rtt, before UI and debug rendering
 				//@todo QuadBuf_LeftEye copied latter, before present
-				switch (ViewportManagerProxy->RenderFrameSettings.RenderMode)
+				switch (ViewportManagerProxy->GetRenderMode())
 				{
 				case EDisplayClusterRenderFrameMode::SideBySide:
 				case EDisplayClusterRenderFrameMode::TopBottom:

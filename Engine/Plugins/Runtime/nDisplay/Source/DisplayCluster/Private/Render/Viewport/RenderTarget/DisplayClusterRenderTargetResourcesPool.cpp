@@ -79,7 +79,7 @@ using namespace DisplayClusterRenderTargetResourcesPool;
 /// FDisplayClusterRenderTargetResourcesPool
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterRenderTargetResourcesPool::FDisplayClusterRenderTargetResourcesPool(FDisplayClusterViewportManagerProxy* InViewportManagerProxy)
-	: ViewportManagerProxy(InViewportManagerProxy)
+	: ViewportManagerProxyWeakPtr(InViewportManagerProxy ? InViewportManagerProxy->AsWeak() : nullptr)
 { }
 
 FDisplayClusterRenderTargetResourcesPool::~FDisplayClusterRenderTargetResourcesPool()
@@ -168,7 +168,7 @@ void FDisplayClusterRenderTargetResourcesPool::ImplFinishReallocateResources(TAr
 		}
 
 		// Send to released resources to rendering thread
-		ImplReleaseViewportResourcesRHI(ViewportManagerProxy, TArrayView<FDisplayClusterViewportResource*>((FDisplayClusterViewportResource**)(UnusedResources.GetData()), UnusedResources.Num()));
+		ImplReleaseViewportResourcesRHI(GetViewportManagerProxy(), TArrayView<FDisplayClusterViewportResource*>((FDisplayClusterViewportResource**)(UnusedResources.GetData()), UnusedResources.Num()));
 	}
 }
 
@@ -176,7 +176,7 @@ template <typename TViewportResourceType>
 void FDisplayClusterRenderTargetResourcesPool::ImplReleaseResources(TArray<TViewportResourceType*>& InOutViewportResources)
 {
 	// Send all resources to rendering thread
-	ImplReleaseViewportResourcesRHI(ViewportManagerProxy, TArray<FDisplayClusterViewportResource*>((FDisplayClusterViewportResource**)(InOutViewportResources.GetData()), InOutViewportResources.Num()));
+	ImplReleaseViewportResourcesRHI(GetViewportManagerProxy(), TArray<FDisplayClusterViewportResource*>((FDisplayClusterViewportResource**)(InOutViewportResources.GetData()), InOutViewportResources.Num()));
 
 	// Reset refs on game thread too
 	InOutViewportResources.Empty();

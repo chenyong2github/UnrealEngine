@@ -17,9 +17,12 @@
 #include "SceneViewExtension.h"
 #include "SceneViewExtensionContext.h"
 
+#include "Templates/SharedPointer.h"
+
 class FDisplayClusterViewportRenderTargetResource;
 class FDisplayClusterViewportTextureResource;
 class FDisplayClusterViewportManager;
+class FDisplayClusterViewportManagerProxy;
 class FDisplayClusterRenderTargetManager;
 class FDisplayClusterRenderFrameManager;
 class FDisplayClusterViewportProxyData;
@@ -42,6 +45,7 @@ struct FDisplayClusterViewportConfigurationProjectionPolicy;
 
 class FDisplayClusterViewport
 	: public IDisplayClusterViewport
+	, public TSharedFromThis<FDisplayClusterViewport, ESPMode::ThreadSafe>
 {
 public:
 	FDisplayClusterViewport(FDisplayClusterViewportManager& Owner, const FString& ClusterNodeId, const FString& ViewportId, const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& InProjectionPolicy);
@@ -52,6 +56,18 @@ public:
 	//////////////////////////////////////////////////////
 	/// IDisplayClusterViewport
 	//////////////////////////////////////////////////////
+	virtual TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe> ToSharedPtr() override
+	{
+		return AsShared();
+	}
+
+	virtual TSharedPtr<const IDisplayClusterViewport, ESPMode::ThreadSafe> ToSharedPtr() const override
+	{
+		return AsShared();
+	}
+
+	virtual EDisplayClusterRenderFrameMode GetRenderMode() const override;
+
 	virtual FString GetId() const override
 	{ 
 		check(IsInGameThread());
@@ -122,20 +138,25 @@ public:
 	}
 
 	// Setup scene view for rendering specified Context
-	virtual void SetupSceneView(uint32 ContextNum, class UWorld* World, FSceneViewFamily& InViewFamily, FSceneView& InView) const override;
+	virtual void SetupSceneView(uint32 ContextNum, class UWorld* World, class FSceneViewFamily& InViewFamily, FSceneView& InView) const override;
 
-	virtual IDisplayClusterViewportManager& GetOwner() const override;
+	virtual class IDisplayClusterViewportManager* GetViewportManager() const override;
+	virtual class ADisplayClusterRootActor* GetRootActor() const override;
+	virtual class UWorld* GetCurrentWorld() const override;
+	virtual bool IsSceneOpened() const override;
 
-	FDisplayClusterViewportManager& ImplGetOwner() const
-	{
-		return Owner;
-	}
-
-	const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings() const;
+	// Return true, if current world type equal to InWorldType
+	virtual bool IsCurrentWorldHasAnyType(const EWorldType::Type InWorldType1, const EWorldType::Type InWorldType2 = EWorldType::None, const EWorldType::Type InWorldType3 = EWorldType::None) const override;
 
 	//////////////////////////////////////////////////////
 	/// ~IDisplayClusterViewport
 	//////////////////////////////////////////////////////
+
+	TSharedPtr<FDisplayClusterViewportManager, ESPMode::ThreadSafe> GetViewportManagerRefImpl() const;
+	TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> GetViewportManagerProxyRefImpl() const;
+
+	FDisplayClusterViewportManager* GetViewportManagerImpl() const;
+	FDisplayClusterViewportManagerProxy* GetViewportManagerProxyImpl() const;
 
 #if WITH_EDITOR
 	FSceneView* ImplCalcScenePreview(class FSceneViewFamilyContext& InOutViewFamily, uint32 ContextNum);
@@ -143,13 +164,17 @@ public:
 	FMatrix ImplPreview_GetStereoProjectionMatrix(const uint32 InContextNum);
 
 	bool GetPreviewPixels(TSharedPtr<class FDisplayClusterViewportReadPixelsData, ESPMode::ThreadSafe>& OutPixelsData) const;
-
 #endif //WITH_EDITOR
+
 
 	// Get from logic request for additional targetable resource
 	bool ShouldUseAdditionalTargetableResource() const;
 	bool ShouldUseAdditionalFrameTargetableResource() const;
 	bool ShouldUseFullSizeFrameTargetableResource() const;
+
+	void SetViewportBufferRatio(const float InBufferRatio);
+
+	const FDisplayClusterRenderFrameSettings* GetRenderFrameSettings() const;
 
 	inline bool FindContext(const int32 ViewIndex, uint32* OutContextNum)
 	{
@@ -201,9 +226,6 @@ public:
 	 * @return - true, if success
 	 */
 	bool UpdateFrameContexts(const uint32 InStereoViewIndex, const FDisplayClusterRenderFrameSettings& InFrameSettings);
-
-	/* Update media dependent data */
-	void UpdateMediaDependencies(class FViewport* InViewport);
 
 	/** Reset viewport contexts and resources. */
 	void ResetFrameContexts();
@@ -304,7 +326,9 @@ protected:
 	TArray<FDisplayClusterViewportTextureResource*> AdditionalTargetableResources;
 	TArray<FDisplayClusterViewportTextureResource*> MipsShaderResources;
 
-	FDisplayClusterViewportManager& Owner;
+	// viewport owners
+	TWeakPtr<FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManagerWeakPtr;
+	TWeakPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxyWeakPtr;
 
 private:
 	bool bProjectionPolicyCalculateViewWarningOnce = false;

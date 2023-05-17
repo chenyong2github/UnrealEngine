@@ -107,7 +107,7 @@ void FDisplayClusterViewportConfigurationHelpers_Visibility::AppendHideList_ICVF
 	DstViewport.VisibilitySettings.AppendHideList(ActorLayers, AdditionalComponentsList);
 }
 
-void FDisplayClusterViewportConfigurationHelpers_Visibility::UpdateHideList_ICVFX(TArray<FDisplayClusterViewport*>& DstViewports, ADisplayClusterRootActor& InRootActor)
+void FDisplayClusterViewportConfigurationHelpers_Visibility::UpdateHideList_ICVFX(TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& DstViewports, ADisplayClusterRootActor& InRootActor)
 {
 	if (DstViewports.Num() > 0)
 	{
@@ -139,9 +139,9 @@ void FDisplayClusterViewportConfigurationHelpers_Visibility::UpdateHideList_ICVF
 		ImplCollectVisibility(InRootActor, StageSettings.OuterViewportHideList, OuterActorLayerNames, OuterAdditionalComponentsList);
 
 		// Update hide list for all desired viewports:
-		for (FDisplayClusterViewport* ViewportIt : DstViewports)
+		for (TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : DstViewports)
 		{
-			if (ViewportIt)
+			if (ViewportIt.IsValid())
 			{
 				ViewportIt->VisibilitySettings.UpdateConfiguration(EDisplayClusterViewport_VisibilityMode::Hide, ActorLayerNames, AdditionalComponentsList);
 

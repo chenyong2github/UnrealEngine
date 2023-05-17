@@ -339,7 +339,7 @@ void FDisplayClusterDeviceBase::InitializeNewFrame()
 		if (IDisplayClusterViewportManager* ViewportManagerPtr = RootActor->GetViewportManager())
 		{
 			// Begin use viewport manager for current frame
-			ViewportManager = ViewportManagerPtr;
+			ViewportManager = ViewportManagerPtr->ToSharedPtr();
 
 			// Initialize frame for render
 			ViewportManager->InitializeNewFrame();

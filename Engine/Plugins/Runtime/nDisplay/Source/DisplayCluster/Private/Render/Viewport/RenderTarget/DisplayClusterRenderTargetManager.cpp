@@ -75,9 +75,9 @@ namespace DisplayClusterRenderTargetManager
 		return OutPixelFormat;
 	}
 
-	static void ImplViewportTextureResourceLogging(const FDisplayClusterViewport* InViewport, const uint32 ContextNum, const FString& ResourceId, const FDisplayClusterViewportTextureResource* InTextureResource)
+	static void ImplViewportTextureResourceLogging(const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& InViewport, const uint32 ContextNum, const FString& ResourceId, const FDisplayClusterViewportTextureResource* InTextureResource)
 	{
-		if (InTextureResource != nullptr && InTextureResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
+		if (InViewport.IsValid() && InTextureResource != nullptr && InTextureResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
 		{
 			// Log: New resource created
 			UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Created new %s resource (%dx%d) for viewport '%s':%d"), *ResourceId, InTextureResource->GetSizeX(), InTextureResource->GetSizeY(), *InViewport->GetId(), ContextNum);
@@ -105,14 +105,14 @@ void FDisplayClusterRenderTargetManager::Release()
 	ResourcesPool->Release();
 }
 
-bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<FDisplayClusterViewport*>& InViewports, FDisplayClusterRenderFrame& InOutRenderFrame)
+bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& InViewports, FDisplayClusterRenderFrame& InOutRenderFrame)
 {
 	bool bResult = true;
 
 	if(ResourcesPool->BeginReallocateResources(InRenderFrameSettings, InViewport))
 	{
 		// ReAllocate Render targets for all viewports
-		for (FDisplayClusterRenderFrame::FFrameRenderTarget& FrameRenderTargetIt : InOutRenderFrame.RenderTargets)
+		for (FDisplayClusterRenderFrameTarget& FrameRenderTargetIt : InOutRenderFrame.RenderTargets)
 		{
 			if (FrameRenderTargetIt.bShouldUseRenderTarget)
 			{
@@ -124,26 +124,22 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(FViewport*
 					FrameRenderTargetIt.RenderTargetPtr = NewResource;
 
 					// Assign for all views in render target families
-					for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamily : FrameRenderTargetIt.ViewFamilies)
+					for (FDisplayClusterRenderFrameTargetViewFamily& ViewFamily : FrameRenderTargetIt.ViewFamilies)
 					{
-						for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamily.Views)
+						for (FDisplayClusterRenderFrameTargetView& ViewIt : ViewFamily.Views)
 						{
-							if (ViewIt.Viewport != nullptr)
+							if (FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport.Get()))
 							{
-								FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
-								if (ViewportPtr)
+								// Array already resized in function FDisplayClusterViewport::UpdateFrameContexts() with RenderTargets.AddZeroed(ViewportContextAmount);
+								check(ViewportPtr->RenderTargets.IsValidIndex(ViewIt.ContextNum));
+								check(!ViewportPtr->Contexts[ViewIt.ContextNum].bDisableRender);
+
+								ViewportPtr->RenderTargets[ViewIt.ContextNum] = NewResource;
+
+								if (NewResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
 								{
-									// Array already resized in function FDisplayClusterViewport::UpdateFrameContexts() with RenderTargets.AddZeroed(ViewportContextAmount);
-									check(ViewIt.ContextNum < (uint32)ViewportPtr->RenderTargets.Num());
-									check(ViewportPtr->Contexts[ViewIt.ContextNum].bDisableRender == false);
-
-									ViewportPtr->RenderTargets[ViewIt.ContextNum] = NewResource;
-
-									if (NewResource->GetViewportResourceState(EDisplayClusterViewportResourceState::Initialized) == false)
-									{
-										// Log: New resource created
-										UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Created new ViewportRenderTarget resource %08X (%dx%d) for viewport '%s'"), NewResource, NewResource->GetSizeX(), NewResource->GetSizeY(), *ViewportPtr->GetId());
-									}
+									// Log: New resource created
+									UE_LOG(LogDisplayClusterViewport, Verbose, TEXT("Created new ViewportRenderTarget resource %08X (%dx%d) for viewport '%s'"), NewResource, NewResource->GetSizeX(), NewResource->GetSizeY(), *ViewportPtr->GetId());
 								}
 							}
 						}
@@ -153,9 +149,9 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(FViewport*
 		}
 
 		// Allocate viewport internal resources
-		for (FDisplayClusterViewport* ViewportIt : InViewports)
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : InViewports)
 		{
-			if (ViewportIt && ViewportIt->RenderSettings.bFreezeRendering == false)
+			if (ViewportIt.IsValid() && ViewportIt->RenderSettings.bFreezeRendering == false)
 			{
 				EPixelFormat CustomFormat = ImplGetCustomFormat(ViewportIt->RenderSettings.CaptureMode);
 
@@ -278,27 +274,24 @@ bool FDisplayClusterRenderTargetManager::AllocateFrameTargets(const FDisplayClus
 	}
 
 	// Assign frame resources for all visible viewports
-	for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InOutRenderFrame.RenderTargets)
+	for (FDisplayClusterRenderFrameTarget& RenderTargetIt : InOutRenderFrame.RenderTargets)
 	{
-		for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamilieIt : RenderTargetIt.ViewFamilies)
+		for (FDisplayClusterRenderFrameTargetViewFamily& ViewFamilieIt : RenderTargetIt.ViewFamilies)
 		{
-			for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamilieIt.Views)
+			for (FDisplayClusterRenderFrameTargetView& ViewIt : ViewFamilieIt.Views)
 			{
-				if (ViewIt.Viewport != nullptr)
+				FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport.Get());
+				if (ViewportPtr && ViewportPtr->RenderSettings.bVisible)
 				{
-					FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
-					if (ViewportPtr && ViewportPtr->RenderSettings.bVisible)
-					{
-						ViewportPtr->OutputFrameTargetableResources = NewFrameTargetResources;
-						ViewportPtr->AdditionalFrameTargetableResources = NewAdditionalFrameTargetableResources;
+					ViewportPtr->OutputFrameTargetableResources = NewFrameTargetResources;
+					ViewportPtr->AdditionalFrameTargetableResources = NewAdditionalFrameTargetableResources;
 
-						// Adjust viewports frame rects. This offset saved in 'BackbufferFrameOffset'
-						if (ViewIt.ContextNum < (uint32)ViewportPtr->Contexts.Num())
-						{
-							FDisplayClusterViewport_Context& Context = ViewportPtr->Contexts[ViewIt.ContextNum];
-							Context.FrameTargetRect.Min -= InOutRenderFrame.FrameRect.Min;
-							Context.FrameTargetRect.Max -= InOutRenderFrame.FrameRect.Min;
-						}
+					// Adjust viewports frame rects. This offset saved in 'BackbufferFrameOffset'
+					if (ViewportPtr->Contexts.IsValidIndex(ViewIt.ContextNum))
+					{
+						FDisplayClusterViewport_Context& Context = ViewportPtr->Contexts[ViewIt.ContextNum];
+						Context.FrameTargetRect.Min -= InOutRenderFrame.FrameRect.Min;
+						Context.FrameTargetRect.Max -= InOutRenderFrame.FrameRect.Min;
 					}
 				}
 			}

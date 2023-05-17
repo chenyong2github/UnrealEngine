@@ -69,6 +69,18 @@ public:
 	///////////////////////////////
 	// IDisplayClusterViewportProxy
 	///////////////////////////////
+	virtual TSharedPtr<IDisplayClusterViewportProxy, ESPMode::ThreadSafe> ToSharedPtr() override
+	{
+		return AsShared();
+	}
+
+	virtual TSharedPtr<const IDisplayClusterViewportProxy, ESPMode::ThreadSafe> ToSharedPtr() const override
+	{
+		return AsShared();
+	}
+
+	virtual EDisplayClusterRenderFrameMode GetRenderMode() const override;
+
 	virtual FString GetId() const override
 	{
 		check(IsInRenderingThread());
@@ -133,7 +145,10 @@ public:
 
 	virtual EDisplayClusterViewportResourceType GetOutputResourceType_RenderThread() const override;
 
-	virtual const IDisplayClusterViewportManagerProxy& GetOwner_RenderThread() const override;
+	virtual const class IDisplayClusterViewportManagerProxy* GetViewportManagerProxy_RenderThread() const override;
+
+	virtual const FDisplayClusterRenderFrameSettings* GetRenderFrameSettings_RenderThread() const override;
+
 	///////////////////////////////
 	// ~IDisplayClusterViewportProxy
 	///////////////////////////////
@@ -308,6 +323,9 @@ private:
 	/** Returns the OCIO rendering type for the given viewport. */
 	EDisplayClusterViewportOpenColorIOMode GetOpenColorIOMode() const;
 
+	FDisplayClusterViewportManagerProxy* GetViewportManagerProxyImpl_RenderThread() const;
+	TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> GetViewportManagerProxyRefImpl_RenderThread() const;
+
 protected:
 	friend FDisplayClusterViewportProxyData;
 	friend FDisplayClusterViewportManagerProxy;
@@ -358,7 +376,8 @@ protected:
 	TArray<FDisplayClusterViewportTextureResource*> AdditionalTargetableResources;
 	TArray<FDisplayClusterViewportTextureResource*> MipsShaderResources;
 
-	const TSharedRef<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> Owner;
+	TWeakPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxyWeakRef;
+
 	IDisplayClusterShaders& ShadersAPI;
 };
 

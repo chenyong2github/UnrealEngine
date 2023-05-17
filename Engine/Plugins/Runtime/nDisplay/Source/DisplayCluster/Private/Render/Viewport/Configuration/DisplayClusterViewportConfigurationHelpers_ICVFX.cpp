@@ -92,17 +92,9 @@ namespace DisplayClusterViewportConfigurationHelpers_ICVFX_Impl
 	{
 		if (GDisplayClusterPreviewEnableReuseViewportInCluster > 0)
 		{
-			FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(InRootActor);
-			if (ViewportManager)
+			if (InRootActor.GetRenderMode() == EDisplayClusterRenderFrameMode::PreviewInScene)
 			{
-				const FDisplayClusterRenderFrameSettings& RenderFrameSettings = ViewportManager->GetRenderFrameSettings();
-				switch (RenderFrameSettings.RenderMode)
-				{
-				case EDisplayClusterRenderFrameMode::PreviewInScene:
-					return true;
-				default:
-					break;
-				}
+				return true;
 			}
 		}
 
@@ -118,10 +110,11 @@ using namespace DisplayClusterViewportConfigurationHelpers_ICVFX_Impl;
 ////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::ImplFindViewport(ADisplayClusterRootActor& RootActor, const FString& InViewportId, const FString& InResourceId)
 {
-	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
-	if (ViewportManager != nullptr)
+	if (FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor))
 	{
-		return ViewportManager->ImplFindViewport(ImplGetNameICVFX(ViewportManager->GetRenderFrameSettings().ClusterNodeId, InViewportId, InResourceId));
+		TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe> Viewport = ViewportManager->ImplFindViewport(ImplGetNameICVFX(ViewportManager->GetRenderFrameSettings().ClusterNodeId, InViewportId, InResourceId));
+
+		return Viewport.Get();
 	}
 
 	return nullptr;
@@ -129,8 +122,7 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::Impl
 
 static bool ImplCreateProjectionPolicy(ADisplayClusterRootActor& RootActor, const FString& InViewportId, const FString& InResourceId, bool bIsCameraProjection, TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& OutProjPolicy)
 {
-	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
-	if (ViewportManager != nullptr)
+	if (FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor))
 	{
 		const FString& ClusterNodeId = ViewportManager->GetRenderFrameSettings().ClusterNodeId;
 
@@ -160,12 +152,11 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::Impl
 {
 	check(InProjectionPolicy.IsValid());
 
-	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor);
-	if (ViewportManager != nullptr)
+	if (FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(RootActor))
 	{
 		// Create viewport for new projection policy
-		FDisplayClusterViewport* NewViewport = ViewportManager->ImplCreateViewport(ImplGetNameICVFX(ViewportManager->GetRenderFrameSettings().ClusterNodeId, InViewportId, InResourceId), InProjectionPolicy);
-		if (NewViewport != nullptr)
+		TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe> NewViewport = ViewportManager->ImplCreateViewport(ImplGetNameICVFX(ViewportManager->GetRenderFrameSettings().ClusterNodeId, InViewportId, InResourceId), InProjectionPolicy);
+		if (NewViewport.IsValid())
 		{
 			// Mark as internal resource
 			EnumAddFlags(NewViewport->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::InternalResource);
@@ -173,7 +164,7 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::Impl
 			// Dont show ICVFX composing viewports on frame target
 			NewViewport->RenderSettings.bVisible = false;
 
-			return NewViewport;
+			return NewViewport.Get();
 		}
 	}
 
@@ -231,44 +222,39 @@ FDisplayClusterViewport* FDisplayClusterViewportConfigurationHelpers_ICVFX::GetO
 
 void FDisplayClusterViewportConfigurationHelpers_ICVFX::ReuseUVLightCardViewportWithinClusterNode(FDisplayClusterViewport& InUVLightCardViewport)
 {
-	const TArray<FDisplayClusterViewport*>& Viewports = 
-#if WITH_EDITOR
-		InUVLightCardViewport.ImplGetOwner().ImplGetWholeClusterViewports_Editor();
-#else
-		InUVLightCardViewport.ImplGetOwner().ImplGetViewports();
-#endif
-
-	for (FDisplayClusterViewport* ViewportIt : Viewports)
+	if (FDisplayClusterViewportManager* ViewportManager = InUVLightCardViewport.GetViewportManagerImpl())
 	{
-		if(ViewportIt && ViewportIt != &InUVLightCardViewport && !ViewportIt->RenderSettings.IsViewportOverrided()
-		&& EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard))
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager->ImplGetWholeClusterViewports())
 		{
-			if (ViewportIt->IsOpenColorIOEquals(InUVLightCardViewport))
+			if (ViewportIt.IsValid() && ViewportIt != InUVLightCardViewport.AsShared() && !ViewportIt->RenderSettings.IsViewportOverrided()
+				&& EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, EDisplayClusterViewportRuntimeICVFXFlags::UVLightcard))
 			{
-				// Reuse exist viewport:
-				InUVLightCardViewport.RenderSettings.SetViewportOverride(ViewportIt->GetId(), EDisplayClusterViewportOverrideMode::All);
-				break;
+				if (ViewportIt->IsOpenColorIOEquals(InUVLightCardViewport))
+				{
+					// Reuse exist viewport:
+					InUVLightCardViewport.RenderSettings.SetViewportOverride(ViewportIt->GetId(), EDisplayClusterViewportOverrideMode::All);
+					break;
+				}
 			}
 		}
 	}
 }
 
 #if WITH_EDITOR
-TArray<FDisplayClusterViewport*> FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewGetRenderedInCameraViewports(ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent, bool bGetChromakey)
+TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewGetRenderedInCameraViewports(ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent, bool bGetChromakey)
 {
-	TArray<FDisplayClusterViewport*> OutViewports;
+	TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>> OutViewports;
 
 	// Search for rendered camera viewport on other cluster nodes
-	FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(InRootActor);
-	if (ViewportManager != nullptr)
+	if (FDisplayClusterViewportManager* ViewportManager = FDisplayClusterViewportConfigurationHelpers_ICVFX::GetViewportManager(InRootActor))
 	{
 		const FString ICVFXCameraId = InCameraComponent.GetCameraUniqueId();
 		const EDisplayClusterViewportRuntimeICVFXFlags InRuntimeFlagsMask = bGetChromakey ? EDisplayClusterViewportRuntimeICVFXFlags::Chromakey : EDisplayClusterViewportRuntimeICVFXFlags::InCamera;
 		const FString ViewportTypeId = bGetChromakey ? DisplayClusterViewportStrings::icvfx::chromakey : DisplayClusterViewportStrings::icvfx::camera;
 
-		for (FDisplayClusterViewport* ViewportIt : ViewportManager->ImplGetWholeClusterViewports_Editor())
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : ViewportManager->ImplGetWholeClusterViewports())
 		{
-			if (ViewportIt != nullptr
+			if (ViewportIt.IsValid()
 				&& EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.RuntimeFlags, InRuntimeFlagsMask)
 				&& (ViewportIt->InputShaderResources.Num() > 0 && ViewportIt->InputShaderResources[0] != nullptr && ViewportIt->Contexts.Num() > 0)
 				&& (!ViewportIt->RenderSettings.IsViewportOverrided()))
@@ -293,19 +279,15 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewReuseInnerFrustum
 		return;
 	}
 
-	const FDisplayClusterRenderFrameSettings& RenderFrameSettingsConstRef = InCameraViewport.GetRenderFrameSettings();
-	switch (RenderFrameSettingsConstRef.RenderMode)
+	// Only for preview mode
+	if (InCameraViewport.GetRenderMode() != EDisplayClusterRenderFrameMode::PreviewInScene)
 	{
-	case EDisplayClusterRenderFrameMode::PreviewInScene:
-		// Only for preview mode
-		break;
-	default:
 		return;
 	}
 
-	for (FDisplayClusterViewport* ViewportIt : PreviewGetRenderedInCameraViewports(InRootActor, InCameraComponent, false))
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : PreviewGetRenderedInCameraViewports(InRootActor, InCameraComponent, false))
 	{
-		if (ViewportIt && ViewportIt != &InCameraViewport && ViewportIt->GetClusterNodeId() != InCameraViewport.GetClusterNodeId()
+		if (ViewportIt.IsValid() && ViewportIt != InCameraViewport.AsShared() && ViewportIt->GetClusterNodeId() != InCameraViewport.GetClusterNodeId()
 			&& FDisplayClusterViewportConfigurationHelpers_Postprocess::IsInnerFrustumViewportSettingsEqual_Editor(*ViewportIt, InCameraViewport, InCameraComponent))
 		{
 			EDisplayClusterViewportOverrideMode ViewportOverrideMode = ViewportIt->IsOpenColorIOEquals(InCameraViewport) ?
@@ -324,20 +306,16 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::PreviewReuseChromakeyVie
 	{
 		return;
 	}
-
-	const FDisplayClusterRenderFrameSettings& RenderFrameSettingsConstRef = InChromakeyViewport.GetRenderFrameSettings();
-	switch (RenderFrameSettingsConstRef.RenderMode)
+	
+	// Only for preview mode
+	if (InChromakeyViewport.GetRenderMode() != EDisplayClusterRenderFrameMode::PreviewInScene)
 	{
-	case EDisplayClusterRenderFrameMode::PreviewInScene:
-		// Only for preview mode
-		break;
-	default:
 		return;
 	}
 
-	for (FDisplayClusterViewport* ViewportIt : PreviewGetRenderedInCameraViewports(InRootActor, InCameraComponent, true))
+	for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : PreviewGetRenderedInCameraViewports(InRootActor, InCameraComponent, true))
 	{
-		if (ViewportIt && ViewportIt!= &InChromakeyViewport  && ViewportIt->GetClusterNodeId() != InChromakeyViewport.GetClusterNodeId())
+		if (ViewportIt.IsValid() && ViewportIt != InChromakeyViewport.AsShared() && ViewportIt->GetClusterNodeId() != InChromakeyViewport.GetClusterNodeId())
 		{
 			// Chromakey support OCIO
 			EDisplayClusterViewportOverrideMode ViewportOverrideMode = ViewportIt->IsOpenColorIOEquals(InChromakeyViewport) ?
@@ -962,5 +940,5 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportBuff
 		DstViewport.RenderSettings.RenderTargetAdaptRatio = 1.f;
 	}
 
-	DstViewport.Owner.SetViewportBufferRatio(DstViewport, BufferRatio);
+	DstViewport.SetViewportBufferRatio(BufferRatio);
 }

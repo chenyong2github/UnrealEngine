@@ -21,22 +21,23 @@ private:
 	}
 
 public:
-
 	// The id of the nDisplay viewport being rendered.
 	const FString ViewportId;
-	const IDisplayClusterViewportManager* ViewportManager;
+
+	// Reference to viewport manager
+	TSharedPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
 
 	FDisplayClusterSceneViewExtensionContext()
 		: FSceneViewExtensionContext()
 	{ }
 
-	FDisplayClusterSceneViewExtensionContext(FViewport* InViewport, IDisplayClusterViewportManager* InViewportManager, const FString& InViewportId)
+	FDisplayClusterSceneViewExtensionContext(FViewport* InViewport, const TSharedPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe>& InViewportManager, const FString& InViewportId)
 		: FSceneViewExtensionContext(InViewport)
 		, ViewportId(InViewportId)
 		, ViewportManager(InViewportManager)
 	{ }
 
-	FDisplayClusterSceneViewExtensionContext(FSceneInterface* InScene, IDisplayClusterViewportManager* InViewportManager, const FString& InViewportId)
+	FDisplayClusterSceneViewExtensionContext(FSceneInterface* InScene, const TSharedPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe>& InViewportManager, const FString& InViewportId)
 		: FSceneViewExtensionContext(InScene)
 		, ViewportId(InViewportId)
 		, ViewportManager(InViewportManager)

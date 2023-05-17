@@ -64,18 +64,11 @@ bool FDisplayClusterViewportRemap::UpdateConfiguration(const FDisplayClusterView
 
 void FDisplayClusterViewportRemap::Update(const FDisplayClusterViewport& InViewport, const FIntPoint& InRenderFrameSize)
 {
-#if WITH_EDITOR
-	const FDisplayClusterRenderFrameSettings& RenderFrameSettings = InViewport.Owner.GetRenderFrameSettings();
-
-	switch(RenderFrameSettings.RenderMode)
+	// Preview in editor not support this feature
+	if (InViewport.GetRenderMode() == EDisplayClusterRenderFrameMode::PreviewInScene)
 	{
-	case EDisplayClusterRenderFrameMode::PreviewInScene:
-		// Preview in editor not support this feature
 		return;
-	default:
-		break;
 	}
-#endif
 
 	const FDisplayClusterViewport_RenderSettings& RenderSettings = InViewport.GetRenderSettings();
 

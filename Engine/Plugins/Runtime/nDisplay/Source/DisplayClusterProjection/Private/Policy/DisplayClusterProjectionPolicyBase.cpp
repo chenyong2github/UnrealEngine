@@ -46,26 +46,7 @@ bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(IDisplayClusterV
 	}
 
 	// Get state from viewport world (UE-114493)
-	if (InViewport)
-	{
-		if (UWorld* CurrentWorld = InViewport->GetOwner().GetCurrentWorld())
-		{
-			if (CurrentWorld)
-			{
-				switch (CurrentWorld->WorldType)
-				{
-				case EWorldType::Editor:
-				case EWorldType::EditorPreview:
-					return true;
-
-				default:
-					break;
-				}
-			}
-		}
-	}
-
-	return false;
+	return InViewport && InViewport->IsCurrentWorldHasAnyType(EWorldType::Editor, EWorldType::EditorPreview);
 }
 
 bool FDisplayClusterProjectionPolicyBase::IsConfigurationChanged(const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const
@@ -95,8 +76,7 @@ void FDisplayClusterProjectionPolicyBase::InitializeOriginComponent(IDisplayClus
 	if (InViewport)
 	{
 		USceneComponent* PolicyOriginComp = nullptr;
-		ADisplayClusterRootActor* RootActor = InViewport->GetOwner().GetRootActor();
-		if (RootActor)
+		if (ADisplayClusterRootActor* RootActor = InViewport->GetRootActor())
 		{
 			// default use root actor as Origin
 			PolicyOriginComp = RootActor->GetRootComponent();

@@ -6,13 +6,22 @@
 
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
+/**
+ * nDisplay ViewportManagerProxy (interface for RenderThread)
+ */
 class DISPLAYCLUSTER_API IDisplayClusterViewportManagerProxy
 {
 public:
 	virtual ~IDisplayClusterViewportManagerProxy() = default;
 
 public:
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/** Get TSharedPtr from self. */
+	virtual TSharedPtr<IDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ToSharedPtr() = 0;
+	virtual TSharedPtr<const IDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ToSharedPtr() const = 0;
+
+	/** Return current render mode. */
+	virtual EDisplayClusterRenderFrameMode GetRenderMode() const = 0;
+
 	/**
 	* Find viewport render thread proxy object by name
 	* [Rendering thread func]

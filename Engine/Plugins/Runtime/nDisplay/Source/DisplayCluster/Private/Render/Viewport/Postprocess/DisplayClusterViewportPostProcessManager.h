@@ -71,6 +71,7 @@ public:
 
 private:
 	TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> ImplFindPostProcess(const FString& InPostprocessId) const;
+	FDisplayClusterViewportManager* GetViewportManager() const;
 
 protected:
 	void ImplPerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const;
@@ -83,9 +84,10 @@ protected:
 	TArray<TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>> Postprocess;
 
 private:
+	const TSharedRef<FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
+
 	// Render thread instances
 	TArray<TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>> PostprocessProxy;
 
-	FDisplayClusterViewportManager& ViewportManager;
 	TSharedPtr<FDisplayClusterViewportPostProcessOutputRemap, ESPMode::ThreadSafe> OutputRemap;
 };

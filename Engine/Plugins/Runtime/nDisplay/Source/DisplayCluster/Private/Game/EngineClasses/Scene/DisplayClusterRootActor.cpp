@@ -89,7 +89,7 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 	DefaultViewPoint->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 	DefaultViewPoint->SetRelativeLocation(FVector(0.f, 0.f, 50.f));
 
-	ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
+	CreateViewportManagerImpl();
 
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
@@ -111,6 +111,20 @@ ADisplayClusterRootActor::~ADisplayClusterRootActor()
 #if WITH_EDITOR
 	Destructor_Editor();
 #endif
+}
+
+IDisplayClusterViewportManager* ADisplayClusterRootActor::GetViewportManager() const
+{
+	return ViewportManager.Get();
+}
+
+void ADisplayClusterRootActor::CreateViewportManagerImpl()
+{
+	if (!ViewportManager.IsValid())
+	{
+		ViewportManager = MakeShared<FDisplayClusterViewportManager, ESPMode::ThreadSafe>();
+		ViewportManager->Initialize();
+	}
 }
 
 bool ADisplayClusterRootActor::IsRunningGameOrPIE() const
@@ -140,6 +154,35 @@ const FDisplayClusterConfigurationRenderFrame& ADisplayClusterRootActor::GetRend
 	check(CurrentConfigData);
 
 	return CurrentConfigData->RenderFrameSettings;
+}
+
+EDisplayClusterRenderFrameMode ADisplayClusterRootActor::GetRenderMode() const
+{
+	if (ViewportManager.IsValid())
+	{
+		return ViewportManager->GetRenderMode();
+	}
+
+	return EDisplayClusterRenderFrameMode::Unknown;
+}
+
+EDisplayClusterRenderFrameMode ADisplayClusterRootActor::GetPreviewRenderMode() const
+{
+#if WITH_EDITOR
+	switch (RenderMode)
+	{
+	case EDisplayClusterConfigurationRenderMode::SideBySide:
+		return EDisplayClusterRenderFrameMode::SideBySide;
+
+	case EDisplayClusterConfigurationRenderMode::TopBottom:
+		return EDisplayClusterRenderFrameMode::TopBottom;
+
+	default:
+		break;
+	}
+#endif
+
+	return EDisplayClusterRenderFrameMode::Mono;
 }
 
 void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData)
@@ -657,10 +700,7 @@ void ADisplayClusterRootActor::InitializeRootActor()
 		UpdateConfigDataInstance(GetDefaultConfigDataFromAsset());
 	}
 
-	if (ViewportManager.IsValid() == false)
-	{
-		ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
-	}
+	CreateViewportManagerImpl();
 
 	StageGeometryComponent->Invalidate();
 

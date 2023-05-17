@@ -11,7 +11,7 @@
 struct FDisplayClusterRenderFrameSettings
 {
 	// customize mono\stereo render modes
-	EDisplayClusterRenderFrameMode RenderMode = EDisplayClusterRenderFrameMode::Mono;
+	EDisplayClusterRenderFrameMode RenderMode = EDisplayClusterRenderFrameMode::Unknown;
 
 	// nDisplay has its own implementation of cross-GPU transfer.
 	struct FCrossGPUTransfer

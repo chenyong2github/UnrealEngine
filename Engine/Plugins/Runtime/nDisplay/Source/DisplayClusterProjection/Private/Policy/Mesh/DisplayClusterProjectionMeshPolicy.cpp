@@ -121,8 +121,8 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 	check(InViewport);
 
 	// Get our VR root
-	ADisplayClusterRootActor* const Root = InViewport->GetOwner().GetRootActor();
-	if (!Root)
+	ADisplayClusterRootActor* RootActorPtr = InViewport->GetRootActor();
+	if (!RootActorPtr)
 	{
 		UE_LOG(LogDisplayClusterProjectionMesh, Error, TEXT("Couldn't get a VR root object"));
 		return false;
@@ -179,7 +179,7 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 	OutWarpCfg.ChromakeyUVIndex = CfgChromakeyUVIndex;
 
 	// Get the StaticMeshComponent
-	OutWarpCfg.StaticMeshComponent = Root->GetComponentByName<UStaticMeshComponent>(ComponentId);
+	OutWarpCfg.StaticMeshComponent = RootActorPtr->GetComponentByName<UStaticMeshComponent>(ComponentId);
 	if (OutWarpCfg.StaticMeshComponent != nullptr)
 	{
 		int CfgLODIndex;
@@ -200,7 +200,7 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 	else
 	{
 		// Get the ProceduralMeshComponent
-		OutWarpCfg.ProceduralMeshComponent = Root->GetComponentByName<UProceduralMeshComponent>(ComponentId);
+		OutWarpCfg.ProceduralMeshComponent = RootActorPtr->GetComponentByName<UProceduralMeshComponent>(ComponentId);
 		if (OutWarpCfg.ProceduralMeshComponent == nullptr)
 		{
 			if (!IsEditorOperationMode(InViewport))

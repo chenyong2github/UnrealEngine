@@ -15,6 +15,7 @@ class FDisplayClusterViewportProxy;
 class FDisplayClusterViewport_Context;
 class IDisplayClusterRender_MeshComponent;
 class FDisplayClusterViewport_OpenColorIO;
+class FSceneViewStateReference;
 
 //
 // Container for data exchange game->render threads
@@ -22,7 +23,7 @@ class FDisplayClusterViewport_OpenColorIO;
 class FDisplayClusterViewportProxyData
 {
 public:
-	FDisplayClusterViewportProxyData(const FDisplayClusterViewport* SrcViewport);
+	FDisplayClusterViewportProxyData(const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& SrcViewport);
 	~FDisplayClusterViewportProxyData() = default;
 
 	void UpdateProxy_RenderThread() const;

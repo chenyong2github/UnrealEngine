@@ -17,12 +17,8 @@ struct FDisplayClusterConfigurationRenderFrame;
 class FDisplayClusterViewportConfiguration
 {
 public:
-	FDisplayClusterViewportConfiguration(FDisplayClusterViewportManager& InViewportManager)
-		: ViewportManager(InViewportManager)
-	{}
-
-	~FDisplayClusterViewportConfiguration()
-	{}
+	FDisplayClusterViewportConfiguration(FDisplayClusterViewportManager& InViewportManager);
+	~FDisplayClusterViewportConfiguration();
 
 public:
 	// Return true, if root actor ref changed
@@ -33,7 +29,7 @@ public:
 	{ 
 		check(IsInGameThread());
 
-		return RenderFrameSettings; 
+		return RenderFrameSettings;
 	}
 
 	bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId);
@@ -56,7 +52,8 @@ private:
 	EDisplayClusterRenderFrameAlphaChannelCaptureMode GetAlphaChannelCaptureMode() const;
 
 private:
-	FDisplayClusterViewportManager&    ViewportManager;
+	const TSharedRef<FDisplayClusterViewportManager> ViewportManager;
+
 	FDisplayClusterActorRef            RootActorRef;
 	FDisplayClusterRenderFrameSettings RenderFrameSettings;
 };

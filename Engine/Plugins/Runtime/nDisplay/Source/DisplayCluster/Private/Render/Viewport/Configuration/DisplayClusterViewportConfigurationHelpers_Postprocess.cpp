@@ -206,7 +206,6 @@ bool FDisplayClusterViewportConfigurationHelpers_Postprocess::IsInnerFrustumView
 bool FDisplayClusterViewportConfigurationHelpers_Postprocess::ImplUpdateInnerFrustumColorGrading(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
 {
 	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
-	const FDisplayClusterRenderFrameSettings& RenderFrameSettings = DstViewport.GetRenderFrameSettings();
 
 	// per node color grading first (it includes all nodes blending too)
 	const FString& ClusterNodeId = DstViewport.GetClusterNodeId();

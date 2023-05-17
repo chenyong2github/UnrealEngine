@@ -6,96 +6,92 @@
 
 #include "DisplayClusterRenderFrameEnums.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettings.h"
+
 #include "SceneViewExtension.h"
 
+class IDisplayClusterViewport;
 class IDisplayClusterViewportManager;
+class FRenderTarget;
 
-// Render frame container
+/**
+ * nDisplay: DCViewport context for render in UE View
+ */
+struct FDisplayClusterRenderFrameTargetView
+{
+	/** Is this viewport context can be rendered. */
+	inline bool IsViewportContextCanBeRendered() const
+	{
+		return !bDisableRender && !bFreezeRendering;
+	}
+
+	// Viewport context index for this view
+	uint32 ContextNum = 0;
+
+	// Some viewports may skip rendering (for example: overridden)
+	bool bDisableRender = false;
+
+	// In special cases, viewports can reuse an existing RTT image
+	// For example: the preview is rendered over several frames, so the already rendered viewports remain "frozen" and can be used during subsequent frames.
+	bool bFreezeRendering = false;
+
+	// Viewport game-thread data
+	TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe> Viewport;
+};
+
+/**
+ * nDisplay: A group of DCViewports that can be render within a single viewfamily
+ */
+struct FDisplayClusterRenderFrameTargetViewFamily
+{
+	// Customize ScreenPercentage feature for viewfamily
+	float CustomBufferRatio = 1;
+
+	// Extensions that can modify view parameters
+	TArray<FSceneViewExtensionRef> ViewExtensions;
+
+	// Vieports, rendered at once for tthis family
+	TArray<FDisplayClusterRenderFrameTargetView> Views;
+};
+
+/**
+ * nDisplay: Target texture for rendering.
+ * Contains structured information on how to render DCViewports via viewfamilies in RTT
+ */
+struct FDisplayClusterRenderFrameTarget
+{
+	// Discard some RTT (when view render disabled)
+	// Also when RTT Atlasing used, this viewports excluded from atlas map (reduce size)
+	bool bShouldUseRenderTarget = true;
+
+	// required Render target size (resource can be bigger)
+	FIntPoint RenderTargetSize;
+
+	EDisplayClusterViewportCaptureMode CaptureMode = EDisplayClusterViewportCaptureMode::Default;
+
+	// Render target resource ref
+	FRenderTarget* RenderTargetPtr = nullptr;
+
+	// Families, rendered on this target
+	TArray<FDisplayClusterRenderFrameTargetViewFamily> ViewFamilies;
+};
+
+/**
+ * nDisplay: Render frame container
+ * The final frame is composed of DCViewports, which are rendered in the correct order on a few RTTs.
+ * Contains all information about how to render all DCViewports for the current frame and the settings for it.
+ */
 class FDisplayClusterRenderFrame
 {
 public:
-	~FDisplayClusterRenderFrame()
-	{
-		RenderTargets.Empty();
-	}
-
-public:
-	class FFrameView
-	{
-	public:
-		inline bool ShouldRenderSceneView() const
-		{
-			return !bDisableRender && !bFreezeRendering;
-		}
-
-	public:
-		// Viewport game-thread data
-		class IDisplayClusterViewport* Viewport = nullptr;
-
-		// Viewport context index for this view
-		uint32 ContextNum = 0;
-
-		bool bDisableRender = false;
-		bool bFreezeRendering = false;
-	};
-
-	class FFrameViewFamily
-	{
-	public:
-		~FFrameViewFamily()
-		{
-			ViewExtensions.Empty();
-			Views.Empty();
-		}
-
-	public:
-		// Customize ScreenPercentage feature for viewfamily
-		float CustomBufferRatio = 1;
-
-		// Extensions that can modify view parameters
-		TArray<FSceneViewExtensionRef> ViewExtensions;
-
-		// Vieports, rendered at once for tthis family
-		TArray<FFrameView> Views;
-
-		int32 NumViewsForRender = 0;
-	};
-
-	class FFrameRenderTarget
-	{
-	public:
-		~FFrameRenderTarget()
-		{
-			ViewFamilies.Empty();
-		}
-
-	public:
-		// Discard some RTT (when view render disabled)
-		// Also when RTT Atlasing used, this viewports excluded from atlas map (reduce size)
-		bool bShouldUseRenderTarget = true;
-
-		// required Render target size (resource can be bigger)
-		FIntPoint RenderTargetSize;
-
-		EDisplayClusterViewportCaptureMode CaptureMode = EDisplayClusterViewportCaptureMode::Default;
-
-		// Render target resource ref
-		class FRenderTarget* RenderTargetPtr = nullptr;
-
-		// Families, rendered on this target
-		TArray<FFrameViewFamily> ViewFamilies;
-	};
-
-public:
 	// Render frame to this targets
-	TArray<FFrameRenderTarget> RenderTargets;
+	TArray<FDisplayClusterRenderFrameTarget> RenderTargets;
 	
 	// Frame rect on final backbuffer
 	FIntRect FrameRect;
 
+	// Desired numbers of view
 	int32 DesiredNumberOfViews = 0;
-	int32 ViewportsAmount = 0;
 
-	IDisplayClusterViewportManager* ViewportManager = nullptr;
+	// Ref to the DC Viewport Manager
+	TSharedPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
 };
-

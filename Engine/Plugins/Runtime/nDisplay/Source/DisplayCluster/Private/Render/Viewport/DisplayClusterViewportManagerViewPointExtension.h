@@ -26,9 +26,6 @@ public:
 
 	virtual int32 GetPriority() const override { return DISPLAYCLUSTER_SCENE_VIEWPOINT_EXTENSION_PRIORITY; }
 
-	/** Release from game thread.*/
-	void Release();
-
 	/** Set current view index for this VE:
 	 * This function must be used because LocalPlayer::GetViewPoint() calls the ISceneViewExtension::SetupViewPoint() function from this VE.
 	 * And at this point the VE must know the current StereoViewIndex value in order to understand which viewport will be used for this SetupViewPoint() call.
@@ -43,15 +40,20 @@ protected:
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 private:
+	/** Get viewport manager ptr. */
+	inline const FDisplayClusterViewportManager* GetViewportManager() const
+	{
+		return ViewportManagerWeakPtr.IsValid() ? ViewportManagerWeakPtr.Pin().Get() : nullptr;
+	}
+
 	/** True, if VE can be used at the moment. */
 	bool IsActive() const
 	{
-		return ViewportManager && CurrentStereoViewIndex != INDEX_NONE;
+		return GetViewportManager() != nullptr && CurrentStereoViewIndex != INDEX_NONE;
 	}
 
 private:
-	// Pointer to the viewport manager to which this VE belongs
-	const FDisplayClusterViewportManager* ViewportManager;
+	TWeakPtr<const FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManagerWeakPtr;
 
 	// Current StereoViewIndex for rendered viewport
 	int32 CurrentStereoViewIndex = INDEX_NONE;

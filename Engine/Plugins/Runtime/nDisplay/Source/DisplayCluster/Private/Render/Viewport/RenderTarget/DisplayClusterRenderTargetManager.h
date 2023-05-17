@@ -6,10 +6,9 @@
 
 class FViewport;
 class FDisplayClusterViewport;
-class FDisplayClusterRenderFrame;
 class FDisplayClusterRenderTargetResourcesPool;
 class FDisplayClusterViewportManagerProxy;
-
+class FDisplayClusterRenderFrame;
 struct FDisplayClusterRenderFrameSettings;
 
 class FDisplayClusterRenderTargetManager
@@ -21,7 +20,7 @@ public:
 	void Release();
 
 public:
-	bool AllocateRenderFrameResources(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<FDisplayClusterViewport*>& InViewports, FDisplayClusterRenderFrame& InOutRenderFrame);
+	bool AllocateRenderFrameResources(FViewport* InViewport, const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& InViewports, FDisplayClusterRenderFrame& InOutRenderFrame);
 
 protected:
 	bool AllocateFrameTargets(const FDisplayClusterRenderFrameSettings& InRenderFrameSettings, const FIntPoint& InViewportSize, FDisplayClusterRenderFrame& InOutRenderFrame);

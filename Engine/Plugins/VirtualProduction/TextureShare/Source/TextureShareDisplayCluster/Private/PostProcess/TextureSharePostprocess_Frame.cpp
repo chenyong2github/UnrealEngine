@@ -25,9 +25,9 @@ void FTextureSharePostprocess::UpdateSupportedViews(IDisplayClusterViewportManag
 	if (InViewportManager)
 	{
 		// Get all existing viewports on DC node
-		for (const IDisplayClusterViewport* ViewportIt : InViewportManager->GetViewports())
+		for (const TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : InViewportManager->GetViewports())
 		{
-			if (ViewportIt)
+			if (ViewportIt.IsValid())
 			{
 				const TArray<FDisplayClusterViewport_Context>& Contexts = ViewportIt->GetContexts();
 				for (const FDisplayClusterViewport_Context& ViewportContextIt : Contexts)
@@ -44,27 +44,30 @@ void FTextureSharePostprocess::UpdateManualProjectionPolicy(IDisplayClusterViewp
 {
 	if (InViewportManager)
 	{
-		for (IDisplayClusterViewport* ViewportIt : InViewportManager->GetViewports())
+		for (const TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : InViewportManager->GetViewports())
 		{
-			TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> PrjPolicy = ViewportIt->GetProjectionPolicy();
-			if (PrjPolicy.IsValid() && PrjPolicy->GetType() == UE::TextureShare::DisplayClusterStrings::Projection::TextureShare)
+			if (ViewportIt.IsValid())
 			{
-				// Search the custom manual projection for viewport with the "TextureShare" projection policy type 
-				TArray<FTextureShareCoreManualProjection> ManualProjections;
-				for (const FTextureShareCoreObjectData& FrameDataIt : Object->GetReceivedCoreObjectData())
+				TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> PrjPolicy = ViewportIt->GetProjectionPolicy();
+				if (PrjPolicy.IsValid() && PrjPolicy->GetType() == UE::TextureShare::DisplayClusterStrings::Projection::TextureShare)
 				{
-					if (FrameDataIt.Data.ManualProjections.GetValuesByEqualsFunc(ViewportIt->GetId(), ManualProjections))
+					// Search the custom manual projection for viewport with the "TextureShare" projection policy type 
+					TArray<FTextureShareCoreManualProjection> ManualProjections;
+					for (const FTextureShareCoreObjectData& FrameDataIt : Object->GetReceivedCoreObjectData())
 					{
-						// Apply manual projection
-						static ITextureShareDisplayClusterAPI& TextureShareDisplayClusterAPI = ITextureShareDisplayCluster::Get().GetTextureShareDisplayClusterAPI();
-						TextureShareDisplayClusterAPI.TextureSharePolicySetProjectionData(PrjPolicy, ManualProjections);
-
-						// Save used manual projections sources
-						for (const FTextureShareCoreManualProjection& It : ManualProjections)
+						if (FrameDataIt.Data.ManualProjections.GetValuesByEqualsFunc(ViewportIt->GetId(), ManualProjections))
 						{
-							Object->GetCoreData().ManualProjectionsSources.Add(FTextureShareCoreManualProjectionSource(It.ViewDesc, FTextureShareCoreObjectFrameMarker(FrameDataIt.Desc, FrameDataIt.Data.FrameMarker)));
+							// Apply manual projection
+							static ITextureShareDisplayClusterAPI& TextureShareDisplayClusterAPI = ITextureShareDisplayCluster::Get().GetTextureShareDisplayClusterAPI();
+							TextureShareDisplayClusterAPI.TextureSharePolicySetProjectionData(PrjPolicy, ManualProjections);
+
+							// Save used manual projections sources
+							for (const FTextureShareCoreManualProjection& It : ManualProjections)
+							{
+								Object->GetCoreData().ManualProjectionsSources.Add(FTextureShareCoreManualProjectionSource(It.ViewDesc, FTextureShareCoreObjectFrameMarker(FrameDataIt.Desc, FrameDataIt.Data.FrameMarker)));
+							}
+							break;
 						}
-						break;
 					}
 				}
 			}
@@ -77,9 +80,9 @@ void FTextureSharePostprocess::UpdateViews(IDisplayClusterViewportManager* InVie
 	if (InViewportManager)
 	{
 		//Register all viewport for scene eye data capture by default
-		for (IDisplayClusterViewport* ViewportIt : InViewportManager->GetViewports())
+		for (const TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>& ViewportIt : InViewportManager->GetViewports())
 		{
-			if (ViewportIt)
+			if (ViewportIt.IsValid())
 			{
 				const bool bMonoscopic = ViewportIt->GetContexts().Num() == 1;
 				for (const FDisplayClusterViewport_Context& ContextIt : ViewportIt->GetContexts())

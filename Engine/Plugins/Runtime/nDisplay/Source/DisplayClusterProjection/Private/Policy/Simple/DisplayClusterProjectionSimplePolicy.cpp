@@ -184,8 +184,8 @@ bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(IDisplayClusterVi
 	UE_LOG(LogDisplayClusterProjectionSimple, Verbose, TEXT("Initializing screen geometry for viewport policy  %s"), *GetId());
 
 	// Get our VR root
-	ADisplayClusterRootActor* const Root = InViewport->GetOwner().GetRootActor();
-	if (!Root)
+	ADisplayClusterRootActor* const RootActorPtr = InViewport->GetRootActor();
+	if (!RootActorPtr)
 	{
 		if (!IsEditorOperationMode(InViewport))
 		{
@@ -196,7 +196,7 @@ bool FDisplayClusterProjectionSimplePolicy::InitializeMeshData(IDisplayClusterVi
 	}
 
 	// Get screen component
-	UDisplayClusterScreenComponent* ScreenComp = Root->GetComponentByName<UDisplayClusterScreenComponent>(ScreenId);
+	UDisplayClusterScreenComponent* ScreenComp = RootActorPtr->GetComponentByName<UDisplayClusterScreenComponent>(ScreenId);
 	if (!ScreenComp)
 	{
 		if (!IsEditorOperationMode(InViewport))

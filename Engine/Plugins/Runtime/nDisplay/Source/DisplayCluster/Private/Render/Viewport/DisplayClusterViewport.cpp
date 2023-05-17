@@ -27,6 +27,8 @@
 
 #include "DisplayClusterSceneViewExtensions.h"
 
+#include "LegacyScreenPercentageDriver.h"
+
 #include "Misc/DisplayClusterLog.h"
 
 int32 GDisplayClusterMultiGPUEnable = 1;
@@ -44,33 +46,40 @@ FDisplayClusterViewport::FDisplayClusterViewport(FDisplayClusterViewportManager&
 	: UninitializedProjectionPolicy(InProjectionPolicy)
 	, ViewportId(InViewportId)
 	, ClusterNodeId(InClusterNodeId)
-	, Owner(InOwner)
+	, ViewportManagerWeakPtr(InOwner.AsShared())
+	, ViewportManagerProxyWeakPtr(InOwner.GetViewportManagerProxy())
 {
 	check(!ClusterNodeId.IsEmpty());
 	check(!ViewportId.IsEmpty());
 	check(UninitializedProjectionPolicy.IsValid());
 
-	// Create scene proxy pair with on game thread. Outside, in ViewportManager added to proxy array on render thread
-	ViewportProxy = MakeShared<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>(*this);
+	if (ViewportManagerProxyWeakPtr.IsValid())
+	{
+		// Create scene proxy pair with on game thread. Outside, in ViewportManager added to proxy array on render thread
+		ViewportProxy = MakeShared<FDisplayClusterViewportProxy, ESPMode::ThreadSafe>(*this);
 
-	// Add viewport proxy on renderthread
-	ENQUEUE_RENDER_COMMAND(CreateDisplayClusterViewportProxy)(
-		[ViewportManagerProxy = Owner.GetViewportManagerProxy(), ViewportProxy = ViewportProxy](FRHICommandListImmediate& RHICmdList)
-		{
-			ViewportManagerProxy->CreateViewport_RenderThread(ViewportProxy);
-		}
-	);
+		// Add viewport proxy on renderthread
+		ENQUEUE_RENDER_COMMAND(CreateDisplayClusterViewportProxy)(
+			[ViewportManagerProxy = ViewportManagerProxyWeakPtr.Pin(), ViewportProxy = ViewportProxy](FRHICommandListImmediate& RHICmdList)
+			{
+				ViewportManagerProxy->CreateViewport_RenderThread(ViewportProxy);
+			}
+		);
+	}
 }
 
 FDisplayClusterViewport::~FDisplayClusterViewport()
 {
-	// Remove viewport proxy on render_thread
-	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
-		[ViewportManagerProxy = Owner.GetViewportManagerProxy(), ViewportProxy = ViewportProxy](FRHICommandListImmediate& RHICmdList)
-		{
-			ViewportManagerProxy->DeleteViewport_RenderThread(ViewportProxy);
-		}
-	);
+	if (ViewportManagerProxyWeakPtr.IsValid())
+	{
+		// Remove viewport proxy on render_thread
+		ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
+			[ViewportManagerProxy = ViewportManagerProxyWeakPtr.Pin(), ViewportProxy = ViewportProxy](FRHICommandListImmediate& RHICmdList)
+			{
+				ViewportManagerProxy->DeleteViewport_RenderThread(ViewportProxy);
+			}
+		);
+	}
 
 	ViewportProxy.Reset();
 	OpenColorIO.Reset();
@@ -82,18 +91,98 @@ FDisplayClusterViewport::~FDisplayClusterViewport()
 	ProjectionPolicy.Reset();
 	UninitializedProjectionPolicy.Reset();
 
-	// Reset RTT size after viewport delete
-	Owner.ResetSceneRenderTargetSize();
+	if (FDisplayClusterViewportManager* ViewportManager = GetViewportManagerImpl())
+	{
+		// Reset RTT size after viewport delete
+		ViewportManager->ResetSceneRenderTargetSize();
+	}
 }
 
-IDisplayClusterViewportManager& FDisplayClusterViewport::GetOwner() const
+IDisplayClusterViewportManager* FDisplayClusterViewport::GetViewportManager() const
 {
-	return Owner;
+	return GetViewportManagerImpl();
 }
 
-const FDisplayClusterRenderFrameSettings& FDisplayClusterViewport::GetRenderFrameSettings() const
+FDisplayClusterViewportManager* FDisplayClusterViewport::GetViewportManagerImpl() const
 {
-	return Owner.GetRenderFrameSettings();
+	return GetViewportManagerRefImpl().Get();
+}
+
+FDisplayClusterViewportManagerProxy* FDisplayClusterViewport::GetViewportManagerProxyImpl() const
+{
+	return GetViewportManagerProxyRefImpl().Get();
+}
+
+TSharedPtr<FDisplayClusterViewportManager, ESPMode::ThreadSafe> FDisplayClusterViewport::GetViewportManagerRefImpl() const
+{
+	return ViewportManagerWeakPtr.IsValid() ? ViewportManagerWeakPtr.Pin(): nullptr;
+}
+
+TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> FDisplayClusterViewport::GetViewportManagerProxyRefImpl() const
+{
+	return ViewportManagerProxyWeakPtr.IsValid() ? ViewportManagerProxyWeakPtr.Pin() : nullptr;
+}
+
+ADisplayClusterRootActor* FDisplayClusterViewport::GetRootActor() const
+{
+	if (FDisplayClusterViewportManager* ViewportManager = GetViewportManagerImpl())
+	{
+		return ViewportManager->GetRootActor();
+	}
+
+	return nullptr;
+}
+
+UWorld* FDisplayClusterViewport::GetCurrentWorld() const
+{
+	if (FDisplayClusterViewportManager* ViewportManager = GetViewportManagerImpl())
+	{
+		return ViewportManager->GetCurrentWorld();
+	}
+
+	return nullptr;
+}
+
+bool FDisplayClusterViewport::IsCurrentWorldHasAnyType(const EWorldType::Type InWorldType1, const EWorldType::Type InWorldType2, const EWorldType::Type InWorldType3) const
+{
+	if (UWorld* CurrentWorld = GetCurrentWorld())
+	{
+		return (CurrentWorld->WorldType == InWorldType1 && InWorldType1 != EWorldType::None)
+			|| (CurrentWorld->WorldType == InWorldType2 && InWorldType2 != EWorldType::None)
+			|| (CurrentWorld->WorldType == InWorldType3 && InWorldType3 != EWorldType::None);
+	}
+
+	return false;
+}
+
+const FDisplayClusterRenderFrameSettings* FDisplayClusterViewport::GetRenderFrameSettings() const
+{
+	if (FDisplayClusterViewportManager* ViewportManager = GetViewportManagerImpl())
+	{
+		return &ViewportManager->GetRenderFrameSettings();
+	}
+
+	return nullptr;
+}
+
+EDisplayClusterRenderFrameMode FDisplayClusterViewport::GetRenderMode() const
+{
+	if (FDisplayClusterViewportManager* ViewportManager = GetViewportManagerImpl())
+	{
+		return ViewportManager->GetRenderMode();
+	}
+
+	return EDisplayClusterRenderFrameMode::Unknown;
+}
+
+bool FDisplayClusterViewport::IsSceneOpened() const
+{
+	if (FDisplayClusterViewportManager* ViewportManager = GetViewportManagerImpl())
+	{
+		return ViewportManager->IsSceneOpened();
+	}
+
+	return false;
 }
 
 bool FDisplayClusterViewport::IsOpenColorIOEquals(const FDisplayClusterViewport& InViewport) const
@@ -120,6 +209,13 @@ bool FDisplayClusterViewport::IsOpenColorIOEquals(const FDisplayClusterViewport&
 
 const TArray<FSceneViewExtensionRef> FDisplayClusterViewport::GatherActiveExtensions(FViewport* InViewport) const
 {
+	TSharedPtr<FDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager = GetViewportManagerRefImpl();
+	if (!ViewportManager.IsValid())
+	{
+		// No viewport manager = no extension found.
+		return TArray<FSceneViewExtensionRef>();
+	}
+
 	// Use VE from engine for default render and MRQ:
 	switch (RenderSettings.CaptureMode)
 	{
@@ -127,15 +223,14 @@ const TArray<FSceneViewExtensionRef> FDisplayClusterViewport::GatherActiveExtens
 	case EDisplayClusterViewportCaptureMode::MoviePipeline:
 		if (InViewport)
 		{
-			FDisplayClusterSceneViewExtensionContext ViewExtensionContext(InViewport, &Owner, GetId());
+			FDisplayClusterSceneViewExtensionContext ViewExtensionContext(InViewport, ViewportManager, GetId());
 			return GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
 		}
 		else
 		{
-			UWorld* CurrentWorld = Owner.GetCurrentWorld();
-			if (CurrentWorld)
+			if (UWorld* CurrentWorld = ViewportManager->GetCurrentWorld())
 			{
-				FDisplayClusterSceneViewExtensionContext ViewExtensionContext(CurrentWorld->Scene, &Owner, GetId());
+				FDisplayClusterSceneViewExtensionContext ViewExtensionContext(CurrentWorld->Scene, ViewportManager, GetId());
 				return GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
 			}
 		}
@@ -157,7 +252,7 @@ const TArray<FSceneViewExtensionRef> FDisplayClusterViewport::GatherActiveExtens
 	case EDisplayClusterViewportCaptureMode::Lightcard:
 	{
 		// Chromakey and LightCard use only nDisplay VE for callback purposes (preserve alpha channel, etc).
-		TSharedPtr<FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe> ViewportManagerViewExtension = Owner.GetViewportManagerViewExtension();
+		TSharedPtr<FDisplayClusterViewportManagerViewExtension, ESPMode::ThreadSafe> ViewportManagerViewExtension = ViewportManager->GetViewportManagerViewExtension();
 		if (ViewportManagerViewExtension.IsValid())
 		{
 			OutCustomExtensions.Add(ViewportManagerViewExtension->AsShared());
@@ -178,7 +273,7 @@ const TArray<FSceneViewExtensionRef> FDisplayClusterViewport::GatherActiveExtens
 bool FDisplayClusterViewport::HandleStartScene()
 {
 	bool bResult = true;
-	if (Owner.IsSceneOpened())
+	if (IsSceneOpened())
 	{
 		if (UninitializedProjectionPolicy.IsValid())
 		{
@@ -261,6 +356,21 @@ bool FDisplayClusterViewport::ShouldUseFullSizeFrameTargetableResource() const
 	}
 
 	return false;
+}
+
+void FDisplayClusterViewport::SetViewportBufferRatio(const float InBufferRatio)
+{
+	const float BufferRatio = FLegacyScreenPercentageDriver::GetCVarResolutionFraction() * InBufferRatio;
+	if (RenderSettings.BufferRatio > BufferRatio)
+	{
+		if (FDisplayClusterViewportManager* ViewportManager = GetViewportManagerImpl())
+		{
+			// Reset scene RTT when buffer ratio changed down
+			ViewportManager->ResetSceneRenderTargetSize();
+		}
+	}
+
+	RenderSettings.BufferRatio = BufferRatio;
 }
 
 void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* World, FSceneViewFamily& InOutViewFamily, FSceneView& InOutView) const
@@ -438,7 +548,19 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 {
 	check(IsInGameThread());
 
-	const uint32 FrameTargetsAmount = Owner.GetViewPerViewportAmount();
+	FDisplayClusterViewportManager* ViewportManager = GetViewportManagerImpl();
+	if (!ViewportManager)
+	{
+		return false;
+	}
+
+	const uint32 FrameTargetsAmount = ViewportManager->GetViewPerViewportAmount();
+	if (FrameTargetsAmount == 0)
+	{
+		ResetFrameContexts();
+
+		return false;
+	}
 
 	FIntRect     DesiredFrameTargetRect = RenderSettings.Rect;
 	{
@@ -615,7 +737,7 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 		// Use the UVLightCard viewport only when this type of lightcards has been defined
 		bool bUseUVLightCardViewport = false;
 
-		TSharedPtr<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> LightCardManager = Owner.GetLightCardManager();
+		TSharedPtr<FDisplayClusterViewportLightCardManager, ESPMode::ThreadSafe> LightCardManager = ViewportManager->GetLightCardManager();
 		if (LightCardManager.IsValid() && LightCardManager->IsUVLightCardEnabled())
 		{
 			// Custom viewport size from LC Manager
@@ -732,26 +854,4 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 	}
 
 	return true;
-}
-
-// Currently, some data like EngineShowFlags and EngineGamma get updated on PostRenderViewFamily.
-// Since the viewports that have media input assigned never gets rendered in normal way, the PostRenderViewFamily
-// callback never gets called, therefore the data mentioned above never gets updated. This workaround initializes
-// those settings for all viewports. The viewports with no media input assigned will override the data
-// in PostRenderViewFamily like it was previously so nothing should be broken.
-void FDisplayClusterViewport::UpdateMediaDependencies(FViewport* InViewport)
-{
-	if (InViewport && InViewport->GetClient())
-	{
-		if (const FEngineShowFlags* const EngineShowFlags = InViewport->GetClient()->GetEngineShowFlags())
-		{
-			const float DisplayGamma = GEngine ? GEngine->DisplayGamma : 2.2f;
-
-			for (FDisplayClusterViewport_Context& Context : Contexts)
-			{
-				Context.RenderThreadData.EngineDisplayGamma = DisplayGamma;
-				Context.RenderThreadData.EngineShowFlags = *EngineShowFlags;
-			}
-		}
-	}
 }

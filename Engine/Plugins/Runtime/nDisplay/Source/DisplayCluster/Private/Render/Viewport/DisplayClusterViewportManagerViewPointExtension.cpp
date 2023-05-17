@@ -10,19 +10,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterViewportManagerViewPointExtension::FDisplayClusterViewportManagerViewPointExtension(const FAutoRegister& AutoRegister, const FDisplayClusterViewportManager* InViewportManager)
 	: FSceneViewExtensionBase(AutoRegister)
-	, ViewportManager(InViewportManager)
+	, ViewportManagerWeakPtr(InViewportManager->AsShared())
 { }
 
 FDisplayClusterViewportManagerViewPointExtension::~FDisplayClusterViewportManagerViewPointExtension()
 {
-	ViewportManager = nullptr;
-}
-
-void FDisplayClusterViewportManagerViewPointExtension::Release()
-{
-	check(IsInGameThread());
-
-	ViewportManager = nullptr;
+	ViewportManagerWeakPtr.Reset();
 }
 
 bool FDisplayClusterViewportManagerViewPointExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
@@ -32,7 +25,7 @@ bool FDisplayClusterViewportManagerViewPointExtension::IsActiveThisFrame_Interna
 
 void FDisplayClusterViewportManagerViewPointExtension::SetupViewPoint(APlayerController* Player, FMinimalViewInfo& InOutViewInfo)
 {
-	if (IDisplayClusterViewport* DCViewport = IsActive() ? ViewportManager->FindViewport(CurrentStereoViewIndex) : nullptr)
+	if (IDisplayClusterViewport* DCViewport = IsActive() ? GetViewportManager()->FindViewport(CurrentStereoViewIndex) : nullptr)
 	{
 		DCViewport->SetupViewPoint(InOutViewInfo);
 	}

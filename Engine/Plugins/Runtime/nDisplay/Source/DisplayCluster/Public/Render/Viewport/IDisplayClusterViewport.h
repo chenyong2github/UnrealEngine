@@ -5,17 +5,17 @@
 #include "Render/Viewport/IDisplayClusterViewport_CustomPostProcessSettings.h"
 
 #include "Render/Viewport/Containers/DisplayClusterViewport_Context.h"
-
 #include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettings.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettingsICVFX.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_PostRenderSettings.h"
-
 #include "Render/Viewport/Containers/DisplayClusterViewport_OverscanSettings.h"
 
-class FSceneViewFamily;
+#include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameEnums.h"
+
+#include "Engine/EngineTypes.h"
 
 /**
- * Rendering viewport (sub-region of the main viewport)
+ * nDisplay: Viewport (interface for GameThread)
  */
 class DISPLAYCLUSTER_API IDisplayClusterViewport
 {
@@ -23,6 +23,10 @@ public:
 	virtual ~IDisplayClusterViewport() = default;
 
 public:
+	/** Get TSharedPtr from self. */
+	virtual TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe> ToSharedPtr() = 0;
+	virtual TSharedPtr<const IDisplayClusterViewport, ESPMode::ThreadSafe> ToSharedPtr() const = 0;
+
 	virtual FString GetId() const = 0;
 	virtual FString GetClusterNodeId() const = 0;
 
@@ -57,9 +61,25 @@ public:
 	virtual const IDisplayClusterViewport_CustomPostProcessSettings& GetViewport_CustomPostProcessSettings() const = 0;
 
 	// Setup scene view for rendering specified Context
-	virtual void SetupSceneView(uint32 ContextNum, class UWorld* World, FSceneViewFamily& InViewFamily, FSceneView& InView) const = 0;
+	virtual void SetupSceneView(uint32 ContextNum, class UWorld* World, class FSceneViewFamily& InViewFamily, FSceneView& InView) const = 0;
 
-	virtual class IDisplayClusterViewportManager& GetOwner() const = 0;
+	/** Return the viewport manager that owns this viewport */
+	virtual class IDisplayClusterViewportManager* GetViewportManager() const = 0;
+
+	/** Return the DCRA that owns this viewport */
+	virtual class ADisplayClusterRootActor* GetRootActor() const = 0;
+
+	/** Return current render mode. */
+	virtual EDisplayClusterRenderFrameMode GetRenderMode() const = 0;
+
+	/** Return current world. */
+	virtual class UWorld* GetCurrentWorld() const = 0;
+
+	/** Returns true if the scene is open now (The current world is assigned and DCRA has already initialized for it). */
+	virtual bool IsSceneOpened() const = 0;
+
+	/** Returns true if the current world type is equal to one of the input types. */
+	virtual bool IsCurrentWorldHasAnyType(const EWorldType::Type InWorldType1, const EWorldType::Type InWorldType2 = EWorldType::None, const EWorldType::Type InWorldType3 = EWorldType::None) const = 0;
 
 	virtual void SetRenderSettings(const FDisplayClusterViewport_RenderSettings& InRenderSettings) = 0;
 	virtual void SetContexts(TArray<FDisplayClusterViewport_Context>& InContexts) = 0;

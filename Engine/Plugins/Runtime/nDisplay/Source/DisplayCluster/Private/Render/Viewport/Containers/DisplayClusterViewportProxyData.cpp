@@ -8,10 +8,10 @@
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 
 
-FDisplayClusterViewportProxyData::FDisplayClusterViewportProxyData(const FDisplayClusterViewport* SrcViewport)
+FDisplayClusterViewportProxyData::FDisplayClusterViewportProxyData(const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& SrcViewport)
 {
 	check(IsInGameThread());
-	check(SrcViewport);
+	check(SrcViewport.IsValid());
 
 	DstViewportProxy = SrcViewport->ViewportProxy;
 

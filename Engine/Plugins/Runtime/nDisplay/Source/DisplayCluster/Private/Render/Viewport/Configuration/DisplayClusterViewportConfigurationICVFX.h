@@ -31,7 +31,7 @@ private:
 	void ImplFinishReallocateViewports(FDisplayClusterViewportManager& ViewportManager);
 
 	void ImplGetCameras();
-	EDisplayClusterViewportICVFXFlags ImplGetTargetViewports(FDisplayClusterViewportManager& ViewportManager, TArray<FDisplayClusterViewport*>& OutTargets);
+	EDisplayClusterViewportICVFXFlags ImplGetTargetViewports(FDisplayClusterViewportManager& ViewportManager, TArray<TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>>& OutTargets);
 
 	/** Create a LightCard viewport for the  BaseViewport. */
 	bool CreateLightcardViewport(FDisplayClusterViewport& BaseViewport);

@@ -93,7 +93,7 @@ protected:
 
 private:
 	// Runtime viewport manager api for game and render threads. Internal usage only
-	IDisplayClusterViewportManager* ViewportManager = nullptr;
+	TSharedPtr<IDisplayClusterViewportManager, ESPMode::ThreadSafe> ViewportManager;
 	TSharedPtr<FDisplayClusterViewportManagerProxy, ESPMode::ThreadSafe> ViewportManagerProxy;
 
 	EDisplayClusterRenderFrameMode RenderFrameMode = EDisplayClusterRenderFrameMode::Mono;
