@@ -25,6 +25,11 @@
 			"Name" : "RigVMDeveloper",
 			"Type" : "UncookedOnly",
 			"LoadingPhase" : "PreDefault"
+		},
+		{
+			"Name" : "RigVMEditor",
+			"Type" : "Editor",
+			"LoadingPhase" : "PostEngineInit"
 		}
 	]
 }

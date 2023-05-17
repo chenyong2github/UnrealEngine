@@ -72,6 +72,7 @@ namespace UnrealBuildTool.Rules
 					"ToolMenus",
                     "RigVM",
                     "RigVMDeveloper",
+                    "RigVMEditor",
 					"AnimationEditor",
 					"MessageLog",
                     "SequencerScripting",
