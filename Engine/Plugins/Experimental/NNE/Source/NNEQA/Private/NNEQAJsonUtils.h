@@ -43,9 +43,9 @@ namespace Json
 		FString Name;
 		float AbsoluteTolerance = JSON_TOLERANCE_NOTSET;
 		float RelativeTolerance = JSON_TOLERANCE_NOTSET;
-		bool Skip;
-		bool SkipStatic;
-		bool SkipVariadic;
+		bool Skip = false;
+		bool SkipStatic = false;
+		bool SkipVariadic = false;
 
 		BEGIN_JSON_SERIALIZER
 			JSON_SERIALIZE("name", Name);
@@ -157,7 +157,7 @@ namespace Json
 		TArray<FString> Tags;
 		TArray<FString> AdditionalDatasets;
 		TArray<FString> RemovedDatasets;
-		bool Skip;
+		bool Skip = false;
 		float AbsoluteTolerance = JSON_TOLERANCE_NOTSET;
 		float RelativeTolerance = JSON_TOLERANCE_NOTSET;
 		FString InputType;
@@ -185,8 +185,8 @@ namespace Json
 		TArray<FString> RemovedDatasets;
 		TArray<FTestConfigTarget> Targets;
 		TArray<FTestConfigRuntime> Runtimes;
-		bool Skip;
-		bool IsModelTest;
+		bool Skip = false;
+		bool IsModelTest = false;
 
 		BEGIN_JSON_SERIALIZER
 			JSON_SERIALIZE("category", Category);
