@@ -2249,6 +2249,16 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Check that each plugin does not have a dependency on any sealed plugins
+			foreach (UEBuildPlugin Plugin in BuildPlugins)
+			{
+				UEBuildPlugin? DependencyPlugin = Plugin.Dependencies?.FirstOrDefault(X => X.Descriptor.bIsSealed);
+				if (DependencyPlugin != null)
+				{
+					throw new BuildException("Plugin '{0}' cannot depend on plugin '{1}' because it is sealed.", Plugin.Name, DependencyPlugin.Name);
+				}
+			}
+
 			// Check that each plugin declares its dependencies explicitly
 			foreach (UEBuildPlugin Plugin in BuildPlugins)
 			{

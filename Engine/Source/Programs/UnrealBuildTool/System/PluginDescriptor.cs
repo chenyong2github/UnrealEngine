@@ -185,6 +185,11 @@ namespace UnrealBuildTool
 		public bool bRequiresBuildPlatform;
 
 		/// <summary>
+		/// When true, prevents other plugins from depending on this plugin
+		/// </summary>
+		public bool bIsSealed;
+
+		/// <summary>
 		/// When true, this plugin's modules will not be loaded automatically nor will it's content be mounted automatically. It will load/mount when explicitly requested and LoadingPhases will be ignored
 		/// </summary>
 		public bool bExplicitlyLoaded;
@@ -326,6 +331,7 @@ namespace UnrealBuildTool
 			}
 
 			RawObject.TryGetBoolField("RequiresBuildPlatform", out bRequiresBuildPlatform);
+			RawObject.TryGetBoolField("Sealed", out bIsSealed);
 			RawObject.TryGetBoolField("ExplicitlyLoaded", out bExplicitlyLoaded);
 			RawObject.TryGetBoolField("HasExplicitPlatforms", out bHasExplicitPlatforms);
 
@@ -427,6 +433,11 @@ namespace UnrealBuildTool
 			if(bRequiresBuildPlatform)
 			{
 				Writer.WriteValue("RequiresBuildPlatform", bRequiresBuildPlatform);
+			}
+
+			if (bIsSealed)
+			{
+				Writer.WriteValue("Sealed", bIsSealed);
 			}
 
 			if (bExplicitlyLoaded)
