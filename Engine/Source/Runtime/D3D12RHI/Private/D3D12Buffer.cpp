@@ -52,7 +52,7 @@ struct FRHICommandUpdateBuffer final : public FRHICommand<FRHICommandUpdateBuffe
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		FD3D12DynamicRHI::GetD3DRHI()->UpdateBuffer(Destination, DestinationOffset, &Source, 0, NumBytes);
+		FD3D12CommandContextBase::Get(CmdList).UpdateBuffer(Destination, DestinationOffset, &Source, 0, NumBytes);
 	}
 };
 
@@ -744,7 +744,7 @@ void FD3D12DynamicRHI::UnlockBuffer(FRHICommandListBase& RHICmdList, FD3D12Buffe
 				}
 				else
 				{
-					UpdateBuffer(&CurrentBuffer->ResourceLocation, LockedData.LockedOffset, &LockedData.ResourceLocation, 0, LockedData.LockedPitch);
+					FD3D12CommandContextBase::Get(RHICmdList).UpdateBuffer(&CurrentBuffer->ResourceLocation, LockedData.LockedOffset, &LockedData.ResourceLocation, 0, LockedData.LockedPitch);
 				}
 			}
 		}

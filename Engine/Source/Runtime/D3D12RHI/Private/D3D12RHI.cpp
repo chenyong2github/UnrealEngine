@@ -400,34 +400,6 @@ IRHIComputeContext* FD3D12DynamicRHI::RHIGetDefaultAsyncComputeContext()
 	return nullptr;
 }
 
-void FD3D12DynamicRHI::UpdateBuffer(FD3D12ResourceLocation* Dest, uint32 DestOffset, FD3D12ResourceLocation* Source, uint32 SourceOffset, uint32 NumBytes)
-{
-	FD3D12Resource* SourceResource = Source->GetResource();
-	uint32 SourceFullOffset = Source->GetOffsetFromBaseOfResource() + SourceOffset;
-
-	FD3D12Resource* DestResource = Dest->GetResource();
-	uint32 DestFullOffset = Dest->GetOffsetFromBaseOfResource() + DestOffset;
-
-	FD3D12Device* Device = DestResource->GetParentDevice();
-
-	FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
-	
-	// Clear the resource if still bound to make sure the SRVs are rebound again on next operation (and get correct resource transitions enqueued)
-	DefaultContext.ConditionalClearShaderResource(Dest);
-
-	FScopedResourceBarrier ScopeResourceBarrierDest(DefaultContext, DestResource, D3D12_RESOURCE_STATE_COPY_DEST, 0);
-	// Don't need to transition upload heaps
-
-	DefaultContext.FlushResourceBarriers();
-	DefaultContext.GraphicsCommandList()->CopyBufferRegion(DestResource->GetResource(), DestFullOffset, SourceResource->GetResource(), SourceFullOffset, NumBytes);
-	DefaultContext.UpdateResidency(DestResource);
-	DefaultContext.UpdateResidency(SourceResource);
-	
-	DefaultContext.ConditionalSplitCommandList();
-
-	DEBUG_RHI_EXECUTE_COMMAND_LIST(this);
-}
-
 void FD3D12DynamicRHI::RHIFlushResources()
 {
 	// Nothing to do (yet!)
