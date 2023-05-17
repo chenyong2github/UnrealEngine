@@ -80,7 +80,6 @@ public class Engine : ModuleRules
 				"CoreUObject",
 				"FieldNotification",
 				"NetCore",
-				"ApplicationCore",
 				"ImageCore",
 				"Json",
 				"JsonUtilities",
@@ -114,6 +113,11 @@ public class Engine : ModuleRules
 				"IoStoreOnDemand"
 			}
 		);
+
+		if (Target.bCompileAgainstApplicationCore)
+		{
+			PublicDependencyModuleNames.Add("ApplicationCore");
+		}
 
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
