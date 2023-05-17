@@ -36,7 +36,7 @@ public:
 	bool bUseAbsoluteTransform = false;
 
 	// Texture specific parameters
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
 	TSoftObjectPtr<UTexture2D> Texture = nullptr;
 
 	// Common members in BaseTextureData
