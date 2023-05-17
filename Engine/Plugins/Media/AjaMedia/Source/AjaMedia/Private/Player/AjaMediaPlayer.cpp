@@ -13,6 +13,7 @@
 
 #include "Engine/Engine.h"
 #include "GenlockedCustomTimeStep.h"
+#include "MediaIOCoreDeinterlacer.h"
 #include "MediaIOCoreEncodeTime.h"
 #include "MediaIOCoreFileWriter.h"
 #include "MediaIOCoreSamples.h"
@@ -79,8 +80,8 @@ FAjaMediaPlayer::FAjaMediaPlayer(IMediaEventSink& InEventSink)
 	, InputChannel(nullptr)
 	, SupportedSampleTypes(EMediaIOSampleType::None)
 	, bPauseRequested(false)
+	, DeviceProvider(MakePimpl<FAjaDeviceProvider>())
 {
-	DeviceProvider = MakePimpl<FAjaDeviceProvider>();
 }
 
 
@@ -658,10 +659,9 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 			}
 			else
 			{
-				auto TextureSample = TextureSamplePool->AcquireShared();
 				if (InVideoFrame.bIsProgressivePicture)
-
 				{
+					auto TextureSample = TextureSamplePool->AcquireShared();
 					if (TextureSample->InitializeProgressive(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bIsSRGBInput))
 					{
 						Samples->AddVideo(TextureSample);
@@ -669,20 +669,30 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 				}
 				else
 				{
-					bool bEven = true;
-					if (UGenlockedCustomTimeStep* TimeStep = Cast< UGenlockedCustomTimeStep>(GEngine->GetCustomTimeStep()))
+					if (UGenlockedCustomTimeStep* TimeStep = Cast<UGenlockedCustomTimeStep>(GEngine->GetCustomTimeStep()))
 					{
 						bAddedSynchronizedSamples = TimeStep->GetSynchronizationState() == ECustomTimeStepSynchronizationState::Synchronized;
 					}
-					if (TextureSample->InitializeInterlaced_Halfed(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bEven, bIsSRGBInput))
+
+					UE::MediaIOCore::FVideoFrame FrameInfo
+					{
+						InVideoFrame.VideoBuffer,
+						InVideoFrame.VideoBufferSize,
+						InVideoFrame.Stride,
+						InVideoFrame.Width,
+						InVideoFrame.Height,
+						VideoSampleFormat,
+						DecodedTime,
+						VideoFrameRate,
+						DecodedTimecode,
+						bIsSRGBInput ? UE::Color::EColorSpace::sRGB : UE::Color::EColorSpace::None
+					};
+
+					const TArray<TSharedRef<FMediaIOCoreTextureSampleBase>> DeinterlacedSamples = Deinterlace(FrameInfo);
+
+					for (const TSharedRef<FMediaIOCoreTextureSampleBase>& TextureSample : DeinterlacedSamples)
 					{
 						Samples->AddVideo(TextureSample);
-					}
-					bEven = !bEven;
-					auto TextureSampleOdd = TextureSamplePool->AcquireShared();
-					if (TextureSampleOdd->InitializeInterlaced_Halfed(InVideoFrame, VideoSampleFormat, DecodedTimeF2, VideoFrameRate, DecodedTimecodeF2, bEven, bIsSRGBInput))
-					{
-						Samples->AddVideo(TextureSampleOdd);
 					}
 				}
 			}
@@ -972,6 +982,11 @@ bool FAjaMediaPlayer::SetRate(float Rate)
 	}
 
 	return false;
+}
+
+TSharedPtr<FMediaIOCoreTextureSampleBase> FAjaMediaPlayer::AcquireSample_AnyThread() const
+{
+	return TextureSamplePool->AcquireShared();
 }
 
 #undef LOCTEXT_NAMESPACE

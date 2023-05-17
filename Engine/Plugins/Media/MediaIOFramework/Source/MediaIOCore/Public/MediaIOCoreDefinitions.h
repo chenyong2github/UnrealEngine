@@ -66,6 +66,16 @@ enum class EMediaIOAutoDetectableTimecodeFormat : uint8
 	Auto = 255,
 };
 
+/**
+ * Which interlace field should be set first in the buffer.
+ */
+UENUM()
+enum class EMediaIOInterlaceFieldOrder : uint8
+{
+	TopFieldFirst,
+	BottomFieldFirst
+};
+
 namespace UE::MediaIO
 {
 	static EMediaIOAutoDetectableTimecodeFormat ToAutoDetectableTimecodeFormat(EMediaIOTimecodeFormat TimecodeFormat)

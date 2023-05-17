@@ -42,6 +42,12 @@ namespace UE::GPUTextureTransfer
 {
 	using TextureTransferPtr = TSharedPtr<class ITextureTransfer>;
 }
+
+namespace UE::MediaIOCore
+{
+	class FDeinterlacer;
+	struct FVideoFrame;
+}
  
 /**
  * Implements a base player for hardware IO cards. 
@@ -188,6 +194,13 @@ protected:
 
 	virtual bool CanUseGPUTextureTransfer();
 
+	/** Handler used to provide texture samples to the deinterlacer. */
+	virtual TSharedPtr<FMediaIOCoreTextureSampleBase> AcquireSample_AnyThread() const
+	{
+		ensureMsgf(false, TEXT("If deinterlacing is used by the media player, AcquireSample_AnyThread must be implemented by the child media player class."));
+		return nullptr;
+	}
+
 	void OnSampleDestroyed(TRefCountPtr<FRHITexture> InTexture);
 	void RegisterSampleBuffer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample);
 	void UnregisterSampleBuffers();
@@ -195,6 +208,9 @@ protected:
 	void UnregisterTextures();
 	void PreGPUTransfer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample);
 	void ExecuteGPUTransfer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample);
+
+	/** Deinterlace a video frame. Only valid to call when the video stream is open. */
+	TArray<TSharedRef<FMediaIOCoreTextureSampleBase>> Deinterlace(const UE::MediaIOCore::FVideoFrame& InVideoFrame) const;
 
 protected:
 	/** Critical section for synchronizing access to receiver and sinks. */
@@ -260,5 +276,7 @@ private:
 	TSet<void*> RegisteredBuffers;
 	/** Pool of textures registerd with GPU Texture transfer. */
 	TSet<TRefCountPtr<FRHITexture>> RegisteredTextures;
+	/** Utility object to handle deinterlacing. */
+	TSharedPtr<UE::MediaIOCore::FDeinterlacer> Deinterlacer;
 
 };

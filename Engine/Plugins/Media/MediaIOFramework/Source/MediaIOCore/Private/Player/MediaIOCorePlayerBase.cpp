@@ -2,6 +2,7 @@
 
 #include "MediaIOCorePlayerBase.h"
 
+#include "CaptureCardMediaSource.h"
 #include "Engine/Engine.h"
 #include "Engine/TimecodeProvider.h"
 #include "GPUTextureTransferModule.h"
@@ -11,6 +12,7 @@
 #include "IMediaModule.h"
 #include "IMediaPlayerFactory.h"
 #include "ITimeManagementModule.h"
+#include "MediaIOCoreDeinterlacer.h"
 #include "MediaIOCoreModule.h"
 #include "MediaIOCoreSamples.h"
 #include "Misc/App.h"
@@ -108,6 +110,8 @@ void FMediaIOCorePlayerBase::Close()
 {
 	if (CurrentState != EMediaState::Closed)
 	{
+		Deinterlacer.Reset();
+
 		CurrentState = EMediaState::Closed;
 		CurrentTime = FTimespan::Zero();
 		AudioTrackFormat.NumChannels = 0;
@@ -195,11 +199,27 @@ bool FMediaIOCorePlayerBase::Open(const FString& Url, const IMediaOptions* Optio
 	ITimeManagementModule::Get().GetTimedDataInputCollection().Add(this);
 
 	OpenUrl = Url;
-	bool bReadMediaOptions = ReadMediaOptions(Options);
+	const bool bReadMediaOptions = ReadMediaOptions(Options);
 
 	if (MediaIOCorePlayerDetail::CVarEnableGPUDirectInput.GetValueOnAnyThread())
 	{
 		CreateAndRegisterTextures(Options);
+	}
+	
+	const EMediaIOInterlaceFieldOrder InterlaceFieldOrder = static_cast<EMediaIOInterlaceFieldOrder>(Options->GetMediaOption(UE::CaptureCardMediaSource::InterlaceFieldOrder, (int64)EMediaIOInterlaceFieldOrder::TopFieldFirst));
+	const FString DefaultOption = TEXT("");
+	const FSoftObjectPath DeinterlacerPath = FSoftObjectPath(Options->GetMediaOption(UE::CaptureCardMediaSource::Deinterlacer, DefaultOption));
+	
+	UObject* DeinterlacerInstancer = DeinterlacerPath.ResolveObject();
+
+	TSharedPtr<UE::MediaIOCore::FDeinterlacer> DeinterlacerInstance;
+	if (DeinterlacerInstancer && DeinterlacerInstancer->IsA<UVideoDeinterlacer>())
+	{
+		Deinterlacer = Cast<UVideoDeinterlacer>(DeinterlacerInstancer)->Instantiate(UE::MediaIOCore::FDeinterlacer::FOnAcquireSample_AnyThread::CreateSP(this, &FMediaIOCorePlayerBase::AcquireSample_AnyThread), InterlaceFieldOrder);
+	}
+	else
+	{
+		Deinterlacer = MakeShared<UE::MediaIOCore::FDeinterlacer>(UE::MediaIOCore::FDeinterlacer::FOnAcquireSample_AnyThread::CreateSP(this, &FMediaIOCorePlayerBase::AcquireSample_AnyThread), InterlaceFieldOrder);
 	}
 
 	return bReadMediaOptions;
@@ -741,6 +761,15 @@ void FMediaIOCorePlayerBase::ExecuteGPUTransfer(const TSharedPtr<FMediaIOCoreTex
 			}
 		}
 	});
+}
+
+TArray<TSharedRef<FMediaIOCoreTextureSampleBase>> FMediaIOCorePlayerBase::Deinterlace(const UE::MediaIOCore::FVideoFrame& InVideoFrame) const
+{
+	if (Deinterlacer)
+	{
+		return Deinterlacer->Deinterlace(InVideoFrame);
+	}
+	return {};
 }
 
 TArray<ITimedDataInputChannel*> FMediaIOCorePlayerBase::GetChannels() const

@@ -29,6 +29,7 @@ namespace AJA
 	class AJAInputChannel;
 }
 
+
 /**
  * Implements a media player using AJA.
  *
@@ -104,20 +105,19 @@ protected:
 
 	virtual bool IsHardwareReady() const override;
 
-	//~ FMediaIOCorePlayerBase interface
+	//~ Begin FMediaIOCorePlayerBase interface
 	virtual void SetupSampleChannels() override;
-
 	virtual uint32 GetNumVideoFrameBuffers() const override
 	{
 		return MaxNumVideoFrameBuffer;
 	}
-
 	virtual EMediaIOCoreColorFormat GetColorFormat() const override
 	{
 		return AjaColorFormat == EAjaMediaSourceColorFormat::YUV2_8bit ? EMediaIOCoreColorFormat::YUV8 : EMediaIOCoreColorFormat::YUV10;
 	}
-
 	virtual void AddVideoSample(const TSharedRef<FMediaIOCoreTextureSampleBase>& InSample) override;
+	virtual TSharedPtr<FMediaIOCoreTextureSampleBase> AcquireSample_AnyThread() const override;
+	//~ End FMediaIOCorePlayerBase interface
 
 private:
 	bool Open_Internal(const FString& Url, const IMediaOptions* Options, AJA::AJAInputOutputChannelOptions AjaOptions);

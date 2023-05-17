@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TimeSynchronizableMediaSource.h"
+#include "CaptureCardMediaSource.h"
 
 #include "BlackmagicDeviceProvider.h"
 #include "MediaIOCoreDefinitions.h"
@@ -34,7 +34,7 @@ enum class EBlackmagicMediaAudioChannel : uint8
  * Media source description for Blackmagic.
  */
 UCLASS(BlueprintType, hideCategories=(Platforms,Object), meta=(MediaIOCustomLayout="Blackmagic"))
-class BLACKMAGICMEDIA_API UBlackmagicMediaSource : public UTimeSynchronizableMediaSource
+class BLACKMAGICMEDIA_API UBlackmagicMediaSource : public UCaptureCardMediaSource
 {
 	GENERATED_BODY()
 

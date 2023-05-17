@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IMediaTextureSample.h"
+#include "MediaIOCoreDefinitions.h"
 #include "MediaObjectPool.h"
 #include "Misc/FrameRate.h"
 #include "Templates/RefCounting.h"
@@ -49,7 +50,22 @@ public:
 	 * @param InTimecode The sample timecode if available.
 	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
 	 */
-	bool Initialize(TArray<uint8> InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
+	bool Initialize(const TArray<uint8>& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
+
+	/**
+	 * Initialize the sample.
+	 *
+	 * @param InVideoBuffer The video frame data.
+	 * @param InStride The number of channel of the video buffer.
+	 * @param InWidth The sample rate of the video buffer.
+	 * @param InHeight The sample rate of the video buffer.
+	 * @param InSampleFormat The sample format of the video buffer.
+	 * @param InTime The sample time (in the player's own clock).
+	 * @param InFrameRate The framerate of the media that produce the sample.
+	 * @param InTimecode The sample timecode if available.
+	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
+	 */
+	bool Initialize(TArray<uint8>&& InVideoBuffer, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
 
 	/**
 	 * Initialize the sample.
@@ -64,7 +80,14 @@ public:
 	 *
 	 * @param InVideoBuffer The video frame data.
 	 */
-	bool SetBuffer(TArray<uint8> InVideoBuffer);
+	bool SetBuffer(const TArray<uint8>& InVideoBuffer);
+
+	/**
+	 * Set the sample buffer.
+	 *
+	 * @param InVideoBuffer The video frame data.
+	 */
+	bool SetBuffer(TArray<uint8>&& InVideoBuffer);
 
 	/**
 	 * Set the sample properties.
@@ -94,6 +117,7 @@ public:
 	 * @param bInIsSRGBInput The sample source is in sSRGB so apply a linear conversion.
 	 */
 	bool InitializeWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InWidth, uint32 InHeight, EMediaTextureSampleFormat InSampleFormat, FTimespan InTime, const FFrameRate& InFrameRate, const TOptional<FTimecode>& InTimecode, bool bInIsSRGBInput);
+
 	/**
 	 * Set the sample buffer with half it's original height and take only the odd or even line.
 	 *
@@ -104,6 +128,8 @@ public:
 	 * @param InHeight The sample rate of the video buffer.
 	 */
 	bool SetBufferWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InHeight);
+
+
 
 	/**
 	 * Request an uninitialized sample buffer.

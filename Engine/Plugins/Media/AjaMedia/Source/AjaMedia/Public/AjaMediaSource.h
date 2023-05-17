@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "TimeSynchronizableMediaSource.h"
+#include "CaptureCardMediaSource.h"
 #include "MediaIOCoreDefinitions.h"
 
 #include "AjaMediaSource.generated.h"
@@ -31,7 +31,7 @@ enum class EAjaMediaAudioChannel : uint8
  * Media source for AJA streams.
  */
 UCLASS(BlueprintType, hideCategories=(Platforms,Object), meta=(MediaIOCustomLayout="AJA"))
-class AJAMEDIA_API UAjaMediaSource : public UTimeSynchronizableMediaSource
+class AJAMEDIA_API UAjaMediaSource : public UCaptureCardMediaSource
 {
 	GENERATED_BODY()
 

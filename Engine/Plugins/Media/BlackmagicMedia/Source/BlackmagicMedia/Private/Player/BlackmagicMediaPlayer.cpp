@@ -11,6 +11,7 @@
 #include "IBlackmagicMediaModule.h"
 #include "IMediaEventSink.h"
 #include "IMediaOptions.h"
+#include "MediaIOCoreDeinterlacer.h"
 #include "MediaIOCoreEncodeTime.h"
 #include "MediaIOCoreFileWriter.h"
 #include "MediaIOCoreSamples.h"
@@ -354,39 +355,25 @@ namespace BlackmagicMediaPlayerHelpers
 					}
 					else
 					{
-						bool bEven = true;
-
-						auto TextureSampleEven = MediaPlayer->TextureSamplePool->AcquireShared();
-
-						if (TextureSampleEven->InitializeWithEvenOddLine(bEven
-							, InFrameInfo.VideoBuffer
-							, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
-							, InFrameInfo.VideoPitch
-							, InFrameInfo.VideoWidth
-							, InFrameInfo.VideoHeight
-							, SampleFormat
-							, DecodedTime
-							, MediaPlayer->VideoFrameRate
-							, DecodedTimecode
-							, bIsSRGBInput))
+						UE::MediaIOCore::FVideoFrame FrameInfo
 						{
-							MediaPlayer->Samples->AddVideo(TextureSampleEven);
-						}
+							InFrameInfo.VideoBuffer,
+							(uint32)InFrameInfo.VideoPitch * InFrameInfo.VideoHeight,
+							(uint32)InFrameInfo.VideoPitch,
+							(uint32)InFrameInfo.VideoWidth,
+							(uint32)InFrameInfo.VideoHeight,
+							SampleFormat,
+							DecodedTime,
+							MediaPlayer->VideoFrameRate,
+							DecodedTimecode,
+							bIsSRGBInput ? UE::Color::EColorSpace::sRGB : UE::Color::EColorSpace::None
+						};
 
-						auto TextureSampleOdd = MediaPlayer->TextureSamplePool->AcquireShared();
-						if (TextureSampleOdd->InitializeWithEvenOddLine(!bEven
-							, InFrameInfo.VideoBuffer
-							, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
-							, InFrameInfo.VideoPitch
-							, InFrameInfo.VideoWidth
-							, InFrameInfo.VideoHeight
-							, SampleFormat
-							, DecodedTimeF2
-							, MediaPlayer->VideoFrameRate
-							, DecodedTimecodeF2
-							, bIsSRGBInput))
+						const TArray<TSharedRef<FMediaIOCoreTextureSampleBase>> DeinterlacedSamples = MediaPlayer->Deinterlace(FrameInfo);
+
+						for (const TSharedRef<FMediaIOCoreTextureSampleBase>& TextureSample : DeinterlacedSamples)
 						{
-							MediaPlayer->Samples->AddVideo(TextureSampleOdd);
+							MediaPlayer->Samples->AddVideo(TextureSample);
 						}
 					}
 				}
