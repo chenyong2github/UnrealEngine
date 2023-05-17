@@ -28,13 +28,13 @@ class ULocalHeightFogComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "-5000.0", UIMax = "5000.0"))
 	float FogHeightOffset = 0.0f;
 
-	/** Controls the radial attenuation of this fog volume. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.01", UIMax = "5.0", ClampMin = 0.01))
-	float FogRadialAttenuationPower = 1.0f;
+	/** Controls the softness of the transition region when the volume is fading out. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = 0.0, ClampMax = 1.0))
+	float FogRadialAttenuationSoftness = 1.0f;
 
-	/** Controls the radial attenuation of this fog volume. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.01", UIMax = "5000.0", SliderExponent = 4.0, ClampMin = 0.01))
-	float FogRadialAttenuationDepth = 1000.0f;
+	/** Controls how strong the radial attenuation of this fog volume is. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Distribution", meta = (UIMin = "0.001", UIMax = "4.0", SliderExponent = 3.0, ClampMin = 0.001))
+	float FogRadialAttenuation = 0.0f;
 
 	/** Controls the directionality of the scattering within this fog volume. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Fog Shading", meta = (UIMin = "0.0", UIMax = "0.999", ClampMin = 0.0, ClampMax = 0.999))

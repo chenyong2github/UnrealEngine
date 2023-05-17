@@ -14,12 +14,12 @@ struct FLocalHeightFogGPUInstanceData
 	float Density;
 	float HeightFalloff;
 	float HeightOffset;
-	float RadialAttenuationPower;
+	float RadialAttenuation;
 
 	float3 Albedo;
 	float  PhaseG;
 	float3 Emissive;
-	float RadialAttenuationDepth;
+	float RadialAttenuationHermiteTangent;
 };
 
 StructuredBuffer<FLocalHeightFogGPUInstanceData> LocalHeightFogInstances;
@@ -156,10 +156,19 @@ void LocalHeightFogSplatPS(
 		float3 DepthBufferTranslatedWorldPos = SvPositionToTranslatedWorld(float4(SVPos.xy, DeviceZ, 1.0));
 		float LengthD = length(DepthBufferTranslatedWorldPos - CamRayTranslatedWorldOrigin);
 
-		// Attenuation based on world distance travelled in sphere, ignoring depth intersection
-		float RayLengthInSphere = max(0.0, max(Length0, Length1)) - max(0.0, min(Length0, Length1));
-		float RadialAttenuation = saturate(RayLengthInSphere / FogInstance.RadialAttenuationDepth);
-		RadialAttenuation = pow(RadialAttenuation, FogInstance.RadialAttenuationPower);
+		// Radial attenuation based on the distance travelled in the unit sphere.
+		float RadialAttenuation = saturate(abs(max(0.0, Ts.y) - max(0.0, Ts.x)) / FogInstance.RadialAttenuation);
+		// The attenuation is linear but it can be made soft using an Hermit interpolation by controling the tangents.
+		{
+			const float t = RadialAttenuation;
+			const float t2 = t * t;
+			const float t3 = t2 * t;
+			const float HP0 = 0;
+			const float HM0 = saturate(FogInstance.RadialAttenuationHermiteTangent);
+			const float HP1 = 1;
+			const float HM1 = saturate(FogInstance.RadialAttenuationHermiteTangent);
+			RadialAttenuation = saturate((2 * t3 - 3 * t2 + 1) * HP0 + (t3 - 2 * t2 + t) * HM0 + (-2 * t3 + 3 * t2) * HP1 + (t3 - t2) * HM1);
+		}
 
 		Length0 = min(LengthD, Length0);
 		Length1 = min(LengthD, Length1);

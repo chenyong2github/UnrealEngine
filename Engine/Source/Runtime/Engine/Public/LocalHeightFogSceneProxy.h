@@ -21,8 +21,8 @@ public:
 	float FogDensity;
 	float FogHeightFalloff;
 	float FogHeightOffset;
-	float FogRadialAttenuationPower;
-	float FogRadialAttenuationDepth;
+	float FogRadialAttenuation;
+	float FogRadialAttenuationSoftness;
 
 	float FogPhaseG;
 	FLinearColor FogAlbedo;
