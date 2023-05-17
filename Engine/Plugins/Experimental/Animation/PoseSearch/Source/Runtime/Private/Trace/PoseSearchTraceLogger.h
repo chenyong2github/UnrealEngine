@@ -65,9 +65,6 @@ POSESEARCH_API FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingStateDatab
  */
 struct POSESEARCH_API FTraceMotionMatchingState
 {
-	/** ObjectId of active searchable asset */
-	uint64 SearchableAssetId = 0;
-
 	/** Amount of time since the last pose switch */
 	float ElapsedPoseSearchTime = 0.f;
 

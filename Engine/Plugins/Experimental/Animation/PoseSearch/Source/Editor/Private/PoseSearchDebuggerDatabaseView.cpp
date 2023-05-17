@@ -25,135 +25,195 @@
 namespace UE::PoseSearch
 {
 
-void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State)
+class SCostBreakDownData
 {
-	class SCostBreakDownData
+public:
+	SCostBreakDownData(const TArray<FTraceMotionMatchingStateDatabaseEntry>& DatabaseEntries, bool bIsVerbose)
 	{
-	public:
-		SCostBreakDownData(const TArray<FTraceMotionMatchingStateDatabaseEntry>& DatabaseEntries, bool bIsVerbose)
+		// processing all the DatabaseEntries to collect the LabelToChannels
+		for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : DatabaseEntries)
 		{
-			// processing all the DatabaseEntries to collect the LabelToChannels
-			for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : DatabaseEntries)
+			const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
+			if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 			{
-				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
-				if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
+				for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Database->Schema->GetChannels())
 				{
-					for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : Database->Schema->GetChannels())
-					{
-						AnalyzeChannelRecursively(ChannelPtr.Get(), bIsVerbose);
-					}
+					AnalyzeChannelRecursively(ChannelPtr.Get(), bIsVerbose);
 				}
 			}
 		}
+	}
 
-		void ProcessData(TArray<TSharedRef<FDebuggerDatabaseRowData>>& InOutUnfilteredDatabaseRows) const
+	void ProcessData(TArray<TSharedRef<FDebuggerDatabaseRowData>>& InOutUnfilteredDatabaseRows) const
+	{
+		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredDatabaseRowRef : InOutUnfilteredDatabaseRows)
 		{
-			for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredDatabaseRowRef : InOutUnfilteredDatabaseRows)
+			FDebuggerDatabaseRowData& UnfilteredDatabaseRow = UnfilteredDatabaseRowRef.Get();
+			UnfilteredDatabaseRow.CostBreakdowns.AddDefaulted(LabelToChannels.Num());
+
+			for (int32 LabelToChannelIndex = 0; LabelToChannelIndex < LabelToChannels.Num(); ++LabelToChannelIndex)
 			{
-				FDebuggerDatabaseRowData& UnfilteredDatabaseRow = UnfilteredDatabaseRowRef.Get();
-				UnfilteredDatabaseRow.CostBreakdowns.AddDefaulted(LabelToChannels.Num());
+				const FLabelToChannels& LabelToChannel = LabelToChannels[LabelToChannelIndex];
 
-				for (int32 LabelToChannelIndex = 0; LabelToChannelIndex < LabelToChannels.Num(); ++LabelToChannelIndex)
+				// there should only be at most one channel per schema with the unique label,
+				// but we'll keep this generic allowing multiple channels from the same schema having the same label.
+				// the cost will be the sum of all the channels cost
+				float CostBreakdown = 0.f;
+				for (const UPoseSearchFeatureChannel* Channel : LabelToChannel.Channels)
 				{
-					const FLabelToChannels& LabelToChannel = LabelToChannels[LabelToChannelIndex];
-
-					// there should only be at most one channel per schema with the unique label,
-					// but we'll keep this generic allowing multiple channels from the same schema having the same label.
-					// the cost will be the sum of all the channels cost
-					float CostBreakdown = 0.f;
-					for (const UPoseSearchFeatureChannel* Channel : LabelToChannel.Channels)
+					// checking if the row is associated to the Channel
+					if (UnfilteredDatabaseRow.SharedData->SourceDatabase->Schema == Channel->GetSchema())
 					{
-						// checking if the row is associated to the Channel
-						if (UnfilteredDatabaseRow.SharedData->SourceDatabase->Schema == Channel->GetSchema())
-						{
-							CostBreakdown += ArraySum(UnfilteredDatabaseRow.CostVector, Channel->GetChannelDataOffset(), Channel->GetChannelCardinality());
-						}
+						CostBreakdown += ArraySum(UnfilteredDatabaseRow.CostVector, Channel->GetChannelDataOffset(), Channel->GetChannelCardinality());
 					}
-					UnfilteredDatabaseRow.CostBreakdowns[LabelToChannelIndex] = CostBreakdown;
 				}
+				UnfilteredDatabaseRow.CostBreakdowns[LabelToChannelIndex] = CostBreakdown;
 			}
 		}
+	}
 
-		bool AreLabelsEqualTo(const TArray<FText>& OtherLabels) const
+	bool AreLabelsEqualTo(const TArray<FText>& OtherLabels) const
+	{
+		if (LabelToChannels.Num() != OtherLabels.Num())
 		{
-			if (LabelToChannels.Num() != OtherLabels.Num())
+			return false;
+		}
+
+		for (int32 i = 0; i < LabelToChannels.Num(); ++i)
+		{
+			if (!LabelToChannels[i].Label.EqualTo(OtherLabels[i]))
 			{
 				return false;
 			}
-
-			for (int32 i = 0; i < LabelToChannels.Num(); ++i)
-			{
-				if (!LabelToChannels[i].Label.EqualTo(OtherLabels[i]))
-				{
-					return false;
-				}
-			}
-
-			return true;
 		}
 
-		const TArray<FText> GetLabels() const
+		return true;
+	}
+
+	const TArray<FText> GetLabels() const
+	{
+		TArray<FText> Labels;
+		for (const FLabelToChannels& LabelToChannel : LabelToChannels)
 		{
-			TArray<FText> Labels;
-			for (const FLabelToChannels& LabelToChannel : LabelToChannels)
+			Labels.Add(LabelToChannel.Label);
+		}
+		return Labels;
+	}
+
+private:
+	void AnalyzeChannelRecursively(const UPoseSearchFeatureChannel* Channel, bool bIsVerbose)
+	{
+		const FText Label = FText::FromString(Channel->GetLabel());
+
+		bool bLabelFound = false;
+		for (int32 i = 0; i < LabelToChannels.Num(); ++i)
+		{
+			if (LabelToChannels[i].Label.EqualTo(Label))
 			{
-				Labels.Add(LabelToChannel.Label);
+				LabelToChannels[i].Channels.AddUnique(Channel);
+				bLabelFound = true;
 			}
-			return Labels;
+		}
+		if (!bLabelFound)
+		{
+			LabelToChannels.AddDefaulted();
+			LabelToChannels.Last().Label = Label;
+			LabelToChannels.Last().Channels.Add(Channel);
 		}
 
-	private:
-		void AnalyzeChannelRecursively(const UPoseSearchFeatureChannel* Channel, bool bIsVerbose)
+		if (bIsVerbose)
 		{
-			const FText Label = FText::FromString(Channel->GetLabel());
-
-			bool bLabelFound = false;
-			for (int32 i = 0; i < LabelToChannels.Num(); ++i)
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : Channel->GetSubChannels())
 			{
-				if (LabelToChannels[i].Label.EqualTo(Label))
+				if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
 				{
-					LabelToChannels[i].Channels.AddUnique(Channel);
-					bLabelFound = true;
-				}
-			}
-			if (!bLabelFound)
-			{
-				LabelToChannels.AddDefaulted();
-				LabelToChannels.Last().Label = Label;
-				LabelToChannels.Last().Channels.Add(Channel);
-			}
-
-			if (bIsVerbose)
-			{
-				for (const TObjectPtr<UPoseSearchFeatureChannel>& SubChannelPtr : Channel->GetSubChannels())
-				{
-					if (const UPoseSearchFeatureChannel* SubChannel = SubChannelPtr.Get())
-					{
-						AnalyzeChannelRecursively(SubChannel, bIsVerbose);
-					}
+					AnalyzeChannelRecursively(SubChannel, bIsVerbose);
 				}
 			}
 		}
+	}
 
-		static float ArraySum(TConstArrayView<float> View, int32 StartIndex, int32 Offset)
+	static float ArraySum(TConstArrayView<float> View, int32 StartIndex, int32 Offset)
+	{
+		float Sum = 0.f;
+		const int32 EndIndex = StartIndex + Offset;
+		for (int i = StartIndex; i < EndIndex; ++i)
 		{
-			float Sum = 0.f;
-			const int32 EndIndex = StartIndex + Offset;
-			for (int i = StartIndex; i < EndIndex; ++i)
-			{
-				Sum += View[i];
-			}
-			return Sum;
+			Sum += View[i];
 		}
+		return Sum;
+	}
 
-		struct FLabelToChannels
-		{
-			FText Label;
-			TArray<const UPoseSearchFeatureChannel*> Channels; // NoTe: channels can be from different schemas
-		};
-		TArray<FLabelToChannels> LabelToChannels;
+	struct FLabelToChannels
+	{
+		FText Label;
+		TArray<const UPoseSearchFeatureChannel*> Channels; // NoTe: channels can be from different schemas
 	};
+	TArray<FLabelToChannels> LabelToChannels;
+};
 
+static void AddUnfilteredDatabaseRow(const UPoseSearchDatabase* Database, 
+	TArray<TSharedRef<FDebuggerDatabaseRowData>>& UnfilteredDatabaseRows, TSharedRef<FDebuggerDatabaseSharedData> SharedData,
+	int32 DbPoseIdx, EPoseCandidateFlags PoseCandidateFlags, const FPoseSearchCost& Cost = FPoseSearchCost())
+{
+	const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
+	if (const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex.GetAssetForPoseSafe(DbPoseIdx))
+	{
+		TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>(SharedData));
+
+		const float Time = Database->GetAssetTime(DbPoseIdx);
+
+		Row->PoseIdx = DbPoseIdx;
+		Row->PoseCandidateFlags = PoseCandidateFlags;
+		Row->DbAssetIdx = SearchIndexAsset->SourceAssetIdx;
+		Row->AssetTime = Time;
+		Row->bMirrored = SearchIndexAsset->bMirrored;
+
+		Row->CostVector.SetNum(Database->Schema->SchemaCardinality);
+		const TArray<float> PoseValues = SearchIndex.GetPoseValuesSafe(DbPoseIdx);
+
+		// in case we modify the schema while PIE is paused and displaying the Pose Search Editor, we could end up with a stale State with a SharedData->QueryVector saved with the previous schema
+		// so the cardinality of SharedData->QueryVector and PoseValues don't match. In that case we just use PoseValues as query to have all costs set to zero
+		const bool bIsQueryVectorValid = SharedData->QueryVector.Num() == PoseValues.Num();
+		const TArray<float>& QueryVector = bIsQueryVectorValid ? SharedData->QueryVector : PoseValues;
+
+		CompareFeatureVectors(PoseValues, QueryVector, SearchIndex.WeightsSqrt, Row->CostVector);
+
+		if (Cost.IsValid())
+		{
+			Row->PoseCost = Cost;
+		}
+		else
+		{
+			// @todo: perhaps reuse CompareFeatureVectors cost calculation
+			// @todo: initialize EPoseSearchBooleanRequest::Indifferent properly
+			Row->PoseCost = SearchIndex.ComparePoses(DbPoseIdx, EPoseSearchBooleanRequest::Indifferent, 0.f, Database->Schema->MirrorMismatchCostBias, PoseValues, QueryVector);
+		}
+
+		const FInstancedStruct& DatabaseAssetStruct = Database->GetAnimationAssetStruct(*SearchIndexAsset);
+		if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
+		{
+			Row->AssetName = DatabaseAsset->GetName();
+			Row->AssetPath = DatabaseAsset->GetAnimationAsset() ? DatabaseAsset->GetAnimationAsset()->GetPathName() : "";
+			Row->bLooping = DatabaseAsset->IsLooping();
+			Row->BlendParameters = SearchIndexAsset->BlendParameters;
+			Row->AnimFrame = 0;
+			Row->AnimPercentage = 0.0f;
+
+			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
+			{
+				if (const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(DatabaseAnimationAssetBase->GetAnimationAsset()))
+				{
+					Row->AnimFrame = SequenceBase->GetFrameAtTime(Time);
+					Row->AnimPercentage = Time / SequenceBase->GetPlayLength();
+				}
+			}
+		}
+	}
+}
+
+void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State)
+{
 	// row cost color palette
 	static const FLinearColor DiscardedRowColor(0.314f, 0.314f, 0.314f); // darker gray
 	static const FLinearColor BestScoreRowColor = FLinearColor::Green;
@@ -171,13 +231,12 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 	}
 
 	UnfilteredDatabaseRows.Reset();
+
 	for (const FTraceMotionMatchingStateDatabaseEntry& DbEntry : State.DatabaseEntries)
 	{
 		const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(Database, ERequestAsyncBuildFlag::ContinueRequest))
 		{
-			const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
-
 			TSharedRef<FDebuggerDatabaseSharedData> SharedData = MakeShared<FDebuggerDatabaseSharedData>();
 			SharedData->SourceDatabase = Database;
 			SharedData->DatabaseName = Database->GetName();
@@ -186,45 +245,23 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 
 			for (const FTraceMotionMatchingStatePoseEntry& PoseEntry : DbEntry.PoseEntries)
 			{
-				if (const FPoseSearchIndexAsset* SearchIndexAsset = SearchIndex.GetAssetForPoseSafe(PoseEntry.DbPoseIdx))
+				AddUnfilteredDatabaseRow(Database, UnfilteredDatabaseRows, SharedData, PoseEntry.DbPoseIdx, PoseEntry.PoseCandidateFlags, PoseEntry.Cost);
+			}
+
+			if (bShowAllPoses)
+			{
+				TSet<int32> PoseEntriesIdx;
+				for (const FTraceMotionMatchingStatePoseEntry& PoseEntry : DbEntry.PoseEntries)
 				{
-					TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>(SharedData));
+					PoseEntriesIdx.Add(PoseEntry.DbPoseIdx);
+				}
 
-					const float Time = Database->GetAssetTime(PoseEntry.DbPoseIdx);
-
-					Row->PoseIdx = PoseEntry.DbPoseIdx;
-					Row->PoseCandidateFlags = PoseEntry.PoseCandidateFlags;
-					Row->DbAssetIdx = SearchIndexAsset->SourceAssetIdx;
-					Row->AssetTime = Time;
-					Row->bMirrored = SearchIndexAsset->bMirrored;
-					Row->PoseCost = PoseEntry.Cost;
-
-					Row->CostVector.SetNum(Database->Schema->SchemaCardinality);
-					const TArray<float> PoseValues = SearchIndex.GetPoseValuesSafe(PoseEntry.DbPoseIdx);
-
-					// in case we modify the schema while PIE is paused and displaying the Pose Search Editor, we could end up with a stale State with a DbEntry.QueryVector saved with the previous schema
-					// so the cardinality of DbEntry.QueryVector and PoseValues don't match. In that case we just use PoseValues as query to have all costs set to zero
-					const bool bIsQueryVectorValid = DbEntry.QueryVector.Num() == PoseValues.Num();
-					CompareFeatureVectors(PoseValues, bIsQueryVectorValid ? DbEntry.QueryVector : PoseValues, SearchIndex.WeightsSqrt, Row->CostVector);
-
-					const FInstancedStruct& DatabaseAssetStruct = Database->GetAnimationAssetStruct(*SearchIndexAsset);
-					if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
+				const FPoseSearchIndex& SearchIndex = Database->GetSearchIndex();
+				for (int32 DbPoseIdx = 0; DbPoseIdx < SearchIndex.GetNumPoses(); ++DbPoseIdx)
+				{
+					if (!PoseEntriesIdx.Find(DbPoseIdx))
 					{
-						Row->AssetName = DatabaseAsset->GetName();
-						Row->AssetPath = DatabaseAsset->GetAnimationAsset() ? DatabaseAsset->GetAnimationAsset()->GetPathName() : "";
-						Row->bLooping = DatabaseAsset->IsLooping();
-						Row->BlendParameters = SearchIndexAsset->BlendParameters;
-						Row->AnimFrame = 0;
-						Row->AnimPercentage = 0.0f;
-
-						if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAnimationAssetBase = DatabaseAssetStruct.GetPtr<FPoseSearchDatabaseAnimationAssetBase>())
-						{
-							if (const UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(DatabaseAnimationAssetBase->GetAnimationAsset()))
-							{
-								Row->AnimFrame = SequenceBase->GetFrameAtTime(Time);
-								Row->AnimPercentage = Time / SequenceBase->GetPlayLength();
-							}
-						}
+						AddUnfilteredDatabaseRow(Database, UnfilteredDatabaseRows, SharedData, DbPoseIdx, EPoseCandidateFlags::DiscardedBy_Search);
 					}
 				}
 			}
@@ -261,7 +298,10 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 
 		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
 		{
-			ArrayMinMax(UnfilteredRow->CostBreakdowns, MinCostBreakdowns, MaxCostBreakdowns, UE_MAX_FLT);
+			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
+			{
+				ArrayMinMax(UnfilteredRow->CostBreakdowns, MinCostBreakdowns, MaxCostBreakdowns, UE_MAX_FLT);
+			}
 		}
 		
 		auto ArraySafeNormalize = [](TConstArrayView<float> View, TConstArrayView<float> Min, TConstArrayView<float> Max, TArrayView<float> NormalizedView)
@@ -316,9 +356,12 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		float MaxCost = -UE_MAX_FLT;
 		for (TSharedRef<FDebuggerDatabaseRowData>& UnfilteredRow : UnfilteredDatabaseRows)
 		{
-			const float Cost = UnfilteredRow->PoseCost.GetTotalCost();
-			MinCost = FMath::Min(MinCost, Cost);
-			MaxCost = FMath::Max(MaxCost, Cost);
+			if (EnumHasAnyFlags(UnfilteredRow->PoseCandidateFlags, EPoseCandidateFlags::AnyValidMask))
+			{
+				const float Cost = UnfilteredRow->PoseCost.GetTotalCost();
+				MinCost = FMath::Min(MinCost, Cost);
+				MaxCost = FMath::Max(MaxCost, Cost);
+			}
 		}
 
 		const float DeltaCost = MaxCost - MinCost;
@@ -452,6 +495,30 @@ void SDebuggerDatabaseView::OnFilterTextChanged(const FText& SearchText)
 {
 	FilterText = SearchText;
 	PopulateViewRows();
+}
+
+void SDebuggerDatabaseView::OnShowAllPosesCheckboxChanged(ECheckBoxState State)
+{
+	if (State == ECheckBoxState::Checked)
+	{
+		bShowAllPoses = true;
+	}
+	else
+	{
+		bShowAllPoses = false;
+	}
+
+	if (TSharedPtr<SDebuggerView> DebuggerView = ParentDebuggerViewPtr.Pin())
+	{
+		if (TSharedPtr<FDebuggerViewModel> ViewModel = DebuggerView->GetViewModel())
+		{
+			const FTraceMotionMatchingStateMessage* MotionMatchingState = ViewModel.Get()->GetMotionMatchingState();
+			if (MotionMatchingState)
+			{
+				Update(*MotionMatchingState);
+			}
+		}
+	}
 }
 
 void SDebuggerDatabaseView::OnHideInvalidPosesCheckboxChanged(ECheckBoxState State)
@@ -839,6 +906,20 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 					[
 						SAssignNew(FilterBox, SSearchBox)
 						.OnTextChanged(this, &SDebuggerDatabaseView::OnFilterTextChanged)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(10, 5, 10, 5)
+					[
+						SNew(SCheckBox)
+						.OnCheckStateChanged_Lambda([this](ECheckBoxState State)
+						{
+							   SDebuggerDatabaseView::OnShowAllPosesCheckboxChanged(State);
+						})
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("PoseSearchDebuggerShowAllPosesFlag", "Show All Poses"))
+						]
 					]
 					+ SHorizontalBox::Slot()
 					.AutoWidth()

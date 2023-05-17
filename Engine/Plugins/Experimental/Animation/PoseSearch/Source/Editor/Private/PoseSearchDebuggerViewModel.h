@@ -30,9 +30,6 @@ public:
 	int32 GetNodesNum() const;
 	const FTransform& GetRootBoneTransform() const;
 
-	/** Checks if Update must be called */
-	bool HasSearchableAssetChanged() const;
-
 	/** Update motion matching states for frame */
 	void OnUpdate();
 	
@@ -46,17 +43,14 @@ public:
 	void ClearSelectedSkeleton();
 	
 	void SetVerbose(bool bVerbose) { bIsVerbose = bVerbose; }
-
 	bool IsVerbose() const { return bIsVerbose; }
 
 	void SetDrawQuery(bool bInDrawQuery) { bDrawQuery = bInDrawQuery; }
-
 	bool GetDrawQuery() const { return bDrawQuery; }
 
 	void SetDrawTrajectory(bool bInDrawTrajectory) { bDrawTrajectory = bInDrawTrajectory; }
 
 	bool GetDrawTrajectory() const { return bDrawTrajectory; }
-
 
 	/** Callback to reset debug skeletons for the active world */
 	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
@@ -107,9 +101,6 @@ private:
 	
 	/** Currently active motion matching state based on node selection in the view */
 	const FTraceMotionMatchingStateMessage* ActiveMotionMatchingState = nullptr;
-
-	/** Active motion matching state's searchable asset */
-	uint64 SearchableAssetId = 0;
 
 	/** Current Skeletal Mesh Component Id for the AnimInstance */
 	uint64 SkeletalMeshComponentId = 0;

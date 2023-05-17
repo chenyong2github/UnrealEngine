@@ -789,8 +789,13 @@ FPoseSearchCost UPoseSearchDatabase::SearchContinuingPose(UE::PoseSearch::FSearc
 		TArrayView<float> ReconstructedPoseValuesBuffer((float*)FMemory_Alloca(NumDimensions * sizeof(float)), NumDimensions);
 		const TConstArrayView<float> PoseValues = SearchIndex.Values.IsEmpty() ? SearchIndex.GetReconstructedPoseValues(PoseIdx, ReconstructedPoseValuesBuffer) : SearchIndex.GetPoseValues(PoseIdx);
 
-		ContinuingPoseCost = SearchIndex.ComparePoses(SearchContext.GetCurrentResult().PoseIdx, SearchContext.GetQueryMirrorRequest(),
+		const int32 ContinuingPoseIdx = SearchContext.GetCurrentResult().PoseIdx;
+		ContinuingPoseCost = SearchIndex.ComparePoses(ContinuingPoseIdx, SearchContext.GetQueryMirrorRequest(),
 			ContinuingPoseCostBias, Schema->MirrorMismatchCostBias, PoseValues, SearchContext.GetOrBuildQuery(Schema).GetValues());
+
+#if UE_POSE_SEARCH_TRACE_ENABLED
+		SearchContext.BestCandidates.Add(ContinuingPoseCost, ContinuingPoseIdx, this, EPoseCandidateFlags::Valid_ContinuingPose);
+#endif
 	}
 
 	return ContinuingPoseCost;

@@ -45,9 +45,6 @@ struct FSearchResult
 
 	TWeakObjectPtr<const UPoseSearchDatabase> Database;
 
-	// cost of the current pose with the query from database in the result, if possible
-	FPoseSearchCost ContinuingPoseCost; 
-
 	float AssetTime = 0.0f;
 
 #if WITH_EDITORONLY_DATA

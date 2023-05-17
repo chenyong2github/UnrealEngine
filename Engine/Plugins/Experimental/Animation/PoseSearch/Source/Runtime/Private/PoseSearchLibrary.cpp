@@ -191,7 +191,6 @@ void FMotionMatchingState::UpdateRootBoneControl(const FAnimInstanceProxy* AnimI
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 void UPoseSearchLibrary::TraceMotionMatchingState(
-	const UPoseSearchDatabase* Database,
 	const FPoseSearchQueryTrajectory& Trajectory,
 	UE::PoseSearch::FSearchContext& SearchContext,
 	const UE::PoseSearch::FSearchResult& CurrentResult,
@@ -232,6 +231,7 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 		return DbEntryIdx;
 	};
 
+	const int32 CurrentPoseIdx = bSearch && CurrentResult.PoseCost.IsValid() ? CurrentResult.PoseIdx : -1;
 	FTraceMotionMatchingState TraceState;
 	while (!SearchContext.BestCandidates.IsEmpty())
 	{
@@ -245,37 +245,17 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 		PoseEntry.DbPoseIdx = PoseCandidate.PoseIdx;
 		PoseEntry.Cost = PoseCandidate.Cost;
 		PoseEntry.PoseCandidateFlags = PoseCandidate.PoseCandidateFlags;
-
-		DbEntry.PoseEntries.Add(PoseEntry);
-	}
-
-	if (bSearch && CurrentResult.ContinuingPoseCost.IsValid())
-	{
-		check(LastResult.IsValid());
-
-		const int32 DbEntryIdx = AddUniqueDatabase(TraceState.DatabaseEntries, LastResult.Database.Get(), SearchContext);
-		FTraceMotionMatchingStateDatabaseEntry& DbEntry = TraceState.DatabaseEntries[DbEntryIdx];
-
-		const int32 LastResultPoseEntryIdx = DbEntry.PoseEntries.Add({ LastResult.PoseIdx });
-		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[LastResultPoseEntryIdx];
-
-		PoseEntry.Cost = CurrentResult.ContinuingPoseCost;
-		PoseEntry.PoseCandidateFlags = EPoseCandidateFlags::Valid_ContinuingPose;
-	}
-
-	if (bSearch && CurrentResult.PoseCost.IsValid())
-	{
-		const int32 DbEntryIdx = AddUniqueDatabase(TraceState.DatabaseEntries, CurrentResult.Database.Get(), SearchContext);
-		FTraceMotionMatchingStateDatabaseEntry& DbEntry = TraceState.DatabaseEntries[DbEntryIdx];
-
-		const int32 PoseEntryIdx = DbEntry.PoseEntries.Add({ CurrentResult.PoseIdx });
-		FTraceMotionMatchingStatePoseEntry& PoseEntry = DbEntry.PoseEntries[PoseEntryIdx];
-
-		PoseEntry.Cost = CurrentResult.PoseCost;
-		PoseEntry.PoseCandidateFlags = EPoseCandidateFlags::Valid_CurrentPose;
-
-		TraceState.CurrentDbEntryIdx = DbEntryIdx;
-		TraceState.CurrentPoseEntryIdx = PoseEntryIdx;
+		if (CurrentPoseIdx == PoseCandidate.PoseIdx && CurrentResult.Database.Get() == PoseCandidate.Database)
+		{
+			EnumAddFlags(PoseEntry.PoseCandidateFlags, EPoseCandidateFlags::Valid_CurrentPose);
+			
+			TraceState.CurrentDbEntryIdx = DbEntryIdx;
+			TraceState.CurrentPoseEntryIdx = DbEntry.PoseEntries.Add(PoseEntry);
+		}
+		else
+		{
+			DbEntry.PoseEntries.Add(PoseEntry);
+		}
 	}
 
 	if (DeltaTime > SMALL_NUMBER && SearchContext.IsTrajectoryValid())
@@ -293,7 +273,6 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 		TraceState.AnimAngularVelocity = FMath::RadiansToDegrees(RootMotionTransformDelta.GetRotation().GetAngle()) / DeltaTime;
 	}
 
-	TraceState.SearchableAssetId = FTraceMotionMatchingState::GetIdFromObject(Database);
 	TraceState.ElapsedPoseSearchTime = ElapsedPoseSearchTime;
 	TraceState.AssetPlayerTime = CurrentResult.AssetTime;
 	TraceState.DeltaTime = DeltaTime;
@@ -373,14 +352,14 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		InOutMotionMatchingState.ElapsedPoseSearchTime = 0.f;
 
 		// Evaluate continuing pose
-		FPoseSearchCost ContinuingPoseCost;
+		FSearchResult SearchResult;
 		if (!SearchContext.IsForceInterrupt() && SearchContext.CanAdvance() && SearchContext.GetCurrentResult().Database.IsValid())
 		{
-			ContinuingPoseCost = SearchContext.GetCurrentResult().Database->SearchContinuingPose(SearchContext);
-			SearchContext.UpdateCurrentBestCost(ContinuingPoseCost);
+			SearchResult.PoseCost = SearchContext.GetCurrentResult().Database->SearchContinuingPose(SearchContext);
+			SearchContext.UpdateCurrentBestCost(SearchResult.PoseCost);
 		}
 
-		FSearchResult SearchResult;
+		bool bJumpToPose = false;
 		for (TObjectPtr<const UPoseSearchDatabase> Database : Databases)
 		{
 			if (ensure(Database))
@@ -388,26 +367,31 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 				FSearchResult NewSearchResult = Database->Search(SearchContext);
 				if (NewSearchResult.PoseCost.GetTotalCost() < SearchResult.PoseCost.GetTotalCost())
 				{
+					bJumpToPose = true;
 					SearchResult = NewSearchResult;
 					SearchContext.UpdateCurrentBestCost(SearchResult.PoseCost);
 				}
 			}
-
 		}
 
-		if (SearchResult.PoseCost.GetTotalCost() < ContinuingPoseCost.GetTotalCost())
+#if WITH_EDITORONLY_DATA
+		if (!SearchResult.BruteForcePoseCost.IsValid())
 		{
-			SearchResult.ContinuingPoseCost = ContinuingPoseCost;
+			SearchResult.BruteForcePoseCost = SearchResult.PoseCost;
+		}
+#endif // WITH_EDITORONLY_DATA
+
+		if (bJumpToPose)
+		{
 			InOutMotionMatchingState.JumpToPose(Context, SearchResult, MaxActiveBlends, BlendTime);
 		}
 		else
 		{
 			// copying few properties of SearchResult into CurrentSearchResult to facilitate debug drawing
-#if WITH_EDITOR
-			InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost = ContinuingPoseCost;
-#endif
-			InOutMotionMatchingState.CurrentSearchResult.PoseCost = ContinuingPoseCost;
-			InOutMotionMatchingState.CurrentSearchResult.ContinuingPoseCost = ContinuingPoseCost;
+#if WITH_EDITORONLY_DATA
+			InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost = SearchResult.BruteForcePoseCost;
+#endif // WITH_EDITORONLY_DATA
+			InOutMotionMatchingState.CurrentSearchResult.PoseCost = SearchResult.PoseCost;
 		}
 	}
 	else
@@ -428,14 +412,10 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		const float SearchBestCost = InOutMotionMatchingState.CurrentSearchResult.PoseCost.GetTotalCost();
 		float SearchBruteForceCost = SearchBestCost;
 #if WITH_EDITORONLY_DATA
-		if (Databases[0]->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
-		{
-			SearchBruteForceCost = InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost.GetTotalCost();
-		}
+		SearchBruteForceCost = InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost.GetTotalCost();
 #endif // WITH_EDITORONLY_DATA
 
-		// @todo: Update this to account for multiple databases.
-		TraceMotionMatchingState(Databases[0], Trajectory, SearchContext, InOutMotionMatchingState.CurrentSearchResult, LastResult, InOutMotionMatchingState.ElapsedPoseSearchTime,
+		TraceMotionMatchingState(Trajectory, SearchContext, InOutMotionMatchingState.CurrentSearchResult, LastResult, InOutMotionMatchingState.ElapsedPoseSearchTime,
 			InOutMotionMatchingState.RootMotionTransformDelta, Context.AnimInstanceProxy->GetAnimInstanceObject(), Context.GetCurrentNodeId(), DeltaTime, bSearch,
 			AnimInstance ? FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()) : 0.f, SearchBestCost, SearchBruteForceCost);
 	}
@@ -669,12 +649,9 @@ void UPoseSearchLibrary::MotionMatch(
 		const float SearchBestCost = SearchResult.PoseCost.GetTotalCost();
 		float SearchBruteForceCost = SearchBestCost;
 #if WITH_EDITORONLY_DATA
-		if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Compare)
-		{
-			SearchBruteForceCost = SearchResult.BruteForcePoseCost.GetTotalCost();
-		}
+		SearchBruteForceCost = SearchResult.BruteForcePoseCost.GetTotalCost();
 #endif // WITH_EDITORONLY_DATA
-		TraceMotionMatchingState(Database, Trajectory, SearchContext, SearchResult, FSearchResult(), 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier,
+		TraceMotionMatchingState(Trajectory, SearchContext, SearchResult, FSearchResult(), 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier,
 			AnimInstance->GetDeltaSeconds(), true, FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()), SearchBestCost, SearchBruteForceCost);
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 	}

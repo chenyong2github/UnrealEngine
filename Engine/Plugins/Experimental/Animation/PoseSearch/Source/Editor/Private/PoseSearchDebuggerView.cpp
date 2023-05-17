@@ -92,14 +92,7 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 {
 	check(Reflection);
 
-	const UPoseSearchDatabase* CurrentDatabase = State.GetCurrentDatabase();
-	if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(CurrentDatabase, ERequestAsyncBuildFlag::ContinueRequest))
-	{
-		const FPoseSearchIndex& CurrentSearchIndex = CurrentDatabase->GetSearchIndex();
-		int32 CurrentDbPoseIdx = State.GetCurrentDatabasePoseIndex();
-
 		Reflection->ElapsedPoseSearchTime = State.ElapsedPoseSearchTime;
-
 		Reflection->AssetPlayerTime = State.AssetPlayerTime;
 		Reflection->LastDeltaTime = State.DeltaTime;
 		Reflection->SimLinearVelocity = State.SimLinearVelocity;
@@ -107,7 +100,6 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 		Reflection->AnimLinearVelocity = State.AnimLinearVelocity;
 		Reflection->AnimAngularVelocity = State.AnimAngularVelocity;
 	}
-}
 
 void SDebuggerView::Construct(const FArguments& InArgs, uint64 InAnimInstanceId)
 {
@@ -200,8 +192,6 @@ void SDebuggerView::Tick(const FGeometry& AllottedGeometry, const double InCurre
 
 	TSharedPtr<FDebuggerViewModel> Model = ViewModel.Get();
 
-	bool bNeedUpdate = Model->HasSearchableAssetChanged();
-
 	// We haven't reached the update point yet
 	if (CurrentConsecutiveFrames < ConsecutiveFramesUpdateThreshold)
 	{
@@ -222,12 +212,6 @@ void SDebuggerView::Tick(const FGeometry& AllottedGeometry, const double InCurre
 		// Haven't updated since passing through frame gate, update once
 		else if (!bUpdated)
 		{
-			bNeedUpdate = true;
-		}
-	}
-
-	if (bNeedUpdate)
-	{
 		Model->OnUpdate();
 		if (UpdateNodeSelection())
 		{
@@ -235,6 +219,7 @@ void SDebuggerView::Tick(const FGeometry& AllottedGeometry, const double InCurre
 			UpdateViews();
 		}
 		bUpdated = true;
+	}
 	}
 
 	// Draw visualization every tick

@@ -92,12 +92,6 @@ const FTransform& FDebuggerViewModel::GetRootBoneTransform() const
 	return RootBoneWorldTransform;
 }
 
-bool FDebuggerViewModel::HasSearchableAssetChanged() const
-{
-	uint64 NewSearchableAssetId = ActiveMotionMatchingState ? ActiveMotionMatchingState->SearchableAssetId : 0;
-	return NewSearchableAssetId != SearchableAssetId;
-}
-
 void FDebuggerViewModel::OnUpdate()
 {
 	if (!bSkeletonsInitialized)
@@ -156,13 +150,6 @@ void FDebuggerViewModel::OnUpdateNodeSelection(int32 InNodeId)
 				Skeletons[Asset].BlendParameters = IndexAsset->BlendParameters;
 			}
 		}
-	}
-
-	uint64 NewSearchableAssetId = ActiveMotionMatchingState ? ActiveMotionMatchingState->SearchableAssetId : 0;
-	if (NewSearchableAssetId != SearchableAssetId)
-	{
-		ClearSelectedSkeleton();
-		SearchableAssetId = NewSearchableAssetId;
 	}
 }
 

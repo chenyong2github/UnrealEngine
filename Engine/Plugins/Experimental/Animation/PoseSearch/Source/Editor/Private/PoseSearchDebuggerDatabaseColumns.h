@@ -575,6 +575,11 @@ struct FPoseCandidateFlags : ITextColumn
 				Sring.Append("F ");
 			}
 
+			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_Search))
+			{
+				Sring.Append("S ");
+			}
+
 			return FText::FromString(Sring);
 		}
 
@@ -606,6 +611,11 @@ struct FPoseCandidateFlags : ITextColumn
 			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_PoseFilter))
 			{
 				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_PoseFilter_Tooltip", "(F) Filter"));
+			}
+
+			if (EnumHasAnyFlags(Row->PoseCandidateFlags, EPoseCandidateFlags::DiscardedBy_Search))
+			{
+				TextBuilder.AppendLine(LOCTEXT("DiscardedBy_Search_Tooltip", "(S) Search"));
 			}
 
 			return TextBuilder.ToText();

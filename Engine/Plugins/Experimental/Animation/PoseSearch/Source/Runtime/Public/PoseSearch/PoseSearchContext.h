@@ -41,8 +41,9 @@ enum class EPoseCandidateFlags : uint8
 	DiscardedBy_PoseReselectHistory = 1 << 4,
 	DiscardedBy_BlockTransition = 1 << 5,
 	DiscardedBy_PoseFilter = 1 << 6,
+	DiscardedBy_Search = 1 << 7,
 
-	AnyDiscardedMask = DiscardedBy_PoseJumpThresholdTime | DiscardedBy_PoseReselectHistory | DiscardedBy_BlockTransition | DiscardedBy_PoseFilter,
+	AnyDiscardedMask = DiscardedBy_PoseJumpThresholdTime | DiscardedBy_PoseReselectHistory | DiscardedBy_BlockTransition | DiscardedBy_PoseFilter | DiscardedBy_Search,
 };
 ENUM_CLASS_FLAGS(EPoseCandidateFlags);
 
@@ -229,10 +230,29 @@ public:
 			}
 			else if (PoseCandidateHeap.Num() < MaxPoseCandidates || Cost < PoseCandidateHeap.HeapTop().Cost)
 			{
+				bool bPoppedContinuingPoseCandidate = false;
+				FPoseCandidate ContinuingPoseCandidate;
 				while (PoseCandidateHeap.Num() >= MaxPoseCandidates)
 				{
-					FPoseCandidate Unused;
-					Pop(Unused);
+					FPoseCandidate PoppedPoseCandidate;
+					Pop(PoppedPoseCandidate);
+
+					if (EnumHasAnyFlags(PoppedPoseCandidate.PoseCandidateFlags, EPoseCandidateFlags::Valid_ContinuingPose))
+					{
+						// we can only have one continuing pose candidate
+						check(!bPoppedContinuingPoseCandidate);
+						ContinuingPoseCandidate = PoppedPoseCandidate;
+						bPoppedContinuingPoseCandidate = true;
+					}					
+				}
+
+				if (bPoppedContinuingPoseCandidate)
+				{
+					// if we popped the continuing pose candidate, we make some space fir it and push it back
+					FPoseCandidate PoppedPoseCandidate;
+					Pop(PoppedPoseCandidate);
+					PoseCandidateHeap.HeapPush(ContinuingPoseCandidate);
+					PoseIdxToFlags.Add(ContinuingPoseCandidate.PoseIdx, PoppedPoseCandidate.PoseCandidateFlags);
 				}
 
 				FPoseCandidate PoseCandidate;
@@ -241,7 +261,6 @@ public:
 				PoseCandidate.Database = Database;
 				
 				PoseCandidateHeap.HeapPush(PoseCandidate);
-
 				PoseIdxToFlags.Add(PoseIdx, PoseCandidateFlags);
 			}
 		}

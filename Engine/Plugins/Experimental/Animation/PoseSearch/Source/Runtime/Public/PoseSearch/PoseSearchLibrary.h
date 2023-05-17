@@ -81,7 +81,6 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 	static void TraceMotionMatchingState(
-		const UPoseSearchDatabase* Database,
 		const FPoseSearchQueryTrajectory& Trajectory,
 		UE::PoseSearch::FSearchContext& SearchContext,
 		const UE::PoseSearch::FSearchResult& CurrentResult,

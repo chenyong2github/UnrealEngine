@@ -66,6 +66,9 @@ private:
 	/** Called when the text in the filter box is modified to update the filtering */
 	void OnFilterTextChanged(const FText& SearchText);
 
+	/** Called when the ShowAllPoses Checkbox is Toggled */
+	void OnShowAllPosesCheckboxChanged(ECheckBoxState State);
+	
 	/** Called when the HideInvalidPoses Checkbox is Toggled */
 	void OnHideInvalidPosesCheckboxChanged(ECheckBoxState State);
 
@@ -139,6 +142,9 @@ private:
 	/** Text used to filter DatabaseView */
 	FText FilterText;
 
+	/* Bool used to show all poses from display */
+	bool bShowAllPoses = false;
+	
 	/* Bool used to hide invalid poses from display */
 	bool bHideInvalidPoses = false;
 
