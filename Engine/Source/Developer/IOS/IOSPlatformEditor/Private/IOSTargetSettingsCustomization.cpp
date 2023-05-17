@@ -316,11 +316,8 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 	IDetailCategoryBuilder& OrientationCategory = DetailLayout.EditCategory(TEXT("Orientation"));
 	IDetailCategoryBuilder& FileSystemCategory = DetailLayout.EditCategory(TEXT("FileSystem"));
 	IDetailCategoryBuilder& RenderCategory = DetailLayout.EditCategory(TEXT("Rendering"));
-	IDetailCategoryBuilder& OSInfoCategory = DetailLayout.EditCategory(TEXT("OS Info"));
-	IDetailCategoryBuilder& DeviceCategory = DetailLayout.EditCategory(TEXT("Devices"));
 	IDetailCategoryBuilder& BuildCategory = DetailLayout.EditCategory(TEXT("Build"));
 	IDetailCategoryBuilder& OnlineCategory = DetailLayout.EditCategory(TEXT("Online"));
-	IDetailCategoryBuilder& ExtraCategory = DetailLayout.EditCategory(TEXT("Extra PList Data"));
 	MobileProvisionProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MobileProvision));
 	BuildCategory.AddProperty(MobileProvisionProperty)
 		.Visibility(EVisibility::Hidden);
@@ -717,27 +714,6 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 				]
 			]
 		];
-	
-	BundleCategory.AddCustomRow(LOCTEXT("UpgradeInfo", "Upgrade Info"), false)
-	.WholeRowWidget
-	[
-		SNew(SBorder)
-		.Padding(1)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(10, 10, 10, 10))
-			.FillWidth(1.0f)
-			[
-				SNew(SRichTextBlock)
-				.Text(LOCTEXT("IOSUpgradeInfoMessage", "<RichTextBlock.TextHighlight>Note to users from 4.6 or earlier</>: We now <RichTextBlock.TextHighlight>GENERATE</> an Info.plist when building, so if you have customized your .plist file, you will need to put all of your changes into the below settings. Note that we don't touch the .plist file that is in your project directory, so you can use it as reference."))
-				.TextStyle(FAppStyle::Get(), "MessageLog")
-				.DecoratorStyleSet(&FAppStyle::Get())
-				.AutoWrapText(true)
-				// + SRichTextBlock::HyperlinkDecorator(TEXT("browser"), FSlateHyperlinkRun::FOnClick::CreateStatic(&OnBrowserLinkClicked))
-			 ]
-		 ]
-	 ];
 
 	// Show properties that are gated by the plist being present and writable
 	RunningIPPProcess = false;
@@ -802,10 +778,6 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 	FSimpleDelegate OnUpdateShaderStandardWarning = FSimpleDelegate::CreateSP(this, &FIOSTargetSettingsCustomization::UpdateShaderStandardWarning);
 	FSimpleDelegate OnUpdateOSVersionWarning = FSimpleDelegate::CreateSP(this, &FIOSTargetSettingsCustomization::UpdateOSVersionWarning);
 	FSimpleDelegate OnEnableMetalMRT = FSimpleDelegate::CreateSP(this, &FIOSTargetSettingsCustomization::UpdateMetalMRTWarning);
-
-	/* MinOSPropertyHandle = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MinimumiOSVersion));
-	MinOSPropertyHandle->SetOnPropertyValueChanged(OnUpdateShaderStandardWarning);
-	OSInfoCategory.AddProperty(MinOSPropertyHandle);*/
 
 	SETUP_PLIST_PROP(BundleDisplayName, BundleCategory);
 	SETUP_PLIST_PROP(BundleName, BundleCategory);
@@ -878,7 +850,7 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 		MinOSPropertyHandle->SetOnPropertyValueChanged(OnUpdateOSVersionWarning);
 
 		// Drop-downs for setting type of lower and upper bound normalization
-		IDetailPropertyRow& MinOSPropertyRow = OSInfoCategory.AddProperty(MinOSPropertyHandle.ToSharedRef());
+		IDetailPropertyRow& MinOSPropertyRow = BuildCategory.AddProperty(MinOSPropertyHandle.ToSharedRef());
 		MinOSPropertyRow.CustomWidget()
 		.NameContent()
 		[
@@ -914,11 +886,6 @@ void FIOSTargetSettingsCustomization::BuildPListSection(IDetailLayoutBuilder& De
 
 		UpdateOSVersionWarning();
 	}
-
-	SETUP_PLIST_PROP(bSupportsIPad, DeviceCategory);
-	SETUP_PLIST_PROP(bSupportsIPhone, DeviceCategory);
-	SETUP_PLIST_PROP(AdditionalPlistData, ExtraCategory);
-
 #undef SETUP_SOURCEONLY_PROP
 }
 

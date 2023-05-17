@@ -19,7 +19,6 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 {
 	bEnableGameCenterSupport = true;
 	bEnableCloudKitSupport = false;
-    bRunAsCurrentUser = false;
 	bSupportsPortraitOrientation = true;
 	bSupportsITunesFileSharing = false;
 	bSupportsFilesApp = false;

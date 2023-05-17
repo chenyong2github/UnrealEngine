@@ -179,11 +179,11 @@ public:
 
 	// Should Game Center support (iOS Online Subsystem) be enabled?
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online, meta = (ConfigHierarchyEditable))
-	uint32 bEnableGameCenterSupport : 1;
+    bool bEnableGameCenterSupport;
 	
 	// Should Cloud Kit support (iOS Online Subsystem) be enabled?
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online)
-	uint32 bEnableCloudKitSupport : 1;
+	bool bEnableCloudKitSupport;
 
 	// iCloud Read stategy
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Online, meta = (DisplayName = "iCloud save files sync strategy"), meta = (EditCondition = "bEnableCloudKitSupport"))
@@ -191,11 +191,11 @@ public:
 
     // Should push/remote notifications support (iOS Online Subsystem) be enabled?
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Online)
-    uint32 bEnableRemoteNotificationsSupport : 1;
+    bool bEnableRemoteNotificationsSupport;
     
     // Should background fetch support be enabled?
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Online)
-    uint32 bEnableBackgroundFetch : 1;
+    bool bEnableBackgroundFetch;
     
 	// Whether or not to compile iOS Metal shaders for the Mobile renderer (requires iOS 8+ and an A7 processor).
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Rendering, meta = (DisplayName = "Metal Mobile Renderer"))
@@ -206,13 +206,17 @@ public:
 	bool bSupportsMetalMRT;
     
     // Should the app be compatible for high refresh rate (iPhone only)
-    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Rendering", meta = (DisplayName = "Enable ProMotion 120Hz on supported iPhone devices"))
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Rendering, meta = (DisplayName = "Enable ProMotion 120Hz on supported iPhone devices"))
     bool bSupportHighRefreshRates;
+        
+    /** Whether to enable LOD streaming for landscape visual meshes. Requires Metal support. */
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Rendering, Meta = (DisplayName = "Stream landscape visual mesh LODs"))
+    bool bStreamLandscapeMeshLODs;
+    
+    // Minimum iOS version this game supports
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Minimum iOS Version"))
+    EIOSVersion MinimumiOSVersion;
 	
-	// Support a secondary remote mac ?
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (DisplayName = "Supports a secondary remote mac to facilitate debug of iOS / tvOS builds"))
-	bool bSupportSecondaryMac;
-
     // Whether to build the iOS project as a framework.
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Build project as a framework (Experimental)"))
     bool bBuildAsFramework;
@@ -247,71 +251,85 @@ public:
 	// Any additional linker flags to pass to the linker in shipping builds
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Additional Shipping Linker Flags", ConfigHierarchyEditable))
 	FString AdditionalShippingLinkerFlags;
+    
+    // Any additional plist key/value data utilizing \n for a new line
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build)
+    FString AdditionalPlistData;
+    
+    // Whether or not to add support for iPad devices
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Supports iPad"))
+    bool bSupportsIPad;
 
-	// The name or ip address of the remote mac which will be used to build IOS
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (ConfigHierarchyEditable))
-	FString RemoteServerName;
+    // Whether or not to add support for iPhone devices
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Supports iPhone"))
+    bool bSupportsIPhone;
+    
+    /** Set the maximum frame rate to save on power consumption */
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = PowerUsage, meta = (ConfigHierarchyEditable))
+    EPowerUsageFrameRateLock FrameRateLock;
 
-	
-	
+    //Whether or not to allow taking the MaxRefreshRate from the device instead of a constant (60fps) in IOSPlatformFramePacer
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = PowerUsage, meta = (ConfigHierarchyEditable))
+    bool bEnableDynamicMaxFPS;
 
-	// Enable the use of RSync for remote builds on a mac
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (DisplayName = "Use RSync for building IOS", ConfigHierarchyEditable))
-	bool bUseRSync;
+    // Enable the use of RSync for remote builds on a mac
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (DisplayName = "Use RSync for building IOS", ConfigHierarchyEditable))
+    bool bUseRSync;
 
-	// The mac users name which matches the SSH Private Key, for remote builds using RSync.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bUseRSync", DisplayName = "Username on Remote Server.", ConfigHierarchyEditable))
-	FString RSyncUsername;
+    // The name or ip address of the remote mac which will be used to build IOS
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (ConfigHierarchyEditable))
+    FString RemoteServerName;
 
+    // The mac users name which matches the SSH Private Key, for remote builds using RSync.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (EditCondition = "bUseRSync", DisplayName = "Username on Remote Server", ConfigHierarchyEditable))
+    FString RSyncUsername;
 
+    // Optional path on the remote mac where the build files will be copied. If blank, ~/UE5/Builds will be used.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (ConfigHierarchyEditable))
+    FString RemoteServerOverrideBuildPath;
+    
+    // The install directory of cwrsync.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (EditCondition = "bUseRSync", ConfigHierarchyEditable))
+    FIOSBuildResourceDirectory CwRsyncInstallPath;
 
-	// Optional path on the remote mac where the build files will be copied. If blank, ~/UE5/Builds will be used.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (ConfigHierarchyEditable))
-	FString RemoteServerOverrideBuildPath;
+    // The existing location of an SSH Key found by Unreal Engine.
+    UPROPERTY(VisibleAnywhere, Category = "Remote Build", meta = (DisplayName = "Found Existing SSH permissions file"))
+    FString SSHPrivateKeyLocation;
 
-	
-	// The install directory of cwrsync.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bUseRSync", ConfigHierarchyEditable))
-	FIOSBuildResourceDirectory CwRsyncInstallPath;
+    // The path of the ssh permissions key to be used when connecting to the remote server.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (EditCondition = "bUseRSync", DisplayName = "Override existing SSH permissions file", ConfigHierarchyEditable))
+    FIOSBuildResourceFilePath SSHPrivateKeyOverridePath;
 
-	// The existing location of an SSH Key found by Unreal Engine.
-	UPROPERTY(VisibleAnywhere, Category = "Build", meta = (DisplayName = "Found Existing SSH permissions file"))
-	FString SSHPrivateKeyLocation;
+    // Support a secondary remote Mac to support to facilitate iOS/tvOS debug ?
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (DisplayName = "Enable Secondary remote Mac"))
+    bool bSupportSecondaryMac;
+    
+    // The name or ip address of the remote mac which will be used to build IOS
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (EditCondition = "bSupportSecondaryMac", ConfigHierarchyEditable))
+    FString SecondaryRemoteServerName;
+    
+    // The secondary mac users name which matches the SSH Private Key, for remote builds using RSync.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (EditCondition = "bSupportSecondaryMac", DisplayName = "Username on Secondary Remote Server", ConfigHierarchyEditable))
+    FString SecondaryRSyncUsername;
 
-	// The path of the ssh permissions key to be used when connecting to the remote server.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bUseRSync", DisplayName = "Override existing SSH permissions file", ConfigHierarchyEditable))
-	FIOSBuildResourceFilePath SSHPrivateKeyOverridePath;
+    // Optional path on the secondary remote mac where the build files will be copied. If blank, ~/UE5/Builds will be used.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (EditCondition = "bSupportSecondaryMac", ConfigHierarchyEditable))
+    FString SecondaryRemoteServerOverrideBuildPath;
 
-	// The name or ip address of the remote mac which will be used to build IOS
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bSupportSecondaryMac", ConfigHierarchyEditable))
-	FString SecondaryRemoteServerName;
+    // The install directory of cwrsync.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (EditCondition = "bSupportSecondaryMac", ConfigHierarchyEditable))
+    FIOSBuildResourceDirectory SecondaryCwRsyncInstallPath;
+    
+    // The existing location of an SSH Key found by Unreal Engine.
+    UPROPERTY(VisibleAnywhere, Category = "Remote Build", meta = (EditCondition = "bSupportSecondaryMac", DisplayName = "Found Existing SSH permissions file for Secondary Mac"))
+    FString SecondarySSHPrivateKeyLocation;
 
-	// Optional path on the secondary remote mac where the build files will be copied. If blank, ~/UE5/Builds will be used.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bSupportSecondaryMac", ConfigHierarchyEditable))
-	FString SecondaryRemoteServerOverrideBuildPath;
+    // The path of the ssh permissions key to be used when connecting to the remote server.
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Remote Build", meta = (EditCondition = "bSupportSecondaryMac", DisplayName = "Override existing SSH permissions file for Secondary Mac", ConfigHierarchyEditable))
+    FIOSBuildResourceFilePath SecondarySSHPrivateKeyOverridePath;
 
-	// The existing location of an SSH Key found by Unreal Engine.
-	UPROPERTY(VisibleAnywhere, Category = "Build", meta = (EditCondition = "bSupportSecondaryMac", DisplayName = "Found Existing SSH permissions file for Secondary Mac"))
-	FString SecondarySSHPrivateKeyLocation;
-
-	// The path of the ssh permissions key to be used when connecting to the remote server.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bSupportSecondaryMac", DisplayName = "Override existing SSH permissions file for Secondary Mac", ConfigHierarchyEditable))
-	FIOSBuildResourceFilePath SecondarySSHPrivateKeyOverridePath;
-
-	// The install directory of cwrsync.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bSupportSecondaryMac", ConfigHierarchyEditable))
-	FIOSBuildResourceDirectory SecondaryCwRsyncInstallPath;
-
-	// The secondary mac users name which matches the SSH Private Key, for remote builds using RSync.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (EditCondition = "bSupportSecondaryMac", DisplayName = "Username on Remote Server.", ConfigHierarchyEditable))
-	FString SecondaryRSyncUsername;
-
-	// Should the app be compatible with Multi-User feature on tvOS ?　If checked, the game will will shutdown with the typical exit flow.
-    UPROPERTY(GlobalConfig, EditAnywhere, Category = "Build", meta = (DisplayName = "Support user switching on tvOS"))
-    bool bRunAsCurrentUser;
-
-	// If checked, the game will be able to handle multiple gamepads at the same time (the Siri Remote is a gamepad)
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Can the Game have multiple gamepads connected at a single time"))
+    // If checked, the game will be able to handle multiple gamepads at the same time (the Siri Remote is a gamepad)
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Input, meta = (DisplayName = "Multiple gamepads support"))
 	bool bGameSupportsMultipleActiveControllers;
 
 	// If checked, the Siri Remote can be rotated to landscape view
@@ -373,30 +391,6 @@ public:
 	// Specifies the version for the application.
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = BundleInformation)
 	FString VersionInfo;
-
-	/** Set the maximum frame rate to save on power consumption */
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = PowerUsage, meta = (ConfigHierarchyEditable))
-	EPowerUsageFrameRateLock FrameRateLock;
-
-	//Whether or not to allow taking the MaxRefreshRate from the device instead of a constant (60fps) in IOSPlatformFramePacer
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = PowerUsage, meta = (ConfigHierarchyEditable))
-	bool bEnableDynamicMaxFPS;
-
-	// Minimum iOS version this game supports
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = OSInfo, meta = (DisplayName = "Minimum iOS Version"))
-	EIOSVersion MinimumiOSVersion;
-
-	// Whether or not to add support for iPad devices
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = DeviceUsage)
-	uint32 bSupportsIPad : 1;
-
-	// Whether or not to add support for iPhone devices
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = DeviceUsage)
-	uint32 bSupportsIPhone : 1;
-
-	// Any additional plist key/value data utilizing \n for a new line
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = ExtraData)
-	FString AdditionalPlistData;
 
 	/**
 	 * Choose whether to use a custom LaunchScreen.Storyboard as a Launchscreen. To use this option, create a storyboard in Xcode and 
@@ -537,8 +531,8 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Audio")
 	FPlatformRuntimeAudioCompressionOverrides CompressionOverrides;
 
-    /** Whether this app's audio can be played when using other apps or on the srpingboard */
-    UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (DisplayName = "Whether audio from this plays in background (iOS and iPadOS only)"))
+    /** Whether this app's audio can be played when using other apps or on the springboard */
+    UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (DisplayName = "Enable Background Audio"))
     bool bSupportsBackgroundAudio;
 
 	/** This determines the max amount of memory that should be used for the cache at any given time. If set low (<= 8 MB), it lowers the size of individual chunks of audio during cook. */
@@ -581,11 +575,7 @@ public:
 	UPROPERTY(GlobalConfig)
 	float AutoStreamingThreshold;
 
-	/** Whether to enable LOD streaming for landscape visual meshes. Requires Metal support. */
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Misc", Meta = (DisplayName = "Stream landscape visual mesh LODs"))
-	bool bStreamLandscapeMeshLODs;
-
-	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
+    virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 
 #if WITH_EDITOR
 	// UObject interface
