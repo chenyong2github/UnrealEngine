@@ -319,6 +319,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Serialize ActorDesc bIsMainWorldOnly
 		WorldPartitionActorDescIsMainWorldOnly,
 
+		// FWorldPartitionActorFilter go back to FString serialize of AssetPaths to avoid FArchiveReplaceOrClearExternalReferences clearing CDO references on BP Compile
+		WorldPartitionActorFilterStringAssetPath,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

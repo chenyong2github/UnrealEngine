@@ -160,17 +160,18 @@ bool FWorldPartitionActorFilter::Serialize(FArchive& Ar)
 		{
 			FSoftObjectPath AssetPath;
 
-			if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeSoftObjectPathSupport)
+			if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionActorDescSerializeSoftObjectPathSupport || 
+				Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorFilterStringAssetPath)
 			{
 				FString AssetPathStr;
 				Ar << AssetPathStr;
 				AssetPath = FSoftObjectPath(AssetPathStr);
-				FWorldPartitionHelpers::FixupRedirectedAssetPath(AssetPath);
 			}
 			else
 			{
 				Ar << AssetPath;
 			}
+			FWorldPartitionHelpers::FixupRedirectedAssetPath(AssetPath);
 
 			bool bIncluded;
 			Ar << bIncluded;
@@ -182,7 +183,8 @@ bool FWorldPartitionActorFilter::Serialize(FArchive& Ar)
 	{
 		for (auto& [AssetPath, DataLayerFilter] : DataLayerFilters)
 		{
-			Ar << AssetPath << DataLayerFilter.bIncluded;
+			FString AssetPathStr = AssetPath.ToString();
+			Ar << AssetPathStr << DataLayerFilter.bIncluded;
 		}
 	}
 
