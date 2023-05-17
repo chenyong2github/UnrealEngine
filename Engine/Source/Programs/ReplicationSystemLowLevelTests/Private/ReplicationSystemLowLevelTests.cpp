@@ -57,10 +57,10 @@ GROUP_BEFORE_GLOBAL(Catch::DefaultGroup)
 	UE::Net::SetUseIrisReplication(true);
 
 	{
-		// Silence some warnings during initialization unrelated to the replication system
+		// Silence some errors & warnings during initialization unrelated to the replication system
 		LOG_SCOPE_VERBOSITY_OVERRIDE(LogSlate, ELogVerbosity::Error);
 		LOG_SCOPE_VERBOSITY_OVERRIDE(LogSlateStyle, ELogVerbosity::Error);
-		LOG_SCOPE_VERBOSITY_OVERRIDE(LogUObjectGlobals, ELogVerbosity::Error);
+		LOG_SCOPE_VERBOSITY_OVERRIDE(LogUObjectGlobals, ELogVerbosity::Fatal);
 		InitAll(true, true);
 	}
 

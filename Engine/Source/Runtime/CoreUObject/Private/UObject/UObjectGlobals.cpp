@@ -4470,7 +4470,12 @@ void ConstructorHelpers::FailedToFind(const TCHAR* ObjectToFind)
 		(CurrentInitializer && CurrentInitializer->GetClass()) ? *CurrentInitializer->GetClass()->GetName() : TEXT("Unknown"),
 		ObjectToFind);
 	FPlatformMisc::LowLevelOutputDebugString(*Message);
-	UClass::GetDefaultPropertiesFeedbackContext().Log(ELogVerbosity::Error, *Message);
+#if !NO_LOGGING
+	if (UE_LOG_ACTIVE(LogUObjectGlobals, Error))
+	{
+		UClass::GetDefaultPropertiesFeedbackContext().Log(LogUObjectGlobals.GetCategoryName(), ELogVerbosity::Error, *Message);
+	}
+#endif
 }
 
 void ConstructorHelpers::CheckFoundViaRedirect(UObject *Object, const FString& PathName, const TCHAR* ObjectToFind)
@@ -4488,7 +4493,12 @@ void ConstructorHelpers::CheckFoundViaRedirect(UObject *Object, const FString& P
 			ObjectToFind, *NewString);
 
 		FPlatformMisc::LowLevelOutputDebugString(*Message);
-		UClass::GetDefaultPropertiesFeedbackContext().Log(ELogVerbosity::Warning, *Message);
+#if !NO_LOGGING
+		if (UE_LOG_ACTIVE(LogUObjectGlobals, Warning))
+		{
+			UClass::GetDefaultPropertiesFeedbackContext().Log(LogUObjectGlobals.GetCategoryName(), ELogVerbosity::Warning, *Message);
+		}
+#endif
 	}
 }
 
