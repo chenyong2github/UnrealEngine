@@ -28,26 +28,7 @@ namespace UE::Chaos::ClothAsset::Private
 	void SkeletalMeshToDynamicMesh(USkeletalMesh* FromSkeletalMeshAsset, int32 SourceLODIdx, FDynamicMesh3& ToDynamicMesh)
 	{
 		FMeshDescription SourceMesh;
-
-		// Check first if we have bulk data available and non-empty.
-		if (FromSkeletalMeshAsset->IsLODImportedDataBuildAvailable(SourceLODIdx) && !FromSkeletalMeshAsset->IsLODImportedDataEmpty(SourceLODIdx))
-		{
-			FSkeletalMeshImportData SkeletalMeshImportData;
-			FromSkeletalMeshAsset->LoadLODImportedData(SourceLODIdx, SkeletalMeshImportData);
-			SkeletalMeshImportData.GetMeshDescription(SourceMesh);
-		}
-		else
-		{
-			// Fall back on the LOD model directly if no bulk data exists. When we commit
-			// the mesh description, we override using the bulk data. This can happen for older
-			// skeletal meshes, from UE 4.24 and earlier.
-			const FSkeletalMeshModel* SkeletalMeshModel = FromSkeletalMeshAsset->GetImportedModel();
-			if (SkeletalMeshModel && SkeletalMeshModel->LODModels.IsValidIndex(SourceLODIdx))
-			{
-				SkeletalMeshModel->LODModels[SourceLODIdx].GetMeshDescription(SourceMesh, FromSkeletalMeshAsset);
-			}
-		}
-
+		FromSkeletalMeshAsset->GetMeshDescription(SourceLODIdx, SourceMesh);
 		FMeshDescriptionToDynamicMesh Converter;
 		Converter.Convert(&SourceMesh, ToDynamicMesh);
 	};
