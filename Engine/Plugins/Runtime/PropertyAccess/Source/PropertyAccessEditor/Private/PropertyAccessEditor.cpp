@@ -149,6 +149,8 @@ struct FPropertyAccessEditorSystem
 
 	static ESegmentResolveResult ResolveSegments_CheckFunction(FPropertyAccessSegment& InSegment, UFunction* InFunction, FResolveSegmentsContext& InContext)
 	{
+		check(InFunction);
+		
 		InSegment.Function = InFunction;
 		InSegment.Flags |= (uint16)EPropertyAccessSegmentFlags::Function;
 
