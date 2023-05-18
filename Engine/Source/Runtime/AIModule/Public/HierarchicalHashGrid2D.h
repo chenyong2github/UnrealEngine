@@ -510,6 +510,7 @@ public:
 		for (Location.Level = 0; Location.Level < NumLevels; Location.Level++)
 		{
 			const int32 DiameterCells = IntCastChecked<int32>(FMath::CeilToInt(Diameter * InvCellSize[Location.Level]));
+			// note that it's fine for DiameterCells to equal 0 - that would happen for 0-sized items (valid location, no extent).
 			if (DiameterCells <= 1)
 			{
 				Location.X = IntCastChecked<int32>(FMath::FloorToInt(Center.X * InvCellSize[Location.Level]));
