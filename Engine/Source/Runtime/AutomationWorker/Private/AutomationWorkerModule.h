@@ -129,6 +129,9 @@ private:
 	/** Helper for Performance Capture Analytics. */
 	void RecordPerformanceAnalytics(const FAutomationPerformanceSnapshot& PerfSnapshot);
 
+	/** Checks whether the test is in exclusion list. */
+	bool IsTestExcluded(const FString& InTestToRun, FString* OutReason, bool* OutWarn) const;
+
 private:
 
 	/** The collection of test data we are to send to a controller. */

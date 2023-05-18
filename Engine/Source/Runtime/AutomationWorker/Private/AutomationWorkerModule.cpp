@@ -498,6 +498,25 @@ FString GetRHIForAutomation()
 	return RHI;
 }
 
+bool FAutomationWorkerModule::IsTestExcluded(const FString& InTestToRun, FString* OutReason, bool* OutWarn) const
+{
+	FName SkipReason;
+	UAutomationTestExcludelist* Excludelist = UAutomationTestExcludelist::Get();
+	static FString RHI = GetRHIForAutomation();
+	if (Excludelist->IsTestExcluded(InTestToRun, RHI, &SkipReason, OutWarn))
+	{
+		if (OutReason)
+		{
+			(*OutReason) = (SkipReason.IsNone() ? TEXT("unknown reason") : SkipReason.ToString());
+			(*OutReason) += TEXT(" [config]");
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunTests& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
 	UE_LOG(LogAutomationWorker, Log, TEXT("Received RunTests %s from %s"), *Message.BeautifiedTestName, *Context->GetSender().ToString());
@@ -529,14 +548,16 @@ void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunT
 	}
 
 	// Do we need to skip the test
-	FName SkipReason;
+	FString SkipReason;
 	bool bWarn(false);
+	FAutomationTestFramework& AutomationTestFramework = FAutomationTestFramework::Get();
 	UAutomationTestExcludelist* Excludelist = UAutomationTestExcludelist::Get();
-	static FString RHI = GetRHIForAutomation();
-	if (Excludelist->IsTestExcluded(Message.FullTestPath, RHI, &SkipReason, &bWarn))
+	if (!AutomationTestFramework.CanRunTestInEnvironment(Message.TestName, &SkipReason, &bWarn)
+		|| IsTestExcluded(Message.FullTestPath, &SkipReason, &bWarn))
 	{
 		FString SkippingMessage = FString::Format(TEXT("Test Skipped. Name={{0}} Reason={{1}} Path={{2}}"),
-			{ *Message.BeautifiedTestName, *SkipReason.ToString(), *Message.FullTestPath });
+			{ *Message.BeautifiedTestName, *SkipReason, *Message.FullTestPath });
+
 		if (bWarn)
 		{
 			UE_LOG(LogAutomationWorker, Warning, TEXT("%s"), *SkippingMessage);
@@ -550,7 +571,7 @@ void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunT
 		OutMessage->TestName = Message.TestName;
 		OutMessage->ExecutionCount = Message.ExecutionCount;
 		OutMessage->State = EAutomationState::Skipped;
-		OutMessage->Entries.Add(FAutomationExecutionEntry(FAutomationEvent(EAutomationEventType::Info, FString::Printf(TEXT("Skipping test because of exclude list: %s"), *SkipReason.ToString()))));
+		OutMessage->Entries.Add(FAutomationExecutionEntry(FAutomationEvent(EAutomationEventType::Info, FString::Printf(TEXT("Skipping test: %s"), *SkipReason))));
 		MessageEndpoint->Send(OutMessage, Context->GetSender());
 
 		return;

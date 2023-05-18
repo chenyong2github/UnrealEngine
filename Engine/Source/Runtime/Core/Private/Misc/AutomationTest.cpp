@@ -918,6 +918,45 @@ bool FAutomationTestFramework::InternalStopTest(FAutomationTestExecutionInfo& Ou
 	return bTestSuccessful;
 }
 
+bool FAutomationTestFramework::CanRunTestInEnvironment(const FString& InTestToRun, FString* OutReason, bool* OutWarn) const
+{
+	FString TestClassName;
+	FString TestParameters;
+	if (!InTestToRun.Split(TEXT(" "), &TestClassName, &TestParameters, ESearchCase::CaseSensitive))
+	{
+		TestClassName = InTestToRun;
+	}
+
+	if (!ContainsTest(TestClassName))
+	{
+		return false;
+	}
+
+	const FAutomationTestBase* const Test = *(AutomationTestClassNameToInstanceMap.Find(TestClassName));
+
+	if (nullptr == Test)
+	{
+		return false;
+	}
+
+	if (!Test->CanRunInEnvironment(TestParameters, OutReason, OutWarn))
+	{
+		if (nullptr != OutReason)
+		{
+			if (OutReason->IsEmpty())
+			{
+				*OutReason = TEXT("unknown reason");
+			}
+
+			*OutReason += TEXT(" [code]");
+		}
+		
+		return false;
+	}
+
+	return true;
+}
+
 void FAutomationTestFramework::AddAnalyticsItemToCurrentTest( const FString& AnalyticsItem )
 {
 	if( CurrentTest != nullptr )

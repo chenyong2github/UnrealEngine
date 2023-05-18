@@ -1047,6 +1047,17 @@ public:
 
 	void NotifyScreenshotTakenAndCompared();
 
+	/**
+	 * Internal helper method designed to check if the given test is able to run in the current environment.
+	 *
+	 * @param	InTestToRun test name
+	 * @param	OutReason the related reason of the skipping
+	 * @param	OutWarn the related warning of the skipping
+	 *
+	 * @return	true if the test is able to run; false if it is unable to run.
+	 */
+	bool CanRunTestInEnvironment(const FString& InTestToRun, FString* OutReason, bool* OutWarn) const;
+
 private:
 
 	/** Special output device used during automation testing to gather messages that happen during tests */
@@ -1255,7 +1266,6 @@ private:
 
 	bool bCaptureStack;
 };
-
 
 /** Simple abstract base class for all automation tests */
 class CORE_API FAutomationTestBase
@@ -1613,6 +1623,14 @@ public:
 	void PopContext()
 	{
 		ExecutionInfo.PopContext();
+	}
+
+	/** Checks if the test is able to run in the current environment. */
+	virtual bool CanRunInEnvironment(const FString& TestParams, FString* OutReason, bool* OutWarn) const
+	{
+		// By default the test is able to run in the current environment
+		// It is responsibility of a child class to decide if the flow should skip the corresponding test.
+		return true;
 	}
 
 public:
