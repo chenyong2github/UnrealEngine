@@ -227,6 +227,15 @@ void FNiagaraEmitterHandle::ConditionalPostLoad(int32 NiagaraCustomVersion)
 				SetName(Name, *OwningSystem);
 			}
 		}
+
+		if (bIsEnabled == false)
+		{
+			FVersionedNiagaraEmitterData* EmitterData = VersionedInstance.GetEmitterData();
+			if (EmitterData != nullptr)
+			{
+				EmitterData->InvalidateCompileResults();
+			}
+		}
 	}
 }
 
