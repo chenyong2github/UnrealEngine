@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -43,7 +43,7 @@ private:
 /**
  * Base class for providing actor modification functionality via collections.
  */
-UCLASS(Abstract)
+UCLASS(Abstract, EditInlineNew)
 class UMoviePipelineCollectionModifier : public UObject
 {
 	GENERATED_BODY()
@@ -104,7 +104,8 @@ private:
 	/** Maps a component to its original material assignments (per index). */
 	FComponentToMaterialMap ModifiedComponents;
 
-	UPROPERTY()
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Render Layers")
 	TSoftObjectPtr<UMaterialInterface> MaterialToApply;
 };
 
@@ -137,14 +138,15 @@ private:
 	UPROPERTY(Transient)
 	TMap<TSoftObjectPtr<AActor>, bool> ModifiedActors;
 
-	UPROPERTY()
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Render Layers")
 	bool bIsHidden = false;
 };
 
 /**
  * Base class for providing the ability to determine if an actor matches a query.
  */
-UCLASS(Abstract)
+UCLASS(Abstract, EditInlineNew)
 class UMoviePipelineCollectionQuery : public UObject
 {
 	GENERATED_BODY()
@@ -186,17 +188,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Render Layers")
 	virtual bool DoesActorMatchQuery(const AActor* Actor) const override;
 
-private:
-	UPROPERTY()
+public:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "General")
 	TArray<TObjectPtr<UClass>> ComponentTypes;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "General")
 	EMoviePipelineCollectionCommonQueryMode QueryMode = EMoviePipelineCollectionCommonQueryMode::And;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "General")
 	TArray<FString> ActorNames;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "General")
 	TArray<FName> Tags;
 };
 

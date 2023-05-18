@@ -170,8 +170,17 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieGraphNodesDeleted, TArray<UMovieGraphNode*>);
 #endif // WITH_EDITOR
 
+USTRUCT()
+struct MOVIERENDERPIPELINECORE_API FMovieGraphEvaluatedSettingsStack
+{
+	GENERATED_BODY()
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMovieGraphNode>> NodeInstances;
+};
+
 /**
-* A flattened list of configuration values for a given Graph Branch. For named branches, this incldues the "Globals"
+* A flattened list of configuration values for a given Graph Branch. For named branches, this includes the "Globals"
 * branch (for any value not also overridden by the named branch).
 * 
 */
@@ -179,23 +188,32 @@ USTRUCT()
 struct MOVIERENDERPIPELINECORE_API FMovieGraphEvaluatedBranchConfig
 {
 	GENERATED_BODY()
-public:
-	UMovieGraphNode* GetNodeByClassExactMatch(const TSubclassOf<UMovieGraphNode>& InClass)
+
+	UMovieGraphNode* GetNodeByClassExactMatch(const TSubclassOf<UMovieGraphNode>& InClass, const FString& InName)
 	{
-		for (const TObjectPtr<UMovieGraphNode>& Instance : NodeInstances)
+		if (const FMovieGraphEvaluatedSettingsStack* FoundStack = NamedNodes.Find(InName))
 		{
-			if (Instance && Instance->GetClass() == InClass)
+			for (const TObjectPtr<UMovieGraphNode>& Instance : FoundStack->NodeInstances)
 			{
-				return Instance;
+				if (Instance && Instance->GetClass() == InClass)
+				{
+					return Instance;
+				}
 			}
 		}
 
 		return nullptr;
 	}
 
-	const TArray<TObjectPtr<UMovieGraphNode>>& GetNodes() const
+	TArray<TObjectPtr<UMovieGraphNode>> GetNodes() const
 	{
-		return NodeInstances;
+		TArray<TObjectPtr<UMovieGraphNode>> AllNodeInstances;
+		for (const TPair<FString, FMovieGraphEvaluatedSettingsStack>& KVP : NamedNodes)
+		{
+			AllNodeInstances.Append(KVP.Value.NodeInstances);
+		}
+
+		return AllNodeInstances;
 	}
 
 private:
@@ -203,8 +221,12 @@ private:
 	// without going through the graph resolving.
 	friend class UMovieGraphConfig;
 	
+	/**
+	* Nodes that have been evaluated in the branch. Key: the node instance name, value: the nodes that share the
+	* instance name. For nodes that do not have an instance name, an empty string is the key.
+	*/
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UMovieGraphNode>> NodeInstances;
+	TMap<FString, FMovieGraphEvaluatedSettingsStack> NamedNodes;
 };
 
 /**

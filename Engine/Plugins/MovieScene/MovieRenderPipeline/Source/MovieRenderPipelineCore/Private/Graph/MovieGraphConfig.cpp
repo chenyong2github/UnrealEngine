@@ -819,12 +819,15 @@ void UMovieGraphConfig::CreateFlattenedGraph_Recursive(UMovieGraphEvaluatedConfi
 
 	if(bShouldIncludeNode)
 	{
-		UMovieGraphNode* ExistingNode = OutBranchConfig.GetNodeByClassExactMatch(Node->GetClass());
+		const UMovieGraphSettingNode* NodeAsSetting = CastChecked<UMovieGraphSettingNode>(Node);
+		const FString& NodeInstanceName = NodeAsSetting->GetNodeInstanceName();
+		
+		UMovieGraphNode* ExistingNode = OutBranchConfig.GetNodeByClassExactMatch(Node->GetClass(), NodeInstanceName);
 		if (!ExistingNode)
 		{
 			// Create a new instance of this node inside our flattened eval graph
 			ExistingNode = NewObject<UMovieGraphNode>(InOwningConfig, Node->GetClass());
-			OutBranchConfig.NodeInstances.Add(ExistingNode);
+			OutBranchConfig.NamedNodes.FindOrAdd(NodeInstanceName).NodeInstances.Add(ExistingNode);
 
 			// Set all of the boolean edit condition values to false, so we can use "true" to indicate
 			// that the value was overridden already during traversal.

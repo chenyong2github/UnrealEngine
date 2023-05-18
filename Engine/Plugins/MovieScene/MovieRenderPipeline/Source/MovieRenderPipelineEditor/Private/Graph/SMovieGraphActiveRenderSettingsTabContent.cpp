@@ -75,8 +75,19 @@ const TArray<TSharedPtr<FActiveRenderSettingsTreeElement>>& FActiveRenderSetting
 {
 	auto MakeElementFromNode = [this](const TObjectPtr<UMovieGraphNode>& Node) -> TSharedPtr<FActiveRenderSettingsTreeElement>
 	{
+		// The element name should include the node's instance name (if the instance name isn't empty)
+		FString ElementName = Node->GetNodeTitle().ToString();
+		if (const UMovieGraphSettingNode* SettingNode = Cast<UMovieGraphSettingNode>(Node))
+		{
+			const FString InstanceName = SettingNode->GetNodeInstanceName();
+			if (!InstanceName.IsEmpty())
+			{
+				ElementName = FString::Format(TEXT("{0} - {1}"), {ElementName, InstanceName});
+			}
+		}
+		
 		TSharedPtr<FActiveRenderSettingsTreeElement> Element =
-			MakeShared<FActiveRenderSettingsTreeElement>(FName(*Node->GetNodeTitle().ToString()), EElementType::Node);
+			MakeShared<FActiveRenderSettingsTreeElement>(FName(*ElementName), EElementType::Node);
 		Element->SettingsNode = Node;
 		Element->FlattenedGraph = FlattenedGraph;
 		Element->ParentElement = AsWeak();

@@ -300,6 +300,13 @@ public:
 	virtual TArray<FMovieGraphPinProperties> GetInputPinProperties() const override;
 	virtual TArray<FMovieGraphPinProperties> GetOutputPinProperties() const override;
 	// ~UMovieGraphNode Interface
+
+	/**
+	 * An identifier that distinguishes this node from other nodes of the same type within a branch. During graph
+	 * traversal, nodes with the same type and identifier are considered the same node. An empty string is a valid
+	 * identifier.
+	 */
+	virtual FString GetNodeInstanceName() const { return FString(); }
 	
 	/*
 	* This is called either on the CDO, or on a "flattened" instance of the node every frame when
