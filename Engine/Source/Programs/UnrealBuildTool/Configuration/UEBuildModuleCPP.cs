@@ -1743,6 +1743,12 @@ namespace UnrealBuildTool
 			Result.IncludeOrderVersion = Rules.IncludeOrderVersion;
 			Result.DeterministicWarningLevel = Rules.DeterministicWarningLevel;
 
+			// Only enable the AutoRTFM flag if we are using the AutoRTFM compiler
+			if (Target.bUseAutoRTFMCompiler)
+			{
+				Result.bAllowAutoRTFMInstrumentation = Rules.bAllowAutoRTFMInstrumentation;
+			}
+
 			if (Result.OptimizationLevel != Rules.OptimizationLevel)
 			{
 				Logger.LogInformation("Module {0} - Optimization level changed for module due to override. Old: {1} New: {2}", Name, Result.OptimizationLevel, Rules.OptimizationLevel);

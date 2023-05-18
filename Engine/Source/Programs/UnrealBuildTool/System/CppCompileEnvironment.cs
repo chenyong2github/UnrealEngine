@@ -271,6 +271,11 @@ namespace UnrealBuildTool
 		public bool bEnableBufferSecurityChecks = true;
 
 		/// <summary>
+		/// Enables AutoRTFM instrumentation to this cpp file only when AutoRTFMCompiler is enabled
+		/// </summary>
+		public bool bAllowAutoRTFMInstrumentation = false;
+
+		/// <summary>
 		/// If unity builds are enabled this can be used to override if this specific module will build using Unity.
 		/// This is set using the per module configurations in BuildConfiguration.
 		/// </summary>
@@ -721,6 +726,7 @@ namespace UnrealBuildTool
 			StaticAnalyzerDisabledCheckers = new HashSet<string>(Other.StaticAnalyzerDisabledCheckers);
 			StaticAnalyzerAdditionalCheckers = new HashSet<string>(Other.StaticAnalyzerAdditionalCheckers);
 			bOptimizeCode = Other.bOptimizeCode;
+			bAllowAutoRTFMInstrumentation = Other.bAllowAutoRTFMInstrumentation;
 			OptimizationLevel = Other.OptimizationLevel;
 			bCreateDebugInfo = Other.bCreateDebugInfo;
 			bIsBuildingLibrary = Other.bIsBuildingLibrary;

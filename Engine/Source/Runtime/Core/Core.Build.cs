@@ -315,6 +315,8 @@ public class Core : ModuleRules
 		UnsafeTypeCastWarningLevel = WarningLevel.Error;
 
 		IWYUSupport = IWYUSupport.KeepAsIs;
+
+		bAllowAutoRTFMInstrumentation = true;
 	}
 
 	protected virtual bool SupportsBinaryConfig(ReadOnlyTargetRules Target)
