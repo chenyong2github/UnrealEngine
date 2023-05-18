@@ -30,7 +30,7 @@ UIOSRuntimeSettings::UIOSRuntimeSettings(const FObjectInitializer& ObjectInitial
 	bEnableDynamicMaxFPS = false;
 	bSupportsIPad = true;
 	bSupportsIPhone = true;
-	MinimumiOSVersion = EIOSVersion::IOS_15;
+	MinimumiOSVersion = EIOSVersion::IOS_Minimum;
     bBuildAsFramework = true;
 	bGeneratedSYMFile = false;
 	bGeneratedSYMBundle = false;
@@ -127,9 +127,9 @@ void UIOSRuntimeSettings::PostInitProperties()
 		}
 	}
 
-	if (MinimumiOSVersion < EIOSVersion::IOS_15)
+	if ((MinimumiOSVersion < EIOSVersion::IOS_15) && (MinimumiOSVersion != EIOSVersion::IOS_Minimum))
 	{
-		MinimumiOSVersion = EIOSVersion::IOS_15;
+		MinimumiOSVersion = EIOSVersion::IOS_Minimum;
 		UpdateSinglePropertyInConfigFile(GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UIOSRuntimeSettings, MinimumiOSVersion)), GetDefaultConfigFilename());
 	}
 	if (!bSupportsMetal && !bSupportsMetalMRT)

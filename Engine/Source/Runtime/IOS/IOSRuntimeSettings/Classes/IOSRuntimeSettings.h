@@ -30,10 +30,8 @@ enum class EPowerUsageFrameRateLock : uint8
 UENUM()
 	enum class EIOSVersion : uint8
 {
-    /** iOS 15 */
+    IOS_Minimum = 0 UMETA(DisplayName = "Minimum, Currently 15.0"),
     IOS_15 = 15 UMETA(DisplayName = "15.0"),
-    
-    /** iOS 16 */
     IOS_16 = 16 UMETA(DisplayName = "16.0"),
 };
 

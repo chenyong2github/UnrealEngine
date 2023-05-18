@@ -203,15 +203,16 @@ namespace UnrealBuildTool
 			string MinVersionToReturn = "";
 			switch (MinVersion)
 			{
-				case "IOS_14":
-					MinVersionToReturn = "14.0";
-					break;
 				case "IOS_15":
+				case "IOS_Minimum":
 					MinVersionToReturn = "15.0";
 					break;
+				case "IOS_16":
+					MinVersionToReturn = "16.0";
+					break;
 				default:
-					Logger.LogWarning("MinimumiOSVersion {MinVersion} specified in ini file is no longer supported, defaulting to 14.0", MinVersion);
-					MinVersionToReturn = "14.0";
+					MinVersionToReturn = "15.0";
+					Logger.LogWarning("MinimumiOSVersion {MinVersion} specified in ini file is no longer supported, defaulting to {MinVersionToReturn}", MinVersion, MinVersionToReturn);
 					break;
 			}
 			return MinVersionToReturn;
