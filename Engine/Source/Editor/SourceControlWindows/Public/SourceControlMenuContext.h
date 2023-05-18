@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "ISourceControlChangelist.h"
 
 #include "SourceControlMenuContext.generated.h"
 
@@ -24,4 +25,6 @@ public:
 
 	UPROPERTY()
 	TArray<FString> SelectedFiles;
+
+	FSourceControlChangelistPtr SelectedChangelist;
 };

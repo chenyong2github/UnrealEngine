@@ -2865,6 +2865,8 @@ TSharedPtr<SWidget> SSourceControlChangelistsWidget::OnOpenContextMenu()
 	ContextObject->SelectedFiles.Append(SelectedControlledFiles);
 	ContextObject->SelectedFiles.Append(SelectedUncontrolledFiles);
 
+	ContextObject->SelectedChangelist = GetChangelistFromSelection();
+
 	UToolMenu* Menu = ToolMenus->GenerateMenu(MenuName, Context);
 
 	FToolMenuSection& Section = *Menu->FindSection("Source Control");
