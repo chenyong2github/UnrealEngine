@@ -653,7 +653,11 @@ FBox UGeometryCollectionComponent::ComputeBounds(const FTransform& LocalToWorldW
 
 			const TManagedArray<FTransform>& Transforms = GetTransformArray();
 			const TManagedArray<int32>& ParentIndices = GetParentArray();
-
+			if (!ensure(Transforms.Num() == NumElements))
+			{
+				return FBox(ForceInitToZero);
+			}
+			
 			TArray<FTransform> TmpComponentSpaceTransforms;
 			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpComponentSpaceTransforms);
 			if (TmpComponentSpaceTransforms.Num() == 0)
@@ -2743,6 +2747,10 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 		MarkRenderDynamicDataDirty();
 		SetRenderStateDirty();
 	}
+	else
+	{
+		DynamicCollection.Reset();
+	}
 
 	// make sure we have the RestTransforms up to date, other wise, otherwise there may be case where they do not match the Restcollection ones
 	// can happen if the RestCollection asset has been changed without the component knowing about it 
@@ -3552,21 +3560,46 @@ FString UGeometryCollectionComponent::GetDebugInfo()
 	return DebugInfo;
 }
 
-FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate InEditUpdate, bool bShapeIsUnchanged)
+FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate InEditUpdate, bool bShapeIsUnchanged, bool bPropagateToAllMatchingComponents)
 	: Component(InComponent)
 	, EditUpdate(InEditUpdate)
 	, bShapeIsUnchanged(bShapeIsUnchanged)
+	, bPropagateToAllMatchingComponents(bPropagateToAllMatchingComponents)
 {
-	bHadPhysicsState = Component->HasValidPhysicsState();
-	if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Physics) && bHadPhysicsState)
+	if (!Component->RestCollection)
 	{
-		Component->DestroyPhysicsState();
+		return;
 	}
 
-	if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
+	auto ProcessComponent = [this](UGeometryCollectionComponent* ToProcess)
 	{
-		Component->Modify();
-		GetRestCollection()->Modify();
+		bool bHadPhysicsState = ToProcess->HasValidPhysicsState();
+		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Physics) && bHadPhysicsState)
+		{
+			HadPhysicsState.Add(ToProcess);
+			ToProcess->DestroyPhysicsState();
+		}
+
+		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
+		{
+			ToProcess->Modify();
+			GetRestCollection()->Modify(); // Note: If multiple components share the rest collection, its Modify() will be called multiple times, but this should be ok
+		}
+	};
+
+	if (bPropagateToAllMatchingComponents)
+	{
+		for (TObjectIterator<UGeometryCollectionComponent> It(RF_ClassDefaultObject, false, EInternalObjectFlags::Garbage); It; ++It)
+		{
+			if (It->RestCollection == Component->RestCollection)
+			{
+				ProcessComponent(*It);
+			}
+		}
+	}
+	else
+	{
+		ProcessComponent(Component);
 	}
 }
 
@@ -3575,11 +3608,6 @@ FGeometryCollectionEdit::~FGeometryCollectionEdit()
 #if WITH_EDITOR
 	if (!!EditUpdate)
 	{
-		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Dynamic))
-		{
-			Component->ResetDynamicCollection();
-		}
-
 		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
 		{
 			if (!bShapeIsUnchanged)
@@ -3589,9 +3617,32 @@ FGeometryCollectionEdit::~FGeometryCollectionEdit()
 			GetRestCollection()->InvalidateCollection();
 		}
 
-		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Physics) && bHadPhysicsState)
+		auto ProcessComponent = [this](UGeometryCollectionComponent* ToProcess)
 		{
-			Component->RecreatePhysicsState();
+			if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Dynamic))
+			{
+				ToProcess->ResetDynamicCollection();
+			}
+
+			if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Physics) && HadPhysicsState.Contains(ToProcess))
+			{
+				ToProcess->RecreatePhysicsState();
+			}
+		};
+
+		if (bPropagateToAllMatchingComponents)
+		{
+			for (TObjectIterator<UGeometryCollectionComponent> It(RF_ClassDefaultObject, false, EInternalObjectFlags::Garbage); It; ++It)
+			{
+				if (It->RestCollection == Component->RestCollection)
+				{
+					ProcessComponent(*It);
+				}
+			}
+		}
+		else
+		{
+			ProcessComponent(Component);
 		}
 	}
 #endif
