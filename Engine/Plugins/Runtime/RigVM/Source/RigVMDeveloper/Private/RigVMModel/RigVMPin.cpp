@@ -115,7 +115,10 @@ URigVMPin::URigVMPin()
 	, LastKnownTypeIndex(INDEX_NONE)
 {
 #if UE_BUILD_DEBUG
-	CachedPinPath = GetPinPath();
+	if (GetNode())
+	{
+		CachedPinPath = GetPinPath();
+	}
 #endif
 }
 
