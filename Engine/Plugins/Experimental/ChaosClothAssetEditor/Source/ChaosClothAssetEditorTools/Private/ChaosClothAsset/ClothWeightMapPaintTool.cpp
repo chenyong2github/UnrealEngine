@@ -42,6 +42,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Selection/PolygonSelectionMechanic.h"
+#include "BaseGizmos/BrushStampIndicator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ClothWeightMapPaintTool)
 
@@ -1317,7 +1318,7 @@ void UClothEditorWeightMapPaintTool::OnTick(float DeltaTime)
 	check(!(bIsLasso && bIsGradient));
 
 	ConfigureIndicator(false);
-	SetIndicatorVisibility(bIsLasso == false);
+	SetIndicatorVisibility(!bIsLasso && !bIsGradient);
 
 	if (bHavePendingAction)
 	{
@@ -1343,18 +1344,25 @@ void UClothEditorWeightMapPaintTool::OnTick(float DeltaTime)
 		return;
 	}
 
-	if (bPendingPickWeight)
+	// Get value at brush location
+	const bool bShouldPickWeight = bPendingPickWeight && IsStampPending() == false;
+	const bool bShouldUpdateValueAtBrush = IsInBrushSubMode();
+
+	if (bShouldPickWeight || bShouldUpdateValueAtBrush)
 	{
-		if (GetBrushTriangleID() >= 0 && IsStampPending() == false )
+		if (GetSculptMesh()->IsTriangle(GetBrushTriangleID()))
 		{
-			if (GetSculptMesh()->IsTriangle(GetBrushTriangleID()))
+			const double HitWeightValue = GetCurrentWeightValueUnderBrush();
+
+			if (bShouldPickWeight)
 			{
-				double HitWeightValue = GetCurrentWeightValueUnderBrush();
-				if (bPendingPickWeight)
-				{
-					FilterProperties->AttributeValue = HitWeightValue;
-					NotifyOfPropertyChangeByTool(FilterProperties);
-				}
+				FilterProperties->AttributeValue = HitWeightValue;
+				NotifyOfPropertyChangeByTool(FilterProperties);
+			}
+
+			if (bShouldUpdateValueAtBrush)
+			{
+				FilterProperties->ValueAtBrush = HitWeightValue;
 			}
 		}
 		bPendingPickWeight = false;

@@ -118,6 +118,7 @@ enum class EClothEditorWeightMapPaintVisibilityType : uint8
 
 
 
+// TODO: Look at EditConditions for all these properties. Which ones make sense for which SubToolType?
 
 UCLASS()
 class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorWeightMapPaintBrushFilterProperties : public UInteractiveToolPropertySet
@@ -125,8 +126,6 @@ class CHAOSCLOTHASSETEDITORTOOLS_API UClothEditorWeightMapPaintBrushFilterProper
 	GENERATED_BODY()
 
 public:
-	/** Primary Brush Mode */
-	//UPROPERTY(EditAnywhere, Category = Brush2, meta = (DisplayName = "Brush Type"))
 	
 	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Action"))
 	EClothEditorWeightMapPaintInteractionType SubToolType = EClothEditorWeightMapPaintInteractionType::Brush;
@@ -140,9 +139,11 @@ public:
 		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType != EClothEditorWeightMapPaintInteractionType::PolyLasso"))
 	float BrushSize = 0.25f;
 
+	/** The new value to paint on the mesh */
 	UPROPERTY(EditAnywhere, Category = ActionType, meta = (UIMin = 0, ClampMin = 0, UIMax = 1, ClampMax = 1))
 	double AttributeValue = 1;
 
+	/** How quickly each brush stroke will drive mesh values towards the desired value */
 	UPROPERTY(EditAnywhere, Category = ActionType, meta = (UIMin = 0, ClampMin = 0, UIMax = 1, ClampMax = 1))
 	double Strength = 1;
 
@@ -162,6 +163,12 @@ public:
 	/** Control which triangles can be affected by the current operation based on visibility. Applied after all other filters. */
 	UPROPERTY(EditAnywhere, Category = Filters)
 	EClothEditorWeightMapPaintVisibilityType VisibilityFilter = EClothEditorWeightMapPaintVisibilityType::None;
+
+	/** The weight value at the brush indicator */
+	UPROPERTY(VisibleAnywhere, Transient, Category = Query, meta = (NoResetToDefault, 
+		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType == EClothEditorWeightMapPaintInteractionType::Brush || SubToolType == EClothEditorWeightMapPaintInteractionType::Fill"))
+	double ValueAtBrush = 0;
+
 };
 
 
