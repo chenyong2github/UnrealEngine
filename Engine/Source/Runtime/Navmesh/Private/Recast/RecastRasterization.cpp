@@ -528,7 +528,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 				bmin, bmax,
 				cs, ics, ich,
 				flagMergeThr);
-			if (outsmin != 8191)
+			if (outsmin != RC_SPAN_MAX_HEIGHT)
 			{
 				markSpanSample(hf, x, y);
 			}
@@ -903,7 +903,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 							bmin, bmax,
 							cs, ics, ich,
 							flagMergeThr);
-						if (outsmin != 8191)
+						if (outsmin != RC_SPAN_MAX_HEIGHT)
 						{
 							Temp.sminmax[0] = 32000;
 							Temp.sminmax[1] = -32000;
