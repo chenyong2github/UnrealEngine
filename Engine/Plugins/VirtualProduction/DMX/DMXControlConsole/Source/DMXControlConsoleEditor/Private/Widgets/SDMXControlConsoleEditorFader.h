@@ -90,6 +90,12 @@ private:
 	/** Handles when the user changes the Fader value */
 	void HandleValueChanged(uint32 NewValue);
 
+	/** Called before Fader Value starts to change */
+	void OnBeginValueChange();
+
+	/** Called when new Fader Value is committed */
+	void OnValueCommitted(uint32 NewValue, ETextCommit::Type CommitType);
+
 	/** Called when mute option is selected */
 	void OnMuteFader(bool bMute) const;
 
@@ -146,4 +152,7 @@ private:
 
 	/** Reference to the Fader being displayed */
 	TWeakObjectPtr<UDMXControlConsoleFaderBase> Fader;
+
+	/** Fader Value before committing */
+	uint32 PreCommittedValue;
 };

@@ -109,7 +109,9 @@ void SDMXControlConsoleEditorFader::Construct(const FArguments& InArgs, const TO
 											.MaxValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
 											.MinSliderValue(this, &SDMXControlConsoleEditorFader::GetMinValue)
 											.MaxSliderValue(this, &SDMXControlConsoleEditorFader::GetMaxValue)
+											.OnBeginSliderMovement(this, &SDMXControlConsoleEditorFader::OnBeginValueChange)
 											.OnValueChanged(this, &SDMXControlConsoleEditorFader::HandleValueChanged)
+											.OnValueCommitted(this, &SDMXControlConsoleEditorFader::OnValueCommitted)
 											.IsEnabled(this, &SDMXControlConsoleEditorFader::IsFaderSpinBoxEnabled)
 											.Style(FDMXControlConsoleEditorStyle::Get(), "DMXControlConsole.Fader")
 											.ToolTipText(this, &SDMXControlConsoleEditorFader::GetToolTipText)
@@ -425,15 +427,14 @@ FText SDMXControlConsoleEditorFader::GetValueAsText() const
 
 void SDMXControlConsoleEditorFader::OnValueTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
 {
-	if (NewText.IsEmpty())
+	if (Fader.IsValid() && !NewText.IsEmpty())
 	{
-		return;
-	}
-
-	const int32 NewValue = FCString::Atoi(*NewText.ToString());
-	if (NewValue >= 0)
-	{
-		HandleValueChanged(NewValue);
+		const int32 NewValue = FCString::Atoi(*NewText.ToString());
+		if (NewValue >= 0)
+		{
+			PreCommittedValue = Fader->GetValue();
+			OnValueCommitted(NewValue, ETextCommit::Default);
+		}
 	}
 }
 
@@ -528,6 +529,69 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 			const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
 			const uint32 Value = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * Percentage);
 			SelectedFader->SetValue(Value);
+		}
+	}
+}
+
+void SDMXControlConsoleEditorFader::OnBeginValueChange()
+{
+	if (!ensureMsgf(Fader.IsValid(), TEXT("Invalid fader, cannot set fader value correctly.")))
+	{
+		return;
+	}
+
+	PreCommittedValue = Fader->GetValue();
+}
+
+void SDMXControlConsoleEditorFader::OnValueCommitted(uint32 NewValue, ETextCommit::Type CommitType)
+{
+	if (!ensureMsgf(Fader.IsValid(), TEXT("Invalid fader, cannot set fader value correctly.")))
+	{
+		return;
+	}
+
+	const FScopedTransaction FaderValueCommittedTransaction(LOCTEXT("FaderValueCommittedTransaction", "Edit Fader Value"));
+
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
+	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+	if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
+	{
+		if (!Fader->IsMuted() || !Fader->IsLocked())
+		{
+			// Reset to PreCommittedValue to handle transactions
+			Fader->SetValue(PreCommittedValue);
+			
+			Fader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetValuePropertyName()));
+			Fader->SetValue(NewValue);
+			Fader->PostEditChange();
+		}
+	}
+	else
+	{
+		const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
+		
+		const float PreCommittedPercentage = (PreCommittedValue - Fader->GetMinValue()) / Range;
+		const float Percentage = (NewValue - Fader->GetMinValue()) / Range;
+
+		for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
+		{
+			UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectFaderObject);
+			if (!SelectedFader || SelectedFader->IsMuted() || Fader->IsLocked())
+			{
+				continue;
+			}
+
+			const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
+			
+			// Reset to PreCommittedValue to handle transactions
+			const uint32 SelectedFaderPreCommittedValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * PreCommittedPercentage);
+			SelectedFader->SetValue(SelectedFaderPreCommittedValue);
+
+			const uint32 Value = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * Percentage);
+			SelectedFader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetValuePropertyName()));
+			SelectedFader->SetValue(Value);
+			SelectedFader->PostEditChange();
 		}
 	}
 }
