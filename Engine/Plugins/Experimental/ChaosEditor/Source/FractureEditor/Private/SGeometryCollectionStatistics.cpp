@@ -120,7 +120,7 @@ void SGeometryCollectionStatistics::SetStatistics(const FGeometryCollectionStati
 		{
 			FText::Format(LOCTEXT("Level", "Level {0}"), FText::AsNumber(Level)),
 			FText::AsNumber(Stats.CountsPerLevel[Level]),
-			FText::AsNumber(Stats.ConvexCountPerLevel[Level]),
+			FText::AsNumber(Stats.ConvexCountPerLevel.IsValidIndex(Level)? Stats.ConvexCountPerLevel[Level]: 0),
 			TextColor
 		};
 		StatItems.Emplace(MakeShared<FStatRow>(MoveTemp(Row)));

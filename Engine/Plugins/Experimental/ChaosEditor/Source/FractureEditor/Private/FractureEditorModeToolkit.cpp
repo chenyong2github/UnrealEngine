@@ -2220,17 +2220,8 @@ void FFractureEditorModeToolkit::GetStatisticsSummary(FGeometryCollectionStatist
 			}
 		}
 
-
-
-
-		Stats.CountsPerLevel.Reset();
-		Stats.ConvexCountPerLevel.Reset();
-		for (int32 Level = 0; Level < LevelMax; ++Level)
-		{
-			Stats.CountsPerLevel = TransformCountPerLevel;
-			Stats.ConvexCountPerLevel = ConvexCountPerLevel;
-		}
-
+		Stats.CountsPerLevel = TransformCountPerLevel;
+		Stats.ConvexCountPerLevel = ConvexCountPerLevel;
 		Stats.EmbeddedCount = EmbeddedCount;
 	}
 }
