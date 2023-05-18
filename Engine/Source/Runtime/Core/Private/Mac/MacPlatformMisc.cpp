@@ -2398,28 +2398,44 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 			}
 		}
 
-		posix_spawn_file_actions_t FileActions;
-		posix_spawn_file_actions_init(&FileActions);
-
-		posix_spawnattr_t SpawnAttr;
-		posix_spawnattr_init(&SpawnAttr);
-
+		// We've generated the crash report above since we were able to,
+		// now we need to make sure CRC actually exists and is executable before
+		// trying to run it.
+		struct stat Stat;
+		stat(GMacAppInfo.CrashReportClient, &Stat);
+		if (!S_ISREG(Stat.st_mode))
 		{
-			uint16 SpawnFlags = POSIX_SPAWN_SETPGROUP;
-			posix_spawnattr_setflags(&SpawnAttr, SpawnFlags);
+			UE_LOG(LogMac, Error, TEXT("Unable to locate CrashReporterClient: %s"), UTF8_TO_TCHAR(GMacAppInfo.CrashReportClient));
 		}
-
-		extern char **environ; // provided by libc
-
-		// Use posix_spawn() as it is async-signal safe, CreateProc can fail in Cocoa.
-		Status = posix_spawn(&CrcPID, GMacAppInfo.CrashReportClient, &FileActions, &SpawnAttr, (char *const *)Argv, environ);
-
-		posix_spawn_file_actions_destroy(&FileActions);
-		posix_spawnattr_destroy(&SpawnAttr);
-
-		if (Status != 0)
+		else if ((Stat.st_mode & S_IXUSR) == 0)
 		{
-			UE_LOG(LogHAL, Fatal, TEXT("FMacPlatformMisc::GenerateCrashInfoAndLaunchReporter: posix_spawn() failed (%d, %s)"), Status, UTF8_TO_TCHAR(strerror(Status)));
+			UE_LOG(LogMac, Error, TEXT("Unable to execute CrashReporterClient, please run: chmod u+x %s"), UTF8_TO_TCHAR(GMacAppInfo.CrashReportClient));
+		}
+		else
+		{
+			posix_spawn_file_actions_t FileActions;
+			posix_spawn_file_actions_init(&FileActions);
+
+			posix_spawnattr_t SpawnAttr;
+			posix_spawnattr_init(&SpawnAttr);
+
+			{
+				uint16 SpawnFlags = POSIX_SPAWN_SETPGROUP;
+				posix_spawnattr_setflags(&SpawnAttr, SpawnFlags);
+			}
+
+			extern char **environ; // provided by libc
+
+			// Use posix_spawn() as it is async-signal safe, CreateProc can fail in Cocoa.
+			Status = posix_spawn(&CrcPID, GMacAppInfo.CrashReportClient, &FileActions, &SpawnAttr, (char *const *)Argv, environ);
+
+			posix_spawn_file_actions_destroy(&FileActions);
+			posix_spawnattr_destroy(&SpawnAttr);
+
+			if (Status != 0)
+			{
+				UE_LOG(LogMac, Error, TEXT("FMacPlatformMisc::GenerateCrashInfoAndLaunchReporter: posix_spawn() failed (%d, %s)"), Status, UTF8_TO_TCHAR(strerror(Status)));
+			}
 		}
 	}
 
