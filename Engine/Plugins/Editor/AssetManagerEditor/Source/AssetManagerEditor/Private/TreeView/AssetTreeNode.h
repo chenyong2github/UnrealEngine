@@ -36,6 +36,7 @@ public:
 
 	virtual ~FAssetTreeNode() {}
 
+	bool IsValidAsset() const { return AssetTable && AssetTable->IsValidRowIndex(RowId.RowIndex); }
 	FAssetTable& GetAssetTableChecked() const { return *AssetTable; }
 	const FAssetTableRow& GetAssetChecked() const { return AssetTable->GetAssetChecked(RowId.RowIndex); }
 

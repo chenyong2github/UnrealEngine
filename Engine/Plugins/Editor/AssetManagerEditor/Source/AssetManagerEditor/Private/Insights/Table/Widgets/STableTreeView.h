@@ -243,10 +243,10 @@ protected:
 	void TreeView_OnGetChildren(FTableTreeNodePtr InParent, TArray<FTableTreeNodePtr>& OutChildren);
 
 	/** Called by STreeView when selection has changed. */
-	void TreeView_OnSelectionChanged(FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo);
+	virtual void TreeView_OnSelectionChanged(FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo);
 
 	/** Called by STreeView when a tree node is expanded or collapsed. */
-	void TreeView_OnExpansionChanged(FTableTreeNodePtr TreeNode, bool bShouldBeExpanded);
+	virtual void TreeView_OnExpansionChanged(FTableTreeNodePtr TreeNode, bool bShouldBeExpanded);
 
 	/** Called by STreeView when a tree item is double clicked. */
 	virtual void TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr TreeNode);
@@ -417,7 +417,7 @@ protected:
 	bool AdvancedFilters_ShouldBeEnabled() const;
 	FText AdvancedFilters_GetTooltipText() const;
 	bool FilterConfigurator_HasFilters() const;
-	void OnAdvancedFiltersChangesCommited();
+	void OnAdvancedFiltersChangesCommitted();
 	bool ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr);
 	bool virtual ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr) { return true; };
 	virtual void AddCustomAdvancedFilters() {}
@@ -465,8 +465,11 @@ protected:
 protected:
 	/** Table view model. */
 	TSharedPtr<FTable> Table;
+
+	TSharedPtr<FUICommandList> CommandList;
+
 	//////////////////////////////////////////////////
-	// Tree View, Columns
+	// Widget
 
 	/** The child STreeView widget. */
 	TSharedPtr<STreeView<FTableTreeNodePtr>> TreeView;
@@ -489,8 +492,6 @@ protected:
 	/** Name of the tree node that should be drawn as highlighted. */
 	FName HighlightedNodeName;
 
-	TSharedPtr<FUICommandList> CommandList;
-
 	//////////////////////////////////////////////////
 	// Tree Nodes
 
@@ -508,8 +509,12 @@ protected:
 	/** Currently expanded group nodes. */
 	TSet<FTableTreeNodePtr> ExpandedNodes;
 
-	/** If true, the expanded nodes have been saved before applying a text filter. */
-	bool bExpansionSaved;
+	static constexpr int32 MaxNodesToAutoExpand = 1000;
+	static constexpr int32 MaxDepthToAutoExpand = 3;
+	static constexpr int32 MaxNodesToExpand = 1000000;
+	static constexpr int32 MaxDepthToExpand = 100;
+
+	EInvalidateWidgetReason LazyInvalidateWidgetReason = EInvalidateWidgetReason::None;
 
 	//////////////////////////////////////////////////
 	// Search box and filters
@@ -522,6 +527,10 @@ protected:
 
 	/** The filter collection. */
 	TSharedPtr<FTableTreeNodeFilterCollection> Filters;
+
+	TSharedPtr<FFilterConfigurator> FilterConfigurator;
+	FDelegateHandle OnFilterChangesCommittedHandle;
+	FFilterContext Context;
 
 	//////////////////////////////////////////////////
 	// Grouping
@@ -546,12 +555,11 @@ protected:
 	FName ColumnBeingSorted;
 
 	/** How we sort the nodes? Ascending or Descending. */
-	EColumnSortMode::Type ColumnSortMode;
+	EColumnSortMode::Type ColumnSortMode = EColumnSortMode::None;
 
 	//////////////////////////////////////////////////
-	// Async
+	// Async Operations
 
-	bool bRunInAsyncMode = false;
 	bool bIsUpdateRunning = false;
 	bool bIsCloseScheduled = false;
 
@@ -574,21 +582,11 @@ protected:
 
 	//////////////////////////////////////////////////
 
-	TSharedPtr<FFilterConfigurator> FilterConfigurator;
-	FDelegateHandle OnFilterChangesCommitedHandle;
-	FFilterContext Context;
-
-	double StatsStartTime;
-	double StatsEndTime;
-
 	FText TreeViewBannerText;
 
 	TArray<TSharedRef<ITableTreeViewPreset>> AvailableViewPresets;
 	TSharedPtr<ITableTreeViewPreset> SelectedViewPreset;
 	TSharedPtr<SComboBox<TSharedRef<ITableTreeViewPreset>>> PresetComboBox;
-
-	static constexpr int32 MAX_NUMBER_OF_NODES_TO_EXPAND = 1000 * 1000;
-	static constexpr int32 MAX_DEPTH_TO_EXPAND = 100;
 
 	//////////////////////////////////////////////////
 	// Logging
@@ -697,7 +695,7 @@ public:
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		// The role of this task is to keep the STableTreeView object alive until the task and it's prerequisits are completed and to destroy it on the game thread.
+		// The role of this task is to keep the STableTreeView object alive until the task and it's prerequisites are completed and to destroy it on the game thread.
 		FGraphEventRef Event = TableTreeViewPtr->AsyncCompleteTaskEvent;
 		if (TableTreeViewPtr.IsValid())
 		{

@@ -12,6 +12,14 @@ class FUICommandList;
 class SMenuAnchor;
 class STextBlock;
 
+namespace UE
+{
+	namespace Insights
+	{
+		class FTableTreeNode;
+	}
+}
+
 //////////////////////////////////////////////////////////////////////////
 // SAssetAuditBrowser
 
@@ -105,6 +113,8 @@ protected:
 	/** Perform additional filtering */
 	bool HandleFilterAsset(const FAssetData& InAssetData) const;
 
+	void OnAssetSelected(const FAssetData& InAssetData);
+
 	/** Button callbacks */
 	FReply ClearAssets();
 	FReply AddChunks();
@@ -130,8 +140,15 @@ protected:
 	/** Refresh the asset view with a new filter */
 	void RefreshAssetView();
 
+	void RefreshAssetTableTreeView(const FARFilter& Filter);
+
+	/** Populates an asset table row (view model for the asset tree view) with asset data (only identification data; type+path+name). */
+	void QuickPopulateAssetTableRow(class FAssetTableRow& OutRow, const FAssetData& AssetData, class FAssetTable& AssetTable) const;
+
 	/** Populates an asset table row (view model for the asset tree view) with asset data. */
 	void PopulateAssetTableRow(class FAssetTableRow& OutRow, const FAssetData& AssetData, class FAssetTable& AssetTable) const;
+
+	void TreeView_OnSelectionChanged(const TArray<TSharedPtr<UE::Insights::FTableTreeNode>> InSelectedNodes);
 
 	/** Commands handled by this widget */
 	TSharedPtr<FUICommandList> Commands;

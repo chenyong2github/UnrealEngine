@@ -138,28 +138,31 @@ public:
 	{
 	}
 
+	FName GetNodeName() const { return FName(Name, 0); }
+
 	const TCHAR* GetType() const { return Type; }
 	const TCHAR* GetName() const { return Name; }
 	const TCHAR* GetPath() const { return Path; }
 	const TCHAR* GetPrimaryType() const { return PrimaryType; }
 	const TCHAR* GetPrimaryName() const { return PrimaryName; }
 	int64 GetStagedCompressedSize() const { return StagedCompressedSize; }
-	int64 GetOrComputeTotalSizeUniqueDependencies(FAssetTable* OwningTable, int32 ThisIndex) const;
-	int64 GetOrComputeTotalSizeOtherDependencies(FAssetTable* OwningTable, int32 ThisIndex) const; 
+	int64 GetOrComputeTotalSizeUniqueDependencies(FAssetTable& OwningTable, int32 ThisIndex) const;
+	int64 GetOrComputeTotalSizeOtherDependencies(FAssetTable& OwningTable, int32 ThisIndex) const; 
 	int64 GetTotalUsageCount() const { return TotalUsageCount; }
 	const TCHAR* GetChunks() const { return Chunks; }
 	const TCHAR* GetNativeClass() const { return NativeClass; }
 	const TCHAR* GetGameFeaturePlugin() const { return GameFeaturePlugin; }
 	int32 GetNumDependencies() const { return Dependencies.Num(); }
 	const TArray<int32>& GetDependencies() const { return Dependencies; }
-	FName GetNodeName() const { return FName(Name, 0); }
+	int32 GetNumReferencers() const { return Referencers.Num(); }
+	const TArray<int32>& GetReferencers() const { return Referencers; }
 	FLinearColor GetColor() const { return Color; }
 
 private:
-	static bool RefineDependencies(TSet<int32> PreviouslyVisitedIndices, FAssetTable* OwningTable, int32 ThisIndex, TSet<int32>* OutIncrementallyRefinedUniqueIndices, TSet<int32>* OutExcludedIndices);
-	// Providing OutUniqueDependencies and OutSharedDependencies will force a full recomputation. It's intended for use in unit testing/validation.
-	void ComputeDependencySizes(FAssetTable* OwningTable, int32 ThisIndex, TSet<int32>* OutUniqueDependencies = nullptr, TSet<int32>* OutSharedDependencies = nullptr) const;
+	static bool RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, FAssetTable& OwningTable, int32 ThisIndex, TSet<int32>& OutIncrementallyRefinedUniqueIndices, TSet<int32>& OutExcludedIndices);
+	void ComputeDependencySizes(FAssetTable& OwningTable, int32 ThisIndex, TSet<int32>* OutUniqueDependencies = nullptr, TSet<int32>* OutSharedDependencies = nullptr) const;
 
+private:
 	const TCHAR* Type = nullptr;
 	const TCHAR* Name = nullptr;
 	const TCHAR* Path = nullptr;

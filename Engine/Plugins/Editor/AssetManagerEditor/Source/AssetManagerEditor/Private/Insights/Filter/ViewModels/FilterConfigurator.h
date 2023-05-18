@@ -48,15 +48,15 @@ private:
 	FOnDestroyedEvent OnDestroyedEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// OnChangesCommitedEvent
+	// OnChangesCommittedEvent
 
 public:
 	/** The event to execute when the changes to the Filter Widget are saved by clicking on the OK Button. */
-	DECLARE_MULTICAST_DELEGATE(FOnChangesCommitedEvent);
-	FOnChangesCommitedEvent& GetOnChangesCommitedEvent() { return OnChangesCommitedEvent; }
+	DECLARE_MULTICAST_DELEGATE(FOnChangesCommittedEvent);
+	FOnChangesCommittedEvent& GetOnChangesCommittedEvent() { return OnChangesCommittedEvent; }
 
 private:
-	FOnChangesCommitedEvent OnChangesCommitedEvent;
+	FOnChangesCommittedEvent OnChangesCommittedEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 

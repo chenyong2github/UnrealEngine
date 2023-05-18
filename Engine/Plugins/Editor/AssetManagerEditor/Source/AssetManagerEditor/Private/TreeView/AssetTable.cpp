@@ -9,6 +9,8 @@
 
 // AssetManagerEditor
 #include "AssetTreeNode.h"
+#include "Insights/Common/Log.h"
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/Table/ViewModels/TableCellValueFormatter.h"
 #include "Insights/Table/ViewModels/TableCellValueGetter.h"
 #include "Insights/Table/ViewModels/TableCellValueSorter.h"
@@ -20,8 +22,8 @@
 // Column identifiers
 
 const FName FAssetTableColumns::CountColumnId(TEXT("Count"));
-const FName FAssetTableColumns::NameColumnId(TEXT("Name"));
 const FName FAssetTableColumns::TypeColumnId(TEXT("Type"));
+const FName FAssetTableColumns::NameColumnId(TEXT("Name"));
 const FName FAssetTableColumns::PathColumnId(TEXT("Path"));
 const FName FAssetTableColumns::PrimaryTypeColumnId(TEXT("PrimaryType"));
 const FName FAssetTableColumns::PrimaryNameColumnId(TEXT("PrimaryName"));
@@ -226,7 +228,7 @@ FAssetTable::FAssetTable()
 			UniqueDependencies[2] = TSet<int32>{3};
 			UniqueDependencies[3] = TSet<int32>{};
 			UniqueDependencies[4] = TSet<int32>{0, 1, 2, 3};
-   
+
 			SharedDependencies[0] = TSet<int32>{};
 			SharedDependencies[1] = TSet<int32>{};
 			SharedDependencies[2] = TSet<int32>{};
@@ -287,7 +289,7 @@ FAssetTable::FAssetTable()
 			UniqueDependencies[2] = TSet<int32>{ 3, 0, 1 };
 			UniqueDependencies[3] = TSet<int32>{ 0, 1 };
 
-			// Unlike the previous test, since 5 also references 2, 
+			// Unlike the previous test, since 5 also references 2,
 			// 4 will see itself as having no unique dependencies
 			UniqueDependencies[4] = TSet<int32>{};
 			UniqueDependencies[5] = TSet<int32>{};
@@ -377,7 +379,7 @@ FAssetTable::FAssetTable()
 	VisibleAssetCount = 100;
 	constexpr int32 HiddenAssetCount = 50;
 	const int32 TotalAssetCount = VisibleAssetCount + HiddenAssetCount;
-	
+
 	// Create assets.
 	Assets.Reserve(TotalAssetCount);
 	for (int32 AssetIndex = 0; AssetIndex < TotalAssetCount; ++AssetIndex)
@@ -465,7 +467,7 @@ void FAssetTable::AddDefaultColumns()
 		AddHierarchyColumn(HierarchyColumnIndex, HierarchyColumnName);
 
 		const TSharedRef<FTableColumn>& ColumnRef = GetColumns()[0];
-		ColumnRef->SetInitialWidth(200.0f);
+		ColumnRef->SetInitialWidth(400.0f);
 		ColumnRef->SetShortName(LOCTEXT("HierarchyColumnName", "Hierarchy"));
 		ColumnRef->SetTitleName(LOCTEXT("HierarchyColumnTitle", "Asset Hierarchy"));
 		ColumnRef->SetDescription(LOCTEXT("HierarchyColumnDesc", "Hierarchy of the asset tree"));
@@ -485,7 +487,7 @@ void FAssetTable::AddDefaultColumns()
 		Column.SetTitleName(LOCTEXT("CountColumnTitle", "Asset Count"));
 		Column.SetDescription(LOCTEXT("CountColumnDesc", "Number of assets"));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered | ETableColumnFlags::IsDynamic);
 
 		Column.SetHorizontalAlignment(HAlign_Right);
 		Column.SetInitialWidth(100.0f);
@@ -530,61 +532,6 @@ void FAssetTable::AddDefaultColumns()
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
-	// Name Column
-	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::NameColumnId);
-		FTableColumn& Column = *ColumnRef;
-
-		Column.SetIndex(ColumnIndex++);
-
-		Column.SetShortName(LOCTEXT("NameColumnName", "Name"));
-		Column.SetTitleName(LOCTEXT("NameColumnTitle", "Name"));
-		Column.SetDescription(LOCTEXT("NameColumnDesc", "Asset's name"));
-
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
-
-		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
-
-		Column.SetDataType(ETableCellDataType::CString);
-
-		class FAssetNameValueGetter : public FTableCellValueGetter
-		{
-		public:
-			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
-			{
-				if (Node.IsGroup())
-				{
-					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
-					if (NodePtr.HasAggregatedValue(Column.GetId()))
-					{
-						return NodePtr.GetAggregatedValue(Column.GetId());
-					}
-				}
-				else //if (Node->Is<FAssetTreeNode>())
-				{
-					const FAssetTreeNode& TreeNode = static_cast<const FAssetTreeNode&>(Node);
-					const FAssetTableRow& Asset = TreeNode.GetAssetChecked();
-					return FTableCellValue(Asset.GetName());
-				}
-
-				return TOptional<FTableCellValue>();
-			}
-		};
-		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FAssetNameValueGetter>();
-		Column.SetValueGetter(Getter);
-
-		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FCStringValueFormatterAsText>();
-		Column.SetValueFormatter(Formatter);
-
-		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByCStringValue>(ColumnRef);
-		Column.SetValueSorter(Sorter);
-
-		Column.SetAggregation(ETableColumnAggregation::SameValue);
-
-		AddColumn(ColumnRef);
-	}
-	//////////////////////////////////////////////////
 	// Type Column
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::TypeColumnId);
@@ -596,10 +543,10 @@ void FAssetTable::AddDefaultColumns()
 		Column.SetTitleName(LOCTEXT("TypeColumnTitle", "Type"));
 		Column.SetDescription(LOCTEXT("TypeColumnDesc", "Asset's type"));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(200.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
@@ -640,6 +587,61 @@ void FAssetTable::AddDefaultColumns()
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
+	// Name Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::NameColumnId);
+		FTableColumn& Column = *ColumnRef;
+
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("NameColumnName", "Name"));
+		Column.SetTitleName(LOCTEXT("NameColumnTitle", "Name"));
+		Column.SetDescription(LOCTEXT("NameColumnDesc", "Asset's name"));
+
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetInitialWidth(200.0f);
+
+		Column.SetDataType(ETableCellDataType::CString);
+
+		class FAssetNameValueGetter : public FTableCellValueGetter
+		{
+		public:
+			virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+			{
+				if (Node.IsGroup())
+				{
+					const FTableTreeNode& NodePtr = static_cast<const FTableTreeNode&>(Node);
+					if (NodePtr.HasAggregatedValue(Column.GetId()))
+					{
+						return NodePtr.GetAggregatedValue(Column.GetId());
+					}
+				}
+				else //if (Node->Is<FAssetTreeNode>())
+				{
+					const FAssetTreeNode& TreeNode = static_cast<const FAssetTreeNode&>(Node);
+					const FAssetTableRow& Asset = TreeNode.GetAssetChecked();
+					return FTableCellValue(Asset.GetName());
+				}
+
+				return TOptional<FTableCellValue>();
+			}
+		};
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FAssetNameValueGetter>();
+		Column.SetValueGetter(Getter);
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FCStringValueFormatterAsText>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByCStringValue>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		Column.SetAggregation(ETableColumnAggregation::SameValue);
+
+		AddColumn(ColumnRef);
+	}
+	//////////////////////////////////////////////////
 	// Path Column
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FAssetTableColumns::PathColumnId);
@@ -651,10 +653,10 @@ void FAssetTable::AddDefaultColumns()
 		Column.SetTitleName(LOCTEXT("PathColumnTitle", "Path"));
 		Column.SetDescription(LOCTEXT("PathColumnDesc", "Asset's path"));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(200.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
@@ -709,7 +711,7 @@ void FAssetTable::AddDefaultColumns()
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(200.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
@@ -764,7 +766,7 @@ void FAssetTable::AddDefaultColumns()
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(200.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
@@ -812,11 +814,11 @@ void FAssetTable::AddDefaultColumns()
 
 		Column.SetIndex(ColumnIndex++);
 
-		Column.SetShortName(LOCTEXT("StagedCompressedSizeColumnName", "Staged Compressed Size"));
+		Column.SetShortName(LOCTEXT("StagedCompressedSizeColumnName", "Staged"));
 		Column.SetTitleName(LOCTEXT("StagedCompressedSizeColumnTitle", "Staged Compressed Size"));
 		Column.SetDescription(LOCTEXT("StagedCompressedSizeColumnDesc", "Compressed size of iostore chunks for this asset's package. Only visible after staging."));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered | ETableColumnFlags::IsDynamic);
 
 		Column.SetHorizontalAlignment(HAlign_Right);
 		Column.SetInitialWidth(100.0f);
@@ -871,14 +873,14 @@ void FAssetTable::AddDefaultColumns()
 
 		Column.SetIndex(ColumnIndex++);
 
-		Column.SetShortName(LOCTEXT("TotalSizeUniqueDependenciesColumnName", "Total Unique Dependency Size"));
+		Column.SetShortName(LOCTEXT("TotalSizeUniqueDependenciesColumnName", "Unique"));
 		Column.SetTitleName(LOCTEXT("TotalSizeUniqueDependenciesColumnTitle", "Total Unique Dependency Size"));
 		Column.SetDescription(LOCTEXT("TotalSizeUniqueDependenciesColumnIdDesc", "Sum of the staged compressed sizes of all dependencies of this asset, counted only once"));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Right);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(100.0f);
 
 		Column.SetDataType(ETableCellDataType::Int64);
 
@@ -899,7 +901,7 @@ void FAssetTable::AddDefaultColumns()
 				{
 					const FAssetTreeNode& TreeNode = static_cast<const FAssetTreeNode&>(Node);
 					const FAssetTableRow& Asset = TreeNode.GetAssetChecked();
-					return FTableCellValue(static_cast<int64>(Asset.GetOrComputeTotalSizeUniqueDependencies(&TreeNode.GetAssetTableChecked(), TreeNode.GetRowIndex())));
+					return FTableCellValue(static_cast<int64>(Asset.GetOrComputeTotalSizeUniqueDependencies(TreeNode.GetAssetTableChecked(), TreeNode.GetRowIndex())));
 				}
 
 				return TOptional<FTableCellValue>();
@@ -930,14 +932,14 @@ void FAssetTable::AddDefaultColumns()
 
 		Column.SetIndex(ColumnIndex++);
 
-		Column.SetShortName(LOCTEXT("TotalSizeOtherDependenciesColumnName", "Total Other Dependency Size"));
+		Column.SetShortName(LOCTEXT("TotalSizeOtherDependenciesColumnName", "Other"));
 		Column.SetTitleName(LOCTEXT("TotalSizeOtherDependenciesColumnTitle", "Total Other Dependency Size"));
 		Column.SetDescription(LOCTEXT("TotalSizeOtherDependenciesColumnIdDesc", "Sum of the staged compressed sizes of all dependencies of this asset which are shared by other assets directly or indirectly, counted only once"));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Right);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(100.0f);
 
 		Column.SetDataType(ETableCellDataType::Int64);
 
@@ -958,7 +960,7 @@ void FAssetTable::AddDefaultColumns()
 				{
 					const FAssetTreeNode& TreeNode = static_cast<const FAssetTreeNode&>(Node);
 					const FAssetTableRow& Asset = TreeNode.GetAssetChecked();
-					return FTableCellValue(static_cast<int64>(Asset.GetOrComputeTotalSizeOtherDependencies(&TreeNode.GetAssetTableChecked(), TreeNode.GetRowIndex())));
+					return FTableCellValue(static_cast<int64>(Asset.GetOrComputeTotalSizeOtherDependencies(TreeNode.GetAssetTableChecked(), TreeNode.GetRowIndex())));
 				}
 
 				return TOptional<FTableCellValue>();
@@ -993,7 +995,7 @@ void FAssetTable::AddDefaultColumns()
 		Column.SetTitleName(LOCTEXT("TotalUsageCountColumnTitle", "Total Usage Count"));
 		Column.SetDescription(LOCTEXT("TotalUsageCountColumnDesc", "Weighted count of Primary Assets that use this\nA higher usage means it's more likely to be in memory at runtime."));
 
-		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered | ETableColumnFlags::IsDynamic);
 
 		Column.SetHorizontalAlignment(HAlign_Right);
 		Column.SetInitialWidth(100.0f);
@@ -1052,7 +1054,7 @@ void FAssetTable::AddDefaultColumns()
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(200.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
@@ -1107,7 +1109,7 @@ void FAssetTable::AddDefaultColumns()
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(200.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
@@ -1162,7 +1164,7 @@ void FAssetTable::AddDefaultColumns()
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(120.0f);
+		Column.SetInitialWidth(200.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
@@ -1205,184 +1207,197 @@ void FAssetTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 }
 
-// Iteratively refines the dependency set into unique and shared sets. PreviouslyVisitedIndices is split in each pass, moving some elements into 
-// OutExcludedIndices (preserving its original contents) and putting those that are still potentially uniquely owned by the ThisIndex asset into 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Iteratively refines the dependency set into unique and shared sets. PreviouslyVisitedIndices is split in each pass, moving some elements into
+// OutExcludedIndices (preserving its original contents) and putting those that are still potentially uniquely owned by the ThisIndex asset into
 // OutIncrementallyRefinedUniqueIndices. Returns 'true' if another pass is required (i.e., if work was done).
-/*static*/ bool FAssetTableRow::RefineDependencies(TSet<int32> PreviouslyVisitedIndices, FAssetTable* OwningTable, int32 ThisIndex, TSet<int32>* OutIncrementallyRefinedUniqueIndices, TSet<int32>* OutExcludedIndices)
+/*static*/ bool FAssetTableRow::RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, FAssetTable& OwningTable, int32 ThisIndex, TSet<int32>& OutIncrementallyRefinedUniqueIndices, TSet<int32>& OutExcludedIndices)
 {
-	if (ensure(OutIncrementallyRefinedUniqueIndices != nullptr) && ensure(OutExcludedIndices != nullptr))
+	const TCHAR* ThisGFP = OwningTable.GetAssetChecked(ThisIndex).GetGameFeaturePlugin();
+
+	// "visit" ThisIndex to seed the exploration
+	TArray<int32> IndicesToVisit = OwningTable.GetAssetChecked(ThisIndex).GetDependencies();
+
+	while (IndicesToVisit.Num() > 0)
 	{
-		const FString& ThisGFP = OwningTable->GetAsset(ThisIndex)->GameFeaturePlugin;
+		int32 CurrentIndex = IndicesToVisit.Pop(false);
 
-		// "visit" ThisIndex to seed the exploration
-		TArray<int32> IndicesToVisit = OwningTable->GetAsset(ThisIndex)->GetDependencies();
-
-		while (IndicesToVisit.Num() > 0)
+		FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
+		if (Row.GetGameFeaturePlugin() != ThisGFP)
 		{
-			int32 CurrentIndex = IndicesToVisit.Pop(false);
-
-			FAssetTableRow* Row = OwningTable->GetAsset(CurrentIndex);
-			if (Row->GameFeaturePlugin != ThisGFP)
-			{
-				// Don't traverse outside this plugin
-				continue;
-			}
-
-			bool ShouldIncludeInTotal = true;
-			for (int32 ReferencerIndex : Row->Referencers)
-			{
-				if (PreviouslyVisitedIndices.Contains(ReferencerIndex) == false && ThisIndex != ReferencerIndex)
-				{
-					ShouldIncludeInTotal = false;
-					break;
-				}
-			}
-			if (ShouldIncludeInTotal == false)
-			{
-				OutExcludedIndices->Add(CurrentIndex);
-				continue;
-			}
-			OutIncrementallyRefinedUniqueIndices->Add(CurrentIndex);
-
-			for (int32 ChildIndex : OwningTable->GetAsset(CurrentIndex)->GetDependencies())
-			{
-				// Don't revisit nodes we've already visited and don't re-add ThisIndex to avoid loops (and to avoid counting ourself)
-				if (!OutIncrementallyRefinedUniqueIndices->Contains(ChildIndex) && ThisIndex != ChildIndex)
-				{
-					IndicesToVisit.AddUnique(ChildIndex);
-				}
-			}
+			// Don't traverse outside this plugin
+			continue;
 		}
 
-		return OutIncrementallyRefinedUniqueIndices->Num() != PreviouslyVisitedIndices.Num();
+		bool ShouldIncludeInTotal = true;
+		for (int32 ReferencerIndex : Row.Referencers)
+		{
+			if (PreviouslyVisitedIndices.Contains(ReferencerIndex) == false && ThisIndex != ReferencerIndex)
+			{
+				ShouldIncludeInTotal = false;
+				break;
+			}
+		}
+		if (ShouldIncludeInTotal == false)
+		{
+			OutExcludedIndices.Add(CurrentIndex);
+			continue;
+		}
+		OutIncrementallyRefinedUniqueIndices.Add(CurrentIndex);
+
+		for (int32 ChildIndex : OwningTable.GetAssetChecked(CurrentIndex).GetDependencies())
+		{
+			// Don't revisit nodes we've already visited and don't re-add ThisIndex to avoid loops (and to avoid counting ourself)
+			if (!OutIncrementallyRefinedUniqueIndices.Contains(ChildIndex) && ThisIndex != ChildIndex)
+			{
+				IndicesToVisit.AddUnique(ChildIndex);
+			}
+		}
 	}
-	else
-	{
-		return false;
-	}
+
+	return OutIncrementallyRefinedUniqueIndices.Num() != PreviouslyVisitedIndices.Num();
 }
 
-void FAssetTableRow::ComputeDependencySizes(FAssetTable* OwningTable, int32 ThisIndex, TSet<int32>* OutUniqueDependencies/* = nullptr*/, TSet<int32>* OutSharedDependencies/* = nullptr*/) const
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAssetTableRow::ComputeDependencySizes(FAssetTable& OwningTable, int32 ThisIndex, TSet<int32>* OutUniqueDependencies, TSet<int32>* OutSharedDependencies) const
 {
-	if (OutUniqueDependencies != nullptr && OutSharedDependencies != nullptr)
+	TotalSizeUniqueDependencies = 0;
+	TotalSizeOtherDependencies = 0;
+
+	TArray<int32> IndicesToVisit;
+	TSet<int32> VisitedIndices;
+
+	// Break any loops in the dependency graph
+	VisitedIndices.Add(ThisIndex);
+
+	const TCHAR* ThisGFP = OwningTable.GetAssetChecked(ThisIndex).GetGameFeaturePlugin();
+
+	// Don't include this asset itself in the total, just its children
+	for (int32 ChildIndex : Dependencies)
 	{
-		TotalSizeUniqueDependencies = -1;
+		IndicesToVisit.Add(ChildIndex);
 	}
-	if (TotalSizeUniqueDependencies == -1)
+
+	while (IndicesToVisit.Num() > 0)
 	{
-		TArray<int32> IndicesToVisit;
-		TSet<int32> VisitedIndices;
+		int32 CurrentIndex = IndicesToVisit.Pop(false);
 
-		TotalSizeUniqueDependencies = 0;
-		TotalSizeOtherDependencies = 0;
-		
-		// Break any loops in the dependency graph
-		VisitedIndices.Add(ThisIndex);
-
-		const FString& ThisGFP = OwningTable->GetAsset(ThisIndex)->GameFeaturePlugin;
-
-		// Don't include this asset itself in the total, just its children
-		for (int32 ChildIndex : Dependencies)
+		FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
+		if (Row.GetGameFeaturePlugin() != ThisGFP)
 		{
-			IndicesToVisit.Add(ChildIndex);
+			// Don't traverse outside this plugin
+			continue;
 		}
+		VisitedIndices.Add(CurrentIndex);
 
-		while (IndicesToVisit.Num() > 0)
+		for (int32 ChildIndex : OwningTable.GetAssetChecked(CurrentIndex).GetDependencies())
 		{
-			int32 CurrentIndex = IndicesToVisit.Pop(false);
-
-			FAssetTableRow* Row = OwningTable->GetAsset(CurrentIndex);
-			if (Row->GameFeaturePlugin != ThisGFP)
+			if (!VisitedIndices.Contains(ChildIndex))
 			{
-				// Don't traverse outside this plugin
-				continue;
-			}
-			VisitedIndices.Add(CurrentIndex);
-
-			for (int32 ChildIndex : OwningTable->GetAsset(CurrentIndex)->GetDependencies())
-			{
-				if (!VisitedIndices.Contains(ChildIndex))
-				{
-					IndicesToVisit.AddUnique(ChildIndex);
-				}
+				IndicesToVisit.AddUnique(ChildIndex);
 			}
 		}
+	}
 
-		// Iteratively separate the graph of "all things referenced by ThisIndex, directly or indirectly"
-		// into "UniqueDependencies -- things referenced ONLY by ThisIndex and by other things themselves referenced ONLY by ThisIndex"
-		// and "OtherDependencies" -- things removed from the list of "all things referenced by ThisIndex" in order to identify UniqueDependencies
-		TSet<int32> UniqueDependencies;
-		TSet<int32> OtherDependencies;
-		while (RefineDependencies(VisitedIndices, OwningTable, ThisIndex, &UniqueDependencies, &OtherDependencies))
+	// Iteratively separate the graph of "all things referenced by ThisIndex, directly or indirectly"
+	// into "UniqueDependencies -- things referenced ONLY by ThisIndex and by other things themselves referenced ONLY by ThisIndex"
+	// and "OtherDependencies" -- things removed from the list of "all things referenced by ThisIndex" in order to identify UniqueDependencies
+	TSet<int32> UniqueDependencies;
+	TSet<int32> OtherDependencies;
+	while (RefineDependencies(VisitedIndices, OwningTable, ThisIndex, UniqueDependencies, OtherDependencies))
+	{
+		VisitedIndices = UniqueDependencies;
+		UniqueDependencies.Empty();
+	}
+
+	for (int32 Index : UniqueDependencies)
+	{
+		int64 DependencySize = OwningTable.GetAssetChecked(Index).GetStagedCompressedSize();
+		TotalSizeUniqueDependencies += DependencySize;
+	}
+	if (OutUniqueDependencies != nullptr)
+	{
+		*OutUniqueDependencies = UniqueDependencies;
+	}
+
+	// Now explore all the dependencies of OtherDependencies and gather up their sizes
+	// This is necessary because the process calling RefineDependencies doesn't produce a complete list of other dependencies,
+	// just a partial set. By exploring the dependencies of that partial set we can find all the things that were
+	// referenced by ThisIndex but also by some other asset outside the subgraph defined by ThisIndex and its UniqueDependencies
+	VisitedIndices.Empty();
+	IndicesToVisit.Empty();
+	for (int32 Index : OtherDependencies)
+	{
+		IndicesToVisit.Add(Index);
+	}
+
+	while (IndicesToVisit.Num() > 0)
+	{
+		int32 CurrentIndex = IndicesToVisit.Pop(false);
+		FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
+		VisitedIndices.Add(CurrentIndex);
+		if (Row.GetGameFeaturePlugin() != ThisGFP)
 		{
-			VisitedIndices = UniqueDependencies;
-			UniqueDependencies.Empty();
+			// Don't traverse outside this plugin
+			continue;
 		}
 
-		for (int32 Index : UniqueDependencies)
+		int64 DependencySize = OwningTable.GetAssetChecked(CurrentIndex).GetStagedCompressedSize();
+		TotalSizeOtherDependencies += DependencySize;
+		if (OutSharedDependencies != nullptr)
 		{
-			int64 DependencySize = OwningTable->GetAsset(Index)->GetStagedCompressedSize();
-			TotalSizeUniqueDependencies += DependencySize;
-		}
-		if (OutUniqueDependencies != nullptr)
-		{
-			*OutUniqueDependencies = UniqueDependencies;
+			OutSharedDependencies->Add(CurrentIndex);
 		}
 
-		// Now explore all the dependencies of OtherDependencies and gather up their sizes
-		// This is necessary because the process calling RefineDependencies doesn't produce a complete list of other dependencies,
-		// just a partial set. By exploring the dependencies of that partial set we can find all the things that were 
-		// referenced by ThisIndex but also by some other asset outside the subgraph defined by ThisIndex and its UniqueDependencies
-		VisitedIndices.Empty();
-		IndicesToVisit.Empty();
-		for (int32 Index : OtherDependencies)
+		for (int32 ChildIndex : OwningTable.GetAssetChecked(CurrentIndex).GetDependencies())
 		{
-			IndicesToVisit.Add(Index);
-		}
-
-		while (IndicesToVisit.Num() > 0)
-		{
-			int32 CurrentIndex = IndicesToVisit.Pop(false);
-			FAssetTableRow* Row = OwningTable->GetAsset(CurrentIndex);
-			VisitedIndices.Add(CurrentIndex);
-			if (Row->GameFeaturePlugin != ThisGFP)
+			if (!VisitedIndices.Contains(ChildIndex) && ThisIndex != ChildIndex)
 			{
-				// Don't traverse outside this plugin
-				continue;
-			}
-			
-			int64 DependencySize = OwningTable->GetAsset(CurrentIndex)->GetStagedCompressedSize();
-			TotalSizeOtherDependencies += DependencySize;
-			if (OutSharedDependencies != nullptr)
-			{
-				OutSharedDependencies->Add(CurrentIndex);
-			}
-
-			for (int32 ChildIndex : OwningTable->GetAsset(CurrentIndex)->GetDependencies())
-			{
-				if (!VisitedIndices.Contains(ChildIndex) && ThisIndex != ChildIndex)
-				{
-					IndicesToVisit.AddUnique(ChildIndex);
-				}
+				IndicesToVisit.AddUnique(ChildIndex);
 			}
 		}
 	}
 }
 
-int64 FAssetTableRow::GetOrComputeTotalSizeUniqueDependencies(FAssetTable* OwningTable, int32 ThisIndex) const
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int64 FAssetTableRow::GetOrComputeTotalSizeUniqueDependencies(FAssetTable& OwningTable, int32 ThisIndex) const
 {
 	if (TotalSizeUniqueDependencies == -1)
 	{
+		UE::Insights::FStopwatch Stopwatch;
+		Stopwatch.Start();
+
 		ComputeDependencySizes(OwningTable, ThisIndex);
+
+		Stopwatch.Stop();
+		const double Duration = Stopwatch.GetAccumulatedTime();
+		if (Duration > 1.0)
+		{
+			UE_LOG(LogInsights, Log, TEXT("ComputeDependencySizes(%s%s) : %.3fs"), Path, Name, Duration);
+		}
 	}
 	return TotalSizeUniqueDependencies;
 }
 
-int64 FAssetTableRow::GetOrComputeTotalSizeOtherDependencies(FAssetTable* OwningTable, int32 ThisIndex) const
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int64 FAssetTableRow::GetOrComputeTotalSizeOtherDependencies(FAssetTable& OwningTable, int32 ThisIndex) const
 {
 	if (TotalSizeOtherDependencies == -1)
 	{
+		UE::Insights::FStopwatch Stopwatch;
+		Stopwatch.Start();
+
 		ComputeDependencySizes(OwningTable, ThisIndex);
+
+		Stopwatch.Stop();
+		const double Duration = Stopwatch.GetAccumulatedTime();
+		if (Duration > 1.0)
+		{
+			UE_LOG(LogInsights, Log, TEXT("ComputeDependencySizes(%s%s) : %.3fs"), Path, Name, Duration);
+		}
 	}
 	return TotalSizeOtherDependencies;
 }

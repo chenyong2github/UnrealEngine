@@ -26,6 +26,7 @@
 #include "AssetManagerEditorCommands.h"
 #include "Insights/Common/Log.h"
 #include "TreeView/AssetTable.h"
+#include "TreeView/AssetTreeNode.h"
 #include "TreeView/SAssetTableTreeView.h"
 
 #define LOCTEXT_NAMESPACE "AssetManagementBrowser"
@@ -156,13 +157,13 @@ void SAssetAuditBrowser::FindReferencesForSelectedAssets() const
 	IAssetManagerEditorModule::ExtractAssetIdentifiersFromAssetDataList(Assets, AssetIdentifiers);
 
 	if (AssetIdentifiers.Num() > 0)
-{
+	{
 		IAssetManagerEditorModule::Get().OpenReferenceViewerUI(AssetIdentifiers);
 	}
 }
 
 void SAssetAuditBrowser::ShowSizeMapForSelectedAssets() const
-	{
+{
 	TArray<FAssetData> Assets = GetCurrentSelectionDelegate.Execute();
 	TArray<FAssetIdentifier> AssetIdentifiers;
 	IAssetManagerEditorModule::ExtractAssetIdentifiersFromAssetDataList(Assets, AssetIdentifiers);
@@ -244,7 +245,7 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 		FExecuteAction::CreateSP(this, &SAssetAuditBrowser::EditSelectedAssets),
 		FCanExecuteAction::CreateSP(this, &SAssetAuditBrowser::IsAnythingSelected)
 	));
-	
+
 	Commands->MapAction(FAssetManagerEditorCommands::Get().ViewReferences, FUIAction(
 		FExecuteAction::CreateSP(this, &SAssetAuditBrowser::FindReferencesForSelectedAssets),
 		FCanExecuteAction::CreateSP(this, &SAssetAuditBrowser::IsAnythingSelected)
@@ -275,12 +276,13 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 	Config.OnGetCustomSourceAssets = FOnGetCustomSourceAssets::CreateSP(this, &SAssetAuditBrowser::OnGetCustomSourceAssets);
 	Config.SyncToAssetsDelegates.Add(&SyncToAssetsDelegate);
 	Config.OnShouldFilterAsset = FOnShouldFilterAsset::CreateSP(this, &SAssetAuditBrowser::HandleFilterAsset);
+	Config.OnAssetSelected = FOnAssetSelected::CreateSP(this, &SAssetAuditBrowser::OnAssetSelected);
 	Config.GetCurrentSelectionDelegates.Add(&GetCurrentSelectionDelegate);
 	Config.SetFilterDelegates.Add(&SetFilterDelegate);
 	Config.bFocusSearchBoxWhenOpened = false;
 
 	Config.SaveSettingsName = SettingsIniSection;
-	
+
 	// Hide path and type by default
 	Config.HiddenColumnNames.Add(TEXT("Class"));
 	Config.HiddenColumnNames.Add(TEXT("Path"));
@@ -526,6 +528,7 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 			+ SSplitter::Slot()
 			[
 				SAssignNew(AssetTableTreeView, SAssetTableTreeView, AssetTable)
+				.OnSelectionChanged(this, &SAssetAuditBrowser::TreeView_OnSelectionChanged)
 			]
 		];
 
@@ -539,7 +542,7 @@ void SAssetAuditBrowser::Construct(const FArguments& InArgs)
 		];
 	}
 
-	// Refresh our data sources to make sure we are displaying up to date info otherwise the user will need to 
+	// Refresh our data sources to make sure we are displaying up to date info otherwise the user will need to
 	// hit "refresh" every time they open the dialog to be able to trust it
 	ManagerEditorModule.RefreshRegistryData();
 }
@@ -730,15 +733,14 @@ void SAssetAuditBrowser::GoToHistoryIndex(int32 InHistoryIdx)
 	}
 }
 
-void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAssetData& AssetData, FAssetTable& AssetTable) const
+void SAssetAuditBrowser::QuickPopulateAssetTableRow(FAssetTableRow& OutRow, const FAssetData& AssetData, FAssetTable& AssetTable) const
 {
 	// Asset Type
 	FString AssetType;
-	if (!EditorModule->GetStringValueForCustomColumn(AssetData, FName(TEXT("Type")), AssetType)) 
+	if (!EditorModule->GetStringValueForCustomColumn(AssetData, FName(TEXT("Type")), AssetType))
 	{
-		AssetType = AssetData.AssetClassPath.ToString(); 
+		AssetType = AssetData.AssetClassPath.ToString();
 	}
-	const uint32 AssetTypeHash = GetTypeHash(AssetType);
 	OutRow.Type = AssetTable.StoreStr(AssetType);
 
 	// Asset Name
@@ -753,6 +755,11 @@ void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAs
 		ObjectPathString = ObjectPathString.Left(Index + 1);
 	}
 	OutRow.Path = AssetTable.StoreStr(ObjectPathString);
+}
+
+void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAssetData& AssetData, FAssetTable& AssetTable) const
+{
+	QuickPopulateAssetTableRow(OutRow, AssetData, AssetTable);
 
 	FString Str;
 
@@ -781,7 +788,26 @@ void SAssetAuditBrowser::PopulateAssetTableRow(FAssetTableRow& OutRow, const FAs
 	OutRow.NativeClass = AssetTable.StoreStr(AssetData.AssetClassPath.GetAssetName().ToString());
 
 	// Sets the color based on asset type.
+	const uint32 AssetTypeHash = GetTypeHash(FStringView(OutRow.Type));
 	OutRow.Color = USlateThemeManager::Get().GetColor((EStyleColor)((uint32)EStyleColor::AccentBlue + AssetTypeHash % 8));
+}
+
+void SAssetAuditBrowser::TreeView_OnSelectionChanged(const TArray<TSharedPtr<UE::Insights::FTableTreeNode>> InSelectedNodes)
+{
+	if (!AssetTableTreeView.IsValid())
+	{
+		return;
+	}
+
+	//TODO: Find and select the corresponding asset in the Asset Picker list view.
+	TSharedPtr<FAssetTreeNode> SelectedAssetNode = AssetTableTreeView->GetSingleSelectedAssetNode();
+	if (SelectedAssetNode.IsValid())
+	{
+		check(!SelectedAssetNode->IsGroup());
+		check(SelectedAssetNode->IsValidAsset());
+		const FAssetTableRow& AssetTableRow = SelectedAssetNode->GetAssetChecked();
+		//...
+	}
 }
 
 void SAssetAuditBrowser::RefreshAssetView()
@@ -804,175 +830,183 @@ void SAssetAuditBrowser::RefreshAssetView()
 
 	SetFilterDelegate.Execute(Filter);
 
+	RefreshAssetTableTreeView(Filter);
+}
 
-	// Refresh list of assets for the tree view
-	if (AssetTableTreeView.IsValid())
+// Refresh list of assets for the tree view
+void SAssetAuditBrowser::RefreshAssetTableTreeView(const FARFilter& Filter)
+{
+	if (!AssetTableTreeView.IsValid())
 	{
-		TSharedPtr<FAssetTable> AssetTable = AssetTableTreeView->GetAssetTable();
-		if (AssetTable.IsValid())
+		return;
+	}
+
+	TSharedPtr<FAssetTable> AssetTable = AssetTableTreeView->GetAssetTable();
+	if (!AssetTable.IsValid())
+	{
+		return;
+	}
+
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Build asset table..."));
+
+	UE::Insights::FStopwatch Stopwatch;
+	Stopwatch.Start();
+
+	// Clears all tree nodes (that references the previous assets).
+	AssetTable->SetVisibleAssetCount(0);
+	AssetTableTreeView->RebuildTree(true);
+
+	// Now is safe to clear the previous assets.
+	AssetTable->ClearAllData();
+
+	TMap<FAssetData, int32> AssetToIndexMap;
+
+	TArray<FAssetData> SourceAssets;
+	const FAssetManagerEditorRegistrySource* RegistrySource = EditorModule->GetCurrentRegistrySource();
+
+	if (RegistrySource->GetOwnedRegistryState())
+	{
+		FARCompiledFilter CompiledFilter;
+		AssetRegistry->CompileFilter(Filter, CompiledFilter);
+		RegistrySource->GetOwnedRegistryState()->GetAssets(CompiledFilter, TSet<FName>(), SourceAssets);
+	}
+	else
+	{
+		AssetRegistry->GetAssets(Filter, SourceAssets);
+	}
+
+	for (int32 SourceAssetIndex = 0; SourceAssetIndex < SourceAssets.Num(); SourceAssetIndex++)
+	{
+		TArray<FAssetData> AssetsInSourcePackage;
+		AssetRegistry->GetAssetsByPackageName(SourceAssets[SourceAssetIndex].PackageName, AssetsInSourcePackage, /*bIncludeOnlyOnDiskAssets*/ true); // Only use on disk assets to avoid creating FAssetData for everything in memory
+
+		for (FAssetData& SourceAsset : AssetsInSourcePackage)
 		{
-			UE_LOG(LogInsights, Log, TEXT("[AssetTree] Build asset table..."));
-
-			UE::Insights::FStopwatch Stopwatch;
-			Stopwatch.Start();
-
-			// Clears all tree nodes (that references the previous assets).
-			AssetTable->SetVisibleAssetCount(0);
-			AssetTableTreeView->RebuildTree(true);
-
-			// Now is safe to clear the previous assets.
-			AssetTable->ClearAllData();
-
-			TMap<FAssetData, int32> AssetToIndexMap;
-
-			TArray<FAssetData> SourceAssets;
-			const FAssetManagerEditorRegistrySource* RegistrySource = EditorModule->GetCurrentRegistrySource();
-
-			if (RegistrySource->GetOwnedRegistryState())
+			if (AssetToIndexMap.Find(SourceAsset) == nullptr)
 			{
-				FARCompiledFilter CompiledFilter;
-				AssetRegistry->CompileFilter(Filter, CompiledFilter);
-				RegistrySource->GetOwnedRegistryState()->GetAssets(CompiledFilter, TSet<FName>(), SourceAssets);
+				FAssetTableRow AssetRow;
+				PopulateAssetTableRow(AssetRow, SourceAsset, *AssetTable);
+				AssetTable->AddAsset(AssetRow);
+				AssetToIndexMap.Add(SourceAsset, AssetTable->GetTotalAssetCount() - 1);
 			}
-			else
-			{
-				AssetRegistry->GetAssets(Filter, SourceAssets);
-			}
+		}
+	}
+	AssetTable->SetVisibleAssetCount(AssetTable->GetAssets().Num());
 
-			for (int32 SourceAssetIndex = 0; SourceAssetIndex < SourceAssets.Num(); SourceAssetIndex++)
-			{
-				TArray<FAssetData> AssetsInSourcePackage;
-				AssetRegistry->GetAssetsByPackageName(SourceAssets[SourceAssetIndex].PackageName, AssetsInSourcePackage, /*bIncludeOnlyOnDiskAssets*/ true); // Only use on disk assets to avoid creating FAssetData for everything in memory
+	int32 EntryIndex = AssetTable->GetAssets().Num();
 
-				for (FAssetData& SourceAsset : AssetsInSourcePackage)
+	TSet<FName> AlreadyProcessedPackages;
+	// Go over all SourceAssets. We will add more to the end as we find we need to add them.
+	for (int32 SourceAssetIndex = 0; SourceAssetIndex < SourceAssets.Num(); SourceAssetIndex++)
+	{
+		// There are potentially multiple assets in a package, each with an FAssetData
+		// We are only dealing in package dependencies, though, so don't process the same package twice
+		// But we will need to conceptually assign all the package dependencies to all assets in the package below
+		if (AlreadyProcessedPackages.Contains(SourceAssets[SourceAssetIndex].PackageName))
+		{
+			continue;
+		}
+		else
+		{
+			AlreadyProcessedPackages.Add(SourceAssets[SourceAssetIndex].PackageName);
+		}
+
+		FAssetIdentifier CurrentIdentifier(SourceAssets[SourceAssetIndex].PackageName);
+		// We'll have to add the dependencies to all these entries
+		TArray<FAssetData> AssetsInSourcePackage;
+		AssetRegistry->GetAssetsByPackageName(SourceAssets[SourceAssetIndex].PackageName, AssetsInSourcePackage, /*bIncludeOnlyOnDiskAssets*/ true); // Only use on disk assets to avoid creating FAssetData for everything in memory
+
+		// Get the dependencies
+		TArray<FAssetIdentifier> DependencyList;
+		RegistrySource->GetDependencies(CurrentIdentifier, DependencyList, UE::AssetRegistry::EDependencyCategory::Package);
+
+		TArray<int32> IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow;
+
+		for (const FAssetIdentifier& Dependency : DependencyList)
+		{
+			auto GatherIndices = [&](FAssetData const* DependencyAsset)
+			{
+				if (int32* DependencyIndex = AssetToIndexMap.Find(*DependencyAsset))
 				{
-					if (AssetToIndexMap.Find(SourceAsset) == nullptr)
-					{
-						FAssetTableRow AssetRow;
-						PopulateAssetTableRow(AssetRow, SourceAsset, *AssetTable);
-						AssetTable->AddAsset(AssetRow);
-						AssetToIndexMap.Add(SourceAsset, AssetTable->GetTotalAssetCount() - 1);
-					}
-				}
-			}
-			AssetTable->SetVisibleAssetCount(AssetTable->GetAssets().Num());
-
-			int32 EntryIndex = AssetTable->GetAssets().Num();
-
-			TSet<FName> AlreadyProcessedPackages;
-			// Go over all SourceAssets. We will add more to the end as we find we need to add them.
-			for (int32 SourceAssetIndex = 0; SourceAssetIndex < SourceAssets.Num(); SourceAssetIndex++)
-			{
-				// There are potentially multiple assets in a package, each with an FAssetData
-				// We are only dealing in package dependencies, though, so don't process the same package twice
-				// But we will need to conceptually assign all the package dependencies to all assets in the package below
-				if (AlreadyProcessedPackages.Contains(SourceAssets[SourceAssetIndex].PackageName))
-				{
-					continue;
+					// Do we already know about the asset? If so, great.
+					IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(*DependencyIndex);
 				}
 				else
 				{
-					AlreadyProcessedPackages.Add(SourceAssets[SourceAssetIndex].PackageName);
+					// We don't know about this asset yet. Create a new row for it and add it to the source list for further dependency analysis
+					FAssetTableRow NewRow;
+					PopulateAssetTableRow(NewRow, *DependencyAsset, *AssetTable);
+					AssetTable->AddAsset(NewRow);
+					IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(AssetTable->GetTotalAssetCount() - 1);
+					AssetToIndexMap.Add(*DependencyAsset, AssetTable->GetTotalAssetCount() - 1);
+					SourceAssets.Add(*DependencyAsset);
 				}
+			};
 
-				FAssetIdentifier CurrentIdentifier(SourceAssets[SourceAssetIndex].PackageName);
-				// We'll have to add the dependencies to all these entries
-				TArray<FAssetData> AssetsInSourcePackage;
-				AssetRegistry->GetAssetsByPackageName(SourceAssets[SourceAssetIndex].PackageName, AssetsInSourcePackage, /*bIncludeOnlyOnDiskAssets*/ true); // Only use on disk assets to avoid creating FAssetData for everything in memory
-
-				// Get the dependencies
-				TArray<FAssetIdentifier> DependencyList;
-				RegistrySource->GetDependencies(CurrentIdentifier, DependencyList, UE::AssetRegistry::EDependencyCategory::Package);
-				
-				TArray<int32> IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow;
-
-				for (const FAssetIdentifier& Dependency : DependencyList)
+			if (RegistrySource->GetOwnedRegistryState())
+			{
+				TArrayView<FAssetData const* const> AssetsInDependencyPackage = RegistrySource->GetOwnedRegistryState()->GetAssetsByPackageName(Dependency.PackageName);
+				for (FAssetData const* const DependencyAsset : AssetsInDependencyPackage)
 				{
-					auto GatherIndices = [&](FAssetData const* DependencyAsset)
+					GatherIndices(DependencyAsset);
+				}
+			}
+			else
+			{
+				TArray<FAssetData> AssetsInDependencyPackage;
+				AssetRegistry->GetAssetsByPackageName(Dependency.PackageName, AssetsInDependencyPackage, /*only on disk assets*/true);
+				for (FAssetData& DependencyAsset : AssetsInDependencyPackage)
+				{
+					GatherIndices(&DependencyAsset);
+				}
+			}
+		}
+
+		if (IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Num())
+		{
+			// We found some dependencies. Let's add them.
+			for (const FAssetData& SourceAssetData : AssetsInSourcePackage)
+			{
+				int32* RowIndex = AssetToIndexMap.Find(SourceAssetData);
+				if (ensure(RowIndex != nullptr))
+				{
+					for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
 					{
-						if (int32* DependencyIndex = AssetToIndexMap.Find(*DependencyAsset))
-						{
-							// Do we already know about the asset? If so, great.
-							IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(*DependencyIndex);
-						}
-						else
-						{
-							// We don't know about this asset yet. Create a new row for it and add it to the source list for further dependency analysis
-							FAssetTableRow NewRow;
-							PopulateAssetTableRow(NewRow, *DependencyAsset, *AssetTable);
-							AssetTable->AddAsset(NewRow);
-							IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Add(AssetTable->GetTotalAssetCount() - 1);
-							AssetToIndexMap.Add(*DependencyAsset, AssetTable->GetTotalAssetCount() - 1);
-							SourceAssets.Add(*DependencyAsset);
-						}
-					};
-					
-					if (RegistrySource->GetOwnedRegistryState())
-					{
-						TArrayView<FAssetData const* const> AssetsInDependencyPackage = RegistrySource->GetOwnedRegistryState()->GetAssetsByPackageName(Dependency.PackageName);
-						for (FAssetData const* const DependencyAsset : AssetsInDependencyPackage)
-						{
-							GatherIndices(DependencyAsset);
-						}
-					}
-					else
-					{
-						TArray<FAssetData> AssetsInDependencyPackage;
-						AssetRegistry->GetAssetsByPackageName(Dependency.PackageName, AssetsInDependencyPackage, /*only on disk assets*/true);
-						for (FAssetData& DependencyAsset : AssetsInDependencyPackage)
-						{
-							GatherIndices(&DependencyAsset);
-						}
+						AssetTable->GetAsset(*RowIndex)->Dependencies.AddUnique(Index);
 					}
 				}
+			}
 
-				if (IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow.Num())
+			for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
+			{
+				// Now for each of those dependencies, add this source asset row as a referencer
+				if (FAssetTableRow* DependentRow = AssetTable->GetAsset(Index))
 				{
-					// We found some dependencies. Let's add them.
 					for (const FAssetData& SourceAssetData : AssetsInSourcePackage)
 					{
 						int32* RowIndex = AssetToIndexMap.Find(SourceAssetData);
 						if (ensure(RowIndex != nullptr))
 						{
-							for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
-							{
-								AssetTable->GetAsset(*RowIndex)->Dependencies.AddUnique(Index);
-							}
-						}
-					}
-
-					for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
-					{
-						// Now for each of those dependencies, add this source asset row as a referencer
-						if (FAssetTableRow* DependentRow = AssetTable->GetAsset(Index))
-						{
-							for (const FAssetData& SourceAssetData : AssetsInSourcePackage)
-							{
-								int32* RowIndex = AssetToIndexMap.Find(SourceAssetData);
-								if (ensure(RowIndex != nullptr))
-								{
-									DependentRow->Referencers.AddUnique(*RowIndex);
-								}
-							}
+							DependentRow->Referencers.AddUnique(*RowIndex);
 						}
 					}
 				}
 			}
-
-			Stopwatch.Stop();
-			const double TotalTime = Stopwatch.GetAccumulatedTime();
-			UE_LOG(LogInsights, Log, TEXT("[AssetTree] Asset table rebuilt in %.4fs (%d visible + %d hidden = %d assets)"),
-				TotalTime, AssetTable->GetVisibleAssetCount(), AssetTable->GetHiddenAssetCount(), AssetTable->GetTotalAssetCount());
-
-			const FAssetTableStringStore& StringStore = AssetTable->GetStringStore();
-			UE_LOG(LogInsights, Log, TEXT("[AssetTree] String store: %d strings (%lld bytes) --> %d strings (%lld bytes | %lld bytes) %.0f%%"),
-				StringStore.GetNumInputStrings(), StringStore.GetTotalInputStringSize(), 
-				StringStore.GetNumStrings(), StringStore.GetTotalStringSize(), StringStore.GetAllocatedSize(),
-				(double)StringStore.GetAllocatedSize() * 100.0 / (double)StringStore.GetTotalInputStringSize());
-
-			AssetTableTreeView->RebuildTreeAsync();
 		}
 	}
+
+	Stopwatch.Stop();
+	const double TotalTime = Stopwatch.GetAccumulatedTime();
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Asset table rebuilt in %.4fs (%d visible + %d hidden = %d assets)"),
+		TotalTime, AssetTable->GetVisibleAssetCount(), AssetTable->GetHiddenAssetCount(), AssetTable->GetTotalAssetCount());
+
+	const FAssetTableStringStore& StringStore = AssetTable->GetStringStore();
+	UE_LOG(LogInsights, Log, TEXT("[AssetTree] String store: %d strings (%lld bytes) --> %d strings (%lld bytes | %lld bytes) %.0f%%"),
+		StringStore.GetNumInputStrings(), StringStore.GetTotalInputStringSize(),
+		StringStore.GetNumStrings(), StringStore.GetTotalStringSize(), StringStore.GetAllocatedSize(),
+		(double)StringStore.GetAllocatedSize() * 100.0 / (double)StringStore.GetTotalInputStringSize());
+
+	AssetTableTreeView->RebuildTreeAsync();
 }
 
 FReply SAssetAuditBrowser::ClearAssets()
@@ -1005,7 +1039,7 @@ void SAssetAuditBrowser::AddAssetsOfType(FPrimaryAssetType AssetType)
 	if (AssetType.IsValid())
 	{
 		TArray<FSoftObjectPath> AssetArray;
-		
+
 		if (AssetType == IAssetManagerEditorModule::AllPrimaryAssetTypes)
 		{
 			TArray<FPrimaryAssetTypeInfo> TypeList;
@@ -1018,7 +1052,7 @@ void SAssetAuditBrowser::AddAssetsOfType(FPrimaryAssetType AssetType)
 		}
 		else
 		{
-		AssetManager->GetPrimaryAssetPathList(AssetType, AssetArray);
+			AssetManager->GetPrimaryAssetPathList(AssetType, AssetArray);
 		}
 
 		AddAssetsToList(AssetArray, false);
@@ -1057,7 +1091,7 @@ void SAssetAuditBrowser::AddAssetsOfClass(UClass* AssetClass)
 			AssetRegistry->GetDerivedClassNames(AssetFilter.ClassPaths, TSet<FTopLevelAssetPath>(), DerivedClassNames);
 			AssetFilter.ClassPaths.Add(UBlueprintCore::StaticClass()->GetClassPathName());
 		}
-		
+
 		if (AssetRegistry->GetAssets(AssetFilter, FoundData) && FoundData.Num() > 0)
 		{
 			TArray<FName> AssetPackageArray;
@@ -1108,7 +1142,42 @@ bool SAssetAuditBrowser::HandleFilterAsset(const FAssetData& InAssetData) const
 	}
 
 	return !EditorModule->IsPackageInCurrentRegistrySource(InAssetData.PackageName);
+}
+
+void SAssetAuditBrowser::OnAssetSelected(const FAssetData& InAssetData)
+{
+	// Find and select the corresponding asset in the asset tree view.
+	if (AssetTableTreeView.IsValid())
+	{
+		TSharedPtr<FAssetTable> AssetTable = AssetTableTreeView->GetAssetTable();
+		if (AssetTable.IsValid())
+		{
+			FAssetTableRow SelectedAsset;
+			QuickPopulateAssetTableRow(SelectedAsset, InAssetData, *AssetTable);
+
+			int32 RowIndex = -1;
+
+			const TArray<FAssetTableRow>& Assets = AssetTable->GetAssets();
+			int32 AssetCount = AssetTable->GetVisibleAssetCount();
+			for (int32 Index = 0; Index < AssetCount; ++Index)
+			{
+				const FAssetTableRow& Asset = Assets[Index];
+				if (Asset.GetType() == SelectedAsset.GetType() &&
+					Asset.GetPath() == SelectedAsset.GetPath() &&
+					Asset.GetName() == SelectedAsset.GetName())
+				{
+					RowIndex = Index;
+					break;
+				}
+			}
+
+			if (RowIndex >= 0)
+			{
+				AssetTableTreeView->SelectNodeByTableRowIndex(RowIndex);
+			}
+		}
 	}
+}
 
 TSharedRef<SWidget> SAssetAuditBrowser::GenerateSourceComboItem(TSharedPtr<FString> InItem)
 {
@@ -1144,7 +1213,6 @@ void SAssetAuditBrowser::SetCurrentRegistrySource(const FAssetManagerEditorRegis
 	}
 	else
 	{
-		
 		if (CurrentRegistrySource->SourceTimestamp.Len() == 0)
 		{
 			RegistrySourceTimeText->SetText(LOCTEXT("AssetRegistryTimestampError", "Unable to get AssetRegistry.bin timestamp (recook?)"));

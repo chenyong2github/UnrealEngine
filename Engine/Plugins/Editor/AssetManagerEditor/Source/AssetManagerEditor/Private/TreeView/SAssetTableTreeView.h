@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Delegates/DelegateCombinations.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "TreeView/AssetTable.h"
@@ -13,13 +14,20 @@ class FAssetTreeNode;
 class SAssetTableTreeView : public UE::Insights::STableTreeView
 {
 public:
+	DECLARE_DELEGATE_OneParam(FOnSelectionChanged, const TArray<TSharedPtr<UE::Insights::FTableTreeNode>>)
+
+public:
 	/** Default constructor. */
 	SAssetTableTreeView();
 
 	/** Virtual destructor. */
 	virtual ~SAssetTableTreeView();
 
-	SLATE_BEGIN_ARGS(SAssetTableTreeView) {}
+	SLATE_BEGIN_ARGS(SAssetTableTreeView)
+		: _OnSelectionChanged()
+	{
+	}
+	SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
 	SLATE_END_ARGS()
 
 	/**
@@ -33,8 +41,6 @@ public:
 
 	TSharedPtr<FAssetTable> GetAssetTable() { return StaticCastSharedPtr<FAssetTable>(GetTable()); }
 	const TSharedPtr<FAssetTable> GetAssetTable() const { return StaticCastSharedPtr<FAssetTable>(GetTable()); }
-
-	//void UpdateSourceTable(TSharedPtr<TraceServices::IAssetTable> SourceTable);
 
 	virtual void Reset();
 
@@ -63,12 +69,18 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	TSharedPtr<FAssetTreeNode> GetSingleSelectedAssetNode() const { return SelectedAssetNode; }
+
 protected:
 	virtual void InternalCreateGroupings() override;
 
-	TSharedPtr<FAssetTreeNode> GetSingleSelectedAssetNode() const;
-
 	virtual void ExtendMenu(FMenuBuilder& MenuBuilder) override;
+
+	FText GetFooterLeftText() const;
+	FText GetFooterRightText1() const;
+	FText GetFooterRightText2() const;
+
+	virtual void TreeView_OnSelectionChanged(UE::Insights::FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo) override;
 
 private:
 	bool virtual ApplyCustomAdvancedFilters(const UE::Insights::FTableTreeNodePtr& NodePtr) override;
@@ -78,4 +90,12 @@ private:
 
 private:
 	bool bNeedsToRebuild = false;
+
+	FText FooterLeftText;
+	FText FooterRightText1;
+	FText FooterRightText2;
+
+	/** Delegate to invoke when selection changes. */
+	FOnSelectionChanged OnSelectionChanged;
+	TSharedPtr<FAssetTreeNode> SelectedAssetNode;
 };

@@ -108,13 +108,13 @@ public:
 			FInputChord(EModifierKey::Control, EKeys::E));
 
 		UI_COMMAND(Command_ExportEntireTreeToFile,
-			"Export Entire Tree to File...",
+			"Export Entire Tree (+ Leaf Nodes) to File...",
 			"Exports the entire tree/table content to a file. It exports also the collapsed tree nodes, including the leaf nodes. Filtered out nodes are not exported.",
 			EUserInterfaceActionType::Button,
 			FInputChord(EModifierKey::Shift, EKeys::E));
 
-		UI_COMMAND(Command_ExportEntireTreeToFileNoLeafs,
-			"Export Entire Tree (No Leafs) to File...",
+		UI_COMMAND(Command_ExportEntireTreeToFileExceptLeaves,
+			"Export Entire Tree (- Leaf Nodes) to File...",
 			"Exports the entire tree/table content to a file, but not the leaf nodes. It exports the collapsed tree nodes. Filtered out nodes are not exported.",
 			EUserInterfaceActionType::Button,
 			FInputChord(EModifierKey::Alt, EKeys::E));
@@ -129,7 +129,7 @@ public:
 	TSharedPtr<FUICommandInfo> Command_CollapseSubtree;
 	TSharedPtr<FUICommandInfo> Command_ExportToFile;
 	TSharedPtr<FUICommandInfo> Command_ExportEntireTreeToFile;
-	TSharedPtr<FUICommandInfo> Command_ExportEntireTreeToFileNoLeafs;
+	TSharedPtr<FUICommandInfo> Command_ExportEntireTreeToFileExceptLeaves;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,30 +141,9 @@ const FName STableTreeView::RootNodeName(TEXT("Root"));
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STableTreeView::STableTreeView()
-	: Table()
-	, TreeView(nullptr)
-	, TreeViewHeaderRow(nullptr)
-	, ExternalScrollbar(nullptr)
-	, HoveredColumnId()
-	, HoveredNodePtr(nullptr)
-	, HighlightedNodeName()
-	, Root(MakeShared<FTableTreeNode>(RootNodeName, Table))
-	, TableTreeNodes()
-	, FilteredGroupNodes()
-	, ExpandedNodes()
-	, bExpansionSaved(false)
-	, SearchBox(nullptr)
-	, TextFilter(nullptr)
-	, Filters(nullptr)
-	, AvailableGroupings()
-	, CurrentGroupings()
-	, GroupingBreadcrumbTrail(nullptr)
-	, AvailableSorters()
-	, CurrentSorter(nullptr)
+	: Root(MakeShared<FTableTreeNode>(RootNodeName, Table))
 	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
 	, ColumnSortMode(GetDefaultColumnSortMode())
-	, StatsStartTime(0.0)
-	, StatsEndTime(0.0)
 {
 }
 
@@ -172,10 +151,7 @@ STableTreeView::STableTreeView()
 
 STableTreeView::~STableTreeView()
 {
-	if (bRunInAsyncMode)
-	{
-		checkf(bIsCloseScheduled, TEXT("TableTreeView running in async mode was closed but OnClose() was not called. This can lead to a crash. Call OnClose() from the owner tab/window."))
-	}
+	checkf(bIsCloseScheduled, TEXT("TableTreeView running in async mode was closed but OnClose() was not called. This can lead to a crash. Call OnClose() from the owner tab/window."))
 
 	if (CurrentAsyncOpFilterConfigurator)
 	{
@@ -225,7 +201,7 @@ void STableTreeView::InitCommandList()
 		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, true, true),
 		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
 
-	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportEntireTreeToFileNoLeafs,
+	CommandList->MapAction(FTableTreeViewCommands::Get().Command_ExportEntireTreeToFileExceptLeaves,
 		FExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_Execute, true, false),
 		FCanExecuteAction::CreateSP(this, &STableTreeView::ContextMenu_ExportToFile_CanExecute));
 }
@@ -355,15 +331,8 @@ void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 	// Create the search filters: text based, type based etc.
 	TextFilter = MakeShared<FTableTreeNodeTextFilter>(FTableTreeNodeTextFilter::FItemToStringArray::CreateStatic(&STableTreeView::HandleItemToStringArray));
 	Filters = MakeShared<FTableTreeNodeFilterCollection>();
-	if (bRunInAsyncMode)
-	{
-		CurrentAsyncOpTextFilter = MakeShared<FTableTreeNodeTextFilter>(FTableTreeNodeTextFilter::FItemToStringArray::CreateStatic(&STableTreeView::HandleItemToStringArray));
-		Filters->Add(CurrentAsyncOpTextFilter);
-	}
-	else
-	{
-		Filters->Add(TextFilter);
-	}
+	CurrentAsyncOpTextFilter = MakeShared<FTableTreeNodeTextFilter>(FTableTreeNodeTextFilter::FItemToStringArray::CreateStatic(&STableTreeView::HandleItemToStringArray));
+	Filters->Add(CurrentAsyncOpTextFilter);
 
 	InitializeAndShowHeaderColumns();
 
@@ -524,8 +493,8 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 {
-	const TArray<FTableTreeNodePtr> SelectedNodes = TreeView->GetSelectedItems();
-	const int32 NumSelectedNodes = SelectedNodes.Num();
+	TArray<FTableTreeNodePtr> SelectedNodes;
+	const int32 NumSelectedNodes = TreeView->GetSelectedItems(SelectedNodes);
 	FTableTreeNodePtr SelectedNode = NumSelectedNodes ? SelectedNodes[0] : nullptr;
 
 	FText SelectionStr;
@@ -778,7 +747,7 @@ void STableTreeView::TreeView_BuildExportMenu(FMenuBuilder& MenuBuilder)
 
 		MenuBuilder.AddMenuEntry
 		(
-			FTableTreeViewCommands::Get().Command_ExportEntireTreeToFileNoLeafs,
+			FTableTreeViewCommands::Get().Command_ExportEntireTreeToFileExceptLeaves,
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
@@ -962,7 +931,7 @@ TSharedRef<SWidget> STableTreeView::TreeViewHeaderRow_GenerateColumnMenu(const F
 
 void STableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	if (bRunInAsyncMode && bIsUpdateRunning && !bIsCloseScheduled)
+	if (bIsUpdateRunning && !bIsCloseScheduled)
 	{
 		if (DispatchEvent.IsValid() && !DispatchEvent->IsComplete())
 		{
@@ -984,32 +953,29 @@ void STableTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurr
 			}
 		}
 	}
+
+	if (LazyInvalidateWidgetReason != EInvalidateWidgetReason::None)
+	{
+		TreeView->Invalidate(LazyInvalidateWidgetReason);
+		LazyInvalidateWidgetReason = EInvalidateWidgetReason::None;
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STableTreeView::UpdateTree()
 {
-	if (bRunInAsyncMode)
+	if (!bIsUpdateRunning)
 	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
+		OnPreAsyncUpdate();
 
-			FGraphEventRef CompletedEvent = StartCreateGroupsTask();
-			CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
-			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
+		FGraphEventRef CompletedEvent = StartCreateGroupsTask();
+		CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
+		InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
 	}
 	else
 	{
-		ApplyGrouping();
-		ApplySorting();
-		ApplyFiltering();
+		CancelCurrentAsyncOp();
 	}
 }
 
@@ -1019,22 +985,15 @@ void STableTreeView::UpdateTree()
 
 void STableTreeView::OnFilteringChanged()
 {
-	if (bRunInAsyncMode)
+	if (!bIsUpdateRunning)
 	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
+		OnPreAsyncUpdate();
 
-			InProgressAsyncOperationEvent = StartApplyFiltersTask();
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
+		InProgressAsyncOperationEvent = StartApplyFiltersTask();
 	}
 	else
 	{
-		ApplyFiltering();
+		CancelCurrentAsyncOp();
 	}
 }
 
@@ -1059,7 +1018,7 @@ void STableTreeView::ApplyFiltering(FTableTreeNodePtr SubTreeRootPtr)
 	}
 	else
 	{
-		const bool bFilterIsEmpty = bRunInAsyncMode ? CurrentAsyncOpTextFilter->GetRawFilterText().IsEmpty() : TextFilter->GetRawFilterText().IsEmpty();
+		const bool bFilterIsEmpty = CurrentAsyncOpTextFilter->GetRawFilterText().IsEmpty();
 		ApplyHierarchicalFilterForNode(SubTreeRootPtr, bFilterIsEmpty);
 	}
 
@@ -1094,44 +1053,6 @@ void STableTreeView::ApplyFiltering(FTableTreeNodePtr SubTreeRootPtr)
 	}
 
 	UpdateAggregatedValuesRec(*Root);
-
-	// Cannot call TreeView functions from other threads than MainThread and SlateThread.
-	if (!bRunInAsyncMode)
-	{
-		// Only expand nodes if we have a text filter.
-		const bool bNonEmptyTextFilter = !TextFilter->GetRawFilterText().IsEmpty();
-		if (bNonEmptyTextFilter)
-		{
-			if (!bExpansionSaved)
-			{
-				ExpandedNodes.Empty();
-				TreeView->GetExpandedItems(ExpandedNodes);
-				bExpansionSaved = true;
-			}
-
-			for (int32 Fx = 0; Fx < FilteredGroupNodes.Num(); Fx++)
-			{
-				const FTableTreeNodePtr& GroupPtr = FilteredGroupNodes[Fx];
-				TreeView->SetItemExpansion(GroupPtr, GroupPtr->IsExpanded());
-			}
-		}
-		else
-		{
-			if (bExpansionSaved)
-			{
-				// Restore previously expanded nodes when the text filter is disabled.
-				TreeView->ClearExpandedItems();
-				for (auto It = ExpandedNodes.CreateConstIterator(); It; ++It)
-				{
-					TreeView->SetItemExpansion(*It, true);
-				}
-				bExpansionSaved = false;
-			}
-		}
-
-		// Request tree refresh
-		TreeView->RequestTreeRefresh();
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1174,14 +1095,7 @@ bool STableTreeView::ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, b
 		const bool bIsGroupNodeVisible = bIsNodeVisible || NumVisibleChildren > 0;
 		if (!bFilterIsEmpty && bIsGroupNodeVisible)
 		{
-			if (bRunInAsyncMode)
-			{
-				NodesToExpand.Add(NodePtr);
-			}
-			else
-			{
-				TreeView->SetItemExpansion(NodePtr, true);
-			}
+			NodesToExpand.Add(NodePtr);
 		}
 		return bIsGroupNodeVisible;
 	}
@@ -1270,14 +1184,7 @@ bool STableTreeView::MakeSubtreeVisible(FTableTreeNodePtr NodePtr, bool bFilterI
 
 			if (bShouldExpand)
 			{
-				if (bRunInAsyncMode)
-				{
-					NodesToExpand.Add(NodePtr);
-				}
-				else
-				{
-					TreeView->SetItemExpansion(NodePtr, true);
-				}
+				NodesToExpand.Add(NodePtr);
 			}
 		}
 
@@ -1467,26 +1374,17 @@ FText STableTreeView::SearchBox_GetTooltipText() const
 
 void STableTreeView::OnGroupingChanged()
 {
-	if (bRunInAsyncMode)
+	if (!bIsUpdateRunning)
 	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
+		OnPreAsyncUpdate();
 
-			FGraphEventRef CompletedEvent = StartCreateGroupsTask();
-			CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
-			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
+		FGraphEventRef CompletedEvent = StartCreateGroupsTask();
+		CompletedEvent = StartSortTreeNodesTask(CompletedEvent);
+		InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
 	}
 	else
 	{
-		ApplyGrouping();
-		ApplySorting();
-		ApplyFiltering();
+		CancelCurrentAsyncOp();
 	}
 }
 
@@ -1586,17 +1484,6 @@ void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTabl
 
 				GroupNodesRec(ChildNodes, Group, GroupingDepth + 1, Groupings);
 			}
-		}
-	}
-
-	if (!bRunInAsyncMode)
-	{
-		// Expand group nodes.
-		for (FBaseTreeNodePtr GroupPtr : ParentGroup.GetChildren())
-		{
-			ensure(GroupPtr->IsGroup());
-			FTableTreeNodePtr TableTreeGroupPtr = StaticCastSharedPtr<FTableTreeNode>(GroupPtr);
-			TreeView->SetItemExpansion(TableTreeGroupPtr, TableTreeGroupPtr->IsExpanded());
 		}
 	}
 }
@@ -2473,24 +2360,16 @@ void STableTreeView::UpdateCurrentSortingByColumn()
 
 void STableTreeView::OnSortingChanged()
 {
-	if (bRunInAsyncMode)
+	if (!bIsUpdateRunning)
 	{
-		if (!bIsUpdateRunning)
-		{
-			OnPreAsyncUpdate();
+		OnPreAsyncUpdate();
 
-			FGraphEventRef CompletedEvent = StartSortTreeNodesTask();
-			InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
-		}
-		else
-		{
-			CancelCurrentAsyncOp();
-		}
+		FGraphEventRef CompletedEvent = StartSortTreeNodesTask();
+		InProgressAsyncOperationEvent = StartApplyFiltersTask(CompletedEvent);
 	}
 	else
 	{
-		ApplySorting();
-		ApplyFiltering();
+		CancelCurrentAsyncOp();
 	}
 }
 
@@ -2911,9 +2790,6 @@ void STableTreeView::ContextMenu_HideAllColumns_Execute()
 
 void STableTreeView::Reset()
 {
-	StatsStartTime = 0.0;
-	StatsEndTime = 0.0;
-
 	RebuildTree(true);
 }
 
@@ -3011,7 +2887,7 @@ void STableTreeView::OnPostAsyncUpdate()
 		ExpandedNodes.Empty();
 
 		// Expand each group node on the first few depths (if it doesn't have too many children).
-		SetExpandValueForChildGroups(Root.Get(), 1000, 4, true);
+		SetExpandValueForChildGroups(Root.Get(), MaxNodesToAutoExpand, MaxDepthToAutoExpand, true);
 
 		ClearInProgressAsyncOperations();
 		TreeView_Refresh();
@@ -3023,11 +2899,11 @@ void STableTreeView::OnPostAsyncUpdate()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::SetExpandValueForChildGroups(FBaseTreeNode* InRoot, int32 InMaxExpandedNodes, int32 InMaxDepthToExpand, bool InValue)
+void STableTreeView::SetExpandValueForChildGroups(FBaseTreeNode* InRoot, int32 InMaxNodesToExpand, int32 InMaxDepthToExpand, bool InValue)
 {
 	TArray<int32> NumNodesPerDepth;
 	NumNodesPerDepth.AddDefaulted(InMaxDepthToExpand + 1);
-	CountNumNodesPerDepthRec(InRoot, NumNodesPerDepth, 0, InMaxDepthToExpand, InMaxExpandedNodes);
+	CountNumNodesPerDepthRec(InRoot, NumNodesPerDepth, 0, InMaxDepthToExpand, InMaxNodesToExpand);
 
 	int32 MaxDepth = 0;
 	for (int32 Depth = 0; Depth <= InMaxDepthToExpand; ++Depth)
@@ -3036,7 +2912,7 @@ void STableTreeView::SetExpandValueForChildGroups(FBaseTreeNode* InRoot, int32 I
 		{
 			NumNodesPerDepth[Depth] += NumNodesPerDepth[Depth - 1];
 		}
-		if (NumNodesPerDepth[Depth] > InMaxExpandedNodes)
+		if (NumNodesPerDepth[Depth] > InMaxNodesToExpand)
 		{
 			break;
 		}
@@ -3324,7 +3200,7 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 		AddCustomAdvancedFilters();
 
 		CurrentAsyncOpFilterConfigurator = new FFilterConfigurator(*FilterConfigurator);
-		OnFilterChangesCommitedHandle = FilterConfigurator->GetOnChangesCommitedEvent().AddSP(this, &STableTreeView::OnAdvancedFiltersChangesCommited);
+		OnFilterChangesCommittedHandle = FilterConfigurator->GetOnChangesCommittedEvent().AddSP(this, &STableTreeView::OnAdvancedFiltersChangesCommitted);
 	}
 
 	FFilterService::Get()->CreateFilterConfiguratorWidget(FilterConfigurator);
@@ -3336,7 +3212,7 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 
 bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 {
-	FFilterConfigurator* FilterConfiguratorToUse = bRunInAsyncMode ? CurrentAsyncOpFilterConfigurator : FilterConfigurator.Get();
+	FFilterConfigurator* FilterConfiguratorToUse = CurrentAsyncOpFilterConfigurator;
 
 	if (FilterConfiguratorToUse == nullptr)
 	{
@@ -3389,7 +3265,7 @@ bool STableTreeView::ApplyAdvancedFilters(const FTableTreeNodePtr& NodePtr)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::OnAdvancedFiltersChangesCommited()
+void STableTreeView::OnAdvancedFiltersChangesCommitted()
 {
 	OnFilteringChanged();
 }
@@ -3540,14 +3416,19 @@ bool STableTreeView::ContextMenu_ExpandSubtree_CanExecute() const
 
 void STableTreeView::ContextMenu_ExpandSubtree_Execute()
 {
-	const TArray<FTableTreeNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	TArray<FTableTreeNodePtr> SelectedNodes;
+	if (!TreeView->GetSelectedItems(SelectedNodes))
+	{
+		return;
+	}
+
 	for (const FTableTreeNodePtr& Node : SelectedNodes)
 	{
 		if (Node->IsGroup())
 		{
 			Node->SetExpansion(true);
 			TreeView->SetItemExpansion(Node, true);
-			SetExpandValueForChildGroups((FBaseTreeNode*)Node.Get(), MAX_NUMBER_OF_NODES_TO_EXPAND, MAX_DEPTH_TO_EXPAND, true);
+			SetExpandValueForChildGroups((FBaseTreeNode*)Node.Get(), MaxNodesToExpand, MaxDepthToExpand, true);
 		}
 	}
 
@@ -3558,7 +3439,12 @@ void STableTreeView::ContextMenu_ExpandSubtree_Execute()
 
 bool STableTreeView::ContextMenu_CollapseSubtree_CanExecute() const
 {
-	const TArray<FTableTreeNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	TArray<FTableTreeNodePtr> SelectedNodes;
+	if (!TreeView->GetSelectedItems(SelectedNodes))
+	{
+		return false;
+	}
+
 	for (const FTableTreeNodePtr& Node : SelectedNodes)
 	{
 		if (Node->IsGroup() && Node->GetFilteredChildren().Num() > 0 && TreeView->IsItemExpanded(Node))
@@ -3574,14 +3460,19 @@ bool STableTreeView::ContextMenu_CollapseSubtree_CanExecute() const
 
 void STableTreeView::ContextMenu_CollapseSubtree_Execute()
 {
-	const TArray<FTableTreeNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	TArray<FTableTreeNodePtr> SelectedNodes;
+	if (!TreeView->GetSelectedItems(SelectedNodes))
+	{
+		return;
+	}
+
 	for (const FTableTreeNodePtr& Node : SelectedNodes)
 	{
 		if (Node->IsGroup() && TreeView->IsItemExpanded(Node))
 		{
 			Node->SetExpansion(false);
 			TreeView->SetItemExpansion(Node, false);
-			SetExpandValueForChildGroups((FBaseTreeNode*)Node.Get(), MAX_NUMBER_OF_NODES_TO_EXPAND, MAX_DEPTH_TO_EXPAND, false);
+			SetExpandValueForChildGroups((FBaseTreeNode*)Node.Get(), MaxNodesToExpand, MaxDepthToExpand, false);
 		}
 	}
 
@@ -3599,7 +3490,12 @@ bool STableTreeView::ContextMenu_ExpandCriticalPath_CanExecute() const
 
 void STableTreeView::ContextMenu_ExpandCriticalPath_Execute()
 {
-	const TArray<FTableTreeNodePtr> SelectedNodes = TreeView->GetSelectedItems();
+	TArray<FTableTreeNodePtr> SelectedNodes;
+	if (!TreeView->GetSelectedItems(SelectedNodes))
+	{
+		return;
+	}
+
 	for (const FTableTreeNodePtr& Node : SelectedNodes)
 	{
 		FTableTreeNodePtr CurrentNode = Node;
@@ -3776,7 +3672,7 @@ void STableTreeView::ApplyViewPreset(const ITableTreeViewPreset& InPreset)
 void STableTreeView::ApplyColumnConfig(const TArrayView<FTableColumnConfig >& InColumnConfigSet)
 {
 	// TODO: Reorder columns as in the config set.
-	// Currenly we only apply visibility and column width.
+	// Currently we only apply visibility and column width.
 	for (const TSharedRef<FTableColumn>& ColumnRef : Table->GetColumns())
 	{
 		FTableColumn& Column = ColumnRef.Get();

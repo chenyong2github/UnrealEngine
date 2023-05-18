@@ -49,7 +49,7 @@ FFilterConfigurator& FFilterConfigurator::operator=(const FFilterConfigurator& O
 	ComputeUsedKeys();
 	RootNode->ProcessFilter();
 
-	OnChangesCommitedEvent.Broadcast();
+	OnChangesCommittedEvent.Broadcast();
 
 	return *this;
 }
