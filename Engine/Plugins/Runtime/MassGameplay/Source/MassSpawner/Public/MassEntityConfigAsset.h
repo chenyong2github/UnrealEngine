@@ -23,7 +23,7 @@ struct MASSSPAWNER_API FMassEntityConfig
 
 	GENERATED_BODY()
 
-	FMassEntityConfig() = default;
+	FMassEntityConfig();
 	FMassEntityConfig(UObject& InOwner);
 
 	/** Create entity template based on the features included in this config.

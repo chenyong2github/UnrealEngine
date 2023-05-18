@@ -21,6 +21,11 @@
 //-----------------------------------------------------------------------------
 // FMassEntityConfig
 //-----------------------------------------------------------------------------
+FMassEntityConfig::FMassEntityConfig()
+{
+	ConfigGuid = FGuid::NewGuid();
+}
+
 FMassEntityConfig::FMassEntityConfig(UObject& InOwner)
 	: ConfigOwner(&InOwner)
 {
