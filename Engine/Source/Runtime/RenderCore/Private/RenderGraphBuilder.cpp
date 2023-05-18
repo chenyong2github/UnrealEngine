@@ -2931,13 +2931,11 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdList
 		}
 	}
 
-	if (!bParallelExecuteEnabled)
+	if (GRDGDebugFlushGPU)
 	{
-		if (GRDGDebugFlushGPU && !GRDGAsyncCompute)
-		{
-			RHICmdList.SubmitCommandsAndFlushGPU();
-			RHICmdList.BlockUntilGPUIdle();
-		}
+		check(!GRDGAsyncCompute && !bParallelExecuteEnabled);
+		RHICmdList.SubmitCommandsAndFlushGPU();
+		RHICmdList.BlockUntilGPUIdle();
 	}
 }
 

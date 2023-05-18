@@ -39,16 +39,9 @@ int32 GRDGDebugFlushGPU = 0;
 FAutoConsoleVariableRef CVarRDGDebugFlushGPU(
 	TEXT("r.RDG.Debug.FlushGPU"),
 	GRDGDebugFlushGPU,
-	TEXT("Enables flushing the GPU after every pass. Disables async compute when set (r.RDG.AsyncCompute=0).\n")
+	TEXT("Enables flushing the GPU after every pass. Disables async compute (r.RDG.AsyncCompute=0) and parallel execute (r.RDG.ParallelExecute=0) when set.\n")
 	TEXT(" 0: disabled (default);\n")
-	TEXT(" 1: enabled (default)."),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable*)
-	{
-		if (GRDGDebugFlushGPU)
-		{
-			GRDGAsyncCompute = 0;
-		}
-	}),
+	TEXT(" 1: enabled."),
 	ECVF_RenderThreadSafe);
 
 int32 GRDGDebugExtendResourceLifetimes = 0;
@@ -279,6 +272,11 @@ TAutoConsoleVariable<int32> CVarRDGAsyncCompute(
 FAutoConsoleVariableSink CVarRDGAsyncComputeSink(FConsoleCommandDelegate::CreateLambda([]()
 {
 	GRDGAsyncCompute = CVarRDGAsyncCompute.GetValueOnGameThread();
+
+	if (GRDGDebugFlushGPU)
+	{
+		GRDGAsyncCompute = 0;
+	}
 
 	if (!IsAsyncComputeSupported())
 	{
@@ -633,6 +631,7 @@ bool IsParallelExecuteEnabled()
 		&& !GRHICommandList.Bypass()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
+		&& !GRDGDebugFlushGPU
 		&& !GRDGTransitionLog
 		&& !IsMobilePlatform(GMaxRHIShaderPlatform)
 		&& !IsOpenGLPlatform(GMaxRHIShaderPlatform)
