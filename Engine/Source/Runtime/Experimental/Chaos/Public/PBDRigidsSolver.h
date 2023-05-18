@@ -59,8 +59,6 @@ namespace Chaos
 	class FGeometryParticleBuffer;
 	class FClusterUnionPhysicsProxy;
 
-	CHAOS_API extern int32 RewindCaptureNumFrames;
-
 	template <typename T,typename R,int d>
 	class ISpatialAccelerationCollection;
 

@@ -11,6 +11,7 @@
 #include "GameFramework/GameNetworkManager.h"
 #include "NetworkingDistanceConstants.h"
 #include "PhysicsReplication.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 #include "DrawDebugHelpers.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Interfaces/Interface_ActorSubobject.h"
@@ -259,8 +260,8 @@ void AActor::PostNetReceiveLocationAndRotation()
 
 void AActor::PostNetReceiveVelocity(const FVector& NewVelocity)
 {
-	static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
-	if (EnableNetworkPhysicsCVar && (EnableNetworkPhysicsCVar->GetInt() == 1))
+	const FPhysicsPredictionSettings& PhysicsPredictionSettings = UPhysicsSettings::Get()->PhysicsPrediction;
+	if (PhysicsPredictionSettings.bEnablePhysicsPrediction)
 	{
 		// required to keep client deterministic with server simulation
 		if (RootComponent && RootComponent->IsRegistered() && (NewVelocity != GetVelocity()))
@@ -1073,3 +1074,22 @@ void AActor::UpdateReplicatePhysicsCondition()
 #endif // UE_WITH_IRIS
 }
 
+bool AActor::CanTriggerResimulation() const
+{
+	return PhysicsReplicationMode == EPhysicsReplicationMode::Resimulation;
+}
+
+void AActor::SetPhysicsReplicationMode(const EPhysicsReplicationMode ReplicationMode)
+{
+	PhysicsReplicationMode = ReplicationMode;
+}
+
+EPhysicsReplicationMode AActor::GetPhysicsReplicationMode()
+{
+	return PhysicsReplicationMode;
+}
+
+float AActor::GetResimulationThreshold() const
+{
+	return UPhysicsSettings::Get()->PhysicsPrediction.ResimulationErrorThreshold;
+}

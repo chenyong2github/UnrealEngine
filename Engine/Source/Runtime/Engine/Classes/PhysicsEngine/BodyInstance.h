@@ -863,6 +863,9 @@ public:
 
 	bool IsPhysicsDisabled() const;
 
+	/** Get the EPhysicsReplicationMode from the owning actor. It's recommended to get the parameter directly from the Actor if possible. */
+	EPhysicsReplicationMode GetPhysicsReplicationMode() const;
+
 private:
 
 	/** Struct of body instance delegates that are rarely bound so that we can only allocate memory if one is actually being used. */

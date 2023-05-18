@@ -342,14 +342,9 @@ void UAsyncPhysicsInputComponent::SetDataClass(TSubclassOf<UAsyncPhysicsData> In
 				// Hack: enable Rewind capture here. This needs to be moved somewhere else
 				// -------------------------------------------------------------------------------------
 
-				int32 NumFrames = 64;
-				static const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
-				if (ensure(NumFramesCVar))
-				{
-					// 1 frame is required to enable rewind capture. 
-					NumFrames = FMath::Max<int32>(1, NumFramesCVar->GetInt());
-				}
-				Solver->EnableRewindCapture(NumFrames, true, MakeUnique<FAsyncPhysicsInputRewindCallback>(World));
+				const int32 PhysicsHistoryLength = FChaosSolversModule::GetModule()->GetSettingsProvider().GetPhysicsHistoryCount();
+
+				Solver->EnableRewindCapture(PhysicsHistoryLength, true, MakeUnique<FAsyncPhysicsInputRewindCallback>(World));
 			}
 
 			FAsyncPhysicsInputRewindCallback* Callback = static_cast<FAsyncPhysicsInputRewindCallback*>(Solver->GetRewindCallback());

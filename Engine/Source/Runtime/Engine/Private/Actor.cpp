@@ -156,6 +156,7 @@ void AActor::InitializeDefaults()
 	bCallPreReplication = true;
 	bCallPreReplicationForReplay = true;
 	bReplicateUsingRegisteredSubObjectList = GDefaultUseSubObjectReplicationList;
+	PhysicsReplicationMode = EPhysicsReplicationMode::Default;
 	NetPriority = 1.0f;
 	NetUpdateFrequency = 100.0f;
 	MinNetUpdateFrequency = 2.0f;

@@ -85,6 +85,36 @@ namespace ESettingsDOF
 	};
 }
 
+/** Physics Prediction Settings */
+USTRUCT()
+struct FPhysicsPredictionSettings
+{
+	GENERATED_BODY();
+
+	/** Enable networked physics prediction */
+	UPROPERTY(EditAnywhere, Category = "Replication")
+	bool bEnablePhysicsPrediction;
+
+	/** Enable physics resimulation */
+	UPROPERTY(EditAnywhere, Category = "Replication", meta = (editcondition = "bEnablePhysicsPrediction"))
+	bool bEnablePhysicsResimulation;
+
+	/** Distance in centimeters before a state discrepancy triggers a resimulation */
+	UPROPERTY(EditAnywhere, Category = "Replication", meta = (editcondition = "bEnablePhysicsPrediction"))
+	float ResimulationErrorThreshold;
+
+	/** Amount of RTT (Round Trip Time) latency for the prediction to support in milliseconds. */
+	UPROPERTY(EditAnywhere, Category = "Replication", meta = (editcondition = "bEnablePhysicsPrediction"))
+	float MaxSupportedLatencyPrediction;
+
+	FPhysicsPredictionSettings()
+		: bEnablePhysicsPrediction(false)
+		, bEnablePhysicsResimulation(false)
+		, ResimulationErrorThreshold(10.0)
+		, MaxSupportedLatencyPrediction(1000)
+	{ }
+};
+
 UENUM()
 namespace ESettingsLockedAxis
 {
@@ -110,6 +140,10 @@ UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Physics"))
 class ENGINE_API UPhysicsSettings : public UPhysicsSettingsCore
 {
 	GENERATED_UCLASS_BODY()
+
+	/** Settings for Networked Physics Prediction, experimental. */
+	UPROPERTY(Config, EditAnywhere, Category = Replication, meta = (DisplayName = "Physics Prediction (Experimental)"))
+	FPhysicsPredictionSettings PhysicsPrediction;
 
 	/** Error correction data for replicating simulated physics (rigid bodies) */
 	UPROPERTY(config, EditAnywhere, Category = Replication)
@@ -220,6 +254,12 @@ class ENGINE_API UPhysicsSettings : public UPhysicsSettingsCore
 public:
 
 	static UPhysicsSettings* Get() { return CastChecked<UPhysicsSettings>(UPhysicsSettings::StaticClass()->GetDefaultObject()); }
+
+	UFUNCTION(BlueprintCallable, Category = "Physics")
+	int32 GetPhysicsHistoryCount() const
+	{
+		return FMath::CeilToInt(1.f / AsyncFixedTimeStepSize) * (PhysicsPrediction.MaxSupportedLatencyPrediction / 1000.f);
+	}
 
 	virtual void PostInitProperties() override;
 

@@ -95,11 +95,10 @@ public:
 			}
 		}
 
-		static IConsoleVariable* ResimNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.ResimNetworkPhysicsPrediction"));
-		const bool bEnableResim =  (ResimNetworkPhysicsCVar && ResimNetworkPhysicsCVar->GetInt() == 1);
 
-		static const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
-		const int32 NumFrames = NumFramesCVar ? NumFramesCVar->GetInt() : 0;
+		const UPhysicsSettings* PhysicsSettings = UPhysicsSettings::Get();
+		const bool bEnableResim = PhysicsSettings->PhysicsPrediction.bEnablePhysicsResimulation;
+		const int32 NumFrames = PhysicsSettings->GetPhysicsHistoryCount();
 
 		for (int32 Idx = 0; Idx < PendingCommands.Num(); ++Idx)
 		{

@@ -2965,6 +2965,27 @@ enum ENetDormancy : int
 	DORM_MAX UMETA(Hidden),
 };
 
+UENUM(BlueprintType)
+enum class EPhysicsReplicationMode : uint8
+{
+	/** Default physics replication.*/
+	Default UMETA(DisplayName = "Default"),
+
+	/** Physics replication performing velocity interpolation.
+	* Recommendation: Set on actors with a local role of ENetRole::ROLE_SimulatedProxy.
+	* Designed to handle local predictive interactions with other actors, especially actors of the local role ENetRole::ROLE_AutonomousProxy.
+	* Work in progress, available when Project Settings > Physics Prediction is enabled.
+	*/
+	PredictiveInterpolation UMETA(DisplayName = "Predictive Interpolation (WIP)"),
+
+	/** Forward predicted replication by simulating physics and correcting errors through resimulating physics from a correct state in the past.
+	* Recommendation: Set on actors with a local role of ENetRole::ROLE_AutonomousProxy.
+	* Can be used for both ROLE_AutonomousProxy and ROLE_SimulatedProxy, though not recommended for ROLE_SimulatedProxy due to CPU performance.
+	* Work in progress, available when Project Settings > Physics Prediction > Resimulation is enabled.
+	*/
+	Resimulation UMETA(DisplayName = "Resimulation (WIP)"),
+};
+
 /** Specifies which player index will pass input to this actor/component */
 UENUM()
 namespace EAutoReceiveInput

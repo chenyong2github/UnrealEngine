@@ -35,6 +35,24 @@ public:
 	{
 		return 0.f;
 	}
+
+	virtual bool GetPhysicsPredictionEnabled() const
+	{
+		return false;
+	}
+	virtual bool GetPhysicsResimulationEnabled() const 
+	{
+		return false;
+	}
+	virtual float GetResimulationErrorThreshold() const
+	{
+		return 0;
+	}
+	virtual int32 GetPhysicsHistoryCount() const
+	{
+		return 0;
+	}
+	
 }; 
 
 namespace Chaos

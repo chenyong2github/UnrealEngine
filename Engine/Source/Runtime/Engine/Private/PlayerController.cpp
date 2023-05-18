@@ -67,6 +67,7 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Physics/AsyncPhysicsInputComponent.h"
 #include "PBDRigidsSolver.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 
 #if UE_WITH_IRIS
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
@@ -109,24 +110,6 @@ namespace NetworkPhysicsCvars
 	int32 EnableDebugRPC = 1;
 #endif
 	FAutoConsoleVariableRef CVarEnableDebugRPC(TEXT("np2.EnableDebugRPC"), EnableDebugRPC, TEXT("Sends extra debug information to clients about server side input buffering"));
-
-	int32 EnableNetworkPhysicsPrediction = 0;
-	FAutoConsoleVariableRef CVarEnableNetworkPhysicsPrediction(TEXT("np2.EnableNetworkPhysicsPrediction"), EnableNetworkPhysicsPrediction, TEXT("Enables network physics prediction"));
-
-	int32 DebugNetworkPhysicsPrediction = 0;
-	FAutoConsoleVariableRef CVarDebugNetworkPhysicsPrediction(TEXT("np2.DebugNetworkPhysicsPrediction"), DebugNetworkPhysicsPrediction, TEXT("Debugs network physics prediction"));
-
-	int32 ResimNetworkPhysicsPrediction = 1;
-	FAutoConsoleVariableRef CVarResimNetworkPhysicsPrediction(TEXT("np2.ResimNetworkPhysicsPrediction"), ResimNetworkPhysicsPrediction, TEXT("Resim network physics prediction"));
-
-	float NetworkPhysicsPredictionErrorThreshold = 10.0f;
-	FAutoConsoleVariableRef CVarNetworkPhysicsPredictionErrorThreshold(TEXT("np2.NetworkPhysicsPredictionErrorThreshold"), NetworkPhysicsPredictionErrorThreshold, TEXT("Position error threshold that will trigger the client correction based on the server prediction"));
-	
-	float NetworkPhysicsPredictionInterpLerp = 0.1f;
-	FAutoConsoleVariableRef CVarNetworkPhysicsPredictionInterpLerp(TEXT("np2.NetworkPhysicsPredictionInterpLerp"), NetworkPhysicsPredictionInterpLerp, TEXT("State lerp value in between the target state and the current one in case resim is disabled or if the pawn is not possessed (continuous correction)"));
-
-	float NetworkPhysicsPredictionResimLerp = 1.0f;
-	FAutoConsoleVariableRef CVarNetworkPhysicsPredictionResimLerp(TEXT("np2.NetworkPhysicsPredictionResimLerp"), NetworkPhysicsPredictionResimLerp, TEXT("State lerp value in between the target state and the matching one in the history when resim is enabled"));
 }
 
 const float RetryClientRestartThrottleTime = 0.5f;
@@ -210,7 +193,7 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 		RootComponent->SetUsingAbsoluteRotation(true);
 	}
 
-	if(NetworkPhysicsCvars::EnableNetworkPhysicsPrediction == 1)
+	if (UPhysicsSettings::Get()->PhysicsPrediction.bEnablePhysicsPrediction)
 	{
 		bAsyncPhysicsTickEnabled = true;
 		AsyncPhysicsDataClass = UAsyncPhysicsData::StaticClass();
@@ -1677,7 +1660,7 @@ void APlayerController::ClientSetCameraFade_Implementation(bool bEnableFading, F
 
 void APlayerController::SendClientAdjustment()
 {
-	if(!NetworkPhysicsCvars::EnableNetworkPhysicsPrediction)
+	if(!UPhysicsSettings::Get()->PhysicsPrediction.bEnablePhysicsPrediction)
 	{
 		if (ServerFrameInfo.LastProcessedInputFrame != INDEX_NONE && ServerFrameInfo.LastProcessedInputFrame != ServerFrameInfo.LastSentLocalFrame)
 		{
@@ -5177,7 +5160,7 @@ void APlayerController::TickActor( float DeltaSeconds, ELevelTick TickType, FAct
 	// Clear old axis inputs since we are done with them. 
 	RotationInput = FRotator::ZeroRotator;
 
-	if(!!NetworkPhysicsCvars::EnableNetworkPhysicsPrediction && GetLocalRole() == ROLE_AutonomousProxy && bIsClient)
+	if(UPhysicsSettings::Get()->PhysicsPrediction.bEnablePhysicsPrediction && GetLocalRole() == ROLE_AutonomousProxy && bIsClient)
 	{
 		UpdateServerAsyncPhysicsTickOffset();
 	}
@@ -6158,7 +6141,7 @@ void APlayerController::AsyncPhysicsTickActor(float DeltaTime, float SimTime)
 {
 	Super::AsyncPhysicsTickActor(DeltaTime, SimTime);
 
-	if(NetworkPhysicsCvars::EnableNetworkPhysicsPrediction)
+	if(UPhysicsSettings::Get()->PhysicsPrediction.bEnablePhysicsPrediction)
 	{
 		//TODO: only kick this off if server and using this feature
 		if (IsLocalController()) { return; }

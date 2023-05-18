@@ -12,6 +12,7 @@
 #include "Containers/Queue.h"
 #include "Chaos/ChaosMarshallingManager.h"
 #include "Stats/Stats2.h"
+#include "ChaosSolversModule.h"
 
 #if WITH_CHAOS_VISUAL_DEBUGGER
 #include "ChaosVisualDebugger/ChaosVDContextProvider.h"
@@ -637,40 +638,45 @@ namespace Chaos
 		/**/
 		FReal GetLastDt() const { return MLastDt; }
 
-		/** Return the interpolation lerp in case the resim is off */
-		static float NetworkPhysicsInterpolationLerp()
+		/** Check if we can enable debugging informations for network physics */
+		static bool CanDebugNetworkPhysicsPrediction()
 		{
-			static IConsoleVariable* InterpLerpCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.NetworkPhysicsPredictionInterpLerp"));
-			return InterpLerpCVar ? InterpLerpCVar->GetFloat() : 0.1f;
-		}
+			static int32 DebugNetworkPhysicsPrediction = 0;
+			static FAutoConsoleVariableRef CVarDebugNetworkPhysicsPrediction(TEXT("np2.DebugNetworkPhysicsPrediction"), DebugNetworkPhysicsPrediction, TEXT("Debugs network physics prediction"));
 
-		/** Return the error position threshold to trigger a resim*/
-		static float NetworkPhysicsErrorThreshold()
-		{
-			static IConsoleVariable* ErrorThresholdCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.NetworkPhysicsPredictionErrorThreshold"));
-			return ErrorThresholdCVar ? ErrorThresholdCVar->GetFloat() : 10.0f;
+			return !!DebugNetworkPhysicsPrediction;
 		}
 
 		/** Check if network physics is enables or not */
 		static bool IsNetworkPhysicsPredictionEnabled()
 		{
-			static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
-			return EnableNetworkPhysicsCVar && (EnableNetworkPhysicsCVar->GetInt() == 1);
-		}
-
-		/** Check if we can enable debugging informations for network physics */
-		static bool CanDebugNetworkPhysicsPrediction()
-		{
-			static IConsoleVariable* DebugNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.DebugNetworkPhysicsPrediction"));
-			return DebugNetworkPhysicsCVar && (DebugNetworkPhysicsCVar->GetInt() == 1);
+			const bool NetworkPhysicsEnabled = FChaosSolversModule::GetModule()->GetSettingsProvider().GetPhysicsPredictionEnabled();
+			return NetworkPhysicsEnabled;
 		}
 
 		/** Check if resim is enabled for network physics */
-		static bool CanResimNetworkPhysicsPrediction()
+		static bool IsPhysicsResimulationEnabled()
 		{
-			static IConsoleVariable* ResimNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.ResimNetworkPhysicsPrediction"));
-			return ResimNetworkPhysicsCVar && (ResimNetworkPhysicsCVar->GetInt() == 1);
+			const bool PhysicsResimulationEnabled = FChaosSolversModule::GetModule()->GetSettingsProvider().GetPhysicsResimulationEnabled();
+			return PhysicsResimulationEnabled;
 		}
+
+		static float ResimulationErrorThreshold()
+		{
+			const float ResimulationErrorThreshold = FChaosSolversModule::GetModule()->GetSettingsProvider().GetResimulationErrorThreshold();
+			return ResimulationErrorThreshold;
+
+		}
+
+		/** Return the interpolation lerp in case the resim is off */
+		static float NetworkPhysicsInterpolationLerp()
+		{
+			static float NetworkPhysicsPredictionInterpLerp = 0.1f;
+			static FAutoConsoleVariableRef CVarNetworkPhysicsPredictionInterpLerp(TEXT("np2.NetworkPhysicsPredictionInterpLerp"), NetworkPhysicsPredictionInterpLerp, TEXT("State lerp value in between the target state and the current one in case resim is disabled or if the pawn is not possessed (continuous correction)"));
+
+			return NetworkPhysicsPredictionInterpLerp;
+		}
+
 
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */

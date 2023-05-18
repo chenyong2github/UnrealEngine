@@ -3529,6 +3529,18 @@ bool FBodyInstance::IsPhysicsDisabled() const
 	return bIsDisabled;
 }
 
+EPhysicsReplicationMode FBodyInstance::GetPhysicsReplicationMode() const
+{
+	UPrimitiveComponent* OwnerComponentInst = OwnerComponent.Get();
+	AActor* OwningActor = OwnerComponentInst ? OwnerComponentInst->GetOwner() : nullptr;
+	if (OwningActor)
+	{
+		return OwningActor->GetPhysicsReplicationMode();
+	}
+
+	return EPhysicsReplicationMode::Default;
+}
+
 void FBodyInstance::AddRadialImpulseToBody(const FVector& Origin, float Radius, float Strength, uint8 Falloff, bool bVelChange)
 {
 	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
@@ -4304,7 +4316,6 @@ FRecalculatedMassProperties& FBodyInstance::OnRecalculatedMassProperties()
 	return BodyInstanceDelegates->OnRecalculatedMassProperties;
 }
 
-
 bool FBodyInstanceAsyncPhysicsTickHandle::IsValid() const
 {
 	return Proxy && Proxy->GetPhysicsThreadAPI() != nullptr;
@@ -4314,6 +4325,7 @@ Chaos::FRigidBodyHandle_Internal* FBodyInstanceAsyncPhysicsTickHandle::operator-
 {
 	return Proxy->GetPhysicsThreadAPI();
 }
+
 
 ////////////////////////////////////////////////////////////////////////////
 // FBodyInstanceEditorHelpers

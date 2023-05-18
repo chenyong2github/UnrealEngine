@@ -1090,13 +1090,12 @@ void UChaosVehicleMovementComponent::OnCreatePhysicsState()
 							AController* Controller = GetController();
 							const bool bIsLocalHistory = (Controller && Controller->IsLocalController());
 
-							static const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
-							const int32 NumFrames = NumFramesCVar ? NumFramesCVar->GetInt() : 50;
+							const int32 PhysicsHistoryLength = UPhysicsSettings::Get()->GetPhysicsHistoryCount();
 
-							VehicleSimulationPT->InputsHistory = MakeShared<FVehicleInputsHistory>(NumFrames, bIsLocalHistory, VehicleSimulationPT.Get());
+							VehicleSimulationPT->InputsHistory = MakeShared<FVehicleInputsHistory>(PhysicsHistoryLength, bIsLocalHistory, VehicleSimulationPT.Get());
 							RewindData->AddInputsHistory(VehicleSimulationPT->InputsHistory);
 
-							VehicleSimulationPT->StatesHistory = MakeShared<FVehicleStatesHistory>(NumFrames, bIsLocalHistory, VehicleSimulationPT.Get());
+							VehicleSimulationPT->StatesHistory = MakeShared<FVehicleStatesHistory>(PhysicsHistoryLength, bIsLocalHistory, VehicleSimulationPT.Get());
 							RewindData->AddStatesHistory(VehicleSimulationPT->StatesHistory);
 						}
 					}

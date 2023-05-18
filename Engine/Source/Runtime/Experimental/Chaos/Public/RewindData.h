@@ -1009,8 +1009,6 @@ const T* ConstifyHelper(T* Ptr) { return Ptr; }
 template <typename T>
 T NoRefHelper(const T& Ref) { return Ref; }
 
-extern CHAOS_API int32 EnableResimCache;
-
 template <typename TVal>
 class TDirtyObjects
 {
@@ -1182,7 +1180,8 @@ public:
 
 	IResimCacheBase* GetCurrentStepResimCache() const
 	{
-		return !!EnableResimCache && bResimOptimization ? Managers[CurFrame].ExternalResimCache.Get() : nullptr;
+		const bool PhysicsPredictionEnabled = FPhysicsSolverBase::IsNetworkPhysicsPredictionEnabled();
+		return PhysicsPredictionEnabled && bResimOptimization ? Managers[CurFrame].ExternalResimCache.Get() : nullptr;
 	}
 
 	void CHAOS_API DumpHistory_Internal(const int32 FramePrintOffset, const FString& Filename = FString(TEXT("Dump")));

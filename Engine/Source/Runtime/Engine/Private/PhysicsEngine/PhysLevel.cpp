@@ -42,6 +42,24 @@ public:
 	{
 		return GetSettings()->MinDeltaVelocityForHitEvents;
 	}
+
+	virtual bool GetPhysicsPredictionEnabled() const override
+	{
+		return GetSettings()->PhysicsPrediction.bEnablePhysicsPrediction;
+	}
+	virtual bool GetPhysicsResimulationEnabled() const override
+	{
+		return GetSettings()->PhysicsPrediction.bEnablePhysicsResimulation;
+	}
+	virtual float GetResimulationErrorThreshold() const override
+	{
+		return GetSettings()->PhysicsPrediction.ResimulationErrorThreshold;
+	}
+	virtual int32 GetPhysicsHistoryCount() const override
+	{
+		return GetSettings()->GetPhysicsHistoryCount();
+	}
+
 private:
 
 	const UPhysicsSettings* GetSettings() const

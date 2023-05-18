@@ -763,6 +763,28 @@ public:
 	float NetPriority;
 
 private:
+	/** Which mode to replicate physics through for this actor. Only relevant if the actor replicates movement and has a component that simulate physics.*/
+	UPROPERTY(EditDefaultsOnly, Category = Replication)
+	EPhysicsReplicationMode PhysicsReplicationMode;
+	
+public:
+	/** Set the physics replication mode of this body, via EPhysicsReplicationMode */
+	UFUNCTION(BlueprintCallable, Category = Physics)
+	void SetPhysicsReplicationMode(const EPhysicsReplicationMode ReplicationMode);
+
+	/** Get the physics replication mode of this body, via EPhysicsReplicationMode */
+	UFUNCTION(BlueprintCallable, Category = Physics)
+	EPhysicsReplicationMode GetPhysicsReplicationMode();
+
+	/** Can this body trigger a resimulation when Physics Prediction is enabled */
+	UFUNCTION(BlueprintCallable, Category = Physics)
+	bool CanTriggerResimulation() const;
+
+	/** Get the error threshold in centimeters before this object should enforce a resimulation to trigger. */
+	UFUNCTION(BlueprintCallable, Category = Physics)
+	float GetResimulationThreshold() const;
+
+private:
 	/**
 	 * The value of WorldSettings->TimeSeconds for the frame when one of this actor's components was last rendered.  This is written
 	 * from the render thread, which is up to a frame behind the game thread, so you should allow this time to

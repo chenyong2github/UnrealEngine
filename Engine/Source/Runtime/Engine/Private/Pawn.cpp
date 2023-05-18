@@ -26,6 +26,7 @@
 #include "Components/PawnNoiseEmitterComponent.h"
 #include "GameFramework/GameNetworkManager.h"
 #include "GameFramework/InputSettings.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 #include "Engine/DemoNetDriver.h"
 #include "Misc/EngineNetworkCustomVersion.h"
 
@@ -1168,8 +1169,8 @@ void APawn::GetMoveGoalReachTest(const AActor* MovingActor, const FVector& MoveO
 
 void APawn::PostNetReceiveVelocity(const FVector& NewVelocity)
 {
-	static IConsoleVariable* EnableNetworkPhysicsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("np2.EnableNetworkPhysicsPrediction"));
-	if (EnableNetworkPhysicsCVar && EnableNetworkPhysicsCVar->GetInt() == 1)
+	const FPhysicsPredictionSettings& PhysicsPredictionSettings = UPhysicsSettings::Get()->PhysicsPrediction;
+	if (PhysicsPredictionSettings.bEnablePhysicsPrediction)
 	{
 		Super::PostNetReceiveVelocity(NewVelocity);
 	}
