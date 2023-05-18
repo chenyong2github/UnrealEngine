@@ -5791,6 +5791,16 @@
             file was integrated into previously nonexistent partner-file, and partner-file was reopened for add before submission.
             </summary>
         </member>
+        <member name="F:EpicGames.Perforce.IntegrateAction.Undid">
+            <summary>
+            The resulting revision has "undid" the edited changes (content and history) from the previously submitted revision(s)
+            </summary>
+        </member>
+        <member name="F:EpicGames.Perforce.IntegrateAction.UndoneBy">
+            <summary>
+            The previous revision(s) have been "undone by" the resulting revision, known as the "undone" revision.
+            </summary>
+        </member>
         <member name="T:EpicGames.Perforce.IntegrationRecord">
             <summary>
             Stores integration information for a file revision
