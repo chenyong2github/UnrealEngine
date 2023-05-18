@@ -18,7 +18,7 @@ TAutoConsoleVariable<int32> CVarAnimBlendStackPruningEnable(TEXT("a.AnimNode.Ble
 
 /////////////////////////////////////////////////////
 // FPoseSearchAnimPlayer
-void FPoseSearchAnimPlayer::Initialize(UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, float BlendTime, const UBlendProfile* BlendProfile, EAlphaBlendOption InBlendOption, FVector BlendParameters, float PlayRate)
+void FPoseSearchAnimPlayer::Initialize(UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, float BlendTime, float RootBoneBlendTime, const UBlendProfile* BlendProfile, EAlphaBlendOption InBlendOption, FVector BlendParameters, float PlayRate)
 {
 	check(AnimationAsset);
 
@@ -27,18 +27,46 @@ void FPoseSearchAnimPlayer::Initialize(UAnimationAsset* AnimationAsset, float Ac
 		UE_LOG(LogPoseSearch, Error, TEXT("FPoseSearchAnimPlayer failed to Initialize for %s. Mirroring will not work becasue MirrorDataTable is missing"), *GetNameSafe(AnimationAsset));
 	}
 
-	if (BlendProfile != nullptr)
+	const FReferenceSkeleton& RefSkeleton = AnimationAsset->GetSkeleton()->GetReferenceSkeleton();
+	const bool bApplyDifferentRootBoneBlendTime = RootBoneBlendTime >= 0.f && !FMath::IsNearlyEqual(RootBoneBlendTime, BlendTime);
+	const int32 NumSkeletonBones = RefSkeleton.GetNum();
+	if (NumSkeletonBones <= 0)
 	{
-		const USkeleton* SkeletonAsset = BlendProfile->OwningSkeleton;
-		check(SkeletonAsset);
-
-		const FReferenceSkeleton& RefSkeleton = SkeletonAsset->GetReferenceSkeleton();
-		const int32 NumSkeletonBones = RefSkeleton.GetNum();
-		TotalBlendInTimePerBone.Init(BlendTime, NumSkeletonBones);
-
-		BlendProfile->FillSkeletonBoneDurationsArray(TotalBlendInTimePerBone, BlendTime);
-		BlendTime = *Algo::MaxElement(TotalBlendInTimePerBone);
+		UE_LOG(LogPoseSearch, Error, TEXT("FPoseSearchAnimPlayer failed to Initialize for %s. Skeleton has no bones?!"), *GetNameSafe(AnimationAsset));
 	}
+	else if (BlendTime > UE_KINDA_SMALL_NUMBER)
+	{
+		// handling BlendTime > 0 and RootBoneBlendTime >= 0
+		if (BlendProfile != nullptr)
+		{
+			check(BlendProfile->OwningSkeleton && NumSkeletonBones == BlendProfile->OwningSkeleton->GetReferenceSkeleton().GetNum());
+
+			TotalBlendInTimePerBone.Init(BlendTime, NumSkeletonBones);
+
+			BlendProfile->FillSkeletonBoneDurationsArray(TotalBlendInTimePerBone, BlendTime);
+
+			if (bApplyDifferentRootBoneBlendTime)
+			{
+				TotalBlendInTimePerBone[RootBoneIndexType] *= RootBoneBlendTime / BlendTime;
+			}
+
+			BlendTime = *Algo::MaxElement(TotalBlendInTimePerBone);
+		}
+		else if (bApplyDifferentRootBoneBlendTime)
+		{
+			TotalBlendInTimePerBone.Init(BlendTime, NumSkeletonBones);
+			TotalBlendInTimePerBone[RootBoneIndexType] *= RootBoneBlendTime / BlendTime;
+			BlendTime = FMath::Max(BlendTime, RootBoneBlendTime);
+		}
+	}
+	else if (bApplyDifferentRootBoneBlendTime)
+	{
+		// handling BlendTime ~= 0 and RootBoneBlendTime >= 0
+		TotalBlendInTimePerBone.Init(BlendTime, NumSkeletonBones);
+		TotalBlendInTimePerBone[RootBoneIndexType] = RootBoneBlendTime;
+		BlendTime = FMath::Max(BlendTime, RootBoneBlendTime);
+	}
+
 	BlendOption = InBlendOption;
 
 	TotalBlendInTime = BlendTime;
@@ -382,11 +410,11 @@ float FAnimNode_BlendStack_Standalone::GetAccumulatedTime() const
 	return AnimPlayers.IsEmpty() ? 0.f : AnimPlayers.First().GetAccumulatedTime();
 }
 
-void FAnimNode_BlendStack_Standalone::BlendTo(UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, int32 MaxActiveBlends, float BlendTime, const UBlendProfile* BlendProfile, EAlphaBlendOption BlendOption, FVector BlendParameters, float PlayRate)
+void FAnimNode_BlendStack_Standalone::BlendTo(UAnimationAsset* AnimationAsset, float AccumulatedTime, bool bLoop, bool bMirrored, UMirrorDataTable* MirrorDataTable, int32 MaxActiveBlends, float BlendTime, float RootBoneBlendTime, const UBlendProfile* BlendProfile, EAlphaBlendOption BlendOption, FVector BlendParameters, float PlayRate)
 {
 	RequestedMaxActiveBlends = MaxActiveBlends;
 	AnimPlayers.PushFirst(FPoseSearchAnimPlayer());
-	AnimPlayers.First().Initialize(AnimationAsset, AccumulatedTime, bLoop, bMirrored, MirrorDataTable, BlendTime, BlendProfile, BlendOption, BlendParameters, PlayRate);
+	AnimPlayers.First().Initialize(AnimationAsset, AccumulatedTime, bLoop, bMirrored, MirrorDataTable, BlendTime, RootBoneBlendTime, BlendProfile, BlendOption, BlendParameters, PlayRate);
 }
 
 void FAnimNode_BlendStack_Standalone::UpdatePlayRate(float PlayRate)
@@ -457,7 +485,7 @@ void FAnimNode_BlendStack::UpdateAssetPlayer(const FAnimationUpdateContext& Cont
 
 		if (bExecuteBlendTo)
 		{
-			BlendTo(AnimationAsset, AnimationTime, bLoop, bMirrored, MirrorDataTable.Get(), MaxActiveBlends, BlendTime, BlendProfile, BlendOption, BlendParameters, WantedPlayRate);
+			BlendTo(AnimationAsset, AnimationTime, bLoop, bMirrored, MirrorDataTable.Get(), MaxActiveBlends, BlendTime, RootBoneBlendTime, BlendProfile, BlendOption, BlendParameters, WantedPlayRate);
 		}
 	}
 	

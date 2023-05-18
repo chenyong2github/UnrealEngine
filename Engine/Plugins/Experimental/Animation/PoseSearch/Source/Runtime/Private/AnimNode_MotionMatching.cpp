@@ -48,22 +48,33 @@ void FAnimNode_MotionMatching::Evaluate_AnyThread(FPoseContext& Output)
 
 	Source.Evaluate(Output);
 
-	// applying MotionMatchingState.RootBoneDeltaYaw
+	// applying MotionMatchingState.RootBoneDeltaYaw to the root bone and the root motion delta transform
 	if (!FMath::IsNearlyZero(MotionMatchingState.GetRootBoneDeltaYaw()))
 	{
 		const FQuat RootBoneDelta(FRotator(0.f, MotionMatchingState.GetRootBoneDeltaYaw(), 0.f));
 		FCompactPoseBoneIndex RootBoneIndex(RootBoneIndexType);
 		Output.Pose[RootBoneIndex].SetRotation(Output.Pose[RootBoneIndex].GetRotation() * RootBoneDelta);
 		Output.Pose[RootBoneIndex].NormalizeRotation();
+
+		const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
+		if (RootMotionProvider && RootMotionProvider->HasRootMotion(Output.CustomAttributes))
+		{
+			FTransform RootMotionTransformDelta;
+			RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta);
+			RootMotionTransformDelta.SetTranslation(RootBoneDelta.RotateVector(RootMotionTransformDelta.GetTranslation()));
+			RootMotionProvider->OverrideRootMotion(RootMotionTransformDelta, Output.CustomAttributes);
+		}
 	}
 	
 #if UE_POSE_SEARCH_TRACE_ENABLED
-	MotionMatchingState.RootMotionTransformDelta = FTransform::Identity;
-
 	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
 	if (RootMotionProvider && RootMotionProvider->HasRootMotion(Output.CustomAttributes))
 	{
 		RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, MotionMatchingState.RootMotionTransformDelta);
+	}
+	else
+	{
+		MotionMatchingState.RootMotionTransformDelta = FTransform::Identity;
 	}
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 }
@@ -168,9 +179,11 @@ void FAnimNode_MotionMatching::UpdateAssetPlayer(const FAnimationUpdateContext& 
 		{
 			if (const FPoseSearchDatabaseAnimationAssetBase* DatabaseAsset = CurrentResultDatabase->GetAnimationAssetBase(*SearchIndexAsset))
 			{
+				// root bone blending needs to be immediate if MM node controls the offset between mesh component and root bone
+				const float RootBoneBlendTime = FMath::IsNearlyZero(YawFromAnimation) ? BlendTime : 0.f;
 				BlendStackNode.BlendTo(DatabaseAsset->GetAnimationAsset(), MotionMatchingState.CurrentSearchResult.AssetTime,
 					DatabaseAsset->IsLooping(), SearchIndexAsset->bMirrored, CurrentResultDatabase->Schema->MirrorDataTable.Get(),
-					MaxActiveBlends, BlendTime, BlendProfile, BlendOption, SearchIndexAsset->BlendParameters, MotionMatchingState.WantedPlayRate);
+					MaxActiveBlends, BlendTime, RootBoneBlendTime, BlendProfile, BlendOption, SearchIndexAsset->BlendParameters, MotionMatchingState.WantedPlayRate);
 			}
 		}
 	}
