@@ -16,6 +16,21 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromBPVariableDescription
 	return ExternalVariableFromPinType(InVariableDescription.VarName, InVariableDescription.VarType, bIsPublic, bIsReadOnly);
 }
 
+FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromBPVariableDescription(const FBPVariableDescription& InVariableDescription, void* Container)
+{
+	const bool bIsPublic = !((InVariableDescription.PropertyFlags & CPF_DisableEditOnInstance) == CPF_DisableEditOnInstance);
+	const bool bIsReadOnly = ((InVariableDescription.PropertyFlags & CPF_BlueprintReadOnly) == CPF_BlueprintReadOnly);
+	
+	FRigVMExternalVariable ExternalVariable = ExternalVariableFromPinType(InVariableDescription.VarName, InVariableDescription.VarType, bIsPublic, bIsReadOnly);
+	
+	if (Container != nullptr && ExternalVariable.Property != nullptr)
+	{
+		ExternalVariable.Memory = (uint8*)ExternalVariable.Property->ContainerPtrToValuePtr<uint8>(Container);
+	}
+
+	return ExternalVariable;
+}
+
 FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromPinType(const FName& InName, const FEdGraphPinType& InPinType, bool bInPublic, bool bInReadonly)
 {
 	FRigVMExternalVariable ExternalVariable;
@@ -240,7 +255,7 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 	return Variable;
 }
 
-#endif
+#endif // WITH_EDITOR
 
 TRigVMTypeIndex FRigVMExternalVariable::GetTypeIndex() const
 {
@@ -250,3 +265,15 @@ TRigVMTypeIndex FRigVMExternalVariable::GetTypeIndex() const
 	}
 	return INDEX_NONE;
 }
+RIGVM_API TArray<FRigVMExternalVariableDef> RigVMTypeUtils::GetExternalVariableDefs(const TArray<FRigVMExternalVariable>& ExternalVariables)
+{
+	TArray<FRigVMExternalVariableDef> VariableDefs;
+
+	for (const FRigVMExternalVariable& Var : ExternalVariables)
+	{
+		VariableDefs.Add(Var);
+	}
+
+	return VariableDefs;
+}
+

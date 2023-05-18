@@ -14,7 +14,7 @@
 
 // Unique Control Rig Object version id
 const FGuid FControlRigObjectVersion::GUID(0xA7820CFB, 0x20A74359, 0x8C542C14, 0x9623CF50);
-// Register AnimPhys custom version with Core
+// Register ControlRig custom version with Core
 FDevVersionRegistration GRegisterControlRigObjectVersion(FControlRigObjectVersion::GUID, FControlRigObjectVersion::LatestVersion, TEXT("Dev-ControlRig"));
 
 void FControlRigModule::StartupModule()

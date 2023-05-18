@@ -886,7 +886,7 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 				{
 					if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
 					{
-						const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetVM(), FRigVMASTProxy());
+						const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetExtendedExecuteContext(), DebuggedControlRig->GetVM(), FRigVMASTProxy());
 						if(Count == 0)
 						{
 							PinnedWatchText = FString::Printf(TEXT("Node is not running - wrong event?\n%s"), *PinnedWatchText);
@@ -971,7 +971,7 @@ TArray<FOverlayWidgetInfo> SControlRigGraphNode::GetOverlayWidgets(bool bSelecte
 				{
 					if(bShowNodeCounts || bShowInstructionIndex)
 					{
-						const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetVM(), FRigVMASTProxy());
+						const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetExtendedExecuteContext(), DebuggedControlRig->GetVM(), FRigVMASTProxy());
 						if((Count > Blueprint->RigGraphDisplaySettings.NodeRunLowerBound) || bShowInstructionIndex)
 						{
 							const int32 VOffset = bSelected ? -2 : 2;
@@ -985,7 +985,7 @@ TArray<FOverlayWidgetInfo> SControlRigGraphNode::GetOverlayWidgets(bool bSelecte
 
 					if(bEnableProfiling)
 					{
-						const double MicroSeconds = ModelNode->GetInstructionMicroSeconds(DebuggedControlRig->GetVM(), FRigVMASTProxy());
+						const double MicroSeconds = ModelNode->GetInstructionMicroSeconds(DebuggedControlRig->GetExtendedExecuteContext(), DebuggedControlRig->GetVM(), FRigVMASTProxy());
 						if(MicroSeconds >= 0.0)
 						{
 							const int32 VOffset = bSelected ? -2 : 2;
@@ -1244,13 +1244,13 @@ FText SControlRigGraphNode::GetInstructionCountText() const
 					int32 FirstInstructionIndex = INDEX_NONE;
 					if(bShowNodeRunCount)
 					{
-						RunCount = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetVM(), FRigVMASTProxy());
+						RunCount = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetExtendedExecuteContext(), DebuggedControlRig->GetVM(), FRigVMASTProxy());
 						bShowNodeRunCount = RunCount > Blueprint->RigGraphDisplaySettings.NodeRunLowerBound;
 					}
 
 					if(bShowInstructionIndex)
 					{
-						const TArray<int32> Instructions = ModelNode->GetInstructionsForVM(DebuggedControlRig->GetVM());
+						const TArray<int32> Instructions = ModelNode->GetInstructionsForVM(DebuggedControlRig->GetExtendedExecuteContext(), DebuggedControlRig->GetVM());
 						bShowInstructionIndex = Instructions.Num() > 0;
 						if(bShowInstructionIndex)
 						{
@@ -1299,7 +1299,7 @@ FText SControlRigGraphNode::GetInstructionDurationText() const
 			{
 				if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
 				{
-					const double MicroSeconds = ModelNode->GetInstructionMicroSeconds(DebuggedControlRig->GetVM(), FRigVMASTProxy());
+					const double MicroSeconds = ModelNode->GetInstructionMicroSeconds(DebuggedControlRig->GetExtendedExecuteContext(), DebuggedControlRig->GetVM(), FRigVMASTProxy());
 					if(MicroSeconds >= 0)
 					{
 						return FText::FromString(FString::Printf(TEXT("%d µs"), (int32)MicroSeconds));

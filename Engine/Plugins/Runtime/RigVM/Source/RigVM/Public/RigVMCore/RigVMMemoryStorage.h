@@ -141,7 +141,6 @@ public:
 	
 	FRigVMLazyBranch()
 		: VM(nullptr)
-		, LastVMNumExecutions()
 		, BranchInfo()
 		, FunctionPtr(nullptr)
 	{}
@@ -152,7 +151,6 @@ public:
 private:
 
 	URigVM* VM;
-	TArray<int32> LastVMNumExecutions;
 	FRigVMBranchInfo BranchInfo;
 	TFunction<ERigVMExecuteResult()> FunctionPtr;
 

@@ -20,22 +20,12 @@
  * memory into the VM and back out
  */
 USTRUCT(BlueprintType)
-struct RIGVM_API FRigVMExternalVariable
+struct RIGVM_API FRigVMExternalVariableDef
 {
 	GENERATED_BODY()
-	
-	FRigVMExternalVariable()
-		: Name(NAME_None)
-		, Property(nullptr)
-		, TypeName(NAME_None)
-		, TypeObject(nullptr)
-		, bIsArray(false)
-		, bIsPublic(false)
-		, bIsReadOnly(false)
-		, Size(0)
-		, Memory(nullptr)
-	{
-	}
+
+	FRigVMExternalVariableDef() = default;
+	FRigVMExternalVariableDef(const FRigVMExternalVariableDef& Other) = default;
 
 	static void GetTypeFromProperty(const FProperty* InProperty, FName& OutTypeName, UObject*& OutTypeObject)
 	{
@@ -127,6 +117,55 @@ struct RIGVM_API FRigVMExternalVariable
 		{
 			checkNoEntry();
 		}
+	}
+
+	bool IsValid() const
+	{
+		return Name.IsValid() &&
+			!Name.IsNone() &&
+			TypeName.IsValid() &&
+			!TypeName.IsNone();
+	}
+
+	FName GetExtendedCPPType() const
+	{
+		if(bIsArray)
+		{
+			return *RigVMTypeUtils::ArrayTypeFromBaseType(TypeName.ToString());
+		}
+		return TypeName;
+	}
+
+	FName Name = NAME_None;
+	const FProperty* Property =  nullptr;
+	FName TypeName = NAME_None;
+	UObject* TypeObject = nullptr;
+	bool bIsArray = false;
+	bool bIsPublic = false;
+	bool bIsReadOnly = false;
+	int32 Size = 0;
+};
+
+USTRUCT()
+struct RIGVM_API FRigVMExternalVariable : public FRigVMExternalVariableDef
+{
+	GENERATED_BODY()
+	
+	FRigVMExternalVariable()
+		: FRigVMExternalVariableDef()
+	{
+	}
+
+	FRigVMExternalVariable(const FRigVMExternalVariableDef& Other)
+		: FRigVMExternalVariableDef(Other)
+		, Memory(nullptr)
+	{
+	}
+
+	FRigVMExternalVariable(const FRigVMExternalVariableDef& Other, uint8* InMemory)
+		: FRigVMExternalVariableDef(Other)
+		, Memory(InMemory)
+	{
 	}
 
 	static uint32 GetPropertyTypeHash(const FProperty *InProperty, const uint8 *InMemory)
@@ -579,32 +618,22 @@ struct RIGVM_API FRigVMExternalVariable
 
 	bool IsValid(bool bAllowNullPtr = false) const
 	{
-		return Name.IsValid() && 
-			!Name.IsNone() &&
-			TypeName.IsValid() &&
-			!TypeName.IsNone() &&
-			(bAllowNullPtr || Memory != nullptr);
-	}
-
-	FName GetExtendedCPPType() const
-	{
-		if(bIsArray)
-		{
-			return *RigVMTypeUtils::ArrayTypeFromBaseType(TypeName.ToString());
-		}
-		return TypeName;
+		return Super::IsValid()
+			&& (bAllowNullPtr || Memory != nullptr);
 	}
 
 	TRigVMTypeIndex GetTypeIndex() const;
 
-	static void MergeExternalVariable(TArray<FRigVMExternalVariable>& OutVariables, const FRigVMExternalVariable& InVariable)
+
+	template<typename VarType>
+	static void MergeExternalVariable(TArray<VarType>& OutVariables, const VarType& InVariable)
 	{
 		if(!InVariable.IsValid(true))
 		{
 			return;
 		}
 
-		for(const FRigVMExternalVariable& ExistingVariable : OutVariables)
+		for(const VarType& ExistingVariable : OutVariables)
 		{
 			if(ExistingVariable.Name == InVariable.Name)
 			{
@@ -617,18 +646,10 @@ struct RIGVM_API FRigVMExternalVariable
 		OutVariables.Add(InVariable);
 	}
 
-	FName Name;
-	const FProperty* Property;
-	FName TypeName;
-	UObject* TypeObject;
-	bool bIsArray;
-	bool bIsPublic;
-	bool bIsReadOnly;
-	int32 Size;
-	uint8* Memory;
+	uint8* Memory = nullptr;
 };
 
-inline FArchive& operator<<(FArchive& Ar, FRigVMExternalVariable& Variable)
+inline FArchive& operator<<(FArchive& Ar, FRigVMExternalVariableDef& Variable)
 {
 	Ar << Variable.Name;
 	Ar << Variable.TypeName;
@@ -652,15 +673,27 @@ inline FArchive& operator<<(FArchive& Ar, FRigVMExternalVariable& Variable)
 	return Ar;
 }
 
+inline FArchive& operator<<(FArchive& Ar, FRigVMExternalVariable& Variable)
+{
+	FRigVMExternalVariableDef& RigVMExternalVariableDef = static_cast<FRigVMExternalVariableDef&>(Variable);
+	Ar << RigVMExternalVariableDef;
+
+	return Ar;
+}
+
 namespace RigVMTypeUtils
 {
 #if WITH_EDITOR
  	RIGVM_API FRigVMExternalVariable ExternalVariableFromBPVariableDescription(const FBPVariableDescription& InVariableDescription);
+
+	RIGVM_API FRigVMExternalVariable ExternalVariableFromBPVariableDescription(const FBPVariableDescription& InVariableDescription, void* Container);
 
 	RIGVM_API FRigVMExternalVariable ExternalVariableFromPinType(const FName& InName, const FEdGraphPinType& InPinType, bool bInPublic = false, bool bInReadonly = false);
 
 	RIGVM_API FRigVMExternalVariable ExternalVariableFromCPPTypePath(const FName& InName, const FString& InCPPTypePath, bool bInPublic = false, bool bInReadonly = false);
 
 	RIGVM_API FRigVMExternalVariable ExternalVariableFromCPPType(const FName& InName, const FString& InCPPType, UObject* InCPPTypeObject, bool bInPublic = false, bool bInReadonly = false);
-#endif
+#endif // WITH_EDITOR
+
+	RIGVM_API TArray<FRigVMExternalVariableDef> GetExternalVariableDefs(const TArray<FRigVMExternalVariable>& ExternalVariables);
 }

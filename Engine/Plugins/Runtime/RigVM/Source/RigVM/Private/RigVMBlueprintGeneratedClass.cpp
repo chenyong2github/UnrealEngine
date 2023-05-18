@@ -75,7 +75,7 @@ void URigVMBlueprintGeneratedClass::Serialize(FArchive& Ar)
 
 	if (!IsSkeletonClass(this))
 	{
-		if (const URigVMHost* CDO = Cast<URigVMHost>(GetDefaultObject(false)))
+		if (URigVMHost* CDO = Cast<URigVMHost>(GetDefaultObject(false)))
 		{
 			if (Ar.IsLoading())
 			{

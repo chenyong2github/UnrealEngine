@@ -2708,7 +2708,7 @@ void FControlRigEditorModule::PreChange(const UUserDefinedStruct* Changed,
 	{
 		UControlRig* Rig = *It;
 		// rebuild property list and property path list
-		Rig->GetVM()->InvalidateCachedMemory();
+		Rig->InvalidateCachedMemory();
 	}
 }
 

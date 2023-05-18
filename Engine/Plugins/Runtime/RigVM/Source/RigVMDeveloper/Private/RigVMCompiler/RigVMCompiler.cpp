@@ -205,7 +205,7 @@ const FProperty* FRigVMCompilerWorkData::GetPropertyForOperand(const FRigVMOpera
 		}
 	case ERigVMMemoryType::External:
 		{
-			Property = VM->GetExternalVariables()[InOperand.GetRegisterIndex()].Property;
+			Property = VM->GetExternalVariableDefs()[InOperand.GetRegisterIndex()].Property;
 			if(InOperand.GetRegisterOffset() != INDEX_NONE)
 			{
 				if(!VM->ExternalPropertyPaths.IsValidIndex(InOperand.GetRegisterOffset()))
@@ -234,10 +234,10 @@ TRigVMTypeIndex FRigVMCompilerWorkData::GetTypeIndexForOperand(const FRigVMOpera
 	{
 		if (InOperand.GetMemoryType() == ERigVMMemoryType::External)
 		{
-			const TArray<FRigVMExternalVariable>& ExternalVariables = VM->GetExternalVariables();
+			const TArray<FRigVMExternalVariableDef>& ExternalVariables = VM->GetExternalVariableDefs();
 			if (ExternalVariables.IsValidIndex(InOperand.GetRegisterIndex()))
 			{
-				const FRigVMExternalVariable& Variable = ExternalVariables[InOperand.GetRegisterIndex()];
+				const FRigVMExternalVariableDef& Variable = ExternalVariables[InOperand.GetRegisterIndex()];
 				FString CPPType;
 				UObject* CPPTypeObject;
 				RigVMTypeUtils::CPPTypeFromExternalVariable(Variable, CPPType, &CPPTypeObject);
@@ -259,7 +259,7 @@ URigVMCompiler::URigVMCompiler()
 {
 }
 
-bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* InController, URigVM* OutVM, const TArray<FRigVMExternalVariable>& InExternalVariables, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InAST, FRigVMFunctionCompilationData* OutFunctionCompilationData)
+bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* InController, URigVM* OutVM, FRigVMExtendedExecuteContext& OutVMContext, const TArray<FRigVMExternalVariable>& InExternalVariables, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InAST, FRigVMFunctionCompilationData* OutFunctionCompilationData)
 {
 	double CompilationTime = 0;
 	FDurationTimer CompileTimer(CompilationTime);
@@ -390,7 +390,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 								{
 									IRigVMClientHost* ClientHost = LibraryNode->GetImplementingOuter<IRigVMClientHost>();
 									URigVMController* FunctionController = ClientHost->GetRigVMClient()->GetController(LibraryNode->GetLibrary());
-									bSuccessfullCompilation = CompileFunction(LibraryNode, FunctionController, &FunctionData->CompilationData);
+									bSuccessfullCompilation = CompileFunction(LibraryNode, FunctionController, &FunctionData->CompilationData, OutVMContext);
 								}
 								else
 								{
@@ -828,11 +828,11 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 	}
 #endif
 	
-	OutVM->ClearExternalVariables();
+	OutVM->ClearExternalVariables(OutVMContext);
 	
 	for (const FRigVMExternalVariable& ExternalVariable : InExternalVariables)
 	{
-		FRigVMOperand Operand = OutVM->AddExternalVariable(ExternalVariable);
+		FRigVMOperand Operand = OutVM->AddExternalVariable(OutVMContext, ExternalVariable);
 		FString Hash = FString::Printf(TEXT("Variable::%s"), *ExternalVariable.Name.ToString());
 		OutOperands->Add(Hash, Operand);
 	}
@@ -1153,10 +1153,13 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 		ReportInfof(TEXT("Total Compilation time %f\n"), CompilationTime*1000);
 	}
 
+	WorkData.VM->SetVMHash(WorkData.VM->ComputeVMHash());
+	OutVMContext.VMHash = WorkData.VM->GetVMHash();
+
 	return true;
 }
 
-bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URigVMController* InController, FRigVMFunctionCompilationData* OutFunctionCompilationData)
+bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URigVMController* InController, FRigVMFunctionCompilationData* OutFunctionCompilationData, FRigVMExtendedExecuteContext& OutVMContext)
 {
 	TGuardValue<const URigVMLibraryNode*> CompilationGuard(CurrentCompilationFunction, InLibraryNode);
 
@@ -1183,9 +1186,9 @@ bool URigVMCompiler::CompileFunction(const URigVMLibraryNode* InLibraryNode, URi
 		ExternalVariables = LibraryController->GetExternalVariablesDelegate.Execute(InLibraryNode->GetContainedGraph());
 	}
 	TMap<FString, FRigVMOperand> Operands;
-	
+
 	URigVM* TempVM = NewObject<URigVM>(InLibraryNode->GetContainedGraph());
-	const bool bSuccess = Compile({InLibraryNode->GetContainedGraph()}, LibraryController, TempVM, ExternalVariables, &Operands, nullptr, OutFunctionCompilationData);
+	const bool bSuccess = Compile({InLibraryNode->GetContainedGraph()}, LibraryController, TempVM, OutVMContext, ExternalVariables, &Operands, nullptr, OutFunctionCompilationData);
 	TempVM->ClearMemory();
 	TempVM->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 	TempVM->MarkAsGarbage();
@@ -3092,9 +3095,10 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	// external variables don't require to add any register.
 	if(bIsVariable && !bIsDebugValue)
 	{
-		for(int32 ExternalVariableIndex = 0; ExternalVariableIndex < WorkData.VM->GetExternalVariables().Num(); ExternalVariableIndex++)
+		const TArray<FRigVMExternalVariableDef>& VMExternalVariableDefs = WorkData.VM->GetExternalVariableDefs();
+		for(int32 ExternalVariableIndex = 0; ExternalVariableIndex < VMExternalVariableDefs.Num(); ExternalVariableIndex++)
 		{
-			const FName& ExternalVariableName = WorkData.VM->GetExternalVariables()[ExternalVariableIndex].Name;
+			const FName& ExternalVariableName = VMExternalVariableDefs[ExternalVariableIndex].Name;
 			const FString ExternalVariableHash = FString::Printf(TEXT("Variable::%s"), *ExternalVariableName.ToString());
 			if(ExternalVariableHash == Hash)
 			{

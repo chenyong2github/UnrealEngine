@@ -135,9 +135,12 @@ public:
 	UPROPERTY()
 	FRigVMRuntimeSettings VMRuntimeSettings;
 
+	virtual void InvalidateCachedMemory();
+
 	/** Execute */
 	UFUNCTION(BlueprintCallable, Category = "RigVM")
 	virtual bool Execute(const FName& InEventName);
+
 
 protected:
 
@@ -217,19 +220,20 @@ public:
 	const FString GetDebugExecutionString();
 #endif
 
-protected:
-
-	/** Allows retrieving the extended execute context from derived classes */
+	/** Provide access to the ExtendedExecuteContext */
+	UFUNCTION(BlueprintCallable, Category = RigVM)
 	virtual FRigVMExtendedExecuteContext& GetExtendedExecuteContext()
 	{
 		return ExtendedExecuteContext;
 	};
 
-	/** Allows retrieving the extended execute context from derived classes */
+	/** Provide access to the ExtendedExecuteContext */
 	virtual const FRigVMExtendedExecuteContext& GetExtendedExecuteContext() const
 	{
 		return ExtendedExecuteContext;
 	};
+
+protected:
 
 	virtual void PostInitInstance(URigVMHost* InCDO);
 
@@ -254,7 +258,7 @@ protected:
 #endif
 
 private:
-	UPROPERTY(transient)
+	UPROPERTY()
 	FRigVMExtendedExecuteContext ExtendedExecuteContext;
 
 protected:
@@ -308,6 +312,8 @@ protected:
 
 	virtual void InitializeFromCDO();
 
+	static uint32 ComputeAndUpdateCDOHash(URigVMHost* InCDO);
+
 public:
 	//~ Begin IInterface_AssetUserData Interface
 	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
@@ -345,6 +351,8 @@ private:
 
 	UPROPERTY(transient)
 	TObjectPtr<URigVM> VMSnapshotBeforeExecution;
+	UPROPERTY(transient)
+	FRigVMExtendedExecuteContext SnapshotContext;
 
 	/** The current execution mode */
 	UPROPERTY(transient)
@@ -371,11 +379,15 @@ public:
 	/** If the VM is halted at a breakpoint, it sets a breakpoint action so that
 	 *  it is applied on the next VM execution */
 	bool ExecuteBreakpointAction(const ERigVMBreakpointAction BreakpointAction);
+
+	const FRigVMBreakpoint& GetHaltedAtBreakpoint() const { return ExtendedExecuteContext.HaltedAtBreakpoint; }
+	void SetBreakpointAction(const ERigVMBreakpointAction& Action) { ExtendedExecuteContext.CurrentBreakpointAction = Action; }
 	
 	FRigVMDebugInfo& GetDebugInfo() { return DebugInfo; }
 
 	/** Creates the snapshot VM if required and returns it */
 	URigVM* GetSnapshotVM(bool bCreateIfNeeded = true);
+	FRigVMExtendedExecuteContext& GetSnapshotContext();
 
 #endif	
 

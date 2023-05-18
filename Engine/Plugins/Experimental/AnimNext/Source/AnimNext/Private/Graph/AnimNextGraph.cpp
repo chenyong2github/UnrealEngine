@@ -27,12 +27,12 @@ bool UAnimNextGraph::GetDataImpl(const UE::AnimNext::FContext& Context) const
 	
 	if(RigVM)
 	{
-		FRigVMExtendedExecuteContext RigVMExtendedExecuteContext; // we might have to set some sensible values to the extended execute context
-		FAnimNextGraphExecuteContext& AnimNextInterfaceContext = RigVMExtendedExecuteContext.GetPublicDataSafe<FAnimNextGraphExecuteContext>();
+		// we might have to set some sensible values to the extended execute context
+		FAnimNextGraphExecuteContext& AnimNextInterfaceContext = ExtendedExecuteContext.GetPublicDataSafe<FAnimNextGraphExecuteContext>();
 
 		AnimNextInterfaceContext.SetContextData(this, Context, bResult);
 
-		bResult &= (RigVM->Execute(RigVMExtendedExecuteContext, TArray<URigVMMemoryStorage*>(), FRigUnit_AnimNextBeginExecution::EventName) != ERigVMExecuteResult::Failed);
+		bResult &= (RigVM->Execute(ExtendedExecuteContext, TArray<URigVMMemoryStorage*>(), FRigUnit_AnimNextBeginExecution::EventName) != ERigVMExecuteResult::Failed);
 	}
 	
 	return bResult;

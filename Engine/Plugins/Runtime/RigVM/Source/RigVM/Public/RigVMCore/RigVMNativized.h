@@ -48,7 +48,7 @@ public:
 	virtual void PostLoad() override { return; }
 	virtual void Reset(bool IsIgnoringArchetypeRef = false) override;
 	virtual bool IsNativized() const override { return true; }
-	virtual void Empty() override { return; }
+	virtual void Empty(FRigVMExtendedExecuteContext& Context) override { return; }
 	virtual void CopyFrom(URigVM* InVM, bool bDeferCopy = false, bool bReferenceLiteralMemory = false, bool bReferenceByteCode = false, bool bCopyExternalVariables = false, bool bCopyDynamicRegisters = false) override { return; }
 	virtual bool Initialize(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory) override;
 	virtual ERigVMExecuteResult Execute(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None) override;
@@ -64,10 +64,19 @@ public:
 	{
 		Super::SetInstructionIndex(Context, InInstructionIndex);
 #if WITH_EDITOR
-		InstructionVisitedDuringLastRun[InInstructionIndex]++;
-		InstructionVisitOrder.Add(InInstructionIndex);
+		Context.InstructionVisitedDuringLastRun[InInstructionIndex]++;
+		Context.InstructionVisitOrder.Add(InInstructionIndex);
 #endif
 	}
+
+	UE_DEPRECATED(5.3, "Please, use Empty with Context param")
+	virtual void Empty() override {}
+	UE_DEPRECATED(5.3, "Please, use Initialize with Context param")
+	virtual bool Initialize(TArrayView<URigVMMemoryStorage*> Memory) override { return false; }
+	UE_DEPRECATED(5.3, "Please, use Execute with Context param")
+	virtual ERigVMExecuteResult Execute(TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName = NAME_None) override { return ERigVMExecuteResult::Failed; }
+	UE_DEPRECATED(5.3, "Please, use SetInstructionIndex with Context param")
+	virtual void SetInstructionIndex(uint16 InInstructionIndex) {}
 
 #if WITH_EDITOR
 	void SetByteCode(const FRigVMByteCode& InByteCode);
@@ -78,16 +87,16 @@ protected:
 	template<typename ExecuteContextType = FRigVMExecuteContext>
 	ExecuteContextType& UpdateContext(FRigVMExtendedExecuteContext& Context, int32 InNumberInstructions, const FName& InEntryName)
 	{
-		UpdateExternalVariables();
+		UpdateExternalVariables(Context);
 	
-		Context.Reset();
+		Context.ResetExecutionState();
 		Context.VM = this;
 		Context.SliceOffsets.AddZeroed(InNumberInstructions);
 		Context.GetPublicData<ExecuteContextType>().EventName = InEntryName;
 		return Context.GetPublicData<ExecuteContextType>();
 	}
 
-	virtual void UpdateExternalVariables() {};
+	virtual void UpdateExternalVariables(FRigVMExtendedExecuteContext& Context) {};
 	
 	class FErrorPipe : public FOutputDevice
 	{
@@ -161,19 +170,19 @@ protected:
 		}
 	}
 
-	void BroadcastExecutionReachedExit(const FRigVMExtendedExecuteContext& Context)
+	void BroadcastExecutionReachedExit(FRigVMExtendedExecuteContext& Context)
 	{
-		if(EntriesBeingExecuted.Num() == 1)
+		if(Context.EntriesBeingExecuted.Num() == 1)
 		{
-			ExecutionReachedExit().Broadcast(Context.GetPublicData<>().GetEventName());
+			Context.ExecutionReachedExit().Broadcast(Context.GetPublicData<>().GetEventName());
 		}
-		NumExecutions++;
+		Context.NumExecutions++;
 	}
 
 	template<typename T>
-	T& GetExternalVariableRef(const FName& InExternalVariableName, const FName& InExpectedType) const
+	T& GetExternalVariableRef(FRigVMExtendedExecuteContext& Context, const FName& InExternalVariableName, const FName& InExpectedType) const
 	{
-		for(const FRigVMExternalVariable& ExternalVariable : GetExternalVariables())
+		for(const FRigVMExternalVariable& ExternalVariable : GetExternalVariables(Context))
 		{
 			if(ExternalVariable.Name == InExternalVariableName && ExternalVariable.GetExtendedCPPType() == InExpectedType)
 			{

@@ -24,7 +24,7 @@ static constexpr TCHAR RigVM_InvokeDispatchFormat[] = TEXT("\t{0}({1});");
 static constexpr TCHAR RigVM_WrappedArrayTypeFormat[] = TEXT("struct {0}_API {1}\r\n{\r\n\tTArray<{2}> Array;\r\n};");
 static constexpr TCHAR RigVM_WrappedTypeNameFormat[] = TEXT("{0}Array_{1}");
 static constexpr TCHAR RigVM_DeclareExternalVariableFormat[] = TEXT("\t{0}* {1} = nullptr;");
-static constexpr TCHAR RigVM_UpdateExternalVariableFormat[] = TEXT("\t{0} = &GetExternalVariableRef<{1}>(TEXT(\"{2}\"), TEXT(\"{1}\"));");
+static constexpr TCHAR RigVM_UpdateExternalVariableFormat[] = TEXT("\t{0} = &GetExternalVariableRef<{1}>(Context, TEXT(\"{2}\"), TEXT(\"{1}\"));");
 static constexpr TCHAR RigVM_MemberPropertyFormat[] = TEXT("\t{0} {1} = {2};");
 static constexpr TCHAR RigVM_MemberPropertyFormatNoDefault[] = TEXT("\t{0} {1};");
 static constexpr TCHAR RigVM_DeclareEntryNameFormat[] = TEXT("\tstatic const FName EntryName_{0};");
@@ -97,12 +97,12 @@ static constexpr TCHAR RigVM_UClassDefinitionFormat[] = TEXT("UCLASS()\r\nclass 
 static constexpr TCHAR RigVM_ProtectedFormat[] = TEXT("protected:");
 static constexpr TCHAR RigVM_GetVMHashFormat[] = TEXT("\tvirtual uint32 GetVMHash() const override { return {0}; }");
 static constexpr TCHAR RigVM_GetEntryNamesFormat[] = TEXT("\tvirtual const TArray<FName>& GetEntryNames() const override\r\n\t{\r\n\t\tstatic const TArray<FName> StaticEntryNames = { {0} };\r\n\t\treturn StaticEntryNames;\r\n\t}");
-static constexpr TCHAR RigVM_DeclareUpdateExternalVariablesFormat[] = TEXT("\tvirtual void UpdateExternalVariables() override;");
+static constexpr TCHAR RigVM_DeclareUpdateExternalVariablesFormat[] = TEXT("\tvirtual void UpdateExternalVariables(FRigVMExtendedExecuteContext& Context) override;");
 static constexpr TCHAR RigVM_DeclareInvokeEntryByNameFormat[] = TEXT("\tERigVMExecuteResult InvokeEntryByName(FRigVMExtendedExecuteContext& Context, const FName& InEntryName{0});");
 static constexpr TCHAR RigVM_DeclareInitializeFormat[] = TEXT("\tvirtual bool Initialize(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory) override;");
 static constexpr TCHAR RigVM_DefineInitializeFormat[] = TEXT("bool U{0}::Initialize(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory)\r\n{");
 static constexpr TCHAR RigVM_DeclareExecuteFormat[] = TEXT("\tvirtual ERigVMExecuteResult Execute(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName) override;");
-static constexpr TCHAR RigVM_DefineUpdateExternalVariablesFormat[] = TEXT("void U{0}::UpdateExternalVariables()\r\n{");
+static constexpr TCHAR RigVM_DefineUpdateExternalVariablesFormat[] = TEXT("void U{0}::UpdateExternalVariables(FRigVMExtendedExecuteContext& Context)\r\n{");
 static constexpr TCHAR RigVM_DefineInvokeEntryByNameFormat[] = TEXT("ERigVMExecuteResult U{0}::InvokeEntryByName(FRigVMExtendedExecuteContext& Context, const FName& InEntryName{1})\r\n{");
 static constexpr TCHAR RigVM_DefineExecuteFormat[] = TEXT("ERigVMExecuteResult U{0}::Execute(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> Memory, const FName& InEntryName)\r\n{");
 static constexpr TCHAR RigVM_DeclareExecuteEntryFormat[] = TEXT("\tERigVMExecuteResult ExecuteEntry_{0}(FRigVMExtendedExecuteContext& Context, {1});");
@@ -144,10 +144,10 @@ FString FRigVMCodeGenerator::DumpExternalVariables(bool bForHeader, bool bLog)
 		Lines.Emplace();
 	}
 	
-	for(int32 ExternalVariableIndex = 0; ExternalVariableIndex < VM->GetExternalVariables().Num(); ExternalVariableIndex++)
+	for(int32 ExternalVariableIndex = 0; ExternalVariableIndex < VM->GetExternalVariableDefs().Num(); ExternalVariableIndex++)
 	{
 		const FRigVMOperand ExternalVarOperand(ERigVMMemoryType::External, ExternalVariableIndex, INDEX_NONE);
-		const FRigVMExternalVariable& ExternalVariable = VM->GetExternalVariables()[ExternalVariableIndex]; //-V758
+		const FRigVMExternalVariableDef& ExternalVariable = VM->GetExternalVariableDefs()[ExternalVariableIndex]; //-V758
 		const FString ExternalVarCPPType = ExternalVariable.GetExtendedCPPType().ToString();
 		FString OperandName = *GetOperandName(ExternalVarOperand, false);
 		if(OperandName.StartsWith(TEXT("(*")) && OperandName.EndsWith(TEXT(")")))
@@ -664,7 +664,7 @@ FString FRigVMCodeGenerator::DumpInstructions(const FString& InPrefix, const TAr
 				{
 					const FRigVMOperand& Operand = Operands[OperandIndex];
 					bool bSliced = false;
-					const FRigVMPropertyDescription& Property = GetPropertyForOperand(Operand);
+					const FRigVMPropertyDescription& Property = GetPropertyDescForOperand(Operand);
 					if (RigVMTypeUtils::IsArrayType(Property.CPPType))
 					{
 						const FRigVMFunctionArgument& FunctionArgument = Function->GetArguments()[OperandIndex];
@@ -928,7 +928,7 @@ FString FRigVMCodeGenerator::DumpHeader(bool bLog)
 	Lines.Add(FString(RigVM_DeclareExecuteFormat));
 	Lines.Emplace();
 	Lines.Add(RigVM_ProtectedFormat);
-	if(!VM->GetExternalVariables().IsEmpty())
+	if(!VM->GetExternalVariableDefs().IsEmpty())
 	{
 		Lines.Add(RigVM_DeclareUpdateExternalVariablesFormat);
 	}
@@ -971,7 +971,7 @@ FString FRigVMCodeGenerator::DumpHeader(bool bLog)
 	Lines.Emplace();
 	Lines.Add(DumpProperties(true, INDEX_NONE));
 	Lines.Add(DumpDispatches(true));
-	if(!VM->GetExternalVariables().IsEmpty())
+	if(!VM->GetExternalVariableDefs().IsEmpty())
 	{
 		Lines.Add(DumpExternalVariables(true));
 	}
@@ -1021,7 +1021,7 @@ FString FRigVMCodeGenerator::DumpSource(bool bLog)
 	Lines.Add(DumpInstructions(INDEX_NONE));
 	Lines.Add(TEXT("}"));
 
-	if(!VM->GetExternalVariables().IsEmpty())
+	if(!VM->GetExternalVariableDefs().IsEmpty())
 	{
 		Lines.Emplace();
 		Lines.Add(Format(RigVM_DefineUpdateExternalVariablesFormat, *ClassName));
@@ -1265,7 +1265,7 @@ void FRigVMCodeGenerator::ParseProperty(ERigVMMemoryType InMemoryType, const FPr
 	{
 		const int32 PropertyIndex = InMemory->GetPropertyIndex(InProperty);
 		const FRigVMOperand Operand(InMemoryType, PropertyIndex);
-		const FRigVMPropertyDescription& PropertyDescription = GetPropertyForOperand(Operand);
+		const FRigVMPropertyDescription& PropertyDescription = GetPropertyDescForOperand(Operand);
 
 		FPropertyInfo Info;
 		Info.MemoryPropertyIndex = PropertyIndex;
@@ -1602,7 +1602,7 @@ void FRigVMCodeGenerator::ParseInstructionGroups()
 
 FString FRigVMCodeGenerator::GetOperandName(const FRigVMOperand& InOperand, bool bPerSlice, bool bAsInput) const
 {
-	const FRigVMPropertyDescription& Property = GetPropertyForOperand(InOperand);
+	const FRigVMPropertyDescription& Property = GetPropertyDescForOperand(InOperand);
 	const FRigVMPropertyPathDescription& PropertyPath = GetPropertyPathForOperand(InOperand);
 
 	FString OperandName;
@@ -1748,7 +1748,7 @@ FString FRigVMCodeGenerator::GetOperandName(const FRigVMOperand& InOperand, bool
 
 FString FRigVMCodeGenerator::GetOperandCPPType(const FRigVMOperand& InOperand) const
 {
-	const FRigVMPropertyDescription& Property = GetPropertyForOperand(InOperand);
+	const FRigVMPropertyDescription& Property = GetPropertyDescForOperand(InOperand);
 	const FRigVMPropertyPathDescription& PropertyPath = GetPropertyPathForOperand(InOperand);
 
 	if (PropertyPath.IsValid())
@@ -1961,7 +1961,30 @@ FString FRigVMCodeGenerator::SanitizeValue(const FString& InValue, const FString
 	return DefaultValue;
 }
 
-FRigVMPropertyDescription FRigVMCodeGenerator::GetPropertyForOperand(const FRigVMOperand& InOperand) const
+FRigVMPropertyDescription FRigVMCodeGenerator::GetPropertyDescForOperand(const FRigVMOperand& InOperand) const
+{
+	CheckOperand(InOperand);
+
+	const FProperty* Property = nullptr;
+
+	if (InOperand.GetMemoryType() == ERigVMMemoryType::External)
+	{
+		const TArray<FRigVMExternalVariableDef> ExternalVariables = VM->GetExternalVariableDefs();
+		const FRigVMExternalVariableDef& ExternalVariable = ExternalVariables[InOperand.GetRegisterIndex()];
+		Property = ExternalVariable.Property;
+	}
+	else
+	{
+		if (URigVMMemoryStorage* MemoryStorage = VM->GetMemoryByType(InOperand.GetMemoryType()))
+		{
+			Property = MemoryStorage->GetProperty(InOperand.GetRegisterIndex());
+		}
+	}
+
+	return (Property) ? FRigVMPropertyDescription(Property, FString()) : FRigVMPropertyDescription();
+}
+
+FRigVMPropertyDescription FRigVMCodeGenerator::GetPropertyForOperand(const FRigVMExtendedExecuteContext& Context, const FRigVMOperand& InOperand) const
 {
 	CheckOperand(InOperand);
 
@@ -1970,7 +1993,8 @@ FRigVMPropertyDescription FRigVMCodeGenerator::GetPropertyForOperand(const FRigV
 
 	if (InOperand.GetMemoryType() == ERigVMMemoryType::External)
 	{
-		const FRigVMExternalVariable& ExternalVariable = VM->ExternalVariables[InOperand.GetRegisterIndex()];
+		const TArray<FRigVMExternalVariable> ExternalVariables = VM->GetExternalVariables(Context);
+		const FRigVMExternalVariable& ExternalVariable = ExternalVariables[InOperand.GetRegisterIndex()];
 		Property = ExternalVariable.Property;
 		Memory = ExternalVariable.Memory;
 	}
@@ -2053,7 +2077,7 @@ int32 FRigVMCodeGenerator::GetPropertyIndex(const FRigVMPropertyDescription& InP
 
 int32 FRigVMCodeGenerator::GetPropertyIndex(const FRigVMOperand& InOperand) const
 {
-	return GetPropertyIndex(GetPropertyForOperand(InOperand));
+	return GetPropertyIndex(GetPropertyDescForOperand(InOperand));
 }
 
 FRigVMCodeGenerator::ERigVMNativizedPropertyType FRigVMCodeGenerator::GetPropertyType(
@@ -2069,7 +2093,7 @@ FRigVMCodeGenerator::ERigVMNativizedPropertyType FRigVMCodeGenerator::GetPropert
 
 FRigVMCodeGenerator::ERigVMNativizedPropertyType FRigVMCodeGenerator::GetPropertyType(const FRigVMOperand& InOperand) const
 {
-	return GetPropertyType(GetPropertyForOperand(InOperand));
+	return GetPropertyType(GetPropertyDescForOperand(InOperand));
 }
 
 void FRigVMCodeGenerator::CheckOperand(const FRigVMOperand& InOperand) const

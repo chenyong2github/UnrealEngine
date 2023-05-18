@@ -454,7 +454,7 @@ bool UControlRig::Execute(const FName& InEventName)
 		// only set a valid first entry event later when execution
 		// has passed the initialization stage and there are multiple events present in one evaluation
 		// first entry event is used to determined when to clear data during an evaluation
-		VM->SetFirstEntryEventInEventQueue(NAME_None);
+		VM->SetFirstEntryEventInEventQueue(GetExtendedExecuteContext(), NAME_None);
 #endif
 	}
 
@@ -473,14 +473,13 @@ bool UControlRig::Execute(const FName& InEventName)
 			}
 		}
 
-		if(VM)
-		{
-			VM->SetDebugInfo(&DebugInfo);
-		}
+		GetExtendedExecuteContext().SetDebugInfo(&DebugInfo);
+		GetSnapshotContext() = GetExtendedExecuteContext();
 	}
-	else if(VM)
+	else
 	{
-		VM->SetDebugInfo(nullptr);
+		GetExtendedExecuteContext().SetDebugInfo(nullptr);
+		GetSnapshotContext().Reset();
 	}
 #endif
 
@@ -770,7 +769,7 @@ bool UControlRig::Execute(const FName& InEventName)
 		// has passed the initialization stage and there are multiple events present
 		if (EventQueueToRun.Num() >= 2 && VM)
 		{
-			VM->SetFirstEntryEventInEventQueue(EventQueueToRun[0]);
+			VM->SetFirstEntryEventInEventQueue(GetExtendedExecuteContext(), EventQueueToRun[0]);
 		}
 
 		// Transform Overrride is generated using a Transient Control 
@@ -1110,6 +1109,8 @@ bool UControlRig::Execute_Internal(const FName& InEventName)
 {
 	if (VM)
 	{
+		FRigVMExtendedExecuteContext& Context = GetExtendedExecuteContext();
+
 		static constexpr TCHAR InvalidatedVMFormat[] = TEXT("%s: Invalidated VM - aborting execution.");
 		if(VM->IsNativized())
 		{
@@ -1123,7 +1124,8 @@ bool UControlRig::Execute_Internal(const FName& InEventName)
 		else
 		{
 			// sanity check the validity of the VM to ensure stability.
-			if(!IsValidLowLevel() ||
+			if(!VM->IsContextValidForExecution(Context) ||
+				!IsValidLowLevel() ||
 				!VM->IsValidLowLevel() ||
 				!VM->GetLiteralMemory()->IsValidLowLevel() ||
 				!VM->GetWorkMemory()->IsValidLowLevel())
@@ -1154,16 +1156,18 @@ bool UControlRig::Execute_Internal(const FName& InEventName)
 				const bool bIsEventFirstInQueue = !EventQueueToRun.IsEmpty() && EventQueueToRun[0] == InEventName; 
 				const bool bIsEventLastInQueue = !EventQueueToRun.IsEmpty() && EventQueueToRun.Last() == InEventName;
 
-				if (VM->GetHaltedAtBreakpoint().IsValid())
+				if (GetHaltedAtBreakpoint().IsValid())
 				{
 					if(bIsEventFirstInQueue)
 					{
 						VM->CopyFrom(SnapShotVM, false, false, false, true, true);
+						GetExtendedExecuteContext() = GetSnapshotContext();
 					}
 				}
 				else if(bIsEventLastInQueue)
 				{
 					SnapShotVM->CopyFrom(VM, false, false, false, true, true);
+					GetSnapshotContext() = GetExtendedExecuteContext();
 				}
 			}
 		}
@@ -1189,8 +1193,6 @@ bool UControlRig::Execute_Internal(const FName& InEventName)
 		}
 		
 #endif
-		FRigVMExtendedExecuteContext& Context = GetExtendedExecuteContext();
-
 		FRigHierarchyExecuteContextBracket HierarchyContextGuard(Hierarchy, &Context);
 
 		const bool bSuccess = VM->Execute(Context, LocalMemory, InEventName) != ERigVMExecuteResult::Failed;
@@ -2782,10 +2784,10 @@ void UControlRig::PostInitInstance(URigVMHost* InCDO)
 		RF_Public | RF_DefaultSubObject :
 		RF_Transient | RF_Transactional;
 
+	FRigVMExtendedExecuteContext& Context = GetExtendedExecuteContext();
 	// set up the VM
 	VM = NewObject<URigVM>(this, TEXT("VM"), SubObjectFlags);
-	GetExtendedExecuteContext().SetContextPublicDataStruct(FControlRigExecuteContext::StaticStruct());
-
+	Context.SetContextPublicDataStruct(FControlRigExecuteContext::StaticStruct());
 
 	// Cooked platforms will load these pointers from disk.
 	// In certain scenarios RequiresCookedData wil be false but the PKG_FilterEditorOnly will still be set (UEFN)
@@ -2796,7 +2798,7 @@ void UControlRig::PostInitInstance(URigVMHost* InCDO)
 		VM->GetMemoryByType(ERigVMMemoryType::Debug, true);
 	}
 
-	VM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
+	Context.ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
 	UpdateVMSettings();
 
 	// set up the hierarchy
@@ -2810,8 +2812,24 @@ void UControlRig::PostInitInstance(URigVMHost* InCDO)
 	if(!HasAnyFlags(RF_ClassDefaultObject) && InCDO)
 	{
 		InCDO->PostInitInstanceIfRequired();
-		VM->CopyFrom(InCDO->GetVM());
+
+		VM->CopyFrom(InCDO->GetVM(), false, false, false, true); // we need the external properties to keep the Hash consistent with CDO
+		VM->SetVMHash(VM->ComputeVMHash());
 		DynamicHierarchy->CopyHierarchy(CastChecked<UControlRig>(InCDO)->GetHierarchy());
+
+		// This has to be calculated after the copy, as the CDO memory is lazily instantiated and it affects the Hash
+		const uint32 CDOVMHash = ComputeAndUpdateCDOHash(InCDO);
+		Context.VMHash = CDOVMHash;
+
+		if (VM->GetVMHash() != CDOVMHash)
+		{
+			UE_LOG(LogRigVM
+				, Warning
+				, TEXT("ControlRig : CDO VM Hash [%d] is different from calculated VM Hash [%d]. Please recompile ControlRig used at Asset : [%s]")
+				, CDOVMHash
+				, VM->GetVMHash()
+				, *GetPathName());
+		}
 	}
 	else // we are the CDO
 	{

@@ -14,6 +14,18 @@
 class UObject;
 class URigVMNode;
 
+// Possible actions when the VM is halted at a breakpoint
+UENUM()
+enum class ERigVMBreakpointAction : uint8
+{
+	None,
+	Resume,
+	StepOver,
+	StepInto,
+	StepOut,
+	Max UMETA(Hidden),
+};
+
 USTRUCT()
 struct RIGVM_API FRigVMBreakpoint
 {

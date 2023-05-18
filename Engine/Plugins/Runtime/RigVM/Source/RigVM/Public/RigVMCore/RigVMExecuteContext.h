@@ -20,6 +20,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
+#include "RigVMCore/RigVMDebugInfo.h"
 #include "RigVMCore/RigVMNameCache.h"
 #include "UObject/StructOnScope.h"
 #include "RigVMLog.h"
@@ -469,6 +470,23 @@ struct TStructOpsTypeTraits<FRigVMExecuteContext> : public TStructOpsTypeTraitsB
 	};
 };
 
+/**
+ * Lazy branch data required by each instance of the VM
+ */
+struct RIGVM_API FRigVMLazyBranchInstanceData
+{
+	TArray<int32> LastVMNumExecutions;
+};
+
+struct RIGVM_API FRigVMExternalVariableRuntimeData
+{
+	explicit FRigVMExternalVariableRuntimeData(uint8* InMemory)
+		: Memory(InMemory)
+	{
+	}
+
+	uint8* Memory = nullptr;
+};
 
 /**
  * The execute context is used for mutable nodes to
@@ -507,53 +525,15 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		Reset();
 	}
 
-	void Reset()
-	{
-		if (FRigVMExecuteContext* ExecuteContext = reinterpret_cast<FRigVMExecuteContext*>(PublicDataScope.GetStructMemory()))
-		{
-			ExecuteContext->Reset();
-			ExecuteContext->ExtendedExecuteContext = this;
-		}
-	
-		VM = nullptr;
-		Slices.Reset();
-		Slices.Add(FRigVMSlice());
-		SliceOffsets.Reset();
-		Factory = nullptr;
-	}
+	// /** Full context reset */
+	void Reset();
 
-	FRigVMExtendedExecuteContext& operator =(const FRigVMExtendedExecuteContext& Other)
-	{
-		const UScriptStruct* OtherPublicDataStruct = Cast<UScriptStruct>(Other.PublicDataScope.GetStruct());
-		check(OtherPublicDataStruct);
-		if(PublicDataScope.GetStruct() != OtherPublicDataStruct)
-		{
-			PublicDataScope = FStructOnScope(OtherPublicDataStruct);
-		}
+	/** Resets VM execution state */
+	void ResetExecutionState();
 
-		FRigVMExecuteContext* ThisPublicContext = (FRigVMExecuteContext*)PublicDataScope.GetStructMemory();
-		const FRigVMExecuteContext* OtherPublicContext = (const FRigVMExecuteContext*)Other.PublicDataScope.GetStructMemory();
-		ThisPublicContext->Copy(OtherPublicContext);
-		ThisPublicContext->ExtendedExecuteContext = this;
+	FRigVMExtendedExecuteContext& operator =(const FRigVMExtendedExecuteContext& Other);
 
-		if(OtherPublicContext->GetNameCache() == &Other.NameCache)
-		{
-			SetDefaultNameCache();
-		}
-
-		VM = Other.VM;
-		Slices = Other.Slices;
-		SliceOffsets = Other.SliceOffsets;
-		return *this;
-	}
-
-	virtual void Initialize(const UScriptStruct* InScriptStruct)
-	{
-		check(InScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()));
-		PublicDataScope = FStructOnScope(InScriptStruct);
-		((FRigVMExecuteContext*)PublicDataScope.GetStructMemory())->ExtendedExecuteContext = this;
-		SetDefaultNameCache();
-	}
+	virtual void Initialize(const UScriptStruct* InScriptStruct);
 
 	const UScriptStruct* GetContextPublicDataStruct() const
 	{
@@ -679,6 +659,21 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		GetPublicData<>().NameCache = InNameCache;
 	}
 
+	void InvalidateCachedMemory()
+	{
+		CachedMemory.Reset();
+		CachedMemoryHandles.Reset();
+		LazyBranchInstanceData.Reset();
+	}
+
+	uint32 GetNumExecutions() const
+	{
+		return NumExecutions;
+	}
+
+	UPROPERTY(transient)
+	uint32 VMHash = MAX_uint32;
+
 	FStructOnScope PublicDataScope;
 	URigVM* VM = nullptr;
 	TArray<FRigVMSlice> Slices;
@@ -686,4 +681,70 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 	double LastExecutionMicroSeconds = 0.0;
 	const FRigVMDispatchFactory* Factory = nullptr;
 	FRigVMNameCache NameCache;
+
+	UPROPERTY(transient)
+	uint32 NumExecutions = 0;
+
+	TArray<FRigVMMemoryHandle> CachedMemoryHandles;
+	// changes to the layout of cached memory array should be reflected in GetContainerIndex()
+	TArray<URigVMMemoryStorage*> CachedMemory;
+
+	int32 ExecutingThreadId = INDEX_NONE;
+
+	TArray<int32> EntriesBeingExecuted;
+
+	ERigVMExecuteResult CurrentExecuteResult = ERigVMExecuteResult::Failed;
+	FName CurrentEntryName = NAME_None;
+	bool bCurrentlyRunningRootEntry = false;
+	TArrayView<URigVMMemoryStorage*> CurrentMemory;
+
+	UPROPERTY(transient)
+	TObjectPtr<URigVM> DeferredVMToCopy = nullptr;
+	const FRigVMExtendedExecuteContext* DeferredVMContextToCopy = nullptr;
+
+	/** Bindable event for external objects to be notified when the VM reaches an Exit Operation */
+	DECLARE_EVENT_OneParam(URigVM, FExecutionReachedExitEvent, const FName&);
+	FExecutionReachedExitEvent OnExecutionReachedExit;
+	FExecutionReachedExitEvent& ExecutionReachedExit() { return OnExecutionReachedExit; }
+
+	TArray<FRigVMLazyBranchInstanceData> LazyBranchInstanceData;
+	TArray<FRigVMExternalVariableRuntimeData> ExternalVariableRuntimeData;
+
+#if WITH_EDITOR
+
+	FRigVMDebugInfo* DebugInfo = nullptr;
+	FRigVMBreakpoint HaltedAtBreakpoint;
+	int32 HaltedAtBreakpointHit = INDEX_NONE;
+	ERigVMBreakpointAction CurrentBreakpointAction = ERigVMBreakpointAction::None;
+
+	// stores the number of times each instruction was visited
+	TArray<int32> InstructionVisitedDuringLastRun;
+	TArray<uint64> InstructionCyclesDuringLastRun;
+	TArray<int32> InstructionVisitOrder;
+
+	const void SetFirstEntryEventInEventQueue(const FName& InFirstEventName) { FirstEntryEventInQueue = InFirstEventName; }
+	const FName& GetFirstEntryEventInEventQueue() { return FirstEntryEventInQueue; }
+
+	// Control Rig can run multiple events per evaluation, such as the Backward&Forward Solve Mode,
+	// store the first event such that we know when to reset data for a new round of rig evaluation
+	FName FirstEntryEventInQueue = NAME_None;
+
+	uint64 StartCycles = 0;
+	uint64 OverallCycles = 0;
+
+	DECLARE_EVENT_ThreeParams(URigVM, FExecutionHaltedEvent, int32, UObject*, const FName&);
+	FExecutionHaltedEvent OnExecutionHalted;
+
+	FExecutionHaltedEvent& ExecutionHalted()
+	{
+		return OnExecutionHalted;
+	}
+
+	void SetDebugInfo(FRigVMDebugInfo* InDebugInfo)
+	{
+		DebugInfo = InDebugInfo;
+	}
+
+#endif // WITH_EDITOR
+
 };

@@ -6,6 +6,7 @@
 #include "RigVMCore/RigVM.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMCore/RigVMUserWorkflow.h"
+#include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMNode.generated.h"
 
 class URigVMGraph;
@@ -205,14 +206,23 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	FName GetPreviousFName() const { return PreviousName; }
 
+	UE_DEPRECATED(5.3, "Please, use GetInstructionsForVM with Context param")
+	const TArray<int32>& GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const	{ static TArray<int32> Dummy; return Dummy;	}
+
 	// Returns the indices of associated instructions for this node
-	const TArray<int32>& GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
+	const TArray<int32>& GetInstructionsForVM(const FRigVMExtendedExecuteContext& Context, URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
+
+	UE_DEPRECATED(5.3, "Please, use GetInstructionVisitedCount with Context param")
+	virtual int32 GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const { return 0; }
 
 	// Returns the number of visited / run instructions for this node
-	virtual int32 GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
+	virtual int32 GetInstructionVisitedCount(const FRigVMExtendedExecuteContext& Context, URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
+
+	UE_DEPRECATED(5.3, "Please, use GetInstructionMicroSeconds with Context param")
+	double GetInstructionMicroSeconds(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const { return 0.0; }
 
 	// Returns the accumulated duration of all of instructions for this node 
-	double GetInstructionMicroSeconds(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
+	double GetInstructionMicroSeconds(const FRigVMExtendedExecuteContext& Context, URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
 
 	// return true if this node is a loop node
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
@@ -289,7 +299,7 @@ private:
 protected:
 
 	virtual void InvalidateCache() {}
-	virtual TArray<int32> GetInstructionsForVMImpl(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const; 
+	virtual TArray<int32> GetInstructionsForVMImpl(const FRigVMExtendedExecuteContext& Context, URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const; 
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const;
 	virtual bool AllowsLinksOn(const URigVMPin* InPin) const { return true; }
 	virtual bool ShouldInputPinComputeLazily(const URigVMPin* InPin) const { return false; }
@@ -330,7 +340,7 @@ private:
 		mutable double MicroSeconds;
 		mutable TArray<int32> Instructions;
 	};
-	const FProfilingCache* UpdateProfilingCacheIfNeeded(URigVM* InVM, const FRigVMASTProxy& InProxy) const;
+	const FProfilingCache* UpdateProfilingCacheIfNeeded(const FRigVMExtendedExecuteContext& Context, URigVM* InVM, const FRigVMASTProxy& InProxy) const;
 	mutable uint32 ProfilingHash;
 	mutable TMap<uint32, TSharedPtr<FProfilingCache>> ProfilingCache;
 	static TArray<int32> EmptyInstructionArray;

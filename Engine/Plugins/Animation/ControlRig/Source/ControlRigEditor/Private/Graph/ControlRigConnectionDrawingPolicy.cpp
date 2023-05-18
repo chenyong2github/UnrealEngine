@@ -321,8 +321,8 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 					{
 						if (const URigVM* VM = ControlRig->GetVM())
 						{
-							if (VM->WasInstructionVisitedDuringLastRun(OutputInstructionIndex) &&
-								VM->WasInstructionVisitedDuringLastRun(InputInstructionIndex))
+							if (VM->WasInstructionVisitedDuringLastRun(ControlRig->GetExtendedExecuteContext(), OutputInstructionIndex) &&
+								VM->WasInstructionVisitedDuringLastRun(ControlRig->GetExtendedExecuteContext(), InputInstructionIndex))
 							{
 								bVisited = true;
 							}

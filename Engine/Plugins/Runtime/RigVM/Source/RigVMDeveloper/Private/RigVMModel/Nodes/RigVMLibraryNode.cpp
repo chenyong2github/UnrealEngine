@@ -46,7 +46,7 @@ FText URigVMLibraryNode::GetToolTipText() const
 	return FText::FromName(GetFunctionIdentifier().HostObject.GetLongPackageFName());
 }
 
-TArray<int32> URigVMLibraryNode::GetInstructionsForVMImpl(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+TArray<int32> URigVMLibraryNode::GetInstructionsForVMImpl(const FRigVMExtendedExecuteContext& Context, URigVM* InVM, const FRigVMASTProxy& InProxy) const
 {
 	TArray<int32> Instructions;
 
@@ -60,7 +60,7 @@ TArray<int32> URigVMLibraryNode::GetInstructionsForVMImpl(URigVM* InVM, const FR
 	const FRigVMASTProxy Proxy = InProxy.GetChild((UObject*)this);
 	for(URigVMNode* ContainedNode : GetContainedNodes())
 	{
-		Instructions.Append(ContainedNode->GetInstructionsForVM(InVM, Proxy));
+		Instructions.Append(ContainedNode->GetInstructionsForVM(Context, InVM, Proxy));
 	}
 
 #endif

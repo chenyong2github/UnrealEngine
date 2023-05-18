@@ -56,6 +56,9 @@ class ANIMNEXT_API UAnimNextGraph : public UObject, public IAnimNextInterface
 	UPROPERTY()
 	TObjectPtr<URigVM> RigVM;
 
+	UPROPERTY(transient)
+	mutable FRigVMExtendedExecuteContext ExtendedExecuteContext;
+
 	UPROPERTY()
 	FRigVMRuntimeSettings VMRuntimeSettings;
 

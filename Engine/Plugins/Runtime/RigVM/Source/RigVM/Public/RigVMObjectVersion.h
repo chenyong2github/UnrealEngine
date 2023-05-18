@@ -11,6 +11,8 @@ struct RIGVM_API FRigVMObjectVersion
 	{
 		// Before any version changes were made
 		BeforeCustomVersionWasAdded,
+		
+		AddedVMHashChecks,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

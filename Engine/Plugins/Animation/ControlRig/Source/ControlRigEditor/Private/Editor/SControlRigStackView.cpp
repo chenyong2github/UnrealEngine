@@ -201,7 +201,7 @@ FText SRigStackItem::GetVisitedCountText() const
 				{
 					if(URigVM* VM = ControlRig->GetVM())
 					{
-						const int32 Count = VM->GetInstructionVisitedCount(WeakStackEntry.Pin()->InstructionIndex);
+						const int32 Count = VM->GetInstructionVisitedCount(ControlRig->GetExtendedExecuteContext(), WeakStackEntry.Pin()->InstructionIndex);
 						if(Count > 0)
 						{
 							return FText::FromString(FString::FromInt(Count));
@@ -226,7 +226,7 @@ FText SRigStackItem::GetDurationText() const
 				{
 					if(URigVM* VM = ControlRig->GetVM())
 					{
-						const double MicroSeconds = VM->GetInstructionMicroSeconds(WeakStackEntry.Pin()->InstructionIndex);
+						const double MicroSeconds = VM->GetInstructionMicroSeconds(ControlRig->GetExtendedExecuteContext(), WeakStackEntry.Pin()->InstructionIndex);
 						if(MicroSeconds > 0.0)
 						{
 							return FText::FromString(FString::Printf(TEXT("%d µs"), (int32)MicroSeconds));
@@ -758,10 +758,7 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 					}
 				}
 
-				if (ControlRig->GetVM())
-				{
-					ControlRig->GetVM()->ExecutionHalted().AddSP(this, &SControlRigStackView::HandleExecutionHalted);
-				}
+				ControlRig->GetExtendedExecuteContext().ExecutionHalted().AddSP(this, &SControlRigStackView::HandleExecutionHalted);
 			}
 		}
 	}

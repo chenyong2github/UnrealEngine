@@ -100,15 +100,15 @@ ERigVMExecuteResult FRigVMLazyBranch::ExecuteIfRequired(FRigVMExtendedExecuteCon
 		InSliceIndex = 0;
 	}
 	
-	while(!LastVMNumExecutions.IsValidIndex(InSliceIndex))
+	while(!Context.LazyBranchInstanceData[BranchInfo.Index].LastVMNumExecutions.IsValidIndex(InSliceIndex))
 	{
-		LastVMNumExecutions.Add(INDEX_NONE);
+		Context.LazyBranchInstanceData[BranchInfo.Index].LastVMNumExecutions.Add(INDEX_NONE);
 	}
 
-	if(VM->GetNumExecutions() != LastVMNumExecutions[InSliceIndex])
+	if(Context.GetNumExecutions() != Context.LazyBranchInstanceData[BranchInfo.Index].LastVMNumExecutions[InSliceIndex])
 	{
 		const ERigVMExecuteResult Result = Execute(Context);
-		LastVMNumExecutions[InSliceIndex] = VM->GetNumExecutions();
+		Context.LazyBranchInstanceData[BranchInfo.Index].LastVMNumExecutions[InSliceIndex] = Context.GetNumExecutions();
 		return Result;
 	}
 	

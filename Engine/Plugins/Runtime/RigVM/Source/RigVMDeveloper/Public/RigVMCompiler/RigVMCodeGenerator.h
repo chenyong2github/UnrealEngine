@@ -103,7 +103,8 @@ private:
 	FString GetOperandCPPBaseType(const FRigVMOperand& InOperand) const;
 	static FString SanitizeName(const FString& InName, const FString& CPPType = FString()); 
 	static FString SanitizeValue(const FString& InValue, const FString& CPPType, const UObject* CPPTypeObject); 
-	FRigVMPropertyDescription GetPropertyForOperand(const FRigVMOperand& InOperand) const;
+	FRigVMPropertyDescription GetPropertyDescForOperand(const FRigVMOperand& InOperand) const;
+	FRigVMPropertyDescription GetPropertyForOperand(const FRigVMExtendedExecuteContext& Context, const FRigVMOperand& InOperand) const;
 	const FRigVMPropertyPathDescription& GetPropertyPathForOperand(const FRigVMOperand& InOperand) const;
 	int32 GetPropertyIndex(const FRigVMPropertyDescription& InProperty) const;
 	int32 GetPropertyIndex(const FRigVMOperand& InOperand) const;

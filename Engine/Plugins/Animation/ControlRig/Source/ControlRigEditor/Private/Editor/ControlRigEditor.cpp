@@ -2259,10 +2259,7 @@ void FControlRigEditor::Compile()
 		{
 			ControlRig->OnInitialized_AnyThread().Clear();
 			ControlRig->OnExecuted_AnyThread().Clear();
-			if (ControlRig->GetVM())
-			{
-				ControlRig->GetVM()->ExecutionHalted().RemoveAll(this);
-			}
+			ControlRig->GetExtendedExecuteContext().ExecutionHalted().RemoveAll(this);
 		}
 
 		if(IsConstructionModeEnabled())
@@ -3371,7 +3368,7 @@ void FControlRigEditor::HandleControlRigExecutedEvent(URigVMHost* InControlRig, 
 					const FRigVMByteCode& ByteCode = VM->GetByteCode();
 					for(int32 InstructionIndex = 0; InstructionIndex < ByteCode.GetNumInstructions(); InstructionIndex++)
 					{
-						const int32 Count = VM->GetInstructionVisitedCount(InstructionIndex);
+						const int32 Count = VM->GetInstructionVisitedCount(DebuggedControlRig->GetExtendedExecuteContext(), InstructionIndex);
 						if(Count > ControlRigBP->RigGraphDisplaySettings.NodeRunLimit)
 						{
 							bFoundLimitWarnings = true;
@@ -4472,11 +4469,7 @@ void FControlRigEditor::UpdateControlRig()
 			ControlRig->OnExecuted_AnyThread().AddSP(this, &FControlRigEditor::HandleControlRigExecutedEvent);
 			ControlRig->RequestInit();
 			ControlRig->ControlModified().AddSP(this, &FControlRigEditor::HandleOnControlModified);
-
-			if (ControlRig->GetVM())
-			{
-				ControlRig->GetVM()->ExecutionHalted().AddSP(this, &FControlRigEditor::HandleControlRigExecutionHalted);
-			}
+			ControlRig->GetExtendedExecuteContext().ExecutionHalted().AddSP(this, &FControlRigEditor::HandleControlRigExecutionHalted);
 		}
 	}
 }
@@ -7097,8 +7090,8 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 
 					if(ControlRigGraphNode->ErrorType <= (int32)EMessageSeverity::Warning)
 					{
-						if(!ControlRig->VM->WasInstructionVisitedDuringLastRun(ControlRigGraphNode->GetInstructionIndex(true)) &&
-							!ControlRig->VM->WasInstructionVisitedDuringLastRun(ControlRigGraphNode->GetInstructionIndex(false)))
+						if(!ControlRig->VM->WasInstructionVisitedDuringLastRun(ControlRig->GetExtendedExecuteContext(), ControlRigGraphNode->GetInstructionIndex(true)) &&
+							!ControlRig->VM->WasInstructionVisitedDuringLastRun(ControlRig->GetExtendedExecuteContext(), ControlRigGraphNode->GetInstructionIndex(false)))
 						{
 							continue;
 						}

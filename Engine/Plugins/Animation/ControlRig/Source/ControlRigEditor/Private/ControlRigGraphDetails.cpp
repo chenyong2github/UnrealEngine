@@ -1719,12 +1719,12 @@ void FControlRigWrappedNodeDetails::CustomizeLiveValues(IDetailLayoutBuilder& De
 
 				if(Operand->GetMemoryType() == ERigVMMemoryType::External)
 				{
-					if(!VM->GetExternalVariables().IsValidIndex(Operand->GetRegisterIndex()))
+					if(!VM->GetExternalVariableDefs().IsValidIndex(Operand->GetRegisterIndex()))
 					{
 						continue;
 					}
 					ExternalObjects.Add(DebuggedRig);
-					Property = VM->GetExternalVariables()[Operand->GetRegisterIndex()].Property; 
+					Property = VM->GetExternalVariableDefs()[Operand->GetRegisterIndex()].Property; 
 				}
 				else
 				{

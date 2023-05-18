@@ -75,6 +75,9 @@ class UAnimNextParameterBlock : public UObject
 	UPROPERTY()
 	TObjectPtr<URigVM> RigVM;
 
+	UPROPERTY(transient)
+	FRigVMExtendedExecuteContext ExtendedExecuteContext;
+
 	UPROPERTY()
 	FRigVMRuntimeSettings VMRuntimeSettings;
 
