@@ -1633,11 +1633,10 @@ namespace UnrealBuildTool
 
 			if ((Target.bPGOOptimize || Target.bPGOProfile) && Target.ProjectFile != null)
 			{
-				// LTCG is required for PGO
-				//CompileEnvironment.bAllowLTCG = true;
-				//LinkEnvironment.bAllowLTCG = true;
+				// Win64 PGO folder is Windows, the rest match the platform name
+				string PGOPlatform = Target.Platform == UnrealTargetPlatform.Win64 ? "Windows" : Target.Platform.ToString();
 
-				CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile).FullName, "Platforms", "Windows", "Build", "PGO");
+				CompileEnvironment.PGODirectory = DirectoryReference.Combine(Target.ProjectFile.Directory, "Platforms", PGOPlatform, "Build", "PGO").FullName;
 				CompileEnvironment.PGOFilenamePrefix = string.Format("{0}-{1}-{2}", Target.Name, Target.Platform, Target.Configuration);
 
 				LinkEnvironment.PGODirectory = CompileEnvironment.PGODirectory;
