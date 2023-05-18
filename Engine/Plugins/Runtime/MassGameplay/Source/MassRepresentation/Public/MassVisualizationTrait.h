@@ -36,7 +36,7 @@ public:
 	TSubclassOf<AActor> LowResTemplateActor;
 
 	/** Allow subclasses to override the representation subsystem to use */
-	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual", meta = (EditCondition = "bCanModifyRepresentationSubsystemClass"))
 	TSubclassOf<UMassRepresentationSubsystem> RepresentationSubsystemClass;
 
 	/** Configuration parameters for the representation processor */
@@ -46,4 +46,10 @@ public:
 	/** Configuration parameters for the visualization LOD processor */
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
 	FMassVisualizationLODParameters LODParams;
+
+#if WITH_EDITORONLY_DATA
+	/** the property is marked like this to ensure it won't show up in UI */
+	UPROPERTY(EditDefaultsOnly, Category = "Mass|Visual")
+	bool bCanModifyRepresentationSubsystemClass = true;
+#endif // WITH_EDITORONLY_DATA
 };
