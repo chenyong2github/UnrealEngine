@@ -227,7 +227,7 @@ void FIOSCrashContext::GenerateCrashInfo() const
     // create a crash-specific directory
     char CrashInfoFolder[PATH_MAX] = {};
     FCStringAnsi::Strncpy(CrashInfoFolder, GIOSAppInfo.CrashReportPath, PATH_MAX);
-    FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "/CrashReport-UE4-");
+    FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "/CrashReport-UE-");
     FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, GIOSAppInfo.AppNameUTF8);
     FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, "-pid-");
     FCStringAnsi::Strcat(CrashInfoFolder, PATH_MAX, ItoANSI(getpid(), 10));
