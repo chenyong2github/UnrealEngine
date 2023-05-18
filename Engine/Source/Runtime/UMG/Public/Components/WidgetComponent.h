@@ -478,6 +478,10 @@ protected:
 	UPROPERTY(Transient, DuplicateTransient)
 	FIntPoint CurrentDrawSize;
 
+	/** Should the component use UMG Invalidation system? Use it only if the widgets used support invalidation*/
+	UPROPERTY(EditAnywhere, Category= UserInterface)
+	bool bIsInvalidationEnabled;
+
 	/**
 	 * Causes the render target to automatically match the desired size.
 	 * 

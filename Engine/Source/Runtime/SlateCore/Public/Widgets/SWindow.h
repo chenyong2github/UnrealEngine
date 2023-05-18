@@ -945,6 +945,9 @@ private:
 	void ResizeWindowSize( FVector2f NewWindowSize );
 
 	void OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled);
+
+	bool CanUseFastUpdate() const;
+
 public:
 	/**
 	 * For a given client size, calculate the window size required to accommodate any potential non-OS borders and title bars
@@ -1062,6 +1065,8 @@ public:
 	void SetSizeLimits(const FWindowSizeLimits& InSizeLimits);
 
 	void SetAllowFastUpdate(bool bInAllowFastUpdate);
+
+	void SetLocallyEnabledInvalidation(bool bInEnableInvalidation);
 public:
 
 	//~ SWidget overrides
@@ -1163,6 +1168,9 @@ protected:
 
 	/** True if this window allows global invalidation of its contents */
 	bool bAllowFastUpdate : 1;
+
+	/** True to enable invalidation on this particular window, even if the global invalidation has not been enabled. */
+	bool bLocallyEnabledInvalidation : 1;
 
 	/** When should the window be activated upon being shown */
 	EWindowActivationPolicy WindowActivationPolicy;

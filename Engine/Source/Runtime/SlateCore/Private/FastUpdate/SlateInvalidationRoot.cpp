@@ -199,6 +199,7 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	, InvalidationRootWidget(nullptr)
 	, RootHittestGrid(nullptr)
 	, CachedMaxLayerId(0)
+	, InvalidationRequestCount(0)
 	, bNeedsSlowPath(true)
 	, bNeedScreenPositionShift(false)
 	, bProcessingPreUpdate(false)
@@ -290,7 +291,17 @@ void FSlateInvalidationRoot::InvalidateRootLayout(const SWidget* Investigator)
 	UE_TRACE_SLATE_ROOT_INVALIDATED(InvalidationRootWidget, Investigator);
 }
 
-void FSlateInvalidationRoot::InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWidgetReason InvalidateReason)
+void FSlateInvalidationRoot::NotifyInvalidate()
+{
+	if (InvalidationRequestCount == 0)
+	{
+		InvalidationUpdateNeeded.Broadcast();
+	}
+	InvalidationRequestCount++;
+	ensure(InvalidationRequestCount < std::numeric_limits<uint32>::max());
+}
+
+void FSlateInvalidationRoot::InvalidateWidget(FWidgetProxy & Proxy, EInvalidateWidgetReason InvalidateReason)
 {
 	ensureMsgf(bProcessingChildOrderInvalidation == false, TEXT("A widget got invalidated while building the childorder."));
 
@@ -302,6 +313,8 @@ void FSlateInvalidationRoot::InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWi
 			return;
 		}
 	}
+
+	NotifyInvalidate();
 
 	if (!bNeedsSlowPath)
 	{
@@ -1081,7 +1094,7 @@ void FSlateInvalidationRoot::ProcessPrepassUpdate()
 	TGuardValue<bool> Tmp(bProcessingPrepassUpdate, true);
 
 #if WITH_SLATE_DEBUGGING
-	if (GSlateInvalidationRootDumpPostInvalidationList)
+	if (GSlateInvalidationRootDumpPrepassInvalidationList)
 	{
 		UE_LOG(LogSlate, Log, TEXT("Dumping Prepass Invalidation List"));
 		UE_LOG(LogSlate, Log, TEXT("-------------------"));
@@ -1203,6 +1216,7 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	FScopedDurationTimer TmpPerformance_ProcessInvalidation(PerformanceStat.InvalidationProcessing);
 #endif
 
+	InvalidationRequestCount = 0;
 	TGuardValue<bool> OnFastPathGuard(GSlateIsOnFastProcessInvalidation, true);
 
 	bool bWidgetsNeedRepaint = false;
