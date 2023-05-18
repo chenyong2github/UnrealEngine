@@ -81,10 +81,12 @@ namespace Chaos
 					{
 						if(FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
 						{
-							if(Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
+							const FDirtyRigidParticleReplicationErrorData* ErrorData = LatestData->DirtyRigidErrors.Find(Proxy);
+							if(Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha, ErrorData, GetAsyncDeltaTime()))
 							{
 								Private::TPullPhysicsStateDispatchHelper<TDispatcher>::Apply(Dispatcher, Proxy);
 							}
+							LatestData->DirtyRigidErrors.Remove(Proxy);
 						}
 					}
 				}

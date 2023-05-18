@@ -19,7 +19,6 @@
 #include "RewindData.h"
 
 
-
 namespace Chaos
 {
 
@@ -55,8 +54,6 @@ private:
 class FRigidBodyHandle_External;
 class FRigidBodyHandle_Internal;
 
-extern CHAOS_API FRealSingle ResimInterpStrength;
-
 class CHAOS_API FSingleParticlePhysicsProxy : public IPhysicsProxyBase
 {
 public:
@@ -70,8 +67,8 @@ public:
 	FSingleParticlePhysicsProxy(FSingleParticlePhysicsProxy&&) = delete;
 	virtual ~FSingleParticlePhysicsProxy();
 
-	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
-	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
+	const FProxyInterpolationBase& GetInterpolationData() const { return InterpolationData; }
+	FProxyInterpolationBase& GetInterpolationData() { return InterpolationData; }
 
 	FORCEINLINE FRigidBodyHandle_External& GetGameThreadAPI()
 	{
@@ -131,7 +128,7 @@ public:
 	void BufferPhysicsResults_External(FDirtyRigidParticleData&);
 
 	/**/
-	bool PullFromPhysicsState(const FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const FDirtyRigidParticleData* NextPullData = nullptr, const FRealSingle* Alpha = nullptr);
+	bool PullFromPhysicsState(const FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const FDirtyRigidParticleData* NextPullData = nullptr, const FRealSingle* Alpha = nullptr, const FDirtyRigidParticleReplicationErrorData* Error = nullptr, const Chaos::FReal AsyncFixedTimeStep = 0);
 
 	/**/
 	bool IsDirty();
@@ -181,7 +178,11 @@ protected:
 	FPhysicsObjectUniquePtr Reference;
 
 private:
-	FProxyInterpolationData InterpolationData;
+#if RENDERINTERP_ERRORVELOCITYSMOOTHING
+	FProxyInterpolationErrorVelocity InterpolationData;
+#else
+	FProxyInterpolationError InterpolationData;
+#endif
 
 	//use static Create
 	FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner = nullptr);
@@ -191,7 +192,7 @@ private:
 template <bool bExternal>
 class TThreadedSingleParticlePhysicsProxyBase : protected FSingleParticlePhysicsProxy
 {
-	TThreadedSingleParticlePhysicsProxyBase() = delete;	//You should only ever new FSingleParticlePhysicsProxy, derrived types are simply there for API constraining, no new data
+	TThreadedSingleParticlePhysicsProxyBase() = delete;	//You should only ever new FSingleParticlePhysicsProxy, derived types are simply there for API constraining, no new data
 public:
 
 	FSingleParticlePhysicsProxy* GetProxy() { return static_cast<FSingleParticlePhysicsProxy*>(this); }

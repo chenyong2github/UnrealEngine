@@ -1661,10 +1661,10 @@ namespace Chaos
 			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded_Internal(LastStep);
 			const int32 NumResimSteps = LastStep - ResimStep + 1;
 
-			const bool bEnableNetworlPredictionDebug = IsNetworkPhysicsPredictionEnabled() && CanDebugNetworkPhysicsPrediction();
+			const bool bEnableNetworkPredictionDebug = IsNetworkPhysicsPredictionEnabled() && CanDebugNetworkPhysicsPrediction();
 			
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (bEnableNetworlPredictionDebug)
+			if (bEnableNetworkPredictionDebug)
 			{
 				UE_LOG(LogChaos, Log, TEXT("	-> Trying to Rewind Frame = %d | At Time = %f | Num Steps = %d | Resim Step = %d | Last Step = %d"), CurrentFrame,  MTime, NumResimSteps, ResimStep, LastStep);
 				for(auto& Handle : GetParticles().GetNonDisabledDynamicView())
@@ -1713,7 +1713,7 @@ namespace Chaos
 								
 							GetEvolution()->SetReset(bFirst);
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-							if(bEnableNetworlPredictionDebug)
+							if(bEnableNetworkPredictionDebug)
 							{
 								UE_LOG(LogChaos, Log, TEXT("		-> Re-simulating Frame = %d "), Step);
 								for(auto& Handle : GetParticles().GetNonDisabledDynamicView())
@@ -1863,6 +1863,12 @@ namespace Chaos
 				PullData->DirtyRigids.AddDefaulted();
 				ActiveRigid[Idx]->BufferPhysicsResults(PullData->DirtyRigids.Last());
 			}
+		}
+
+		// Move correction error data from RewindData to FPullPhysicsData for marshalling
+		if (FRewindData* RewindData = GetRewindData())
+		{
+			RewindData->BufferPhysicsResults(PullData->DirtyRigidErrors);
 		}
 
 		{

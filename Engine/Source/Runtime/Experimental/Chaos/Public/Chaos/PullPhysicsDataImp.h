@@ -58,6 +58,12 @@ struct FDirtyRigidParticleData : public TBasePullData<FSingleParticlePhysicsProx
 	EObjectStateType ObjectState;
 };
 
+struct FDirtyRigidParticleReplicationErrorData : public TBasePullData<FSingleParticlePhysicsProxy, FSingleParticleProxyTimestamp>
+{
+	FVec3 ErrorX;
+	FQuat ErrorR;
+};
+
 struct FDirtyGeometryCollectionData : public TBasePullData<FGeometryCollectionPhysicsProxy, FProxyTimestampBase>
 {
 	FGeometryCollectionResults Results;
@@ -110,6 +116,7 @@ class FPullPhysicsData
 {
 public:
 	TArray<FDirtyRigidParticleData> DirtyRigids;
+	TMap<const FSingleParticlePhysicsProxy*, FDirtyRigidParticleReplicationErrorData> DirtyRigidErrors;
 	TArray<FDirtyGeometryCollectionData> DirtyGeometryCollections;
 	TArray<FDirtyClusterUnionData> DirtyClusterUnions;
 	TArray<FDirtyJointConstraintData> DirtyJointConstraints;

@@ -426,8 +426,9 @@ public:
 	void SetNotifyGlobalBreakings_External(bool bNotify);
 
 	float ComputeMaterialBasedDamageThreshold_Internal(Chaos::FPBDRigidClusteredParticleHandle& ClusteredParticle) const;
-	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
-	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
+
+	FProxyInterpolationBase& GetInterpolationData() { return InterpolationData; }
+	const FProxyInterpolationBase& GetInterpolationData() const { return InterpolationData; }
 
 	enum class EReplicationMode: uint8
 	{
@@ -610,7 +611,7 @@ private:
 	// paradigm, at least for this component of the handshake.
 	Chaos::FGuardedTripleBuffer<FGeometryCollectionResults> PhysToGameInterchange;
 
-	FProxyInterpolationData InterpolationData;
+	FProxyInterpolationBase InterpolationData;
 
 	// this is used as a unique ID when collecting data from runtime
 	FGuid CollectorGuid;

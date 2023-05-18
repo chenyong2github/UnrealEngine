@@ -155,27 +155,153 @@ struct PhysicsProxyWrapper
 	EPhysicsProxyType Type;
 };
 
-// Data ise used by interpolation code
-struct FProxyInterpolationData
+
+struct FProxyInterpolationBase
 {
-public:
-	FProxyInterpolationData()
+	FProxyInterpolationBase()
 		: PullDataInterpIdx_External(INDEX_NONE)
 		, InterpChannel_External(0)
-		, bResimSmoothing(false)
 	{}
 
 	int32 GetPullDataInterpIdx_External() const { return PullDataInterpIdx_External; }
-	void SetPullDataInterpIdx_External(const int32 Idx) { PullDataInterpIdx_External = Idx;	}
+	void SetPullDataInterpIdx_External(const int32 Idx) { PullDataInterpIdx_External = Idx; }
 
 	int32 GetInterpChannel_External() const { return InterpChannel_External; }
-	void SetInterpChannel_External(int32 Channel) { InterpChannel_External = Channel; }
+	void SetInterpChannel_External(const int32 Channel) { InterpChannel_External = Channel; }
 
-	void SetResimSmoothing(bool ResimSmoothing) { bResimSmoothing = ResimSmoothing; }
-	bool IsResimSmoothing() const { return bResimSmoothing; }
-	
-private:
+	virtual bool IsErrorSmoothing() { return false; }
+
+protected:
 	int32 PullDataInterpIdx_External;
 	int32 InterpChannel_External;
-	bool bResimSmoothing;
+};
+
+// Render interpolation that can correct errors from resimulation / repositions through a linear decay over N simulation tick.
+struct FProxyInterpolationError : FProxyInterpolationBase
+{
+	using Super = FProxyInterpolationBase;
+
+	FProxyInterpolationError() : Super()
+	{}
+
+	virtual bool IsErrorSmoothing() override { return ErrorSmoothingCount > 0; }
+
+	Chaos::FVec3 GetErrorX(const Chaos::FRealSingle Alpha) { return FMath::Lerp(ErrorXPrev, ErrorX, Alpha); } // Get the ErrorX based on current Alpha between GT and PT
+	FQuat GetErrorR(const Chaos::FRealSingle Alpha) { return FMath::Lerp(ErrorRPrev, ErrorR, Alpha); } // Get the ErrorR based on current Alpha between GT and PT
+
+	void AccumlateErrorXR(const Chaos::FVec3 X, const FQuat R, const int32 CurrentSimTick, const int32 ErrorSmoothDuration)
+	{
+		ErrorX += X;
+		ErrorXPrev = ErrorX;
+		ErrorR *= R;
+		ErrorRPrev = ErrorR;
+		ErrorSmoothingCount = ErrorSmoothDuration; // How many simulation ticks to correct error over
+		LastSimTick = CurrentSimTick - 1; // Error is from the previous simulation tick, not the current
+	}
+
+	virtual bool UpdateError(const int32 CurrentSimTick, const Chaos::FReal AsyncFixedTimeStep)
+	{
+		// Cache how many simulation ticks have passed since last call
+		SimTicks = CurrentSimTick - LastSimTick;
+		LastSimTick = CurrentSimTick;
+
+		if (IsErrorSmoothing() && SimTicks > 0)
+		{
+			DecayError();
+			return true;
+		}
+		return false;
+	}
+
+
+protected:
+	void DecayError()
+	{
+		// Linear decay
+		// Example: If we want to decay an error of 100 over 10ticks (i.e. 10% each tick)
+		// First step:  9/10 = 0.9   |  100 * 0.9  = 90 error
+		// Second step: 8/9  = 0.888 |  90 * 0.888 = 80 error
+		// Third step: 7/8  = 0.875 |  80 * 0.875 = 70 error
+		// etc.
+		Chaos::FRealSingle Alpha = Chaos::FRealSingle(ErrorSmoothingCount - SimTicks) / Chaos::FRealSingle(ErrorSmoothingCount);
+		Alpha = FMath::Clamp(Alpha, 0.f, 1.f);
+
+		ErrorXPrev = ErrorX;
+		ErrorX *= Alpha;
+
+		ErrorRPrev = ErrorR;
+		ErrorR = FMath::Lerp(FQuat::Identity, ErrorR, Alpha);
+
+		ErrorSmoothingCount = FMath::Max(ErrorSmoothingCount - SimTicks, 0);
+	}
+
+
+protected:
+	int32 LastSimTick = 0;
+	int32 SimTicks = 0;
+
+	Chaos::FVec3 ErrorX = { 0,0,0 };
+	Chaos::FVec3 ErrorXPrev = { 0,0,0 };
+	FQuat ErrorR = FQuat::Identity;
+	FQuat ErrorRPrev = FQuat::Identity;
+	int32 ErrorSmoothingCount = 0;
+
+};
+
+
+// Take incoming velocity into consideration when performing render interpolation, the correction will be more organic but might result in clipping and it's heavier for memory and CPU.
+#ifndef RENDERINTERP_ERRORVELOCITYSMOOTHING
+#define RENDERINTERP_ERRORVELOCITYSMOOTHING 0
+#endif
+// Render Interpolation that both perform the linear error correction from FProxyInterpolationError and takes incoming velocity into account to make a smoother and more organic correction of the error.
+struct FProxyInterpolationErrorVelocity : FProxyInterpolationError
+{
+	using Super = FProxyInterpolationError;
+
+	FProxyInterpolationErrorVelocity() : Super()
+	{}
+
+	bool IsErrorVelocitySmoothing() { return ErrorVelocitySmoothingCount > 0; }
+
+	// Returns the Alpha of how much to take previous velocity into account, used to lerp from linear extrapolation to the predicted position based on previous velocity.
+	Chaos::FRealSingle GetErrorVelocitySmoothingAlpha(const int32 ErrorVelocitySmoothDuration) { return Chaos::FRealSingle(ErrorVelocitySmoothingCount) / Chaos::FRealSingle(ErrorVelocitySmoothDuration); }
+	Chaos::FVec3 GetErrorVelocitySmoothingX(const Chaos::FRealSingle Alpha) { return FMath::Lerp(ErrorVelocitySmoothingXPrev, ErrorVelocitySmoothingX, Alpha); } // Get the VelocityErrorX based on current Alpha between GT and PT
+
+	bool UpdateError(const int32 CurrentSimTick, const Chaos::FReal AsyncFixedTimeStep) override
+	{		
+		if (Super::UpdateError(CurrentSimTick, AsyncFixedTimeStep))
+		{
+			StepErrorVelocitySmoothingData(AsyncFixedTimeStep);
+			return true;
+		}
+		return false;
+	}
+
+	void SetVelocitySmoothing(const Chaos::FVec3 CurrV, const Chaos::FVec3 CurrX, const int32 ErrorVelocitySmoothDuration)
+	{
+		// Cache pre error velocity and position to be used when smoothing out error correction
+		ErrorVelocitySmoothingV = CurrV;
+		ErrorVelocitySmoothingX = CurrX;
+		ErrorVelocitySmoothingXPrev = ErrorVelocitySmoothingX;
+		ErrorVelocitySmoothingCount = ErrorVelocitySmoothDuration;
+	}
+
+protected:
+	void StepErrorVelocitySmoothingData(const Chaos::FReal AsyncFixedTimeStep)
+	{
+		// Step the error velocity smoothing position forward along the previous velocity to have a new position to base smoothing on each tick
+		if (IsErrorVelocitySmoothing())
+		{
+			const Chaos::FReal Time = AsyncFixedTimeStep * SimTicks;
+			ErrorVelocitySmoothingXPrev = ErrorVelocitySmoothingX;
+			ErrorVelocitySmoothingX += ErrorVelocitySmoothingV * Time;
+
+			ErrorVelocitySmoothingCount = FMath::Max(ErrorVelocitySmoothingCount - SimTicks, 0);
+		}
+	}
+
+	Chaos::FVec3 ErrorVelocitySmoothingV = { 0,0,0 };
+	Chaos::FVec3 ErrorVelocitySmoothingX = { 0,0,0 };
+	Chaos::FVec3 ErrorVelocitySmoothingXPrev = { 0,0,0 };
+	int32 ErrorVelocitySmoothingCount = 0;
 };

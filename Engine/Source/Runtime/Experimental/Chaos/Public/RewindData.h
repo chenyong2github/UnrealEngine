@@ -782,6 +782,13 @@ struct FGeometryParticleStateBase
 	void SyncSimWritablePropsFromSim(FDirtyPropData Manager,const TPBDRigidParticleHandle<FReal,3>& Rigid);
 	void SyncDirtyDynamics(FDirtyPropData& DestManager,const FDirtyChaosProperties& Dirty,const FConstDirtyPropData& SrcManager);
 	
+	template<typename TParticle>
+	void CachePreCorrectionState(const TParticle& Particle)
+	{
+		PreCorrectionXR.SetX(Particle.X());
+		PreCorrectionXR.SetR(Particle.R());
+	}
+
 	TParticlePropertyBuffer<FParticlePositionRotation,EChaosProperty::XR> ParticlePositionRotation;
 	TParticlePropertyBuffer<FParticleNonFrequentData,EChaosProperty::NonFrequentData> NonFrequentData;
 	TParticlePropertyBuffer<FParticleVelocities,EChaosProperty::Velocities> Velocities;
@@ -794,6 +801,8 @@ struct FGeometryParticleStateBase
 	TParticlePropertyBuffer<FParticleVelocities, EChaosProperty::Velocities> TargetVelocities;
 
 	FShapesArrayStateBase ShapesArrayState;
+
+	FParticlePositionRotation PreCorrectionXR;
 };
 
 class FGeometryParticleState
@@ -1079,6 +1088,12 @@ public:
 			KeyToIdx.Remove(Key);
 		}
 	}
+	
+	void Reset()
+	{
+		DenseVals.Reset();
+		KeyToIdx.Reset();
+	}
 
 	int32 Num() const { return DenseVals.Num(); }
 
@@ -1277,6 +1292,8 @@ public:
 	/** Rewind the states from all the history states datas */
 	void RewindStates(const int32 RewindFrame, const bool bResetSolver);
 
+	void BufferPhysicsResults(TMap<const FSingleParticlePhysicsProxy*, struct FDirtyRigidParticleReplicationErrorData>& DirtyRigidErrors);
+
 	/** Return the rewind data solver */
 	const FPBDRigidsSolver* GetSolver() const { return Solver; }
 
@@ -1368,6 +1385,28 @@ private:
 	using FDirtyParticleInfo = TDirtyObjectInfo<FGeometryParticleStateBase, FGeometryParticleHandle>;
 	using FDirtyJointInfo = TDirtyObjectInfo<FJointStateBase, FPBDJointConstraintHandle>;
 
+	struct FDirtyParticleErrorInfo
+	{
+	private:
+		FGeometryParticleHandle* HandlePtr;
+		FVec3 ErrorX = { 0,0,0 };
+		FQuat ErrorR = FQuat::Identity;
+
+	public:
+		FDirtyParticleErrorInfo(FGeometryParticleHandle& InHandle) : HandlePtr(&InHandle)
+		{ }
+
+		void AccumulateError(FVec3 NewErrorX, FQuat NewErrorR)
+		{
+			ErrorX += NewErrorX;
+			ErrorR *= NewErrorR;
+		}
+
+		FGeometryParticleHandle* GetObjectPtr() const { return HandlePtr; }
+		FVec3 GetErrorX() const { return ErrorX; }
+		FQuat GetErrorR() const { return ErrorR; }
+	};
+
 	template <typename TDirtyObjs, typename TObj>
 	auto& FindOrAddDirtyObjImp(TDirtyObjs& DirtyObjs, TObj& Handle, const int32 InitializedOnFrame = INDEX_NONE)
 	{
@@ -1420,6 +1459,7 @@ private:
 
 	TDirtyObjects<FDirtyParticleInfo> DirtyParticles;
 	TDirtyObjects<FDirtyJointInfo> DirtyJoints;
+	TDirtyObjects<FDirtyParticleErrorInfo> DirtyParticleErrors;
 
 	TArray<TWeakPtr<FBaseInputsHistory>> InputsHistories;
 	TArray<TWeakPtr<FBaseStatesHistory>> StatesHistories;
@@ -1437,6 +1477,9 @@ private:
 
 	template <bool bSkipDynamics, typename TDirtyInfo>
 	void DesyncIfNecessary(TDirtyInfo& Info, const FFrameAndPhase FrameAndPhase);
+
+	template<typename TObj>
+	void AccumulateErrorIfNecessary(TObj& Handle, const FFrameAndPhase FrameAndPhase) { }
 };
 
 struct FResimDebugInfo

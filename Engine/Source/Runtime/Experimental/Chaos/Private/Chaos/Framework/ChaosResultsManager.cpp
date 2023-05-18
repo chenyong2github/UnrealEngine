@@ -85,7 +85,7 @@ namespace Chaos
 		{
 			if (auto Proxy = Data.GetProxy())
 			{
-				FProxyInterpolationData& InterpolationData = Proxy->GetInterpolationData(); 
+				FProxyInterpolationBase& InterpolationData = Proxy->GetInterpolationData();
 				
 				//If proxy is not associated with this channel, do nothing
 				if (InterpolationData.GetInterpChannel_External() != ChannelIdx)
@@ -293,8 +293,8 @@ namespace Chaos
 		{
 			FSingleParticlePhysicsProxy* Proxy = Itr.Key;
 
-			FProxyInterpolationData& InterpolationData = Proxy->GetInterpolationData(); 
-			if(InterpolationData.IsResimSmoothing())
+			FProxyInterpolationBase& InterpolationData = Proxy->GetInterpolationData();
+			if (InterpolationData.IsErrorSmoothing())
 			{
 				if (InterpolationData.GetPullDataInterpIdx_External() == INDEX_NONE)	//not in results array
 				{
@@ -399,12 +399,11 @@ namespace Chaos
 		{
 			if (FSingleParticlePhysicsProxy* ResimProxy = ResimDirty.GetProxy())
 			{
-				FProxyInterpolationData& InterpolationData = ResimProxy->GetInterpolationData(); 
+				FProxyInterpolationBase& InterpolationData = ResimProxy->GetInterpolationData(); 
 				//Mark as resim only if proxy is owned by this channel
 				if(InterpolationData.GetInterpChannel_External() == ChannelIdx)
 				{
 					ParticleToResimTarget.FindOrAdd(ResimProxy) = ResimDirty;
-					InterpolationData.SetResimSmoothing(true);
 				}
 			}
 		}

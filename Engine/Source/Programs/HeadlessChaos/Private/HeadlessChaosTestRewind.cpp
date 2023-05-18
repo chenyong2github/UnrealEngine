@@ -2108,6 +2108,7 @@ namespace ChaosTest {
 				FReal Time = 0;
 				FReal ZStart = 0;
 				const FReal ZVel = -1;
+				FReal LastCorrectionStep = 0;
 
 				Solver->SetRewindCallback(MoveTemp(UniqueRewindCallback));
 
@@ -2154,17 +2155,32 @@ namespace ChaosTest {
 						const int32 NextSimStep = FMath::CeilToInt(InterpolatedTime / SimDt);
 						const FReal NextSimStepTime = NextSimStep * SimDt;
 						const FReal ExpectedValue = ZStart + ZVel * InterpolatedTime;
-						const FReal TargetValue = ZStart + ZVel * NextSimStepTime;
+					//	const FReal TargetValue = ZStart + ZVel * NextSimStepTime;
 
-						if(!Proxy->GetInterpolationData().IsResimSmoothing())
+						if (Proxy->GetInterpolationData().IsErrorSmoothing())
 						{
-							//no resim interpolation, just simple value interpolation
-							EXPECT_NEAR(Particle.X()[2], ExpectedValue, 1e-2);
+#if !RENDERINTERP_ERRORVELOCITYSMOOTHING
+							const FReal CorrectionStep = Particle.X()[2] - PrevZ;
+							if (LastCorrectionStep != 0)
+							{
+								// Make sure we have a linear correction
+								EXPECT_NEAR(LastCorrectionStep, CorrectionStep, 1e-2);
+							}
+
+							LastCorrectionStep = CorrectionStep;
+#endif
 						}
 						else
 						{
-							//exponential decay from current state to target
-							EXPECT_NEAR(Particle.X()[2], FMath::Lerp(PrevZ, ExpectedValue, Chaos::ResimInterpStrength), 1e-2);
+							if (!!LastCorrectionStep)
+							{
+								// Correction is now done, check if the object arrived at the current position by the correction or if it was snapped into place via not doing correction anymore
+								EXPECT_NEAR(PrevZ, Particle.X()[2] - LastCorrectionStep, 1e-2);
+								LastCorrectionStep = 0;
+							}
+
+							//no resim interpolation, just simple value interpolation
+							EXPECT_NEAR(Particle.X()[2], ExpectedValue, 1e-2);
 						}
 					}
 				}

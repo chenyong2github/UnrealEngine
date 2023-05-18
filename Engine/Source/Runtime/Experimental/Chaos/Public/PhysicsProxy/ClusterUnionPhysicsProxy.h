@@ -110,8 +110,8 @@ namespace Chaos
 		void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData) const;
 		void ClearAccumulatedData();
 
-		FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
-		const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
+		FProxyInterpolationBase& GetInterpolationData() { return InterpolationData; }
+		const FProxyInterpolationBase& GetInterpolationData() const { return InterpolationData; }
 
 		FClusterUnionIndex GetClusterUnionIndex() const { return ClusterUnionIndex; }
 
@@ -127,7 +127,7 @@ namespace Chaos
 		FInternalParticle* Particle_Internal = nullptr;
 		FClusterUnionIndex ClusterUnionIndex = INDEX_NONE;
 
-		FProxyInterpolationData InterpolationData;
+		FProxyInterpolationBase InterpolationData;
 
 		//~ Begin TPhysicsProxy Interface
 	public:

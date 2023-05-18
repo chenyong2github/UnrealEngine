@@ -271,6 +271,8 @@ bool FRewindData::RewindToFrame(int32 Frame)
 		
 		FGeometryParticleStateBase& History = DirtyParticleInfo.AddFrame(CurFrame);	//non-const in case we need to record what's at head for a rewind (CurFrame has already been increased to the next frame)
 
+		History.CachePreCorrectionState(*PTParticle);
+
 		const bool bResimAsFollower = DirtyParticleInfo.bResimAsFollower;
 
 		bool bAnyChange = RewindHelper(PTParticle, bResimAsFollower, History.ParticlePositionRotation, [](auto Particle, const auto& Data) {Particle->SetXR(Data); });
@@ -341,6 +343,40 @@ void FRewindData::DesyncIfNecessary(TDirtyInfo& Info, const FFrameAndPhase Frame
 	}
 }
 
+template<>
+void FRewindData::AccumulateErrorIfNecessary(FGeometryParticleHandle& Obj, const FFrameAndPhase FrameAndPhase)
+{
+	const FDirtyParticleInfo* DirtyInfo = DirtyParticles.Find(&Obj);
+	if (!DirtyInfo)
+	{
+		return;
+	}
+
+	// Get the error offset after a correction
+	const FVec3 ErrorX = DirtyInfo->GetHistory().PreCorrectionXR.X() - Obj.X();
+	FQuat ErrorR = DirtyInfo->GetHistory().PreCorrectionXR.R() * Obj.R().Inverse();
+	ErrorR.EnforceShortestArcWith(FQuat::Identity);
+	ErrorR.Normalize();
+
+	// Check if error is large enough to hide behind render interpolation
+	if (!ErrorX.IsNearlyZero(0.1) || !ErrorR.IsIdentity(0.02))
+	{
+		// Find or add FDirtyParticleErrorInfo for the particle that has an error
+		FDirtyParticleErrorInfo& ErrorInfo = [&]() ->FDirtyParticleErrorInfo&
+		{
+			if (FDirtyParticleErrorInfo* Found = DirtyParticleErrors.Find(&Obj))
+			{
+				return *Found;
+			}
+
+			return DirtyParticleErrors.Add(&Obj, FDirtyParticleErrorInfo(Obj));
+		}();
+
+		// Cache error for particle 
+		ErrorInfo.AccumulateError(ErrorX, ErrorR);
+	}
+}
+
 void FRewindData::FinishFrame()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(RewindDataFinishFrame);
@@ -365,6 +401,9 @@ void FRewindData::FinishFrame()
 				{
 					if (IsFinalResim())
 					{
+						// Cache the correction offset after a resimulation
+						AccumulateErrorIfNecessary(Handle, FutureFrame);
+
 						//Last resim so mark as in sync
 						Handle.SetSyncState(ESyncState::InSync);
 						Handle.SetEnabledDuringResim(false);
@@ -648,6 +687,22 @@ void FRewindData::SpawnProxyIfNeeded(FSingleParticlePhysicsProxy& Proxy)
 			Info.InitializedOnStep = CurFrame;
 		}
 	}
+}
+
+// Hand over error data per particle from RewindData to a solver collection instead which gets marshalled to GT
+void FRewindData::BufferPhysicsResults(TMap<const FSingleParticlePhysicsProxy*, struct FDirtyRigidParticleReplicationErrorData>& DirtyRigidErrors)
+{
+	DirtyRigidErrors.Reserve(DirtyParticleErrors.Num());
+
+	for (const FDirtyParticleErrorInfo& ErrorInfo : DirtyParticleErrors)
+	{
+		FDirtyRigidParticleReplicationErrorData ErrorData;
+		ErrorData.ErrorX = ErrorInfo.GetErrorX();
+		ErrorData.ErrorR = ErrorInfo.GetErrorR();
+		DirtyRigidErrors.Add(static_cast<const FSingleParticlePhysicsProxy*>(ErrorInfo.GetObjectPtr()->PhysicsProxy()), ErrorData);
+	}
+
+	DirtyParticleErrors.Reset();
 }
 
 void FRewindData::MarkDirtyFromPT(FGeometryParticleHandle& Handle)
