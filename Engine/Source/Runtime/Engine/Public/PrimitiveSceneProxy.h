@@ -134,6 +134,7 @@ public:
 };
 
 extern bool IsOptimizedWPO();
+ENGINE_API extern bool ShouldOptimizedWPOAffectNonNaniteShaderSelection();
 extern bool IsAllowingApproximateOcclusionQueries();
 extern bool CacheShadowDepthsFromPrimitivesUsingWPO();
 

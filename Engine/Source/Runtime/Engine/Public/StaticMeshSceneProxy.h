@@ -101,6 +101,8 @@ protected:
 	/** Only call on render thread timeline */
 	uint8 GetCurrentFirstLODIdx_Internal() const;
 
+	virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() override;
+
 public:
 	// FPrimitiveSceneProxy interface.
 #if WITH_EDITOR

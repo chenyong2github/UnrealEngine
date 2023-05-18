@@ -497,12 +497,12 @@ bool FOpaqueVelocityMeshProcessor::PrimitiveHasVelocityForFrame(const FPrimitive
 	return true;
 }
 
-static bool UseDefaultMaterial(const FMaterial* Material, bool bMaterialModifiesMeshPosition)
+static bool UseDefaultMaterial(const FMaterial* Material, bool bVFTypeSupportsNullPixelShader, bool bMaterialModifiesMeshPosition)
 {
 	// Materials without masking or custom vertex modifications can be swapped out
 	// for the default material, which simplifies the shader. However, the default
 	// material also does not support being two-sided.
-	return Material->WritesEveryPixel() && !Material->IsTwoSided() && !bMaterialModifiesMeshPosition;
+	return Material->WritesEveryPixel(false, bVFTypeSupportsNullPixelShader) && !Material->IsTwoSided() && !bMaterialModifiesMeshPosition;
 }
 
 bool FOpaqueVelocityMeshProcessor::TryAddMeshBatch(
@@ -522,8 +522,11 @@ bool FOpaqueVelocityMeshProcessor::TryAddMeshBatch(
 		const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 		const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(*Material, OverrideSettings);
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(*Material, OverrideSettings);
+		const bool bVFTypeSupportsNullPixelShader = MeshBatch.VertexFactory->SupportsNullPixelShader();
+		const bool bEvaluateWPO = Material->MaterialModifiesMeshPosition_RenderThread()
+			&& (!ShouldOptimizedWPOAffectNonNaniteShaderSelection() || PrimitiveSceneProxy->EvaluateWorldPositionOffset());
 
-		const bool bSwapWithDefaultMaterial = UseDefaultMaterial(Material, Material->MaterialModifiesMeshPosition_RenderThread());
+		const bool bSwapWithDefaultMaterial = UseDefaultMaterial(Material, bVFTypeSupportsNullPixelShader, bEvaluateWPO);
 		if (bSwapWithDefaultMaterial)
 		{
 			MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
@@ -603,8 +606,9 @@ void FOpaqueVelocityMeshProcessor::CollectPSOInitializers(const FSceneTexturesCo
 		const bool bIsNotTranslucent = IsOpaqueOrMaskedBlendMode(Material);
 
 		if (PreCacheParams.bRenderInMainPass && bIsNotTranslucent && ShouldIncludeMaterialInDefaultOpaquePass(Material))
-		{			
-			const bool bUseDefaultMaterial = UseDefaultMaterial(&Material, Material.MaterialModifiesMeshPosition_GameThread());
+		{
+			const bool bVFTypeSupportsNullPixelShader = VertexFactoryData.VertexFactoryType->SupportsNullPixelShader();
+			const bool bUseDefaultMaterial = UseDefaultMaterial(&Material, bVFTypeSupportsNullPixelShader, Material.MaterialModifiesMeshPosition_GameThread());
 			if (!bUseDefaultMaterial)
 			{
 				bCollectPSOs = true;

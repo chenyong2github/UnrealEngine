@@ -49,6 +49,18 @@ static TAutoConsoleVariable<bool> CVarOptimizedWPO(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<bool> CVarOptimizedWPOAffectNonNaniteShaderSelection(
+	TEXT("r.OptimizedWPO.AffectNonNaniteShaderSelection"),
+	false,
+	TEXT("Whether the per primitive WPO flag should affect shader selection for non-nanite primitives. It increase the chance of selecting the position only depth VS ")
+	TEXT("at the cost of updating cached draw commands whenever the WPO flag changes."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarCacheWPOPrimitives(
 	TEXT("r.Shadow.CacheWPOPrimitives"),
 	0,
@@ -100,6 +112,11 @@ bool IsAllowingApproximateOcclusionQueries()
 bool IsOptimizedWPO()
 {
 	return CVarOptimizedWPO.GetValueOnAnyThread() != 0;
+}
+
+bool ShouldOptimizedWPOAffectNonNaniteShaderSelection()
+{
+	return CVarOptimizedWPOAffectNonNaniteShaderSelection.GetValueOnAnyThread() != 0;
 }
 
 bool CacheShadowDepthsFromPrimitivesUsingWPO()

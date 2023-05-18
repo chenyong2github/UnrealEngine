@@ -4094,12 +4094,19 @@ bool FMaterial::GetMaterialExpressionSource( FString& OutSource )
 
 bool FMaterial::WritesEveryPixel(bool bShadowPass) const
 {
+	const bool bVFTypeSupportsNullPixelShader = !IsUsedWithInstancedStaticMeshes();
+	return WritesEveryPixel(bShadowPass, bVFTypeSupportsNullPixelShader);
+}
+
+bool FMaterial::WritesEveryPixel(bool bShadowPass, bool bVFTypeSupportsNullPixelShader) const
+{
 	bool bLocalStencilDitheredLOD = FeatureLevel >= ERHIFeatureLevel::SM5 && bStencilDitheredLOD;
 	return !IsMasked()
 		// Render dithered material as masked if a stencil prepass is not used (UE-50064, UE-49537)
 		&& !((bShadowPass || !bLocalStencilDitheredLOD) && IsDitheredLODTransition())
 		&& !IsWireframe()
-		&& !(bLocalStencilDitheredLOD && IsDitheredLODTransition() && IsUsedWithInstancedStaticMeshes())
+		// If the VF type requires a PS, return false so a PS will be picked
+		&& !(bLocalStencilDitheredLOD && IsDitheredLODTransition() && !bVFTypeSupportsNullPixelShader)
 		&& !IsStencilTestEnabled();
 }
 

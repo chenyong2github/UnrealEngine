@@ -39,6 +39,7 @@
 #include "NaniteSceneProxy.h"
 #include "RenderCore.h"
 #include "DataDrivenShaderPlatformInfo.h"
+#include "EngineModule.h"
 
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
@@ -1410,6 +1411,15 @@ bool FStaticMeshSceneProxy::IsCollisionView(const FEngineShowFlags& EngineShowFl
 uint8 FStaticMeshSceneProxy::GetCurrentFirstLODIdx_Internal() const
 {
 	return RenderData->CurrentFirstLODIdx;
+}
+
+void FStaticMeshSceneProxy::OnEvaluateWorldPositionOffsetChanged_RenderThread()
+{
+	if (ShouldOptimizedWPOAffectNonNaniteShaderSelection())
+	{
+		// Re-cache draw commands
+		GetRendererModule().BeginDeferredUpdateOfPrimitiveSceneInfo(GetPrimitiveSceneInfo());
+	}
 }
 
 void FStaticMeshSceneProxy::GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const

@@ -487,10 +487,11 @@ IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_VirtualShadowMap);
  */
 static bool UseDefaultMaterialForShadowDepth(
 	const FMaterial& Material,
+	bool bVFTypeSupportsNullPixelShader,
 	bool MaterialModifiesMeshPosition)
 {
 	const bool bShadowPass = true;
-	return (Material.WritesEveryPixel(bShadowPass) &&
+	return (Material.WritesEveryPixel(bShadowPass, bVFTypeSupportsNullPixelShader) &&
 		!MaterialModifiesMeshPosition);
 }
 
@@ -505,9 +506,10 @@ bool GetShadowDepthPassShaders(
 	TShaderRef<FShadowDepthVS>& VertexShader,
 	TShaderRef<FShadowDepthBasePS>& PixelShader)
 {
+	const bool bVFTypeSupportsNullPixelShader = VertexFactoryType->SupportsNullPixelShader();
 	const bool bPositionOnlyVS =
 		bSupportsPositionAndNormalOnlyStream
-		&& Material.WritesEveryPixel(true)
+		&& Material.WritesEveryPixel(true, bVFTypeSupportsNullPixelShader)
 		&& !bMaterialModifiesMeshPosition;
 
 	// Use perspective correct shadow depths for shadow types which typically render low poly meshes into the shadow depth buffer.
@@ -580,7 +582,7 @@ bool GetShadowDepthPassShaders(
 	}
 
 	// Pixel shaders
-	const bool bNullPixelShader = Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && !bVirtualShadowMap && VertexFactoryType->SupportsNullPixelShader();
+	const bool bNullPixelShader = Material.WritesEveryPixel(true, bVFTypeSupportsNullPixelShader) && !bUsePerspectiveCorrectShadowDepths && !bVirtualShadowMap && bVFTypeSupportsNullPixelShader;
 	if (!bNullPixelShader)
 	{
 		if (bVirtualShadowMap)
@@ -1956,9 +1958,10 @@ void FShadowDepthPassMeshProcessor::CollectPSOInitializersInternal(
 		return;
 	}
 
+	const bool bVFTypeSupportsNullPixelShader = VertexFactoryData.VertexFactoryType->SupportsNullPixelShader();
 	const bool bUsePositionOnlyVS =
 		bSupportsPositionAndNormalOnlyStream
-		&& MaterialResource.WritesEveryPixel(true)
+		&& MaterialResource.WritesEveryPixel(true, bVFTypeSupportsNullPixelShader)
 		&& !MaterialResource.MaterialModifiesMeshPosition_GameThread();
 	
 	FGraphicsPipelineRenderTargetsInfo RenderTargetsInfo;	
@@ -2028,7 +2031,7 @@ bool FShadowDepthPassMeshProcessor::Process(
 
 	const bool bUsePositionOnlyVS =
 		VertexFactory->SupportsPositionAndNormalOnlyStream()
-		&& MaterialResource.WritesEveryPixel(true)
+		&& MaterialResource.WritesEveryPixel(true, VertexFactory->SupportsNullPixelShader())
 		&& !MaterialResource.MaterialModifiesMeshPosition_RenderThread();
 
 	// Need to replicate for cube faces on host if GPU-scene is not available (for this draw).
@@ -2081,8 +2084,11 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 	{
 		const FMaterialRenderProxy* EffectiveMaterialRenderProxy = &MaterialRenderProxy;
 		const FMaterial* EffectiveMaterial = &Material;
+		const bool bVFTypeSupportsNullPixelShader = MeshBatch.VertexFactory->SupportsNullPixelShader();
+		const bool bEvaluateWPO = Material.MaterialModifiesMeshPosition_RenderThread()
+			&& (!ShouldOptimizedWPOAffectNonNaniteShaderSelection() || PrimitiveSceneProxy->EvaluateWorldPositionOffset());
 
-		if (UseDefaultMaterialForShadowDepth(Material, Material.MaterialModifiesMeshPosition_RenderThread()))
+		if (UseDefaultMaterialForShadowDepth(Material, bVFTypeSupportsNullPixelShader, bEvaluateWPO))
 		{
 			const FMaterialRenderProxy* DefaultProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 			const FMaterial* DefaultMaterialResource = DefaultProxy->GetMaterialNoFallback(FeatureLevel);
@@ -2144,8 +2150,9 @@ void FShadowDepthPassMeshProcessor::CollectPSOInitializers(const FSceneTexturesC
 	else if (PreCacheParams.bCastShadow)
 	{
 		bool bCollectPSOs = true;
+		const bool bVFTypeSupportsNullPixelShader = VertexFactoryData.VertexFactoryType->SupportsNullPixelShader();
 		const FMaterial* EffectiveMaterial = &Material;
-		if (UseDefaultMaterialForShadowDepth(Material, Material.MaterialModifiesMeshPosition_GameThread()))
+		if (UseDefaultMaterialForShadowDepth(Material, bVFTypeSupportsNullPixelShader, Material.MaterialModifiesMeshPosition_GameThread()))
 		{
 			if (VertexFactoryData.CustomDefaultVertexDeclaration)
 			{
