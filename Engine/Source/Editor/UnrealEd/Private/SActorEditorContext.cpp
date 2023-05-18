@@ -201,7 +201,7 @@ void SActorEditorContext::Rebuild()
 
 bool SActorEditorContext::IsVisible(UWorld* InWorld)
 {
-	if (InWorld && GEditor)
+	if (InWorld && GEditor && !IsEngineExitRequested())
 	{
 		return UActorEditorContextSubsystem::Get()->GetDisplayableClients().Num() > 0;
 	}
