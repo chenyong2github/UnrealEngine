@@ -59,6 +59,23 @@ enum class EReferenceChainSearchMode
 
 ENUM_CLASS_FLAGS(EReferenceChainSearchMode);
 
+/* Options for UEngine::FindAndPrintStaleReferencesToObject function */
+enum class EPrintStaleReferencesOptions
+{
+	None = 0,
+	Log = 1,
+	Display = 2,
+	Warning = 3,
+	Error = 4,
+	Fatal = 5,
+	Ensure = 0x00000100,
+
+	// Only search for direct references to the object or one of its inners, not a full reference chain 
+	Minimal = 0x00000200,
+
+	VerbosityMask = 0x000000ff
+};
+ENUM_CLASS_FLAGS(EPrintStaleReferencesOptions);
 
 class FReferenceChainSearch
 {
@@ -333,6 +350,13 @@ public:
 
 	int64 GetAllocatedSize() const;
 
+	/**
+	* Attempts to find a reference chain leading to a world that should have been garbage collected
+	* @param ObjectToFindReferencesTo World or its package (or any object from the world package that should've been destroyed)
+	* @param Options Determines how the stale references messages should be logged
+	*/
+	COREUOBJECT_API	static FString FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, EPrintStaleReferencesOptions Options);
+	COREUOBJECT_API static TArray<FString> FindAndPrintStaleReferencesToObjects(TConstArrayView<UObject*> ObjectsToFindReferencesTo, EPrintStaleReferencesOptions Options);
 private:
 
 	/** The objects we're going to look for references to */

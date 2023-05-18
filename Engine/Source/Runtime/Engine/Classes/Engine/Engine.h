@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
@@ -673,24 +674,6 @@ struct FPluginRedirect
 	UPROPERTY()
 	FString NewPluginName;
 };
-
-/* Options for UEngine::FindAndPrintStaleReferencesToObject function */
-enum class EPrintStaleReferencesOptions
-{
-	None = 0,
-	Log = 1,
-	Display = 2,
-	Warning = 3,
-	Error = 4,
-	Fatal = 5,
-	Ensure = 0x00000100,
-
-	// Only search for direct references to the object or one of its inners, not a full reference chain 
-	Minimal = 0x00000200, 
-
-	VerbosityMask = 0x000000ff
-};
-ENUM_CLASS_FLAGS(EPrintStaleReferencesOptions);
 
 /** Game thread events for dynamic resolution state. */
 enum class EDynamicResolutionStateEvent : uint8;
