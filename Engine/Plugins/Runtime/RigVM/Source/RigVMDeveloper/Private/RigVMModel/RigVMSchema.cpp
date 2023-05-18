@@ -131,6 +131,17 @@ bool URigVMSchema::SupportsGraphFunction(URigVMController* InController, const F
 		return false;
 	}
 
+	// Make sure all the argument types are supported before creating the node
+	for (const FRigVMGraphFunctionArgument& Argument : InGraphFunction->Arguments)
+	{
+		const TRigVMTypeIndex Type = Registry->GetTypeIndexFromCPPType(Argument.CPPType.ToString());
+		if (Type == INDEX_NONE)
+		{
+			InController->ReportErrorf(TEXT("Cannot add function reference to %s because argument %s has invalid type %s."), *InGraphFunction->Name.ToString(), *Argument.Name.ToString(), *Argument.CPPType.ToString());
+			return false;
+		}
+	}
+
 	if (!InController->bAllowPrivateFunctions)
 	{
 		if(IRigVMClientHost* ClientHost = Graph->GetImplementingOuter<IRigVMClientHost>())
