@@ -9,7 +9,6 @@
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimBoneCompressionSettings.h"
 #include "Animation/AnimCurveCompressionSettings.h"
-#include "Animation/VariableFrameStrippingSettings.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimData/AttributeIdentifier.h"
@@ -224,34 +223,6 @@ void UAnimationBlueprintLibrary::SetCurveCompressionSettings(UAnimSequence* Anim
 	}
 
 	AnimationSequence->CurveCompressionSettings = CompressionSettings;
-}
-
-void UAnimationBlueprintLibrary::GetVariableFrameStrippingSettings(const UAnimSequence* AnimationSequence, UVariableFrameStrippingSettings*& VariableFrameStrippingSettings)
-{
-	if (AnimationSequence == nullptr)
-	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid VariableFrameStrippingSettings supplied for GetVariableFrameStrippingSettings"));
-		return;
-	}
-
-	VariableFrameStrippingSettings = AnimationSequence->VariableFrameStrippingSettings;
-}
-
-void UAnimationBlueprintLibrary::SetVariableFrameStrippingSettings(UAnimSequence* AnimationSequence, UVariableFrameStrippingSettings* VariableFrameStrippingSettings)
-{
-	if (AnimationSequence == nullptr)
-	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid Animation Sequence supplied for SetVariableFrameStrippingSettings"));
-		return;
-	}
-
-	if (VariableFrameStrippingSettings == nullptr)
-	{
-		UE_LOG(LogAnimationBlueprintLibrary, Warning, TEXT("Invalid VariableFrameStrippingSettings supplied for SetVariableFrameStrippingSettings"));
-		return;
-	}
-
-	AnimationSequence->VariableFrameStrippingSettings = VariableFrameStrippingSettings;
 }
 
 void UAnimationBlueprintLibrary::GetAdditiveAnimationType(const UAnimSequence* AnimationSequence, TEnumAsByte<enum EAdditiveAnimationType>& AdditiveAnimationType)
