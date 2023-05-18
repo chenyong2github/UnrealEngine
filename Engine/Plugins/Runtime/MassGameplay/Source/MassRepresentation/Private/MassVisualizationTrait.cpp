@@ -40,12 +40,14 @@ UMassVisualizationTrait::UMassVisualizationTrait()
 	LODParams.BufferHysteresisOnDistancePercentage = 10.0f;
 	LODParams.DistanceToFrustum = 0.0f;
 	LODParams.DistanceToFrustumHysteresis = 0.0f;
+
+	bAllowServerSideVisualization = false;
 }
 
 void UMassVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
 {
 	// This should not be ran on NM_Server network mode
-	if (World.IsNetMode(NM_DedicatedServer))
+	if (World.IsNetMode(NM_DedicatedServer) && !bAllowServerSideVisualization)
 	{
 		return;
 	}

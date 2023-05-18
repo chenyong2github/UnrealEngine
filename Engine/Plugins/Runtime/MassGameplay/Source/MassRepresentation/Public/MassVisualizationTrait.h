@@ -47,6 +47,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
 	FMassVisualizationLODParameters LODParams;
 
+	/** If set to true will result in the visualization-related fragments being added to server-size entities as well.
+	 *  By default only the clients require visualization fragments */
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	bool bAllowServerSideVisualization = false;
+
 #if WITH_EDITORONLY_DATA
 	/** the property is marked like this to ensure it won't show up in UI */
 	UPROPERTY(EditDefaultsOnly, Category = "Mass|Visual")

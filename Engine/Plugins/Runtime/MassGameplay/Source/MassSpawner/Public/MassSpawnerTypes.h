@@ -25,7 +25,9 @@ struct FMassTransformsSpawnData
 {
 	GENERATED_BODY()
 
-	TArray<FTransform> Transforms;
+	// declaring the type used to be able to statically test it against other types 
+	using FTransformsContainerType = TArray<FTransform>;
+	FTransformsContainerType Transforms;
 };
 
 /**
