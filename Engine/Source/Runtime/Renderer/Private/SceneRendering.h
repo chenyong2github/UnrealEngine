@@ -36,6 +36,7 @@
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
 #include "HairStrands/HairStrandsData.h"
 #include "Strata/Strata.h"
+#include "TemporalUpscaler.h"
 #include "GPUScene.h"
 #include "RenderCore.h"
 #include "SceneTextures.h"
@@ -1089,14 +1090,6 @@ struct FGTAOTAAHistory
 	}
 };
 
-
-// Plugins can derive from this and use it for their own purposes
-class RENDERER_API ICustomTemporalAAHistory : public IRefCountedObject
-{
-public:
-	virtual ~ICustomTemporalAAHistory() {}
-};
-
 // Structure that hold all information related to previous frame.
 struct FPreviousViewInfo
 {
@@ -1141,7 +1134,7 @@ struct FPreviousViewInfo
 	FTSRHistory TSRHistory;
 
 	// Custom Temporal AA result of last frame, used by plugins
-	TRefCountPtr<ICustomTemporalAAHistory> CustomTemporalAAHistory;
+	TRefCountPtr<ITemporalUpscaler::IHistory> ThirdPartyTemporalUpscalerHistory;
 
 	// Half resolution version temporal AA result of last frame
 	TRefCountPtr<IPooledRenderTarget> HalfResTemporalAAHistory;

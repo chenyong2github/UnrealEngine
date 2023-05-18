@@ -4,6 +4,7 @@
 
 #include "ScreenPass.h"
 #include "PostProcess/PostProcessMotionBlur.h"
+#include "TemporalUpscaler.h"
 
 struct FTemporalAAHistory;
 struct FTranslucencyPassResources;
@@ -178,21 +179,22 @@ bool NeedTSRMoireLuma(const FViewInfo& View);
 /** Measure luminance of the scene color for moire anti-flickering. */
 FScreenPassTexture AddTSRComputeMoireLuma(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FScreenPassTexture SceneColor);
 
-/** Interface for the main temporal upscaling algorithm. */
-class RENDERER_API ITemporalUpscaler : public ISceneViewFamilyExtention
-{
-public:
 
-	struct FPassInputs
+EMainTAAPassConfig GetMainTAAPassConfig(const FViewInfo& View);
+
+/** Interface for the default temporal upscaling algorithm. */
+struct FDefaultTemporalUpscaler
+{
+	struct FInputs
 	{
 		bool bGenerateSceneColorHalfRes = false;
 		bool bGenerateSceneColorQuarterRes = false;
 		bool bGenerateOutputMip1 = false;
 		bool bGenerateVelocityFlattenTextures = false;
 		EPixelFormat DownsampleOverrideFormat;
-		FRDGTextureRef SceneColorTexture = nullptr;
-		FRDGTextureRef SceneDepthTexture = nullptr;
-		FRDGTextureRef SceneVelocityTexture = nullptr;
+		FScreenPassTexture SceneColor;
+		FScreenPassTexture SceneDepth;
+		FScreenPassTexture SceneVelocity;
 		FTranslucencyPassResources PostDOFTranslucencyResources;
 		FScreenPassTexture MoireInputTexture;
 	};
@@ -204,31 +206,17 @@ public:
 		FScreenPassTexture QuarterRes;
 		FVelocityFlattenTextures VelocityFlattenTextures;
 	};
+};
 
-	virtual ~ITemporalUpscaler() {};
+FDefaultTemporalUpscaler::FOutputs AddGen4MainTemporalAAPasses(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FDefaultTemporalUpscaler::FInputs& PassInputs);
 
-	virtual const TCHAR* GetDebugName() const = 0;
-
-	///** Temporal AA helper method which performs filtering on the main pass scene color. Supports upsampled history and,
-	// *  if requested, will attempt to perform the scene color downsample. Returns the filtered scene color, the downsampled
-	// *  scene color (or null if it was not performed), and the secondary view rect.
-	// */
-
-	virtual FOutputs AddPasses(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FPassInputs& PassInputs) const = 0;
-
-
-	virtual float GetMinUpsampleResolutionFraction() const = 0;
-	virtual float GetMaxUpsampleResolutionFraction() const = 0;
-
-	virtual ITemporalUpscaler* Fork_GameThread(const class FSceneViewFamily& ViewFamily) const = 0;
-
-	static const ITemporalUpscaler* GetDefaultTemporalUpscaler();
-
-	static EMainTAAPassConfig GetMainTAAPassConfig(const FViewInfo& View);
-}; 
+FDefaultTemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FDefaultTemporalUpscaler::FInputs& PassInputs);
 
 /** Interface for the VisualizeTSR showflag. */
 struct FVisualizeTemporalUpscalerInputs
@@ -242,8 +230,8 @@ struct FVisualizeTemporalUpscalerInputs
 	// Temporal upscaler used and its inputs and outputs.
 	EMainTAAPassConfig TAAConfig = EMainTAAPassConfig::Disabled;
 	const ITemporalUpscaler* UpscalerUsed = nullptr;
-	ITemporalUpscaler::FPassInputs Inputs;
-	ITemporalUpscaler::FOutputs Outputs;
+	FDefaultTemporalUpscaler::FInputs Inputs;
+	FDefaultTemporalUpscaler::FOutputs Outputs;
 };
 
 FScreenPassTexture AddVisualizeTemporalUpscalerPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FVisualizeTemporalUpscalerInputs& Inputs);

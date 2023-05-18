@@ -924,6 +924,15 @@ uint64 FPreviousViewInfo::GetGPUSizeBytes(bool bLogSizes) const
 		}
 	}
 
+	if (ThirdPartyTemporalUpscalerHistory)
+	{
+		TotalSize += ThirdPartyTemporalUpscalerHistory->GetGPUSizeBytes();
+		if (bLogSizes)
+		{
+			UE_LOG(LogRenderer, Log, TEXT("LogSizes\tThirdPartyTemporalUpscaler\t%s\t%llu"), ThirdPartyTemporalUpscalerHistory->GetDebugName(), ThirdPartyTemporalUpscalerHistory->GetGPUSizeBytes());
+		}
+	}
+
 	return TotalSize;
 }
 

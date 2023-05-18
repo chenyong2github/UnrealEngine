@@ -64,6 +64,7 @@
 #include "FXSystem.h"
 #include "SkyAtmosphereRendering.h"
 #include "Strata/Strata.h"
+#include "TemporalUpscaler.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Lumen/LumenVisualize.h"
 #include "RectLightTextureManager.h"
@@ -194,13 +195,77 @@ bool IsPostProcessingWithAlphaChannelSupported()
 FScreenPassTexture AddFinalPostProcessDebugInfoPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor);
 #endif
 
-void AddTemporalAA2Passes(
+
+FDefaultTemporalUpscaler::FOutputs AddThirdPartyTemporalUpscalerPasses(
 	FRDGBuilder& GraphBuilder,
-	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
-	FRDGTextureRef InputSceneColorTexture,
-	FRDGTextureRef* OutSceneColorTexture,
-	FIntRect* OutSceneColorViewRect);
+	const FDefaultTemporalUpscaler::FInputs& Inputs)
+{
+	const ITemporalUpscaler* UpscalerToUse = View.Family->GetTemporalUpscalerInterface();
+	check(UpscalerToUse);
+
+	const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
+
+	// Translate the inputs to the third party temporal upscaler.
+	ITemporalUpscaler::FInputs ThirdPartyInputs;
+	ThirdPartyInputs.OutputViewRect.Min = FIntPoint::ZeroValue;
+	ThirdPartyInputs.OutputViewRect.Max = View.GetSecondaryViewRectSize();
+	ThirdPartyInputs.TemporalJitterPixels = FVector2f(View.TemporalJitterPixels);
+	ThirdPartyInputs.PreExposure = View.PreExposure;
+	ThirdPartyInputs.SceneColor = Inputs.SceneColor;
+	ThirdPartyInputs.SceneDepth = Inputs.SceneDepth;
+	ThirdPartyInputs.SceneVelocity = Inputs.SceneVelocity;
+	ThirdPartyInputs.EyeAdaptationTexture = AddCopyEyeAdaptationDataToTexturePass(GraphBuilder, View);
+	
+	if (View.PrevViewInfo.ThirdPartyTemporalUpscalerHistory && View.PrevViewInfo.ThirdPartyTemporalUpscalerHistory->GetDebugName() == UpscalerName)
+	{
+		ThirdPartyInputs.PrevHistory = View.PrevViewInfo.ThirdPartyTemporalUpscalerHistory;
+	}
+
+	// Standard event scope for temporal upscaler to have all profiling information not matter what,
+	// and with explicit detection of third party.
+	RDG_EVENT_SCOPE(
+		GraphBuilder,
+		"ThirdParty %s %dx%d -> %dx%d",
+		UpscalerToUse->GetDebugName(),
+		View.ViewRect.Width(), View.ViewRect.Height(),
+		ThirdPartyInputs.OutputViewRect.Width(), ThirdPartyInputs.OutputViewRect.Height());
+
+	ITemporalUpscaler::FOutputs ThirdPartyOutputs = UpscalerToUse->AddPasses(
+		GraphBuilder,
+		View,
+		ThirdPartyInputs);
+
+	check(ThirdPartyOutputs.FullRes.ViewRect == ThirdPartyInputs.OutputViewRect);
+	check(ThirdPartyOutputs.FullRes.ViewRect.Max.X <= ThirdPartyOutputs.FullRes.Texture->Desc.Extent.X);
+	check(ThirdPartyOutputs.FullRes.ViewRect.Max.Y <= ThirdPartyOutputs.FullRes.Texture->Desc.Extent.Y);
+
+	check(ThirdPartyOutputs.NewHistory);
+	check(ThirdPartyOutputs.NewHistory->GetDebugName() == UpscalerToUse->GetDebugName());
+
+	// Translate the output.
+	FDefaultTemporalUpscaler::FOutputs Outputs;
+	Outputs.FullRes = ThirdPartyOutputs.FullRes;
+
+	// Saves history for next frame.
+	if (!View.bStatePrevViewInfoIsReadOnly)
+	{
+		View.ViewState->PrevFrameViewInfo.ThirdPartyTemporalUpscalerHistory = ThirdPartyOutputs.NewHistory;
+	}
+
+	// Save output for next frame's SSR
+	if (!View.bStatePrevViewInfoIsReadOnly)
+	{
+		FTemporalAAHistory& OutputHistory = View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
+
+		GraphBuilder.QueueTextureExtraction(Outputs.FullRes.Texture, &OutputHistory.RT[0]);
+
+		OutputHistory.ViewportRect = Outputs.FullRes.ViewRect;
+		OutputHistory.ReferenceBufferSize = Outputs.FullRes.Texture->Desc.Extent;
+	}
+
+	return Outputs;
+}
 
 bool ComposeSeparateTranslucencyInTSR(const FViewInfo& View);
 
@@ -523,7 +588,7 @@ void AddPostProcessingPasses(
 
 
 		// Temporal Anti-aliasing. Also may perform a temporal upsample from primary to secondary view rect.
-		EMainTAAPassConfig TAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
+		EMainTAAPassConfig TAAConfig = GetMainTAAPassConfig(View);
 
 		// Whether separate translucency is composed in TSR.
 		bool bComposeSeparateTranslucencyInTSR = TAAConfig == EMainTAAPassConfig::TSR && ComposeSeparateTranslucencyInTSR(View);
@@ -641,21 +706,10 @@ void AddPostProcessingPasses(
 		FVelocityFlattenTextures VelocityFlattenTextures;
 		if (TAAConfig != EMainTAAPassConfig::Disabled)
 		{
-			const ITemporalUpscaler* UpscalerToUse = (TAAConfig == EMainTAAPassConfig::ThirdParty) ? View.Family->GetTemporalUpscalerInterface() : ITemporalUpscaler::GetDefaultTemporalUpscaler();
-			check(UpscalerToUse);
-			const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
-
-			// Standard event scope for temporal upscaler to have all profiling information not matter what,
-			// and with explicit detection of third party.
-			RDG_EVENT_SCOPE_CONDITIONAL(
-				GraphBuilder,
-				TAAConfig == EMainTAAPassConfig::ThirdParty,
-				"ThirdParty %s %dx%d -> %dx%d",
-				UpscalerToUse->GetDebugName(),
-				View.ViewRect.Width(), View.ViewRect.Height(),
-				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
-
-			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
+			FDefaultTemporalUpscaler::FInputs UpscalerPassInputs;
+			UpscalerPassInputs.SceneColor = FScreenPassTexture(SceneColor.Texture, View.ViewRect);
+			UpscalerPassInputs.SceneDepth = FScreenPassTexture(SceneDepth.Texture, View.ViewRect);
+			UpscalerPassInputs.SceneVelocity = FScreenPassTexture(Velocity.Texture, View.ViewRect);
 			if (PassSequence.IsEnabled(EPass::MotionBlur))
 			{
 				if (bVisualizeMotionBlur)
@@ -679,16 +733,35 @@ void AddPostProcessingPasses(
 					DownsampleQuality == EDownsampleQuality::Low;
 			}
 			UpscalerPassInputs.DownsampleOverrideFormat = DownsampleOverrideFormat;
-			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
-			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
-			UpscalerPassInputs.SceneVelocityTexture = Velocity.Texture;
 			UpscalerPassInputs.PostDOFTranslucencyResources = PostDOFTranslucencyResources;
 			UpscalerPassInputs.MoireInputTexture = TSRMoireInput;
 
-			ITemporalUpscaler::FOutputs Outputs = UpscalerToUse->AddPasses(
-				GraphBuilder,
-				View,
-				UpscalerPassInputs);
+			FDefaultTemporalUpscaler::FOutputs Outputs;
+			if (TAAConfig == EMainTAAPassConfig::TSR)
+			{
+				Outputs = AddTemporalSuperResolutionPasses(
+					GraphBuilder,
+					View,
+					UpscalerPassInputs);
+			}
+			else if (TAAConfig == EMainTAAPassConfig::TAA)
+			{
+				Outputs = AddGen4MainTemporalAAPasses(
+					GraphBuilder,
+					View,
+					UpscalerPassInputs);
+			}
+			else if (TAAConfig == EMainTAAPassConfig::ThirdParty)
+			{
+				Outputs = AddThirdPartyTemporalUpscalerPasses(
+					GraphBuilder,
+					View,
+					UpscalerPassInputs);
+			}
+			else
+			{
+				unimplemented();
+			}
 
 			SceneColor = Outputs.FullRes;
 			HalfResSceneColor = Outputs.HalfRes;
@@ -698,7 +771,7 @@ void AddPostProcessingPasses(
 			if (PassSequence.IsEnabled(EPass::VisualizeTemporalUpscaler))
 			{
 				VisualizeTemporalUpscalerInputs.TAAConfig = TAAConfig;
-				VisualizeTemporalUpscalerInputs.UpscalerUsed = UpscalerToUse;
+				VisualizeTemporalUpscalerInputs.UpscalerUsed = View.Family->GetTemporalUpscalerInterface();
 				VisualizeTemporalUpscalerInputs.Inputs = UpscalerPassInputs;
 				VisualizeTemporalUpscalerInputs.Outputs = Outputs;
 			}
@@ -2362,32 +2435,33 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		{
 			PassSequence.AcceptPass(EPass::TAA);
 
-			EMainTAAPassConfig TAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
+			EMainTAAPassConfig TAAConfig = GetMainTAAPassConfig(View);
 			checkSlow(TAAConfig != EMainTAAPassConfig::Disabled);
 
-			const ITemporalUpscaler* UpscalerToUse = (TAAConfig == EMainTAAPassConfig::ThirdParty) ? View.Family->GetTemporalUpscalerInterface() : ITemporalUpscaler::GetDefaultTemporalUpscaler();
+			FDefaultTemporalUpscaler::FInputs UpscalerPassInputs;
+			UpscalerPassInputs.SceneColor = FScreenPassTexture(SceneColor.Texture, View.ViewRect);
+			UpscalerPassInputs.SceneDepth = FScreenPassTexture(SceneDepth.Texture, View.ViewRect);
+			UpscalerPassInputs.SceneVelocity = FScreenPassTexture(Velocity.Texture, View.ViewRect);
 
-			const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
-
-			// Standard event scope for temporal upscaler to have all profiling information not matter what, and with explicit detection of third party.
-			RDG_EVENT_SCOPE_CONDITIONAL(
-				GraphBuilder,
-				TAAConfig == EMainTAAPassConfig::ThirdParty,
-				"ThirdParty %s %dx%d -> %dx%d",
-				UpscalerToUse->GetDebugName(),
-				View.ViewRect.Width(), View.ViewRect.Height(),
-				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
-
-			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
-			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
-			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
-			UpscalerPassInputs.SceneVelocityTexture = Velocity.Texture;
-
-			ITemporalUpscaler::FOutputs Outputs = UpscalerToUse->AddPasses(
-				GraphBuilder,
-				View,
-				UpscalerPassInputs);
-
+			FDefaultTemporalUpscaler::FOutputs Outputs;
+			if (TAAConfig == EMainTAAPassConfig::TAA)
+			{
+				Outputs = AddGen4MainTemporalAAPasses(
+					GraphBuilder,
+					View,
+					UpscalerPassInputs);
+			}
+			else if (TAAConfig == EMainTAAPassConfig::ThirdParty)
+			{
+				Outputs = AddThirdPartyTemporalUpscalerPasses(
+					GraphBuilder,
+					View,
+					UpscalerPassInputs);
+			}
+			else
+			{
+				unimplemented();
+			}
 			SceneColor = Outputs.FullRes;
 		}
 	}

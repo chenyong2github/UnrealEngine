@@ -880,7 +880,7 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 	{
 		const uint32 QualityCVar = GetSSSQuality();
 
-		EMainTAAPassConfig MainTAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
+		EMainTAAPassConfig MainTAAConfig = GetMainTAAPassConfig(View);
 
 		// Low quality is really bad with modern temporal upscalers.
 		bool bAllowLowQuality = MainTAAConfig == EMainTAAPassConfig::Disabled || MainTAAConfig == EMainTAAPassConfig::TAA;

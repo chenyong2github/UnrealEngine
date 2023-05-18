@@ -990,14 +990,10 @@ FTAAOutputs AddTemporalAAPass(
 	return Outputs;
 } // AddTemporalAAPass()
 
-static void AddGen4MainTemporalAAPasses(
+FDefaultTemporalUpscaler::FOutputs AddGen4MainTemporalAAPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const ITemporalUpscaler::FPassInputs& PassInputs,
-	FRDGTextureRef* OutSceneColorTexture,
-	FIntRect* OutSceneColorViewRect,
-	FRDGTextureRef* OutSceneColorHalfResTexture,
-	FIntRect* OutSceneColorHalfResViewRect)
+	const FDefaultTemporalUpscaler::FInputs& PassInputs)
 {
 	check(View.ViewState);
 
@@ -1036,9 +1032,9 @@ static void AddGen4MainTemporalAAPasses(
 
 	TAAParameters.bDownsample = (PassInputs.bGenerateSceneColorHalfRes || PassInputs.bGenerateSceneColorQuarterRes) && TAAParameters.Quality != ETAAQuality::High;
 
-	TAAParameters.SceneDepthTexture = PassInputs.SceneDepthTexture;
-	TAAParameters.SceneVelocityTexture = PassInputs.SceneVelocityTexture;
-	TAAParameters.SceneColorInput = PassInputs.SceneColorTexture;
+	TAAParameters.SceneDepthTexture = PassInputs.SceneDepth.Texture;
+	TAAParameters.SceneVelocityTexture = PassInputs.SceneVelocity.Texture;
+	TAAParameters.SceneColorInput = PassInputs.SceneColor.Texture;
 
 	const FTemporalAAHistory& InputHistory = View.PrevViewInfo.TemporalAAHistory;
 
@@ -1064,87 +1060,21 @@ static void AddGen4MainTemporalAAPasses(
 
 		FScreenPassTextureViewport OutputViewport;
 		OutputViewport.Rect = SecondaryViewRect;
-		OutputViewport.Extent.X = FMath::Max(PassInputs.SceneColorTexture->Desc.Extent.X, QuantizedOutputSize.X);
-		OutputViewport.Extent.Y = FMath::Max(PassInputs.SceneColorTexture->Desc.Extent.Y, QuantizedOutputSize.Y);
+		OutputViewport.Extent.X = FMath::Max(PassInputs.SceneColor.Texture->Desc.Extent.X, QuantizedOutputSize.X);
+		OutputViewport.Extent.Y = FMath::Max(PassInputs.SceneColor.Texture->Desc.Extent.Y, QuantizedOutputSize.Y);
 
 		SceneColorTexture = ComputeMitchellNetravaliDownsample(GraphBuilder, View, FScreenPassTexture(SceneColorTexture, InputViewport), OutputViewport);
 	}
 
-	*OutSceneColorTexture = SceneColorTexture;
-	*OutSceneColorViewRect = SecondaryViewRect;
-	*OutSceneColorHalfResTexture = TAAOutputs.DownsampledSceneColor;
-	*OutSceneColorHalfResViewRect = FIntRect::DivideAndRoundUp(SecondaryViewRect, 2);
+	FDefaultTemporalUpscaler::FOutputs Outputs;
+	Outputs.FullRes.Texture = SceneColorTexture;
+	Outputs.FullRes.ViewRect = SecondaryViewRect;
+	Outputs.HalfRes.Texture = TAAOutputs.DownsampledSceneColor;
+	Outputs.HalfRes.ViewRect = FIntRect::DivideAndRoundUp(SecondaryViewRect, 2);
+	return Outputs;
 } // AddGen4MainTemporalAAPasses()
 
-bool DoesPlatformSupportTSR(EShaderPlatform Platform);
-
-ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	const ITemporalUpscaler::FPassInputs& PassInputs);
-
-class FDefaultTemporalUpscaler : public ITemporalUpscaler
-{
-public:
-
-	virtual const TCHAR* GetDebugName() const
-	{
-		return TEXT("FDefaultTemporalUpscaler");
-	}
-
-	virtual FOutputs AddPasses(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FPassInputs& PassInputs) const final
-	{
-		if (ITemporalUpscaler::GetMainTAAPassConfig(View) == EMainTAAPassConfig::TSR)
-		{
-			return AddTemporalSuperResolutionPasses(
-				GraphBuilder,
-				View,
-				PassInputs);
-		}
-		else
-		{
-			FOutputs Outputs;
-			AddGen4MainTemporalAAPasses(
-				GraphBuilder,
-				View,
-				PassInputs,
-				&Outputs.FullRes.Texture,
-				&Outputs.FullRes.ViewRect,
-				&Outputs.HalfRes.Texture,
-				&Outputs.HalfRes.ViewRect);
-
-			return Outputs;
-		}
-	}
-
-	virtual float GetMinUpsampleResolutionFraction() const override
-	{
-		return ISceneViewFamilyScreenPercentage::kMinTAAUpsampleResolutionFraction;
-	}
-	virtual float GetMaxUpsampleResolutionFraction() const override
-	{
-		return ISceneViewFamilyScreenPercentage::kMaxTAAUpsampleResolutionFraction;
-	}
-
-	virtual ITemporalUpscaler* Fork_GameThread(const class FSceneViewFamily& ViewFamily) const override
-	{
-		return nullptr;
-	}
-
-};
-
-// static
-const ITemporalUpscaler* ITemporalUpscaler::GetDefaultTemporalUpscaler()
-{
-	static FDefaultTemporalUpscaler DefaultTemporalUpscaler;
-	return &DefaultTemporalUpscaler;
-}
-
-//static
-EMainTAAPassConfig ITemporalUpscaler::GetMainTAAPassConfig(const FViewInfo& View)
+EMainTAAPassConfig GetMainTAAPassConfig(const FViewInfo& View)
 {
 	if (!IsPostProcessingEnabled(View))
 	{

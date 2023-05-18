@@ -1054,7 +1054,7 @@ static FRDGTextureUAVRef CreateDummyUAV(FRDGBuilder& GraphBuilder, EPixelFormat 
 
 bool NeedTSRMoireLuma(const FViewInfo& View)
 {
-	return ITemporalUpscaler::GetMainTAAPassConfig(View) == EMainTAAPassConfig::TSR;
+	return GetMainTAAPassConfig(View) == EMainTAAPassConfig::TSR;
 }
 
 FScreenPassTexture AddTSRComputeMoireLuma(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FScreenPassTexture SceneColor)
@@ -1092,10 +1092,10 @@ FScreenPassTexture AddTSRComputeMoireLuma(FRDGBuilder& GraphBuilder, FGlobalShad
 	return MoireLuma;
 }
 
-ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
+FDefaultTemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const ITemporalUpscaler::FPassInputs& PassInputs)
+	const FDefaultTemporalUpscaler::FInputs& PassInputs)
 {
 	const FTSRHistory& InputHistory = View.PrevViewInfo.TSRHistory;
 
@@ -1171,7 +1171,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		RejectionAntiAliasingQuality = 0; 
 	}
 
-	FIntPoint InputExtent = PassInputs.SceneColorTexture->Desc.Extent;
+	FIntPoint InputExtent = PassInputs.SceneColor.Texture->Desc.Extent;
 	FIntRect InputRect = View.ViewRect;
 
 	FIntPoint OutputExtent;
@@ -1642,8 +1642,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->bOutputIsMovingTexture = bOutputIsMovingTexture;
 		PassParameters->bIncludeDynamicDepthInSubpixelDetails = SubpixelMethod == ETSRSubpixelMethod::ClosestDepth && CVarTSRSubpixelIncludeMovingDepth.GetValueOnRenderThread();
 
-		PassParameters->SceneDepthTexture = PassInputs.SceneDepthTexture;
-		PassParameters->SceneVelocityTexture = PassInputs.SceneVelocityTexture;
+		PassParameters->SceneDepthTexture = PassInputs.SceneDepth.Texture;
+		PassParameters->SceneVelocityTexture = PassInputs.SceneVelocity.Texture;
 		if (PrevScatteredSubpixelDepthTexture)
 		{
 			PassParameters->PrevScatteredSubpixelDepthTexture = PrevScatteredSubpixelDepthTexture;
@@ -1771,7 +1771,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			PassParameters->WorldDepthToPixelWorldRadius = TanHalfFieldOfView / float(View.ViewRect.Width());
 		}
 
-		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
+		PassParameters->InputSceneColorTexture = PassInputs.SceneColor.Texture;
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
 		PassParameters->ClosestDepthTexture = ClosestDepthTexture;
 		PassParameters->PrevUseCountTexture = PrevUseCountTexture;
@@ -1874,7 +1874,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->TileOverscan = FMath::Clamp(CVarTSRShadingTileOverscan.GetValueOnRenderThread(), 2, GroupTileSize / 2 - 1);
 		PassParameters->PerceptionAdd = FMath::Pow(0.5f, CVarTSRShadingExposureOffset.GetValueOnRenderThread());
 
-		PassParameters->InputTexture = PassInputs.SceneColorTexture;
+		PassParameters->InputTexture = PassInputs.SceneColor.Texture;
 		if (PassInputs.MoireInputTexture.IsValid())
 		{
 			ensure(InputRect == PassInputs.MoireInputTexture.ViewRect);
@@ -1951,7 +1951,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		{
 			FTSRSpatialAntiAliasingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRSpatialAntiAliasingCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
-			PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
+			PassParameters->InputSceneColorTexture = PassInputs.SceneColor.Texture;
 			PassParameters->InputSceneColorLdrLumaTexture = InputSceneColorLdrLumaTexture;
 			PassParameters->AntiAliasingOutput = GraphBuilder.CreateUAV(RawAntiAliasingTexture);
 			PassParameters->NoiseFilteringOutput = GraphBuilder.CreateUAV(NoiseFilteringTexture);
@@ -2002,9 +2002,9 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		FTSRUpdateHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRUpdateHistoryCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
-		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
+		PassParameters->InputSceneColorTexture = PassInputs.SceneColor.Texture;
 		PassParameters->InputSceneStencilTexture = GraphBuilder.CreateSRV(
-			FRDGTextureSRVDesc::CreateWithPixelFormat(PassInputs.SceneDepthTexture, PF_X24_G8));
+			FRDGTextureSRVDesc::CreateWithPixelFormat(PassInputs.SceneDepth.Texture, PF_X24_G8));
 		PassParameters->InputSceneTranslucencyTexture = SeparateTranslucencyTexture;
 		PassParameters->HistoryRejectionTexture = HistoryRejectionTexture;
 
@@ -2253,7 +2253,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	}
 
 
-	ITemporalUpscaler::FOutputs Outputs;
+	FDefaultTemporalUpscaler::FOutputs Outputs;
 	Outputs.FullRes.Texture = SceneColorOutputTexture;
 	Outputs.FullRes.ViewRect = OutputRect;
 	if (SceneColorOutputHalfResTexture)
