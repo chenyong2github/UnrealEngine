@@ -74,6 +74,10 @@
 			"Type": "Runtime"
 		},
 		{
+			"Name": "MassLWI",
+			"Type": "Runtime"
+		},
+		{
 			"Name": "MassGameplayTestSuite",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
