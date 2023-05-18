@@ -647,6 +647,17 @@ Waits a defined number of seconds.
 | Seconds | Integer   | Required | Number of seconds to wait.                                                        |
 | If      | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
 
+### WriteJsonValue
+
+Modifies json files by setting a value specified in the key path
+
+|       |           |          |                                                                                                                                                                                                                                                                                                                                 |
+| ----- | --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| File  | FileSpec  | Required | Json file(s) which will be modified                                                                                                                                                                                                                                                                                             |
+| Key   | String    | Required | Json element to set in each file. Syntax for this string is a limited subset of JsonPath notation, and may support object properties and array indices. Any array indices which are omitted or out of range will add a new element to the array (eg. '$.foo.bar[]' will add an element to the 'bar' array in the 'foo' object). |
+| Value | String    | Required | New value to set. May be any value JSON value (string, array, object, number, boolean or null).                                                                                                                                                                                                                                 |
+| If    | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                                                                                                                                                                                                                                               |
+
 ### WriteTextFile
 
 Writes text to a file.
