@@ -114,6 +114,9 @@ void UChaosClothComponent::OnRegister()
 			ClothSimulationProxy = CreateClothSimulationProxy();
 		}
 	}
+
+	// Update render visibility, so that an empty LODs doesn't unnecessarily go to render
+	UpdateVisibility();
 }
 
 TSharedPtr<UE::Chaos::ClothAsset::FClothSimulationProxy> UChaosClothComponent::CreateClothSimulationProxy()
@@ -235,6 +238,20 @@ void UChaosClothComponent::GetUpdateClothSimulationData_AnyThread(TMap<int32, FC
 	}
 }
 
+void UChaosClothComponent::SetSkinnedAssetAndUpdate(USkinnedAsset* InSkinnedAsset, bool bReinitPose)
+{
+	if (InSkinnedAsset != GetSkinnedAsset())
+	{
+		Super::SetSkinnedAssetAndUpdate(InSkinnedAsset, bReinitPose);
+
+		// Stop current simulation
+		HandleExistingParallelSimulation();
+
+		// Update the component visibility in case the new render mesh has no valid LOD
+		UpdateVisibility();
+	}
+}
+
 void UChaosClothComponent::PostLoad()
 {
 	Super::PostLoad();
@@ -248,14 +265,12 @@ void UChaosClothComponent::PostLoad()
 
 void UChaosClothComponent::SetClothAsset(UChaosClothAsset* InClothAsset)
 {
-	// De-register component, and re-register it when it reaches end of scope
-	const FComponentReregisterContext ComponentReregisterContext(this);
+	SetSkinnedAssetAndUpdate(InClothAsset);
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 	ClothAsset = InClothAsset;
 #endif
-	SetSkinnedAsset(InClothAsset);
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
@@ -386,4 +401,18 @@ bool UChaosClothComponent::ShouldWaitForParallelSimulationInTickComponent() cons
 	static IConsoleVariable* const CVarClothPhysicsWaitForParallelClothTask = IConsoleManager::Get().FindConsoleVariable(TEXT("p.ClothPhysics.WaitForParallelClothTask"));
 
 	return bWaitForParallelTask || (CVarClothPhysicsWaitForParallelClothTask && CVarClothPhysicsWaitForParallelClothTask->GetBool());
+}
+
+void UChaosClothComponent::UpdateVisibility()
+{
+	if (GetClothAsset())
+	{
+		const FSkeletalMeshRenderData* const SkeletalMeshRenderData = GetClothAsset()->GetResourceForRendering();
+		const int32 FirstValidLODIdx = SkeletalMeshRenderData ? SkeletalMeshRenderData->GetFirstValidLODIdx(0) : INDEX_NONE;
+		SetVisibility(FirstValidLODIdx != INDEX_NONE);
+	}
+	else
+	{
+		SetVisibility(false);
+	}
 }
