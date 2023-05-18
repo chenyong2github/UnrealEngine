@@ -12,7 +12,7 @@ class SWidget;
 
 class UContentBrowserAliasDataSource;
 
-class FChangelistReviewModule : public FDefaultModuleImpl
+class CHANGELISTREVIEW_API FChangelistReviewModule : public FDefaultModuleImpl
 {
 public:
 	virtual void StartupModule() override;
@@ -21,6 +21,14 @@ public:
 	bool CanShowReviewTab() const;
 	TWeakPtr<SSourceControlReview> GetActiveReview();
 	
+	/**
+	 * Opens review tool and loads the provided change list.
+	 *
+	 * @param[in] Changelist The change list to load.
+	 * @return @c true if changelist review tool was opened and change list is put to be loaded, @c false otherwise.
+	 */
+	bool OpenChangelistReview(const FString& Changelist);
+
 	static FChangelistReviewModule& Get()
 	{
 		return FModuleManager::LoadModuleChecked<FChangelistReviewModule>("ChangelistReview");

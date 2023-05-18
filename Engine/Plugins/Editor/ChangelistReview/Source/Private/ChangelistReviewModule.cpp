@@ -154,6 +154,33 @@ TWeakPtr<SSourceControlReview> FChangelistReviewModule::GetActiveReview()
 	return ReviewWidget;
 }
 
+bool FChangelistReviewModule::OpenChangelistReview(const FString& Changelist)
+{
+	TSharedPtr<SDockTab> DockTab = FGlobalTabmanager::Get()->TryInvokeTab(FTabId(SourceControlReviewTabName));
+	if (!DockTab)
+	{
+		return false;
+	}
+
+	TSharedPtr<SWidget> ReviewWidgetFromTab = DockTab->GetContent();
+	if (!ReviewWidgetFromTab)
+	{
+		return false;
+	}
+
+	TSharedPtr<SSourceControlReview> ReviewTool = StaticCastSharedPtr<SSourceControlReview>(ReviewWidgetFromTab);
+	if (!ReviewTool)
+	{
+		return false;
+	}
+
+	if (ReviewTool->OpenChangelist(Changelist))
+	{
+		DockTab->DrawAttention();
+		return true;
+	}
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE
 	

@@ -143,6 +143,15 @@ public:
 	void LoadChangelist(const FString& Changelist);
 
 	/**
+	 * Open changelist for review together with filling in the UI as if it was loaded for review by user.
+     *
+	 * @param Changelist CL number to review
+	 * @return @c true if changelist was open for review and is loaded, @c false otherwise.
+	 */
+	bool OpenChangelist(const FString& Changelist);
+
+
+	/**
 	 * Returns an array of review comments that are 
 	 * @param FilePath the file to retrieve comments from. (supports AssetDepotPaths and temp local file paths)
 	 */

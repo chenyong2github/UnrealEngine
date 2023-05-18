@@ -345,6 +345,15 @@ void SSourceControlReview::LoadChangelist(const FString& Changelist)
 		FSourceControlOperationComplete::CreateRaw(this, &SSourceControlReview::OnGetChangelistDetails, Changelist));
 }
 
+bool SSourceControlReview::OpenChangelist(const FString& Changelist)
+{
+	if (ChangelistNumText)
+	{
+		ChangelistNumText->SetText(FText::FromString(Changelist));
+	}
+	LoadChangelist(Changelist);
+	return IsLoading();
+}
 
 const TArray<FReviewComment>* SSourceControlReview::GetReviewCommentsForFile(const FString& FilePath)
 {
