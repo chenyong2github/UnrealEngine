@@ -68,7 +68,7 @@ const TSharedRef<FMassEntityTemplate>& FMassEntityTemplateRegistry::FindOrAddTem
 {
 	check(EntityManager);
 	const TSharedRef<FMassEntityTemplate>* ExistingTemplate = FindTemplateFromTemplateID(TemplateID);
-	if (!ensureMsgf(ExistingTemplate == nullptr, TEXT("")))
+	if (ExistingTemplate != nullptr)
 	{
 		return *ExistingTemplate;
 	}
