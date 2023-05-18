@@ -1080,30 +1080,6 @@ namespace UnrealBuildTool
 				Target.bChainPCHs = false;
 			}
 
-			// Various global definitions alway set or only based on target settings
-			if (Target.WindowsPlatform.Compiler.IsMSVC() && Target.WindowsPlatform.bStrictConformanceMode)
-			{
-				// This define is needed to ensure that MSVC static analysis mode doesn't declare attributes that are incompatible with strict conformance mode
-				Target.GlobalDefinitions.Add("SAL_NO_ATTRIBUTE_DECLARATIONS=1");
-			}
-
-			// Ignore secure CRT warnings on Clang
-			if (Target.WindowsPlatform.Compiler.IsClang())
-			{
-				Target.GlobalDefinitions.Add("_CRT_SECURE_NO_WARNINGS");
-			}
-
-			// @todo: UE is non-compliant when it comes to use of %s and %S
-			// Previously %s meant "the current character set" and %S meant "the other one".
-			// Now %s means multibyte and %S means wide. %Ts means "natural width".
-			// Reverting this behaviour until the UE source catches up.
-			Target.GlobalDefinitions.Add("_CRT_STDIO_LEGACY_WIDE_SPECIFIERS=1");
-
-			// @todo: Silence the hash_map deprecation errors for now. This should be replaced with unordered_map for the real fix.
-			Target.GlobalDefinitions.Add("_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS=1");
-
-			// Maintain the old std::aligned_storage behavior from VS from v15.8 onwards, in case of prebuilt third party libraries are reliant on it
-			Target.GlobalDefinitions.Add("_DISABLE_EXTENDED_ALIGNED_STORAGE");
 
 			// E&C support.
 			if (Target.bSupportEditAndContinue || Target.bAdaptiveUnityEnablesEditAndContinue)
