@@ -10,7 +10,6 @@
 #include "MassReplicationSubsystem.generated.h"
 
 struct FMassEntityManager;
-class AMassCrowdClientBubbleInfo;
 class UMassLODSubsystem;
 class AMassClientBubbleInfoBase;
 
