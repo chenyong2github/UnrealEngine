@@ -3181,8 +3181,6 @@ FVisibilityViewPacket::FVisibilityViewPacket(FVisibilityTaskData& InTaskData, FS
 				Relevance.CommandPipe.ReleaseNumCommands(1);
 				Tasks.OcclusionCull.Trigger();
 			}
-
-			Tasks.OcclusionCullPipe.Trigger();
 		});
 
 		// Callback for when a relevance command is queued from occlusion.
@@ -3864,7 +3862,6 @@ void FVisibilityTaskData::ProcessRenderThreadTasks(FExclusiveDepthStencil::Type 
 			}
 
 			ViewPacket.Tasks.OcclusionCull.Trigger();
-			ViewPacket.Tasks.OcclusionCullPipe.Trigger();
 		}
 
 		MergeSecondaryViewVisibility();
