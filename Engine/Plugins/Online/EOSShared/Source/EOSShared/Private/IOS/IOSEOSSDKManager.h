@@ -8,10 +8,6 @@
 
 class FIOSEOSSDKManager : public FEOSSDKManager
 {
-public:
-	FIOSEOSSDKManager();
-	~FIOSEOSSDKManager();
-
 	virtual FString GetCacheDirBase() const override;
 };
 
