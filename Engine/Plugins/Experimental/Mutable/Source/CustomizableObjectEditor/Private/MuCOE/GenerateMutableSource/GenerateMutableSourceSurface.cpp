@@ -413,47 +413,57 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			{
 				FString ColumnName = ConnectedPin->PinFriendlyName.ToString();
 
-				// Generating a new data table if not exists
-				mu::TablePtr Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), ConnectedPin, GenerationContext);
-				
-				// Generating a column for each modified parameter(texture, color & float) if not exists
-				if (Table && Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
+				if (!TypedNodeTable->GetColumnDefaultAssetByType<UMaterialInstance>(ConnectedPin))
 				{
-					GenerateTableColumn(TypedNodeTable, ConnectedPin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+					FString Msg = FString::Printf(TEXT("Couldn't find a default value in the data table's struct for the column [%s]. The default value is null or not a Material Instance."), *ColumnName);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
+
+					bMaterialPinConnected = false;
 				}
-
-				// Checking if this material has some parameters modified by the table node linked to it
-				if (GenerationContext.GeneratedParametersInTables.Contains(TypedNodeTable))
+				else
 				{
-					NodeTableParametersGenerated = GenerationContext.GeneratedParametersInTables[TypedNodeTable];
+					// Generating a new data table if not exists
+					mu::TablePtr Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), ConnectedPin, GenerationContext);
 
-					UMaterialInstance* TableMaterial = TypedNodeTable->GetColumnDefaultAssetByType<UMaterialInstance>(ConnectedPin);
-
-					if (TableMaterial && TypedNodeMat->Material)
+					// Generating a column for each modified parameter(texture, color & float) if not exists
+					if (Table && Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
 					{
-						// Checking if the reference material of the Table Node has the same parent as the material of the Material Node 
-						if (TableMaterial->GetMaterial() != TypedNodeMat->Material->GetMaterial())
+						GenerateTableColumn(TypedNodeTable, ConnectedPin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+					}
+
+					// Checking if this material has some parameters modified by the table node linked to it
+					if (GenerationContext.GeneratedParametersInTables.Contains(TypedNodeTable))
+					{
+						NodeTableParametersGenerated = GenerationContext.GeneratedParametersInTables[TypedNodeTable];
+
+						UMaterialInstance* TableMaterial = TypedNodeTable->GetColumnDefaultAssetByType<UMaterialInstance>(ConnectedPin);
+
+						if (TableMaterial && TypedNodeMat->Material)
+						{
+							// Checking if the reference material of the Table Node has the same parent as the material of the Material Node 
+							if (TableMaterial->GetMaterial() != TypedNodeMat->Material->GetMaterial())
+							{
+								bMaterialPinConnected = false;
+
+								FString msg = FString::Printf(TEXT("Material from NodeTable is an instance from a different Parent"));
+								GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TypedNodeMat);
+							}
+						}
+						else
 						{
 							bMaterialPinConnected = false;
 
-							FString msg = FString::Printf(TEXT("Material from NodeTable is an instance from a different Parent"));
-							GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TypedNodeMat);
+							if (!TypedNodeMat->Material)
+							{
+								FString msg = FString::Printf(TEXT("Need to select a Material to work with Node Table Materials."));
+								GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TypedNodeMat);
+							}
 						}
 					}
 					else
 					{
 						bMaterialPinConnected = false;
-
-						if (!TypedNodeMat->Material)
-						{
-							FString msg = FString::Printf(TEXT("Need to select a Material to work with Node Table Materials."));
-							GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TypedNodeMat);
-						}
 					}
-				}
-				else
-				{
-					bMaterialPinConnected = false;
 				}
 			}
 		}

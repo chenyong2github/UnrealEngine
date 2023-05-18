@@ -74,6 +74,8 @@ mu::NodeScalarPtr GenerateMutableSourceFloat(const UEdGraphPin* Pin, FMutableGra
 		return static_cast<mu::NodeScalar*>(Generated->Node.get());
 	}
 
+	bool bDoNotAddToGeneratedCache = false;
+
 	mu::NodeScalarPtr Result;
 	
 	if (const UCustomizableObjectNodeFloatConstant* FloatConstantNode = Cast<UCustomizableObjectNodeFloatConstant>(Node))
@@ -295,47 +297,81 @@ mu::NodeScalarPtr GenerateMutableSourceFloat(const UEdGraphPin* Pin, FMutableGra
 
 	else if (const UCustomizableObjectNodeTable* TypedNodeTable = Cast<UCustomizableObjectNodeTable>(Node))
 	{
-		mu::NodeScalarTablePtr ScalarTableNode = new mu::NodeScalarTable();
-		Result = ScalarTableNode;
+		//This node will add a default value in case of error
+		mu::NodeScalarConstantPtr ConstantValue = new mu::NodeScalarConstant();
+		ConstantValue->SetValue(1.0f);
 
-		mu::TablePtr Table;
+		Result = ConstantValue;
+
+		if (Pin->PinType.PinCategory == Schema->PC_MaterialAsset)
+		{
+			// Material pins have to skip the cache of nodes or they will return always the same column node
+			bDoNotAddToGeneratedCache = true;
+		}
+
+		bool bSuccess = true;
+
 		if (TypedNodeTable->Table)
 		{
 			FString ColumnName = Pin->PinFriendlyName.ToString();
+			FProperty* Property = TypedNodeTable->Table->FindTableProperty(FName(*ColumnName));
 
-			if (Pin->PinType.PinCategory == Schema->PC_MaterialAsset)
+			if (!Property)
 			{
-				ColumnName = GenerationContext.CurrentMaterialTableParameterId;
-			}
-			
-			// Generating a new data table if not exists
-			Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
-
-			// Generating a new Float column if not exists
-			if (Table && Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
-			{
-				GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
-			}
-			
-			ScalarTableNode->SetTable(Table);
-			ScalarTableNode->SetColumn(StringCast<ANSICHAR>(*ColumnName).Get());
-			ScalarTableNode->SetParameterName(StringCast<ANSICHAR>(*TypedNodeTable->ParameterName).Get());
-
-			GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
-			
-			if (Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
-			{
-				Table = new mu::Table();
-
-				FString Msg = FString::Printf(TEXT("Couldn't find pin column with name %s"), *ColumnName);
+				FString Msg = FString::Printf(TEXT("Couldn't find the column [%s] in the data table's struct."), *ColumnName);
 				GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
+
+				bSuccess = false;
+			}
+
+			if (bSuccess)
+			{
+				// Generating a new data table if not exists
+				mu::TablePtr Table;
+				Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
+
+				if (Table)
+				{
+					mu::NodeScalarTablePtr ScalarTableNode = new mu::NodeScalarTable();
+
+					if (Pin->PinType.PinCategory == Schema->PC_MaterialAsset)
+					{
+						// Materials use the parameter id as column names
+						ColumnName = GenerationContext.CurrentMaterialTableParameterId;
+					}
+
+					// Generating a new Float column if not exists
+					if (Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
+					{
+						bSuccess = GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+
+						if (!bSuccess)
+						{
+							FString Msg = FString::Printf(TEXT("Failed to generate the mutable table column [%s]"), *ColumnName);
+							GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
+						}
+					}
+
+					if (bSuccess)
+					{
+						Result = ScalarTableNode;
+
+						ScalarTableNode->SetTable(Table);
+						ScalarTableNode->SetColumn(StringCast<ANSICHAR>(*ColumnName).Get());
+						ScalarTableNode->SetParameterName(StringCast<ANSICHAR>(*TypedNodeTable->ParameterName).Get());
+
+						GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
+					}
+				}
+				else
+				{
+					FString Msg = FString::Printf(TEXT("Couldn't generate a mutable table."), *ColumnName);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
+				}
 			}
 		}
 		else
 		{
-			Table = new mu::Table();
-			ScalarTableNode->SetTable(Table);
-
 			GenerationContext.Compiler->CompilerLog(LOCTEXT("ScalarTableError", "Couldn't find the data table of the node."), Node);
 		}
 	}
@@ -345,8 +381,11 @@ mu::NodeScalarPtr GenerateMutableSourceFloat(const UEdGraphPin* Pin, FMutableGra
 		GenerationContext.Compiler->CompilerLog(LOCTEXT("UnimplementedNode", "Node type not implemented yet."), Node);
 	}
 
-	GenerationContext.Generated.Add(Key, FGeneratedData(Node, Result));
-	GenerationContext.GeneratedNodes.Add(Node);
+	if (!bDoNotAddToGeneratedCache)
+	{
+		GenerationContext.Generated.Add(Key, FGeneratedData(Node, Result));
+		GenerationContext.GeneratedNodes.Add(Node);
+	}
 
 	if (Result)
 	{

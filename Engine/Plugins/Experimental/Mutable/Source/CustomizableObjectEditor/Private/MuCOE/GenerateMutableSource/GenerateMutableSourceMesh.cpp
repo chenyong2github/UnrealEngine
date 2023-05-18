@@ -3486,145 +3486,179 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 	else if (const UCustomizableObjectNodeTable* TypedNodeTable = Cast<UCustomizableObjectNodeTable>(Node))
 	{
-		mu::NodeMeshTablePtr MeshTableNode = new mu::NodeMeshTable();
-		Result = MeshTableNode;
-
-		mu::TablePtr Table = nullptr;
+		//This node will add a checker texture in case of error
+		mu::NodeMeshConstantPtr EmptyNode = new mu::NodeMeshConstant();
+		Result = EmptyNode;
+		bool bSuccess = true;
 
 		if (TypedNodeTable->Table)
-		{			
-			USkeletalMesh* SkeletalMesh = TypedNodeTable->GetColumnDefaultAssetByType<USkeletalMesh>(Pin);
-			
-			int32 CurrentLOD = 0;
-			int32 MaterialIndex = 0;
-			
-			TypedNodeTable->GetPinLODAndMaterial(Pin, CurrentLOD, MaterialIndex);
+		{
+			// Getting the real name of the data table column
+			FString DataTableColumnName = TypedNodeTable->GetColumnNameByPin(Pin);
+			FProperty* Property = TypedNodeTable->Table->FindTableProperty(FName(*DataTableColumnName));
 
-			if (GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh)
+			if (!Property)
 			{
-				if (SkeletalMesh && SkeletalMesh->GetImportedModel())
+				FString Msg = FString::Printf(TEXT("Couldn't find the column [%s] in the data table's struct."), *DataTableColumnName);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
+
+				bSuccess = false;
+			}
+
+			if (bSuccess && !TypedNodeTable->GetColumnDefaultAssetByType<USkeletalMesh>(Pin))
+			{
+				FString Msg = FString::Printf(TEXT("Couldn't find a default value in the data table's struct for the column [%s]."), *DataTableColumnName);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
+
+				bSuccess = false;
+			}
+
+			if (bSuccess)
+			{
+				// Generating a new data table if not exists
+				mu::TablePtr Table = nullptr;
+				Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
+
+				if (Table)
 				{
-					FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+					mu::NodeMeshTablePtr MeshTableNode = new mu::NodeMeshTable();
+					USkeletalMesh* SkeletalMesh = TypedNodeTable->GetColumnDefaultAssetByType<USkeletalMesh>(Pin);
 
-					CurrentLOD += GenerationContext.CurrentLOD;
+					int32 CurrentLOD = 0;
+					int32 MaterialIndex = 0;
 
-					// Checking if the current LOD is valid
-					if (ImportedModel->LODModels.Num() <= CurrentLOD
-						||
-						ImportedModel->LODModels[CurrentLOD].Sections.Num() <= MaterialIndex)
+					TypedNodeTable->GetPinLODAndMaterial(Pin, CurrentLOD, MaterialIndex);
+
+					if (GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh)
 					{
-						// Find the closest valid LOD 
-						for (int32 LODIndex = ImportedModel->LODModels.Num() - 1; LODIndex >= 0; --LODIndex)
+						if (SkeletalMesh && SkeletalMesh->GetImportedModel())
 						{
-							if (ImportedModel->LODModels[LODIndex].Sections.Num() > MaterialIndex)
+							FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+
+							CurrentLOD += GenerationContext.CurrentLOD;
+
+							// Checking if the current LOD is valid
+							if (ImportedModel->LODModels.Num() <= CurrentLOD
+								||
+								ImportedModel->LODModels[CurrentLOD].Sections.Num() <= MaterialIndex)
 							{
-								CurrentLOD = LODIndex;
-								break;
+								// Find the closest valid LOD 
+								for (int32 LODIndex = ImportedModel->LODModels.Num() - 1; LODIndex >= 0; --LODIndex)
+								{
+									if (ImportedModel->LODModels[LODIndex].Sections.Num() > MaterialIndex)
+									{
+										CurrentLOD = LODIndex;
+										break;
+									}
+								}
 							}
 						}
 					}
-				}
-			}
 
-			// Generating a new data table if not exists
-			Table = GenerateMutableSourceTable(TypedNodeTable->Table->GetName(), Pin, GenerationContext);
+					// Getting the mutable table mesh column name
+					FString MutableColumnName = TypedNodeTable->GetMutableColumnName(Pin, CurrentLOD);
 
-			// Getting mutable and data table column names
-			FString MutableColumnName = TypedNodeTable->GetMutableColumnName(Pin, CurrentLOD);
-			FString DataTableColumnName = TypedNodeTable->GetColumnNameByPin(Pin);
-
-			// Generating a new Mesh column if not exists
-			if (Table && Table->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get()) == INDEX_NONE)
-			{
-				GenerateTableColumn(TypedNodeTable, Pin, Table, DataTableColumnName, CurrentLOD, GenerationContext);
-			}
-
-			MeshTableNode->SetTable(Table);
-			MeshTableNode->SetColumn(StringCast<ANSICHAR>(*MutableColumnName).Get());
-			MeshTableNode->SetParameterName(StringCast<ANSICHAR>(*TypedNodeTable->ParameterName).Get());
-
-			GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
-
-			if (SkeletalMesh)
-			{
-				// TODO: this should be made for all the meshes of the Column to support meshes with different values
-				// Filling Mesh Data
-				FSkeletalMeshModel* importModel = SkeletalMesh->GetImportedModel();
-				MeshData.bHasVertexColors = SkeletalMesh->GetHasVertexColors();
-				MeshData.NumTexCoordChannels = importModel->LODModels[CurrentLOD].NumTexCoords;
-				MeshData.MaxBoneIndexTypeSizeBytes = importModel->LODModels[CurrentLOD].RequiredBones.Num() > 256 ? 2 : 1;
-				MeshData.MaxNumBonesPerVertex = importModel->LODModels[CurrentLOD].GetMaxBoneInfluences();
-
-				// When mesh data is combined we will get an upper and lower bound of the number of triangles.
-				MeshData.MaxNumTriangles = importModel->LODModels[CurrentLOD].Sections[MaterialIndex].NumTriangles;
-				MeshData.MinNumTriangles = importModel->LODModels[CurrentLOD].Sections[MaterialIndex].NumTriangles;
-			}
-
-			TArray<UCustomizableObjectLayout*> Layouts = TypedNodeTable->GetLayouts(Pin);
-			MeshTableNode->SetLayoutCount(Layouts.Num());
-
-			if (Layouts.Num())
-			{
-				// Generating node Layouts
-				for (int32 i = 0; i < Layouts.Num(); ++i)
-				{
-					mu::NodeLayoutBlocksPtr LayoutNode = new mu::NodeLayoutBlocks;
-
-					LayoutNode->SetGridSize(Layouts[i]->GetGridSize().X, Layouts[i]->GetGridSize().Y);
-					LayoutNode->SetMaxGridSize(Layouts[i]->GetMaxGridSize().X, Layouts[i]->GetMaxGridSize().Y);
-					LayoutNode->SetBlockCount(Layouts[i]->Blocks.Num() ? Layouts[i]->Blocks.Num() : 1);
-					LayoutNode->SetLayoutPackingStrategy(Layouts[i]->GetPackingStrategy() == ECustomizableObjectTextureLayoutPackingStrategy::Fixed ? mu::EPackStrategy::FIXED_LAYOUT : mu::EPackStrategy::RESIZABLE_LAYOUT);
-					LayoutNode->SetBlockReductionMethod(Layouts[i]->GetBlockReductionMethod() == ECustomizableObjectLayoutBlockReductionMethod::Halve ? mu::EReductionMethod::HALVE_REDUCTION : mu::EReductionMethod::UNITARY_REDUCTION);
-
-					if (bLinkedToExtendMaterial)
+					// Generating a new Mesh column if not exists
+					if (Table->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get()) == INDEX_NONE)
 					{
-						// Layout warnings can be safely ignored in this case. Vertices that do not belong to any layout block will be removed (Extend Materials only)
-						LayoutNode->SetIgnoreWarningsLOD(0);
-					}
+						bSuccess = GenerateTableColumn(TypedNodeTable, Pin, Table, DataTableColumnName, CurrentLOD, GenerationContext);
 
-					if (Layouts[i]->Blocks.Num())
-					{
-						for (int BlockIndex = 0; BlockIndex < Layouts[i]->Blocks.Num(); ++BlockIndex)
+						if (!bSuccess)
 						{
-							LayoutNode->SetBlock(BlockIndex,
-								Layouts[i]->Blocks[BlockIndex].Min.X,
-								Layouts[i]->Blocks[BlockIndex].Min.Y,
-								Layouts[i]->Blocks[BlockIndex].Max.X - Layouts[i]->Blocks[BlockIndex].Min.X,
-								Layouts[i]->Blocks[BlockIndex].Max.Y - Layouts[i]->Blocks[BlockIndex].Min.Y);
-
-							LayoutNode->SetBlockOptions(BlockIndex, Layouts[i]->Blocks[BlockIndex].Priority, Layouts[i]->Blocks[BlockIndex].bUseSymmetry);
+							FString Msg = FString::Printf(TEXT("Failed to generate the mutable table column [%s]"), *MutableColumnName);
+							GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
 						}
 					}
-					else
+
+					if (bSuccess)
 					{
-						FString msg = "Mesh Column [" + MutableColumnName + "] Layout doesn't has any block. A grid sized block will be used instead.";
-						GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node, EMessageSeverity::Warning);
+						Result = MeshTableNode;
 
-						LayoutNode->SetBlock(0, 0, 0, Layouts[i]->GetGridSize().X, Layouts[i]->GetGridSize().Y);
-						LayoutNode->SetBlockOptions(0, 0, false);
+						MeshTableNode->SetTable(Table);
+						MeshTableNode->SetColumn(StringCast<ANSICHAR>(*MutableColumnName).Get());
+						MeshTableNode->SetParameterName(StringCast<ANSICHAR>(*TypedNodeTable->ParameterName).Get());
+
+						GenerationContext.AddParameterNameUnique(Node, TypedNodeTable->ParameterName);
+
+						if (SkeletalMesh)
+						{
+							// TODO: this should be made for all the meshes of the Column to support meshes with different values
+							// Filling Mesh Data
+							FSkeletalMeshModel* importModel = SkeletalMesh->GetImportedModel();
+							MeshData.bHasVertexColors = SkeletalMesh->GetHasVertexColors();
+							MeshData.NumTexCoordChannels = importModel->LODModels[CurrentLOD].NumTexCoords;
+							MeshData.MaxBoneIndexTypeSizeBytes = importModel->LODModels[CurrentLOD].RequiredBones.Num() > 256 ? 2 : 1;
+							MeshData.MaxNumBonesPerVertex = importModel->LODModels[CurrentLOD].GetMaxBoneInfluences();
+
+							// When mesh data is combined we will get an upper and lower bound of the number of triangles.
+							MeshData.MaxNumTriangles = importModel->LODModels[CurrentLOD].Sections[MaterialIndex].NumTriangles;
+							MeshData.MinNumTriangles = importModel->LODModels[CurrentLOD].Sections[MaterialIndex].NumTriangles;
+						}
+
+						TArray<UCustomizableObjectLayout*> Layouts = TypedNodeTable->GetLayouts(Pin);
+						MeshTableNode->SetLayoutCount(Layouts.Num());
+
+						if (Layouts.Num())
+						{
+							// Generating node Layouts
+							for (int32 i = 0; i < Layouts.Num(); ++i)
+							{
+								mu::NodeLayoutBlocksPtr LayoutNode = new mu::NodeLayoutBlocks;
+
+								LayoutNode->SetGridSize(Layouts[i]->GetGridSize().X, Layouts[i]->GetGridSize().Y);
+								LayoutNode->SetMaxGridSize(Layouts[i]->GetMaxGridSize().X, Layouts[i]->GetMaxGridSize().Y);
+								LayoutNode->SetBlockCount(Layouts[i]->Blocks.Num() ? Layouts[i]->Blocks.Num() : 1);
+								LayoutNode->SetLayoutPackingStrategy(Layouts[i]->GetPackingStrategy() == ECustomizableObjectTextureLayoutPackingStrategy::Fixed ? mu::EPackStrategy::FIXED_LAYOUT : mu::EPackStrategy::RESIZABLE_LAYOUT);
+								LayoutNode->SetBlockReductionMethod(Layouts[i]->GetBlockReductionMethod() == ECustomizableObjectLayoutBlockReductionMethod::Halve ? mu::EReductionMethod::HALVE_REDUCTION : mu::EReductionMethod::UNITARY_REDUCTION);
+
+								if (bLinkedToExtendMaterial)
+								{
+									// Layout warnings can be safely ignored in this case. Vertices that do not belong to any layout block will be removed (Extend Materials only)
+									LayoutNode->SetIgnoreWarningsLOD(0);
+								}
+
+								if (Layouts[i]->Blocks.Num())
+								{
+									for (int BlockIndex = 0; BlockIndex < Layouts[i]->Blocks.Num(); ++BlockIndex)
+									{
+										LayoutNode->SetBlock(BlockIndex,
+											Layouts[i]->Blocks[BlockIndex].Min.X,
+											Layouts[i]->Blocks[BlockIndex].Min.Y,
+											Layouts[i]->Blocks[BlockIndex].Max.X - Layouts[i]->Blocks[BlockIndex].Min.X,
+											Layouts[i]->Blocks[BlockIndex].Max.Y - Layouts[i]->Blocks[BlockIndex].Min.Y);
+
+										LayoutNode->SetBlockOptions(BlockIndex, Layouts[i]->Blocks[BlockIndex].Priority, Layouts[i]->Blocks[BlockIndex].bUseSymmetry);
+									}
+								}
+								else
+								{
+									FString msg = "Mesh Column [" + MutableColumnName + "] Layout doesn't has any block. A grid sized block will be used instead.";
+									GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node, EMessageSeverity::Warning);
+
+									LayoutNode->SetBlock(0, 0, 0, Layouts[i]->GetGridSize().X, Layouts[i]->GetGridSize().Y);
+									LayoutNode->SetBlockOptions(0, 0, false);
+								}
+
+								MeshTableNode->SetLayout(i, LayoutNode);
+							}
+						}
+
+						// Applying Mesh Morph Nodes
+						if (GenerationContext.MeshMorphStack.Num())
+						{
+							MorphResult = GenerateMorphMesh(Pin, GenerationContext.MeshMorphStack, 0, Result, GenerationContext, MeshData, MutableColumnName);
+						}
 					}
-
-					MeshTableNode->SetLayout(i, LayoutNode);
 				}
-			}
-
-			// Applying Mesh Morph Nodes
-			if (GenerationContext.MeshMorphStack.Num())
-			{
-				MorphResult = GenerateMorphMesh(Pin, GenerationContext.MeshMorphStack, 0, Result, GenerationContext, MeshData, MutableColumnName);
-			}
-
-			if (Table->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get()) == INDEX_NONE)
-			{
-				FString Msg = FString::Printf(TEXT("Couldn't find pin column with name %s"), *MutableColumnName);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
+				else
+				{
+					FString Msg = FString::Printf(TEXT("Couldn't generate a mutable table."));
+					GenerationContext.Compiler->CompilerLog(FText::FromString(Msg), Node);
+				}
 			}
 		}
 		else
 		{
-			Table = new mu::Table();
-			MeshTableNode->SetTable(Table);
-
 			GenerationContext.Compiler->CompilerLog(LOCTEXT("ImageTableError", "Couldn't find the data table of the node."), Node);
 		}
 	}
