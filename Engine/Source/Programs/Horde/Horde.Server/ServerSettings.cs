@@ -553,9 +553,9 @@ namespace Horde.Server
 		public string CorsOrigin { get; set; } = null!;
 
 		/// <summary>
-		/// Whether to enable a schedule in test data (false by default for development builds)
+		/// Whether to automatically enable new agents by default. If false, new agents must manually be enabled before they can take on work.
 		/// </summary>
-		public bool EnableScheduleInTestData { get; set; }
+		public bool EnableNewAgentsByDefault { get; set; } = true;
 
 		/// <summary>
 		/// The number of months to retain test data

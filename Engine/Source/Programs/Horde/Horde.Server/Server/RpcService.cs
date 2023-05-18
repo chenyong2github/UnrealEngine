@@ -267,8 +267,7 @@ namespace Horde.Server.Server
 			IAgent? agent = await _agentService.GetAgentAsync(new AgentId(request.Name));
 			if (agent == null)
 			{
-				// TODO: Once we have this flow nailed down, do not enable agents until approved for joining the farm.
-				agent = await _agentService.CreateAgentAsync(request.Name, true, null);
+				agent = await _agentService.CreateAgentAsync(request.Name, _globalConfig.Value.ServerSettings.EnableNewAgentsByDefault, null);
 			}
 
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();
