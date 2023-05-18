@@ -194,7 +194,7 @@ const StreamViewInner: React.FC = observer(() => {
    let isIncrementalTab = queryTab?.toLowerCase() === "incremental";   
 
    if (!isIncrementalTab && currentTab) {
-      isIncrementalTab = currentTab.showNames === false || currentTab.templates?.length === 1;
+      isIncrementalTab = currentTab.showNames === false; /*|| currentTab.templates?.length === 1;*/
    }
    
    if (!isIncrementalTab && queryTab) {
