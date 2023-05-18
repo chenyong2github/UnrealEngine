@@ -203,6 +203,7 @@ namespace UnrealBuildTool
 			string MinVersionToReturn = "";
 			switch (MinVersion)
 			{
+				case "":
 				case "IOS_15":
 				case "IOS_Minimum":
 					MinVersionToReturn = "15.0";
