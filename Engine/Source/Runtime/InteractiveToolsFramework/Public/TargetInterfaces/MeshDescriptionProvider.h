@@ -58,7 +58,15 @@ public:
 	}
 
 	/**
-	 * @return true if the provider is able to provide different Mesh Descriptions for different requested LODs.  If so, GetValidLODs() will return the available LODs.
+	 * For providers that have LODs (i.e. if SupportsLODs returns true), returns the LOD that GetMeshDescription/etc will return. Otherwise, returns Default LOD.
+	 */
+	virtual EMeshLODIdentifier GetMeshDescriptionLOD() const
+	{
+		return EMeshLODIdentifier::Default;
+	}
+
+	/**
+	 * @return true if the provider is able to provide different Mesh Descriptions for different requested LODs.  If so, GetAvailableLODs() will return the available LODs.
 	 */
 	virtual bool SupportsLODs() const
 	{

@@ -162,6 +162,21 @@ TArray<EMeshLODIdentifier> UE::ToolTarget::GetMeshDescriptionLODs(UToolTarget* T
 	return DefaultArray;
 }
 
+
+EMeshLODIdentifier UE::ToolTarget::GetTargetMeshDescriptionLOD(
+	UToolTarget* Target,
+	bool& bOutTargetSupportsLODs)
+{
+	if (IMeshDescriptionProvider* MeshDescriptionProvider = Cast<IMeshDescriptionProvider>(Target))
+	{
+		bOutTargetSupportsLODs = MeshDescriptionProvider->SupportsLODs();
+		return MeshDescriptionProvider->GetMeshDescriptionLOD();
+	}
+
+	bOutTargetSupportsLODs = false;
+	return EMeshLODIdentifier::Default;
+}
+
 const FMeshDescription* UE::ToolTarget::GetMeshDescription(UToolTarget* Target, const FGetMeshParameters& GetMeshParams)
 {
 	static FMeshDescription EmptyMeshDescription;
