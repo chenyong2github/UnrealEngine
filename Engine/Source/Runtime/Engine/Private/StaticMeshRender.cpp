@@ -1418,7 +1418,7 @@ void FStaticMeshSceneProxy::OnEvaluateWorldPositionOffsetChanged_RenderThread()
 	if (ShouldOptimizedWPOAffectNonNaniteShaderSelection())
 	{
 		// Re-cache draw commands
-		GetRendererModule().BeginDeferredUpdateOfPrimitiveSceneInfo(GetPrimitiveSceneInfo());
+		GetRendererModule().RequestStaticMeshUpdate(GetPrimitiveSceneInfo());
 	}
 }
 
