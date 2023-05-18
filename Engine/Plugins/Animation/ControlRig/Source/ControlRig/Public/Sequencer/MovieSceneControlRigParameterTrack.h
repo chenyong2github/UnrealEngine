@@ -55,6 +55,7 @@ public:
 	virtual void GetSelectedNodes(TArray<FName>& OutSelectedNodes) override;
 
 	//UControlRig Delegates
+	void HandleOnInitialized_GameThread();
 	void HandleOnInitialized(URigVMHost* Subject, const FName& InEventName);
 
 #if WITH_EDITOR
