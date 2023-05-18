@@ -22,6 +22,7 @@ struct CHOOSER_API FEnumContextProperty : public FChooserParameterEnumBase
 	FChooserEnumPropertyBinding Binding;
 
 	virtual bool GetValue(FChooserEvaluationContext& Context, uint8& OutResult) const override;
+	virtual bool SetValue(FChooserEvaluationContext& Context, uint8 InValue) const override;
 
 	virtual void PostLoad() override
 	{

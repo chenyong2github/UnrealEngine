@@ -2,6 +2,7 @@
 
 #include "EnumColumnEditor.h"
 #include "EnumColumn.h"
+#include "OutputEnumColumn.h"
 #include "SPropertyAccessChainWidget.h"
 #include "ObjectChooserWidgetFactories.h"
 #include "ChooserTableEditor.h"
@@ -16,6 +17,7 @@ namespace UE::ChooserEditor
 {
 	
 // Wrapper widget for EnumComboBox which will reconstruct the combo box when the Enum has changed
+template <typename ColumnType>
 class SEnumCell : public SCompoundWidget
 {
 public:
@@ -24,29 +26,21 @@ public:
 	{}
 
 	SLATE_ARGUMENT(UObject*, TransactionObject)
-	SLATE_ARGUMENT(FEnumColumn*, EnumColumn)
+	SLATE_ARGUMENT(ColumnType*, EnumColumn)
 	SLATE_ATTRIBUTE(int, RowIndex);
             
 	SLATE_END_ARGS()
 
 	TSharedRef<SWidget> CreateEnumComboBox()
 	{
-		if (const FEnumColumn* EnumColumnPointer = EnumColumn)
+		if (const ColumnType* EnumColumnPointer = EnumColumn)
 		{
 			if (EnumColumnPointer->InputValue.IsValid())
 			{
-				if (const UEnum* Enum = EnumColumnPointer->InputValue.Get<FChooserParameterEnumBase>().GetEnum())
+				if (const UEnum* Enum = EnumColumnPointer->InputValue.template Get<FChooserParameterEnumBase>().GetEnum())
 				{
 					return SNew(SEnumComboBox, Enum)
-						.IsEnabled_Lambda([this]
-						{
-							if (UChooserTable* Chooser = Cast<UChooserTable>(TransactionObject))
-							{
-								// return false only for the column header (RowIndex = -1) and when there is a debug target object bound
-								return RowIndex.Get()>=0 || !Chooser->HasDebugTarget();
-							}
-							return true;
-						})
+						.IsEnabled_Lambda([this](){ return IsEnabled(); } )
 						.CurrentValue_Lambda([this]()
 						{
 							int Row = RowIndex.Get();
@@ -56,7 +50,7 @@ public:
 							}
 							else
 							{
-								return EnumColumn->TestValue;
+								return static_cast<int32>(EnumColumn->TestValue);
 							}
 						})
 						.OnEnumSelectionChanged_Lambda([this](int32 EnumValue, ESelectInfo::Type)
@@ -90,7 +84,7 @@ public:
 		const UEnum* CurrentEnumSource = nullptr;
 		if (EnumColumn->InputValue.IsValid())
 		{
-			CurrentEnumSource = EnumColumn->InputValue.Get<FChooserParameterEnumBase>().GetEnum(); 
+			CurrentEnumSource = EnumColumn->InputValue.template Get<FChooserParameterEnumBase>().GetEnum(); 
 		}
 		if (EnumSource != CurrentEnumSource)
 		{
@@ -102,16 +96,18 @@ public:
 
 	void Construct( const FArguments& InArgs)
 	{
+		SetEnabled(InArgs._IsEnabled);
+		
 		SetCanTick(true);
 		RowIndex = InArgs._RowIndex;
 		EnumColumn = InArgs._EnumColumn;
 		TransactionObject = InArgs._TransactionObject;
 
-		if (const FEnumColumn* EnumColumnPointer = EnumColumn)
+		if (EnumColumn)
 		{
-			if (EnumColumnPointer->InputValue.IsValid())
+			if (EnumColumn->InputValue.IsValid())
 			{
-				EnumSource = EnumColumnPointer->InputValue.Get<FChooserParameterEnumBase>().GetEnum();
+				EnumSource = EnumColumn->InputValue.template Get<FChooserParameterEnumBase>().GetEnum();
 			}
 		}
 
@@ -121,36 +117,9 @@ public:
 
 		ChildSlot
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth()
+			SAssignNew(EnumComboBorder, SBorder).Padding(0).BorderBackgroundColor(FLinearColor(0,0,0,0))
 			[
-				SNew(SBox).WidthOverride(Row < 0 ? 0 : 45)
-				[
-					SNew(SButton).ButtonStyle(FAppStyle::Get(),"FlatButton").TextStyle(FAppStyle::Get(),"RichTextBlock.Bold").HAlign(HAlign_Center)
-					.Visibility(Row < 0 ? EVisibility::Hidden : EVisibility::Visible)
-					.Text_Lambda([this, Row]()
-					{
-
-						return (EnumColumn->RowValues.IsValidIndex(Row) && EnumColumn->RowValues[Row].CompareNotEqual ? LOCTEXT("Not Equal", "!=") : LOCTEXT("Equal", "="));
-					})
-					.OnClicked_Lambda([this, Row]()
-					{
-						if (EnumColumn->RowValues.IsValidIndex(Row))
-						{
-							const FScopedTransaction Transaction(LOCTEXT("Edit Comparison", "Edit Comparison Operation"));
-							TransactionObject->Modify(true);
-							EnumColumn->RowValues[Row].CompareNotEqual = !EnumColumn->RowValues[Row].CompareNotEqual;
-						}
-						return FReply::Handled();
-					})
-				]
-			]
-			+ SHorizontalBox::Slot().FillWidth(1)
-			[
-				SAssignNew(EnumComboBorder, SBorder).Padding(0).BorderBackgroundColor(FLinearColor(0,0,0,0))
-				[
-					CreateEnumComboBox()
-				]
+				CreateEnumComboBox()
 			]
 		];
 		
@@ -162,7 +131,7 @@ public:
 
 private:
 	UObject* TransactionObject = nullptr;
-	FEnumColumn* EnumColumn = nullptr;
+	ColumnType* EnumColumn = nullptr;
 	const UEnum* EnumSource = nullptr;
 	TSharedPtr<SBorder> EnumComboBorder;
 	TAttribute<int> RowIndex;
@@ -208,7 +177,8 @@ TSharedRef<SWidget> CreateEnumColumnWidget(UChooserTable* Chooser, FChooserColum
 			]
 			+ SVerticalBox::Slot()
 			[
-				SNew(SEnumCell).TransactionObject(Chooser).EnumColumn(EnumColumn).RowIndex(Row)
+				SNew(SEnumCell<FEnumColumn>).TransactionObject(Chooser).EnumColumn(EnumColumn).RowIndex(Row)
+					.IsEnabled_Lambda([Chooser] { return !Chooser->HasDebugTarget(); })
 			];
 		}
 
@@ -217,7 +187,87 @@ TSharedRef<SWidget> CreateEnumColumnWidget(UChooserTable* Chooser, FChooserColum
 
 	// create cell widget
 	
-	return SNew(SEnumCell).TransactionObject(Chooser).EnumColumn(EnumColumn).RowIndex(Row);
+	return SNew(SHorizontalBox)
+    		+ SHorizontalBox::Slot().AutoWidth()
+    		[
+    			SNew(SBox).WidthOverride(Row < 0 ? 0 : 45)
+    			[
+    				SNew(SButton).ButtonStyle(FAppStyle::Get(),"FlatButton").TextStyle(FAppStyle::Get(),"RichTextBlock.Bold").HAlign(HAlign_Center)
+    				.Visibility(Row < 0 ? EVisibility::Hidden : EVisibility::Visible)
+					.Text_Lambda([EnumColumn, Row]()
+					{
+						return (EnumColumn->RowValues.IsValidIndex(Row) && EnumColumn->RowValues[Row].CompareNotEqual ? LOCTEXT("Not Equal", "!=") : LOCTEXT("Equal", "="));
+					})
+					.OnClicked_Lambda([EnumColumn, Chooser, Row]()
+					{
+						if (EnumColumn->RowValues.IsValidIndex(Row))
+						{
+							const FScopedTransaction Transaction(LOCTEXT("Edit Comparison", "Edit Comparison Operation"));
+							Chooser->Modify(true);
+							EnumColumn->RowValues[Row].CompareNotEqual = !EnumColumn->RowValues[Row].CompareNotEqual;
+						}
+						return FReply::Handled();
+					})
+				]
+			]
+			+ SHorizontalBox::Slot().FillWidth(1)
+			[
+				SNew(SEnumCell<FEnumColumn>).TransactionObject(Chooser).EnumColumn(EnumColumn).RowIndex(Row)
+			];
+}
+
+TSharedRef<SWidget> CreateOutputEnumColumnWidget(UChooserTable* Chooser, FChooserColumnBase* Column, int Row)
+{
+	FOutputEnumColumn* EnumColumn = static_cast<FOutputEnumColumn*>(Column);
+	
+	if (Row < 0)
+	{
+		// create column header widget
+		TSharedPtr<SWidget> InputValueWidget = nullptr;
+		if (FChooserParameterBase* InputValue = Column->GetInputValue())
+		{
+			InputValueWidget = FObjectChooserWidgetFactories::CreateWidget(false, Chooser, InputValue, Column->GetInputType(), Chooser->OutputObjectType);
+		}
+		
+		const FSlateBrush* ColumnIcon = FCoreStyle::Get().GetBrush("Icons.ArrowRight");
+		
+		TSharedRef<SWidget> ColumnHeaderWidget = SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot().AutoWidth()
+			[
+				SNew(SBorder)
+				.BorderBackgroundColor(FLinearColor(0,0,0,0))
+				.Content()
+				[
+					SNew(SImage).Image(ColumnIcon)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			[
+				InputValueWidget ? InputValueWidget.ToSharedRef() : SNullWidget::NullWidget
+			];
+	
+		if (Chooser->bEnableDebugTesting)
+		{
+			ColumnHeaderWidget = SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			[
+				ColumnHeaderWidget
+			]
+			+ SVerticalBox::Slot()
+			[
+				SNew(SEnumCell<FOutputEnumColumn>).TransactionObject(Chooser).EnumColumn(EnumColumn).RowIndex(Row).IsEnabled(false)
+			];
+		}
+
+		return ColumnHeaderWidget;
+	}
+
+	// create cell widget
+	
+	return
+
+
+	SNew(SEnumCell<FOutputEnumColumn>).TransactionObject(Chooser).EnumColumn(EnumColumn).RowIndex(Row);
 }
 
 TSharedRef<SWidget> CreateEnumPropertyWidget(bool bReadOnly, UObject* TransactionObject, void* Value, UClass* ResultBaseClass)
@@ -241,6 +291,7 @@ void RegisterEnumWidgets()
 {
 	FObjectChooserWidgetFactories::RegisterWidgetCreator(FEnumContextProperty::StaticStruct(), CreateEnumPropertyWidget);
 	FObjectChooserWidgetFactories::RegisterColumnWidgetCreator(FEnumColumn::StaticStruct(), CreateEnumColumnWidget);
+	FObjectChooserWidgetFactories::RegisterColumnWidgetCreator(FOutputEnumColumn::StaticStruct(), CreateOutputEnumColumnWidget);
 }
 	
 }

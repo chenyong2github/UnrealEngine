@@ -32,6 +32,32 @@ bool FEnumContextProperty::GetValue(FChooserEvaluationContext& Context, uint8& O
 	return false;
 }
 
+bool FEnumContextProperty::SetValue(FChooserEvaluationContext& Context, uint8 InValue) const
+{
+	const UStruct* StructType = nullptr;
+	const void* Container = nullptr;
+
+	if (UE::Chooser::ResolvePropertyChain(Context, Binding, Container, StructType))
+	{
+		if (const FEnumProperty* EnumProperty = FindFProperty<FEnumProperty>(StructType, Binding.PropertyBindingChain.Last()))
+		{
+			*EnumProperty->ContainerPtrToValuePtr<uint8>(const_cast<void*>(Container)) = InValue;
+			return true;
+		}
+
+		if (const FByteProperty* ByteProperty = FindFProperty<FByteProperty>(StructType, Binding.PropertyBindingChain.Last()))
+		{
+			if (ByteProperty->IsEnum())
+			{
+				*ByteProperty->ContainerPtrToValuePtr<uint8>(const_cast<void*>(Container)) = InValue;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 #if WITH_EDITOR
 
 void FEnumContextProperty::SetBinding(const TArray<FBindingChainElement>& InBindingChain)

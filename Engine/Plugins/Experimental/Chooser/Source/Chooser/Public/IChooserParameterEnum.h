@@ -27,6 +27,7 @@ struct FChooserParameterEnumBase : public FChooserParameterBase
 	GENERATED_BODY()
 	
 		virtual bool GetValue(FChooserEvaluationContext& Context, uint8& OutResult) const { return false; }
+    	virtual bool SetValue(FChooserEvaluationContext& Context, uint8 InValue) const { return false; }
 
 	#if WITH_EDITOR
     	virtual const UEnum* GetEnum() const { return nullptr; }
