@@ -47,7 +47,6 @@ public class ModelingToolsEditorMode : ModuleRules
 				"EditorWidgets",
 				"ModelingEditorUI",
 				"WidgetRegistration",
-				"StylusInput",
 				"DeveloperSettings",
 				"PropertyEditor",
 				"ToolMenus",
