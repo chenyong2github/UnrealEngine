@@ -3567,9 +3567,25 @@ void UNiagaraScript::SyncAliases(const FNiagaraAliasContext& ResolveAliasesConte
 			{
 				FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *Name), ResolveAliasesContext);
 				if (NewVar.GetName() != *Name)
+				{
 					GetVMExecutableData().CompileTags[i].StringValue = NewVar.GetName().ToString();
+				}
 			}
 		}
+	#if WITH_EDITORONLY_DATA
+		for (int32 i = 0; i < GetVMExecutableData().CompileTagsEditorOnly.Num(); i++)
+		{
+			const FString& Name = GetVMExecutableData().CompileTagsEditorOnly[i].StringValue;
+			if (Name.Len())
+			{
+				FNiagaraVariable NewVar = FNiagaraUtilities::ResolveAliases(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *Name), ResolveAliasesContext);
+				if (NewVar.GetName() != *Name)
+				{
+					GetVMExecutableData().CompileTagsEditorOnly[i].StringValue = NewVar.GetName().ToString();
+				}
+			}
+		}
+	#endif
 	}
 
 	InvalidateExecutionReadyParameterStores();

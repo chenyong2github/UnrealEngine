@@ -96,7 +96,9 @@ struct FNiagaraTranslateResults
 
 	TArray<FNiagaraCompileDependency> CompileDependencies;
 
-	TArray<FNiagaraCompilerTag > CompileTags;
+	TArray<FNiagaraCompilerTag> CompileTags;
+
+	TArray<FNiagaraCompilerTag> CompileTagsEditorOnly;
 
 	/** A string representation of the compilation output. */
 	FString OutputHLSL;

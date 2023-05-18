@@ -651,7 +651,7 @@ public:
 
 	void CullMapSetInputPin(const FPin* InputPin);
 
-	void WriteCompilerTag(int32 InputCompileResult, const FPin* Pin, bool bEmitMessageOnFailure, FNiagaraCompileEventSeverity FailureSeverity, const FString& Prefix = FString());
+	void WriteCompilerTag(int32 InputCompileResult, const FPin* Pin, bool bEditorOnly, bool bEmitMessageOnFailure, FNiagaraCompileEventSeverity FailureSeverity, const FString& Prefix = FString());
 
 	void Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const FNode* Node, const FPin* Pin, FStringView ShortDescription = FStringView());
 	void Error(FText ErrorText, const FNode* Node, const FPin* Pin, FStringView ShortDescription = FStringView());

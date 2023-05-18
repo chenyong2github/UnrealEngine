@@ -1830,6 +1830,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FStringView GroupName, const FNi
 	CompileResults.Data->LastCompileEvents.Append(InTranslateResults.CompileEvents);
 	CompileResults.Data->ExternalDependencies = InTranslateResults.CompileDependencies;
 	CompileResults.Data->CompileTags = InTranslateResults.CompileTags;
+	CompileResults.Data->CompileTagsEditorOnly = InTranslateResults.CompileTagsEditorOnly;
 
 	// Early out if compiling a GPU particle script as we do not need to submit a CPU compile request.
 	// This must be done after we add in the translator errors etc so tha they are passed to the compile job correctly.
@@ -1844,6 +1845,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FStringView GroupName, const FNi
 	CompilationJob->TranslatorOutput.ScriptData.LastHlslTranslation = TranslatedHLSL;
 	CompilationJob->TranslatorOutput.ScriptData.ExternalDependencies = InTranslateResults.CompileDependencies;
 	CompilationJob->TranslatorOutput.ScriptData.CompileTags = InTranslateResults.CompileTags;
+	CompilationJob->TranslatorOutput.ScriptData.CompileTagsEditorOnly = InTranslateResults.CompileTagsEditorOnly;
 
 	bool bJobScheduled = false;
 	if (CompileResults.bVMSucceeded)
@@ -2136,6 +2138,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 	Results.NumErrors = CompileResults.NumErrors;
 	Results.CompileEvents = CompileResults.CompileEvents;
 	Results.Data->CompileTags = CompileResults.Data->CompileTags;
+	Results.Data->CompileTagsEditorOnly = CompileResults.Data->CompileTagsEditorOnly;
 
 	CompilationJob.Reset();
 	return Results;

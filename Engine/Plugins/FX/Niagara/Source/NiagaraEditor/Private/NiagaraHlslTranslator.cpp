@@ -2141,7 +2141,15 @@ FNiagaraTranslateResults TNiagaraHlslTranslator<GraphBridge>::Translate(const FN
 			{
 				Preamble.Appendf(TEXT("//\tVariable: \"%s\" StringValue: \"%s\" \n"), *Tag.Variable.ToString(),  *Tag.StringValue);
 			}
+		}
+		if (TranslateResults.CompileTags.Num() != 0)
+		{
+			Preamble.Appendf(TEXT("// Compile Tags Editor Only: \n"));
 
+			for (const FNiagaraCompilerTag& Tag : TranslateResults.CompileTagsEditorOnly)
+			{
+				Preamble.Appendf(TEXT("//\tVariable: \"%s\" StringValue: \"%s\" \n"), *Tag.Variable.ToString(), *Tag.StringValue);
+			}
 		}
 
 		// Display the computed compile tags in the source hlsl to make checking easier.
@@ -7471,7 +7479,7 @@ void TNiagaraHlslTranslator<GraphBridge>::FunctionCall(const FFunctionCallNode* 
 				FNiagaraTypeDefinition TypeDef = GraphBridge::GetPinType(CallInputs[i], ENiagaraStructConversion::UserFacing);
 				if (!(TypeDef.IsDataInterface() || TypeDef == FNiagaraTypeDefinition::GetParameterMapDef()))
 				{
-					WriteCompilerTag(Inputs[i], CallInputs[i], false, FNiagaraCompileEventSeverity::Display, ResolvedVariable.GetName().ToString());
+					WriteCompilerTag(Inputs[i], CallInputs[i], false, false, FNiagaraCompileEventSeverity::Display, ResolvedVariable.GetName().ToString());
 				}
 			}
 		}
@@ -9457,7 +9465,7 @@ void TNiagaraHlslTranslator<GraphBridge>::FindConstantValue(int32 InputCompileRe
 }
 
 template<typename GraphBridge>
-void TNiagaraHlslTranslator<GraphBridge>::WriteCompilerTag(int32 InputCompileResult, const FPin* Pin, bool bEmitMessageOnFailure, FNiagaraCompileEventSeverity FailureSeverity, const FString& Prefix)
+void TNiagaraHlslTranslator<GraphBridge>::WriteCompilerTag(int32 InputCompileResult, const FPin* Pin, bool bEditorOnly, bool bEmitMessageOnFailure, FNiagaraCompileEventSeverity FailureSeverity, const FString& Prefix)
 {
 	FString Value;
 	FNiagaraTypeDefinition TypeDef = GraphBridge::GetPinType(Pin, ENiagaraStructConversion::UserFacing);
@@ -9485,15 +9493,17 @@ void TNiagaraHlslTranslator<GraphBridge>::WriteCompilerTag(int32 InputCompileRes
 	}
 	else
 	{
+		TArray<FNiagaraCompilerTag>& CompileTags = bEditorOnly ? TranslateResults.CompileTagsEditorOnly : TranslateResults.CompileTags;
+
 		// Always use the latest output value for the tag.
-		if (FNiagaraCompilerTag* Tag = FNiagaraCompilerTag::FindTag(TranslateResults.CompileTags, Variable))
+		if (FNiagaraCompilerTag* Tag = FNiagaraCompilerTag::FindTag(CompileTags, Variable))
 		{
 			Tag->StringValue = Value;
 			Tag->Variable = Variable;
 		}
 		else
 		{
-			TranslateResults.CompileTags.Emplace(Variable, Value);
+			CompileTags.Emplace(Variable, Value);
 		}
 	}
 }

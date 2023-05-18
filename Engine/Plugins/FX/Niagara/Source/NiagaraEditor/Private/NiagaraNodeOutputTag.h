@@ -30,6 +30,9 @@ public:
 	virtual bool CancelEditablePinName(const FText& InName, UEdGraphPin* InGraphPinObj) override;
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
+	UPROPERTY(EditAnywhere, Category = Tag)
+	bool bEditorOnly = false;
+
 	UPROPERTY(EditAnywhere, Category=Tag)
 	bool bEmitMessageOnFailure = true;
 

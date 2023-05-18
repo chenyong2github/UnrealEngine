@@ -58,7 +58,7 @@ void UNiagaraNodeOutputTag::Compile(FTranslator* Translator, TArray<int32>& Outp
 		}
 		else
 		{
-			Translator->WriteCompilerTag(CompiledInput, InputPin, bEmitMessageOnFailure, FailureSeverity);
+			Translator->WriteCompilerTag(CompiledInput, InputPin, bEditorOnly, bEmitMessageOnFailure, FailureSeverity);
 		}
 	}
 

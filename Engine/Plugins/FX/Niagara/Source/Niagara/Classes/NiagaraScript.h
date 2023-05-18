@@ -458,6 +458,9 @@ public:
 	    in RI parameters this will be the values that are baked in, otherwise it will be the set of defaults based on the graphs. */
 	UPROPERTY()
 	TArray<FNiagaraVariable> BakedRapidIterationParameters;
+
+	UPROPERTY()
+	TArray<FNiagaraCompilerTag> CompileTagsEditorOnly;
 #endif
 
 	UPROPERTY()
