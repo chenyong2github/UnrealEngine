@@ -231,71 +231,13 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 		}
 	}
 
+
 	// FDisplayClusterConfigurationViewport_ICVFX property:
 	{
-		EDisplayClusterViewportICVFXFlags& TargetFlags = DstViewport.RenderSettingsICVFX.Flags;
+		const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
 
-		if (InConfigurationViewport.ICVFX.bAllowICVFX)
-		{
-			EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::Enable);
-
-			EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode CameraRenderMode = InConfigurationViewport.ICVFX.CameraRenderMode;
-
-			const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
-			if (InConfigurationViewport.ICVFX.bAllowInnerFrustum == false || StageSettings.bEnableInnerFrustums == false)
-			{
-				CameraRenderMode = EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::Disabled;
-			}
-
-			switch (CameraRenderMode)
-			{
-				// Disable camera frame render for this viewport
-			case EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::Disabled:
-				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::DisableCamera | EDisplayClusterViewportICVFXFlags::DisableChromakey | EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers);
-				break;
-
-				// Disable chromakey render for this viewport
-			case EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::DisableChromakey:
-				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::DisableChromakey | EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers);
-				break;
-
-				// Disable chromakey markers render for this viewport
-			case EDisplayClusterConfigurationICVFX_OverrideCameraRenderMode::DisableChromakeyMarkers:
-
-				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers);
-				break;
-
-			default:
-				// Use default rendering rules
-				break;
-			}
-
-			switch (InConfigurationViewport.ICVFX.LightcardRenderMode)
-			{
-				// Render incamera frame over lightcard for this viewport
-			case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Over:
-
-				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::OverrideLightcardMode);
-				DstViewport.RenderSettingsICVFX.ICVFX.LightCardMode = EDisplayClusterShaderParametersICVFX_LightCardRenderMode::Over;
-				break;
-
-				// Over lightcard over incamera frame  for this viewport
-			case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Under:
-
-				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::OverrideLightcardMode);
-				DstViewport.RenderSettingsICVFX.ICVFX.LightCardMode = EDisplayClusterShaderParametersICVFX_LightCardRenderMode::Under;
-				break;
-
-			case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Disabled:
-
-				EnumAddFlags(TargetFlags, EDisplayClusterViewportICVFXFlags::DisableLightcard);
-				break;
-
-			default:
-				// Use default lightcard mode
-				break;
-			}
-		}
+		DstViewport.RenderSettingsICVFX.Flags = InConfigurationViewport.ICVFX.GetViewportICVFXFlags(StageSettings);
+		DstViewport.RenderSettingsICVFX.ICVFX.LightCardMode = InConfigurationViewport.ICVFX.GetLightCardRenderMode(StageSettings);
 	}
 }
 

@@ -17,6 +17,8 @@
 #include "DisplayClusterConfigurationTypes_Postprocess.h"
 #include "DisplayClusterConfigurationTypes_OCIO.h"
 
+#include "Containers/DisplayClusterShader_Enums.h"
+
 #include "DisplayClusterConfigurationTypes_ICVFX.generated.h"
 
 USTRUCT(Blueprintable)
@@ -107,6 +109,10 @@ USTRUCT(Blueprintable, meta = (DefaultSubstitutions = "LayersTooltip = Actor Lay
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_VisibilityList
 {
 	GENERATED_BODY()
+
+public:
+	/** returns true if there is at least one valid value in the visibility list. */
+	bool IsVisibilityListValid() const;
 
 public:
 	/** Actor Layers */
@@ -208,6 +214,10 @@ public:
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 public:
+	/** true if chromakey viewport is used in  ICVFX. */
+	bool ShouldUseChromakeyViewport(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+public:
 	/** Set to True to use custom chromakey content. */
 	UE_DEPRECATED(5.3, "Use the ChromakeyType enum in FDisplayClusterConfigurationICVFX_ChromakeySettings instead")
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the Chromakey Type enum in the chromakey settings instead"))
@@ -287,6 +297,40 @@ public:
 	{ }
 
 public:
+	/** Get Type of Chromakey: disabled, filling all internal frustum or rendering Chromakey actors. */
+	EDisplayClusterShaderParametersICVFX_ChromakeySource GetChromakeyType(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get the Chromakey render settings
+	 * Return nullptr if Chromakey: is disabled or its type does not use rendering
+	 */
+	const FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings* GetChromakeyRenderSettings(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get the writable Chromakey render settings
+	 * Return nullptr if Chromakey: is disabled or its type does not use rendering
+	 */
+	FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings* GetWritableChromakeyRenderSettings(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings);
+
+	/** Get the Chromakey color value */
+	const FLinearColor& GetChromakeyColor(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get the Chromakey overlap color value */
+	const FLinearColor& GetOverlapChromakeyColor(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get the Chromakey markers settings
+	 * Return nullptr if Chromakey markers is :disabled
+	 */
+	const FDisplayClusterConfigurationICVFX_ChromakeyMarkers* GetChromakeyMarkers(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+	
+	/** Get the Chromakey overlap markers settings
+	 * Return nullptr if Chromakey overlap markers is disabled
+	 */
+	const FDisplayClusterConfigurationICVFX_ChromakeyMarkers* GetOverlapChromakeyMarkers(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+private:
+	/** Checks the input parameter and returns it or nullptr if it cannot be used. */
+	const FDisplayClusterConfigurationICVFX_ChromakeyMarkers* ImplGetChromakeyMarkers(const FDisplayClusterConfigurationICVFX_ChromakeyMarkers* InValue) const;
+
+public:
 	/** Set to True to fill the inner frustum with the specified Chromakey Color. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum Chromakey"))
 	bool bEnable = false;
@@ -363,6 +407,13 @@ USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_LightcardSettings
 {
 	GENERATED_BODY()
+
+public:
+	/* Returns true if the use of the LightCard is allowed */
+	bool ShouldUseLightCard(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/* Returns true if the use of the UVLightCard is allowed */
+	bool ShouldUseUVLightCard(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
 
 public:
 	/** Enable Light Cards */
@@ -610,6 +661,27 @@ public:
 	bool IsChromakeyViewportSettingsEqual_Editor(const FString& InClusterNodeId1, const FString& InClusterNodeId2) const;
 #endif
 
+	/** Return calculated soft edges values. */
+	FVector4 GetCameraSoftEdge(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get camera FOV multiplier. */
+	float GetCameraFieldOfViewMultiplier(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get camera adapt resolution ratio. */
+	float GetCameraAdaptResolutionRatio(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get camera buffer ratio. */
+	float GetCameraBufferRatio(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get camera frame size. */
+	FIntPoint GetCameraFrameSize(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get camera frame aspect ratio. */
+	float GetCameraFrameAspectRatio(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings) const;
+
+	/** Get camera border settings. */
+	bool GetCameraBorder(const FDisplayClusterConfigurationICVFX_StageSettings& InStageSettings, FLinearColor& OutBorderColor, float& OutBorderThickness) const;
+
 public:
 	/** Render the inner frustum for this ICVFX camera. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "In Camera VFX", meta = (DisplayName = "Enable Inner Frustum"))
@@ -689,6 +761,9 @@ public:
 
 	/** Return LightCard OCIO configuration for the specified viewport. Return nullptr if no OCIO. */
 	const FOpenColorIOColorConversionSettings* FindLightcardOCIOConfiguration(const FString& InViewportId) const;
+
+	/** Get camera overlapping rendering mode.*/
+	EDisplayClusterShaderParametersICVFX_CameraOverlappingRenderMode GetCameraOverlappingRenderMode() const;
 
 public:
 	/** Enable/disable the inner frustum on all ICVFX cameras. */

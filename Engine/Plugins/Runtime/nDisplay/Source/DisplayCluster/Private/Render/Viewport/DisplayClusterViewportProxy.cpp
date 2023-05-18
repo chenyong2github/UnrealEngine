@@ -248,7 +248,7 @@ void FDisplayClusterViewportProxy::HandleResourceDelete_RenderThread(FDisplayClu
 }
 
 
-bool FDisplayClusterViewportProxy::IsShouldOverrideViewportResource(const EDisplayClusterViewportResourceType InResourceType) const
+bool FDisplayClusterViewportProxy::ShouldOverrideViewportResource(const EDisplayClusterViewportResourceType InResourceType) const
 {
 	// Override resources from other viewport
 	if (RenderSettings.IsViewportOverrided())
@@ -340,7 +340,7 @@ bool FDisplayClusterViewportProxy::ImplGetResources_RenderThread(const EDisplayC
 	check(IsInRenderingThread());
 
 	// Override resources from other viewport
-	if (IsShouldOverrideViewportResource(InResourceType))
+	if (ShouldOverrideViewportResource(InResourceType))
 	{
 		if (InRecursionDepth < DisplayClusterViewportProxyResourcesOverrideRecursionDepthMax)
 		{
@@ -617,7 +617,7 @@ bool FDisplayClusterViewportProxy::ImplGetResourcesWithRects_RenderThread(const 
 	check(IsInRenderingThread());
 
 	// Override resources from other viewport
-	if(IsShouldOverrideViewportResource(InResourceType))
+	if(ShouldOverrideViewportResource(InResourceType))
 	{
 		if (InRecursionDepth < DisplayClusterViewportProxyResourcesOverrideRecursionDepthMax)
 		{

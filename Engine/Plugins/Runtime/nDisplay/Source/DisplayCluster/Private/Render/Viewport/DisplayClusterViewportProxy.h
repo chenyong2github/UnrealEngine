@@ -272,7 +272,9 @@ private:
 	void ImplPreviewReadPixels_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 
 	bool ImplResolveResources_RenderThread(FRHICommandListImmediate& RHICmdList, FDisplayClusterViewportProxy const* SourceProxy, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType, const int32 InContextNum) const;
-	bool IsShouldOverrideViewportResource(const EDisplayClusterViewportResourceType InResourceType) const;
+
+	/** When a resource by type can be overridden from another viewport, true is returned. */
+	bool ShouldOverrideViewportResource(const EDisplayClusterViewportResourceType InResourceType) const;
 
 	/** Copy pixel channels between resources.
 	 *

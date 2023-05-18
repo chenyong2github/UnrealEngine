@@ -800,7 +800,14 @@ void ADisplayClusterRootActor::SetLightCardOwnership()
 		
 			for (UDisplayClusterICVFXCameraComponent* Camera : ICVFXComponents)
 			{
-				FDisplayClusterConfigurationICVFX_VisibilityList& ChromakeyCards = Camera->CameraSettings.Chromakey.ChromakeyRenderTexture.ShowOnlyList;
+				FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings* CameraChromakeyRenderSettings = Camera->CameraSettings.Chromakey.GetWritableChromakeyRenderSettings(GetStageSettings());
+				if (!CameraChromakeyRenderSettings)
+				{
+					// Updating the CK visibility list only for cameras using chromakey actor rendering
+					continue;
+				}
+
+				FDisplayClusterConfigurationICVFX_VisibilityList& ChromakeyCards = CameraChromakeyRenderSettings->ShowOnlyList;
 				ChromakeyCards.AutoAddedActors.Reset();
 				
 				for (const TSoftObjectPtr<AActor>& Actor : ChromakeyCards.Actors)
@@ -824,7 +831,14 @@ void ADisplayClusterRootActor::SetLightCardOwnership()
 				{
 					for (UDisplayClusterICVFXCameraComponent* Camera : ICVFXComponents)
 					{
-						FDisplayClusterConfigurationICVFX_VisibilityList& ChromakeyCards = Camera->CameraSettings.Chromakey.ChromakeyRenderTexture.ShowOnlyList;
+						FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings* CameraChromakeyRenderSettings = Camera->CameraSettings.Chromakey.GetWritableChromakeyRenderSettings(GetStageSettings());
+						if (!CameraChromakeyRenderSettings)
+						{
+							// Updating the CK visibility list only for cameras using chromakey actor rendering
+							continue;
+						}
+
+						FDisplayClusterConfigurationICVFX_VisibilityList& ChromakeyCards = CameraChromakeyRenderSettings->ShowOnlyList;
 
 						const UDisplayClusterChromakeyCardStageActorComponent* ChromakeyStageActor = Cast<UDisplayClusterChromakeyCardStageActorComponent>(ChromakeyCardActor->GetStageActorComponent());
 						if (ChromakeyStageActor && ChromakeyStageActor->IsReferencedByICVFXCamera(Camera))

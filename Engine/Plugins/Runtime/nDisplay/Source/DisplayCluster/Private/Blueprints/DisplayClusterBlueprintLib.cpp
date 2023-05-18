@@ -204,16 +204,20 @@ void UDisplayClusterBlueprintLib::FindChromakeyCardsForRootActor(const ADisplayC
 
 	for (const UDisplayClusterICVFXCameraComponent* Camera : CameraComponents)
 	{
-		const FDisplayClusterConfigurationICVFX_VisibilityList& RootActorChromakeyCards = Camera->GetCameraSettingsICVFX().Chromakey.ChromakeyRenderTexture.ShowOnlyList;
+		const FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings* CameraChromakeyRenderSettings = Camera->GetCameraSettingsICVFX().Chromakey.GetChromakeyRenderSettings(RootActor->GetStageSettings());
+		const FDisplayClusterConfigurationICVFX_VisibilityList* CameraChromakeyShowOnlyList = CameraChromakeyRenderSettings ? &CameraChromakeyRenderSettings->ShowOnlyList : nullptr;
 
-		for (const TSoftObjectPtr<AActor>& ChromakeyCardActor : RootActorChromakeyCards.Actors)
+		if (CameraChromakeyShowOnlyList)
 		{
-			if (!ChromakeyCardActor.IsValid() || !ChromakeyCardActor->IsA<ADisplayClusterChromakeyCardActor>())
+			for (const TSoftObjectPtr<AActor>& ChromakeyCardActor : CameraChromakeyShowOnlyList->Actors)
 			{
-				continue;
-			}
+				if (!ChromakeyCardActor.IsValid() || !ChromakeyCardActor->IsA<ADisplayClusterChromakeyCardActor>())
+				{
+					continue;
+				}
 
-			OutChromakeyCards.Add(Cast<ADisplayClusterChromakeyCardActor>(ChromakeyCardActor.Get()));
+				OutChromakeyCards.Add(Cast<ADisplayClusterChromakeyCardActor>(ChromakeyCardActor.Get()));
+			}
 		}
 
 		if (const UWorld* World = RootActor->GetWorld())
@@ -229,9 +233,9 @@ void UDisplayClusterBlueprintLib::FindChromakeyCardsForRootActor(const ADisplayC
 				{
 					OutChromakeyCards.Add(*ActorIt);
 				}
-				else
+				else if(CameraChromakeyShowOnlyList)
 				{
-					for (const FActorLayer& ActorLayer : RootActorChromakeyCards.ActorLayers)
+					for (const FActorLayer& ActorLayer : CameraChromakeyShowOnlyList->ActorLayers)
 					{
 						if (ActorIt->Layers.Contains(ActorLayer.Name))
 						{

@@ -11,6 +11,7 @@ public class DisplayClusterConfiguration : ModuleRules
 			new string[] {
 				"DisplayCluster",
 				"DisplayClusterProjection",
+				"DisplayClusterShaders",
 			});
 
 		PublicDependencyModuleNames.AddRange(

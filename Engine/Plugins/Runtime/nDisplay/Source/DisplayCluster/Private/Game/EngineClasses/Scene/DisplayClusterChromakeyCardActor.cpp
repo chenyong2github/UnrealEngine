@@ -48,15 +48,21 @@ bool ADisplayClusterChromakeyCardActor::IsReferencedByICVFXCamera(const UDisplay
 		}
 	}
 	
-	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCamera->GetCameraSettingsICVFX();
-	if (CameraSettings.Chromakey.ChromakeyRenderTexture.ShowOnlyList.Actors.Contains(this))
+	const ADisplayClusterRootActor* RootActor = GetRootActorOwner();
+	const FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings* ChromakeyRenderSettings = RootActor ? InCamera->GetCameraSettingsICVFX().Chromakey.GetChromakeyRenderSettings(RootActor->GetStageSettings()) : nullptr;
+	if (!ChromakeyRenderSettings)
+	{
+		return false;
+	}
+
+	if (ChromakeyRenderSettings->ShowOnlyList.Actors.Contains(this))
 	{
 		return true;
 	}
 
 	for (const FName& ThisLayer : Layers)
 	{
-		if (const FActorLayer* ExistingLayer = CameraSettings.Chromakey.ChromakeyRenderTexture.ShowOnlyList.ActorLayers.FindByPredicate([ThisLayer](const FActorLayer& Layer)
+		if (const FActorLayer* ExistingLayer = ChromakeyRenderSettings->ShowOnlyList.ActorLayers.FindByPredicate([ThisLayer](const FActorLayer& Layer)
 		{
 			return Layer.Name == ThisLayer;
 		}))
@@ -81,18 +87,7 @@ void ADisplayClusterChromakeyCardActor::UpdateChromakeySettings()
 		{
 			if (IsReferencedByICVFXCamera(Component))
 			{
-				const FDisplayClusterConfigurationICVFX_ChromakeySettings& CameraChromakey = Component->GetCameraSettingsICVFX().Chromakey;
-
-				if (CameraChromakey.ChromakeySettingsSource == EDisplayClusterConfigurationICVFX_ChromakeySettingsSource::Viewport)
-				{
-					const FDisplayClusterConfigurationICVFX_GlobalChromakeySettings& GlobalChromakey = RootActor->GetStageSettings().GlobalChromakey;
-					ChromaColor += GlobalChromakey.ChromakeyColor;
-				}
-				else
-				{
-					ChromaColor += Component->GetCameraSettingsICVFX().Chromakey.ChromakeyColor;
-				}
-
+				ChromaColor += Component->GetCameraSettingsICVFX().Chromakey.GetChromakeyColor(RootActor->GetStageSettings());
 				Count++;
 			}
 		}

@@ -12,9 +12,6 @@ struct FDisplayClusterConfigurationICVFX_VisibilityList;
 class FDisplayClusterViewportConfigurationHelpers_Visibility
 {
 public:
-	// Return true, if visibility list not empty
-	static bool IsVisibilityListValid(const FDisplayClusterConfigurationICVFX_VisibilityList& InVisibilityList);
-
 	// Update ShowOnly list for DstViewport
 	static void UpdateShowOnlyList(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FDisplayClusterConfigurationICVFX_VisibilityList& InVisibilityList);
 

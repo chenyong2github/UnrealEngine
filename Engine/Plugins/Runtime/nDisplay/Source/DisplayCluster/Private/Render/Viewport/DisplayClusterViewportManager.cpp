@@ -30,7 +30,6 @@
 #include "DisplayClusterRootActor.h"
 
 #include "Misc/DisplayClusterLog.h"
-
 #include "Engine/LocalPlayer.h"
 #include "Engine/Console.h"
 

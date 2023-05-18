@@ -146,14 +146,13 @@ void UDisplayClusterICVFXCameraComponent::UpdateOverscanEstimatedFrameSize()
 		return;
 	}
 
-	float InnerFrustumResolutionWidth = RootActor->GetStageSettings().DefaultFrameSize.Width * CameraSettings.BufferRatio;
-	float InnerFrustumResolutionHeight = RootActor->GetStageSettings().DefaultFrameSize.Height * CameraSettings.BufferRatio;
+	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor->GetStageSettings();
 
-	if (CameraSettings.RenderSettings.CustomFrameSize.bUseCustomSize)
-	{
-		InnerFrustumResolutionWidth = CameraSettings.RenderSettings.CustomFrameSize.CustomWidth * CameraSettings.BufferRatio;
-		InnerFrustumResolutionHeight = CameraSettings.RenderSettings.CustomFrameSize.CustomHeight * CameraSettings.BufferRatio;
-	}
+	const float CameraBufferRatio = CameraSettings.GetCameraBufferRatio(StageSettings);
+	const FIntPoint InnerFrustumSize = CameraSettings.GetCameraFrameSize(StageSettings);
+
+	float InnerFrustumResolutionWidth = InnerFrustumSize.X * CameraBufferRatio;
+	float InnerFrustumResolutionHeight = InnerFrustumSize.Y * CameraBufferRatio;
 
 	float EstimatedOverscanResolutionWidth = InnerFrustumResolutionWidth;
 	float EstimatedOverscanResolutionHeight = InnerFrustumResolutionHeight;

@@ -52,43 +52,6 @@ static void ImplCollectVisibility(ADisplayClusterRootActor& RootActor, const FDi
 	}
 }
 
-bool FDisplayClusterViewportConfigurationHelpers_Visibility::IsVisibilityListValid(const FDisplayClusterConfigurationICVFX_VisibilityList& InVisibilityList)
-{
-	for (const FString& ComponentNameIt : InVisibilityList.RootActorComponentNames)
-	{
-		if (!ComponentNameIt.IsEmpty())
-		{
-			return true;
-		}
-	}
-
-	for (const TSoftObjectPtr<AActor>& ActorSOPtrIt : InVisibilityList.Actors)
-	{
-		if (ActorSOPtrIt.IsValid())
-		{
-			return true;
-		}
-	}
-
-	for (const FActorLayer& ActorLayerIt : InVisibilityList.ActorLayers)
-	{
-		if (!ActorLayerIt.Name.IsNone())
-		{
-			return true;
-		}
-	}
-
-	for (const TSoftObjectPtr<AActor>& AutoAddedActor : InVisibilityList.AutoAddedActors)
-	{
-		if (AutoAddedActor.IsValid())
-		{
-			return true;
-		}
-	}
-	
-	return false;
-}
-
 void FDisplayClusterViewportConfigurationHelpers_Visibility::UpdateShowOnlyList(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FDisplayClusterConfigurationICVFX_VisibilityList& InVisibilityList)
 {
 	TSet<FPrimitiveComponentId> AdditionalComponentsList;
@@ -129,8 +92,10 @@ void FDisplayClusterViewportConfigurationHelpers_Visibility::UpdateHideList_ICVF
 		{
 			if (ICVFXCameraIt)
 			{
-				const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = ICVFXCameraIt->GetCameraSettingsICVFX();
-				ImplCollectVisibility(InRootActor, CameraSettings.Chromakey.ChromakeyRenderTexture.ShowOnlyList, ActorLayerNames, AdditionalComponentsList);
+				if (const FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings* ChromakeyRenderSettings = ICVFXCameraIt->GetCameraSettingsICVFX().Chromakey.GetChromakeyRenderSettings(StageSettings))
+				{
+					ImplCollectVisibility(InRootActor, ChromakeyRenderSettings->ShowOnlyList, ActorLayerNames, AdditionalComponentsList);
+				}
 			}
 		}
 

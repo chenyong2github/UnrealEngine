@@ -3,48 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/DisplayClusterShader_Enums.h"
 #include "RHI.h"
-
-/**
- * Rendering mode for chromakey
- */
-enum class EDisplayClusterShaderParametersICVFX_ChromakeySource : uint8
-{
-	// Dont use chromakey
-	Disabled = 0,
-
-	// Render color over camera frame
-	FrameColor,
-
-	// Render specified layer from scene
-	ChromakeyLayers,
-
-	Unknown,
-};
-
-/**
- * The rendering order of the lightcard layer
- */
-enum class EDisplayClusterShaderParametersICVFX_LightCardRenderMode : uint8
-{
-	// Render incamera frame over lightcard
-	Under = 0,
-
-	// Over lightcard over incamera frame
-	Over,
-};
-
-/**
- * Rendering mode for overlapping areas of camera projections
- */
-enum class EDisplayClusterShaderParametersICVFX_CameraOverlappingRenderMode : uint8
-{
-	// Disabled
-	None = 0,
-
-	// The overlapping area is rendered at the very end, on top of all the layers
-	FinalPass
-};
 
 /**
  * Camera view projection data
@@ -192,7 +152,7 @@ public:
 		/** Gets whether a valid texture is available to render chromakey markers for any overlapping ICVFX frustums  */
 		inline bool IsOverlapChromakeyMarkerUsed() const
 		{
-			return OverlapChromakeyMarkerTextureRHI.IsValid();	
+			return OverlapChromakeyMarkerTextureRHI.IsValid();
 		}
 
 		inline void SetViewProjection(const FDisplayClusterShaderParametersICVFX_CameraViewProjection& InLocalSpaceViewProjection)

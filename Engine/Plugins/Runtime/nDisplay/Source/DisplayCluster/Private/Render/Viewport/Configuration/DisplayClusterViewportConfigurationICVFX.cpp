@@ -19,6 +19,8 @@
 #include "Render/Viewport/DisplayClusterViewportStrings.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 
+#include "Render/Viewport/LightCard/DisplayClusterViewportLightCardManager.h"
+
 #include "Components/DisplayClusterICVFXCameraComponent.h"
 
 #include "Misc/DisplayClusterLog.h"
@@ -98,52 +100,6 @@ public:
 		return false;
 	}
 
-	void AssignOverlapChromakeyToTargetViewport(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& InRootActor)
-	{
-		if (EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakey))
-		{
-			// chromakey disabled for this viewport
-			return;
-		}
-
-		const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = InRootActor.GetStageSettings();
-		FDisplayClusterShaderParameters_ICVFX::FCameraSettings& DstCameraData = DstViewport.RenderSettingsICVFX.ICVFX.Cameras.Last();
-
-		DstCameraData.OverlapChromakeyColor = StageSettings.GlobalChromakey.ChromakeyColor;
-
-		if (!EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers))
-		{
-			FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_OverlapChromakeyMarkers(DstCameraData, StageSettings.GlobalChromakey.ChromakeyMarkers);
-		}
-	}
-
-	void AssignChromakeyToTargetViewport(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& InRootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
-	{
-		if (EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakey))
-		{
-			// chromakey disabled for this viewport
-			return;
-		}
-
-		const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = InRootActor.GetStageSettings();
-		const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
-		FDisplayClusterShaderParameters_ICVFX::FCameraSettings& DstCameraData = DstViewport.RenderSettingsICVFX.ICVFX.Cameras.Last();
-
-		FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chromakey(DstCameraData, StageSettings.GlobalChromakey, CameraSettings.Chromakey, ChromakeyViewport);
-
-		if (!EnumHasAnyFlags(DstViewport.RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers))
-		{
-			if (CameraSettings.Chromakey.ChromakeySettingsSource == EDisplayClusterConfigurationICVFX_ChromakeySettingsSource::Viewport)
-			{
-				FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_ChromakeyMarkers(DstCameraData, StageSettings.GlobalChromakey.ChromakeyMarkers);
-			}
-			else
-			{
-				FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_ChromakeyMarkers(DstCameraData, CameraSettings.Chromakey.ChromakeyMarkers);
-			}
-		}
-	}
-
 	bool IsCameraProjectionVisibleOnViewport(FDisplayClusterViewport* TargetViewport)
 	{
 		if (TargetViewport && TargetViewport->ProjectionPolicy.IsValid())
@@ -198,8 +154,6 @@ public:
 		const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = CameraComponent.GetCameraSettingsICVFX();
 		if (CameraConfiguration.CreateCameraViewport(RootActor, CameraComponent))
 		{
-			bool bAllowChromakey = false;
-
 			FDisplayClusterShaderParameters_ICVFX::FCameraSettings ShaderParametersCameraSettings;
 			if (CameraConfiguration.GetShaderParametersCameraSettings(RootActor, CameraComponent, ShaderParametersCameraSettings))
 			{
@@ -209,21 +163,12 @@ public:
 					if (ViewportIt.IsValid())
 					{
 						ViewportIt->RenderSettingsICVFX.ICVFX.Cameras.Add(ShaderParametersCameraSettings);
-
-						// At lest one target must accept chromakey
-						if (!EnumHasAnyFlags(ViewportIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakey))
-						{
-							bAllowChromakey = true;
-						}
 					}
 				}
 			}
 
 			// Create and assign chromakey for all targets for this camera
-			if (bAllowChromakey)
-			{
-				CreateChromakey();
-			}
+			CreateAndSetupInCameraChromakey();
 		}
 	}
 
@@ -248,48 +193,42 @@ public:
 	}
 
 protected:
-	bool CreateChromakey()
+	bool CreateAndSetupInCameraChromakey()
 	{
+		const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
 		const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = CameraComponent.GetCameraSettingsICVFX();
 		const FDisplayClusterConfigurationICVFX_ChromakeySettings& ChromakeySettings = CameraSettings.Chromakey;
 
-		// Assign the overlap chromakey to all supported targets, always done regardless of custom chromakey settings
-		for (TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& TargetIt : VisibleTargets)
-		{
-			if (TargetIt.IsValid())
-			{
-				CameraConfiguration.AssignOverlapChromakeyToTargetViewport(*TargetIt, RootActor);
-			}
-		}
-
 		// Try create chromakey render on demand
-		if (ChromakeySettings.bEnable && ChromakeySettings.ChromakeyType == EDisplayClusterConfigurationICVFX_ChromakeyType::CustomChromakey)
+		if(const FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings* ChromakeyRenderSettings = ChromakeySettings.GetChromakeyRenderSettings(StageSettings))
 		{
-			if (ChromakeySettings.ChromakeyRenderTexture.Replace.bAllowReplace && ChromakeySettings.ChromakeyRenderTexture.Replace.SourceTexture == nullptr)
+			if (ChromakeyRenderSettings->ShouldUseChromakeyViewport(StageSettings))
 			{
-				// ChromakeyRenderTexture.Override require source texture.
-				return false;
-			}
-
-			const bool bIsChromakeyHasAnyRenderComponent = FDisplayClusterViewportConfigurationHelpers_Visibility::IsVisibilityListValid(ChromakeySettings.ChromakeyRenderTexture.ShowOnlyList);
-			if (ChromakeySettings.ChromakeyRenderTexture.Replace.bAllowReplace == false && !bIsChromakeyHasAnyRenderComponent)
-			{
-				// ChromakeyRenderTexture requires actors for render.
-				return false;
-			}
-
-			if (!CameraConfiguration.CreateChromakeyViewport(RootActor, CameraComponent))
-			{
-				return false;
+				CameraConfiguration.CreateChromakeyViewport(RootActor, CameraComponent);
 			}
 		}
+
+		// Chromakey viewport name with alpha channel
+		const FString ChromakeyViewportId(CameraConfiguration.ChromakeyViewport ? CameraConfiguration.ChromakeyViewport->GetId() : TEXT(""));
 
 		// Assign this chromakey to all supported targets
-		for (TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& TargetIt : VisibleTargets)
+		for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& OuterViewportIt : VisibleTargets)
 		{
-			if (TargetIt.IsValid())
+			if (OuterViewportIt.IsValid())
 			{
-				CameraConfiguration.AssignChromakeyToTargetViewport(*TargetIt, RootActor, CameraComponent);
+				FDisplayClusterShaderParameters_ICVFX::FCameraSettings& DstCameraData = OuterViewportIt->RenderSettingsICVFX.ICVFX.Cameras.Last();
+
+				const bool bEnableChromakey = !EnumHasAnyFlags(OuterViewportIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakey);
+				const bool bEnableChromakeyMarkers = !EnumHasAnyFlags(OuterViewportIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableChromakeyMarkers);
+
+				if (bEnableChromakey)
+				{
+					// Setup chromakey with markers
+					FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_Chromakey(DstCameraData, StageSettings, CameraSettings, bEnableChromakeyMarkers, ChromakeyViewportId);
+				}
+
+				// Setup overlap chromakey with markers
+				FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraSettings_OverlapChromakey(DstCameraData, StageSettings, CameraSettings, bEnableChromakeyMarkers);
 			}
 		}
 
@@ -426,26 +365,26 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 			// If not all viewports disable lightcard
 			if (!EnumHasAnyFlags(TargetViewportsFlags, EDisplayClusterViewportICVFXFlags::DisableLightcard))
 			{
+				// UVLightCard must be enabled in LC manager
+				const bool bUVLightCardEnabled = ViewportManager->GetLightCardManager().IsValid() && ViewportManager->GetLightCardManager()->IsUVLightCardEnabled();
+					
 				// Allocate and assign lightcard resources
+				const bool bUseLightCard = StageSettings.Lightcard.ShouldUseLightCard(StageSettings);
+				const bool bUseUVLightCard = bUVLightCardEnabled && StageSettings.Lightcard.ShouldUseUVLightCard(StageSettings);
+
+				for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& TargetIt : TargetViewports)
 				{
-
-					const bool bUseLightCard = FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseLightcard(StageSettings.Lightcard);
-					const bool bUseUVLightCard = FDisplayClusterViewportConfigurationHelpers_ICVFX::IsShouldUseUVLightcard(*ViewportManager, StageSettings.Lightcard);
-
-					for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& TargetIt : TargetViewports)
+					// only for support targets
+					if (TargetIt.IsValid() && !EnumHasAnyFlags(TargetIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableLightcard))
 					{
-						// only for support targets
-						if (TargetIt.IsValid() && !EnumHasAnyFlags(TargetIt->RenderSettingsICVFX.Flags, EDisplayClusterViewportICVFXFlags::DisableLightcard))
+						if (bUseLightCard)
 						{
-							if (bUseLightCard)
-							{
-								CreateLightcardViewport(*TargetIt);
-							}
+							CreateLightcardViewport(*TargetIt);
+						}
 
-							if (bUseUVLightCard)
-							{
-								CreateUVLightcardViewport(*TargetIt);
-							}
+						if (bUseUVLightCard)
+						{
+							CreateUVLightcardViewport(*TargetIt);
 						}
 					}
 				}
@@ -459,8 +398,7 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 					TargetIt->RenderSettingsICVFX.ICVFX.SortCamerasRenderOrder();
 
 					// Setup incamera overlap mode
-					TargetIt->RenderSettingsICVFX.ICVFX.CameraOverlappingRenderMode = StageSettings.bEnableInnerFrustumChromakeyOverlap ?
-						EDisplayClusterShaderParametersICVFX_CameraOverlappingRenderMode::FinalPass : EDisplayClusterShaderParametersICVFX_CameraOverlappingRenderMode::None;
+					TargetIt->RenderSettingsICVFX.ICVFX.CameraOverlappingRenderMode = StageSettings.GetCameraOverlappingRenderMode();
 				}
 			}
 
