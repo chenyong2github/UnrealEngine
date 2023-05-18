@@ -136,6 +136,34 @@ public:
 		// which Source LOD to start retriangulating at
 		int32 StartRetriangulateSourceLOD = 1;
 
+		//
+		// Optional Support for hitting explicit triangle counts for different LODs. 
+		// The HardLODBudgets list should be provided in LOD order, ie first for Copied LODs,
+		// then for Simplified LODs, then for Approximate LODs (Voxel LOD triangle counts are configured via VoxWrapMaxTriCountBase)
+		// 
+		// Currently the only explicit tri-count strategy in use is Part Promotion, where a coarser approximations
+		// (eg Lower Copied LOD, Simplified LOD, Approximate LOD) are "promoted" upwards into higher combined-mesh LODs
+		// as necessary to achieve the triangle count.
+		// 
+		// Note that final LOD triangle counts cannot be guaranteed, due to the combinatorial nature of the approximation.
+		// For example the coarsest part LOD is a box with 12 triangles, so NumParts*12 is a lower bound on the initial combined mesh.
+		// The Part Promotion strategy is applied *before* hidden removal and further mesh processing (eg coplanar merging),
+		// so the final triangle count may be substantially lower than the budget (this is why the Multiplier is used below)
+		//
+
+		// list of fixed-triangle-count LOD budgets, in LOD order (ie LOD0, LOD1, LOD2, ...). If a triangle budgets are not specified for
+		// a LOD, either by placing -1 in the array or truncating the array, that LOD will be left as-is. 
+		TArray<int32> HardLODBudgets;
+		// enable/disable the Part Promotion LOD strategy (described above)
+		bool bEnableBudgetStrategy_PartLODPromotion = false;
+		// Multiplier on LOD Budgets for PartLODPromotion strategy. This can be used to compensate for hidden-geometry removal and other optimizations done after the strategy is applied.
+		double PartLODPromotionBudgetMultiplier = 2.0;
+
+
+		//
+		// Debug/utility options
+		// 
+
 		// Color mapping modes for vertex colors, primarily used for debugging
 		EVertexColorMappingMode VertexColorMappingMode = EVertexColorMappingMode::None;
 	};
