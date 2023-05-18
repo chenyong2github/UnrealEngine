@@ -2348,6 +2348,11 @@ void FCurveEditor::PostUndo(bool bSuccess)
 	}
 }
 
+void FCurveEditor::PostRedo(bool bSuccess)
+{
+	PostUndo(bSuccess);
+}
+
 void FCurveEditor::OnCustomColorsChanged()
 {
 	for (TPair<FCurveModelID, TUniquePtr<FCurveModel>>& CurvePair : CurveData)
