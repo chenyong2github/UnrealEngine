@@ -421,7 +421,7 @@ bool SDetailsViewBase::IsAncestorCollapsed(const TSharedRef<IDetailTreeNode>& No
 	TSharedPtr<FDetailTreeNode> Ancestor = StaticCastSharedRef<FDetailTreeNode>(Node)->GetParentNode().Pin();
 	while (!bIsCollapsed && Ancestor)
 	{
-		bIsCollapsed = !DetailTree->IsItemExpanded(Ancestor.ToSharedRef());
+		bIsCollapsed = !Ancestor->ShouldShowOnlyChildren() && !DetailTree->IsItemExpanded(Ancestor.ToSharedRef());
 		Ancestor = Ancestor->GetParentNode().Pin();
 	}
 	return bIsCollapsed;
