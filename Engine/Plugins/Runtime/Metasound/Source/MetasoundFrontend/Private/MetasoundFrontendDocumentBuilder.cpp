@@ -1067,7 +1067,7 @@ bool FMetaSoundFrontendDocumentBuilder::ConvertFromPreset()
 	PresetOptions.bIsPreset = false;
 
 #if WITH_EDITOR
-	FMetasoundFrontendGraphStyle Style = Document.RootGraph.Graph.Style;
+	FMetasoundFrontendGraphStyle& Style = Document.RootGraph.Graph.Style;
 	Style.bIsGraphEditable = true;
 #endif // WITH_EDITOR
 
