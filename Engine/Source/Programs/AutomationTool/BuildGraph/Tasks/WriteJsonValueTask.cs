@@ -69,7 +69,16 @@ namespace AutomationTool.Tasks
 		{
 			HashSet<FileReference> Files = ResolveFilespec(Unreal.RootDirectory, Parameters.File, TagNameToFileSet);
 
-			JsonNode? ValueNode = String.IsNullOrEmpty(Parameters.Value) ? null : JsonNode.Parse(Parameters.Value);
+			JsonNode? ValueNode;
+			try
+			{
+				ValueNode = String.IsNullOrEmpty(Parameters.Value) ? null : JsonNode.Parse(Parameters.Value);
+			}
+			catch (Exception ex)
+			{
+				throw new AutomationException(ex, $"Unable to parse '{Parameters.Value}': {ex.Message}");
+			}
+
 			foreach (FileReference JsonFile in Files)
 			{
 				string JsonText = FileReference.Exists(JsonFile) ? await FileReference.ReadAllTextAsync(JsonFile) : "{}";
@@ -79,7 +88,15 @@ namespace AutomationTool.Tasks
 					throw new AutomationException("Key must be in JsonPath format (eg. $.Foo.Bar[123])");
 				}
 
-				JsonNode? RootNode = JsonNode.Parse(JsonText);
+				JsonNode? RootNode;
+				try
+				{
+					RootNode = JsonNode.Parse(JsonText, documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip });
+				}
+				catch (Exception ex)
+				{
+					throw new AutomationException($"Error parsing {JsonFile}: {ex.Message}");
+				}
 				RootNode = MergeValue(Parameters.Key, 1, RootNode, ValueNode);
 
 				string NewJsonText = RootNode?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? String.Empty;

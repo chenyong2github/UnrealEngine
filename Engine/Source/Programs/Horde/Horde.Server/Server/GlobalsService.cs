@@ -83,7 +83,6 @@ namespace Horde.Server.Server
 				_jwtIssuer = settings.Value.JwtIssuer;
 			}
 
-
 			if (!String.IsNullOrEmpty(settings.Value.JwtSecret))
 			{
 				_fixedJwtSecret = Convert.FromBase64String(settings.Value.JwtSecret);

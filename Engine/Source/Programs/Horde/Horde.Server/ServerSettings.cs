@@ -412,9 +412,9 @@ namespace Horde.Server
 		public int HttpPort { get; set; } = 5000;
 
 		/// <summary>
-		/// Port for serving HTTP with TLS enabled. Uses the default Kestrel port (5001) if not specified.
+		/// Port for serving HTTP with TLS enabled.
 		/// </summary>
-		public int HttpsPort { get; set; } = 5001;
+		public int HttpsPort { get; set; } = 0;
 
 		/// <summary>
 		/// Dedicated port for serving only HTTP/2.
