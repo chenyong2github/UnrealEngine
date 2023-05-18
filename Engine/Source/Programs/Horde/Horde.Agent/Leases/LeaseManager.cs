@@ -369,7 +369,18 @@ namespace Horde.Agent.Leases
 					}
 
 					// Update the current status
-					_statusService.Set(true, _activeLeases.Count, (_activeLeases.Count == 0) ? "Waiting for work" : $"Executing {_activeLeases.Count} lease(s)");
+					if (!rpcCon.Healthy)
+					{
+						_statusService.Set(false, _activeLeases.Count, "Attempting to connect to server...");
+					}
+					else if (_activeLeases.Count == 0)
+					{
+						_statusService.Set(true, 0, "Waiting for work");
+					}
+					else
+					{
+						_statusService.Set(true, _activeLeases.Count, $"Executing {_activeLeases.Count} lease(s)");
+					}
 				}
 
 				// Update the historical update times
