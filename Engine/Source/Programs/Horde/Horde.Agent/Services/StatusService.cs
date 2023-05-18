@@ -67,7 +67,7 @@ namespace Horde.Agent.Services
 		public void Set(AgentStatusMessage status)
 		{
 			Interlocked.Exchange(ref _current, status);
-			_logger.LogInformation("Updating status: {@Status}", status);
+			_logger.LogDebug("Updating status: {@Status}", status);
 		}
 
 		/// <summary>
