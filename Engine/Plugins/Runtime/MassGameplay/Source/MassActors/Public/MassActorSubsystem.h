@@ -75,6 +75,8 @@ struct MASSACTORS_API FMassActorFragment : public FObjectWrapperFragment
 	FORCEINLINE bool IsValid() const { return Actor.IsValid(); }
 
 private:
+	// made visible for debugging purposes. It will show up in Mass's gameplay debugger category when viewing fragment details
+	UPROPERTY(VisibleAnywhere, Category="Mass", Transient)
 	TWeakObjectPtr<AActor> Actor;
 
 	/** Ownership of the actor */
