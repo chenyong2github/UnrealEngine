@@ -394,15 +394,9 @@ FOpenColorIOEngineBuiltInConfigWrapper::FOpenColorIOEngineBuiltInConfigWrapper()
 #endif // WITH_OCIO
 }
 
-FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcessorFromTextureColorSettings(const FTextureSourceColorSettings& InTextureColorSettings)
+FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcessorToWorkingColorSpace(const FTextureSourceColorSettings& InTextureColorSettings)
 {
-	return GetProcessorFromTextureColorSettings(InTextureColorSettings, UE::Color::FColorSpace::GetWorking());
-}
-
-FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcessorFromTextureColorSettings(const FTextureSourceColorSettings& InTextureColorSettings, const UE::Color::FColorSpace& InTargetColorSpace)
-{
-	const uint32 SettingsHash = FCrc::MemCrc32(&InTextureColorSettings, sizeof(FTextureSourceColorSettings));
-	const FString TransformName = FString::Printf(TEXT("WCS%u"), SettingsHash);
+	const FString TransformName = GetTransformToWorkingColorSpaceName(InTextureColorSettings);
 
 #if WITH_OCIO
 	using namespace OCIO_NAMESPACE;
@@ -709,7 +703,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 				InTextureColorSettings.WhiteChromaticityCoordinate
 			);
 			MatrixTransformRcPtr MatrixTransform = MatrixTransform::Create();
-			const FMatrix44d ToWorkingMat = Transpose<double>(FColorSpaceTransform(SourceColorSpace, InTargetColorSpace, ChromaticAdapation));
+			const FMatrix44d ToWorkingMat = Transpose<double>(FColorSpaceTransform(SourceColorSpace, FColorSpace::GetWorking(), ChromaticAdapation));
 			MatrixTransform->setMatrix(&ToWorkingMat.M[0][0]);
 			TransformToWCS->appendTransform(MatrixTransform);
 		}
@@ -717,7 +711,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 		default:
 		{
 			const FColorSpace SourceColorSpace = FColorSpace(static_cast<EColorSpace>(InTextureColorSettings.ColorSpace));
-			const FMatrix44d ToWorkingMat = Transpose<double>(FColorSpaceTransform(SourceColorSpace, InTargetColorSpace, ChromaticAdapation));
+			const FMatrix44d ToWorkingMat = Transpose<double>(FColorSpaceTransform(SourceColorSpace, FColorSpace::GetWorking(), ChromaticAdapation));
 			MatrixTransformRcPtr MatrixTransform = MatrixTransform::Create();
 			MatrixTransform->setMatrix(&ToWorkingMat.M[0][0]);
 			TransformToWCS->appendTransform(MatrixTransform);
@@ -735,6 +729,24 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 #endif // WITH_OCIO
 
 	return FOpenColorIOProcessorWrapper(this, TransformName);
+}
+
+FString FOpenColorIOEngineBuiltInConfigWrapper::GetTransformToWorkingColorSpaceName(const FTextureSourceColorSettings& InTextureColorSettings)
+{
+	const uint32 SettingsId = (uint32)InTextureColorSettings.EncodingOverride | (uint32)InTextureColorSettings.ColorSpace << 8u | (uint32)InTextureColorSettings.ChromaticAdaptationMethod << 16u;
+	FString TransformName = FString::Printf(TEXT("UE_%u"), SettingsId);
+
+	if (InTextureColorSettings.ColorSpace == ETextureColorSpace::TCS_Custom)
+	{
+		uint32 SrcChromaticityHash = 0;
+		SrcChromaticityHash ^= GetTypeHash(InTextureColorSettings.RedChromaticityCoordinate);
+		SrcChromaticityHash ^= GetTypeHash(InTextureColorSettings.GreenChromaticityCoordinate);
+		SrcChromaticityHash ^= GetTypeHash(InTextureColorSettings.BlueChromaticityCoordinate);
+		SrcChromaticityHash ^= GetTypeHash(InTextureColorSettings.WhiteChromaticityCoordinate);
+		TransformName += FString::Printf(TEXT("_%u"), SrcChromaticityHash);
+	}
+
+	return TransformName;
 }
 
 FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(

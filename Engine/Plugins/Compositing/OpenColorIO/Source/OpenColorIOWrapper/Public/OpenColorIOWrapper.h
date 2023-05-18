@@ -125,18 +125,18 @@ public:
 	FOpenColorIOEngineBuiltInConfigWrapper(FStringView InFilePath, FInitializationOptions InOptions) = delete;
 
 	/**
-	 * Get the processor to working color space from source texture settings.
-	 * @param InTextureColorSettings Source encoding and colorspace.
+	* Get the processor to working color space from source texture settings.
+	* @param InTextureColorSettings Source encoding and colorspace.
+	* @return Processor of the transform
 	*/
-	class FOpenColorIOProcessorWrapper GetProcessorFromTextureColorSettings(const FTextureSourceColorSettings& InTextureColorSettings);
+	class FOpenColorIOProcessorWrapper GetProcessorToWorkingColorSpace(const FTextureSourceColorSettings& InTextureColorSettings);
 
 	/**
-	 * Get the processor to target color space from source texture settings.
-	 * @param InTextureColorSettings Source encoding and colorspace.
-	 * @param InTargetColorSpace Target scene-linear color space.
+	* Get the generated transform name from texture settings to working color space.
+	* @param InTextureColorSettings Source encoding and colorspace.
+	* @return Generated name of the transform
 	*/
-	class FOpenColorIOProcessorWrapper GetProcessorFromTextureColorSettings(const FTextureSourceColorSettings& InTextureColorSettings, const UE::Color::FColorSpace& InTargetColorSpace);
-
+	static FString GetTransformToWorkingColorSpaceName(const FTextureSourceColorSettings& InTextureColorSettings);
 };
 
 class OPENCOLORIOWRAPPER_API FOpenColorIOProcessorWrapper final
