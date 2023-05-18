@@ -57,6 +57,9 @@ public:
 	bool IsBeingUsed()const;
 
 	FNiagaraDataChannelDataPtr GetData()const { return Data; }
+
+	void DebugDrawBounds();
+
 private:
 
 	/** The owning handler for this island. */
@@ -82,6 +85,25 @@ template<>
 struct TStructOpsTypeTraits<FNDCIsland> : public TStructOpsTypeTraitsBase2<FNDCIsland>
 {
 	enum{ WithCopy = false };
+};
+
+USTRUCT()
+struct FNDCIslandDebugDrawSettings
+{
+	GENERATED_BODY()
+	
+	FNDCIslandDebugDrawSettings()
+	: bEnabled(false)
+	, bShowIslandBounds(false)
+	{}
+
+	UPROPERTY(EditAnywhere, Category = "Debug Drawing")
+	uint32 bEnabled : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Debug Drawing")
+	uint32 bShowIslandBounds : 1;
+
+	bool ShowBounds()const { return bEnabled && bShowIslandBounds; }
 };
 
 UCLASS(Experimental)
@@ -133,6 +155,9 @@ public:
 	/** How many pre-allocated islands to keep in the pool. Higher values will incur a larger standing memory cost but will reduce activation times for new islands. */
 	UPROPERTY(EditAnywhere, Category = "Islands")
 	int32 IslandPoolSize = 16;
+
+	UPROPERTY(EditAnywhere, Category = "Debug Rendering")
+	FNDCIslandDebugDrawSettings DebugDrawSettings;
 };
 
 UCLASS(Experimental, BlueprintType)

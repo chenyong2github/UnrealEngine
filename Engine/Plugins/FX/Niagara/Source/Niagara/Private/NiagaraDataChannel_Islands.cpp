@@ -10,6 +10,8 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataChannelCommon.h"
 
+#include "DrawDebugHelpers.h"
+
 UNiagaraDataChannelHandler* UNiagaraDataChannel_Islands::CreateHandler(UWorld* OwningWorld)const
 {
 	UNiagaraDataChannelHandler* NewHandler = NewObject<UNiagaraDataChannelHandler_Islands>(OwningWorld);
@@ -85,6 +87,11 @@ void UNiagaraDataChannelHandler_Islands::Tick(float DeltaTime, ETickingGroup Tic
 	{
 		FNDCIsland& Island = IslandPool[*It];
 		Island.Tick();
+
+		if(IslandChannel->DebugDrawSettings.ShowBounds())
+		{
+			Island.DebugDrawBounds();
+		}
 
 		//Free up islands that are not being used.
 		//We do this immediately as we leave it up to the handler systems to delay their cleanup as long as they want to.
@@ -410,4 +417,9 @@ bool FNDCIsland::TryGrow(FVector Point, FVector PerElementExtents, FVector MaxIs
 	}
 
 	return true;
+}
+
+void FNDCIsland::DebugDrawBounds()
+{
+	DrawDebugBox(Owner->GetWorld(), Bounds.Origin, Bounds.BoxExtent, FQuat::Identity, FColor::Red);
 }
