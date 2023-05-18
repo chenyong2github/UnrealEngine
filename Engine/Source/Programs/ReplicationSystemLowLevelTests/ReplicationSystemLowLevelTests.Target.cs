@@ -8,6 +8,7 @@ public class ReplicationSystemLowLevelTestsTarget : TestTargetRules
 	public ReplicationSystemLowLevelTestsTarget(TargetInfo Target) : base(Target)
 	{
 		bCompileAgainstEngine = true;
+		bCompileAgainstApplicationCore = true;
 		bUsesSlate = false;
 
 		bUsePlatformFileStub = true;

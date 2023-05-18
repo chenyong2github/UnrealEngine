@@ -7,6 +7,7 @@ public class NetworkPredictionTestsTarget : TestTargetRules
 	public NetworkPredictionTestsTarget(TargetInfo Target) : base(Target)
 	{
 		bCompileAgainstEngine = true;
+		bCompileAgainstApplicationCore = true;
 		bUsesSlate = false;
 
 		bUsePlatformFileStub = true;
