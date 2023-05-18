@@ -95,8 +95,6 @@ public:
 
 	const UE::Chaos::ClothAsset::FClothSimulationProxy* GetClothSimulationProxy() const { return ClothSimulationProxy.Get(); }
 
-	friend UE::Chaos::ClothAsset::FClothComponentCacheAdapter;
-
 protected:
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
@@ -133,6 +131,8 @@ private:
 	void HandleExistingParallelSimulation();
 	bool ShouldWaitForParallelSimulationInTickComponent() const;
 	void UpdateVisibility();
+
+	friend UE::Chaos::ClothAsset::FClothComponentCacheAdapter;
 
 #if WITH_EDITORONLY_DATA
 	/** Cloth asset used by this component. */
