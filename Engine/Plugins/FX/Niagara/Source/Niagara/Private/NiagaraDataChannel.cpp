@@ -11,6 +11,7 @@
 #include "UObject/Package.h"
 #include "NiagaraDataChannelAccessor.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
+#include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataChannel)
 
@@ -1010,6 +1011,31 @@ UNiagaraDataChannelReader* UNiagaraDataChannelLibrary::ReadFromNiagaraDataChanne
 	}
 	return nullptr;
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+#if WITH_EDITOR
+
+void UNiagaraDataChannelAsset::PreEditChange(class FProperty* PropertyAboutToChange)
+{
+	if(PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataChannelAsset, DataChannel))
+	{
+		CachedPreChangeDataChannel = DataChannel;
+	}
+}
+
+void UNiagaraDataChannelAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if(CachedPreChangeDataChannel)
+	{
+		UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
+		UEngine::CopyPropertiesForUnrelatedObjects(CachedPreChangeDataChannel, DataChannel, Params);
+		CachedPreChangeDataChannel = nullptr;
+	}
+}
+
+#endif
+
 
 //////////////////////////////////////////////////////////////////////////
 

@@ -23,8 +23,19 @@ class NIAGARA_API UNiagaraDataChannelAsset : public UObject
 
 	UPROPERTY(EditAnywhere, Category = DataChannel, Instanced)
 	TObjectPtr<UNiagaraDataChannel> DataChannel;
+	
+	#if WITH_EDITORONLY_DATA
+	/** When changing data channel types we cache the old channel and attempt to copy over any common properties from one to the other. */
+	UPROPERTY(Transient)
+	TObjectPtr<UNiagaraDataChannel> CachedPreChangeDataChannel;
+	#endif
 
 public:
+
+#if WITH_EDITOR
+	virtual void PreEditChange(class FProperty* PropertyAboutToChange)override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)override;
+#endif
 
 	UNiagaraDataChannel* Get() const { return DataChannel; }
 };
