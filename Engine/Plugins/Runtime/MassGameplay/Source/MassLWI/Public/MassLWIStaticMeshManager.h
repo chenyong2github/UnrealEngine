@@ -53,4 +53,3 @@ protected:
 	FMassArchetypeHandle TargetArchetype;
 	TArray<FMassEntityHandle> Entities;
 };
-\
