@@ -50,6 +50,7 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		{
 			FaderGroupFilter.Parse(InString);
 
+			FaderGroup->Modify();
 			FaderGroup->FilterString = FaderGroupFilter.String;
 		}
 	}
@@ -62,7 +63,7 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 				{
 					return FaderGroup->GetFaderGroupName().Contains(Name);
 				});
-
+			
 			return MatchingStringPtr != nullptr;
 		}
 		return false;
@@ -101,11 +102,15 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		{
 			return;
 		}
+		else if (bRequiresMatchingFaderGroupName && FaderModels.IsEmpty())
+		{
+			FaderGroup->SetIsVisibleInEditor(true);
+		}
 
 		for (const TSharedRef<FFilterModelFader>& FaderModel : FaderModels)
 		{
 			UDMXControlConsoleFaderBase* Fader = FaderModel->GetFader();
-			if (!FaderModel->MatchesGlobalFilter(GlobalFilter, NameFilterMode))
+			if (!Fader || !FaderModel->MatchesGlobalFilter(GlobalFilter, NameFilterMode))
 			{
 				continue;
 			}

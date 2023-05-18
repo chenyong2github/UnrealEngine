@@ -2,9 +2,9 @@
 
 #include "DMXControlConsoleFaderDetails.h"
 
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "DMXControlConsoleRawFader.h"
 
 #include "DetailLayoutBuilder.h"
@@ -62,7 +62,8 @@ namespace UE::DMXControlConsole
 
 	bool FDMXControlConsoleFaderDetails::HasOnlyRawFadersSelected() const
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFaderObjects = SelectionHandler->GetSelectedFaders();
 
 		auto AreAllRawFadersLambda = [](const TWeakObjectPtr<UObject>& SelectedFaderObject)
@@ -81,7 +82,8 @@ namespace UE::DMXControlConsole
 
 	void FDMXControlConsoleFaderDetails::OnSelectedFadersValueChanged() const
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFaderObjects = SelectionHandler->GetSelectedFaders();
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{
@@ -98,7 +100,8 @@ namespace UE::DMXControlConsole
 
 	void FDMXControlConsoleFaderDetails::OnSelectedFadersMinValueChanged() const
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFaderObjects = SelectionHandler->GetSelectedFaders();
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{
@@ -115,7 +118,8 @@ namespace UE::DMXControlConsole
 
 	void FDMXControlConsoleFaderDetails::OnSelectedFadersMaxValueChanged() const
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFaderObjects = SelectionHandler->GetSelectedFaders();
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{
@@ -132,7 +136,8 @@ namespace UE::DMXControlConsole
 
 	void FDMXControlConsoleFaderDetails::OnSelectedFadersUniverseIDChanged() const
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFaderObjects = SelectionHandler->GetSelectedFaders();
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{
@@ -149,7 +154,8 @@ namespace UE::DMXControlConsole
 
 	void FDMXControlConsoleFaderDetails::OnSelectedFadersDataTypeChanged() const
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFaderObjects = SelectionHandler->GetSelectedFaders();
 		for (const TWeakObjectPtr<UObject>& SelectedFaderObject : SelectedFaderObjects)
 		{

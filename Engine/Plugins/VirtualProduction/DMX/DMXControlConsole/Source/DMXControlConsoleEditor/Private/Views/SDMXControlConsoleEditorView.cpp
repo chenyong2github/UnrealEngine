@@ -4,7 +4,6 @@
 
 #include "DMXControlConsole.h"
 #include "DMXControlConsoleData.h"
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
@@ -61,12 +60,11 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 {
 	RegisterCommands();
 
-	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-	EditorConsoleModel->GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleLoaded);
-	EditorConsoleModel->GetOnConsoleSaved().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleSaved);
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	EditorConsoleModel.GetOnConsoleLoaded().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleLoaded);
+	EditorConsoleModel.GetOnConsoleSaved().AddSP(this, &SDMXControlConsoleEditorView::OnConsoleSaved);
 
-	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = ControlConsoleManager.GetSelectionHandler();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
 	SelectionHandler->GetOnSelectionChanged().AddSP(this, &SDMXControlConsoleEditorView::RequestUpdateDetailsViews);
 
 	OnActiveTabChangedDelegateHandle = FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXControlConsoleEditorView::OnActiveTabChanged));
@@ -264,9 +262,15 @@ void SDMXControlConsoleEditorView::Construct(const FArguments& InArgs)
 		}));
 }
 
+UDMXControlConsoleEditorModel& SDMXControlConsoleEditorView::GetEditorConsoleModel() const
+{
+	return *GetMutableDefault<UDMXControlConsoleEditorModel>();
+}
+
 UDMXControlConsoleData* SDMXControlConsoleEditorView::GetControlConsoleData() const
 { 
-	return FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	return EditorConsoleModel.GetEditorConsoleData();
 }
 
 void SDMXControlConsoleEditorView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -307,7 +311,7 @@ void SDMXControlConsoleEditorView::RegisterCommands()
 {
 	CommandList = MakeShared<FUICommandList>();
 
-	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = &GetEditorConsoleModel();
 
 	CommandList->MapAction
 	(
@@ -327,35 +331,34 @@ void SDMXControlConsoleEditorView::RegisterCommands()
 		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SaveConsoleAs)
 	);
 
-	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
 	CommandList->MapAction
 	(
 		FDMXControlConsoleEditorCommands::Get().SendDMX,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::SendDMX),
-		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanSendDMX),
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SendDMX),
+		FCanExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::CanSendDMX),
 		FIsActionChecked(),
-		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanSendDMX)
+		FIsActionButtonVisible::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::CanSendDMX)
 	);
 
 	CommandList->MapAction
 	(
 		FDMXControlConsoleEditorCommands::Get().StopDMX,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::StopDMX),
-		FCanExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanStopDMX),
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::StopDMX),
+		FCanExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::CanStopDMX),
 		FIsActionChecked(),
-		FIsActionButtonVisible::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::CanStopDMX)
+		FIsActionButtonVisible::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::CanStopDMX)
 	);
 
 	CommandList->MapAction
 	(
 		FDMXControlConsoleEditorCommands::Get().ClearAll,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::ClearAll)
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::ClearAll)
 	);
 
 	CommandList->MapAction
 	(
 		FDMXControlConsoleEditorCommands::Get().RemoveElements,
-		FExecuteAction::CreateSP(ControlConsoleManager.AsShared(), &FDMXControlConsoleEditorManager::RemoveAllSelectedElements)
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::RemoveAllSelectedElements)
 	);
 }
 
@@ -520,7 +523,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 					(
 						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected, ViewMode)
 						, FCanExecuteAction()
-						, FIsActionChecked::CreateLambda([this, ViewMode]() { return FDMXControlConsoleEditorManager::Get().GetFaderGroupsViewMode() == ViewMode; })
+						, FIsActionChecked::CreateLambda([this, ViewMode]() { return GetEditorConsoleModel().GetFaderGroupsViewMode() == ViewMode; })
 					)
 					, NAME_None
 					, EUserInterfaceActionType::RadioButton
@@ -545,7 +548,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 					(
 						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFadersViewModeSelected, ViewMode)
 						, FCanExecuteAction()
-						, FIsActionChecked::CreateLambda([this, ViewMode]() { return FDMXControlConsoleEditorManager::Get().GetFadersViewMode() == ViewMode; })
+						, FIsActionChecked::CreateLambda([this, ViewMode]() { return GetEditorConsoleModel().GetFadersViewMode() == ViewMode; })
 					)
 					, NAME_None
 					, EUserInterfaceActionType::RadioButton
@@ -622,7 +625,8 @@ void SDMXControlConsoleEditorView::ForceUpdateDetailsViews()
 	constexpr bool bForceRefresh = true;
 	ControlConsoleDataDetailsView->SetObject(ControlConsoleData, bForceRefresh);
 
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroups = SelectionHandler->GetSelectedFaderGroups();
 	FaderGroupsDetailsView->SetObjects(SelectedFaderGroups, bForceRefresh);
 
@@ -788,23 +792,26 @@ FReply SDMXControlConsoleEditorView::OnAddFirstFaderGroup()
 
 void SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const
 {
-	FDMXControlConsoleEditorManager::Get().SetFaderGroupsViewMode(ViewMode);
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	EditorConsoleModel.SetFaderGroupsViewMode(ViewMode);
 }
 
 void SDMXControlConsoleEditorView::OnFadersViewModeSelected(const EDMXControlConsoleEditorViewMode ViewMode) const
 {
-	FDMXControlConsoleEditorManager::Get().SetFadersViewMode(ViewMode);
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	EditorConsoleModel.SetFadersViewMode(ViewMode);
 }
 
 void SDMXControlConsoleEditorView::OnSelectAll(bool bOnlyVisible) const
 {
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
 	SelectionHandler->SelectAll(bOnlyVisible);
 }
 
 void SDMXControlConsoleEditorView::OnSelectedPortsChanged()
 {
-	if (UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+	if (UDMXControlConsoleData* ControlConsoleData = GetControlConsoleData())
 	{
 		if (PortSelector.IsValid())
 		{
@@ -816,7 +823,8 @@ void SDMXControlConsoleEditorView::OnSelectedPortsChanged()
 
 void SDMXControlConsoleEditorView::OnBrowseToAssetClicked()
 {
-	if (UDMXControlConsole* EditorConsole = FDMXControlConsoleEditorManager::Get().GetEditorConsole())
+	const UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	if (UDMXControlConsole* EditorConsole = EditorConsoleModel.GetEditorConsole())
 	{
 		TArray<UObject*> BrowseToObjects{ EditorConsole };
 		GEditor->SyncBrowserToObjects(BrowseToObjects);
@@ -828,7 +836,7 @@ void SDMXControlConsoleEditorView::OnConsoleLoaded()
 	RequestUpdateDetailsViews();
 	OnFaderGroupRowAdded();
 	OnFaderGroupRowRemoved();
-	RestoreGlobalFilter();
+	GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateSP(this, &SDMXControlConsoleEditorView::RestoreGlobalFilter));
 
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
@@ -842,7 +850,8 @@ void SDMXControlConsoleEditorView::OnActiveTabChanged(TSharedPtr<SDockTab> Previ
 {
 	if (IsWidgetInTab(PreviouslyActive, AsShared()))
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
 		SelectionHandler->ClearSelection();
 	}
 
@@ -930,7 +939,8 @@ EVisibility SDMXControlConsoleEditorView::GetAddButtonVisibility() const
 
 EVisibility SDMXControlConsoleEditorView::GetDetailViewsSectionVisibility() const
 {
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	UDMXControlConsoleEditorModel& EditorConsoleModel = GetEditorConsoleModel();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel.GetSelectionHandler();
 	bool bIsVisible = !SelectionHandler->GetSelectedFaderGroups().IsEmpty() || !SelectionHandler->GetSelectedFaders().IsEmpty();
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
 }

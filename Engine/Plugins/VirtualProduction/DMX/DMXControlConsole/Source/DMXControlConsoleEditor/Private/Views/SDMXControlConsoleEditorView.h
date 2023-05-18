@@ -10,6 +10,7 @@
 enum class EDMXControlConsoleEditorViewMode : uint8;
 class SDMXControlConsoleEditorFaderGroupRowView;
 class SDMXControlConsoleEditorFixturePatchVerticalBox;
+class UDMXControlConsoleEditorModel;
 class SDMXControlConsoleEditorPortSelector;
 class UDMXControlConsoleFaderGroupRow;
 class UDMXControlConsoleData;
@@ -36,6 +37,9 @@ public:
 
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
+
+	/** Gets DMX Control Console Editor Model instance reference */
+	UDMXControlConsoleEditorModel& GetEditorConsoleModel() const;
 
 	/** Gets current DMX Control Console Data */
 	UDMXControlConsoleData* GetControlConsoleData() const;

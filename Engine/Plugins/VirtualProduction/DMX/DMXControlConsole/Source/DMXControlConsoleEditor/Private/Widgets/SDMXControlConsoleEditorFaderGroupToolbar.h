@@ -13,7 +13,7 @@ class UDMXLibrary;
 
 struct FSlateColor;
 template <typename OptionType> class SComboBox;
-
+class SSearchBox;
 
 /** Base Fader Group UI widget */
 class SDMXControlConsoleEditorFaderGroupToolbar
@@ -54,6 +54,9 @@ private:
 
 	/** Generates a menu widget for adding a new Fader Group to the Control Console */
 	TSharedRef<SWidget> GenerateAddNewFaderGroupMenuWidget();
+
+	/** Restores search filter text from Fader Group */
+	void RestoreFaderGroupFilter();
 
 	/** True if the given Fixture Patch is not used by any other Fader Group */
 	bool IsFixturePatchStillAvailable(const UDMXEntityFixturePatch* InFixturePatch) const;
@@ -111,6 +114,9 @@ private:
 
 	/** Faders Widget's expander arrow button */
 	TSharedPtr<SDMXControlConsoleEditorExpandArrowButton> ExpandArrowButton;
+
+	/** Reference to Fader Group toolbar searchbox used for filtering */
+	TSharedPtr<SSearchBox> ToolbarSearchBox;
 
 	/** Reference to current DMX Library */
 	TWeakObjectPtr<UDMXLibrary> DMXLibrary;

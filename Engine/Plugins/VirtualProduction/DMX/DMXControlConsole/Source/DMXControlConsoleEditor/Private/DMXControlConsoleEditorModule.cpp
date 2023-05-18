@@ -2,7 +2,6 @@
 
 #include "DMXControlConsoleEditorModule.h"
 
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXEditorModule.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
 #include "Models/DMXControlConsoleEditorModel.h"

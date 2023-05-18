@@ -4,10 +4,10 @@
 
 #include "DMXControlConsole.h"
 #include "DMXControlConsoleData.h"
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "Models/Filter/FilterModel.h"
 
 #include "Algo/Sort.h"
@@ -15,10 +15,8 @@
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorSelection"
 
-FDMXControlConsoleEditorSelection::FDMXControlConsoleEditorSelection(const TSharedRef<FDMXControlConsoleEditorManager>& InControlConsoleManager)
+FDMXControlConsoleEditorSelection::FDMXControlConsoleEditorSelection()
 {
-	WeakControlConsoleManager = InControlConsoleManager;
-
 	using namespace UE::DMXControlConsoleEditor::FilterModel::Private;
 	FFilterModel::Get().OnFilterChanged.AddRaw(this, &FDMXControlConsoleEditorSelection::RemoveInvisibleElements);
 }
@@ -181,7 +179,8 @@ void FDMXControlConsoleEditorSelection::Multiselect(UObject* FaderOrFaderGroupOb
 	}
 
 	TArray<UObject*> FadersAndFaderGroups;
-	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	for (UDMXControlConsoleFaderGroup* AnyFaderGroup : EditorConsoleData->GetAllFaderGroups())
 	{
 		FadersAndFaderGroups.AddUnique(AnyFaderGroup);
@@ -254,7 +253,8 @@ void FDMXControlConsoleEditorSelection::ReplaceInSelection(UDMXControlConsoleFad
 
 	RemoveFromSelection(FaderGroup);
 
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	if (!EditorConsoleData)
 	{
 		return;
@@ -318,7 +318,8 @@ bool FDMXControlConsoleEditorSelection::IsSelected(UDMXControlConsoleFaderBase* 
 
 void FDMXControlConsoleEditorSelection::SelectAll(bool bOnlyVisible)
 {
-	if (const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
 	{
 		ClearSelection(false);
 
@@ -432,7 +433,8 @@ UDMXControlConsoleFaderGroup* FDMXControlConsoleEditorSelection::GetFirstSelecte
 
 UDMXControlConsoleFaderBase* FDMXControlConsoleEditorSelection::GetFirstSelectedFader(bool bReverse) const
 {
-	const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* ControlConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	if (!ControlConsoleData)
 	{
 		return nullptr;

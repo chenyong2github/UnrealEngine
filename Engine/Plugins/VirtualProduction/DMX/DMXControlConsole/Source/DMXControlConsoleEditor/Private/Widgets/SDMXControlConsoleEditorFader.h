@@ -39,7 +39,6 @@ public:
 protected:
 	//~ Begin SWidget interface
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual bool SupportsKeyboardFocus() const override { return true; }
 	//~ End of SWidget interface
 
 private:

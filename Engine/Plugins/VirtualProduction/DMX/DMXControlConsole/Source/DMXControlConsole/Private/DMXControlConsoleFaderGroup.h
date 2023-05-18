@@ -28,6 +28,12 @@ class DMXCONTROLCONSOLE_API UDMXControlConsoleFaderGroup
 {
 	GENERATED_BODY()
 
+	// Allow the DMXControlConsoleFixturePatchMatrixCell to read Fader Group Data
+	friend UDMXControlConsoleFixturePatchMatrixCell;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXControlConsoleElementDelegate, IDMXControlConsoleFaderGroupElement*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FDMXOnFaderGroupFixturePatchChangedDelegate, UDMXControlConsoleFaderGroup*, UDMXEntityFixturePatch*);
+
 public:
 	/** Adds a raw fader to this Fader Group */
 	UDMXControlConsoleRawFader* AddRawFader();
@@ -121,6 +127,15 @@ public:
 	void ShowAllElementsInEditor();
 #endif // WITH_EDITOR
 
+	/** Gets a reference to OnElementAdded delegate */
+	FDMXControlConsoleElementDelegate& GetOnElementAdded() { return OnElementAdded; }
+
+	/** Gets a reference to OnElementRemoved delegate */
+	FDMXControlConsoleElementDelegate& GetOnElementRemoved() { return OnElementRemoved; }
+
+	/** Gets a reference to OnFixturePatchChanged delegate */
+	FDMXOnFaderGroupFixturePatchChangedDelegate& GetOnFixturePatchChanged() { return OnFixturePatchChangedDelegate; }
+
 #if WITH_EDITORONLY_DATA
 	/** Last string from Editor filtering */
 	UPROPERTY()
@@ -167,6 +182,15 @@ private:
 
 	/** Gets the next Universe and Address available for a new fader */
 	void GetNextAvailableUniverseAndAddress(int32& OutUniverse, int32& OutAddress) const;
+
+	/** Called when an Element is added to the Fader Group */
+	FDMXControlConsoleElementDelegate OnElementAdded;
+
+	/** Called when an Element is removed from the Fader Group */
+	FDMXControlConsoleElementDelegate OnElementRemoved;
+
+	/** Called when Fixture Patch is changed */
+	FDMXOnFaderGroupFixturePatchChangedDelegate OnFixturePatchChangedDelegate;
 
 	/** Name identifier of this Fader Group */
 	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")

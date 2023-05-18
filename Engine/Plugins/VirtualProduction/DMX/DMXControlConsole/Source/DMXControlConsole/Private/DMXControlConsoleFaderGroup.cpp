@@ -32,6 +32,8 @@ UDMXControlConsoleRawFader* UDMXControlConsoleFaderGroup::AddRawFader()
 	Fader->SetFaderName(FString::FromInt(Elements.Num() + 1));
 	Elements.Add(Fader);
 
+	OnElementAdded.Broadcast(Fader);
+
 	return Fader;
 }
 
@@ -41,6 +43,8 @@ UDMXControlConsoleFixturePatchFunctionFader* UDMXControlConsoleFaderGroup::AddFi
 	Fader->SetPropertiesFromFixtureFunction(FixtureFunction, InUniverseID, StartingChannel);
 	Elements.Add(Fader);
 
+	OnElementAdded.Broadcast(Fader);
+
 	return Fader;
 }
 
@@ -49,6 +53,8 @@ UDMXControlConsoleFixturePatchMatrixCell* UDMXControlConsoleFaderGroup::AddFixtu
 	UDMXControlConsoleFixturePatchMatrixCell* MatrixCell = NewObject<UDMXControlConsoleFixturePatchMatrixCell>(this, NAME_None, RF_Transactional);
 	MatrixCell->SetPropertiesFromCell(Cell, InUniverseID, StartingChannel);
 	Elements.Add(MatrixCell);
+
+	OnElementAdded.Broadcast(MatrixCell);
 
 	return MatrixCell;
 }
@@ -66,6 +72,8 @@ void UDMXControlConsoleFaderGroup::DeleteElement(const TScriptInterface<IDMXCont
 	}
 
 	Elements.Remove(Element);
+
+	OnElementRemoved.Broadcast(Element.GetInterface());
 }
 
 void UDMXControlConsoleFaderGroup::ClearElements()
@@ -190,6 +198,7 @@ void UDMXControlConsoleFaderGroup::GenerateFromFixturePatch(UDMXEntityFixturePat
 	};
 
 	Algo::Sort(Elements, SortElementsByEndingAddressLambda);
+	OnFixturePatchChangedDelegate.Broadcast(this, InFixturePatch);
 
 #if WITH_EDITOR
 	bForceRefresh = true;
@@ -358,6 +367,8 @@ void UDMXControlConsoleFaderGroup::Clear()
 #endif 
 
 	ClearElements();
+
+	OnFixturePatchChangedDelegate.Broadcast(this, nullptr);
 }
 
 void UDMXControlConsoleFaderGroup::ResetToDefault()
@@ -531,6 +542,7 @@ void UDMXControlConsoleFaderGroup::UpdateFaderGroupFromFixturePatch(UDMXEntityFi
 	};
 
 	Algo::Sort(Elements, SortElementsByEndingAddressLambda);
+	OnFixturePatchChangedDelegate.Broadcast(this, InFixturePatch);
 
 #if WITH_EDITOR
 	bForceRefresh = true;

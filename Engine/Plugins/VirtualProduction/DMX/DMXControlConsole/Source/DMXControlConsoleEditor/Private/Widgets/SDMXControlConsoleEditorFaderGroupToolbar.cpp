@@ -3,7 +3,6 @@
 #include "SDMXControlConsoleEditorFaderGroupToolbar.h"
 
 #include "DMXControlConsoleData.h"
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
@@ -11,6 +10,7 @@
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXLibrary.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "Models/Filter/FilterModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Views/SDMXControlConsoleEditorFaderGroupView.h"
@@ -154,7 +154,7 @@ void SDMXControlConsoleEditorFaderGroupToolbar::Construct(const FArguments& InAr
 		.MaxWidth(250.f)
 		.Padding(4.f, 8.f)
 		[
-			SNew(SSearchBox)
+			SAssignNew(ToolbarSearchBox, SSearchBox)
 			.MinDesiredWidth(200.f)
 			.OnTextChanged(this, &SDMXControlConsoleEditorFaderGroupToolbar::OnSearchTextChanged)
 			.ToolTipText(LOCTEXT("SearchBarTooltip", "Searches for Fader Name, Attributes, Fixture ID, Universe or Patch. Examples:\n\n* FaderName\n* Dimmer\n* Pan, Tilt\n* 1\n* 1.\n* 1.1\n* Universe 1\n* Uni 1-3\n* Uni 1, 3\n* Uni 1, 4-5'."))
@@ -223,6 +223,8 @@ void SDMXControlConsoleEditorFaderGroupToolbar::Construct(const FArguments& InAr
 			]
 		]
 	];
+
+	RestoreFaderGroupFilter();
 }
 
 TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateSettingsMenuWidget()
@@ -458,11 +460,22 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupToolbar::GenerateAddNewFad
 	return MenuBuilder.MakeWidget();
 }
 
+void SDMXControlConsoleEditorFaderGroupToolbar::RestoreFaderGroupFilter()
+{
+	if (const UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
+	{
+		const FString& FilterString = FaderGroup->FilterString;
+		const FText FilterText = FText::FromString(FilterString);
+		ToolbarSearchBox->SetText(FilterText);
+	}
+}
+
 bool SDMXControlConsoleEditorFaderGroupToolbar::IsFixturePatchStillAvailable(const UDMXEntityFixturePatch* InFixturePatch) const
 {
 	if (InFixturePatch)
 	{
-		if (const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+		const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+		if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
 		{
 			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
 
@@ -496,7 +509,8 @@ bool SDMXControlConsoleEditorFaderGroupToolbar::IsFixturePatchStillAvailable(con
 
 void SDMXControlConsoleEditorFaderGroupToolbar::UpdateComboBoxSource()
 {
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	DMXLibrary = EditorConsoleData->GetDMXLibrary();
 
 	ComboBoxSource.Reset(ComboBoxSource.Num());
@@ -527,7 +541,8 @@ void SDMXControlConsoleEditorFaderGroupToolbar::OnComboBoxSelectionChanged(const
 	UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup();
 	if (FixturePatchRef.IsValid() && FaderGroup)
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		SelectionHandler->ClearFadersSelection(FaderGroup);
 		
 		UDMXEntityFixturePatch* FixturePatch = FixturePatchRef->GetFixturePatch();
@@ -598,7 +613,8 @@ void SDMXControlConsoleEditorFaderGroupToolbar::OnSelectAllFaders() const
 {
 	if (UDMXControlConsoleFaderGroup* FaderGroup = GetFaderGroup())
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		SelectionHandler->AddAllFadersFromFaderGroupToSelection(FaderGroup, true);
 	}
 }

@@ -5,8 +5,9 @@
 #include "DMXControlConsole.h"
 #include "DMXControlConsoleData.h"
 #include "DMXControlConsoleEditorFromLegacyUpgradeHandler.h"
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
+#include "DMXControlConsoleFaderBase.h"
+#include "DMXControlConsoleFaderGroup.h"
 #include "Models/Filter/FilterModel.h"
 
 #include "AssetToolsModule.h"
@@ -25,6 +26,128 @@
 
 
 #define LOCTEXT_NAMESPACE "DMXControlConsoleEditorModel"
+
+
+TSharedRef<FDMXControlConsoleEditorSelection> UDMXControlConsoleEditorModel::GetSelectionHandler()
+{
+	if (!SelectionHandler.IsValid())
+	{
+		SelectionHandler = MakeShareable(new FDMXControlConsoleEditorSelection());
+	}
+
+	return SelectionHandler.ToSharedRef();
+}
+
+void UDMXControlConsoleEditorModel::SetFaderGroupsViewMode(EDMXControlConsoleEditorViewMode ViewMode)
+{
+	FaderGroupsViewMode = ViewMode;
+	OnFaderGroupsViewModeChanged.Broadcast();
+}
+
+void UDMXControlConsoleEditorModel::SetFadersViewMode(EDMXControlConsoleEditorViewMode ViewMode)
+{
+	FadersViewMode = ViewMode;
+	OnFadersViewModeChanged.Broadcast();
+}
+
+void UDMXControlConsoleEditorModel::SendDMX()
+{
+	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
+	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Control Console Data, can't send DMX correctly.")))
+	{
+		EditorConsoleData->StartSendingDMX();
+	}
+}
+
+void UDMXControlConsoleEditorModel::StopDMX()
+{
+	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
+	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Control Console Data, can't stop DMX correctly.")))
+	{
+		EditorConsoleData->StopSendingDMX();
+	}
+}
+
+bool UDMXControlConsoleEditorModel::IsSendingDMX() const
+{
+	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
+	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Control Console Data, cannot deduce if it is sending DMX.")))
+	{
+		return EditorConsoleData->IsSendingDMX();
+	}
+	return false;
+}
+
+void UDMXControlConsoleEditorModel::RemoveAllSelectedElements()
+{
+	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
+	if (!SelectedFaderGroupsObjects.IsEmpty())
+	{
+		const FScopedTransaction RemoveAllSelectedElementsTransaction(LOCTEXT("RemoveAllSelectedElementsTransaction", "Selected Elements removed"));
+
+		// Delete all selected fader groups
+		for (const TWeakObjectPtr<UObject>& SelectedFaderGroupObject : SelectedFaderGroupsObjects)
+		{
+			UDMXControlConsoleFaderGroup* SelectedFaderGroup = Cast<UDMXControlConsoleFaderGroup>(SelectedFaderGroupObject);
+			if (SelectedFaderGroup && SelectionHandler->GetSelectedFadersFromFaderGroup(SelectedFaderGroup).IsEmpty())
+			{
+				// If there's only one fader group to delete, replace it in selection
+				if (SelectedFaderGroupsObjects.Num() == 1)
+				{
+					SelectionHandler->ReplaceInSelection(SelectedFaderGroup);
+				}
+
+				constexpr bool bNotifySelectedFaderGroupChange = false;
+				SelectionHandler->RemoveFromSelection(SelectedFaderGroup, bNotifySelectedFaderGroupChange);
+
+				SelectedFaderGroup->PreEditChange(nullptr);
+				SelectedFaderGroup->Destroy();
+				SelectedFaderGroup->PostEditChange();
+			}
+		}
+
+		// Delete all selected faders
+		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
+		if (!SelectedFadersObjects.IsEmpty())
+		{
+			for (TWeakObjectPtr<UObject> SelectedFaderObject : SelectedFadersObjects)
+			{
+				UDMXControlConsoleFaderBase* SelectedFader = Cast<UDMXControlConsoleFaderBase>(SelectedFaderObject);
+				if (SelectedFader && !SelectedFader->GetOwnerFaderGroupChecked().HasFixturePatch())
+				{
+					// If there's only one fader to delete, replace it in selection
+					if (SelectedFadersObjects.Num() == 1)
+					{
+						SelectionHandler->ReplaceInSelection(SelectedFader);
+					}
+
+					constexpr bool bNotifyFaderSelectionChange = false;
+					SelectionHandler->RemoveFromSelection(SelectedFader, bNotifyFaderSelectionChange);
+
+					SelectedFader->PreEditChange(nullptr);
+					SelectedFader->Destroy();
+					SelectedFader->PostEditChange();
+				}
+			}
+		}
+	}
+
+	SelectionHandler->RemoveInvalidObjectsFromSelection();
+}
+
+void UDMXControlConsoleEditorModel::ClearAll()
+{
+	UDMXControlConsoleData* EditorConsoleData = GetEditorConsoleData();
+	if (ensureMsgf(EditorConsoleData, TEXT("Invalid Editor Console Data, cannot clear all its children.")))
+	{
+		SelectionHandler->ClearSelection();
+
+		const FScopedTransaction ClearAllTransaction(LOCTEXT("ClearAllTransaction", "Clear All"));
+		EditorConsoleData->Modify();
+
+		EditorConsoleData->Reset();
+	}
+}
 
 void UDMXControlConsoleEditorModel::LoadConsoleFromConfig()
 {
@@ -111,7 +234,7 @@ void UDMXControlConsoleEditorModel::SaveConsoleAs()
 		UDMXControlConsole* NewConsole = CreateNewConsoleAsset(PackagePath, AssetName, EditorConsole->GetControlConsoleData());
 		if (NewConsole)
 		{
-			FDMXControlConsoleEditorManager::Get().GetSelectionHandler()->ClearSelection();
+			SelectionHandler->ClearSelection();
 
 			const FScopedTransaction SaveConsoleAsTransaction(LOCTEXT("SaveConsoleAsTransaction", "Save Control Console Console to new Asset"));
 
@@ -136,7 +259,7 @@ void UDMXControlConsoleEditorModel::LoadConsole(const FAssetData& AssetData)
 			CurrentControlConsoleData->StopSendingDMX();
 		}
 
-		FDMXControlConsoleEditorManager::Get().GetSelectionHandler()->ClearSelection();
+		SelectionHandler->ClearSelection();
 
 		const FScopedTransaction LoadConsoleTransaction(LOCTEXT("LoadConsoleTransaction", "Load Control Console"));
 
@@ -197,6 +320,7 @@ void UDMXControlConsoleEditorModel::PostInitProperties()
 	{
 		// Deffer initialization to engine being fully loaded
 		FCoreDelegates::OnFEngineLoopInitComplete.AddUObject(this, &UDMXControlConsoleEditorModel::OnFEngineLoopInitComplete);
+		FCoreDelegates::OnEnginePreExit.AddUObject(this, &UDMXControlConsoleEditorModel::OnEnginePreExit);
 	}
 }
 
@@ -233,7 +357,7 @@ void UDMXControlConsoleEditorModel::FinalizeLoadConsole(UDMXControlConsole* Cons
 		CurrentControlConsoleData->StopSendingDMX();
 	}
 
-	FDMXControlConsoleEditorManager::Get().GetSelectionHandler()->ClearSelection();
+	SelectionHandler->ClearSelection();
 
 	Modify();
 	EditorConsole = ConsoleToLoad;
@@ -347,6 +471,15 @@ void UDMXControlConsoleEditorModel::OnFEngineLoopInitComplete()
 			FilterModel = MakeShared<FFilterModel>();
 			FilterModel->Initialize();
 		}
+	}
+}
+
+void UDMXControlConsoleEditorModel::OnEnginePreExit()
+{
+	UDMXControlConsoleData* EditorConsoleData = EditorConsole->GetControlConsoleData();
+	if (EditorConsoleData)
+	{
+		StopDMX();
 	}
 }
 

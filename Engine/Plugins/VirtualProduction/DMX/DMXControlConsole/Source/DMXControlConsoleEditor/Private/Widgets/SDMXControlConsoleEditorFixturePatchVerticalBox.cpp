@@ -5,7 +5,6 @@
 #include "DMXControlConsoleData.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "Commands/DMXControlConsoleEditorCommands.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -46,7 +45,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::Construct(const FArguments
 	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 	const FDMXReadOnlyFixturePatchListDescriptor ListDescriptor = EditorConsoleModel->GetFixturePatchListDescriptor();
 
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	UDMXLibrary* DMXLibrary = EditorConsoleData ? EditorConsoleData->GetDMXLibrary() : nullptr;
 
 	ChildSlot
@@ -73,7 +72,8 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::Construct(const FArguments
 
 void SDMXControlConsoleEditorFixturePatchVerticalBox::ForceRefresh()
 {
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	if (EditorConsoleData && FixturePatchList.IsValid())
 	{
 		UDMXLibrary* NewLibrary = EditorConsoleData->GetDMXLibrary();
@@ -218,7 +218,8 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::GenerateFaderGroupFromFixt
 		return;
 	}
 
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	SelectionHandler->ClearFadersSelection(FaderGroup);
 
 	const FScopedTransaction GenerateFaderGroupFromFixturePatchTransaction(LOCTEXT("GenerateFaderGroupFromFixturePatchTransaction", "Generate Fader Group from Fixture Patch"));
@@ -236,7 +237,8 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 		return;
 	}
 
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	if (!EditorConsoleData)
 	{
 		return;
@@ -251,7 +253,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 	UDMXControlConsoleFaderGroupRow* FaderGroupRow = nullptr;
 	int32 Index = -1;
 
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
 	if (SelectedFaderGroupsObjects.IsEmpty())
 	{
@@ -302,7 +304,8 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 		return;
 	}
 
-	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	if (!EditorConsoleData)
 	{
 		return;
@@ -310,7 +313,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateFromFixturePatch
 
 	int32 NewRowIndex = -1;
 
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
 	if (SelectedFaderGroupsObjects.IsEmpty())
 	{
@@ -360,7 +363,8 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateSelectedFaderGro
 		return;
 	}
 
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFaderGroupsObjects = SelectionHandler->GetSelectedFaderGroups();
 	const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedFixturePatches = FixturePatchList->GetSelectedFixturePatchRefs();
 
@@ -377,7 +381,8 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnGenerateSelectedFaderGro
 
 FReply SDMXControlConsoleEditorFixturePatchVerticalBox::OnAddAllPatchesClicked()
 {
-	UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	if (EditorConsoleData)
 	{
 		const FScopedTransaction AddAllPatchesTransaction(LOCTEXT("AddAllPatchesTransaction", "Generate from Library"));
@@ -393,7 +398,8 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsFixturePatchListRowEnabl
 {
 	if (const UDMXEntityFixturePatch* InFixturePatch = InFixturePatchRef.GetFixturePatch())
 	{
-		if (const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+		const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+		if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
 		{
 			const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
 
@@ -427,7 +433,8 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsFixturePatchListRowEnabl
 
 bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsAddAllPatchesButtonEnabled() const
 {
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData =EditorConsoleModel->GetEditorConsoleData();
 	if (!EditorConsoleData)
 	{
 		return false;
@@ -438,7 +445,8 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsAddAllPatchesButtonEnabl
 
 bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddNext() const
 {
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	if (!EditorConsoleData || !FixturePatchList.IsValid())
 	{
 		return false;
@@ -454,7 +462,8 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddNext() const
 
 bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddRow() const
 {
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	if (!EditorConsoleData || !FixturePatchList.IsValid())
 	{
 		return false;
@@ -469,13 +478,14 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddRow() const
 
 bool SDMXControlConsoleEditorFixturePatchVerticalBox::CanExecuteAddSelected() const
 {
-	const UDMXControlConsoleData* EditorConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
 	if (!EditorConsoleData || !FixturePatchList.IsValid())
 	{
 		return false;
 	}
 
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const bool bCanExecute =
 		!FixturePatchList->GetSelectedFixturePatchRefs().IsEmpty()
 		&& !SelectionHandler->GetSelectedFaderGroups().IsEmpty()

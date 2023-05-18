@@ -15,6 +15,10 @@ UDMXControlConsoleFaderGroup* UDMXControlConsoleFaderGroupRow::AddFaderGroup(con
 
 	UDMXControlConsoleFaderGroup* FaderGroup = NewObject<UDMXControlConsoleFaderGroup>(this, NAME_None, RF_Transactional);
 	FaderGroups.Insert(FaderGroup, Index);
+
+	const UDMXControlConsoleData& ControlConsoleData = GetOwnerControlConsoleDataChecked();
+	ControlConsoleData.OnFaderGroupAdded.Broadcast(FaderGroup);
+
 	return FaderGroup;
 }
 
@@ -33,6 +37,10 @@ UDMXControlConsoleFaderGroup* UDMXControlConsoleFaderGroupRow::DuplicateFaderGro
 
 	UDMXControlConsoleFaderGroup* DuplicatedFaderGroup = DuplicateObject<UDMXControlConsoleFaderGroup>(FaderGroup, this);
 	FaderGroups.Insert(DuplicatedFaderGroup, Index + 1);
+
+	const UDMXControlConsoleData& ControlConsoleData = GetOwnerControlConsoleDataChecked();
+	ControlConsoleData.OnFaderGroupAdded.Broadcast(DuplicatedFaderGroup);
+
 	return DuplicatedFaderGroup;
 }
 
@@ -49,6 +57,9 @@ void UDMXControlConsoleFaderGroupRow::DeleteFaderGroup(UDMXControlConsoleFaderGr
 	}
 
 	FaderGroups.Remove(FaderGroup);
+
+	const UDMXControlConsoleData& ControlConsoleData = GetOwnerControlConsoleDataChecked();
+	ControlConsoleData.OnFaderGroupRemoved.Broadcast(FaderGroup);
 
 	// Destroy self when there's no more Faders left in the Group
 	if (FaderGroups.IsEmpty())

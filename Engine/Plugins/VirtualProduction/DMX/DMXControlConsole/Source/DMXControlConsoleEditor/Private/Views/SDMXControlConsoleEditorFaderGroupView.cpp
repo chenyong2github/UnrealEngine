@@ -3,12 +3,12 @@
 #include "SDMXControlConsoleEditorFaderGroupView.h"
 
 #include "DMXControlConsoleData.h"
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXControlConsoleFixturePatchMatrixCell.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Widgets/SDMXControlConsoleEditorAddButton.h"
 #include "Widgets/SDMXControlConsoleEditorExpandArrowButton.h"
@@ -133,8 +133,8 @@ void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs,
 			]
 		];
 
-	FDMXControlConsoleEditorManager& ControlConsoleManager = FDMXControlConsoleEditorManager::Get();
-	ControlConsoleManager.GetOnFaderGroupsViewModeChanged().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnViewModeChanged);
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	EditorConsoleModel->GetOnFaderGroupsViewModeChanged().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnViewModeChanged);
 
 	RestoreExpansionState();
 }
@@ -161,7 +161,8 @@ FString SDMXControlConsoleEditorFaderGroupView::GetFaderGroupName() const
 
 bool SDMXControlConsoleEditorFaderGroupView::CanAddFaderGroup() const
 {
-	if (const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	if (const UDMXControlConsoleData* ControlConsoleData = EditorConsoleModel->GetEditorConsoleData())
 	{
 		// True if there's no global filter
 		return ControlConsoleData->FilterString.IsEmpty();
@@ -174,7 +175,9 @@ bool SDMXControlConsoleEditorFaderGroupView::CanAddFaderGroupRow() const
 {
 	// True if this is the first fader group of the row and there's no global filter
 	bool bCanAdd = FaderGroup.IsValid() && FaderGroup->GetIndex() == 0;
-	if (const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	if (const UDMXControlConsoleData* ControlConsoleData = EditorConsoleModel->GetEditorConsoleData())
 	{
 		bCanAdd &= ControlConsoleData->FilterString.IsEmpty();
 	}
@@ -186,7 +189,9 @@ bool SDMXControlConsoleEditorFaderGroupView::CanAddFader() const
 {
 	// True if fader group has no Fixture Patch and there's no global filter
 	bool bCanAdd = FaderGroup.IsValid() && !FaderGroup->HasFixturePatch();
-	if (const UDMXControlConsoleData* ControlConsoleData = FDMXControlConsoleEditorManager::Get().GetEditorConsoleData())
+
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	if (const UDMXControlConsoleData* ControlConsoleData = EditorConsoleModel->GetEditorConsoleData())
 	{
 		bCanAdd &= ControlConsoleData->FilterString.IsEmpty();
 	}
@@ -200,7 +205,8 @@ FReply SDMXControlConsoleEditorFaderGroupView::OnMouseButtonDown(const FGeometry
 	{
 		if (FaderGroup.IsValid())
 		{
-			const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+			UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+			const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 
 			if (MouseEvent.IsLeftShiftDown())
 			{
@@ -312,7 +318,8 @@ TSharedRef<SWidget> SDMXControlConsoleEditorFaderGroupView::GenerateElementsWidg
 
 bool SDMXControlConsoleEditorFaderGroupView::IsSelected() const
 {
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	return SelectionHandler->IsSelected(FaderGroup.Get());
 }
 
@@ -538,7 +545,8 @@ FReply SDMXControlConsoleEditorFaderGroupView::OnAddFaderClicked()
 
 void SDMXControlConsoleEditorFaderGroupView::OnViewModeChanged()
 {
-	ViewMode = FDMXControlConsoleEditorManager::Get().GetFaderGroupsViewMode();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	ViewMode = EditorConsoleModel->GetFaderGroupsViewMode();
 
 	TSharedPtr<SDMXControlConsoleEditorExpandArrowButton> ExpandArrowButton = GetExpandArrowButton();
 	if (!ExpandArrowButton.IsValid())
@@ -568,7 +576,8 @@ FOptionalSize SDMXControlConsoleEditorFaderGroupView::GetFaderGroupViewHeightByF
 {
 	using namespace UE::Private::DMXControlConsoleEditorFaderGroupView;
 
-	const EDMXControlConsoleEditorViewMode FadersViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const EDMXControlConsoleEditorViewMode FadersViewMode = EditorConsoleModel->GetFadersViewMode();
 	return FadersViewMode == EDMXControlConsoleEditorViewMode::Collapsed ? CollapsedViewModeHeight : ExpandedViewModeHeight;
 }
 

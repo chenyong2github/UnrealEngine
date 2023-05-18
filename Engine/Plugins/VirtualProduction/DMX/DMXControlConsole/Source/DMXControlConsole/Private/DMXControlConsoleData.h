@@ -23,6 +23,11 @@ class DMXCONTROLCONSOLE_API UDMXControlConsoleData
 {
 	GENERATED_BODY()
 
+	// Allow the DMXControlConsoleFaderGroupRow to read Control Console Data
+	friend UDMXControlConsoleFaderGroupRow;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXControlConsoleFaderGroupDelegate, UDMXControlConsoleFaderGroup*);
+
 public:
 	/** Adds a Fader Group Row to this DMX Control Console */
 	UDMXControlConsoleFaderGroupRow* AddFaderGroupRow(const int32 RowIndex);
@@ -62,6 +67,12 @@ public:
 	/** Resets the DMX Control Console to its default */
 	void Reset();
 
+	/** Gets a reference to OnFaderGroupAdded delegate */
+	FDMXControlConsoleFaderGroupDelegate& GetOnFaderGroupAdded() { return OnFaderGroupAdded; }
+
+	/** Gets a reference to OnFaderGroupRemoved delegate */
+	FDMXControlConsoleFaderGroupDelegate& GetOnFaderGroupRemoved() { return OnFaderGroupRemoved; }
+
 #if WITH_EDITORONLY_DATA
 	/** The current editor filter string */
 	UPROPERTY()
@@ -84,6 +95,12 @@ protected:
 private:
 	/** Clears FaderGroupRows array */
 	void ClearFaderGroupRows();
+
+	/** Called when a Fader Group is added to the Control Console */
+	FDMXControlConsoleFaderGroupDelegate OnFaderGroupAdded;
+
+	/** Called when a Fader Group is removed from the Control Console */
+	FDMXControlConsoleFaderGroupDelegate OnFaderGroupRemoved;
 
 	/** Library used to generate Fader Groups */
 	UPROPERTY(EditAnywhere, Category = "DMX Control Console")

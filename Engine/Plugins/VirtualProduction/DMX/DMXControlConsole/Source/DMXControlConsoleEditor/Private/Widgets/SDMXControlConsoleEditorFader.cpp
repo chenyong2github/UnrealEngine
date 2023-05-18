@@ -2,13 +2,13 @@
 
 #include "SDMXControlConsoleEditorFader.h"
 
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFixturePatchFunctionFader.h"
 #include "DMXControlConsoleFixturePatchCellAttributeFader.h"
 #include "DMXControlConsoleRawFader.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Widgets/SDMXControlConsoleEditorSpinBoxVertical.h"
 
@@ -206,8 +206,9 @@ FReply SDMXControlConsoleEditorFader::OnMouseButtonDown(const FGeometry& MyGeome
 			return FReply::Unhandled();
 		}
 
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
-
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
+		
 		if (MouseEvent.IsLeftShiftDown())
 		{
 			SelectionHandler->Multiselect(Fader.Get());
@@ -383,7 +384,8 @@ bool SDMXControlConsoleEditorFader::IsSelected() const
 {
 	if (Fader.IsValid())
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		return SelectionHandler->IsSelected(Fader.Get());
 	}
 
@@ -500,7 +502,8 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 		return;
 	}
 
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
 	if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
 	{
@@ -577,7 +580,8 @@ FReply SDMXControlConsoleEditorFader::OnDeleteClicked()
 {
 	if (Fader.IsValid())
 	{
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
 
 		if (SelectedFadersObjects.IsEmpty() || !SelectedFadersObjects.Contains(Fader))
@@ -613,7 +617,8 @@ FReply SDMXControlConsoleEditorFader::OnLockClicked()
 		Fader->ToggleLock();
 		Fader->PostEditChange();
 
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
 		if (!SelectedFadersObjects.IsEmpty() && SelectedFadersObjects.Contains(Fader))
 		{
@@ -646,7 +651,8 @@ void SDMXControlConsoleEditorFader::OnMuteToggleChanged(ECheckBoxState CheckStat
 		Fader->ToggleMute();
 		Fader->PostEditChange();
 
-		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 		const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
 		if (!SelectedFadersObjects.IsEmpty() && SelectedFadersObjects.Contains(Fader))
 		{
@@ -685,7 +691,8 @@ FOptionalSize SDMXControlConsoleEditorFader::GetFaderHeightByViewMode() const
 {
 	using namespace UE::Private::DMXControlConsoleEditorFader;
 
-	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const EDMXControlConsoleEditorViewMode ViewMode = EditorConsoleModel->GetFadersViewMode();
 	return ViewMode == EDMXControlConsoleEditorViewMode::Collapsed ? CollapsedViewModeHeight : ExpandedViewModeHeight;
 }
 
@@ -715,7 +722,8 @@ FSlateColor SDMXControlConsoleEditorFader::GetLockButtonColor() const
 
 EVisibility SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility() const
 {
-	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const EDMXControlConsoleEditorViewMode ViewMode = EditorConsoleModel->GetFadersViewMode();
 
 	const bool bIsVisible =
 		Fader.IsValid() &&
@@ -726,7 +734,8 @@ EVisibility SDMXControlConsoleEditorFader::GetExpandedViewModeVisibility() const
 
 EVisibility SDMXControlConsoleEditorFader::GetLockButtonVisibility() const
 {
-	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const EDMXControlConsoleEditorViewMode ViewMode = EditorConsoleModel->GetFadersViewMode();
 
 	const bool bIsVisible = Fader.IsValid() && Fader->IsLocked();
 	return bIsVisible ? EVisibility::Visible : EVisibility::Collapsed;

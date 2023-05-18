@@ -2,12 +2,12 @@
 
 #include "SDMXControlConsoleEditorMatrixCell.h"
 
-#include "DMXControlConsoleEditorManager.h"
 #include "DMXControlConsoleEditorSelection.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFixturePatchCellAttributeFader.h"
 #include "DMXControlConsoleFixturePatchMatrixCell.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 #include "Style/DMXControlConsoleEditorStyle.h"
 #include "Widgets/SDMXControlConsoleEditorFader.h"
 #include "Widgets/SDMXControlConsoleEditorSpinBoxVertical.h"
@@ -250,8 +250,9 @@ bool SDMXControlConsoleEditorMatrixCell::IsAnyCellAttributeFaderSelected() const
 		return false;
 	}
 
+	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<UDMXControlConsoleFaderBase*>& Faders = MatrixCell->GetFaders();
-	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = FDMXControlConsoleEditorManager::Get().GetSelectionHandler();
 
 	auto IsCellAttributeFaderSelectedLambda = [SelectionHandler](UDMXControlConsoleFaderBase* Fader)
 		{
@@ -265,7 +266,8 @@ FOptionalSize SDMXControlConsoleEditorMatrixCell::GetMatrixCellHeightByFadersVie
 {
 	using namespace UE::Private::DMXControlConsoleEditorMatrixCell;
 
-	const EDMXControlConsoleEditorViewMode ViewMode = FDMXControlConsoleEditorManager::Get().GetFadersViewMode();
+	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
+	const EDMXControlConsoleEditorViewMode ViewMode = EditorConsoleModel->GetFadersViewMode();
 	return ViewMode == EDMXControlConsoleEditorViewMode::Collapsed ? CollapsedViewModeHeight : ExpandedViewModeHeight;
 }
 

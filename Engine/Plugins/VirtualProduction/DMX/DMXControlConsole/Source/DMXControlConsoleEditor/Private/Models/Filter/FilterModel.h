@@ -2,14 +2,16 @@
 
 #pragma once
 
+#include "EditorUndoClient.h"
 #include "GenericPlatform/GenericPlatform.h"
 #include "Misc/Optional.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtr.h"
 
+class IDMXControlConsoleFaderGroupElement;
 class UDMXControlConsoleData;
 class UDMXControlConsoleFaderGroup;
-
+class UDMXEntityFixturePatch;
 
 namespace UE::DMXControlConsoleEditor::FilterModel::Private
 { 
@@ -49,6 +51,7 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 	/** Model for control console filtering */
 	class FFilterModel
 		: public TSharedFromThis<FFilterModel>
+		, public FSelfRegisteringEditorUndoClient
 	{
 		// Allow the DMXControlConsoleFaderGroupFilterModel to read Data
 		friend FFilterModelFaderGroup;
@@ -70,6 +73,13 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		/** Delegate broadcast when the filter changed */
 		FSimpleMulticastDelegate OnFilterChanged;
 
+	protected:
+		//~ Begin FSelfRegisteringEditorUndoClient interface
+		virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
+		virtual void PostUndo(bool bSuccess) override;
+		virtual void PostRedo(bool bSuccess) override;
+		//~ End FSelfRegisteringEditorUndoClient interface
+
 	private:
 		/** Updates the name filter mode to use */
 		void UpdateNameFilterMode();
@@ -80,8 +90,20 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		/** Updates the array of fader group models */
 		void UpdateFaderGroupModels();
 
+		/** Updates DMX Control Console Data reference */
+		void UpdateControlConsoleData();
+
 		/** Applies filter */
 		void ApplyFilter();
+
+		/** Called when Control Console Data have been changed by adding/removing Fader Groups */
+		void OnEditorConsoleDataChanged(UDMXControlConsoleFaderGroup* FaderGroup);
+
+		/** Called when Fader Group has been changed by adding/removing Elements */
+		void OnFaderGroupElementsChanged(IDMXControlConsoleFaderGroupElement* Element);
+
+		/** Called when Fader Group Fixture Patch has changed */
+		void OnFaderGroupFixturePatchChanged(UDMXControlConsoleFaderGroup* FaderGroup, UDMXEntityFixturePatch* FixturePatch);
 
 		/** The global filter used in this model */
 		FGlobalFilter GlobalFilter;

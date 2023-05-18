@@ -49,12 +49,12 @@ namespace UE::DMXControlConsoleEditor::FilterModel::Private
 		/** Applies the filters */
 		void Apply(const FGlobalFilter& GlobalFilter, ENameFilterMode NameFilterMode);
 
+		/** Updates the array of fader models */
+		void UpdateFaderModels();
+
 	private:
 		/** Returns true if this group matches one of the names in the global filter */
 		bool IsMatchingGlobalFilterNames(const FGlobalFilter& GlobalFilter) const;
-
-		/** Updates the array of fader models */
-		void UpdateFaderModels();
 
 		/** The filter of this group */
 		FFaderGroupFilter FaderGroupFilter;

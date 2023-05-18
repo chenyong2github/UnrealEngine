@@ -101,6 +101,9 @@ UDMXControlConsoleFixturePatchCellAttributeFader* UDMXControlConsoleFixturePatch
 	CellAttributeFader->SetPropertiesFromFixtureCellAttribute(CellAttribute, InUniverseID, StartingChannel);
 	CellAttributeFaders.Add(CellAttributeFader);
 
+	UDMXControlConsoleFaderGroup& OwnerFaderGroup = GetOwnerFaderGroupChecked();
+	OwnerFaderGroup.OnElementAdded.Broadcast(CellAttributeFader);
+
 	return CellAttributeFader;
 }
 
@@ -117,6 +120,9 @@ void UDMXControlConsoleFixturePatchMatrixCell::DeleteCellAttributeFader(UDMXCont
 	}
 
 	CellAttributeFaders.Remove(CellAttributeFader);
+
+	UDMXControlConsoleFaderGroup& OwnerFaderGroup = GetOwnerFaderGroupChecked();
+	OwnerFaderGroup.OnElementRemoved.Broadcast(CellAttributeFader);
 }
 
 void UDMXControlConsoleFixturePatchMatrixCell::SetPropertiesFromCell(const FDMXCell& Cell, const int32 InUniverseID, const int32 StartingChannel)

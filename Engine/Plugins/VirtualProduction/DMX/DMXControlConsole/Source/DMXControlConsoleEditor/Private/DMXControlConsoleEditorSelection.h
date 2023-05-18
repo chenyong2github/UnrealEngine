@@ -16,7 +16,7 @@ class FDMXControlConsoleEditorSelection final
 public:
 	DECLARE_EVENT(FDMXControlConsoleEditorSelection, FDMXControlConsoleSelectionEvent)
 
-	FDMXControlConsoleEditorSelection(const TSharedRef<FDMXControlConsoleEditorManager>& InControlConsoleManager);
+	FDMXControlConsoleEditorSelection();
 	~FDMXControlConsoleEditorSelection();
 
 	/** Adds the given Fader Group to selection */
@@ -88,9 +88,6 @@ private:
 
 	/** Removes invisible elements from selection */
 	void RemoveInvisibleElements();
-
-	/** Weak reference to DMX DMX Control Console */
-	TWeakPtr<FDMXControlConsoleEditorManager> WeakControlConsoleManager;
 
 	/** Array of current selected Fader Groups */
 	TArray<TWeakObjectPtr<UObject>> SelectedFaderGroups;
