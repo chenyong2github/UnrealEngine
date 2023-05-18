@@ -221,3 +221,10 @@ static F##Name##NetSerializerRegistryDelegates Name##NetSerializerRegistryDelega
 	UE_NET_IMPLEMENT_NAMED_STRUCT_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_##Name, SerializerName); \
 	UE_NET_IMPLEMENT_NETSERIALIZER_REGISTRY_DELEGATES(Name)
 
+
+// Utility that can be used to forward serialization of a Struct to a last resort net serializer
+#define UE_NET_IMPLEMENT_NAMED_STRUCT_LASTRESORT_NETSERIALIZER_AND_REGISTRY_DELEGATES(Name) \
+	static const FName PropertyNetSerializerRegistry_NAME_##Name( PREPROCESSOR_TO_STRING(Name) ); \
+	UE_NET_IMPLEMENT_NAMED_STRUCT_LASTRESORT_NETSERIALIZER_INFO(PropertyNetSerializerRegistry_NAME_##Name); \
+	UE_NET_IMPLEMENT_NETSERIALIZER_REGISTRY_DELEGATES(Name)
+
