@@ -171,6 +171,7 @@ struct FNiagaraScriptExecutionContextBase
 	virtual ~FNiagaraScriptExecutionContextBase();
 
 	virtual bool Init(class FNiagaraSystemInstance* Instance, UNiagaraScript* InScript, ENiagaraSimTarget InTarget);
+	virtual void InitDITickLists(class FNiagaraSystemInstance* Instance);
 	virtual bool Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget) = 0;
 	virtual bool Execute(class FNiagaraSystemInstance* Instance, float DeltaSeconds, uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable);
 
@@ -180,6 +181,8 @@ struct FNiagaraScriptExecutionContextBase
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return Parameters.GetDataInterfaces(); }
 
 	TArrayView<const uint8> GetScriptLiterals() const;
+
+	FNDIStageTickHandler& GetNDIStageTickHander(){ return DIStageTickHandler; }
 
 	void DirtyDataInterfaces();
 	void PostTick();

@@ -501,6 +501,7 @@ FNiagaraDataChannelData::~FNiagaraDataChannelData()
 
 void FNiagaraDataChannelData::Reset()
 {
+	FScopeLock Lock(&PublishCritSec);
 	PublishRequests.Reset();
 	BuffersForGPU.Reset();
 	
@@ -562,6 +563,9 @@ void FNiagaraDataChannelData::EndFrame(UNiagaraDataChannelHandler* Owner)
 void FNiagaraDataChannelData::ConsumePublishRequests(UNiagaraDataChannelHandler* Owner)
 {
 	check(IsValid(Owner));
+
+	//There should be no access on other threads at this point anyway but lock just to be safe.
+	FScopeLock Lock(&PublishCritSec);
 
 	if(PublishRequests.Num() == 0)
 	{
@@ -676,8 +680,14 @@ void FNiagaraDataChannelData::ConsumePublishRequests(UNiagaraDataChannelHandler*
 #if !UE_BUILD_SHIPPING
 	if(Owner->GetDataChannel()->GetVerboseLogging())
 	{
-		FString Label = FString::Printf(TEXT("Data Channel %s"), *Owner->GetDataChannel()->GetName());
+		FString Label = FString::Printf(TEXT("Data Channel %s - CURR"), *Owner->GetDataChannel()->GetName());
 		CPUSimData->GetCurrentData()->Dump(0, CPUSimData->GetCurrentData()->GetNumInstances(), Label);
+
+		if(PrevCPUSimData)
+		{
+			FString LabelPrev = FString::Printf(TEXT("Data Channel %s - PREV"), *Owner->GetDataChannel()->GetName());
+			PrevCPUSimData->Dump(0, PrevCPUSimData->GetNumInstances(), LabelPrev);
+		}
 	}
 #endif
 
@@ -703,11 +713,14 @@ FNiagaraDataChannelGameData* FNiagaraDataChannelData::GetGameData()
 
 void FNiagaraDataChannelData::Publish(const FNiagaraDataChannelPublishRequest& Request)
 {
+	FScopeLock Lock(&PublishCritSec);
+
 	PublishRequests.Add(Request);
 }
 
 void FNiagaraDataChannelData::RemovePublishRequests(const FNiagaraDataSet* DataSet)
 {
+	FScopeLock Lock(&PublishCritSec);
 	//TODO: Have to ensure lifetime of anything we're holding
 	for (auto It = PublishRequests.CreateIterator(); It; ++It)
 	{

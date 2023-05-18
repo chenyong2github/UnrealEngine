@@ -895,8 +895,8 @@ void UNiagaraDataInterfaceDataChannelRead::Read(FVectorVMExternalFunctionContext
 	FNiagaraDataBuffer* Data = InstData->GetReadBufferCPU(bReadCurrentFrame == false);
 	if (Data && BindingInfo && INiagaraModule::DataChannelsEnabled())
  	{
-// 		FString Label = TEXT("NDIDataChannelRead::Read() - ");
-// 		Data->Dump(0, Data->GetNumInstances(), Label);
+ 		//FString Label = TEXT("NDIDataChannelRead::Read() - ");
+ 		//Data->Dump(0, Data->GetNumInstances(), Label);
 
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
@@ -904,28 +904,28 @@ void UNiagaraDataInterfaceDataChannelRead::Read(FVectorVMExternalFunctionContext
 
 			bool bProcess = (uint32)Index < Data->GetNumInstances();
 
-			auto FloatFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, float* FloatData)
+			auto FloatFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, VectorVM::FExternalFuncRegisterHandler<float>& FloatData)
 			{
 				if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
 				{
 					float* Src = Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)Index);
-					*FloatData = *Src;
+					*FloatData.GetDestAndAdvance() = *Src;
 				}
 			};
-			auto IntFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, int32* IntData)
+			auto IntFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, VectorVM::FExternalFuncRegisterHandler<int32>& IntData)
 			{
 				if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
 				{
 					int32* Src = Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)Index);
-					*IntData = *Src;
+					*IntData.GetDestAndAdvance() = *Src;
 				}
 			};
-			auto HalfFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FFloat16* HalfData)
+			auto HalfFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, VectorVM::FExternalFuncRegisterHandler<FFloat16>& HalfData)
 			{
 				if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-					*HalfData = *Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)Index);
+					*HalfData.GetDestAndAdvance() = *Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)Index);
 			};
-			bool bSuccess = VariadicOutputs.Process(bProcess, BindingInfo, FloatFunc, IntFunc, HalfFunc);
+			bool bSuccess = VariadicOutputs.Process(bProcess, 1, BindingInfo, FloatFunc, IntFunc, HalfFunc);
 
 			if (OutSuccess.IsValid())
 			{
@@ -976,22 +976,22 @@ void UNiagaraDataInterfaceDataChannelRead::Consume(FVectorVMExternalFunctionCont
 
 				bConsume &= (uint32)Index < Data->GetNumInstances();
 
-				auto FloatFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, float* FloatData)
+				auto FloatFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, VectorVM::FExternalFuncRegisterHandler<float>& FloatData)
 				{
 					if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-						*FloatData = *Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)Index);
+						*FloatData.GetDestAndAdvance() = *Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)Index);
 				};
-				auto IntFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, int32* IntData)
+				auto IntFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, VectorVM::FExternalFuncRegisterHandler<int32>& IntData)
 				{
 					if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-						*IntData = *Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)Index);
+						*IntData.GetDestAndAdvance() = *Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)Index);
 				};
-				auto HalfFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FFloat16* HalfData)
+				auto HalfFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, VectorVM::FExternalFuncRegisterHandler<FFloat16>& HalfData)
 				{
 					if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-						*HalfData = *Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)Index);
+						*HalfData.GetDestAndAdvance() = *Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)Index);
 				};
-				bSuccess = VariadicOutputs.Process(bConsume, BindingInfo, FloatFunc, IntFunc, HalfFunc);
+				bSuccess = VariadicOutputs.Process(bConsume, 1, BindingInfo, FloatFunc, IntFunc, HalfFunc);
 			}
 			else
 			{
@@ -1120,22 +1120,22 @@ void UNiagaraDataInterfaceDataChannelRead::SpawnConditional(FVectorVMExternalFun
 		for (int32 DataChannelIdx = 0; DataChannelIdx < NumDataChannelInstances; ++DataChannelIdx)
 		{
 			bool bConditionsPass = true;
-			auto FloatFunc = [&bConditionsPass, Op, Data, DataChannelIdx](const FNDIDataChannelRegisterBinding& VMBinding, float FloatData)
+			auto FloatFunc = [&bConditionsPass, Op, Data, DataChannelIdx](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<float>& FloatData)
 			{
 				if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-					bConditionsPass &= EvalConditional(Op, FloatData, *Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)DataChannelIdx));
+					bConditionsPass &= EvalConditional(Op, FloatData.GetAndAdvance(), *Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)DataChannelIdx));
 			};
-			auto IntFunc = [&bConditionsPass, Op, Data, DataChannelIdx](const FNDIDataChannelRegisterBinding& VMBinding, int32 IntData)
+			auto IntFunc = [&bConditionsPass, Op, Data, DataChannelIdx](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<int32>& IntData)
 			{
 				if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-					bConditionsPass &= EvalConditional(Op, IntData, *Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)DataChannelIdx));
+					bConditionsPass &= EvalConditional(Op, IntData.GetAndAdvance(), *Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)DataChannelIdx));
 			};
-			auto HalfFunc = [&bConditionsPass, Op, Data, DataChannelIdx](const FNDIDataChannelRegisterBinding& VMBinding, FFloat16 HalfData)
+			auto HalfFunc = [&bConditionsPass, Op, Data, DataChannelIdx](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<FFloat16>& HalfData)
 			{
 				if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-					bConditionsPass &= EvalConditional(Op, HalfData, *Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)DataChannelIdx));
+					bConditionsPass &= EvalConditional(Op, HalfData.GetAndAdvance(), *Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)DataChannelIdx));
 			};
-			VariadicInputs.Process(true, BindingInfo, FloatFunc, IntFunc, HalfFunc);
+			VariadicInputs.Process(true, 1, BindingInfo, FloatFunc, IntFunc, HalfFunc);
 			VariadicInputs.Reset();
 
 			if (bConditionsPass)

@@ -244,15 +244,15 @@ struct FNDIVariadicInputHandler
 		for (FNDIInputParam<FFloat16>& Input : HalfInputs) { Input.Reset(); }
 	}
 
-	void Advance()
+	void Advance(int32 Count = 1)
 	{
-		for (FNDIInputParam<float>& Input : FloatInputs) { Input.Advance(); }
-		for (FNDIInputParam<int32>& Input : IntInputs) { Input.Advance(); }
-		for (FNDIInputParam<FFloat16>& Input : HalfInputs) { Input.Advance(); }
+		for (FNDIInputParam<float>& Input : FloatInputs) { Input.Advance(Count); }
+		for (FNDIInputParam<int32>& Input : IntInputs) { Input.Advance(Count); }
+		for (FNDIInputParam<FFloat16>& Input : HalfInputs) { Input.Advance(Count); }
 	}
 
 	template<typename TFloatAction, typename TIntAction, typename THalfAction>
-	bool Process(bool bProcess, const FNDIDataChannel_FunctionToDataSetBinding* BindingInfo, TFloatAction FloatFunc, TIntAction IntFunc, THalfAction HalfFunc)
+	bool Process(bool bProcess, int32 Count, const FNDIDataChannel_FunctionToDataSetBinding* BindingInfo, TFloatAction FloatFunc, TIntAction IntFunc, THalfAction HalfFunc)
 	{
 		if (BindingInfo && bProcess)
 		{
@@ -261,17 +261,17 @@ struct FNDIVariadicInputHandler
 			{
 				switch(VMBinding.DataType)
 				{
-					case (int32)ENiagaraBaseTypes::Float: FloatFunc(VMBinding, FloatInputs[VMBinding.FunctionRegisterIndex].GetAndAdvance()); break;
-					case (int32)ENiagaraBaseTypes::Int32: IntFunc(VMBinding, IntInputs[VMBinding.FunctionRegisterIndex].GetAndAdvance()); break;
-					case (int32)ENiagaraBaseTypes::Bool: IntFunc(VMBinding, IntInputs[VMBinding.FunctionRegisterIndex].GetAndAdvance()); break;
-					case (int32)ENiagaraBaseTypes::Half: HalfFunc(VMBinding, HalfInputs[VMBinding.FunctionRegisterIndex].GetAndAdvance()); break;
+					case (int32)ENiagaraBaseTypes::Float: FloatFunc(VMBinding, FloatInputs[VMBinding.FunctionRegisterIndex]); break;
+					case (int32)ENiagaraBaseTypes::Int32: IntFunc(VMBinding, IntInputs[VMBinding.FunctionRegisterIndex]); break;
+					case (int32)ENiagaraBaseTypes::Bool: IntFunc(VMBinding, IntInputs[VMBinding.FunctionRegisterIndex]); break;
+					case (int32)ENiagaraBaseTypes::Half: HalfFunc(VMBinding, HalfInputs[VMBinding.FunctionRegisterIndex]); break;
 					default: check(0);
 				};
 			}
 			return true;
 		}
 		
-		Advance();
+		Advance(Count);
 		return false;
 	}
 };
@@ -307,7 +307,7 @@ struct FNDIVariadicOutputHandler
 	}
 
 	template<typename TFloatAction, typename TIntAction, typename THalfAction>
-	bool Process(bool bProcess, const FNDIDataChannel_FunctionToDataSetBinding* BindingInfo, TFloatAction FloatFunc, TIntAction IntFunc, THalfAction HalfFunc)
+	bool Process(bool bProcess, int32 Count, const FNDIDataChannel_FunctionToDataSetBinding* BindingInfo, TFloatAction FloatFunc, TIntAction IntFunc, THalfAction HalfFunc)
 	{
 		if (BindingInfo && bProcess)
 		{
@@ -316,17 +316,17 @@ struct FNDIVariadicOutputHandler
 			{
 				switch (VMBinding.DataType)
 				{
-				case (int32)ENiagaraBaseTypes::Float: FloatFunc(VMBinding, FloatOutputs[VMBinding.FunctionRegisterIndex].GetDestAndAdvance()); break;
-				case (int32)ENiagaraBaseTypes::Int32: IntFunc(VMBinding, IntOutputs[VMBinding.FunctionRegisterIndex].GetDestAndAdvance()); break;
-				case (int32)ENiagaraBaseTypes::Bool: IntFunc(VMBinding, IntOutputs[VMBinding.FunctionRegisterIndex].GetDestAndAdvance()); break;
-				case (int32)ENiagaraBaseTypes::Half: HalfFunc(VMBinding, HalfOutputs[VMBinding.FunctionRegisterIndex].GetDestAndAdvance()); break;
+				case (int32)ENiagaraBaseTypes::Float: FloatFunc(VMBinding, FloatOutputs[VMBinding.FunctionRegisterIndex]); break;
+				case (int32)ENiagaraBaseTypes::Int32: IntFunc(VMBinding, IntOutputs[VMBinding.FunctionRegisterIndex]); break;
+				case (int32)ENiagaraBaseTypes::Bool: IntFunc(VMBinding, IntOutputs[VMBinding.FunctionRegisterIndex]); break;
+				case (int32)ENiagaraBaseTypes::Half: HalfFunc(VMBinding, HalfOutputs[VMBinding.FunctionRegisterIndex]); break;
 				default: check(0);
 				};
 			}
 			return true;
 		}
 
-		Fallback(1);
+		Fallback(Count);
 
 		return false;
 	}

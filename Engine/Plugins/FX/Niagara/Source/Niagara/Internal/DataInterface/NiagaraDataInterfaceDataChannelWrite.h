@@ -104,9 +104,12 @@ public:
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual int32 PerInstanceDataSize() const override;
 	virtual bool HasPreSimulateTick() const override { return true; }
-	virtual bool HasPostSimulateTick() const override { return true; }
+	virtual bool HasPreStageTick(ENiagaraScriptUsage Usage) const override { return true; }
+	virtual bool HasPostStageTick(ENiagaraScriptUsage Usage) const override { return true; }
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	virtual void PreStageTick(FNDICpuPreStageContext& Context) override;
+	virtual void PostStageTick(FNDICpuPostStageContext& Context) override;
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	//We cannot overlapt frames as we must correctly sync up with the data channel manager on Begin/End frame etc.

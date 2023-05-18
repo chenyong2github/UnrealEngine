@@ -24,6 +24,8 @@ void FNDIStageTickHandler::Init(UNiagaraScript* Script, FNiagaraSystemInstance* 
 	check(Script);
 	check(Instance);
 	Usage = Script->GetUsage();
+	PreStageTickList.Empty();
+	PostStageTickList.Empty();
 	for (auto& ResolvedDIInfo : Script->GetResolvedDataInterfaces())
 	{
 		if (ResolvedDIInfo.ResolvedDataInterface)

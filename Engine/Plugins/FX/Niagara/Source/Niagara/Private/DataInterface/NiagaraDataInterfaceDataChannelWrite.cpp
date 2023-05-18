@@ -28,6 +28,8 @@ DECLARE_CYCLE_STAT(TEXT("NDIDataChannelWrite Write"), STAT_NDIDataChannelWrite_W
 DECLARE_CYCLE_STAT(TEXT("NDIDataChannelWrite Append"), STAT_NDIDataChannelWrite_Append, STATGROUP_NiagaraDataChannels);
 DECLARE_CYCLE_STAT(TEXT("NDIDataChannelWrite Tick"), STAT_NDIDataChannelWrite_Tick, STATGROUP_NiagaraDataChannels);
 DECLARE_CYCLE_STAT(TEXT("NDIDataChannelWrite PostTick"), STAT_NDIDataChannelWrite_PostTick, STATGROUP_NiagaraDataChannels);
+DECLARE_CYCLE_STAT(TEXT("NDIDataChannelWrite PreStageTick"), STAT_NDIDataChannelWrite_PreStageTick, STATGROUP_NiagaraDataChannels);
+DECLARE_CYCLE_STAT(TEXT("NDIDataChannelWrite PostStageTick"), STAT_NDIDataChannelWrite_PostStageTick, STATGROUP_NiagaraDataChannels);
 
 int32 GbDebugDumpWriter = 0;
 static FAutoConsoleVariableRef CVarDebugDumpWriterDI(
@@ -116,6 +118,9 @@ struct FNDIDataChannelWriteInstanceData
 
 	TArray<FNDIDataChannel_FuncToDataSetBindingPtr, TInlineAllocator<8>> FunctionToDatSetBindingInfo;
 
+	//Atomic uint for tracking num instances of the target data buffer when writing from multiple threads in the VM.
+	std::atomic<uint32> AtomicNumInstances;
+
 	~FNDIDataChannelWriteInstanceData()
 	{
 		if (Data && DataChannelData.IsValid())
@@ -202,13 +207,46 @@ struct FNDIDataChannelWriteInstanceData
 					}
 				}
 			}
+
+			if (DataChannelPtr)
+			{
+				if (DataChannelData == nullptr || Interface->bUpdateDestinationDataEveryTick)
+				{
+					FNiagaraDataChannelSearchParameters SearchParams;
+					SearchParams.OwningComponent = Instance->GetAttachComponent();
+					DataChannelData = DataChannelPtr->FindData(SearchParams, ENiagaraResourceAccess::WriteOnly);
+				}
+			}
+		}		
+
+		//Verify our function info.
+		if(!ensure(Interface->GetCompiledData().GetFunctionInfo().Num() == FunctionToDatSetBindingInfo.Num()))
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Invalid Bindings for Niagara Data Interface Data Channel Write: %s"), *Interface->Channel.GetName());
+			return false;			
 		}
 
-		if(FNiagaraDataBuffer* CurrBuff = Data->GetCurrentData())
-		{	
+		for(const auto& Binding : FunctionToDatSetBindingInfo)
+		{
+			if(Binding.IsValid() == false)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Invalid Bindings for Niagara Data Interface Data Channel Write: %s"), *Interface->Channel.GetName());
+				return false;			
+			}
+		}
+
+		return true;
+	}
+
+	void PreStageTick(UNiagaraDataInterfaceDataChannelWrite* Interface, FNiagaraSystemInstance* Instance)
+	{
+		if (FNiagaraDataBuffer* CurrBuff = Data->GetCurrentData())
+		{
 			FNiagaraDataBuffer& DestBuff = Data->BeginSimulate(true);
 		}
 
+		//TODO: Currently allocating for every stage using this DI whether it's a write or not. We should limit this to write functions.
+		AtomicNumInstances = 0;
 		if (Interface->AllocationMode == ENiagaraDataChannelAllocationMode::Static)
 		{
 			Data->GetDestinationData()->Allocate(Interface->AllocationCount);
@@ -225,30 +263,14 @@ struct FNDIDataChannelWriteInstanceData
 		{
 			check(0);
 		}
-
-		//Verify our function info.
-		if(!ensure(Interface->GetCompiledData().GetFunctionInfo().Num() == FunctionToDatSetBindingInfo.Num()))
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Invalid Bindings for Niagara Data Interface Data Channel Write: %s"), *Interface->Channel.GetName());
-			return false;			
-		}
-
-		for(auto& Binding : FunctionToDatSetBindingInfo)
-		{
-			if(Binding.IsValid() == false)
-			{
-				UE_LOG(LogNiagara, Warning, TEXT("Invalid Bindings for Niagara Data Interface Data Channel Write: %s"), *Interface->Channel.GetName());
-				return false;			
-			}
-		}
-
-		return true;
 	}
 
-	bool PostTick(UNiagaraDataInterfaceDataChannelWrite* Interface, FNiagaraSystemInstance* Instance)
+	void PostStageTick(UNiagaraDataInterfaceDataChannelWrite* Interface, FNiagaraSystemInstance* Instance)
 	{
 		if (Data && Data->GetDestinationData())
 		{
+			//TOOD: Move allocation/end to pre/post stage?
+			Data->GetDestinationData()->SetNumInstances(AtomicNumInstances.load(std::memory_order_seq_cst));
 			Data->EndSimulate();
 
 			if (GbDebugDumpWriter)
@@ -257,28 +279,17 @@ struct FNDIDataChannelWriteInstanceData
 				Buffer.Dump(0, Buffer.GetNumInstances(), FString::Printf(TEXT("=== Data Channle Write: %d Elements --> %s ==="), Buffer.GetNumInstances(), *Interface->Channel.GetName()));
 			}
 
-			if (Interface->ShouldPublish() && Data->GetCurrentData()->GetNumInstances() > 0)
+			if (DataChannelData && Interface->ShouldPublish() && Data->GetCurrentData()->GetNumInstances() > 0)
 			{
-				if (UNiagaraDataChannelHandler* Channel = DataChannel.Get())
-				{
-					if(DataChannelData == nullptr || Interface->bUpdateDestinationDataEveryTick)
-					{
-						FNiagaraDataChannelSearchParameters SearchParams;
-						SearchParams.OwningComponent = Instance->GetAttachComponent();
-						DataChannelData = Channel->FindData(SearchParams, ENiagaraResourceAccess::WriteOnly);
-					}
-
-					FNiagaraDataChannelPublishRequest PublishRequest(Data->GetCurrentData());
-					PublishRequest.bVisibleToGame = Interface->bPublishToGame;
-					PublishRequest.bVisibleToCPUSims = Interface->bPublishToCPU;
-					PublishRequest.bVisibleToGPUSims = Interface->bPublishToGPU;
-					PublishRequest.Data = Data->GetCurrentData();
-					PublishRequest.LwcTile = Instance->GetLWCTile();
-					DataChannelData->Publish(PublishRequest);
-				}
+				FNiagaraDataChannelPublishRequest PublishRequest(Data->GetCurrentData());
+				PublishRequest.bVisibleToGame = Interface->bPublishToGame;
+				PublishRequest.bVisibleToCPUSims = Interface->bPublishToCPU;
+				PublishRequest.bVisibleToGPUSims = Interface->bPublishToGPU;
+				PublishRequest.Data = Data->GetCurrentData();
+				PublishRequest.LwcTile = Instance->GetLWCTile();
+				DataChannelData->Publish(PublishRequest);
 			}
 		}
-		return true;
 	}
 };
 
@@ -364,24 +375,43 @@ bool UNiagaraDataInterfaceDataChannelWrite::PerInstanceTick(void* PerInstanceDat
 
 bool UNiagaraDataInterfaceDataChannelWrite::PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
 {
+ 	return false;
+}
+
+void UNiagaraDataInterfaceDataChannelWrite::PreStageTick(FNDICpuPostStageContext& Context)
+{
 	if (INiagaraModule::DataChannelsEnabled() == false)
 	{
-		return true;
+		return;
 	}
 
-	SCOPE_CYCLE_COUNTER(STAT_NDIDataChannelWrite_PostTick);
-	check(SystemInstance);
-	FNDIDataChannelWriteInstanceData* InstanceData = static_cast<FNDIDataChannelWriteInstanceData*>(PerInstanceData);
+	SCOPE_CYCLE_COUNTER(STAT_NDIDataChannelWrite_PreStageTick);
+	check(Context.SystemInstance);
+	FNDIDataChannelWriteInstanceData* InstanceData = static_cast<FNDIDataChannelWriteInstanceData*>(Context.PerInstanceData);
 	if (!InstanceData)
 	{
-		return true;
+		return;
 	}
 
-	if (InstanceData->PostTick(this, SystemInstance) == false)
+	InstanceData->PreStageTick(this, Context.SystemInstance);
+}
+
+void UNiagaraDataInterfaceDataChannelWrite::PostStageTick(FNDICpuPostStageContext& Context)
+{
+	if (INiagaraModule::DataChannelsEnabled() == false)
 	{
-		return true;
+		return;
 	}
-	return false;
+
+	SCOPE_CYCLE_COUNTER(STAT_NDIDataChannelWrite_PostStageTick);
+	check(Context.PerInstanceData);
+	FNDIDataChannelWriteInstanceData* InstanceData = static_cast<FNDIDataChannelWriteInstanceData*>(Context.PerInstanceData);
+	if (!Context.SystemInstance)
+	{
+		return;
+	}
+	
+	InstanceData->PostStageTick(this, Context.SystemInstance);
 }
 
 void UNiagaraDataInterfaceDataChannelWrite::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
@@ -654,53 +684,71 @@ void UNiagaraDataInterfaceDataChannelWrite::Write(FVectorVMExternalFunctionConte
 {
 	SCOPE_CYCLE_COUNTER(STAT_NDIDataChannelWrite_Write);
 	VectorVM::FUserPtrHandler<FNDIDataChannelWriteInstanceData> InstData(Context);
-	FNDIInputParam<bool> InEmit(Context);
+	FNDIInputParam<FNiagaraBool> InEmit(Context);
 	FNDIInputParam<int32> InIndex(Context);
 
 	const FNDIDataChannelFunctionInfo& FuncInfo = CompiledData.GetFunctionInfo()[FuncIdx];
 	const FNDIDataChannel_FunctionToDataSetBinding* BindingInfo = InstData->FunctionToDatSetBindingInfo.IsValidIndex(FuncIdx) ? InstData->FunctionToDatSetBindingInfo[FuncIdx].Get() : nullptr;
 	FNDIVariadicInputHandler<16> VariadicInputs(Context, BindingInfo);//TODO: Make static / avoid allocation
 
-	FNDIOutputParam<bool> OutSuccess(Context);
+	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
 
+	std::atomic<uint32>& AtomicNumInstances = InstData->AtomicNumInstances;
+
+	bool bAllFailedFallback = true;
 	if (InstData->Data && BindingInfo && INiagaraModule::DataChannelsEnabled())
 	{
-		FNiagaraDataBuffer* Data = InstData->Data->GetDestinationData();
-
-		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
-		{
-			int32 Index = InIndex.GetAndAdvance();
-			bool bEmit = InEmit.GetAndAdvance();
-			bEmit &= (uint32)Index < Data->GetNumInstances();
-
-			bool bSuccess = false;
-
-			//TODO: Optimize case where emit is constant
-			//TODO: Optimize for runs of sequential true emits.
-			auto FloatFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, float FloatData)
+		if(FNiagaraDataBuffer* Data = InstData->Data->GetDestinationData())
+		{			
+			bAllFailedFallback = false;
+			uint32 MaxLocalIndex = 0;
+			int32 NumAllocated = (int32)Data->GetNumInstancesAllocated();
+			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 			{
-				if(VMBinding.DataSetRegisterIndex != INDEX_NONE)
-					*Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)Index) = FloatData; 
-			};
-			auto IntFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, int32 IntData)
-			{
-				if(VMBinding.DataSetRegisterIndex != INDEX_NONE)
-					*Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)Index) = IntData; 
-			};
-			auto HalfFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FFloat16 HalfData)
-			{
-				if(VMBinding.DataSetRegisterIndex != INDEX_NONE)
-					*Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)Index) = HalfData; 
-			};
-			bSuccess = VariadicInputs.Process(bEmit, BindingInfo, FloatFunc, IntFunc, HalfFunc);
+				int32 Index = InIndex.GetAndAdvance();
+				bool bEmit = InEmit.GetAndAdvance() && Index >= 0 && Index < NumAllocated;
 
-			if (OutSuccess.IsValid())
+				MaxLocalIndex = bEmit ? FMath::Max((uint32)Index, MaxLocalIndex) : MaxLocalIndex;
+
+				bool bSuccess = false;
+
+				//TODO: Optimize case where emit is constant
+				//TODO: Optimize for runs of sequential true emits.
+				auto FloatFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<float>& FloatData)
+				{
+					if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
+						*Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)Index) = FloatData.GetAndAdvance();
+				};
+				auto IntFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<int32>& IntData)
+				{
+					if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
+						*Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)Index) = IntData.GetAndAdvance();
+				};
+				auto HalfFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<FFloat16>& HalfData)
+				{
+					if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
+						*Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)Index) = HalfData.GetAndAdvance();
+				};
+
+				bSuccess = VariadicInputs.Process(bEmit, 1, BindingInfo, FloatFunc, IntFunc, HalfFunc);
+
+				if (OutSuccess.IsValid())
+				{
+					OutSuccess.SetAndAdvance(bSuccess);
+				}
+			}
+
+			//Update the shared instance count with an updated max.
+			bool bAtomicNumInstancesWritten = false;
+			uint32 CurrNumInstances = AtomicNumInstances;
+			while(CurrNumInstances < MaxLocalIndex && !AtomicNumInstances.compare_exchange_weak(CurrNumInstances, MaxLocalIndex))
 			{
-				OutSuccess.SetAndAdvance(bSuccess);
+				CurrNumInstances = AtomicNumInstances;
 			}
 		}
 	}
-	else
+
+	if (bAllFailedFallback)
 	{
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
@@ -716,61 +764,161 @@ void UNiagaraDataInterfaceDataChannelWrite::Append(FVectorVMExternalFunctionCont
 {
 	SCOPE_CYCLE_COUNTER(STAT_NDIDataChannelWrite_Append);
 	VectorVM::FUserPtrHandler<FNDIDataChannelWriteInstanceData> InstData(Context);
-	FNDIInputParam<bool> InEmit(Context);
+	FNDIInputParam<FNiagaraBool> InEmit(Context);
 
 	const FNDIDataChannelFunctionInfo& FuncInfo = CompiledData.GetFunctionInfo()[FuncIdx];
 	const FNDIDataChannel_FunctionToDataSetBinding* BindingInfo = InstData->FunctionToDatSetBindingInfo.IsValidIndex(FuncIdx) ? InstData->FunctionToDatSetBindingInfo[FuncIdx].Get() : nullptr;
 	FNDIVariadicInputHandler<16> VariadicInputs(Context, BindingInfo);//TODO: Make static / avoid allocation
 
-	FNDIOutputParam<bool> OutSuccess(Context);
+	FNDIOutputParam<FNiagaraBool> OutSuccess(Context);
 
+	std::atomic<uint32>& AtomicNumInstances = InstData->AtomicNumInstances;
+
+	bool bAllFailedFallback = true;
 	if (InstData->Data && BindingInfo &&  INiagaraModule::DataChannelsEnabled())
 	{
-		FNiagaraDataBuffer* Data = InstData->Data->GetDestinationData();
-		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+		if(FNiagaraDataBuffer* Data = InstData->Data->GetDestinationData())
 		{
-			bool bEmit = InEmit.GetAndAdvance();
-
-			bool bSuccess = false;
-
-			//TODO: Optimize case where emit is constant
-			//TODO: Optimize for runs of sequential true emits.
-			if (bEmit && Data)
+			//Get the total number to emit.
+			//Allows going via a faster write path if we're emiting every instance.
+			//Aslo needed to update the atomic num instances and get our start index for writing.
+			uint32 LocalNumToEmit = 0;
+			if(InEmit.IsConstant())
 			{
-				int32 Num = Data->GetNumInstances();
-				bEmit &= (int32)Data->GetNumInstancesAllocated() > Num;
-
-				if (bEmit)
-				{
-					Data->SetNumInstances(Num + 1);
-				}
-
-				int32 Index = Num;
-				auto FloatFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, float FloatData)
-				{
-					if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-						*Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)Index) = FloatData;
-				};
-				auto IntFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, int32 IntData)
-				{
-					if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-						*Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)Index) = IntData;
-				};
-				auto HalfFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FFloat16 HalfData)
-				{
-					if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
-						*Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)Index) = HalfData;
-				};
-				bSuccess = VariadicInputs.Process(bEmit, BindingInfo, FloatFunc, IntFunc, HalfFunc);
+				bool bEmit = InEmit.GetAndAdvance();
+				LocalNumToEmit = bEmit ? Context.GetNumInstances() : 0;
 			}
-
-			if (OutSuccess.IsValid())
+			else
 			{
-				OutSuccess.SetAndAdvance(bSuccess);
+				for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+				{
+					if (InEmit.GetAndAdvance())
+					{
+						++LocalNumToEmit;
+					}
+				}
+			}			
+
+			if (LocalNumToEmit > 0)
+			{
+				int32 NumAllocated = Data->GetNumInstancesAllocated();
+				InEmit.Reset();
+
+				//Update the shared atomic instance count and grab the current index at which we can write.
+				uint32 CurrNumInstances = AtomicNumInstances.fetch_add(LocalNumToEmit);
+
+				bAllFailedFallback = false;
+
+				bool bEmitAll = LocalNumToEmit == Context.GetNumInstances();
+
+				if(bEmitAll)
+				{
+					//If we're writing all instances then we can do a memcpy instead of slower loop copies.
+					bool bSuccess = false;
+					int32 Index = CurrNumInstances;
+					auto FloatFunc = [Data, Index, LocalNumToEmit](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<float>& FloatData)
+					{
+						if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
+						{
+							float* Dest = Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)Index);
+							if (FloatData.IsConstant())
+							{
+								float Value = FloatData.GetAndAdvance();
+								for(uint32 i=0; i<LocalNumToEmit; ++i){ Dest[i] = Value; }
+							}
+							else
+							{
+								 const float* Src = FloatData.Data.GetDest();
+								 FMemory::Memcpy(Dest, Src, LocalNumToEmit * sizeof(float));
+							}
+						}
+					};
+					auto IntFunc = [Data, Index, LocalNumToEmit](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<int32>& IntData)
+					{
+						if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
+						{
+							int32* Dest = Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)Index);
+							if (IntData.IsConstant())
+							{
+								int32 Value = IntData.GetAndAdvance();
+								for (uint32 i = 0; i < LocalNumToEmit; ++i) { Dest[i] = Value; }
+							}
+							else
+							{
+								const int32* Src = IntData.Data.GetDest();
+								FMemory::Memcpy(Dest, Src, LocalNumToEmit * sizeof(int32));
+							}
+						}
+					};
+					auto HalfFunc = [Data, Index, LocalNumToEmit](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<FFloat16>& HalfData)
+					{
+						if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
+						{
+							FFloat16* Dest = Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)Index);
+							if (HalfData.IsConstant())
+							{
+								FFloat16 Value = HalfData.GetAndAdvance();
+								for (uint32 i = 0; i < LocalNumToEmit; ++i) { Dest[i] = Value; }
+							}
+							else
+							{
+								const FFloat16* Src = HalfData.Data.GetDest();
+								FMemory::Memcpy(Dest, Src, LocalNumToEmit * sizeof(FFloat16));
+							}
+						}
+					};
+					bSuccess = VariadicInputs.Process(true, Context.GetNumInstances(), BindingInfo, FloatFunc, IntFunc, HalfFunc);
+
+					if (OutSuccess.IsValid())
+					{
+						for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+						{
+							OutSuccess.SetAndAdvance(bSuccess);
+						}
+					}
+				}
+				else
+				{
+					for (int32 i = 0; i < Context.GetNumInstances(); ++i)
+					{
+						bool bEmit = InEmit.GetAndAdvance();
+						bool bSuccess = false;
+
+						int32 Index = CurrNumInstances;
+
+						if(bEmit)
+						{
+							++CurrNumInstances;
+						}
+
+						auto FloatFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<float>& FloatData)
+						{
+							if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
+								*Data->GetInstancePtrFloat(VMBinding.DataSetRegisterIndex, (uint32)Index) = FloatData.GetAndAdvance();
+						};
+						auto IntFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<int32>& IntData)
+						{
+							if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
+								*Data->GetInstancePtrInt32(VMBinding.DataSetRegisterIndex, (uint32)Index) = IntData.GetAndAdvance();
+						};
+						auto HalfFunc = [Data, Index](const FNDIDataChannelRegisterBinding& VMBinding, FNDIInputParam<FFloat16>& HalfData)
+						{
+							if (VMBinding.DataSetRegisterIndex != INDEX_NONE)
+								*Data->GetInstancePtrHalf(VMBinding.DataSetRegisterIndex, (uint32)Index) = HalfData.GetAndAdvance();
+						};
+						bSuccess = VariadicInputs.Process(bEmit, 1, BindingInfo, FloatFunc, IntFunc, HalfFunc);
+
+						if (OutSuccess.IsValid())
+						{
+							OutSuccess.SetAndAdvance(bSuccess);
+						}
+					}
+				}
 			}
 		}
 	}
-	else
+
+	if(bAllFailedFallback)
 	{
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
@@ -796,7 +944,7 @@ bool UNiagaraDataInterfaceDataChannelWrite::AppendCompileHash(FNiagaraCompileHas
 // 	bSuccess &= InVisitor->UpdateShaderParameters<NDIDataChannelWriteLocal::FShaderParameters>();
 // 	return bSuccess;
 
-	return false;
+	return true;
 }
 
 void UNiagaraDataInterfaceDataChannelWrite::GetCommonHLSL(FString& OutHLSL)

@@ -247,4 +247,7 @@ private:
 	TArray<FNiagaraDataChannelPublishRequest> PublishRequests;
 
 	FVector3f LwcTile = FVector3f::ZeroVector;
+
+	/** Critical section protecting shared state for multiple writers publishing from different threads. */
+	FCriticalSection PublishCritSec;
 };

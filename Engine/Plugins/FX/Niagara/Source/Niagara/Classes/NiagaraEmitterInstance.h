@@ -48,6 +48,7 @@ public:
 	virtual ~FNiagaraEmitterInstance();
 
 	void Init(int32 InEmitterIdx, FNiagaraSystemInstanceID SystemInstanceID);
+	void InitDITickLists();
 
 	void ResetSimulation(bool bKillExisting = true);
 

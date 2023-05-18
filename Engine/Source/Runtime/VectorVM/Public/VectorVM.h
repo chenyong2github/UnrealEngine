@@ -266,7 +266,7 @@ namespace VectorVM
 
 		FORCEINLINE const T Get() { return *InputPtr; }
 		FORCEINLINE const T* GetDest() { return InputPtr; }
-		FORCEINLINE void Advance() { InputPtr += AdvanceOffset; }
+		FORCEINLINE void Advance(int32 Count=1) { InputPtr += AdvanceOffset * Count; }
 		FORCEINLINE const T GetAndAdvance()
 		{
 			const T* Ret = InputPtr;

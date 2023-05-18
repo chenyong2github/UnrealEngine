@@ -500,6 +500,32 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 	bCombineEventSpawn = GbNiagaraAllowEventSpawnCombine && (EmitterData->bCombineEventSpawn || (GbNiagaraAllowEventSpawnCombine == 2));
 }
 
+void FNiagaraEmitterInstance::InitDITickLists()
+{
+	if(IsDisabled())
+	{
+		// Make sure that our function tables need to be regenerated...
+		SpawnExecContext.GetNDIStageTickHander().Empty();
+		UpdateExecContext.GetNDIStageTickHander().Empty();
+
+		for (FNiagaraScriptExecutionContext& EventContext : GetEventExecutionContexts())
+		{
+			EventContext.GetNDIStageTickHander().Empty();
+		}
+		return;
+	}
+
+	// Make sure that our function tables need to be regenerated...
+	SpawnExecContext.InitDITickLists(ParentSystemInstance);
+	UpdateExecContext.InitDITickLists(ParentSystemInstance);
+
+	for (FNiagaraScriptExecutionContext& EventContext : GetEventExecutionContexts())
+	{
+		EventContext.InitDITickLists(ParentSystemInstance);
+	}
+}
+
+
 void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 {
 	EmitterAge = 0;

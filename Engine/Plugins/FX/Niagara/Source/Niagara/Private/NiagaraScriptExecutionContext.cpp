@@ -88,26 +88,47 @@ bool FNiagaraScriptExecutionContextBase::Init(FNiagaraSystemInstance* Instance, 
 	VectorVMState = AllocVectorVMState(&OptimizeContext);
 #endif
 
-	ENiagaraScriptUsage Usage = Script->GetUsage();
-	for(auto& ResolvedDIInfo : Script->GetResolvedDataInterfaces())
+	//If the instance is null, aka a system script, we need to pre calculate whether we'll have pre/post ticks or not.
+	if(Instance == nullptr)
 	{
-		if(ResolvedDIInfo.ResolvedDataInterface)
+		ENiagaraScriptUsage Usage = Script->GetUsage();
+		for (auto& ResolvedDIInfo : Script->GetResolvedDataInterfaces())
+		{
+			if (ResolvedDIInfo.ResolvedDataInterface)
+			{
+				bHasDIsWithPreStageTick |= (ResolvedDIInfo.ResolvedDataInterface->HasPreStageTick(Usage));
+				bHasDIsWithPostStageTick |= (ResolvedDIInfo.ResolvedDataInterface->HasPostStageTick(Usage));
+			}
+			if (bHasDIsWithPreStageTick && bHasDIsWithPostStageTick)
+			{
+				break;
+			}
+		}
+	}
+
+	return true;
+}
+
+void FNiagaraScriptExecutionContextBase::InitDITickLists(class FNiagaraSystemInstance* Instance)
+{
+	ENiagaraScriptUsage Usage = Script->GetUsage();
+	for (auto& ResolvedDIInfo : Script->GetResolvedDataInterfaces())
+	{
+		if (ResolvedDIInfo.ResolvedDataInterface)
 		{
 			bHasDIsWithPreStageTick |= (ResolvedDIInfo.ResolvedDataInterface->HasPreStageTick(Usage));
 			bHasDIsWithPostStageTick |= (ResolvedDIInfo.ResolvedDataInterface->HasPostStageTick(Usage));
 		}
-		if(bHasDIsWithPreStageTick && bHasDIsWithPostStageTick)
+		if (bHasDIsWithPreStageTick && bHasDIsWithPostStageTick)
 		{
 			break;
 		}
 	}
 
-	if(Instance && (bHasDIsWithPreStageTick || bHasDIsWithPostStageTick))
+	if (Instance && (bHasDIsWithPreStageTick || bHasDIsWithPostStageTick))
 	{
 		DIStageTickHandler.Init(Script, Instance);
 	}
-
-	return true;
 }
 
 void FNiagaraScriptExecutionContextBase::BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts)
