@@ -685,6 +685,8 @@ private:
 
 	void OnCrumbClicked( const int32& Item )
 	{
+		ClearSelection();
+		
 		const TSharedRef< FPropertyPath > RootPath = Table->GetRootPath();
 		const int32 AmountToTrimRoot = ( RootPath->GetNumProperties() - 1 ) - Item;
 
@@ -696,8 +698,6 @@ private:
 		{
 			Table->SetRootPath( RootPath->TrimPath( AmountToTrimRoot ) );
 		}
-
-		ClearSelection();
 	}
 
 	TSharedRef< SWidget > GetCrumbMenuContent( const int32& Item )
