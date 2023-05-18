@@ -45,12 +45,12 @@ void UDMXControlConsoleData::DeleteFaderGroupRow(const TObjectPtr<UDMXControlCon
 
 void UDMXControlConsoleData::GenerateFromDMXLibrary()
 {
-	if (!DMXLibrary.IsValid())
+	if (!CachedWeakDMXLibrary.IsValid())
 	{
 		return;
 	}
 
-	TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	TArray<UDMXEntityFixturePatch*> FixturePatchesInLibrary = CachedWeakDMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 
 	// Get All Fixture Patches in use in a Fader Group
 	auto FaderGroupsHasFixturePatchInUseLambda = [](const UDMXControlConsoleFaderGroup* FaderGroup)
@@ -154,6 +154,26 @@ void UDMXControlConsoleData::Reset()
 {
 	ClearFaderGroupRows();
 }
+
+void UDMXControlConsoleData::PostLoad()
+{
+	Super::PostLoad();
+
+	CachedWeakDMXLibrary = Cast<UDMXLibrary>(SoftDMXLibraryPtr.ToSoftObjectPath().TryLoad());
+}
+
+#if WITH_EDITOR
+void UDMXControlConsoleData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXControlConsoleData, SoftDMXLibraryPtr))
+	{
+		CachedWeakDMXLibrary = Cast<UDMXLibrary>(SoftDMXLibraryPtr.ToSoftObjectPath().TryLoad());
+	}
+}
+#endif // WITH_EDITOR
 
 void UDMXControlConsoleData::Tick(float InDeltaTime)
 {

@@ -45,7 +45,7 @@ public:
 	void GenerateFromDMXLibrary();
 
 	/** Gets this DMX Control Console's DMXLibrary */
-	UDMXLibrary* GetDMXLibrary() const { return DMXLibrary.Get(); }
+	UDMXLibrary* GetDMXLibrary() const { return CachedWeakDMXLibrary.Get(); }
 
 	/** Sends DMX on this DMX Control Console on tick */
 	void StartSendingDMX();
@@ -80,10 +80,17 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 	// Property Name getters
-	FORCEINLINE static FName GetDMXLibraryPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleData, DMXLibrary); }
+	FORCEINLINE static FName GetDMXLibraryPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleData, SoftDMXLibraryPtr); }
 	FORCEINLINE static FName GetFaderGroupRowsPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXControlConsoleData, FaderGroupRows); }
 
 protected:
+	//~ Begin UObject interface
+	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	//~ End UObject interface
+
 	// ~ Begin FTickableGameObject interface
 	virtual void Tick(float InDeltaTime) override;
 	virtual bool IsTickable() const override { return true; }
@@ -103,8 +110,12 @@ private:
 	FDMXControlConsoleFaderGroupDelegate OnFaderGroupRemoved;
 
 	/** Library used to generate Fader Groups */
-	UPROPERTY(EditAnywhere, Category = "DMX Control Console")
-	TWeakObjectPtr<UDMXLibrary> DMXLibrary;
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "DMX Library", ShowDisplayNames), Category = "DMX Control Console")
+	TSoftObjectPtr<UDMXLibrary> SoftDMXLibraryPtr;
+
+	/** Cached DMX Library for faster access */
+	UPROPERTY()
+	TWeakObjectPtr<UDMXLibrary> CachedWeakDMXLibrary;
 
 	/** DMX Control Console's Fader Group Rows array */
 	UPROPERTY(VisibleAnywhere, Category = "DMX Control Console")

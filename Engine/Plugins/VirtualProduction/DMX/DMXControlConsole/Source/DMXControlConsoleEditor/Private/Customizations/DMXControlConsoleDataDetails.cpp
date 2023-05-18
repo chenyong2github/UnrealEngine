@@ -3,6 +3,7 @@
 #include "DMXControlConsoleDataDetails.h"
 
 #include "DMXControlConsoleData.h"
+#include "Models/DMXControlConsoleEditorModel.h"
 
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -21,8 +22,6 @@ void FDMXControlConsoleDataDetails::CustomizeDetails(IDetailLayoutBuilder& InDet
 	InDetailLayout.HideProperty(FaderGroupRowsHandle);
 	
 	const TSharedPtr<IPropertyHandle> DMXLibraryHandle = InDetailLayout.GetProperty(UDMXControlConsoleData::GetDMXLibraryPropertyName());
-	InDetailLayout.HideProperty(DMXLibraryHandle);
-	ControlConsoleCategory.AddProperty(DMXLibraryHandle);
 	DMXLibraryHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::ForceRefresh));
 	DMXLibraryHandle->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXControlConsoleDataDetails::ForceRefresh));
 }
