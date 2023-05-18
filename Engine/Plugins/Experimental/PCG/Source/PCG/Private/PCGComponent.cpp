@@ -749,7 +749,7 @@ void UPCGComponent::CleanupLocalImmediate(bool bRemoveComponents)
 
 FPCGTaskId UPCGComponent::CreateCleanupTask(bool bRemoveComponents, const TArray<FPCGTaskId>& Dependencies)
 {
-	if ((!bGenerated && !IsGenerating()) || IsPartitioned() || IsCleaningUp())
+	if ((!bGenerated && GeneratedResources.IsEmpty() && !IsGenerating()) || IsPartitioned() || IsCleaningUp())
 	{
 		return InvalidPCGTaskId;
 	}
