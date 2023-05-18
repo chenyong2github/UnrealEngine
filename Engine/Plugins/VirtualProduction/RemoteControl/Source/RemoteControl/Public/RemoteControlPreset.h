@@ -744,6 +744,9 @@ private:
 	//~ Frame events handlers.
 	void OnBeginFrame();
 	void OnEndFrame();
+
+	/** Handles dynamic level change. */
+	void OnMapLoadFinished(UWorld* LoadedWorld);
 	
 	/** Get a field ptr using it's id. */
 	FRemoteControlField* GetFieldPtr(FGuid FieldId);

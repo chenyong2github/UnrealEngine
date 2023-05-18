@@ -2090,6 +2090,8 @@ void URemoteControlPreset::RegisterDelegates()
 
 	FCoreUObjectDelegates::OnPackageReloaded.AddUObject(this, &URemoteControlPreset::OnPackageReloaded);
 #endif
+	
+	FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &URemoteControlPreset::OnMapLoadFinished);
 
 	FCoreDelegates::OnBeginFrame.AddUObject(this, &URemoteControlPreset::OnBeginFrame);
 	FCoreDelegates::OnEndFrame.AddUObject(this, &URemoteControlPreset::OnEndFrame);
@@ -2099,6 +2101,8 @@ void URemoteControlPreset::UnregisterDelegates()
 {
 	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 	FCoreDelegates::OnEndFrame.RemoveAll(this);
+
+	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 
 #if WITH_EDITOR
 	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
@@ -2319,6 +2323,15 @@ void URemoteControlPreset::CleanUpBindings()
 	PerFrameBindingsToClean.Reset();
 }
 #endif
+
+void URemoteControlPreset::OnMapLoadFinished(UWorld* LoadedWorld)
+{
+	if (Registry)
+	{
+		Algo::Transform(Registry->GetExposedEntities(), PerFrameUpdatedEntities, [](const TSharedPtr<FRemoteControlEntity>& Entity) { return Entity->GetId(); });
+		Algo::Transform(Registry->GetExposedEntities<FRemoteControlProperty>(), PerFrameModifiedProperties, [](const TSharedPtr<FRemoteControlProperty>& RCProp) { return RCProp->GetId(); });
+	}
+}
 
 void URemoteControlPreset::OnBeginFrame()
 {

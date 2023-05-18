@@ -227,11 +227,13 @@ public:
 	UClass* GetSupportedOwnerClass() const;
 
 	/** Get the current world associated with the preset or the editor world as a fallback. */
-	UWorld* GetCurrentWorld() const;
+	UWorld* GetCurrentWorld(bool bAllowPIE = false) const;
 
 private:
-	TSoftObjectPtr<UObject> ResolveForCurrentWorld() const;
+	/** Attempt resolving the binding for the current world. */
+	TSoftObjectPtr<UObject> ResolveForCurrentWorld(bool bAllowPIE = false) const;
 
+	/** Update this binding's context with the object passed as argument. */
 	void UpdateBindingContext(UObject* InObject) const;
 
 
