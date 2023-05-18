@@ -19,6 +19,7 @@
 #include "MediaShaders.h"
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"
+#include "OpenColorIODisplayExtension.h"
 #include "RendererInterface.h"
 #include "RenderGraphResources.h"
 #include "RenderGraphUtils.h"
@@ -290,7 +291,9 @@ bool UMediaCapture::StartSourceCapture(TSharedPtr<UE::MediaCapture::Private::FCa
 		
 		if (DesiredCaptureOptions.CapturePhase != EMediaCapturePhase::EndFrame)
 		{
-			ViewExtension = FSceneViewExtensions::NewExtension<FMediaCaptureSceneViewExtension>(this, DesiredCaptureOptions.CapturePhase);
+			/** If we are running with color conversion, we need our extension to be executed before the OCIO extension is applied to the viewport. */
+			const int32 Priority =  DesiredCaptureOptions.ColorConversionSettings.IsValid() ? OPENCOLORIO_SCENE_VIEW_EXTENSION_PRIORITY + 1 : 0;
+			ViewExtension = FSceneViewExtensions::NewExtension<FMediaCaptureSceneViewExtension>(this, DesiredCaptureOptions.CapturePhase, Priority);
 		}
 
 		if (ViewExtension)
@@ -663,8 +666,11 @@ void UMediaCapture::CaptureImmediate_RenderThread(const UE::MediaCaptureData::FC
 		return;
 	}
 
-	// Keep resource size up to date with incoming resource to capture
- 	StaticCastSharedPtr<UE::MediaCapture::Private::FRHIResourceCaptureSource>(CaptureSource)->ResourceDescription.ResourceSize = Args.GetSizeXY();
+	if (CaptureSource->GetSourceType() == EMediaCaptureSourceType::RHI_RESOURCE)
+	{
+		// Keep resource size up to date with incoming resource to capture
+ 		StaticCastSharedPtr<UE::MediaCapture::Private::FRHIResourceCaptureSource>(CaptureSource)->ResourceDescription.ResourceSize = Args.GetSizeXY();
+	}
 
 	// Get cached capture data from game thread. We want to find a cached frame matching current render thread frame number
 	bool bFoundMatchingData = false;
