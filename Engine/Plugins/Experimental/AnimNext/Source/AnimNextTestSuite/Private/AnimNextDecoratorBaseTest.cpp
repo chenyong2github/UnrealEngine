@@ -1486,17 +1486,23 @@ bool FAnimationAnimNextRuntimeTest_DecoratorSerialization::RunTest(const FString
 #endif
 
 FDecoratorA_BaseSharedData::FDecoratorA_BaseSharedData()
+#if WITH_DEV_AUTOMATION_TESTS
 	: DecoratorUID(UE::AnimNext::FDecoratorA_Base::DecoratorUID.GetUID())
+#endif
 {
 }
 
 FDecoratorAB_AddSharedData::FDecoratorAB_AddSharedData()
+#if WITH_DEV_AUTOMATION_TESTS
 	: DecoratorUID(UE::AnimNext::FDecoratorAB_Add::DecoratorUID.GetUID())
+#endif
 {
 }
 
 FDecoratorAC_AddSharedData::FDecoratorAC_AddSharedData()
+#if WITH_DEV_AUTOMATION_TESTS
 	: DecoratorUID(UE::AnimNext::FDecoratorAC_Add::DecoratorUID.GetUID())
+#endif
 {
 }
 

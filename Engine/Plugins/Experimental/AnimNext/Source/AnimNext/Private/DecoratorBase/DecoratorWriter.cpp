@@ -178,10 +178,18 @@ namespace UE::AnimNext
 		FNodeTemplateRegistry& NodeTemplateRegistry = FNodeTemplateRegistry::Get();
 
 		const FNodeMapping* NodeMapping = NodeMappings.FindByPredicate([NodeHandle](const FNodeMapping& It) { return It.NodeHandle == NodeHandle; });
-		ensure(NodeMapping != nullptr);
+		if (NodeMapping == nullptr)
+		{
+			ErrorState = EErrorState::NodeHandleNotFound;
+			return;
+		}
 
 		const FNodeTemplate* NodeTemplate = NodeTemplateRegistry.Find(NodeMapping->NodeTemplateHandle);
-		ensure(NodeTemplate);
+		if (NodeTemplate == nullptr)
+		{
+			ErrorState = EErrorState::NodeTemplateNotFound;
+			return;
+		}
 
 		// Populate our node description into a temporary buffer
 		alignas(16) uint8 Buffer[64 * 1024];	// Max node size

@@ -34,8 +34,10 @@ namespace UE::AnimNext
 			None,					// All good, no error
 			TooManyNodes,			// Exceeded the maximum number of nodes in a graph, @see FNodeDescription::MAXIMUM_COUNT
 			GraphTooLarge,			// Exceeded the maximum graph size, @see FDecoratorWriter::MAXIMUM_GRAPH_SHARED_DATA_SIZE
+			NodeTemplateNotFound,	// Failed to find a necessary node template
 			NodeTemplateTooLarge,	// Exceeded the maximum node template size, @see FNodeTemplate::MAXIMUM_SIZE
 			NodeSharedDataTooLarge,	// Exceeded the maximum node shared data size, @see FNodeDescription::MAXIMUM_SIZE
+			NodeHandleNotFound,		// Failed to find the mapping for a node handle, it was likely not registered
 		};
 
 		FDecoratorWriter();
