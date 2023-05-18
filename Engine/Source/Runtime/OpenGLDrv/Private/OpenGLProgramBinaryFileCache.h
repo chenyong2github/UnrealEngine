@@ -33,15 +33,15 @@ public:
 
 	static bool IsEnabled();
 
-	/** Is the program already in the currently processing cache */
-	static bool DoesCurrentCacheContain(const FOpenGLProgramKey& ProgramKey);
+	/** has the program already been encountered */
+	static bool RequiresCaching(const FOpenGLProgramKey& ProgramKey);
 
 	/** Take an existing program binary and store on disk. Only when ProgramBinaryCache is enabled
 	*/
-	static void CacheProgramBinary(const FOpenGLProgramKey& ProgramKey, const FOpenGLProgramBinary& CachedProgramBinary);
+	static void CacheProgramBinary(const FOpenGLProgramKey& ProgramKey, TUniqueObj<FOpenGLProgramBinary>&& ProgramBinary);
 
 	/** Create any pending GL programs that have come from shader library requests */
-	static void CheckPendingGLProgramCreateRequests();
+	static void TickBinaryCache();
 
 	/** Create any single GL program that have come from shader library requests */
 	static bool CheckSinglePendingGLProgramCreateRequest(const FOpenGLProgramKey& ProgramKey);
@@ -77,11 +77,21 @@ private:
 	/* Subdir is a hash of the device's version info, anything within CachePathRoot that does not == CacheSubDir is deleted. */
 	FString CacheSubDir;
 
-	// Guid of the PSO cache being procesed.
-	FGuid CurrentShaderPipelineCacheVersionGuid;
+	struct FCurrentShaderPipelineProperties
+	{
+		// Guid of the PSO cache being procesed.
+		FGuid CacheVersionGuid;
+		// String name of the current cache.
+		FString PipelineCacheName;
 
-	// String name of the current cache.
-	FString CurrentShaderPipelineCacheName;
+		// contains the count of programs when the write cache was last flushed.
+		int32 NumProgramsFlushed = 0;
+		// Last mmapped position
+		int64 LastMappedPosition = 0;
+		// Last number of programs mapped
+		int32 MappedPrograms = 0;
+	};
+	FCurrentShaderPipelineProperties CurrentShaderPipelineProperties;
 
 	/**
 	* Shaders that were requested for compilation
@@ -96,12 +106,15 @@ private:
 
 	void ScanProgramCacheFile();
 
-	bool OpenCacheWriteHandle();
+	bool OpenCacheWriteHandle(const FString& ProgramCacheFilenameToWrite, bool bAppendToExisting);
+
+	// set the file header to the current write position and program count, then flush the cache to storage.
+	bool MarkValidContent(int32 NumPrograms);
 
 	// finalize the current cache file, returns true if a valid file was created.
-	bool CloseCacheWriteHandle(); 
+	bool CloseCacheWriteHandle(int32 NumProgramsAdded); 
 
-	bool DoesCurrentCacheContain_Internal(const FOpenGLProgramKey& ProgramKey) const;
+	bool RequiresCaching_Internal(const FOpenGLProgramKey& ProgramKey);
 
 	void AddProgramBinaryDataToBinaryCache(const FOpenGLProgramKey& ProgramKey, const FOpenGLProgramBinary& BinaryProgramData);
 
@@ -114,8 +127,14 @@ private:
 	void OnShaderPipelineCacheOpened(FString const& Name, EShaderPlatform Platform, uint32 Count, const FGuid& VersionGuid, FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext);
 	void OnShaderPipelineCachePrecompilationComplete(uint32 Count, double Seconds, const FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext);
 
+	void InitPrecaching();
+	void UpdatePrecacheMapping();
+
 private:
+	TRefCountPtr<FOpenGLProgramBinaryMapping> GetOrAddFileMapping(const FString& ProgramCacheFilename, int32 ProgramCount, int64 Offset, int64 Size);
+
 	FString GetProgramBinaryCacheDir() const { return (CachePathRoot / CacheSubDir);	}
+	bool ReadProgramFile_Internal(uint32 ProgramsToRead, int64 EndOffset, const FString& ProgramCacheFilename, FArchive& Ar);
 
 	FDelegateHandle OnShaderPipelineCacheOpenedDelegate;
 	FDelegateHandle OnShaderPipelineCachePrecompilationCompleteDelegate;

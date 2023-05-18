@@ -372,6 +372,12 @@ public:
 				bSuccess = false;
 				break;
 			}
+#if LOG_ANDROID_FILE
+			FPlatformMisc::LowLevelOutputDebugStringf(
+				TEXT("(%d/%d) FFileHandleAndroid:Write => Path = %s, this size = %d, CurrentOffset = %d, Source = %p"),
+				FAndroidTLS::GetCurrentThreadId(), File->Handle,
+				*(File->Path), int32(ThisSize), CurrentOffset, Source);
+#endif
 			CurrentOffset += ThisSize;
 			Source += ThisSize;
 			BytesToWrite -= ThisSize;
@@ -379,7 +385,12 @@ public:
 		
 		// Update the cached file length
 		Length = FMath::Max(Length, CurrentOffset);
-
+#if LOG_ANDROID_FILE
+		FPlatformMisc::LowLevelOutputDebugStringf(
+			TEXT("(%d/%d) FFileHandleAndroid:Write => Path = %s, final size %d"),
+			FAndroidTLS::GetCurrentThreadId(), File->Handle,
+			*(File->Path), Length);
+#endif
 		return bSuccess;
 	}
 
@@ -1009,8 +1020,9 @@ public:
 	virtual IMappedFileRegion* MapRegion(int64 Offset = 0, int64 BytesToMap = MAX_int64, bool bPreloadHint = false) override
 	{
 		LLM_PLATFORM_SCOPE(ELLMTag::PlatformMMIO);
-		check(Offset < GetFileSize()); // don't map zero bytes and don't map off the end of the file
-		BytesToMap = FMath::Min<int64>(BytesToMap, GetFileSize() - Offset);
+		const int64 CurrentFileSize = GetCurrentFileSize();
+		check(Offset < CurrentFileSize); // don't map zero bytes and don't map off the end of the file
+		BytesToMap = FMath::Min<int64>(BytesToMap, CurrentFileSize - Offset);
 		check(BytesToMap > 0); // don't map zero bytes
 
 		const int64 AlignedOffset = AlignDown(Offset, FileMappingAlignment);
@@ -1052,7 +1064,8 @@ public:
 #if LOG_ANDROID_FILE
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Failed to unmap region from %s, errno=%s"), *Filename, UTF8_TO_TCHAR(strerror(errno)));
 #endif
-		checkf(Res == 0, TEXT("Failed to unmap, error is %d, errno is %d [params: %x, %d]"), Res, errno, MappedPtr, GetFileSize());
+		const int64 CurrentFileSize = GetCurrentFileSize();
+		checkf(Res == 0, TEXT("Failed to unmap, error is %d, errno is %d [params: %x, %d]"), Res, errno, MappedPtr, CurrentFileSize);
 	}
 
 private:
@@ -1060,6 +1073,22 @@ private:
 	FString Filename;
 	int32 NumOutstandingRegions;
 	int FileHandle;
+
+	int64 GetCurrentFileSize() const
+	{
+		struct stat FileInfo;
+		FileInfo.st_size = -1;
+		const int StatResult = fstat(FileHandle, &FileInfo);
+		if (StatResult == -1)
+		{
+			const int ErrNo = errno;
+#if LOG_ANDROID_FILE
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FAndroidPlatformFile::FAndroidMappedFileHandle fstat failed: ('%s') failed: errno=%d (%s)"), *Filename, ErrNo, UTF8_TO_TCHAR(strerror(ErrNo)));
+#endif
+			return GetFileSize();
+		}
+		return FileInfo.st_size;
+	}
 };
 
 FAndroidMappedFileRegion::~FAndroidMappedFileRegion()

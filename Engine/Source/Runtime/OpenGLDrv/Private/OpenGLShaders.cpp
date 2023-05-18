@@ -100,6 +100,16 @@ static FAutoConsoleVariableRef CVarProgramLRUResidentCountBeforeEviction(
 	ECVF_RenderThreadSafe
 );
 
+static bool GCacheAllProgramBinaries = true;
+static FAutoConsoleVariableRef CVarGCacheAllProgramBinaries(
+	TEXT("r.OpenGL.CacheAllProgramBinaries"),
+	GCacheAllProgramBinaries,
+	TEXT("Place all encountered program in the binary cache.\n")
+	TEXT("requires r.PSOPrecaching.")
+	,
+	ECVF_RenderThreadSafe
+);
+
 #if PLATFORM_ANDROID
 bool GOpenGLShaderHackLastCompileSuccess = false;
 #endif
@@ -137,6 +147,151 @@ static bool ReportProgramLinkFailures()
 #endif
 }
 
+
+#define OGL_BINARYCACHE_STATS !UE_BUILD_SHIPPING
+
+#if OGL_BINARYCACHE_STATS
+
+#define OGL_BINARYCACHE_STATS_MARKBEGINCOMPILE(x)		if(FOpenGLBinaryCacheStats::IsEnabled())	{ FOpenGLBinaryCacheStats::Get().MarkStartTime(x);}
+#define OGL_BINARYCACHE_STATS_MARKCOMPILED(x)			if(FOpenGLBinaryCacheStats::IsEnabled())	{ FOpenGLBinaryCacheStats::Get().MarkCompileFinishTime(x);}
+#define OGL_BINARYCACHE_STATS_MARKBINARYCACHEMISS(x,y)	if(FOpenGLBinaryCacheStats::IsEnabled())	{ FOpenGLBinaryCacheStats::Get().MarkCacheMissedTime(x,y);}
+#define OGL_BINARYCACHE_STATS_MARKBINARYCACHEUSE(x)		if(FOpenGLBinaryCacheStats::IsEnabled())	{ FOpenGLBinaryCacheStats::Get().MarkCacheUse(x);}
+#define OGL_BINARYCACHE_STATS_LOG()						if(FOpenGLBinaryCacheStats::IsEnabled())	{ FOpenGLBinaryCacheStats::Get().LogStats();}
+
+class FOpenGLBinaryCacheStats
+{
+public:
+	inline static bool IsEnabled()
+	{
+		static bool bEnabled = FParse::Param(FCommandLine::Get(), TEXT("openglprecachestats"));
+		return bEnabled;
+	}
+
+	inline static FOpenGLBinaryCacheStats& Get() { static FOpenGLBinaryCacheStats CacheStats;  return CacheStats; }
+
+	void MarkStartTime(const FOpenGLProgramKey& ProgramKey)
+	{
+		FScopeLock Lock(&CacheStatsCS);
+		KeyToTimes.FindOrAdd(ProgramKey).StartTime = FPlatformTime::Seconds();
+	}
+
+	void MarkCompileFinishTime(const FOpenGLProgramKey& ProgramKey)
+	{
+		FScopeLock Lock(&CacheStatsCS);
+		FProgramUseTimes& ProgramTime = KeyToTimes.FindOrAdd(ProgramKey);
+		if (!ProgramTime.UsedTime && !ProgramTime.CompileTime)
+		{
+			double CurrentTime = FPlatformTime::Seconds();
+			if (!ProgramTime.StartTime)
+			{
+				ProgramTime.StartTime = CurrentTime;
+				PreloadedBinaries++;
+			}
+
+			ProgramTime.CompileTime = CurrentTime;
+
+			CombinedCompileTime += ProgramTime.CompileTime - ProgramTime.StartTime;
+		}
+	}
+
+	void MarkCacheMissedTime(const FOpenGLProgramKey& ProgramKey, bool bLogOnFirstUse)
+	{
+		FScopeLock Lock(&CacheStatsCS);
+		FProgramUseTimes& ProgramTimes = KeyToTimes.FindOrAdd(ProgramKey);
+		double CurrentTime = FPlatformTime::Seconds();
+		if (!ProgramTimes.UsedTime)
+		{
+			bLogMe = true;
+			ProgramTimes.UsedTime = CurrentTime;
+
+			if (!ProgramTimes.StartTime)
+			{
+				TotalMisses++;
+				UE_CLOG(bLogOnFirstUse, LogRHI, Log, TEXT("BinaryCacheUsage: Program %s was not in the binary cache when first used."), *ProgramKey.ToString());
+			}
+			else if (!ProgramTimes.CompileTime)
+			{
+				TotalEarlyUses++;
+				double TimeToUse = CurrentTime - ProgramTimes.StartTime;
+				CombinedEarlyTimeToUse += TimeToUse;
+				UE_CLOG(bLogOnFirstUse, LogRHI, Log, TEXT("BinaryCacheUsage: Program %s was used too early, binary compile was not ready when first used. Span between compile and use: %f"), *ProgramKey.ToString(), (float)TimeToUse);
+			}
+		}
+	}
+
+	void MarkCacheUse(const FOpenGLProgramKey& ProgramKey)
+	{
+		FScopeLock Lock(&CacheStatsCS);
+
+		FProgramUseTimes& ProgramTime = KeyToTimes.FindChecked(ProgramKey);
+
+		if (!ProgramTime.UsedTime)
+		{
+			check(ProgramTime.StartTime && ProgramTime.CompileTime);
+
+			double CurrentTime = FPlatformTime::Seconds();
+			ProgramTime.UsedTime = CurrentTime;
+			TotalHits++;
+		}
+	}
+
+	void LogStats()
+	{
+		FScopeLock Lock(&CacheStatsCS);
+		const float AvgEarlyTimeToUse = TotalEarlyUses ? (float)(CombinedEarlyTimeToUse / (double)TotalEarlyUses) : 0.0f;
+		const uint32 CompiledBinaries = KeyToTimes.Num() - (TotalEarlyUses + TotalMisses + PreloadedBinaries);
+		const float AvgCompileTime = CompiledBinaries ? (float)(CombinedCompileTime / (double)(CompiledBinaries)) : 0.0f;
+
+		UE_CLOG(bLogMe, LogRHI, Log, TEXT("BinaryCacheUsage: %d programs seen, %d preloaded, %d used in time, %d used before compile finished (avg early miss time span %f), %d programs used were not in the cache. %f avg compile time"),
+			KeyToTimes.Num(),
+			PreloadedBinaries,
+			TotalHits,
+			TotalEarlyUses,
+			AvgEarlyTimeToUse,
+			TotalMisses,
+			AvgCompileTime
+		);
+		bLogMe = false;
+	}
+
+private:
+	FCriticalSection CacheStatsCS;
+
+	struct FProgramUseTimes
+	{
+		double StartTime = 0;
+		double CompileTime = 0;
+		double UsedTime = 0;
+	};
+	TMap< FOpenGLProgramKey, FProgramUseTimes> KeyToTimes;
+
+	uint32 TotalMisses = 0; // Num programs marked as used but were not in the cache.
+	uint32 TotalEarlyUses = 0; // Num program marked as used before their compile had finished.
+	uint32 TotalHits = 0; // Num programs that had compiled in time for their first used.
+	uint32 PreloadedBinaries = 0; // Num programs that came pre-loaded from the binary cache.
+	double CombinedEarlyTimeToUse = 0;
+	double CombinedCompileTime = 0;
+	mutable bool bLogMe = false;
+};
+#else
+#define OGL_BINARYCACHE_STATS_MARKBEGINCOMPILE(x) (void)
+#define OGL_BINARYCACHE_STATS_MARKCOMPILED(x)  (void)
+#define OGL_BINARYCACHE_STATS_MARKBINARYCACHEMISS(x,y) (void)
+#define OGL_BINARYCACHE_STATS_MARKBINARYCACHEUSE(x) (void)
+#define OGL_BINARYCACHE_STATS_LOG() (void)
+
+#endif
+
+bool IsPrecachingEnabled()
+{
+	static const auto CVarPSOPrecaching = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PSOPrecaching"));
+	return CVarPSOPrecaching && (CVarPSOPrecaching->GetInt() != 0);
+}
+
+static bool ShouldCacheAllProgramBinaries()
+{
+	return IsPrecachingEnabled() && GCacheAllProgramBinaries;
+}
 
 static uint32 GCurrentDriverProgramBinaryAllocation = 0;
 static uint32 GNumPrograms = 0;
@@ -1375,6 +1530,8 @@ class FGLProgramCacheLRU
 
 			if(bSuccess)
 			{
+				OGL_BINARYCACHE_STATS_MARKBINARYCACHEUSE(ProgramKey);
+
 				// Always keep any mmapped data resident.
 				if(CVarLRUKeepProgramBinaryResident.GetValueOnAnyThread() || !CachedProgramBinary->IsOwned())
 				{
@@ -2631,7 +2788,8 @@ static FOpenGLProgramBinary ExternalProgramCompile(const FOpenGLProgramKey& Prog
 
 void FOpenGLDynamicRHI::PrepareGFXBoundShaderState(const FGraphicsPipelineStateInitializer& Initializer)
 {
-	if (!Initializer.bFromPSOFileCache || !FOpenGLProgramBinaryCache::IsEnabled())
+	const bool bIsPreCachePSO = Initializer.bPSOPrecache || Initializer.bFromPSOFileCache;
+	if (!bIsPreCachePSO || !FOpenGLProgramBinaryCache::IsEnabled())
 	{
 		return;
 	}
@@ -2652,12 +2810,13 @@ void FOpenGLDynamicRHI::PrepareGFXBoundShaderState(const FGraphicsPipelineStateI
 	bool bCreateProgram = false;
 	bool bCreateBinary = false;
 
-	if (!FOpenGLProgramBinaryCache::DoesCurrentCacheContain(ProgramKey))
+	if (FOpenGLProgramBinaryCache::RequiresCaching(ProgramKey))
 	{
 		if (FOpenGLProgramBinaryCache::IsBuildingCache())
 		{
+			OGL_BINARYCACHE_STATS_MARKBEGINCOMPILE(ProgramKey);
 			FOpenGLProgramBinary CompiledProgram;
-			if (CanCreateExternally(Initializer.bFromPSOFileCache))
+			if (CanCreateExternally(bIsPreCachePSO))
 			{
 				CompiledProgram = ExternalProgramCompile(ProgramKey, VertexShaderRHI, PixelShaderRHI);
 			}
@@ -2700,7 +2859,7 @@ void FOpenGLDynamicRHI::PrepareGFXBoundShaderState(const FGraphicsPipelineStateI
 
 			if (CompiledProgram.IsValid())
 			{
-				FOpenGLProgramBinaryCache::CacheProgramBinary(ProgramKey, CompiledProgram);
+				FOpenGLProgramBinaryCache::CacheProgramBinary(ProgramKey, TUniqueObj<FOpenGLProgramBinary>(MoveTemp(CompiledProgram)));
 			}
 			else
 			{
@@ -2808,11 +2967,11 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 			}
 			else
 			{
+				OGL_BINARYCACHE_STATS_MARKBINARYCACHEMISS(Config.ProgramKey, true);
+
 				FOpenGLVertexShader* VertexShader = ResourceCast(VertexShaderRHI);
 				FOpenGLPixelShader* PixelShader = ResourceCast(PixelShaderRHI);
 				FOpenGLGeometryShader* GeometryShader = ResourceCast(GeometryShaderRHI);
-		
-
 
 				// Link program, using the data provided in config
 				LinkedProgram = LinkProgram(Config);
@@ -2839,6 +2998,13 @@ FBoundShaderStateRHIRef FOpenGLDynamicRHI::RHICreateBoundShaderState_OnThisThrea
 				}
 				else
 				{
+					if ( ShouldCacheAllProgramBinaries() && FOpenGLProgramBinaryCache::RequiresCaching(Config.ProgramKey))
+					{
+						// In precache mode we can put any newly compiled programs in the binary cache
+						FOpenGLProgramBinary CompiledProgram = UE::OpenGL::GetProgramBinaryFromGLProgram(LinkedProgram->Program);
+						FOpenGLProgramBinaryCache::CacheProgramBinary(Config.ProgramKey, TUniqueObj<FOpenGLProgramBinary>(MoveTemp(CompiledProgram)));
+					}
+
 					GetOpenGLProgramsCache().Add(Config.ProgramKey, LinkedProgram);
 				}
 			}
@@ -3441,6 +3607,8 @@ namespace UE
 		// Called from the binary file cache when the binary version of a program has been encountered.
 		void OnGLProgramLoadedFromBinaryCache(const FOpenGLProgramKey& ProgramKey, TUniqueObj<FOpenGLProgramBinary>&& ProgramBinaryData)
 		{
+			OGL_BINARYCACHE_STATS_MARKCOMPILED(ProgramKey);
+
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_OpenGLOnGLProgramLoadedFromBinaryCache);
 
 // 			FScopeLock Lock(&GProgramBinaryCacheCS);
@@ -3513,6 +3681,7 @@ static void TickProgramLRU()
 void FOpenGLDynamicRHI::EndFrameTick()
 {
 	TickProgramLRU();
-	FOpenGLProgramBinaryCache::CheckPendingGLProgramCreateRequests();
+	FOpenGLProgramBinaryCache::TickBinaryCache();
 	FTextureEvictionLRU::Get().TickEviction();
+	OGL_BINARYCACHE_STATS_LOG();
 }

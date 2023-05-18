@@ -100,7 +100,7 @@ public:
 	/**
 	* Return the size of the mapped file.
 	**/
-	FORCEINLINE int64 GetFileSize()
+	FORCEINLINE int64 GetFileSize() const
 	{
 		return MappedFileSize;
 	}
