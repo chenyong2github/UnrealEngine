@@ -431,11 +431,19 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 	}
 	bFullyLoaded = true;
 
+	// Ensure parameter stores have been post loaded inside the script otherwise searching them will be invalid
+	if (SystemSpawnScript)
+	{
+		SystemSpawnScript->ConditionalPostLoad();
+	}
+	if (SystemUpdateScript)
+	{
+		SystemUpdateScript->ConditionalPostLoad();
+	}
+
 #if WITH_EDITORONLY_DATA
 	if (SystemSpawnScript && SystemUpdateScript && !GetOutermost()->bIsCookedForEditor)
 	{
-		SystemSpawnScript->ConditionalPostLoad();
-		SystemUpdateScript->ConditionalPostLoad();
 		ensure(SystemSpawnScript->GetLatestSource() != nullptr);
 		ensure(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
 		SystemSpawnScript->GetLatestSource()->OnChanged().AddUObject(this, &UNiagaraSystem::GraphSourceChanged);
@@ -475,7 +483,6 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 		}
 		else
 		{
-			SystemSpawnScript->ConditionalPostLoad();
 			SystemScriptSource = SystemSpawnScript->GetLatestSource();
 		}
 		AllSystemScripts.Add(SystemSpawnScript);
@@ -485,10 +492,6 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 			SystemUpdateScript = NewObject<UNiagaraScript>(this, "SystemUpdateScript", RF_Transactional);
 			SystemUpdateScript->SetUsage(ENiagaraScriptUsage::SystemUpdateScript);
 			SystemUpdateScript->SetLatestSource(SystemScriptSource);
-		}
-		else
-		{
-			SystemUpdateScript->ConditionalPostLoad();
 		}
 		AllSystemScripts.Add(SystemUpdateScript);
 

@@ -280,6 +280,11 @@ void UNiagaraComponentPool::PrimePool(UNiagaraSystem* Template, UWorld* World)
 		return;
 	}
 
+	if (!Template->bFullyLoaded)
+	{
+		return;
+	}
+
 	const uint32 PrimeCount = FMath::Min(Template->PoolPrimeSize, Template->MaxPoolSize);
 	if (PrimeCount == 0)
 	{
