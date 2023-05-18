@@ -221,6 +221,8 @@ public:
 	NIAGARA_API static ENiagaraScalabilityCullingMode GetScalabilityCullingMode() { return ScalabilityCullingMode; }
 
 	FNiagaraDataChannelManager& GetDataChannelManager(){ return *DataChannelManager; }
+	NIAGARA_API void InitDataChannel(const UNiagaraDataChannel* Channel, bool bForce);
+	NIAGARA_API void RemoveDataChannel(const UNiagaraDataChannel* Channel);
 
 	/** Waits for all currently in flight async work to be completed. */
 	void WaitForAsyncWork();
@@ -289,7 +291,7 @@ private:
 	static FDelegateHandle PreGCBeginDestroyHandle;
 	static FDelegateHandle ViewTargetChangedHandle;
 
-	static TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
+	static NIAGARA_API TMap<class UWorld*, class FNiagaraWorldManager*> WorldManagers;
 
 	UWorld* World = nullptr;
 

@@ -783,8 +783,7 @@ void UNiagaraDataChannel::PostInitProperties()
 	FNiagaraWorldManager::ForAllWorldManagers(
 		[DataChannel = this](FNiagaraWorldManager& WorldMan)
 		{
-			WorldMan.WaitForAsyncWork();
-			WorldMan.GetDataChannelManager().InitDataChannel(DataChannel, true);
+			WorldMan.InitDataChannel(DataChannel, true);
 		});
 }
 
@@ -825,8 +824,7 @@ void UNiagaraDataChannel::PostLoad()
 	FNiagaraWorldManager::ForAllWorldManagers(
 		[DataChannel = this](FNiagaraWorldManager& WorldMan)
 		{
-			WorldMan.WaitForAsyncWork();
-			WorldMan.GetDataChannelManager().InitDataChannel(DataChannel, true);
+			WorldMan.InitDataChannel(DataChannel, true);
 		});
 }
 
@@ -837,8 +835,7 @@ void UNiagaraDataChannel::BeginDestroy()
 	FNiagaraWorldManager::ForAllWorldManagers(
 		[DataChannel = this](FNiagaraWorldManager& WorldMan)
 		{
-			WorldMan.WaitForAsyncWork();
-			WorldMan.GetDataChannelManager().RemoveDataChannel(DataChannel);
+			WorldMan.RemoveDataChannel(DataChannel);
 		});
 }
 
@@ -849,8 +846,7 @@ void UNiagaraDataChannel::PreEditChange(FProperty* PropertyAboutToChange)
 	FNiagaraWorldManager::ForAllWorldManagers(
 		[DataChannel = this](FNiagaraWorldManager& WorldMan)
 		{
-			WorldMan.WaitForAsyncWork();
-			WorldMan.GetDataChannelManager().RemoveDataChannel(DataChannel);
+			WorldMan.RemoveDataChannel(DataChannel);
 		});
 }
 
@@ -871,7 +867,7 @@ void UNiagaraDataChannel::PostEditChangeProperty(FPropertyChangedEvent& Property
 	FNiagaraWorldManager::ForAllWorldManagers(
 		[DataChannel = this](FNiagaraWorldManager& WorldMan)
 		{
-			WorldMan.GetDataChannelManager().InitDataChannel(DataChannel, true);
+			WorldMan.InitDataChannel(DataChannel, true);
 		});
 }
 

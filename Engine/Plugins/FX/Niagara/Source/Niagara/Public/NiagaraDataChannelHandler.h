@@ -46,7 +46,7 @@ public:
 	UNiagaraDataChannelReader* GetDataChannelReader();
 
 	template<typename T> 
-	T* GetChannelTyped()const{ return CastChecked<T>(DataChannel); }
+	T* GetChannelTyped()const{ return Cast<T>(DataChannel); }
 
 	FNiagaraDataChannelDataPtr CreateData();
 

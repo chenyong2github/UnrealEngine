@@ -37,7 +37,7 @@ DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorl
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait Pre Garbage Collect [GT]"), STAT_NiagaraWorldManWaitPreGC, STATGROUP_Niagara); 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Refresh Owner Allows Scalability"), STAT_NiagaraWorldManRefreshOwnerAllowsScalability, STATGROUP_Niagara);
 
-static int GNiagaraAllowAsyncWorkToEndOfFrame = 1;
+static int GNiagaraAllowAsyncWorkToEndOfFrame = 0;
 static FAutoConsoleVariableRef CVarNiagaraAllowAsyncWorkToEndOfFrame(
 	TEXT("fx.Niagara.AllowAsyncWorkToEndOfFrame"),
 	GNiagaraAllowAsyncWorkToEndOfFrame,
@@ -728,6 +728,18 @@ void FNiagaraWorldManager::RefreshOwnerAllowsScalability()
 		FNiagaraScalabilityManager& ScalabilityMan = Pair.Value;
 		ScalabilityMan.OnRefreshOwnerAllowsScalability();
 	}
+}
+
+void FNiagaraWorldManager::InitDataChannel(const UNiagaraDataChannel* Channel, bool bForce)
+{
+	WaitForAsyncWork();
+	GetDataChannelManager().InitDataChannel(Channel, bForce);
+}
+
+void FNiagaraWorldManager::RemoveDataChannel(const UNiagaraDataChannel* Channel)
+{
+	WaitForAsyncWork();
+	GetDataChannelManager().RemoveDataChannel(Channel);
 }
 
 void FNiagaraWorldManager::WaitForAsyncWork()

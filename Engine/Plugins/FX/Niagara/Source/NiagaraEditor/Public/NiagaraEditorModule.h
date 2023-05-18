@@ -336,6 +336,8 @@ private:
 	}
 
 	void OnAssetRegistryLoadComplete();
+	
+	void OnAssetsPreDelete(const TArray<UObject*>& Objects);
 
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -371,6 +373,8 @@ private:
 	FDelegateHandle PreviewFeatureLevelChangedHandle;
 
 	FDelegateHandle AssetRegistryOnLoadCompleteHandle;
+	
+	FDelegateHandle OnAssetsPreDeleteHandle;
 	
 	TObjectPtr<USequencerSettings> SequencerSettings;
 

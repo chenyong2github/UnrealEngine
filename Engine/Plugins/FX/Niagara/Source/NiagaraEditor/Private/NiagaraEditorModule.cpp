@@ -929,6 +929,9 @@ void FNiagaraEditorModule::OnPreExit()
 #endif
 
 	UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfileManagerUpdatedHandle);
+
+	FEditorDelegates::OnAssetsPreDelete.Remove(OnAssetsPreDeleteHandle);
+
 	if (GEditor)
 	{
 		CastChecked<UEditorEngine>(GEngine)->OnPreviewPlatformChanged().Remove(PreviewPlatformChangedHandle);
@@ -993,6 +996,8 @@ void FNiagaraEditorModule::StartupModule()
 
 	DeviceProfileManagerUpdatedHandle = UDeviceProfileManager::Get().OnManagerUpdated().AddRaw(this, &FNiagaraEditorModule::OnDeviceProfileManagerUpdated);
 	FCoreDelegates::OnEnginePreExit.AddRaw(this, &FNiagaraEditorModule::OnPreExit);
+
+	OnAssetsPreDeleteHandle = FEditorDelegates::OnAssetsPreDelete.AddRaw(this, &FNiagaraEditorModule::OnAssetsPreDelete);
 	
 	// register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -2100,6 +2105,21 @@ void FNiagaraEditorModule::OnAssetRegistryLoadComplete()
 	for (FAssetData& DataChannelAsset : AllDataChannels)
 	{
 		UNiagaraDataChannelAsset* NewAsset = Cast<UNiagaraDataChannelAsset>(DataChannelAsset.GetAsset());
+	}
+}
+
+void FNiagaraEditorModule::OnAssetsPreDelete(const TArray<UObject*>& Objects)
+{
+	for(UObject* Obj : Objects)
+	{
+		if(UNiagaraDataChannelAsset* NDCAsset = Cast<UNiagaraDataChannelAsset>(Obj))
+		{
+			FNiagaraWorldManager::ForAllWorldManagers(
+				[DataChannel = NDCAsset->Get()](FNiagaraWorldManager& WorldMan)
+			{
+				WorldMan.RemoveDataChannel(DataChannel);
+			});
+		}
 	}
 }
 
