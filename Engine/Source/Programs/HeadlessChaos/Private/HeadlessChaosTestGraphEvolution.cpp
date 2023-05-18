@@ -1253,6 +1253,55 @@ namespace ChaosTest
 
 	}
 
+	// Test that island merging works if we remove the last constraint
+	// in an island that was already queued for merge (PLAY-6440).
+	// 
+	// (d=dynamic, s=sleeping, k=kinematic)
+	//		Ad - Bd   Cd - Dd
+	// =>	Ad - Bd - Cd   Dd
+	//
+	GTEST_TEST(GraphEvolutionTests, TestConstraintGraph_IslandMerge_EnableDisable)
+	{
+		FGraphEvolutionTest Test(4);
+
+		// Create constraints in a chain but disable the middle constraint so we have two islands {A-B} and {C-D}
+		Test.MakeChain();
+		Test.ConstraintHandles[1]->SetEnabled(false);
+
+		Test.Advance();
+
+		EXPECT_EQ(Test.IslandManager->GetNumIslands(), 2);
+		EXPECT_FALSE(Test.ConstraintHandles[1]->IsInConstraintGraph());
+
+		// Enable the constraint B-C.
+		// NOTE: In the implementation, the enable will add the constraint to one of the islands
+		// and queue the two islands to be merged, but the actual merging happens in Advance().
+		Test.ConstraintHandles[1]->SetEnabled(true);
+
+		// Disable the constraint C-D.
+		// NOTE: This will leave the second island without any constraints, but it is
+		// not destroyed immediately because it is queued for merging and, even though
+		// it has no constraints, it still contains particle C which needs to be
+		// copied to the new merged island. Particle D would have been removed because
+		// it does not have any constraints.
+		// Issue (PLAY-6440) was caused by the island being destroyed because it was
+		// empty, but it was still queued to be merged.
+		Test.ConstraintHandles[2]->SetEnabled(false);
+
+		Test.Advance();
+
+		// We should now only have 1 island and D should not be in the graph
+		EXPECT_EQ(Test.IslandManager->GetNumIslands(), 1);
+		EXPECT_TRUE(Test.ConstraintHandles[0]->IsInConstraintGraph());
+		EXPECT_TRUE(Test.ConstraintHandles[1]->IsInConstraintGraph());
+		EXPECT_FALSE(Test.ConstraintHandles[2]->IsInConstraintGraph());	// Not in graph
+		EXPECT_TRUE(Test.ParticleHandles[0]->IsInConstraintGraph());
+		EXPECT_TRUE(Test.ParticleHandles[1]->IsInConstraintGraph());
+		EXPECT_TRUE(Test.ParticleHandles[2]->IsInConstraintGraph());
+		EXPECT_FALSE(Test.ParticleHandles[3]->IsInConstraintGraph());	// Not in graph
+	}
+
+
 	// Test the sparse array repeatable index assignment. See TSparseArray::SortFreeList()
 	GTEST_TEST(SparseArrayTests, TestSortFreeList)
 	{

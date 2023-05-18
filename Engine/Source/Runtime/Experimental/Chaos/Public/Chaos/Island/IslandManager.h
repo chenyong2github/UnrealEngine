@@ -581,9 +581,18 @@ namespace Chaos::Private
 		const int32 ContainerId = ConstraintContainer.GetContainerId();
 		for (FConstraintHandle* ConstraintHandle : ConstraintContainer.GetConstraintHandles())
 		{
-			if ((ConstraintHandle != nullptr) && ConstraintHandle->IsEnabled())
+			if (ConstraintHandle != nullptr)
 			{
-				AddConstraint(ContainerId, ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				const bool bIsInGraph = ConstraintHandle->IsInConstraintGraph();
+				const bool bShouldBeInGraph = ConstraintHandle->IsEnabled();
+				if (bShouldBeInGraph && !bIsInGraph)
+				{
+					AddConstraint(ContainerId, ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+				}
+				else if (!bShouldBeInGraph && bIsInGraph)
+				{
+					RemoveConstraint(ConstraintHandle);
+				}
 			}
 		}
 	}

@@ -731,13 +731,24 @@ namespace Chaos::Private
 			FPBDIslandParticle* Node1 = Edge->Nodes[1];
 			FPBDIsland* Island = Edge->Island;
 
-			// Remove edge from the island, and possibly destroy the island (if empty)
+			// Remove edge from the island
 			RemoveEdgeFromIsland(Edge);
 
-			// Destroy the edge
+			// Destroy the edge (also disconnects it from its nodes)
 			DestroyGraphEdge(Edge);
 
-			// We also destroy the nodes if they have no edges left
+			// Destroy the island if it is now empty of constraints
+			// NOTE: If the island is queued for merging we won't destroy it now. 
+			// It will get destroyed later anyway, but more importantly it may 
+			// contain particles that need to be copied to the merged island.
+			if ((Island != nullptr) && (Island->NumEdges == 0) && (Island->MergeSetIslandIndex == INDEX_NONE))
+			{
+				RemoveNodeFromIsland(Node0);
+				RemoveNodeFromIsland(Node1);
+				DestroyIsland(Island);
+			}
+
+			// Destroy the nodes if they have no constraints
 			if ((Node0 != nullptr) && Node0->Edges.IsEmpty())
 			{
 				RemoveNodeFromIsland(Node0);
@@ -747,12 +758,6 @@ namespace Chaos::Private
 			{
 				RemoveNodeFromIsland(Node1);
 				DestroyGraphNode(Node1);
-			}
-
-			// And destroy the island if it is now empty
-			if ((Island != nullptr) && (Island->NumEdges == 0))
-			{
-				DestroyIsland(Island);
 			}
 		}
 	}
@@ -1185,6 +1190,7 @@ namespace Chaos::Private
 		{
 			check(Island->Nodes.IsEmpty());
 			check(Island->NumEdges == 0);
+			check(Island->MergeSetIslandIndex == INDEX_NONE);
 
 			Islands.Free(Island);
 		}
@@ -1541,12 +1547,13 @@ namespace Chaos::Private
 				// Merge each child island into the parent island
 				for (FPBDIsland* ChildIsland : MergeSet->Islands)
 				{
+					// Reset the merge set ready for next tick. We only really need to do this on the island
+					// that survives the merge, but it helps with error tracking to do it for all (see DestroyIsland)
+					ChildIsland->MergeSet = nullptr;
+					ChildIsland->MergeSetIslandIndex = INDEX_NONE;
+
 					ProcessIslandMerge(ParentIsland, ChildIsland);
 				}
-
-				// Reset the parent island's merge set ready for next tick (the children will have been destroyed)
-				ParentIsland->MergeSet = nullptr;
-				ParentIsland->MergeSetIslandIndex = INDEX_NONE;
 			}
 		}
 
