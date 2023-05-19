@@ -276,27 +276,23 @@ class FGeometryCollectionResults
 public:
 	FGeometryCollectionResults();
 
+	int32 GetNumEntries() const { return Transforms.Num(); }
+
 	void Reset();
 
-	int32 NumTransformGroup() const { return Transforms.Num(); }
-
-	void InitArrays(const FGeometryDynamicCollection& Other)
+	void InitArrays(const FGeometryDynamicCollection& Collection)
 	{
-		const int32 NumTransforms = Other.NumElements(FGeometryCollection::TransformGroup);
-		States.SetNumUninitialized(NumTransforms);
-		GlobalTransforms.SetNumUninitialized(NumTransforms);
-		ParticleXs.SetNumUninitialized(NumTransforms);
-		ParticleRs.SetNumUninitialized(NumTransforms);
-		ParticleVs.SetNumUninitialized(NumTransforms);
-		ParticleWs.SetNumUninitialized(NumTransforms);
-		
-		Transforms.SetNumUninitialized(NumTransforms);
-		Parent.SetNumUninitialized(NumTransforms);
-		InternalClusterUniqueIdx.SetNumUninitialized(NumTransforms);
+		const int32 NumTransforms = Collection.NumElements(FGeometryCollection::TransformGroup);
+		ModifiedTransformIndices.Init(false, NumTransforms);
 #if WITH_EDITORONLY_DATA
-		DamageInfo.SetNumUninitialized(NumTransforms);
-#endif		
+		if (Damages.Num() != NumTransforms)
+		{
+			Damages.SetNumUninitialized(NumTransforms);
+		}
+#endif	
 	}
+
+	using FEntryIndex = int32;
 
 	struct FState
 	{
@@ -307,29 +303,128 @@ public:
 		// 5 bits left
 	};
 
-	Chaos::FReal SolverDt;
-	TArray<FState> States;
-	TArray<FTransform> GlobalTransforms;
-	TArray<Chaos::FVec3> ParticleXs;
-	TArray<Chaos::FRotation3> ParticleRs;
-	TArray<Chaos::FVec3> ParticleVs;
-	TArray<Chaos::FVec3> ParticleWs;
+	struct FStateData
+	{
+		int32  TransformIndex;
+		int32  ParentTransformIndex;
+		int32  InternalClusterUniqueIdx;
+		FState State;
+	};
 
-	TArray<FTransform> Transforms;
-	TArray<int32> Parent;
-	TArray<int32> InternalClusterUniqueIdx;
+	struct FPositionData
+	{
+		Chaos::FVec3 ParticleX;
+		Chaos::FRotation3 ParticleR;
+	};
+
+	struct FVelocityData
+	{
+		Chaos::FVec3f ParticleV;
+		Chaos::FVec3f ParticleW;
+	};
 
 #if WITH_EDITORONLY_DATA
-	struct FDamageInfo
+	struct FDamageData
 	{
 		float Damage = 0;
 		float DamageThreshold = 0;
 	};
-	
-	// use to display impulse statistics in editor
-	TArray<FDamageInfo> DamageInfo;
+
+	void SetDamages(int32 TransformIndex, const FDamageData& DamageData)
+	{
+		Damages[TransformIndex] = DamageData;
+	}
+
+	const FDamageData& GetDamages(int32 TransformIndex) const
+	{
+		return Damages[TransformIndex];
+	}
 #endif
-	
-	bool IsObjectDynamic;
-	bool IsObjectLoading;
+
+	inline FEntryIndex GetEntryIndexByTransformIndex(int32 TransformIndex) const
+	{
+		if (ModifiedTransformIndices[TransformIndex])
+		{
+			return ModifiedTransformIndices.CountSetBits(0, TransformIndex + 1) - 1;
+		}
+		return INDEX_NONE;
+	}
+
+	inline const FStateData& GetState(FEntryIndex EntryIndex) const
+	{
+		return States[EntryIndex];
+	}
+
+	inline const FPositionData& GetPositions(FEntryIndex EntryIndex) const
+	{
+		return Positions[EntryIndex];
+	}
+
+	inline const FVelocityData& GetVelocities(FEntryIndex EntryIndex) const
+	{
+		return Velocities[EntryIndex];
+	}
+
+	inline const FTransform& GetTransform(FEntryIndex EntryIndex) const
+	{
+		return Transforms[EntryIndex];
+	}
+
+	inline void SetSolverDt(const Chaos::FReal SolverDtIn)
+	{
+		SolverDt = SolverDtIn;
+	}
+
+	inline void SetState(int32 EntryIndex, const FStateData& StateData)
+	{
+		States[EntryIndex] = StateData;
+	}
+
+	inline FEntryIndex AddEntry(int32 TransformIndex)
+	{
+		ModifiedTransformIndices[TransformIndex] = true;
+		const FEntryIndex EntryIndex = States.AddDefaulted();
+		ensure(GetEntryIndexByTransformIndex(TransformIndex) == EntryIndex);
+		Positions.AddDefaulted();
+		Velocities.AddDefaulted();
+		Transforms.AddDefaulted();
+		return EntryIndex;
+	}
+
+	inline void SetPositions(FEntryIndex EntryIndex, const FPositionData& PositionData)
+	{
+		Positions[EntryIndex] = PositionData;
+	}
+
+	inline void SetVelocities(FEntryIndex EntryIndex, const FVelocityData& VelocityData)
+	{
+		Velocities[EntryIndex] = VelocityData;
+	}
+
+	inline void SetTransform(FEntryIndex EntryIndex, const FTransform& Transform)
+	{
+		Transforms[EntryIndex] = Transform;
+	}
+
+private:
+	Chaos::FReal SolverDt;
+
+	// we only store the data for modified transforms
+	// ModifiedTransformIndices contains which transform has been set 
+	// use the API to retrieve the entry Index matching a specific transform index
+	TBitArray<> ModifiedTransformIndices;
+	TArray<FStateData> States;
+	TArray<FPositionData> Positions;
+	TArray<FVelocityData> Velocities;
+	TArray<FTransform> Transforms;
+
+#if WITH_EDITORONLY_DATA
+	// use to display impulse statistics in editor
+	// this is indexed on the transform index
+	TArray<FDamageData> Damages;
+#endif
+
+public:
+	uint8 IsObjectDynamic: 1;
+	uint8 IsObjectLoading: 1;
 };

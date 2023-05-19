@@ -682,18 +682,12 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 {	
 	SCOPE_CYCLE_COUNTER(STAT_GCCUpdateBounds);
 
-	// #todo(dmp): hack to make bounds calculation work when we don't have valid physics proxy data.  This will
-	// force bounds calculation.
-
-	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
-	const int32 NumTransforms = Results ? Results->GlobalTransforms.Num() : 0;
-
 	if (bChaos_GC_CacheComponentSpaceBounds)
 	{
 		bool NeedBoundsUpdate = false;
 		NeedBoundsUpdate |= (ComponentSpaceBounds.GetSphere().W < 1e-5);
 		NeedBoundsUpdate |= CachePlayback;
-		NeedBoundsUpdate |= (NumTransforms > 0);
+//		NeedBoundsUpdate |= (PhysicsProxy == nullptr);
 		NeedBoundsUpdate |= (DynamicCollection && DynamicCollection->IsDirty());
 		
 		if (NeedBoundsUpdate)
@@ -2767,8 +2761,8 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 	if (RestCollection)
 	{
 		CalculateGlobalMatrices();
-		CalculateLocalBounds();
 	}
+	UpdateCachedBounds();
 }
 
 void UGeometryCollectionComponent::OnCreatePhysicsState()
@@ -3091,6 +3085,9 @@ void UGeometryCollectionComponent::OnPostPhysicsSync()
 
 			PrimaryComponentTick.SetTickFunctionEnable(true);
 		}
+
+		// only update removal if the root is broken
+		UpdateRemovalIfNeeded();
 	}
 
 	const bool bDynamicDataIsDirty = (DynamicCollection && DynamicCollection->IsDirty() && HasVisibleGeometry());
@@ -3119,8 +3116,6 @@ void UGeometryCollectionComponent::UpdateRenderSystemsIfNeeded(bool bDynamicColl
 
 	if (bDynamicCollectionDirty)
 	{
-		UpdateRemovalIfNeeded();
-
 		// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
 		RefreshEmbeddedGeometry();
 
@@ -4449,31 +4444,19 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 {
 	SCOPE_CYCLE_COUNTER(STAT_GCCUGlobalMatrices);
 
-	const FGeometryCollectionResults* Results = PhysicsProxy ? PhysicsProxy->GetConsumerResultsGT() : nullptr;
-
-	const int32 NumTransforms = Results ? Results->GlobalTransforms.Num() : 0;
-	if(NumTransforms > 0)
+	// If hierarchy topology has changed, the RestTransforms is invalidated.
+	if (RestTransforms.Num() != GetTransformArray().Num())
 	{
-		// Just calc from results
-		ComponentSpaceTransforms.Reset();
-		ComponentSpaceTransforms.Append(Results->GlobalTransforms);
+		RestTransforms.Empty();
+	}
+
+	if (!DynamicCollection && RestTransforms.Num() > 0)
+	{
+		GeometryCollectionAlgo::GlobalMatrices(RestTransforms, GetParentArray(), ComponentSpaceTransforms);
 	}
 	else
 	{
-		// If hierarchy topology has changed, the RestTransforms is invalidated.
-		if (RestTransforms.Num() != GetTransformArray().Num())
-		{
-			RestTransforms.Empty();
-		}
-
-		if (!DynamicCollection && RestTransforms.Num() > 0)
-		{
-			GeometryCollectionAlgo::GlobalMatrices(RestTransforms, GetParentArray(), ComponentSpaceTransforms);
-		}
-		else
-		{
-			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), ComponentSpaceTransforms);
-		}
+		GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), ComponentSpaceTransforms);
 	}
 
 #if WITH_EDITOR
