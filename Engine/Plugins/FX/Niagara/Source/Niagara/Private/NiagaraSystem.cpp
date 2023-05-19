@@ -3124,7 +3124,7 @@ void UNiagaraSystem::InitSystemCompiledData()
 		CompiledData.Empty();
 
 		CompiledData.Variables.Reset(Vars.Num());
-		for (const FNiagaraVariable& Var : Vars)
+		for (const FNiagaraVariableBase& Var : Vars)
 		{
 			CompiledData.Variables.AddUnique(Var);
 		}

@@ -2283,7 +2283,7 @@ void FVersionedNiagaraEmitterData::GatherCompiledParticleAttributes(TArray<FNiag
 	{
 		OutVariables = UpdateScriptProps.Script->GetVMExecutableData().Attributes;
 
-		for (const FNiagaraVariable& Var : SpawnScriptProps.Script->GetVMExecutableData().Attributes)
+		for (const FNiagaraVariableBase& Var : SpawnScriptProps.Script->GetVMExecutableData().Attributes)
 		{
 			OutVariables.AddUnique(Var);
 		}
