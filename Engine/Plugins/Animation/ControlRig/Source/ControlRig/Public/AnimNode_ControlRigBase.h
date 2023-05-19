@@ -119,6 +119,14 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Settings)
 	TArray<FBoneReference> InputBonesToTransfer;
 
+	/**
+	 * An inclusive list of bones to transfer as part
+	 * of the output pose transfer phase.
+	 * If this list is empty all bones will be transferred.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Settings)
+	TArray<FBoneReference> OutputBonesToTransfer;
+
 	/** Complete mapping from skeleton to control rig bone index */
 	TArray<TPair<uint16, uint16>> ControlRigBoneInputMappingByIndex;
 	TArray<TPair<uint16, uint16>> ControlRigBoneOutputMappingByIndex;
