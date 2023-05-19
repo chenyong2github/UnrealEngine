@@ -316,12 +316,23 @@ public:
 		// VkPipelineShaderStageCreateInfo
 		for (int32_t Idx = 0; Idx < PipelineCreateInfo.StageCount; ++Idx)
 		{
+			bool bHasSubGroupSizeInfo = false;
+			COPY_FROM_BUFFER(&bHasSubGroupSizeInfo, PSO, MemoryOffset, sizeof(bool));
+
+			void* PipelineShaderStageCreatePNext = nullptr;
+			if (bHasSubGroupSizeInfo)
+			{
+				PipelineShaderStageCreatePNext = (void*)&PSO[MemoryOffset];
+				MemoryOffset += sizeof(VkPipelineShaderStageRequiredSubgroupSizeCreateInfo);
+			}
+
 			COPY_FROM_BUFFER(&ShaderStages[Idx], PSO, MemoryOffset, sizeof(VkPipelineShaderStageCreateInfo));
 
 			uint32_t NameLength;
 			COPY_FROM_BUFFER(&NameLength, PSO, MemoryOffset, sizeof(uint32_t));
 
 			ShaderStages[Idx].pName = (const char*)&PSO[MemoryOffset];
+			ShaderStages[Idx].pNext = PipelineShaderStageCreatePNext;
 			MemoryOffset += NameLength;
 		}
 		CreateInfo.pStages = ShaderStages;
@@ -508,6 +519,10 @@ public:
 
 			VkSubpassDescription2KHR* SubpassDescriptions = new VkSubpassDescription2KHR[RenderPassCreateInfo.subpassCount];
 			std::vector<VkFragmentShadingRateAttachmentInfoKHR> FSRAttachmentInfos;
+			std::vector<VkAttachmentReference2KHR> DepthStencilAttachments;
+
+			FSRAttachmentInfos.resize(RenderPassCreateInfo.subpassCount);
+			DepthStencilAttachments.resize(RenderPassCreateInfo.subpassCount);
 
 			for (uint32_t Idx = 0; Idx < RenderPassCreateInfo.subpassCount; ++Idx)
 			{
@@ -520,8 +535,8 @@ public:
 
 				if (bHasFSRAttachmentInfo)
 				{
-					FSRAttachmentInfos.push_back(VkFragmentShadingRateAttachmentInfoKHR());
-					auto& FSRAttachmentInfo = FSRAttachmentInfos.back();
+					FSRAttachmentInfos[Idx] = VkFragmentShadingRateAttachmentInfoKHR();
+					auto& FSRAttachmentInfo = FSRAttachmentInfos[Idx];
 					FSRAttachmentInfo.pNext = nullptr;
 					FSRAttachmentInfo.sType = VK_STRUCTURE_TYPE_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR;
 					FSRAttachmentInfo.pFragmentShadingRateAttachment = (VkAttachmentReference2KHR*)&PSO[MemoryOffset];
@@ -562,8 +577,23 @@ public:
 
 				if (bHasDepthStencilAttachment)
 				{
-					SubpassDescriptions[Idx].pDepthStencilAttachment = (VkAttachmentReference2KHR*)&PSO[MemoryOffset];
+					bool bHasStencilLayout;
+					COPY_FROM_BUFFER(&bHasStencilLayout, PSO, MemoryOffset, sizeof(bool));
+
+					void* pDepthStencilAttachmentPNext = nullptr;
+					if(bHasStencilLayout)
+					{
+						pDepthStencilAttachmentPNext = (void*) & PSO[MemoryOffset];
+						MemoryOffset += sizeof(VkAttachmentReferenceStencilLayout);
+					}
+
+					DepthStencilAttachments[Idx] = *(VkAttachmentReference2KHR*)&PSO[MemoryOffset];
 					MemoryOffset += sizeof(VkAttachmentReference2KHR);
+
+					auto& DepthStencilAttachment = DepthStencilAttachments.back();
+					DepthStencilAttachments[Idx].pNext = pDepthStencilAttachmentPNext;
+
+					SubpassDescriptions[Idx].pDepthStencilAttachment = &DepthStencilAttachments[Idx];
 				}
 			}
 			RenderPassCreateInfo.pSubpasses = SubpassDescriptions;

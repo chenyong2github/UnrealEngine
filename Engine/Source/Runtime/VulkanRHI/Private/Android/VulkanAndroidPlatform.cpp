@@ -787,23 +787,25 @@ void CharArrayToBuffer(const TArray<const ANSICHAR*>& CharArray, TArray<char>& M
 	}
 }
 
-void GetVKStructsFromPNext(const void* pNext, TMap<uint32_t, const void*>& VkStructs)
+void GetVKStructsFromPNext(const void* InNext, TMap<VkStructureType, const void*>& VkStructs, const TArray<VkStructureType>& ValidTypes)
 {
-	const void* PointerNext = pNext;
-
-	while (PointerNext)
+	const VkBaseInStructure* Next = reinterpret_cast<const VkBaseInStructure*>(InNext);
+	while (Next != nullptr)
 	{
-		const VkStructureType* NextType = (VkStructureType*)PointerNext;
-		VkStructs.FindOrAdd((uint32_t)*NextType) = PointerNext;
+		if (!ValidTypes.Contains(Next->sType))
+		{
+			UE_LOG(LogRHI, Warning, TEXT("GetVKStructsFromPNext: Unexpected type found when reading pNext->sType %d, Valid Types: "), (uint32_t)Next->sType);
+		}
 
-		PointerNext = *((void**)(((uint8*)NextType) + sizeof(size_t)));
+		VkStructs.FindOrAdd(Next->sType) = Next;
+		Next = reinterpret_cast<const VkBaseInStructure*>(Next->pNext);
 	}
 }
 
 void HandleGraphicsPipelineCreatePNext(const VkGraphicsPipelineCreateInfo* PipelineCreateInfo, TArray<char>& MemoryStream)
 {
-	TMap<uint32_t, const void*> VkStructs;
-	GetVKStructsFromPNext(PipelineCreateInfo->pNext, VkStructs);
+	TMap<VkStructureType, const void*> VkStructs;
+	GetVKStructsFromPNext(PipelineCreateInfo->pNext, VkStructs, { VK_STRUCTURE_TYPE_PIPELINE_FRAGMENT_SHADING_RATE_STATE_CREATE_INFO_KHR });
 
 	int32_t HandledCount = 0;
 
@@ -813,16 +815,17 @@ void HandleGraphicsPipelineCreatePNext(const VkGraphicsPipelineCreateInfo* Pipel
 #if !VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	COPY_TO_BUFFER(MemoryStream, &bHasFSRCreateInfo, sizeof(bool));
 #else
-	const void** Struct = VkStructs.Find((uint32_t)VK_STRUCTURE_TYPE_PIPELINE_FRAGMENT_SHADING_RATE_STATE_CREATE_INFO_KHR);
+	const void** Struct = VkStructs.Find(VK_STRUCTURE_TYPE_PIPELINE_FRAGMENT_SHADING_RATE_STATE_CREATE_INFO_KHR);
 	bHasFSRCreateInfo = Struct != nullptr;
 	COPY_TO_BUFFER(MemoryStream, &bHasFSRCreateInfo, sizeof(bool));
 
 	if (bHasFSRCreateInfo)
 	{
-		VkPipelineFragmentShadingRateStateCreateInfoKHR FSRCreateInfo = *(VkPipelineFragmentShadingRateStateCreateInfoKHR*)*Struct;
-		FSRCreateInfo.pNext = nullptr;
+		VkPipelineFragmentShadingRateStateCreateInfoKHR* FSRCreateInfo = (VkPipelineFragmentShadingRateStateCreateInfoKHR*)*Struct;
+		check(FSRCreateInfo->pNext == nullptr);
+		FSRCreateInfo->pNext = nullptr;
 
-		COPY_TO_BUFFER(MemoryStream, &FSRCreateInfo, sizeof(VkPipelineFragmentShadingRateStateCreateInfoKHR));
+		COPY_TO_BUFFER(MemoryStream, FSRCreateInfo, sizeof(VkPipelineFragmentShadingRateStateCreateInfoKHR));
 		HandledCount++;
 	} 
 #endif
@@ -830,10 +833,36 @@ void HandleGraphicsPipelineCreatePNext(const VkGraphicsPipelineCreateInfo* Pipel
 	check(HandledCount == VkStructs.Num());
 }
 
+void HandlePipelineShaderStagePNext(const VkPipelineShaderStageCreateInfo* CreateInfo, TArray<char>& MemoryStream)
+{
+	TMap<VkStructureType, const void*> VkStructs;
+	GetVKStructsFromPNext(CreateInfo->pNext, VkStructs, { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO });
+
+	int32_t HandledCount = 0;
+
+	// Subgroup Size Info
+	bool bHasSubGroupSizeInfo = false;
+
+	const void** Struct = VkStructs.Find(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO);
+	bHasSubGroupSizeInfo = Struct != nullptr;
+	COPY_TO_BUFFER(MemoryStream, &bHasSubGroupSizeInfo, sizeof(bool));
+
+	if (bHasSubGroupSizeInfo)
+	{
+		VkPipelineShaderStageRequiredSubgroupSizeCreateInfo* SubgroupSizeCreateInfo = (VkPipelineShaderStageRequiredSubgroupSizeCreateInfo*)*Struct;
+		check(SubgroupSizeCreateInfo->pNext == nullptr);
+
+		COPY_TO_BUFFER(MemoryStream, SubgroupSizeCreateInfo, sizeof(VkPipelineShaderStageRequiredSubgroupSizeCreateInfo));
+		HandledCount++;
+	}
+
+	check(HandledCount == VkStructs.Num());
+}
+
 void HandleSubpassDescriptionPNext(VkSubpassDescription2* SubpassDescription, TArray<char>& MemoryStream)
 {
-	TMap<uint32_t, const void*> VkStructs;
-	GetVKStructsFromPNext(SubpassDescription->pNext, VkStructs);
+	TMap<VkStructureType, const void*> VkStructs;
+	GetVKStructsFromPNext(SubpassDescription->pNext, VkStructs, { VK_STRUCTURE_TYPE_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR });
 
 	int32_t HandledCount = 0;
 
@@ -843,18 +872,44 @@ void HandleSubpassDescriptionPNext(VkSubpassDescription2* SubpassDescription, TA
 #if !VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
 	COPY_TO_BUFFER(MemoryStream, &bHasFSRAttachmentCreateInfo, sizeof(bool));
 #else
-	const void** Struct = VkStructs.Find((uint32_t)VK_STRUCTURE_TYPE_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR);
+	const void** Struct = VkStructs.Find(VK_STRUCTURE_TYPE_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR);
 	bHasFSRAttachmentCreateInfo = Struct != nullptr;
 	COPY_TO_BUFFER(MemoryStream, &bHasFSRAttachmentCreateInfo, sizeof(bool));
 
 	if (bHasFSRAttachmentCreateInfo)
 	{
 		VkFragmentShadingRateAttachmentInfoKHR* FragmentShadingRateCreateInfo = (VkFragmentShadingRateAttachmentInfoKHR*)*Struct;
+
+		check(FragmentShadingRateCreateInfo->pFragmentShadingRateAttachment->pNext == nullptr);
 		COPY_TO_BUFFER(MemoryStream, FragmentShadingRateCreateInfo->pFragmentShadingRateAttachment, sizeof(VkAttachmentReference2));
 		COPY_TO_BUFFER(MemoryStream, &FragmentShadingRateCreateInfo->shadingRateAttachmentTexelSize, sizeof(VkExtent2D));
 		HandledCount++;
 	}
 #endif
+
+	check(HandledCount == VkStructs.Num());
+}
+
+void HandleDepthStencilAttachmentPNext(const VkAttachmentReference2* Attachment, TArray<char>& MemoryStream)
+{
+	TMap<VkStructureType, const void*> VkStructs;
+	GetVKStructsFromPNext(Attachment->pNext, VkStructs, { VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_STENCIL_LAYOUT });
+
+	int32_t HandledCount = 0;
+
+	bool bHasStencilLayout = false;
+	
+	const void** Struct = VkStructs.Find(VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_STENCIL_LAYOUT);
+	bHasStencilLayout = Struct != nullptr;
+	COPY_TO_BUFFER(MemoryStream, &bHasStencilLayout, sizeof(bool));
+
+	if (bHasStencilLayout)
+	{
+		VkAttachmentReferenceStencilLayout* StencilLayout = (VkAttachmentReferenceStencilLayout*)*Struct;
+		check(StencilLayout->pNext == nullptr);
+		COPY_TO_BUFFER(MemoryStream, StencilLayout, sizeof(VkAttachmentReferenceStencilLayout));
+		HandledCount++;
+	}
 
 	check(HandledCount == VkStructs.Num());
 }
@@ -900,6 +955,8 @@ void PipelineToBinary(FVulkanDevice* Device, const VkGraphicsPipelineCreateInfo*
 		ShaderStage.sType = PipelineInfo->pStages[Idx].sType;
 		ShaderStage.flags = PipelineInfo->pStages[Idx].flags;
 		ShaderStage.stage = PipelineInfo->pStages[Idx].stage;
+
+		HandlePipelineShaderStagePNext(&PipelineInfo->pStages[Idx], MemoryStream);
 
 		COPY_TO_BUFFER(MemoryStream, &ShaderStage, sizeof(VkPipelineShaderStageCreateInfo));
 
@@ -1099,6 +1156,8 @@ void PipelineToBinary(FVulkanDevice* Device, const VkGraphicsPipelineCreateInfo*
 
 			VkRenderPassFragmentDensityMapCreateInfoEXT* FragmentDensityMap = (VkRenderPassFragmentDensityMapCreateInfoEXT*)RenderPassCreateInfo.pNext;
 			COPY_TO_BUFFER(MemoryStream, FragmentDensityMap, sizeof(VkRenderPassFragmentDensityMapCreateInfoEXT));
+
+			check(FragmentDensityMap->pNext == nullptr);
 		}
 
 		if(RenderPassCreateInfo.attachmentCount > 0)
@@ -1120,17 +1179,25 @@ void PipelineToBinary(FVulkanDevice* Device, const VkGraphicsPipelineCreateInfo*
 			SubpassDescription.pInputAttachments = nullptr;
 			SubpassDescription.pResolveAttachments = nullptr;
 			
-			COPY_TO_BUFFER(MemoryStream, &CreateInfo.pSubpasses[Idx], sizeof(VkSubpassDescription2));
+			COPY_TO_BUFFER(MemoryStream, &SubpassDescription, sizeof(VkSubpassDescription2));
 
 			HandleSubpassDescriptionPNext(&SubpassDescription, MemoryStream);
 
 			if(SubpassDescription.colorAttachmentCount > 0)
 			{
+				for (uint32_t n = 0; n < SubpassDescription.colorAttachmentCount; ++n)
+				{
+					check(CreateInfo.pSubpasses[Idx].pColorAttachments[n].pNext == nullptr);
+				}
 				COPY_TO_BUFFER(MemoryStream, CreateInfo.pSubpasses[Idx].pColorAttachments, sizeof(VkAttachmentReference2) * SubpassDescription.colorAttachmentCount);
 			}
 
 			if(SubpassDescription.inputAttachmentCount > 0)
 			{
+				for (uint32_t n = 0; n < SubpassDescription.inputAttachmentCount; ++n)
+				{
+					check(CreateInfo.pSubpasses[Idx].pInputAttachments[n].pNext == nullptr);
+				}
 				COPY_TO_BUFFER(MemoryStream, CreateInfo.pSubpasses[Idx].pInputAttachments, sizeof(VkAttachmentReference2) * SubpassDescription.inputAttachmentCount);
 			}
 
@@ -1141,6 +1208,11 @@ void PipelineToBinary(FVulkanDevice* Device, const VkGraphicsPipelineCreateInfo*
 			{
 				if(SubpassDescription.colorAttachmentCount > 0)
 				{
+					for (uint32_t n = 0; n < SubpassDescription.colorAttachmentCount; ++n)
+					{
+						check(CreateInfo.pSubpasses[Idx].pResolveAttachments[n].pNext == nullptr);
+					}
+					check(CreateInfo.pSubpasses[Idx].pResolveAttachments == nullptr);
 					COPY_TO_BUFFER(MemoryStream, CreateInfo.pSubpasses[Idx].pResolveAttachments, sizeof(VkAttachmentReference2)* SubpassDescription.colorAttachmentCount);
 				}
 			}
@@ -1150,6 +1222,7 @@ void PipelineToBinary(FVulkanDevice* Device, const VkGraphicsPipelineCreateInfo*
 
 			if (bHasDepthStencilAttachment)
 			{
+				HandleDepthStencilAttachmentPNext(CreateInfo.pSubpasses[Idx].pDepthStencilAttachment, MemoryStream);
 				COPY_TO_BUFFER(MemoryStream, CreateInfo.pSubpasses[Idx].pDepthStencilAttachment, sizeof(VkAttachmentReference2));
 			}
 		}
@@ -1192,7 +1265,7 @@ void PipelineToBinary(FVulkanDevice* Device, const VkGraphicsPipelineCreateInfo*
 
 			check(FragmentDensityMap->pNext == nullptr);
 			// TODO: Support Multiview create info
-		}
+		} 
 
 		if(RenderPassCreateInfo.attachmentCount > 0)
 		{
@@ -1213,7 +1286,7 @@ void PipelineToBinary(FVulkanDevice* Device, const VkGraphicsPipelineCreateInfo*
 			SubpassDescription.pInputAttachments = nullptr;
 			SubpassDescription.pResolveAttachments = nullptr;
 			
-			COPY_TO_BUFFER(MemoryStream, &CreateInfo.pSubpasses[Idx], sizeof(VkSubpassDescription));
+			COPY_TO_BUFFER(MemoryStream, &SubpassDescription, sizeof(VkSubpassDescription));
 
 			if(SubpassDescription.colorAttachmentCount > 0)
 			{
