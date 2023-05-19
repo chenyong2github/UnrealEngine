@@ -102,9 +102,8 @@ class FVulkanShader : public IRefCountedObject
 	static FCriticalSection VulkanShaderModulesMapCS;
 
 public:
-	FVulkanShader(FVulkanDevice* InDevice, EShaderFrequency InFrequency, VkShaderStageFlagBits InStageFlag)
+	FVulkanShader(FVulkanDevice* InDevice, EShaderFrequency InFrequency)
 		: ShaderKey(0)
-		, StageFlag(InStageFlag)
 		, Frequency(InFrequency)
 		, Device(InDevice)
 	{
@@ -190,8 +189,7 @@ protected:
 	/** External bindings for this shader. */
 	FVulkanShaderHeader				CodeHeader;
 	TMap<uint32, TRefCountPtr<FVulkanShaderModule>>	ShaderModules;
-	const VkShaderStageFlagBits		StageFlag;
-	EShaderFrequency				Frequency;
+	const EShaderFrequency			Frequency;
 
 	TArray<FUniformBufferStaticSlot> StaticSlots;
 
@@ -230,12 +228,12 @@ protected:
 };
 
 /** This represents a vertex shader that hasn't been combined with a specific declaration to create a bound shader. */
-template<typename BaseResourceType, EShaderFrequency ShaderType, VkShaderStageFlagBits StageFlagBits>
+template<typename BaseResourceType, EShaderFrequency ShaderType>
 class TVulkanBaseShader : public BaseResourceType, public FVulkanShader
 {
 private:
 	TVulkanBaseShader(FVulkanDevice* InDevice) :
-		FVulkanShader(InDevice, ShaderType, StageFlagBits)
+		FVulkanShader(InDevice, ShaderType)
 	{
 	}
 	friend class FVulkanShaderFactory;
@@ -257,16 +255,16 @@ public:
 	}
 };
 
-typedef TVulkanBaseShader<FRHIVertexShader, SF_Vertex, VK_SHADER_STAGE_VERTEX_BIT>					FVulkanVertexShader;
-typedef TVulkanBaseShader<FRHIPixelShader, SF_Pixel, VK_SHADER_STAGE_FRAGMENT_BIT>					FVulkanPixelShader;
-typedef TVulkanBaseShader<FRHIComputeShader, SF_Compute, VK_SHADER_STAGE_COMPUTE_BIT>				FVulkanComputeShader;
-typedef TVulkanBaseShader<FRHIGeometryShader, SF_Geometry, VK_SHADER_STAGE_GEOMETRY_BIT>			FVulkanGeometryShader;
+typedef TVulkanBaseShader<FRHIVertexShader, SF_Vertex>				FVulkanVertexShader;
+typedef TVulkanBaseShader<FRHIPixelShader, SF_Pixel>				FVulkanPixelShader;
+typedef TVulkanBaseShader<FRHIComputeShader, SF_Compute>			FVulkanComputeShader;
+typedef TVulkanBaseShader<FRHIGeometryShader, SF_Geometry>			FVulkanGeometryShader;
 
 #if VULKAN_RHI_RAYTRACING
-typedef TVulkanBaseShader<FRHIRayGenShader, SF_RayGen, VK_SHADER_STAGE_RAYGEN_BIT_KHR>					FVulkanRayGenShader;
-typedef TVulkanBaseShader<FRHIRayMissShader, SF_RayMiss, VK_SHADER_STAGE_MISS_BIT_KHR>					FVulkanRayMissShader;
-typedef TVulkanBaseShader<FRHIRayCallableShader, SF_RayCallable, VK_SHADER_STAGE_CALLABLE_BIT_KHR>		FVulkanRayCallableShader;
-typedef TVulkanBaseShader<FRHIRayHitGroupShader, SF_RayHitGroup, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR>	FVulkanRayHitGroupShader; // vkrt todo: How to handle VK_SHADER_STAGE_ANY_HIT_BIT_KHR?
+typedef TVulkanBaseShader<FRHIRayGenShader, SF_RayGen>				FVulkanRayGenShader;
+typedef TVulkanBaseShader<FRHIRayMissShader, SF_RayMiss>			FVulkanRayMissShader;
+typedef TVulkanBaseShader<FRHIRayCallableShader, SF_RayCallable>	FVulkanRayCallableShader;
+typedef TVulkanBaseShader<FRHIRayHitGroupShader, SF_RayHitGroup>	FVulkanRayHitGroupShader; // vkrt todo: How to handle VK_SHADER_STAGE_ANY_HIT_BIT_KHR?
 #endif // VULKAN_RHI_RAYTRACING
 
 class FVulkanShaderFactory

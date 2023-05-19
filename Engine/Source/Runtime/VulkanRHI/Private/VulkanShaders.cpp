@@ -361,7 +361,7 @@ FVulkanShader::FSpirvCode FVulkanShader::GetPatchedSpirvCode(const FGfxPipelineD
 {
 	FSpirvCode Spirv = GetSpirvCode();
 
-	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader, StageFlag);
+	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader);
 	if (NeedsSpirvInputAttachmentPatching(Desc))
 	{
 		Spirv = PatchSpirvInputAttachments(Spirv);
@@ -375,7 +375,7 @@ TRefCountPtr<FVulkanShaderModule> FVulkanShader::CreateHandle(const FVulkanLayou
 	FScopeLock Lock(&VulkanShaderModulesMapCS);
 	FSpirvCode Spirv = GetSpirvCode();
 
-	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader, StageFlag);
+	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader);
 	TRefCountPtr<FVulkanShaderModule> Module = CreateShaderModule(Device, Spirv);
 	ShaderModules.Add(LayoutHash, Module);
 	if (!CodeHeader.DebugName.IsEmpty())
@@ -397,7 +397,7 @@ void FVulkanShader::PurgeShaderModules()
 	ShaderModules.Empty(0);
 }
 
-void FVulkanLayout::PatchSpirvBindings(FVulkanShader::FSpirvCode& SprivCode, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const
+void FVulkanLayout::PatchSpirvBindings(FVulkanShader::FSpirvCode& SprivCode, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader) const
 {
 	// Bindless shader compilation already places descriptors and bindings in their fixed values based on stage and descriptor type
 	if (Device->SupportsBindless())

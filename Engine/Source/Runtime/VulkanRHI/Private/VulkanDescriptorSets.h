@@ -1295,7 +1295,7 @@ public:
 		return DescriptorSetLayout.GetHash();
 	}
 
-	void PatchSpirvBindings(FVulkanShader::FSpirvCode& SpirvCode, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader, VkShaderStageFlagBits InStageFlag) const;
+	void PatchSpirvBindings(FVulkanShader::FSpirvCode& SpirvCode, EShaderFrequency Frequency, const FVulkanShaderHeader& CodeHeader) const;
 
 protected:
 	FVulkanDescriptorSetsLayout	DescriptorSetLayout;

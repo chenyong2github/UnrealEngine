@@ -1181,16 +1181,16 @@ static const TMap<uint8, VkFragmentShadingRateCombinerOpKHR> FragmentCombinerOpM
 FString FVulkanPipelineStateCacheManager::ShaderHashesToString(FVulkanShader* Shaders[ShaderStage::NumStages])
 {
 	FString ShaderHashes = "";
-	if (Shaders[ShaderStage::Vertex] && Shaders[ShaderStage::Vertex]->StageFlag == VK_SHADER_STAGE_VERTEX_BIT)
+	if (Shaders[ShaderStage::Vertex] && Shaders[ShaderStage::Vertex]->Frequency == SF_Vertex)
 	{
 		ShaderHashes += TEXT("VS: ") + static_cast<FVulkanVertexShader*>(Shaders[ShaderStage::Vertex])->GetHash().ToString() + TEXT("\n");
 	}
-	if (Shaders[ShaderStage::Pixel] && Shaders[ShaderStage::Pixel]->StageFlag == VK_SHADER_STAGE_FRAGMENT_BIT)
+	if (Shaders[ShaderStage::Pixel] && Shaders[ShaderStage::Pixel]->Frequency == SF_Pixel)
 	{
 		ShaderHashes += TEXT("PS: ") + static_cast<FVulkanPixelShader*>(Shaders[ShaderStage::Pixel])->GetHash().ToString() + TEXT("\n");
 	}
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
-	if (Shaders[ShaderStage::Geometry] && Shaders[ShaderStage::Geometry]->StageFlag == VK_SHADER_STAGE_GEOMETRY_BIT)
+	if (Shaders[ShaderStage::Geometry] && Shaders[ShaderStage::Geometry]->Frequency == SF_Geometry)
 	{
 		ShaderHashes += TEXT("GS: ") + static_cast<FVulkanGeometryShader*>(Shaders[ShaderStage::Geometry])->GetHash().ToString() + TEXT("\n");
 	}
