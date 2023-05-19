@@ -101,7 +101,7 @@ void UFontBulkData::Serialize(FArchive& Ar)
 
 	if (Ar.IsSaving())
 	{
-		BulkData.SetBulkDataFlags(BULKDATA_SerializeCompressed | BULKDATA_SerializeCompressedBitWindow);
+		BulkData.SetBulkDataFlags(BULKDATA_SerializeCompressed);
 	}
 	
 	BulkData.Serialize(Ar, this, INDEX_NONE, false);
