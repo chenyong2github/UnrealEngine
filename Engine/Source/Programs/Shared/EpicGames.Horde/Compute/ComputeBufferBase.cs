@@ -258,7 +258,7 @@ namespace EpicGames.Horde.Compute
 		{
 			readonly HeaderPtr _headerPtr;
 			readonly Memory<byte>[] _chunks;
-			readonly ResourcesBase _resources;
+			ResourcesBase _resources;
 			readonly int _readerIdx;
 
 			public ReaderImpl(ResourcesBase resources, int readerIdx)
@@ -274,6 +274,16 @@ namespace EpicGames.Horde.Compute
 			{
 				_resources.AddRef();
 				return new ReaderImpl(_resources, _readerIdx);
+			}
+
+			/// <inheritdoc/>
+			public void Dispose()
+			{
+				if (_resources != null)
+				{
+					_resources.Dispose();
+					_resources = null!;
+				}
 			}
 
 			/// <inheritdoc/>
@@ -378,7 +388,7 @@ namespace EpicGames.Horde.Compute
 		{
 			readonly HeaderPtr _headerPtr;
 			readonly Memory<byte>[] _chunks;
-			readonly ResourcesBase _resources;
+			ResourcesBase _resources;
 
 			public WriterImpl(ResourcesBase resources)
 			{
@@ -392,6 +402,16 @@ namespace EpicGames.Horde.Compute
 			{
 				_resources.AddRef();
 				return new WriterImpl(_resources);
+			}
+
+			/// <inheritdoc/>
+			public void Dispose()
+			{
+				if (_resources != null)
+				{
+					_resources.Dispose();
+					_resources = null!;
+				}
 			}
 
 			/// <inheritdoc/>

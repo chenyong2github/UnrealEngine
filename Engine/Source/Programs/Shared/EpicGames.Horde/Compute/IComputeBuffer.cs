@@ -30,7 +30,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Read interface for a compute buffer
 	/// </summary>
-	public interface IComputeBufferReader
+	public interface IComputeBufferReader : IDisposable
 	{
 		/// <summary>
 		/// Create a new reader instance using the same underlying buffer
@@ -66,7 +66,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Buffer that can receive data from a remote machine.
 	/// </summary>
-	public interface IComputeBufferWriter
+	public interface IComputeBufferWriter : IDisposable
 	{
 		/// <summary>
 		/// Create a new writer instance using the same underlying buffer
