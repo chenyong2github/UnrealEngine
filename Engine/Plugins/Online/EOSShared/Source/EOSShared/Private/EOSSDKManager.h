@@ -108,11 +108,6 @@ protected:
 	// Config
 	/** Interval between platform ticks. 0 means we tick every frame. */
 	double ConfigTickIntervalSeconds = 0.f;
-public:
-	const TArray<FString>& GetSuppressedLogStrings() const { return SuppressedLogStrings; }
-protected:
-	/** Log strings that should be downgraded from Error/Warning to Log. */
-	TArray<FString> SuppressedLogStrings;
 };
 
 struct FEOSPlatformHandle : public IEOSPlatformHandle

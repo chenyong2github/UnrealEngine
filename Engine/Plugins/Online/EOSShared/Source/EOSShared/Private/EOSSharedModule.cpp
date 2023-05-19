@@ -13,11 +13,16 @@
 
 #define LOCTEXT_NAMESPACE "EOS"
 
+#define CONFIG_SECTION_NAME TEXT("EOSSDK")
+
 IMPLEMENT_MODULE(FEOSSharedModule, EOSShared);
 
 void FEOSSharedModule::StartupModule()
 {
 #if WITH_EOS_SDK
+	FCoreDelegates::TSOnConfigSectionsChanged().AddRaw(this, &FEOSSharedModule::OnConfigSectionsChanged);
+	LoadConfig();
+
 	SDKManager = MakeUnique<FPlatformEOSSDKManager>();
 	check(SDKManager);
 
@@ -39,6 +44,8 @@ void FEOSSharedModule::StartupModule()
 void FEOSSharedModule::ShutdownModule()
 {
 #if WITH_EOS_SDK
+	FCoreDelegates::TSOnConfigSectionsChanged().RemoveAll(this);
+
 	if(SDKManager.IsValid())
 	{
 		IModularFeatures::Get().UnregisterModularFeature(TEXT("EOSSDKManager"), SDKManager.Get());
@@ -48,4 +55,23 @@ void FEOSSharedModule::ShutdownModule()
 #endif // WITH_EOS_SDK
 }
 
+FEOSSharedModule* FEOSSharedModule::Get()
+{
+	return FModuleManager::GetModulePtr<FEOSSharedModule>("EOSShared");
+}
+
+void FEOSSharedModule::OnConfigSectionsChanged(const FString& IniFilename, const TSet<FString>& SectionNames)
+{
+	if (IniFilename == GEngineIni && SectionNames.Contains(CONFIG_SECTION_NAME))
+	{
+		LoadConfig();
+	}
+}
+
+void FEOSSharedModule::LoadConfig()
+{
+	GConfig->GetArray(CONFIG_SECTION_NAME, TEXT("SuppressedLogStrings"), SuppressedLogStrings, GEngineIni);
+}
+
+#undef CONFIG_SECTION_NAME
 #undef LOCTEXT_NAMESPACE

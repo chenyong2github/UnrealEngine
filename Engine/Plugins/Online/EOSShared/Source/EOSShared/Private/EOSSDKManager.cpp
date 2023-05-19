@@ -4,6 +4,7 @@
 
 #if WITH_EOS_SDK
 
+#include "Algo/AnyOf.h"
 #include "Containers/Ticker.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/App.h"
@@ -19,6 +20,7 @@
 #include "CoreGlobals.h"
 
 #include "EOSShared.h"
+#include "EOSSharedModule.h"
 #include "EOSSharedTypes.h"
 
 #include "eos_auth.h"
@@ -88,16 +90,9 @@ namespace
 		bool bSuppressLogLevel = false;
 		if (IsLogLevelSuppressable(Message->Level))
 		{
-			if (FEOSSDKManager* Manager = static_cast<FEOSSDKManager*>(IEOSSDKManager::Get()))
+			if(FEOSSharedModule* Module = FEOSSharedModule::Get())
 			{
-				for (const FString& SuppressedString : Manager->GetSuppressedLogStrings())
-				{
-					if (MessageStr.Contains(SuppressedString))
-					{
-						bSuppressLogLevel = true;
-						break;
-					}
-				}
+				bSuppressLogLevel = Algo::AnyOf(Module->GetSuppressedLogStrings(), [&MessageStr](const FString& SuppressedLogString) { return MessageStr.Contains(SuppressedLogString); });
 			}
 		}
 
@@ -523,8 +518,6 @@ void FEOSSDKManager::LoadConfig()
 	const TCHAR* SectionName = TEXT("EOSSDK");
 	ConfigTickIntervalSeconds = 0.f;
 	GConfig->GetDouble(SectionName, TEXT("TickIntervalSeconds"), ConfigTickIntervalSeconds, GEngineIni);
-
-	GConfig->GetArray(SectionName, TEXT("SuppressedLogStrings"), SuppressedLogStrings, GEngineIni);
 
 	SetupTicker();
 }
