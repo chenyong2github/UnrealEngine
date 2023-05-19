@@ -60,14 +60,14 @@ namespace EpicGames.Horde.Compute
 		class MessageBuilder : IComputeMessageBuilder
 		{
 			readonly ComputeMessageChannel _channel;
-			readonly IComputeBufferWriter _sendBufferWriter;
+			readonly ComputeBufferWriter _sendBufferWriter;
 			readonly ComputeMessageType _type;
 			int _length;
 
 			/// <inheritdoc/>
 			public int Length => _length;
 
-			public MessageBuilder(ComputeMessageChannel channel, IComputeBufferWriter sendBufferWriter, ComputeMessageType type)
+			public MessageBuilder(ComputeMessageChannel channel, ComputeBufferWriter sendBufferWriter, ComputeMessageType type)
 			{
 				_channel = channel;
 				_sendBufferWriter = sendBufferWriter;
@@ -180,7 +180,7 @@ namespace EpicGames.Horde.Compute
 		/// <inheritdoc/>
 		public async ValueTask<IComputeMessage> ReceiveAsync(CancellationToken cancellationToken)
 		{
-			IComputeBufferReader recvBufferReader = _recvBuffer.Reader;
+			ComputeBufferReader recvBufferReader = _recvBuffer.Reader;
 			while (!recvBufferReader.IsComplete)
 			{
 				ReadOnlyMemory<byte> memory = recvBufferReader.GetReadBuffer();
@@ -231,7 +231,7 @@ namespace EpicGames.Horde.Compute
 				throw new InvalidOperationException("Only one writer can be active at a time. Dispose of the previous writer first.");
 			}
 
-			IComputeBufferWriter sendBufferWriter = _sendBuffer.Writer;
+			ComputeBufferWriter sendBufferWriter = _sendBuffer.Writer;
 			await sendBufferWriter.WaitToWriteAsync(maxSize, cancellationToken);
 
 			_currentBuilder = new MessageBuilder(this, sendBufferWriter, type);

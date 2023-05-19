@@ -228,45 +228,15 @@ namespace EpicGames.Horde.Compute
 			public abstract Task WaitForWriteEvent(CancellationToken cancellationToken);
 		}
 
-		class ReaderImpl : IComputeBufferReader
-		{
-			readonly ComputeBufferBase _buffer;
-
-			public ReaderImpl(ComputeBufferBase buffer) => _buffer = buffer;
-
-			public bool IsComplete => _buffer.IsComplete(0);
-
-			public void AdvanceReadPosition(int size) => _buffer.AdvanceReadPosition(0, size);
-
-			public ReadOnlyMemory<byte> GetReadBuffer() => _buffer.GetReadBuffer(0);
-
-			public ValueTask<bool> WaitToReadAsync(int minLength, CancellationToken cancellationToken = default) => _buffer.WaitToReadAsync(0, minLength, cancellationToken);
-		}
-
-		class WriterImpl : IComputeBufferWriter
-		{
-			readonly ComputeBufferBase _buffer;
-
-			public WriterImpl(ComputeBufferBase buffer) => _buffer = buffer;
-
-			public void AdvanceWritePosition(int size) => _buffer.AdvanceWritePosition(size);
-
-			public Memory<byte> GetWriteBuffer() => _buffer.GetWriteBuffer();
-
-			public bool MarkComplete() => _buffer.MarkComplete();
-
-			public ValueTask WaitToWriteAsync(int minLength, CancellationToken cancellationToken = default) => _buffer.WaitToWriteAsync(minLength, cancellationToken);
-		}
-
 		readonly HeaderPtr _headerPtr;
 		readonly Memory<byte>[] _chunks;
 		ResourcesBase _resources;
 
 		/// <inheritdoc/>
-		public IComputeBufferReader Reader { get; }
+		public ComputeBufferReader Reader { get; }
 
 		/// <inheritdoc/>
-		public IComputeBufferWriter Writer { get; }
+		public ComputeBufferWriter Writer { get; }
 
 #pragma warning disable IDE0051 // Remove unused private members
 		// For debugging purposes only
@@ -287,8 +257,8 @@ namespace EpicGames.Horde.Compute
 			_chunks = chunks;
 			_resources = resources;
 
-			Reader = new ReaderImpl(this);
-			Writer = new WriterImpl(this);
+			Reader = new ComputeBufferReader(this, 0);
+			Writer = new ComputeBufferWriter(this);
 		}
 
 		/// <inheritdoc/>

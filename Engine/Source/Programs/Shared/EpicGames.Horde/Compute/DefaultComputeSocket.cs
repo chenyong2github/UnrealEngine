@@ -117,7 +117,7 @@ namespace EpicGames.Horde.Compute
 			try
 			{
 				// Maintain a local cache of buffers to be able to query for them without having to acquire a global lock
-				Dictionary<int, IComputeBufferWriter> cachedWriters = new Dictionary<int, IComputeBufferWriter>();
+				Dictionary<int, ComputeBufferWriter> cachedWriters = new Dictionary<int, ComputeBufferWriter>();
 
 				Memory<byte> last = Memory<byte>.Empty;
 
@@ -138,7 +138,7 @@ namespace EpicGames.Horde.Compute
 					// Dispatch it to the correct place
 					if (size >= 0)
 					{
-						IComputeBufferWriter writer = GetReceiveBuffer(cachedWriters, id);
+						ComputeBufferWriter writer = GetReceiveBuffer(cachedWriters, id);
 						await ReadPacketAsync(transport, id, size, writer, cancellationToken);
 					}
 					else if (size == (int)ControlMessageType.Attach)
@@ -174,7 +174,7 @@ namespace EpicGames.Horde.Compute
 			_logger.LogTrace("Closing reader");
 		}
 
-		async Task ReadPacketAsync(IComputeTransport transport, int id, int size, IComputeBufferWriter writer, CancellationToken cancellationToken)
+		async Task ReadPacketAsync(IComputeTransport transport, int id, int size, ComputeBufferWriter writer, CancellationToken cancellationToken)
 		{
 			Memory<byte> memory = writer.GetWriteBuffer();
 			while (memory.Length < size)
@@ -193,9 +193,9 @@ namespace EpicGames.Horde.Compute
 			writer.AdvanceWritePosition(size);
 		}
 
-		IComputeBufferWriter GetReceiveBuffer(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
+		ComputeBufferWriter GetReceiveBuffer(Dictionary<int, ComputeBufferWriter> cachedWriters, int id)
 		{
-			IComputeBufferWriter? writer;
+			ComputeBufferWriter? writer;
 			if (cachedWriters.TryGetValue(id, out writer))
 			{
 				return writer;
@@ -325,7 +325,7 @@ namespace EpicGames.Horde.Compute
 			_remoteBuffersChanged.Pulse();
 		}
 
-		void DetachRecvBuffer(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)
+		void DetachRecvBuffer(Dictionary<int, ComputeBufferWriter> cachedWriters, int id)
 		{
 			cachedWriters.Remove(id);
 
@@ -358,7 +358,7 @@ namespace EpicGames.Horde.Compute
 		{
 			using IComputeBuffer _ = buffer;
 
-			IComputeBufferReader reader = buffer.Reader;
+			ComputeBufferReader reader = buffer.Reader;
 			while (!cancellationToken.IsCancellationRequested)
 			{
 				ReadOnlyMemory<byte> memory = reader.GetReadBuffer();

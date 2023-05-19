@@ -190,7 +190,7 @@ namespace EpicGames.Horde.Compute
 			ipcBuffer.Writer.MarkComplete();
 		}
 
-		static async Task ProcessIpcMessagesAsync(IComputeSocket socket, IComputeBufferReader ipcReader, CancellationToken cancellationToken)
+		static async Task ProcessIpcMessagesAsync(IComputeSocket socket, ComputeBufferReader ipcReader, CancellationToken cancellationToken)
 		{
 			while(await ipcReader.WaitToReadAsync(1, cancellationToken))
 			{
