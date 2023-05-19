@@ -131,17 +131,20 @@ FString FAndroidWebBrowserWindow::GetUrl() const
 
 bool FAndroidWebBrowserWindow::OnKeyDown(const FKeyEvent& InKeyEvent)
 {
-	return BrowserWidget->OnKeyDown(FGeometry(), InKeyEvent).IsEventHandled();
+//	return BrowserWidget->OnKeyDown(FGeometry(), InKeyEvent).IsEventHandled();
+	return false;
 }
 
 bool FAndroidWebBrowserWindow::OnKeyUp(const FKeyEvent& InKeyEvent)
 {
-	return BrowserWidget->OnKeyUp(FGeometry(), InKeyEvent).IsEventHandled();
+//	return BrowserWidget->OnKeyUp(FGeometry(), InKeyEvent).IsEventHandled();
+	return false;
 }
 
 bool FAndroidWebBrowserWindow::OnKeyChar(const FCharacterEvent& InCharacterEvent)
 {
-	return BrowserWidget->OnKeyChar(FGeometry(), InCharacterEvent).IsEventHandled();
+//	return BrowserWidget->OnKeyChar(FGeometry(), InCharacterEvent).IsEventHandled();
+	return false;
 }
 
 FVector2D FAndroidWebBrowserWindow::ConvertMouseEventToLocal(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup)
@@ -157,7 +160,7 @@ FVector2D FAndroidWebBrowserWindow::ConvertMouseEventToLocal(const FGeometry& My
 FReply FAndroidWebBrowserWindow::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup)
 {
 	FReply Reply = FReply::Unhandled();
-
+/*
 	FKey Button = MouseEvent.GetEffectingButton();
 	bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
 
@@ -166,14 +169,14 @@ FReply FAndroidWebBrowserWindow::OnMouseButtonDown(const FGeometry& MyGeometry, 
 		Reply = FReply::Handled();
 		BrowserWidget->SendTouchDown(ConvertMouseEventToLocal(MyGeometry, MouseEvent, bIsPopup));
 	}
-
+*/
 	return Reply;
 }
 
 FReply FAndroidWebBrowserWindow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup)
 {
 	FReply Reply = FReply::Unhandled();
-
+/*
 	FKey Button = MouseEvent.GetEffectingButton();
 	bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
 
@@ -182,7 +185,7 @@ FReply FAndroidWebBrowserWindow::OnMouseButtonUp(const FGeometry& MyGeometry, co
 		Reply = FReply::Handled();
 		BrowserWidget->SendTouchUp(ConvertMouseEventToLocal(MyGeometry, MouseEvent, bIsPopup));
 	}
-
+*/
 	return Reply;
 }
 
@@ -194,7 +197,7 @@ FReply FAndroidWebBrowserWindow::OnMouseButtonDoubleClick(const FGeometry& MyGeo
 FReply FAndroidWebBrowserWindow::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup)
 {
 	FReply Reply = FReply::Unhandled();
-
+/*
 	FKey Button = MouseEvent.GetEffectingButton();
 	bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
 
@@ -203,7 +206,7 @@ FReply FAndroidWebBrowserWindow::OnMouseMove(const FGeometry& MyGeometry, const 
 		Reply = FReply::Handled();
 		BrowserWidget->SendTouchMove(ConvertMouseEventToLocal(MyGeometry, MouseEvent, bIsPopup));
 	}
-
+*/
 	return Reply;
 }
 

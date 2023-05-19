@@ -556,14 +556,17 @@ FReply SAndroidWebBrowserWidget::OnMouseButtonDown(const FGeometry& MyGeometry, 
 {
 	FReply Reply = FReply::Unhandled();
 
-	FKey Button = MouseEvent.GetEffectingButton();
-	bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
-
-	if (bSupportedButton)
+	if (IsAndroid3DBrowser)
 	{
-		Reply = FReply::Handled();
-		SendTouchDown(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
-		bMouseCapture = true;
+		FKey Button = MouseEvent.GetEffectingButton();
+		bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
+
+		if (bSupportedButton)
+		{
+			Reply = FReply::Handled();
+			SendTouchDown(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
+			bMouseCapture = true;
+		}
 	}
 
 	return Reply;
@@ -573,14 +576,17 @@ FReply SAndroidWebBrowserWidget::OnMouseButtonUp(const FGeometry& MyGeometry, co
 {
 	FReply Reply = FReply::Unhandled();
 
-	FKey Button = MouseEvent.GetEffectingButton();
-	bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
-
-	if (bSupportedButton)
+	if (IsAndroid3DBrowser)
 	{
-		Reply = FReply::Handled();
-		SendTouchUp(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
-		bMouseCapture = false;
+		FKey Button = MouseEvent.GetEffectingButton();
+		bool bSupportedButton = (Button == EKeys::LeftMouseButton); // || Button == EKeys::RightMouseButton || Button == EKeys::MiddleMouseButton);
+
+		if (bSupportedButton)
+		{
+			Reply = FReply::Handled();
+			SendTouchUp(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
+			bMouseCapture = false;
+		}
 	}
 
 	return Reply;
@@ -590,7 +596,7 @@ FReply SAndroidWebBrowserWidget::OnMouseMove(const FGeometry& MyGeometry, const 
 {
 	FReply Reply = FReply::Unhandled();
 
-	if (bMouseCapture)
+	if (IsAndroid3DBrowser && bMouseCapture)
 	{
 		Reply = FReply::Handled();
 		SendTouchMove(ConvertMouseEventToLocal(MyGeometry, MouseEvent));
@@ -601,12 +607,22 @@ FReply SAndroidWebBrowserWidget::OnMouseMove(const FGeometry& MyGeometry, const 
 
 FReply SAndroidWebBrowserWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
+	if (!IsAndroid3DBrowser)
+	{
+		return FReply::Unhandled();
+	}
+
 //	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::OnKeyDown: %d"), InKeyEvent.GetCharacter());
 	return JavaWebBrowser->SendKeyDown(InKeyEvent.GetCharacter()) ? FReply::Handled() : FReply::Unhandled();
 }
 
 FReply SAndroidWebBrowserWidget::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
+	if (!IsAndroid3DBrowser)
+	{
+		return FReply::Unhandled();
+	}
+
 //	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::OnKeyUp: %d"), InKeyEvent.GetCharacter());
 	return JavaWebBrowser->SendKeyUp(InKeyEvent.GetCharacter()) ? FReply::Handled() : FReply::Unhandled();
 }
@@ -614,10 +630,13 @@ FReply SAndroidWebBrowserWidget::OnKeyUp(const FGeometry& MyGeometry, const FKey
 FReply SAndroidWebBrowserWidget::OnKeyChar(const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent)
 {
 //	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("SAndroidWebBrowserWidget::OnKeyChar: %d"), (int32)InCharacterEvent.GetCharacter());
-	if (JavaWebBrowser->SendKeyDown(InCharacterEvent.GetCharacter()))
+	if (IsAndroid3DBrowser)
 	{
-		JavaWebBrowser->SendKeyUp(InCharacterEvent.GetCharacter());
-		return FReply::Handled();
+		if (JavaWebBrowser->SendKeyDown(InCharacterEvent.GetCharacter()))
+		{
+			JavaWebBrowser->SendKeyUp(InCharacterEvent.GetCharacter());
+			return FReply::Handled();
+		}
 	}
 	return FReply::Unhandled();
 }
