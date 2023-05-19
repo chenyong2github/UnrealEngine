@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_RotateRootBone.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/AnimRootMotionProvider.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RotateRootBone)
 
@@ -61,6 +62,21 @@ void FAnimNode_RotateRootBone::Evaluate_AnyThread(FPoseContext& Output)
 		FCompactPoseBoneIndex RootBoneIndex(0);
 		Output.Pose[RootBoneIndex].SetRotation(Output.Pose[RootBoneIndex].GetRotation() * MeshSpaceDeltaQuat);
 		Output.Pose[RootBoneIndex].NormalizeRotation();
+
+		if (bRotateRootMotionAttribute)
+		{
+			// Rotate our root motion attribute by the same rotation we apply to the root
+			const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
+			if (RootMotionProvider && RootMotionProvider->HasRootMotion(Output.CustomAttributes))
+			{
+				FTransform RootMotionTransformDelta;
+				if (RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, RootMotionTransformDelta))
+				{
+					RootMotionTransformDelta.SetTranslation(MeshSpaceDeltaQuat.RotateVector(RootMotionTransformDelta.GetTranslation()));
+					RootMotionProvider->OverrideRootMotion(RootMotionTransformDelta, Output.CustomAttributes);
+				}
+			}
+		}
 	}
 }
 

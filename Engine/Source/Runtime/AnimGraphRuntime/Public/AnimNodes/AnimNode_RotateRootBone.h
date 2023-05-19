@@ -32,6 +32,10 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_RotateRootBone : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(PinShownByDefault))
 	FRotator MeshToComponent;
 
+	// If enabled, rotating the root bone using this node will also rotate the direction of the root motion custom attribute
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Advanced)
+	bool bRotateRootMotionAttribute;
+
 	float ActualPitch;
 
 	float ActualYaw;
