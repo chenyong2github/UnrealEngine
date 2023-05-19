@@ -150,14 +150,18 @@ FArchive& operator<<(FArchive& Ar, FBulkMetaResource& BulkMeta)
 		Ar << BulkMeta.ElementCount;
 		Ar << BulkMeta.SizeOnDisk;
 		Ar << BulkMeta.Offset;
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (UNLIKELY(BulkMeta.Flags & BULKDATA_BadDataVersion))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			if (Ar.IsLoading())
 			{
 				uint16 DummyValue;
 				Ar << DummyValue;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				BulkMeta.Flags = static_cast<EBulkDataFlags>(BulkMeta.Flags & ~BULKDATA_BadDataVersion);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 
@@ -174,13 +178,17 @@ FArchive& operator<<(FArchive& Ar, FBulkMetaResource& BulkMeta)
 		SerializeAsInt32(Ar, BulkMeta.SizeOnDisk);
 		Ar << BulkMeta.Offset;
 		
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (UNLIKELY(BulkMeta.Flags & BULKDATA_BadDataVersion))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			if (Ar.IsLoading())
 			{
 				uint16 DummyValue;
 				Ar << DummyValue;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				BulkMeta.Flags = static_cast<EBulkDataFlags>(BulkMeta.Flags & ~BULKDATA_BadDataVersion);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 		
@@ -785,13 +793,11 @@ bool FBulkData::IsAsyncLoadingComplete() const
 	return (GetBulkDataFlags() & BULKDATA_HasAsyncReadPending) == 0;
 }
 
-/**
-* Returns whether this bulk data is used
-* @return true if BULKDATA_Unused is not set
-*/
 bool FBulkData::IsAvailableForUse() const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return BulkMeta.HasAnyFlags(BULKDATA_Unused) == false;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /*-----------------------------------------------------------------------------
@@ -1375,7 +1381,10 @@ void FBulkData::SetFlagsFromDiskWrittenValues(
 	int64 InBulkDataSizeOnDisk,
 	int64 LinkerSummaryBulkDataStartOffset)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	check(!(InBulkDataFlags & BULKDATA_BadDataVersion)); // This is a legacy flag that should no longer be set when saving
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	if (GIsEditor)
 	{
 		InBulkDataFlags = static_cast<EBulkDataFlags>(InBulkDataFlags & ~BULKDATA_SingleUse);
@@ -1508,7 +1517,9 @@ void FBulkData::SerializeBulkData(FArchive& Ar, void* Data, int64 DataSize, EBul
 #endif
 
 	// skip serializing of unused data
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (InBulkDataFlags & BULKDATA_Unused)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		return;
 	}
@@ -1719,7 +1730,9 @@ void FUntypedBulkData::SerializeBulkData(FArchive& Ar, void* Data, int64 DataSiz
 	SCOPED_LOADTIMER(BulkData_SerializeBulkData);
 
 	// skip serializing of unused data
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (InBulkDataFlags & BULKDATA_Unused)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		return;
 	}

@@ -1849,7 +1849,9 @@ public:
 		const bool bIsInline = Meta.HasAnyFlags(BULKDATA_PayloadAtEndOfFile) == false;
 		if (bIsInline)
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			if (int64 PayloadSize = Meta.GetSize(); PayloadSize > 0 && Meta.HasAnyFlags(BULKDATA_Unused) == false)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				// Set the offset from the beginning of the I/O chunk in order to make inline bulk data reloadable
 				const int64 ExportBundleChunkOffset = (ActiveFPLB->StartFastPathLoadBuffer - ActiveFPLB->OriginalFastPathLoadBuffer);
