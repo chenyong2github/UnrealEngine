@@ -23,6 +23,7 @@ UFbxExportOption::UFbxExportOption(const FObjectInitializer& ObjectInitializer)
 	bForceFrontXAxis = false;
 	LevelOfDetail = true;
 	Collision = true;
+	bExportSourceMesh = false;
 	bExportMorphTargets = true;
 	VertexColor = true;
 	MapSkeletalMotionToRoot = false;

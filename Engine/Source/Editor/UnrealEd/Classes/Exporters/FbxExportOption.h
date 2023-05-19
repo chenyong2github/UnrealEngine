@@ -50,8 +50,17 @@ public:
 	uint32 LevelOfDetail : 1;
 
 	/** If enabled, export collision */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = StaticMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = StaticMesh, meta = (EditCondition = "!bExportSourceMesh"))
 	uint32 Collision : 1;
+
+	/*
+	 * If enabled, export the highest LOD source data instead of the render data.
+	 * Note:
+	 *     - No LOD will be exported for static meshes. (Level Of Detail option will be ignored)
+	 *     - No Collision will be exported for static meshes. (Collision option will be ignore)
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = StaticMesh)
+	uint32 bExportSourceMesh : 1;
 
 	/** If enabled, export the morph targets */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, category = SkeletalMesh)

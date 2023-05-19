@@ -292,6 +292,23 @@ private:
 	 */
 	FbxNode* ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int32 ExportLOD, const TCHAR* MeshName, FbxNode* FbxActor, int32 LightmapUVChannel = -1, const FColorVertexBuffer* ColorBuffer = nullptr, const TArray<FStaticMaterial>* MaterialOrderOverride = nullptr, const TArray<UMaterialInterface*>* OverrideMaterials = nullptr);
 
+	bool ExportStaticMeshFromMeshDescription(FbxMesh* Mesh
+		, const UStaticMesh* StaticMesh
+		, const FMeshDescription* MeshDescription
+		, FbxNode* FbxActor
+		, int32 LightmapUVChannel
+		, const TArray<FStaticMaterial>* MaterialOrderOverride
+		, const TArray<UMaterialInterface*>* OverrideMaterials);
+
+	bool ExportStaticMeshFromRenderData(FbxMesh* Mesh
+		, const UStaticMesh* StaticMesh
+		, const FStaticMeshLODResources& RenderMesh
+		, FbxNode* FbxActor
+		, int32 LightmapUVChannel
+		, const FColorVertexBuffer* ColorBuffer
+		, const TArray<FStaticMaterial>* MaterialOrderOverride
+		, const TArray<UMaterialInterface*>* OverrideMaterials);
+
 	/**
 	 * Exports a spline mesh
 	 * @param SplineMeshComp	The spline mesh component to export
