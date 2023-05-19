@@ -210,13 +210,6 @@ bool UWorld::SweepMultiByObjectType(TArray<struct FHitResult>& OutHits, const FV
 	}
 }
 
-bool UWorld::OverlapBlockingTestByObjectType(const FVector& Pos, const FQuat& Rot, const FCollisionObjectQueryParams& ObjectQueryParams, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Params /* = FCollisionQueryParams::DefaultQueryParam */) const
-{
-	bool bBlocking = false;
-	bBlocking = FPhysicsInterface::GeomOverlapBlockingTest(this, CollisionShape, Pos, Rot, DefaultCollisionChannel, Params, FCollisionResponseParams::DefaultResponseParam, ObjectQueryParams);
-	return bBlocking;
-}
-
 bool UWorld::OverlapAnyTestByObjectType(const FVector& Pos, const FQuat& Rot, const FCollisionObjectQueryParams& ObjectQueryParams, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Params /* = FCollisionQueryParams::DefaultQueryParam */) const
 {
 	bool bBlocking = false;
