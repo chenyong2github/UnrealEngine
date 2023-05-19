@@ -1424,6 +1424,8 @@ private:
 	bool bRegisterTemplateNodeUsage;
 #endif
 
+	bool bEnableSchemaRemoveNodeCheck;
+
 	friend class URigVMGraph;
 	friend class URigVMPin;
 	friend class URigVMActionStack;

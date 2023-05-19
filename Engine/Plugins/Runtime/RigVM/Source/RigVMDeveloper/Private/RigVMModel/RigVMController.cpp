@@ -96,6 +96,7 @@ URigVMController::URigVMController()
 #if WITH_EDITOR
 	, bRegisterTemplateNodeUsage(true)
 #endif
+	, bEnableSchemaRemoveNodeCheck(true)
 {
 }
 
@@ -116,6 +117,7 @@ URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	, bRegisterTemplateNodeUsage(true)
 #endif
+	, bEnableSchemaRemoveNodeCheck(true)
 {
 }
 
@@ -6205,6 +6207,8 @@ URigVMCollapseNode* URigVMController::PromoteFunctionReferenceNodeToCollapseNode
 
 		ApplyPinStates(CollapseNode, PinStates);
 		RestoreLinkedPaths(LinkedPaths, RestoreSettings);
+
+		Notify(ERigVMGraphNotifType::NodeAdded, CollapseNode);
 	}
 
 	if(bRemoveFunctionDefinition)
@@ -6317,9 +6321,12 @@ bool URigVMController::RemoveNodes(TArray<URigVMNode*> InNodes, bool bSetupUndoR
 			return false;
 		}
 
-		if(!GetSchema()->CanRemoveNode(this, InNode))
+		if(bEnableSchemaRemoveNodeCheck)
 		{
-			return false;
+			if(!GetSchema()->CanRemoveNode(this, InNode))
+			{
+				continue;
+			}
 		}
 
 		if (InNode->IsInjected())
@@ -6564,6 +6571,7 @@ bool URigVMController::RemoveNodes(TArray<URigVMNode*> InNodes, bool bSetupUndoR
 			{
 				TArray<URigVMNode*> ContainedNodes = SubGraph->GetNodes();
 				TGuardValue<bool> SuspendTemplateComputation(bSuspendTemplateComputation, true);
+				TGuardValue<bool> DisableSchemaRemoveNodeCheck(bEnableSchemaRemoveNodeCheck, false);
 				SubGraphController->RemoveNodes(ContainedNodes, false, false);
 
 				if(IRigVMClientHost* ClientHost = GetImplementingOuter<IRigVMClientHost>())
