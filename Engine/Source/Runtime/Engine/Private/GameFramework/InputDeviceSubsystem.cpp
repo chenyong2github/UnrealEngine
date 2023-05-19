@@ -245,7 +245,7 @@ UWorld* UInputDeviceSubsystem::GetTickableGameObjectWorld() const
 				continue;
 			}
 			// Prefer new PIE window worlds
-			else if (Context.WorldType == EWorldType::PIE)
+			else if (Context.WorldType == EWorldType::PIE || Context.WorldType == EWorldType::Game)
 			{
 				World = ThisWorld;
 				break;
