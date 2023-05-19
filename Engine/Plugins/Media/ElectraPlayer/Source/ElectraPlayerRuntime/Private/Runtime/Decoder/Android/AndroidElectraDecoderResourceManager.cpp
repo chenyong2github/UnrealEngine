@@ -76,6 +76,7 @@ void FElectraDecoderResourceManagerAndroid::FInstanceVars::RequestSurface(TWeakP
 	if (!rd.IsValid())
 	{
 		Notify(IDecoderPlatformResourceAndroid::ISurfaceRequestCallback::ESurfaceType::Error, nullptr);
+		return;
 	}
 
 	void* Surface = rd->VideoDecoderResourceDelegate_GetCodecSurface();
