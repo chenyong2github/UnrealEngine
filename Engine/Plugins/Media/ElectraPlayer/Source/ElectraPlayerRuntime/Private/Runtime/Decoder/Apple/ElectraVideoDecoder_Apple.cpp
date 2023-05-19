@@ -35,6 +35,7 @@ void FElectraPlayerVideoDecoderOutputApple::Initialize(CVImageBufferRef InImageB
 
 		Stride = CVPixelBufferGetBytesPerRow(ImageBufferRef);
 	}
+	SampleDim = GetOutputDim();
 }
 
 void FElectraPlayerVideoDecoderOutputApple::InitializeWithBuffer(const void* InBuffer, uint32 InSize, uint32 InStride, FIntPoint Dim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict)
@@ -45,6 +46,7 @@ void FElectraPlayerVideoDecoderOutputApple::InitializeWithBuffer(const void* InB
 	Buffer->Append((uint8*)InBuffer, InSize);
 
 	Stride = InStride;
+	SampleDim = Dim;
 }
 
 void FElectraPlayerVideoDecoderOutputApple::InitializeWithBuffer(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> InBuffer, uint32 InStride, FIntPoint Dim, TSharedPtr<Electra::FParamDict, ESPMode::ThreadSafe> InParamDict)
@@ -54,6 +56,7 @@ void FElectraPlayerVideoDecoderOutputApple::InitializeWithBuffer(TSharedPtr<TArr
 	Buffer = MoveTemp(InBuffer);
 
 	Stride = InStride;
+	SampleDim = Dim;
 }
 
 void FElectraPlayerVideoDecoderOutputApple::SetOwner(const TSharedPtr<IDecoderOutputOwner, ESPMode::ThreadSafe>& InOwningRenderer)
@@ -93,6 +96,11 @@ const TArray<uint8>& FElectraPlayerVideoDecoderOutputApple::GetBuffer() const
 uint32 FElectraPlayerVideoDecoderOutputApple::GetStride() const
 {
 	return Stride;
+}
+
+FIntPoint FElectraPlayerVideoDecoderOutputApple::GetDim() const
+{
+	return SampleDim;
 }
 
 CVImageBufferRef FElectraPlayerVideoDecoderOutputApple::GetImageBuffer() const

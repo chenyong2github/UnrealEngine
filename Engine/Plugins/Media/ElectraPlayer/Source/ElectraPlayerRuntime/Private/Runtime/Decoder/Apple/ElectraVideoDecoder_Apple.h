@@ -30,6 +30,7 @@ public:
 	void ShutdownPoolable() override;
 
 	uint32 GetStride() const override;
+	FIntPoint GetDim() const override;
 
 	CVImageBufferRef GetImageBuffer() const override;
 
@@ -37,6 +38,7 @@ public:
 
 private:
 	uint32 Stride;
+	FIntPoint SampleDim;
 
 	TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> Buffer;
 	CVImageBufferRef ImageBufferRef;
