@@ -14,21 +14,6 @@ namespace EpicGames.Horde.Compute
 	public interface IComputeSocket : IAsyncDisposable
 	{
 		/// <summary>
-		/// Sends data to a remote channel
-		/// </summary>
-		/// <param name="channelId">Channel to write to</param>
-		/// <param name="memory">Memory to write</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask SendAsync(int channelId, ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default);
-
-		/// <summary>
-		/// Marks a channel as complete
-		/// </summary>
-		/// <param name="channelId">Channel to mark as complete</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask MarkCompleteAsync(int channelId, CancellationToken cancellationToken = default);
-
-		/// <summary>
 		/// Attaches a buffer to receive data.
 		/// </summary>
 		/// <param name="channelId">Channel to receive data on</param>
@@ -54,19 +39,6 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		ValueTask CloseAsync(CancellationToken cancellationToken = default);
-	}
-
-	/// <summary>
-	/// Static methods for sockets
-	/// </summary>
-	public static class ComputeSocket
-	{
-		/// <summary>
-		/// Create a new compute socket
-		/// </summary>
-		/// <param name="transport">Transport to use for the socket</param>
-		/// <param name="logger">Logger for diagnostic output</param>
-		public static IComputeSocket Create(IComputeTransport transport, ILogger logger) => new DefaultComputeSocket(transport, logger);
 	}
 
 	/// <summary>

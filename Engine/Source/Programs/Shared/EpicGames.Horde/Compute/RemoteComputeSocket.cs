@@ -16,7 +16,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Manages a set of readers and writers to buffers across a transport layer
 	/// </summary>
-	class DefaultComputeSocket : IComputeSocket, IAsyncDisposable
+	public class RemoteComputeSocket : IComputeSocket, IAsyncDisposable
 	{
 		enum ControlMessageType
 		{
@@ -51,7 +51,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="transport">Transport to communicate with the remote</param>
 		/// <param name="logger">Logger for trace output</param>
-		public DefaultComputeSocket(IComputeTransport transport, ILogger logger)
+		public RemoteComputeSocket(IComputeTransport transport, ILogger logger)
 		{
 			_transport = transport;
 			_logger = logger;
@@ -240,7 +240,7 @@ namespace EpicGames.Horde.Compute
 		readonly SendSegment _bodySegment = new SendSegment();
 
 		/// <inheritdoc/>
-		public async ValueTask SendAsync(int id, ReadOnlyMemory<byte> memory, CancellationToken cancellationToken)
+		public async ValueTask SendAsync(int id, ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default)
 		{
 			if (memory.Length > 0)
 			{
@@ -249,7 +249,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public ValueTask MarkCompleteAsync(int id, CancellationToken cancellationToken) => SendInternalAsync(id, (int)ControlMessageType.Detach, ReadOnlyMemory<byte>.Empty, cancellationToken);
+		public ValueTask MarkCompleteAsync(int id, CancellationToken cancellationToken = default) => SendInternalAsync(id, (int)ControlMessageType.Detach, ReadOnlyMemory<byte>.Empty, cancellationToken);
 
 		async ValueTask SendInternalAsync(int id, int size, ReadOnlyMemory<byte> memory, CancellationToken cancellationToken)
 		{

@@ -92,7 +92,7 @@ namespace Horde.Agent.Leases.Handlers
 				using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
 				{
 					await using BackgroundTask timeoutTask = BackgroundTask.StartNew(ctx => TickTimeoutAsync(transport, cts, ctx));
-					await using (IComputeSocket socket = ComputeSocket.Create(transport, _logger))
+					await using (IComputeSocket socket = new RemoteComputeSocket(transport, _logger))
 					{
 						DirectoryReference sandboxDir = DirectoryReference.Combine(session.WorkingDir, "Sandbox", leaseId);
 						try

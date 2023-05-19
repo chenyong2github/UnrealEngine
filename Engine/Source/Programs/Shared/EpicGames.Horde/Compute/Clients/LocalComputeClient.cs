@@ -22,11 +22,11 @@ namespace EpicGames.Horde.Compute.Clients
 		{
 			public IReadOnlyList<string> Properties { get; } = new List<string>();
 			public IReadOnlyDictionary<string, int> AssignedResources => new Dictionary<string, int>();
-			public IComputeSocket Socket => _socket;
+			public RemoteComputeSocket Socket => _socket;
 
-			readonly IComputeSocket _socket;
+			readonly RemoteComputeSocket _socket;
 
-			public LeaseImpl(IComputeSocket socket) => _socket = socket;
+			public LeaseImpl(RemoteComputeSocket socket) => _socket = socket;
 
 			/// <inheritdoc/>
 			public ValueTask DisposeAsync() => _socket.DisposeAsync();
@@ -77,7 +77,7 @@ namespace EpicGames.Horde.Compute.Clients
 
 			using MemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions { SizeLimit = 10 * 1024 * 1024 });
 
-			await using (IComputeSocket socket = ComputeSocket.Create(new TcpTransport(tcpSocket), logger))
+			await using (IComputeSocket socket = new RemoteComputeSocket(new TcpTransport(tcpSocket), logger))
 			{
 				ComputeWorker worker = new ComputeWorker(sandboxDir, memoryCache, logger);
 				await worker.RunAsync(socket, cancellationToken);
@@ -89,7 +89,7 @@ namespace EpicGames.Horde.Compute.Clients
 		public Task<IComputeLease?> TryAssignWorkerAsync(ClusterId clusterId, Requirements? requirements, CancellationToken cancellationToken)
 		{
 #pragma warning disable CA2000 // Dispose objects before losing scope
-			IComputeSocket socket = ComputeSocket.Create(new TcpTransport(_socket), _logger);
+			RemoteComputeSocket socket = new RemoteComputeSocket(new TcpTransport(_socket), _logger);
 			return Task.FromResult<IComputeLease?>(new LeaseImpl(socket));
 #pragma warning restore CA2000 // Dispose objects before losing scope
 		}

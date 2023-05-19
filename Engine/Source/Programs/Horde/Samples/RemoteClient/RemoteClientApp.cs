@@ -117,7 +117,7 @@ namespace RemoteClient
 			await lease.CloseAsync();
 		}
 		
-		static async Task WriteNumbersAsync(IComputeSocket socket, ILogger logger, CancellationToken cancellationToken)
+		static async Task WriteNumbersAsync(RemoteComputeSocket socket, ILogger logger, CancellationToken cancellationToken)
 		{
 			// Write data to the child process channel. The remote server will echo them back to us as it receives them, then exit when the channel is complete/closed.
 			await socket.WaitForAttachAsync(ChildProcessChannelId, cancellationToken);

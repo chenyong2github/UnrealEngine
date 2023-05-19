@@ -42,15 +42,15 @@ namespace EpicGames.Horde.Compute.Clients
 			public List<string> Properties { get; set; } = new List<string>();
 		}
 
-		record class LeaseInfo(IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> AssignedResources, IComputeSocket Socket);
+		record class LeaseInfo(IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> AssignedResources, RemoteComputeSocket Socket);
 
 		class LeaseImpl : IComputeLease
-			{
+		{
 			readonly IAsyncEnumerator<LeaseInfo> _source;
 
 			public IReadOnlyList<string> Properties => _source.Current.Properties;
 			public IReadOnlyDictionary<string, int> AssignedResources => _source.Current.AssignedResources;
-			public IComputeSocket Socket => _source.Current.Socket;
+			public RemoteComputeSocket Socket => _source.Current.Socket;
 
 			public LeaseImpl(IAsyncEnumerator<LeaseInfo> source)
 			{
@@ -62,11 +62,11 @@ namespace EpicGames.Horde.Compute.Clients
 			{
 				await _source.MoveNextAsync();
 				await _source.DisposeAsync();
-		}
+			}
 
 			/// <inheritdoc/>
 			public ValueTask CloseAsync(CancellationToken cancellationToken) => Socket.CloseAsync(cancellationToken);
-			}
+		}
 
 		readonly HttpClient? _defaultHttpClient;
 		readonly Func<HttpClient> _createHttpClient;
@@ -181,7 +181,7 @@ namespace EpicGames.Horde.Compute.Clients
 			// Pass the rest of the call over to the handler
 			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
-			await using IComputeSocket computeSocket = ComputeSocket.Create(new TcpTransport(socket), _logger);
+			await using RemoteComputeSocket computeSocket = new RemoteComputeSocket(new TcpTransport(socket), _logger);
 			yield return new LeaseInfo(responseMessage.Properties, responseMessage.AssignedResources, computeSocket);
 		}
 	}
