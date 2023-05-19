@@ -740,6 +740,13 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static public bool TryParse(string Name, out UnrealArch Arch)
 		{
+			// handle the Host string
+			if (Name.Equals("Host", StringComparison.OrdinalIgnoreCase))
+			{
+				Arch.Id = UnrealArch.Host.Value.Id;
+				return true;
+			}
+
 			Name = FixName(Name);
 
 			if (GetUniqueStringRegistry().HasString(Name))
@@ -765,6 +772,12 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		static public UnrealArch Parse(string Name)
 		{
+			// handle the Host string
+			if (Name.Equals("Host", StringComparison.OrdinalIgnoreCase))
+			{
+				return UnrealArch.Host.Value;
+			}
+
 			Name = FixName(Name);
 
 			if (GetUniqueStringRegistry().HasString(Name))
@@ -825,6 +838,11 @@ namespace UnrealBuildTool
 		/// Used in place when needing to handle deprecated architectures that a licensee may still have. Do not use in normal logic
 		/// </summary>
 		public static UnrealArch Deprecated = FindOrAddByName("deprecated", bIsX64: false);
+
+		/// <summary>
+		/// Maps to the currently running architecture on the host platform (lazy because this needs other classes to be intialized)
+		/// </summary>
+		public static Lazy<UnrealArch> Host = new(() => UnrealArchitectureConfig.ForPlatform(BuildHostPlatform.Current.Platform).GetHostArchitecture());
 	}
 
 	internal class UnrealArchPlatformTypeConverter : TypeConverter

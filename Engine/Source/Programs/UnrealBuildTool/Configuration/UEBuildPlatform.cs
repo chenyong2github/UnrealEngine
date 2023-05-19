@@ -154,6 +154,20 @@ namespace UnrealBuildTool
 			return Architectures.GetFolderNameForPlatform(this);
 		}
 
+		/// <summary>
+		/// Returns the architecture of the currently running OS (only used for desktop platforms, so will throw an exception in the general case)
+		/// </summary>
+		/// <returns></returns>
+		public virtual UnrealArch GetHostArchitecture()
+		{
+			if (AllSupportedArchitectures.bIsMultiArch)
+			{
+				throw new BuildException($"Asking for Host architecture from {GetType()} which supports multiple architectures, but did not override GetHostArchitecture()");
+			}
+
+			return AllSupportedArchitectures.SingleArchitecture;
+		}
+
 
 
 		/// <summary>

@@ -145,6 +145,11 @@ namespace UnrealBuildTool
 		{
 		}
 
+		public override UnrealArch GetHostArchitecture()
+		{
+			return MacExports.IsRunningOnAppleArchitecture ? UnrealArch.Arm64 : UnrealArch.X64;
+		}
+
 		public override string ConvertToReadableArchitecture(UnrealArch Architecture)
 		{
 			if (Architecture == UnrealArch.X64)
