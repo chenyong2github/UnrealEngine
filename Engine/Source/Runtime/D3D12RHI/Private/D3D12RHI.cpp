@@ -691,6 +691,11 @@ void FD3D12DynamicRHI::RHIWaitManualFence(FRHICommandList& RHICmdList, ID3D12Fen
 	Context.WaitManualFence(Fence, Value);
 }
 
+void FD3D12DynamicRHI::RHIVerifyResult(ID3D12Device* Device, HRESULT Result, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, FString Message) const
+{
+	D3D12RHI::VerifyD3D12Result(Result, Code, Filename, Line, Device, Message);
+}
+
 void* FD3D12DynamicRHI::RHIGetNativeDevice()
 {
 	return (void*)GetAdapter().GetD3DDevice();

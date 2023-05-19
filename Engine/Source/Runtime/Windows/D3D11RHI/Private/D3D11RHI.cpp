@@ -805,3 +805,8 @@ void FD3D11DynamicRHI::RHIRegisterWork(uint32 NumPrimitives)
 {
 	RegisterGPUWork(NumPrimitives);
 }
+
+void FD3D11DynamicRHI::RHIVerifyResult(ID3D11Device* Device, HRESULT Result, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line) const
+{
+	VerifyD3D11Result(Result, Code, Filename, Line, Device);
+}

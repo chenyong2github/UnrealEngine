@@ -34,6 +34,8 @@ struct ID3D11DynamicRHI : public FDynamicRHIPSOFallback
 	virtual ID3D11ShaderResourceView* RHIGetShaderResourceView(FRHITexture* InTexture) const = 0;
 
 	virtual void                  RHIRegisterWork(uint32 NumPrimitives) = 0;
+
+	virtual void                  RHIVerifyResult(ID3D11Device* Device, HRESULT Result, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line) const = 0;
 };
 
 inline bool IsRHID3D11()
