@@ -282,6 +282,7 @@ public class FetchManager implements FetchDownloadProgressOwner, FetchEnqueueRes
 
 			FetchInstance.delete(MatchedDesc.CachedFetchID);
 		}
+		CheckForAllDownloadsComplete(MatchedDesc.ProgressListener);
 	}
 	
 	private Request BuildFetchRequest(DownloadDescription Description)

@@ -19,6 +19,7 @@ public:
 
 	virtual void PauseRequest() override;
     virtual void ResumeRequest() override;
+	virtual void CancelRequest() override;
     
 	FString ToJSon() const;
 

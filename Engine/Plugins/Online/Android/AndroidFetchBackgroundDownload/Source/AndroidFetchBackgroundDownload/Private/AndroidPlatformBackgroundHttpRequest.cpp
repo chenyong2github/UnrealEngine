@@ -29,6 +29,15 @@ FAndroidPlatformBackgroundHttpRequest::FAndroidPlatformBackgroundHttpRequest()
 {
 }
 
+void FAndroidPlatformBackgroundHttpRequest::CancelRequest()
+{
+	FAndroidPlatformBackgroundHttpManagerPtr AndroidBGManagerPtr = StaticCastSharedPtr<FAndroidPlatformBackgroundHttpManager>(FBackgroundHttpModule::Get().GetBackgroundHttpManager());
+	if (ensureAlwaysMsgf(AndroidBGManagerPtr.IsValid(), TEXT("Found a BackgroundHttpManager that wasn't the AndroidBackgroundHttpManager! This is not supported or expected!")))
+	{
+		AndroidBGManagerPtr->CancelRequest(SharedThis(this));
+	}
+}
+
 void FAndroidPlatformBackgroundHttpRequest::PauseRequest()
 {
 	FAndroidPlatformBackgroundHttpManagerPtr AndroidBGManagerPtr = StaticCastSharedPtr<FAndroidPlatformBackgroundHttpManager>(FBackgroundHttpModule::Get().GetBackgroundHttpManager());
