@@ -1337,6 +1337,16 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("Compiles the specified script on disk for the niagara vector vm"),
 		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FNiagaraEditorModule::TestCompileScriptFromConsole));
 
+	ValidateScriptVariableGuidsCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.Niagara.ValidateDuplicateVariableGuids"),
+		TEXT("Validate the script guids of a given script."),
+		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FNiagaraEditorModule::ValidateScriptVariableIds, false));
+		
+	ValidateAndFixScriptVariableGuidsCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.Niagara.FixDuplicateVariableGuids"),
+		TEXT("Validates and fixes the script guids of a given script, if duplicates exist."),
+		FConsoleCommandWithArgsDelegate::CreateRaw(this, &FNiagaraEditorModule::ValidateScriptVariableIds, true));
+
 	DumpRapidIterationParametersForAsset = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("fx.DumpRapidIterationParametersForAsset"),
 		TEXT("Dumps the values of the rapid iteration parameters for the specified asset by path."),
@@ -2154,6 +2164,32 @@ UNiagaraParameterCollection* FNiagaraEditorModule::FindCollectionForVariable(con
 	ParameterCollectionAssetCache.RefreshCache(!FUObjectThreadContext::Get().IsRoutingPostLoad /*bAllowLoading*/);
 
 	return FindCachedCollectionByPrefix(VariableName);
+}
+
+void FNiagaraEditorModule::ValidateScriptVariableIds(const TArray<FString>& ScriptPathArgs, bool bFix)
+{
+	for(const FString& ScriptPath : ScriptPathArgs)
+	{
+		FSoftObjectPath ScriptSoftPath(ScriptPath);
+		if(ScriptSoftPath.IsAsset())
+		{
+			UObject* ScriptObject = ScriptSoftPath.TryLoad();
+			if(UNiagaraScript* Script = Cast<UNiagaraScript>(ScriptObject))
+			{
+				if(bFix)
+				{
+					FNiagaraEditorUtilities::Scripts::Validation::FixupDuplicateScriptVariableGuids(Script);
+				}
+				else
+				{
+					for(FNiagaraAssetVersion& AssetVersion : Script->GetAllAvailableVersions())
+					{
+						FNiagaraEditorUtilities::Scripts::Validation::ValidateScriptVariableIds(Script, AssetVersion.VersionGuid);
+					}
+				}
+			}
+		}
+	}	
 }
 
 #if NIAGARA_PERF_BASELINES

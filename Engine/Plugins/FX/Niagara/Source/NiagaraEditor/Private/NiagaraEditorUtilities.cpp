@@ -4583,6 +4583,111 @@ UNiagaraDataInterface* FNiagaraEditorUtilities::GetResolvedRuntimeInstanceForEdi
 	return nullptr;
 }
 
+TMap<FGuid, TArray<FNiagaraVariableBase>> FNiagaraEditorUtilities::Scripts::Validation::ValidateScriptVariableIds(UNiagaraScript* Script, FGuid VersionGuid)
+{
+	bool bReturnResults = false;
+	
+	TMap<FGuid, TArray<FNiagaraVariableBase>> Results;
+
+	if(!VersionGuid.IsValid())
+	{
+		VersionGuid = Script->GetExposedVersion().VersionGuid;
+	}
+	
+	if(UNiagaraScriptSourceBase* SourceBase = Script->GetSource(VersionGuid))
+	{
+		UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(SourceBase);
+		
+		for(const auto& ScriptVariableEntry : Source->NodeGraph->GetAllMetaData())
+		{
+			Results.FindOrAdd(ScriptVariableEntry.Value->Metadata.GetVariableGuid()).Add(ScriptVariableEntry.Key);
+		}
+
+		for(const auto& Result : Results)
+		{
+			if(Result.Value.Num() > 1)
+			{
+				bReturnResults = true;
+				break;
+			}
+		}
+
+		if(bReturnResults)
+		{
+			UE_LOG(LogNiagaraEditor, Error, TEXT("---- Duplicate variable guids found in script %s, Version %s ---- :"), *Script->GetName(), *VersionGuid.ToString());
+			for(const auto& Result : Results)
+			{
+				if(Result.Value.Num() > 1)
+				{
+					FString ResultString("Duplicate guids found in: ");
+					for(int32 StringConstructorIndex = 0; StringConstructorIndex < Result.Value.Num(); StringConstructorIndex++)
+					{
+						ResultString.Appendf(TEXT("%s, "), *Result.Value[StringConstructorIndex].GetName().ToString());
+					}
+			
+					UE_LOG(LogNiagaraEditor, Error, TEXT("%s"), *ResultString);
+				}
+			}
+	
+			return Results;
+		}
+	}
+
+	UE_LOG(LogNiagaraEditor, Log, TEXT("---- No duplicate variable guids in script %s, version %s ----"), *Script->GetName(), *VersionGuid.ToString());
+	return {};
+}
+
+TMap<FNiagaraVariableBase, FGuid> FNiagaraEditorUtilities::Scripts::Validation::FixupDuplicateScriptVariableGuids(UNiagaraScript* Script)
+{
+	/** We keep track of already reassigned guids here to reuse them if the same parameter appears in another version. */
+	TMap<FNiagaraVariableBase, FGuid> OldGuids;
+	TMap<FNiagaraVariableBase, FGuid> RemappedGuids;
+	
+	for(FNiagaraAssetVersion& AssetVersion : Script->GetAllAvailableVersions())
+	{
+		UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource(AssetVersion.VersionGuid));
+		TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& VariableMap = ScriptSource->NodeGraph->GetAllMetaData();
+		
+		TMap<FGuid, TArray<FNiagaraVariableBase>> Results = Validation::ValidateScriptVariableIds(Script, AssetVersion.VersionGuid);
+		for(const auto& Result : Results)
+		{
+			// we only want to fix any guids if we have more than 1 variable with the same guid
+			if(Result.Value.Num() > 1)
+			{
+				// if a parameter has already been given a new guid before (in a different version), we reuse the same new guid
+				for(const FNiagaraVariableBase& VariableWithDuplicateGuid : Result.Value)
+				{
+					if(RemappedGuids.Contains(VariableWithDuplicateGuid))
+					{
+						FGuid NewGuid = RemappedGuids[VariableWithDuplicateGuid];
+						VariableMap[VariableWithDuplicateGuid]->Metadata.SetVariableGuid(NewGuid);
+					}
+					else
+					{
+						Script->Modify(true);
+						FGuid NewGuid = FGuid::NewGuid();
+						OldGuids.Add(VariableWithDuplicateGuid, VariableMap[VariableWithDuplicateGuid]->Metadata.GetVariableGuid());
+						VariableMap[VariableWithDuplicateGuid]->Metadata.SetVariableGuid(NewGuid);
+						RemappedGuids.Add(VariableWithDuplicateGuid, NewGuid);
+					}
+				}
+			}
+		}
+	}
+
+	if(RemappedGuids.Num() > 0)
+	{
+		UE_LOG(LogNiagaraEditor, Log, TEXT("----------- Variables with new guids in script %s ---------"), *Script->GetName());
+	}
+	
+	for(const auto& RemappedGuid : RemappedGuids)
+	{
+		UE_LOG(LogNiagaraEditor, Log, TEXT("Variable: %s. Guid: %s -> %s"), *RemappedGuid.Key.GetName().ToString(), *OldGuids[RemappedGuid.Key].ToString(), *RemappedGuids[RemappedGuid.Key].ToString())
+	}
+
+	return RemappedGuids;
+}
+
 void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(TConstArrayView<FNiagaraVariable> InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased)
 {
 	FNiagaraAliasContext RenameContext(ENiagaraScriptUsage::ParticleSpawnScript);

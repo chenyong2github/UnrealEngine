@@ -324,6 +324,9 @@ private:
 	}
 
 	void TestCompileScriptFromConsole(const TArray<FString>& Arguments);
+
+	void ValidateScriptVariableIds(const TArray<FString>& ScriptPathArgs, bool bFix = false);
+	
 	void ReinitializeStyle();
 
 	void EnqueueObjectForDeferredDestructionInternal(FDeferredDestructionContainerBase* InObjectToDestruct);
@@ -389,6 +392,8 @@ private:
 	TMap<const UScriptStruct*, FOnCreateMovieSceneTrackForParameter> TypeToParameterTrackCreatorMap;
 
 	IConsoleCommand* TestCompileScriptCommand;
+	IConsoleCommand* ValidateScriptVariableGuidsCommand;
+	IConsoleCommand* ValidateAndFixScriptVariableGuidsCommand;
 	IConsoleCommand* DumpRapidIterationParametersForAsset;
 	IConsoleCommand* PreventSystemRecompileCommand;
 	IConsoleCommand* PreventAllSystemRecompilesCommand;
