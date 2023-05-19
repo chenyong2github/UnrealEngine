@@ -76,8 +76,11 @@ public:
 
 		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		// Only render if debug viewmodes are allowed.
-		return AllowDebugViewmodes(Parameters.Platform);
+		/** 
+		* Compile for all platforms that support TAA minimum.
+		* Runtime only executes if a temporal upscale method is enabled.
+		*/
+		return SupportsGen4TAA(Parameters.Platform);
 	}
 };
 
@@ -126,8 +129,8 @@ public:
 			return false;
 		}
 
-		// Only render if debug viewmodes are allowed.
-		return AllowDebugViewmodes(Parameters.Platform);
+		// This pass can be used with any AA method so return true for all other circumstances
+		return true;
 	}
 };
 

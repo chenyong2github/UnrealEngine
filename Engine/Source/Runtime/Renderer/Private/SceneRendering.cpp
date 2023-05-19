@@ -4056,7 +4056,13 @@ bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)
 #if UE_ENABLE_DEBUG_DRAWING
 bool FSceneRenderer::ShouldCompositeDebugPrimitivesInPostProcess(const FViewInfo& View)
 {
-	return AllowDebugViewmodes() && View.DebugSimpleElementCollector.HasAnyPrimitives();
+	if (View.DebugSimpleElementCollector.HasAnyPrimitives())
+	{
+		//If we have primitives to draw, check we aren't forcing debug view modes off.
+		static bool bIsForceDisabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ForceDebugViewModes"))->GetValueOnAnyThread() == 2;
+		return !bIsForceDisabled;
+	}
+	return false;
 }
 #endif
 
