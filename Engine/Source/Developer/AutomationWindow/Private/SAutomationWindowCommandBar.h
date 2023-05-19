@@ -42,10 +42,16 @@ public:
 	 */
 	void SetNumLogMessages( int Count );
 
+	/** Sets visibility status for Copy button */
+	void SetCopyButtonVisibility(EVisibility InVisibility);
+
 private:
 
 	/** Handles clicking the copy log button. */
 	FReply HandleCopyButtonClicked( );
+
+	EVisibility GetCopyButtonVisibility() const;
+	EVisibility GetExportMenuVisibility() const;
 
 private:
 
@@ -54,4 +60,7 @@ private:
 
  	/** Holds a delegate that is executed when the copy log button is clicked. */
  	FOnClicked OnCopyLogClicked;
+
+	/** Holds visibility status for Copy button */
+	EVisibility CopyButtonVisibility = EVisibility::Collapsed;
 };

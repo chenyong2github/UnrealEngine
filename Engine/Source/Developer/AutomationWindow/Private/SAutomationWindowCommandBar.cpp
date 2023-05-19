@@ -27,6 +27,7 @@ void SAutomationWindowCommandBar::Construct( const FArguments& InArgs, const TSh
 			.HAlign(HAlign_Right)
 			[
 				SNew(SAutomationExportMenu, InNotificationList)
+				.Visibility(this, &SAutomationWindowCommandBar::GetExportMenuVisibility)
 			]
 
 		+ SHorizontalBox::Slot()
@@ -35,6 +36,7 @@ void SAutomationWindowCommandBar::Construct( const FArguments& InArgs, const TSh
 			[
 				// copy button
 				SAssignNew(CopyButton, SButton)
+					.Visibility(this, &SAutomationWindowCommandBar::GetCopyButtonVisibility)
 					.ContentPadding(FMargin(6.0, 2.0))
 					.IsEnabled(false)
 					.Text(LOCTEXT("AutomationCopyButtonText", "Copy"))
@@ -44,6 +46,23 @@ void SAutomationWindowCommandBar::Construct( const FArguments& InArgs, const TSh
 	];
 }
 
+
+void SAutomationWindowCommandBar::SetCopyButtonVisibility(EVisibility InVisibility)
+{
+	CopyButtonVisibility = (InVisibility == EVisibility::Visible) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+
+EVisibility SAutomationWindowCommandBar::GetCopyButtonVisibility() const
+{
+	return CopyButtonVisibility;
+}
+
+
+EVisibility SAutomationWindowCommandBar::GetExportMenuVisibility() const
+{
+	return (CopyButtonVisibility == EVisibility::Visible) ? EVisibility::Hidden : EVisibility::Visible;
+}
 
 FReply SAutomationWindowCommandBar::HandleCopyButtonClicked( )
 {

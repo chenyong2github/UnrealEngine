@@ -495,11 +495,14 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 				]
 
 				+ SSplitter::Slot()
-					.Value(0.33f)
-					[
-						SNew(SOverlay)
+				.Value(0.33f)
+				[
 
-						+ SOverlay::Slot()
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						[
+							SNew(SOverlay)
+							+ SOverlay::Slot()
 							[
 								SNew(SBox)
 									.Visibility(this, &SAutomationWindow::GetTestGraphVisibility)
@@ -572,58 +575,58 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 									]
 							]
 
-						+ SOverlay::Slot()
-						[
-							SNew(SBox)
-							.Visibility(this, &SAutomationWindow::GetTestLogVisibility)
+							+ SOverlay::Slot()
 							[
-								//results panel
-								SNew( SVerticalBox )
-								+ SVerticalBox::Slot()
-								.AutoHeight()
+								SNew(SBox)
+								.Visibility(this, &SAutomationWindow::GetTestLogVisibility)
 								[
-									SNew( STextBlock )
-									.Text( LOCTEXT("AutomationTest_Results", "Automation Test Results:") )
-								]
-
-								+ SVerticalBox::Slot()
-								.FillHeight(1.0f)
-								.Padding(0.0f, 4.0f, 0.0f, 0.0f)
-								[
-									//list of results for the selected test
-									SNew(SBorder)
-									.BorderImage(FAutomationWindowStyle::Get().GetBrush("Brushes.Panel"))
+									//results panel
+									SNew( SVerticalBox )
+									+ SVerticalBox::Slot()
+									.AutoHeight()
 									[
-										SNew(SScrollBox)
-										.Orientation(EOrientation::Orient_Horizontal)
-										+SScrollBox::Slot()
-										[
-											SAssignNew(LogListView, SListView<TSharedPtr<FAutomationOutputMessage> >)
-											.ItemHeight(18)
-											.ListItemsSource(&LogMessages)
-											.SelectionMode(ESelectionMode::Multi)
-											.OnGenerateRow(this, &SAutomationWindow::OnGenerateWidgetForLog)
-											.OnSelectionChanged(this, &SAutomationWindow::HandleLogListSelectionChanged)
-										]
+										SNew( STextBlock )
+										.Text( LOCTEXT("AutomationTest_Results", "Automation Test Results:") )
 									]
-								]
 
-								+ SVerticalBox::Slot()
-								.AutoHeight()
-								.Padding(0.0f, 4.0f, 0.0f, 0.0f)
-								[
-									SNew(SBorder)
-									.BorderImage(FAutomationWindowStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-									.Padding(FMargin(8.0f, 6.0f))
+									+ SVerticalBox::Slot()
+									.FillHeight(1.0f)
+									.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 									[
-										// Add the command bar
-										SAssignNew(CommandBar, SAutomationWindowCommandBar, NotificationList)
-										.OnCopyLogClicked(this, &SAutomationWindow::HandleCommandBarCopyLogClicked)
+										//list of results for the selected test
+										SNew(SBorder)
+										.BorderImage(FAutomationWindowStyle::Get().GetBrush("Brushes.Panel"))
+										[
+											SNew(SScrollBox)
+											.Orientation(EOrientation::Orient_Horizontal)
+											+SScrollBox::Slot()
+											[
+												SAssignNew(LogListView, SListView<TSharedPtr<FAutomationOutputMessage> >)
+												.ItemHeight(18)
+												.ListItemsSource(&LogMessages)
+												.SelectionMode(ESelectionMode::Multi)
+												.OnGenerateRow(this, &SAutomationWindow::OnGenerateWidgetForLog)
+												.OnSelectionChanged(this, &SAutomationWindow::HandleLogListSelectionChanged)
+											]
+										]
 									]
 								]
 							]
 						]
-					]
+						+SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.0f, 4.0f, 0.0f, 0.0f)
+						[
+							SNew(SBorder)
+							.BorderImage(FAutomationWindowStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+							.Padding(FMargin(8.0f, 6.0f))
+							[
+								// Add the command bar
+								SAssignNew(CommandBar, SAutomationWindowCommandBar, NotificationList)
+								.OnCopyLogClicked(this, &SAutomationWindow::HandleCommandBarCopyLogClicked)
+							]
+						]
+				]
 			]
 
 		+ SOverlay::Slot()
@@ -1742,6 +1745,8 @@ void SAutomationWindow::OnTestSelectionChanged(TSharedPtr<IAutomationReport> Sel
 			bHasChildTestSelected = true;
 		}
 	}
+
+	CommandBar->SetCopyButtonVisibility(GetTestLogVisibility());
 }
 
 void SAutomationWindow::UpdateTestLog(TSharedPtr<IAutomationReport> Selection)
