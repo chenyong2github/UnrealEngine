@@ -253,15 +253,8 @@ namespace Turnkey
 				// now go one up to the parent of Host
 				AutoSdkSearch = AutoSdkSearch.Parent;
 
+				// we don't even ask the user in the p4 case because it doesn't make sense to use anything but where we downloaded to
 				string AutoSdkDir = AutoSdkSearch.FullName;
-				if (!bUnattended)
-				{
-					string Response = TurnkeyUtils.ReadInput("Enter directory for root of AutoSdks. Use detected value, or enter another:", AutoSdkSearch.FullName);
-					if (string.IsNullOrEmpty(Response))
-					{
-						return false;
-					}
-				}
 
 				// set the env var, globally
 				TurnkeyUtils.StartTrackingExternalEnvVarChanges();
