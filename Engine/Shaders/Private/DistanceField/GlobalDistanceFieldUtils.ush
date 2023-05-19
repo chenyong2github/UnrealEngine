@@ -8,6 +8,10 @@
 #define GLOBALSDF_USE_COVERAGE_BASED_EXPAND 1
 #endif
 
+#ifndef GLOBALSDF_SIMPLE_COVERAGE_BASED_EXPAND
+#define GLOBALSDF_SIMPLE_COVERAGE_BASED_EXPAND 0
+#endif
+
 uint ComputeGlobalDistanceFieldClipmapIndex(float3 TranslatedWorldPosition)
 {
 	uint FoundClipmapIndex = 0;
@@ -144,9 +148,13 @@ FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInpu
 					#if GLOBALSDF_USE_COVERAGE_BASED_EXPAND
 					if (Page.bCoverage)
 					{
+					#if GLOBALSDF_SIMPLE_COVERAGE_BASED_EXPAND
+						Coverage = 0;
+					#else
 						float3 CoveragePageUV;
 						ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, Page, PageUV, CoveragePageUV);
 						Coverage = Texture3DSampleLevel(GlobalDistanceFieldCoverageAtlasTexture, GlobalDistanceFieldCoverageAtlasTextureSampler, CoveragePageUV, 0).x;
+					#endif
 					}
 					#endif
 

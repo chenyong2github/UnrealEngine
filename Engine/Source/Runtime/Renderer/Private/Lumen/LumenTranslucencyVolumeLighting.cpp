@@ -440,8 +440,9 @@ class FTranslucencyVolumeTraceVoxelsCS : public FGlobalShader
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("USE_RADIANCE_CACHE");
 	class FTraceFromVolume : SHADER_PERMUTATION_BOOL("TRACE_FROM_VOLUME");
+	class FSimpleCoverageBasedExpand : SHADER_PERMUTATION_BOOL("GLOBALSDF_SIMPLE_COVERAGE_BASED_EXPAND");
 
-	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FRadianceCache, FTraceFromVolume>;
+	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FRadianceCache, FTraceFromVolume, FSimpleCoverageBasedExpand>;
 
 	static FIntVector GetGroupSize()
 	{
@@ -450,6 +451,13 @@ class FTranslucencyVolumeTraceVoxelsCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (!PermutationVector.Get<FTraceFromVolume>() && PermutationVector.Get<FSimpleCoverageBasedExpand>())
+		{
+			return false;
+		}
+
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
@@ -632,6 +640,7 @@ void TraceVoxelsTranslucencyVolume(
 	PermutationVector.Set<FTranslucencyVolumeTraceVoxelsCS::FDynamicSkyLight>(bDynamicSkyLight);
 	PermutationVector.Set<FTranslucencyVolumeTraceVoxelsCS::FRadianceCache>(RadianceCacheParameters.RadianceProbeIndirectionTexture != nullptr);
 	PermutationVector.Set<FTranslucencyVolumeTraceVoxelsCS::FTraceFromVolume>(bTraceFromVolume);
+	PermutationVector.Set<FTranslucencyVolumeTraceVoxelsCS::FSimpleCoverageBasedExpand>(bTraceFromVolume && Lumen::UseGlobalSDFSimpleCoverageBasedExpand());
 	auto ComputeShader = View.ShaderMap->GetShader<FTranslucencyVolumeTraceVoxelsCS>(PermutationVector);
 
 	const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(VolumeTraceRadiance->Desc.GetSize(), FTranslucencyVolumeTraceVoxelsCS::GetGroupSize());

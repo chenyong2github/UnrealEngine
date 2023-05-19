@@ -82,6 +82,7 @@ namespace Lumen
 	bool IsSoftwareRayTracingSupported();
 	bool UseMeshSDFTracing(const FSceneViewFamily& ViewFamily);
 	bool UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily);
+	bool UseGlobalSDFSimpleCoverageBasedExpand();
 	bool UseGlobalSDFObjectGrid(const FSceneViewFamily& ViewFamily);
 	bool UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData);
 	bool UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData);

@@ -17,6 +17,8 @@
 #include "GlobalDistanceField.h"
 #include "LumenTracingUtils.h"
 
+extern int32 GLumenSceneGlobalSDFSimpleCoverageBasedExpand;
+
 FLumenGatherCvarState GLumenGatherCvars;
 
 FLumenGatherCvarState::FLumenGatherCvarState()
@@ -185,6 +187,11 @@ bool Lumen::UseMeshSDFTracing(const FSceneViewFamily& ViewFamily)
 bool Lumen::UseGlobalSDFTracing(const FSceneViewFamily& ViewFamily)
 {
 	return ViewFamily.EngineShowFlags.LumenGlobalTraces;
+}
+
+bool Lumen::UseGlobalSDFSimpleCoverageBasedExpand()
+{
+	return GLumenSceneGlobalSDFSimpleCoverageBasedExpand != 0;
 }
 
 float Lumen::GetMaxTraceDistance(const FViewInfo& View)

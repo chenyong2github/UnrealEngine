@@ -238,6 +238,13 @@ FAutoConsoleVariableRef CVarLumenScenGlobalSDFNotCoveredExpandSurfaceScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenSceneGlobalSDFSimpleCoverageBasedExpand = 0;
+FAutoConsoleVariableRef CVarLumenSceneGlobalSDFSimpleCoverageBasedExpand(
+	TEXT("r.LumenScene.GlobalSDF.SimpleCoverageBasedExpand"),
+	GLumenSceneGlobalSDFSimpleCoverageBasedExpand,
+	TEXT("Whether to use simple coverage based surface expansion. Less accurate but does not sample the coverage texture."),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 float GLumenSceneGlobalSDFNotCoveredMinStepScale = 4.0f;
 FAutoConsoleVariableRef CVarLumenScenGlobalSDFNotCoveredMinStepScale(
 	TEXT("r.LumenScene.GlobalSDF.NotCoveredMinStepScale"),

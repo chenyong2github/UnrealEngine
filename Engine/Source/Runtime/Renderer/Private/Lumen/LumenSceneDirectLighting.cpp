@@ -752,10 +752,11 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 	class FThreadGroupSize32 : SHADER_PERMUTATION_BOOL("THREADGROUP_SIZE_32");
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
 	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_GLOBAL_SDF");
+	class FSimpleCoverageBasedExpand : SHADER_PERMUTATION_BOOL("GLOBALSDF_SIMPLE_COVERAGE_BASED_EXPAND");
 	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_MESH_SDF");
 	class FTraceHeightfields : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_HEIGHTFIELDS");
 	class FOffsetDataStructure : SHADER_PERMUTATION_INT("OFFSET_DATA_STRUCT", 3);
-	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FLightType, FTraceGlobalSDF, FTraceMeshSDFs, FTraceHeightfields, FOffsetDataStructure>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FLightType, FTraceGlobalSDF, FSimpleCoverageBasedExpand, FTraceMeshSDFs, FTraceHeightfields, FOffsetDataStructure>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
@@ -776,6 +777,11 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		if (!PermutationVector.Get<FTraceMeshSDFs>())
 		{
 			PermutationVector.Set<FOffsetDataStructure>(0);
+		}
+
+		if (!PermutationVector.Get<FTraceGlobalSDF>())
+		{
+			PermutationVector.Set<FSimpleCoverageBasedExpand>(false);
 		}
 
 		return PermutationVector;
@@ -1224,6 +1230,7 @@ void TraceDistanceFieldShadows(
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FThreadGroupSize32>(Lumen::UseThreadGroupSize32());
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FLightType>(Light.Type);
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
+	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FSimpleCoverageBasedExpand>(Lumen::UseGlobalSDFTracing(*View.Family) && Lumen::UseGlobalSDFSimpleCoverageBasedExpand());
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceMeshSDFs>(bTraceMeshSDFs);
 	PermutationVector.Set<FLumenSceneDirectLightingTraceDistanceFieldShadowsCS::FTraceHeightfields>(bTraceHeighfieldObjects);
 	extern int32 GDistanceFieldOffsetDataStructure;

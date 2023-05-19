@@ -845,14 +845,22 @@ class FRadianceCacheTraceFromProbesCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FTraceGlobalSDF : SHADER_PERMUTATION_BOOL("TRACE_GLOBAL_SDF");
+	class FSimpleCoverageBasedExpand : SHADER_PERMUTATION_BOOL("GLOBALSDF_SIMPLE_COVERAGE_BASED_EXPAND");
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 
-	using FPermutationDomain = TShaderPermutationDomain<FTraceGlobalSDF, FDynamicSkyLight>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceGlobalSDF, FSimpleCoverageBasedExpand, FDynamicSkyLight>;
 
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (!PermutationVector.Get<FTraceGlobalSDF>() && PermutationVector.Get<FSimpleCoverageBasedExpand>())
+		{
+			return false;
+		}
+
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
@@ -2015,6 +2023,7 @@ void UpdateRadianceCaches(
 
 				FRadianceCacheTraceFromProbesCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FTraceGlobalSDF>(Lumen::UseGlobalSDFTracing(*View.Family));
+				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FSimpleCoverageBasedExpand>(Lumen::UseGlobalSDFTracing(*View.Family) && Lumen::UseGlobalSDFSimpleCoverageBasedExpand());
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDynamicSkyLight>(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
 				auto ComputeShader = View.ShaderMap->GetShader<FRadianceCacheTraceFromProbesCS>(PermutationVector);
 

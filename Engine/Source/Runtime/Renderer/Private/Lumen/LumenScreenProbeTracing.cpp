@@ -372,8 +372,9 @@ class FScreenProbeTraceVoxelsCS : public FGlobalShader
 	class FStructuredImportanceSampling : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
 	class FTraceVoxels : SHADER_PERMUTATION_BOOL("TRACE_VOXELS");
+	class FSimpleCoverageBasedExpand : SHADER_PERMUTATION_BOOL("GLOBALSDF_SIMPLE_COVERAGE_BASED_EXPAND");
 	class FTraceLightSamples : SHADER_PERMUTATION_BOOL("TRACE_LIGHT_SAMPLES");
-	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FRadianceCache, FStructuredImportanceSampling, FHairStrands, FTraceVoxels, FTraceLightSamples>;
+	using FPermutationDomain = TShaderPermutationDomain<FThreadGroupSize32, FRadianceCache, FStructuredImportanceSampling, FHairStrands, FTraceVoxels, FSimpleCoverageBasedExpand, FTraceLightSamples>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
@@ -381,6 +382,11 @@ class FScreenProbeTraceVoxelsCS : public FGlobalShader
 		{
 			PermutationVector.Set<FRadianceCache>(false);
 			PermutationVector.Set<FStructuredImportanceSampling>(false);
+		}
+
+		if (!PermutationVector.Get<FTraceVoxels>())
+		{
+			PermutationVector.Set<FSimpleCoverageBasedExpand>(false);
 		}
 
 		return PermutationVector;
@@ -877,6 +883,7 @@ void TraceScreenProbes(
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FHairStrands>(bNeedTraceHairVoxel);
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FTraceVoxels>(!bUseHardwareRayTracing && Lumen::UseGlobalSDFTracing(*View.Family));
+		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FSimpleCoverageBasedExpand>(PermutationVector.Get<FScreenProbeTraceVoxelsCS::FTraceVoxels>() && Lumen::UseGlobalSDFSimpleCoverageBasedExpand());
 		PermutationVector.Set< FScreenProbeTraceVoxelsCS::FTraceLightSamples>(bTraceLightSamples);
 		PermutationVector = FScreenProbeTraceVoxelsCS::RemapPermutation(PermutationVector);
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceVoxelsCS>(PermutationVector);
