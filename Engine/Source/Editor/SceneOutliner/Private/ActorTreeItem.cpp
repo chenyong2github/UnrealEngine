@@ -114,9 +114,8 @@ private:
 			{
 				if (!bInEditingMode)
 				{
-					FText DirtySuffixText = LevelInstance->IsDirty() ? FText(LOCTEXT("IsDirtySuffix", "*")) : FText::GetEmpty();
 					FText IsCurrentSuffixText = LevelInstance->GetLoadedLevel() && LevelInstance->GetLoadedLevel()->IsCurrentLevel() ? FText(LOCTEXT("IsCurrentSuffix", " (Current)")) : FText::GetEmpty();
-					return FText::Format(LOCTEXT("LevelInstanceDisplay", "{0}{1}{2}"), FText::FromString(TreeItem->GetDisplayString()), DirtySuffixText, IsCurrentSuffixText);
+					return FText::Format(LOCTEXT("LevelInstanceDisplay", "{0}{1}"), FText::FromString(TreeItem->GetDisplayString()), IsCurrentSuffixText);
 				}
 			}
 			return FText::FromString(TreeItem->GetDisplayString());
