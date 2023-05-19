@@ -615,6 +615,11 @@ namespace Chaos
 			return bSolverSubstep_External;
 		}
 
+		FReal GetAccumulatedTime() const
+		{
+			return AccumulatedTime;
+		}
+
 		/** Returns the time used by physics results. If fixed dt is used this will be the interpolated time */
 		FReal GetPhysicsResultsTime_External() const
 		{
