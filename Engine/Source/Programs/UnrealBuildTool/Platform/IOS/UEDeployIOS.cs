@@ -213,7 +213,7 @@ namespace UnrealBuildTool
 					break;
 				default:
 					MinVersionToReturn = "15.0";
-					Logger.LogWarning("MinimumiOSVersion {MinVersion} specified in ini file is no longer supported, defaulting to {MinVersionToReturn}", MinVersion, MinVersionToReturn);
+					Logger.LogInformation("MinimumiOSVersion {MinVersion} specified in ini file is no longer supported, defaulting to {MinVersionToReturn}", MinVersion, MinVersionToReturn);
 					break;
 			}
 			return MinVersionToReturn;
