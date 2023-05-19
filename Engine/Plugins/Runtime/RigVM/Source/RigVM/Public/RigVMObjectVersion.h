@@ -14,6 +14,9 @@ struct RIGVM_API FRigVMObjectVersion
 		
 		AddedVMHashChecks,
 
+		// Predicates added to execute operations
+		PredicatesAddedToExecuteOps,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

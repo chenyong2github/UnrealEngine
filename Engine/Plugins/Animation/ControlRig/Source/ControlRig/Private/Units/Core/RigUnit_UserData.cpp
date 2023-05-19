@@ -65,7 +65,7 @@ FRigVMFunctionPtr FRigDispatch_GetUserData::GetDispatchFunctionImpl(const FRigVM
 	return &FRigDispatch_GetUserData::Execute;
 }
 
-void FRigDispatch_GetUserData::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigDispatch_GetUserData::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray RigVMBranches)
 {
 	const FControlRigExecuteContext& ControlRigContext = InContext.GetPublicData<FControlRigExecuteContext>();
 

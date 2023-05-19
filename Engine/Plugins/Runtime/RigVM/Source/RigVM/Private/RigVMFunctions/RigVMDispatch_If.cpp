@@ -69,7 +69,7 @@ FRigVMFunctionPtr FRigVMDispatch_If::GetDispatchFunctionImpl(const FRigVMTemplat
 	return &FRigVMDispatch_If::Execute;
 }
 
-void FRigVMDispatch_If::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigVMDispatch_If::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 {
 	const FProperty* Property = Handles[1].GetResolvedProperty(); 
 

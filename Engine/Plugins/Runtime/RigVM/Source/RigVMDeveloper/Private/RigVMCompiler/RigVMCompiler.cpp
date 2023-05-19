@@ -1490,7 +1490,7 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 
 			// setup the instruction
 			int32 FunctionIndex = WorkData.VM->AddRigVMFunction(UnitNode->GetScriptStruct(), UnitNode->GetMethodName());
-			WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
+			WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands, 0, 0);
 		
 			int32 EntryInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 			FName Entryname = UnitNode->GetEventName();
@@ -1551,6 +1551,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 	URigVMNode* Node = InExpr->GetNode();
 	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node);
 	URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Node);
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
 	if(!ValidateNode(UnitNode, false) && !ValidateNode(DispatchNode, false))
 	{
 		return INDEX_NONE;
@@ -1628,7 +1629,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 
 		if(UnitNode)
 		{
-			Function = FRigVMRegistry::Get().FindFunction(UnitNode->GetScriptStruct(), *UnitNode->GetMethodName().ToString());
+			Function = Registry.FindFunction(UnitNode->GetScriptStruct(), *UnitNode->GetMethodName().ToString());
 		}
 		else if(DispatchNode)
 		{
@@ -1766,6 +1767,29 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpOp>(JumpToCallExternByte).InstructionIndex = InstructionsToJump;
 		}
 
+		int32 StartPredicateIndex = INDEX_NONE;
+		int32 PredicateCount = 0;
+		const TArray<FRigVMFunction>* Predicates = nullptr;
+		if (UnitNode)
+		{
+			Predicates = Registry.GetPredicatesForStruct(Function->Struct->GetFName());
+		}
+		else if(DispatchNode)
+		{
+			FRigVMTemplateTypeMap TypeMap = DispatchNode->GetTemplatePinTypeMap(true);
+			const FString PermutationName = DispatchNode->GetFactory()->GetPermutationName(TypeMap);
+			Predicates = Registry.GetPredicatesForStruct(*PermutationName);
+		}
+		if (Predicates)
+		{
+			StartPredicateIndex = WorkData.VM->GetByteCode().PredicateBranches.Num();
+			for (const FRigVMFunction& Predicate : *Predicates)
+			{
+				WorkData.VM->GetByteCode().AddPredicateBranch(FRigVMPredicateBranch());
+				PredicateCount++;
+			}
+		}
+		
 		if(Node->IsControlFlowNode())
 		{
 			check(BlockToRunOperand.IsValid());
@@ -1780,7 +1804,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		// setup the instruction
 		const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(Function->GetName());
 		check(FunctionIndex != INDEX_NONE);
-		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
+		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands, StartPredicateIndex, PredicateCount);
 		CallExternInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 
 		// setup the branch infos for this call extern instruction
@@ -2525,7 +2549,7 @@ void URigVMCompiler::AddCopyOperator(const FRigVMCopyOp& InOp, const FRigVMAssig
 			const FRigVMOperand Target = InOp.Target;
 
 			const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(CastFunction->Name);
-			WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, {Source, Target});
+			WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, {Source, Target}, 0, 0);
 
 			bAddCopyOp = false;
 		}
@@ -2545,7 +2569,7 @@ void URigVMCompiler::AddCopyOperator(const FRigVMCopyOp& InOp, const FRigVMAssig
 					static const FString ArrayCloneName =
 						FRigVMRegistry::Get().FindOrAddSingletonDispatchFunction<FRigVMDispatch_ArrayClone>();
 					const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(ArrayCloneName);
-					WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, {InOp.Source, InOp.Target});
+					WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, {InOp.Source, InOp.Target}, 0, 0);
 					bAddCopyOp = false;
 				}
 			}

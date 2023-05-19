@@ -6669,12 +6669,33 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 	}
 
 	// find the next close brace
+	TArray<FToken> MetaPropertyTokens;
 	while (!MatchSymbol(TEXT(")")))
 	{
 		FToken Token;
 		if (!GetToken(Token))
 		{
 			break;
+		}
+		if (Token.IsIdentifier(TEXT("meta"), ESearchCase::CaseSensitive))
+		{
+			if (!MatchSymbol(TEXT("=")))
+			{
+				Throwf(TEXT("Bad RIGVM_METHOD definition"));
+			}
+			if (!MatchSymbol(TEXT("(")))
+			{
+				Throwf(TEXT("Bad RIGVM_METHOD definition"));
+			}
+			while (!MatchSymbol(TEXT(")")))
+			{
+				FToken MetaPropertyToken;
+				if (!GetToken(MetaPropertyToken))
+				{
+					break;
+				}
+				MetaPropertyTokens.Add(MetaPropertyToken);
+			}
 		}
 	}
 
@@ -6685,6 +6706,13 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 	}
 
 	if (PrefixToken.IsIdentifier(TEXT("virtual"), ESearchCase::CaseSensitive))
+	{
+		if (!GetToken(ReturnTypeToken))
+		{
+			return;
+		}
+	}
+	else if (PrefixToken.IsIdentifier(TEXT("static"), ESearchCase::CaseSensitive))
 	{
 		if (!GetToken(ReturnTypeToken))
 		{
@@ -6728,6 +6756,19 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 	FRigVMMethodInfo MethodInfo;
 	MethodInfo.ReturnType = FString(ReturnTypeToken.Value);
 	MethodInfo.Name = FString(NameToken.Value);
+	if (MetaPropertyTokens.ContainsByPredicate([](FToken& Token){return Token.IsIdentifier(TEXT("Predicate"), ESearchCase::CaseSensitive);}))
+	{
+		if (!PrefixToken.IsIdentifier(TEXT("static"), ESearchCase::CaseSensitive))
+		{
+			LogError(TEXT("RIGVM_METHOD predicate F%s::%s is not defined as static. Predicates must be static methods."), *StructDef.GetName(), *MethodInfo.Name);
+			return;
+		}
+		MethodInfo.bIsPredicate = true;
+	}
+	else
+	{
+		MethodInfo.bIsPredicate = false;
+	}
 
 	// look out for the upgrade info method
 	static const FString GetUpgradeInfoString = TEXT("GetUpgradeInfo");
@@ -6799,7 +6840,7 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 	FRigVMStructInfo& StructRigVMInfo = StructDef.GetRigVMInfo();
 
 	// disable support for opaque arguments
-	if (MethodInfo.Parameters.Num() > 0)
+	if (MethodInfo.Parameters.Num() > 0 && !MethodInfo.bIsPredicate)
 	{
 		LogError(TEXT("RIGVM_METHOD F%s::%s has %d parameters. Since 5.2 parameters are no longer allowed for RIGVM_METHOD functions."), *StructRigVMInfo.Name, *MethodInfo.Name, MethodInfo.Parameters.Num());
 		MethodInfo.Parameters = FRigVMParameterArray();
@@ -6822,6 +6863,7 @@ const FName FHeaderParser::NAME_OutputText(TEXT("Output"));
 const FName FHeaderParser::NAME_ConstantText(TEXT("Constant"));
 const FName FHeaderParser::NAME_VisibleText(TEXT("Visible"));
 const FName FHeaderParser::NAME_LazyText(TEXT("Lazy"));
+const FName FHeaderParser::NAME_PredicateText(TEXT("Predicate"));
 
 const FName FHeaderParser::NAME_SingletonText(TEXT("Singleton"));
 

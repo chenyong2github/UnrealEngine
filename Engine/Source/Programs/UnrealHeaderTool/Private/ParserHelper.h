@@ -734,6 +734,7 @@ struct FRigVMMethodInfo
 	FString ReturnType;
 	FString Name;
 	FRigVMParameterArray Parameters;
+	bool bIsPredicate;
 
 	FString ReturnPrefix() const
 	{

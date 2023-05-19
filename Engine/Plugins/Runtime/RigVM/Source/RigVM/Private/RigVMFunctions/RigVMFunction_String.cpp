@@ -279,7 +279,7 @@ FRigVMFunctionPtr FRigDispatch_ToString::GetDispatchFunctionImpl(const FRigVMTem
 	const TRigVMTypeIndex& ValueTypeIndex = InTypes.FindChecked(TEXT("Value"));
 	if(ValueTypeIndex == RigVMTypeUtils::TypeIndex::FName)
 	{
-		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 		{
 			check(Handles[0].IsName());
 			check(Handles[1].IsString());
@@ -291,7 +291,7 @@ FRigVMFunctionPtr FRigDispatch_ToString::GetDispatchFunctionImpl(const FRigVMTem
 	}
 	if(ValueTypeIndex == RigVMTypeUtils::TypeIndex::FString)
 	{
-		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 		{
 			check(Handles[0].IsString());
 			check(Handles[1].IsString());
@@ -305,7 +305,7 @@ FRigVMFunctionPtr FRigDispatch_ToString::GetDispatchFunctionImpl(const FRigVMTem
 	return &FRigDispatch_ToString::Execute;
 }
 
-void FRigDispatch_ToString::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigDispatch_ToString::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 {
 	const FProperty* ValueProperty = Handles[0].GetResolvedProperty(); 
 	check(ValueProperty);
@@ -344,7 +344,7 @@ FRigVMFunctionPtr FRigDispatch_FromString::GetDispatchFunctionImpl(const FRigVMT
 	const TRigVMTypeIndex& ResultTypeIndex = InTypes.FindChecked(TEXT("Result"));
 	if(ResultTypeIndex == RigVMTypeUtils::TypeIndex::FName)
 	{
-		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 		{
 			check(Handles[0].IsString());
 			check(Handles[1].IsName());
@@ -356,7 +356,7 @@ FRigVMFunctionPtr FRigDispatch_FromString::GetDispatchFunctionImpl(const FRigVMT
 	}
 	if(ResultTypeIndex == RigVMTypeUtils::TypeIndex::FString)
 	{
-		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 		{
 			check(Handles[0].IsString());
 			check(Handles[1].IsString());
@@ -370,7 +370,7 @@ FRigVMFunctionPtr FRigDispatch_FromString::GetDispatchFunctionImpl(const FRigVMT
 	return &FRigDispatch_FromString::Execute;
 }
 
-void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 {
 	const FProperty* ValueProperty = Handles[1].GetResolvedProperty(); 
 	check(ValueProperty);

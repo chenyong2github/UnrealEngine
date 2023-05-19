@@ -20,10 +20,12 @@
 class UScriptStruct;
 struct FRigVMExtendedExecuteContext;
 struct FRigVMMemoryHandle;
+struct FRigVMPredicateBranch;
 
 typedef TArrayView<FRigVMMemoryHandle> FRigVMMemoryHandleArray;
+typedef TArrayView<FRigVMPredicateBranch> FRigVMPredicateBranchArray;
 
-typedef void (*FRigVMFunctionPtr)(FRigVMExtendedExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles);
+typedef void (*FRigVMFunctionPtr)(FRigVMExtendedExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles, FRigVMPredicateBranchArray RigVMBranches);
 
 struct FRigVMDispatchFactory;
 struct FRigVMTemplate;
@@ -44,6 +46,18 @@ enum class ERigVMPinDirection : uint8
 };
 
 /**
+ * The Function Argument is used to differentiate different kinds of 
+ * pins in the data flow graph - inputs or outputs 
+ */
+UENUM(BlueprintType)
+enum class ERigVMFunctionArgumentDirection : uint8
+{
+	Input, // A const input value
+	Output, // A mutable output value
+	Invalid // The max value for this enum - used for guarding.
+};
+
+/**
  * The FRigVMFunctionArgument describes an argument necessary for the C++ invocation of the RIGVM_METHOD backed function
  */
 struct RIGVM_API FRigVMFunctionArgument
@@ -52,22 +66,26 @@ struct RIGVM_API FRigVMFunctionArgument
 	const TCHAR* Type;
 	TSharedPtr<FString> NameString;
 	TSharedPtr<FString> TypeString;
+	ERigVMFunctionArgumentDirection Direction;
 
 	FRigVMFunctionArgument()
 		: Name(nullptr)
 		, Type(nullptr)
+		, Direction(ERigVMFunctionArgumentDirection::Invalid)
 	{
 	}
 
-	FRigVMFunctionArgument(const TCHAR* InName, const TCHAR* InType)
+	FRigVMFunctionArgument(const TCHAR* InName, const TCHAR* InType, const ERigVMFunctionArgumentDirection InDirection = ERigVMFunctionArgumentDirection::Input)
 		: Name(InName)
 		, Type(InType)
+		, Direction(InDirection)
 	{
 	}
 
-	FRigVMFunctionArgument(const FString& InName, const FString& InType)
+	FRigVMFunctionArgument(const FString& InName, const FString& InType, const ERigVMFunctionArgumentDirection InDirection = ERigVMFunctionArgumentDirection::Input)
 		: Name(nullptr)
 		, Type(nullptr)
+		, Direction(InDirection)
 	{
 		NameString = MakeShareable(new FString(InName));
 		TypeString = MakeShareable(new FString(InType));
@@ -75,6 +93,8 @@ struct RIGVM_API FRigVMFunctionArgument
 		Type = TypeString->operator*();
 	}
 };
+
+typedef TArray<FRigVMFunctionArgument> FRigVMFunctionArgumentArray;
 
 /**
  * The FRigVMExecuteArgument describes an execute argument.

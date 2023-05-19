@@ -169,9 +169,37 @@ namespace EpicGames.UHT.Parsers
 				// Create a new method information and add it
 				UhtRigVMMethodInfo methodInfo = new();
 
+				topScope.TokenReader
+					.Require('(');
+				if (topScope.TokenReader.PeekToken().IsValue("meta"))
+				{
+					topScope.TokenReader
+						.RequireIdentifier("meta")
+						.Require('=')
+						.RequireList('(', ')', ',', false, (IEnumerable<UhtToken> tokens) =>
+						{
+							foreach (UhtToken token in tokens)
+							{
+								if (token.IsIdentifier("Predicate"))
+								{
+									methodInfo.IsPredicate = true;
+								}
+							}
+						})
+						.Require(')');
+				}
+				else
+				{
+					topScope.TokenReader.Require(')');
+				}
+
+				if (methodInfo.IsPredicate)
+				{
+					topScope.TokenReader.RequireIdentifier("static");
+				}
+
 				// NOTE: The argument list reader doesn't handle templates with multiple arguments (i.e. the ',' issue)
 				topScope.TokenReader
-					.RequireList('(', ')')
 					.Optional("virtual")
 					.RequireIdentifier((ref UhtToken identifier) => methodInfo.ReturnType = identifier.Value.ToString())
 					.RequireIdentifier((ref UhtToken identifier) => methodInfo.Name = identifier.Value.ToString());
@@ -219,7 +247,7 @@ namespace EpicGames.UHT.Parsers
 
 				if (!isGetUpgradeInfo && !isGetNextAggregateName)
 				{
-					if (methodInfo.Parameters.Count > 0)
+					if (methodInfo.Parameters.Count > 0 && !methodInfo.IsPredicate)
 					{
 						topScope.TokenReader.LogError($"RIGVM_METHOD {scriptStruct.SourceName}::{methodInfo.Name} has {methodInfo.Parameters.Count} parameters. Since 5.2 parameters are no longer allowed for RIGVM_METHOD functions.");
 						methodInfo.Parameters.Clear();

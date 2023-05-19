@@ -3653,6 +3653,11 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			FString StructMembers = StructRigVMInfo.Members.Declarations(false, TEXT(",\r\n\t\t"), true, false, true, false);
 			for (const FRigVMMethodInfo& MethodInfo : StructRigVMInfo.Methods)
 			{
+				if (MethodInfo.bIsPredicate)
+				{
+					continue;
+				}
+				
 				FString StructMembersForStub = StructRigVMInfo.Members.Names(false, TEXT(",\r\n\t\t\t"), false, true, false);
 				FString RigVMParameterPrefix2 = RigVMExecuteContextPublicDeclaration + FString(StructMembers.IsEmpty() ? TEXT("") : TEXT(",\r\n\t\t"));
 				if(StructRigVMInfo.ExecuteContextMember.IsEmpty())

@@ -500,6 +500,11 @@ namespace EpicGames.UHT.Types
 		{
 			return (ReturnType.Length == 0 || ReturnType == "void") ? s_noPrefix : ReturnPrefixInternal;
 		}
+		/// <summary>
+		/// Whether or not this method is a predicate.
+		/// </summary>
+		/// <returns>True if this method is a predicate</returns>
+		public bool IsPredicate { get; set; } = false;
 	}
 
 	/// <summary>

@@ -1232,6 +1232,12 @@ const FRigVMFunction* FRigVMTemplate::GetOrCreatePermutation(int32 InIndex)
 			Registry.Functions[FunctionIndex].TemplateIndex = Index;
 			Registry.FunctionNameToIndex.Add(*PermutationName, FunctionIndex);
 
+			if (Delegates.RequestDispatchPredicatesDelegate.IsBound())
+			{
+				TArray<FRigVMFunction> Predicates = Delegates.RequestDispatchPredicatesDelegate.Execute(this, Types);
+				Registry.StructNameToPredicates.Add(*PermutationName, Predicates);
+			}
+
 			return &Registry.Functions[FunctionIndex];
 		}
 	}

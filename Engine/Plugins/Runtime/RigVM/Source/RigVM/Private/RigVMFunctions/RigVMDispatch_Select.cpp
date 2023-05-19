@@ -109,7 +109,7 @@ FRigVMFunctionPtr FRigVMDispatch_SelectInt32::GetDispatchFunctionImpl(const FRig
 	return &FRigVMDispatch_SelectInt32::Execute;
 }
 
-void FRigVMDispatch_SelectInt32::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigVMDispatch_SelectInt32::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 {
 	const FProperty* Property = Handles.Last().GetResolvedProperty();
 	const int32 NumCases = Handles.Num() - 2;

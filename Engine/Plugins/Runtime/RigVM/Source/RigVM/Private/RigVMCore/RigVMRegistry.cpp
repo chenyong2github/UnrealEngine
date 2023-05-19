@@ -23,6 +23,7 @@ FCriticalSection FRigVMRegistry::FindFunctionMutex;
 FCriticalSection FRigVMRegistry::FindTemplateMutex;
 FCriticalSection FRigVMRegistry::FindFactoryMutex;
 FCriticalSection FRigVMRegistry::GetDispatchFunctionMutex;
+FCriticalSection FRigVMRegistry::GetDispatchPredicatesMutex;
 FCriticalSection FRigVMRegistry::GetPermutationMutex;
 
 
@@ -1259,6 +1260,23 @@ const FRigVMDispatchFactory* FRigVMRegistry::RegisterFactory(UScriptStruct* InFa
 	return Factory;
 }
 
+void FRigVMRegistry::RegisterPredicate(UScriptStruct* InStruct, const TCHAR* InName, const TArray<FRigVMFunctionArgument>& InArguments)
+{
+	// Make sure the predicate does not already exist
+	TArray<FRigVMFunction>& Predicates = StructNameToPredicates.FindOrAdd(InStruct->GetFName());
+	if (Predicates.ContainsByPredicate([InName](const FRigVMFunction& Predicate)
+	{
+		return Predicate.Name == InName;
+	}))
+	{
+		
+		return;
+	}
+
+	FRigVMFunction Function(InName, nullptr, InStruct, Predicates.Num(), InArguments);
+	Predicates.Add(Function);
+}
+
 const FRigVMFunction* FRigVMRegistry::FindFunction(const TCHAR* InName) const
 {
 	FScopeLock FindFunctionScopeLock(&FindFunctionMutex);
@@ -1706,4 +1724,9 @@ FString FRigVMRegistry::FindOrAddSingletonDispatchFunction(UScriptStruct* InFact
 const TArray<FRigVMDispatchFactory*>& FRigVMRegistry::GetFactories() const
 {
 	return Factories;
+}
+
+const TArray<FRigVMFunction>* FRigVMRegistry::GetPredicatesForStruct(const FName& InStructName) const
+{
+	return StructNameToPredicates.Find(InStructName);
 }

@@ -33,7 +33,7 @@ private:
 	{
 		return &FRigVMDispatch_SetParameter::Execute;
 	}
-	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles);
+	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray RigVMBranches);
 
 	static const FName ValueName;
 	static const FName ExecuteContextName;

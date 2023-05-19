@@ -74,7 +74,7 @@ FString FRigVMDispatch_MakeStruct::GetArgumentMetaData(const FName& InArgumentNa
 
 #endif
 
-void FRigVMDispatch_MakeStruct::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigVMDispatch_MakeStruct::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray RigVMBranches)
 {
 	const FProperty* SourceProperty = Handles[0].GetProperty();
 	const FProperty* TargetProperty = Handles[1].GetProperty();

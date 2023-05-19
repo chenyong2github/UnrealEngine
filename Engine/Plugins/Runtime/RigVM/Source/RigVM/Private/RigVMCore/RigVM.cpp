@@ -1763,11 +1763,17 @@ ERigVMExecuteResult URigVM::ExecuteInstructions(FRigVMExtendedExecuteContext& Co
 				{
 					Handles = FRigVMMemoryHandleArray(&Context.CachedMemoryHandles[FirstHandleForInstruction[ContextPublicData.InstructionIndex]], OperandCount);
 				}
+
+				FRigVMPredicateBranchArray Predicates;
+				if (Op.PredicateCount > 0)
+				{
+					Predicates = FRigVMPredicateBranchArray(&ByteCode.PredicateBranches[Op.FirstPredicateIndex], Op.PredicateCount);
+				}
 #if WITH_EDITOR
 				ContextPublicData.FunctionName = FunctionNames[Op.FunctionIndex];
 #endif
 				Context.Factory = Factories[Op.FunctionIndex];
-				(*Functions[Op.FunctionIndex]->FunctionPtr)(Context, Handles);
+				(*Functions[Op.FunctionIndex]->FunctionPtr)(Context, Handles, Predicates);
 
 #if WITH_EDITOR
 
@@ -2141,7 +2147,7 @@ bool URigVM::Execute(FRigVMExtendedExecuteContext& Context, const FName& InEntry
 	return Execute(Context, TArray<URigVMMemoryStorage*>(), InEntryName) != ERigVMExecuteResult::Failed;
 }
 
-ERigVMExecuteResult URigVM::ExecuteLazyBranch(FRigVMExtendedExecuteContext& Context, const FRigVMBranchInfo& InBranchToRun)
+ERigVMExecuteResult URigVM::ExecuteBranch(FRigVMExtendedExecuteContext& Context, const FRigVMBranchInfo& InBranchToRun)
 {
 	// likely have to optimize this
 	TGuardValue<FRigVMExtendedExecuteContext> ContextGuard(Context, Context);

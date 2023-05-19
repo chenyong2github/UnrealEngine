@@ -84,7 +84,7 @@ ERigVMExecuteResult FRigVMLazyBranch::Execute(FRigVMExtendedExecuteContext& Cont
 	check(VM);
 	if(BranchInfo.IsValid())
 	{
-		return VM->ExecuteLazyBranch(Context, BranchInfo);
+		return VM->ExecuteBranch(Context, BranchInfo);
 	}
 
 	check(FunctionPtr);

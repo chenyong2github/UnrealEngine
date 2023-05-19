@@ -47,7 +47,7 @@ FRigVMTemplateTypeMap FRigVMDispatch_SetParameter::OnNewArgumentType(const FName
 	return Types;
 }
 
-void FRigVMDispatch_SetParameter::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigVMDispatch_SetParameter::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray RigVMBranches)
 {
 	const FProperty* ValueProperty = Handles[0].GetResolvedProperty(); 
 	check(ValueProperty);

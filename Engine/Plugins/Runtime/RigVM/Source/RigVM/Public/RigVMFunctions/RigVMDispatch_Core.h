@@ -34,10 +34,10 @@ protected:
 
 	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const override;
 	static bool AdaptResult(bool bResult, const FRigVMExtendedExecuteContext& InContext);
-	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles);
+	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates);
 
 	template<typename T>
-	static void Equals(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+	static void Equals(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 	{
 		check(Handles[0].IsType<T>());
 		check(Handles[1].IsType<T>());
@@ -48,7 +48,7 @@ protected:
 		Result = AdaptResult(A == B, InContext);
 	}
 
-	static void NameEquals(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+	static void NameEquals(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 	{
 		check(Handles[0].IsType<FName>());
 		check(Handles[1].IsType<FName>());
@@ -59,7 +59,7 @@ protected:
 		Result = AdaptResult(A.IsEqual(B, ENameCase::CaseSensitive), InContext);
 	}
 
-	static void StringEquals(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+	static void StringEquals(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 	{
 		check(Handles[0].IsType<FString>());
 		check(Handles[1].IsType<FString>());
@@ -71,7 +71,7 @@ protected:
 	}
 
 	template<typename T>
-	static void MathTypeEquals(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+	static void MathTypeEquals(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 	{
 		check(Handles[0].IsType<T>());
 		check(Handles[1].IsType<T>());

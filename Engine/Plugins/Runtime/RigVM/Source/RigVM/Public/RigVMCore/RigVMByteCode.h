@@ -94,6 +94,25 @@ struct FRigVMBranchInfoKey
 	FName Label;
 };
 
+// A description of a predicate branch in the VM's bytecode
+USTRUCT()
+struct RIGVM_API FRigVMPredicateBranch
+{
+	GENERATED_BODY()
+
+	FRigVMPredicateBranch()
+		: VM(nullptr)
+	{
+		
+	}
+	
+	ERigVMExecuteResult Execute(FRigVMExtendedExecuteContext& Context);
+	bool IsValid() { return BranchInfo.IsValid(); }
+	
+	FRigVMBranchInfo BranchInfo;
+	FRigVMMemoryHandleArray MemoryHandles;
+	URigVM* VM;
+};
 
 // The code for a single operation within the RigVM
 UENUM()
@@ -236,6 +255,8 @@ struct RIGVM_API FRigVMExecuteOp : public FRigVMBaseOp
 	: FRigVMBaseOp()
 	, FunctionIndex(INDEX_NONE)
 	, ArgumentCount(0)
+	, FirstPredicateIndex(INDEX_NONE)
+	, PredicateCount(INDEX_NONE)
 	{
 	}
 
@@ -248,6 +269,8 @@ struct RIGVM_API FRigVMExecuteOp : public FRigVMBaseOp
 
 	uint16 FunctionIndex;
 	uint16 ArgumentCount;
+	uint16 FirstPredicateIndex;
+	uint16 PredicateCount;
 
 	friend uint32 GetTypeHash(const FRigVMExecuteOp& Op)
 	{
@@ -988,7 +1011,7 @@ public:
 	int32 FindEntryIndex(const FName& InEntryName) const;
 
 	// adds an execute operator given its function index operands
-	uint64 AddExecuteOp(uint16 InFunctionIndex, const FRigVMOperandArray& InOperands);
+	uint64 AddExecuteOp(uint16 InFunctionIndex, const FRigVMOperandArray& InOperands, const int32& StartPredicateIndex, const int32 PredicateCount);
 	
 	// adds an execute operator given its function index operands
 	uint64 InlineFunction(const FRigVMByteCode* FunctionByteCode, const FRigVMOperandArray& InOperands);
@@ -1044,6 +1067,9 @@ public:
 	// adds information about a branch for an instruction's argument
 	int32 AddBranchInfo(const FRigVMBranchInfo& InBranchInfo);
 	int32 AddBranchInfo(const FName& InBranchLabel, int32 InInstructionIndex, int32 InArgumentIndex, int32 InFirstBranchInstruction, int32 InLastBranchInstruction);
+
+	// adds information about a predicate branch for an instruction
+	int32 AddPredicateBranch(const FRigVMPredicateBranch& InPredicateBranch);
 
 	// returns an instruction array for iterating over all operators
 	FRigVMInstructionArray GetInstructions() const
@@ -1269,6 +1295,10 @@ private:
 	// a list of all lazily evaluation branches
 	UPROPERTY()
 	TArray<FRigVMBranchInfo> BranchInfos;
+
+	// a list of all predicate branches
+	UPROPERTY()
+	TArray<FRigVMPredicateBranch> PredicateBranches;
 
 	const FRigVMBranchInfo* GetBranchInfo(const FRigVMBranchInfoKey& InBranchInfoKey) const;
 	mutable TMap<FRigVMBranchInfoKey, const FRigVMBranchInfo*> BranchInfoLookup;

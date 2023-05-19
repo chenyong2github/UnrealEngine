@@ -37,7 +37,7 @@ protected:
 	{
 		return &FRigVMDispatch_Print::Execute;
 	}
-	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles);
+	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates);
 
 	static const FName PrefixName;
 	static const FName ValueName;

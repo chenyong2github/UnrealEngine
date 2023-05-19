@@ -28,7 +28,7 @@ public:
 protected:
 
 	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const override;
-	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles);
+	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray RigVMBranches);
 
 	static inline constexpr TCHAR ArgNameSpaceName[] = TEXT("NameSpace");
 	static inline constexpr TCHAR ArgPathName[] = TEXT("Path");

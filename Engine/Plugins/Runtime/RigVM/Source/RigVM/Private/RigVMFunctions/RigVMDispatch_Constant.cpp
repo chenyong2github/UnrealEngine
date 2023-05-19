@@ -60,7 +60,7 @@ FText FRigVMDispatch_Constant::GetNodeTooltip(const FRigVMTemplateTypeMap& InTyp
 
 #endif
 
-void FRigVMDispatch_Constant::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigVMDispatch_Constant::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray RigVMBranches)
 {
 	// nothing to do here - it's a constant
 }

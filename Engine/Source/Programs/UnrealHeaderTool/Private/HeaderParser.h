@@ -663,6 +663,7 @@ public:
 	static const FName NAME_ConstantText;
 	static const FName NAME_VisibleText;
 	static const FName NAME_LazyText;
+	static const FName NAME_PredicateText;
 	static const FName NAME_SingletonText;
 	static const TCHAR* TArrayText;
 	static const TCHAR* TEnumAsByteText;

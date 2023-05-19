@@ -89,7 +89,7 @@ FString FRigVMDispatch_Print::GetArgumentMetaData(const FName& InArgumentName, c
 
 #endif
 
-void FRigVMDispatch_Print::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigVMDispatch_Print::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 {
 #if WITH_EDITOR
 	const FProperty* ValueProperty = Handles[1].GetResolvedProperty(); 

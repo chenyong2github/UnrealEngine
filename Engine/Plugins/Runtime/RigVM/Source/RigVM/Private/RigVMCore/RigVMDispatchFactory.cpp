@@ -220,6 +220,17 @@ FRigVMFunctionPtr FRigVMDispatchFactory::CreateDispatchFunction_NoLock(const FRi
 	return GetDispatchFunctionImpl(InTypes);
 }
 
+TArray<FRigVMFunction> FRigVMDispatchFactory::CreateDispatchPredicates(const FRigVMTemplateTypeMap& InTypes) const
+{
+	FScopeLock GetTemplateScopeLock(&FRigVMRegistry::GetDispatchPredicatesMutex);
+	return CreateDispatchPredicates_NoLock(InTypes);
+}
+
+TArray<FRigVMFunction> FRigVMDispatchFactory::CreateDispatchPredicates_NoLock(const FRigVMTemplateTypeMap& InTypes) const
+{
+	return GetDispatchPredicatesImpl(InTypes);
+}
+
 FString FRigVMDispatchFactory::GetPermutationName(const FRigVMTemplateTypeMap& InTypes) const
 {
 #if WITH_EDITOR
@@ -298,6 +309,12 @@ const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const
 	[this](const FRigVMTemplate*, const FRigVMTemplateTypeMap& InTypes)
 	{
 		return CreateDispatchFunction(InTypes);
+	});
+
+	Delegates.RequestDispatchPredicatesDelegate = FRigVMTemplate_RequestDispatchPredicatesDelegate::CreateLambda(
+	[this](const FRigVMTemplate*, const FRigVMTemplateTypeMap& InTypes)
+	{
+		return CreateDispatchPredicates(InTypes);
 	});
 
 	CachedTemplate = Registry.AddTemplateFromArguments(GetFactoryName(), Arguments, Delegates); 

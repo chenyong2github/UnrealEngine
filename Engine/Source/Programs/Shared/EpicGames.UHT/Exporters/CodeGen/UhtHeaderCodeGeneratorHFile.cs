@@ -8,6 +8,7 @@ using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
+using Microsoft.Extensions.Primitives;
 
 namespace EpicGames.UHT.Exporters.CodeGen
 {
@@ -142,6 +143,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				builder.Append("\r\n");
 				foreach (UhtRigVMMethodInfo methodInfo in scriptStruct.RigVMStructInfo.Methods)
 				{
+					if (methodInfo.IsPredicate)
+					{
+						continue;
+					}
+					
 					builder.Append("#define ").Append(scriptStruct.SourceName).Append('_').Append(methodInfo.Name).Append("() \\\r\n");
 					builder.Append('\t').Append(methodInfo.ReturnType).Append(' ').Append(scriptStruct.SourceName).Append("::Static").Append(methodInfo.Name).Append("( \\\r\n");
 					builder.Append("\t\t");
@@ -151,6 +157,13 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					}
 					builder.Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& ").Append(RigVMExecuteContextParamName);
 					builder.AppendParameterDecls(scriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t", true, false);
+					foreach (UhtRigVMMethodInfo predicateInfo in scriptStruct.RigVMStructInfo.Methods)
+					{
+						if (predicateInfo.IsPredicate)
+						{
+							builder.Append(", \\\r\n\t\t").Append(predicateInfo.Name).Append("Struct& ").Append(predicateInfo.Name);
+						}
+					}
 					builder.Append(" \\\r\n");
 					builder.Append("\t)\r\n");
 				}
@@ -181,6 +194,57 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						
 						foreach (UhtRigVMMethodInfo methodInfo in scriptStruct.RigVMStructInfo.Methods)
 						{
+							if (methodInfo.IsPredicate)
+							{
+								builder.Append('\t').Append("struct ").Append(methodInfo.Name).Append("Struct \\\r\n");
+								builder.Append("\t{ \\\r\n");
+								builder.Append("\t\t").Append(methodInfo.Name).Append("Struct(){  } \\\r\n");
+								builder.Append("\t\t").Append(methodInfo.Name).Append("Struct(FRigVMExtendedExecuteContext& InContext, FRigVMPredicateBranch InBranch){ Context = &InContext; Branch = InBranch; } \\\r\n");
+								builder.Append("\t\t").Append(methodInfo.ReturnType).Append(" Execute(\\\r\n\t\t\t");
+								builder.AppendParameterDecls(methodInfo.Parameters, false, ", \\\r\n\t\t\t", true, false);
+								builder.Append("\t\t)  \\\r\n");
+								builder.Append("\t\t{  \\\r\n");
+								builder.Append("\t\t\tif (Branch.IsValid())  \\\r\n");
+								builder.Append("\t\t\t{  \\\r\n");
+								int parameterIndex = 0;
+								foreach (UhtRigVMParameter parameter in methodInfo.Parameters)
+								{
+									string baseType = parameter.TypeOriginal().ToString();
+									if (baseType.StartsWith("const"))
+									{
+										baseType = baseType.Substring(5).Trim();
+									}
+
+									if (baseType.EndsWith("&"))
+									{
+										baseType = baseType.Substring(0, baseType.Length - 1).Trim();
+									}
+									builder.Append("\t\t\t\t*(").Append(baseType).Append("*) Branch.MemoryHandles[")
+										.Append(parameterIndex++).Append("].GetData(false) = ")
+										.Append(parameter.Name).Append(";  \\\r\n");
+									
+								}
+								builder.Append("\t\t\t\tBranch.Execute(*Context);  \\\r\n");
+								builder.Append("\t\t\t\treturn *(").Append(methodInfo.ReturnType).Append("*)Branch.MemoryHandles[").Append(methodInfo.Parameters.Count).Append("].GetData(false);  \\\r\n");
+								builder.Append("\t\t\t}  \\\r\n");
+								builder.Append("\t\t\treturn ").Append(methodInfo.Name).Append("(");
+								builder.AppendParameterNames(methodInfo.Parameters, false, ", ", false, false);
+								builder.Append("); \\\r\n");
+								builder.Append("\t\t}  \\\r\n");
+								builder.Append("\tprivate: \\\r\n");
+								builder.Append("\t\tFRigVMExtendedExecuteContext* Context; \\\r\n");
+								builder.Append("\t\tFRigVMPredicateBranch Branch; \\\r\n");
+								builder.Append("\t};  \\\r\n");
+							}
+						}
+
+						foreach (UhtRigVMMethodInfo methodInfo in scriptStruct.RigVMStructInfo.Methods)
+						{
+							if (methodInfo.IsPredicate)
+							{
+								continue;
+							}
+							
 							builder.Append('\t').Append(methodInfo.ReturnType).Append(' ').Append(methodInfo.Name).Append('(').Append(constPrefix).Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& InExecuteContext); \\\r\n");
 							builder.Append("\tstatic ").Append(methodInfo.ReturnType).Append(" Static").Append(methodInfo.Name).Append("( \\\r\n");
 							builder.Append("\t\t");
@@ -190,13 +254,23 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							}
 							builder.Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& ").Append(RigVMExecuteContextParamName);
 							builder.AppendParameterDecls(scriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t", true, false);
+
+							foreach (UhtRigVMMethodInfo predicateInfo in scriptStruct.RigVMStructInfo.Methods)
+							{
+								if (predicateInfo.IsPredicate)
+								{
+									builder.Append(", \\\r\n\t\t").Append(predicateInfo.Name).Append("Struct& ").Append(predicateInfo.Name);
+								}
+							}
+							
 							builder.Append(" \\\r\n");
 							builder.Append("\t); \\\r\n");
 
 							builder.Append("\tFORCEINLINE_DEBUGGABLE static ").Append(methodInfo.ReturnType).Append(" RigVM").Append(methodInfo.Name).Append("( \\\r\n");
 							builder.Append("\t\t");
 							builder.Append(RigVMExecuteContextDeclaration).Append(", \\\r\n");
-							builder.Append("\t\tFRigVMMemoryHandleArray RigVMMemoryHandles \\\r\n");
+							builder.Append("\t\tFRigVMMemoryHandleArray RigVMMemoryHandles, \\\r\n");
+							builder.Append("\t\tFRigVMPredicateBranchArray RigVMBranches \\\r\n");
 							builder.Append("\t) \\\r\n");
 							builder.Append("\t{ \\\r\n");
 
@@ -294,9 +368,25 @@ namespace EpicGames.UHT.Exporters.CodeGen
 								builder.Append("\t\t \\\r\n");
 							}
 
+							int predicateId = 0;
+							foreach (UhtRigVMMethodInfo predicateInfo in scriptStruct.RigVMStructInfo.Methods)
+							{
+								if (predicateInfo.IsPredicate)
+								{
+									builder.Append("\t\t").Append(predicateInfo.Name).Append("Struct ").Append(predicateInfo.Name).Append("Predicate(RigVMExecuteContext, RigVMBranches[").Append(predicateId++).Append("]); \\\r\n");
+								}
+							}
+							
 							builder.Append("\t\t").Append(methodInfo.ReturnPrefix()).Append("Static").Append(methodInfo.Name).Append("( \\\r\n");
 							builder.Append("\t\t\tRigVMExecuteContext.GetPublicData<").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append(">()");
 							builder.AppendParameterNames(scriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t\t", false);
+							foreach (UhtRigVMMethodInfo predicateInfo in scriptStruct.RigVMStructInfo.Methods)
+							{
+								if (predicateInfo.IsPredicate)
+								{
+									builder.Append(", \\\r\n\t\t\t").Append(predicateInfo.Name).Append("Predicate");
+								}
+							}
 							builder.Append(" \\\r\n");
 							builder.Append("\t\t); \\\r\n");
 							builder.Append("\t} \\\r\n");

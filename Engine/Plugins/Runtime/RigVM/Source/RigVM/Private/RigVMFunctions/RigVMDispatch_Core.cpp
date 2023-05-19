@@ -109,7 +109,7 @@ bool FRigVMDispatch_CoreEquals::AdaptResult(bool bResult, const FRigVMExtendedEx
 	return bResult;
 }
 
-void FRigVMDispatch_CoreEquals::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigVMDispatch_CoreEquals::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray Predicates)
 {
 	const FProperty* PropertyA = Handles[0].GetResolvedProperty(); 
 	const FProperty* PropertyB = Handles[1].GetResolvedProperty(); 

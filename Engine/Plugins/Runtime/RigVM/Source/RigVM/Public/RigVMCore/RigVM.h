@@ -234,7 +234,7 @@ public:
 	ERigVMExecuteResult ExecuteLazyBranch(const FRigVMBranchInfo& InBranchToRun) { return ERigVMExecuteResult::Failed; }
 
 	// Executes a single branch on the VM. We assume that the memory is already set correctly at this point.
-	ERigVMExecuteResult ExecuteLazyBranch(FRigVMExtendedExecuteContext& Context, const FRigVMBranchInfo& InBranchToRun);
+	ERigVMExecuteResult ExecuteBranch(FRigVMExtendedExecuteContext& Context, const FRigVMBranchInfo& InBranchToRun);
 
 private:
 	ERigVMExecuteResult ExecuteInstructions(FRigVMExtendedExecuteContext& Context, int32 InFirstInstruction, int32 InLastInstruction);

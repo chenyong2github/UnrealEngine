@@ -59,6 +59,9 @@ public:
 	// Registers a dispatch factory given its struct.
 	const FRigVMDispatchFactory* RegisterFactory(UScriptStruct* InFactoryStruct);
 
+	// Register a predicate contained in the input struct
+	void RegisterPredicate(UScriptStruct* InStruct, const TCHAR* InName, const TArray<FRigVMFunctionArgument>& InArguments);
+
 	// Initializes the registry by storing the defaults
 	void InitializeIfNeeded();
 	
@@ -260,6 +263,9 @@ public:
 	// Returns all dispatch factories
 	const TArray<FRigVMDispatchFactory*>& GetFactories() const;
 
+	// Given a struct name, return the predicates
+	const TArray<FRigVMFunction>* GetPredicatesForStruct(const FName& InStructName) const;
+
 	static const TArray<UScriptStruct*>& GetMathTypes();
 
 	// Notifies other system that types have been added/removed, and template permutations have been updated
@@ -352,6 +358,9 @@ private:
 	// name lookup for functions
 	TMap<FName, int32> FunctionNameToIndex;
 
+	// lookup all the predicate functions of this struct
+	TMap<FName, TArray<FRigVMFunction>> StructNameToPredicates;
+
 	// name lookup for non-deprecated templates
 	TMap<FName, int32> TemplateNotationToIndex;
 
@@ -379,6 +388,7 @@ private:
 	static FCriticalSection FindTemplateMutex;
 	static FCriticalSection FindFactoryMutex;
 	static FCriticalSection GetDispatchFunctionMutex;
+	static FCriticalSection GetDispatchPredicatesMutex;
 	static FCriticalSection GetPermutationMutex;
 
 	friend struct FRigVMStruct;

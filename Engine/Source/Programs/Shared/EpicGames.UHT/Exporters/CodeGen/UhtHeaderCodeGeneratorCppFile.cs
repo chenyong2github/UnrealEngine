@@ -555,32 +555,67 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					foreach (UhtRigVMMethodInfo methodInfo in scriptStruct.RigVMStructInfo.Methods)
 					{
-						builder.Append("\t\tTArray<FRigVMFunctionArgument> ").AppendArgumentsName(scriptStruct, methodInfo).Append(";\r\n");
-						foreach (UhtRigVMParameter parameter in scriptStruct.RigVMStructInfo.Members)
+						if (methodInfo.IsPredicate)
 						{
+							builder.Append("\t\tTArray<FRigVMFunctionArgument> ").AppendArgumentsName(scriptStruct, methodInfo).Append(";\r\n");
+							foreach (UhtRigVMParameter parameter in methodInfo.Parameters)
+							{
+								builder
+									.Append("\t\t")
+									.AppendArgumentsName(scriptStruct, methodInfo)
+									.Append(".Emplace(TEXT(\"")
+									.Append(parameter.NameOriginal())
+									.Append("\"), TEXT(\"")
+									.Append(parameter.TypeOriginal())
+									.Append("\"));\r\n");
+							}
 							builder
 								.Append("\t\t")
 								.AppendArgumentsName(scriptStruct, methodInfo)
-								.Append(".Emplace(TEXT(\"")
-								.Append(parameter.NameOriginal())
-								.Append("\"), TEXT(\"")
-								.Append(parameter.TypeOriginal())
-								.Append("\"));\r\n");
+								.Append(".Emplace(TEXT(\"Return\"), TEXT(\"")
+								.Append(methodInfo.ReturnType)
+								.Append("\"), ERigVMFunctionArgumentDirection::Output);\r\n");
+							
+							builder
+								.Append("\t\tFRigVMRegistry::Get().RegisterPredicate(")
+								.Append(registrationName)
+								.Append(".OuterSingleton, ")
+								.Append("TEXT(\"")
+								.Append(methodInfo.Name)
+								.Append("\"), ")
+								.AppendArgumentsName(scriptStruct, methodInfo)
+								.Append(");\r\n");
 						}
-						builder
-							.Append("\t\tFRigVMRegistry::Get().Register(TEXT(\"")
-							.Append(scriptStruct.SourceName)
-							.Append("::")
-							.Append(methodInfo.Name)
-							.Append("\"), &")
-							.Append(scriptStruct.SourceName)
-							.Append("::RigVM")
-							.Append(methodInfo.Name)
-							.Append(", ")
-							.Append(registrationName)
-							.Append(".OuterSingleton, ")
-							.AppendArgumentsName(scriptStruct, methodInfo)
-							.Append(");\r\n");
+						else
+						{
+							builder.Append("\t\tTArray<FRigVMFunctionArgument> ").AppendArgumentsName(scriptStruct, methodInfo).Append(";\r\n");
+							foreach (UhtRigVMParameter parameter in scriptStruct.RigVMStructInfo.Members)
+							{
+								builder
+									.Append("\t\t")
+									.AppendArgumentsName(scriptStruct, methodInfo)
+									.Append(".Emplace(TEXT(\"")
+									.Append(parameter.NameOriginal())
+									.Append("\"), TEXT(\"")
+									.Append(parameter.TypeOriginal())
+									.Append("\"));\r\n");
+							}
+							
+							builder
+								.Append("\t\tFRigVMRegistry::Get().Register(TEXT(\"")
+								.Append(scriptStruct.SourceName)
+								.Append("::")
+								.Append(methodInfo.Name)
+								.Append("\"), &")
+								.Append(scriptStruct.SourceName)
+								.Append("::RigVM")
+								.Append(methodInfo.Name)
+								.Append(", ")
+								.Append(registrationName)
+								.Append(".OuterSingleton, ")
+								.AppendArgumentsName(scriptStruct, methodInfo)
+								.Append(");\r\n");
+						}
 					}
 				}
 
@@ -714,6 +749,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				
 				foreach (UhtRigVMMethodInfo methodInfo in scriptStruct.RigVMStructInfo.Methods)
 				{
+					if (methodInfo.IsPredicate)
+					{
+						continue;
+					}
+					
 					builder.Append("\r\n");
 
 					builder
@@ -771,11 +811,28 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						//COMPATIBILITY-TODO - Remove the tab
 						builder.Append("\t\r\n");
 					}
+					
+					foreach (UhtRigVMMethodInfo predicateInfo in scriptStruct.RigVMStructInfo.Methods)
+					{
+						if (predicateInfo.IsPredicate)
+						{
+							builder.Append("\t").Append(predicateInfo.Name).Append("Struct ").Append(predicateInfo.Name).Append("Predicate; \r\n");
+						}
+					}
 
 					//COMPATIBILITY-TODO - Replace spaces with \t
 					builder.Append('\t').Append(methodInfo.ReturnPrefix()).Append("Static").Append(methodInfo.Name).Append("(\r\n");
 					builder.Append("\t\tInExecuteContext");
 					builder.AppendParameterNames(scriptStruct.RigVMStructInfo.Members, true, ",\r\n\t\t", true);
+					
+					foreach (UhtRigVMMethodInfo predicateInfo in scriptStruct.RigVMStructInfo.Methods)
+					{
+						if (predicateInfo.IsPredicate)
+						{
+							builder.Append(", \r\n\t\t").Append(predicateInfo.Name).Append("Predicate");
+						}
+					}
+					
 					builder.Append("\r\n");
 					builder.Append("\t);\r\n");
 					builder.Append("}\r\n");

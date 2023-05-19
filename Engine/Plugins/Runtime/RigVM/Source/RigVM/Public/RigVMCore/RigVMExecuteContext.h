@@ -456,6 +456,7 @@ private:
 	FRigVMExtendedExecuteContext* ExtendedExecuteContext = nullptr; 
 
 	friend struct TRigVMLazyValueBase;
+	friend struct FRigVMPredicateBranch;
 	friend struct FRigVMExtendedExecuteContext;
 	friend class URigVM;
 	friend class URigVMNativized;

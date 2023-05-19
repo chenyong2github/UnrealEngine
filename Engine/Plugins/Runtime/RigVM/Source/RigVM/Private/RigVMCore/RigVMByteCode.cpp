@@ -4,8 +4,20 @@
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "RigVMCore/RigVM.h"
+#include "RigVMObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMByteCode)
+
+ERigVMExecuteResult FRigVMPredicateBranch::Execute(FRigVMExtendedExecuteContext& Context)
+{
+	check(VM);
+	if(BranchInfo.IsValid())
+	{
+		return VM->ExecuteBranch(Context, BranchInfo);
+	}
+	return ERigVMExecuteResult::Failed;
+}
 
 void FRigVMExecuteOp::Serialize(FArchive& Ar)
 {
@@ -29,6 +41,12 @@ void FRigVMExecuteOp::Serialize(FArchive& Ar)
 	else
 	{
 		Ar << ArgumentCount;
+	}
+
+	if (Ar.CustomVer(FRigVMObjectVersion::GUID) >= FRigVMObjectVersion::PredicatesAddedToExecuteOps)
+	{
+		Ar << FirstPredicateIndex;
+		Ar << PredicateCount;
 	}
 }
 
@@ -470,7 +488,7 @@ void FRigVMByteCode::Load(FArchive& Ar)
 					Operands.Add(Operand);
 				}
 
-				AddExecuteOp(Op.FunctionIndex, Operands);
+				AddExecuteOp(Op.FunctionIndex, Operands, Op.FirstPredicateIndex, Op.PredicateCount);
 				break;
 			}
 			case ERigVMOpCode::Copy:
@@ -1039,9 +1057,11 @@ uint64 FRigVMByteCode::AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIn
 	return AddOp(Op);
 }
 
-uint64 FRigVMByteCode::AddExecuteOp(uint16 InFunctionIndex, const FRigVMOperandArray& InOperands)
+uint64 FRigVMByteCode::AddExecuteOp(uint16 InFunctionIndex, const FRigVMOperandArray& InOperands, const int32& StartPredicateIndex, const int32 PredicateCount)
 {
 	FRigVMExecuteOp Op(InFunctionIndex, (uint8)InOperands.Num());
+	Op.FirstPredicateIndex = StartPredicateIndex;
+	Op.PredicateCount = PredicateCount;
 	uint64 OpByteIndex = AddOp(Op);
 
 	uint64 OperandsByteIndex = (uint64)ByteCode.AddZeroed(sizeof(FRigVMOperand) * InOperands.Num());
@@ -1261,6 +1281,11 @@ int32 FRigVMByteCode::AddBranchInfo(const FName& InBranchLabel, int32 InInstruct
 	BranchInfo.FirstInstruction = InFirstBranchInstruction;
 	BranchInfo.LastInstruction = InLastBranchInstruction;
 	return AddBranchInfo(BranchInfo);
+}
+
+int32 FRigVMByteCode::AddPredicateBranch(const FRigVMPredicateBranch& InPredicateBranch)
+{
+	return PredicateBranches.Add(InPredicateBranch);
 }
 
 FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InInstruction) const
