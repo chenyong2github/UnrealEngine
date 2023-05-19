@@ -903,6 +903,7 @@ void UNiagaraSystem::PostLoad()
 	}
 
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+#if WITH_EDITORONLY_DATA
 	if (NiagaraVer < FNiagaraCustomVersion::PlatformScalingRefactor)
 	{
 		for (int32 DL = 0; DL < ScalabilityOverrides_DEPRECATED.Num(); ++DL)
@@ -913,6 +914,7 @@ void UNiagaraSystem::PostLoad()
 			NewOverride.Platforms = FNiagaraPlatformSet(FNiagaraPlatformSet::CreateQualityLevelMask(DL));
 		}
 	}
+#endif
 
 	for (FNiagaraSystemScalabilityOverride& Override : SystemScalabilityOverrides.Overrides)
 	{
@@ -3059,7 +3061,7 @@ void UNiagaraSystem::InitEmitterCompiledData()
 
 		FNiagaraTypeDefinition SpawnInfoDef = FNiagaraTypeDefinition(FNiagaraSpawnInfo::StaticStruct());
 
-		for (FNiagaraVariable& Var : SystemSpawnScript->GetVMExecutableData().Attributes)
+		for (const FNiagaraVariableBase& Var : SystemSpawnScript->GetVMExecutableData().Attributes)
 		{
 			for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
 			{
@@ -3075,7 +3077,7 @@ void UNiagaraSystem::InitEmitterCompiledData()
 			}
 		}
 
-		for (FNiagaraVariable& Var : SystemUpdateScript->GetVMExecutableData().Attributes)
+		for (const FNiagaraVariableBase& Var : SystemUpdateScript->GetVMExecutableData().Attributes)
 		{
 			for (int32 EmitterIdx = 0; EmitterIdx < EmitterHandles.Num(); ++EmitterIdx)
 			{
@@ -3116,7 +3118,8 @@ void UNiagaraSystem::InitSystemCompiledData()
 
 	ExposedParameters.CopyParametersTo(SystemCompiledData.InstanceParamStore, false, FNiagaraParameterStore::EDataInterfaceCopyMethod::Reference);
 
-	auto CreateDataSetCompiledData = [&](FNiagaraDataSetCompiledData& CompiledData, TConstArrayView<FNiagaraVariable> Vars)
+	//-TODO:FNiagaraVariableBase Verify if EngineParamsSpawn->Parameters can also be moved to base
+	auto CreateDataSetCompiledData = [&](FNiagaraDataSetCompiledData& CompiledData, TConstStridedView<FNiagaraVariableBase> Vars)
 	{
 		CompiledData.Empty();
 
@@ -3136,12 +3139,12 @@ void UNiagaraSystem::InitSystemCompiledData()
 	const FNiagaraVMExecutableData& SystemSpawnScriptData = GetSystemSpawnScript()->GetVMExecutableData();
 	const FNiagaraVMExecutableData& SystemUpdateScriptData = GetSystemUpdateScript()->GetVMExecutableData();
 
-	CreateDataSetCompiledData(SystemCompiledData.DataSetCompiledData, SystemUpdateScriptData.Attributes);
+	CreateDataSetCompiledData(SystemCompiledData.DataSetCompiledData, MakeStridedView(SystemUpdateScriptData.Attributes));
 
 	const FNiagaraParameters* EngineParamsSpawn = SystemSpawnScriptData.DataSetToParameters.Find(TEXT("Engine"));
-	CreateDataSetCompiledData(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EngineParamsSpawn ? TConstArrayView<FNiagaraVariable>(EngineParamsSpawn->Parameters) : TArrayView<FNiagaraVariable>());
+	CreateDataSetCompiledData(SystemCompiledData.SpawnInstanceParamsDataSetCompiledData, EngineParamsSpawn ? MakeConstStridedViewOfBase<FNiagaraVariableBase, FNiagaraVariable>(EngineParamsSpawn->Parameters) : MakeConstStridedView<FNiagaraVariableBase>(0, nullptr, 0));
 	const FNiagaraParameters* EngineParamsUpdate = SystemUpdateScriptData.DataSetToParameters.Find(TEXT("Engine"));
-	CreateDataSetCompiledData(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EngineParamsUpdate ? TConstArrayView<FNiagaraVariable>(EngineParamsUpdate->Parameters) : TArrayView<FNiagaraVariable>());
+	CreateDataSetCompiledData(SystemCompiledData.UpdateInstanceParamsDataSetCompiledData, EngineParamsUpdate ? MakeConstStridedViewOfBase<FNiagaraVariableBase, FNiagaraVariable>(EngineParamsUpdate->Parameters) : MakeConstStridedView<FNiagaraVariableBase>(0, nullptr, 0));
 
 	// create the bindings to be used with our constant buffers; geenrating the offsets to/from the data sets; we need
 	// editor data to build these bindings because of the constant buffer structs only having their variable definitions
@@ -3662,16 +3665,16 @@ void FNiagaraParameterDataSetBindingCollection::BuildInternal(const TArray<FNiag
 
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumFloatComponents(); ++CompIdx)
 			{
-				int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.FloatComponentByteOffsets[CompIdx];
-				int32 DataSetOffset = Layout.FloatComponentStart + NumFloats++;
+				int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.GetFloatComponentByteOffset(CompIdx);
+				int32 DataSetOffset = Layout.GetFloatComponentStart() + NumFloats++;
 				auto& Binding = FloatOffsets.AddDefaulted_GetRef();
 				Binding.ParameterOffset = ParamOffset;
 				Binding.DataSetComponentOffset = DataSetOffset;
 			}
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumInt32Components(); ++CompIdx)
 			{
-				int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.Int32ComponentByteOffsets[CompIdx];
-				int32 DataSetOffset = Layout.Int32ComponentStart + NumInts++;
+				int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.GetInt32ComponentByteOffset(CompIdx);
+				int32 DataSetOffset = Layout.GetInt32ComponentStart() + NumInts++;
 				auto& Binding = Int32Offsets.AddDefaulted_GetRef();
 				Binding.ParameterOffset = ParamOffset;
 				Binding.DataSetComponentOffset = DataSetOffset;

@@ -126,7 +126,7 @@ bool FNiagaraRendererLayout::SetVariable(const FNiagaraDataSetCompiledData* Comp
 	const FNiagaraVariableLayoutInfo& DataSetVariableLayout = CompiledData->VariableLayouts[VariableIndex];
 	const int32 VarSize = bHalfVariable ? sizeof(FFloat16) : sizeof(float);
 	const int32 NumComponents = DataSetVariable.GetSizeInBytes() / VarSize;
-	const int32 Offset = bHalfVariable ? DataSetVariableLayout.HalfComponentStart : DataSetVariableLayout.FloatComponentStart;
+	const int32 Offset = bHalfVariable ? DataSetVariableLayout.GetHalfComponentStart() : DataSetVariableLayout.GetFloatComponentStart();
 	uint16& TotalVFComponents = bHalfVariable ? TotalHalfComponents_GT : TotalFloatComponents_GT;
 
 	int32 GPULocation = INDEX_NONE;
@@ -745,17 +745,17 @@ uint32 UNiagaraRendererProperties::ComputeMaxUsedComponents(const FNiagaraDataSe
 
 			if (const uint32 FloatCount = DataSetVarLayout.GetNumFloatComponents())
 			{
-				AccumulateUniqueComponents(BaseType_Float, FloatCount, DataSetVarLayout.FloatComponentStart);
+				AccumulateUniqueComponents(BaseType_Float, FloatCount, DataSetVarLayout.GetFloatComponentStart());
 			}
 
 			if (const uint32 IntCount = DataSetVarLayout.GetNumInt32Components())
 			{
-				AccumulateUniqueComponents(BaseType_Int, IntCount, DataSetVarLayout.Int32ComponentStart);
+				AccumulateUniqueComponents(BaseType_Int, IntCount, DataSetVarLayout.GetInt32ComponentStart());
 			}
 
 			if (const uint32 HalfCount = DataSetVarLayout.GetNumHalfComponents())
 			{
-				AccumulateUniqueComponents(BaseType_Half, HalfCount, DataSetVarLayout.HalfComponentStart);
+				AccumulateUniqueComponents(BaseType_Half, HalfCount, DataSetVarLayout.GetHalfComponentStart());
 			}
 		}
 	}

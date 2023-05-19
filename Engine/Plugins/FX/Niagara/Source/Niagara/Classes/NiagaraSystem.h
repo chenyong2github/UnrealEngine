@@ -815,9 +815,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = bOverrideAllowCullingForLocalPlayers))
 	uint32 bAllowCullingForLocalPlayersOverride : 1;
 
-	UPROPERTY()
-	TArray<FNiagaraSystemScalabilityOverride> ScalabilityOverrides_DEPRECATED;
-
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition="bOverrideScalabilitySettings", DisplayInScalabilityContext))
 	FNiagaraSystemScalabilityOverrides SystemScalabilityOverrides;
 
@@ -830,6 +827,9 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	bool bCompilationReentrantGuard = false;
+
+	UPROPERTY()
+	TArray<FNiagaraSystemScalabilityOverride> ScalabilityOverrides_DEPRECATED;
 
 	TArray<TUniquePtr<FNiagaraActiveCompilation>> ActiveCompilations;
 

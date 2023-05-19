@@ -2017,7 +2017,9 @@ FNiagaraTranslateResults TNiagaraHlslTranslator<GraphBridge>::Translate(const FN
 			SetProps.ID = InfoPair.Key;
 			for (TPair <int32, FDataSetAccessInfo> IndexPair : InfoPair.Value)
 			{
-				SetProps.Variables = IndexPair.Value.Variables;
+				//-TODO:FNiagaraVariableBase the source can be FNiagaraVariableBase also
+				SetProps.Variables.Empty();
+				FNiagaraVariable::ConvertToBaseArray(IndexPair.Value.Variables, SetProps.Variables);
 			}
 
 			CompilationOutput.ScriptData.WriteDataSets.Add(SetProps);

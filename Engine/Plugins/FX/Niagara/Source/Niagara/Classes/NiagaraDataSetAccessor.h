@@ -213,7 +213,7 @@ struct FNiagaraDataSetAccessorFloat
 		if (FloatVariableIndex != INDEX_NONE)
 		{
 			bIsFloat = true;
-			ComponentIndex = DataSetCompiledData.VariableLayouts[FloatVariableIndex].FloatComponentStart;
+			ComponentIndex = DataSetCompiledData.VariableLayouts[FloatVariableIndex].GetFloatComponentStart();
 			return;
 		}
 
@@ -223,7 +223,7 @@ struct FNiagaraDataSetAccessorFloat
 			if (AlternateVariableIndex != INDEX_NONE)
 			{
 				bIsFloat = true;
-				ComponentIndex = DataSetCompiledData.VariableLayouts[AlternateVariableIndex].FloatComponentStart;
+				ComponentIndex = DataSetCompiledData.VariableLayouts[AlternateVariableIndex].GetFloatComponentStart();
 				return;
 			}
 		}
@@ -234,7 +234,7 @@ struct FNiagaraDataSetAccessorFloat
 			if (HalfVariableIndex != INDEX_NONE)
 			{
 				bIsFloat = false;
-				ComponentIndex = DataSetCompiledData.VariableLayouts[HalfVariableIndex].HalfComponentStart;
+				ComponentIndex = DataSetCompiledData.VariableLayouts[HalfVariableIndex].GetHalfComponentStart();
 			}
 		}
 	}
@@ -478,7 +478,7 @@ struct FNiagaraDataSetAccessorInt32
 		const int32 VariableIndex = DataSetCompiledData.Variables.IndexOfByPredicate(FNiagaraVariableMatch(FNiagaraDataSetAccessorTypeInfo<TType>::GetIntType(), VariableName));
 		if (VariableIndex != INDEX_NONE)
 		{
-			ComponentIndex = DataSetCompiledData.VariableLayouts[VariableIndex].Int32ComponentStart;
+			ComponentIndex = DataSetCompiledData.VariableLayouts[VariableIndex].GetInt32ComponentStart();
 		}
 	}
 
@@ -623,8 +623,8 @@ struct FNiagaraDataSetAccessorStruct
 		if (VariableIndex != INDEX_NONE)
 		{
 			bIsValid = true;
-			FloatComponentIndex = DataSetCompiledData.VariableLayouts[VariableIndex].FloatComponentStart;
-			Int32ComponentIndex = DataSetCompiledData.VariableLayouts[VariableIndex].Int32ComponentStart;
+			FloatComponentIndex = DataSetCompiledData.VariableLayouts[VariableIndex].GetFloatComponentStart();
+			Int32ComponentIndex = DataSetCompiledData.VariableLayouts[VariableIndex].GetInt32ComponentStart();
 		}
 	}
 

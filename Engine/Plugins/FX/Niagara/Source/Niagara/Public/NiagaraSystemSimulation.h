@@ -91,14 +91,14 @@ struct FNiagaraParameterStoreToDataSetBinding
 			const int32 ParameterOffset = *ParameterOffsetPtr;
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumFloatComponents(); ++CompIdx)
 			{
-				const int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.FloatComponentByteOffsets[CompIdx];
-				const int32 DataSetOffset = Layout.FloatComponentStart + CompIdx;
+				const int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.GetFloatComponentByteOffset(CompIdx);
+				const int32 DataSetOffset = Layout.GetFloatComponentStart() + CompIdx;
 				FloatOffsets.Emplace(ParamOffset, DataSetOffset);
 			}
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumInt32Components(); ++CompIdx)
 			{
-				const int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.Int32ComponentByteOffsets[CompIdx];
-				const int32 DataSetOffset = Layout.Int32ComponentStart + CompIdx;
+				const int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.GetInt32ComponentByteOffset(CompIdx);
+				const int32 DataSetOffset = Layout.GetInt32ComponentStart() + CompIdx;
 				Int32Offsets.Emplace(ParamOffset, DataSetOffset);
 			}
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumHalfComponents(); ++CompIdx)
@@ -107,8 +107,8 @@ struct FNiagaraParameterStoreToDataSetBinding
 
 				if (ParameterSetsSupportHalf)
 				{
-					const int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.HalfComponentByteOffsets[CompIdx];
-					const int32 DataSetOffset = Layout.HalfComponentStart + CompIdx;
+					const int32 ParamOffset = ParameterOffset + Layout.LayoutInfo.GetHalfComponentByteOffset(CompIdx);
+					const int32 DataSetOffset = Layout.GetHalfComponentStart() + CompIdx;
 					HalfOffsets.Emplace(ParamOffset, DataSetOffset, !ParameterSetsSupportHalf);
 				}
 				else
@@ -116,8 +116,8 @@ struct FNiagaraParameterStoreToDataSetBinding
 					// if parameter sets don't support half, then we need to write in floats into the parameter set, and
 					// for that we need to adjust the offset based on the difference in stride between float & half
 					// In reality
-					const int32 ParamOffset = ParameterOffset + sizeof(float) * Layout.LayoutInfo.HalfComponentByteOffsets[CompIdx] / sizeof(FFloat16);
-					const int32 DataSetOffset = Layout.HalfComponentStart + CompIdx;
+					const int32 ParamOffset = ParameterOffset + sizeof(float) * Layout.LayoutInfo.GetHalfComponentByteOffset(CompIdx) / sizeof(FFloat16);
+					const int32 DataSetOffset = Layout.GetHalfComponentStart() + CompIdx;
 					HalfOffsets.Emplace(ParamOffset, DataSetOffset, !ParameterSetsSupportHalf);
 				}
 			}

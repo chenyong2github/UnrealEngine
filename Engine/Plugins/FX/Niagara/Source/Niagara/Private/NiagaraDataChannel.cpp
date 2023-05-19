@@ -154,9 +154,9 @@ void FNiagaraDataChannelGameData::WriteToDataSet(FNiagaraDataBuffer* DestBuffer,
 		int32 DestVarSize = SimVar.GetSizeInBytes();
 		const FNiagaraVariableLayoutInfo& SimLayout = CompiledData.VariableLayouts[SimVarIndex];
 
-		int32 FloatCompIdx = SimLayout.FloatComponentStart;
-		int32 IntCompIdx = SimLayout.Int32ComponentStart;
-		int32 HalfCompIdx = SimLayout.HalfComponentStart;
+		int32 FloatCompIdx = SimLayout.GetFloatComponentStart();
+		int32 IntCompIdx = SimLayout.GetInt32ComponentStart();
+		int32 HalfCompIdx = SimLayout.GetHalfComponentStart();
 
 		TFunction<void(UScriptStruct*, UScriptStruct*, uint8*)> WriteData;
 		WriteData = [&](UScriptStruct* SrcStruct, UScriptStruct* DestStruct, uint8* SrcPropertyBase)
@@ -310,9 +310,9 @@ void FNiagaraDataChannelGameData::AppendFromDataSet(const FNiagaraDataBuffer* Sr
 
 		const FNiagaraVariableLayoutInfo& SimLayout = CompiledData.VariableLayouts[SimVarIndex];
 		
-		int32 FloatCompIdx = SimLayout.FloatComponentStart;
-		int32 IntCompIdx = SimLayout.Int32ComponentStart;
-		int32 HalfCompIdx = SimLayout.HalfComponentStart;
+		int32 FloatCompIdx = SimLayout.GetFloatComponentStart();
+		int32 IntCompIdx = SimLayout.GetInt32ComponentStart();
+		int32 HalfCompIdx = SimLayout.GetHalfComponentStart();
 		
 		TFunction<void(UScriptStruct*, UScriptStruct*, uint8*)> ReadData;
 		ReadData = [&](UScriptStruct* SrcStruct, UScriptStruct* DestStruct, uint8* DestData)

@@ -10,21 +10,31 @@ struct FNiagaraVariableLayoutInfo
 {
 	GENERATED_BODY()
 
+private:
 	/** Start index for the float components in the main buffer. */
 	UPROPERTY()
-	uint32 FloatComponentStart = 0;
+	uint16 FloatComponentStart = 0;
 
 	/** Start index for the int32 components in the main buffer. */
 	UPROPERTY()
-	uint32 Int32ComponentStart = 0;
+	uint16 Int32ComponentStart = 0;
 
 	/** Start index for the half components in the main buffer. */
 	UPROPERTY()
-	uint32 HalfComponentStart = 0;
+	uint16 HalfComponentStart = 0;
 
-	uint32 GetNumFloatComponents()const { return LayoutInfo.FloatComponentByteOffsets.Num(); }
-	uint32 GetNumInt32Components()const { return LayoutInfo.Int32ComponentByteOffsets.Num(); }
-	uint32 GetNumHalfComponents()const { return LayoutInfo.HalfComponentByteOffsets.Num(); }
+public:
+	uint32 GetFloatComponentStart() const { return FloatComponentStart; }
+	uint32 GetInt32ComponentStart() const { return Int32ComponentStart; }
+	uint32 GetHalfComponentStart() const { return HalfComponentStart; }
+
+	void SetFloatComponentStart(uint32 Offset) { check(Offset <= TNumericLimits<uint16>::Max()); FloatComponentStart = Offset; }
+	void SetInt32ComponentStart(uint32 Offset) { check(Offset <= TNumericLimits<uint16>::Max()); Int32ComponentStart = Offset; }
+	void SetHalfComponentStart(uint32 Offset) { check(Offset <= TNumericLimits<uint16>::Max()); HalfComponentStart = Offset; }
+
+	uint32 GetNumFloatComponents() const { return LayoutInfo.GetNumFloatComponents(); }
+	uint32 GetNumInt32Components() const { return LayoutInfo.GetNumInt32Components(); }
+	uint32 GetNumHalfComponents() const { return LayoutInfo.GetNumHalfComponents(); }
 
 	/** This variable's type layout info. */
 	UPROPERTY()
@@ -38,7 +48,7 @@ struct NIAGARA_API FNiagaraDataSetCompiledData
 
 	/** Variables in the data set. */
 	UPROPERTY()
-	TArray<FNiagaraVariable> Variables;
+	TArray<FNiagaraVariableBase> Variables;
 
 	/** Data describing the layout of variable data. */
 	UPROPERTY()

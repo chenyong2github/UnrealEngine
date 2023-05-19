@@ -38,9 +38,9 @@ FNDIDataChannel_FunctionToDataSetBinding::FNDIDataChannel_FunctionToDataSetBindi
 			const FNiagaraVariableBase& Param = Parameters[ParamIdx];
 			if (const FNiagaraVariableLayoutInfo* DataSetVariableLayout = DataSetLayout.FindVariableLayoutInfo(Param))
 			{
-				uint32 DataSetFloatRegister = DataSetVariableLayout->FloatComponentStart;
-				uint32 DataSetIntRegister = DataSetVariableLayout->Int32ComponentStart;
-				uint32 DataSetHalfRegister = DataSetVariableLayout->HalfComponentStart;
+				uint32 DataSetFloatRegister = DataSetVariableLayout->GetFloatComponentStart();
+				uint32 DataSetIntRegister = DataSetVariableLayout->GetInt32ComponentStart();
+				uint32 DataSetHalfRegister = DataSetVariableLayout->GetHalfComponentStart();
 
 				GenVMBindings(Param, Param.GetType().GetStruct(), NumFloatComponents, NumInt32Components, NumHalfComponents, DataSetFloatRegister, DataSetIntRegister, DataSetHalfRegister);
 			}

@@ -118,11 +118,10 @@ private:
 	UPROPERTY(Transient)
 	bool bIsolated;
 
-#endif
-
 	/** The copied instance of the emitter this handle references. */
 	UPROPERTY()
 	TObjectPtr<UNiagaraEmitter> Instance_DEPRECATED;
+#endif
 
 	/** The copied instance of the emitter this handle references. */
 	UPROPERTY()

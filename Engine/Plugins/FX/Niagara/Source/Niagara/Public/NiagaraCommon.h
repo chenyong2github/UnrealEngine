@@ -300,7 +300,7 @@ struct FNiagaraDataSetProperties
 	FNiagaraDataSetID ID;
 
 	UPROPERTY()
-	TArray<FNiagaraVariable> Variables;
+	TArray<FNiagaraVariableBase> Variables;
 };
 
 /** Information about an input or output of a Niagara operation node. */

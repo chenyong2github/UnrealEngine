@@ -484,9 +484,9 @@ bool FNiagaraDataSet::GetVariableComponentOffsets(const FNiagaraVariable& Var, i
 	const FNiagaraVariableLayoutInfo *Info = GetVariableLayout(Var);
 	if (Info)
 	{
-		FloatStart = Info->FloatComponentStart;
-		IntStart = Info->Int32ComponentStart;
-		HalfStart = Info->HalfComponentStart;
+		FloatStart = Info->GetFloatComponentStart();
+		IntStart = Info->GetInt32ComponentStart();
+		HalfStart = Info->GetHalfComponentStart();
 		return true;
 	}
 
@@ -1063,8 +1063,8 @@ void FNiagaraDataBuffer::CopyToUnrelated(FNiagaraDataBuffer& DestBuffer, int32 S
 				check(FloatComponents == DestVarLayout.GetNumFloatComponents());
 				for (uint32 CompIdx = 0; CompIdx < FloatComponents; ++CompIdx)
 				{
-					const int32 SrcCompOffset = SrcVarLayout.FloatComponentStart + CompIdx;
-					const int32 DestCompOffest = DestVarLayout.FloatComponentStart + CompIdx;
+					const int32 SrcCompOffset = SrcVarLayout.GetFloatComponentStart() + CompIdx;
+					const int32 DestCompOffest = DestVarLayout.GetFloatComponentStart() + CompIdx;
 					const float* SrcStart = GetInstancePtrFloat(SrcCompOffset, StartIdx);
 					const float* SrcEnd = GetInstancePtrFloat(SrcCompOffset, StartIdx + InstancesToCopy);
 					float* Dst = DestBuffer.GetInstancePtrFloat(DestCompOffest, DestStartIdx);
@@ -1083,8 +1083,8 @@ void FNiagaraDataBuffer::CopyToUnrelated(FNiagaraDataBuffer& DestBuffer, int32 S
 				check(IntComponents == DestVarLayout.GetNumInt32Components());
 				for (uint32 CompIdx = 0; CompIdx < IntComponents; ++CompIdx)
 				{
-					const int32 SrcCompOffset = SrcVarLayout.Int32ComponentStart + CompIdx;
-					const int32 DestCompOffest = DestVarLayout.Int32ComponentStart + CompIdx;
+					const int32 SrcCompOffset = SrcVarLayout.GetInt32ComponentStart() + CompIdx;
+					const int32 DestCompOffest = DestVarLayout.GetInt32ComponentStart() + CompIdx;
 					const int32* SrcStart = GetInstancePtrInt32(SrcCompOffset, StartIdx);
 					const int32* SrcEnd = GetInstancePtrInt32(SrcCompOffset, StartIdx + InstancesToCopy);
 					int32* Dst = DestBuffer.GetInstancePtrInt32(DestCompOffest, DestStartIdx);
@@ -1103,8 +1103,8 @@ void FNiagaraDataBuffer::CopyToUnrelated(FNiagaraDataBuffer& DestBuffer, int32 S
 				check(HalfComponents == DestVarLayout.GetNumHalfComponents());
 				for (uint32 CompIdx = 0; CompIdx < HalfComponents; ++CompIdx)
 				{
-					const int32 SrcCompOffset = SrcVarLayout.HalfComponentStart + CompIdx;
-					const int32 DestCompOffest = DestVarLayout.HalfComponentStart + CompIdx;
+					const int32 SrcCompOffset = SrcVarLayout.GetHalfComponentStart() + CompIdx;
+					const int32 DestCompOffest = DestVarLayout.GetHalfComponentStart() + CompIdx;
 					const FFloat16* SrcStart = GetInstancePtrHalf(SrcCompOffset, StartIdx);
 					const FFloat16* SrcEnd = GetInstancePtrHalf(SrcCompOffset, StartIdx + InstancesToCopy);
 					FFloat16* Dst = DestBuffer.GetInstancePtrHalf(DestCompOffest, DestStartIdx);
@@ -1523,8 +1523,8 @@ void FNiagaraDataBuffer::BuildRegisterTable()
 		const int32 NumFloats = VarLayout.GetNumFloatComponents();
 		for (int32 CompIdx = 0; CompIdx < NumFloats; ++CompIdx)
 		{
-			uint32 CompBufferOffset = VarLayout.FloatComponentStart + CompIdx;
-			uint32 CompRegisterOffset = VarLayout.LayoutInfo.FloatComponentRegisterOffsets[CompIdx];
+			uint32 CompBufferOffset = VarLayout.GetFloatComponentStart() + CompIdx;
+			uint32 CompRegisterOffset = VarLayout.LayoutInfo.GetFloatComponentRegisterOffset(CompIdx);
 			RegisterTable[NumRegisters + CompRegisterOffset] = (uint8*)GetComponentPtrFloat(CompBufferOffset);
 			check(RegisterTable[NumRegisters + CompRegisterOffset]);
 		}
@@ -1537,8 +1537,8 @@ void FNiagaraDataBuffer::BuildRegisterTable()
 		const int32 NumInts = VarLayout.GetNumInt32Components();
 		for (int32 CompIdx = 0; CompIdx < NumInts; ++CompIdx)
 		{
-			uint32 CompBufferOffset = VarLayout.Int32ComponentStart + CompIdx;
-			uint32 CompRegisterOffset = VarLayout.LayoutInfo.Int32ComponentRegisterOffsets[CompIdx];
+			uint32 CompBufferOffset = VarLayout.GetInt32ComponentStart() + CompIdx;
+			uint32 CompRegisterOffset = VarLayout.LayoutInfo.GetInt32ComponentRegisterOffset(CompIdx);
 			RegisterTable[NumRegisters + CompRegisterOffset] = (uint8*)GetComponentPtrInt32(CompBufferOffset);
 			check(RegisterTable[NumRegisters + CompRegisterOffset]);
 		}
@@ -1551,8 +1551,8 @@ void FNiagaraDataBuffer::BuildRegisterTable()
 		const int32 NumHalfs = VarLayout.GetNumHalfComponents();
 		for (int32 CompIdx = 0; CompIdx < NumHalfs; ++CompIdx)
 		{
-			uint32 CompBufferOffset = VarLayout.HalfComponentStart + CompIdx;
-			uint32 CompRegisterOffset = VarLayout.LayoutInfo.HalfComponentRegisterOffsets[CompIdx];
+			uint32 CompBufferOffset = VarLayout.GetHalfComponentStart() + CompIdx;
+			uint32 CompRegisterOffset = VarLayout.LayoutInfo.GetHalfComponentRegisterOffset(CompIdx);
 			RegisterTable[NumRegisters + CompRegisterOffset] = (uint8*)GetComponentPtrHalf(CompBufferOffset);
 			check(RegisterTable[NumRegisters + CompRegisterOffset]);
 		}
@@ -1589,13 +1589,13 @@ void FNiagaraDataSetCompiledData::BuildLayout()
 	TotalInt32Components = 0;
 	TotalHalfComponents = 0;
 
-	for (FNiagaraVariable& Var : Variables)
+	for (const FNiagaraVariableBase& Var : Variables)
 	{
 		FNiagaraVariableLayoutInfo& VarInfo = VariableLayouts[VariableLayouts.AddDefaulted()];
-		FNiagaraTypeLayoutInfo::GenerateLayoutInfo(VarInfo.LayoutInfo, Var.GetType().GetScriptStruct());
-		VarInfo.FloatComponentStart = TotalFloatComponents;
-		VarInfo.Int32ComponentStart = TotalInt32Components;
-		VarInfo.HalfComponentStart = TotalHalfComponents;
+		VarInfo.LayoutInfo.GenerateLayoutInfo(Var.GetType().GetScriptStruct());
+		VarInfo.SetFloatComponentStart(TotalFloatComponents);
+		VarInfo.SetInt32ComponentStart(TotalInt32Components);
+		VarInfo.SetHalfComponentStart(TotalHalfComponents);
 		TotalFloatComponents += VarInfo.GetNumFloatComponents();
 		TotalInt32Components += VarInfo.GetNumInt32Components();
 		TotalHalfComponents += VarInfo.GetNumHalfComponents();

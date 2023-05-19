@@ -56,6 +56,20 @@ bool FNiagaraVariableBase::ReplaceRootNamespace(const FStringView& ExpectedNames
 	return false;
 }
 
+bool FNiagaraVariableBase::SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
+{
+	if (Tag.Type == NAME_StructProperty && Tag.StructName == FNiagaraVariable::StaticStruct()->GetFName())
+	{
+		FNiagaraVariable Var;
+		FNiagaraVariable::StaticStruct()->SerializeItem(Slot, &Var, nullptr);
+		Name = Var.Name;
+		TypeDefHandle = Var.TypeDefHandle;
+		//ensureMsgf(Var.IsDataAllocated() == false, TEXT("NiagaraVariable has been demoted to Base but contains data, this is probably an error."));
+		return true;
+	}
+	return false;
+}
+
 void FNiagaraVariableMetaData::CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData)
 {
 	for (const FProperty* ChildProperty : TFieldRange<FProperty>(StaticStruct()))
@@ -784,3 +798,64 @@ bool FNiagaraTypeHelper::IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct
 
 /////////////////////////////////////////////////////////////////////////////
 
+void FNiagaraTypeLayoutInfo::GenerateLayoutInfo(const UScriptStruct* Struct)
+{
+	int32 FloatCount = 0;
+	int32 Int32Count = 0;
+	int32 HalfCount = 0;
+	GenerateLayoutInfoInternal(Struct, FloatCount, Int32Count, HalfCount, true);
+	NumFloatComponents = FloatCount;
+	NumInt32Components = Int32Count;
+	NumHalfComponents = HalfCount;
+
+	FloatCount = 0;
+	Int32Count = 0;
+	HalfCount = 0;
+	ComponentsOffsets.SetNum(GetTotalComponents() * 2);
+	GenerateLayoutInfoInternal(Struct, FloatCount, Int32Count, HalfCount, false);
+}
+
+void FNiagaraTypeLayoutInfo::GenerateLayoutInfoInternal(const UScriptStruct* Struct, int32& FloatCount, int32& Int32Count, int32& HalfCount, bool bCountComponentsOnly, int32 BaseOffset)
+{
+	for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+	{
+		const FProperty* Property = *PropertyIt;
+		const int32 PropOffset = BaseOffset + Property->GetOffset_ForInternal();
+		if (Property->IsA(FFloatProperty::StaticClass()))
+		{
+			if (bCountComponentsOnly == false)
+			{
+				ComponentsOffsets[GetFloatArrayByteOffset() + FloatCount] = PropOffset;
+				ComponentsOffsets[GetFloatArrayRegisterOffset() + FloatCount] = FloatCount;
+			}
+			++FloatCount;
+		}
+		else if (Property->IsA(FUInt16Property::StaticClass()))
+		{
+			if (bCountComponentsOnly == false)
+			{
+				ComponentsOffsets[GetHalfArrayByteOffset() + HalfCount] = PropOffset;
+				ComponentsOffsets[GetHalfArrayRegisterOffset() + HalfCount] = HalfCount;
+			}
+			++HalfCount;
+		}
+		else if (Property->IsA(FIntProperty::StaticClass()) || Property->IsA(FBoolProperty::StaticClass()))
+		{
+			if (bCountComponentsOnly == false)
+			{
+				ComponentsOffsets[GetInt32ArrayByteOffset() + Int32Count] = PropOffset;
+				ComponentsOffsets[GetInt32ArrayRegisterOffset() + Int32Count] = Int32Count;
+			}
+			++Int32Count;
+		}
+		//Should be able to support double easily enough
+		else if (const FStructProperty* StructProp = CastField<FStructProperty>(Property))
+		{
+			GenerateLayoutInfoInternal(FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct, ENiagaraStructConversion::Simulation), FloatCount, Int32Count, HalfCount, bCountComponentsOnly, PropOffset);
+		}
+		else
+		{
+			checkf(false, TEXT("Property(%s) Class(%s) is not a supported type"), *Property->GetName(), *Property->GetClass()->GetName());
+		}
+	}
+}

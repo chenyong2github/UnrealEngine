@@ -490,7 +490,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	const TCHAR* GetDebugSimName() const { return TEXT(""); }
 #endif
 
-	void GatherCompiledParticleAttributes(TArray<FNiagaraVariable>& OutVariables) const;
+	void GatherCompiledParticleAttributes(TArray<FNiagaraVariableBase>& OutVariables) const;
 	
 private:
 	UPROPERTY()

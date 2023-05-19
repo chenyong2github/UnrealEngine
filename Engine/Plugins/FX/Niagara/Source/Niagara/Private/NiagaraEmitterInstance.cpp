@@ -331,7 +331,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FNiagaraSystemInstanceID 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST 
 		if (bVerboseAttributeLogging)
 		{
-			for (FNiagaraVariable& Attr : EmitterData->UpdateScriptProps.Script->GetVMExecutableData().Attributes)
+			for (const FNiagaraVariableBase& Attr : EmitterData->UpdateScriptProps.Script->GetVMExecutableData().Attributes)
 			{
 				int32 FoundIdx;
 				if (!EmitterData->SpawnScriptProps.Script->GetVMExecutableData().Attributes.Find(Attr, FoundIdx))

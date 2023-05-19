@@ -23,7 +23,7 @@ struct FNiagaraBoundParameter
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	FNiagaraVariable Parameter;
+	FNiagaraVariableBase Parameter;
 	UPROPERTY()
 	int32 SrcOffset = 0;
 	UPROPERTY()
@@ -275,6 +275,19 @@ public:
 
 	void Dump();
 	void DumpParameters(bool bDumpBindings = false)const;
+
+	SIZE_T GetResourceSize() const
+	{
+		SIZE_T ResourceSize = sizeof(FNiagaraParameterStore);
+		ResourceSize += SortedParameterOffsets.GetAllocatedSize();
+		ResourceSize += ParameterData.GetAllocatedSize();
+		ResourceSize += DataInterfaces.GetAllocatedSize();
+		ResourceSize += UObjects.GetAllocatedSize();
+		ResourceSize += OriginalPositionData.GetAllocatedSize();
+		ResourceSize += Bindings.GetAllocatedSize();
+		ResourceSize += SourceStores.GetAllocatedSize();
+		return ResourceSize;
+	}
 
 	FORCEINLINE uint32 GetParametersDirty() const { return bParametersDirty; }
 	FORCEINLINE uint32 GetInterfacesDirty() const { return bInterfacesDirty; }

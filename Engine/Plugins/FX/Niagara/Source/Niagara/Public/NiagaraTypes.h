@@ -463,77 +463,47 @@ struct FNiagaraTypeLayoutInfo
 {
 	GENERATED_BODY()
 
-	FNiagaraTypeLayoutInfo()
-	{}
-
-	/** Byte offset of each float component in a structured layout. */
+private:
 	UPROPERTY()
-	TArray<uint32> FloatComponentByteOffsets;
+	uint16 NumFloatComponents = 0;
 
-	/** Offset into register table for each float component. */
 	UPROPERTY()
-	TArray<uint32> FloatComponentRegisterOffsets;
+	uint16 NumInt32Components = 0;
 
-	/** Byte offset of each int32 component in a structured layout. */
 	UPROPERTY()
-	TArray<uint32> Int32ComponentByteOffsets;
+	uint16 NumHalfComponents = 0;
 
-	/** Offset into register table for each int32 component. */
 	UPROPERTY()
-	TArray<uint32> Int32ComponentRegisterOffsets;
+	TArray<uint32> ComponentsOffsets;
 
-	/** Byte offset of each half component in a structured layout. */
-	UPROPERTY()
-	TArray<uint32> HalfComponentByteOffsets;
+public:
+	uint32 GetNumFloatComponents() const { return NumFloatComponents; }
+	uint32 GetNumInt32Components() const { return NumInt32Components; }
+	uint32 GetNumHalfComponents() const { return NumHalfComponents; }
+	uint32 GetTotalComponents() const { return GetNumFloatComponents() + GetNumInt32Components() + GetNumHalfComponents(); }
 
-	/** Offset into register table for each half component. */
-	UPROPERTY()
-	TArray<uint32> HalfComponentRegisterOffsets;
+	uint32 GetFloatComponentByteOffset(int32 Component) const { return ComponentsOffsets[GetFloatArrayByteOffset() + Component]; }
+	uint32 GetFloatComponentRegisterOffset(int32 Component) const { return ComponentsOffsets[GetFloatArrayRegisterOffset() + Component]; }
 
-	static void GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout, const UScriptStruct* Struct)
-	{
-		Layout.FloatComponentByteOffsets.Empty();
-		Layout.FloatComponentRegisterOffsets.Empty();
-		Layout.Int32ComponentByteOffsets.Empty();
-		Layout.Int32ComponentRegisterOffsets.Empty();
-		Layout.HalfComponentByteOffsets.Empty();
-		Layout.HalfComponentRegisterOffsets.Empty();
-		GenerateLayoutInfoInternal(Layout, Struct);
-	}
+	uint32 GetInt32ComponentByteOffset(int32 Component) const { return ComponentsOffsets[GetInt32ArrayByteOffset() + Component]; }
+	uint32 GetInt32ComponentRegisterOffset(int32 Component) const { return ComponentsOffsets[GetInt32ArrayRegisterOffset() + Component]; }
+
+	uint32 GetHalfComponentByteOffset(int32 Component) const { return ComponentsOffsets[GetHalfArrayByteOffset() + Component]; }
+	uint32 GetHalfComponentRegisterOffset(int32 Component) const { return ComponentsOffsets[GetHalfArrayRegisterOffset() + Component]; }
+
+	NIAGARA_API void GenerateLayoutInfo(const UScriptStruct* Struct);
 
 private:
-	static void GenerateLayoutInfoInternal(FNiagaraTypeLayoutInfo& Layout, const UScriptStruct* Struct, int32 BaseOffest = 0)
-	{
-		for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
-		{
-			FProperty* Property = *PropertyIt;
-			int32 PropOffset = BaseOffest + Property->GetOffset_ForInternal();
-			if (Property->IsA(FFloatProperty::StaticClass()))
-			{
-				Layout.FloatComponentRegisterOffsets.Add(Layout.FloatComponentByteOffsets.Num());
-				Layout.FloatComponentByteOffsets.Add(PropOffset);
-			}
-			else if (Property->IsA(FUInt16Property::StaticClass()))
-			{
-				Layout.HalfComponentRegisterOffsets.Add(Layout.HalfComponentByteOffsets.Num());
-				Layout.HalfComponentByteOffsets.Add(PropOffset);
-			}
-			else if (Property->IsA(FIntProperty::StaticClass()) || Property->IsA(FBoolProperty::StaticClass()))
-			{
-				Layout.Int32ComponentRegisterOffsets.Add(Layout.Int32ComponentByteOffsets.Num());
-				Layout.Int32ComponentByteOffsets.Add(PropOffset);
-			}
-			//Should be able to support double easily enough
-			else if (FStructProperty* StructProp = CastField<FStructProperty>(Property))
-			{
-				GenerateLayoutInfoInternal(Layout, FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(StructProp->Struct, ENiagaraStructConversion::Simulation), PropOffset);
-			}
-			else
-			{
-				checkf(false, TEXT("Property(%s) Class(%s) is not a supported type"), *Property->GetName(), *Property->GetClass()->GetName());
-			}
-		}
-	}
+	int32 GetFloatArrayByteOffset() const { return 0; }
+	int32 GetFloatArrayRegisterOffset() const { return NumFloatComponents; }
+
+	int32 GetInt32ArrayByteOffset() const { return NumFloatComponents * 2; }
+	int32 GetInt32ArrayRegisterOffset() const { return (NumFloatComponents * 2) + NumInt32Components; }
+
+	int32 GetHalfArrayByteOffset() const { return (NumFloatComponents * 2) + (NumInt32Components * 2); }
+	int32 GetHalfArrayRegisterOffset() const { return (NumFloatComponents * 2) + (NumInt32Components * 2) + NumHalfComponents; }
+
+	void GenerateLayoutInfoInternal(const UScriptStruct* Struct, int32& FloatCount, int32& Int32Count, int32& HalfCount, bool bCountComponentsOnly, int32 BaseOffset = 0);
 };
 
 
@@ -1874,6 +1844,7 @@ struct FNiagaraVariableBase
 #if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
 #endif
+	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 	bool NIAGARA_API AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
@@ -1904,6 +1875,7 @@ struct TStructOpsTypeTraits<FNiagaraVariableBase> : public TStructOpsTypeTraitsB
 #if WITH_EDITORONLY_DATA
 		WithPostSerialize = true,
 #endif
+		WithStructuredSerializeFromMismatchedTag = true,
 	};
 };
 
@@ -2075,6 +2047,24 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 #if WITH_EDITORONLY_DATA
 	void PostSerialize(const FArchive& Ar);
 #endif
+
+	static void ConvertFromBaseArray(TConstArrayView<FNiagaraVariableBase> FromVariables, TArray<FNiagaraVariable>& ToVariables)
+	{
+		ToVariables.Reserve(ToVariables.Num() + FromVariables.Num());
+		for (const FNiagaraVariableBase& BaseVar : FromVariables)
+		{
+			ToVariables.Emplace(BaseVar);
+		}
+	}
+
+	static void ConvertToBaseArray(TConstArrayView<FNiagaraVariable> FromVariables, TArray<FNiagaraVariableBase>& ToVariables)
+	{
+		ToVariables.Reserve(ToVariables.Num() + FromVariables.Num());
+		for (const FNiagaraVariableBase& BaseVar : FromVariables)
+		{
+			ToVariables.Emplace(BaseVar);
+		}
+	}
 
 private:
 	//This gets serialized but do we need to worry about endianness doing things like this? If not, where does that get handled?

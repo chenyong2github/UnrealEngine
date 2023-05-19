@@ -31,6 +31,16 @@
 #define VALUE_COLUMN_NAME TEXT("Value")
 #define FILLER_COLUMN_NAME TEXT("__FILLER__")
 
+struct FNiagaraSpreadsheetTypeLayoutInfo
+{
+	TArray<uint32> FloatComponentByteOffsets;
+	TArray<uint32> FloatComponentRegisterOffsets;
+	TArray<uint32> Int32ComponentByteOffsets;
+	TArray<uint32> Int32ComponentRegisterOffsets;
+	TArray<uint32> HalfComponentByteOffsets;
+	TArray<uint32> HalfComponentRegisterOffsets;
+};
+
 void SNiagaraSpreadsheetRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
 	RowIndex = InArgs._RowIndex;
@@ -840,14 +850,13 @@ TSharedRef<SWidget> SNiagaraSpreadsheetView::GetOutputFilterMenu(EUITab Tab)
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton);
 
-	TArray<FNiagaraVariable> Variables = CaptureData[(int32)Tab].DataSet.GetVariables();
-	for (const FNiagaraVariable& Var : Variables)
+	for (const FNiagaraVariableBase& Var : CaptureData[(int32)Tab].DataSet.GetVariables())
 	{
 		const FNiagaraTypeDefinition& TypeDef = Var.GetType();
 		const UScriptStruct* Struct = TypeDef.GetScriptStruct();
 		const UEnum* Enum = TypeDef.GetEnum();
 
-		FNiagaraTypeLayoutInfo Layout;
+		FNiagaraSpreadsheetTypeLayoutInfo Layout;
 		TArray<FName> PropertyNames;
 		TArray<SNiagaraSpreadsheetView::FieldInfo> FieldInfos;
 
@@ -1166,7 +1175,7 @@ void SNiagaraSpreadsheetView::ResetEntries(EUITab Tab)
 	}
 }
 
-void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout, const UScriptStruct* Struct, const UEnum* Enum,  FName BaseName, TArray<FName>& PropertyNames, TArray<SNiagaraSpreadsheetView::FieldInfo>& FieldInfo)
+void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraSpreadsheetTypeLayoutInfo& Layout, const UScriptStruct* Struct, const UEnum* Enum,  FName BaseName, TArray<FName>& PropertyNames, TArray<SNiagaraSpreadsheetView::FieldInfo>& FieldInfo)
 {
 	TFieldIterator<FProperty> PropertyCountIt(Struct, EFieldIteratorFlags::IncludeSuper);
 	int32 NumProperties = 0;
@@ -1263,8 +1272,6 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 			uint32 TotalInt32Components = 0;
 			uint32 TotalHalfComponents = 0;
 
-			TArray<FNiagaraVariable> Variables = CaptureData[i].DataSet.GetVariables();
-
 			TArray<FName> ColumnNames;
 
 			if (CaptureData[i].bOutputColumnsAreAttributes)
@@ -1279,13 +1286,13 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 				ColumnNames.Add(FILLER_COLUMN_NAME);
 			}
 
-			for (const FNiagaraVariable& Var : Variables)
+			for (const FNiagaraVariableBase& Var : CaptureData[i].DataSet.GetVariables())
 			{
 				FNiagaraTypeDefinition TypeDef = Var.GetType();
 				const UScriptStruct* Struct = TypeDef.GetScriptStruct();
 				const UEnum* Enum = TypeDef.GetEnum();
 
-				FNiagaraTypeLayoutInfo Layout;
+				FNiagaraSpreadsheetTypeLayoutInfo Layout;
 				TArray<FName> PropertyNames;
 				TArray<SNiagaraSpreadsheetView::FieldInfo> FieldInfos;
 
@@ -1402,7 +1409,7 @@ void SNiagaraSpreadsheetView::ResetColumns(EUITab Tab)
 				const UScriptStruct* Struct = TypeDef.GetScriptStruct();
 				const UEnum* Enum = TypeDef.GetEnum();
 
-				FNiagaraTypeLayoutInfo Layout;
+				FNiagaraSpreadsheetTypeLayoutInfo Layout;
 				TArray<FName> PropertyNames;
 				TArray<SNiagaraSpreadsheetView::FieldInfo> FieldInfos;
 

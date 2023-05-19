@@ -137,6 +137,15 @@ public:
 	TArray<uint8> CachedScriptLiterals;
 #endif
 
+	SIZE_T GetResourceSize() const
+	{
+		SIZE_T ResourceSize = sizeof(FNiagaraScriptExecutionParameterStore) - sizeof(FNiagaraParameterStore);
+
+		ResourceSize += FNiagaraParameterStore::GetResourceSize();
+		ResourceSize += PaddingInfo.GetAllocatedSize();
+		return ResourceSize;
+	}
+
 protected:
 	void AddPaddedParamSize(const FNiagaraTypeDefinition& InParamType, uint32 InOffset);
 	void AddAlignmentPadding();

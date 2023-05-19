@@ -1738,7 +1738,7 @@ void FVersionedNiagaraEmitterData::UpdateDebugName(const UNiagaraEmitter& Emitte
 			{
 				if (const FNiagaraVariableLayoutInfo* VariableInfo = CompiledData->FindVariableLayoutInfo(FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), SimStageMetaData.ParticleIterationStateBinding)))
 				{
-					SimStageMetaData.ParticleIterationStateComponentIndex = VariableInfo->Int32ComponentStart;
+					SimStageMetaData.ParticleIterationStateComponentIndex = VariableInfo->GetInt32ComponentStart();
 				}
 			}
 		}
@@ -2273,7 +2273,7 @@ void UNiagaraEmitter::RebindNotifications()
 #endif
 
 
-void FVersionedNiagaraEmitterData::GatherCompiledParticleAttributes(TArray<FNiagaraVariable>& OutVariables) const
+void FVersionedNiagaraEmitterData::GatherCompiledParticleAttributes(TArray<FNiagaraVariableBase>& OutVariables) const
 {
 	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{

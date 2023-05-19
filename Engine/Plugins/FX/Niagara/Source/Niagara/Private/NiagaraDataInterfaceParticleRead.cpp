@@ -291,7 +291,7 @@ static void NDIParticleRead_FindAttributeIndices(FNDIParticleRead_RenderInstance
 	InstanceData->AttributeCompressed.SetNumUninitialized(NumAttrIndices);
 
 	// Find the register index for each named attribute in the source emitter.
-	const TArray<FNiagaraVariable>& SourceEmitterVariables = SourceDataSet->GetVariables();
+	const TArray<FNiagaraVariableBase>& SourceEmitterVariables = SourceDataSet->GetVariables();
 	const TArray<FNiagaraVariableLayoutInfo>& SourceEmitterVariableLayouts = SourceDataSet->GetVariableLayouts();
 	for (int AttrNameIdx = 0; AttrNameIdx < ShaderStorage.AttributeNames.Num(); ++AttrNameIdx)
 	{
@@ -306,7 +306,7 @@ static void NDIParticleRead_FindAttributeIndices(FNDIParticleRead_RenderInstance
 		bool FoundVariable = false;
 		for (int VarIdx = 0; VarIdx < SourceEmitterVariables.Num(); ++VarIdx)
 		{
-			const FNiagaraVariable& Var = SourceEmitterVariables[VarIdx];
+			const FNiagaraVariableBase& Var = SourceEmitterVariables[VarIdx];
 			if (Var.GetName() == AttrName)
 			{
 				ENiagaraParticleDataValueType AttributeType = ShaderStorage.AttributeTypes[AttrNameIdx];
@@ -314,13 +314,13 @@ static void NDIParticleRead_FindAttributeIndices(FNDIParticleRead_RenderInstance
 				{
 					const FNiagaraVariableLayoutInfo& Layout = SourceEmitterVariableLayouts[VarIdx];
 					InstanceData->AttributeIndices[AttrNameIdx] =
-						(AttributeType == ENiagaraParticleDataValueType::Int || AttributeType == ENiagaraParticleDataValueType::Bool || AttributeType == ENiagaraParticleDataValueType::ID) ? Layout.Int32ComponentStart : Layout.FloatComponentStart;
+						(AttributeType == ENiagaraParticleDataValueType::Int || AttributeType == ENiagaraParticleDataValueType::Bool || AttributeType == ENiagaraParticleDataValueType::ID) ? Layout.GetInt32ComponentStart() : Layout.GetFloatComponentStart();
 					InstanceData->AttributeCompressed[AttrNameIdx] = 0;
 				}
 				else if (CheckHalfVariableType(Var.GetType(), AttributeType))
 				{
 					const FNiagaraVariableLayoutInfo& Layout = SourceEmitterVariableLayouts[VarIdx];
-					InstanceData->AttributeIndices[AttrNameIdx] = Layout.HalfComponentStart;
+					InstanceData->AttributeIndices[AttrNameIdx] = Layout.GetHalfComponentStart();
 					InstanceData->AttributeCompressed[AttrNameIdx] = 1;
 				}
 				else
@@ -354,7 +354,7 @@ static void NDIParticleRead_FindAttributeIndices(FNDIParticleRead_RenderInstance
 			const FNiagaraVariable& Var = SourceEmitterVariables[VarIdx];
 			if (Var.GetName() == FName_ID)
 			{
-				InstanceData->AcquireTagRegisterIndex = SourceEmitterVariableLayouts[VarIdx].Int32ComponentStart + 1;
+				InstanceData->AcquireTagRegisterIndex = SourceEmitterVariableLayouts[VarIdx].GetInt32ComponentStart() + 1;
 				break;
 			}
 		}
@@ -956,9 +956,9 @@ DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, Re
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadQuatByIndex);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadIDByIndex);
 
-static bool HasMatchingVariable(TArrayView<const FNiagaraVariable> Variables, FName AttributeName, const FNiagaraTypeDefinition& ValidType)
+static bool HasMatchingVariable(TArrayView<const FNiagaraVariableBase> Variables, FName AttributeName, const FNiagaraTypeDefinition& ValidType)
 {
-	return Variables.Find(FNiagaraVariable(ValidType, AttributeName)) != INDEX_NONE;
+	return Variables.Find(FNiagaraVariableBase(ValidType, AttributeName)) != INDEX_NONE;
 }
 
 void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
@@ -1013,7 +1013,7 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 		return;
 	}
 
-	TArrayView<const FNiagaraVariable> EmitterVariables;
+	TArrayView<const FNiagaraVariableBase> EmitterVariables;
 	if (PIData->EmitterInstance)
 	{
 		EmitterVariables = PIData->EmitterInstance->GetData().GetVariables();
@@ -2465,7 +2465,7 @@ void UNiagaraDataInterfaceParticleRead::GetFeedback(UNiagaraSystem* Asset, UNiag
 									return Var.GetName() == *AttributeName;
 								};
 
-								TArray<FNiagaraVariable> Variables;
+								TArray<FNiagaraVariableBase> Variables;
 								FoundSourceEmitter.GetEmitterData()->GatherCompiledParticleAttributes(Variables);
 								const FNiagaraVariableBase* FoundVar = Variables.FindByPredicate(AttribFilter);
 								if (FoundVar && !CheckVariableType(FoundVar->GetType(), AttributeType))

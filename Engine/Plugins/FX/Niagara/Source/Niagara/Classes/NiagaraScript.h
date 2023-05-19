@@ -471,7 +471,7 @@ public:
 
 	/** Attributes used by this script. */
 	UPROPERTY()
-	TArray<FNiagaraVariable> Attributes;
+	TArray<FNiagaraVariableBase> Attributes;
 
 	/** Contains various usage information for this script. */
 	UPROPERTY()

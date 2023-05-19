@@ -288,13 +288,13 @@ public:
 	FORCEINLINE FRWBuffer& GetGPUFreeIDs() { return GPUFreeIDs; }
 	FORCEINLINE uint32 GetGPUNumAllocatedIDs() const { return GPUNumAllocatedIDs; }
 
-	FORCEINLINE const TArray<FNiagaraVariable>& GetVariables()const { return CompiledData->Variables; }
-	FORCEINLINE uint32 GetNumVariables()const { return CompiledData->Variables.Num(); }
-	FORCEINLINE bool HasVariable(const FNiagaraVariable& Var)const { return CompiledData->Variables.Contains(Var); }
-	FORCEINLINE bool HasVariable(const FName& Name)const { return CompiledData->Variables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == Name; }) != nullptr; }
-	FORCEINLINE uint32 GetNumFloatComponents()const { return CompiledData->TotalFloatComponents; }
-	FORCEINLINE uint32 GetNumInt32Components()const { return CompiledData->TotalInt32Components; }
-	FORCEINLINE uint32 GetNumHalfComponents()const { return CompiledData->TotalHalfComponents; }
+	FORCEINLINE const TArray<FNiagaraVariableBase>& GetVariables() const { return CompiledData->Variables; }
+	FORCEINLINE uint32 GetNumVariables() const { return CompiledData->Variables.Num(); }
+	FORCEINLINE bool HasVariable(const FNiagaraVariable& Var) const { return CompiledData->Variables.Contains(Var); }
+	FORCEINLINE bool HasVariable(const FName& Name) const { return CompiledData->Variables.FindByPredicate([&](const FNiagaraVariable& VarInfo) { return VarInfo.GetName() == Name; }) != nullptr; }
+	FORCEINLINE uint32 GetNumFloatComponents() const { return CompiledData->TotalFloatComponents; }
+	FORCEINLINE uint32 GetNumInt32Components() const { return CompiledData->TotalInt32Components; }
+	FORCEINLINE uint32 GetNumHalfComponents() const { return CompiledData->TotalHalfComponents; }
 
 	const TArray<FNiagaraVariableLayoutInfo>& GetVariableLayouts() const { return CompiledData->VariableLayouts; }
 	const FNiagaraVariableLayoutInfo* GetVariableLayout(const FNiagaraVariable& Var) const;
@@ -413,7 +413,7 @@ struct FNiagaraDataVariableIterator
 		: Data(InData)
 		, CurrIdx(StartIdx)
 	{
-		Variables = Data->GetOwner()->GetVariables();
+		FNiagaraVariable::ConvertFromBaseArray(Data->GetOwner()->GetVariables(), Variables);
 	}
 
 	void Get()
@@ -428,25 +428,25 @@ struct FNiagaraDataVariableIterator
 
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumFloatComponents(); ++CompIdx)
 			{
-				uint32 CompBufferOffset = Layout.FloatComponentStart + CompIdx;
+				uint32 CompBufferOffset = Layout.GetFloatComponentStart() + CompIdx;
 				const float* Src = Data->GetInstancePtrFloat(CompBufferOffset, CurrIdx);
-				float* Dst = (float*)(ValuePtr + Layout.LayoutInfo.FloatComponentByteOffsets[CompIdx]);
+				float* Dst = (float*)(ValuePtr + Layout.LayoutInfo.GetFloatComponentByteOffset(CompIdx));
 				*Dst = *Src;
 			}
 
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumInt32Components(); ++CompIdx)
 			{
-				uint32 CompBufferOffset = Layout.Int32ComponentStart + CompIdx;
+				uint32 CompBufferOffset = Layout.GetInt32ComponentStart() + CompIdx;
 				const int32* Src = Data->GetInstancePtrInt32(CompBufferOffset, CurrIdx);
-				int32* Dst = (int32*)(ValuePtr + Layout.LayoutInfo.Int32ComponentByteOffsets[CompIdx]);
+				int32* Dst = (int32*)(ValuePtr + Layout.LayoutInfo.GetInt32ComponentByteOffset(CompIdx));
 				*Dst = *Src;
 			}
 
 			for (uint32 CompIdx = 0; CompIdx < Layout.GetNumHalfComponents(); ++CompIdx)
 			{
-				uint32 CompBufferOffset = Layout.HalfComponentStart + CompIdx;
+				uint32 CompBufferOffset = Layout.GetHalfComponentStart() + CompIdx;
 				const FFloat16* Src = Data->GetInstancePtrHalf(CompBufferOffset, CurrIdx);
-				FFloat16* Dst = (FFloat16*)(ValuePtr + Layout.LayoutInfo.HalfComponentByteOffsets[CompIdx]);
+				FFloat16* Dst = (FFloat16*)(ValuePtr + Layout.LayoutInfo.GetHalfComponentByteOffset(CompIdx));
 				*Dst = *Src;
 			}
 		}

@@ -71,7 +71,7 @@ protected:
 	void SetTarget(UNiagaraComponent* InComponent);
 	void GetNameAndTooltip(const UNiagaraComponent*, FText& OutText, FText& OutTooltip) const;
 
-	void GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout, const UScriptStruct* Struct, const UEnum* Enum, FName BaseName, TArray<FName>& PropertyNames, TArray<FieldInfo>& FieldInfo);
+	void GenerateLayoutInfo(struct FNiagaraSpreadsheetTypeLayoutInfo& Layout, const UScriptStruct* Struct, const UEnum* Enum, FName BaseName, TArray<FName>& PropertyNames, TArray<FieldInfo>& FieldInfo);
 
 	EUITab TabState;
 
