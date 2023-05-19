@@ -803,9 +803,6 @@ bool FSkeletalMeshMerge::ProcessMergeMesh()
 	
 	// copy settings and bone info from src meshes
 	bool bNeedsInit=true;
-	
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	MergeMesh->GetSkelMirrorTable().Empty();
 
 	for( int32 MeshIdx=0; MeshIdx < SrcMeshList.Num(); MeshIdx++ )
 	{
@@ -816,10 +813,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			{
 				// initialize the merged mesh with the first src mesh entry used
 				MergeMesh->SetImportedBounds(SrcMesh->GetImportedBounds());
-
-				MergeMesh->SetSkelMirrorAxis(SrcMesh->GetSkelMirrorAxis());
-				MergeMesh->SetSkelMirrorFlipAxis(SrcMesh->GetSkelMirrorFlipAxis());
-
 				// only initialize once
 				bNeedsInit = false;
 			}
@@ -830,7 +823,6 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			}
 		}
 	}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Rebuild inverse ref pose matrices.
 	MergeMesh->GetRefBasesInvMatrix().Empty();
 	MergeMesh->CalculateInvRefMatrices();

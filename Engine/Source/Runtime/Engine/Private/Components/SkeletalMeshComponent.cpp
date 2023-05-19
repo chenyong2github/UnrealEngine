@@ -1819,15 +1819,6 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 	// mirror table/phys body ones has to be calculated
 	ExcludeHiddenBones(this, SkelMesh, OutRequiredBones);
 
-	// Add in any bones that may be required when mirroring.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (SkelMesh->SkelMirrorTable.Num() > 0 &&
-		SkelMesh->SkelMirrorTable.Num() == BoneSpaceTransforms.Num())
-	{
-		GetMirroringRequiredBones(SkelMesh, OutRequiredBones);
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	// Get socket bones set to animate and bones required to fill the component space base transforms
 	TArray<FBoneIndexType> NeededBonesForFillComponentSpaceTransforms;
 	GetSocketRequiredBones(SkelMesh, OutRequiredBones, NeededBonesForFillComponentSpaceTransforms);
@@ -1922,27 +1913,6 @@ void USkeletalMeshComponent::ComputeRequiredBones(TArray<FBoneIndexType>& OutReq
 
 /*static*/ void USkeletalMeshComponent::GetMirroringRequiredBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones)
 {
-	check(SkeletalMesh != nullptr);
-
-	// Add in any bones that may be required when mirroring.
-	// JTODO: This is only required if there are mirroring nodes in the tree, but hard to know...
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	TArray<FBoneIndexType> MirroredDesiredBones;
-	MirroredDesiredBones.AddUninitialized(OutRequiredBones.Num());
-
-	const TArray<struct FBoneMirrorInfo>& SkelMirrorTable = SkeletalMesh->GetSkelMirrorTable();
-	// Look up each bone in the mirroring table.
-	for (int32 i = 0; i<OutRequiredBones.Num(); i++)
-	{
-		MirroredDesiredBones[i] = SkelMirrorTable[OutRequiredBones[i]].SourceIndex;
-	}
-
-	// Sort to ensure strictly increasing order.
-	MirroredDesiredBones.Sort();
-
-	// Make sure all of these are in OutRequiredBones, and 
-	MergeInBoneIndexArrays(OutRequiredBones, MirroredDesiredBones);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /*static*/ void USkeletalMeshComponent::GetSocketRequiredBones(const USkeletalMesh* SkeletalMesh, TArray<FBoneIndexType>& OutRequiredBones, TArray<FBoneIndexType>& NeededBonesForFillComponentSpaceTransforms)

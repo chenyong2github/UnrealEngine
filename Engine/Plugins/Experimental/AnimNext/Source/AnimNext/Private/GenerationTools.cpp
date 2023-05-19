@@ -172,14 +172,6 @@ struct FCompareBoneIndexType
 			USkeletalMeshComponent::ExcludeHiddenBones(SkeletalMeshComponent, SkeletalMesh, OutRequiredBones);
 		}
 
-		// Add in any bones that may be required when mirroring.
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (SkeletalMesh->SkelMirrorTable.Num() > 0 &&
-			(SkeletalMeshComponent == nullptr || SkeletalMesh->SkelMirrorTable.Num() == SkeletalMeshComponent->BoneSpaceTransforms.Num()))
-		{
-			USkeletalMeshComponent::GetMirroringRequiredBones(SkeletalMesh, OutRequiredBones);
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// Get socket bones set to animate and bones required to fill the component space base transforms
 		TArray<FBoneIndexType> NeededBonesForFillComponentSpaceTransforms;
