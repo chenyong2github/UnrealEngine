@@ -458,7 +458,7 @@ void UCustomizableObjectNode::RemapPinsData(const TMap<UEdGraphPin*, UEdGraphPin
 
 void UCustomizableObjectNode::AddPinData(const UEdGraphPin& Pin, UCustomizableObjectNodePinData& PinData)
 {
-	check(PinData.GetOuter())
+	check(PinData.GetOuter() != GetTransientPackage())
 	PinsDataId.Add(Pin.PinId, &PinData);
 }
 
