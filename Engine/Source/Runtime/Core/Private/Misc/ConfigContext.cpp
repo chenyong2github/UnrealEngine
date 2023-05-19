@@ -455,12 +455,26 @@ FString FConfigContext::PerformFinalExpansions(const FString& InString, const FS
 	OutString = OutString.Replace(TEXT("{RESTRICTEDPROJECT_NFL}"), *ProjectNotForLicenseesDir);
 	OutString = OutString.Replace(TEXT("{RESTRICTEDPROJECT_NR}"), *ProjectNoRedistDir);
 
-	if (FPaths::IsUnderDirectory(ProjectRootDir, EngineRootDir))
+	if (FPaths::IsUnderDirectory(ProjectRootDir, ProjectNotForLicenseesDir))
 	{
 		FString RelativeDir = ProjectRootDir;
-		FPaths::MakePathRelativeTo(RelativeDir, *EngineRootDir);
+		FPaths::MakePathRelativeTo(RelativeDir, *(ProjectNotForLicenseesDir + TEXT("/")));
+
+		OutString = OutString.Replace(TEXT("{OPT_SUBDIR}"), *(RelativeDir + TEXT("/")));
+	}
+	else if (FPaths::IsUnderDirectory(ProjectRootDir, ProjectNoRedistDir))
+	{
+		FString RelativeDir = ProjectRootDir;
+		FPaths::MakePathRelativeTo(RelativeDir, *(ProjectNoRedistDir + TEXT("/")));
+
+		OutString = OutString.Replace(TEXT("{OPT_SUBDIR}"), *(RelativeDir + TEXT("/")));
+	}
+	else if (FPaths::IsUnderDirectory(ProjectRootDir, EngineRootDir))
+	{
+		FString RelativeDir = ProjectRootDir;
+		FPaths::MakePathRelativeTo(RelativeDir, *(EngineRootDir + TEXT("/")));
 		
-		OutString = OutString.Replace(TEXT("{OPT_SUBDIR}"), *RelativeDir);
+		OutString = OutString.Replace(TEXT("{OPT_SUBDIR}"), *(RelativeDir + TEXT("/")));
 	}
 	else
 	{

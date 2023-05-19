@@ -956,8 +956,8 @@ namespace UnrealBuildTool
 			// The base expansion (ie, no expansion)
 			new ConfigLayerExpansion { }, 
 			// Restricted Locations
-			new ConfigLayerExpansion { Before1 = "{ENGINE}/", After1 = "{ENGINE}/Restricted/NotForLicensees/",	Before2 = "{PROJECT}/Config/", After2 = "{RESTRICTEDPROJECT_NFL}/{OPT_SUBDIR}Config/" },
-			new ConfigLayerExpansion { Before1 = "{ENGINE}/", After1 = "{ENGINE}/Restricted/NoRedist/",			Before2 = "{PROJECT}/Config/", After2 = "{RESTRICTEDPROJECT_NR}/{OPT_SUBDIR}Config/" },
+			new ConfigLayerExpansion { Before1 = "{ENGINE}/", After1 = "{ENGINE}/Restricted/NotForLicensees/",	Before2 = "{PROJECT}/Config/", After2 = "{RESTRICTEDPROJECT_NFL}/Config/" },
+			new ConfigLayerExpansion { Before1 = "{ENGINE}/", After1 = "{ENGINE}/Restricted/NoRedist/",			Before2 = "{PROJECT}/Config/", After2 = "{RESTRICTEDPROJECT_NR}/Config/" },
 			// Platform Extensions
 			new ConfigLayerExpansion { Before1 = "{ENGINE}/Config/{PLATFORM}/", After1 = "{EXTENGINE}/Config/",	Before2 = "{PROJECT}/Config/{PLATFORM}/", After2 = "{EXTPROJECT}/Config/" },
 			// Platform Extensions in Restricted Locations
@@ -1023,6 +1023,7 @@ namespace UnrealBuildTool
 				DirectoryReference NFLDir;
 				DirectoryReference NRDir;
 				string OptionalSubDir = "";
+
 				if (ProjectDir.IsUnderDirectory(Unreal.EngineDirectory))
 				{
 					OptionalSubDir = ProjectDir.MakeRelativeTo(Unreal.EngineDirectory) + "/";
@@ -1034,6 +1035,16 @@ namespace UnrealBuildTool
 					NFLDir = DirectoryReference.Combine(ProjectDir, "Restricted/NotForLicensees");
 					NRDir = DirectoryReference.Combine(ProjectDir, "Restricted/NoRedist");
 				}
+
+				if (ProjectDir.IsUnderDirectory(NFLDir))
+				{
+					OptionalSubDir = ProjectDir.MakeRelativeTo(NFLDir) + "/";
+				}
+				else if (ProjectDir.IsUnderDirectory(NRDir))
+				{
+					OptionalSubDir = ProjectDir.MakeRelativeTo(NRDir) + "/";
+				}
+
 				string PlatformExtensionProjectConfigDir = DirectoryReference.Combine(ProjectDir, "Platforms", PlatformName).FullName;
 
 				OutString = OutString.Replace("{PROJECT}", ProjectDir.FullName);
