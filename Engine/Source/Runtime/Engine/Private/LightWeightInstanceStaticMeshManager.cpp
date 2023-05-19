@@ -77,24 +77,7 @@ void ALightWeightInstanceStaticMeshManager::AddNewInstanceAt(FLWIData* InitData,
 {
 	Super::AddNewInstanceAt(InitData, Index);
 
-	// The rendering indices are tightly packed so we know it's going on the end of the array
-	const int32 RenderingIdx = RenderingIndicesToDataIndices.Add(Index);
-
-	// Now that we know the rendering index we can fill in the other side of the map
-	if (Index >= DataIndicesToRenderingIndices.Num())
-	{
-		ensure(Index == DataIndicesToRenderingIndices.Add(RenderingIdx));
-	}
-	else
-	{
-		DataIndicesToRenderingIndices[Index] = RenderingIdx;
-	}
-
-	// Update the HISMC
-	if (InstancedStaticMeshComponent)
-	{
-		ensure(RenderingIdx == InstancedStaticMeshComponent->AddInstance(InstanceTransforms[Index], /*bWorldSpace*/false));
-	}
+	AddInstanceToRendering(Index);
 }
 
 void ALightWeightInstanceStaticMeshManager::RemoveInstance(const int32 Index)
@@ -105,6 +88,41 @@ void ALightWeightInstanceStaticMeshManager::RemoveInstance(const int32 Index)
 
 	RemoveInstanceFromRendering(Index);
 	Super::RemoveInstance(Index);
+}
+
+void ALightWeightInstanceStaticMeshManager::UpdateDataAtIndex(FLWIData* InData, int32 Index)
+{
+	Super::UpdateDataAtIndex(InData, Index);
+
+	if (!RenderingIndicesToDataIndices.Contains(Index))
+	{
+		AddInstanceToRendering(Index);
+	}
+}
+
+void ALightWeightInstanceStaticMeshManager::AddInstanceToRendering(int32 DataIndex)
+{
+	//cancel any pending deletes
+	DataIndicesToBeDeleted.RemoveSingle(DataIndex);
+
+	// The rendering indices are tightly packed so we know it's going on the end of the array
+	const int32 RenderingIdx = RenderingIndicesToDataIndices.Add(DataIndex);
+
+	// Now that we know the rendering index we can fill in the other side of the map
+	if (DataIndex >= DataIndicesToRenderingIndices.Num())
+	{
+		ensure(DataIndex == DataIndicesToRenderingIndices.Add(RenderingIdx));
+	}
+	else
+	{
+		DataIndicesToRenderingIndices[DataIndex] = RenderingIdx;
+	}
+
+	// Update the HISMC
+	if (InstancedStaticMeshComponent)
+	{
+		ensure(RenderingIdx == InstancedStaticMeshComponent->AddInstance(InstanceTransforms[DataIndex], /*bWorldSpace*/false));
+	}
 }
 
 void ALightWeightInstanceStaticMeshManager::RemoveInstanceFromRendering(int32 DataIndex)
