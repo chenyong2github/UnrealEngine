@@ -4,16 +4,41 @@
 
 #include "Async/ParallelFor.h"
 #include "Containers/ContainersFwd.h"
+#include "Containers/StaticArray.h"
 #include "Memory/CompositeBuffer.h"
 #include "Memory/MemoryView.h"
 #include "Memory/SharedBuffer.h"
-#include "Serialization/CompactBinaryWriter.h"
-#include "Tasks/Task.h"
 
 THIRD_PARTY_INCLUDES_START
 #define XXH_INLINE_ALL
 #include "ThirdParty/xxhash/xxhash.h"
 THIRD_PARTY_INCLUDES_END
+
+template <typename HashType>
+static HashType PrivateHashBufferChunked(const FMemoryView View, const uint64 ChunkSize)
+{
+	if (View.GetSize() <= ChunkSize || ChunkSize == 0)
+	{
+		return HashType::HashBuffer(View);
+	}
+
+	// Due to a limitation of ParallelFor, input size is limited to MAX_int32 * ChunkSize.
+	const int32 ChunkCount = IntCastChecked<int32>((View.GetSize() + ChunkSize - 1) / ChunkSize);
+
+	TArray<TStaticArray<uint8, sizeof(HashType)>, TInlineAllocator<64>> ChunkHashes;
+	ChunkHashes.AddZeroed(ChunkCount + 1);
+
+	ParallelFor(TEXT("XxHash.PF"), ChunkCount, 1, [View, ChunkSize, &ChunkHashes](const int32 Index)
+	{
+		FMemoryView ChunkView = View.Mid(Index * ChunkSize, ChunkSize);
+		HashType::HashBuffer(ChunkView).ToByteArray((uint8(&)[sizeof(HashType)])ChunkHashes[Index]);
+	});
+
+	static_assert(sizeof(uint64) <= sizeof(HashType));
+	FPlatformMemory::WriteUnaligned(&ChunkHashes.Last(), INTEL_ORDER64(View.GetSize()));
+
+	return HashType::HashBuffer(ChunkHashes.GetData(), ChunkCount * sizeof(HashType) + sizeof(uint64));
+}
 
 FXxHash64 FXxHash64::HashBuffer(FMemoryView View)
 {
@@ -32,52 +57,15 @@ FXxHash64 FXxHash64::HashBuffer(const FCompositeBuffer& Buffer)
 	return Builder.Finalize();
 }
 
-
-/* static */ UE::Tasks::TTask<FXxHash64> FXxHash64::HashBufferChunkedAsync(FMemoryView View, uint64 ChunkSize)
+FXxHash64 FXxHash64::HashBufferChunked(const FMemoryView View, const uint64 ChunkSize)
 {
-	if (View.GetSize() <= ChunkSize || ChunkSize == 0)
-	{
-		return UE::Tasks::Launch(TEXT("XxHash64.HashBufferChunkedAsync.Single"), [View]()
-		{
-			return FXxHash64::HashBuffer(View);
-		});
-	}
-
-	return UE::Tasks::Launch(TEXT("XxHash64.HashBufferChunkedAsync.Multi"), [View, ChunkSize]()
-	{
-		uint64 ChunkCount = (View.GetSize() + ChunkSize - 1) / ChunkSize;
-
-		// Due to limitations of ParallelFor, we can't hash anything larger than int32_max * chunksize;
-		int32 ChunkCount32 = IntCastChecked<int32>(ChunkCount);
-
-		TArray<FXxHash64, TInlineAllocator<64>> ChunkHashes;
-		ChunkHashes.AddDefaulted(ChunkCount32);
-
-		ParallelFor(TEXT("XxHash64.PF"), ChunkCount32, 1, [View, ChunkSize, &ChunkHashes](int32 Index)
-		{
-			FMemoryView ChunkView = View.Mid(Index * ChunkSize, ChunkSize);
-			ChunkHashes[Index] = FXxHash64::HashBuffer(ChunkView);
-		});
-
-		FXxHash64Builder Accumulator;
-		for (FXxHash64& ChunkHash : ChunkHashes)
-		{
-			uint8 HashBytes[8];
-			ChunkHash.ToByteArray(HashBytes);
-			Accumulator.Update(HashBytes, sizeof(HashBytes));
-		}
-		uint64 ViewSize = View.GetSize();
-		Accumulator.Update(&ViewSize, sizeof(ViewSize));
-
-		return Accumulator.Finalize();
-	});
+	return PrivateHashBufferChunked<FXxHash64>(View, ChunkSize);
 }
 
-/* static */ UE::Tasks::TTask<FXxHash64> FXxHash64::HashBufferChunkedAsync(const void* Data, uint64 Size, uint64 ChunkSize)
+FXxHash64 FXxHash64::HashBufferChunked(const void* Data, uint64 Size, uint64 ChunkSize)
 {
-	return HashBufferChunkedAsync(FMemoryView(Data, Size), ChunkSize);
+	return PrivateHashBufferChunked<FXxHash64>(FMemoryView(Data, Size), ChunkSize);
 }
-
 
 FXxHash128 FXxHash128::HashBuffer(FMemoryView View)
 {
@@ -91,52 +79,15 @@ FXxHash128 FXxHash128::HashBuffer(const void* Data, uint64 Size)
 	return {Value.low64, Value.high64};
 }
 
-/* static */ UE::Tasks::TTask<FXxHash128> FXxHash128::HashBufferChunkedAsync(FMemoryView View, uint64 ChunkSize)
+FXxHash128 FXxHash128::HashBufferChunked(const FMemoryView View, const uint64 ChunkSize)
 {
-	if (View.GetSize() <= ChunkSize || ChunkSize == 0)
-	{
-		return UE::Tasks::Launch(TEXT("XxHash128.HashBufferChunkedAsync.Single"), [View]()
-		{
-			return FXxHash128::HashBuffer(View);
-		});
-	}
-
-	return UE::Tasks::Launch(TEXT("XxHash128.HashBufferChunkedAsync.Multi"), [View, ChunkSize]()
-	{
-		uint64 ChunkCount = (View.GetSize() + ChunkSize - 1) / ChunkSize;
-		
-		// Due to limitations of ParallelFor, we can't hash anything larger than int32_max * chunksize;
-		int32 ChunkCount32 = IntCastChecked<int32>(ChunkCount);
-
-		TArray<FXxHash128, TInlineAllocator<64>> ChunkHashes;
-		ChunkHashes.AddDefaulted(ChunkCount32);
-
-		ParallelFor(TEXT("XxHash128.PF"), ChunkCount32, 1, [View, ChunkSize, &ChunkHashes](int32 Index)
-		{
-			FMemoryView ChunkView = View.Mid(Index * ChunkSize, ChunkSize);
-			ChunkHashes[Index] = FXxHash128::HashBuffer(ChunkView);
-		});
-
-		FXxHash128Builder Accumulator;
-		for (FXxHash128& ChunkHash : ChunkHashes)
-		{
-			uint8 HashBytes[16];
-			ChunkHash.ToByteArray(HashBytes);
-			Accumulator.Update(HashBytes, sizeof(HashBytes));
-		}
-		uint64 ViewSize = View.GetSize();
-		Accumulator.Update(&ViewSize, sizeof(ViewSize));
-		
-		return Accumulator.Finalize();
-	});
+	return PrivateHashBufferChunked<FXxHash128>(View, ChunkSize);
 }
 
-/* static */ UE::Tasks::TTask<FXxHash128> FXxHash128::HashBufferChunkedAsync(const void* Data, uint64 Size, uint64 ChunkSize)
+FXxHash128 FXxHash128::HashBufferChunked(const void* Data, uint64 Size, uint64 ChunkSize)
 {
-	return HashBufferChunkedAsync(FMemoryView(Data, Size), ChunkSize);
+	return PrivateHashBufferChunked<FXxHash128>(FMemoryView(Data, Size), ChunkSize);
 }
-
-
 
 FXxHash128 FXxHash128::HashBuffer(const FCompositeBuffer& Buffer)
 {

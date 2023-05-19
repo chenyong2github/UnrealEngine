@@ -3568,7 +3568,7 @@ public:
 
 			check( Mip.RawData.Num() != 0 );
 
-			MipHashTasks.Add(FXxHash64::HashBufferChunkedAsync(Mip.RawData.GetData(), Mip.RawData.Num(), 256 << 10));
+			MipHashTasks.Add(UE::Tasks::Launch(TEXT("ComputeMipChainHash"), [&Mip] { return FXxHash64::HashBufferChunked(MakeMemoryView(Mip.RawData), 256 << 10); }));
 
 			//raw_bytes_hashed += Mip.RawData.Num();
 
