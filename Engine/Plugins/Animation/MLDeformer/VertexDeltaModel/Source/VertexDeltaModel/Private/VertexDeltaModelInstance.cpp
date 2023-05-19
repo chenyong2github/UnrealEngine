@@ -29,7 +29,7 @@ UE::NNECore::IModelRDG* UVertexDeltaModelInstance::GetNNEModelRDG() const
 	return ModelRDG.Get();
 }
 
-FRDGBuffer* UVertexDeltaModelInstance::GetOutputRDGBuffer() const
+TRefCountPtr<FRDGPooledBuffer> UVertexDeltaModelInstance::GetOutputRDGBuffer() const
 {
 	return RDGVertexDeltaBuffer; 
 }
@@ -86,13 +86,13 @@ void UVertexDeltaModelInstance::Execute(float ModelWeight)
 					// Build Input Bindings
 					TArray<UE::NNECore::FTensorBindingRDG> InputBindingsRDG;
 					UE::NNECore::FTensorBindingRDG& BindingRDG = InputBindingsRDG.Emplace_GetRef();
-					BindingRDG.Buffer = RDGInputBuffer;
+					BindingRDG.Buffer = GraphBuilder.RegisterExternalBuffer(RDGInputBuffer);
 					GraphBuilder.QueueBufferUpload(BindingRDG.Buffer, NNEInputTensorBuffer.GetData(), NNEInputTensorBuffer.Num() * sizeof(float), ERDGInitialDataFlags::NoCopy);
 	
 					// Build Output Bindings
 					TArray<UE::NNECore::FTensorBindingRDG> OutputBindingsRDG;
 					UE::NNECore::FTensorBindingRDG& OutputBindingRDG = OutputBindingsRDG.Emplace_GetRef();
-					OutputBindingRDG.Buffer = RDGVertexDeltaBuffer;
+					OutputBindingRDG.Buffer = GraphBuilder.RegisterExternalBuffer(RDGVertexDeltaBuffer);
 
 					if (!ModelRDG.IsValid())
 					{
@@ -138,13 +138,15 @@ void UVertexDeltaModelInstance::CreateRDGBuffers(TConstArrayView<UE::NNECore::FT
 			FRDGBufferDesc VertexBufferDesc;
 			if (GetRDGVertexBufferDesc(OutputTensorDescs, VertexBufferDesc))
 			{
-				RDGVertexDeltaBuffer = Builder.CreateBuffer(VertexBufferDesc, TEXT("UVertexDeltaModelInstance_OutputBuffer"));
+				FRDGBuffer* RDGBuffer = Builder.CreateBuffer(VertexBufferDesc, TEXT("UVertexDeltaModelInstance_OutputBuffer"));
+				RDGVertexDeltaBuffer = Builder.ConvertToExternalBuffer(RDGBuffer);
 			}
 
 			FRDGBufferDesc InputDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(float), NNEInputTensorBuffer.Num());
 			InputDesc.Usage = EBufferUsageFlags(InputDesc.Usage | BUF_SourceCopy);
 
-			RDGInputBuffer = Builder.CreateBuffer(InputDesc, TEXT("UVertexDeltaModelInstance_InputBuffer"), ERDGBufferFlags::None);
+			FRDGBuffer* RDGBuffer = Builder.CreateBuffer(InputDesc, TEXT("UVertexDeltaModelInstance_InputBuffer"), ERDGBufferFlags::None);
+			RDGInputBuffer = Builder.ConvertToExternalBuffer(RDGBuffer);
 
 			Builder.Execute();
 		}

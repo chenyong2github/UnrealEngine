@@ -40,7 +40,7 @@ public:
 	 * Get the output vertex delta buffer
 	 * @return The FRDGBuffer for vertex deltas
 	 */
-	FRDGBuffer* GetOutputRDGBuffer() const;
+	TRefCountPtr<FRDGPooledBuffer> GetOutputRDGBuffer() const;
 
 	/**
 	 * Get the render graph buffer description required for the output of a neural network. Return false if a flat buffer is not appropriate
@@ -54,10 +54,10 @@ private:
 	void CreateNNEModel();
 
 	// Input Buffer for Joint Matrices / Curve Floats
-	FRDGBuffer* RDGInputBuffer = nullptr;
+	TRefCountPtr<FRDGPooledBuffer> RDGInputBuffer;
 
 	// Output Buffer for Vertex Deltas
-	FRDGBuffer* RDGVertexDeltaBuffer = nullptr;
+	TRefCountPtr<FRDGPooledBuffer> RDGVertexDeltaBuffer;
 
 	// The NNE RDG Model 
 	TUniquePtr<UE::NNECore::IModelRDG> ModelRDG;

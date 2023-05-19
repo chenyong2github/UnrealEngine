@@ -147,7 +147,7 @@ namespace UE::VertexDeltaModel
 	{
 		if (VertexDeltaModelInstance && VertexDeltaModelInstance->IsValidForDataProvider())
 		{
-			Buffer = VertexDeltaModelInstance->GetOutputRDGBuffer();
+			Buffer = GraphBuilder.RegisterExternalBuffer(VertexDeltaModelInstance->GetOutputRDGBuffer());
 			BufferSRV = GraphBuilder.CreateSRV(Buffer, PF_R32_FLOAT);
 		}
 	}
