@@ -1,8 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#include "IOSEOSSDKManager.h"
 
 #if WITH_EOS_SDK
 
-#include "IOSEOSSDKManager.h"
+#include "Misc/CoreDelegates.h"
+
+FIOSEOSSDKManager::FIOSEOSSDKManager()
+{
+	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FIOSEOSSDKManager::OnApplicationStatusChanged, EOS_EApplicationStatus::EOS_AS_Foreground);
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FIOSEOSSDKManager::OnApplicationStatusChanged, EOS_EApplicationStatus::EOS_AS_BackgroundSuspended);
+}
+
+FIOSEOSSDKManager::~FIOSEOSSDKManager()
+{	
+	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.RemoveAll(this);
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
+}
 
 FString FIOSEOSSDKManager::GetCacheDirBase() const
 {

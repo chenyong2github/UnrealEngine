@@ -3,11 +3,23 @@
 #include "AndroidEOSSDKManager.h"
 
 #if WITH_EOS_SDK
-
-#include "HAL/FileManager.h"
 #include "EOSShared.h"
+#include "HAL/FileManager.h"
+#include "Misc/CoreDelegates.h"
 
 #include "eos_android.h"
+
+FAndroidEOSSDKManager::FAndroidEOSSDKManager()
+{
+	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddRaw(this, &FAndroidEOSSDKManager::OnApplicationStatusChanged, EOS_EApplicationStatus::EOS_AS_Foreground);
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FAndroidEOSSDKManager::OnApplicationStatusChanged, EOS_EApplicationStatus::EOS_AS_BackgroundSuspended);
+}
+
+FAndroidEOSSDKManager::~FAndroidEOSSDKManager()
+{	
+	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.RemoveAll(this);
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.RemoveAll(this);
+}
 
 EOS_EResult FAndroidEOSSDKManager::EOSInitialize(EOS_InitializeOptions& Options)
 {
