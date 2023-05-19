@@ -14,6 +14,8 @@ FStrataMaterialCompilationOutput::FStrataMaterialCompilationOutput()
 	, SharedLocalBasesCount(0)
 	, RequestedBytePixePixel(0)
 	, PlatformBytePixePixel(0)
+	, bIsThin(0)
+	, MaterialType(0)
 	, bMaterialOutOfBudgetHasBeenSimplified(0)
 	, RootOperatorIndex(0)
 #endif
