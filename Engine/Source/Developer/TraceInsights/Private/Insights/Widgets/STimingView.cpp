@@ -470,7 +470,6 @@ void STimingView::Reset(bool bIsFirstReset)
 	Tooltip.Reset();
 
 	LastSelectionType = ESelectionType::None;
-	FrameTypeToSnapTo = ETraceFrameType::TraceFrameType_Count;
 
 	//ThisGeometry
 
@@ -3443,7 +3442,7 @@ void STimingView::SelectTimeInterval(double IntervalStartTime, double IntervalDu
 	SelectionStartTime = IntervalStartTime;
 	SelectionEndTime = IntervalStartTime + IntervalDuration;
 
-	if (FrameTypeToSnapTo != ETraceFrameType::TraceFrameType_Count)
+	if (GetFrameTypeToSnapTo() != ETraceFrameType::TraceFrameType_Count)
 	{
 		SnapToFrameBound(SelectionStartTime, SelectionEndTime);
 	}
@@ -3466,6 +3465,7 @@ void STimingView::SnapToFrameBound(double& StartTime, double& EndTime)
 	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 	const TraceServices::IFrameProvider& FramesProvider = TraceServices::ReadFrameProvider(*Session.Get());
 
+	ETraceFrameType FrameTypeToSnapTo = GetFrameTypeToSnapTo();
 	uint32 FrameNum = FramesProvider.GetFrameNumberForTimestamp(FrameTypeToSnapTo, StartTime);
 	const TraceServices::FFrame* StartFrame = FramesProvider.GetFrame(FrameTypeToSnapTo, FrameNum);
 
@@ -3511,21 +3511,6 @@ void STimingView::SnapToFrameBound(double& StartTime, double& EndTime)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void STimingView::SetFrameTypeToSnapTo(ETraceFrameType InFrameType)
-{
-	if (FrameTypeToSnapTo == InFrameType)
-	{
-		return;
-	}
-
-	FrameTypeToSnapTo = InFrameType;
-
-	SelectTimeInterval(SelectionStartTime, SelectionEndTime - SelectionStartTime);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 void STimingView::RaiseSelectionChanging()
 {
@@ -5284,6 +5269,24 @@ void STimingView::EnumerateFilteredTracks(TSharedPtr<Insights::FFilterConfigurat
 			Callback(Entry.Value);
 		}
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ETraceFrameType STimingView::GetFrameTypeToSnapTo()
+{
+	TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+	if (Window.IsValid())
+	{
+		TSharedPtr<STimersView> TimersView = Window->GetTimersView();
+		if (TimersView.IsValid())
+		{
+			return TimersView->GetFrameTypeMode();
+		}
+	}
+
+	// TraceFrameType_Count is the Instance mode.
+	return ETraceFrameType::TraceFrameType_Count;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

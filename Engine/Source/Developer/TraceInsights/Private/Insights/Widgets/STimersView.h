@@ -89,6 +89,8 @@ public:
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
+	ETraceFrameType GetFrameTypeMode() { return ModeFrameType; }
+
 private:
 	void InitCommandList();
 
@@ -333,6 +335,8 @@ private:
 	void SaveVisibleColumnsSettings();
 	void LoadSettings();
 	void LoadVisibleColumnsSettings();
+
+	void SetTimingViewFrameType();
 
 private:
 	/** Table view model. */

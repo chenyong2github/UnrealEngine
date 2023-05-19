@@ -348,9 +348,6 @@ public:
 	void SnapToFrameBound(double& IntervalStartTime, double& IntervalDuration);
 	void SelectToTimeMarker(double InTimeMarker);
 
-	void SetFrameTypeToSnapTo(ETraceFrameType InFrameType);
-	ETraceFrameType GetFrameTypeToSnapTo() { return FrameTypeToSnapTo; }
-
 	//bool AreTimeMarkersVisible() { return MarkersTrack->IsVisible(); }
 	void SetTimeMarkersVisible(bool bOnOff);
 	//bool IsDrawOnlyBookmarksEnabled() { return MarkersTrack->IsBookmarksTrack(); }
@@ -514,6 +511,8 @@ protected:
 
 	typedef TFunctionRef<void(TSharedPtr<FBaseTimingTrack>& Track)> EnumerateFilteredTracksCallback;
 	void EnumerateFilteredTracks(TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator, EnumerateFilteredTracksCallback Callback);
+
+	ETraceFrameType GetFrameTypeToSnapTo();
 
 protected:
 	/** The name of the view. */
@@ -680,8 +679,6 @@ protected:
 		TimingEvent
 	};
 	ESelectionType LastSelectionType;
-
-	ETraceFrameType FrameTypeToSnapTo;
 
 	/** Throttle flag, allowing tracks to control whether Slate throttle should take place */
 	bool bPreventThrottling;

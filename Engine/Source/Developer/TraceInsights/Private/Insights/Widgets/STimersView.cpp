@@ -419,6 +419,9 @@ void STimersView::Construct(const FArguments& InArgs)
 	InitializeAndShowHeaderColumns();
 	LoadSettings();
 
+	Aggregator->SetFrameType(ModeFrameType);
+	SetTimingViewFrameType();
+
 	// Create the search filters: text based, type based etc.
 	TextFilter = MakeShared<FTimerNodeTextFilter>(FTimerNodeTextFilter::FItemToStringArray::CreateSP(this, &STimersView::HandleItemToStringArray));
 	Filters = MakeShared<FTimerNodeFilterCollection>();
@@ -1751,15 +1754,7 @@ void STimersView::Mode_OnSelectionChanged(TSharedPtr<ETraceFrameType> NewFrameTy
 	ModeFrameType = *NewFrameType;
 	LoadVisibleColumnsSettings();
 
-	TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-	if (Window.IsValid())
-	{
-		TSharedPtr<STimingView> TimingView = Window->GetTimingView();
-		if (TimingView.IsValid())
-		{
-			TimingView->SetFrameTypeToSnapTo(ModeFrameType);
-		}
-	}
+	SetTimingViewFrameType();
 
 	Aggregator->SetFrameType(ModeFrameType);
 	Aggregator->Cancel();
@@ -3181,6 +3176,21 @@ void STimersView::OpenSourceFileInIDE(FTimerNodePtr InNode) const
 FReply STimersView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	return CommandList->ProcessCommandBindings(InKeyEvent) == true ? FReply::Handled() : FReply::Unhandled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::SetTimingViewFrameType()
+{
+	TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+	if (Window.IsValid())
+	{
+		TSharedPtr<STimingView> TimingView = Window->GetTimingView();
+		if (TimingView.IsValid())
+		{
+			TimingView->SelectTimeInterval(TimingView->GetSelectionStartTime(), TimingView->GetSelectionEndTime() - TimingView->GetSelectionStartTime());
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
