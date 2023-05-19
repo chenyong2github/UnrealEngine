@@ -44,13 +44,6 @@
 	#include "pxr/usd/usdShade/materialBindingAPI.h"
 #include "USDIncludesEnd.h"
 
-// Can toggle on/off to compare performance with StaticMesh instead of GeometryCache
-static bool GUseGeometryCacheUSD = true;
-static FAutoConsoleVariableRef CVarUsdUseGeometryCache(
-	TEXT("USD.GeometryCache.Enable"),
-	GUseGeometryCacheUSD,
-	TEXT("Use GeometryCache instead of static meshes for loading animated meshes"));
-
 static int32 GUsdGeometryCacheParallelMeshReads = 16;
 static FAutoConsoleVariableRef CVarUsdGeometryCacheParallelMeshReads(
 	TEXT("USD.GeometryCache.Import.ParallelMeshReads"),
@@ -1019,11 +1012,19 @@ void FUsdGeometryCacheTranslator::UpdateComponents(USceneComponent* SceneCompone
 
 bool FUsdGeometryCacheTranslator::CollapsesChildren(ECollapsingType CollapsingType) const
 {
+	if (!Context->InfoCache.IsValid())
+	{
+		return Super::CollapsesChildren(CollapsingType);
+	}
 	return IsPotentialGeometryCacheRoot() ? true : Super::CollapsesChildren(CollapsingType);
 }
 
 bool FUsdGeometryCacheTranslator::CanBeCollapsed(ECollapsingType CollapsingType) const
 {
+	if (!Context->InfoCache.IsValid())
+	{
+		return Super::CanBeCollapsed(CollapsingType);
+	}
 	return IsPotentialGeometryCacheRoot() ? false : Super::CanBeCollapsed(CollapsingType);
 }
 
@@ -1057,53 +1058,10 @@ TSet<UE::FSdfPath> FUsdGeometryCacheTranslator::CollectAuxiliaryPrims() const
 
 bool FUsdGeometryCacheTranslator::IsPotentialGeometryCacheRoot() const
 {
-	if (!GUseGeometryCacheUSD)
-	{
-		return false;
-	}
+	check(Context->InfoCache.IsValid());
 
-	if (!Context->bIsImporting)
-	{
-		// For now, when loading on the stage, process only leaf animated mesh as geometry cache (without collapsing onto a root)
-		return UsdUtils::IsAnimatedMesh(GetPrim());
-	}
-
-	// Cache is not available when it is being rebuilt. This is called by RecursiveQueryCollapsesChildren
-	bool bIsPotentialGeoCacheRoot = false;
-	if (Context->InfoCache)
-	{
-		bIsPotentialGeoCacheRoot = Context->InfoCache->IsPotentialGeometryCacheRoot(PrimPath);
-	}
-	else
-	{
-		FScopedUsdAllocs UsdAllocs;
-		TArray<TUsdStore<pxr::UsdPrim>> ChildPrims = UsdUtils::GetAllPrimsOfType(GetPrim(), pxr::TfType::Find<pxr::UsdGeomMesh>());
-		for (const TUsdStore<pxr::UsdPrim>& ChildPrim : ChildPrims)
-		{
-			if (UsdUtils::IsAnimatedMesh(ChildPrim.Get()))
-			{
-				bIsPotentialGeoCacheRoot = true;
-				break;
-			}
-		}
-	}
-
-	// #uent_todo: Improve the collapsing rule for GeometryCache
-	if (bIsPotentialGeoCacheRoot)
-	{
-		FString FilePath;
-		if (UsdUtils::GetReferenceFilePath(GetPrim(), TEXT("abc"), FilePath))
-		{
-			return true;
-		}
-		else
-		{
-			// TBD where the collapsing should occur. Currently, if the stage has any animated meshes, it will collapse everything at the root
-			return true;
-		}
-	}
-
-	return false;
+	// The logic to check for GeometryCache is completely in the InfoCache
+	return Context->InfoCache->IsPotentialGeometryCacheRoot(PrimPath);
 }
 
 #endif // #if USE_USD_SDK
