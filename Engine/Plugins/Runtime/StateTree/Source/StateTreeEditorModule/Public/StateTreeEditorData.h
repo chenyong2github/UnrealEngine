@@ -197,6 +197,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// ~StateTree Builder API
 
+private:
+	void FixObjectInstance(TSet<UObject*>& SeenObjects, UObject& Outer, FStateTreeEditorNode& Node);
+	void FixObjectNodes();
+
+public:
 	/** Schema describing which inputs, evaluators, and tasks a StateTree can contain */	
 	UPROPERTY(EditDefaultsOnly, Category = Common, Instanced)
 	TObjectPtr<UStateTreeSchema> Schema = nullptr;

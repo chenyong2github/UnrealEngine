@@ -1824,68 +1824,76 @@ void FStateTreeEditorNodeDetails::OnStructPicked(const UScriptStruct* InStruct) 
 	check(StructProperty);
 	check(StateTree);
 
+	TArray<UObject*> OuterObjects;
 	TArray<void*> RawNodeData;
+	StructProperty->GetOuterObjects(OuterObjects);
 	StructProperty->AccessRawData(RawNodeData);
 
 	GEditor->BeginTransaction(LOCTEXT("SelectNode", "Select Node"));
 
 	StructProperty->NotifyPreChange();
 
-	for (void* Data : RawNodeData)
+	if (OuterObjects.Num() == RawNodeData.Num())
 	{
-		if (FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(Data))
+		for (int32 Index = 0; Index < RawNodeData.Num(); Index++)
 		{
-			Node->Reset();
-			
-			if (InStruct)
+			if (UObject* Outer = OuterObjects[Index])
 			{
-				// Generate new ID.
-				Node->ID = FGuid::NewGuid();
+				if (FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(RawNodeData[Index]))
+					{
+					Node->Reset();
+					
+					if (InStruct)
+					{
+						// Generate new ID.
+						Node->ID = FGuid::NewGuid();
 
-				// Initialize node
-				Node->Node.InitializeAs(InStruct);
-				
-				// Generate new name and instantiate instance data.
-				if (InStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
-				{
-					FStateTreeTaskBase& Task = Node->Node.GetMutable<FStateTreeTaskBase>();
-					Task.Name = FName(InStruct->GetDisplayNameText().ToString());
+						// Initialize node
+						Node->Node.InitializeAs(InStruct);
+						
+						// Generate new name and instantiate instance data.
+						if (InStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
+						{
+							FStateTreeTaskBase& Task = Node->Node.GetMutable<FStateTreeTaskBase>();
+							Task.Name = FName(InStruct->GetDisplayNameText().ToString());
 
-					if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Task.GetInstanceDataType()))
-					{
-						Node->Instance.InitializeAs(InstanceType);
-					}
-					else if (const UClass* InstanceClass = Cast<const UClass>(Task.GetInstanceDataType()))
-					{
-						Node->InstanceObject = NewObject<UObject>(EditorData, InstanceClass);
-					}
-				}
-				else if (InStruct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct()))
-				{
-					FStateTreeEvaluatorBase& Eval = Node->Node.GetMutable<FStateTreeEvaluatorBase>();
-					Eval.Name = FName(InStruct->GetDisplayNameText().ToString());
+							if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Task.GetInstanceDataType()))
+							{
+								Node->Instance.InitializeAs(InstanceType);
+							}
+							else if (const UClass* InstanceClass = Cast<const UClass>(Task.GetInstanceDataType()))
+							{
+								Node->InstanceObject = NewObject<UObject>(Outer, InstanceClass);
+							}
+						}
+						else if (InStruct->IsChildOf(FStateTreeEvaluatorBase::StaticStruct()))
+						{
+							FStateTreeEvaluatorBase& Eval = Node->Node.GetMutable<FStateTreeEvaluatorBase>();
+							Eval.Name = FName(InStruct->GetDisplayNameText().ToString());
 
-					if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Eval.GetInstanceDataType()))
-					{
-						Node->Instance.InitializeAs(InstanceType);
-					}
-					else if (const UClass* InstanceClass = Cast<const UClass>(Eval.GetInstanceDataType()))
-					{
-						Node->InstanceObject = NewObject<UObject>(EditorData, InstanceClass);
-					}
-				}
-				else if (InStruct->IsChildOf(FStateTreeConditionBase::StaticStruct()))
-				{
-					FStateTreeConditionBase& Cond = Node->Node.GetMutable<FStateTreeConditionBase>();
-					Cond.Name = FName(InStruct->GetDisplayNameText().ToString());
+							if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Eval.GetInstanceDataType()))
+							{
+								Node->Instance.InitializeAs(InstanceType);
+							}
+							else if (const UClass* InstanceClass = Cast<const UClass>(Eval.GetInstanceDataType()))
+							{
+								Node->InstanceObject = NewObject<UObject>(Outer, InstanceClass);
+							}
+						}
+						else if (InStruct->IsChildOf(FStateTreeConditionBase::StaticStruct()))
+						{
+							FStateTreeConditionBase& Cond = Node->Node.GetMutable<FStateTreeConditionBase>();
+							Cond.Name = FName(InStruct->GetDisplayNameText().ToString());
 
-					if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Cond.GetInstanceDataType()))
-					{
-						Node->Instance.InitializeAs(InstanceType);
-					}
-					else if (const UClass* InstanceClass = Cast<const UClass>(Cond.GetInstanceDataType()))
-					{
-						Node->InstanceObject = NewObject<UObject>(EditorData, InstanceClass);
+							if (const UScriptStruct* InstanceType = Cast<const UScriptStruct>(Cond.GetInstanceDataType()))
+							{
+								Node->Instance.InitializeAs(InstanceType);
+							}
+							else if (const UClass* InstanceClass = Cast<const UClass>(Cond.GetInstanceDataType()))
+							{
+								Node->InstanceObject = NewObject<UObject>(Outer, InstanceClass);
+							}
+						}
 					}
 				}
 			}
@@ -1910,51 +1918,59 @@ void FStateTreeEditorNodeDetails::OnClassPicked(const UClass* InClass) const
 	check(StructProperty);
 	check(StateTree);
 
+	TArray<UObject*> OuterObjects;
 	TArray<void*> RawNodeData;
+	StructProperty->GetOuterObjects(OuterObjects);
 	StructProperty->AccessRawData(RawNodeData);
 
 	GEditor->BeginTransaction(LOCTEXT("SelectBlueprintNode", "Select Blueprint Node"));
 
 	StructProperty->NotifyPreChange();
 
-	for (void* Data : RawNodeData)
+	if (OuterObjects.Num() == RawNodeData.Num())
 	{
-		if (FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(Data))
+		for (int32 Index = 0; Index < RawNodeData.Num(); Index++)
 		{
-			Node->Reset();
-
-			if (InClass && InClass->IsChildOf(UStateTreeTaskBlueprintBase::StaticClass()))
+			if (UObject* Outer = OuterObjects[Index])
 			{
-				Node->Node.InitializeAs(FStateTreeBlueprintTaskWrapper::StaticStruct());
-				FStateTreeBlueprintTaskWrapper& Task = Node->Node.GetMutable<FStateTreeBlueprintTaskWrapper>();
-				Task.TaskClass = const_cast<UClass*>(InClass);
-				Task.Name = FName(InClass->GetDisplayNameText().ToString());
-				
-				Node->InstanceObject = NewObject<UObject>(EditorData, InClass);
+				if (FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(RawNodeData[Index]))
+				{
+					Node->Reset();
 
-				Node->ID = FGuid::NewGuid();
-			}
-			else if (InClass && InClass->IsChildOf(UStateTreeEvaluatorBlueprintBase::StaticClass()))
-			{
-				Node->Node.InitializeAs(FStateTreeBlueprintEvaluatorWrapper::StaticStruct());
-				FStateTreeBlueprintEvaluatorWrapper& Eval = Node->Node.GetMutable<FStateTreeBlueprintEvaluatorWrapper>();
-				Eval.EvaluatorClass = const_cast<UClass*>(InClass);
-				Eval.Name = FName(InClass->GetDisplayNameText().ToString());
-				
-				Node->InstanceObject = NewObject<UObject>(EditorData, InClass);
+					if (InClass && InClass->IsChildOf(UStateTreeTaskBlueprintBase::StaticClass()))
+					{
+						Node->Node.InitializeAs(FStateTreeBlueprintTaskWrapper::StaticStruct());
+						FStateTreeBlueprintTaskWrapper& Task = Node->Node.GetMutable<FStateTreeBlueprintTaskWrapper>();
+						Task.TaskClass = const_cast<UClass*>(InClass);
+						Task.Name = FName(InClass->GetDisplayNameText().ToString());
+						
+						Node->InstanceObject = NewObject<UObject>(Outer, InClass);
 
-				Node->ID = FGuid::NewGuid();
-			}
-			else if (InClass && InClass->IsChildOf(UStateTreeConditionBlueprintBase::StaticClass()))
-			{
-				Node->Node.InitializeAs(FStateTreeBlueprintConditionWrapper::StaticStruct());
-				FStateTreeBlueprintConditionWrapper& Cond = Node->Node.GetMutable<FStateTreeBlueprintConditionWrapper>();
-				Cond.ConditionClass = const_cast<UClass*>(InClass);
-				Cond.Name = FName(InClass->GetDisplayNameText().ToString());
+						Node->ID = FGuid::NewGuid();
+					}
+					else if (InClass && InClass->IsChildOf(UStateTreeEvaluatorBlueprintBase::StaticClass()))
+					{
+						Node->Node.InitializeAs(FStateTreeBlueprintEvaluatorWrapper::StaticStruct());
+						FStateTreeBlueprintEvaluatorWrapper& Eval = Node->Node.GetMutable<FStateTreeBlueprintEvaluatorWrapper>();
+						Eval.EvaluatorClass = const_cast<UClass*>(InClass);
+						Eval.Name = FName(InClass->GetDisplayNameText().ToString());
+						
+						Node->InstanceObject = NewObject<UObject>(Outer, InClass);
 
-				Node->InstanceObject = NewObject<UObject>(EditorData, InClass);
+						Node->ID = FGuid::NewGuid();
+					}
+					else if (InClass && InClass->IsChildOf(UStateTreeConditionBlueprintBase::StaticClass()))
+					{
+						Node->Node.InitializeAs(FStateTreeBlueprintConditionWrapper::StaticStruct());
+						FStateTreeBlueprintConditionWrapper& Cond = Node->Node.GetMutable<FStateTreeBlueprintConditionWrapper>();
+						Cond.ConditionClass = const_cast<UClass*>(InClass);
+						Cond.Name = FName(InClass->GetDisplayNameText().ToString());
 
-				Node->ID = FGuid::NewGuid();
+						Node->InstanceObject = NewObject<UObject>(Outer, InClass);
+
+						Node->ID = FGuid::NewGuid();
+					}
+				}
 			}
 		}
 	}

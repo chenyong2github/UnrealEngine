@@ -7,6 +7,7 @@
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
 #include "Algo/LevenshteinDistance.h"
+#include "StateTreeEditorModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeEditorData)
 
@@ -22,6 +23,7 @@ void UStateTreeEditorData::PostLoad()
 {
 	Super::PostLoad();
 	ReparentStates();
+	FixObjectNodes();
 }
 
 void UStateTreeEditorData::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -330,6 +332,7 @@ void UStateTreeEditorData::ReparentStates()
 		UObject* ExpectedOuter = ParentState ? Cast<UObject>(ParentState) : Cast<UObject>(TreeData);
 		if (State.GetOuter() != ExpectedOuter)
 		{
+			UE_LOG(LogStateTreeEditor, Log, TEXT("%s: Fixing outer on state %s."), *TreeData->GetFullName(), *GetNameSafe(&State));
 			State.Rename(nullptr, ExpectedOuter, REN_DontCreateRedirectors | REN_DoNotDirty | REN_ForceNoResetLoaders);
 		}
 		
@@ -337,6 +340,80 @@ void UStateTreeEditorData::ReparentStates()
 		
 		return EStateTreeVisitor::Continue;
 	});
+}
+
+
+void UStateTreeEditorData::FixObjectInstance(TSet<UObject*>& SeenObjects, UObject& Outer, FStateTreeEditorNode& Node)
+{
+	if (Node.InstanceObject)
+	{
+		// Found a duplicate reference to an object, make unique copy.
+		if (SeenObjects.Contains(Node.InstanceObject))
+		{
+			UE_LOG(LogStateTreeEditor, Log, TEXT("%s: Making duplicate node instance %s unique."), *GetFullName(), *GetNameSafe(Node.InstanceObject));
+			Node.InstanceObject = DuplicateObject(Node.InstanceObject, &Outer);
+		}
+		else
+		{
+			// Make sure the instance object is property outered.
+			if (Node.InstanceObject->GetOuter() != &Outer)
+			{
+				UE_LOG(LogStateTreeEditor, Log, TEXT("%s: Fixing outer on node instance %s."), *GetFullName(), *GetNameSafe(Node.InstanceObject));
+				Node.InstanceObject->Rename(nullptr, &Outer, REN_DontCreateRedirectors | REN_DoNotDirty | REN_ForceNoResetLoaders);
+			}
+		}
+		SeenObjects.Add(Node.InstanceObject);
+	}
+};
+
+void UStateTreeEditorData::FixObjectNodes()
+{
+	// Older version of State Trees had all instances outered to the editor data. This causes issues with State copy/paste.
+	// Instance data does not get duplicated but the copied state will reference the object on the source state instead.
+	//
+	// Ensure that all node objects are parented to their states, and make duplicated instances unique.
+
+	TSet<UObject*> SeenObjects;
+	
+	VisitHierarchy([&SeenObjects, TreeData = this](UStateTreeState& State, UStateTreeState* ParentState) mutable 
+	{
+
+		// Enter conditions
+		for (FStateTreeEditorNode& Node : State.EnterConditions)
+		{
+			TreeData->FixObjectInstance(SeenObjects, State, Node);
+		}
+		
+		// Tasks
+		for (FStateTreeEditorNode& Node : State.Tasks)
+		{
+			TreeData->FixObjectInstance(SeenObjects, State, Node);
+		}
+
+		TreeData->FixObjectInstance(SeenObjects, State, State.SingleTask);
+
+
+		// Transitions
+		for (FStateTreeTransition& Transition : State.Transitions)
+		{
+			for (FStateTreeEditorNode& Node : Transition.Conditions)
+			{
+				TreeData->FixObjectInstance(SeenObjects, State, Node);
+			}
+		}
+		
+		return EStateTreeVisitor::Continue;
+	});
+
+	for (FStateTreeEditorNode& Node : Evaluators)
+	{
+		FixObjectInstance(SeenObjects, *this, Node);
+	}
+
+	for (FStateTreeEditorNode& Node : GlobalTasks)
+	{
+		FixObjectInstance(SeenObjects, *this, Node);
+	}
 }
 
 EStateTreeVisitor UStateTreeEditorData::VisitStateNodes(const UStateTreeState& State, TFunctionRef<EStateTreeVisitor(const UStateTreeState* State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const
