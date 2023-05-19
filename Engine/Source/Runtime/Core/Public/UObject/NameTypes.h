@@ -240,7 +240,11 @@ public:
 	/** Returns whether this name entry is represented via WIDECHAR or ANSICHAR. */
 	FORCEINLINE bool IsWide() const								{ return Header.bIsWide; }
 	FORCEINLINE int32 GetNameLength() const 					{ return Header.Len; }
-	FORCEINLINE bool IsNumbered() const 						{ return !!UE_FNAME_OUTLINE_NUMBER && Header.Len == 0; }
+#if UE_FNAME_OUTLINE_NUMBER
+	FORCEINLINE bool IsNumbered() const 						{ return Header.Len == 0; }
+#else
+	FORCEINLINE bool IsNumbered() const 						{ return false; }
+#endif
 
 	/**
 	 * Copy unterminated name to TCHAR buffer without allocating.

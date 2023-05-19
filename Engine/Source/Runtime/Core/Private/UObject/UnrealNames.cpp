@@ -595,7 +595,8 @@ private:
 	static constexpr bool IsUnalignedNumberedEntry(uint32 BlockOffset)
 	{
 #if UE_FNAME_OUTLINE_NUMBER
-		return alignof(FNameEntry) < alignof(FNumberedEntry) && (BlockOffset + offsetof(FNameEntry, NumberedName) + offsetof(FNameEntry::FNumberedData, Id)) % alignof(FNumberedEntry) != 0;
+		constexpr bool bRuntimeAlign = alignof(FNameEntry) < alignof(FNumberedEntry);
+		return bRuntimeAlign && (BlockOffset + offsetof(FNameEntry, NumberedName) + offsetof(FNameEntry::FNumberedData, Id)) % alignof(FNumberedEntry) != 0;
 #else
 		return false;
 #endif
