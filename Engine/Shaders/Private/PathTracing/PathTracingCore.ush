@@ -542,10 +542,9 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, 
 				}
 			}
 
-#if PATH_TRACING_USE_TRANSMITTANCE_FUNC
 			// NOTE: when using analytic raymarching, we can skip all raymarching on the last bounce because we know we don't need a scattering point
-			if (!bLastBounce)
-#endif
+			const uint UseNullTrackingTransmittance = !UseAnalyticTransmittance;
+			if (UseNullTrackingTransmittance || (UseAnalyticTransmittance && !bLastBounce))
 			{
 				// remember the start of our interval before ray marching messes with it
 				float StartVolumeTMin = Interval.VolumeTMin;
@@ -556,12 +555,13 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, 
 				{
 					// figure out optimal bounds for the current ray segment
 					float3 SigmaBar = VolumeGetDensityBounds(PathState.Ray.Origin, PathState.Ray.Direction, Interval).SigmaMax;
-#if PATH_TRACING_USE_TRANSMITTANCE_FUNC == 0
-					// if we are not using analytical transmittance, a tight majorant could prevent us from "seeing" hits that match the density exactly
-					// leading to heavy noise on bright objects embedded in the volume
-					// however if we can track transmittance analytically, this workaround is not needed as we will re-compute a precise answer after ray marching
-					SigmaBar *= bIsCameraRay ? 2 : 1;
-#endif
+					if (UseNullTrackingTransmittance)
+					{
+						// if we are not using analytical transmittance, a tight majorant could prevent us from "seeing" hits that match the density exactly
+						// leading to heavy noise on bright objects embedded in the volume
+						// however if we can track transmittance analytically, this workaround is not needed as we will re-compute a precise answer after ray marching
+						SigmaBar *= bIsCameraRay ? 2 : 1;
+					}
 
 					// there is some atmosphere present along the current ray, ray march until we get to the current hit (or exit the atmosphere)
 					float3 ColorChannelPdf = PathThroughput;
@@ -591,9 +591,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, 
 						float3 SigmaT = min(Result.SigmaT, SigmaBar);
 						float3 SigmaN = SigmaBar - SigmaT;
 
-#if PATH_TRACING_USE_TRANSMITTANCE_FUNC == 0
-						if (!bLastBounce) // check now if this loop is also computing transmittance
-#endif
+						if (UseAnalyticTransmittance || (UseNullTrackingTransmittance && !bLastBounce)) // check now if this loop is also computing transmittance
 						{
 							float3 SigmaS = min(Result.SigmaSRayleigh + Result.SigmaSHG, SigmaT);
 							// accumulate a signal for the denoiser
@@ -621,15 +619,19 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, int Bounce, 
 				}
 				// restore interval start now that we are finished with ray marching
 				Interval.VolumeTMin = StartVolumeTMin;
-#if PATH_TRACING_USE_TRANSMITTANCE_FUNC == 0
-				// record the change in transmittance since we already computed it
-				PathState.PathThroughput = PathThroughput;
-#endif
+				if (UseNullTrackingTransmittance)
+				{
+					// record the change in transmittance since we already computed it
+					PathState.PathThroughput = PathThroughput;
+				}
 			}
-#if PATH_TRACING_USE_TRANSMITTANCE_FUNC
-			// analytically handle the transmittance to the next surface (which will be higher quality than the transmittance implicitly computed above and prevent noise with emissive surfaces in volumes)
-			PathState.PathThroughput = VolumeGetTransmittance(PathState.PathThroughput, PathState.Ray.Origin, PathState.Ray.Direction, Interval, PathState.PathRoughness, PathState.RandSequence);
-#endif
+			
+			if (UseAnalyticTransmittance)
+			{
+				// analytically handle the transmittance to the next surface (which will be higher quality than the transmittance implicitly computed above and prevent noise with emissive surfaces in volumes)
+				PathState.PathThroughput = VolumeGetTransmittance(PathState.PathThroughput, PathState.Ray.Origin, PathState.Ray.Direction, Interval, PathState.PathRoughness, PathState.RandSequence);
+			}
+
 			// Update our current volume intersection list to reflect the fact that we have made it to the end of this interval
 			// This will either clip the finished portions of active segments, or remove the segments we have fully marched through
 			VolumeIsectList = VolumeIsectList.Update(Interval.VolumeTMax);
