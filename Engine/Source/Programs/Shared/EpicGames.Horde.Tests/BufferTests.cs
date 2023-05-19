@@ -126,7 +126,7 @@ namespace EpicGames.Horde.Tests
 			await socket.MarkCompleteAsync(ChannelId);
 		}
 
-		static async Task RunConsumerAsync(ComputeBufferReader reader, Memory<byte> output)
+		static async Task RunConsumerAsync(IComputeBufferReader reader, Memory<byte> output)
 		{
 			int offset = 0;
 			while (!reader.IsComplete)
