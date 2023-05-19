@@ -239,15 +239,7 @@ void UCustomizableObjectInstance::PreEditChange(FProperty* PropertyAboutToChange
 		
 		for (TObjectPtr<UTexture2D> Texture : TextureParameterDeclarations)
 		{
-			if (Texture)
-			{
-				const int32 TextureId = DefaultImageProvider.Get(Texture);
-
-				if (TextureId != INDEX_NONE)
-				{
-					DefaultImageProvider.Keep(TextureId, false);
-				}
-			}
+			DefaultImageProvider.Remove(Texture);
 		}
 	}
 }
@@ -267,11 +259,7 @@ void UCustomizableObjectInstance::PostEditChangeProperty(FPropertyChangedEvent& 
 		
 		for (TObjectPtr<UTexture2D> Texture : TextureParameterDeclarations)
 		{
-			if (Texture)
-			{
-				const int32 TextureId = DefaultImageProvider.GetOrAdd(Texture);
-				DefaultImageProvider.Keep(TextureId, true);
-			}
+			DefaultImageProvider.Add(Texture);
 		}
 
 		UpdateSkeletalMeshAsync(true, true);
@@ -329,7 +317,7 @@ void UCustomizableObjectInstance::BeginDestroy()
 	}
 	
 	ReleaseMutableResources(true);
-
+	
 	Super::BeginDestroy();
 }
 
@@ -371,6 +359,14 @@ void UCustomizableObjectInstance::ReleaseMutableResources(bool bCalledFromBeginD
 					UCustomizableInstancePrivateData::ReleaseMutableTexture(Texture.Id, Texture.Texture, Cache);
 				}
 			}
+		}
+
+		// Remove all references to cached Texture Parameters
+		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider;
+
+		for (const FString& TextureParameter : PrivateData->UpdateTextureParameters)
+		{
+			ImageProvider->UnCacheImage(TextureParameter, false);				
 		}
 	}
 
@@ -2463,19 +2459,13 @@ void UCustomizableObjectInstance::SetFloatParameterSelectedOption(const FString&
 }
 
 
-uint64 UCustomizableObjectInstance::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
+FString UCustomizableObjectInstance::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
 {
 	return Descriptor.GetTextureParameterSelectedOption(TextureParamName, RangeIndex);
 }
 
 
-UTexture2D* UCustomizableObjectInstance::GetTextureParameterSelectedOptionT(const FString& TextureParamName, const int32 RangeIndex) const
-{
-	return Descriptor.GetTextureParameterSelectedOptionT(TextureParamName, RangeIndex);
-}
-
-
-void UCustomizableObjectInstance::SetTextureParameterSelectedOption(const FString& TextureParamName, const uint64 TextureValue, const int32 RangeIndex)
+void UCustomizableObjectInstance::SetTextureParameterSelectedOption(const FString& TextureParamName, const FString& TextureValue, const int32 RangeIndex)
 {
 	Descriptor.SetTextureParameterSelectedOption(TextureParamName, TextureValue, RangeIndex);
 }
@@ -5543,8 +5533,6 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 
 	UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
 
-	const int32 LODCount = OperationData->InstanceUpdateData.LODs.Num();
-
 	// Find skipped LODs. The following valid LOD will be copied into them. 
 	TArray<bool> LODsSkipped;
 	LODsSkipped.SetNum(OperationData->CurrentMaxLOD);
@@ -5554,12 +5542,11 @@ void UCustomizableInstancePrivateData::BuildMaterials(const TSharedPtr<FMutableO
 	GeneratedMaterials.Reset();
 
 	// Prepare the data to store in order to regenerate resources for this instance (usually texture mips).
-	TSharedPtr<FMutableUpdateContext> UpdateContext = MakeShared<FMutableUpdateContext>();
-	UpdateContext->System = UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableSystem;
-	UpdateContext->Model = CustomizableObject->GetModel();
-	UpdateContext->Parameters = OperationData->MutableParameters;
-	UpdateContext->State = OperationData->State;
-
+	TSharedPtr<FMutableUpdateContext> UpdateContext = MakeShared<FMutableUpdateContext>(UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableSystem,
+		CustomizableObject->GetModel(),
+		OperationData->MutableParameters,
+	    OperationData->State);
+	
 	const bool bReuseTextures = OperationData->bReuseInstanceTextures;
 
 	const FInstanceUpdateData::FLOD& FirstLOD = OperationData->InstanceUpdateData.LODs[OperationData->CurrentMinLOD];

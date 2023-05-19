@@ -26,7 +26,26 @@ namespace mu
     MUTABLE_IMPLEMENT_POD_SERIALISABLE( uint8 );  
     MUTABLE_IMPLEMENT_POD_SERIALISABLE( uint16 ); 
     MUTABLE_IMPLEMENT_POD_SERIALISABLE( uint32 ); 
-    MUTABLE_IMPLEMENT_POD_SERIALISABLE( uint64 );
+    MUTABLE_IMPLEMENT_POD_SERIALISABLE( uint64 )
+
+
+	template <>
+    void operator<<<FString>(OutputArchive& arch, const FString& t)
+    {
+	    const TArray<TCHAR> Data = t.GetCharArray();
+    	arch << Data;
+    }
+
+
+    template <>
+    void operator>><FString>(InputArchive& arch, FString& t)
+    {
+	    TArray<TCHAR> Data;
+    	arch >> Data;
+    	
+    	t = FString(Data);
+    }
+                                 
 
 	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(float);                                 
 	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(double);                                
@@ -48,8 +67,9 @@ namespace mu
 	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(vec3f);                                 
 	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(mat3f);                                 
 	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(mat4f);                                 
-	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(vec2<int>);                             
-                                                                                      
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(vec2<int>);
+	MUTABLE_IMPLEMENT_POD_VECTOR_SERIALISABLE(TCHAR);
+	
 	// Unreal POD Serializables                                                       
 	MUTABLE_IMPLEMENT_POD_SERIALISABLE(FUintVector2);                                 
 	MUTABLE_IMPLEMENT_POD_SERIALISABLE(UE::Math::TIntVector2<uint16>);                

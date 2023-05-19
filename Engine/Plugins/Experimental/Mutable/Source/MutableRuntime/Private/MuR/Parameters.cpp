@@ -770,7 +770,7 @@ namespace mu
              ||
              GetType(index) != PARAMETER_TYPE::T_IMAGE )
         {
-            return 0;
+            return {};
         }
 		
 		// Single value case

@@ -773,7 +773,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 		const TArray<FCustomizableObjectTextureParameterValue>& TextureParameters = CustomInstance->GetTextureParameters();
 		TSharedPtr<FString> InitiallySelected = TextureParameterValueNames[0]; // First index is always the None option.
 
-		const uint64 ParameterValue = CustomInstance->GetTextureParameterSelectedOption(ParamName);
+		const FString ParameterValue = CustomInstance->GetTextureParameterSelectedOption(ParamName);
 		
 		// Look for the value index
 		for (int32 ValueIndex = 0; ValueIndex < TextureParameterValueNames.Num(); ++ValueIndex)

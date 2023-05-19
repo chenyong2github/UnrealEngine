@@ -12,7 +12,7 @@ namespace mu
     typedef uint32            RESOURCE_ID;
 
     //!
-    typedef uint64            EXTERNAL_IMAGE_ID;
+    typedef FString           EXTERNAL_IMAGE_ID;
 
 
 }

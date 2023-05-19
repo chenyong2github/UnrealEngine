@@ -193,6 +193,11 @@ public:
 	// Only used in LiveUpdateMode to reuse core instances between updates and their temp data to speed up updates, but spend way more memory
 	mu::Instance::ID LiveUpdateModeInstanceID = 0;
 
+	/** Cached Texture Parameters from the last update.
+	 * This cache is required since the Instance can have a LOD Update at any time.
+	 * So we need to make sure that the initially provided Texture Parameters by the user will be available until the user decides to change them. */
+	TArray<FString> UpdateTextureParameters;
+	
 	FCustomizableInstanceComponentData* GetComponentData(int32 ComponentIndex);
 	const FCustomizableInstanceComponentData* GetComponentData(int32 ComponentIndex) const;
 

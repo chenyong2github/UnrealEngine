@@ -666,7 +666,7 @@ void FRunningStressTest::PrintParameterData(const MostExpensiveInstanceData& Dat
 		{
 			Line = FString::Printf(TEXT("\t\t\t %s"), *it.ParameterName);
 			AppendWhitespace(Line, MaxLength - Line.Len());
-			Line += FString::Printf(TEXT("%d"), it.ParameterValue);
+			Line += it.ParameterValue;
 			UE_LOG(LogMutable, Log, TEXT("%s"), *Line);
 		}
 	}

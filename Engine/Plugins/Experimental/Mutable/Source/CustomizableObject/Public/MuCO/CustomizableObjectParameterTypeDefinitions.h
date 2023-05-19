@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "MuR/Types.h"
+
 #include "CustomizableObjectParameterTypeDefinitions.generated.h"
 
 class UTexture2D;
@@ -157,19 +159,19 @@ struct FCustomizableObjectTextureParameterValue
 {
 	GENERATED_USTRUCT_BODY()
 
-	static constexpr uint64 DEFAULT_PARAMETER_VALUE = 0;
+	inline static const FString DEFAULT_PARAMETER_VALUE = {}; // Means no Texture Parameter assigned.
 	
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
 	FString ParameterName;
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
-	uint64 ParameterValue = DEFAULT_PARAMETER_VALUE;
+	FString ParameterValue = DEFAULT_PARAMETER_VALUE;
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
 	FString Uid;
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
-	TArray<uint64> ParameterRangeValues;
+	TArray<FString> ParameterRangeValues;
 };
 
 
@@ -178,7 +180,7 @@ inline uint32 GetTypeHash(const FCustomizableObjectTextureParameterValue& Key)
 	uint32 Hash = GetTypeHash(Key.ParameterName);
 	Hash = HashCombine(Hash, GetTypeHash(Key.ParameterValue));
 
-	for (const uint64 Value : Key.ParameterRangeValues)
+	for (const FString& Value : Key.ParameterRangeValues)
     {
     	Hash = HashCombine(Hash, GetTypeHash(Value));
     }

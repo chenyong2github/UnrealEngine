@@ -7,6 +7,8 @@
 #include "AssetRegistry/AssetData.h"
 #include "MuCO/CustomizableObjectInstance.h"
 #include "MuCO/CustomizableObjectInstanceDescriptor.h"
+#include "MuR/Parameters.h"
+#include "MuR/Types.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -134,11 +136,11 @@ struct FCustomizableObjectExternalTexture
 	FCustomizableObjectExternalTexture() = default;
 
 	FString Name;
-	int64_t Value = 0;
+	FString Value;
 };
 
 
-//
+/** Base class for Image provider. */
 UCLASS(abstract)
 class CUSTOMIZABLEOBJECT_API UCustomizableSystemImageProvider : public UObject
 {
@@ -165,17 +167,17 @@ public:
 
 	// Query that Mutable will run to find out if a texture will be provided as an Unreal UTexture2D,
 	// or as a raw data blob.
-	virtual ValueType HasTextureParameterValue(int64 ID) { return ValueType::None; }
+	virtual ValueType HasTextureParameterValue(FString ID) { return ValueType::None; }
 
 	// In case IsTextureParameterValueUnreal returns false, this will be used to query the texture size data.
-	virtual FIntVector GetTextureParameterValueSize(int64 ID) { return FIntVector(0, 0, 0); }
+	virtual FIntVector GetTextureParameterValueSize(FString ID) { return FIntVector(0, 0, 0); }
 
 	// In case IsTextureParameterValueUnreal returns false, this will be used to query the texture data that must
 	// be copied in the preallocated buffer. The pixel format is assumed to be 4-channel RGBA, uint8_t per channel.
-	virtual void GetTextureParameterValueData(int64 ID, uint8* OutData) {}
+	virtual void GetTextureParameterValueData(FString ID, uint8* OutData) {}
 
 	// In case IsTextureParameterValueUnreal returns true, this will be used to query the texture.
-	virtual UTexture2D* GetTextureParameterValue(int64 ID) { return nullptr; }
+	virtual UTexture2D* GetTextureParameterValue(FString ID) { return nullptr; }
 
 	// Used in the editor to show the list of available options.
 	// Only necessary if the images are required in editor previews.
@@ -184,7 +186,7 @@ public:
 
 
 /** End a Customizable Object Instance Update. All code paths of an update have to end here. */
-void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const FDescriptorRuntimeHash InUpdatedHash = FDescriptorRuntimeHash());
+void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const mu::ParametersPtrConst Parameters = nullptr, const FDescriptorRuntimeHash InUpdatedHash = FDescriptorRuntimeHash());
 
 
 UCLASS(Blueprintable, BlueprintType)
@@ -196,10 +198,11 @@ public:
 	UCustomizableObjectSystem() = default;
 	void InitSystem();
 
-	// Get the singleton object. It will be created if it doesn't exist yet.
+	/** Get the singleton object. It will be created if it doesn't exist yet.
+	 * @param bCreate Create a system if it does not has been created yet. */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = Status)
 	static UCustomizableObjectSystem* GetInstance();
-
+	
 	// Return true if the singleton has been created. It is different than GetInstance in that GetInstance will create it if it doesn't exist.
 	static bool IsCreated();
 
@@ -285,17 +288,11 @@ public:
 		memory is used and the real texel data is loaded when needed during an update and then immediately discarded */
 
 	/** [Texture Parameters] Cache an image which has to have been previously registered by an Image provider with the parameter id. */
-	void CacheImage(uint64 ImageId);
+	void CacheImage(FString ImageId);
 	/** [Texture Parameters] Remove an image from the cache. */
-	void UnCacheImage(uint64 ImageId);
-	/** [Texture Parameters] Cache all images which have been previously registered by all registered Image provider with the parameter id
-		that was used in the provider. If bClearPreviousCacheImages is true, then all previous cache state is cleared */
-	void CacheAllImagesInAllProviders(bool bClearPreviousCacheImages);
+	void UnCacheImage(FString ImageId);
 	/** [Texture Parameters] Remove all images from the cache. */
 	void ClearImageCache();
-
-	/** Get the default image provider. Returns null if it was not already initialized. */
-	TObjectPtr<UDefaultImageProvider> GetDefaultImageProvider() const;
 
 	/** Initialize (if was not already) and get the default image provider. */
 	UDefaultImageProvider& GetOrCreateDefaultImageProvider();

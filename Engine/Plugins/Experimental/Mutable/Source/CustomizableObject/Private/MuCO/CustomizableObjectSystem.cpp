@@ -126,7 +126,7 @@ void FMutableQueue::Enqueue(const FMutableQueueElem& TaskToEnqueue)
 		{
 			UCustomizableObjectInstance* Instance = QueueElem.Operation->CustomizableObjectInstance.Get();
 			FInstanceUpdateDelegate* Callback = &QueueElem.Operation->UpdateCallback;
-			FinishUpdateGlobal(Instance, EUpdateResult::ErrorReplaced, Callback);
+			FinishUpdateGlobal(Instance, EUpdateResult::ErrorReplaced, Callback, QueueElem.Operation->GetParameters());
 		
 			QueueElem.Operation = TaskToEnqueue.Operation;
 			QueueElem.PriorityType = FMath::Min(QueueElem.PriorityType, TaskToEnqueue.PriorityType);
@@ -735,7 +735,7 @@ FAutoConsoleVariableRef CVarMaxTextureSizeToGenerate(
 		"If a texture doesn't have small enough mips, mip 0 will be the last mip available."));
 
 
-void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const FDescriptorRuntimeHash InUpdatedHash)
+void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, mu::ParametersPtrConst Parameters, const FDescriptorRuntimeHash InUpdatedHash)
 {
 	check(IsInGameThread())
 	
@@ -767,12 +767,17 @@ void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult Upd
 		UpdateCallback->ExecuteIfBound(Context);
 	}
 
+	if (Parameters)
+	{
+		UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider->UnCacheImages(*Parameters);
+	}
+
 	UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableTaskGraph.AllowLaunchingMutableTaskLowPriority(true, false);
 }
 
 
 /** Update the given Instance Skeletal Meshes and call its callbacks. */
-void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance, const FDescriptorRuntimeHash& UpdatedDescriptorRuntimeHash, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback)
+void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance, const FDescriptorRuntimeHash& UpdatedDescriptorRuntimeHash, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, mu::ParametersPtrConst Parameters = nullptr)
 {
 	MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh);
 
@@ -833,7 +838,7 @@ void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance,
 		CustomizableObjectInstancePrivateData->TexturesToRelease.Empty();
 	}
 
-	FinishUpdateGlobal(&CustomizableObjectInstance, UpdateResult, UpdateCallback, UpdatedDescriptorRuntimeHash);
+	FinishUpdateGlobal(&CustomizableObjectInstance, UpdateResult, UpdateCallback, Parameters, UpdatedDescriptorRuntimeHash);
 }
 
 
@@ -897,11 +902,14 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		UpdateSkeletalMesh(Instance, Instance.GetDescriptorRuntimeHash(), EUpdateResult::Success, UpdateCallback);
 	}
 	else
-	{
+	{	
 		Instance.SkeletalMeshStatus = ESkeletalMeshState::AsyncUpdatePending;
 
 		const TSharedPtr<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(&Instance, bNeverStream, MipsToSkip, UpdateCallback));
 		MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, Priority, Instance.GetPrivate()->MinSquareDistFromComponentToPlayer));
+
+		// Cache Texture Parameters being used during the update:
+		ImageProvider->CacheImages(*Operation->GetParameters());
 	}
 }
 
@@ -1821,7 +1829,7 @@ namespace impl
 		UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 		if (!System || !System->IsValidLowLevel() || System->HasAnyFlags(RF_BeginDestroyed))
 		{
-			FinishUpdateGlobal(CustomizableObjectInstancePtr.Get(), EUpdateResult::Error, &OperationData->UpdateCallback);
+			FinishUpdateGlobal(CustomizableObjectInstancePtr.Get(), EUpdateResult::Error, &OperationData->UpdateCallback, OperationData->MutableParameters);
 			return;
 		}
 
@@ -1831,7 +1839,7 @@ namespace impl
 		if (!CustomizableObjectInstance || !CustomizableObjectInstance->IsValidLowLevel() )
 		{
 			System->ClearCurrentMutableOperation();
-			FinishUpdateGlobal(CustomizableObjectInstance, EUpdateResult::Error, &OperationData->UpdateCallback);
+			FinishUpdateGlobal(CustomizableObjectInstance, EUpdateResult::Error, &OperationData->UpdateCallback, OperationData->MutableParameters);
 			return;
 		}
 
@@ -1840,7 +1848,7 @@ namespace impl
 
 		// Actual work
 		// TODO MTBL-391: Review This hotfix
-		UpdateSkeletalMesh(*CustomizableObjectInstance, CustomizableObjectSystemPrivateData->CurrentMutableOperation->InstanceDescriptorRuntimeHash, OperationData->UpdateResult, &OperationData->UpdateCallback);
+		UpdateSkeletalMesh(*CustomizableObjectInstance, CustomizableObjectSystemPrivateData->CurrentMutableOperation->InstanceDescriptorRuntimeHash, OperationData->UpdateResult, &OperationData->UpdateCallback, OperationData->MutableParameters);
 
 		// TODO: T2927
 		if (LogBenchmarkUtil::isLoggingActive())
@@ -1872,7 +1880,7 @@ namespace impl
 		UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 		if (!System || !System->IsValidLowLevel() || System->HasAnyFlags(RF_BeginDestroyed))
 		{
-			FinishUpdateGlobal(CustomizableObjectInstancePtr.Get(), EUpdateResult::Error, &OperationData->UpdateCallback);
+			FinishUpdateGlobal(CustomizableObjectInstancePtr.Get(), EUpdateResult::Error, &OperationData->UpdateCallback, OperationData->MutableParameters);
 			return;
 		}
 
@@ -2005,7 +2013,7 @@ namespace impl
 		}
 		else
 		{
-			FinishUpdateGlobal(CustomizableObjectInstance, EUpdateResult::Error, &OperationData->UpdateCallback);
+			FinishUpdateGlobal(CustomizableObjectInstance, EUpdateResult::Error, &OperationData->UpdateCallback, OperationData->MutableParameters);
 		}
 	}
 
@@ -2029,7 +2037,7 @@ namespace impl
 		if (!ObjectInstance)
 		{
 			System->ClearCurrentMutableOperation();
-			FinishUpdateGlobal(ObjectInstance, EUpdateResult::Error, &OperationData->UpdateCallback);
+			FinishUpdateGlobal(ObjectInstance, EUpdateResult::Error, &OperationData->UpdateCallback, OperationData->MutableParameters);
 			return;
 		}
 
@@ -2051,7 +2059,7 @@ namespace impl
 		if (!CustomizableObject)
 		{
 			System->ClearCurrentMutableOperation();
-			FinishUpdateGlobal(CustomizableObjectInstancePtr.Get(), EUpdateResult::Error, &OperationData->UpdateCallback);
+			FinishUpdateGlobal(CustomizableObjectInstancePtr.Get(), EUpdateResult::Error, &OperationData->UpdateCallback, OperationData->MutableParameters);
 			return;
 		}
 
@@ -2063,9 +2071,27 @@ namespace impl
 			ObjectInstancePrivateData->RelevantParameters = OperationData->RelevantParametersInProgress;
 		}
 
-		if (const TObjectPtr<UDefaultImageProvider> DefaultImageProvider = System->GetDefaultImageProvider())
+		// Cache Texture Parameters
+		FUnrealMutableImageProvider* ImageProvider = UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider;
+		
+		// Uncache old Texture Parameters
+		for (const FString& TextureParameter : ObjectInstancePrivateData->UpdateTextureParameters)
 		{
-			DefaultImageProvider->CacheTextures(*OperationData->MutableParameters);
+			ImageProvider->UnCacheImage(TextureParameter, false);
+		}
+		ObjectInstancePrivateData->UpdateTextureParameters.Reset();
+
+		// Cache new Texture Parameters and update which ones are currently are being used
+		for (const FCustomizableObjectTextureParameterValue& TextureParameters : ObjectInstance->GetDescriptor().GetTextureParameters())
+		{
+			ImageProvider->CacheImage(TextureParameters.ParameterValue, false);				
+			ObjectInstancePrivateData->UpdateTextureParameters.Add(TextureParameters.ParameterValue);
+		
+			for (const FString& TextureParameter: TextureParameters.ParameterRangeValues)
+			{
+				ImageProvider->CacheImage(TextureParameter, false);
+				ObjectInstancePrivateData->UpdateTextureParameters.Add(TextureParameter);
+			}
 		}
 		
 		// Selectively lock the resource cache for the object used by this instance to avoid the destruction of resources that we may want to reuse.
@@ -2222,7 +2248,7 @@ namespace impl
 		if (!Operation->CustomizableObjectInstance.IsValid() || !Operation->CustomizableObjectInstance->IsValidLowLevel()) // Only start if it hasn't been already destroyed (i.e. GC after finish PIE)
 		{
 			System->ClearCurrentMutableOperation();
-			FinishUpdateGlobal(nullptr, EUpdateResult::Error, &Operation->UpdateCallback);
+			FinishUpdateGlobal(nullptr, EUpdateResult::Error, &Operation->UpdateCallback, Operation->GetParameters());
 			return;
 		}
 
@@ -2232,7 +2258,7 @@ namespace impl
 		if (!CandidateInstancePrivateData)
 		{
 			System->ClearCurrentMutableOperation();
-			FinishUpdateGlobal(nullptr, EUpdateResult::Error, &Operation->UpdateCallback);
+			FinishUpdateGlobal(nullptr, EUpdateResult::Error, &Operation->UpdateCallback, Operation->GetParameters());
 			return;
 		}
 		
@@ -2274,7 +2300,7 @@ namespace impl
 		if (Operation->InstanceDescriptorRuntimeHash.IsSubset(CandidateInstance->GetDescriptorRuntimeHash()))
 		{
 			CandidateInstance->SkeletalMeshStatus = ESkeletalMeshState::Correct;
-			UpdateSkeletalMesh(*CandidateInstance, CandidateInstance->GetDescriptorRuntimeHash(), EUpdateResult::Success, &Operation->UpdateCallback);
+			UpdateSkeletalMesh(*CandidateInstance, CandidateInstance->GetDescriptorRuntimeHash(), EUpdateResult::Success, &Operation->UpdateCallback, Operation->GetParameters());
 			bCancel = true;
 		}
 
@@ -2290,7 +2316,7 @@ namespace impl
 
 			System->ClearCurrentMutableOperation();
 
-			FinishUpdateGlobal(CandidateInstance, EUpdateResult::Error, &Operation->UpdateCallback);
+			FinishUpdateGlobal(CandidateInstance, EUpdateResult::Error, &Operation->UpdateCallback, Operation->GetParameters());
 			return;
 		}
 
@@ -2693,11 +2719,6 @@ void UCustomizableObjectSystem::UnregisterImageProvider(UCustomizableSystemImage
 	Private->ImageProvider->ImageProviders.Remove(Provider);
 }
 
-
-TObjectPtr<UDefaultImageProvider> UCustomizableObjectSystem::GetDefaultImageProvider() const
-{
-	return DefaultImageProvider;
-}
 
 
 UDefaultImageProvider& UCustomizableObjectSystem::GetOrCreateDefaultImageProvider()
@@ -3120,27 +3141,19 @@ void UCustomizableObjectSystem::OnEnableImageCacheChanged(IConsoleVariable* CVar
 }
 
 
-void UCustomizableObjectSystem::CacheImage(uint64 ImageId)
+void UCustomizableObjectSystem::CacheImage(FString ImageId)
 {
 	check(GetPrivate() != nullptr);
 	check(GetPrivate()->ImageProvider != nullptr);
-	GetPrivate()->ImageProvider->CacheImage(ImageId);
+	GetPrivate()->ImageProvider->CacheImage(ImageId, true);
 }
 
 
-void UCustomizableObjectSystem::UnCacheImage(uint64 ImageId)
+void UCustomizableObjectSystem::UnCacheImage(FString ImageId)
 {
 	check(GetPrivate() != nullptr); 
 	check(GetPrivate()->ImageProvider != nullptr);
-	GetPrivate()->ImageProvider->UnCacheImage(ImageId);
-}
-
-
-void UCustomizableObjectSystem::CacheAllImagesInAllProviders(bool bClearPreviousCacheImages)
-{
-	check(GetPrivate() != nullptr);
-	check(GetPrivate()->ImageProvider != nullptr);
-	GetPrivate()->ImageProvider->CacheAllImagesInAllProviders(bClearPreviousCacheImages);
+	GetPrivate()->ImageProvider->UnCacheImage(ImageId, true);
 }
 
 
@@ -3148,7 +3161,7 @@ void UCustomizableObjectSystem::ClearImageCache()
 {
 	check(GetPrivate() != nullptr);
 	check(GetPrivate()->ImageProvider != nullptr);
-	GetPrivate()->ImageProvider->ClearCache();
+	GetPrivate()->ImageProvider->ClearCache(true);
 }
 
 

@@ -443,7 +443,7 @@ namespace mu
         if (!m_pD->m_program.m_parameters.IsValidIndex(Index) ||
             m_pD->m_program.m_parameters[Index].m_type != PARAMETER_TYPE::T_IMAGE)
         {
-            return 0;
+            return {};
         }
 		
         return m_pD->m_program.m_parameters[Index].m_defaultValue.Get<ParamImageType>();

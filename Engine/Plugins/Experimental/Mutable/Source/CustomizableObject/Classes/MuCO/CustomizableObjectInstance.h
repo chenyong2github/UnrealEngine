@@ -8,8 +8,8 @@
 
 #include "CustomizableObjectInstance.generated.h"
 
+class FCustomizableObjectSystemPrivate;
 class USkeletalMesh;
-
 class AActor;
 class FProperty;
 class UAnimInstance;
@@ -359,16 +359,14 @@ public:
 	void SetFloatParameterSelectedOption(const FString& FloatParamName, float FloatValue, int32 RangeIndex = -1);
 	
 	/** Gets the value of a texture parameter with name "TextureParamName". */
-	uint64 GetTextureParameterSelectedOption(const FString& TextureParamName, int32 RangeIndex = -1) const;
-
-	/** Gets the texture of a texture parameter with name "TextureParamName". */
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
-	UTexture2D* GetTextureParameterSelectedOptionT(const FString& TextureParamName, int32 RangeIndex = -1) const;
+	FString GetTextureParameterSelectedOption(const FString& TextureParamName, int32 RangeIndex = -1) const;
 
 	/** Sets the texture value "TextureValue" of a texture parameter with index "TextureParamIndex". */
-	void SetTextureParameterSelectedOption(const FString& TextureParamName, uint64 TextureValue, int32 RangeIndex = -1);
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	void SetTextureParameterSelectedOption(const FString& TextureParamName, const FString& TextureValue, int32 RangeIndex = -1);
 
-	/** Sets the texture "Texture" of a texture parameter with index "TextureParamIndex". */
+	/** @deprecated Use SetTextureParameterSelectedOption instead. */
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	void SetTextureParameterSelectedOptionT(const FString& TextureParamName, UTexture2D* TextureValue, int32 RangeIndex = -1);
 	
@@ -706,7 +704,7 @@ private:
 
 	UPROPERTY( Transient )
 	TObjectPtr<UCustomizableInstancePrivateData> PrivateData;
-
+	
 	/** Hash of the UCustomizableObjectInstance::Descriptor on the last update request. */
 	FDescriptorRuntimeHash UpdateDescriptorRuntimeHash;
 	

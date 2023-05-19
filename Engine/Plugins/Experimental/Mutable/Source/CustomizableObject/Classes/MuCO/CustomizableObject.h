@@ -1380,9 +1380,9 @@ public:
 	
 	/** Get the default value of a parameter of type Texture.
 	 * @param InParameterName The name of the Projector parameter to get the default value of.
-	 * @return An uint64 (EXTERNAL_IMAGE_ID) pointing at the default parameter's texture.
+	 * @return An id representing the default parameter's texture.
 	 */
-	uint64 GetTextureParameterDefaultValue (const FString& InParameterName) const;
+	FString GetTextureParameterDefaultValue (const FString& InParameterName) const;
 
 	/** Return true or false depending if the parameter at the index provided is multidimensional or not.
 	 * @param InParamIndex The index of the parameter to check.
@@ -1413,7 +1413,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 385;
+	static const int32 CurrentSupportedVersion = 386;
 
 public:
 

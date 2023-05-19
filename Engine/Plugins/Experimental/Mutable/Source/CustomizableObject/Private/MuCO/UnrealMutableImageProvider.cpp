@@ -5,6 +5,7 @@
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableObject.h"
 #include "TextureResource.h"
+#include "MuR/Parameters.h"
 
 
 //-------------------------------------------------------------------------------------------------
@@ -462,109 +463,186 @@ mu::FImageDesc FUnrealMutableImageProvider::GetImageDesc(mu::EXTERNAL_IMAGE_ID i
 }
 
 
-void FUnrealMutableImageProvider::CacheImage(mu::EXTERNAL_IMAGE_ID id)
+void FUnrealMutableImageProvider::CacheImage(const mu::EXTERNAL_IMAGE_ID& Id, bool bUser)
 {
 	check( IsInGameThread() );
 
-	mu::ImagePtr pResult;
-	UTexture2D* UnrealDeferredTexture = nullptr;
-
-	// See if any provider provides this id.
-	for (int32 p = 0; !pResult && p < ImageProviders.Num(); ++p)
+	if (Id == FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE)
 	{
-		TWeakObjectPtr<UCustomizableSystemImageProvider> Provider = ImageProviders[p];
-
-		if (Provider.IsValid())
-		{
-			switch (Provider->HasTextureParameterValue(id))
-			{
-
-			case UCustomizableSystemImageProvider::ValueType::Raw:
-			{
-				FIntVector desc = Provider->GetTextureParameterValueSize(id);
-				pResult = new mu::Image(desc[0], desc[1], 1, mu::EImageFormat::IF_RGBA_UBYTE);
-				Provider->GetTextureParameterValueData(id, pResult->GetData());
-				break;
-			}
-
-			case UCustomizableSystemImageProvider::ValueType::Unreal:
-			{
-				UTexture2D* UnrealTexture = Provider->GetTextureParameterValue(id);
-				pResult = ConvertTextureUnrealToMutable(UnrealTexture, 0);
-				break;
-			}
-
-			case UCustomizableSystemImageProvider::ValueType::Unreal_Deferred:
-			{
-				UnrealDeferredTexture = Provider->GetTextureParameterValue(id);
-				break;
-			}
-
-			default:
-				break;
-			}
-		}
-	}
-
-	if (!pResult && !UnrealDeferredTexture)
-	{
-		UE_LOG(LogMutable, Warning, TEXT("Failed to catch external image."));
-		pResult = CreateDummy();
-	}
+		return;	
+	}	
 
 	{
 		FScopeLock Lock(&ExternalImagesLock);
 
-		GlobalExternalImages.Add(id, FUnrealMutableImageInfo(pResult, UnrealDeferredTexture));
-	}
-}
-
-
-void FUnrealMutableImageProvider::UnCacheImage(mu::EXTERNAL_IMAGE_ID id)
-{
-	check(IsInGameThread());
-
-	FScopeLock Lock(&ExternalImagesLock);
-	GlobalExternalImages.Remove(id);
-}
-
-
-void FUnrealMutableImageProvider::CacheAllImagesInAllProviders(bool bClearPreviousCacheImages)
-{
-	check(IsInGameThread());
-
-	FScopeLock Lock(&ExternalImagesLock);
-
-	if (bClearPreviousCacheImages)
-	{
-		ClearCache();
-	}
-
-	// See if any provider provides this id.
-	for (int32 p = 0; p < ImageProviders.Num(); ++p)
-	{
-		TWeakObjectPtr<UCustomizableSystemImageProvider> Provider = ImageProviders[p];
-
-		if (Provider.IsValid())
+		if (FUnrealMutableImageInfo* Result = GlobalExternalImages.Find(Id))
 		{
-			TArray<FCustomizableObjectExternalTexture> OutValues;
-			Provider->GetTextureParameterValues(OutValues);
-
-			for (const FCustomizableObjectExternalTexture& Value : OutValues)
+			if (bUser)
 			{
-				CacheImage(Value.Value);
+				Result->ReferencesUser = true;			
 			}
+			else
+			{
+				Result->ReferencesSystem++;							
+			}
+		}
+		else
+		{
+			mu::ImagePtr pResult;
+			UTexture2D* UnrealDeferredTexture = nullptr;
+
+			// See if any provider provides this id.
+			for (int32 p = 0; !pResult && p < ImageProviders.Num(); ++p)
+			{
+				TWeakObjectPtr<UCustomizableSystemImageProvider> Provider = ImageProviders[p];
+
+				if (Provider.IsValid())
+				{
+					switch (Provider->HasTextureParameterValue(Id))
+					{
+
+					case UCustomizableSystemImageProvider::ValueType::Raw:
+					{
+						FIntVector desc = Provider->GetTextureParameterValueSize(Id);
+						pResult = new mu::Image(desc[0], desc[1], 1, mu::EImageFormat::IF_RGBA_UBYTE);
+						Provider->GetTextureParameterValueData(Id, pResult->GetData());
+						break;
+					}
+
+					case UCustomizableSystemImageProvider::ValueType::Unreal:
+					{
+						UTexture2D* UnrealTexture = Provider->GetTextureParameterValue(Id);
+						pResult = ConvertTextureUnrealToMutable(UnrealTexture, 0);
+						break;
+					}
+
+					case UCustomizableSystemImageProvider::ValueType::Unreal_Deferred:
+					{
+						UnrealDeferredTexture = Provider->GetTextureParameterValue(Id);
+						break;
+					}
+
+					default:
+						break;
+					}
+				}
+			}
+
+			if (!pResult && !UnrealDeferredTexture)
+			{
+				UE_LOG(LogMutable, Warning, TEXT("Failed to cache external image %s."), *Id);
+				pResult = CreateDummy();
+			}
+			
+			FUnrealMutableImageInfo ImageInfo(pResult, UnrealDeferredTexture);
+
+			if (bUser)
+			{
+				ImageInfo.ReferencesUser = true;			
+			}
+			else
+			{
+				ImageInfo.ReferencesSystem++;							
+			}
+			
+			GlobalExternalImages.Add(Id, ImageInfo);
 		}
 	}
 }
 
 
-void FUnrealMutableImageProvider::ClearCache()
+void FUnrealMutableImageProvider::UnCacheImage(const mu::EXTERNAL_IMAGE_ID& Id, bool bUser)
+{
+	check(IsInGameThread());
+
+	if (Id == FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE)
+	{
+		return;	
+	}
+	
+	FScopeLock Lock(&ExternalImagesLock);
+	if (FUnrealMutableImageInfo* Result = GlobalExternalImages.Find(Id))
+	{
+		if (bUser)
+		{
+			Result->ReferencesUser = false;			
+		}
+		else
+		{
+			--Result->ReferencesSystem;							
+		}
+		
+		if (Result->ReferencesUser + Result->ReferencesSystem == 0)
+		{
+			GlobalExternalImages.Remove(Id);		
+		}
+	}
+}
+
+
+void FUnrealMutableImageProvider::ClearCache(bool bUser)
 {
 	check(IsInGameThread());
 
 	FScopeLock Lock(&ExternalImagesLock);
-	GlobalExternalImages.Empty();
+	for (TTuple<FString, FUnrealMutableImageInfo> Tuple : GlobalExternalImages)
+	{
+		UnCacheImage(Tuple.Key, bUser);
+	}	
+}
+
+
+void FUnrealMutableImageProvider::CacheImages(const mu::Parameters& Parameters)
+{
+	const int32 NumParams = Parameters.GetCount();
+	for (int32 ParamIndex = 0; ParamIndex < NumParams; ++ParamIndex)
+	{
+		if (Parameters.GetType(ParamIndex) != mu::PARAMETER_TYPE::T_IMAGE)
+		{
+			continue;
+		}
+	
+		{
+			const FString TextureId = Parameters.GetImageValue(ParamIndex);
+			CacheImage(TextureId, false);
+		}
+
+		const int32 NumValues = Parameters.GetValueCount(ParamIndex);
+		for (int32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
+		{
+			mu::Ptr<const mu::RangeIndex> Range = Parameters.GetValueIndex(ParamIndex, ValueIndex);
+			const FString TextureId = Parameters.GetImageValue(ParamIndex, Range);
+
+			CacheImage(TextureId, false);
+		}
+	}
+}
+
+
+void FUnrealMutableImageProvider::UnCacheImages(const mu::Parameters& Parameters)
+{
+	const int32 NumParams = Parameters.GetCount();
+	for (int32 ParamIndex = 0; ParamIndex < NumParams; ++ParamIndex)
+	{
+		if (Parameters.GetType(ParamIndex) != mu::PARAMETER_TYPE::T_IMAGE)
+		{
+			continue;
+		}
+	
+		{
+			const FString TextureId = Parameters.GetImageValue(ParamIndex);
+			UnCacheImage(TextureId, false);				
+		}
+
+		const int32 NumValues = Parameters.GetValueCount(ParamIndex);
+		for (int32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
+		{
+			mu::Ptr<const mu::RangeIndex> Range = Parameters.GetValueIndex(ParamIndex, ValueIndex);
+			const FString TextureId = Parameters.GetImageValue(ParamIndex, Range);
+
+			UnCacheImage(TextureId, false);
+		}
+	}
 }
 
 
@@ -609,7 +687,7 @@ mu::FImageDesc FUnrealMutableImageProvider::CreateDummyDesc()
 
 void FUnrealMutableImageProvider::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (TPair<uint64, FUnrealMutableImageInfo>& Image : GlobalExternalImages)
+	for (TPair<mu::EXTERNAL_IMAGE_ID, FUnrealMutableImageInfo>& Image : GlobalExternalImages)
 	{
 		if (Image.Value.TextureToLoad)
 		{

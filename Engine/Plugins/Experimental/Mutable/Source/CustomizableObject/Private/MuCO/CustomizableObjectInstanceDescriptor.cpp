@@ -181,8 +181,8 @@ void FCustomizableObjectInstanceDescriptor::SaveDescriptor(FArchive& Ar)
 
 		case EMutableParameterType::Texture:
 		{
-			uint64 Value = 0;
-			TArray<uint64> RangeValues;
+			FString Value;
+			TArray<FString> RangeValues;
 
 			for (const FCustomizableObjectTextureParameterValue& P : TextureParameters)
 			{
@@ -379,8 +379,8 @@ void FCustomizableObjectInstanceDescriptor::LoadDescriptor(FArchive& Ar)
 
 		case EMutableParameterType::Texture:
 		{
-			uint64 Value = 0;
-			TArray<uint64> RangeValues;
+			FString Value;
+			TArray<FString> RangeValues;
 			Ar << Value;
 			Ar << RangeValues;
 
@@ -1346,7 +1346,7 @@ void FCustomizableObjectInstanceDescriptor::SetFloatParameterSelectedOption(cons
 }
 
 
-uint64 FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
+FString FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
 {
 	check(CustomizableObject);
 
@@ -1376,16 +1376,7 @@ uint64 FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOption(
 }
 
 
-UTexture2D* FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOptionT(const FString& TextureParamName, const int32 RangeIndex) const
-{
-	UDefaultImageProvider& ImageProvider = UCustomizableObjectSystem::GetInstance()->GetOrCreateDefaultImageProvider();
-
-	const uint64 TextureValue = GetTextureParameterSelectedOption(TextureParamName, RangeIndex);
-	return ImageProvider.Get(TextureValue);
-}
-
-
-void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOption(const FString& TextureParamName, const uint64 TextureValue, const int32 RangeIndex)
+void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOption(const FString& TextureParamName, const FString& TextureValue, const int32 RangeIndex)
 {
 	check(CustomizableObject);
 
@@ -1418,12 +1409,12 @@ void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOption(co
 }
 
 
-void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOptionT(const FString& TextureParamName, UTexture2D* TextureValue, const int32 RangeIndex)
+void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOptionT(const FString& TextureParamName,	UTexture2D* TextureValue, int32 RangeIndex)
 {
-	UDefaultImageProvider& ImageProvider = UCustomizableObjectSystem::GetInstance()->GetOrCreateDefaultImageProvider();
-
-	const uint64 NewUid = ImageProvider.GetOrAdd(TextureValue);
-	SetTextureParameterSelectedOption(TextureParamName, NewUid, RangeIndex);
+	UDefaultImageProvider& UDefaultImageProvider = UCustomizableObjectSystem::GetInstance()->GetOrCreateDefaultImageProvider();
+	const FString Id = UDefaultImageProvider.Add(TextureValue);
+	
+	SetTextureParameterSelectedOption(TextureParamName, Id, RangeIndex);
 }
 
 

@@ -337,6 +337,14 @@ namespace mu
     MUTABLE_DEFINE_POD_SERIALISABLE( uint16 );
     MUTABLE_DEFINE_POD_SERIALISABLE( uint32 );
     MUTABLE_DEFINE_POD_SERIALISABLE( uint64 );
+
+	
+	//---------------------------------------------------------------------------------------------
+	template<>
+	void operator<< <FString>(OutputArchive& arch, const FString& t);
+	
+	template<>
+	void operator>> <FString>(InputArchive& arch, FString& t);
 	
 	
 	//---------------------------------------------------------------------------------------------

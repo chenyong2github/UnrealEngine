@@ -31,13 +31,23 @@ public:
 	virtual mu::FImageDesc GetImageDesc(mu::EXTERNAL_IMAGE_ID Id, uint8 MipmapsToSkip) override;
 
 	
-	// Own interface
+	// Own interface	
 	// Thread: Game
-	void CacheImage(mu::EXTERNAL_IMAGE_ID id);
-	void UnCacheImage(mu::EXTERNAL_IMAGE_ID id);
-	void CacheAllImagesInAllProviders(bool bClearPreviousCacheImages);
-	void ClearCache();
+	/** Add a reference to the image. If it was not cached it caches it.
+	 * @param bUser if true, adds a reference to the user reference counter. If false, adds a reference to the system reference counter. */
+	void CacheImage(const mu::EXTERNAL_IMAGE_ID& Id, bool bUser);
 
+	/** Removes a reference to the image. If all references are removed, it uncaches the image.
+	 * @param bUser if true, removes a reference from the user reference counter. If false, removes a reference from the system reference counter. */
+	void UnCacheImage(const mu::EXTERNAL_IMAGE_ID& Id, bool bUser);
+
+	/** Removes a reference to all images. All images which no longer have references will be uncached.
+	 * @param bUser if true, removes a references from the user reference counter. If false, removes a reference from the system reference counter. */
+	void ClearCache(bool bUser);
+
+	void CacheImages(const mu::Parameters& Parameters);
+	void UnCacheImages(const mu::Parameters& Parameters);
+	
 	/** List of actual image providers that have been registered to the CustomizableObjectSystem. */
 	TArray< TWeakObjectPtr<class UCustomizableSystemImageProvider> > ImageProviders;
 
@@ -59,7 +69,13 @@ private:
 		/** If the above Image has not been loaded in the game thread, the TextureToLoad bulk data will be loaded
 		* from the Mutable thread when it's needed
 		*/
-		TObjectPtr<UTexture2D> TextureToLoad = nullptr;
+		UTexture2D* TextureToLoad = nullptr;
+
+		/** true of the reference maintained by the user. */
+		bool ReferencesUser = false;
+		
+		/** Number of reference maintained by the system. */
+		int32 ReferencesSystem = 0;
 	};
 
 	static inline const mu::FImageDesc DUMMY_IMAGE_DESC = 
@@ -73,10 +89,9 @@ private:
 	* This is only safely written from the game thread protected by the following critical section, and it
 	* is safely read from the mutable thread during the update of the instance or texture mips
 	*/
-	TMap<uint64, FUnrealMutableImageInfo> GlobalExternalImages;
+	TMap<FString, FUnrealMutableImageInfo> GlobalExternalImages;
 	
 	/** Access to GlobalExternalImages must be protected with this because it may be accessed concurrently from the 
 	Game thread to modify it and from the Mutable thread to read it. */
 	FCriticalSection ExternalImagesLock;
-
 };

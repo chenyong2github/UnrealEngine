@@ -3,8 +3,6 @@
 #include "MuCO/DefaultImageProvider.h" 
 
 #include "MuCO/CustomizableObject.h"
-#include "MuCO/CustomizableObjectInstance.h"
-#include "UObject/UObjectIterator.h"
 
 #include "MuR/Parameters.h"
 
@@ -36,235 +34,55 @@ namespace UDefaultImageProviderCVars
 }
 
 
-UCustomizableSystemImageProvider::ValueType UDefaultImageProvider::HasTextureParameterValue(int64 ID)
+UCustomizableSystemImageProvider::ValueType UDefaultImageProvider::HasTextureParameterValue(FString ID)
 {
-	const int32 TextureIndex = ToIndex(ID);
+	const TObjectPtr<UTexture2D>* Texture = Textures.Find(ID);
 	
-	return Textures.IsValidIndex(TextureIndex) && Textures[TextureIndex] ?
+	return Texture ?
 		static_cast<ValueType>(UDefaultImageProviderCVars::ImageMode) :
 		ValueType::None;
 }
 
 
-UTexture2D* UDefaultImageProvider::GetTextureParameterValue(int64 ID)
+UTexture2D* UDefaultImageProvider::GetTextureParameterValue(FString ID)
 {
-	return Textures[ToIndex(ID)];
+	return Textures[ID];
 }
 
 
 void UDefaultImageProvider::GetTextureParameterValues(TArray<FCustomizableObjectExternalTexture>& OutValues)
 {
-	for (int32 TextureIndex = 0; TextureIndex < Textures.Num(); ++TextureIndex)
+	for (TTuple<FString, TObjectPtr<UTexture2D>>& Pair : Textures)
 	{
-		if (const UTexture2D* Texture = Textures[TextureIndex])
-		{
-			FCustomizableObjectExternalTexture Data;
-			Data.Name = Texture->GetName();
-			Data.Value = ToTextureId(TextureIndex);
-			OutValues.Add(Data);
-		}
+		FCustomizableObjectExternalTexture Data;
+		Data.Name = Pair.Value.GetName();
+		Data.Value = Pair.Key;
+		OutValues.Add(Data);
 	}
 }
 
 
-UTexture2D* UDefaultImageProvider::Get(const uint64 TextureId) const
-{
-	return Textures[ToIndex(TextureId)];
-}
-
-
-int64 UDefaultImageProvider::Get(UTexture2D* Texture) const
-{
-	for (int32 TextureIndex = 0; TextureIndex < Textures.Num(); ++TextureIndex)
-	{
-		if (Textures[TextureIndex] == Texture)
-		{
-			return ToTextureId(TextureIndex);
-		}
-	}
-
-	return INDEX_NONE;
-}
-
-
-uint64 UDefaultImageProvider::GetOrAdd(UTexture2D* Texture)
+FString UDefaultImageProvider::Add(UTexture2D* Texture)
 {
 	if (!Texture)
 	{
 		return FCustomizableObjectTextureParameterValue::DEFAULT_PARAMETER_VALUE;
 	}
-	
-	int32 Hole = INDEX_NONE;
 
-	for (int32 TextureIndex = 0; TextureIndex < Textures.Num(); ++TextureIndex)
-	{
-		const TObjectPtr<UTexture2D> UsedTexture = Textures[TextureIndex];
-		if (UsedTexture == Texture)
-		{
-			return ToTextureId(TextureIndex);
-		}
-		else if (!UsedTexture)
-		{
-			Hole = TextureIndex;
-			break;
-		}
-	}
-	
-	if (Hole == INDEX_NONE)
-	{
-		Hole = Textures.Num();
+	const FString Id = Texture->GetFullName();
+	Textures.Add(Id, Texture);	
 
-		const int32 NumElements = Hole + 1;
-		check(NumElements < MAX_IDS); // Max number of TextureIds reached.
-
-		Textures.SetNumUninitialized(NumElements);
-		KeepTextures.SetNumUninitialized(NumElements);
-	} 
-	
-	Textures[Hole] = Texture;
-	KeepTextures[Hole] = false;
-	
-	return ToTextureId(Hole);
+	return Id;
 }
 
 
-void UDefaultImageProvider::CacheTextures(const mu::Parameters& Parameters)
+void UDefaultImageProvider::Remove(UTexture2D* Texture)
 {
-	GarbageCollectTextureIds(Parameters);
-
-	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
-
-	const int32 NumParams = Parameters.GetCount();
-	for (int32 ParamIndex = 0; ParamIndex < NumParams; ++ParamIndex)
+	if (!Texture)
 	{
-		if (Parameters.GetType(ParamIndex) != mu::PARAMETER_TYPE::T_IMAGE)
-		{
-			continue;
-		}
+		return;
+	}
 	
-		{
-			const mu::EXTERNAL_IMAGE_ID TextureId = Parameters.GetImageValue(ParamIndex);
-			if (const int32 TextureIndex = ToIndex(TextureId);
-				Textures.IsValidIndex(TextureIndex) && Textures[TextureIndex])
-			{
-				System->CacheImage(TextureId);
-			}
-		}
-
-		const int32 NumValues = Parameters.GetValueCount(ParamIndex);
-		for (int32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
-		{
-			mu::Ptr<const mu::RangeIndex> Range = Parameters.GetValueIndex(ParamIndex, ValueIndex);
-			const mu::EXTERNAL_IMAGE_ID TextureId = Parameters.GetImageValue(ParamIndex, Range);
-
-			if (const int32 TextureIndex = ToIndex(TextureId);
-				Textures.IsValidIndex(TextureIndex) && Textures[TextureIndex])
-			{
-				System->CacheImage(TextureId);
-			}
-		}
-	}
-}
-
-
-void UDefaultImageProvider::Keep(const uint64 TextureId, const bool bKeep)
-{
-	KeepTextures[ToIndex(TextureId)] = bKeep;
-}
-
-
-void UDefaultImageProvider::GarbageCollectTextureIds(const mu::Parameters& Parameters)
-{
-	TBitArray IdUsed;
-	IdUsed.Init(false, Textures.Num());
-
-	for (TObjectIterator<UCustomizableObjectInstance> It; It; ++It)
-	{
-		for (const FCustomizableObjectTextureParameterValue& TextureParameter :  It->GetDescriptor().GetTextureParameters())
-		{			
-			if (const int32 TextureIndex = ToIndex(TextureParameter.ParameterValue);
-				IdUsed.IsValidIndex(TextureIndex))
-			{
-				IdUsed[TextureIndex] = true;
-			}
-
-			for (const uint64 RangeValue : TextureParameter.ParameterRangeValues)
-			{
-				if (const int32 TextureIndex = ToIndex(RangeValue);
-					IdUsed.IsValidIndex(TextureIndex))
-				{
-					IdUsed[TextureIndex] = true;
-				}
-			}
-		}
-	}
-
-	const int32 NumParams = Parameters.GetCount();
-	for (int32 ParamIndex = 0; ParamIndex < NumParams; ++ParamIndex)
-	{
-		if (Parameters.GetType(ParamIndex) != mu::PARAMETER_TYPE::T_IMAGE)
-		{
-			continue;
-		}
-
-		{
-			const mu::EXTERNAL_IMAGE_ID TextureId = Parameters.GetImageValue(ParamIndex);
-			if (const int32 TextureIndex = ToIndex(TextureId);
-				Textures.IsValidIndex(TextureIndex) && Textures[TextureIndex])
-			{
-				IdUsed[TextureIndex] = true;
-			}
-		}
-
-		const int32 NumValues = Parameters.GetValueCount(ParamIndex);
-		for (int32 ValueIndex = 0; ValueIndex < NumValues; ++ValueIndex)
-		{
-			mu::Ptr<const mu::RangeIndex> Range = Parameters.GetValueIndex(ParamIndex, ValueIndex);
-			const mu::EXTERNAL_IMAGE_ID TextureId = Parameters.GetImageValue(ParamIndex, Range);
-
-			if (const int32 TextureIndex = ToIndex(TextureId);
-				Textures.IsValidIndex(TextureIndex) && Textures[TextureIndex])
-			{
-				IdUsed[TextureIndex] = true;
-			}
-		}
-
-	}
-
-	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
-
-	int32 LastToKeep = -1;
-	
-	for (int32 TextureIndex = 0; TextureIndex < Textures.Num(); ++TextureIndex)
-	{
-		if (!IdUsed[TextureIndex] && !KeepTextures[TextureIndex])
-		{
-			Textures[TextureIndex] = nullptr;
-			System->UnCacheImage(ToTextureId(TextureIndex));
-		}
-		else
-		{
-			LastToKeep = TextureIndex;
-		}
-	}
-
-	if (const int32 NumToKeep = LastToKeep + 1;
-		NumToKeep < Textures.Num())
-	{
-		Textures.SetNumUninitialized(NumToKeep);
-		KeepTextures.SetNumUninitialized(NumToKeep);
-	}
-}
-
-
-int32 UDefaultImageProvider::ToIndex(const uint64 TextureId) const
-{
-	return TextureId - BASE_ID;
-}
-
-
-uint64 UDefaultImageProvider::ToTextureId(const int32 TextureIndex) const
-{
-	return TextureIndex + BASE_ID;
+	Textures.Remove(Texture->GetFullName());
 }
 

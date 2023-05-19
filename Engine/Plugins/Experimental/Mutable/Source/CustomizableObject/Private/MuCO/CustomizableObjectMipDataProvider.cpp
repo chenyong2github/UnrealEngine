@@ -16,6 +16,59 @@ UMutableTextureMipDataProviderFactory::UMutableTextureMipDataProviderFactory(con
 }
 
 
+FMutableUpdateContext::FMutableUpdateContext(mu::Ptr<mu::System> InSystem,
+	TSharedPtr<mu::Model, ESPMode::ThreadSafe> InModel, mu::Ptr<const mu::Parameters> InParameters, int32 InState):
+	System(InSystem),
+	Model(InModel),
+	Parameters(InParameters),
+	State(InState)
+{
+	if (Parameters)
+	{
+		UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider->CacheImages(*Parameters);	
+	}
+}
+
+
+FMutableUpdateContext::~FMutableUpdateContext()
+{
+	if (Parameters)
+	{
+		UCustomizableObjectSystem::GetInstance()->GetPrivate()->ImageProvider->UnCacheImages(*Parameters);
+	}
+}
+
+
+mu::Ptr<mu::System> FMutableUpdateContext::GetSystem() const
+{
+	return System;
+}
+
+
+TSharedPtr<mu::Model, ESPMode::ThreadSafe> FMutableUpdateContext::GetModel() const
+{
+	return Model;
+}
+
+
+mu::Ptr<const mu::Parameters> FMutableUpdateContext::GetParameters() const
+{
+	return Parameters;
+}
+
+
+int32 FMutableUpdateContext::GetState() const
+{
+	return State;
+}
+
+
+const TArray<mu::Ptr<const mu::Image>>& FMutableUpdateContext::GetImageParameterValues() const
+{
+	return ImageParameterValues;
+}
+
+
 FMutableTextureMipDataProvider::FMutableTextureMipDataProvider(const UTexture* Texture, UCustomizableObjectInstance* InCustomizableObjectInstance, const FMutableImageReference& InImageRef)
 	: FTextureMipDataProvider(Texture, ETickState::Init, ETickThread::Async),
 	CustomizableObjectInstance(InCustomizableObjectInstance), ImageRef(InImageRef)
@@ -59,14 +112,14 @@ namespace impl
 
 		// This runs in a worker thread.
 		check(OperationData.IsValid());
-		check(OperationData->UpdateContext->System.get());
-		check(OperationData->UpdateContext->Model);
-		check(OperationData->UpdateContext->Parameters.get());
+		check(OperationData->UpdateContext->GetSystem().get());
+		check(OperationData->UpdateContext->GetModel());
+		check(OperationData->UpdateContext->GetParameters().get());
 
 		if (OperationData.IsValid())
 		{
-			mu::SystemPtr System = OperationData->UpdateContext->System;
-			const TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = OperationData->UpdateContext->Model;
+			mu::SystemPtr System = OperationData->UpdateContext->GetSystem();
+			const TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model = OperationData->UpdateContext->GetModel();
 
 			// For now, we are forcing the recreation of mutable-side instances with every update.
 			mu::Instance::ID InstanceID = System->NewInstance(Model);
@@ -79,7 +132,7 @@ namespace impl
 				// LOD mask, set to all ones to build all LODs
 				uint32 LODMask = 0xFFFFFFFF;
 
-				Instance = System->BeginUpdate(InstanceID, OperationData->UpdateContext->Parameters, OperationData->UpdateContext->State, LODMask);
+				Instance = System->BeginUpdate(InstanceID, OperationData->UpdateContext->GetParameters(), OperationData->UpdateContext->GetState(), LODMask);
 				check(Instance);
 			}
 

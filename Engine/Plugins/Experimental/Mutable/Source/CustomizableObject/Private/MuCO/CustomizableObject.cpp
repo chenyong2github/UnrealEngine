@@ -1619,7 +1619,7 @@ FCustomizableObjectProjector UCustomizableObject::GetProjectorParameterDefaultVa
 }
 
 
-uint64 UCustomizableObject::GetTextureParameterDefaultValue(const FString& InParameterName) const
+FString UCustomizableObject::GetTextureParameterDefaultValue(const FString& InParameterName) const
 {
 	const int32 ParameterIndex = FindParameter(InParameterName);
 	if (ParameterIndex == INDEX_NONE)
