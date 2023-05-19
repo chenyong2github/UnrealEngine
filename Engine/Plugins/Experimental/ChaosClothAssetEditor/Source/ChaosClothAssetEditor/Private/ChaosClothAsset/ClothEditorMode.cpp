@@ -414,7 +414,7 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 				for (int32 MaterialIndex = 0; MaterialIndex < MaterialPaths.Num(); ++MaterialIndex)
 				{
 					const FString& Path = MaterialPaths[MaterialIndex];
-					UMaterialInterface* const Material = LoadObject<UMaterial>(nullptr, *Path);
+					UMaterialInterface* const Material = LoadObject<UMaterialInterface>(nullptr, *Path);
 					MeshComponent.SetMaterial(MaterialIndex, Material);
 				}
 			}
