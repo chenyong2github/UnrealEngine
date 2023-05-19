@@ -1235,16 +1235,12 @@ bool FLumenSceneData::UpdateAtlasSize()
 
 	if (PhysicalAtlasSize != GetDesiredPhysicalAtlasSize(SurfaceCacheResolution) || PhysicalAtlasCompression != NewCompression)
 	{
+		RemoveAllMeshCards();
+
 		PhysicalAtlasSize = GetDesiredPhysicalAtlasSize(SurfaceCacheResolution);
 		SurfaceCacheAllocator.Init(GetDesiredPhysicalAtlasSizeInPages(SurfaceCacheResolution));
-		UnlockedAllocationHeap.Clear();
-		for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; GPUIndex++)
-		{
-			LastCapturedPageHeap[GPUIndex].Clear();
-			PagesToRecaptureHeap[GPUIndex].Clear();
-		}
-
 		PhysicalAtlasCompression = NewCompression;
+
 		return true;
 	}
 
