@@ -33,12 +33,19 @@ public:
 	};
 
 
+	/**
+	 * FMeshInstanceGroupData is data shared among one or more FBaseMeshInstances.
+	 * For example all instances in an ISMC can share a single FMeshInstanceGroupData.
+	 */
 	struct FMeshInstanceGroupData
 	{
 		TArray<UMaterialInterface*> MaterialSet;
 		
 		bool bHasConstantOverrideVertexColor = false;
 		FColor OverrideVertexColor;
+
+		bool bPreserveUVs = false;
+		bool bAllowMerging = true;		// if false, cannot merge the geometry from this mesh with adjacent meshes to reduce triangle count
 	};
 
 
@@ -46,19 +53,24 @@ public:
 	{
 		EMeshDetailLevel DetailLevel = EMeshDetailLevel::Standard;
 		TArray<FTransform3d> TransformSequence;
-		int32 GroupDataIndex = -1;		// index into FInstanceSet::InstanceGroupDatas
+		int32 GroupDataIndex = -1;		// index into FSourceInstanceList::InstanceGroupDatas
 	};
 
-
+	// a single instance of a static mesh asset
 	struct FStaticMeshInstance : FBaseMeshInstance
 	{
 		UStaticMesh* SourceMesh = nullptr;
 		UPrimitiveComponent* SourceComponent = nullptr;
-		int32 SourceInstanceIndex = 0;
+		int32 SourceInstanceIndex = 0;		// custom index, eg if SourceComponent is an InstancedStaticMeshComponent, this is the Instance index
 	};
 
-
-	struct FInstanceSet
+	/**
+	 * FSourceInstanceList provides a flattened list of mesh instances to CombineMeshInstances.
+	 * Each Instance can refer to shared data in the InstanceGroupDatas list
+	 * 
+	 * This data structure may be replaced in future w/ something more structured
+	 */
+	struct FSourceInstanceList
 	{
 		TArray<FStaticMeshInstance> StaticMeshInstances;
 
@@ -88,10 +100,12 @@ public:
 		// number of requested LODs
 		int32 NumLODs = 5;
 
+		// settings for Copied LODs, these are directly copied from Source Geometry
 		int32 NumCopiedLODs = 1;
 
-		int32 ApproximationSourceLOD = 0;
-
+		//
+		// Settings for Simplifed LODs
+		//
 		int32 NumSimplifiedLODs = 3;
 		double SimplifyBaseTolerance = 1.0;
 		double SimplifyLODLevelToleranceScale = 2.0;
@@ -99,8 +113,19 @@ public:
 		double SimplifySharpEdgeAngleDeg = 44.0;
 		double SimplifyMinSalientDimension = 1.0;
 
+		//
+		// settings for Approximate LODs
+		//
+		
+		// which LOD to use as basis for Approximations. Index is interpreted relative to [CopiedLODs...SimplifiedLODs] set, ie can be set to a Simplified LOD
+		int32 ApproximationSourceLOD = 0;
 		double OptimizeBaseTriCost = 0.7;
 		double OptimizeLODLevelTriCostScale = 1.5;
+		double MaxAllowableApproximationDeviation = 5.0;
+
+		//
+		// settings for Voxel LODs
+		//
 
 		int32 NumVoxWrapLODs = 1;
 		double VoxWrapBaseTolerance = 1.0;
@@ -116,7 +141,8 @@ public:
 		int32 RemoveHiddenStartLOD = 0;
 		// (approximately) spacing between samples on triangle faces used for determining exterior visibility
 		double RemoveHiddenSamplingDensity = 1.0;
-
+		// treat faces as double-sided for hidden removal
+		bool bDoubleSidedHiddenRemoval = false;
 
 		// LOD level to filter out detail parts
 		int32 FilterDecorativePartsLODLevel = 2;
@@ -196,7 +222,7 @@ public:
 
 
 	virtual void CombineMeshInstances(
-		const FInstanceSet& MeshInstances, 
+		const FSourceInstanceList& MeshInstances,
 		const FOptions& Options, 
 		FResults& ResultsOut) 
 	{

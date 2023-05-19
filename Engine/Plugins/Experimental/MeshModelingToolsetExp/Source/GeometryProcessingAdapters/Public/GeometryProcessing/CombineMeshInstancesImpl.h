@@ -22,7 +22,7 @@ class GEOMETRYPROCESSINGADAPTERS_API FCombineMeshInstancesImpl : public IGeometr
 public:
 	virtual FOptions ConstructDefaultOptions() override;
 
-	virtual void CombineMeshInstances(const FInstanceSet& MeshInstances, const FOptions& Options, FResults& ResultsOut) override;
+	virtual void CombineMeshInstances(const FSourceInstanceList& MeshInstances, const FOptions& Options, FResults& ResultsOut) override;
 
 protected:
 
