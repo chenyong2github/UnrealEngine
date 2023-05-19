@@ -116,7 +116,7 @@ void FLooseCookedPackageWriter::AsyncSave(FRecord& Record, const FCommitPackageI
 	AsyncSaveOutputFiles(Record, Context);
 }
 
-void FLooseCookedPackageWriter::CompleteExportsArchiveForDiff(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive)
+void FLooseCookedPackageWriter::CompleteExportsArchiveForDiff(FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive)
 {
 	FPackageWriterRecords::FPackage& BaseRecord = Records.FindRecordChecked(Info.PackageName);
 	FRecord& Record = static_cast<FRecord&>(BaseRecord);

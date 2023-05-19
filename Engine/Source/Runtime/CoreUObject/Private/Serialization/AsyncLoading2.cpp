@@ -75,6 +75,7 @@
 #include "Containers/SpscQueue.h"
 #include "IO/IoPriorityQueue.h"
 #include "UObject/CoreRedirects.h"
+#include "ZenPackageHeader.h"
 
 #include <atomic>
 
@@ -1407,42 +1408,13 @@ public:
 	}
 };
 
-struct FAsyncPackageHeaderData
+struct FAsyncPackageHeaderData: public FZenPackageHeader
 {
-	uint32 CookedHeaderSize = 0;
-	uint32 ExportCount = 0; // Need to keep this count around after ExportMap is cleared
-	TOptional<FZenPackageVersioningInfo> VersioningInfo;
-	FNameMap NameMap;
-	FName PackageName;
-	// Backed by IoBuffer
-	const FZenPackageSummary* PackageSummary = nullptr;
-	TArrayView<const uint64> ImportedPublicExportHashes;
-	TArrayView<const FPackageObjectIndex> ImportMap;
-	TArrayView<const FExportMapEntry> ExportMap;
-	TArrayView<const FBulkDataMapEntry> BulkDataMap;
-	TArrayView<const FExportBundleEntry> ExportBundleEntries;
-	TArrayView<const FDependencyBundleHeader> DependencyBundleHeaders;
-	TArrayView<const FDependencyBundleEntry> DependencyBundleEntries;
-
 	// Backed by allocation in FAsyncPackageData
 	TArrayView<FPackageId> ImportedPackageIds;
 	TArrayView<FAsyncPackage2*> ImportedAsyncPackagesView;
 	TArrayView<FExportObject> ExportsView;
 	TArrayView<FExportBundleEntry> ExportBundleEntriesCopyForPostLoad; // TODO: Can we use ConstructedObjects or Exports instead for posloading?
-
-	TArray<FName> ImportedPackageNames;
-
-	void OnReleaseHeaderBuffer()
-	{
-		PackageSummary = nullptr;
-		ImportedPublicExportHashes = TArrayView<const uint64>();
-		ImportMap = TArrayView<const FPackageObjectIndex>();
-		ExportMap = TArrayView<const FExportMapEntry>();
-		BulkDataMap = TArrayView<const FBulkDataMapEntry>();
-		ExportBundleEntries = TArrayView<const FExportBundleEntry>();
-		DependencyBundleHeaders = TArrayView<const FDependencyBundleHeader>();
-		DependencyBundleEntries = TArrayView<const FDependencyBundleEntry>();
-	}
 };
 
 #if ALT2_ENABLE_LINKERLOAD_SUPPORT
@@ -5067,76 +5039,6 @@ void FAsyncPackage2::StartLoading(FAsyncLoadingThreadState2& ThreadState, FIoBat
 	}
 }
 
-static void ReadAsyncPackageHeader(FAsyncPackageSerializationState& SerializationState, FAsyncPackageHeaderData& HeaderData)
-{
-	const uint8* PackageHeaderDataPtr = SerializationState.IoRequest.GetResultOrDie().Data();
-	const FZenPackageSummary* PackageSummary = reinterpret_cast<const FZenPackageSummary*>(PackageHeaderDataPtr);
-	HeaderData.PackageSummary = PackageSummary;
-
-	TArrayView<const uint8> PackageHeaderDataView(PackageHeaderDataPtr + sizeof(FZenPackageSummary), PackageSummary->HeaderSize - sizeof(FZenPackageSummary));
-	FMemoryReaderView PackageHeaderDataReader(PackageHeaderDataView);
-	if (PackageSummary->bHasVersioningInfo)
-	{
-		HeaderData.VersioningInfo.Emplace();
-		PackageHeaderDataReader << HeaderData.VersioningInfo.GetValue();
-	}
-
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageNameMap);
-		HeaderData.NameMap.Load(PackageHeaderDataReader, FMappedName::EType::Package);
-	}
-	HeaderData.PackageName = HeaderData.NameMap.GetName(PackageSummary->Name);
-	
-	const FZenPackageVersioningInfo* VersioningInfo = HeaderData.VersioningInfo.GetPtrOrNull();
-	if (VersioningInfo == nullptr || VersioningInfo->PackageVersion >= EUnrealEngineObjectUE5Version::DATA_RESOURCES)
-	{
-		int64 BulkDataMapSize = 0;
-		PackageHeaderDataReader << BulkDataMapSize;
-		const uint8* BulkDataMapData = PackageHeaderDataPtr + sizeof(FZenPackageSummary) + PackageHeaderDataReader.Tell();
-		HeaderData.BulkDataMap = MakeArrayView(reinterpret_cast<const FBulkDataMapEntry*>(BulkDataMapData), BulkDataMapSize / sizeof(FBulkDataMapEntry));
-	}
-
-	HeaderData.CookedHeaderSize = PackageSummary->CookedHeaderSize;
-	HeaderData.ImportedPublicExportHashes = TArrayView<const uint64>(
-		reinterpret_cast<const uint64*>(PackageHeaderDataPtr + PackageSummary->ImportedPublicExportHashesOffset),
-		(PackageSummary->ImportMapOffset - PackageSummary->ImportedPublicExportHashesOffset) / sizeof(uint64));
-	HeaderData.ImportMap = TArrayView<const FPackageObjectIndex>(
-		reinterpret_cast<const FPackageObjectIndex*>(PackageHeaderDataPtr + PackageSummary->ImportMapOffset),
-		(PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(FPackageObjectIndex));
-	HeaderData.ExportMap = TArrayView<const FExportMapEntry>(
-		reinterpret_cast<const FExportMapEntry*>(PackageHeaderDataPtr + PackageSummary->ExportMapOffset),
-		(PackageSummary->ExportBundleEntriesOffset - PackageSummary->ExportMapOffset) / sizeof(FExportMapEntry));
-	HeaderData.ExportCount = HeaderData.ExportMap.Num();
-
-	const uint64 ExportBundleEntriesSize = PackageSummary->DependencyBundleHeadersOffset - PackageSummary->ExportBundleEntriesOffset;
-	const int32 ExportBundleEntriesCount = static_cast<int32>(ExportBundleEntriesSize / sizeof(FExportBundleEntry));
-
-	if (ExportBundleEntriesCount != HeaderData.ExportCount * FExportBundleEntry::ExportCommandType_Count)
-	{
-		UE_LOG(LogStreaming, Fatal, TEXT("Corrupt Zen header in package %s"), *HeaderData.PackageName.ToString());
-		return;
-	}
-
-	HeaderData.ExportBundleEntries = TArrayView<const FExportBundleEntry>(
-		reinterpret_cast<const FExportBundleEntry*>(PackageHeaderDataPtr + PackageSummary->ExportBundleEntriesOffset),
-		ExportBundleEntriesCount);
-	HeaderData.DependencyBundleHeaders = TArrayView<const FDependencyBundleHeader>(
-		reinterpret_cast<const FDependencyBundleHeader*>(PackageHeaderDataPtr + PackageSummary->DependencyBundleHeadersOffset),
-		(PackageSummary->DependencyBundleEntriesOffset - PackageSummary->DependencyBundleHeadersOffset) / sizeof(FDependencyBundleHeader));
-	HeaderData.DependencyBundleEntries = TArrayView<const FDependencyBundleEntry>(
-		reinterpret_cast<const FDependencyBundleEntry*>(PackageHeaderDataPtr + PackageSummary->DependencyBundleEntriesOffset),
-		(PackageSummary->ImportedPackageNamesOffset - PackageSummary->DependencyBundleEntriesOffset) / sizeof(FDependencyBundleEntry));
-
-#if WITH_EDITOR
-	// Only read the imported package names in editor builds where we need to interact with uncooked packages
-	TArrayView<const uint8> ImportedPackageNamesDataView(PackageHeaderDataPtr + PackageSummary->ImportedPackageNamesOffset, PackageSummary->HeaderSize - PackageSummary->ImportedPackageNamesOffset);
-	FMemoryReaderView ImportedPackageNamesDataReader(ImportedPackageNamesDataView);
-	FZenPackageImportedPackageNamesContainer Container;
-	ImportedPackageNamesDataReader << Container;
-	HeaderData.ImportedPackageNames = MoveTemp(Container.Names);
-#endif
-}
-
 #if ALT2_ENABLE_LINKERLOAD_SUPPORT
 EEventLoadNodeExecutionResult FAsyncPackage2::ProcessLinkerLoadPackageSummary(FAsyncLoadingThreadState2& ThreadState)
 {
@@ -5561,12 +5463,12 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessPackageSummary(FAsync
 		TRACE_LOADTIME_PROCESS_SUMMARY_SCOPE(Package);
 		check(Package->ExportBundleEntryIndex == 0);
 
-		ReadAsyncPackageHeader(Package->SerializationState, Package->HeaderData);
+		static_cast<FZenPackageHeader&>(Package->HeaderData) = FZenPackageHeader::MakeView(Package->SerializationState.IoRequest.GetResultOrDie().GetView());
 #if WITH_EDITOR
 		FAsyncPackageHeaderData* OptionalSegmentHeaderData = Package->OptionalSegmentHeaderData.GetPtrOrNull();
 		if (OptionalSegmentHeaderData)
 		{
-			ReadAsyncPackageHeader(*Package->OptionalSegmentSerializationState, *OptionalSegmentHeaderData);
+			static_cast<FZenPackageHeader&>(*OptionalSegmentHeaderData) = FZenPackageHeader::MakeView(Package->OptionalSegmentSerializationState->IoRequest.GetResultOrDie().GetView());
 		}
 #endif
 		if (Package->Desc.bCanBeImported)
@@ -5778,12 +5680,12 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessExportBundle(FAsyncLo
 	if (++Package->ProcessedExportBundlesCount == Package->Data.TotalExportBundleCount)
 	{
 		Package->ProcessedExportBundlesCount = 0;
-		Package->HeaderData.OnReleaseHeaderBuffer();
+		Package->HeaderData.Reset();
 		Package->SerializationState.ReleaseIoRequest();
 #if WITH_EDITOR
 		if (Package->OptionalSegmentHeaderData.IsSet())
 		{
-			Package->OptionalSegmentHeaderData->OnReleaseHeaderBuffer();
+			Package->OptionalSegmentHeaderData->Reset();
 			Package->OptionalSegmentSerializationState->ReleaseIoRequest();
 		}
 #endif

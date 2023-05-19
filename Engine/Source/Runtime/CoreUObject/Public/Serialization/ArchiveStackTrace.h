@@ -11,6 +11,7 @@
 #include "Serialization/Archive.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Serialization/LargeMemoryWriter.h"
+#include "Serialization/PackageWriter.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
@@ -284,6 +285,8 @@ public:
 		int64 StartOffset = 0;
 	};
 
+	using EPackageHeaderFormat = ICookedPackageWriter::EPackageHeaderFormat;
+
 	/** Compares two packages and logs the differences and calltacks. */
 	static void Compare(
 		const FPackageData& SourcePackage,
@@ -310,7 +313,8 @@ public:
 		const FPackageData& SourcePackage,
 		const FPackageData& DestPackage,
 		const FString& AssetFilename,
-		const int32 MaxDiffsToLog);
+		const int32 MaxDiffsToLog,
+		const EPackageHeaderFormat PackageHeaderFormat = EPackageHeaderFormat::PackageFileSummary);
 
 	/** Returns a new linker for loading the specified package. */
 	static FLinkerLoad* CreateLinkerForPackage(
@@ -385,7 +389,8 @@ public:
 	void CompareWith(const TCHAR* InFilename, const int64 TotalHeaderSize, const TCHAR* CallstackCutoffText,
 		const int32 MaxDiffsToLog, TMap<FName, FArchiveDiffStats>& OutStats);
 	void CompareWith(const FPackageData& SourcePackage, const TCHAR* FileDisplayName, const int64 TotalHeaderSize,
-		const TCHAR* CallstackCutoffText, const int32 MaxDiffsToLog, TMap<FName, FArchiveDiffStats>& OutStats);
+		const TCHAR* CallstackCutoffText, const int32 MaxDiffsToLog, TMap<FName, FArchiveDiffStats>& OutStats,
+		const FArchiveStackTraceWriter::EPackageHeaderFormat PackageHeaderFormat = FArchiveStackTraceWriter::EPackageHeaderFormat::PackageFileSummary);
 
 	/** Generates a map of all differences between this archive and the given bytes from disk or FPackageData. */
 	bool GenerateDiffMap(const TCHAR* InFilename, int64 TotalHeaderSize, int32 MaxDiffsToFind, FArchiveDiffMap& OutDiffMap);

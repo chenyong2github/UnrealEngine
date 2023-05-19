@@ -216,10 +216,19 @@ class ICookedPackageWriter : public IPackageWriter
 public:
 	virtual ~ICookedPackageWriter() = default;
 
+	enum class EPackageHeaderFormat
+	{
+		PackageFileSummary,
+		ZenPackageSummary
+	};
+
 	struct FCookCapabilities
 	{
 		/** Whether this writer implements -diffonly and -linkerdiff. */
 		bool bDiffModeSupported = false;
+
+		/** What header format is produced as output by this writer. */
+		EPackageHeaderFormat HeaderFormat = EPackageHeaderFormat::PackageFileSummary;
 	};
 
 	/** Return cook capabilities/settings this PackageWriter has/requires
@@ -312,7 +321,7 @@ public:
 		return false;
 	}
 	/** Append all data to the Exports archive that would normally be done in CommitPackage, used for diffing. */
-	virtual void CompleteExportsArchiveForDiff(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive)
+	virtual void CompleteExportsArchiveForDiff(FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive)
 	{
 		// The subclass must override this method if it returns bDiffModeSupported=true in GetCookCapabilities
 		unimplemented();

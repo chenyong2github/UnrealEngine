@@ -22,6 +22,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "Misc/ScopeExit.h"
 #include "Compression/CompressionUtil.h"
+#include "Serialization/ZenPackageHeader.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogArchiveDiff, Log, All);
 
@@ -900,7 +901,8 @@ void FArchiveStackTrace::CompareWith(const TCHAR* InFilename, const int64 TotalH
 }
 
 void FArchiveStackTrace::CompareWith(const FPackageData& SourcePackage, const TCHAR* FileDisplayName, const int64 TotalHeaderSize,
-	const TCHAR* CallstackCutoffText, const int32 MaxDiffsToLog, TMap<FName, FArchiveDiffStats>&OutStats)
+	const TCHAR* CallstackCutoffText, const int32 MaxDiffsToLog, TMap<FName, FArchiveDiffStats>&OutStats,
+	const FArchiveStackTraceWriter::EPackageHeaderFormat PackageHeaderFormat /* = FArchiveStackTraceWriter::EPackageHeaderFormat::PackageFileSummary */)
 {
 	const FName AssetClass = Callstacks.GetAssetClass();
 	OutStats.FindOrAdd(AssetClass).NewFileTotalSize = TotalSize();
@@ -936,7 +938,7 @@ void FArchiveStackTrace::CompareWith(const FPackageData& SourcePackage, const TC
 
 	if (TotalHeaderSize > 0 && OutStats.FindOrAdd(AssetClass).NumDiffs > 0)
 	{
-		FArchiveStackTraceWriter::DumpPackageHeaderDiffs(SourcePackage, DestPackage, FileDisplayName, MaxDiffsToLog);
+		FArchiveStackTraceWriter::DumpPackageHeaderDiffs(SourcePackage, DestPackage, FileDisplayName, MaxDiffsToLog, PackageHeaderFormat);
 	}
 
 	FPackageData SourcePackageExports = SourcePackage;
@@ -1546,7 +1548,11 @@ static void DumpTableDifferences(
 #endif // !NO_LOGGING
 }
 
-void FArchiveStackTraceWriter::DumpPackageHeaderDiffs(const FPackageData& SourcePackage, const FPackageData& DestPackage, const FString& AssetFilename, const int32 MaxDiffsToLog)
+static void DumpPackageHeaderDiffs_LinkerLoad(
+	const FArchiveStackTraceWriter::FPackageData& SourcePackage,
+	const FArchiveStackTraceWriter::FPackageData& DestPackage,
+	const FString& AssetFilename,
+	const int32 MaxDiffsToLog)
 {
 #if !NO_LOGGING
 	FString AssetPathName = FPaths::Combine(*FPaths::GetPath(AssetFilename.Mid(AssetFilename.Find(TEXT(":"), ESearchCase::CaseSensitive) + 1)), *FPaths::GetBaseFilename(AssetFilename));
@@ -1570,14 +1576,14 @@ void FArchiveStackTraceWriter::DumpPackageHeaderDiffs(const FPackageData& Source
 	{
 		TRefCountPtr<FUObjectSerializeContext> LinkerLoadContext(FUObjectThreadContext::Get().GetSerializeContext());
 		BeginLoad(LinkerLoadContext);
-		SourceLinker = CreateLinkerForPackage(LinkerLoadContext, SourceAssetPackageName, AssetFilename, SourcePackage);
+		SourceLinker = FArchiveStackTraceWriter::CreateLinkerForPackage(LinkerLoadContext, SourceAssetPackageName, AssetFilename, SourcePackage);
 		EndLoad(SourceLinker ? SourceLinker->GetSerializeContext() : LinkerLoadContext.GetReference());
 	}
 	
 	{
 		TRefCountPtr<FUObjectSerializeContext> LinkerLoadContext(FUObjectThreadContext::Get().GetSerializeContext());
 		BeginLoad(LinkerLoadContext);
-		DestLinker = CreateLinkerForPackage(LinkerLoadContext, DestAssetPackageName, AssetFilename, DestPackage);
+		DestLinker = FArchiveStackTraceWriter::CreateLinkerForPackage(LinkerLoadContext, DestAssetPackageName, AssetFilename, DestPackage);
 		EndLoad(DestLinker ? DestLinker->GetSerializeContext() : LinkerLoadContext.GetReference());
 	}
 
@@ -1606,6 +1612,39 @@ void FArchiveStackTraceWriter::DumpPackageHeaderDiffs(const FPackageData& Source
 	if (DestLinker)
 	{
 		ForceKillPackageAndLinker(DestLinker);
+	}
+#endif // !NO_LOGGING
+}
+
+static void DumpPackageHeaderDiffs_ZenPackage(
+	const FArchiveStackTraceWriter::FPackageData& SourcePackage,
+	const FArchiveStackTraceWriter::FPackageData& DestPackage,
+	const FString& AssetFilename,
+	const int32 MaxDiffsToLog)
+{
+#if !NO_LOGGING
+	// TODO: Fill in detailed diffing of Zen Package Summary
+#endif // !NO_LOGGING
+}
+
+void FArchiveStackTraceWriter::DumpPackageHeaderDiffs(
+	const FPackageData& SourcePackage,
+	const FPackageData& DestPackage,
+	const FString& AssetFilename,
+	const int32 MaxDiffsToLog,
+	const EPackageHeaderFormat PackageHeaderFormat /* = EPackageHeaderFormat::PackageFileSummary */)
+{
+#if !NO_LOGGING
+	switch (PackageHeaderFormat)
+	{
+	case EPackageHeaderFormat::PackageFileSummary:
+		DumpPackageHeaderDiffs_LinkerLoad(SourcePackage, DestPackage, AssetFilename, MaxDiffsToLog);
+		break;
+	case EPackageHeaderFormat::ZenPackageSummary:
+		DumpPackageHeaderDiffs_ZenPackage(SourcePackage, DestPackage, AssetFilename, MaxDiffsToLog);
+		break;
+	default:
+		unimplemented();
 	}
 #endif // !NO_LOGGING
 }

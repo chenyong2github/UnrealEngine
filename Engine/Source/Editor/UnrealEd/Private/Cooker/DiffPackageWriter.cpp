@@ -144,11 +144,12 @@ void FDiffPackageWriter::CommitPackage(FCommitPackageInfo&& Info)
 void FDiffPackageWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive,
 	const TArray<FFileRegion>& FileRegions)
 {
-	Inner->CompleteExportsArchiveForDiff(Info, ExportsArchive);
+	FPackageInfo LocalInfo(Info);
+	Inner->CompleteExportsArchiveForDiff(LocalInfo, ExportsArchive);
 
 	FArchiveStackTrace& Writer = static_cast<FArchiveStackTrace&>(ExportsArchive);
 	ICookedPackageWriter::FPreviousCookedBytesData PreviousInnerData;
-	Inner->GetPreviousCookedBytes(Info, PreviousInnerData);
+	Inner->GetPreviousCookedBytes(LocalInfo, PreviousInnerData);
 
 	FArchiveStackTrace::FPackageData PreviousPackageData;
 	PreviousPackageData.Data = PreviousInnerData.Data.Get();
@@ -164,22 +165,22 @@ void FDiffPackageWriter::WritePackageData(const FPackageInfo& Info, FLargeMemory
 
 		TMap<FName, FArchiveDiffStats> PackageDiffStats;
 		const TCHAR* CutoffString = TEXT("UEditorEngine::Save()");
-		Writer.CompareWith(PreviousPackageData, *Info.LooseFilePath, Info.HeaderSize, CutoffString,
-			MaxDiffsToLog, PackageDiffStats);
+		Writer.CompareWith(PreviousPackageData, *LocalInfo.LooseFilePath, LocalInfo.HeaderSize, CutoffString,
+			MaxDiffsToLog, PackageDiffStats, Inner->GetCookCapabilities().HeaderFormat);
 
 		//COOK_STAT(FSavePackageStats::NumberOfDifferentPackages++);
 		//COOK_STAT(FSavePackageStats::MergeStats(PackageDiffStats));
 	}
 	else
 	{
-		Writer.GetCallstacks().Append(*ExportsCallstacks, Info.HeaderSize);
-		check(Info.MultiOutputIndex < 2);
-		ExportsDiffMapOffset[Info.MultiOutputIndex] = Info.HeaderSize;
+		Writer.GetCallstacks().Append(*ExportsCallstacks, LocalInfo.HeaderSize);
+		check(LocalInfo.MultiOutputIndex < 2);
+		ExportsDiffMapOffset[LocalInfo.MultiOutputIndex] = LocalInfo.HeaderSize;
 
-		bIsDifferent = !Writer.GenerateDiffMap(PreviousPackageData, Info.HeaderSize, MaxDiffsToLog, DiffMap[Info.MultiOutputIndex]);
+		bIsDifferent = !Writer.GenerateDiffMap(PreviousPackageData, LocalInfo.HeaderSize, MaxDiffsToLog, DiffMap[LocalInfo.MultiOutputIndex]);
 	}
 
-	Inner->WritePackageData(Info, ExportsArchive, FileRegions);
+	Inner->WritePackageData(LocalInfo, ExportsArchive, FileRegions);
 }
 
 TUniquePtr<FLargeMemoryWriter> FDiffPackageWriter::CreateLinkerArchive(FName PackageName, UObject* Asset, uint16 MultiOutputIndex)

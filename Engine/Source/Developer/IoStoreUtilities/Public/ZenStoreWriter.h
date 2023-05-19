@@ -45,6 +45,7 @@ class FCbAttachment;
 class FCbPackage;
 class FCbWriter;
 class FPackageStoreOptimizer;
+class FPackageStorePackage;
 class FZenFileSystemManifest;
 
 /** 
@@ -73,6 +74,14 @@ public:
 		FString HostName;
 		uint16 HostPort;
 	};
+
+	IOSTOREUTILITIES_API virtual FCookCapabilities GetCookCapabilities() const override
+	{
+		FCookCapabilities Result;
+		Result.bDiffModeSupported = true;
+		Result.HeaderFormat = EPackageHeaderFormat::ZenPackageSummary;
+		return Result;
+	}
 
 	IOSTOREUTILITIES_API ZenHostInfo GetHostInfo() const;
 
@@ -115,6 +124,8 @@ public:
 	IOSTOREUTILITIES_API virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
 	IOSTOREUTILITIES_API virtual void RemoveCookedPackages() override;
 	IOSTOREUTILITIES_API virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override;
+	IOSTOREUTILITIES_API bool GetPreviousCookedBytes(const FPackageInfo& Info, FPreviousCookedBytesData& OutData) override;
+	IOSTOREUTILITIES_API void CompleteExportsArchiveForDiff(FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive) override;
 	IOSTOREUTILITIES_API virtual TFuture<FCbObject> WriteMPCookMessageForPackage(FName PackageName) override;
 	IOSTOREUTILITIES_API virtual bool TryReadMPCookMessageForPackage(FName PackageName, FCbObjectView Message) override;
 
@@ -140,7 +151,7 @@ private:
 		TFuture<FCompressedBuffer> CompressedPayload;
 		FPackageInfo Info;
 		FCbObjectId ChunkId;
-		TUniquePtr<class FPackageStorePackage> OptimizedPackage;
+		TUniquePtr<FPackageStorePackage> OptimizedPackage;
 		TArray<FFileRegion> FileRegions;
 		bool IsValid = false;
 	};
@@ -155,12 +166,18 @@ private:
 
 	struct FPendingPackageState
 	{
+		~FPendingPackageState();
+
 		FName PackageName;
 		TArray<FPackageDataEntry> PackageData;
 		TArray<FBulkDataEntry> BulkData;
 		TArray<FFileDataEntry> FileData;
 		TRefCountPtr<FPackageHashes> PackageHashes;
 		TUniquePtr<TPromise<int>> PackageHashesCompletionPromise;
+
+		/** Solely for use in DiffOnly mode */
+		uint64 OriginalHeaderSize = 0;
+		TUniquePtr<FPackageStorePackage> PreOptimizedPackage;
 	};
 
 	FPendingPackageState& GetPendingPackage(const FName& PackageName)
@@ -171,14 +188,7 @@ private:
 		return *Package;
 	}
 	
-	FPendingPackageState& AddPendingPackage(const FName& PackageName)
-	{
-		FScopeLock _(&PackagesCriticalSection);
-		checkf(!PendingPackages.Contains(PackageName), TEXT("Trying to add package that is already pending"));
-		TUniquePtr<FPendingPackageState>& Package = PendingPackages.Add(PackageName, MakeUnique<FPendingPackageState>());
-		check(Package.IsValid());
-		return *Package;
-	}
+	FPendingPackageState& AddPendingPackage(const FName& PackageName);
 	
 	TUniquePtr<FPendingPackageState> RemovePendingPackage(const FName& PackageName)
 	{

@@ -66,6 +66,11 @@ FZenStoreWriter::FPackageDataEntry::~FPackageDataEntry()
 
 }
 
+FZenStoreWriter::FPendingPackageState::~FPendingPackageState()
+{
+
+}
+
 struct FZenStoreWriter::FZenCommitInfo
 {
 	IPackageWriter::FCommitPackageInfo CommitInfo;
@@ -220,22 +225,36 @@ void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWri
 	FPendingPackageState& ExistingState = GetPendingPackage(Info.PackageName);
 	FPackageDataEntry& Entry = ExistingState.PackageData.AddDefaulted_GetRef();
 
-	int64 DataSize = ExportsArchive.TotalSize();
-	FIoBuffer PackageData(FIoBuffer::AssumeOwnership, ExportsArchive.ReleaseOwnership(), DataSize);
-
 	TRACE_CPUPROFILER_EVENT_SCOPE(FZenStoreWriter::WritePackageData);
 
-	FIoBuffer CookedHeaderBuffer = FIoBuffer(PackageData.Data(), Info.HeaderSize, PackageData);
-	FIoBuffer CookedExportsBuffer = FIoBuffer(PackageData.Data() + Info.HeaderSize, PackageData.DataSize() - Info.HeaderSize, PackageData);
-	Entry.OptimizedPackage.Reset(PackageStoreOptimizer->CreatePackageFromCookedHeader(Info.PackageName, CookedHeaderBuffer));
+	FIoBuffer PackageBuffer;
+	if (ExistingState.PreOptimizedPackage.IsValid())
+	{
+		// If we are writing output data after having done a diff operation, we may already have pre-optimized package data in memory and
+		// we should use that instead of generating it again.
+		Entry.OptimizedPackage = MoveTemp(ExistingState.PreOptimizedPackage);
+		PackageBuffer = FIoBuffer(FIoBuffer::Clone, ExportsArchive.GetData(), Info.HeaderSize);
+	}
+	else
+	{
+		ExistingState.OriginalHeaderSize = Info.HeaderSize;
+
+		int64 DataSize = ExportsArchive.TotalSize();
+		FIoBuffer PackageData(FIoBuffer::AssumeOwnership, ExportsArchive.ReleaseOwnership(), DataSize);
+
+		FIoBuffer CookedHeaderBuffer = FIoBuffer(PackageData.Data(), Info.HeaderSize, PackageData);
+		FIoBuffer CookedExportsBuffer = FIoBuffer(PackageData.Data() + Info.HeaderSize, PackageData.DataSize() - Info.HeaderSize, PackageData);
+		Entry.OptimizedPackage.Reset(PackageStoreOptimizer->CreatePackageFromCookedHeader(Info.PackageName, CookedHeaderBuffer));
+		PackageBuffer = PackageStoreOptimizer->CreatePackageBuffer(Entry.OptimizedPackage.Get(), CookedExportsBuffer);
+	}
+
 	Entry.FileRegions = FileRegions;
 	for (FFileRegion& Region : Entry.FileRegions)
 	{
 		// Adjust regions so they are relative to the start of the export bundle buffer
-		Region.Offset -= Info.HeaderSize;
+		Region.Offset -= ExistingState.OriginalHeaderSize;
 		Region.Offset += Entry.OptimizedPackage->GetHeaderSize();
 	}
-	FIoBuffer PackageBuffer = PackageStoreOptimizer->CreatePackageBuffer(Entry.OptimizedPackage.Get(), CookedExportsBuffer);
 
 	// Commit to Zen build store
 
@@ -1191,6 +1210,55 @@ void FZenStoreWriter::MarkPackagesUpToDate(TArrayView<const FName> UpToDatePacka
 	}
 }
 
+bool FZenStoreWriter::GetPreviousCookedBytes(const FPackageInfo& Info, FPreviousCookedBytesData& OutData)
+{
+	if (!Info.ChunkId.IsValid())
+	{
+		return false;
+	}
+
+	FIoReadOptions ReadOptions;
+	TIoStatusOr<FIoBuffer> Status = HttpClient->ReadChunk(Info.ChunkId, ReadOptions.GetOffset(), ReadOptions.GetSize());
+	if (!Status.IsOk())
+	{
+		return false;
+	}
+
+	FIoBuffer Buffer = Status.ConsumeValueOrDie();
+	OutData.HeaderSize = reinterpret_cast<const FZenPackageSummary*>(Buffer.Data())->HeaderSize;
+	OutData.Size = Buffer.GetSize();
+	OutData.StartOffset = 0;
+	Buffer.EnsureOwned();
+	OutData.Data.Reset(Buffer.Release().ConsumeValueOrDie());
+
+	return true;
+}
+
+void FZenStoreWriter::CompleteExportsArchiveForDiff(FPackageInfo& Info, FLargeMemoryWriter& ExportsArchive)
+{
+	check(Info.ChunkId.IsValid());
+	FPendingPackageState& ExistingState = GetPendingPackage(Info.PackageName);
+
+	uint64 OptimizedHeaderSize = 0;
+	TUniquePtr<FPackageStorePackage> PackageStorePackage;
+	FIoBuffer PackageBuffer;
+	{
+		FIoBuffer CookedHeaderBuffer(FIoBuffer::Wrap, ExportsArchive.GetData(), Info.HeaderSize);
+		FIoBuffer CookedExportsBuffer(FIoBuffer::Wrap, ExportsArchive.GetData() + Info.HeaderSize, ExportsArchive.TotalSize() - Info.HeaderSize);
+		PackageStorePackage.Reset(PackageStoreOptimizer->CreatePackageFromCookedHeader(Info.PackageName, CookedHeaderBuffer));
+		OptimizedHeaderSize = PackageStorePackage->GetHeaderSize();
+		PackageBuffer = PackageStoreOptimizer->CreatePackageBuffer(PackageStorePackage.Get(), CookedExportsBuffer);
+	}
+
+	ExistingState.OriginalHeaderSize = Info.HeaderSize;
+	ExportsArchive.Seek(0);
+	FMemory::Free(ExportsArchive.ReleaseOwnership());
+	ExportsArchive.Reserve(PackageBuffer.DataSize());
+	ExportsArchive.Serialize(PackageBuffer.GetData(), PackageBuffer.DataSize());
+	Info.HeaderSize = OptimizedHeaderSize;
+	ExistingState.PreOptimizedPackage = MoveTemp(PackageStorePackage);
+}
+
 TFuture<FCbObject> FZenStoreWriter::WriteMPCookMessageForPackage(FName PackageName)
 {
 	TArray<FString> AdditionalFiles;
@@ -1272,6 +1340,15 @@ bool FZenStoreWriter::TryReadMPCookMessageForPackage(FName PackageName, FCbObjec
 	}
 
 	return bOk;
+}
+
+FZenStoreWriter::FPendingPackageState& FZenStoreWriter::AddPendingPackage(const FName& PackageName)
+{
+	FScopeLock _(&PackagesCriticalSection);
+	checkf(!PendingPackages.Contains(PackageName), TEXT("Trying to add package that is already pending"));
+	TUniquePtr<FPendingPackageState>& Package = PendingPackages.Add(PackageName, MakeUnique<FPendingPackageState>());
+	check(Package.IsValid());
+	return *Package;
 }
 
 void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj)
