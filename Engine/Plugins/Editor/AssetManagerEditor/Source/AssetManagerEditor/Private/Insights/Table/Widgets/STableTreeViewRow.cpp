@@ -14,7 +14,7 @@
 #include "Insights/Table/Widgets/STableTreeViewCell.h"
 #include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 
-#define LOCTEXT_NAMESPACE "STableTreeView"
+#define LOCTEXT_NAMESPACE "UE::Insights::STableTreeView"
 
 namespace UE
 {

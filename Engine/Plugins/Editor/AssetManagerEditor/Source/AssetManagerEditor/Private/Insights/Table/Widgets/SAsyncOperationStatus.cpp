@@ -11,7 +11,7 @@
 #include "Insights/Common/AsyncWorkUtils.h"
 #include "Insights/Common/TimeUtils.h"
 
-#define LOCTEXT_NAMESPACE "SAsyncOperationStatus"
+#define LOCTEXT_NAMESPACE "UE::Insights::SAsyncOperationStatus"
 
 namespace UE
 {

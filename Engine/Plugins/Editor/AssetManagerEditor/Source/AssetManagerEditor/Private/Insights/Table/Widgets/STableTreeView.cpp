@@ -34,7 +34,7 @@
 
 #include <limits>
 
-#define LOCTEXT_NAMESPACE "STableTreeView"
+#define LOCTEXT_NAMESPACE "UE::Insights::STableTreeView"
 
 namespace UE
 {
