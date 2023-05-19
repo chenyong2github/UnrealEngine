@@ -150,6 +150,10 @@ private:
 
 	/* Bool used to use FilterText as regex filter*/
 	bool bUseRegex = false;
+
+	FText ReasonForNoActivePose;
+	FText ReasonForNoContinuingPose;
+	FText ReasonForNoCandidates;
 };
 
 } // namespace UE::PoseSearch
