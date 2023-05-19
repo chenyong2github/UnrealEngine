@@ -535,14 +535,7 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 				// generate sources for conversion function arguments
 				for (const TPair<FName, FMVVMBlueprintPropertyPath>& Arg : ConversionFunctionArguments)
 				{
-					if (bIsForwardBinding)
-					{
-						bAreSourceContextsValid &= GenerateCompilerSourceContext(Arg.Value, Arg.Key);
-					}
-					else
-					{
-						bAreSourceContextsValid &= GenerateCompilerSourceContext(Arg.Value, Arg.Key);
-					}
+					bAreSourceContextsValid &= GenerateCompilerSourceContext(Arg.Value, Arg.Key);
 				}
 
 				// generate destination source
