@@ -1,22 +1,75 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace EpicGames.Horde.Compute.Buffers
 {
 	/// <summary>
-	/// Implementation of <see cref="IComputeBuffer"/> suitable for cross-process communication
+	/// In-process buffer used to store compute messages
 	/// </summary>
-	public sealed class PooledBuffer : IComputeBuffer
+	public sealed class PooledBuffer : ComputeBufferBase
 	{
-		PooledBufferCore _core;
+		class Resources : ResourcesBase
+		{
+			public HeaderPtr _headerPtr;
+			readonly GCHandle _headerHandle;
+
+			public Memory<byte>[] _chunks;
+			readonly GCHandle[] _chunkHandles;
+
+			readonly AsyncEvent _writerEvent = new AsyncEvent();
+			readonly AsyncEvent _readerEvent = new AsyncEvent();
+
+			public unsafe Resources(int numChunks, int chunkLength, int numReaders)
+			{
+				_chunks = new Memory<byte>[numChunks];
+				_chunkHandles = new GCHandle[numChunks];
+
+				for (int idx = 0; idx < numChunks; idx++)
+				{
+					byte[] data = new byte[chunkLength];
+					_chunks[idx] = data;
+					_chunkHandles[idx] = GCHandle.Alloc(data, GCHandleType.Pinned);
+				}
+
+				byte[] header = new byte[HeaderSize];
+				_headerHandle = GCHandle.Alloc(header, GCHandleType.Pinned);
+				_headerPtr = new HeaderPtr((ulong*)_headerHandle.AddrOfPinnedObject().ToPointer(), numReaders, numChunks, chunkLength);
+			}
+
+			public override void Dispose()
+			{
+				for (int idx = 0; idx < _chunkHandles.Length; idx++)
+				{
+					_chunkHandles[idx].Free();
+				}
+				_headerHandle.Free();
+			}
+
+			/// <inheritdoc/>
+			public override void SetReadEvent(int readerIdx) => _readerEvent.Set();
+
+			/// <inheritdoc/>
+			public override void ResetReadEvent(int readerIdx) => _readerEvent.Reset();
+
+			/// <inheritdoc/>
+			public override Task WaitForReadEvent(int readerIdx, CancellationToken cancellationToken) => _readerEvent.Task.WaitAsync(cancellationToken);
+
+			/// <inheritdoc/>
+			public override void SetWriteEvent() => _writerEvent.Set();
+
+			/// <inheritdoc/>
+			public override void ResetWriteEvent() => _writerEvent.Reset();
+
+			/// <inheritdoc/>
+			public override Task WaitForWriteEvent(CancellationToken cancellationToken) => _writerEvent.Task.WaitAsync(cancellationToken);
+		}
+
+		readonly Resources _resources;
 
 		/// <summary>
 		/// Constructor
@@ -32,122 +85,23 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// </summary>
 		/// <param name="numChunks">Number of chunks in the buffer</param>
 		/// <param name="chunkLength">Length of each chunk</param>
-		public PooledBuffer(int numChunks, int chunkLength)
-			: this(PooledBufferCore.Create(numChunks, chunkLength, 1))
+		/// <param name="numReaders">Number of readers for this buffer</param>
+		public PooledBuffer(int numChunks, int chunkLength, int numReaders = 1)
+			: this(new Resources(numChunks, chunkLength, numReaders))
 		{
 		}
 
-		private PooledBuffer(PooledBufferCore core) => _core = core;
-
-		/// <inheritdoc/>
-		public IComputeBufferReader Reader => _core.Reader;
-
-		/// <inheritdoc/>
-		public IComputeBufferWriter Writer => _core.Writer;
-
-		/// <inheritdoc cref="IComputeBuffer.AddRef"/>
-		public PooledBuffer AddRef()
+		private PooledBuffer(Resources resources)
+			: base(resources._headerPtr, resources._chunks, resources)
 		{
-			_core.AddRef();
-			return new PooledBuffer(_core);
+			_resources = resources;
 		}
 
 		/// <inheritdoc/>
-		IComputeBuffer IComputeBuffer.AddRef() => AddRef();
-
-		/// <inheritdoc/>
-		public void Dispose()
+		public override IComputeBuffer AddRef()
 		{
-			if (_core != null)
-			{
-				_core.Release();
-				_core = null!;
-			}
+			_resources.AddRef();
+			return new PooledBuffer(_resources);
 		}
-	}
-
-	/// <summary>
-	/// In-process buffer used to store compute messages
-	/// </summary>
-	sealed class PooledBufferCore : ComputeBufferBase
-	{
-		unsafe class PinnedBuffer : IDisposable
-		{
-			readonly byte[] _data;
-			readonly GCHandle _handle;
-
-			public Memory<byte> Data => _data;
-			public void* Ptr => _handle.AddrOfPinnedObject().ToPointer();
-
-			public PinnedBuffer(int length)
-			{
-				_data = new byte[length];
-				_handle = GCHandle.Alloc(_data, GCHandleType.Pinned);
-			}
-
-			public void Dispose()
-			{
-				_handle.Free();
-			}
-		}
-
-		readonly PinnedBuffer[] _buffers;
-		readonly AsyncEvent _writerEvent = new AsyncEvent();
-		readonly AsyncEvent _readerEvent = new AsyncEvent();
-
-		private PooledBufferCore(HeaderPtr headerPtr, Memory<byte>[] chunks, PinnedBuffer[] buffers)
-			: base(headerPtr, chunks)
-		{
-			_buffers = buffers;
-		}
-
-		public static unsafe PooledBufferCore Create(int numChunks, int chunkLength, int numReaders)
-		{
-			Memory<byte>[] chunks = new Memory<byte>[numChunks];
-
-			PinnedBuffer[] buffers = new PinnedBuffer[numChunks + 1];
-			for (int idx = 0; idx < numChunks; idx++)
-			{
-				buffers[idx] = new PinnedBuffer(chunkLength);
-				chunks[idx] = buffers[idx].Data;
-			}
-
-			buffers[numChunks] = new PinnedBuffer(HeaderSize);
-
-			HeaderPtr headerPtr = new HeaderPtr((ulong*)buffers[numChunks].Ptr, numReaders, numChunks, chunkLength);
-			return new PooledBufferCore(headerPtr, chunks, buffers);
-		}
-
-		/// <inheritdoc/>
-		protected override void Dispose(bool disposing)
-		{
-			base.Dispose(disposing);
-
-			if (disposing)
-			{
-				for (int idx = 0; idx < _buffers.Length; idx++)
-				{
-					_buffers[idx].Dispose();
-				}
-			}
-		}
-
-		/// <inheritdoc/>
-		protected override void SetReadEvent(int readerIdx) => _readerEvent.Set();
-
-		/// <inheritdoc/>
-		protected override void ResetReadEvent(int readerIdx) => _readerEvent.Reset();
-
-		/// <inheritdoc/>
-		protected override Task WaitForReadEvent(int readerIdx, CancellationToken cancellationToken) => _readerEvent.Task.WaitAsync(cancellationToken);
-
-		/// <inheritdoc/>
-		protected override void SetWriteEvent() => _writerEvent.Set();
-
-		/// <inheritdoc/>
-		protected override void ResetWriteEvent() => _writerEvent.Reset();
-
-		/// <inheritdoc/>
-		protected override Task WaitForWriteEvent(CancellationToken cancellationToken) => _writerEvent.Task.WaitAsync(cancellationToken);
 	}
 }
