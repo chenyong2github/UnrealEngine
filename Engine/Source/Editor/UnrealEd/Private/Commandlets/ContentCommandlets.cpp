@@ -4,6 +4,7 @@
 	UCContentCommandlets.cpp: Various commmandlets.
 =============================================================================*/
 
+#include "Algo/RemoveIf.h"
 #include "AssetCompilingManager.h"
 #include "AssetRegistry/AssetData.h"
 #include "CollectionManagerModule.h"
@@ -328,6 +329,12 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 			return 1;
 		}
 	}
+
+	// Filtering out external actors/objects here avoids any issues that could happen with loading and saving them individually. They are instead handled within the context of their owning level in UResavePackagesCommandlet::PerformAdditionalOperations. For specifically resaving a World Partition map and its actors, see WorldPartitionResaveActorsBuilder.
+	PackageNames.SetNum(Algo::RemoveIf(PackageNames, [](const FString& PackageName)
+	{
+		return PackageName.Contains(FPackagePath::GetExternalActorsFolderName()) || PackageName.Contains(FPackagePath::GetExternalObjectsFolderName());
+	}));
 
 	// Check for a max package limit
 	MaxPackagesToResave = -1;
