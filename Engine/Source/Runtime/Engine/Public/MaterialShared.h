@@ -1844,6 +1844,7 @@ public:
 	virtual bool IsVolumetricPrimitive() const = 0;
 	virtual bool IsWireframe() const = 0;
 	virtual bool IsUIMaterial() const { return false; }
+	virtual bool IsPostProcessMaterial() const { return false; }
 	virtual bool IsSpecialEngineMaterial() const = 0;
 	virtual bool IsUsedWithSkeletalMesh() const { return false; }
 	virtual bool IsUsedWithLandscape() const { return false; }
@@ -2575,6 +2576,7 @@ public:
 	ENGINE_API virtual bool IsWireframe() const override;
 	ENGINE_API virtual EMaterialShadingRate  GetShadingRate() const override;
 	ENGINE_API virtual bool IsUIMaterial() const override;
+	ENGINE_API virtual bool IsPostProcessMaterial() const override;
 	ENGINE_API virtual bool IsSpecialEngineMaterial() const override;
 	ENGINE_API virtual bool IsUsedWithSkeletalMesh() const override;
 	ENGINE_API virtual bool IsUsedWithLandscape() const override;

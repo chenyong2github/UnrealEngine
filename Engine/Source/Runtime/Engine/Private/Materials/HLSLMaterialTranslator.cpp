@@ -11297,14 +11297,13 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 		// Allocate BSDFIndex at the same time.
 		// Check BSDF that should be unique.
 		//
+		bool bHasUnlit = false;
+		bool bHasVFogCloud = false;
+		bool bHasHair = false;
+		bool bHasEye = false;
+		bool bHasSLW = false;
+		bool bHasSlab = false;
 		{
-			bool bHasUnlit = false;
-			bool bHasVFogCloud = false;
-			bool bHasHair = false;
-			bool bHasEye = false;
-			bool bHasSLW = false;
-			bool bHasSlab = false;
-
 			int VOpTopBranchCountTaken = 0;
 			int VOpBottomBranchCountTaken = 0;
 			bool bStrataUsesVerticalLayering = false;
@@ -11790,12 +11789,59 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataMaterialType = bStrataMaterialIsSimple ? 0 : bStrataMaterialIsSingle ? 1 : 2;
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataBSDFCount = StrataMaterialBSDFCount;
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataUintPerPixel = uint8(FMath::Clamp(RequestedSizeInUint, 0u, 0xFF));
-				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.bIsThin = CompilerMaterial->IsThinSurface() ? 1 : 0;
 
 #if WITH_EDITOR
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.SharedLocalBasesCount = 0; // FinalUsedSharedLocalBasesCount is not valid yet
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.RequestedBytePixePixel = StrataMaterialRequestedSizeByte;
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.PlatformBytePixePixel = StrataBytePerPixel;
+
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.bIsThin = CompilerMaterial->IsThinSurface() ? 1 : 0;
+
+				// The order of ifs here is important.
+				if (CompilerMaterial->IsLightFunction())
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_LIGHTFUNCTION;
+				}
+				else if (CompilerMaterial->IsPostProcessMaterial())
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_POSTPROCESS;
+				}
+				else if (CompilerMaterial->IsUIMaterial())
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_UI;
+				}
+				else if (CompilerMaterial->IsDeferredDecal())
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_DECAL;
+				}
+				else if (StrataMaterialBSDFCount > 1)
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_MULTIPLESLABS;
+				}
+				else if (bHasUnlit)
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_UNLIT;
+				}
+				else if (bHasVFogCloud)
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_VOLUMETRICFOGCLOUD;
+				}
+				else if (bHasHair)
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_HAIR;
+				}
+				else if (bHasEye)
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_EYE;
+				}
+				else if (bHasSLW)
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_SINGLELAYERWATER;
+				}
+				else
+				{
+					Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.MaterialType = SUBSTRATE_MATERIAL_TYPE_SINGLESLAB;
+				}
 
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.bMaterialOutOfBudgetHasBeenSimplified |= !StrataSimplificationStatus.bMaterialFitsInMemoryBudget;
 

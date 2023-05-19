@@ -74,6 +74,19 @@ public:
 
 #define STRATA_COMPILATION_OUTPUT_MAX_OPERATOR 24
 
+
+#define SUBSTRATE_MATERIAL_TYPE_SINGLESLAB			0
+#define SUBSTRATE_MATERIAL_TYPE_MULTIPLESLABS		1
+#define SUBSTRATE_MATERIAL_TYPE_VOLUMETRICFOGCLOUD	2
+#define SUBSTRATE_MATERIAL_TYPE_UNLIT				3
+#define SUBSTRATE_MATERIAL_TYPE_HAIR				4
+#define SUBSTRATE_MATERIAL_TYPE_SINGLELAYERWATER	5
+#define SUBSTRATE_MATERIAL_TYPE_EYE					6
+#define SUBSTRATE_MATERIAL_TYPE_LIGHTFUNCTION		7
+#define SUBSTRATE_MATERIAL_TYPE_POSTPROCESS			8
+#define SUBSTRATE_MATERIAL_TYPE_UI					9
+#define SUBSTRATE_MATERIAL_TYPE_DECAL				10
+
 struct FStrataMaterialCompilationOutput
 {
 	DECLARE_TYPE_LAYOUT(FStrataMaterialCompilationOutput, NonVirtual);
@@ -94,14 +107,9 @@ public:
 	/** Strata uint per pixel, at compile time (0-255) */
 	LAYOUT_FIELD(uint8, StrataUintPerPixel);
 
-	/** Indicate that the material is considered a thin surface instead of a volume filled up with matter */
-	LAYOUT_FIELD(uint8, bIsThin);
-
 	////
 	//// The following data is only needed when compiling with the editor.
 	////
-	
-	// STRATA_TODO corresponding uint8 ShadingModel? IsThin?
 
 	/** The Strata verbose description */
 	LAYOUT_FIELD_EDITORONLY(FMemoryImageString, StrataMaterialDescription);
@@ -112,6 +120,11 @@ public:
 	LAYOUT_FIELD_EDITORONLY(uint8, RequestedBytePixePixel);
 	/** The byte count per pixel supported by the platform the material has been compiled against */
 	LAYOUT_FIELD_EDITORONLY(uint8, PlatformBytePixePixel);
+
+	/** Indicate that the material is considered a thin surface instead of a volume filled up with matter */
+	LAYOUT_FIELD_EDITORONLY(uint8, bIsThin);
+	/** Indicate the final material type */
+	LAYOUT_FIELD_EDITORONLY(uint8, MaterialType);
 
 	/** The byte per pixel count supported by the platform the material has been compiled against */
 	LAYOUT_BITFIELD_EDITORONLY(uint8, bMaterialOutOfBudgetHasBeenSimplified, 1);

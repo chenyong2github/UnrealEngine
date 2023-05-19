@@ -228,7 +228,67 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 					MaterialDescription += FString::Printf(TEXT("Material complexity          = UNKOWN => ERROR!\r\n"));
 				}
 
-				MaterialDescription += FString::Printf(TEXT("Is Thin                      = %i\r\n"), CompilationOutput.bIsThin);
+				MaterialDescription += FString::Printf(TEXT("Root Node Is Thin            = %i\r\n"), CompilationOutput.bIsThin);
+
+				//if (CompilationOutput.StrataBSDFCount == 1)
+				//{
+				//	auto GetSingleOperatorBSDF = [&](const FStrataOperator& Op)
+				//	{
+				//		switch (Op.OperatorType)
+				//		{
+				//		case STRATA_OPERATOR_WEIGHT:
+				//		{
+				//			return ProcessOperator(CompilationOutput.Operators[Op.LeftIndex]);	// Continue walking the tree
+				//			break;
+				//		}
+				//		case STRATA_OPERATOR_VERTICAL:
+				//		case STRATA_OPERATOR_HORIZONTAL:
+				//		case STRATA_OPERATOR_ADD:
+				//		{
+				//			return nullptr;	// A operator with multiple entries must use slabs and so should be a Strata material made of slabs
+				//			break;
+				//		}
+				//		case STRATA_OPERATOR_BSDF_LEGACY:
+				//		case STRATA_OPERATOR_BSDF:
+				//		{
+				//			return Op;
+				//			break;
+				//		}
+				//		}
+				//		return nullptr;
+				//	};
+				//	const FStrataOperator& RootOperator = CompilationOutput.Operators[CompilationOutput.RootOperatorIndex];
+				//	const FStrataOperator* OpBSDF = GetSingleOperatorBSDF(RootOperator);
+				//
+				//	if (OpBSDF)
+				//	{
+				//		// STRATA_TODO gather information about SSSPRofile, subsurface, two sided, etc?
+				//	}
+				//}
+
+				FString MaterialType;
+				switch (CompilationOutput.MaterialType)
+				{
+				case SUBSTRATE_MATERIAL_TYPE_SINGLESLAB:			MaterialType = TEXT("Single Slab"); break;
+				case SUBSTRATE_MATERIAL_TYPE_MULTIPLESLABS:			MaterialType = TEXT("Multiple Slabs"); break;
+				case SUBSTRATE_MATERIAL_TYPE_VOLUMETRICFOGCLOUD:	MaterialType = TEXT("Volumetric (Fog or Cloud)"); break;
+				case SUBSTRATE_MATERIAL_TYPE_UNLIT:					MaterialType = TEXT("Unlit"); break;
+				case SUBSTRATE_MATERIAL_TYPE_HAIR:					MaterialType = TEXT("Hair"); break;
+				case SUBSTRATE_MATERIAL_TYPE_SINGLELAYERWATER:		MaterialType = TEXT("SingleLayerWater"); break;
+				case SUBSTRATE_MATERIAL_TYPE_EYE:					MaterialType = TEXT("Eye"); break;
+				case SUBSTRATE_MATERIAL_TYPE_LIGHTFUNCTION:			MaterialType = TEXT("LightFunction"); break;
+				case SUBSTRATE_MATERIAL_TYPE_POSTPROCESS:			MaterialType = TEXT("PostProcess"); break;
+				case SUBSTRATE_MATERIAL_TYPE_UI:					MaterialType = TEXT("UI"); break;
+				case SUBSTRATE_MATERIAL_TYPE_DECAL:					MaterialType = TEXT("Decal"); break;
+				}
+
+				FString MaterialTypeDetail;
+				if ((CompilationOutput.MaterialType == SUBSTRATE_MATERIAL_TYPE_SINGLESLAB || CompilationOutput.MaterialType == SUBSTRATE_MATERIAL_TYPE_MULTIPLESLABS) && CompilationOutput.bIsThin)
+				{
+					MaterialTypeDetail = TEXT("(Thin Surface / Two-Sided Lighting)");
+				}
+
+				MaterialDescription += FString::Printf(TEXT("Material Type                = %s %s\r\n"), *MaterialType, *MaterialTypeDetail);
 
 				MaterialDescription += FString::Printf(TEXT(" \r\n"));
 				MaterialDescription += FString::Printf(TEXT(" \r\n"));
