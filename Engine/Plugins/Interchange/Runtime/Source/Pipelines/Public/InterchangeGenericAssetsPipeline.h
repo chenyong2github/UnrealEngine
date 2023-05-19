@@ -41,7 +41,7 @@ public:
 	bool bUseSourceNameForAsset = true;
 
 	/** If not empty, and there is only one asset and one source data, we will name the asset with this string. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common", meta = (StandAlonePipelineProperty = "True", AlwaysResetToDefault = "True"))
 	FString AssetName;
 
 	/** Translation offset applied to meshes and animations. */

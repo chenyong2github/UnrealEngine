@@ -295,7 +295,7 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 			{
 				continue;
 			}
-			const FName PropertyName = PropertyHandle.Get().GetProperty() ? PropertyHandle.Get().GetProperty()->GetFName() : NAME_None;
+			const FName PropertyName = PropertyPtr ? PropertyPtr->GetFName() : NAME_None;
 			if (PropertyName == UInterchangePipelineBase::GetPropertiesStatesPropertyName())
 			{
 				CachedDetailBuilder->HideProperty(PropertyHandle);
@@ -306,6 +306,18 @@ void FInterchangePipelineBaseDetailsCustomization::CustomizeDetails(IDetailLayou
 			{
 				continue;
 			}
+
+			//If the property UObject owner class is not the same type as the main pipeline class, it mean
+			//we deal with a sub pipeline and we must hide property that have the "StandAlonePipelineProperty" meta data
+			if(UClass* InterchangePipelinePropertyClass = Cast<UClass>(PropertyPtr->GetOwnerUObject()))
+			{
+				if (InterchangePipeline->GetClass() != InterchangePipelinePropertyClass && PropertyHandle->GetBoolMetaData(FName("StandAlonePipelineProperty")))
+				{
+					CachedDetailBuilder->HideProperty(PropertyHandle);
+					continue;
+				}
+			}
+			
 			FName PropertyPath = FName(PropertyPtr->GetPathName());
 			CachedDetailBuilder->HideProperty(PropertyHandle);
 

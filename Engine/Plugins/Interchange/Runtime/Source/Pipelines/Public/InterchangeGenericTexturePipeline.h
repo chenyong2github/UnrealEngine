@@ -23,6 +23,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
 	bool bImportTextures = true;
 
+	/** If not empty, and there is only one asset and one source data, we will name the asset with this string. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures", meta=(StandAlonePipelineProperty = "True", AlwaysResetToDefault = "True"))
+	FString AssetName;
+
 #if WITH_EDITORONLY_DATA
 	/** 
 	 * If enable, after a new import a test will be run to see if the texture is a normal map.
@@ -83,5 +87,3 @@ private:
 	/** Texture factory assets nodes */
 	TArray<UInterchangeTextureFactoryNode*> TextureFactoryNodes;
 };
-
-

@@ -312,6 +312,17 @@ public:
 	}
 #endif //WITH_EDITOR
 
+	/*
+	 * Return true if the pipeline is not a sub pipeline. Stand Alone Pipeline can have some extra properties.
+	 * The customize detail of the pipeline will call this function to show or hide those property.
+	 * The pipeline itself can call the function to know if a property must be use or not.
+	 * Example: the override asset name property
+	 */
+	bool IsStandAlonePipeline()
+	{
+		return this == GetMostPipelineOuter();
+	};
+
 protected:
 
 	UE_DEPRECATED(5.2, "This function is replace by ExecutePipeline.")

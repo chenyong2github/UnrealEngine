@@ -553,16 +553,17 @@ void UInterchangeGenericAssetsPipeline::ImplementUseSourceNameForAssetOption()
 	//If we import only one mesh, we want to rename the mesh using the file name.
 	const int32 MeshesImportedNodeCount = SkeletalMeshNodeUids.Num() + StaticMeshNodeUids.Num();
 
+	FString OverrideAssetName = IsStandAlonePipeline() ? AssetName : FString();
 	//SkeletalMesh it must always be run even if there is no rename option, skeleton and physics asset will be rename properly
-	MeshPipeline->ImplementUseSourceNameForAssetOptionSkeletalMesh(MeshesImportedNodeCount, bUseSourceNameForAsset, AssetName);
+	MeshPipeline->ImplementUseSourceNameForAssetOptionSkeletalMesh(MeshesImportedNodeCount, bUseSourceNameForAsset, OverrideAssetName);
 
-	if (bUseSourceNameForAsset || !AssetName.IsEmpty())
+	if (bUseSourceNameForAsset || !OverrideAssetName.IsEmpty())
 	{
 		//StaticMesh
 		if (MeshesImportedNodeCount == 1 && StaticMeshNodeUids.Num() > 0)
 		{
 			UInterchangeStaticMeshFactoryNode* StaticMeshNode = Cast<UInterchangeStaticMeshFactoryNode>(BaseNodeContainer->GetFactoryNode(StaticMeshNodeUids[0]));
-			const FString DisplayLabelName = AssetName.IsEmpty() ? FPaths::GetBaseFilename(SourceDatas[0]->GetFilename()) : AssetName;
+			const FString DisplayLabelName = OverrideAssetName.IsEmpty() ? FPaths::GetBaseFilename(SourceDatas[0]->GetFilename()) : OverrideAssetName;
 			StaticMeshNode->SetDisplayLabel(DisplayLabelName);
 		}
 
@@ -570,7 +571,7 @@ void UInterchangeGenericAssetsPipeline::ImplementUseSourceNameForAssetOption()
 		if (AnimSequenceNodeUids.Num() == 1)
 		{
 			UInterchangeAnimSequenceFactoryNode* AnimSequenceNode = Cast<UInterchangeAnimSequenceFactoryNode>(BaseNodeContainer->GetFactoryNode(AnimSequenceNodeUids[0]));
-			const FString DisplayLabelName = (AssetName.IsEmpty() ? FPaths::GetBaseFilename(SourceDatas[0]->GetFilename()) : AssetName) + TEXT("_Anim");
+			const FString DisplayLabelName = (OverrideAssetName.IsEmpty() ? FPaths::GetBaseFilename(SourceDatas[0]->GetFilename()) : OverrideAssetName) + TEXT("_Anim");
 			AnimSequenceNode->SetDisplayLabel(DisplayLabelName);
 		}
 	}

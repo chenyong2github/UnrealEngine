@@ -167,9 +167,17 @@ void UInterchangeGenericTexturePipeline::ExecutePipeline(UInterchangeBaseNodeCon
 
 	if (bImportTextures)
 	{
-		for (const UInterchangeTextureNode* TextureNode : TextureNodes)
+		UInterchangeTextureFactoryNode* TextureFactoryNode = nullptr;
+		for (UInterchangeTextureNode* TextureNode : TextureNodes)
 		{
-			HandleCreationOfTextureFactoryNode(TextureNode);
+			TextureFactoryNode = HandleCreationOfTextureFactoryNode(TextureNode);
+		}
+		//If we have a valid override name
+		const bool bOverrideAssetName = TextureNodes.Num() == 1 && IsStandAlonePipeline() && !AssetName.IsEmpty();
+		if (TextureFactoryNode && bOverrideAssetName)
+		{
+			TextureFactoryNode->SetAssetName(AssetName);
+			TextureFactoryNode->SetDisplayLabel(AssetName);
 		}
 	}
 }

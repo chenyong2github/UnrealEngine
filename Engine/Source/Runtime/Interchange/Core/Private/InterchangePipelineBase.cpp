@@ -121,6 +121,13 @@ void UInterchangePipelineBase::LoadSettingsInternal(const FName PipelineStackNam
 		{
 			continue;
 		}
+#if WITH_EDITOR
+		if (Property->GetBoolMetaData(FName("AlwaysResetToDefault")))
+		{
+			//Stand alone pipeline property
+			continue;
+		}
+#endif //WITH_EDITOR
 
 		if (const FInterchangePipelinePropertyStates* PropertyStates = ParentPropertiesStates.Find(PropertyPath))
 		{

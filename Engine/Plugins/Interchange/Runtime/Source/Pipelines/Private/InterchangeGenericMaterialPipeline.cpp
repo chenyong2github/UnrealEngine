@@ -457,6 +457,21 @@ void UInterchangeGenericMaterialPipeline::ExecutePipeline(UInterchangeBaseNodeCo
 			}
 		}
 	}
+
+	if (IsStandAlonePipeline() && !AssetName.IsEmpty())
+	{
+		TArray<UInterchangeBaseMaterialFactoryNode*> BaseMaterialNodes;
+		BaseNodeContainer->IterateNodesOfType<UInterchangeBaseMaterialFactoryNode>([&BaseMaterialNodes](const FString& NodeUid, UInterchangeBaseMaterialFactoryNode* MaterialNode)
+			{
+				BaseMaterialNodes.Add(MaterialNode);
+			});
+
+		if(BaseMaterialNodes.Num() == 1)
+		{
+			BaseMaterialNodes[0]->SetAssetName(AssetName);
+			BaseMaterialNodes[0]->SetDisplayLabel(AssetName);
+		}
+	}
 }
 
 void UInterchangeGenericMaterialPipeline::ExecutePostFactoryPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
