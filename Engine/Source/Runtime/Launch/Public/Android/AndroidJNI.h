@@ -79,7 +79,7 @@ public:
 	static jmethodID AndroidThunkJava_DisableScreenCapture;
 
 	static jmethodID AndroidThunkCpp_VirtualInputIgnoreClick;
-	static jmethodID AndroidThunkCpp_IsVirtuaKeyboardShown;
+	static jmethodID AndroidThunkCpp_IsVirtualKeyboardShown;
 	static jmethodID AndroidThunkCpp_IsWebViewShown;
 
 	// InputDeviceInfo member field ids

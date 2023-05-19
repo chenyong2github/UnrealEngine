@@ -666,7 +666,7 @@ JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeVirtualKeyboardVisi
 	}
 }
 
-bool AndroidThunkCpp_IsVirtuaKeyboardShown()
+bool AndroidThunkCpp_IsVirtualKeyboardShown()
 {
 	return GVirtualKeyboardShown;
 }
