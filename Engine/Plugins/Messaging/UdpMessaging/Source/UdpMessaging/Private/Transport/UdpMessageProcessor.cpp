@@ -132,7 +132,10 @@ FUdpMessageProcessor::FUdpMessageProcessor(FSocket& InSocket, const FGuid& InNod
 FUdpMessageProcessor::~FUdpMessageProcessor()
 {
 	// shut down worker thread if it is still running
-	Thread->Kill();
+	if (Thread)
+	{
+		Thread->Kill();
+	}
 
 	Thread = {};
 	Beacon = {};

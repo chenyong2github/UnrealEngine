@@ -96,6 +96,10 @@ namespace DatasmithGameThread
 	{
 		bool bEngineInitialized = GEngineLoop.PreInit(*PreInitCommandArgs) == 0;
 
+		// Workaround for UdpMessaging not starting processing until PostDefault stage - UE-179092
+		// And since Datasmith plugins are built without WITH_ENGINE FEngineLoop::LoadStartupModules is not called which effectively skips PostDefault stage
+		IPluginManager::Get().LoadModulesForEnabledPlugins(ELoadingPhase::PostDefault);
+
 		// Make sure all UObject classes are registered and default properties have been initialized
 		ProcessNewlyLoadedUObjects();
 
