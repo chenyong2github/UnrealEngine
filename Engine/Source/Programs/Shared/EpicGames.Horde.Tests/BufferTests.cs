@@ -101,7 +101,7 @@ namespace EpicGames.Horde.Tests
 			await using IComputeSocket consumerSocket = ComputeSocket.Create(new PipeTransport(sourceToTargetPipe.Reader, targetToSourcePipe.Writer), NullLogger.Instance);
 
 			using IComputeBuffer consumerBuffer = createBuffer(Length);
-			consumerSocket.AttachRecvBuffer(ChannelId, consumerBuffer);
+			consumerSocket.AttachRecvBuffer(ChannelId, consumerBuffer.Writer);
 
 			byte[] input = RandomNumberGenerator.GetBytes(Length);
 			Task producerTask = RunProducerAsync(producerSocket, input);

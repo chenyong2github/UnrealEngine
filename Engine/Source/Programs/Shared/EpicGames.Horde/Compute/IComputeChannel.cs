@@ -42,23 +42,23 @@ namespace EpicGames.Horde.Compute
 		{
 			readonly IComputeSocket _socket;
 			readonly int _channelId;
-			readonly IComputeBuffer _recvBuffer;
+			readonly IComputeBufferReader _recvBufferReader;
 
 			public BufferedReaderChannel(IComputeSocket socket, int channelId, IComputeBuffer recvBuffer)
 			{
 				_socket = socket;
 				_channelId = channelId;
-				_recvBuffer = recvBuffer;
+				_recvBufferReader = recvBuffer.Reader.AddRef();
 
-				_socket.AttachRecvBuffer(_channelId, recvBuffer);
+				_socket.AttachRecvBuffer(_channelId, recvBuffer.Writer);
 			}
 
 			public void Dispose()
 			{
-				_recvBuffer.Dispose();
+				_recvBufferReader.Dispose();
 			}
 
-			public ValueTask<int> ReceiveAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => _recvBuffer.Reader.ReadAsync(buffer, cancellationToken);
+			public ValueTask<int> ReceiveAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => _recvBufferReader.ReadAsync(buffer, cancellationToken);
 
 			public ValueTask SendAsync(ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default) => _socket.SendAsync(_channelId, memory, cancellationToken);
 		}
@@ -137,8 +137,8 @@ namespace EpicGames.Horde.Compute
 		/// <param name="sendBuffer">Buffer for sending data</param>
 		public static IComputeChannel CreateChannel(this IComputeSocket socket, int channelId, IComputeBuffer recvBuffer, IComputeBuffer sendBuffer)
 		{
-			socket.AttachRecvBuffer(channelId, recvBuffer);
-			socket.AttachSendBuffer(channelId, sendBuffer);
+			socket.AttachRecvBuffer(channelId, recvBuffer.Writer);
+			socket.AttachSendBuffer(channelId, sendBuffer.Reader);
 			return new BufferedReaderWriterChannel(recvBuffer, sendBuffer);
 		}
 	}

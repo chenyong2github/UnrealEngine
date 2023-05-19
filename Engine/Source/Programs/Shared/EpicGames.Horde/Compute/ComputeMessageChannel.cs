@@ -110,8 +110,8 @@ namespace EpicGames.Horde.Compute
 
 		readonly IComputeSocket _socket;
 		readonly int _channelId;
-		readonly IComputeBuffer _recvBuffer;
-		readonly IComputeBuffer _sendBuffer;
+		readonly IComputeBufferReader _recvBufferReader;
+		readonly IComputeBufferWriter _sendBufferWriter;
 
 		// Can lock chunked memory writer to acuqire pointer
 		readonly ILogger _logger;
@@ -124,15 +124,15 @@ namespace EpicGames.Horde.Compute
 		/// Constructor
 		/// </summary>
 		/// <param name="channelId"></param>
-		/// <param name="recvBuffer"></param>
-		/// <param name="sendBuffer"></param>
+		/// <param name="recvBufferReader"></param>
+		/// <param name="sendBufferWriter"></param>
 		/// <param name="logger">Logger for diagnostic output</param>
-		public ComputeMessageChannel(int channelId, IComputeBuffer recvBuffer, IComputeBuffer sendBuffer, ILogger logger)
+		public ComputeMessageChannel(int channelId, IComputeBufferReader recvBufferReader, IComputeBufferWriter sendBufferWriter, ILogger logger)
 		{
 			_socket = null!;
 			_channelId = channelId;
-			_recvBuffer = recvBuffer;
-			_sendBuffer = sendBuffer;
+			_recvBufferReader = recvBufferReader.AddRef();
+			_sendBufferWriter = sendBufferWriter.AddRef();
 			_logger = logger;
 		}
 
@@ -148,10 +148,10 @@ namespace EpicGames.Horde.Compute
 		{
 			_socket = socket;
 			_channelId = channelId;
-			_socket.AttachRecvBuffer(channelId, recvBuffer);
-			_socket.AttachSendBuffer(channelId, sendBuffer);
-			_recvBuffer = recvBuffer;
-			_sendBuffer = sendBuffer;
+			_socket.AttachRecvBuffer(channelId, recvBuffer.Writer);
+			_socket.AttachSendBuffer(channelId, sendBuffer.Reader);
+			_recvBufferReader = recvBuffer.Reader.AddRef();
+			_sendBufferWriter = sendBuffer.Writer.AddRef();
 			_logger = logger;
 		}
 
@@ -161,9 +161,11 @@ namespace EpicGames.Horde.Compute
 		public void Dispose()
 		{
 			_currentBuilder?.Dispose();
-			_sendBuffer.Writer.MarkComplete();
-			_sendBuffer.Dispose();
-			_recvBuffer.Dispose();
+
+			_sendBufferWriter.MarkComplete();
+			_sendBufferWriter.Dispose();
+
+			_recvBufferReader.Dispose();
 		}
 
 		/// <summary>
@@ -171,7 +173,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		public void MarkComplete()
 		{
-			_sendBuffer.Writer.MarkComplete();
+			_sendBufferWriter.MarkComplete();
 		}
 
 		/// <inheritdoc/>
@@ -180,20 +182,19 @@ namespace EpicGames.Horde.Compute
 		/// <inheritdoc/>
 		public async ValueTask<IComputeMessage> ReceiveAsync(CancellationToken cancellationToken)
 		{
-			IComputeBufferReader recvBufferReader = _recvBuffer.Reader;
-			while (!recvBufferReader.IsComplete)
+			while (!_recvBufferReader.IsComplete)
 			{
-				ReadOnlyMemory<byte> memory = recvBufferReader.GetReadBuffer();
+				ReadOnlyMemory<byte> memory = _recvBufferReader.GetReadBuffer();
 				if (memory.Length < HeaderLength)
 				{
-					await recvBufferReader.WaitToReadAsync(HeaderLength, cancellationToken);
+					await _recvBufferReader.WaitToReadAsync(HeaderLength, cancellationToken);
 					continue;
 				}
 
 				int messageLength = BinaryPrimitives.ReadInt32LittleEndian(memory.Span.Slice(1, 4));
 				if (memory.Length < HeaderLength + messageLength)
 				{
-					await recvBufferReader.WaitToReadAsync(HeaderLength + messageLength, cancellationToken);
+					await _recvBufferReader.WaitToReadAsync(HeaderLength + messageLength, cancellationToken);
 					continue;
 				}
 
@@ -203,7 +204,8 @@ namespace EpicGames.Horde.Compute
 				{
 					LogMessageInfo("RECV", message.Type, message.Data.Span);
 				}
-				recvBufferReader.AdvanceReadPosition(HeaderLength + messageLength);
+
+				_recvBufferReader.AdvanceReadPosition(HeaderLength + messageLength);
 				return message;
 			}
 			return new Message(ComputeMessageType.None, ReadOnlyMemory<byte>.Empty);
@@ -231,10 +233,9 @@ namespace EpicGames.Horde.Compute
 				throw new InvalidOperationException("Only one writer can be active at a time. Dispose of the previous writer first.");
 			}
 
-			IComputeBufferWriter sendBufferWriter = _sendBuffer.Writer;
-			await sendBufferWriter.WaitToWriteAsync(maxSize, cancellationToken);
+			await _sendBufferWriter.WaitToWriteAsync(maxSize, cancellationToken);
 
-			_currentBuilder = new MessageBuilder(this, sendBufferWriter, type);
+			_currentBuilder = new MessageBuilder(this, _sendBufferWriter, type);
 			return _currentBuilder;
 		}
 	}

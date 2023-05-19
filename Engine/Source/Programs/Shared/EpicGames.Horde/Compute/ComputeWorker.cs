@@ -204,18 +204,22 @@ namespace EpicGames.Horde.Compute
 						{
 							int channelId = (int)reader.ReadUnsignedVarInt();
 							string name = reader.ReadString();
-#pragma warning disable CA2000 // Dispose objects before losing scope
-							socket.AttachSendBuffer(channelId, SharedMemoryBuffer.OpenExisting(name));
-#pragma warning restore CA2000 // Dispose objects before losing scope
+
+							using (SharedMemoryBuffer buffer = SharedMemoryBuffer.OpenExisting(name))
+							{
+								socket.AttachSendBuffer(channelId, buffer.Reader);
+							}
 						}
 						break;
 					case IpcMessage.AttachRecvBuffer:
 						{
 							int channelId = (int)reader.ReadUnsignedVarInt();
 							string name = reader.ReadString();
-#pragma warning disable CA2000 // Dispose objects before losing scope
-							socket.AttachRecvBuffer(channelId, SharedMemoryBuffer.OpenExisting(name));
-#pragma warning restore CA2000 // Dispose objects before losing scope
+
+							using (SharedMemoryBuffer buffer = SharedMemoryBuffer.OpenExisting(name))
+							{
+								socket.AttachRecvBuffer(channelId, buffer.Writer);
+							}
 						}
 						break;
 					default:

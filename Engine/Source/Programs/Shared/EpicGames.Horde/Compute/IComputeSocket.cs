@@ -32,15 +32,15 @@ namespace EpicGames.Horde.Compute
 		/// Attaches a buffer to receive data.
 		/// </summary>
 		/// <param name="channelId">Channel to receive data on</param>
-		/// <param name="buffer">Buffer to receive data</param>
-		void AttachRecvBuffer(int channelId, IComputeBuffer buffer);
+		/// <param name="recvBufferWriter">Writer for the buffer to store received data</param>
+		void AttachRecvBuffer(int channelId, IComputeBufferWriter recvBufferWriter);
 
 		/// <summary>
 		/// Attaches a buffer to send data.
 		/// </summary>
 		/// <param name="channelId">Channel to receive data on</param>
-		/// <param name="buffer">Buffer to send data from</param>
-		void AttachSendBuffer(int channelId, IComputeBuffer buffer);
+		/// <param name="sendBufferReader">Reader for the buffer to send data from</param>
+		void AttachSendBuffer(int channelId, IComputeBufferReader sendBufferReader);
 
 		/// <summary>
 		/// Waits until the remote has attached a receive buffer to the given channel
@@ -103,8 +103,8 @@ namespace EpicGames.Horde.Compute
 		/// <param name="logger">Logger for the channel</param>
 		public static IComputeMessageChannel CreateMessageChannel(this IComputeSocket socket, int channelId, int sendBufferSize, int recvBufferSize, ILogger logger)
 		{
-			IComputeBuffer sendBuffer = new PooledBuffer(sendBufferSize);
-			IComputeBuffer recvBuffer = new PooledBuffer(recvBufferSize);
+			using IComputeBuffer sendBuffer = new PooledBuffer(sendBufferSize);
+			using IComputeBuffer recvBuffer = new PooledBuffer(recvBufferSize);
 			return new ComputeMessageChannel(socket, channelId, sendBuffer, recvBuffer, logger);
 		}
 	}
