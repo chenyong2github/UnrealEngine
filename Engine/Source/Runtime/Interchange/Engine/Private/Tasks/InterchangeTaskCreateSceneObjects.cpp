@@ -66,10 +66,7 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 	{
 		UInterchangeFactoryBase* Factory = NewObject<UInterchangeFactoryBase>(GetTransientPackage(), FactoryClass);
 		Factory->SetResultsContainer(AsyncHelper->AssetImportResult->GetResults());
-		{
-			FScopeLock Lock(&AsyncHelper->CreatedFactoriesLock);
-			AsyncHelper->CreatedFactories.Add(FactoryNode->GetUniqueID(), Factory);
-		}
+		AsyncHelper->AddCreatedFactory(FactoryNode->GetUniqueID(), Factory);
 
 		FString NodeDisplayName = FactoryNode->GetDisplayLabel();
 		SanitizeObjectName(NodeDisplayName);
@@ -89,16 +86,14 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 		UObject* SceneObject = Factory->ImportSceneObject_GameThread(CreateSceneObjectsParams);
 		if (SceneObject)
 		{
-			FScopeLock Lock(&AsyncHelper->ImportedSceneObjectsPerSourceIndexLock);
-			TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = AsyncHelper->ImportedSceneObjectsPerSourceIndex.FindOrAdd(SourceIndex);
-			UE::Interchange::FImportAsyncHelper::FImportedObjectInfo* ImportedInfoPtr = ImportedInfos.FindByPredicate([SceneObject](const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& CurInfo)
+			const FImportAsyncHelper::FImportedObjectInfo* ImportedInfoPtr = AsyncHelper->FindImportedSceneObjects(SourceIndex, [SceneObject](const FImportAsyncHelper::FImportedObjectInfo& CurInfo)
 				{
 					return CurInfo.ImportedObject == SceneObject;
 				});
 
 			if (!ImportedInfoPtr)
 			{
-				UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ObjectInfo = ImportedInfos.AddDefaulted_GetRef();
+				UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ObjectInfo = AsyncHelper->AddDefaultImportedSceneObjectGetRef(SourceIndex);
 				ObjectInfo.ImportedObject = SceneObject;
 				ObjectInfo.Factory = Factory;
 				ObjectInfo.FactoryNode = FactoryNode;

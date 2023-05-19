@@ -134,6 +134,7 @@ namespace UE::Interchange
 	{
 		static const FString& FactoryDependenciesBaseKey();
 		static const FAttributeKey& ReimportStrategyFlagsKey();
+		static const FAttributeKey& SkipNodeImportKey();
 	};
 
 } // namespace UE::Interchange
@@ -178,6 +179,28 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
 	bool SetReimportStrategyFlags(const EReimportStrategyFlags& ReimportStrategyFlags);
+
+	/**
+	 * Return true if this node should skip the factory import process, false otherwise.
+	 * Node can be in a situation where we have to skip the import process because we cannot import the associated asset for multiple reason.
+	 * - An asset can already exist and is representing a different type (UClass)
+	 * - An asset can already exist and is being compiled
+	 * - An asset can already exist and is being imported by another concurrent import task (user importing multiple file in same time in the same content folder)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool ShouldSkipNodeImport() const;
+
+	/**
+	 * Add the skip node attribute. Use this function to cancel the creation of the unreal asset, see ShouldSkipNodeImport for more documentation.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool SetSkipNodeImport();
+
+	/**
+	 * Remove the skip node attribute. See ShouldSkipNodeImport for more documentation.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool UnsetSkipNodeImport();
 
 	/**
 	 * Return the UClass of the object we represent so we can find factory/writer

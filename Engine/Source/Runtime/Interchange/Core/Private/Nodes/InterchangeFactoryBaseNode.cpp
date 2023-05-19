@@ -21,11 +21,17 @@ namespace UE
 			return BaseNodeFactoryDependencies_BaseKey;
 		}
 
-		const FAttributeKey& FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey()
-		{
-			static FAttributeKey AttributeKey(TEXT("__Reimport_Strategy_Flags_Key__"));
-			return AttributeKey;
-		}
+const FAttributeKey& FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey()
+{
+	static FAttributeKey AttributeKey(TEXT("__Reimport_Strategy_Flags_Key__"));
+	return AttributeKey;
+}
+
+const FAttributeKey& FFactoryBaseNodeStaticData::SkipNodeImportKey()
+{
+	static FAttributeKey AttributeKey(TEXT("__Internal_Task_Skip_Node__"));
+	return AttributeKey;
+}
 
 	} //ns Interchange
 } //ns UE
@@ -107,6 +113,43 @@ bool UInterchangeFactoryBaseNode::SetReimportStrategyFlags(const EReimportStrate
 	{
 		UE::Interchange::FAttributeStorage::TAttributeHandle<uint8> Handle = Attributes->GetAttributeHandle<uint8>(UE::Interchange::FFactoryBaseNodeStaticData::ReimportStrategyFlagsKey());
 		return Handle.IsValid();
+	}
+	return false;
+}
+
+bool UInterchangeFactoryBaseNode::ShouldSkipNodeImport() const
+{
+	if (!Attributes->ContainAttribute(UE::Interchange::FFactoryBaseNodeStaticData::SkipNodeImportKey()))
+	{
+		return false;
+	}
+	bool bShouldSkipNodeImport = false;
+	Attributes->GetAttributeHandle<bool>(UE::Interchange::FFactoryBaseNodeStaticData::SkipNodeImportKey()).Get(bShouldSkipNodeImport);
+	return bShouldSkipNodeImport;
+}
+
+bool UInterchangeFactoryBaseNode::SetSkipNodeImport()
+{
+	UE::Interchange::EAttributeStorageResult Result = Attributes->RegisterAttribute(UE::Interchange::FFactoryBaseNodeStaticData::SkipNodeImportKey(), true);
+	if (IsAttributeStorageResultSuccess(Result))
+	{
+		UE::Interchange::FAttributeStorage::TAttributeHandle<bool> Handle = Attributes->GetAttributeHandle<bool>(UE::Interchange::FFactoryBaseNodeStaticData::SkipNodeImportKey());
+		return Handle.IsValid();
+	}
+	return false;
+}
+
+bool UInterchangeFactoryBaseNode::UnsetSkipNodeImport()
+{
+	if (!Attributes->ContainAttribute(UE::Interchange::FFactoryBaseNodeStaticData::SkipNodeImportKey()))
+	{
+		return true;
+	}
+	UE::Interchange::EAttributeStorageResult Result = Attributes->UnregisterAttribute(UE::Interchange::FFactoryBaseNodeStaticData::SkipNodeImportKey());
+	if (IsAttributeStorageResultSuccess(Result))
+	{
+		UE::Interchange::FAttributeStorage::TAttributeHandle<bool> Handle = Attributes->GetAttributeHandle<bool>(UE::Interchange::FFactoryBaseNodeStaticData::SkipNodeImportKey());
+		return !Handle.IsValid();
 	}
 	return false;
 }

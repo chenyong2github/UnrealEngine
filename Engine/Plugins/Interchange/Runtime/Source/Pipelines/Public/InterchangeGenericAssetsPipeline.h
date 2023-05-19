@@ -83,6 +83,11 @@ public:
 
 	virtual void AdjustSettingsForContext(EInterchangePipelineContext ImportType, TObjectPtr<UObject> ReimportAsset) override;
 
+	virtual bool IsScripted() override
+	{
+		return false;
+	}
+
 #if WITH_EDITOR
 	virtual bool GetPropertyPossibleValues(const FName PropertyPath, TArray<FString>& PossibleValues) override;
 #endif
@@ -95,8 +100,10 @@ protected:
 
 	virtual bool CanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask) override
 	{
-		//If a blueprint or python derived from this class, it will be execute on the game thread since we cannot currently execute script outside of the game thread, even if this function return true.
-		return true;
+		//We cannot run asynchronously because of the two following issues
+		// Post Translator Task: material pipeline is loading assets (Parent Material)
+		// Post Import Task: physics asset need to create a scene preview to be created
+		return false;
 	}
 
 	virtual void SetReimportSourceIndex(UClass* ReimportObjectClass, const int32 SourceFileIndex) override;

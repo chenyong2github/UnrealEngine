@@ -661,14 +661,20 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeAnimationTrackSetFactory
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import levelsequence asset in runtime, this is an editor only feature."));
 	return ImportAssetResult;
 #else
-	if (Arguments.ReimportObject)
+
+	auto CannotReimportMessage = [&Arguments, this]()
 	{
 		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
 		Message->SourceAssetName = Arguments.SourceData->GetFilename();
 		Message->DestinationAssetName = Arguments.AssetName;
 		Message->AssetType = ULevelSequence::StaticClass();
 		Message->Text = LOCTEXT("CreateEmptyAssetUnsupportedReimport", "Re-import of ULevelSequence not supported yet.");
+		Arguments.AssetNode->SetSkipNodeImport();
+	};
 
+	if (Arguments.ReimportObject)
+	{
+		CannotReimportMessage();
 		return ImportAssetResult;
 	}
 
@@ -690,18 +696,29 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeAnimationTrackSetFactory
 		return ImportAssetResult;
 	}
 
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* ExistingAsset = Arguments.ReimportObject;
+	if (!ExistingAsset)
+	{
+		FSoftObjectPath ReferenceObject;
+		if (FactoryNode->GetCustomReferenceObject(ReferenceObject))
+		{
+			ExistingAsset = ReferenceObject.TryLoad();
+		}
+	}
 
 	// create a new material or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
 		LevelSequence = NewObject<ULevelSequence>(Arguments.Parent, *Arguments.AssetName, RF_Public | RF_Standalone);
 	}
-	else if (ExistingAsset->GetClass()->IsChildOf(ULevelSequence::StaticClass()))
+	else
 	{
-		// This is a reimport, we are just re-updating the source data
-		LevelSequence = Cast<ULevelSequence>(ExistingAsset);
+		// This is a reimport or an override, we are just re-updating the source data
+
+		//TODO: put back the Cast when the LevelSequence will support re-import
+		//LevelSequence = Cast<ULevelSequence>(ExistingAsset);
+		CannotReimportMessage();
+		return ImportAssetResult;
 	}
 
 	if (!LevelSequence)

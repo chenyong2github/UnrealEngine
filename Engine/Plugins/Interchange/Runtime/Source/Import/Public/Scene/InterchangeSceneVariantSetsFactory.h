@@ -11,6 +11,7 @@
 
 #include "InterchangeSceneVariantSetsFactory.generated.h"
 
+class ULevelVariantSets;
 class UVariantObjectBinding;
 
 UCLASS(BlueprintType, Experimental)
@@ -31,7 +32,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 private:
-	UObject* ImportObjectSourceData(const FImportAssetObjectParams& Arguments);
+	UObject* ImportObjectSourceData(const FImportAssetObjectParams& Arguments, ULevelVariantSets* LevelVariantSets);
 	const UInterchangeTranslatorBase* Translator = nullptr;
 };
 

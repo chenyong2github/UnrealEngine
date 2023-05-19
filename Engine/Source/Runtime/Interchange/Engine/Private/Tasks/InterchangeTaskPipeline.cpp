@@ -80,26 +80,21 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 	TArray<bool> IsAssetsReimported;
 
 	auto FillImportedObjectsFromSource =
-		[&NodeUniqueIDs, &ImportedObjects, &IsAssetsReimported, this](FCriticalSection& CriticalSection, const TMap<int32, TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>>& ImportedInfosPerSource)
+		[&NodeUniqueIDs, &ImportedObjects, &IsAssetsReimported, this](const TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos)
 		{
-			FScopeLock Lock(&CriticalSection);
-			if (ImportedInfosPerSource.Contains(SourceIndex))
+			NodeUniqueIDs.Reserve(NodeUniqueIDs.Num() + ImportedInfos.Num());
+			ImportedObjects.Reserve(ImportedObjects.Num() + ImportedInfos.Num());
+			IsAssetsReimported.Reserve(IsAssetsReimported.Num() + ImportedInfos.Num());
+			for (const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ImportedInfo : ImportedInfos)
 			{
-				const TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = ImportedInfosPerSource.FindChecked(SourceIndex);
-				NodeUniqueIDs.Reserve(ImportedInfos.Num());
-				ImportedObjects.Reserve(ImportedInfos.Num());
-				IsAssetsReimported.Reserve(ImportedInfos.Num());
-				for (const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ImportedInfo : ImportedInfos)
-				{
-					NodeUniqueIDs.Add(ImportedInfo.FactoryNode->GetUniqueID());
-					ImportedObjects.Add(ImportedInfo.ImportedObject);
-					IsAssetsReimported.Add(ImportedInfo.bIsReimport);
-				}
+				NodeUniqueIDs.Add(ImportedInfo.FactoryNode->GetUniqueID());
+				ImportedObjects.Add(ImportedInfo.ImportedObject);
+				IsAssetsReimported.Add(ImportedInfo.bIsReimport);
 			}
 		};
 
-	FillImportedObjectsFromSource(AsyncHelper->ImportedAssetsPerSourceIndexLock, AsyncHelper->ImportedAssetsPerSourceIndex);
-	FillImportedObjectsFromSource(AsyncHelper->ImportedSceneObjectsPerSourceIndexLock, AsyncHelper->ImportedSceneObjectsPerSourceIndex);
+	AsyncHelper->IterateImportedAssets(SourceIndex, FillImportedObjectsFromSource);
+	AsyncHelper->IterateImportedSceneObjects(SourceIndex, FillImportedObjectsFromSource);
 
 	if (!ensure(NodeUniqueIDs.Num() == ImportedObjects.Num()))
 	{

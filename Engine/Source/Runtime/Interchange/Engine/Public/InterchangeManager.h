@@ -9,6 +9,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Containers/Queue.h"
 #include "Delegates/DelegateCombinations.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/Thread.h"
 #include "HAL/ThreadSafeBool.h"
 #include "InterchangePipelineConfigurationBase.h"
@@ -214,13 +215,11 @@ namespace UE
 			FGraphEventRef PreCompletionTask;
 			FGraphEventRef CompletionTask;
 
-			//Create package map, Key is package name. We cannot create package asynchronously so we have to create a game thread task to do this
-			FCriticalSection CreatedPackagesLock;
-			TMap<FString, UPackage*> CreatedPackages;
+			UPackage* GetCreatedPackage(const FString& PackageName) const;
+			void AddCreatedPackage(const FString& PackageName, UPackage* Package);
 
-			// Created factories map, Key is factory node UID
-			FCriticalSection CreatedFactoriesLock;
-			TMap<FString, TObjectPtr<UInterchangeFactoryBase>> CreatedFactories;
+			UInterchangeFactoryBase* GetCreatedFactory(const FString& FactoryNodeUniqueId) const;
+			void AddCreatedFactory(const FString& FactoryNodeUniqueId, UInterchangeFactoryBase* Factory);
 
 			// Set of classes which creation has been denied
 			TSet<UClass*> DeniedClasses;
@@ -236,11 +235,20 @@ namespace UE
 				bool bIsReimport;
 			};
 
-			FCriticalSection ImportedAssetsPerSourceIndexLock;
-			TMap<int32, TArray<FImportedObjectInfo>> ImportedAssetsPerSourceIndex;
+			FImportedObjectInfo& AddDefaultImportedAssetGetRef(int32 SourceIndex);
+			const FImportedObjectInfo* FindImportedAssets(int32 SourceIndex, TFunction< bool(const FImportedObjectInfo& ImportedObjects) > Predicate) const;
+			void IterateImportedAssets(int32 SourceIndex, TFunction< void(const TArray<FImportedObjectInfo>& ImportedObjects) > Callback) const;
+			void IterateImportedAssetsPerSourceIndex(TFunction< void(int32 SourceIndex, const TArray<FImportedObjectInfo>& ImportedObjects) > Callback) const;
 
-			FCriticalSection ImportedSceneObjectsPerSourceIndexLock;
-			TMap<int32, TArray<FImportedObjectInfo>> ImportedSceneObjectsPerSourceIndex;
+			FImportedObjectInfo& AddDefaultImportedSceneObjectGetRef(int32 SourceIndex);
+			const FImportedObjectInfo* FindImportedSceneObjects(int32 SourceIndex, TFunction< bool(const FImportedObjectInfo& ImportedObjects) > Predicate) const;
+			void IterateImportedSceneObjects(int32 SourceIndex, TFunction< void(const TArray<FImportedObjectInfo>& ImportedObjects) > Callback) const;
+			void IterateImportedSceneObjectsPerSourceIndex(TFunction< void(int32 SourceIndex, const TArray<FImportedObjectInfo>& ImportedObjects) > Callback) const;
+
+			/*
+			 * Return true if the Object is imported by this async import, false otherwise
+			 */
+			bool IsImportingObject(UObject* Object) const;
 
 			FImportAsyncHelperData TaskData;
 
@@ -261,6 +269,21 @@ namespace UE
 			void InitCancel();
 
 			void CleanUp();
+
+		private:
+			//Create package map, Key is package name. We cannot create package asynchronously so we have to create a game thread task to do this
+			mutable FCriticalSection CreatedPackagesLock;
+			TMap<FString, UPackage*> CreatedPackages;
+
+			// Created factories map, Key is factory node UID
+			mutable FCriticalSection CreatedFactoriesLock;
+			TMap<FString, TObjectPtr<UInterchangeFactoryBase>> CreatedFactories;
+
+			mutable FCriticalSection ImportedAssetsPerSourceIndexLock;
+			TMap<int32, TArray<FImportedObjectInfo>> ImportedAssetsPerSourceIndex;
+
+			mutable FCriticalSection ImportedSceneObjectsPerSourceIndexLock;
+			TMap<int32, TArray<FImportedObjectInfo>> ImportedSceneObjectsPerSourceIndex;
 		};
 
 		void SanitizeObjectPath(FString& ObjectPath);
@@ -537,6 +560,12 @@ public:
 	 */
 	UInterchangeTranslatorBase* GetTranslatorSupportingPayloadInterfaceForSourceData(const UInterchangeSourceData* SourceData, const UClass* PayloadInterfaceClass) const;
 
+	/**
+	 * Return true if the object is being imported, return false otherwise. If the user import multiple file in the same folder its possible to
+	 * have the same asset name in two different files.
+	 */
+	bool IsObjectBeingImported(UObject* Object) const;
+
 protected:
 
 	/** Return true if we can show some UI */
@@ -628,6 +657,10 @@ private:
 	//Indicates that the import process was canceled by the user.
 	//This boolean is reset to false when the ImportTasks array is empty.
 	bool bImportCanceled = false;
+
+	//We want to avoid starting an import task during a GC
+	FDelegateHandle GCEndDelegate;
+	bool bGCEndDelegateCancellAllTask = false;
 
 	friend class UE::Interchange::FScopedTranslator;
 };

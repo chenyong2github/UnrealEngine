@@ -212,6 +212,174 @@ void UE::Interchange::FImportAsyncHelper::AddReferencedObjects(FReferenceCollect
 	Collector.AddReferencedObjects(CreatedFactories);
 }
 
+/*
+* // Created factories map, Key is factory node UID
+			mutable FCriticalSection CreatedFactoriesLock;
+			TMap<FString, UInterchangeFactoryBase*> CreatedFactories;
+*/
+
+//Create package map, Key is package name. We cannot create package asynchronously so we have to create a game thread task to do this
+UPackage* UE::Interchange::FImportAsyncHelper::GetCreatedPackage(const FString& PackageName) const
+{
+	FScopeLock Lock(&CreatedPackagesLock);
+	if (UPackage* const* PkgPtr = CreatedPackages.Find(PackageName))
+	{
+		return *PkgPtr;
+	}
+	return nullptr;
+}
+
+void UE::Interchange::FImportAsyncHelper::AddCreatedPackage(const FString& PackageName, UPackage* Package)
+{
+	FScopeLock Lock(&CreatedPackagesLock);
+	if (ensure(!CreatedPackages.Contains(PackageName)))
+	{
+		CreatedPackages.Add(PackageName, Package);
+	}
+}
+
+UInterchangeFactoryBase* UE::Interchange::FImportAsyncHelper::GetCreatedFactory(const FString& FactoryNodeUniqueId) const
+{
+	FScopeLock Lock(&CreatedFactoriesLock);
+	if (TObjectPtr<UInterchangeFactoryBase>const* FactoryPtr = CreatedFactories.Find(FactoryNodeUniqueId))
+	{
+		return *FactoryPtr;
+	}
+	return nullptr;
+}
+
+void UE::Interchange::FImportAsyncHelper::AddCreatedFactory(const FString& FactoryNodeUniqueId, UInterchangeFactoryBase* Factory)
+{
+	FScopeLock Lock(&CreatedFactoriesLock);
+	if (ensure(!CreatedFactories.Contains(FactoryNodeUniqueId)))
+	{
+		CreatedFactories.Add(FactoryNodeUniqueId, Factory);
+	}
+}
+
+UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& UE::Interchange::FImportAsyncHelper::AddDefaultImportedAssetGetRef(int32 SourceIndex)
+{
+	FScopeLock Lock(&ImportedAssetsPerSourceIndexLock);
+	return ImportedAssetsPerSourceIndex.FindOrAdd(SourceIndex).AddDefaulted_GetRef();
+}
+
+const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo* UE::Interchange::FImportAsyncHelper::FindImportedAssets(int32 SourceIndex, TFunction< bool(const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ImportedObject) > Predicate) const
+{
+	FScopeLock Lock(&ImportedAssetsPerSourceIndexLock);
+	if (!ImportedAssetsPerSourceIndex.Contains(SourceIndex))
+	{
+		return nullptr;
+	}
+	const TArray<FImportedObjectInfo>& ImportedObjectInfos = ImportedAssetsPerSourceIndex.FindChecked(SourceIndex);
+	for (const FImportedObjectInfo& ImportObjectInfo : ImportedObjectInfos)
+	{
+		if (Predicate(ImportObjectInfo))
+		{
+			return &ImportObjectInfo;
+		}
+	}
+	return nullptr;
+}
+
+void UE::Interchange::FImportAsyncHelper::IterateImportedAssets(int32 SourceIndex, TFunction< void(const TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedObjects) > Callback) const
+{
+	FScopeLock Lock(&ImportedAssetsPerSourceIndexLock);
+	
+	if (!ImportedAssetsPerSourceIndex.Contains(SourceIndex))
+	{
+		return;
+	}
+
+	Callback(ImportedAssetsPerSourceIndex.FindChecked(SourceIndex));
+}
+
+void UE::Interchange::FImportAsyncHelper::IterateImportedAssetsPerSourceIndex(TFunction< void(int32 SourceIndex, const TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedObjects) > Callback) const
+{
+	FScopeLock Lock(&ImportedAssetsPerSourceIndexLock);
+	for (const TPair<int32, TArray<FImportedObjectInfo>>& SourceIndexAndImportedAssets : ImportedAssetsPerSourceIndex)
+	{
+		Callback(SourceIndexAndImportedAssets.Key, SourceIndexAndImportedAssets.Value);
+	}
+}
+
+UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& UE::Interchange::FImportAsyncHelper::AddDefaultImportedSceneObjectGetRef(int32 SourceIndex)
+{
+	FScopeLock Lock(&ImportedSceneObjectsPerSourceIndexLock);
+	return ImportedSceneObjectsPerSourceIndex.FindOrAdd(SourceIndex).AddDefaulted_GetRef();
+}
+
+const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo* UE::Interchange::FImportAsyncHelper::FindImportedSceneObjects(int32 SourceIndex, TFunction< bool(const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ImportedObject) > Predicate) const
+{
+	FScopeLock Lock(&ImportedSceneObjectsPerSourceIndexLock);
+	if (!ImportedSceneObjectsPerSourceIndex.Contains(SourceIndex))
+	{
+		return nullptr;
+	}
+	const TArray<FImportedObjectInfo>& ImportedObjectInfos = ImportedSceneObjectsPerSourceIndex.FindChecked(SourceIndex);
+	for (const FImportedObjectInfo& ImportObjectInfo : ImportedObjectInfos)
+	{
+		if (Predicate(ImportObjectInfo))
+		{
+			return &ImportObjectInfo;
+		}
+	}
+	return nullptr;
+}
+
+void UE::Interchange::FImportAsyncHelper::IterateImportedSceneObjects(int32 SourceIndex, TFunction< void(const TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedObjects) > Callback) const
+{
+	FScopeLock Lock(&ImportedSceneObjectsPerSourceIndexLock);
+
+	if (!ImportedSceneObjectsPerSourceIndex.Contains(SourceIndex))
+	{
+		return;
+	}
+
+	Callback(ImportedSceneObjectsPerSourceIndex.FindChecked(SourceIndex));
+}
+
+void UE::Interchange::FImportAsyncHelper::IterateImportedSceneObjectsPerSourceIndex(TFunction< void(int32 SourceIndex, const TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedObjects) > Callback) const
+{
+	FScopeLock Lock(&ImportedSceneObjectsPerSourceIndexLock);
+	for (const TPair<int32, TArray<FImportedObjectInfo>>& SourceIndexAndImportedSceneObjects : ImportedSceneObjectsPerSourceIndex)
+	{
+		Callback(SourceIndexAndImportedSceneObjects.Key, SourceIndexAndImportedSceneObjects.Value);
+	}
+}
+
+bool UE::Interchange::FImportAsyncHelper::IsImportingObject(UObject* Object) const
+{
+	if (!Object)
+	{
+		return false;
+	}
+
+	bool bFoundAsset = false;
+	auto IsImportingAsset = [&bFoundAsset, Object](int32 SourceIndex, const TArray<FImportedObjectInfo>& ImportedObjects)
+	{
+		if (bFoundAsset)
+		{
+			return;
+		}
+		for (const FImportedObjectInfo& ImportedObjectInfo : ImportedObjects)
+		{
+			if (ImportedObjectInfo.ImportedObject == Object)
+			{
+				bFoundAsset = true;
+				break;
+			}
+		}
+	};
+	//Asset import
+	IterateImportedAssetsPerSourceIndex(IsImportingAsset);
+	if (!bFoundAsset)
+	{
+		IterateImportedSceneObjectsPerSourceIndex(IsImportingAsset);
+	}
+
+	return bFoundAsset;
+}
+
 void UE::Interchange::FImportAsyncHelper::SendAnalyticImportEndData()
 {
 	if (!FEngineAnalytics::IsAvailable())
@@ -639,7 +807,12 @@ UInterchangeManager& UInterchangeManager::GetInterchangeManager()
 		check(IsInGameThread() && GetTransientPackage());
 
 		InterchangeManager = TStrongObjectPtr<UInterchangeManager>(NewObject<UInterchangeManager>(GetTransientPackage(), NAME_None, EObjectFlags::RF_NoFlags));
-		
+
+		InterchangeManager->GCEndDelegate = FCoreUObjectDelegates::GetPostGarbageCollect().AddLambda([]()
+			{
+				InterchangeManager->StartQueuedTasks(InterchangeManager->bGCEndDelegateCancellAllTask);
+			});
+
 		//We cancel any running task when we pre exit the engine
 		FCoreDelegates::OnEnginePreExit.AddLambda([]()
 		{
@@ -659,6 +832,12 @@ UInterchangeManager& UInterchangeManager::GetInterchangeManager()
 				InterchangeManager->WaitUntilAllTasksDone(bCancel);
 			}
 
+			//Remove any delegate
+			if (InterchangeManager->GCEndDelegate.IsValid())
+			{
+				FCoreUObjectDelegates::GetPostGarbageCollect().Remove(InterchangeManager->GCEndDelegate);
+				InterchangeManager->GCEndDelegate.Reset();
+			}
 			//Task should have been cancel in the Engine pre exit callback
 			ensure(InterchangeManager->ImportTasks.Num() == 0);
 			InterchangeManager->OnPreDestroyInterchangeManager.Broadcast();
@@ -877,6 +1056,20 @@ void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 		return;
 	}
 
+	//Garbage collect can stall and tick the task graph (if accessing a compiling asset locked UProperty )
+	//We must avoid starting an import task in this case, import cannot be done when GC runs.
+	//A delegate is implemented and call StartQueuedTasks when the GC is finish
+	if(IsGarbageCollecting())
+	{
+		if (bCancelAllTasks)
+		{
+			bGCEndDelegateCancellAllTask = bCancelAllTasks;
+		}
+		return;
+	}
+
+	bGCEndDelegateCancellAllTask = false;
+
 	auto UpdateNotification = [this]()
 	{
 		if (Notification.IsValid())
@@ -922,8 +1115,10 @@ void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 	};
 
 
-	//Hack, import the jobs one by one
-	const int32 MaxNumWorker = 1;
+	//We need to leave some free task in the pool to avoid deadlock.
+	//Each import can use 2 tasks in same time if the build of the asset ddc use the same task pool (i.e. staticmesh, skeletalmesh, texture...)
+	const int32 PoolWorkerThreadCount = FTaskGraphInterface::Get().GetNumWorkerThreads() / 2;
+	const int32 MaxNumWorker = FMath::Max(PoolWorkerThreadCount, 1);
 	while (!QueuedTasks.IsEmpty() && (ImportTasks.Num() < MaxNumWorker || bCancelAllTasks))
 	{
 		FQueuedTaskData QueuedTaskData;
@@ -1328,6 +1523,14 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				{
 					//When we do not show the UI we use the original stack
 					OutPipelines = StackInfoPtr->Pipelines;
+					if (bImportAllWithDefault)
+					{
+						//When the user want to use the same settings for all source data we just need to load the settings save by the initial dialog
+						for (UInterchangePipelineBase* Pipeline : OutPipelines)
+						{
+							Pipeline->LoadSettings(DefaultStackName);
+						}
+					}
 				}
 				else if (PipelineStacks.Num() > 0)
 				{
@@ -1414,6 +1617,24 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 
 	PreReturn();
 	return TTuple<UE::Interchange::FAssetImportResultRef, UE::Interchange::FSceneImportResultRef>{ AsyncHelper->AssetImportResult, AsyncHelper->SceneImportResult };
+}
+
+bool UInterchangeManager::IsObjectBeingImported(UObject* Object) const
+{
+	if (!ensure(IsInGameThread()))
+	{
+		return false;
+	}
+
+	for (const TSharedPtr < UE::Interchange::FImportAsyncHelper, ESPMode::ThreadSafe>& AsyncHelper : ImportTasks)
+	{
+		if (AsyncHelper->IsImportingObject(Object))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool UInterchangeManager::IsInterchangeImportEnabled()

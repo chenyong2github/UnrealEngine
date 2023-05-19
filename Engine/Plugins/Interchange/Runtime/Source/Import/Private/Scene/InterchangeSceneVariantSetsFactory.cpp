@@ -302,14 +302,19 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeSceneVariantSetsFactory:
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import levelsequence asset in runtime, this is an editor only feature."));
 	return ImportAssetResult;
 #else
-	if (Arguments.ReimportObject)
+	auto CannotReimportMessage = [&Arguments, this]()
 	{
 		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
 		Message->SourceAssetName = Arguments.SourceData->GetFilename();
 		Message->DestinationAssetName = Arguments.AssetName;
 		Message->AssetType = ULevelVariantSets::StaticClass();
 		Message->Text = LOCTEXT("CreateEmptyAssetUnsupportedReimport", "Re-import of ULevelVariantSets not supported yet.");
+		Arguments.AssetNode->SetSkipNodeImport();
+	};
 
+	if (Arguments.ReimportObject)
+	{
+		CannotReimportMessage();
 		return ImportAssetResult;
 	}
 
@@ -331,18 +336,28 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeSceneVariantSetsFactory:
 		return ImportAssetResult;
 	}
 
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* ExistingAsset = Arguments.ReimportObject;
+	if (!ExistingAsset)
+	{
+		FSoftObjectPath ReferenceObject;
+		if (FactoryNode->GetCustomReferenceObject(ReferenceObject))
+		{
+			ExistingAsset = ReferenceObject.TryLoad();
+		}
+	}
 
 	// create a new material or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
 		LevelVariantSets = NewObject<ULevelVariantSets>(Arguments.Parent, *Arguments.AssetName, RF_Public | RF_Standalone);
 	}
-	else if (ExistingAsset->GetClass()->IsChildOf(ULevelVariantSets::StaticClass()))
+	else
 	{
+		CannotReimportMessage();
+		return ImportAssetResult;
+		// TODO put back the cast when the re-import will be supported
 		// This is a reimport, we are just re-updating the source data
-		LevelVariantSets = Cast<ULevelVariantSets>(ExistingAsset);
+		//LevelVariantSets = Cast<ULevelVariantSets>(ExistingAsset);
 	}
 
 	if (!LevelVariantSets)
@@ -351,12 +366,12 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeSceneVariantSetsFactory:
 		return ImportAssetResult;
 	}
 
-	ImportAssetResult.ImportedObject = ImportObjectSourceData(Arguments);
+	ImportAssetResult.ImportedObject = ImportObjectSourceData(Arguments, LevelVariantSets);
 	return ImportAssetResult;
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
-UObject* UInterchangeSceneVariantSetsFactory::ImportObjectSourceData(const FImportAssetObjectParams& Arguments)
+UObject* UInterchangeSceneVariantSetsFactory::ImportObjectSourceData(const FImportAssetObjectParams& Arguments, ULevelVariantSets* LevelVariantSets)
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
 	// TODO: Can we import ULevelVariantSets at runtime
@@ -366,20 +381,8 @@ UObject* UInterchangeSceneVariantSetsFactory::ImportObjectSourceData(const FImpo
 #else
 	using namespace UE::Interchange;
 
-	// Re-import is not supported yet
-	// Need to add an AssetImportData property to ULevelVariantSets
-	if (Arguments.ReimportObject)
-	{
-		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-		Message->SourceAssetName = Arguments.SourceData->GetFilename();
-		Message->DestinationAssetName = Arguments.AssetName;
-		Message->AssetType = ULevelVariantSets::StaticClass();
-		Message->Text = LOCTEXT("CreateAssetUnsupportedReimport", "Re-import of ULevelVariantSets not supported yet.");
 
-		return nullptr;
-	}
-
-	if (!Arguments.NodeContainer || !Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
+	if (!LevelVariantSets || !Arguments.NodeContainer || !Arguments.AssetNode || !Arguments.AssetNode->GetObjectClass()->IsChildOf(GetFactoryClass()))
 	{
 		return nullptr;
 	}
@@ -400,34 +403,6 @@ UObject* UInterchangeSceneVariantSetsFactory::ImportObjectSourceData(const FImpo
 
 	const UClass* LevelVariantSetsClass = FactoryNode->GetObjectClass();
 	check(LevelVariantSetsClass && LevelVariantSetsClass->IsChildOf(GetFactoryClass()));
-
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
-
-	ULevelVariantSets* LevelVariantSets = nullptr;
-	// create a new level sequence or overwrite existing asset, if possible
-	if (!ExistingAsset)
-	{
-		//NewObject is not thread safe, the asset registry directory watcher tick on the main thread can trig before we finish initializing the UObject and will crash
-		//The UObject should have been create by calling CreateEmptyAsset on the main thread.
-		check(IsInGameThread());
-		LevelVariantSets = NewObject<ULevelVariantSets>(Arguments.Parent, LevelVariantSetsClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-	}
-	else if (ExistingAsset->GetClass()->IsChildOf(LevelVariantSetsClass))
-	{
-		//This is a reimport, we are just re-updating the source data
-		LevelVariantSets = Cast<ULevelVariantSets>(ExistingAsset);
-	}
-
-	if (!ensure(LevelVariantSets))
-	{
-		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-		Message->SourceAssetName = Arguments.SourceData->GetFilename();
-		Message->DestinationAssetName = Arguments.AssetName;
-		Message->AssetType = ULevelVariantSets::StaticClass();
-		Message->Text = FText::Format(LOCTEXT("CreateAssetFailed", "Could not create nor find LevelVariantSets asset {0}."), FText::FromString(Arguments.AssetName));
-		return nullptr;
-	}
 
 	Private::FLevelVariantSetsHelper Helper(*LevelVariantSets, *FactoryNode, *Arguments.NodeContainer, *LevelVariantSetsPayloadInterface);
 	Helper.PopulateLevelVariantSets();

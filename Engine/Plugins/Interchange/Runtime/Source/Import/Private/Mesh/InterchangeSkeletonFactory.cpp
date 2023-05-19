@@ -37,15 +37,22 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeSkeletonFactory::BeginIm
 
 	bool bIsReImport = Arguments.ReimportObject != nullptr;
 
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* ExistingAsset = Arguments.ReimportObject;
+	if (!ExistingAsset)
+	{
+		FSoftObjectPath ReferenceObject;
+		if (SkeletonNode->GetCustomReferenceObject(ReferenceObject))
+		{
+			ExistingAsset = ReferenceObject.TryLoad();
+		}
+	}
 
 	// create a new skeleton or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
 		Skeleton = NewObject<USkeleton>(Arguments.Parent, USkeleton::StaticClass(), *Arguments.AssetName, RF_Public | RF_Standalone);
 	}
-	else if (ExistingAsset->GetClass()->IsChildOf(USkeleton::StaticClass()))
+	else
 	{
 		//This is a reimport, we are just re-updating the source data
 		Skeleton = Cast<USkeleton>(ExistingAsset);

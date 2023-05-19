@@ -33,8 +33,15 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangePhysicsAssetFactory::Beg
 		return ImportAssetResult;
 	}
 
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* ExistingAsset = Arguments.ReimportObject;
+	if (!ExistingAsset)
+	{
+		FSoftObjectPath ReferenceObject;
+		if (PhysicsAssetNode->GetCustomReferenceObject(ReferenceObject))
+		{
+			ExistingAsset = ReferenceObject.TryLoad();
+		}
+	}
 
 	// create a new PhysicsAsset or overwrite existing asset, if possible
 	if (!ExistingAsset)

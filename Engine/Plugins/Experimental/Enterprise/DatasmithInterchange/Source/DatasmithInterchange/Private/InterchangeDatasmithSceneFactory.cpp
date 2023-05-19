@@ -34,15 +34,22 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeDatasmithSceneFactory::B
 		return ImportAssetResult;
 	}
 
-	// create an asset if it doesn't exist
-	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* ExistingAsset = Arguments.ReimportObject;
+	if (!ExistingAsset)
+	{
+		FSoftObjectPath ReferenceObject;
+		if (Arguments.AssetNode->GetCustomReferenceObject(ReferenceObject))
+		{
+			ExistingAsset = ReferenceObject.TryLoad();
+		}
+	}
 
 	// create a new texture or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
 		DatasmithScene = NewObject<UDatasmithScene>(Arguments.Parent, DatasmithSceneClass, *Arguments.AssetName, RF_Public | RF_Standalone);
 	}
-	else if (ExistingAsset->GetClass()->IsChildOf(DatasmithSceneClass))
+	else
 	{
 		//This is a reimport, we are just re-updating the source data
 		DatasmithScene = static_cast<UDatasmithScene*>(ExistingAsset);

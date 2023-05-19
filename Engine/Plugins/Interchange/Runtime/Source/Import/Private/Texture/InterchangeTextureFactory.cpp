@@ -1531,7 +1531,7 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeTextureFactory::BeginImp
 {
 	using namespace  UE::Interchange::Private::InterchangeTextureFactory;
 	FImportAssetResult ImportAssetResult;
-	UObject* Texture = nullptr;
+	UTexture* Texture = nullptr;
 
 	auto CouldNotCreateTextureLog = [this, &Arguments, &ImportAssetResult](const FText& Info)
 	{
@@ -1582,16 +1582,22 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeTextureFactory::BeginImp
 
 	const bool bIsReimport = Arguments.ReimportObject != nullptr;
 
-	// Find existing asset
-	UObject* ExistingAsset = bIsReimport ? Arguments.ReimportObject : StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
+	UObject* ExistingAsset = Arguments.ReimportObject;
+	if (!ExistingAsset)
+	{
+		FSoftObjectPath ReferenceObject;
+		if (Arguments.AssetNode->GetCustomReferenceObject(ReferenceObject))
+		{
+			ExistingAsset = ReferenceObject.TryLoad();
+		}
+	}
 
 	// create a new texture or overwrite existing asset, if possible
 	if (!ExistingAsset)
 	{
-		UTexture* NewTexture = NewObject<UTexture>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
-		Texture = NewTexture;
+		Texture = NewObject<UTexture>(Arguments.Parent, TextureClass, *Arguments.AssetName, RF_Public | RF_Standalone);
 
-		if (UTextureLightProfile* LightProfile = Cast<UTextureLightProfile>(NewTexture))
+		if (UTextureLightProfile* LightProfile = Cast<UTextureLightProfile>(Texture))
 		{
 			LightProfile->AddressX = TA_Clamp;
 			LightProfile->AddressY = TA_Clamp;
@@ -1601,10 +1607,9 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeTextureFactory::BeginImp
 			LightProfile->LODGroup = TEXTUREGROUP_IESLightProfile;
 		}
 	}
-	else if (ExistingAsset->GetClass()->IsChildOf(TextureClass))
+	else
 	{
-		//This is a reimport, we are just re-updating the source data
-		Texture = ExistingAsset;
+		Texture = Cast<UTexture>(ExistingAsset);
 		//We allow override of existing Textures only if the translator is a pure texture translator or the user directly ask to re-import this object
 		if (!bIsReimport && Arguments.Translator->GetSupportedAssetTypes() != EInterchangeTranslatorAssetType::Textures)
 		{
@@ -1612,21 +1617,6 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeTextureFactory::BeginImp
 			ImportAssetResult.bIsFactorySkipAsset = true;
 			bSkipImport = true;
 		}
-	}
-	else
-	{
-		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-		Message->SourceAssetName = Arguments.SourceData->GetFilename();
-		Message->DestinationAssetName = Arguments.AssetName;
-		Message->AssetType = TextureClass;
-
-		const FText TargetClassName = FText::FromString(TextureClass->GetName());
-		const FText ExistingClassName = FText::FromString(ExistingAsset->GetClass()->GetName());
-		const FText AssetName = FText::FromString(Arguments.AssetName);
-		const FText FolderName = FText::FromString(FPaths::GetPath(Arguments.Parent->GetPathName()));
-		Message->Text = FText::Format(NSLOCTEXT("InterchangeTextureFactory", "ClassMismatch", "You cannot create a '{0}' asset named '{1}' in '{2}', as there is already a '{3}' asset with the same name in this folder."), TargetClassName, AssetName, FolderName, ExistingClassName);
-		
-		return ImportAssetResult;
 	}
 
 	if (!Texture)
@@ -1724,9 +1714,9 @@ UInterchangeFactoryBase::FImportAssetResult UInterchangeTextureFactory::ImportAs
 		ImportTextureErrorLog(LOCTEXT("TextureFactory_Async_CannotCreateAsync", "UInterchangeTextureFactory: Could not create Texture asset outside of the game thread."));
 		return ImportAssetResult;
 	}
-	else if(ExistingAsset->GetClass()->IsChildOf(TextureClass))
+	else
 	{
-		Texture = static_cast<UTexture*>(ExistingAsset);
+		Texture = Cast<UTexture>(ExistingAsset);
 	}
 
 	if (!Texture)

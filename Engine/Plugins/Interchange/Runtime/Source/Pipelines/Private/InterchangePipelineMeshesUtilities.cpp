@@ -266,15 +266,18 @@ UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::Create
 					if (IsSceneNodeASocket(SceneNode))
 					{
 						FString MeshUid;
-						const UInterchangeSceneNode* ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(SceneNode->GetParentUid()));
-						while (ParentMeshSceneNode)
+						if (!SceneNode->GetCustomAssetInstanceUid(MeshUid))
 						{
-							if (ParentMeshSceneNode->GetCustomAssetInstanceUid(MeshUid))
+							const UInterchangeSceneNode* ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(SceneNode->GetParentUid()));
+							while (ParentMeshSceneNode)
 							{
-								break;
-							}
+								if (ParentMeshSceneNode->GetCustomAssetInstanceUid(MeshUid))
+								{
+									break;
+								}
 
-							ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(SceneNode->GetParentUid()));
+								ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentMeshSceneNode->GetParentUid()));
+							}
 						}
 
 						if (!MeshUid.IsEmpty())
