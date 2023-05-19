@@ -148,7 +148,8 @@ void ULyraGameInstance::HandlerUserInitialized(const UCommonUserInfo* UserInfo, 
 	{
 		ULyraLocalPlayer* LocalPlayer = Cast<ULyraLocalPlayer>(GetLocalPlayerByIndex(UserInfo->LocalPlayerIndex));
 
-		if (ensure(LocalPlayer))
+		// There will not be a local player attached to the dedicated server user
+		if (LocalPlayer)
 		{
 			LocalPlayer->LoadSharedSettingsFromDisk();
 		}
