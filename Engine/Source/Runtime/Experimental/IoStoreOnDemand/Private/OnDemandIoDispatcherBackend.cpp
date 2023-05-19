@@ -29,8 +29,22 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Tasks/Task.h"
-#include "Tasks/Pipe.h"
 #include <atomic>
+
+///////////////////////////////////////////////////////////////////////////////
+int32 GIoDispatcherMaxHttpConnectionCount = 8;
+static FAutoConsoleVariableRef CVar_IoDispatcherMaxHttpConnectionCount (
+	TEXT("s.IoDispatcherMaxHttpConnectionCount"),
+	GIoDispatcherMaxHttpConnectionCount,
+	TEXT("Max number of open HTTP connections to the on demand endpoint(s).")
+);
+
+int32 GIoDispatcherMaxHttpRetryCount = 2;
+static FAutoConsoleVariableRef CVar_IoDispatcherMaxHttpRetryCount (
+	TEXT("s.IoDispatcherMaxHttpRetryCount"),
+	GIoDispatcherMaxHttpRetryCount,
+	TEXT("Max number of HTTP request retries before failing the I/O request.")
+);
 
 namespace UE::IO::Private
 {
@@ -147,7 +161,7 @@ void FDistributionEndpoints::IssueRequests()
 {
 	// Currenlty we need to use the HTTP module in order to resolve service endpoints due to HTTPS
 	FHttpModule& HttpModule = FModuleManager::LoadModuleChecked<FHttpModule>("HTTP");
-	const int32 MaxAttempts = 3;
+	const int32 MaxAttempts = GIoDispatcherMaxHttpRetryCount;
 
 	TArray<FHttpRequestPtr, TInlineAllocator<2>> HttpRequests;
 	{
@@ -176,7 +190,7 @@ void FDistributionEndpoints::IssueRequests()
 					FHttpRequestPtr Request = MoveTemp(ResolveRequest.HttpRequest);
 					if (Response->GetResponseCode() != 200)
 					{
-						if (++ResolveRequest.RetryCount < MaxAttempts)
+						if (++ResolveRequest.RetryCount <= MaxAttempts)
 						{
 							Request->OnProcessRequestComplete().Unbind();
 							return IssueRequests();
@@ -283,75 +297,74 @@ void FDistributionEndpoints::CompleteRequest(FResolveRequest& ResolveRequest, FH
 class FHttpClient
 {
 public:
-	FHttpClient(UE::HTTP::FEventLoop& EventLoop);
-	void Get(FAnsiStringView Url, FIoReadCallback&& Callback, const TCHAR* DebugName = nullptr);
-	void Get(FAnsiStringView Url, const FIoOffsetAndLength& Range, FIoReadCallback&& Callback, const TCHAR* DebugName = nullptr);
+	FHttpClient(const FString& ServiceUrl, int32 MaxConnectionCount = 8);
+	const FString& ServiceUrl() const { return SvcsUrl; }
+	int32 MaxConnectionCount() const { return MaxConnections;}
+	void Get(FAnsiStringView Url, FIoReadCallback&& Callback);
+	void Get(FAnsiStringView Url, const FIoOffsetAndLength& Range, FIoReadCallback&& Callback);
 	bool Tick();
 
 private:
-	void Issue(UE::HTTP::FRequest&& Request, FIoReadCallback&& Callback, FAnsiStringView Url = FAnsiStringView(), const TCHAR* DebugName = nullptr);
-	UE::HTTP::FEventLoop& EventLoop;
+	void Issue(UE::HTTP::FRequest&& Request, FIoReadCallback&& Callback, FAnsiStringView Url = FAnsiStringView());
+
+	FString SvcsUrl;
+	int32 MaxConnections;
+	HTTP::FEventLoop EventLoop;
+	TUniquePtr<HTTP::FConnectionPool> ConnectionPool;
 };
 
-FHttpClient::FHttpClient(UE::HTTP::FEventLoop& Loop)
-	: EventLoop(Loop)
+FHttpClient::FHttpClient(const FString& ServiceUrl, int32 MaxConnectionCount)
+	: SvcsUrl(ServiceUrl)
+	, MaxConnections(MaxConnectionCount)
 {
+	HTTP::FConnectionPool::FParams Params;
+	Params.SetHostFromUrl(StringCast<ANSICHAR>(*ServiceUrl).Get());
+	Params.ConnectionCount = MaxConnectionCount;
+	ConnectionPool = MakeUnique<HTTP::FConnectionPool>(Params);
 }
 
-void FHttpClient::Get(FAnsiStringView Url, const FIoOffsetAndLength& Range, FIoReadCallback&& Callback, const TCHAR* DebugName)
+void FHttpClient::Get(FAnsiStringView Url, const FIoOffsetAndLength& Range, FIoReadCallback&& Callback)
 {
 	const uint64 RangeStart = Range.GetOffset();
 	const uint64 RangeEnd = Range.GetOffset() + Range.GetLength();
-	UE::HTTP::FRequest Request = EventLoop.Get(Url);
+	UE::HTTP::FRequest Request = EventLoop.Get(Url, *ConnectionPool);
 	Request.Header(ANSITEXTVIEW("Range"), WriteToAnsiString<64>(ANSITEXTVIEW("bytes="), RangeStart, ANSITEXTVIEW("-"), RangeEnd));
 	
-	Issue(MoveTemp(Request), MoveTemp(Callback), Url, DebugName);
+	Issue(MoveTemp(Request), MoveTemp(Callback), Url);
 }
 
-void FHttpClient::Get(FAnsiStringView Url, FIoReadCallback&& Callback, const TCHAR* DebugName)
+void FHttpClient::Get(FAnsiStringView Url, FIoReadCallback&& Callback)
 {
-	Issue(EventLoop.Get(Url), MoveTemp(Callback), Url, DebugName);
+	Issue(EventLoop.Get(Url, *ConnectionPool), MoveTemp(Callback), Url);
 }
 
-void FHttpClient::Issue(UE::HTTP::FRequest&& Request, FIoReadCallback&& Callback, FAnsiStringView DebugUrl, const TCHAR* DebugName)
+void FHttpClient::Issue(UE::HTTP::FRequest&& Request, FIoReadCallback&& Callback, FAnsiStringView DebugUrl)
 {
 	using namespace UE::HTTP;
 	
-	FString Debug = DebugName ? FString(DebugName) : FString();
 	auto Sink = [
 		Buffer = FIoBuffer(),
 		Callback = MoveTemp(Callback),
 		Url = FString(DebugUrl),
 		StartTime = FPlatformTime::Cycles64(),
-		StatusCode = uint32(0),
-		DebugName = MoveTemp(Debug)]
+		StatusCode = uint32(0)]
 		(const FTicketStatus& Status) mutable
 		{ 
 			if (FTicketStatus::EId::Response == Status.GetId())
 			{
 				FResponse& Response = Status.GetResponse();
 				StatusCode = Response.GetStatusCode();
-
-				if (StatusCode > 199 && StatusCode < 300)
-				{
-					Response.SetDestination(&Buffer);
-				}
-				else
-				{
-					const uint64 Duration = (uint64)FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime);
-					UE_LOG(LogIoStoreOnDemand, VeryVerbose, TEXT("%s"),
-						*WriteToString<256>(TEXT("HTTP GET - "), Url, TEXT(" ("), StatusCode, TEXT(" "), Duration, TEXT("ms)")));
-					
-					Callback(FIoStatus(EIoErrorCode::ReadError, WriteToString<64>(TEXT("HTTP Error("), Response.GetStatusCode(), TEXT(")"))));
-				}
+				Response.SetDestination(&Buffer);
 			}
 			else if (FTicketStatus::EId::Content == Status.GetId())
 			{
 				const uint64 Duration = (uint64)FPlatformTime::ToMilliseconds64(FPlatformTime::Cycles64() - StartTime);
-				if (const FIoBuffer& Content = Status.GetContent(); Content.GetSize() > 0)
+
+				const bool bSuccessful = StatusCode > 199 && StatusCode < 300;
+				if (const FIoBuffer& Content = Status.GetContent(); bSuccessful && Content.GetSize() > 0)
 				{
 					UE_LOG(LogIoStoreOnDemand, VeryVerbose, TEXT("%s"),
-						*WriteToString<256>(DebugName, TEXT(" GET - "), Url, TEXT(" ("), StatusCode, TEXT(" "), Duration, TEXT("ms "), Content.GetSize(), TEXT(" Bytes)")));
+						*WriteToString<256>(TEXT("HTTP GET - "), Url, TEXT(" ("), StatusCode, TEXT(" "), Duration, TEXT("ms "), Content.GetSize(), TEXT(" Bytes)")));
 
 					Callback(Content);
 				}
@@ -360,7 +373,7 @@ void FHttpClient::Issue(UE::HTTP::FRequest&& Request, FIoReadCallback&& Callback
 					UE_LOG(LogIoStoreOnDemand, VeryVerbose, TEXT("%s"),
 						*WriteToString<256>(TEXT("HTTP GET - "), Url, TEXT(" ("), StatusCode, TEXT(" "), Duration, TEXT("ms)")));
 					
-					Callback(FIoStatus(EIoErrorCode::ReadError, TEXTVIEW("Invalid Content")));
+					Callback(FIoStatus(EIoErrorCode::NotFound, TEXTVIEW("Invalid Content")));
 				}
 			}
 			else if (FTicketStatus::EId::Error == Status.GetId())
@@ -394,10 +407,12 @@ public:
 		uint32 BlockCount = 0; 
 	};
 
+	struct FToc;
+
 	struct FContainer
 	{
+		const FToc* Toc = nullptr;
 		FAES::FAESKey EncryptionKey;
-		const FOnDemandEndpoint* Endpoint = nullptr;
 		FString Name;
 		FString EncryptionKeyGuid;
 		FString ChunksDirectory;
@@ -407,6 +422,14 @@ public:
 		TMap<FIoChunkId, FTocEntry> TocEntries;
 		TArray<uint32> BlockSizes;
 	};
+
+	struct FToc
+	{
+		FOnDemandEndpoint Endpoint;
+		TArray<FContainer> Containers;
+	};
+
+	using FTocArray = TChunkedArray<FToc, sizeof(FToc) * 4>;
 
 	struct FChunkInfo
 	{
@@ -426,24 +449,17 @@ public:
 	FOnDemandIoStore();
 	~FOnDemandIoStore();
 
-	void Initialize();
-	FIoStatus AddEndpoint(const FOnDemandEndpoint& Endpoint);
+	void AddToc(const FOnDemandEndpoint& Ep, FOnDemandToc&& Toc);
 	TIoStatusOr<uint64> GetChunkSize(const FIoChunkId& ChunkId);
 	FChunkInfo GetChunkInfo(const FIoChunkId& ChunkId);
 
 private:
-	TIoStatusOr<FOnDemandToc> GetToc(const FString& ServiceUrl, const FString& TocPath);
-	void AddToc(const FOnDemandEndpoint& Ep, FOnDemandToc&& Toc);
-	FIoStatus AddDeferredEndpoints(const FString& DistributionUrl, const TConstArrayView<FString>& ServiceUrls);
 	void AddDeferredContainers();
 	void OnEncryptionKeyAdded(const FGuid& Id, const FAES::FAESKey& Key);
-	
-	FDistributionEndpoints DistributionEndpoints;
-	TChunkedArray<FOnDemandEndpoint> Endpoints;
-	TChunkedArray<FContainer> Containers;
+
+	FTocArray Tocs;
 	TArray<FContainer*> RegisteredContainers;
 	TArray<FContainer*> DeferredContainers;
-	TArray<FOnDemandEndpoint> DeferredEndpoints;
 	mutable FRWLock Lock;
 };
 
@@ -457,115 +473,6 @@ FOnDemandIoStore::~FOnDemandIoStore()
 	FEncryptionKeyManager::Get().OnKeyAdded().RemoveAll(this);
 }
 
-void FOnDemandIoStore::Initialize()
-{
-	DistributionEndpoints.ResolveDeferredEndpoints();
-}
-
-FIoStatus FOnDemandIoStore::AddEndpoint(const FOnDemandEndpoint& Endpoint)
-{
-	if ((Endpoint.DistributionUrl.IsEmpty() && Endpoint.ServiceUrl.IsEmpty()) || Endpoint.TocPath.IsEmpty())
-	{
-		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Invalid endpoint parameters"));
-	}
-
-	if (Endpoint.ServiceUrl.IsEmpty())
-	{
-		DeferredEndpoints.Add(Endpoint);
-		DistributionEndpoints.Resolve(Endpoint.DistributionUrl, [this](const FString& DistributionUrl, TConstArrayView<FString> SerivceUrls)
-		{
-			if (FIoStatus Status = AddDeferredEndpoints(DistributionUrl, SerivceUrls); !Status.IsOk())
-			{
-				UE_LOG(LogIoStoreOnDemand, Error, TEXT("Failed to add on demand endpoint, reason '%s'"), *Status.ToString());
-			}
-		});
-
-		return FIoStatus::Unknown;
-	}
-	else
-	{
-		if (TIoStatusOr<FOnDemandToc> Toc = GetToc(Endpoint.ServiceUrl, Endpoint.TocPath); Toc.IsOk())
-		{
-			AddToc(Endpoint, Toc.ConsumeValueOrDie());
-			return FIoStatus::Ok;
-		}
-
-		return FIoStatus(EIoErrorCode::CorruptToc, TEXT("Failed to load TOC from endpoint"));
-	}
-}
-
-TIoStatusOr<uint64> FOnDemandIoStore::GetChunkSize(const FIoChunkId& ChunkId)
-{
-	if (FChunkInfo Info = GetChunkInfo(ChunkId))
-	{
-		return Info.Entry->RawSize;
-	}
-
-	return FIoStatus(EIoErrorCode::UnknownChunkID);
-}
-
-FOnDemandIoStore::FChunkInfo FOnDemandIoStore::GetChunkInfo(const FIoChunkId& ChunkId)
-{
-	FReadScopeLock _(Lock);
-
-	for (const FContainer* Container : RegisteredContainers)
-	{
-		if (const FTocEntry* Entry = Container->TocEntries.Find(ChunkId))
-		{
-			return FChunkInfo{Container, Entry};
-		}
-	}
-
-	return {};
-}
-
-TIoStatusOr<FOnDemandToc> FOnDemandIoStore::GetToc(const FString& ServiceUrl, const FString& TocPath)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FOnDemandIoBackend::GetToc);
-
-	HTTP::FEventLoop EventLoop;
-	FHttpClient Client(EventLoop);
-
-	TAnsiStringBuilder<256> Url;
-	Url << ServiceUrl << "/" << TocPath;
-
-	for (int32 Attempt = 0, MaxAttempts = 3; Attempt < MaxAttempts; ++Attempt)
-	{
-		UE_LOG(LogIoStoreOnDemand, Log, TEXT("Fetching TOC '%s/%s' (#%d/%d)"), *ServiceUrl, *TocPath, Attempt + 1, MaxAttempts);
-		
-		TIoStatusOr<FOnDemandToc> Toc;
-		Client.Get(Url.ToView(), [&Toc](TIoStatusOr<FIoBuffer> Response)
-		{
-			if (Response.IsOk())
-			{
-				FIoBuffer Buffer = Response.ConsumeValueOrDie();
-				FOnDemandToc NewToc;	
-				if (LoadFromCompactBinary(FCbFieldView(Buffer.GetData()), NewToc))
-				{
-					Toc = TIoStatusOr<FOnDemandToc>(MoveTemp(NewToc));
-				}
-				else
-				{
-					UE_LOG(LogIoStoreOnDemand, Error, TEXT("Failed loading on demand TOC from compact binary"));
-				}
-			}
-			else
-			{
-				UE_LOG(LogIoStoreOnDemand, Error, TEXT("Failed fetching TOC, reason '%s'"), *Response.Status().ToString());
-			}
-		});
-
-		while (Client.Tick());
-
-		if (Toc.IsOk())
-		{
-			return Toc;
-		}
-	}
-
-	return TIoStatusOr<FOnDemandToc>(FIoStatus(EIoErrorCode::NotFound));
-}
-
 void FOnDemandIoStore::AddToc(const FOnDemandEndpoint& Ep, FOnDemandToc&& Toc)
 {
 	check(Ep.IsValid());
@@ -574,22 +481,26 @@ void FOnDemandIoStore::AddToc(const FOnDemandEndpoint& Ep, FOnDemandToc&& Toc)
 	TRACE_CPUPROFILER_EVENT_SCOPE(FOnDemandIoBackend::AddToc);
 
 	FString Prefix;
-	int32 Idx = INDEX_NONE;
-	if (Ep.TocPath.FindLastChar(TCHAR('/'), Idx))
 	{
-		Prefix = Ep.TocPath.Left(Idx);
+		int32 Idx = INDEX_NONE;
+		if (Ep.TocPath.FindLastChar(TCHAR('/'), Idx))
+		{
+			Prefix = Ep.TocPath.Left(Idx);
+		}
 	}
 
 	{
 		FWriteScopeLock _(Lock);
 
-		const FOnDemandEndpoint* Endpoint = new(Endpoints) FOnDemandEndpoint{Ep.EndpointType, Ep.DistributionUrl, Ep.ServiceUrl, Ep.TocPath};
 		const FOnDemandTocHeader& Header = Toc.Header;
+		FToc* NewToc = new(Tocs) FToc{Ep};
+		NewToc->Containers.SetNum(Toc.Containers.Num()); // List of containers can never change
 
+		int32 ContainerIndex = 0;
 		for (FOnDemandTocContainerEntry& Container : Toc.Containers)
 		{
-			FContainer* NewContainer = new(Containers) FContainer();
-			NewContainer->Endpoint = Endpoint;
+			FContainer* NewContainer = &NewToc->Containers[ContainerIndex++];
+			NewContainer->Toc = NewToc;
 			NewContainer->Name = Container.ContainerName;
 			NewContainer->ChunksDirectory = (Prefix.IsEmpty() ? Header.ChunksDirectory : Prefix / Header.ChunksDirectory).ToLower();
 			NewContainer->CompressionFormat = FName(Header.CompressionFormat);
@@ -618,48 +529,29 @@ void FOnDemandIoStore::AddToc(const FOnDemandEndpoint& Ep, FOnDemandToc&& Toc)
 	AddDeferredContainers();
 }
 
-FIoStatus FOnDemandIoStore::AddDeferredEndpoints(const FString& DistributionUrl, const TConstArrayView<FString>& ServiceUrls)
+TIoStatusOr<uint64> FOnDemandIoStore::GetChunkSize(const FIoChunkId& ChunkId)
 {
-	TArray<FOnDemandEndpoint, TInlineAllocator<4>> EndpointsToAdd;
+	if (FChunkInfo Info = GetChunkInfo(ChunkId))
 	{
-		FWriteScopeLock _(Lock);
-		for (auto It = DeferredEndpoints.CreateIterator(); It; ++It)
+		return Info.Entry->RawSize;
+	}
+
+	return FIoStatus(EIoErrorCode::UnknownChunkID);
+}
+
+FOnDemandIoStore::FChunkInfo FOnDemandIoStore::GetChunkInfo(const FIoChunkId& ChunkId)
+{
+	FReadScopeLock _(Lock);
+
+	for (const FContainer* Container : RegisteredContainers)
+	{
+		if (const FTocEntry* Entry = Container->TocEntries.Find(ChunkId))
 		{
-			if (It->DistributionUrl.Compare(DistributionUrl, ESearchCase::IgnoreCase) == 0)
-			{
-				EndpointsToAdd.Add(*It);
-				It.RemoveCurrent();
-			}
+			return FChunkInfo{Container, Entry};
 		}
 	}
 
-	for (const FOnDemandEndpoint& Ep : EndpointsToAdd)
-	{
-		bool bOk = false;
-		for (const FString& SerivceUrl : ServiceUrls)
-		{
-			// Currenlty we don't need use secure sockets to fetch on demand content
-			FString UnsecureUrl = SerivceUrl.Replace(TEXT("https"), TEXT("http"));
-			TIoStatusOr<FOnDemandToc> Toc = GetToc(UnsecureUrl, Ep.TocPath);
-			if (Toc.IsOk())
-			{
-				AddToc(Ep, Toc.ConsumeValueOrDie());
-				bOk = true;
-				break;
-			}
-			else
-			{
-				UE_LOG(LogIoStoreOnDemand, Log, TEXT("Failed fetch TOC '%s/%s'"), *UnsecureUrl, *Ep.TocPath);
-			}
-		}
-
-		if (!bOk)
-		{
-			return FIoStatus(EIoErrorCode::CorruptToc, TEXT("Failed to add deferred endpoint"));
-		}
-	}
-
-	return FIoStatus::Ok;
+	return {};
 }
 
 void FOnDemandIoStore::AddDeferredContainers()
@@ -700,10 +592,11 @@ void FOnDemandIoStore::OnEncryptionKeyAdded(const FGuid& Id, const FAES::FAESKey
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-class FIoRequestQueue
+template<typename T>
+class TThreadSafeIntrusiveQueue
 {
 public:
-	void Enqueue(FIoRequestImpl* Request)
+	void Enqueue(T* Request)
 	{
 		check(Request->NextRequest == nullptr);
 		FScopeLock _(&CriticalSection);
@@ -721,11 +614,11 @@ public:
 		Tail = Request;
 	}
 
-	FIoRequestImpl* Dequeue()
+	T* Dequeue()
 	{
 		FScopeLock _(&CriticalSection);
 
-		FIoRequestImpl* Requests = Head;
+		T* Requests = Head;
 		Head = Tail = nullptr;
 
 		return Requests;
@@ -733,8 +626,8 @@ public:
 
 private:
 	FCriticalSection CriticalSection;
-	FIoRequestImpl* Head = nullptr;
-	FIoRequestImpl* Tail = nullptr;
+	T* Head = nullptr;
+	T* Tail = nullptr;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -759,8 +652,7 @@ struct FChunkRequestParams
 	void GetUrl(FAnsiStringBuilderBase& Url) const
 	{
 		const FString HashString = LexToString(ChunkInfo.Entry->Hash);
-		Url << ChunkInfo.Container->Endpoint->ServiceUrl
-			<< "/" << ChunkInfo.Container->ChunksDirectory
+		Url << "/" << ChunkInfo.Container->ChunksDirectory
 			<< "/" << HashString.Left(2)
 			<< "/" << HashString << ANSITEXTVIEW(".iochunk");
 	}
@@ -787,14 +679,16 @@ struct FChunkRequestParams
 struct FChunkRequest
 {
 	explicit FChunkRequest(FIoRequestImpl* Request, const FChunkRequestParams& RequestParams)
-		: Params(RequestParams)
+		: NextRequest()
+		, Params(RequestParams)
 		, RequestHead(Request)
 		, RequestTail(Request)
 		, StartTime(FPlatformTime::Cycles64())
 		, RequestCount(1)
+		, HttpRetryCount(0)
 		, bCached(false)
 	{
-		check(Request);
+		check(Request && NextRequest == nullptr);
 	}
 
 	void AddDispatcherRequest(FIoRequestImpl* Request)
@@ -851,6 +745,7 @@ struct FChunkRequest
 		return FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
 	}
 
+	FChunkRequest* NextRequest;
 	FChunkRequestParams Params;
 	FIoRequestImpl* RequestHead;
 	FIoRequestImpl* RequestTail;
@@ -860,28 +755,17 @@ struct FChunkRequest
 	FIoCancellationToken CancellationToken;
 	uint64 StartTime;
 	uint16 RequestCount;
+	uint16 HttpRetryCount;
 	bool bCached;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 class FOnDemandIoBackend final
-	: public UE::IOnDemandIoDispatcherBackend
+	: public FRunnable
+	, public UE::IOnDemandIoDispatcherBackend
 {
-	const uint32 HttpWorkerCount = 4;
-
-	struct FHttpPipe
-	{
-		explicit FHttpPipe(const TCHAR* InDebugName)
-			: DebugName(InDebugName)
-			, Pipe(*DebugName)
-		{
-		}
-
-		FString DebugName;
-		UE::Tasks::FPipe Pipe;
-		UE::HTTP::FEventLoop HttpLoop;
-		FHttpClient Client{HttpLoop};
-	};
+	using FIoRequestQueue = TThreadSafeIntrusiveQueue<FIoRequestImpl>;
+	using FChunkRequestQueue = TThreadSafeIntrusiveQueue<FChunkRequest>;
 
 	struct FBackendData
 	{
@@ -1000,24 +884,30 @@ public:
 	// I/O Http backend
 	virtual void Mount(const FOnDemandEndpoint& Endpoint) override;
 
+	// Runnable
+	virtual bool Init() override { return true; }
+	virtual void Stop() override { bStopRequested = true; }
+	virtual uint32 Run() override;
+
 private:
 	void CompleteRequest(FChunkRequest* ChunkRequest);
-
-	FHttpPipe& GetHttpPipe()
-	{
-		const uint32 PipeIndex = CurrentHttpWorker.fetch_add(1, std::memory_order_relaxed) % HttpWorkerCount;
-		return *HttpPipes[PipeIndex].Get();
-	}
+	FIoStatus MountDeferredEndpoints(const FString& DistributionUrl, const TConstArrayView<FString>& ServiceUrls);
+	static TIoStatusOr<FOnDemandToc> GetToc(FHttpClient& HttpClient, const FString& TocPath);
+	FIoStatus AddToc(const FOnDemandEndpoint& Endpoint);
 
 	TSharedPtr<IIoCache> Cache;
-	TSharedPtr<const FIoDispatcherBackendContext> BackendContext;
 	TUniquePtr<FOnDemandIoStore> IoStore;
-	TArray<TUniquePtr<FHttpPipe>> HttpPipes;
+	TSharedPtr<const FIoDispatcherBackendContext> BackendContext;
+	TUniquePtr<FRunnableThread> BackendThread;
+	FEventRef TickBackendEvent;
+	FDistributionEndpoints DistributionEndpoints;
+	TArray<FOnDemandEndpoint> DeferredEndpoints;
 	FChunkRequests ChunkRequests;
 	FIoRequestQueue CompletedRequests;
-	FOnDemandEndpoint CurrentEndpoint;
+	FChunkRequestQueue HttpRequests;
+	TUniquePtr<FHttpClient> HttpClient;
+	FRWLock Lock;
 	std::atomic_bool bStopRequested{false};
-	std::atomic_uint32_t CurrentHttpWorker{0};
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1025,11 +915,6 @@ FOnDemandIoBackend::FOnDemandIoBackend(TSharedPtr<IIoCache> InCache)
 	: Cache(InCache)
 {
 	IoStore = MakeUnique<FOnDemandIoStore>();
-
-	for (uint32 Idx = 0; Idx < HttpWorkerCount; ++Idx)
-	{
-		HttpPipes.Add(MakeUnique<FHttpPipe>(*WriteToString<64>(TEXT("HTTP #"), Idx + 1)));
-	}
 }
 
 FOnDemandIoBackend::~FOnDemandIoBackend()
@@ -1041,7 +926,7 @@ void FOnDemandIoBackend::Initialize(TSharedRef<const FIoDispatcherBackendContext
 {
 	UE_LOG(LogIoStoreOnDemand, Log, TEXT("Initializing on demand I/O dispatcher backend"));
 	BackendContext = Context;
-	IoStore->Initialize();
+	DistributionEndpoints.ResolveDeferredEndpoints();
 }
 
 void FOnDemandIoBackend::Shutdown()
@@ -1054,6 +939,8 @@ void FOnDemandIoBackend::Shutdown()
 	UE_LOG(LogIoStoreOnDemand, Log, TEXT("Shutting down on demand I/O dispatcher backend"));
 
 	bStopRequested = true;
+	TickBackendEvent->Trigger();
+	BackendThread.Reset();
 	BackendContext.Reset();
 }
 
@@ -1131,7 +1018,6 @@ bool FOnDemandIoBackend::Resolve(FIoRequestImpl* Request)
 		return false;
 	}
 
-	check(HttpPipes.Num());
 	FChunkRequestParams RequestParams = FChunkRequestParams::Create(Request, ChunkInfo);
 	FChunkRequest* ChunkRequest = ChunkRequests.Create(Request, RequestParams);
 
@@ -1141,7 +1027,7 @@ bool FOnDemandIoBackend::Resolve(FIoRequestImpl* Request)
 		return true;
 	}
 		
-	auto FetchHttp = [this, ChunkRequest]()
+	auto CompleteOrEnqueueHttpRequest = [this, ChunkRequest]()
 	{
 		if (ChunkRequest->CacheTask.IsValid())
 		{
@@ -1160,47 +1046,19 @@ bool FOnDemandIoBackend::Resolve(FIoRequestImpl* Request)
 		}
 
 		TRACE_COUNTER_INCREMENT(PendingHttpRequestCount);
-		FHttpPipe& HttpPipe = GetHttpPipe();
-		ChunkRequest->DecodeTask = Launch(TEXT("I/O Decode"), [this, ChunkRequest]()
-		{
-			TRACE_COUNTER_DECREMENT(InflightHttpRequestCount);
-			CompleteRequest(ChunkRequest);
-		}, HttpPipe.Pipe.Launch(TEXT("I/O HTTP"), [this, &HttpPipe, ChunkRequest]()
-		{
-			TRACE_COUNTER_DECREMENT(PendingHttpRequestCount);
-			TRACE_COUNTER_INCREMENT(InflightHttpRequestCount);
-
-			if (ChunkRequest->CancellationToken.IsCancelled())
-			{
-				return;
-			}
-
-			TAnsiStringBuilder<256> Url;
-			ChunkRequest->Params.GetUrl(Url);
-			HttpPipe.Client.Get(Url.ToView(), ChunkRequest->Params.ChunkRange, [ChunkRequest](TIoStatusOr<FIoBuffer> Status)
-			{
-				if (Status.IsOk())
-				{
-					ChunkRequest->Chunk = Status.ConsumeValueOrDie();
-				}
-			}, HttpPipe.Pipe.GetDebugName());
-
-			while (HttpPipe.Client.Tick())
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(FOnDemandIoBackend::TickHttpEventLoop);
-			}
-		}));
+		HttpRequests.Enqueue(ChunkRequest);
+		TickBackendEvent->Trigger();
 	};
 
 	//TODO: Remove if else once 25124120 is merged to FN/Main
 	if (Cache.IsValid())
 	{
 		ChunkRequest->CacheTask = Cache->GetChunk(ChunkRequest->Params.ChunkKey, FIoReadOptions(), &ChunkRequest->CancellationToken);
-		Launch(UE_SOURCE_LOCATION, MoveTemp(FetchHttp), ChunkRequest->CacheTask);
+		Launch(UE_SOURCE_LOCATION, MoveTemp(CompleteOrEnqueueHttpRequest), ChunkRequest->CacheTask);
 	}
 	else
 	{
-		Launch(UE_SOURCE_LOCATION, MoveTemp(FetchHttp));
+		Launch(UE_SOURCE_LOCATION, MoveTemp(CompleteOrEnqueueHttpRequest));
 	}
 
 	return true;
@@ -1217,6 +1075,7 @@ void FOnDemandIoBackend::CancelIoRequest(FIoRequestImpl* Request)
 
 void FOnDemandIoBackend::UpdatePriorityForIoRequest(FIoRequestImpl* Request)
 {
+	//TODO: Implement
 }
 
 bool FOnDemandIoBackend::DoesChunkExist(const FIoChunkId& ChunkId) const
@@ -1253,18 +1112,227 @@ TIoStatusOr<FIoMappedRegion> FOnDemandIoBackend::OpenMapped(const FIoChunkId& Ch
 	return FIoStatus::Unknown;
 }
 
+FIoStatus FOnDemandIoBackend::MountDeferredEndpoints(const FString& DistributionUrl, const TConstArrayView<FString>& ServiceUrls)
+{
+	TArray<FOnDemandEndpoint, TInlineAllocator<4>> EndpointsToAdd;
+	{
+		FWriteScopeLock _(Lock);
+		for (auto It = DeferredEndpoints.CreateIterator(); It; ++It)
+		{
+			if (It->DistributionUrl.Compare(DistributionUrl, ESearchCase::IgnoreCase) == 0)
+			{
+				EndpointsToAdd.Add(*It);
+				It.RemoveCurrent();
+			}
+		}
+	}
+
+	for (const FOnDemandEndpoint& Ep : EndpointsToAdd)
+	{
+		FIoStatus Status;
+		for (const FString& SerivceUrl : ServiceUrls)
+		{
+			// Currenlty we don't need use secure sockets to fetch on demand content
+			FString UnsecureUrl = SerivceUrl.Replace(TEXT("https"), TEXT("http"));
+			Status = AddToc(FOnDemandEndpoint{Ep.EndpointType, DistributionUrl, UnsecureUrl, Ep.TocPath});
+			if (Status.IsOk())
+			{
+				break;
+			}
+		}
+
+		if (!Status.IsOk())
+		{
+			return Status;
+		}
+	}
+
+	return FIoStatus::Ok;
+}
+
 void FOnDemandIoBackend::Mount(const FOnDemandEndpoint& Endpoint)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FOnDemandIoBackend::Mount);
 
+	if ((Endpoint.DistributionUrl.IsEmpty() && Endpoint.ServiceUrl.IsEmpty()) || Endpoint.TocPath.IsEmpty())
+	{
+		UE_LOG(LogIoStoreOnDemand, Error, TEXT("Trying to mount an invalid on demand endpoint"));
+		return;
+	}
+
 	if (EnumHasAnyFlags(Endpoint.EndpointType, EOnDemandEndpointType::CDN))
 	{
-		IoStore->AddEndpoint(Endpoint);
+		if (Endpoint.ServiceUrl.IsEmpty())
+		{
+			{
+				FWriteScopeLock _(Lock);
+				DeferredEndpoints.Add(Endpoint);
+			}
+
+			DistributionEndpoints.Resolve(Endpoint.DistributionUrl, [this](const FString& DistributionUrl, TConstArrayView<FString> SerivceUrls)
+			{
+				if (FIoStatus Status = MountDeferredEndpoints(DistributionUrl, SerivceUrls); !Status.IsOk())
+				{
+					UE_LOG(LogIoStoreOnDemand, Error, TEXT("Failed to add endpoint(s), reason '%s'"), *Status.ToString());
+				}
+			});
+		}
+		else if (FIoStatus Status = AddToc(Endpoint); !Status.IsOk())
+		{
+			UE_LOG(LogIoStoreOnDemand, Error, TEXT("Failed to add TOC '%s/%s', reason '%s'"),
+				*Endpoint.ServiceUrl, *Endpoint.TocPath, *Status.ToString());
+		}
 	}
 	else
 	{
 		UE_LOG(LogIoStoreOnDemand, Log, TEXT("Mounting ZEN endpoint, Url='%s'"), *Endpoint.ServiceUrl);
 	}
+}
+
+TIoStatusOr<FOnDemandToc> FOnDemandIoBackend::GetToc(FHttpClient& HttpClient, const FString& TocPath)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FOnDemandIoBackend::GetToc);
+
+	TAnsiStringBuilder<256> Url;
+	Url << "/" << TocPath;
+
+	for (int32 Attempt = 0, MaxAttempts = GIoDispatcherMaxHttpRetryCount; Attempt <= MaxAttempts; ++Attempt)
+	{
+		UE_LOG(LogIoStoreOnDemand, Log, TEXT("Fetching TOC '%s/%s' (#%d/%d)"), *HttpClient.ServiceUrl(), *TocPath, Attempt + 1, MaxAttempts);
+		
+		TIoStatusOr<FOnDemandToc> Toc;
+		HttpClient.Get(Url.ToView(), [&Toc](TIoStatusOr<FIoBuffer> Response)
+		{
+			if (Response.IsOk())
+			{
+				FIoBuffer Buffer = Response.ConsumeValueOrDie();
+				FOnDemandToc NewToc;	
+				if (LoadFromCompactBinary(FCbFieldView(Buffer.GetData()), NewToc))
+				{
+					Toc = TIoStatusOr<FOnDemandToc>(MoveTemp(NewToc));
+				}
+				else
+				{
+					UE_LOG(LogIoStoreOnDemand, Error, TEXT("Failed loading on demand TOC from compact binary"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogIoStoreOnDemand, Error, TEXT("Failed fetching TOC, reason '%s'"), *Response.Status().ToString());
+			}
+		});
+
+		while (HttpClient.Tick());
+
+		if (Toc.IsOk())
+		{
+			return Toc;
+		}
+	}
+
+	return TIoStatusOr<FOnDemandToc>(FIoStatus(EIoErrorCode::NotFound));
+}
+
+FIoStatus FOnDemandIoBackend::AddToc(const FOnDemandEndpoint& Endpoint)
+{
+	TUniquePtr<FHttpClient> Client = MakeUnique<FHttpClient>(Endpoint.ServiceUrl, GIoDispatcherMaxHttpConnectionCount);
+
+	TIoStatusOr<FOnDemandToc> Toc = GetToc(*Client, Endpoint.TocPath);
+	if (!Toc.IsOk())
+	{
+		return FIoStatus(Toc.Status());
+	}
+
+	{
+		FWriteScopeLock _(Lock);
+		if (!HttpClient.IsValid())
+		{
+			HttpClient = MoveTemp(Client);
+			BackendThread.Reset(FRunnableThread::Create(this, TEXT("IoStoreOnDemand"), 0, TPri_AboveNormal));
+		}
+	}
+
+	IoStore->AddToc(Endpoint, Toc.ConsumeValueOrDie());
+
+	UE_CLOG(Endpoint.ServiceUrl !=  HttpClient->ServiceUrl(),
+		LogIoStoreOnDemand, Fatal, TEXT("Fetching on demand content from multiple endpoints are currently not supported"));
+
+	return FIoStatus::Ok;
+}
+
+uint32 FOnDemandIoBackend::Run()
+{
+	const int32 MaxConcurrentRequests = HttpClient->MaxConnectionCount();
+
+	while (!bStopRequested)
+	{
+		for (;;)
+		{
+			FChunkRequest* NextChunkRequest = HttpRequests.Dequeue();
+			if (NextChunkRequest == nullptr)
+			{
+				break;
+			}
+
+			int32 NumConcurrentRequests = 0;
+			while (NextChunkRequest)
+			{
+				FChunkRequest* ChunkRequest = NextChunkRequest;
+				NextChunkRequest = ChunkRequest->NextRequest;
+				ChunkRequest->NextRequest = nullptr;
+
+				TRACE_COUNTER_DECREMENT(PendingHttpRequestCount);
+				TRACE_COUNTER_INCREMENT(InflightHttpRequestCount);
+
+				TAnsiStringBuilder<256> Url;
+				ChunkRequest->Params.GetUrl(Url);
+
+				NumConcurrentRequests++;
+				HttpClient->Get(Url.ToView(), ChunkRequest->Params.ChunkRange,
+					[this, ChunkRequest, &NumConcurrentRequests](TIoStatusOr<FIoBuffer> Status)
+					{
+						TRACE_COUNTER_DECREMENT(InflightHttpRequestCount);
+						NumConcurrentRequests--;
+
+						if (Status.Status().GetErrorCode() == EIoErrorCode::ReadError)
+						{
+							if (++ChunkRequest->HttpRetryCount <= GIoDispatcherMaxHttpRetryCount)
+							{
+								return HttpRequests.Enqueue(ChunkRequest); 
+							}
+						}
+
+						if (Status.IsOk())
+						{
+							ChunkRequest->Chunk = Status.ConsumeValueOrDie();
+						}
+
+						Launch(UE_SOURCE_LOCATION, [this, ChunkRequest]()
+						{
+							CompleteRequest(ChunkRequest);
+						});
+					});
+
+				while (NumConcurrentRequests >= MaxConcurrentRequests)
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(FOnDemandIoBackend::TickHttpEventLoop);
+					HttpClient->Tick();
+				}
+			}
+
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(FOnDemandIoBackend::TickHttpEventLoop);
+				while (HttpClient->Tick());
+			}
+		}
+
+		if (!bStopRequested)
+		{
+			TickBackendEvent->Wait();
+		}
+	}
+
+	return 0;
 }
 
 } // namespace UE::IO::Private
