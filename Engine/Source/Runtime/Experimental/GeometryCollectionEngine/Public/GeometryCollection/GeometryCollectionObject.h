@@ -512,7 +512,7 @@ public:
 	int32 MaxClusterLevel;
 
 	/** Damage model to use for evaluating destruction. */
-	UPROPERTY(EditAnywhere, Category = "Damage")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage")
 	EDamageModelTypeEnum DamageModel;
 
 	/** Damage threshold for clusters at different levels. */
