@@ -9,7 +9,6 @@
 
 class ALandscapeProxy;
 class AWorldSettings;
-class IConsoleVariable;
 class ULandscapeInfo;
 class FLandscapeNotificationManager;
 struct FDateTime;
@@ -129,7 +128,6 @@ private:
 	// End USubsystem
 
 	void OnNaniteWorldSettingsChanged(AWorldSettings* WorldSettings) { RegenerateGrass(true, true); }
-	void OnNaniteEnabledChanged(IConsoleVariable*);
 
 	bool bIsGrassCreationPrioritized = false;
 	TArray<TWeakObjectPtr<ALandscapeProxy>> Proxies;

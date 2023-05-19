@@ -7,7 +7,6 @@
 #include "Engine/World.h"
 #include "Modules/ModuleManager.h"
 #include "ContentStreaming.h"
-#include "HAL/IConsoleManager.h"
 #include "Landscape.h"
 #include "LandscapeEditTypes.h"
 #include "LandscapeProxy.h"
@@ -54,12 +53,6 @@ static FAutoConsoleVariable CVarMaxAsyncNaniteProxiesPerSecond(
 	6.0f,
 	TEXT("Number of Async nanite proxies to dispatch per second"));
 
-static bool GUpdateProxyActorRenderMethodOnTickAtRuntime = false;
-static FAutoConsoleVariableRef CVarUpdateProxyActorRenderMethodUpdateOnTickAtRuntime(
-	TEXT("landscape.UpdateProxyActorRenderMethodOnTickAtRuntime"),
-	GUpdateProxyActorRenderMethodOnTickAtRuntime,
-	TEXT("Update landscape proxy's rendering method (nanite enabled) when ticked. Always enabled in editor."));
-
 DECLARE_CYCLE_STAT(TEXT("LandscapeSubsystem Tick"), STAT_LandscapeSubsystemTick, STATGROUP_Landscape);
 
 #define LOCTEXT_NAMESPACE "LandscapeSubsystem"
@@ -94,16 +87,6 @@ void ULandscapeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		}
 	}
 
-	if (IConsoleVariable* NaniteEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite")))
-	{
-		NaniteEnabledCVar->OnChangedDelegate().AddUObject(this, &ULandscapeSubsystem::OnNaniteEnabledChanged);
-	}
-
-	if (IConsoleVariable* LandscapeNaniteEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("landscape.RenderNanite")))
-	{
-		LandscapeNaniteEnabledCVar->OnChangedDelegate().AddUObject(this, &ULandscapeSubsystem::OnNaniteEnabledChanged);
-	}
-
 #if WITH_EDITOR
 	GrassMapsBuilder = new FLandscapeGrassMapsBuilder(GetWorld());
 	PhysicalMaterialBuilder = new FLandscapePhysicalMaterialBuilder(GetWorld());
@@ -129,15 +112,6 @@ void ULandscapeSubsystem::Deinitialize()
 		OnNaniteWorldSettingsChangedHandle.Reset();
 	}
 
-	if (IConsoleVariable* NaniteEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite")))
-	{
-		NaniteEnabledCVar->OnChangedDelegate().RemoveAll(this);
-	}
-
-	if (IConsoleVariable* LandscapeNaniteEnabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("landscape.RenderNanite")))
-	{
-		LandscapeNaniteEnabledCVar->OnChangedDelegate().RemoveAll(this);
-	}
 	
 	
 #if WITH_EDITOR
@@ -340,12 +314,7 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 				Proxy->TickGrass(*Cameras, InOutNumComponentsCreated);
 			}
 
-#if !WITH_EDITOR
-			if (GUpdateProxyActorRenderMethodOnTickAtRuntime)
-#endif
-			{
-				Proxy->UpdateRenderingMethod();
-			}
+			Proxy->UpdateRenderingMethod();
 		}
 	}
 
@@ -638,19 +607,6 @@ ALandscapeProxy* ULandscapeSubsystem::FindOrAddLandscapeProxy(ULandscapeInfo* La
 	}
 
 	return FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(LandscapeInfo, SectionBase);
-}
-
-void ULandscapeSubsystem::OnNaniteEnabledChanged(IConsoleVariable*)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_Landscape_OnNaniteEnabledChanged);
-
-	for (TWeakObjectPtr<ALandscapeProxy>& ProxyPtr : Proxies)
-	{
-		if (ALandscapeProxy* Proxy = ProxyPtr.Get())
-		{
-			Proxy->UpdateRenderingMethod();
-		}
-	}
 }
 
 void ULandscapeSubsystem::DisplayMessages(FCanvas* Canvas, float& XPos, float& YPos)
