@@ -592,6 +592,7 @@ void UK2Node_EvaluateChooser2::ExpandNode(class FKismetCompilerContext& Compiler
 		CallFunction->AllocateDefaultPins();
 		
 		UK2Node_MakeStruct* ContextStructNode = CompilerContext.SpawnIntermediateNode<UK2Node_MakeStruct>(this, SourceGraph);
+		ContextStructNode->PostPlacedNewNode();
         CompilerContext.MessageLog.NotifyIntermediateObjectCreation(ContextStructNode, this);
 		ContextStructNode->StructType = FChooserEvaluationContext::StaticStruct();
         ContextStructNode->AllocateDefaultPins();
