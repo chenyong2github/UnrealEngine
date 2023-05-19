@@ -726,17 +726,6 @@ void SWindow::SetAllowFastUpdate(bool bInAllowFastUpdate)
 	}
 }
 
-void SWindow::SetLocallyEnabledInvalidation(bool bInEnableInvalidation)
-{
-	if (bLocallyEnabledInvalidation != bInEnableInvalidation)
-	{
-		bLocallyEnabledInvalidation = bInEnableInvalidation;
-		if (bLocallyEnabledInvalidation)
-		{
-			InvalidateRootChildOrder();
-		}
-	}
-}
 
 void SWindow::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
@@ -1113,24 +1102,19 @@ void SWindow::StartMorph()
 	}
 }
 
-bool SWindow::CanUseFastUpdate() const
-{
-	return bAllowFastUpdate && (bLocallyEnabledInvalidation || GSlateEnableGlobalInvalidation);
-}
-
 bool SWindow::Advanced_IsInvalidationRoot() const
 {
-	return CanUseFastUpdate();
+	return bAllowFastUpdate && GSlateEnableGlobalInvalidation;
 }
 
 const FSlateInvalidationRoot* SWindow::Advanced_AsInvalidationRoot() const
 {
-	return CanUseFastUpdate()  ? this : nullptr;
+	return (bAllowFastUpdate && GSlateEnableGlobalInvalidation) ? this : nullptr;
 }
 
 void SWindow::ProcessWindowInvalidation()
 {
-	if (CanUseFastUpdate())
+	if (bAllowFastUpdate && GSlateEnableGlobalInvalidation)
 	{
 		ProcessInvalidation();
 	}
@@ -1138,7 +1122,7 @@ void SWindow::ProcessWindowInvalidation()
 
 bool SWindow::CustomPrepass(float LayoutScaleMultiplier)
 {
-	if (CanUseFastUpdate())
+	if (bAllowFastUpdate && GSlateEnableGlobalInvalidation)
 	{
 		return NeedsPrepass();
 	}
@@ -2104,7 +2088,7 @@ int32 SWindow::PaintWindow( double CurrentTime, float DeltaTime, FSlateWindowEle
 	FSlateInvalidationContext Context(OutDrawElements, InWidgetStyle);
 	Context.bParentEnabled = bParentEnabled;
 	// Fast path at the window level should only be enabled if global invalidation is allowed
-	Context.bAllowFastPathUpdate = CanUseFastUpdate();
+	Context.bAllowFastPathUpdate = bAllowFastUpdate && GSlateEnableGlobalInvalidation;
 	Context.LayoutScaleMultiplier = FSlateApplicationBase::Get().GetApplicationScale() * GetDPIScaleFactor();
 	Context.PaintArgs = &PaintArgs;
 	Context.IncomingLayerId = 0;

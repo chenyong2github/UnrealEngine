@@ -223,7 +223,6 @@ void FWidgetRenderer::DrawWindow(
 		if (bPrepassNeeded)
 		{
 			// Ticking can cause geometry changes.  Recompute
-			Window->ProcessWindowInvalidation();
 			Window->SlatePrepass(WindowGeometry.Scale);
 		}
 
@@ -240,56 +239,35 @@ void FWidgetRenderer::DrawWindow(
 			ISlate3DRenderer::FScopedAcquireDrawBuffer ScopedDrawBuffer{ *Renderer, bDeferRenderTargetUpdate };
 			FSlateWindowElementList& WindowElementList = ScopedDrawBuffer.GetDrawBuffer().AddWindowElementList(Window);
 
-			bool bRepaintedWidgets = true;
+			// Paint the window
+			int32 MaxLayerId = Window->Paint(
+				PaintArgs,
+				WindowGeometry, WindowClipRect,
+				WindowElementList,
+				0,
+				FWidgetStyle(),
+				Window->IsEnabled());
 
-			if (Window->Advanced_IsInvalidationRoot())
+			//MaxLayerId = WindowElementList.PaintDeferred(MaxLayerId);
+			DeferredPaints = WindowElementList.GetDeferredPaintList();
+
+			Renderer->DrawWindow_GameThread(ScopedDrawBuffer.GetDrawBuffer());
+
+			ScopedDrawBuffer.GetDrawBuffer().ViewOffset = ViewOffset;
+
+			FRenderThreadUpdateContext RenderThreadUpdateContext =
 			{
-				// Need to set a new window element list so make a copy
-				FSlateInvalidationContext Context{ WindowElementList, FWidgetStyle() };
-				Context.bParentEnabled = Window->IsEnabled();
-				Context.bAllowFastPathUpdate = true;
-				Context.LayoutScaleMultiplier = WindowGeometry.Scale;
-				Context.PaintArgs = &PaintArgs;
-				Context.IncomingLayerId = 0;
-				Context.CullingRect = WindowClipRect;
-				Context.ViewOffset = ViewOffset;
-				FSlateInvalidationResult Result = Window->PaintInvalidationRoot(Context);
-				bRepaintedWidgets = Result.bRepaintedWidgets;
-			}
-			else
-			{
-				// Paint the window
-				Window->Paint(
-					PaintArgs,
-					WindowGeometry, WindowClipRect,
-					WindowElementList,
-					0,
-					FWidgetStyle(),
-					Window->IsEnabled());
-			}
+				&(ScopedDrawBuffer.GetDrawBuffer()),
+				(FApp::GetCurrentTime() - GStartTime),
+				static_cast<float>(FApp::GetDeltaTime()),
+				(FPlatformTime::Seconds() - GStartTime),
+				static_cast<float>(FApp::GetDeltaTime()),
+				RenderTarget,
+				Renderer.Get(),
+				bClearTarget
+			};
 
-			if (bRepaintedWidgets)
-			{
-				DeferredPaints = WindowElementList.GetDeferredPaintList();
-
-				Renderer->DrawWindow_GameThread(ScopedDrawBuffer.GetDrawBuffer());
-
-				ScopedDrawBuffer.GetDrawBuffer().ViewOffset = ViewOffset;
-
-				FRenderThreadUpdateContext RenderThreadUpdateContext =
-				{
-					&(ScopedDrawBuffer.GetDrawBuffer()),
-					(FApp::GetCurrentTime() - GStartTime),
-					static_cast<float>(FApp::GetDeltaTime()),
-					(FPlatformTime::Seconds() - GStartTime),
-					static_cast<float>(FApp::GetDeltaTime()),
-					RenderTarget,
-					Renderer.Get(),
-					bClearTarget
-				};
-
-				MainSlateRenderer->AddWidgetRendererUpdate(RenderThreadUpdateContext, bDeferRenderTargetUpdate);
-			}
+			MainSlateRenderer->AddWidgetRendererUpdate(RenderThreadUpdateContext, bDeferRenderTargetUpdate);
 		}
 	}
 #endif // !UE_SERVER

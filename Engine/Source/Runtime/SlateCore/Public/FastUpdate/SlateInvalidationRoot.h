@@ -80,9 +80,6 @@ class FSlateInvalidationRoot : public FGCObject, public FNoncopyable
 	friend class FWidgetProxyHandle;
 
 public:
-	/** Delegate fired when the InvalidationRoot got invalidated, and requires an update (process invalidation and paint). */
-	DECLARE_MULTICAST_DELEGATE(FOnInvalidationUpdateNeeded);
-
 	SLATECORE_API FSlateInvalidationRoot();
 	SLATECORE_API virtual ~FSlateInvalidationRoot();
 
@@ -129,8 +126,6 @@ public:
 
 	SLATECORE_API void Advanced_ResetInvalidation(bool bClearResourcesImmediately);
 
-	SLATECORE_API FOnInvalidationUpdateNeeded& GetOnInvalidationUpdateNeeded() { return InvalidationUpdateNeeded; }
-
 #if WITH_SLATE_DEBUGGING
 	/** @return the last paint type the invalidation root handle used. */
 	ESlateInvalidationPaintType GetLastPaintType() const { return LastPaintType; }
@@ -176,8 +171,6 @@ private:
 	/** Call when an invalidation occurred. */
 	void InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWidgetReason InvalidateReason);
 
-	void NotifyInvalidate();
-
 	void BuildFastPathWidgetList(const TSharedRef<SWidget>& RootWidget);
 	void AdjustWidgetsDesktopGeometry(UE::Slate::FDeprecateVector2DParameter WindowToDesktopTransform);
 
@@ -221,11 +214,6 @@ private:
 	FHittestGrid* RootHittestGrid;
 
 	int32 CachedMaxLayerId;
-	/** Count of invalidation requests received since the last call to ProcessInvalidation. */
-	uint32 InvalidationRequestCount;
-
-	/** This delegate will be called at most a single time between ProcessInvalidation calls, for the first invalidation.*/
-	FOnInvalidationUpdateNeeded InvalidationUpdateNeeded;
 
 	FSlateInvalidationRootHandle InvalidationRootHandle;
 

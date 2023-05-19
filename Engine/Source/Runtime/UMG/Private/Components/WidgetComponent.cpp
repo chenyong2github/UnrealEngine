@@ -612,7 +612,6 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	, RedrawTime(0)
 	, LastWidgetRenderTime(0)
 	, CurrentDrawSize(FIntPoint(0, 0))
-	, bIsInvalidationEnabled(false)
 	, bReceiveHardwareInput(false)
 	, bWindowFocusable(true)
 	, WindowVisibility(EWindowVisibility::SelfHitTestInvisible)
@@ -1137,10 +1136,6 @@ void UWidgetComponent::RegisterWindow()
 		if (!CanReceiveHardwareInput() && FSlateApplication::IsInitialized() )
 		{
 			FSlateApplication::Get().RegisterVirtualWindow(SlateWindow.ToSharedRef());
-			if (bIsInvalidationEnabled)
-			{
-				SlateWindow->GetOnInvalidationUpdateNeeded().AddUObject(this, &ThisClass::RequestRenderUpdate);
-			}
 		}
 
 		if (Widget && !Widget->IsDesignTime())
@@ -1168,7 +1163,6 @@ void UWidgetComponent::UnregisterWindow()
 	{
 		if ( !CanReceiveHardwareInput() && FSlateApplication::IsInitialized() )
 		{
-			SlateWindow->GetOnInvalidationUpdateNeeded().RemoveAll(this);
 			FSlateApplication::Get().UnregisterVirtualWindow(SlateWindow.ToSharedRef());
 		}
 
@@ -1310,7 +1304,7 @@ bool UWidgetComponent::ShouldDrawWidget() const
 	if ( IsVisible() )
 	{
 		// If we don't tick when off-screen, don't bother ticking if it hasn't been rendered recently
-		if ( TickWhenOffscreen || GetWorld()->TimeSince(GetLastRenderTime()) <= RenderTimeThreshold)
+		if ( TickWhenOffscreen || GetWorld()->TimeSince(GetLastRenderTime()) <= RenderTimeThreshold )
 		{
 			if ( ( GetCurrentTime() - LastWidgetRenderTime) >= RedrawTime )
 			{
@@ -1391,10 +1385,6 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 	if(RenderTarget)
 	{
 		bRedrawRequested = false;
-		if (TickMode == ETickMode::Disabled && IsComponentTickEnabled())
-		{
-			SetComponentTickEnabled(false);
-		}
 
 		WidgetRenderer->DrawWindow(
 			RenderTarget,
@@ -1405,6 +1395,11 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 			DeltaTime);
 
 		LastWidgetRenderTime = GetCurrentTime();
+
+		if (TickMode == ETickMode::Disabled && IsComponentTickEnabled())
+		{
+			SetComponentTickEnabled(false);
+		}
 	}
 }
 
@@ -1737,8 +1732,6 @@ void UWidgetComponent::UpdateWidget()
 				SlateWindow = SNew(SVirtualWindow).Size(CurrentDrawSize);
 				SlateWindow->SetIsFocusable(bWindowFocusable);
 				SlateWindow->SetVisibility(ConvertWindowVisibilityToVisibility(WindowVisibility));
-				SlateWindow->SetAllowFastUpdate(bIsInvalidationEnabled);
-				SlateWindow->SetLocallyEnabledInvalidation(bIsInvalidationEnabled);
 				RegisterWindow();
 
 				bNeededNewWindow = true;
@@ -1789,7 +1782,7 @@ void UWidgetComponent::UpdateWidget()
 			}
 		}
 
-		UpdateWidgetOnScreen();
+		UpdateWidgetOnScreen();		
 	}
 }
 
