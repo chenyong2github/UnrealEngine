@@ -118,7 +118,7 @@ T* FActorInstanceHandle::FetchActor() const
 {
 	if (DoesRepresent<T>())
 	{
-		return CastChecked<T>(FetchActor());
+		return CastChecked<T>(FetchActor(), ECastCheckedType::NullAllowed);
 	}
 	return nullptr;
 }
