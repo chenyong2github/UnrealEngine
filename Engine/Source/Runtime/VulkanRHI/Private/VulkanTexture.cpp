@@ -910,7 +910,7 @@ uint32 FVulkanDynamicRHI::RHIComputeMemorySize(FRHITexture* TextureRHI)
 	return ResourceCast(TextureRHI)->GetMemorySize();
 }
 
-void FVulkanDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* InNewTexture)
+void FVulkanDynamicRHI::RHIUpdateTextureReference(FRHICommandListBase& RHICmdList, FRHITextureReference* TextureRef, FRHITexture* InNewTexture)
 {
 	if (Device->SupportsBindless())
 	{
@@ -945,7 +945,7 @@ void FVulkanDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureR
 
 	}
 
-	FDynamicRHI::RHIUpdateTextureReference(TextureRef, InNewTexture);
+	FDynamicRHI::RHIUpdateTextureReference(RHICmdList, TextureRef, InNewTexture);
 }
 
 /*-----------------------------------------------------------------------------

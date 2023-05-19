@@ -1795,9 +1795,9 @@ void FRHICommandListImmediate::UpdateTextureReference(FRHITextureReference* Text
 		return;
 	}
 
-	EnqueueLambda([TextureRef, NewTexture](auto&)
+	EnqueueLambda([TextureRef, NewTexture](FRHICommandListBase& RHICmdList)
 	{
-		GDynamicRHI->RHIUpdateTextureReference(TextureRef, NewTexture);
+		GDynamicRHI->RHIUpdateTextureReference(RHICmdList, TextureRef, NewTexture);
 	});
 
 	RHIThreadFence(true);

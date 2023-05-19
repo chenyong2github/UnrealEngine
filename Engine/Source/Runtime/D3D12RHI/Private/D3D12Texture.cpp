@@ -1014,7 +1014,7 @@ FTextureRHIRef FD3D12DynamicRHI::RHICreateTexture_RenderThread(class FRHICommand
 	return CreateD3D12Texture(CreateDesc, RHIImmediateCmdList, ResourceAllocator);
 }
 
-void FD3D12DynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* InNewTexture)
+void FD3D12DynamicRHI::RHIUpdateTextureReference(FRHICommandListBase& RHICmdList, FRHITextureReference* TextureRef, FRHITexture* InNewTexture)
 {
 	FRHITexture* NewTexture = InNewTexture ? InNewTexture : FRHITextureReference::GetDefaultTexture();
 
@@ -1030,7 +1030,7 @@ void FD3D12DynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRe
 	}
 #endif // PLATFORM_SUPPORTS_BINDLESS_RENDERING
 
-	FDynamicRHI::RHIUpdateTextureReference(TextureRef, NewTexture);
+	FDynamicRHI::RHIUpdateTextureReference(RHICmdList, TextureRef, NewTexture);
 }
 
 class FWaitInitialMipDataUploadTask
