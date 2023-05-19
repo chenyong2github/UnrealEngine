@@ -209,12 +209,26 @@ private:
 	FNameEntryId ComparisonId;
 #endif
 	FNameEntryHeader Header;
+
+	// Unaligned to reduce alignment waste for non-numbered entries
+	struct FNumberedData
+	{
+#if UE_FNAME_OUTLINE_NUMBER	
+#if WITH_CASE_PRESERVING_NAME // ComparisonId is 4B-aligned, 4B-align Id/Number by 2B pad after 2B Header
+		uint8 Pad[sizeof(Header) % alignof(decltype(ComparisonId))]; 
+#endif						
+		uint8 Id[sizeof(FNameEntryId)];
+		uint8 Number[sizeof(uint32)];
+#endif // UE_FNAME_OUTLINE_NUMBER	
+	};
+
 	union
 	{
-		ANSICHAR	AnsiName[NAME_SIZE];
-		WIDECHAR	WideName[NAME_SIZE];
-		uint8		NumberedName[8 * UE_FNAME_OUTLINE_NUMBER];
+		ANSICHAR			AnsiName[NAME_SIZE];
+		WIDECHAR			WideName[NAME_SIZE];
+		FNumberedData		NumberedName;
 	};
+
 
 	FNameEntry(struct FClangKeepDebugInfo);
 	FNameEntry(const FNameEntry&) = delete;
@@ -227,8 +241,6 @@ public:
 	FORCEINLINE bool IsWide() const								{ return Header.bIsWide; }
 	FORCEINLINE int32 GetNameLength() const 					{ return Header.Len; }
 	FORCEINLINE bool IsNumbered() const 						{ return !!UE_FNAME_OUTLINE_NUMBER && Header.Len == 0; }
-	// @pre IsNumbered()
-	FORCEINLINE const FNumberedEntry& GetNumberedName() const	{ return reinterpret_cast<const FNumberedEntry&>(NumberedName[0]); }
 
 	/**
 	 * Copy unterminated name to TCHAR buffer without allocating.
@@ -300,7 +312,8 @@ private:
 	const WIDECHAR* GetUnterminatedName(WIDECHAR(&OptionalDecodeBuffer)[NAME_SIZE]) const;
 
 #if UE_FNAME_OUTLINE_NUMBER
-	static int32 GetNumberedEntrySize();
+	// @pre IsNumbered()
+	FORCEINLINE const FNumberedEntry& GetNumberedName() const	{ return reinterpret_cast<const FNumberedEntry&>(NumberedName.Id[0]); }
 	uint32 GetNumber() const;
 #endif // UE_FNAME_OUTLINE_NUMBER
 };
