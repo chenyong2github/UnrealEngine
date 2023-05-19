@@ -400,6 +400,8 @@ namespace GLTF
 				return TEXT("MSFT_packing_normalRoughnessMetallic");
 			case GLTF::EExtension::MSFT_PackingOcclusionRoughnessMetallic:
 				return TEXT("MSFT_packing_occlusionRoughnessMetallic");
+			case GLTF::EExtension::KHR_MeshQuantization:
+				return TEXT("KHR_mesh_quantization");
 			case GLTF::EExtension::Count:
 				ensure(false);
 			default:

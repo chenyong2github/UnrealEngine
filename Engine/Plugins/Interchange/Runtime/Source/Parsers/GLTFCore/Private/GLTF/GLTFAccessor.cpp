@@ -28,27 +28,154 @@ namespace GLTF
 		{
 			ReturnType Res;
 
-			// convert to 0..1
-			if (ComponentType == FAccessor::EComponentType::U8)
+			//U32 and F32 cannot be normalized.
+			switch (ComponentType)
 			{
-				const uint8*    P = static_cast<const uint8*>(Pointer);
-				constexpr float S = 1.0f / 255.0f;
-				for (uint32 Index = 0; Index < Count; ++Index)
+			case GLTF::FAccessor::EComponentType::S8:
 				{
-					Res[Index] = P[Index] * S;
+					const int8* P = static_cast<const int8*>(Pointer);
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						Res[Index] = FMath::Max((P[Index] / 127.0f), -1.0f);
+					}
+					break;
 				}
-			}
-			else if (ComponentType == FAccessor::EComponentType::U16)
-			{
-				const uint16*   P = static_cast<const uint16*>(Pointer);
-				constexpr float S = 1.0f / 65535.0f;
-				for (uint32 Index = 0; Index < Count; ++Index)
+			case GLTF::FAccessor::EComponentType::U8:
 				{
-					Res[Index] = P[Index] * S;
+					const uint8* P = static_cast<const uint8*>(Pointer);
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						Res[Index] = P[Index] / 255.0f;
+					}
+					break;
 				}
-			}
-			else
+			case GLTF::FAccessor::EComponentType::S16:
+				{
+					const int16* P = static_cast<const int16*>(Pointer);
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						Res[Index] = FMath::Max(P[Index] / 32767.0f, -1.0f);
+					}
+					break;
+				}
+			case GLTF::FAccessor::EComponentType::U16:
+				{
+					const uint16* P = static_cast<const uint16*>(Pointer);
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						Res[Index] = P[Index] / 65535.0f;
+					}
+					break;
+				}
+			default:
+				Res = ReturnType();
 				ensure(false);
+				break;
+			}
+
+			return Res;
+		}
+
+		float GetNormalizedFloat(FAccessor::EComponentType ComponentType, const void* Pointer)
+		{
+			switch (ComponentType)
+			{
+			case GLTF::FAccessor::EComponentType::S8:
+				{
+					const int8* P = static_cast<const int8*>(Pointer);
+					return FMath::Max(P[0] / 127.0f, -1.0f);
+				}
+			case GLTF::FAccessor::EComponentType::U8:
+				{
+					const uint8* P = static_cast<const uint8*>(Pointer);
+					return P[0] / 255.0f;
+				}
+			case GLTF::FAccessor::EComponentType::S16:
+				{
+					const int16* P = static_cast<const int16*>(Pointer);
+					return FMath::Max(P[0] / 32767.0f, -1.0f);
+				}
+			case GLTF::FAccessor::EComponentType::U16:
+				{
+					const uint16* P = static_cast<const uint16*>(Pointer);
+					return P[0] / 65535.0f;
+				}
+			default:
+				ensure(false);
+				break;
+			}
+
+			return 0.0f;
+		}
+
+		template <class ReturnType, uint32 Count>
+		ReturnType GetNonNormalized(FAccessor::EComponentType ComponentType, const void* Pointer)
+		{
+			ReturnType Res;
+
+			switch (ComponentType)
+			{
+			case GLTF::FAccessor::EComponentType::S8:
+				{
+					const int8* P = static_cast<const int8*>(Pointer);
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						Res[Index] = P[Index];
+					}
+					break;
+				}
+			case GLTF::FAccessor::EComponentType::U8:
+				{
+					const uint8* P = static_cast<const uint8*>(Pointer);
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						Res[Index] = P[Index];
+					}
+					break;
+				}
+			case GLTF::FAccessor::EComponentType::S16:
+				{
+					const int16* P = static_cast<const int16*>(Pointer);
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						Res[Index] = P[Index];
+					}
+					break;
+				}
+			case GLTF::FAccessor::EComponentType::U16:
+				{
+					const uint16* P = static_cast<const uint16*>(Pointer);
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						Res[Index] = P[Index];
+					}
+					break;
+				}
+			case GLTF::FAccessor::EComponentType::U32:
+			{
+				//This is unexpected, U32 is only supported on Indices,
+				//and indices are acquired via GetUnsignedIntArray function.
+				const uint32* P = static_cast<const uint32*>(Pointer);
+				for (uint32 Index = 0; Index < Count; ++Index)
+				{
+					Res[Index] = P[Index];
+				}
+				break;
+			}
+			case FAccessor::EComponentType::F32:
+				{
+					const float* P = static_cast<const float*>(Pointer);
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						Res[Index] = P[Index];
+					}
+					break;
+				}
+			default:
+				Res = ReturnType();
+				ensure(false);
+				break;
+			}
 
 			return Res;
 		}
@@ -80,40 +207,54 @@ namespace GLTF
 			}
 		}
 
-		template <typename DstT, uint32 ElementCount>
-		void CopyNormalized(DstT* Dst, const void* Src, FAccessor::EComponentType ComponentType, uint32 Count)
+		void CopyNormalizedFloat(float* Dst, const void* Src, FAccessor::EComponentType ComponentType, uint32 Count)
 		{
-			// convert to 0..1
-			if (ComponentType == FAccessor::EComponentType::U8)
+			switch (ComponentType)
 			{
-				const uint8*    P = static_cast<const uint8*>(Src);
-				constexpr float S = 1.0f / 255.0f;
-				for (uint32 Index = 0; Index < Count; ++Index)
+			case GLTF::FAccessor::EComponentType::S8:
 				{
-					DstT& VecDst = *Dst++;
-					for (uint32 J = 0; J < ElementCount; ++J)
+					const int8* P = static_cast<const int8*>(Src);
+					for (uint32 Index = 0; Index < Count; ++Index, P++)
 					{
-						VecDst[J] = P[J] * S;
+						float* VecDst = Dst++;
+						*VecDst = FMath::Max((*P) / 127.0f, -1.0f);
 					}
-					P += ElementCount;
+					break;
 				}
-			}
-			else if (ComponentType == FAccessor::EComponentType::U16)
-			{
-				const uint16*   P = static_cast<const uint16*>(Src);
-				constexpr float S = 1.0f / 65535.0f;
-				for (uint32 Index = 0; Index < Count; ++Index)
+			case GLTF::FAccessor::EComponentType::U8:
 				{
-					DstT& VecDst = *Dst++;
-					for (uint32 J = 0; J < ElementCount; ++J)
+					const uint8* P = static_cast<const uint8*>(Src);
+					for (uint32 Index = 0; Index < Count; ++Index, P++)
 					{
-						VecDst[J] = P[J] * S;
+						float* VecDst = Dst++;
+						*VecDst = (*P) / 255.0f;
 					}
-					P += ElementCount;
+					break;
 				}
-			}
-			else
+			case GLTF::FAccessor::EComponentType::S16:
+				{
+					const int16* P = static_cast<const int16*>(Src);
+					for (uint32 Index = 0; Index < Count; ++Index, P++)
+					{
+						float* VecDst = Dst++;
+						*VecDst = FMath::Max((*P) / 32767.0f, -1.0f);
+					}
+					break;
+				}
+			case GLTF::FAccessor::EComponentType::U16:
+				{
+					const uint16* P = static_cast<const uint16*>(Src);
+					for (uint32 Index = 0; Index < Count; ++Index, P++)
+					{
+						float* VecDst = Dst++;
+						*VecDst = (*P) / 65535.0f;
+					}
+					break;
+				}
+			default:
 				ensure(false);
+				break;
+			}
 		}
 
 		// Copy data items that don't need conversion/expansion(i.e. Vec3 to Vec3, uint8 to uint8(not uint16)
@@ -128,39 +269,35 @@ namespace GLTF
 				if (Accessor.ComponentType == FAccessor::EComponentType::F32)
 				{
 					memcpy(Buffer, Src, Accessor.Count * sizeof(ItemType));
+					return;
 				}
-				else if (Accessor.Normalized)
+			}
+
+			if (Accessor.bNormalized)
+			{
+				for (uint32 Index = 0; Index < Accessor.Count; ++Index)
 				{
-					CopyNormalized<ItemType, ItemElementCount>(Buffer, Src, Accessor.ComponentType, Accessor.Count);
+					const void* Pointer = Accessor.DataAt(Index);
+					Buffer[Index] = GetNormalized<ItemType, ItemElementCount>(Accessor.ComponentType, Pointer);
 				}
 			}
 			else
 			{
-				if (Accessor.ComponentType == FAccessor::EComponentType::F32)
+				for (uint32 Index = 0; Index < Accessor.Count; ++Index)
 				{
-					for (uint32 Index = 0; Index < Accessor.Count; ++Index)
-					{
-						const void* Pointer = Accessor.DataAt(Index);
-						Buffer[Index] = *static_cast<const ItemType*>(Pointer);
-					}
-				}
-				else if (Accessor.Normalized)
-				{
-					for (uint32 Index = 0; Index < Accessor.Count; ++Index)
-					{
-						const void* Pointer = Accessor.DataAt(Index);
-						Buffer[Index] = GetNormalized<ItemType, ItemElementCount>(Accessor.ComponentType, Pointer);
-					}
+					const void* Pointer = Accessor.DataAt(Index);
+					Buffer[Index] = GetNonNormalized<ItemType, ItemElementCount>(Accessor.ComponentType, Pointer);
 				}
 			}
 		}
 	}
 
-	FAccessor::FAccessor(uint32 InCount, EType InType, EComponentType InCompType, bool InNormalized)
+	FAccessor::FAccessor(uint32 InCount, EType InType, EComponentType InCompType, bool bInNormalized)
 	    : Count(InCount)
 	    , Type(InType)
 	    , ComponentType(InCompType)
-	    , Normalized(InNormalized)
+	    , bNormalized(bInNormalized)
+		, bQuantized(false)
 	{
 	}
 
@@ -232,11 +369,148 @@ namespace GLTF
 		}
 	}
 
-	//
+	bool FAccessor::CheckAccessorTypeForDataType(EDataType DataType, bool bMorphTargetProperty) const
+	{
+		switch (DataType)
+		{
+		case GLTF::FAccessor::EDataType::Position:
+		case GLTF::FAccessor::EDataType::Normal:
+			return Type == FAccessor::EType::Vec3;
+		case GLTF::FAccessor::EDataType::Tangent:
+			return (!bMorphTargetProperty && Type == FAccessor::EType::Vec4) || (bMorphTargetProperty && Type == FAccessor::EType::Vec3);
+		case GLTF::FAccessor::EDataType::Texcoord:
+			return Type == FAccessor::EType::Vec2;
+		case GLTF::FAccessor::EDataType::Color:
+			return Type == FAccessor::EType::Vec3 || Type == FAccessor::EType::Vec4;
+		case GLTF::FAccessor::EDataType::Joints:
+		case GLTF::FAccessor::EDataType::Weights:
+			return Type == FAccessor::EType::Vec4;
+		default:
+			ensure(false);
+			break;
+		}
 
+		return false;
+	}
+
+	bool FAccessor::CheckNonQuantizedComponentTypeForDataType(EDataType DataType, bool bMorphTargetProperty) const
+	{
+		if (!bMorphTargetProperty)
+		{
+			//Non Morph Target:
+			switch (DataType)
+			{
+			case GLTF::FValidAccessor::EDataType::Position:
+			case GLTF::FValidAccessor::EDataType::Normal:
+			case GLTF::FValidAccessor::EDataType::Tangent:
+				return !bNormalized && ComponentType == FAccessor::EComponentType::F32;
+			case GLTF::FValidAccessor::EDataType::Texcoord:
+			case GLTF::FValidAccessor::EDataType::Color:
+				return (!bNormalized && ComponentType == FAccessor::EComponentType::F32) 
+					|| (bNormalized && (ComponentType == FAccessor::EComponentType::U8 || ComponentType == FAccessor::EComponentType::U16));
+			case GLTF::FValidAccessor::EDataType::Joints:
+				return (!bNormalized && (ComponentType == FAccessor::EComponentType::U8 || ComponentType == FAccessor::EComponentType::U16));
+			case GLTF::FValidAccessor::EDataType::Weights:
+				return (!bNormalized && ComponentType == FAccessor::EComponentType::F32)
+					|| (bNormalized && (ComponentType == FAccessor::EComponentType::U8 || ComponentType == FAccessor::EComponentType::U16));
+			default:
+				ensure(false);
+				break;
+			}
+		}
+		else
+		{
+			//Morph Target:
+			switch (DataType)
+			{
+			case GLTF::FValidAccessor::EDataType::Position:
+			case GLTF::FValidAccessor::EDataType::Normal:
+			case GLTF::FValidAccessor::EDataType::Tangent:
+				return !bNormalized && ComponentType == FAccessor::EComponentType::F32;
+			case GLTF::FValidAccessor::EDataType::Texcoord:
+			case GLTF::FValidAccessor::EDataType::Color:
+				return (!bNormalized && ComponentType == FAccessor::EComponentType::F32)
+					|| (bNormalized && (ComponentType == FAccessor::EComponentType::S8 || ComponentType == FAccessor::EComponentType::S16 || ComponentType == FAccessor::EComponentType::U8 || ComponentType == FAccessor::EComponentType::U16));
+			default:
+				ensure(false);
+				break;
+			}
+		}
+
+		return false;
+	}
+
+	bool FAccessor::CheckQuantizedComponentTypeForDataType(EDataType DataType, bool bMorphTargetProperty) const
+	{
+		if (!bMorphTargetProperty)
+		{
+			//Non Morph Target:
+			switch (DataType)
+			{
+			case GLTF::FValidAccessor::EDataType::Position:
+				return ComponentType == FAccessor::EComponentType::S8 || ComponentType == FAccessor::EComponentType::U8 || ComponentType == FAccessor::EComponentType::S16 || ComponentType == FAccessor::EComponentType::U16;
+			case GLTF::FValidAccessor::EDataType::Normal:
+			case GLTF::FValidAccessor::EDataType::Tangent:
+				return bNormalized && (ComponentType == FAccessor::EComponentType::S8 || ComponentType == FAccessor::EComponentType::S16);
+			case GLTF::FValidAccessor::EDataType::Texcoord:
+				return (ComponentType == FAccessor::EComponentType::S8 || ComponentType == FAccessor::EComponentType::S16)
+					|| (!bNormalized && (ComponentType == FAccessor::EComponentType::U8 || ComponentType == FAccessor::EComponentType::U16));
+			default:
+				ensure(false);
+				break;
+			}
+		}
+		else
+		{
+			//Morph Target:
+			switch (DataType)
+			{
+			case GLTF::FValidAccessor::EDataType::Position:
+				return ComponentType == FAccessor::EComponentType::S8 || ComponentType == FAccessor::EComponentType::S16;
+			case GLTF::FValidAccessor::EDataType::Normal:
+			case GLTF::FValidAccessor::EDataType::Tangent:
+				return bNormalized && (ComponentType == FAccessor::EComponentType::S8 || ComponentType == FAccessor::EComponentType::S16);
+			case GLTF::FValidAccessor::EDataType::Texcoord:
+				return !bNormalized && (ComponentType == FAccessor::EComponentType::S8 || ComponentType == FAccessor::EComponentType::S16);
+			default:
+				ensure(false);
+				break;
+			}
+		}
+
+		return false;
+	}
+
+	bool FAccessor::IsValidDataType(EDataType DataType, bool bMorphTargetProperty) const
+	{
+		//Check Accessor Type restrictions:
+		if (!CheckAccessorTypeForDataType(DataType, bMorphTargetProperty))
+		{
+			return false;
+		}
+
+		//Check Component Type restrictions (non-quantized) first:
+		if (CheckNonQuantizedComponentTypeForDataType(DataType, bMorphTargetProperty))
+		{
+			return true;
+		}
+
+		//Check quantized Component Type restrictions:
+		if (bQuantized)
+		{
+			if (CheckQuantizedComponentTypeForDataType(DataType, bMorphTargetProperty))
+			{
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+	//
 	FValidAccessor::FValidAccessor(FBufferView& InBufferView, uint32 InOffset, uint32 InCount, EType InType, EComponentType InCompType,
-	                               bool InNormalized)
-	    : FAccessor(InCount, InType, InCompType, InNormalized)
+	                               bool bInNormalized)
+	    : FAccessor(InCount, InType, InCompType, bInNormalized)
 	    , BufferView(InBufferView)
 	    , ByteOffset(InOffset)
 	    , ElementSize(GetElementSize(Type, ComponentType))
@@ -275,7 +549,7 @@ namespace GLTF
 
 		uint8 TypeInt = static_cast<uint8>(Type);
 		uint8 ComponentInt = static_cast<uint8>(ComponentType);
-		uint8 NormalizedInt = static_cast<uint8>(Normalized);
+		uint8 NormalizedInt = static_cast<uint8>(bNormalized);
 
 		MD5.Update(&TypeInt, sizeof(TypeInt));
 		MD5.Update(&ComponentInt, sizeof(ComponentInt));
@@ -288,11 +562,11 @@ namespace GLTF
 
 	uint32 FValidAccessor::GetUnsignedInt(uint32 Index) const
 	{
-		// should be Scalar, not Normalized, unsigned integer (8, 16 or 32 bit)
+		// should be Scalar, not bNormalized, unsigned integer (8, 16 or 32 bit)
 
 		if (Index < Count)
 		{
-			if (Type == EType::Scalar && !Normalized)
+			if (Type == EType::Scalar && !bNormalized)
 			{
 				const uint8* ValuePtr = DataAt(Index);
 				switch (ComponentType)
@@ -315,11 +589,11 @@ namespace GLTF
 
 	void FValidAccessor::GetUnsignedInt16x4(uint32 Index, uint16 Values[4]) const
 	{
-		// should be Vec4, not Normalized, unsigned integer (8 or 16 bit)
+		// should be Vec4, not bNormalized, unsigned integer (8 or 16 bit)
 
 		if (Index < Count)
 		{
-			if (Type == EType::Vec4 && !Normalized)
+			if (Type == EType::Vec4 && !bNormalized)
 			{
 				const void* ValuePtr = DataAt(Index);
 				switch (ComponentType)
@@ -350,7 +624,7 @@ namespace GLTF
 
 		if (Index < Count)
 		{
-			if (Type == EType::Scalar && !Normalized)
+			if (Type == EType::Scalar && !bNormalized)
 			{
 				const uint8* ValuePtr = DataAt(Index);
 				switch (ComponentType)
@@ -386,7 +660,7 @@ namespace GLTF
 					// copy float vec2 directly from buffer
 					return FVector2D(*reinterpret_cast<const FVector2f*>(Pointer));
 				}
-				else if (Normalized)
+				else if (bNormalized)
 				{
 					return FVector2D(GetNormalized<FVector2f, 2>(ComponentType, Pointer));
 				}
@@ -416,7 +690,7 @@ namespace GLTF
 					// copy float vec3 directly from buffer
 					return FVector(*reinterpret_cast<const FVector3f*>(Pointer));
 				}
-				else if (Normalized)
+				else if (bNormalized)
 				{
 					return FVector(GetNormalized<FVector3f, 3>(ComponentType, Pointer));
 				}
@@ -446,7 +720,7 @@ namespace GLTF
 					// copy float vec4 directly from buffer
 					return FVector4(*reinterpret_cast<const FVector4f*>(Pointer));
 				}
-				else if (Normalized)
+				else if (bNormalized)
 				{
 					return FVector4(GetNormalized<FVector4f, 4>(ComponentType, Pointer));
 				}
@@ -479,7 +753,7 @@ namespace GLTF
 
 	void FValidAccessor::GetUnsignedIntArray(uint32* Buffer) const
 	{
-		if (Type == EType::Scalar && !Normalized)
+		if (Type == EType::Scalar && !bNormalized)
 		{
 			const uint8* Src = DataAt(0);
 			switch (ComponentType)
@@ -503,16 +777,37 @@ namespace GLTF
 
 	void FValidAccessor::GetFloatArray(float* Buffer) const
 	{
-		if (Type == EType::Scalar && !Normalized)
+		if (Type == EType::Scalar)
 		{
-			const uint8* Src = DataAt(0);
-			switch (ComponentType)
+			if (!bNormalized)
 			{
+				const uint8* Src = DataAt(0);
+				switch (ComponentType)
+				{
 				case EComponentType::F32:
 					memcpy(Buffer, Src, Count * sizeof(float));
 					return;
 				default:
 					break;
+				}
+			}
+			else
+			{
+				// Stride equals item size => use simpler copy
+				if ((ByteStride == 0) || ByteStride == sizeof(float))
+				{
+					const void* Src = DataAt(0);
+					CopyNormalizedFloat(Buffer, Src, ComponentType, Count);
+				}
+				else
+				{
+					for (uint32 Index = 0; Index < Count; ++Index)
+					{
+						const void* Pointer = DataAt(Index);
+						Buffer[Index] = GetNormalizedFloat(ComponentType, Pointer);
+					}
+				}
+				return;
 			}
 		}
 

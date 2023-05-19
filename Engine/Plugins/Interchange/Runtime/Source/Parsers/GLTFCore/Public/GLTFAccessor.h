@@ -91,9 +91,10 @@ namespace GLTF
 		const uint32         Count;
 		const EType          Type;
 		const EComponentType ComponentType;
-		const bool           Normalized;
+		const bool           bNormalized;
+		bool                 bQuantized;
 
-		FAccessor(uint32 InCount, EType InType, EComponentType InComponentType, bool InNormalized);
+		FAccessor(uint32 InCount, EType InType, EComponentType InComponentType, bool bInNormalized);
 
 		virtual bool IsValid() const = 0;
 		virtual FMD5Hash GetHash() const = 0;
@@ -125,13 +126,29 @@ namespace GLTF
 		void         GetQuatArray(FVector4f* Buffer) const;
 		void         GetMat4Array(TArray<FMatrix44f>& Buffer) const;
 		virtual void GetMat4Array(FMatrix44f* Buffer) const;
+
+		enum class EDataType
+		{
+			Position,
+			Normal,
+			Tangent,
+			Texcoord,
+			Color,
+			Joints,
+			Weights
+		};
+		bool IsValidDataType(EDataType DataType, bool bMorphTargetProperty) const;
+		bool CheckAccessorTypeForDataType(EDataType DataType, bool bMorphTargetProperty) const;
+		bool CheckNonQuantizedComponentTypeForDataType(EDataType DataType, bool bMorphTargetProperty) const;
+		bool CheckQuantizedComponentTypeForDataType(EDataType DataType, bool bMorphTargetProperty) const;
 	};
 
 	struct GLTFCORE_API FValidAccessor final : FAccessor
 	{
-		FValidAccessor(FBufferView& InBufferView, uint32 InOffset, uint32 InCount, EType InType, EComponentType InCompType, bool InNormalized);
+		FValidAccessor(FBufferView& InBufferView, uint32 InOffset, uint32 InCount, EType InType, EComponentType InCompType, bool bInNormalized);
 
 		bool IsValid() const override;
+
 		FMD5Hash GetHash() const override;
 
 		uint32 GetUnsignedInt(uint32 Index) const override;

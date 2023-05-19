@@ -65,7 +65,10 @@ static const TArray<FString> ImporterSupportedExtensions = {
 	GLTF::ToString(GLTF::EExtension::MSFT_PackingOcclusionRoughnessMetallic),
 	GLTF::ToString(GLTF::EExtension::MSFT_PackingNormalRoughnessMetallic),
 	/* Textures */
-	GLTF::ToString(GLTF::EExtension::KHR_TextureTransform)
+	GLTF::ToString(GLTF::EExtension::KHR_TextureTransform),
+
+	/* Mesh */
+	GLTF::ToString(GLTF::EExtension::KHR_MeshQuantization)
 };
 
 namespace UE::Interchange::Gltf::Private

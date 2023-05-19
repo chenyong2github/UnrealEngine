@@ -43,9 +43,9 @@ namespace GLTF
 		void SetupBuffer(const FJsonObject& Object, const FString& Path);
 		void SetupBufferView(const FJsonObject& Object) const;
 		void SetupAccessor(const FJsonObject& Object) const;
-		void SetupMorphTarget(const FJsonObject& Object, GLTF::FPrimitive& Primitive) const;
-		void SetupPrimitive(const FJsonObject& Object, GLTF::FMesh& Mesh) const;
-		void SetupMesh(const FJsonObject& Object) const;
+		void SetupMorphTarget(const FJsonObject& Object, GLTF::FPrimitive& Primitive, const bool bMeshQuantized) const;
+		void SetupPrimitive(const FJsonObject& Object, GLTF::FMesh& Mesh, const bool bMeshQuantized) const;
+		void SetupMesh(const FJsonObject& Object, const bool bMeshQuantized) const;
 
 		void SetupScene(const FJsonObject& Object) const;
 		void SetupNode(const FJsonObject& Object) const;

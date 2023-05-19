@@ -45,6 +45,7 @@ namespace GLTF
 		MSFT_TextureDDS,
 		MSFT_PackingNormalRoughnessMetallic,
 		MSFT_PackingOcclusionRoughnessMetallic,
+		KHR_MeshQuantization,
 		Count
 	};
 

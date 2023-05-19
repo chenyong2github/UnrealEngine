@@ -84,6 +84,19 @@ namespace GLTF
 			return FBase64::GetDecodedDataSize(EncodedData);
 		}
 
+		FAccessor& AccessorAtIndex(TArray<FValidAccessor>& Accessors, int32 Index)
+		{
+			if (Accessors.IsValidIndex(Index))
+			{
+				return Accessors[Index];
+			}
+			else
+			{
+				static FVoidAccessor Void;
+				return Void;
+			}
+		}
+
 		const FAccessor& AccessorAtIndex(const TArray<FValidAccessor>& Accessors, int32 Index)
 		{
 			if (Accessors.IsValidIndex(Index))
@@ -220,20 +233,26 @@ namespace GLTF
 		}
 	}
 
-	void FFileReader::SetupMorphTarget(const FJsonObject& Object, GLTF::FPrimitive& Primitive) const
+	void FFileReader::SetupMorphTarget(const FJsonObject& Object, GLTF::FPrimitive& Primitive, const bool bMeshQuantized) const
 	{
 		const TArray<FValidAccessor>& A = Asset->Accessors;
-		const FAccessor& Position = AccessorAtIndex(A, GetIndex(Object, TEXT("POSITION")));
-		const FAccessor& Normal = AccessorAtIndex(A, GetIndex(Object, TEXT("NORMAL")));
-		const FAccessor& Tangent = AccessorAtIndex(A, GetIndex(Object, TEXT("TANGENT")));
-		const FAccessor& TexCoord0 = AccessorAtIndex(A, GetIndex(Object, TEXT("TEXCOORD_0")));
-		const FAccessor& TexCoord1 = AccessorAtIndex(A, GetIndex(Object, TEXT("TEXCOORD_1")));
+		FAccessor& Position = AccessorAtIndex(Asset->Accessors, GetIndex(Object, TEXT("POSITION")));
+		FAccessor& Normal = AccessorAtIndex(Asset->Accessors, GetIndex(Object, TEXT("NORMAL")));
+		FAccessor& Tangent = AccessorAtIndex(Asset->Accessors, GetIndex(Object, TEXT("TANGENT")));
+		FAccessor& TexCoord0 = AccessorAtIndex(Asset->Accessors, GetIndex(Object, TEXT("TEXCOORD_0")));
+		FAccessor& TexCoord1 = AccessorAtIndex(Asset->Accessors, GetIndex(Object, TEXT("TEXCOORD_1")));
 		const FAccessor& Color0 = AccessorAtIndex(A, GetIndex(Object, TEXT("COLOR_0")));
+
+		Position.bQuantized = bMeshQuantized;
+		Normal.bQuantized = bMeshQuantized;
+		Tangent.bQuantized = bMeshQuantized;
+		TexCoord0.bQuantized = bMeshQuantized;
+		TexCoord1.bQuantized = bMeshQuantized;
 
 		Primitive.MorphTargets.Emplace(Position, Normal, Tangent, TexCoord0, TexCoord1, Color0);
 	}
 
-	void FFileReader::SetupPrimitive(const FJsonObject& Object, FMesh& Mesh) const
+	void FFileReader::SetupPrimitive(const FJsonObject& Object, FMesh& Mesh, const bool bMeshQuantized) const
 	{
 		const FPrimitive::EMode       Mode = PrimitiveModeFromNumber(GetUnsignedInt(Object, TEXT("mode"), (uint32)FPrimitive::EMode::Triangles));
 		if (Mode == FPrimitive::EMode::Unknown)
@@ -248,14 +267,20 @@ namespace GLTF
 
 		// the only required attribute is POSITION
 		const FJsonObject& Attributes = *Object.GetObjectField("attributes");
-		const FAccessor&   Position   = AccessorAtIndex(A, GetIndex(Attributes, TEXT("POSITION")));
-		const FAccessor&   Normal     = AccessorAtIndex(A, GetIndex(Attributes, TEXT("NORMAL")));
-		const FAccessor&   Tangent    = AccessorAtIndex(A, GetIndex(Attributes, TEXT("TANGENT")));
-		const FAccessor&   TexCoord0  = AccessorAtIndex(A, GetIndex(Attributes, TEXT("TEXCOORD_0")));
-		const FAccessor&   TexCoord1  = AccessorAtIndex(A, GetIndex(Attributes, TEXT("TEXCOORD_1")));
+		FAccessor&   Position   = AccessorAtIndex(Asset->Accessors, GetIndex(Attributes, TEXT("POSITION")));
+		FAccessor&   Normal     = AccessorAtIndex(Asset->Accessors, GetIndex(Attributes, TEXT("NORMAL")));
+		FAccessor&   Tangent    = AccessorAtIndex(Asset->Accessors, GetIndex(Attributes, TEXT("TANGENT")));
+		FAccessor&   TexCoord0  = AccessorAtIndex(Asset->Accessors, GetIndex(Attributes, TEXT("TEXCOORD_0")));
+		FAccessor&   TexCoord1  = AccessorAtIndex(Asset->Accessors, GetIndex(Attributes, TEXT("TEXCOORD_1")));
 		const FAccessor&   Color0     = AccessorAtIndex(A, GetIndex(Attributes, TEXT("COLOR_0")));
 		const FAccessor&   Joints0    = AccessorAtIndex(A, GetIndex(Attributes, TEXT("JOINTS_0")));
 		const FAccessor&   Weights0   = AccessorAtIndex(A, GetIndex(Attributes, TEXT("WEIGHTS_0")));
+
+		Position.bQuantized = bMeshQuantized;
+		Normal.bQuantized = bMeshQuantized;
+		Tangent.bQuantized = bMeshQuantized;
+		TexCoord0.bQuantized = bMeshQuantized;
+		TexCoord1.bQuantized = bMeshQuantized;
 
 		Mesh.Primitives.Emplace(Mode, MaterialIndex, Indices, Position, Normal, Tangent, TexCoord0, TexCoord1, Color0, Joints0, Weights0);
 
@@ -266,14 +291,14 @@ namespace GLTF
 			for (TSharedPtr<FJsonValue> Value : MorphTargets)
 			{
 				const FJsonObject& MorphTargetObject = *Value->AsObject();
-				SetupMorphTarget(MorphTargetObject, Mesh.Primitives.Last());
+				SetupMorphTarget(MorphTargetObject, Mesh.Primitives.Last(), bMeshQuantized);
 			}
 		}
 
 		ExtensionsHandler->SetupPrimitiveExtensions(Object, Mesh.Primitives.Last());
 	}
 
-	void FFileReader::SetupMesh(const FJsonObject& Object) const
+	void FFileReader::SetupMesh(const FJsonObject& Object, const bool bMeshQuantized) const
 	{
 		Asset->Meshes.Emplace();
 		FMesh& Mesh = Asset->Meshes.Last();
@@ -287,7 +312,7 @@ namespace GLTF
 		for (TSharedPtr<FJsonValue> Value : PrimArray)
 		{
 			const FJsonObject& PrimObject = *Value->AsObject();
-			SetupPrimitive(PrimObject, Mesh);
+			SetupPrimitive(PrimObject, Mesh, bMeshQuantized);
 
 			if (NumberOfMorphTargets == -1)
 			{
@@ -925,11 +950,37 @@ namespace GLTF
 		Asset = &OutAsset;
 		ExtensionsHandler->SetAsset(OutAsset);
 
+		/**
+		 * According to gltf specification checking only the top-level extensionsRequired property in order to decide
+		 * if the model import is supported should be sufficient as the documentation states:
+		 * "All glTF extensions required to load and/or render an asset MUST be listed in the top-level extensionsRequired array"
+		 */
+		bool bMeshQuantized = false;
+		const FString KHR_MeshQuantizationString = ToString(GLTF::EExtension::KHR_MeshQuantization);
+		const TArray<TSharedPtr<FJsonValue>>* ExtensionsRequired;
+		if (JsonRoot->TryGetArrayField(TEXT("extensionsRequired"), ExtensionsRequired))
+		{
+			if (ensure(ExtensionsRequired))
+			{
+				OutAsset.ExtensionsRequired.Reserve(OutAsset.ExtensionsRequired.Num() + ExtensionsRequired->Num());
+				for (const TSharedPtr<FJsonValue>& Extension : *ExtensionsRequired)
+				{
+					FString ExtensionString = Extension->AsString();
+					OutAsset.ExtensionsRequired.Add(ExtensionString);
+
+					if (ExtensionString == KHR_MeshQuantizationString)
+					{
+						bMeshQuantized = true;
+					}
+				}
+			}
+		}
+
 		SetupObjects(BufferCount, TEXT("buffers"), [this, InResourcesPath](const FJsonObject& Object) { SetupBuffer(Object, InResourcesPath); });
 		SetupObjects(BufferViewCount, TEXT("bufferViews"), [this](const FJsonObject& Object) { SetupBufferView(Object); });
 		SetupObjects(AccessorCount, TEXT("accessors"), [this](const FJsonObject& Object) { SetupAccessor(Object); });
 
-		SetupObjects(MeshCount, TEXT("meshes"), [this](const FJsonObject& Object) { SetupMesh(Object); });
+		SetupObjects(MeshCount, TEXT("meshes"), [this, &bMeshQuantized](const FJsonObject& Object) { SetupMesh(Object, bMeshQuantized); });
 		SetupObjects(NodeCount, TEXT("nodes"), [this](const FJsonObject& Object) { SetupNode(Object); });
 		SetupObjects(SceneCount, TEXT("scenes"), [this](const FJsonObject& Object) { SetupScene(Object); });
 		SetupObjects(CameraCount, TEXT("cameras"), [this](const FJsonObject& Object) { SetupCamera(Object); });
@@ -943,24 +994,6 @@ namespace GLTF
 		SetupObjects(TextureCount, TEXT("textures"), [this](const FJsonObject& Object) { SetupTexture(Object); });
 		SetupObjects(MaterialCount, TEXT("materials"), [this](const FJsonObject& Object) { SetupMaterial(Object); });
 
-		/**
-		 * Returns true if all required extensions are supported.
-		 * According to gltf specification checking only the top-level extensionsRequired property in order to decide
-		 * if the model import is supported should be sufficient as the documentation states:
-		 * "All glTF extensions required to load and/or render an asset MUST be listed in the top-level extensionsRequired array"
-		 */
-		const TArray<TSharedPtr<FJsonValue>>* ExtensionsRequired;
-		if (JsonRoot->TryGetArrayField(TEXT("extensionsRequired"), ExtensionsRequired))
-		{
-			if (ensure(ExtensionsRequired))
-			{
-				OutAsset.ExtensionsRequired.Reserve(OutAsset.ExtensionsRequired.Num() + ExtensionsRequired->Num());
-				for (const TSharedPtr<FJsonValue>& Extension : *ExtensionsRequired)
-				{
-					OutAsset.ExtensionsRequired.Add(Extension->AsString());
-				}
-			}
-		}
 
 		const TArray<TSharedPtr<FJsonValue>>* ExtensionsUsed;
 		if (JsonRoot->TryGetArrayField(TEXT("extensionsUsed"), ExtensionsUsed))

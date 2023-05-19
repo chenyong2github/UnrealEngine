@@ -6,18 +6,6 @@
 
 namespace GLTF
 {
-	namespace
-	{
-		// convertible to 0.0 .. 1.0 factor
-		// (colors, tex coords, weights, etc.)
-		bool IsConvertibleToNormalizedFloat(const FAccessor& Attrib)
-		{
-			return Attrib.ComponentType == FAccessor::EComponentType::F32 ||
-				(Attrib.Normalized &&
-					(Attrib.ComponentType == FAccessor::EComponentType::U8 || Attrib.ComponentType == FAccessor::EComponentType::U16));
-		}
-	}
-
 	FMorphTarget::FMorphTarget(const FAccessor& InPositionDisplacements, const FAccessor& InNormalDisplacements,
 		const FAccessor& InTangentDisplacements, const FAccessor& InTexCoord0Displacements, const FAccessor& InTexCoord1Displacements, const FAccessor& InColor0Deltas)
 		: PositionDisplacements(InPositionDisplacements)
@@ -31,7 +19,62 @@ namespace GLTF
 
 	bool FMorphTarget::IsValid() const
 	{
-		return HasPositionDisplacements() || HasNormalDisplacements() || HasTangentDisplacements() || HasTexCoordDisplacements(0) || HasTexCoordDisplacements(1) || HasColorDeltas();
+		bool bHasData = false;
+		const bool bMorphTarget = true;
+
+		if (HasPositionDisplacements())
+		{
+			bHasData = true;
+			if (!PositionDisplacements.IsValidDataType(FAccessor::EDataType::Position, bMorphTarget))
+			{
+				return false;
+			}
+		}
+		
+		if (HasNormalDisplacements())
+		{
+			bHasData = true;
+			if (!NormalDisplacements.IsValidDataType(FAccessor::EDataType::Normal, bMorphTarget))
+			{
+				return false;
+			}
+		}
+		
+		if (HasTangentDisplacements())
+		{
+			bHasData = true;
+			if (!TangentDisplacements.IsValidDataType(FAccessor::EDataType::Tangent, bMorphTarget))
+			{
+				return false;
+			}
+		}
+		
+		if (HasTexCoordDisplacements(0))
+		{
+			bHasData = true;
+			if (!TexCoord0Displacements.IsValidDataType(FAccessor::EDataType::Texcoord, bMorphTarget))
+			{
+				return false;
+			}
+		}
+		if (HasTexCoordDisplacements(1))
+		{
+			bHasData = true;
+			if (!TexCoord1Displacements.IsValidDataType(FAccessor::EDataType::Texcoord, bMorphTarget))
+			{
+				return false;
+			}
+		}
+
+		if (HasColorDeltas())
+		{
+			bHasData = true;
+			if (Color0Deltas.IsValidDataType(FAccessor::EDataType::Color, bMorphTarget))
+			{
+				return false;
+			}
+		}
+		return bHasData;
 	}
 	FMD5Hash FMorphTarget::GetHash() const
 	{
@@ -385,18 +428,14 @@ namespace GLTF
 	bool FPrimitive::IsValidPrivate() const
 	{
 		// make sure all semantic attributes meet the spec
+		const bool bMorphTarget = false;
 
-		if (!Position.IsValid())
+		if (!(Position.IsValid() && Position.IsValidDataType(FAccessor::EDataType::Position, bMorphTarget)))
 		{
 			return false;
 		}
 
 		const uint32 VertexCount = Position.Count;
-
-		if (Position.Type != FAccessor::EType::Vec3 || Position.ComponentType != FAccessor::EComponentType::F32)
-		{
-			return false;
-		}
 
 		if (Normal.IsValid())
 		{
@@ -405,7 +444,7 @@ namespace GLTF
 				return false;
 			}
 
-			if (Normal.Type != FAccessor::EType::Vec3 || Normal.ComponentType != FAccessor::EComponentType::F32)
+			if (!Normal.IsValidDataType(FAccessor::EDataType::Normal, bMorphTarget))
 			{
 				return false;
 			}
@@ -418,7 +457,7 @@ namespace GLTF
 				return false;
 			}
 
-			if (Tangent.Type != FAccessor::EType::Vec4 || Tangent.ComponentType != FAccessor::EComponentType::F32)
+			if (!Tangent.IsValidDataType(FAccessor::EDataType::Tangent, bMorphTarget))
 			{
 				return false;
 			}
@@ -434,7 +473,7 @@ namespace GLTF
 					return false;
 				}
 
-				if (TexCoord->Type != FAccessor::EType::Vec2 || !IsConvertibleToNormalizedFloat(*TexCoord))
+				if (!TexCoord->IsValidDataType(FAccessor::EDataType::Texcoord, bMorphTarget))
 				{
 					return false;
 				}
@@ -448,7 +487,7 @@ namespace GLTF
 				return false;
 			}
 
-			if (!(Color0.Type == FAccessor::EType::Vec3 || Color0.Type == FAccessor::EType::Vec4) || !IsConvertibleToNormalizedFloat(Color0))
+			if (!Color0.IsValidDataType(FAccessor::EDataType::Color, bMorphTarget))
 			{
 				return false;
 			}
