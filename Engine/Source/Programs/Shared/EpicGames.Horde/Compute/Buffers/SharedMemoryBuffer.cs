@@ -25,13 +25,11 @@ namespace EpicGames.Horde.Compute.Buffers
 			readonly Native.EventHandle _writerEvent;
 
 			public string Name { get; }
-			public HeaderPtr HeaderPtr { get; }
-			public Memory<byte>[] Chunks { get; }
 
-			public Resources(string name, HeaderPtr headerPtr, MemoryMappedFile memoryMappedFile, MemoryMappedViewAccessor memoryMappedViewAccessor, MemoryMappedView memoryMappedView, Native.EventHandle readerEvent, Native.EventHandle writerEvent)
+			public Resources(string name, HeaderPtr headerPtr, Memory<byte>[] chunks, MemoryMappedFile memoryMappedFile, MemoryMappedViewAccessor memoryMappedViewAccessor, MemoryMappedView memoryMappedView, Native.EventHandle readerEvent, Native.EventHandle writerEvent)
+				: base(headerPtr, chunks)
 			{
 				Name = name;
-				HeaderPtr = headerPtr;
 
 				_memoryMappedFile = memoryMappedFile;
 				_memoryMappedViewAccessor = memoryMappedViewAccessor;
@@ -39,13 +37,6 @@ namespace EpicGames.Horde.Compute.Buffers
 
 				_readerEvent = readerEvent;
 				_writerEvent = writerEvent;
-
-				Chunks = new Memory<byte>[headerPtr.NumChunks];
-				for (int chunkIdx = 0; chunkIdx < headerPtr.NumChunks; chunkIdx++)
-				{
-					int chunkOffset = HeaderSize + (headerPtr.ChunkLength * chunkIdx);
-					Chunks[chunkIdx] = memoryMappedView.GetMemory(chunkOffset, headerPtr.ChunkLength);
-				}
 			}
 
 			public override void Dispose()
@@ -78,17 +69,14 @@ namespace EpicGames.Horde.Compute.Buffers
 		}
 
 		/// <inheritdoc/>
-		public string Name => _resources.Name;
-
-		readonly Resources _resources;
+		public string Name => ((Resources)_resources).Name;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		private unsafe SharedMemoryBuffer(Resources resources)
-			: base(resources.HeaderPtr, resources.Chunks, resources)
+		private SharedMemoryBuffer(ResourcesBase resources)
+			: base(resources)
 		{
-			_resources = resources;
 		}
 
 		/// <inheritdoc/>
@@ -129,7 +117,9 @@ namespace EpicGames.Horde.Compute.Buffers
 			Native.EventHandle readerEvent = Native.EventHandle.CreateNew($"{name}_R", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
 
 			HeaderPtr headerPtr = new HeaderPtr((ulong*)memoryMappedView.GetPointer(), 1, numChunks, chunkLength);
-			return new SharedMemoryBuffer(new Resources(name, headerPtr, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, readerEvent, writerEvent));
+			Memory<byte>[] chunks = CreateChunks(headerPtr.NumChunks, headerPtr.ChunkLength, memoryMappedView);
+
+			return new SharedMemoryBuffer(new Resources(name, headerPtr, chunks, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, readerEvent, writerEvent));
 		}
 
 		/// <summary>
@@ -151,7 +141,20 @@ namespace EpicGames.Horde.Compute.Buffers
 			Native.EventHandle writerEvent = Native.EventHandle.OpenExisting($"{name}_W");
 
 			HeaderPtr headerPtr = new HeaderPtr((ulong*)memoryMappedView.GetPointer());
-			return new SharedMemoryBuffer(new Resources(name, headerPtr, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, readerEvent, writerEvent));
+			Memory<byte>[] chunks = CreateChunks(headerPtr.NumChunks, headerPtr.ChunkLength, memoryMappedView);
+
+			return new SharedMemoryBuffer(new Resources(name, headerPtr, chunks, memoryMappedFile, memoryMappedViewAccessor, memoryMappedView, readerEvent, writerEvent));
+		}
+
+		static Memory<byte>[] CreateChunks(int numChunks, int chunkLength, MemoryMappedView memoryMappedView)
+		{
+			Memory<byte>[] chunks = new Memory<byte>[numChunks];
+			for (int chunkIdx = 0; chunkIdx < numChunks; chunkIdx++)
+			{
+				int chunkOffset = HeaderSize + (chunkLength * chunkIdx);
+				chunks[chunkIdx] = memoryMappedView.GetMemory(chunkOffset, chunkLength);
+			}
+			return chunks;
 		}
 	}
 }

@@ -177,7 +177,15 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		internal abstract class ResourcesBase : IDisposable
 		{
+			public HeaderPtr HeaderPtr { get; }
+			public Memory<byte>[] Chunks { get; }
 			int _refCount = 1;
+
+			public ResourcesBase(HeaderPtr headerPtr, Memory<byte>[] chunks)
+			{
+				HeaderPtr = headerPtr;
+				Chunks = chunks;
+			}
 
 			public void AddRef()
 			{
@@ -203,6 +211,17 @@ namespace EpicGames.Horde.Compute
 			public abstract void SetReadEvent(int readerIdx);
 
 			/// <summary>
+			/// Signals read events for every reader
+			/// </summary>
+			public void SetAllReadEvents()
+			{
+				for (int readerIdx = 0; readerIdx < HeaderPtr.NumReaders; readerIdx++)
+				{
+					SetReadEvent(readerIdx);
+				}
+			}
+
+			/// <summary>
 			/// Resets a read event
 			/// </summary>
 			public abstract void ResetReadEvent(int readerIdx);
@@ -226,41 +245,242 @@ namespace EpicGames.Horde.Compute
 			/// Waits for the write event to be signalled
 			/// </summary>
 			public abstract Task WaitForWriteEvent(CancellationToken cancellationToken);
+
+#pragma warning disable IDE0051 // Remove unused private members
+			// For debugging purposes only
+			ChunkState[] ChunkStates => Enumerable.Range(0, HeaderPtr.NumChunks).Select(x => HeaderPtr.GetChunkStatePtr(x).Value).ToArray();
+			ReaderState[] ReaderStates => Enumerable.Range(0, HeaderPtr.NumReaders).Select(x => HeaderPtr.GetReaderStatePtr(x).Value).ToArray();
+			int WriteChunkIdx => HeaderPtr.WriteChunkIdx;
+#pragma warning restore IDE0051 // Remove unused private members
 		}
 
 		class ReaderImpl : IComputeBufferReader
 		{
-			readonly ComputeBufferBase _buffer;
+			readonly HeaderPtr _headerPtr;
+			readonly Memory<byte>[] _chunks;
+			readonly ResourcesBase _resources;
+			readonly int _readerIdx;
 
-			public ReaderImpl(ComputeBufferBase buffer) => _buffer = buffer;
+			public ReaderImpl(ResourcesBase resources, int readerIdx)
+			{
+				_headerPtr = resources.HeaderPtr;
+				_chunks = resources.Chunks;
+				_resources = resources;
+				_readerIdx = readerIdx;
+			}
 
-			public bool IsComplete => _buffer.IsComplete(0);
+			/// <inheritdoc/>
+			public IComputeBufferReader AddRef()
+			{
+				_resources.AddRef();
+				return new ReaderImpl(_resources, _readerIdx);
+			}
 
-			public void AdvanceReadPosition(int size) => _buffer.AdvanceReadPosition(0, size);
+			/// <inheritdoc/>
+			public bool IsComplete
+			{
+				get
+				{
+					ReaderState readerState = _headerPtr.GetReaderStatePtr(_readerIdx).Value;
+					ChunkState chunkState = _headerPtr.GetChunkStatePtr(readerState.ChunkIdx).Value;
+					return chunkState.WriteState == WriteState.Complete && readerState.Offset == chunkState.Length;
+				}
+			}
 
-			public ReadOnlyMemory<byte> GetReadBuffer() => _buffer.GetReadBuffer(0);
+			/// <inheritdoc/>
+			public void AdvanceReadPosition(int length)
+			{
+				ReaderStatePtr readerStatePtr = _headerPtr.GetReaderStatePtr(_readerIdx);
+				readerStatePtr.Advance(length);
+			}
 
-			public ValueTask<bool> WaitToReadAsync(int minLength, CancellationToken cancellationToken = default) => _buffer.WaitToReadAsync(0, minLength, cancellationToken);
+			/// <inheritdoc/>
+			public ReadOnlyMemory<byte> GetReadBuffer()
+			{
+				ReaderStatePtr readerStatePtr = _headerPtr.GetReaderStatePtr(_readerIdx);
+				ReaderState readerState = readerStatePtr.Value;
+
+				ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(readerState.ChunkIdx);
+				ChunkState chunkState = chunkStatePtr.Value;
+
+				if (chunkState.HasReaderFlag(_readerIdx))
+				{
+					return _chunks[readerState.ChunkIdx].Slice(readerState.Offset, chunkState.Length - readerState.Offset);
+				}
+				else
+				{
+					return ReadOnlyMemory<byte>.Empty;
+				}
+			}
+
+			/// <inheritdoc/>
+			public async ValueTask<bool> WaitToReadAsync(int minLength, CancellationToken cancellationToken = default)
+			{
+				for (; ; )
+				{
+					ReaderStatePtr readerStatePtr = _headerPtr.GetReaderStatePtr(_readerIdx);
+					ReaderState readerState = readerStatePtr.Value;
+
+					ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(readerState.ChunkIdx);
+					ChunkState chunkState = chunkStatePtr.Value;
+
+					if (!chunkState.HasReaderFlag(_readerIdx))
+					{
+						// Wait until the current chunk is readable
+						_resources.ResetReadEvent(_readerIdx);
+						if (!chunkState.HasReaderFlag(_readerIdx))
+						{
+							await _resources.WaitForReadEvent(_readerIdx, cancellationToken);
+						}
+					}
+					else if (readerState.Offset + minLength <= chunkState.Length)
+					{
+						// We have enough data in the chunk to be able to read a message
+						return true;
+					}
+					else if (chunkState.WriteState == WriteState.Writing)
+					{
+						// Wait until there is more data in the chunk
+						_resources.ResetReadEvent(_readerIdx);
+						if (_headerPtr.GetChunkStatePtr(readerState.ChunkIdx).Value == chunkState)
+						{
+							await _resources.WaitForReadEvent(_readerIdx, cancellationToken);
+						}
+					}
+					else if (readerState.Offset < chunkState.Length || chunkState.WriteState == WriteState.Complete)
+					{
+						// Cannot read the requested amount of data from this chunk.
+						return false;
+					}
+					else if (chunkState.WriteState == WriteState.MovedToNext)
+					{
+						// Move to the next chunk
+						chunkStatePtr.FinishReading(_readerIdx);
+						_resources.SetWriteEvent();
+
+						int chunkIdx = readerStatePtr.ChunkIdx + 1;
+						if (chunkIdx == _chunks.Length)
+						{
+							chunkIdx = 0;
+						}
+
+						readerStatePtr.Value = new ReaderState(chunkIdx, 0);
+					}
+					else
+					{
+						throw new NotImplementedException($"Invalid write state for buffer: {chunkState.WriteState}");
+					}
+				}
+			}
 		}
 
 		class WriterImpl : IComputeBufferWriter
 		{
-			readonly ComputeBufferBase _buffer;
+			readonly HeaderPtr _headerPtr;
+			readonly Memory<byte>[] _chunks;
+			readonly ResourcesBase _resources;
 
-			public WriterImpl(ComputeBufferBase buffer) => _buffer = buffer;
+			public WriterImpl(ResourcesBase resources)
+			{
+				_headerPtr = resources.HeaderPtr;
+				_chunks = resources.Chunks;
+				_resources = resources;
+			}
 
-			public void AdvanceWritePosition(int size) => _buffer.AdvanceWritePosition(size);
+			/// <inheritdoc/>
+			public IComputeBufferWriter AddRef()
+			{
+				_resources.AddRef();
+				return new WriterImpl(_resources);
+			}
 
-			public Memory<byte> GetWriteBuffer() => _buffer.GetWriteBuffer();
+			/// <inheritdoc/>
+			public void AdvanceWritePosition(int size)
+			{
+				if (size > 0)
+				{
+					ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(_headerPtr.WriteChunkIdx);
+					ChunkState chunkState = chunkStatePtr.Value;
 
-			public bool MarkComplete() => _buffer.MarkComplete();
+					Debug.Assert(chunkState.WriteState == WriteState.Writing);
+					chunkStatePtr.Append(size);
 
-			public ValueTask WaitToWriteAsync(int minLength, CancellationToken cancellationToken = default) => _buffer.WaitToWriteAsync(minLength, cancellationToken);
+					_resources.SetAllReadEvents();
+				}
+			}
+
+			/// <inheritdoc/>
+			public Memory<byte> GetWriteBuffer()
+			{
+				ChunkState state = _headerPtr.GetChunkStatePtr(_headerPtr.WriteChunkIdx).Value;
+				if (state.WriteState == WriteState.Writing)
+				{
+					return _chunks[_headerPtr.WriteChunkIdx].Slice(state.Length);
+				}
+				else
+				{
+					return Memory<byte>.Empty;
+				}
+			}
+
+			/// <inheritdoc/>
+			public bool MarkComplete()
+			{
+				ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(_headerPtr.WriteChunkIdx);
+				if (chunkStatePtr.WriteState != WriteState.Complete)
+				{
+					chunkStatePtr.MarkComplete();
+					_resources.SetAllReadEvents();
+					return true;
+				}
+				return false;
+			}
+
+			/// <inheritdoc/>
+			public async ValueTask WaitToWriteAsync(int minSize, CancellationToken cancellationToken = default)
+			{
+				if (minSize > _headerPtr.ChunkLength)
+				{
+					throw new ArgumentException("Requested read size is larger than chunk size.", nameof(minSize));
+				}
+
+				for (; ; )
+				{
+					ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(_headerPtr.WriteChunkIdx);
+
+					ChunkState chunkState = chunkStatePtr.Value;
+					if (chunkState.WriteState == WriteState.Writing)
+					{
+						int length = chunkState.Length;
+						if (length + minSize <= _headerPtr.ChunkLength)
+						{
+							return;
+						}
+						chunkStatePtr.FinishWriting();
+					}
+
+					int nextChunkIdx = _headerPtr.WriteChunkIdx + 1;
+					if (nextChunkIdx == _chunks.Length)
+					{
+						nextChunkIdx = 0;
+					}
+
+					ChunkStatePtr nextChunkStatePtr = _headerPtr.GetChunkStatePtr(nextChunkIdx);
+					while (nextChunkStatePtr.ReaderFlags != 0)
+					{
+						await _resources.WaitForWriteEvent(cancellationToken);
+						_resources.ResetWriteEvent();
+					}
+
+					_headerPtr.WriteChunkIdx = nextChunkIdx;
+					nextChunkStatePtr.StartWriting(_headerPtr.NumReaders);
+
+					_resources.SetAllReadEvents();
+				}
+			}
 		}
 
-		readonly HeaderPtr _headerPtr;
-		readonly Memory<byte>[] _chunks;
-		ResourcesBase _resources;
+		internal ResourcesBase _resources;
 
 		/// <inheritdoc/>
 		public IComputeBufferReader Reader { get; }
@@ -268,27 +488,15 @@ namespace EpicGames.Horde.Compute
 		/// <inheritdoc/>
 		public IComputeBufferWriter Writer { get; }
 
-#pragma warning disable IDE0051 // Remove unused private members
-		// For debugging purposes only
-		ChunkState[] ChunkStates => Enumerable.Range(0, _headerPtr.NumChunks).Select(x => _headerPtr.GetChunkStatePtr(x).Value).ToArray();
-		ReaderState[] ReaderStates => Enumerable.Range(0, _headerPtr.NumReaders).Select(x => _headerPtr.GetReaderStatePtr(x).Value).ToArray();
-		int WriteChunkIdx => _headerPtr.WriteChunkIdx;
-#pragma warning restore IDE0051 // Remove unused private members
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="headerPtr">Header for the buffer</param>
-		/// <param name="chunks">Data for the buffer</param>
 		/// <param name="resources">Resources shared between instances of the buffer</param>
-		internal ComputeBufferBase(HeaderPtr headerPtr, Memory<byte>[] chunks, ResourcesBase resources)
+		internal ComputeBufferBase(ResourcesBase resources)
 		{
-			_headerPtr = headerPtr;
-			_chunks = chunks;
 			_resources = resources;
-
-			Reader = new ReaderImpl(this);
-			Writer = new WriterImpl(this);
+			Reader = new ReaderImpl(resources, 0);
+			Writer = new WriterImpl(resources);
 		}
 
 		/// <inheritdoc/>
@@ -310,202 +518,7 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		private void SetAllReadEvents()
-		{
-			for (int readerIdx = 0; readerIdx < _headerPtr.NumReaders; readerIdx++)
-			{
-				_resources.SetReadEvent(readerIdx);
-			}
-		}
-
 		/// <inheritdoc/>
 		public abstract IComputeBuffer AddRef();
-
-		#region Reader Interface
-
-		/// <inheritdoc/>
-		public bool IsComplete(int readerIdx)
-		{
-			ReaderState readerState = _headerPtr.GetReaderStatePtr(readerIdx).Value;
-			ChunkState chunkState = _headerPtr.GetChunkStatePtr(readerState.ChunkIdx).Value;
-			return chunkState.WriteState == WriteState.Complete && readerState.Offset == chunkState.Length;
-		}
-
-		/// <inheritdoc/>
-		public void AdvanceReadPosition(int readerIdx, int length)
-		{
-			ReaderStatePtr readerStatePtr = _headerPtr.GetReaderStatePtr(readerIdx);
-			readerStatePtr.Advance(length);
-		}
-
-		/// <inheritdoc/>
-		public ReadOnlyMemory<byte> GetReadBuffer(int readerIdx)
-		{
-			ReaderStatePtr readerStatePtr = _headerPtr.GetReaderStatePtr(readerIdx);
-			ReaderState readerState = readerStatePtr.Value;
-
-			ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(readerState.ChunkIdx);
-			ChunkState chunkState = chunkStatePtr.Value;
-
-			if (chunkState.HasReaderFlag(readerIdx))
-			{
-				return _chunks[readerState.ChunkIdx].Slice(readerState.Offset, chunkState.Length - readerState.Offset);
-			}
-			else
-			{
-				return ReadOnlyMemory<byte>.Empty;
-			}
-		}
-
-		/// <inheritdoc/>
-		public async ValueTask<bool> WaitToReadAsync(int readerIdx, int minLength, CancellationToken cancellationToken = default)
-		{
-			for (; ; )
-			{
-				ReaderStatePtr readerStatePtr = _headerPtr.GetReaderStatePtr(readerIdx);
-				ReaderState readerState = readerStatePtr.Value;
-
-				ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(readerState.ChunkIdx);
-				ChunkState chunkState = chunkStatePtr.Value;
-
-				if (!chunkState.HasReaderFlag(readerIdx))
-				{
-					// Wait until the current chunk is readable
-					_resources.ResetReadEvent(readerIdx);
-					if (!chunkState.HasReaderFlag(readerIdx))
-					{
-						await _resources.WaitForReadEvent(readerIdx, cancellationToken);
-					}
-				}
-				else if (readerState.Offset + minLength <= chunkState.Length)
-				{
-					// We have enough data in the chunk to be able to read a message
-					return true;
-				}
-				else if (chunkState.WriteState == WriteState.Writing)
-				{
-					// Wait until there is more data in the chunk
-					_resources.ResetReadEvent(readerIdx);
-					if (_headerPtr.GetChunkStatePtr(readerState.ChunkIdx).Value == chunkState)
-					{
-						await _resources.WaitForReadEvent(readerIdx, cancellationToken);
-					}
-				}
-				else if (readerState.Offset < chunkState.Length || chunkState.WriteState == WriteState.Complete)
-				{
-					// Cannot read the requested amount of data from this chunk.
-					return false;
-				}
-				else if (chunkState.WriteState == WriteState.MovedToNext)
-				{
-					// Move to the next chunk
-					chunkStatePtr.FinishReading(readerIdx);
-					_resources.SetWriteEvent();
-
-					int chunkIdx = readerStatePtr.ChunkIdx + 1;
-					if (chunkIdx == _chunks.Length)
-					{
-						chunkIdx = 0;
-					}
-
-					readerStatePtr.Value = new ReaderState(chunkIdx, 0);
-				}
-				else
-				{
-					throw new NotImplementedException($"Invalid write state for buffer: {chunkState.WriteState}");
-				}
-			}
-		}
-
-		#endregion
-
-		#region Writer Interface
-
-		/// <inheritdoc/>
-		public void AdvanceWritePosition(int size)
-		{
-			if (size > 0)
-			{
-				ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(_headerPtr.WriteChunkIdx);
-				ChunkState chunkState = chunkStatePtr.Value;
-
-				Debug.Assert(chunkState.WriteState == WriteState.Writing);
-				chunkStatePtr.Append(size);
-
-				SetAllReadEvents();
-			}
-		}
-
-		/// <inheritdoc/>
-		public Memory<byte> GetWriteBuffer()
-		{
-			ChunkState state = _headerPtr.GetChunkStatePtr(_headerPtr.WriteChunkIdx).Value;
-			if (state.WriteState == WriteState.Writing)
-			{
-				return _chunks[_headerPtr.WriteChunkIdx].Slice(state.Length);
-			}
-			else
-			{
-				return Memory<byte>.Empty;
-			}
-		}
-
-		/// <inheritdoc/>
-		public bool MarkComplete()
-		{
-			ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(_headerPtr.WriteChunkIdx);
-			if (chunkStatePtr.WriteState != WriteState.Complete)
-			{
-				chunkStatePtr.MarkComplete();
-				SetAllReadEvents();
-				return true;
-			}
-			return false;
-		}
-
-		/// <inheritdoc/>
-		public async ValueTask WaitToWriteAsync(int minSize, CancellationToken cancellationToken = default)
-		{
-			if (minSize > _headerPtr.ChunkLength)
-			{
-				throw new ArgumentException("Requested read size is larger than chunk size.", nameof(minSize));
-			}
-
-			for (; ; )
-			{
-				ChunkStatePtr chunkStatePtr = _headerPtr.GetChunkStatePtr(_headerPtr.WriteChunkIdx);
-
-				ChunkState chunkState = chunkStatePtr.Value;
-				if (chunkState.WriteState == WriteState.Writing)
-				{
-					int length = chunkState.Length;
-					if (length + minSize <= _headerPtr.ChunkLength)
-					{
-						return;
-					}
-					chunkStatePtr.FinishWriting();
-				}
-
-				int nextChunkIdx = _headerPtr.WriteChunkIdx + 1;
-				if (nextChunkIdx == _chunks.Length)
-				{
-					nextChunkIdx = 0;
-				}
-
-				ChunkStatePtr nextChunkStatePtr = _headerPtr.GetChunkStatePtr(nextChunkIdx);
-				while (nextChunkStatePtr.ReaderFlags != 0)
-				{
-					await _resources.WaitForWriteEvent(cancellationToken);
-					_resources.ResetWriteEvent();
-				}
-
-				_headerPtr.WriteChunkIdx = nextChunkIdx;
-				nextChunkStatePtr.StartWriting(_headerPtr.NumReaders);
-
-				SetAllReadEvents();
-			}
-		}
-
-		#endregion
 	}
 }

@@ -33,6 +33,11 @@ namespace EpicGames.Horde.Compute
 	public interface IComputeBufferReader
 	{
 		/// <summary>
+		/// Create a new reader instance using the same underlying buffer
+		/// </summary>
+		IComputeBufferReader AddRef();
+
+		/// <summary>
 		/// Whether this buffer is complete (no more data will be added)
 		/// </summary>
 		bool IsComplete { get; }
@@ -63,6 +68,11 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public interface IComputeBufferWriter
 	{
+		/// <summary>
+		/// Create a new writer instance using the same underlying buffer
+		/// </summary>
+		IComputeBufferWriter AddRef();
+
 		/// <summary>
 		/// Mark the output to this buffer as complete
 		/// </summary>

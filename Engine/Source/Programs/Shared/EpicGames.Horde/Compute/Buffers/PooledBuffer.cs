@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,37 +16,42 @@ namespace EpicGames.Horde.Compute.Buffers
 	{
 		class Resources : ResourcesBase
 		{
-			public HeaderPtr _headerPtr;
 			readonly GCHandle _headerHandle;
-
-			public Memory<byte>[] _chunks;
-			readonly GCHandle[] _chunkHandles;
+			readonly IMemoryOwner<byte>[] _chunkOwners;
 
 			readonly AsyncEvent _writerEvent = new AsyncEvent();
 			readonly AsyncEvent _readerEvent = new AsyncEvent();
 
-			public unsafe Resources(int numChunks, int chunkLength, int numReaders)
+			public Resources(HeaderPtr headerPtr, GCHandle headerHandle, Memory<byte>[] chunks, IMemoryOwner<byte>[] chunkOwners)
+				: base(headerPtr, chunks)
 			{
-				_chunks = new Memory<byte>[numChunks];
-				_chunkHandles = new GCHandle[numChunks];
+				_headerHandle = headerHandle;
+				_chunkOwners = chunkOwners;
+			}
+
+			public static unsafe Resources Create(int numChunks, int chunkLength, int numReaders)
+			{
+				byte[] header = new byte[HeaderSize];
+				GCHandle headerHandle = GCHandle.Alloc(header, GCHandleType.Pinned);
+				HeaderPtr headerPtr = new HeaderPtr((ulong*)headerHandle.AddrOfPinnedObject().ToPointer(), numReaders, numChunks, chunkLength);
+
+				Memory<byte>[] chunks = new Memory<byte>[numChunks];
+				IMemoryOwner<byte>[] chunkOwners = new IMemoryOwner<byte>[numChunks];
 
 				for (int idx = 0; idx < numChunks; idx++)
 				{
-					byte[] data = new byte[chunkLength];
-					_chunks[idx] = data;
-					_chunkHandles[idx] = GCHandle.Alloc(data, GCHandleType.Pinned);
+					chunkOwners[idx] = MemoryPool<byte>.Shared.Rent(chunkLength);
+					chunks[idx] = chunkOwners[idx].Memory.Slice(0, chunkLength);
 				}
 
-				byte[] header = new byte[HeaderSize];
-				_headerHandle = GCHandle.Alloc(header, GCHandleType.Pinned);
-				_headerPtr = new HeaderPtr((ulong*)_headerHandle.AddrOfPinnedObject().ToPointer(), numReaders, numChunks, chunkLength);
+				return new Resources(headerPtr, headerHandle, chunks, chunkOwners);
 			}
 
 			public override void Dispose()
 			{
-				for (int idx = 0; idx < _chunkHandles.Length; idx++)
+				for (int idx = 0; idx < _chunkOwners.Length; idx++)
 				{
-					_chunkHandles[idx].Free();
+					_chunkOwners[idx].Dispose();
 				}
 				_headerHandle.Free();
 			}
@@ -69,8 +75,6 @@ namespace EpicGames.Horde.Compute.Buffers
 			public override Task WaitForWriteEvent(CancellationToken cancellationToken) => _writerEvent.Task.WaitAsync(cancellationToken);
 		}
 
-		readonly Resources _resources;
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -87,14 +91,13 @@ namespace EpicGames.Horde.Compute.Buffers
 		/// <param name="chunkLength">Length of each chunk</param>
 		/// <param name="numReaders">Number of readers for this buffer</param>
 		public PooledBuffer(int numChunks, int chunkLength, int numReaders = 1)
-			: this(new Resources(numChunks, chunkLength, numReaders))
+			: base(Resources.Create(numChunks, chunkLength, numReaders))
 		{
 		}
 
-		private PooledBuffer(Resources resources)
-			: base(resources._headerPtr, resources._chunks, resources)
+		private PooledBuffer(ResourcesBase resources)
+			: base(resources)
 		{
-			_resources = resources;
 		}
 
 		/// <inheritdoc/>
