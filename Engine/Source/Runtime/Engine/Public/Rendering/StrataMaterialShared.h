@@ -94,6 +94,9 @@ public:
 	/** Strata uint per pixel, at compile time (0-255) */
 	LAYOUT_FIELD(uint8, StrataUintPerPixel);
 
+	/** Indicate that the material is considered a thin surface instead of a volume filled up with matter */
+	LAYOUT_FIELD(uint8, bIsThin);
+
 	////
 	//// The following data is only needed when compiling with the editor.
 	////

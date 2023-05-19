@@ -60,20 +60,21 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
 						.AutoWidth()
+						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Center)
 						[
 							SNew(SWrapBox)
 							.UseAllottedSize(true)
 							+SWrapBox::Slot()
 							.Padding(5.0f)
-							.HAlign(HAlign_Center)
+							.HAlign(HAlign_Left)
 							.VAlign(VAlign_Center)
 							[
 								CheckBoxForceFullSimplification->AsShared()
 							]
 						]
 						+SHorizontalBox::Slot()
-						.FillWidth(1.0f)
+						.AutoWidth()
 						.Padding(16.0f, 0.0f)
 						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Center)
@@ -85,16 +86,16 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 							.Text(LOCTEXT("FullsimplificationLabel", "Full simplification"))
 						]
 						+SHorizontalBox::Slot()
-						.FillWidth(1.0f)
+						.AutoWidth()
 						.Padding(16.0f, 0.0f)
 						.HAlign(HAlign_Left)
 						.VAlign(VAlign_Center)
 						[
 							SNew(SWrapBox)
-							.UseAllottedSize(true)
+							//.UseAllottedSize(true)
 							+ SWrapBox::Slot()
 							.Padding(5.0f)
-							.HAlign(HAlign_Center)
+							.HAlign(HAlign_Left)
 							.VAlign(VAlign_Center)
 							[
 								ButtonApplyToPreview->AsShared()
@@ -227,6 +228,8 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 					MaterialDescription += FString::Printf(TEXT("Material complexity          = UNKOWN => ERROR!\r\n"));
 				}
 
+				MaterialDescription += FString::Printf(TEXT("Is Thin                      = %i\r\n"), CompilationOutput.bIsThin);
+
 				MaterialDescription += FString::Printf(TEXT(" \r\n"));
 				MaterialDescription += FString::Printf(TEXT(" \r\n"));
 				MaterialDescription += FString::Printf(TEXT("================================================================================\r\n"));
@@ -332,7 +335,7 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 									ToolTip += TEXT("F90 means the BSDF edge specular color representing reflectivity at grazing angle is used.\n");
 									ToolTip += TEXT("Fuz means the BSDF fuzz layer is enabled.\n");
 									ToolTip += TEXT("2Ro means the BSDF either uses a second specular lob with a second roughness, or the legacy simple clear coat.\n");
-									ToolTip += TEXT("Ani means the BSDF anisotropic specular lighting is used.");
+									ToolTip += TEXT("Ani means the BSDF anisotropic specular lighting is used.\n");
 									ToolTip += TEXT("Gli means the BSDF features glints.");
 								}
 

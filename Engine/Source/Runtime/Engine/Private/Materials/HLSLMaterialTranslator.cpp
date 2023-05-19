@@ -11790,6 +11790,7 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataMaterialType = bStrataMaterialIsSimple ? 0 : bStrataMaterialIsSingle ? 1 : 2;
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataBSDFCount = StrataMaterialBSDFCount;
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.StrataUintPerPixel = uint8(FMath::Clamp(RequestedSizeInUint, 0u, 0xFF));
+				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.bIsThin = CompilerMaterial->IsThinSurface() ? 1 : 0;
 
 #if WITH_EDITOR
 				Compiler->MaterialCompilationOutput.StrataMaterialCompilationOutput.SharedLocalBasesCount = 0; // FinalUsedSharedLocalBasesCount is not valid yet
