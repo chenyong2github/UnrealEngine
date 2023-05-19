@@ -205,12 +205,14 @@ bool FNiagaraScalabilityManager::EvaluateCullState(FNiagaraWorldManager* WorldMa
 		return false;
 	}
 
+	FNiagaraScalabilityState& CompState = State[ComponentIndex];
+
 	//Don't update if we're doing new systems only and this is not new.
 	//Saves the potential cost of reavaluating every effect in every tick group something new is added.
 	//Though this does mean the sorted significance values will be using out of date distances etc.
 	//I'm somewhat on the fence currently as to whether it's better to pay this cost for correctness.
 	const bool UpdateScalability = Component->ScalabilityManagerHandle == ComponentIndex
-		&& (!Context.bNewOnly || Component->GetSystemInstanceController()->IsPendingSpawn());
+		&& (!Context.bNewOnly || CompState.bNewlyRegistered);
 
 	if (UpdateScalability)
 	{
@@ -222,8 +224,8 @@ bool FNiagaraScalabilityManager::EvaluateCullState(FNiagaraWorldManager* WorldMa
 			Unregister(Component);
 			return false;
 		}
+		CompState.bNewlyRegistered = false;
 
-		FNiagaraScalabilityState& CompState = State[ComponentIndex];
 		const FNiagaraSystemScalabilitySettings& Scalability = System->GetScalabilitySettings();
 
 		const FNiagaraScalabilitySystemData& SysData = GetSystemData(ComponentIndex);

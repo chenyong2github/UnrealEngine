@@ -1261,12 +1261,12 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 
 	ActiveNiagaraTickGroup = -1;
 
+	//We update scalability managers here so that any new systems can be culled or setup with other scalability based parameters correctly for their spawn.
+	UpdateScalabilityManagers(DeltaSeconds, true);
+
 	// Loop over all simulations that have been marked for post actor (i.e. ones whos TG is changing or have pending spawn systems)
 	if (GNiagaraSpawnPerTickGroup && (SimulationsWithPostActorWork.Num() > 0))
 	{
-		//We update scalability managers here so that any new systems can be culled or setup with other scalability based parameters correctly for their spawn.
-		UpdateScalabilityManagers(DeltaSeconds, true);
-
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_NiagaraSpawnPerTickGroup_GT);
 		for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
 		{
