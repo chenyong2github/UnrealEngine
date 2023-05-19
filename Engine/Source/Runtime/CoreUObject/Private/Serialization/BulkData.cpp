@@ -4,6 +4,7 @@
 #include "Async/MappedFileHandle.h"
 #include "HAL/IConsoleManager.h"
 #include "IO/IoDispatcher.h"
+#include "Math/GuardedInt.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Optional.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -245,9 +246,10 @@ bool FBulkMetaData::FromSerialized(FArchive& Ar, int64 ElementSize, FBulkMetaDat
 	if (Resource.ElementCount > 0)
 	{
 		// TODO: This would be a good use case for FGuardedInt64 once it is moved to core
-		if (Resource.ElementCount < (MAX_int64 / ElementSize))
+		FGuardedInt64 MetadataSize = FGuardedInt64(Resource.ElementCount) * ElementSize;
+		if (MetadataSize.IsValid())
 		{
-			OutMetaData.SetSize(Resource.ElementCount * ElementSize);
+			OutMetaData.SetSize(MetadataSize.Get(0));
 		}
 		else
 		{

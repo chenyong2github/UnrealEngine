@@ -39,7 +39,7 @@
 
 #if WITH_EDITOR
 #include "DerivedDataBuildVersion.h"
-#include "GuardedInt.h"
+#include "Math/GuardedInt.h"
 #include "TextureCompiler.h"
 #include "TextureBuildUtilities.h"
 #include "Misc/ScopeRWLock.h"

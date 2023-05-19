@@ -2,7 +2,7 @@
 
 #include "Texture/InterchangeSlicedTexturePayloadData.h"
 
-#include "GuardedInt.h"
+#include "Math/GuardedInt.h"
 #include "CoreMinimal.h"
 
 void UE::Interchange::FImportSlicedImage::Init(int32 InSizeX, int32 InSizeY, int32 InNumSlice, int32 InNumMips, ETextureSourceFormat InFormat, bool InSRGB)
