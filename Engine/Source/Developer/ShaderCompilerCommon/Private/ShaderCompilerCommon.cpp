@@ -868,8 +868,6 @@ void RemoveUniformBuffersFromSource(const FShaderCompilerEnvironment& Environmen
 	{
 		const FString& UniformBufferName = It.Key();
 		FString UniformBufferAccessString = UniformBufferName + TEXT(".");
-		// MCPP inserts spaces after defines
-		FString UniformBufferAccessStringWithSpace = UniformBufferName + TEXT(" .");
 
 		// Search for the uniform buffer name first, as an optimization (instead of searching the entire source for every member)
 		TCHAR* SearchPtr = FindNextUniformBufferReference(&PreprocessedShaderSource[0], *UniformBufferName, UniformBufferName.Len());
@@ -901,7 +899,7 @@ void RemoveUniformBuffersFromSource(const FShaderCompilerEnvironment& Environmen
 						SearchPtr[i] = MemberNameGlobal[i];
 					}
 
-					// MCPP inserts spaces after defines
+					// The shader preprocessor inserts spaces after defines
 					// #define ReflectionStruct OpaqueBasePass.Shared.Reflection
 					// 'ReflectionStruct.SkyLightCubemapBrightness' becomes 'OpaqueBasePass.Shared.Reflection .SkyLightCubemapBrightness' after MCPP
 					// In order to convert this struct member reference into a globally unique variable we move the spaces to the end

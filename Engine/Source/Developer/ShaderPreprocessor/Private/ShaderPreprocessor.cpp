@@ -23,190 +23,6 @@ namespace
 	}
 }
 
-/**
- * Append defines to an MCPP command line.
- * @param OutOptions - Upon return contains MCPP command line parameters as an array of strings.
- * @param Definitions - Definitions to add.
- */
-static void AddMcppDefines(TArray<TArray<ANSICHAR>>& OutOptions, const TMap<FString, FString>& Definitions)
-{
-	for (TMap<FString, FString>::TConstIterator It(Definitions); It; ++It)
-	{
-		FString Argument(FString::Printf(TEXT("-D%s=%s"), *(It.Key()), *(It.Value())));
-		FTCHARToUTF8 Converter(Argument.GetCharArray().GetData());
-		OutOptions.Emplace((const ANSICHAR*)Converter.Get(), Converter.Length() + 1);
-	}
-}
-
-/**
- * Helper class used to load shader source files for MCPP.
- */
-class FMcppFileLoader
-{
-public:
-	/** Initialization constructor. */
-	explicit FMcppFileLoader(const FShaderCompilerInput& InShaderInput, FShaderPreprocessOutput& InShaderOutput)
-		: Input(InShaderInput)
-		, Output(InShaderOutput)
-	{
-		FString InputShaderSource;
-		if (LoadShaderSourceFile(*InShaderInput.VirtualSourceFilePath, InShaderInput.Target.GetPlatform(),  &InputShaderSource, nullptr, &InShaderInput.ShaderPlatformName))
-		{
-			InputShaderSource = FString::Printf(TEXT("#line 1\n%s"), *InputShaderSource);
-			CachedFileContents.Add(InShaderInput.VirtualSourceFilePath, StringToArray<ANSICHAR>(*InputShaderSource, InputShaderSource.Len() + 1));
-		}
-	}
-
-	/** Retrieves the MCPP file loader interface. */
-	file_loader GetMcppInterface()
-	{
-		file_loader Loader;
-		Loader.get_file_contents = GetFileContents;
-		Loader.user_data = (void*)this;
-		return Loader;
-	}
-
-	bool HasIncludedMandatoryHeaders() const
-	{
-		return CachedFileContents.Contains(PlatformHeader);
-	}
-
-private:
-	/** Holder for shader contents (string + size). */
-	typedef TArray<ANSICHAR> FShaderContents;
-	
-	/** MCPP callback for retrieving file contents. */
-	static int GetFileContents(void* InUserData, const ANSICHAR* InVirtualFilePath, const ANSICHAR** OutContents, size_t* OutContentSize)
-	{
-		FMcppFileLoader* This = (FMcppFileLoader*)InUserData;
-
-		FUTF8ToTCHAR UTF8Converter(InVirtualFilePath);
-		FString VirtualFilePath = UTF8Converter.Get();
-
-		// Substitute virtual platform path here to make sure that #line directives refer to the platform-specific file.
-		ReplaceVirtualFilePathForShaderPlatform(VirtualFilePath, This->Input.Target.GetPlatform());
-
-		// Fixup autogen file
-		ReplaceVirtualFilePathForShaderAutogen(VirtualFilePath, This->Input.Target.GetPlatform(), &This->Input.ShaderPlatformName);
-
-		// Collapse any relative directories to allow #include "../MyFile.ush"
-		FPaths::CollapseRelativeDirectories(VirtualFilePath);
-
-		FShaderContents* CachedContents = This->CachedFileContents.Find(VirtualFilePath);
-		if (!CachedContents)
-		{
-			FString FileContents;
-
-			if (This->Input.Environment.IncludeVirtualPathToContentsMap.Contains(VirtualFilePath))
-			{
-				FileContents = This->Input.Environment.IncludeVirtualPathToContentsMap.FindRef(VirtualFilePath);
-			}
-			else if (This->Input.Environment.IncludeVirtualPathToExternalContentsMap.Contains(VirtualFilePath))
-			{
-				FileContents = *This->Input.Environment.IncludeVirtualPathToExternalContentsMap.FindRef(VirtualFilePath);
-			}
-			else
-			{
-				CheckShaderHashCacheInclude(VirtualFilePath, This->Input.Target.GetPlatform(), This->Input.ShaderFormat.ToString());
-
-				TArray<FShaderCompilerError>& OutErrors = This->Output.EditErrors();
-				LoadShaderSourceFile(*VirtualFilePath, This->Input.Target.GetPlatform(), &FileContents, &OutErrors, &This->Input.ShaderPlatformName);
-			}
-
-			if (FileContents.Len() > 0)
-			{
-				// Adds a #line 1 "<Absolute file path>" on top of every file content to have nice absolute virtual source
-				// file path in error messages.
-				FileContents = FString::Printf(TEXT("#line 1 \"%s\"\n%s"), *VirtualFilePath, *FileContents);
-
-				CachedContents = &This->CachedFileContents.Add(VirtualFilePath, StringToArray<ANSICHAR>(*FileContents, FileContents.Len() + 1));
-			}
-		}
-
-		if (OutContents)
-		{
-			*OutContents = CachedContents ? CachedContents->GetData() : NULL;
-		}
-		if (OutContentSize)
-		{
-			*OutContentSize = CachedContents ? CachedContents->Num() : 0;
-		}
-
-		return CachedContents != nullptr;
-	}
-
-	/** Shader input data. */
-	const FShaderCompilerInput& Input;
-	/** Shader output data. */
-	FShaderPreprocessOutput& Output;
-	/** File contents are cached as needed. */
-	TMap<FString,FShaderContents> CachedFileContents;
-};
-
-//////////////////////////////////////////////////////////////////////////
-//
-// MCPP memory management callbacks
-//
-//    Without these, the shader compilation process ends up spending
-//    most of its time in malloc/free on Windows.
-//
-
-#if PLATFORM_WINDOWS
-#	define USE_UE_MALLOC_FOR_MCPP 1
-#else
-#	define USE_UE_MALLOC_FOR_MCPP 0
-#endif
-
-#if USE_UE_MALLOC_FOR_MCPP == 2
-
-class FMcppAllocator
-{
-public:
-	void* Alloc(size_t sz)
-	{
-		return ::malloc(sz);
-	}
-
-	void* Realloc(void* ptr, size_t sz)
-	{
-		return ::realloc(ptr, sz);
-	}
-
-	void Free(void* ptr)
-	{
-		::free(ptr);
-	}
-};
-
-#elif USE_UE_MALLOC_FOR_MCPP == 1
-
-class FMcppAllocator
-{
-public:
-	void* Alloc(size_t sz)
-	{
-		return FMemory::Malloc(sz);
-	}
-
-	void* Realloc(void* ptr, size_t sz)
-	{
-		return FMemory::Realloc(ptr, sz);
-	}
-
-	void Free(void* ptr)
-	{
-		FMemory::Free(ptr);
-	}
-};
-
-#endif
-
-#if USE_UE_MALLOC_FOR_MCPP
-
-FMcppAllocator GMcppAlloc;
-
-#endif
-
 static void AddStbDefine(stb_arena* MacroArena, macro_definition**& StbDefines, const TCHAR* Name, const TCHAR* Value);
 static void AddStbDefines(stb_arena* MacroArena, macro_definition**& StbDefines, TMap<FString, FString> DefinitionsMap);
 
@@ -229,107 +45,14 @@ public:
 		*OutDefines += MakeInjectedShaderCodeBlock(TEXT("DumpShaderDefinesAsCommentedCode"), Defines);
 	}
 
-	static void PopulateDefinesMcpp(const FShaderCompilerInput& Input, const FShaderCompilerDefinitions& AdditionalDefines, TArray<TArray<ANSICHAR>>& OutDefines)
-	{
-		AddMcppDefines(OutDefines, Input.Environment.Definitions.GetDefinitionMap());
-		AddMcppDefines(OutDefines, AdditionalDefines.GetDefinitionMap());
-	}
-
-	static void PopulateDefinesStb(const FShaderCompilerEnvironment& Environment, const FShaderCompilerDefinitions& AdditionalDefines, stb_arena* MacroArena, macro_definition**& OutDefines)
+	static void PopulateDefines(const FShaderCompilerEnvironment& Environment, const FShaderCompilerDefinitions& AdditionalDefines, stb_arena* MacroArena, macro_definition**& OutDefines)
 	{
 		AddStbDefines(MacroArena, OutDefines, Environment.Definitions.GetDefinitionMap());
 		AddStbDefines(MacroArena, OutDefines, AdditionalDefines.GetDefinitionMap());
-		AddStbDefine(MacroArena, OutDefines, TEXT("_STB_PREPROCESS"), TEXT("1"));
 	}
 };
 
 //////////////////////////////////////////////////////////////////////////
-
-bool InnerPreprocessShaderMcpp(
-	FShaderPreprocessOutput& Output,
-	const FShaderCompilerInput& Input,
-	const FShaderCompilerDefinitions& AdditionalDefines)
-{
-	int32 McppResult = 0;
-	FString McppOutput, McppErrors;
-
-	static FCriticalSection McppCriticalSection;
-
-	bool bHasIncludedMandatoryHeaders = false;
-	{
-		FMcppFileLoader FileLoader(Input, Output);
-
-		TArray<TArray<ANSICHAR>> McppOptions;
-		FShaderPreprocessorUtilities::PopulateDefinesMcpp(Input, AdditionalDefines, McppOptions);
-
-		// MCPP is not threadsafe.
-
-		FScopeLock McppLock(&McppCriticalSection);
-
-#if USE_UE_MALLOC_FOR_MCPP
-		auto spp_malloc		= [](size_t sz)				{ return GMcppAlloc.Alloc(sz); };
-		auto spp_realloc	= [](void* ptr, size_t sz)	{ return GMcppAlloc.Realloc(ptr, sz); };
-		auto spp_free		= [](void* ptr)				{ GMcppAlloc.Free(ptr); };
-
-		mcpp_setmalloc(spp_malloc, spp_realloc, spp_free);
-#endif
-
-		// Convert MCPP options to array of ANSI-C strings
-		TArray<const ANSICHAR*> McppOptionsANSI;
-		for (const TArray<ANSICHAR>& Option : McppOptions)
-		{
-			McppOptionsANSI.Add(Option.GetData());
-		}
-
-		// Append additional options as C-string literal
-		McppOptionsANSI.Add("-V199901L");
-
-		ANSICHAR* McppOutAnsi = NULL;
-		ANSICHAR* McppErrAnsi = NULL;
-
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(mcpp_run);
-			McppResult = mcpp_run(
-				McppOptionsANSI.GetData(),
-				McppOptionsANSI.Num(),
-				TCHAR_TO_ANSI(*Input.VirtualSourceFilePath),
-				&McppOutAnsi,
-				&McppErrAnsi,
-				FileLoader.GetMcppInterface()
-			);
-		}
-
-		McppOutput = McppOutAnsi;
-		McppErrors = McppErrAnsi;
-
-		bHasIncludedMandatoryHeaders = FileLoader.HasIncludedMandatoryHeaders();
-	}
-
-	if (!ParseMcppErrors(Output, McppErrors))
-	{
-		return false;
-	}
-
-	// Report unhandled mcpp failure that didn't generate any errors
-	if (McppResult != 0)
-	{
-		FString Path = Input.VirtualSourceFilePath;
-		FString Message = FString::Printf(TEXT("PreprocessShader mcpp_run failed with error code %d"), McppResult);
-		Output.LogError(MoveTemp(Path), MoveTemp(Message), 0);
-		return false;
-	}
-
-	if (!bHasIncludedMandatoryHeaders)
-	{
-		LogMandatoryHeaderError(Input, Output);
-		return false;
-	}
-
-	Output.EditSource() += McppOutput;
-
-	return true;
-}
-
 extern "C"
 {
 	// adapter functions for STB memory allocation
@@ -592,7 +315,7 @@ bool InnerPreprocessShaderStb(
 {
 	stb_arena MacroArena = { 0 };
 	macro_definition** StbDefines = nullptr;
-	FShaderPreprocessorUtilities::PopulateDefinesStb(Environment, AdditionalDefines, &MacroArena, StbDefines);
+	FShaderPreprocessorUtilities::PopulateDefines(Environment, AdditionalDefines, &MacroArena, StbDefines);
 
 	FStbPreprocessContext Context{ Input, Environment };
 
@@ -610,7 +333,7 @@ bool InnerPreprocessShaderStb(
 			HasError |= (Diagnostic->error_level == PP_RESULT_MODE_error);
 			
 			FString Message = Diagnostic->message;
-			// as we do with MCPP, we are ignoring warnings (for now?)
+			// ignore stb warnings (for now?)
 			if (Diagnostic->error_level == PP_RESULT_MODE_error)
 			{
 				FString Filename = Diagnostic->where->filename;
@@ -704,19 +427,5 @@ bool PreprocessShader(
 		FShaderPreprocessorUtilities::DumpShaderDefinesAsCommentedCode(Environment, &Output.EditSource());
 	}
 
-	bool bResult = false;
-	bool bLegacyPreprocess = Environment.CompilerFlags.Contains(CFLAG_UseLegacyPreprocessor);
-	if (!bLegacyPreprocess)
-	{
-		bResult |= InnerPreprocessShaderStb(Output, Input, Environment, AdditionalDefines);
-	}
-	else
-	{
-		// note: ignoring explicit Environment parameter for the MCPP case; it's enforced upstream that
-		// the preprocessed job cache cannot be enabled at the same time as the legacy preprocessor, and
-		// so this environment will always match the one in FShaderCompilerInput
-		bResult |= InnerPreprocessShaderMcpp(Output, Input, AdditionalDefines);
-	}
-
-	return bResult;
+	return InnerPreprocessShaderStb(Output, Input, Environment, AdditionalDefines);
 }

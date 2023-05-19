@@ -36,7 +36,6 @@ namespace IncludeTool
 			"/engine/plugins/editor/pluginbrowser/templates/",
 			"/engine/source/runtime/engine/classes/intrinsic/",
 			"/engine/source/thirdparty/llvm/",
-			"/engine/source/thirdparty/mcpp/mcpp-2.7.2/test-c/",
 			"/engine/source/programs/unrealswarm/private/",
 			"/engine/plugins/runtime/packethandlers/compressioncomponents/oodle/source/thirdparty/notforlicensees/oodle/213/win/examples/",
 			"/engine/plugins/developer/riderlink/",

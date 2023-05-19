@@ -1218,16 +1218,6 @@ static TAutoConsoleVariable<int32> CVarShadersRemoveDeadCode(
 	TEXT("\t1: Remove unreferenced code before compilation (Default)\n"),
 	ECVF_ReadOnly);
 
-// note: this cvar is intended to be short-lived; when removing be sure to remove the associated code from
-// ShaderMapAppendKeyString (in Shader.cpp)
-static TAutoConsoleVariable<bool> CVarShadersUseLegacyPreprocessor(
-	TEXT("r.Shaders.UseLegacyPreprocessor"),
-	false,
-	TEXT("Executes shader preprocessing via the legacy MCPP preprocessor (instead of the new STB preprocessor).\n")
-	TEXT("\ttrue: Enabled - preprocess with MCPP\n")
-	TEXT("\tfalse: Disabled - preprocess with STB\n"),
-	ECVF_ReadOnly);
-
 #if ENABLE_COOK_STATS
 namespace ShaderCompilerCookStats
 {
@@ -6778,15 +6768,6 @@ void GlobalBeginCompileShader(
 	if (CVarShadersRemoveDeadCode.GetValueOnAnyThread())
 	{
 		Input.Environment.CompilerFlags.Add(CFLAG_RemoveDeadCode);
-	}
-
-	if (CVarShadersUseLegacyPreprocessor.GetValueOnAnyThread())
-	{
-		if (CVarPreprocessedJobCache.GetValueOnAnyThread())
-		{
-			UE_LOG(LogShaderCompilers, Fatal, TEXT("r.Shaders.UseLegacyPreprocessor cannot be used in conjunction with r.ShaderCompiler.PreprocessedJobCache (legacy preprocessor is not thread-safe)."));
-		}
-		Input.Environment.CompilerFlags.Add(CFLAG_UseLegacyPreprocessor);
 	}
 
 	{

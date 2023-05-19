@@ -1938,7 +1938,7 @@ void BuildShaderFileToUniformBufferMap(TMap<FString, TArray<const TCHAR*> >& Sha
 			FShaderVariable(const TCHAR* ShaderVariable) :
 				OriginalShaderVariable(ShaderVariable), 
 				SearchKey(FString(ShaderVariable).ToUpper() + TEXT(".")),
-				// MCPP inserts a space after a #define replacement, make sure we detect the uniform buffer reference
+				// The shader preprocessor inserts a space after a #define replacement, make sure we detect the uniform buffer reference
 				SearchKeyWithSpace(FString(ShaderVariable).ToUpper() + TEXT(" ."))
 			{}
 

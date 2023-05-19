@@ -133,8 +133,7 @@ enum ECompilerFlags
 	CFLAG_BindlessSamplers,
 	// EXPERIMENTAL: Run the shader re-writer that removes any unused functions/resources/types from source code before compilation.
 	CFLAG_RemoveDeadCode,
-	// Execute shader preprocessing with MCPP (instead of the new STB preprocessor)
-	CFLAG_UseLegacyPreprocessor,
+	CFLAG_UseLegacyPreprocessor UE_DEPRECATED(5.3, "Legacy preprocessor has been removed as of UE 5.3; please report any issues with the new preprocessor to the UE rendering team."),
 	// Enable CullBeforeFetch optimization on supported platforms
 	CFLAG_CullBeforeFetch,
 	// Enable WarpCulling optimization on supported platforms

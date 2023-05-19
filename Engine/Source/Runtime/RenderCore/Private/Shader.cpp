@@ -2121,14 +2121,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		}
 	}
 
-	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("r.Shaders.UseLegacyPreprocessor"));
-		if (CVar && CVar->GetValueOnAnyThread() != 0)
-		{
-			KeyString += TEXT("_MCPP");
-		}
-	}
-
 	if (RHISupportsRenderTargetWriteMask(Platform))
 	{
 		KeyString += TEXT("_RTWM");
