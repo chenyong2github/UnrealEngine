@@ -49,6 +49,10 @@ public:
 
 	UEnhancedPlayerInput();
 
+	//~ Begin UPlayerInput interface
+	virtual void FlushPressedKeys() override;
+	//~ End UPlayerInput interface
+
 	/**
 	* Returns the action instance data for the given input action if there is any. Returns nullptr if the action is not available.
 	*/
@@ -159,6 +163,15 @@ private:
 	 */
 	TArray<FDependentChordTracker> DependentChordActions;
 
+protected:
+
+	/** 
+	* If true, then FlushPressedKeys has been called and the input key state map has been flushed.
+	* 
+	* This will be set to true in UEnhancedPlayerInput::FlushPressedKeys, and reset to false at the end of
+	* UEnhancedPlayerInput::ProcessInputStack
+	*/
+	uint8 bIsFlushingInputThisFrame : 1;
 
 private:
 

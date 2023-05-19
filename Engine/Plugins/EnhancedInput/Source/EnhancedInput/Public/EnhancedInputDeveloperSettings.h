@@ -79,6 +79,15 @@ public:
 	/** The default player input class that the Enhanced Input world subsystem will use. */
 	UPROPERTY(config, EditAnywhere, NoClear, Category = "Enhanced Input|World Subsystem", meta=(editCondition = "bEnableWorldSubsystem"))
 	TSoftClassPtr<UEnhancedPlayerInput> DefaultWorldInputClass;
+	
+	/**
+	* If true, then any in progress Enhanced Input Actions will fire Cancelled and Triggered events 
+	* when input is flushed (i.e. the viewport has lost focus, or UEnhancedPlayerInput::FlushPressedKeys has been called)
+	* 
+	* If false, then enhanced input actions may not fire their delegates when input is flushed and their key state would be retained.
+	*/
+	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input")
+	uint8 bSendTriggeredEventsWhenInputIsFlushed : 1;
 
 	/**
 	 * If true, then an instance of the User Settings Class will be created on each Enhanced Input subsystem.

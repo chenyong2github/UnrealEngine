@@ -568,7 +568,7 @@ public:
 	//~ End UObject Interface
 
 	/** Flushes the current key state. */
-	void FlushPressedKeys();
+	virtual void FlushPressedKeys();
 
 	/** Flushes the current key state of the keys associated with the action name passed in */
 	void FlushPressedActionBindingKeys(FName ActionName);

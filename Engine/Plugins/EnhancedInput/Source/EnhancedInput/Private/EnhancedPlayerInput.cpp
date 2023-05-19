@@ -31,6 +31,7 @@ namespace UE
 
 UEnhancedPlayerInput::UEnhancedPlayerInput()
 	: Super()
+	, bIsFlushingInputThisFrame(false)
 {
 	if (UE::Input::EnableDefaultMappingContexts)
 	{
@@ -261,6 +262,9 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 	static TMap<FKey, bool> KeyDownPrevious;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(EnhPIS_KeyDownPrev);
+
+		const UEnhancedInputDeveloperSettings* Settings = GetDefault<UEnhancedInputDeveloperSettings>();
+
 		KeyDownPrevious.Reset();
 		KeyDownPrevious.Reserve(GetKeyStateMap().Num());
 		for (TPair<FKey, FKeyState>& KeyPair : GetKeyStateMap())
@@ -269,6 +273,19 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 			// TODO: Can't just use bDownPrevious as paired axis event edges may not fire due to axial deadzoning/missing axis properties. Need to change how this is detected in PlayerInput.cpp.
 			bool bWasDown = KeyState.bDownPrevious || KeyState.EventCounts[IE_Pressed].Num() || KeyState.EventCounts[IE_Repeat].Num();
 			bWasDown |= KeyPair.Key.IsAnalog() && KeyState.RawValue.SizeSquared() != 0;	// Analog inputs should pulse every (non-zero) tick to retain compatibility with UE4.
+
+			// When UPlayerInput::FlushPressedKeys is called any keys that are down will have their RawValue set to 0, and their bDown/bDownPrevious state will be reset to false.
+			// However, their "Value" will not be reset until UPlayerInput::ProcessInputStack. We need to detect if this key was down previously after a flush
+			// so that the Enhanced Input action will correctly fire the triggered values.
+			const bool bKeyWasJustFlushed = 
+				bIsFlushingInputThisFrame && 
+				Settings->bSendTriggeredEventsWhenInputIsFlushed && 
+				!KeyState.Value.IsZero() && 
+				KeyState.RawValue.IsZero() && 
+				!KeyState.bDown;
+
+			bWasDown |= bKeyWasJustFlushed;
+
 			KeyDownPrevious.Emplace(KeyPair.Key, bWasDown);
 		}
 	}
@@ -634,6 +651,14 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 
 	LastFrameTime = CurrentTime;
 	KeysPressedThisTick.Reset();
+	bIsFlushingInputThisFrame = false;
+}
+
+void UEnhancedPlayerInput::FlushPressedKeys()
+{
+	Super::FlushPressedKeys();
+
+	bIsFlushingInputThisFrame = true;
 }
 
 FInputActionValue UEnhancedPlayerInput::GetActionValue(TObjectPtr<const UInputAction> ForAction) const

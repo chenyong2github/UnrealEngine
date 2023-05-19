@@ -26,6 +26,7 @@ UEnhancedInputDeveloperSettings::UEnhancedInputDeveloperSettings(const FObjectIn
 	, UserSettingsClass(UEnhancedInputUserSettings::StaticClass())
 	, DefaultPlayerMappableKeyProfileClass(UEnhancedPlayerMappableKeyProfile::StaticClass())
 	, DefaultWorldInputClass(UEnhancedPlayerInput::StaticClass())
+	, bSendTriggeredEventsWhenInputIsFlushed(true)
 	, bEnableUserSettings(false)
 	, bEnableDefaultMappingContexts(true)
 	, bShouldOnlyTriggerLastActionInChord(true)
