@@ -447,7 +447,10 @@ namespace Metasound
 		Audio::FFormatDescriptorSection FormatDesc;
 		DecoderInput->FindSection(FormatDesc);
 		SampleRate = FormatDesc.NumFramesPerSec;
-		NumFramesInWave = FormatDesc.NumFrames;
+		if (FormatDesc.NumFrames > 0)
+		{
+			NumFramesInWave = FormatDesc.NumFrames;
+		}
 		// end hack
 
 		CurrentFrameIndex = FMath::Clamp(static_cast<int32>(InStartTimeInSeconds * GetSampleRate()), 0, GetNumFramesInWave());
