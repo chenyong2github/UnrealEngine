@@ -33,7 +33,7 @@ public:
 
 		bool IsValid() const
 		{
-			return RemoteRevision.IsEmpty() && !RemoteFile.IsEmpty();
+			return !RemoteRevision.IsEmpty() && !RemoteFile.IsEmpty();
 		}
 
 		operator bool() const
