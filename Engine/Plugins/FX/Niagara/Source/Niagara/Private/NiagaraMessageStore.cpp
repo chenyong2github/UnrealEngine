@@ -16,7 +16,11 @@ void FNiagaraMessageStore::SetMessages(const TMap<FGuid, TObjectPtr<UNiagaraMess
 
 void FNiagaraMessageStore::AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage)
 {
-	MessageKeyToMessageMap.Add(MessageKey, NewMessage);
+	TObjectPtr<UNiagaraMessageDataBase>* ExistingMessagePtr = MessageKeyToMessageMap.Find(MessageKey);
+	if (ExistingMessagePtr == nullptr || (*ExistingMessagePtr)->Equals(NewMessage) == false)
+	{
+		MessageKeyToMessageMap.Add(MessageKey, NewMessage);
+	}
 }
 
 void FNiagaraMessageStore::RemoveMessage(const FGuid& MessageKey) 

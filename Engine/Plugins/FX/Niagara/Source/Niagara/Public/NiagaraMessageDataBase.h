@@ -14,4 +14,8 @@ public:
 	UNiagaraMessageDataBase() = default;
 
 	virtual bool GetAllowDismissal() const { return false; }
+
+#if WITH_EDITORONLY_DATA
+	virtual bool Equals(const UNiagaraMessageDataBase* Other) const;
+#endif
 };
