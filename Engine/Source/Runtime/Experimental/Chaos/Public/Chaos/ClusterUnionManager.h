@@ -38,9 +38,16 @@ namespace Chaos
 		None = 0,
 		RecomputeMassOrientation = 1 << 0,
 		ForceGenerateConnectionGraph = 1 << 1,
+		IncrementalGenerateConnectionGraph = 1 << 2,
 		All = RecomputeMassOrientation | ForceGenerateConnectionGraph
 	};
 	ENUM_CLASS_FLAGS(EUpdateClusterUnionPropertiesFlags);
+
+	enum class EClusterUnionConnectivityOperation : int8
+	{
+		Add,
+		Remove
+	};
 
 	struct CHAOS_API FClusterUnionCreationParameters
 	{
@@ -75,6 +82,9 @@ namespace Chaos
 
 		// Whether or not the position/rotation needs to be computed the first time a particle is added.
 		bool bNeedsXRInitialization = true;
+
+		// Pending particles that need to be added into the connectivity graph.
+		TArray<TPair<FPBDRigidParticleHandle*, EClusterUnionConnectivityOperation>> PendingConnectivityOperations;
 	};
 
 	struct FClusterUnionChildToParentUpdate
@@ -206,8 +216,11 @@ namespace Chaos
 		// Forcefully recreate the shared geometry on a cluster. Potentially expensive so ideally should be used rarely.
 		TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> ForceRecreateClusterUnionSharedGeometry(const FClusterUnion& Union);
 
-		// Handles updating the cluster union after it has particles removed from it. Could be called from either immediate or deferred removal.
-		void PostRemovalClusterUnionUpdate(FClusterUnion& Union);
+		// Handles updating the cluster union.
+		void DeferredClusterUnionUpdate(FClusterUnion& Union);
+
+		// Flush the cluster union's incremental connectivity operations
+		void FlushIncrementalConnectivityGraphOperations(FClusterUnion& ClusterUnion);
 	};
 
 }
