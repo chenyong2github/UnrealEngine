@@ -35,6 +35,7 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 	static const FName NAME_MaxLength = "MaxLength";
 	static const FName NAME_MultiLine = "MultiLine";
 	static const FName NAME_PasswordField = "PasswordField";
+	static const FName NAME_AllowedCharacters = "AllowedCharacters";
 
 	bIsMultiLine = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData(NAME_MultiLine);
 
@@ -45,7 +46,8 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 	}
 
 	const bool bIsPassword = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData(NAME_PasswordField);
-	
+	AllowedCharacters.InitializeFromString(InPropertyEditor->GetPropertyHandle()->GetMetaData(NAME_AllowedCharacters));
+
 	TSharedPtr<SHorizontalBox> HorizontalBox;
 	if(bIsMultiLine)
 	{
@@ -155,10 +157,31 @@ void SPropertyEditorText::OnTextCommitted( const FText& NewText, ETextCommit::Ty
 
 bool SPropertyEditorText::OnVerifyTextChanged(const FText& Text, FText& OutError)
 {
-	if (MaxLength > 0 && Text.ToString().Len() > MaxLength)
+	const FString& TextString = Text.ToString();
+
+	if (MaxLength > 0 && TextString.Len() > MaxLength)
 	{
-		OutError = FText::Format(LOCTEXT("PropertyTextTooLongError", "This value is too long ({0}/{1} characters)"), Text.ToString().Len(), MaxLength);
+		OutError = FText::Format(LOCTEXT("PropertyTextTooLongError", "This value is too long ({0}/{1} characters)"), TextString.Len(), MaxLength);
 		return false;
+	}
+
+	if (!AllowedCharacters.IsEmpty())
+	{
+		if (!TextString.IsEmpty() && !AllowedCharacters.AreAllCharsIncluded(TextString))
+		{
+			TSet<TCHAR> InvalidCharacters = AllowedCharacters.FindCharsNotIncluded(TextString);
+			FString InvalidCharactersString;
+			for (TCHAR Char : InvalidCharacters)
+			{
+				if (!InvalidCharactersString.IsEmpty())
+				{
+					InvalidCharactersString.AppendChar(TEXT(' '));
+				}
+				InvalidCharactersString.AppendChar(Char);
+			}
+			OutError = FText::Format(LOCTEXT("PropertyTextCharactersNotAllowedError", "The value may not contain the following characters: {0}"), FText::FromString(InvalidCharactersString));
+			return false;
+		}
 	}
 
 	return true;

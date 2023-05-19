@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Fonts/SlateFontInfo.h"
+#include "Framework/Text/CharRangeList.h"
 #include "Input/Reply.h"
 #include "Misc/Attribute.h"
 #include "Styling/AppStyle.h"
@@ -67,4 +68,7 @@ private:
 	
 	/** The maximum length of the value that can be edited, or <=0 for unlimited */
 	int32 MaxLength = 0;
+
+	/** The characters that are allowed in the value. If empty, any character is allowed. */
+	FCharRangeList AllowedCharacters;
 };
