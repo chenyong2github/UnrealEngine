@@ -818,7 +818,7 @@ bool CheckVirtualShaderFilePath(FStringView VirtualFilePath, TArray<FShaderCompi
 	return bSuccess;
 }
 
-const IShaderFormat* FindShaderFormat(FName Format, TArray<const IShaderFormat*> ShaderFormats)
+const IShaderFormat* FindShaderFormat(FName Format, const TArray<const IShaderFormat*>& ShaderFormats)
 {
 	for (int32 Index = 0; Index < ShaderFormats.Num(); Index++)
 	{
@@ -1440,6 +1440,15 @@ bool ReplaceVirtualFilePathForShaderAutogen(FString& InOutVirtualFilePath, EShad
 	return false;
 }
 
+void FixupShaderFilePath(FString& VirtualFilePath, EShaderPlatform ShaderPlatform, const FName* ShaderPlatformName)
+{
+	// Always substitute virtual platform path before accessing GShaderFileCache to get platform-specific file.
+	ReplaceVirtualFilePathForShaderPlatform(VirtualFilePath, ShaderPlatform);
+
+	// Fixup autogen file
+	ReplaceVirtualFilePathForShaderAutogen(VirtualFilePath, ShaderPlatform, ShaderPlatformName);
+}
+
 bool LoadShaderSourceFile(const TCHAR* InVirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors, const FName* ShaderPlatformName) // TODO: const FString&
 {
 #if WITH_EDITORONLY_DATA
@@ -1457,12 +1466,7 @@ bool LoadShaderSourceFile(const TCHAR* InVirtualFilePath, EShaderPlatform Shader
 		SCOPE_SECONDS_COUNTER(ShaderFileLoadingTime);
 
 		FString VirtualFilePath(InVirtualFilePath);
-
-		// Always substitute virtual platform path before accessing GShaderFileCache to get platform-specific file.
-		ReplaceVirtualFilePathForShaderPlatform(VirtualFilePath, ShaderPlatform);
-
-		// Fixup autogen file
-		ReplaceVirtualFilePathForShaderAutogen(VirtualFilePath, ShaderPlatform, ShaderPlatformName);
+		FixupShaderFilePath(VirtualFilePath, ShaderPlatform, ShaderPlatformName);
 
 		FString* CachedFile = nullptr;
 

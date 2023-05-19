@@ -630,7 +630,7 @@ struct RENDERCORE_API FSCWErrorCode
 #if PLATFORM_WINDOWS
 extern RENDERCORE_API int HandleShaderCompileException(Windows::LPEXCEPTION_POINTERS Info, FString& OutExMsg, FString& OutCallStack);
 #endif
-extern RENDERCORE_API const IShaderFormat* FindShaderFormat(FName Format, TArray<const IShaderFormat*> ShaderFormats);
+extern RENDERCORE_API const IShaderFormat* FindShaderFormat(FName Format, const TArray<const IShaderFormat*>& ShaderFormats);
 
 // Executes preprocessing for the given job, if the job is marked to be preprocessed independently prior to compilation.
 extern RENDERCORE_API void ConditionalPreprocessShader(FShaderCommonCompileJob* Job);
@@ -652,6 +652,11 @@ inline bool ShouldUseStableConstantBuffer(const FShaderCompilerInput& Input)
  * CompileErrors output array is optional.
  */
 extern RENDERCORE_API bool CheckVirtualShaderFilePath(FStringView VirtualPath, TArray<FShaderCompilerError>* CompileErrors = nullptr);
+
+/**
+ * Fixes up the given virtual file path (substituting virtual platform path/autogen path for the given platform)
+ */
+extern RENDERCORE_API void FixupShaderFilePath(FString& VirtualFilePath, EShaderPlatform ShaderPlatform, const FName* ShaderPlatformName);
 
 /**
  * Loads the shader file with the given name.
