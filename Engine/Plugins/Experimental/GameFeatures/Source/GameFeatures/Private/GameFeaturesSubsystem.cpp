@@ -1292,7 +1292,7 @@ public:
 				double LoadTime = Plugin.Value;
 				if (LoadTime >= UE::GameFeatures::GBuiltInPluginLoadTimeErrorThreshold)
 				{
-					UE_LOG(LogGameFeatures, Error, TEXT("%s took %.4f seconds to load. Something was done to significantly increase the load time of this plugin and it is now well outside what is acceptable. Reduce the load time to much less than %.4f seconds. Ideally, reduce the load time to less than %.4f seconds."),
+					UE_LOG(LogGameFeatures, Warning, TEXT("%s took %.4f seconds to load. Something was done to significantly increase the load time of this plugin and it is now well outside what is acceptable. Reduce the load time to much less than %.4f seconds. Ideally, reduce the load time to less than %.4f seconds."),
 						*Plugin.Key, Plugin.Value, UE::GameFeatures::GBuiltInPluginLoadTimeErrorThreshold, UE::GameFeatures::GBuiltInPluginLoadTimeReportThreshold);
 				}
 				else
