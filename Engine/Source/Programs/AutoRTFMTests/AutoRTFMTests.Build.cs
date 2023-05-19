@@ -23,5 +23,7 @@ public class AutoRTFMTests : ModuleRules
 				new string[] { "DesktopPlatform" }
 			);
 		}
+
+		bAllowAutoRTFMInstrumentation = true;
 	}
 }

@@ -11,6 +11,8 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 				});
+
+			bAllowAutoRTFMInstrumentation = true;
 		}
 	}
 }
