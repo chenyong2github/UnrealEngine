@@ -7,6 +7,7 @@
 
 #include "AssetUtils/CreateStaticMeshUtil.h"
 #include "AssetUtils/CreateTexture2DUtil.h"
+#include "AssetUtils/CreateMaterialUtil.h"
 #include "Physics/ComponentCollisionUtil.h"
 
 #include "ConversionUtils/DynamicMeshToVolume.h"
@@ -96,6 +97,12 @@ FCreateTextureObjectResult UEditorModelingObjectsCreationAPI::CreateTextureObjec
 {
 	FCreateTextureObjectParams LocalParams = CreateTexParams;
 	return CreateTextureObject(MoveTemp(LocalParams));
+}
+
+FCreateMaterialObjectResult UEditorModelingObjectsCreationAPI::CreateMaterialObject(const FCreateMaterialObjectParams& CreateMaterialParams)
+{
+	FCreateMaterialObjectParams LocalParams = CreateMaterialParams;
+	return CreateMaterialObject(MoveTemp(LocalParams));
 
 }
 
@@ -286,21 +293,17 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateDynamicMeshActo
 
 FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateStaticMeshAsset(FCreateMeshObjectParams&& CreateMeshParams)
 {
-	if (!ensure(CreateMeshParams.TargetWorld)) { return FCreateMeshObjectResult{ ECreateModelingObjectResult::Failed_InvalidWorld }; }
-
 	UE::AssetUtils::FStaticMeshAssetOptions AssetOptions;
-
-	if (GetNewAssetPathNameCallback.IsBound())
+	
+	ECreateModelingObjectResult AssetPathResult = GetNewAssetPath(
+		AssetOptions.NewAssetPath,
+		CreateMeshParams.BaseName,
+		nullptr,
+		CreateMeshParams.TargetWorld);
+		
+	if (AssetPathResult != ECreateModelingObjectResult::Ok)
 	{
-		AssetOptions.NewAssetPath = GetNewAssetPathNameCallback.Execute(CreateMeshParams.BaseName, CreateMeshParams.TargetWorld, FString());
-		if (AssetOptions.NewAssetPath.Len() == 0)
-		{
-			return FCreateMeshObjectResult{ ECreateModelingObjectResult::Cancelled };
-		}
-	}
-	else
-	{
-		AssetOptions.NewAssetPath = "/Game/" + CreateMeshParams.BaseName;
+		return FCreateMeshObjectResult{ AssetPathResult };
 	}
 
 	AssetOptions.NumSourceModels = 1;
@@ -404,36 +407,17 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateStaticMeshAsset
 
 FCreateTextureObjectResult UEditorModelingObjectsCreationAPI::CreateTextureObject(FCreateTextureObjectParams&& CreateTexParams)
 {
-	FString RelativeToObjectFolder;
-	if (CreateTexParams.StoreRelativeToObject != nullptr)
-	{
-		// find path to asset
-		UPackage* AssetOuterPackage = CastChecked<UPackage>(CreateTexParams.StoreRelativeToObject->GetOuter());
-		if (ensure(AssetOuterPackage))
-		{
-			FString AssetPackageName = AssetOuterPackage->GetName();
-			RelativeToObjectFolder = FPackageName::GetLongPackagePath(AssetPackageName);
-		}
-	}
-	else
-	{
-		if (!ensure(CreateTexParams.TargetWorld)) { return FCreateTextureObjectResult{ ECreateModelingObjectResult::Failed_InvalidWorld }; }
-	}
-
 	UE::AssetUtils::FTexture2DAssetOptions AssetOptions;
 
-	if (GetNewAssetPathNameCallback.IsBound())
+	ECreateModelingObjectResult AssetPathResult = GetNewAssetPath(
+		AssetOptions.NewAssetPath,
+		CreateTexParams.BaseName,
+		CreateTexParams.StoreRelativeToObject,
+		CreateTexParams.TargetWorld);
+
+	if (AssetPathResult != ECreateModelingObjectResult::Ok)
 	{
-		AssetOptions.NewAssetPath = GetNewAssetPathNameCallback.Execute(CreateTexParams.BaseName, CreateTexParams.TargetWorld, RelativeToObjectFolder);
-		if (AssetOptions.NewAssetPath.Len() == 0)
-		{
-			return FCreateTextureObjectResult{ ECreateModelingObjectResult::Cancelled };
-		}
-	}
-	else
-	{
-		FString UseBaseFolder = (RelativeToObjectFolder.Len() > 0) ? RelativeToObjectFolder : TEXT("/Game");
-		AssetOptions.NewAssetPath = FPaths::Combine(UseBaseFolder, CreateTexParams.BaseName);
+		return FCreateTextureObjectResult{ AssetPathResult };
 	}
 
 	// currently we cannot create a new texture without an existing generated texture to store
@@ -459,5 +443,91 @@ FCreateTextureObjectResult UEditorModelingObjectsCreationAPI::CreateTextureObjec
 	OnModelingTextureCreated.Broadcast(ResultOut);
 
 	return ResultOut;
+}
 
+
+
+
+FCreateMaterialObjectResult UEditorModelingObjectsCreationAPI::CreateMaterialObject(FCreateMaterialObjectParams&& CreateMaterialParams)
+{
+	UE::AssetUtils::FMaterialAssetOptions AssetOptions;
+
+	ECreateModelingObjectResult AssetPathResult = GetNewAssetPath(
+		AssetOptions.NewAssetPath,
+		CreateMaterialParams.BaseName,
+		CreateMaterialParams.StoreRelativeToObject,
+		CreateMaterialParams.TargetWorld);
+
+	if (AssetPathResult != ECreateModelingObjectResult::Ok)
+	{
+		return FCreateMaterialObjectResult{ AssetPathResult };
+	}
+
+	// Currently we cannot create a new material without duplicating an existing material
+	if (!ensure(CreateMaterialParams.MaterialToDuplicate))
+	{
+		return FCreateMaterialObjectResult{ ECreateModelingObjectResult::Failed_InvalidMaterial };
+	}
+
+	UE::AssetUtils::FMaterialAssetResults ResultData;
+	UE::AssetUtils::ECreateMaterialResult AssetResult = UE::AssetUtils::CreateDuplicateMaterial(
+		CreateMaterialParams.MaterialToDuplicate,
+		AssetOptions,
+		ResultData);
+
+	if (AssetResult != UE::AssetUtils::ECreateMaterialResult::Ok)
+	{
+		return FCreateMaterialObjectResult{ ECreateModelingObjectResult::Failed_AssetCreationFailed };
+	}
+
+	// emit result
+	FCreateMaterialObjectResult ResultOut;
+	ResultOut.ResultCode = ECreateModelingObjectResult::Ok;
+	ResultOut.NewAsset = ResultData.NewMaterial;
+
+	OnModelingMaterialCreated.Broadcast(ResultOut);
+
+	return ResultOut;
+}
+
+
+ECreateModelingObjectResult UEditorModelingObjectsCreationAPI::GetNewAssetPath(
+	FString& OutNewAssetPath,
+	const FString& BaseName,
+	const UObject* StoreRelativeToObject,
+	const UWorld* TargetWorld)
+{
+	FString RelativeToObjectFolder;
+	if (StoreRelativeToObject != nullptr)
+	{
+		// find path to asset
+		UPackage* AssetOuterPackage = CastChecked<UPackage>(StoreRelativeToObject->GetOuter());
+		if (ensure(AssetOuterPackage))
+		{
+			FString AssetPackageName = AssetOuterPackage->GetName();
+			RelativeToObjectFolder = FPackageName::GetLongPackagePath(AssetPackageName);
+		}
+	}
+	else
+	{
+		if (!ensure(TargetWorld)) {
+			return ECreateModelingObjectResult::Failed_InvalidWorld;
+		}
+	}
+
+	if (GetNewAssetPathNameCallback.IsBound())
+	{
+		OutNewAssetPath = GetNewAssetPathNameCallback.Execute(BaseName, TargetWorld, RelativeToObjectFolder);
+		if (OutNewAssetPath.Len() == 0)
+		{
+			return ECreateModelingObjectResult::Cancelled;
+		}
+	}
+	else
+	{
+		FString UseBaseFolder = (RelativeToObjectFolder.Len() > 0) ? RelativeToObjectFolder : TEXT("/Game");
+		OutNewAssetPath = FPaths::Combine(UseBaseFolder, BaseName);
+	}
+
+	return ECreateModelingObjectResult::Ok;
 }

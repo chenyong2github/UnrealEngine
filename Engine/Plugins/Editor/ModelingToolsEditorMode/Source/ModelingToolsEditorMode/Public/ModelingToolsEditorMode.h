@@ -108,6 +108,7 @@ protected:
 
 	FDelegateHandle MeshCreatedEventHandle;
 	FDelegateHandle TextureCreatedEventHandle;
+	FDelegateHandle MaterialCreatedEventHandle;
 	FDelegateHandle SelectionModifiedEventHandle;
 
 	FDelegateHandle EditorClosedEventHandle;

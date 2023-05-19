@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "InteractiveToolBuilder.h"
+#include "ModelingOperators.h"
+#include "MeshOpPreviewHelpers.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
+#include "BakeMeshAttributeToolCommon.h"
 #include "Baking/BakingTypes.h"
 #include "Baking/RenderCaptureFunctions.h"
-#include "BakeMeshAttributeMapsToolBase.h"
 
 // Render Capture algorithm includes
 #include "Scene/SceneCapturePhotoSet.h"
@@ -351,11 +353,11 @@ protected:
 	bool bValidTargetMeshTangents = false;
 
 	/**
-	 * Create texture assets from our result map of Texture2D
-	 * @param SourceWorld the source world to define where the texture assets will be stored.
-	 * @param SourceAsset if not null, result textures will be stored adjacent to this asset.
+	 * Create texture and material assets from our result map of Texture2D
+	 * @param SourceWorld the source world to define where the assets will be stored.
+	 * @param SourceAsset if not null, result textures/material will be stored adjacent to this asset.
 	 */
-	void CreateTextureAssets(UWorld* SourceWorld, UObject* SourceAsset);
+	void CreateAssets(UWorld* SourceWorld, UObject* SourceAsset);
 
 	// The baking background compute operation
 	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshMapBaker>> Compute = nullptr;

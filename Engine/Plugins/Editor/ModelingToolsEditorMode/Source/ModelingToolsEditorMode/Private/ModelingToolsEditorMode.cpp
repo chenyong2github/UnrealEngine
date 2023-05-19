@@ -521,6 +521,13 @@ void UModelingToolsEditorMode::Enter()
 				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
 			}
 		});
+		MaterialCreatedEventHandle = ModelCreationAPI->OnModelingMaterialCreated.AddLambda([](const FCreateMaterialObjectResult& CreatedInfo)
+		{
+			if (CreatedInfo.NewAsset != nullptr)
+			{
+				UE::Modeling::OnNewAssetCreated(CreatedInfo.NewAsset);
+			}
+		});
 	}
 
 	const FModelingToolsManagerCommands& ToolManagerCommands = FModelingToolsManagerCommands::Get();
@@ -1217,6 +1224,7 @@ void UModelingToolsEditorMode::Exit()
 		ObjectCreationAPI->GetNewAssetPathNameCallback.Unbind();
 		ObjectCreationAPI->OnModelingMeshCreated.Remove(MeshCreatedEventHandle);
 		ObjectCreationAPI->OnModelingTextureCreated.Remove(TextureCreatedEventHandle);
+		ObjectCreationAPI->OnModelingMaterialCreated.Remove(MaterialCreatedEventHandle);
 		//UEditorModelingObjectsCreationAPI::Deregister(ToolsContext.Get());		// cannot do currently because of shared ToolsContext, revisit in future
 	}
 

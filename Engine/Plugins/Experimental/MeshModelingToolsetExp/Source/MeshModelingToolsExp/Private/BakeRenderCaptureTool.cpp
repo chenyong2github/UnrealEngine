@@ -8,6 +8,7 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "InteractiveToolManager.h"
 
 #include "DynamicMesh/MeshTransforms.h"
 
@@ -22,7 +23,7 @@
 #include "Baking/BakingTypes.h"
 #include "Sampling/MeshImageBakingCache.h"
 #include "Sampling/MeshMapBaker.h"
-#include "Sampling/RenderCaptureMapEvaluator.h"
+#include "AssetUtils/Texture2DBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BakeRenderCaptureTool)
 
@@ -407,7 +408,7 @@ void UBakeRenderCaptureTool::OnShutdown(EToolShutdownType ShutdownType)
 		IStaticMeshBackedTarget* StaticMeshTarget = Cast<IStaticMeshBackedTarget>(Targets[0]);
 		UObject* SourceAsset = StaticMeshTarget ? StaticMeshTarget->GetStaticMesh() : nullptr;
 		const UPrimitiveComponent* SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[0]);
-		CreateTextureAssets(SourceComponent->GetWorld(), SourceAsset);
+		CreateAssets(SourceComponent->GetWorld(), SourceAsset);
 	}
 
 	// Clear actors on shutdown so that their lifetime is not tied to the lifetime of the tool
@@ -416,15 +417,92 @@ void UBakeRenderCaptureTool::OnShutdown(EToolShutdownType ShutdownType)
 	UE::ToolTarget::ShowSourceObject(Targets[0]);
 }
 
-void UBakeRenderCaptureTool::CreateTextureAssets(UWorld* SourceWorld, UObject* SourceAsset)
+// TODO Move the BakeRC Tool into MeshModellingToolsEditorOnlyExp (this function uses WITH_EDITOR functionality, other
+// functions may also use editor only features)
+void UBakeRenderCaptureTool::CreateAssets(UWorld* SourceWorld, UObject* SourceAsset)
 {
-	bool bCreatedAssetOK = true;
 	const FString BaseName = UE::ToolTarget::GetTargetActor(Targets[0])->GetActorNameOrLabel();
+	const bool bPackedMRS = ResultSettings->PackedMRSMap != nullptr;
+	const bool bSubsurfaceMaterial = ResultSettings->SubsurfaceColorMap || ResultSettings->OpacityMap;
 
-	auto CreateTextureAsset = [this, &bCreatedAssetOK, &SourceWorld, &SourceAsset](const FString& TexName, FTexture2DBuilder::ETextureType Type, TObjectPtr<UTexture2D> Tex)
 	{
+		// Choose the material
+		TObjectPtr<UMaterialInstanceDynamic> Material = ResultSettings->PackedMRSMap ? PreviewMaterialPackedRC : PreviewMaterialRC;
+		if (bSubsurfaceMaterial)
+		{
+			Material = ResultSettings->PackedMRSMap ? PreviewMaterialPackedRC_Subsurface : PreviewMaterialRC_Subsurface;
+			ensure(Material->GetShadingModels().HasShadingModel(EMaterialShadingModel::MSM_Subsurface));
+			ensure(Material->GetBlendMode() == EBlendMode::BLEND_Masked);
+		}
+
+		FCreateMaterialObjectParams MaterialParams;
+		MaterialParams.TargetWorld = SourceWorld;
+		MaterialParams.StoreRelativeToObject = SourceAsset;
+		MaterialParams.BaseName = FString::Printf(TEXT("%s_Material"), *BaseName);
+		MaterialParams.MaterialToDuplicate = Material;
+		const FCreateMaterialObjectResult MaterialResult = UE::Modeling::CreateMaterialObject(GetToolManager(), MoveTemp(MaterialParams));
+
+		UMaterial* NewMaterial = nullptr;
+		if (ensure(MaterialResult.ResultCode == ECreateModelingObjectResult::Ok))
+		{
+			NewMaterial = CastChecked<UMaterial>(MaterialResult.NewAsset);
+			ensure(NewMaterial);
+		}
+
+		const auto TrySetTextureEditorOnly = [NewMaterial](
+			const FString& TextureName,
+			TObjectPtr<UTexture2D> Texture,
+			TObjectPtr<UTexture2D> Fallback,
+			bool bMaterialHasTexture)
+		{
+			if (NewMaterial && bMaterialHasTexture)
+			{
+				NewMaterial->SetTextureParameterValueEditorOnly(FName(TextureName), Texture ? Texture : Fallback);
+			}
+		};
+
+		// Set all computed textures or fallback to the empty texture map
+		TrySetTextureEditorOnly(BaseColorTexParamName, ResultSettings->BaseColorMap, EmptyColorMapWhite, true);
+		TrySetTextureEditorOnly(EmissiveTexParamName,  ResultSettings->EmissiveMap,  EmptyEmissiveMap,   true);
+		TrySetTextureEditorOnly(NormalTexParamName,    ResultSettings->NormalMap,    EmptyNormalMap,     true);
+		TrySetTextureEditorOnly(PackedMRSTexParamName, ResultSettings->PackedMRSMap, EmptyPackedMRSMap,  bPackedMRS);
+		TrySetTextureEditorOnly(MetallicTexParamName,  ResultSettings->MetallicMap,  EmptyMetallicMap,  !bPackedMRS);
+		TrySetTextureEditorOnly(RoughnessTexParamName, ResultSettings->RoughnessMap, EmptyRoughnessMap, !bPackedMRS);
+		TrySetTextureEditorOnly(SpecularTexParamName,  ResultSettings->SpecularMap,  EmptySpecularMap,  !bPackedMRS);
+		TrySetTextureEditorOnly(OpacityTexParamName,   ResultSettings->OpacityMap,   EmptyOpacityMap,    bSubsurfaceMaterial);
+		TrySetTextureEditorOnly(SubsurfaceColorTexParamName, ResultSettings->SubsurfaceColorMap, EmptySubsurfaceColorMap, bSubsurfaceMaterial);
+
+		if (NewMaterial)
+		{
+			// Force material update now that we have updated texture parameters
+			NewMaterial->PostEditChange();
+		}
+	}
+
+	auto CreateTextureAsset = [this, &BaseName, &SourceWorld, &SourceAsset] (
+		const FString& TexParamName,
+		FTexture2DBuilder::ETextureType Type,
+		TObjectPtr<UTexture2D> Texture,
+		TObjectPtr<UTexture2D> Fallback,
+		bool bForceFallback,
+		bool bMaterialHasTexture)
+	{
+		if (!bMaterialHasTexture)
+		{
+			return true;
+		}
+
+		const bool bUseTexture = Texture && !bForceFallback;
+
 		// See :DeferredPopulateSourceData
-		FTexture2DBuilder::CopyPlatformDataToSourceData(Tex, Type);
+		if (bUseTexture)
+		{
+			FTexture2DBuilder::CopyPlatformDataToSourceData(Texture, Type);
+		}
+		else
+		{
+			FTexture2DBuilder::CopyPlatformDataToSourceData(Fallback, Type);
+		}
 
 		// TODO The original implementation in ApproximateActors also did the following, see WriteTextureLambda in ApproximateActorsImpl.cpp
 		//if (Type == FTexture2DBuilder::ETextureType::Roughness
@@ -434,73 +512,79 @@ void UBakeRenderCaptureTool::CreateTextureAssets(UWorld* SourceWorld, UObject* S
 		//	UE::AssetUtils::ConvertToSingleChannel(Texture);
 		//}
 
-		bCreatedAssetOK = bCreatedAssetOK &&
-			UE::Modeling::CreateTextureObject(
-				GetToolManager(),
-				FCreateTextureObjectParams{ 0, SourceWorld, SourceAsset, TexName, Tex }).IsOK();
+		// We need to save the Fallback textures as well so that the generated Materials can reference them
+		FCreateTextureObjectParams TexParams;
+		TexParams.TargetWorld = SourceWorld;
+		TexParams.StoreRelativeToObject = SourceAsset;
+		TexParams.BaseName = FString::Printf(TEXT("%s_%s"), *BaseName, *TexParamName);
+		TexParams.GeneratedTransientTexture = bUseTexture ? Texture : Fallback; 
+
+		FCreateTextureObjectResult TexResult = UE::Modeling::CreateTextureObject(GetToolManager(), MoveTemp(TexParams));
+		return TexResult.IsOK();
 	};
 
-	if (RenderCaptureProperties->bBaseColorMap && ResultSettings->BaseColorMap != nullptr)
-	{
-		const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *BaseColorTexParamName);
-		CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::Color, ResultSettings->BaseColorMap);
-	}
+	ensure(CreateTextureAsset(BaseColorTexParamName,
+		FTexture2DBuilder::ETextureType::Color,
+		ResultSettings->BaseColorMap,
+		EmptyColorMapWhite,
+		RenderCaptureProperties->bBaseColorMap == false,
+		true));
 
-	if (RenderCaptureProperties->bNormalMap && ResultSettings->NormalMap != nullptr)
-	{
-		const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *NormalTexParamName);
-		CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::NormalMap, ResultSettings->NormalMap);
-	}
+	ensure(CreateTextureAsset(NormalTexParamName,
+		FTexture2DBuilder::ETextureType::NormalMap,
+		ResultSettings->NormalMap,
+		EmptyNormalMap,
+		RenderCaptureProperties->bNormalMap == false,
+		true));
 
-	if (RenderCaptureProperties->bEmissiveMap && ResultSettings->EmissiveMap != nullptr)
-	{
-		const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *EmissiveTexParamName);
-		CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::EmissiveHDR, ResultSettings->EmissiveMap);
-	}
+	ensure(CreateTextureAsset(EmissiveTexParamName,
+		FTexture2DBuilder::ETextureType::EmissiveHDR,
+		ResultSettings->EmissiveMap,
+		EmptyEmissiveMap,
+		RenderCaptureProperties->bEmissiveMap == false,
+		true));
 
-	if (RenderCaptureProperties->bOpacityMap && ResultSettings->OpacityMap != nullptr)
-	{
-		const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *OpacityTexParamName);
-		CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::ColorLinear, ResultSettings->OpacityMap);
-	}
+	ensure(CreateTextureAsset(PackedMRSTexParamName,
+		FTexture2DBuilder::ETextureType::ColorLinear,
+		ResultSettings->PackedMRSMap,
+		EmptyPackedMRSMap,
+		RenderCaptureProperties->bPackedMRSMap == false,
+		bPackedMRS));
 
-	if (RenderCaptureProperties->bSubsurfaceColorMap && ResultSettings->SubsurfaceColorMap != nullptr)
-	{
-		const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *SubsurfaceColorTexParamName);
-		CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::Color, ResultSettings->SubsurfaceColorMap);
-	}
+	ensure(CreateTextureAsset(RoughnessTexParamName,
+		FTexture2DBuilder::ETextureType::Roughness,
+		ResultSettings->RoughnessMap,
+		EmptyRoughnessMap,
+		RenderCaptureProperties->bRoughnessMap == false,
+		!bPackedMRS));
 
-	// We need different code paths based on PackedMRS here because we don't want to uncheck the separate channels
-	// when PackedMRS is enabled to give the user a better UX (they don't have to re-check them after disabling
-	// PackedMRS). In other place we can test the PackedMRS and separate channel booleans in series and avoid the
-	// complexity of nested if statements.
-	if (RenderCaptureProperties->bPackedMRSMap && ResultSettings->PackedMRSMap != nullptr)
-	{
-		const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *PackedMRSTexParamName);
-		CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::ColorLinear, ResultSettings->PackedMRSMap);
-	}
-	else
-	{
-		if (RenderCaptureProperties->bMetallicMap && ResultSettings->MetallicMap != nullptr)
-		{
-			const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *MetallicTexParamName);
-			CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::Metallic, ResultSettings->MetallicMap);
-		}
+	ensure(CreateTextureAsset(MetallicTexParamName,
+		FTexture2DBuilder::ETextureType::Metallic,
+		ResultSettings->MetallicMap,
+		EmptyMetallicMap,
+		RenderCaptureProperties->bMetallicMap == false,
+		!bPackedMRS));
 
-		if (RenderCaptureProperties->bRoughnessMap && ResultSettings->RoughnessMap != nullptr)
-		{
-			const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *RoughnessTexParamName);
-			CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::Roughness, ResultSettings->RoughnessMap);
-		}
+	ensure(CreateTextureAsset(SpecularTexParamName,
+		FTexture2DBuilder::ETextureType::Specular,
+		ResultSettings->SpecularMap,
+		EmptySpecularMap,
+		RenderCaptureProperties->bSpecularMap == false,
+		!bPackedMRS));
 
-		if (RenderCaptureProperties->bSpecularMap && ResultSettings->SpecularMap != nullptr)
-		{
-			const FString TexName = FString::Printf(TEXT("%s_%s"), *BaseName, *SpecularTexParamName);
-			CreateTextureAsset(TexName, FTexture2DBuilder::ETextureType::Specular, ResultSettings->SpecularMap);
-		}
-	}
+	ensure(CreateTextureAsset(OpacityTexParamName,
+		FTexture2DBuilder::ETextureType::ColorLinear,
+		ResultSettings->OpacityMap,
+		EmptyOpacityMap,
+		RenderCaptureProperties->bOpacityMap == false,
+		bSubsurfaceMaterial));
 
-	ensure(bCreatedAssetOK);
+	ensure(CreateTextureAsset(SubsurfaceColorTexParamName,
+		FTexture2DBuilder::ETextureType::Color,
+		ResultSettings->SubsurfaceColorMap,
+		EmptySubsurfaceColorMap,
+		RenderCaptureProperties->bSubsurfaceColorMap == false,
+		bSubsurfaceMaterial));
 
 	RecordAnalytics();
 }
@@ -668,10 +752,14 @@ bool UBakeRenderCaptureTool::ValidTargetMeshTangents()
 
 void UBakeRenderCaptureTool::InitializePreviewMaterials()
 {
+	// We will only need source data if we're saving these textures so that the material generated when the tool is
+	// Accepted can reference them :DeferredPopulateSourceData
+	constexpr bool bPopulateSourceData = false;
+
 	{
 		FTexture2DBuilder Builder;
 		Builder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, FImageDimensions(16, 16));
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptyNormalMap = Builder.GetTexture2D();
 	}
 
@@ -679,7 +767,7 @@ void UBakeRenderCaptureTool::InitializePreviewMaterials()
 		FTexture2DBuilder Builder;
 		Builder.Initialize(FTexture2DBuilder::ETextureType::Color, FImageDimensions(16, 16));
 		Builder.Clear(FColor(0,0,0));
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptyColorMapBlack = Builder.GetTexture2D();
 	}
 
@@ -687,14 +775,14 @@ void UBakeRenderCaptureTool::InitializePreviewMaterials()
 		FTexture2DBuilder Builder;
 		Builder.Initialize(FTexture2DBuilder::ETextureType::Color, FImageDimensions(16, 16));
 		Builder.Clear(FColor::White);
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptyColorMapWhite = Builder.GetTexture2D();
 	}
 
 	{
 		FTexture2DBuilder Builder;
 		Builder.Initialize(FTexture2DBuilder::ETextureType::EmissiveHDR, FImageDimensions(16, 16));
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptyEmissiveMap = Builder.GetTexture2D();
 	}
 
@@ -704,7 +792,7 @@ void UBakeRenderCaptureTool::InitializePreviewMaterials()
 		// The Opacity texture is passed to the Material's Opacity pin as well as the Opacity Mask pin, so set white
 		// here so we see something when previewing the subsurface material when opacity is not baked
 		Builder.Clear(FColor::White);
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptyOpacityMap = Builder.GetTexture2D();
 	}
 
@@ -712,7 +800,7 @@ void UBakeRenderCaptureTool::InitializePreviewMaterials()
 		FTexture2DBuilder Builder;
 		Builder.Initialize(FTexture2DBuilder::ETextureType::Color, FImageDimensions(16, 16));
 		Builder.Clear(FColor::Black);
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptySubsurfaceColorMap = Builder.GetTexture2D();
 	}
 
@@ -720,28 +808,28 @@ void UBakeRenderCaptureTool::InitializePreviewMaterials()
 		FTexture2DBuilder Builder;
 		Builder.Initialize(FTexture2DBuilder::ETextureType::ColorLinear, FImageDimensions(16, 16));
 		Builder.Clear(FColor(0,0,0));
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptyPackedMRSMap = Builder.GetTexture2D();
 	}
 
 	{
 		FTexture2DBuilder Builder;
 		Builder.Initialize(FTexture2DBuilder::ETextureType::Roughness, FImageDimensions(16, 16));
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptyRoughnessMap = Builder.GetTexture2D();
 	}
 
 	{
 		FTexture2DBuilder Builder;
 		Builder.Initialize(FTexture2DBuilder::ETextureType::Metallic, FImageDimensions(16, 16));
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptyMetallicMap = Builder.GetTexture2D();
 	}
 
 	{
 		FTexture2DBuilder Builder;
 		Builder.Initialize(FTexture2DBuilder::ETextureType::Specular, FImageDimensions(16, 16));
-		Builder.Commit(false);
+		Builder.Commit(bPopulateSourceData);
 		EmptySpecularMap = Builder.GetTexture2D();
 	}
 
@@ -1019,7 +1107,7 @@ void UBakeRenderCaptureTool::UpdateVisualization()
 	if (VisualizationProps->bPreviewAsMaterial)
 	{
 		const auto TrySetTexture =
-			[Material](const FString& TextureName, TObjectPtr<UTexture2D> Texture, TObjectPtr<UTexture2D> Fallback, bool bMaterialHasTexture = true)
+			[Material](const FString& TextureName, TObjectPtr<UTexture2D> Texture, TObjectPtr<UTexture2D> Fallback, bool bMaterialHasTexture)
 		{
 			if (bMaterialHasTexture)
 			{
@@ -1028,9 +1116,9 @@ void UBakeRenderCaptureTool::UpdateVisualization()
 		};
 
 		// Set all computed textures or fallback to the empty texture map
-		TrySetTexture(BaseColorTexParamName, ResultSettings->BaseColorMap, EmptyColorMapWhite);
-		TrySetTexture(EmissiveTexParamName,  ResultSettings->EmissiveMap,  EmptyEmissiveMap);
-		TrySetTexture(NormalTexParamName,    ResultSettings->NormalMap,    EmptyNormalMap);
+		TrySetTexture(BaseColorTexParamName, ResultSettings->BaseColorMap, EmptyColorMapWhite, true);
+		TrySetTexture(EmissiveTexParamName,  ResultSettings->EmissiveMap,  EmptyEmissiveMap,   true);
+		TrySetTexture(NormalTexParamName,    ResultSettings->NormalMap,    EmptyNormalMap,     true);
 		TrySetTexture(PackedMRSTexParamName, ResultSettings->PackedMRSMap, EmptyPackedMRSMap,  bPackedMRS);
 		TrySetTexture(RoughnessTexParamName, ResultSettings->RoughnessMap, EmptyRoughnessMap, !bPackedMRS);
 		TrySetTexture(MetallicTexParamName,  ResultSettings->MetallicMap,  EmptyMetallicMap,  !bPackedMRS);
@@ -1041,7 +1129,7 @@ void UBakeRenderCaptureTool::UpdateVisualization()
 	else
 	{
 		const auto TrySetTexture =
-			[Material, this](const FString& TextureName, TObjectPtr<UTexture2D> Texture, TObjectPtr<UTexture2D> Fallback, bool bMaterialHasTexture = true)
+			[Material, this](const FString& TextureName, TObjectPtr<UTexture2D> Texture, TObjectPtr<UTexture2D> Fallback, bool bMaterialHasTexture)
 		{
 			// Set the BaseColor texture to the MapPreview texture if it exists and use white otherwise
 			if (TextureName == Settings->MapPreview)
@@ -1066,9 +1154,9 @@ void UBakeRenderCaptureTool::UpdateVisualization()
 			}
 		};
 
-		TrySetTexture(BaseColorTexParamName, ResultSettings->BaseColorMap, EmptyColorMapWhite);
-		TrySetTexture(EmissiveTexParamName,  ResultSettings->EmissiveMap,  EmptyEmissiveMap);
-		TrySetTexture(NormalTexParamName,    ResultSettings->NormalMap,    EmptyNormalMap);
+		TrySetTexture(BaseColorTexParamName, ResultSettings->BaseColorMap, EmptyColorMapWhite, true);
+		TrySetTexture(EmissiveTexParamName,  ResultSettings->EmissiveMap,  EmptyEmissiveMap,   true);
+		TrySetTexture(NormalTexParamName,    ResultSettings->NormalMap,    EmptyNormalMap,     true);
 		TrySetTexture(PackedMRSTexParamName, ResultSettings->PackedMRSMap, EmptyPackedMRSMap,  bPackedMRS);
 		TrySetTexture(RoughnessTexParamName, ResultSettings->RoughnessMap, EmptyRoughnessMap, !bPackedMRS);
 		TrySetTexture(MetallicTexParamName,  ResultSettings->MetallicMap,  EmptyMetallicMap,  !bPackedMRS);
