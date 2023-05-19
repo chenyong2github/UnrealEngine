@@ -118,7 +118,21 @@ struct TSequencerKeyEditor
 		const bool  bAutoSetTrackDefaults = Sequencer->GetAutoSetTrackDefaults();
 
 		const FKeySelection& KeySelection = Sequencer->GetViewModel()->GetSelection()->KeySelection;
-		if (KeySelection.Num())
+
+		// Allow editing the key selection if the key editor's channel is one of the selected key's channels
+		bool bAllowEditingKeySelection = false;
+		for (FKeyHandle Key : KeySelection)
+		{
+			// Make sure we only manipulate the values of the channel with the same channel type we're editing
+			TSharedPtr<FChannelModel> ChannelModel = KeySelection.GetModelForKey(Key);
+			if (ChannelModel && ChannelModel->GetChannel() == Channel)
+			{
+				bAllowEditingKeySelection = true;	
+				break;
+			}
+		}
+
+		if (bAllowEditingKeySelection)
 		{
 			for (FKeyHandle Key : KeySelection)
 			{
