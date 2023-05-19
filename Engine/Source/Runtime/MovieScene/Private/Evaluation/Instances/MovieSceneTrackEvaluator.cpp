@@ -195,7 +195,7 @@ const FMovieSceneEvaluationGroup* FMovieSceneTrackEvaluator::SetupFrame(UMovieSc
 		}
 	}
 
-	if (!ensureMsgf(OverrideRootField, TEXT("Could not find valid evaluation field for supplied sequence ID.")))
+	if (OverrideRootField == nullptr)
 	{
 		return nullptr;
 	}
