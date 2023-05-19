@@ -155,14 +155,14 @@ void UWorldPartitionSubsystem::AddReferencedObjects(UObject* InThis, FReferenceC
 	This->ActorDescContainerInstanceManager.AddReferencedObjects(Collector);
 }
 
-FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilter(const FString& InWorldPackage) const
+FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilter(const FString& InWorldPackage, EWorldPartitionActorFilterType InFilterTypes) const
 {
 	TSet<FString> VisitedPackages;
-	return GetWorldPartitionActorFilterInternal(InWorldPackage, VisitedPackages);
+	return GetWorldPartitionActorFilterInternal(InWorldPackage, InFilterTypes, VisitedPackages);
 }
 
 
-FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilterInternal(const FString& InWorldPackage, TSet<FString>& InOutVisitedPackages) const
+FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilterInternal(const FString& InWorldPackage, EWorldPartitionActorFilterType InFilterTypes, TSet<FString>& InOutVisitedPackages) const
 {
 	if (InOutVisitedPackages.Contains(InWorldPackage))
 	{
@@ -188,7 +188,7 @@ FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilte
 			check(!WorldDataLayersActorDesc);
 			WorldDataLayersActorDesc = static_cast<const FWorldDataLayersActorDesc*>(*ActorDescIt);
 		}
-		else if (ActorDescIt->IsContainerFilter())
+		else if ((ActorDescIt->GetContainerFilterType() & InFilterTypes) != EWorldPartitionActorFilterType::None)
 		{
 			ContainerActorDescs.Add(*ActorDescIt);
 		}
@@ -213,7 +213,7 @@ FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilte
 		TSet<FString> VisitedPackagesCopy(InOutVisitedPackages);
 
 		// Get World Default Filter
-		FWorldPartitionActorFilter* ChildFilter = new FWorldPartitionActorFilter(GetWorldPartitionActorFilterInternal(ContainerActorDesc->GetContainerPackage().ToString(), VisitedPackagesCopy));
+		FWorldPartitionActorFilter* ChildFilter = new FWorldPartitionActorFilter(GetWorldPartitionActorFilterInternal(ContainerActorDesc->GetContainerPackage().ToString(), InFilterTypes, VisitedPackagesCopy));
 		ChildFilter->DisplayName = ContainerActorDesc->GetActorLabelOrName().ToString();
 
 		// Apply Filter to Default
@@ -228,11 +228,11 @@ FWorldPartitionActorFilter UWorldPartitionSubsystem::GetWorldPartitionActorFilte
 	return Filter;
 }
 
-TMap<FActorContainerID, TSet<FGuid>> UWorldPartitionSubsystem::GetFilteredActorsPerContainer(const FActorContainerID& InContainerID, const FString& InWorldPackage, const FWorldPartitionActorFilter& InActorFilter)
+TMap<FActorContainerID, TSet<FGuid>> UWorldPartitionSubsystem::GetFilteredActorsPerContainer(const FActorContainerID& InContainerID, const FString& InWorldPackage, const FWorldPartitionActorFilter& InActorFilter, EWorldPartitionActorFilterType InFilterTypes)
 {
 	TMap<FActorContainerID, TSet<FGuid>> FilteredActors;
 
-	FWorldPartitionActorFilter ContainerFilter = GetWorldPartitionActorFilter(InWorldPackage);
+	FWorldPartitionActorFilter ContainerFilter = GetWorldPartitionActorFilter(InWorldPackage, InFilterTypes);
 	ContainerFilter.Override(InActorFilter);
 
 	// Flatten Filter to FActorContainerID map
@@ -270,7 +270,7 @@ TMap<FActorContainerID, TSet<FGuid>> UWorldPartitionSubsystem::GetFilteredActors
 		return RegisteredContainer;
 	};
 
-	TFunction<void(const FActorContainerID&, const UActorDescContainer*)> ProcessContainers = [&FindOrRegisterContainer, &DataLayerFiltersPerContainer, &FilteredActors, &ProcessContainers](const FActorContainerID& InContainerID, const UActorDescContainer* InContainer)
+	TFunction<void(const FActorContainerID&, const UActorDescContainer*)> ProcessContainers = [&FindOrRegisterContainer, &DataLayerFiltersPerContainer, &FilteredActors, &ProcessContainers, &InFilterTypes](const FActorContainerID& InContainerID, const UActorDescContainer* InContainer)
 	{
 		const TMap<FSoftObjectPath, FWorldPartitionActorFilter::FDataLayerFilter>& DataLayerFilters = DataLayerFiltersPerContainer.FindChecked(InContainerID);
 		for (FActorDescList::TConstIterator<> ActorDescIt(InContainer); ActorDescIt; ++ActorDescIt)
@@ -301,11 +301,14 @@ TMap<FActorContainerID, TSet<FGuid>> UWorldPartitionSubsystem::GetFilteredActors
 				}
 			}
 
-			if (ActorDescIt->IsContainerFilter())
+			if ((ActorDescIt->GetContainerFilterType() & InFilterTypes) != EWorldPartitionActorFilterType::None)
 			{
-				UActorDescContainer* ChildContainer = FindOrRegisterContainer(ActorDescIt->GetContainerPackage());
-				check(ChildContainer);
-				ProcessContainers(FActorContainerID(InContainerID, ActorDescIt->GetGuid()), ChildContainer);
+				if (const FWorldPartitionActorFilter* ChildFilter = ActorDescIt->GetContainerFilter())
+				{
+					UActorDescContainer* ChildContainer = FindOrRegisterContainer(ActorDescIt->GetContainerPackage());
+					check(ChildContainer);
+					ProcessContainers(FActorContainerID(InContainerID, ActorDescIt->GetGuid()), ChildContainer);
+				}
 			}
 		}
 	};

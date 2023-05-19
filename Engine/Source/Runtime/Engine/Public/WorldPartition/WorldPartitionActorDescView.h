@@ -13,6 +13,7 @@ class IStreamingGenerationErrorHandler;
 class UActorDescContainer;
 class UWorldPartition;
 struct FWorldPartitionActorFilter;
+enum class EWorldPartitionActorFilterType : uint8;
 
 /**
  * A view on top of an actor desc, used to cache information that can be (potentially) different than the actor desc
@@ -63,7 +64,7 @@ public:
 	FName GetContainerPackage() const;
 	bool IsContainerInstance() const;
 	bool GetContainerInstance(FWorldPartitionActorDesc::FContainerInstance& OutContainerInstance) const;
-	bool IsContainerFilter() const;
+	EWorldPartitionActorFilterType GetContainerFilterType() const;
 	const FWorldPartitionActorFilter* GetContainerFilter() const;
 	
 	UE_DEPRECATED(5.3, "GetLevelPackage is deprecated use GetContainerPackage instead.")

@@ -17,7 +17,7 @@ public:
 
 	virtual FPackedLevelActorBuilderID GetID() const override;
 	virtual void GetPackClusters(FPackedLevelActorBuilderContext& InContext, AActor* InActor) const override;
-	virtual void PackActors(FPackedLevelActorBuilderContext& InContext, APackedLevelActor* InPackingActor, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const override;
+	virtual void PackActors(FPackedLevelActorBuilderContext& InContext, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const override;
 };
 
 class FPackedLevelActorISMBuilderCluster : public FPackedLevelActorBuilderCluster

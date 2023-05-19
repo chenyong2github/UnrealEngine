@@ -33,10 +33,19 @@ public:
 
 	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
+	virtual EWorldPartitionActorFilterType GetDetailsFilterTypes() const override;
+	virtual EWorldPartitionActorFilterType GetLoadingFilterTypes() const override;
+	virtual void OnFilterChanged() override;
+	void SetShouldLoadForPacking(bool bInLoadForPacking) { bLoadForPacking = bInLoadForPacking; }
+	bool ShouldLoadForPacking() const;
+	// When Loading a APackedLevelActor it needs to be fully loaded for packing.
+	virtual bool SupportsPartialEditorLoading() const override { return false; }
+
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	
 	static bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
 	static bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true);
+	static void UpdateBlueprint(UBlueprint* InBlueprint, bool bCheckoutAndSave = true);
 
 	static FName GetPackedComponentTag();
 
@@ -61,6 +70,10 @@ public:
 
 	virtual void RerunConstructionScripts() override;
 
+	static bool IsRootBlueprint(UClass* InClass);
+	bool IsRootBlueprintTemplate() const;
+	UBlueprint* GetRootBlueprint() const;
+
 	template<class T>
 	T* AddPackedComponent(TSubclassOf<T> ComponentClass)
 	{
@@ -78,12 +91,15 @@ public:
 	TArray<TSoftObjectPtr<UBlueprint>> PackedBPDependencies;
 
 private:
-	bool bChildChanged;
-
 	UPROPERTY()
 	FGuid PackedVersion;
+#endif
+
+#if WITH_EDITOR
+	bool bChildChanged;
+	bool bLoadForPacking;
 #endif
 };
 
 
-DEFINE_ACTORDESC_TYPE(APackedLevelActor, FWorldPartitionActorDesc);
+DEFINE_ACTORDESC_TYPE(APackedLevelActor, FPackedLevelActorDesc);

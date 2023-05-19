@@ -13,6 +13,7 @@
 #include "Templates/SubclassOf.h"
 #include "Misc/Guid.h"
 #include "WorldPartition/WorldPartitionActorContainerID.h"
+#include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 
 // Struct used to create actor descriptor
 struct FWorldPartitionActorDescInitData
@@ -30,7 +31,6 @@ struct FWorldPartitionActorDescInitData
 class AActor;
 class UActorDescContainer;
 class IStreamingGenerationErrorHandler;
-struct FWorldPartitionActorFilter;
 
 enum class EContainerClusterMode : uint8
 {
@@ -144,7 +144,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline bool IsDefaultActorDesc() const { return bIsDefaultActorDesc; }
 
 	virtual bool IsContainerInstance() const { return false; }
-	virtual bool IsContainerFilter() const { return false; }
+	virtual EWorldPartitionActorFilterType GetContainerFilterType() const { return EWorldPartitionActorFilterType::None; }
 	virtual FName GetContainerPackage() const { return NAME_None; }
 	
 	virtual const FWorldPartitionActorFilter* GetContainerFilter() const { return nullptr; }

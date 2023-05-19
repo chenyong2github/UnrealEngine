@@ -73,7 +73,16 @@ void ULevelInstanceComponent::SetFilter(const FWorldPartitionActorFilter& InFilt
 	{
 		Modify();
 		Filter = InFilter;
+		OnFilterChanged();
 		FWorldPartitionActorFilter::GetOnWorldPartitionActorFilterChanged().Broadcast();
+	}
+}
+
+void ULevelInstanceComponent::OnFilterChanged()
+{
+	if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(GetOwner()))
+	{
+		LevelInstance->OnFilterChanged();
 	}
 }
 
@@ -96,6 +105,7 @@ void ULevelInstanceComponent::PostEditUndo()
 
 	if (Filter != UndoRedoCachedFilter)
 	{
+		OnFilterChanged();
 		FWorldPartitionActorFilter::RequestFilterRefresh(false);
 		FWorldPartitionActorFilter::GetOnWorldPartitionActorFilterChanged().Broadcast();
 	}
@@ -107,6 +117,11 @@ void ULevelInstanceComponent::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	UpdateEditorInstanceActor();
+
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULevelInstanceComponent, Filter))
+	{
+		OnFilterChanged();
+	}
 }
 
 void ULevelInstanceComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
@@ -182,7 +197,7 @@ const TMap<FActorContainerID, TSet<FGuid>>& ULevelInstanceComponent::GetFiltered
 		UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
 		check(WorldPartitionSubsystem);
 				
-		FilteredActors = WorldPartitionSubsystem->GetFilteredActorsPerContainer(LevelInstance->GetLevelInstanceID().GetContainerID(), LevelInstance->GetWorldAssetPackage(), Filter);
+		FilteredActors = WorldPartitionSubsystem->GetFilteredActorsPerContainer(LevelInstance->GetLevelInstanceID().GetContainerID(), LevelInstance->GetWorldAssetPackage(), Filter, LevelInstance->GetLoadingFilterTypes());
 	}
 	
 	CachedFilteredActorsPerContainer = MoveTemp(FilteredActors);

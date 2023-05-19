@@ -23,6 +23,15 @@ FPackedLevelActorBuilderID FPackedLevelActorISMBuilder::GetID() const
 
 void FPackedLevelActorISMBuilder::GetPackClusters(FPackedLevelActorBuilderContext& InContext, AActor* InActor) const
 {
+	// Skip PackedLevelActors that are loaded for Packing as their Level Actors will get packed
+	if (APackedLevelActor* PackedLevelActor = Cast<APackedLevelActor>(InActor))
+	{
+		if (PackedLevelActor->ShouldLoadForPacking())
+		{
+			return;
+		}
+	}
+
 	TArray<UStaticMeshComponent*> StaticMeshComponents;
 	InActor->GetComponents(StaticMeshComponents);
 
@@ -37,10 +46,11 @@ void FPackedLevelActorISMBuilder::GetPackClusters(FPackedLevelActorBuilderContex
 	}
 }
 
-void FPackedLevelActorISMBuilder::PackActors(FPackedLevelActorBuilderContext& InContext, APackedLevelActor* InPackingActor, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const
+void FPackedLevelActorISMBuilder::PackActors(FPackedLevelActorBuilderContext& InContext, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const
 {
 	check(InClusterID.GetBuilderID() == GetID());
-	FTransform ActorTransform = InPackingActor->GetActorTransform();
+	APackedLevelActor* PackingActor = InContext.GetPackedLevelActor();
+	FTransform ActorTransform = PackingActor->GetActorTransform();
 
 	FPackedLevelActorISMBuilderCluster* ISMCluster = (FPackedLevelActorISMBuilderCluster*)InClusterID.GetData();
 	check(ISMCluster);
@@ -55,8 +65,8 @@ void FPackedLevelActorISMBuilder::PackActors(FPackedLevelActorBuilderContext& In
 		ComponentClass = UHierarchicalInstancedStaticMeshComponent::StaticClass();
 	}
 
-	UInstancedStaticMeshComponent* PackComponent = InPackingActor->AddPackedComponent<UInstancedStaticMeshComponent>(ComponentClass);
-	PackComponent->AttachToComponent(InPackingActor->GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
+	UInstancedStaticMeshComponent* PackComponent = PackingActor->AddPackedComponent<UInstancedStaticMeshComponent>(ComponentClass);
+	PackComponent->AttachToComponent(PackingActor->GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
 
 	// Initialize the ISM properties using the ISM descriptor
 	ISMCluster->ISMDescriptor.InitComponent(PackComponent);

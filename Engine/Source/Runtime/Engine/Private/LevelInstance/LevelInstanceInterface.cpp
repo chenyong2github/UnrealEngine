@@ -319,6 +319,37 @@ const TMap<FActorContainerID, TSet<FGuid>>& ILevelInstanceInterface::GetFiltered
 	return NoFilteredActors;
 }
 
+void ILevelInstanceInterface::SetFilter(const FWorldPartitionActorFilter& InFilter)
+{
+	if (ULevelInstanceComponent* LevelInstanceComponent = GetLevelInstanceComponent())
+	{
+		LevelInstanceComponent->SetFilter(InFilter);
+	}
+}
+
+EWorldPartitionActorFilterType ILevelInstanceInterface::GetLoadingFilterTypes() const
+{
+	const AActor* Actor = CastChecked<AActor>(this);
+	if (Actor->GetWorld() && Actor->GetWorld()->IsPartitionedWorld())
+	{
+		return EWorldPartitionActorFilterType::All;
+	}
+
+	return EWorldPartitionActorFilterType::None;
+}
+
+
+EWorldPartitionActorFilterType ILevelInstanceInterface::GetDetailsFilterTypes() const
+{
+	const AActor* Actor = CastChecked<AActor>(this);
+	if (Actor->IsTemplate() || (Actor->GetWorld() && Actor->GetWorld()->IsPartitionedWorld()))
+	{
+		return EWorldPartitionActorFilterType::Loading;
+	}
+
+	return EWorldPartitionActorFilterType::None;
+}
+
 #endif
 
 

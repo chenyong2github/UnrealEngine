@@ -17,6 +17,7 @@ class AActor;
 class UActorComponent;
 class UBlueprint;
 class FMessageLog;
+struct FWorldPartitionActorFilter;
 
 /**
  * FPackedLevelActorBuilder handles packing of ALevelInstance actors into APackedLevelActor actors and Blueprints.
@@ -49,12 +50,14 @@ public:
 	static UBlueprint* CreatePackedLevelActorBlueprint(TSoftObjectPtr<UBlueprint> InBlueprintAsset, TSoftObjectPtr<UWorld> InWorldAsset, bool bInCompile);
 	
 private:
+	bool PackActor(FPackedLevelActorBuilderContext& InContext);
+
 	/* Create/Updates a APackedLevelActor Blueprint from InPackedActor (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
 	bool CreateOrUpdateBlueprintFromPacked(APackedLevelActor* InPackedActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave);
 	/* Creates/Updates a APackedLevelActor Blueprint from InLevelInstance (will overwrite existing asset or show a dialog if InBlueprintAsset is null) */
 	bool CreateOrUpdateBlueprintFromUnpacked(ALevelInstance* InPackedActor, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave, bool bPromptForSave);
 	/* Creates and loads a ALevelInstance so it can be used for packing */
-	ALevelInstance* CreateTransientLevelInstanceForPacking(TSoftObjectPtr<UWorld> InWorldAsset, const FVector& InLocation, const FRotator& InRotator);
+	ALevelInstance* CreateTransientLevelInstanceForPacking(TSoftObjectPtr<UWorld> InWorldAsset, const FVector& InLocation, const FRotator& InRotator, const FWorldPartitionActorFilter& InFilter);
 
 	FPackedLevelActorBuilder(const FPackedLevelActorBuilder&) = delete;
 	FPackedLevelActorBuilder& operator=(const FPackedLevelActorBuilder&) = delete;
@@ -72,8 +75,8 @@ private:
 class FPackedLevelActorBuilderContext
 {
 public:
-	FPackedLevelActorBuilderContext(const FPackedLevelActorBuilder& InBuilder, APackedLevelActor* InPackedLevelActor) 
-		: Builders(InBuilder.Builders), ClassDiscards(InBuilder.ClassDiscards), PackedLevelActor(InPackedLevelActor), RelativePivotTransform(FTransform::Identity) {}
+	FPackedLevelActorBuilderContext(const FPackedLevelActorBuilder& InBuilder, APackedLevelActor* InPackedLevelActor, ALevelInstance* InLevelInstanceToPack) 
+		: Builders(InBuilder.Builders), ClassDiscards(InBuilder.ClassDiscards), PackedLevelActor(InPackedLevelActor), LevelInstanceToPack(InLevelInstanceToPack), RelativePivotTransform(FTransform::Identity) {}
 
 	/* Interface for IPackedLevelActorBuilder's to use */
 	void ClusterLevelActor(AActor* InLevelActor);
@@ -87,11 +90,15 @@ public:
 	const FTransform GetRelativePivotTransform() const { return RelativePivotTransform; }
 
 	bool ShouldPackComponent(UActorComponent* InActorComponent) const;
+
+	APackedLevelActor* GetPackedLevelActor() const { return PackedLevelActor; }
+	ALevelInstance* GetLevelInstanceToPack() const { return LevelInstanceToPack; }
 private:
 	const TMap<FPackedLevelActorBuilderID, TUniquePtr<IPackedLevelActorBuilder>>& Builders;
 	const TSet<UClass*>& ClassDiscards;
 
 	APackedLevelActor* PackedLevelActor;
+	ALevelInstance* LevelInstanceToPack;
 	
 	TMap<FPackedLevelActorBuilderClusterID, TArray<UActorComponent*>> Clusters;
 

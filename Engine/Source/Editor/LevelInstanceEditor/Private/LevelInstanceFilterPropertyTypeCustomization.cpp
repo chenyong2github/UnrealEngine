@@ -24,6 +24,8 @@ TSharedPtr<FWorldPartitionActorFilterMode::FFilter> FLevelInstanceFilterProperty
 	// Find Selected Level Instances with matching WorldAssetPackage
 	FString WorldAssetPackage;
 	UWorld* World = nullptr;
+	TOptional<EWorldPartitionActorFilterType> Types;
+
 	for (int32 OuterObjectIndex = 0; OuterObjectIndex < OuterObjects.Num(); ++OuterObjectIndex)
 	{
 		UObject* OuterObject = OuterObjects[OuterObjectIndex];
@@ -33,7 +35,20 @@ TSharedPtr<FWorldPartitionActorFilterMode::FFilter> FLevelInstanceFilterProperty
 			{
 				LevelInstances.Add(LevelInstanceInterface, OuterObjectIndex);
 				ActorLabel = OuterActor->GetActorLabel();
-
+				
+				if (!Types.IsSet())
+				{
+					Types = LevelInstanceInterface->GetDetailsFilterTypes();
+					if (Types == EWorldPartitionActorFilterType::None)
+					{
+						return nullptr;
+					}
+				}
+				else if (Types != LevelInstanceInterface->GetDetailsFilterTypes())
+				{
+					return nullptr;
+				}
+				
 				if (WorldAssetPackage.IsEmpty())
 				{
 					WorldAssetPackage = LevelInstanceInterface->GetWorldAssetPackage();
@@ -72,7 +87,7 @@ TSharedPtr<FWorldPartitionActorFilterMode::FFilter> FLevelInstanceFilterProperty
 	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 
 	// Get the Default Filter for selected WorldAssetPackage
-	TSharedPtr<FWorldPartitionActorFilter> Filter = MakeShared<FWorldPartitionActorFilter>(WorldPartitionSubsystem->GetWorldPartitionActorFilter(WorldAssetPackage));
+	TSharedPtr<FWorldPartitionActorFilter> Filter = MakeShared<FWorldPartitionActorFilter>(WorldPartitionSubsystem->GetWorldPartitionActorFilter(WorldAssetPackage, Types.GetValue()));
 
 	// Set its name based on single/multi selection (root node name in outliner)
 	Filter->DisplayName = LevelInstances.Num() == 1 ? ActorLabel : TEXT("(Multiple Actors)");

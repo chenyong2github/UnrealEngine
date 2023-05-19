@@ -20,7 +20,7 @@ public:
 	virtual ~IPackedLevelActorBuilder() {}
 	virtual FPackedLevelActorBuilderID GetID() const = 0;
 	virtual void GetPackClusters(FPackedLevelActorBuilderContext& InContext, AActor* InActor) const = 0;
-	virtual void PackActors(FPackedLevelActorBuilderContext& InBuilder, APackedLevelActor* InPackingActor, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const = 0;
+	virtual void PackActors(FPackedLevelActorBuilderContext& InBuilder, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const = 0;
 };
 
 #endif

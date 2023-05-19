@@ -656,7 +656,7 @@ void ULevelInstanceSubsystem::PackAllLoadedActors()
 	TFunction<void(APackedLevelActor*, TArray<UBlueprint*>&, TArray<APackedLevelActor*>&)> GatherDepencenciesRecursive = [&GatherDepencenciesRecursive](APackedLevelActor* PackedLevelActor, TArray<UBlueprint*>& BPsToPack, TArray<APackedLevelActor*>& ToPack)
 	{
 		// Early out on already processed BPs or non BP Packed LIs.
-		UBlueprint* Blueprint = Cast<UBlueprint>(PackedLevelActor->GetClass()->ClassGeneratedBy);
+		UBlueprint* Blueprint = PackedLevelActor->GetRootBlueprint();
 		if ((Blueprint && BPsToPack.Contains(Blueprint)) || ToPack.Contains(PackedLevelActor))
 		{
 			return;
@@ -1058,7 +1058,7 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 
 	ULevelStreamingLevelInstanceEditor* LevelStreaming = nullptr;
 	{
-		const bool bIsPartitioned = (CreationParams.Type != ELevelInstanceCreationType::PackedLevelActor) && GetWorld()->IsPartitionedWorld();
+		const bool bIsPartitioned = GetWorld()->IsPartitionedWorld();
 
 		// We want to properly setup the world partition prior to its initialization
 		FDelegateHandle PreWorldInit = FWorldDelegates::OnPreWorldInitialization.AddLambda([&bIsPartitioned](UWorld* World, const UWorld::InitializationValues IVS)
@@ -1156,22 +1156,22 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 			
 	// Make sure newly created level asset gets scanned
 	ULevel::ScanLevelAssets(LoadedLevel->GetPackage()->GetName());
-
-	if (CreationParams.Type == ELevelInstanceCreationType::LevelInstance)
+	
+	// Use CreationParams class if provided
+	UClass* ActorClass = CreationParams.LevelInstanceClass;
+	if (!ActorClass)
 	{
-		TSubclassOf<AActor> ActorClass = ALevelInstance::StaticClass();
-		if (CreationParams.LevelInstanceClass)
-		{
-			ActorClass = CreationParams.LevelInstanceClass;
-		}
+		ActorClass = CreationParams.Type == ELevelInstanceCreationType::LevelInstance ? ALevelInstance::StaticClass() : APackedLevelActor::StaticClass();
+	}
 
-		check(ActorClass->ImplementsInterface(ULevelInstanceInterface::StaticClass()));
+	check(ActorClass->ImplementsInterface(ULevelInstanceInterface::StaticClass()));
 
+	if (!ActorClass->IsChildOf<APackedLevelActor>())
+	{
 		NewLevelInstanceActor = GetWorld()->SpawnActor<AActor>(ActorClass, SpawnParams);
 	}
 	else
 	{
-		check(CreationParams.Type == ELevelInstanceCreationType::PackedLevelActor);
 		FString PackageDir = FPaths::GetPath(WorldPtr.GetLongPackageName());
 		FString AssetName = FPackedLevelActorBuilder::GetPackedBPPrefix() + WorldPtr.GetAssetName();
 		FString BPAssetPath = FString::Format(TEXT("{0}/{1}.{1}"), { PackageDir , AssetName });

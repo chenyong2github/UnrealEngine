@@ -9,6 +9,15 @@
 #include "UObject/SoftObjectPath.h"
 #include "WorldPartitionActorFilter.generated.h"
 
+enum class EWorldPartitionActorFilterType : uint8
+{
+	None = 0,
+	Loading = 1 << 1,
+	Packing = 1 << 0,
+	All = Packing | Loading,
+};
+ENUM_CLASS_FLAGS(EWorldPartitionActorFilterType);
+
 USTRUCT()
 struct ENGINE_API FWorldPartitionActorFilter
 {

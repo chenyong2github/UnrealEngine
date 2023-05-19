@@ -45,6 +45,7 @@ public:
 	const TMap<FActorContainerID, TSet<FGuid>>& GetFilteredActorsPerContainer() const;
 private:
 	bool ShouldShowSpriteComponent() const;
+	void OnFilterChanged();
 
 	TWeakObjectPtr<AActor> CachedEditorInstanceActorPtr;
 #endif

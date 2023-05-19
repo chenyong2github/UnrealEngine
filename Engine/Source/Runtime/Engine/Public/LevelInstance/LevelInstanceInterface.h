@@ -7,11 +7,11 @@
 #include "UObject/SoftObjectPtr.h"
 #include "LevelInstance/LevelInstanceTypes.h"
 #include "WorldPartition/WorldPartitionActorContainerID.h"
+#include "WorldPartition/Filter/WorldPartitionActorFilter.h"
 #include "LevelInstanceInterface.generated.h"
 
 class ULevelInstanceComponent;
 class ULevelStreamingLevelInstance;
-struct FWorldPartitionActorFilter;
 
 UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
 class ENGINE_API ULevelInstanceInterface : public UInterface
@@ -124,5 +124,15 @@ class ENGINE_API ILevelInstanceInterface
 	virtual const FWorldPartitionActorFilter& GetFilter() const;
 
 	virtual const TMap<FActorContainerID, TSet<FGuid>>& GetFilteredActorsPerContainer() const;
+
+	virtual void SetFilter(const FWorldPartitionActorFilter& InFilter);
+
+	virtual void OnFilterChanged() {}
+
+	// Return supported filter types when using filter for loading actors
+	virtual EWorldPartitionActorFilterType GetLoadingFilterTypes() const;
+
+	// Return supported filter types when setting filter through details panel
+	virtual EWorldPartitionActorFilterType GetDetailsFilterTypes() const;
 #endif
 };

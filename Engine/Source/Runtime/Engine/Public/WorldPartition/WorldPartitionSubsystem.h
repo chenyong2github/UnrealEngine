@@ -103,8 +103,8 @@ public:
 	void ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func);
 
 #if WITH_EDITOR
-	FWorldPartitionActorFilter GetWorldPartitionActorFilter(const FString& InWorldPackage) const;
-	TMap<FActorContainerID, TSet<FGuid>> GetFilteredActorsPerContainer(const FActorContainerID& InContainerID, const FString& InWorldPackage, const FWorldPartitionActorFilter& InActorFilter);
+	FWorldPartitionActorFilter GetWorldPartitionActorFilter(const FString& InWorldPackage, EWorldPartitionActorFilterType InFilterTypes = EWorldPartitionActorFilterType::Loading) const;
+	TMap<FActorContainerID, TSet<FGuid>> GetFilteredActorsPerContainer(const FActorContainerID& InContainerID, const FString& InWorldPackage, const FWorldPartitionActorFilter& InActorFilter, EWorldPartitionActorFilterType InFilterTypes = EWorldPartitionActorFilterType::Loading);
 
 	static bool IsRunningConvertWorldPartitionCommandlet();
 
@@ -148,7 +148,7 @@ public:
 		TMap<FName, FActorDescContainerInstance> ActorDescContainers;
 	};
 private:
-	FWorldPartitionActorFilter GetWorldPartitionActorFilterInternal(const FString& InWorldPackage, TSet<FString>& InOutVisitedPackages) const;
+	FWorldPartitionActorFilter GetWorldPartitionActorFilterInternal(const FString& InWorldPackage, EWorldPartitionActorFilterType InFilterTypes, TSet<FString>& InOutVisitedPackages) const;
 #endif
 
 protected:

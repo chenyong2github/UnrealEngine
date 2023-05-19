@@ -573,7 +573,7 @@ class FWorldPartitionStreamingGenerator
 				SubContainerInstanceDescriptor.ContentBundleID = InContainerInstanceDescriptor.ContentBundleID;
 				SubContainerInstanceDescriptor.InstanceData = InheritParentContainerPerInstanceData(InContainerInstanceDescriptor.InstanceData, ContainerInstanceView);
 
-				if (WorldPartitionSubsystem && InContainerInstanceDescriptor.ID.IsMainContainer() && ContainerInstanceView.IsContainerFilter())
+				if (WorldPartitionSubsystem && InContainerInstanceDescriptor.ID.IsMainContainer() && ContainerInstanceView.GetContainerFilterType() == EWorldPartitionActorFilterType::Loading)
 				{
 					if (const FWorldPartitionActorFilter* ContainerFilter = ContainerInstanceView.GetContainerFilter())
 					{						

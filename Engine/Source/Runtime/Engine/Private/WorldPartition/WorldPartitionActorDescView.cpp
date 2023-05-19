@@ -184,9 +184,9 @@ bool FWorldPartitionActorDescView::IsContainerInstance() const
 	return ActorDesc->IsContainerInstance();
 }
 
-bool FWorldPartitionActorDescView::IsContainerFilter() const
+EWorldPartitionActorFilterType FWorldPartitionActorDescView::GetContainerFilterType() const
 {
-	return ActorDesc->IsContainerFilter();
+	return ActorDesc->GetContainerFilterType();
 }
 
 FName FWorldPartitionActorDescView::GetContainerPackage() const
@@ -201,7 +201,7 @@ bool FWorldPartitionActorDescView::GetContainerInstance(FWorldPartitionActorDesc
 
 const FWorldPartitionActorFilter* FWorldPartitionActorDescView::GetContainerFilter() const
 {
-	check(IsContainerFilter());
+	check(GetContainerFilterType() != EWorldPartitionActorFilterType::None);
 	return ActorDesc->GetContainerFilter();
 }
 

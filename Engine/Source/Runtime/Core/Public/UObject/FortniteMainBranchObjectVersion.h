@@ -322,6 +322,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// FWorldPartitionActorFilter go back to FString serialize of AssetPaths to avoid FArchiveReplaceOrClearExternalReferences clearing CDO references on BP Compile
 		WorldPartitionActorFilterStringAssetPath,
 
+		// Add FPackedLevelActorDesc for APackedLevelActor and support for APackedLevelActor Filters
+		PackedLevelActorDesc,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

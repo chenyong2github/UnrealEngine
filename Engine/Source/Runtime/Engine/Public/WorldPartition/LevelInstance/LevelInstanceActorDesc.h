@@ -26,7 +26,7 @@ public:
 	virtual ~FLevelInstanceActorDesc() override;
 
 	virtual bool IsContainerInstance() const override;
-	virtual bool IsContainerFilter() const override { return IsContainerInstance(); }
+	virtual EWorldPartitionActorFilterType GetContainerFilterType() const { return IsContainerInstance() ? EWorldPartitionActorFilterType::Loading : EWorldPartitionActorFilterType::None; }
 	virtual FName GetContainerPackage() const override { return WorldAsset.GetLongPackageFName(); }
 	virtual bool GetContainerInstance(FContainerInstance& OutContainerInstance) const override;
 	virtual const FWorldPartitionActorFilter* GetContainerFilter() const override { return &Filter; }

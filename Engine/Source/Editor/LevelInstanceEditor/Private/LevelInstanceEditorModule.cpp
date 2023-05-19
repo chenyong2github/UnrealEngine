@@ -263,6 +263,26 @@ namespace LevelInstanceMenuUtils
 		}
 	}
 
+	UClass* GetDefaultLevelInstanceClass(ELevelInstanceCreationType CreationType)
+	{
+		if (CreationType == ELevelInstanceCreationType::PackedLevelActor)
+		{
+			return APackedLevelActor::StaticClass();
+		}
+
+		ULevelInstanceEditorSettings* LevelInstanceEditorSettings = GetMutableDefault<ULevelInstanceEditorSettings>();
+		if (!LevelInstanceEditorSettings->LevelInstanceClassName.IsEmpty())
+		{
+			UClass* LevelInstanceClass = LoadClass<AActor>(nullptr, *LevelInstanceEditorSettings->LevelInstanceClassName, nullptr, LOAD_NoWarn);
+			if (LevelInstanceClass && LevelInstanceClass->ImplementsInterface(ULevelInstanceInterface::StaticClass()))
+			{
+				return LevelInstanceClass;
+			}
+		}
+
+		return ALevelInstance::StaticClass();
+	}
+
 	void CreateLevelInstanceFromSelection(ULevelInstanceSubsystem* LevelInstanceSubsystem, ELevelInstanceCreationType CreationType)
 	{
 		TArray<AActor*> ActorsToMove;
@@ -319,15 +339,7 @@ namespace LevelInstanceMenuUtils
 				UPackage* TemplatePackage = !TemplateMapPackage.IsEmpty() ? LoadPackage(nullptr, *TemplateMapPackage, LOAD_None) : nullptr;
 				
 				CreationParams.TemplateWorld = TemplatePackage ? UWorld::FindWorldInPackage(TemplatePackage) : nullptr;
-				
-				if (!LevelInstanceEditorSettings->LevelInstanceClassName.IsEmpty())
-				{
-					UClass* LevelInstanceClass = LoadClass<AActor>(nullptr, *LevelInstanceEditorSettings->LevelInstanceClassName, nullptr, LOAD_NoWarn);
-					if (LevelInstanceClass && LevelInstanceClass->ImplementsInterface(ULevelInstanceInterface::StaticClass()))
-					{
-						CreationParams.LevelInstanceClass = LevelInstanceClass;
-					}
-				}
+				CreationParams.LevelInstanceClass = GetDefaultLevelInstanceClass(CreationType);
 
 				if (!LevelInstanceSubsystem->CreateLevelInstanceFrom(ActorsToMove, CreationParams))
 				{
@@ -508,12 +520,12 @@ namespace LevelInstanceMenuUtils
 		
 		virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
 		{
-			return InClass && InClass->ImplementsInterface(ULevelInstanceInterface::StaticClass()) && !InClass->IsChildOf(APackedLevelActor::StaticClass()) && !InClass->HasAnyClassFlags(CLASS_Deprecated);
+			return InClass && InClass->ImplementsInterface(ULevelInstanceInterface::StaticClass()) && InClass->IsNative() && !InClass->HasAnyClassFlags(CLASS_Deprecated);
 		}
 
 		virtual bool IsUnloadedClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const TSharedRef< const IUnloadedBlueprintData > InUnloadedClassData, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
 		{
-			return InUnloadedClassData->ImplementsInterface(ULevelInstanceInterface::StaticClass()) && !InUnloadedClassData->IsChildOf(APackedLevelActor::StaticClass())  && !InUnloadedClassData->HasAnyClassFlags(CLASS_Deprecated);
+			return false;
 		}
 	};
 
@@ -526,7 +538,7 @@ namespace LevelInstanceMenuUtils
 		LongPackageName.FindLastChar('/', LastSlashIndex);
 		
 		FString PackagePath = LongPackageName.Mid(0, LastSlashIndex == INDEX_NONE ? MAX_int32 : LastSlashIndex);
-		FString AssetName = LevelInstancePtr.GetAssetName() + "_LevelInstance";
+		FString AssetName = "BP_" + LevelInstancePtr.GetAssetName();
 		IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
 
 		UBlueprintFactory* BlueprintFactory = NewObject<UBlueprintFactory>();
@@ -552,6 +564,11 @@ namespace LevelInstanceMenuUtils
 			LevelInstanceCDO->SetWorldAsset(LevelInstancePtr);
 			FBlueprintEditorUtils::MarkBlueprintAsModified(NewBlueprint);
 			
+			if (NewBlueprint->GeneratedClass->IsChildOf<APackedLevelActor>())
+			{
+				APackedLevelActor::UpdateBlueprint(NewBlueprint);
+			}
+
 			FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 			TArray<UObject*> Assets;
 			Assets.Add(NewBlueprint);
