@@ -16,6 +16,7 @@ static const void* jmp_tbl[] = {
 #define VVM_OP_CASE(op)	case EVectorVMOp::op:
 #define VVM_OP_NEXT     break
 #endif
+#define VVM_NullOp(X) X
 
 { //set the pointers to deal with the correct chunk offset.
 	int DstOffset = ExecCtx->VVMState->NumTempRegisters + ExecCtx->VVMState->NumConstBuffers;
@@ -432,6 +433,9 @@ for (;;)
 				p1 += sizeof(FVecReg);
 			} while (p1 < end);
 		} VVM_OP_NEXT;
+		VVM_OP_CASE(fasi)                                VVM_execVecIns1i(VVM_NullOp);            VVM_OP_NEXT;
+		VVM_OP_CASE(iasf)                                VVM_execVecIns1f(VVM_NullOp);            VVM_OP_NEXT;
+
 		VVM_OP_CASE(exec_indexf)                         VVM_execVec_exec_indexf;                 VVM_OP_NEXT;
 		VVM_OP_CASE(exec_index_addi)                     VVM_execVec_exec_index_addi;             VVM_OP_NEXT;
 

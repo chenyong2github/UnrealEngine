@@ -759,6 +759,8 @@ VECTORVM_API uint32 OptimizeVectorVMScript(const uint8 *InBytecode, int InByteco
 			case EVectorVMOp::b2f:                                  VVMOptimizeVecIns1;             break;
 			case EVectorVMOp::i2b:                                  VVMOptimizeVecIns1;             break;
 			case EVectorVMOp::b2i:                                  VVMOptimizeVecIns1;             break;
+			case EVectorVMOp::fasi:                                 VVMOptimizeVecIns1;             break;
+			case EVectorVMOp::iasf:                                 VVMOptimizeVecIns1;             break;
 			case EVectorVMOp::inputdata_float:
 			case EVectorVMOp::inputdata_int32:
 			case EVectorVMOp::inputdata_half:

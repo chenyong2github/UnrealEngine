@@ -2636,6 +2636,25 @@ struct FVectorKernelBoolToInt : TUnaryKernel<FVectorKernelBoolToInt, FRegisterHa
 	}
 };
 
+//reinterpret bits
+//fasi,
+struct FVectorKernelFloatAsInt : TUnaryKernel<FVectorKernelFloatAsInt, FRegisterHandler<VectorRegister4Int>, FConstantHandler<VectorRegister4Float>, FRegisterHandler<VectorRegister4Float>, VECTOR_WIDTH_FLOATS>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Int* Dst, VectorRegister4Float Src0)
+	{
+		*Dst = VectorCastFloatToInt(Src0);
+	}
+};
+
+//iasf,
+struct FVectorKernelIntAsFloat : TUnaryKernel<FVectorKernelIntAsFloat, FRegisterHandler<VectorRegister4Float>, FConstantHandler<VectorRegister4Int>, FRegisterHandler<VectorRegister4Int>, VECTOR_WIDTH_FLOATS>
+{
+	static void VM_FORCEINLINE DoKernel(FVectorVMContext& Context, VectorRegister4Float* Dst, VectorRegister4Int Src0)
+	{
+		*Dst = VectorCastIntToFloat(Src0);
+	}
+};
+
 void VectorVM::Exec(FVectorVMExecArgs& Args, FVectorVMSerializeState *SerializeState)
 {
 	//TRACE_CPUPROFILER_EVENT_SCOPE("VMExec");
@@ -2796,6 +2815,8 @@ void VectorVM::Exec(FVectorVMExecArgs& Args, FVectorVMSerializeState *SerializeS
 						case EVectorVMOp::b2f: FVectorKernelBoolToFloat::Exec(Context); break;
 						case EVectorVMOp::i2b: FVectorKernelIntToBool::Exec(Context); break;
 						case EVectorVMOp::b2i: FVectorKernelBoolToInt::Exec(Context); break;
+						case EVectorVMOp::fasi: FVectorKernelFloatAsInt::Exec(Context); break;
+						case EVectorVMOp::iasf: FVectorKernelIntAsFloat::Exec(Context); break;
 
 						case EVectorVMOp::outputdata_half:	FScalarKernelWriteOutputIndexed<float, FFloat16, 2>::Exec(Context);	break;
 						case EVectorVMOp::inputdata_half: FVectorKernelReadInput<FFloat16, 2>::Exec(Context); break;
@@ -3783,6 +3804,8 @@ void VectorVM::OptimizeByteCode(const uint8* ByteCode, TArray<uint8>& OptimizedC
 			case EVectorVMOp::b2f: FVectorKernelBoolToFloat::Optimize(Context); break;
 			case EVectorVMOp::i2b: FVectorKernelIntToBool::Optimize(Context); break;
 			case EVectorVMOp::b2i: FVectorKernelBoolToInt::Optimize(Context); break;
+			case EVectorVMOp::fasi: FVectorKernelFloatAsInt::Optimize(Context); break;
+			case EVectorVMOp::iasf: FVectorKernelIntAsFloat::Optimize(Context); break;
 
 			case EVectorVMOp::outputdata_half:	FScalarKernelWriteOutputIndexed<float, FFloat16, 2>::Optimize(Context);	break;
 			case EVectorVMOp::inputdata_half: FVectorKernelReadInput<FFloat16, 2>::Optimize(Context); break;

@@ -192,8 +192,10 @@ void BuildExpressionMap()
 		* bit pattern casting operations
 		*/
 		// 		Info = &VMExpressionMap.Add(ir_unop_fasu);//TODO?
-		// 		Info = &VMExpressionMap.Add(ir_unop_fasi);
-		// 		Info = &VMExpressionMap.Add(ir_unop_iasf);
+		Info = &VMExpressionMap.Add(ir_unop_fasi);
+		Info->Add(FVMExpresssionInfo(EVectorVMOp::fasi, glsl_type::int_type, glsl_type::float_type));
+		Info = &VMExpressionMap.Add(ir_unop_iasf);
+		Info->Add(FVMExpresssionInfo(EVectorVMOp::iasf, glsl_type::float_type, glsl_type::int_type));
 		// 		Info = &VMExpressionMap.Add(ir_unop_uasf);
 
 		/**

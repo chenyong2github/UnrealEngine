@@ -128,102 +128,104 @@ enum class EVectorVMOperandLocation : uint8
 	VVM_OP_XM( update_id                    , RWBuffer  , 3			, VVM_INS_PARAM_FFFFFF              ) /* 93 */                                                                                                         \
 	VVM_OP_XM( acquire_id                   , RWBuffer  , 3			, VVM_INS_PARAM_FFFFFF              ) /* 94 */                                                                                                         \
 	VVM_OP_XM( half_to_float                , Fused     , 2			, VVM_INS_PARAM_FFFFFF              ) /* 95 */                                                                                                         \
+	VVM_OP_XM( fasi                         , Op        , 2			, VVM_INS_PARAM_FFFFFF              ) /* 96 */                                                                                                         \
+	VVM_OP_XM( iasf                         , Op        , 2			, VVM_INS_PARAM_FFFFFF              ) /* 97 */                                                                                                         \
 	/* Fused ops -- combined ops that show up frequently together in Fornite.  There are three types: */                                                                                                                   \
 	/* 1. exec_index that get immediately fed into an add or i2f */                                                                                                                                                        \
 	/* 2. ops with identical inputs */                                                                                                                                                                                     \
 	/* 3. ops where the output of one chain to the next.. ie a mul that feeds directly into a sub */                                                                                                                       \
-	VVM_OP_XM( exec_indexf                  , Op        , 2         , VVM_INS_PARAM_FFIIIF              ) /* 96 */                                                                                                         \
-	VVM_OP_XM( exec_index_addi              , Op        , 2         , VVM_INS_PARAM_FFIIII              ) /* 97 */                                                                                                         \
+	VVM_OP_XM( exec_indexf                  , Op        , 2         , VVM_INS_PARAM_FFIIIF              ) /* 98 */                                                                                                         \
+	VVM_OP_XM( exec_index_addi              , Op        , 2         , VVM_INS_PARAM_FFIIII              ) /* 90 */                                                                                                         \
 	\
-	VVM_OP_XM( cmplt_select                 , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 98 */                                                                                                         \
-	VVM_OP_XM( cmple_select                 , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 99 */                                                                                                        \
-	VVM_OP_XM( cmpeq_select                 , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 100 */                                                                                                        \
-	VVM_OP_XM( cmplti_select                , Op        , 5         , VVM_INS_PARAM_FIIFFF              ) /* 101 */                                                                                                        \
-	VVM_OP_XM( cmplei_select                , Op        , 5         , VVM_INS_PARAM_FIIFFF              ) /* 102 */                                                                                                        \
-	VVM_OP_XM( cmpeqi_select                , Op        , 5         , VVM_INS_PARAM_FIIFFF              ) /* 103 */                                                                                                        \
+	VVM_OP_XM( cmplt_select                 , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 100 */                                                                                                         \
+	VVM_OP_XM( cmple_select                 , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 101 */                                                                                                        \
+	VVM_OP_XM( cmpeq_select                 , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 102 */                                                                                                        \
+	VVM_OP_XM( cmplti_select                , Op        , 5         , VVM_INS_PARAM_FIIFFF              ) /* 103 */                                                                                                        \
+	VVM_OP_XM( cmplei_select                , Op        , 5         , VVM_INS_PARAM_FIIFFF              ) /* 104 */                                                                                                        \
+	VVM_OP_XM( cmpeqi_select                , Op        , 5         , VVM_INS_PARAM_FIIFFF              ) /* 105 */                                                                                                        \
 	\
-	VVM_OP_XM( cmplt_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 104 */                                                                                                        \
-	VVM_OP_XM( cmple_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 105 */                                                                                                        \
-	VVM_OP_XM( cmpgt_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 106 */                                                                                                        \
-	VVM_OP_XM( cmpge_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 107 */                                                                                                        \
-	VVM_OP_XM( cmpeq_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 108 */                                                                                                        \
-	VVM_OP_XM( cmpne_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 109 */                                                                                                        \
-	VVM_OP_XM( cmplti_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFII              ) /* 110 */                                                                                                        \
-	VVM_OP_XM( cmplei_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFII              ) /* 111 */                                                                                                        \
-	VVM_OP_XM( cmpgti_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFII              ) /* 112 */                                                                                                        \
-	VVM_OP_XM( cmpgei_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFIF              ) /* 113 */                                                                                                        \
-	VVM_OP_XM( cmpeqi_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFIF              ) /* 114 */                                                                                                        \
-	VVM_OP_XM( cmpnei_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFIF              ) /* 115 */                                                                                                        \
+	VVM_OP_XM( cmplt_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 106 */                                                                                                        \
+	VVM_OP_XM( cmple_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 107 */                                                                                                        \
+	VVM_OP_XM( cmpgt_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 108 */                                                                                                        \
+	VVM_OP_XM( cmpge_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 109 */                                                                                                        \
+	VVM_OP_XM( cmpeq_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 110 */                                                                                                        \
+	VVM_OP_XM( cmpne_logic_and              , Op        , 4         , VVM_INS_PARAM_FFFFII              ) /* 111 */                                                                                                        \
+	VVM_OP_XM( cmplti_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFII              ) /* 112 */                                                                                                        \
+	VVM_OP_XM( cmplei_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFII              ) /* 113 */                                                                                                        \
+	VVM_OP_XM( cmpgti_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFII              ) /* 114 */                                                                                                        \
+	VVM_OP_XM( cmpgei_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFIF              ) /* 115 */                                                                                                        \
+	VVM_OP_XM( cmpeqi_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFIF              ) /* 116 */                                                                                                        \
+	VVM_OP_XM( cmpnei_logic_and             , Op        , 4         , VVM_INS_PARAM_FIIFIF              ) /* 117 */                                                                                                        \
 	\
-	VVM_OP_XM( cmplt_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 116 */                                                                                                        \
-	VVM_OP_XM( cmple_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 117 */                                                                                                        \
-	VVM_OP_XM( cmpgt_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 118 */                                                                                                        \
-	VVM_OP_XM( cmpge_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 119 */                                                                                                        \
-	VVM_OP_XM( cmpeq_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 120 */                                                                                                        \
-	VVM_OP_XM( cmpne_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 121 */                                                                                                        \
-	VVM_OP_XM( cmplti_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 122 */                                                                                                        \
-	VVM_OP_XM( cmplei_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 123 */                                                                                                        \
-	VVM_OP_XM( cmpgti_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 124 */                                                                                                        \
-	VVM_OP_XM( cmpgei_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 125 */                                                                                                        \
-	VVM_OP_XM( cmpeqi_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 126 */                                                                                                        \
-	VVM_OP_XM( cmpnei_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 127 */                                                                                                        \
+	VVM_OP_XM( cmplt_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 118 */                                                                                                        \
+	VVM_OP_XM( cmple_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 119 */                                                                                                        \
+	VVM_OP_XM( cmpgt_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 120 */                                                                                                        \
+	VVM_OP_XM( cmpge_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 121 */                                                                                                        \
+	VVM_OP_XM( cmpeq_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 122 */                                                                                                        \
+	VVM_OP_XM( cmpne_logic_or               , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 123 */                                                                                                        \
+	VVM_OP_XM( cmplti_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 124 */                                                                                                        \
+	VVM_OP_XM( cmplei_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 125 */                                                                                                        \
+	VVM_OP_XM( cmpgti_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 126 */                                                                                                        \
+	VVM_OP_XM( cmpgei_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 127 */                                                                                                        \
+	VVM_OP_XM( cmpeqi_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 128 */                                                                                                        \
+	VVM_OP_XM( cmpnei_logic_or              , Op        , 4         , VVM_INS_PARAM_FIIFFF              ) /* 129 */                                                                                                        \
 	\
-	VVM_OP_XM( mad_add                      , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 128 */                                                                                                        \
-	VVM_OP_XM( mad_sub0                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 129 */                                                                                                        \
-	VVM_OP_XM( mad_sub1                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 130 */                                                                                                        \
-	VVM_OP_XM( mad_mul                      , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 131 */                                                                                                        \
-	VVM_OP_XM( mad_sqrt                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 132 */                                                                                                        \
-	VVM_OP_XM( mad_mad0                     , Op        , 6         , VVM_INS_PARAM_FFFFFF              ) /* 133 */                                                                                                        \
-	VVM_OP_XM( mad_mad1                     , Op        , 6         , VVM_INS_PARAM_FFFFFF              ) /* 134 */                                                                                                        \
+	VVM_OP_XM( mad_add                      , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 130 */                                                                                                        \
+	VVM_OP_XM( mad_sub0                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 131 */                                                                                                        \
+	VVM_OP_XM( mad_sub1                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 132 */                                                                                                        \
+	VVM_OP_XM( mad_mul                      , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 133 */                                                                                                        \
+	VVM_OP_XM( mad_sqrt                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 134 */                                                                                                        \
+	VVM_OP_XM( mad_mad0                     , Op        , 6         , VVM_INS_PARAM_FFFFFF              ) /* 135 */                                                                                                        \
+	VVM_OP_XM( mad_mad1                     , Op        , 6         , VVM_INS_PARAM_FFFFFF              ) /* 136 */                                                                                                        \
 	\
-	VVM_OP_XM( mul_mad0                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 135 */                                                                                                        \
-	VVM_OP_XM( mul_mad1                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 136 */                                                                                                        \
-	VVM_OP_XM( mul_add                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 137 */                                                                                                        \
-	VVM_OP_XM( mul_sub0                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 138 */                                                                                                        \
-	VVM_OP_XM( mul_sub1                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 139 */                                                                                                        \
-	VVM_OP_XM( mul_mul                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 140 */                                                                                                        \
-	VVM_OP_XM( mul_max                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 141 */                                                                                                        \
-	VVM_OP_XM( mul_2x                       , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 142 */                                                                                                        \
+	VVM_OP_XM( mul_mad0                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 137 */                                                                                                        \
+	VVM_OP_XM( mul_mad1                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 138 */                                                                                                        \
+	VVM_OP_XM( mul_add                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 139 */                                                                                                        \
+	VVM_OP_XM( mul_sub0                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 140 */                                                                                                        \
+	VVM_OP_XM( mul_sub1                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 141 */                                                                                                        \
+	VVM_OP_XM( mul_mul                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 142 */                                                                                                        \
+	VVM_OP_XM( mul_max                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 143 */                                                                                                        \
+	VVM_OP_XM( mul_2x                       , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 144 */                                                                                                        \
 	\
-	VVM_OP_XM( add_mad1                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 143 */                                                                                                        \
-	VVM_OP_XM( add_add                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 144 */                                                                                                        \
+	VVM_OP_XM( add_mad1                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 145 */                                                                                                        \
+	VVM_OP_XM( add_add                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 146 */                                                                                                        \
 	\
-	VVM_OP_XM( sub_cmplt1                   , Op        , 4         , VVM_INS_PARAM_FFFFFI              ) /* 145 */                                                                                                        \
-	VVM_OP_XM( sub_neg                      , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 146 */                                                                                                        \
-	VVM_OP_XM( sub_mul                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 147 */                                                                                                        \
+	VVM_OP_XM( sub_cmplt1                   , Op        , 4         , VVM_INS_PARAM_FFFFFI              ) /* 147 */                                                                                                        \
+	VVM_OP_XM( sub_neg                      , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 148 */                                                                                                        \
+	VVM_OP_XM( sub_mul                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 149 */                                                                                                        \
 	\
-	VVM_OP_XM( div_mad0                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 148 */                                                                                                        \
-	VVM_OP_XM( div_f2i                      , Op        , 3         , VVM_INS_PARAM_FFFFFI              ) /* 149 */                                                                                                        \
-	VVM_OP_XM( div_mul                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 150 */                                                                                                        \
+	VVM_OP_XM( div_mad0                     , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 150 */                                                                                                        \
+	VVM_OP_XM( div_f2i                      , Op        , 3         , VVM_INS_PARAM_FFFFFI              ) /* 151 */                                                                                                        \
+	VVM_OP_XM( div_mul                      , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 152 */                                                                                                        \
 	\
-	VVM_OP_XM( muli_addi                    , Op        , 4         , VVM_INS_PARAM_IIIIII              ) /* 151 */                                                                                                        \
-	VVM_OP_XM( addi_bit_rshift				, Op        , 4         , VVM_INS_PARAM_IIIIII              ) /* 152 */                                                                                                        \
-	VVM_OP_XM( addi_muli                    , Op        , 4         , VVM_INS_PARAM_IIIIII              ) /* 153 */                                                                                                        \
+	VVM_OP_XM( muli_addi                    , Op        , 4         , VVM_INS_PARAM_IIIIII              ) /* 153 */                                                                                                        \
+	VVM_OP_XM( addi_bit_rshift				, Op        , 4         , VVM_INS_PARAM_IIIIII              ) /* 154 */                                                                                                        \
+	VVM_OP_XM( addi_muli                    , Op        , 4         , VVM_INS_PARAM_IIIIII              ) /* 155 */                                                                                                        \
 	\
-	VVM_OP_XM( b2i_2x                       , Op        , 3         , VVM_INS_PARAM_IIIIII              ) /* 154 */                                                                                                        \
+	VVM_OP_XM( b2i_2x                       , Op        , 3         , VVM_INS_PARAM_IIIIII              ) /* 156 */                                                                                                        \
 	\
-	VVM_OP_XM( i2f_div0                     , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 155 */                                                                                                        \
-	VVM_OP_XM( i2f_div1                     , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 156 */                                                                                                        \
-	VVM_OP_XM( i2f_mul                      , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 157 */                                                                                                        \
-	VVM_OP_XM( i2f_mad0                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 158 */                                                                                                        \
-	VVM_OP_XM( i2f_mad1                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 159 */                                                                                                        \
+	VVM_OP_XM( i2f_div0                     , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 157 */                                                                                                        \
+	VVM_OP_XM( i2f_div1                     , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 158 */                                                                                                        \
+	VVM_OP_XM( i2f_mul                      , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 159 */                                                                                                        \
+	VVM_OP_XM( i2f_mad0                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 160 */                                                                                                        \
+	VVM_OP_XM( i2f_mad1                     , Op        , 4         , VVM_INS_PARAM_FFFFFF              ) /* 161 */                                                                                                        \
 	\
-	VVM_OP_XM( f2i_select1                  , Op        , 4         , VVM_INS_PARAM_IIFIII              ) /* 160 */                                                                                                        \
-	VVM_OP_XM( f2i_maxi                     , Op        , 3         , VVM_INS_PARAM_IIIFII              ) /* 161 */                                                                                                        \
-	VVM_OP_XM( f2i_addi                     , Op        , 3         , VVM_INS_PARAM_IIIFII              ) /* 162 */                                                                                                        \
+	VVM_OP_XM( f2i_select1                  , Op        , 4         , VVM_INS_PARAM_IIFIII              ) /* 162 */                                                                                                        \
+	VVM_OP_XM( f2i_maxi                     , Op        , 3         , VVM_INS_PARAM_IIIFII              ) /* 163 */                                                                                                        \
+	VVM_OP_XM( f2i_addi                     , Op        , 3         , VVM_INS_PARAM_IIIFII              ) /* 164 */                                                                                                        \
 	\
-	VVM_OP_XM( fmod_add                     , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 163 */                                                                                                        \
-	VVM_OP_XM( bit_and_i2f                  , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 164 */                                                                                                        \
-	VVM_OP_XM( bit_rshift_bit_and           , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 165 */                                                                                                        \
-	VVM_OP_XM( neg_cmplt                    , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 166 */                                                                                                        \
-	VVM_OP_XM( bit_or_muli                  , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 167 */                                                                                                        \
-	VVM_OP_XM( bit_lshift_bit_or            , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 168 */                                                                                                        \
-	VVM_OP_XM( random_add                   , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 169 */                                                                                                        \
-	VVM_OP_XM( random_2x                    , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 170 */                                                                                                        \
-	VVM_OP_XM( max_f2i                      , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 171 */                                                                                                        \
-	VVM_OP_XM( select_mul                   , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 172 */                                                                                                        \
-	VVM_OP_XM( select_add                   , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 173 */                                                                                                        \
-	VVM_OP_XM( sin_cos                      , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 174 */
+	VVM_OP_XM( fmod_add                     , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 165 */                                                                                                        \
+	VVM_OP_XM( bit_and_i2f                  , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 166 */                                                                                                        \
+	VVM_OP_XM( bit_rshift_bit_and           , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 167 */                                                                                                        \
+	VVM_OP_XM( neg_cmplt                    , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 168 */                                                                                                        \
+	VVM_OP_XM( bit_or_muli                  , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 169 */                                                                                                        \
+	VVM_OP_XM( bit_lshift_bit_or            , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 170 */                                                                                                        \
+	VVM_OP_XM( random_add                   , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 171 */                                                                                                        \
+	VVM_OP_XM( random_2x                    , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 172 */                                                                                                        \
+	VVM_OP_XM( max_f2i                      , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 173 */                                                                                                        \
+	VVM_OP_XM( select_mul                   , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 174 */                                                                                                        \
+	VVM_OP_XM( select_add                   , Op        , 5         , VVM_INS_PARAM_FFFFFF              ) /* 175 */                                                                                                        \
+	VVM_OP_XM( sin_cos                      , Op        , 3         , VVM_INS_PARAM_FFFFFF              ) /* 176 */
 
 #define VVM_OP_XM(n, ...) n,
 enum class EVectorVMOp : uint8 {
