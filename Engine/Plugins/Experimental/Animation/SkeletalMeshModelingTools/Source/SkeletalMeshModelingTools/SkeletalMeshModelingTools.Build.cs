@@ -26,7 +26,6 @@ public class SkeletalMeshModelingTools : ModuleRules
 				"SkeletalMeshUtilitiesCommon",
 				"Slate",
 				"SlateCore",
-				"StylusInput",
 				"ToolMenus",
 				"ToolWidgets",
 				"UnrealEd",

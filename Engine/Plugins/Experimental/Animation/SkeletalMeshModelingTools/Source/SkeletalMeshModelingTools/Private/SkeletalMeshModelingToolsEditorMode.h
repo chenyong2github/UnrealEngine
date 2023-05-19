@@ -7,7 +7,7 @@
 
 #include "SkeletalMeshModelingToolsEditorMode.generated.h"
 
-class FStylusStateTracker;
+//class FStylusStateTracker;
 class FSkeletalMeshModelingToolsEditorModeToolkit;
 class UEdModeInteractiveToolsContext;
 class ISkeletalMeshNotifier;
@@ -52,7 +52,8 @@ protected:
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	
 private:
-	TUniquePtr<FStylusStateTracker> StylusStateTracker;
+	// Stylus support is currently disabled; this is left in for reference if/when it is brought back
+	//TUniquePtr<FStylusStateTracker> StylusStateTracker;
 
 	static ISkeletalMeshEditionInterface* GetSkeletonInterface(UInteractiveTool* InTool);
 
