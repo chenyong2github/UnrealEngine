@@ -51,7 +51,7 @@ void UActorEditorContextSubsystem::UnregisterClient(IActorEditorContextClient* C
 void UActorEditorContextSubsystem::ApplyContext(AActor* InActor)
 {
 	UWorld* World = GetWorld();
-	if (Clients.IsEmpty() || !World || !InActor || (InActor->GetWorld() != World))
+	if (Clients.IsEmpty() || !World || !InActor || (InActor->GetWorld() != World) || InActor->IsChildActor())
 	{
 		return;
 	}
