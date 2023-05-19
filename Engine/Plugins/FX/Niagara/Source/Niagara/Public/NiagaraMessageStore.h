@@ -11,6 +11,7 @@ struct NIAGARA_API FNiagaraMessageStore
 {
 	GENERATED_BODY();
 
+#if WITH_EDITORONLY_DATA
 	const TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& GetMessages() const;
 	void SetMessages(const TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& InMessageKeyToMessageMap);
 	void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage);
@@ -26,7 +27,10 @@ private:
 
 	UPROPERTY()
 	TArray<FGuid> DismissedMessageKeys;
+#endif
 };
+
+#if WITH_EDITORONLY_DATA
 
 struct NIAGARA_API FNiagaraMessageSourceAndStore
 {
@@ -41,3 +45,5 @@ private:
 	TWeakObjectPtr<UObject> SourceWeak;
 	FNiagaraMessageStore* Store;
 };
+
+#endif

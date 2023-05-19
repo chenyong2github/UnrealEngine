@@ -3,6 +3,8 @@
 #include "NiagaraMessageStore.h"
 #include "NiagaraMessageDataBase.h"
 
+#if WITH_EDITORONLY_DATA
+
 const TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& FNiagaraMessageStore::GetMessages() const
 { 
 	return MessageKeyToMessageMap;
@@ -64,3 +66,5 @@ FNiagaraMessageStore* FNiagaraMessageSourceAndStore::GetStore() const
 {
 	return SourceWeak.IsValid() ? Store : nullptr;
 }
+
+#endif // WITH_EDITORONLY_DATA
