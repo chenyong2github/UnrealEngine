@@ -165,32 +165,35 @@ public:
 			.Text_Lambda([this, ColumnName]() -> FText
 			{
 				TStringBuilder<256> StringBuilder;
-				if (const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin())
+				if (!ChannelItem->IsExpanded())
 				{
-					const int32 DataOffset = ChannelItem->GetDataOffset();
-					const int32 Cardinality = ChannelItem->GetCardinality();
-
-					const TConstArrayView<float> QueryValues = ViewModel->GetQueryVector();
-					if (DataOffset + Cardinality <= QueryValues.Num())
+					if (const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin())
 					{
-						if (Cardinality > 1)
+						const int32 DataOffset = ChannelItem->GetDataOffset();
+						const int32 Cardinality = ChannelItem->GetCardinality();
+
+						const TConstArrayView<float> QueryValues = ViewModel->GetQueryVector();
+						if (DataOffset + Cardinality <= QueryValues.Num())
 						{
-							// using only one decimal to keep the string compact
-							for (int32 i = 0; i < Cardinality; ++i)
+							if (Cardinality > 1)
 							{
-								if (i != 0)
+								// using only one decimal to keep the string compact
+								for (int32 i = 0; i < Cardinality; ++i)
 								{
-									StringBuilder.Append(TEXT(", "));
+									if (i != 0)
+									{
+										StringBuilder.Append(TEXT(", "));
+									}
+									const float Value = QueryValues[i + DataOffset];
+									StringBuilder.Appendf(TEXT("%.1f"), Value);
 								}
-								const float Value = QueryValues[i + DataOffset];
-								StringBuilder.Appendf(TEXT("%.1f"), Value);
 							}
-						}
-						else
-						{
-							// using all the float digits 
-							const float Value = QueryValues[DataOffset];
-							StringBuilder.Appendf(TEXT("%f"), Value);
+							else
+							{
+								// using all the float digits 
+								const float Value = QueryValues[DataOffset];
+								StringBuilder.Appendf(TEXT("%f"), Value);
+							}
 						}
 					}
 				}
@@ -199,6 +202,7 @@ public:
 		}
 		
 		return SNew(STextBlock)
+		.Margin(FMargin(1.f, 1.f, 1.f, 1.f))
 		.Text_Lambda([this, ColumnName]() -> FText
 		{
 			TStringBuilder<256> StringBuilder;
@@ -281,7 +285,7 @@ void SDatabaseDataDetails::SetExpandedItems(TArray<FChannelItemPtr>& ChannelItem
 	}
 };
 
-void SDatabaseDataDetails::Reconstruct()
+void SDatabaseDataDetails::Reconstruct(int32 MaxPreviewActors)
 {
 	const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
 	
@@ -306,7 +310,7 @@ void SDatabaseDataDetails::Reconstruct()
 	RebuildChannelItemsTreeRecursively(ChannelItems, PoseSearchDatabase->Schema->GetChannels());
 
 	// generating the header
-	TSharedPtr<SHeaderRow> HeaderRow = SNew(SHeaderRow); //.CanSelectGeneratedColumn(true).Visibility(EVisibility::Visible);
+	TSharedPtr<SHeaderRow> HeaderRow = SNew(SHeaderRow);
 	HeaderRow->AddColumn(
 		SHeaderRow::Column(TEXT("ChannelName"))
 			.DefaultLabel(LOCTEXT("ChannelName_Header", "Channel Name"))
@@ -327,8 +331,10 @@ void SDatabaseDataDetails::Reconstruct()
 			.ToolTipText(LOCTEXT("Query_ToolTip", "Query Values")));
 	}
 
-	for (const FDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
+	const int32 PreviewActorNum = FMath::Min(MaxPreviewActors, ViewModel->GetPreviewActors().Num());
+	for (int32 PreviewActorIdx = 0; PreviewActorIdx < PreviewActorNum; ++PreviewActorIdx)
 	{
+		const FDatabasePreviewActor& PreviewActor = ViewModel->GetPreviewActors()[PreviewActorIdx];
 		HeaderRow->AddColumn(
 			SHeaderRow::Column(*PreviewActor.Actor->GetName())
 			.DefaultLabel(FText::FromString(PreviewActor.Sampler.GetAsset()->GetName())));
@@ -352,12 +358,13 @@ void SDatabaseDataDetails::Reconstruct()
 
 	ChildSlot
 	[
-		// @todo: add a SScrollBox to handle the complexity of multiple actors
-		//SNew(SScrollBox)
-		//+ SScrollBox::Slot()
-		//[
+		SNew(SScrollBox)
+		.Orientation(Orient_Horizontal)
+		+ SScrollBox::Slot()
+		.FillSize(1.f)
+		[
 			ChannelItemsTreeView.ToSharedRef()
-		//]
+		]
 	];
 
 	SetExpandedItems(ChannelItems, ExpandedItems, ChannelItemsTreeView.Get());

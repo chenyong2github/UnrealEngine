@@ -314,12 +314,7 @@ TArray<TSharedRef<FDebuggerDatabaseRowData>> SDebuggerView::GetSelectedDatabaseR
 	return DatabaseView->GetDatabaseRows()->GetSelectedItems();
 }
 
-void SDebuggerView::DrawFeatures(
-	const UWorld& DebuggerWorld,
-	const FTraceMotionMatchingStateMessage& State,
-	const FTransform& RootBoneWorldTransform,
-	const USkinnedMeshComponent* Mesh
-) const
+void SDebuggerView::DrawFeatures(const UWorld& DebuggerWorld, const FTraceMotionMatchingStateMessage& State, const FTransform& RootBoneWorldTransform, const USkinnedMeshComponent* Mesh, int32 MaxRowsToDraw) const
 {
 	// Draw world space trajectory
 #if ENABLE_ANIM_DEBUG
@@ -354,8 +349,10 @@ void SDebuggerView::DrawFeatures(
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> SelectedRows = DatabaseRows->GetSelectedItems();
 	
 	// Draw any selected database vectors
-	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : SelectedRows)
+	const int32 NumRowsToDraw = FMath::Min(MaxRowsToDraw, SelectedRows.Num());
+	for (int32 RowIdx = 0; RowIdx < NumRowsToDraw; ++RowIdx)
 	{
+		const TSharedRef<FDebuggerDatabaseRowData>& Row = SelectedRows[RowIdx];
 		const UPoseSearchDatabase* RowDatabase = Row->SharedData->SourceDatabase.Get();
 		if (FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(RowDatabase, ERequestAsyncBuildFlag::ContinueRequest))
 		{

@@ -20,7 +20,7 @@ namespace UE::PoseSearch
 		SLATE_END_ARGS()
 
 		void Construct(const FArguments& Args, TSharedRef<FDatabaseViewModel> InEditorViewModel);
-		void Reconstruct();
+		void Reconstruct(int32 MaxPreviewActors = 15);
 
 	private:
 		static void RebuildChannelItemsTreeRecursively(TArray<FChannelItemPtr>& ChannelItems, TConstArrayView<TObjectPtr<UPoseSearchFeatureChannel>> Channels);
