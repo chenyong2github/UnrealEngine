@@ -16,22 +16,8 @@ UE_AUTORTFM_FORCEINLINE void FTransaction::RecordWriteMaxPageSized(void* Logical
     WriteLog.Push(FWriteLogEntry(LogicalAddress, Size, CopyAddress));
 }
 
-inline void FTransaction::RecordWrite(void* LogicalAddress, size_t Size, bool bIsClosed)
+inline void FTransaction::RecordWrite(void* LogicalAddress, size_t Size)
 {
-	// We don't record any writes to unscoped transactions when the write-address
-	// is within the nearest closed C++ function call nest. This may seem weird, but we
-	// have to prohibit this because we can't track all the comings and goings of
-	// local variables and all child C++ scopes. It's easy to get into a situation
-	// where a rollback will undo the recorded writes to stack-locals that actually
-	// corrupts the undo process itself.
-	if (!IsScopedTransaction()
-		&& !bIsClosed
-		&& Context->IsInnerTransactionStack(LogicalAddress))
-	{
-		// It is an error to write to stack variables within an open nest.
-		UE_LOG(LogAutoRTFM, Fatal, TEXT("Writing to local stack memory from an unscoped transaction is not allowed."));
-	}
-
     // If we are recording a stack address that is relative to our current
     // transactions stack location, we do not need to record the data in the
     // write log because if that transaction aborted, that memory will cease to

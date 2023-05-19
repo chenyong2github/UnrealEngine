@@ -31,11 +31,13 @@ void CheckAlignment(FContext* Context, void* Ptr, size_t AlignmentMask)
 extern "C" void autortfm_record_write(FContext* Context, void* Ptr, size_t Size)
 {
 	// check for writes to null here so we end up crashing in the user
-	// code rather than in the autortfm runtime
-	if (Ptr != nullptr)
+	// code rather than in the autortfm runtime.
+	if (UNLIKELY(nullptr == Ptr))
 	{
-		Context->RecordWrite(Ptr, Size, true);
+		return;
 	}
+
+	Context->RecordWrite(Ptr, Size);
 }
 
 extern "C" void* autortfm_lookup_function(FContext* Context, void* OriginalFunction, const char* Where)

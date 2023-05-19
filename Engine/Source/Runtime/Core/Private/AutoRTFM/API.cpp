@@ -115,7 +115,8 @@ extern "C" autortfm_status autortfm_close(void (*Work)(void* Arg), void* Arg)
 
 extern "C" void autortfm_record_open_write(void* Ptr, size_t Size)
 {
-	FContext::Get()->RecordWrite(Ptr, Size, false);
+    FContext::Get()->CheckOpenRecordWrite(Ptr);
+	FContext::Get()->RecordWrite(Ptr, Size);
 }
 
 extern "C" void autortfm_register_open_function(void* OriginalFunction, void* NewFunction)

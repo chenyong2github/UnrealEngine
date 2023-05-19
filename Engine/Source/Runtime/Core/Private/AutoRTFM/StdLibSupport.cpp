@@ -76,14 +76,14 @@ char* RTFM_strcpy(char* const Dst, const char* const Src, FContext* const Contex
 {
     const size_t SrcLen = strlen(Src);
 
-    Context->RecordWrite(Dst, SrcLen, true);
+    Context->RecordWrite(Dst, SrcLen);
     return strcpy(Dst, Src);
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strcpy);
 
 char* RTFM_strncpy(char* const Dst, const char* const Src, const size_t Num, FContext* const Context)
 {
-    Context->RecordWrite(Dst, Num, true);
+    Context->RecordWrite(Dst, Num);
     return strncpy(Dst, Src, Num);
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strncpy);
@@ -93,7 +93,7 @@ char* RTFM_strcat(char* const Dst, const char* const Src, FContext* const Contex
     const size_t DstLen = strlen(Dst);
     const size_t SrcLen = strlen(Src);
 
-    Context->RecordWrite(Dst + DstLen, SrcLen + 1, true);
+    Context->RecordWrite(Dst + DstLen, SrcLen + 1);
     return strcat(Dst, Src);
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strcat);
@@ -102,7 +102,7 @@ char* RTFM_strncat(char* const Dst, const char* const Src, const size_t Num, FCo
 {
     const size_t DstLen = strlen(Dst);
 
-    Context->RecordWrite(Dst + DstLen, Num + 1, true);
+    Context->RecordWrite(Dst + DstLen, Num + 1);
     return strncat(Dst, Src, Num);
 }
 UE_AUTORTFM_REGISTER_OPEN_FUNCTION(strncat);

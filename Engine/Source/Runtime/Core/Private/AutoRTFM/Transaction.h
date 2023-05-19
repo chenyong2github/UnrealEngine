@@ -67,7 +67,7 @@ public:
     bool AttemptToCommit();
 
     // Record that a write is about to occur at the given LogicalAddress of Size bytes.
-    void RecordWrite(void* LogicalAddress, size_t Size, bool bIsClosed);
+    void RecordWrite(void* LogicalAddress, size_t Size);
     void RecordWriteMaxPageSized(void* LogicalAddress, size_t Size);
 
     void DidAllocate(void* LogicalAddress, size_t Size);

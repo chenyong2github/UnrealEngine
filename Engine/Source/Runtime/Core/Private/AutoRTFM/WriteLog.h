@@ -30,9 +30,10 @@ namespace AutoRTFM
     {
         struct FWriteLogEntryBucket final
         {
-            static constexpr uint32_t BucketSize = 1024;
+            static constexpr uint32_t BucketSize = 128;
 
-            FWriteLogEntryBucket() = default;
+			// Specify a constructor so that `Entries` below will be left uninitialized.
+			explicit FWriteLogEntryBucket() {}
 
             FWriteLogEntry Entries[BucketSize];
             size_t Size = 0;
