@@ -12,6 +12,7 @@
 
 #include "TakeRecorderMicrophoneAudioSource.generated.h"
 
+class UMovieSceneAudioTrack;
 class USoundWave;
 class UTakeRecorderMicrophoneAudioManager;
 struct FTakeRecorderAudioSourceSettings;
@@ -31,6 +32,10 @@ public:
 	virtual FString GetSubsceneTrackName(ULevelSequence* InSequence) const override;
 	virtual FString GetSubsceneAssetName(ULevelSequence* InSequence) const override;
 	// ~UTakeRecorderSource Interface
+
+	/** Name of the audio source */
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Source")
+	FText AudioSourceName;
 
 	/** Name of the recorded audio track */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Source")
@@ -59,7 +64,7 @@ public:
 	// End UObject Interface
 
 	/** Gain in decibels to apply to recorded audio */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source", meta = (ClampMin = "0.0", UIMin = "0.0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Source", meta = (ClampMin = "0.0", UIMin = "0.0", UIMax = "20.0", ClampMax = "40.0"))
 	float AudioGain;
 
 	/** Whether or not to split mic channels into separate audio tracks. If not true, a max of 2 input channels is supported. */
@@ -78,8 +83,11 @@ public:
 
 	// UTakeRecorderSource
 	virtual void Initialize() override;
+	virtual FString GetSubsceneTrackName(ULevelSequence* InSequence) const override;
+	virtual FString GetSubsceneAssetName(ULevelSequence* InSequence) const override;
 	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InRootSequence, FManifestSerializer* InManifestSerializer) override;
 	virtual void StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence) override;
+	virtual void TickRecording(const FQualifiedFrameTime& CurrentTime) override;
 	virtual void StopRecording(class ULevelSequence* InSequence) override;
 	virtual TArray<UTakeRecorderSource*> PostRecording(ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled) override;
 	virtual void FinalizeRecording() override;
@@ -87,6 +95,11 @@ public:
 	virtual void AddContentsToFolder(class UMovieSceneFolder* InFolder) override;
 	virtual bool CanAddSource(UTakeRecorderSources* InSources) const override;
 	// ~UTakeRecorderSource
+
+	/** Returns track display name, replacing any tokens if needed */
+	FString GetAudioTrackName(ULevelSequence* InSequence) const;
+	/** Returns the fully expanded asset name */
+	FString GetAudioAssetName(ULevelSequence* InSequence) const;
 
 	/** Sets the channel count supported by the currently selected audio device. */
 	void SetAudioDeviceChannelCount(int32 InChannelCount);
@@ -98,6 +111,9 @@ private:
 	/** Helper function for getting a pointer to the AudioInputManger object. */
 	static UTakeRecorderMicrophoneAudioManager* GetAudioInputManager();
 	
+	/** Calls ReplaceSourceTokens and ReplaceBaseTokens in an effort to expand all embedded tokens in the given string */
+	FString ReplaceStringTokens(const FString& InString) const;
+
 	/** Returns an array of booleans indicating which channel indexes are currently in use */
 	TUniquePtr<TArray<bool>> GetChannelsInUse(const int32 InDeviceChannelCount);
 	/** Fetches the USoundWave for this source after a Take has been recorded */
@@ -105,12 +121,15 @@ private:
 	/** Called when the user selects a new channel in the combobox for this source */
 	void SetCurrentInputChannel(int32 InChannelNumber);
 
+	/** Returns whether given track is being used by any other source */
+	bool IsTrackAssociatedWithAnySource(UMovieSceneAudioTrack* InAudioTrack);
+
 private:
 
 	// Holds the Sequencer audio track for this source
 	TWeakObjectPtr<class UMovieSceneAudioTrack> CachedAudioTrack;
-	// Holds the USoundWave assets for a given take
-	TArray<TWeakObjectPtr<USoundWave>> RecordedSoundWaves;
+	// Holds the USoundWave asset for a given take
+	TWeakObjectPtr<USoundWave> RecordedSoundWave;
 	// Caches the starting timecode for this take so it can be referenced when creating USoundWave assets
 	FTimecode StartTimecode;
 

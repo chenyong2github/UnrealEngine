@@ -651,9 +651,18 @@ UMovieSceneSection* FAudioSection::GetSectionObject()
 FText FAudioSection::GetSectionTitle() const
 {
 	UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(&Section);
-	if (AudioSection && AudioSection->GetSound())
+	if (AudioSection)
 	{
-		return FText::FromString(AudioSection->GetSound()->GetName());
+		if (AudioSection->GetSound())
+		{
+			// Return the asset name if it exists
+			return FText::FromString(AudioSection->GetSound()->GetName());
+		}
+		else
+		{
+			// There is no asset during record so return empty string
+			return FText();
+		}
 	}
 	
 	return NSLOCTEXT("FAudioSection", "NoAudioTitleName", "No Audio");

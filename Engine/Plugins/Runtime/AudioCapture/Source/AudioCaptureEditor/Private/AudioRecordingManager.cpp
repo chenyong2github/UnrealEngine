@@ -350,7 +350,6 @@ TObjectPtr<USoundWave> FAudioRecordingManager::CreateSoundWaveAsset(const FRecor
 	{
 		FString PackageName;
 		FString AssetName = InSourceSettings.AssetName;
-		AssetName = FString::Printf(TEXT("%s_Channel_%d"), *AssetName, InSourceSettings.InputChannelNumber);
 		PackageName = InSourceSettings.Directory.Path / AssetName;
 
 		int32 ChannelIndex = InSourceSettings.InputChannelNumber - 1;
@@ -434,7 +433,7 @@ FSoundWaveTimecodeInfo FAudioRecordingManager::GetTimecodeInfo(const FRecordingM
 	FSoundWaveTimecodeInfo TimecodeInfo;
 
 	double SecondsFromMidnight = InSourceSettings.StartTimecode.ToTimespan(InSourceSettings.VideoFrameRate).GetTotalSeconds();
-	if (!ensureAlwaysMsgf(SecondsFromMidnight > 0, TEXT("Invalid SecondsFromMidnight value: %f, defaulting to 0"), SecondsFromMidnight))
+	if (!ensureAlwaysMsgf(SecondsFromMidnight >= 0, TEXT("Invalid SecondsFromMidnight value: %f, defaulting to 0"), SecondsFromMidnight))
 	{
 		SecondsFromMidnight = 0.0;
 	}
