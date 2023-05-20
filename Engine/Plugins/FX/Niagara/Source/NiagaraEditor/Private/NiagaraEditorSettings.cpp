@@ -375,6 +375,20 @@ void UNiagaraEditorSettings::SetShowGpuTickInformation(bool bInShowGpuTickInform
 	}
 }
 
+bool UNiagaraEditorSettings::IsShowMemoryInfo() const
+{
+	return bShowMemoryInfo;
+}
+
+void UNiagaraEditorSettings::SetShowMemoryInfo(bool bInShowInfo)
+{
+	if (bShowMemoryInfo != bInShowInfo)
+	{
+		bShowMemoryInfo = bInShowInfo;
+		SaveConfig();
+	}
+}
+
 TArray<float> UNiagaraEditorSettings::GetPlaybackSpeeds() const
 {
 	if(!CachedPlaybackSpeeds.IsSet())

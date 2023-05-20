@@ -36,17 +36,13 @@ TSharedRef<SWidget> SNiagaraSystemViewportToolBar::GenerateShowMenu() const
 	{
 		auto Commands = FNiagaraEditorCommands::Get();
 
-		//ShowMenuBuilder.AddMenuEntry(Commands.ToggleMaterialStats);
-		//ShowMenuBuilder.AddMenuEntry(Commands.ToggleMobileStats);
-
-		ShowMenuBuilder.AddMenuSeparator();
-
 		ShowMenuBuilder.AddMenuEntry(Commands.TogglePreviewGrid);
-		ShowMenuBuilder.AddMenuEntry(Commands.ToggleInstructionCounts);
-		ShowMenuBuilder.AddMenuEntry(Commands.ToggleParticleCounts);
+		ShowMenuBuilder.AddMenuSeparator();
 		ShowMenuBuilder.AddMenuEntry(Commands.ToggleEmitterExecutionOrder);
 		ShowMenuBuilder.AddMenuEntry(Commands.ToggleGpuTickInformation);
-		//ShowMenuBuilder.AddMenuEntry(Commands.TogglePreviewBackground);
+		ShowMenuBuilder.AddMenuEntry(Commands.ToggleInstructionCounts);
+		ShowMenuBuilder.AddMenuEntry(Commands.ToggleMemoryInfo);
+		ShowMenuBuilder.AddMenuEntry(Commands.ToggleParticleCounts);
 	}
 
 	return ShowMenuBuilder.MakeWidget();

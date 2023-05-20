@@ -77,11 +77,12 @@ public:
 	/** Draw flag types */
 	enum EDrawElements
 	{
-		Bounds = 0x020,
-		InstructionCounts = 0x040,
-		ParticleCounts = 0x080,
-		EmitterExecutionOrder = 0x100,
-		GpuTickInformation = 0x200,
+		Bounds					= 0x020,
+		InstructionCounts		= 0x040,
+		ParticleCounts			= 0x080,
+		EmitterExecutionOrder	= 0x100,
+		GpuTickInformation		= 0x200,
+		MemoryInfo				= 0x400,
 	};
 
 	bool GetDrawElement(EDrawElements Element) const;

@@ -496,6 +496,8 @@ private:
 	UPROPERTY(config)
 	bool bShowGpuTickInformation;
 
+	UPROPERTY(config)
+	bool bShowMemoryInfo;
 
 	UPROPERTY(config)
 	TArray<FNiagaraParameterPanelSectionStorage> SystemParameterPanelSectionData;
@@ -513,4 +515,6 @@ public:
 	void SetShowEmitterExecutionOrder(bool bShowEmitterExecutionOrder);
 	bool IsShowGpuTickInformation() const;
 	void SetShowGpuTickInformation(bool bShowGpuTickInformation);
+	bool IsShowMemoryInfo() const;
+	void SetShowMemoryInfo(bool bInShowInfo);
 };

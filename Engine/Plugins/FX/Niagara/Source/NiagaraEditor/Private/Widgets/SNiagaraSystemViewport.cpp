@@ -13,6 +13,7 @@
 #include "NiagaraEditorSettings.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEffectType.h"
+#include "NiagaraSystemMemReport.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraSettings.h"
 #include "NiagaraShader.h"
@@ -28,6 +29,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/Font.h"
 #include "Engine/TextureCube.h"
+#include "Serialization/ArchiveCountMem.h"
 #include "Slate/SceneViewport.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -63,6 +65,7 @@ public:
 	void DrawParticleCounts(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
 	void DrawEmitterExecutionOrder(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
 	void DrawGpuTickInformation(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
+	void DrawMemoryInfo(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
 	void SetUpdateViewportFocus(bool bUpdate) { bUpdateViewportFocus = bUpdate; }
 
 	TWeakPtr<SNiagaraSystemViewport> NiagaraViewportPtr;
@@ -75,6 +78,9 @@ public:
 
 private:
 	bool bUpdateViewportFocus = false;
+
+	FNiagaraSystemMemReport	MemReport;
+	double					MemReportLastCheckedTime = 0.0;
 };
 
 FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene& InPreviewScene, const TSharedRef<SNiagaraSystemViewport>& InNiagaraEditorViewport, FOnScreenShotCaptured InOnScreenShotCaptured)
@@ -157,16 +163,6 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		UFont* Font = GEngine->GetSmallFont();
 		const float FontHeight = Font->GetMaxCharHeight() * 1.1f;
 
-		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::InstructionCounts) && ParticleSystem)
-		{
-			DrawInstructionCounts(ParticleSystem, Canvas, CurrentX, CurrentY, Font, FontHeight);
-			CurrentY += FontHeight;
-		}
-		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::ParticleCounts) && Component)
-		{
-			DrawParticleCounts(Component, Canvas, CurrentX, CurrentY, Font, FontHeight);
-			CurrentY += FontHeight;
-		}
 		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::EmitterExecutionOrder) && Component)
 		{
 			DrawEmitterExecutionOrder(Component, Canvas, CurrentX, CurrentY, Font, FontHeight);
@@ -175,6 +171,21 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::GpuTickInformation) && Component)
 		{
 			DrawGpuTickInformation(Component, Canvas, CurrentX, CurrentY, Font, FontHeight);
+			CurrentY += FontHeight;
+		}
+		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::InstructionCounts) && ParticleSystem)
+		{
+			DrawInstructionCounts(ParticleSystem, Canvas, CurrentX, CurrentY, Font, FontHeight);
+			CurrentY += FontHeight;
+		}
+		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::MemoryInfo) && Component)
+		{
+			DrawMemoryInfo(Component, Canvas, CurrentX, CurrentY, Font, FontHeight);
+			CurrentY += FontHeight;
+		}
+		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::ParticleCounts) && Component)
+		{
+			DrawParticleCounts(Component, Canvas, CurrentX, CurrentY, Font, FontHeight);
 			CurrentY += FontHeight;
 		}
 	}
@@ -406,6 +417,55 @@ void FNiagaraSystemViewportClient::DrawGpuTickInformation(UNiagaraComponent* Com
 	}
 }
 
+void FNiagaraSystemViewportClient::DrawMemoryInfo(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight)
+{
+	// Update costs
+	const double CurrentTime = FPlatformTime::Seconds();
+	const double RefreshTime = 2.0;
+	if ((CurrentTime - MemReportLastCheckedTime) > RefreshTime)
+	{
+		MemReportLastCheckedTime = CurrentTime;
+		MemReport.GenerateReport(FNiagaraSystemMemReport::EReportType::Basic, Component->GetAsset());
+	}
+
+	FResourceSizeEx ComponentResSize = FResourceSizeEx(EResourceSizeMode::EstimatedTotal);
+	Component->GetResourceSizeEx(ComponentResSize);
+	const uint64 MemComponentCost = ComponentResSize.GetTotalMemoryBytes();
+
+	// Title
+	Canvas->DrawShadowedString(CurrentX, CurrentY, TEXT("Memory Info (Approximate)"), Font, FLinearColor::White);
+	CurrentY += FontHeight;
+	CurrentX += 8.0f;
+
+	// System Mem Information
+	for (const FNiagaraSystemMemReport::FNode& Node : MemReport.GetNodes())
+	{
+		Canvas->DrawShadowedString(
+			CurrentX + (Node.Depth * 8.0f), CurrentY,
+			*FString::Printf(TEXT("- %s %s = %skb (%s bytes)"), *Node.ObjectClass.ToString(), *Node.ObjectName.ToString(), *FString::FormatAsNumber(FMath::DivideAndRoundUp(uint32(Node.InclusiveSizeBytes), 1024u)), *FString::FormatAsNumber(Node.InclusiveSizeBytes)),
+			Font, FLinearColor::White
+		);
+		CurrentY += FontHeight;
+	}
+
+	// Data Interface Mem
+	const uint32 DIMemory = uint32(MemReport.GetDataInterfaceSizeBytes());
+	Canvas->DrawShadowedString(
+		CurrentX, CurrentY,
+		*FString::Printf(TEXT("- DataInterface = %skb (%s bytes) - Included In NiagaraSystem Mem"), *FString::FormatAsNumber(FMath::DivideAndRoundUp(DIMemory, 1024u)), *FString::FormatAsNumber(DIMemory)),
+		Font, FLinearColor::White
+	);
+	CurrentY += FontHeight;
+
+	// Component Mem Information
+	Canvas->DrawShadowedString(
+		CurrentX, CurrentY,
+		*FString::Printf(TEXT("- Component = %skb (%s bytes)"), *FString::FormatAsNumber(FMath::DivideAndRoundUp(uint32(MemComponentCost), 1024u)), *FString::FormatAsNumber(uint32(MemComponentCost))),
+		Font, FLinearColor::White
+	);
+	CurrentY += FontHeight;
+}
+
 void FNiagaraSystemViewportClient::SetOrbitModeFromSettings()
 {
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
@@ -484,6 +544,7 @@ void SNiagaraSystemViewport::Construct(const FArguments& InArgs)
 	DrawFlags |= Settings->IsShowInstructionsCount() ? EDrawElements::InstructionCounts : 0;
 	DrawFlags |= Settings->IsShowEmitterExecutionOrder() ? EDrawElements::EmitterExecutionOrder : 0;
 	DrawFlags |= Settings->IsShowGpuTickInformation() ? EDrawElements::GpuTickInformation : 0;
+	DrawFlags |= Settings->IsShowMemoryInfo() ? EDrawElements::MemoryInfo : 0;
 
 	bShowBackground = false;
 	PreviewComponent = nullptr;
@@ -747,6 +808,18 @@ void SNiagaraSystemViewport::BindCommands()
 		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([Viewport = this]() -> bool { return Viewport->GetDrawElement(EDrawElements::GpuTickInformation); })
+	);
+
+	CommandList->MapAction(
+		Commands.ToggleMemoryInfo,
+		FExecuteAction::CreateLambda([Viewport = this]()
+		{
+			Viewport->ToggleDrawElement(EDrawElements::MemoryInfo);
+			GetMutableDefault<UNiagaraEditorSettings>()->SetShowMemoryInfo(Viewport->GetDrawElement(EDrawElements::MemoryInfo));
+			Viewport->RefreshViewport();
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([Viewport = this]() -> bool { return Viewport->GetDrawElement(EDrawElements::MemoryInfo); })
 	);
 
 	CommandList->MapAction(
