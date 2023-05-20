@@ -117,6 +117,17 @@ namespace EpicGames.Horde.Compute
 	}
 
 	/// <summary>
+	/// Writer for compute messages
+	/// </summary>
+	public interface IAgentMessageBuilder : IMemoryWriter, IDisposable
+	{
+		/// <summary>
+		/// Sends the current message
+		/// </summary>
+		void Send();
+	}
+
+	/// <summary>
 	/// Message for reporting an error
 	/// </summary>
 	public record struct ExceptionMessage(string Message, string Description);
