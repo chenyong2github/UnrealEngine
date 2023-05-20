@@ -281,7 +281,7 @@ namespace EpicGames.Horde.Compute
 			{
 				if (_resources != null)
 				{
-					_resources.Dispose();
+					_resources.Release();
 					_resources = null!;
 				}
 			}
@@ -409,7 +409,7 @@ namespace EpicGames.Horde.Compute
 			{
 				if (_resources != null)
 				{
-					_resources.Dispose();
+					_resources.Release();
 					_resources = null!;
 				}
 			}
