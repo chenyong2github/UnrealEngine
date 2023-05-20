@@ -13,12 +13,6 @@ namespace EpicGames.Horde.Compute
 	public interface IComputeMessageChannel : IDisposable
 	{
 		/// <summary>
-		/// Wait for the remote end to attach a reader
-		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask WaitForAttachAsync(CancellationToken cancellationToken = default);
-
-		/// <summary>
 		/// Reads a message from the channel
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
@@ -63,7 +57,7 @@ namespace EpicGames.Horde.Compute
 			IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
 			if (message.Type != type)
 			{
-				throw new ComputeInvalidMessageException(message);
+				throw new InvalidComputeMessageException(message);
 			}
 			return message;
 		}

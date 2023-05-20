@@ -17,6 +17,8 @@ namespace RemoteWorker
 			Console.WriteLine("Connected to initiator");
 
 			byte[] data = new byte[4];
+			await channel.SendAsync(data.AsMemory(0, 1)); // Let the remote know we're ready
+
 			while(await channel.TryReceiveMessageAsync(data))
 			{
 				int value = BinaryPrimitives.ReadInt32LittleEndian(data);

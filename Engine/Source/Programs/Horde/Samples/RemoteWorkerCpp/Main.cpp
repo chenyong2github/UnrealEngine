@@ -30,6 +30,9 @@ int main()
 	size_t Length = 0;
 	char Buffer[4];
 
+	Buffer[0] = 0;
+	Channel.Send(Buffer, 1); // Send a dummy one-byte message to let the remote know we're listening
+
 	for (;;)
 	{
 		size_t RecvLength = Channel.Recv(Buffer + Length, sizeof(Buffer) - Length);

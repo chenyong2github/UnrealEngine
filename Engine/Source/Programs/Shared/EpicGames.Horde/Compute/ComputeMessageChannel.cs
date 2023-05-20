@@ -109,7 +109,6 @@ namespace EpicGames.Horde.Compute
 		}
 
 		readonly IComputeSocket _socket;
-		readonly int _channelId;
 		readonly IComputeBufferReader _recvBufferReader;
 		readonly IComputeBufferWriter _sendBufferWriter;
 
@@ -123,14 +122,12 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="channelId"></param>
 		/// <param name="recvBufferReader"></param>
 		/// <param name="sendBufferWriter"></param>
 		/// <param name="logger">Logger for diagnostic output</param>
-		public ComputeMessageChannel(int channelId, IComputeBufferReader recvBufferReader, IComputeBufferWriter sendBufferWriter, ILogger logger)
+		public ComputeMessageChannel(IComputeBufferReader recvBufferReader, IComputeBufferWriter sendBufferWriter, ILogger logger)
 		{
 			_socket = null!;
-			_channelId = channelId;
 			_recvBufferReader = recvBufferReader.AddRef();
 			_sendBufferWriter = sendBufferWriter.AddRef();
 			_logger = logger;
@@ -147,7 +144,6 @@ namespace EpicGames.Horde.Compute
 		public ComputeMessageChannel(IComputeSocket socket, int channelId, IComputeBuffer recvBuffer, IComputeBuffer sendBuffer, ILogger logger)
 		{
 			_socket = socket;
-			_channelId = channelId;
 			_socket.AttachRecvBuffer(channelId, recvBuffer.Writer);
 			_socket.AttachSendBuffer(channelId, sendBuffer.Reader);
 			_recvBufferReader = recvBuffer.Reader.AddRef();
@@ -175,9 +171,6 @@ namespace EpicGames.Horde.Compute
 		{
 			_sendBufferWriter.MarkComplete();
 		}
-
-		/// <inheritdoc/>
-		public ValueTask WaitForAttachAsync(CancellationToken cancellationToken = default) => _socket.WaitForAttachAsync(_channelId, cancellationToken);
 
 		/// <inheritdoc/>
 		public async ValueTask<IComputeMessage> ReceiveAsync(CancellationToken cancellationToken)

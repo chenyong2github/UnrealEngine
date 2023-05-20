@@ -36,7 +36,6 @@ namespace EpicGames.Horde.Compute
 	{
 		enum ControlMessageType
 		{
-			Attach = -1,
 			Detach = -2,
 		}
 
@@ -57,12 +56,6 @@ namespace EpicGames.Horde.Compute
 		readonly Dictionary<int, Task> _sendTasks = new Dictionary<int, Task>();
 		readonly Dictionary<IComputeBufferReader, int> _sendBufferReaders = new Dictionary<IComputeBufferReader, int>();
 
-		readonly HashSet<int> _remoteRecvBuffers = new HashSet<int>();
-		readonly AsyncEvent _remoteBuffersChanged = new AsyncEvent();
-
-		readonly BackgroundTask _attachTask;
-		readonly Channel<int> _attachChannel = Channel.CreateUnbounded<int>();
-
 		string Tag => (_endpoint == ComputeSocketEndpoint.Local)? "LOCAL": "REMOTE";
 
 		/// <summary>
@@ -77,7 +70,6 @@ namespace EpicGames.Horde.Compute
 			_endpoint = endpoint;
 			_logger = logger;
 			_recvTask = BackgroundTask.StartNew(ctx => RunRecvTaskAsync(transport, ctx));
-			_attachTask = BackgroundTask.StartNew(ctx => SendAttachNotificationsAsync(ctx));
 		}
 
 		/// <summary>
@@ -103,11 +95,6 @@ namespace EpicGames.Horde.Compute
 			// a shutdown event to be sent back to our read task allowing it to shut down gracefully.
 			await _transport.MarkCompleteAsync(cancellationToken);
 
-			// Stop sending 
-			_attachChannel.Writer.Complete();
-			await _attachTask.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
-			await _attachTask.StopAsync();
-
 			// Wait for the reader to stop
 			await _recvTask.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
 			await _recvTask.StopAsync();
@@ -119,7 +106,6 @@ namespace EpicGames.Horde.Compute
 			_cancellationSource.Cancel();
 			await Task.WhenAll(_sendTasks.Values);
 			await _recvTask.DisposeAsync();
-			await _attachTask.DisposeAsync();
 			_sendSemaphore.Dispose();
 			_cancellationSource.Dispose();
 			GC.SuppressFinalize(this);
@@ -156,11 +142,6 @@ namespace EpicGames.Horde.Compute
 					{
 						IComputeBufferWriter writer = GetReceiveBuffer(cachedWriters, id);
 						await ReadPacketAsync(transport, id, size, writer, cancellationToken);
-					}
-					else if (size == (int)ControlMessageType.Attach)
-					{
-						_logger.LogTrace("[{Tag}] Attaching recv buffer {Id}", Tag, id);
-						AttachRemoteRecvBuffer(id);
 					}
 					else if (size == (int)ControlMessageType.Detach)
 					{
@@ -231,23 +212,6 @@ namespace EpicGames.Horde.Compute
 			throw new ComputeInternalException($"No buffer is attached to channel {id}");
 		}
 
-		/// <inheritdoc/>
-		public async ValueTask WaitForAttachAsync(int channelId, CancellationToken cancellationToken = default)
-		{
-			for (; ; )
-			{
-				Task task = _remoteBuffersChanged.Task;
-				lock (_lockObject)
-				{
-					if (_remoteRecvBuffers.Contains(channelId))
-					{
-						return;
-					}
-				}
-				await task.WaitAsync(cancellationToken);
-			}
-		}
-
 		class SendSegment : ReadOnlySequenceSegment<byte>
 		{
 			public void Set(ReadOnlyMemory<byte> memory, ReadOnlySequenceSegment<byte>? next, long runningIndex)
@@ -294,7 +258,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public async void AttachRecvBuffer(int channelId, IComputeBufferWriter recvBufferWriter)
+		public void AttachRecvBuffer(int channelId, IComputeBufferWriter recvBufferWriter)
 		{
 			bool complete;
 			lock (_lockObject)
@@ -310,32 +274,6 @@ namespace EpicGames.Horde.Compute
 			{
 				recvBufferWriter.MarkComplete();
 			}
-
-			if (!complete)
-			{
-				await _attachChannel.Writer.WriteAsync(channelId);
-			}
-		}
-
-		async Task SendAttachNotificationsAsync(CancellationToken cancellationToken)
-		{
-			while (await _attachChannel.Reader.WaitToReadAsync(cancellationToken))
-			{
-				int channelId;
-				if (_attachChannel.Reader.TryRead(out channelId))
-				{
-					await SendInternalAsync(channelId, (int)ControlMessageType.Attach, ReadOnlyMemory<byte>.Empty, cancellationToken);
-				}
-			}
-		}
-
-		void AttachRemoteRecvBuffer(int id)
-		{
-			lock (_lockObject)
-			{
-				_remoteRecvBuffers.Add(id);
-			}
-			_remoteBuffersChanged.Pulse();
 		}
 
 		void DetachRecvBuffer(Dictionary<int, IComputeBufferWriter> cachedWriters, int id)

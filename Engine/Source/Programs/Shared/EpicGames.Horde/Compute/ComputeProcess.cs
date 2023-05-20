@@ -81,7 +81,7 @@ namespace EpicGames.Horde.Compute
 						_result.TrySetResult(executeProcessResponse.ExitCode);
 						return;
 					default:
-						throw new ComputeInvalidMessageException(message);
+						throw new InvalidComputeMessageException(message);
 				}
 			}
 		}

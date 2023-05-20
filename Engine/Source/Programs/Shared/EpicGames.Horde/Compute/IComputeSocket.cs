@@ -28,13 +28,6 @@ namespace EpicGames.Horde.Compute
 		void AttachSendBuffer(int channelId, IComputeBufferReader sendBufferReader);
 
 		/// <summary>
-		/// Waits until the remote has attached a receive buffer to the given channel
-		/// </summary>
-		/// <param name="channelId">Channel id</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask WaitForAttachAsync(int channelId, CancellationToken cancellationToken = default);
-
-		/// <summary>
 		/// Attempt to gracefully close the current connection and shutdown both ends of the transport
 		/// </summary>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>

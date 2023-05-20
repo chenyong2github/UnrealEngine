@@ -6,6 +6,7 @@ using System.Reflection;
 using EpicGames.Core;
 using EpicGames.Horde.Common;
 using EpicGames.Horde.Compute;
+using EpicGames.Horde.Compute.Buffers;
 using EpicGames.Horde.Compute.Clients;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
@@ -119,11 +120,14 @@ namespace RemoteClient
 		
 		static async Task WriteNumbersAsync(RemoteComputeSocket socket, ILogger logger, CancellationToken cancellationToken)
 		{
+			// Wait until the remote sends a message indicating that it's ready
+			using (PooledBuffer recvBuffer = new PooledBuffer(1, 20))
+			{
+				socket.AttachRecvBuffer(ChildProcessChannelId, recvBuffer.Writer);
+				await recvBuffer.Reader.WaitToReadAsync(1, cancellationToken);
+			}
+
 			// Write data to the child process channel. The remote server will echo them back to us as it receives them, then exit when the channel is complete/closed.
-			await socket.WaitForAttachAsync(ChildProcessChannelId, cancellationToken);
-
-			logger.LogInformation("Connected");
-
 			byte[] buffer = new byte[4];
 			for (int idx = 0; idx < 3; idx++)
 			{

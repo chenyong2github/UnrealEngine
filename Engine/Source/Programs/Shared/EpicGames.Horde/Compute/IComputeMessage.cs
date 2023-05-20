@@ -32,6 +32,11 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		Fork = 0x03,
 
+		/// <summary>
+		/// Sent as the first message on a channel to notify the remote that the remote end is attached
+		/// </summary>
+		Attach = 0x04,
+
 		#region Process Management
 
 		/// <summary>
@@ -204,7 +209,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <summary>
-		/// Sends an exception response to the remote
+		/// Requests that the remote message loop be forked
 		/// </summary>
 		public static async ValueTask ForkAsync(this IComputeMessageChannel channel, int channelId, int bufferSize, CancellationToken cancellationToken = default)
 		{
@@ -215,13 +220,37 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <summary>
-		/// Parses a message as an <see cref="ExceptionMessage"/>
+		/// Parses a fork request message
 		/// </summary>
 		public static ForkMessage ParseForkMessage(this IComputeMessage message)
 		{
 			int channelId = message.ReadInt32();
 			int bufferSize = message.ReadInt32();
 			return new ForkMessage(channelId, bufferSize);
+		}
+
+		/// <summary>
+		/// Notifies the remote that a buffer has been attached
+		/// </summary>
+		public static async ValueTask AttachAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
+		{
+			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.Attach, cancellationToken);
+			message.Send();
+		}
+
+		/// <summary>
+		/// Waits until an attached notification is received along the channel
+		/// </summary>
+		/// <param name="channel"></param>
+		/// <param name="cancellationToken"></param>
+		/// <returns></returns>
+		public static async ValueTask WaitForAttachAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
+		{
+			using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
+			if (message.Type != ComputeMessageType.Attach)
+			{
+				throw new InvalidComputeMessageException(message);
+			}
 		}
 
 		#region Process
@@ -268,7 +297,7 @@ namespace EpicGames.Horde.Compute
 			using IComputeMessage response = await RunStorageServer(channel, storage, cancellationToken);
 			if (response.Type != ComputeMessageType.WriteFilesResponse)
 			{
-				throw new ComputeInvalidMessageException(response);
+				throw new InvalidComputeMessageException(response);
 			}
 		}
 
@@ -439,7 +468,7 @@ namespace EpicGames.Horde.Compute
 					response = await channel.ReceiveAsync(cancellationToken);
 					if (response.Type != ComputeMessageType.ReadBlobResponse)
 					{
-						throw new ComputeInvalidMessageException(response);
+						throw new InvalidComputeMessageException(response);
 					}
 
 					int chunkOffset = BinaryPrimitives.ReadInt32LittleEndian(response.Data.Span.Slice(0, 4));

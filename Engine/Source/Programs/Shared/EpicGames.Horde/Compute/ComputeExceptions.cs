@@ -64,12 +64,12 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Exception thrown when an invalid message is received
 	/// </summary>
-	public sealed class ComputeInvalidMessageException : ComputeException
+	public sealed class InvalidComputeMessageException : ComputeException
 	{
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeInvalidMessageException(IComputeMessage message)
+		public InvalidComputeMessageException(IComputeMessage message)
 			: base($"Unexpected message {message.Type}")
 		{
 		}

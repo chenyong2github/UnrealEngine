@@ -51,6 +51,8 @@ namespace EpicGames.Horde.Compute
 		{
 			using (IComputeMessageChannel channel = socket.CreateMessageChannel(channelId, bufferSize, _logger))
 			{
+				await channel.AttachAsync(cancellationToken);
+
 				List<Task> childTasks = new List<Task>();
 				for (; ; )
 				{
@@ -93,7 +95,7 @@ namespace EpicGames.Horde.Compute
 							}
 							break;
 						default:
-							throw new ComputeInvalidMessageException(message);
+							throw new InvalidComputeMessageException(message);
 					}
 				}
 			}
