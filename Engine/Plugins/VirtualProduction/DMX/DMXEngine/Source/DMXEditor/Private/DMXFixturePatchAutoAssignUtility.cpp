@@ -216,11 +216,6 @@ void FDMXFixturePatchAutoAssignUtility::AutoAssignAfterLastAddressInLibrary()
 		return;
 	}
 
-	if (!ensureMsgf(!OtherPatches.IsEmpty() && OtherPatches[0], TEXT("Cannot auto assign. Invalid 'other' patch when trying to auto assign to last address in DMX Library")))
-	{
-		return;
-	}
-
 	const uint64 MinRequiredSize = ComputeMinRequiredSize();
 
 	const uint64 AbsoluteAddressAfterLastPatchInLibrary = [this]()
