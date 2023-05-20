@@ -36,6 +36,8 @@ public:
 	void Restart();
 	void Stop();
 
+	void PostFork();
+
 private:
 	FUnixSignalGameHitchHeartBeat();
 	~FUnixSignalGameHitchHeartBeat();
@@ -48,5 +50,6 @@ private:
 	bool bHasCmdLine = false;
 	bool bDisabled = false;
 	int32 SuspendCount = 0;
-	timer_t TimerId = nullptr;
+	bool bTimerCreated = false;
+	timer_t TimerId = 0;
 };

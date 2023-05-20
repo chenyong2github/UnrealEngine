@@ -399,6 +399,7 @@ public:
 
 	// No-op, used in FUnixSignalGameHitchHeartBeat
 	void Restart() {}
+	void PostFork() {}
 
 	//~ Begin FRunnable Interface.
 	virtual bool Init();
