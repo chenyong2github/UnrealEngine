@@ -235,7 +235,7 @@ private:
 };
 
 /**
-* Holds information about filters
+* Holds information about filters_
 */
 struct FOutputLogFilter
 {
@@ -250,6 +250,9 @@ struct FOutputLogFilter
 
 	/** true to allow all Log Categories */
 	bool bShowAllCategories;
+
+	/** Set of Verbosity levels that will show all regardless of category filter */
+	TSet<ELogVerbosity::Type> IgnoreFilterVerbosities;
 
 	/** Enable all filters by default */
 	FOutputLogFilter() : TextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::BasicString)
@@ -377,6 +380,7 @@ public:
 
 	/** Change the output log's filter. If CategoriesToShow is empty, all categories will be shown. */
 	void UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors = TOptional<bool>(), TOptional<bool> bShowWarnings = TOptional<bool>(), TOptional<bool> bShowLogs = TOptional<bool>());
+	void UpdateOutputLogFilter(const FOutputLogFilter& InFilter);
 
 	const FOutputLogFilter& GetOutputLogFilter() { return Filter; }
 protected:
@@ -432,19 +436,19 @@ private:
 	void VerbosityLogs_Execute();
 
 	/** Returns the state of Verbosity "Logs". */
-	bool VerbosityLogs_IsChecked() const;
+	ECheckBoxState VerbosityLogs_IsChecked() const;
 
 	/** Toggles Verbosity "Warnings" true/false. */
 	void VerbosityWarnings_Execute();
 
 	/** Returns the state of Verbosity "Warnings". */
-	bool VerbosityWarnings_IsChecked() const;
+	ECheckBoxState VerbosityWarnings_IsChecked() const;
 
 	/** Toggles Verbosity "Errors" true/false. */
 	void VerbosityErrors_Execute();
 
 	/** Returns the state of Verbosity "Errors". */
-	bool VerbosityErrors_IsChecked() const;
+	ECheckBoxState VerbosityErrors_IsChecked() const;
 
 	/** Toggles All Categories true/false. */
 	void CategoriesShowAll_Execute();

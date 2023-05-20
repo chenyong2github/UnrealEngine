@@ -71,8 +71,18 @@ public:
 
 	const TSharedPtr<SDockTab> GetOutputLogTab() const { return OutputLogTab.Pin(); }
 
+	struct FOutputFilterParams
+	{
+		TOptional<bool> bShowErrors;
+		TOptional<bool> bShowWarnings;
+		TOptional<bool> bShowLogs;
+		TOptional<TSet<ELogVerbosity::Type>> IgnoreFilterVerbosities;
+	};
+
 	/** Change the output log's filter. If CategoriesToShow is empty, all categories will be shown. */
 	void OUTPUTLOG_API UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors = TOptional<bool>(), TOptional<bool> bShowWarnings = TOptional<bool>(), TOptional<bool> bShowLogs = TOptional<bool>());
+	void OUTPUTLOG_API UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, const FOutputFilterParams& InParams);
+
 	/** Opens the output log tab, or brings it to front if it's already open */
 	void OUTPUTLOG_API OpenOutputLog() const;
 

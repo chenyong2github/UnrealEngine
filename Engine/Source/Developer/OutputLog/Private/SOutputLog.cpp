@@ -1644,51 +1644,63 @@ TSharedRef<SWidget> SOutputLog::MakeAddFilterMenu()
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 	
-	MenuBuilder.BeginSection("OutputLogVerbosityEntries", LOCTEXT("OutputLogVerbosityHeading", "Verbosity"));
+	MenuBuilder.BeginSection("OutputLogMiscEntries", LOCTEXT("OutputLogFilters", "Filters"));
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowMessages", "Messages"), 
-			LOCTEXT("ShowMessages_Tooltip", "Filter the Output Log to show messages"), 
-			FSlateIcon(), 
-			FUIAction(FExecuteAction::CreateSP(this, &SOutputLog::VerbosityLogs_Execute), 
-				FCanExecuteAction::CreateLambda([] { return true; }), 
-				FIsActionChecked::CreateSP(this, &SOutputLog::VerbosityLogs_IsChecked)), 
-			NAME_None, 
+			LOCTEXT("ShowAllCategories", "Show All"),
+			LOCTEXT("ShowAllCategories_Tooltip", "Filter the Output Log to show all categories"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SOutputLog::CategoriesShowAll_Execute),
+				FCanExecuteAction::CreateLambda([] { return true; }),
+				FIsActionChecked::CreateSP(this, &SOutputLog::CategoriesShowAll_IsChecked)),
+			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowWarnings", "Warnings"), 
-			LOCTEXT("ShowWarnings_Tooltip", "Filter the Output Log to show warnings"), 
-			FSlateIcon(), 
-			FUIAction(FExecuteAction::CreateSP(this, &SOutputLog::VerbosityWarnings_Execute), 
-				FCanExecuteAction::CreateLambda([] { return true; }), 
-				FIsActionChecked::CreateSP(this, &SOutputLog::VerbosityWarnings_IsChecked)), 
-			NAME_None, 
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowErrors", "Errors"), 
-			LOCTEXT("ShowErrors_Tooltip", "Filter the Output Log to show errors"), 
-			FSlateIcon(), 
-			FUIAction(FExecuteAction::CreateSP(this, &SOutputLog::VerbosityErrors_Execute), 
-				FCanExecuteAction::CreateLambda([] { return true; }), 
-				FIsActionChecked::CreateSP(this, &SOutputLog::VerbosityErrors_IsChecked)), 
-			NAME_None, 
-			EUserInterfaceActionType::ToggleButton
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("Filters", "Filters"),
+			LOCTEXT("SelectCategoriesToolTip", "Set filter settings such as visible categories"),
+			FNewMenuDelegate::CreateSP(this, &SOutputLog::MakeSelectCategoriesSubMenu)
 		);
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("OutputLogMiscEntries", LOCTEXT("OutputLogMiscHeading", "Miscellaneous"));
+	MenuBuilder.BeginSection("OutputLogVerbosityEntries", LOCTEXT("OutputLogVerbosityHeading", "Verbosity"));
 	{
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("Categories", "Categories"), 
-			LOCTEXT("SelectCategoriesToolTip", "Select Categories to display."), 
-			FNewMenuDelegate::CreateSP(this, &SOutputLog::MakeSelectCategoriesSubMenu)
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowMessages", "Messages"), 
+			LOCTEXT("ShowMessages_Tooltip", "[Checked] Filter Output Log to show messages within selected categories. [-] Filter Output Log to show all messages"), 
+			FSlateIcon(), 
+			FUIAction(FExecuteAction::CreateSP(this, &SOutputLog::VerbosityLogs_Execute), 
+				FCanExecuteAction::CreateLambda([] { return true; }), 
+				FGetActionCheckState::CreateSP(this, &SOutputLog::VerbosityLogs_IsChecked)),
+			NAME_None, 
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowWarnings", "Warnings"),
+			LOCTEXT("ShowWarnings_Tooltip", "[Checked] Filter Output Log to show warnings within selected categories. [-] Filter Output Log to show all warnings"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SOutputLog::VerbosityWarnings_Execute),
+				FCanExecuteAction::CreateLambda([] { return true; }),
+				FGetActionCheckState::CreateSP(this, &SOutputLog::VerbosityWarnings_IsChecked)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowErrors", "Errors"),
+			LOCTEXT("ShowErrors_Tooltip", "[Checked] Filter Output Log to show errors within selected categories. [-] Filter Output Log to show all errors"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SOutputLog::VerbosityErrors_Execute),
+				FCanExecuteAction::CreateLambda([] { return true; }),
+				FGetActionCheckState::CreateSP(this, &SOutputLog::VerbosityErrors_IsChecked)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
+	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }
@@ -1696,18 +1708,7 @@ TSharedRef<SWidget> SOutputLog::MakeAddFilterMenu()
 void SOutputLog::MakeSelectCategoriesSubMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("OutputLogCategoriesEntries");
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllCategories", "Show All"),
-			LOCTEXT("ShowAllCategories_Tooltip", "Filter the Output Log to show all categories"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SOutputLog::CategoriesShowAll_Execute),
-			FCanExecuteAction::CreateLambda([] { return true; }),
-			FIsActionChecked::CreateSP(this, &SOutputLog::CategoriesShowAll_IsChecked)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-		
+	{	
 		for (const FName& Category : Filter.GetAvailableLogCategories())
 		{
 			MenuBuilder.AddMenuEntry(
@@ -1725,24 +1726,70 @@ void SOutputLog::MakeSelectCategoriesSubMenu(FMenuBuilder& MenuBuilder)
 	MenuBuilder.EndSection();
 }
 
-bool SOutputLog::VerbosityLogs_IsChecked() const
+ECheckBoxState SOutputLog::VerbosityLogs_IsChecked() const
 {
-	return Filter.bShowLogs;
+	if (Filter.bShowLogs && Filter.IgnoreFilterVerbosities.Contains(ELogVerbosity::Log))
+	{
+		return ECheckBoxState::Undetermined;
+	}
+
+	if (Filter.bShowLogs)
+	{
+		return ECheckBoxState::Checked;
+	}
+
+	return ECheckBoxState::Unchecked;
 }
 
-bool SOutputLog::VerbosityWarnings_IsChecked() const
+ECheckBoxState SOutputLog::VerbosityWarnings_IsChecked() const
 {
-	return Filter.bShowWarnings;
+	if (Filter.bShowWarnings && Filter.IgnoreFilterVerbosities.Contains(ELogVerbosity::Warning))
+	{
+		return ECheckBoxState::Undetermined;
+	}
+
+	if (Filter.bShowWarnings)
+	{
+		return ECheckBoxState::Checked;
+	}
+
+	return ECheckBoxState::Unchecked;
 }
 
-bool SOutputLog::VerbosityErrors_IsChecked() const
+ECheckBoxState SOutputLog::VerbosityErrors_IsChecked() const
 {
-	return Filter.bShowErrors;
+	if (Filter.bShowErrors && Filter.IgnoreFilterVerbosities.Contains(ELogVerbosity::Error))
+	{
+		return ECheckBoxState::Undetermined;
+	}
+
+	if (Filter.bShowErrors)
+	{
+		return ECheckBoxState::Checked;
+	}
+
+	return ECheckBoxState::Unchecked;
 }
 
 void SOutputLog::VerbosityLogs_Execute()
 { 
-	Filter.bShowLogs = !Filter.bShowLogs;
+	// Rotate through: showing the verbosity, showing the verbosity while ignoring filter categories, and hiding the verbosity
+	if (Filter.bShowLogs)
+	{
+		if (Filter.IgnoreFilterVerbosities.Contains(ELogVerbosity::Log))
+		{
+			Filter.bShowLogs = false;
+			Filter.IgnoreFilterVerbosities.Remove(ELogVerbosity::Log);
+		}
+		else
+		{
+			Filter.IgnoreFilterVerbosities.Emplace(ELogVerbosity::Log);
+		}
+	}
+	else
+	{
+		Filter.bShowLogs = true;
+	}
 
 	// Flag the messages count as dirty
 	MessagesTextMarshaller->MarkMessagesCacheAsDirty();
@@ -1752,7 +1799,23 @@ void SOutputLog::VerbosityLogs_Execute()
 
 void SOutputLog::VerbosityWarnings_Execute()
 {
-	Filter.bShowWarnings = !Filter.bShowWarnings;
+	// Rotate through: showing the verbosity, showing the verbosity while ignoring filter categories, and hiding the verbosity
+	if (Filter.bShowWarnings)
+	{
+		if (Filter.IgnoreFilterVerbosities.Contains(ELogVerbosity::Warning))
+		{
+			Filter.bShowWarnings = false;
+			Filter.IgnoreFilterVerbosities.Remove(ELogVerbosity::Warning);
+		}
+		else
+		{
+			Filter.IgnoreFilterVerbosities.Emplace(ELogVerbosity::Warning);
+		}
+	}
+	else
+	{
+		Filter.bShowWarnings = true;
+	}
 
 	// Flag the messages count as dirty
 	MessagesTextMarshaller->MarkMessagesCacheAsDirty();
@@ -1762,7 +1825,23 @@ void SOutputLog::VerbosityWarnings_Execute()
 
 void SOutputLog::VerbosityErrors_Execute()
 {
-	Filter.bShowErrors = !Filter.bShowErrors;
+	// Rotate through: showing the verbosity, showing the verbosity while ignoring filter categories, and hiding the verbosity
+	if (Filter.bShowErrors)
+	{
+		if (Filter.IgnoreFilterVerbosities.Contains(ELogVerbosity::Error))
+		{
+			Filter.bShowErrors = false;
+			Filter.IgnoreFilterVerbosities.Remove(ELogVerbosity::Error);
+		}
+		else
+		{
+			Filter.IgnoreFilterVerbosities.Emplace(ELogVerbosity::Error);
+		}
+	}
+	else
+	{
+		Filter.bShowErrors = true;
+	}
 
 	// Flag the messages count as dirty
 	MessagesTextMarshaller->MarkMessagesCacheAsDirty();
@@ -1783,15 +1862,6 @@ bool SOutputLog::CategoriesSingle_IsChecked(FName InName) const
 void SOutputLog::CategoriesShowAll_Execute()
 {
 	Filter.bShowAllCategories = !Filter.bShowAllCategories;
-
-	Filter.ClearSelectedLogCategories();
-	if (Filter.bShowAllCategories)
-	{
-		for (const auto& AvailableCategory : Filter.GetAvailableLogCategories())
-		{
-			Filter.ToggleLogCategory(AvailableCategory);
-		}
-	}
 
 	// Flag the messages count as dirty
 	MessagesTextMarshaller->MarkMessagesCacheAsDirty();
@@ -1834,6 +1904,14 @@ void SOutputLog::UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TO
 		Filter.ToggleLogCategory(AvailableCategory);
 	}
 
+	MessagesTextMarshaller->MarkMessagesCacheAsDirty();
+	Refresh();
+}
+
+void SOutputLog::UpdateOutputLogFilter(const FOutputLogFilter& InFilter)
+{
+	Filter = InFilter;
+	Filter.bShowAllCategories = Filter.GetSelectedLogCategories().Num() == 0 ;
 	MessagesTextMarshaller->MarkMessagesCacheAsDirty();
 	Refresh();
 }
@@ -2031,13 +2109,11 @@ bool FOutputLogFilter::IsMessageAllowed(const TSharedPtr<FOutputLogMessage>& Mes
 		{
 			return false;
 		}
-
-		if (Message->Verbosity == ELogVerbosity::Warning && !bShowWarnings)
+		else if (Message->Verbosity == ELogVerbosity::Warning && !bShowWarnings)
 		{
 			return false;
 		}
-
-		if (Message->Verbosity != ELogVerbosity::Error && Message->Verbosity != ELogVerbosity::Warning && !bShowLogs)
+		else if (Message->Verbosity != ELogVerbosity::Error && Message->Verbosity != ELogVerbosity::Warning && !bShowLogs)
 		{
 			return false;
 		}
@@ -2045,7 +2121,7 @@ bool FOutputLogFilter::IsMessageAllowed(const TSharedPtr<FOutputLogMessage>& Mes
 
 	// Filter by Category
 	{
-		if (!IsLogCategoryEnabled(Message->Category))
+		if (!bShowAllCategories && !IgnoreFilterVerbosities.Contains(Message->Verbosity) && !IsLogCategoryEnabled(Message->Category))
 		{
 			return false;
 		}

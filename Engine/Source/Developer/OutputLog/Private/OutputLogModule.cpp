@@ -98,7 +98,7 @@ private:
 TSharedRef<SDockTab> FOutputLogModule::SpawnOutputLogTab(const FSpawnTabArgs& Args)
 {
 	TSharedRef<SOutputLog> NewLog = SNew(SOutputLog, false).Messages(OutputLogHistory->GetMessages());
-	NewLog->UpdateOutputLogFilter(OutputLogFilterCache->GetSelectedLogCategories(), OutputLogFilterCache->bShowErrors, OutputLogFilterCache->bShowWarnings, OutputLogFilterCache->bShowLogs);
+	NewLog->UpdateOutputLogFilter(*OutputLogFilterCache);
 
 	OutputLog = NewLog;
 
@@ -223,7 +223,7 @@ TSharedRef<SWidget> FOutputLogModule::MakeOutputLogDrawerWidget(const FSimpleDel
 			.OnCloseConsole(OnCloseConsole)
 			.Messages(OutputLogHistory->GetMessages());
 
-		OutputLogDrawerPinned->UpdateOutputLogFilter(OutputLogFilterCache->GetSelectedLogCategories(), OutputLogFilterCache->bShowErrors, OutputLogFilterCache->bShowWarnings, OutputLogFilterCache->bShowLogs);
+		OutputLogDrawerPinned->UpdateOutputLogFilter(*OutputLogFilterCache);
 
 		OutputLogDrawer = OutputLogDrawerPinned;
 	}
@@ -403,35 +403,49 @@ void FOutputLogModule::FocusOutputLog()
 
 void FOutputLogModule::UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors, TOptional<bool> bShowWarnings, TOptional<bool> bShowLogs)
 {
-	if (TSharedPtr<SOutputLog> SharedOutputLog = OutputLog.Pin())
-	{
-		SharedOutputLog->UpdateOutputLogFilter(CategoriesToShow, bShowErrors, bShowWarnings, bShowLogs);
-	}
+	FOutputFilterParams Params;
+	Params.bShowErrors = bShowErrors;
+	Params.bShowWarnings = bShowWarnings;
+	Params.bShowLogs = bShowLogs;
 
-	if (TSharedPtr<SOutputLog> SharedOutputLogDrawer = OutputLogDrawer.Pin())
+	UpdateOutputLogFilter(CategoriesToShow, Params);
+}
+
+void FOutputLogModule::UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, const FOutputFilterParams& InParams)
+{
+	if (InParams.bShowErrors.IsSet())
 	{
-		SharedOutputLogDrawer->UpdateOutputLogFilter(CategoriesToShow, bShowErrors, bShowWarnings, bShowLogs);
+		OutputLogFilterCache->bShowErrors = InParams.bShowErrors.GetValue();
 	}
-	
 	// Update the filter cache to these new settings
 	// This will be useful for the case where the OutputLog Drawer or Tab get created after this call
-	if (bShowErrors.IsSet())
+	if (InParams.bShowWarnings.IsSet())
 	{
-		OutputLogFilterCache->bShowErrors = bShowErrors.GetValue();
+		OutputLogFilterCache->bShowWarnings = InParams.bShowWarnings.GetValue();
 	}
-	if (bShowWarnings.IsSet())
+	if (InParams.bShowLogs.IsSet())
 	{
-		OutputLogFilterCache->bShowWarnings = bShowWarnings.GetValue();
+		OutputLogFilterCache->bShowLogs = InParams.bShowLogs.GetValue();
 	}
-	if (bShowLogs.IsSet())
+	if (InParams.IgnoreFilterVerbosities.IsSet())
 	{
-		OutputLogFilterCache->bShowLogs = bShowLogs.GetValue();
+		OutputLogFilterCache->IgnoreFilterVerbosities = InParams.IgnoreFilterVerbosities.GetValue();
 	}
 
 	OutputLogFilterCache->ClearSelectedLogCategories();
 	for (const FName& CategoryToShow : CategoriesToShow)
 	{
 		OutputLogFilterCache->ToggleLogCategory(CategoryToShow);
+	}
+
+	if (TSharedPtr<SOutputLog> SharedOutputLog = OutputLog.Pin())
+	{
+		SharedOutputLog->UpdateOutputLogFilter(*OutputLogFilterCache);
+	}
+
+	if (TSharedPtr<SOutputLog> SharedOutputLogDrawer = OutputLogDrawer.Pin())
+	{
+		SharedOutputLogDrawer->UpdateOutputLogFilter(*OutputLogFilterCache);
 	}
 }
 
