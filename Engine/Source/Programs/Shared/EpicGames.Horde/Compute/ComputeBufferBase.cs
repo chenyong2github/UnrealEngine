@@ -254,7 +254,7 @@ namespace EpicGames.Horde.Compute
 #pragma warning restore IDE0051 // Remove unused private members
 		}
 
-		class ReaderImpl : IComputeBufferReader
+		internal class ReaderImpl : IComputeBufferReader
 		{
 			readonly HeaderPtr _headerPtr;
 			readonly Memory<byte>[] _chunks;
@@ -268,6 +268,8 @@ namespace EpicGames.Horde.Compute
 				_resources = resources;
 				_readerIdx = readerIdx;
 			}
+
+			public ResourcesBase GetResources() => _resources;
 
 			/// <inheritdoc/>
 			public IComputeBufferReader AddRef()
@@ -384,7 +386,7 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		class WriterImpl : IComputeBufferWriter
+		internal class WriterImpl : IComputeBufferWriter
 		{
 			readonly HeaderPtr _headerPtr;
 			readonly Memory<byte>[] _chunks;
@@ -396,6 +398,8 @@ namespace EpicGames.Horde.Compute
 				_chunks = resources.Chunks;
 				_resources = resources;
 			}
+
+			public ResourcesBase GetResources() => _resources;
 
 			/// <inheritdoc/>
 			public IComputeBufferWriter AddRef()

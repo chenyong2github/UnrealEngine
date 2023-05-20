@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Horde.Compute.Buffers;
 
 namespace EpicGames.Horde.Compute
 {
@@ -102,6 +103,18 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel id to send and receive data</param>
 		/// <param name="recvBuffer">Buffer for receiving data</param>
 		public static IComputeChannel CreateChannel(this RemoteComputeSocket socket, int channelId, IComputeBuffer recvBuffer) => new BufferedReaderChannel(socket, channelId, recvBuffer);
+
+		/// <summary>
+		/// Creates a channel using a socket and receive buffer
+		/// </summary>
+		/// <param name="socket">Socket to use for sending data</param>
+		/// <param name="channelId">Channel id to send and receive data</param>
+		public static IComputeChannel CreateChannel(this IComputeSocket socket, int channelId)
+		{
+			using SharedMemoryBuffer recvBuffer = SharedMemoryBuffer.CreateNew(null, 65536);
+			using SharedMemoryBuffer sendBuffer = SharedMemoryBuffer.CreateNew(null, 65536);
+			return CreateChannel(socket, channelId, recvBuffer, sendBuffer);
+		}
 
 		/// <summary>
 		/// Creates a channel using a socket and receive buffer

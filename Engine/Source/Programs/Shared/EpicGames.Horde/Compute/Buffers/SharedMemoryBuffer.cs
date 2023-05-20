@@ -156,5 +156,17 @@ namespace EpicGames.Horde.Compute.Buffers
 			}
 			return chunks;
 		}
+
+		internal static string GetName(IComputeBufferReader reader)
+		{
+			Resources resources = (Resources)((ReaderImpl)reader).GetResources();
+			return resources.Name;
+		}
+
+		internal static string GetName(IComputeBufferWriter writer)
+		{
+			Resources resources = (Resources)((WriterImpl)writer).GetResources();
+			return resources.Name;
+		}
 	}
 }

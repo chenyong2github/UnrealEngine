@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Horde.Compute.Buffers;
 
@@ -15,7 +16,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Provides functionality for attaching buffers for compute workers 
 	/// </summary>
-	public sealed class WorkerComputeSocket : IDisposable
+	public sealed class WorkerComputeSocket : IComputeSocket, IDisposable
 	{
 		/// <summary>
 		/// Name of the environment variable for passing the name of the compute channel
@@ -53,59 +54,34 @@ namespace EpicGames.Horde.Compute
 			_commandBuffer.Dispose();
 		}
 
-		/// <summary>
-		/// Attaches a new buffer for receiving data
-		/// </summary>
-		/// <param name="channelId">Channel id for the buffer</param>
-		/// <param name="buffer">Buffer to attach</param>
-		public void AttachRecvBuffer(int channelId, SharedMemoryBuffer buffer) => AttachBuffer(IpcMessage.AttachRecvBuffer, channelId, buffer);
+		/// <inheritdoc/>
+		public ValueTask DisposeAsync()
+		{
+			Dispose();
+			return new ValueTask();
+		}
 
-		/// <summary>
-		/// Attaches a new buffer for sending data
-		/// </summary>
-		/// <param name="channelId">Channel id for the buffer</param>
-		/// <param name="buffer">Buffer to attach</param>
-		public void AttachSendBuffer(int channelId, SharedMemoryBuffer buffer) => AttachBuffer(IpcMessage.AttachSendBuffer, channelId, buffer);
+		/// <inheritdoc/>
+		public void AttachRecvBuffer(int channelId, IComputeBufferWriter writer)
+		{
+			string bufferName = SharedMemoryBuffer.GetName(writer);
+			AttachBuffer(IpcMessage.AttachRecvBuffer, channelId, bufferName);
+		}
 
-		void AttachBuffer(IpcMessage message, int channelId, SharedMemoryBuffer buffer)
+		/// <inheritdoc/>
+		public void AttachSendBuffer(int channelId, IComputeBufferReader reader)
+		{
+			string bufferName = SharedMemoryBuffer.GetName(reader);
+			AttachBuffer(IpcMessage.AttachSendBuffer, channelId, bufferName);
+		}
+
+		void AttachBuffer(IpcMessage message, int channelId, string bufferName)
 		{
 			MemoryWriter writer = new MemoryWriter(_commandBuffer.Writer.GetWriteBuffer());
 			writer.WriteUnsignedVarInt((int)message);
 			writer.WriteUnsignedVarInt(channelId);
-			writer.WriteString(buffer.Name);
+			writer.WriteString(bufferName);
 			_commandBuffer.Writer.AdvanceWritePosition(writer.Length);
-		}
-	}
-
-	/// <summary>
-	/// Extension methods for worker sockets
-	/// </summary>
-	public static class WorkerComputeSocketExtensions
-	{
-		/// <summary>
-		/// Creates a channel using a socket and receive buffer
-		/// </summary>
-		/// <param name="socket">Socket to use for sending data</param>
-		/// <param name="channelId">Channel id to send and receive data</param>
-		public static IComputeChannel CreateChannel(this WorkerComputeSocket socket, int channelId)
-		{
-			using SharedMemoryBuffer recvBuffer = SharedMemoryBuffer.CreateNew(null, 65536);
-			using SharedMemoryBuffer sendBuffer = SharedMemoryBuffer.CreateNew(null, 65536);
-			return CreateChannel(socket, channelId, recvBuffer, sendBuffer);
-		}
-
-		/// <summary>
-		/// Creates a channel using a socket and receive buffer
-		/// </summary>
-		/// <param name="socket">Socket to use for sending data</param>
-		/// <param name="channelId">Channel id to send and receive data</param>
-		/// <param name="recvBuffer">Buffer for receiving data</param>
-		/// <param name="sendBuffer">Buffer for sending data</param>
-		public static IComputeChannel CreateChannel(this WorkerComputeSocket socket, int channelId, SharedMemoryBuffer recvBuffer, SharedMemoryBuffer sendBuffer)
-		{
-			socket.AttachRecvBuffer(channelId, recvBuffer);
-			socket.AttachSendBuffer(channelId, sendBuffer);
-			return new ComputeChannel.BufferedReaderWriterChannel(recvBuffer.Reader, sendBuffer.Writer);
 		}
 	}
 }
