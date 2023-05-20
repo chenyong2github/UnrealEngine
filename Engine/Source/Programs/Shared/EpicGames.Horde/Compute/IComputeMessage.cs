@@ -139,12 +139,11 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Message to execute a new child process
 	/// </summary>
-	/// <param name="ChannelId">Channel id</param>
 	/// <param name="Executable">Executable path</param>
 	/// <param name="Arguments">Arguments for the executable</param>
 	/// <param name="WorkingDir">Working directory to execute in</param>
 	/// <param name="EnvVars">Environment variables for the child process. Null values unset variables.</param>
-	public record struct ExecuteProcessMessage(int ChannelId, string Executable, IReadOnlyList<string> Arguments, string? WorkingDir, IReadOnlyDictionary<string, string?> EnvVars);
+	public record struct ExecuteProcessMessage(string Executable, IReadOnlyList<string> Arguments, string? WorkingDir, IReadOnlyDictionary<string, string?> EnvVars);
 
 	/// <summary>
 	/// Response from executing a child process
@@ -309,17 +308,15 @@ namespace EpicGames.Horde.Compute
 		/// Executes a remote process
 		/// </summary>
 		/// <param name="channel">Current channel</param>
-		/// <param name="newChannelId">Channel to use for communicating with the child process</param>
 		/// <param name="executable">Executable to run, relative to the sandbox root</param>
 		/// <param name="arguments">Arguments for the child process</param>
 		/// <param name="workingDir">Working directory for the process</param>
 		/// <param name="envVars">Environment variables for the child process</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task<IComputeProcess> ExecuteAsync(this IComputeMessageChannel channel, int newChannelId, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken = default)
+		public static async Task<IComputeProcess> ExecuteAsync(this IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken = default)
 		{
 			using (IComputeMessageBuilder request = await channel.CreateMessageAsync(ComputeMessageType.Execute, cancellationToken))
 			{
-				request.WriteInt32(newChannelId);
 				request.WriteString(executable);
 				request.WriteList(arguments, MemoryWriterExtensions.WriteString);
 				request.WriteOptionalString(workingDir);
@@ -334,12 +331,11 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		public static ExecuteProcessMessage ParseExecuteProcessMessage(this IComputeMessage message)
 		{
-			int channelId = message.ReadInt32();
 			string executable = message.ReadString();
 			List<string> arguments = message.ReadList(MemoryReaderExtensions.ReadString);
 			string? workingDir = message.ReadOptionalString();
 			Dictionary<string, string?> envVars = message.ReadDictionary(MemoryReaderExtensions.ReadString, MemoryReaderExtensions.ReadOptionalString);
-			return new ExecuteProcessMessage(channelId, executable, arguments, workingDir, envVars);
+			return new ExecuteProcessMessage(executable, arguments, workingDir, envVars);
 		}
 
 		/// <summary>

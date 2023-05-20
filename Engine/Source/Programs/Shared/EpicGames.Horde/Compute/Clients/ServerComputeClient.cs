@@ -144,28 +144,28 @@ namespace EpicGames.Horde.Compute.Clients
 			_logger.LogInformation("Requesting compute resource");
 
 			// Assign a compute worker
-				HttpClient client = _createHttpClient();
+			HttpClient client = _createHttpClient();
 
 			AssignComputeRequest request = new AssignComputeRequest();
-				request.Requirements = requirements;
+			request.Requirements = requirements;
 
 			AssignComputeResponse? responseMessage;
-				using (HttpResponseMessage response = await client.PostAsync($"api/v2/compute/{clusterId}", request, _cancellationSource.Token))
-				{
-				if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+			using (HttpResponseMessage response = await client.PostAsync($"api/v2/compute/{clusterId}", request, _cancellationSource.Token))
 			{
+				if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+				{
 					_logger.LogInformation("No compute resource is available.");
 					yield break;
-			}
+				}
 
 				response.EnsureSuccessStatusCode();
 
 				responseMessage = await response.Content.ReadFromJsonAsync<AssignComputeResponse>(cancellationToken: cancellationToken);
 				if (responseMessage == null)
-			{
-					throw new InvalidOperationException();
+				{
+						throw new InvalidOperationException();
+				}
 			}
-		}
 
 			_logger.LogInformation("Connecting to {Ip} with nonce {Nonce}...", responseMessage.Ip, responseMessage.Nonce);
 
@@ -181,7 +181,7 @@ namespace EpicGames.Horde.Compute.Clients
 			// Pass the rest of the call over to the handler
 			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
-			await using RemoteComputeSocket computeSocket = new RemoteComputeSocket(new TcpTransport(socket), _logger);
+			await using RemoteComputeSocket computeSocket = new RemoteComputeSocket(new TcpTransport(socket), ComputeSocketEndpoint.Local, _logger);
 			yield return new LeaseInfo(responseMessage.Properties, responseMessage.AssignedResources, computeSocket);
 		}
 	}

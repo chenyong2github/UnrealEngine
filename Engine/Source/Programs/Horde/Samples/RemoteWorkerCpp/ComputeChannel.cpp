@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include <string.h>
+#include <stdio.h>
 #include <windows.h>
-#include <iostream>
-#include <assert.h>
 #include "ComputeChannel.h"
+#include "ComputeSocket.h"
 
 FComputeChannel::FComputeChannel()
 {
@@ -11,82 +12,90 @@ FComputeChannel::FComputeChannel()
 
 FComputeChannel::~FComputeChannel()
 {
-	Close();
-}
-
-bool FComputeChannel::Open(FComputeSocket& Socket, int ChannelId)
-{
-	return Open(Socket, ChannelId, ChannelId, 1024 * 1024);
-}
-
-bool FComputeChannel::Open(FComputeSocket& Socket, int ChannelId, int NumChunks, int ChunkSize)
-{
-	return Open(Socket, ChannelId, NumChunks, ChunkSize, NumChunks, ChunkSize);
-}
-
-bool FComputeChannel::Open(FComputeSocket& Socket, int ChannelId, int NumSendChunks, int SendChunkSize, int NumRecvChunks, int RecvChunkSize)
-{
-	if (!SendBuffer.CreateNew(nullptr, NumSendChunks, SendChunkSize))
+	if (SendBufferWriter.IsValid())
 	{
-		Close();
+		SendBufferWriter.MarkComplete();
+	}
+}
+
+void FComputeChannel::Attach(FComputeSocket& Socket, int ChannelId, FComputeBuffer SendBuffer, FComputeBuffer RecvBuffer)
+{
+	RecvBufferReader = RecvBuffer.GetReader();
+	SendBufferWriter = SendBuffer.GetWriter();
+	Socket.AttachRecvBuffer(ChannelId, RecvBuffer.GetWriter());
+	Socket.AttachSendBuffer(ChannelId, SendBuffer.GetReader());
+}
+
+bool FComputeChannel::Attach(FComputeSocket& Socket, int ChannelId, const FComputeBuffer::FParams& Params)
+{
+	return Attach(Socket, ChannelId, Params, Params);
+}
+
+bool FComputeChannel::Attach(FComputeSocket& Socket, int ChannelId, const FComputeBuffer::FParams& SendBufferParams, const FComputeBuffer::FParams& RecvBufferParams)
+{
+	Detach();
+
+	FComputeBuffer SendBuffer;
+	if (!SendBuffer.CreateNew(SendBufferParams))
+	{
 		return false;
 	}
-	if (!RecvBuffer.CreateNew(nullptr, NumRecvChunks, RecvChunkSize))
+
+	FComputeBuffer RecvBuffer;
+	if (!RecvBuffer.CreateNew(RecvBufferParams))
 	{
-		Close();
 		return false;
 	}
 
-	Socket.AttachSendBuffer(ChannelId, SendBuffer);
-	Socket.AttachRecvBuffer(ChannelId, RecvBuffer);
-
+	Attach(Socket, ChannelId, SendBuffer, RecvBuffer);
 	return true;
 }
 
-void FComputeChannel::Close()
+void FComputeChannel::Detach()
 {
-	SendBuffer.MarkComplete();
-	SendBuffer.Close();
-	RecvBuffer.Close();
+	RecvBufferReader = FComputeBufferReader();
+	SendBufferWriter = FComputeBufferWriter();
 }
 
-void FComputeChannel::Send(const void* Data, size_t Length)
+void FComputeChannel::MarkComplete()
 {
-	while (Length > 0)
-	{
-		size_t Size;
-		unsigned char* WriteMemory = SendBuffer.GetWriteMemory(Size);
-
-		if (Size == 0)
-		{
-			SendBuffer.WaitToWrite(0);
-			continue;
-		}
-
-		size_t CopyLength = (Size < Length) ? Size : Length;
-		memcpy(WriteMemory, Data, CopyLength);
-		SendBuffer.AdvanceWritePosition(CopyLength);
-
-		Data = (unsigned char*)Data + CopyLength;
-		Length -= CopyLength;
-	}
+	SendBufferWriter.MarkComplete();
 }
 
-size_t FComputeChannel::Receive(void* Data, size_t Length)
+size_t FComputeChannel::Send(const void* Data, size_t Size, int TimeoutMs)
 {
-	size_t Size;
-	const unsigned char* ReadMemory = RecvBuffer.GetReadMemory(Size);
-
-	while (Size == 0 && !RecvBuffer.IsComplete())
+	unsigned char* SendData = SendBufferWriter.WaitToWrite(1, TimeoutMs);
+	if (SendData == nullptr)
 	{
-		RecvBuffer.WaitToRead(0);
-		ReadMemory = RecvBuffer.GetReadMemory(Size);
+		return 0;
 	}
 
-	size_t CopyLength = (Size < Length) ? Size : Length;
-	memcpy(Data, ReadMemory, CopyLength);
-	RecvBuffer.AdvanceReadPosition(CopyLength);
+	size_t SendSize = SendBufferWriter.GetMaxWriteSize();
+	if (Size < SendSize)
+	{
+		SendSize = Size;
+	}
 
-	return CopyLength;
+	memcpy(SendData, Data, SendSize);
+	SendBufferWriter.AdvanceWritePosition(SendSize);
+	return SendSize;
 }
 
+size_t FComputeChannel::Recv(void* Data, size_t Size, int TimeoutMs)
+{
+	const unsigned char* RecvData = RecvBufferReader.WaitToRead(1, TimeoutMs);
+	if (RecvData == nullptr)
+	{
+		return 0;
+	}
+
+	size_t RecvSize = RecvBufferReader.GetMaxReadSize();
+	if (Size < RecvSize)
+	{
+		RecvSize = Size;
+	}
+
+	memcpy(Data, RecvData, RecvSize);
+	RecvBufferReader.AdvanceReadPosition(RecvSize);
+	return RecvSize;
+}

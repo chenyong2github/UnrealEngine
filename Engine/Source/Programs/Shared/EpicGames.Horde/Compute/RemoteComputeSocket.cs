@@ -14,6 +14,22 @@ using Microsoft.Extensions.Logging;
 namespace EpicGames.Horde.Compute
 {
 	/// <summary>
+	/// Enum identifying which end of the socket a particular machine is
+	/// </summary>
+	public enum ComputeSocketEndpoint
+	{
+		/// <summary>
+		/// The initiating machine
+		/// </summary>
+		Local,
+
+		/// <summary>
+		/// The remote machine
+		/// </summary>
+		Remote,
+	}
+
+	/// <summary>
 	/// Manages a set of readers and writers to buffers across a transport layer
 	/// </summary>
 	public class RemoteComputeSocket : IComputeSocket, IAsyncDisposable
@@ -29,6 +45,7 @@ namespace EpicGames.Horde.Compute
 		bool _complete;
 
 		readonly IComputeTransport _transport;
+		readonly ComputeSocketEndpoint _endpoint;
 		readonly ILogger _logger;
 
 		readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
@@ -46,16 +63,20 @@ namespace EpicGames.Horde.Compute
 		readonly BackgroundTask _attachTask;
 		readonly Channel<int> _attachChannel = Channel.CreateUnbounded<int>();
 
+		string Tag => (_endpoint == ComputeSocketEndpoint.Local)? "LOCAL": "REMOTE";
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="transport">Transport to communicate with the remote</param>
+		/// <param name="endpoint">Tag for log messages</param>
 		/// <param name="logger">Logger for trace output</param>
-		public RemoteComputeSocket(IComputeTransport transport, ILogger logger)
+		public RemoteComputeSocket(IComputeTransport transport, ComputeSocketEndpoint endpoint, ILogger logger)
 		{
 			_transport = transport;
+			_endpoint = endpoint;
 			_logger = logger;
-			_recvTask = BackgroundTask.StartNew(ctx => RunReaderAsync(transport, ctx));
+			_recvTask = BackgroundTask.StartNew(ctx => RunRecvTaskAsync(transport, ctx));
 			_attachTask = BackgroundTask.StartNew(ctx => SendAttachNotificationsAsync(ctx));
 		}
 
@@ -64,6 +85,8 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		public async ValueTask CloseAsync(CancellationToken cancellationToken)
 		{
+			_cancellationSource.CancelAfter(TimeSpan.FromSeconds(2.0));
+
 			// Make sure we close all buffers that are attached, otherwise we'll lock up waiting for send tasks to complete
 			Task[] sendTasks;
 			lock (_lockObject)
@@ -102,9 +125,9 @@ namespace EpicGames.Horde.Compute
 			GC.SuppressFinalize(this);
 		}
 
-		async Task RunReaderAsync(IComputeTransport transport, CancellationToken cancellationToken)
+		async Task RunRecvTaskAsync(IComputeTransport transport, CancellationToken cancellationToken)
 		{
-			_logger.LogTrace("Started socket reader");
+			_logger.LogTrace("[{Tag}] Started socket reader", Tag);
 
 			byte[] header = new byte[8];
 			try
@@ -120,7 +143,7 @@ namespace EpicGames.Horde.Compute
 					// Read the next packet header
 					if (!await transport.ReadOptionalAsync(header, cancellationToken))
 					{
-						_logger.LogTrace("End of socket");
+						_logger.LogTrace("[{Tag}] End of socket", Tag);
 						break;
 					}
 
@@ -136,17 +159,17 @@ namespace EpicGames.Horde.Compute
 					}
 					else if (size == (int)ControlMessageType.Attach)
 					{
-						_logger.LogTrace("Attaching recv buffer {Id}", id);
+						_logger.LogTrace("[{Tag}] Attaching recv buffer {Id}", Tag, id);
 						AttachRemoteRecvBuffer(id);
 					}
 					else if (size == (int)ControlMessageType.Detach)
 					{
-						_logger.LogTrace("Detaching recv buffer {Id}", id);
+						_logger.LogTrace("[{Tag}] Detaching recv buffer {Id}", Tag, id);
 						DetachRecvBuffer(cachedWriters, id);
 					}
 					else
 					{
-						_logger.LogWarning("Unrecognized control message: {Message}", size);
+						_logger.LogWarning("[{Tag}] Unrecognized control message: {Message}", Tag, size);
 					}
 				}
 			}
@@ -164,7 +187,7 @@ namespace EpicGames.Horde.Compute
 				}
 			}
 
-			_logger.LogTrace("Closing reader");
+			_logger.LogTrace("[{Tag}] Closing reader", Tag);
 		}
 
 		async Task ReadPacketAsync(IComputeTransport transport, int id, int size, IComputeBufferWriter writer, CancellationToken cancellationToken)
@@ -172,7 +195,7 @@ namespace EpicGames.Horde.Compute
 			Memory<byte> memory = writer.GetWriteBuffer();
 			while (memory.Length < size)
 			{
-				_logger.LogTrace("No space in buffer {Id}, flushing", id);
+				_logger.LogTrace("[{Tag}] No space in buffer {Id}, flushing", Tag, id);
 				await writer.WaitToWriteAsync(size, cancellationToken);
 				memory = writer.GetWriteBuffer();
 			}

@@ -27,7 +27,15 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Creates a socket for a worker
 		/// </summary>
-		public WorkerComputeSocket()
+		private WorkerComputeSocket(SharedMemoryBuffer commandBuffer)
+		{
+			_commandBuffer = commandBuffer;
+		}
+
+		/// <summary>
+		/// Opens a socket which allows a worker to communicate with the Horde Agent
+		/// </summary>
+		public static WorkerComputeSocket Open()
 		{
 			string? baseName = Environment.GetEnvironmentVariable(IpcEnvVar);
 			if (baseName == null)
@@ -35,7 +43,8 @@ namespace EpicGames.Horde.Compute
 				throw new InvalidOperationException($"Environment variable {IpcEnvVar} is not defined; cannot connect as worker.");
 			}
 
-			_commandBuffer = SharedMemoryBuffer.OpenExisting(baseName);
+			SharedMemoryBuffer commandBuffer = SharedMemoryBuffer.OpenExisting(baseName);
+			return new WorkerComputeSocket(commandBuffer);
 		}
 
 		/// <inheritdoc/>
@@ -78,13 +87,25 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="socket">Socket to use for sending data</param>
 		/// <param name="channelId">Channel id to send and receive data</param>
+		public static IComputeChannel CreateChannel(this WorkerComputeSocket socket, int channelId)
+		{
+			using SharedMemoryBuffer recvBuffer = SharedMemoryBuffer.CreateNew(null, 65536);
+			using SharedMemoryBuffer sendBuffer = SharedMemoryBuffer.CreateNew(null, 65536);
+			return CreateChannel(socket, channelId, recvBuffer, sendBuffer);
+		}
+
+		/// <summary>
+		/// Creates a channel using a socket and receive buffer
+		/// </summary>
+		/// <param name="socket">Socket to use for sending data</param>
+		/// <param name="channelId">Channel id to send and receive data</param>
 		/// <param name="recvBuffer">Buffer for receiving data</param>
 		/// <param name="sendBuffer">Buffer for sending data</param>
 		public static IComputeChannel CreateChannel(this WorkerComputeSocket socket, int channelId, SharedMemoryBuffer recvBuffer, SharedMemoryBuffer sendBuffer)
 		{
 			socket.AttachRecvBuffer(channelId, recvBuffer);
 			socket.AttachSendBuffer(channelId, sendBuffer);
-			return new ComputeChannel.BufferedReaderWriterChannel(recvBuffer, sendBuffer);
+			return new ComputeChannel.BufferedReaderWriterChannel(recvBuffer.Reader, sendBuffer.Writer);
 		}
 	}
 }

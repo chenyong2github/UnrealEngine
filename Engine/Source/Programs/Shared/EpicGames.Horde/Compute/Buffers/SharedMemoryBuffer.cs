@@ -114,7 +114,7 @@ namespace EpicGames.Horde.Compute.Buffers
 			MemoryMappedView memoryMappedView = new MemoryMappedView(memoryMappedViewAccessor);
 
 			Native.EventHandle writerEvent = Native.EventHandle.CreateNew($"{name}_W", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
-			Native.EventHandle readerEvent = Native.EventHandle.CreateNew($"{name}_R", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
+			Native.EventHandle readerEvent = Native.EventHandle.CreateNew($"{name}_R0", EventResetMode.ManualReset, true, HandleInheritability.Inheritable);
 
 			HeaderPtr headerPtr = new HeaderPtr((ulong*)memoryMappedView.GetPointer(), 1, numChunks, chunkLength);
 			Memory<byte>[] chunks = CreateChunks(headerPtr.NumChunks, headerPtr.ChunkLength, memoryMappedView);
@@ -137,7 +137,7 @@ namespace EpicGames.Horde.Compute.Buffers
 			MemoryMappedViewAccessor memoryMappedViewAccessor = memoryMappedFile.CreateViewAccessor();
 			MemoryMappedView memoryMappedView = new MemoryMappedView(memoryMappedViewAccessor);
 
-			Native.EventHandle readerEvent = Native.EventHandle.OpenExisting($"{name}_R");
+			Native.EventHandle readerEvent = Native.EventHandle.OpenExisting($"{name}_R0");
 			Native.EventHandle writerEvent = Native.EventHandle.OpenExisting($"{name}_W");
 
 			HeaderPtr headerPtr = new HeaderPtr((ulong*)memoryMappedView.GetPointer());

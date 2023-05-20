@@ -2,26 +2,41 @@
 
 #pragma once
 
-#include "SharedMemoryBuffer.h"
-#include "ComputeSocket.h"
+#include "ComputeBuffer.h"
 
+class FComputeSocket;
+
+//
+// Allows bi-directional communication between two nodes using compute buffers
+//
 class FComputeChannel
 {
 public:
-	static const int DefaultWorkerChannelId = 100;
-
 	FComputeChannel();
 	~FComputeChannel();
 
-	bool Open(FComputeSocket& Socket, int ChannelId);
-	bool Open(FComputeSocket& Socket, int ChannelId, int NumChunks, int ChunkSize);
-	bool Open(FComputeSocket& Socket, int ChannelId, int NumSendChunks, int SendChunkSize, int NumRecvChunks, int RecvChunkSize);
-	void Close();
+	// Creates a new channel using default parameters
+	void Attach(FComputeSocket& Socket, int ChannelId, FComputeBuffer SendBuffer, FComputeBuffer RecvBuffer);
 
-	void Send(const void* Data, size_t Length);
-	size_t Receive(void* Data, size_t Length);
+	// Creates a new channel using the same parameters for the send and receive buffers
+	bool Attach(FComputeSocket& Socket, int ChannelId, const FComputeBuffer::FParams& Params);
+
+	// Creates a new channel using the same parameters for the send and receive buffers
+	bool Attach(FComputeSocket& Socket, int ChannelId, const FComputeBuffer::FParams& SendParams, const FComputeBuffer::FParams& RecvParams);
+
+	// Close the current buffer and release all allocated resources
+	void Detach();
+
+	// Indicate to the remote that no more data will be sent.
+	void MarkComplete();
+
+	// Sends bytes to the remote. 
+	size_t Send(const void* Data, size_t Size, int TimeoutMs = -1);
+
+	// Reads as many bytes as are available from the socket.
+	size_t Recv(void* Data, size_t Size, int TimeoutMs = -1);
 
 private:
-	FSharedMemoryBuffer RecvBuffer;
-	FSharedMemoryBuffer SendBuffer;
+	FComputeBufferReader RecvBufferReader;
+	FComputeBufferWriter SendBufferWriter;
 };

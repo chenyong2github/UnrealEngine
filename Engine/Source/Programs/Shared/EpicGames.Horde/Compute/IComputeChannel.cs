@@ -4,7 +4,6 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using EpicGames.Horde.Compute.Buffers;
 
 namespace EpicGames.Horde.Compute
 {
@@ -33,11 +32,6 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public static class ComputeChannel
 	{
-		/// <summary>
-		/// Default channel id to use for worker messages
-		/// </summary>
-		public const int DefaultWorkerChannelId = 100;
-
 		class BufferedReaderChannel : IComputeChannel
 		{
 			readonly RemoteComputeSocket _socket;
@@ -65,60 +59,27 @@ namespace EpicGames.Horde.Compute
 
 		internal sealed class BufferedReaderWriterChannel : IComputeChannel
 		{
-			readonly IComputeBuffer _recvBuffer;
-			readonly IComputeBuffer _sendBuffer;
+			readonly IComputeBufferReader _recvBufferReader;
+			readonly IComputeBufferWriter _sendBufferWriter;
 
-			public BufferedReaderWriterChannel(IComputeBuffer recvBuffer, IComputeBuffer sendBuffer)
+			public BufferedReaderWriterChannel(IComputeBufferReader recvBufferReader, IComputeBufferWriter sendBufferWriter)
 			{
-				_recvBuffer = recvBuffer;
-				_sendBuffer = sendBuffer;
+				_recvBufferReader = recvBufferReader.AddRef();
+				_sendBufferWriter = sendBufferWriter.AddRef();
 			}
 
 			public void Dispose()
 			{
-				_recvBuffer.Dispose();
-				_sendBuffer.Dispose();
+				_recvBufferReader.Dispose();
+
+				_sendBufferWriter.MarkComplete();
+				_sendBufferWriter.Dispose();
 			}
 
-			public ValueTask<int> ReceiveAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => _recvBuffer.Reader.ReadAsync(buffer, cancellationToken);
+			public ValueTask<int> ReceiveAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => _recvBufferReader.ReadAsync(buffer, cancellationToken);
 
-			public ValueTask SendAsync(ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default) => _sendBuffer.Writer.WriteAsync(memory, cancellationToken);
+			public ValueTask SendAsync(ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default) => _sendBufferWriter.WriteAsync(memory, cancellationToken);
 		}
-
-		class SimpleWorkerChannel : IComputeChannel
-		{
-			readonly WorkerComputeSocket _socket;
-			readonly SharedMemoryBuffer _recvBuffer;
-			readonly SharedMemoryBuffer _sendBuffer;
-
-			public SimpleWorkerChannel(int channelId)
-			{
-				_socket = new WorkerComputeSocket();
-
-				_recvBuffer = SharedMemoryBuffer.CreateNew(null, 1024 * 1024);
-				_socket.AttachRecvBuffer(channelId, _recvBuffer);
-
-				_sendBuffer = SharedMemoryBuffer.CreateNew(null, 1024 * 1024);
-				_socket.AttachSendBuffer(channelId, _sendBuffer);
-			}
-
-			public void Dispose()
-			{
-				_sendBuffer.Writer.MarkComplete();
-				_sendBuffer.Dispose();
-				_recvBuffer.Dispose();
-				_socket.Dispose();
-			}
-
-			public ValueTask<int> ReceiveAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => _recvBuffer.Reader.ReadAsync(buffer, cancellationToken);
-
-			public ValueTask SendAsync(ReadOnlyMemory<byte> memory, CancellationToken cancellationToken = default) => _sendBuffer.Writer.WriteAsync(memory, cancellationToken);
-		}
-
-		/// <summary>
-		/// Creates a socket for a worker
-		/// </summary>
-		public static IComputeChannel ConnectAsWorker(int channelId = DefaultWorkerChannelId) => new SimpleWorkerChannel(channelId);
 
 		/// <summary>
 		/// Creates a channel using a socket and receive buffer
@@ -139,7 +100,7 @@ namespace EpicGames.Horde.Compute
 		{
 			socket.AttachRecvBuffer(channelId, recvBuffer.Writer);
 			socket.AttachSendBuffer(channelId, sendBuffer.Reader);
-			return new BufferedReaderWriterChannel(recvBuffer, sendBuffer);
+			return new BufferedReaderWriterChannel(recvBuffer.Reader, sendBuffer.Writer);
 		}
 	}
 

@@ -2,11 +2,16 @@
 
 #include <iostream>
 #include "ComputeChannel.h"
-#include "SharedMemoryBuffer.h"
+#include "ComputeBuffer.h"
+#include "ComputeSocket.h"
+
+#include <Windows.h>
 
 int main()
 {
-	FComputeSocket Socket;
+	const int ChannelId = 100;
+
+	FWorkerComputeSocket Socket;
 	if (!Socket.Open())
 	{
 		std::cout << "Environment variable not set correctly" << std::endl;
@@ -14,26 +19,26 @@ int main()
 	}
 
 	FComputeChannel Channel;
-	if (!Channel.Open(Socket, FComputeChannel::DefaultWorkerChannelId))
+	if (!Channel.Attach(Socket, ChannelId, FComputeBuffer::FParams()))
 	{
-		std::cout << "Unable to create channel to host" << std::endl;
+		std::cout << "Unable to create channel to initiator" << std::endl;
 		return 1;
 	}
 
-	std::cout << "Connected to client" << std::endl;
+	std::cout << "Connected to initiator" << std::endl;
 
 	size_t Length = 0;
 	char Buffer[4];
 
 	for (;;)
 	{
-		size_t Read = Channel.Receive(Buffer + Length, sizeof(Buffer) - Length);
-		if (Read == 0)
+		size_t RecvLength = Channel.Recv(Buffer + Length, sizeof(Buffer) - Length);
+		if (RecvLength == 0)
 		{
 			return 0;
 		}
 
-		Length += Read;
+		Length += RecvLength;
 
 		if (Length >= 4)
 		{
@@ -42,7 +47,7 @@ int main()
 		}
 	}
 
-	Channel.Close();
+	Channel.MarkComplete();
 	return 0;
 }
 

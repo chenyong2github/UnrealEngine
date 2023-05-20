@@ -78,7 +78,7 @@ namespace RemoteClient
 
 		const int PrimaryChannelId = 0;
 		const int BackgroundChannelId = 1;
-		const int ChildProcessChannelId = ComputeChannel.DefaultWorkerChannelId;
+		const int ChildProcessChannelId = 100;
 
 		static async Task RunRemoteAsync(IComputeLease lease, DirectoryReference uploadDir, string executable, List<string> arguments, ILogger logger)
 		{
@@ -87,7 +87,7 @@ namespace RemoteClient
 			{
 				await channel.WaitForAttachAsync();
 
-				// Fork another message loop on channel id 2. We'll use this to run an XOR task in the background.
+				// Fork another message loop. We'll use this to run an XOR task in the background.
 				using IComputeMessageChannel backgroundChannel = lease.Socket.CreateMessageChannel(BackgroundChannelId, 4 * 1024 * 1024, logger);
 				await using BackgroundTask otherChannelTask = BackgroundTask.StartNew(ctx => RunBackgroundXorAsync(backgroundChannel));
 				await channel.ForkAsync(BackgroundChannelId, 4 * 1024 * 1024, default);
@@ -103,7 +103,7 @@ namespace RemoteClient
 				}
 
 				// Run the task remotely in the background and echo the output to the console
-				await using (IComputeProcess process = await channel.ExecuteAsync(ChildProcessChannelId, executable, arguments, null, null))
+				await using (IComputeProcess process = await channel.ExecuteAsync(executable, arguments, null, null))
 				{
 					await using BackgroundTask tickTask = BackgroundTask.StartNew(ctx => WriteNumbersAsync(lease.Socket, logger, ctx));
 

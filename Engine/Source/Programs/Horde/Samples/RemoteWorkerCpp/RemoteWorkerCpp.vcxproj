@@ -185,15 +185,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ComputeBuffer.cpp" />
     <ClCompile Include="ComputeChannel.cpp" />
     <ClCompile Include="ComputeSocket.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="SharedMemoryBuffer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ComputeBuffer.h" />
     <ClInclude Include="ComputeChannel.h" />
     <ClInclude Include="ComputeSocket.h" />
-    <ClInclude Include="SharedMemoryBuffer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

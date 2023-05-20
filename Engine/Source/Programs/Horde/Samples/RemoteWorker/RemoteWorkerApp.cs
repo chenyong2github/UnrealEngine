@@ -9,8 +9,12 @@ namespace RemoteWorker
 	{
 		static async Task Main()
 		{
-			using IComputeChannel channel = ComputeChannel.ConnectAsWorker();
-			Console.WriteLine("Connected to client");
+			const int ChannelId = 100;
+
+			using WorkerComputeSocket socket = WorkerComputeSocket.Open();
+
+			using IComputeChannel channel = socket.CreateChannel(ChannelId);
+			Console.WriteLine("Connected to initiator");
 
 			byte[] data = new byte[4];
 			while(await channel.TryReceiveMessageAsync(data))
