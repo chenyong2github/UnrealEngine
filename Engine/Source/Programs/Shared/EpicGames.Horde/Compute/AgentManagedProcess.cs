@@ -9,7 +9,10 @@ using EpicGames.Core;
 
 namespace EpicGames.Horde.Compute
 {
-	sealed class ComputeProcess : IComputeProcess
+	/// <summary>
+	/// Represents a remotely executed process managed by the Horde agent
+	/// </summary>
+	public sealed class AgentManagedProcess : IAsyncDisposable
 	{
 		readonly Channel<string> _output;
 		readonly BackgroundTask _backgroundTask;
@@ -27,7 +30,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ComputeProcess(IComputeMessageChannel channel)
+		public AgentManagedProcess(AgentMessageChannel channel)
 		{
 			_output = Channel.CreateUnbounded<string>();
 			_backgroundTask = BackgroundTask.StartNew(ctx => RunAsync(channel, ctx));
@@ -37,7 +40,7 @@ namespace EpicGames.Horde.Compute
 		public ValueTask DisposeAsync() => _backgroundTask.DisposeAsync();
 
 		/// <inheritdoc/>
-		public async ValueTask<string?> ReadLineAsync(CancellationToken cancellationToken)
+		public async ValueTask<string?> ReadLineAsync(CancellationToken cancellationToken = default)
 		{
 			if (!await _output.Reader.WaitToReadAsync(cancellationToken))
 			{
@@ -49,7 +52,7 @@ namespace EpicGames.Horde.Compute
 		/// <inheritdoc/>
 		public Task<int> WaitForExitAsync(CancellationToken cancellationToken) => _result.Task.WaitAsync(cancellationToken);
 
-		async Task RunAsync(IComputeMessageChannel channel, CancellationToken cancellationToken)
+		async Task RunAsync(AgentMessageChannel channel, CancellationToken cancellationToken)
 		{
 			try
 			{
@@ -63,25 +66,25 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		async Task RunInternalAsync(IComputeMessageChannel channel, CancellationToken cancellationToken)
+		async Task RunInternalAsync(AgentMessageChannel channel, CancellationToken cancellationToken)
 		{
 			for (; ; )
 			{
-				using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
+				using IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
 				switch (message.Type)
 				{
-					case ComputeMessageType.Exception:
+					case AgentMessageType.Exception:
 						ExceptionMessage exception = message.ParseExceptionMessage();
 						throw new ComputeRemoteException(exception);
-					case ComputeMessageType.ExecuteOutput:
+					case AgentMessageType.ExecuteOutput:
 						AppendData(message.Data.Span);
 						break;
-					case ComputeMessageType.ExecuteResult:
+					case AgentMessageType.ExecuteResult:
 						ExecuteProcessResponseMessage executeProcessResponse = message.ParseExecuteProcessResponse();
 						_result.TrySetResult(executeProcessResponse.ExitCode);
 						return;
 					default:
-						throw new InvalidComputeMessageException(message);
+						throw new InvalidAgentMessageException(message);
 				}
 			}
 		}

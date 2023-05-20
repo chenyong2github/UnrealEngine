@@ -12,7 +12,7 @@ namespace EpicGames.Horde.Compute.Buffers
 	/// <summary>
 	/// In-process buffer used to store compute messages
 	/// </summary>
-	public sealed class PooledBuffer : ComputeBufferBase
+	public sealed class PooledBuffer : ComputeBuffer
 	{
 		class Resources : ResourcesBase
 		{

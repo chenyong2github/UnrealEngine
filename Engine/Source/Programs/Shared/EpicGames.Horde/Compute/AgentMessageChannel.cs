@@ -6,6 +6,8 @@ using System.Buffers.Binary;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.Horde.Compute.Buffers;
 using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Horde.Compute
@@ -13,7 +15,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Implementation of a compute channel
 	/// </summary>
-	public sealed class ComputeMessageChannel : IComputeMessageChannel
+	public sealed class AgentMessageChannel : IDisposable
 	{
 		// Length of a message header. Consists of a 1 byte type field, followed by 4 byte length field.
 		const int HeaderLength = 5;
@@ -21,10 +23,10 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Standard implementation of a message
 		/// </summary>
-		sealed class Message : IComputeMessage
+		sealed class Message : IAgentMessage
 		{
 			/// <inheritdoc/>
-			public ComputeMessageType Type { get; }
+			public AgentMessageType Type { get; }
 
 			/// <inheritdoc/>
 			public ReadOnlyMemory<byte> Data { get; }
@@ -32,7 +34,7 @@ namespace EpicGames.Horde.Compute
 			readonly IMemoryOwner<byte> _memoryOwner;
 			int _position;
 
-			public Message(ComputeMessageType type, ReadOnlyMemory<byte> data)
+			public Message(AgentMessageType type, ReadOnlyMemory<byte> data)
 			{
 				_memoryOwner = MemoryPool<byte>.Shared.Rent(data.Length);
 				data.CopyTo(_memoryOwner.Memory);
@@ -57,17 +59,17 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Allows creating new messages in rented memory
 		/// </summary>
-		class MessageBuilder : IComputeMessageBuilder
+		class MessageBuilder : IAgentMessageBuilder
 		{
-			readonly ComputeMessageChannel _channel;
+			readonly AgentMessageChannel _channel;
 			readonly IComputeBufferWriter _sendBufferWriter;
-			readonly ComputeMessageType _type;
+			readonly AgentMessageType _type;
 			int _length;
 
 			/// <inheritdoc/>
 			public int Length => _length;
 
-			public MessageBuilder(ComputeMessageChannel channel, IComputeBufferWriter sendBufferWriter, ComputeMessageType type)
+			public MessageBuilder(AgentMessageChannel channel, IComputeBufferWriter sendBufferWriter, AgentMessageType type)
 			{
 				_channel = channel;
 				_sendBufferWriter = sendBufferWriter;
@@ -125,7 +127,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="recvBufferReader"></param>
 		/// <param name="sendBufferWriter"></param>
 		/// <param name="logger">Logger for diagnostic output</param>
-		public ComputeMessageChannel(IComputeBufferReader recvBufferReader, IComputeBufferWriter sendBufferWriter, ILogger logger)
+		public AgentMessageChannel(IComputeBufferReader recvBufferReader, IComputeBufferWriter sendBufferWriter, ILogger logger)
 		{
 			_socket = null!;
 			_recvBufferReader = recvBufferReader.AddRef();
@@ -141,7 +143,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="recvBuffer"></param>
 		/// <param name="sendBuffer"></param>
 		/// <param name="logger">Logger for diagnostic output</param>
-		public ComputeMessageChannel(IComputeSocket socket, int channelId, IComputeBuffer recvBuffer, IComputeBuffer sendBuffer, ILogger logger)
+		public AgentMessageChannel(IComputeSocket socket, int channelId, IComputeBuffer recvBuffer, IComputeBuffer sendBuffer, ILogger logger)
 		{
 			_socket = socket;
 			_socket.AttachRecvBuffer(channelId, recvBuffer.Writer);
@@ -173,7 +175,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<IComputeMessage> ReceiveAsync(CancellationToken cancellationToken)
+		public async ValueTask<IAgentMessage> ReceiveAsync(CancellationToken cancellationToken)
 		{
 			while (!_recvBufferReader.IsComplete)
 			{
@@ -191,7 +193,7 @@ namespace EpicGames.Horde.Compute
 					continue;
 				}
 
-				ComputeMessageType type = (ComputeMessageType)memory.Span[0];
+				AgentMessageType type = (AgentMessageType)memory.Span[0];
 				Message message = new Message(type, memory.Slice(HeaderLength, messageLength));
 				if (_logger.IsEnabled(LogLevel.Trace))
 				{
@@ -201,10 +203,10 @@ namespace EpicGames.Horde.Compute
 				_recvBufferReader.AdvanceReadPosition(HeaderLength + messageLength);
 				return message;
 			}
-			return new Message(ComputeMessageType.None, ReadOnlyMemory<byte>.Empty);
+			return new Message(AgentMessageType.None, ReadOnlyMemory<byte>.Empty);
 		}
 
-		void LogMessageInfo(string verb, ComputeMessageType type, ReadOnlySpan<byte> data)
+		void LogMessageInfo(string verb, AgentMessageType type, ReadOnlySpan<byte> data)
 		{
 			StringBuilder bytes = new StringBuilder();
 			for (int offset = 0; offset < 16 && offset < data.Length; offset++)
@@ -219,7 +221,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<IComputeMessageBuilder> CreateMessageAsync(ComputeMessageType type, int maxSize, CancellationToken cancellationToken)
+		public async ValueTask<IAgentMessageBuilder> CreateMessageAsync(AgentMessageType type, int maxSize, CancellationToken cancellationToken)
 		{
 			if (_currentBuilder != null)
 			{
@@ -230,6 +232,90 @@ namespace EpicGames.Horde.Compute
 
 			_currentBuilder = new MessageBuilder(this, _sendBufferWriter, type);
 			return _currentBuilder;
+		}
+	}
+
+	/// <summary>
+	/// Extension methods to allow creating channels from leases
+	/// </summary>
+	public static class AgentMessageChannelExtensions
+	{
+		/// <summary>
+		/// Creates a message channel with the given identifier
+		/// </summary>
+		/// <param name="socket">Socket to create a channel for</param>
+		/// <param name="channelId">Identifier for the channel</param>
+		/// <param name="logger">Logger for the channel</param>
+		public static AgentMessageChannel CreateAgentMessageChannel(this IComputeSocket socket, int channelId, ILogger logger)
+			=> socket.CreateAgentMessageChannel(channelId, 65536, logger);
+
+		/// <summary>
+		/// Creates a message channel with the given identifier
+		/// </summary>
+		/// <param name="socket">Socket to create a channel for</param>
+		/// <param name="channelId">Identifier for the channel</param>
+		/// <param name="bufferSize">Size of the send and receive buffer</param>
+		/// <param name="logger">Logger for the channel</param>
+		public static AgentMessageChannel CreateAgentMessageChannel(this IComputeSocket socket, int channelId, int bufferSize, ILogger logger)
+			=> socket.CreateAgentMessageChannel(channelId, bufferSize, bufferSize, logger);
+
+		/// <summary>
+		/// Creates a message channel with the given identifier
+		/// </summary>
+		/// <param name="socket">Socket to create a channel for</param>
+		/// <param name="channelId">Identifier for the channel</param>
+		/// <param name="sendBufferSize">Size of the send buffer</param>
+		/// <param name="recvBufferSize">Size of the recieve buffer</param>
+		/// <param name="logger">Logger for the channel</param>
+		public static AgentMessageChannel CreateAgentMessageChannel(this IComputeSocket socket, int channelId, int sendBufferSize, int recvBufferSize, ILogger logger)
+		{
+			using IComputeBuffer sendBuffer = new PooledBuffer(sendBufferSize);
+			using IComputeBuffer recvBuffer = new PooledBuffer(recvBufferSize);
+			return new AgentMessageChannel(socket, channelId, sendBuffer, recvBuffer, logger);
+		}
+
+		/// <summary>
+		/// Reads a message from the channel
+		/// </summary>
+		/// <param name="channel">Channel to receive on</param>
+		/// <param name="type">Expected type of the message</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Data for a message that was read. Must be disposed.</returns>
+		public static async ValueTask<IAgentMessage> ReceiveAsync(this AgentMessageChannel channel, AgentMessageType type, CancellationToken cancellationToken = default)
+		{
+			IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
+			if (message.Type != type)
+			{
+				throw new InvalidAgentMessageException(message);
+			}
+			return message;
+		}
+
+		/// <summary>
+		/// Creates a new builder for a message
+		/// </summary>
+		/// <param name="channel">Channel to send on</param>
+		/// <param name="type">Type of the message</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New builder for messages</returns>
+		public static ValueTask<IAgentMessageBuilder> CreateMessageAsync(this AgentMessageChannel channel, AgentMessageType type, CancellationToken cancellationToken)
+		{
+			return channel.CreateMessageAsync(type, 1024, cancellationToken);
+		}
+
+		/// <summary>
+		/// Forwards an existing message across a channel
+		/// </summary>
+		/// <param name="channel">Channel to send on</param>
+		/// <param name="message">The message to be sent</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public static async ValueTask SendAsync(this AgentMessageChannel channel, IAgentMessage message, CancellationToken cancellationToken)
+		{
+			using (IAgentMessageBuilder builder = await channel.CreateMessageAsync(message.Type, message.Data.Length, cancellationToken))
+			{
+				builder.WriteFixedLengthBytes(message.Data.Span);
+				builder.Send();
+			}
 		}
 	}
 }

@@ -13,7 +13,7 @@ namespace EpicGames.Horde.Compute.Buffers
 	/// <summary>
 	/// Core implementation of <see cref="SharedMemoryBuffer"/>
 	/// </summary>
-	public sealed class SharedMemoryBuffer : ComputeBufferBase
+	public sealed class SharedMemoryBuffer : ComputeBuffer
 	{
 		class Resources : ResourcesBase
 		{

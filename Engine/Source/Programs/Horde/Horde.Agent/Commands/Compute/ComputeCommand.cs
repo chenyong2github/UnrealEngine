@@ -143,7 +143,7 @@ namespace Horde.Agent.Commands.Compute
 		{
 			DirectoryReference sandboxDir = DirectoryReference.Combine(Program.DataDir, "Sandbox");
 
-			ComputeWorker worker = new ComputeWorker(sandboxDir, memoryCache, logger);
+			AgentMessageHandler worker = new AgentMessageHandler(sandboxDir, memoryCache, logger);
 			await worker.RunAsync(socket, cancellationToken);
 		}
 	}

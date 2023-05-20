@@ -31,13 +31,13 @@ namespace Horde.Agent.Commands.Compute
 		protected override async Task<bool> HandleRequestAsync(IComputeLease lease, CancellationToken cancellationToken)
 		{
 			IComputeSocket socket = lease.Socket;
-			using (IComputeMessageChannel channel = socket.CreateMessageChannel(0, _logger))
+			using (AgentMessageChannel channel = socket.CreateAgentMessageChannel(0, _logger))
 			{
 				_logger.LogInformation("Sending XOR request");
 				await channel.SendXorRequestAsync(new byte[] { 1, 2, 3, 4, 5 }, (byte)123, cancellationToken);
 
 				_logger.LogInformation("Waiting for response...");
-				IComputeMessage response = await channel.ReceiveAsync(cancellationToken);
+				IAgentMessage response = await channel.ReceiveAsync(cancellationToken);
 
 				byte[] result = response.Data.ToArray();
 				byte[] expectedResult = new byte[] { 1 ^ 123, 2 ^ 123, 3 ^ 123, 4 ^ 123, 5 ^ 123 };

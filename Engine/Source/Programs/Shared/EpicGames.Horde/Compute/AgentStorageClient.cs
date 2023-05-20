@@ -15,14 +15,14 @@ namespace EpicGames.Horde.Compute
 	/// </summary>
 	public sealed class ComputeStorageClient : StorageClientBase, IDisposable
 	{
-		readonly IComputeMessageChannel _channel;
+		readonly AgentMessageChannel _channel;
 		readonly SemaphoreSlim _semaphore;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="channel"></param>
-		public ComputeStorageClient(IComputeMessageChannel channel)
+		public ComputeStorageClient(AgentMessageChannel channel)
 		{
 			_channel = channel;
 			_semaphore = new SemaphoreSlim(1);

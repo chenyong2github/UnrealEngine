@@ -18,7 +18,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Implements the remote end of a compute worker. 
 	/// </summary>
-	public class ComputeWorker
+	public class AgentMessageHandler
 	{
 		readonly DirectoryReference _sandboxDir;
 		readonly IMemoryCache _memoryCache;
@@ -30,7 +30,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="sandboxDir">Directory to use for reading/writing files</param>
 		/// <param name="memoryCache">Cache for nodes read from storage</param>
 		/// <param name="logger">Logger for diagnostics</param>
-		public ComputeWorker(DirectoryReference sandboxDir, IMemoryCache memoryCache, ILogger logger)
+		public AgentMessageHandler(DirectoryReference sandboxDir, IMemoryCache memoryCache, ILogger logger)
 		{
 			_sandboxDir = sandboxDir;
 			_memoryCache = memoryCache;
@@ -49,61 +49,61 @@ namespace EpicGames.Horde.Compute
 
 		async Task RunAsync(IComputeSocket socket, int channelId, int bufferSize, CancellationToken cancellationToken)
 		{
-			using (IComputeMessageChannel channel = socket.CreateMessageChannel(channelId, bufferSize, _logger))
+			using (AgentMessageChannel channel = socket.CreateAgentMessageChannel(channelId, bufferSize, _logger))
 			{
 				await channel.AttachAsync(cancellationToken);
 
 				List<Task> childTasks = new List<Task>();
 				for (; ; )
 				{
-					using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
+					using IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
 					_logger.LogTrace("Compute Channel {ChannelId}: {MessageType}", channelId, message.Type);
 
 					switch (message.Type)
 					{
-						case ComputeMessageType.None:
+						case AgentMessageType.None:
 							await Task.WhenAll(childTasks);
 							return;
-						case ComputeMessageType.Fork:
+						case AgentMessageType.Fork:
 							{
 								ForkMessage fork = message.ParseForkMessage();
 								childTasks.Add(Task.Run(() => RunAsync(socket, fork.channelId, fork.bufferSize, cancellationToken), cancellationToken));
 							}
 							break;
-						case ComputeMessageType.WriteFiles:
+						case AgentMessageType.WriteFiles:
 							{
 								UploadFilesMessage writeFiles = message.ParseUploadFilesMessage();
 								await WriteFilesAsync(channel, writeFiles.Name, writeFiles.Locator, cancellationToken);
 							}
 							break;
-						case ComputeMessageType.DeleteFiles:
+						case AgentMessageType.DeleteFiles:
 							{
 								DeleteFilesMessage deleteFiles = message.ParseDeleteFilesMessage();
 								DeleteFiles(deleteFiles.Filter);
 							}
 							break;
-						case ComputeMessageType.Execute:
+						case AgentMessageType.Execute:
 							{
 								ExecuteProcessMessage executeProcess = message.ParseExecuteProcessMessage();
 								await ExecuteProcessAsync(socket, channel, executeProcess.Executable, executeProcess.Arguments, executeProcess.WorkingDir, executeProcess.EnvVars, cancellationToken);
 							}
 							break;
-						case ComputeMessageType.XorRequest:
+						case AgentMessageType.XorRequest:
 							{
 								XorRequestMessage xorRequest = message.AsXorRequest();
 								await RunXor(channel, xorRequest.Data, xorRequest.Value, cancellationToken);
 							}
 							break;
 						default:
-							throw new InvalidComputeMessageException(message);
+							throw new InvalidAgentMessageException(message);
 					}
 				}
 			}
 		}
 
-		static async ValueTask RunXor(IComputeMessageChannel channel, ReadOnlyMemory<byte> source, byte value, CancellationToken cancellationToken)
+		static async ValueTask RunXor(AgentMessageChannel channel, ReadOnlyMemory<byte> source, byte value, CancellationToken cancellationToken)
 		{
-			using IComputeMessageBuilder response = await channel.CreateMessageAsync(ComputeMessageType.XorResponse, source.Length, cancellationToken);
+			using IAgentMessageBuilder response = await channel.CreateMessageAsync(AgentMessageType.XorResponse, source.Length, cancellationToken);
 			XorData(source.Span, response.GetSpanAndAdvance(source.Length), value);
 			response.Send();
 		}
@@ -116,7 +116,7 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		async Task WriteFilesAsync(IComputeMessageChannel channel, string path, NodeLocator locator, CancellationToken cancellationToken)
+		async Task WriteFilesAsync(AgentMessageChannel channel, string path, NodeLocator locator, CancellationToken cancellationToken)
 		{
 			using ComputeStorageClient store = new ComputeStorageClient(channel);
 			TreeReader reader = new TreeReader(store, _memoryCache, _logger);
@@ -131,7 +131,7 @@ namespace EpicGames.Horde.Compute
 
 			await directoryNode.CopyToDirectoryAsync(reader, outputDir.ToDirectoryInfo(), _logger, cancellationToken);
 
-			using (IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.WriteFilesResponse, cancellationToken))
+			using (IAgentMessageBuilder message = await channel.CreateMessageAsync(AgentMessageType.WriteFilesResponse, cancellationToken))
 			{
 				message.Send();
 			}
@@ -148,7 +148,7 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		async Task ExecuteProcessAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		async Task ExecuteProcessAsync(IComputeSocket socket, AgentMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
 			try
 			{
@@ -167,7 +167,7 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		async Task ExecuteProcessWindowsAsync(IComputeSocket socket, AgentMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
 			Dictionary<string, string?> newEnvVars = new Dictionary<string, string?>();
 			if (envVars != null)
@@ -259,7 +259,7 @@ namespace EpicGames.Horde.Compute
 			}
 		}
 
-		async Task ExecuteProcessInternalAsync(IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
+		async Task ExecuteProcessInternalAsync(AgentMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken)
 		{
 			string resolvedExecutable = FileReference.Combine(_sandboxDir, executable).FullName;
 			string resolvedCommandLine = CommandLineArguments.Join(arguments);

@@ -11,7 +11,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// In-process buffer used to store compute messages
 	/// </summary>
-	public abstract class ComputeBufferBase : IComputeBuffer
+	public abstract class ComputeBuffer : IComputeBuffer
 	{
 		const int MaxChunks = 16;
 		const int MaxReaders = 16;
@@ -516,7 +516,7 @@ namespace EpicGames.Horde.Compute
 		/// Constructor
 		/// </summary>
 		/// <param name="resources">Resources shared between instances of the buffer</param>
-		internal ComputeBufferBase(ResourcesBase resources)
+		internal ComputeBuffer(ResourcesBase resources)
 		{
 			_resources = resources;
 			Reader = new ReaderImpl(resources, 0);

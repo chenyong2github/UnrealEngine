@@ -84,12 +84,12 @@ namespace RemoteClient
 		static async Task RunRemoteAsync(IComputeLease lease, DirectoryReference uploadDir, string executable, List<string> arguments, ILogger logger)
 		{
 			// Create a message channel on channel id 0. The Horde Agent always listens on this channel for requests.
-			using (IComputeMessageChannel channel = lease.Socket.CreateMessageChannel(PrimaryChannelId, 4 * 1024 * 1024, logger))
+			using (AgentMessageChannel channel = lease.Socket.CreateAgentMessageChannel(PrimaryChannelId, 4 * 1024 * 1024, logger))
 			{
 				await channel.WaitForAttachAsync();
 
 				// Fork another message loop. We'll use this to run an XOR task in the background.
-				using IComputeMessageChannel backgroundChannel = lease.Socket.CreateMessageChannel(BackgroundChannelId, 4 * 1024 * 1024, logger);
+				using AgentMessageChannel backgroundChannel = lease.Socket.CreateAgentMessageChannel(BackgroundChannelId, 4 * 1024 * 1024, logger);
 				await using BackgroundTask otherChannelTask = BackgroundTask.StartNew(ctx => RunBackgroundXorAsync(backgroundChannel));
 				await channel.ForkAsync(BackgroundChannelId, 4 * 1024 * 1024, default);
 
@@ -104,7 +104,7 @@ namespace RemoteClient
 				}
 
 				// Run the task remotely in the background and echo the output to the console
-				await using (IComputeProcess process = await channel.ExecuteAsync(executable, arguments, null, null))
+				await using (AgentManagedProcess process = await channel.ExecuteAsync(executable, arguments, null, null))
 				{
 					await using BackgroundTask tickTask = BackgroundTask.StartNew(ctx => WriteNumbersAsync(lease.Socket, logger, ctx));
 
@@ -141,14 +141,14 @@ namespace RemoteClient
 			await socket.MarkCompleteAsync(ChildProcessChannelId, cancellationToken);
 		}
 
-		static async Task RunBackgroundXorAsync(IComputeMessageChannel channel)
+		static async Task RunBackgroundXorAsync(AgentMessageChannel channel)
 		{
 			await channel.WaitForAttachAsync();
 
 			byte[] dataToXor = new byte[] { 1, 2, 3, 4, 5 };
 			await channel.SendXorRequestAsync(dataToXor, 123);
 
-			using IComputeMessage response = await channel.ReceiveAsync(ComputeMessageType.XorResponse);
+			using IAgentMessage response = await channel.ReceiveAsync(AgentMessageType.XorResponse);
 			for (int idx = 0; idx < dataToXor.Length; idx++)
 			{
 				if (response.Data.Span[idx] != (byte)(dataToXor[idx] ^ 123))

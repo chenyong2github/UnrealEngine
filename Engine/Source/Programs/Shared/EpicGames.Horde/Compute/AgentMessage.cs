@@ -15,7 +15,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Type of a compute message
 	/// </summary>
-	public enum ComputeMessageType
+	public enum AgentMessageType
 	{
 		/// <summary>
 		/// No message was received (end of stream)
@@ -103,12 +103,12 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Information about a received compute message
 	/// </summary>
-	public interface IComputeMessage : IMemoryReader, IDisposable
+	public interface IAgentMessage : IMemoryReader, IDisposable
 	{
 		/// <summary>
 		/// Type of the message
 		/// </summary>
-		public ComputeMessageType Type { get; }
+		public AgentMessageType Type { get; }
 
 		/// <summary>
 		/// Data that was read
@@ -171,28 +171,28 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Wraps various requests across compute channels
 	/// </summary>
-	public static class ComputeMessageExtensions
+	public static class AgentMessageExtensions
 	{
 		/// <summary>
 		/// Closes the remote message loop
 		/// </summary>
-		public static async ValueTask CloseAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
+		public static async ValueTask CloseAsync(this AgentMessageChannel channel, CancellationToken cancellationToken = default)
 		{
-			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.None, cancellationToken);
+			using IAgentMessageBuilder message = await channel.CreateMessageAsync(AgentMessageType.None, cancellationToken);
 			message.Send();
 		}
 
 		/// <summary>
 		/// Sends an exception response to the remote
 		/// </summary>
-		public static ValueTask SendExceptionAsync(this IComputeMessageChannel channel, Exception ex, CancellationToken cancellationToken = default) => SendExceptionAsync(channel, ex.Message, ex.ToString(), cancellationToken);
+		public static ValueTask SendExceptionAsync(this AgentMessageChannel channel, Exception ex, CancellationToken cancellationToken = default) => SendExceptionAsync(channel, ex.Message, ex.ToString(), cancellationToken);
 
 		/// <summary>
 		/// Sends an exception response to the remote
 		/// </summary>
-		public static async ValueTask SendExceptionAsync(this IComputeMessageChannel channel, string description, string trace, CancellationToken cancellationToken = default)
+		public static async ValueTask SendExceptionAsync(this AgentMessageChannel channel, string description, string trace, CancellationToken cancellationToken = default)
 		{
-			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.Exception, cancellationToken);
+			using IAgentMessageBuilder message = await channel.CreateMessageAsync(AgentMessageType.Exception, cancellationToken);
 			message.WriteString(description);
 			message.WriteString(trace);
 			message.Send();
@@ -201,7 +201,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a message as an <see cref="ExceptionMessage"/>
 		/// </summary>
-		public static ExceptionMessage ParseExceptionMessage(this IComputeMessage message)
+		public static ExceptionMessage ParseExceptionMessage(this IAgentMessage message)
 		{
 			string msg = message.ReadString();
 			string description = message.ReadString();
@@ -211,9 +211,9 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Requests that the remote message loop be forked
 		/// </summary>
-		public static async ValueTask ForkAsync(this IComputeMessageChannel channel, int channelId, int bufferSize, CancellationToken cancellationToken = default)
+		public static async ValueTask ForkAsync(this AgentMessageChannel channel, int channelId, int bufferSize, CancellationToken cancellationToken = default)
 		{
-			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.Fork, cancellationToken);
+			using IAgentMessageBuilder message = await channel.CreateMessageAsync(AgentMessageType.Fork, cancellationToken);
 			message.WriteInt32(channelId);
 			message.WriteInt32(bufferSize);
 			message.Send();
@@ -222,7 +222,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a fork request message
 		/// </summary>
-		public static ForkMessage ParseForkMessage(this IComputeMessage message)
+		public static ForkMessage ParseForkMessage(this IAgentMessage message)
 		{
 			int channelId = message.ReadInt32();
 			int bufferSize = message.ReadInt32();
@@ -232,9 +232,9 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Notifies the remote that a buffer has been attached
 		/// </summary>
-		public static async ValueTask AttachAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
+		public static async ValueTask AttachAsync(this AgentMessageChannel channel, CancellationToken cancellationToken = default)
 		{
-			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.Attach, cancellationToken);
+			using IAgentMessageBuilder message = await channel.CreateMessageAsync(AgentMessageType.Attach, cancellationToken);
 			message.Send();
 		}
 
@@ -244,23 +244,23 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channel"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async ValueTask WaitForAttachAsync(this IComputeMessageChannel channel, CancellationToken cancellationToken = default)
+		public static async ValueTask WaitForAttachAsync(this AgentMessageChannel channel, CancellationToken cancellationToken = default)
 		{
-			using IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
-			if (message.Type != ComputeMessageType.Attach)
+			using IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
+			if (message.Type != AgentMessageType.Attach)
 			{
-				throw new InvalidComputeMessageException(message);
+				throw new InvalidAgentMessageException(message);
 			}
 		}
 
 		#region Process
 
-		static async Task<IComputeMessage> RunStorageServer(this IComputeMessageChannel channel, IStorageClient storage, CancellationToken cancellationToken = default)
+		static async Task<IAgentMessage> RunStorageServer(this AgentMessageChannel channel, IStorageClient storage, CancellationToken cancellationToken = default)
 		{
 			for (; ; )
 			{
-				IComputeMessage message = await channel.ReceiveAsync(cancellationToken);
-				if (message.Type != ComputeMessageType.ReadBlob)
+				IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
+				if (message.Type != AgentMessageType.ReadBlob)
 				{
 					return message;
 				}
@@ -285,26 +285,26 @@ namespace EpicGames.Horde.Compute
 		/// <param name="locator">Location of a <see cref="DirectoryNode"/> describing contents of the sandbox</param>
 		/// <param name="storage">Storage for the sandbox data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task UploadFilesAsync(this IComputeMessageChannel channel, string path, NodeLocator locator, IStorageClient storage, CancellationToken cancellationToken = default)
+		public static async Task UploadFilesAsync(this AgentMessageChannel channel, string path, NodeLocator locator, IStorageClient storage, CancellationToken cancellationToken = default)
 		{
-			using (IComputeMessageBuilder request = await channel.CreateMessageAsync(ComputeMessageType.WriteFiles, cancellationToken))
+			using (IAgentMessageBuilder request = await channel.CreateMessageAsync(AgentMessageType.WriteFiles, cancellationToken))
 			{
 				request.WriteString(path);
 				request.WriteNodeLocator(locator);
 				request.Send();
 			}
 
-			using IComputeMessage response = await RunStorageServer(channel, storage, cancellationToken);
-			if (response.Type != ComputeMessageType.WriteFilesResponse)
+			using IAgentMessage response = await RunStorageServer(channel, storage, cancellationToken);
+			if (response.Type != AgentMessageType.WriteFilesResponse)
 			{
-				throw new InvalidComputeMessageException(response);
+				throw new InvalidAgentMessageException(response);
 			}
 		}
 
 		/// <summary>
 		/// Parses a message as a <see cref="UploadFilesMessage"/>
 		/// </summary>
-		public static UploadFilesMessage ParseUploadFilesMessage(this IComputeMessage message)
+		public static UploadFilesMessage ParseUploadFilesMessage(this IAgentMessage message)
 		{
 			string name = message.ReadString();
 			NodeLocator locator = message.ReadNodeLocator();
@@ -317,9 +317,9 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channel">Current channel</param>
 		/// <param name="paths">Paths of files or directories to delete</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async ValueTask DeleteFilesAsync(this IComputeMessageChannel channel, IReadOnlyList<string> paths, CancellationToken cancellationToken)
+		public static async ValueTask DeleteFilesAsync(this AgentMessageChannel channel, IReadOnlyList<string> paths, CancellationToken cancellationToken)
 		{
-			IComputeMessageBuilder request = await channel.CreateMessageAsync(ComputeMessageType.DeleteFiles, cancellationToken);
+			IAgentMessageBuilder request = await channel.CreateMessageAsync(AgentMessageType.DeleteFiles, cancellationToken);
 			request.WriteList(paths, MemoryWriterExtensions.WriteString);
 			request.Send();
 		}
@@ -327,7 +327,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a message as a <see cref="DeleteFilesMessage"/>
 		/// </summary>
-		public static DeleteFilesMessage ParseDeleteFilesMessage(this IComputeMessage message)
+		public static DeleteFilesMessage ParseDeleteFilesMessage(this IAgentMessage message)
 		{
 			List<string> files = message.ReadList(MemoryReaderExtensions.ReadString);
 			return new DeleteFilesMessage(files);
@@ -342,9 +342,9 @@ namespace EpicGames.Horde.Compute
 		/// <param name="workingDir">Working directory for the process</param>
 		/// <param name="envVars">Environment variables for the child process</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task<IComputeProcess> ExecuteAsync(this IComputeMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken = default)
+		public static async Task<AgentManagedProcess> ExecuteAsync(this AgentMessageChannel channel, string executable, IReadOnlyList<string> arguments, string? workingDir, IReadOnlyDictionary<string, string?>? envVars, CancellationToken cancellationToken = default)
 		{
-			using (IComputeMessageBuilder request = await channel.CreateMessageAsync(ComputeMessageType.Execute, cancellationToken))
+			using (IAgentMessageBuilder request = await channel.CreateMessageAsync(AgentMessageType.Execute, cancellationToken))
 			{
 				request.WriteString(executable);
 				request.WriteList(arguments, MemoryWriterExtensions.WriteString);
@@ -352,13 +352,13 @@ namespace EpicGames.Horde.Compute
 				request.WriteDictionary(envVars ?? new Dictionary<string, string?>(), MemoryWriterExtensions.WriteString, MemoryWriterExtensions.WriteOptionalString);
 				request.Send();
 			}
-			return new ComputeProcess(channel);
+			return new AgentManagedProcess(channel);
 		}
 
 		/// <summary>
 		/// Parses a message as a <see cref="ExecuteProcessMessage"/>
 		/// </summary>
-		public static ExecuteProcessMessage ParseExecuteProcessMessage(this IComputeMessage message)
+		public static ExecuteProcessMessage ParseExecuteProcessMessage(this IAgentMessage message)
 		{
 			string executable = message.ReadString();
 			List<string> arguments = message.ReadList(MemoryReaderExtensions.ReadString);
@@ -370,9 +370,9 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Sends output from a child process
 		/// </summary>
-		public static async ValueTask SendExecuteOutputAsync(this IComputeMessageChannel channel, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
+		public static async ValueTask SendExecuteOutputAsync(this AgentMessageChannel channel, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
 		{
-			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.ExecuteOutput, cancellationToken);
+			using IAgentMessageBuilder message = await channel.CreateMessageAsync(AgentMessageType.ExecuteOutput, cancellationToken);
 			message.WriteFixedLengthBytes(data.Span);
 			message.Send();
 		}
@@ -383,9 +383,9 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channel"></param>
 		/// <param name="exitCode">Exit code from the process</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async ValueTask SendExecuteResultAsync(this IComputeMessageChannel channel, int exitCode, CancellationToken cancellationToken = default)
+		public static async ValueTask SendExecuteResultAsync(this AgentMessageChannel channel, int exitCode, CancellationToken cancellationToken = default)
 		{
-			using IComputeMessageBuilder builder = await channel.CreateMessageAsync(ComputeMessageType.ExecuteResult, cancellationToken);
+			using IAgentMessageBuilder builder = await channel.CreateMessageAsync(AgentMessageType.ExecuteResult, cancellationToken);
 			builder.WriteInt32(exitCode);
 			builder.Send();
 		}
@@ -393,7 +393,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a message as a <see cref="ExecuteProcessMessage"/>
 		/// </summary>
-		public static ExecuteProcessResponseMessage ParseExecuteProcessResponse(this IComputeMessage message)
+		public static ExecuteProcessResponseMessage ParseExecuteProcessResponse(this IAgentMessage message)
 		{
 			int exitCode = message.ReadInt32();
 			return new ExecuteProcessResponseMessage(exitCode);
@@ -408,7 +408,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="message"></param>
 		/// <returns></returns>
-		public static ReadBlobMessage ParseReadBlobRequest(this IComputeMessage message)
+		public static ReadBlobMessage ParseReadBlobRequest(this IAgentMessage message)
 		{
 			BlobLocator locator = message.ReadBlobLocator();
 			int offset = (int)message.ReadUnsignedVarInt();
@@ -421,9 +421,9 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		sealed class BlobDataStream : ReadOnlyMemoryStream
 		{
-			readonly IComputeMessage _message;
+			readonly IAgentMessage _message;
 
-			public BlobDataStream(IComputeMessage message)
+			public BlobDataStream(IAgentMessage message)
 				: base(message.Data.Slice(8))
 			{
 				_message = message;
@@ -449,9 +449,9 @@ namespace EpicGames.Horde.Compute
 		/// <param name="length">Length of data to return</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Stream containing the blob data</returns>
-		public static async Task<Stream> ReadBlobAsync(this IComputeMessageChannel channel, BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default)
+		public static async Task<Stream> ReadBlobAsync(this AgentMessageChannel channel, BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default)
 		{
-			using (IComputeMessageBuilder request = await channel.CreateMessageAsync(ComputeMessageType.ReadBlob, cancellationToken))
+			using (IAgentMessageBuilder request = await channel.CreateMessageAsync(AgentMessageType.ReadBlob, cancellationToken))
 			{
 				request.WriteBlobLocator(locator);
 				request.WriteUnsignedVarInt(offset);
@@ -462,13 +462,13 @@ namespace EpicGames.Horde.Compute
 			byte[]? buffer = null;
 			for(; ;)
 			{
-				IComputeMessage? response = null;
+				IAgentMessage? response = null;
 				try
 				{
 					response = await channel.ReceiveAsync(cancellationToken);
-					if (response.Type != ComputeMessageType.ReadBlobResponse)
+					if (response.Type != AgentMessageType.ReadBlobResponse)
 					{
-						throw new InvalidComputeMessageException(response);
+						throw new InvalidAgentMessageException(response);
 					}
 
 					int chunkOffset = BinaryPrimitives.ReadInt32LittleEndian(response.Data.Span.Slice(0, 4));
@@ -507,7 +507,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="message">The read request</param>
 		/// <param name="storage">Storage client to retrieve the blob from</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static Task SendBlobDataAsync(this IComputeMessageChannel channel, ReadBlobMessage message, IStorageClient storage, CancellationToken cancellationToken = default)
+		public static Task SendBlobDataAsync(this AgentMessageChannel channel, ReadBlobMessage message, IStorageClient storage, CancellationToken cancellationToken = default)
 		{
 			return SendBlobDataAsync(channel, message.Locator, message.Offset, message.Length, storage, cancellationToken);
 		}
@@ -521,7 +521,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="length">Length of the data</param>
 		/// <param name="storage">Storage client to retrieve the blob from</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async Task SendBlobDataAsync(this IComputeMessageChannel channel, BlobLocator locator, int offset, int length, IStorageClient storage, CancellationToken cancellationToken = default)
+		public static async Task SendBlobDataAsync(this AgentMessageChannel channel, BlobLocator locator, int offset, int length, IStorageClient storage, CancellationToken cancellationToken = default)
 		{
 			byte[] data;
 			if (offset == 0 && length == 0)
@@ -547,7 +547,7 @@ namespace EpicGames.Horde.Compute
 			for (int chunkOffset = 0; chunkOffset < data.Length;)
 			{
 				int chunkLength = Math.Min(data.Length - chunkOffset, MaxChunkSize);
-				using (IComputeMessageBuilder response = await channel.CreateMessageAsync(ComputeMessageType.ReadBlobResponse, chunkLength + 128, cancellationToken))
+				using (IAgentMessageBuilder response = await channel.CreateMessageAsync(AgentMessageType.ReadBlobResponse, chunkLength + 128, cancellationToken))
 				{
 					response.WriteInt32(chunkOffset);
 					response.WriteInt32(data.Length);
@@ -565,9 +565,9 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Send a message to request that a byte string be xor'ed with a particular value
 		/// </summary>
-		public static async ValueTask SendXorRequestAsync(this IComputeMessageChannel channel, ReadOnlyMemory<byte> data, byte value, CancellationToken cancellationToken = default)
+		public static async ValueTask SendXorRequestAsync(this AgentMessageChannel channel, ReadOnlyMemory<byte> data, byte value, CancellationToken cancellationToken = default)
 		{
-			using IComputeMessageBuilder message = await channel.CreateMessageAsync(ComputeMessageType.XorRequest, cancellationToken);
+			using IAgentMessageBuilder message = await channel.CreateMessageAsync(AgentMessageType.XorRequest, cancellationToken);
 			message.WriteFixedLengthBytes(data.Span);
 			message.WriteUInt8(value);
 			message.Send();
@@ -576,7 +576,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parse a message as an XOR request
 		/// </summary>
-		public static XorRequestMessage AsXorRequest(this IComputeMessage message)
+		public static XorRequestMessage AsXorRequest(this IAgentMessage message)
 		{
 			ReadOnlyMemory<byte> data = message.Data;
 			return new XorRequestMessage(data[0..^1], data.Span[^1]);
