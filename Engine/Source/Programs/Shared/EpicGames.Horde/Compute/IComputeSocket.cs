@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 using EpicGames.Horde.Compute.Buffers;
 using Microsoft.Extensions.Logging;
 
@@ -26,12 +24,6 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channelId">Channel to receive data on</param>
 		/// <param name="sendBufferReader">Reader for the buffer to send data from</param>
 		void AttachSendBuffer(int channelId, IComputeBufferReader sendBufferReader);
-
-		/// <summary>
-		/// Attempt to gracefully close the current connection and shutdown both ends of the transport
-		/// </summary>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		ValueTask CloseAsync(CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
