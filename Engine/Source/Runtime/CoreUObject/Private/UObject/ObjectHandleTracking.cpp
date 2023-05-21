@@ -10,6 +10,8 @@ namespace UE::CoreUObject
 {
 	namespace Private
 	{
+		COREUOBJECT_API std::atomic<int32> HandleReadCallbackQuantity = 0;
+
 		struct ObjectHandleCallbacks
 		{
 			static ObjectHandleCallbacks& Get()
@@ -71,6 +73,7 @@ namespace UE::CoreUObject
 				FObjectHandleTrackingCallbackId Result;
 				UE_AUTORTFM_OPEN(
 				{
+					HandleReadCallbackQuantity.fetch_add(1, std::memory_order_release);
 					FWriteScopeLock _(HandleLock);
 					NextHandleId++;
 					ReadHandleCallbacks.Add({ NextHandleId, Func });
@@ -83,6 +86,7 @@ namespace UE::CoreUObject
 			{
 				UE_AUTORTFM_OPEN(
 				{
+					HandleReadCallbackQuantity.fetch_sub(1, std::memory_order_release);
 					FWriteScopeLock _(HandleLock);
 					for (int32 i = ReadHandleCallbacks.Num() - 1; i >= 0; --i)
 					{
@@ -193,7 +197,7 @@ namespace UE::CoreUObject
 			FRWLock HandleLock;
 		};
 
-		void OnHandleRead(TArrayView<const UObject* const> Objects)
+		void OnHandleReadInternal(TArrayView<const UObject* const> Objects)
 		{
 			ObjectHandleCallbacks::Get().OnHandleRead(Objects);
 		}

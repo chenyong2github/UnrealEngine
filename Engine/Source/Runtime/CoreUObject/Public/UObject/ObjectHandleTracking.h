@@ -4,6 +4,7 @@
 #include "Delegates/Delegate.h"
 #include "UObject/ObjectHandleDefines.h"
 #include "Templates/Function.h"
+#include <atomic>
 
 struct FObjectRef;
 
@@ -102,12 +103,22 @@ namespace UE::CoreUObject
 #if UE_WITH_OBJECT_HANDLE_TRACKING
 namespace UE::CoreUObject::Private
 {
-	
-	COREUOBJECT_API void OnHandleRead(TArrayView<const UObject* const> Objects);
+	extern COREUOBJECT_API std::atomic<int32> HandleReadCallbackQuantity;
+	COREUOBJECT_API void OnHandleReadInternal(TArrayView<const UObject* const> Objects);
+	inline void OnHandleRead(TArrayView<const UObject* const> Objects)
+	{
+		if (HandleReadCallbackQuantity.load(std::memory_order_acquire) > 0)
+		{
+			OnHandleReadInternal(Objects);
+		}
+	}
 	inline void OnHandleRead(const UObject* Object)
 	{
-		TArrayView<const UObject* const> View(&Object, 1);
-		OnHandleRead(View);
+		if (HandleReadCallbackQuantity.load(std::memory_order_acquire) > 0)
+		{
+			TArrayView<const UObject* const> View(&Object, 1);
+			OnHandleReadInternal(View);
+		}
 	}
 	COREUOBJECT_API void OnClassReferenceResolved(const FObjectRef& ObjectRef, UPackage* ClassPackage, UClass* Class);
 	COREUOBJECT_API void OnReferenceResolved(const FObjectRef& ObjectRef, UPackage* ObjectPackage, UObject* Object);
