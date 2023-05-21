@@ -13,7 +13,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Storage client which can read bundles over a compute channel
 	/// </summary>
-	public sealed class ComputeStorageClient : StorageClientBase, IDisposable
+	public sealed class AgentStorageClient : StorageClientBase, IDisposable
 	{
 		readonly AgentMessageChannel _channel;
 		readonly SemaphoreSlim _semaphore;
@@ -22,7 +22,7 @@ namespace EpicGames.Horde.Compute
 		/// Constructor
 		/// </summary>
 		/// <param name="channel"></param>
-		public ComputeStorageClient(AgentMessageChannel channel)
+		public AgentStorageClient(AgentMessageChannel channel)
 		{
 			_channel = channel;
 			_semaphore = new SemaphoreSlim(1);
