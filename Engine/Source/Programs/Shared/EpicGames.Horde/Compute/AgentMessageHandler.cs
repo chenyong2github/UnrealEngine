@@ -56,7 +56,7 @@ namespace EpicGames.Horde.Compute
 				List<Task> childTasks = new List<Task>();
 				for (; ; )
 				{
-					using IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
+					using AgentMessage message = await channel.ReceiveAsync(cancellationToken);
 					_logger.LogTrace("Compute Channel {ChannelId}: {MessageType}", channelId, message.Type);
 
 					switch (message.Type)

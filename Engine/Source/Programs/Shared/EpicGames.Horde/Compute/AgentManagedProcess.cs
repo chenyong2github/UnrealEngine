@@ -70,7 +70,7 @@ namespace EpicGames.Horde.Compute
 		{
 			for (; ; )
 			{
-				using IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
+				using AgentMessage message = await channel.ReceiveAsync(cancellationToken);
 				switch (message.Type)
 				{
 					case AgentMessageType.Exception:

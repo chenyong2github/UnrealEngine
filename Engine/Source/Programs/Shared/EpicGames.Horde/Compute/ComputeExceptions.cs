@@ -60,18 +60,4 @@ namespace EpicGames.Horde.Compute
 		/// <inheritdoc/>
 		public override string ToString() => _description;
 	}
-
-	/// <summary>
-	/// Exception thrown when an invalid message is received
-	/// </summary>
-	public sealed class InvalidAgentMessageException : ComputeException
-	{
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public InvalidAgentMessageException(IAgentMessage message)
-			: base($"Unexpected message {message.Type}")
-		{
-		}
-	}
 }

@@ -148,7 +148,7 @@ namespace RemoteClient
 			byte[] dataToXor = new byte[] { 1, 2, 3, 4, 5 };
 			await channel.SendXorRequestAsync(dataToXor, 123);
 
-			using IAgentMessage response = await channel.ReceiveAsync(AgentMessageType.XorResponse);
+			using AgentMessage response = await channel.ReceiveAsync(AgentMessageType.XorResponse);
 			for (int idx = 0; idx < dataToXor.Length; idx++)
 			{
 				if (response.Data.Span[idx] != (byte)(dataToXor[idx] ^ 123))

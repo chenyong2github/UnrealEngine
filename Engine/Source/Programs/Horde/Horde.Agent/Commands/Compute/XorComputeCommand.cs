@@ -41,7 +41,7 @@ namespace Horde.Agent.Commands.Compute
 				await channel.SendXorRequestAsync(new byte[] { 1, 2, 3, 4, 5 }, (byte)123, cancellationToken);
 
 				_logger.LogInformation("Waiting for response...");
-				IAgentMessage response = await channel.ReceiveAsync(cancellationToken);
+				AgentMessage response = await channel.ReceiveAsync(cancellationToken);
 
 				byte[] result = response.Data.ToArray();
 				byte[] expectedResult = new byte[] { 1 ^ 123, 2 ^ 123, 3 ^ 123, 4 ^ 123, 5 ^ 123 };

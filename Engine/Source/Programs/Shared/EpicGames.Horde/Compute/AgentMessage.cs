@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
@@ -101,9 +102,9 @@ namespace EpicGames.Horde.Compute
 	}
 
 	/// <summary>
-	/// Information about a received compute message
+	/// Standard implementation of a message
 	/// </summary>
-	public interface IAgentMessage : IMemoryReader, IDisposable
+	public sealed class AgentMessage : IMemoryReader, IDisposable
 	{
 		/// <summary>
 		/// Type of the message
@@ -114,6 +115,47 @@ namespace EpicGames.Horde.Compute
 		/// Data that was read
 		/// </summary>
 		public ReadOnlyMemory<byte> Data { get; }
+
+		readonly IMemoryOwner<byte> _memoryOwner;
+		int _position;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public AgentMessage(AgentMessageType type, ReadOnlyMemory<byte> data)
+		{
+			_memoryOwner = MemoryPool<byte>.Shared.Rent(data.Length);
+			data.CopyTo(_memoryOwner.Memory);
+
+			Type = type;
+			Data = _memoryOwner.Memory.Slice(0, data.Length);
+		}
+
+		/// <inheritdoc/>
+		public void Dispose()
+		{
+			_memoryOwner.Dispose();
+		}
+
+		/// <inheritdoc/>
+		public ReadOnlyMemory<byte> GetMemory(int minSize = 1) => Data.Slice(_position);
+
+		/// <inheritdoc/>
+		public void Advance(int length) => _position += length;
+	}
+
+	/// <summary>
+	/// Exception thrown when an invalid message is received
+	/// </summary>
+	public sealed class InvalidAgentMessageException : ComputeException
+	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public InvalidAgentMessageException(AgentMessage message)
+			: base($"Unexpected message {message.Type}")
+		{
+		}
 	}
 
 	/// <summary>
@@ -212,7 +254,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a message as an <see cref="ExceptionMessage"/>
 		/// </summary>
-		public static ExceptionMessage ParseExceptionMessage(this IAgentMessage message)
+		public static ExceptionMessage ParseExceptionMessage(this AgentMessage message)
 		{
 			string msg = message.ReadString();
 			string description = message.ReadString();
@@ -233,7 +275,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a fork request message
 		/// </summary>
-		public static ForkMessage ParseForkMessage(this IAgentMessage message)
+		public static ForkMessage ParseForkMessage(this AgentMessage message)
 		{
 			int channelId = message.ReadInt32();
 			int bufferSize = message.ReadInt32();
@@ -257,7 +299,7 @@ namespace EpicGames.Horde.Compute
 		/// <returns></returns>
 		public static async ValueTask WaitForAttachAsync(this AgentMessageChannel channel, CancellationToken cancellationToken = default)
 		{
-			using IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
+			using AgentMessage message = await channel.ReceiveAsync(cancellationToken);
 			if (message.Type != AgentMessageType.Attach)
 			{
 				throw new InvalidAgentMessageException(message);
@@ -266,11 +308,11 @@ namespace EpicGames.Horde.Compute
 
 		#region Process
 
-		static async Task<IAgentMessage> RunStorageServer(this AgentMessageChannel channel, IStorageClient storage, CancellationToken cancellationToken = default)
+		static async Task<AgentMessage> RunStorageServer(this AgentMessageChannel channel, IStorageClient storage, CancellationToken cancellationToken = default)
 		{
 			for (; ; )
 			{
-				IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
+				AgentMessage message = await channel.ReceiveAsync(cancellationToken);
 				if (message.Type != AgentMessageType.ReadBlob)
 				{
 					return message;
@@ -305,7 +347,7 @@ namespace EpicGames.Horde.Compute
 				request.Send();
 			}
 
-			using IAgentMessage response = await RunStorageServer(channel, storage, cancellationToken);
+			using AgentMessage response = await RunStorageServer(channel, storage, cancellationToken);
 			if (response.Type != AgentMessageType.WriteFilesResponse)
 			{
 				throw new InvalidAgentMessageException(response);
@@ -315,7 +357,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a message as a <see cref="UploadFilesMessage"/>
 		/// </summary>
-		public static UploadFilesMessage ParseUploadFilesMessage(this IAgentMessage message)
+		public static UploadFilesMessage ParseUploadFilesMessage(this AgentMessage message)
 		{
 			string name = message.ReadString();
 			NodeLocator locator = message.ReadNodeLocator();
@@ -338,7 +380,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a message as a <see cref="DeleteFilesMessage"/>
 		/// </summary>
-		public static DeleteFilesMessage ParseDeleteFilesMessage(this IAgentMessage message)
+		public static DeleteFilesMessage ParseDeleteFilesMessage(this AgentMessage message)
 		{
 			List<string> files = message.ReadList(MemoryReaderExtensions.ReadString);
 			return new DeleteFilesMessage(files);
@@ -369,7 +411,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a message as a <see cref="ExecuteProcessMessage"/>
 		/// </summary>
-		public static ExecuteProcessMessage ParseExecuteProcessMessage(this IAgentMessage message)
+		public static ExecuteProcessMessage ParseExecuteProcessMessage(this AgentMessage message)
 		{
 			string executable = message.ReadString();
 			List<string> arguments = message.ReadList(MemoryReaderExtensions.ReadString);
@@ -404,7 +446,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parses a message as a <see cref="ExecuteProcessMessage"/>
 		/// </summary>
-		public static ExecuteProcessResponseMessage ParseExecuteProcessResponse(this IAgentMessage message)
+		public static ExecuteProcessResponseMessage ParseExecuteProcessResponse(this AgentMessage message)
 		{
 			int exitCode = message.ReadInt32();
 			return new ExecuteProcessResponseMessage(exitCode);
@@ -419,7 +461,7 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		/// <param name="message"></param>
 		/// <returns></returns>
-		public static ReadBlobMessage ParseReadBlobRequest(this IAgentMessage message)
+		public static ReadBlobMessage ParseReadBlobRequest(this AgentMessage message)
 		{
 			BlobLocator locator = message.ReadBlobLocator();
 			int offset = (int)message.ReadUnsignedVarInt();
@@ -432,9 +474,9 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		sealed class BlobDataStream : ReadOnlyMemoryStream
 		{
-			readonly IAgentMessage _message;
+			readonly AgentMessage _message;
 
-			public BlobDataStream(IAgentMessage message)
+			public BlobDataStream(AgentMessage message)
 				: base(message.Data.Slice(8))
 			{
 				_message = message;
@@ -473,7 +515,7 @@ namespace EpicGames.Horde.Compute
 			byte[]? buffer = null;
 			for(; ;)
 			{
-				IAgentMessage? response = null;
+				AgentMessage? response = null;
 				try
 				{
 					response = await channel.ReceiveAsync(cancellationToken);
@@ -587,7 +629,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Parse a message as an XOR request
 		/// </summary>
-		public static XorRequestMessage AsXorRequest(this IAgentMessage message)
+		public static XorRequestMessage AsXorRequest(this AgentMessage message)
 		{
 			ReadOnlyMemory<byte> data = message.Data;
 			return new XorRequestMessage(data[0..^1], data.Span[^1]);

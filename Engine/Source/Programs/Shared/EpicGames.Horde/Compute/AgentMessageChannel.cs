@@ -21,42 +21,6 @@ namespace EpicGames.Horde.Compute
 		const int HeaderLength = 5;
 
 		/// <summary>
-		/// Standard implementation of a message
-		/// </summary>
-		sealed class Message : IAgentMessage
-		{
-			/// <inheritdoc/>
-			public AgentMessageType Type { get; }
-
-			/// <inheritdoc/>
-			public ReadOnlyMemory<byte> Data { get; }
-
-			readonly IMemoryOwner<byte> _memoryOwner;
-			int _position;
-
-			public Message(AgentMessageType type, ReadOnlyMemory<byte> data)
-			{
-				_memoryOwner = MemoryPool<byte>.Shared.Rent(data.Length);
-				data.CopyTo(_memoryOwner.Memory);
-
-				Type = type;
-				Data = _memoryOwner.Memory.Slice(0, data.Length);
-			}
-
-			/// <inheritdoc/>
-			public void Dispose()
-			{
-				_memoryOwner.Dispose();
-			}
-
-			/// <inheritdoc/>
-			public ReadOnlyMemory<byte> GetMemory(int minSize = 1) => Data.Slice(_position);
-
-			/// <inheritdoc/>
-			public void Advance(int length) => _position += length;
-		}
-
-		/// <summary>
 		/// Allows creating new messages in rented memory
 		/// </summary>
 		class MessageBuilder : IAgentMessageBuilder
@@ -175,7 +139,7 @@ namespace EpicGames.Horde.Compute
 		}
 
 		/// <inheritdoc/>
-		public async ValueTask<IAgentMessage> ReceiveAsync(CancellationToken cancellationToken)
+		public async ValueTask<AgentMessage> ReceiveAsync(CancellationToken cancellationToken)
 		{
 			while (!_recvBufferReader.IsComplete)
 			{
@@ -194,7 +158,7 @@ namespace EpicGames.Horde.Compute
 				}
 
 				AgentMessageType type = (AgentMessageType)memory.Span[0];
-				Message message = new Message(type, memory.Slice(HeaderLength, messageLength));
+				AgentMessage message = new AgentMessage(type, memory.Slice(HeaderLength, messageLength));
 				if (_logger.IsEnabled(LogLevel.Trace))
 				{
 					LogMessageInfo("RECV", message.Type, message.Data.Span);
@@ -203,7 +167,7 @@ namespace EpicGames.Horde.Compute
 				_recvBufferReader.AdvanceReadPosition(HeaderLength + messageLength);
 				return message;
 			}
-			return new Message(AgentMessageType.None, ReadOnlyMemory<byte>.Empty);
+			return new AgentMessage(AgentMessageType.None, ReadOnlyMemory<byte>.Empty);
 		}
 
 		void LogMessageInfo(string verb, AgentMessageType type, ReadOnlySpan<byte> data)
@@ -281,9 +245,9 @@ namespace EpicGames.Horde.Compute
 		/// <param name="type">Expected type of the message</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Data for a message that was read. Must be disposed.</returns>
-		public static async ValueTask<IAgentMessage> ReceiveAsync(this AgentMessageChannel channel, AgentMessageType type, CancellationToken cancellationToken = default)
+		public static async ValueTask<AgentMessage> ReceiveAsync(this AgentMessageChannel channel, AgentMessageType type, CancellationToken cancellationToken = default)
 		{
-			IAgentMessage message = await channel.ReceiveAsync(cancellationToken);
+			AgentMessage message = await channel.ReceiveAsync(cancellationToken);
 			if (message.Type != type)
 			{
 				throw new InvalidAgentMessageException(message);
@@ -309,7 +273,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="channel">Channel to send on</param>
 		/// <param name="message">The message to be sent</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public static async ValueTask SendAsync(this AgentMessageChannel channel, IAgentMessage message, CancellationToken cancellationToken)
+		public static async ValueTask SendAsync(this AgentMessageChannel channel, AgentMessage message, CancellationToken cancellationToken)
 		{
 			using (IAgentMessageBuilder builder = await channel.CreateMessageAsync(message.Type, message.Data.Length, cancellationToken))
 			{
