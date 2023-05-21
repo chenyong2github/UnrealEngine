@@ -392,7 +392,7 @@ protected:
 	friend struct Z_Construct_UClass_UStruct_Statics;
 private:
 	/** Struct this inherits from, may be null */
-	TObjectPtr<UStruct> SuperStruct;
+	UStruct* SuperStruct;
 public:
 	/** Pointer to start of linked list of child fields */
 	TObjectPtr<UField> Children;
