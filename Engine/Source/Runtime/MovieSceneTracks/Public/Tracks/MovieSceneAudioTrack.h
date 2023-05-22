@@ -57,6 +57,9 @@ public:
 	virtual bool SupportsMultipleRows() const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
 
+	// ~UObject interface
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+
 private:
 
 	/** List of all root audio sections */

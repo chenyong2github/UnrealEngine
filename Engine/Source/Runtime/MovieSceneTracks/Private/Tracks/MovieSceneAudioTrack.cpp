@@ -144,5 +144,19 @@ UMovieSceneSection* UMovieSceneAudioTrack::CreateNewSection()
 	return NewObject<UMovieSceneAudioSection>(this, NAME_None, RF_Transactional);
 }
 
+void UMovieSceneAudioTrack::PostRename(UObject* OldOuter, const FName OldName)
+{
+	Super::PostRename(OldOuter, OldName);
+
+	// Recache the channel proxy because attach in FAudioChannelEditorData is dependent upon the outer chain
+	for (TObjectPtr<UMovieSceneSection> Section : AudioSections)
+	{
+		if (UMovieSceneAudioSection* AudioSection = Cast<UMovieSceneAudioSection>(Section.Get()))
+		{
+			AudioSection->CacheChannelProxy();
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
 
