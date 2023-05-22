@@ -12,6 +12,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
@@ -50,6 +51,11 @@ namespace AutomationTool.Tasks
 	[TaskElement("NuGet-LicenseCheck", typeof(NuGetLicenseCheckTaskParameters))]
 	public class NuGetLicenseCheckTask : SpawnTaskBase
 	{
+		class LicenseConfig
+		{
+			public string Url { get; set; }
+		}
+
 		/// <summary>
 		/// Parameters for this task
 		/// </summary>
@@ -160,6 +166,8 @@ namespace AutomationTool.Tasks
 				throw new AutomationException("Missing NuGet package cache at {0}", PackageRootDir);
 			}
 
+			HashSet<string> LicenseUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
 			Dictionary<IoHash, LicenseInfo> Licenses = new Dictionary<IoHash, LicenseInfo>();
 			if (Parameters.LicenseDir != null)
 			{
@@ -168,9 +176,18 @@ namespace AutomationTool.Tasks
 				{
 					if (!File.GetFileName().StartsWith(UnknownPrefix, StringComparison.OrdinalIgnoreCase))
 					{
-						string Text = await FileReference.ReadAllTextAsync(File);
-						LicenseInfo License = FindOrAddLicense(Licenses, Text, File.GetFileNameWithoutExtension());
-						License.Approved = true;
+						if (File.HasExtension(".json"))
+						{
+							byte[] Data = await FileReference.ReadAllBytesAsync(File);
+							LicenseConfig Config = JsonSerializer.Deserialize<LicenseConfig>(Data);
+							LicenseUrls.Add(Config.Url);
+						}
+						else if (File.HasExtension(".txt") || File.HasExtension(".html"))
+						{
+							string Text = await FileReference.ReadAllTextAsync(File);
+							LicenseInfo License = FindOrAddLicense(Licenses, Text, File.GetFileNameWithoutExtension());
+							License.Approved = true;
+						}
 					}
 				}
 			}
@@ -254,6 +271,10 @@ namespace AutomationTool.Tasks
 										string Text = await Response.Content.ReadAsStringAsync();
 										string Type = (Response.Content.Headers.ContentType?.MediaType == "text/html") ? ".html" : ".txt";
 										Info.License = FindOrAddLicense(Licenses, Text, Type);
+										if (!Info.License.Approved)
+										{
+											Info.License.Approved = LicenseUrls.Contains(LicenseUrl);
+										}
 										LicenseUrlToInfo.Add(LicenseUrl, Info.License);
 									}
 								}
