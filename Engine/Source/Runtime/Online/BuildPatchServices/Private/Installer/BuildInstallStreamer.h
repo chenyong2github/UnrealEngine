@@ -34,17 +34,6 @@ namespace BuildPatchServices
 	class IDownloadService;
 	class IMessagePump;
 
-	struct FBuildInstallStreamerStats
-	{
-		float MegaBytesDownloaded;
-		int32 AmountRequestsCompleted;
-		int32 AmountRequestsCancelled;
-		int32 AmountRequestsMade;
-		float VFCCachedTotalSize;
-		float VFCCachedUsedSize;
-		float VFCRequestedFileWrite;
-	};
-
 	class FBuildInstallStreamer
 		: public IBuildInstallStreamer
 		, public TSharedFromThis<FBuildInstallStreamer, ESPMode::ThreadSafe>
@@ -60,6 +49,7 @@ namespace BuildPatchServices
 		virtual void RegisterMessageHandler(FMessageHandler* MessageHandler) override;
 		virtual void UnregisterMessageHandler(FMessageHandler* MessageHandler) override;
 		virtual const FBuildInstallStreamerConfiguration& GetConfiguration() const override;
+		virtual const FBuildInstallStreamerStats& GetInstallStreamerStatistics() const override;
 		// IBuildInstallStreamer interface end.
 
 		bool Tick();

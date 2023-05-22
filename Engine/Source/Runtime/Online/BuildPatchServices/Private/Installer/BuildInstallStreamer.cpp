@@ -132,6 +132,11 @@ namespace BuildPatchServices
 		return Configuration;
 	}
 
+	const FBuildInstallStreamerStats& FBuildInstallStreamer::GetInstallStreamerStatistics() const
+	{
+		return BuildStats;
+	}
+
 	void FBuildInstallStreamer::Initialise()
 	{
 		// Queue update to chunk data size cache on main thread
@@ -153,8 +158,10 @@ namespace BuildPatchServices
 		auto CompleteRequest = [this, &Requests, &RequestTime]()
 		{
 			uint64 TotalDownload = DownloadServiceStatistics->GetBytesDownloaded();
+			uint64 PreviousTotalRequestsCompleted = BuildStats.BundleRequestsCompleted + BuildStats.FileRequestsCompleted;
 			for (FStreamRequest& Request : Requests)
 			{
+				const bool bIsTagRequest = Request.Get<1>();
 				FBuildPatchStreamResult Result;
 				Result.Request = MoveTemp(Request.Get<0>());
 				Result.ErrorType = InstallerError->GetErrorType();
@@ -162,23 +169,35 @@ namespace BuildPatchServices
 				// TODO: Not accurate.. How to fix this
 				Result.TotalDownloaded = TotalDownload;
 				
-				BuildStats.AmountRequestsCompleted++;
+				// if (bIsTagRequest) BuildStats.BundleMegaBytesDownloaded += (Result.TotalDownloaded / 1024.0f / 1024.0f);
+				// else BuildStats.FileMegaBytesDownloaded += (Result.TotalDownloaded / 1024.0f / 1024.0f);
+				
+				if (bIsTagRequest) BuildStats.BundleRequestsCompleted++;
+				else BuildStats.FileRequestsCompleted++;
+
 				UE_LOG(LogBuildInstallStreamer, Verbose, TEXT("Completed request %s in %s"), *FString::Join(Result.Request, TEXT(",")), *FPlatformTime::PrettyTime(RequestTime));
 				Request.Get<2>().ExecuteIfBound(MoveTemp(Result));
 			}
-			BuildStats.MegaBytesDownloaded += (TotalDownload / 1024.0f / 1024.0f);
+			BuildStats.TotalMegaBytesDownloaded += (TotalDownload / 1024.0f / 1024.0f);
+				
+			if (RequestTime > BuildStats.MaxRequestTime) BuildStats.MaxRequestTime = RequestTime;
+				
+			BuildStats.AverageRequestTime = ((BuildStats.AverageRequestTime * PreviousTotalRequestsCompleted) + RequestTime) /
+				(BuildStats.BundleRequestsCompleted + BuildStats.FileRequestsCompleted);
 		};
 
 		auto CancelRequest = [this, &Requests]()
 		{
 			for (FStreamRequest& Request : Requests)
 			{
+				const bool bIsTagRequest = Request.Get<1>();
 				FBuildPatchStreamResult Result;
 				Result.Request = MoveTemp(Request.Get<0>());
 				Result.ErrorType = InstallerError->GetErrorType();
 				Result.ErrorCode = InstallerError->GetErrorCode();
 				Result.TotalDownloaded = 0;
-				BuildStats.AmountRequestsCancelled++;
+				if (bIsTagRequest) BuildStats.BundleRequestsCancelled++;
+				else BuildStats.FileRequestsCancelled++;
 				UE_LOG(LogBuildInstallStreamer, Verbose, TEXT("Cancelled request %s"), *FString::Join(Result.Request, TEXT(",")));
 				Request.Get<2>().ExecuteIfBound(MoveTemp(Result));
 			}
@@ -214,7 +233,8 @@ namespace BuildPatchServices
 			{
 				for (const FStreamRequest& Request : Requests)
 				{
-					BuildStats.AmountRequestsMade++;
+					if (Request.Get<1>()) BuildStats.BundleRequestsMade++;
+					else BuildStats.FileRequestsMade++;
 					UE_LOG(LogBuildInstallStreamer, Verbose, TEXT("Begin request %s"), *FString::Join(Request.Get<0>(), TEXT(",")));
 				}
 
@@ -372,12 +392,23 @@ namespace BuildPatchServices
 		}
 
 		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.VFCRequestedFileWrite,		BuildStats.VFCRequestedFileWrite, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.VFCCachedUsedSize,			BuildStats.VFCCachedUsedSize + BuildStats.VFCRequestedFileWrite, ECsvCustomStatOp::Set);
+		//CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.VFCActualFileWrite,		BuildStats.VFCActualFileWrite, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.VFCCachedUsedSize,			BuildStats.VFCCachedUsedSize, ECsvCustomStatOp::Set);
 		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.VFCCachedTotalSize,		BuildStats.VFCCachedTotalSize, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.MegaBytesDownloaded,		BuildStats.MegaBytesDownloaded, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.AmountRequestsCompleted,	BuildStats.AmountRequestsCompleted, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.AmountRequestsCancelled,	BuildStats.AmountRequestsCancelled, ECsvCustomStatOp::Set);
-		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.AmountRequestsMade,		BuildStats.AmountRequestsMade, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.TotalMegaBytesDownloaded,	BuildStats.TotalMegaBytesDownloaded, ECsvCustomStatOp::Set);
+		
+		//CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.FileMegaBytesDownloaded,	BuildStats.FileMegaBytesDownloaded, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.FileRequestsCompleted,	    (double)BuildStats.FileRequestsCompleted, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.FileRequestsCancelled,	    (double)BuildStats.FileRequestsCancelled, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.FileRequestsMade,		    (double)BuildStats.FileRequestsMade, ECsvCustomStatOp::Set);
+		
+		//CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.BundleMegaBytesDownloaded,	BuildStats.BundleMegaBytesDownloaded, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.BundleRequestsCompleted,	(double)BuildStats.BundleRequestsCompleted, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.BundleRequestsCancelled,	(double)BuildStats.BundleRequestsCancelled, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.BundleRequestsMade,		(double)BuildStats.BundleRequestsMade, ECsvCustomStatOp::Set);
+		
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.AverageRequestTime,	BuildStats.AverageRequestTime, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(CosmeticStreamingCsv, BuildStats.MaxRequestTime,		BuildStats.MaxRequestTime, ECsvCustomStatOp::Set);
 
 		return bKeepTicking;
 	}

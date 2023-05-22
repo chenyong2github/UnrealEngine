@@ -9,6 +9,7 @@
 namespace BuildPatchServices
 {
 	struct FBuildInstallStreamerConfiguration;
+	struct FBuildInstallStreamerStats;
 }
 
 typedef TSharedPtr<class IBuildInstallStreamer, ESPMode::ThreadSafe> IBuildInstallStreamerPtr;
@@ -56,4 +57,11 @@ public:
 	 * @returns a const reference to the configuration.
 	 */
 	virtual const BuildPatchServices::FBuildInstallStreamerConfiguration& GetConfiguration() const = 0;
+
+	/**
+	 * Get the stats for this install streamer.
+	 * 
+	 * @returns a const reference to the statistics.
+	 */
+	virtual const BuildPatchServices::FBuildInstallStreamerStats& GetInstallStreamerStatistics() const = 0;
 };

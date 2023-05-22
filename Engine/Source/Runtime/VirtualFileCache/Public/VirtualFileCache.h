@@ -38,6 +38,8 @@ struct IVirtualFileCache
 	virtual void Defragment() = 0;
 	virtual int64 GetTotalSize() const = 0;
 	virtual int64 GetUsedSize() const = 0;
+	virtual uint64 GetTotalMemCacheHits() const = 0;
+	virtual uint64 GetTotalMemCacheMisses() const = 0;
 
 	static VIRTUALFILECACHE_API TSharedRef<IVirtualFileCache, ESPMode::ThreadSafe> CreateVirtualFileCache();
 };

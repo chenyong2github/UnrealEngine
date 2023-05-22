@@ -286,6 +286,31 @@ namespace BuildPatchServices
 	};
 
 	/**
+	 * The collection of statistics gathered by the build streamer class.
+	 */
+	struct BUILDPATCHSERVICES_API FBuildInstallStreamerStats
+	{
+		//float FileMegaBytesDownloaded;
+		uint64 FileRequestsCompleted;
+		uint64 FileRequestsMade;
+		uint64 FileRequestsCancelled;
+		
+		//float BundleMegaBytesDownloaded;
+		uint64 BundleRequestsCancelled;
+		uint64 BundleRequestsCompleted;
+		uint64 BundleRequestsMade;
+		
+		float TotalMegaBytesDownloaded;
+		double MaxRequestTime;
+		double AverageRequestTime;
+		
+		float VFCCachedTotalSize;
+		float VFCCachedUsedSize;
+		float VFCRequestedFileWrite;
+		float VFCActualFileWrite;
+	};
+
+	/**
 	 * Defines a list of all options for the build chunking task.
 	 */
 	struct BUILDPATCHSERVICES_API FChunkBuildConfiguration

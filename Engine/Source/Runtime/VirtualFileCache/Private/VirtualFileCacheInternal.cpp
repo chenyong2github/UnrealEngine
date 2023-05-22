@@ -49,10 +49,12 @@ void FVirtualFileCacheThread::DoOneOp(FRWOp* Op)
 		TSharedPtr<TArray<uint8>> CachedData = MemCache.ReadLockAndFindData(Op->Target);
 		if (CachedData.IsValid())
 		{
+			TotalMemCacheHits++;
 			Op->ReadResult->SetValue(*CachedData);
 		}
 		else
 		{
+			TotalMemCacheMisses++;
 			FFileTableMutator FileTable = MutateFileTable();
 			auto Result = FileTable->ReadData(Op->Target, Op->ReadOffset, Op->ReadSize);
 			if (Result.IsOk())
@@ -1332,6 +1334,16 @@ void FVirtualFileCacheThread::EraseTableFile()
 void FVirtualFileCacheThread::SetInMemoryCacheSize(int64 MaxSize)
 {
 	MemCache.SetMaxSize(MaxSize);
+}
+
+uint64 FVirtualFileCacheThread::GetTotalMemCacheHits() const
+{
+	return TotalMemCacheHits;
+}
+
+uint64 FVirtualFileCacheThread::GetTotalMemCacheMisses() const
+{
+	return TotalMemCacheMisses;
 }
 
 FLruCacheNode* FLruCache::Find(VFCKey Key)

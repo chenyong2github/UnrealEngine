@@ -116,3 +116,13 @@ int64 FVirtualFileCache::GetUsedSize() const
 	FFileTableReader FileTable = Thread.ReadFileTable();
 	return FileTable->GetUsedSize();
 }
+
+uint64 FVirtualFileCache::GetTotalMemCacheHits() const
+{
+	return Thread.GetTotalMemCacheHits();
+}
+
+uint64 FVirtualFileCache::GetTotalMemCacheMisses() const
+{
+	return Thread.GetTotalMemCacheMisses();
+}

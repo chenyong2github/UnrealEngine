@@ -374,6 +374,9 @@ public:
 
 	void SetInMemoryCacheSize(int64 MaxSize);
 
+	uint64 GetTotalMemCacheHits() const;
+	uint64 GetTotalMemCacheMisses() const;
+
 public:
 	FVirtualFileCache* Parent;
 	FRunnableThread* Thread;
@@ -391,6 +394,8 @@ public:
 private:
 	mutable FRWLock FileTableLock;
 	FFileTable FileTableStorage;
+	uint64 TotalMemCacheHits = 0;
+	uint64 TotalMemCacheMisses = 0;
 };
 
 struct FVirtualFileCache final : IVirtualFileCache
@@ -418,6 +423,8 @@ public:
 	virtual void Defragment() override;
 	virtual int64 GetTotalSize() const override;
 	virtual int64 GetUsedSize() const override;
+	virtual uint64 GetTotalMemCacheHits() const override;
+	virtual uint64 GetTotalMemCacheMisses() const override;
 
 	FString GetTableFilename() const { return Thread.GetTableFilename(); }
 
