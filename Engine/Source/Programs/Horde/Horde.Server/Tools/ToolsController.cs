@@ -163,7 +163,7 @@ namespace Horde.Server.Tools
 		/// <summary>
 		/// Handle to the root node
 		/// </summary>
-		public string Node { get; } = null!;
+		public string Node { get; set; } = null!;
 	}
 
 	/// <summary>
