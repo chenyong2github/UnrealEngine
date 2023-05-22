@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
 using Horde.Server.Server;
+using Horde.Server.Storage;
 
 namespace Horde.Server.Tools
 {
@@ -31,6 +32,17 @@ namespace Horde.Server.Tools
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Updated tool document, or null if it does not exist</returns>
 		Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, Stream stream, GlobalConfig globalConfig, CancellationToken cancellationToken);
+
+		/// <summary>
+		/// Adds a new deployment to the given tool. The new deployment will replace the current active deployment.
+		/// </summary>
+		/// <param name="tool">The tool to update</param>
+		/// <param name="options">Options for the new deployment</param>
+		/// <param name="handle">Handle to the root node containing the tool data</param>
+		/// <param name="globalConfig">The current configuration</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Updated tool document, or null if it does not exist</returns>
+		Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, NodeHandle handle, GlobalConfig globalConfig, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Updates the state of the current deployment

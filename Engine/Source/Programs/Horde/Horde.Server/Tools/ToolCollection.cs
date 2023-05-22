@@ -247,15 +247,9 @@ namespace Horde.Server.Tools
 		/// <returns>Updated tool document, or null if it does not exist</returns>
 		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, Stream stream, GlobalConfig globalConfig, CancellationToken cancellationToken)
 		{
-			if (tool.Config is BundledToolConfig)
-			{
-				throw new InvalidOperationException("Cannot update the state of bundled tools.");
-			}
-
 			ToolDeploymentId deploymentId = ToolDeploymentId.GenerateNewId();
 			RefName refName = new RefName($"{tool.Id}/{deploymentId}");
 
-			// Upload the tool data first
 			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
 
 			NodeHandle handle;
@@ -264,6 +258,36 @@ namespace Horde.Server.Tools
 				DirectoryNode directoryNode = new DirectoryNode();
 				await directoryNode.CopyFromZipStreamAsync(stream, writer, cancellationToken);
 				handle = await writer.WriteAsync(refName, directoryNode, cancellationToken: cancellationToken);
+			}
+
+			return await CreateDeploymentAsync(tool, options, handle, globalConfig, cancellationToken);
+		}
+
+		/// <summary>
+		/// Adds a new deployment to the given tool. The new deployment will replace the current active deployment.
+		/// </summary>
+		/// <param name="tool">The tool to update</param>
+		/// <param name="options">Options for the new deployment</param>
+		/// <param name="handle">Handle for the tool data</param>
+		/// <param name="globalConfig">The current configuration</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Updated tool document, or null if it does not exist</returns>
+		public async Task<ITool?> CreateDeploymentAsync(ITool tool, ToolDeploymentConfig options, NodeHandle handle, GlobalConfig globalConfig, CancellationToken cancellationToken)
+		{
+			ToolDeploymentId deploymentId = ToolDeploymentId.GenerateNewId();
+			RefName refName = new RefName($"{tool.Id}/{deploymentId}");
+
+			IStorageClient client = await _storageService.GetClientAsync(Namespace.Tools, cancellationToken);
+			await client.WriteRefTargetAsync(refName, handle, cancellationToken: cancellationToken);
+
+			return await CreateDeploymentInternalAsync(tool, deploymentId, options, refName, globalConfig, cancellationToken);
+		}
+
+		async Task<ITool?> CreateDeploymentInternalAsync(ITool tool, ToolDeploymentId deploymentId, ToolDeploymentConfig options, RefName refName, GlobalConfig globalConfig, CancellationToken cancellationToken)
+		{
+			if (tool.Config is BundledToolConfig)
+			{
+				throw new InvalidOperationException("Cannot update the state of bundled tools.");
 			}
 
 			// Create the new deployment object

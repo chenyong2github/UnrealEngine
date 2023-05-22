@@ -143,6 +143,17 @@ namespace Horde.Server.Tools
 	}
 
 	/// <summary>
+	/// Request for creating a new deployment
+	/// </summary>
+	public class CreateDeploymentRequest : ToolDeploymentConfig
+	{
+		/// <summary>
+		/// Handle to the root node
+		/// </summary>
+		public string Node { get; } = null!;
+	}
+
+	/// <summary>
 	/// Response from creating a deployment
 	/// </summary>
 	public class CreateDeploymentResponse
@@ -206,6 +217,30 @@ namespace Horde.Server.Tools
 		}
 
 		/// <summary>
+		/// Uploads blob data for a new tool deployment.
+		/// </summary>
+		/// <param name="id">Identifier of the tool to upload</param>
+		/// <param name="file">Data to be uploaded. May be null, in which case the server may return a separate url.</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		[HttpPost]
+		[Route("/api/v1/tools/{id}/blobs")]
+		public async Task<ActionResult<WriteBlobResponse>> WriteBlobAsync(ToolId id, IFormFile? file, CancellationToken cancellationToken = default)
+		{
+			ITool? tool = await _toolCollection.GetAsync(id, _globalConfig.Value);
+			if (tool == null)
+			{
+				return NotFound(id);
+			}
+			if (!tool.Config.Authorize(ToolAclAction.UploadTool, User))
+			{
+				return Forbid(ToolAclAction.UploadTool, id);
+			}
+
+			IStorageClient storageClient = await _toolCollection.GetStorageClientAsync(tool, cancellationToken);
+			return await StorageController.WriteBlobAsync(storageClient, file, cancellationToken: cancellationToken);
+		}
+
+		/// <summary>
 		/// Create a new deployment of the given tool.
 		/// </summary>
 		/// <returns>Information about the registered agent</returns>
@@ -231,6 +266,33 @@ namespace Horde.Server.Tools
 				{
 					return NotFound(id);
 				}
+			}
+
+			return new CreateDeploymentResponse { Id = tool.Deployments[^1].Id };
+		}
+
+		/// <summary>
+		/// Create a new deployment of the given tool.
+		/// </summary>
+		[HttpPost]
+		[Route("/api/v2/tools/{id}/deployments")]
+		public async Task<ActionResult<CreateDeploymentResponse>> CreateDeploymentAsync(ToolId id, CreateDeploymentRequest request, CancellationToken cancellationToken)
+		{
+			ITool? tool = await _toolCollection.GetAsync(id, _globalConfig.Value);
+
+			if (tool == null)
+			{
+				return NotFound(id);
+			}
+			if (!tool.Config.Authorize(ToolAclAction.UploadTool, User))
+			{
+				return Forbid(ToolAclAction.UploadTool, id);
+			}
+
+			tool = await _toolCollection.CreateDeploymentAsync(tool, request, NodeHandle.Parse(request.Node), _globalConfig.Value, cancellationToken);
+			if (tool == null)
+			{
+				return NotFound(id);
 			}
 
 			return new CreateDeploymentResponse { Id = tool.Deployments[^1].Id };
@@ -272,7 +334,6 @@ namespace Horde.Server.Tools
 	public class PublicToolsController : HordeControllerBase
 	{
 		readonly IToolCollection _toolCollection;
-		readonly StorageService _storageService;
 		readonly IOptionsSnapshot<GlobalConfig> _globalConfig;
 		readonly IClock _clock;
 		readonly IMemoryCache _cache;
@@ -281,10 +342,9 @@ namespace Horde.Server.Tools
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public PublicToolsController(IToolCollection toolCollection, StorageService storageService, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig, IMemoryCache cache, ILogger<ToolsController> logger)
+		public PublicToolsController(IToolCollection toolCollection, IClock clock, IOptionsSnapshot<GlobalConfig> globalConfig, IMemoryCache cache, ILogger<ToolsController> logger)
 		{
 			_toolCollection = toolCollection;
-			_storageService = storageService;
 			_clock = clock;
 			_globalConfig = globalConfig;
 			_cache = cache;
@@ -463,7 +523,7 @@ namespace Horde.Server.Tools
 		}
 
 		/// <summary>
-		/// Retrieves blobs for a particular artifact
+		/// Retrieves blobs for a particular tool
 		/// </summary>
 		/// <param name="id">Identifier of the tool to retrieve</param>
 		/// <param name="locator">The blob locator</param>
