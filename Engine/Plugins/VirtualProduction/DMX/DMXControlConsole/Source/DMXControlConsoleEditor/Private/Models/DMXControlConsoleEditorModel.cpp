@@ -476,10 +476,10 @@ void UDMXControlConsoleEditorModel::OnFEngineLoopInitComplete()
 
 void UDMXControlConsoleEditorModel::OnEnginePreExit()
 {
-	UDMXControlConsoleData* EditorConsoleData = EditorConsole->GetControlConsoleData();
+	UDMXControlConsoleData* EditorConsoleData = EditorConsole ? EditorConsole->GetControlConsoleData() : nullptr;
 	if (EditorConsoleData)
 	{
-		StopDMX();
+		EditorConsoleData->StopSendingDMX();
 	}
 }
 
