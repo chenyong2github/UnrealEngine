@@ -322,6 +322,15 @@ struct FPakInfo
 	{
 		return CompressionMethods[Index];
 	}
+	
+	TOptional<FName> TryGetCompressionMethod(uint32 Index) const
+	{
+		if (IntFitsIn<int32>(Index) == false)
+		{
+			return TOptional<FName>();
+		}
+		return (int32)Index >= CompressionMethods.Num() ? TOptional<FName>() : TOptional<FName>(CompressionMethods[(int32)Index]);
+	}
 };
 
 /**
