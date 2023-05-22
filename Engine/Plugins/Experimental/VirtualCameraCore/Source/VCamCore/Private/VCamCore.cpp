@@ -2,8 +2,12 @@
 
 #include "VCamCore.h"
 
+#include "LogVCamCore.h"
 #include "UI/VCamWidget.h"
 #include "Util/WidgetSnapshotUtils.h"
+
+#include "EnhancedInputDeveloperSettings.h"
+#include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "FVCamCoreModule"
 
@@ -11,7 +15,12 @@ namespace UE::VCamCore::Private
 {
 	void FVCamCoreModule::StartupModule()
 	{
-		
+		FCoreDelegates::OnPostEngineInit.AddLambda([]()
+		{
+			UEnhancedInputDeveloperSettings* Settings = GetMutableDefault<UEnhancedInputDeveloperSettings>();
+			UE_CLOG(!Settings->bEnableUserSettings, LogVCamCore, Warning, TEXT("Overriding Settings->bEnableUserSettings = true because it is required for VCam to work properly."));
+			Settings->bEnableUserSettings = true;
+		});
 	}
 
 	void FVCamCoreModule::ShutdownModule()

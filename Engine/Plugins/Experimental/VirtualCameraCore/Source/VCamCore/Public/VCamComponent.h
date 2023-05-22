@@ -463,7 +463,7 @@ private:
 
 	/** Store the Input Mapping Contexts that have been added via this component */
 	UPROPERTY(Transient, DuplicateTransient)
-	TArray<TObjectPtr<const UInputMappingContext>> AppliedInputContexts;
+	TArray<TObjectPtr<UInputMappingContext>> AppliedInputContexts;
 	
 	double LastEvaluationTime;
 

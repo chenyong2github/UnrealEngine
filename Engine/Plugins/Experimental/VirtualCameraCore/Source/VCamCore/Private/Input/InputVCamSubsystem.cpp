@@ -2,15 +2,18 @@
 
 #include "Input/InputVCamSubsystem.h"
 
+#include "EnhancedInputDeveloperSettings.h"
 #include "Input/VCamPlayerInput.h"
 #include "LogVCamCore.h"
 #include "VCamComponent.h"
 #include "VCamInputProcessor.h"
 
 #include "Components/InputComponent.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/ConsoleManager.h"
+#include "UserSettings/EnhancedInputUserSettings.h"
 
 namespace UE::VCamCore::Private
 {
@@ -67,6 +70,11 @@ void UInputVCamSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// Use-case: Person A using gamepad to drive VCam input while Person B clicks stuff in editor > Gamepad may start navigating editor widgets. This CVar prevents that.
 	UE::VCamCore::Private::IncrementAndSetEnableGamepadEditorNavigation();
 #endif
+
+	if (GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
+	{
+		InitalizeUserSettings();
+	}
 }
 
 void UInputVCamSubsystem::Deinitialize()
@@ -84,6 +92,15 @@ void UInputVCamSubsystem::Deinitialize()
 #if WITH_EDITOR
 	UE::VCamCore::Private::DecrementAndResetEnableGamepadEditorNavigation();
 #endif
+}
+
+void UInputVCamSubsystem::InitalizeUserSettings()
+{
+	UserSettings = NewObject<UEnhancedInputUserSettings>(this, TEXT("UserSettings"), RF_Transient);
+	// UEnhancedInputUserSettings's API is designed to work with ULocalPlayers. However, we won't be making any calls to functions that internally call GetOwningPlayer().
+	ULocalPlayer* LocalPlayerHack = GetMutableDefault<ULocalPlayer>();
+	UserSettings->Initialize(LocalPlayerHack);
+	BindUserSettingDelegates();
 }
 
 void UInputVCamSubsystem::OnUpdate(float DeltaTime)

@@ -95,6 +95,15 @@ UVCamComponent::UVCamComponent()
 void UVCamComponent::OnComponentCreated()
 {
 	Super::OnComponentCreated();
+	
+	// After creation, the InputProfile should be initialized to the project setting's default mappings
+	const UVCamInputSettings* VCamInputSettings = GetDefault<UVCamInputSettings>();
+	const FVCamInputProfile* NewInputProfile = VCamInputSettings ? VCamInputSettings->InputProfiles.Find(VCamInputSettings->DefaultInputProfile) : nullptr;
+	if (NewInputProfile)
+	{
+		InputProfile = *NewInputProfile;
+	}
+	
 	EnsureInitialized();
 }
 
@@ -266,9 +275,8 @@ void UVCamComponent::PostLoad()
 {
 	Super::PostLoad();
 
+	// This also ensures the input profile is applied when this component is loaded
 	EnsureDelegatesRegistered();
-	// Ensure the input profile is applied when this component is loaded
-	ApplyInputProfile();
 }
 
 void UVCamComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -481,7 +489,7 @@ void UVCamComponent::AddInputMappingContext(const UVCamModifier* Modifier)
 	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
 		const int32 InputPriority = Modifier->InputContextPriority;
-		const UInputMappingContext* IMC = Modifier->InputMappingContext;
+		UInputMappingContext* IMC = Modifier->InputMappingContext;
 		if (IsValid(IMC))
 		{
 			if (!EnhancedInputSubsystemInterface->HasMappingContext(IMC))
@@ -498,7 +506,7 @@ void UVCamComponent::RemoveInputMappingContext(const UVCamModifier* Modifier)
 {
 	if (IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem())
 	{
-		const UInputMappingContext* IMC = Modifier->InputMappingContext;
+		UInputMappingContext* IMC = Modifier->InputMappingContext;
 		if (IsValid(IMC))
 		{
 			EnhancedInputSubsystemInterface->RemoveMappingContext(IMC);
@@ -1159,12 +1167,21 @@ void UVCamComponent::InjectInputVectorForAction(const UInputAction* Action, FVec
 void UVCamComponent::ApplyInputProfile()
 {
 	IEnhancedInputSubsystemInterface* EnhancedInputSubsystemInterface = GetInputVCamSubsystem();
-	UEnhancedInputUserSettings* Settings = EnhancedInputSubsystemInterface ? EnhancedInputSubsystemInterface->GetUserSettings() : nullptr;
+	UEnhancedInputUserSettings* Settings = EnhancedInputSubsystemInterface
+		? EnhancedInputSubsystemInterface->GetUserSettings()
+		: nullptr;
 	if (Settings)
 	{
+		// The modifiers' input mapping contexts must be registered to allow remapping...
+		const TSet<TObjectPtr<UInputMappingContext>>& RegisteredInputMappingContexts = Settings->GetRegisteredInputMappingContexts();
+		Algo::ForEach(RegisteredInputMappingContexts, [Settings](const TObjectPtr<UInputMappingContext>& Context){ Settings->UnregisterInputMappingContext(Context.Get()); });
+		Algo::ForEach(AppliedInputContexts, [Settings](const TObjectPtr<UInputMappingContext>& Context){ Settings->RegisterInputMappingContext(Context.Get()); });
+
+		// ... after registration set their defaults ...
 		FGameplayTagContainer FailureReason;
-        Settings->ResetKeyProfileToDefault(Settings->GetCurrentKeyProfileIdentifier(), FailureReason);
-		
+		Settings->ResetKeyProfileToDefault(Settings->GetCurrentKeyProfileIdentifier(), FailureReason);
+
+		// ... and then apply only the settings in InputProfile
 		for (const TPair<FName, FKey>& MappableKeyOverride : InputProfile.MappableKeyOverrides)
 		{
 			const FName& MappingName = MappableKeyOverride.Key;
@@ -1207,7 +1224,7 @@ void UVCamComponent::EnsureDelegatesRegistered()
 #if WITH_EDITOR
 		// Add the necessary event listeners so we can start/end properly
 		if (FLevelEditorModule* LevelEditorModule = FModuleManager::GetModulePtr<FLevelEditorModule>(TEXT("LevelEditor"))
-			; LevelEditorModule && LevelEditorModule->OnMapChanged().IsBoundToObject(this))
+			; LevelEditorModule && !LevelEditorModule->OnMapChanged().IsBoundToObject(this))
 		{
 			LevelEditorModule->OnMapChanged().AddUObject(this, &UVCamComponent::OnMapChanged);
 		}
@@ -1228,12 +1245,6 @@ void UVCamComponent::EnsureDelegatesRegistered()
 			FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UVCamComponent::HandleObjectReplaced);
 		}
 #endif
-
-		// Apply the Default Input profile if possible
-		if (const UVCamInputSettings* VCamInputSettings = GetDefault<UVCamInputSettings>())
-		{
-			SetInputProfileFromName(VCamInputSettings->DefaultInputProfile);
-		}
 	}
 }
 
@@ -1247,6 +1258,11 @@ void UVCamComponent::EnsureInitialized()
 
 void UVCamComponent::Initialize()
 {
+	if (!UE::VCamCore::Private::CanInitVCamInstance(this))
+	{
+		return;
+	}
+	
 	SubsystemCollection.Initialize(this);
 	// 1. Input is required
 	RegisterInputComponent();
