@@ -9,8 +9,6 @@
 
 #include "Insights/Common/SimpleRtti.h"
 
-#define LOCTEXT_NAMESPACE "Filters"
-
 class FSpawnTabArgs;
 class SDockTab;
 class SWidget;
@@ -60,12 +58,14 @@ class FFilterOperator : public IFilterOperator
 public:
 	typedef TFunction<bool(T, T)> OperatorFunc;
 
+public:
 	FFilterOperator(EFilterOperator InKey, FString InName, OperatorFunc InFunc)
 		: Func(InFunc)
 		, Key(InKey)
 		, Name(InName)
 	{
 	}
+
 	virtual ~FFilterOperator()
 	{
 	}
@@ -132,6 +132,7 @@ public:
 		, SupportedOperators(InSupportedOperators)
 	{
 	}
+
 	virtual ~FFilter()
 	{
 	}
@@ -172,31 +173,8 @@ public:
 class FFilterStorage
 {
 public:
-	FFilterStorage()
-	{
-		DoubleOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Lt, TEXT("<"), std::less<>{})));
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Lte, TEXT("\u2264"), std::less_equal<>())));
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Eq, TEXT("="), std::equal_to<>())));
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Gt, TEXT(">"), std::greater<>())));
-		DoubleOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<double>>(EFilterOperator::Gte, TEXT("\u2265"), std::greater_equal<>())));
-
-		IntegerOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Lt, TEXT("<"), std::less<>{})));
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Lte, TEXT("\u2264"), std::less_equal<>())));
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Eq, TEXT("="), std::equal_to<>())));
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Gt, TEXT(">"), std::greater<>())));
-		IntegerOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<int64>>(EFilterOperator::Gte, TEXT("\u2265"), std::greater_equal<>())));
-
-		StringOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
-		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Eq, TEXT("IS"), [](const FString& lhs, const FString& rhs) { return lhs.Equals(rhs); })));
-		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::NotEq, TEXT("IS NOT"), [](const FString& lhs, const FString& rhs) { return !lhs.Equals(rhs); })));
-		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("CONTAINS"), [](const FString& lhs, const FString& rhs) { return lhs.Contains(rhs); })));
-		StringOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::NotContains, TEXT("NOT CONTAINS"), [](const FString& lhs, const FString& rhs) { return !lhs.Contains(rhs); })));
-
-		FilterGroupOperators.Add(MakeShared<FFilterGroupOperator>(EFilterGroupOperator::And, LOCTEXT("AllOf", "All Of (AND)"), LOCTEXT("AllOfDesc", "All of the children must be true for the group to return true. Equivalent to an AND operation.")));
-		FilterGroupOperators.Add(MakeShared<FFilterGroupOperator>(EFilterGroupOperator::Or, LOCTEXT("AnyOf", "Any Of (OR)"), LOCTEXT("AnyOfDesc", "Any of the children must be true for the group to return true. Equivalent to an OR operation.")));
-	}
+	FFilterStorage();
+	~FFilterStorage();
 
 	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() const { return FilterGroupOperators; }
 
@@ -220,10 +198,12 @@ public:
 	FFilterService();
 	~FFilterService();
 
-	static void CreateInstance() { Instance = MakeShared<FFilterService>(); }
+	static void Initialize();
+	static void Shutdown();
 	static TSharedPtr<FFilterService> Get() { return Instance; }
 
 	void RegisterTabSpawner();
+	void UnregisterTabSpawner();
 	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
 	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() const { return FilterStorage.GetFilterGroupOperators(); }
@@ -250,6 +230,7 @@ class FFilterContext
 public:
 	typedef TVariant<double, int64, FString> ContextData;
 
+public:
 	template<typename T>
 	void AddFilterData(int32 Key, const T& InData)
 	{
@@ -290,5 +271,3 @@ private:
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace Insights
-
-#undef LOCTEXT_NAMESPACE

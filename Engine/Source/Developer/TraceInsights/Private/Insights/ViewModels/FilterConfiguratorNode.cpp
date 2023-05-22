@@ -7,7 +7,7 @@
 // Insights
 #include "Insights/ViewModels/Filters.h"
 
-#define LOCTEXT_NAMESPACE "FFilterConfiguratorNode"
+#define LOCTEXT_NAMESPACE "Insights::FFilterConfiguratorNode"
 
 namespace Insights
 {
@@ -49,7 +49,7 @@ FFilterConfiguratorNode& FFilterConfiguratorNode::operator=(const FFilterConfigu
 	TextBoxValue = Other.TextBoxValue;
 	SetExpansion(Other.IsExpanded());
 
-	for (Insights::FBaseTreeNodePtr Child : Other.GetChildren())
+	for (FBaseTreeNodePtr Child : Other.GetChildren())
 	{
 		GetChildrenMutable().Add(MakeShared<FFilterConfiguratorNode>(*StaticCastSharedPtr<FFilterConfiguratorNode>(Child)));
 	}
@@ -91,7 +91,7 @@ const TArray<TSharedPtr<struct FFilterGroupOperator>>& FFilterConfiguratorNode::
 
 void FFilterConfiguratorNode::DeleteChildNode(FFilterConfiguratorNodePtr InNode)
 {
-	Insights::FBaseTreeNodePtr Node = StaticCastSharedPtr<Insights::FBaseTreeNode>(InNode);
+	FBaseTreeNodePtr Node = StaticCastSharedPtr<FBaseTreeNode>(InNode);
 	GetChildrenMutable().Remove(Node);
 }
 
@@ -99,7 +99,7 @@ void FFilterConfiguratorNode::DeleteChildNode(FFilterConfiguratorNodePtr InNode)
 
 void FFilterConfiguratorNode::SetGroupPtrForChildren()
 {
-	for (Insights::FBaseTreeNodePtr Child : GetChildrenMutable())
+	for (FBaseTreeNodePtr Child : GetChildrenMutable())
 	{
 		FFilterConfiguratorNodePtr CastedChild = StaticCastSharedPtr<FFilterConfiguratorNode>(Child);
 		CastedChild->SetGroupPtrForChildren();
@@ -129,7 +129,7 @@ void FFilterConfiguratorNode::SetSelectedFilter(TSharedPtr<struct FFilter> InSel
 		SetSelectedFilterOperator(SelectedFilter->GetSupportedOperators()->GetData()[0]);
 
 		AvailableFilterOperators->Empty();
-		Insights::SupportedOperatorsArrayPtr AvailableOperators = InSelectedFilter->SupportedOperators;
+		SupportedOperatorsArrayPtr AvailableOperators = InSelectedFilter->SupportedOperators;
 		for (auto& FilterOperator : *AvailableOperators)
 		{
 			AvailableFilterOperators->Add(FilterOperator);
@@ -143,8 +143,8 @@ void FFilterConfiguratorNode::ProcessFilter()
 {
 	if (IsGroup())
 	{
-		TArray<Insights::FBaseTreeNodePtr> ChildArray = GetChildrenMutable();
-		for (Insights::FBaseTreeNodePtr Child : ChildArray)
+		TArray<FBaseTreeNodePtr> ChildArray = GetChildrenMutable();
+		for (FBaseTreeNodePtr Child : ChildArray)
 		{
 			FFilterConfiguratorNodePtr CastedChild = StaticCastSharedPtr<FFilterConfiguratorNode>(Child);
 			CastedChild->ProcessFilter();

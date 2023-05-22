@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Insights/ViewModels/IFilterExecutor.h"
-#include "Insights/ViewModels/Filters.h"
 #include "Insights/ViewModels/FilterConfiguratorNode.h"
+#include "Insights/ViewModels/Filters.h"
+#include "Insights/ViewModels/IFilterExecutor.h"
 
 namespace Insights
 {
@@ -21,10 +21,11 @@ public:
 	FFilterConfigurator& operator=(const FFilterConfigurator& Other);
 
 	bool operator==(const FFilterConfigurator& Other) const;
-
 	bool operator!=(const FFilterConfigurator& Other) const { return !(*this == Other); }
 
 	virtual ~FFilterConfigurator();
+
+	bool IsEmpty() const { return RootNode->GetChildren().Num() == 0; }
 
 	FFilterConfiguratorNodePtr GetRootNode() { return RootNode; }
 
@@ -46,15 +47,15 @@ private:
 	FOnDestroyedEvent OnDestroyedEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
-	// OnChangesCommitedEvent
+	// OnChangesCommittedEvent
 
 public:
 	/** The event to execute when the changes to the Filter Widget are saved by clicking on the OK Button. */
-	DECLARE_MULTICAST_DELEGATE(FOnChangesCommitedEvent);
-	FOnChangesCommitedEvent& GetOnChangesCommitedEvent() { return OnChangesCommitedEvent; }
+	DECLARE_MULTICAST_DELEGATE(FOnChangesCommittedEvent);
+	FOnChangesCommittedEvent& GetOnChangesCommittedEvent() { return OnChangesCommittedEvent; }
 
 private:
-	FOnChangesCommitedEvent OnChangesCommitedEvent;
+	FOnChangesCommittedEvent OnChangesCommittedEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 

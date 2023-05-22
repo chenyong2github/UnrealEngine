@@ -210,7 +210,7 @@ private:
 	FThreadTimingSharedState& SharedState;
 
 	TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator;
-	FDelegateHandle OnFilterChangesCommitedHandle;
+	FDelegateHandle OnFilterChangesCommittedHandle;
 
 	// Search cache
 	mutable TTimingEventSearchCache<TraceServices::FTimingProfilerEvent> SearchCache;

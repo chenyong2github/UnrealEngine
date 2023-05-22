@@ -163,7 +163,7 @@ void FInsightsManager::Initialize(IUnrealInsightsModule& InsightsModule)
 
 	InsightsMenuBuilder = MakeShared<FInsightsMenuBuilder>();
 
-	Insights::FFilterService::CreateInstance();
+	Insights::FFilterService::Initialize();
 
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	MessageLogModule.RegisterLogListing(GetLogListingName(), LOCTEXT("UnrealInsights", "Unreal Insights"));
@@ -203,6 +203,8 @@ void FInsightsManager::Shutdown()
 			MessageLogModule.UnregisterLogListing(GetLogListingName());
 		}
 	}
+
+	Insights::FFilterService::Shutdown();
 
 	FInsightsManager::Instance.Reset();
 }
@@ -439,7 +441,7 @@ void FInsightsManager::OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClose
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FString FInsightsManager::GetStoreDir() 
+FString FInsightsManager::GetStoreDir()
 {
 	using namespace UE::Trace;
 	FScopeLock _(&StoreClientCriticalSection);
@@ -458,11 +460,11 @@ bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 	{
 		return false;
 	}
-	
+
 	LastStoreHost = Host;
 	LastStorePort = Port;
-	bCanChangeStoreSettings = LastStoreHost.Equals(TEXT("localhost"), ESearchCase::IgnoreCase)
-                              		|| LastStoreHost.Equals(TEXT("127.0.0.1"));
+	bCanChangeStoreSettings = LastStoreHost.Equals(TEXT("localhost"), ESearchCase::IgnoreCase) ||
+	                          LastStoreHost.Equals(TEXT("127.0.0.1"));
 
 	return true;
 }
@@ -471,6 +473,11 @@ bool FInsightsManager::ConnectToStore(const TCHAR* Host, uint32 Port)
 
 bool FInsightsManager::ReconnectToStore() const
 {
+	if (!StoreClient.IsValid())
+	{
+		return false;
+	}
+
 	return StoreClient->Reconnect(*LastStoreHost, LastStorePort);
 }
 
@@ -525,7 +532,7 @@ bool FInsightsManager::Tick(float DeltaTime)
 			RetryLoadLastLiveSessionTimer -= DeltaTime;
 		}
 	}
-	
+
 	AutoLoadLiveSession();
 
 	UpdateSessionDuration();
@@ -844,20 +851,29 @@ void FInsightsManager::AutoLoadLiveSession()
 		return;
 	}
 
-	const uint32 SessionCount = StoreClient->GetSessionCount();
-	for (uint32 SessionIndex = 0; SessionIndex < SessionCount; ++SessionIndex)
+	uint32 AutoLoadTraceId = 0;
 	{
-		const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionIndex);
-		if (SessionInfo)
+		FScopeLock _(&StoreClientCriticalSection);
+		const uint32 SessionCount = StoreClient->GetSessionCount();
+		for (uint32 SessionIndex = 0; SessionIndex < SessionCount; ++SessionIndex)
 		{
-			const uint32 TraceId = SessionInfo->GetTraceId();
-			if (TraceId != CurrentTraceId && !AutoLoadedTraceIds.Contains(TraceId))
+			const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionIndex);
+			if (SessionInfo)
 			{
-				AutoLoadedTraceIds.Add(TraceId);
-				LoadTrace(SessionInfo->GetTraceId());
-				break;
+				const uint32 TraceId = SessionInfo->GetTraceId();
+				if (TraceId != CurrentTraceId && !AutoLoadedTraceIds.Contains(TraceId))
+				{
+					AutoLoadTraceId = TraceId;
+					break;
+				}
 			}
 		}
+	}
+
+	if (AutoLoadTraceId != 0)
+	{
+		AutoLoadedTraceIds.Add(AutoLoadTraceId);
+		LoadTrace(AutoLoadTraceId);
 	}
 }
 
@@ -872,14 +888,23 @@ void FInsightsManager::LoadLastLiveSession(float RetryTime)
 		return;
 	}
 
-	const uint32 SessionCount = StoreClient->GetSessionCount();
-	if (SessionCount != 0)
+	uint32 LastLiveSessionTraceId = 0;
 	{
-		const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
-		if (SessionInfo)
+		FScopeLock _(&StoreClientCriticalSection);
+		const uint32 SessionCount = StoreClient->GetSessionCount();
+		if (SessionCount != 0)
 		{
-			LoadTrace(SessionInfo->GetTraceId());
+			const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
+			if (SessionInfo)
+			{
+				LastLiveSessionTraceId = SessionInfo->GetTraceId();
+			}
 		}
+	}
+
+	if (LastLiveSessionTraceId)
+	{
+		LoadTrace(LastLiveSessionTraceId);
 	}
 
 	if (Session == nullptr && RetryTime > 0)
@@ -902,6 +927,8 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 		}
 		return;
 	}
+
+	FScopeLock StoreClientLock(&StoreClientCriticalSection);
 
 	UE::Trace::FStoreClient::FTraceData TraceData = StoreClient->ReadTrace(InTraceId);
 	if (!TraceData)
@@ -926,6 +953,8 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 		TraceName = FPaths::Combine(TraceName, Name);
 		FPaths::NormalizeFilename(TraceName);
 	}
+
+	StoreClientLock.Unlock();
 
 	Session = AnalysisService->StartAnalysis(InTraceId, *TraceName, MoveTemp(TraceData));
 
@@ -1123,7 +1152,7 @@ void FInsightsManager::OnSessionAnalysisCompleted()
 			Log->Notify(NSLOCTEXT("TraceAnalysis", "Finished", "Analysis finished."));
 		}
 	}
-	
+
 	if (!SessionAnalysisCompletedCmd.IsEmpty())
 	{
 		FOutputDevice& Ar = *GLog;

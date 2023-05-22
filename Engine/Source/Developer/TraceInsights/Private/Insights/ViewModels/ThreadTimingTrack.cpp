@@ -781,7 +781,7 @@ FThreadTimingTrack::~FThreadTimingTrack()
 {
 	if (FilterConfigurator.IsValid())
 	{
-		FilterConfigurator->GetOnChangesCommitedEvent().Remove(OnFilterChangesCommitedHandle);
+		FilterConfigurator->GetOnChangesCommittedEvent().Remove(OnFilterChangesCommittedHandle);
 	}
 }
 
@@ -1758,13 +1758,13 @@ void FThreadTimingTrack::OnFilterTrackClicked()
 	}
 	else
 	{
-		FilterConfigurator->GetOnChangesCommitedEvent().Remove(OnFilterChangesCommitedHandle);
+		FilterConfigurator->GetOnChangesCommittedEvent().Remove(OnFilterChangesCommittedHandle);
 
 		// Make a copy, so it will not affect other tracks that shares same filter.
 		FilterConfigurator = MakeShared<FFilterConfigurator>(*FilterConfigurator);
 	}
 
-	OnFilterChangesCommitedHandle = FilterConfigurator->GetOnChangesCommitedEvent().AddLambda([this]()
+	OnFilterChangesCommittedHandle = FilterConfigurator->GetOnChangesCommittedEvent().AddLambda([this]()
 		{
 			this->SetDirtyFlag();
 		});

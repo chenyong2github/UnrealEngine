@@ -7,7 +7,7 @@
 
 // Insights
 #include "Insights/CookProfiler/ViewModels/PackageTable.h"
-#include "Insights/Table/Widgets/STableTreeView.h"
+#include "Insights/Table/Widgets/SSessionTableTreeView.h"
 
 class FMenuBuilder;
 

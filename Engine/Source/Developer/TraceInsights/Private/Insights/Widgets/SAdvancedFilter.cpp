@@ -17,7 +17,7 @@
 #include "Insights/Widgets/SFilterConfigurator.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
 
-#define LOCTEXT_NAMESPACE "SAdvancedFilter"
+#define LOCTEXT_NAMESPACE "Insights::SAdvancedFilter"
 
 namespace Insights
 {

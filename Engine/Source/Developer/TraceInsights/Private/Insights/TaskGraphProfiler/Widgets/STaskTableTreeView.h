@@ -7,7 +7,7 @@
 
 // Insights
 #include "Insights/TaskGraphProfiler/ViewModels/TaskTable.h"
-#include "Insights/Table/Widgets/STableTreeView.h"
+#include "Insights/Table/Widgets/SSessionTableTreeView.h"
 
 class FMenuBuilder;
 

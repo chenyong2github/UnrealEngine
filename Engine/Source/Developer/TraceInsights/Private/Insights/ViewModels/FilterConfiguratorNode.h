@@ -43,7 +43,7 @@ typedef TWeakPtr<class FFilterConfiguratorNode> FFilterConfiguratorNodeWeak;
 /**
  * Class used to store information about a filter node
  */
-class FFilterConfiguratorNode : public Insights::FBaseTreeNode
+class FFilterConfiguratorNode : public FBaseTreeNode
 {
 	INSIGHTS_DECLARE_RTTI(FFilterConfiguratorNode, FBaseTreeNode)
 

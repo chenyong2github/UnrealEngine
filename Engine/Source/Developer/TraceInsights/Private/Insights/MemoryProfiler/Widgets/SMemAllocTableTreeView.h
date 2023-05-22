@@ -8,7 +8,7 @@
 // Insights
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/MemoryProfiler/ViewModels/MemAllocTable.h"
-#include "Insights/Table/Widgets/STableTreeView.h"
+#include "Insights/Table/Widgets/SSessionTableTreeView.h"
 
 namespace Insights
 {

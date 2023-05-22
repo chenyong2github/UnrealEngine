@@ -17,7 +17,7 @@
 #include "Insights/Widgets/SFilterConfiguratorRow.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
 
-#define LOCTEXT_NAMESPACE "SFilterConfigurator"
+#define LOCTEXT_NAMESPACE "Insights::SFilterConfigurator"
 
 namespace Insights
 {
@@ -111,11 +111,11 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SFilterConfigurator::TreeView_OnGetChildren(FFilterConfiguratorNodePtr InParent, TArray<FFilterConfiguratorNodePtr>& OutChildren)
 {
-	const TArray<Insights::FBaseTreeNodePtr>& Children = InParent->GetChildren();
+	const TArray<FBaseTreeNodePtr>& Children = InParent->GetChildren();
 	OutChildren.Reset(Children.Num());
-	for (const Insights::FBaseTreeNodePtr& Child : Children)
+	for (const FBaseTreeNodePtr& Child : Children)
 	{
-		OutChildren.Add(StaticCastSharedPtr<FFilterConfiguratorNode, Insights::FBaseTreeNode>(Child));
+		OutChildren.Add(StaticCastSharedPtr<FFilterConfiguratorNode, FBaseTreeNode>(Child));
 	}
 }
 
@@ -135,11 +135,13 @@ TSharedRef<ITableRow> SFilterConfigurator::TreeView_OnGenerateRow(FFilterConfigu
 void SFilterConfigurator::SetInitialExpansionRec(const FFilterConfiguratorNodePtr& Node, bool Value)
 {
 	TreeView->SetItemExpansion(Node, Value);
-	for (const Insights::FBaseTreeNodePtr& Child : Node->GetChildren())
+	for (const FBaseTreeNodePtr& Child : Node->GetChildren())
 	{
-		SetInitialExpansionRec(StaticCastSharedPtr<FFilterConfiguratorNode, Insights::FBaseTreeNode>(Child), Value);
+		SetInitialExpansionRec(StaticCastSharedPtr<FFilterConfiguratorNode, FBaseTreeNode>(Child), Value);
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace Insights
 
