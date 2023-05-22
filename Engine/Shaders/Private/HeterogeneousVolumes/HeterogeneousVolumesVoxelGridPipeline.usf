@@ -526,10 +526,13 @@ void DownsampleMajorantVoxelGridCS(
 	int3 OutputDimensions = int3((InputDimensions + 3) / 4);
 	uint LinearOuputIndex = GetLinearIndex(GroupId, OutputDimensions);
 
-	FMajorantData MajorantData;
-	MajorantData.Minorant = 0;
-	MajorantData.Majorant = GSMajorant[0];
-	SetMajorantData(RWOutputBuffer[LinearOuputIndex], MajorantData);
+	if (LinearThreadIndex == 0)
+	{
+		FMajorantData MajorantData;
+		MajorantData.Minorant = 0;
+		MajorantData.Majorant = GSMajorant[0];
+		SetMajorantData(RWOutputBuffer[LinearOuputIndex], MajorantData);
+	}
 }
 
 [numthreads(1, 1, 1)]

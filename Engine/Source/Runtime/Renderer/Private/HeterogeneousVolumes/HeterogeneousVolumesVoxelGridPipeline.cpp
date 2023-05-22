@@ -918,7 +918,7 @@ class FDownsampleMajorantVoxelGridCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector, InputDimensions)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer<FScalarGridData>, InputBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FScalarGridData>, InputBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FScalarGridData>, RWOutputBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -953,7 +953,7 @@ class FCopyMaxIntoMajorantVoxelGridCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer<FScalarGridData>, InputBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FScalarGridData>, InputBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FScalarGridData>, RWMajorantVoxelGridBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
