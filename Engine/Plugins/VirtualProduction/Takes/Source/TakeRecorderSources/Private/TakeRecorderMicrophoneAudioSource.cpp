@@ -355,6 +355,12 @@ void UTakeRecorderMicrophoneAudioSource::StopRecording(class ULevelSequence* InS
 
 TArray<UTakeRecorderSource*> UTakeRecorderMicrophoneAudioSource::PostRecording(ULevelSequence* InSequence, class ULevelSequence* InRootSequence, const bool bCancelled)
 {
+	FTakeRecorderProjectParameters ProjectParameters = GetDefault<UTakeRecorderProjectSettings>()->Settings;
+	if (ProjectParameters.bRecordTimecode)
+	{
+		ProcessRecordedTimes(InSequence);
+	}
+
 	GetRecordedSoundWave(InSequence);
 
 	if (!RecordedSoundWave.IsValid())
@@ -422,6 +428,27 @@ void UTakeRecorderMicrophoneAudioSource::FinalizeRecording()
 	if (AudioInputManager != nullptr)
 	{
 		AudioInputManager->FinalizeRecording();
+	}
+}
+
+void UTakeRecorderMicrophoneAudioSource::ProcessRecordedTimes(ULevelSequence* InSequence)
+{
+	if (ensure(CachedAudioTrack.IsValid()))
+	{
+		const TArray<TPair<FQualifiedFrameTime, FQualifiedFrameTime>>& RecordedTimes = UTakeRecorderSources::RecordedTimes;
+		const TArray<UMovieSceneSection*>& AudioSections = CachedAudioTrack->GetAudioSections();
+
+		TRange<FFrameNumber> FrameRange = AudioSections[0]->GetRange();
+
+		for (const TPair<FQualifiedFrameTime, FQualifiedFrameTime>& RecordedTimePair : RecordedTimes)
+		{
+			FFrameNumber FrameNumber = RecordedTimePair.Key.Time.FrameNumber;
+			if (FrameRange.Contains(FrameNumber))
+			{
+				StartTimecode = RecordedTimePair.Value.ToTimecode();
+				break;
+			}
+		}
 	}
 }
 

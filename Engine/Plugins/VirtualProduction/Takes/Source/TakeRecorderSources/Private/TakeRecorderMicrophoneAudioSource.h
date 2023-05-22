@@ -111,6 +111,9 @@ private:
 	/** Helper function for getting a pointer to the AudioInputManger object. */
 	static UTakeRecorderMicrophoneAudioManager* GetAudioInputManager();
 	
+	/** Parses recorded timecode values */
+	void ProcessRecordedTimes(ULevelSequence* InSequence);
+
 	/** Calls ReplaceSourceTokens and ReplaceBaseTokens in an effort to expand all embedded tokens in the given string */
 	FString ReplaceStringTokens(const FString& InString) const;
 
