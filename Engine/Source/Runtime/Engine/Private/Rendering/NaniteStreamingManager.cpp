@@ -1196,13 +1196,13 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				if (StreamingPageInfo.ResidentKey.RuntimeResourceID != INVALID_RUNTIME_RESOURCE_ID)
 				{
 					// Apply fixups to uninstall page. No need to fix up anything if resource is gone.
-					FResources** Resources = RuntimeResourceMap.Find(StreamingPageInfo.ResidentKey.RuntimeResourceID);
+					FResources* Resources = RuntimeResourceMap.FindRef(StreamingPageInfo.ResidentKey.RuntimeResourceID);
 					if (Resources)
 					{
 						// Prevent race between installs and uninstalls of the same page. Only uninstall if the page is not going to be installed again.
 						if (!BatchNewPageKeys.Contains(StreamingPageInfo.ResidentKey))
 						{
-							ApplyFixups(*StreamingPageFixupChunks[GPUPageIndex], **Resources, true);
+							ApplyFixups(*StreamingPageFixupChunks[GPUPageIndex], *Resources, true);
 						}
 
 						ModifiedResources.Add(StreamingPageInfo.ResidentKey.RuntimeResourceID);
@@ -1241,14 +1241,14 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				FUploadTask& UploadTask = UploadTasks[TaskIndex];
 				UploadTask.PendingPage = &PendingPage;
 
-				FResources** Resources = RuntimeResourceMap.Find(PendingPage.InstallKey.RuntimeResourceID);
+				FResources* Resources = RuntimeResourceMap.FindRef(PendingPage.InstallKey.RuntimeResourceID);
 				uint32 LastPendingPageIndex = GPUPageToLastPendingPageIndex.FindChecked(PendingPages[PendingPageIndex].GPUPageIndex);
 				if (PendingPageIndex != LastPendingPageIndex || !Resources)
 				{
 					continue;	// Skip resource install. Resource no longer exists or page has already been overwritten.
 				}
 
-				TArray< FPageStreamingState >& PageStreamingStates = ( *Resources )->PageStreamingStates;
+				TArray< FPageStreamingState >& PageStreamingStates = Resources->PageStreamingStates;
 				const FPageStreamingState& PageStreamingState = PageStreamingStates[ PendingPage.InstallKey.PageIndex ];
 				FStreamingPageInfo* StreamingPage = &StreamingPageInfos[ PendingPage.GPUPageIndex ];
 
@@ -1260,23 +1260,23 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 #if WITH_EDITOR
 				if(PendingPage.State == FPendingPage::EState::DDC_Ready)
 				{
-					check((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC);
+					check(Resources->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC);
 					SrcPtr = (const uint8*)PendingPage.SharedBuffer.GetData();
 				}
 				else if(PendingPage.State == FPendingPage::EState::Memory)
 				{
 					// Make sure we only lock each resource BulkData once.
-					const uint8** BulkDataPtrPtr = ResourceToBulkPointer.Find(*Resources);
+					const uint8** BulkDataPtrPtr = ResourceToBulkPointer.Find(Resources);
 					if (BulkDataPtrPtr)
 					{
 						SrcPtr = *BulkDataPtrPtr + PageStreamingState.BulkOffset;
 					}
 					else
 					{
-						FByteBulkData& BulkData = (*Resources)->StreamablePages;
+						FByteBulkData& BulkData = Resources->StreamablePages;
 						check(BulkData.IsBulkDataLoaded() && BulkData.GetBulkDataSize() > 0);
 						const uint8* BulkDataPtr = (const uint8*)BulkData.LockReadOnly();
-						ResourceToBulkPointer.Add(*Resources, BulkDataPtr);
+						ResourceToBulkPointer.Add(Resources, BulkDataPtr);
 						SrcPtr = BulkDataPtr + PageStreamingState.BulkOffset;
 					}
 				}
@@ -1304,10 +1304,10 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 				{
 					for (uint32 i = 0; i < PageStreamingState.DependenciesNum; i++)
 					{
-						const uint32 DependencyPageIndex = (*Resources)->PageDependencies[PageStreamingState.DependenciesStart + i];
-						if ((*Resources)->IsRootPage(DependencyPageIndex))
+						const uint32 DependencyPageIndex = Resources->PageDependencies[PageStreamingState.DependenciesStart + i];
+						if (Resources->IsRootPage(DependencyPageIndex))
 						{
-							GPUPageDependencies.Add(MaxStreamingPages + (*Resources)->RootPageIndex + DependencyPageIndex);
+							GPUPageDependencies.Add(MaxStreamingPages + Resources->RootPageIndex + DependencyPageIndex);
 						}
 						else
 						{
@@ -1333,7 +1333,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 
 				// Apply fixups to install page
 				StreamingPage->ResidentKey = PendingPage.InstallKey;
-				ApplyFixups( *FixupChunk, **Resources, false );
+				ApplyFixups( *FixupChunk, *Resources, false );
 			}
 		}
 	}
