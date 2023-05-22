@@ -18,7 +18,7 @@ namespace UE::VCamCore::Private
 		FCoreDelegates::OnPostEngineInit.AddLambda([]()
 		{
 			UEnhancedInputDeveloperSettings* Settings = GetMutableDefault<UEnhancedInputDeveloperSettings>();
-			UE_CLOG(!Settings->bEnableUserSettings, LogVCamCore, Warning, TEXT("Overriding Settings->bEnableUserSettings = true because it is required for VCam to work properly."));
+			UE_CLOG(!Settings->bEnableUserSettings, LogVCamCore, Log, TEXT("Overriding Settings->bEnableUserSettings = true because it is required for VCam to work properly."));
 			Settings->bEnableUserSettings = true;
 		});
 	}
