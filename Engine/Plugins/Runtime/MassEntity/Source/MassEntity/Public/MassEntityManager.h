@@ -185,7 +185,20 @@ public:
 	};
 
 	/**
-	 * A version of CreateEntity that's creating a number of entities (Count) at one go
+	 * A version of CreateEntity that's creating a number of entities (Count) in one go
+	 * @param Archetype you want this entity to be
+	 * @param SharedFragmentValues to be associated with the entities
+	 * @param ReservedEntities a list of reserved entities that have not yet been assigned to an archetype.
+	 * @return a creation context that will notify all the interested observers about newly created fragments once the context is released */
+	TSharedRef<FEntityCreationContext> BatchCreateReservedEntities(const FMassArchetypeHandle& ArchetypeHandle,
+		const FMassArchetypeSharedFragmentValues& SharedFragmentValues, TConstArrayView<FMassEntityHandle> ReservedEntities);
+	FORCEINLINE TSharedRef<FEntityCreationContext> BatchCreateReservedEntities(const FMassArchetypeHandle& ArchetypeHandle,
+		TConstArrayView<FMassEntityHandle> OutEntities)
+	{
+		return BatchCreateReservedEntities(ArchetypeHandle, FMassArchetypeSharedFragmentValues(), OutEntities);
+	}
+	/**
+	 * A version of CreateEntity that's creating a number of entities (Count) in one go
 	 * @param Archetype you want this entity to be
 	 * @param SharedFragmentValues to be associated with the entities
 	 * @param Count number of entities to create
@@ -451,6 +464,9 @@ private:
 	void InternalAddFragmentListToEntity(FMassEntityHandle Entity, const FMassFragmentBitSet& InFragments);
 	void* InternalGetFragmentDataChecked(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const;
 	void* InternalGetFragmentDataPtr(FMassEntityHandle Entity, const UScriptStruct* FragmentType) const;
+
+	TSharedRef<FEntityCreationContext> InternalBatchCreateReservedEntities(const FMassArchetypeHandle& ArchetypeHandle,
+		const FMassArchetypeSharedFragmentValues& SharedFragmentValues, TConstArrayView<FMassEntityHandle> ReservedEntities);
 private:
 	TChunkedArray<FEntityData> Entities;
 	TArray<int32> EntityFreeIndexList;
