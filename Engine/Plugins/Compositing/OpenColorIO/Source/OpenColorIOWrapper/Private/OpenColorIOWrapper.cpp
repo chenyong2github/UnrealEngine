@@ -3,9 +3,11 @@
 #include "OpenColorIOWrapper.h"
 #include "OpenColorIOWrapperModule.h"
 
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
 #include "Containers/Map.h"
 #include "ColorSpace.h"
-#include "Engine/Texture.h"
+#include "Engine/TextureDefines.h"
 #include "ImageCore.h"
 
 #if WITH_OCIO
@@ -15,6 +17,20 @@ THIRD_PARTY_INCLUDES_END
 #endif
 
 #define LOCTEXT_NAMESPACE "OpenColorIOWrapper"
+
+#if PLATFORM_EXCEPTIONS_DISABLED
+	#define OCIO_EXCEPTION_HANDLING_TRY()
+	#define OCIO_EXCEPTION_HANDLING_CATCH(Verbosity, Format, ...) (0)
+#else
+	#define OCIO_EXCEPTION_HANDLING_TRY() \
+		try {
+	
+	// NOTE: A string parameter must always be added to the format string since we automatically include the error message.
+	#define OCIO_EXCEPTION_HANDLING_CATCH(Verbosity, Format, ...) \
+		} catch (OCIO_NAMESPACE::Exception& Exc) { \
+			UE_LOG(LogOpenColorIOWrapper, Verbosity, Format, ##__VA_ARGS__, StringCast<TCHAR>(Exc.what()).Get()); \
+		}
+#endif
 
 namespace OpenColorIOWrapper
 {
@@ -120,57 +136,57 @@ namespace {
 #endif // WITH_OCIO
 
 
-FOpenColorIOConfigWrapper::FOpenColorIOConfigWrapper()
+FOpenColorIOWrapperConfig::FOpenColorIOWrapperConfig()
 	: Pimpl(MakePimpl<FOpenColorIOConfigPimpl, EPimplPtrMode::DeepCopy>())
 { }
 
-FOpenColorIOConfigWrapper::FOpenColorIOConfigWrapper(FStringView InFilePath, FInitializationOptions InOptions)
-	: FOpenColorIOConfigWrapper()
+FOpenColorIOWrapperConfig::FOpenColorIOWrapperConfig(FStringView InFilePath, EAddWorkingColorSpaceOption InOption)
+	: FOpenColorIOWrapperConfig()
 {
 #if WITH_OCIO
-	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOConfigWrapper::FOpenColorIOConfigWrapper)
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOWrapperConfig::FOpenColorIOWrapperConfig)
+	OCIO_EXCEPTION_HANDLING_TRY()
+
 		using namespace OCIO_NAMESPACE;
 
 		ConstConfigRcPtr NewConfig = Config::CreateFromFile(StringCast<ANSICHAR>(InFilePath.GetData()).Get());
 
-		if (NewConfig && InOptions.bAddWorkingColorSpace)
+		if (NewConfig != nullptr)
 		{
-			const TUniquePtr<ANSICHAR[]> AnsiWorkingColorSpaceName = OpenColorIOWrapper::MakeAnsiString(OpenColorIOWrapper::GetWorkingColorSpaceName());
-			ConstColorSpaceRcPtr InterchangeCS = NewConfig->getColorSpace(NewConfig->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()));
-
-			// When the aces interchange color space is present, we add the working color space as an additional option.
-			if (InterchangeCS != nullptr && NewConfig->getColorSpace(AnsiWorkingColorSpaceName.Get()) == nullptr)
+			if (InOption == WCS_AsInterchangeSpace)
 			{
-				ColorSpaceRcPtr WorkingCS = InterchangeCS->createEditableCopy();
-				WorkingCS->setName(AnsiWorkingColorSpaceName.Get());
-				WorkingCS->setFamily("UE");
-				WorkingCS->clearAliases();
+				const TUniquePtr<ANSICHAR[]> AnsiWorkingColorSpaceName = OpenColorIOWrapper::MakeAnsiString(OpenColorIOWrapper::GetWorkingColorSpaceName());
+				ConstColorSpaceRcPtr InterchangeCS = NewConfig->getColorSpace(NewConfig->getCanonicalName(OpenColorIOWrapper::GetInterchangeName()));
 
-				ConfigRcPtr NewConfigCopy = NewConfig->createEditableCopy();
-				NewConfigCopy->addColorSpace(WorkingCS);
+				// When the aces interchange color space is present, we add the working color space as an additional option.
+				if (InterchangeCS != nullptr && NewConfig->getColorSpace(AnsiWorkingColorSpaceName.Get()) == nullptr)
+				{
+					ColorSpaceRcPtr WorkingCS = InterchangeCS->createEditableCopy();
+					WorkingCS->setName(AnsiWorkingColorSpaceName.Get());
+					WorkingCS->setFamily("UE");
+					WorkingCS->clearAliases();
 
-				NewConfig = NewConfigCopy;
+					ConfigRcPtr NewConfigCopy = NewConfig->createEditableCopy();
+					NewConfigCopy->addColorSpace(WorkingCS);
+
+					NewConfig = NewConfigCopy;
+				}
+			}
+			else
+			{
+				UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Could not add the working color space since the config does not define \"aces_interchange\"."))
 			}
 		}
 
 		Pimpl->Config = NewConfig;
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& Exc)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Error, TEXT("Could not create OCIO configuration file for %s. Error message: %s."), InFilePath.GetData(), StringCast<TCHAR>(Exc.what()).Get());
-	}
-#endif
+	
+	OCIO_EXCEPTION_HANDLING_CATCH(Error, TEXT("Could not create OCIO configuration file for %s. Error message: %s"), InFilePath.GetData())
 #else
 	UE_LOG(LogOpenColorIOWrapper, Error, TEXT("The OpenColorIO library is not available, functionality will be disabled."));
 #endif // WITH_OCIO
 }
 
-bool FOpenColorIOConfigWrapper::IsValid() const
+bool FOpenColorIOWrapperConfig::IsValid() const
 {
 #if WITH_OCIO
 	return Pimpl->Config != nullptr;
@@ -179,7 +195,7 @@ bool FOpenColorIOConfigWrapper::IsValid() const
 #endif // WITH_OCIO
 }
 
-int32 FOpenColorIOConfigWrapper::GetNumColorSpaces() const
+int32 FOpenColorIOWrapperConfig::GetNumColorSpaces() const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -191,7 +207,7 @@ int32 FOpenColorIOConfigWrapper::GetNumColorSpaces() const
 	return 0;
 }
 
-FString FOpenColorIOConfigWrapper::GetColorSpaceName(int32 Index) const
+FString FOpenColorIOWrapperConfig::GetColorSpaceName(int32 Index) const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -205,7 +221,7 @@ FString FOpenColorIOConfigWrapper::GetColorSpaceName(int32 Index) const
 	return {};
 }
 
-int32 FOpenColorIOConfigWrapper::GetColorSpaceIndex(const TCHAR* InColorSpaceName)
+int32 FOpenColorIOWrapperConfig::GetColorSpaceIndex(const TCHAR* InColorSpaceName)
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -217,7 +233,7 @@ int32 FOpenColorIOConfigWrapper::GetColorSpaceIndex(const TCHAR* InColorSpaceNam
 	return false;
 }
 
-FString FOpenColorIOConfigWrapper::GetColorSpaceFamilyName(const TCHAR* InColorSpaceName) const
+FString FOpenColorIOWrapperConfig::GetColorSpaceFamilyName(const TCHAR* InColorSpaceName) const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -234,7 +250,7 @@ FString FOpenColorIOConfigWrapper::GetColorSpaceFamilyName(const TCHAR* InColorS
 	return {};
 }
 
-int32 FOpenColorIOConfigWrapper::GetNumDisplays() const
+int32 FOpenColorIOWrapperConfig::GetNumDisplays() const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -246,7 +262,7 @@ int32 FOpenColorIOConfigWrapper::GetNumDisplays() const
 	return 0;
 }
 
-FString FOpenColorIOConfigWrapper::GetDisplayName(int32 Index) const
+FString FOpenColorIOWrapperConfig::GetDisplayName(int32 Index) const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -260,7 +276,7 @@ FString FOpenColorIOConfigWrapper::GetDisplayName(int32 Index) const
 	return {};
 }
 
-int32 FOpenColorIOConfigWrapper::GetNumViews(const TCHAR* InDisplayName) const
+int32 FOpenColorIOWrapperConfig::GetNumViews(const TCHAR* InDisplayName) const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -272,7 +288,7 @@ int32 FOpenColorIOConfigWrapper::GetNumViews(const TCHAR* InDisplayName) const
 	return 0;
 }
 
-FString FOpenColorIOConfigWrapper::GetViewName(const TCHAR* InDisplayName, int32 Index) const
+FString FOpenColorIOWrapperConfig::GetViewName(const TCHAR* InDisplayName, int32 Index) const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -286,7 +302,7 @@ FString FOpenColorIOConfigWrapper::GetViewName(const TCHAR* InDisplayName, int32
 	return {};
 }
 
-FString FOpenColorIOConfigWrapper::GetDisplayViewTransformName(const TCHAR* InDisplayName, const TCHAR* InViewName) const
+FString FOpenColorIOWrapperConfig::GetDisplayViewTransformName(const TCHAR* InDisplayName, const TCHAR* InViewName) const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -300,7 +316,7 @@ FString FOpenColorIOConfigWrapper::GetDisplayViewTransformName(const TCHAR* InDi
 	return {};
 }
 
-FString FOpenColorIOConfigWrapper::GetCacheID() const
+FString FOpenColorIOWrapperConfig::GetCacheID() const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -312,7 +328,7 @@ FString FOpenColorIOConfigWrapper::GetCacheID() const
 	return {};
 }
 
-FString FOpenColorIOConfigWrapper::GetDebugString() const
+FString FOpenColorIOWrapperConfig::GetDebugString() const
 {
 	TStringBuilder<1024> DebugStringBuilder;
 	
@@ -368,12 +384,13 @@ FString FOpenColorIOConfigWrapper::GetDebugString() const
 	return DebugStringBuilder.ToString();
 }
 
-FOpenColorIOEngineBuiltInConfigWrapper::FOpenColorIOEngineBuiltInConfigWrapper()
-	: FOpenColorIOConfigWrapper()
+
+FOpenColorIOWrapperEngineConfig::FOpenColorIOWrapperEngineConfig()
+	: FOpenColorIOWrapperConfig()
 {
 #if WITH_OCIO
-	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOConfigWrapper::CreateWorkingColorSpaceToInterchangeConfig)
-		using namespace OCIO_NAMESPACE;
+	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOWrapperConfig::CreateWorkingColorSpaceToInterchangeConfig)
+	using namespace OCIO_NAMESPACE;
 	using namespace UE::Color;
 
 	ConfigRcPtr StudioConfig = Config::CreateFromBuiltinConfig("studio-config-v1.0.0_aces-v1.3_ocio-v2.1")->createEditableCopy();
@@ -391,30 +408,146 @@ FOpenColorIOEngineBuiltInConfigWrapper::FOpenColorIOEngineBuiltInConfigWrapper()
 	StudioConfig->addColorSpace(WCS);
 
 	Pimpl->Config = StudioConfig;
+
+	check(IsValid());
 #endif // WITH_OCIO
 }
 
-FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcessorToWorkingColorSpace(const FTextureSourceColorSettings& InTextureColorSettings)
+FOpenColorIOWrapperProcessor::FOpenColorIOWrapperProcessor(
+	const FOpenColorIOWrapperConfig* InConfig,
+	FStringView InSourceColorSpace,
+	FStringView InDestinationColorSpace,
+	const TMap<FString, FString>& InContextKeyValues)
+	: Pimpl(MakePimpl<FOpenColorIOProcessorPimpl, EPimplPtrMode::DeepCopy>())
+	, OwnerConfig(InConfig)
+	, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
 {
-	const FString TransformName = GetTransformToWorkingColorSpaceName(InTextureColorSettings);
+	if (InSourceColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
+	{
+		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
+	}
+	else if (InDestinationColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
+	{
+		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
+	}
+
+#if WITH_OCIO
+	OCIO_EXCEPTION_HANDLING_TRY()
+		if (OwnerConfig != nullptr && OwnerConfig->IsValid())
+		{
+			const OCIO_NAMESPACE::ConstConfigRcPtr& Config = OwnerConfig->Pimpl->Config;
+			OCIO_NAMESPACE::ContextRcPtr Context = Config->getCurrentContext()->createEditableCopy();
+
+			for (const TPair<FString, FString>& KeyValue : InContextKeyValues)
+			{
+				Context->setStringVar(TCHAR_TO_ANSI(*KeyValue.Key), TCHAR_TO_ANSI(*KeyValue.Value));
+			}
+
+			Pimpl->Processor = Config->getProcessor(
+				Context,
+				StringCast<ANSICHAR>(InSourceColorSpace.GetData()).Get(),
+				StringCast<ANSICHAR>(InDestinationColorSpace.GetData()).Get()
+			);
+		}
+	OCIO_EXCEPTION_HANDLING_CATCH(Log, TEXT("Failed to create processor for [%s, %s]. Error message: %s"), InSourceColorSpace.GetData(), InDestinationColorSpace.GetData())
+#endif // WITH_OCIO
+}
+
+FOpenColorIOWrapperProcessor::FOpenColorIOWrapperProcessor(
+	const FOpenColorIOWrapperConfig* InConfig,
+	FStringView InSourceColorSpace,
+	FStringView InDisplay,
+	FStringView InView,
+	bool bInverseDirection,
+	const TMap<FString, FString>& InContextKeyValues)
+	: Pimpl(MakePimpl<FOpenColorIOProcessorPimpl, EPimplPtrMode::DeepCopy>())
+	, OwnerConfig(InConfig)
+	, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
+{
+	if (InSourceColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
+	{
+		if (bInverseDirection)
+		{
+			WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
+		}
+		else
+		{
+			WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
+		}
+	}
+
+#if WITH_OCIO
+	OCIO_EXCEPTION_HANDLING_TRY()
+		if (OwnerConfig != nullptr && OwnerConfig->IsValid())
+		{
+			const OCIO_NAMESPACE::ConstConfigRcPtr& Config = OwnerConfig->Pimpl->Config;
+			OCIO_NAMESPACE::ContextRcPtr Context = Config->getCurrentContext()->createEditableCopy();
+
+			for (const TPair<FString, FString>& KeyValue : InContextKeyValues)
+			{
+				Context->setStringVar(TCHAR_TO_ANSI(*KeyValue.Key), TCHAR_TO_ANSI(*KeyValue.Value));
+			}
+
+			Pimpl->Processor = Config->getProcessor(
+				StringCast<ANSICHAR>(InSourceColorSpace.GetData()).Get(),
+				StringCast<ANSICHAR>(InDisplay.GetData()).Get(),
+				StringCast<ANSICHAR>(InView.GetData()).Get(),
+				static_cast<OCIO_NAMESPACE::TransformDirection>(bInverseDirection)
+			);
+		}
+	OCIO_EXCEPTION_HANDLING_CATCH(Log, TEXT("Failed to create processor for [%s, %s, %s, %s]. Error message: %s"), InSourceColorSpace.GetData(), InDisplay.GetData(), InView.GetData(), (bInverseDirection ? TEXT("Inverse") : TEXT("Forward")));
+#endif // WITH_OCIO
+}
+
+FOpenColorIOWrapperProcessor::FOpenColorIOWrapperProcessor(const FOpenColorIOWrapperConfig* InConfig, FStringView InNamedTransform, bool bInverseDirection, const TMap<FString, FString>& InContextKeyValues)
+	: Pimpl(MakePimpl<FOpenColorIOProcessorPimpl, EPimplPtrMode::DeepCopy>())
+	, OwnerConfig(InConfig)
+	, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
+{
+#if WITH_OCIO
+	OCIO_EXCEPTION_HANDLING_TRY()
+		if (OwnerConfig != nullptr && OwnerConfig->IsValid())
+		{
+			const OCIO_NAMESPACE::ConstConfigRcPtr& Config = OwnerConfig->Pimpl->Config;
+			OCIO_NAMESPACE::ContextRcPtr Context = Config->getCurrentContext()->createEditableCopy();
+
+			for (const TPair<FString, FString>& KeyValue : InContextKeyValues)
+			{
+				Context->setStringVar(TCHAR_TO_ANSI(*KeyValue.Key), TCHAR_TO_ANSI(*KeyValue.Value));
+			}
+
+			Pimpl->Processor = Config->getProcessor(
+				StringCast<ANSICHAR>(InNamedTransform.GetData()).Get(),
+				static_cast<OCIO_NAMESPACE::TransformDirection>(bInverseDirection)
+			);
+		}
+	OCIO_EXCEPTION_HANDLING_CATCH(Log, TEXT("Failed to create processor for [%s]. Error message: %s"), InNamedTransform.GetData());
+#endif // WITH_OCIO
+}
+
+FOpenColorIOWrapperProcessor FOpenColorIOWrapperProcessor::CreateTransformToWorkingColorSpace(const FOpenColorIOWrapperSourceColorSettings& InColorSettings)
+{
+	FOpenColorIOWrapperConfig& BuiltInConfig = IOpenColorIOWrapperModule::Get().GetEngineBuiltInConfig();
+
+	const FString TransformName = GetTransformToWorkingColorSpaceName(InColorSettings);
 
 #if WITH_OCIO
 	using namespace OCIO_NAMESPACE;
 	using namespace UE::Color;
 
-	if (Pimpl->Config->getNamedTransform(StringCast<ANSICHAR>(*TransformName).Get()) == nullptr)
+	if (BuiltInConfig.Pimpl->Config->getNamedTransform(StringCast<ANSICHAR>(*TransformName).Get()) == nullptr)
 	{
 		GroupTransformRcPtr TransformToWCS = GroupTransform::Create();
 		NamedTransformRcPtr ParentTransform = NamedTransform::Create();
 		ParentTransform->setName(StringCast<ANSICHAR>(*TransformName).Get());
 
-		switch (InTextureColorSettings.EncodingOverride)
+		switch (InColorSettings.EncodingOverride)
 		{
-		case ETextureSourceEncoding::TSE_None:
-		case ETextureSourceEncoding::TSE_Linear:
+		case EEncoding::None:
+		case EEncoding::Linear:
 			ParentTransform->setEncoding("scene-linear");
 			break;
-		case ETextureSourceEncoding::TSE_sRGB:
+		case EEncoding::sRGB:
 		{
 			ExponentWithLinearTransformRcPtr ChildTransform = ExponentWithLinearTransform::Create();
 			ChildTransform->setGamma({ 2.4, 2.4, 2.4, 1.0 });
@@ -424,7 +557,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("sdr-video");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_ST2084:
+		case EEncoding::ST2084:
 		{
 			BuiltinTransformRcPtr ChildTransform = BuiltinTransform::Create();
 			ChildTransform->setStyle("CURVE - ST-2084_to_LINEAR");
@@ -439,7 +572,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("hdr-video");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_Gamma22:
+		case EEncoding::Gamma22:
 		{
 			ExponentTransformRcPtr ChildTransform = ExponentTransform::Create();
 			ChildTransform->setValue({ 2.2, 2.2, 2.2, 1.0 });
@@ -449,7 +582,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("sdr-video");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_BT1886:
+		case EEncoding::BT1886:
 		{
 			ExponentTransformRcPtr ChildTransform = ExponentTransform::Create();
 			ChildTransform->setValue({ 2.4, 2.4, 2.4, 1.0 });
@@ -459,7 +592,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("sdr-video");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_Gamma26:
+		case EEncoding::Gamma26:
 		{
 			ExponentTransformRcPtr ChildTransform = ExponentTransform::Create();
 			ChildTransform->setValue({ 2.6, 2.6, 2.6, 1.0 });
@@ -469,7 +602,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("sdr-video");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_Cineon:
+		case EEncoding::Cineon:
 		{
 			const double BlackOffset = FGenericPlatformMath::Pow(10.0, (95.0 - 685.0) / 300.0);
 			const double LinSideSlope = 1.0 - BlackOffset;
@@ -490,7 +623,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("log");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_REDLog:
+		case EEncoding::REDLog:
 		{
 			const double BlackOffset = FGenericPlatformMath::Pow(10.0, (0.0 - 1023.0) / 511.0);
 			const double LinSideSlope = 1.0 - BlackOffset;
@@ -511,7 +644,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("log");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_REDLog3G10:
+		case EEncoding::REDLog3G10:
 		{
 			static constexpr double LinSideSlope = 155.975327;
 			static constexpr double LinSideOffset = 0.01 * LinSideSlope + 1.0;
@@ -532,7 +665,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("log");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_SLog1:
+		case EEncoding::SLog1:
 		{
 			static constexpr double LinSideSlope = 1.0 / 0.9;
 			static constexpr double LinSideOffset = 0.037584;
@@ -552,7 +685,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("log");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_SLog2:
+		case EEncoding::SLog2:
 		{
 			static constexpr double LinSideSlope = 155.0 / 197.1;
 			static constexpr double LinSideOffset = 0.037584;
@@ -575,7 +708,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("log");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_SLog3:
+		case EEncoding::SLog3:
 		{
 			static constexpr double LinSideSlope = 5.26315789473684;
 			static constexpr double LinSideOffset = 0.0526315789473684;
@@ -598,7 +731,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("log");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_AlexaV3LogC:
+		case EEncoding::AlexaV3LogC:
 		{
 			static constexpr double LinSideSlope = 5.55555555555556;
 			static constexpr double LinSideOffset = 0.0522722750251688;
@@ -619,7 +752,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("log");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_CanonLog:
+		case EEncoding::CanonLog:
 		{
 			static constexpr double LinSideSlope = 10.1596;
 			static constexpr double LinSideOffset = 1.0;
@@ -640,7 +773,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("log");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_ProTune:
+		case EEncoding::ProTune:
 		{
 			static constexpr double LinSideSlope = 112.0;
 			static constexpr double LinSideOffset = 1.0f;
@@ -657,7 +790,7 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			ParentTransform->setEncoding("log");
 		}
 		break;
-		case ETextureSourceEncoding::TSE_VLog:
+		case EEncoding::VLog:
 		{
 			static constexpr double LinSideSlope = 1.0;
 			static constexpr double LinSideOffset = 0.00873;
@@ -687,264 +820,96 @@ FOpenColorIOProcessorWrapper FOpenColorIOEngineBuiltInConfigWrapper::GetProcesso
 			break;
 		}
 
-		const EChromaticAdaptationMethod ChromaticAdapation = static_cast<EChromaticAdaptationMethod>(InTextureColorSettings.ChromaticAdaptationMethod);
+		const EChromaticAdaptationMethod ChromaticAdapation = static_cast<EChromaticAdaptationMethod>(InColorSettings.ChromaticAdaptationMethod);
 
-		switch (InTextureColorSettings.ColorSpace)
-		{
-		case ETextureColorSpace::TCS_None:
-			break;
-		case ETextureColorSpace::TCS_Custom:
+		if (InColorSettings.ColorSpaceOverride.IsSet())
 		{
 			const FColorSpace SourceColorSpace = FColorSpace
 			(
-				InTextureColorSettings.RedChromaticityCoordinate,
-				InTextureColorSettings.GreenChromaticityCoordinate,
-				InTextureColorSettings.BlueChromaticityCoordinate,
-				InTextureColorSettings.WhiteChromaticityCoordinate
+				InColorSettings.ColorSpaceOverride.GetValue()[0],
+				InColorSettings.ColorSpaceOverride.GetValue()[1],
+				InColorSettings.ColorSpaceOverride.GetValue()[2],
+				InColorSettings.ColorSpaceOverride.GetValue()[3]
 			);
 			MatrixTransformRcPtr MatrixTransform = MatrixTransform::Create();
 			const FMatrix44d ToWorkingMat = Transpose<double>(FColorSpaceTransform(SourceColorSpace, FColorSpace::GetWorking(), ChromaticAdapation));
 			MatrixTransform->setMatrix(&ToWorkingMat.M[0][0]);
 			TransformToWCS->appendTransform(MatrixTransform);
 		}
-		break;
-		default:
+		else if (InColorSettings.ColorSpace != EColorSpace::None)
 		{
-			const FColorSpace SourceColorSpace = FColorSpace(static_cast<EColorSpace>(InTextureColorSettings.ColorSpace));
+			const FColorSpace SourceColorSpace = FColorSpace(static_cast<EColorSpace>(InColorSettings.ColorSpace));
 			const FMatrix44d ToWorkingMat = Transpose<double>(FColorSpaceTransform(SourceColorSpace, FColorSpace::GetWorking(), ChromaticAdapation));
 			MatrixTransformRcPtr MatrixTransform = MatrixTransform::Create();
 			MatrixTransform->setMatrix(&ToWorkingMat.M[0][0]);
 			TransformToWCS->appendTransform(MatrixTransform);
 		}
-		break;
-		}
 
 		ParentTransform->setTransform(TransformToWCS, TRANSFORM_DIR_FORWARD);
 
 		// Update builtin config
-		ConfigRcPtr NewConfig = Pimpl->Config->createEditableCopy();
+		ConstConfigRcPtr& CurrentConfig = BuiltInConfig.Pimpl->Config;
+		ConfigRcPtr NewConfig = CurrentConfig->createEditableCopy();
 		NewConfig->addNamedTransform(ParentTransform);
-		Pimpl->Config = NewConfig;
+		CurrentConfig = NewConfig;
 	}
 #endif // WITH_OCIO
 
-	return FOpenColorIOProcessorWrapper(this, TransformName);
+	return FOpenColorIOWrapperProcessor(&BuiltInConfig, TransformName);
 }
 
-FString FOpenColorIOEngineBuiltInConfigWrapper::GetTransformToWorkingColorSpaceName(const FTextureSourceColorSettings& InTextureColorSettings)
+bool FOpenColorIOWrapperProcessor::IsValid() const
 {
-	const uint32 SettingsId = (uint32)InTextureColorSettings.EncodingOverride | (uint32)InTextureColorSettings.ColorSpace << 8u | (uint32)InTextureColorSettings.ChromaticAdaptationMethod << 16u;
+#if WITH_OCIO
+	return OwnerConfig != nullptr && Pimpl->Processor != nullptr;
+#else
+	return false;
+#endif // WITH_OCIO
+}
+
+FString FOpenColorIOWrapperProcessor::GetTransformToWorkingColorSpaceName(const FOpenColorIOWrapperSourceColorSettings& InSourceColorSettings)
+{
+	const uint32 SettingsId = (uint32)InSourceColorSettings.EncodingOverride | (uint32)InSourceColorSettings.ColorSpace << 8u | (uint32)InSourceColorSettings.ChromaticAdaptationMethod << 16u;
 	FString TransformName = FString::Printf(TEXT("UE_%u"), SettingsId);
 
-	if (InTextureColorSettings.ColorSpace == ETextureColorSpace::TCS_Custom)
+	if (InSourceColorSettings.ColorSpaceOverride.IsSet())
 	{
 		uint32 SrcChromaticityHash = 0;
-		SrcChromaticityHash ^= GetTypeHash(InTextureColorSettings.RedChromaticityCoordinate);
-		SrcChromaticityHash ^= GetTypeHash(InTextureColorSettings.GreenChromaticityCoordinate);
-		SrcChromaticityHash ^= GetTypeHash(InTextureColorSettings.BlueChromaticityCoordinate);
-		SrcChromaticityHash ^= GetTypeHash(InTextureColorSettings.WhiteChromaticityCoordinate);
+		SrcChromaticityHash ^= GetTypeHash(InSourceColorSettings.ColorSpaceOverride.GetValue()[0]);
+		SrcChromaticityHash ^= GetTypeHash(InSourceColorSettings.ColorSpaceOverride.GetValue()[1]);
+		SrcChromaticityHash ^= GetTypeHash(InSourceColorSettings.ColorSpaceOverride.GetValue()[2]);
+		SrcChromaticityHash ^= GetTypeHash(InSourceColorSettings.ColorSpaceOverride.GetValue()[3]);
 		TransformName += FString::Printf(TEXT("_%u"), SrcChromaticityHash);
 	}
 
 	return TransformName;
 }
 
-FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(
-	const FOpenColorIOConfigWrapper* InConfig,
-	FStringView InSourceColorSpace,
-	FStringView InDestinationColorSpace,
-	const TMap<FString, FString>& InContextKeyValues)
-	: Pimpl(MakePimpl<FOpenColorIOProcessorPimpl, EPimplPtrMode::DeepCopy>())
-	, OwnerConfig(InConfig)
-	, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
-{
-	if (InSourceColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
-	{
-		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
-	}
-	else if (InDestinationColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
-	{
-		WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
-	}
-
-#if WITH_OCIO
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
-		if (OwnerConfig != nullptr && OwnerConfig->IsValid())
-		{
-			const OCIO_NAMESPACE::ConstConfigRcPtr& Config = OwnerConfig->Pimpl->Config;
-			OCIO_NAMESPACE::ContextRcPtr Context = Config->getCurrentContext()->createEditableCopy();
-
-			for (const TPair<FString, FString>& KeyValue : InContextKeyValues)
-			{
-				Context->setStringVar(TCHAR_TO_ANSI(*KeyValue.Key), TCHAR_TO_ANSI(*KeyValue.Value));
-			}
-
-			Pimpl->Processor = Config->getProcessor(
-				Context,
-				StringCast<ANSICHAR>(InSourceColorSpace.GetData()).Get(),
-				StringCast<ANSICHAR>(InDestinationColorSpace.GetData()).Get()
-			);
-		}
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& Exc)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to create processor for [%s, %s]. Error message: %s"), InSourceColorSpace.GetData(), InDestinationColorSpace.GetData(), StringCast<TCHAR>(Exc.what()).Get());
-	}
-#endif
-#endif // WITH_OCIO
-}
-
-FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(
-	const FOpenColorIOConfigWrapper* InConfig,
-	FStringView InSourceColorSpace,
-	FStringView InDisplay,
-	FStringView InView,
-	bool bInverseDirection,
-	const TMap<FString, FString>& InContextKeyValues)
-	: Pimpl(MakePimpl<FOpenColorIOProcessorPimpl, EPimplPtrMode::DeepCopy>())
-	, OwnerConfig(InConfig)
-	, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
-{
-	if (InSourceColorSpace == OpenColorIOWrapper::GetWorkingColorSpaceName())
-	{
-		if (bInverseDirection)
-		{
-			WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Destination;
-		}
-		else
-		{
-			WorkingColorSpaceTransformType = EOpenColorIOWorkingColorSpaceTransform::Source;
-		}
-	}
-
-#if WITH_OCIO
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
-		if (OwnerConfig != nullptr && OwnerConfig->IsValid())
-		{
-			const OCIO_NAMESPACE::ConstConfigRcPtr& Config = OwnerConfig->Pimpl->Config;
-			OCIO_NAMESPACE::ContextRcPtr Context = Config->getCurrentContext()->createEditableCopy();
-
-			for (const TPair<FString, FString>& KeyValue : InContextKeyValues)
-			{
-				Context->setStringVar(TCHAR_TO_ANSI(*KeyValue.Key), TCHAR_TO_ANSI(*KeyValue.Value));
-			}
-
-			Pimpl->Processor = Config->getProcessor(
-				StringCast<ANSICHAR>(InSourceColorSpace.GetData()).Get(),
-				StringCast<ANSICHAR>(InDisplay.GetData()).Get(),
-				StringCast<ANSICHAR>(InView.GetData()).Get(),
-				static_cast<OCIO_NAMESPACE::TransformDirection>(bInverseDirection)
-			);
-		}
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& Exc)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to create processor for [%s, %s, %s, %s]. Error message: %s"), InSourceColorSpace.GetData(), InDisplay.GetData(), InView.GetData(), (bInverseDirection ? TEXT("Inverse") : TEXT("Forward")), StringCast<TCHAR>(Exc.what()).Get());
-	}
-#endif
-#endif // WITH_OCIO
-}
-
-FOpenColorIOProcessorWrapper::FOpenColorIOProcessorWrapper(const FOpenColorIOConfigWrapper* InConfig, FStringView InNamedTransform, bool bInverseDirection, const TMap<FString, FString>& InContextKeyValues)
-	: Pimpl(MakePimpl<FOpenColorIOProcessorPimpl, EPimplPtrMode::DeepCopy>())
-	, OwnerConfig(InConfig)
-	, WorkingColorSpaceTransformType(EOpenColorIOWorkingColorSpaceTransform::None)
+bool FOpenColorIOWrapperProcessor::TransformColor(FLinearColor& InOutColor) const
 {
 #if WITH_OCIO
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
-		if (OwnerConfig != nullptr && OwnerConfig->IsValid())
-		{
-			const OCIO_NAMESPACE::ConstConfigRcPtr& Config = OwnerConfig->Pimpl->Config;
-			OCIO_NAMESPACE::ContextRcPtr Context = Config->getCurrentContext()->createEditableCopy();
-
-			for (const TPair<FString, FString>& KeyValue : InContextKeyValues)
-			{
-				Context->setStringVar(TCHAR_TO_ANSI(*KeyValue.Key), TCHAR_TO_ANSI(*KeyValue.Value));
-			}
-
-			Pimpl->Processor = Config->getProcessor(
-				StringCast<ANSICHAR>(InNamedTransform.GetData()).Get(),
-				static_cast<OCIO_NAMESPACE::TransformDirection>(bInverseDirection)
-			);
-		}
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& Exc)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to create processor for [%s]. Error message: %s"), InNamedTransform.GetData(), StringCast<TCHAR>(Exc.what()).Get());
-	}
-#endif
-#endif // WITH_OCIO
-}
-
-bool FOpenColorIOProcessorWrapper::IsValid() const
-{
-#if WITH_OCIO
-	return OwnerConfig != nullptr && Pimpl->Processor != nullptr;
-#else
-	return false;
-#endif
-}
-
-FOpenColorIOCPUProcessorWrapper::FOpenColorIOCPUProcessorWrapper(FOpenColorIOProcessorWrapper InProcessor)
-	: ParentProcessor(MoveTemp(InProcessor))
-{
-}
-
-bool FOpenColorIOCPUProcessorWrapper::IsValid() const
-{
-	return ParentProcessor.IsValid();
-}
-
-bool FOpenColorIOCPUProcessorWrapper::TransformColor(FLinearColor& InOutColor) const
-{
-#if WITH_OCIO
-	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOCPUProcessorWrapper::TransformImage)
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
-		using namespace OCIO_NAMESPACE;
+	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOWrapperProcessor::TransformColor)
+	OCIO_EXCEPTION_HANDLING_TRY()
 
 		if (IsValid())
 		{
 			// Apply the main color transformation
-			ConstCPUProcessorRcPtr CPUProcessor = ParentProcessor.Pimpl->Processor->getOptimizedCPUProcessor(BIT_DEPTH_F32, BIT_DEPTH_F32, OPTIMIZATION_DEFAULT);
+			OCIO_NAMESPACE::ConstCPUProcessorRcPtr CPUProcessor = Pimpl->Processor->getDefaultCPUProcessor();
 			CPUProcessor->applyRGBA(&InOutColor.R);
 
 			return true;
 		}
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& Exc)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to transform color. Error message: %s"), StringCast<TCHAR>(Exc.what()).Get());
-	}
-#endif
+	OCIO_EXCEPTION_HANDLING_CATCH(Log, TEXT("Failed to transform color. Error message: %s"))
 #endif // WITH_OCIO
 
 	return false;
 }
 
-bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& InOutImage) const
+bool FOpenColorIOWrapperProcessor::TransformImage(const FImageView& InOutImage) const
 {
 #if WITH_OCIO
-	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOCPUProcessorWrapper::TransformImage)
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOWrapperProcessor::TransformImage)
+	OCIO_EXCEPTION_HANDLING_TRY()
 		using namespace OCIO_NAMESPACE;
 
 		if (IsValid())
@@ -953,13 +918,13 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& InOutImag
 			if (ImageDesc)
 			{
 				const TUniquePtr<ANSICHAR[]> AnsiWorkingColorSpaceName = OpenColorIOWrapper::MakeAnsiString(OpenColorIOWrapper::GetWorkingColorSpaceName());
-				ConstConfigRcPtr	InterchangeConfig = IOpenColorIOWrapperModule::Get().GetEngineBuiltInConfig()->Pimpl->Config;
-				ConstConfigRcPtr Config = ParentProcessor.OwnerConfig->Pimpl->Config;
+				ConstConfigRcPtr	InterchangeConfig = IOpenColorIOWrapperModule::Get().GetEngineBuiltInConfig().Pimpl->Config;
+				ConstConfigRcPtr Config = OwnerConfig->Pimpl->Config;
 
 				BitDepth BitDepth = ImageDesc->getBitDepth();
 
 				// Conditionally apply a conversion from the working color space to interchange space
-				if (ParentProcessor.WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Source)
+				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Source)
 				{
 					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 						InterchangeConfig,
@@ -972,11 +937,11 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& InOutImag
 				}
 
 				// Apply the main color transformation
-				ConstCPUProcessorRcPtr CPUProcessor = ParentProcessor.Pimpl->Processor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
+				ConstCPUProcessorRcPtr CPUProcessor = Pimpl->Processor->getOptimizedCPUProcessor(BitDepth, BitDepth, OPTIMIZATION_DEFAULT);
 				CPUProcessor->apply(*ImageDesc);
 
 				// Conditionally apply a conversion from the interchange space to the working color space
-				if (ParentProcessor.WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Destination)
+				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Destination)
 				{
 					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 						Config,
@@ -991,26 +956,17 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& InOutImag
 				return true;
 			}
 		}
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& Exc)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to transform image. Error message: %s"), StringCast<TCHAR>(Exc.what()).Get());
-	}
-#endif
+	OCIO_EXCEPTION_HANDLING_CATCH(Log, TEXT("Failed to transform image. Error message: %s"))
 #endif // WITH_OCIO
 
 	return false;
 }
 
-bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& SrcImage, const FImageView& DestImage) const
+bool FOpenColorIOWrapperProcessor::TransformImage(const FImageView& SrcImage, const FImageView& DestImage) const
 {
 #if WITH_OCIO
-	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOCPUProcessorWrapper::TransformImage)
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOWrapperProcessor::TransformImage)
+	OCIO_EXCEPTION_HANDLING_TRY()
 		using namespace OCIO_NAMESPACE;
 
 		if (IsValid())
@@ -1020,14 +976,14 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& SrcImage,
 			if (SrcImageDesc && DestImageDesc)
 			{
 				const TUniquePtr<ANSICHAR[]> AnsiWorkingColorSpaceName = OpenColorIOWrapper::MakeAnsiString(OpenColorIOWrapper::GetWorkingColorSpaceName());
-				ConstConfigRcPtr	InterchangeConfig = IOpenColorIOWrapperModule::Get().GetEngineBuiltInConfig()->Pimpl->Config;
-				ConstConfigRcPtr	Config = ParentProcessor.OwnerConfig->Pimpl->Config;
+				ConstConfigRcPtr	InterchangeConfig = IOpenColorIOWrapperModule::Get().GetEngineBuiltInConfig().Pimpl->Config;
+				ConstConfigRcPtr	Config = OwnerConfig->Pimpl->Config;
 
 				BitDepth SrcBitDepth = SrcImageDesc->getBitDepth();
 				BitDepth DestBitDepth = DestImageDesc->getBitDepth();
 
 				// Conditionally apply a conversion from the working color space to interchange space
-				if (ParentProcessor.WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Source)
+				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Source)
 				{
 					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 						InterchangeConfig,
@@ -1041,11 +997,11 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& SrcImage,
 
 
 				// Apply the main color transformation
-				ConstCPUProcessorRcPtr CPUProcessor = ParentProcessor.Pimpl->Processor->getOptimizedCPUProcessor(SrcBitDepth, DestBitDepth, OPTIMIZATION_DEFAULT);
+				ConstCPUProcessorRcPtr CPUProcessor = Pimpl->Processor->getOptimizedCPUProcessor(SrcBitDepth, DestBitDepth, OPTIMIZATION_DEFAULT);
 				CPUProcessor->apply(*SrcImageDesc, *DestImageDesc);
 
 				// Conditionally apply a conversion from the interchange space to the working color space
-				if (ParentProcessor.WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Destination)
+				if (WorkingColorSpaceTransformType == EOpenColorIOWorkingColorSpaceTransform::Destination)
 				{
 					ConstProcessorRcPtr	InterchangeProcessor = InterchangeConfig->GetProcessorFromConfigs(
 						Config,
@@ -1060,13 +1016,7 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& SrcImage,
 				return true;
 			}
 		}
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& exception)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to transform image. Error message: %s"), StringCast<TCHAR>(exception.what()).Get());
-	}
-#endif
+	OCIO_EXCEPTION_HANDLING_CATCH(Log, TEXT("Failed to transform image. Error message: %s"))
 #endif // WITH_OCIO
 
 	return false;
@@ -1074,16 +1024,13 @@ bool FOpenColorIOCPUProcessorWrapper::TransformImage(const FImageView& SrcImage,
 
 
 
-FOpenColorIOGPUProcessorWrapper::FOpenColorIOGPUProcessorWrapper(FOpenColorIOProcessorWrapper InProcessor, FInitializationOptions InShaderParams)
+FOpenColorIOWrapperGPUProcessor::FOpenColorIOWrapperGPUProcessor(FOpenColorIOWrapperProcessor InProcessor, bool bUseLegacy)
 	: ParentProcessor(MoveTemp(InProcessor))
 	, GPUPimpl(MakePimpl<FOpenColorIOGPUProcessorPimpl, EPimplPtrMode::DeepCopy>())
 {
 #if WITH_OCIO
-	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOGPUProcessorWrapper::FOpenColorIOGPUProcessorWrapper)	
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FOpenColorIOWrapperGPUProcessor::FOpenColorIOWrapperGPUProcessor)
+	OCIO_EXCEPTION_HANDLING_TRY()
 		using namespace OCIO_NAMESPACE;
 
 		if (ParentProcessor.IsValid())
@@ -1096,7 +1043,7 @@ FOpenColorIOGPUProcessorWrapper::FOpenColorIOGPUProcessorWrapper(FOpenColorIOPro
 			ConstGPUProcessorRcPtr GPUProcessor = nullptr;
 			OptimizationFlags OptFlags = FOpenColorIOProcessorPimpl::GetOptimizationFlags();
 
-			if (InShaderParams.bIsLegacy)
+			if (bUseLegacy)
 			{
 				unsigned int EdgeLength = static_cast<unsigned int>(OpenColorIOWrapper::Legacy3dEdgeLength);
 				GPUProcessor = ParentProcessor.Pimpl->Processor->getOptimizedLegacyGPUProcessor(OptFlags, EdgeLength);
@@ -1110,17 +1057,11 @@ FOpenColorIOGPUProcessorWrapper::FOpenColorIOGPUProcessorWrapper(FOpenColorIOPro
 			GPUPimpl->Processor = GPUProcessor;
 			GPUPimpl->ShaderDescription = ShaderDescription;
 		}
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& Exc)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Log, TEXT("Failed to fetch shader info for color transform. Error message: %s"), StringCast<TCHAR>(Exc.what()).Get());
-	}
-#endif
+	OCIO_EXCEPTION_HANDLING_CATCH(Log, TEXT("Failed to fetch shader info for color transform. Error message: %s"))
 #endif // WITH_OCIO
 }
 
-bool FOpenColorIOGPUProcessorWrapper::IsValid() const
+bool FOpenColorIOWrapperGPUProcessor::IsValid() const
 {
 #if WITH_OCIO
 	return ParentProcessor.IsValid() && GPUPimpl->Processor != nullptr && GPUPimpl->ShaderDescription != nullptr;
@@ -1129,7 +1070,7 @@ bool FOpenColorIOGPUProcessorWrapper::IsValid() const
 #endif // WITH_OCIO
 }
 
-bool FOpenColorIOGPUProcessorWrapper::GetShader(FString& OutShaderCode, FString& OutShaderCacheID) const
+bool FOpenColorIOWrapperGPUProcessor::GetShader(FString& OutShaderCode, FString& OutShaderCacheID) const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -1146,7 +1087,7 @@ bool FOpenColorIOGPUProcessorWrapper::GetShader(FString& OutShaderCode, FString&
 	return false;
 }
 
-uint32 FOpenColorIOGPUProcessorWrapper::GetNum3DTextures() const
+uint32 FOpenColorIOWrapperGPUProcessor::GetNum3DTextures() const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -1158,15 +1099,11 @@ uint32 FOpenColorIOGPUProcessorWrapper::GetNum3DTextures() const
 	return 0;
 }
 
-bool FOpenColorIOGPUProcessorWrapper::Get3DTexture(uint32 InIndex, FName& OutName, uint32& OutEdgeLength, TextureFilter& OutTextureFilter, const float*& OutData) const
+bool FOpenColorIOWrapperGPUProcessor::Get3DTexture(uint32 InIndex, FName& OutName, uint32& OutEdgeLength, TextureFilter& OutTextureFilter, const float*& OutData) const
 {
 #if WITH_OCIO
 	ensure(InIndex < GetNum3DTextures());
-
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
+	OCIO_EXCEPTION_HANDLING_TRY()
 		if (IsValid())
 		{
 			const ANSICHAR* TextureName = nullptr;
@@ -1190,18 +1127,12 @@ bool FOpenColorIOGPUProcessorWrapper::Get3DTexture(uint32 InIndex, FName& OutNam
 
 			return TextureName && OutEdgeLength > 0 && OutData;
 		}
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& Exc)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Error, TEXT("Failed to fetch 3d texture(s) info for color transform. Error message: %s"), StringCast<TCHAR>(Exc.what()).Get());
-	}
-#endif
-#endif //WITH_OCIO
+	OCIO_EXCEPTION_HANDLING_CATCH(Log, TEXT("Failed to fetch 3d texture(s) info for color transform. Error message: %s"))
+#endif // WITH_OCIO
 
 	return false;
 }
-uint32 FOpenColorIOGPUProcessorWrapper::GetNumTextures() const
+uint32 FOpenColorIOWrapperGPUProcessor::GetNumTextures() const
 {
 #if WITH_OCIO
 	if (IsValid())
@@ -1213,15 +1144,12 @@ uint32 FOpenColorIOGPUProcessorWrapper::GetNumTextures() const
 	return 0;
 }
 
-bool FOpenColorIOGPUProcessorWrapper::GetTexture(uint32 InIndex, FName& OutName, uint32& OutWidth, uint32& OutHeight, TextureFilter& OutTextureFilter, bool& bOutRedChannelOnly, const float*& OutData) const
+bool FOpenColorIOWrapperGPUProcessor::GetTexture(uint32 InIndex, FName& OutName, uint32& OutWidth, uint32& OutHeight, TextureFilter& OutTextureFilter, bool& bOutRedChannelOnly, const float*& OutData) const
 {
 	ensure(InIndex < GetNumTextures());
 
 #if WITH_OCIO
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	try
-#endif
-	{
+	OCIO_EXCEPTION_HANDLING_TRY()
 		if (IsValid())
 		{
 			const ANSICHAR* TextureName = nullptr;
@@ -1242,19 +1170,13 @@ bool FOpenColorIOGPUProcessorWrapper::GetTexture(uint32 InIndex, FName& OutName,
 
 			return TextureName && OutWidth > 0 && OutHeight > 0 && OutData;
 		}
-	}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	catch (OCIO_NAMESPACE::Exception& Exc)
-	{
-		UE_LOG(LogOpenColorIOWrapper, Error, TEXT("Failed to fetch texture(s) info for color transform. Error message: %s"), StringCast<TCHAR>(Exc.what()).Get());
-	}
-#endif
+	OCIO_EXCEPTION_HANDLING_CATCH(Error, TEXT("Failed to fetch texture(s) info for color transform. Error message: %s"))
 #endif // WITH_OCIO
 
 	return false;
 }
 
-FString FOpenColorIOGPUProcessorWrapper::GetCacheID() const
+FString FOpenColorIOWrapperGPUProcessor::GetCacheID() const
 {
 #if WITH_OCIO
 	if (IsValid())

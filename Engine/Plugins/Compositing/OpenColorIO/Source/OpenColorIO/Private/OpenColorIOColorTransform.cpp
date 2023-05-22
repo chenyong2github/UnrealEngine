@@ -26,7 +26,7 @@
 namespace
 {
 	// Returns the (native) config wrapper from the configuration object.
-	FOpenColorIOConfigWrapper* GetTransformConfigWrapper(const UOpenColorIOConfiguration* InConfigurationOwner)
+	FOpenColorIOWrapperConfig* GetTransformConfigWrapper(const UOpenColorIOConfiguration* InConfigurationOwner)
 	{
 		if (IsValid(InConfigurationOwner))
 		{
@@ -37,7 +37,7 @@ namespace
 	}
 
 	// Note: Since OpenColorIO caches processors automatically, we can recreate them without significant additional costs.
-	FOpenColorIOProcessorWrapper GetTransformProcessor(const UOpenColorIOColorTransform* InTransform, const FOpenColorIOConfigWrapper* InConfigWrapper)
+	FOpenColorIOWrapperProcessor GetTransformProcessor(const UOpenColorIOColorTransform* InTransform, const FOpenColorIOWrapperConfig* InConfigWrapper)
 	{
 		check(InTransform);
 		ensure(InConfigWrapper);
@@ -45,7 +45,7 @@ namespace
 		EOpenColorIOViewTransformDirection DisplayViewDirection;
 		if (InTransform->GetDisplayViewDirection(DisplayViewDirection))
 		{
-			return FOpenColorIOProcessorWrapper(
+			return FOpenColorIOWrapperProcessor(
 				InConfigWrapper,
 				InTransform->SourceColorSpace,
 				InTransform->Display,
@@ -55,7 +55,7 @@ namespace
 		}
 		else
 		{
-			return FOpenColorIOProcessorWrapper(
+			return FOpenColorIOWrapperProcessor(
 				InConfigWrapper,
 				InTransform->SourceColorSpace,
 				InTransform->DestinationColorSpace,
@@ -278,15 +278,16 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 #if WITH_EDITOR
 	if (Textures.IsEmpty())
 	{
+		const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
 		const UOpenColorIOConfiguration* ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
-		const FOpenColorIOConfigWrapper* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
+		const FOpenColorIOWrapperConfig* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
 
 		if (ConfigWrapper != nullptr)
 		{
-			const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, ConfigWrapper);
+			const FOpenColorIOWrapperProcessor TransformProcessor = GetTransformProcessor(this, ConfigWrapper);
 			if (TransformProcessor.IsValid())
 			{
-				const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(TransformProcessor);
+				const FOpenColorIOWrapperGPUProcessor GPUProcessor = FOpenColorIOWrapperGPUProcessor(TransformProcessor, Settings->bUseLegacyProcessor);
 				const FString ProcessorID = GPUProcessor.GetCacheID();
 
 				//In editor, it will use what's on DDC if there's something corresponding to the actual data or use that raw data
@@ -496,16 +497,14 @@ bool UOpenColorIOColorTransform::IsTransform(const FString& InSourceColorSpace, 
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutImage) const
 {
 	const UOpenColorIOConfiguration* ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
-	const FOpenColorIOConfigWrapper* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
+	const FOpenColorIOWrapperConfig* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
 
 	if (ConfigWrapper != nullptr)
 	{
-		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, ConfigWrapper);
+		const FOpenColorIOWrapperProcessor TransformProcessor = GetTransformProcessor(this, ConfigWrapper);
 		if (TransformProcessor.IsValid())
 		{
-			const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
-
-			return CPUProcessor.TransformImage(InOutImage);
+			return TransformProcessor.TransformImage(InOutImage);
 		}
 	}
 	else
@@ -519,16 +518,14 @@ bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& InOutIma
 bool UOpenColorIOColorTransform::EditorTransformImage(const FImageView& SrcImage, const FImageView& DestImage) const
 {
 	const UOpenColorIOConfiguration* ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
-	const FOpenColorIOConfigWrapper* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
+	const FOpenColorIOWrapperConfig* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
 
 	if (ConfigWrapper != nullptr)
 	{
-		const FOpenColorIOProcessorWrapper TransformProcessor = GetTransformProcessor(this, ConfigWrapper);
+		const FOpenColorIOWrapperProcessor TransformProcessor = GetTransformProcessor(this, ConfigWrapper);
 		if (TransformProcessor.IsValid())
 		{
-			const FOpenColorIOCPUProcessorWrapper CPUProcessor = FOpenColorIOCPUProcessorWrapper(TransformProcessor);
-
-			return CPUProcessor.TransformImage(SrcImage, DestImage);
+			return TransformProcessor.TransformImage(SrcImage, DestImage);
 		}
 	}
 	else
@@ -627,15 +624,16 @@ FString UOpenColorIOColorTransform::GetTransformFriendlyName() const
 bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FString& OutShaderCode, FString& OutRawConfigHash)
 {
 #if WITH_EDITOR
+	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
 	const UOpenColorIOConfiguration* ConfigurationOwner = Cast<UOpenColorIOConfiguration>(GetOuter());
-	const FOpenColorIOConfigWrapper* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
+	const FOpenColorIOWrapperConfig* ConfigWrapper = GetTransformConfigWrapper(ConfigurationOwner);
 
 	if (ConfigWrapper != nullptr)
 	{
-		const FOpenColorIOProcessorWrapper Processor = GetTransformProcessor(this, ConfigWrapper);
+		const FOpenColorIOWrapperProcessor Processor = GetTransformProcessor(this, ConfigWrapper);
 		if (Processor.IsValid())
 		{
-			const FOpenColorIOGPUProcessorWrapper GPUProcessor = FOpenColorIOGPUProcessorWrapper(Processor);
+			const FOpenColorIOWrapperGPUProcessor GPUProcessor = FOpenColorIOWrapperGPUProcessor(Processor, Settings->bUseLegacyProcessor);
 			if (GPUProcessor.IsValid())
 			{
 				OutRawConfigHash = ConfigurationOwner->GetConfigWrapper()->GetCacheID();

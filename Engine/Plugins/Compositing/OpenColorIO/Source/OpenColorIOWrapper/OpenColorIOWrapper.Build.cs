@@ -8,6 +8,11 @@ namespace UnrealBuildTool.Rules
 		{
 			PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
+			PublicIncludePathModuleNames.AddRange(new string[]
+			{
+				"ColorManagement", // for ColorManagementDefines.h
+			});
+
 			PrivateIncludePathModuleNames.AddRange(new string[]
 			{
 				"Engine", // for TextureDefines.h
@@ -16,6 +21,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(new string[]
 			{
 				"ColorManagement",
+				"ImageCore",
 			});
 
 			if (Target.bBuildEditor)
@@ -30,7 +36,6 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(new string[]
 			{
 				"Core",
-				"ImageCore"
 			});
 		}
 	}

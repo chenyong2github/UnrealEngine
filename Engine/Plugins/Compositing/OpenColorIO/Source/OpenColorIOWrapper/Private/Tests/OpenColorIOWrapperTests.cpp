@@ -7,7 +7,6 @@
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AutomationTest.h"
 #include "OpenColorIOWrapper.h"
-#include "Engine/Texture.h"
 #include "TransferFunctions.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -30,21 +29,18 @@ bool FOpenColorIOTransferFunctionsTest::RunTest(const FString& Parameters)
 	using namespace UE::Color;
 
 	const FLinearColor TestColor = FLinearColor(0.9f, 0.5f, 0.2f, 1.0f);
-	FOpenColorIOEngineBuiltInConfigWrapper TestConfig = {};
 
-	for (uint8 TestEncoding = static_cast<uint8>(ETextureSourceEncoding::TSE_None); TestEncoding < static_cast<uint8>(ETextureSourceEncoding::TSE_MAX); ++TestEncoding)
+	for (uint8 TestEncoding = static_cast<uint8>(EEncoding::None); TestEncoding < static_cast<uint8>(EEncoding::Max); ++TestEncoding)
 	{
 		FLinearColor Expected = UE::Color::Decode(static_cast<EEncoding>(TestEncoding), TestColor);
 
-		FTextureSourceColorSettings TestSettings = {};
-		TestSettings.EncodingOverride = static_cast<ETextureSourceEncoding>(TestEncoding);
-		TestSettings.ColorSpace = ETextureColorSpace::TCS_None;
+		FOpenColorIOWrapperSourceColorSettings TestSettings;
+		TestSettings.EncodingOverride = static_cast<EEncoding>(TestEncoding);
 
-		FOpenColorIOProcessorWrapper Processor = TestConfig.GetProcessorToWorkingColorSpace(TestSettings);
-		FOpenColorIOCPUProcessorWrapper ProcessorCPU(Processor);
+		FOpenColorIOWrapperProcessor Processor = FOpenColorIOWrapperProcessor::CreateTransformToWorkingColorSpace(TestSettings);
 
 		FLinearColor Actual = TestColor;
-		ProcessorCPU.TransformColor(Actual);
+		Processor.TransformColor(Actual);
 
 		// Note: We make the tolerance relative to the values themselves to account for larger values in PQ.
 		const float Tolerance = UE_KINDA_SMALL_NUMBER * 0.5f * (Actual.R + Expected.R);
@@ -63,25 +59,34 @@ bool FOpenColorIOTransferFunctionsTest::RunTest(const FString& Parameters)
 	TSet<FString> Keys;
 	FRandomStream RandomStream;
 	RandomStream.Initialize(42);
-	for (uint8 TestEncoding = static_cast<uint8>(ETextureSourceEncoding::TSE_None); TestEncoding < static_cast<uint8>(ETextureSourceEncoding::TSE_MAX); ++TestEncoding)
+	for (uint8 TestEncoding = static_cast<uint8>(EEncoding::None); TestEncoding < static_cast<uint8>(EEncoding::Max); ++TestEncoding)
 	{
-		for (uint8 TestColorSpace = static_cast<uint8>(ETextureColorSpace::TCS_None); TestColorSpace < static_cast<uint8>(ETextureColorSpace::TCS_MAX); ++TestColorSpace)
+		for (uint8 TestColorSpace = static_cast<uint8>(EColorSpace::None); TestColorSpace <= static_cast<uint8>(EColorSpace::Max); ++TestColorSpace)
 		{
 			for (uint8 TestChromatic = 0; TestChromatic < 2; ++TestChromatic)
 			{
-				FTextureSourceColorSettings Settings = {};
-				Settings.EncodingOverride = static_cast<ETextureSourceEncoding>(TestEncoding);
-				Settings.ColorSpace = static_cast<ETextureColorSpace>(TestColorSpace);
-				if (Settings.ColorSpace == ETextureColorSpace::TCS_Custom)
-				{
-					Settings.RedChromaticityCoordinate = FVector2D(RandomStream.GetUnitVector());
-					Settings.GreenChromaticityCoordinate = FVector2D(RandomStream.GetUnitVector());
-					Settings.BlueChromaticityCoordinate = FVector2D(RandomStream.GetUnitVector());
-					Settings.WhiteChromaticityCoordinate = FVector2D(RandomStream.GetUnitVector());
-				}
-				Settings.ChromaticAdaptationMethod = static_cast<ETextureChromaticAdaptationMethod>(TestChromatic);
+				FOpenColorIOWrapperSourceColorSettings TestSettings;
+				TestSettings.EncodingOverride = static_cast<EEncoding>(TestEncoding);
 
-				Keys.Add(FOpenColorIOEngineBuiltInConfigWrapper::GetTransformToWorkingColorSpaceName(Settings));
+				if (TestColorSpace < static_cast<uint8>(EColorSpace::Max))
+				{
+					TestSettings.ColorSpace = static_cast<EColorSpace>(TestColorSpace);
+				}
+				else
+				{
+					// We locally use EColorSpace::Max as a test custom color space.
+					TStaticArray<FVector2d, 4> RandomChromaticities;
+					RandomChromaticities[0] = FVector2d(RandomStream.GetUnitVector());
+					RandomChromaticities[1] = FVector2d(RandomStream.GetUnitVector());
+					RandomChromaticities[2] = FVector2d(RandomStream.GetUnitVector());
+					RandomChromaticities[3] = FVector2d(RandomStream.GetUnitVector());
+
+					TestSettings.ColorSpaceOverride = MoveTemp(RandomChromaticities);
+				}
+				
+				TestSettings.ChromaticAdaptationMethod = static_cast<EChromaticAdaptationMethod>(TestChromatic);
+
+				Keys.Add(FOpenColorIOWrapperProcessor::GetTransformToWorkingColorSpaceName(TestSettings));
 				Count++;
 			}
 		}

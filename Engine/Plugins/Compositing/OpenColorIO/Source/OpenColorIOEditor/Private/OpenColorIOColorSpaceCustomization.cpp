@@ -113,7 +113,7 @@ IPropertyTypeCustomizationOpenColorIO::IPropertyTypeCustomizationOpenColorIO(TSh
 {
 }
 
-FOpenColorIOConfigWrapper* IPropertyTypeCustomizationOpenColorIO::GetConfigWrapper(const TSharedPtr<IPropertyHandle>& InConfigurationAssetProperty)
+FOpenColorIOWrapperConfig* IPropertyTypeCustomizationOpenColorIO::GetConfigWrapper(const TSharedPtr<IPropertyHandle>& InConfigurationAssetProperty)
 {
 	if (InConfigurationAssetProperty.IsValid())
 	{
@@ -165,7 +165,7 @@ void FOpenColorIOColorSpaceCustomization::PopulateSubMenu(FMenuBuilder& InMenuBu
 	// To keep track of submenus that were already added
 	TArray<FString> ExistingSubMenus;
 
-	const FOpenColorIOConfigWrapper* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
+	const FOpenColorIOWrapperConfig* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
 
 	if (ConfigWrapper)
 	{
@@ -223,7 +223,7 @@ void FOpenColorIOColorSpaceCustomization::AddMenuEntry(FMenuBuilder& InMenuBuild
 
 TSharedRef<SWidget> FOpenColorIOColorSpaceCustomization::HandleSourceComboButtonMenuContent()
 {
-	const FOpenColorIOConfigWrapper* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
+	const FOpenColorIOWrapperConfig* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
 
 	// Generate menu
 	FMenuBuilder MenuBuilder(true, nullptr);
@@ -265,7 +265,7 @@ TSharedRef<SWidget> FOpenColorIOColorSpaceCustomization::HandleSourceComboButton
 
 void FOpenColorIODisplayViewCustomization::PopulateViewSubMenu(FMenuBuilder& InMenuBuilder, FOpenColorIODisplayView InDisplayView)
 {
-	const FOpenColorIOConfigWrapper* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
+	const FOpenColorIOWrapperConfig* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
 
 	if (ConfigWrapper)
 	{
@@ -315,7 +315,7 @@ void FOpenColorIODisplayViewCustomization::AddMenuEntry(FMenuBuilder& InMenuBuil
 
 TSharedRef<SWidget> FOpenColorIODisplayViewCustomization::HandleSourceComboButtonMenuContent()
 {
-	const FOpenColorIOConfigWrapper* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
+	const FOpenColorIOWrapperConfig* ConfigWrapper = GetConfigWrapper(ConfigurationObjectProperty);
 
 	// Generate menu
 	FMenuBuilder MenuBuilder(true, nullptr);

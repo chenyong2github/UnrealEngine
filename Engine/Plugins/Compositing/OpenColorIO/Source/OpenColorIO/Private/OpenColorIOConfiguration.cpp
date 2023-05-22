@@ -277,7 +277,7 @@ void UOpenColorIOConfiguration::ConfigPathChangedEvent(const TArray<FFileChangeD
 #endif
 }
 
-FOpenColorIOConfigWrapper* UOpenColorIOConfiguration::GetConfigWrapper() const
+FOpenColorIOWrapperConfig* UOpenColorIOConfiguration::GetConfigWrapper() const
 {
 #if WITH_EDITOR
 	return Config.Get();
@@ -613,9 +613,7 @@ void UOpenColorIOConfiguration::LoadConfiguration()
 		FilePath = FPaths::ConvertRelativePathToFull(FPaths::Combine(AbsoluteGameDir, ConfigurationFile.FilePath));
 	}
 
-	FOpenColorIOConfigWrapper::FInitializationOptions Options;
-	Options.bAddWorkingColorSpace = true;
-	Config = MakePimpl<FOpenColorIOConfigWrapper>(FilePath, Options);
+	Config = MakePimpl<FOpenColorIOWrapperConfig>(FilePath, FOpenColorIOWrapperConfig::WCS_AsInterchangeSpace);
 
 	if (Config->IsValid())
 	{

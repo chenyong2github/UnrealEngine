@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "Logging/LogMacros.h"
 
-class FOpenColorIOEngineBuiltInConfigWrapper;
+class FOpenColorIOWrapperEngineConfig;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogOpenColorIOWrapper, Log, All);
 
@@ -41,8 +41,7 @@ public:
 	/**
 	 * Returns a minimal dynamically-created native config for engine (working color spaces) conversions.
 	 */
-	virtual FOpenColorIOEngineBuiltInConfigWrapper* GetEngineBuiltInConfig() = 0;
-	virtual const FOpenColorIOEngineBuiltInConfigWrapper* GetEngineBuiltInConfig() const = 0;
+	virtual FOpenColorIOWrapperEngineConfig& GetEngineBuiltInConfig() = 0;
 
 	/** Virtual destructor */
 	virtual ~IOpenColorIOWrapperModule() = default;

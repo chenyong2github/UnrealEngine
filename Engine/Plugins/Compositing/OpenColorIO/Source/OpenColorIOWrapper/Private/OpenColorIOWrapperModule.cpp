@@ -18,30 +18,36 @@ public:
 	virtual void StartupModule() override
 	{
 		FOpenColorIOLibHandler::Initialize();
-
-		EngineBuiltInConfig = MakeUnique<FOpenColorIOEngineBuiltInConfigWrapper>();
 	}
 
 	virtual void ShutdownModule() override
 	{
+		EngineBuiltInConfig.Reset();
+
 		FOpenColorIOLibHandler::Shutdown();
 	}
 	//~ End IModuleInterface interface
 
 	//~ Begin IOpenColorIOWrapperModule interface
-	virtual FOpenColorIOEngineBuiltInConfigWrapper* GetEngineBuiltInConfig() override
+	virtual FOpenColorIOWrapperEngineConfig& GetEngineBuiltInConfig() override
 	{
-		return EngineBuiltInConfig.Get();
-	}
+		FScopeLock Lock(&ConfigCriticalSection);
 
-	virtual const FOpenColorIOEngineBuiltInConfigWrapper* GetEngineBuiltInConfig() const override
-	{
-		return EngineBuiltInConfig.Get();
+		if (!EngineBuiltInConfig)
+		{
+			EngineBuiltInConfig = MakeUnique<FOpenColorIOWrapperEngineConfig>();
+		}
+
+		return *EngineBuiltInConfig;
 	}
 	//~ End IOpenColorIOWrapperModule interface
 private:
-	
-	TUniquePtr<FOpenColorIOEngineBuiltInConfigWrapper> EngineBuiltInConfig = nullptr;
+
+	// Critical section for the engine config getter.
+	FCriticalSection ConfigCriticalSection;
+
+	// Global engine config using the built-in studio config, lazily allocated.
+	TUniquePtr<FOpenColorIOWrapperEngineConfig> EngineBuiltInConfig;
 };
 
 IMPLEMENT_MODULE(FOpenColorIOWrapperModule, OpenColorIOWrapper);

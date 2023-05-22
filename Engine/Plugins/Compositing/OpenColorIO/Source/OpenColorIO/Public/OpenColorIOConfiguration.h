@@ -14,7 +14,7 @@
 #include "OpenColorIOConfiguration.generated.h"
 
 
-class FOpenColorIOConfigWrapper;
+class FOpenColorIOWrapperConfig;
 class FOpenColorIOTransformResource;
 class FTextureResource;
 class UOpenColorIOColorTransform;
@@ -64,7 +64,7 @@ public:
 	void ConfigPathChangedEvent(const TArray<FFileChangeData>& InFileChanges, const FString InFileMountPath);
 
 	/** Internal only: Replacement for previous `GetNativeConfig_Internal()`, `GetLoadedConfiguration()` and `GetLoadedConfigurationFile()` functions, returning the private implementation of the native OCIO config. */
-	FOpenColorIOConfigWrapper* GetConfigWrapper() const;
+	FOpenColorIOWrapperConfig* GetConfigWrapper() const;
 
 protected:
 
@@ -137,7 +137,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/** Private implementation of the OpenColorIO config object. */
-	TPimplPtr<FOpenColorIOConfigWrapper> Config = nullptr;
+	TPimplPtr<FOpenColorIOWrapperConfig> Config = nullptr;
 #endif
 };
 
@@ -146,28 +146,28 @@ private:
 class FOpenColorIOEditorConfigurationInspector {
 public:
 
-	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOWrapperConfig class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FOpenColorIOEditorConfigurationInspector(const UOpenColorIOConfiguration& InConfiguration);
 
-	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOWrapperConfig class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API int32 GetNumColorSpaces() const;
 	
-	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOWrapperConfig class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FString GetColorSpaceName(int32 Index) const;
 	
-	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOWrapperConfig class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FString GetColorSpaceFamilyName(const TCHAR* InColorSpaceName) const;
 
-	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOWrapperConfig class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API int32 GetNumDisplays() const;
 	
-	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOWrapperConfig class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FString GetDisplayName(int32 Index) const;
 
-	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOWrapperConfig class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API int32 GetNumViews(const TCHAR* InDisplayName) const;
 	
-	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOConfigWrapper class in the OpenColorIOWrapper module.")
+	UE_DEPRECATED(5.3, "This class is deprecated and has been replaced by FOpenColorIOWrapperConfig class in the OpenColorIOWrapper module.")
 	OPENCOLORIO_API FString GetViewName(const TCHAR* InDisplayName, int32 Index) const;
 
 private:

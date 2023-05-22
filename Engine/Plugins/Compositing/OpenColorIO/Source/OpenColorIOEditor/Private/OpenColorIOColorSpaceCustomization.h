@@ -9,7 +9,7 @@
 #include "OpenColorIOColorSpace.h"
 #include "Widgets/SWidget.h"
 
-class FOpenColorIOConfigWrapper;
+class FOpenColorIOWrapperConfig;
 
 /**
  * Implements a details view customization for the FOpenColorIOConfiguration
@@ -25,7 +25,7 @@ public:
 
 protected:
 
-	static FOpenColorIOConfigWrapper* GetConfigWrapper(const TSharedPtr<IPropertyHandle>& InConfigurationObjectProperty);
+	static FOpenColorIOWrapperConfig* GetConfigWrapper(const TSharedPtr<IPropertyHandle>& InConfigurationObjectProperty);
 
 protected:
 
