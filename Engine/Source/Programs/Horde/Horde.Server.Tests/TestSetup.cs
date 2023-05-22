@@ -341,8 +341,14 @@ namespace Horde.Server.Tests
 		}
 		
 		private static int s_agentIdCounter = 1;
-		public async Task<IAgent> CreateAgentAsync(IPool pool, bool enabled = true, bool requestShutdown = false)
+		public async Task<IAgent> CreateAgentAsync(IPool pool, bool enabled = true, bool requestShutdown = false, TimeSpan? adjustClockBy = null)
 		{
+			DateTime now = Clock.UtcNow;
+			if (adjustClockBy != null)
+			{
+				Clock.UtcNow = now + adjustClockBy.Value;
+			}
+			
 			IAgent agent = await AgentService.CreateAgentAsync("TestAgent" + s_agentIdCounter++, enabled, new List<PoolId> { pool.Id });
 			agent = await AgentService.CreateSessionAsync(agent, AgentStatus.Ok, new List<string>(), new Dictionary<string, int>(), null);
 			if (requestShutdown)
@@ -350,6 +356,7 @@ namespace Horde.Server.Tests
 				await AgentCollection.TryUpdateSettingsAsync(agent, requestShutdown: true);
 			}
 			
+			Clock.UtcNow = now;
 			return agent;
 		}
 
