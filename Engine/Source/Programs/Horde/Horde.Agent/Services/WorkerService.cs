@@ -6,8 +6,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using Horde.Agent.Leases;
-using Horde.Agent.Utility;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -94,8 +94,15 @@ namespace Horde.Agent.Services
 				{
 					try
 					{
-						using Mutex singleInstanceMutex = new(false, "Global\\HordeAgent-DB828ACB-0AA5-4D32-A62A-21D4429B1014");
-						await WaitForMutexAsync(singleInstanceMutex, stoppingToken);
+						Task<IDisposable> mutexTask = SingleInstanceMutex.AcquireAsync("Global\\HordeAgent-DB828ACB-0AA5-4D32-A62A-21D4429B1014", stoppingToken);
+
+						Task delayTask = Task.Delay(TimeSpan.FromSeconds(1.0), stoppingToken);
+						if (Task.WhenAny(mutexTask, delayTask) == delayTask)
+						{
+							_logger.LogInformation("Another agent instance is already running. Waiting for it to terminate.");
+						}
+
+						using IDisposable mutex = await mutexTask;
 
 						await using (ISession session = await _sessionFactory.CreateAsync(stoppingToken))
 						{
