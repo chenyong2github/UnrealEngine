@@ -1140,7 +1140,7 @@ FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& 
 	if (CCFlags)
 	{
 		Text += TEXT(" -hlslccflags=");
-		Text += FString::Printf(TEXT("%llu"), CCFlags);
+		Text += FString::Printf(TEXT("%u"), CCFlags);
 	}
 	// When we're running in directcompile mode, we don't to spam the crash reporter
 	Text += TEXT(" -nocrashreports");
