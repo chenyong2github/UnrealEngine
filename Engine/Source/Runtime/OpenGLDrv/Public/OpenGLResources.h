@@ -176,13 +176,16 @@ public:
 			IncrementBufferMemory(Type, BaseType::GetSize());
 		};
 
-		if (RHICmdList)
+		if (!BufferDesc.IsNull())
 		{
-			RHICmdList->EnqueueLambda([Lambda = MoveTemp(InitLambda)](FRHICommandListBase&) { Lambda(); });
-		}
-		else
-		{
-			InitLambda();
+			if (RHICmdList)
+			{
+				RHICmdList->EnqueueLambda([Lambda = MoveTemp(InitLambda)](FRHICommandListBase&) { Lambda(); });
+			}
+			else
+			{
+				InitLambda();
+			}
 		}
 	}
 
