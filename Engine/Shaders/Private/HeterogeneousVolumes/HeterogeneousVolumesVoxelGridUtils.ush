@@ -18,10 +18,12 @@ FMajorantData CreateMajorantData()
 	return MajorantData;
 }
 
-void UpdateMajorantData(inout FMajorantData MajorantData, float Value)
+void UpdateMajorantData(inout FMajorantData MajorantData, float3 Value)
 {
-	MajorantData.Minorant = min(MajorantData.Minorant, Value);
-	MajorantData.Majorant = max(MajorantData.Majorant, Value);
+	float MinValue = min(Value.x, min(Value.y, Value.z));
+	float MaxValue = max(Value.x, max(Value.y, Value.z));
+	MajorantData.Minorant = min(MajorantData.Minorant, MinValue);
+	MajorantData.Majorant = max(MajorantData.Majorant, MaxValue);
 }
 
 void UpdateMajorantData(inout FMajorantData MajorantData, FMajorantData Value)
@@ -33,14 +35,15 @@ void UpdateMajorantData(inout FMajorantData MajorantData, FMajorantData Value)
 FMajorantData GetMajorantData(FScalarGridData MajorantGridData)
 {
 	FMajorantData Data;
-	Data.Majorant = f16tof32(MajorantGridData.PackedData[0] & 0xFFFF);
-	Data.Minorant = f16tof32(MajorantGridData.PackedData[0] >> 16);
+	Data.Minorant = asfloat(MajorantGridData.PackedData[0]);
+	Data.Majorant = asfloat(MajorantGridData.PackedData[1]);
 	return Data;
 }
 
 void SetMajorantData(inout FScalarGridData MajorantGridData, FMajorantData MajorantData)
 {
-	MajorantGridData.PackedData[0] = (f32tof16(MajorantData.Minorant) << 16) | f32tof16(MajorantData.Majorant);
+	MajorantGridData.PackedData[0] = asuint(MajorantData.Minorant);
+	MajorantGridData.PackedData[1] = asuint(MajorantData.Majorant);
 }
 
 float3 GetExtinction(FScalarGridData ExtinctionGridData)
@@ -156,7 +159,7 @@ bool IsBottomLevelEmpty(FTopLevelGridData TopLevelGridData)
 int3 GetBottomLevelVoxelResolution(FTopLevelGridData TopLevelGridData)
 {
 	uint ResolutionExponent = TopLevelGridData.PackedData[0] & 0x7;
-	int3 Resolution = ResolutionExponent > 0 ? (1u << (ResolutionExponent - 1)) : 0;
+	int3 Resolution = ResolutionExponent;
 
 	return Resolution;
 }
@@ -164,7 +167,7 @@ int3 GetBottomLevelVoxelResolution(FTopLevelGridData TopLevelGridData)
 void SetBottomLevelVoxelResolution(inout FTopLevelGridData TopLevelGridData, int3 BottomLevelVoxelResolution)
 {
 	uint Index = GetBottomLevelIndex(TopLevelGridData);
-	uint ResolutionExponent = int(BottomLevelVoxelResolution.x > 0 ? uint(log2(BottomLevelVoxelResolution.x)) + 1 : 0) & 0x7;
+	uint ResolutionExponent = BottomLevelVoxelResolution.x & 0x7;
 	TopLevelGridData.PackedData[0] = (Index << 3) | ResolutionExponent;
 }
 

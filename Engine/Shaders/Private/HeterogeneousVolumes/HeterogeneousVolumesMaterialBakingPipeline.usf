@@ -5,6 +5,7 @@
 #define SUPPORT_CONTACT_SHADOWS 0
 
 #include "/Engine/Generated/Material.ush"
+#include "../BlueNoise.ush"
 #include "../PositionReconstructionCommon.ush"
 #include "../MortonCode.ush"
 #include "../ComputeShaderUtils.ush"
@@ -180,7 +181,7 @@ uint2 CalcStencil(uint VoxelCount)
 #endif
 
 [numthreads(THREADGROUP_SIZE_3D, THREADGROUP_SIZE_3D, THREADGROUP_SIZE_3D)]
-void RasterizeBottomLevelGridCS(
+void RasterizeBottomLevelOrthoGridCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 GroupThreadId : SV_GroupThreadID
 )
@@ -215,6 +216,13 @@ void RasterizeBottomLevelGridCS(
 		int3 BottomLevelVoxelIndex = MortonDecode3(BottomLevelGridLinearOffset) * THREADGROUP_SIZE_3D + GroupThreadId;
 	#endif
 
+		// Unwrap the 3D index as a 2D index..
+		int2 BottomLevelVoxelIndexAs2D = int2(BottomLevelVoxelIndex.y * BottomLevelVoxelResolution.x + BottomLevelVoxelIndex.x, BottomLevelVoxelIndex.z);
+
+		float3 Jitter = 0.5;
+		Jitter.xy = BlueNoiseVec2(BottomLevelVoxelIndexAs2D, View.StateFrameIndex);
+		Jitter.z = BlueNoiseScalar(BottomLevelVoxelIndexAs2D, View.StateFrameIndex);
+
 		float3 Extinction = 0;
 		float3 Emission = 0;
 		float3 Albedo = 0;
@@ -227,7 +235,7 @@ void RasterizeBottomLevelGridCS(
 			}
 			else
 			{
-				UVW = float3(BottomLevelVoxelIndex + 0.5) / float3(BottomLevelVoxelResolution);
+				UVW = float3(BottomLevelVoxelIndex + Jitter) / float3(BottomLevelVoxelResolution);
 			}
 			float3 WorldPosition = UVW * TopLevelGridVoxelWorldBoundsExtent + TopLevelGridVoxelWorldBoundsMin;
 
@@ -396,7 +404,6 @@ float NearPlaneDepth;
 float FarPlaneDepth;
 
 #include "HeterogeneousVolumesFrustumVoxelGridUtils.ush"
-#include "../BlueNoise.ush"
 
 groupshared float GSExtinctionSumScalar[THREADGROUP_SIZE_1D];
 
@@ -406,7 +413,7 @@ bool EvaluationPositionIntersectsPrimitive(float3 WorldPosition)
 }
 
 [numthreads(THREADGROUP_SIZE_3D, THREADGROUP_SIZE_3D, THREADGROUP_SIZE_3D)]
-void RasterizeBottomLevelFroxelGridCS(
+void RasterizeBottomLevelFrustumGridCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 GroupThreadId : SV_GroupThreadID
 )

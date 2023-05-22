@@ -20,40 +20,20 @@
 #define THREADGROUP_SIZE_3D 1
 #endif // THREADGROUP_SIZE_3D
 
-#ifndef ENABLE_ADAPTIVE_VOXEL_GRID_UNIFORM_BUFFER
-#define ENABLE_ADAPTIVE_VOXEL_GRID_UNIFORM_BUFFER 0
-#endif // ENABLE_ADAPTIVE_VOXEL_GRID_UNIFORM_BUFFER
-
 #ifndef DIM_ENABLE_INDIRECTION_GRID
 #define DIM_ENABLE_INDIRECTION_GRID 0
 #endif // DIM_ENABLE_INDIRECTION_GRID
 
-#if ENABLE_ADAPTIVE_VOXEL_GRID_UNIFORM_BUFFER
-	#define TopLevelGridResolution OrthoGridUniformBuffer.TopLevelGridResolution
-	#define TopLevelGridWorldBoundsMin OrthoGridUniformBuffer.TopLevelGridWorldBoundsMin
-	#define TopLevelGridWorldBoundsMax OrthoGridUniformBuffer.TopLevelGridWorldBoundsMax
+int3 TopLevelGridResolution;
+float3 TopLevelGridWorldBoundsMin;
+float3 TopLevelGridWorldBoundsMax;
 
-	#define TopLevelGridBitmaskBuffer OrthoGridUniformBuffer.TopLevelGridBitmaskBuffer
-	#define TopLevelGridBuffer OrthoGridUniformBuffer.TopLevelGridBuffer
-	#define IndirectionGridBuffer OrthoGridUniformBuffer.IndirectionGridBuffer
-
-	#define ExtinctionGridBuffer OrthoGridUniformBuffer.ExtinctionGridBuffer
-	#define EmissionGridBuffer OrthoGridUniformBuffer.EmissionGridBuffer
-	#define ScatteringGridBuffer OrthoGridUniformBuffer.ScatteringGridBuffer
-
-#else
-	int3 TopLevelGridResolution;
-	float3 TopLevelGridWorldBoundsMin;
-	float3 TopLevelGridWorldBoundsMax;
-
-	StructuredBuffer<FTopLevelGridBitmaskData> TopLevelGridBitmaskBuffer;
-	StructuredBuffer<FTopLevelGridData> TopLevelGridBuffer;
-	StructuredBuffer<FTopLevelGridData> IndirectionGridBuffer;
-	StructuredBuffer<FScalarGridData> ExtinctionGridBuffer;
-	StructuredBuffer<FVectorGridData> EmissionGridBuffer;
-	StructuredBuffer<FVectorGridData> ScatteringGridBuffer;
-
-#endif // !ENABLE_ADAPTIVE_VOXEL_GRID_UNIFORM_BUFFER
+StructuredBuffer<FTopLevelGridBitmaskData> TopLevelGridBitmaskBuffer;
+StructuredBuffer<FTopLevelGridData> TopLevelGridBuffer;
+StructuredBuffer<FTopLevelGridData> IndirectionGridBuffer;
+StructuredBuffer<FScalarGridData> ExtinctionGridBuffer;
+StructuredBuffer<FVectorGridData> EmissionGridBuffer;
+StructuredBuffer<FVectorGridData> ScatteringGridBuffer;
 
 float3 PrimitiveWorldBoundsMin;
 float3 PrimitiveWorldBoundsMax;
@@ -494,7 +474,7 @@ void BuildMajorantVoxelGridCS(
 			{
 				uint BottomLevelIndex = IndirectionIndex + VoxelIndex;
 				float3 Extinction = GetExtinction(ExtinctionGridBuffer[BottomLevelIndex]);
-				UpdateMajorantData(MajorantData, Luminance(Extinction));
+				UpdateMajorantData(MajorantData, Extinction);
 			}
 		}
 #else // DIM_ENABLE_INDIRECTION_GRID
@@ -502,7 +482,7 @@ void BuildMajorantVoxelGridCS(
 		{
 			int BottomLevelIndex = GetBottomLevelIndex(TopLevelGridData) + VoxelIndex;
 			float3 Extinction = GetExtinction(ExtinctionGridBuffer[BottomLevelIndex]);
-			UpdateMajorantData(MajorantData, Luminance(Extinction));
+			UpdateMajorantData(MajorantData, Extinction);
 		}
 #endif // DIM_ENABLE_INDIRECTION_GRID
 	}
@@ -510,142 +490,50 @@ void BuildMajorantVoxelGridCS(
 	SetMajorantData(RWMajorantVoxelGridBuffer[LinearIndex], MajorantData);
 }
 
-// Ray data
-int bJitter;
-float MaxTraceDistance;
-float StepSize;
-int MaxStepCount;
+StructuredBuffer<FScalarGridData> InputBuffer;
+RWStructuredBuffer<FScalarGridData> RWOutputBuffer;
 
-// Dispatch data
-int3 GroupCount;
+int3 InputDimensions;
 
-// Output
-RWTexture2D<float4> RWLightingTexture;
+groupshared float GSMajorant[THREADGROUP_SIZE_1D];
 
-[numthreads(THREADGROUP_SIZE_2D, THREADGROUP_SIZE_2D, 1)]
-void RenderTransmittanceWithVoxelGridCS(
-	uint2 GroupThreadId : SV_GroupThreadID,
-	uint2 DispatchThreadId : SV_DispatchThreadID
+[numthreads(THREADGROUP_SIZE_3D, THREADGROUP_SIZE_3D, THREADGROUP_SIZE_3D)]
+void DownsampleMajorantVoxelGridCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 GroupThreadId : SV_GroupThreadID,
+	uint3 DispatchThreadId : SV_DispatchThreadID
 )
 {
-	float3 Radiance = 0.0;
-	float3 Transmittance = 1.0;
-
-	// Create screen ray
-	if (any(DispatchThreadId.xy >= View.ViewSizeAndInvSize.xy))
+	uint LinearThreadIndex = MortonEncode3(GroupThreadId);
+	uint LinearDispatchIndex = GetLinearIndex(DispatchThreadId, InputDimensions);
+	GSMajorant[LinearThreadIndex] = 0;
+	if (all(DispatchThreadId < InputDimensions))
 	{
-		return;
-	}
-	uint LinearIndex = DispatchThreadId.y * GroupCount.x * THREADGROUP_SIZE_2D + DispatchThreadId.x;
-	uint2 PixelCoord = DispatchThreadId.xy + View.ViewRectMin.xy;
-
-	// Extract depth
-	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
-#if HAS_INVERTED_Z_BUFFER
-	DeviceZ = max(0.000000000001, DeviceZ);
-#endif // HAS_INVERTED_Z_BUFFER
-
-	// Clip trace distance
-	float SceneDepth = min(ConvertFromDeviceZ(DeviceZ), MaxTraceDistance);
-	DeviceZ = ConvertToDeviceZ(SceneDepth);
-
-	float3 RayOrigin = View.TranslatedWorldCameraOrigin;
-	float3 RayEnd = SvPositionToTranslatedWorld(float4(PixelCoord + 0.5, DeviceZ, 1));
-	float3 RayDirection = RayEnd - RayOrigin;
-	float RayTMin = 0.0;
-	float RayTMax = length(RayDirection);
-	RayDirection /= RayTMax;
-
-	float FrustumRayTMin = RayTMin;
-	float FrustumRayTMax = RayTMax;
-	if (FrustumGridUniformBuffer.bUseFrustumGrid)
-	{
-		float ViewNearZ = min(ConvertFromDeviceZ(DeviceZ), FrustumGridUniformBuffer.NearPlaneDepth);
-		float DeviceNearZ = ConvertToDeviceZ(ViewNearZ);
-		float ViewFarZ = min(ConvertFromDeviceZ(DeviceZ), FrustumGridUniformBuffer.FarPlaneDepth);
-		float DeviceFarZ = ConvertToDeviceZ(ViewFarZ);
-
-		// TODO: Shared code is imprecise, in comparison with commented out frustum-trimmed ray. Investigate...
-#if 0
-		float3 RayBegin = SvPositionToTranslatedWorld(float4(PixelCoord + 0.5, DeviceNearZ, 1));
-		float3 RayEnd = SvPositionToTranslatedWorld(float4(PixelCoord + 0.5, DeviceFarZ, 1));
-		float3 RayDirection = RayEnd - RayBegin;
-		FrustumRayTMin = 0.0;
-		FrustumRayTMax = length(RayDirection);
-		RayDirection /= FrustumRayTMax;
-
-		Transmittance = TraceFrustumVoxelGrid(RayBegin, RayDirection, FrustumRayTMin, FrustumRayTMax);
-		float RayTOffset = length(RayBegin - RayOrigin);
-		FrustumRayTMin += RayTOffset;
-		FrustumRayTMax += RayTOffset;
-#else
-		float3 WorldRayOrigin = LWCHackToFloat(SvPositionToWorld(float4(PixelCoord + 0.5, DeviceNearZ, 1)));
-		float3 WorldRayEnd = LWCHackToFloat(SvPositionToWorld(float4(PixelCoord + 0.5, DeviceFarZ, 1)));
-		float3 WorldRayDirection = WorldRayEnd - WorldRayOrigin;
-		float WorldRayLength = length(WorldRayDirection);
-		WorldRayDirection /= WorldRayLength;
-
-
-		// Convert to view-space
-		float3 ViewRayOrigin = mul(float4(WorldRayOrigin, 1), FrustumGridUniformBuffer.WorldToView).xyz;
-		float3 ViewRayEnd = mul(float4(WorldRayEnd, 1), FrustumGridUniformBuffer.WorldToView).xyz;
-		float3 ViewRayDirection = ViewRayEnd - ViewRayOrigin;
-		float ViewRayLength = length(ViewRayDirection);
-		ViewRayDirection /= ViewRayLength;
-
-		// Convert to voxel-space
-		int3 VoxelDimensions = FrustumGridUniformBuffer.VoxelDimensions;
-		float NearPlaneDepth = FrustumGridUniformBuffer.NearPlaneDepth;
-		float FarPlaneDepth = FrustumGridUniformBuffer.FarPlaneDepth;
-		float3 VoxelRayOrigin = ViewToVoxel(ViewRayOrigin, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
-		float3 VoxelRayEnd = ViewToVoxel(ViewRayOrigin + ViewRayDirection * ViewRayLength, VoxelDimensions, NearPlaneDepth, FarPlaneDepth);
-
-		float3 VoxelRayDirection = VoxelRayEnd - VoxelRayOrigin;
-		float VoxelRayLength = length(VoxelRayDirection);
-		VoxelRayDirection /= VoxelRayLength;
-
-		float VoxelRayTMin = 0.0;
-		float VoxelRayTMax = VoxelRayLength;
-
-		// Traversal
-		{
-			MarchTopLevelFrustumVoxelGrid(
-				VoxelRayOrigin,
-				VoxelRayDirection,
-				VoxelRayTMin,
-				VoxelRayTMax,
-				WorldRayLength,
-				FrustumGridUniformBuffer.TopLevelFroxelGridResolution,
-				FrustumGridUniformBuffer.TopLevelFroxelGridBuffer,
-				FrustumGridUniformBuffer.ExtinctionFroxelGridBuffer,
-				Transmittance
-			);
-		}
-
-		float3 RayBegin = SvPositionToTranslatedWorld(float4(PixelCoord + 0.5, DeviceNearZ, 1));
-		float RayTOffset = length(RayBegin - RayOrigin);
-		FrustumRayTMin += RayTOffset;
-		FrustumRayTMax += RayTOffset;
-#endif
+		FMajorantData MajorantData = GetMajorantData(InputBuffer[LinearDispatchIndex]);
+		GSMajorant[LinearThreadIndex] = MajorantData.Majorant;
 	}
 
-	if (OrthoGridUniformBuffer.bUseOrthoGrid)
+	// Parallel Sum
+	for (int NeighborOffsetSum = 1; NeighborOffsetSum < THREADGROUP_SIZE_1D; NeighborOffsetSum = (NeighborOffsetSum << 1))
 	{
-		if (FrustumGridUniformBuffer.bUseFrustumGrid && (FrustumRayTMin < FrustumRayTMax))
-		{
-			Transmittance *= TraceOrthoVoxelGrid(RayOrigin, RayDirection, RayTMin, FrustumRayTMin);
-			Transmittance *= TraceOrthoVoxelGrid(RayOrigin, RayDirection, FrustumRayTMax, RayTMax);
-		}
-		else
-		{
-			Transmittance = TraceOrthoVoxelGrid(RayOrigin, RayDirection, RayTMin, RayTMax);
-		}
+		int NeighborIndex = LinearThreadIndex + NeighborOffsetSum;
+		float NeighborMajorant = (NeighborIndex < THREADGROUP_SIZE_1D) ? GSMajorant[NeighborIndex] : 0.0;
+		GSMajorant[LinearThreadIndex] = max(GSMajorant[LinearThreadIndex], NeighborMajorant);
+
+		GroupMemoryBarrierWithGroupSync();
 	}
 
-	// Debug
-	Radiance = 1.0 - Transmittance;
+	int3 OutputDimensions = int3((InputDimensions + 3) / 4);
+	uint LinearOuputIndex = GetLinearIndex(GroupId, OutputDimensions);
 
-	// Output..
-	float3 Opacity = 1.0 - Transmittance;
-	RWLightingTexture[PixelCoord] += float4(Radiance, Luminance(Opacity));
+	FMajorantData MajorantData;
+	MajorantData.Minorant = 0;
+	MajorantData.Majorant = GSMajorant[0];
+	SetMajorantData(RWOutputBuffer[LinearOuputIndex], MajorantData);
+}
+
+[numthreads(1, 1, 1)]
+void CopyMaximumIntoMajorantVoxelGridCS()
+{
+	SetMajorantData(RWMajorantVoxelGridBuffer[0], GetMajorantData(InputBuffer[0]));
 }

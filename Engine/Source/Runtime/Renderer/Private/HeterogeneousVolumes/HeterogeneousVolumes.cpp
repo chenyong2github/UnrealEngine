@@ -414,7 +414,7 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 
 		if (ShouldRenderHeterogeneousVolumesForView(View))
 		{
-			if (HeterogeneousVolumes::GetDebugMode() == 1)
+			if (HeterogeneousVolumes::GetDebugMode() != 0)
 			{
 				RenderTransmittanceWithVoxelGrid(
 					GraphBuilder,

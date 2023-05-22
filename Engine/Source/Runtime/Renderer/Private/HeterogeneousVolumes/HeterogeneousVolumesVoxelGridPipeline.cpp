@@ -166,6 +166,13 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesEnableTopLevelBitmask
 
 static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesEnableMajorantGrid(
 	TEXT("r.HeterogeneousVolumes.Tessellation.MajorantGrid"),
+	1,
+	TEXT("Enables building majorant grids to accelerate volume tracking (Default = 0)\n"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesEnableMajorantGridMax(
+	TEXT("r.HeterogeneousVolumes.Tessellation.MajorantGrid.Max"),
 	0,
 	TEXT("Enables building majorant grids to accelerate volume tracking (Default = 0)\n"),
 	ECVF_RenderThreadSafe
@@ -347,9 +354,9 @@ class FMarkTopLevelGridVoxelsForFrustumGrid : public FGlobalShader
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FMarkTopLevelGridVoxelsForFrustumGrid, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesFrustumVoxelGrid.usf"), TEXT("MarkTopLevelGridVoxelsForFrustumGridCS"), SF_Compute);
 
-class FRasterizeBottomLevelFroxelGridCS : public FMeshMaterialShader
+class FRasterizeBottomLevelFrustumGridCS : public FMeshMaterialShader
 {
-	DECLARE_SHADER_TYPE(FRasterizeBottomLevelFroxelGridCS, MeshMaterial);
+	DECLARE_SHADER_TYPE(FRasterizeBottomLevelFrustumGridCS, MeshMaterial);
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
 
@@ -396,9 +403,9 @@ class FRasterizeBottomLevelFroxelGridCS : public FMeshMaterialShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FVectorGridData>, RWScatteringGridBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
-	FRasterizeBottomLevelFroxelGridCS() = default;
+	FRasterizeBottomLevelFrustumGridCS() = default;
 
-	FRasterizeBottomLevelFroxelGridCS(
+	FRasterizeBottomLevelFrustumGridCS(
 		const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer
 	)
 		: FMeshMaterialShader(Initializer)
@@ -458,7 +465,7 @@ class FRasterizeBottomLevelFroxelGridCS : public FMeshMaterialShader
 	static int32 GetThreadGroupSize3D() { return 4; }
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FRasterizeBottomLevelFroxelGridCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesMaterialBakingPipeline.usf"), TEXT("RasterizeBottomLevelFroxelGridCS"), SF_Compute);
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FRasterizeBottomLevelFrustumGridCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesMaterialBakingPipeline.usf"), TEXT("RasterizeBottomLevelFrustumGridCS"), SF_Compute);
 
 class FTopLevelGridCalculateVoxelSize : public FGlobalShader
 {
@@ -640,9 +647,9 @@ class FSetRasterizeBottomLevelGridIndirectArgs : public FGlobalShader
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FSetRasterizeBottomLevelGridIndirectArgs, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesVoxelGridPipeline.usf"), TEXT("SetRasterizeBottomLevelGridIndirectArgs"), SF_Compute);
 
-class FRasterizeBottomLevelGrid : public FMeshMaterialShader
+class FRasterizeBottomLevelOrthoGridCS : public FMeshMaterialShader
 {
-	DECLARE_SHADER_TYPE(FRasterizeBottomLevelGrid, MeshMaterial);
+	DECLARE_SHADER_TYPE(FRasterizeBottomLevelOrthoGridCS, MeshMaterial);
 
 	class FEnableIndirectionGrid : SHADER_PERMUTATION_BOOL("DIM_ENABLE_INDIRECTION_GRID");
 	//class FEnableVoxelHashing : SHADER_PERMUTATION_BOOL("DIM_ENABLE_VOXEL_HASHING");
@@ -669,6 +676,9 @@ class FRasterizeBottomLevelGrid : public FMeshMaterialShader
 		SHADER_PARAMETER(FVector3f, TopLevelGridWorldBoundsMax)
 
 		SHADER_PARAMETER(int, BottomLevelGridBufferSize)
+
+		// Sampling data
+		SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
 
 		// Volume sample mode
 		SHADER_PARAMETER(int, bSampleAtVertices)
@@ -704,9 +714,9 @@ class FRasterizeBottomLevelGrid : public FMeshMaterialShader
 		SHADER_PARAMETER(float, HomogeneousThreshold)
 	END_SHADER_PARAMETER_STRUCT()
 	
-	FRasterizeBottomLevelGrid() = default;
+	FRasterizeBottomLevelOrthoGridCS() = default;
 
-	FRasterizeBottomLevelGrid(
+	FRasterizeBottomLevelOrthoGridCS(
 		const FMeshMaterialShaderType::CompiledShaderInitializerType & Initializer
 	)
 		: FMeshMaterialShader(Initializer)
@@ -766,7 +776,7 @@ class FRasterizeBottomLevelGrid : public FMeshMaterialShader
 	static int32 GetThreadGroupSize3D() { return 4; }
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FRasterizeBottomLevelGrid, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesMaterialBakingPipeline.usf"), TEXT("RasterizeBottomLevelGridCS"), SF_Compute);
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FRasterizeBottomLevelOrthoGridCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesMaterialBakingPipeline.usf"), TEXT("RasterizeBottomLevelOrthoGridCS"), SF_Compute);
 
 class FTopLevelCreateBitmaskCS : public FGlobalShader
 {
@@ -899,6 +909,78 @@ class FBuildMajorantVoxelGridCS : public FGlobalShader
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FBuildMajorantVoxelGridCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesVoxelGridPipeline.usf"), TEXT("BuildMajorantVoxelGridCS"), SF_Compute);
 
+class FDownsampleMajorantVoxelGridCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FDownsampleMajorantVoxelGridCS);
+	SHADER_USE_PARAMETER_STRUCT(FDownsampleMajorantVoxelGridCS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntVector, InputDimensions)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer<FScalarGridData>, InputBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FScalarGridData>, RWOutputBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(
+		const FGlobalShaderPermutationParameters& Parameters
+	)
+	{
+		return DoesPlatformSupportHeterogeneousVolumes(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(
+		const FGlobalShaderPermutationParameters& Parameters,
+		FShaderCompilerEnvironment& OutEnvironment
+	)
+	{
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_1D"), GetThreadGroupSize1D());
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_3D"), GetThreadGroupSize3D());
+	}
+
+	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize3D() * GetThreadGroupSize3D() * GetThreadGroupSize3D(); }
+	static int32 GetThreadGroupSize3D() { return 4; }
+};
+
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FDownsampleMajorantVoxelGridCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesVoxelGridPipeline.usf"), TEXT("DownsampleMajorantVoxelGridCS"), SF_Compute);
+
+class FCopyMaxIntoMajorantVoxelGridCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCopyMaxIntoMajorantVoxelGridCS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyMaxIntoMajorantVoxelGridCS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer<FScalarGridData>, InputBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FScalarGridData>, RWMajorantVoxelGridBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(
+		const FGlobalShaderPermutationParameters& Parameters
+	)
+	{
+		return DoesPlatformSupportHeterogeneousVolumes(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(
+		const FGlobalShaderPermutationParameters& Parameters,
+		FShaderCompilerEnvironment& OutEnvironment
+	)
+	{
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_1D"), GetThreadGroupSize1D());
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_3D"), GetThreadGroupSize3D());
+	}
+
+	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize3D() * GetThreadGroupSize3D() * GetThreadGroupSize3D(); }
+	static int32 GetThreadGroupSize3D() { return 4; }
+};
+
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FCopyMaxIntoMajorantVoxelGridCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesVoxelGridPipeline.usf"), TEXT("CopyMaximumIntoMajorantVoxelGridCS"), SF_Compute);
+
+
 void BuildMajorantVoxelGrid(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -921,38 +1003,115 @@ void BuildMajorantVoxelGrid(
 			TEXT("HeterogeneousVolumes.MajorantVoxelGridBuffer")
 		);
 
-		FBuildMajorantVoxelGridCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildMajorantVoxelGridCS::FParameters>();
-		{
-			PassParameters->TopLevelGridResolution = TopLevelGridResolution;
-			PassParameters->TopLevelGridBuffer = GraphBuilder.CreateSRV(TopLevelGridBuffer);
-			PassParameters->IndirectionGridBuffer = GraphBuilder.CreateSRV(IndirectionGridBuffer);
-			PassParameters->ExtinctionGridBuffer = GraphBuilder.CreateSRV(ExtinctionGridBuffer);
-			PassParameters->RWMajorantVoxelGridBuffer = GraphBuilder.CreateUAV(MajorantVoxelGridBuffer);
-		}
-
 		const FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(Scene->GetFeatureLevel());
 
-		FBuildMajorantVoxelGridCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FBuildMajorantVoxelGridCS::FEnableIndirectionGrid>(HeterogeneousVolumes::EnableIndirectionGrid());
-		TShaderRef<FBuildMajorantVoxelGridCS> ComputeShader = GlobalShaderMap->GetShader<FBuildMajorantVoxelGridCS>(PermutationVector);
+		// Build Majorant Grid
+		{
+			FBuildMajorantVoxelGridCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildMajorantVoxelGridCS::FParameters>();
+			{
+				PassParameters->TopLevelGridResolution = TopLevelGridResolution;
+				PassParameters->TopLevelGridBuffer = GraphBuilder.CreateSRV(TopLevelGridBuffer);
+				PassParameters->IndirectionGridBuffer = GraphBuilder.CreateSRV(IndirectionGridBuffer);
+				PassParameters->ExtinctionGridBuffer = GraphBuilder.CreateSRV(ExtinctionGridBuffer);
+				PassParameters->RWMajorantVoxelGridBuffer = GraphBuilder.CreateUAV(MajorantVoxelGridBuffer);
+			}
 
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("RenderTransmittanceTopLevelGridCS"),
-			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			ComputeShader,
-			PassParameters,
-			TopLevelGridResolution
-		);
+			FBuildMajorantVoxelGridCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FBuildMajorantVoxelGridCS::FEnableIndirectionGrid>(HeterogeneousVolumes::EnableIndirectionGrid());
+			TShaderRef<FBuildMajorantVoxelGridCS> ComputeShader = GlobalShaderMap->GetShader<FBuildMajorantVoxelGridCS>(PermutationVector);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("RenderTransmittanceTopLevelGridCS"),
+				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+				ComputeShader,
+				PassParameters,
+				TopLevelGridResolution
+			);
+		}
+
+		bool bUseMax = CVarHeterogeneousVolumesEnableMajorantGridMax.GetValueOnRenderThread() != 0;
+		if (bUseMax)
+		{
+
+			// Downsample majorant grid
+			FIntVector InputDimensions = TopLevelGridResolution;
+			FRDGBufferRef InputBuffer = MajorantVoxelGridBuffer;
+			FRDGBufferRef OutputBuffer = nullptr;
+			while (InputDimensions.X > 1 && InputDimensions.Y && InputDimensions.Z)
+			{
+				FIntVector OutputDimensions = FIntVector(
+					FMath::DivideAndRoundUp(InputDimensions.X, FDownsampleMajorantVoxelGridCS::GetThreadGroupSize3D()),
+					FMath::DivideAndRoundUp(InputDimensions.Y, FDownsampleMajorantVoxelGridCS::GetThreadGroupSize3D()),
+					FMath::DivideAndRoundUp(InputDimensions.Z, FDownsampleMajorantVoxelGridCS::GetThreadGroupSize3D())
+				);
+				uint32 OutputBufferSize = OutputDimensions.X * OutputDimensions.Y * OutputDimensions.Z;
+				OutputBuffer = GraphBuilder.CreateBuffer(
+					FRDGBufferDesc::CreateStructuredDesc(sizeof(FScalarGridData), OutputBufferSize),
+					TEXT("HeterogeneousVolumes.DownsampledBuffer")
+				);
+
+				FDownsampleMajorantVoxelGridCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDownsampleMajorantVoxelGridCS::FParameters>();
+				{
+					PassParameters->InputDimensions = InputDimensions;
+					PassParameters->InputBuffer = GraphBuilder.CreateSRV(InputBuffer);
+					PassParameters->RWOutputBuffer = GraphBuilder.CreateUAV(OutputBuffer);
+				}
+
+				TShaderRef<FDownsampleMajorantVoxelGridCS> ComputeShader = GlobalShaderMap->GetShader<FDownsampleMajorantVoxelGridCS>();
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("FDownsampleMajorantVoxelGridCS"),
+					ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+					ComputeShader,
+					PassParameters,
+					TopLevelGridResolution
+				);
+
+				InputBuffer = OutputBuffer;
+				InputDimensions = OutputDimensions;
+			}
+
+			// Copy maximum value into the first index of the majorant grid
+			if (OutputBuffer)
+			{
+				FCopyMaxIntoMajorantVoxelGridCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCopyMaxIntoMajorantVoxelGridCS::FParameters>();
+				{
+					PassParameters->InputBuffer = GraphBuilder.CreateSRV(OutputBuffer);
+					PassParameters->RWMajorantVoxelGridBuffer = GraphBuilder.CreateUAV(MajorantVoxelGridBuffer);
+				}
+
+				TShaderRef<FCopyMaxIntoMajorantVoxelGridCS> ComputeShader = GlobalShaderMap->GetShader<FCopyMaxIntoMajorantVoxelGridCS>();
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("FCopyMaxIntoMajorantVoxelGridCS"),
+					ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+					ComputeShader,
+					PassParameters,
+					FIntVector(1)
+				);
+			}
+		}
 	}
 }
+
+struct FRenderDebugData
+{
+	FVector4f RayOrigin;
+	FVector4f RayDirection;
+	float TMin;
+	float TMax;
+	float Distance;
+	FVector4f EstimateAndPdf;
+};
 
 class FRenderTransmittanceWithVoxelGridCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRenderTransmittanceWithVoxelGridCS);
 	SHADER_USE_PARAMETER_STRUCT(FRenderTransmittanceWithVoxelGridCS, FGlobalShader);
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FDebugMode : SHADER_PERMUTATION_INT("DEBUG_MODE", 9);
+	using FPermutationDomain = TShaderPermutationDomain<FDebugMode>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Scene data
@@ -974,6 +1133,8 @@ class FRenderTransmittanceWithVoxelGridCS : public FGlobalShader
 
 		// Output
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWLightingTexture)
+		// Debug
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRenderDebugData>, RWDebugBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(
@@ -994,8 +1155,6 @@ class FRenderTransmittanceWithVoxelGridCS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE_3D"), GetThreadGroupSize3D());
 
 		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
-
-		OutEnvironment.SetDefine(TEXT("ENABLE_ADAPTIVE_VOXEL_GRID_UNIFORM_BUFFER"), 1);
 	}
 
 	static int32 GetThreadGroupSize1D() { return GetThreadGroupSize3D() * GetThreadGroupSize3D() * GetThreadGroupSize3D(); }
@@ -1003,7 +1162,7 @@ class FRenderTransmittanceWithVoxelGridCS : public FGlobalShader
 	static int32 GetThreadGroupSize3D() { return 4; }
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FRenderTransmittanceWithVoxelGridCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesVoxelGridPipeline.usf"), TEXT("RenderTransmittanceWithVoxelGridCS"), SF_Compute);
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FRenderTransmittanceWithVoxelGridCS, TEXT("/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesVoxelGridRendering.usf"), TEXT("RenderTransmittanceWithVoxelGridCS"), SF_Compute);
 
 void CalcViewBoundsAndMinimumVoxelSize(
 	FRDGBuilder& GraphBuilder,
@@ -1502,9 +1661,9 @@ void CalculateTopLevelGridResolutionForFrustumGrid(
 	int32 Depth = FMath::Min(FMath::CeilToInt32(HeterogeneousVolumes::GetDepthSliceCountForFrustumGrid() / ShadingRate), MaxDepth);
 
 	TopLevelGridResolution = FIntVector(Width, Height, Depth);
-	TopLevelGridResolution.X = FMath::DivideAndRoundUp(TopLevelGridResolution.X, BottomLevelGridResolution);
-	TopLevelGridResolution.Y = FMath::DivideAndRoundUp(TopLevelGridResolution.Y, BottomLevelGridResolution);
-	TopLevelGridResolution.Z = FMath::DivideAndRoundUp(TopLevelGridResolution.Z, BottomLevelGridResolution);
+	TopLevelGridResolution.X = FMath::Max(FMath::DivideAndRoundUp(TopLevelGridResolution.X, BottomLevelGridResolution), 1);
+	TopLevelGridResolution.Y = FMath::Max(FMath::DivideAndRoundUp(TopLevelGridResolution.Y, BottomLevelGridResolution), 1);
+	TopLevelGridResolution.Z = FMath::Max(FMath::DivideAndRoundUp(TopLevelGridResolution.Z, BottomLevelGridResolution), 1);
 }
 
 void MarkTopLevelGridVoxelsForFrustumGrid(
@@ -1652,7 +1811,7 @@ void RasterizeVolumesIntoFrustumVoxelGrid(
 		const FBoxSphereBounds PrimitiveBounds = PrimitiveSceneProxy->GetBounds();
 		const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialRenderProxy);
 
-		FRasterizeBottomLevelFroxelGridCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterizeBottomLevelFroxelGridCS::FParameters>();
+		FRasterizeBottomLevelFrustumGridCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterizeBottomLevelFrustumGridCS::FParameters>();
 		{
 			// Scene data
 			PassParameters->View = View.ViewUniformBuffer;
@@ -1704,8 +1863,8 @@ void RasterizeVolumesIntoFrustumVoxelGrid(
 			// Why is scene explicitly copied??
 			[PassParameters, LocalScene = Scene, &View, MaterialRenderProxy, &Material](FRHIComputeCommandList& RHICmdList)
 			{
-				FRasterizeBottomLevelFroxelGridCS::FPermutationDomain PermutationVector;
-				TShaderRef<FRasterizeBottomLevelFroxelGridCS> ComputeShader = Material.GetShader<FRasterizeBottomLevelFroxelGridCS>(&FLocalVertexFactory::StaticType, PermutationVector, false);
+				FRasterizeBottomLevelFrustumGridCS::FPermutationDomain PermutationVector;
+				TShaderRef<FRasterizeBottomLevelFrustumGridCS> ComputeShader = Material.GetShader<FRasterizeBottomLevelFrustumGridCS>(&FLocalVertexFactory::StaticType, PermutationVector, false);
 
 				if (!ComputeShader.IsNull())
 				{
@@ -2096,7 +2255,7 @@ void RasterizeVolumesIntoOrthoVoxelGrid(
 			const FBoxSphereBounds PrimitiveBounds = PrimitiveSceneProxy->GetBounds();
 			const FMaterial& Material = MaterialRenderProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialRenderProxy);
 
-			FRasterizeBottomLevelGrid::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterizeBottomLevelGrid::FParameters>();
+			FRasterizeBottomLevelOrthoGridCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterizeBottomLevelOrthoGridCS::FParameters>();
 			{
 				// Scene data
 				PassParameters->View = View.ViewUniformBuffer;
@@ -2117,6 +2276,10 @@ void RasterizeVolumesIntoOrthoVoxelGrid(
 				PassParameters->TopLevelGridResolution = TopLevelGridResolution;
 				PassParameters->TopLevelGridWorldBoundsMin = FVector3f(TopLevelGridBounds.Origin - TopLevelGridBounds.BoxExtent);
 				PassParameters->TopLevelGridWorldBoundsMax = FVector3f(TopLevelGridBounds.Origin + TopLevelGridBounds.BoxExtent);
+
+				// Sampling data
+				FBlueNoise BlueNoise = GetBlueNoiseGlobalParameters();
+				PassParameters->BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 				// Unify with "object" definition??
 				PassParameters->PrimitiveWorldBoundsMin = FVector3f(PrimitiveBounds.Origin - PrimitiveBounds.BoxExtent);
@@ -2165,11 +2328,10 @@ void RasterizeVolumesIntoOrthoVoxelGrid(
 				// Why is scene explicitly copied?
 				[PassParameters, LocalScene = Scene, &View, MaterialRenderProxy, &Material](FRHIComputeCommandList& RHICmdList)
 				{
-					FRasterizeBottomLevelGrid::FPermutationDomain PermutationVector;
-					PermutationVector.Set<FRasterizeBottomLevelGrid::FEnableIndirectionGrid>(HeterogeneousVolumes::EnableIndirectionGrid());
-					//PermutationVector.Set<FRasterizeBottomLevelGrid::FEnableVoxelHashing>(HeterogeneousVolumes::EnableVoxelHashing());
-					PermutationVector.Set<FRasterizeBottomLevelGrid::FEnableHomogeneousAggregation>(HeterogeneousVolumes::EnableHomogeneousAggregation());
-					TShaderRef<FRasterizeBottomLevelGrid> ComputeShader = Material.GetShader<FRasterizeBottomLevelGrid>(&FLocalVertexFactory::StaticType, PermutationVector, false);
+					FRasterizeBottomLevelOrthoGridCS::FPermutationDomain PermutationVector;
+					PermutationVector.Set<FRasterizeBottomLevelOrthoGridCS::FEnableIndirectionGrid>(HeterogeneousVolumes::EnableIndirectionGrid());
+					PermutationVector.Set<FRasterizeBottomLevelOrthoGridCS::FEnableHomogeneousAggregation>(HeterogeneousVolumes::EnableHomogeneousAggregation());
+					TShaderRef<FRasterizeBottomLevelOrthoGridCS> ComputeShader = Material.GetShader<FRasterizeBottomLevelOrthoGridCS>(&FLocalVertexFactory::StaticType, PermutationVector, false);
 
 
 					if (!ComputeShader.IsNull())
@@ -2349,6 +2511,12 @@ void RenderTransmittanceWithVoxelGrid(
 	uint32 GroupCountY = FMath::DivideAndRoundUp(View.ViewRect.Size().Y, FRenderTransmittanceWithVoxelGridCS::GetThreadGroupSize2D());
 	FIntVector GroupCount = FIntVector(GroupCountX, GroupCountY, 1);
 
+	int32 BufferSize = View.ViewRect.Width() * View.ViewRect.Height();
+	FRDGBufferRef DebugBuffer = GraphBuilder.CreateBuffer(
+		FRDGBufferDesc::CreateStructuredDesc(sizeof(FRenderDebugData), BufferSize),
+		TEXT("HeterogeneousVolumes.RenderDebugData")
+	);
+
 	FRenderTransmittanceWithVoxelGridCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTransmittanceWithVoxelGridCS::FParameters>();
 	{
 		// Scene data
@@ -2368,9 +2536,12 @@ void RenderTransmittanceWithVoxelGrid(
 
 		// Output
 		PassParameters->RWLightingTexture = GraphBuilder.CreateUAV(HeterogeneousVolumeRadiance);
+		PassParameters->RWDebugBuffer = GraphBuilder.CreateUAV(DebugBuffer);
 	}
 
 	FRenderTransmittanceWithVoxelGridCS::FPermutationDomain PermutationVector;
+	int32 DebugMode = FMath::Clamp(HeterogeneousVolumes::GetDebugMode() - 1, 0, FRenderTransmittanceWithVoxelGridCS::FDebugMode::MaxValue);
+	PermutationVector.Set<FRenderTransmittanceWithVoxelGridCS::FDebugMode>(DebugMode);
 	TShaderRef<FRenderTransmittanceWithVoxelGridCS> ComputeShader = View.ShaderMap->GetShader<FRenderTransmittanceWithVoxelGridCS>(PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
