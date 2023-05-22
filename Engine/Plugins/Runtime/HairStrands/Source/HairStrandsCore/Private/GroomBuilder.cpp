@@ -2008,7 +2008,8 @@ void FGroomBuilder::BuildData(
 	const FHairGroupsInterpolation& InSettings, 
 	FHairGroupInfo& OutGroupInfo, 
 	FHairStrandsDatas& OutRen,
-	FHairStrandsDatas& OutSim)
+	FHairStrandsDatas& OutSim,
+	bool bAllowCurveReordering)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::BuildData);
 
@@ -2017,7 +2018,7 @@ void FGroomBuilder::BuildData(
 	const float CurveDecimation		= FMath::Clamp(InSettings.DecimationSettings.CurveDecimation, 0.f, 1.f);
 	const float VertexDecimation	= FMath::Clamp(InSettings.DecimationSettings.VertexDecimation, 0.f, 1.f);
 	const float HairToGuideDensity	= FMath::Clamp(InSettings.InterpolationSettings.HairToGuideDensity, 0.f, 1.f);	
-	const bool bCurveReordering 	= true;
+	const bool bCurveReordering 	= bAllowCurveReordering;
 
 	{
 		OutGroupInfo.GroupID = InHairDescriptionGroup.Info.GroupID;

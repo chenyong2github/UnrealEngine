@@ -35,7 +35,7 @@ enum class EGroomStrandsSize : uint8
 UENUM(BlueprintType)
 enum class EGroomInterpolationType : uint8
 {
-	None = 0 UMETA(Hidden),
+	None = 0 UMETA(DisplayName = "No skinning"),
 	RigidTransform = 0x02 UMETA(DisplayName = "Rigid Transform"),
 	OffsetTransform = 0x04 UMETA(DisplayName = "Offset Transform"),
 	SmoothTransform = 0x08 UMETA(DisplayName = "Smooth Transform")
