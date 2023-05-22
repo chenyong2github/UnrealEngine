@@ -44,7 +44,10 @@ class Capture {
 #ifdef _MSC_VER
 // add SAL annotation for printf format string. requires Code Analysis to run to validate usage.
 #define msvc_printf_check _Printf_format_string_
+#if !defined(__clang__) // WITH_UE
+// note: don't disable when clang mimics MSVC!
 #define __attribute__(x)  // Disable for MSVC. Supported by GCC and CLang.
+#endif
 #else
 #define msvc_printf_check
 #endif

@@ -803,25 +803,30 @@ namespace SafeIntInternal
        }
    };
 
-#if defined _WINDOWS_ 
 
-    class SafeIntWin32ExceptionHandler 
-    {
-    public:
-        static SAFEINT_NORETURN void SAFEINT_STDCALL SafeIntOnOverflow() SAFEINT_NOTHROW
-        {
-            SafeIntExceptionAssert();
-            RaiseException( static_cast<DWORD>(EXCEPTION_INT_OVERFLOW), EXCEPTION_NONCONTINUABLE, 0, 0);
-        }
+// WITH_UE
+//
+// Not needed
+//
+// #if defined _WINDOWS_ 
 
-        static SAFEINT_NORETURN void SAFEINT_STDCALL SafeIntOnDivZero() SAFEINT_NOTHROW
-        {
-            SafeIntExceptionAssert();
-            RaiseException( static_cast<DWORD>(EXCEPTION_INT_DIVIDE_BY_ZERO), EXCEPTION_NONCONTINUABLE, 0, 0);
-        }
-    };
+//     class SafeIntWin32ExceptionHandler 
+//     {
+//     public:
+//         static SAFEINT_NORETURN void SAFEINT_STDCALL SafeIntOnOverflow() SAFEINT_NOTHROW
+//         {
+//             SafeIntExceptionAssert();
+//             RaiseException( static_cast<DWORD>(EXCEPTION_INT_OVERFLOW), EXCEPTION_NONCONTINUABLE, 0, 0);
+//         }
 
-#endif
+//         static SAFEINT_NORETURN void SAFEINT_STDCALL SafeIntOnDivZero() SAFEINT_NOTHROW
+//         {
+//             SafeIntExceptionAssert();
+//             RaiseException( static_cast<DWORD>(EXCEPTION_INT_DIVIDE_BY_ZERO), EXCEPTION_NONCONTINUABLE, 0, 0);
+//         }
+//     };
+
+// #endif
 
 } // namespace SafeIntInternal
 
@@ -833,9 +838,10 @@ typedef SafeIntInternal::SafeIntExceptionHandler < SafeIntException > CPlusPlusE
 typedef SafeIntInternal::SafeInt_InvalidParameter InvalidParameterExceptionHandler;
 
 // This exception handler is no longer recommended, but is left here in order not to break existing users
-#if defined _WINDOWS_ 
-typedef SafeIntInternal::SafeIntWin32ExceptionHandler Win32ExceptionHandler;
-#endif
+// WITH_UE
+// #if defined _WINDOWS_ 
+// typedef SafeIntInternal::SafeIntWin32ExceptionHandler Win32ExceptionHandler;
+// #endif
 
 // For Visual Studio compatibility
 #if defined VISUAL_STUDIO_SAFEINT_COMPAT 

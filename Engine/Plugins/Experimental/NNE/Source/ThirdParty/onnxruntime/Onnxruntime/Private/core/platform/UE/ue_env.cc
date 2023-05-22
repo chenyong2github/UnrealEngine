@@ -18,6 +18,8 @@ limitations under the License.
 
 #include "core/platform/env.h"
 
+#include <bitset>
+
 #ifdef PLATFORM_NNE_MICROSOFT
 
 #include "NNEThirdPartyWarningDisabler.h" // WITH_UE
@@ -28,7 +30,6 @@ NNE_THIRD_PARTY_INCLUDES_START
 NNE_THIRD_PARTY_INCLUDES_END // WITH_UE
 #undef CreateDirectory
 #undef GetEnvironmentVariable
-#include <bitset>
 #include <string>
 #include <fcntl.h>
 #include <io.h>
