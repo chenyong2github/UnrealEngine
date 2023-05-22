@@ -512,6 +512,7 @@ public:
 	void ActorPropChangeNotify();
 	void UpdateInternalData();
 	bool IsOnlyVisibleActiveMode(FEditorModeID InMode) const;
+	bool IsOnlyActiveMode(FEditorModeID InMode) const;
 
 	/*
 	* Sets the active Modes ToolBar Palette Tab to the named Palette

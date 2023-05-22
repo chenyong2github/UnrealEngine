@@ -527,6 +527,11 @@ bool FEditorModeTools::IsOnlyVisibleActiveMode(FEditorModeID InMode) const
 	return !bFoundAnotherVisibleMode;
 }
 
+bool FEditorModeTools::IsOnlyActiveMode(FEditorModeID InMode) const
+{
+	return ActiveScriptableModes.Num() == 1 && ActiveScriptableModes[0]->GetID() == InMode;
+}
+
 void FEditorModeTools::OnEditorSelectionChanged(UObject* NewSelection)
 {
 	if (NewSelection == GetSelectedActors())
