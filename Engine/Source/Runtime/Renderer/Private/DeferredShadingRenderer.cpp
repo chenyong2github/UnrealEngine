@@ -2566,17 +2566,16 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			);
 		}
 	}
+	ShaderPrint::BeginViews(GraphBuilder, Views);
+
+	ON_SCOPE_EXIT
+	{
+		ShaderPrint::EndViews(Views);
+	};
 
 	if (RendererOutput == ERendererOutput::FinalSceneColor)
 	{
 		PrepareDistanceFieldScene(GraphBuilder, ExternalAccessQueue);
-
-		ShaderPrint::BeginViews(GraphBuilder, Views);
-
-		ON_SCOPE_EXIT
-		{
-			ShaderPrint::EndViews(Views);
-		};
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
