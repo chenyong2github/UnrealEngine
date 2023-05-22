@@ -186,7 +186,6 @@ void FLumenHardwareRayTracingShaderBase::ModifyCompilationEnvironment(const FGlo
 
 	// GPU Scene definitions
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
-	OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
 	// Inline
 	const bool bInlineRayTracing = ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline;

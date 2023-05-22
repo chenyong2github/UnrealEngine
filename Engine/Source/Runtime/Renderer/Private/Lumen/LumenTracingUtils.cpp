@@ -43,13 +43,7 @@ void GetLumenCardTracingParameters(
 	TracingParameters.SampleHeightFog = CVarLumenSampleFog.GetValueOnRenderThread() > 0 ? 1u : 0u;
 	TracingParameters.FogUniformParameters = CreateFogUniformBuffer(GraphBuilder, View);
 
-	// GPUScene
 	const FScene* Scene = ((const FScene*)View.Family->Scene);
-	const FGPUSceneResourceParameters GPUSceneParameters = Scene->GPUScene.GetShaderParameters();
-
-	TracingParameters.GPUSceneInstanceSceneData = GPUSceneParameters.GPUSceneInstanceSceneData;
-	TracingParameters.GPUSceneInstancePayloadData = GPUSceneParameters.GPUSceneInstancePayloadData;
-	TracingParameters.GPUScenePrimitiveSceneData = GPUSceneParameters.GPUScenePrimitiveSceneData;
 
 	if (FrameTemporaries.CardPageLastUsedBufferUAV && FrameTemporaries.CardPageHighResLastUsedBufferUAV)
 	{
