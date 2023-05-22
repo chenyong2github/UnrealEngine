@@ -344,7 +344,7 @@ const FText UCommonActionWidget::GetPaletteCategory()
 
 void UCommonActionWidget::OnActionProgress(float HeldPercent)
 {
-	if (ProgressDynamicMaterial && ensure(!ProgressMaterialParam.IsNone()))
+	if (ProgressDynamicMaterial && !ProgressMaterialParam.IsNone())
 	{
 		ProgressDynamicMaterial->SetScalarParameterValue(ProgressMaterialParam, HeldPercent);
 	}
@@ -352,7 +352,7 @@ void UCommonActionWidget::OnActionProgress(float HeldPercent)
 
 void UCommonActionWidget::OnActionComplete()
 {
-	if (ProgressDynamicMaterial && ensure(!ProgressMaterialParam.IsNone()))
+	if (ProgressDynamicMaterial && !ProgressMaterialParam.IsNone())
 	{
 		ProgressDynamicMaterial->SetScalarParameterValue(ProgressMaterialParam, 0.f);
 	}
