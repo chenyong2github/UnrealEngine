@@ -42,7 +42,7 @@ public:
 	virtual UWorld* GetWorld() const override;
 	//~ End UObject Interface
 
-	bool IsInitialized() const { return !bIsInitialized; };
+	bool IsInitialized() const { return !bNeedsInitialization; };
 
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	UVCamComponent* GetOwningVCamComponent() const;
@@ -79,7 +79,7 @@ private:
 	FModifierStackEntry* GetCorrespondingStackEntry() const;
 
 	UPROPERTY(Transient)
-	bool bIsInitialized = true;
+	bool bNeedsInitialization = true;
 };
 
 UCLASS(EditInlineNew)
