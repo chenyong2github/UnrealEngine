@@ -161,10 +161,7 @@ protected:
 	FLevelEditorViewportClient* GetTargetLevelViewportClient() const;
 	TSharedPtr<SLevelViewport> GetTargetLevelViewport() const;
 #endif
-
-	/** Util to call in subclasses for initing GameplayViewTargetPolicy to have a good default value. */
-	void InitViewTargetPolicyInSubclass();
-
+	
 	UVPFullScreenUserWidget* GetUMGWidget() const { return UMGWidget; }
 	
 private:

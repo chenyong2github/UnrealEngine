@@ -33,7 +33,6 @@ namespace UE::VCamOutputRemoteSession::Private
 UVCamOutputRemoteSession::UVCamOutputRemoteSession()
 {
 	DisplayType = EVPWidgetDisplayType::PostProcessSceneViewExtension;
-	InitViewTargetPolicyInSubclass();
 }
 
 void UVCamOutputRemoteSession::Initialize()

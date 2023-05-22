@@ -5,5 +5,4 @@
 UVCamOutputViewport::UVCamOutputViewport()
 {
 	DisplayType = EVPWidgetDisplayType::Viewport;
-	InitViewTargetPolicyInSubclass();
 }

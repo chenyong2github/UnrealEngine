@@ -5,5 +5,4 @@
 UVCamPixelStreamingSession::UVCamPixelStreamingSession()
 {
 	DisplayType = EVPWidgetDisplayType::PostProcessSceneViewExtension;
-	InitViewTargetPolicyInSubclass();
 }

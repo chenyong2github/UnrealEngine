@@ -5,7 +5,6 @@
 UVCamOutputComposure::UVCamOutputComposure()
 {
 	DisplayType = EVPWidgetDisplayType::Composure;
-	InitViewTargetPolicyInSubclass();
 }
 
 void UVCamOutputComposure::CreateUMG()

@@ -53,6 +53,8 @@ UVCamOutputProviderBase::UVCamOutputProviderBase()
 	{
 		OnActivatedDelegate_Blueprint.Broadcast(bNewValue);
 	});
+	
+	GameplayViewTargetPolicy = CreateDefaultSubobject<UFocusFirstPlayerViewTargetPolicy>(TEXT("FocusFirstPlayerViewTargetPolicy0"));
 }
 
 void UVCamOutputProviderBase::BeginDestroy()
@@ -541,18 +543,6 @@ TWeakPtr<SWindow> UVCamOutputProviderBase::GetTargetInputWindow() const
 #endif
 
 	return InputWindow;
-}
-
-void UVCamOutputProviderBase::InitViewTargetPolicyInSubclass()
-{
-	checkf(DisplayType != EVPWidgetDisplayType::Inactive, TEXT("Subclasses should set DisplayType in constructor before calling InitViewTargetPolicyInSubclass"));
-	
-	// Make UX easier for users by making the output provider set the first player controller's view target to our camera in game worlds automatically.
-	const bool bRequiresCameraToWork = DisplayType == EVPWidgetDisplayType::PostProcessWithBlendMaterial || DisplayType == EVPWidgetDisplayType::Composure;
-	if (bRequiresCameraToWork)
-	{
-		GameplayViewTargetPolicy = CreateDefaultSubobject<UFocusFirstPlayerViewTargetPolicy>(TEXT("FocusFirstPlayerViewTargetPolicy0"));
-	}
 }
 
 #if WITH_EDITOR

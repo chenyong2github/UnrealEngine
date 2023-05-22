@@ -62,11 +62,13 @@ namespace UE::VCamCore::Private
 		 *	- (User) code calls LoadPackage
 		 */
 		UWorld* OwnerWorld = Component->GetWorld();
-		const bool bIsInEditedWorld =
+		const bool IsInValidWorld =
 			OwnerWorld // CDO's do not have an owner world
 			&& (!GWorld // Can be nullptr during initial load
 				|| GWorld == OwnerWorld
 				|| GWorld->ContainsLevel(OwnerWorld->PersistentLevel)
+				// PIE is always allowed
+				|| OwnerWorld->IsGameWorld()
 				);
 		
 		/*
@@ -78,7 +80,7 @@ namespace UE::VCamCore::Private
 		 */
 		return !Component->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject | RF_Transient)
 			&& !GIsCookerLoadingPackage
-			&& bIsInEditedWorld;
+			&& IsInValidWorld;
 	}
 }
 
@@ -104,7 +106,7 @@ void UVCamComponent::OnComponentCreated()
 		InputProfile = *NewInputProfile;
 	}
 	
-	EnsureInitialized();
+	EnsureInitializedIfAllowed();
 }
 
 void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
@@ -214,7 +216,12 @@ void UVCamComponent::UnregisterInputComponent()
 
 bool UVCamComponent::CanUpdate() const
 {
-	const bool bShouldUpdate = bEnabled && !bIsEditorObjectButPIEIsRunning;
+	const bool bShouldUpdate = bEnabled
+#if WITH_EDITOR
+		// No updating if we're in PIE or ending the transition from PIE to editor
+		&& PIEMode == EPIEState::Normal
+#endif
+	;
 	
 	// This prevents us updating in asset editors or invalid worlds
 	constexpr int ValidWorldTypes = EWorldType::Game | EWorldType::PIE | EWorldType::Editor;
@@ -257,6 +264,12 @@ void UVCamComponent::OnAttachmentChanged()
 #if WITH_EDITOR
 	CheckForErrors();
 #endif
+}
+
+void UVCamComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	//EnsureInitializedIfAllowed();
 }
 
 void UVCamComponent::Serialize(FArchive& Ar)
@@ -681,6 +694,11 @@ FKey UVCamComponent::GetPlayerMappedKey(const FName MappingName) const
 
 void UVCamComponent::Update()
 {
+	if (GetWorld()->IsGameWorld())
+	{
+		int32 i = 0;
+	}
+	
 	if (!CanUpdate())
 	{
 		return;
@@ -699,7 +717,7 @@ void UVCamComponent::Update()
 		}
 	}
 
-	EnsureInitialized();
+	EnsureInitializedIfAllowed();
 #if WITH_EDITOR
 	// Somebody may have externally changed subsystem from out under us (user code). Let's make sure the details panel updates.
 	SyncInputSettings();
@@ -1249,12 +1267,18 @@ void UVCamComponent::EnsureDelegatesRegistered()
 	}
 }
 
-void UVCamComponent::EnsureInitialized()
+void UVCamComponent::EnsureInitializedIfAllowed()
 {
-	if (!SubsystemCollection.IsInitialized())
+	if (!IsInitialized() && bEnabled)
 	{
 		Initialize();
 	}
+}
+
+bool UVCamComponent::IsInitialized() const
+{
+	// We can use the SubsystemCollection instead of introducing a new variable for it since it's the first thing initialized
+	return SubsystemCollection.IsInitialized();
 }
 
 void UVCamComponent::Initialize()
@@ -1302,6 +1326,11 @@ void UVCamComponent::Initialize()
 
 void UVCamComponent::Deinitialize()
 {
+	if (!IsInitialized())
+	{
+		return;
+	}
+	
 	for (UVCamOutputProviderBase* Provider : OutputProviders)
 	{
 		if (IsValid(Provider))
@@ -1580,44 +1609,52 @@ void UVCamComponent::OnMapChanged(UWorld* World, EMapChangeType ChangeType)
 void UVCamComponent::OnBeginPIE(const bool bInIsSimulating)
 {
 	UWorld* World = GetWorld();
-	if (World && World->WorldType == EWorldType::Editor)
+	if (World && World->WorldType == EWorldType::Editor && IsInitialized())
 	{
+		PIEMode = IsInitialized()
+			? EPIEState::WasInitializedBeforePIE
+			: EPIEState::WasNotInitializedBeforePIE;
+		
 		// Reasons:
 		// 1. Output providers, like pixel streaming, may interfere
 		// 2. Input will interfere
+		// Note that we use Deinitialize and NOT SetEnabled(false) because bEnabled will be copied over to the PIE version!
 		Deinitialize();
-		
-		// Ensure the Editor components do not update during PIE
-		bIsEditorObjectButPIEIsRunning = true;
 	}
 }
 
 void UVCamComponent::OnEndPIE(const bool bInIsSimulating)
 {
 	UWorld* World = GetWorld();
-
 	if (!World)
 	{
 		return;
 	}
 
-	if (World->WorldType == EWorldType::PIE)
+	// PIE case is handled by EndPlay
+	if (World->WorldType != EWorldType::Editor)
 	{
-		// If Update is called (should not happen), disabling instead of Deinitialize to ensure Update() will be skipped
-		SetEnabled(false);
+		return;
 	}
-	else if (World->WorldType == EWorldType::Editor)
+	
+	// Re-initialization only needs to occur if this VCam was initialized before PIE was started
+	if (PIEMode == EPIEState::WasInitializedBeforePIE)
 	{
-		bIsEditorObjectButPIEIsRunning = false;
 		// Next tick because there is still some pending clean up happening this frame after OnEndPIE finishes.
 		// In particular, viewports may still be associated with PIE which will cause UVPFullScreenUserWidget to not know where to add itself.
 		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateLambda([WeakThis = TWeakObjectPtr<UVCamComponent>(this)]()
 		{
 			if (LIKELY(WeakThis.IsValid()))
 			{
+				// The flag is updated next tick because otherwise OnUpdate might call EnsureInitialized too early
+				WeakThis->PIEMode = EPIEState::Normal;
 				WeakThis->Initialize();
 			}
 		}));
+	}
+	else
+	{
+		PIEMode = EPIEState::Normal;
 	}
 }
 

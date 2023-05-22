@@ -84,6 +84,7 @@ public:
 	//~ Begin UActorComponent Interface
 	virtual void OnComponentCreated() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	virtual void BeginPlay() override;
 	//~ End UActorComponent Interface
 
 	//~ Begin USceneComponent Interface
@@ -469,15 +470,26 @@ private:
 
 	TArray<UVCamOutputProviderBase*> SavedOutputProviders;
 	TArray<FModifierStackEntry> SavedModifierStack;
-	
+
+#if WITH_EDITOR
 	/** Variable used for pausing update on editor objects while PIE is running */
-	bool bIsEditorObjectButPIEIsRunning = false;
+	enum class EPIEState
+	{
+		/** Default state when no PIE transition is needed. */
+		Normal,
+		/** We de-initialized this VCam before starting PIE because it was initialized. Initialize this VCam when PIE ends. */
+		WasInitializedBeforePIE,
+		/** This VCam was not initialized when PIE was started hence it need to be re-initialized when PIE ends. */
+		WasNotInitializedBeforePIE,
+	} PIEMode = EPIEState::Normal;
+#endif
 
 	/** Initialize and deinitialize calls match our  */
 	FObjectSubsystemCollection<UVCamSubsystem> SubsystemCollection;
 
 	void EnsureDelegatesRegistered();
-	void EnsureInitialized();
+	void EnsureInitializedIfAllowed();
+	bool IsInitialized() const;
 	virtual void Initialize();
 	virtual void Deinitialize();
 
