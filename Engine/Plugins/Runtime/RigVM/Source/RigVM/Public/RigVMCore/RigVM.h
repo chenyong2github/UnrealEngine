@@ -812,6 +812,7 @@ private:
 
 public:
 	void InvalidateCachedMemory();
+	void InvalidateCachedMemory(FRigVMExtendedExecuteContext& Context);
 	
 private:
 	void CacheMemoryHandlesIfRequired(FRigVMExtendedExecuteContext& Context, TArrayView<URigVMMemoryStorage*> InMemory);

@@ -991,6 +991,12 @@ void URigVM::InvalidateCachedMemory()
 	LazyBranches.Reset();
 }
 
+void URigVM::InvalidateCachedMemory(FRigVMExtendedExecuteContext& Context)
+{
+	InvalidateCachedMemory();
+	Context.InvalidateCachedMemory();
+}
+
 void URigVM::CopyDeferredVMIfRequired()
 {
 	ensure(ActiveExecutions.load() == 0);  // we require that no active worker threads are running while we serialize
@@ -1012,17 +1018,17 @@ void URigVM::CacheMemoryHandlesIfRequired(FRigVMExtendedExecuteContext& Context,
 
 	if (Instructions.Num() == 0 || InMemory.Num() == 0)
 	{
-		InvalidateCachedMemory();
+		InvalidateCachedMemory(Context);
 		return;
 	}
 
 	if ((Instructions.Num() + 1) != FirstHandleForInstruction.Num())
 	{
-		InvalidateCachedMemory();
+		InvalidateCachedMemory(Context);
 	}
 	else if (InMemory.Num() != Context.CachedMemory.Num())
 	{
-		InvalidateCachedMemory();
+		InvalidateCachedMemory(Context);
 	}
 	else
 	{
@@ -1030,7 +1036,7 @@ void URigVM::CacheMemoryHandlesIfRequired(FRigVMExtendedExecuteContext& Context,
 		{
 			if (InMemory[Index] != Context.CachedMemory[Index])
 			{
-				InvalidateCachedMemory();
+				InvalidateCachedMemory(Context);
 				break;
 			}
 		}
