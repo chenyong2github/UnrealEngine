@@ -505,6 +505,8 @@ void SCustomizableObjectNodeLayoutBlocksEditor::OnBlockChanged( FGuid BlockId, F
 			{
 				B.Min = Block.Min;
 				B.Max = Block.Max;
+
+				CurrentLayout->MarkPackageDirty();
 			}
 		}
 	}
