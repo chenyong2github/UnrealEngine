@@ -502,7 +502,7 @@ TSharedPtr<SWidget> SAssetTableTreeView::ConstructFooter()
 		.Padding(2.0f, 2.0f, 0.0f, 2.0f)
 		[
 			SNew(STextBlock)
-			.Text(this, &SAssetTableTreeView::GetFooterRightText1)
+			.Text(this, &SAssetTableTreeView::GetFooterCenterText1)
 			.ColorAndOpacity(FSlateColor(EStyleColor::White25))
 		]
 
@@ -511,7 +511,18 @@ TSharedPtr<SWidget> SAssetTableTreeView::ConstructFooter()
 		.Padding(0.0f, 2.0f, 2.0f, 2.0f)
 		[
 			SNew(STextBlock)
-			.Text(this, &SAssetTableTreeView::GetFooterRightText2)
+			.Text(this, &SAssetTableTreeView::GetFooterCenterText2)
+		]
+
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2.0f, 2.0f, 2.0f, 2.0f)
+		[
+			SNew(STextBlock)
+			.Text(this, &SAssetTableTreeView::GetFooterRightText1)
 		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -578,16 +589,23 @@ FText SAssetTableTreeView::GetFooterLeftText() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText SAssetTableTreeView::GetFooterRightText1() const
+FText SAssetTableTreeView::GetFooterCenterText1() const
 {
-	return FooterRightText1;
+	return FooterCenterText1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FText SAssetTableTreeView::GetFooterRightText2() const
+FText SAssetTableTreeView::GetFooterCenterText2() const
 {
-	return FooterRightText2;
+	return FooterCenterText2;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SAssetTableTreeView::GetFooterRightText1() const
+{
+	return FooterRightText1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -598,11 +616,14 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 	const int32 NumSelectedNodes = TreeView->GetSelectedItems(SelectedNodes);
 	int32 NumSelectedAssets = 0;
 	FAssetTreeNodePtr NewSelectedAssetNode;
+	TSet<int32> SelectionSetIndices;
+
 	for (const UE::Insights::FTableTreeNodePtr& Node : SelectedNodes)
 	{
 		if (Node->Is<FAssetTreeNode>() && !Node->IsGroup())
 		{
 			NewSelectedAssetNode = StaticCastSharedPtr<FAssetTreeNode>(Node);
+			SelectionSetIndices.Add(NewSelectedAssetNode->GetRowId().RowIndex);
 			++NumSelectedAssets;
 		}
 	}
@@ -611,22 +632,38 @@ void SAssetTableTreeView::TreeView_OnSelectionChanged(UE::Insights::FTableTreeNo
 	if (NumSelectedAssets == 0)
 	{
 		FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt0", "{0} assets"), FText::AsNumber(VisibleAssetCount));
+		FooterCenterText1 = FText();
+		FooterCenterText2 = FText();
 		FooterRightText1 = FText();
-		FooterRightText2 = FText();
 	}
 	else if (NumSelectedAssets == 1)
 	{
 		FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt1", "{0} assets (1 selected)"), FText::AsNumber(VisibleAssetCount));
 
 		const FAssetTableRow& AssetTableRow = NewSelectedAssetNode->GetAssetChecked();
-		FooterRightText1 = FText::FromString(AssetTableRow.GetPath());
-		FooterRightText2 = FText::FromString(AssetTableRow.GetName());
+		FooterCenterText1 = FText::FromString(AssetTableRow.GetPath());
+		FooterCenterText2 = FText::FromString(AssetTableRow.GetName());
+		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt3", "Self: {0} Unique: {1} Shared: {2}"),
+			FText::AsMemory(AssetTableRow.GetStagedCompressedSize()),
+			FText::AsMemory(AssetTableRow.GetOrComputeTotalSizeUniqueDependencies(*GetAssetTable(), NewSelectedAssetNode->GetRowId().RowIndex)),
+			FText::AsMemory(AssetTableRow.GetOrComputeTotalSizeOtherDependencies(*GetAssetTable(), NewSelectedAssetNode->GetRowId().RowIndex)));
 	}
 	else
 	{
 		FooterLeftText = FText::Format(LOCTEXT("FooterLeftTextFmt2", "{0} assets ({1} selected)"), FText::AsNumber(VisibleAssetCount), FText::AsNumber(NumSelectedAssets));
-		FooterRightText1 = FText();
-		FooterRightText2 = FText();
+		FooterCenterText1 = FText();
+		FooterCenterText2 = FText();
+
+		int64 TotalSelfSize = 0;
+		for (int32 Index : SelectionSetIndices)
+		{
+			TotalSelfSize += GetAssetTable()->GetAssetChecked(Index).GetStagedCompressedSize();
+		}
+		FAssetTableDependencySizes Sizes = FAssetTableRow::ComputeDependencySizes(*GetAssetTable(), SelectionSetIndices, nullptr, nullptr);
+		FooterRightText1 = FText::Format(LOCTEXT("FooterRightFmt3", "Self: {0} Unique: {1} Shared: {2}"),
+			FText::AsMemory(TotalSelfSize),
+			FText::AsMemory(Sizes.UniqueDependenciesSize),
+			FText::AsMemory(Sizes.OtherDependenciesSize));
 	}
 
 	if (NumSelectedAssets != 1)

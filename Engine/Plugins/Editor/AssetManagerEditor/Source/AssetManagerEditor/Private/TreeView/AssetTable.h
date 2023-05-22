@@ -125,6 +125,12 @@ struct FAssetTableColumns
 	static const FName GameFeaturePluginColumnId;
 };
 
+struct FAssetTableDependencySizes
+{
+	int64 UniqueDependenciesSize = 0;
+	int64 OtherDependenciesSize = 0;
+};
+
 class FAssetTableRow
 {
 	friend class FAssetTable;
@@ -146,8 +152,8 @@ public:
 	const TCHAR* GetPrimaryType() const { return PrimaryType; }
 	const TCHAR* GetPrimaryName() const { return PrimaryName; }
 	int64 GetStagedCompressedSize() const { return StagedCompressedSize; }
-	int64 GetOrComputeTotalSizeUniqueDependencies(FAssetTable& OwningTable, int32 ThisIndex) const;
-	int64 GetOrComputeTotalSizeOtherDependencies(FAssetTable& OwningTable, int32 ThisIndex) const; 
+	int64 GetOrComputeTotalSizeUniqueDependencies(const FAssetTable& OwningTable, int32 ThisIndex) const;
+	int64 GetOrComputeTotalSizeOtherDependencies(const FAssetTable& OwningTable, int32 ThisIndex) const; 
 	int64 GetTotalUsageCount() const { return TotalUsageCount; }
 	const TCHAR* GetChunks() const { return Chunks; }
 	const TCHAR* GetNativeClass() const { return NativeClass; }
@@ -158,9 +164,13 @@ public:
 	const TArray<int32>& GetReferencers() const { return Referencers; }
 	FLinearColor GetColor() const { return Color; }
 
+	static FAssetTableDependencySizes ComputeDependencySizes(const FAssetTable& OwningTable, const TSet<int32>& RootIndices, TSet<int32>* OutUniqueDependencies = nullptr, TSet<int32>* OutSharedDependencies = nullptr);
+
 private:
-	static bool RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, FAssetTable& OwningTable, int32 ThisIndex, TSet<int32>& OutIncrementallyRefinedUniqueIndices, TSet<int32>& OutExcludedIndices);
-	void ComputeDependencySizes(FAssetTable& OwningTable, int32 ThisIndex, TSet<int32>* OutUniqueDependencies = nullptr, TSet<int32>* OutSharedDependencies = nullptr) const;
+	static void RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, const FAssetTable& OwningTable, const TSet<int32> RootIndices, const TSet<const TCHAR*>& RestrictToGFPs, TSet<int32>& OutIncrementallyRefinedUniqueIndices, TSet<int32>& OutExcludedIndices);
+
+	// Finds all nodes reachable from StartingNodes INCLUDING those in StartingNodes
+	static TSet<int32> GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*>& RestrictToGFPs);
 
 private:
 	const TCHAR* Type = nullptr;

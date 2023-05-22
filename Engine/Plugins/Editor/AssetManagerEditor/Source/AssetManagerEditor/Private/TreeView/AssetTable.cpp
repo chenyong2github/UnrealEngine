@@ -153,7 +153,7 @@ void FAssetTableStringStore::EnumerateStrings(TFunction<void(const FStringView S
 
 FAssetTable::FAssetTable()
 {
-//#define RUN_ASSET_TRAVERSAL_TESTS
+#define RUN_ASSET_TRAVERSAL_TESTS
 #ifdef RUN_ASSET_TRAVERSAL_TESTS
 	for (int32 i = 0; i < 9; i++)
 	{
@@ -365,14 +365,14 @@ FAssetTable::FAssetTable()
 		{
 			TSet<int32> DiscoveredUniqueDependencies;
 			TSet<int32> DiscoveredSharedDependencies;
-			Assets[AssetIndex].ComputeDependencySizes(this, AssetIndex, &DiscoveredUniqueDependencies, &DiscoveredSharedDependencies);
+			Assets[AssetIndex].ComputeDependencySizes(*this, TSet<int32>{AssetIndex}, &DiscoveredUniqueDependencies, &DiscoveredSharedDependencies);
 			ensureAlways(DiscoveredUniqueDependencies.Num() == UniqueDependencies[AssetIndex].Num()
 				&& DiscoveredUniqueDependencies.Intersect(UniqueDependencies[AssetIndex]).Num() == DiscoveredUniqueDependencies.Num());
 			ensureAlways(DiscoveredSharedDependencies.Num() == SharedDependencies[AssetIndex].Num()
 				&& DiscoveredSharedDependencies.Intersect(SharedDependencies[AssetIndex]).Num() == DiscoveredSharedDependencies.Num());
 		}
 	}
-	Assets.Empty();
+	ClearAllData();
 #endif
 #if 0 // debug, mock data
 
@@ -814,8 +814,8 @@ void FAssetTable::AddDefaultColumns()
 
 		Column.SetIndex(ColumnIndex++);
 
-		Column.SetShortName(LOCTEXT("StagedCompressedSizeColumnName", "Staged"));
-		Column.SetTitleName(LOCTEXT("StagedCompressedSizeColumnTitle", "Staged Compressed Size"));
+		Column.SetShortName(LOCTEXT("StagedCompressedSizeColumnName", "Self Size"));
+		Column.SetTitleName(LOCTEXT("StagedCompressedSizeColumnTitle", "Self Size (Compressed)"));
 		Column.SetDescription(LOCTEXT("StagedCompressedSizeColumnDesc", "Compressed size of iostore chunks for this asset's package. Only visible after staging."));
 
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered | ETableColumnFlags::IsDynamic);
@@ -1207,32 +1207,84 @@ void FAssetTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 }
 
+/*static*/TSet<int32> FAssetTableRow::GatherAllReachableNodes(const TArray<int32>& StartingNodes, const FAssetTable& OwningTable, const TSet<int32>& AdditionalNodesToStopAt, const TSet<const TCHAR*>& RestrictToGFPs)
+{
+	// "visit" ThisIndex to seed the exploration
+	TSet<int32> VisitedIndices;
+	TSet<int32> IndicesToVisit;
+	for (int32 StartingNodeIndex : StartingNodes)
+	{
+		VisitedIndices.Add(StartingNodeIndex);
+		for (int32 ChildIndex : OwningTable.GetAssetChecked(StartingNodeIndex).GetDependencies())
+		{
+			IndicesToVisit.Add(ChildIndex);
+		}
+	}
+
+	while (IndicesToVisit.Num() > 0)
+	{
+		TSet<int32>::TIterator Iterator = IndicesToVisit.CreateIterator();
+		int32 CurrentIndex = *Iterator;
+		Iterator.RemoveCurrent();
+
+		const FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
+		if (!RestrictToGFPs.Contains(Row.GetGameFeaturePlugin()) || AdditionalNodesToStopAt.Contains(CurrentIndex))
+		{
+			// Don't traverse outside this plugin
+			continue;
+		}
+
+		VisitedIndices.Add(CurrentIndex);
+
+		for (int32 ChildIndex : OwningTable.GetAssetChecked(CurrentIndex).GetDependencies())
+		{
+			if (!VisitedIndices.Contains(ChildIndex))
+			{
+				IndicesToVisit.Add(ChildIndex);
+			}
+		}
+	}
+
+	return VisitedIndices;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Iteratively refines the dependency set into unique and shared sets. PreviouslyVisitedIndices is split in each pass, moving some elements into
 // OutExcludedIndices (preserving its original contents) and putting those that are still potentially uniquely owned by the ThisIndex asset into
 // OutIncrementallyRefinedUniqueIndices. Returns 'true' if another pass is required (i.e., if work was done).
-/*static*/ bool FAssetTableRow::RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, FAssetTable& OwningTable, int32 ThisIndex, TSet<int32>& OutIncrementallyRefinedUniqueIndices, TSet<int32>& OutExcludedIndices)
+/*static*/ void FAssetTableRow::RefineDependencies(const TSet<int32>& PreviouslyVisitedIndices, const FAssetTable& OwningTable, const TSet<int32> RootIndices, const TSet<const TCHAR*>& RestrictToGFPs, TSet<int32>& OutIncrementallyRefinedUniqueIndices, TSet<int32>& OutExcludedIndices)
 {
-	const TCHAR* ThisGFP = OwningTable.GetAssetChecked(ThisIndex).GetGameFeaturePlugin();
-
 	// "visit" ThisIndex to seed the exploration
-	TArray<int32> IndicesToVisit = OwningTable.GetAssetChecked(ThisIndex).GetDependencies();
+	TSet<int32> IndicesToVisit;
+	for (int32 RootIndex : RootIndices)
+	{
+		IndicesToVisit = IndicesToVisit.Union(TSet<int32>{OwningTable.GetAssetChecked(RootIndex).GetDependencies()});
+	}
+	TSet<int32> NewlyExcludedDependencies;
 
 	while (IndicesToVisit.Num() > 0)
 	{
-		int32 CurrentIndex = IndicesToVisit.Pop(false);
+		TSet<int32>::TIterator Iterator = IndicesToVisit.CreateIterator();
+		int32 CurrentIndex = *Iterator;
+		Iterator.RemoveCurrent();
 
-		FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
-		if (Row.GetGameFeaturePlugin() != ThisGFP)
+		const FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
+		if (!RestrictToGFPs.Contains(Row.GetGameFeaturePlugin()))
 		{
 			// Don't traverse outside this plugin
+			continue;
+		}
+
+		if (OutExcludedIndices.Contains(CurrentIndex))
+		{
+			// We already know not to traverse into this. We'll handle excluding its transitive dependencies later.
 			continue;
 		}
 
 		bool ShouldIncludeInTotal = true;
 		for (int32 ReferencerIndex : Row.Referencers)
 		{
-			if (PreviouslyVisitedIndices.Contains(ReferencerIndex) == false && ThisIndex != ReferencerIndex)
+			if (PreviouslyVisitedIndices.Contains(ReferencerIndex) == false && !RootIndices.Contains(ReferencerIndex))
 			{
 				ShouldIncludeInTotal = false;
 				break;
@@ -1240,7 +1292,7 @@ void FAssetTable::AddDefaultColumns()
 		}
 		if (ShouldIncludeInTotal == false)
 		{
-			OutExcludedIndices.Add(CurrentIndex);
+			NewlyExcludedDependencies.Add(CurrentIndex);
 			continue;
 		}
 		OutIncrementallyRefinedUniqueIndices.Add(CurrentIndex);
@@ -1248,73 +1300,57 @@ void FAssetTable::AddDefaultColumns()
 		for (int32 ChildIndex : OwningTable.GetAssetChecked(CurrentIndex).GetDependencies())
 		{
 			// Don't revisit nodes we've already visited and don't re-add ThisIndex to avoid loops (and to avoid counting ourself)
-			if (!OutIncrementallyRefinedUniqueIndices.Contains(ChildIndex) && ThisIndex != ChildIndex)
+			if (!OutIncrementallyRefinedUniqueIndices.Contains(ChildIndex) && !RootIndices.Contains(ChildIndex))
 			{
-				IndicesToVisit.AddUnique(ChildIndex);
+				IndicesToVisit.Add(ChildIndex);
 			}
 		}
 	}
 
-	return OutIncrementallyRefinedUniqueIndices.Num() != PreviouslyVisitedIndices.Num();
+	// We now have a set of nodes that we know are not uniquely owned
+	// Anything they reference should also be removed from the set of unique dependencies
+	TSet<int32> NewlyExcludedDependenciesAndTheirTransitiveDependencies = GatherAllReachableNodes(NewlyExcludedDependencies.Array(), OwningTable, RootIndices, RestrictToGFPs);
+	OutExcludedIndices = OutExcludedIndices.Union(NewlyExcludedDependenciesAndTheirTransitiveDependencies);
+	OutIncrementallyRefinedUniqueIndices = OutIncrementallyRefinedUniqueIndices.Difference(NewlyExcludedDependenciesAndTheirTransitiveDependencies);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAssetTableRow::ComputeDependencySizes(FAssetTable& OwningTable, int32 ThisIndex, TSet<int32>* OutUniqueDependencies, TSet<int32>* OutSharedDependencies) const
+/*static*/ FAssetTableDependencySizes FAssetTableRow::ComputeDependencySizes(const FAssetTable & OwningTable, const TSet<int32>& RootIndices, TSet<int32>* OutUniqueDependencies, TSet<int32>* OutSharedDependencies)
 {
-	TotalSizeUniqueDependencies = 0;
-	TotalSizeOtherDependencies = 0;
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FAssetTableRow_ComputeDependencySizes);
 
-	TArray<int32> IndicesToVisit;
-	TSet<int32> VisitedIndices;
+	FAssetTableDependencySizes Result;
 
-	// Break any loops in the dependency graph
-	VisitedIndices.Add(ThisIndex);
-
-	const TCHAR* ThisGFP = OwningTable.GetAssetChecked(ThisIndex).GetGameFeaturePlugin();
-
-	// Don't include this asset itself in the total, just its children
-	for (int32 ChildIndex : Dependencies)
+	TSet<const TCHAR*> RestrictToGFPs;
+	for (int32 RootIndex : RootIndices)
 	{
-		IndicesToVisit.Add(ChildIndex);
+		RestrictToGFPs.Add(OwningTable.GetAssetChecked(RootIndex).GetGameFeaturePlugin());
 	}
 
-	while (IndicesToVisit.Num() > 0)
-	{
-		int32 CurrentIndex = IndicesToVisit.Pop(false);
 
-		FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
-		if (Row.GetGameFeaturePlugin() != ThisGFP)
-		{
-			// Don't traverse outside this plugin
-			continue;
-		}
-		VisitedIndices.Add(CurrentIndex);
-
-		for (int32 ChildIndex : OwningTable.GetAssetChecked(CurrentIndex).GetDependencies())
-		{
-			if (!VisitedIndices.Contains(ChildIndex))
-			{
-				IndicesToVisit.AddUnique(ChildIndex);
-			}
-		}
-	}
+	TSet<int32> VisitedIndices = GatherAllReachableNodes(RootIndices.Array(), OwningTable, TSet<int32>(), RestrictToGFPs);
 
 	// Iteratively separate the graph of "all things referenced by ThisIndex, directly or indirectly"
 	// into "UniqueDependencies -- things referenced ONLY by ThisIndex and by other things themselves referenced ONLY by ThisIndex"
 	// and "OtherDependencies" -- things removed from the list of "all things referenced by ThisIndex" in order to identify UniqueDependencies
 	TSet<int32> UniqueDependencies;
 	TSet<int32> OtherDependencies;
-	while (RefineDependencies(VisitedIndices, OwningTable, ThisIndex, UniqueDependencies, OtherDependencies))
-	{
-		VisitedIndices = UniqueDependencies;
-		UniqueDependencies.Empty();
-	}
+	int32 IterationCount = 0;
+	RefineDependencies(VisitedIndices, OwningTable, RootIndices, RestrictToGFPs, UniqueDependencies, OtherDependencies);
+
+	// If there's only one root provided, the dependencies shouldn't include it. If more than one root is provided,
+	// some roots might be included as dependencies of other roots
+	ensure(RootIndices.Num() > 1 || UniqueDependencies.Intersect(RootIndices).IsEmpty());
+
+	// if there is more than one root index, remove any root indices from the dependency lists in order to ensure they aren't double counted
+	// (they should be accounted for as part of the self sizes of the selected assets)
+	UniqueDependencies = UniqueDependencies.Difference(RootIndices);
+	OtherDependencies = OtherDependencies.Difference(RootIndices);
 
 	for (int32 Index : UniqueDependencies)
 	{
-		int64 DependencySize = OwningTable.GetAssetChecked(Index).GetStagedCompressedSize();
-		TotalSizeUniqueDependencies += DependencySize;
+		Result.UniqueDependenciesSize += OwningTable.GetAssetChecked(Index).GetStagedCompressedSize();
 	}
 	if (OutUniqueDependencies != nullptr)
 	{
@@ -1326,25 +1362,23 @@ void FAssetTableRow::ComputeDependencySizes(FAssetTable& OwningTable, int32 This
 	// just a partial set. By exploring the dependencies of that partial set we can find all the things that were
 	// referenced by ThisIndex but also by some other asset outside the subgraph defined by ThisIndex and its UniqueDependencies
 	VisitedIndices.Empty();
-	IndicesToVisit.Empty();
-	for (int32 Index : OtherDependencies)
-	{
-		IndicesToVisit.Add(Index);
-	}
 
-	while (IndicesToVisit.Num() > 0)
+	while (OtherDependencies.Num() > 0)
 	{
-		int32 CurrentIndex = IndicesToVisit.Pop(false);
-		FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
+		TSet<int32>::TIterator Iterator = OtherDependencies.CreateIterator();
+		int32 CurrentIndex = *Iterator;
+		Iterator.RemoveCurrent();
+
+		const FAssetTableRow& Row = OwningTable.GetAssetChecked(CurrentIndex);
 		VisitedIndices.Add(CurrentIndex);
-		if (Row.GetGameFeaturePlugin() != ThisGFP)
+		if (!RestrictToGFPs.Contains(Row.GetGameFeaturePlugin()))
 		{
 			// Don't traverse outside this plugin
 			continue;
 		}
 
 		int64 DependencySize = OwningTable.GetAssetChecked(CurrentIndex).GetStagedCompressedSize();
-		TotalSizeOtherDependencies += DependencySize;
+		Result.OtherDependenciesSize += DependencySize;
 		if (OutSharedDependencies != nullptr)
 		{
 			OutSharedDependencies->Add(CurrentIndex);
@@ -1352,28 +1386,32 @@ void FAssetTableRow::ComputeDependencySizes(FAssetTable& OwningTable, int32 This
 
 		for (int32 ChildIndex : OwningTable.GetAssetChecked(CurrentIndex).GetDependencies())
 		{
-			if (!VisitedIndices.Contains(ChildIndex) && ThisIndex != ChildIndex)
+			if (!VisitedIndices.Contains(ChildIndex) && !RootIndices.Contains(ChildIndex))
 			{
-				IndicesToVisit.AddUnique(ChildIndex);
+				OtherDependencies.Add(ChildIndex);
 			}
 		}
 	}
+
+	return Result;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int64 FAssetTableRow::GetOrComputeTotalSizeUniqueDependencies(FAssetTable& OwningTable, int32 ThisIndex) const
+int64 FAssetTableRow::GetOrComputeTotalSizeUniqueDependencies(const FAssetTable& OwningTable, int32 ThisIndex) const
 {
 	if (TotalSizeUniqueDependencies == -1)
 	{
 		UE::Insights::FStopwatch Stopwatch;
 		Stopwatch.Start();
 
-		ComputeDependencySizes(OwningTable, ThisIndex);
+		FAssetTableDependencySizes Sizes = ComputeDependencySizes(OwningTable, TSet<int32>{ThisIndex});
+		TotalSizeUniqueDependencies = Sizes.UniqueDependenciesSize;
+		TotalSizeOtherDependencies = Sizes.OtherDependenciesSize;
 
 		Stopwatch.Stop();
 		const double Duration = Stopwatch.GetAccumulatedTime();
-		if (Duration > 1.0)
+		if (Duration > 0.2f)
 		{
 			UE_LOG(LogInsights, Log, TEXT("ComputeDependencySizes(%s%s) : %.3fs"), Path, Name, Duration);
 		}
@@ -1383,14 +1421,16 @@ int64 FAssetTableRow::GetOrComputeTotalSizeUniqueDependencies(FAssetTable& Ownin
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-int64 FAssetTableRow::GetOrComputeTotalSizeOtherDependencies(FAssetTable& OwningTable, int32 ThisIndex) const
+int64 FAssetTableRow::GetOrComputeTotalSizeOtherDependencies(const FAssetTable& OwningTable, int32 ThisIndex) const
 {
 	if (TotalSizeOtherDependencies == -1)
 	{
 		UE::Insights::FStopwatch Stopwatch;
 		Stopwatch.Start();
 
-		ComputeDependencySizes(OwningTable, ThisIndex);
+		FAssetTableDependencySizes Sizes = ComputeDependencySizes(OwningTable, TSet<int32>{ThisIndex});
+		TotalSizeUniqueDependencies = Sizes.UniqueDependenciesSize;
+		TotalSizeOtherDependencies = Sizes.OtherDependenciesSize;
 
 		Stopwatch.Stop();
 		const double Duration = Stopwatch.GetAccumulatedTime();

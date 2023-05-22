@@ -77,8 +77,9 @@ protected:
 	virtual void ExtendMenu(FMenuBuilder& MenuBuilder) override;
 
 	FText GetFooterLeftText() const;
+	FText GetFooterCenterText1() const;
+	FText GetFooterCenterText2() const;
 	FText GetFooterRightText1() const;
-	FText GetFooterRightText2() const;
 
 	virtual void TreeView_OnSelectionChanged(UE::Insights::FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo) override;
 
@@ -92,8 +93,9 @@ private:
 	bool bNeedsToRebuild = false;
 
 	FText FooterLeftText;
+	FText FooterCenterText1;
+	FText FooterCenterText2;
 	FText FooterRightText1;
-	FText FooterRightText2;
 
 	/** Delegate to invoke when selection changes. */
 	FOnSelectionChanged OnSelectionChanged;

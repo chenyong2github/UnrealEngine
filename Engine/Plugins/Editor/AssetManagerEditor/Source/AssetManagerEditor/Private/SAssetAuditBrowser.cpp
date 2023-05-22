@@ -3,6 +3,7 @@
 #include "SAssetAuditBrowser.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetDefinitionRegistry.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "ClassViewerModule.h"
 #include "ContentBrowserDataSource.h"
@@ -737,10 +738,24 @@ void SAssetAuditBrowser::QuickPopulateAssetTableRow(FAssetTableRow& OutRow, cons
 {
 	// Asset Type
 	FString AssetType;
-	if (!EditorModule->GetStringValueForCustomColumn(AssetData, FName(TEXT("Type")), AssetType))
+	if (UAssetDefinitionRegistry* AssetDefinitionRegistry = UAssetDefinitionRegistry::Get())
 	{
-		AssetType = AssetData.AssetClassPath.ToString();
+		if (const UAssetDefinition* AssetDefinition = AssetDefinitionRegistry->GetAssetDefinitionForAsset(AssetData))
+		{
+			if (AssetDefinition)
+			{
+				AssetType = AssetDefinition->GetAssetDisplayName().ToString();
+			}
+		}
 	}
+	if (AssetType.IsEmpty())
+	{
+		if (!EditorModule->GetStringValueForCustomColumn(AssetData, FName(TEXT("Type")), AssetType))
+		{
+			AssetType = AssetData.AssetClassPath.ToString();
+		}
+	}
+	
 	OutRow.Type = AssetTable.StoreStr(AssetType);
 
 	// Asset Name
@@ -849,6 +864,8 @@ void SAssetAuditBrowser::RefreshAssetTableTreeView(const FARFilter& Filter)
 
 	UE_LOG(LogInsights, Log, TEXT("[AssetTree] Build asset table..."));
 
+	// TODO: We probably shouldn't do any of this unless the asset registry has finished loading. Otherwise bad things seem to happen.
+
 	UE::Insights::FStopwatch Stopwatch;
 	Stopwatch.Start();
 
@@ -891,7 +908,6 @@ void SAssetAuditBrowser::RefreshAssetTableTreeView(const FARFilter& Filter)
 			}
 		}
 	}
-	AssetTable->SetVisibleAssetCount(AssetTable->GetAssets().Num());
 
 	int32 EntryIndex = AssetTable->GetAssets().Num();
 
@@ -968,6 +984,10 @@ void SAssetAuditBrowser::RefreshAssetTableTreeView(const FARFilter& Filter)
 			for (const FAssetData& SourceAssetData : AssetsInSourcePackage)
 			{
 				int32* RowIndex = AssetToIndexMap.Find(SourceAssetData);
+				if (RowIndex == nullptr)
+				{
+					UE_LOG(LogInsights, Warning, TEXT("Failed to find asset %s in package %s, source asset index %d. Asset registry loading was %s"), *SourceAssetData.AssetName.ToString(), *SourceAssetData.PackageName.ToString(), SourceAssetIndex, AssetRegistry->IsLoadingAssets() ? TEXT("INCOMPLETE") : TEXT("complete"));
+				}
 				if (ensure(RowIndex != nullptr))
 				{
 					for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
@@ -993,6 +1013,7 @@ void SAssetAuditBrowser::RefreshAssetTableTreeView(const FARFilter& Filter)
 				}
 			}
 		}
+		AssetTable->SetVisibleAssetCount(AssetTable->GetAssets().Num());
 	}
 
 	Stopwatch.Stop();
