@@ -57,6 +57,7 @@ FCbWriter& operator<<(FCbWriter& Writer, const FOnDemandTocEntry& Entry)
 {
 	Writer.BeginObject();
 	Writer.AddHash(UTF8TEXTVIEW("Hash"), Entry.Hash);
+	Writer.AddHash(UTF8TEXTVIEW("RawHash"), Entry.RawHash);
 	Writer << UTF8TEXTVIEW("ChunkId") << Entry.ChunkId;
 	Writer.AddInteger(UTF8TEXTVIEW("RawSize"), Entry.RawSize);
 	Writer.AddInteger(UTF8TEXTVIEW("EncodedSize"), Entry.EncodedSize);
@@ -77,6 +78,7 @@ bool LoadFromCompactBinary(FCbFieldView Field, FOnDemandTocEntry& OutTocEntry)
 		}
 
 		OutTocEntry.Hash = Obj["Hash"].AsHash();
+		OutTocEntry.RawHash = Obj["RawHash"].AsHash();
 		OutTocEntry.RawSize = Obj["RawSize"].AsUInt64(~uint64(0));
 		OutTocEntry.EncodedSize = Obj["EncodedSize"].AsUInt64(~uint64(0));
 		OutTocEntry.BlockOffset = Obj["BlockOffset"].AsUInt32(~uint32(0));
@@ -111,6 +113,13 @@ FCbWriter& operator<<(FCbWriter& Writer, const FOnDemandTocContainerEntry& Conta
 	}
 	Writer.EndArray();
 
+	Writer.BeginArray(UTF8TEXTVIEW("BlockHashes"));
+	for (const FIoHash& BlockHash : ContainerEntry.BlockHashes)
+	{
+		Writer << BlockHash;
+	}
+	Writer.EndArray();
+
 	Writer.EndObject();
 
 	return Writer;
@@ -138,6 +147,13 @@ bool LoadFromCompactBinary(FCbFieldView Field, FOnDemandTocContainerEntry& OutCo
 		for (FCbFieldView ArrayField : BlockSizes)
 		{
 			OutContainer.BlockSizes.Add(ArrayField.AsUInt32());
+		}
+
+		FCbArrayView BlockHashes = Obj["BlockHashes"].AsArrayView();
+		OutContainer.BlockHashes.Reserve(int32(BlockHashes.Num()));
+		for (FCbFieldView ArrayField : BlockHashes)
+		{
+			OutContainer.BlockHashes.Add(ArrayField.AsHash());
 		}
 
 		return true;

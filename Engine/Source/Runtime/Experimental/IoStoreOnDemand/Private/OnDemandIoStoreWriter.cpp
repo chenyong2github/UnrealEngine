@@ -27,7 +27,9 @@ struct FPendingWrite
 	FIoWriteOptions WriteOptions;
 	FIoBuffer ChunkBuffer;
 	FIoBuffer ChunkHeader;
+	FIoHash ChunkRawHash;
 	FIoHash ChunkHash;
+	TArray<FIoHash> BlockHashes;
 	FString ErrorText;
 	uint64 RawSize{0};
 	uint64 EncodedSize{0};
@@ -152,6 +154,7 @@ void FOnDemandIoStoreWriter::Flush()
 			}
 
 			FOnDemandTocEntry& TocEntry = ContainerEntry.Entries.AddDefaulted_GetRef();
+			TocEntry.RawHash = WriteEntry.ChunkRawHash;
 			TocEntry.Hash = WriteEntry.ChunkHash;
 			TocEntry.ChunkId = WriteEntry.ChunkId;
 			TocEntry.RawSize = WriteEntry.RawSize;
@@ -161,8 +164,12 @@ void FOnDemandIoStoreWriter::Flush()
 			const FIoChunkEncoding::FHeader* Header = FIoChunkEncoding::FHeader::Decode(WriteEntry.ChunkHeader.GetView());
 			check(Header);
 			TConstArrayView<uint32> Blocks = Header->GetBlocks();
+			TArray<FIoHash> BlockHashes = MoveTemp(WriteEntry.BlockHashes);
+			check(Blocks.Num() == BlockHashes.Num());
+
 			TocEntry.BlockCount = Blocks.Num();
 			ContainerEntry.BlockSizes.Append(Blocks);
+			ContainerEntry.BlockHashes.Append(BlockHashes);
 
 			WriteResult.UncompressedContainerSize += WriteEntry.RawSize;
 			WriteResult.CompressedContainerSize += WriteEntry.EncodedSize;
@@ -229,7 +236,7 @@ void FOnDemandIoStoreWriter::Append(
 						{
 							PendingWrite->ChunkBuffer = *SourceBuffer;
 							PendingWrite->ChunkBuffer.EnsureOwned();
-							PendingWrite->ChunkHash = FIoHash::HashBuffer(PendingWrite->ChunkBuffer.GetView());
+							PendingWrite->ChunkRawHash = FIoHash::HashBuffer(PendingWrite->ChunkBuffer.GetView());
 							PendingWrite->RawSize = PendingWrite->ChunkBuffer.GetSize();
 
 							PendingWrite->WriteRequest->FreeSourceBuffer();
@@ -244,6 +251,14 @@ void FOnDemandIoStoreWriter::Append(
 							{
 								PendingWrite->EncodedSize = PendingWrite->ChunkBuffer.GetSize();
 								PendingWrite->ChunkHash = FIoHash::HashBuffer(PendingWrite->ChunkBuffer.GetView());
+
+								if (FIoStatus Status = FIoChunkEncoding::HashBlocks(
+									*FIoChunkEncoding::FHeader::Decode(PendingWrite->ChunkHeader.GetView()),
+									PendingWrite->ChunkBuffer.GetView(),
+									PendingWrite->BlockHashes); !Status.IsOk())
+								{
+									PendingWrite->ErrorText = FString::Printf(TEXT("Failed to hash encoded blocks '%s'"), *PendingWrite->WriteOptions.FileName);
+								}
 							}
 							else
 							{

@@ -8,6 +8,7 @@
 #include "UObject/NameTypes.h"
 
 class FIoBuffer;
+struct FIoHash;
 
 /** I/O chunk encryption method. */
 enum class EIoEncryptionMethod : uint8
@@ -76,4 +77,5 @@ public:
 	static TIoStatusOr<FIoOffsetAndLength> GetChunkRange(uint64 TotalRawSize, uint32 RawBlockSize, TConstArrayView<uint32> EncodedBlockSize, uint64 RawOffset, uint64 RawSize);
 	static TIoStatusOr<FIoOffsetAndLength> GetChunkRange(const FIoChunkDecodingParams& Params, uint64 RawSize);
 	static uint64 GetTotalEncodedSize(TConstArrayView<uint32> EncodedBlockSize);
+	static FIoStatus HashBlocks(const FHeader& Header, FMemoryView EncodedData, TArray<FIoHash>& OutHashes);
 };

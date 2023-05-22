@@ -361,3 +361,25 @@ uint64 FIoChunkEncoding::GetTotalEncodedSize(TConstArrayView<uint32> EncodedBloc
 
 	return TotalEncodedSize;
 }
+
+FIoStatus FIoChunkEncoding::HashBlocks(const FIoChunkEncoding::FHeader& Header, FMemoryView EncodedData, TArray<FIoHash>& OutHashes)
+{
+	TConstArrayView<uint32> Blocks = Header.GetBlocks();
+	if (Blocks.IsEmpty())
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter);
+	}
+
+	OutHashes.Reserve(Blocks.Num());
+
+	for (uint32 BlockSize : Blocks)
+	{
+		check(!EncodedData.IsEmpty());
+		OutHashes.Add(FIoHash::HashBuffer(EncodedData.Left(BlockSize)));
+		EncodedData += BlockSize;
+	}
+
+	check(EncodedData.IsEmpty());
+	
+	return FIoStatus::Ok;
+}

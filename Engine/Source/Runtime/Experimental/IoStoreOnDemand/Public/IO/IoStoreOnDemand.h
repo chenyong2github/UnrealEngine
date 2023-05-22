@@ -61,6 +61,7 @@ UE_API bool LoadFromCompactBinary(FCbFieldView Field, FOnDemandTocHeader& OutToc
 struct FOnDemandTocEntry
 {
 	FIoHash Hash = FIoHash::Zero;
+	FIoHash RawHash = FIoHash::Zero;
 	FIoChunkId ChunkId = FIoChunkId::InvalidChunkId;
 	uint64 RawSize = 0;
 	uint64 EncodedSize = 0;
@@ -78,6 +79,7 @@ struct FOnDemandTocContainerEntry
 	FString EncryptionKeyGuid;
 	TArray<FOnDemandTocEntry> Entries;
 	TArray<uint32> BlockSizes;
+	TArray<FIoHash> BlockHashes;
 
 	UE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FOnDemandTocContainerEntry& ContainerEntry);
 };
