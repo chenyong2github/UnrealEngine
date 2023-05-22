@@ -1970,13 +1970,6 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 	}
 
 	// Initialize common resources used for lighting in ray tracing effects
-
-	ReferenceView.RayTracingSubSurfaceProfileTexture = GetSubsurfaceProfileTextureWithFallback();
-	ReferenceView.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSubSurfaceProfileTexture, 0);
-
-	ReferenceView.RayTracingSpecularProfileTexture = SpecularProfileAtlas::GetSpecularProfileTextureAtlasWithFallback();
-	ReferenceView.RayTracingSpecularProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSpecularProfileTexture, 0);
-
 	for (int32 ViewIndex = 0; ViewIndex < AllFamilyViews.Num(); ++ViewIndex)
 	{
 		// TODO:  It would make more sense for common ray tracing resources to be in a shared structure, rather than copied into each FViewInfo.
@@ -1987,11 +1980,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 		// Send common ray tracing resources from reference view to all others.
 		if (View->bHasAnyRayTracingPass && View != &ReferenceView)
 		{
-			View->RayTracingSubSurfaceProfileTexture = ReferenceView.RayTracingSubSurfaceProfileTexture;
-			View->RayTracingSubSurfaceProfileSRV = ReferenceView.RayTracingSubSurfaceProfileSRV;
 			View->RayTracingMaterialPipeline = ReferenceView.RayTracingMaterialPipeline;
-			View->RayTracingSpecularProfileTexture = ReferenceView.RayTracingSpecularProfileTexture;
-			View->RayTracingSpecularProfileSRV = ReferenceView.RayTracingSpecularProfileSRV;
 		}
 	}
 
@@ -2227,19 +2216,6 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 			{
 				RayTracingScene.bUsedThisFrame = true;
 			}
-		}
-
-		// Release resources that were bound to the ray tracing scene to allow them to be immediately recycled.
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-		{
-			FViewInfo& View = Views[ViewIndex];
-
-			// Release common lighting resources -- these are ref counted, so they won't be released until after the last view
-			// is finished using them (where multiple view families are rendered).
-			View.RayTracingSubSurfaceProfileSRV.SafeRelease();
-			View.RayTracingSubSurfaceProfileTexture.SafeRelease();
-			View.RayTracingSpecularProfileSRV.SafeRelease();
-			View.RayTracingSpecularProfileTexture.SafeRelease();
 		}
 	});
 }

@@ -1629,13 +1629,6 @@ public:
 	FGraphEventRef									RayTracingCallableBindingsTask;
 
 	// Common resources used for lighting in ray tracing effects
-	TRefCountPtr<FRHITexture>						RayTracingSubSurfaceProfileTexture;
-	FShaderResourceViewRHIRef						RayTracingSubSurfaceProfileSRV;
-
-	// Common resources used for lighting in ray tracing effects
-	TRefCountPtr<FRHITexture>						RayTracingSpecularProfileTexture;
-	FShaderResourceViewRHIRef						RayTracingSpecularProfileSRV;
-
 	TRDGUniformBufferRef<FRaytracingLightDataPacked>	RayTracingLightDataUniformBuffer;
 	TRDGUniformBufferRef<FRayTracingDecals>				RayTracingDecalUniformBuffer;
 	bool												bHasRayTracingDecals = false;

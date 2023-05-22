@@ -100,9 +100,6 @@ class FLightmapPathTracingRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
 		SHADER_PARAMETER_STRUCT_REF(FIrradianceCachingParameters, IrradianceCachingParameters)
-
-		// Subsurface data
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -166,8 +163,6 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FIrradianceCachingParameters, IrradianceCachingParameters)
-		// Subsurface data
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FLightShaderConstants>, LightShaderParametersArray)
 	END_SHADER_PARAMETER_STRUCT()

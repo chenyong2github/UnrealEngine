@@ -814,8 +814,6 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 				PassParameters->SkylightMipCount = PreviousPassParameters->SkylightMipCount;
 			}
 
-			PassParameters->SSProfilesTexture = GetSubsurfaceProfileTexture();
-
 			TArray<FLightShaderConstants> OptionalStationaryDirectionalLightShadowing;
 			for (FDirectionalLightRenderState& DirectionalLight : Scene->LightSceneRenderState.DirectionalLights.Elements)
 			{

@@ -2432,9 +2432,6 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 										PassParameters->SkylightMipCount = PreviousPassParameters[GPUIndex]->SkylightMipCount;
 									}
 
-									PassParameters->SSProfilesTexture = GetSubsurfaceProfileTexture();
-
-
 									FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 									PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(Scene->Settings->bUseIrradianceCaching && Scene->Settings->bUseFirstBounceRayGuiding);
 									PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Scene->Settings->bUseIrradianceCaching);
