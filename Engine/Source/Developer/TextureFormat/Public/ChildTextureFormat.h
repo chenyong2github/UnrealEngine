@@ -188,7 +188,7 @@ public:
 		uint8 ChildVersion = GetChildFormatVersion(Format, BuildSettings);
 
 		// 8 bits for each version
-		return (BaseVersion << 8) | ChildVersion;
+		return (uint16)((BaseVersion << 8) | ChildVersion);
 	}
 
 	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& InBuildSettings, int32 InMipCount, const FIntVector3& InMip0Dimensions) const final

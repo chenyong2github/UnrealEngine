@@ -880,7 +880,7 @@ struct FScreenMessageWriter
 		Y += 14;
 	}
 
-	ENGINE_API void DrawLine(const FText& Message, int32 X = 10, const FLinearColor& Color = FLinearColor(1.0, 0.05, 0.05, 1.0));
+	ENGINE_API void DrawLine(const FText& Message, int32 X = 10, const FLinearColor& Color = FLinearColor(1.0f, 0.05f, 0.05f, 1.0f));
 
 	FCanvas& Canvas;
 	int32 Y;

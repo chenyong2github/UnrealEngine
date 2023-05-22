@@ -187,8 +187,8 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 	// the texture has transparency
 	if (Viewport && CheckerboardTexture)
 	{
-		const int32 CheckerboardSizeX = FMath::Max<int32>(1, CheckerboardTexture->GetSizeX());
-		const int32 CheckerboardSizeY = FMath::Max<int32>(1, CheckerboardTexture->GetSizeY());
+		const float CheckerboardSizeX = (float)FMath::Max<int32>(1, CheckerboardTexture->GetSizeX());
+		const float CheckerboardSizeY = (float)FMath::Max<int32>(1, CheckerboardTexture->GetSizeY());
 		if (Settings.Background == TextureEditorBackground_CheckeredFill)
 		{
 			Canvas->DrawTile( 0.0f, 0.0f, Viewport->GetSizeXY().X, Viewport->GetSizeXY().Y, 0.0f, 0.0f, (float)Viewport->GetSizeXY().X / CheckerboardSizeX, (float)Viewport->GetSizeXY().Y / CheckerboardSizeY, FLinearColor::White, CheckerboardTexture->GetResource());
@@ -221,7 +221,8 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		// Draw a white border around the texture to show its extents
 		if (Settings.TextureBorderEnabled)
 		{
-			FCanvasBoxItem BoxItem(FVector2D(XPos - (BorderSize - 1) * 0.5f, YPos - (BorderSize - 1) * 0.5f), FVector2D(Width + BorderSize, Height + BorderSize));
+			float ScaledBorderSize = ((float)BorderSize - 1) * 0.5f;
+			FCanvasBoxItem BoxItem(FVector2D((float)XPos - ScaledBorderSize, (float)YPos - ScaledBorderSize), FVector2D(Width + BorderSize, Height + BorderSize));
 			BoxItem.LineThickness = (float)BorderSize;
 			BoxItem.SetColor( Settings.TextureBorderColor );
 			Canvas->DrawItem( BoxItem );
@@ -438,7 +439,7 @@ float FTextureEditorViewportClient::GetViewportVerticalScrollBarRatio() const
 		WidgetHeight = (float)(TextureEditorViewportPtr.Pin()->GetViewport()->GetSizeXY().Y);
 	}
 
-	return WidgetHeight / Height;
+	return WidgetHeight / (float)Height;
 }
 
 
@@ -455,7 +456,7 @@ float FTextureEditorViewportClient::GetViewportHorizontalScrollBarRatio() const
 		WidgetWidth = (float)(TextureEditorViewportPtr.Pin()->GetViewport()->GetSizeXY().X);
 	}
 
-	return WidgetWidth / Width;
+	return WidgetWidth / (float)Width;
 }
 
 
@@ -519,7 +520,7 @@ FVector2D FTextureEditorViewportClient::GetViewportScrollBarPositions() const
 
 		if ((TextureEditorViewportPtr.Pin()->GetVerticalScrollBar()->GetVisibility() == EVisibility::Visible) && VDistFromBottom < 1.0f)
 		{
-			Positions.Y = FMath::Clamp((1.0f + VDistFromTop - VDistFromBottom - VRatio) * 0.5f, 0.0f, 1.0f - VRatio) * Height;
+			Positions.Y = FMath::Clamp((1.0f + VDistFromTop - VDistFromBottom - VRatio) * 0.5f, 0.0f, 1.0f - VRatio) * (float)Height;
 		}
 		else
 		{
@@ -528,7 +529,7 @@ FVector2D FTextureEditorViewportClient::GetViewportScrollBarPositions() const
 
 		if ((TextureEditorViewportPtr.Pin()->GetHorizontalScrollBar()->GetVisibility() == EVisibility::Visible) && HDistFromBottom < 1.0f)
 		{
-			Positions.X = FMath::Clamp((1.0f + HDistFromTop - HDistFromBottom - HRatio) * 0.5f, 0.0f, 1.0f - HRatio) * Width;
+			Positions.X = FMath::Clamp((1.0f + HDistFromTop - HDistFromBottom - HRatio) * 0.5f, 0.0f, 1.0f - HRatio) * (float)Width;
 		}
 		else
 		{

@@ -910,7 +910,7 @@ void FTextureEditorToolkit::SetCustomZoomLevel( double ZoomValue )
 	// the mouse wheel zoom is quantized on ZoomFactorLogSteps
 	//	but that's too chunky for the drag slider, give it more steps, but on the same quantization grid
 	double QuantizationSteps = ZoomFactorLogSteps*2.0;
-	double LogZoomQuantized = (1.0/QuantizationSteps) * FMath::RoundToInt( QuantizationSteps * LogZoom );
+	double LogZoomQuantized = (1.0/QuantizationSteps) * (double)FMath::RoundToInt( QuantizationSteps * LogZoom );
 	ZoomValue = pow(2.0,LogZoomQuantized);
 
 	ZoomValue = FMath::Clamp(ZoomValue, MinZoom, MaxZoom);
