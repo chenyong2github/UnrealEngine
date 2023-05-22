@@ -12,6 +12,7 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraObjectSelection.h"
 #include "NiagaraParameterDefinitions.h"
+#include "NiagaraScriptSource.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
