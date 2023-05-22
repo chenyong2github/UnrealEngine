@@ -40,8 +40,6 @@ public:
 	 */
 	TConstArrayView<uint8> GetModelData(const FString& RuntimeName);
 
-public:
-
 	/**
 	 * Implements custom serialization of this asset.
 	 * @param Ar The archive to serialize from/to.
@@ -52,6 +50,39 @@ public:
 	 * A Guid used for asset versioning.
 	 */
 	const static FGuid GUID;
+
+#if WITH_EDITORONLY_DATA
+	// UObject interface
+	virtual void PostInitProperties() override;
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	// End of UObject interface
+
+	/**
+	 * Get the target runtimes this model data will be cooked for. An empty list mean all runtimes.
+	 *
+	 * @return The target runtimes names.
+	 */
+	TArrayView<const FString> GetTargetRuntimes() const { return TargetRuntimes; }
+
+	/**
+	 * Set the target runtimes this model data will be cooked for. An empty list mean all runtimes.
+	 *
+	 * @param RuntimeNames The target runtimes names.
+	 */
+	void SetTargetRuntimes(TArrayView<const FString> RuntimeNames);
+
+	/**
+	 * Importing data used for this asset.
+	 */
+	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
+	TObjectPtr<class UAssetImportData> AssetImportData;
+
+private:
+	/**
+	 * A list of string of the supported runtime, empty to support them all.
+	 */
+	TArray<FString> TargetRuntimes;
+#endif // WITH_EDITORONLY_DATA
 
 private:
 

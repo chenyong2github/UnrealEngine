@@ -8,6 +8,7 @@
 #include "NNECoreRuntimeFormat.h"
 #include "Serialization/CustomVersion.h"
 #include "UObject/WeakInterfacePtr.h"
+#include "EditorFramework/AssetImportData.h"
 
 #if WITH_EDITOR
 #include "Containers/StringFwd.h"
@@ -19,8 +20,18 @@
 #include "Misc/Guid.h"
 #endif
 
+enum Type
+{
+	Initial = 0,
+	TargetRuntimesAndAssetImportData = 1,
+	// -----<new versions can be added before this line>-------------------------------------------------
+	// - this needs to be the last line (see note below)
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
+};
+
 const FGuid UNNEModelData::GUID(0x9513202e, 0xeba1b279, 0xf17fe5ba, 0xab90c3f2);
-FCustomVersionRegistration NNEModelDataVersion(UNNEModelData::GUID, 0, TEXT("NNEModelDataVersion"));
+FCustomVersionRegistration NNEModelDataVersion(UNNEModelData::GUID, LatestVersion, TEXT("NNEModelDataVersion"));//Always save with the latest version
 
 #if WITH_EDITOR
 
@@ -131,9 +142,6 @@ void UNNEModelData::Serialize(FArchive& Ar)
 	// Store the asset version (no effect in load)
 	Ar.UsingCustomVersion(UNNEModelData::GUID);
 
-	// Only one version is supported for now
-	check(Ar.CustomVer(UNNEModelData::GUID) == 0);
-
 	// Recreate each model data when cooking
 	if (Ar.IsCooking() && Ar.IsSaving())
 	{
@@ -169,12 +177,23 @@ void UNNEModelData::Serialize(FArchive& Ar)
 			Ar << RuntimeNames[i];
 			Ar << ModelData[RuntimeNames[i]];
 		}
-
-		UE_LOG(LogTemp, Display, TEXT("UNNEModelData: Serialized data of %d runtimes"), NumItems);
 	}
 	else
 	{
 		int32 NumItems = 0;
+
+#if WITH_EDITORONLY_DATA
+		if (Ar.CustomVer(UNNEModelData::GUID) >= TargetRuntimesAndAssetImportData)
+		{
+			Ar << TargetRuntimes;
+			Ar << AssetImportData;
+		}
+		else 
+		{
+			// AssetImportData should always be valid
+			AssetImportData = NewObject<UAssetImportData>(this, TEXT("AssetImportData"));
+		}
+#endif //WITH_EDITORONLY_DATA
 
 		Ar << FileType;
 		Ar << FileData;
@@ -191,8 +210,71 @@ void UNNEModelData::Serialize(FArchive& Ar)
 				Ar << Data;
 				ModelData.Add(Name, MoveTemp(Data));
 			}
-
-			UE_LOG(LogTemp, Display, TEXT("UNNEModelData: Deserialized data of %d runtimes"), NumItems);
 		}
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+namespace UE::NNECore::ModelDataHelpers
+{
+	FString GetRuntimesAsString(TArrayView<const FString> Runtimes)
+	{
+		if (Runtimes.Num() == 0)
+		{
+			return TEXT("All");
+		}
+
+		FString RuntimesAsOneString;
+		bool bIsFirstRuntime = true;
+
+		for (const FString& Runtime : Runtimes)
+		{
+			if (!bIsFirstRuntime)
+			{
+				RuntimesAsOneString += TEXT(", ");
+			}
+			RuntimesAsOneString += Runtime;
+			bIsFirstRuntime = false;
+		}
+		return RuntimesAsOneString;
+	}
+} // UE::NNECore::ModelDataHelpers
+
+void UNNEModelData::PostInitProperties()
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		AssetImportData = NewObject<UAssetImportData>(this, TEXT("AssetImportData"));
+	}
+	Super::PostInitProperties();
+}
+
+void UNNEModelData::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	if (AssetImportData)
+	{
+		OutTags.Add(FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden));
+	}
+
+	OutTags.Add(FAssetRegistryTag("TargetRuntimes", UE::NNECore::ModelDataHelpers::GetRuntimesAsString(GetTargetRuntimes()), FAssetRegistryTag::TT_Alphabetical));
+
+	Super::GetAssetRegistryTags(OutTags);
+}
+
+void UNNEModelData::SetTargetRuntimes(TArrayView<const FString> RuntimeNames)
+{
+	TargetRuntimes = RuntimeNames;
+
+	TArray<FString, TInlineAllocator<10>> CookedRuntimes;
+	ModelData.GetKeys(CookedRuntimes);
+	for (const FString& Runtime : CookedRuntimes)
+	{
+		if (!TargetRuntimes.Contains(Runtime))
+		{
+			ModelData.Remove(Runtime);
+		}
+	}
+	ModelData.Compact();
+}
+
+#endif //WITH_EDITORONLY_DATA

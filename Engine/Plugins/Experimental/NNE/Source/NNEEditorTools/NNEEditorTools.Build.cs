@@ -23,7 +23,10 @@ public class NNEEditorTools : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"UnrealEd"
+					"Slate",
+					"SlateCore",
+					"UnrealEd",
+					"AssetTools"
 				}
 			);
 		}
