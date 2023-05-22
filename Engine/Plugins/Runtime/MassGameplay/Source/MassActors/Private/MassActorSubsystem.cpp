@@ -107,9 +107,11 @@ FMassActorManager::FMassActorManager(const TSharedPtr<FMassEntityManager>& InEnt
 
 FMassEntityHandle FMassActorManager::GetEntityHandleFromActor(const TObjectKey<const AActor> Actor)
 {
+	checkSlow(EntityManager);
+
 	UE_MT_SCOPED_READ_ACCESS(ActorHandleMapDetector);
 	FMassEntityHandle* Entity = ActorHandleMap.Find(Actor);
-	if (!Entity)
+	if (Entity == nullptr || EntityManager->IsEntityValid(*Entity) == false)
 	{
 		return FMassEntityManager::InvalidEntity;
 	}
