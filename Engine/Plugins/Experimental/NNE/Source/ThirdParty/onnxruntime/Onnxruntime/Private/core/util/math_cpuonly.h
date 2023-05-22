@@ -64,6 +64,7 @@
 #pragma warning(disable : 4554)
 #pragma warning(disable : 4245)
 #pragma warning(disable : 4127)
+#pragma warning(disable : 4702) // WITH_UE
 #endif
 #include "Eigen/Core"
 #include "Eigen/Dense"
