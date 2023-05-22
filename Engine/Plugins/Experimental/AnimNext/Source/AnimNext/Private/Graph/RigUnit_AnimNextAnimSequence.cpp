@@ -2,10 +2,11 @@
 
 #include "RigUnit_AnimNextAnimSequence.h"
 #include "Graph/GraphExecuteContext.h"
-#include "Interface/AnimNextInterface.h"
 #include "DecompressionTools.h"
 #include "Animation/AnimSequence.h"
 #include "Graph/AnimNext_LODPose.h"
+#include "Context.h"
+#include "Param/ParamStack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_AnimNextAnimSequence)
 
@@ -29,8 +30,8 @@ FRigUnit_AnimNext_AnimSequencePlayer_Initialize()
 	const UAnimSequenceBase* AnimSequenceBase = Sequence.AnimSequence;
 	if (AnimSequenceBase != nullptr)
 	{
-		// Get or Create the internal state
-		FAnimSequencePlayerState& AnimSequencePlayerState = InterfaceContext.GetState<FAnimSequencePlayerState>(ExecuteContext.GetInterface(), 0);
+		// Get internal state (as a param)
+		FAnimSequencePlayerState& AnimSequencePlayerState = InterfaceContext.GetMutableParamStack().GetMutableParam<FAnimSequencePlayerState>("AnimSequencePlayerState");
 
 		const float SequenceLength = AnimSequenceBase->GetPlayLength();
 		AnimSequencePlayerState.InternalTimeAccumulator = FMath::Clamp(Parameters.StartPosition, 0.f, SequenceLength);
@@ -47,9 +48,8 @@ FRigUnit_AnimNext_AnimSequencePlayer_Execute()
 	const UAnimSequenceBase* AnimSequenceBase = Sequence.AnimSequence;
 	if (AnimSequenceBase != nullptr)
 	{
-		// Get or Create the internal state
-		//const TParam<FAnimSequencePlayerState> AnimSequencePlayerState = InterfaceContext.GetState<FAnimSequencePlayerState>(ExecuteContext.GetInterface(), 0);
-		FAnimSequencePlayerState& AnimSequencePlayerState = InterfaceContext.GetState<FAnimSequencePlayerState, EStatePersistence::Permanent>(ExecuteContext.GetInterface(), 0);
+		// Get internal state (as a param)
+		FAnimSequencePlayerState& AnimSequencePlayerState = InterfaceContext.GetMutableParamStack().GetMutableParam<FAnimSequencePlayerState>("AnimSequencePlayerState");
 
 		const float DeltaTime = InterfaceContext.GetDeltaTime();
 		const float EffectiveDelta = FMath::IsNearlyZero(DeltaTime) || FMath::IsNearlyZero(Parameters.PlayRate) ? 0.f : DeltaTime * Parameters.PlayRate;
@@ -75,9 +75,9 @@ FRigUnit_AnimNext_AnimSequencePlayer_Execute()
 			, DeltaTimeRecord
 			, Parameters.bLoop);
 
-		const FAnimNextGraphReferencePose& GraphReferencePose = InterfaceContext.GetParameterChecked<FAnimNextGraphReferencePose>(TEXT("GraphReferencePose")).GetDataChecked();
-		const int32 GraphLODLevel = InterfaceContext.GetParameterChecked<int32>(TEXT("GraphLODLevel")).GetDataChecked();
-		const bool bGraphExpectsAdditive = InterfaceContext.GetParameterChecked<bool>(TEXT("GraphExpectsAdditive")).GetDataChecked();
+		const FAnimNextGraphReferencePose& GraphReferencePose = InterfaceContext.GetParamStack().GetParam<FAnimNextGraphReferencePose>("GraphReferencePose");
+		const int32 GraphLODLevel = InterfaceContext.GetParamStack().GetParam<int32>("GraphLODLevel");
+		const bool bGraphExpectsAdditive = InterfaceContext.GetParamStack().GetParam<bool>("GraphExpectsAdditive");
 
 		LODPose.LODPose.PrepareForLOD(*GraphReferencePose.ReferencePose, GraphLODLevel, true, bGraphExpectsAdditive);
 		

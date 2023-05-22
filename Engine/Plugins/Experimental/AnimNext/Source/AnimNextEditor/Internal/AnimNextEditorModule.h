@@ -11,8 +11,6 @@ namespace UE::AnimNext::Editor
 {
 
 class FAssetTypeActions_AnimNextGraph;
-class FAnimNextPropertyTypeCustomization;
-class FPropertyTypeIdentifier;
 struct FParameterPickerArgs;
 
 class FModule : public IModuleInterface
@@ -26,7 +24,6 @@ private:
 	virtual void ShutdownModule() override;
 
 	TSharedPtr<FAssetTypeActions_AnimNextGraph> AssetTypeActions_AnimNextGraph;
-	TSharedPtr<FPropertyTypeIdentifier> AnimNextPropertyTypeIdentifier;
 };
 
 }

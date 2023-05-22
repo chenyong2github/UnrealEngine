@@ -30,12 +30,8 @@ static void CollectAllAnimNextGraphActions(FGraphContextMenuBuilder& MenuBuilder
 		FAnimNextGraphExecuteContext::StaticStruct()
 	};
 
-	const TChunkedArray<FRigVMFunction>& Functions = FRigVMRegistry::Get().GetFunctions();
-	const int32 NumFunctions = Functions.Num();
-	for(int i=0; i < NumFunctions; i++)
+	for(const FRigVMFunction& Function : FRigVMRegistry::Get().GetFunctions())
 	{
-		const FRigVMFunction& Function = Functions[i];
-
 		const UScriptStruct* FunctionContext = Function.GetExecuteContextStruct();
 		if (FunctionContext == nullptr || !AllowedExecuteContexts.Contains(FunctionContext))
 		{
@@ -66,6 +62,26 @@ static void CollectAllAnimNextGraphActions(FGraphContextMenuBuilder& MenuBuilder
 		}
 
 		MenuBuilder.AddAction(MakeShared<FAnimNextGraphSchemaAction_RigUnit>(Struct, NodeCategory, MenuDesc, ToolTip));
+	}
+
+	for (const FRigVMDispatchFactory* Factory : FRigVMRegistry::Get().GetFactories())
+	{
+		if (!Factory->SupportsExecuteContextStruct(FRigVMExecuteContext::StaticStruct()) && !Factory->SupportsExecuteContextStruct(FAnimNextGraphExecuteContext::StaticStruct()))
+		{
+			continue;
+		}
+
+		const FRigVMTemplate* Template = Factory->GetTemplate();
+		if (Template == nullptr)
+		{
+			continue;
+		}
+
+		FText NodeCategory = FText::FromString(Factory->GetCategory());
+		FText MenuDesc = FText::FromString(Factory->GetNodeTitle(FRigVMTemplateTypeMap()));
+		FText ToolTip = Factory->GetNodeTooltip(FRigVMTemplateTypeMap());
+
+		MenuBuilder.AddAction(MakeShared<FAnimNextGraphSchemaAction_DispatchFactory>(Template->GetNotation(), NodeCategory, MenuDesc, ToolTip));
 	};
 }
 
@@ -108,8 +124,8 @@ void SActionMenu::Construct(const FArguments& InArgs)
 						.ToolTip(IDocumentation::Get()->CreateToolTip(
 							LOCTEXT("ActionMenuContextTextTooltip", "Describes the current context of the action list"),
 							nullptr,
-							TEXT("Shared/Editors/AnimNextInterfaceEditor"),
-							TEXT("AnimNextInterfaceActionMenuContextText")))
+							TEXT("Shared/Editors/AnimNextGraphEditor"),
+							TEXT("AnimNextActionMenuContextText")))
 						.WrapTextAt(280)
 					]
 				]

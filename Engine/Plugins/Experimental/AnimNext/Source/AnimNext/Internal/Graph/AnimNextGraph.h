@@ -3,13 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Interface/IAnimNextInterface.h"
 #include "RigVMCore/RigVM.h"
-#include "Param/ParamType.h"
+
 #include "AnimNextGraph.generated.h"
 
 class UEdGraph;
 class UAnimNextGraph;
+class UAnimGraphNode_AnimNextGraph;
+struct FAnimNode_AnimNextGraph;
+
+namespace UE::AnimNext
+{
+	struct FContext;
+}
+
 namespace UE::AnimNext::UncookedOnly
 {
 	struct FUtils;
@@ -28,7 +35,7 @@ namespace UE::AnimNext::Graph
 
 // A user-created graph of logic used to supply data
 UCLASS(BlueprintType)
-class ANIMNEXT_API UAnimNextGraph : public UObject, public IAnimNextInterface
+class ANIMNEXT_API UAnimNextGraph : public UObject
 {
 	GENERATED_BODY()
 
@@ -36,12 +43,8 @@ class ANIMNEXT_API UAnimNextGraph : public UObject, public IAnimNextInterface
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 
-	// IAnimNextInterface interface
-	virtual UE::AnimNext::FParamTypeHandle GetReturnTypeHandleImpl() const final override;
-	virtual bool GetDataImpl(const UE::AnimNext::FContext& Context) const final override;
-
-	/** Set the return type of this graph */
-	void SetReturnTypeHandle(UE::AnimNext::FParamTypeHandle InHandle);
+	// Run this graph with the given context
+	void Run(const UE::AnimNext::FContext& Context) const;
 
 	// Support rig VM execution
 	TArray<FRigVMExternalVariable> GetRigVMExternalVariables();
@@ -52,7 +55,8 @@ class ANIMNEXT_API UAnimNextGraph : public UObject, public IAnimNextInterface
 	friend class UE::AnimNext::Editor::FGraphEditor;
 	friend class UAnimNextGraph;
 	friend class UAnimGraphNode_AnimNextGraph;
-	
+	friend struct FAnimNode_AnimNextGraph;
+
 	UPROPERTY()
 	TObjectPtr<URigVM> RigVM;
 
@@ -61,9 +65,6 @@ class ANIMNEXT_API UAnimNextGraph : public UObject, public IAnimNextInterface
 
 	UPROPERTY()
 	FRigVMRuntimeSettings VMRuntimeSettings;
-
-	UPROPERTY()
-	FAnimNextParamType ReturnType;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, Instanced, Category = "Graph", meta = (ShowInnerProperties))

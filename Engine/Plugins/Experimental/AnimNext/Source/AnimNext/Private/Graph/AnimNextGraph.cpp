@@ -16,31 +16,16 @@ const FName EntryPointName("GetData");
 const FName ResultName("Result");
 }
 
-UE::AnimNext::FParamTypeHandle UAnimNextGraph::GetReturnTypeHandleImpl() const
+void UAnimNextGraph::Run(const UE::AnimNext::FContext& Context) const
 {
-	return ReturnType.GetHandle();
-}
-
-bool UAnimNextGraph::GetDataImpl(const UE::AnimNext::FContext& Context) const
-{
-	bool bResult = true;
-	
 	if(RigVM)
 	{
-		// we might have to set some sensible values to the extended execute context
-		FAnimNextGraphExecuteContext& AnimNextInterfaceContext = ExtendedExecuteContext.GetPublicDataSafe<FAnimNextGraphExecuteContext>();
+		FRigVMExtendedExecuteContext RigVMExtendedExecuteContext;
+		FAnimNextGraphExecuteContext& AnimNextContext = RigVMExtendedExecuteContext.GetPublicDataSafe<FAnimNextGraphExecuteContext>();
+		AnimNextContext.SetContextData(Context);
 
-		AnimNextInterfaceContext.SetContextData(this, Context, bResult);
-
-		bResult &= (RigVM->Execute(ExtendedExecuteContext, TArray<URigVMMemoryStorage*>(), FRigUnit_AnimNextBeginExecution::EventName) != ERigVMExecuteResult::Failed);
+		RigVM->Execute(RigVMExtendedExecuteContext, TArray<URigVMMemoryStorage*>(), FRigUnit_AnimNextBeginExecution::EventName);
 	}
-	
-	return bResult;
-}
-
-void UAnimNextGraph::SetReturnTypeHandle(UE::AnimNext::FParamTypeHandle InHandle)
-{
-	ReturnType = InHandle.GetType();
 }
 
 TArray<FRigVMExternalVariable> UAnimNextGraph::GetRigVMExternalVariables()

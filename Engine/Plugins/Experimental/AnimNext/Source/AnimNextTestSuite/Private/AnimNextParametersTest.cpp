@@ -1,22 +1,25 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "Context.h"
 #include "Misc/AutomationTest.h"
 #include "Param/ParamType.h"
 #include "Param/ParamTypeHandle.h"
 #include "Animation/AnimSequence.h"
 #include "Async/ParallelFor.h"
+#include "Param/ParamStack.h"
 
 // AnimNext Parameters Tests
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnimationAnimNextParametersTest_Types, "Animation.AnimNext.Parameters.Types", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FAnimationAnimNextParametersTest_Types::RunTest(const FString& InParameters)
+namespace UE::AnimNext::Tests
 {
-	using namespace UE::AnimNext;
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FParamTypesTest, "Animation.AnimNext.Parameters.Types", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FParamTypesTest::RunTest(const FString& InParameters)
+{
 	// None is invalid
 	FAnimNextParamType ParameterTypeValueNone(FAnimNextParamType::EValueType::None); 
 	AddErrorIfFalse(!ParameterTypeValueNone.IsValid(), TEXT("Parameter type None is valid."));
@@ -283,6 +286,251 @@ bool FAnimationAnimNextParametersTest_Types::RunTest(const FString& InParameters
 	}
 
 	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FParamStackTest, "Animation.AnimNext.Parameters.Stack", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FParamStackTest::RunTest(const FString& InParameters)
+{
+	FParamId::BeginTestSandbox();
+
+	FParamId ParamIds[] = { FParamId("Param0"), FParamId("Param1"), FParamId("Param2"), FParamId("Param3") };
+
+	// Check immediate value interfaces
+	{
+		FParamStack Stack;
+
+		Stack.PushValues("Param0", 1.0f);
+		Stack.PushValues("Param1", 2.0f);
+		Stack.PushValues("Param1", 3.0f, "Param2", true);
+		Stack.PushValues("Param1", 4.0f, "Param2", false);
+		Stack.PushValues("Param1", 5.0f, "Param2", false, "Param3", 3);
+		Stack.PopLayer();
+		Stack.PopLayer();
+		Stack.PopLayer();
+		Stack.PopLayer();
+		Stack.PopLayer();
+
+		Stack.PushValue(ParamIds[0], 1.0f);
+		Stack.PushValue("Param1", 1.0f);
+		Stack.PushValue(ParamIds[2], true);
+		Stack.PushValue(ParamIds[3], 3);
+		Stack.PopLayer();
+		Stack.PopLayer();
+		Stack.PopLayer();
+		Stack.PopLayer();
+	}
+
+	// Check const/mutable
+	{
+		FParamStack Stack;
+
+		const FDateTime Now = FDateTime::Now();
+		Stack.PushValue("Param0", Now);
+
+		FParamStack::EGetParamResult Result;
+		AddErrorIfFalse(Stack.GetParamPtr<FDateTime>("Param0", &Result) != nullptr, "Const ptr cannot be accessed");
+		AddErrorIfFalse(Result == FParamStack::EGetParamResult::Succeeded, "Result != FParamStack::EGetParamResult::Succeeded");
+		AddErrorIfFalse(Stack.GetMutableParamPtr<FDateTime>("Param0", &Result) == nullptr, "Mutable ptr can be accessed");
+		AddErrorIfFalse(Result == FParamStack::EGetParamResult::Immutable, "Result != FParamStack::EGetParamResult::Immutable");
+	}
+
+	// Check type variance
+	{
+		FParamStack Stack;
+
+		const FLinearColor Blue = FLinearColor::Blue;
+		Stack.PushValue("Param0", Blue);
+
+		FParamStack::EGetParamResult Result;
+		AddErrorIfFalse(Stack.GetParamPtr<FDateTime>("Param0", &Result) == nullptr, "Incorrectly typed access is non-null");
+		AddErrorIfFalse(Result == FParamStack::EGetParamResult::IncorrectType, "Result != FParamStack::EGetParamResult::IncorrectType");
+		AddErrorIfFalse(Stack.GetMutableParamPtr<FDateTime>("Param0", &Result) == nullptr, "Incorrectly typed mutable access is non-null");
+		AddErrorIfFalse(Result == (FParamStack::EGetParamResult::IncorrectType | FParamStack::EGetParamResult::Immutable), "Result != (FParamStack::EGetParamResult::IncorrectType | FParamStack::EGetParamResult::Immutable)");
+		AddErrorIfFalse(Stack.GetParamPtr<FLinearColor>("Param0", &Result) != nullptr, "Correctly typed access is null");
+		AddErrorIfFalse(Result == FParamStack::EGetParamResult::Succeeded, "Result != FParamStack::EGetParamResult::Succeeded");
+	}
+
+	// Check external layer interfaces
+	{
+		FParamStack Stack;
+
+		TUniquePtr<FParamStackLayer> Layer0 = FParamStack::MakeValueLayer("Param0", 1.0f);
+		TUniquePtr<FParamStackLayer> Layer1 = FParamStack::MakeValuesLayer("Param1", 2.0, "Param3", 5);
+		TUniquePtr<FParamStackLayer> Layer2 = FParamStack::MakeValueLayer(ParamIds[2], true);
+
+		Stack.PushLayer(*Layer0);
+		Stack.PushLayer(*Layer1);
+		Stack.PushLayer(*Layer2);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param0") == 1.0f, "Param0 != 1.0f");
+		AddErrorIfFalse(Stack.GetParam<double>("Param1") == 2.0, "Param1 != 2.0");
+		AddErrorIfFalse(Stack.GetParam<bool>("Param2") == true, "Param2 != true");
+		AddErrorIfFalse(Stack.GetParam<int32>("Param3") == 5, "Param3 != 5");
+	}
+
+	// Check basic push/pop of plain ol' values
+	{
+		FParamStack Stack;
+
+		Stack.PushValues("Param1", 1.0f);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param1") == 1.0f, "Param1 != 1.0f");
+
+		Stack.PushValues("Param0", 2.0f);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param0") == 2.0f, "Param0 != 2.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param1") == 1.0f, "Param1 != 1.0f");
+	
+		Stack.PushValues("Param3", 3.0f, "Param0", 3.0f);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param0") == 3.0f, "Param0 != 3.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param1") == 1.0f, "Param1 != 1.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param3") == 3.0f, "Param3 != 3.0f");
+
+		Stack.PushValues("Param1", 4.0f, "Param2", 4.0f);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param0") == 3.0f, "Param0 != 3.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param1") == 4.0f, "Param1 != 4.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param2") == 4.0f, "Param2 != 4.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param3") == 3.0f, "Param3 != 3.0f");
+
+		Stack.PopLayer();
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param0") == 3.0f, "Param0 != 3.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param1") == 1.0f, "Param1 != 1.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param3") == 3.0f, "Param3 != 3.0f");
+
+		Stack.PushValues("Param3", 4.0f, "Param0", 4.0f);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param0") == 4.0f, "Param0 != 4.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param1") == 1.0f, "Param1 != 1.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param3") == 4.0f, "Param3 != 4.0f");
+
+		Stack.PopLayer();
+		Stack.PopLayer();
+		Stack.PopLayer();
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param1") == 1.0f, "Param1 != 1.0f");
+
+		// Add some more parameters to check internal buffer resize logic
+		FParamId NewParamIds[] = { FParamId("Param4"), FParamId("Param5"), FParamId("Param6"), FParamId("Param7") };
+
+		Stack.PushValues("Param4", 1.0f, "Param5", 1.0f, "Param7", 1.0f);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param4") == 1.0f, "Param4 != 1.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param5") == 1.0f, "Param5 != 1.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param7") == 1.0f, "Param7 != 1.0f");
+
+		Stack.PushValues("Param6", 2.0f);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param4") == 1.0f, "Param4 != 1.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param5") == 1.0f, "Param5 != 1.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param6") == 2.0f, "Param6 != 2.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param7") == 1.0f, "Param7 != 1.0f");
+	}
+
+	// Check push/pop of referenced values
+	{
+		FParamStack Stack;
+		
+		float Value1 = 1.0f;
+		const float ConstValue2 = 1.0f;
+		Stack.PushValues("Param1", Value1, "Param2", ConstValue2);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param1") == 1.0f, "Param1 != 1.0f");
+		AddErrorIfFalse(Stack.IsMutableParam("Param1"), "Param1 is not mutable");
+		AddErrorIfFalse(Stack.IsReferenceParam("Param1"), "Param1 is not a reference");
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param2") == 1.0f, "Param2 != 1.0f");
+		AddErrorIfFalse(!Stack.IsMutableParam("Param2"), "Param2 is mutable");
+		AddErrorIfFalse(Stack.IsReferenceParam("Param2"), "Param2 is not a reference");
+
+		Value1 = 2.0f;
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param1") == 2.0f, "Param1 != 2.0f");
+		AddErrorIfFalse(Stack.GetParam<float>("Param2") == 1.0f, "Param2 != 1.0f");
+
+		Stack.PushValues("Param4", FVector(1.0f, 1.0f, 1.0f), "Param5", FQuat::MakeFromEuler(FVector(1.0f, 1.0f, 1.0f)));
+
+		const FVector Value4 = Stack.GetParam<FVector>("Param4");
+		AddErrorIfFalse(Value4 == FVector(1.0f, 1.0f, 1.0f), "Param4 != FVector(1.0f, 1.0f, 1.0f)");
+		AddErrorIfFalse(Stack.IsMutableParam("Param4"), "Param4 is not mutable");
+		AddErrorIfFalse(!Stack.IsReferenceParam("Param4"), "Param4 is a reference");
+
+		const FQuat Value5 = Stack.GetParam<FQuat>("Param5");
+		AddErrorIfFalse(Value5 == FQuat::MakeFromEuler(FVector(1.0f, 1.0f, 1.0f)), "Param5 != FQuat::MakeFromEuler(FVector(1.0f, 1.0f, 1.0f)");
+		AddErrorIfFalse(Stack.IsMutableParam("Param5"), "Param5 is not mutable");
+		AddErrorIfFalse(!Stack.IsReferenceParam("Param5"), "Param5 is a reference");
+
+		FTransform Value6 = FTransform::Identity;
+		Value6.SetScale3D(FVector(2.0f, 2.0f, 2.0f));
+		FTransform Value6Copy = Value6;
+		Stack.PushValues("Param6", Value6);
+
+		AddErrorIfFalse(Stack.GetParam<FTransform>("Param6").Equals(Value6Copy, 0.0f), "Param6 != FTransform::Identity");
+		AddErrorIfFalse(Stack.IsMutableParam("Param6"), "Param6 is not mutable");
+		AddErrorIfFalse(Stack.IsReferenceParam("Param6"), "Param6 is not a reference");
+	}
+
+	// Tests for instanced property bag
+	{
+		FInstancedPropertyBag PropertyBag;
+
+		FPropertyBagPropertyDesc PropertyDescs[] =
+		{
+			FPropertyBagPropertyDesc("Param0", EPropertyBagPropertyType::Float),
+			FPropertyBagPropertyDesc("Param1", EPropertyBagPropertyType::Bool),
+			FPropertyBagPropertyDesc("Param2", EPropertyBagPropertyType::Int32)
+		};
+		
+		PropertyBag.AddProperties(PropertyDescs);
+
+		PropertyBag.SetValueFloat("Param0", 1.5f);
+		PropertyBag.SetValueBool("Param1", true);
+		PropertyBag.SetValueInt32("Param2", 5);
+
+		TUniquePtr<FParamStackLayer> Layer = FParamStack::MakeLayer(PropertyBag);
+
+		FParamStack Stack;
+
+		Stack.PushLayer(*Layer);
+
+		AddErrorIfFalse(Stack.GetParam<float>("Param0") == 1.5f, "Param0 != 1.5f");
+		AddErrorIfFalse(Stack.GetParam<bool>("Param1") == true, "Param1 != true");
+		AddErrorIfFalse(Stack.GetParam<int32>("Param2") == 5, "Param2 != 5");
+	}
+
+	// Test to numeric limits
+	{
+		FParamStack Stack;
+
+		const uint32 NumParams = MAX_uint16;
+		for (uint32 Index = 0; Index < NumParams; ++Index)
+		{
+			Stack.PushValue(FName("Param", Index), (float)Index);
+		}
+
+		for (uint32 Index = 0; Index < NumParams; ++Index)
+		{
+			FName ParamName("Param", Index);
+			AddErrorIfFalse(Stack.GetParam<float>(ParamName) == (float)Index, FString::Printf(TEXT("%s != %.0f"), *ParamName.ToString(), (float)Index));
+		}
+
+		Stack.PushValue(FName("Param", MAX_uint16), (float)MAX_uint16);
+		AddErrorIfFalse(Stack.GetParamPtr<float>(FName("Param", MAX_uint16)) == nullptr, TEXT("Overflowed stack value is non-null"));
+
+		for (uint32 Index = 0; Index < NumParams; ++Index)
+		{
+			Stack.PopLayer();
+		}
+	}
+
+	FParamId::EndTestSandbox();
+
+	return true;
+}
+
 }
 
 #endif	// WITH_DEV_AUTOMATION_TESTS

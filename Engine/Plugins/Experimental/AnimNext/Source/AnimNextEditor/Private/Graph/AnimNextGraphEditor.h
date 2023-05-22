@@ -36,7 +36,7 @@ class FGraphEditor : public FWorkflowCentricApplication
 {
 public:
 	/** Edits the specified asset */
-	void InitEditor(const EToolkitMode::Type InMode, const TSharedPtr<IToolkitHost>& InInitToolkitHost, UAnimNextGraph* InAnimNextInterfaceGraph);
+	void InitEditor(const EToolkitMode::Type InMode, const TSharedPtr<IToolkitHost>& InInitToolkitHost, UAnimNextGraph* InAnimNextGraph);
 
 private:
 	friend class FGraphEditorMode;

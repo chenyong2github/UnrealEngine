@@ -128,7 +128,7 @@ void UAnimGraphNode_AnimNextGraph::CustomizeDetails(IDetailLayoutBuilder& Detail
 	// ***************************************************************
 
 
-	TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.AnimNextInterfaceGraph"), GetClass());
+	TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.AnimNextGraph"), GetClass());
 	if (ClassHandle->IsValidHandle())
 	{
 		ClassHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateUObject(this, &UAnimGraphNode_AnimNextGraph::OnInstanceClassChanged, &DetailBuilder));

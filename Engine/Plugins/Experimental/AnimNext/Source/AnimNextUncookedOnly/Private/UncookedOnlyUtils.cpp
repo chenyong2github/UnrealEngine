@@ -571,15 +571,15 @@ FRigVMTemplateArgumentType FUtils::GetRigVMArgTypeFromParamType(const FAnimNextP
 		break;
 	case EPropertyBagPropertyType::Enum:
 		CPPTypeString = RigVMTypeUtils::CPPTypeFromEnum(Cast<UEnum>(InParamType.ValueTypeObject.Get()));
-		ArgType.CPPTypeObject = InParamType.ValueTypeObject.Get();
+		ArgType.CPPTypeObject = const_cast<UObject*>(InParamType.ValueTypeObject.Get());
 		break;
 	case EPropertyBagPropertyType::Struct:
 		CPPTypeString = RigVMTypeUtils::GetUniqueStructTypeName(Cast<UScriptStruct>(InParamType.ValueTypeObject.Get()));
-		ArgType.CPPTypeObject = InParamType.ValueTypeObject.Get();
+		ArgType.CPPTypeObject = const_cast<UObject*>(InParamType.ValueTypeObject.Get());
 		break;
 	case EPropertyBagPropertyType::Object:
 		CPPTypeString = RigVMTypeUtils::CPPTypeFromObject(Cast<UClass>(InParamType.ValueTypeObject.Get()));
-		ArgType.CPPTypeObject = InParamType.ValueTypeObject.Get();
+		ArgType.CPPTypeObject = const_cast<UObject*>(InParamType.ValueTypeObject.Get());
 		break;
 	case EPropertyBagPropertyType::SoftObject:
 		ensureMsgf(false, TEXT("Unhandled value type %d"), InParamType.ValueType);

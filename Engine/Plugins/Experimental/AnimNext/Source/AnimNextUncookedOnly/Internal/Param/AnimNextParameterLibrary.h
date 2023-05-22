@@ -78,7 +78,7 @@ class UAnimNextParameterLibrary : public UObject
 	ANIMNEXTUNCOOKEDONLY_API UAnimNextParameter* AddParameter(FName InName, const FAnimNextParamType& InType, bool bSetupUndoRedo = true, bool bPrintPythonCommand = true);
 
 	UFUNCTION(BlueprintCallable, Category = "AnimNext|Parameter Library")
-	ANIMNEXTUNCOOKEDONLY_API UAnimNextParameter* AddParameter(FName InName, const EPropertyBagPropertyType& InValueType, const EPropertyBagContainerType& InContainerType, UObject* InValueTypeObject = nullptr, bool bSetupUndoRedo = true, bool bPrintPythonCommand = true);
+	ANIMNEXTUNCOOKEDONLY_API UAnimNextParameter* AddParameter(FName InName, const EPropertyBagPropertyType& InValueType, const EPropertyBagContainerType& InContainerType, const UObject* InValueTypeObject = nullptr, bool bSetupUndoRedo = true, bool bPrintPythonCommand = true);
 
 	UFUNCTION(BlueprintCallable, Category = "AnimNext|Parameter Library")
 	ANIMNEXTUNCOOKEDONLY_API bool RemoveParameter(FName InName, bool bSetupUndoRedo = true, bool bPrintPythonCommand = true);

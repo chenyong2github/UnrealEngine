@@ -4,22 +4,22 @@
 
 #include "RigVMCore/RigVMDispatchFactory.h"
 #include "Graph/GraphExecuteContext.h"
-#include "RigVMDispatch_SetParameter.generated.h"
+#include "RigVMDispatch_GetParameter.generated.h"
 
 namespace UE::AnimNext::UncookedOnly
 {
-struct FUtils;
+	struct FUtils;
 }
 
 /*
- * Sets a parameter's value
+ * Gets a parameter's value
  */
-USTRUCT(meta=(DisplayName = "Set Parameter", NodeColor = "0.8, 0, 0.2, 1"))
-struct ANIMNEXT_API FRigVMDispatch_SetParameter : public FRigVMDispatchFactory
+USTRUCT(meta = (DisplayName = "Get Parameter", NodeColor = "0.8, 0, 0.2, 1"))
+struct ANIMNEXT_API FRigVMDispatch_GetParameter : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
 
-	FRigVMDispatch_SetParameter();
+	FRigVMDispatch_GetParameter();
 
 private:
 	friend struct UE::AnimNext::UncookedOnly::FUtils;
@@ -30,13 +30,12 @@ private:
 #if WITH_EDITOR
 	virtual FString GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
 #endif
-	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl(const FRigVMDispatchContext& InContext) const override;
 	virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const override;
-	virtual bool IsSingleton() const override { return true; } 
+	virtual bool IsSingleton() const override { return true; }
 
 	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const override
 	{
-		return &FRigVMDispatch_SetParameter::Execute;
+		return &FRigVMDispatch_GetParameter::Execute;
 	}
 	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles, FRigVMPredicateBranchArray RigVMBranches);
 

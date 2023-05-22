@@ -3,17 +3,18 @@
 
 #include "AnimNextTest.h"
 #include "CoreMinimal.h"
-#include "Interface/AnimNextInterface.h"
-#include "Param/Param.h"
-#include "Interface/InterfaceContext.h"
-#include "Param/ParamStorage.h"
+#include "Context.h"
 #include "Misc/AutomationTest.h"
 #include "DataRegistry.h"
 #include "ReferencePose.h"
-
 #include <chrono>
 
-namespace 
+#if WITH_DEV_AUTOMATION_TESTS
+
+namespace UE::AnimNext::Tests
+{
+
+namespace Private
 {
 
 class FHighResTimer
@@ -36,352 +37,11 @@ public:
 	}
 };
 
-} // end namespace
-
-//----------------------------------------------------------------------------
-
-/*static*/ FName UAnimNextInterface_TestData_Multiply::NameParamA(TEXT("TestDataA"));
-/*static*/ FName UAnimNextInterface_TestData_Multiply::NameParamB(TEXT("TestDataB"));
-/*static*/ FName UAnimNextInterface_TestData_Multiply::NameParamResult(TEXT("NameParamAxB"));
-
-
-bool UAnimNextInterfaceTestDataLiteral::GetDataImpl(const UE::AnimNext::FContext& Context) const
-{
-	Context.SetResult(Value);
-
-	return true;
 }
 
-bool UAnimNextInterface_TestData_Multiply::GetDataImpl(const UE::AnimNext::FContext& Context) const
-{
-	using namespace UE::AnimNext;
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDataRegistryTransformsTest, "Animation.AnimNext.AnimationDataRegistry.TransformsTest", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
-	bool bResult = false;
-
-	const FAnimNextTestData& ParamA = Context.GetParameterChecked<const FAnimNextTestData>(NameParamA);
-	const FAnimNextTestData& ParamB = Context.GetParameterChecked<const FAnimNextTestData>(NameParamB);
-	FAnimNextTestData& Result = Context.GetResult<FAnimNextTestData>();
-
-	bResult = true;
-
-	Result.A = ParamA.A * ParamB.A;
-	Result.B = ParamA.B * ParamB.B;
-
-	return bResult;
-}
-
-//----------------------------------------------------------------------------
-
-/*static*/ FName UAnimNextInterface_TestData_Split::InputName_AB(TEXT("Input_AB"));
-/*static*/ FName UAnimNextInterface_TestData_Split::OutputName_A(TEXT("Output_A"));
-/*static*/ FName UAnimNextInterface_TestData_Split::OutputName_B(TEXT("Output_B"));
-
-bool UAnimNextInterface_TestData_Split::GetDataImpl(const UE::AnimNext::FContext& Context) const
-{
-	using namespace UE::AnimNext;
-
-	bool bResult = false;
-
-	const FAnimNextTestData& Input_AB = Context.GetParameterChecked<const FAnimNextTestData>(InputName_AB);
-	float& Output_A = Context.GetParameterChecked<float>(OutputName_A);
-	float& Output_B = Context.GetParameterChecked<float>(OutputName_B);
-
-	bResult = true;
-
-	Output_A = Input_AB.A;
-	Output_B = Input_AB.B;
-
-	return bResult;
-}
-
-
-//****************************************************************************
-// AnimNext Interface Test
-//****************************************************************************
-#if WITH_DEV_AUTOMATION_TESTS
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnimationAnimNextInterfaceTest_SingleElement, "Animation.AnimNext.Interface.Single", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FAnimationAnimNextInterfaceTest_SingleElement::RunTest(const FString& InParameters)
-{
-	using namespace UE::AnimNext;
-
-	UAnimNextInterface_TestData_Multiply* AnimNextInterface_TestData_Multiply = Cast<UAnimNextInterface_TestData_Multiply>(UAnimNextInterface_TestData_Multiply::StaticClass()->GetDefaultObject());
-	TScriptInterface<IAnimNextInterface> TestDataMultiply = AnimNextInterface_TestData_Multiply;
-
-	AddErrorIfFalse(TestDataMultiply.GetInterface() != nullptr, "UAnimNextInterface_TestData_Multiply -> Interface is Null.");
-
-	constexpr FAnimNextTestData TestDataA = { 1.f, 1.f };
-	constexpr FAnimNextTestData TestDataB = { 1.f, 2.f };
-	FAnimNextTestData TestDataResult = { 0.f, 0.f };
-
-	FState State;
-	FParamStorage ParamStorage(16, 256, 2);
-	FContext Context(0.f, State, ParamStorage);
-
-	const FContext TestContext = Context.WithParameters({
-		TPairInitializer(UAnimNextInterface_TestData_Multiply::NameParamA, TWrapParam<const FAnimNextTestData>(TestDataA)),
-		TPairInitializer(UAnimNextInterface_TestData_Multiply::NameParamB, TWrapParam<const FAnimNextTestData>(TestDataB))
-		});
-
-	Interface::GetDataSafe(TestDataMultiply, TestContext, TestDataResult);
-
-	// --- Check the results from the batched operation ---
-	AddErrorIfFalse(TestDataResult.A == TestDataA.A * TestDataB.A, FString::Printf(TEXT("TestDataResult.A is : [%.04f] Expected : [%.04f]"), TestDataResult.A, TestDataA.A * TestDataB.A));
-	AddErrorIfFalse(TestDataResult.B == TestDataA.B * TestDataB.B, FString::Printf(TEXT("TestDataResult.B is : [%.04f] Expected : [%.04f]"), TestDataResult.B, TestDataA.B * TestDataB.B));
-
-	// Final GC to make sure everything is cleaned up
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnimationAnimNextInterfaceTest_Chained, "Animation.AnimNext.Interface.Chained", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FAnimationAnimNextInterfaceTest_Chained::RunTest(const FString& InParameters)
-{
-	using namespace UE::AnimNext;
-
-	FState RootState;
-	FParamStorage ParamStorage(16, 2048, 8);
-	const FContext RootContext(0.f, RootState, ParamStorage);
-	
-	// Simulate we pass a const context and have to return data
-	TParamValue<FAnimNextTestData> RootContextResultParam;
-	const FContext InContext = RootContext.WithResult(RootContextResultParam);
-
-	FAnimNextTestData LiteralResult;
-	TParamValue<FAnimNextTestData> ParamLiteralResult;
-	//TContextStorageParam<FTestData> ParamLiteralResult;
-
-	// Retrieve the literal value
-	{
-		TScriptInterface<IAnimNextInterface> TestDataLiteral = Cast<UAnimNextInterfaceTestDataLiteral>(UAnimNextInterfaceTestDataLiteral::StaticClass()->GetDefaultObject());
-		AddErrorIfFalse(TestDataLiteral.GetInterface() != nullptr, "UAnimNextInterfaceTestDataLiteral -> Interface is Null.");
-
-		const FContext LiteralContext = InContext.WithResult(ParamLiteralResult);
-
-		Interface::GetDataSafe(TestDataLiteral, LiteralContext);
-
-		AddErrorIfFalse(ParamLiteralResult->A == 1, FString::Printf(TEXT("LiteralResult.A is : [%.04f] Expected : [%.04f]"), ParamLiteralResult->A, 1));
-		AddErrorIfFalse(ParamLiteralResult->B == 1, FString::Printf(TEXT("LiteralResult.B is : [%.04f] Expected : [%.04f]"), ParamLiteralResult->B, 1));
-	}
-
-	const FAnimNextTestData TestDataB = { 2.f, 2.f };
-
-	// now chain an operation using the literal result as a parameter
-	{
-		UAnimNextInterface_TestData_Multiply* AnimNextInterface_TestData_Multiply = Cast<UAnimNextInterface_TestData_Multiply>(UAnimNextInterface_TestData_Multiply::StaticClass()->GetDefaultObject());
-		TScriptInterface<IAnimNextInterface> TestDataMultiply = AnimNextInterface_TestData_Multiply;
-		AddErrorIfFalse(TestDataMultiply.GetInterface() != nullptr, "UAnimNextInterface_TestData_Multiply -> Interface is Null.");
-
-		const FContext ChainContext = InContext.WithResultAndParameters(InContext.GetResultParam(), {
-			TPairInitializer(UAnimNextInterface_TestData_Multiply::NameParamA, ParamLiteralResult),						// chain the result of the literal call as the input
-			TPairInitializer(UAnimNextInterface_TestData_Multiply::NameParamB, TWrapParam<const FAnimNextTestData>(TestDataB))	// set the second operand
-			});
-
-		Interface::GetDataSafe(TestDataMultiply, ChainContext);
-	}
-
-	// --- Check the results from the chained operation on the root component ---
-	AddErrorIfFalse(RootContextResultParam->A == ParamLiteralResult->A * TestDataB.A, FString::Printf(TEXT("TestDataResult.A is : [%.04f] Expected : [%.04f]"), RootContextResultParam->A, ParamLiteralResult->A * TestDataB.A));
-	AddErrorIfFalse(RootContextResultParam->B == ParamLiteralResult->B * TestDataB.B, FString::Printf(TEXT("TestDataResult.B is : [%.04f] Expected : [%.04f]"), RootContextResultParam->B, ParamLiteralResult->B * TestDataB.B));
-
-	// now chain an operation using the literal result as a parameter but copying the input parameters on the Context Parameter storage
-	{
-		UAnimNextInterface_TestData_Multiply* AnimNextInterface_TestData_Multiply = Cast<UAnimNextInterface_TestData_Multiply>(UAnimNextInterface_TestData_Multiply::StaticClass()->GetDefaultObject());
-		TScriptInterface<IAnimNextInterface> TestDataMultiply = AnimNextInterface_TestData_Multiply;
-		AddErrorIfFalse(TestDataMultiply.GetInterface() != nullptr, "UAnimNextInterface_TestData_Multiply -> Interface is Null.");
-
-		const FContext ChainContext = InContext.WithResultAndParameters(InContext.GetResultParam(), {
-			TPairInitializer(UAnimNextInterface_TestData_Multiply::NameParamA, TContextStorageParam<const FAnimNextTestData>(ParamLiteralResult)),	// chain the result of the literal call as the input
-			TPairInitializer(UAnimNextInterface_TestData_Multiply::NameParamB, TContextStorageParam<const FAnimNextTestData>(TestDataB))			// set the second operand
-			});
-
-		Interface::GetDataSafe(TestDataMultiply, ChainContext);
-	}
-
-	// --- Check the results from the chained operation on the root component ---
-	AddErrorIfFalse(RootContextResultParam->A == ParamLiteralResult->A * TestDataB.A, FString::Printf(TEXT("TestDataResult.A is : [%.04f] Expected : [%.04f]"), RootContextResultParam->A, ParamLiteralResult->A * TestDataB.A));
-	AddErrorIfFalse(RootContextResultParam->B == ParamLiteralResult->B * TestDataB.B, FString::Printf(TEXT("TestDataResult.B is : [%.04f] Expected : [%.04f]"), RootContextResultParam->B, ParamLiteralResult->B * TestDataB.B));
-
-	// Final GC to make sure everything is cleaned up
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnimationAnimNextInterfaceTest_AltParamStorage, "Animation.AnimNext.Interface.AltParamStorage", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FAnimationAnimNextInterfaceTest_AltParamStorage::RunTest(const FString& InParameters)
-{
-	using namespace UE::AnimNext;
-
-	FState RootState;
-	FParamStorage ParamStorage(16, 2048, 8);
-	const FContext RootContext(0.f, RootState, ParamStorage);
-
-	UAnimNextInterface_TestData_Multiply* AnimNextInterface_TestData_Multiply = Cast<UAnimNextInterface_TestData_Multiply>(UAnimNextInterface_TestData_Multiply::StaticClass()->GetDefaultObject());
-	TScriptInterface<IAnimNextInterface> TestDataMultiply = AnimNextInterface_TestData_Multiply;
-
-	AddErrorIfFalse(TestDataMultiply.GetInterface() != nullptr, "UAnimNextInterface_TestData_Multiply -> Interface is Null.");
-
-	constexpr FAnimNextTestData TestDataA = { 1.f, 1.f };
-	constexpr FAnimNextTestData TestDataB = { 1.f, 2.f };
-	FAnimNextTestData TestDataResult = { 0.f, 0.f };
-
-	FContext TestContext = RootContext.CreateSubContext();
-
-	TestContext.AddValue(FContext::EParamType::Input, UAnimNextInterface_TestData_Multiply::NameParamA, TestDataA);
-	TestContext.AddValue(FContext::EParamType::Input, UAnimNextInterface_TestData_Multiply::NameParamB, TestDataB);
-	FParamHandle HOutput = TestContext.AddReference(FContext::EParamType::Output, UAnimNextInterface_TestData_Multiply::NameParamResult, TestDataResult);
-
-	// for compatibility reasons, as the current code expects to have a return value set
-	TestContext.SetHParamAsResult(HOutput);  
-
-	const bool bOk = TestDataMultiply->GetData(TestContext);
-
-	AddErrorIfFalse(bOk, "TestDataMultiply -> GetData returned FAILURE.");
-
-	// --- Check the results from the operation ---
-	AddErrorIfFalse(TestDataResult.A == TestDataA.A * TestDataB.A, FString::Printf(TEXT("TestDataResult.A is : [%.04f] Expected : [%.04f]"), TestDataResult.A, TestDataA.A * TestDataB.A));
-	AddErrorIfFalse(TestDataResult.B == TestDataA.B * TestDataB.B, FString::Printf(TEXT("TestDataResult.B is : [%.04f] Expected : [%.04f]"), TestDataResult.B, TestDataA.B * TestDataB.B));
-
-	// Final GC to make sure everything is cleaned up
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-	return true;
-}
-
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnimationAnimNextInterfaceTest_AltParamStorageMultipleOutputs, "Animation.AnimNext.Interface.AltParamStorageMultipleOutputs", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FAnimationAnimNextInterfaceTest_AltParamStorageMultipleOutputs::RunTest(const FString& InParameters)
-{
-	using namespace UE::AnimNext;
-
-	FState RootState;
-	FParamStorage ParamStorage(16, 2048, 8);
-	const FContext RootContext(0.f, RootState, ParamStorage);
-
-	TScriptInterface<IAnimNextInterface> TestDataSplit(Cast<UAnimNextInterface_TestData_Split>(UAnimNextInterface_TestData_Split::StaticClass()->GetDefaultObject()));
-
-	AddErrorIfFalse(TestDataSplit.GetInterface() != nullptr, "UAnimNextInterface_TestData_Split -> Interface is Null.");
-
-	constexpr FAnimNextTestData Input_AB = { 1.f, 2.f };
-	float Output_A = 0.f;
-	float Output_B = 0.f;
-
-	FContext TestContext = RootContext.CreateSubContext();
-
-	// Adding an input as a value (will be copied and the copy will become mutable)
-	FParamHandle RetValCompatiblility = TestContext.AddValue(FContext::EParamType::Input, UAnimNextInterface_TestData_Split::InputName_AB, Input_AB);
-	// Adding first output as a reference
-	TestContext.AddReference(FContext::EParamType::Output, UAnimNextInterface_TestData_Split::OutputName_A, Output_A);
-	// Adding second output as a reference
-	TestContext.AddReference(FContext::EParamType::Output, UAnimNextInterface_TestData_Split::OutputName_B, Output_B);
-
-	// Not used, but added for compatibility reasons, as the current code expects to have a return value set of the interface type
-	TestContext.SetHParamAsResult(RetValCompatiblility);
-
-	const bool bOk = TestDataSplit->GetData(TestContext);
-
-	AddErrorIfFalse(bOk, "TestDataSplit -> GetData returned FAILURE.");
-
-	// --- Check the results from the operation ---
-	AddErrorIfFalse(Output_A == Input_AB.A, FString::Printf(TEXT("Output_A is : [%.04f] Expected : [%.04f]"), Output_A, Input_AB.A));
-	AddErrorIfFalse(Output_B == Input_AB.B, FString::Printf(TEXT("Output_B is : [%.04f] Expected : [%.04f]"), Output_B, Input_AB.B));
-
-	// Final GC to make sure everything is cleaned up
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnimationAnimNextInterfaceTest_AltParamStorageChained, "Animation.AnimNext.Interface.AltParamStorageChained", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FAnimationAnimNextInterfaceTest_AltParamStorageChained::RunTest(const FString& InParameters)
-{
-	using namespace UE::AnimNext;
-
-	FState RootState;
-	FParamStorage ParamStorage(16, 2048, 8);
-	const FContext RootContext(0.f, RootState, ParamStorage);
-
-	UAnimNextInterface_TestData_Multiply* AnimNextInterface_TestData_Multiply = Cast<UAnimNextInterface_TestData_Multiply>(UAnimNextInterface_TestData_Multiply::StaticClass()->GetDefaultObject());
-	TScriptInterface<IAnimNextInterface> TestDataMultiply = AnimNextInterface_TestData_Multiply;
-
-	AddErrorIfFalse(TestDataMultiply.GetInterface() != nullptr, "UAnimNextInterface_TestData_Multiply -> Interface is Null.");
-
-	// --- Initial Test : Multiply two TestData and store the value at Result ---
-
-	FParamHandle TestOutput_AxB_Param;
-
-	{
-		constexpr FAnimNextTestData TestDataA = { 1.f, 1.f };
-		constexpr FAnimNextTestData TestDataB = { 1.f, 2.f };
-
-		FContext TestContext = RootContext.CreateSubContext();
-
-		// Adding a const value. Note that adding a value will convert const into mutable, as the copy will not be const anymore
-		TestContext.AddValue(FContext::EParamType::Input, UAnimNextInterface_TestData_Multiply::NameParamA, TestDataA);
-		// Adding a reference to const. This param will keep the const
-		TestContext.AddReference(FContext::EParamType::Input, UAnimNextInterface_TestData_Multiply::NameParamB, TestDataB);
-		// Adding a value using a temp taht will be copied into the value
-		TestOutput_AxB_Param = TestContext.AddValue(FContext::EParamType::Output, UAnimNextInterface_TestData_Multiply::NameParamResult, FAnimNextTestData{ 0.f, 0.f });
-
-		// for compatibility reasons, as the current code expects to have a return value set
-		TestContext.SetHParamAsResult(TestOutput_AxB_Param);  
-
-		const bool bOk = TestDataMultiply->GetData(TestContext);
-
-		AddErrorIfFalse(bOk, "TestDataMultiply -> GetData returned FAILURE.");
-
-		// --- Check the results from the operation ---
-		const FAnimNextTestData& TestDataResult = TestContext.GetParameterAs<const FAnimNextTestData>(TestOutput_AxB_Param);
-		AddErrorIfFalse(TestDataResult.A == TestDataA.A * TestDataB.A, FString::Printf(TEXT("TestDataResult.A is : [%.04f] Expected : [%.04f]"), TestDataResult.A, TestDataA.A * TestDataB.A));
-		AddErrorIfFalse(TestDataResult.B == TestDataA.B * TestDataB.B, FString::Printf(TEXT("TestDataResult.B is : [%.04f] Expected : [%.04f]"), TestDataResult.B, TestDataA.B * TestDataB.B));
-	}
-
-	// --- Chained Test : Use the previous call Result as an input ---
-
-	{
-		FContext TestContext = RootContext.CreateSubContext();
-
-		constexpr FAnimNextTestData TestDataC = { 2.f, 2.f };
-
-		// Add the result of the previous call as an input for this operation
-		TestContext.AddValue(FContext::EParamType::Input, UAnimNextInterface_TestData_Multiply::NameParamA, TestOutput_AxB_Param);
-		// Add a reference to const data
-		TestContext.AddReference(FContext::EParamType::Input, UAnimNextInterface_TestData_Multiply::NameParamB, TestDataC);
-		// Add a value
-		const FParamHandle ChainedResultParam = TestContext.AddValue(FContext::EParamType::Output, UAnimNextInterface_TestData_Multiply::NameParamResult, FAnimNextTestData{ 0.f, 0.f });
-
-		// for compatibility reasons, as the current code expects to have a return value set
-		TestContext.SetHParamAsResult(ChainedResultParam);
-
-		const bool bOk = TestDataMultiply->GetData(TestContext);
-
-		AddErrorIfFalse(bOk, "TestDataMultiply -> GetData returned FAILURE.");
-
-		// --- Check the results from the operation ---
-		const FAnimNextTestData& TestOutput_AxB = TestContext.GetParameterAs<const FAnimNextTestData>(TestOutput_AxB_Param);
-		const FAnimNextTestData& ChainedResult = TestContext.GetParameterAs<const FAnimNextTestData>(ChainedResultParam);
-		
-		AddErrorIfFalse(ChainedResult.A == TestOutput_AxB.A * TestDataC.A, FString::Printf(TEXT("Chained TestDataResult.A is : [%.04f] Expected : [%.04f]"), ChainedResult.A, TestOutput_AxB.A * TestDataC.A));
-		AddErrorIfFalse(ChainedResult.B == TestOutput_AxB.B * TestDataC.B, FString::Printf(TEXT("Chained TestDataResult.B is : [%.04f] Expected : [%.04f]"), ChainedResult.B, TestOutput_AxB.B * TestDataC.B));
-	}
-
-
-	// Final GC to make sure everything is cleaned up
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnimationAnimNextInterfaceTest_AnimationDataRegistry, "Animation.AnimNext.AnimationDataRegistry.TransformsTest", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FAnimationAnimNextInterfaceTest_AnimationDataRegistry::RunTest(const FString& InParameters)
+bool FDataRegistryTransformsTest::RunTest(const FString& InParameters)
 {
 	using namespace UE::AnimNext;
 
@@ -433,11 +93,11 @@ bool FAnimationAnimNextInterfaceTest_AnimationDataRegistry::RunTest(const FStrin
 				Transform.SetScale3D(Half);
 			}
 
-			FHighResTimer::FTimePoint StartTime = FHighResTimer::GetTimeMark();
+			Private::FHighResTimer::FTimePoint StartTime = Private::FHighResTimer::GetTimeMark();
 
 			ResultAoS.Blend(TransformsA, TransformsB, BlendFactor);
 
-			TimeDiffAoS[i] = FHighResTimer::GetTimeDiffNanoSec(StartTime);
+			TimeDiffAoS[i] = Private::FHighResTimer::GetTimeDiffNanoSec(StartTime);
 		}
 	}
 	for (auto& Transform : ResultAoS.Transforms)
@@ -471,11 +131,11 @@ bool FAnimationAnimNextInterfaceTest_AnimationDataRegistry::RunTest(const FStrin
 				Scale3D = Half;
 			}
 
-			FHighResTimer::FTimePoint StartTime = FHighResTimer::GetTimeMark();
+			Private::FHighResTimer::FTimePoint StartTime = Private::FHighResTimer::GetTimeMark();
 
 			ResultSoA.Blend(TransformsA, TransformsB, BlendFactor);
 
-			TimeDiffSoA[i] = FHighResTimer::GetTimeDiffNanoSec(StartTime);
+			TimeDiffSoA[i] = Private::FHighResTimer::GetTimeDiffNanoSec(StartTime);
 		}
 	}
 	for (const auto& Translation : ResultSoA.Translations)
@@ -519,6 +179,8 @@ bool FAnimationAnimNextInterfaceTest_AnimationDataRegistry::RunTest(const FStrin
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
 	return true;
+}
+
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

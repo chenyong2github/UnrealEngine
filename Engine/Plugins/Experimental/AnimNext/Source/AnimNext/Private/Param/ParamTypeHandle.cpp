@@ -4,6 +4,7 @@
 #include "Param/ParamType.h"
 #include "Misc/ScopeRWLock.h"
 #include "UObject/Class.h"
+#include "UObject/TextProperty.h"
 
 namespace UE::AnimNext
 {
@@ -25,7 +26,7 @@ void FParamTypeHandle::ResetCustomTypes()
 	GTypeToIndexMap.Empty();
 }
 
-uint32 FParamTypeHandle::GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType InValueType, FAnimNextParamType::EContainerType InContainerType, UObject* InValueTypeObject)
+uint32 FParamTypeHandle::GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType InValueType, FAnimNextParamType::EContainerType InContainerType, const UObject* InValueTypeObject)
 {
 	FAnimNextParamType ParameterType;
 	ParameterType.ValueTypeObject = InValueTypeObject;
@@ -59,6 +60,338 @@ bool FParamTypeHandle::ValidateCustomTypeIndex(uint32 InCustomTypeIndex)
 {
 	FRWScopeLock ScopeLock(TypesLock, SLT_ReadOnly);
 	return GCustomTypes.IsValidIndex(InCustomTypeIndex - 1);
+}
+
+FParamTypeHandle FParamTypeHandle::FromPropertyBagPropertyDesc(const FPropertyBagPropertyDesc& Desc)
+{
+	FParamTypeHandle Handle;
+	
+	if (Desc.ContainerTypes.Num() <= 1)
+	{
+		switch(Desc.ContainerTypes.GetFirstContainerType())
+		{
+		case EPropertyBagContainerType::None:
+			switch(Desc.ValueType)
+			{
+			default:
+			case EPropertyBagPropertyType::None:
+				Handle.SetParameterType(EParamType::None);
+				break;
+			case EPropertyBagPropertyType::Bool:
+				Handle.SetParameterType(EParamType::Bool);
+				break;
+			case EPropertyBagPropertyType::Byte:
+				Handle.SetParameterType(EParamType::Byte);
+				break;
+			case EPropertyBagPropertyType::Int32:
+				Handle.SetParameterType(EParamType::Int32);
+				break;
+			case EPropertyBagPropertyType::Int64:
+				Handle.SetParameterType(EParamType::Int64);
+				break;
+			case EPropertyBagPropertyType::Float:
+				Handle.SetParameterType(EParamType::Float);
+				break;
+			case EPropertyBagPropertyType::Double:
+				Handle.SetParameterType(EParamType::Double);
+				break;
+			case EPropertyBagPropertyType::Name:
+				Handle.SetParameterType(EParamType::Name);
+				break;
+			case EPropertyBagPropertyType::String:
+				Handle.SetParameterType(EParamType::String);
+				break;
+			case EPropertyBagPropertyType::Text:
+				Handle.SetParameterType(EParamType::Text);
+				break;
+			case EPropertyBagPropertyType::Struct:
+				if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Desc.ValueTypeObject.Get()))
+				{
+					if(ScriptStruct == TBaseStructure<FVector>::Get())
+					{
+						Handle.SetParameterType(EParamType::Vector);
+					}
+					else if(ScriptStruct == TBaseStructure<FVector4>::Get())
+					{
+						Handle.SetParameterType(EParamType::Vector4);
+					}
+					else if(ScriptStruct == TBaseStructure<FQuat>::Get())
+					{
+						Handle.SetParameterType(EParamType::Quat);
+					}
+					else if(ScriptStruct == TBaseStructure<FTransform>::Get())
+					{
+						Handle.SetParameterType(EParamType::Transform);
+					}
+					else
+					{
+						Handle.SetParameterType(EParamType::Custom);
+						Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(Desc.ValueType, Desc.ContainerTypes[0], ScriptStruct));
+					}
+				}
+				else
+				{
+					Handle.SetParameterType(EParamType::None);
+				}
+				break;
+			case EPropertyBagPropertyType::Enum:
+				if(const UEnum* Enum = Cast<UEnum>(Desc.ValueTypeObject.Get()))
+				{
+					Handle.SetParameterType(EParamType::Custom);
+					Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(Desc.ValueType, Desc.ContainerTypes[0], Enum));
+				}
+				else
+				{
+					Handle.SetParameterType(EParamType::None);
+				}
+				break;
+			case EPropertyBagPropertyType::Object:
+			case EPropertyBagPropertyType::SoftObject:
+			case EPropertyBagPropertyType::Class:
+			case EPropertyBagPropertyType::SoftClass:
+				if(const UClass* Class = Cast<UClass>(Desc.ValueTypeObject.Get()))
+				{
+					Handle.SetParameterType(EParamType::Custom);
+					Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(Desc.ValueType, Desc.ContainerTypes[0], Class));
+				}
+				else
+				{
+					Handle.SetParameterType(EParamType::None);
+				}
+				break;
+			}
+			break;
+		case EPropertyBagContainerType::Array:
+			switch(Desc.ValueType)
+			{
+			default:
+			case EPropertyBagPropertyType::None:
+				Handle.SetParameterType(EParamType::None);
+				break;
+			case EPropertyBagPropertyType::Bool:
+			case EPropertyBagPropertyType::Byte:
+			case EPropertyBagPropertyType::Int32:
+			case EPropertyBagPropertyType::Int64:
+			case EPropertyBagPropertyType::Float:
+			case EPropertyBagPropertyType::Double:
+			case EPropertyBagPropertyType::Name:
+			case EPropertyBagPropertyType::String:
+			case EPropertyBagPropertyType::Text:
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(Desc.ValueType, Desc.ContainerTypes[0], nullptr));
+				break;
+			case EPropertyBagPropertyType::Struct:
+				if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Desc.ValueTypeObject.Get()))
+				{
+					Handle.SetParameterType(EParamType::Custom);
+					Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(Desc.ValueType, Desc.ContainerTypes[0], ScriptStruct));
+				}
+				else
+				{
+					Handle.SetParameterType(EParamType::None);
+				}
+				break;
+			case EPropertyBagPropertyType::Enum:
+				if(const UEnum* Enum = Cast<UEnum>(Desc.ValueTypeObject.Get()))
+				{
+					Handle.SetParameterType(EParamType::Custom);
+					Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(Desc.ValueType, Desc.ContainerTypes[0], Enum));
+				}
+				else
+				{
+					Handle.SetParameterType(EParamType::None);
+				}
+				break;
+			case EPropertyBagPropertyType::Object:
+			case EPropertyBagPropertyType::SoftObject:
+			case EPropertyBagPropertyType::Class:
+			case EPropertyBagPropertyType::SoftClass:
+				if(const UClass* Class = Cast<UClass>(Desc.ValueTypeObject.Get()))
+				{
+					Handle.SetParameterType(EParamType::Custom);
+					Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(Desc.ValueType, Desc.ContainerTypes[0], Class));
+				}
+				else
+				{
+					Handle.SetParameterType(EParamType::None);
+				}
+				break;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	return Handle;
+}
+
+FParamTypeHandle FParamTypeHandle::FromProperty(const FProperty* InProperty)
+{
+	FParamTypeHandle Handle;
+
+	if (InProperty->IsA<FBoolProperty>())
+	{
+		Handle.SetParameterType(EParamType::Bool);
+	}
+	else if (InProperty->IsA<FByteProperty>())
+	{
+		Handle.SetParameterType(EParamType::Byte);
+	}
+	else if (InProperty->IsA<FIntProperty>())
+	{
+		Handle.SetParameterType(EParamType::Int32);
+	}
+	else if (InProperty->IsA<FInt64Property>())
+	{
+		Handle.SetParameterType(EParamType::Int64);
+	}
+	else if (InProperty->IsA<FFloatProperty>())
+	{
+		Handle.SetParameterType(EParamType::Float);
+	}
+	else if (InProperty->IsA<FDoubleProperty>())
+	{
+		Handle.SetParameterType(EParamType::Double);
+	}
+	else if (InProperty->IsA<FNameProperty>())
+	{
+		Handle.SetParameterType(EParamType::Name);
+	}
+	else if (InProperty->IsA<FStrProperty>())
+	{
+		Handle.SetParameterType(EParamType::String);
+	}
+	else if (InProperty->IsA<FTextProperty>())
+	{
+		Handle.SetParameterType(EParamType::Text);
+	}
+	else if (InProperty->IsA<FStructProperty>())
+	{
+		UScriptStruct* ScriptStruct = CastField<FStructProperty>(InProperty)->Struct;
+		if (ScriptStruct == TBaseStructure<FVector>::Get())
+		{
+			Handle.SetParameterType(EParamType::Vector);
+		}
+		else if (ScriptStruct == TBaseStructure<FVector4>::Get())
+		{
+			Handle.SetParameterType(EParamType::Vector4);
+		}
+		else if (ScriptStruct == TBaseStructure<FQuat>::Get())
+		{
+			Handle.SetParameterType(EParamType::Quat);
+		}
+		else if (ScriptStruct == TBaseStructure<FTransform>::Get())
+		{
+			Handle.SetParameterType(EParamType::Transform);
+		}
+	}
+
+	// Not found - custom type
+	if (!Handle.IsValid())
+	{
+		if (InProperty->IsA<FStructProperty>())
+		{
+			UScriptStruct* ScriptStruct = CastField<FStructProperty>(InProperty)->Struct;
+			Handle.SetParameterType(EParamType::Custom);
+			Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Struct, FAnimNextParamType::EContainerType::None, ScriptStruct));
+		}
+		else if (InProperty->IsA<FObjectPropertyBase>())
+		{
+			UClass* Class = CastField<FObjectPropertyBase>(InProperty)->PropertyClass;
+			if (InProperty->IsA<FObjectProperty>() || InProperty->IsA<FObjectPtrProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Object, FAnimNextParamType::EContainerType::None, Class));
+			}
+			else if (InProperty->IsA<FSoftObjectProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::SoftObject, FAnimNextParamType::EContainerType::None, Class));
+			}
+			else if (InProperty->IsA<FSoftClassProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::SoftClass, FAnimNextParamType::EContainerType::None, Class));
+			}
+		}
+		else if(InProperty->IsA<FArrayProperty>())
+		{
+			FProperty* InnerProperty = CastField<FArrayProperty>(InProperty)->Inner;
+			if (InnerProperty->IsA<FBoolProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Bool, FAnimNextParamType::EContainerType::Array, nullptr));
+			}
+			else if (InnerProperty->IsA<FByteProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Byte, FAnimNextParamType::EContainerType::Array, nullptr));
+			}
+			else if (InnerProperty->IsA<FIntProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Int32, FAnimNextParamType::EContainerType::Array, nullptr));
+			}
+			else if (InnerProperty->IsA<FInt64Property>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Int64, FAnimNextParamType::EContainerType::Array, nullptr));
+			}
+			else if (InnerProperty->IsA<FFloatProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Float, FAnimNextParamType::EContainerType::Array, nullptr));
+			}
+			else if (InnerProperty->IsA<FDoubleProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Double, FAnimNextParamType::EContainerType::Array, nullptr));
+			}
+			else if (InnerProperty->IsA<FNameProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Name, FAnimNextParamType::EContainerType::Array, nullptr));
+			}
+			else if (InnerProperty->IsA<FStrProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::String, FAnimNextParamType::EContainerType::Array, nullptr));
+			}
+			else if (InnerProperty->IsA<FTextProperty>())
+			{
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Text, FAnimNextParamType::EContainerType::Array, nullptr));
+			}
+			else if (InnerProperty->IsA<FStructProperty>())
+			{
+				UScriptStruct* ScriptStruct = CastField<FStructProperty>(InnerProperty)->Struct;
+				Handle.SetParameterType(EParamType::Custom);
+				Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Struct, FAnimNextParamType::EContainerType::Array, ScriptStruct));
+			}
+			else if (InnerProperty->IsA<FObjectPropertyBase>())
+			{
+				UClass* Class = CastField<FObjectPropertyBase>(InnerProperty)->PropertyClass;
+				if (InnerProperty->IsA<FObjectProperty>() || InnerProperty->IsA<FObjectPtrProperty>())
+				{
+					Handle.SetParameterType(EParamType::Custom);
+					Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::Object, FAnimNextParamType::EContainerType::Array, Class));
+				}
+				else if (InnerProperty->IsA<FSoftObjectProperty>())
+				{
+					Handle.SetParameterType(EParamType::Custom);
+					Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::SoftObject, FAnimNextParamType::EContainerType::Array, Class));
+				}
+				else if (InnerProperty->IsA<FSoftClassProperty>())
+				{
+					Handle.SetParameterType(EParamType::Custom);
+					Handle.SetCustomTypeIndex(GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType::SoftClass, FAnimNextParamType::EContainerType::Array, Class));
+				}
+			}
+		}
+	}
+
+	return Handle;
 }
 
 FAnimNextParamType FParamTypeHandle::GetType() const
@@ -136,6 +469,7 @@ FAnimNextParamType FParamTypeHandle::GetType() const
 
 	return ParameterType;
 }
+
 
 size_t FParamTypeHandle::GetSize() const
 {

@@ -33,7 +33,7 @@ UAnimNextParameter* UAnimNextParameterLibrary::AddParameter(FName InName, const 
 	return AddParameter(InName, InType.GetValueType(), InType.GetContainerType(), InType.GetValueTypeObject(), bSetupUndoRedo, bPrintPythonCommand);
 }
 
-UAnimNextParameter* UAnimNextParameterLibrary::AddParameter(FName InName, const EPropertyBagPropertyType& InValueType, const EPropertyBagContainerType& InContainerType, UObject* InValueTypeObject, bool bSetupUndoRedo, bool bPrintPythonCommand)
+UAnimNextParameter* UAnimNextParameterLibrary::AddParameter(FName InName, const EPropertyBagPropertyType& InValueType, const EPropertyBagContainerType& InContainerType, const UObject* InValueTypeObject, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if(InName == NAME_None)
 	{

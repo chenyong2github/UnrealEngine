@@ -24,7 +24,7 @@ struct ANIMNEXTUNCOOKEDONLY_API FUtils
 {
 	static void Compile(UAnimNextGraph* InGraph);
 	
-	static UAnimNextGraph_EditorData* GetEditorData(const UAnimNextGraph* InAnimNextInterfaceGraph);
+	static UAnimNextGraph_EditorData* GetEditorData(const UAnimNextGraph* InAnimNextGraph);
 	
 	static void RecreateVM(UAnimNextGraph* InGraph);
 

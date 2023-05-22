@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "DataRegistryTypes.h"
 #include "UObject/WeakObjectPtr.h"
-#include "Param/Param.h"
 
 class USkeletalMeshComponent;
 struct FReferenceSkeleton;

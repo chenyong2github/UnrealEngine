@@ -68,12 +68,12 @@ public:
 	FAnimNextParamType() = default;
 
 	/** Construct a parameter type from the passed in value, container and object type. */
-	FAnimNextParamType(EValueType InValueType, EContainerType InContainerType = EContainerType::None, UObject* InValueTypeObject = nullptr);
+	FAnimNextParamType(EValueType InValueType, EContainerType InContainerType = EContainerType::None, const UObject* InValueTypeObject = nullptr);
 
 private:
 	/** Pointer to object that defines the Enum, Struct, or Class. */
 	UPROPERTY()
-	TObjectPtr<UObject> ValueTypeObject = nullptr;
+	TObjectPtr<const UObject> ValueTypeObject = nullptr;
 
 	/** Type of the value described by this parameter. */
 	UPROPERTY()
@@ -215,7 +215,7 @@ public:
 	UE::AnimNext::FParamTypeHandle GetHandle() const;
 
 	/** Get the pointer to the object that defines the Enum, Struct, or Class. */
-	UObject* GetValueTypeObject() const
+	const UObject* GetValueTypeObject() const
 	{
 		return ValueTypeObject;
 	}

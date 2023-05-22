@@ -4,10 +4,11 @@
 
 #include "Animation/AnimNode_CustomProperty.h"
 #include "Graph/AnimNextGraph.h"
-#include "Interface/InterfaceContext.h"
+#include "Context.h"
 #include "AnimNode_AnimNextGraph.generated.h"
 
 class UNodeMappingContainer;
+struct FAnimSequencePlayerState;
 
 /**
  * Animation node that allows a AnimNextGraph output to be used in an animation graph
@@ -48,6 +49,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses = "/Script/Engine.AnimMontage"))
 	TObjectPtr<UAnimSequence> TestSequence = nullptr;
 
+	FAnimSequencePlayerState* SequencePlayerState;	// TEST - until we can allocate per-node state again
+
 	/*
 	 * Max LOD that this node is allowed to run
 	 * For example if you have LODThreshold to be 2, it will run until LOD 2 (based on 0 index)
@@ -56,9 +59,6 @@ private:
 	 */
 	UPROPERTY(EditAnywhere, Category = Performance, meta = (DisplayName = "LOD Threshold"))
 	int32 LODThreshold;
-
-	// This should come from the FPoseContext, but as I need persistence, I store the state here
-	UE::AnimNext::FState RootState; // TODO : Get rid of num elements ? Let the param itself have it
 
 	// Delta time received accumulated in update and used at Evaluate (so we can receive multiple calls to Evaluate)
 	float GraphDeltaTime = 0.f;

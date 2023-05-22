@@ -6,7 +6,10 @@
 #include "Concepts/BaseStructureProvider.h"
 #include "Param/ParamType.h"
 
-class FAnimationAnimNextParametersTest_Types;
+namespace UE::AnimNext::Tests
+{
+	class FParamTypesTest;
+}
 
 namespace UE::AnimNext
 {
@@ -49,7 +52,7 @@ struct ANIMNEXT_API FParamTypeHandle
 
 	friend struct ::FAnimNextParamType;
 	friend struct FParamHelpers;
-	friend class ::FAnimationAnimNextParametersTest_Types;
+	friend class UE::AnimNext::Tests::FParamTypesTest;
 
 private:
 	union
@@ -85,7 +88,7 @@ private:
 	/** Get the custom type index */
 	void SetCustomTypeIndex(uint32 InIndex)
 	{
-		checkf(InIndex < (1 << 24), TEXT("FTypeHandle::SetCustomTypeIndex: Type Index ouf of range"));
+		checkf(InIndex < (1 << 24), TEXT("FTypeHandle::SetCustomTypeIndex: Type Index out of range"));
 		Fields.CustomTypeIndex = InIndex;
 	}
 
@@ -93,7 +96,7 @@ private:
 	static void ResetCustomTypes();
 
 	/** Get a custom type index for the passed-in type information */
-	static uint32 GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType InValueType, FAnimNextParamType::EContainerType InContainerType, UObject* InValueTypeObject);
+	static uint32 GetOrAllocateCustomTypeIndex(FAnimNextParamType::EValueType InValueType, FAnimNextParamType::EContainerType InContainerType, const UObject* InValueTypeObject);
 
 	/** Validate the passed-in custom type index */
 	static bool ValidateCustomTypeIndex(uint32 InCustomTypeIndex);
@@ -300,6 +303,26 @@ public:
 		//check(TypeHandle.IsValid());
 
 		return TypeHandle;
+	}
+
+	/** Make a parameter handle from a raw uint32 */
+	static FParamTypeHandle FromRaw(uint32 InRawHandle)
+	{
+		FParamTypeHandle Handle;
+		Handle.Value = InRawHandle;
+		return Handle;
+	}
+
+	/** Make a parameter type handle from a property bag property desc */
+	static FParamTypeHandle FromPropertyBagPropertyDesc(const FPropertyBagPropertyDesc& Desc);
+	
+	/** Make a parameter type handle from a FProperty */
+	static FParamTypeHandle FromProperty(const FProperty* InProperty);
+
+	/** Return the raw value that this handle uses to represent itself */
+	uint32 ToRaw() const
+	{
+		return Value;
 	}
 
 	/** Get the parameter type that this handle corresponds to */

@@ -53,3 +53,25 @@ private:
 	// The script struct for our rig unit
 	UScriptStruct* StructTemplate = nullptr;
 };
+
+
+USTRUCT()
+struct FAnimNextGraphSchemaAction_DispatchFactory : public FAnimNextGraphSchemaAction
+{
+	GENERATED_BODY()
+
+	FAnimNextGraphSchemaAction_DispatchFactory() = default;
+
+	FAnimNextGraphSchemaAction_DispatchFactory(FName InNotation, FText InNodeCategory, FText InMenuDesc, FText InToolTip, FText InKeywords = FText::GetEmpty())
+		: FAnimNextGraphSchemaAction(InNodeCategory, InMenuDesc, InToolTip, InKeywords)
+		, Notation(InNotation)
+	{}
+
+	// FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, TArray<UEdGraphPin*>& FromPins, const FVector2D Location, bool bSelectNewNode = true) override;
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) { return nullptr; }
+
+private:
+	// Notation for dispatch factory
+	FName Notation;
+};

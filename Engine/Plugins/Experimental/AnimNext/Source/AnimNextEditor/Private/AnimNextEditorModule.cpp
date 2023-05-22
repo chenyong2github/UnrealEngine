@@ -4,7 +4,6 @@
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "Graph/AssetTypeActions.h"
-#include "Graph/PropertyTypeCustomization.h"
 #include "Param/ParamTypePropertyCustomization.h"
 #include "Param/ParameterPickerArgs.h"
 #include "Param/SParameterPicker.h"
@@ -19,12 +18,7 @@ void FModule::StartupModule()
 	AssetTypeActions_AnimNextGraph = MakeShared<FAssetTypeActions_AnimNextGraph>();
 	AssetTools.RegisterAssetTypeActions(AssetTypeActions_AnimNextGraph.ToSharedRef());
 
-	AnimNextPropertyTypeIdentifier = MakeShared<FPropertyTypeIdentifier>();
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.RegisterCustomPropertyTypeLayout(
-		"InterfaceProperty",
-		FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<FPropertyTypeCustomization>(); }),
-		AnimNextPropertyTypeIdentifier);
 
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		"AnimNextParamType",
@@ -42,7 +36,6 @@ void FModule::ShutdownModule()
 	if(FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyModule.UnregisterCustomPropertyTypeLayout("InterfaceProperty", AnimNextPropertyTypeIdentifier);
 		PropertyModule.UnregisterCustomPropertyTypeLayout("AnimNextParamType");
 	}
 }

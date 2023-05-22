@@ -6,7 +6,7 @@
 #include "UObject/Class.h"
 #include "Templates/SubclassOf.h"
 
-FAnimNextParamType::FAnimNextParamType(EValueType InValueType, EContainerType InContainerType, UObject* InValueTypeObject)
+FAnimNextParamType::FAnimNextParamType(EValueType InValueType, EContainerType InContainerType, const UObject* InValueTypeObject)
 	: ValueTypeObject(InValueTypeObject)
 	, ValueType(InValueType)
 	, ContainerType(InContainerType)
@@ -93,7 +93,7 @@ UE::AnimNext::FParamTypeHandle FAnimNextParamType::GetHandle() const
 			Handle.SetParameterType(FParamTypeHandle::EParamType::Text);
 			break;
 		case EValueType::Struct:
-			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ValueTypeObject.Get()))
+			if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ValueTypeObject.Get()))
 			{
 				if(ScriptStruct == TBaseStructure<FVector>::Get())
 				{
@@ -123,7 +123,7 @@ UE::AnimNext::FParamTypeHandle FAnimNextParamType::GetHandle() const
 			}
 			break;
 		case EValueType::Enum:
-			if(UEnum* Enum = Cast<UEnum>(ValueTypeObject.Get()))
+			if(const UEnum* Enum = Cast<UEnum>(ValueTypeObject.Get()))
 			{
 				Handle.SetParameterType(FParamTypeHandle::EParamType::Custom);
 				Handle.SetCustomTypeIndex(FParamTypeHandle::GetOrAllocateCustomTypeIndex(ValueType, EContainerType::None, Enum));
@@ -137,7 +137,7 @@ UE::AnimNext::FParamTypeHandle FAnimNextParamType::GetHandle() const
 		case EValueType::SoftObject:
 		case EValueType::Class:
 		case EValueType::SoftClass:
-			if(UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
+			if(const UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
 			{
 				Handle.SetParameterType(FParamTypeHandle::EParamType::Custom);
 				Handle.SetCustomTypeIndex(FParamTypeHandle::GetOrAllocateCustomTypeIndex(ValueType, EContainerType::None, Class));
@@ -150,7 +150,6 @@ UE::AnimNext::FParamTypeHandle FAnimNextParamType::GetHandle() const
 		}
 		break;
 	case EPropertyBagContainerType::Array:
-	default:
 		switch(ValueType)
 		{
 		default:
@@ -170,7 +169,7 @@ UE::AnimNext::FParamTypeHandle FAnimNextParamType::GetHandle() const
 			Handle.SetCustomTypeIndex(FParamTypeHandle::GetOrAllocateCustomTypeIndex(ValueType, ContainerType, nullptr));
 			break;
 		case EValueType::Struct:
-			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ValueTypeObject.Get()))
+			if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ValueTypeObject.Get()))
 			{
 				Handle.SetParameterType(FParamTypeHandle::EParamType::Custom);
 				Handle.SetCustomTypeIndex(FParamTypeHandle::GetOrAllocateCustomTypeIndex(ValueType, ContainerType, ScriptStruct));
@@ -181,7 +180,7 @@ UE::AnimNext::FParamTypeHandle FAnimNextParamType::GetHandle() const
 			}
 			break;
 		case EValueType::Enum:
-			if(UEnum* Enum = Cast<UEnum>(ValueTypeObject.Get()))
+			if(const UEnum* Enum = Cast<UEnum>(ValueTypeObject.Get()))
 			{
 				Handle.SetParameterType(FParamTypeHandle::EParamType::Custom);
 				Handle.SetCustomTypeIndex(FParamTypeHandle::GetOrAllocateCustomTypeIndex(ValueType, ContainerType, Enum));
@@ -195,7 +194,7 @@ UE::AnimNext::FParamTypeHandle FAnimNextParamType::GetHandle() const
 		case EValueType::SoftObject:
 		case EValueType::Class:
 		case EValueType::SoftClass:
-			if(UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
+			if(const UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
 			{
 				Handle.SetParameterType(FParamTypeHandle::EParamType::Custom);
 				Handle.SetCustomTypeIndex(FParamTypeHandle::GetOrAllocateCustomTypeIndex(ValueType, ContainerType, Class));
@@ -206,6 +205,8 @@ UE::AnimNext::FParamTypeHandle FAnimNextParamType::GetHandle() const
 			}
 			break;
 		}
+		break;
+	default:
 		break;
 	}
 
@@ -256,7 +257,7 @@ size_t FAnimNextParamType::GetValueTypeSize() const
 		// TODO: seems to be no way to find the size of a UEnum?
 		return sizeof(uint8);
 	case EValueType::Struct:
-		if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ValueTypeObject.Get()))
+		if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ValueTypeObject.Get()))
 		{
 			return ScriptStruct->GetStructureSize();
 		}
@@ -325,7 +326,7 @@ size_t FAnimNextParamType::GetValueTypeAlignment() const
 		// TODO: seems to be no way to find the alignment of a UEnum?
 		return alignof(uint8);
 	case EValueType::Struct:
-		if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ValueTypeObject.Get()))
+		if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ValueTypeObject.Get()))
 		{
 			return ScriptStruct->GetMinAlignment();
 		}
@@ -387,7 +388,7 @@ FString FAnimNextParamType::ToString() const
 			InStringBuilder.Append(TEXT("FText"));
 			break;
 		case EValueType::Enum:
-			if(UEnum* Enum = Cast<UEnum>(ValueTypeObject.Get()))
+			if(const UEnum* Enum = Cast<UEnum>(ValueTypeObject.Get()))
 			{
 				InStringBuilder.Append(TEXT("U"));
 				InStringBuilder.Append(Enum->GetName());
@@ -398,7 +399,7 @@ FString FAnimNextParamType::ToString() const
 			}
 			break;
 		case EValueType::Struct:
-			if(UScriptStruct* Struct = Cast<UScriptStruct>(ValueTypeObject.Get()))
+			if(const UScriptStruct* Struct = Cast<UScriptStruct>(ValueTypeObject.Get()))
 			{
 				InStringBuilder.Append(TEXT("F"));
 				InStringBuilder.Append(Struct->GetName());
@@ -409,7 +410,7 @@ FString FAnimNextParamType::ToString() const
 			}
 			break;
 		case EValueType::Object:
-			if(UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
+			if(const UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
 			{
 				InStringBuilder.Append(TEXT("TObjectPtr<U"));
 				InStringBuilder.Append(Class->GetName());
@@ -421,7 +422,7 @@ FString FAnimNextParamType::ToString() const
 			}
 			break;
 		case EValueType::SoftObject:
-			if(UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
+			if(const UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
 			{
 				InStringBuilder.Append(TEXT("TSoftObjectPtr<U"));
 				InStringBuilder.Append(Class->GetName());
@@ -433,7 +434,7 @@ FString FAnimNextParamType::ToString() const
 			}
 			break;
 		case EValueType::Class:
-			if(UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
+			if(const UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
 			{
 				InStringBuilder.Append(TEXT("TSubClassOf<U"));
 				InStringBuilder.Append(Class->GetName());
@@ -445,7 +446,7 @@ FString FAnimNextParamType::ToString() const
 			}
 			break;
 		case EValueType::SoftClass:
-			if(UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
+			if(const UClass* Class = Cast<UClass>(ValueTypeObject.Get()))
 			{
 				InStringBuilder.Append(TEXT("TSoftClassPtr<U"));
 				InStringBuilder.Append(Class->GetName());

@@ -7,16 +7,15 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "GameFramework/Actor.h"
 #include "AnimationRuntime.h"
-#include "Interface/AnimNextInterface.h"
 #include "DataRegistry.h"
 #include "GenerationTools.h"
 #include "ReferencePose.h"
 #include "Graph/AnimNext_LODPose.h"
-#include "Graph/RigUnit_AnimNextAnimSequence.h" // TEST
-#include "Animation/AnimSequence.h"
 #include "Animation/AnimSequence.h" // TEST
+#include "Graph/RigUnit_AnimNextAnimSequence.h" // TEST
 #include "Engine/SkeletalMesh.h"
 #include "BoneContainer.h"
+#include "Param/ParamStack.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_AnimNextGraph)
 
@@ -29,10 +28,12 @@ FAnimNode_AnimNextGraph::FAnimNode_AnimNextGraph()
 	, AnimNextGraph(nullptr)
 	, LODThreshold(INDEX_NONE)
 {
+	SequencePlayerState = new FAnimSequencePlayerState();
 }
 
 FAnimNode_AnimNextGraph::~FAnimNode_AnimNextGraph()
 {
+	delete SequencePlayerState;
 }
 
 void FAnimNode_AnimNextGraph::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
@@ -113,43 +114,33 @@ void FAnimNode_AnimNextGraph::Evaluate_AnyThread(FPoseContext & Output)
 	const UE::AnimNext::FReferencePose& RefPose = RefPoseHandle.GetRef<UE::AnimNext::FReferencePose>();
 
 	const int32 LODLevel = Output.AnimInstanceProxy->GetLODLevel();
-
-	// TODO : In a normal graph, FState/FParamStorage/FContext would come from FAnimationUpdateContext, here I have to create one the fly for the AnimNext graph
-	UE::AnimNext::FParamStorage ParamStorage(5, 0, 0);	// TODO : see if we can have state and params together and optional. Also, default size
 	
 	// TODO : Using AnimInstanceProxy->GetDeltaSeconds() makes the preview to advance  multiple times when debug options are activated (i.e. ShowUncompressedAnim)
 	// See where to get / how to calculate the correct delta value
-	UE::AnimNext::FContext RootContext(GraphDeltaTime, RootState, ParamStorage);
+	UE::AnimNext::FContext Context(GraphDeltaTime);
 	GraphDeltaTime = 0.f; // Reset for the case that we receive multiple calls to Evaluate (debug options)
 
 	FAnimNextGraphReferencePose GraphReferencePose(&RefPose);
 	FAnimNextGraph_AnimSequence GraphTestSequence(TestSequence);  // TEST
 
 	FAnimNextGraphLODPose GraphSourceLODPose(FLODPose(RefPose, LODLevel, false, Output.ExpectsAdditivePose()));
+	FAnimNextGraphLODPose ResultPose(FLODPose(RefPose, LODLevel, true, Output.ExpectsAdditivePose()));
 	FGenerationTools::RemapPose(LODLevel, SourcePose, RefPose, GraphSourceLODPose.LODPose);
 
-	RootContext.AddInputReference(FName(TEXT("GraphReferencePose")), GraphReferencePose);			// TODO : Should this go into the AnimNextVM Context ?
-	RootContext.AddInputValue(FName(TEXT("GraphLODLevel")), LODLevel);								// TODO : Should this go into the AnimNextVM Context ?
-	RootContext.AddInputValue(FName(TEXT("GraphExpectsAdditive")), Output.ExpectsAdditivePose());	// TODO : Should this go into the AnimNextVM Context ?
+	Context.GetMutableParamStack().PushValues(
+		"AnimSequencePlayerState", *SequencePlayerState,
+		"GraphReferencePose", GraphReferencePose,
+		"ResultPose", ResultPose,
+		"GraphLODLevel", LODLevel,
+		"GraphExpectsAdditive", Output.ExpectsAdditivePose(),
+		"SourcePose", GraphSourceLODPose,						// TODO : Pass this as a external variable maybe ? When we have support for variables in the rigvm graph
+		"TestSequence", GraphTestSequence						// TEST anim decompression - Anim Sequence to decompress);
+	);
 
-	RootContext.AddInputReference(FName(TEXT("SourcePose")), GraphSourceLODPose);		// TODO : Pass this as a external variable maybe ? When we have support for variables in the rigvm graph
-	RootContext.AddInputReference(FName(TEXT("TestSequence")), GraphTestSequence);		// TEST anim decompression - Anim Sequence to decompress
-		
-	TScriptInterface<IAnimNextInterface> ScriptInterface = AnimNextGraph;
-	FAnimNextGraphLODPose GraphResultLODPose(FLODPose(RefPose, LODLevel, true, Output.ExpectsAdditivePose()));
+	AnimNextGraph->Run(Context);
 
-	const bool bOk = UE::AnimNext::Interface::GetDataSafe(ScriptInterface, RootContext, GraphResultLODPose);
-	if (bOk)
-	{
-		FGenerationTools::RemapPose(LODLevel, RefPose, GraphResultLODPose.LODPose, Output);
-	}
-	else
-	{
-		Output.ResetToRefPose();
-	}
+	FGenerationTools::RemapPose(LODLevel, RefPose, ResultPose.LODPose, Output);
 
-
-	// evaluate 
 	FAnimNode_CustomProperty::Evaluate_AnyThread(Output);
 }
 
@@ -164,7 +155,7 @@ void FAnimNode_AnimNextGraph::PostSerialize(const FArchive& Ar)
 	{
 		if (AnimNextGraph)
 		{
-			//AnimNextInterfaceGraph->Initialize();
+			//AnimNextGraph->Initialize();
 		}
 	}
 }

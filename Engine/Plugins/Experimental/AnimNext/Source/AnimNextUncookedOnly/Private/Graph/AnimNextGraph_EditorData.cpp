@@ -389,7 +389,6 @@ void UAnimNextGraph_EditorData::HandleModifiedEvent(ERigVMGraphNotifType InNotif
 	case ERigVMGraphNotifType::PinArraySizeChanged:
 	case ERigVMGraphNotifType::PinDirectionChanged:
 		{
-			UpdateGraphReturnType();
 			RecompileVM();
 			break;
 		}
@@ -475,38 +474,6 @@ void UAnimNextGraph_EditorData::CreateEdGraphForCollapseNode(URigVMCollapseNode*
 	}
 }
 
-FEdGraphPinType UAnimNextGraph_EditorData::FindGraphReturnPinType() const
-{
-	static const TCHAR* EndExecStr = TEXT("AnimNextEndExec");
-	static const FName ResultName = TEXT(".Result");
-
-	const UAnimNextGraph_EdGraph* AnimNextInterfaceEdGraph = RootGraph.Get();
-	if (AnimNextInterfaceEdGraph != nullptr)
-	{
-		for (const TObjectPtr<UEdGraphNode>& Node : AnimNextInterfaceEdGraph->Nodes)
-		{
-			if (IsNodeExecConnected(Node))
-			{
-				const FString& NodeName = Node->GetName();
-				if (NodeName.Contains(EndExecStr))
-				{
-					for (const UEdGraphPin* Pin : Node->Pins)
-					{
-						const FString PinName = Pin->PinName.ToString();
-
-						if (PinName.Contains(ResultName.ToString()) && PinName.Contains(EndExecStr))
-						{
-							return Pin->PinType;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return FEdGraphPinType();
-}
-
 bool UAnimNextGraph_EditorData::IsNodeExecConnected(const UEdGraphNode* Node) const
 {
 	static const TCHAR* ExecuteContextStr = TEXT(".ExecuteContext");
@@ -522,18 +489,4 @@ bool UAnimNextGraph_EditorData::IsNodeExecConnected(const UEdGraphNode* Node) co
 	}
 
 	return false;
-}
-
-void UAnimNextGraph_EditorData::UpdateGraphReturnType()
-{
-	if (UAnimNextGraph* Graph = GetTypedOuter<UAnimNextGraph>())
-	{
-		FEdGraphPinType GraphReturnPinType = FindGraphReturnPinType();
-		UE::AnimNext::FParamTypeHandle Handle = UE::AnimNext::UncookedOnly::FUtils::GetParameterHandleFromPin(GraphReturnPinType);
-		if (Handle.IsValid() && Graph->GetReturnTypeHandle() != Handle)
-		{
-			Graph->Modify();
-			Graph->SetReturnTypeHandle(Handle);
-		}
-	}
 }

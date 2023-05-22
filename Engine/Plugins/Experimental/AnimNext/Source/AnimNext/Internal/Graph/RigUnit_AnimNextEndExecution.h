@@ -15,13 +15,6 @@ struct ANIMNEXT_API FRigUnit_AnimNextEndExecution : public FRigUnit_AnimNextBase
 {
 	GENERATED_BODY()
 
-	template<typename ValueType>
-	static void SetResult(const FRigVMExecuteContext& InExecuteContext, const ValueType& InResult)
-	{
-		const FAnimNextGraphExecuteContext& ExecuteContext = static_cast<const FAnimNextGraphExecuteContext&>(InExecuteContext);
-		ExecuteContext.GetContext().SetResult<ValueType>(InResult);
-	}
-
 public:
 	// The execution result
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "End Execute", Category = "EndExecution", meta = (Input))

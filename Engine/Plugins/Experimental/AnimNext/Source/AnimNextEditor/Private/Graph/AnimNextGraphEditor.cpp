@@ -61,9 +61,7 @@ void FGraphEditor::InitEditor(const EToolkitMode::Type InMode, const TSharedPtr<
 	RegenerateMenusAndToolbars();
 
 	// Open initial document
-	//DocumentManager->OpenDocument(FTabPayload_UObject::Make(AnimNextInterfaceGraph_EditorData->EntryPointGraph), FDocumentTracker::EOpenDocumentCause::OpenNewDocument);
 	DocumentManager->OpenDocument(FTabPayload_UObject::Make(AnimNextGraph_EditorData->RootGraph), FDocumentTracker::EOpenDocumentCause::OpenNewDocument);
-	//DocumentManager->OpenDocument(FTabPayload_UObject::Make(AnimNextInterfaceGraph_EditorData->FunctionLibraryEdGraph), FDocumentTracker::EOpenDocumentCause::OpenNewDocument);
 }
 
 void FGraphEditor::BindCommands()
@@ -94,17 +92,17 @@ void FGraphEditor::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabMan
 
 FName FGraphEditor::GetToolkitFName() const
 {
-	return FName("AnimNextInterfaceGraphEditor");
+	return FName("AnimNextGraphEditor");
 }
 
 FText FGraphEditor::GetBaseToolkitName() const
 {
-	return LOCTEXT("AppLabel", "AnimNextInterfaceGraphEditor");
+	return LOCTEXT("AppLabel", "AnimNextGraphEditor");
 }
 
 FString FGraphEditor::GetWorldCentricTabPrefix() const
 {
-	return LOCTEXT("WorldCentricTabPrefix", "AnimNextInterfaceGraphEditor ").ToString();
+	return LOCTEXT("WorldCentricTabPrefix", "AnimNextGraphEditor ").ToString();
 }
 
 FLinearColor FGraphEditor::GetWorldCentricTabColorScale() const

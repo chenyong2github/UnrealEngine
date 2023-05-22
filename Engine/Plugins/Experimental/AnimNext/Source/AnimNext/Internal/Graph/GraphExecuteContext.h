@@ -7,8 +7,6 @@
 #include "Units/RigUnit.h"
 #include "GraphExecuteContext.generated.h"
 
-class IAnimNextInterface;
-
 namespace UE::AnimNext
 {
 	struct FContext;
@@ -21,52 +19,31 @@ struct FAnimNextGraphExecuteContext : public FRigVMExecuteContext
 
 	FAnimNextGraphExecuteContext()
 		: FRigVMExecuteContext()
-		, InterfaceContext(nullptr)
-		, Interface(nullptr)
-		, ResultPtr(nullptr)
+		, Context(nullptr)
 	{
 	}
 
 	const UE::AnimNext::FContext& GetContext() const
 	{
-		check(InterfaceContext);
-		return *InterfaceContext;
+		check(Context);
+		return *Context;
 	}
 
-	void SetContextData(const IAnimNextInterface* InInterface, const UE::AnimNext::FContext& InInterfaceContext, bool& bInResult)
+	void SetContextData(const UE::AnimNext::FContext& InContext)
 	{
-		Interface = InInterface;
-		InterfaceContext = &InInterfaceContext;
-		ResultPtr = &bInResult;
+		Context = &InContext;
 	}
 
-	void SetResult(bool bInResult) const
-	{
-		check(ResultPtr);
-		*ResultPtr &= bInResult;
-	}
-
-	const IAnimNextInterface* GetInterface() const
-	{
-		check(Interface);
-		return Interface;
-	}
-	
 	virtual void Copy(const FRigVMExecuteContext* InOtherContext) override
 	{
 		Super::Copy(InOtherContext);
 
 		const FAnimNextGraphExecuteContext* OtherContext = (const FAnimNextGraphExecuteContext*)InOtherContext; 
-		InterfaceContext = OtherContext->InterfaceContext;
-		Interface = OtherContext->Interface;
-		ResultPtr = OtherContext->ResultPtr;
+		Context = OtherContext->Context;
 	}
 
-
 private:
-	const UE::AnimNext::FContext* InterfaceContext;
-	const IAnimNextInterface* Interface;
-	bool* ResultPtr;
+	const UE::AnimNext::FContext* Context;
 };
 
 USTRUCT(meta=(ExecuteContext="FAnimNextGraphExecuteContext"))

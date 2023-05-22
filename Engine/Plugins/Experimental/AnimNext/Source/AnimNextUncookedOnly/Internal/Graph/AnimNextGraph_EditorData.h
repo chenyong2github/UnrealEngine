@@ -44,6 +44,7 @@ class UAnimNextGraph_EditorData : public UObject, public IRigVMClientHost, publi
 	friend struct UE::AnimNext::UncookedOnly::FUtils;
 	friend class UE::AnimNext::Editor::FGraphEditor;
 	friend struct FAnimNextGraphSchemaAction_RigUnit;
+	friend struct FAnimNextGraphSchemaAction_DispatchFactory;
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;
@@ -84,10 +85,6 @@ class UAnimNextGraph_EditorData : public UObject, public IRigVMClientHost, publi
 	ANIMNEXTUNCOOKEDONLY_API URigVMGraph* GetVMGraphForEdGraph(const UEdGraph* InGraph) const;
 
 	void CreateEdGraphForCollapseNode(URigVMCollapseNode* InNode);
-
-	void UpdateGraphReturnType();
-
-	FEdGraphPinType FindGraphReturnPinType() const;
 
 	bool IsNodeExecConnected(const UEdGraphNode* Node) const;
 

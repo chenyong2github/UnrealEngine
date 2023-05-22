@@ -104,7 +104,7 @@ namespace RigVMTypeUtils
 		return InScriptStruct->GetStructCPPName();
 	}
 
-	inline FString CPPTypeFromEnum(UEnum* InEnum)
+	inline FString CPPTypeFromEnum(const UEnum* InEnum)
 	{
 		check(InEnum);
 
@@ -274,7 +274,7 @@ namespace RigVMTypeUtils
 		return Object;
 	}
 
-	static FString CPPTypeFromObject(UObject* InCPPTypeObject)
+	static FString CPPTypeFromObject(const UObject* InCPPTypeObject)
 	{
 		if (const UClass* Class = Cast<UClass>(InCPPTypeObject))
 		{
@@ -291,7 +291,7 @@ namespace RigVMTypeUtils
 		{
 			return GetUniqueStructTypeName(ScriptStruct);
 		}
-		else if (UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
+		else if (const UEnum* Enum = Cast<UEnum>(InCPPTypeObject))
 		{
 			return RigVMTypeUtils::CPPTypeFromEnum(Enum);
 		}
