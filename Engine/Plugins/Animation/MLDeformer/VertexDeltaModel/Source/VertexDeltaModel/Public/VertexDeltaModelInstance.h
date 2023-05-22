@@ -11,6 +11,7 @@
 
 class UVertexDeltaModel;
 class UNeuralNetwork;
+class FRDGPooledBuffer;
 
 UCLASS()
 class VERTEXDELTAMODEL_API UVertexDeltaModelInstance

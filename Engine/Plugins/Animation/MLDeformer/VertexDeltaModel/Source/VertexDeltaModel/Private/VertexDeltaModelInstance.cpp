@@ -4,6 +4,7 @@
 #include "VertexDeltaModel.h"
 #include "MLDeformerAsset.h"
 #include "RenderGraphBuilder.h"
+#include "RenderGraphResources.h"
 #include "Components/SkeletalMeshComponent.h"
 
 
