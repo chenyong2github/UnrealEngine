@@ -675,6 +675,17 @@ public:
 		, TGPUSkinVertexFactory<BoneInfluenceType>(InFeatureLevel, InNumVertices)
 	{}
 
+	/**
+	 * Destructor takes care of the Data pointer. Since FGPUBaseSkinVertexFactory does not know the real type of the Data,
+	 * delete the data here instead.
+	 */
+	virtual ~TGPUSkinAPEXClothVertexFactory() override
+	{
+		checkf(!ClothDataPtr->ClothBuffer.IsValid(), TEXT("ClothBuffer RHI resource should have been released in ReleaseDynamicRHI"));
+		delete ClothDataPtr;
+		this->Data.Release();
+	}
+
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
