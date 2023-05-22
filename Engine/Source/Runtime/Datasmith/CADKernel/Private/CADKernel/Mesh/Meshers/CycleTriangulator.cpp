@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#pragma once
 #include "CADKernel/Mesh/Meshers/CycleTriangulator.h"
 
 #include "CADKernel/Core/Factory.h"
@@ -379,9 +378,6 @@ bool FCycleTriangulator::FindCandidateNodes(int32 StartIndex)
 
 	FirstSideStartNode = SubCycleNodes[FirstSideStartIndex];
 	FirstSideEndNode = SubCycleNodes[FirstSideEndIndex];
-
-	//const SlopeMethod GetSlopeAtStartNode = CounterClockwiseSlope;
-	//const SlopeMethod GetSlopeAtEndNode = ClockwiseSlope;
 
 	const FPoint2D& StartPoint2D = FirstSideStartNode->Get2DPoint(EGridSpace::UniformScaled, Grid);
 	const FPoint2D& EndPoint2D = FirstSideEndNode->Get2DPoint(EGridSpace::UniformScaled, Grid);
