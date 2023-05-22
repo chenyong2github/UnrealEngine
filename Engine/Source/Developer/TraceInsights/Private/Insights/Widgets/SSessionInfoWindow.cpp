@@ -8,7 +8,6 @@
 #include "TraceServices/Model/Diagnostics.h"
 #include "TraceServices/ModuleService.h"
 #include "Misc/Paths.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -255,25 +254,16 @@ void SSessionInfoWindow::AddSimpleInfoLine(TSharedPtr<SVerticalBox> InVerticalBo
 
 TSharedRef<SDockTab> SSessionInfoWindow::SpawnTab_SessionInfo(const FSpawnTabArgs& Args)
 {
-	TSharedPtr<SVerticalBox> VerticalBox;
-	TSharedPtr<SImage> Image;
-
 	TSharedPtr<SScrollBar> VScrollbar;
 	SAssignNew(VScrollbar, SScrollBar)
 	.Orientation(Orient_Vertical);
+
+	TSharedPtr<SVerticalBox> VerticalBox;
 
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.TabRole(ETabRole::PanelTab)
 		[
 			SNew(SOverlay)
-
-			// Overlay slot for the Background image
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Fill)
-			[
-				SAssignNew(Image, SImage)
-			]
 
 			// Overlay slot for the ScrollBox containing the data
 			+ SOverlay::Slot()
@@ -302,8 +292,6 @@ TSharedRef<SDockTab> SSessionInfoWindow::SpawnTab_SessionInfo(const FSpawnTabArg
 				]
 			]
 		];
-
-	Image->SetImage(new FSlateColorBrush(FLinearColor(0.015f, 0.015f, 0.015f, 1.0f)));
 
 	BeginSection(VerticalBox, LOCTEXT("SessionInfo_SectionText", "Session Info"));
 	AddInfoLine(VerticalBox, LOCTEXT("SessionName_HeaderText",	"Session Name"),		TAttribute<FText>(this, &SSessionInfoWindow::GetSessionNameText));
