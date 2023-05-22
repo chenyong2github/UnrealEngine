@@ -89,6 +89,7 @@
 #include "VolumetricCloudRendering.h"
 #include "VolumetricFog.h"
 #include "PrimitiveSceneShaderData.h"
+#include "Engine/SpecularProfile.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -1660,6 +1661,15 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.SSProfilesPreIntegratedTexture = Texture;
 			ViewUniformShaderParameters.SSProfilesPreIntegratedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		}
+	}
+
+	// Specular Profiles
+	{
+		FRHITexture* Texture = SpecularProfileAtlas::GetSpecularProfileTextureAtlasWithFallback();
+		FIntVector TextureSize = Texture->GetSizeXYZ();
+		ViewUniformShaderParameters.SpecularProfileTextureSizeAndInvSize = FVector4f(TextureSize.X, TextureSize.Y, 1.0f / TextureSize.X, 1.0f / TextureSize.Y);
+		ViewUniformShaderParameters.SpecularProfileTexture = Texture;
+		ViewUniformShaderParameters.SpecularProfileSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 
 	{

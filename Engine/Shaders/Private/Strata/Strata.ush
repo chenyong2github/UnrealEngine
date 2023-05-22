@@ -369,7 +369,8 @@ struct FStrataBSDF
 #define BSDF_BIT_COUNT_SHAREDLOCALBASESID		2
 #define BSDF_BIT_COUNT_HASTRANSABOVE			1
 #define BSDF_BIT_COUNT_HASGLINT					1
-#define BSDF_BIT_COUNT___UNUSED___				4
+#define BSDF_BIT_COUNT_HASSPECPROFILE			1
+#define BSDF_BIT_COUNT___UNUSED___				3
 #define BSDF_BIT_COUNT_WEIGHT10F				10
 
 // Bit offset of each component store in BSDF state 
@@ -385,7 +386,8 @@ struct FStrataBSDF
 #define BSDF_BIT_OFFSET_BSDF_TYPE				(BSDF_BIT_OFFSET_ISTHIN				+ BSDF_BIT_COUNT_ISTHIN)
 #define BSDF_BIT_OFFSET_SHAREDLOCALBASESID		(BSDF_BIT_OFFSET_BSDF_TYPE			+ BSDF_BIT_COUNT_BSDF_TYPE)
 #define BSDF_BIT_OFFSET_HASTRANSABOVE			(BSDF_BIT_OFFSET_SHAREDLOCALBASESID	+ BSDF_BIT_COUNT_SHAREDLOCALBASESID)
-#define BSDF_BIT_OFFSET_HASGLINT				(BSDF_BIT_OFFSET_HASTRANSABOVE	+ BSDF_BIT_COUNT_HASTRANSABOVE)
+#define BSDF_BIT_OFFSET_HASGLINT				(BSDF_BIT_OFFSET_HASTRANSABOVE		+ BSDF_BIT_COUNT_HASTRANSABOVE)
+#define BSDF_BIT_OFFSET_HASSPECPROFILE			(BSDF_BIT_OFFSET_HASGLINT			+ BSDF_BIT_COUNT_HASGLINT)
 #define BSDF_BIT_OFFSET_WEIGHT10F				22
 
 // Special optmised modes for the single BSDF path.
@@ -479,9 +481,13 @@ struct FStrataBSDF
 #define BSDF_GETHASTRANSABOVE(X)		READ_BITS(X.State,  BSDF_BIT_COUNT_HASTRANSABOVE, BSDF_BIT_OFFSET_HASTRANSABOVE)
 #define BSDF_SETHASTRANSABOVE(X, Value)	WRITE_BITS(X.State, BSDF_BIT_COUNT_HASTRANSABOVE, BSDF_BIT_OFFSET_HASTRANSABOVE, Value)
 
-// Indicates if the BSDF is part of the top layer
+// Indicates if the BSDF has glint data
 #define BSDF_GETHASGLINT(X)				READ_BITS(X.State,  BSDF_BIT_COUNT_HASGLINT, BSDF_BIT_OFFSET_HASGLINT) 
 #define BSDF_SETHASGLINT(X, Value)		WRITE_BITS(X.State, BSDF_BIT_COUNT_HASGLINT, BSDF_BIT_OFFSET_HASGLINT, Value)
+
+// Indicates if the BSDF has a specular profile
+#define BSDF_GETHASSPECPROFILE(X)		READ_BITS(X.State,  BSDF_BIT_COUNT_HASSPECPROFILE, BSDF_BIT_OFFSET_HASSPECPROFILE) 
+#define BSDF_SETHASSPECPROFILE(X, Value)WRITE_BITS(X.State, BSDF_BIT_COUNT_HASSPECPROFILE, BSDF_BIT_OFFSET_HASSPECPROFILE, Value)
 
 #if STRATA_INLINE_SHADING
 #define BSDF_SETEMISSIVE(X, V)			X.Emissive = V
@@ -531,6 +537,8 @@ struct FStrataBSDF
 #define SLAB_GLINT_VALUE(X)				X.VGPRs[5].z
 #define SLAB_GLINT_UVDDX(X)				X.VGPRs[6].xy
 #define SLAB_GLINT_UVDDY(X)				X.VGPRs[6].zw
+// Specular profile
+#define SLAB_SPECPROFILEID(X)			X.VGPRs[5].w
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1473,6 +1481,7 @@ FStrataData GetStrataSlabBSDF(
 	float SecondRoughness, float SecondRoughnessWeight, float SecondRoughnessAsSimpleClearCoat,
 	float FuzzAmount, float3 FuzzColor, float FuzzRoughness,
 	float GlintValue, float2 GlintUV,
+	float SpecularProfileId,
 	float ThicknessCm,
 	bool bIsThinSurface,
 	uint SharedLocalBasisIndex, inout uint SharedLocalBasisTypes)
@@ -1572,6 +1581,12 @@ FStrataData GetStrataSlabBSDF(
 		SLAB_GLINT_UV(StrataData.InlinedBSDF)			= GlintUV;
 		SLAB_GLINT_UVDDX(StrataData.InlinedBSDF)		= ddx(GlintUV);
 		SLAB_GLINT_UVDDY(StrataData.InlinedBSDF)		= ddy(GlintUV);
+	}
+	
+	if (SpecularProfileId > 0.0f)
+	{
+		BSDF_SETHASSPECPROFILE	(StrataData.InlinedBSDF, 1);
+		SLAB_SPECPROFILEID		(StrataData.InlinedBSDF) = SpecularProfileId * 255; // Stored as 0-255 slice index
 	}
 #endif
 
@@ -2381,6 +2396,9 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	SLAB_GLINT_VALUE(ResultBSDF) =		lerp(SLAB_GLINT_VALUE(BackgroundBSDF),			SLAB_GLINT_VALUE(ForegroundBSDF),			ForegroundOtherMixFactor);
 	SLAB_GLINT_UVDDX(ResultBSDF) =		lerp(SLAB_GLINT_UVDDX(BackgroundBSDF),			SLAB_GLINT_UVDDX(ForegroundBSDF),			ForegroundOtherMixFactor);
 	SLAB_GLINT_UVDDY(ResultBSDF) =		lerp(SLAB_GLINT_UVDDY(BackgroundBSDF),			SLAB_GLINT_UVDDY(ForegroundBSDF),			ForegroundOtherMixFactor);
+
+	BSDF_SETHASSPECPROFILE(ResultBSDF,	BSDF_GETHASSPECPROFILE(ForegroundBSDF)			| BSDF_GETHASSPECPROFILE(BackgroundBSDF));
+	SLAB_SPECPROFILEID(ResultBSDF) = BSDF_GETHASSPECPROFILE(ForegroundBSDF) ? SLAB_SPECPROFILEID(ForegroundBSDF) : SLAB_SPECPROFILEID(BackgroundBSDF);
 #endif
 	
 
@@ -2496,6 +2514,9 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	SLAB_GLINT_VALUE(ResultBSDF) =		lerp(SLAB_GLINT_VALUE(BBSDF),					SLAB_GLINT_VALUE(ABSDF), AMixFactor);
 	SLAB_GLINT_UVDDX(ResultBSDF) =		lerp(SLAB_GLINT_UVDDX(BBSDF),					SLAB_GLINT_UVDDX(ABSDF), AMixFactor);
 	SLAB_GLINT_UVDDY(ResultBSDF) =		lerp(SLAB_GLINT_UVDDY(BBSDF),					SLAB_GLINT_UVDDY(ABSDF), AMixFactor);
+
+	BSDF_SETHASSPECPROFILE(ResultBSDF,	BSDF_GETHASSPECPROFILE(BBSDF) | BSDF_GETHASSPECPROFILE(ABSDF));
+	SLAB_SPECPROFILEID(ResultBSDF) = BSDF_GETHASSPECPROFILE(BBSDF) ? SLAB_SPECPROFILEID(BBSDF) : SLAB_SPECPROFILEID(ABSDF);
 #endif
 
 	if (BSDF_GETSSSTYPE(ResultBSDF) == SSS_TYPE_DIFFUSION_PROFILE)
@@ -2578,6 +2599,7 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 
 #if STRATA_GLINTS_ENABLED
 	BSDF_SETHASGLINT(ResultBSDF, 0); // Disable for now
+	BSDF_SETHASSPECPROFILE(ResultBSDF,	0); // Disable for now
 #endif
 
 	// Compute the top slab transmittance that will be used to blend the top and base material parameters.
@@ -2622,6 +2644,9 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	SLAB_GLINT_VALUE(ResultBSDF) =		lerp(SLAB_GLINT_VALUE(TopBSDF),					SLAB_GLINT_VALUE(BaseBSDF), TopToBottomLerp);
 	SLAB_GLINT_UVDDX(ResultBSDF) =		lerp(SLAB_GLINT_UVDDX(TopBSDF),					SLAB_GLINT_UVDDX(BaseBSDF), TopToBottomLerp);
 	SLAB_GLINT_UVDDY(ResultBSDF) =		lerp(SLAB_GLINT_UVDDY(TopBSDF),					SLAB_GLINT_UVDDY(BaseBSDF), TopToBottomLerp);
+
+	BSDF_SETHASSPECPROFILE(ResultBSDF,	BSDF_GETHASSPECPROFILE(TopBSDF) | BSDF_GETHASSPECPROFILE(BaseBSDF));
+	SLAB_SPECPROFILEID(ResultBSDF) = 	BSDF_GETHASSPECPROFILE(TopBSDF) ? SLAB_SPECPROFILEID(TopBSDF) : SLAB_SPECPROFILEID(BaseBSDF);
 #endif
 
 	// Anisotropy is disabled with vertical blending. 
@@ -3657,6 +3682,7 @@ void FStrataPixelHeader::StrataConvertFromDBuffer(
 		In.Roughness,		// FuzzRoughness
 		0.f,				// GlintValue, 
 		0.f.xx,				// GlintUV,
+		0.f, 				// SpecularProfileId
 		DefaultThicknessCm,
 		false,				// bIsThinSurface,
 		SharedLocalBasisIndex,
@@ -4299,6 +4325,11 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 
 			SLAB_GLINT_UVDDX(OutBSDF)	= UnpackFloat2FromUInt(StrataLoadUint1(StrataBuffer, StrataAddressing));
 			SLAB_GLINT_UVDDY(OutBSDF)	= UnpackFloat2FromUInt(StrataLoadUint1(StrataBuffer, StrataAddressing));
+		}
+
+		if (BSDF_GETHASSPECPROFILE(OutBSDF))
+		{
+			SLAB_SPECPROFILEID(OutBSDF)	= StrataLoadUint1(StrataBuffer, StrataAddressing);
 		}
 	#endif
 	}

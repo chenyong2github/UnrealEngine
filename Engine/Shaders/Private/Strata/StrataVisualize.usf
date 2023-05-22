@@ -334,6 +334,10 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 				Print(Context, TEXT(" Glint Value "), FontBSDFPropName);	Print(Context, SLAB_GLINT_VALUE(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
 				Print(Context, TEXT(" Glint UVs   "), FontBSDFPropName);	Print(Context, SLAB_GLINT_UV(BSDF), FontBSDFPropValu);					Newline(Context, RectMax);
 			}
+			if (BSDF_GETHASSPECPROFILE(BSDF))
+			{
+				Print(Context, TEXT(" SpecID      "), FontBSDFPropName);	Print(Context, SLAB_SPECPROFILEID(BSDF), FontBSDFPropValu);				Newline(Context, RectMax);
+			}
 #endif
 		}
 		break;

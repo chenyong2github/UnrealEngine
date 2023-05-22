@@ -681,6 +681,18 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			}
 			#endif
 
+			// Lighting LUT
+			#if STRATA_FASTPATH==0 && STRATA_GLINTS_ENABLED
+			BRANCH
+			if (BSDF_GETHASSPECPROFILE(BSDFContext.BSDF))
+			{
+				const uint ProfileID = SLAB_SPECPROFILEID(BSDFContext.BSDF);
+				const float NoL = saturate(dot(BSDFContext.L, BSDFContext.N));
+				const float NoV = saturate(dot(BSDFContext.V, BSDFContext.N));
+				Sample.IntegratedSpecularValue *= View.SpecularProfileTexture.SampleLevel(View.SpecularProfileSampler, float3(NoV, NoL, ProfileID), 0);
+			}
+			#endif
+
 			{
 				float3 CommonTerm = 0.0f;
 				if (bIsRectLight)
@@ -1492,6 +1504,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 				// STRATA_TODO environment light importance sampling
 			#if STRATA_GLINTS_ENABLED
+				// Glints
 				BRANCH
 				if (BSDF_GETHASGLINT(BSDFContext.BSDF))
 				{
@@ -1519,6 +1532,16 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					// STRATA_TODO recover glint direction.
 					StrataEnvLightResult.SpecularWeight *= saturate(GlintD);
 					StrataEnvLightResult.SpecularSafeRoughness = lerp(StrataEnvLightResult.SpecularSafeRoughness, 0.001f, saturate(GlintD));
+				}
+
+				// Specular profile
+				BRANCH
+				if (BSDF_GETHASSPECPROFILE(BSDFContext.BSDF))
+				{
+					const uint ProfileID = SLAB_SPECPROFILEID(BSDFContext.BSDF);
+					const float NoR = saturate(dot(BSDFContext.R, BSDFContext.N));
+					const float NoV = saturate(dot(BSDFContext.V, BSDFContext.N));
+					StrataEnvLightResult.SpecularWeight *= View.SpecularProfileTexture.SampleLevel(View.SpecularProfileSampler, float3(NoV, NoR, ProfileID), 0);
 				}
 			#endif // STRATA_COMPLEXPATH
 

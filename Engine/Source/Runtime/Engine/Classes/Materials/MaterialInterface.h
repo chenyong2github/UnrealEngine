@@ -49,6 +49,7 @@ class UMaterial;
 class UPhysicalMaterial;
 class UPhysicalMaterialMask;
 class USubsurfaceProfile;
+class USpecularProfile;
 class UTexture;
 class UMaterialInstance;
 struct FDebugShaderTypeInfo;
@@ -271,9 +272,13 @@ public:
 #endif // WITH_EDITORONLY_DATA
 
 public:
-	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. Disabled when root node IsThin is true. */
+	/** SubsurfaceProfile, for Screen Space Subsurface Scattering.. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
+
+	/** Specular Profile. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material)
+	TObjectPtr<class USpecularProfile> SpecularProfile;	
 
 	/** Whether this material interface is included in the base game (and not in a DLC) */
 	UPROPERTY()
@@ -910,6 +915,7 @@ public:
 	ENGINE_API virtual FDisplacementScaling GetDisplacementScaling() const;
 	ENGINE_API virtual float GetMaxWorldPositionOffsetDisplacement() const;
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const;
+	ENGINE_API virtual USpecularProfile* GetSpecularProfile_Internal() const;
 	ENGINE_API virtual bool CastsRayTracedShadows() const;
 
 	/**

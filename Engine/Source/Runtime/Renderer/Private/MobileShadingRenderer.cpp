@@ -65,6 +65,7 @@
 #include "RectLightTextureManager.h"
 #include "IESTextureManager.h"
 #include "SceneUniformBuffer.h"
+#include "Engine/SpecularProfile.h"
 
 uint32 GetShadowQuality();
 
@@ -874,6 +875,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Force the subsurface profile texture to be updated.
 	UpdateSubsurfaceProfileTexture(GraphBuilder, ShaderPlatform);
+	SpecularProfileAtlas::UpdateSpecularProfileTextureAtlas(GraphBuilder, ShaderPlatform);
 	
 	if (bDeferredShading)
 	{

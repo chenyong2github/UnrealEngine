@@ -1,0 +1,23 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Common.ush"
+
+int2 SourceResolution;
+uint SourceMipCount;
+int2 TargetResolution;
+uint TargetIndex;
+SamplerState SourceSampler;
+Texture2D<float4> SourceTexture;
+RWTexture2DArray<float4> TargetTexture;
+
+[numthreads(8, 8, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint2 PixelPos = DispatchThreadId.xy;
+	if (all(PixelPos < uint2(TargetResolution)))
+	{
+		const float SourceMip = clamp(log2(SourceResolution) - log2(TargetResolution), 0.f, SourceMipCount-1);
+		const float4 Value = SourceTexture.SampleLevel(SourceSampler, float2(PixelPos+0.5f) / float2(TargetResolution), SourceMip);
+		TargetTexture[uint3(PixelPos,TargetIndex)] = Value;
+	}
+}

@@ -5950,6 +5950,7 @@ void FStarshipEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			{TEXT("SoundMix")},
 			{TEXT("SoundSubmix") },
 			{TEXT("SphereReflectionCapture")},
+			{TEXT("SpecularProfile")},
 			{TEXT("SpotLight")},
 			{TEXT("SpringArmComponent")},
 			{TEXT("StaticMesh")},

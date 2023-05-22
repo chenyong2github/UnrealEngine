@@ -1010,15 +1010,21 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	IESAtlasTexture = GBlackTextureWithSRV->TextureRHI;
 	IESAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	// Subsurface profiles/pre-intregrated
+	// Subsurface profiles
 	SSProfilesTextureSizeAndInvSize = FVector4f(1.f,1.f,1.f,1.f);
 	SSProfilesTexture = GBlackTextureWithSRV->TextureRHI;
 	SSProfilesSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();;
 	SSProfilesTransmissionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
+	// Subsurface pre-intregrated profiles
 	SSProfilesPreIntegratedTextureSizeAndInvSize = FVector4f(1.f,1.f,1.f,1.f);
 	SSProfilesPreIntegratedTexture = GBlackArrayTexture->TextureRHI;
 	SSProfilesPreIntegratedSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	// Specular profiles
+	SpecularProfileTextureSizeAndInvSize = FVector4f(1.f,1.f,1.f,1.f);
+	SpecularProfileTexture = GBlackArrayTexture->TextureRHI;
+	SpecularProfileSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	VTFeedbackBuffer = GEmptyStructuredBufferWithUAV->UnorderedAccessViewRHI;
 }

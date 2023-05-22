@@ -121,6 +121,7 @@ FStrataData CreateLegacySlab(
 		In.FuzzColor,										// FuzzColor
 		In.Roughness,										// FuzzRoughness
 		0.0f, 0.0f.xx,										// GlintData
+		0.0f,												// Specular profile
 		In.Thickness,
 		In.bIsThinSurface,
 		In.SharedLocalBasisIndex, SharedLocalBasisTypes);

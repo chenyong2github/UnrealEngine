@@ -555,6 +555,7 @@ public:
 		int32 FuzzAmount, int32 FuzzColor, int32 FuzzRoughness,
 		int32 Thickness,
 		int32 GlintValue, int32 GlintUV,
+		int32 SpecularProfileId,
 		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
 		FStrataOperator* PromoteToOperator) = 0;
 	virtual int32 StrataConversionFromLegacy(
@@ -1175,6 +1176,7 @@ public:
 		int32 FuzzAmount, int32 FuzzColor, int32 FuzzRoughness,
 		int32 Thickness,
 		int32 GlintValue, int32 GlintUV,
+		int32 SpecularProfileId,
 		int32 Normal, int32 Tangent, const FString& SharedLocalBasisIndexMacro,
 		FStrataOperator* PromoteToOperator) override
 	{
@@ -1187,6 +1189,7 @@ public:
 			FuzzAmount, FuzzColor, FuzzRoughness,
 			Thickness,
 			GlintValue, GlintUV,
+			SpecularProfileId,
 			Normal, Tangent, SharedLocalBasisIndexMacro,
 			PromoteToOperator);
 	}

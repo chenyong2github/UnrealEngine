@@ -22,6 +22,7 @@
 #include "Engine/World.h"
 #include "ObjectCacheEventSink.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "Engine/SpecularProfile.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Components/PrimitiveComponent.h"
 #include "ContentStreaming.h"
@@ -1311,6 +1312,11 @@ USubsurfaceProfile* UMaterialInterface::GetSubsurfaceProfile_Internal() const
 	return NULL;
 }
 
+USpecularProfile* UMaterialInterface::GetSpecularProfile_Internal() const
+{
+	return NULL;
+}
+
 bool UMaterialInterface::CastsRayTracedShadows() const
 {
 	return true;
@@ -1371,15 +1377,45 @@ void UMaterialInterface::UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy)
 
 		FMaterialRenderProxy* InProxy = &Proxy;
 		ENQUEUE_RENDER_COMMAND(UpdateMaterialRenderProxySubsurface)(
-			[Settings, LocalSubsurfaceProfile, InProxy](FRHICommandListImmediate& RHICmdList)
+		[Settings, LocalSubsurfaceProfile, InProxy](FRHICommandListImmediate& RHICmdList)
+		{
+			if (LocalSubsurfaceProfile)
 			{
-				if (LocalSubsurfaceProfile)
-				{
-					const uint32 AllocationId = GSubsurfaceProfileTextureObject.AddOrUpdateProfile(Settings, LocalSubsurfaceProfile);
-					check(AllocationId >= 0 && AllocationId <= 255);
-				}
-				InProxy->SetSubsurfaceProfileRT(LocalSubsurfaceProfile);
-			});
+				const uint32 AllocationId = GSubsurfaceProfileTextureObject.AddOrUpdateProfile(Settings, LocalSubsurfaceProfile);
+				check(AllocationId >= 0 && AllocationId < MAX_SUBSURFACE_PROFILE_COUNT);
+			}
+			InProxy->SetSubsurfaceProfileRT(LocalSubsurfaceProfile);
+		});
+	}
+
+	if (Strata::IsStrataEnabled())
+	{
+		USpecularProfile* LocalSpecularProfile = GetSpecularProfile_Internal();
+
+		FSpecularProfileStruct LocalSettings;
+
+		const FTextureReference* LocalTexture = nullptr;
+		if (LocalSpecularProfile)
+		{
+			LocalSettings = LocalSpecularProfile->Settings;
+
+			if (!LocalSpecularProfile->Settings.IsProcedural())
+			{
+				LocalTexture = &LocalSpecularProfile->Settings.Texture->TextureReference;
+			}
+		}
+
+		FMaterialRenderProxy* InProxy = &Proxy;
+		ENQUEUE_RENDER_COMMAND(UpdateMaterialRenderProxySpecular)(
+		[LocalSettings, LocalSpecularProfile, InProxy, LocalTexture](FRHICommandListImmediate& RHICmdList)
+		{
+			if (LocalSpecularProfile)
+			{
+				const uint32 AllocationId = SpecularProfileAtlas::AddOrUpdateProfile(LocalSpecularProfile, LocalSettings, LocalTexture);
+				check(AllocationId >= 0 && AllocationId < MAX_SPECULAR_PROFILE_COUNT);
+			}
+			InProxy->SetSpecularProfileRT(LocalSpecularProfile);
+		});
 	}
 }
 

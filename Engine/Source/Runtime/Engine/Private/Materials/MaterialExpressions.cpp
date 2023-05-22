@@ -35,6 +35,7 @@
 #include "Engine/TextureCubeArray.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "Engine/SpecularProfile.h"
 #include "Serialization/ObjectWriter.h"
 #include "Serialization/ObjectReader.h"
 #include "VT/RuntimeVirtualTexture.h"
@@ -23342,10 +23343,18 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 	const bool bHasSecondRoughness = HasSecondRoughness();
 	const bool bHasMFPPluggedIn = HasMFPPluggedIn();
 	const bool bHasSSS = HasSSS();
+	const bool bHasSpecularProfile = HasSpecularProfile();
+
 	int32 SSSProfileCodeChunk = INDEX_NONE;
 	if (bHasSSS)
 	{
 		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(GetSubsurfaceProfileParameterName(), 1.0f), MCT_Float1);
+	}
+
+	int32 SpecularProfileCodeChunk = INDEX_NONE;
+	if (bHasSpecularProfile)
+	{
+		SpecularProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(SpecularProfileAtlas::GetSpecularProfileParameterName(), 1.0f), MCT_Float1);
 	}
 
 	const float DefaultSpecular = 0.5f;
@@ -23391,6 +23400,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		ThicknesCodeChunk,
 		CompileWithDefaultFloat1(Compiler, GlintValue, 0.0f),
 		CompileWithDefaultFloat2(Compiler, GlintUV, 0.0f, 0.0f),
+		SpecularProfileCodeChunk != INDEX_NONE ? SpecularProfileCodeChunk : Compiler->Constant(0.0f),
 		NormalCodeChunk,
 		TangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
@@ -23632,6 +23642,11 @@ void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterial
 	{
 		StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
 	}
+
+	if (HasSpecularProfile())
+	{
+		StrataMaterialInfo.AddSpecularProfile(SpecularProfile);
+	}
 }
 
 FStrataOperator* UMaterialExpressionStrataSlabBSDF::StrataGenerateMaterialTopologyTree(class FMaterialCompiler* Compiler, class UMaterialExpression* Parent, int32 OutputIndex)
@@ -23645,6 +23660,7 @@ FStrataOperator* UMaterialExpressionStrataSlabBSDF::StrataGenerateMaterialTopolo
 	StrataOperator.bBSDFHasMFPPluggedIn = HasMFPPluggedIn();
 	StrataOperator.bBSDFHasAnisotropy = HasAnisotropy();
 	StrataOperator.bBSDFHasGlint = HasGlint();
+	StrataOperator.bBSDFHasSpecularProfile = HasSpecularProfile();
 	StrataOperator.ThicknessIndex = Compiler->StrataThicknessStackGetThicknessIndex();
 	return &StrataOperator;
 }
@@ -23693,6 +23709,12 @@ bool UMaterialExpressionStrataSlabBSDF::HasGlint() const
 {
 	return GlintValue.IsConnected();
 }
+
+bool UMaterialExpressionStrataSlabBSDF::HasSpecularProfile() const
+{
+	return SpecularProfile != nullptr;
+}
+
 #endif // WITH_EDITOR
 
 
@@ -23750,6 +23772,7 @@ int32 UMaterialExpressionStrataSimpleClearCoatBSDF::Compile(class FMaterialCompi
 		ThicknessCodeChunk,										// Thickness
 		Compiler->Constant(0.0f),								// GlintValue
 		Compiler->Constant2(0.0f, 0.0f),						// GlintUV
+		Compiler->Constant(0.0f),								// SpecularProfile
 		NormalCodeChunk,
 		NullTangentCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis),
@@ -23880,6 +23903,7 @@ FStrataOperator* UMaterialExpressionStrataSimpleClearCoatBSDF::StrataGenerateMat
 	StrataOperator.bBSDFHasMFPPluggedIn = false;
 	StrataOperator.bBSDFHasAnisotropy = false;
 	StrataOperator.bBSDFHasGlint = false;
+	StrataOperator.bBSDFHasSpecularProfile = false;
 	StrataOperator.ThicknessIndex = Compiler->StrataThicknessStackGetThicknessIndex();
 	return &StrataOperator;
 }

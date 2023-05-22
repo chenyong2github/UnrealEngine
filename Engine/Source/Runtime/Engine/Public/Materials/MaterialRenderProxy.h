@@ -22,6 +22,7 @@ class UMaterialInterface;
 class URuntimeVirtualTexture;
 class USparseVolumeTexture;
 class USubsurfaceProfile;
+class USpecularProfile;
 class UTexture;
 
 struct FMaterialParameterValue;
@@ -206,6 +207,9 @@ public:
 	void SetSubsurfaceProfileRT(const USubsurfaceProfile* Ptr) { SubsurfaceProfileRT = Ptr; }
 	const USubsurfaceProfile* GetSubsurfaceProfileRT() const { return SubsurfaceProfileRT; }
 
+	void SetSpecularProfileRT(const USpecularProfile* Ptr) { SpecularProfileRT = Ptr; }
+	const USpecularProfile* GetSpecularProfileRT() const { return SpecularProfileRT; }
+
 	static void UpdateDeferredCachedUniformExpressions();
 
 	static bool HasDeferredUniformExpressionCacheRequests();
@@ -223,6 +227,7 @@ private:
 
 	/** 0 if not set, game thread pointer, do not dereference, only for comparison */
 	const USubsurfaceProfile* SubsurfaceProfileRT;
+	const USpecularProfile* SpecularProfileRT;
 	FString MaterialName;
 
 	/** Incremented each time UniformExpressionCache is modified */

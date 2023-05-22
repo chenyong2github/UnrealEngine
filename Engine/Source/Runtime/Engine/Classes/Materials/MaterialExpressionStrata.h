@@ -312,6 +312,10 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
 
+	/** SpecularProfile, for modulating specular appearance and simulating more complex visuals such as iridescence. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Specular Profile"))
+	TObjectPtr<class USpecularProfile> SpecularProfile;
+
 	/** Whether to use light diffusion (i.e., SSS diffusion) or wrap-approximation for material with scattering behavior. This option trades quality over performance and will result into visual differences. */
 	UPROPERTY(EditAnywhere, Category = Mode, meta = (DisplayName = "Use Subsurface Diffusion"))
 	uint32 bUseSSSDiffusion : 1;
@@ -338,6 +342,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	bool HasMFPPluggedIn() const;
 	bool HasAnisotropy() const;
 	bool HasGlint() const;
+	bool HasSpecularProfile() const;
 #endif
 	//~ End UMaterialExpression Interface
 };

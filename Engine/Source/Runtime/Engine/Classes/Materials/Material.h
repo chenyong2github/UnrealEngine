@@ -38,6 +38,7 @@ class UMaterialExpressionComment;
 class UPhysicalMaterial;
 class UPhysicalMaterialMask;
 class USubsurfaceProfile;
+class USpecularProfile;
 class UTexture;
 struct FODSCRequestPayload;
 
@@ -1125,6 +1126,7 @@ public:
 	ENGINE_API virtual bool IsUIMaterial() const;
 	ENGINE_API virtual bool IsPostProcessMaterial() const;
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;
+	ENGINE_API virtual USpecularProfile* GetSpecularProfile_Internal() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
 	ENGINE_API virtual FDisplacementScaling GetDisplacementScaling() const override;
 	ENGINE_API virtual float GetMaxWorldPositionOffsetDisplacement() const override;

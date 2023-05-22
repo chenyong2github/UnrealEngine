@@ -50,6 +50,7 @@
 #include "SceneView.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "Engine/SpecularProfile.h"
 #include "EditorSupportDelegates.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "ShaderCompiler.h"
@@ -446,6 +447,11 @@ public:
 			if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == GetSubsurfaceProfileParameterName())
 			{
 				OutValue = GetSubsurfaceProfileId(GetSubsurfaceProfileRT());
+				return true;
+			}
+			else if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == SpecularProfileAtlas::GetSpecularProfileParameterName())
+			{
+				OutValue = SpecularProfileAtlas::GetSpecularProfileId(GetSpecularProfileRT());
 				return true;
 			}
 
@@ -5064,6 +5070,9 @@ void UMaterial::RebuildShadingModelField()
 			}
 			SubsurfaceProfile = StrataMaterialInfo.GetSubsurfaceProfile();
 		}
+
+		// Set specular profile if any
+		SpecularProfile = StrataMaterialInfo.GetSpecularProfile();
 	}
 	// If using shading model from material expression, go through the expressions and look for the ShadingModel expression to figure out what shading models need to be supported in this material.
 	// This might not be the same as what is actually compiled in to the shader, since there might be feature switches, static switches etc. that skip certain shading models.
@@ -6610,6 +6619,12 @@ USubsurfaceProfile* UMaterial::GetSubsurfaceProfile_Internal() const
 {
 	checkSlow(IsInGameThread());
 	return SubsurfaceProfile; 
+}
+
+USpecularProfile* UMaterial::GetSpecularProfile_Internal() const
+{
+	checkSlow(IsInGameThread());
+	return SpecularProfile; 
 }
 
 bool UMaterial::CastsRayTracedShadows() const

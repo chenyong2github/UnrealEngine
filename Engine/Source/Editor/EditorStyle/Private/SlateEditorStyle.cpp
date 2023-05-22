@@ -6497,6 +6497,7 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("SlateBrushAsset"),
 			TEXT("SlateWidgetStyleAsset"),
 			TEXT("StringTable"),
+			TEXT("SpecularProfile"),
 			TEXT("SphereReflectionCapture"),
 			TEXT("SpotLight"),
 			TEXT("SpotLightMovable"),

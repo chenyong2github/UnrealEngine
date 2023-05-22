@@ -139,6 +139,7 @@ void WriteOutMaterial(
 		/*float FuzzRoughness					*/0.0f,
 		/*float GlintValue						*/0.0f,
 		/*float GlintUV							*/0.0f.xx,
+		/*float SpecularProfile					*/0.0f,
 		/*float Thickness						*/0.0f,
 		/*bool bIsThinSurface					*/false,
 		/*uint SharedLocalBasisIndex			*/SharedLocalBasisIndex,

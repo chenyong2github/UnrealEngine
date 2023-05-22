@@ -7,6 +7,8 @@
 #include "RenderResource.h"
 #include "SubsurfaceProfile.generated.h"
 
+#define MAX_SUBSURFACE_PROFILE_COUNT 256
+
 // struct with all the settings we want in USubsurfaceProfile, separate to make it easer to pass this data around in the engine.
 USTRUCT(BlueprintType)
 struct FSubsurfaceProfileStruct

@@ -70,6 +70,7 @@
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "Engine/SpecularProfile.h"
 #include "SceneCaptureRendering.h"
 #include "NaniteSceneProxy.h"
 #include "Nanite/NaniteRayTracing.h"
@@ -1971,8 +1972,10 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 	// Initialize common resources used for lighting in ray tracing effects
 
 	ReferenceView.RayTracingSubSurfaceProfileTexture = GetSubsurfaceProfileTextureWithFallback();
-
 	ReferenceView.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSubSurfaceProfileTexture, 0);
+
+	ReferenceView.RayTracingSpecularProfileTexture = SpecularProfileAtlas::GetSpecularProfileTextureAtlasWithFallback();
+	ReferenceView.RayTracingSpecularProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSpecularProfileTexture, 0);
 
 	for (int32 ViewIndex = 0; ViewIndex < AllFamilyViews.Num(); ++ViewIndex)
 	{
@@ -1987,6 +1990,8 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 			View->RayTracingSubSurfaceProfileTexture = ReferenceView.RayTracingSubSurfaceProfileTexture;
 			View->RayTracingSubSurfaceProfileSRV = ReferenceView.RayTracingSubSurfaceProfileSRV;
 			View->RayTracingMaterialPipeline = ReferenceView.RayTracingMaterialPipeline;
+			View->RayTracingSpecularProfileTexture = ReferenceView.RayTracingSpecularProfileTexture;
+			View->RayTracingSpecularProfileSRV = ReferenceView.RayTracingSpecularProfileSRV;
 		}
 	}
 
@@ -2233,6 +2238,8 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 			// is finished using them (where multiple view families are rendered).
 			View.RayTracingSubSurfaceProfileSRV.SafeRelease();
 			View.RayTracingSubSurfaceProfileTexture.SafeRelease();
+			View.RayTracingSpecularProfileSRV.SafeRelease();
+			View.RayTracingSpecularProfileTexture.SafeRelease();
 		}
 	});
 }
@@ -2730,6 +2737,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		// Force the subsurface profile texture to be updated.
 		UpdateSubsurfaceProfileTexture(GraphBuilder, ShaderPlatform);
+		SpecularProfileAtlas::UpdateSpecularProfileTextureAtlas(GraphBuilder, ShaderPlatform);
 
 		// Force the rect light texture & IES texture to be updated.
 		RectLightAtlas::UpdateAtlasTexture(GraphBuilder, FeatureLevel);

@@ -32,6 +32,7 @@
 #include "Materials/MaterialInstanceUpdateParameterSet.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "Engine/SpecularProfile.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ObjectCacheEventSink.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -280,7 +281,13 @@ bool FMaterialInstanceResource::GetParameterValue(EMaterialParameterType Type, c
 		OutValue = GetSubsurfaceProfileId(MySubsurfaceProfileRT);
 		bResult = true;
 	}
-
+	else if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == SpecularProfileAtlas::GetSpecularProfileParameterName())
+	{
+		check(ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter);
+		const USpecularProfile* MySpecularProfileRT = GetSpecularProfileRT();
+		OutValue = SpecularProfileAtlas::GetSpecularProfileId(MySpecularProfileRT);
+		bResult = true;
+	}
 	if (!bResult)
 	{
 		// Check for instances overrides
@@ -3110,7 +3117,7 @@ void UMaterialInstance::PostLoad()
 	UpdateCachedData();
 #endif
 
-	// called before we cache the uniform expression as a call to SubsurfaceProfileRT affects the dta in there
+	// called before we cache the uniform expression as a call to SubsurfaceProfileRT/SpecularProfileRT affects the data in there
 	PropagateDataToMaterialProxy();
 
 	STAT(double MaterialLoadTime = 0);

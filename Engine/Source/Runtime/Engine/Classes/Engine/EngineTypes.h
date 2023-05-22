@@ -29,6 +29,7 @@ class UPhysicalMaterialMask;
 class UPrimitiveComponent;
 class USceneComponent;
 class USubsurfaceProfile;
+class USpecularProfile;
 
 /**
  * Default number of components to expect in TInlineAllocators used with AActor component arrays.
@@ -739,6 +740,10 @@ public:
 	int32 CountSubsurfaceProfiles() const { return SubsurfaceProfiles.Num(); }
 	USubsurfaceProfile* GetSubsurfaceProfile() const { return SubsurfaceProfiles.Num() > 0 ? SubsurfaceProfiles[0] : nullptr; }
 
+	void AddSpecularProfile(USpecularProfile* InProfile) { if (InProfile) SpecularProfiles.Add(InProfile); }
+	int32 CountSpecularProfiles() const { return SpecularProfiles.Num(); }
+	USpecularProfile* GetSpecularProfile() const { return SpecularProfiles.Num() > 0 ? SpecularProfiles[0] : nullptr; }
+
 	// Shading model from expression
 	void SetShadingModelFromExpression(bool bIn) { bHasShadingModelFromExpression = bIn ? 1u : 0u; }
 	bool HasShadingModelFromExpression() const { return bHasShadingModelFromExpression > 0u; }
@@ -788,6 +793,9 @@ private:
 
 	UPROPERTY()
 	TArray<TObjectPtr<USubsurfaceProfile>> SubsurfaceProfiles;
+
+	UPROPERTY()
+	TArray<TObjectPtr<USpecularProfile>> SpecularProfiles;
 
 #if WITH_EDITOR
 	// A simple way to detect and prevent node re-entry due to cycling graph; stop the compilation and avoid crashing.

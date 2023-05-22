@@ -110,6 +110,7 @@
 #include "Factories/StructureFactory.h"
 #include "Factories/StringTableFactory.h"
 #include "Factories/SubsurfaceProfileFactory.h"
+#include "Factories/SpecularProfileFactory.h"
 #include "Factories/Texture2dFactoryNew.h"
 #include "Engine/Texture.h"
 #include "Factories/TextureFactory.h"
@@ -145,6 +146,7 @@
 #include "Sound/SoundWave.h"
 #include "GameFramework/DefaultPhysicsVolume.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "Engine/SpecularProfile.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"
 #include "GameFramework/WorldSettings.h"
@@ -7854,6 +7856,26 @@ UObject* USubsurfaceProfileFactory::FactoryCreateNew(UClass* InClass, UObject* I
 	// loaded from files to be automatically converted to MFP.
 	Object->Settings.bEnableMeanFreePath = true;
 
+	return Object;
+}
+
+
+/*-----------------------------------------------------------------------------
+	USpecularProfileFactory implementation.
+	-----------------------------------------------------------------------------*/
+USpecularProfileFactory::USpecularProfileFactory(const FObjectInitializer& ObjectInitializer)
+: Super(ObjectInitializer)
+{
+
+	SupportedClass = USpecularProfile::StaticClass();
+	bCreateNew = true;
+	bEditorImport = false;
+	bEditAfterNew = true;
+}
+
+UObject* USpecularProfileFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	USpecularProfile* Object = NewObject<USpecularProfile>(InParent, InName, Flags);	
 	return Object;
 }
 

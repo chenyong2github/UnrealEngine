@@ -526,7 +526,8 @@ void FMaterialRenderProxy::UpdateUniformExpressionCacheIfNeeded(ERHIFeatureLevel
 }
 
 FMaterialRenderProxy::FMaterialRenderProxy(FString InMaterialName)
-	: SubsurfaceProfileRT(0)
+	: SubsurfaceProfileRT(nullptr)
+	, SpecularProfileRT(nullptr)
 	, MaterialName(MoveTemp(InMaterialName))
 	, MarkedForGarbageCollection(0)
 	, DeletedFlag(0)

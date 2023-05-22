@@ -191,7 +191,7 @@ void PackStrataOut(
 						const bool LuminanceWeightEqualOne = all(BSDF.LuminanceWeightV == 1.0f);
 
 						#if STRATA_GLINTS
-						const bool bForceComplexMaterial = BSDF_GETHASANISOTROPY(BSDF) || BSDF_GETHASGLINT(BSDF);
+						const bool bForceComplexMaterial = BSDF_GETHASANISOTROPY(BSDF) || BSDF_GETHASGLINT(BSDF) || BSDF_GETHASSPECPROFILE(BSDF);
 						#else
 						const bool bForceComplexMaterial = BSDF_GETHASANISOTROPY(BSDF);
 						#endif
@@ -804,6 +804,11 @@ void PackStrataOut(
 								// That cannot be reconstructed in a deferred fashion (e.g. edge of a mesh overlaping with backgroud would look wrongly aliased)
 								STRATA_STORE_UINT1(PackFloat2ToUInt(SLAB_GLINT_UVDDX(BSDF)));
 								STRATA_STORE_UINT1(PackFloat2ToUInt(SLAB_GLINT_UVDDY(BSDF)));
+							}
+
+							if (BSDF_GETHASSPECPROFILE(BSDF))
+							{
+								STRATA_STORE_UINT1(uint(SLAB_SPECPROFILEID(BSDF)));
 							}
 							#endif // STRATA_GLINTS
 

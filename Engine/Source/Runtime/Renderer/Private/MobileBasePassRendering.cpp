@@ -18,6 +18,7 @@
 #include "FramePro/FrameProProfiler.h"
 #include "PostProcess/PostProcessPixelProjectedReflectionMobile.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "Engine/SpecularProfile.h"
 #include "LocalLightSceneProxy.h"
 #include "ReflectionEnvironment.h"
 #include "RenderCore.h"
