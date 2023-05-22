@@ -1173,8 +1173,9 @@ void UVCamComponent::ApplyInputProfile()
 	if (Settings)
 	{
 		// The modifiers' input mapping contexts must be registered to allow remapping...
-		const TSet<TObjectPtr<UInputMappingContext>>& RegisteredInputMappingContexts = Settings->GetRegisteredInputMappingContexts();
-		Algo::ForEach(RegisteredInputMappingContexts, [Settings](const TObjectPtr<UInputMappingContext>& Context){ Settings->UnregisterInputMappingContext(Context.Get()); });
+		// Copy intentional since we'll be modifying RegisteredMappingContexts in a for-range loop.
+		const TSet<TObjectPtr<UInputMappingContext>> CopyOfRegisteredInputs = Settings->GetRegisteredInputMappingContexts();
+		Algo::ForEach(CopyOfRegisteredInputs, [Settings](const TObjectPtr<UInputMappingContext>& Context){ Settings->UnregisterInputMappingContext(Context.Get()); });
 		Algo::ForEach(AppliedInputContexts, [Settings](const TObjectPtr<UInputMappingContext>& Context){ Settings->RegisterInputMappingContext(Context.Get()); });
 
 		// ... after registration set their defaults ...
