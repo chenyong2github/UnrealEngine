@@ -72,6 +72,10 @@ class FLocalHeightFogGPUInstanceData
 public:
 	FMatrix44f Transform;
 	FMatrix44f InvTransform;
+	FMatrix44f FogTranformNoScale;
+	FMatrix44f FogTranformNoScaleInv;
+	FMatrix44f FogTransformScaleOnly;
+	FMatrix44f FogTransformScaleOnlyInv;
 
 	float Density;
 	float HeightFalloff;
@@ -149,8 +153,15 @@ void RenderLocalHeightFog(
 		FLocalHeightFogGPUInstanceData* LocalHeightFogGPUInstanceDataIt = LocalHeightFogGPUInstanceData;
 		for (FLocalHeightFogSceneProxy* LHF : Scene->LocalHeightFogs)
 		{
-			LocalHeightFogGPUInstanceDataIt->Transform = FMatrix44f(LHF->FogTransform.ToMatrixWithScale());
-			LocalHeightFogGPUInstanceDataIt->InvTransform = LocalHeightFogGPUInstanceDataIt->Transform.Inverse();
+			FTransform FogTransformScaleOnly;
+			FogTransformScaleOnly.SetScale3D(LHF->FogTransform.GetScale3D());
+
+			LocalHeightFogGPUInstanceDataIt->Transform					= FMatrix44f(LHF->FogTransform.ToMatrixWithScale());
+			LocalHeightFogGPUInstanceDataIt->InvTransform				= LocalHeightFogGPUInstanceDataIt->Transform.Inverse();
+			LocalHeightFogGPUInstanceDataIt->FogTranformNoScale			= FMatrix44f(LHF->FogTransform.ToMatrixNoScale());
+			LocalHeightFogGPUInstanceDataIt->FogTranformNoScaleInv		= LocalHeightFogGPUInstanceDataIt->FogTranformNoScale.Inverse();
+			LocalHeightFogGPUInstanceDataIt->FogTransformScaleOnly		= FMatrix44f(FogTransformScaleOnly.ToMatrixWithScale());
+			LocalHeightFogGPUInstanceDataIt->FogTransformScaleOnlyInv	= LocalHeightFogGPUInstanceDataIt->FogTransformScaleOnly.Inverse();
 
 			LocalHeightFogGPUInstanceDataIt->Density = LHF->FogDensity;
 			LocalHeightFogGPUInstanceDataIt->HeightFalloff = LHF->FogHeightFalloff * 0.01f;	// This scale is used to have artist author reasonable range.
