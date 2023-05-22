@@ -276,7 +276,7 @@ bool FPropertyCaptureHelper::CanCaptureProperty(const UStruct* ContainerClass, c
 						checkSlow(PropertyParam); // Fix static analysis warning
 						bool bParamCanBeHandled = false;
 
-						if (PropertyParam->GetClass() == Property->GetClass())
+						if (PropertyParam->SameType(Property))
 						{
 							if (Property->GetClass()->IsChildOf(FStructProperty::StaticClass()))
 							{
