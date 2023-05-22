@@ -75,6 +75,9 @@ public:
 	void SetIsInitializingDefaultState(bool bInIsInitializingDefaultState) { bIsInitializingDefaultState = bInIsInitializingDefaultState; }
 	bool IsInitializingDefaultState() const { return bIsInitializingDefaultState; }
 
+	void SetPacketId(int32 InPacketId) { PacketId = InPacketId; }
+	int32 GetPacketId() const { return PacketId; }
+
 private:
 	IRISCORE_API bool IsBitStreamOverflown() const;
 	IRISCORE_API void SetBitStreamOverflow();
@@ -88,6 +91,7 @@ private:
 	const FNetBitArrayView* ChangeMask;
 	INetBlobReceiver* NetBlobReceiver;
 	uint32 LocalConnectionId;
+	int32 PacketId;
 	/** Set when replicated objects send their very first state. */
 	uint32 bIsInitState : 1;
 	/** Set only when dealing with a default state. */
@@ -104,6 +108,7 @@ inline FNetSerializationContext::FNetSerializationContext(FNetBitStreamReader* I
 , ChangeMask(nullptr)
 , NetBlobReceiver(nullptr)
 , LocalConnectionId(0)
+, PacketId(-1)
 , bIsInitState(0)
 , bIsInitializingDefaultState(0)
 {

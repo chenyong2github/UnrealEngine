@@ -106,6 +106,7 @@ void UDataStreamChannel::ReceivedBunch(FInBunch& Bunch)
 	BitReader.Seek(Bunch.GetPosBits());
 
 	FNetSerializationContext SerializationContext(&BitReader);
+	SerializationContext.SetPacketId(Connection->InPacketId);
 
 	// For packet stats
 	SerializationContext.SetTraceCollector(Connection->GetInTraceCollector());
@@ -208,6 +209,7 @@ void UDataStreamChannel::Tick()
 		BitWriter.InitBytes(BitStreamBuffer, MaxBytes);
 
 		FNetSerializationContext SerializationContext(&BitWriter);
+		SerializationContext.SetPacketId(Connection->OutPacketId);
 
 #if UE_NET_TRACE_ENABLED	
 		// For Iris we can use the connection trace collector as long as we make sure that the packet is prepared 
