@@ -4,13 +4,11 @@
 
 void SPlayheadOverlay::Construct(const FArguments& InArgs)
 {
-	Style = InArgs._Style;
-
-	check(Style);
-	PlayheadColor = Style->PlayheadColor;
-	PlayheadWidth = Style->PlayheadWidth;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
+	check(InArgs._Style);
+	PlayheadColor = InArgs._Style->PlayheadColor;
+	PlayheadWidth = InArgs._Style->PlayheadWidth;
+	DesiredWidth = InArgs._Style->DesiredWidth;
+	DesiredHeight = InArgs._Style->DesiredHeight;
 }
 
 void SPlayheadOverlay::SetPlayheadPosition(const float InNewPosition)
@@ -18,19 +16,12 @@ void SPlayheadOverlay::SetPlayheadPosition(const float InNewPosition)
 	PlayheadPosition = InNewPosition;
 }
 
-void SPlayheadOverlay::OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle)
+void SPlayheadOverlay::OnStyleUpdated(const FPlayheadOverlayStyle UpdatedStyle)
 {
-	check(Style);
-
-	if (&UpdatedStyle != Style)
-	{
-		return;
-	}
-
-	PlayheadColor = Style->PlayheadColor;
-	PlayheadWidth = Style->PlayheadWidth;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
+	PlayheadColor = UpdatedStyle.PlayheadColor;
+	PlayheadWidth = UpdatedStyle.PlayheadWidth;
+	DesiredWidth = UpdatedStyle.DesiredWidth;
+	DesiredHeight = UpdatedStyle.DesiredHeight;
 }
 
 int32 SPlayheadOverlay::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const

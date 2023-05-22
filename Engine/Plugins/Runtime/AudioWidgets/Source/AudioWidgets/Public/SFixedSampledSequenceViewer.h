@@ -37,7 +37,7 @@ public:
 	void Construct(const FArguments& InArgs, TArrayView<const float> InSampleData, const uint8 InNumChannels, TSharedRef<IFixedSampledSequenceGridService> InGridService);
 	void UpdateView(TArrayView<const float> InSampleData, const uint8 InNumChannels);
 	
-	void OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle);
+	void OnStyleUpdated(const FSampledSequenceViewerStyle UpdatedStyle);
 
 	void UpdateGridMetrics();
 
@@ -57,7 +57,6 @@ private:
 	TSharedPtr<IFixedSampledSequenceGridService> GridService = nullptr;
 	FFixedSampledSequenceGridMetrics GridMetrics;
 
-	const FSampledSequenceViewerStyle* Style = nullptr;
 	FSlateBrush BackgroundBrush;
 	FSlateColor BackgroundColor = FLinearColor(0.02f, 0.02f, 0.02f, 1.f);
 	FSlateColor SequenceColor = FLinearColor::White;

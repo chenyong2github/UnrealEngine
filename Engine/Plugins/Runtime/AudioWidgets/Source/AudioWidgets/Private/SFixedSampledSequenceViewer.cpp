@@ -7,23 +7,22 @@ void SFixedSampledSequenceViewer::Construct(const FArguments& InArgs, TArrayView
 	GridService = InGridService;
 	UpdateView(InSampleData, InNumChannels);
 
-	Style = InArgs._Style;
 	DrawingParams = InArgs._SequenceDrawingParams;
 	bHideBackground = InArgs._HideBackground;
 	bHideGrid = InArgs._HideGrid;
 
-	check(Style);
-	SequenceColor = Style->SequenceColor;
-	MajorGridLineColor = Style->MajorGridLineColor;
-	MinorGridLineColor = Style->MinorGridLineColor;
-	BackgroundColor = Style->SequenceBackgroundColor;
-	BackgroundBrush = Style->BackgroundBrush;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
-	SampleMarkersSize = Style->SampleMarkersSize;
-	SequenceLineThickness = Style->SequenceLineThickness;
-	ZeroCrossingLineColor = Style->ZeroCrossingLineColor;
-	ZeroCrossingLineThickness = Style->ZeroCrossingLineThickness;
+	check(InArgs._Style);
+	SequenceColor = InArgs._Style->SequenceColor;
+	MajorGridLineColor = InArgs._Style->MajorGridLineColor;
+	MinorGridLineColor = InArgs._Style->MinorGridLineColor;
+	BackgroundColor = InArgs._Style->SequenceBackgroundColor;
+	BackgroundBrush = InArgs._Style->BackgroundBrush;
+	DesiredWidth = InArgs._Style->DesiredWidth;
+	DesiredHeight = InArgs._Style->DesiredHeight;
+	SampleMarkersSize = InArgs._Style->SampleMarkersSize;
+	SequenceLineThickness = InArgs._Style->SequenceLineThickness;
+	ZeroCrossingLineColor = InArgs._Style->ZeroCrossingLineColor;
+	ZeroCrossingLineThickness = InArgs._Style->ZeroCrossingLineThickness;
 }
 
 void SFixedSampledSequenceViewer::UpdateView(TArrayView<const float> InSampleData, const uint8 InNumChannels)
@@ -76,7 +75,9 @@ int32 SFixedSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeomet
 					AllottedGeometry.ToPaintGeometry(),
 					BinDrawPoints,
 					ESlateDrawEffect::None,
-					SequenceColor.GetSpecifiedColor()
+					SequenceColor.GetSpecifiedColor(),
+					true,
+					SequenceLineThickness
 				);
 
 				const int32 NextBinCoordinates = i + NumChannels;
@@ -92,7 +93,9 @@ int32 SFixedSampledSequenceViewer::OnPaint(const FPaintArgs& Args, const FGeomet
 						AllottedGeometry.ToPaintGeometry(),
 						BinDrawPoints,
 						ESlateDrawEffect::None,
-						SequenceColor.GetSpecifiedColor()
+						SequenceColor.GetSpecifiedColor(),
+						true,
+						SequenceLineThickness
 					);
 
 				}
@@ -268,24 +271,17 @@ void SFixedSampledSequenceViewer::UpdateGridMetrics()
 	GridMetrics = GridService->GetGridMetrics();
 }
 
-void SFixedSampledSequenceViewer::OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle)
+void SFixedSampledSequenceViewer::OnStyleUpdated(const FSampledSequenceViewerStyle UpdatedStyle)
 {
-	check(Style);
-
-	if (&UpdatedStyle != Style)
-	{
-		return;
-	}
-
-	SequenceColor = Style->SequenceColor;
-	MajorGridLineColor = Style->MajorGridLineColor;
-	MinorGridLineColor = Style->MinorGridLineColor;
-	ZeroCrossingLineColor = Style->ZeroCrossingLineColor;
-	ZeroCrossingLineThickness = Style->ZeroCrossingLineThickness;
-	BackgroundColor = Style->SequenceBackgroundColor;
-	BackgroundBrush = Style->BackgroundBrush;
-	SampleMarkersSize = Style->SampleMarkersSize;
-	SequenceLineThickness = Style->SequenceLineThickness;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
+	SequenceColor = UpdatedStyle.SequenceColor;
+	MajorGridLineColor = UpdatedStyle.MajorGridLineColor;
+	MinorGridLineColor = UpdatedStyle.MinorGridLineColor;
+	ZeroCrossingLineColor = UpdatedStyle.ZeroCrossingLineColor;
+	ZeroCrossingLineThickness = UpdatedStyle.ZeroCrossingLineThickness;
+	BackgroundColor = UpdatedStyle.SequenceBackgroundColor;
+	BackgroundBrush = UpdatedStyle.BackgroundBrush;
+	SampleMarkersSize = UpdatedStyle.SampleMarkersSize;
+	SequenceLineThickness = UpdatedStyle.SequenceLineThickness;
+	DesiredWidth = UpdatedStyle.DesiredWidth;
+	DesiredHeight = UpdatedStyle.DesiredHeight;
 }

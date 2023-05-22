@@ -88,6 +88,11 @@ public:
 	virtual void ReceiveSequenceView(const FFixedSampledSequenceView InData, const uint32 FirstSampleIndex) override;
 	
 	void SetPlayheadRatio(const float InRatio);
+
+	void UpdateSequenceViewerStyle(const FSampledSequenceViewerStyle UpdatedStyle);
+	void UpdateRulerStyle(const FFixedSampleSequenceRulerStyle UpdatedStyle);
+	void UpdatePlayheadOverlayStyle(const FPlayheadOverlayStyle UpdatedStyle);
+	void UpdateValueGridOverlayStyle(const FSampledSequenceValueGridOverlayStyle UpdatedStyle);
 	
 private:
 	virtual void CreateLayout();
@@ -109,7 +114,6 @@ private:
 	
 	void UpdateSamplesRulerDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit);
 	void UpdatePlayheadPosition(const float PaintedWidth);
-
 
 	float CachedPixelWidth = 0.f;
 

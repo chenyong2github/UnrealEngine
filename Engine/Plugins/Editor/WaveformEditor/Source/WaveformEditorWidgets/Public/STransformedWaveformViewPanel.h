@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AudioWidgetsSlateTypes.h"
 #include "HAL/Platform.h"
 #include "Widgets/SCompoundWidget.h"
 #include "IFixedSampledSequenceViewReceiver.h"
@@ -72,7 +73,7 @@ private:
 
 	void UpdateDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit);
 	void UpdatePlayheadPosition(const float PaintedWidth);
-	void UpdateBackground(const FNotifyingAudioWidgetStyle& UpdatedStyle);
+	void UpdateBackground(const FSampledSequenceViewerStyle UpdatedStyle);
 
 	void OnWaveEditorWidgetSettingsUpdated(const FName& PropertyName, const UWaveformEditorWidgetsSettings* Settings);
 

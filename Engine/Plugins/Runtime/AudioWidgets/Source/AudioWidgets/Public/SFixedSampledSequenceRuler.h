@@ -33,7 +33,7 @@ public:
 	void UpdateGridMetrics();
 	void UpdateDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit);
 	void SetPlayheadPosition(const float InNewPosition);
-	void OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle);
+	void OnStyleUpdated(const FFixedSampleSequenceRulerStyle UpdatedStyle);
 	FReply LaunchContextMenu();
 
 	/** Delegate sent when the user selects a new display unit from the RMB menu*/
@@ -52,8 +52,6 @@ private:
 	void NotifyTimeUnitMenuSelection(const ESampledSequenceDisplayUnit SelectedDisplayUnit) const;
 
 	FFixedSampledSequenceGridMetrics GridMetrics;
-
-	const FFixedSampleSequenceRulerStyle* Style = nullptr;
 
 	FSlateColor BackgroundColor = FLinearColor::Black;
 	FSlateBrush BackgroundBrush;

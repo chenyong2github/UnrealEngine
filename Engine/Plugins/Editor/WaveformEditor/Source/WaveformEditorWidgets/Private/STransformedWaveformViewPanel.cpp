@@ -2,7 +2,6 @@
 
  #include "STransformedWaveformViewPanel.h"
 
-#include "AudioWidgetsSlateTypes.h"
 #include "DSP/Dsp.h"
 #include "SampledSequenceDisplayUnit.h"
 #include "SFixedSampledSequenceRuler.h"
@@ -111,19 +110,17 @@ void STransformedWaveformViewPanel::CreateLayout()
 
 void STransformedWaveformViewPanel::SetUpTimeRuler(TSharedRef<FWaveformEditorGridData> InGridData)
 {
-	FFixedSampleSequenceRulerStyle* TimeRulerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FFixedSampleSequenceRulerStyle>("WaveformEditorRuler.Style").Get();
-	check(TimeRulerStyle);
+	const FFixedSampleSequenceRulerStyle& TimeRulerStyle = WaveformEditorStyle->GetWidgetStyle<FFixedSampleSequenceRulerStyle>("WaveformEditorRuler.Style");
 
-	TimeRuler = SNew(SFixedSampledSequenceRuler, InGridData).DisplayUnit(DisplayUnit).Style(TimeRulerStyle);
+	TimeRuler = SNew(SFixedSampledSequenceRuler, InGridData).DisplayUnit(DisplayUnit).Style(&TimeRulerStyle);
 	GridData->OnGridMetricsUpdated.AddSP(TimeRuler.ToSharedRef(), &SFixedSampledSequenceRuler::UpdateGridMetrics);
-	TimeRulerStyle->OnStyleUpdated.AddSP(TimeRuler.ToSharedRef(), &SFixedSampledSequenceRuler::OnStyleUpdated);
+	WaveformEditorStyle->OnNewTimeRulerStyle.AddSP(TimeRuler.ToSharedRef(), &SFixedSampledSequenceRuler::OnStyleUpdated);
 	TimeRuler->OnTimeUnitMenuSelection.AddSP(this, &STransformedWaveformViewPanel::UpdateDisplayUnit);
 }
 
 void STransformedWaveformViewPanel::SetUpInputRoutingOverlay()
 {
-	FSampledSequenceViewerStyle* ViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
-	check(ViewerStyle);
+	const FSampledSequenceViewerStyle& ViewerStyle = WaveformEditorStyle->GetWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style");
 	
 	TArray<TSharedPtr<SWidget>> OverlaidWidgets;
 
@@ -134,35 +131,31 @@ void STransformedWaveformViewPanel::SetUpInputRoutingOverlay()
 
 	check(PlayheadOverlay)
 	OverlaidWidgets.Add(PlayheadOverlay);
-	InputRoutingOverlay = SNew(SWaveformEditorInputRoutingOverlay, OverlaidWidgets).Style(ViewerStyle);
+	InputRoutingOverlay = SNew(SWaveformEditorInputRoutingOverlay, OverlaidWidgets).Style(&ViewerStyle);
 }
 
 void STransformedWaveformViewPanel::SetupPlayheadOverlay()
 {
-	FPlayheadOverlayStyle* PlayheadOverlayStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FPlayheadOverlayStyle>("WaveformEditorPlayheadOverlay.Style").Get();
-	check(PlayheadOverlayStyle);
-
-	PlayheadOverlay = SNew(SPlayheadOverlay).Style(PlayheadOverlayStyle);
-	PlayheadOverlayStyle->OnStyleUpdated.AddSP(PlayheadOverlay.ToSharedRef(), &SPlayheadOverlay::OnStyleUpdated);
+	const FPlayheadOverlayStyle& PlayheadOverlayStyle = WaveformEditorStyle->GetWidgetStyle<FPlayheadOverlayStyle>("WaveformEditorPlayheadOverlay.Style");
+	PlayheadOverlay = SNew(SPlayheadOverlay).Style(&PlayheadOverlayStyle);
+	WaveformEditorStyle->OnNewPlayheadOverlayStyle.AddSP(PlayheadOverlay.ToSharedRef(), &SPlayheadOverlay::OnStyleUpdated);
 }
 
 void STransformedWaveformViewPanel::SetUpWaveformViewer(TSharedRef<FWaveformEditorGridData> InGridData, const FFixedSampledSequenceView& InData)
 {
-	FSampledSequenceViewerStyle* WaveViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
-	check(WaveViewerStyle);
+	const FSampledSequenceViewerStyle& WaveViewerStyle = WaveformEditorStyle->GetWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style");
 
-	WaveformViewer = SNew(SFixedSampledSequenceViewer, InData.SampleData, InData.NumDimensions, InGridData).Style(WaveViewerStyle).HideBackground(true);
+	WaveformViewer = SNew(SFixedSampledSequenceViewer, InData.SampleData, InData.NumDimensions, InGridData).Style(&WaveViewerStyle).HideBackground(true);
 		
-	WaveViewerStyle->OnStyleUpdated.AddSP(WaveformViewer.ToSharedRef(), &SFixedSampledSequenceViewer::OnStyleUpdated);
+	WaveformEditorStyle->OnNewWaveformViewerStyle.AddSP(WaveformViewer.ToSharedRef(), &SFixedSampledSequenceViewer::OnStyleUpdated);
 	GridData->OnGridMetricsUpdated.AddSP(WaveformViewer.ToSharedRef(), &SFixedSampledSequenceViewer::UpdateGridMetrics);
 }
 
 void STransformedWaveformViewPanel::SetUpGridData()
 {
-	FFixedSampleSequenceRulerStyle* RulerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FFixedSampleSequenceRulerStyle>("WaveformEditorRuler.Style").Get();
-	check(RulerStyle)
+	const FFixedSampleSequenceRulerStyle& RulerStyle = WaveformEditorStyle->GetWidgetStyle<FFixedSampleSequenceRulerStyle>("WaveformEditorRuler.Style");
 	
-	GridData = MakeShared<FWaveformEditorGridData>(DataView.SampleData.Num() / DataView.NumDimensions, DataView.SampleRate, RulerStyle->DesiredWidth, &RulerStyle->TicksTextFont);
+	GridData = MakeShared<FWaveformEditorGridData>(DataView.SampleData.Num() / DataView.NumDimensions, DataView.SampleRate, RulerStyle.DesiredWidth, &RulerStyle.TicksTextFont);
 }
 
 void STransformedWaveformViewPanel::ReceiveSequenceView(const FFixedSampledSequenceView InView, const uint32 FirstSampleIndex)
@@ -278,19 +271,9 @@ void STransformedWaveformViewPanel::UpdatePlayheadPosition(const float PaintedWi
 	}
 }
 
-void STransformedWaveformViewPanel::UpdateBackground(const FNotifyingAudioWidgetStyle& UpdatedStyle)
+void STransformedWaveformViewPanel::UpdateBackground(const FSampledSequenceViewerStyle UpdatedStyle)
 {
-	FSampledSequenceViewerStyle* ViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
-
-	check(ViewerStyle);
-
-	if (&UpdatedStyle != ViewerStyle)
-	{
-		return;
-	}
-
-	BackgroundBorder->SetBorderImage(&ViewerStyle->BackgroundBrush);
-	BackgroundBorder->SetBorderBackgroundColor(ViewerStyle->SequenceBackgroundColor);
+	BackgroundBorder->SetBorderBackgroundColor(UpdatedStyle.SequenceBackgroundColor);
 }
 
 void STransformedWaveformViewPanel::OnWaveEditorWidgetSettingsUpdated(const FName& PropertyName, const UWaveformEditorWidgetsSettings* Settings)
@@ -328,14 +311,13 @@ const UWaveformEditorWidgetsSettings* STransformedWaveformViewPanel::GetWaveform
 
 void STransformedWaveformViewPanel::SetUpBackground()
 {
-	FSampledSequenceViewerStyle* ViewerStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style").Get();
-	check(ViewerStyle);
+	WaveformEditorStyle->OnNewWaveformViewerStyle.AddSP(this, &STransformedWaveformViewPanel::UpdateBackground);
 
-	ViewerStyle->OnStyleUpdated.AddSP(this, &STransformedWaveformViewPanel::UpdateBackground);
+	const FSampledSequenceViewerStyle& ViewerStyle = WaveformEditorStyle->GetWidgetStyle<FSampledSequenceViewerStyle>("WaveformViewer.Style");
 
 	BackgroundBorder = SNew(SBorder)
-		.BorderImage(&ViewerStyle->BackgroundBrush)
-		.BorderBackgroundColor(ViewerStyle->SequenceBackgroundColor);
+		.BorderImage(&ViewerStyle.BackgroundBrush)
+		.BorderBackgroundColor(ViewerStyle.SequenceBackgroundColor);
 }
 
 void STransformedWaveformViewPanel::SetUpInputOverrides(const FArguments& InArgs)
@@ -368,7 +350,7 @@ void STransformedWaveformViewPanel::SetUpValueGridOverlay()
 	const uint32 NumValueGridDivision = Settings ? Settings->MaxLoudnessGridDivisions : 3;
 
 
-	FSampledSequenceValueGridOverlayStyle* ValueGridStyle = &WaveformEditorStyle->GetRegisteredWidgetStyle<FSampledSequenceValueGridOverlayStyle>("WaveformEditorValueGrid.Style").Get();
+	const FSampledSequenceValueGridOverlayStyle& ValueGridStyle = WaveformEditorStyle->GetWidgetStyle<FSampledSequenceValueGridOverlayStyle>("WaveformEditorValueGrid.Style");
 	
 	ValueGridOverlay = SNew(SSampledSequenceValueGridOverlay)
 		.DivideMode(SampledSequenceValueGridOverlay::EGridDivideMode::MidSplit)
@@ -377,9 +359,9 @@ void STransformedWaveformViewPanel::SetUpValueGridOverlay()
 		.MaxDivisionParameter(NumValueGridDivision)
 		.HideLabels(!bShowLabels)
 		.HideGrid(!bShowGrid)
-		.Style(ValueGridStyle);
+		.Style(&ValueGridStyle);
 
-	ValueGridStyle->OnStyleUpdated.AddSP(ValueGridOverlay.ToSharedRef(), &SSampledSequenceValueGridOverlay::OnStyleUpdated);
+	WaveformEditorStyle->OnNewValueGridOverlayStyle.AddSP(ValueGridOverlay.ToSharedRef(), &SSampledSequenceValueGridOverlay::OnStyleUpdated);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -25,14 +25,12 @@ void SSampledSequenceValueGridOverlay::Construct(const FArguments& InArgs)
 	DrawingParams = InArgs._SequenceDrawingParams;
 	bHideLabels = InArgs._HideLabels;
 	bHideGrid = InArgs._HideGrid;
-
-	Style = InArgs._Style;
-	GridColor = Style->GridColor;
-	LabelTextFont = Style->LabelTextFont;
-	LabelTextColor = Style->LabelTextColor;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
-	GridThickness = Style->GridThickness;
+	GridColor = InArgs._Style->GridColor;
+	LabelTextFont = InArgs._Style->LabelTextFont;
+	LabelTextColor = InArgs._Style->LabelTextColor;
+	DesiredWidth = InArgs._Style->DesiredWidth;
+	DesiredHeight = InArgs._Style->DesiredHeight;
+	GridThickness = InArgs._Style->GridThickness;
 }
 
 int32 SSampledSequenceValueGridOverlay::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
@@ -129,21 +127,14 @@ void SSampledSequenceValueGridOverlay::Tick(const FGeometry& AllottedGeometry, c
 	}
 }
 
-void SSampledSequenceValueGridOverlay::OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle)
+void SSampledSequenceValueGridOverlay::OnStyleUpdated(const FSampledSequenceValueGridOverlayStyle UpdatedStyle)
 {
-	check(Style);
-
-	if (&UpdatedStyle != Style)
-	{
-		return;
-	}
-
-	GridColor = Style->GridColor;
-	LabelTextFont = Style->LabelTextFont;
-	LabelTextColor = Style->LabelTextColor;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
-	GridThickness = Style->GridThickness;
+	GridColor = UpdatedStyle.GridColor;
+	LabelTextFont = UpdatedStyle.LabelTextFont;
+	LabelTextColor = UpdatedStyle.LabelTextColor;
+	DesiredWidth = UpdatedStyle.DesiredWidth;
+	DesiredHeight = UpdatedStyle.DesiredHeight;
+	GridThickness = UpdatedStyle.GridThickness;
 
 	ForceRedraw();
 }

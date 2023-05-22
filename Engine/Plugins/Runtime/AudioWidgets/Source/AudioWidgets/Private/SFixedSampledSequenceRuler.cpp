@@ -19,20 +19,19 @@ void SFixedSampledSequenceRuler::Construct(const FArguments& InArgs, TSharedRef<
 		bDisplayPlayhead = InArgs._DisplayPlayhead.Get();
 	}
 
-	Style = InArgs._Style;
-	check(Style);
+	check(InArgs._Style);
 
-	HandleColor = Style->HandleColor;
-	HandleWidth = Style->HandleWidth;
-	HandleBrush = Style->HandleBrush;
-	BackgroundColor = Style->BackgroundColor;
-	BackgroundBrush = Style->BackgroundBrush;
-	TicksColor = Style->TicksColor;
-	TicksTextColor = Style->TicksTextColor;
-	TicksTextFont = Style->TicksTextFont;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
-	TicksTextOffset = Style->TicksTextOffset;
+	HandleColor = InArgs._Style->HandleColor;
+	HandleWidth = InArgs._Style->HandleWidth;
+	HandleBrush = InArgs._Style->HandleBrush;
+	BackgroundColor = InArgs._Style->BackgroundColor;
+	BackgroundBrush = InArgs._Style->BackgroundBrush;
+	TicksColor = InArgs._Style->TicksColor;
+	TicksTextColor = InArgs._Style->TicksTextColor;
+	TicksTextFont = InArgs._Style->TicksTextFont;
+	DesiredWidth = InArgs._Style->DesiredWidth;
+	DesiredHeight = InArgs._Style->DesiredHeight;
+	TicksTextOffset = InArgs._Style->TicksTextOffset;
 }
 
 FVector2D SFixedSampledSequenceRuler::ComputeDesiredSize(float) const
@@ -221,25 +220,19 @@ void SFixedSampledSequenceRuler::SetPlayheadPosition(const float InNewPosition)
 	PlayheadPosition = InNewPosition;
 }
 
-void SFixedSampledSequenceRuler::OnStyleUpdated(const FNotifyingAudioWidgetStyle& UpdatedStyle)
+void SFixedSampledSequenceRuler::OnStyleUpdated(const FFixedSampleSequenceRulerStyle UpdatedStyle)
 {
-	check(Style);
-	if (&UpdatedStyle != Style)
-	{
-		return;
-	}
-
-	HandleColor = Style->HandleColor;
-	HandleWidth = Style->HandleWidth;
-	HandleBrush = Style->HandleBrush;
-	BackgroundColor = Style->BackgroundColor;
-	BackgroundBrush = Style->BackgroundBrush;
-	TicksColor = Style->TicksColor;
-	TicksTextColor = Style->TicksTextColor;
-	TicksTextFont = Style->TicksTextFont;
-	DesiredWidth = Style->DesiredWidth;
-	DesiredHeight = Style->DesiredHeight;
-	TicksTextOffset = Style->TicksTextOffset;
+	HandleColor = UpdatedStyle.HandleColor;
+	HandleWidth = UpdatedStyle.HandleWidth;
+	HandleBrush = UpdatedStyle.HandleBrush;
+	BackgroundColor = UpdatedStyle.BackgroundColor;
+	BackgroundBrush = UpdatedStyle.BackgroundBrush;
+	TicksColor = UpdatedStyle.TicksColor;
+	TicksTextColor = UpdatedStyle.TicksTextColor;
+	TicksTextFont = UpdatedStyle.TicksTextFont;
+	DesiredWidth = UpdatedStyle.DesiredWidth;
+	DesiredHeight = UpdatedStyle.DesiredHeight;
+	TicksTextOffset = UpdatedStyle.TicksTextOffset;
 }
 
 FReply SFixedSampledSequenceRuler::LaunchContextMenu()

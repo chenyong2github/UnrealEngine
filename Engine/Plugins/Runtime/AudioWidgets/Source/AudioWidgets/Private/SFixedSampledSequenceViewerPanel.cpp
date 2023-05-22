@@ -170,6 +170,30 @@ void SFixedSampledSequenceViewerPanel::SetPlayheadRatio(const float InRatio)
 	CachedPlayheadRatio = InRatio;
 }
 
+void SFixedSampledSequenceViewerPanel::UpdateSequenceViewerStyle(const FSampledSequenceViewerStyle UpdatedStyle)
+{
+	check(SequenceViewer);
+	SequenceViewer->OnStyleUpdated(UpdatedStyle);
+}
+
+void SFixedSampledSequenceViewerPanel::UpdateRulerStyle(const FFixedSampleSequenceRulerStyle UpdatedStyle)
+{
+	check(SamplesRuler);
+	SamplesRuler->OnStyleUpdated(UpdatedStyle);
+}
+
+void SFixedSampledSequenceViewerPanel::UpdatePlayheadOverlayStyle(const FPlayheadOverlayStyle UpdatedStyle)
+{
+	check(PlayheadOverlay);
+	PlayheadOverlay->OnStyleUpdated(UpdatedStyle);
+}
+
+void SFixedSampledSequenceViewerPanel::UpdateValueGridOverlayStyle(const FSampledSequenceValueGridOverlayStyle UpdatedStyle)
+{
+	check(ValueGridOverlay);
+	ValueGridOverlay->OnStyleUpdated(UpdatedStyle);
+}
+
 void SFixedSampledSequenceViewerPanel::UpdateSamplesRulerDisplayUnit(const ESampledSequenceDisplayUnit InDisplayUnit)
 {
 	SamplesRulerDisplayUnit = InDisplayUnit;
