@@ -2941,6 +2941,11 @@ void UGameViewportClient::SetMouseLockMode(EMouseLockMode InMouseLockMode)
 	}
 }
 
+EMouseLockMode UGameViewportClient::GetMouseLockMode() const
+{
+	return MouseLockMode;
+}
+
 void UGameViewportClient::SetHideCursorDuringCapture(bool InHideCursorDuringCapture)
 {
 	if (bHideCursorDuringCapture != InHideCursorDuringCapture)

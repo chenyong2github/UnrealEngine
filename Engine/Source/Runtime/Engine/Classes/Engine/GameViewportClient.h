@@ -799,6 +799,11 @@ public:
 	void SetMouseLockMode(EMouseLockMode InMouseLockMode);
 
 	/**
+	 * Returns the current mouse cursor lock mode when the viewport is clicked.
+	 */
+	EMouseLockMode GetMouseLockMode() const;
+
+	/**
 	 * Sets whether or not the cursor is hidden when the viewport captures the mouse
 	 */
 	void SetHideCursorDuringCapture(bool InHideCursorDuringCapture);
