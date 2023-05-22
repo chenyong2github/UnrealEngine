@@ -4160,7 +4160,14 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 
 			if(Graph != LastGraph)
 			{
-				Factory.RestoreLinksSettings.NodeNameMap = Factory.NodeNameMapPerGraph.FindChecked(Graph);
+				if (TMap<FString, FString>* Map = Factory.NodeNameMapPerGraph.Find(Graph))
+				{
+					Factory.RestoreLinksSettings.NodeNameMap = *Map;
+				}
+				else
+				{
+					Factory.RestoreLinksSettings.NodeNameMap.Reset();
+				}
 				LastGraph = Graph;
 			}
 
