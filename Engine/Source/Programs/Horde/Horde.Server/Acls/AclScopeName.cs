@@ -40,6 +40,9 @@ namespace Horde.Server.Acls
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => Text.GetHashCode(StringComparison.Ordinal);
+
+		/// <inheritdoc/>
+		public override string ToString() => Text;
 	}
 
 	/// <summary>
