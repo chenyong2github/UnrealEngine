@@ -61,13 +61,7 @@ public:
 	#endif
 
 	#if UE_VULKAN_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
-		{
-			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shader.RemoveDeadCode"));
-			if (CVar && CVar->GetInt() != 0)
-			{
-				Version = HashCombine(Version, 0x75E2FE85);
-			}
-		}
+		Version = HashCombine(Version, 0x75E2FE85);
 	#endif // UE_VULKAN_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
 
 		return Version;

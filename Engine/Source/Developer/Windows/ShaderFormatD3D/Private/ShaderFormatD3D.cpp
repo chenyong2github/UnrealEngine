@@ -39,13 +39,7 @@ public:
 		uint32 VersionHash = GetTypeHash(InVersion);
 
 	#if UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
-		{
-			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shader.RemoveDeadCode"));
-			if (CVar && CVar->GetInt() != 0)
-			{
-				VersionHash = HashCombine(VersionHash, 0x75E2FE85);
-			}
-		}
+		VersionHash = HashCombine(VersionHash, 0x75E2FE85);
 	#endif // UE_D3D_SHADER_COMPILER_ALLOW_DEAD_CODE_REMOVAL
 
 		return HashCombine(BaseHash, VersionHash);
