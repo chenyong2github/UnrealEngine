@@ -59,6 +59,7 @@ enum class EColorSpace : uint8
 	GoProProtuneNative = 12,
 	PanasonicVGamut = 13,
 	PLASA_E1_54 = 14,
+	Max,
 };
 
 
@@ -71,6 +72,7 @@ enum class EChromaticAdaptationMethod : uint8
 	None = 0,
 	Bradford = 1,
 	CAT02 = 2,
+	Max,
 };
 
 /** List of standard white points. */
@@ -79,6 +81,7 @@ enum class EWhitePoint : uint8
 	CIE1931_D65 = 0,
 	ACES_D60 = 1,
 	DCI_CalibrationWhite,
+	Max,
 };
 
 } } // end namespace UE::Color
