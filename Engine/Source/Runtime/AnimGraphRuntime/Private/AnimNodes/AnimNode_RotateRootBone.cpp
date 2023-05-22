@@ -96,6 +96,7 @@ FAnimNode_RotateRootBone::FAnimNode_RotateRootBone()
 	: Pitch(0.0f)
 	, Yaw(0.0f)
 	, MeshToComponent(FRotator::ZeroRotator)
+	, bRotateRootMotionAttribute(false)
 	, ActualPitch(0.f)
 	, ActualYaw(0.f)
 {
