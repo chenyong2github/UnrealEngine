@@ -86,6 +86,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (Keywords = "Chaos Cloth Config Property"))
 	void ResetConfigProperties();
 
+	/** Hard reset the cloth simulation by recreating the proxy. */
+	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (Keywords = "Chaos Cloth Recreate Simulation Proxy"))
+	void RecreateClothSimulationProxy();
+
 	/**
 	 * Return the property collection holding the runtime properties for this cloth component.
 	 * This might be different from the cloth asset's since the component's properties can be modified in code or in blueprints.
@@ -130,6 +134,7 @@ private:
 	void StartNewParallelSimulation(float DeltaTime);
 	void HandleExistingParallelSimulation();
 	bool ShouldWaitForParallelSimulationInTickComponent() const;
+	void UpdateComponentSpaceTransforms();
 	void UpdateVisibility();
 
 	friend UE::Chaos::ClothAsset::FClothComponentCacheAdapter;
@@ -137,7 +142,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** Cloth asset used by this component. */
 	UE_DEPRECATED(5.1, "This property isn't deprecated, but getter and setter must be used at all times to preserve correct operations.")
-	UPROPERTY(EditAnywhere, Transient, BlueprintSetter = SetClothAsset, BlueprintGetter = GetClothAsset, Category = ClothAsset)
+	UPROPERTY(EditAnywhere, Transient, Setter = SetClothAsset, BlueprintSetter = SetClothAsset, Getter = GetClothAsset, BlueprintGetter = GetClothAsset, Category = ClothAsset)
 	TObjectPtr<UChaosClothAsset> ClothAsset;
 #endif
 
