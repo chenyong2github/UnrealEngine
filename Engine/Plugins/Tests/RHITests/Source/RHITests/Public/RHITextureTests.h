@@ -716,6 +716,11 @@ public:
 			case PF_R32G32B32_UINT:
 			case PF_R32G32B32_SINT:
 			case PF_R9G9B9EXP5:
+			case PF_ASTC_4x4_NORM_RG:
+			case PF_ASTC_6x6_NORM_RG:
+			case PF_ASTC_8x8_NORM_RG:
+			case PF_ASTC_10x10_NORM_RG:
+			case PF_ASTC_12x12_NORM_RG:
 				break;
 
 			case PF_G8:

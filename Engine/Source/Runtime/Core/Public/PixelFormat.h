@@ -101,7 +101,12 @@ enum EPixelFormat : uint8
 	PF_R64_UINT				=84,
 	PF_R9G9B9EXP5			=85,
 	PF_P010					=86,
-	PF_MAX					=87,
+	PF_ASTC_4x4_NORM_RG		=87, // RG format stored in LA endpoints for better precision (requires RHI support for texture swizzle)
+	PF_ASTC_6x6_NORM_RG		=88,	
+	PF_ASTC_8x8_NORM_RG		=89,	
+	PF_ASTC_10x10_NORM_RG	=90,	
+	PF_ASTC_12x12_NORM_RG	=91,	
+	PF_MAX					=92,
 };
 #define FOREACH_ENUM_EPIXELFORMAT(op) \
 	op(PF_Unknown) \
@@ -188,7 +193,12 @@ enum EPixelFormat : uint8
 	op(PF_R32G32B32_SINT) \
 	op(PF_R32G32B32F) \
 	op(PF_R8_SINT) \
-	op(PF_R64_UINT)
+	op(PF_R64_UINT) \
+	op(PF_ASTC_4x4_NORM_RG) \
+	op(PF_ASTC_6x6_NORM_RG) \
+	op(PF_ASTC_8x8_NORM_RG) \
+	op(PF_ASTC_10x10_NORM_RG) \
+	op(PF_ASTC_12x12_NORM_RG)
 
 // Defines which channel is valid for each pixel format
 enum class EPixelFormatChannelFlags : uint8

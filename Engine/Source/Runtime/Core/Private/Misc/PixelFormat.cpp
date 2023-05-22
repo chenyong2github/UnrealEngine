@@ -137,6 +137,13 @@ FPixelFormatInfo    GPixelFormats[PF_MAX] =
 	// P010 contains 2 textures: R16 luminance plane followed by R16G16 1/4 size chrominance plane. (upper 10 bits used)
 	// BlockSize/BlockBytes/NumComponents values don't make much sense for this format, so set them all to one.
 	FPixelFormatInfo(PF_P010,				TEXT("P010"),				   1,		   1,		   1,		   2,		   1,			   0),
+
+	// ASTC high precision NormalRG support
+	FPixelFormatInfo(PF_ASTC_4x4_NORM_RG,   TEXT("ASTC_4x4_NORM_RG"),      4,          4,          1,          16,         2,              0),
+	FPixelFormatInfo(PF_ASTC_6x6_NORM_RG,   TEXT("ASTC_6x6_NORM_RG"),      6,          6,          1,          16,         2,              0),
+	FPixelFormatInfo(PF_ASTC_8x8_NORM_RG,   TEXT("ASTC_8x8_NORM_RG"),      8,          8,          1,          16,         2,              0),
+	FPixelFormatInfo(PF_ASTC_10x10_NORM_RG, TEXT("ASTC_10x10_NORM_RG"),    10,         10,         1,          16,         2,              0),
+	FPixelFormatInfo(PF_ASTC_12x12_NORM_RG, TEXT("ASTC_12x12_NORM_RG"),    12,         12,         1,          16,         2,              0),
 };
 
 

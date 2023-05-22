@@ -85,7 +85,8 @@ class FASTCTextureBuildFunction final : public FTextureBuildFunction
 	op(ASTC_RGB_HDR) \
 	op(ASTC_NormalLA) \
 	op(ASTC_NormalAG) \
-	op(ASTC_NormalRG)
+	op(ASTC_NormalRG) \
+	op(ASTC_NormalRG_Precise) // Encoded as LA for precision, mapped to RG at runtime. RHI needs to support PF_ASTC_*_NORM_RG formats (requires runtime swizzle)
 
 	#define DECL_FORMAT_NAME(FormatName) static FName GTextureFormatName##FormatName = FName(TEXT(#FormatName));
 		ENUM_SUPPORTED_FORMATS(DECL_FORMAT_NAME);
@@ -123,9 +124,10 @@ class FASTCTextureBuildFunction final : public FTextureBuildFunction
 static bool IsNormalMapFormat(FName TextureFormatName)
 {
 	return
-		TextureFormatName == GTextureFormatNameASTC_NormalAG || 
-		TextureFormatName == GTextureFormatNameASTC_NormalRG || 
-		TextureFormatName == GTextureFormatNameASTC_NormalLA;
+		TextureFormatName == GTextureFormatNameASTC_NormalAG ||
+		TextureFormatName == GTextureFormatNameASTC_NormalRG ||
+		TextureFormatName == GTextureFormatNameASTC_NormalLA ||
+		TextureFormatName == GTextureFormatNameASTC_NormalRG_Precise;
 }
 
 static int32 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverride)
@@ -206,6 +208,10 @@ static EPixelFormat GetQualityFormat(const FTextureBuildSettings& BuildSettings)
 
 	if ( bIsNormalMap )
 	{
+		if ( BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG_Precise )
+		{
+			return PF_ASTC_6x6_NORM_RG;
+		}
 		return PF_ASTC_6x6;
 	}
 	else if ( bIsHQ )
@@ -373,7 +379,7 @@ static bool ASTCEnc_Compress(
 		EncConfig.cw_b_weight = 0.0f;
 		EncConfig.cw_a_weight = 0.0f;
 	}
-	else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalLA)
+	else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalLA || BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG_Precise)
 	{
 		// L+A mode: rrrg
 		EncSwizzle.r = ASTCENC_SWZ_B;
