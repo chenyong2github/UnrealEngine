@@ -9,7 +9,6 @@ struct FMassCommandBuffer;
 struct FMassEntityManager;
 enum class EMassActorSpawnRequestAction : uint8;
 enum class EMassActorEnabledType : uint8;
-struct FMassActorSpawnRequestHandle;
 struct FConstStructView;
 struct FMassEntityHandle;
 struct FMassActorFragment;
@@ -42,7 +41,9 @@ public:
 	 * @param Priority of this spawn request in comparison with the others, lower value means higher priority
 	 * @return the actor spawned
 	 */
-	virtual AActor* GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, FMassEntityManager& EntitySubsystem, const FMassEntityHandle MassAgent, FMassActorFragment& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const;
+	virtual AActor* GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, FMassEntityManager& EntitySubsystem
+		, const FMassEntityHandle MassAgent, FMassActorFragment& ActorInfo, const FTransform& Transform, const int16 TemplateActorIndex
+		, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const;
 
 	/**
 	 * Enable/disable a spawned actor for a mass entity
