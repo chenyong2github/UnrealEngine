@@ -22,16 +22,15 @@ DEFINE_STAT(STAT_MLDeformerInference);
 
 void UMLDeformerModelInstance::BeginDestroy()
 {
-	Release();
+	RenderCommandFence.BeginFence();
 	Super::BeginDestroy();
 }
 
-void UMLDeformerModelInstance::Release()
+bool UMLDeformerModelInstance::IsReadyForFinishDestroy()
 {
 	// Wait for the render commands to finish, because some neural network might still be executing, using the inference handle
 	// that we are about to delete.
-	RenderCommandFence.BeginFence();
-	RenderCommandFence.Wait();
+	return Super::IsReadyForFinishDestroy() && RenderCommandFence.IsFenceComplete();
 }
 
 USkeletalMeshComponent* UMLDeformerModelInstance::GetSkeletalMeshComponent() const

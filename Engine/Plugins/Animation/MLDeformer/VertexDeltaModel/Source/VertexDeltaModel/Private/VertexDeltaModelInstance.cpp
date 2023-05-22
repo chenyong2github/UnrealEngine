@@ -13,17 +13,6 @@ UVertexDeltaModel* UVertexDeltaModelInstance::GetVertexDeltaModel() const
 }
 
 
-void UVertexDeltaModelInstance::Release()
-{
-	Super::Release();
-
-	// Destroy the neural network instance.
-	if (GetVertexDeltaModel())
-	{
-
-	}
-}
-
 UE::NNECore::IModelRDG* UVertexDeltaModelInstance::GetNNEModelRDG() const
 {
 	return ModelRDG.Get();

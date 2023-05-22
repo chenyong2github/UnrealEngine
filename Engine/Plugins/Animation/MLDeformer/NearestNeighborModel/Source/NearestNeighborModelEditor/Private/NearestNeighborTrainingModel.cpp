@@ -123,7 +123,6 @@ UNearestNeighborModelInstance* UNearestNeighborTrainingModel::CreateModelInstanc
 
 void UNearestNeighborTrainingModel::DestroyModelInstance(UNearestNeighborModelInstance* ModelInstance)
 {
-	ModelInstance->Release();
 	ModelInstance->ConditionalBeginDestroy();
 }
 

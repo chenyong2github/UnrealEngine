@@ -27,7 +27,7 @@ public:
 	// UMLDeformerModelInstance overrides.
 	virtual void Init(USkeletalMeshComponent* SkelMeshComponent) override;
 	virtual void PostMLDeformerComponentInit() override;
-	virtual void Release() override;
+	virtual void BeginDestroy() override;
 	virtual void Tick(float DeltaTime, float ModelWeight) override;
 	virtual void HandleZeroModelWeight() override;
 	virtual bool IsValidForDataProvider() const override;

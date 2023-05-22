@@ -88,15 +88,19 @@ int32 UMLDeformerMorphModel::GetMorphTargetDeltaStartIndex(int32 BlendShapeIndex
 
 void UMLDeformerMorphModel::BeginDestroy()
 {
-	if (MorphTargetSet.IsValid())
+	if (MorphTargetSet)
 	{
-		// Release and flush, waiting for the release to have completed, 
-		// If we don't do this we can get an error that we destroy a render resource that is still initialized,
-		// as the release happens in another thread.
-		ReleaseResourceAndFlush(&MorphTargetSet->MorphBuffers);
+		BeginReleaseResource(&MorphTargetSet->MorphBuffers);
+		RenderCommandFence.BeginFence();
 		MorphTargetSet.Reset();
 	}
 	Super::BeginDestroy();
+}
+
+bool UMLDeformerMorphModel::IsReadyForFinishDestroy()
+{
+	// wait for associated render resources to be released
+	return Super::IsReadyForFinishDestroy() && RenderCommandFence.IsFenceComplete();
 }
 
 void UMLDeformerMorphModel::SetMorphTargetsErrorOrder(const TArray<int32>& MorphTargetOrder, const TArray<float>& ErrorValues)

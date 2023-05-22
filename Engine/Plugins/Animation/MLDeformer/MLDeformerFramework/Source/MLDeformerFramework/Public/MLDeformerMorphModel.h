@@ -32,6 +32,7 @@ public:
 
 	// UObject overrides.
 	virtual void BeginDestroy() override;
+	virtual bool IsReadyForFinishDestroy() override;
 	virtual void PostLoad() override;
 	// ~END UObject overrides.
 
@@ -295,4 +296,7 @@ private:
 	 */
 	UPROPERTY(EditAnywhere, Category = "Morph Targets", meta = (EditCondition = "MaskChannel != EMLDeformerMaskChannel::Disabled"))
 	bool bInvertMaskChannel = false;
+
+	/** The fence that let's us wait for all render commands to finish, before this instance is destroyed. */
+	FRenderCommandFence RenderCommandFence;
 };

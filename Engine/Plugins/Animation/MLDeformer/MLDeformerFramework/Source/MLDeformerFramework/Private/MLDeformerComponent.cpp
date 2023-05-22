@@ -108,21 +108,8 @@ void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USk
 
 void UMLDeformerComponent::ReleaseModelInstance()
 {
-	if (!DeformerAsset)
-	{
-		return;
-	}
-
-	UMLDeformerModel* Model = DeformerAsset->GetModel();
-	if (Model)
-	{
-		if (ModelInstance)
-		{
-			ModelInstance->Release();
-			ModelInstance->ConditionalBeginDestroy();
-			ModelInstance = nullptr;
-		}
-	}
+	ModelInstance->ConditionalBeginDestroy(); // force destruction immediately instead of waiting for the next GC
+	ModelInstance = nullptr;
 }
 
 USkeletalMeshComponent* UMLDeformerComponent::FindSkeletalMeshComponent(const UMLDeformerAsset* const Asset) const
@@ -180,7 +167,7 @@ void UMLDeformerComponent::Deactivate()
 
 	if (ModelInstance)
 	{
-		ModelInstance->Release();
+		ModelInstance->ConditionalBeginDestroy();
 		ModelInstance = nullptr;
 	}
 	Super::Deactivate();

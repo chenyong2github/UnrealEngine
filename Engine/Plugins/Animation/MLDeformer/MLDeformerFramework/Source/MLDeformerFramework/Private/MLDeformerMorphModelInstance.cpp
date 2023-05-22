@@ -28,7 +28,7 @@ int32 UMLDeformerMorphModelInstance::GetExternalMorphSetID() const
 	return ExternalMorphSetID;
 }
 
-void UMLDeformerMorphModelInstance::Release()
+void UMLDeformerMorphModelInstance::BeginDestroy()
 {
 	// Try to unregister the morph target and morph target set.
 	if (SkeletalMeshComponent)
@@ -42,7 +42,7 @@ void UMLDeformerMorphModelInstance::Release()
 		}
 	}
 
-	Super::Release();
+	Super::BeginDestroy();
 }
 
 void UMLDeformerMorphModelInstance::PostMLDeformerComponentInit()

@@ -36,6 +36,7 @@ public:
 
 	// UObject overrides.
 	virtual void BeginDestroy() override;
+	virtual bool IsReadyForFinishDestroy() override;
 	// ~END UObject overrides.
 	
 	/**
@@ -57,7 +58,8 @@ public:
 	 * Release all built lookup tables etc.
 	 * Also call this base class method if you override this method.
 	 */
-	virtual void Release();
+	UE_DEPRECATED(5.3, "This functionality was moved to BeginDestroy() and IsReadyForFinishDestroy(). Most probably you don't need to call this method anymore. If you've been overriding it, please move the logic to BeginDestroy() and IsReadyForFinishDestroy() in a similar manner.")
+	virtual void Release() {}
 
 	/**
 	 * Update the deformer instance.

@@ -20,7 +20,6 @@ class VERTEXDELTAMODEL_API UVertexDeltaModelInstance
 
 public:
 	// UMLDeformerModelInstance overrides.
-	virtual void Release() override;
 	virtual FString CheckCompatibility(USkeletalMeshComponent* InSkelMeshComponent, bool bLogIssues) override;
 	virtual bool IsValidForDataProvider() const override;
 	virtual void Execute(float ModelWeight) override;
