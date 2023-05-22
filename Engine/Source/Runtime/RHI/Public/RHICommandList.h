@@ -448,14 +448,20 @@ template <typename RHICmdListType, typename LAMBDA>
 struct TRHILambdaCommand final : public FRHICommandBase
 {
 	LAMBDA Lambda;
+#if CPUPROFILERTRACE_ENABLED
+	const TCHAR* Name;
+#endif
 
-	TRHILambdaCommand(LAMBDA&& InLambda)
+	TRHILambdaCommand(LAMBDA&& InLambda, const TCHAR* InName)
 		: Lambda(Forward<LAMBDA>(InLambda))
+#if CPUPROFILERTRACE_ENABLED
+		, Name(InName)
+#endif
 	{}
 
 	void ExecuteAndDestruct(FRHICommandListBase& CmdList, FRHICommandListDebugContext&) override final
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(TRHILambdaCommand, RHICommandsChannel);
+		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_ON_CHANNEL(Name, RHICommandsChannel);
 		Lambda(*static_cast<RHICmdListType*>(&CmdList));
 		Lambda.~LAMBDA();
 	}
@@ -585,7 +591,7 @@ public:
 	}
 
 	template <typename LAMBDA>
-	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(const TCHAR* LambdaName, LAMBDA&& Lambda)
 	{
 		if (IsBottomOfPipe())
 		{
@@ -593,8 +599,14 @@ public:
 		}
 		else
 		{
-			ALLOC_COMMAND(TRHILambdaCommand<FRHICommandListBase, LAMBDA>)(Forward<LAMBDA>(Lambda));
+			ALLOC_COMMAND(TRHILambdaCommand<FRHICommandListBase, LAMBDA>)(Forward<LAMBDA>(Lambda), LambdaName);
 		}
+	}
+
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	{
+		FRHICommandListBase::EnqueueLambda(TEXT("TRHILambdaCommand"), Forward<LAMBDA>(Lambda));
 	}
 
 	FORCEINLINE uint32 GetUID()  const
@@ -2094,7 +2106,7 @@ public:
 	{}
 
 	template <typename LAMBDA>
-	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(const TCHAR* LambdaName, LAMBDA&& Lambda)
 	{
 		if (IsBottomOfPipe())
 		{
@@ -2102,8 +2114,14 @@ public:
 		}
 		else
 		{
-			ALLOC_COMMAND(TRHILambdaCommand<FRHIComputeCommandList, LAMBDA>)(Forward<LAMBDA>(Lambda));
+			ALLOC_COMMAND(TRHILambdaCommand<FRHIComputeCommandList, LAMBDA>)(Forward<LAMBDA>(Lambda), LambdaName);
 		}
+	}
+
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	{
+		FRHIComputeCommandList::EnqueueLambda(TEXT("TRHILambdaCommand"), Forward<LAMBDA>(Lambda));
 	}
 
 	inline FRHIComputeShader* GetBoundComputeShader() const { return PersistentState.BoundComputeShaderRHI; }
@@ -2778,7 +2796,7 @@ public:
 	inline FRHIGeometryShader*      GetBoundGeometryShader     () const { return PersistentState.BoundShaderInput.GetGeometryShader();      }
 
 	template <typename LAMBDA>
-	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(const TCHAR* LambdaName, LAMBDA&& Lambda)
 	{
 		if (IsBottomOfPipe())
 		{
@@ -2786,8 +2804,14 @@ public:
 		}
 		else
 		{
-			ALLOC_COMMAND(TRHILambdaCommand<FRHICommandList, LAMBDA>)(Forward<LAMBDA>(Lambda));
+			ALLOC_COMMAND(TRHILambdaCommand<FRHICommandList, LAMBDA>)(Forward<LAMBDA>(Lambda), LambdaName);
 		}
+	}
+
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	{
+		FRHICommandList::EnqueueLambda(TEXT("TRHILambdaCommand"), Forward<LAMBDA>(Lambda));
 	}
 
 	UE_DEPRECATED(5.2, "AFR support has been removed in 5.2, function is a nop and calls should be removed.")
@@ -3779,7 +3803,7 @@ public:
 	using FRHIComputeCommandList::Transition;
 
 	template <typename LAMBDA>
-	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(const TCHAR* LambdaName, LAMBDA&& Lambda)
 	{
 		if (IsBottomOfPipe())
 		{
@@ -3787,8 +3811,14 @@ public:
 		}
 		else
 		{
-			ALLOC_COMMAND(TRHILambdaCommand<FRHICommandListImmediate, LAMBDA>)(Forward<LAMBDA>(Lambda));
+			ALLOC_COMMAND(TRHILambdaCommand<FRHICommandListImmediate, LAMBDA>)(Forward<LAMBDA>(Lambda), LambdaName);
 		}
+	}
+
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	{
+		FRHICommandListImmediate::EnqueueLambda(TEXT("TRHILambdaCommand"), Forward<LAMBDA>(Lambda));
 	}
 
 	UE_DEPRECATED(5.2, "Use the global scope RHICreateSamplerState function.")

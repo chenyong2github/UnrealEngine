@@ -631,7 +631,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 
 		// Finally, add an RHI thread task to submit the completed platform command lists.
 		// The task blocks for each parallel translate completion, in the order they will be submitted in.
-		EnqueueLambda([Tasks](FRHICommandListBase& ExecutingCmdList)
+		EnqueueLambda(TEXT("SubmitParallelCommandLists"), [Tasks](FRHICommandListBase& ExecutingCmdList)
 		{
 			TArray<IRHIPlatformCommandList*> AllCmdLists;
 
@@ -667,7 +667,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 			CmdListsView[Index] = CommandList;
 		}
 
-		EnqueueLambda([CmdListsView](FRHICommandListBase& ParentCmdList)
+		EnqueueLambda(TEXT("ExecuteCommandLists"), [CmdListsView](FRHICommandListBase& ParentCmdList)
 		{
 			for (FRHICommandListBase* CmdList : CmdListsView)
 			{
@@ -708,7 +708,7 @@ void FRHICommandListImmediate::ExecuteAndReset(bool bFlushResources)
 	//
 	// In non-bypass mode, always submit.
 	//
-	EnqueueLambda([bFlushResources](FRHICommandListImmediate& ExecutingCmdList)
+	EnqueueLambda(TEXT("FinalizeAndSubmitCommandLists"), [bFlushResources](FRHICommandListImmediate& ExecutingCmdList)
 	{
 		TArray<IRHIPlatformCommandList*, TInlineAllocator<GetRHIPipelineCount()>> CommandLists;
 		for (IRHIComputeContext* Context : ExecutingCmdList.Contexts)
@@ -1040,7 +1040,7 @@ int32 FRHICommandListImmediate::FlushPendingDeletes()
 
 	const int32 NumDeletes = DeletedResources.Num();
 
-	EnqueueLambda([DeletedResources = MoveTemp(DeletedResources)](FRHICommandListImmediate& RHICmdList) mutable
+	EnqueueLambda(TEXT("FlushPendingDeletes"), [DeletedResources = MoveTemp(DeletedResources)](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		SCOPED_NAMED_EVENT(STAT_FRHICommandListImmediate_DeleteResources, FColor::Magenta);
 		for (int32 i = DeletedResources.Num() - 1; i >= 0; i--)
@@ -1063,7 +1063,7 @@ int32 FRHICommandListImmediate::FlushExtendedLifetimeResourceDeletes()
 
 	if (NumDeletes > 0)
 	{
-		EnqueueLambda([DeletedResources = MoveTemp(PersistentState.ExtendedLifetimeResources)](FRHICommandListImmediate& RHICmdList) mutable
+		EnqueueLambda(TEXT("FlushExtendedLifetimeResourceDeletes"), [DeletedResources = MoveTemp(PersistentState.ExtendedLifetimeResources)](FRHICommandListImmediate& RHICmdList) mutable
 		{
 			SCOPED_NAMED_EVENT(STAT_FRHICommandListImmediate_DeleteExtendedLifetimeResources, FColor::Magenta);
 
@@ -1501,7 +1501,7 @@ void FDynamicRHI::RHIUnlockBuffer(class FRHICommandListBase& RHICmdList, FRHIBuf
 		}
 		else
 		{
-			RHICmdList.EnqueueLambda([Buffer, Params](FRHICommandListBase& InRHICmdList)
+			RHICmdList.EnqueueLambda(TEXT("RHIUnlockBuffer"), [Buffer, Params](FRHICommandListBase& InRHICmdList)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBuffer_Execute);
 				void* Data = GDynamicRHI->LockBuffer_BottomOfPipe(InRHICmdList, Buffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
@@ -1795,7 +1795,7 @@ void FRHICommandListImmediate::UpdateTextureReference(FRHITextureReference* Text
 		return;
 	}
 
-	EnqueueLambda([TextureRef, NewTexture](FRHICommandListBase& RHICmdList)
+	EnqueueLambda(TEXT("UpdateTextureReference"), [TextureRef, NewTexture](FRHICommandListBase& RHICmdList)
 	{
 		GDynamicRHI->RHIUpdateTextureReference(RHICmdList, TextureRef, NewTexture);
 	});
