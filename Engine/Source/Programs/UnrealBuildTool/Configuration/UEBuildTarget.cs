@@ -563,6 +563,12 @@ namespace UnrealBuildTool
 		/// SDLPlatform is for platforms that use SDL for windows, cursors, etc
 		/// </summary>
 		public static UnrealPlatformGroup SDLPlatform = FindOrAddByName("SDLPlatform");
+
+		/// <summary>
+		/// 30Hz is for platforms that typically run at 30Hz (Android, Switch) vs. the baseline 60Hz 
+		/// </summary>
+		public static UnrealPlatformGroup ThirtyHz = FindOrAddByName("30Hz");
+
 	}
 
 	/// <summary>
