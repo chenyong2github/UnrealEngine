@@ -118,7 +118,7 @@ namespace RemoteClient
 			await lease.CloseAsync();
 		}
 		
-		static async Task WriteNumbersAsync(RemoteComputeSocket socket, ILogger logger, CancellationToken cancellationToken)
+		static async Task WriteNumbersAsync(ComputeSocket socket, ILogger logger, CancellationToken cancellationToken)
 		{
 			// Wait until the remote sends a message indicating that it's ready
 			using (PooledBuffer recvBuffer = new PooledBuffer(1, 20))

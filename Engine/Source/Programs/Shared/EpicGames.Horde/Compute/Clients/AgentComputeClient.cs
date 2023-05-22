@@ -22,7 +22,7 @@ namespace EpicGames.Horde.Compute.Clients
 	{
 		class LeaseImpl : IComputeLease
 		{
-			readonly IAsyncEnumerator<RemoteComputeSocket> _source;
+			readonly IAsyncEnumerator<ComputeSocket> _source;
 
 			/// <inheritdoc/>
 			public IReadOnlyList<string> Properties { get; } = new List<string>();
@@ -31,9 +31,9 @@ namespace EpicGames.Horde.Compute.Clients
 			public IReadOnlyDictionary<string, int> AssignedResources => new Dictionary<string, int>();
 
 			/// <inheritdoc/>
-			public RemoteComputeSocket Socket => _source.Current;
+			public ComputeSocket Socket => _source.Current;
 
-			public LeaseImpl(IAsyncEnumerator<RemoteComputeSocket> source) => _source = source;
+			public LeaseImpl(IAsyncEnumerator<ComputeSocket> source) => _source = source;
 
 			/// <inheritdoc/>
 			public async ValueTask DisposeAsync()
@@ -73,7 +73,7 @@ namespace EpicGames.Horde.Compute.Clients
 			_logger.LogInformation("Launching {Path} to handle remote", _hordeAgentAssembly);
 
 			// The connection logic is an async enumerator that returns the socket, then shuts down.
-			IAsyncEnumerator<RemoteComputeSocket> source = ConnectAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
+			IAsyncEnumerator<ComputeSocket> source = ConnectAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
 			if (!await source.MoveNextAsync())
 			{
 				await source.DisposeAsync();
@@ -83,7 +83,7 @@ namespace EpicGames.Horde.Compute.Clients
 			return new LeaseImpl(source);
 		}
 
-		async IAsyncEnumerable<RemoteComputeSocket> ConnectAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+		async IAsyncEnumerable<ComputeSocket> ConnectAsync([EnumeratorCancellation] CancellationToken cancellationToken)
 		{
 			using Socket listener = new Socket(SocketType.Stream, ProtocolType.IP);
 			listener.Bind(new IPEndPoint(IPAddress.Loopback, _port));
@@ -92,7 +92,7 @@ namespace EpicGames.Horde.Compute.Clients
 			using BackgroundTask agentTask = BackgroundTask.StartNew(ctx => RunAgentAsync(_hordeAgentAssembly, _port, _logger, ctx));
 			using Socket tcpSocket = await listener.AcceptAsync(cancellationToken);
 
-			await using RemoteComputeSocket socket = new RemoteComputeSocket(new TcpTransport(tcpSocket), ComputeSocketEndpoint.Local, _logger);
+			await using ComputeSocket socket = new ComputeSocket(new TcpTransport(tcpSocket), ComputeSocketEndpoint.Local, _logger);
 			yield return socket;
 
 			await socket.CloseAsync(cancellationToken);

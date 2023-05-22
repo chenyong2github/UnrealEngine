@@ -42,7 +42,7 @@ namespace EpicGames.Horde.Compute.Clients
 			public List<string> Properties { get; set; } = new List<string>();
 		}
 
-		record class LeaseInfo(IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> AssignedResources, RemoteComputeSocket Socket);
+		record class LeaseInfo(IReadOnlyList<string> Properties, IReadOnlyDictionary<string, int> AssignedResources, ComputeSocket Socket);
 
 		class LeaseImpl : IComputeLease
 		{
@@ -50,7 +50,7 @@ namespace EpicGames.Horde.Compute.Clients
 
 			public IReadOnlyList<string> Properties => _source.Current.Properties;
 			public IReadOnlyDictionary<string, int> AssignedResources => _source.Current.AssignedResources;
-			public RemoteComputeSocket Socket => _source.Current.Socket;
+			public ComputeSocket Socket => _source.Current.Socket;
 
 			public LeaseImpl(IAsyncEnumerator<LeaseInfo> source)
 			{
@@ -181,7 +181,7 @@ namespace EpicGames.Horde.Compute.Clients
 			// Pass the rest of the call over to the handler
 			byte[] key = StringUtils.ParseHexString(responseMessage.Key);
 
-			await using RemoteComputeSocket computeSocket = new RemoteComputeSocket(new TcpTransport(socket), ComputeSocketEndpoint.Local, _logger);
+			await using ComputeSocket computeSocket = new ComputeSocket(new TcpTransport(socket), ComputeSocketEndpoint.Local, _logger);
 			yield return new LeaseInfo(responseMessage.Properties, responseMessage.AssignedResources, computeSocket);
 		}
 	}

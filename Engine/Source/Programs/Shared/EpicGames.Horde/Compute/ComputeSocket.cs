@@ -6,7 +6,6 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
@@ -32,7 +31,7 @@ namespace EpicGames.Horde.Compute
 	/// <summary>
 	/// Manages a set of readers and writers to buffers across a transport layer
 	/// </summary>
-	public class RemoteComputeSocket : IComputeSocket, IAsyncDisposable
+	public class ComputeSocket : IComputeSocket, IAsyncDisposable
 	{
 		enum ControlMessageType
 		{
@@ -64,7 +63,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="transport">Transport to communicate with the remote</param>
 		/// <param name="endpoint">Tag for log messages</param>
 		/// <param name="logger">Logger for trace output</param>
-		public RemoteComputeSocket(IComputeTransport transport, ComputeSocketEndpoint endpoint, ILogger logger)
+		public ComputeSocket(IComputeTransport transport, ComputeSocketEndpoint endpoint, ILogger logger)
 		{
 			_transport = transport;
 			_endpoint = endpoint;

@@ -41,11 +41,11 @@ namespace EpicGames.Horde.Compute
 	{
 		class BufferedReaderChannel : IComputeChannel
 		{
-			readonly RemoteComputeSocket _socket;
+			readonly ComputeSocket _socket;
 			readonly int _channelId;
 			readonly IComputeBufferReader _recvBufferReader;
 
-			public BufferedReaderChannel(RemoteComputeSocket socket, int channelId, IComputeBuffer recvBuffer)
+			public BufferedReaderChannel(ComputeSocket socket, int channelId, IComputeBuffer recvBuffer)
 			{
 				_socket = socket;
 				_channelId = channelId;
@@ -102,7 +102,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="socket">Socket to use for sending data</param>
 		/// <param name="channelId">Channel id to send and receive data</param>
 		/// <param name="recvBuffer">Buffer for receiving data</param>
-		public static IComputeChannel CreateChannel(this RemoteComputeSocket socket, int channelId, IComputeBuffer recvBuffer) => new BufferedReaderChannel(socket, channelId, recvBuffer);
+		public static IComputeChannel CreateChannel(this ComputeSocket socket, int channelId, IComputeBuffer recvBuffer) => new BufferedReaderChannel(socket, channelId, recvBuffer);
 
 		/// <summary>
 		/// Creates a channel using a socket and receive buffer
