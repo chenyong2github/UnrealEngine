@@ -48,4 +48,7 @@ public:
 
 	UPROPERTY()
 	TArray<FName> FolderPath;
+
+	UPROPERTY()
+	TArray<FName> Tags;
 };

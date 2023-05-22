@@ -1987,6 +1987,14 @@ void FSequencerUtilities::CopyBindings(TSharedRef<ISequencer> Sequencer, const T
 				break;
 			}
 		}
+
+		for (TPair<FName, FMovieSceneObjectBindingIDs> TaggedBinding : Sequencer->GetRootMovieSceneSequence()->GetMovieScene()->AllTaggedBindings())
+		{
+			if (TaggedBinding.Value.IDs.Contains(FMovieSceneObjectBindingID(UE::MovieScene::FFixedObjectBindingID(ObjectBinding.BindingID, Sequencer->GetFocusedTemplateID()))))
+			{
+				CopyableBinding->Tags.Add(TaggedBinding.Key);
+			}
+		}
 	}
 
 	ExportObjectBindingsToText(Objects, /*out*/ ExportedText);
@@ -2077,6 +2085,8 @@ bool FSequencerUtilities::PasteBindings(const FString& TextToImport, TSharedRef<
 		return false;
 	}
 
+	UMovieScene* RootMovieScene = Sequencer->GetRootMovieSceneSequence()->GetMovieScene();
+
 	UWorld* World = Cast<UWorld>(Sequencer->GetPlaybackContext());
 
 	const FScopedTransaction Transaction(LOCTEXT("PasteBindings", "Paste Bindings"));
@@ -2137,6 +2147,16 @@ bool FSequencerUtilities::PasteBindings(const FString& TextToImport, TSharedRef<
 				if (ParentFolder)
 				{
 					GuidToFolderMap.Add(NewGuid, ParentFolder);
+				}
+
+				if (CopyableBinding->Tags.Num() > 0)
+				{
+					RootMovieScene->Modify();
+
+					for (const FName& Tag : CopyableBinding->Tags)
+					{
+						RootMovieScene->TagBinding(Tag, UE::MovieScene::FFixedObjectBindingID(NewGuid, Sequencer->GetFocusedTemplateID()));
+					}
 				}
 
 				if (FMovieScenePossessable* Possessable = MovieScene->FindPossessable(NewGuid))
@@ -2258,6 +2278,16 @@ bool FSequencerUtilities::PasteBindings(const FString& TextToImport, TSharedRef<
 				if (ParentFolder)
 				{
 					GuidToFolderMap.Add(NewGuid, ParentFolder);
+				}
+
+				if (CopyableBinding->Tags.Num() > 0)
+				{
+					RootMovieScene->Modify();
+
+					for (const FName& Tag : CopyableBinding->Tags)
+					{
+						RootMovieScene->TagBinding(Tag, UE::MovieScene::FFixedObjectBindingID(NewGuid, Sequencer->GetFocusedTemplateID()));
+					}
 				}
 			}
 		}
