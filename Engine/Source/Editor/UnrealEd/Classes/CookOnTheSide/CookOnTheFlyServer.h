@@ -831,8 +831,11 @@ public:
 	void OnObjectUpdated( UObject *Object );
 	void OnObjectSaved( UObject *ObjectSaved, FObjectPreSaveContext SaveContext );
 
+	DECLARE_MULTICAST_DELEGATE(FOnCookByTheBookStarted);
+	static FOnCookByTheBookStarted& OnCookByTheBookStarted() { return CookByTheBookStartedEvent; };
+
 	DECLARE_MULTICAST_DELEGATE(FOnCookByTheBookFinished);
-	FOnCookByTheBookFinished& OnCookByTheBookFinished() { return CookByTheBookFinishedEvent; };
+	static FOnCookByTheBookFinished& OnCookByTheBookFinished() { return CookByTheBookFinishedEvent; };
 	/**
 	* Marks a package as dirty for cook
 	* causes package to be recooked on next request (and all dependent packages which are currently cooked)
@@ -1466,7 +1469,9 @@ private:
 	double LastCookableObjectTickTime = 0.;
 
 	// Cook events that can be listenned to
-	FOnCookByTheBookFinished CookByTheBookFinishedEvent;
+	static FOnCookByTheBookStarted CookByTheBookStartedEvent;
+	static FOnCookByTheBookFinished CookByTheBookFinishedEvent;
+
 
 	// These structs are TUniquePtr rather than inline members so we can keep their headers private.
 	// See class header comments for their purpose.
