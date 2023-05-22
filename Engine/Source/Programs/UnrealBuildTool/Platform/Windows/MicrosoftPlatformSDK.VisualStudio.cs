@@ -46,7 +46,7 @@ namespace UnrealBuildTool
 		static readonly string[] VisualStudio2022SuggestedComponents = new string[]
 		{
 			"Microsoft.VisualStudio.Workload.ManagedDesktop",
-			"Microsoft.VisualStudio.Component.VC.14.35.17.5.x86.x64",
+			"Microsoft.VisualStudio.Component.VC.14.36.17.6.x86.x64",
 			"Microsoft.Net.Component.4.6.2.TargetingPack",
 		};
 
