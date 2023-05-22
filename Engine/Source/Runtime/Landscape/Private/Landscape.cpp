@@ -1056,7 +1056,6 @@ void ULandscapeComponent::PostLoad()
 		{
 			if (MaterialInterface)
 			{
-				MaterialInterface->ConditionalPostLoad();
 				MaterialInterface->PrecachePSOs(VertexFactoryDataList, PrecachePSOParams, EPSOPrecachePriority::High, MaterialPrecacheRequestIDs);
 			}
 		}
