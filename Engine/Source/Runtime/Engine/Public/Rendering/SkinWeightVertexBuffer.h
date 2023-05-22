@@ -474,6 +474,10 @@ public:
 	ENGINE_API uint16 GetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex) const;
 	ENGINE_API void SetBoneWeight(uint32 VertexIndex, uint32 InfluenceIndex, uint16 BoneWeight);
 	ENGINE_API void ResetVertexBoneWeights(uint32 VertexIndex);
+	
+	/** Should only be called for legacy meshes or meshes that don't really have a LookupVertexBuffer, for example created in realtime.
+		All variable influence meshes imported after the FAnimObjectVersion::UnlimitedBoneInfluences version already have a LookupVertexBuffer */
+	ENGINE_API void RebuildLookupVertexBuffer();
 
 	/** SetOwnerName should be called before BeginInitResources for the owner name to be successfully tracked. */
 	ENGINE_API void SetOwnerName(const FName& OwnerName);

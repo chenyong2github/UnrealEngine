@@ -659,6 +659,20 @@ void FSkinWeightVertexBuffer::CleanUp()
 	LookupVertexBuffer.CleanUp();
 }
 
+void FSkinWeightVertexBuffer::RebuildLookupVertexBuffer()
+{
+	uint32 MaxBoneInfluences = DataVertexBuffer.GetMaxBoneInfluences();
+	uint32 NumVertices = DataVertexBuffer.GetNumBoneWeights() / DataVertexBuffer.GetMaxBoneInfluences();
+	LookupVertexBuffer.Init(NumVertices);
+
+	uint32 WeightOffset = 0;
+	for (uint32 VertIdx = 0; VertIdx < NumVertices; VertIdx++)
+	{
+		LookupVertexBuffer.SetWeightOffsetAndInfluenceCount(VertIdx, WeightOffset * GetBoneIndexAndWeightByteSize(), MaxBoneInfluences);
+		WeightOffset += MaxBoneInfluences;
+	}
+}
+
 FArchive& operator<<(FArchive& Ar, FSkinWeightVertexBuffer& VertexBuffer)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);	
@@ -667,16 +681,7 @@ FArchive& operator<<(FArchive& Ar, FSkinWeightVertexBuffer& VertexBuffer)
 	if (Ar.IsLoading() && Ar.CustomVer(FAnimObjectVersion::GUID) < FAnimObjectVersion::UnlimitedBoneInfluences)
 	{
 		// LookupVertexBuffer doesn't exist before this version, so construct its content from scratch
-		uint32 MaxBoneInfluences = VertexBuffer.DataVertexBuffer.GetMaxBoneInfluences();
-		uint32 NumVertices = VertexBuffer.DataVertexBuffer.GetNumBoneWeights() / VertexBuffer.DataVertexBuffer.GetMaxBoneInfluences();
-		VertexBuffer.LookupVertexBuffer.Init(NumVertices);
-
-		uint32 WeightOffset = 0;
-		for (uint32 VertIdx = 0; VertIdx < NumVertices; VertIdx++)
-		{
-			VertexBuffer.LookupVertexBuffer.SetWeightOffsetAndInfluenceCount(VertIdx, WeightOffset * VertexBuffer.GetBoneIndexAndWeightByteSize(), MaxBoneInfluences);
-			WeightOffset += MaxBoneInfluences;
-		}
+		VertexBuffer.RebuildLookupVertexBuffer();
 	}
 	else
 	{
