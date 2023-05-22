@@ -57,23 +57,24 @@ void UInputVCamSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	
 	// Create and register the input preprocessor, this is what will call our "InputKey"
 	// function to drive input instead of a player controller
-	if (ensure(FSlateApplication::IsInitialized()))
+	if (FSlateApplication::IsInitialized())
 	{
 		// It's dangerous to consume input in editor (imagine typing something into search boxes but all L keys were consumed by VCam input)
 		// whereas probably expected by gameplay code.
 		using namespace UE::VCamCore::Private;
 		InputPreprocessor = MakeShared<FVCamInputProcessor>(*this);
-		FSlateApplication::Get().RegisterInputPreProcessor(InputPreprocessor, 0);	
-	}
+		FSlateApplication::Get().RegisterInputPreProcessor(InputPreprocessor, 0);
 
+		// The below things should only be done in Slate applications. Slate is disabled e.g. in commandlets. It makes no sense to have VCam input in such cases.
 #if WITH_EDITOR
-	// Use-case: Person A using gamepad to drive VCam input while Person B clicks stuff in editor > Gamepad may start navigating editor widgets. This CVar prevents that.
-	UE::VCamCore::Private::IncrementAndSetEnableGamepadEditorNavigation();
+		// Use-case: Person A using gamepad to drive VCam input while Person B clicks stuff in editor > Gamepad may start navigating editor widgets. This CVar prevents that.
+		UE::VCamCore::Private::IncrementAndSetEnableGamepadEditorNavigation();
 #endif
-
-	if (GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
-	{
-		InitalizeUserSettings();
+		
+		if (GetDefault<UEnhancedInputDeveloperSettings>()->bEnableUserSettings)
+		{
+			InitalizeUserSettings();
+		}
 	}
 }
 
@@ -85,13 +86,13 @@ void UInputVCamSubsystem::Deinitialize()
 	if (FSlateApplication::IsInitialized())
 	{
 		FSlateApplication::Get().UnregisterInputPreProcessor(InputPreprocessor);
-	}
-
-	PlayerInput = nullptr;
+		
+		PlayerInput = nullptr;
 
 #if WITH_EDITOR
-	UE::VCamCore::Private::DecrementAndResetEnableGamepadEditorNavigation();
+		UE::VCamCore::Private::DecrementAndResetEnableGamepadEditorNavigation();
 #endif
+	}
 }
 
 void UInputVCamSubsystem::InitalizeUserSettings()

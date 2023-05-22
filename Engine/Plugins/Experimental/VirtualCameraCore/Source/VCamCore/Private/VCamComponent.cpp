@@ -10,6 +10,7 @@
 
 #include "Algo/ForEach.h"
 #include "CineCameraComponent.h"
+#include "CoreGlobals.h"
 #include "Engine/GameEngine.h"
 #include "Engine/InputDelegateBinding.h"
 #include "EnhancedActionKeyMapping.h"
@@ -80,7 +81,8 @@ namespace UE::VCamCore::Private
 		 */
 		return !Component->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject | RF_Transient)
 			&& !GIsCookerLoadingPackage
-			&& IsInValidWorld;
+			&& IsInValidWorld
+			&& !IsRunningCommandlet();
 	}
 }
 
@@ -264,12 +266,6 @@ void UVCamComponent::OnAttachmentChanged()
 #if WITH_EDITOR
 	CheckForErrors();
 #endif
-}
-
-void UVCamComponent::BeginPlay()
-{
-	Super::BeginPlay();
-	//EnsureInitializedIfAllowed();
 }
 
 void UVCamComponent::Serialize(FArchive& Ar)

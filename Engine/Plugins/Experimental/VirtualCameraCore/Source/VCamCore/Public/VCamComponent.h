@@ -84,7 +84,6 @@ public:
 	//~ Begin UActorComponent Interface
 	virtual void OnComponentCreated() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
-	virtual void BeginPlay() override;
 	//~ End UActorComponent Interface
 
 	//~ Begin USceneComponent Interface
