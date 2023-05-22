@@ -167,7 +167,7 @@ namespace Horde.Agent.Services
 
 		async Task WaitForLeaseAsync(TcpClient tcpClient, CancellationToken cancellationToken)
 		{
-			WaitingClient? waitingClient = new WaitingClient(tcpClient);
+			using WaitingClient waitingClient = new WaitingClient(tcpClient);
 			try
 			{
 				Socket socket = tcpClient.Client;
@@ -221,10 +221,6 @@ namespace Horde.Agent.Services
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Exception while processing compute task: {Message}", ex.Message);
-			}
-			finally
-			{
-				waitingClient?.Dispose();
 			}
 		}
 	}
