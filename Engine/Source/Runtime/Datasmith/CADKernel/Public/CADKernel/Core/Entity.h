@@ -16,18 +16,22 @@ namespace UE::CADKernel
 {
 enum class EEntity : uint8
 {
-	NullEntity = 0,
+	None = 0,
 
 	Curve,
 	Surface,
 
 	EdgeLink,
 	VertexLink,
+
 	TopologicalEdge,
 	TopologicalFace,
+
 	TopologicalLink,
 	TopologicalLoop,
+
 	TopologicalVertex,
+
 	Shell,
 	Body,
 	Model,
@@ -39,7 +43,7 @@ enum class EEntity : uint8
 	Criterion,
 	Property,
 
-	EntityTypeEnd
+	EntityTypeEnd,
 };
 
 class FDatabase;
@@ -146,6 +150,17 @@ public:
 	}
 
 	/**
+	 * Spawn Ident on each FEntity* of the array
+	 */
+	static void SpawnIdentOnEntities(TArray<FEntity*>& Array, FDatabase& Database)
+	{
+		for (FEntity* Entity : Array)
+		{
+			Entity->SpawnIdent(Database);
+		}
+	}
+
+	/**
 	 * Spawn Ident on each TSharedPtr<FEntity> of the array
 	 */
 	static void SpawnIdentOnEntities(TArray<TSharedPtr<FEntity>>& Array, FDatabase& Database)
@@ -173,34 +188,42 @@ public:
 	/**
 	 * Reset Processed flags Recursively on each TSharedPtr<FEntity> of the array
 	 */
-	static void ResetMarkersRecursivelyOnEntities(TArray<TWeakPtr<FEntity>>& Array)
+	static void ResetMarkersRecursivelyOnEntities(const TArray<FEntity*>& Array)
 	{
-		for (TWeakPtr<FEntity>& Entity : Array)
-		{
-			Entity.Pin()->ResetMarkersRecursively();
-		}
-	}
-
-	static void ResetMarkersRecursivelyOnEntities(TArray<TSharedPtr<FEntity>>& Array)
-	{
-		for (TSharedPtr<FEntity>& Entity : Array)
+		for (const FEntity* Entity : Array)
 		{
 			Entity->ResetMarkersRecursively();
 		}
 	}
 
-	static void ResetMarkersRecursivelyOnEntities(TArray<TOrientedEntity<FEntity>>& Array)
+	static void ResetMarkersRecursivelyOnEntities(const TArray<TWeakPtr<FEntity>>& Array)
 	{
-		for (TOrientedEntity<FEntity>& OrientedEntity : Array)
+		for (const TWeakPtr<FEntity>& Entity : Array)
+		{
+			Entity.Pin()->ResetMarkersRecursively();
+		}
+	}
+
+	static void ResetMarkersRecursivelyOnEntities(const TArray<TSharedPtr<FEntity>>& Array)
+	{
+		for (const TSharedPtr<FEntity>& Entity : Array)
+		{
+			Entity->ResetMarkersRecursively();
+		}
+	}
+
+	static void ResetMarkersRecursivelyOnEntities(const TArray<TOrientedEntity<FEntity>>& Array)
+	{
+		for (const TOrientedEntity<FEntity>& OrientedEntity : Array)
 		{
 			OrientedEntity.Entity->ResetMarkersRecursively();
 		}
 	}
 
 	template<typename EntityType>
-	static void ResetMarkersRecursivelyOnEntities(TArray<TSharedPtr<EntityType>>& Array)
+	static void ResetMarkersRecursivelyOnEntities(const TArray<TSharedPtr<EntityType>>& Array)
 	{
-		ResetMarkersRecursivelyOnEntities((TArray<TSharedPtr<FEntity>>&) Array);
+		ResetMarkersRecursivelyOnEntities((const TArray<TSharedPtr<FEntity>>&) Array);
 	}
 
 	/**
@@ -229,6 +252,22 @@ public:
 	static const TCHAR* GetTypeName(EEntity Type);
 
 	virtual EEntity GetEntityType() const = 0;
+
+	bool IsTopologicalEntity() const
+	{
+		return (GetEntityType() >= EEntity::EdgeLink && GetEntityType() <= EEntity::Model);
+	}
+
+	bool IsTopologicalShapeEntity() const
+	{
+		return (GetEntityType() == EEntity::TopologicalFace) || (GetEntityType() >= EEntity::Shell && GetEntityType() <= EEntity::Model);
+	}
+
+	bool IsGeometricalEntity()
+	{
+		return (GetEntityType() == EEntity::Curve || GetEntityType() == EEntity::Surface);
+	}
+
 	const TCHAR* GetTypeName() const
 	{
 		return GetTypeName(GetEntityType());
@@ -253,7 +292,7 @@ public:
 		}
 	}
 
-	virtual void ResetMarkersRecursively()
+	virtual void ResetMarkersRecursively() const
 	{
 		ResetMarkers();
 	}

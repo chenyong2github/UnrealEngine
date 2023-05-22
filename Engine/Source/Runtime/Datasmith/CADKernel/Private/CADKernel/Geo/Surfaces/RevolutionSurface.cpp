@@ -149,7 +149,7 @@ void FRevolutionSurface::SpawnIdent(FDatabase& Database)
 	Generatrix->SpawnIdent(Database);
 }
 
-void FRevolutionSurface::ResetMarkersRecursively()
+void FRevolutionSurface::ResetMarkersRecursively() const
 {
 	ResetMarkers();
 	Axis->ResetMarkersRecursively();

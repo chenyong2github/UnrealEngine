@@ -53,7 +53,7 @@ public:
 		SpawnIdentOnEntities(Surfaces, Database);
 	}
 
-	virtual void ResetMarkersRecursively() override
+	virtual void ResetMarkersRecursively() const override
 	{
 		ResetMarkers();
 		ResetMarkersRecursivelyOnEntities(Surfaces);

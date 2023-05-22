@@ -9,10 +9,6 @@
 
 #include "TechSoftInterface.h"
 
-#ifdef CADKERNEL_DEV
-#include "CADFileReport.h"
-#endif
-
 namespace UE::CADKernel
 {
 
@@ -169,10 +165,6 @@ private:
 
 	UE::CADKernel::FSession& Session;
 	UE::CADKernel::FModel& Model;
-#ifdef CADKERNEL_DEV
-	UE::CADKernel::FCADFileReport* Report;
-#endif
-
 
 	const double GeometricTolerance;
 	const double EdgeLengthTolerance;
@@ -190,13 +182,6 @@ public:
 	UE::CADKernel::FBody* AddBody(A3DRiBrepModel* A3DBRepModel, TMap<FString, FString> MetaData, const double InBodyScale);
 	UE::CADKernel::FBody* GetBody(A3DRiBrepModel* A3DBRepModel);
 	const A3DRiBrepModel* GetA3DBody(UE::CADKernel::FBody* BRepModel);
-
-#ifdef CADKERNEL_DEV
-	void SetReport(UE::CADKernel::FCADFileReport& InReport)
-	{
-		Report = &InReport;
-	}
-#endif
 
 private:
 

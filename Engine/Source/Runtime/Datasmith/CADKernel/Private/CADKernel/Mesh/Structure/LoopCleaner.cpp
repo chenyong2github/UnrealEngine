@@ -8,44 +8,58 @@
 #include "CADKernel/Mesh/Structure/Grid.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 
+#ifdef CADKERNEL_DEV
+#include "CADKernel/Mesh/Meshers/MesherReport.h"
+#endif
+
 namespace UE::CADKernel
 {
 
 FLoopCleaner::FLoopCleaner(FIsoTriangulator& Triangulator)
 	: Grid(Triangulator.Grid)
+	, Tolerances(Triangulator.Tolerances)
 	, LoopNodes(Triangulator.LoopNodes)
 	, LoopSegments(Triangulator.LoopSegments)
 	, IsoSegmentFactory(Triangulator.IsoSegmentFactory)
 	, bDisplay(Triangulator.bDisplay)
 	, LoopSegmentsIntersectionTool(Grid)
-	, GeometricTolerance(Triangulator.GeometricTolerance)
-	, SquareGeometricTolerance(FMath::Square(GeometricTolerance))
-	, SquareGeometricTolerance2(2. * SquareGeometricTolerance)
 	, GetNext(LoopCleanerImpl::GetNextNodeImpl)
 	, GetPrevious(LoopCleanerImpl::GetPreviousNodeImpl)
 	, GetFirst(LoopCleanerImpl::GetFirstNode)
 	, GetSecond(LoopCleanerImpl::GetSecondNode)
 {
+}
+
+bool FLoopCleaner::Run()
+{
+	if (!CleanLoops())
+	{
 #ifdef CADKERNEL_DEV
-	SetMesherReport(*Triangulator.MesherReport);
+		FMesherReport::GetLogs().AddRemoveSelfIntersectionFailure();
 #endif
+		return false;
+	}
+
+	if (!UncrossLoops())
+	{
+#ifdef CADKERNEL_DEV
+		FMesherReport::GetLogs().AddRemoveCrossingLoopsFailure();
+#endif
+		return false;
+	}
+
+	return true;
 }
 
 bool FLoopCleaner::CleanLoops()
 {
-
-	//{
-	//	FPoint2D Point = LoopNodes[36].Get2DPoint(EGridSpace::UniformScaled, Grid);
-	//	LoopNodes[56].Set2DPoint(EGridSpace::UniformScaled, Grid, Point);
-	//}
-
 	FindBestLoopExtremity();
 
 #ifdef DEBUG_CLEAN_LOOPS		
 	if (bDisplay)
 	{
-		Grid.DisplayIsoSegments(TEXT("Loops Orientation"), EGridSpace::UniformScaled, LoopSegments, false, true, EVisuProperty::BlueCurve);
-		Grid.DisplayIsoSegments(TEXT("Loops Init"), EGridSpace::UniformScaled, LoopSegments, true, false, EVisuProperty::BlueCurve);
+		Grid.DisplayIsoSegments(TEXT("Loops Orientation"), EGridSpace::UniformScaled, LoopSegments, false, true, false, EVisuProperty::BlueCurve);
+		Grid.DisplayIsoSegments(TEXT("Loops Init"), EGridSpace::UniformScaled, LoopSegments, true, false, false, EVisuProperty::BlueCurve);
 		Grid.DisplayIsoNodes(TEXT("BestStartNodeOfLoop"), EGridSpace::UniformScaled, (const TArray<const FIsoNode*>) BestStartNodeOfLoops, EVisuProperty::BluePoint);
 		Wait(bDisplay);
 	}
@@ -62,8 +76,19 @@ bool FLoopCleaner::CleanLoops()
 	for (FLoopNode* StartNode : BestStartNodeOfLoops)
 	{
 		LoopIndex++;
+
 		StartSegmentIndex = NextLoopFirstSegmentIndex;
 		UpdateNextLoopFirstSegmentIndex(LoopIndex);
+
+		if (!FindAndRemoveCoincidence(StartNode))
+		{
+			if (StartSegmentIndex == 0)
+			{
+				FMessage::Printf(Log, TEXT("The outer loop of the surface %d is degenerated. The mesh of this surface is canceled.\n"), Grid.GetFace().GetId());
+				return false;
+			}
+			continue;
+		}
 
 		Intersections.Empty(5);
 
@@ -81,25 +106,35 @@ bool FLoopCleaner::CleanLoops()
 
 #ifdef DEBUG_CLEAN_LOOPS		
 		Grid.DisplayGridPolyline(TEXT("LoopIntersections: remove loop's picks"), EGridSpace::UniformScaled, NodesOfLoop, true, EVisuProperty::YellowCurve);
-		//Wait(bDisplay);
+		Wait(bDisplay);
 #endif
 		
 		FindLoopIntersections();
 
-		if (!RemoveSelfIntersectionsOfLoop())
+		if(Intersections.Num())
 		{
-			FMessage::Printf(Log, TEXT("Loop intersections of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace().GetId());
-			return false;
-		}
+			if (!RemoveSelfIntersectionsOfLoop())
+			{
+				FMessage::Printf(Log, TEXT("Loop intersections of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace().GetId());
+				return false;
+			}
 
+			Intersections.SetNum(0);
+			FindLoopIntersections();
+			if (Intersections.Num())
+			{
+				FMessage::Printf(Log, TEXT("Loop intersections of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace().GetId());
+				return false;
+			}
 #ifdef DEBUG_CLEAN_LOOPS		
-		Grid.DisplayGridPolyline(TEXT("LoopIntersections: remove loop's self intersections"), EGridSpace::UniformScaled, NodesOfLoop, true, EVisuProperty::YellowCurve);
-		//Wait(bDisplay);
+			Grid.DisplayGridPolyline(TEXT("LoopIntersections: remove loop's self intersections"), EGridSpace::UniformScaled, NodesOfLoop, true, EVisuProperty::YellowCurve);
+			//Wait(bDisplay);
 #endif
+		}
 
 		if (!RemoveLoopPicks())
 		{
-			FMessage::Printf(Log, TEXT("Loop intersections of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace().GetId());
+			FMessage::Printf(Log, TEXT("Loop picks of the surface %d cannot be fixed. The mesh of this surface is canceled.\n"), Grid.GetFace().GetId());
 			return false;
 		}
 
@@ -160,7 +195,7 @@ bool FLoopCleaner::UncrossLoops()
 #ifdef DEBUG_UNCROSS_LOOPS
 		if (bDisplay)
 		{
-			LoopSegmentsIntersectionTool.Display(TEXT("IntersectionTool"));
+			LoopSegmentsIntersectionTool.Display(bDisplay, TEXT("IntersectionTool"), EVisuProperty::BlueCurve);
 			F3DDebugSession _(*FString::Printf(TEXT("Segment to be processed %d %d"), Index, Iteration++));
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, Segment, 0, EVisuProperty::BlueCurve);
 		}
@@ -172,7 +207,7 @@ bool FLoopCleaner::UncrossLoops()
 			if (bDisplay)
 			{
 				{
-					LoopSegmentsIntersectionTool.Display(TEXT("IntersectionTool"));
+					LoopSegmentsIntersectionTool.Display(bDisplay, TEXT("IntersectionTool"), EVisuProperty::BlueCurve);
 					F3DDebugSession _(*FString::Printf(TEXT("Segment to be processed %d %d"), Index, Iteration++));
 					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, Segment, 0, EVisuProperty::BlueCurve);
 				}
@@ -218,7 +253,7 @@ bool FLoopCleaner::UncrossLoops()
 			}
 
 #ifdef DEBUG_UNCROSS_LOOPS
-			if (true)
+			if (bDisplay)
 			{
 				Grid.DisplayGridPolyline(TEXT("After fix"), EGridSpace::UniformScaled, LoopNodes, true, EVisuProperty::YellowCurve);
 				Wait(true);
@@ -234,7 +269,7 @@ bool FLoopCleaner::UncrossLoops()
 		{
 			RemovePickRecursively((FLoopNode*) &Segment.GetFirstNode(), (FLoopNode*) &Segment.GetSecondNode());
 #ifdef DEBUG_UNCROSS_LOOPS
-			if (true)
+			if (bDisplay)
 			{
 				Grid.DisplayGridPolyline(TEXT("After RemovePickRecursively"), EGridSpace::UniformScaled, LoopNodes, true, EVisuProperty::YellowCurve);
 				Wait(true);
@@ -277,7 +312,7 @@ bool FLoopCleaner::TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(c
 	{
 		double StartPointSquareDistance = SquareDistanceOfPointToSegment(Segment2D.Point0, IntersectingSegment2D.Point0, IntersectingSegment2D.Point1);
 		double EndPointSquareDistance = SquareDistanceOfPointToSegment(Segment2D.Point1, IntersectingSegment2D.Point0, IntersectingSegment2D.Point1);
-		if (StartPointSquareDistance < SquareGeometricTolerance && EndPointSquareDistance < SquareGeometricTolerance)
+		if (StartPointSquareDistance < Tolerances.SquareGeometricTolerance && EndPointSquareDistance < Tolerances.SquareGeometricTolerance)
 		{
 			OffsetSegment(Segment, Segment2D, IntersectingSegment2D);
 			return true;
@@ -328,7 +363,7 @@ bool FLoopCleaner::TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(c
 #endif
 
 	TSegment<FPoint2D> NextSegment2D(Node->Get2DPoint(EGridSpace::UniformScaled, Grid), NextNode->Get2DPoint(EGridSpace::UniformScaled, Grid));
-	if (!FastIntersectSegments2D(NextSegment2D, IntersectingSegment2D))
+	if (!FastDoIntersect(NextSegment2D, IntersectingSegment2D))
 	{
 		return false;
 	}
@@ -353,7 +388,7 @@ bool FLoopCleaner::TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(c
 	SegmentTangent.Normalize();
 	FPoint2D MoveDirection = SegmentTangent.GetPerpendicularVector();
 
-	MoveDirection *= GeometricTolerance;
+	MoveDirection *= Tolerances.GeometricTolerance;
 
 	FPoint2D NewCoordinate = ProjectedPoint + MoveDirection;
 
@@ -365,8 +400,8 @@ bool FLoopCleaner::TryToRemoveIntersectionOfTwoConsecutiveIntersectingSegments(c
 	}
 #endif
 
-	if ((PreviousNode->Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2) ||
-		(NextNode->Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2))
+	if ((PreviousNode->Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < Tolerances.SquareGeometricTolerance2) ||
+		(NextNode->Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < Tolerances.SquareGeometricTolerance2))
 	{
 		if(RemoveNodeOfLoop(*Node))
 		{
@@ -402,7 +437,7 @@ void FLoopCleaner::OffsetSegment(FIsoSegment& Segment, TSegment<FPoint2D>& Segme
 	FPoint2D SegmentTangent = IntersectingSegment2D.Point1 - IntersectingSegment2D.Point0;
 	SegmentTangent.Normalize();
 	FPoint2D MoveDirection = SegmentTangent.GetPerpendicularVector();
-	MoveDirection *= GeometricTolerance;
+	MoveDirection *= Tolerances.GeometricTolerance;
 
 	FPoint2D NewPoint0 = Segment2D.Point0 + MoveDirection;
 	FPoint2D NewPoint1 = Segment2D.Point1 + MoveDirection;
@@ -416,7 +451,7 @@ void FLoopCleaner::OffsetNode(FLoopNode& Node, TSegment<FPoint2D>& IntersectingS
 	FPoint2D SegmentTangent = IntersectingSegment2D.Point1 - IntersectingSegment2D.Point0;
 	SegmentTangent.Normalize();
 	FPoint2D MoveDirection = SegmentTangent.GetPerpendicularVector();
-	MoveDirection *= GeometricTolerance;
+	MoveDirection *= Tolerances.GeometricTolerance;
 
 	FPoint2D NewPoint = Node.Get2DPoint(EGridSpace::UniformScaled, Grid) + MoveDirection;
 	Node.Set2DPoint(EGridSpace::UniformScaled, Grid, NewPoint);
@@ -478,7 +513,7 @@ void FLoopCleaner::RemoveIntersectionByMovingOutsideSegmentNodeInside(const FIso
 	FPoint2D MoveDirection = IntersectingPoints[1] - IntersectingPoints[0];
 	MoveDirection.Normalize();
 	MoveDirection = MoveDirection.GetPerpendicularVector();
-	MoveDirection *= bIsSameInnerLoop ? -GeometricTolerance : GeometricTolerance;
+	MoveDirection *= bIsSameInnerLoop ? -Tolerances.GeometricTolerance : Tolerances.GeometricTolerance;
 
 	FPoint2D NewCoordinate = ProjectedPoint + MoveDirection;
 
@@ -486,8 +521,8 @@ void FLoopCleaner::RemoveIntersectionByMovingOutsideSegmentNodeInside(const FIso
 	FLoopNode& PreviousNode = Node.GetPreviousNode();
 	FLoopNode& NextNode = Node.GetNextNode();
 
-	if ((PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2) ||
-		(NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2))
+	if ((PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < Tolerances.SquareGeometricTolerance2) ||
+		(NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < Tolerances.SquareGeometricTolerance2))
 	{
 		RemoveNodeOfLoop(Node);
 		return;
@@ -519,6 +554,7 @@ void FLoopCleaner::FixLoopOrientation()
 	{
 #ifdef DEBUG_LOOP_ORIENTATION
 		Grid.DisplayIsoSegments(TEXT("Before orientation"), EGridSpace::UniformScaled, LoopSegments, true, true);
+		Wait(bDisplay);
 #endif
 
 		SwapSubLoopOrientation(StartSegmentIndex, NextLoopFirstSegmentIndex);
@@ -727,7 +763,7 @@ bool FLoopCleaner::RemoveOutgoingLoop(const TPair<double, double>& Intersection,
 
 	MoveDirection /= Length;
 	MoveDirection = MoveDirection.GetPerpendicularVector();
-	MoveDirection *= GeometricTolerance;
+	MoveDirection *= Tolerances.GeometricTolerance;
 	MiddlePoint += MoveDirection;
 
 	if (!EndNode->IsDelete())
@@ -746,7 +782,7 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 	{
 		FPoint2D MoveDirection = ProjectedPoint - PointToProject;
 		MoveDirection.Normalize();
-		MoveDirection *= GeometricTolerance;
+		MoveDirection *= Tolerances.GeometricTolerance;
 		ProjectedPoint += MoveDirection;
 		NodeToProject->Set2DPoint(EGridSpace::UniformScaled, Grid, ProjectedPoint);
 	};
@@ -812,7 +848,7 @@ bool FLoopCleaner::RemoveIntersectionsOfSubLoop(int32 IntersectionIndex, int32 I
 		FPoint2D MoveDirection = Point1 - Point0;
 		MoveDirection.Normalize();
 		MoveDirection = MoveDirection.GetPerpendicularVector();
-		MoveDirection *= GeometricTolerance;
+		MoveDirection *= Tolerances.GeometricTolerance;
 
 		FPoint2D NewCoordinate = Point1 + MoveDirection;
 		NodeToMove->Set2DPoint(EGridSpace::UniformScaled, Grid, NewCoordinate);
@@ -1270,8 +1306,8 @@ bool FLoopCleaner::DisconnectCoincidentNodes(const LoopCleanerImpl::FPinchInters
 
 	FPoint2D P1 = SlopeToVector(MediumSlope1);
 	FPoint2D P0 = SlopeToVector(MediumSlope0);
-	P1.Normalize()*= GeometricTolerance*30;
-	P0.Normalize()*= GeometricTolerance*30;
+	P1.Normalize()*= Tolerances.GeometricTolerance*30;
+	P0.Normalize()*= Tolerances.GeometricTolerance*30;
 
 	P0 += *Context.Points[0][1];
 	P1 += *Context.Points[1][1];
@@ -1356,7 +1392,7 @@ bool FLoopCleaner::DisconnectCrossingSegments(LoopCleanerImpl::FPinchIntersectio
 	int32 Segment10_11Index = LoopSegments.IndexOfByKey(Segment10_11);
 
 #ifdef DEBUG_REMOVE_UNIQUE_INTERSECTION
-	Grid.DisplayIsoSegments(TEXT("Loops Orientation"), EGridSpace::UniformScaled, LoopSegments, false, true, EVisuProperty::BlueCurve);
+	Grid.DisplayIsoSegments(TEXT("Loops Orientation"), EGridSpace::UniformScaled, LoopSegments, false, true, false, EVisuProperty::BlueCurve);
 	Grid.DisplayGridPolyline(TEXT("RemoveIntersection end"), EGridSpace::UniformScaled, NodesOfLoop, true);
 	Wait(bDisplay);
 #endif
@@ -1364,7 +1400,7 @@ bool FLoopCleaner::DisconnectCrossingSegments(LoopCleanerImpl::FPinchIntersectio
 	SwapSubLoopOrientation(Segment01_02Index + 1, Segment10_11Index);
 
 #ifdef DEBUG_REMOVE_UNIQUE_INTERSECTION
-	Grid.DisplayIsoSegments(TEXT("Loops Orientation"), EGridSpace::UniformScaled, LoopSegments, false, true, EVisuProperty::BlueCurve);
+	Grid.DisplayIsoSegments(TEXT("Loops Orientation"), EGridSpace::UniformScaled, LoopSegments, false, true, false, EVisuProperty::BlueCurve);
 	Grid.DisplayGridPolyline(TEXT("RemoveIntersection end"), EGridSpace::UniformScaled, NodesOfLoop, true);
 	Wait(bDisplay);
 #endif
@@ -1569,15 +1605,15 @@ void FLoopCleaner::MoveNode(FLoopNode& NodeToMove, FPoint2D& NewPostion)
 
 	FPoint2D ProjectedDirection = NewPostion - PointToMove;
 	ProjectedDirection.Normalize();
-	ProjectedDirection *= GeometricTolerance;
+	ProjectedDirection *= Tolerances.GeometricTolerance;
 
 	FPoint2D NewCoordinate = NewPostion + ProjectedDirection;
 
 	FLoopNode& PreviousNode = NodeToMove.GetPreviousNode();
 	FLoopNode& NextNode = NodeToMove.GetNextNode();
 
-	if ((PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2) ||
-		(NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < SquareGeometricTolerance2))
+	if ((PreviousNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < Tolerances.SquareGeometricTolerance2) ||
+		(NextNode.Get2DPoint(EGridSpace::UniformScaled, Grid).SquareDistance(NewCoordinate) < Tolerances.SquareGeometricTolerance2))
 	{
 		RemoveNodeOfLoop(NodeToMove);
 	}
@@ -1606,13 +1642,12 @@ void FLoopCleaner::MoveNode(FLoopNode& NodeToMove, FPoint2D& NewPostion)
 #endif
 }
 
-//#define DEBUG_FIND_LOOP_INTERSECTIONS
 void FLoopCleaner::FindLoopIntersections()
 {
 	LoopSegmentsIntersectionTool.Empty(NodesOfLoopCount);
 
 	FLoopNode* const* const StartNodePtr = NodesOfLoop.FindByPredicate([](const FLoopNode* Node) { return !Node->IsDelete(); });
-	if (*StartNodePtr == nullptr || (*StartNodePtr)->IsDelete())
+	if (StartNodePtr == nullptr || *StartNodePtr == nullptr || (*StartNodePtr)->IsDelete())
 	{
 		return;
 	}
@@ -1797,6 +1832,63 @@ bool FLoopCleaner::RemoveLoopPicks()
 		}
 	}
 	return UpdateNodesOfLoop();
+}
+
+bool FLoopCleaner::FindAndRemoveCoincidence(FLoopNode*& StartNode)
+{
+#ifdef DEBUG_FIND_AND_REMOVE_COINCIDENCE
+	F3DDebugSession A(bDisplay, ("FindAndRemoveCoincidence"));
+#endif
+
+	FLoopNode* PreviousNode = StartNode;
+	const FPoint2D* PreviousPoint = &StartNode->Get2DPoint(EGridSpace::UniformScaled, Grid);
+	for (FLoopNode* Node = GetNext(StartNode); ; Node = GetNext(Node))
+	{
+		const FPoint2D& Point = Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
+
+		if (CheckAndRemoveCoincidence(*PreviousPoint, Point, *PreviousNode))
+		{
+			if (Node->IsDelete())
+			{
+				return false;
+			}
+
+			if (PreviousNode == StartNode)
+			{
+				StartNode = Node;
+#ifdef DEBUG_FIND_AND_REMOVE_COINCIDENCE
+				if(bDisplay)
+				{
+					F3DDebugSession B(TEXT("RemoveCoincidence"));
+					DisplayPoint2DWithScale(*PreviousPoint, EVisuProperty::RedPoint);
+				}
+#endif
+				continue;
+			}
+#ifdef DEBUG_FIND_AND_REMOVE_COINCIDENCE
+			if (bDisplay)
+			{
+				F3DDebugSession B(TEXT("RemoveCoincidence"));
+				DisplayPoint2DWithScale(*PreviousPoint, EVisuProperty::RedPoint);
+			}
+		}
+		else if(bDisplay)
+		{
+			F3DDebugSession B(TEXT("Seg"));
+			DisplaySegmentWithScale(*PreviousPoint, Point, 1, EVisuProperty::BlueCurve);
+#endif
+		}
+	
+		if (Node == StartNode)
+		{
+			break;
+		}
+
+		PreviousNode = Node;
+		PreviousPoint = &Point;
+	}
+
+	return true;
 }
 
 bool FLoopCleaner::RemovePickRecursively(FLoopNode* Node0, FLoopNode* Node1)

@@ -39,6 +39,8 @@ public:
 	{
 		return EdgeVerticesIndex.Num();
 	}
+
+	TArray<double> GetElementLengths() const;
 };
 }
 

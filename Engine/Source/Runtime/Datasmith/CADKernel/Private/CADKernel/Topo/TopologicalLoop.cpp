@@ -1125,6 +1125,21 @@ bool FTopologicalLoop::IsInside(const FTopologicalLoop& OtherLoop) const
 	TArray<FPoint2D> OtherSampling2D;
 	OtherLoop.Get2DSampling(OtherSampling2D);
 
+#ifdef DEBUG_IS_INSIDE
+	bool bDisplayDebug = true; //(GetId() == 1046569);
+	if (bDisplayDebug)
+	{
+		{
+			F3DDebugSession _(*FString::Printf(TEXT("Loop")));
+			DisplayPolylineWithScale(Sampling2D, EVisuProperty::BlueCurve);
+		}
+		{
+			F3DDebugSession _(*FString::Printf(TEXT("External Loop")));
+			DisplayPolylineWithScale(OtherSampling2D, EVisuProperty::RedCurve);
+		}
+		Wait();
+	}
+#endif
 
 	int32 InsidePoint = 0;
 	int32 OutsidePoint = 0;
@@ -1169,7 +1184,7 @@ bool FTopologicalLoop::IsInside(const FTopologicalLoop& OtherLoop) const
 		CountLeftIntersection(TestPoint, EIso::IsoV);
 	}
 
-	return InsidePoint > OutsidePoint;
+	return InsidePoint < OutsidePoint;
 }
 
 double FTopologicalLoop::Length() const

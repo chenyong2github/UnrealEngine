@@ -7,6 +7,7 @@
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Mesh/MeshEnum.h"
 #include "CADKernel/Mesh/Structure/GridBase.h"
+#include "CADKernel/Mesh/Structure/ThinZone2D.h"
 #include "CADKernel/UI/Display.h"
 
 #ifdef CADKERNEL_DEV
@@ -60,7 +61,6 @@ protected:
 	const FSurfacicTolerance FaceTolerance;
 	const double MinimumElementSize;
 
-
 	FModelMesh& MeshModel;
 
 
@@ -95,15 +95,19 @@ protected:
 	TArray<ENodeMarker> NodeMarkers;
 
 public:
+#ifdef CADKERNEL_DEV
+	FGridChronos Chronos;
+#endif
+
 	FGrid(FTopologicalFace& InFace, FModelMesh& InShellMesh);
 
-#ifndef CADKERNEL_DEBUG
-	virtual ~FGrid() = default;
-#else
+#ifdef CADKERNEL_DEBUG
 	virtual ~FGrid()
 	{
 		Close3DDebugSession(bDisplay);
 	}
+#else
+	virtual ~FGrid() = default;
 #endif
 
 	// ======================================================================================================================================================================================================================
@@ -179,6 +183,7 @@ protected:
 	 */
 	bool GetMeshOfLoops();
 	void GetMeshOfLoop(const FTopologicalLoop& Loop);
+	void GetMeshOfThinZone(const FThinZone2D& ThinZone);
 
 	// Meshing tools =========================================================================================================================================================================================================
 	// ======================================================================================================================================================================================================================
@@ -421,12 +426,16 @@ public:
 	// ======================================================================================================================================================================================================================
 	// Display Methodes   ================================================================================================================================================================================================
 	// ======================================================================================================================================================================================================================
+#ifdef CADKERNEL_DEV
+	void PrintTimeElapse() const;
+#endif
+
 #ifdef CADKERNEL_DEBUG
-	bool bDisplay = false;
 
 	void DisplayIsoNode(EGridSpace Space, const int32 PointIndex, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;
 	void DisplayIsoNode(EGridSpace Space, const FIsoNode& Node, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;
 	void DisplayIsoNodes(EGridSpace Space, const TArray<const FIsoNode*>& Nodes, EVisuProperty Property = EVisuProperty::BluePoint) const;
+
 	void DisplayIsoNodes(const FString& Message, EGridSpace Space, const TArray<const FIsoNode*>& Nodes, EVisuProperty Property = EVisuProperty::BluePoint) const
 	{
 		if (!bDisplay)
@@ -434,6 +443,22 @@ public:
 			return;
 		}
 		F3DDebugSession _(Message);
+		DisplayIsoNodes(Space, Nodes, Property);
+	}
+
+	void DisplayIsoPolyline(const FString& Message, EGridSpace Space, const TArray<const FIsoNode*>& Nodes, EVisuProperty Property = EVisuProperty::BluePoint) const
+	{
+		if (!bDisplay)
+		{
+			return;
+		}
+		F3DDebugSession _(Message);
+		const FIsoNode* LastNode = Nodes.Last();
+		for (const FIsoNode* Node : Nodes)
+		{
+			DisplayIsoSegment(Space, *LastNode, *Node, 0, (EVisuProperty)(Property + 1));
+			LastNode = Node;
+		}
 		DisplayIsoNodes(Space, Nodes, Property);
 	}
 
@@ -452,6 +477,7 @@ public:
 	}
 
 	void DisplayTriangle(EGridSpace Space, const FIsoNode& NodeA, const FIsoNode& NodeB, const FIsoNode& NodeC) const;
+	void DisplayTriangle3D(const FIsoNode& NodeA, const FIsoNode& NodeB, const FIsoNode& NodeC) const;
 
 	void DisplayGridPolyline(EGridSpace Space, const FLoopNode& StartNode, bool bDisplayNode, EVisuProperty Property = EVisuProperty::BlueCurve) const;
 	void DisplayGridPolyline(EGridSpace Space, const TArray<FIsoNode*>& Nodes, bool bDisplayNode, EVisuProperty Property = EVisuProperty::BlueCurve) const;
@@ -515,7 +541,42 @@ public:
 	}
 
 	template<typename TPoint>
-	void DisplayGridLoop(FString Message, const TArray<TArray<TPoint>>& Loops, bool bDisplayNodes, bool bMakeGroup) const
+	void DisplayGridLoop(FString Message, const TArray<TPoint>& Loop, bool bDisplayNodes, bool bMakeGroup, bool bDisplaySegments) const
+	{
+		if (!bDisplay)
+		{
+			return;
+		}
+
+		F3DDebugSession _(bMakeGroup, Message);
+
+		const TPoint* FirstSegmentPoint = &Loop[0];
+		if (bDisplayNodes)
+		{
+			F3DDebugSession Q(bDisplaySegments, FString::Printf(TEXT("FirstNode")));
+			DisplayPoint(*FirstSegmentPoint * DisplayScale, EVisuProperty::BluePoint, 0);
+		}
+
+		for (int32 Index = 1; Index < Loop.Num(); ++Index)
+		{
+			const TPoint* SecondSegmentPoint = &Loop[Index];
+			F3DDebugSession B(bDisplaySegments, FString::Printf(TEXT("Segment %d"), Index));
+			DisplaySegment<TPoint>(*FirstSegmentPoint * DisplayScale, *SecondSegmentPoint * DisplayScale);
+			if (bDisplayNodes)
+			{
+				DisplayPoint<TPoint>(*SecondSegmentPoint * DisplayScale, EVisuProperty::BluePoint, Index);
+			}
+			FirstSegmentPoint = SecondSegmentPoint;
+		}
+
+		{
+			F3DDebugSession C(bDisplaySegments, FString::Printf(TEXT("Segment %d"), Loop.Num()));
+			DisplaySegment(*FirstSegmentPoint * DisplayScale, *Loop.begin() * DisplayScale);
+		}
+	}
+
+	template<typename TPoint>
+	void DisplayGridLoops(FString Message, const TArray<TArray<TPoint>>& Loops, bool bDisplayNodes, bool bMakeGroup, bool bDisplaySegments) const
 	{
 		if (!bDisplay)
 		{
@@ -526,38 +587,14 @@ public:
 		int32 LoopIndex = 0;
 		for (const TArray<TPoint>& Loop : Loops)
 		{
-			if (bMakeGroup)
-			{
-				Open3DDebugSession(FString::Printf(TEXT("Loop %d"), LoopIndex++));
-			}
-
-			const TPoint* FirstSegmentPoint = &Loop[0];
-			if (bDisplayNodes)
-			{
-				DisplayPoint(*FirstSegmentPoint * DisplayScale, EVisuProperty::BluePoint, 0);
-			}
-
-			for (int32 Index = 1; Index < Loop.Num(); ++Index)
-			{
-				const TPoint* SecondSegmentPoint = &Loop[Index];
-				DisplaySegment(*FirstSegmentPoint * DisplayScale, *SecondSegmentPoint * DisplayScale);
-				if (bDisplayNodes)
-				{
-					DisplayPoint(*SecondSegmentPoint * DisplayScale, EVisuProperty::BluePoint, Index);
-				}
-				FirstSegmentPoint = SecondSegmentPoint;
-			}
-			DisplaySegment(*FirstSegmentPoint * DisplayScale, *Loop.begin() * DisplayScale);
-			if (bMakeGroup)
-			{
-				Close3DDebugSession();
-			}
+			FString LoopName = FString::Printf(TEXT("Loop %d"), LoopIndex++);
+			DisplayGridLoop(LoopName, Loop, bDisplayNodes, bMakeGroup, bDisplaySegments);
 		}
 	}
 
-	void DisplayGridLoops(FString Message, EGridSpace DisplaySpace, bool bDisplayNodes, bool bMakeGroup) const
+	void DisplayGridLoops(FString Message, EGridSpace DisplaySpace, bool bDisplayNodes, bool bMakeGroup, bool bDisplaySegments) const
 	{
-		DisplayGridLoop(Message, FaceLoops2D[DisplaySpace], bDisplayNodes, bMakeGroup);
+		DisplayGridLoops(Message, FaceLoops2D[DisplaySpace], bDisplayNodes, bMakeGroup, bDisplaySegments);
 	}
 
 #endif

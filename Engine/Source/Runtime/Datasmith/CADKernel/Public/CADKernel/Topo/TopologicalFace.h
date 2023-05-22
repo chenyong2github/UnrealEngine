@@ -122,7 +122,7 @@ public:
 
 	virtual void SpawnIdent(FDatabase& Database) override;
 
-	virtual void ResetMarkersRecursively() override
+	virtual void ResetMarkersRecursively() const override
 	{
 		ResetMarkers();
 		ResetMarkersRecursivelyOnEntities(Loops);
@@ -356,7 +356,7 @@ public:
 
 	// ======   Meshing Function   ======
 
-	TSharedRef<FFaceMesh> GetOrCreateMesh(FModelMesh& ModelMesh);
+	FFaceMesh& GetOrCreateMesh(FModelMesh& ModelMesh);
 
 	const bool HasTesselation() const
 	{
@@ -440,7 +440,7 @@ public:
 		return ((States & EHaveStates::ThinZone) == EHaveStates::ThinZone);
 	}
 
-	void SetHasThinZone()
+	void SetHasThinZoneMarker()
 	{
 		States |= EHaveStates::ThinZone;
 	}
@@ -624,7 +624,10 @@ public:
 
 	void SetEstimatedMinimalElementLength(double Value)
 	{
-		EstimatedMinimalElementLength = Value;
+		if(Value < EstimatedMinimalElementLength)
+		{
+			EstimatedMinimalElementLength = Value;
+		}
 	}
 
 	/**

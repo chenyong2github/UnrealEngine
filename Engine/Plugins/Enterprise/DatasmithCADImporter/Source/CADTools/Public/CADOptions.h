@@ -53,6 +53,7 @@ namespace CADLibrary
 		CADTOOLS_API static bool bGStitchingForceSew;
 		CADTOOLS_API static bool bGStitchingRemoveThinFaces;
 		CADTOOLS_API static bool bGStitchingRemoveDuplicatedFaces;
+		CADTOOLS_API static bool bGActivateThinZoneMeshing;
 		CADTOOLS_API static float GStitchingForceFactor;
 		CADTOOLS_API static float GUnitScale;
 		CADTOOLS_API static float GMeshingParameterFactor;
@@ -88,7 +89,7 @@ namespace CADLibrary
 			{
 				Hash = HashCombine(Hash, ::GetTypeHash(Param));
 			}
-			for (bool Param : {bGStitchingForceSew, bGStitchingRemoveThinFaces, bGStitchingRemoveDuplicatedFaces, bGDisableCADKernelTessellation, bGPreferJtFileEmbeddedTessellation})
+			for (bool Param : {bGStitchingForceSew, bGStitchingRemoveThinFaces, bGStitchingRemoveDuplicatedFaces, bGDisableCADKernelTessellation, bGActivateThinZoneMeshing, bGPreferJtFileEmbeddedTessellation})
 			{
 				Hash = HashCombine(Hash, ::GetTypeHash(Param));
 			}
@@ -115,6 +116,7 @@ namespace CADLibrary
 			Ar << ImportParameters.bGStitchingForceSew;
 			Ar << ImportParameters.bGStitchingRemoveDuplicatedFaces;
 			Ar << ImportParameters.bGStitchingRemoveThinFaces;
+			Ar << ImportParameters.bGActivateThinZoneMeshing;
 			Ar << ImportParameters.bValidationProcess;
 			Ar << ImportParameters.GMaxMaterialCountPerMesh;
 			Ar << ImportParameters.GMeshingParameterFactor;

@@ -118,23 +118,40 @@ void FDatabase::GetEntities(const TArray<FIdent>& EntityIds, TArray<TSharedPtr<F
 {
 	Entities.Empty(EntityIds.Num());
 
-	// to avoid duplicated components
-	TSet<FIdent> AddedComponents;
-	AddedComponents.Reserve(EntityIds.Num());
+	for (FIdent EntityId : EntityIds)
+	{
+		TSharedPtr<FEntity> Entity = GetEntity(EntityId);
+		if (!Entity.IsValid() || Entity->IsDeleted() || Entity->IsProcessed())
+		{
+			continue;
+		}
+		Entity->SetProcessedMarker();
+		Entities.Add(Entity);
+	}
+	for (TSharedPtr<FEntity>& Entity : Entities)
+	{
+		Entity->ResetProcessedMarker();
+	}
+}
+
+void FDatabase::GetEntities(const TArray<FIdent>& EntityIds, TArray<FEntity*>& Entities) const
+{
+	Entities.Empty(EntityIds.Num());
 
 	for (FIdent EntityId : EntityIds)
 	{
 		TSharedPtr<FEntity> Entity = GetEntity(EntityId);
-		if (!Entity.IsValid() || Entity->IsDeleted())
+		if (!Entity.IsValid() || Entity->IsDeleted() || Entity->IsProcessed())
 		{
 			continue;
 		}
 
-		if (AddedComponents.Find(EntityId) == nullptr)
-		{
-			AddedComponents.Add(EntityId);
-			Entities.Add(Entity);
-		}
+		Entity->SetProcessedMarker();
+		Entities.Add(Entity.Get());
+	}
+	for (FEntity* Entity : Entities)
+	{
+		Entity->ResetProcessedMarker();
 	}
 }
 
@@ -142,39 +159,23 @@ void FDatabase::GetTopologicalEntities(const TArray<FIdent>& EntityIds, TArray<F
 {
 	Entities.Empty(EntityIds.Num());
 
-	// to avoid duplicated components
-	TSet<FIdent> AddedComponents;
-	AddedComponents.Reserve(EntityIds.Num());
-
 	for (FIdent EntityId : EntityIds)
 	{
 		TSharedPtr<FEntity> Entity = GetEntity(EntityId);
-		if (!Entity.IsValid() || Entity->IsDeleted())
+		if (!Entity.IsValid() || Entity->IsDeleted() || Entity->IsProcessed())
 		{
 			continue;
 		}
 
-		switch (Entity->GetEntityType())
+		if(Entity->IsTopologicalEntity())
 		{
-		case EEntity::EdgeLink:
-		case EEntity::VertexLink:
-		case EEntity::TopologicalEdge:
-		case EEntity::TopologicalFace:
-		case EEntity::TopologicalLink:
-		case EEntity::TopologicalLoop:
-		case EEntity::TopologicalVertex:
-		case EEntity::Shell:
-		case EEntity::Body:
-		case EEntity::Model:
-			if (AddedComponents.Find(EntityId) == nullptr)
-			{
-				AddedComponents.Add(EntityId);
-				Entities.Add((FTopologicalShapeEntity*)Entity.Get());
-			}
-			break;
-		default:
-			break;
+			Entity->SetProcessedMarker();
+			Entities.Add((FTopologicalEntity*) Entity.Get());
 		}
+	}
+	for (FTopologicalEntity* Entity : Entities)
+	{
+		Entity->ResetProcessedMarker();
 	}
 }
 
@@ -194,21 +195,15 @@ void FDatabase::GetTopologicalShapeEntities(const TArray<FIdent>& EntityIds, TAr
 			continue;
 		}
 
-		switch (Entity->GetEntityType())
+		if(Entity->IsTopologicalShapeEntity())
 		{
-		case EEntity::Body:
-		case EEntity::Model:
-		case EEntity::Shell:
-		case EEntity::TopologicalFace:
-			if (AddedComponents.Find(EntityId) == nullptr)
-			{
-				AddedComponents.Add(EntityId);
-				Entities.Add((FTopologicalShapeEntity*) Entity.Get());
-			}
-			break;
-		default:
-			break;
+			Entity->SetProcessedMarker();
+			Entities.Add((FTopologicalShapeEntity*) Entity.Get());
 		}
+	}
+	for (FTopologicalShapeEntity* Entity : Entities)
+	{
+		Entity->ResetProcessedMarker();
 	}
 }
 
@@ -326,7 +321,7 @@ void FDatabase::Serialize(FCADKernelArchive& Ar)
 
 		if (!Entity.IsValid() || Entity->IsDeleted())
 		{
-			EEntity Type = EEntity::NullEntity;
+			EEntity Type = EEntity::None;
 			Ar << Type;
 			continue;
 		}
@@ -600,20 +595,9 @@ void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>&
 
 	case EEntity::TopologicalEdge:
 	{
-		ensureCADKernel(false);
+		break;
 		TSharedPtr<FTopologicalEdge>Edge = StaticCastSharedPtr<FTopologicalEdge>(Entity);
 		ExpandSelection(Edge->GetCurve(), Filter, Selection);
-		break;
-	}
-
-	case EEntity::Group:
-	{
-		ensureCADKernel(false);
-		TSharedPtr<FGroup>Group = StaticCastSharedPtr<FGroup>(Entity);
-		for (const TSharedPtr<FEntity>& GroupEntity : Group->GetEntities())
-		{
-			ExpandSelection(GroupEntity, Filter, Selection);
-		}
 		break;
 	}
 
@@ -643,11 +627,12 @@ void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>&
 
 	case EEntity::MeshModel:
 	{
-		TSharedPtr<FModelMesh> MeshModel = StaticCastSharedPtr<FModelMesh>(Entity);
-		for (const TSharedPtr<FMesh>& Mesh : MeshModel->GetMeshes())
-		{
-			ExpandSelection(Mesh, Filter, Selection);
-		}
+		ensureCADKernel(false);
+		//TSharedPtr<FModelMesh> MeshModel = StaticCastSharedPtr<FModelMesh>(Entity);
+		//for (const FMesh* Mesh : MeshModel->GetMeshes())
+		//{
+		//	ExpandSelection(Mesh, Filter, Selection);
+		//}
 		break;
 	}
 

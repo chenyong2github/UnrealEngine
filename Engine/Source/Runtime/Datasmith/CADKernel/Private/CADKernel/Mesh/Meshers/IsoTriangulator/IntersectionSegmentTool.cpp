@@ -22,6 +22,22 @@ FIsoSegment* FIntersectionSegmentTool::FindIntersectingSegment(const FIsoSegment
 	return const_cast<FIsoSegment*> (static_cast<const FIntersectionSegmentTool*>(this)->TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegment(&Segment.GetFirstNode(), &Segment.GetSecondNode()));
 }
 
+bool FIntersectionSegmentTool::DoesIntersect(const FIsoNode* StartNode, const FIsoNode* EndNode, FIsoSegment** Segment) const
+{
+	if (!StartNode || !EndNode)
+	{
+		return false;
+	}
+
+	*Segment = StartNode->GetSegmentConnectedTo(EndNode);
+	if (*Segment)
+	{
+		return false;
+	}
+	return DoesIntersect(StartNode, EndNode);
+}
+
+
 IntersectionSegmentTool::FSegment::FSegment(const FGrid& Grid, const FIsoNode& StartNode, const FIsoNode& EndNode)
 	: IntersectionToolBase::FSegment(StartNode.Get2DPoint(EGridSpace::UniformScaled, Grid), EndNode.Get2DPoint(EGridSpace::UniformScaled, Grid))
 	, IsoSegment(nullptr)

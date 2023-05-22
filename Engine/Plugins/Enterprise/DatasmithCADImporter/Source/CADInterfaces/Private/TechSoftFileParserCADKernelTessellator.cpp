@@ -14,7 +14,7 @@
 #include "CADKernel/Core/Session.h"
 #include "CADKernel/Core/Types.h"
 
-#include "CADKernel/Mesh/Meshers/ParametricMesher.h"
+#include "CADKernel/Mesh/Meshers/Mesher.h"
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
 
 #include "CADKernel/Topo/Body.h"
@@ -266,7 +266,9 @@ void FTechSoftFileParserCADKernelTessellator::MeshAndGetTessellation(UE::CADKern
 
 	FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh.Get(), CADFileData.GetImportParameters(), CADKernelSession.GetGeometricTolerance());
 
-	FParametricMesher Mesher(*CADKernelModelMesh);
+	const double GeometricTolerance = FImportParameters::GStitchingTolerance * 10; // cm to mm
+	const bool bActivateThinZoneMeshing = FImportParameters::bGActivateThinZoneMeshing;
+	FMesher Mesher(*CADKernelModelMesh, GeometricTolerance, bActivateThinZoneMeshing);
 	Mesher.MeshEntity(CADKernelBody);
 
 	FCADKernelTools::GetBodyTessellation(*CADKernelModelMesh, CADKernelBody, BodyMesh);

@@ -11,9 +11,9 @@
 #include "CADKernel/Mesh/Structure/GridBase.h"
 #include "CADKernel/Mesh/Structure/ThinZone2D.h"
 
-//#ifdef CADKERNEL_DEV
-//#include "CADKernel/UI/DefineForDebug.h"
-//#endif
+#ifdef CADKERNEL_DEBUG
+#include "CADKernel/UI/DefineForDebug.h"
+#endif
 
 namespace UE::CADKernel
 {
@@ -93,7 +93,7 @@ namespace UE::CADKernel
 		/**
 		 * For Segment with Marker1 in Segments, find in OppositeSides the closest segment in the respect of the criteria
 		 */
-		void FindCloseSegments(const TArray<FEdgeSegment*> Segments, const TArray< const TArray<FEdgeSegment*>*> OppositeSides);
+		void FindCloseSegments(const TArray<FEdgeSegment*>& Segments, const TArray<const TArray<FEdgeSegment*>*>& OppositeSides);
 
 		/**
 		 * Fill ThinZoneSides (TArray<TArray<FEdgeSegment*>>)
@@ -113,6 +113,20 @@ namespace UE::CADKernel
 		 *                      Side(k)                                                                       Side(k)  
 		 */
 		void ImproveThinSide();
+
+		/**
+		 * Check that the thin side is not opposite to a unique point
+		 * 
+		 *     #-----------------------#  a Side
+		 * 
+		 * 
+		 *                                      #------------ 
+		 *                                     /
+		 *           The opposite unique point 
+		 * @return false if the opposite is degenerated
+		 */
+		bool CheckIfCloseSideOfThinSideIsNotDegenerated(TArray<FEdgeSegment*>& Side);
+		void CheckIfCloseSideOfThinSidesAreNotDegenerated();
 
 		/**
 		 * SplitThinSide splits chain in front of many other chain eg.
@@ -145,11 +159,14 @@ namespace UE::CADKernel
 #ifdef CADKERNEL_DEBUG
 namespace ThinZone
 {
+static bool bDisplay = false;
 void DisplayEdgeSegmentAndProjection(const FEdgeSegment* Segment, EVisuProperty SegColor, EVisuProperty OppositeColor, EVisuProperty ProjectionColor);
 void DisplayEdgeSegmentAndProjection(const FEdgeSegment* Segment, const FEdgeSegment* Opposite, EVisuProperty SegColor, EVisuProperty OppositeColor, EVisuProperty ProjectionColor);
 void DisplayEdgeSegment(const FEdgeSegment* EdgeSegment, EVisuProperty Color);
 void DisplayEdgeSegment(const FEdgeSegment* EdgeSegment, EVisuProperty Color, int32 Index);
 void DisplayThinZoneSides(const TArray<TArray<FEdgeSegment*>>& ThinZoneSides);
+void DisplayThinZoneSides2(const TArray<TArray<FEdgeSegment*>>& ThinZoneSides);
+void DisplayThinZoneSide2(const TArray<FEdgeSegment*>& Side, int32 Index, bool bSplitBySide = false, bool bSplitBySegment = false);
 void DisplayThinZoneSide(const TArray<FEdgeSegment*>& Side, int32 Index, EVisuProperty Color, bool bSplitBySegment = false);
 void DisplayThinZoneSide(const FThinZoneSide& Side, int32 Index, EVisuProperty Color, bool bSplitBySegment = false);
 void DisplayThinZones(const TArray<FThinZone2D>& ThinZones);

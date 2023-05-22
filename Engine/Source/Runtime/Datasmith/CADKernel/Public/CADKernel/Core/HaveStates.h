@@ -6,34 +6,38 @@
 
 enum class EHaveStates : uint16
 {
-	None = 0x0000u,  // No flags.
+	None              = 0x0000u,  // No flags.
+					  
+	IsApplyCriteria   = 0x0001u,  // used for FTopologicalFace, FEdge
+	IsMeshed          = 0x0002u,  // used for FTopologicalFace, FEdge
+	IsPreMeshed       = 0x0004u,  // used for FTopologicalFace, FEdge
+					  
+	ThinZone          = 0x0008u,  // used for FTopologicalFace, FEdge, FEdgeSegment  
+					  
+	Degenerated       = 0x0010u,  // used for FEdge, FGrid
+				      
+	IsDeleted         = 0x0020u,  // used for all class
 
-	IsApplyCriteria = 0x0001u,  // used for FTopologicalFace, FEdge
-	IsRemoved = 0x0001u,  // used for FThinZone2D
-
-	IsMeshed = 0x0002u,  // used for FTopologicalFace, FEdge
-	IsInner = 0x0002u,  // used for FEdgeSegment, FShell, 
-	IsFirstSide = 0x0002u,  // used for FThinZoneSide
-	FirstSideClosed = 0x0002u,  // used for FThinZone2D
-
-	IsBackOriented = 0x0004u,  // used for FTopologicalFace
-	ThinPeak = 0x0004u,  // used for FEdge 
-	SecondSideClosed = 0x0004u,  // used for FThinZone2D
-
-	ThinZone = 0x0008u,  // used for FTopologicalFace, FEdge, FEdgeSegment  
-
-	Degenerated = 0x0010u,  // used for FEdge, FGrid
-
-	IsDeleted = 0x0020u,  // used for all class
 	IsVirtuallyMeshed = 0x0040u,  // used for FEdge
 
-	HasMarker1 = 0x1000u,  // used for all class
-	HasMarker2 = 0x2000u,  // used for all class
-	HasMarker3 = 0x4000u,  // used for all class
-	IsProcess4 = 0x8000u,  // used for all class
-	AllMarkers = 0xF000u,  // used for all class
+	ThinPeak          = 0x0080u,  // used for FEdge 
 
-	All = 0xFFu
+	IsBackOriented    = 0x0100u,  // used for FTopologicalFace
+	IsInner           = 0x0100u,  // used for FEdgeSegment, FShell, 
+
+	FirstSideClosed   = 0x0200u,  // used for FThinZone2D
+	SecondSideClosed  = 0x0400u,  // used for FThinZone2D
+
+	HasMarker1        = 0x0800u,  // used for all class
+	HasMarker2        = 0x1000u,  // used for all class
+				      
+	ToProcess         = 0x2000u,  // used for all class
+	IsWaiting         = 0x4000u,  // used for all class
+	IsProcessed       = 0x8000u,  // used for all class
+				      
+	AllMarkers        = 0xF800u,  // used for all class
+
+	All = 0xFFFFu
 };
 
 ENUM_CLASS_FLAGS(EHaveStates);
@@ -71,9 +75,21 @@ public:
 		return ((States & EHaveStates::HasMarker2) == EHaveStates::HasMarker2);
 	}
 
-	bool HasMarker3() const
+	//bool HasMarker3() const
+	//{
+	//	return ((States & EHaveStates::HasMarker3) == EHaveStates::HasMarker3);
+	//}
+
+	bool HasMarker1And2() const
 	{
-		return ((States & EHaveStates::HasMarker3) == EHaveStates::HasMarker3);
+		constexpr EHaveStates HasMarker12 = EHaveStates::HasMarker1 | EHaveStates::HasMarker2;
+		return ((States & HasMarker12) == HasMarker12);
+	}
+
+	bool HasMarker1Or2() const
+	{
+		constexpr EHaveStates HasMarker12 = EHaveStates::HasMarker1 | EHaveStates::HasMarker2;
+		return ((States & HasMarker12) != EHaveStates::None);
 	}
 
 	void SetMarker1() const
@@ -86,11 +102,6 @@ public:
 		States |= EHaveStates::HasMarker2;
 	}
 
-	void SetMarker3() const
-	{
-		States |= EHaveStates::HasMarker3;
-	}
-
 	void ResetMarker1() const
 	{
 		States &= ~EHaveStates::HasMarker1;
@@ -99,11 +110,6 @@ public:
 	void ResetMarker2() const
 	{
 		States &= ~EHaveStates::HasMarker2;
-	}
-
-	void ResetMarker3() const
-	{
-		States &= ~EHaveStates::HasMarker3;
 	}
 
 	void ResetMarkers() const
@@ -146,6 +152,69 @@ public:
 	{
 		States &= ~EHaveStates::Degenerated;
 	}
+
+	void SetWaitingMarker() const
+	{
+		States |= EHaveStates::IsWaiting;
+	}
+
+	void ResetWaitingMarker() const
+	{
+		States &= ~EHaveStates::IsWaiting;
+	}
+
+	virtual bool IsWaiting() const
+	{
+		return ((States & EHaveStates::IsWaiting) == EHaveStates::IsWaiting);
+	}
+
+	void SetProcessedMarker() const
+	{
+		States |= EHaveStates::IsProcessed;
+	}
+
+	void ResetProcessedMarker() const
+	{
+		States &= ~EHaveStates::IsProcessed;
+	}
+
+	virtual bool IsProcessed() const
+	{
+		return ((States & EHaveStates::IsProcessed) == EHaveStates::IsProcessed);
+	}
+
+	virtual bool IsProcessedDeletedOrDegenerated() const
+	{
+		constexpr EHaveStates ProcessedDeletedOrDegenerated = EHaveStates::Degenerated | EHaveStates::IsDeleted | EHaveStates::IsProcessed;
+		return ((States & ProcessedDeletedOrDegenerated) != EHaveStates::None);
+	}
+
+
+	void SetToProcessMarker() const
+	{
+		States |= EHaveStates::ToProcess;
+	}
+
+	void ResetToProcessMarker() const
+	{
+		States &= ~EHaveStates::ToProcess;
+	}
+
+	virtual bool IsToProcess() const
+	{
+		return ((States & EHaveStates::ToProcess) == EHaveStates::ToProcess);
+	}
+
+	virtual bool IsNotToProcess() const
+	{
+		return ((States & EHaveStates::ToProcess) != EHaveStates::ToProcess);
+	}
+
+	virtual bool IsNotToOrAlreadyProcess() const
+	{
+		return IsNotToProcess() || IsProcessed();
+	}
+
 
 };
 }

@@ -45,21 +45,9 @@ FInfoEntity& FModelMesh::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-const int32 FModelMesh::GetIndexOfVertexFromId(const int32 Ident) const
+const FVertexMesh* FModelMesh::GetMeshOfVertexNodeId(const int32 Ident) const
 {
-	for (const TSharedPtr<FVertexMesh>& VertexMesh : VertexMeshes)
-	{
-		if (Ident == VertexMesh->GetStartVertexId())
-		{
-			return VertexMesh->GetIndexInMeshModel();
-		}
-	}
-	return -1;
-}
-
-const TSharedPtr<FVertexMesh> FModelMesh::GetMeshOfVertexNodeId(const int32 Ident) const
-{
-	for (const TSharedPtr<FVertexMesh>& VertexMesh : VertexMeshes)
+	for (const FVertexMesh* VertexMesh : VertexMeshes)
 	{
 		if (Ident == VertexMesh->GetStartVertexId())
 		{
@@ -69,9 +57,22 @@ const TSharedPtr<FVertexMesh> FModelMesh::GetMeshOfVertexNodeId(const int32 Iden
 	return nullptr;
 }
 
+#ifdef OLD
+const int32 FModelMesh::GetIndexOfVertexFromId(const int32 Ident) const
+{
+	for (const FVertexMesh* VertexMesh : VertexMeshes)
+	{
+		if (Ident == VertexMesh->GetStartVertexId())
+		{
+			return VertexMesh->GetIndexInMeshModel();
+		}
+	}
+	return -1;
+}
+
 const int32 FModelMesh::GetIndexOfEdgeFromId(const int32 Ident) const
 {
-	for (const TSharedPtr<FEdgeMesh>& EdgeMesh : EdgeMeshes)
+	for (const FEdgeMesh* EdgeMesh : EdgeMeshes)
 	{
 		if (Ident >= EdgeMesh->GetStartVertexId())
 		{
@@ -98,6 +99,7 @@ const int32 FModelMesh::GetIndexOfSurfaceFromId(const int32 Ident) const
 	}
 	return -1;
 }
+#endif
 
 void FModelMesh::GetNodeCoordinates(TArray<FPoint>& NodeCoordinates) const
 {
@@ -122,23 +124,23 @@ void FModelMesh::GetNodeCoordinates(TArray<FVector3f>& NodeCoordinates) const
 	}
 }
 
-const TArray<TSharedPtr<FMesh>>& FModelMesh::GetMeshes() const
+const TArray<FMesh*>& FModelMesh::GetMeshes() const
 {
 	if (FaceMeshes.Num())
 	{
-		return (TArray<TSharedPtr<FMesh>>&) FaceMeshes;
+		return (TArray<FMesh*>&) FaceMeshes;
 	}
 	if (EdgeMeshes.Num())
 	{
-		return (TArray<TSharedPtr<FMesh>>&) EdgeMeshes;
+		return (TArray<FMesh*>&) EdgeMeshes;
 	}
-	return (TArray<TSharedPtr<FMesh>>&) VertexMeshes;
+	return (TArray<FMesh*>&) VertexMeshes;
 }
 
 int32 FModelMesh::GetTriangleCount() const
 {
 	int32 TriangleCount = 0;
-	for (const TSharedPtr<FFaceMesh>& FaceMesh : FaceMeshes)
+	for (const FFaceMesh* FaceMesh : FaceMeshes)
 	{
 		TriangleCount += FaceMesh->TrianglesVerticesIndex.Num() / 3;
 	}

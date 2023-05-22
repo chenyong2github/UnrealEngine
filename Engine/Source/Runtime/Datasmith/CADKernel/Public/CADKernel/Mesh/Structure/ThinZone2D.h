@@ -3,7 +3,6 @@
 
 #include "CADKernel/Core/Chrono.h"
 #include "CADKernel/Core/HaveStates.h"
-//#include "CADKernel/Core/Factory.h"
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Point.h"
 
@@ -23,7 +22,19 @@ namespace UE::CADKernel
 		TooSmall        // -> to delete
 	};
 
+	enum class ESide : uint8
+	{
+		First = 0,
+		Second,
+		None
+	};
+
+	class FModelMesh;
 	class FThinZone2D;
+	class FTopologicalFace;
+
+	using FReserveContainerFunc = TFunction<void(int32)>;
+	using FAddMeshNodeFunc = TFunction<void(const int32, const FPoint2D&, const double, const FEdgeSegment&, const FPairOfIndex&)>;
 
 	class FThinZoneSide : public FHaveStates
 	{
@@ -33,6 +44,8 @@ namespace UE::CADKernel
 		TArray<FEdgeSegment> Segments;
 		FThinZoneSide& FrontSide;
 
+		TArray<FTopologicalEdge*> Edges;
+
 		double SideLength;
 		double MediumThickness;
 		double MaxThickness;
@@ -40,6 +53,7 @@ namespace UE::CADKernel
 	public:
 
 		FThinZoneSide(FThinZoneSide* InFrontSide, const TArray<FEdgeSegment*>& InSegments);
+
 		virtual ~FThinZoneSide() = default;
 
 		void Empty()
@@ -57,7 +71,25 @@ namespace UE::CADKernel
 			return Segments.Last();
 		}
 
-		void SetEdgesAsThinZone();
+		/** 
+		 * Use Marker1 flag to selected edges once 
+		 * Edge Marker1 has to be reset after.
+		 */
+		void GetEdges(TArray<FTopologicalEdge*>& OutEdges) const;
+
+		const TArray<FTopologicalEdge*>& GetEdges() const
+		{
+			return Edges;
+		}
+
+		TArray<FTopologicalEdge*>& GetEdges()
+		{
+			return Edges;
+		}
+
+		void AddToEdge();
+
+		void CleanMesh();
 
 		const TArray<FEdgeSegment>& GetSegments() const
 		{
@@ -95,6 +127,18 @@ namespace UE::CADKernel
 			return Segments[0].IsInner();
 		}
 
+		FThinZoneSide& GetFrontThinZoneSide()
+		{
+			return FrontSide;
+		}
+
+		void CheckEdgesZoneSide();
+		void SetEdgesZoneSide(ESide Side);
+
+		int32 GetImposedPointCount();
+
+		void GetExistingMeshNodes(const FTopologicalFace& Face, FModelMesh& MeshModel, FReserveContainerFunc& Reserve, FAddMeshNodeFunc& AddMeshNode, const bool bWithTolerance) const;
+
 	private:
 		void ComputeThicknessAndLength();
 
@@ -104,13 +148,15 @@ namespace UE::CADKernel
 	{
 	private:
 
-		FThinZoneSide FirstSide;
-		FThinZoneSide SecondSide;
+		FThinZoneSide SideA;
+		FThinZoneSide SideB;
 
 		EThinZone2DType Category;
 
 		double Thickness;
 		double MaxThickness;
+
+		bool bIsSwap = false;
 
 	public:
 
@@ -119,8 +165,8 @@ namespace UE::CADKernel
 		 * So FThinZone2D can be transfered into the FTopologicalFace 
 		 */
 		FThinZone2D(const TArray<FEdgeSegment*>& InFirstSideSegments, const TArray<FEdgeSegment*>& InSecondSideSegments)
-			: FirstSide(&SecondSide, InFirstSideSegments)
-			, SecondSide(&FirstSide, InSecondSideSegments)
+			: SideA(&SideB, InFirstSideSegments)
+			, SideB(&SideA, InSecondSideSegments)
 			, Category(EThinZone2DType::Undefined)
 		{
 			Finalize();
@@ -130,10 +176,9 @@ namespace UE::CADKernel
 
 		void Empty()
 		{
-			FirstSide.Empty();
-			SecondSide.Empty();
+			SideA.Empty();
+			SideB.Empty();
 			Thickness = -1;
-			SetRemoved();
 		}
 
 		double GetThickness() const
@@ -146,24 +191,34 @@ namespace UE::CADKernel
 			return MaxThickness;
 		};
 
+		const FThinZoneSide& GetSide(ESide Side) const
+		{
+			return ((Side == ESide::Second) == bIsSwap) ? SideA : SideB;
+		}
+
+		FThinZoneSide& GetSide(ESide Side)
+		{
+			return const_cast<FThinZoneSide&> (static_cast<const FThinZone2D*>(this)->GetSide(Side));
+		}
+
 		FThinZoneSide& GetFirstSide()
 		{
-			return FirstSide;
+			return bIsSwap ? SideB : SideA;
 		}
 
 		FThinZoneSide& GetSecondSide()
 		{
-			return SecondSide;
+			return bIsSwap ? SideA : SideB;
 		}
 
 		const FThinZoneSide& GetFirstSide() const
 		{
-			return FirstSide;
+			return bIsSwap ? SideB : SideA;
 		}
 
 		const FThinZoneSide& GetSecondSide() const 
 		{
-			return SecondSide;
+			return bIsSwap ? SideA : SideB;
 		}
 
 		EThinZone2DType GetCategory() const
@@ -171,37 +226,72 @@ namespace UE::CADKernel
 			return Category;
 		}
 
-		void SetEdgesAsThinZone();
 		static void SetPeakEdgesMarker(const TArray<const FTopologicalEdge*>&);
 
 		double Length() const
 		{
-			return FirstSide.Length() + SecondSide.Length();
+			return SideA.Length() + SideB.Length();
 		}
 
 		double GetMaxSideLength() const
 		{
-			return FMath::Max(FirstSide.Length(), SecondSide.Length());
-		}
-
-		bool IsRemoved() const
-		{
-			return ((States & EHaveStates::IsRemoved) == EHaveStates::IsRemoved);
-		}
-
-		void SetRemoved() const
-		{
-			States |= EHaveStates::IsRemoved;
-		}
-
-		void ResetRemoved() const
-		{
-			States &= ~EHaveStates::IsRemoved;
+			return FMath::Max(SideA.Length(), SideB.Length());
 		}
 
 		void SetCategory(EThinZone2DType InType)
 		{
 			Category = InType;
+		}
+
+		/**
+		 * Use Marker 3 flag to count edge once
+		 * Edge Marker 3 has to be reset after.
+		 */
+		void GetEdges(TArray<FTopologicalEdge*>& OutSideAEdges, TArray<FTopologicalEdge*>& OutSideBEdges) const
+		{
+			SideA.GetEdges(OutSideAEdges);
+			SideB.GetEdges(OutSideBEdges);
+		}
+
+		/**
+		 * Use Marker 1 and 2 flags
+		 * they have to be reset after.
+		 */
+		void CheckEdgesZoneSide()
+		{
+			SideA.CheckEdgesZoneSide();
+			SideB.CheckEdgesZoneSide();
+		}
+
+		/**
+		 * For each edge of the zone, set Marker1 flag if edge is in first zone, and Marker2 if edge is in second zone
+		 */
+		void SetEdgesZoneSide()
+		{
+			SideA.SetEdgesZoneSide(ESide::First);
+			SideB.SetEdgesZoneSide(ESide::Second);
+		}
+
+		void AddToEdge();
+
+		void Swap()
+		{
+			bIsSwap = !bIsSwap;
+			switch (Category)
+			{
+			case EThinZone2DType::PeakStart:
+			{
+				Category = EThinZone2DType::PeakStart;
+				break;
+			}
+			case EThinZone2DType::PeakEnd:
+			{
+				Category = EThinZone2DType::PeakStart;
+				break;
+			}
+			default:
+				break;
+			};
 		}
 
 #ifdef CADKERNEL_DEV

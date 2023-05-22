@@ -45,7 +45,7 @@ public:
 	}
 
 	virtual void SpawnIdent(FDatabase& Database) override;
-	virtual void ResetMarkersRecursively() override;
+	virtual void ResetMarkersRecursively() const override;
 
 	ESurface GetSurfaceType() const
 	{

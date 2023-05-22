@@ -62,12 +62,6 @@ public:
 
 	virtual void SpawnIdent(FDatabase& Database) override;
 
-	virtual void ResetMarkersRecursively() override
-	{
-		ResetMarkers();
-	}
-
-
 #ifdef CADKERNEL_DEV
 	virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
 #endif
@@ -135,15 +129,15 @@ public:
 		return Coordinates.SquareDistance(Point);
 	}
 
-	TSharedRef<FVertexMesh> GetOrCreateMesh(FModelMesh& MeshModel);
+	FVertexMesh& GetOrCreateMesh(FModelMesh& MeshModel);
 
-	const TSharedRef<FVertexMesh> GetMesh() const
+	const FVertexMesh* GetMesh() const
 	{
 		if (!IsActiveEntity())
 		{
 			return GetLinkActiveEntity()->GetMesh();
 		}
-		return Mesh.ToSharedRef();
+		return Mesh.Get();
 	}
 
 	void Link(FTopologicalVertex& InEntity);

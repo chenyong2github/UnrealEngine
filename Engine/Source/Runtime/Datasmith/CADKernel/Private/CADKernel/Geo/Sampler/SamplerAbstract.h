@@ -272,6 +272,12 @@ protected:
 	 */
 	void CompletesPolyline(int32 NeededPointNumber, int32 IntermediateIndex)
 	{
+		if (NeededPointNumber > 50)
+		{
+			FMessage::Printf(EVerboseLevel::Debug, TEXT("SamplerAbstract needed point number %d\n"), NeededPointNumber);
+			NeededPointNumber = 50;
+		}
+
 		const TArray<double>& CandidateCoordinates = CandidatePoints.GetCoordinates();
 
 		if (NeededPointNumber > 1)

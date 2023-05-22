@@ -29,6 +29,11 @@ public:
 	{
 	}
 
+	FOrientedFace(const FOrientedFace& OrientiredEntity)
+		: TOrientedEntity(OrientiredEntity)
+	{
+	}
+
 	FOrientedFace()
 		: TOrientedEntity()
 	{
@@ -83,7 +88,7 @@ public:
 		SpawnIdentOnEntities((TArray<TOrientedEntity<FEntity>>&) TopologicalFaces, Database);
 	}
 
-	virtual void ResetMarkersRecursively() override
+	virtual void ResetMarkersRecursively() const override
 	{
 		ResetMarkers();
 		ResetMarkersRecursivelyOnEntities((TArray<TOrientedEntity<FEntity>>&) TopologicalFaces);
@@ -93,7 +98,7 @@ public:
 	virtual void Empty() override;
 
 	void Add(TSharedRef<FTopologicalFace> InTopologicalFace, EOrientation InOrientation);
-	void Add(TArray<FTopologicalFace*> Faces);
+	void Add(TArray<FTopologicalFace*>& Faces);
 
 #ifdef CADKERNEL_DEV
 	virtual FInfoEntity& GetInfo(FInfoEntity&) const override;
@@ -152,7 +157,7 @@ public:
 		return ((States & EHaveStates::IsInner) == EHaveStates::IsInner);
 	}
 
-	bool IsOutter() const
+	bool IsOuter() const
 	{
 		return ((States & EHaveStates::IsInner) != EHaveStates::IsInner);
 	}
@@ -162,7 +167,7 @@ public:
 		States |= EHaveStates::IsInner;
 	}
 
-	void SetOutter()
+	void SetOuter()
 	{
 		States &= ~EHaveStates::IsInner;
 	}

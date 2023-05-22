@@ -104,8 +104,6 @@ protected:
 
 public:
 	FGridChronos Chronos;
-#ifdef CADKERNEL_DEV
-#endif
 
 public:
 	FGridBase(FTopologicalFace& InFace);
@@ -156,9 +154,9 @@ protected:
 		const FPoint2D& PointU1V1 = NewGrid[(IndexV + 1) * CuttingCount[EIso::IsoU] + (IndexU + 1)];
 
 		const double U1MinusU0 = CoordinateGrid[EIso::IsoU][IndexU + 1] - CoordinateGrid[EIso::IsoU][IndexU];
-		const double U0MinusU = CoordinateGrid[EIso::IsoU][IndexU] - InPoint.U;
+		const double U0MinusU  = CoordinateGrid[EIso::IsoU][IndexU] - InPoint.U;
 		const double V1MinusV0 = CoordinateGrid[EIso::IsoV][IndexV + 1] - CoordinateGrid[EIso::IsoV][IndexV];
-		const double V0MinusV = CoordinateGrid[EIso::IsoV][IndexV] - InPoint.V;
+		const double V0MinusV  = CoordinateGrid[EIso::IsoV][IndexV] - InPoint.V;
 
 		OutNewScaledPoint =
 			PointU0V0 +
@@ -229,7 +227,7 @@ public:
 		return Points2D[(int32)Space];
 	}
 
-const FTopologicalFace& GetFace() const
+	const FTopologicalFace& GetFace() const
 	{
 		return Face;
 	}
@@ -263,7 +261,7 @@ const FTopologicalFace& GetFace() const
 	// ======================================================================================================================================================================================================================
 	// Display Methodes   ================================================================================================================================================================================================
 	// ======================================================================================================================================================================================================================
-	bool bDisplay = true;
+	mutable bool bDisplay = true;
 
 	void DisplayIsoNode(EGridSpace Space, const int32 PointIndex, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;
 	virtual void DisplayGridPoints(EGridSpace DisplaySpace) const;

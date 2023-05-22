@@ -11,6 +11,8 @@
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Math/SlopeUtils.h"
 #include "CADKernel/Mesh/Structure/EdgeMesh.h"
+#include "CADKernel/Mesh/Structure/ModelMesh.h"
+#include "CADKernel/Mesh/Structure/VertexMesh.h"
 #include "CADKernel/Topo/TopologicalLoop.h"
 #include "CADKernel/Topo/TopologicalLink.h"
 #include "CADKernel/Topo/TopologicalFace.h"
@@ -103,6 +105,8 @@ bool FTopologicalEdge::CheckIfDegenerated() const
 	bool bDegeneration3D = false;
 
 	Curve->CheckIfDegenerated(Boundary, bDegeneration2D, bDegeneration3D, Length3D);
+
+	Max2DTolerance = Length3D * FactorToComputeMaxTol;
 
 	if (bDegeneration3D)
 	{
@@ -482,11 +486,17 @@ void FTopologicalEdge::SetEndVertex(const double NewCoordinate, const FPoint& Ne
 	EndVertex->SetCoordinates(NewPoint3D);
 }
 
+void FTopologicalEdge::ComputeLength()
+{
+	Length3D = Curve->ApproximateLength(Boundary);
+	Max2DTolerance = Length3D * FactorToComputeMaxTol;
+}
+
 double FTopologicalEdge::Length() const
 {
 	if (Length3D < 0)
 	{
-		Length3D = Curve->ApproximateLength(Boundary);
+		const_cast<FTopologicalEdge*>(this)->ComputeLength();
 	}
 	return Length3D;
 }
@@ -529,6 +539,42 @@ int32 FTopologicalEdge::EvaluateCuttingPointNum()
 	return (int32)Num;
 }
 
+double FTopologicalEdge::TransformTwinEdgeCoordinateToLocalCoordinate(const FTopologicalEdge& TwinEdge, const double InTwinCoordinate) const
+{
+	if (this == &TwinEdge)
+	{
+		return InTwinCoordinate;
+	}
+
+	if (IsDegenerated() || TwinEdge.IsDegenerated())
+	{
+		// linear transform
+		const bool bSameDirection = IsSameDirection(TwinEdge);
+		const double Start = bSameDirection ? Boundary.GetMin(): Boundary.GetMax();
+		const double End = bSameDirection ? Boundary.GetMax() : Boundary.GetMin();
+
+		const double Distance = End - Start;
+		if (FMath::IsNearlyZero(Distance))
+		{
+			return Start;
+		}
+
+		const double TwinStart = TwinEdge.GetBoundary().GetMin();
+		const double TwinEnd = TwinEdge.GetBoundary().GetMax();
+		const double TwinDistance = TwinEnd - TwinStart;
+		if (FMath::IsNearlyZero(TwinDistance))
+		{
+			return Start;
+		}
+
+		return Start + (TwinStart - InTwinCoordinate) * Distance / TwinDistance;
+	}
+
+	FPoint PointOnEdge = TwinEdge.GetCurve()->Approximate3DPoint(InTwinCoordinate);
+	FPoint ProjectedPoint;
+	return Curve->GetCoordinateOfProjectedPoint(Boundary, PointOnEdge, ProjectedPoint);
+}
+
 double FTopologicalEdge::TransformLocalCoordinateToActiveEdgeCoordinate(const double InLocalCoordinate) const
 {
 	if (IsActiveEntity())
@@ -537,9 +583,7 @@ double FTopologicalEdge::TransformLocalCoordinateToActiveEdgeCoordinate(const do
 	}
 
 	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
-	FPoint PointOnEdge = Curve->Approximate3DPoint(InLocalCoordinate);
-	FPoint ProjectedPoint;
-	return ActiveEdge.GetCurve()->GetCoordinateOfProjectedPoint(Boundary, PointOnEdge, ProjectedPoint);
+	return ActiveEdge.TransformTwinEdgeCoordinateToLocalCoordinate(*this, InLocalCoordinate);
 }
 
 double FTopologicalEdge::TransformActiveEdgeCoordinateToLocalCoordinate(const double InActiveEdgeCoordinate) const
@@ -550,43 +594,118 @@ double FTopologicalEdge::TransformActiveEdgeCoordinateToLocalCoordinate(const do
 	}
 
 	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
-	FPoint PointOnEdge = ActiveEdge.GetCurve()->Approximate3DPoint(InActiveEdgeCoordinate);
-	FPoint ProjectedPoint;
-	return Curve->GetCoordinateOfProjectedPoint(Boundary, PointOnEdge, ProjectedPoint);
+	return TransformTwinEdgeCoordinateToLocalCoordinate(ActiveEdge, InActiveEdgeCoordinate);
 }
 
-void FTopologicalEdge::TransformLocalCoordinatesToActiveEdgeCoordinates(const TArray<double>& InLocalCoordinate, TArray<double>& OutActiveEdgeCoordinates) const
+void FTopologicalEdge::TransformTwinEdgeCoordinatesToLocalCoordinates(const FTopologicalEdge& TwinEdge, const TArray<double>& InTwinCoordinates, TArray<double>& OutLocalCoordinates) const
 {
-	if (IsActiveEntity())
+	if (this == &TwinEdge)
 	{
-		OutActiveEdgeCoordinates = InLocalCoordinate;
-	}
-	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
-	TArray<FPoint> EdgePoints;
-	Curve->Approximate3DPoints(InLocalCoordinate, EdgePoints);
-	TArray<FPoint> ProjectedPoints;
-	ActiveEdge.GetCurve()->ProjectPoints(Boundary, EdgePoints, OutActiveEdgeCoordinates, ProjectedPoints);
-}
-
-void FTopologicalEdge::TransformActiveEdgeCoordinatesToLocalCoordinates(const TArray<double>& InActiveEdgeCoordinate, TArray<double>& OutLocalCoordinates) const
-{
-	if (IsActiveEntity())
-	{
-		OutLocalCoordinates = InActiveEdgeCoordinate;
+		OutLocalCoordinates = InTwinCoordinates;
 		return;
 	}
 
-	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
-	TArray<FPoint> ActiveEdgePoint;
-	ActiveEdge.GetCurve()->Approximate3DPoints(InActiveEdgeCoordinate, ActiveEdgePoint);
-	TArray<FPoint> ProjectedPoints;
-	Curve->ProjectPoints(Boundary, ActiveEdgePoint, OutLocalCoordinates, ProjectedPoints);
+	if (IsDegenerated() || TwinEdge.IsDegenerated())
+	{
+		// linear transform
+		const bool bSameDirection = IsSameDirection(TwinEdge);
+		const double Start = bSameDirection ? Boundary.GetMin() : Boundary.GetMax();
+		const double End = bSameDirection ? Boundary.GetMax() : Boundary.GetMin();
+
+		const double Distance = End - Start;
+		if (FMath::IsNearlyZero(Distance))
+		{
+			OutLocalCoordinates.Init(Start, InTwinCoordinates.Num());
+			return;
+		}
+
+		const double TwinStart = TwinEdge.GetBoundary().GetMin();
+		const double TwinEnd = TwinEdge.GetBoundary().GetMax();
+		const double TwinDistance = TwinEnd - TwinStart;
+		if (FMath::IsNearlyZero(TwinDistance))
+		{
+			OutLocalCoordinates.Init(Start, InTwinCoordinates.Num());
+			return;
+		}
+
+		OutLocalCoordinates.Empty(InTwinCoordinates.Num());
+		const double Factor = Distance / TwinDistance;
+		for(double TwinCoordinate : InTwinCoordinates)
+		{
+			OutLocalCoordinates.Add(Start + (TwinCoordinate - TwinStart) * Factor);
+		}
+		return;
+	}
+
+	TArray<FPoint> Cutting3DPoints;
+	TwinEdge.ApproximatePoints(InTwinCoordinates, Cutting3DPoints);
+	ProjectTwinEdgePoints(Cutting3DPoints, IsSameDirection(TwinEdge), OutLocalCoordinates);
 }
 
-void FTopologicalEdge::AddImposedCuttingPointU(const double ImposedCuttingPointU, int32 OppositeNodeIndex)
+void FTopologicalEdge::TransformLocalCoordinatesToActiveEdgeCoordinates(const TArray<double>& InLocalCoordinates, TArray<double>& OutActiveEdgeCoordinates) const
 {
-	ImposedCuttingPointUs.Emplace(ImposedCuttingPointU, OppositeNodeIndex);
+	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
+	return ActiveEdge.TransformTwinEdgeCoordinatesToLocalCoordinates(*this, InLocalCoordinates, OutActiveEdgeCoordinates);
 }
+
+void FTopologicalEdge::TransformActiveEdgeCoordinatesToLocalCoordinates(const TArray<double>& InActiveEdgeCoordinates, TArray<double>& OutLocalCoordinates) const
+{
+	const FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
+	return TransformTwinEdgeCoordinatesToLocalCoordinates(ActiveEdge, InActiveEdgeCoordinates, OutLocalCoordinates);
+}
+
+void FTopologicalEdge::SortImposedCuttingPoints()
+{
+	Algo::Sort(ImposedCuttingPointUs, [](const FImposedCuttingPoint& C1, const FImposedCuttingPoint& C2) { return C1.Coordinate < C2.Coordinate; });
+
+	if (ImposedCuttingPointUs.Num() > 1)
+	{
+		int32 LastIndex = -1;
+		int32 NewIndex = 0;
+		for (int32 Index = 1; Index < ImposedCuttingPointUs.Num(); ++Index)
+		{
+			if (FMath::IsNearlyEqual(ImposedCuttingPointUs[NewIndex].Coordinate, ImposedCuttingPointUs[Index].Coordinate))
+			{
+				if (LastIndex < 0)
+				{
+					LastIndex = NewIndex;
+				}
+				if (ImposedCuttingPointUs[NewIndex].OppositNodeIndex == -1)
+				{
+					Swap(ImposedCuttingPointUs[NewIndex], ImposedCuttingPointUs[Index]);
+				}
+				else if (ImposedCuttingPointUs[Index].OppositNodeIndex == -1)
+				{
+				}
+				else if (ImposedCuttingPointUs[NewIndex].OppositNodeIndex == ImposedCuttingPointUs[Index].OppositNodeIndex)
+				{
+					ImposedCuttingPointUs[NewIndex].DeltaU = FMath::Max(ImposedCuttingPointUs[NewIndex].DeltaU, ImposedCuttingPointUs[Index].DeltaU);
+				}
+				else if ((LastIndex >= 0) && (LastIndex != NewIndex) && (ImposedCuttingPointUs[LastIndex].OppositNodeIndex == ImposedCuttingPointUs[Index].OppositNodeIndex))
+				{
+					ImposedCuttingPointUs[LastIndex].DeltaU = FMath::Max(ImposedCuttingPointUs[LastIndex].DeltaU, ImposedCuttingPointUs[Index].DeltaU);
+				}
+				else
+				{
+					NewIndex++;
+				}
+			}
+			else
+			{
+				LastIndex = -1;
+				NewIndex++;
+				if (NewIndex != Index)
+				{
+					Swap(ImposedCuttingPointUs[NewIndex], ImposedCuttingPointUs[Index]);
+				}
+			}
+		}
+		NewIndex++;
+		ImposedCuttingPointUs.SetNum(NewIndex);
+	}
+}
+
+
 
 void FTopologicalEdge::ProjectTwinEdgePointsOn2DCurve(const TSharedRef<FTopologicalEdge>& InTwinEdge, const TArray<double>& InTwinEdgePointCoords, TArray<FPoint2D>& OutPoints2D)
 {
@@ -599,11 +718,58 @@ void FTopologicalEdge::ProjectTwinEdgePointsOn2DCurve(const TSharedRef<FTopologi
 		TArray<FPoint> Points3D;
 		InTwinEdge->ApproximatePoints(InTwinEdgePointCoords, Points3D);
 
-		bool bSameDirection = IsSameDirection(*InTwinEdge);
 		TArray<double> Coordinates;
-		Curve->ProjectTwinCurvePoints(Points3D, bSameDirection, Coordinates);
+
+		bool bSameDirection = IsSameDirection(*InTwinEdge);
+		const double ToleranceOfProjection = Length3D * 0.1;
+		Curve->ProjectTwinCurvePoints(Points3D, bSameDirection, Coordinates, ToleranceOfProjection);
 		Curve->Approximate2DPoints(Coordinates, OutPoints2D);
 	}
+}
+
+void FTopologicalEdge::GenerateMeshElements(FModelMesh& MeshModel)
+{
+	FTopologicalEdge& ActiveEdge = *GetLinkActiveEntity();
+
+	bool bSameDirection = IsSameDirection(ActiveEdge);
+
+	FEdgeMesh& EdgeMesh = ActiveEdge.GetOrCreateMesh(MeshModel);
+
+	int32 StartVertexNodeIndex = ActiveEdge.GetStartVertex()->GetOrCreateMesh(MeshModel).GetMesh();
+	int32 EndVertexNodeIndex = ActiveEdge.GetEndVertex()->GetOrCreateMesh(MeshModel).GetMesh();
+
+	TArray<double> CuttingPointCoordinates = GetCuttingPointCoordinates();
+	ensureCADKernel(CuttingPointCoordinates.Num() > 1);
+	CuttingPointCoordinates.RemoveAt(0);
+	CuttingPointCoordinates.Pop();
+
+	TArray<FPoint>& Coordinates = EdgeMesh.GetNodeCoordinates();
+	ApproximatePoints(CuttingPointCoordinates, Coordinates);
+
+	if (!bSameDirection)
+	{
+		Algo::Reverse(Coordinates);
+	}
+
+#ifdef DEBUG_MESH_EDGE
+	if (bDisplay)
+	{
+		F3DDebugSession _(FString::Printf(TEXT("Edge Mesh %d"), Edge.GetId()));
+		TArray<FPoint2D> Mesh2D;
+		Edge.Approximate2DPoints(CuttingPointCoordinates, Mesh2D);
+		for (const FPoint2D& Vertex : Mesh2D)
+		{
+			DisplayPoint(Vertex, EVisuProperty::RedPoint);
+		}
+		Wait();
+	}
+#endif
+
+	EdgeMesh.RegisterCoordinates();
+	EdgeMesh.Mesh(StartVertexNodeIndex, EndVertexNodeIndex);
+	MeshModel.AddMesh(EdgeMesh);
+	ActiveEdge.SetMeshedMarker();
+	SetMeshedMarker();
 }
 
 bool FTopologicalEdge::IsSameDirection(const FTopologicalEdge& Edge) const
@@ -676,7 +842,7 @@ FInfoEntity& FTopologicalEdge::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-TSharedRef<FEdgeMesh> FTopologicalEdge::GetOrCreateMesh(FModelMesh& ShellMesh)
+FEdgeMesh& FTopologicalEdge::GetOrCreateMesh(FModelMesh& ShellMesh)
 {
 	if (!IsActiveEntity())
 	{
@@ -687,7 +853,118 @@ TSharedRef<FEdgeMesh> FTopologicalEdge::GetOrCreateMesh(FModelMesh& ShellMesh)
 	{
 		Mesh = FEntity::MakeShared<FEdgeMesh>(ShellMesh, *this);
 	}
-	return Mesh.ToSharedRef();
+	return *Mesh;
+}
+
+void FTopologicalEdge::RemovePreMesh()
+{
+	if (IsMeshed())
+	{
+		return;
+	}
+	CuttingPointUs.Empty();
+	ResetPreMeshed();
+}
+
+const FTopologicalEdge* FTopologicalEdge::GetPreMeshedTwin() const
+{
+	for (const FTopologicalEdge* Edge : GetLink()->GetTwinEntities())
+	{
+		if (!Edge->GetCuttingPoints().IsEmpty())
+		{
+			return Edge;
+		}
+	}
+	return nullptr;
+}
+
+void FTopologicalEdge::AddImposedCuttingPointU(const double ImposedCuttingPointU, int32 OppositeNodeIndex, const double DeltaU)
+{
+	ImposedCuttingPointUs.Emplace(ImposedCuttingPointU, OppositeNodeIndex, DeltaU);
+}
+
+void FTopologicalEdge::AddTwinsCuttingPoint(double Coord, double DeltaU)
+{
+	if (FMath::IsNearlyEqual(Coord, Boundary.GetMin(), GetTolerance2DAt(Boundary.GetMin())))
+	{
+		Coord = Boundary.GetMin();
+	}
+	else if (FMath::IsNearlyEqual(Coord, Boundary.GetMax(), GetTolerance2DAt(Boundary.GetMax())))
+	{
+		Coord = Boundary.GetMax();
+	}
+
+	CuttingPointUs.Emplace(Coord, ECoordinateType::ImposedCoordinate, FPairOfIndex::Undefined, DeltaU);
+}
+
+void FTopologicalEdge::TransferCuttingPointFromMeshedEdge(bool bOnlyWithOppositeNode, FAddCuttingPointFunc AddCuttingPoint)
+{
+	const FTopologicalEdge* PreMeshedTwin = GetPreMeshedTwin();
+
+	if ((PreMeshedTwin == nullptr) || (PreMeshedTwin == this) || (PreMeshedTwin->GetFace() == GetFace()))
+	{
+		return;
+	}
+
+	TArray<double> PreMeshEdgeCuttingPointCoords = PreMeshedTwin->GetCuttingPointCoordinates();
+	TArray<double> CuttingPointCoords;
+	TransformTwinEdgeCoordinatesToLocalCoordinates(*PreMeshedTwin, PreMeshEdgeCuttingPointCoords, CuttingPointCoords);
+
+	const TArray<FCuttingPoint>& PreMeshEdgeCuttingPoints = PreMeshedTwin->GetCuttingPoints();
+	CuttingPointUs.Empty(PreMeshEdgeCuttingPoints.Num());
+	for (int32 Index = 0; Index < PreMeshEdgeCuttingPoints.Num(); ++Index)
+	{
+		const FCuttingPoint& PreMeshEdgeCuttingPoint = PreMeshEdgeCuttingPoints[Index];
+
+		if (bOnlyWithOppositeNode && PreMeshEdgeCuttingPoint.OppositNodeIndices[0] < 0)
+		{
+			continue;
+		}
+
+		const double PreMeshEdgeCuttingPointCoord = PreMeshEdgeCuttingPoint.Coordinate;
+		const double PreMeshEdgeCuttingPointDeltaU = PreMeshEdgeCuttingPoint.IsoDeltaU;
+
+		const double CuttingPointCoord = CuttingPointCoords[Index];
+		const double EdgeTol = GetTolerance2DAt(CuttingPointCoord);
+		const double PreMeshEdgeTol = PreMeshedTwin->GetTolerance2DAt(PreMeshEdgeCuttingPointCoord);
+
+		const double CuttingPointDeltaU = PreMeshEdgeCuttingPointDeltaU * EdgeTol / PreMeshEdgeTol;
+
+		AddCuttingPoint(CuttingPointCoord, PreMeshEdgeCuttingPoint.Type, PreMeshEdgeCuttingPoint.OppositNodeIndices, CuttingPointDeltaU);
+	}
+}
+
+TArray<double> FTopologicalEdge::GetCuttingPointCoordinates() const
+{
+	TArray<double> CuttingPointCoordinates;
+	CuttingPointCoordinates.Reserve(GetCuttingPoints().Num());
+	for (const FCuttingPoint& CuttingPoint : GetCuttingPoints())
+	{
+		CuttingPointCoordinates.Add(CuttingPoint.Coordinate);
+	}
+	return MoveTemp(CuttingPointCoordinates);
+}
+
+TArray<double> FTopologicalEdge::GetPreElementLengths() const
+{
+	const TArray<FCuttingPoint>& CuttingPoints = GetCuttingPoints();
+	const int32 CuttingPointCount = CuttingPoints.Num();
+
+	TArray<FPoint> InnerNodes;
+	if (CuttingPointCount > 2)
+	{
+		TArray<double> Coordinates;
+		Coordinates.Reserve(CuttingPointCount);
+		for (int32 Index = 1; Index < CuttingPointCount - 1; ++Index)
+		{
+			Coordinates.Add(CuttingPoints[Index].Coordinate);
+		}
+		ApproximatePoints(Coordinates, InnerNodes);
+	}
+
+	const FPoint& StartNode = GetStartVertex()->GetCoordinates();
+	const FPoint& EndNode = GetEndVertex()->GetCoordinates();
+	return PolylineTools::ComputePolylineSegmentLengths(StartNode, InnerNodes, EndNode);
 }
 
 TSharedPtr<FTopologicalEdge> FTopologicalEdge::CreateEdgeByMergingEdges(TArray<FOrientedEdge>& Edges, const TSharedRef<FTopologicalVertex> StartVertex, const TSharedRef<FTopologicalVertex> EndVertex)
@@ -1123,7 +1400,8 @@ TSharedPtr<FTopologicalVertex> FTopologicalEdge::SplitAt(double SplittingCoordin
 		Boundary.Min = SplittingCoordinate;
 	}
 	MiddelVertex->AddConnectedEdge(*this);
-	Length3D = Curve->ApproximateLength(Boundary);
+
+	ComputeLength();
 
 	Loop->SplitEdge(*this, NewEdge, bKeepStartVertexConnectivity);
 	return MiddelVertex;

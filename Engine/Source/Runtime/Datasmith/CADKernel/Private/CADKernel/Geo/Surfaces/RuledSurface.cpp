@@ -181,7 +181,7 @@ void FRuledSurface::SpawnIdent(FDatabase& Database)
 	Curves[1]->SpawnIdent(Database);
 }
 
-void FRuledSurface::ResetMarkersRecursively() 
+void FRuledSurface::ResetMarkersRecursively() const
 {
 	ResetMarkers();
 	Curves[0]->ResetMarkersRecursively();

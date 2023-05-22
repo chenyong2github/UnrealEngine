@@ -27,9 +27,9 @@ class CADKERNEL_API FModelMesh : public FEntityGeom
 	TArray<TArray<FPoint>*> GlobalPointCloud;
 	FIdent LastIdUsed;
 
-	TArray<TSharedPtr<FVertexMesh>> VertexMeshes;
-	TArray<TSharedPtr<FEdgeMesh>> EdgeMeshes;
-	TArray<TSharedPtr<FFaceMesh>> FaceMeshes;
+	TArray<FVertexMesh*> VertexMeshes;
+	TArray<FEdgeMesh*> EdgeMeshes;
+	TArray<FFaceMesh*> FaceMeshes;
 
 	bool QuadAnalyse = false;
 	double MinSize = DOUBLE_SMALL_NUMBER;
@@ -64,17 +64,17 @@ public:
 			return;
 		}
 
-		SpawnIdentOnEntities(VertexMeshes, Database);
-		SpawnIdentOnEntities(EdgeMeshes, Database);
-		SpawnIdentOnEntities(FaceMeshes, Database);
+		SpawnIdentOnEntities((TArray<FEntity*>&) VertexMeshes, Database);
+		SpawnIdentOnEntities((TArray<FEntity*>&) EdgeMeshes, Database);
+		SpawnIdentOnEntities((TArray<FEntity*>&) FaceMeshes, Database);
 	};
 
-	virtual void ResetMarkersRecursively()
+	virtual void ResetMarkersRecursively() const override
 	{
 		ResetMarkers();
-		ResetMarkersRecursivelyOnEntities(VertexMeshes);
-		ResetMarkersRecursivelyOnEntities(EdgeMeshes);
-		ResetMarkersRecursivelyOnEntities(FaceMeshes);
+		ResetMarkersRecursivelyOnEntities((TArray<FEntity*>&) VertexMeshes);
+		ResetMarkersRecursivelyOnEntities((TArray<FEntity*>&) EdgeMeshes);
+		ResetMarkersRecursivelyOnEntities((TArray<FEntity*>&) FaceMeshes);
 	};
 
 
@@ -115,19 +115,19 @@ public:
 		return Sag;
 	}
 
-	void AddMesh(TSharedRef<FVertexMesh> Mesh)
+	void AddMesh(FVertexMesh& Mesh)
 	{
-		VertexMeshes.Add(Mesh);
+		VertexMeshes.Add(&Mesh);
 	}
 
-	void AddMesh(TSharedRef<FEdgeMesh> Mesh)
+	void AddMesh(FEdgeMesh& Mesh)
 	{
-		EdgeMeshes.Add(Mesh);
+		EdgeMeshes.Add(&Mesh);
 	}
 
-	void AddMesh(TSharedRef<FFaceMesh> Mesh)
+	void AddMesh(FFaceMesh& Mesh)
 	{
-		FaceMeshes.Add(Mesh);
+		FaceMeshes.Add(&Mesh);
 	}
 
 	void RegisterCoordinates(TArray<FPoint>& Coordinates, int32& OutStartVertexId, int32& OutIndex)
@@ -139,18 +139,18 @@ public:
 		LastIdUsed += (int32)Coordinates.Num();
 	}
 
-	const int32 GetIndexOfVertexFromId(const int32 Id) const;
-	const int32 GetIndexOfEdgeFromId(const int32 Id) const;
-	const int32 GetIndexOfSurfaceFromId(const int32 Id) const;
+	//const int32 GetIndexOfVertexFromId(const int32 Id) const;
+	//const int32 GetIndexOfEdgeFromId(const int32 Id) const;
+	//const int32 GetIndexOfSurfaceFromId(const int32 Id) const;
 
-	const TSharedPtr<FVertexMesh> GetMeshOfVertexNodeId(const int32 Id) const;
+	const FVertexMesh* GetMeshOfVertexNodeId(const int32 Id) const;
 
 	void GetNodeCoordinates(TArray<FPoint>& NodeCoordinates) const;
 	void GetNodeCoordinates(TArray<FVector3f>& NodeCoordinates) const;
 
-	const TArray<TSharedPtr<FMesh>>& GetMeshes() const;
+	const TArray<FMesh*>& GetMeshes() const;
 
-	const TArray<TSharedPtr<FFaceMesh>>& GetFaceMeshes() const
+	const TArray<FFaceMesh*>& GetFaceMeshes() const
 	{
 		return FaceMeshes;
 	}

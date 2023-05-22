@@ -127,6 +127,11 @@ public:
 	 */
 	void UnlinkNonManifoldVertex();
 
+	/**
+	 * Mandatory: UnlinkNonManifoldVertex has to be call before
+	 */
+	void UnlinkEdgesOfSeparateShells();
+
 	void RemoveThinFaces(TArray<FTopologicalEdge*>& NewBorderEdges);
 
 #ifdef CADKERNEL_DEV
@@ -163,17 +168,17 @@ private:
 	/**
 	 * Return an array of active vertices.
 	 */
-	void GetVertices(TArray<TSharedPtr<FTopologicalVertex>>& Vertices);
+	void GetVertices(TArray<FTopologicalVertex*>& Vertices);
 
 	/**
 	 * Return an array of active border vertices.
 	 */
-	void GetBorderVertices(TArray<TSharedPtr<FTopologicalVertex>>& BorderVertices);
+	void GetBorderVertices(TArray<FTopologicalVertex*>& BorderVertices);
 
-	void CheckSelfConnectedEdge(double MaxLengthOfDegeneratedEdge, TArray<TSharedPtr<FTopologicalVertex>>& OutBorderVertices);
+	void CheckSelfConnectedEdge(double MaxLengthOfDegeneratedEdge, TArray<FTopologicalVertex*>& OutBorderVertices);
 	void RemoveIsolatedEdges(); // Useful ???
 
-	void SetSelfConnectedEdgeDegenerated(TArray<TSharedPtr<FTopologicalVertex>>& Vertices);
+	void SetSelfConnectedEdgeDegenerated(TArray<FTopologicalVertex*>& Vertices);
 
 	/**
 	 * For each loop of each surface, check if successive edges are unconnected and if their common vertices are connected only to them (UV vs CV: vertex connected to many faces ).
@@ -193,6 +198,11 @@ private:
 	 *              /                                                                   |
 	 */
 	void MergeUnconnectedSuccessiveEdges();
+
+	void SetToProcessMarkerOfFaces();
+	void ResetMarkersOfFaces();
+
+private:
 
 	ESewOption SewOptions;
 

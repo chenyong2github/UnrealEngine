@@ -298,4 +298,76 @@ void FMesherTools::ComputeFinalCuttingPointsWithImposedCuttingPoints(const TArra
 		LastCrossingIndex = CrossingIndex;
 	}
 };
+
+void FMesherTools::FillImposedIsoCuttingPoints(TArray<double>& UEdgeSetOfIntersectionWithIso, ECoordinateType CoordinateType, double EdgeToleranceGeo, const FTopologicalEdge& Edge, TArray<FCuttingPoint>& OutImposedIsoVertexSet)
+{
+	FLinearBoundary EdgeBoundary = Edge.GetBoundary();
+
+	int32 StartIndex = OutImposedIsoVertexSet.Num();
+	Algo::Sort(UEdgeSetOfIntersectionWithIso);
+	double PreviousU = -HUGE_VALUE;
+	for (double InterU : UEdgeSetOfIntersectionWithIso)
+	{
+		// Remove coordinate nearly equal to boundary
+		if ((InterU - EdgeToleranceGeo) < EdgeBoundary.GetMin() || (InterU + EdgeToleranceGeo) > EdgeBoundary.GetMax())
+		{
+			continue;
+		}
+
+		// Remove coordinate inside thin zone
+		for (FLinearBoundary ThinZone : Edge.GetThinZoneBounds())
+		{
+			if (ThinZone.Contains(InterU))
+			{
+				continue;
+			}
+		}
+
+		// Remove nearly duplicate 
+		if (InterU - PreviousU < EdgeToleranceGeo)
+		{
+			continue;
+		}
+
+		OutImposedIsoVertexSet.Emplace(InterU, CoordinateType);
+		PreviousU = InterU;
+	}
+
+	int32 Index;
+	int32 NewCoordinateCount = OutImposedIsoVertexSet.Num() - StartIndex;
+	switch (NewCoordinateCount)
+	{
+	case 0:
+		return;
+
+	case 1:
+	{
+		int32 CuttingPointIndex = 0;
+		while (CuttingPointIndex < Edge.GetCrossingPointUs().Num() && Edge.GetCrossingPointUs()[CuttingPointIndex] + DOUBLE_SMALL_NUMBER <= OutImposedIsoVertexSet[StartIndex].Coordinate)
+		{
+			++CuttingPointIndex;
+		};
+		if (CuttingPointIndex > 0)
+		{
+			--CuttingPointIndex;
+		}
+		OutImposedIsoVertexSet[StartIndex].IsoDeltaU = Edge.GetDeltaUMaxs()[CuttingPointIndex] * AQuarter;
+		break;
+	}
+
+	default:
+	{
+		OutImposedIsoVertexSet[StartIndex].IsoDeltaU = (OutImposedIsoVertexSet[StartIndex + 1].Coordinate - OutImposedIsoVertexSet[StartIndex].Coordinate) * AQuarter;
+		for (Index = StartIndex + 1; Index < OutImposedIsoVertexSet.Num() - 1; ++Index)
+		{
+			OutImposedIsoVertexSet[Index].IsoDeltaU = (OutImposedIsoVertexSet[Index + 1].Coordinate - OutImposedIsoVertexSet[Index - 1].Coordinate) * AEighth;
+		}
+		OutImposedIsoVertexSet[Index].IsoDeltaU = (OutImposedIsoVertexSet[Index].Coordinate - OutImposedIsoVertexSet[Index - 1].Coordinate) * AQuarter;
+		break;
+	}
+
+	}
+}
+
+
 }

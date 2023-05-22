@@ -160,6 +160,12 @@ public:
 		States &= ~EHaveStates::ThinZone;
 	}
 
+	virtual void ResetMarkersRecursively() const override
+	{
+		TopologicalLink->ResetMarkersRecursively();
+	}
+
+
 protected:
 
 	void MakeLink(EntityType& Twin)

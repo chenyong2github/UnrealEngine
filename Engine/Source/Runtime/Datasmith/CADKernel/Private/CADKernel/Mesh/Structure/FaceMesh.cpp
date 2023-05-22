@@ -28,13 +28,19 @@ void FFaceMesh::GetNodeIdToCoordinates(TMap<int32, const FPoint*>& NodeIdToCoord
 				continue;
 			}
 
-			const TSharedRef<FVertexMesh> StartVertexMesh = ActiveEdge->GetStartVertex()->GetMesh();
-			NodeIdToCoordinates.Add(StartVertexMesh->GetMesh(), &StartVertexMesh->GetNodeCoordinates()[0]);
+			const FVertexMesh* StartVertexMesh = ActiveEdge->GetStartVertex()->GetMesh();
+			if(StartVertexMesh)
+			{
+				NodeIdToCoordinates.Add(StartVertexMesh->GetMesh(), &StartVertexMesh->GetNodeCoordinates()[0]);
+			}
 
-			const TSharedRef<FVertexMesh> EndVertexMesh = ActiveEdge->GetEndVertex()->GetMesh();
-			NodeIdToCoordinates.Add(EndVertexMesh->GetMesh(), &EndVertexMesh->GetNodeCoordinates()[0]);
+			const FVertexMesh* EndVertexMesh = ActiveEdge->GetEndVertex()->GetMesh();
+			if (EndVertexMesh)
+			{
+				NodeIdToCoordinates.Add(EndVertexMesh->GetMesh(), &EndVertexMesh->GetNodeCoordinates()[0]);
+			}
 
-			const TSharedRef<FEdgeMesh> EdgeMesh = ActiveEdge->GetMesh();
+			const FEdgeMesh* EdgeMesh = ActiveEdge->GetMesh();
 
 			TArray<int32> NodeIds = EdgeMesh->EdgeVerticesIndex;
 			const FPoint* EdgeNodeCoordinates = EdgeMesh->GetNodeCoordinates().GetData();

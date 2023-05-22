@@ -3,9 +3,12 @@
 
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Math/Boundary.h"
+#include "CADKernel/Mesh/MeshEnum.h"
 
 namespace UE::CADKernel
 {
+class FTopologicalEdge;
+
 struct FCuttingPoint;
 struct FLinearBoundary;
 
@@ -62,6 +65,8 @@ public:
 			OutCuttingPointCoordinates.Add(OutCuttingPointCoordinates.Last() + Delta);
 		}
 	}
+
+	static void FillImposedIsoCuttingPoints(TArray<double>& UEdgeSetOfIntersectionWithIso, ECoordinateType CoordinateType, double EdgeToleranceGeo, const FTopologicalEdge& Edge, TArray<FCuttingPoint>& OutImposedIsoVertexSet);
 };
 
 } // namespace UE::CADKernel

@@ -5,6 +5,7 @@
 #include "CADKernel/Core/Chrono.h"
 #include "CADKernel/Core/Group.h"
 #include "CADKernel/Core/System.h"
+#include "CADKernel/Core/OrientedEntity.h"
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 #include "CADKernel/Geo/Curves/BezierCurve.h"
 #include "CADKernel/Geo/Curves/NURBSCurve.h"
@@ -120,7 +121,7 @@ void Draw(const FLinearBoundary& Boundary, const FRestrictionCurve& Curve, EVisu
 		double Height = Length / 20.0;
 		double Base = Height / 2;
 
-		DrawQuadripode(Height, Base, Point.Point, Point.Gradient);
+		DrawQuadripode(Height, Base, Point.Point, Point.Gradient, Property);
 	}
 #endif
 }
@@ -153,7 +154,7 @@ void Draw2D(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty 
 		double Height = Length / 20.0;
 		double Base = Height / 2;
 
-		DrawQuadripode(Height, Base, Point.Point, Point.Gradient);
+		DrawQuadripode(Height, Base, Point.Point, Point.Gradient, Property);
 	}
 #endif
 }
@@ -186,7 +187,7 @@ void Draw3D(const FCurve& Curve, const FLinearBoundary& Boundary, EVisuProperty 
 		double Height = Length / 20.0;
 		double Base = Height / 2;
 
-		DrawQuadripode(Height, Base, Point.Point, Point.Gradient);
+		DrawQuadripode(Height, Base, Point.Point, Point.Gradient, Property);
 	}
 #endif
 }
@@ -214,7 +215,7 @@ void Draw(const FCurve& Curve, EVisuProperty Property)
 #endif
 }
 
-void DrawQuadripode(double Height, double Base, FPoint& Center, FPoint& InDirection)
+void DrawQuadripode(double Height, double Base, FPoint& Center, FPoint& InDirection, EVisuProperty Property)
 {
 #ifdef CADKERNEL_DEBUG
 	FPoint Direction = InDirection;
@@ -249,7 +250,7 @@ void DrawQuadripode(double Height, double Base, FPoint& Center, FPoint& InDirect
 	Polygone.Add(Point0);
 	Polygone.Add(Point4);
 
-	Draw(Polygone);
+	Draw(Polygone, Property);
 #endif
 }
 
@@ -294,9 +295,6 @@ void DisplayEntity(const FEntity& Entity)
 		break;
 	case EEntity::Model:
 		Display((const FModel&)Entity);
-		break;
-	case EEntity::Group:
-		Display((const FGroup&)Entity);
 		break;
 	case EEntity::MeshModel:
 		Display((const FModelMesh&)Entity);
@@ -697,7 +695,9 @@ void DisplayControlPolygon(const FCurve& Curve)
 void DisplayControlPolygon(const FSurface& Surface)
 {
 #ifdef CADKERNEL_DEBUG
-	TFunction<void(const TArray<FPoint>&, int32, int32)> DisplayHull = [](const TArray<FPoint>& Poles, int32 PoleUNum, int32 PoleVNum)
+	bool bShowOrientation = FSystem::Get().GetVisu()->GetParameters()->bDisplayCADOrient;
+
+	TFunction<void(const TArray<FPoint>&, int32, int32)> DisplayHull = [&bShowOrientation](const TArray<FPoint>& Poles, int32 PoleUNum, int32 PoleVNum)
 	{
 		for (int32 Index = 0; Index < Poles.Num(); Index++)
 		{
@@ -710,7 +710,11 @@ void DisplayControlPolygon(const FSurface& Surface)
 			for (int32 IndexU = 1; IndexU < PoleUNum; IndexU++, Index++)
 			{
 				FPoint Segment = Poles[Index] - Poles[Index - 1];
-				DisplaySegment(Poles[Index - 1] + Segment * 0.1, Poles[Index] - Segment * 0.1, 0, EVisuProperty::GreenCurve);
+				DisplaySegment(Poles[Index - 1] + Segment * 0.1, Poles[Index] - Segment * 0.1, 0, EVisuProperty::YellowCurve);
+				if (bShowOrientation)
+				{
+					DrawSegmentOrientation(Poles[Index - 1], Poles[Index], EVisuProperty::YellowCurve);
+				}
 			}
 		}
 
@@ -720,6 +724,10 @@ void DisplayControlPolygon(const FSurface& Surface)
 			{
 				FPoint Segment = Poles[Index] - Poles[Index - PoleUNum];
 				DisplaySegment(Poles[Index - PoleUNum] + Segment * 0.1, Poles[Index] - Segment * 0.1, 0, EVisuProperty::GreenCurve);
+				if (bShowOrientation)
+				{
+					DrawSegmentOrientation(Poles[Index - PoleUNum], Poles[Index], EVisuProperty::GreenCurve);
+				}
 			}
 		}
 	};
@@ -946,11 +954,6 @@ void Display2DWithScale(const FTopologicalEdge& Edge, EVisuProperty Property)
 	TArray<FPoint2D> Polyline;
 	Edge.GetCurve()->GetDiscretizationPoints(Edge.GetBoundary(), EOrientation::Front, Polyline);
 	DisplayPolylineWithScale(Polyline, Property);
-
-	for (const FPoint2D& Point : Polyline)
-	{
-		DisplayPoint2DWithScale(Point, EVisuProperty ::RedPoint);
-	}
 #endif
 }
 
@@ -1070,6 +1073,44 @@ void Display(const FGroup& Group)
 		DisplayEntity(*Entity);
 	}
 #endif
+}
+
+void DisplayMesh(const FModel& Model)
+{
+	for (const TSharedPtr<FBody>& Body : Model.GetBodies())
+	{
+		if(Body)
+		{
+			DisplayMesh(*Body);
+		}
+	}
+}
+
+void DisplayMesh(const FBody& Body)
+{
+	for (const TSharedPtr<FShell>& Shell : Body.GetShells())
+	{
+		if (Shell)
+		{
+			DisplayMesh(*Shell);
+		}
+	}
+}
+
+void DisplayMesh(const FShell& Shell)
+{
+	for (const FOrientedFace& OrientedFace : Shell.GetFaces())
+	{
+		if (OrientedFace.Entity)
+		{
+			FTopologicalFace& Face = *OrientedFace.Entity;
+			if (!Face.IsDeletedOrDegenerated() && Face.IsMeshed())
+			{
+				FFaceMesh& Mesh = *Face.GetMesh();
+				DisplayMesh(Mesh);
+			}
+		}
+	}
 }
 
 void DisplayMesh(const FFaceMesh& Mesh)
@@ -1203,9 +1244,9 @@ void DisplayMesh(const FVertexMesh& Mesh)
 void Display(const FModelMesh& MeshModel)
 {
 #ifdef CADKERNEL_DEBUG
-	for (const TSharedPtr<FFaceMesh>& Mesh : MeshModel.GetFaceMeshes())
+	for (const FFaceMesh* Mesh : MeshModel.GetFaceMeshes())
 	{
-		if (Mesh.IsValid())
+		if (Mesh)
 		{
 			DisplayMesh(*Mesh);
 		}

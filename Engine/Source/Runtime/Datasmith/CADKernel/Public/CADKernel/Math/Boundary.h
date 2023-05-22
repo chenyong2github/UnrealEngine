@@ -12,7 +12,7 @@ namespace UE::CADKernel
  * MINIMAL_UNIT_LINEAR_TOLERANCE allows to define the minimal tolerance value of a parametric space
  * @see FLinearBoundary::ComputeMinimalTolerance
  */
-#define MINIMAL_UNIT_LINEAR_TOLERANCE 10e-5
+#define MINIMAL_UNIT_LINEAR_TOLERANCE 1e-5
 
 struct CADKERNEL_API FLinearBoundary
 {
@@ -405,6 +405,13 @@ public:
 	{
 		UVBoundaries[EIso::IsoU].MoveInsideIfNot(Point.U, Tolerance);
 		UVBoundaries[EIso::IsoV].MoveInsideIfNot(Point.V, Tolerance);
+	}
+
+	FSurfacicBoundary& operator=(const FSurfacicBoundary& InBounds)
+	{
+		UVBoundaries[EIso::IsoU] = InBounds.UVBoundaries[EIso::IsoU];
+		UVBoundaries[EIso::IsoV] = InBounds.UVBoundaries[EIso::IsoV];
+		return *this;
 	}
 
 	double Length(const EIso& Iso) const

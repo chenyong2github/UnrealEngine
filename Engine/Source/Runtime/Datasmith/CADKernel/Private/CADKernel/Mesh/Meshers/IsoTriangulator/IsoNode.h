@@ -30,10 +30,13 @@ enum class EIsoNodeStates : uint16
 	LinkedToPreviousV = 0x0004u,
 	LinkedToNextV = 0x0008u,
 
-	TriangleComplete = 0x000Fu,
+	NodeComplete = 0x000Fu,
 
 	LinkedToLoop = 0x0010u,
 	InnerMeshLoop = 0x0020u,
+	ThinZoneNode = 0x0040u,
+
+	Delete = 0x0080u,
 
 	FirstQuarter = 0x0100u,
 	SecondQuarter = 0x0200u,
@@ -42,8 +45,6 @@ enum class EIsoNodeStates : uint16
 
 	NearlyIsoU = 0x1000u,  // Loop nodes
 	NearlyIsoV = 0x2000u,  // Loop nodes
-
-	Delete = 0x8000u,
 
 	All = 0xFFFFu
 };
@@ -64,7 +65,7 @@ protected:
 
 	int32 Index; // Index of the node either in loop nodes either in inner nodes
 	int32 FaceIndex; // Index of the node in the face
-	int32 Id;
+	int32 NodeId; // Id of the node in the mesh
 
 public:
 	FIsoNode(int32 InNodeIndex, int32 InFaceIndex, int32 InNodeId)
@@ -72,7 +73,7 @@ public:
 		, States(EIsoNodeStates::None)
 		, Index(InNodeIndex)
 		, FaceIndex(InFaceIndex)
-		, Id(InNodeId)
+		, NodeId(InNodeId)
 	{
 		ConnectedSegments.Reserve(5);
 	};
@@ -102,9 +103,9 @@ public:
 		return FaceIndex;
 	}
 
-	const int32 GetId() const
+	const int32 GetNodeId() const
 	{
-		return Id;
+		return NodeId;
 	}
 
 	const TArray<FIsoSegment*>& GetConnectedSegments() const
@@ -126,7 +127,23 @@ public:
 
 	const virtual bool IsALoopNode() const = 0;
 
-	void SetAsLinkedToLoop()
+	void SetThinZoneNodeMarker()
+	{
+		States |= EIsoNodeStates::ThinZoneNode;
+	}
+
+	bool IsThinZoneNode() const
+	{
+		return (States & EIsoNodeStates::ThinZoneNode) == EIsoNodeStates::ThinZoneNode;
+	}
+
+	bool IsDeleteOrThinNode() const
+	{
+		constexpr EIsoNodeStates DeleteOrThinNode = EIsoNodeStates::ThinZoneNode | EIsoNodeStates::Delete;
+		return (States & DeleteOrThinNode) != EIsoNodeStates::None;
+	}
+
+	void SetLinkedToLoopMarker()
 	{
 		States |= EIsoNodeStates::LinkedToLoop;
 	}
@@ -475,7 +492,7 @@ public:
 	/** the node is connected in its 4 directions*/
 	bool IsComplete() const
 	{
-		return (States & EIsoNodeStates::TriangleComplete) == EIsoNodeStates::TriangleComplete;
+		return (States & EIsoNodeStates::NodeComplete) == EIsoNodeStates::NodeComplete;
 	}
 
 	bool IsLinkedToBoundary() const
@@ -520,7 +537,7 @@ public:
 
 	void OffsetId(int32 StartId)
 	{
-		Id += StartId;
+		NodeId += StartId;
 	}
 
 	virtual uint32 GetTypeHash() const override

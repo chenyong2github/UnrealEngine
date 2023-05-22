@@ -20,7 +20,6 @@
 
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/Point.h"
-#include "CADKernel/Mesh/Meshers/ParametricMesher.h"
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
 
 #include "CADKernel/Topo/Body.h"

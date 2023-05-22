@@ -326,7 +326,7 @@ public:
 						}
 #endif
 
-						if (SlopeStartCandidate > 0 && SlopeStartCandidate < Slope::RightSlope && SlopeEndCandidate > Slope::ThreeRightSlope && SlopeEndCandidate < Slope::FullSlope)
+						if (SlopeStartCandidate > 0 && SlopeStartCandidate < Slope::RightSlope && SlopeEndCandidate > Slope::ThreeRightSlope && SlopeEndCandidate < Slope::TwoPiSlope)
 						{
 							bTriangleHasBeenAdded = true;
 							if (EndIndex == 0 && NewVertexSlope > BoundaryVertexToSlope.Last().Value)

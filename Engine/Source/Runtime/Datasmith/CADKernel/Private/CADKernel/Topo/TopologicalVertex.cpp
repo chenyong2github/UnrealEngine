@@ -170,14 +170,11 @@ void FVertexLink::DefineActiveEntity()
 				break;
 			}
 		}
-#ifdef CADKERNEL_DEV
-		ensureCADKernel(Square < 0.01);
-#endif
 	}
 	ActiveEntity = ClosedVertex;
 }
 
-TSharedRef<FVertexMesh> FTopologicalVertex::GetOrCreateMesh(FModelMesh& MeshModel)
+FVertexMesh& FTopologicalVertex::GetOrCreateMesh(FModelMesh& MeshModel)
 {
 	if (!IsActiveEntity())
 	{
@@ -190,10 +187,10 @@ TSharedRef<FVertexMesh> FTopologicalVertex::GetOrCreateMesh(FModelMesh& MeshMode
 
 		Mesh->GetNodeCoordinates().Emplace(GetBarycenter());
 		Mesh->RegisterCoordinates();
-		MeshModel.AddMesh(Mesh.ToSharedRef());
-		SetMeshed();
+		MeshModel.AddMesh(*Mesh);
+		SetMeshedMarker();
 	}
-	return Mesh.ToSharedRef();
+	return *Mesh;
 }
 
 void FTopologicalVertex::SpawnIdent(FDatabase& Database)

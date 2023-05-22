@@ -5,7 +5,6 @@
 #include "CADKernel/Core/EntityGeom.h"
 
 #include "CADKernel/Core/Database.h"
-#include "CADKernel/Core/Group.h"
 #include "CADKernel/Core/Session.h"
 #include "CADKernel/Core/System.h"
 #include "CADKernel/Geo/Curves/Curve.h"
@@ -22,9 +21,12 @@
 
 namespace UE::CADKernel
 {
+
+	const FPairOfIndex FPairOfIndex::Undefined(-1, -1);
+
 	const TCHAR* FEntity::TypesNames[] = 
 	{
-		TEXT("NullEntity"),
+		TEXT("UndefinedEntity"),
 		TEXT("Curve"),
 		TEXT("Surface"),
 
@@ -50,11 +52,11 @@ namespace UE::CADKernel
 
 	const TCHAR* FEntity::GetTypeName(EEntity Type)
 	{
-		if (Type >= EEntity::EntityTypeEnd)
+		if (Type > EEntity::None && Type < EEntity::EntityTypeEnd)
 		{
-			return TypesNames[0];
+			return TypesNames[(int32)Type];
 		}
-		return TypesNames[(int32) Type];
+		return TypesNames[(int32)EEntity::None];
 	}
 
 	FEntity::~FEntity()
@@ -68,7 +70,7 @@ namespace UE::CADKernel
 
 		ensureCADKernel(Archive.IsLoading());
 
-		EEntity Type = EEntity::NullEntity;
+		EEntity Type = EEntity::None;
 		Archive << Type;
 
 		TSharedPtr<FEntity> Entity;
@@ -85,9 +87,6 @@ namespace UE::CADKernel
 			break;
 		case EEntity::EdgeLink:
 			Entity = FEntity::MakeShared<FEdgeLink>(Archive);
-			break;
-		case EEntity::Group:
-			Entity = FEntity::MakeShared<FGroup>(Archive);
 			break;
 		case EEntity::Model:
 			Entity = FEntity::MakeShared<FModel>(Archive);

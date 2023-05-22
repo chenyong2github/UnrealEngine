@@ -191,21 +191,20 @@ void FTopologicalFace::ApplyNaturalLoops(const FSurfacicBoundary& Boundaries)
 
 	// Build 4 bounding edges of the surface
 	StartPoint.Set(Boundaries[EIso::IsoU].Min, Boundaries[EIso::IsoV].Min);
-	EndPoint.Set(Boundaries[EIso::IsoU].Min, Boundaries[EIso::IsoV].Max);
-	BuildEdge(StartPoint, EndPoint);
-
-	StartPoint.Set(Boundaries[EIso::IsoU].Min, Boundaries[EIso::IsoV].Max);
-	EndPoint.Set(Boundaries[EIso::IsoU].Max, Boundaries[EIso::IsoV].Max);
-	BuildEdge(StartPoint, EndPoint);
-
-	StartPoint.Set(Boundaries[EIso::IsoU].Max, Boundaries[EIso::IsoV].Max);
 	EndPoint.Set(Boundaries[EIso::IsoU].Max, Boundaries[EIso::IsoV].Min);
 	BuildEdge(StartPoint, EndPoint);
 
 	StartPoint.Set(Boundaries[EIso::IsoU].Max, Boundaries[EIso::IsoV].Min);
-	EndPoint.Set(Boundaries[EIso::IsoU].Min, Boundaries[EIso::IsoV].Min);
+	EndPoint.Set(Boundaries[EIso::IsoU].Max, Boundaries[EIso::IsoV].Max);
 	BuildEdge(StartPoint, EndPoint);
 
+	StartPoint.Set(Boundaries[EIso::IsoU].Max, Boundaries[EIso::IsoV].Max);
+	EndPoint.Set(Boundaries[EIso::IsoU].Min, Boundaries[EIso::IsoV].Max);
+	BuildEdge(StartPoint, EndPoint);
+
+	StartPoint.Set(Boundaries[EIso::IsoU].Min, Boundaries[EIso::IsoV].Max);
+	EndPoint.Set(Boundaries[EIso::IsoU].Min, Boundaries[EIso::IsoV].Min);
+	BuildEdge(StartPoint, EndPoint);
 	if (Edges.IsEmpty())
 	{
 		return;
@@ -462,6 +461,7 @@ void FTopologicalFace::SpawnIdent(FDatabase& Database)
 FInfoEntity& FTopologicalFace::GetInfo(FInfoEntity& Info) const
 {
 	return FTopologicalShapeEntity::GetInfo(Info)
+		.Add(TEXT("Orientation"), IsBackOriented() ? "Back" : "Front")
 		.Add(TEXT("Carrier Surface"), CarrierSurface)
 		.Add(TEXT("Boundary"), (FSurfacicBoundary&) Boundary)
 		.Add(TEXT("Loops"), Loops)
@@ -470,13 +470,13 @@ FInfoEntity& FTopologicalFace::GetInfo(FInfoEntity& Info) const
 }
 #endif
 
-TSharedRef<FFaceMesh> FTopologicalFace::GetOrCreateMesh(FModelMesh& MeshModel)
+FFaceMesh& FTopologicalFace::GetOrCreateMesh(FModelMesh& MeshModel)
 {
 	if (!Mesh.IsValid())
 	{
 		Mesh = FEntity::MakeShared<FFaceMesh>(MeshModel, *this);
 	}
-	return Mesh.ToSharedRef();
+	return *Mesh;
 }
 
 // Meshing parameters ==============================================================================================================================================================================================================================

@@ -19,7 +19,7 @@ void FTabulatedCylinderSurface::SpawnIdent(FDatabase& Database)
 	GuideCurve->SpawnIdent(Database);
 }
 
-void FTabulatedCylinderSurface::ResetMarkersRecursively() 
+void FTabulatedCylinderSurface::ResetMarkersRecursively() const
 {
 	ResetMarkers();
 	GuideCurve->ResetMarkersRecursively();

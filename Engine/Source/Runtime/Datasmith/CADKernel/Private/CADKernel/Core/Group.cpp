@@ -20,7 +20,7 @@ EEntity FGroup::GetGroupType() const
 {
 	if (Entities.Num() == 0) 
 	{
-		return EEntity::NullEntity;
+		return EEntity::None;
 	}
 
 	return (*Entities.begin())->GetEntityType();

@@ -17,7 +17,6 @@
 #include "CADKernel/Core/Entity.h"
 #include "CADKernel/Core/Session.h"
 #include "CADKernel/Core/Types.h"
-#include "CADKernel/Mesh/Meshers/ParametricMesher.h"
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/Topo/Body.h"

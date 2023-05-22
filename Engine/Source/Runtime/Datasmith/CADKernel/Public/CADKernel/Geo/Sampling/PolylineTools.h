@@ -86,7 +86,7 @@ inline double SectionCoordinate(const TArray<double>& Array, const int32 Index, 
 }
 
 template<typename PointType>
-double ComputeLength(TArray<PointType>& Polyline)
+double ComputeLength(const TArray<PointType>& Polyline)
 {
 	double Length = 0;
 	for (int32 Index = 1; Index < Polyline.Num(); ++Index)
@@ -94,6 +94,45 @@ double ComputeLength(TArray<PointType>& Polyline)
 		Length += Polyline[Index - 1].Distance(Polyline[Index]);
 	}
 	return Length;
+}
+
+template<typename PointType>
+double ComputeSquareToleranceForProjection(const TArray<PointType>& Polyline)
+{
+	const double Tolerance = ComputeLength(Polyline) * 0.1;
+	return Tolerance * Tolerance;
+}
+
+template<typename PointType>
+TArray<double> ComputePolylineSegmentLengths(const PointType& StartPoint, const TArray<PointType>& InnerPolyline, const PointType& EndPoint)
+{
+	TArray<double> ElementLength;
+	const int32 InnerPointCount = InnerPolyline.Num();
+	if (InnerPointCount > 0)
+	{
+		ElementLength.Reserve(InnerPointCount + 1);
+		const FPoint* PrevPoint = &InnerPolyline[0];
+		{
+			ElementLength.Add(PrevPoint->Distance(StartPoint));
+		}
+
+		for (int32 Index = 1; Index < InnerPointCount; ++Index)
+		{
+			const FPoint& CurrentPoint = InnerPolyline[Index];
+			ElementLength.Add(PrevPoint->Distance(CurrentPoint));
+			PrevPoint = &CurrentPoint;
+		}
+		{
+			ElementLength.Add(PrevPoint->Distance(EndPoint));
+		}
+	}
+	else
+	{
+		ElementLength.Reserve(1);
+		ElementLength.Add(StartPoint.Distance(EndPoint));
+	}
+
+	return MoveTemp(ElementLength);
 }
 
 /**
@@ -416,7 +455,7 @@ public:
 			return;
 		}
 
-		int32 SegmentNum = (int32)FMath::Max(CurveLength / DesiredSegmentLength + 0.5, 1.0);
+		int32 SegmentNum = FMath::IsNearlyZero(DesiredSegmentLength) ? 2 : (int32)FMath::Max(CurveLength / DesiredSegmentLength + 0.5, 1.0);
 
 		double SectionLength = CurveLength / (double)(SegmentNum);
 
@@ -433,7 +472,7 @@ public:
 		double LastCoordinate = InBoundary.Min;
 		for (int32 IndexCurvilinear = 1, IndexCoordinate = BoundaryIndices[0] + 1; IndexCurvilinear < CurvilinearCoordinates.Num(); ++IndexCurvilinear, ++IndexCoordinate)
 		{
-			while (CurvilinearLength < CurvilinearCoordinates[IndexCurvilinear] + DOUBLE_SMALL_NUMBER)
+			while (CurvilinearLength + DOUBLE_SMALL_NUMBER < CurvilinearCoordinates[IndexCurvilinear])
 			{
 				double Coordinate = ComputeSamplePointCoordinate(IndexCurvilinear, IndexCoordinate, CurvilinearLength, LastCoordinate);
 				OutCoordinates.Add(Coordinate);
@@ -483,14 +522,18 @@ public:
 
 	/**
 	 * Project each point of a coincidental polyline on the Polyline.
+	 * @param ToleranceOfProjection: Max error between the both curve to stop the search of projection
+	 *    if ToleranceOfProjection < 0, it's compute with ComputeSquareToleranceForProjection
 	 */
-	void ProjectCoincidentalPolyline(const TArray<PointType>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoords) const
+	void ProjectCoincidentalPolyline(const TArray<PointType>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoords, const double ToleranceOfProjection) const
 	{
 #ifdef DEBUG_PROJECT_COINCIDENTAL_POLYLINE
-		static bool bDisplay = false;
+		static int32 Counter = 0;
+		++Counter;
+		bool bDisplay = true; // (Counter == 22);
 		if (bDisplay)
 		{
-			F3DDebugSession Session(TEXT("ProjectCoincidentalPolyline"));
+			F3DDebugSession Session(FString::Printf(TEXT("ProjectCoincidentalPolyline %d"), Counter));
 			{
 				F3DDebugSession _(TEXT("ProjectCoincidentalPolyline"));
 				DisplayPolyline(InPointsToProject, EVisuProperty::BlueCurve);
@@ -501,11 +544,18 @@ public:
 			}
 		}
 #endif
+
+		const double SquareTol = ToleranceOfProjection > 0 ? FMath::Square(ToleranceOfProjection) : PolylineTools::ComputeSquareToleranceForProjection(PolylinePoints);
+
 		int32 StartIndex = 0;
 		const int32 EndIndex = PolylinePoints.Num() - 1;
 
 		TFunction<double(const PointType&)> ProjectPointToPolyline = [&](const PointType& InPointToProject)
 		{
+#ifdef DEBUG_PROJECT_COINCIDENTAL_POLYLINE
+			PointType ClosePoint;
+#endif
+
 			double MinDistance = HUGE_VAL;
 			double UForMinDistance = 0;
 
@@ -514,16 +564,35 @@ public:
 			for (int32 Index = StartIndex; Index < EndIndex; ++Index)
 			{
 				PointType ProjectPoint = ProjectPointOnSegment(InPointToProject, PolylinePoints[Index], PolylinePoints[Index + 1], ParamU, true);
-
 				double SquareDistance = ProjectPoint.SquareDistance(InPointToProject);
-				if (SquareDistance > MinDistance)
+				if (SquareDistance > MinDistance + SquareTol)
 				{
 					break;
 				}
-				MinDistance = SquareDistance;
-				UForMinDistance = ParamU;
-				SegmentIndex = Index;
+
+				if (SquareDistance < MinDistance)
+				{
+					MinDistance = SquareDistance;
+					UForMinDistance = ParamU;
+					SegmentIndex = Index;
+#ifdef DEBUG_PROJECT_COINCIDENTAL_POLYLINE
+					ClosePoint = ProjectPoint;
+#endif
+				}
+
 			}
+#ifdef DEBUG_PROJECT_COINCIDENTAL_POLYLINE
+			if (bDisplay)
+			{
+				F3DDebugSession Session(TEXT("ProjectPoint"));
+				{
+					DisplayPoint(InPointToProject, EVisuProperty::BluePoint);
+					DisplayPoint(ClosePoint, EVisuProperty::RedPoint);
+					//Wait();
+				}
+			}
+#endif
+
 			StartIndex = SegmentIndex;
 			return PolylineTools::LinearInterpolation(PolylineCoordinates, SegmentIndex, UForMinDistance);
 		};

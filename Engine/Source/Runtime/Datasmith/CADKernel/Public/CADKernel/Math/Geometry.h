@@ -502,11 +502,11 @@ inline double CoordinateOfProjectedPointOnSegment(const PointType& Point, const 
 CADKERNEL_API void FindLoopIntersectionsWithIso(const EIso Iso, const double IsoParameter, const TArray<TArray<FPoint2D>>& Loops, TArray<double>& OutIntersections);
 
 /**
- * Similar as IntersectSegments2D but do not check intersection if both segment are carried by the same line.
+ * Similar as DoIntersect but do not check intersection if both segment are carried by the same line.
  * Must be done before (with BBox comparison for example)
  * This method is 50% faster than IntersectSegments2D even if
  */
-inline bool FastIntersectSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD)
+inline bool FastDoIntersect(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
 {
 	constexpr const double Min = -DOUBLE_SMALL_NUMBER;
 	constexpr const double Max = 1. + DOUBLE_SMALL_NUMBER;
@@ -535,7 +535,7 @@ inline bool FastIntersectSegments2D(const TSegment<FPoint2D>& SegmentAB, const T
 /**
  * The segments must intersect because no check is done
  */
-inline FPoint2D FindIntersectionOfSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD, double& OutABIntersectionCoordinate)
+inline FPoint2D FindIntersectionOfSegments2D(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD, double& OutABIntersectionCoordinate)
 {
 	const FPoint2D AB = SegmentAB[1] - SegmentAB[0];
 	const FPoint2D DC = SegmentCD[0] - SegmentCD[1];
@@ -584,7 +584,7 @@ inline FPoint2D FindIntersectionOfSegments2D(const TSegment<FPoint2D>& SegmentAB
 /**
  * The segments must intersect because no check is done
  */
-inline FPoint2D FindIntersectionOfSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD)
+inline FPoint2D FindIntersectionOfSegments2D(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
 {
 	double ABIntersectionCoordinate;
 	return FindIntersectionOfSegments2D(SegmentAB, SegmentCD, ABIntersectionCoordinate);
@@ -593,7 +593,7 @@ inline FPoint2D FindIntersectionOfSegments2D(const TSegment<FPoint2D>& SegmentAB
 /**
  * @return false if the lines are parallel
  */
-inline bool FindIntersectionOfLines2D(const TSegment<FPoint2D>& LineAB, const TSegment<FPoint2D>& LineCD, FPoint2D& OutIntersectionPoint)
+inline bool FindIntersectionOfLines2D(const FSegment2D& LineAB, const FSegment2D& LineCD, FPoint2D& OutIntersectionPoint)
 {
 	constexpr const double Min = -DOUBLE_SMALL_NUMBER;
 	constexpr const double Max = 1. + DOUBLE_SMALL_NUMBER;
@@ -614,10 +614,11 @@ inline bool FindIntersectionOfLines2D(const TSegment<FPoint2D>& LineAB, const TS
 }
 
 /**
- * Similar as FastIntersectSegments2D but check intersection if both segment are carried by the same line.
+ * Similar as FastDoIntersect but check intersection if both segment are carried by the same line.
  * This method is 50% slower than FastIntersectSegments2D even if the segments tested are never carried by the same line
  */
-CADKERNEL_API bool IntersectSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD);
+CADKERNEL_API bool DoIntersect(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD);
+CADKERNEL_API bool DoIntersectInside(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD);
 
 inline double ComputeCosinus(FVector Vector, FVector OtherVector)
 {

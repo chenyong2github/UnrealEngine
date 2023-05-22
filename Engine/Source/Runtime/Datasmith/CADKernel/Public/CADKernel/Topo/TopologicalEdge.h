@@ -6,6 +6,7 @@
 #include "CADKernel/Geo/Sampling/SurfacicPolyline.h"
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/Boundary.h"
+#include "CADKernel/Mesh/MeshEnum.h"
 #include "CADKernel/Topo/Linkable.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
 #include "CADKernel/Utils/Cache.h"
@@ -16,16 +17,8 @@ namespace UE::CADKernel
 typedef TTopologicalLink<FTopologicalEdge> FEdgeLink;
 
 class FOrientedEdge;
-
-enum ECoordinateType : uint8
-{
-	VertexCoordinate,
-	ImposedCoordinate, // imposted cutting point by thin zone meshing process
-	IsoUCoordinate,
-	IsoVCoordinate,
-	IsoUVCoordinate,
-	OtherCoordinate
-};
+class FThinZone2D;
+class FThinZoneSide;
 
 /**
  * Cutting point used for thin zone purpose
@@ -35,16 +28,18 @@ struct CADKERNEL_API FImposedCuttingPoint
 	/**
 	 * coordinate of the edge's mesh nodes
 	 */
-	double Coordinate = 0;
-	int32 OppositNodeIndex = -1;
+	const double Coordinate = 0;
+	const int32 OppositNodeIndex = -1;
+	double DeltaU = 0;
 
 	FImposedCuttingPoint()
 	{
 	}
 
-	FImposedCuttingPoint(double InCoordinate, int32 NodeIndex1)
+	FImposedCuttingPoint(const double InCoordinate, const int32 NodeIndex1, const double InDeltaU = 0.)
 		: Coordinate(InCoordinate)
 		, OppositNodeIndex(NodeIndex1)
+		, DeltaU(InDeltaU)
 	{
 	};
 };
@@ -52,12 +47,15 @@ struct CADKERNEL_API FImposedCuttingPoint
 template<typename FCuttingPointType>
 void GetCuttingPointCoordinates(const TArray<FCuttingPointType>& CuttingPoints, TArray<double>& CuttingPointCoordinates);
 
+using FAddCuttingPointFunc = TFunction<void(const double, const ECoordinateType, const FPairOfIndex, const double)>;
+
 struct FEdge2DProperties;
 struct FCuttingPoint;
 
 class FModelMesh;
 class FEdgeMesh;
 class FSurface;
+class FThinZone;
 class FTopologicalLoop;
 class FTopologicalVertex;
 
@@ -66,6 +64,9 @@ class CADKERNEL_API FTopologicalEdge : public TLinkable<FTopologicalEdge, FEdgeL
 	friend class FEntity;
 	friend class FTopologicalLoop;
 	friend class FTopologicalFace;
+
+private:
+	const double FactorToComputeMaxTol = 0.1;
 
 protected:
 
@@ -80,6 +81,9 @@ protected:
 	TSharedPtr<FRestrictionCurve> Curve;
 	mutable double Length3D = -1.;
 
+	// To avoid huge tolerance in case of degenerated edge, the max tol is defined as Length3D / 10.
+	mutable double Max2DTolerance = -1;
+
 	FTopologicalLoop* Loop = nullptr;
 
 	TSharedPtr<FEdgeMesh> Mesh;
@@ -93,6 +97,8 @@ protected:
 	 * U coordinates of the edge's mesh nodes for thin zone purpose
 	 */
 	TArray<FImposedCuttingPoint> ImposedCuttingPointUs;
+
+	TArray<FThinZoneSide*> ThinZoneSides;
 	TArray<FLinearBoundary> ThinZoneBounds;
 
 	/**
@@ -174,14 +180,14 @@ public:
 		Ar << Boundary;
 		SerializeIdent(Ar, &Loop);
 		Ar << Length3D;
+		Max2DTolerance = Length3D * FactorToComputeMaxTol;
 	}
 
 	virtual void SpawnIdent(FDatabase& Database) override;
 
-	virtual void ResetMarkersRecursively() override
+	virtual void ResetMarkersRecursively() const override
 	{
-		ResetMarkers();
-		TLinkable<FTopologicalEdge, FEdgeLink>::ResetMarkers();
+		TLinkable<FTopologicalEdge, FEdgeLink>::ResetMarkersRecursively();
 		StartVertex->ResetMarkersRecursively();
 		EndVertex->ResetMarkersRecursively();
 
@@ -199,7 +205,7 @@ public:
 
 	double GetTolerance2DAt(double Coordinate) const
 	{
-		return GetCurve()->GetToleranceAt(Coordinate);
+		return FMath::Min(Max2DTolerance, GetCurve()->GetToleranceAt(Coordinate));
 	}
 
 	virtual EEntity GetEntityType() const override
@@ -266,6 +272,16 @@ public:
 
 		FTopologicalEdge* FirstTwinEdge = (TopologicalLink->GetTwinEntities()[0] == this) ? TopologicalLink->GetTwinEntities()[1] : TopologicalLink->GetTwinEntities()[0];
 		return FirstTwinEdge;
+	}
+
+	FTopologicalEdge* GetTwinEdge() const
+	{
+		const TArray<FTopologicalEdge*>& TwinEdges = GetTwinEntities();
+		if (TwinEdges.Num() > 1)
+		{
+			return TwinEdges[0] == this ? TwinEdges[1] : TwinEdges[0];
+		}
+		return nullptr;
 	}
 
 	/**
@@ -452,17 +468,29 @@ public:
 
 	// ======   Meshing Function   ======
 
-	const TSharedRef<FEdgeMesh> GetMesh() const
+	const FEdgeMesh* GetMesh() const
 	{
 		if (GetLinkActiveEntity() != AsShared())
 		{
 			return GetLinkActiveEdge()->GetMesh();
 		}
 		ensureCADKernel(Mesh.IsValid());
-		return Mesh.ToSharedRef();
+		return Mesh.Get();
 	}
 
-	TSharedRef<FEdgeMesh> GetOrCreateMesh(FModelMesh& MeshModel);
+	FEdgeMesh& GetOrCreateMesh(FModelMesh& MeshModel);
+
+	/**
+	 * If the mesh of the edge is not built, Empty the CuttingPoints 
+	 * This allows to recompute a new discretization of the mesh based among other things on a new imposed cutting points (mesh of thin zone process)
+	 */
+	void RemovePreMesh();
+
+	const FTopologicalEdge* GetPreMeshedTwin() const;
+	FTopologicalEdge* GetPreMeshedTwin()
+	{
+		return const_cast<FTopologicalEdge*> (static_cast<const FTopologicalEdge*>(this)->GetPreMeshedTwin());
+	}
 
 	/**
 	 * Generate a sampling of the curve.
@@ -537,20 +565,40 @@ public:
 		return CuttingPointUs;
 	}
 
+	TArray<double> GetCuttingPointCoordinates() const;
+
+	void TransferCuttingPointFromMeshedEdge(bool bOnlyWithOppositeNode, FAddCuttingPointFunc AddCuttingPoint);
+
+	/**
+	 * Compute the lengths of each pre-elements of the edge i.e the elements based of the cutting points of the edges. 
+	 */
+	TArray<double> GetPreElementLengths() const;
+
 	// For thin zone purpose
-	void SortImposedCuttingPoints()
-	{
-		Algo::Sort(ImposedCuttingPointUs, [](const FImposedCuttingPoint& C1, const FImposedCuttingPoint& C2) { return C1.Coordinate < C2.Coordinate; });
-	}
+	void SortImposedCuttingPoints();
 
 	const TArray<FImposedCuttingPoint>& GetImposedCuttingPoints() const
 	{
 		return ImposedCuttingPointUs;
 	}
 
-	void AddThinZone(const FLinearBoundary& InThinZoneBounds)
+	void AddThinZone(FThinZoneSide* InThinZoneSide, const FLinearBoundary& InThinZoneBounds)
 	{
-		ThinZoneBounds.Add(InThinZoneBounds);
+		if(InThinZoneSide)
+		{
+			ThinZoneSides.AddUnique(InThinZoneSide);
+			ThinZoneBounds.Add(InThinZoneBounds);
+		}
+	}
+
+	int32 GetThinZoneCount() const
+	{
+		return ThinZoneSides.Num();
+	}
+
+	const TArray<FThinZoneSide*>& GetThinZoneSides() const
+	{
+		return ThinZoneSides;
 	}
 
 	const TArray<FLinearBoundary>& GetThinZoneBounds() const
@@ -558,8 +606,10 @@ public:
 		return ThinZoneBounds;
 	}
 
-	void AddImposedCuttingPointU(const double ImposedCuttingPointU, int32 OppositeNodeIndex);
+	void AddImposedCuttingPointU(const double ImposedCuttingPointU, const int32 OppositeNodeIndex, const double DeltaU);
+	void AddTwinsCuttingPoint(const double Coord, const double DeltaU);
 
+	void GenerateMeshElements(FModelMesh& MeshModel);
 
 	// ======   Curve Functions   ======
 
@@ -573,6 +623,7 @@ public:
 		return Curve.ToSharedRef();
 	}
 
+	void ComputeLength();
 	double Length() const;
 
 	/**
@@ -668,7 +719,8 @@ public:
 	 */
 	void ProjectTwinEdgePoints(const TArray<FPoint>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoords) const
 	{
-		Curve->ProjectTwinCurvePoints(InPointsToProject, bSameOrientation, OutProjectedPointCoords);
+		const double ToleranceOfProjection = Length3D * 0.1;
+		Curve->ProjectTwinCurvePoints(InPointsToProject, bSameOrientation, OutProjectedPointCoords, ToleranceOfProjection);
 	}
 
 	/**
@@ -692,7 +744,9 @@ public:
 
 	double TransformLocalCoordinateToActiveEdgeCoordinate(const double LocalCoordinate) const;
 	double TransformActiveEdgeCoordinateToLocalCoordinate(const double ActiveEdgeCoordinate) const;
+	double TransformTwinEdgeCoordinateToLocalCoordinate(const FTopologicalEdge& TwinEdge, const double InTwinCoordinate) const;
 
+	void TransformTwinEdgeCoordinatesToLocalCoordinates(const FTopologicalEdge& TwinEdge, const TArray<double>& InActiveEdgeCoordinate, TArray<double>& OutLocalCoordinate) const;
 	void TransformActiveEdgeCoordinatesToLocalCoordinates(const TArray<double>& InActiveEdgeCoordinate, TArray<double>& OutLocalCoordinate) const;
 	void TransformLocalCoordinatesToActiveEdgeCoordinates(const TArray<double>& InLocalCoordinate, TArray<double>& OutActiveEdgeCoordinate) const;
 
@@ -893,39 +947,39 @@ struct CADKERNEL_API FCuttingPoint
 	/**
 	 * coordinate of the edge's mesh nodes
 	 */
-	double Coordinate = 0;
-	ECoordinateType Type = ECoordinateType::OtherCoordinate;
-	int32 OppositNodeIndex = -1;
-	int32 OppositNodeIndex2 = -1;
+	double Coordinate;
+	ECoordinateType Type;
+	FPairOfIndex OppositNodeIndices;
 	double IsoDeltaU = 0;
 
 	FCuttingPoint()
+		: Coordinate(0)
+		, Type(ECoordinateType::OtherCoordinate)
+		, OppositNodeIndices(FPairOfIndex::Undefined)
+		, IsoDeltaU(HUGE_VAL)
 	{
 	}
 
 	FCuttingPoint(double InCoordinate, ECoordinateType InType)
 		: Coordinate(InCoordinate)
 		, Type(InType)
-		, OppositNodeIndex(-1)
-		, OppositNodeIndex2(-1)
+		, OppositNodeIndices(FPairOfIndex::Undefined)
 		, IsoDeltaU(HUGE_VAL)
 	{
 	}
 
-	FCuttingPoint(double InCoordinate, ECoordinateType InType, int32 NodeIndex1, int32 NodeIndex2)
+	FCuttingPoint(double InCoordinate, ECoordinateType InType, FPairOfIndex InOppositNodeIndices, double DeltaU)
 		: Coordinate(InCoordinate)
 		, Type(InType)
-		, OppositNodeIndex(NodeIndex1)
-		, OppositNodeIndex2(NodeIndex2)
-		, IsoDeltaU(HUGE_VAL)
+		, OppositNodeIndices(InOppositNodeIndices)
+		, IsoDeltaU(DeltaU)
 	{
 	}
 
 	FCuttingPoint(double InCoordinate, ECoordinateType InType, int32 InOppositeNodeId, double DeltaU)
 		: Coordinate(InCoordinate)
 		, Type(InType)
-		, OppositNodeIndex(InOppositeNodeId)
-		, OppositNodeIndex2(-1)
+		, OppositNodeIndices(InOppositeNodeId)
 		, IsoDeltaU(DeltaU)
 	{
 	}

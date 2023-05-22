@@ -178,24 +178,20 @@ public:
 		return (States & Side) == Side;
 	}
 
-	void SetHasTriangleOn(EIsoSegmentStates Side)
-	{
-		States |= Side;
-	}
-
 	bool HasTriangleOnLeft()
 	{
 		return (States & EIsoSegmentStates::LeftTriangle) == EIsoSegmentStates::LeftTriangle;
 	}
 
-	void SetHasTriangleOnLeft()
-	{
-		States |= EIsoSegmentStates::LeftTriangle;
-	}
-
 	bool HasTriangleOnRight()
 	{
 		return (States & EIsoSegmentStates::RightTriangle) == EIsoSegmentStates::RightTriangle;
+	}
+
+	bool HasntTriangle()
+	{
+		constexpr EIsoSegmentStates BoothSides = EIsoSegmentStates::RightTriangle | EIsoSegmentStates::LeftTriangle;
+		return (States & BoothSides) == EIsoSegmentStates::None;
 	}
 
 	bool HasTriangleOnRightAndLeft()
@@ -204,9 +200,31 @@ public:
 		return (States & BoothSides) == BoothSides;
 	}
 
+	void SetHasTriangleOn(EIsoSegmentStates Side)
+	{
+		States |= Side;
+	}
+
+	void SetHasTriangleOnLeft()
+	{
+		States |= EIsoSegmentStates::LeftTriangle;
+	}
+
 	void SetHasTriangleOnRight()
 	{
 		States |= EIsoSegmentStates::RightTriangle;
+	}
+
+	void SetHasInnerTriangle(bool bOrientation)
+	{
+		if (bOrientation)
+		{
+			SetHasTriangleOnLeft();
+		}
+		else
+		{
+			SetHasTriangleOnRight();
+		}
 	}
 
 	void ResetHasTriangle()
@@ -247,6 +265,11 @@ public:
 	bool IsDegenerated() const
 	{
 		return (States & EIsoSegmentStates::Degenerate) == EIsoSegmentStates::Degenerate;
+	}
+
+	bool IsFirstNode(const FIsoNode* Node) const
+	{
+		return FirstNode == Node;
 	}
 
 	const FIsoNode& GetFirstNode() const
@@ -369,6 +392,11 @@ inline uint32 GetTypeHash(const FIsoSegment& Segment0, const FIsoSegment& Segmen
 
 inline FIsoSegment* FIsoNode::GetSegmentConnectedTo(const FIsoNode* Node) const
 {
+	if (this == Node)
+	{
+		return nullptr;
+	}
+
 	for (FIsoSegment* Segment : ConnectedSegments)
 	{
 		if (&Segment->GetFirstNode() == Node)

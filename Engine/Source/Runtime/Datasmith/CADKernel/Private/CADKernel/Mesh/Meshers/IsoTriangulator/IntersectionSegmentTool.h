@@ -66,8 +66,8 @@ struct FSegment
 
 	EConnectionType IsSuperimposed(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD, bool bSameOrientation) const
 	{
-		const FPoint2D AB = SegmentAB.GetVector();
-		const FPoint2D CD = SegmentCD.GetVector(); 
+		const FPoint2D AB = SegmentAB.GetVector().Normalize();
+		const FPoint2D CD = SegmentCD.GetVector().Normalize();
 		const double ParallelCoef = AB ^ CD;
 		if (FMath::IsNearlyZero(ParallelCoef, DOUBLE_KINDA_SMALL_NUMBER))
 		{
@@ -89,7 +89,7 @@ struct FSegment
 		}
 		if (GetSecondNode() == StartNode)
 		{
-			constexpr bool bNotSameOrientation = true;
+			constexpr bool bNotSameOrientation = false;
 			return IsSuperimposed(Segment2D, InSegment, bNotSameOrientation);
 		}
 
@@ -165,7 +165,7 @@ struct FSegment
 			return false;
 		}
 
-		return IntersectSegments2D(Segment2D, Segment.Segment2D);
+		return DoIntersect(Segment2D, Segment.Segment2D);
 	}
 };
 }
@@ -506,6 +506,7 @@ public:
 		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegment(&StartPoint, &EndPoint) != nullptr;
 	}
 
+	
 	/**
 	 * Allow StartNode to be connected to one segment
 	 * WARNING EndPoint must be defined in EGridSpace::UniformScaled
@@ -513,6 +514,16 @@ public:
 	bool DoesIntersect(const FIsoNode& StartNode, const FPoint2D& EndPoint) const
 	{
 		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegment(&StartNode, &EndPoint) != nullptr;
+	}
+
+	/**
+	 * Find if a Segment already exists, if return false with the segment
+	 */
+	bool DoesIntersect(const FIsoNode* StartNode, const FIsoNode* EndNode, FIsoSegment** Segment) const;
+
+	bool DoesIntersect(const FIsoNode* StartNode, const FIsoNode* EndNode) const
+	{
+		return TIntersectionSegmentTool<IntersectionSegmentTool::FSegment>::FindIntersectingSegment(StartNode, EndNode) != nullptr;
 	}
 
 	bool DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const

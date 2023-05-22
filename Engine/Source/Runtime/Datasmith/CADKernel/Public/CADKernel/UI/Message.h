@@ -67,6 +67,11 @@ public:
 		VReportPrintF(Header, TEXT("%lld"), Time);
 	}
 
+	static void FillReportFile(const TCHAR* Header, double Count)
+	{
+		VReportPrintF(Header, TEXT("%f"), Count);
+	}
+
 	static void FillReportFile(const TCHAR* Header, int32 Count)
 	{
 		VReportPrintF(Header, TEXT("%d"), Count);

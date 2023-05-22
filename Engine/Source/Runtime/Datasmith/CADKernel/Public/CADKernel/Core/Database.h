@@ -292,6 +292,7 @@ public:
 
 	TSharedPtr<FEntity> GetEntity(FIdent id) const;
 	void GetEntities(const TArray<FIdent>& ids, TArray<TSharedPtr<FEntity>>& Entities) const;
+	void GetEntities(const TArray<FIdent>& ids, TArray<FEntity*>& Entities) const;
 	void GetTopologicalEntities(const TArray<FIdent>& ids, TArray<FTopologicalEntity*>& Entities) const;
 	void GetTopologicalShapeEntities(const TArray<FIdent>& ids, TArray<FTopologicalShapeEntity*>& Entities) const;
 

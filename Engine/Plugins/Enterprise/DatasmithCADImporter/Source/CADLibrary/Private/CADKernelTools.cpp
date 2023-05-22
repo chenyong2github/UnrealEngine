@@ -15,7 +15,7 @@
 #include "CADKernel/Core/Types.h"
 
 #include "CADKernel/Mesh/Criteria/Criterion.h"
-#include "CADKernel/Mesh/Meshers/ParametricMesher.h"
+#include "CADKernel/Mesh/Meshers/Mesher.h"
 #include "CADKernel/Mesh/Structure/FaceMesh.h"
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
 
@@ -32,10 +32,10 @@ typedef uint32 TriangleIndex[3];
 namespace CADLibrary
 {
 
-static void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
+static void FillVertexPosition(FMeshConversionContext& Context, UE::CADKernel::FModelMesh& ModelMesh, FMeshDescription& MeshDescription)
 {
 	TArray<FVector3f> VertexArray;
-	ModelMesh->GetNodeCoordinates(VertexArray);
+	ModelMesh.GetNodeCoordinates(VertexArray);
 
 	for (FVector3f& Vertex : VertexArray)
 	{
@@ -78,7 +78,7 @@ static void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef
 	}
 }
 
-bool FillMesh(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
+bool FillMesh(FMeshConversionContext& Context, UE::CADKernel::FModelMesh& ModelMesh, FMeshDescription& MeshDescription)
 {
 	using namespace UE::CADKernel;
 
@@ -108,9 +108,9 @@ bool FillMesh(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::F
 
 	// Find all the materials used
 	TMap<uint32, FPolygonGroupID> MaterialToPolygonGroupMapping;
-	for (const TSharedPtr<FFaceMesh>& FaceMesh : ModelMesh->GetFaceMeshes())
+	for (const FFaceMesh* FaceMesh : ModelMesh.GetFaceMeshes())
 	{
-		const FTopologicalFace& Face = (const FTopologicalFace&)FaceMesh->GetGeometricEntity();
+		const FTopologicalFace& Face = (const FTopologicalFace&) FaceMesh->GetGeometricEntity();
 		// we assume that face has only color
 		MaterialToPolygonGroupMapping.Add(Face.GetColorId(), INDEX_NONE);
 	}
@@ -149,7 +149,7 @@ bool FillMesh(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::F
 		TArray<int32>& VertexIdSet = (Step == 0) ? Context.VertexIds : Context.SymmetricVertexIds;
 
 		// Loop through the FaceMeshes and collect all tessellation data
-		for (const TSharedPtr<FFaceMesh>& FaceMesh : ModelMesh->GetFaceMeshes())
+		for (FFaceMesh* FaceMesh : ModelMesh.GetFaceMeshes())
 		{
 			const FTopologicalFace& Face = (const FTopologicalFace&)FaceMesh->GetGeometricEntity();
 			if (bImportOnlyAlreadyPresent && !PatchIdSet.Contains(Face.GetPatchId()))
@@ -168,8 +168,8 @@ bool FillMesh(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::F
 			//FVector Temp3D = { 0, 0, 0 };
 			//FVector2D TexCoord2D = { 0, 0 };
 
-			TArray<int32>& TriangleVertexIndices = FaceMesh->TrianglesVerticesIndex;
-			TArray<int32>& VerticesGlobalIndex = FaceMesh->VerticesGlobalIndex;
+			const TArray<int32>& TriangleVertexIndices = FaceMesh->TrianglesVerticesIndex;
+			const TArray<int32>& VerticesGlobalIndex = FaceMesh->VerticesGlobalIndex;
 			MeshVertexInstanceIDs.Empty(TriangleVertexIndices.Num());
 
 			PatchIndex++;
@@ -242,10 +242,10 @@ bool FillMesh(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::F
 	return true;
 }
 
-static bool ConvertModelMeshToMeshDescription(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::FModelMesh>& InModelMesh, FMeshDescription& MeshDescription)
+static bool ConvertModelMeshToMeshDescription(FMeshConversionContext& Context, UE::CADKernel::FModelMesh& InModelMesh, FMeshDescription& MeshDescription)
 {
-	int32 VertexCount = InModelMesh->GetVertexCount();
-	int32 TriangleCount = InModelMesh->GetTriangleCount();
+	int32 VertexCount = InModelMesh.GetVertexCount();
+	int32 TriangleCount = InModelMesh.GetTriangleCount();
 
 	MeshDescription.ReserveNewVertexInstances(VertexCount);
 	MeshDescription.ReserveNewPolygons(TriangleCount);
@@ -269,13 +269,15 @@ bool FCADKernelTools::Tessellate(UE::CADKernel::FTopologicalShapeEntity& CADTopo
 
 	// Tessellate the model
 	TSharedRef<FModelMesh> CADKernelModelMesh = FEntity::MakeShared<FModelMesh>();
-	FParametricMesher Mesher(*CADKernelModelMesh);
 
-	constexpr double GeometricTolerance = 0.01;
+	const double GeometricTolerance = FImportParameters::GStitchingTolerance * 10; // cm to mm
+	const bool bActivateThinZoneMeshing = FImportParameters::bGActivateThinZoneMeshing;
+	FMesher Mesher(*CADKernelModelMesh, GeometricTolerance, bActivateThinZoneMeshing);
+
 	DefineMeshCriteria(*CADKernelModelMesh, TessellationContext.ImportParameters, GeometricTolerance);
 	Mesher.MeshEntity(CADTopologicalEntity);
 
-	return ConvertModelMeshToMeshDescription(TessellationContext, CADKernelModelMesh, OutMeshDescription);
+	return ConvertModelMeshToMeshDescription(TessellationContext, *CADKernelModelMesh, OutMeshDescription);
 }
 
 uint32 FCADKernelTools::GetFaceTessellation(UE::CADKernel::FFaceMesh& FaceMesh, FBodyMesh& OutBodyMesh, FObjectDisplayDataId FaceMaterial)

@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 
 #ifdef CADKERNEL_DEV
+#include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Core/Version.h"
 
 #include <stdlib.h>
@@ -128,7 +129,10 @@ void FSystem::DefineReportFile(const FString& InReportFilePath)
 	ReportFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*InReportFilePath, IO_WRITE));
 
 	ReportHeaderPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(ReportHeaderPath, TEXT("ReportHeader.csv")));
-	ReportHeaderFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*ReportHeaderPath, IO_WRITE));
+	if(!FPaths::FileExists(ReportHeaderPath))
+	{
+		ReportHeaderFile = MakeShareable<FArchive>(IFileManager::Get().CreateFileWriter(*ReportHeaderPath, IO_WRITE));
+	}
 }
 #endif
 

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
+#include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Mesh/Structure/GridBase.h"
 
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
@@ -19,6 +20,8 @@ private:
 	 * Cutting coordinates of the face respecting the meshing criteria
 	 */
 	FCoordinateGrid CoordinateGrid;
+
+	FSurfacicBoundary FaceMinMax;
 
 protected:
 
@@ -80,6 +83,18 @@ public:
 	{
 		return GetPoint(iU, iV, true, true);
 	}
+
+	void ComputeFaceMinMaxThicknessAlongIso();
+
+	double GetCharacteristicThicknessOfFace() const
+	{
+		return FMath::Max(FaceMinMax[EIso::IsoU].GetMax(), FaceMinMax[EIso::IsoV].GetMax());
+	}
+
+	/**
+	 * @return true if all the iso lines are smaller than geometric tolerance
+	 */
+	bool CheckIfIsDegenerate();
 
 #ifdef CADKERNEL_DEV
 	void Display() const;

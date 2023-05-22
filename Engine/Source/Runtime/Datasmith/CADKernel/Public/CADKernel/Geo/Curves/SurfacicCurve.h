@@ -58,7 +58,7 @@ public:
 		CarrierSurface->SpawnIdent(Database);
 	}
 
-	virtual void ResetMarkersRecursively() override
+	virtual void ResetMarkersRecursively() const override
 	{
 		ResetMarkers();
 		Curve2D->ResetMarkersRecursively();

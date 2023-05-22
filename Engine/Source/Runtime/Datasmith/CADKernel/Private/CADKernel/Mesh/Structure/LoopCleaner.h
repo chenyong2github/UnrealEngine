@@ -7,10 +7,8 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionSegmentTool.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoNode.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoSegment.h"
+#include "CADKernel/Mesh/Meshers/ParametricMesherConstantes.h"
 
-#ifdef CADKERNEL_DEV
-#include "CADKernel/Mesh/Meshers/MesherReport.h"
-#endif
 
 
 namespace UE::CADKernel
@@ -19,8 +17,7 @@ class FGrid;
 class FIsoSegment;
 class FIsoTriangulator;
 class FLoopNode;
-
-struct FMesherReport;
+class FMeshingTolerances;
 
 namespace LoopCleanerImpl
 {
@@ -97,13 +94,11 @@ class FLoopCleaner
 {
 private:
 	FGrid& Grid;
+	const FMeshingTolerances& Tolerances;
+
 	TArray<FLoopNode>& LoopNodes;
 	TArray<FIsoSegment*>& LoopSegments;
 	TFactory<FIsoSegment>& IsoSegmentFactory;
-
-#ifdef CADKERNEL_DEV
-	FMesherReport* MesherReport;
-#endif
 
 	bool bDisplay;
 
@@ -141,12 +136,6 @@ private:
 	TArray<TPair<double, double>> Intersections;
 	FIntersectionSegmentTool LoopSegmentsIntersectionTool;
 
-	const double GeometricTolerance;
-	const double SquareGeometricTolerance;
-	const double SquareGeometricTolerance2;
-	//const double MeshingTolerance;
-	//const double SquareMeshingTolerance;
-
 	LoopCleanerImpl::GetNextNodeMethod GetNext;
 	LoopCleanerImpl::GetNextNodeMethod GetPrevious;
 	LoopCleanerImpl::GetSegmentToNodeMethod GetFirst;
@@ -156,35 +145,9 @@ public:
 
 	FLoopCleaner(FIsoTriangulator& Triangulator);
 
-	bool Run()
-	{
-		if (!CleanLoops())
-		{
-#ifdef CADKERNEL_DEV
-			MesherReport->Logs.AddRemoveSelfIntersectionFailure();
-#endif
-			return false;
-		}
-		
-		if (!UncrossLoops())
-		{
-#ifdef CADKERNEL_DEV
-			MesherReport->Logs.AddRemoveCrossingLoopsFailure();
-#endif
-			return false;
-		}
-
-		return true;
-	}
+	bool Run();
 
 private:
-
-#ifdef CADKERNEL_DEV
-	void SetMesherReport(FMesherReport& InMesherReport)
-	{
-		MesherReport = &InMesherReport;
-	}
-#endif
 
 	bool CleanLoops();
 	bool UncrossLoops();
@@ -204,6 +167,7 @@ private:
 	 */
 	bool RemoveLoopPicks();
 	bool RemovePickRecursively(FLoopNode* Node0, FLoopNode* Node1);
+	bool FindAndRemoveCoincidence(FLoopNode*& StartNode);
 
 	/**
 	 * @return true if the node has been deleted
@@ -217,7 +181,7 @@ private:
 			double SquareDistance1 = SquareDistanceOfPointToSegment(PreviousPoint, NodeToRemovePoint, NextPoint);
 			double SquareDistance2 = SquareDistanceOfPointToSegment(NextPoint, NodeToRemovePoint, PreviousPoint);
 			double MinSquareDistance = FMath::Min(SquareDistance1, SquareDistance2);
-			if (MinSquareDistance < SquareGeometricTolerance2)
+			if (MinSquareDistance < Tolerances.SquareGeometricTolerance2)
 			{
 				bRemoveNode = true;
 			}
@@ -236,7 +200,7 @@ private:
 	bool CheckAndRemoveCoincidence(const FPoint2D& Point0, const FPoint2D& Point1, FLoopNode& NodeToRemove)
 	{
 		double SquareDistance = Point0.SquareDistance(Point1);
-		if (SquareDistance < SquareGeometricTolerance2)
+		if (SquareDistance < Tolerances.SquareGeometricTolerance2)
 		{
 			return RemoveNodeOfLoop(NodeToRemove);
 		}

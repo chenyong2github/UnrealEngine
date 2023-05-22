@@ -28,6 +28,15 @@ enum EMeshingState : uint8
 	FullyMeshed
 };
 
+enum ECoordinateType : uint8
+{
+	VertexCoordinate,
+	ImposedCoordinate, // imposted cutting point by thin zone meshing process
+	IsoUCoordinate,
+	IsoVCoordinate,
+	IsoUVCoordinate,
+	OtherCoordinate
+};
 namespace GridSpace
 {
 

@@ -65,7 +65,71 @@ void FindLoopIntersectionsWithIso(const EIso Iso, const double IsoParameter, con
 	Algo::Sort(OutIntersections);
 }
 
-bool IntersectSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD)
+bool DoIntersectInside(const FSegment2D& SegmentAB, const FSegment2D& SegmentCD)
+{
+	constexpr const double Min = DOUBLE_SMALL_NUMBER;
+	constexpr const double Max = 1. - DOUBLE_SMALL_NUMBER;
+
+	TFunction<bool(double, double, double, double)> Intersect = [](double A, double B, double C, double D)
+	{
+		return !((D < A + DOUBLE_SMALL_NUMBER) || (B < C + DOUBLE_SMALL_NUMBER));
+	};
+
+	TFunction<bool(double, double, double, double)> TestWhenParallel = [&](double A, double B, double C, double D)
+	{
+		if (A < B)
+		{
+			if (C < D)
+			{
+				return Intersect(A, B, C, D);
+			}
+			else
+			{
+				return Intersect(A, B, D, C);
+			}
+		}
+		else
+		{
+			if (C < D)
+			{
+				return Intersect(B, A, C, D);
+			}
+			else
+			{
+				return Intersect(B, A, D, C);
+			}
+		}
+	};
+
+	const FPoint2D AB = SegmentAB[1] - SegmentAB[0];
+	const FPoint2D CD = SegmentCD[1] - SegmentCD[0];
+	const FPoint2D CA = SegmentAB[0] - SegmentCD[0];
+
+	const double ParallelCoef = CD ^ AB;
+	if (FMath::IsNearlyZero(ParallelCoef))
+	{
+		const double ParallelCoef2 = CA ^ AB;
+		if (!FMath::IsNearlyZero(ParallelCoef2))
+		{
+			return false;
+		}
+
+		if (fabs(AB.U) > fabs(AB.V))
+		{
+			return TestWhenParallel(SegmentAB[0].U, SegmentAB[1].U, SegmentCD[0].U, SegmentCD[1].U);
+		}
+		else
+		{
+			return TestWhenParallel(SegmentAB[0].V, SegmentAB[1].V, SegmentCD[0].V, SegmentCD[1].V);
+		}
+	}
+
+	const double ABIntersectionCoordinate = (CA ^ CD) / ParallelCoef;
+	const double CDIntersectionCoordinate = (CA ^ AB) / ParallelCoef;
+	return (ABIntersectionCoordinate < Max && ABIntersectionCoordinate > Min && CDIntersectionCoordinate < Max && CDIntersectionCoordinate > Min);
+}
+
+bool DoIntersect(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD)
 {
 	constexpr const double Min = -DOUBLE_KINDA_SMALL_NUMBER;
 	constexpr const double Max = 1. + DOUBLE_KINDA_SMALL_NUMBER;

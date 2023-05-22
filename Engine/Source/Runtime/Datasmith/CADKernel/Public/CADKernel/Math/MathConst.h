@@ -59,5 +59,26 @@ uint8 ToUInt8(T Value)
 	return FMath::Clamp((uint8)(Value / 255.), (uint8)0, (uint8)255);
 }
 
+/**
+ * Wraps a periodic value into a prime period defined by its StartOfPeriod value and its EndOfPeriod value
+ * Mandatory EndOfPeriod - StartOfPeriod = PeriodSize
+ *
+ * Fast FMath::Fmod or FMath::Floor for the special case of Slope functions since most of the time the input value doesn't need to be change
+ * @see SlopeUtils.h
+ */
+inline double WrapTo(double Slope, const double StartOfPeriod, const double EndOfPeriod, const double PeriodLength)
+{
+	while (Slope < StartOfPeriod)
+	{
+		Slope += PeriodLength;
+	}
+	while (Slope >= EndOfPeriod)
+	{
+		Slope -= PeriodLength;
+	}
+	return Slope;
+}
+
+
 
 } // namespace UE::CADKernel	

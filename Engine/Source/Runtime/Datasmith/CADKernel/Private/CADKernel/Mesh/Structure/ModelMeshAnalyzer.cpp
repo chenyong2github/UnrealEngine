@@ -21,7 +21,7 @@ void FModelMeshAnalyzer::BuildMesh()
 	ModelMesh.GetNodeCoordinates(NodeCoordinates);
 
 	int32 TriangleCount = 0;
-	for (const TSharedPtr<FFaceMesh>& FaceMesh : ModelMesh.GetFaceMeshes())
+	for (const FFaceMesh* FaceMesh : ModelMesh.GetFaceMeshes())
 	{
 		TriangleCount += FaceMesh->TrianglesVerticesIndex.Num() / 3;
 	}
@@ -49,11 +49,11 @@ void FModelMeshAnalyzer::BuildMesh()
 		return &Edge;
 	};
 
-	for (const TSharedPtr<FFaceMesh>& FaceMesh : ModelMesh.GetFaceMeshes())
+	for (const FFaceMesh* FaceMesh : ModelMesh.GetFaceMeshes())
 	{
-		TArray<int32>& TrianglesVerticesIndex = FaceMesh->TrianglesVerticesIndex;
-		TArray<int32>& VerticesGlobalIndex = FaceMesh->VerticesGlobalIndex;
-		TArray<FVector3f>& FaceNormals = FaceMesh->Normals;
+		const TArray<int32>& TrianglesVerticesIndex = FaceMesh->TrianglesVerticesIndex;
+		const TArray<int32>& VerticesGlobalIndex = FaceMesh->VerticesGlobalIndex;
+		const TArray<FVector3f>& FaceNormals = FaceMesh->Normals;
 
 		for (int32 Index = 0; Index < FaceMesh->TrianglesVerticesIndex.Num(); Index += 3)
 		{
@@ -73,7 +73,7 @@ void FModelMeshAnalyzer::BuildMesh()
 				Normals[NormalI] = FaceNormals[TrianglesVerticesIndex[Index + NormalI]];
 			}
 
-			Analyzer::FTriangle& Triangle = Triangles.Emplace_GetRef(Vertices, TriangleEdges, Normals, FaceMesh.Get());
+			Analyzer::FTriangle& Triangle = Triangles.Emplace_GetRef(Vertices, TriangleEdges, Normals, FaceMesh);
 
 			for (uint32 EdgeI = 0; EdgeI < 3; ++EdgeI)
 			{

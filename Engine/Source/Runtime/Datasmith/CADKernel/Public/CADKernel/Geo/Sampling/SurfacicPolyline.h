@@ -257,11 +257,12 @@ public:
 
 	/**
 	 * Project each point of a coincidental polyline on the Polyline.
+	 * @param ToleranceOfProjection: Max error between the both curve to stop the search of projection
 	 */
-	void ProjectCoincidentalPolyline(const TArray<FPoint>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoordinates) const
+	void ProjectCoincidentalPolyline(const TArray<FPoint>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoordinates, double ToleranceOfProjection) const
 	{
 		TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
-		Approximator3D.ProjectCoincidentalPolyline(InPointsToProject, bSameOrientation, OutProjectedPointCoordinates);
+		Approximator3D.ProjectCoincidentalPolyline(InPointsToProject, bSameOrientation, OutProjectedPointCoordinates, ToleranceOfProjection);
 	}
 
 	/**

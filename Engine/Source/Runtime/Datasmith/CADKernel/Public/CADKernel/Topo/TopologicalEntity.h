@@ -63,19 +63,35 @@ public:
 		return ((States & MeshedOrDeletedOrDegenerated) == EHaveStates::None);
 	}
 
+	/** 
+	 * An edge is premesh if the cutting points of the mesh have been defined but the mesh is not build 
+	 * This is used during thin zone meshing i.e. due to the process, an edge can be premeshed but not finalized
+	 */
+	bool IsPreMeshed() const
+	{
+		constexpr EHaveStates MeshedOrPreMeshed = EHaveStates::IsMeshed | EHaveStates::IsPreMeshed;
+		return ((States & MeshedOrPreMeshed) != EHaveStates::None);
+	}
+
 	bool IsMeshed() const
 	{
 		return ((States & EHaveStates::IsMeshed) == EHaveStates::IsMeshed);
 	}
 
-	virtual void SetMeshed()
+	virtual void SetPreMeshedMarker()
 	{
-		States |= EHaveStates::IsMeshed;
+		States |= EHaveStates::IsPreMeshed;
 	}
 
-	virtual void ResetMeshed()
+	virtual void SetMeshedMarker()
 	{
-		States &= ~EHaveStates::IsMeshed;
+		constexpr EHaveStates MeshedOrPreMeshed = EHaveStates::IsMeshed | EHaveStates::IsPreMeshed;
+		States |= MeshedOrPreMeshed;
+	}
+
+	virtual void ResetPreMeshed()
+	{
+		States &= ~EHaveStates::IsPreMeshed;
 	}
 };
 

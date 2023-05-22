@@ -188,6 +188,17 @@ public:
 		}
 		return false;
 	}
+
+	void ResetMarkersRecursively() const
+	{
+		for (EntityType* Entity : TwinEntities)
+		{
+			if (Entity)
+			{
+				Entity->ResetMarkers();
+			}
+		}
+	}
 };
 
 /**

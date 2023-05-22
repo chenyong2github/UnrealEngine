@@ -23,7 +23,7 @@ class FEdgeSegment : public FHaveStates
 private:
 	FTopologicalEdge* Edge;
 	double Coordinates[2];
-	FPoint2D Points[2];
+	FPoint2D USSPoints[2]; // in Uniform Scaled space
 
 	FEdgeSegment* NextSegment;
 	FEdgeSegment* PreviousSegment;
@@ -69,19 +69,19 @@ public:
 		Edge = InEdge;
 		Coordinates[ELimit::Start] = InStartU;
 		Coordinates[ELimit::End] = InEndU;
-		Points[ELimit::Start] = InStartPoint;
-		Points[ELimit::End] = InEndPoint;
+		USSPoints[ELimit::Start] = InStartPoint;
+		USSPoints[ELimit::End] = InEndPoint;
 		NextSegment = nullptr;
 		PreviousSegment = nullptr;
 		ClosedSegment = nullptr;
 
 		SquareDistanceToClosedSegment = HUGE_VAL;
-		Length = Points[ELimit::Start].Distance(Points[ELimit::End]);
+		Length = USSPoints[ELimit::Start].Distance(USSPoints[ELimit::End]);
 
 		Id = ++LastId;
 		ChainIndex = Ident::Undefined;
 
-		Boundary.Set(Points[ELimit::Start], Points[ELimit::End]);
+		Boundary.Set(USSPoints[ELimit::Start], USSPoints[ELimit::End]);
 
 		AxisMin = Boundary[EIso::IsoU].Min + Boundary[EIso::IsoV].Min;
 	};
@@ -139,12 +139,7 @@ public:
 		return Id;
 	}
 
-	const FTopologicalEdge* GetEdge() const
-	{
-		return Edge;
-	}
-
-	FTopologicalEdge* GetEdge()
+	FTopologicalEdge* GetEdge() const
 	{
 		return Edge;
 	}
@@ -154,20 +149,29 @@ public:
 		return Length;
 	}
 
+	/**
+	 * @return Center of the segment in uniform scaled space
+	 */
 	FPoint2D GetCenter() const
 	{
-		return (Points[ELimit::Start] + Points[ELimit::End]) * 0.5;
+		return (USSPoints[ELimit::Start] + USSPoints[ELimit::End]) * 0.5;
 	}
 
+	/**
+	 * @return Point a parameter U of the segment in uniform scaled space
+	 */
 	FPoint2D ComputeEdgePoint(double EdgeParamU) const
 	{
 		double SegmentParamS = (EdgeParamU - Coordinates[ELimit::Start]) / (Coordinates[ELimit::End] - Coordinates[ELimit::Start]);
-		return Points[ELimit::Start] + (Points[ELimit::End] - Points[ELimit::Start]) * SegmentParamS;
+		return USSPoints[ELimit::Start] + (USSPoints[ELimit::End] - USSPoints[ELimit::Start]) * SegmentParamS;
 	}
 
+	/**
+	 * @return the extremity Point of the segment in uniform scaled space
+	 */
 	const FPoint2D& GetExtemity(const ELimit Limit) const
 	{
-		return Points[Limit];
+		return USSPoints[Limit];
 	}
 
 	double GetCoordinate(const ELimit Limit) const
@@ -175,7 +179,7 @@ public:
 		return Coordinates[Limit];
 	}
 
-	bool IsForward()
+	bool IsForward() const
 	{
 		return (Coordinates[ELimit::End] - Coordinates[ELimit::Start]) >= 0;
 	}
@@ -183,19 +187,37 @@ public:
 	/**
 	 * Compute the slope of the input Segment according to this.
 	 */
-	double ComputeUnorientedSlopeOf(const FEdgeSegment* Segment)
+	double ComputeUnorientedSlopeOf(const FEdgeSegment* Segment) const 
 	{
-		double ReferenceSlope = ComputeSlope(Points[ELimit::Start], Points[ELimit::End]);
-		return ComputeUnorientedSlope(Segment->Points[ELimit::Start], Segment->Points[ELimit::End], ReferenceSlope);
+		double ReferenceSlope = ComputeSlope(USSPoints[ELimit::Start], USSPoints[ELimit::End]);
+		return ComputeUnorientedSlope(Segment->USSPoints[ELimit::Start], Segment->USSPoints[ELimit::End], ReferenceSlope);
+	}
+
+	/**
+	 * Compute the slope of the input Segment according to this.
+	 */
+	double ComputeOrientedSlopeOf(const FEdgeSegment* Segment) const
+	{
+		double ReferenceSlope = ComputeSlope(USSPoints[ELimit::Start], USSPoints[ELimit::End]);
+		return ComputeOrientedSlope(Segment->USSPoints[ELimit::Start], Segment->USSPoints[ELimit::End], ReferenceSlope);
 	}
 
 	/**
 	 * Compute the slope of the Segment defined by the two input points according to this.
 	 */
-	double ComputeUnorientedSlopeOf(const FPoint2D& Middle, const FPoint2D& Projection)
+	double ComputeUnorientedSlopeOf(const FPoint2D& Middle, const FPoint2D& Projection) const 
 	{
-		double ReferenceSlope = ComputeSlope(Points[ELimit::Start], Points[ELimit::End]);
+		double ReferenceSlope = ComputeSlope(USSPoints[ELimit::Start], USSPoints[ELimit::End]);
 		return ComputeUnorientedSlope(Projection, Middle, ReferenceSlope);
+	}
+
+	/**
+	 * Compute the slope of the Segment defined by the two input points according to this.
+	 */
+	double ComputeOrientedSlopeOf(const FPoint2D& Middle, const FPoint2D& Projection) const
+	{
+		double ReferenceSlope = ComputeSlope(USSPoints[ELimit::Start], USSPoints[ELimit::End]);
+		return ComputeOrientedSlope(Projection, Middle, ReferenceSlope);
 	}
 
 	FEdgeSegment* GetNext() const
@@ -251,9 +273,15 @@ public:
 		return Coordinates[ELimit::Start] + (Coordinates[ELimit::End] - Coordinates[ELimit::Start]) * SegmentU;
 	}
 
+	/** Compute the delta U corresponding to a delta length in the 2d space */
+	double ComputeDeltaU(const double DeltaLength) const
+	{
+		return FMath::Abs(Coordinates[ELimit::End] - Coordinates[ELimit::Start]) * DeltaLength / Length;
+	}
+
 	FPoint2D ProjectPoint(const FPoint2D& PointToProject, double& SegmentU) const
 	{
-		return ProjectPointOnSegment(PointToProject, Points[ELimit::Start], Points[ELimit::End], SegmentU, true);
+		return ProjectPointOnSegment(PointToProject, USSPoints[ELimit::Start], USSPoints[ELimit::End], SegmentU, true);
 	}
 
 private:

@@ -3,6 +3,7 @@
 #include "CADKernel/Mesh/Structure/GridBase.h"
 
 #include "CADKernel/Geo/Sampling/SurfacicSampling.h"
+#include "CADKernel/Mesh/Structure/Grid.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Utils/ArrayUtils.h"
 

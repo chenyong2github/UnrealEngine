@@ -40,7 +40,7 @@ public:
 		Curve->SpawnIdent(Database);
 	}
 
-	virtual void ResetMarkersRecursively() override
+	virtual void ResetMarkersRecursively() const override
 	{
 		ResetMarkers();
 		Curve->ResetMarkersRecursively();

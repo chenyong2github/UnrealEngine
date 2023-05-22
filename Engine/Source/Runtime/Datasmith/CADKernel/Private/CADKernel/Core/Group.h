@@ -56,7 +56,7 @@ public:
 		SpawnIdentOnEntities(Entities, Database);
 	}
 
-	virtual void ResetMarkersRecursively() override
+	virtual void ResetMarkersRecursively() const override
 	{
 		ResetMarkers();
 		ResetMarkersRecursivelyOnEntities(Entities);
@@ -68,7 +68,7 @@ public:
 
 	virtual EEntity GetEntityType() const override
 	{
-		return EEntity::Group;
+		return EEntity::None;
 	}
 
 	void SetName(const FString& Name);

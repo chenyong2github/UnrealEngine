@@ -100,6 +100,15 @@ Only available with CADKernel.\n\
 Default value of RemoveDuplicatedFaces is true\n"),
 ECVF_Default);
 
+bool FImportParameters::bGActivateThinZoneMeshing = true;
+FAutoConsoleVariableRef GActivateThinZoneMeshing(
+	TEXT("ds.CADTranslator.Meshing.ActivateThinZoneMeshing"),
+	FImportParameters::bGActivateThinZoneMeshing,
+	TEXT("During the meshing process, faces with thin zones are meshed with a specific process for the thin zones. \n\
+Only available with CADKernel.\n\
+Default value of ActivateThinZoneMeshing is true\n"),
+ECVF_Default);
+
 float FImportParameters::GUnitScale = 1.f;
 FAutoConsoleVariableRef GCADTranslatorUnitScale(
 	TEXT("ds.CADTranslator.UnitScale"),

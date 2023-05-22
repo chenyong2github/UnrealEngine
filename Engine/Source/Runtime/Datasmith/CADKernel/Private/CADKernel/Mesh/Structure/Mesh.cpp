@@ -2,11 +2,24 @@
 
 #include "CADKernel/Mesh/Structure/Mesh.h"
 
+#include "CADKernel/Geo/Sampling/PolylineTools.h"
+#include "CADKernel/Mesh/Structure/EdgeMesh.h"
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
+#include "CADKernel/Topo/TopologicalEdge.h"
 
 namespace UE::CADKernel
 {
+
+TArray<double> FEdgeMesh::GetElementLengths() const
+{
+	const FTopologicalEdge& Edge = static_cast<const FTopologicalEdge&>(TopologicalEntity);
+	const TArray<FPoint>& MeshInnerNodes = GetNodeCoordinates();
+
+	const FPoint& StartNode = Edge.GetStartVertex()->GetCoordinates();
+	const FPoint& EndNode = Edge.GetEndVertex()->GetCoordinates();
+	return PolylineTools::ComputePolylineSegmentLengths(StartNode, MeshInnerNodes, EndNode);
+}
 
 int32 FMesh::RegisterCoordinates()
 {

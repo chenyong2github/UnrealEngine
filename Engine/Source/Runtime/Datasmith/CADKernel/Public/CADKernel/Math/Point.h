@@ -519,7 +519,7 @@ public:
 
 	double Distance(const FPoint2D& Point) const
 	{
-		return FMath::Sqrt(FMath::Square(Point.U - U) + FMath::Square(Point.V - V));
+		return FMath::Sqrt(SquareDistance(Point));
 	}
 
 	double SquareDistance(const FPoint2D& Point) const
@@ -529,7 +529,7 @@ public:
 
 	double Length() const
 	{
-		return FMath::Sqrt(FMath::Square(U) + FMath::Square(V));
+		return FMath::Sqrt(SquareLength());
 	}
 
 	double SquareLength() const
