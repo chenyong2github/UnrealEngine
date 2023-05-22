@@ -211,21 +211,21 @@ void UE::FXRenderingUtils::DistanceFields::SetupAtlasParameters(FRDGBuilder& Gra
 	}
 }
 
-UE::FXRenderingUtils::GPUScene::FBuffers UE::FXRenderingUtils::GPUScene::GetBuffers(const FSceneInterface* InScene)
+FSceneUniformBuffer &UE::FXRenderingUtils::CreateSceneUniformBuffer(FRDGBuilder& GraphBuilder, const FSceneInterface* InScene)
 {
-	UE::FXRenderingUtils::GPUScene::FBuffers Buffers{};
-
+	FSceneUniformBuffer *Result = GraphBuilder.AllocObject<FSceneUniformBuffer>();
 	if (const FScene* Scene = InScene->GetRenderScene())
 	{
-		Buffers.InstanceSceneDataBuffer = Scene->GPUScene.InstanceSceneDataBuffer->GetSRV();
-		Buffers.InstancePayloadDataBuffer = Scene->GPUScene.InstancePayloadDataBuffer->GetSRV();
-		Buffers.PrimitiveBuffer = Scene->GPUScene.PrimitiveBuffer->GetSRV();
-		Buffers.SceneFrameNumber = Scene->GPUScene.GetSceneFrameNumber();
+		FSceneUniformBuffer SceneUniformBuffer;
+		Scene->GPUScene.FillSceneUniformBuffer(GraphBuilder, SceneUniformBuffer);
 	}
-
-	return Buffers;
+	return *Result;
 }
 
+TRDGUniformBufferRef<FSceneUniformParameters> UE::FXRenderingUtils::GetSceneUniformBuffer(FRDGBuilder& GraphBuilder, FSceneUniformBuffer &SceneUniformBuffer)
+{
+	return SceneUniformBuffer.GetBuffer(GraphBuilder);
+}
 
 #if RHI_RAYTRACING
 

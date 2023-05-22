@@ -446,7 +446,8 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 					}
 				);
 				PostInitViews(GraphBuilder, DummyViews, bAllowGPUParticleUpdate);
-				PostRenderOpaque(GraphBuilder, DummyViews, bAllowGPUParticleUpdate);
+				FSceneUniformBuffer &SceneUB = UE::FXRenderingUtils::CreateSceneUniformBuffer(GraphBuilder, GetSceneInterface());
+				PostRenderOpaque(GraphBuilder, DummyViews, SceneUB, bAllowGPUParticleUpdate);
 				AddPass(GraphBuilder, RDG_EVENT_NAME("UpdateDrawIndirectBuffers - PostOpaque"),
 					[this](FRHICommandListImmediate& RHICmdList)
 					{
@@ -1976,7 +1977,18 @@ void FNiagaraGpuComputeDispatch::PostInitViews(FRDGBuilder& GraphBuilder, TConst
 	}
 }
 
-void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, bool bAllowGPUParticleUpdate)
+BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraGpuComputeDispatchParameters,)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneUniformParameters, Scene)
+END_SHADER_PARAMETER_STRUCT()
+
+static FNiagaraGpuComputeDispatchParameters *MakeParameters(FRDGBuilder& GraphBuilder, TRDGUniformBufferRef<FSceneUniformParameters> SceneUniformBufferRDG)
+{
+	FNiagaraGpuComputeDispatchParameters *Parameters = GraphBuilder.AllocParameters<FNiagaraGpuComputeDispatchParameters>();
+	Parameters->Scene = SceneUniformBufferRDG;
+	return Parameters;
+}
+
+void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, FSceneUniformBuffer &SceneUniformBuffer, bool bAllowGPUParticleUpdate)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
@@ -1997,45 +2009,52 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 		CachedViewInitOptions.ProjectionMatrix		= Views[0].SceneViewInitOptions.ProjectionMatrix;
 	}
 
+	TRDGUniformBufferRef<FSceneUniformParameters> SceneUniformBufferRDG = UE::FXRenderingUtils::GetSceneUniformBuffer(GraphBuilder, SceneUniformBuffer);
+
 	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
-		AddPass(
-			GraphBuilder,
+		auto PassParameters = MakeParameters(GraphBuilder, SceneUniformBufferRDG);
+		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("AsyncGpuTraceHelper::PostRenderOpaque"),
-			[this, Views](FRHICommandListImmediate& RHICmdList)
+			PassParameters,
+			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+			[this, Views, PassParameters](FRHICommandListImmediate& RHICmdList)
 			{
-				AsyncGpuTraceHelper->PostRenderOpaque(RHICmdList, this, Views);
+				AsyncGpuTraceHelper->PostRenderOpaque(RHICmdList, this, Views, PassParameters->Scene->GetRHIRef());
 			}
 		);
 
 		ExecuteTicks(GraphBuilder, Views, ENiagaraGpuComputeTickStage::PostOpaqueRender);
 	}
-
-	AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("Niagara::PostRenderFinish"),
-		[this, bExecuteReadback=bRequiresReadback, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
-		{
-			if (bAllowGPUParticleUpdate)
+	{
+		auto PassParameters = MakeParameters(GraphBuilder, SceneUniformBufferRDG);
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("Niagara::PostRenderFinish"),
+			PassParameters,
+			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+			[this, bExecuteReadback=bRequiresReadback, PassParameters, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
 			{
-				FinishDispatches();
+				if (bAllowGPUParticleUpdate)
+				{
+					FinishDispatches();
 
-				AsyncGpuTraceHelper->EndFrame(RHICmdList, this);
+					AsyncGpuTraceHelper->EndFrame(RHICmdList, this, PassParameters->Scene->GetRHIRef());
+				}
+
+				ProcessDebugReadbacks(RHICmdList, false);
+
+				if (bExecuteReadback)
+				{
+					check(!GPUInstanceCounterManager.HasPendingGPUReadback());
+					GPUInstanceCounterManager.EnqueueGPUReadback(RHICmdList);
+				}
+
+			#if WITH_NIAGARA_GPU_PROFILER
+				GPUProfilerPtr->EndFrame(RHICmdList);
+			#endif
 			}
-
-			ProcessDebugReadbacks(RHICmdList, false);
-
-			if (bExecuteReadback)
-			{
-				check(!GPUInstanceCounterManager.HasPendingGPUReadback());
-				GPUInstanceCounterManager.EnqueueGPUReadback(RHICmdList);
-			}
-
-		#if WITH_NIAGARA_GPU_PROFILER
-			GPUProfilerPtr->EndFrame(RHICmdList);
-		#endif
-		}
-	);
+		);
+	}
 	bRequiresReadback = false;
 
 	if (FNiagaraGpuComputeDispatchLocal::CsvStatsEnabled())
@@ -2126,7 +2145,7 @@ bool FNiagaraGpuComputeDispatch::RequiresRayTracingScene() const
 	return NumProxiesThatRequireRayTracingScene > 0;
 }
 
-void FNiagaraGpuComputeDispatch::PreRender(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, bool bAllowGPUParticleUpdate)
+void FNiagaraGpuComputeDispatch::PreRender(FRDGBuilder& GraphBuilder, TConstStridedView<FSceneView> Views, FSceneUniformBuffer &SceneUniformBuffer, bool bAllowGPUParticleUpdate)
 {
 	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{

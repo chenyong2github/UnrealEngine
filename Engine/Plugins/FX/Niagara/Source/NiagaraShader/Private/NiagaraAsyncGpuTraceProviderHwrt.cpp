@@ -40,12 +40,6 @@ struct FVFXTracePayload
 
 IMPLEMENT_RT_PAYLOAD_TYPE(ERayTracingPayloadType::VFX, sizeof(FVFXTracePayload));
 
-BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraGPUSceneParameters, )
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
-	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
-END_SHADER_PARAMETER_STRUCT()
 
 class FNiagaraCollisionRayTraceRG : public FGlobalShader
 {
@@ -54,7 +48,7 @@ class FNiagaraCollisionRayTraceRG : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FNiagaraGPUSceneParameters, GPUSceneParameters)
+		SHADER_PARAMETER_STRUCT_REF(FSceneUniformParameters, Scene)
 
 		SHADER_PARAMETER_SRV(Buffer<UINT>, HashTable)
 		SHADER_PARAMETER_SRV(Buffer<UINT>, HashToCollisionGroups)
@@ -125,7 +119,6 @@ void FNiagaraCollisionRayTraceRG::ModifyCompilationEnvironment(const FGlobalShad
 	FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("NIAGARA_SUPPORTS_RAY_TRACING"), 1);
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
-	OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 }
 
 TShaderRef<FNiagaraCollisionRayTraceRG> FNiagaraCollisionRayTraceRG::GetShader(FGlobalShaderMap* ShaderMap, bool SupportsCollisionGroups)
@@ -309,7 +302,7 @@ bool FNiagaraAsyncGpuTraceProviderHwrt::IsAvailable() const
 	return UE::FXRenderingUtils::RayTracing::HasRayTracingScene(Dispatcher->GetSceneInterface());
 }
 
-void FNiagaraAsyncGpuTraceProviderHwrt::PostRenderOpaque(FRHICommandList& RHICmdList, TConstStridedView<FSceneView> Views, FCollisionGroupHashMap* CollisionGroupHash)
+void FNiagaraAsyncGpuTraceProviderHwrt::PostRenderOpaque(FRHICommandList& RHICmdList, TConstStridedView<FSceneView> Views, TUniformBufferRef<FSceneUniformParameters> SceneUniformBufferRHI, FCollisionGroupHashMap* CollisionGroupHash)
 {
 	check(IsAvailable());
 	check(Views.Num() > 0);
@@ -354,7 +347,7 @@ void FNiagaraAsyncGpuTraceProviderHwrt::PostRenderOpaque(FRHICommandList& RHICmd
 	}
 }
 
-void FNiagaraAsyncGpuTraceProviderHwrt::IssueTraces(FRHICommandList& RHICmdList, const FDispatchRequest& Request, FCollisionGroupHashMap* CollisionGroupHash)
+void FNiagaraAsyncGpuTraceProviderHwrt::IssueTraces(FRHICommandList& RHICmdList, const FDispatchRequest& Request, TUniformBufferRef<FSceneUniformParameters> SceneUniformBufferRHI, FCollisionGroupHashMap* CollisionGroupHash)
 {
 	check(IsAvailable());
 	check(RayTracingPipelineState);
@@ -375,13 +368,7 @@ void FNiagaraAsyncGpuTraceProviderHwrt::IssueTraces(FRHICommandList& RHICmdList,
 	FNiagaraCollisionRayTraceRG::FParameters Params;
 
 	Params.View = GetShaderBinding(ViewUniformBuffer);
-
-	UE::FXRenderingUtils::GPUScene::FBuffers GPUSceneBuffers = UE::FXRenderingUtils::GPUScene::GetBuffers(Dispatcher->GetSceneInterface());
-
-	Params.GPUSceneParameters.GPUSceneInstanceSceneData = GPUSceneBuffers.InstanceSceneDataBuffer;
-	Params.GPUSceneParameters.GPUSceneInstancePayloadData = GPUSceneBuffers.InstancePayloadDataBuffer;
-	Params.GPUSceneParameters.GPUScenePrimitiveSceneData = GPUSceneBuffers.PrimitiveBuffer;
-	Params.GPUSceneParameters.GPUSceneFrameNumber = GPUSceneBuffers.SceneFrameNumber;
+	Params.Scene = SceneUniformBufferRHI;
 
 	if (CollisionGroupHash)
 	{

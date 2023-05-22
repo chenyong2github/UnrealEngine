@@ -20,6 +20,8 @@ class FSceneInterface;
 class FSceneView;
 class FSceneViewFamily;
 class FShaderParametersMetadata;
+class FSceneUniformBuffer;
+DECLARE_UNIFORM_BUFFER_STRUCT(FSceneUniformParameters, RENDERER_API)
 
 #if RHI_RAYTRACING
 class FRHIRayTracingScene;
@@ -58,18 +60,14 @@ namespace UE::FXRenderingUtils
 		RENDERER_API void SetupAtlasParameters(FRDGBuilder& GraphBuilder, uint8* DestinationData, const FSceneView* View);
 	}
 
-	namespace GPUScene
-	{
-		struct FBuffers
-		{
-			FRHIShaderResourceView* InstanceSceneDataBuffer;
-			FRHIShaderResourceView* InstancePayloadDataBuffer;
-			FRHIShaderResourceView* PrimitiveBuffer;
-			uint32                  SceneFrameNumber;
-		};
-
-		RENDERER_API FBuffers GetBuffers(const FSceneInterface* Scene);
-	}
+	/**
+	 * Creates a minimal Scene Uniform buffer for the given Scene, allocated using the FRDGBuilder (making it safe to keep reference).
+	 */
+	RENDERER_API FSceneUniformBuffer &CreateSceneUniformBuffer(FRDGBuilder& GraphBuilder, const FSceneInterface* Scene);
+	/**
+	 * Get the RDG uniform buffer from the FSceneUniformBuffer (not exposed in public API).
+	 */
+	RENDERER_API TRDGUniformBufferRef<FSceneUniformParameters> GetSceneUniformBuffer(FRDGBuilder& GraphBuilder, FSceneUniformBuffer &SceneUniformBuffer);
 
 #if RHI_RAYTRACING
 	namespace RayTracing

@@ -636,6 +636,7 @@ END_SHADER_PARAMETER_STRUCT()
 static void RenderOpaqueFX(
 	FRDGBuilder& GraphBuilder,
 	TConstStridedView<FSceneView> Views,
+	FSceneUniformBuffer &SceneUniformBuffer,
 	FFXSystemInterface* FXSystem,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer)
 {
@@ -655,7 +656,7 @@ static void RenderOpaqueFX(
 			FXSystem->SetSceneTexturesUniformBuffer(ExtractUBPassParameters->SceneTextures->GetRHIRef());
 		});
 
-		FXSystem->PostRenderOpaque(GraphBuilder, Views, true /*bAllowGPUParticleUpdate*/);
+		FXSystem->PostRenderOpaque(GraphBuilder, Views, SceneUniformBuffer, true /*bAllowGPUParticleUpdate*/);
 
 		// Clear the scene textures UB pointer on the FX system. Use the same pass parameters to extend resource lifetimes.
 		GraphBuilder.AddPass(RDG_EVENT_NAME("UnsetSceneTexturesUniformBuffer"), ExtractUBPassParameters, UBPassFlags, [FXSystem](FRHICommandListImmediate&)
@@ -2868,7 +2869,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
 			GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_FXPreRender));
-			FXSystem->PreRender(GraphBuilder, GetSceneViews(), bIsFirstSceneRenderer /*bAllowGPUParticleUpdate*/);
+			FXSystem->PreRender(GraphBuilder, GetSceneViews(), GetSceneUniforms(), bIsFirstSceneRenderer /*bAllowGPUParticleUpdate*/);
 			if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 			{
 				GPUSortManager->OnPreRender(GraphBuilder);
@@ -4081,7 +4082,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		FRDGTextureRef ExposureIlluminance = AddCalculateExposureIlluminancePass(GraphBuilder, Views, SceneTextures, TranslucencyLightingVolumeTextures, ExposureIlluminanceSetup);
 
-		RenderOpaqueFX(GraphBuilder, GetSceneViews(), FXSystem, SceneTextures.UniformBuffer);
+		RenderOpaqueFX(GraphBuilder, GetSceneViews(), GetSceneUniforms(), FXSystem, SceneTextures.UniformBuffer);
 
 		FRendererModule& RendererModule = static_cast<FRendererModule&>(GetRendererModule());
 		RendererModule.RenderPostOpaqueExtensions(GraphBuilder, Views, SceneTextures);
