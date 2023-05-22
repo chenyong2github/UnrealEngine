@@ -11,6 +11,7 @@ FHairSolverSettings::FHairSolverSettings()
 	SubSteps = 5;
 	IterationCount = 5;
 	GravityPreloading = 0.0f;
+	bForceVisible = false;
 }
 
 FHairExternalForces::FHairExternalForces()
@@ -88,7 +89,8 @@ bool FHairSolverSettings::operator==(const FHairSolverSettings& A) const
 		EnableSimulation == A.EnableSimulation &&
 		NiagaraSolver == A.NiagaraSolver &&
 		SubSteps == A.SubSteps &&
-		IterationCount == A.IterationCount;
+		IterationCount == A.IterationCount &&
+		bForceVisible == A.bForceVisible;
 }
 
 bool FHairExternalForces::operator==(const FHairExternalForces& A) const

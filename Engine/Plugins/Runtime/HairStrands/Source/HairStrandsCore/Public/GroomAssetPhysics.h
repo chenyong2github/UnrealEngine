@@ -72,6 +72,10 @@ struct HAIRSTRANDSCORE_API FHairSolverSettings
 	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Number of iterations to solve the constraints with the xpbd solver"))
 	int32 IterationCount;
 
+	/** Force the Niagara solver component to be visible  */
+	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Force the Niagara solver component to be visible"))
+	bool bForceVisible;
+
 	bool operator==(const FHairSolverSettings& A) const;
 };
 
