@@ -759,6 +759,16 @@ APlayerController* UPlayerInput::GetOuterAPlayerController() const
 	return Cast<APlayerController>(GetOuter());
 }
 
+ULocalPlayer* UPlayerInput::GetOwningLocalPlayer() const
+{
+	if (const APlayerController* PC = GetOuterAPlayerController())
+	{
+		return PC->GetLocalPlayer();
+	}
+
+	return nullptr;
+}
+
 void UPlayerInput::ConditionalBuildKeyMappings_Internal() const
 {
 	if (ActionKeyMap.Num() == 0)

@@ -20,6 +20,7 @@
 
 class FDebugDisplayInfo;
 class UInputComponent;
+class ULocalPlayer;
 struct FDelegateDispatchDetails;
 struct FInputActionBinding;
 struct FInputAxisBinding;
@@ -517,6 +518,12 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Input")
 	APlayerController* GetOuterAPlayerController() const;
 
+	/**
+	* Returns the owning local player of this Input Object. This will only be valid if there is a 
+	* current outer player controller.
+	*/
+	ULocalPlayer* GetOwningLocalPlayer() const;
+	
 private:
 
 	/** Runtime struct that caches the list of mappings for a given Action Name and the capturing chord if applicable */
