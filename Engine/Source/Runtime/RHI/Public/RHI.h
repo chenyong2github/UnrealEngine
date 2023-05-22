@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/ContainersFwd.h"
 #include "Stats/Stats.h"
 #include "RHIDefinitions.h"
@@ -651,5 +650,6 @@ inline ERHIBindlessConfiguration RHIGetBindlessSamplersConfiguration(EShaderPlat
 #endif
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
 #include "RHIUtilities.h"
 #endif

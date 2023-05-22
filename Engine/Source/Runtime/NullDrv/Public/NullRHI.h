@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Containers/ResourceArray.h"
 #include "Serialization/LargeMemoryData.h"
 #include "RHI.h"
@@ -610,3 +609,7 @@ private:
 	void* GetStaticBuffer(size_t Size);
 	void* GetStaticTextureBuffer(int32 SizeX, int32 SizeY, EPixelFormat Format, uint32& DestStride, uint64* OutLockedByteCount = nullptr);
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "CoreMinimal.h"
+#endif
