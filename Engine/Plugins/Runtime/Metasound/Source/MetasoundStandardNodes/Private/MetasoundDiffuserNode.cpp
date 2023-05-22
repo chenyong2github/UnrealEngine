@@ -117,26 +117,33 @@ namespace Metasound
 			}
 		}
 
-		virtual FDataReferenceCollection GetInputs() const override
+		virtual void Bind(FVertexInterfaceData& InVertexData) const override
 		{
 			using namespace DiffuserNode;
 
-			FDataReferenceCollection InputDataReferences;
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAudio), AudioInput);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputDiffusionDepth), Depth);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputFeedbackGain), Feedback);
+			FInputVertexInterfaceData& Inputs = InVertexData.GetInputs();
+			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudio), AudioInput);
+			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputDiffusionDepth), Depth);
+			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputFeedbackGain), Feedback);
 
-			return InputDataReferences;
+			FOutputVertexInterfaceData& Outputs = InVertexData.GetOutputs();
+			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudio), AudioOutput);
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			using namespace DiffuserNode;
-
-			FDataReferenceCollection OutputDataReferences;
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudio), AudioOutput);
-
-			return OutputDataReferences;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Reset(const IOperator::FResetParams& InParams)

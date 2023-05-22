@@ -51,6 +51,8 @@ namespace Metasound
 		static FVertexInterface DeclareVertexInterface();
 
 		FNoiseOperator(const FOperatorSettings& InSettings, FInt32ReadRef&& InReadRef);
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 
@@ -177,22 +179,33 @@ namespace Metasound
 		, OldSeed(*Seed)
 	{}
 
-	FDataReferenceCollection FNoiseOperator::GetInputs() const
+
+	void FNoiseOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace NoiseGeneratorVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputSeed), Seed);
+	}
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputSeed), FInt32ReadRef(Seed));
-		return InputDataReferences;
+	void FNoiseOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace NoiseGeneratorVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutAudio), Out);
+	}
+
+	FDataReferenceCollection FNoiseOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FNoiseOperator::GetOutputs() const
 	{
-		using namespace NoiseGeneratorVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutAudio), FAudioBufferReadRef(Out));
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FVertexInterface FNoiseOperator::DeclareVertexInterface()

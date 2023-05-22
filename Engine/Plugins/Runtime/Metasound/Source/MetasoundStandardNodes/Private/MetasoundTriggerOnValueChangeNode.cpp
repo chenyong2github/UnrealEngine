@@ -51,6 +51,10 @@ namespace Metasound
 
 		TTriggerOnValueChangeOperator(const FOperatorSettings& InSettings, const TDataReadReference<ValueType>& InValue);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
+
 		virtual FDataReferenceCollection GetInputs() const override;
 
 		virtual FDataReferenceCollection GetOutputs() const override;
@@ -78,24 +82,35 @@ namespace Metasound
 	}
 
 	template <typename ValueType>
-	FDataReferenceCollection TTriggerOnValueChangeOperator<ValueType>::GetInputs() const
+	void TTriggerOnValueChangeOperator<ValueType>::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace TriggerOnValueChangeVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputValue), ValueInput);
+	}
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputValue), ValueInput);
-		return InputDataReferences;
+	template <typename ValueType>
+	void TTriggerOnValueChangeOperator<ValueType>::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace TriggerOnValueChangeVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputOnChange), TriggerOnChangeOutput);
+	}
+
+	template <typename ValueType>
+	FDataReferenceCollection TTriggerOnValueChangeOperator<ValueType>::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	template <typename ValueType>
 	FDataReferenceCollection TTriggerOnValueChangeOperator<ValueType>::GetOutputs() const
 	{
-		using namespace TriggerOnValueChangeVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnChange), TriggerOnChangeOutput);
-
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	template <typename ValueType>

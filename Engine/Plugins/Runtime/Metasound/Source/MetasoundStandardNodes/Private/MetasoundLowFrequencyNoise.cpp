@@ -214,38 +214,43 @@ namespace Metasound
 			CurrentRandomRate = GenerateRandomRate();
 		}
 
-		FDataReferenceCollection GetInputs() const override
-		{
-			checkNoEntry();
-			FDataReferenceCollection InputDataReferences;		
-			return InputDataReferences;
-		}
-
-		FDataReferenceCollection GetOutputs() const override
-		{
-			checkNoEntry();
-			FDataReferenceCollection OutputDataReferences;
-			return OutputDataReferences;
-		}
-
-		virtual void Bind(FVertexInterfaceData& InVertexData) const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace LowFrequencyNoiseVertexNames;
 
-			FInputVertexInterfaceData& Inputs = InVertexData.GetInputs();
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(RatePin), Pins.Rate);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(RateJitterPin), Pins.RateJitter);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(StepLimitPin), Pins.StepLimit);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(SeedPin), Pins.Seed);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(ResetSeedPin), Pins.ResetSeed);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(SyncPin), Pins.Sync);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InterpTypePin), Pins.InterpType);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(MinOutputValuePin), Pins.MinOutput);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(MaxOutputValuePin), Pins.MaxOutput);
-			
-			FOutputVertexInterfaceData& Outputs = InVertexData.GetOutputs();
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(ScaledOutputPin), ScaledOutput);
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(NormalizedOutputPin), NormalizedOutput);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(RatePin), Pins.Rate);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(RateJitterPin), Pins.RateJitter);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(StepLimitPin), Pins.StepLimit);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(SeedPin), Pins.Seed);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ResetSeedPin), Pins.ResetSeed);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(SyncPin), Pins.Sync);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InterpTypePin), Pins.InterpType);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(MinOutputValuePin), Pins.MinOutput);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(MaxOutputValuePin), Pins.MaxOutput);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace LowFrequencyNoiseVertexNames;
+
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ScaledOutputPin), ScaledOutput);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(NormalizedOutputPin), NormalizedOutput);
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
+		}
+
+		virtual FDataReferenceCollection GetOutputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void SetSeed(int32 InSeedValue)

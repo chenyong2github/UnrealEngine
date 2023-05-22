@@ -116,27 +116,39 @@ namespace Metasound
 			CreateSinusoids();
 		}
 
-		FDataReferenceCollection GetInputs() const
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace AdditiveSynthVertexNames;
 
-			FDataReferenceCollection InputDataReferences;
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(BaseFrequency), BaseFrequency);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(HarmonicMultipliers), HarmonicMultipliers);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(Amplitudes), Amplitudes);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(Phases), Phases);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(PanAmounts), PanAmounts);
-			return InputDataReferences;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(BaseFrequency), BaseFrequency);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(HarmonicMultipliers), HarmonicMultipliers);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(Amplitudes), Amplitudes);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(Phases), Phases);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(PanAmounts), PanAmounts);
 		}
 
-		virtual FDataReferenceCollection GetOutputs() const
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace AdditiveSynthVertexNames;
 
-			FDataReferenceCollection OutputDataReferences;
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(LeftAudioOut), LeftAudioOut);
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(RightAudioOut), RightAudioOut);
-			return OutputDataReferences;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(LeftAudioOut), LeftAudioOut);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(RightAudioOut), RightAudioOut);
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
+		}
+
+		virtual FDataReferenceCollection GetOutputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Reset(const IOperator::FResetParams& InParams)

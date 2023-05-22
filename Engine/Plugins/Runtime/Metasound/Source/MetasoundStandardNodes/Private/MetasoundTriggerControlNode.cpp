@@ -45,6 +45,10 @@ namespace Metasound
 			const FTriggerReadRef& InTriggerToggle,
 			const FBoolReadRef& InStartClosed);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
+
 		virtual FDataReferenceCollection GetInputs() const override;
 
 		virtual FDataReferenceCollection GetOutputs() const override;
@@ -87,27 +91,36 @@ namespace Metasound
 	{
 	}
 
-	FDataReferenceCollection FTriggerControlOperator::GetInputs() const
+	void FTriggerControlOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace TriggerControlVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputEnter), TriggerEnterInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputOpen), TriggerOpenInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputClose), TriggerCloseInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputToggle), TriggerToggleInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputStartClosed), bStartClosedInput);
+	}
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputEnter), TriggerEnterInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOpen), TriggerOpenInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputClose), TriggerCloseInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputToggle), TriggerToggleInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputStartClosed), bStartClosedInput);
-		return InputDataReferences;
+	void FTriggerControlOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace TriggerControlVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputExit), TriggerExitOutput);
+	}
+
+	FDataReferenceCollection FTriggerControlOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FTriggerControlOperator::GetOutputs() const
 	{
-		using namespace TriggerControlVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputExit), TriggerExitOutput);
-
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FTriggerControlOperator::Execute()

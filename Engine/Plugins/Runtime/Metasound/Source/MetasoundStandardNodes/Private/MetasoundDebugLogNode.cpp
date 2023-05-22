@@ -113,24 +113,32 @@ namespace Metasound
 
 			virtual ~TPrintLogOperator() = default;
 
+			virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
+			{
+				using namespace PrintLogVertexNames;
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTrigger), Trigger);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputLabel), Label);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputValueToLog), ValueToLog);
+			}
+
+			virtual void BindOutputs(FOutputVertexInterfaceData&) override
+			{
+			}
 
 			virtual FDataReferenceCollection GetInputs() const override
 			{
-				using namespace PrintLogVertexNames;
-				FDataReferenceCollection Inputs;
-
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTrigger), Trigger);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputLabel), Label);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputValueToLog), ValueToLog);
-
-				return Inputs;
+				// This should never be called. Bind(...) is called instead. This method
+				// exists as a stop-gap until the API can be deprecated and removed.
+				checkNoEntry();
+				return {};
 			}
 
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
-				FDataReferenceCollection Outputs;
-
-				return Outputs;
+				// This should never be called. Bind(...) is called instead. This method
+				// exists as a stop-gap until the API can be deprecated and removed.
+				checkNoEntry();
+				return {};
 			}
 
 			void Reset(const IOperator::FResetParams& InParams)

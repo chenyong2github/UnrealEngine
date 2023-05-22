@@ -74,24 +74,19 @@ namespace Metasound
 			{
 			}
 
-			FDataReferenceCollection GetInputs() const
+			void BindInputs(FInputVertexInterfaceData& InOutVertexData)
 			{
-				FDataReferenceCollection Inputs;
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputValueName), Value);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInRangeAName), InRangeA);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInRangeBName), InRangeB);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOutRangeAName), OutRangeA);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOutRangeBName), OutRangeB);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputClampedName), bClamped);
-
-				return Inputs;
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputValueName), Value);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputInRangeAName), InRangeA);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputInRangeBName), InRangeB);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputOutRangeAName), OutRangeA);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputOutRangeBName), OutRangeB);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputClampedName), bClamped);
 			}
 
-			FDataReferenceCollection GetOutputs() const
+			void BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
 			{
-				FDataReferenceCollection Outputs;
-				Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputValueName), OutputValue);
-				return Outputs;
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputValueName), OutputValue);
 			}
 
 			void DoMapping()
@@ -158,25 +153,21 @@ namespace Metasound
 			{
 			}
 
-			FDataReferenceCollection GetInputs() const
+			void BindInputs(FInputVertexInterfaceData& InOutVertexData)
 			{
-				FDataReferenceCollection Inputs;
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputValueName),Value);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInRangeAName), InRangeA);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInRangeBName), InRangeB);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOutRangeAName), OutRangeA);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOutRangeBName), OutRangeB);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputClampedName), bClamped);
-
-				return Inputs;
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputValueName),Value);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputInRangeAName), InRangeA);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputInRangeBName), InRangeB);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputOutRangeAName), OutRangeA);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputOutRangeBName), OutRangeB);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputClampedName), bClamped);
 			}
 
-			FDataReferenceCollection GetOutputs() const
+			void BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
 			{
-				FDataReferenceCollection Outputs;
-				Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputValueName), OutputValue);
-				return Outputs;
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputValueName), OutputValue);
 			}
+
 
 			void DoMapping()
 			{
@@ -243,25 +234,22 @@ namespace Metasound
 			{
 			}
 
-			FDataReferenceCollection GetInputs() const
-			{
-				FDataReferenceCollection Inputs;
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputValueName), Value);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInRangeAName), InRangeA);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInRangeBName), InRangeB);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOutRangeAName), OutRangeA);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOutRangeBName), OutRangeB);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputClampedName), bClamped);
 
-				return Inputs;
+			void BindInputs(FInputVertexInterfaceData& InOutVertexData)
+			{
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputValueName), Value);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputInRangeAName), InRangeA);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputInRangeBName), InRangeB);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputOutRangeAName), OutRangeA);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputOutRangeBName), OutRangeB);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputClampedName), bClamped);
 			}
 
-			FDataReferenceCollection GetOutputs() const
+			void BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
 			{
-				FDataReferenceCollection Outputs;
-				Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputValueName), OutputValue);
-				return Outputs;
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputValueName), OutputValue);
 			}
+
 
 			void DoMapping()
 			{
@@ -344,14 +332,31 @@ namespace Metasound
 
 		virtual ~TMapRangeOperator() = default;
 
+
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
+		{
+			MappingObject.BindInputs(InOutVertexData);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			MappingObject.BindOutputs(InOutVertexData);
+		}
+
 		virtual FDataReferenceCollection GetInputs() const override
 		{
-			return MappingObject.GetInputs();
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			return MappingObject.GetOutputs();
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Reset(const IOperator::FResetParams& InParams)

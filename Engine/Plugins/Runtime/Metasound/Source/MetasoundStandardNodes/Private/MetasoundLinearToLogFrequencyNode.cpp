@@ -108,28 +108,38 @@ namespace Metasound
 		{
 		}
 
-		virtual FDataReferenceCollection GetInputs() const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace LinearToLogFrequencyVertexNames;
 
-			FDataReferenceCollection InputDataReferences;
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputValue), Value);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputDomainMin), DomainMin);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputDomainMax), DomainMax);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputRangeMin), RangeMin);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputRangeMax), RangeMax);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputValue), Value);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputDomainMin), DomainMin);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputDomainMax), DomainMax);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputRangeMin), RangeMin);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputRangeMax), RangeMax);
+		}
 
-			return InputDataReferences;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace LinearToLogFrequencyVertexNames;
 
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputFreq), FreqOutput);
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			using namespace LinearToLogFrequencyVertexNames;
-
-			FDataReferenceCollection OutputDataReferences;
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputFreq), FreqOutput);
-			return OutputDataReferences;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Reset(const IOperator::FResetParams& InParams)

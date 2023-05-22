@@ -60,6 +60,9 @@ namespace Metasound
 		static const FNodeClassMetadata& GetNodeInfo();
 		static FVertexInterface DeclareVertexInterface();
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
+
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -167,23 +170,32 @@ namespace Metasound
 			);
 	}
 
+	void FMidiNoteQuantizerOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
+	{
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ParamNoteIn), MidiNoteIn);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ParamRootNote), RootNote);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ParamScaleDegrees), Scale);
+	}
+
+	void FMidiNoteQuantizerOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ParamNoteOutput), MidiNoteOut);
+	}
+
 	FDataReferenceCollection FMidiNoteQuantizerOperator::GetInputs() const
 	{
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(ParamNoteIn), FFloatReadRef(MidiNoteIn));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(ParamRootNote), FFloatReadRef(RootNote));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(ParamScaleDegrees), FArrayScaleDegreeReadRef(Scale));
-
-		return InputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FMidiNoteQuantizerOperator::GetOutputs() const
 	{
-		// expose read access to our output buffer for other processors in the graph
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(ParamNoteOutput), FFloatReadRef(MidiNoteOut));
-
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FMidiNoteQuantizerOperator::Reset(const IOperator::FResetParams& InParams)

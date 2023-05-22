@@ -43,8 +43,9 @@ namespace Metasound
 			const FInt32ReadRef& InSeed, 
 			const FFloatReadRef& InProbability);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
-
 		virtual FDataReferenceCollection GetOutputs() const override;
 
 		void Execute();
@@ -93,27 +94,37 @@ namespace Metasound
 		RandomStream.Reset();
 	}
 
-	FDataReferenceCollection FTriggerCoinOperator::GetInputs() const
+
+	void FTriggerCoinOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace TriggerCoinVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTrigger), TriggerInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputReset), TriggerResetInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputSeed), SeedInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputProbability), ProbabilityInput);
+	}
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTrigger), TriggerInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputReset), TriggerResetInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputSeed), SeedInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputProbability), ProbabilityInput);
-		return InputDataReferences;
+	void FTriggerCoinOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace TriggerCoinVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputTrueTrigger), TriggerTrueOutput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputFalseTrigger), TriggerFalseOutput);
+	}
+
+	FDataReferenceCollection FTriggerCoinOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FTriggerCoinOperator::GetOutputs() const
 	{
-		using namespace TriggerCoinVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTrueTrigger), TriggerTrueOutput);
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputFalseTrigger), TriggerFalseOutput);
-
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FTriggerCoinOperator::Execute()

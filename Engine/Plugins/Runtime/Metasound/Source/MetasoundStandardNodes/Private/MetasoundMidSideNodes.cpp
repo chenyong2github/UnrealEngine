@@ -104,30 +104,38 @@ namespace Metasound
 			return Interface;
 		}
 
-		virtual FDataReferenceCollection GetInputs() const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace MidSideEncodeVertexNames;
 
-			FDataReferenceCollection InputDataReferences;
-			
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAudioLeft), AudioInputLeft);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAudioRight), AudioInputRight);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputSpreadAmount), SpreadAmount);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputEqualPower), bEqualPower);
-			
-			return InputDataReferences;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudioLeft), AudioInputLeft);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudioRight), AudioInputRight);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputSpreadAmount), SpreadAmount);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputEqualPower), bEqualPower);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace MidSideEncodeVertexNames;
+
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudioMid), AudioOutputMid);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudioSide), AudioOutputSide);
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			using namespace MidSideEncodeVertexNames;
-			
-			FDataReferenceCollection OutputDataReferences;
-
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioMid), AudioOutputMid);
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioSide), AudioOutputSide);
-			
-			return OutputDataReferences;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 		
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
@@ -350,31 +358,38 @@ namespace Metasound
 			return Interface;
 		}
 
-		virtual FDataReferenceCollection GetInputs() const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace MidSideDecodeVertexNames;
 
-			FDataReferenceCollection InputDataReferences;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudioMid), AudioInputMid);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudioSide), AudioInputSide);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputSpreadAmount), SpreadAmount);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputEqualPower), bEqualPower);
+		}
 
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAudioMid), AudioInputMid);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAudioSide), AudioInputSide);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputSpreadAmount), SpreadAmount);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputEqualPower), bEqualPower);
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace MidSideDecodeVertexNames;
 
-			return InputDataReferences;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudioLeft), AudioOutputLeft);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudioRight), AudioOutputRight);
+		}
 
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			using namespace MidSideDecodeVertexNames;
-
-			FDataReferenceCollection OutputDataReferences;
-
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioLeft), AudioOutputLeft);
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioRight), AudioOutputRight);
-
-			return OutputDataReferences;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)

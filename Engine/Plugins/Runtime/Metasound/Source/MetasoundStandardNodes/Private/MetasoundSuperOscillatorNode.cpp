@@ -217,24 +217,22 @@ namespace Metasound
 			
 			InitializeGenerators();
 		}
-		
-		virtual void Bind(FVertexInterfaceData& InVertexData) const override
+
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override 
 		{
-			using namespace SuperOscillatorVertexNames; 
+			using namespace SuperOscillatorVertexNames;
 
-			FInputVertexInterfaceData& Inputs = InVertexData.GetInputs();
-
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(EnabledPin), bEnabled);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(LimitOutputPin), bLimit);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(BaseFrequencyPin), BaseFrequency);
-			Inputs.SetValue(METASOUND_GET_PARAM_NAME(NumVoicesPin), NumVoices);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(MaxDetunePin), MaxDetune);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(DetuneVolumePin), DetuneDb);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(GlideFactorPin), GlideFactor);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(PulseWidthPin), PulseWidth);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(FrequencyModPin), Fm);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(EntropyPin), Entropy);
-			Inputs.SetValue(METASOUND_GET_PARAM_NAME(WaveTypePin), OscType);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(EnabledPin), bEnabled);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(LimitOutputPin), bLimit);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(BaseFrequencyPin), BaseFrequency);
+			InOutVertexData.SetValue(METASOUND_GET_PARAM_NAME(NumVoicesPin), NumVoices);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(MaxDetunePin), MaxDetune);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(DetuneVolumePin), DetuneDb);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(GlideFactorPin), GlideFactor);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(PulseWidthPin), PulseWidth);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(FrequencyModPin), Fm);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(EntropyPin), Entropy);
+			InOutVertexData.SetValue(METASOUND_GET_PARAM_NAME(WaveTypePin), OscType);
 		}
 		
 		virtual FDataReferenceCollection GetInputs() const override
@@ -530,13 +528,15 @@ namespace Metasound
 			SetLimiterSettings(Limiter);
 		}
 
-		virtual void Bind(FVertexInterfaceData& InVertexData) const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
+		{
+			Super::BindInputs(InOutVertexData);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace SuperOscillatorVertexNames;
-			Super::Bind(InVertexData);
-			
-			FOutputVertexInterfaceData& Outputs = InVertexData.GetOutputs();
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(AudioOutPin), AudioBuffer);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(AudioOutPin), AudioBuffer);
 		}
 		
 		FAudioBufferWriteRef AudioBuffer;
@@ -668,17 +668,20 @@ namespace Metasound
 			LimiterRight.ProcessAudio(AudioRight->GetData(), AudioRight->Num(), AudioRight->GetData());
 		}
 
-		virtual void Bind(FVertexInterfaceData& InVertexData) const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
+		{
+			Super::BindInputs(InOutVertexData);
+			
+			using namespace SuperOscillatorVertexNames;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(StereoWidthPin), StereoWidth);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace SuperOscillatorVertexNames;
-			Super::Bind(InVertexData);
-
-			FInputVertexInterfaceData& Inputs = InVertexData.GetInputs();
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(StereoWidthPin), StereoWidth);
 			
-			FOutputVertexInterfaceData& Outputs = InVertexData.GetOutputs();
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(AudioLeftPin), AudioLeft);
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(AudioRightPin), AudioRight);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(AudioLeftPin), AudioLeft);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(AudioRightPin), AudioRight);
 		}
 
 		FFloatReadRef StereoWidth;

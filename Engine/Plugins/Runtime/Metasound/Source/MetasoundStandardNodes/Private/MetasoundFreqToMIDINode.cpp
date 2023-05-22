@@ -30,6 +30,8 @@ namespace Metasound
 
 		FFreqToMidiOperator(const FOperatorSettings& InSettings, const FFloatReadRef& InMidiNote);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -52,24 +54,33 @@ namespace Metasound
 		, PrevFreq(*InFreq)
 	{
 	}
-	
-	FDataReferenceCollection FFreqToMidiOperator::GetInputs() const
+
+	void FFreqToMidiOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace FrequencyToMidiVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputFreq), FreqInput);
+	}
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputFreq), FreqInput);
+	void FFreqToMidiOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace FrequencyToMidiVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputMidi), MidiOutput);
+	}
 
-		return InputDataReferences;
+	FDataReferenceCollection FFreqToMidiOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FFreqToMidiOperator::GetOutputs() const
 	{
-		using namespace FrequencyToMidiVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputMidi), MidiOutput);
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FFreqToMidiOperator::Reset(const IOperator::FResetParams& InParams)

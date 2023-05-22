@@ -109,27 +109,37 @@ namespace Metasound
 			Reset(InParams);
 		}
 
-		FDataReferenceCollection GetInputs() const
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace FlangerVertexNames;
 
-			FDataReferenceCollection InputDataReferences;
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAudio), AudioIn);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputModulationRate), ModulationRate);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputModulationDepth), ModulationDepth);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputCenterDelay), CenterDelay);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputMixLevel), MixLevel);
-
-			return InputDataReferences;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudio), AudioIn);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputModulationRate), ModulationRate);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputModulationDepth), ModulationDepth);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputCenterDelay), CenterDelay);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputMixLevel), MixLevel);
 		}
 
-		virtual FDataReferenceCollection GetOutputs() const
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace FlangerVertexNames;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudio), AudioOut);
+		}
 
-			FDataReferenceCollection OutputDataReferences;
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudio), AudioOut);
-			return OutputDataReferences;
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
+		}
+
+		virtual FDataReferenceCollection GetOutputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Reset(const IOperator::FResetParams& InParams)

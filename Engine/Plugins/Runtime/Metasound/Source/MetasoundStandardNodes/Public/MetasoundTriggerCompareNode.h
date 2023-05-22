@@ -126,28 +126,38 @@ namespace Metasound
 
 		virtual ~TTriggerCompareNodeOperator() = default;
 
-		virtual FDataReferenceCollection GetInputs() const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace TriggerCompareVertexNames;
 
-			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputCompare), OnCompareTrigger);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputParamA), ValueA);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputParamB), ValueB);
-			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputCompareType), TriggerComparisonType);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputCompare), OnCompareTrigger);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputParamA), ValueA);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputParamB), ValueB);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputCompareType), TriggerComparisonType);
+		}
 
-			return Inputs;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace TriggerCompareVertexNames;
+
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputOnTrue), TriggerOutOnTrue);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputOnFalse), TriggerOutOnFalse);
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			using namespace TriggerCompareVertexNames;
-
-			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnTrue), TriggerOutOnTrue);
-			Outputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputOnFalse), TriggerOutOnFalse);
-
-			return Outputs;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Execute()

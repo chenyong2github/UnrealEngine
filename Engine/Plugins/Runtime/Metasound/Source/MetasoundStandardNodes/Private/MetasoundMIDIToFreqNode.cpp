@@ -68,6 +68,8 @@ namespace Metasound
 
 		TMidiToFreqOperator(const FCreateOperatorParams& InParams, const TDataReadReference<ValueType>& InMidiNote);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -94,24 +96,37 @@ namespace Metasound
 	}
 
 	template<typename ValueType>
-	FDataReferenceCollection TMidiToFreqOperator<ValueType>::GetInputs() const
+	void TMidiToFreqOperator<ValueType>::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace MidiToFrequencyVertexNames;
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputMidi), MidiNote);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputMidi), MidiNote);
+	}
 
-		return InputDataReferences;
+	template<typename ValueType>
+	void TMidiToFreqOperator<ValueType>::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace MidiToFrequencyVertexNames;
+
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputFreq), FreqOutput);
+	}
+
+	template<typename ValueType>
+	FDataReferenceCollection TMidiToFreqOperator<ValueType>::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	template<typename ValueType>
 	FDataReferenceCollection TMidiToFreqOperator<ValueType>::GetOutputs() const
 	{
-		using namespace MidiToFrequencyVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputFreq), FreqOutput);
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	template<typename ValueType>

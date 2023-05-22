@@ -167,32 +167,41 @@ namespace Metasound
 			return MakeUnique<TAudioMixerNodeOperator<NumInputs, NumChannels>>(InParams, MoveTemp(InputBuffers), MoveTemp(InputGains));
 		}
 
-		virtual FDataReferenceCollection GetInputs() const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
-			FDataReferenceCollection InputPins;
 			for (uint32 i = 0; i < NumInputs; ++i)
 			{
 				for (uint32 Chan = 0; Chan < NumChannels; ++Chan)
 				{
-					InputPins.AddDataReadReference(GetAudioInputName(i, Chan), Inputs[i * NumChannels + Chan]);
+					InOutVertexData.BindReadVertex(GetAudioInputName(i, Chan), Inputs[i * NumChannels + Chan]);
 				}
 
-				InputPins.AddDataReadReference(GetGainInputName(i), Gains[i]);
+				InOutVertexData.BindReadVertex(GetGainInputName(i), Gains[i]);
 			}
+		}
 
-			return InputPins;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			for (uint32 i = 0; i < NumChannels; ++i)
+			{
+				InOutVertexData.BindReadVertex(GetAudioOutputName(i), Outputs[i]);
+			}
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			FDataReferenceCollection OutputPins;
-
-			for (uint32 i = 0; i < NumChannels; ++i)
-			{
-				OutputPins.AddDataReadReference(GetAudioOutputName(i), Outputs[i]);
-			}
-
-			return OutputPins;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Reset(const IOperator::FResetParams& InParams)
@@ -356,7 +365,6 @@ namespace Metasound
 #pragma endregion
 	}; // class TAudioMixerNodeOperator
 #pragma endregion
-
 
 
 #pragma region Node Definition

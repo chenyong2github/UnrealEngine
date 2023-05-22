@@ -57,6 +57,9 @@ namespace Metasound
 			const FFloatReadRef& InPanningAmount,
 			const FPanningLawReadRef& InPanningLaw);
 
+
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Execute();
@@ -99,27 +102,38 @@ namespace Metasound
 		ComputePanGains(PrevPanningAmount, PrevLeftPan, PrevRightPan);
 	}
 
-	FDataReferenceCollection FStereoPannerOperator::GetInputs() const
+
+	void FStereoPannerOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace StereoPannerVertexNames;
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAudio), AudioInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputPanAmount), PanningAmount);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputPanningLaw), PanningLaw);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudio), AudioInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputPanAmount), PanningAmount);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputPanningLaw), PanningLaw);
+	}
 
-		return InputDataReferences;
+	void FStereoPannerOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace StereoPannerVertexNames;
+
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudioLeft), AudioLeftOutput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudioRight), AudioRightOutput);
+	}
+
+	FDataReferenceCollection FStereoPannerOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FStereoPannerOperator::GetOutputs() const
 	{
-		using namespace StereoPannerVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioLeft), AudioLeftOutput);
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputAudioRight), AudioRightOutput);
-
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FStereoPannerOperator::ComputePanGains(float InPanningAmmount, float& OutLeftGain, float& OutRightGain) const

@@ -52,6 +52,8 @@ namespace Metasound
 			const FFloatReadRef& InOutputGain,
 			const FEnumWaveShaperReadRef& InType);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Execute();
@@ -96,27 +98,34 @@ namespace Metasound
 		WaveShaper.Init(InSettings.GetSampleRate());
 	}
 
+	void FWaveShaperOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
+	{
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InAudioInput), AudioInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InWaveShapeAmount), Amount);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InWaveShapeBias), Bias);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InOutputGain), OutputGain);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InType), Type);
+	}
+
+	void FWaveShaperOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutAudio), AudioOutput);
+	}
+
 	FDataReferenceCollection FWaveShaperOperator::GetInputs() const
 	{
-		using namespace WaveShaperNode;
-		
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InAudioInput), AudioInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InWaveShapeAmount), Amount);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InWaveShapeBias), Bias);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InOutputGain), OutputGain);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InType), Type);
-
-		return InputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FWaveShaperOperator::GetOutputs() const
 	{
-		using namespace WaveShaperNode; 
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutAudio), AudioOutput);
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FWaveShaperOperator::Execute()

@@ -39,6 +39,8 @@ namespace Metasound
 
 			FTriggerToggleOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerOn, const FTriggerReadRef& InTriggerOff, const FBoolReadRef& InInitValue);
 
+			virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+			virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 			virtual FDataReferenceCollection GetInputs() const override;
 			virtual FDataReferenceCollection GetOutputs() const override;
 
@@ -63,26 +65,35 @@ namespace Metasound
 	{
 	}
 
-	FDataReferenceCollection FTriggerToggleOperator::GetInputs() const
+	void FTriggerToggleOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace TriggerToggle;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputOnTrigger), TriggerOn);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputOffTrigger), TriggerOff);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputInit), InitValue);
+	}
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOnTrigger), TriggerOn);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputOffTrigger), TriggerOff);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputInit), InitValue);
-		return InputDataReferences;
+	void FTriggerToggleOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace TriggerToggle;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputTrigger), TriggerOutput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputValue), ValueOutput);
+	}
+
+	FDataReferenceCollection FTriggerToggleOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FTriggerToggleOperator::GetOutputs() const
 	{
-		using namespace TriggerToggle;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTrigger), TriggerOutput);
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputValue), ValueOutput);
-
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FTriggerToggleOperator::Execute()

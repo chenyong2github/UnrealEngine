@@ -247,19 +247,33 @@ namespace Metasound
 			}
 		}
 
-		FDataReferenceCollection GetInputs() const override
+
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
-			FDataReferenceCollection InputPins;
 			for (int32 i = 0; i < NumInputChannels; ++i)
 			{
-				InputPins.AddDataReadReference(GetAudioInputName(i), AudioInputs[i]);
+				InOutVertexData.BindReadVertex(GetAudioInputName(i), AudioInputs[i]);
 			}
-			return InputPins;
 		}
-		FDataReferenceCollection GetOutputs() const override
+
+		virtual void BindOutputs(FOutputVertexInterfaceData&) override
 		{
-			FDataReferenceCollection OutputDataReferences;
-			return OutputDataReferences;
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
+		}
+	
+		virtual FDataReferenceCollection GetOutputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		static const FVertexInterface& DeclareVertexInterface()

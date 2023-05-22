@@ -31,6 +31,8 @@ namespace Metasound
 
 		FLinearGainToDecibelsOperator(const FCreateOperatorParams& InParams, const FFloatReadRef& InLinearGain);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -51,24 +53,34 @@ namespace Metasound
 		Reset(InParams);
 	}
 
-	
-	FDataReferenceCollection FLinearGainToDecibelsOperator::GetInputs() const
+	void FLinearGainToDecibelsOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace LinearGainToDecibelsVertexNames;
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputLinearGain), LinearGainInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputLinearGain), LinearGainInput);
+	}
 
-		return InputDataReferences;
+	void FLinearGainToDecibelsOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace LinearGainToDecibelsVertexNames;
+
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputDecibels), DecibelOutput);
+	}
+
+	FDataReferenceCollection FLinearGainToDecibelsOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FLinearGainToDecibelsOperator::GetOutputs() const
 	{
-		using namespace LinearGainToDecibelsVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputDecibels), DecibelOutput);
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FLinearGainToDecibelsOperator::Reset(const IOperator::FResetParams& InParams)

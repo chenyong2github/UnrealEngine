@@ -67,6 +67,8 @@ namespace Metasound
 		static const FNodeClassMetadata& GetNodeInfo();
 		static const FVertexInterface& GetVertexInterface();
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -218,34 +220,45 @@ namespace Metasound
 			GrainMaxCount,
 			GrainDelayFeedbackAmount);
 	}
-	
-	FDataReferenceCollection FGrainDelayOperator::GetOutputs() const
+
+	void FGrainDelayOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace GrainDelay;
 
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutAudio), FAudioBufferReadRef(AudioOutput));
-		return OutputDataReferences;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InAudio), AudioInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainSpawnTrigger), GrainSpawnTrigger);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainDelay), GrainDelay);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainDelayDelta), GrainDelayDelta);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainDuration), GrainDuration);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainDurationDelta), GrainDurationDelta);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainPitchShift), GrainPitchShift);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainPitchShiftDelta), GrainPitchShiftDelta);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainDelayEnvelope), GrainDelayEnvelope);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainMaxCount), GrainMaxCount);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InGrainDelayFeedbackAmount), GrainDelayFeedbackAmount);
 	}
-	
+
+	void FGrainDelayOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace GrainDelay;
+
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutAudio), AudioOutput);
+	}
+
 	FDataReferenceCollection FGrainDelayOperator::GetInputs() const
 	{
-		using namespace GrainDelay;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
+	}
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InAudio), FAudioBufferReadRef(AudioInput));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainSpawnTrigger), FTriggerReadRef(GrainSpawnTrigger));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainDelay), FFloatReadRef(GrainDelay));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainDelayDelta), FFloatReadRef(GrainDelayDelta));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainDuration), FFloatReadRef(GrainDuration));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainDurationDelta), FFloatReadRef(GrainDurationDelta));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainPitchShift), FFloatReadRef(GrainPitchShift));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainPitchShiftDelta), FFloatReadRef(GrainPitchShiftDelta));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainDelayEnvelope), FGrainDelayEnvelopeReadRef(GrainDelayEnvelope));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainMaxCount), FInt32ReadRef(GrainMaxCount));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InGrainDelayFeedbackAmount), FFloatReadRef(GrainDelayFeedbackAmount));
-
-		return InputDataReferences;
+	FDataReferenceCollection FGrainDelayOperator::GetOutputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FGrainDelayOperator::Reset(const IOperator::FResetParams& InParams)

@@ -44,8 +44,9 @@ namespace Metasound
 			const FTriggerReadRef& InTrigger,
 			const FInt32ReadRef& InIndex);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
-
 		virtual FDataReferenceCollection GetOutputs() const override;
 
 		void Execute();
@@ -72,28 +73,40 @@ namespace Metasound
 	}
 
 	template<uint32 NumOutputs>
-	FDataReferenceCollection TTriggerSelectOperator<NumOutputs>::GetInputs() const
+	void TTriggerSelectOperator<NumOutputs>::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace TriggerSelectVertexNames;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTrigger), TriggerInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputIndex), IndexInput);
+	}
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputTrigger), TriggerInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputIndex), IndexInput);
-		return InputDataReferences;
+	template<uint32 NumOutputs>
+	void TTriggerSelectOperator<NumOutputs>::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace TriggerSelectVertexNames;
+		for (uint32 i = 0; i < NumOutputs; ++i)
+		{
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME_WITH_INDEX(OutputTrigger, i), TriggerOutputs[i]);
+		}
+	}
+
+	template<uint32 NumOutputs>
+	FDataReferenceCollection TTriggerSelectOperator<NumOutputs>::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	template<uint32 NumOutputs>
 	FDataReferenceCollection TTriggerSelectOperator<NumOutputs>::GetOutputs() const
 	{
-		using namespace TriggerSelectVertexNames;
 
-		FDataReferenceCollection OutputDataReferences;
-		for (uint32 i = 0; i < NumOutputs; ++i)
-		{
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME_WITH_INDEX(OutputTrigger, i), TriggerOutputs[i]);
-		}
-
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	template<uint32 NumOutputs>

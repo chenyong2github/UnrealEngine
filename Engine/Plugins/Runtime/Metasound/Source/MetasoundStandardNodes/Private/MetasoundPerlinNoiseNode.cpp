@@ -148,21 +148,42 @@ namespace Metasound
 			TThisType::ResetOutputWriteRef(OutputScaled);
 			TThisType::ResetOutputWriteRef(OutputNormalized);
 		}
-
-		FDataReferenceCollection GetInputs() const override { return {}; }
-		FDataReferenceCollection GetOutputs() const override { return {}; }
 		
 		void Bind(FVertexInterfaceData& InVertexData) const override
 		{
-			using namespace PerlinNoiseVertexNames;
-			FInputVertexInterfaceData& Inputs = InVertexData.GetInputs();
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(XPin), Pins.X);
-			Inputs.SetValue(METASOUND_GET_PARAM_NAME(OffsetPin), Pins.Offset);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OctavesPin), Pins.Octaves);
-			
+
 			FOutputVertexInterfaceData& Outputs = InVertexData.GetOutputs();
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputScaledPin), OutputScaled);
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputNormalizedPin), OutputNormalized);
+		}
+
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace PerlinNoiseVertexNames;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(XPin), Pins.X);
+			InOutVertexData.SetValue(METASOUND_GET_PARAM_NAME(OffsetPin), Pins.Offset);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OctavesPin), Pins.Octaves);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace PerlinNoiseVertexNames;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputScaledPin), OutputScaled);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputNormalizedPin), OutputNormalized);
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
+		}
+
+		virtual FDataReferenceCollection GetOutputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void AccumulateTime()

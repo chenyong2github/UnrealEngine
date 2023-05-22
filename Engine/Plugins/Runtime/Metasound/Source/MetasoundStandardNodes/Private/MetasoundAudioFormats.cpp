@@ -111,25 +111,34 @@ namespace Metasound
 
 			virtual ~FOutputOperator() {}
 
-			virtual FDataReferenceCollection GetInputs() const override
+
+			virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 			{
 				using namespace StereoAudioFormatVertexKeys;
 
-				FDataReferenceCollection Inputs;
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(LeftChannelVertex), Left);
+				InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(RightChannelVertex), Right);
+			}
 
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(LeftChannelVertex), Left);
-				Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(RightChannelVertex), Right);
+			virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+			{
+				InOutVertexData.BindReadVertex(OutputName, Stereo);
+			}
 
-				return Inputs;
+			virtual FDataReferenceCollection GetInputs() const override
+			{
+				// This should never be called. Bind(...) is called instead. This method
+				// exists as a stop-gap until the API can be deprecated and removed.
+				checkNoEntry();
+				return {};
 			}
 
 			virtual FDataReferenceCollection GetOutputs() const override
 			{
-				FDataReferenceCollection Outputs;
-
-				Outputs.AddDataReadReference(OutputName, Stereo);
-
-				return Outputs;
+				// This should never be called. Bind(...) is called instead. This method
+				// exists as a stop-gap until the API can be deprecated and removed.
+				checkNoEntry();
+				return {};
 			}
 
 		private:

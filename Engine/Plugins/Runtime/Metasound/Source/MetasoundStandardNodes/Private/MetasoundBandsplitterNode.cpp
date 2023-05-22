@@ -121,41 +121,50 @@ namespace Metasound
 			return Metadata;
 		}
 
-		virtual FDataReferenceCollection GetInputs() const override
+
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace BandSplitterNode;
 
-			FDataReferenceCollection InputPins;
-
 			for (uint32 Chan = 0; Chan < NumChannels; ++Chan)
 			{
-				InputPins.AddDataReadReference(GetAudioInputName(Chan), AudioInputs[Chan]);
+				InOutVertexData.BindReadVertex(GetAudioInputName(Chan), AudioInputs[Chan]);
 			}
 
-			InputPins.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputFilterOrder), FilterOrder);
-			InputPins.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputPhaseCompensate), bPhaseCompensate);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputFilterOrder), FilterOrder);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputPhaseCompensate), bPhaseCompensate);
 
 			for (uint32 BandIndex = 0; BandIndex < NumBands - 1; ++BandIndex)
 			{
-				InputPins.AddDataReadReference(GetCrossoverInputName(BandIndex), CrossoverFrequencies[BandIndex]);
+				InOutVertexData.BindReadVertex(GetCrossoverInputName(BandIndex), CrossoverFrequencies[BandIndex]);
 			}
-
-			return InputPins;
 		}
 
-		virtual FDataReferenceCollection GetOutputs() const override
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
 		{
-			FDataReferenceCollection OutputPins;
-
 			for (uint32 BandIndex = 0; BandIndex < NumBands; ++BandIndex)
 			{
 				for (uint32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
 				{
-					OutputPins.AddDataReadReference(GetAudioOutputName(BandIndex, ChannelIndex), AudioOutputs[BandIndex * NumChannels + ChannelIndex]);
+					InOutVertexData.BindReadVertex(GetAudioOutputName(BandIndex, ChannelIndex), AudioOutputs[BandIndex * NumChannels + ChannelIndex]);
 				}
 			}
+		}
 
-			return OutputPins;
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
+		}
+
+		virtual FDataReferenceCollection GetOutputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		static const FVertexInterface& GetDefaultInterface()

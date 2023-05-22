@@ -242,24 +242,34 @@ namespace Metasound
 			LastSample = 0;
 		}
 
-		FDataReferenceCollection GetInputs() const
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace TriggerOnThresholdVertexNames;
-
-			FDataReferenceCollection InputDataReferences;
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InThresholdPin), Threshold);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InPin), In);
-			InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InTriggerType), TriggerType);
-			return InputDataReferences;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InThresholdPin), Threshold);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InPin), In);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InTriggerType), TriggerType);
 		}
 
-		FDataReferenceCollection GetOutputs() const
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace TriggerOnThresholdVertexNames;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutPin), FTriggerWriteRef(Out));
+		}
 
-			FDataReferenceCollection OutputDataReferences;
-			OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutPin), FTriggerWriteRef(Out));
-			return OutputDataReferences;
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
+		}
+
+		virtual FDataReferenceCollection GetOutputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		static const FVertexInterface DeclareVertexInterface()

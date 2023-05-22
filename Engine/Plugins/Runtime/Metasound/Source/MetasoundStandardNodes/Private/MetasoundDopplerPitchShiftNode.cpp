@@ -32,6 +32,7 @@ namespace Metasound
 
 		FDopplerPitchShiftOperator(const FCreateOperatorParams& InParams, const FAudioBufferReadRef& InAudioInput, const FFloatReadRef& InPitchShift, const FFloatReadRef& InDelayLength);
 
+		virtual void Bind(FVertexInterfaceData& InVertexData) const override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -59,25 +60,33 @@ namespace Metasound
 		Reset(InParams);
 	}
 
-	FDataReferenceCollection FDopplerPitchShiftOperator::GetInputs() const
+	void FDopplerPitchShiftOperator::Bind(FVertexInterfaceData& InVertexData) const
 	{
 		using namespace DopplerPitchShift;
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamAudioInput), FAudioBufferReadRef(AudioInput));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamPitchShift), FFloatReadRef(PitchShift));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamDelayLength), FFloatReadRef(DelayLength));
+		FInputVertexInterfaceData& Inputs = InVertexData.GetInputs();
+		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamAudioInput), FAudioBufferReadRef(AudioInput));
+		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamPitchShift), FFloatReadRef(PitchShift));
+		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamDelayLength), FFloatReadRef(DelayLength));
 
-		return InputDataReferences;
+		FOutputVertexInterfaceData& Outputs = InVertexData.GetOutputs();
+		Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OutParamAudio), FAudioBufferReadRef(AudioOutput));
+	}
+
+	FDataReferenceCollection FDopplerPitchShiftOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FDopplerPitchShiftOperator::GetOutputs() const
 	{
-		using namespace DopplerPitchShift;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutParamAudio), FAudioBufferReadRef(AudioOutput));
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FDopplerPitchShiftOperator::Reset(const IOperator::FResetParams& InParams)

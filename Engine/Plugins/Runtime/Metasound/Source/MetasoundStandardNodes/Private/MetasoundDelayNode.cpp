@@ -48,7 +48,8 @@ namespace Metasound
 			const FFloatReadRef& InFeedback,
 			float InMaxDelayTimeSeconds);
 
-		virtual void Bind(FVertexInterfaceData& InVertexData) const override;
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -108,43 +109,39 @@ namespace Metasound
 		Reset(InParams);
 	}
 
-	void FDelayOperator::Bind(FVertexInterfaceData& InVertexData) const
+
+	void FDelayOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace Delay;
 
-		FInputVertexInterfaceData& Inputs = InVertexData.GetInputs();
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamAudioInput), AudioInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamDelayTime), DelayTime);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamDryLevel), DryLevel);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamWetLevel), WetLevel);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamFeedbackAmount), Feedback);
+		InOutVertexData.SetValue(METASOUND_GET_PARAM_NAME(InParamMaxDelayTime), FTime::FromSeconds(MaxDelayTimeSeconds));
+	}
 
-		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamAudioInput), FAudioBufferReadRef(AudioInput));
-		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamDelayTime), FTimeReadRef(DelayTime));
-		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamDryLevel), FFloatReadRef(DryLevel));
-		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamWetLevel), FFloatReadRef(WetLevel));
-		Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamFeedbackAmount), FFloatReadRef(Feedback));
-		Inputs.SetValue(METASOUND_GET_PARAM_NAME(InParamMaxDelayTime), FTime::FromSeconds(MaxDelayTimeSeconds));
-
-		FOutputVertexInterfaceData& Outputs = InVertexData.GetOutputs();
-		Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OutParamAudio), AudioOutput);
+	void FDelayOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace Delay;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutParamAudio), AudioOutput);
 	}
 
 	FDataReferenceCollection FDelayOperator::GetInputs() const
 	{
 		// This should never be called. Bind(...) is called instead. This method
-		// exists as a stop-gap until the API can be deprecated and removed. 
+		// exists as a stop-gap until the API can be deprecated and removed.
 		checkNoEntry();
-
-		FDataReferenceCollection InputDataReferences;
-		return InputDataReferences;
+		return {};
 	}
 
 	FDataReferenceCollection FDelayOperator::GetOutputs() const
 	{
 		// This should never be called. Bind(...) is called instead. This method
-		// exists as a stop-gap until the API can be deprecated and removed. 
+		// exists as a stop-gap until the API can be deprecated and removed.
 		checkNoEntry();
-
-		using namespace Delay;
-
-		FDataReferenceCollection OutputDataReferences;
-		return OutputDataReferences;
+		return {};
 	}
 
 	float FDelayOperator::GetInputDelayTimeMsec() const

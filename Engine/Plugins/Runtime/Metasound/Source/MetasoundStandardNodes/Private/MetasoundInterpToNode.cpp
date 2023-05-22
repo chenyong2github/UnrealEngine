@@ -46,6 +46,8 @@ namespace Metasound
 
 		FInterpToOperator(const FCreateOperatorParams& InSettings, const FFloatReadRef& InTargetValue, const FTimeReadRef& InInterpTime);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -79,24 +81,35 @@ namespace Metasound
 		Reset(InParams);
 	}
 
-	FDataReferenceCollection FInterpToOperator::GetInputs() const
+	void FInterpToOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace InterpToVertexNames;
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamTarget), FFloatReadRef(TargetValue));
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InParamInterpTime), FTimeReadRef(InterpTime));
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamTarget), TargetValue);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InParamInterpTime), InterpTime);
+	}
 
-		return InputDataReferences;
+	void FInterpToOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace InterpToVertexNames;
+
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutParamValue), ValueOutput);
+	}
+
+	FDataReferenceCollection FInterpToOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FInterpToOperator::GetOutputs() const
 	{
-		using namespace InterpToVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutParamValue), FFloatReadRef(ValueOutput));
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FInterpToOperator::Reset(const IOperator::FResetParams& InParams)

@@ -32,6 +32,9 @@ namespace Metasound
 
 		FBPMToSecondsOperator(const FCreateOperatorParams& InParams, const FFloatReadRef& InBPM, const FFloatReadRef& InBeatMultiplier, const FFloatReadRef& InDivOfWholeNote);
 
+
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
 		virtual FDataReferenceCollection GetOutputs() const override;
 		void Reset(const IOperator::FResetParams& InParams);
@@ -69,25 +72,36 @@ namespace Metasound
 		Reset(InParams);
 	}
 
-	FDataReferenceCollection FBPMToSecondsOperator::GetInputs() const
+	void FBPMToSecondsOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace BPMToSecondsVertexNames;
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputBPM), BPM);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputBeatMultiplier), BeatMultiplier);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputDivOfWholeNote), DivOfWholeNote);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputBPM), BPM);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputBeatMultiplier), BeatMultiplier);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputDivOfWholeNote), DivOfWholeNote);
+	}
 
-		return InputDataReferences;
+	void FBPMToSecondsOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
+	{
+		using namespace BPMToSecondsVertexNames;
+
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputTimeSeconds), TimeSeconds);
+	}
+
+	FDataReferenceCollection FBPMToSecondsOperator::GetInputs() const
+	{
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	FDataReferenceCollection FBPMToSecondsOperator::GetOutputs() const
 	{
-		using namespace BPMToSecondsVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTimeSeconds), TimeSeconds);
-		return OutputDataReferences;
+		// This should never be called. Bind(...) is called instead. This method
+		// exists as a stop-gap until the API can be deprecated and removed.
+		checkNoEntry();
+		return {};
 	}
 
 	void FBPMToSecondsOperator::UpdateTime()

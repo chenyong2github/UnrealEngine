@@ -39,8 +39,9 @@ namespace Metasound
 
 		void Reset(const IOperator::FResetParams&);
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override;
 		virtual FDataReferenceCollection GetInputs() const override;
-
 		virtual FDataReferenceCollection GetOutputs() const override;
 
 		void Execute();
@@ -72,24 +73,35 @@ namespace Metasound
 		bHasTriggered = false;
 	}
 
-	FDataReferenceCollection FTriggerOnNanOperator::GetInputs() const
+	void FTriggerOnNanOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace TriggerOnNanVertexNames;
 
-		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(AudioInput), AudioInput);
-		InputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(TriggerOnce), bTriggerOnce);
-		return InputDataReferences;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(AudioInput), AudioInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(TriggerOnce), bTriggerOnce);
 	}
 
-	FDataReferenceCollection FTriggerOnNanOperator::GetOutputs() const
+	void FTriggerOnNanOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace TriggerOnNanVertexNames;
-
-		FDataReferenceCollection OutputDataReferences;
-		OutputDataReferences.AddDataReadReference(METASOUND_GET_PARAM_NAME(OutputTriggerOnNan), TriggerOutput);
-		return OutputDataReferences;
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputTriggerOnNan), TriggerOutput);
 	}
+
+    FDataReferenceCollection FTriggerOnNanOperator::GetInputs() const
+    {
+    	// This should never be called. Bind(...) is called instead. This method
+    	// exists as a stop-gap until the API can be deprecated and removed.
+    	checkNoEntry();
+    	return {};
+    }
+
+    FDataReferenceCollection FTriggerOnNanOperator::GetOutputs() const
+    {
+    	// This should never be called. Bind(...) is called instead. This method
+    	// exists as a stop-gap until the API can be deprecated and removed.
+    	checkNoEntry();
+    	return {};
+    }
 
 	void FTriggerOnNanOperator::Execute()
 	{
