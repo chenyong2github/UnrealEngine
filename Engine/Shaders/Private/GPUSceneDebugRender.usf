@@ -4,12 +4,9 @@
 #include "SceneData.ush"
 #include "ShaderPrint.ush"
 
-int NumInstances;
-int NumScenePrimitives;
 int bDrawAll;
 int bDrawUpdatedOnly;
 
-uint InstanceDataSOAStride;
 int2 InputCoord;
 float3 PickingRayStart;
 float3 PickingRayEnd;
@@ -88,12 +85,12 @@ void AddFlag(inout FShaderPrintContext Context, bool bEnabled)
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
 void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 {
-	if (InstanceID >= NumInstances)
+	if (InstanceID >= Scene.GPUScene.NumInstances)
 	{
 		return;
 	}
 
-	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceID, InstanceDataSOAStride);
+	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceID, Scene.GPUScene.InstanceDataSOAStride);
 
 	// Early out on invalid ID
 	if (InstanceData.PrimitiveId == 0xFFFFFFFFu)
@@ -127,7 +124,7 @@ void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
 	const uint BitsPerWord = 32U;
 	const uint Mask = 1U << (InstanceData.PrimitiveId % BitsPerWord);
 
-	bool bIsSelected = (InstanceData.PrimitiveId < NumScenePrimitives && (SelectedPrimitiveFlags[InstanceData.PrimitiveId / BitsPerWord] & Mask) != 0U);
+	bool bIsSelected = (InstanceData.PrimitiveId < Scene.GPUScene.NumScenePrimitives && (SelectedPrimitiveFlags[InstanceData.PrimitiveId / BitsPerWord] & Mask) != 0U);
 
 	//float4 InstanceBoundColor = InstanceData.PrimitiveId < NumScenePrimitives ? float4(0.3f, 1.0f, 0.5f, 1.0f) : float4(0.3f, 0.3f, 0.3f, 0.5f);
 	float4 InstanceBoundColor = float4(ColorSilver.xyz, 0.5f);
