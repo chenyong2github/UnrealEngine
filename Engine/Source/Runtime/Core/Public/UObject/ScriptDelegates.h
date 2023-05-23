@@ -14,14 +14,15 @@
 
 namespace UE::Core::Private
 {
-	struct TScriptDelegateDefault;
-
-	template <typename ScriptDelegateParameterType>
+	template <typename InThreadSafetyMode>
 	struct TScriptDelegateTraits
 	{
 		// Although templated, WeakPtrType is not intended to be anything other than FWeakObjectPtr,
 		// and is only a template for module organization reasons.
 		using WeakPtrType = FWeakObjectPtr;
+
+		using ThreadSafetyMode = InThreadSafetyMode;
+		using UnicastThreadSafetyModeForMulticasts = FNotThreadSafeNotCheckedDelegateMode;
 	};
 
 	template <>
@@ -32,6 +33,8 @@ namespace UE::Core::Private
 		// and also the TScriptDelegate(const TScriptDelegate<FWeakObjectPtr>&) constructor.
 
 		using WeakPtrType = FWeakObjectPtr;
+		using ThreadSafetyMode = FNotThreadSafeDelegateMode;
+		using UnicastThreadSafetyModeForMulticasts = FNotThreadSafeNotCheckedDelegateMode;
 	};
 
 	// This function only exists to allow compatibility between multicast and unicast delegate types which use an explicit FWeakObjectPtr template parameter
@@ -39,13 +42,13 @@ namespace UE::Core::Private
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
 	inline constexpr bool BackwardCompatibilityCheck()
 	{
-		if constexpr (std::is_same_v<From, TScriptDelegateDefault>)
+		if constexpr (std::is_same_v<From, FNotThreadSafeDelegateMode>)
 		{
 			return std::is_same_v<To, FWeakObjectPtr>;
 		}
 		else if constexpr (std::is_same_v<From, FWeakObjectPtr>)
 		{
-			return std::is_same_v<To, TScriptDelegateDefault>;
+			return std::is_same_v<To, FNotThreadSafeDelegateMode>;
 		}
 		else
 		{
@@ -57,9 +60,10 @@ namespace UE::Core::Private
 /**
  * Script delegate base class.
  */
-template <typename Dummy>
-class TScriptDelegate : public FDelegateAccessHandlerBaseChecked
+template <typename InThreadSafetyMode>
+class TScriptDelegate : public TDelegateAccessHandlerBase<typename UE::Core::Private::TScriptDelegateTraits<InThreadSafetyMode>::ThreadSafetyMode>
 {
+	using ThreadSafetyMode = typename UE::Core::Private::TScriptDelegateTraits<InThreadSafetyMode>::ThreadSafetyMode;
 
 	template <typename>
 	friend class TScriptDelegate;
@@ -67,14 +71,14 @@ class TScriptDelegate : public FDelegateAccessHandlerBaseChecked
 	template<typename>
 	friend class TMulticastScriptDelegate;
 
-	using Super = FDelegateAccessHandlerBaseChecked;
+	using Super = TDelegateAccessHandlerBase<ThreadSafetyMode>;
 	using typename Super::FReadAccessScope;
 	using Super::GetReadAccessScope;
 	using typename Super::FWriteAccessScope;
 	using Super::GetWriteAccessScope;
 
 public:
-	using WeakPtrType = typename UE::Core::Private::TScriptDelegateTraits<Dummy>::WeakPtrType;
+	using WeakPtrType = typename UE::Core::Private::TScriptDelegateTraits<InThreadSafetyMode>::WeakPtrType;
 
 	/** Default constructor. */
 	TScriptDelegate() 
@@ -91,13 +95,13 @@ public:
 	}
 
 	template <
-		typename OtherDummy
-		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
+		typename OtherThreadSafetyMode
+		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<InThreadSafetyMode, OtherThreadSafetyMode>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	TScriptDelegate(const TScriptDelegate<OtherDummy>& Other)
+	TScriptDelegate(const TScriptDelegate<OtherThreadSafetyMode>& Other)
 	{
-		typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+		typename TScriptDelegate<OtherThreadSafetyMode>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
 
 		Object = Other.Object;
 		FunctionName = Other.FunctionName;
@@ -123,17 +127,17 @@ public:
 		return *this;
 	}
 	template <
-		typename OtherDummy
-		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
+		typename OtherThreadSafetyMode
+		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<InThreadSafetyMode, OtherThreadSafetyMode>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	TScriptDelegate& operator=(const TScriptDelegate<OtherDummy>& Other)
+	TScriptDelegate& operator=(const TScriptDelegate<OtherThreadSafetyMode>& Other)
 	{
 		WeakPtrType OtherObject;
 		FName OtherFunctionName;
 
 		{
-			typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			typename TScriptDelegate<OtherThreadSafetyMode>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
 			OtherObject = Other.Object;
 			OtherFunctionName = Other.FunctionName;
 		}
@@ -298,17 +302,17 @@ public:
 		return bResult;
 	}
 	template <
-		typename OtherDummy
-		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
+		typename OtherThreadSafetyMode
+		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<InThreadSafetyMode, OtherThreadSafetyMode>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	FORCEINLINE bool operator==(const TScriptDelegate<OtherDummy>& Other) const
+	FORCEINLINE bool operator==(const TScriptDelegate<OtherThreadSafetyMode>& Other) const
 	{
 		WeakPtrType OtherObject;
 		FName OtherFunctionName;
 
 		{
-			typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+			typename TScriptDelegate<OtherThreadSafetyMode>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
 			OtherObject = Other.Object;
 			OtherFunctionName = Other.FunctionName;
 		}
@@ -328,11 +332,11 @@ public:
 		return !operator==(Other);
 	}
 	template <
-		typename OtherDummy
-		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
+		typename OtherThreadSafetyMode
+		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<InThreadSafetyMode, OtherThreadSafetyMode>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	FORCEINLINE bool operator!=(const TScriptDelegate<OtherDummy>& Other) const
+	FORCEINLINE bool operator!=(const TScriptDelegate<OtherThreadSafetyMode>& Other) const
 	{
 		return !operator==(Other);
 	}
@@ -449,10 +453,12 @@ public:
 		return HashCombine(GetTypeHash(Delegate.Object), GetTypeHash(Delegate.GetFunctionName()));
 	}
 
-	template<typename OtherDummy>
-	static TScriptDelegate CopyFrom(const TScriptDelegate<OtherDummy>& Other)
+	template<typename OtherThreadSafetyMode>
+	static TScriptDelegate CopyFrom(const TScriptDelegate<OtherThreadSafetyMode>& Other)
 	{
-		typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
+		static_assert(std::is_same_v<ThreadSafetyMode, typename UE::Core::Private::TScriptDelegateTraits<ThreadSafetyMode>::UnicastThreadSafetyModeForMulticasts>);
+
+		typename TScriptDelegate<OtherThreadSafetyMode>::FReadAccessScope OtherReadScope = Other.GetReadAccessScope();
 
 		TScriptDelegate Copy;
 		Copy.Object = Other.Object;
@@ -475,27 +481,28 @@ protected:
 	friend struct TIsZeroConstructType<TScriptDelegate>;
 };
 
-
-template <typename Dummy>
-struct TIsZeroConstructType<TScriptDelegate<Dummy>>
+template<typename ThreadSafetyMode>
+struct TIsZeroConstructType<TScriptDelegate<ThreadSafetyMode>>
 {
-	static constexpr bool Value = TIsZeroConstructType<typename TScriptDelegate<Dummy>::WeakPtrType>::Value;
+	static constexpr bool Value = 
+		TIsZeroConstructType<typename UE::Core::Private::TScriptDelegateTraits<ThreadSafetyMode>::WeakPtrType>::Value &&
+		TIsZeroConstructType<typename TScriptDelegate<ThreadSafetyMode>::Super>::Value;
 };
-
 
 /**
  * Script multi-cast delegate base class
  */
-template <typename Dummy>
-class TMulticastScriptDelegate : public FDelegateAccessHandlerBaseChecked
+template <typename InThreadSafetyMode>
+class TMulticastScriptDelegate : public TDelegateAccessHandlerBase<typename UE::Core::Private::TScriptDelegateTraits<InThreadSafetyMode>::ThreadSafetyMode>
 {
-	using Super = FDelegateAccessHandlerBaseChecked;
+	using ThreadSafetyMode = typename UE::Core::Private::TScriptDelegateTraits<InThreadSafetyMode>::ThreadSafetyMode;
+	using Super = TDelegateAccessHandlerBase<ThreadSafetyMode>;
 	using typename Super::FReadAccessScope;
 	using Super::GetReadAccessScope;
 	using typename Super::FWriteAccessScope;
 	using Super::GetWriteAccessScope;
 
-	using UnicastDelegateType = TScriptDelegate<Dummy>;
+	using UnicastDelegateType = TScriptDelegate<typename UE::Core::Private::TScriptDelegateTraits<InThreadSafetyMode>::UnicastThreadSafetyModeForMulticasts>;
 
 public:
 
@@ -580,7 +587,7 @@ public:
 	 * @param	InDelegate	Delegate to check
 	 * @return	True if the delegate is already in the list.
 	 */
-	bool Contains( const UnicastDelegateType& InDelegate ) const
+	bool Contains( const TScriptDelegate<ThreadSafetyMode>& InDelegate ) const
 	{
 		const UObject* Object;
 		FName FunctionName;
@@ -594,17 +601,17 @@ public:
 		return Contains(Object, FunctionName);
 	}
 	template <
-		typename OtherDummy
-		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
+		typename OtherThreadSafetyMode
+		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<InThreadSafetyMode, OtherThreadSafetyMode>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	bool Contains(const TScriptDelegate<OtherDummy>& InDelegate) const
+	bool Contains(const TScriptDelegate<OtherThreadSafetyMode>& InDelegate) const
 	{
 		const UObject* Object;
 		FName FunctionName;
 
 		{
-			typename TScriptDelegate<OtherDummy>::FReadAccessScope OtherReadScope = InDelegate.GetReadAccessScope();
+			typename TScriptDelegate<OtherThreadSafetyMode>::FReadAccessScope OtherReadScope = InDelegate.GetReadAccessScope();
 			Object = InDelegate.Object.Get();
 			FunctionName = InDelegate.FunctionName;
 		}
@@ -633,7 +640,7 @@ public:
 	 *
 	 * @param	InDelegate	Delegate to add
 	 */
-	void Add( const UnicastDelegateType& InDelegate )
+	void Add( const TScriptDelegate<ThreadSafetyMode>& InDelegate )
 	{
 		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
 
@@ -648,11 +655,11 @@ public:
 		}
 	}
 	template <
-		typename OtherDummy
-		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
+		typename OtherThreadSafetyMode
+		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<InThreadSafetyMode, OtherThreadSafetyMode>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	void Add(const TScriptDelegate<OtherDummy>& InDelegate)
+	void Add(const TScriptDelegate<OtherThreadSafetyMode>& InDelegate)
 	{
 		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
 
@@ -673,7 +680,7 @@ public:
 	 *
 	 * @param	InDelegate	Delegate to add
 	 */
-	void AddUnique( const UnicastDelegateType& InDelegate )
+	void AddUnique( const TScriptDelegate<ThreadSafetyMode>& InDelegate )
 	{
 		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
 
@@ -688,11 +695,11 @@ public:
 		}
 	}
 	template <
-		typename OtherDummy
-		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
+		typename OtherThreadSafetyMode
+		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<InThreadSafetyMode, OtherThreadSafetyMode>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	void AddUnique(const TScriptDelegate<OtherDummy>& InDelegate)
+	void AddUnique(const TScriptDelegate<OtherThreadSafetyMode>& InDelegate)
 	{
 		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
 
@@ -713,7 +720,7 @@ public:
 	 *
 	 * @param	InDelegate	Delegate to remove
 	 */
-	void Remove( const UnicastDelegateType& InDelegate )
+	void Remove( const TScriptDelegate<ThreadSafetyMode>& InDelegate )
 	{
 		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
 
@@ -728,11 +735,11 @@ public:
 		}
 	}
 	template <
-		typename OtherDummy
-		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<Dummy, OtherDummy>())
+		typename OtherThreadSafetyMode
+		UE_REQUIRES(UE::Core::Private::BackwardCompatibilityCheck<InThreadSafetyMode, OtherThreadSafetyMode>())
 	>
 	/* UE_DEPRECATED(5.3, "Deprecated - remove after TScriptDelegateTraits<FWeakObjectPtr> is removed") */
-	void Remove(const TScriptDelegate<OtherDummy>& InDelegate)
+	void Remove(const TScriptDelegate<OtherThreadSafetyMode>& InDelegate)
 	{
 		UnicastDelegateType LocalCopy = UnicastDelegateType::CopyFrom(InDelegate);
 
@@ -1054,8 +1061,8 @@ protected:
 };
 
 
-template <typename TWeakPtr>
-struct TIsZeroConstructType<TMulticastScriptDelegate<TWeakPtr>>
-{
-	static constexpr bool Value = TIsZeroConstructType<typename TMulticastScriptDelegate<TWeakPtr>::InvocationListType>::Value;
+template<typename ThreadSafetyMode> 
+struct TIsZeroConstructType<TMulticastScriptDelegate<ThreadSafetyMode> >
+{ 
+	static constexpr bool Value = TIsZeroConstructType<typename TMulticastScriptDelegate<ThreadSafetyMode>::InvocationListType>::Value;
 };

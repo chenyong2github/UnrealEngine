@@ -19,7 +19,9 @@ class UGameInstance;
 enum class ELevelCollectionType : uint8;
 struct FTimerSourceList;
 
-DECLARE_DELEGATE(FTimerDelegate);
+// using "not checked" user policy (means race detection is disabled) because this delegate is stored in a TSparseArray and causes its reallocation
+// from inside delegate's execution. This is incompatible with race detection that needs to access the delegate instance after its execution
+using FTimerDelegate = TDelegate<void(), FNotThreadSafeNotCheckedDelegateUserPolicy>;
 
 #ifndef UE_ENABLE_TRACKING_TIMER_SOURCES
 #define UE_ENABLE_TRACKING_TIMER_SOURCES !UE_BUILD_SHIPPING
