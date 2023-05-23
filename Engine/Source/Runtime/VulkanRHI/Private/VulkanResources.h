@@ -1047,6 +1047,11 @@ public:
 		return GetCurrentAllocation().Size;
 	}
 
+	inline VkDeviceAddress GetDeviceAddress() const
+	{
+		return BufferAllocs[CurrentBufferIndex].DeviceAddress;
+	}
+
 	inline VkBufferUsageFlags GetBufferUsageFlags() const
 	{
 		return BufferUsageFlags;
@@ -1078,10 +1083,6 @@ public:
 		Callback(TEXT("FVulkanResourceMultiBuffer"), FName(), this, 0, GetCurrentSize() * GetNumBuffers(), 1, 1, VK_FORMAT_UNDEFINED);
 	}
 
-#if VULKAN_RHI_RAYTRACING
-	VkDeviceAddress GetDeviceAddress() const;
-#endif
-
 	static VkBufferUsageFlags UEToVKBufferUsageFlags(FVulkanDevice* InDevice, EBufferUsageFlags InUEUsage, bool bZeroSize);
 
 protected:
@@ -1105,6 +1106,7 @@ protected:
 		VulkanRHI::FVulkanAllocation Alloc;
 		void* HostPtr = nullptr;
 		class FVulkanGPUFence* Fence = nullptr;
+		VkDeviceAddress DeviceAddress = 0;
 
 		enum class EAllocStatus : uint8
 		{
@@ -1134,6 +1136,11 @@ public:
 
 	void UpdateResourceTable(const FRHIUniformBufferLayout& InLayout, const void* Contents, int32 ResourceNum);
 	void UpdateResourceTable(FRHIResource** Resources, int32 ResourceNum);
+
+	inline VkBuffer GetBufferHandle() const
+	{
+		return Allocation.GetBufferHandle();
+	}
 
 	inline uint32 GetOffset() const
 	{

@@ -87,19 +87,6 @@ enum class EBLASBuildDataUsage
 	Size = 1
 };
 
-static VkDeviceAddress GetDeviceAddress(VkDevice Device, VkBuffer Buffer)
-{
-	VkBufferDeviceAddressInfoKHR DeviceAddressInfo;
-	ZeroVulkanStruct(DeviceAddressInfo, VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO);
-	DeviceAddressInfo.buffer = Buffer;
-	return VulkanDynamicAPI::vkGetBufferDeviceAddressKHR(Device, &DeviceAddressInfo);
-}
-
-VkDeviceAddress FVulkanResourceMultiBuffer::GetDeviceAddress() const
-{
-	return ::GetDeviceAddress(Device->GetInstanceHandle(), GetHandle()) + GetOffset();
-}
-
 // Temporary brute force allocation helper, this should be handled by the memory sub-allocator
 static uint32 FindMemoryType(VkPhysicalDevice Gpu, uint32 Filter, VkMemoryPropertyFlags RequestedProperties)
 {

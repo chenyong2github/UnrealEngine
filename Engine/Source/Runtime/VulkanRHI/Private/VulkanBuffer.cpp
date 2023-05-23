@@ -82,6 +82,17 @@ static FORCEINLINE void UpdateVulkanBufferStats(uint64_t Size, VkBufferUsageFlag
 	}
 }
 
+static VkDeviceAddress GetBufferDeviceAddress(FVulkanDevice* Device, VkBuffer Buffer)
+{
+	if (Device->GetOptionalExtensions().HasBufferDeviceAddress)
+	{
+		VkBufferDeviceAddressInfoKHR DeviceAddressInfo;
+		ZeroVulkanStruct(DeviceAddressInfo, VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO);
+		DeviceAddressInfo.buffer = Buffer;
+		return VulkanRHI::vkGetBufferDeviceAddressKHR(Device->GetInstanceHandle(), &DeviceAddressInfo);
+	}
+	return 0;
+}
 
 VkBufferUsageFlags FVulkanResourceMultiBuffer::UEToVKBufferUsageFlags(FVulkanDevice* InDevice, EBufferUsageFlags InUEUsage, bool bZeroSize)
 {
@@ -175,6 +186,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 				FBufferAlloc NewBufferAlloc;
 				NewBufferAlloc.Alloc = FVulkanTransientHeap::GetVulkanAllocation(*InTransientHeapAllocation);
 				NewBufferAlloc.HostPtr = bUnifiedMem ? NewBufferAlloc.Alloc.GetMappedPointer(Device) : nullptr;
+				NewBufferAlloc.DeviceAddress = GetBufferDeviceAddress(InDevice, NewBufferAlloc.Alloc.GetBufferHandle()) + NewBufferAlloc.Alloc.Offset;
 				check(NewBufferAlloc.Alloc.Offset % BufferAlignment == 0);
 				check(NewBufferAlloc.Alloc.Size >= InBufferDesc.Size);
 				CurrentBufferIndex = BufferAllocs.Add(NewBufferAlloc);
@@ -184,7 +196,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 				AdvanceBufferIndex();
 			}
 
-			VULKAN_SET_DEBUG_NAME((*InDevice), VK_OBJECT_TYPE_BUFFER, (VkBuffer)BufferAllocs[CurrentBufferIndex].Alloc.VulkanHandle, TEXT("%s"), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("UnknownBuffer"));
+			VULKAN_SET_DEBUG_NAME((*InDevice), VK_OBJECT_TYPE_BUFFER, BufferAllocs[CurrentBufferIndex].Alloc.GetBufferHandle(), TEXT("%s"), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("UnknownBuffer"));
 
 			if (CreateInfo.ResourceArray)
 			{
@@ -276,6 +288,7 @@ void FVulkanResourceMultiBuffer::AdvanceBufferIndex()
 		NewBufferAlloc.HostPtr = bUnifiedMem ? NewBufferAlloc.Alloc.GetMappedPointer(Device) : nullptr;
 		NewBufferAlloc.Fence = new FVulkanGPUFence(TEXT("VulkanDynamicBuffer"));
 		NewBufferAlloc.AllocStatus = FBufferAlloc::EAllocStatus::InUse;
+		NewBufferAlloc.DeviceAddress = GetBufferDeviceAddress(Device, NewBufferAlloc.Alloc.GetBufferHandle()) + NewBufferAlloc.Alloc.Offset;
 	}
 }
 
@@ -344,6 +357,8 @@ void* FVulkanResourceMultiBuffer::Lock(FVulkanCommandListContext& Context, EReso
 			// Patch our alloc to go directly to our offset
 			BufferAlloc.Alloc.Offset += VolatileAlloc.CurrentOffset;
 			BufferAlloc.Alloc.Size = VolatileAlloc.Size;
+
+			BufferAlloc.DeviceAddress = GetBufferDeviceAddress(Device, BufferAlloc.Alloc.GetBufferHandle()) + BufferAlloc.Alloc.Offset;
 		}
 	}
 	else
