@@ -192,6 +192,11 @@ namespace TypedElementQueryBuilder
 	{
 		return ParentContext.RunQuery(Query);
 	}
+	
+	ITypedElementDataStorageInterface::FQueryResult FQueryContextForwarder::RunSubquery(int32 SubqueryIndex)
+	{
+		return ParentContext.RunSubquery(SubqueryIndex);
+	}
 
 	//
 	// FCachedQueryContext

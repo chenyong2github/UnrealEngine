@@ -118,11 +118,14 @@ namespace TypedElementQueryBuilder
 		template<typename... TargetTypes>
 		FDependency& ReadOnly();
 		FDependency& ReadOnly(const UClass* Target);
-		FDependency& ReadOnly(std::initializer_list<const UClass*> Targets);
+		FDependency& ReadOnly(TConstArrayView<const UClass*> Targets);
 		template<typename... TargetTypes>
 		FDependency& ReadWrite();
 		FDependency& ReadWrite(const UClass* Target);
-		FDependency& ReadWrite(std::initializer_list<const UClass*> Targets);
+		FDependency& ReadWrite(TConstArrayView<const UClass*> Targets);
+
+		FDependency& SubQuery(TypedElementQueryHandle Handle);
+		FDependency& SubQuery(TConstArrayView<TypedElementQueryHandle> Handles);
 
 		ITypedElementDataStorageInterface::FQueryDescription&& Compile();
 
@@ -144,15 +147,15 @@ namespace TypedElementQueryBuilder
 		template<typename... TargetTypes>
 		FSimpleQuery& All();
 		FSimpleQuery& All(const UScriptStruct* Target);
-		FSimpleQuery& All(std::initializer_list<const UScriptStruct*> Targets);
+		FSimpleQuery& All(TConstArrayView<const UScriptStruct*> Targets);
 		template<typename... TargetTypes>
 		FSimpleQuery& Any();
 		FSimpleQuery& Any(const UScriptStruct* Target);
-		FSimpleQuery& Any(std::initializer_list<const UScriptStruct*> Targets);
+		FSimpleQuery& Any(TConstArrayView<const UScriptStruct*> Targets);
 		template<typename... TargetTypes>
 		FSimpleQuery& None();
 		FSimpleQuery& None(const UScriptStruct* Target);
-		FSimpleQuery& None(std::initializer_list<const UScriptStruct*> Targets);
+		FSimpleQuery& None(TConstArrayView<const UScriptStruct*> Targets);
 
 	private:
 		explicit FSimpleQuery(ITypedElementDataStorageInterface::FQueryDescription* Query);
@@ -251,6 +254,7 @@ namespace TypedElementQueryBuilder
 		inline void RemoveColumns(TConstArrayView<TypedElementRowHandle> Rows, TConstArrayView<const UScriptStruct*> ColumnTypes) override;
 
 		inline ITypedElementDataStorageInterface::FQueryResult RunQuery(TypedElementQueryHandle Query) override;
+		inline ITypedElementDataStorageInterface::FQueryResult RunSubquery(int32 SubqueryIndex) override;
 
 		ITypedElementDataStorageInterface::IQueryContext& ParentContext;
 		const ITypedElementDataStorageInterface::FQueryDescription& Description;

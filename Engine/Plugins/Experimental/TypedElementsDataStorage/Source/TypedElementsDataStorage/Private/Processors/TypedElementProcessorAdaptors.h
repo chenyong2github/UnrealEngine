@@ -36,6 +36,8 @@ struct FTypedElementQueryProcessorData
 	FTypedElementQueryProcessorData() = default;
 	explicit FTypedElementQueryProcessorData(UMassProcessor& Owner);
 
+	bool CommonQueryConfiguration(UMassProcessor& InOwner, FTypedElementExtendedQuery& InQuery, 
+		FTypedElementExtendedQueryStore& InQueryStore, TArrayView<FMassEntityQuery> Subqueries);
 	static EMassProcessingPhase MapToMassProcessingPhase(ITypedElementDataStorageInterface::EQueryTickPhase Phase);
 	FString GetProcessorName() const;
 
@@ -49,26 +51,29 @@ struct FTypedElementQueryProcessorData
 	static bool PrepareCachedDependenciesOnQuery(
 		ITypedElementDataStorageInterface::FQueryDescription& Description, FMassExecutionContext& Context);
 
+	
 	FTypedElementExtendedQuery* ParentQuery{ nullptr };
 	FTypedElementExtendedQueryStore* QueryStore{ nullptr };
-	FMassEntityQuery Query;
+	FMassEntityQuery NativeQuery;
 };
 
 /**
  * Adapts processor queries callback for MASS.
  */
 UCLASS()
-class UTypedElementQueryProcessorCallbackAdapterProcessor : public UMassProcessor
+class UTypedElementQueryProcessorCallbackAdapterProcessorBase : public UMassProcessor
 {
 	GENERATED_BODY()
 
 public:
-	UTypedElementQueryProcessorCallbackAdapterProcessor();
+	UTypedElementQueryProcessorCallbackAdapterProcessorBase();
 
 	FMassEntityQuery& GetQuery();
-	void ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore);
+	virtual bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore);
 
 protected:
+	bool ConfigureQueryCallbackData(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore, 
+		TArrayView<FMassEntityQuery> Subqueries);
 	void ConfigureQueries() override;
 	void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& TargetParentQuery) override;
 	
@@ -80,23 +85,91 @@ private:
 	FTypedElementQueryProcessorData Data;
 };
 
-/**
- * Adapts observer queries callback for MASS.
- */
 UCLASS()
-class UTypedElementQueryObserverCallbackAdapterProcessor : public UMassObserverProcessor
+class UTypedElementQueryProcessorCallbackAdapterProcessor final : public UTypedElementQueryProcessorCallbackAdapterProcessorBase
+{
+	GENERATED_BODY()
+};
+
+/**
+ * Mass verifies that queries that are used by processors are on the processor themselves. It does this by taking the address of the query 
+ * and seeing if it's within the start and end address of the processor. When a dynamic array is used those addresses are going to be 
+ * elsewhere, so the two options are to store a single fixed size array on a processor or have multiple instances. With Mass' queries being 
+ * not an insignificant size it's preferable to have several variants with queries to allow the choice for the minimal size. Unfortunately 
+ * UHT doesn't allow for templates so it had to be done in an explicit way.
+ */
+
+UCLASS()
+class UTypedElementQueryProcessorCallbackAdapterProcessorWith1Subquery final : public UTypedElementQueryProcessorCallbackAdapterProcessorBase
 {
 	GENERATED_BODY()
 
 public:
-	UTypedElementQueryObserverCallbackAdapterProcessor();
+	bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore) override;
+
+private:
+	UPROPERTY(transient)
+	FMassEntityQuery NativeSubqueries[1];
+};
+
+UCLASS()
+class UTypedElementQueryProcessorCallbackAdapterProcessorWith2Subqueries final : public UTypedElementQueryProcessorCallbackAdapterProcessorBase
+{
+	GENERATED_BODY()
+
+public:
+	bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore) override;
+
+private:
+	UPROPERTY(transient)
+	FMassEntityQuery NativeSubqueries[2];
+};
+
+UCLASS()
+class UTypedElementQueryProcessorCallbackAdapterProcessorWith3Subqueries final : public UTypedElementQueryProcessorCallbackAdapterProcessorBase
+{
+	GENERATED_BODY()
+
+public:
+	bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore) override;
+
+private:
+	UPROPERTY(transient)
+	FMassEntityQuery NativeSubqueries[3];
+};
+
+UCLASS()
+class UTypedElementQueryProcessorCallbackAdapterProcessorWith4Subqueries final : public UTypedElementQueryProcessorCallbackAdapterProcessorBase
+{
+	GENERATED_BODY()
+
+public:
+	bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore) override;
+
+private:
+	UPROPERTY(transient)
+	FMassEntityQuery NativeSubqueries[4];
+};
+
+/**
+ * Adapts observer queries callback for MASS.
+ */
+UCLASS()
+class UTypedElementQueryObserverCallbackAdapterProcessorBase : public UMassObserverProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UTypedElementQueryObserverCallbackAdapterProcessorBase();
 
 	FMassEntityQuery& GetQuery();
 	const UScriptStruct* GetObservedType() const;
 	EMassObservedOperation GetObservedOperation() const;
-	void ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore);
+	virtual bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore);
 
 protected:
+	bool ConfigureQueryCallbackData(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore,
+		TArrayView<FMassEntityQuery> Subqueries);
 	void ConfigureQueries() override;
 	void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& TargetParentQuery) override;
 
@@ -107,4 +180,70 @@ protected:
 private:
 	UPROPERTY(transient)
 	FTypedElementQueryProcessorData Data;
+};
+
+UCLASS()
+class UTypedElementQueryObserverCallbackAdapterProcessor final : public UTypedElementQueryObserverCallbackAdapterProcessorBase
+{
+	GENERATED_BODY()
+};
+
+/**
+ * Mass verifies that queries that are used by processors are on the processor themselves. It does this by taking the address of the query
+ * and seeing if it's within the start and end address of the processor. When a dynamic array is used those addresses are going to be
+ * elsewhere, so the two options are to store a single fixed size array on a processor or have multiple instances. With Mass' queries being
+ * not an insignificant size it's preferable to have several variants with queries to allow the choice for the minimal size. Unfortunately
+ * UHT doesn't allow for templates so it had to be done in an explicit way.
+ */
+
+UCLASS()
+class UTypedElementQueryObserverCallbackAdapterProcessorWith1Subquery final : public UTypedElementQueryObserverCallbackAdapterProcessorBase
+{
+	GENERATED_BODY()
+
+public:
+	bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore) override;
+
+private:
+	UPROPERTY(transient)
+	FMassEntityQuery NativeSubqueries[1];
+};
+
+UCLASS()
+class UTypedElementQueryObserverCallbackAdapterProcessorWith2Subqueries final : public UTypedElementQueryObserverCallbackAdapterProcessorBase
+{
+	GENERATED_BODY()
+
+public:
+	bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore) override;
+
+private:
+	UPROPERTY(transient)
+	FMassEntityQuery NativeSubqueries[2];
+};
+
+UCLASS()
+class UTypedElementQueryObserverCallbackAdapterProcessorWith3Subqueries final : public UTypedElementQueryObserverCallbackAdapterProcessorBase
+{
+	GENERATED_BODY()
+
+public:
+	bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore) override;
+
+private:
+	UPROPERTY(transient)
+	FMassEntityQuery NativeSubqueries[3];
+};
+
+UCLASS()
+class UTypedElementQueryObserverCallbackAdapterProcessorWith4Subqueries final : public UTypedElementQueryObserverCallbackAdapterProcessorBase
+{
+	GENERATED_BODY()
+
+public:
+	bool ConfigureQueryCallback(FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore) override;
+
+private:
+	UPROPERTY(transient)
+	FMassEntityQuery NativeSubqueries[4];
 };

@@ -38,11 +38,11 @@ void FTypedElementExtendedQueryStore::UnregisterQuery(Handle Query, FMassProcess
 	{
 		if (QueryData->Processor)
 		{
-			if (QueryData->Processor->IsA<UTypedElementQueryProcessorCallbackAdapterProcessor>())
+			if (QueryData->Processor->IsA<UTypedElementQueryProcessorCallbackAdapterProcessorBase>())
 			{
 				PhaseManager.UnregisterDynamicProcessor(*QueryData->Processor);
 			}
-			else if (QueryData->Processor->IsA<UTypedElementQueryObserverCallbackAdapterProcessor>())
+			else if (QueryData->Processor->IsA<UTypedElementQueryObserverCallbackAdapterProcessorBase>())
 			{
 				checkf(false, TEXT("Observer queries can not be unregistered."));
 			}
@@ -277,6 +277,14 @@ void FTypedElementExtendedQueryStore::DebugPrintQueryCallbacks(FOutputDevice& Ou
 FMassEntityQuery& FTypedElementExtendedQueryStore::SetupNativeQuery(
 	ITypedElementDataStorageInterface::FQueryDescription& Query, FTypedElementExtendedQuery& StoredQuery)
 {
+	/**
+	 * Mass verifies that queries that are used by processors are on the processor themselves. It does this by taking the address of the query
+	 * and seeing if it's within the start and end address of the processor. When a dynamic array is used those addresses are going to be
+	 * elsewhere, so the two options are to store a single fixed size array on a processor or have multiple instances. With Mass' queries being
+	 * not an insignificant size it's preferable to have several variants with queries to allow the choice for the minimal size. Unfortunately
+	 * UHT doesn't allow for templates so it had to be done in an explicit way.
+	 */
+
 	using DSI = ITypedElementDataStorageInterface;
 
 	if (Query.Action == DSI::FQueryDescription::EActionType::Select)
@@ -287,8 +295,29 @@ FMassEntityQuery& FTypedElementExtendedQueryStore::SetupNativeQuery(
 			break;
 		case DSI::EQueryCallbackType::Processor:
 		{
-			UTypedElementQueryProcessorCallbackAdapterProcessor* Processor =
-				NewObject<UTypedElementQueryProcessorCallbackAdapterProcessor>();
+			UTypedElementQueryProcessorCallbackAdapterProcessorBase* Processor;
+			switch (Query.Subqueries.Num())
+			{
+			case 0:
+				Processor = NewObject<UTypedElementQueryProcessorCallbackAdapterProcessor>();
+				break;
+			case 1:
+				Processor = NewObject<UTypedElementQueryProcessorCallbackAdapterProcessorWith1Subquery>();
+				break;
+			case 2:
+				Processor = NewObject<UTypedElementQueryProcessorCallbackAdapterProcessorWith2Subqueries>();
+				break;
+			case 3:
+				Processor = NewObject<UTypedElementQueryProcessorCallbackAdapterProcessorWith3Subqueries>();
+				break;
+			case 4:
+				Processor = NewObject<UTypedElementQueryProcessorCallbackAdapterProcessorWith4Subqueries>();
+				break;
+			default:
+				checkf(false, TEXT("The current Typed Elements Data Storage backend doesn't support %i subqueries per processor query."), 
+					Query.Subqueries.Num());
+				return StoredQuery.NativeQuery;
+			}
 			StoredQuery.Processor.Reset(Processor);
 			return Processor->GetQuery();
 		}
@@ -296,8 +325,29 @@ FMassEntityQuery& FTypedElementExtendedQueryStore::SetupNativeQuery(
 			// Fall-through
 		case DSI::EQueryCallbackType::ObserveRemove:
 		{
-			UTypedElementQueryObserverCallbackAdapterProcessor* Observer =
-				NewObject<UTypedElementQueryObserverCallbackAdapterProcessor>();
+			UTypedElementQueryObserverCallbackAdapterProcessorBase* Observer;
+			switch (Query.Subqueries.Num())
+			{
+			case 0:
+				Observer = NewObject<UTypedElementQueryObserverCallbackAdapterProcessor>();
+				break;
+			case 1:
+				Observer = NewObject<UTypedElementQueryObserverCallbackAdapterProcessorWith1Subquery>();
+				break;
+			case 2:
+				Observer = NewObject<UTypedElementQueryObserverCallbackAdapterProcessorWith2Subqueries>();
+				break;
+			case 3:
+				Observer = NewObject<UTypedElementQueryObserverCallbackAdapterProcessorWith3Subqueries>();
+				break;
+			case 4:
+				Observer = NewObject<UTypedElementQueryObserverCallbackAdapterProcessorWith4Subqueries>();
+				break;
+			default:
+				checkf(false, TEXT("The current Typed Elements Data Storage backend doesn't support %i subqueries per observer query."),
+					Query.Subqueries.Num());
+				return StoredQuery.NativeQuery;
+			}
 			StoredQuery.Processor.Reset(Observer);
 			return Observer->GetQuery();
 		}
@@ -496,18 +546,30 @@ bool FTypedElementExtendedQueryStore::SetupProcessors(Handle Query, FTypedElemen
 	// Register regular processors and observer with Mass.
 	if (StoredQuery.Processor)
 	{
-		if (StoredQuery.Processor->IsA<UTypedElementQueryProcessorCallbackAdapterProcessor>())
+		if (StoredQuery.Processor->IsA<UTypedElementQueryProcessorCallbackAdapterProcessorBase>())
 		{
-			static_cast<UTypedElementQueryProcessorCallbackAdapterProcessor*>(StoredQuery.Processor.Get())->
-				ConfigureQueryCallback(StoredQuery, *this);
-			PhaseManager.RegisterDynamicProcessor(*StoredQuery.Processor);
+			if (static_cast<UTypedElementQueryProcessorCallbackAdapterProcessorBase*>(StoredQuery.Processor.Get())->
+				ConfigureQueryCallback(StoredQuery, *this))
+			{
+				PhaseManager.RegisterDynamicProcessor(*StoredQuery.Processor);
+			}
+			else
+			{
+				return false;
+			}
 		}
-		else if (StoredQuery.Processor->IsA<UTypedElementQueryObserverCallbackAdapterProcessor>())
+		else if (StoredQuery.Processor->IsA<UTypedElementQueryObserverCallbackAdapterProcessorBase>())
 		{
-			UTypedElementQueryObserverCallbackAdapterProcessor* Observer =
-				static_cast<UTypedElementQueryObserverCallbackAdapterProcessor*>(StoredQuery.Processor.Get());
-			Observer->ConfigureQueryCallback(StoredQuery, *this);
-			EntityManager.GetObserverManager().AddObserverInstance(*Observer->GetObservedType(), Observer->GetObservedOperation(), *Observer);
+			if (UTypedElementQueryObserverCallbackAdapterProcessorBase* Observer =
+				static_cast<UTypedElementQueryObserverCallbackAdapterProcessorBase*>(StoredQuery.Processor.Get()))
+			{
+				Observer->ConfigureQueryCallback(StoredQuery, *this);
+				EntityManager.GetObserverManager().AddObserverInstance(*Observer->GetObservedType(), Observer->GetObservedOperation(), *Observer);
+			}
+			else
+			{
+				return false;
+			}
 		}
 		else
 		{

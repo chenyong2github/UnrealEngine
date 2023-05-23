@@ -65,8 +65,10 @@ struct FMassContextForwarderShared
 
 struct FMassContextForwarder final : public ITypedElementDataStorageInterface::IQueryContext
 {
-	FMassContextForwarder(FMassExecutionContext& InContext, FTypedElementExtendedQueryStore& InQueryStore)
-		: Context(InContext)
+	FMassContextForwarder(ITypedElementDataStorageInterface::FQueryDescription& InQueryDescription, FMassExecutionContext& InContext, 
+		FTypedElementExtendedQueryStore& InQueryStore)
+		: QueryDescription(InQueryDescription)
+		, Context(InContext)
 		, QueryStore(InQueryStore)
 	{}
 
@@ -232,6 +234,14 @@ struct FMassContextForwarder final : public ITypedElementDataStorageInterface::I
 		return QueryStore.RunQuery(Context.GetEntityManagerChecked(), Handle);
 	}
 
+	ITypedElementDataStorageInterface::FQueryResult RunSubquery(int32 SubqueryIndex) override
+	{
+		return SubqueryIndex < QueryDescription.Subqueries.Num() ?
+			RunQuery(QueryDescription.Subqueries[SubqueryIndex]) :
+			ITypedElementDataStorageInterface::FQueryResult{};
+	}
+
+	ITypedElementDataStorageInterface::FQueryDescription& QueryDescription;
 	FMassExecutionContext& Context;
 	FTypedElementExtendedQueryStore& QueryStore;
 };
@@ -306,7 +316,7 @@ void FPhasePreOrPostAmbleExecutor::ExecuteQuery(
 		{
 			if (FTypedElementQueryProcessorData::PrepareCachedDependenciesOnQuery(Description, ExecutionContext))
 			{
-				FMassContextForwarder QueryContext(ExecutionContext, QueryStore);
+				FMassContextForwarder QueryContext(Description, ExecutionContext, QueryStore);
 				Callback(Description, QueryContext);
 			}
 		}
@@ -319,8 +329,47 @@ void FPhasePreOrPostAmbleExecutor::ExecuteQuery(
  * FTypedElementQueryProcessorData
  */
 FTypedElementQueryProcessorData::FTypedElementQueryProcessorData(UMassProcessor& Owner)
-	: Query(Owner)
+	: NativeQuery(Owner)
 {
+}
+
+bool FTypedElementQueryProcessorData::CommonQueryConfiguration(UMassProcessor& InOwner, FTypedElementExtendedQuery& InQuery, 
+	FTypedElementExtendedQueryStore& InQueryStore, TArrayView<FMassEntityQuery> Subqueries)
+{
+	ParentQuery = &InQuery;
+	QueryStore = &InQueryStore;
+
+	if (ensureMsgf(InQuery.Description.Subqueries.Num() <= Subqueries.Num(),
+		TEXT("Provided query has too many (%i) subqueries."), InQuery.Description.Subqueries.Num()))
+	{
+		bool Result = true;
+		int32 CurrentSubqueryIndex = 0;
+		for (TypedElementQueryHandle SubqueryHandle : InQuery.Description.Subqueries)
+		{
+			FTypedElementExtendedQueryStore::Handle SubqueryStoreHandle;
+			SubqueryStoreHandle.Handle = SubqueryHandle;
+			if (const FTypedElementExtendedQuery* Subquery = InQueryStore.Get(SubqueryStoreHandle))
+			{
+				if (ensureMsgf(Subquery->NativeQuery.CheckValidity(), TEXT("Provided subquery isn't valid. This can be because it couldn't be "
+					"constructed properly or because it's been bound to a callback.")))
+				{
+					Subqueries[CurrentSubqueryIndex] = Subquery->NativeQuery;
+					Subqueries[CurrentSubqueryIndex].RegisterWithProcessor(InOwner);
+					++CurrentSubqueryIndex;
+				}
+				else
+				{
+					Result = false;
+				}
+			}
+			else
+			{
+				Result = false;
+			}
+		}
+		return Result;
+	}
+	return false;
 }
 
 EMassProcessingPhase FTypedElementQueryProcessorData::MapToMassProcessingPhase(ITypedElementDataStorageInterface::EQueryTickPhase Phase)
@@ -411,12 +460,12 @@ void FTypedElementQueryProcessorData::Execute(FMassEntityManager& EntityManager,
 	checkf(ParentQuery, TEXT("A query callback was registered for execution without an associated query."));
 	
 	ITypedElementDataStorageInterface::FQueryDescription& Description = ParentQuery->Description;
-	Query.ForEachEntityChunk(EntityManager, Context,
+	NativeQuery.ForEachEntityChunk(EntityManager, Context,
 		[this, &Description](FMassExecutionContext& Context)
 		{
 			if (PrepareCachedDependenciesOnQuery(Description, Context))
 			{
-				FMassContextForwarder QueryContext(Context, *QueryStore);
+				FMassContextForwarder QueryContext(Description, Context, *QueryStore);
 				Description.Callback.Function(Description, QueryContext);
 			}
 		}
@@ -429,96 +478,130 @@ void FTypedElementQueryProcessorData::Execute(FMassEntityManager& EntityManager,
  * UTypedElementQueryProcessorCallbackAdapterProcessor
  */
 
-UTypedElementQueryProcessorCallbackAdapterProcessor::UTypedElementQueryProcessorCallbackAdapterProcessor()
+UTypedElementQueryProcessorCallbackAdapterProcessorBase::UTypedElementQueryProcessorCallbackAdapterProcessorBase()
 	: Data(*this)
 {
 	bAllowMultipleInstances = true;
 	bAutoRegisterWithProcessingPhases = false;
 }
 
-FMassEntityQuery& UTypedElementQueryProcessorCallbackAdapterProcessor::GetQuery()
+FMassEntityQuery& UTypedElementQueryProcessorCallbackAdapterProcessorBase::GetQuery()
 {
-	return Data.Query;
+	return Data.NativeQuery;
 }
 
-void UTypedElementQueryProcessorCallbackAdapterProcessor::ConfigureQueryCallback(
-	FTypedElementExtendedQuery& TargetParentQuery, FTypedElementExtendedQueryStore& QueryStore)
+bool UTypedElementQueryProcessorCallbackAdapterProcessorBase::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
 {
-	Data.ParentQuery = &TargetParentQuery;
-	Data.QueryStore = &QueryStore;
+	return ConfigureQueryCallbackData(Query, QueryStore, {});
+}
 
-	bRequiresGameThreadExecution = TargetParentQuery.Description.Callback.bForceToGameThread;
+bool UTypedElementQueryProcessorCallbackAdapterProcessorBase::ConfigureQueryCallbackData(FTypedElementExtendedQuery& Query,
+	FTypedElementExtendedQueryStore& QueryStore,  TArrayView<FMassEntityQuery> Subqueries)
+{
+	bool Result = Data.CommonQueryConfiguration(*this, Query, QueryStore, Subqueries);
+
+	bRequiresGameThreadExecution = Query.Description.Callback.bForceToGameThread;
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor); 
-	ExecutionOrder.ExecuteInGroup = TargetParentQuery.Description.Callback.Group;
-	ExecutionOrder.ExecuteBefore = TargetParentQuery.Description.Callback.BeforeGroups;
-	ExecutionOrder.ExecuteAfter = TargetParentQuery.Description.Callback.AfterGroups;
-	ProcessingPhase = Data.MapToMassProcessingPhase(TargetParentQuery.Description.Callback.Phase);
+	ExecutionOrder.ExecuteInGroup = Query.Description.Callback.Group;
+	ExecutionOrder.ExecuteBefore = Query.Description.Callback.BeforeGroups;
+	ExecutionOrder.ExecuteAfter = Query.Description.Callback.AfterGroups;
+	ProcessingPhase = Data.MapToMassProcessingPhase(Query.Description.Callback.Phase);
 
 	Super::PostInitProperties();
+	return Result;
 }
 
-void UTypedElementQueryProcessorCallbackAdapterProcessor::ConfigureQueries()
+void UTypedElementQueryProcessorCallbackAdapterProcessorBase::ConfigureQueries()
 {
 	// When the extended query information is provided the native query will already be fully configured.
 }
 
-void UTypedElementQueryProcessorCallbackAdapterProcessor::PostInitProperties()
+void UTypedElementQueryProcessorCallbackAdapterProcessorBase::PostInitProperties()
 {
 	Super::Super::PostInitProperties();
 }
 
-FString UTypedElementQueryProcessorCallbackAdapterProcessor::GetProcessorName() const
+FString UTypedElementQueryProcessorCallbackAdapterProcessorBase::GetProcessorName() const
 {
 	FString Name = Data.GetProcessorName();
 	Name += TEXT(" [Editor Processor]");
 	return Name;
 }
 
-void UTypedElementQueryProcessorCallbackAdapterProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+void UTypedElementQueryProcessorCallbackAdapterProcessorBase::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	Data.Execute(EntityManager, Context);
 }
 
+bool UTypedElementQueryProcessorCallbackAdapterProcessorWith1Subquery::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
+{
+	return ConfigureQueryCallbackData(Query, QueryStore, NativeSubqueries);
+}
+
+bool UTypedElementQueryProcessorCallbackAdapterProcessorWith2Subqueries::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
+{
+	return ConfigureQueryCallbackData(Query, QueryStore, NativeSubqueries);
+}
+
+bool UTypedElementQueryProcessorCallbackAdapterProcessorWith3Subqueries::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
+{
+	return ConfigureQueryCallbackData(Query, QueryStore, NativeSubqueries);
+}
+
+bool UTypedElementQueryProcessorCallbackAdapterProcessorWith4Subqueries::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
+{
+	return ConfigureQueryCallbackData(Query, QueryStore, NativeSubqueries);
+}
 
 
 /**
  * UTypedElementQueryObserverCallbackAdapterProcessor
  */
 
-UTypedElementQueryObserverCallbackAdapterProcessor::UTypedElementQueryObserverCallbackAdapterProcessor()
+UTypedElementQueryObserverCallbackAdapterProcessorBase::UTypedElementQueryObserverCallbackAdapterProcessorBase()
 	: Data(*this)
 {
 	bAllowMultipleInstances = true;
 	bAutoRegisterWithProcessingPhases = false;
 }
 
-FMassEntityQuery& UTypedElementQueryObserverCallbackAdapterProcessor::GetQuery()
+FMassEntityQuery& UTypedElementQueryObserverCallbackAdapterProcessorBase::GetQuery()
 {
-	return Data.Query;
+	return Data.NativeQuery;
 }
 
-const UScriptStruct* UTypedElementQueryObserverCallbackAdapterProcessor::GetObservedType() const
+const UScriptStruct* UTypedElementQueryObserverCallbackAdapterProcessorBase::GetObservedType() const
 {
 	return ObservedType;
 }
 
-EMassObservedOperation UTypedElementQueryObserverCallbackAdapterProcessor::GetObservedOperation() const
+EMassObservedOperation UTypedElementQueryObserverCallbackAdapterProcessorBase::GetObservedOperation() const
 {
 	return Operation;
 }
 
-void UTypedElementQueryObserverCallbackAdapterProcessor::ConfigureQueryCallback(
-	FTypedElementExtendedQuery& TargetParentQuery, FTypedElementExtendedQueryStore& QueryStore)
+bool UTypedElementQueryObserverCallbackAdapterProcessorBase::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
 {
-	Data.ParentQuery = &TargetParentQuery;
-	Data.QueryStore = &QueryStore;
+	return ConfigureQueryCallbackData(Query, QueryStore, {});
+}
 
-	bRequiresGameThreadExecution = TargetParentQuery.Description.Callback.bForceToGameThread;
+bool UTypedElementQueryObserverCallbackAdapterProcessorBase::ConfigureQueryCallbackData(FTypedElementExtendedQuery& Query,
+	FTypedElementExtendedQueryStore& QueryStore, TArrayView<FMassEntityQuery> Subqueries)
+{
+	bool Result = Data.CommonQueryConfiguration(*this, Query, QueryStore, Subqueries);
+
+	bRequiresGameThreadExecution = Query.Description.Callback.bForceToGameThread;
 	ExecutionFlags = static_cast<int32>(EProcessorExecutionFlags::Editor);
 	
-	ObservedType = const_cast<UScriptStruct*>(TargetParentQuery.Description.Callback.MonitoredType);
+	ObservedType = const_cast<UScriptStruct*>(Query.Description.Callback.MonitoredType);
 	
-	switch (TargetParentQuery.Description.Callback.Type)
+	switch (Query.Description.Callback.Type)
 	{
 	case ITypedElementDataStorageInterface::EQueryCallbackType::ObserveAdd:
 		Operation = EMassObservedOperation::Add;
@@ -528,29 +611,30 @@ void UTypedElementQueryObserverCallbackAdapterProcessor::ConfigureQueryCallback(
 		break;
 	default:
 		checkf(false, TEXT("Query type %i is not supported from the observer processor adapter."),
-			static_cast<int>(TargetParentQuery.Description.Callback.Type));
-		break;
+			static_cast<int>(Query.Description.Callback.Type));
+		return false;
 	}
 
 	Super::PostInitProperties();
+	return Result;
 }
 
-void UTypedElementQueryObserverCallbackAdapterProcessor::ConfigureQueries()
+void UTypedElementQueryObserverCallbackAdapterProcessorBase::ConfigureQueries()
 {
 	// When the extended query information is provided the native query will already be fully configured.
 }
 
-void UTypedElementQueryObserverCallbackAdapterProcessor::PostInitProperties()
+void UTypedElementQueryObserverCallbackAdapterProcessorBase::PostInitProperties()
 {
 	Super::Super::PostInitProperties();
 }
 
-void UTypedElementQueryObserverCallbackAdapterProcessor::Register()
+void UTypedElementQueryObserverCallbackAdapterProcessorBase::Register()
 { 
 	// Do nothing as this processor will be explicitly registered.
 }
 
-FString UTypedElementQueryObserverCallbackAdapterProcessor::GetProcessorName() const
+FString UTypedElementQueryObserverCallbackAdapterProcessorBase::GetProcessorName() const
 {
 	FString Name = Data.GetProcessorName();
 	EMassObservedOperation ObservationType = GetObservedOperation();
@@ -569,7 +653,31 @@ FString UTypedElementQueryObserverCallbackAdapterProcessor::GetProcessorName() c
 	return Name;
 }
 
-void UTypedElementQueryObserverCallbackAdapterProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+void UTypedElementQueryObserverCallbackAdapterProcessorBase::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
 {
 	Data.Execute(EntityManager, Context);
+}
+
+bool UTypedElementQueryObserverCallbackAdapterProcessorWith1Subquery::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
+{
+	return ConfigureQueryCallbackData(Query, QueryStore, NativeSubqueries);
+}
+
+bool UTypedElementQueryObserverCallbackAdapterProcessorWith2Subqueries::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
+{
+	return ConfigureQueryCallbackData(Query, QueryStore, NativeSubqueries);
+}
+
+bool UTypedElementQueryObserverCallbackAdapterProcessorWith3Subqueries::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
+{
+	return ConfigureQueryCallbackData(Query, QueryStore, NativeSubqueries);
+}
+
+bool UTypedElementQueryObserverCallbackAdapterProcessorWith4Subqueries::ConfigureQueryCallback(
+	FTypedElementExtendedQuery& Query, FTypedElementExtendedQueryStore& QueryStore)
+{
+	return ConfigureQueryCallbackData(Query, QueryStore, NativeSubqueries);
 }

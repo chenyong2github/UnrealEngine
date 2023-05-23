@@ -392,6 +392,10 @@ public:
 		 * access data from rows such as count queries.
 		 */
 		virtual FQueryResult RunQuery(TypedElementQueryHandle Query) = 0;
+		/** Runs a subquery registered with the current query. The subquery index is in the order of registration with the query. */
+		virtual FQueryResult RunSubquery(int32 SubqueryIndex) = 0;
+		
+
 
 		// Utility functions
 
@@ -406,11 +410,19 @@ public:
 	};
 
 	/**
-	 * Interface to be provided to query callbacks that are directly called through RunQuery.
+	 * Interface to be provided to query callbacks that are directly called through RunQuery from outside a query callback.
 	 */
 	struct IDirectQueryContext : public ICommonQueryContext
 	{
 		virtual ~IDirectQueryContext() = default;
+	};
+
+	/**
+	 * Interface to be provided to query callbacks that are directly called through from a query callback.
+	 */
+	struct ISubqueryCallbackContext : public ICommonQueryContext
+	{
+		virtual ~ISubqueryCallbackContext() = default;
 	};
 
 	struct FQueryDescription;
@@ -490,6 +502,7 @@ public:
 		TArray<EQueryDependencyFlags, TInlineAllocator<NumInlineDependencies>> DependencyFlags;
 		/** Cached instances of the dependencies. This will always match the count of the other Dependency*Types, but may contain null pointers. */
 		TArray<TWeakObjectPtr<UObject>, TInlineAllocator<NumInlineDependencies>> CachedDependencies;
+		TArray<TypedElementQueryHandle> Subqueries;
 		
 		EActionType Action;
 		/** If true, this query only has simple operations and is guaranteed to be executed fully and at optimal performance. */

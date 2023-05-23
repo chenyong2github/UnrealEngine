@@ -45,8 +45,13 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	FDependency& FDependency::ReadOnly(std::initializer_list<const UClass*> Targets)
+	FDependency& FDependency::ReadOnly(TConstArrayView<const UClass*> Targets)
 	{
+		int32 NewSize = Query->CachedDependencies.Num() + Targets.Num();
+		Query->DependencyTypes.Reserve(NewSize);
+		Query->CachedDependencies.Reserve(NewSize);
+		Query->DependencyFlags.Reserve(NewSize);
+		
 		for (const UClass* Target : Targets)
 		{
 			ReadOnly(Target);
@@ -63,12 +68,29 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	FDependency& FDependency::ReadWrite(std::initializer_list<const UClass*> Targets)
+	FDependency& FDependency::ReadWrite(TConstArrayView<const UClass*> Targets)
 	{
+		int32 NewSize = Query->CachedDependencies.Num() + Targets.Num();
+		Query->DependencyTypes.Reserve(NewSize);
+		Query->CachedDependencies.Reserve(NewSize);
+		Query->DependencyFlags.Reserve(NewSize);
+		
 		for (const UClass* Target : Targets)
 		{
 			ReadWrite(Target);
 		}
+		return *this;
+	}
+
+	FDependency& FDependency::SubQuery(TypedElementQueryHandle Handle)
+	{
+		Query->Subqueries.Add(Handle);
+		return *this;
+	}
+	
+	FDependency& FDependency::SubQuery(TConstArrayView<TypedElementQueryHandle> Handles)
+	{
+		Query->Subqueries.Insert(Handles.GetData(), Handles.Num(), Query->Subqueries.Num());
 		return *this;
 	}
 
@@ -98,8 +120,12 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	FSimpleQuery& FSimpleQuery::All(std::initializer_list<const UScriptStruct*> Targets)
+	FSimpleQuery& FSimpleQuery::All(TConstArrayView<const UScriptStruct*> Targets)
 	{
+		int32 NewSize = Query->ConditionTypes.Num() + Targets.Num();
+		Query->ConditionTypes.Reserve(NewSize);
+		Query->ConditionOperators.Reserve(NewSize);
+		
 		for (const UScriptStruct* Target : Targets)
 		{
 			All(Target);
@@ -117,8 +143,12 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	FSimpleQuery& FSimpleQuery::Any(std::initializer_list<const UScriptStruct*> Targets)
+	FSimpleQuery& FSimpleQuery::Any(TConstArrayView<const UScriptStruct*> Targets)
 	{
+		int32 NewSize = Query->ConditionTypes.Num() + Targets.Num();
+		Query->ConditionTypes.Reserve(NewSize);
+		Query->ConditionOperators.Reserve(NewSize);
+
 		for (const UScriptStruct* Target : Targets)
 		{
 			Any(Target);
@@ -136,8 +166,12 @@ namespace TypedElementQueryBuilder
 		return *this;
 	}
 
-	FSimpleQuery& FSimpleQuery::None(std::initializer_list<const UScriptStruct*> Targets)
+	FSimpleQuery& FSimpleQuery::None(TConstArrayView<const UScriptStruct*> Targets)
 	{
+		int32 NewSize = Query->ConditionTypes.Num() + Targets.Num();
+		Query->ConditionTypes.Reserve(NewSize);
+		Query->ConditionOperators.Reserve(NewSize);
+
 		for (const UScriptStruct* Target : Targets)
 		{
 			None(Target);
@@ -152,6 +186,16 @@ namespace TypedElementQueryBuilder
 
 	ITypedElementDataStorageInterface::FQueryDescription&& FSimpleQuery::Compile()
 	{
+		Query->Callback.BeforeGroups.Shrink();
+		Query->Callback.AfterGroups.Shrink();
+		Query->SelectionTypes.Shrink();
+		Query->SelectionAccessTypes.Shrink();
+		Query->ConditionTypes.Shrink();
+		Query->ConditionOperators.Shrink();
+		Query->DependencyTypes.Shrink();
+		Query->DependencyFlags.Shrink();
+		Query->CachedDependencies.Shrink();
+		Query->Subqueries.Shrink();
 		return MoveTemp(*Query);
 	}
 
