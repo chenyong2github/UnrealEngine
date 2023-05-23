@@ -453,6 +453,7 @@ void UAnimationStateMachineSchema::GetGraphDisplayInformation(const UEdGraph& Gr
 {
 	DisplayInfo.PlainName = FText::FromString( Graph.GetName() );
 	DisplayInfo.DisplayName = DisplayInfo.PlainName;
+	DisplayInfo.Tooltip = LOCTEXT("GraphTooltip_StateMachineSchema", "Graph used to transition between different states each with separate animation graphs");
 }
 
 void UAnimationStateMachineSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const

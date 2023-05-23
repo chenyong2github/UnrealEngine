@@ -59,7 +59,8 @@ void UAnimationTransitionSchema::GetGraphDisplayInformation(const UEdGraph& Grap
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("NodeTitle"), TransNode->GetNodeTitle(ENodeTitleType::FullTitle));
-		DisplayInfo.PlainName = FText::Format( NSLOCTEXT("Animation", "TransitionRuleGraphTitle", "{NodeTitle} (rule)"), Args );
+		DisplayInfo.PlainName = FText::Format( LOCTEXT( "TransitionRuleGraphTitle", "{NodeTitle} (rule)"), Args );
+		DisplayInfo.Tooltip = LOCTEXT("GraphTooltip_TransitionSchema", "Transitions contain rules that define when to move between states");
 	}
 
 	DisplayInfo.DisplayName = DisplayInfo.PlainName;

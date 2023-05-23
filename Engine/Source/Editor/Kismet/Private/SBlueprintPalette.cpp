@@ -7,6 +7,7 @@
 #include "AnimationGraph.h"
 #include "AnimationStateGraph.h"
 #include "AnimationStateMachineGraph.h"
+#include "AnimationCustomTransitionGraph.h"
 #include "AnimationStateMachineSchema.h"
 #include "AnimationTransitionGraph.h"
 #include "AssetRegistry/AssetData.h"
@@ -273,6 +274,11 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 			{
 				IconOut = FAppStyle::GetBrush(TEXT("BlendSpace.SampleGraph") );
 				ToolTipOut = LOCTEXT("BlendSpaceSample_ToolTip", "BlendSpace Sample");
+			}
+			else if (Cast<UAnimationCustomTransitionGraph>(ActionIn->EdGraph))
+			{
+				IconOut = FAppStyle::GetBrush(TEXT("GraphEditor.SubGraph_16x"));
+				ToolTipOut = LOCTEXT("CustomBlendGraph_ToolTip", "Custom Blend");
 			}
 			else
 			{

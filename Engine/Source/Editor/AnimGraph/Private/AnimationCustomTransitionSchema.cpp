@@ -7,6 +7,8 @@
 #include "AnimStateTransitionNode.h"
 #include "AnimationCustomTransitionGraph.h"
 
+#define LOCTEXT_NAMESPACE "AnimationCustomTransitionSchema"
+
 /////////////////////////////////////////////////////
 // UAnimationCustomTransitionSchema
 
@@ -56,10 +58,11 @@ void UAnimationCustomTransitionSchema::GetGraphDisplayInformation(const UEdGraph
 
 	if (const UAnimStateTransitionNode* TransNode = Cast<const UAnimStateTransitionNode>(Graph.GetOuter()))
 	{
-		DisplayInfo.PlainName = FText::Format( NSLOCTEXT("Animation", "CustomBlendGraphTitle", "{0} (custom blend)"), TransNode->GetNodeTitle(ENodeTitleType::FullTitle) );
+		DisplayInfo.PlainName = FText::Format( LOCTEXT("CustomBlendGraphTitle", "{0} (custom blend)"), TransNode->GetNodeTitle(ENodeTitleType::FullTitle) );
 	}
 
 	DisplayInfo.DisplayName = DisplayInfo.PlainName;
+	DisplayInfo.Tooltip = LOCTEXT("GraphTooltip_CustomTransitionSchema", "Custom blend graphs offer manual blending from source to destination states");
 }
 
 void UAnimationCustomTransitionSchema::HandleGraphBeingDeleted(UEdGraph& GraphBeingRemoved) const
@@ -82,3 +85,5 @@ void UAnimationCustomTransitionSchema::HandleGraphBeingDeleted(UEdGraph& GraphBe
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

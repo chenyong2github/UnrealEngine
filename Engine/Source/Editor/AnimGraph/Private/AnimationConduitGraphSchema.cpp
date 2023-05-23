@@ -6,6 +6,8 @@
 #include "AnimationTransitionGraph.h"
 #include "AnimStateConduitNode.h"
 
+#define LOCTEXT_NAMESPACE "AnimationConduitSchema"
+
 /////////////////////////////////////////////////////
 // UAnimationConduitGraphSchema
 
@@ -35,10 +37,11 @@ void UAnimationConduitGraphSchema::GetGraphDisplayInformation(const UEdGraph& Gr
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("NodeTitle"), ConduitNode->GetNodeTitle(ENodeTitleType::FullTitle) );
 
-		DisplayInfo.PlainName = FText::Format( NSLOCTEXT("Animation", "ConduitRuleGraphTitle", "{NodeTitle} (conduit rule)"), Args);
+		DisplayInfo.PlainName = FText::Format( LOCTEXT("ConduitRuleGraphTitle", "{NodeTitle} (conduit rule)"), Args);
 	}
 
 	DisplayInfo.DisplayName = DisplayInfo.PlainName;
+	DisplayInfo.Tooltip = LOCTEXT("GraphTooltip_ConduitSchema", "Conduits can be used to create 1-to-many, many-to-1, or many-to-many transitions");
 }
 
 void UAnimationConduitGraphSchema::HandleGraphBeingDeleted(UEdGraph& GraphBeingRemoved) const
@@ -74,3 +77,5 @@ void UAnimationConduitGraphSchema::HandleGraphBeingDeleted(UEdGraph& GraphBeingR
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
