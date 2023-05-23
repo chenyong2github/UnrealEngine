@@ -7,7 +7,12 @@
 
 #include "WaveTableBank.generated.h"
 
+
+// Forward Declarations
 struct FPropertyChangedEvent;
+class FWaveTableBankAssetProxy;
+
+using FWaveTableBankAssetProxyPtr = TSharedPtr<FWaveTableBankAssetProxy, ESPMode::ThreadSafe>;
 
 
 USTRUCT()
@@ -25,9 +30,17 @@ class WAVETABLE_API UWaveTableBank : public UObject, public IAudioProxyDataFacto
 	GENERATED_BODY()
 
 public:
-	// Number of samples cached for each curve in the given bank.
+	// Sampling mode used for the bank.
 	UPROPERTY(EditAnywhere, Category = Options)
+	EWaveTableSamplingMode SampleMode = EWaveTableSamplingMode::FixedResolution;
+
+	// Number of samples cached for each entry in the given bank.
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "SampleMode == EWaveTableSamplingMode::FixedResolution", EditConditionHides))
 	EWaveTableResolution Resolution = EWaveTableResolution::Res_256;
+
+	// Number of samples cached for each entry in the given bank.
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "SampleMode == EWaveTableSamplingMode::FixedSampleRate", ClampMin = "1", ClampMax = "48000", EditConditionHides))
+	int32 SampleRate = 48000;
 
 	// Determines if output from curve/wavetable are to be clamped between 
 	// [-1.0f, 1.0f] (i.e. for waveform generation, oscillation, etc.)
@@ -41,16 +54,24 @@ public:
 	float WaveTableSizeMB = 0.0f;
 
 	// Length of all WaveTable samples in bank in seconds (at 48kHz)
-	UPROPERTY(VisibleAnywhere, Category = Options, meta = (DisplayName = "WaveTable Length (sec)"))
+	UE_DEPRECATED(5.3, "Samples now each have own length, as they no longer are required being the same length if using shared 'SampleRate' mode")
 	float WaveTableLengthSec = 0.0f;
 #endif // WITH_EDITORONLY_DATA
 
+
 	/** Tables within the given bank */
+	UE_DEPRECATED(5.3, "Direct access of 'Entries' will become protected member in future release and not externally modifiable in runtime builds. If in editor, use GetEntries(). "
+		"To reduce memory consumption, entries are now readonly and cleared in runtime builds when proxy is generated.")
 	UPROPERTY(EditAnywhere, Category = Options)
 	TArray<FWaveTableBankEntry> Entries;
 
+public:
 	/* IAudioProxyDataFactory Implementation */
 	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+
+	virtual void Serialize(FArchive& Ar) override;
+
+	TArray<FWaveTableBankEntry>& GetEntries();
 
 #if WITH_EDITOR
 	void RefreshWaveTables();
@@ -59,6 +80,12 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent) override;
 #endif // WITH_EDITOR
+
+private:
+	void CopyToProxyData();
+	void MoveToProxyData();
+
+	FWaveTableBankAssetProxyPtr ProxyData;
 };
 
 class WAVETABLE_API FWaveTableBankAssetProxy : public Audio::TProxyData<FWaveTableBankAssetProxy>, public TSharedFromThis<FWaveTableBankAssetProxy, ESPMode::ThreadSafe>
@@ -66,24 +93,39 @@ class WAVETABLE_API FWaveTableBankAssetProxy : public Audio::TProxyData<FWaveTab
 public:
 	IMPL_AUDIOPROXY_CLASS(FWaveTableBankAssetProxy);
 
-	FWaveTableBankAssetProxy(const UWaveTableBank& InWaveTableBank)
+	FWaveTableBankAssetProxy() = default;
+	FWaveTableBankAssetProxy(const FWaveTableBankAssetProxy& InAssetProxy);
+	FWaveTableBankAssetProxy(uint32 InObjectId, EWaveTableSamplingMode InSamplingMode, int32 InSampleRate, const TArray<FWaveTableBankEntry>& InBankEntries);
+	FWaveTableBankAssetProxy(uint32 InObjectId, EWaveTableSamplingMode InSamplingMode, int32 InSampleRate, TArray<FWaveTableBankEntry>&& InBankEntries);
+
+	UE_DEPRECATED(5.3, "Proxy generation & respective data translation is now entirely handled by UWaveTableBank calling the constructor variants above.")
+	FWaveTableBankAssetProxy(const UWaveTableBank& InWaveTableBank);
+
+	virtual ~FWaveTableBankAssetProxy() = default;
+
+	virtual EWaveTableSamplingMode GetSampleMode() const
 	{
-		Algo::Transform(InWaveTableBank.Entries, WaveTables, [](const FWaveTableBankEntry& Entry)
-		{
-			return WaveTable::FWaveTable(Entry.Transform.WaveTable, Entry.Transform.GetFinalValue());
-		});
+		return SampleMode;
 	}
 
-	virtual const TArray<WaveTable::FWaveTable>& GetWaveTables() const
+	virtual int32 GetSampleRate() const
 	{
-		return WaveTables;
+		return SampleRate;
+	}
+
+	virtual const TArray<FWaveTableData>& GetWaveTableData() const
+	{
+		return WaveTableData;
+	}
+
+	uint32 GetObjectId() const
+	{
+		return ObjectId;
 	}
 
 protected:
-	TArray<WaveTable::FWaveTable> WaveTables;
+	uint32 ObjectId = INDEX_NONE;
+	int32 SampleRate = 48000;
+	EWaveTableSamplingMode SampleMode = EWaveTableSamplingMode::FixedResolution;
+	TArray<FWaveTableData> WaveTableData;
 };
-using FWaveTableBankAssetProxyPtr = TSharedPtr<FWaveTableBankAssetProxy, ESPMode::ThreadSafe>;
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "UObject/ObjectSaveContext.h"
-#endif

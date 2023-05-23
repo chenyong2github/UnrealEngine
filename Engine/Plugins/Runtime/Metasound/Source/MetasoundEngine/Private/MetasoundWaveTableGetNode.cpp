@@ -45,9 +45,14 @@ namespace Metasound
 				{
 					FNodeClassName { EngineNodes::Namespace, "MetasoundWaveTableGet", "" },
 					1, // Major Version
-					0, // Minor Version
+					1, // Minor Version
 					LOCTEXT("MetasoundWaveTableGetNode_Name", "Get WaveTable From Bank"),
-					LOCTEXT("MetasoundWaveTableGetNode_Description", "Gets or generates interpolated WaveTable from provided WaveTableBank asset."),
+					LOCTEXT("MetasoundWaveTableGetNode_Description",
+						"Gets or generates interpolated WaveTable from provided WaveTableBank asset based on asset sampling mode "
+						"(Table Interpolation is supported only for 'FixedResolution' banks).\n"
+						"v1.1: Now supports discrete selection of WaveTableBank assets set to 'Fixed"
+						"Sample Rate' and/or a bit depth of 16 bit, however index interpolation"
+						"is only supported for assets set to 'Fixed Resolution'"),
 					PluginAuthor,
 					PluginNodeMissingPrompt,
 					GetDefaultInterface(),
@@ -110,6 +115,69 @@ namespace Metasound
 			return Outputs;
 		}
 
+	private:
+		FORCEINLINE static void WrapIndex(int32 InMax, float& InOutIndex)
+		{
+			InOutIndex = FMath::Abs(InOutIndex); // Avoids remainder offset flip at 0 crossing
+			const int32 WrapIndex = FMath::TruncToInt32(InOutIndex) % InMax;
+			const float Remainder = FMath::Frac(InOutIndex);
+			InOutIndex = WrapIndex + Remainder;
+		};
+
+		void ComputeGainIndexData(const TArray<FWaveTableData>& WaveTables, EWaveTableSamplingMode InSampleMode, ::WaveTable::FWaveTable& OutputWaveTable)
+		{
+			checkf(!WaveTables.IsEmpty(), TEXT("ComputGainIndexData must have WaveTable to operate on"));
+
+			if (WaveTables.Num() == 1)
+			{
+				GainIndexData.LowIndex = INDEX_NONE;
+				GainIndexData.HighIndex = 0;
+				GainIndexData.HighIndexGain = 1.0f;
+				GainIndexData.NumSamples = WaveTables[0].GetNumSamples();
+				return;
+			}
+
+			switch (InSampleMode)
+			{
+				case EWaveTableSamplingMode::FixedSampleRate:
+				{
+					GainIndexData.LowIndex = INDEX_NONE;
+					GainIndexData.HighIndex = FMath::FloorToInt32(GainIndexData.TableIndex);
+					GainIndexData.HighIndexGain = 1.0f;
+					GainIndexData.NumSamples = WaveTables[GainIndexData.HighIndex].GetNumSamples();
+				}
+				break;
+
+				case EWaveTableSamplingMode::FixedResolution:
+				{
+					GainIndexData.LowIndex = FMath::FloorToInt32(GainIndexData.TableIndex);
+					GainIndexData.HighIndex = FMath::CeilToInt32(GainIndexData.TableIndex) % WaveTables.Num();
+
+					// If low/high are same index, give all energy to high index and invalidate
+					// low index (the float index is computed to be an integer equivalent)
+					if (GainIndexData.LowIndex == GainIndexData.HighIndex)
+					{
+						GainIndexData.LowIndex = INDEX_NONE;
+						GainIndexData.HighIndexGain = 1.0f;
+					}
+					else
+					{
+						GainIndexData.HighIndexGain = GainIndexData.TableIndex - GainIndexData.LowIndex;
+					}
+
+					GainIndexData.NumSamples = WaveTables.Last().GetNumSamples();
+				}
+				break;
+
+				default:
+				{
+					static_assert(static_cast<int32>(EWaveTableSamplingMode::COUNT) == 2, "Possible missing switch case coverage for 'EWaveTableSamplingMode'");
+					checkNoEntry();
+				}
+			};
+		}
+
+	public:
 		void Execute()
 		{
 			using namespace WaveTable;
@@ -117,106 +185,103 @@ namespace Metasound
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FMetasoundWaveTableGetNodeOperator::Execute);
 
 			const FWaveTableBankAsset& WaveTableBankAsset = *WaveTableBankReadRef;
+			FWaveTable& OutputWaveTable = *OutTable;
 
 			FWaveTableBankAssetProxyPtr Proxy = WaveTableBankAsset.GetProxy();
 			if (Proxy.IsValid() == false)
 			{
-				LastTableIndex = -1.0f;
+				ResetInternal();
 				return;
 			}
 			
-			const TArray<FWaveTable>& WaveTables = Proxy->GetWaveTables();
+			const TArray<FWaveTableData>& WaveTables = Proxy->GetWaveTableData();
 			if (WaveTables.IsEmpty())
 			{
-				LastTableIndex = -1.0f;
+				ResetInternal();
 				return;
 			}
-			
-			int32 NumSamples = WaveTables.Last().Num();
-			FWaveTable& OutputWaveTable = *OutTable;
-			OutputWaveTable.SetNum(NumSamples);
+
+			GainIndexData.TableIndex = *TableIndexReadRef;
+			WrapIndex(WaveTables.Num(), GainIndexData.TableIndex);
+
+			const bool bIsLastIndex = FMath::IsNearlyEqual(GainIndexData.LastTableIndex, GainIndexData.TableIndex);
+			const bool bIsLastProxy = LastTableId == Proxy->GetObjectId();
+			if (bIsLastIndex && bIsLastProxy)
+			{
+				return;
+			}
+
+			LastTableId = Proxy->GetObjectId();
+			GainIndexData.LastTableIndex = GainIndexData.TableIndex;
+
+			ComputeGainIndexData(WaveTables, Proxy->GetSampleMode(), OutputWaveTable);
+			if (GainIndexData.NumSamples <= 0)
+			{
+				LastTableId = INDEX_NONE;
+				OutputWaveTable = { };
+				return;
+			}
+
+			float FinalValue = 0.0f;
+			OutputWaveTable.SetNum(GainIndexData.NumSamples);
 			OutputWaveTable.Zero();
+			for (int32 TableIndex = 0; TableIndex < WaveTables.Num(); ++TableIndex)
+			{
+				float Gain = 0.0f;
 
-			if (NumSamples <= 0)
-			{
-				LastTableIndex = -1.0f;
-				return;
-			}
-			
-			auto WrapIndex = [Max = WaveTables.Num()](float& InOutIndex)
-			{
-				InOutIndex = FMath::Abs(InOutIndex); // Avoids remainder offset flip at 0 crossing
-				const int32 WrapIndex = FMath::TruncToInt32(InOutIndex) % Max;
-				const float Remainder = FMath::Frac(InOutIndex);
-				InOutIndex = WrapIndex + Remainder;
-			};
-
-			float NextTableIndex = *TableIndexReadRef;
-			WrapIndex(NextTableIndex);
-
-			if (WaveTables.Num() == 1)
-			{
-				OutputWaveTable = WaveTables.Last();
-			}
-			else
-			{
-				if (LastTableIndex < 0.0f)
+				if (TableIndex == GainIndexData.LowIndex)
 				{
-					LastTableIndex = NextTableIndex;
+					Gain = 1.0f - GainIndexData.HighIndexGain;
 				}
-				else
+				else if (TableIndex == GainIndexData.HighIndex)
 				{
-					WrapIndex(LastTableIndex);
+					Gain = GainIndexData.HighIndexGain;
 				}
 
-				const int32 StartHighIndex = FMath::CeilToInt32(LastTableIndex) % WaveTables.Num();
-				const int32 StartLowIndex = FMath::FloorToInt32(LastTableIndex);
-
-				const float StartHighGain = LastTableIndex - StartLowIndex;
-				const float StartLowGain = 1.0f - StartHighGain;
-
-				float FinalValue = 0.f;
-
-				for (int32 TableIndex = 0; TableIndex < WaveTables.Num(); ++TableIndex)
+				if (Gain > 0.0f)
 				{
-					float Gain = 0.0f;
-
-					if (TableIndex == StartLowIndex)
-					{
-						Gain = StartLowGain;
-					}
-					else if (TableIndex == StartHighIndex)
-					{
-						Gain = StartHighGain;
-					}
-
-					if (Gain > 0.0f)
-					{
-						const FWaveTableView& InputWaveTable = WaveTables[TableIndex].GetView();
-						
-						Audio::ArrayMixIn(InputWaveTable.SampleView, OutputWaveTable.GetSamples(), Gain);
-						FinalValue += InputWaveTable.FinalValue * Gain;
-					}
+					const FWaveTableData& InputTableData = WaveTables[TableIndex];
+					InputTableData.ArrayMixIn(OutputWaveTable.GetSamples(), Gain);
+					FinalValue += InputTableData.GetFinalValue() * Gain;
 				}
-				
-				OutputWaveTable.SetFinalValue(FinalValue);
 			}
 
-			LastTableIndex = NextTableIndex;
+			OutputWaveTable.SetFinalValue(FinalValue);
 		}
 
 		void Reset(const IOperator::FResetParams& InParams)
 		{
-			LastTableIndex = -1.0f;
-			OutTable->SetNum(0);
-			OutTable->SetFinalValue(0.f);
+			BlockPeriod = InParams.OperatorSettings.GetActualBlockRate() / InParams.OperatorSettings.GetSampleRate();
+			ResetInternal();
 		}
 
 	private:
+		void ResetInternal()
+		{
+			GainIndexData = { };
+			LastTableId = INDEX_NONE;
+			*OutTable = { };
+		}
+
 		FWaveTableBankAssetReadRef WaveTableBankReadRef;
 		FFloatReadRef TableIndexReadRef;
 
-		float LastTableIndex = -1.0f;
+		struct FGainIndexData
+		{
+			int32 NumSamples = 0;
+
+			int32 LowIndex = 0;
+			int32 HighIndex = INDEX_NONE;
+
+			float LastTableIndex = -1.0f;
+			float TableIndex = 0.0f;
+
+			float HighIndexGain = 1.0f;
+		} GainIndexData;
+
+		float BlockPeriod = 0.0f;
+
+		uint32 LastTableId = INDEX_NONE;
 
 		FWaveTableWriteRef OutTable;
 	};

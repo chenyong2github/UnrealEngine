@@ -25,18 +25,19 @@ namespace WaveTable
 			check(InOwner);
 		}
 
-		void FWaveTableCurveModel::Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex, bool bInIsBipolar)
+		void FWaveTableCurveModel::Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex, bool bInIsBipolar, EWaveTableSamplingMode InSamplingMode)
 		{
 			// Must be set prior to remainder of refresh to avoid
 			// child class implementation acting on incorrect cached index
 			// (Editor may re-purpose models resulting in index change).
 			CurveIndex = InCurveIndex;
 
+			CurveDuration = InTransform.GetDuration();
 			Color = GetCurveColor();
+			SamplingMode = InSamplingMode;
 
 			FText OutputAxisName;
 			RefreshCurveDescriptorText(InTransform, ShortDisplayName, InputAxisName, OutputAxisName);
-
 			AxesDescriptor = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_AxesFormat", "X = {0}, Y = {1}"), InputAxisName, OutputAxisName);
 
 			IntentionName = TEXT("AudioControlValue");
@@ -46,15 +47,15 @@ namespace WaveTable
 
 			bIsBipolar = bInIsBipolar;
 
+			NumSamples = InTransform.GetTableData().GetNumSamples();
+
 			if (InTransform.Curve == EWaveTableCurve::File)
 			{
-				NumSamples = InTransform.WaveTable.Num();
 				FadeInRatio = InTransform.WaveTableSettings.FadeIn;
 				FadeOutRatio = InTransform.WaveTableSettings.FadeOut;
 			}
 			else
 			{
-				NumSamples = 0;
 				FadeInRatio = 0.0f;
 				FadeOutRatio = 0.0f;
 			}
@@ -134,7 +135,28 @@ namespace WaveTable
 			check(Enum);
 
 			Enum->GetDisplayValueAsText(InTransform.Curve, OutShortDisplayName);
-			OutInputAxisName = LOCTEXT("WaveTableCurveModel_DefaultInputAxisName", "Unit Phase (Table Index)");
+
+			switch (SamplingMode)
+			{
+				case EWaveTableSamplingMode::FixedResolution:
+				{
+					OutInputAxisName = LOCTEXT("WaveTableCurveModel_DefaultInputAxisName", "Unit Phase (Table Index)");
+				}
+				break;
+
+				case EWaveTableSamplingMode::FixedSampleRate:
+				{
+					OutInputAxisName = LOCTEXT("WaveTableCurveModel_DefaultInputAxisName", "Time");
+				}
+				break;
+
+				default:
+				{
+					static_assert(static_cast<int32>(EWaveTableSamplingMode::COUNT) == 2, "Possible missing switch case coverage for 'EWaveTableSamplingMode'");
+					checkNoEntry();
+				}
+			};
+
 			OutOutputAxisName = LOCTEXT("WaveTableCurveModel_DefaultOutputAxisName", "Amplitude");
 		}
 
@@ -191,15 +213,15 @@ namespace WaveTable
 			const FCurveEditorScreenSpace ViewSpace = GetViewSpace();
 
 			// Draw the curve labels for each view
-			for (auto It = CurveInfoByID.CreateConstIterator(); It; ++It)
+			for (const TPair<FCurveModelID, SCurveEditorView::FCurveInfo>& Pair : CurveInfoByID)
 			{
-				FCurveModel* Curve = CurveEditor->FindCurve(It.Key());
+				FCurveModel* Curve = CurveEditor->FindCurve(Pair.Key);
 				if (!ensureAlways(Curve))
 				{
 					continue;
 				}
 
-				const int32  CurveIndexFromBottom = CurveInfoByID.Num() - It->Value.CurveIndex - 1;
+				const int32  CurveIndexFromBottom = CurveInfoByID.Num() - Pair.Value.CurveIndex - 1;
 				const double PaddingToBottomOfView = (CurveIndexFromBottom + 1) * ValueSpacePadding;
 
 				const float PixelBottom = ViewSpace.ValueToScreen(CurveIndexFromBottom + PaddingToBottomOfView);
@@ -327,7 +349,7 @@ namespace WaveTable
 					DrawInfo.LinePoints[1].Y = DrawInfo.GetPixelBottom();
 
 					// Draw major vertical grid lines
-					for (int i = 0; i < MajorGridLinesX.Num(); ++i)
+					for (int32 i = 0; i < MajorGridLinesX.Num(); ++i)
 					{
 						const float VerticalLine = FMath::RoundToFloat(MajorGridLinesX[i]);
 						const FText& Label = CurveModelGridLabelsX[i];
@@ -382,16 +404,17 @@ namespace WaveTable
 					};
 
 					const bool bIsBipolar = EditorModel->GetIsBipolar();
+					const float Duration = EditorModel->GetSamplingMode() == EWaveTableSamplingMode::FixedResolution ? 1.0f : EditorModel->GetCurveDuration();
 					float FadeInRatio = EditorModel->GetFadeInRatio();
 					if (FadeInRatio > 0.0f)
 					{
-						DrawFade(0.0f, FadeInRatio, true, bIsBipolar);
+						DrawFade(0.0f, Duration* FadeInRatio, true, bIsBipolar);
 					}
 
 					float FadeOutRatio = EditorModel->GetFadeOutRatio();
 					if (FadeOutRatio > 0.0f)
 					{
-						DrawFade(1.0f, 1.0f - FadeOutRatio, false, bIsBipolar);
+						DrawFade(Duration, Duration * (1.0f - FadeOutRatio), false, bIsBipolar);
 					}
 				}
 			}
@@ -487,16 +510,35 @@ namespace WaveTable
 
 		void SViewStacked::FormatInputLabel(const FWaveTableCurveModel& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const
 		{
-			const int32 NumSamples = EditorModel.GetNumSamples();
-			if (NumSamples != 0)
+			switch (EditorModel.GetSamplingMode())
 			{
-				const float Value = FCString::Atof(*InOutLabel.ToString());
-				if (Value >= 0 && Value <= 1.0f)
+				case EWaveTableSamplingMode::FixedResolution:
 				{
-					const int32 ValueTrunc = FMath::FloorToInt32(NumSamples * Value);
-					InOutLabel = FText::Format(LOCTEXT("WaveTableCurveEditor_InputLabelFormat", "{0} ({1})"), InOutLabel, FText::AsNumber(ValueTrunc));
+					int32 NumSamples = EditorModel.GetNumSamples();
+					if (NumSamples != 0)
+					{
+						const float Value = FCString::Atof(*InOutLabel.ToString());
+						if (Value >= 0 && Value <= 1.0f)
+						{
+							NumSamples = FMath::FloorToInt32(NumSamples * Value);
+							InOutLabel = FText::Format(LOCTEXT("WaveTableCurveEditor_ResolutionInputLabelFormat", "{0} ({1})"), InOutLabel, FText::AsNumber(NumSamples));
+						}
+					}
 				}
-			}
+				break;
+
+				case EWaveTableSamplingMode::FixedSampleRate:
+				{
+					InOutLabel = FText::Format(LOCTEXT("WaveTableCurveEditor_DurationInputLabelFormat", "{0}s"), InOutLabel);
+				}
+				break;
+
+				default:
+				{
+					static_assert(static_cast<int32>(EWaveTableSamplingMode::COUNT) == 2, "Possible missing switch case coverage for 'EWaveTableSamplingMode'");
+					checkNoEntry();
+				}
+			};
 		}
 
 		SViewStacked::FGridDrawInfo::FGridDrawInfo(const FGeometry* InAllottedGeometry, const FCurveEditorScreenSpace& InScreenSpace, FLinearColor InGridColor, int32 InBaseLayerId)

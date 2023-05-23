@@ -3,14 +3,17 @@
 
 #include "RichCurveEditorModel.h"
 #include "Views/SCurveEditorViewStacked.h"
-
-enum class ECurveEditorViewID : uint64;
+#include "WaveTableSettings.h"
+#include "WaveTableTransformLayout.h"
 
 #include "WaveTableCurveEditorViewStacked.generated.h"
+
 
 // Forward Declarations
 class UCurveFloat;
 struct FWaveTableTransform;
+enum class ECurveEditorViewID : uint64;
+enum class EWaveTableSamplingMode : uint8;
 
 
 UENUM()
@@ -37,19 +40,20 @@ namespace WaveTable
 			const FText& GetAxesDescriptor() const;
 			const UObject* GetParentObject() const;
 			EWaveTableCurveSource GetSource() const;
-			void Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex, bool bInIsBipolar);
+			void Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex, bool bInIsBipolar, EWaveTableSamplingMode InSamplingMode = EWaveTableSamplingMode::FixedResolution);
 
 			virtual ECurveEditorViewID GetViewId() const { return WaveTableViewId; }
 			virtual bool IsReadOnly() const override;
 			virtual FLinearColor GetColor() const override;
 			virtual void GetValueRange(double& MinValue, double& MaxValue) const override;
 
+			float GetCurveDuration() const { return CurveDuration; }
 			int32 GetCurveIndex() const { return CurveIndex; }
 			bool GetIsBipolar() const { return bIsBipolar; }
 			float GetFadeInRatio() const { return FadeInRatio; }
 			float GetFadeOutRatio() const { return FadeOutRatio; }
 			int32 GetNumSamples() const { return NumSamples; }
-
+			EWaveTableSamplingMode GetSamplingMode() const { return SamplingMode; }
 		protected:
 			virtual void RefreshCurveDescriptorText(const FWaveTableTransform& InTransform, FText& OutShortDisplayName, FText& OutInputAxisName, FText& OutOutputAxisName);
 			virtual FColor GetCurveColor() const;
@@ -63,11 +67,13 @@ namespace WaveTable
 			int32 NumSamples = 0;
 
 			EWaveTableCurveSource Source = EWaveTableCurveSource::Unset;
+			EWaveTableSamplingMode SamplingMode = EWaveTableSamplingMode::FixedResolution;
 
 			bool bIsBipolar = false;
 
 			float FadeInRatio = 0.0f;
 			float FadeOutRatio = 0.0f;
+			float CurveDuration = 1.0f;
 
 			FText InputAxisName;
 			FText AxesDescriptor;

@@ -1,29 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AssetTypeActions_Base.h"
 #include "Modules/ModuleInterface.h"
+#include "Styling/SlateStyle.h"
 #include "Templates/SharedPointer.h"
-
-class FAssetTypeActions_Base;
-
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWaveTableEditor, Log, All);
 
-namespace WaveTable
+
+namespace WaveTable::Editor
 {
-	namespace Editor
+	class FModule : public IModuleInterface
 	{
-		class FModule : public IModuleInterface
-		{
-		public:
-			FModule() = default;
+	public:
+		FModule() = default;
 
-			virtual void StartupModule() override;
+		virtual void StartupModule() override;
 
-			virtual void ShutdownModule() override;
+		virtual void ShutdownModule() override;
 
-		private:
-			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
-		};
-	} // namespace Editor
-} // namespace WaveTable
+	private:
+		TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
+		TSharedPtr<FSlateStyleSet> StyleSet;
+	};
+} // namespace WaveTable::Editor

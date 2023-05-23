@@ -1,8 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "WaveTable.h"
 
 #include "WaveTableSettings.generated.h"
+
+
+// Forward Declarations
+class UWaveTableBank;
+struct FWaveTableBankEntry;
 
 
 namespace WaveTable
@@ -45,6 +51,28 @@ enum class EWaveTableResolution : uint8
 };
 
 
+// SamplingMode of a given bank or collection of WaveTables
+UENUM()
+enum class EWaveTableSamplingMode : uint8
+{
+	// Enforces fixed sample rate for all members in the bank/collection,
+	// enabling them to be of unique duration/number of samples. Good for
+	// use cases when entries are being treated as separate, discrete but
+	// related audio to be played back at a shared speed (ex. traditional
+	// "samplers" or granulation).
+	FixedSampleRate,
+
+	// Enforces resolution (i.e. size of all tables), uniformly resampling
+	// all tables in the collection to be the same length/number of samples
+	// (if not already).  Supports use cases where systems are mixing/
+	// interpolating or spatializing entries in lockstep (ex. oscillating
+	// or enveloping).
+	FixedResolution,
+
+	COUNT UMETA(Hidden)
+};
+
+
 USTRUCT()
 struct WAVETABLE_API FWaveTableSettings
 {
@@ -57,6 +85,14 @@ struct WAVETABLE_API FWaveTableSettings
 	// Index of channel in file to build WaveTable from (wraps if channel is greater than number in file)
 	UPROPERTY(EditAnywhere, Category = Options, meta = (ClampMin = "0.0"))
 	int32 ChannelIndex = 0;
+
+	// Source data last imported from the source file
+	UPROPERTY(EditAnywhere, Category = Options)
+	FWaveTableData SourceData;
+
+	// Source sample rate from last imported source file
+	UPROPERTY(VisibleAnywhere, Category = Options)
+	int32 SourceSampleRate = 48000;
 
 	// Percent to phase shift of table
 	UPROPERTY(EditAnywhere, Category = Options, meta = (ClampMin = "0.0", ClampMax = "1.0"))
@@ -79,7 +115,7 @@ struct WAVETABLE_API FWaveTableSettings
 	float FadeOut = 0.0f;
 
 	// Whether or not to normalize the WaveTable.
-	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayAfter = "FilePath"))
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayAfter = "SourceData"))
 	bool bNormalize = true;
 
 	// Whether or not to remove offset from original file
@@ -87,14 +123,31 @@ struct WAVETABLE_API FWaveTableSettings
 	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayAfter = "bNormalize"))
 	bool bRemoveOffset = false;
 
-	// SourcePCM Data
-	UPROPERTY()
-	TArray<float> SourcePCMData;
+	// Whether or not an edit is contained to omit or modify source file's PCM data
+	bool ContainsEdit() const
+	{
+		return Phase > 0.0f ||
+			Top > 0.0f || Tail > 0.0f ||
+			FadeIn > 0.0f || FadeOut > 0.0f ||
+			bNormalize || bRemoveOffset;
+	}
 
-	// Returns a TArrayView of Source PCM values that are on when
-	// importing with the given settings (restricted effectively
-	// due to top/tail settings).
+#if WITH_EDITOR
+	void VersionPCMData();
+#endif // WITH_EDITOR
+
+	// Returns the respective offset & number of samples that
+	// characterize the source data to apply light edits to.
+	void GetEditSourceBounds(int32& OutSourceTopOffset, int32& OutSourceNumSamples) const;
+
+	UE_DEPRECATED(5.3, "Source now supports multiple bit depths. Use 'GetEditSourceBounds' & apply to SourceData WaveTableData TArrayView in proper format using 'GetDataView'.")
 	TArrayView<const float> GetEditSourceView() const;
+
+private:
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(meta = (Deprecated = "5.3", DeprecationMessage = "Migrated to FWaveTableData member 'SourceData' to support multiple bitdepths"))
+	TArray<float> SourcePCMData;
+#endif // WITH_EDITORONLY_DATA
 };
 
 UENUM(BlueprintType)
@@ -124,7 +177,6 @@ enum class EWaveTableCurve : uint8
 
 namespace WaveTable
 {
-	// Returns WaveTable size given WaveTableResolution and optional Curve or PCM size. If resolution is none, uses default value associated
-	// with provided curve. If set to file, will use either the largest static resolution (Res_Max, or 4096) or InMaxPCMSize, whichever is larger.
+	UE_DEPRECATED(5.3, "Removed from public API as banks now support different bit depths and sampling mode (i.e. sample count can no longer be conflated with generic size metric)")
 	WAVETABLE_API int32 GetWaveTableSize(EWaveTableResolution InWaveTableResolution, EWaveTableCurve InCurve, int32 InMaxPCMSize = INDEX_NONE);
 } // namespace WaveTable

@@ -7,38 +7,50 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaveTableTransform)
 
+
 void FWaveTableTransform::Apply(float& InOutValue, bool bInBipolar) const
 {
-	if (WaveTable.IsEmpty())
+	FWaveTableData TempTable(TArrayView<float>{ &InOutValue, 1 }, 0.0f);
+	TArrayView<float> TempData;
+	TempTable.GetDataView(TempData);
+
+	// If no table data is cached, attempt to sample from curve
+	if (TableData.IsEmpty())
 	{
-		float DummyVal = 0.f;
-		TArrayView<float> ValueView = { &InOutValue, 1 };
-		bInBipolar ? SampleCurveBipolar(ValueView, DummyVal) : SampleCurveUnipolar(ValueView, DummyVal);
+		bInBipolar ? SampleCurveBipolar(TempTable) : SampleCurveUnipolar(TempTable);
 	}
 	else
 	{
-		InOutValue *= WaveTable.Num(); // Convert to float index
-		TArrayView<float> ValueView = { &InOutValue, 1 };
-		WaveTable::FWaveTableSampler::Interpolate(WaveTable, ValueView);
+		InOutValue *= TableData.GetNumSamples(); // Convert to float index
+		TArrayView<const float> TableView;
+		TableData.GetDataView(TableView);
+		WaveTable::FWaveTableSampler::Interpolate(TableView, TempData);
 	}
+
+	InOutValue = TempData.Last();
 }
 
-void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable, float& OutFinalValue) const
+void FWaveTableTransform::SampleCurveBipolar(FWaveTableData& InOutTableData) const
 {
-	// Clamp the input
-	Audio::ArrayClampInPlace(InOutTable, 0.0f, 1.0f);
+	checkf(InOutTableData.GetBitDepth() == EWaveTableBitDepth::IEEE_Float, TEXT("Curve sampling only supports IEEE 32-bit float bit depth"));
 
-	float* ValueData = InOutTable.GetData();
+	TArrayView<float> TableView;
+	InOutTableData.GetDataView(TableView);
+
+	// Clamp the input
+	Audio::ArrayClampInPlace(TableView, 0.0f, 1.0f);
+
+	float* ValueData = TableView.GetData();
 	switch (Curve)
 	{
 		case EWaveTableCurve::Custom:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = CurveCustom.Eval(ValueData[i]);
 			}
 				
-			OutFinalValue = CurveCustom.Eval(1.f);
+			InOutTableData.SetFinalValue(CurveCustom.Eval(1.0f));
 			break;
 		}
 
@@ -46,35 +58,35 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable, float
 		{
 			if (CurveShared)
 			{
-				for (int32 i = 0; i < InOutTable.Num(); ++i)
+				for (int32 i = 0; i < TableView.Num(); ++i)
 				{
 					ValueData[i] = CurveShared->FloatCurve.Eval(ValueData[i]);
 				}
 				
-				OutFinalValue = CurveShared->FloatCurve.Eval(1.f);
+				InOutTableData.SetFinalValue(CurveShared->FloatCurve.Eval(1.0f));
 			}
 			break;
 		}
 
 		case EWaveTableCurve::Linear_Inv:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = FMath::Lerp(1.0f, -1.0f, ValueData[i]);
 			}
 				
-			OutFinalValue = -1.f;
+			InOutTableData.SetFinalValue(-1.0f);
 		}
 		break;
 
 		case EWaveTableCurve::Linear:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = FMath::Lerp(-1.0f, 1.0f, ValueData[i]);
 			}
 			
-			OutFinalValue = 1.f;
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 
@@ -82,13 +94,13 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable, float
 		{
 			// Alpha is limited to between 0.0f and 1.0f and ExponentialScalar
 			// between 0 and 10 to keep ValueData "sane" and avoid float boundary.
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] *= (FMath::Pow(10.0f, Scalar * (ValueData[i] - 1.0f)));
 				ValueData[i] -= 0.5f;
 			}
 
-			OutFinalValue = 1.f;
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 
@@ -96,73 +108,63 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable, float
 		{
 			// Alpha is limited to between 0.0f and 1.0f and ExponentialScalar
 			// between 0 and 10 to keep ValueData "sane" and avoid float boundary.
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = ((ValueData[i] - 1.0f) * FMath::Pow(10.0f, -1.0f * Scalar * ValueData[i])) + 1.0f;
 				ValueData[i] -= 0.5f;
 			}
 
-			OutFinalValue = -1.f;
+			InOutTableData.SetFinalValue(-1.0f);
 		}
 		break;
 
 		case EWaveTableCurve::Log:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = (Scalar * FMath::LogX(10.0f, ValueData[i])) + 0.5f;
 			}
-				
-			OutFinalValue = 1.f;
+
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 
 		case EWaveTableCurve::Sin:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = FMath::Sin(HALF_PI * ValueData[i]) - 0.5f;
 			}
 
-			OutFinalValue = 1.f;
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 
 		case EWaveTableCurve::SCurve:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = 0.5f * FMath::Sin(((PI * ValueData[i]) - HALF_PI));
 			}
 
-			OutFinalValue = 1.f;
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 
 		case EWaveTableCurve::Sin_Full:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = FMath::Sin(2.0f * PI * ValueData[i]);
 			}
 
-			OutFinalValue = 0.f;
+			InOutTableData.SetFinalValue(0.0f);
 		}
 		break;
 
 		case EWaveTableCurve::File:
 		{
-			if (WaveTable.IsEmpty())
-			{
-				Audio::ArraySetToConstantInplace(InOutTable, 0.0f);
-				OutFinalValue = 0.f;
-			}
-			else
-			{
-				constexpr auto InterpMode = WaveTable::FWaveTableSampler::EInterpolationMode::MaxValue;
-				WaveTable::FWaveTableSampler::Interpolate(WaveTable, InOutTable, InterpMode);
-				OutFinalValue = WaveTable.Last();
-			}
+			SampleWaveTableData(InOutTableData);
 		}
 		break;
 
@@ -173,25 +175,30 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable, float
 		break;
 	}
 
-	Audio::ArrayClampInPlace(InOutTable, -1.0f, 1.0f);
+	Audio::ArrayClampInPlace(TableView, -1.0f, 1.0f);
 }
 
-void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable, float& OutFinalValue) const
+void FWaveTableTransform::SampleCurveUnipolar(FWaveTableData& InOutTableData) const
 {
-	// Clamp the input
-	Audio::ArrayClampInPlace(InOutTable, 0.0f, 1.0f);
+	checkf(InOutTableData.GetBitDepth() == EWaveTableBitDepth::IEEE_Float, TEXT("Curve sampling only supports IEEE 32-bit float bit depth"));
 
-	float* ValueData = InOutTable.GetData();
+	TArrayView<float> TableView;
+	InOutTableData.GetDataView(TableView);
+
+	// Clamp the input
+	Audio::ArrayClampInPlace(TableView, 0.0f, 1.0f);
+
+	float* ValueData = TableView.GetData();
 	switch (Curve)
 	{
 		case EWaveTableCurve::Custom:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = CurveCustom.Eval(ValueData[i]);
 			}
-				
-			OutFinalValue = CurveCustom.Eval(1.f);
+
+			InOutTableData.SetFinalValue(CurveCustom.Eval(1.0f));
 			break;
 		}
 
@@ -199,30 +206,30 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable, floa
 		{
 			if (CurveShared)
 			{
-				for (int32 i = 0; i < InOutTable.Num(); ++i)
+				for (int32 i = 0; i < TableView.Num(); ++i)
 				{
 					ValueData[i] = CurveShared->FloatCurve.Eval(ValueData[i]);
 				}
-				OutFinalValue = CurveShared->FloatCurve.Eval(1.f);
+				InOutTableData.SetFinalValue(CurveShared->FloatCurve.Eval(1.0f));
 			}
 			break;
 		}
 
 		case EWaveTableCurve::Linear_Inv:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
-				ValueData[i] = 1.0f - InOutTable[i];
+				ValueData[i] = 1.0f - TableView[i];
 			}
 				
-			OutFinalValue = 0.f;
+			InOutTableData.SetFinalValue(0.0f);
 		}
 		break;
 
 		case EWaveTableCurve::Linear:
 		{
 			// Do nothing, as output values == clamped input values
-			OutFinalValue = 1.f;
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 	
@@ -230,12 +237,12 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable, floa
 		{
 			// Alpha is limited to between 0.0f and 1.0f and ExponentialScalar
 			// between 0 and 10 to keep ValueData[i]s "sane" and avoid float boundary.
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] *= (FMath::Pow(10.0f, Scalar * (ValueData[i] - 1.0f)));
 			}
 
-			OutFinalValue = 1.f;
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 
@@ -243,72 +250,62 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable, floa
 		{
 			// Alpha is limited to between 0.0f and 1.0f and ExponentialScalar
 			// between 0 and 10 to keep ValueData[i]s "sane" and avoid float boundary.
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = ((ValueData[i] - 1.0f) * FMath::Pow(10.0f, -1.0f * Scalar * ValueData[i])) + 1.0f;
 			}
 
-			OutFinalValue = 0.f;
+			InOutTableData.SetFinalValue(0.0f);
 		}
 		break;
 
 		case EWaveTableCurve::Log:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = (Scalar * FMath::LogX(10.0f, ValueData[i])) + 1.0f;
 			}
 
-			OutFinalValue = 1.f;
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 
 		case EWaveTableCurve::Sin:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = FMath::Sin(HALF_PI * ValueData[i]);
 			}
 				
-			OutFinalValue = 1.f;
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 
 		case EWaveTableCurve::SCurve:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = 0.5f * FMath::Sin(((PI * ValueData[i]) - HALF_PI)) + 0.5f;
 			}
 
-			OutFinalValue = 1.f;
+			InOutTableData.SetFinalValue(1.0f);
 		}
 		break;
 
 		case EWaveTableCurve::Sin_Full:
 		{
-			for (int32 i = 0; i < InOutTable.Num(); ++i)
+			for (int32 i = 0; i < TableView.Num(); ++i)
 			{
 				ValueData[i] = 0.5f * FMath::Sin(2.0f * PI * ValueData[i]) + 0.5f;
 			}
 
-			OutFinalValue = 0.f;
+			InOutTableData.SetFinalValue(0.0f);
 		}
 		break;
 
 		case EWaveTableCurve::File:
 		{
-			if (WaveTable.IsEmpty())
-			{
-				Audio::ArraySetToConstantInplace(InOutTable, 0.0f);
-				OutFinalValue = 0.f;
-			}
-			else
-			{
-				constexpr auto InterpMode = WaveTable::FWaveTableSampler::EInterpolationMode::MaxValue;
-				WaveTable::FWaveTableSampler::Interpolate(WaveTable, InOutTable, InterpMode);
-				OutFinalValue = WaveTable.Last();
-			}
+			SampleWaveTableData(InOutTableData);
 		}
 		break;
 
@@ -319,13 +316,34 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable, floa
 		break;
 	}
 
-	Audio::ArrayClampInPlace(InOutTable, 0.0f, 1.0f);
+	Audio::ArrayClampInPlace(TableView, 0.0f, 1.0f);
+}
+
+void FWaveTableTransform::SampleWaveTableData(FWaveTableData& InOutTableData) const
+{
+	checkf(InOutTableData.GetBitDepth() == EWaveTableBitDepth::IEEE_Float, TEXT("WaveTable resampling only supports IEEE 32-bit float bit depth"));
+
+	TArrayView<float> TableView;
+	InOutTableData.GetDataView(TableView);
+
+	if (TableData.IsEmpty())
+	{
+		Audio::ArraySetToConstantInplace(TableView, 0.0f);
+		InOutTableData.SetFinalValue(0.0f);
+	}
+	else
+	{
+		constexpr auto InterpMode = WaveTable::FWaveTableSampler::EInterpolationMode::MaxValue;
+		WaveTable::FWaveTableSampler::Interpolate(TableData, TableView, InterpMode);
+		InOutTableData.SetFinalValue(TableData.GetFinalValue());
+	}
 }
 
 void FWaveTableTransform::CacheCurve()
 {
 	if (Curve == EWaveTableCurve::Shared && CurveShared)
 	{
+		Curve = EWaveTableCurve::Custom;
 		CurveCustom = CurveShared->FloatCurve;
 	}
 
@@ -337,45 +355,80 @@ void FWaveTableTransform::CacheCurve()
 
 float FWaveTableTransform::GetFinalValue() const
 {
-	if (FMath::IsNearlyEqual(FinalValue, WaveTable::InvalidWaveTableValue))
-	{
-		if (WaveTable.IsEmpty())
-		{
-			return 0.f;
-		}
-
-		return WaveTable.Last();
-	}
-
-	return FinalValue;
+	return TableData.GetFinalValue();
 }
 
 void FWaveTableTransform::SetFinalValue(float InValue)
 {
-	FinalValue = InValue;
+}
+
+const FWaveTableData& FWaveTableTransform::GetTableData() const
+{
+	return TableData;
 }
 
 #if WITH_EDITOR
 void FWaveTableTransform::CopyToWaveTable(TArrayView<float> InOutTable, float& OutFinalValue, bool bInBipolar) const
 {
-	const float Delta = 1.0f / InOutTable.Num();
-	
-	for (int32 i = 0; i < InOutTable.Num(); ++i)
-	{
-		InOutTable[i] = i * Delta;
-	}
+	constexpr bool bIsLoop = false;
 
-	bInBipolar ? SampleCurveBipolar(InOutTable, OutFinalValue) : SampleCurveUnipolar(InOutTable, OutFinalValue);
+	FWaveTableData Data;
+	Data.SetData(InOutTable, bIsLoop);
+	Data.SetFinalValue(OutFinalValue);
+
+	CopyToWaveTable(Data, bInBipolar);
+
+	ensureAlwaysMsgf(Data.GetDataView(InOutTable), TEXT("BitDepth format mismatch"));
+	OutFinalValue = Data.GetFinalValue();
 }
 
-void FWaveTableTransform::CreateWaveTable(TArray<float>& InOutTable, float& OutFinalValue, bool bInBipolar) const
+void FWaveTableTransform::CopyToWaveTable(FWaveTableData& InOutTableData, bool bInBipolar) const
+{
+	FWaveTableData SampleData(EWaveTableBitDepth::IEEE_Float);
+	SampleData.Zero(InOutTableData.GetNumSamples());
+
+	TArrayView<float> SampleDataTableView;
+	SampleData.GetDataView(SampleDataTableView);
+	const float Delta = 1.0f / InOutTableData.GetNumSamples();
+	for (int32 Index = 0; Index < SampleDataTableView.Num(); ++Index)
+	{
+		SampleDataTableView[Index] = Index * Delta;
+	}
+
+	bInBipolar ? SampleCurveBipolar(SampleData) : SampleCurveUnipolar(SampleData);
+
+	switch (InOutTableData.GetBitDepth())
+	{
+		case EWaveTableBitDepth::IEEE_Float:
+		{
+			InOutTableData = MoveTemp(SampleData);
+		}
+		break;
+
+		case EWaveTableBitDepth::PCM_16:
+		{
+			TArrayView<int16> TableView;
+			InOutTableData.GetDataView(TableView);
+			Audio::ArrayFloatToPcm16(SampleDataTableView, TableView);
+		}
+		break;
+
+		default:
+		{
+			static_assert(static_cast<int32>(EWaveTableBitDepth::COUNT) == 2, "Possible missing switch case coverage for 'EWaveTableBitDepth'");
+			checkNoEntry();
+		}
+	}
+}
+
+void FWaveTableTransform::CreateWaveTable(FWaveTableData& InOutTableData, bool bInBipolar) const
 {
 	switch (Curve)
 	{
 		case EWaveTableCurve::File:
 		{
 			WaveTable::FImporter Importer(WaveTableSettings, bInBipolar);
-			Importer.Process(InOutTable);
+			Importer.Process(InOutTableData);
 		}
 		break;
 
@@ -391,9 +444,25 @@ void FWaveTableTransform::CreateWaveTable(TArray<float>& InOutTable, float& OutF
 		case EWaveTableCurve::Sin_Full:
 		default:
 		{
-			CopyToWaveTable(InOutTable, OutFinalValue, bInBipolar);
+			CopyToWaveTable(InOutTableData, bInBipolar);
 		}
 		break;
 	}
+}
+
+void FWaveTableTransform::CreateWaveTable(TArray<float>& InOutTable, float& OutFinalValue, bool bInBipolar) const
+{
+	constexpr bool bIsLoop = false;
+
+	FWaveTableData TempTableData;
+	TempTableData.SetData(InOutTable, bIsLoop);
+	TempTableData.SetFinalValue(OutFinalValue);
+
+	CreateWaveTable(TempTableData, bInBipolar);
+
+	TArrayView<float> OutTableView;
+	TempTableData.GetDataView(OutTableView);
+	OutFinalValue = TableData.GetFinalValue();
+	InOutTable = MoveTemp(OutTableView);
 }
 #endif // WITH_EDITOR

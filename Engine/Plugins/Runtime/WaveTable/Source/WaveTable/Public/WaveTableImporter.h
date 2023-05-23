@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "WaveTable.h"
 #include "WaveTableSampler.h"
+#include "WaveTableSettings.h"
 
-struct FWaveTableSettings;
+// Forward Declarations
+struct FWaveTableData;
 
 
 namespace WaveTable
@@ -13,9 +16,14 @@ namespace WaveTable
 	public:
 		FImporter(const FWaveTableSettings& InSettings, bool bInBipolar);
 
+		UE_DEPRECATED(5.3, "Importer now supports multiple bit depths and sample rate. Use version of function that takes in an FWaveTableData struct.")
 		void Process(TArray<float>& OutWaveTable);
 
+		void Process(FWaveTableData& OutData);
+
 	private:
+		void ProcessInternal(const TArrayView<const float> InEditSourceView, TArray<float>& OutWaveTable);
+
 		const FWaveTableSettings& Settings;
 
 		bool bBipolar = false;
@@ -23,7 +31,3 @@ namespace WaveTable
 		FWaveTableSampler Sampler;
 	};
 } // namespace WaveTable
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "WaveTableSettings.h"
-#endif

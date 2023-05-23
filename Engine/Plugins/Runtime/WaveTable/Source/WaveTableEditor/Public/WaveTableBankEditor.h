@@ -70,9 +70,15 @@ namespace WaveTable
 
 			virtual bool GetIsPropertyEditorDisabled() const { return false; }
 
-			// Returns resolution of bank being editor. By default, bank does not support WaveTable generation
+			// Returns resolution of bank being edited. By default, bank does not support WaveTable generation
 			// by being set to no resolution.
 			virtual EWaveTableResolution GetBankResolution() const { return EWaveTableResolution::None; }
+
+			// Returns sampling mode of bank being edited.
+			virtual EWaveTableSamplingMode GetBankSamplingMode() const { return EWaveTableSamplingMode::FixedResolution; }
+
+			// Returns sample rate to use if BankSamplingMode is set to 'SampleRate'.
+			virtual int32 GetBankSampleRate() const { return 0; }
 
 			// Returns whether or not bank is bipolar.  By default, returns false (bank is unipolar), functionally
 			// operating as a unipolar envelope editor.
@@ -139,6 +145,8 @@ namespace WaveTable
 
 		protected:
 			virtual EWaveTableResolution GetBankResolution() const override;
+			virtual EWaveTableSamplingMode GetBankSamplingMode() const override;
+			virtual int32 GetBankSampleRate() const override;
 			virtual bool GetBankIsBipolar() const override;
 			virtual int32 GetNumTransforms() const override;
 			virtual FWaveTableTransform* GetTransform(int32 InIndex) const override;

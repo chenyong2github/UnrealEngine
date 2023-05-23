@@ -60,6 +60,21 @@ void USoundModulationPatch::PostEditChangeChainProperty(FPropertyChangedChainEve
 	Super::PostEditChangeChainProperty(InPropertyChangedEvent);
 }
 
+#if WITH_EDITORONLY_DATA
+void USoundModulationPatch::Serialize(FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		for (FSoundControlModulationInput& Input : PatchSettings.Inputs)
+		{
+			Input.Transform.VersionTableData();
+		}
+	}
+
+	Super::Serialize(Ar);
+}
+#endif // WITH_EDITORONLY_DATA
+
 void USoundModulationPatch::PreSave(FObjectPreSaveContext InSaveContext)
 {
 	Super::PreSave(InSaveContext);

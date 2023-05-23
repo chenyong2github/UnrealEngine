@@ -1,18 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/ArrayView.h"
 #include "Curves/RichCurve.h"
+#include "WaveTable.h"
 #include "WaveTableSettings.h"
 
 #include "WaveTableTransform.generated.h"
 
 class UCurveFloat;
 
-// use a value outside the [-1,1] range to detect uninitialized values
-namespace WaveTable
-{
-	constexpr float InvalidWaveTableValue = TNumericLimits<float>::Min();
-}
 
 USTRUCT(BlueprintType)
 struct WAVETABLE_API FWaveTableTransform
@@ -29,7 +26,7 @@ struct WAVETABLE_API FWaveTableTransform
 	 *  Logarithmic: y = b * log(x) + 1
 	 */
 	UPROPERTY(EditAnywhere, Category = Input, BlueprintReadWrite, meta = (DisplayName = "Exponential Scalar", ClampMin = "0.1", ClampMax = "10.0", UIMin = "0.1", UIMax = "10.0"))
-	float Scalar = 2.5;
+	float Scalar = 2.5f;
 
 	/** Custom curve to apply if output curve type is set to 'Custom.' */
 	UPROPERTY()
@@ -39,9 +36,17 @@ struct WAVETABLE_API FWaveTableTransform
 	UPROPERTY(EditAnywhere, meta = (DisplayName = "Asset"), Category = Curve, BlueprintReadWrite)
 	TObjectPtr<UCurveFloat> CurveShared = nullptr;
 
+protected:
 	UPROPERTY()
-	TArray<float> WaveTable;
+	FWaveTableData TableData;
 
+	// Duration of curve or file.  Only valid if parent SampleRate is set and SamplingMode is set to 'FixedSampleRate'
+	// (If set to 'FixedResolution', duration is variable depending on the resolution (number of samples in the table data)
+	// and device's sample rate.
+	UPROPERTY(EditAnywhere, meta = (DisplayName = "Duration (Sec)", Category = Input, ClampMin = "0.0", UIMin = "0.0"))
+	float Duration = 1.0f;
+
+public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = WaveTable)
 	FWaveTableSettings WaveTableSettings;
@@ -50,16 +55,47 @@ struct WAVETABLE_API FWaveTableTransform
 	// Applies transform to provided index value, setting it to the corresponding value.
 	void Apply(float& InOutValue, bool bInBipolar = false) const;
 
+	float GetDuration() const { return Duration; }
+
 #if WITH_EDITOR
-	// Copies a single, period [0.0, 1.0] to a WaveTable using this transform's curve. The
-	// size of the resulting WaveTable is the provided ArrayView's size. If curve is itself
-	// set to 'File' and internally cached as WaveTable, will re-sample using max value
-	// interpolation. Does *not* apply destructive edits for using WaveTableSettings PCM data.
+	UE_DEPRECATED(5.3, "Use FWaveTableData version instead")
 	void CopyToWaveTable(TArrayView<float> InOutTable, float& OutFinalValue, bool bInBipolar) const;
 
-	// Caches WaveTable for curve using the provided array length as resolution.
-	// Applies destructive edits as provided by WaveTableSettings if curve set to 'File'.
+	UE_DEPRECATED(5.3, "Use FWaveTableData version instead")
 	void CreateWaveTable(TArray<float>& InOutTable, float& OutFinalValue, bool bInBipolar) const;
+
+	// Copies a single, period [0.0, 1.0] to provided WaveTableData using this transform's curve. The
+	// size of the resulting WaveTable is the provided ArrayView's size. If curve is itself
+	// set to 'File' and internally cached as WaveTable, will re-sample using max value
+	// interpolation. Does *not* apply destructive edits from WaveTableSetting's source table data.
+	void CopyToWaveTable(FWaveTableData& InOutTableData, bool bInBipolar) const;
+
+	// Creates WaveTableData from transform respective Curve settings.
+	// Applies destructive edits as provided by WaveTableSettings if curve set to 'File'.
+	void CreateWaveTable(FWaveTableData& InOutTableData, bool bInBipolar) const;
+
+	static FName GetDurationPropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(FWaveTableTransform, Duration);
+	}
+
+	// Versions deprecated "WaveTable" property data to PCMData, to support serialization of different bit depths
+	void VersionTableData()
+	{
+		WaveTableSettings.VersionPCMData();
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (!WaveTable.IsEmpty())
+		{
+			constexpr bool bIsLoop = false;
+			TableData.SetData(WaveTable, bIsLoop);
+			TableData.SetFinalValue(FinalValue);
+
+			FinalValue = WaveTable::InvalidWaveTableValue;
+			WaveTable.Empty();
+		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 #endif // WITH_EDITOR
 
 	/** Caches curve data.  Should a shared curve be selected, curve points are copied locally
@@ -69,19 +105,32 @@ struct WAVETABLE_API FWaveTableTransform
 	  */
 	void CacheCurve();
 
-	// Returns the final value of the WaveTable
+	const FWaveTableData& GetTableData() const;
+
+	UE_DEPRECATED(5.3, "FinalValue has moved to TableData. Use property's FinalValue get accessor directly.")
 	float GetFinalValue() const;
 
-	// Set the final value of the WaveTable
+	UE_DEPRECATED(5.3, "FinalValue has moved to TableData and is read-only.")
 	void SetFinalValue(float InValue);
 
-private:
-	UPROPERTY()
-	float FinalValue = WaveTable::InvalidWaveTableValue;
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(meta = (Deprecated = "5.3", DeprecationMessage = "WaveTable data now supports multiple bit depths and has moved to TableData"))
+	TArray<float> WaveTable;
 
+	UPROPERTY(meta = (Deprecated = "5.3", DeprecationMessage = "WaveTable data now supports multiple bit depths and FinalValue has moved to TableData"))
+	float FinalValue;
+#endif // WITH_EDITORONLY_DATA
+
+private:
 	/** Clamps & applies transform to provided values as bipolar signal*/
-	void SampleCurveBipolar(TArrayView<float> InOutValues, float& OutFinalValue) const;
+	void SampleCurveBipolar(FWaveTableData& InOutTableData) const;
 
 	/** Clamps & applies transform to provided values as unipolar signal */
-	void SampleCurveUnipolar(TArrayView<float> InOutValues, float& OutFinalValue) const;
+	void SampleCurveUnipolar(FWaveTableData& InOutTableData) const;
+
+	/** Converts internal TableData to float bit rate if not and re-samples to fit into provided wavetable data. */
+	void SampleWaveTableData(FWaveTableData& InOutTableData) const;
+
+	friend class FWaveTableBankAssetProxy;
+	friend class UWaveTableBank;
 };

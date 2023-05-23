@@ -4,6 +4,8 @@
 #include "Containers/ArrayView.h"
 
 
+struct FWaveTableData;
+
 namespace WaveTable
 {
 	struct FWaveTableView;
@@ -58,34 +60,65 @@ namespace WaveTable
 			float Phase = 0.0f;
 
 			EInterpolationMode InterpolationMode = EInterpolationMode::Linear;
+
+			bool bOneShot = false;
 		};
 
 		FWaveTableSampler();
 		FWaveTableSampler(FSettings&& InSettings);
 
-		// Interpolates and converts values in the given table for each provided index in the index-to-samples TArrayView (an array of sub-sample, floating point, indices)
+		// Interpolates and converts values in the given table for each provided index in the index-to-samples TArrayView (an array of sub-sample, floating point indices)
+		static void Interpolate(const FWaveTableData& InTableData, TArrayView<float> InOutIndexToSamplesView, EInterpolationMode InterpMode = EInterpolationMode::Linear);
+		static void Interpolate(TArrayView<const int16> InTableView, TArrayView<float> InOutIndexToSamplesView, EInterpolationMode InterpMode = EInterpolationMode::Linear);
 		static void Interpolate(TArrayView<const float> InTableView, TArrayView<float> InOutIndexToSamplesView, EInterpolationMode InterpMode = EInterpolationMode::Linear);
 
+		// Retrieves the sample value at the currently set phase, returning the floating point index which the current phase corresponds to.
 		float Process(const FWaveTableView& InTableView, float& OutSample, ESingleSampleMode InMode = ESingleSampleMode::Zero);
-		float Process(const FWaveTableView& InTableView, TArrayView<float> OutSamplesView);
-		float Process(const FWaveTableView& InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InPhaseModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutSamplesView);
 
+		// Resamples entire table length into given view
+		float Process(const FWaveTableView& InTableView, TArrayView<float> OutSamplesView);
+		float Process(const FWaveTableData& InTableData, TArrayView<float> OutSamplesView);
+		float Process(const FWaveTableView& InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InPhaseModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutSamplesView);
+		float Process(const FWaveTableData& InTableData, TArrayView<const float> InFreqModulator, TArrayView<const float> InPhaseModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutSamplesView);
+
+		// Resets the last index operated on, restarting the interpolation process for subsequent calls.
 		void Reset();
 
 		const FSettings& GetSettings() const;
 
+		// If set to one-shot, returns the first index where a reverse or stall occurred in the provided
+		// interpolated index, ignoring samples where a "sync" request took place. If set to looping,
+		// always INDEX_NONE as looping does not support a "finished" state.
+		int32 GetIndexFinished() const;
+
 		void SetInterpolationMode(EInterpolationMode InMode);
 		void SetFreq(float InFreq);
+		void SetOneShot(bool bInLooping);
 		void SetPhase(float InPhase);
 
 	private:
-		void ComputeIndexFrequency(TArrayView<const float> InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutIndicesView);
-		void ComputeIndexPhase(TArrayView<const float> InTableView, TArrayView<const float> InPhaseModulator, TArrayView<float> OutIndicesView);
+		void ComputeIndexFrequency(int32 NumInputSamples, TArrayView<const float> InFreqModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutIndicesView);
+		void ComputeIndexPhase(int32 NumInputSamples, TArrayView<const float> InPhaseModulator, TArrayView<float> OutIndicesView);
+
+		// If set to one-shot, sets IndexFinished to valid index and resets remaining indices provided past the initial stop to the first index.
+		// Returns last positively increasing index if finished. If not finished, returns the last index value stored in the view.
+		int32 ComputeIndexFinished(TArrayView<const float> InSyncTriggers, TArrayView<float> OutIndicesView);
 
 		float LastIndex = 0.0f;
 
+		struct FOneShotData
+		{
+			// Cached last floating index from prior process, used to compute stopping index if forward progress terminates on buffer boundary.
+			float LastOutputIndex = -1.0f;
+
+			// Contains index where sampler finished as a result of a sample ending or phase reversing within the last process call.
+			// (If < 0, no finish/phase reverse was detected and sampler is considered to be continuing to make forward progress)
+			int32 IndexFinished = INDEX_NONE;
+		} OneShotData;
+
 		TArray<float> PhaseModScratch;
 		FSettings Settings;
+
 	};
 } // namespace WaveTable
 

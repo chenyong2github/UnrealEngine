@@ -14,11 +14,13 @@
 class USoundControlBus;
 
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 USTRUCT(BlueprintType)
 struct AUDIOMODULATION_API FSoundModulationTransform : public FWaveTableTransform
 {
 	GENERATED_USTRUCT_BODY()
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 USTRUCT(BlueprintType)
@@ -76,6 +78,9 @@ public:
 
 	virtual TUniquePtr<Audio::IModulatorSettings> CreateProxySettings() const override;
 
+#if WITH_EDITORONLY_DATA
+	virtual void Serialize(FArchive& Ar) override;
+#endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;

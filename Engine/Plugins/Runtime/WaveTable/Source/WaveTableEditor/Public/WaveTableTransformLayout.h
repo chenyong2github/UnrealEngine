@@ -3,64 +3,67 @@
 
 #include "IPropertyTypeCustomization.h"
 
+
+// Forward Declarations
 enum class EWaveTableCurve : uint8;
+enum class EWaveTableSamplingMode : uint8;
 struct FWaveTableTransform;
 
 
-namespace WaveTable
+namespace WaveTable::Editor
 {
-	namespace Editor
+	class WAVETABLEEDITOR_API FWaveTableDataLayoutCustomization : public IPropertyTypeCustomization
 	{
-		class WAVETABLEEDITOR_API FTransformLayoutCustomizationBase : public IPropertyTypeCustomization
+	public:
+		static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 		{
-		public:
-			//~ Begin IPropertyTypeCustomization
-			virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-			virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-			//~ End IPropertyTypeCustomization
+			return MakeShared<FWaveTableDataLayoutCustomization>();
+		}
 
-		protected:
-			virtual TSet<EWaveTableCurve> GetSupportedCurves() const;
-			virtual FWaveTableTransform* GetTransform() const = 0;
-			virtual bool IsBipolar() const = 0;
+		virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+		virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	};
 
-			void CachePCMFromFile();
-			EWaveTableCurve GetCurve() const;
-			int32 GetOwningArrayIndex() const;
-			bool IsScaleableCurve() const;
+	class WAVETABLEEDITOR_API FTransformLayoutCustomizationBase : public IPropertyTypeCustomization
+	{
+	public:
+		//~ Begin IPropertyTypeCustomization
+		virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+		virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+		//~ End IPropertyTypeCustomization
 
-			TSharedPtr<IPropertyHandle> CurveHandle;
-			TSharedPtr<IPropertyHandle> ChannelIndexHandle;
-			TSharedPtr<IPropertyHandle> FilePathHandle;
-			TSharedPtr<IPropertyHandle> WaveTableOptionsHandle;
+	protected:
+		virtual TSet<EWaveTableCurve> GetSupportedCurves() const;
+		virtual FWaveTableTransform* GetTransform() const = 0;
+		virtual bool IsBipolar() const = 0;
+		virtual EWaveTableSamplingMode GetSamplingMode() const;
 
-		private:
-			void CustomizeCurveSelector(IDetailChildrenBuilder& ChildBuilder);
+		void CachePCMFromFile();
+		EWaveTableCurve GetCurve() const;
+		int32 GetOwningArrayIndex() const;
+		bool IsScaleableCurve() const;
 
-			TMap<FString, FName> CurveDisplayStringToNameMap;
-		};
+		TSharedPtr<IPropertyHandle> CurveHandle;
+		TSharedPtr<IPropertyHandle> ChannelIndexHandle;
+		TSharedPtr<IPropertyHandle> FilePathHandle;
+		TSharedPtr<IPropertyHandle> SourceDataHandle;
+		TSharedPtr<IPropertyHandle> WaveTableOptionsHandle;
 
-		class WAVETABLEEDITOR_API FTransformLayoutCustomization : public FTransformLayoutCustomizationBase
+	private:
+		void CustomizeCurveSelector(IDetailChildrenBuilder& ChildBuilder);
+
+		TMap<FString, FName> CurveDisplayStringToNameMap;
+	};
+
+	class WAVETABLEEDITOR_API FTransformLayoutCustomization : public FTransformLayoutCustomizationBase
+	{
+	public:
+		static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 		{
-		public:
-			static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-			{
-				return MakeShared<FTransformLayoutCustomization>();
-			}
+			return MakeShared<FTransformLayoutCustomization>();
+		}
 
-			virtual bool IsBipolar() const override;
-			virtual FWaveTableTransform* GetTransform() const override;
-		};
-	} // namespace Editor
-} // namespace WaveTable
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Curves/SimpleCurve.h"
-#include "Layout/Visibility.h"
-#include "Misc/Attribute.h"
-#include "PropertyCustomizationHelpers.h"
-#include "PropertyHandle.h"
-#include "SCurveEditor.h"
-#include "WaveTableSettings.h"
-#include "WaveTableTransform.h"
-#endif
+		virtual bool IsBipolar() const override;
+		virtual FWaveTableTransform* GetTransform() const override;
+	};
+} // namespace WaveTable::Editor

@@ -3,9 +3,41 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaveTableSettings)
 
+void FWaveTableSettings::GetEditSourceBounds(int32& OutSourceTopOffset, int32& OutSourceNumSamples) const
+{
+	OutSourceTopOffset = 0;
+	OutSourceNumSamples = 0;
+
+	int32 SourceTopOffset = 0;
+	int32 SourceNumSamples = SourceData.GetNumSamples();
+	if (SourceNumSamples == 0)
+	{
+		return;
+	}
+
+	if (Top > 0.0f)
+	{
+		SourceTopOffset = WaveTable::RatioToIndex(Top, SourceNumSamples);
+		SourceNumSamples -= SourceTopOffset;
+	}
+
+	if (Tail > 0.0f)
+	{
+		const int32 SourceTailOffset = WaveTable::RatioToIndex(Tail, SourceNumSamples);
+		SourceNumSamples -= SourceTailOffset;
+	}
+
+	if (SourceTopOffset < SourceData.GetNumSamples())
+	{
+		OutSourceTopOffset = SourceTopOffset;
+		OutSourceNumSamples = SourceNumSamples;
+	}
+}
 
 TArrayView<const float> FWaveTableSettings::GetEditSourceView() const
 {
+#if WITH_EDITOR
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	int32 SourceNumSamples = SourcePCMData.Num();
 	if (SourceNumSamples == 0)
 	{
@@ -29,74 +61,30 @@ TArrayView<const float> FWaveTableSettings::GetEditSourceView() const
 	{
 		return { SourcePCMData.GetData() + SourceTopOffset, SourceNumSamples };
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+#endif // WITH_EDITOR
 	return { };
 }
+
+#if WITH_EDITOR
+void FWaveTableSettings::VersionPCMData()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!SourcePCMData.IsEmpty())
+	{
+		SourceData.SetRawData(EWaveTableBitDepth::IEEE_Float, TArrayView<uint8>((uint8*)(SourcePCMData.GetData()), SourcePCMData.Num() * sizeof(float)));
+		SourcePCMData.Empty();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+#endif // WITH_EDITOR
 
 namespace WaveTable
 {
 	int32 GetWaveTableSize(EWaveTableResolution InWaveTableResolution, EWaveTableCurve InCurve, int32 InMaxPCMSize)
 	{
-		auto GetCurveResolution = [](EWaveTableCurve Curve)
-		{
-			switch (Curve)
-			{
-				case EWaveTableCurve::File:
-				{
-					return EWaveTableResolution::Maximum;
-				}
-				break;
-
-				case EWaveTableCurve::Linear:
-				case EWaveTableCurve::Linear_Inv:
-				{
-					return EWaveTableResolution::Res_8;
-				}
-				break;
-
-				case EWaveTableCurve::Exp:
-				case EWaveTableCurve::Exp_Inverse:
-				case EWaveTableCurve::Log:
-				{
-					return EWaveTableResolution::Res_256;
-				}
-				break;
-
-				case EWaveTableCurve::Sin:
-				case EWaveTableCurve::SCurve:
-				case EWaveTableCurve::Sin_Full:
-				{
-					return EWaveTableResolution::Res_64;
-				}
-				break;
-
-				default:
-				{
-					return EWaveTableResolution::Res_128;
-				}
-				break;
-			};
-		};
-
-		switch (InWaveTableResolution)
-		{
-			case EWaveTableResolution::Maximum:
-			{
-				return FMath::Max(InMaxPCMSize, 1 << static_cast<int32>(EWaveTableResolution::Res_Max));
-			}
-			break;
-
-			case EWaveTableResolution::None:
-			{
-				const EWaveTableResolution CurveRes = GetCurveResolution(InCurve);
-				return 1 << static_cast<int32>(CurveRes);
-			}
-			break;
-
-			default:
-			{
-				return 1 << static_cast<int32>(InWaveTableResolution);
-			}
-		};
+		checkNoEntry();
+		return 0;
 	}
 } // namespace WaveTable

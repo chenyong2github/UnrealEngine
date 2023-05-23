@@ -5,51 +5,136 @@
 #include "Sound/SoundWave.h"
 #include "UObject/Package.h"
 #include "Utils.h"
+#include "WaveTableEditorModule.h"
+#include "WaveTableSampler.h"
 
 
-namespace WaveTable
+namespace WaveTable::Editor
 {
-	namespace Editor
+	namespace FileUtilities
 	{
-		namespace FileUtilities
+		void LoadPCMChannel(const FString& InFilePath, int32 InChannelIndex, FWaveTableData& OutData, int32& OutSampleRate)
 		{
-			void LoadPCMChannel(const FString& InFilePath, int32 InChannelIndex, TArray<float>& OutPCMData)
+			OutData.Empty();
+
+			if (!InFilePath.IsEmpty())
 			{
-				OutPCMData.Empty();
-
-				if (!InFilePath.IsEmpty())
+				if (USoundFactory* SoundWaveFactory = NewObject<USoundFactory>())
 				{
-					if (USoundFactory* SoundWaveFactory = NewObject<USoundFactory>())
+					// Setup sane defaults for importing localized sound waves
+					SoundWaveFactory->bAutoCreateCue = false;
+					SoundWaveFactory->SuppressImportDialogs();
+
+					UPackage* TempPackage = CreatePackage(TEXT("/Temp/WaveTable"));
+					if (USoundWave* SoundWave = ImportObject<USoundWave>(TempPackage, "ImportedWaveTable", RF_Public | RF_Standalone, *InFilePath, nullptr, SoundWaveFactory))
 					{
-						// Setup sane defaults for importing localized sound waves
-						SoundWaveFactory->bAutoCreateCue = false;
-						SoundWaveFactory->SuppressImportDialogs();
+						TArray<uint8> RawPCMData;
+						uint16 NumChannels = 0;
+						uint32 FileSampleRate = 0;
+						SoundWave->GetImportedSoundWaveData(RawPCMData, FileSampleRate, NumChannels);
+						OutSampleRate = static_cast<int32>(FileSampleRate);
 
-						UPackage* TempPackage = CreatePackage(TEXT("/Temp/WaveTable"));
-						if (USoundWave* SoundWave = ImportObject<USoundWave>(TempPackage, "ImportedWaveTable", RF_Public | RF_Standalone, *InFilePath, nullptr, SoundWaveFactory))
+						// Deinterleave & perform BDC if necessary
+						if (NumChannels > 0)
 						{
-							TArray<uint8> RawPCMData;
-							uint32 SampleRate = 0;
-							uint16 NumChannels = 0;
-							SoundWave->GetImportedSoundWaveData(RawPCMData, SampleRate, NumChannels);
+							const int32 NumFrames = RawPCMData.Num() / NumChannels / sizeof(int16);
+							const int16* RawDataPtr = (const int16*)(RawPCMData.GetData());
+							const int32 ChannelOffset = (InChannelIndex % NumChannels);
 
-							if (NumChannels > 0)
+							OutData.Zero(NumFrames);
+
+							constexpr float ConversionValue = 1.0f / static_cast<float>(TNumericLimits<int16>::Max());
+							switch (OutData.GetBitDepth())
 							{
-								const int32 NumFrames = RawPCMData.Num() / NumChannels / sizeof(int16);
-								OutPCMData.Empty();
-								OutPCMData.AddZeroed(NumFrames);
-								const int16* RawDataPtr = (const int16*)(RawPCMData.GetData());
-								const int32 ChannelOffset = (InChannelIndex % NumChannels);
-								constexpr float Max16BitAsFloat = static_cast<float>(TNumericLimits<int16>::Max());
-								for (int32 i = 0; i < OutPCMData.Num(); ++i)
+								case EWaveTableBitDepth::IEEE_Float:
 								{
-									OutPCMData[i] = (RawDataPtr[(i * NumChannels) + ChannelOffset]) / Max16BitAsFloat;
+									TArrayView<float> DataView;
+									OutData.GetDataView(DataView);
+									for (int32 Index = 0; Index < DataView.Num(); ++Index)
+									{
+										DataView[Index] = (RawDataPtr[(Index * NumChannels) + ChannelOffset]) * ConversionValue;
+									}
+
+									if (!DataView.IsEmpty())
+									{
+										OutData.SetFinalValue(DataView.Last());
+									}
 								}
+								break;
+
+								case EWaveTableBitDepth::PCM_16:
+								{
+									TArrayView<int16> DataView;
+									OutData.GetDataView(DataView);
+									for (int32 Index = 0; Index < DataView.Num(); ++Index)
+									{
+										DataView[Index] = (RawDataPtr[(Index * NumChannels) + ChannelOffset]);
+									}
+
+									if (!DataView.IsEmpty())
+									{
+										OutData.SetFinalValue(DataView.Last() * ConversionValue);
+									}
+								}
+								break;
+
+								default:
+								{
+									static_assert(static_cast<int32>(EWaveTableBitDepth::COUNT) == 2, "Possible missing switch case coverage for 'EWaveTableBitDepth'");
+									checkNoEntry();
+								}
+								break;
+							}
+						}
+						else
+						{
+							UE_LOG(LogWaveTableEditor, Error, TEXT("Failed to import/reimport file '%s': Invalid num channels '%u' imported"), *InFilePath, NumChannels);
+						}
+					}
+					else
+					{
+						UE_LOG(LogWaveTableEditor, Error, TEXT("Failed to import/reimport file '%s'"), *InFilePath);
+					}
+				}
+			}
+		}
+
+		void LoadPCMChannel(const FString& InFilePath, int32 InChannelIndex, TArray<float>& OutPCMData)
+		{
+			OutPCMData.Empty();
+
+			if (!InFilePath.IsEmpty())
+			{
+				if (USoundFactory* SoundWaveFactory = NewObject<USoundFactory>())
+				{
+					// Setup sane defaults for importing localized sound waves
+					SoundWaveFactory->bAutoCreateCue = false;
+					SoundWaveFactory->SuppressImportDialogs();
+
+					UPackage* TempPackage = CreatePackage(TEXT("/Temp/WaveTable"));
+					if (USoundWave* SoundWave = ImportObject<USoundWave>(TempPackage, "ImportedWaveTable", RF_Public | RF_Standalone, *InFilePath, nullptr, SoundWaveFactory))
+					{
+						TArray<uint8> RawPCMData;
+						uint32 SampleRate = 0;
+						uint16 NumChannels = 0;
+						SoundWave->GetImportedSoundWaveData(RawPCMData, SampleRate, NumChannels);
+
+						if (NumChannels > 0)
+						{
+							const int32 NumFrames = RawPCMData.Num() / NumChannels / sizeof(int16);
+							OutPCMData.Empty();
+							OutPCMData.AddZeroed(NumFrames);
+							const int16* RawDataPtr = (const int16*)(RawPCMData.GetData());
+							const int32 ChannelOffset = (InChannelIndex % NumChannels);
+							constexpr float Max16BitAsFloat = static_cast<float>(TNumericLimits<int16>::Max());
+							for (int32 i = 0; i < OutPCMData.Num(); ++i)
+							{
+								OutPCMData[i] = (RawDataPtr[(i * NumChannels) + ChannelOffset]) / Max16BitAsFloat;
 							}
 						}
 					}
 				}
 			}
-		} // namespace FileUtilities
-	} // namespace Editor
-} // namespace WaveTable
+		}
+	} // namespace FileUtilities
+} // namespace WaveTable::Editor
