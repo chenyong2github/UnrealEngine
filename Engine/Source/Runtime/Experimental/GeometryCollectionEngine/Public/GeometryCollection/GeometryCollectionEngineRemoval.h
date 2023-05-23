@@ -159,6 +159,9 @@ public:
 	/** Set decay value for a specific transform index */
 	void SetDecay(int32 TransformIndex, float DecayValue);
 
+	/** Get the size of the decay attribute - this should match the number of transforms of the collection */
+	int32 GetDecayAttributeSize() const;
+
 private:
 	/** state of decay ([0-1] range) */
 	TManagedArrayAccessor<float> DecayAttribute;

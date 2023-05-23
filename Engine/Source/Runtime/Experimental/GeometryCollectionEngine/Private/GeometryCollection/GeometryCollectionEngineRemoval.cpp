@@ -240,3 +240,8 @@ void FGeometryCollectionDecayDynamicFacade::SetDecay(int32 TransformIndex, float
 {
 	DecayAttribute.ModifyAt(TransformIndex, DecayValue);
 }
+
+int32 FGeometryCollectionDecayDynamicFacade::GetDecayAttributeSize() const
+{
+	return DecayAttribute.Num();
+}
