@@ -176,17 +176,24 @@ namespace AutomationTool.Tasks
 				{
 					if (!File.GetFileName().StartsWith(UnknownPrefix, StringComparison.OrdinalIgnoreCase))
 					{
-						if (File.HasExtension(".json"))
+						try
 						{
-							byte[] Data = await FileReference.ReadAllBytesAsync(File);
-							LicenseConfig Config = JsonSerializer.Deserialize<LicenseConfig>(Data);
-							LicenseUrls.UnionWith(Config.Urls);
+							if (File.HasExtension(".json"))
+							{
+								byte[] Data = await FileReference.ReadAllBytesAsync(File);
+								LicenseConfig Config = JsonSerializer.Deserialize<LicenseConfig>(Data);
+								LicenseUrls.UnionWith(Config.Urls);
+							}
+							else if (File.HasExtension(".txt") || File.HasExtension(".html"))
+							{
+								string Text = await FileReference.ReadAllTextAsync(File);
+								LicenseInfo License = FindOrAddLicense(Licenses, Text, File.GetFileNameWithoutExtension());
+								License.Approved = true;
+							}
 						}
-						else if (File.HasExtension(".txt") || File.HasExtension(".html"))
+						catch (Exception ex)
 						{
-							string Text = await FileReference.ReadAllTextAsync(File);
-							LicenseInfo License = FindOrAddLicense(Licenses, Text, File.GetFileNameWithoutExtension());
-							License.Approved = true;
+							throw new AutomationException(ex, $"Error parsing {File}: {ex.Message}");
 						}
 					}
 				}
