@@ -403,4 +403,14 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 {
 }
 
+[numthreads(1, 1, 1)]
+void ClearTileInitArgs(uint3 DTID : SV_DispatchThreadID)
+{
+}
+
+[numthreads(64, 1, 1)]
+void ClearTiles(uint3 DTID : SV_DispatchThreadID)
+{
+}
+
 #endif
