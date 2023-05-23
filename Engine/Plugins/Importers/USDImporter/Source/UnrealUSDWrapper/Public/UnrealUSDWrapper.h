@@ -180,6 +180,18 @@ public:
 #endif  // #if USE_USD_SDK
 
 	/**
+	 * Registers all USD plug-ins discovered at PathToPlugInfo.
+	 * @return An array containing the names of any newly registered plugins.
+	 */
+	UNREALUSDWRAPPER_API static TArray<FString> RegisterPlugins(const FString& PathToPlugInfo);
+
+	/**
+	 * Registers all USD plug-ins discovered in any of PathsToPlugInfo.
+	 * @return An array containing the names of any newly registered plugins.
+	 */
+	UNREALUSDWRAPPER_API static TArray<FString> RegisterPlugins(const TArray<FString>& PathsToPlugInfo);
+
+	/**
 	 * Returns the file extensions of all file formats supported by USD.
 	 *
 	 * These include the extensions for the file formats built into USD as

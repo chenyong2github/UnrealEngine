@@ -519,6 +519,38 @@ double UnrealUSDWrapper::GetDefaultTimeCode()
 }
 #endif // USE_USD_SDK
 
+TArray<FString> UnrealUSDWrapper::RegisterPlugins(const FString& PathToPlugInfo)
+{
+	return RegisterPlugins(TArray<FString>{PathToPlugInfo});
+}
+
+TArray<FString> UnrealUSDWrapper::RegisterPlugins(const TArray<FString>& PathsToPlugInfo)
+{
+	TArray<FString> PluginNames;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	std::vector<std::string> UsdPathsToPlugInfo;
+	UsdPathsToPlugInfo.reserve(PathsToPlugInfo.Num());
+
+	for (const FString& PathToPlugInfo : PathsToPlugInfo)
+	{
+		UsdPathsToPlugInfo.emplace_back(TCHAR_TO_UTF8(*PathToPlugInfo));
+	}
+
+	const pxr::PlugPluginPtrVector UsdPlugins =
+		pxr::PlugRegistry::GetInstance().RegisterPlugins(UsdPathsToPlugInfo);
+
+	for (const pxr::PlugPluginPtr& UsdPlugin : UsdPlugins)
+	{
+		PluginNames.Emplace(UTF8_TO_TCHAR(UsdPlugin->GetName().c_str()));
+	}
+#endif // USE_USD_SDK
+
+	return PluginNames;
+}
+
 TArray<FString> UnrealUSDWrapper::GetAllSupportedFileFormats()
 {
 	TArray<FString> Result;
