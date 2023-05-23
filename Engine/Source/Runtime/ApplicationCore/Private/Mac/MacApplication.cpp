@@ -1182,7 +1182,6 @@ void FMacApplication::ProcessKeyUpEvent(const FDeferredMacEvent& Event)
 	{
 		ResendEvent(Event.Event);
 	}
-	FPlatformApplicationMisc::bChachedMacMenuStateNeedsUpdate = true;
 }
 
 void FMacApplication::OnWindowDidMove(TSharedRef<FMacWindow> Window)
