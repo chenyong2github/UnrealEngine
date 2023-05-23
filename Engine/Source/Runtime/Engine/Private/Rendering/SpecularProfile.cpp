@@ -52,6 +52,9 @@ public:
 	DECLARE_GLOBAL_SHADER(FSpecularProfileCopyCS);
 	SHADER_USE_PARAMETER_STRUCT(FSpecularProfileCopyCS, FGlobalShader);
 
+	class FProcedural : SHADER_PERMUTATION_BOOL("PERMUTATION_PROCEDURAL");
+	using FPermutationDomain = TShaderPermutationDomain<FProcedural>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_TEXTURE(Texture2D, SourceTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SourceSampler)
@@ -59,6 +62,8 @@ public:
 		SHADER_PARAMETER(FIntPoint, TargetResolution)
 		SHADER_PARAMETER(uint32, SourceMipCount)
 		SHADER_PARAMETER(uint32, TargetIndex)
+		SHADER_PARAMETER(FVector3f, ViewColor)
+		SHADER_PARAMETER(FVector3f, LightColor)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TargetTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -105,8 +110,8 @@ public:
 	FName GetParameterName(const USpecularProfile* InProfile) const;
 
 	// @return can be nullptr if there is no SpecularProfile
-	struct IPooledRenderTarget* GetAtlasTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform);
-	struct IPooledRenderTarget* GetAtlasTexture();
+	IPooledRenderTarget* GetAtlasTexture(FRDGBuilder& GraphBuilder, EShaderPlatform ShaderPlatform);
+	IPooledRenderTarget* GetAtlasTexture();
 
 	//~ Begin FRenderResource Interface.
 	/**
@@ -305,63 +310,40 @@ IPooledRenderTarget* FSpecularProfileTextureManager::GetAtlasTexture(FRDGBuilder
 		const uint32 Resolution = CVarSpecularProfileResolution.GetValueOnRenderThread();
 		check(LayerCount);
 
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DArrayDesc(FIntPoint(Resolution, Resolution), PF_B8G8R8A8, FClearValueBinding::None, TexCreate_None, TexCreate_UAV | TexCreate_ShaderResource, false, LayerCount));
+		// 1. Create atlas texture
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DArrayDesc(FIntPoint(Resolution, Resolution), PF_FloatR11G11B10, FClearValueBinding::None, TexCreate_None, TexCreate_UAV | TexCreate_ShaderResource, false, LayerCount));
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GSpecularProfileTextureAtlas, TEXT("SpecularProfileTexture"));
 
-		// 1. Fill in all procedural profile
-		FLinearColor DefaultColor(1.f, 1.f, 1.f);
-		for (uint32 LayerIt = 0; LayerIt < LayerCount; ++LayerIt)
-		{
-			if (SpecularProfileEntries[LayerIt].Texture == nullptr)
-			{
-				const FSpecularProfileStruct Data = SpecularProfileEntries[LayerIt].Settings;
-
-				uint32 DestStride;
-				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2DArray(GSpecularProfileTextureAtlas->GetRHI(), LayerIt, 0, RLM_WriteOnly, DestStride, false);
-				for (uint32 y = 0; y < Resolution; ++y)
-				{
-					FColor* Dest = (FColor*)(DestBuffer + DestStride * y);
-					for (uint32 x = 0; x < Resolution; ++x)
-					{
-						const float NoL = float(y) / float(Resolution-1);
-						const float NoV = float(x) / float(Resolution-1);
-						const FLinearColor ViewColor = FMath::Lerp(DefaultColor, Data.ViewColor, NoV);
-						const FLinearColor LightColor = FMath::Lerp(DefaultColor, Data.LightColor, NoL);
-						const FLinearColor C = ViewColor * LightColor;
-	
-						Dest[x] = FColor(FMath::Quantize8UnsignedByte(C.R), FMath::Quantize8UnsignedByte(C.G), FMath::Quantize8UnsignedByte(C.B));
-					}
-				}
-				RHICmdList.UnlockTexture2DArray(GSpecularProfileTextureAtlas->GetRHI(), LayerIt, 0, false);
-			}
-		}
-
-		// 2. Fill in texture based profile
+		// 2. Fill in profiles
 		const auto GlobalShaderMap = GetGlobalShaderMap(ShaderPlatform);
 		FRDGTextureRef SpecularProfileTexture = GraphBuilder.RegisterExternalTexture(GSpecularProfileTextureAtlas, TEXT("SpecularProfileTexture"));
 		FRDGTextureUAVRef SpecularProfileUAV = GraphBuilder.CreateUAV(SpecularProfileTexture);
 		for (uint32 LayerIt = 0; LayerIt < LayerCount; ++LayerIt)
 		{
-			if (SpecularProfileEntries[LayerIt].Texture)
-			{
-				const FTextureReferenceRHIRef& TextureRHI = SpecularProfileEntries[LayerIt].Texture->TextureReferenceRHI;
-				FSpecularProfileCopyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSpecularProfileCopyCS::FParameters>();
-				PassParameters->SourceMipCount = FMath::Max(1u, uint32(TextureRHI->GetDesc().NumMips));
-				PassParameters->SourceTexture = TextureRHI->GetReferencedTexture();
-				PassParameters->SourceSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-				PassParameters->SourceResolution = SpecularProfileTexture->Desc.Extent;
-				PassParameters->TargetResolution = SpecularProfileTexture->Desc.Extent;
-				PassParameters->TargetTexture = SpecularProfileUAV;
-				PassParameters->TargetIndex = LayerIt;
-				TShaderMapRef<FSpecularProfileCopyCS> Shader(GlobalShaderMap);
-				FComputeShaderUtils::AddPass(GraphBuilder, 
-											RDG_EVENT_NAME("SpecularProfile::CopyTexture"), 
-											Shader, 
-											PassParameters, 
-											FIntVector(FMath::DivideAndRoundUp(PassParameters->TargetResolution.X, 8), FMath::DivideAndRoundUp(PassParameters->TargetResolution.Y, 8), 1));
-	
-				SpecularProfileEntries[LayerIt].CachedResolution = TextureRHI->GetDesc().Extent;
-			}
+			const FSpecularProfileStruct Data = SpecularProfileEntries[LayerIt].Settings;
+			const FTextureReference* Texture = SpecularProfileEntries[LayerIt].Texture;
+
+			FSpecularProfileCopyCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSpecularProfileCopyCS::FParameters>();
+			PassParameters->SourceMipCount = Texture ? FMath::Max(1u, uint32(Texture->TextureReferenceRHI->GetDesc().NumMips)) : 0;
+			PassParameters->SourceTexture = Texture ? Texture->TextureReferenceRHI->GetReferencedTexture() : nullptr;
+			PassParameters->SourceSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PassParameters->SourceResolution = SpecularProfileTexture->Desc.Extent;
+			PassParameters->TargetResolution = SpecularProfileTexture->Desc.Extent;
+			PassParameters->TargetTexture = SpecularProfileUAV;
+			PassParameters->TargetIndex = LayerIt;
+			PassParameters->ViewColor = FVector3f(Data.ViewColor);
+			PassParameters->LightColor = FVector3f(Data.LightColor);
+
+			FSpecularProfileCopyCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FSpecularProfileCopyCS::FProcedural>(Data.IsProcedural());
+			TShaderMapRef<FSpecularProfileCopyCS> Shader(GlobalShaderMap, PermutationVector);
+			FComputeShaderUtils::AddPass(GraphBuilder, 
+										RDG_EVENT_NAME("SpecularProfile::CopyTexture"), 
+										Shader, 
+										PassParameters, 
+										FIntVector(FMath::DivideAndRoundUp(PassParameters->TargetResolution.X, 8), FMath::DivideAndRoundUp(PassParameters->TargetResolution.Y, 8), 1));
+
+			SpecularProfileEntries[LayerIt].CachedResolution = Texture ? Texture->TextureReferenceRHI->GetDesc().Extent : FIntPoint(0,0);
 		}
 	}
 	return GSpecularProfileTextureAtlas;

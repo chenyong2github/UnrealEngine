@@ -2,6 +2,9 @@
 
 #include "Common.ush"
 
+float3 ViewColor;
+float3 LightColor;
+
 int2 SourceResolution;
 uint SourceMipCount;
 int2 TargetResolution;
@@ -16,8 +19,23 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint2 PixelPos = DispatchThreadId.xy;
 	if (all(PixelPos < uint2(TargetResolution)))
 	{
-		const float SourceMip = clamp(log2(SourceResolution) - log2(TargetResolution), 0.f, SourceMipCount-1);
-		const float4 Value = SourceTexture.SampleLevel(SourceSampler, float2(PixelPos+0.5f) / float2(TargetResolution), SourceMip);
-		TargetTexture[uint3(PixelPos,TargetIndex)] = Value;
+		const float2 TexCoord = float2(PixelPos + 0.5f) / float2(TargetResolution);
+		#if PERMUTATION_PROCEDURAL
+		{
+			const float NoL = TexCoord.y;
+			const float NoV = TexCoord.x;
+
+			const float3 DefaultColor = 1.f;
+			const float3 C0 = lerp(DefaultColor, ViewColor, NoV);
+			const float3 C1 = lerp(DefaultColor, LightColor, NoL);
+			TargetTexture[uint3(PixelPos,TargetIndex)] = float4(C0 * C1, 1);
+		}
+		#else
+		{
+			const float SourceMip = clamp(log2(SourceResolution) - log2(TargetResolution), 0.f, SourceMipCount-1);
+			const float4 Value = SourceTexture.SampleLevel(SourceSampler, TexCoord, SourceMip);
+			TargetTexture[uint3(PixelPos,TargetIndex)] = Value;
+		}
+		#endif
 	}
 }
