@@ -181,6 +181,7 @@ private:
 	void HandleTreeGetChildren(TSharedPtr<FPresetViewEntry> TreeEntry, TArray< TSharedPtr<FPresetViewEntry> >& ChildrenOut);
 	void HandleTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type);
 	void HandleUserTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type);
+	void HandleEditorTreeSelectionChanged(TSharedPtr<FPresetViewEntry> TreeEntry, ESelectInfo::Type);
 	EVisibility ProjectPresetCollectionsVisibility() const;
 
 	void GeneratePresetList(TSharedPtr<FPresetViewEntry> TreeEntry);
