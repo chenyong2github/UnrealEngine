@@ -637,6 +637,11 @@ namespace Jupiter.Implementation
                     throw new Exception($"Unknown error when deserializing replication log events {ns} {lastBucket} {lastEvent}");
                 }
 
+                if (e.Events == null)
+                {
+                    throw new Exception($"Unknown error when deserializing replication log events {ns} {lastBucket} {lastEvent} as events were empty. Body was: {body}");
+                }
+
                 logEvents = e;
                 foreach (ReplicationLogEvent logEvent in logEvents.Events)
                 {
