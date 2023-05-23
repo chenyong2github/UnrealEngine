@@ -16,12 +16,6 @@ public:
 	{
 	}
 
-	FPerforceSourceControlChangelist(const FPerforceSourceControlChangelist& InOther)
-		: ChangelistNumber(InOther.ChangelistNumber)
-		, bInitialized(InOther.bInitialized)
-	{
-	}
-
 	virtual bool CanDelete() const override
 	{
 		return !IsDefault();
