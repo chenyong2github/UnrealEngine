@@ -145,6 +145,7 @@ private:
 	void ResetLoadersForWorldAssetInternal(const FString& WorldAsset);
 	void OnAssetsPreDelete(const TArray<UObject*>& Objects);
 	void OnPreSaveWorldWithContext(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext);
+	void OnPreWorldRename(UWorld* InWorld, const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags, bool& bShouldFailRename);
 
 	void RegisterLoadedLevelStreamingLevelInstanceEditor(ULevelStreamingLevelInstanceEditor* LevelStreaming);
 

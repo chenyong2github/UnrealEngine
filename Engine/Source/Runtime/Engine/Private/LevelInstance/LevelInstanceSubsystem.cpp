@@ -86,6 +86,7 @@ void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		ILevelInstanceEditorModule& EditorModule = FModuleManager::LoadModuleChecked<ILevelInstanceEditorModule>("LevelInstanceEditor");
 		FEditorDelegates::OnAssetsPreDelete.AddUObject(this, &ULevelInstanceSubsystem::OnAssetsPreDelete);
 		FEditorDelegates::PreSaveWorldWithContext.AddUObject(this, &ULevelInstanceSubsystem::OnPreSaveWorldWithContext);
+		FWorldDelegates::OnPreWorldRename.AddUObject(this, &ULevelInstanceSubsystem::OnPreWorldRename);
 	}
 #endif
 }
@@ -95,6 +96,7 @@ void ULevelInstanceSubsystem::Deinitialize()
 #if WITH_EDITOR
 	FEditorDelegates::OnAssetsPreDelete.RemoveAll(this);
 	FEditorDelegates::PreSaveWorldWithContext.RemoveAll(this);
+	FWorldDelegates::OnPreWorldRename.RemoveAll(this);
 #endif
 }
 
@@ -370,6 +372,18 @@ void ULevelInstanceSubsystem::OnAssetsPreDelete(const TArray<UObject*>& Objects)
 void ULevelInstanceSubsystem::OnPreSaveWorldWithContext(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
 {
 	if (!(ObjectSaveContext.GetSaveFlags() & SAVE_FromAutosave) && !ObjectSaveContext.IsProceduralSave())
+	{
+		if (const UPackage* WorldPackage = InWorld->GetPackage())
+		{
+			ResetLoadersForWorldAssetInternal(WorldPackage->GetName());
+		}
+	}
+}
+
+void ULevelInstanceSubsystem::OnPreWorldRename(UWorld* InWorld, const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags, bool& bShouldFailRename)
+{
+	const bool bTestRename = (Flags & REN_Test) != 0;
+	if (!bTestRename)
 	{
 		if (const UPackage* WorldPackage = InWorld->GetPackage())
 		{
