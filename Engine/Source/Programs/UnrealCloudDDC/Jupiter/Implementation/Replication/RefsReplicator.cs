@@ -531,7 +531,7 @@ namespace Jupiter.Implementation
             }
             referencesResponse.EnsureSuccessStatusCode();
 
-            ResolvedReferencesResult? refs = JsonSerializer.Deserialize<ResolvedReferencesResult>(body);
+            ResolvedReferencesResult? refs = JsonSerializer.Deserialize<ResolvedReferencesResult>(body, DefaultSerializerSettings);
             if (refs == null)
             {
                 throw new Exception($"Unable to resolve references for object {objectToReplicate} in namespace {ns}");
