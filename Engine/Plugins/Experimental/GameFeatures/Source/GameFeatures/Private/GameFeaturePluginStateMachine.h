@@ -352,9 +352,8 @@ struct FGameFeaturePluginState
 	/** The common properties that can be accessed by the states of the state machine */
 	FGameFeaturePluginStateMachineProperties& StateProperties;
 
-	void InsertCleanupObjectsFence() const;
 	void UpdateStateMachineDeferred(float Delay = 0.0f) const;
-	void GarbageCollectAndUpdateStateMachineDeferred(bool bWaitForCleanupQueue = false) const;
+	void GarbageCollectAndUpdateStateMachineDeferred() const;
 	void UpdateStateMachineImmediate() const;
 
 	void UpdateProgress(float Progress) const;

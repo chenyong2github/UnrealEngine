@@ -3307,10 +3307,27 @@ static void FShaderCodeLibraryPluginMountedCallback(IPlugin& Plugin)
 
 static void FShaderCodeLibraryPluginUnmountedCallback(IPlugin& Plugin)
 {
+	class FShaderCodeLibraryCleanup : public FDeferredCleanupInterface
+	{
+	public:
+		FShaderCodeLibraryCleanup(const FString& Name)
+			: Name(Name)
+		{
+		}
+
+		virtual ~FShaderCodeLibraryCleanup()
+		{
+			FShaderCodeLibrary::CloseLibrary(Name);
+		}
+
+	private:
+		FString Name;
+	};
+
 	if (Plugin.CanContainContent() && Plugin.IsEnabled())
 	{
 		// unload any shader libraries that may exist in this plugin
-		FShaderCodeLibrary::CloseLibrary(Plugin.GetName());
+		BeginCleanup(new FShaderCodeLibraryCleanup(Plugin.GetName()));
 	}
 }
 

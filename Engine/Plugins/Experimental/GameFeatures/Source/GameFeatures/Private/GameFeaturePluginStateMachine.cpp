@@ -612,42 +612,13 @@ void FGameFeaturePluginState::UpdateStateMachineDeferred(float Delay /*= 0.0f*/)
 	}), Delay);
 }
 
-void FGameFeaturePluginState::InsertCleanupObjectsFence() const
-{
-	class FLevelStreamoutFence : public FDeferredCleanupInterface
-	{
-	public:
-		FLevelStreamoutFence(const FGameFeaturePluginState& InState)
-			: State(InState)
-		{
-
-		}
-		virtual ~FLevelStreamoutFence()
-		{
-			State.UpdateStateMachineDeferred();
-		}
-
-	private:
-		const FGameFeaturePluginState& State;
-	};
-
-	BeginCleanup(new FLevelStreamoutFence(*this));
-}
-
-void FGameFeaturePluginState::GarbageCollectAndUpdateStateMachineDeferred(bool bWaitForCleanupQueue /*= false*/) const
+void FGameFeaturePluginState::GarbageCollectAndUpdateStateMachineDeferred() const
 {
 	GEngine->ForceGarbageCollection(true); // Tick Delayed
 
 	CleanupDeferredUpdateCallbacks();
 
-	if (bWaitForCleanupQueue)
-	{
-		FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FGameFeaturePluginState::InsertCleanupObjectsFence);
-	}
-	else
-	{
-		FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FGameFeaturePluginState::UpdateStateMachineDeferred, 0.0f);
-	}
+	FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FGameFeaturePluginState::UpdateStateMachineDeferred, 0.0f);
 }
 
 void FGameFeaturePluginState::MarkPluginAsGarbage(bool bMarkGameFeatureDataAsGarbage)
@@ -2141,7 +2112,7 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 		if (bRequestedUnloadPluginAssets)
 		{
 			bRequestedGC = true;
-			GarbageCollectAndUpdateStateMachineDeferred(/*bWaitForCleanupQueue=*/true);
+			GarbageCollectAndUpdateStateMachineDeferred();
 			return;
 		}
 #endif //if WITH_EDITOR
@@ -2169,7 +2140,7 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 			verify(FPluginUtils::UnloadPluginAssets(StateProperties.PluginName));
 
 			bRequestedGC = true;
-			GarbageCollectAndUpdateStateMachineDeferred(/*bWaitForCleanupQueue=*/true);
+			GarbageCollectAndUpdateStateMachineDeferred();
 		}
 		else
 		{
@@ -2184,7 +2155,7 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 		}
 
 		bRequestedGC = true;
-		GarbageCollectAndUpdateStateMachineDeferred(/*bWaitForCleanupQueue=*/true);
+		GarbageCollectAndUpdateStateMachineDeferred();
 #endif
 	}
 };
