@@ -1610,7 +1610,6 @@ void FCustomizableObjectCompiler::UpdateCompilerLogData()
 
 		FText FullMsg = FText::Format(LOCTEXT("MutableMessage", "{0} : {1}"), ObjectName, ArrayCompileError[i].Message);
 		CompilerLog(FullMsg, pNode ? *pNode : nullptr, EMessageSeverity::Error, true);
-		UE_LOG(LogMutable, Warning, TEXT("  %s"), *FullMsg.ToString());
 	}
 
 	for (i = 0; i < ArrayCompileWarning.Num(); ++i)
@@ -1629,7 +1628,6 @@ void FCustomizableObjectCompiler::UpdateCompilerLogData()
 
 		FText FullMsg = FText::Format(LOCTEXT("MutableMessage", "{0} : {1}"), ObjectName, ArrayCompileWarning[i].Message);
 		CompilerLog(FullMsg, pNode?*pNode:nullptr, EMessageSeverity::Warning, true);
-		UE_LOG(LogMutable, Warning, TEXT("  %s"), *FullMsg.ToString());
 	}
 }
 
