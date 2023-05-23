@@ -19,8 +19,8 @@ class FShaderFormatD3D : public UE::ShaderCompilerCommon::FBaseShaderFormat
 		UE_SHADER_PCD3D_SHARED_VER = 5,
 
 		/** Version for shader format, this becomes part of the DDC key. */
-		UE_SHADER_PCD3D_SM6_VER = 7,
-		UE_SHADER_PCD3D_SM5_VER = 12,
+		UE_SHADER_PCD3D_SM6_VER = 8,
+		UE_SHADER_PCD3D_SM5_VER = 13,
 		UE_SHADER_PCD3D_ES3_1_VER = 8,
 	};
 
