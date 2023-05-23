@@ -455,6 +455,11 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutClearTileArgs)
 	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsRenderTargetWriteMask(Parameters.Platform) && DoesPlatformSupportNanite(Parameters.Platform);
+	}
 };
 IMPLEMENT_GLOBAL_SHADER(FClearTileInitArgsCS, "/Engine/Private/Nanite/NaniteDepthExport.usf", "ClearTileInitArgs", SF_Compute);
 
@@ -484,6 +489,11 @@ public:
 	void SetParameters(FRHIBatchedShaderParameters& BatchedParameters, const void* PlatformDataPtr, uint32 PlatformDataSize)
 	{
 		BatchedParameters.SetShaderParameter(PlatformDataParam.GetBufferIndex(), PlatformDataParam.GetBaseIndex(), PlatformDataSize, PlatformDataPtr);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return RHISupportsRenderTargetWriteMask(Parameters.Platform) && DoesPlatformSupportNanite(Parameters.Platform);
 	}
 
 private:
@@ -1092,7 +1102,7 @@ FNaniteShadingPassParameters CreateNaniteShadingPassParams(
 			//MaterialTextureArrayUAV = SceneRenderer.Scene->StrataSceneData.MaterialTextureArrayUAVWithoutRTs;
 		}
 
-		const bool bMaintainCompression = (GNaniteFastTileClear == 2);
+		const bool bMaintainCompression = (GNaniteFastTileClear == 2) && RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform);
 
 		FRDGTextureUAVRef* OutTargets[MaxSimultaneousRenderTargets] =
 		{
@@ -1806,7 +1816,7 @@ void EmitDepthTargets(
 	RasterResults.ClearTileArgs = nullptr;
 	RasterResults.ClearTileBuffer = nullptr;
 
-	const bool bFastTileClear = UseComputeDepthExport() && UseComputeMaterials() && GNaniteFastTileClear != 0;
+	const bool bFastTileClear = UseComputeDepthExport() && UseComputeMaterials() && GNaniteFastTileClear != 0 && RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform);
 
 	if (UseComputeDepthExport())
 	{
