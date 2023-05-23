@@ -24,6 +24,7 @@ public:
 	TSharedPtr<FUICommandInfo> SendDMX;
 	TSharedPtr<FUICommandInfo> StopDMX;
 	TSharedPtr<FUICommandInfo> RemoveElements;
+	TSharedPtr<FUICommandInfo> SelectAll;
 	TSharedPtr<FUICommandInfo> ClearAll;
 
 	TSharedPtr<FUICommandInfo> AddPatchNext;

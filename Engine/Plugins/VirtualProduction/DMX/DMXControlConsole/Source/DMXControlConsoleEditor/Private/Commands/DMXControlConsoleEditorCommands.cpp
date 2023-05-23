@@ -27,7 +27,8 @@ void FDMXControlConsoleEditorCommands::RegisterCommands()
 	UI_COMMAND(SaveConsoleAs, "Save Console As...", "Saves the Console as a new asset", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::S));
 	UI_COMMAND(SendDMX, "Send DMX", "Send DMX.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(StopDMX, "Stop Sending DMX", "Stop Sending DMX.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(RemoveElements, "RemoveElements", "Remove selected elements from current Control Console", EUserInterfaceActionType::None, FInputChord(EKeys::Delete));
+	UI_COMMAND(RemoveElements, "Remove Elements", "Remove selected elements from current Control Console", EUserInterfaceActionType::None, FInputChord(EKeys::Delete));
+	UI_COMMAND(SelectAll, "Select All", "Select all visible Elements in Control Console", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::A));
 	UI_COMMAND(ClearAll, "Clear All", "Clear All.", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(AddPatchNext, "Next", "Add selected Fixture Patches next.", EUserInterfaceActionType::Button, FInputChord());

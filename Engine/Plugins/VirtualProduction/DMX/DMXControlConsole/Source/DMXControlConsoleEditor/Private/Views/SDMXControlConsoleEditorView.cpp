@@ -351,14 +351,21 @@ void SDMXControlConsoleEditorView::RegisterCommands()
 
 	CommandList->MapAction
 	(
-		FDMXControlConsoleEditorCommands::Get().ClearAll,
-		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::ClearAll)
+		FDMXControlConsoleEditorCommands::Get().RemoveElements,
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::RemoveAllSelectedElements)
+	);
+
+	constexpr bool bSelectOnlyVisible = true;
+	CommandList->MapAction
+	(
+		FDMXControlConsoleEditorCommands::Get().SelectAll,
+		FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnSelectAll, bSelectOnlyVisible)
 	);
 
 	CommandList->MapAction
 	(
-		FDMXControlConsoleEditorCommands::Get().RemoveElements,
-		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::RemoveAllSelectedElements)
+		FDMXControlConsoleEditorCommands::Get().ClearAll,
+		FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::ClearAll)
 	);
 }
 
@@ -516,17 +523,17 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 			{
 				MenuBuilder.AddMenuEntry
 				(
-					FText::FromString(Label)
-					, FText::FromString(Label)
-					, FSlateIcon()
-					, FUIAction
+					FText::FromString(Label), 
+					FText::GetEmpty(), 
+					FSlateIcon(), 
+					FUIAction
 					(
-						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected, ViewMode)
-						, FCanExecuteAction()
-						, FIsActionChecked::CreateLambda([this, ViewMode]() { return GetEditorConsoleModel().GetFaderGroupsViewMode() == ViewMode; })
-					)
-					, NAME_None
-					, EUserInterfaceActionType::RadioButton
+						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFaderGroupsViewModeSelected, ViewMode), 
+						FCanExecuteAction(), 
+						FIsActionChecked::CreateLambda([this, ViewMode]() { return GetEditorConsoleModel().GetFaderGroupsViewMode() == ViewMode; })
+					), 
+					NAME_None, 
+					EUserInterfaceActionType::RadioButton
 				);
 			};
 
@@ -541,17 +548,17 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 			{
 				MenuBuilder.AddMenuEntry
 				(
-					FText::FromString(Label)
-					, FText::FromString(Label)
-					, FSlateIcon()
-					, FUIAction
+					FText::FromString(Label), 
+					FText::GetEmpty(), 
+					FSlateIcon(), 
+					FUIAction
 					(
-						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFadersViewModeSelected, ViewMode)
-						, FCanExecuteAction()
-						, FIsActionChecked::CreateLambda([this, ViewMode]() { return GetEditorConsoleModel().GetFadersViewMode() == ViewMode; })
-					)
-					, NAME_None
-					, EUserInterfaceActionType::RadioButton
+						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnFadersViewModeSelected, ViewMode), 
+						FCanExecuteAction(), 
+						FIsActionChecked::CreateLambda([this, ViewMode]() { return GetEditorConsoleModel().GetFadersViewMode() == ViewMode; })
+					), 
+					NAME_None, 
+					EUserInterfaceActionType::RadioButton
 				);
 			};
 
@@ -574,15 +581,15 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateSelectionMenuWidget()
 			{
 				MenuBuilder.AddMenuEntry
 				(
-					FText::FromString(Label)
-					, FText::FromString(Label)
-					, FSlateIcon()
-					, FUIAction
+					FText::FromString(Label),
+					FText::GetEmpty(), 
+					FSlateIcon(), 
+					FUIAction
 					(
 						FExecuteAction::CreateSP(this, &SDMXControlConsoleEditorView::OnSelectAll, bOnlyVisible)
-					)
-					, NAME_None
-					, EUserInterfaceActionType::Button
+					), 
+					NAME_None,
+					EUserInterfaceActionType::Button
 				);
 			};
 
