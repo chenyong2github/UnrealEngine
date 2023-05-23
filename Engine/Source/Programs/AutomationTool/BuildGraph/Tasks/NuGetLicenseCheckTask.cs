@@ -297,6 +297,8 @@ namespace AutomationTool.Tasks
 						}
 					}
 				}
+
+				Info.State = PackageState.Valid;
 			}
 
 			Logger.LogInformation("Referenced Packages:");
