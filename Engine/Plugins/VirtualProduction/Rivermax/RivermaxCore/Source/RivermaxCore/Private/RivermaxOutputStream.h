@@ -51,6 +51,7 @@ namespace UE::RivermaxCore::Private
 	struct FRivermaxOutputStreamStats
 	{
 		uint32 ChunkRetries = 0;
+		uint32 ChunkSkippingRetries = 0;
 		uint32 TotalStrides = 0;
 		uint32 ChunkWait = 0;
 		uint32 CommitWaits = 0;
