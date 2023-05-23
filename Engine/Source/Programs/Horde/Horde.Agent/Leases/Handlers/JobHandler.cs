@@ -39,6 +39,21 @@ namespace Horde.Agent.Leases.Handlers
 		/// </summary>
 		internal TimeSpan _stepAbortPollInterval = TimeSpan.FromSeconds(5);
 
+		/// <summary>
+		/// Current lease ID being executed
+		/// </summary>
+		public string? CurrentLeaseId { get; private set; } = null;
+		
+		/// <summary>
+		/// Current job ID being executed
+		/// </summary>
+		public string? CurrentJobId { get; private set; } = null;
+		
+		/// <summary>
+		/// Current job batch ID being executed
+		/// </summary>
+		public string? CurrentBatchId { get; private set; } = null;
+
 		readonly IEnumerable<IJobExecutorFactory> _executorFactories;
 		readonly AgentSettings _settings;
 		readonly IServerStorageFactory _serverStorageFactory;
@@ -60,52 +75,70 @@ namespace Horde.Agent.Leases.Handlers
 		/// <inheritdoc/>
 		public override async Task<LeaseResult> ExecuteAsync(ISession session, string leaseId, ExecuteJobTask executeTask, CancellationToken cancellationToken)
 		{
-			executeTask.JobOptions ??= new JobOptions();
-
-			if (executeTask.JobOptions.RunInSeparateProcess ?? false)
+			try
 			{
-				using (ManagedProcessGroup processGroup = new ManagedProcessGroup())
+				CurrentLeaseId = leaseId;
+				CurrentJobId = executeTask.JobId;
+				CurrentBatchId = executeTask.BatchId;
+				
+				executeTask.JobOptions ??= new JobOptions();
+
+				if (executeTask.JobOptions.RunInSeparateProcess ?? false)
 				{
-					List<string> arguments = new List<string>();
-					arguments.Add(Assembly.GetExecutingAssembly().Location);
-					arguments.Add("execute");
-					arguments.Add("job");
-					arguments.Add($"-Server={_settings.GetCurrentServerProfile().Name}");
-					arguments.Add($"-AgentId={session.AgentId}");
-					arguments.Add($"-SessionId={session.SessionId}");
-					arguments.Add($"-LeaseId={leaseId}");
-					arguments.Add($"-WorkingDir={session.WorkingDir}");
-					arguments.Add($"-Task={Convert.ToBase64String(executeTask.ToByteArray())}");
-
-					string commandLine = CommandLineArguments.Join(arguments);
-					_defaultLogger.LogInformation("Running child process with arguments: {CommandLine}", commandLine);
-
-					using (ManagedProcess process = new ManagedProcess(processGroup, "dotnet", commandLine, null, null, ProcessPriorityClass.Normal))
+					using (ManagedProcessGroup processGroup = new ManagedProcessGroup())
 					{
-						using (LogEventParser parser = new LogEventParser(_defaultLogger))
+						List<string> arguments = new List<string>();
+						arguments.Add(Assembly.GetExecutingAssembly().Location);
+						arguments.Add("execute");
+						arguments.Add("job");
+						arguments.Add($"-Server={_settings.GetCurrentServerProfile().Name}");
+						arguments.Add($"-AgentId={session.AgentId}");
+						arguments.Add($"-SessionId={session.SessionId}");
+						arguments.Add($"-LeaseId={leaseId}");
+						arguments.Add($"-WorkingDir={session.WorkingDir}");
+						arguments.Add($"-Task={Convert.ToBase64String(executeTask.ToByteArray())}");
+
+						string commandLine = CommandLineArguments.Join(arguments);
+						_defaultLogger.LogInformation("Running child process with arguments: {CommandLine}",
+							commandLine);
+
+						using (ManagedProcess process = new ManagedProcess(processGroup, "dotnet", commandLine, null,
+							       null, ProcessPriorityClass.Normal))
 						{
-							for (; ; )
+							using (LogEventParser parser = new LogEventParser(_defaultLogger))
 							{
-								string? line = await process.ReadLineAsync(cancellationToken);
-								if (line == null)
+								for (;;)
 								{
-									break;
+									string? line = await process.ReadLineAsync(cancellationToken);
+									if (line == null)
+									{
+										break;
+									}
+
+									parser.WriteLine(line);
 								}
-								parser.WriteLine(line);
+							}
+
+							process.WaitForExit();
+
+							if (process.ExitCode != 0)
+							{
+								return LeaseResult.Failed;
 							}
 						}
-						process.WaitForExit();
-
-						if (process.ExitCode != 0)
-						{
-							return LeaseResult.Failed;
-						}
 					}
-				}
-				return LeaseResult.Success;
-			}
 
-			return await ExecuteInternalAsync(session, leaseId, executeTask, cancellationToken);
+					return LeaseResult.Success;
+				}
+
+				return await ExecuteInternalAsync(session, leaseId, executeTask, cancellationToken);
+			}
+			finally
+			{
+				CurrentLeaseId = null;
+				CurrentJobId = null;
+				CurrentBatchId = null;
+			}
 		}
 
 		internal async Task<LeaseResult> ExecuteInternalAsync(ISession session, string leaseId, ExecuteJobTask executeTask, CancellationToken cancellationToken)

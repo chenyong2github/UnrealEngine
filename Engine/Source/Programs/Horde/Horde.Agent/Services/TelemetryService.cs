@@ -14,6 +14,7 @@ using EpicGames.Core;
 using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 using Grpc.Net.Client;
+using Horde.Agent.Leases.Handlers;
 using HordeCommon.Rpc;
 using HordeCommon.Rpc.Messages.Telemetry;
 using Microsoft.Extensions.Logging;
@@ -211,6 +212,7 @@ class TelemetryService : BackgroundService
 	private readonly TimeSpan _heartbeatInterval = TimeSpan.FromSeconds(60);
 	private readonly TimeSpan _heartbeatMaxAllowedDiff = TimeSpan.FromSeconds(5);
 	
+	private readonly JobHandler _jobHandler;
 	private readonly GrpcService _grpcService;
 	private readonly AgentSettings _agentSettings;
 	private readonly ILogger<TelemetryService> _logger;
@@ -226,8 +228,9 @@ class TelemetryService : BackgroundService
 	/// <summary>
 	/// Constructor
 	/// </summary>
-	public TelemetryService(GrpcService grpcService, IOptions<AgentSettings> settings, ILogger<TelemetryService> logger)
+	public TelemetryService(JobHandler jobHandler, GrpcService grpcService, IOptions<AgentSettings> settings, ILogger<TelemetryService> logger)
 	{
+		_jobHandler = jobHandler;
 		_grpcService = grpcService;
 		_agentSettings = settings.Value;
 		_logger = logger;
@@ -478,7 +481,12 @@ class TelemetryService : BackgroundService
 			
 			SendTelemetryEventsRequest request = new();
 			Timestamp utcNow = Timestamp.FromDateTime(DateTime.UtcNow);
-			ExecutionMetadata em = new ();
+			ExecutionMetadata em = new()
+			{
+				LeaseId = _jobHandler.CurrentLeaseId,
+				JobId = _jobHandler.CurrentJobId,
+				JobBatchId = _jobHandler.CurrentBatchId,
+			};
 			
 			{
 				AgentCpuMetricsEvent cpuMetricsEvent = _systemMetrics.GetCpu().ToEvent();
