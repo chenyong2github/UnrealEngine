@@ -53,7 +53,7 @@ namespace AutomationTool.Tasks
 	{
 		class LicenseConfig
 		{
-			public string Url { get; set; }
+			public List<string> Urls { get; set; } = new List<string>();
 		}
 
 		/// <summary>
@@ -180,7 +180,7 @@ namespace AutomationTool.Tasks
 						{
 							byte[] Data = await FileReference.ReadAllBytesAsync(File);
 							LicenseConfig Config = JsonSerializer.Deserialize<LicenseConfig>(Data);
-							LicenseUrls.Add(Config.Url);
+							LicenseUrls.UnionWith(Config.Urls);
 						}
 						else if (File.HasExtension(".txt") || File.HasExtension(".html"))
 						{

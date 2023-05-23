@@ -1,3 +1,6 @@
 {
-	"url": "https://aws.amazon.com/apache-2-0/"
+	"urls": [
+		"http://aws.amazon.com/apache2.0/"
+		"https://aws.amazon.com/apache-2-0/"
+	]
 }
