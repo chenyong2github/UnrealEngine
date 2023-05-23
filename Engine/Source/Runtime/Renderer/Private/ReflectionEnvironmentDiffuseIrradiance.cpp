@@ -164,10 +164,16 @@ void ComputeDiffuseIrradiance(FRDGBuilder& GraphBuilder, FGlobalShaderMap* Shade
 				const FVector4f Sample01(-HalfSourceTexelSize, -HalfSourceTexelSize, HalfSourceTexelSize, -HalfSourceTexelSize);
 				const FVector4f Sample23(-HalfSourceTexelSize, HalfSourceTexelSize, HalfSourceTexelSize, HalfSourceTexelSize);
 
+				FRDGTextureSRVDesc SourceSRVDesc = FRDGTextureSRVDesc::CreateForMipLevel(IrradianceCubemapTexture, MipIndex - 1); 
+				if (GRHISupportsTextureViews == false)
+				{
+					SourceSRVDesc = FRDGTextureSRVDesc::Create(IrradianceCubemapTexture);
+				}
+
 				for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 				{
 					auto* PassParameters = GraphBuilder.AllocParameters<FAccumulateDiffuseIrradiancePS::FParameters>();
-					PassParameters->SourceCubemapTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(IrradianceCubemapTexture, MipIndex - 1));
+					PassParameters->SourceCubemapTexture = GraphBuilder.CreateSRV(SourceSRVDesc);
 					PassParameters->SourceCubemapSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 					PassParameters->Sample01 = Sample01;
 					PassParameters->Sample23 = Sample23;

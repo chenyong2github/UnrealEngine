@@ -53,10 +53,16 @@ namespace MobileReflectionEnvironmentCapture
 			const int32 MipSize = 1 << (NumMips - MipIndex - 1);
 			const FIntRect ViewRect(0, 0, MipSize, MipSize);
 
+			FRDGTextureSRVDesc SourceSRVDesc = FRDGTextureSRVDesc::CreateForMipLevel(CubemapTexture, MipIndex - 1);
+			if (GRHISupportsTextureViews == false)
+			{
+				SourceSRVDesc = FRDGTextureSRVDesc::Create(CubemapTexture);
+			}
+
 			for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 			{
 				auto* PassParameters = GraphBuilder.AllocParameters<FMobileCubeDownsamplePS::FParameters>();
-				PassParameters->SourceCubemapTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(CubemapTexture, MipIndex - 1));
+				PassParameters->SourceCubemapTexture = GraphBuilder.CreateSRV(SourceSRVDesc);
 				PassParameters->SourceCubemapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 				PassParameters->CubeFace = CubeFace;
 				PassParameters->SourceMipIndex = SourceMipIndex;
