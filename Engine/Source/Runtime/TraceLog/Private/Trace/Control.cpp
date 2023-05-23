@@ -297,16 +297,6 @@ void Writer_InitializeControl()
 		}
 	);
 
-	Writer_ControlAddCommand("WriteTo", nullptr,
-		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
-		{
-			if (ArgC > 0)
-			{
-				Writer_WriteTo(ArgV[0]);
-			}
-		}
-	);
-
 	Writer_ControlAddCommand("Stop", nullptr,
 		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
 		{
