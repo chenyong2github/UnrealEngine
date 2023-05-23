@@ -212,7 +212,8 @@ namespace Horde.Agent
 			services.AddSingleton<ISessionFactory, SessionFactory>();
 			services.AddSingleton<IServerLoggerFactory, ServerLoggerFactory>();
 			services.AddSingleton<IServerStorageFactory, HttpServerStorageFactory>();
-			services.AddHostedService<WorkerService>();
+			services.AddSingleton<WorkerService>();
+			services.AddHostedService(sp => sp.GetRequiredService<WorkerService>());
 
 			services.AddSingleton<IStorageClientFactory, StorageClientFactory>();
 
