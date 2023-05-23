@@ -405,6 +405,17 @@ constexpr FColor ToFColor(const UE::Math::TVector4<T>& Vector)
 }
 
 
+template<typename T>
+UE::Math::TVector4<T> Lerp(const UE::Math::TVector4<T>& A, const UE::Math::TVector4<T>& B, T Alpha)
+{
+	T OneMinusAlpha = (T)1 - Alpha;
+	return UE::Math::TVector4<T>(
+		OneMinusAlpha * A.X + Alpha * B.X,
+		OneMinusAlpha * A.Y + Alpha * B.Y,
+		OneMinusAlpha * A.Z + Alpha * B.Z,
+		OneMinusAlpha * A.W + Alpha * B.W);
+}
+
 } // end namespace UE::Geometry
 
 namespace Math

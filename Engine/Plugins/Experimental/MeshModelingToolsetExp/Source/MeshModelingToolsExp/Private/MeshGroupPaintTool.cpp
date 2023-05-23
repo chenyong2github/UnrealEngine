@@ -21,8 +21,6 @@
 #include "Selections/MeshVertexSelection.h"
 #include "Polygroups/PolygroupUtil.h"
 #include "Polygon2.h"
-#include "Intersection/IntrLine2Line2.h"
-#include "Intersection/IntrSegment2Segment2.h"
 
 #include "Changes/MeshVertexChange.h"
 #include "Changes/MeshPolygroupChange.h"
@@ -654,161 +652,11 @@ bool UMeshGroupPaintTool::SyncMeshWithGroupBuffer(FDynamicMesh3* Mesh)
 
 
 
-template<typename RealType>
-static bool FindPolylineSelfIntersection(
-	const TArray<UE::Math::TVector2<RealType>>& Polyline, 
-	UE::Math::TVector2<RealType>& IntersectionPointOut, 
-	FIndex2i& IntersectionIndexOut,
-	bool bParallel = true)
-{
-	int32 N = Polyline.Num();
-	std::atomic<bool> bSelfIntersects(false);
-	ParallelFor(N - 1, [&](int32 i)
-	{
-		TSegment2<RealType> SegA(Polyline[i], Polyline[i + 1]);
-		for (int32 j = i + 2; j < N - 1 && bSelfIntersects == false; ++j)
-		{
-			TSegment2<RealType> SegB(Polyline[j], Polyline[j + 1]);
-			if (SegA.Intersects(SegB) && bSelfIntersects == false)		
-			{
-				bool ExpectedValue = false;
-				if (std::atomic_compare_exchange_strong(&bSelfIntersects, &ExpectedValue, true))
-				{
-					TIntrSegment2Segment2<RealType> Intersection(SegA, SegB);
-					Intersection.Find();
-					IntersectionPointOut = Intersection.Point0;
-					IntersectionIndexOut = FIndex2i(i, j);
-					return;
-				}
-			}
-		}
-	}, (bParallel) ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread );
-
-	return bSelfIntersects;
-}
-
-
-
-template<typename RealType>
-static bool FindPolylineSegmentIntersection(
-	const TArray<UE::Math::TVector2<RealType>>& Polyline,
-	const TSegment2<RealType>& Segment,
-	UE::Math::TVector2<RealType>& IntersectionPointOut,
-	int& IntersectionIndexOut)
-{
-
-	int32 N = Polyline.Num();
-	for (int32 i = 0; i < N-1; ++i)
-	{
-		TSegment2<RealType> PolySeg(Polyline[i], Polyline[i + 1]);
-		if (Segment.Intersects(PolySeg))
-		{
-			TIntrSegment2Segment2<RealType> Intersection(Segment, PolySeg);
-			Intersection.Find();
-			IntersectionPointOut = Intersection.Point0;
-			IntersectionIndexOut = i;
-			return true;
-		}
-	}
-	return false;
-}
-
-
-
-bool ApproxSelfClipPolyline(TArray<FVector2f>& Polyline)
-{
-	int32 N = Polyline.Num();
-
-	// handle already-closed polylines
-	if (Distance(Polyline[0], Polyline[N-1]) < 0.0001f)
-	{
-		return true;
-	}
-
-	FVector2f IntersectPoint;
-	FIndex2i IntersectionIndex(-1, -1);
-	bool bSelfIntersects = FindPolylineSelfIntersection(Polyline, IntersectPoint, IntersectionIndex);
-	if (bSelfIntersects)
-	{
-		TArray<FVector2f> NewPolyline;
-		NewPolyline.Add(IntersectPoint);
-		for (int32 i = IntersectionIndex.A; i <= IntersectionIndex.B; ++i)
-		{
-			NewPolyline.Add(Polyline[i]);
-		}
-		NewPolyline.Add(IntersectPoint);
-		Polyline = MoveTemp(NewPolyline);
-		return true;
-	}
-
-
-	FVector2f StartDirOut = UE::Geometry::Normalized(Polyline[0] - Polyline[1]);
-	FLine2f StartLine(Polyline[0], StartDirOut);
-	FVector2f EndDirOut = UE::Geometry::Normalized(Polyline[N - 1] - Polyline[N - 2]);
-	FLine2f EndLine(Polyline[N - 1], EndDirOut);
-	FIntrLine2Line2f LineIntr(StartLine, EndLine);
-	bool bIntersects = false;
-	if (LineIntr.Find())
-	{
-		bIntersects = LineIntr.IsSimpleIntersection() && (LineIntr.Segment1Parameter > 0) && (LineIntr.Segment2Parameter > 0);
-		if (bIntersects)
-		{
-			Polyline.Add(StartLine.PointAt(LineIntr.Segment1Parameter));
-			Polyline.Add(StartLine.Origin);
-			return true;
-		}
-	}
-
-
-	FAxisAlignedBox2f Bounds;
-	for (const FVector2f& P : Polyline)
-	{
-		Bounds.Contain(P);
-	}
-	float Size = Bounds.DiagonalLength();
-
-	FVector2f StartPos = Polyline[0] + 0.001f * StartDirOut;
-	if (FindPolylineSegmentIntersection(Polyline, FSegment2f(StartPos, StartPos + 2*Size*StartDirOut), IntersectPoint, IntersectionIndex.A))
-	{
-		//TArray<FVector2f> NewPolyline;
-		//for (int32 i = 0; i <= IntersectionIndex.A; ++i)
-		//{
-		//	NewPolyline.Add(Polyline[i]);
-		//}
-		//NewPolyline.Add(IntersectPoint);
-		//NewPolyline.Add(Polyline[0]);
-		//Polyline = MoveTemp(NewPolyline);
-		return true;
-	}
-
-	FVector2f EndPos = Polyline[N-1] + 0.001f * EndDirOut;
-	if (FindPolylineSegmentIntersection(Polyline, FSegment2f(EndPos, EndPos + 2*Size*EndDirOut), IntersectPoint, IntersectionIndex.A))
-	{
-		//TArray<FVector2f> NewPolyline;
-		//NewPolyline.Add(IntersectPoint);
-		//for (int32 i = IntersectionIndex.A+1; i < N; ++i)
-		//{
-		//	NewPolyline.Add(Polyline[i]);
-		//}
-		//NewPolyline.Add(Polyline[0]);
-		//NewPolyline.Add(IntersectPoint);
-		//Polyline = MoveTemp(NewPolyline);
-		return true;
-	}
-
-	return false;
-}
-
-
 
 void UMeshGroupPaintTool::OnPolyLassoFinished(const FCameraPolyLasso& Lasso, bool bCanceled)
 {
 	// construct polyline
-	TArray<FVector2f> Polyline;
-	for (FVector2D Pos : Lasso.Polyline)
-	{
-		Polyline.Add((FVector2f)Pos);
-	}
+	TArray<FVector2D> Polyline = Lasso.Polyline;
 	int32 N = Polyline.Num();
 	if (N < 2)
 	{
@@ -818,17 +666,17 @@ void UMeshGroupPaintTool::OnPolyLassoFinished(const FCameraPolyLasso& Lasso, boo
 	// Try to clip polyline to be closed, or closed-enough for winding evaluation to work.
 	// If that returns false, the polyline is "too open". In that case we will extend
 	// outwards from the endpoints and then try to create a closed very large polygon
-	if (ApproxSelfClipPolyline(Polyline) == false)
+	if (UPolyLassoMarqueeMechanic::ApproximateSelfClipPolyline(Polyline) == false)
 	{
-		FVector2f StartDirOut = UE::Geometry::Normalized(Polyline[0] - Polyline[1]);
-		FLine2f StartLine(Polyline[0], StartDirOut);
-		FVector2f EndDirOut = UE::Geometry::Normalized(Polyline[N-1] - Polyline[N-2]);
-		FLine2f EndLine(Polyline[N-1], EndDirOut);
+		FVector2d StartDirOut = UE::Geometry::Normalized(Polyline[0] - Polyline[1]);
+		FLine2d StartLine(Polyline[0], StartDirOut);
+		FVector2d EndDirOut = UE::Geometry::Normalized(Polyline[N - 1] - Polyline[N - 2]);
+		FLine2d EndLine(Polyline[N - 1], EndDirOut);
 
 		// if we did not intersect, we are in ambiguous territory. Check if a segment along either end-direction
 		// intersects the polyline. If it does, we have something like a spiral and will be OK. 
 		// If not, make a closed polygon by interpolating outwards from each endpoint, and then in perp-directions.
-		FPolygon2f Polygon(Polyline);
+		FPolygon2d Polygon(Polyline);
 		float PerpSign = Polygon.IsClockwise() ? -1.0 : 1.0;
 
 		Polyline.Insert(StartLine.PointAt(10000.0f), 0);
@@ -836,7 +684,7 @@ void UMeshGroupPaintTool::OnPolyLassoFinished(const FCameraPolyLasso& Lasso, boo
 
 		Polyline.Add(EndLine.PointAt(10000.0f));
 		Polyline.Add(Polyline.Last() + 1000 * PerpSign * UE::Geometry::PerpCW(EndDirOut));
-		FVector2f StartPos = Polyline[0];
+		FVector2d StartPos = Polyline[0];
 		Polyline.Add(StartPos);		// close polyline (cannot use Polyline[0] in case Add resizes!)
 	}
 
@@ -850,14 +698,14 @@ void UMeshGroupPaintTool::OnPolyLassoFinished(const FCameraPolyLasso& Lasso, boo
 		if (Mesh->IsVertex(vid))
 		{
 			FVector3d WorldPos = CurTargetTransform.TransformPosition(Mesh->GetVertex(vid));
-			FVector2f PlanePos = (FVector2f)Lasso.GetProjectedPoint((FVector)WorldPos);
+			FVector2d PlanePos = (FVector2d)Lasso.GetProjectedPoint((FVector)WorldPos);
 
 			double WindingSum = 0;
-			FVector2f a = Polyline[0] - PlanePos, b = FVector2f::Zero();
+			FVector2d a = Polyline[0] - PlanePos, b = FVector2d::Zero();
 			for (int32 i = 1; i < N; ++i)
 			{
 				b = Polyline[i] - PlanePos;
-				WindingSum += (double)FMathf::Atan2(a.X*b.Y - a.Y*b.X, a.X*b.X + a.Y*b.Y);
+				WindingSum += (double)FMathd::Atan2(a.X*b.Y - a.Y*b.X, a.X*b.X + a.Y*b.Y);
 				a = b;
 			}
 			WindingSum /= FMathd::TwoPi;

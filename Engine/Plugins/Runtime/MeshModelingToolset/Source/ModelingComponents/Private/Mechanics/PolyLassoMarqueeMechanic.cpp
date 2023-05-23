@@ -8,6 +8,13 @@
 #include "ToolSceneQueriesUtil.h"
 #include "TransformTypes.h"
 
+#include "SegmentTypes.h"
+#include "LineTypes.h"
+#include "Intersection/IntrLine2Line2.h"
+#include "Intersection/IntrSegment2Segment2.h"
+#include "Async/ParallelFor.h"
+
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PolyLassoMarqueeMechanic)
 
 using namespace UE::Geometry;
@@ -307,6 +314,157 @@ void UPolyLassoMarqueeMechanic::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI*
 		Canvas->DrawItem(CurLineItem);
 	}
 }
+
+
+
+
+namespace UELocal
+{
+
+
+static bool FindPolylineSelfIntersection(
+	const TArray<FVector2D>& Polyline, 
+	FVector2D& IntersectionPointOut, 
+	FIndex2i& IntersectionIndexOut,
+	bool bParallel = true)
+{
+	int32 N = Polyline.Num();
+	std::atomic<bool> bSelfIntersects(false);
+	ParallelFor(N - 1, [&](int32 i)
+	{
+		FSegment2d SegA(Polyline[i], Polyline[i + 1]);
+		for (int32 j = i + 2; j < N - 1 && bSelfIntersects == false; ++j)
+		{
+			FSegment2d SegB(Polyline[j], Polyline[j + 1]);
+			if (SegA.Intersects(SegB) && bSelfIntersects == false)		
+			{
+				bool ExpectedValue = false;
+				if (std::atomic_compare_exchange_strong(&bSelfIntersects, &ExpectedValue, true))
+				{
+					FIntrSegment2Segment2d Intersection(SegA, SegB);
+					Intersection.Find();
+					IntersectionPointOut = Intersection.Point0;
+					IntersectionIndexOut = FIndex2i(i, j);
+					return;
+				}
+			}
+		}
+	}, (bParallel) ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread );
+
+	return bSelfIntersects;
+}
+
+
+
+static bool FindPolylineSegmentIntersection(
+	const TArray<FVector2D>& Polyline,
+	const UE::Geometry::FSegment2d& Segment,
+	FVector2D& IntersectionPointOut,
+	int& IntersectionIndexOut)
+{
+	int32 N = Polyline.Num();
+	for (int32 i = 0; i < N - 1; ++i)
+	{
+		FSegment2d PolySeg(Polyline[i], Polyline[i + 1]);
+		if (Segment.Intersects(PolySeg))
+		{
+			FIntrSegment2Segment2d Intersection(Segment, PolySeg);
+			Intersection.Find();
+			IntersectionPointOut = Intersection.Point0;
+			IntersectionIndexOut = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+}
+
+
+bool UPolyLassoMarqueeMechanic::ApproximateSelfClipPolyline(TArray<FVector2D>& Polyline)
+{
+	int32 N = Polyline.Num();
+
+	// handle already-closed polylines
+	if (Distance(Polyline[0], Polyline[N - 1]) < 0.0001)
+	{
+		return true;
+	}
+
+	FVector2d IntersectPoint;
+	FIndex2i IntersectionIndex(-1, -1);
+	bool bSelfIntersects = UELocal::FindPolylineSelfIntersection(Polyline, IntersectPoint, IntersectionIndex);
+	if (bSelfIntersects)
+	{
+		TArray<FVector2D> NewPolyline;
+		NewPolyline.Add(IntersectPoint);
+		for (int32 i = IntersectionIndex.A; i <= IntersectionIndex.B; ++i)
+		{
+			NewPolyline.Add(Polyline[i]);
+		}
+		NewPolyline.Add(IntersectPoint);
+		Polyline = MoveTemp(NewPolyline);
+		return true;
+	}
+
+
+	FVector2d StartDirOut = UE::Geometry::Normalized(Polyline[0] - Polyline[1]);
+	FLine2d StartLine(Polyline[0], StartDirOut);
+	FVector2d EndDirOut = UE::Geometry::Normalized(Polyline[N - 1] - Polyline[N - 2]);
+	FLine2d EndLine(Polyline[N - 1], EndDirOut);
+	FIntrLine2Line2d LineIntr(StartLine, EndLine);
+	bool bIntersects = false;
+	if (LineIntr.Find())
+	{
+		bIntersects = LineIntr.IsSimpleIntersection() && (LineIntr.Segment1Parameter > 0) && (LineIntr.Segment2Parameter > 0);
+		if (bIntersects)
+		{
+			Polyline.Add(StartLine.PointAt(LineIntr.Segment1Parameter));
+			Polyline.Add(StartLine.Origin);
+			return true;
+		}
+	}
+
+
+	FAxisAlignedBox2d Bounds;
+	for (const FVector2d& P : Polyline)
+	{
+		Bounds.Contain(P);
+	}
+	double Size = Bounds.DiagonalLength();
+
+	FVector2d StartPos = Polyline[0] + 0.001 * StartDirOut;
+	if (UELocal::FindPolylineSegmentIntersection(Polyline, FSegment2d(StartPos, StartPos + 2 * Size * StartDirOut), IntersectPoint, IntersectionIndex.A))
+	{
+		//TArray<FVector2f> NewPolyline;
+		//for (int32 i = 0; i <= IntersectionIndex.A; ++i)
+		//{
+		//	NewPolyline.Add(Polyline[i]);
+		//}
+		//NewPolyline.Add(IntersectPoint);
+		//NewPolyline.Add(Polyline[0]);
+		//Polyline = MoveTemp(NewPolyline);
+		return true;
+	}
+
+	FVector2d EndPos = Polyline[N - 1] + 0.001 * EndDirOut;
+	if (UELocal::FindPolylineSegmentIntersection(Polyline, FSegment2d(EndPos, EndPos + 2 * Size * EndDirOut), IntersectPoint, IntersectionIndex.A))
+	{
+		//TArray<FVector2f> NewPolyline;
+		//NewPolyline.Add(IntersectPoint);
+		//for (int32 i = IntersectionIndex.A+1; i < N; ++i)
+		//{
+		//	NewPolyline.Add(Polyline[i]);
+		//}
+		//NewPolyline.Add(Polyline[0]);
+		//NewPolyline.Add(IntersectPoint);
+		//Polyline = MoveTemp(NewPolyline);
+		return true;
+	}
+
+	return false;
+}
+
 
 #undef LOCTEXT_NAMESPACE
 

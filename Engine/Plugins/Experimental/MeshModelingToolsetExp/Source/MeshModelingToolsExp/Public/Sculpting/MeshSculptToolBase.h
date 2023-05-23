@@ -144,7 +144,6 @@ public:
 
 	UPROPERTY(meta = (TransientToolProperty))
 	bool bShowSpacing = true;
-
 };
 
 
@@ -485,6 +484,8 @@ protected:
 	virtual void UpdateHoverStamp(const FFrame3d& StampFrameWorld);
 	virtual bool IsStampPending() const { return bIsStampPending; }
 	virtual const FRay& GetPendingStampRayWorld() const { return PendingStampRay;  }
+	// Temporal Flow Rate defines the frequency of stamp placement. 1 is max rate, 0 is no stamps. Defaults to BrushProperties->FlowRate, but subclasses can re-use that setting for other things
+	virtual float GetStampTemporalFlowRate() const;
 
 
 	//

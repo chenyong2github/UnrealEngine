@@ -181,4 +181,9 @@ private:
 
 	FCameraPolyLasso CurrentPolyLasso;
 	bool WillCloseCurrentLasso(const FInputDeviceRay& DevicePos) const;
+
+
+public:
+	// utility function clients can use to clean up poly-lasso if it is not closed (perhaps should be folded into mechanic behavior)
+	static bool ApproximateSelfClipPolyline(TArray<FVector2D>& Polyline);
 };
