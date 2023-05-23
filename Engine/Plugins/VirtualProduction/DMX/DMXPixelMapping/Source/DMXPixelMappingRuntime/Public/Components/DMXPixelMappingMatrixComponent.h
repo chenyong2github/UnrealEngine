@@ -105,7 +105,7 @@ public:
 	FDMXEntityFixturePatchRef FixturePatchMatrixRef_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Matrix Settings")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Selected Patch")
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
 	/** Sets which color space Pixel Mapping sends */

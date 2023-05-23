@@ -40,6 +40,48 @@ void FDMXPixelMappingDetailCustomization_Matrix::CustomizeDetails(IDetailLayoutB
 	InDetailLayout.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, LayoutScript));
 
 	CreateModulatorDetails(InDetailLayout);
+
+	// Sort categories
+	InDetailLayout.SortCategories([](const TMap<FName, IDetailCategoryBuilder*>& CategoryMap)
+		{
+			int32 MinSortOrder = TNumericLimits<int32>::Max();
+			for (const TPair<FName, IDetailCategoryBuilder*>& Pair : CategoryMap)
+			{
+				int32 SortOrder = Pair.Value->GetSortOrder();
+				MinSortOrder = FMath::Min(SortOrder, MinSortOrder);
+			}
+
+			IDetailCategoryBuilder* const* ColorSpaceCategoryPtr = CategoryMap.Find("Color Space");
+			if (ColorSpaceCategoryPtr)
+			{
+				(*ColorSpaceCategoryPtr)->SetSortOrder(MinSortOrder - 3);
+			}
+
+			// Either 'RGB' 'XY' or 'XYZ' is displayed
+			IDetailCategoryBuilder* const* RGBCategoryPtr = CategoryMap.Find("RGB");
+			if (RGBCategoryPtr)
+			{
+				(*RGBCategoryPtr)->SetSortOrder(MinSortOrder - 2);
+			}
+
+			IDetailCategoryBuilder* const* XYCategoryPtr = CategoryMap.Find("XY");
+			if (XYCategoryPtr)
+			{
+				(*XYCategoryPtr)->SetSortOrder(MinSortOrder - 2);
+			}
+
+			IDetailCategoryBuilder* const* XYZCategoryPtr = CategoryMap.Find("XYZ");
+			if (XYZCategoryPtr)
+			{
+				(*XYZCategoryPtr)->SetSortOrder(MinSortOrder - 2);
+			}
+
+			IDetailCategoryBuilder* const* IntensityCategoryPtr = CategoryMap.Find("Luminance");
+			if (IntensityCategoryPtr)
+			{
+				(*IntensityCategoryPtr)->SetSortOrder(MinSortOrder - 1);
+			}
+		});
 }
 
 void FDMXPixelMappingDetailCustomization_Matrix::CreateModulatorDetails(IDetailLayoutBuilder& InDetailLayout)
