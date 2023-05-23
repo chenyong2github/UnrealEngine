@@ -526,28 +526,14 @@ void FCurveTableEditor::ExtendToolbar()
 
 			if (!IsReadOnly())
 			{
-				if (InterpMode == RCIM_Constant)
-				{
-					ParentToolbarBuilder.AddToolBarButton(
-						FCurveTableEditorCommands::Get().AppendKeyColumn,
-						NAME_None, 
-						FText::GetEmpty(),
-						TAttribute<FText>(), 
-						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.KeySquare")
-					);
-				}
-
-				if (InterpMode == RCIM_Linear)
-				{
-					ParentToolbarBuilder.AddToolBarButton(
-						FCurveTableEditorCommands::Get().AppendKeyColumn,
-						NAME_None, 
-						FText::GetEmpty(),
-						TAttribute<FText>(), 
-						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.KeyTriangle20")
-					);
-				}
+				ParentToolbarBuilder.AddToolBarButton(
+				FCurveTableEditorCommands::Get().AppendKeyColumn,
+				NAME_None, 
+				FText::GetEmpty(),
+				TAttribute<FText>(), 
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.KeyTriangle20"));
 			}
+			
 			ParentToolbarBuilder.EndSection();
 		})
 	);
