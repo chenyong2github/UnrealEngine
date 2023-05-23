@@ -27,6 +27,9 @@ namespace Horde.Agent.Services
 		readonly StatusService _statusService;
 		readonly LeaseHandler[] _leaseHandlers;
 		readonly IServiceProvider _serviceProvider;
+		LeaseManager? _currentLeaseManager;
+
+		public IReadOnlyList<string> PoolIds => _currentLeaseManager?.PoolIds ?? Array.Empty<string>();
 
 		static readonly TimeSpan[] s_sessionBackOffTime =
 		{
@@ -106,8 +109,8 @@ namespace Horde.Agent.Services
 
 						await using (ISession session = await _sessionFactory.CreateAsync(stoppingToken))
 						{
-							LeaseManager leaseManager = new LeaseManager(session, _capabilitiesService, _statusService, _leaseHandlers, _settings, _logger);
-							result = await leaseManager.RunAsync(false, stoppingToken);
+							_currentLeaseManager = new LeaseManager(session, _capabilitiesService, _statusService, _leaseHandlers, _settings, _logger);
+							result = await _currentLeaseManager.RunAsync(false, stoppingToken);
 						}
 
 						failureCount = 0;

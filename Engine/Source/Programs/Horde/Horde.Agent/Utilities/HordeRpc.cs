@@ -213,10 +213,15 @@ namespace HordeCommon.Rpc.Messages.Telemetry
 			bw.Write(OsVersion ?? "<empty os version>");
 			bw.Write(Architecture ?? "<empty os architecture>");
 			
-			foreach (KeyValuePair<string,string> pair in Properties)
+			foreach (KeyValuePair<string, string> pair in Properties)
 			{
 				bw.Write(pair.Key ?? "<empty key>");
 				bw.Write(pair.Value ?? "<empty value>");
+			}
+			
+			foreach (string poolId in PoolIds)
+			{
+				bw.Write(poolId);
 			}
 			
 			ms.Position = 0;

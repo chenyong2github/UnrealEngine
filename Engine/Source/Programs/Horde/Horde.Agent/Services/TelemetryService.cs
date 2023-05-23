@@ -212,13 +212,14 @@ class TelemetryService : BackgroundService
 	private readonly TimeSpan _heartbeatInterval = TimeSpan.FromSeconds(60);
 	private readonly TimeSpan _heartbeatMaxAllowedDiff = TimeSpan.FromSeconds(5);
 	
+	private readonly WorkerService _workerService;
 	private readonly JobHandler _jobHandler;
 	private readonly GrpcService _grpcService;
 	private readonly AgentSettings _agentSettings;
 	private readonly ILogger<TelemetryService> _logger;
 	private readonly TimeSpan _reportInterval;
 	private readonly AgentMetadataEvent _agentMetadataEvent;
-	private readonly TimeSpan _agentMetadataReportInterval = TimeSpan.FromMinutes(10);
+	private readonly TimeSpan _agentMetadataReportInterval = TimeSpan.FromMinutes(2);
 	private ISystemMetrics? _systemMetrics;
 	private DateTime _lastTimeAgentMetadataSent = DateTime.UnixEpoch;
 
@@ -228,8 +229,9 @@ class TelemetryService : BackgroundService
 	/// <summary>
 	/// Constructor
 	/// </summary>
-	public TelemetryService(JobHandler jobHandler, GrpcService grpcService, IOptions<AgentSettings> settings, ILogger<TelemetryService> logger)
+	public TelemetryService(WorkerService workerService, JobHandler jobHandler, GrpcService grpcService, IOptions<AgentSettings> settings, ILogger<TelemetryService> logger)
 	{
+		_workerService = workerService;
 		_jobHandler = jobHandler;
 		_grpcService = grpcService;
 		_agentSettings = settings.Value;
@@ -528,11 +530,12 @@ class TelemetryService : BackgroundService
 			Region = null,
 			AvailabilityZone = null,
 			Environment = null,
-			AgentVersion = null,
+			AgentVersion = Program.Version,
 			Os = GetOs(),
 			OsVersion = Environment.OSVersion.Version.ToString(),
-			Architecture = RuntimeInformation.OSArchitecture.ToString()
+			Architecture = RuntimeInformation.OSArchitecture.ToString(),
 		};
+		e.PoolIds.AddRange(_workerService.PoolIds);
 		e.AgentId = e.CalculateAgentId();
 		return e;
 	}

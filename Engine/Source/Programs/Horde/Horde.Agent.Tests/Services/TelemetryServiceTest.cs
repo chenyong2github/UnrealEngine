@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Horde.Agent.Execution;
+using Horde.Agent.Leases;
 using Horde.Agent.Leases.Handlers;
 using Horde.Agent.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -22,10 +23,13 @@ public sealed class TelemetryServiceTest : IDisposable
 	public TelemetryServiceTest()
 	{
 		AgentSettings settings = new() { Server = "Test", ServerProfiles = { new ServerProfile() { Name = "Test", Url = new Uri("http://localhost:1234") } }};
-		GrpcService grpcService = new (new OptionsWrapper<AgentSettings>(settings), NullLogger<GrpcService>.Instance, _loggerFactory);
-		JobHandler jobHandler = new (new List<IJobExecutorFactory>(), new OptionsWrapper<AgentSettings>(settings),
-			null!, null!, NullLogger<JobHandler>.Instance);
-		_telemetryService = new TelemetryService(jobHandler, grpcService, new OptionsWrapper<AgentSettings>(settings), NullLogger<TelemetryService>.Instance);
+		OptionsWrapper<AgentSettings> settingsOpt = new (settings);
+		
+		using WorkerService workerService = new (settingsOpt, null!, null!, null!, new List<LeaseHandler>(), null!, null!);
+		JobHandler jobHandler = new (new List<IJobExecutorFactory>(), settingsOpt, null!, null!, NullLogger<JobHandler>.Instance);
+		GrpcService grpcService = new (settingsOpt, NullLogger<GrpcService>.Instance, _loggerFactory);
+		
+		_telemetryService = new TelemetryService(workerService, jobHandler, grpcService, settingsOpt, NullLogger<TelemetryService>.Instance);
 	}
 
 	[TestMethod]

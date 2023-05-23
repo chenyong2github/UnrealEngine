@@ -111,6 +111,11 @@ namespace Horde.Agent.Leases
 		public event LeaseActiveEvent? OnLeaseActive;
 
 		/// <summary>
+		/// List of pool IDs this session is a member of
+		/// </summary>
+		public IReadOnlyList<string> PoolIds { get; private set; } = new List<string>();
+
+		/// <summary>
 		/// How long to wait before trying to reacquire a new connection
 		/// Exposed as internal to ease testing. Using a lower delay can speed up tests. 
 		/// </summary>
@@ -330,6 +335,8 @@ namespace Horde.Agent.Leases
 								_logger.LogInformation("At least one lease executed. Requesting shutdown.");
 								_sessionResult = new SessionResult(SessionOutcome.Terminate);
 							}
+
+							PoolIds = updateSessionResponse.PoolIds;
 
 							// Remove any leases which have completed
 							int numRemoved = _activeLeases.RemoveAll(x => (x.Lease.State == LeaseState.Completed || x.Lease.State == LeaseState.Cancelled) && !updateSessionResponse.Leases.Any(y => y.Id == x.Lease.Id && y.State != LeaseState.Cancelled));
