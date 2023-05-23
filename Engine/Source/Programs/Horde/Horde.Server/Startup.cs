@@ -443,6 +443,7 @@ namespace Horde.Server
 
 			services.AddSingleton<AclService>();
 			services.AddSingleton<AgentService>();
+			services.AddHostedService<ArtifactExpirationService>();
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<ComputeService>();

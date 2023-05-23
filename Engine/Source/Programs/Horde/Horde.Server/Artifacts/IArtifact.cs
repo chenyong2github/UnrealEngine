@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using EpicGames.Horde.Storage;
 using Horde.Server.Acls;
@@ -35,6 +36,11 @@ namespace Horde.Server.Artifacts
 		/// Name of the ref containing the root data object
 		/// </summary>
 		public RefName RefName { get; }
+
+		/// <summary>
+		/// Time at which the artifact is scheduled to be deleted
+		/// </summary>
+		public DateTime? ExpireAtUtc { get; }
 
 		/// <summary>
 		/// Permissions scope for this object

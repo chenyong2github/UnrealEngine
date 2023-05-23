@@ -16,6 +16,7 @@ using EpicGames.Serialization;
 using Horde.Server.Acls;
 using Horde.Server.Agents.Pools;
 using Horde.Server.Agents.Software;
+using Horde.Server.Artifacts;
 using Horde.Server.Configuration;
 using Horde.Server.Projects;
 using Horde.Server.Storage;
@@ -73,6 +74,22 @@ namespace Horde.Server.Server
 		/// Show automated tests on the server menu
 		/// </summary>
 		public bool ShowTests { get; set; } = true;
+	}
+
+	/// <summary>
+	/// Configuration for an artifact
+	/// </summary>
+	public class ArtifactTypeConfig
+	{
+		/// <summary>
+		/// Name of the artifact type
+		/// </summary>
+		public ArtifactType Name { get; }
+
+		/// <summary>
+		/// Number of days to retain artifacts of this type
+		/// </summary>
+		public int? KeepDays { get; }
 	}
 
 	/// <summary>
@@ -175,6 +192,11 @@ namespace Horde.Server.Server
 		public StorageConfig Storage { get; set; } = new StorageConfig();
 
 		/// <summary>
+		/// Configuration for different artifact types
+		/// </summary>
+		public List<ArtifactTypeConfig> ArtifactTypes { get; set; } = new List<ArtifactTypeConfig>();
+
+		/// <summary>
 		/// Access control list
 		/// </summary>
 		public AclConfig Acl { get; set; } = new AclConfig();
@@ -190,6 +212,7 @@ namespace Horde.Server.Server
 		private readonly Dictionary<ToolId, ToolConfig> _toolLookup = new Dictionary<ToolId, ToolConfig>();
 		private readonly Dictionary<ClusterId, ComputeClusterConfig> _computeClusterLookup = new Dictionary<ClusterId, ComputeClusterConfig>();
 		private readonly Dictionary<AclScopeName, IAclScope> _aclScopeLookup = new Dictionary<AclScopeName, IAclScope>();
+		private readonly Dictionary<ArtifactType, ArtifactTypeConfig> _artifactTypeLookup = new Dictionary<ArtifactType, ArtifactTypeConfig>();
 
 		/// <summary>
 		/// Called after the config file has been read
@@ -242,8 +265,22 @@ namespace Horde.Server.Server
 				}
 			}
 
+			_artifactTypeLookup.Clear();
+			foreach (ArtifactTypeConfig artifactType in ArtifactTypes)
+			{
+				_artifactTypeLookup.Add(artifactType.Name, artifactType);
+			}
+
 			Storage.PostLoad(this);
 		}
+
+		/// <summary>
+		/// Attempts to get configuration for a specific artifact type
+		/// </summary>
+		/// <param name="type">The artifact type name</param>
+		/// <param name="config">Configuration for the stream</param>
+		/// <returns>True if the stream configuration was found</returns>
+		public bool TryGetArtifactType(ArtifactType type, [NotNullWhen(true)] out ArtifactTypeConfig? config) => _artifactTypeLookup.TryGetValue(type, out config);
 
 		/// <summary>
 		/// Attempts to get configuration for a project from this object

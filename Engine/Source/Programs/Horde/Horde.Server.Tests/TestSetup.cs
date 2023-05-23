@@ -237,6 +237,7 @@ namespace Horde.Server.Tests
 
 			services.AddSingleton<AclService>();
 			services.AddSingleton<AgentService>();
+			services.AddSingleton<ArtifactExpirationService>();
 			services.AddSingleton<FleetService>();
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<RequestTrackerService>();

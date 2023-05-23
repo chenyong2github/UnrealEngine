@@ -97,7 +97,13 @@ namespace Horde.Server.Jobs
 			NamespaceId namespaceId = String.IsNullOrEmpty(request.NamespaceId)? Namespace.Artifacts : new NamespaceId(request.NamespaceId);
 			RefName refName = new RefName(String.IsNullOrEmpty(request.RefName) ? $"job-{job.Id}/step-{step.Id}/{artifactId}" : request.RefName);
 
-			IArtifact artifact = await _artifactCollection.AddAsync(artifactId, type, keys, namespaceId, refName, templateConfig.ScopeName, context.CancellationToken);
+			DateTime? expireAt = null;
+			if (_globalConfig.TryGetArtifactType(type, out ArtifactTypeConfig? typeConfig) && typeConfig.KeepDays != null && typeConfig.KeepDays.Value >= 0)
+			{
+				expireAt = DateTime.UtcNow + TimeSpan.FromDays(typeConfig.KeepDays.Value);
+			}
+			
+			IArtifact artifact = await _artifactCollection.AddAsync(artifactId, type, keys, namespaceId, refName, expireAt, templateConfig.ScopeName, context.CancellationToken);
 
 			List<AclClaimConfig> claims = new List<AclClaimConfig>();
 			claims.Add(new AclClaimConfig(HordeClaimTypes.WriteNamespace, namespaceId.ToString()));

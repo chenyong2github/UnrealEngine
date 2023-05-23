@@ -78,5 +78,11 @@
 			"name": "Linux",
 			"condition": "Platform == 'Linux'"
 		}
+	],
+	"artifactTypes": [
+		{
+			"name": "step-output",
+			"keepDays": 1
+		}
 	]
 }
