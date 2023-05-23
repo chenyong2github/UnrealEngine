@@ -18,6 +18,7 @@
 struct FMeshDescription;
 class UCurveFloat;
 class UDynamicMeshComponent;
+class UMeshStatisticsProperties;
 
 UENUM()
 enum class EDisplaceMeshToolDisplaceType : uint8
@@ -341,6 +342,10 @@ public:
 	/** Contrast Curve we are actively listening to */
 	UPROPERTY()
 	TObjectPtr<UCurveFloat> ActiveContrastCurveTarget = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UMeshStatisticsProperties> MeshStatistics;
+
 
 private:
 	void StartComputation();

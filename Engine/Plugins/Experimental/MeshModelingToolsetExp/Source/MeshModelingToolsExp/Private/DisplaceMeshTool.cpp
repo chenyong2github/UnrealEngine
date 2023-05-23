@@ -21,6 +21,7 @@
 #include "Operations/UniformTessellate.h"
 #include "Operations/SelectiveTessellate.h"
 #include "Materials/MaterialInterface.h"
+#include "Properties/MeshStatisticsProperties.h"
 
 // needed to disable normals recalculation on the underlying asset
 #include "AssetUtils/MeshDescriptionUtil.h"
@@ -1062,6 +1063,10 @@ void UDisplaceMeshTool::Setup()
 
 	Subdivider = MakeUnique<FSubdivideMeshOpFactory>(OriginalMesh, SubParameters, CommonProperties->SubdivisionType);
 
+	MeshStatistics = NewObject<UMeshStatisticsProperties>(this);
+	MeshStatistics->Update(OriginalMesh);
+	AddToolPropertySource(MeshStatistics);
+
 	StartComputation();
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Displace"));
@@ -1420,6 +1425,8 @@ void UDisplaceMeshTool::AdvanceComputation()
 		SubdividedMesh = TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>(SubOp->ExtractResult().Release());
 		VerticesToDisplace = TSharedPtr<TArray<int>, ESPMode::ThreadSafe>(SubOpDownCast->ExtractVerticesToDisplace().Release());
 
+		MeshStatistics->Update(*SubdividedMesh);
+
 		delete SubdivideTask;
 		SubdivideTask = nullptr;
 	}
@@ -1437,6 +1444,8 @@ void UDisplaceMeshTool::AdvanceComputation()
 	if (DisplaceTask && DisplaceTask->IsDone())
 	{
 		TUniquePtr<FDynamicMesh3> DisplacedMesh = DisplaceTask->GetTask().ExtractOperator()->ExtractResult();
+		MeshStatistics->Update(*SubdividedMesh);
+
 		delete DisplaceTask;
 		DisplaceTask = nullptr;
 		DynamicMeshComponent->ClearOverrideRenderMaterial();

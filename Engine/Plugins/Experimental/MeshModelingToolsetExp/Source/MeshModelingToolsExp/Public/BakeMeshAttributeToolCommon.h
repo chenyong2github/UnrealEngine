@@ -103,13 +103,13 @@ public:
 
 	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
 	 * This is only relevant if a separate source mesh is provided. */
-	UPROPERTY(EditAnywhere, Category = BakeInput, AdvancedDisplay, meta = (ClampMin = "0.001",
+	UPROPERTY(EditAnywhere, Category = BakeInput, meta = (ClampMin = "0.001",
 		EditCondition = "SourceStaticMesh != nullptr || SourceSkeletalMesh != nullptr || SourceDynamicMesh != nullptr", HideEditConditionToggle))
 	float ProjectionDistance = 3.0;
 
 	/** If true, uses the world space positions for the projection from target mesh to source mesh, otherwise it uses their object space positions.
 	 * This is only relevant if a separate source mesh is provided. */
-	UPROPERTY(EditAnywhere, Category = BakeInput, AdvancedDisplay, meta = (
+	UPROPERTY(EditAnywhere, Category = BakeInput, meta = (
 		EditCondition = "SourceStaticMesh != nullptr || SourceSkeletalMesh != nullptr || SourceDynamicMesh != nullptr", HideEditConditionToggle))
 	bool bProjectionInWorldSpace = false;
 
