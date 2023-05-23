@@ -71,12 +71,6 @@ struct NANITEDISPLACEDMESH_API FNaniteDisplacedMeshParams
 		, RelativeError(0.03f)
 	{}
 
-	FNaniteDisplacedMeshParams(const FNaniteDisplacedMeshParams& Other)
-		: BaseMesh(Other.BaseMesh)
-		, RelativeError(Other.RelativeError)
-		, DisplacementMaps(Other.DisplacementMaps)
-	{}
-
 	/** Equality operator. */
 	bool operator==(const FNaniteDisplacedMeshParams& Other) const
 	{
