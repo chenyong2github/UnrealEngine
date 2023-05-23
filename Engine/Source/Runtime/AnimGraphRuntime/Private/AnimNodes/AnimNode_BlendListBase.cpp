@@ -125,7 +125,7 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 				UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
 				if (InertializationRequester)
 				{
-					InertializationRequester->RequestInertialization(CurrentBlendTimes[ChildIndex], CurrentBlendProfile);
+					InertializationRequester->RequestInertializationWithBlendMode(CurrentBlendTimes[ChildIndex], CurrentBlendProfile, true, GetBlendType(), GetCustomBlendCurve());
 					InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
 				}
 				else
