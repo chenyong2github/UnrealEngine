@@ -27,44 +27,25 @@ public class NNEOnnxruntime : ModuleRules
 		);
 
 		// ThirdParty includes
+		string DependenciesDirectory = System.IO.Path.Combine(ModuleDirectory, "../Dependencies");
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				System.IO.Path.Combine(ModuleDirectory, "../Dependencies"),
-				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/dlpack/include"),
-				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/date/include"),
-				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/gsl/include"),
-				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/json/single_include"),
-				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/mp11/include"),
-				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/SafeInt"),
-				System.IO.Path.Combine(ModuleDirectory, "../Dependencies/wil/include"),
+				System.IO.Path.Combine(DependenciesDirectory, "dlpack/include"),
+				System.IO.Path.Combine(DependenciesDirectory, "date/include"),
+				System.IO.Path.Combine(DependenciesDirectory, "gsl/include"),
+				System.IO.Path.Combine(DependenciesDirectory, "json/single_include"),
+				System.IO.Path.Combine(DependenciesDirectory, "mp11/include"),
+				System.IO.Path.Combine(DependenciesDirectory, "SafeInt"),
+				System.IO.Path.Combine(DependenciesDirectory, "wil/include"),
 			}
 		);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.Linux ||
-			Target.Platform == UnrealTargetPlatform.Mac)
-		{
-			PrivateDependencyModuleNames.AddRange
-				(
-				new string[] {
-					"NNEProtobuf",
-					"Re2" // ONNXRuntimeRE2
-				}
-			);
-		}
-
-		PublicDependencyModuleNames.AddRange
-			(
+		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
-			}
-		);
-
-		PrivateDependencyModuleNames.AddRange
-			(
-			new string[] {
 				"Eigen",
 				"NNEFlatBuffers",
+				"NNEProtobuf",
 				"NNEOnnx",
 				"NNEOnnxruntimeMlas",
 				"NNEAbseilCpp",
@@ -72,35 +53,19 @@ public class NNEOnnxruntime : ModuleRules
 			}
 		);
 
-		// Win64-only
-		//if (Target.Platform == UnrealTargetPlatform.Win64)
-		//{
-		//	PrivateDependencyModuleNames.AddRange
-		//		(
-		//		new string[] {
-		//			"DirectML_1_8_0",
-		//			"DX12"
-		//		}
-		//	);
-		//}
-		// Linux
-		if (Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac)
+		if (Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PrivateDependencyModuleNames.AddRange
-				(
-				new string[] {
-					"NNENsync"
-				}
-			);
+			PrivateDependencyModuleNames.Add("NNENsync");
 		}
 
-		PrivateDependencyModuleNames.AddRange
-			(
-			new string[] {
-			}
-		);
+		if (Target.Platform == UnrealTargetPlatform.Win64 ||
+			Target.Platform == UnrealTargetPlatform.Linux ||
+			Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			PrivateDependencyModuleNames.Add("Re2");
+		}
 
-		bUseRTTI = true;
 		bEnableUndefinedIdentifierWarnings = false;
 		IWYUSupport = IWYUSupport.None;
 
@@ -108,30 +73,31 @@ public class NNEOnnxruntime : ModuleRules
 		// Disable exceptions (needed by UE Game)
 		if (!Target.bBuildEditor)
 		{
+			// Note: to disable exceptions, ONNX Runtime requires the ORT_MINIMAL_BUILD directive.
+			// We can not enable these flags because we can not filter files for compilation here.
+			// https://onnxruntime.ai/docs/build/custom.html
+			
+			// PublicDefinitions.Add("ORT_MINIMAL_BUILD"); // Required by ORT_NO_EXCEPTIONS
+			PublicDefinitions.Add("ORT_NO_RTTI");		// Required/implied by ORT_MINIMAL_BUILD
+
 			PublicDefinitions.Add("ORT_NO_EXCEPTIONS");
+			PublicDefinitions.Add("MLAS_NO_EXCEPTION");
+			PublicDefinitions.Add("ONNX_NO_EXCEPTIONS");
+			PublicDefinitions.Add("JSON_NOEXCEPTION");
+		}
+		else
+		{
+			bUseRTTI = true;
+			bEnableExceptions = true;
 		}
 
 		PublicDefinitions.Add("WITH_UE");
 		PublicDefinitions.Add("NDEBUG");
-		PublicDefinitions.Add("GSL_UNENFORCED_ON_CONTRACT_VIOLATION");
-
-		PublicDefinitions.Add("EIGEN_MPL2_ONLY");
-		PublicDefinitions.Add("EIGEN_USE_THREADS");
-		PublicDefinitions.Add("EIGEN_HAS_C99_MATH");
-		PublicDefinitions.Add("EIGEN_HAS_CONSTEXPR");
-		PublicDefinitions.Add("EIGEN_HAS_VARIADIC_TEMPLATES");
-		PublicDefinitions.Add("EIGEN_HAS_CXX11_MATH");
-		PublicDefinitions.Add("EIGEN_HAS_CXX11_ATOMIC");
-		PublicDefinitions.Add("EIGEN_STRONG_INLINE = inline");
-
-		PublicDefinitions.Add("ENABLE_ORT_FORMAT_LOAD");
 
 		PublicDefinitions.Add("ONNX_NAMESPACE = onnx");
-		PublicDefinitions.Add("ONNX_ML = 1");
+		PublicDefinitions.Add("ONNX_ML");
 		PublicDefinitions.Add("__ONNX_NO_DOC_STRINGS");
 
-		PublicDefinitions.Add("LOTUS_LOG_THRESHOLD = 2");
-		PublicDefinitions.Add("LOTUS_ENABLE_STDERR_LOGGING");
 		PublicDefinitions.Add("UNICODE");
 		PublicDefinitions.Add("_UNICODE");
 		PublicDefinitions.Add("_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING");
@@ -147,8 +113,6 @@ public class NNEOnnxruntime : ModuleRules
 			PublicDefinitions.Add("WIN32_LEAN_AND_MEAN");
 			PublicDefinitions.Add("PLATFORM_WIN64");
 			PublicDefinitions.Add("PLATFORM_NNE_MICROSOFT");
-			//PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST");
-			//PublicDefinitions.Add("USE_DML = 1");
 		}
 
 		// Disable all static analysis checkers for this module
