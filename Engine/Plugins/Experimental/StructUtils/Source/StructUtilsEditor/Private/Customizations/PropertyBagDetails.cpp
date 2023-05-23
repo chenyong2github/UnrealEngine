@@ -14,7 +14,7 @@
 #include "ScopedTransaction.h"
 #include "Engine/UserDefinedStruct.h"
 #include "SPinTypeSelector.h"
-#include "PropertyBag.h"
+#include "StructUtilsMetadata.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PropertyBagDetails)
 
@@ -783,24 +783,35 @@ void FPropertyBagDetails::CustomizeHeader(TSharedRef<IPropertyHandle> StructProp
 	StructProperty = StructPropertyHandle;
 	check(StructProperty);
 	
-	static const FName NAME_FixedLayout = "FixedLayout";
 	static const FName NAME_ShowOnlyInnerProperties = "ShowOnlyInnerProperties";
 	
 	if (const FProperty* MetaDataProperty = StructProperty->GetMetaDataProperty())
 	{
-		bFixedLayout = MetaDataProperty->HasMetaData(NAME_FixedLayout);
+		bFixedLayout = MetaDataProperty->HasMetaData(UE::StructUtils::Metadata::FixedLayoutName);
 
 		// Don't show the header if ShowOnlyInnerProperties is set
 		if (MetaDataProperty->HasMetaData(NAME_ShowOnlyInnerProperties))
 		{
 			return;
 		}
+
+		if (MetaDataProperty->HasMetaData(UE::StructUtils::Metadata::DefaultTypeName))
+		{
+			if (UEnum* Enum = StaticEnum<EPropertyBagPropertyType>())
+			{
+				int32 EnumIndex = Enum->GetIndexByNameString(MetaDataProperty->GetMetaData(UE::StructUtils::Metadata::DefaultTypeName));
+				if (EnumIndex != INDEX_NONE)
+				{
+					DefaultType = EPropertyBagPropertyType(Enum->GetValueByIndex(EnumIndex));
+				}
+			}
+		}
 	}
 
 	TSharedPtr<SWidget> ValueWidget = SNullWidget::NullWidget;
 	if (!bFixedLayout)
 	{
-		ValueWidget = MakeAddPropertyWidget(StructProperty, PropUtils);
+		ValueWidget = MakeAddPropertyWidget(StructProperty, PropUtils, DefaultType);
 	}
 	
 	HeaderRow
@@ -823,7 +834,7 @@ void FPropertyBagDetails::CustomizeChildren(TSharedRef<IPropertyHandle> StructPr
 	StructBuilder.AddCustomBuilder(InstanceDetails);
 }
 
-TSharedPtr<SWidget> FPropertyBagDetails::MakeAddPropertyWidget(TSharedPtr<IPropertyHandle> InStructProperty, TSharedPtr<IPropertyUtilities> InPropUtils)
+TSharedPtr<SWidget> FPropertyBagDetails::MakeAddPropertyWidget(TSharedPtr<IPropertyHandle> InStructProperty, TSharedPtr<IPropertyUtilities> InPropUtils, EPropertyBagPropertyType DefaultType)
 {
 	return SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
@@ -834,7 +845,7 @@ TSharedPtr<SWidget> FPropertyBagDetails::MakeAddPropertyWidget(TSharedPtr<IPrope
 			.HAlign(HAlign_Center)
 			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.ToolTipText(LOCTEXT("AddProperty_Tooltip", "Add new property"))
-			.OnClicked_Lambda([StructProperty = InStructProperty, PropUtils = InPropUtils]()
+			.OnClicked_Lambda([StructProperty = InStructProperty, PropUtils = InPropUtils, DefaultType]()
 			{
 				constexpr int32 MaxIterations = 100;
 				FName NewName(TEXT("NewProperty"));
@@ -851,9 +862,9 @@ TSharedPtr<SWidget> FPropertyBagDetails::MakeAddPropertyWidget(TSharedPtr<IPrope
 
 				UE::StructUtils::Private::ApplyChangesToPropertyDescs(
 					LOCTEXT("OnPropertyAdded", "Add Property"), StructProperty, PropUtils,
-					[&NewName](TArray<FPropertyBagPropertyDesc>& PropertyDescs)
+					[&NewName, DefaultType](TArray<FPropertyBagPropertyDesc>& PropertyDescs)
 					{
-						PropertyDescs.Emplace(NewName, EPropertyBagPropertyType::Bool);
+						PropertyDescs.Emplace(NewName, DefaultType);
 					});
 					
 				return FReply::Handled();
