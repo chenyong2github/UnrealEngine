@@ -152,10 +152,20 @@ public:
 		// opening angle used to detect/assign sharp edges
 		double HardNormalAngleDeg = 15.0;
 
-
+		// Attempt to merge/weld coplanar areas after hidden removal, and then further simplify those merged areas
+		// Coplanar merging is never applied between areas with different Materials. 
+		// TriangleGroupingIDFunc below can be used to further demarcate important internal shape boundaries.
 		bool bMergeCoplanarFaces = true;
+		// LOD level at which coplanar face merging is applied. 
 		int32 MergeCoplanarFacesStartLOD = 1;
+		// TriangleGroupingIDFunc allows client to specify external adjacency relationships between triangles via an integer ID tuple.
+		// Adjacent triangles will only be considered for Coplanar Merging if they have the same FIndex3i ID.
 		TFunction<UE::Geometry::FIndex3i(const UE::Geometry::FDynamicMesh3& Mesh, int32 TriangleID)> TriangleGroupingIDFunc;
+
+		// LOD level to attempt extraction and retriangulation of detected planar polygonal areas, after removing hidden faces.
+		// This occurs after coplanar face merging, and may further merge adjacent coplanar faces.
+		// Can significantly reduce triangle count, but attributes on the interiors of polygonal areas will be completely discarded
+		int32 PlanarPolygonRetriangulationStartLOD = -1;
 
 		// If enabled, attempt to retriangulate planar areas of Source LODs to remove redundant coplanar geometry
 		bool bRetriangulateSourceLODs = true;
