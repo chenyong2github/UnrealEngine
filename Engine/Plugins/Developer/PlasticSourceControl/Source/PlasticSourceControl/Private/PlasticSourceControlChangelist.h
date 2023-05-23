@@ -20,8 +20,6 @@ public:
 	{
 	}
 
-	FPlasticSourceControlChangelist(const FPlasticSourceControlChangelist& InOther) = default;
-
 	virtual bool CanDelete() const override
 	{
 		return !IsDefault();
