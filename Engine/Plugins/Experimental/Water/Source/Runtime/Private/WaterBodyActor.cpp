@@ -697,6 +697,17 @@ void AWaterBody::PackagingModeChanged(AActor* Actor, bool bIsExternal)
 	}
 }
 
+void AWaterBody::PostActorCreated()
+{
+	FOnWaterBodyChangedParams Params;
+
+	Params.PropertyChangedEvent.ChangeType = EPropertyChangeType::ValueSet;
+	Params.bShapeOrPositionChanged = true;
+	Params.bUserTriggered = false;
+	
+	WaterBodyComponent->OnWaterBodyChanged(Params);
+}
+
 #endif // WITH_EDITOR
 
 void AWaterBody::UnregisterAllComponents(bool bForReregister)

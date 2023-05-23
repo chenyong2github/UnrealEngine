@@ -66,6 +66,8 @@ public:
 	virtual void GetActorDescProperties(FPropertyPairsMap& PropertyPairsMap) const override;
 
 	void PackagingModeChanged(AActor* Actor, bool bIsExternal);
+
+	virtual void PostActorCreated() override;
 #endif // WITH_EDITOR
 	
 	/** Returns the type of body */
