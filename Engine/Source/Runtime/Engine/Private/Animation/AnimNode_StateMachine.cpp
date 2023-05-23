@@ -1176,7 +1176,7 @@ void FAnimNode_StateMachine::TransitionToState(const FAnimationUpdateContext& Co
 				UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
 				if (InertializationRequester)
 				{
-					InertializationRequester->RequestInertializationWithBlendMode(TransitionInfo.CrossfadeDuration, TransitionInfo.BlendProfile, true, TransitionInfo.BlendMode, TransitionInfo.CustomCurve);
+					InertializationRequester->RequestInertialization(TransitionInfo.CrossfadeDuration, TransitionInfo.BlendProfile);
 					InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
 				}
 				else
