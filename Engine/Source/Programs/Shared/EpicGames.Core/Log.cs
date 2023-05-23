@@ -1181,6 +1181,11 @@ namespace EpicGames.Core
 
 		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 		{
+			if (!IsEnabled(logLevel))
+			{
+				return;
+			}
+
 			string[] lines = formatter(state, exception).Split('\n');
 			lock (_syncObject)
 			{
@@ -1190,6 +1195,11 @@ namespace EpicGames.Core
 				{
 					if (listener != null)
 					{
+						if (listener is DefaultTraceListener && logLevel < LogLevel.Information)
+						{
+							continue;
+						}
+
 						string timePrefixActual =
 							IncludeTimestamps &&
 							!(listener is DefaultTraceListener) // no timestamps when writing to the Visual Studio debug window
