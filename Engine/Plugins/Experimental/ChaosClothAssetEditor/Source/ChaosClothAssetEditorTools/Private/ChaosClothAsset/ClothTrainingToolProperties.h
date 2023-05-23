@@ -14,6 +14,10 @@ class UClothTrainingToolProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 public:
+	/* Skeletal mesh that will be used in MLDeformer */
+	UPROPERTY(EditAnywhere, Category = Input)
+	TObjectPtr<USkinnedAsset> MLDeformerAsset;
+
 	UPROPERTY(EditAnywhere, Category = Input)
 	TObjectPtr<UAnimSequence> AnimationSequence;
 
