@@ -44,7 +44,7 @@ namespace Jupiter.Implementation
         private bool _disposed = false;
 
         private static Histogram<long>? s_replicatedCounter;
-
+        private static JsonSerializerOptions DefaultSerializerSettings = ConfigureJsonOptions();
         public RefsReplicator(ReplicatorSettings replicatorSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials, Tracer tracer, BufferedPayloadFactory bufferedPayloadFactory, ReplicationLogFactory replicationLogFactory, ILogger<RefsReplicator> logger, Meter meter)
         {
             _name = replicatorSettings.ReplicatorName;
@@ -81,6 +81,13 @@ namespace Jupiter.Implementation
             {
                 s_replicatedCounter = meter.CreateHistogram<long>("replication.active");
             }
+        }
+
+        private static JsonSerializerOptions ConfigureJsonOptions()
+        {
+            JsonSerializerOptions options = new JsonSerializerOptions();
+            BaseStartup.ConfigureJsonOptions(options);
+            return options;
         }
 
         public void Dispose()
@@ -631,7 +638,7 @@ namespace Jupiter.Implementation
                 }
 
                 response.EnsureSuccessStatusCode();
-                ReplicationLogEvents? e = JsonSerializer.Deserialize<ReplicationLogEvents>(body);
+                ReplicationLogEvents? e = JsonSerializer.Deserialize<ReplicationLogEvents>(body, DefaultSerializerSettings);
                 if (e == null)
                 {
                     throw new Exception($"Unknown error when deserializing replication log events {ns} {lastBucket} {lastEvent}");
