@@ -5,9 +5,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
+#pragma warning disable CS1591 // Missing XML documentation on public types
+
 namespace EpicGames.OIDC
 {
-	public class MacOSTokenStore : ITokenStore
+	public sealed class MacOSTokenStore : ITokenStore
 	{
 		public MacOSTokenStore()
 		{
@@ -34,7 +36,6 @@ namespace EpicGames.OIDC
 
 		public void Save()
 		{
-			
 		}
 
 		public void Dispose()

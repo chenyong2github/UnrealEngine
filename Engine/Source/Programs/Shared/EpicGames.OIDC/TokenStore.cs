@@ -8,6 +8,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+#pragma warning disable CS1591 // Missing XML documentation on public types
+
 namespace EpicGames.OIDC
 {
 	/// <summary>
@@ -122,7 +124,9 @@ namespace EpicGames.OIDC
 		public void AddRefreshToken(string providerIdentifier, string refreshToken)
 		{
 			byte[] bytes = Encoding.Unicode.GetBytes(refreshToken);
+#pragma warning disable CA5401 // Do not use CreateEncryptor with non-default IV
 			ICryptoTransform encryptor = _crypt.CreateEncryptor(GetSeed(), _crypt.IV);
+#pragma warning restore CA5401 // Do not use CreateEncryptor with non-default IV
 
 			byte[] encryptedToken = encryptor.TransformFinalBlock(bytes, 0, bytes.Length);
 			_providerToRefreshToken[providerIdentifier] = encryptedToken;

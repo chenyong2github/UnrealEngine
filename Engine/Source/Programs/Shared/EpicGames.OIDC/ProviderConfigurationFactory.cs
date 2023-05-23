@@ -5,9 +5,11 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.Configuration;
 
+#pragma warning disable CS1591 // Missing XML documentation on public types
+
 namespace EpicGames.OIDC
 {
-	public class ProviderConfigurationFactory
+	public static class ProviderConfigurationFactory
 	{
 		const string ConfigFileName = "oidc-configuration.json";
 

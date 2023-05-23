@@ -9,6 +9,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+#pragma warning disable CS1591 // Missing XML documentation on public types
+
 namespace EpicGames.OIDC
 {
 	public class WindowsTokenStore : ITokenStore, IDisposable
