@@ -26,7 +26,6 @@
 class FRegisteredSchemaTranslator;
 class FUsdSchemaTranslator;
 class FUsdSchemaTranslatorTaskChain;
-class UInterchangeGenericMaterialPipeline;
 class ULevel;
 class UMaterialInterface;
 class USceneComponent;
