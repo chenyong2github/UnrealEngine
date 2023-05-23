@@ -49,10 +49,11 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataTileParameter, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBuffer)
+	SHADER_PARAMETER(uint32, TileListBufferOffset)
 	RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 END_SHADER_PARAMETER_STRUCT()
 
-// This paramater struct is declared with RENDERER_API even though it is not public. This is
+// This parameter struct is declared with RENDERER_API even though it is not public. This is
 // to workaround other modules doing 'private include' of the Renderer module
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_API)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FStrataCommonParameters, Common)
@@ -138,9 +139,10 @@ struct FStrataViewData
 	FIntPoint OverflowTileCount = FIntPoint(0, 0);
 	FIntPoint OverflowTileOffset = FIntPoint(0, 0);
 
-	FRDGBufferRef    ClassificationTileListBuffer[STRATA_TILE_TYPE_COUNT];
-	FRDGBufferSRVRef ClassificationTileListBufferSRV[STRATA_TILE_TYPE_COUNT];
-	FRDGBufferUAVRef ClassificationTileListBufferUAV[STRATA_TILE_TYPE_COUNT];
+	FRDGBufferRef    ClassificationTileListBuffer;
+	FRDGBufferSRVRef ClassificationTileListBufferSRV;
+	FRDGBufferUAVRef ClassificationTileListBufferUAV;
+	uint32			 ClassificationTileListBufferOffset[STRATA_TILE_TYPE_COUNT];
 
 	FRDGBufferRef    ClassificationTileDrawIndirectBuffer = nullptr;
 	FRDGBufferUAVRef ClassificationTileDrawIndirectBufferUAV = nullptr;
@@ -211,6 +213,7 @@ class FStrataTilePassVS : public FGlobalShader
 		SHADER_PARAMETER(FVector4f, OutputBufferSizeAndInvSize)
 		SHADER_PARAMETER(FMatrix44f, ViewScreenToTranslatedWorld)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileListBuffer)
+		SHADER_PARAMETER(uint32, TileListBufferOffset)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 

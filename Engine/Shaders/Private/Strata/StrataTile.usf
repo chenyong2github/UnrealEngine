@@ -15,6 +15,7 @@ float4 OutputBufferSizeAndInvSize;
 float4x4 ViewScreenToTranslatedWorld;
 
 Buffer<uint> TileListBuffer;
+uint		 TileListBufferOffset;
 
 void StrataTilePassVS(
 	in uint InVertexId : SV_VertexID,
@@ -29,7 +30,7 @@ void StrataTilePassVS(
 	out float4 OutPosition : SV_POSITION)	// Use by StencilMainPS
 {
 #if STRATA_ENABLED
-	const uint2 TileCoord = StrataUnpackTile(TileListBuffer[InInstanceId]);
+	const uint2 TileCoord = StrataUnpackTile(TileListBuffer[TileListBufferOffset + InInstanceId]);
 #else
 	// Not used, but this shader is compiled for non-strata path for setup reason, but not used
 	const uint2 TileCoord = 0;

@@ -79,6 +79,7 @@ uint FirstSliceStoringStrataSSSData;
 RWTexture2D<uint2> TopLayerTexture;
 RWTexture2DArray<uint> MaterialTextureArrayUAV;
 
+uint TileListBufferOffset;
 Buffer<uint> TileListBuffer;
 Buffer<uint> TileIndirectBuffer;
 
@@ -96,7 +97,7 @@ void MainCS(
 	if (View.GeneralPurposeTweak == 0)
 		return;
 
-	const uint2 TileCoord = StrataUnpackTile(TileListBuffer[GroupId.x]);
+	const uint2 TileCoord = StrataUnpackTile(TileListBuffer[TileListBufferOffset + GroupId.x]);
 	const uint2 PixelCoord = TileCoord * STRATA_TILE_SIZE + GroupThreadId;
 	const bool bIsValid = all(PixelCoord < uint2(View.ViewSizeAndInvSize.xy));
 
