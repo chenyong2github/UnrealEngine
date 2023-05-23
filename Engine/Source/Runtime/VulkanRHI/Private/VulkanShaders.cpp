@@ -52,6 +52,8 @@ FVulkanShaderFactory::~FVulkanShaderFactory()
 template <typename ShaderType> 
 ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVulkanDevice* Device)
 {
+	static_assert(ShaderType::StaticFrequency != SF_RayCallable && ShaderType::StaticFrequency != SF_RayGen && ShaderType::StaticFrequency != SF_RayHitGroup && ShaderType::StaticFrequency != SF_RayMiss);
+
 	const uint32 ShaderCodeLen = Code.Num();
 	const uint32 ShaderCodeCRC = FCrc::MemCrc32(Code.GetData(), Code.Num());
 	const uint64 ShaderKey = ((uint64)ShaderCodeLen | ((uint64)ShaderCodeCRC << 32));
@@ -80,17 +82,71 @@ ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVu
 			{
 				RetShader = new ShaderType(Device);
 				RetShader->Setup(MoveTemp(CodeHeader), MoveTemp(SerializedSRT), MoveTemp(SpirvContainer), ShaderKey);
-				if constexpr (
-					ShaderType::StaticFrequency == SF_RayCallable ||
-					ShaderType::StaticFrequency == SF_RayGen ||
-					ShaderType::StaticFrequency == SF_RayHitGroup ||
-					ShaderType::StaticFrequency == SF_RayMiss)
-				{
-					RetShader->RayTracingPayloadType = RetShader->CodeHeader.RayTracingPayloadType;
-					RetShader->RayTracingPayloadSize = RetShader->CodeHeader.RayTracingPayloadSize;
-				}
-
 				ShaderMap[ShaderType::StaticFrequency].Add(ShaderKey, RetShader);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				FShaderCodeReader ShaderCode(Code);
+				RetShader->Debug.ShaderName = ShaderCode.FindOptionalData(FShaderCodeName::Key);
+#endif
+			}
+		}
+	}
+
+	return RetShader;
+}
+
+template <EShaderFrequency ShaderFrequency>
+FVulkanRayTracingShader* FVulkanShaderFactory::CreateRayTracingShader(TArrayView<const uint8> Code, FVulkanDevice* Device)
+{
+	static_assert(ShaderFrequency == SF_RayCallable || ShaderFrequency == SF_RayGen || ShaderFrequency == SF_RayHitGroup || ShaderFrequency == SF_RayMiss);
+
+	auto LookupRayTracingShader = [this](uint64 ShaderKey)
+	{
+		FVulkanRayTracingShader* RTShader = nullptr;
+		if (ShaderKey)
+		{
+			FRWScopeLock ScopedLock(RWLock[ShaderFrequency], SLT_ReadOnly);
+			FVulkanShader* const* FoundShaderPtr = ShaderMap[ShaderFrequency].Find(ShaderKey);
+			if (FoundShaderPtr)
+			{
+				RTShader = static_cast<FVulkanRayTracingShader*>(*FoundShaderPtr);
+			}
+		}
+		return RTShader;
+	};
+
+	const uint32 ShaderCodeLen = Code.Num();
+	const uint32 ShaderCodeCRC = FCrc::MemCrc32(Code.GetData(), Code.Num());
+	const uint64 ShaderKey = ((uint64)ShaderCodeLen | ((uint64)ShaderCodeCRC << 32));
+
+	FVulkanRayTracingShader* RetShader = LookupRayTracingShader(ShaderKey);
+
+	if (RetShader == nullptr)
+	{
+		// Do serialize outside of lock
+		FMemoryReaderView Ar(Code, true);
+		FVulkanShaderHeader CodeHeader;
+		Ar << CodeHeader;
+		FShaderResourceTable SerializedSRT;
+		Ar << SerializedSRT;
+		FVulkanShader::FSpirvContainer SpirvContainer;
+		Ar << SpirvContainer;
+
+		{
+			FRWScopeLock ScopedLock(RWLock[ShaderFrequency], SLT_Write);
+			FVulkanShader* const* FoundShaderPtr = ShaderMap[ShaderFrequency].Find(ShaderKey);
+			if (FoundShaderPtr)
+			{
+				RetShader = static_cast<FVulkanRayTracingShader*>(*FoundShaderPtr);
+			}
+			else
+			{
+				RetShader = new FVulkanRayTracingShader(Device, ShaderFrequency);
+				RetShader->Setup(MoveTemp(CodeHeader), MoveTemp(SerializedSRT), MoveTemp(SpirvContainer), ShaderKey);
+				RetShader->RayTracingPayloadType = RetShader->CodeHeader.RayTracingPayloadType;
+				RetShader->RayTracingPayloadSize = RetShader->CodeHeader.RayTracingPayloadSize;
+
+				ShaderMap[ShaderFrequency].Add(ShaderKey, RetShader);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				FShaderCodeReader ShaderCode(Code);
@@ -370,6 +426,22 @@ FVulkanShader::FSpirvCode FVulkanShader::GetPatchedSpirvCode(const FGfxPipelineD
 	return Spirv;
 }
 
+// Bindless variant of function that does not require layout for patching
+TRefCountPtr<FVulkanShaderModule> FVulkanShader::GetOrCreateHandle()
+{
+	check(Device->SupportsBindless());
+	FScopeLock Lock(&VulkanShaderModulesMapCS);
+	FSpirvCode Spirv = GetSpirvCode();
+
+	TRefCountPtr<FVulkanShaderModule> Module = CreateShaderModule(Device, Spirv);
+	ShaderModules.Add(0, Module);
+	if (!CodeHeader.DebugName.IsEmpty())
+	{
+		VULKAN_SET_DEBUG_NAME((*Device), VK_OBJECT_TYPE_SHADER_MODULE, Module->GetVkShaderModule(), TEXT("%s : (FVulkanShader*)0x%p"), *CodeHeader.DebugName, this);
+	}
+	return Module;
+}
+
 TRefCountPtr<FVulkanShaderModule> FVulkanShader::CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
 {
 	FScopeLock Lock(&VulkanShaderModulesMapCS);
@@ -473,16 +545,16 @@ FRayTracingShaderRHIRef FVulkanDynamicRHI::RHICreateRayTracingShader(TArrayView<
 	switch (ShaderFrequency)
 	{
 	case EShaderFrequency::SF_RayGen:
-		 return Device->GetShaderFactory().CreateShader<FVulkanRayGenShader>(Code, Device);
+		 return Device->GetShaderFactory().CreateRayTracingShader<SF_RayGen>(Code, Device);
 
 	case EShaderFrequency::SF_RayMiss:
-		return Device->GetShaderFactory().CreateShader<FVulkanRayMissShader>(Code, Device);
+		return Device->GetShaderFactory().CreateRayTracingShader<SF_RayMiss>(Code, Device);
 
 	case EShaderFrequency::SF_RayCallable:
-		return Device->GetShaderFactory().CreateShader<FVulkanRayCallableShader>(Code, Device);
+		return Device->GetShaderFactory().CreateRayTracingShader<SF_RayCallable>(Code, Device);
 
 	case EShaderFrequency::SF_RayHitGroup:
-		return Device->GetShaderFactory().CreateShader<FVulkanRayHitGroupShader>(Code, Device);
+		return Device->GetShaderFactory().CreateRayTracingShader<SF_RayHitGroup>(Code, Device);
 
 	default:
 		check(false);

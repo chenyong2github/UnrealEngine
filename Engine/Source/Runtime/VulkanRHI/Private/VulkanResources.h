@@ -113,6 +113,8 @@ public:
 
 	void PurgeShaderModules();
 
+	TRefCountPtr<FVulkanShaderModule> GetOrCreateHandle();
+
 	TRefCountPtr<FVulkanShaderModule> GetOrCreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
 	{
 		FScopeLock Lock(&VulkanShaderModulesMapCS);
@@ -261,10 +263,31 @@ typedef TVulkanBaseShader<FRHIComputeShader, SF_Compute>			FVulkanComputeShader;
 typedef TVulkanBaseShader<FRHIGeometryShader, SF_Geometry>			FVulkanGeometryShader;
 
 #if VULKAN_RHI_RAYTRACING
-typedef TVulkanBaseShader<FRHIRayGenShader, SF_RayGen>				FVulkanRayGenShader;
-typedef TVulkanBaseShader<FRHIRayMissShader, SF_RayMiss>			FVulkanRayMissShader;
-typedef TVulkanBaseShader<FRHIRayCallableShader, SF_RayCallable>	FVulkanRayCallableShader;
-typedef TVulkanBaseShader<FRHIRayHitGroupShader, SF_RayHitGroup>	FVulkanRayHitGroupShader; // vkrt todo: How to handle VK_SHADER_STAGE_ANY_HIT_BIT_KHR?
+class FVulkanRayTracingShader : public FRHIRayTracingShader, public FVulkanShader
+{
+private:
+	FVulkanRayTracingShader(FVulkanDevice* InDevice, EShaderFrequency InFrequency)
+		: FRHIRayTracingShader(InFrequency)
+		, FVulkanShader(InDevice, InFrequency)
+	{
+	}
+	friend class FVulkanShaderFactory;
+
+public:
+	// IRefCountedObject interface.
+	virtual uint32 AddRef() const override final
+	{
+		return FRHIResource::AddRef();
+	}
+	virtual uint32 Release() const override final
+	{
+		return FRHIResource::Release();
+	}
+	virtual uint32 GetRefCount() const override final
+	{
+		return FRHIResource::GetRefCount();
+	}
+};
 #endif // VULKAN_RHI_RAYTRACING
 
 class FVulkanShaderFactory
@@ -289,6 +312,9 @@ public:
 		}
 		return nullptr;
 	}
+
+	template <EShaderFrequency ShaderFrequency>
+	FVulkanRayTracingShader* CreateRayTracingShader(TArrayView<const uint8> Code, FVulkanDevice* Device);
 
 	void LookupShaders(const uint64 InShaderKeys[ShaderStage::NumStages], FVulkanShader* OutShaders[ShaderStage::NumStages]) const;
 
@@ -1459,6 +1485,8 @@ static FORCEINLINE FVulkanTexture* ResourceCast(FRHITexture* Texture)
 
 #if VULKAN_RHI_RAYTRACING
 class FVulkanRayTracingScene;
+class FVulkanRayTracingGeometry;
+class FVulkanRayTracingPipelineState;
 template<>
 struct TVulkanResourceTraits<FRHIRayTracingScene>
 {
@@ -1469,5 +1497,15 @@ template<>
 struct TVulkanResourceTraits<FRHIRayTracingGeometry>
 {
 	typedef FVulkanRayTracingGeometry TConcreteType;
+};
+template<>
+struct TVulkanResourceTraits<FRHIRayTracingPipelineState>
+{
+	typedef FVulkanRayTracingPipelineState TConcreteType;
+};
+template<>
+struct TVulkanResourceTraits<FRHIRayTracingShader>
+{
+	typedef FVulkanRayTracingShader TConcreteType;
 };
 #endif // VULKAN_RHI_RAYTRACING
