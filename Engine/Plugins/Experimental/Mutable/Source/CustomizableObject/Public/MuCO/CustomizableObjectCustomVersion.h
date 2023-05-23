@@ -80,6 +80,8 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectCustomVersion
 
 		AutomaticNodeSkeletalMeshPinDataUProperty,
 		
+		IgnoreDisabledSections,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

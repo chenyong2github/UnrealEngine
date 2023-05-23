@@ -68,6 +68,13 @@ void UCustomizableObjectNodeSkeletalMesh::AllocateDefaultPins(UCustomizableObjec
 			const int32 NumSections = ImportedModel->LODModels[LODIndex].Sections.Num();
 			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 			{
+				// Ignore disabled sections.
+				const bool bIsSectionDisabled = ImportedModel ->LODModels[LODIndex].Sections[SectionIndex].bDisabled;
+				if (bIsSectionDisabled)
+				{
+					continue;
+				}
+
 				UMaterialInterface* MaterialInterface = GetMaterialInterfaceFor(LODIndex, SectionIndex, ImportedModel);
 				
 				FString SectionFriendlyName = MaterialInterface ? MaterialInterface->GetName() : FString::Printf(TEXT("Section %i"), SectionIndex);
@@ -401,7 +408,8 @@ bool UCustomizableObjectNodeSkeletalMesh::IsNodeOutDatedAndNeedsRefresh()
 			auto OutdatedSectionPinData = [&](const UCustomizableObjectNodeSkeletalMeshPinDataSection& PinData) -> bool
 			{
 				return !ImportedModel->LODModels.IsValidIndex(PinData.GetLODIndex()) ||
-					!ImportedModel->LODModels[PinData.GetLODIndex()].Sections.IsValidIndex(PinData.GetSectionIndex());
+					!ImportedModel->LODModels[PinData.GetLODIndex()].Sections.IsValidIndex(PinData.GetSectionIndex()) ||
+					ImportedModel->LODModels[PinData.GetLODIndex()].Sections[PinData.GetSectionIndex()].bDisabled;
 			};
 		
 			if (const UCustomizableObjectNodeSkeletalMeshPinDataLayout* LayoutPinData = Cast<UCustomizableObjectNodeSkeletalMeshPinDataLayout>(GetPinData(*Pin)))
@@ -607,6 +615,11 @@ void UCustomizableObjectNodeSkeletalMesh::BackwardsCompatibleFixup()
 	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::AutomaticNodeSkeletalMeshPinDataUProperty)
 	{
 		ReconstructNode(CreateRemapPinsByName()); // Correct pins but incorrect Pin Data. Reconstruct and remap pins only by name, no Pin Data.
+	}
+
+	if (CustomizableObjectCustomVersion < FCustomizableObjectCustomVersion::IgnoreDisabledSections)
+	{
+		ReconstructNode(); // Pins representing disabled sections could be present. 
 	}
 }
 
